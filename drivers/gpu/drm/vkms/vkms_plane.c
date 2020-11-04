@@ -5,6 +5,7 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_gem_shmem_helper.h>
 
 #include "vkms_drv.h"
 
@@ -145,15 +146,15 @@ static int vkms_prepare_fb(struct drm_plane *plane,
 			   struct drm_plane_state *state)
 {
 	struct drm_gem_object *gem_obj;
-	int ret;
+	void *vaddr;
 
 	if (!state->fb)
 		return 0;
 
 	gem_obj = drm_gem_fb_get_obj(state->fb, 0);
-	ret = vkms_gem_vmap(gem_obj);
-	if (ret)
-		DRM_ERROR("vmap failed: %d\n", ret);
+	vaddr = drm_gem_shmem_vmap(gem_obj);
+	if (IS_ERR(vaddr))
+		DRM_ERROR("vmap failed: %li\n", PTR_ERR(vaddr));
 
 	return drm_gem_fb_prepare_fb(plane, state);
 }
@@ -162,12 +163,14 @@ static void vkms_cleanup_fb(struct drm_plane *plane,
 			    struct drm_plane_state *old_state)
 {
 	struct drm_gem_object *gem_obj;
+	struct drm_gem_shmem_object *shmem_obj;
 
 	if (!old_state->fb)
 		return;
 
 	gem_obj = drm_gem_fb_get_obj(old_state->fb, 0);
-	vkms_gem_vunmap(gem_obj);
+	shmem_obj = to_drm_gem_shmem_obj(drm_gem_fb_get_obj(old_state->fb, 0));
+	drm_gem_shmem_vunmap(gem_obj, shmem_obj->vaddr);
 }
 
 static const struct drm_plane_helper_funcs vkms_primary_helper_funcs = {

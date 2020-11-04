@@ -51,14 +51,12 @@ bool qxl_ttm_bo_is_qxl_bo(struct ttm_buffer_object *bo)
 	return false;
 }
 
-void qxl_ttm_placement_from_domain(struct qxl_bo *qbo, u32 domain, bool pinned)
+void qxl_ttm_placement_from_domain(struct qxl_bo *qbo, u32 domain)
 {
 	u32 c = 0;
 	u32 pflag = 0;
 	unsigned int i;
 
-	if (pinned)
-		pflag |= TTM_PL_FLAG_NO_EVICT;
 	if (qbo->tbo.base.size <= PAGE_SIZE)
 		pflag |= TTM_PL_FLAG_TOPDOWN;
 
@@ -66,21 +64,21 @@ void qxl_ttm_placement_from_domain(struct qxl_bo *qbo, u32 domain, bool pinned)
 	qbo->placement.busy_placement = qbo->placements;
 	if (domain == QXL_GEM_DOMAIN_VRAM) {
 		qbo->placements[c].mem_type = TTM_PL_VRAM;
-		qbo->placements[c++].flags = TTM_PL_FLAG_CACHED | pflag;
+		qbo->placements[c++].flags = pflag;
 	}
 	if (domain == QXL_GEM_DOMAIN_SURFACE) {
 		qbo->placements[c].mem_type = TTM_PL_PRIV;
-		qbo->placements[c++].flags = TTM_PL_FLAG_CACHED | pflag;
+		qbo->placements[c++].flags = pflag;
 		qbo->placements[c].mem_type = TTM_PL_VRAM;
-		qbo->placements[c++].flags = TTM_PL_FLAG_CACHED | pflag;
+		qbo->placements[c++].flags = pflag;
 	}
 	if (domain == QXL_GEM_DOMAIN_CPU) {
 		qbo->placements[c].mem_type = TTM_PL_SYSTEM;
-		qbo->placements[c++].flags = TTM_PL_MASK_CACHING | pflag;
+		qbo->placements[c++].flags = pflag;
 	}
 	if (!c) {
 		qbo->placements[c].mem_type = TTM_PL_SYSTEM;
-		qbo->placements[c++].flags = TTM_PL_MASK_CACHING;
+		qbo->placements[c++].flags = 0;
 	}
 	qbo->placement.num_placement = c;
 	qbo->placement.num_busy_placement = c;
@@ -108,6 +106,7 @@ int qxl_bo_create(struct qxl_device *qdev,
 		  struct qxl_surface *surf,
 		  struct qxl_bo **bo_ptr)
 {
+	struct ttm_operation_ctx ctx = { !kernel, false };
 	struct qxl_bo *bo;
 	enum ttm_bo_type type;
 	int r;
@@ -128,18 +127,17 @@ int qxl_bo_create(struct qxl_device *qdev,
 	}
 	bo->tbo.base.funcs = &qxl_object_funcs;
 	bo->type = domain;
-	bo->pin_count = pinned ? 1 : 0;
 	bo->surface_id = 0;
 	INIT_LIST_HEAD(&bo->list);
 
 	if (surf)
 		bo->surf = *surf;
 
-	qxl_ttm_placement_from_domain(bo, domain, pinned);
+	qxl_ttm_placement_from_domain(bo, domain);
 
-	r = ttm_bo_init(&qdev->mman.bdev, &bo->tbo, size, type,
-			&bo->placement, 0, !kernel, size,
-			NULL, NULL, &qxl_ttm_bo_destroy);
+	r = ttm_bo_init_reserved(&qdev->mman.bdev, &bo->tbo, size, type,
+				 &bo->placement, 0, &ctx, size,
+				 NULL, NULL, &qxl_ttm_bo_destroy);
 	if (unlikely(r != 0)) {
 		if (r != -ERESTARTSYS)
 			dev_err(qdev->ddev.dev,
@@ -147,6 +145,9 @@ int qxl_bo_create(struct qxl_device *qdev,
 				size, domain);
 		return r;
 	}
+	if (pinned)
+		ttm_bo_pin(&bo->tbo);
+	ttm_bo_unreserve(&bo->tbo);
 	*bo_ptr = bo;
 	return 0;
 }
@@ -248,39 +249,22 @@ static int __qxl_bo_pin(struct qxl_bo *bo)
 	struct drm_device *ddev = bo->tbo.base.dev;
 	int r;
 
-	if (bo->pin_count) {
-		bo->pin_count++;
+	if (bo->tbo.pin_count) {
+		ttm_bo_pin(&bo->tbo);
 		return 0;
 	}
-	qxl_ttm_placement_from_domain(bo, bo->type, true);
+	qxl_ttm_placement_from_domain(bo, bo->type);
 	r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
-	if (likely(r == 0)) {
-		bo->pin_count = 1;
-	}
+	if (likely(r == 0))
+		ttm_bo_pin(&bo->tbo);
 	if (unlikely(r != 0))
 		dev_err(ddev->dev, "%p pin failed\n", bo);
 	return r;
 }
 
-static int __qxl_bo_unpin(struct qxl_bo *bo)
+static void __qxl_bo_unpin(struct qxl_bo *bo)
 {
-	struct ttm_operation_ctx ctx = { false, false };
-	struct drm_device *ddev = bo->tbo.base.dev;
-	int r, i;
-
-	if (!bo->pin_count) {
-		dev_warn(ddev->dev, "%p unpin not necessary\n", bo);
-		return 0;
-	}
-	bo->pin_count--;
-	if (bo->pin_count)
-		return 0;
-	for (i = 0; i < bo->placement.num_placement; i++)
-		bo->placements[i].flags &= ~TTM_PL_FLAG_NO_EVICT;
-	r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
-	if (unlikely(r != 0))
-		dev_err(ddev->dev, "%p validate failed for unpin\n", bo);
-	return r;
+	ttm_bo_unpin(&bo->tbo);
 }
 
 /*
@@ -314,9 +298,9 @@ int qxl_bo_unpin(struct qxl_bo *bo)
 	if (r)
 		return r;
 
-	r = __qxl_bo_unpin(bo);
+	__qxl_bo_unpin(bo);
 	qxl_bo_unreserve(bo);
-	return r;
+	return 0;
 }
 
 void qxl_bo_force_delete(struct qxl_device *qdev)
@@ -367,10 +351,16 @@ int qxl_bo_check_id(struct qxl_device *qdev, struct qxl_bo *bo)
 
 int qxl_surf_evict(struct qxl_device *qdev)
 {
-	return ttm_bo_evict_mm(&qdev->mman.bdev, TTM_PL_PRIV);
+	struct ttm_resource_manager *man;
+
+	man = ttm_manager_type(&qdev->mman.bdev, TTM_PL_PRIV);
+	return ttm_resource_manager_evict_all(&qdev->mman.bdev, man);
 }
 
 int qxl_vram_evict(struct qxl_device *qdev)
 {
-	return ttm_bo_evict_mm(&qdev->mman.bdev, TTM_PL_VRAM);
+	struct ttm_resource_manager *man;
+
+	man = ttm_manager_type(&qdev->mman.bdev, TTM_PL_VRAM);
+	return ttm_resource_manager_evict_all(&qdev->mman.bdev, man);
 }

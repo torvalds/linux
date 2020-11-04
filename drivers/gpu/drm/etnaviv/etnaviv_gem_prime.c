@@ -70,9 +70,10 @@ void etnaviv_gem_prime_unpin(struct drm_gem_object *obj)
 
 static void etnaviv_gem_prime_release(struct etnaviv_gem_object *etnaviv_obj)
 {
+	struct dma_buf_map map = DMA_BUF_MAP_INIT_VADDR(etnaviv_obj->vaddr);
+
 	if (etnaviv_obj->vaddr)
-		dma_buf_vunmap(etnaviv_obj->base.import_attach->dmabuf,
-			       etnaviv_obj->vaddr);
+		dma_buf_vunmap(etnaviv_obj->base.import_attach->dmabuf, &map);
 
 	/* Don't drop the pages for imported dmabuf, as they are not
 	 * ours, just free the array we allocated:
@@ -85,9 +86,15 @@ static void etnaviv_gem_prime_release(struct etnaviv_gem_object *etnaviv_obj)
 
 static void *etnaviv_gem_prime_vmap_impl(struct etnaviv_gem_object *etnaviv_obj)
 {
+	struct dma_buf_map map;
+	int ret;
+
 	lockdep_assert_held(&etnaviv_obj->lock);
 
-	return dma_buf_vmap(etnaviv_obj->base.import_attach->dmabuf);
+	ret = dma_buf_vmap(etnaviv_obj->base.import_attach->dmabuf, &map);
+	if (ret)
+		return NULL;
+	return map.vaddr;
 }
 
 static int etnaviv_gem_prime_mmap_obj(struct etnaviv_gem_object *etnaviv_obj,

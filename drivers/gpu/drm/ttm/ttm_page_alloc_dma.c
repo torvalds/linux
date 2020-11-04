@@ -49,7 +49,8 @@
 #include <linux/kthread.h>
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_page_alloc.h>
-#include <drm/ttm/ttm_set_memory.h>
+
+#include "ttm_set_memory.h"
 
 #define NUM_PAGES_TO_ALLOC		(PAGE_SIZE/sizeof(struct page *))
 #define SMALL_ALLOCATION		4
@@ -324,15 +325,15 @@ static struct dma_page *__ttm_dma_alloc_page(struct dma_pool *pool)
 	}
 	return d_page;
 }
-static enum pool_type ttm_to_type(int flags, enum ttm_caching_state cstate)
+static enum pool_type ttm_to_type(int flags, enum ttm_caching cstate)
 {
 	enum pool_type type = IS_UNDEFINED;
 
 	if (flags & TTM_PAGE_FLAG_DMA32)
 		type |= IS_DMA32;
-	if (cstate == tt_cached)
+	if (cstate == ttm_cached)
 		type |= IS_CACHED;
-	else if (cstate == tt_uncached)
+	else if (cstate == ttm_uncached)
 		type |= IS_UC;
 	else
 		type |= IS_WC;
@@ -662,7 +663,7 @@ static struct dma_pool *ttm_dma_find_pool(struct device *dev,
  * are pages that have changed their caching state already put them to the
  * pool.
  */
-static void ttm_dma_handle_caching_state_failure(struct dma_pool *pool,
+static void ttm_dma_handle_caching_failure(struct dma_pool *pool,
 						 struct list_head *d_pages,
 						 struct page **failed_pages,
 						 unsigned cpages)
@@ -733,7 +734,7 @@ static int ttm_dma_pool_alloc_new_pages(struct dma_pool *pool,
 				r = ttm_set_pages_caching(pool, caching_array,
 							  cpages);
 				if (r)
-					ttm_dma_handle_caching_state_failure(
+					ttm_dma_handle_caching_failure(
 						pool, d_pages, caching_array,
 						cpages);
 			}
@@ -759,7 +760,7 @@ static int ttm_dma_pool_alloc_new_pages(struct dma_pool *pool,
 				r = ttm_set_pages_caching(pool, caching_array,
 							  cpages);
 				if (r) {
-					ttm_dma_handle_caching_state_failure(
+					ttm_dma_handle_caching_failure(
 					     pool, d_pages, caching_array,
 					     cpages);
 					goto out;
@@ -772,7 +773,7 @@ static int ttm_dma_pool_alloc_new_pages(struct dma_pool *pool,
 	if (cpages) {
 		r = ttm_set_pages_caching(pool, caching_array, cpages);
 		if (r)
-			ttm_dma_handle_caching_state_failure(pool, d_pages,
+			ttm_dma_handle_caching_failure(pool, d_pages,
 					caching_array, cpages);
 	}
 out:
@@ -831,11 +832,10 @@ static int ttm_dma_page_pool_fill_locked(struct dma_pool *pool,
  * return dma_page pointer if success, otherwise NULL.
  */
 static struct dma_page *ttm_dma_pool_get_pages(struct dma_pool *pool,
-				  struct ttm_dma_tt *ttm_dma,
+				  struct ttm_tt *ttm,
 				  unsigned index)
 {
 	struct dma_page *d_page = NULL;
-	struct ttm_tt *ttm = &ttm_dma->ttm;
 	unsigned long irq_flags;
 	int count;
 
@@ -844,8 +844,8 @@ static struct dma_page *ttm_dma_pool_get_pages(struct dma_pool *pool,
 	if (count) {
 		d_page = list_first_entry(&pool->free_list, struct dma_page, page_list);
 		ttm->pages[index] = d_page->p;
-		ttm_dma->dma_address[index] = d_page->dma;
-		list_move_tail(&d_page->page_list, &ttm_dma->pages_list);
+		ttm->dma_address[index] = d_page->dma;
+		list_move_tail(&d_page->page_list, &ttm->pages_list);
 		pool->npages_in_use += 1;
 		pool->npages_free -= 1;
 	}
@@ -853,9 +853,8 @@ static struct dma_page *ttm_dma_pool_get_pages(struct dma_pool *pool,
 	return d_page;
 }
 
-static gfp_t ttm_dma_pool_gfp_flags(struct ttm_dma_tt *ttm_dma, bool huge)
+static gfp_t ttm_dma_pool_gfp_flags(struct ttm_tt *ttm, bool huge)
 {
-	struct ttm_tt *ttm = &ttm_dma->ttm;
 	gfp_t gfp_flags;
 
 	if (ttm->page_flags & TTM_PAGE_FLAG_DMA32)
@@ -882,11 +881,10 @@ static gfp_t ttm_dma_pool_gfp_flags(struct ttm_dma_tt *ttm_dma, bool huge)
  * On success pages list will hold count number of correctly
  * cached pages. On failure will hold the negative return value (-ENOMEM, etc).
  */
-int ttm_dma_populate(struct ttm_dma_tt *ttm_dma, struct device *dev,
+int ttm_dma_populate(struct ttm_tt *ttm, struct device *dev,
 			struct ttm_operation_ctx *ctx)
 {
 	struct ttm_mem_global *mem_glob = &ttm_mem_glob;
-	struct ttm_tt *ttm = &ttm_dma->ttm;
 	unsigned long num_pages = ttm->num_pages;
 	struct dma_pool *pool;
 	struct dma_page *d_page;
@@ -900,10 +898,10 @@ int ttm_dma_populate(struct ttm_dma_tt *ttm_dma, struct device *dev,
 	if (ttm_check_under_lowerlimit(mem_glob, num_pages, ctx))
 		return -ENOMEM;
 
-	INIT_LIST_HEAD(&ttm_dma->pages_list);
+	INIT_LIST_HEAD(&ttm->pages_list);
 	i = 0;
 
-	type = ttm_to_type(ttm->page_flags, ttm->caching_state);
+	type = ttm_to_type(ttm->page_flags, ttm->caching);
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 	if (ttm->page_flags & TTM_PAGE_FLAG_DMA32)
@@ -911,7 +909,7 @@ int ttm_dma_populate(struct ttm_dma_tt *ttm_dma, struct device *dev,
 
 	pool = ttm_dma_find_pool(dev, type | IS_HUGE);
 	if (!pool) {
-		gfp_t gfp_flags = ttm_dma_pool_gfp_flags(ttm_dma, true);
+		gfp_t gfp_flags = ttm_dma_pool_gfp_flags(ttm, true);
 
 		pool = ttm_dma_pool_init(dev, gfp_flags, type | IS_HUGE);
 		if (IS_ERR_OR_NULL(pool))
@@ -921,21 +919,21 @@ int ttm_dma_populate(struct ttm_dma_tt *ttm_dma, struct device *dev,
 	while (num_pages >= HPAGE_PMD_NR) {
 		unsigned j;
 
-		d_page = ttm_dma_pool_get_pages(pool, ttm_dma, i);
+		d_page = ttm_dma_pool_get_pages(pool, ttm, i);
 		if (!d_page)
 			break;
 
 		ret = ttm_mem_global_alloc_page(mem_glob, ttm->pages[i],
 						pool->size, ctx);
 		if (unlikely(ret != 0)) {
-			ttm_dma_unpopulate(ttm_dma, dev);
+			ttm_dma_unpopulate(ttm, dev);
 			return -ENOMEM;
 		}
 
 		d_page->vaddr |= VADDR_FLAG_UPDATED_COUNT;
 		for (j = i + 1; j < (i + HPAGE_PMD_NR); ++j) {
 			ttm->pages[j] = ttm->pages[j - 1] + 1;
-			ttm_dma->dma_address[j] = ttm_dma->dma_address[j - 1] +
+			ttm->dma_address[j] = ttm->dma_address[j - 1] +
 				PAGE_SIZE;
 		}
 
@@ -948,7 +946,7 @@ skip_huge:
 
 	pool = ttm_dma_find_pool(dev, type);
 	if (!pool) {
-		gfp_t gfp_flags = ttm_dma_pool_gfp_flags(ttm_dma, false);
+		gfp_t gfp_flags = ttm_dma_pool_gfp_flags(ttm, false);
 
 		pool = ttm_dma_pool_init(dev, gfp_flags, type);
 		if (IS_ERR_OR_NULL(pool))
@@ -956,16 +954,16 @@ skip_huge:
 	}
 
 	while (num_pages) {
-		d_page = ttm_dma_pool_get_pages(pool, ttm_dma, i);
+		d_page = ttm_dma_pool_get_pages(pool, ttm, i);
 		if (!d_page) {
-			ttm_dma_unpopulate(ttm_dma, dev);
+			ttm_dma_unpopulate(ttm, dev);
 			return -ENOMEM;
 		}
 
 		ret = ttm_mem_global_alloc_page(mem_glob, ttm->pages[i],
 						pool->size, ctx);
 		if (unlikely(ret != 0)) {
-			ttm_dma_unpopulate(ttm_dma, dev);
+			ttm_dma_unpopulate(ttm, dev);
 			return -ENOMEM;
 		}
 
@@ -974,24 +972,14 @@ skip_huge:
 		--num_pages;
 	}
 
-	if (unlikely(ttm->page_flags & TTM_PAGE_FLAG_SWAPPED)) {
-		ret = ttm_tt_swapin(ttm);
-		if (unlikely(ret != 0)) {
-			ttm_dma_unpopulate(ttm_dma, dev);
-			return ret;
-		}
-	}
-
-	ttm_tt_set_populated(ttm);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ttm_dma_populate);
 
 /* Put all pages in pages list to correct pool to wait for reuse */
-void ttm_dma_unpopulate(struct ttm_dma_tt *ttm_dma, struct device *dev)
+void ttm_dma_unpopulate(struct ttm_tt *ttm, struct device *dev)
 {
 	struct ttm_mem_global *mem_glob = &ttm_mem_glob;
-	struct ttm_tt *ttm = &ttm_dma->ttm;
 	struct dma_pool *pool;
 	struct dma_page *d_page, *next;
 	enum pool_type type;
@@ -999,13 +987,13 @@ void ttm_dma_unpopulate(struct ttm_dma_tt *ttm_dma, struct device *dev)
 	unsigned count, i, npages = 0;
 	unsigned long irq_flags;
 
-	type = ttm_to_type(ttm->page_flags, ttm->caching_state);
+	type = ttm_to_type(ttm->page_flags, ttm->caching);
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 	pool = ttm_dma_find_pool(dev, type | IS_HUGE);
 	if (pool) {
 		count = 0;
-		list_for_each_entry_safe(d_page, next, &ttm_dma->pages_list,
+		list_for_each_entry_safe(d_page, next, &ttm->pages_list,
 					 page_list) {
 			if (!(d_page->vaddr & VADDR_FLAG_HUGE_POOL))
 				continue;
@@ -1031,11 +1019,11 @@ void ttm_dma_unpopulate(struct ttm_dma_tt *ttm_dma, struct device *dev)
 		return;
 
 	is_cached = (ttm_dma_find_pool(pool->dev,
-		     ttm_to_type(ttm->page_flags, tt_cached)) == pool);
+		     ttm_to_type(ttm->page_flags, ttm_cached)) == pool);
 
 	/* make sure pages array match list and count number of pages */
 	count = 0;
-	list_for_each_entry_safe(d_page, next, &ttm_dma->pages_list,
+	list_for_each_entry_safe(d_page, next, &ttm->pages_list,
 				 page_list) {
 		ttm->pages[count] = d_page->p;
 		count++;
@@ -1056,7 +1044,7 @@ void ttm_dma_unpopulate(struct ttm_dma_tt *ttm_dma, struct device *dev)
 		pool->nfrees += count;
 	} else {
 		pool->npages_free += count;
-		list_splice(&ttm_dma->pages_list, &pool->free_list);
+		list_splice(&ttm->pages_list, &pool->free_list);
 		/*
 		 * Wait to have at at least NUM_PAGES_TO_ALLOC number of pages
 		 * to free in order to minimize calls to set_memory_wb().
@@ -1067,16 +1055,15 @@ void ttm_dma_unpopulate(struct ttm_dma_tt *ttm_dma, struct device *dev)
 	}
 	spin_unlock_irqrestore(&pool->lock, irq_flags);
 
-	INIT_LIST_HEAD(&ttm_dma->pages_list);
+	INIT_LIST_HEAD(&ttm->pages_list);
 	for (i = 0; i < ttm->num_pages; i++) {
 		ttm->pages[i] = NULL;
-		ttm_dma->dma_address[i] = 0;
+		ttm->dma_address[i] = 0;
 	}
 
 	/* shrink pool if necessary (only on !is_cached pools)*/
 	if (npages)
 		ttm_dma_page_pool_free(pool, npages, false);
-	ttm_tt_set_unpopulated(ttm);
 }
 EXPORT_SYMBOL_GPL(ttm_dma_unpopulate);
 

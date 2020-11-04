@@ -91,31 +91,6 @@ struct ttm_bo_driver {
 	void (*ttm_tt_unpopulate)(struct ttm_bo_device *bdev, struct ttm_tt *ttm);
 
 	/**
-	 * ttm_tt_bind
-	 *
-	 * @bdev: Pointer to a ttm device
-	 * @ttm: Pointer to a struct ttm_tt.
-	 * @bo_mem: Pointer to a struct ttm_resource describing the
-	 * memory type and location for binding.
-	 *
-	 * Bind the backend pages into the aperture in the location
-	 * indicated by @bo_mem. This function should be able to handle
-	 * differences between aperture and system page sizes.
-	 */
-	int (*ttm_tt_bind)(struct ttm_bo_device *bdev, struct ttm_tt *ttm, struct ttm_resource *bo_mem);
-
-	/**
-	 * ttm_tt_unbind
-	 *
-	 * @bdev: Pointer to a ttm device
-	 * @ttm: Pointer to a struct ttm_tt.
-	 *
-	 * Unbind previously bound backend pages. This function should be
-	 * able to handle differences between aperture and system page sizes.
-	 */
-	void (*ttm_tt_unbind)(struct ttm_bo_device *bdev, struct ttm_tt *ttm);
-
-	/**
 	 * ttm_tt_destroy
 	 *
 	 * @bdev: Pointer to a ttm device
@@ -181,18 +156,9 @@ struct ttm_bo_driver {
 			     struct file *filp);
 
 	/**
-	 * Hook to notify driver about a driver move so it
-	 * can do tiling things and book-keeping.
-	 *
-	 * @evict: whether this move is evicting the buffer from the graphics
-	 * address space
+	 * Hook to notify driver about a resource delete.
 	 */
-	void (*move_notify)(struct ttm_buffer_object *bo,
-			    bool evict,
-			    struct ttm_resource *new_mem);
-	/* notify the driver we are taking a fault on this BO
-	 * and have reserved it */
-	int (*fault_reserve_notify)(struct ttm_buffer_object *bo);
+	void (*delete_mem_notify)(struct ttm_buffer_object *bo);
 
 	/**
 	 * notify the driver that we're about to swap out this bo
@@ -453,15 +419,6 @@ int ttm_bo_device_init(struct ttm_bo_device *bdev,
 void ttm_bo_unmap_virtual(struct ttm_buffer_object *bo);
 
 /**
- * ttm_bo_unmap_virtual
- *
- * @bo: tear down the virtual mappings for this BO
- *
- * The caller must take ttm_mem_io_lock before calling this function.
- */
-void ttm_bo_unmap_virtual_locked(struct ttm_buffer_object *bo);
-
-/**
  * ttm_bo_reserve:
  *
  * @bo: A pointer to a struct ttm_buffer_object.
@@ -578,32 +535,10 @@ static inline void ttm_bo_unreserve(struct ttm_buffer_object *bo)
 /*
  * ttm_bo_util.c
  */
-
 int ttm_mem_io_reserve(struct ttm_bo_device *bdev,
 		       struct ttm_resource *mem);
 void ttm_mem_io_free(struct ttm_bo_device *bdev,
 		     struct ttm_resource *mem);
-/**
- * ttm_bo_move_ttm
- *
- * @bo: A pointer to a struct ttm_buffer_object.
- * @interruptible: Sleep interruptible if waiting.
- * @no_wait_gpu: Return immediately if the GPU is busy.
- * @new_mem: struct ttm_resource indicating where to move.
- *
- * Optimized move function for a buffer object with both old and
- * new placement backed by a TTM. The function will, if successful,
- * free any old aperture space, and set (@new_mem)->mm_node to NULL,
- * and update the (@bo)->mem placement flags. If unsuccessful, the old
- * data remains untouched, and it's up to the caller to free the
- * memory space indicated by @new_mem.
- * Returns:
- * !0: Failure.
- */
-
-int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
-		    struct ttm_operation_ctx *ctx,
-		    struct ttm_resource *new_mem);
 
 /**
  * ttm_bo_move_memcpy
@@ -626,15 +561,6 @@ int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
 int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 		       struct ttm_operation_ctx *ctx,
 		       struct ttm_resource *new_mem);
-
-/**
- * ttm_bo_free_old_node
- *
- * @bo: A pointer to a struct ttm_buffer_object.
- *
- * Utility function to free an old placement after a successful move.
- */
-void ttm_bo_free_old_node(struct ttm_buffer_object *bo);
 
 /**
  * ttm_bo_move_accel_cleanup.
@@ -669,13 +595,15 @@ int ttm_bo_pipeline_gutting(struct ttm_buffer_object *bo);
 /**
  * ttm_io_prot
  *
- * @c_state: Caching state.
+ * bo: ttm buffer object
+ * res: ttm resource object
  * @tmp: Page protection flag for a normal, cached mapping.
  *
  * Utility function that returns the pgprot_t that should be used for
  * setting up a PTE with the caching model indicated by @c_state.
  */
-pgprot_t ttm_io_prot(uint32_t caching_flags, pgprot_t tmp);
+pgprot_t ttm_io_prot(struct ttm_buffer_object *bo, struct ttm_resource *res,
+		     pgprot_t tmp);
 
 /**
  * ttm_bo_tt_bind
@@ -683,13 +611,6 @@ pgprot_t ttm_io_prot(uint32_t caching_flags, pgprot_t tmp);
  * Bind the object tt to a memory resource.
  */
 int ttm_bo_tt_bind(struct ttm_buffer_object *bo, struct ttm_resource *mem);
-
-/**
- * ttm_bo_tt_bind
- *
- * Unbind the object tt from a memory resource.
- */
-void ttm_bo_tt_unbind(struct ttm_buffer_object *bo);
 
 /**
  * ttm_bo_tt_destroy.

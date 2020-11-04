@@ -106,8 +106,9 @@ struct drm_device;
 #define DP_AUX_I2C_REPLY_DEFER		(0x2 << 2)
 #define DP_AUX_I2C_REPLY_MASK		(0x3 << 2)
 
-/* AUX CH addresses */
-/* DPCD */
+/* DPCD Field Address Mapping */
+
+/* Receiver Capability */
 #define DP_DPCD_REV                         0x000
 # define DP_DPCD_REV_10                     0x10
 # define DP_DPCD_REV_11                     0x11
@@ -124,6 +125,7 @@ struct drm_device;
 
 #define DP_MAX_DOWNSPREAD                   0x003
 # define DP_MAX_DOWNSPREAD_0_5		    (1 << 0)
+# define DP_STREAM_REGENERATION_STATUS_CAP  (1 << 1) /* 2.0 */
 # define DP_NO_AUX_HANDSHAKE_LINK_TRAINING  (1 << 6)
 # define DP_TPS4_SUPPORTED                  (1 << 7)
 
@@ -141,6 +143,7 @@ struct drm_device;
 
 #define DP_MAIN_LINK_CHANNEL_CODING         0x006
 # define DP_CAP_ANSI_8B10B		    (1 << 0)
+# define DP_CAP_ANSI_128B132B               (1 << 1) /* 2.0 */
 
 #define DP_DOWN_STREAM_PORT_COUNT	    0x007
 # define DP_PORT_COUNT_MASK		    0x0f
@@ -184,8 +187,14 @@ struct drm_device;
 #define DP_FAUX_CAP			    0x020   /* 1.2 */
 # define DP_FAUX_CAP_1			    (1 << 0)
 
+#define DP_SINK_VIDEO_FALLBACK_FORMATS      0x020   /* 2.0 */
+# define DP_FALLBACK_1024x768_60HZ_24BPP    (1 << 0)
+# define DP_FALLBACK_1280x720_60HZ_24BPP    (1 << 1)
+# define DP_FALLBACK_1920x1080_60HZ_24BPP   (1 << 2)
+
 #define DP_MSTM_CAP			    0x021   /* 1.2 */
 # define DP_MST_CAP			    (1 << 0)
+# define DP_SINGLE_STREAM_SIDEBAND_MSG      (1 << 1) /* 2.0 */
 
 #define DP_NUMBER_OF_AUDIO_ENDPOINTS	    0x022   /* 1.2 */
 
@@ -426,13 +435,16 @@ struct drm_device;
 #define DP_DSC_BRANCH_OVERALL_THROUGHPUT_1  0x0a1
 #define DP_DSC_BRANCH_MAX_LINE_WIDTH        0x0a2
 
-/* link configuration */
+/* Link Configuration */
 #define	DP_LINK_BW_SET		            0x100
 # define DP_LINK_RATE_TABLE		    0x00    /* eDP 1.4 */
 # define DP_LINK_BW_1_62		    0x06
 # define DP_LINK_BW_2_7			    0x0a
 # define DP_LINK_BW_5_4			    0x14    /* 1.2 */
 # define DP_LINK_BW_8_1			    0x1e    /* 1.4 */
+# define DP_LINK_BW_10                      0x01    /* 2.0 128b/132b Link Layer */
+# define DP_LINK_BW_13_5                    0x04    /* 2.0 128b/132b Link Layer */
+# define DP_LINK_BW_20                      0x02    /* 2.0 128b/132b Link Layer */
 
 #define DP_LANE_COUNT_SET	            0x101
 # define DP_LANE_COUNT_MASK		    0x0f
@@ -484,12 +496,15 @@ struct drm_device;
 # define DP_TRAIN_PRE_EMPHASIS_SHIFT	    3
 # define DP_TRAIN_MAX_PRE_EMPHASIS_REACHED  (1 << 5)
 
+# define DP_TX_FFE_PRESET_VALUE_MASK        (0xf << 0) /* 2.0 128b/132b Link Layer */
+
 #define DP_DOWNSPREAD_CTRL		    0x107
 # define DP_SPREAD_AMP_0_5		    (1 << 4)
 # define DP_MSA_TIMING_PAR_IGNORE_EN	    (1 << 7) /* eDP */
 
 #define DP_MAIN_LINK_CHANNEL_CODING_SET	    0x108
 # define DP_SET_ANSI_8B10B		    (1 << 0)
+# define DP_SET_ANSI_128B132B               (1 << 1)
 
 #define DP_I2C_SPEED_CONTROL_STATUS	    0x109   /* DPI */
 /* bitmask as for DP_I2C_SPEED_CAP */
@@ -508,8 +523,19 @@ struct drm_device;
 # define DP_LINK_QUAL_PATTERN_ERROR_RATE    2
 # define DP_LINK_QUAL_PATTERN_PRBS7	    3
 # define DP_LINK_QUAL_PATTERN_80BIT_CUSTOM  4
-# define DP_LINK_QUAL_PATTERN_HBR2_EYE      5
-# define DP_LINK_QUAL_PATTERN_MASK	    7
+# define DP_LINK_QUAL_PATTERN_CP2520_PAT_1  5
+# define DP_LINK_QUAL_PATTERN_CP2520_PAT_2  6
+# define DP_LINK_QUAL_PATTERN_CP2520_PAT_3  7
+/* DP 2.0 UHBR10, UHBR13.5, UHBR20 */
+# define DP_LINK_QUAL_PATTERN_128B132B_TPS1 0x08
+# define DP_LINK_QUAL_PATTERN_128B132B_TPS2 0x10
+# define DP_LINK_QUAL_PATTERN_PRSBS9        0x18
+# define DP_LINK_QUAL_PATTERN_PRSBS11       0x20
+# define DP_LINK_QUAL_PATTERN_PRSBS15       0x28
+# define DP_LINK_QUAL_PATTERN_PRSBS23       0x30
+# define DP_LINK_QUAL_PATTERN_PRSBS31       0x38
+# define DP_LINK_QUAL_PATTERN_CUSTOM        0x40
+# define DP_LINK_QUAL_PATTERN_SQUARE        0x48
 
 #define DP_TRAINING_LANE0_1_SET2	    0x10f
 #define DP_TRAINING_LANE2_3_SET2	    0x110
@@ -580,6 +606,7 @@ struct drm_device;
 #define DP_PAYLOAD_ALLOCATE_START_TIME_SLOT 0x1c1
 #define DP_PAYLOAD_ALLOCATE_TIME_SLOT_COUNT 0x1c2
 
+/* Link/Sink Device Status */
 #define DP_SINK_COUNT			    0x200
 /* prior to 1.2 bit 7 was reserved mbz */
 # define DP_GET_SINK_COUNT(x)		    ((((x) & 0x80) >> 1) | ((x) & 0x3f))
@@ -611,9 +638,9 @@ struct drm_device;
 #define DP_LINK_STATUS_UPDATED		    (1 << 7)
 
 #define DP_SINK_STATUS			    0x205
-
-#define DP_RECEIVE_PORT_0_STATUS	    (1 << 0)
-#define DP_RECEIVE_PORT_1_STATUS	    (1 << 1)
+# define DP_RECEIVE_PORT_0_STATUS	    (1 << 0)
+# define DP_RECEIVE_PORT_1_STATUS	    (1 << 1)
+# define DP_STREAM_REGENERATION_STATUS      (1 << 2) /* 2.0 */
 
 #define DP_ADJUST_REQUEST_LANE0_1	    0x206
 #define DP_ADJUST_REQUEST_LANE2_3	    0x207
@@ -625,6 +652,12 @@ struct drm_device;
 # define DP_ADJUST_VOLTAGE_SWING_LANE1_SHIFT 4
 # define DP_ADJUST_PRE_EMPHASIS_LANE1_MASK   0xc0
 # define DP_ADJUST_PRE_EMPHASIS_LANE1_SHIFT  6
+
+/* DP 2.0 128b/132b Link Layer */
+# define DP_ADJUST_TX_FFE_PRESET_LANE0_MASK  (0xf << 0)
+# define DP_ADJUST_TX_FFE_PRESET_LANE0_SHIFT 0
+# define DP_ADJUST_TX_FFE_PRESET_LANE1_MASK  (0xf << 4)
+# define DP_ADJUST_TX_FFE_PRESET_LANE1_SHIFT 4
 
 #define DP_ADJUST_REQUEST_POST_CURSOR2      0x20c
 # define DP_ADJUST_POST_CURSOR2_LANE0_MASK  0x03
@@ -779,20 +812,27 @@ struct drm_device;
 #define DP_VC_PAYLOAD_ID_SLOT_1             0x2c1   /* 1.2 MST */
 /* up to ID_SLOT_63 at 0x2ff */
 
+/* Source Device-specific */
 #define DP_SOURCE_OUI			    0x300
+
+/* Sink Device-specific */
 #define DP_SINK_OUI			    0x400
+
+/* Branch Device-specific */
 #define DP_BRANCH_OUI			    0x500
 #define DP_BRANCH_ID                        0x503
 #define DP_BRANCH_REVISION_START            0x509
 #define DP_BRANCH_HW_REV                    0x509
 #define DP_BRANCH_SW_REV                    0x50A
 
+/* Link/Sink Device Power Control */
 #define DP_SET_POWER                        0x600
 # define DP_SET_POWER_D0                    0x1
 # define DP_SET_POWER_D3                    0x2
 # define DP_SET_POWER_MASK                  0x3
 # define DP_SET_POWER_D3_AUX_ON             0x5
 
+/* eDP-specific */
 #define DP_EDP_DPCD_REV			    0x700    /* eDP 1.2 */
 # define DP_EDP_11			    0x00
 # define DP_EDP_12			    0x01
@@ -876,11 +916,13 @@ struct drm_device;
 #define DP_EDP_REGIONAL_BACKLIGHT_BASE      0x740    /* eDP 1.4 */
 #define DP_EDP_REGIONAL_BACKLIGHT_0	    0x741    /* eDP 1.4 */
 
+/* Sideband MSG Buffers */
 #define DP_SIDEBAND_MSG_DOWN_REQ_BASE	    0x1000   /* 1.2 MST */
 #define DP_SIDEBAND_MSG_UP_REP_BASE	    0x1200   /* 1.2 MST */
 #define DP_SIDEBAND_MSG_DOWN_REP_BASE	    0x1400   /* 1.2 MST */
 #define DP_SIDEBAND_MSG_UP_REQ_BASE	    0x1600   /* 1.2 MST */
 
+/* DPRX Event Status Indicator */
 #define DP_SINK_COUNT_ESI		    0x2002   /* 1.2 */
 /* 0-5 sink count */
 # define DP_SINK_COUNT_CP_READY             (1 << 6)
@@ -934,8 +976,8 @@ struct drm_device;
 #define DP_LANE_ALIGN_STATUS_UPDATED_ESI       0x200e /* status same as 0x204 */
 #define DP_SINK_STATUS_ESI                     0x200f /* status same as 0x205 */
 
+/* Extended Receiver Capability: See DP_DPCD_REV for definitions */
 #define DP_DP13_DPCD_REV                    0x2200
-#define DP_DP13_MAX_LINK_RATE               0x2201
 
 #define DP_DPRX_FEATURE_ENUMERATION_LIST    0x2210  /* DP 1.3 */
 # define DP_GTC_CAP					(1 << 0)  /* DP 1.3 */
@@ -947,6 +989,15 @@ struct drm_device;
 # define DP_VSC_EXT_CEA_SDP_SUPPORTED			(1 << 6)  /* DP 1.4 */
 # define DP_VSC_EXT_CEA_SDP_CHAINING_SUPPORTED		(1 << 7)  /* DP 1.4 */
 
+#define DP_128B132B_SUPPORTED_LINK_RATES       0x2215 /* 2.0 */
+# define DP_UHBR10                             (1 << 0)
+# define DP_UHBR20                             (1 << 1)
+# define DP_UHBR13_5                           (1 << 2)
+
+#define DP_128B132B_TRAINING_AUX_RD_INTERVAL   0x2216 /* 2.0 */
+# define DP_128B132B_TRAINING_AUX_RD_INTERVAL_MASK 0x7f
+
+/* Protocol Converter Extension */
 /* HDMI CEC tunneling over AUX DP 1.3 section 5.3.3.3.1 DPCD 1.4+ */
 #define DP_CEC_TUNNELING_CAPABILITY            0x3000
 # define DP_CEC_TUNNELING_CAPABLE               (1 << 0)
@@ -1013,6 +1064,7 @@ struct drm_device;
 #define DP_PROTOCOL_CONVERTER_CONTROL_2		0x3052 /* DP 1.3 */
 # define DP_CONVERSION_TO_YCBCR422_ENABLE	(1 << 0) /* DP 1.3 */
 
+/* HDCP 1.3 and HDCP 2.2 */
 #define DP_AUX_HDCP_BKSV		0x68000
 #define DP_AUX_HDCP_RI_PRIME		0x68005
 #define DP_AUX_HDCP_AKSV		0x68007
@@ -1058,7 +1110,7 @@ struct drm_device;
 #define DP_HDCP_2_2_REG_STREAM_TYPE_OFFSET	0x69494
 #define DP_HDCP_2_2_REG_DBG_OFFSET		0x69518
 
-/* Link Training (LT)-tunable PHY Repeaters */
+/* LTTPR: Link Training (LT)-tunable PHY Repeaters */
 #define DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV 0xf0000 /* 1.3 */
 #define DP_MAX_LINK_RATE_PHY_REPEATER			    0xf0001 /* 1.4a */
 #define DP_PHY_REPEATER_CNT				    0xf0002 /* 1.3 */

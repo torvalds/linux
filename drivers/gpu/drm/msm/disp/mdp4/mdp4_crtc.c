@@ -264,7 +264,7 @@ static void mdp4_crtc_mode_set_nofb(struct drm_crtc *crtc)
 }
 
 static void mdp4_crtc_atomic_disable(struct drm_crtc *crtc,
-				     struct drm_crtc_state *old_state)
+				     struct drm_atomic_state *state)
 {
 	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
 	struct mdp4_kms *mdp4_kms = get_kms(crtc);
@@ -284,7 +284,7 @@ static void mdp4_crtc_atomic_disable(struct drm_crtc *crtc,
 }
 
 static void mdp4_crtc_atomic_enable(struct drm_crtc *crtc,
-				    struct drm_crtc_state *old_state)
+				    struct drm_atomic_state *state)
 {
 	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
 	struct mdp4_kms *mdp4_kms = get_kms(crtc);

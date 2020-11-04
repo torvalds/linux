@@ -960,6 +960,11 @@ static const struct drm_prop_enum_list dp_colorspaces[] = {
  * 	drm_connector_update_edid_property(), usually after having parsed
  * 	the EDID using drm_add_edid_modes(). Userspace cannot change this
  * 	property.
+ *
+ * 	User-space should not parse the EDID to obtain information exposed via
+ * 	other KMS properties (because the kernel might apply limits, quirks or
+ * 	fixups to the EDID). For instance, user-space should not try to parse
+ * 	mode lists from the EDID.
  * DPMS:
  * 	Legacy property for setting the power state of the connector. For atomic
  * 	drivers this is only provided for backwards compatibility with existing

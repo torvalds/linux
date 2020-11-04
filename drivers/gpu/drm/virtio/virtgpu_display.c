@@ -95,12 +95,12 @@ static void virtio_gpu_crtc_mode_set_nofb(struct drm_crtc *crtc)
 }
 
 static void virtio_gpu_crtc_atomic_enable(struct drm_crtc *crtc,
-					  struct drm_crtc_state *old_state)
+					  struct drm_atomic_state *state)
 {
 }
 
 static void virtio_gpu_crtc_atomic_disable(struct drm_crtc *crtc,
-					   struct drm_crtc_state *old_state)
+					   struct drm_atomic_state *state)
 {
 	struct drm_device *dev = crtc->dev;
 	struct virtio_gpu_device *vgdev = dev->dev_private;

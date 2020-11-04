@@ -45,12 +45,10 @@ void amdgpu_gmc_get_pde_for_bo(struct amdgpu_bo *bo, int level,
 			       uint64_t *addr, uint64_t *flags)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
-	struct ttm_dma_tt *ttm;
 
 	switch (bo->tbo.mem.mem_type) {
 	case TTM_PL_TT:
-		ttm = container_of(bo->tbo.ttm, struct ttm_dma_tt, ttm);
-		*addr = ttm->dma_address[0];
+		*addr = bo->tbo.ttm->dma_address[0];
 		break;
 	case TTM_PL_VRAM:
 		*addr = amdgpu_bo_gpu_offset(bo);
@@ -122,16 +120,14 @@ int amdgpu_gmc_set_pte_pde(struct amdgpu_device *adev, void *cpu_pt_addr,
 uint64_t amdgpu_gmc_agp_addr(struct ttm_buffer_object *bo)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->bdev);
-	struct ttm_dma_tt *ttm;
 
-	if (bo->num_pages != 1 || bo->ttm->caching_state == tt_cached)
+	if (bo->num_pages != 1 || bo->ttm->caching == ttm_cached)
 		return AMDGPU_BO_INVALID_OFFSET;
 
-	ttm = container_of(bo->ttm, struct ttm_dma_tt, ttm);
-	if (ttm->dma_address[0] + PAGE_SIZE >= adev->gmc.agp_size)
+	if (bo->ttm->dma_address[0] + PAGE_SIZE >= adev->gmc.agp_size)
 		return AMDGPU_BO_INVALID_OFFSET;
 
-	return adev->gmc.agp_start + ttm->dma_address[0];
+	return adev->gmc.agp_start + bo->ttm->dma_address[0];
 }
 
 /**

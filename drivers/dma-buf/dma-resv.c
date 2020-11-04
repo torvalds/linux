@@ -63,7 +63,7 @@ static struct dma_resv_list *dma_resv_list_alloc(unsigned int shared_max)
 {
 	struct dma_resv_list *list;
 
-	list = kmalloc(offsetof(typeof(*list), shared[shared_max]), GFP_KERNEL);
+	list = kmalloc(struct_size(list, shared, shared_max), GFP_KERNEL);
 	if (!list)
 		return NULL;
 

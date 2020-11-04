@@ -206,7 +206,7 @@ static void vmw_bo_dirty_pre_unmap(struct vmw_buffer_object *vbo,
  * @start: First page of the range within the buffer object.
  * @end: Last page of the range within the buffer object + 1.
  *
- * This is similar to ttm_bo_unmap_virtual_locked() except it takes a subrange.
+ * This is similar to ttm_bo_unmap_virtual() except it takes a subrange.
  */
 void vmw_bo_dirty_unmap(struct vmw_buffer_object *vbo,
 			pgoff_t start, pgoff_t end)

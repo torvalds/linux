@@ -326,8 +326,8 @@ static int qxl_update_area_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		goto out;
 
-	if (!qobj->pin_count) {
-		qxl_ttm_placement_from_domain(qobj, qobj->type, false);
+	if (!qobj->tbo.pin_count) {
+		qxl_ttm_placement_from_domain(qobj, qobj->type);
 		ret = ttm_bo_validate(&qobj->tbo, &qobj->placement, &ctx);
 		if (unlikely(ret))
 			goto out;

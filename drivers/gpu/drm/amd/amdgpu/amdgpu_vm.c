@@ -609,7 +609,7 @@ void amdgpu_vm_del_from_lru_notify(struct ttm_buffer_object *bo)
 	if (!amdgpu_bo_is_amdgpu_bo(bo))
 		return;
 
-	if (bo->mem.placement & TTM_PL_FLAG_NO_EVICT)
+	if (bo->pin_count)
 		return;
 
 	abo = ttm_to_amdgpu_bo(bo);
@@ -1790,7 +1790,6 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev, struct amdgpu_bo_va *bo_va,
 		resv = vm->root.base.bo->tbo.base.resv;
 	} else {
 		struct drm_gem_object *obj = &bo->tbo.base;
-		struct ttm_dma_tt *ttm;
 
 		resv = bo->tbo.base.resv;
 		if (obj->import_attach && bo_va->is_xgmi) {
@@ -1803,10 +1802,8 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev, struct amdgpu_bo_va *bo_va,
 		}
 		mem = &bo->tbo.mem;
 		nodes = mem->mm_node;
-		if (mem->mem_type == TTM_PL_TT) {
-			ttm = container_of(bo->tbo.ttm, struct ttm_dma_tt, ttm);
-			pages_addr = ttm->dma_address;
-		}
+		if (mem->mem_type == TTM_PL_TT)
+			pages_addr = bo->tbo.ttm->dma_address;
 	}
 
 	if (bo) {

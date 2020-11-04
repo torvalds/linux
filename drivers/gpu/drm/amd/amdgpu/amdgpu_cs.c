@@ -410,7 +410,7 @@ static int amdgpu_cs_bo_validate(struct amdgpu_cs_parser *p,
 	uint32_t domain;
 	int r;
 
-	if (bo->pin_count)
+	if (bo->tbo.pin_count)
 		return 0;
 
 	/* Don't move this buffer if we have depleted our allowance

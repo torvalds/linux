@@ -165,7 +165,7 @@ atmel_hlcdc_crtc_mode_valid(struct drm_crtc *c,
 }
 
 static void atmel_hlcdc_crtc_atomic_disable(struct drm_crtc *c,
-					    struct drm_crtc_state *old_state)
+					    struct drm_atomic_state *state)
 {
 	struct drm_device *dev = c->dev;
 	struct atmel_hlcdc_crtc *crtc = drm_crtc_to_atmel_hlcdc_crtc(c);
@@ -200,7 +200,7 @@ static void atmel_hlcdc_crtc_atomic_disable(struct drm_crtc *c,
 }
 
 static void atmel_hlcdc_crtc_atomic_enable(struct drm_crtc *c,
-					   struct drm_crtc_state *old_state)
+					   struct drm_atomic_state *state)
 {
 	struct drm_device *dev = c->dev;
 	struct atmel_hlcdc_crtc *crtc = drm_crtc_to_atmel_hlcdc_crtc(c);

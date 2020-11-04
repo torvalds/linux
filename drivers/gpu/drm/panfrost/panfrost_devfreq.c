@@ -29,18 +29,13 @@ static int panfrost_devfreq_target(struct device *dev, unsigned long *freq,
 				   u32 flags)
 {
 	struct dev_pm_opp *opp;
-	int err;
 
 	opp = devfreq_recommended_opp(dev, freq, flags);
 	if (IS_ERR(opp))
 		return PTR_ERR(opp);
 	dev_pm_opp_put(opp);
 
-	err = dev_pm_opp_set_rate(dev, *freq);
-	if (err)
-		return err;
-
-	return 0;
+	return dev_pm_opp_set_rate(dev, *freq);
 }
 
 static void panfrost_devfreq_reset(struct panfrost_devfreq *pfdevfreq)

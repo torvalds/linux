@@ -275,7 +275,7 @@ static void ttm_shrink(struct ttm_mem_global *glob, bool from_wq,
 
 	while (ttm_zones_above_swap_target(glob, from_wq, extra)) {
 		spin_unlock(&glob->lock);
-		ret = ttm_bo_swapout(&ttm_bo_glob, ctx);
+		ret = ttm_bo_swapout(ctx);
 		spin_lock(&glob->lock);
 		if (unlikely(ret != 0))
 			break;

@@ -372,7 +372,7 @@ static int vmw_dummy_query_bo_create(struct vmw_private *dev_priv)
 		return -ENOMEM;
 
 	ret = vmw_bo_init(dev_priv, vbo, PAGE_SIZE,
-			  &vmw_sys_ne_placement, false,
+			  &vmw_sys_placement, false, true,
 			  &vmw_bo_bo_free);
 	if (unlikely(ret != 0))
 		return ret;
@@ -468,7 +468,10 @@ out_no_query_bo:
 	if (dev_priv->cman)
 		vmw_cmdbuf_remove_pool(dev_priv->cman);
 	if (dev_priv->has_mob) {
-		(void) ttm_bo_evict_mm(&dev_priv->bdev, VMW_PL_MOB);
+		struct ttm_resource_manager *man;
+
+		man = ttm_manager_type(&dev_priv->bdev, VMW_PL_MOB);
+		ttm_resource_manager_evict_all(&dev_priv->bdev, man);
 		vmw_otables_takedown(dev_priv);
 	}
 	if (dev_priv->cman)
@@ -501,7 +504,10 @@ static void vmw_release_device_early(struct vmw_private *dev_priv)
 		vmw_cmdbuf_remove_pool(dev_priv->cman);
 
 	if (dev_priv->has_mob) {
-		ttm_bo_evict_mm(&dev_priv->bdev, VMW_PL_MOB);
+		struct ttm_resource_manager *man;
+
+		man = ttm_manager_type(&dev_priv->bdev, VMW_PL_MOB);
+		ttm_resource_manager_evict_all(&dev_priv->bdev, man);
 		vmw_otables_takedown(dev_priv);
 	}
 }
@@ -1257,7 +1263,7 @@ void vmw_svga_disable(struct vmw_private *dev_priv)
 	if (ttm_resource_manager_used(man)) {
 		ttm_resource_manager_set_used(man, false);
 		spin_unlock(&dev_priv->svga_lock);
-		if (ttm_bo_evict_mm(&dev_priv->bdev, TTM_PL_VRAM))
+		if (ttm_resource_manager_evict_all(&dev_priv->bdev, man))
 			DRM_ERROR("Failed evicting VRAM buffers.\n");
 		vmw_write(dev_priv, SVGA_REG_ENABLE,
 			  SVGA_REG_ENABLE_HIDE |
@@ -1364,6 +1370,10 @@ static int vmw_pm_freeze(struct device *kdev)
 	struct pci_dev *pdev = to_pci_dev(kdev);
 	struct drm_device *dev = pci_get_drvdata(pdev);
 	struct vmw_private *dev_priv = vmw_priv(dev);
+	struct ttm_operation_ctx ctx = {
+		.interruptible = false,
+		.no_wait_gpu = false
+	};
 	int ret;
 
 	/*
@@ -1384,7 +1394,7 @@ static int vmw_pm_freeze(struct device *kdev)
 	vmw_execbuf_release_pinned_bo(dev_priv);
 	vmw_resource_evict_all(dev_priv);
 	vmw_release_device_early(dev_priv);
-	ttm_bo_swapout_all();
+	while (ttm_bo_swapout(&ctx) == 0);
 	if (dev_priv->enable_fb)
 		vmw_fifo_resource_dec(dev_priv);
 	if (atomic_read(&dev_priv->num_fifo_resources) != 0) {

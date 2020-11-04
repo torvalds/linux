@@ -35,7 +35,6 @@ struct vm_area_struct;
  * @placement:	TTM placement information. Supported placements are \
 	%TTM_PL_VRAM and %TTM_PL_SYSTEM
  * @placements:	TTM placement information.
- * @pin_count:	Pin counter
  *
  * The type struct drm_gem_vram_object represents a GEM object that is
  * backed by VRAM. It can be used for simple framebuffer devices with
@@ -64,8 +63,6 @@ struct drm_gem_vram_object {
 	/* Supported placements are %TTM_PL_VRAM and %TTM_PL_SYSTEM */
 	struct ttm_placement placement;
 	struct ttm_place placements[2];
-
-	int pin_count;
 };
 
 /**

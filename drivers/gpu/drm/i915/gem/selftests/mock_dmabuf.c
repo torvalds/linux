@@ -61,18 +61,24 @@ static void mock_dmabuf_release(struct dma_buf *dma_buf)
 	kfree(mock);
 }
 
-static void *mock_dmabuf_vmap(struct dma_buf *dma_buf)
+static int mock_dmabuf_vmap(struct dma_buf *dma_buf, struct dma_buf_map *map)
 {
 	struct mock_dmabuf *mock = to_mock(dma_buf);
+	void *vaddr;
 
-	return vm_map_ram(mock->pages, mock->npages, 0);
+	vaddr = vm_map_ram(mock->pages, mock->npages, 0);
+	if (!vaddr)
+		return -ENOMEM;
+	dma_buf_map_set_vaddr(map, vaddr);
+
+	return 0;
 }
 
-static void mock_dmabuf_vunmap(struct dma_buf *dma_buf, void *vaddr)
+static void mock_dmabuf_vunmap(struct dma_buf *dma_buf, struct dma_buf_map *map)
 {
 	struct mock_dmabuf *mock = to_mock(dma_buf);
 
-	vm_unmap_ram(vaddr, mock->npages);
+	vm_unmap_ram(map->vaddr, mock->npages);
 }
 
 static int mock_dmabuf_mmap(struct dma_buf *dma_buf, struct vm_area_struct *vma)

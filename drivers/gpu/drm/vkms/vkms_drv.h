@@ -88,22 +88,11 @@ struct vkms_device {
 	struct vkms_output output;
 };
 
-struct vkms_gem_object {
-	struct drm_gem_object gem;
-	struct mutex pages_lock; /* Page lock used in page fault handler */
-	struct page **pages;
-	unsigned int vmap_count;
-	void *vaddr;
-};
-
 #define drm_crtc_to_vkms_output(target) \
 	container_of(target, struct vkms_output, crtc)
 
 #define drm_device_to_vkms_device(target) \
 	container_of(target, struct vkms_device, drm)
-
-#define drm_gem_to_vkms_gem(target)\
-	container_of(target, struct vkms_gem_object, gem)
 
 #define to_vkms_crtc_state(target)\
 	container_of(target, struct vkms_crtc_state, base)
@@ -119,24 +108,6 @@ int vkms_output_init(struct vkms_device *vkmsdev, int index);
 
 struct drm_plane *vkms_plane_init(struct vkms_device *vkmsdev,
 				  enum drm_plane_type type, int index);
-
-/* Gem stuff */
-vm_fault_t vkms_gem_fault(struct vm_fault *vmf);
-
-int vkms_dumb_create(struct drm_file *file, struct drm_device *dev,
-		     struct drm_mode_create_dumb *args);
-
-void vkms_gem_free_object(struct drm_gem_object *obj);
-
-int vkms_gem_vmap(struct drm_gem_object *obj);
-
-void vkms_gem_vunmap(struct drm_gem_object *obj);
-
-/* Prime */
-struct drm_gem_object *
-vkms_prime_import_sg_table(struct drm_device *dev,
-			   struct dma_buf_attachment *attach,
-			   struct sg_table *sg);
 
 /* CRC Support */
 const char *const *vkms_get_crc_sources(struct drm_crtc *crtc,

@@ -75,16 +75,16 @@ void ttm_resource_manager_init(struct ttm_resource_manager *man,
 EXPORT_SYMBOL(ttm_resource_manager_init);
 
 /*
- * ttm_resource_manager_force_list_clean
+ * ttm_resource_manager_evict_all
  *
  * @bdev - device to use
  * @man - manager to use
  *
- * Force all the objects out of a memory manager until clean.
+ * Evict all the objects out of a memory manager until it is empty.
  * Part of memory manager cleanup sequence.
  */
-int ttm_resource_manager_force_list_clean(struct ttm_bo_device *bdev,
-					  struct ttm_resource_manager *man)
+int ttm_resource_manager_evict_all(struct ttm_bo_device *bdev,
+				   struct ttm_resource_manager *man)
 {
 	struct ttm_operation_ctx ctx = {
 		.interruptible = false,
@@ -126,7 +126,7 @@ int ttm_resource_manager_force_list_clean(struct ttm_bo_device *bdev,
 
 	return 0;
 }
-EXPORT_SYMBOL(ttm_resource_manager_force_list_clean);
+EXPORT_SYMBOL(ttm_resource_manager_evict_all);
 
 /**
  * ttm_resource_manager_debug

@@ -149,7 +149,7 @@ int ttm_range_man_fini(struct ttm_bo_device *bdev,
 
 	ttm_resource_manager_set_used(man, false);
 
-	ret = ttm_resource_manager_force_list_clean(bdev, man);
+	ret = ttm_resource_manager_evict_all(bdev, man);
 	if (ret)
 		return ret;
 

@@ -23,7 +23,7 @@
 #include "sti_vtg.h"
 
 static void sti_crtc_atomic_enable(struct drm_crtc *crtc,
-				   struct drm_crtc_state *old_state)
+				   struct drm_atomic_state *state)
 {
 	struct sti_mixer *mixer = to_sti_mixer(crtc);
 
@@ -35,7 +35,7 @@ static void sti_crtc_atomic_enable(struct drm_crtc *crtc,
 }
 
 static void sti_crtc_atomic_disable(struct drm_crtc *crtc,
-				    struct drm_crtc_state *old_state)
+				    struct drm_atomic_state *state)
 {
 	struct sti_mixer *mixer = to_sti_mixer(crtc);
 

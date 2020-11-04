@@ -139,7 +139,7 @@ static int drm_pci_irq_by_busid(struct drm_device *dev, struct drm_irq_busid *p)
 }
 
 /**
- * drm_irq_by_busid - Get interrupt from bus ID
+ * drm_legacy_irq_by_busid - Get interrupt from bus ID
  * @dev: DRM device
  * @data: IOCTL parameter pointing to a drm_irq_busid structure
  * @file_priv: DRM file private.
@@ -150,8 +150,8 @@ static int drm_pci_irq_by_busid(struct drm_device *dev, struct drm_irq_busid *p)
  *
  * Return: 0 on success or a negative error code on failure.
  */
-int drm_irq_by_busid(struct drm_device *dev, void *data,
-		     struct drm_file *file_priv)
+int drm_legacy_irq_by_busid(struct drm_device *dev, void *data,
+			    struct drm_file *file_priv)
 {
 	struct drm_irq_busid *p = data;
 

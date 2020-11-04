@@ -417,14 +417,10 @@ struct drm_crtc_helper_funcs {
 	 * @atomic_enable must be the inverse of @atomic_disable for atomic
 	 * drivers.
 	 *
-	 * Drivers can use the @old_crtc_state input parameter if the operations
-	 * needed to enable the CRTC don't depend solely on the new state but
-	 * also on the transition between the old state and the new state.
-	 *
 	 * This function is optional.
 	 */
 	void (*atomic_enable)(struct drm_crtc *crtc,
-			      struct drm_crtc_state *old_crtc_state);
+			      struct drm_atomic_state *state);
 
 	/**
 	 * @atomic_disable:
@@ -441,15 +437,10 @@ struct drm_crtc_helper_funcs {
 	 * need to implement it if there's no need to disable anything at the
 	 * CRTC level.
 	 *
-	 * Comparing to @disable, this one provides the additional input
-	 * parameter @old_crtc_state which could be used to access the old
-	 * state. Atomic drivers should consider to use this one instead
-	 * of @disable.
-	 *
 	 * This function is optional.
 	 */
 	void (*atomic_disable)(struct drm_crtc *crtc,
-			       struct drm_crtc_state *old_crtc_state);
+			       struct drm_atomic_state *state);
 
 	/**
 	 * @get_scanout_position:

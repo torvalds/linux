@@ -45,53 +45,6 @@ struct ttm_transfer_obj {
 	struct ttm_buffer_object *bo;
 };
 
-void ttm_bo_free_old_node(struct ttm_buffer_object *bo)
-{
-	ttm_resource_free(bo, &bo->mem);
-}
-
-int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
-		   struct ttm_operation_ctx *ctx,
-		    struct ttm_resource *new_mem)
-{
-	struct ttm_tt *ttm = bo->ttm;
-	struct ttm_resource *old_mem = &bo->mem;
-	int ret;
-
-	if (old_mem->mem_type != TTM_PL_SYSTEM) {
-		ret = ttm_bo_wait(bo, ctx->interruptible, ctx->no_wait_gpu);
-
-		if (unlikely(ret != 0)) {
-			if (ret != -ERESTARTSYS)
-				pr_err("Failed to expire sync object before unbinding TTM\n");
-			return ret;
-		}
-
-		ttm_bo_tt_unbind(bo);
-		ttm_bo_free_old_node(bo);
-		old_mem->mem_type = TTM_PL_SYSTEM;
-	}
-
-	ret = ttm_tt_set_placement_caching(ttm, new_mem->placement);
-	if (unlikely(ret != 0))
-		return ret;
-
-	if (new_mem->mem_type != TTM_PL_SYSTEM) {
-
-		ret = ttm_tt_populate(bo->bdev, ttm, ctx);
-		if (unlikely(ret != 0))
-			return ret;
-
-		ret = ttm_bo_tt_bind(bo, new_mem);
-		if (unlikely(ret != 0))
-			return ret;
-	}
-
-	ttm_bo_assign_mem(bo, new_mem);
-	return 0;
-}
-EXPORT_SYMBOL(ttm_bo_move_ttm);
-
 int ttm_mem_io_reserve(struct ttm_bo_device *bdev,
 		       struct ttm_resource *mem)
 {
@@ -135,7 +88,7 @@ static int ttm_resource_ioremap(struct ttm_bo_device *bdev,
 	} else {
 		size_t bus_size = (size_t)mem->num_pages << PAGE_SHIFT;
 
-		if (mem->placement & TTM_PL_FLAG_WC)
+		if (mem->bus.caching == ttm_write_combined)
 			addr = ioremap_wc(mem->bus.offset, bus_size);
 		else
 			addr = ioremap(mem->bus.offset, bus_size);
@@ -227,11 +180,8 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 	void *new_iomap;
 	int ret;
 	unsigned long i;
-	unsigned long page;
-	unsigned long add = 0;
-	int dir;
 
-	ret = ttm_bo_wait(bo, ctx->interruptible, ctx->no_wait_gpu);
+	ret = ttm_bo_wait_ctx(bo, ctx);
 	if (ret)
 		return ret;
 
@@ -267,29 +217,17 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 			goto out1;
 	}
 
-	add = 0;
-	dir = 1;
-
-	if ((old_mem->mem_type == new_mem->mem_type) &&
-	    (new_mem->start < old_mem->start + old_mem->size)) {
-		dir = -1;
-		add = new_mem->num_pages - 1;
-	}
-
 	for (i = 0; i < new_mem->num_pages; ++i) {
-		page = i * dir + add;
 		if (old_iomap == NULL) {
-			pgprot_t prot = ttm_io_prot(old_mem->placement,
-						    PAGE_KERNEL);
-			ret = ttm_copy_ttm_io_page(ttm, new_iomap, page,
+			pgprot_t prot = ttm_io_prot(bo, old_mem, PAGE_KERNEL);
+			ret = ttm_copy_ttm_io_page(ttm, new_iomap, i,
 						   prot);
 		} else if (new_iomap == NULL) {
-			pgprot_t prot = ttm_io_prot(new_mem->placement,
-						    PAGE_KERNEL);
-			ret = ttm_copy_io_ttm_page(ttm, old_iomap, page,
+			pgprot_t prot = ttm_io_prot(bo, new_mem, PAGE_KERNEL);
+			ret = ttm_copy_io_ttm_page(ttm, old_iomap, i,
 						   prot);
 		} else {
-			ret = ttm_copy_io_page(new_iomap, old_iomap, page);
+			ret = ttm_copy_io_page(new_iomap, old_iomap, i);
 		}
 		if (ret)
 			goto out1;
@@ -352,7 +290,6 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 		return -ENOMEM;
 
 	fbo->base = *bo;
-	fbo->base.mem.placement |= TTM_PL_FLAG_NO_EVICT;
 
 	ttm_bo_get(bo);
 	fbo->bo = bo;
@@ -372,6 +309,7 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	kref_init(&fbo->base.kref);
 	fbo->base.destroy = &ttm_transfered_destroy;
 	fbo->base.acc_size = 0;
+	fbo->base.pin_count = 1;
 	if (bo->type != ttm_bo_type_sg)
 		fbo->base.base.resv = &fbo->base.base._resv;
 
@@ -384,21 +322,28 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	return 0;
 }
 
-pgprot_t ttm_io_prot(uint32_t caching_flags, pgprot_t tmp)
+pgprot_t ttm_io_prot(struct ttm_buffer_object *bo, struct ttm_resource *res,
+		     pgprot_t tmp)
 {
+	struct ttm_resource_manager *man;
+	enum ttm_caching caching;
+
+	man = ttm_manager_type(bo->bdev, res->mem_type);
+	caching = man->use_tt ? bo->ttm->caching : res->bus.caching;
+
 	/* Cached mappings need no adjustment */
-	if (caching_flags & TTM_PL_FLAG_CACHED)
+	if (caching == ttm_cached)
 		return tmp;
 
 #if defined(__i386__) || defined(__x86_64__)
-	if (caching_flags & TTM_PL_FLAG_WC)
+	if (caching == ttm_write_combined)
 		tmp = pgprot_writecombine(tmp);
 	else if (boot_cpu_data.x86 > 3)
 		tmp = pgprot_noncached(tmp);
 #endif
 #if defined(__ia64__) || defined(__arm__) || defined(__aarch64__) || \
     defined(__powerpc__) || defined(__mips__)
-	if (caching_flags & TTM_PL_FLAG_WC)
+	if (caching == ttm_write_combined)
 		tmp = pgprot_writecombine(tmp);
 	else
 		tmp = pgprot_noncached(tmp);
@@ -422,7 +367,7 @@ static int ttm_bo_ioremap(struct ttm_buffer_object *bo,
 		map->virtual = (void *)(((u8 *)bo->mem.bus.addr) + offset);
 	} else {
 		map->bo_kmap_type = ttm_bo_map_iomap;
-		if (mem->placement & TTM_PL_FLAG_WC)
+		if (mem->bus.caching == ttm_write_combined)
 			map->virtual = ioremap_wc(bo->mem.bus.offset + offset,
 						  size);
 		else
@@ -452,7 +397,7 @@ static int ttm_bo_kmap_ttm(struct ttm_buffer_object *bo,
 	if (ret)
 		return ret;
 
-	if (num_pages == 1 && (mem->placement & TTM_PL_FLAG_CACHED)) {
+	if (num_pages == 1 && ttm->caching == ttm_cached) {
 		/*
 		 * We're mapping a single page, and the desired
 		 * page protection is consistent with the bo.
@@ -466,7 +411,7 @@ static int ttm_bo_kmap_ttm(struct ttm_buffer_object *bo,
 		 * We need to use vmap to get the desired page protection
 		 * or to make the buffer object look contiguous.
 		 */
-		prot = ttm_io_prot(mem->placement, PAGE_KERNEL);
+		prot = ttm_io_prot(bo, mem, PAGE_KERNEL);
 		map->bo_kmap_type = ttm_bo_map_vmap;
 		map->virtual = vmap(ttm->pages + start_page, num_pages,
 				    0, prot);
@@ -536,7 +481,7 @@ static int ttm_bo_wait_free_node(struct ttm_buffer_object *bo,
 
 	if (!dst_use_tt)
 		ttm_bo_tt_destroy(bo);
-	ttm_bo_free_old_node(bo);
+	ttm_resource_free(bo, &bo->mem);
 	return 0;
 }
 
@@ -597,7 +542,7 @@ static void ttm_bo_move_pipeline_evict(struct ttm_buffer_object *bo,
 	}
 	spin_unlock(&from->move_lock);
 
-	ttm_bo_free_old_node(bo);
+	ttm_resource_free(bo, &bo->mem);
 
 	dma_fence_put(bo->moving);
 	bo->moving = dma_fence_get(fence);

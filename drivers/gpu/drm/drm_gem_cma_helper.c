@@ -171,17 +171,16 @@ drm_gem_cma_create_with_handle(struct drm_file *file_priv,
  * GEM object state and frees the memory used to store the object itself.
  * If the buffer is imported and the virtual address is set, it is released.
  * Drivers using the CMA helpers should set this as their
- * &drm_driver.gem_free_object_unlocked callback.
+ * &drm_gem_object_funcs.free callback.
  */
 void drm_gem_cma_free_object(struct drm_gem_object *gem_obj)
 {
-	struct drm_gem_cma_object *cma_obj;
-
-	cma_obj = to_drm_gem_cma_obj(gem_obj);
+	struct drm_gem_cma_object *cma_obj = to_drm_gem_cma_obj(gem_obj);
+	struct dma_buf_map map = DMA_BUF_MAP_INIT_VADDR(cma_obj->vaddr);
 
 	if (gem_obj->import_attach) {
 		if (cma_obj->vaddr)
-			dma_buf_vunmap(gem_obj->import_attach->dmabuf, cma_obj->vaddr);
+			dma_buf_vunmap(gem_obj->import_attach->dmabuf, &map);
 		drm_prime_gem_destroy(gem_obj, cma_obj->sgt);
 	} else if (cma_obj->vaddr) {
 		dma_free_wc(gem_obj->dev->dev, cma_obj->base.size,
@@ -419,7 +418,7 @@ EXPORT_SYMBOL(drm_gem_cma_print_info);
  *
  * This function exports a scatter/gather table suitable for PRIME usage by
  * calling the standard DMA mapping API. Drivers using the CMA helpers should
- * set this as their &drm_driver.gem_prime_get_sg_table callback.
+ * set this as their &drm_gem_object_funcs.get_sg_table callback.
  *
  * Returns:
  * A pointer to the scatter/gather table of pinned pages or NULL on failure.
@@ -525,7 +524,7 @@ EXPORT_SYMBOL_GPL(drm_gem_cma_prime_mmap);
  * virtual address space. Since the CMA buffers are already mapped into the
  * kernel virtual address space this simply returns the cached virtual
  * address. Drivers using the CMA helpers should set this as their DRM
- * driver's &drm_driver.gem_prime_vmap callback.
+ * driver's &drm_gem_object_funcs.vmap callback.
  *
  * Returns:
  * The kernel virtual address of the CMA GEM object's backing store.
@@ -547,7 +546,7 @@ EXPORT_SYMBOL_GPL(drm_gem_cma_prime_vmap);
  * This function removes a buffer exported via DRM PRIME from the kernel's
  * virtual address space. This is a no-op because CMA buffers cannot be
  * unmapped from kernel space. Drivers using the CMA helpers should set this
- * as their &drm_driver.gem_prime_vunmap callback.
+ * as their &drm_gem_object_funcs.vunmap callback.
  */
 void drm_gem_cma_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
 {
@@ -617,22 +616,23 @@ drm_gem_cma_prime_import_sg_table_vmap(struct drm_device *dev,
 {
 	struct drm_gem_cma_object *cma_obj;
 	struct drm_gem_object *obj;
-	void *vaddr;
+	struct dma_buf_map map;
+	int ret;
 
-	vaddr = dma_buf_vmap(attach->dmabuf);
-	if (!vaddr) {
+	ret = dma_buf_vmap(attach->dmabuf, &map);
+	if (ret) {
 		DRM_ERROR("Failed to vmap PRIME buffer\n");
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(ret);
 	}
 
 	obj = drm_gem_cma_prime_import_sg_table(dev, attach, sgt);
 	if (IS_ERR(obj)) {
-		dma_buf_vunmap(attach->dmabuf, vaddr);
+		dma_buf_vunmap(attach->dmabuf, &map);
 		return obj;
 	}
 
 	cma_obj = to_drm_gem_cma_obj(obj);
-	cma_obj->vaddr = vaddr;
+	cma_obj->vaddr = map.vaddr;
 
 	return obj;
 }

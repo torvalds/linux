@@ -47,7 +47,8 @@
 
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_page_alloc.h>
-#include <drm/ttm/ttm_set_memory.h>
+
+#include "ttm_set_memory.h"
 
 #define NUM_PAGES_TO_ALLOC		(PAGE_SIZE/sizeof(struct page *))
 #define SMALL_ALLOCATION		16
@@ -219,14 +220,14 @@ static struct ttm_pool_manager *_manager;
 /**
  * Select the right pool or requested caching state and ttm flags. */
 static struct ttm_page_pool *ttm_get_pool(int flags, bool huge,
-					  enum ttm_caching_state cstate)
+					  enum ttm_caching cstate)
 {
 	int pool_index;
 
-	if (cstate == tt_cached)
+	if (cstate == ttm_cached)
 		return NULL;
 
-	if (cstate == tt_wc)
+	if (cstate == ttm_write_combined)
 		pool_index = 0x0;
 	else
 		pool_index = 0x1;
@@ -440,17 +441,17 @@ static void ttm_pool_mm_shrink_fini(struct ttm_pool_manager *manager)
 }
 
 static int ttm_set_pages_caching(struct page **pages,
-		enum ttm_caching_state cstate, unsigned cpages)
+		enum ttm_caching cstate, unsigned cpages)
 {
 	int r = 0;
 	/* Set page caching */
 	switch (cstate) {
-	case tt_uncached:
+	case ttm_uncached:
 		r = ttm_set_pages_array_uc(pages, cpages);
 		if (r)
 			pr_err("Failed to set %d pages to uc!\n", cpages);
 		break;
-	case tt_wc:
+	case ttm_write_combined:
 		r = ttm_set_pages_array_wc(pages, cpages);
 		if (r)
 			pr_err("Failed to set %d pages to wc!\n", cpages);
@@ -466,11 +467,11 @@ static int ttm_set_pages_caching(struct page **pages,
  * any pages that have changed their caching state already put them to the
  * pool.
  */
-static void ttm_handle_caching_state_failure(struct list_head *pages,
-		int ttm_flags, enum ttm_caching_state cstate,
-		struct page **failed_pages, unsigned cpages)
+static void ttm_handle_caching_failure(struct page **failed_pages,
+				       unsigned cpages)
 {
 	unsigned i;
+
 	/* Failed pages have to be freed */
 	for (i = 0; i < cpages; ++i) {
 		list_del(&failed_pages[i]->lru);
@@ -485,7 +486,7 @@ static void ttm_handle_caching_state_failure(struct list_head *pages,
  * pages returned in pages array.
  */
 static int ttm_alloc_new_pages(struct list_head *pages, gfp_t gfp_flags,
-			       int ttm_flags, enum ttm_caching_state cstate,
+			       int ttm_flags, enum ttm_caching cstate,
 			       unsigned count, unsigned order)
 {
 	struct page **caching_array;
@@ -516,9 +517,8 @@ static int ttm_alloc_new_pages(struct list_head *pages, gfp_t gfp_flags,
 				r = ttm_set_pages_caching(caching_array,
 							  cstate, cpages);
 				if (r)
-					ttm_handle_caching_state_failure(pages,
-						ttm_flags, cstate,
-						caching_array, cpages);
+					ttm_handle_caching_failure(caching_array,
+								   cpages);
 			}
 			r = -ENOMEM;
 			goto out;
@@ -541,9 +541,8 @@ static int ttm_alloc_new_pages(struct list_head *pages, gfp_t gfp_flags,
 				r = ttm_set_pages_caching(caching_array,
 						cstate, cpages);
 				if (r) {
-					ttm_handle_caching_state_failure(pages,
-						ttm_flags, cstate,
-						caching_array, cpages);
+					ttm_handle_caching_failure(caching_array,
+								   cpages);
 					goto out;
 				}
 				cpages = 0;
@@ -554,9 +553,7 @@ static int ttm_alloc_new_pages(struct list_head *pages, gfp_t gfp_flags,
 	if (cpages) {
 		r = ttm_set_pages_caching(caching_array, cstate, cpages);
 		if (r)
-			ttm_handle_caching_state_failure(pages,
-					ttm_flags, cstate,
-					caching_array, cpages);
+			ttm_handle_caching_failure(caching_array, cpages);
 	}
 out:
 	kfree(caching_array);
@@ -569,7 +566,7 @@ out:
  * pages is small.
  */
 static void ttm_page_pool_fill_locked(struct ttm_page_pool *pool, int ttm_flags,
-				      enum ttm_caching_state cstate,
+				      enum ttm_caching cstate,
 				      unsigned count, unsigned long *irq_flags)
 {
 	struct page *p;
@@ -629,7 +626,7 @@ static void ttm_page_pool_fill_locked(struct ttm_page_pool *pool, int ttm_flags,
 static int ttm_page_pool_get_pages(struct ttm_page_pool *pool,
 				   struct list_head *pages,
 				   int ttm_flags,
-				   enum ttm_caching_state cstate,
+				   enum ttm_caching cstate,
 				   unsigned count, unsigned order)
 {
 	unsigned long irq_flags;
@@ -706,7 +703,7 @@ out:
 
 /* Put all pages in pages list to correct pool to wait for reuse */
 static void ttm_put_pages(struct page **pages, unsigned npages, int flags,
-			  enum ttm_caching_state cstate)
+			  enum ttm_caching cstate)
 {
 	struct ttm_page_pool *pool = ttm_get_pool(flags, false, cstate);
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
@@ -824,7 +821,7 @@ static void ttm_put_pages(struct page **pages, unsigned npages, int flags,
  * cached pages.
  */
 static int ttm_get_pages(struct page **pages, unsigned npages, int flags,
-			 enum ttm_caching_state cstate)
+			 enum ttm_caching cstate)
 {
 	struct ttm_page_pool *pool = ttm_get_pool(flags, false, cstate);
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
@@ -1043,8 +1040,7 @@ ttm_pool_unpopulate_helper(struct ttm_tt *ttm, unsigned mem_count_update)
 
 put_pages:
 	ttm_put_pages(ttm->pages, ttm->num_pages, ttm->page_flags,
-		      ttm->caching_state);
-	ttm_tt_set_unpopulated(ttm);
+		      ttm->caching);
 }
 
 int ttm_pool_populate(struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
@@ -1060,7 +1056,7 @@ int ttm_pool_populate(struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
 		return -ENOMEM;
 
 	ret = ttm_get_pages(ttm->pages, ttm->num_pages, ttm->page_flags,
-			    ttm->caching_state);
+			    ttm->caching);
 	if (unlikely(ret != 0)) {
 		ttm_pool_unpopulate_helper(ttm, 0);
 		return ret;
@@ -1075,15 +1071,6 @@ int ttm_pool_populate(struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
 		}
 	}
 
-	if (unlikely(ttm->page_flags & TTM_PAGE_FLAG_SWAPPED)) {
-		ret = ttm_tt_swapin(ttm);
-		if (unlikely(ret != 0)) {
-			ttm_pool_unpopulate(ttm);
-			return ret;
-		}
-	}
-
-	ttm_tt_set_populated(ttm);
 	return 0;
 }
 EXPORT_SYMBOL(ttm_pool_populate);
@@ -1094,28 +1081,28 @@ void ttm_pool_unpopulate(struct ttm_tt *ttm)
 }
 EXPORT_SYMBOL(ttm_pool_unpopulate);
 
-int ttm_populate_and_map_pages(struct device *dev, struct ttm_dma_tt *tt,
+int ttm_populate_and_map_pages(struct device *dev, struct ttm_tt *tt,
 					struct ttm_operation_ctx *ctx)
 {
 	unsigned i, j;
 	int r;
 
-	r = ttm_pool_populate(&tt->ttm, ctx);
+	r = ttm_pool_populate(tt, ctx);
 	if (r)
 		return r;
 
-	for (i = 0; i < tt->ttm.num_pages; ++i) {
-		struct page *p = tt->ttm.pages[i];
+	for (i = 0; i < tt->num_pages; ++i) {
+		struct page *p = tt->pages[i];
 		size_t num_pages = 1;
 
-		for (j = i + 1; j < tt->ttm.num_pages; ++j) {
-			if (++p != tt->ttm.pages[j])
+		for (j = i + 1; j < tt->num_pages; ++j) {
+			if (++p != tt->pages[j])
 				break;
 
 			++num_pages;
 		}
 
-		tt->dma_address[i] = dma_map_page(dev, tt->ttm.pages[i],
+		tt->dma_address[i] = dma_map_page(dev, tt->pages[i],
 						  0, num_pages * PAGE_SIZE,
 						  DMA_BIDIRECTIONAL);
 		if (dma_mapping_error(dev, tt->dma_address[i])) {
@@ -1124,7 +1111,7 @@ int ttm_populate_and_map_pages(struct device *dev, struct ttm_dma_tt *tt,
 					       PAGE_SIZE, DMA_BIDIRECTIONAL);
 				tt->dma_address[i] = 0;
 			}
-			ttm_pool_unpopulate(&tt->ttm);
+			ttm_pool_unpopulate(tt);
 			return -EFAULT;
 		}
 
@@ -1137,21 +1124,21 @@ int ttm_populate_and_map_pages(struct device *dev, struct ttm_dma_tt *tt,
 }
 EXPORT_SYMBOL(ttm_populate_and_map_pages);
 
-void ttm_unmap_and_unpopulate_pages(struct device *dev, struct ttm_dma_tt *tt)
+void ttm_unmap_and_unpopulate_pages(struct device *dev, struct ttm_tt *tt)
 {
 	unsigned i, j;
 
-	for (i = 0; i < tt->ttm.num_pages;) {
-		struct page *p = tt->ttm.pages[i];
+	for (i = 0; i < tt->num_pages;) {
+		struct page *p = tt->pages[i];
 		size_t num_pages = 1;
 
-		if (!tt->dma_address[i] || !tt->ttm.pages[i]) {
+		if (!tt->dma_address[i] || !tt->pages[i]) {
 			++i;
 			continue;
 		}
 
-		for (j = i + 1; j < tt->ttm.num_pages; ++j) {
-			if (++p != tt->ttm.pages[j])
+		for (j = i + 1; j < tt->num_pages; ++j) {
+			if (++p != tt->pages[j])
 				break;
 
 			++num_pages;
@@ -1162,7 +1149,7 @@ void ttm_unmap_and_unpopulate_pages(struct device *dev, struct ttm_dma_tt *tt)
 
 		i += num_pages;
 	}
-	ttm_pool_unpopulate(&tt->ttm);
+	ttm_pool_unpopulate(tt);
 }
 EXPORT_SYMBOL(ttm_unmap_and_unpopulate_pages);
 

@@ -1319,6 +1319,7 @@ static int amdgpu_debugfs_evict_gtt(struct seq_file *m, void *data)
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct amdgpu_device *adev = drm_to_adev(dev);
+	struct ttm_resource_manager *man;
 	int r;
 
 	r = pm_runtime_get_sync(dev->dev);
@@ -1327,7 +1328,9 @@ static int amdgpu_debugfs_evict_gtt(struct seq_file *m, void *data)
 		return r;
 	}
 
-	seq_printf(m, "(%d)\n", ttm_bo_evict_mm(&adev->mman.bdev, TTM_PL_TT));
+	man = ttm_manager_type(&adev->mman.bdev, TTM_PL_TT);
+	r = ttm_resource_manager_evict_all(&adev->mman.bdev, man);
+	seq_printf(m, "(%d)\n", r);
 
 	pm_runtime_mark_last_busy(dev->dev);
 	pm_runtime_put_autosuspend(dev->dev);
