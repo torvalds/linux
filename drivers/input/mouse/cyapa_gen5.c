@@ -385,7 +385,7 @@ ssize_t cyapa_i2c_pip_read(struct cyapa *cyapa, u8 *buf, size_t size)
 	return size;
 }
 
-/**
+/*
  * Return a negative errno code else zero on success.
  */
 ssize_t cyapa_i2c_pip_write(struct cyapa *cyapa, u8 *buf, size_t size)
@@ -435,7 +435,7 @@ static enum cyapa_pm_stage cyapa_get_pip_pm_state(struct cyapa *cyapa)
 	return pm_stage;
 }
 
-/**
+/*
  * This function is aimed to dump all not read data in Gen5 trackpad
  * before send any command, otherwise, the interrupt line will be blocked.
  */
