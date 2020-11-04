@@ -1182,7 +1182,7 @@ static int q6v5_mpss_load(struct q6v5 *qproc)
 			goto release_firmware;
 		}
 
-		ptr = ioremap_wc(qproc->mpss_phys + offset, phdr->p_memsz);
+		ptr = memremap(qproc->mpss_phys + offset, phdr->p_memsz, MEMREMAP_WC);
 		if (!ptr) {
 			dev_err(qproc->dev,
 				"unable to map memory region: %pa+%zx-%x\n",
@@ -1197,7 +1197,7 @@ static int q6v5_mpss_load(struct q6v5 *qproc)
 					"failed to load segment %d from truncated file %s\n",
 					i, fw_name);
 				ret = -EINVAL;
-				iounmap(ptr);
+				memunmap(ptr);
 				goto release_firmware;
 			}
 
@@ -1209,7 +1209,7 @@ static int q6v5_mpss_load(struct q6v5 *qproc)
 							ptr, phdr->p_filesz);
 			if (ret) {
 				dev_err(qproc->dev, "failed to load %s\n", fw_name);
-				iounmap(ptr);
+				memunmap(ptr);
 				goto release_firmware;
 			}
 
@@ -1220,7 +1220,7 @@ static int q6v5_mpss_load(struct q6v5 *qproc)
 			memset(ptr + phdr->p_filesz, 0,
 			       phdr->p_memsz - phdr->p_filesz);
 		}
-		iounmap(ptr);
+		memunmap(ptr);
 		size += phdr->p_memsz;
 
 		code_length = readl(qproc->rmb_base + RMB_PMI_CODE_LENGTH_REG);
@@ -1287,11 +1287,11 @@ static void qcom_q6v5_dump_segment(struct rproc *rproc,
 	}
 
 	if (!ret)
-		ptr = ioremap_wc(qproc->mpss_phys + offset + cp_offset, size);
+		ptr = memremap(qproc->mpss_phys + offset + cp_offset, size, MEMREMAP_WC);
 
 	if (ptr) {
 		memcpy(dest, ptr, size);
-		iounmap(ptr);
+		memunmap(ptr);
 	} else {
 		memset(dest, 0xff, size);
 	}
