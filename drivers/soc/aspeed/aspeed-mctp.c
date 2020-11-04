@@ -168,6 +168,7 @@ struct aspeed_mctp {
 	struct mctp_channel tx;
 	struct mctp_channel rx;
 	struct list_head clients;
+	struct mctp_client *default_client;
 	spinlock_t clients_lock; /* to protect clients list operations */
 	wait_queue_head_t wait_queue;
 	struct {
@@ -230,6 +231,12 @@ static void aspeed_mctp_rx_trigger(struct mctp_channel *rx)
 static void aspeed_mctp_tx_trigger(struct mctp_channel *tx)
 {
 	struct aspeed_mctp *priv = container_of(tx, typeof(*priv), tx);
+	struct aspeed_mctp_tx_cmd *last_cmd;
+
+	last_cmd = (struct aspeed_mctp_tx_cmd *)tx->cmd.vaddr +
+		   (tx->wr_ptr - 1) % TX_PACKET_COUNT;
+	last_cmd->tx_hi |= TX_LAST_CMD;
+	last_cmd->tx_lo |= TX_STOP_AFTER_CMD | TX_INTERRUPT_AFTER_CMD;
 
 	regmap_write(priv->map, ASPEED_MCTP_TX_BUF_ADDR,
 		     tx->cmd.dma_handle);
@@ -239,7 +246,7 @@ static void aspeed_mctp_tx_trigger(struct mctp_channel *tx)
 }
 
 static void aspeed_mctp_emit_tx_cmd(struct mctp_channel *tx,
-				    struct mctp_pcie_packet *packet, bool last)
+				    struct mctp_pcie_packet *packet)
 {
 	struct aspeed_mctp_tx_cmd *tx_cmd =
 		(struct aspeed_mctp_tx_cmd *)tx->cmd.vaddr + tx->wr_ptr;
@@ -251,12 +258,8 @@ static void aspeed_mctp_emit_tx_cmd(struct mctp_channel *tx,
 	       sizeof(packet->data));
 
 	tx_cmd->tx_lo = TX_PACKET_SIZE(packet_sz_dw);
-	tx_cmd->tx_lo |= TX_STOP_AFTER_CMD;
-	tx_cmd->tx_lo |= TX_INTERRUPT_AFTER_CMD;
 	tx_cmd->tx_hi = TX_RESERVED_1;
 	tx_cmd->tx_hi |= TX_DATA_ADDR(tx->data.dma_handle + offset);
-	if (last)
-		tx_cmd->tx_hi |= TX_LAST_CMD;
 
 	tx->wr_ptr++;
 }
@@ -300,6 +303,36 @@ static void aspeed_mctp_client_put(struct mctp_client *client)
 	kref_put(&client->ref, &aspeed_mctp_client_free);
 }
 
+static void aspeed_mctp_dispatch_packet(struct aspeed_mctp *priv,
+					struct mctp_pcie_packet *packet)
+{
+	struct mctp_client *client;
+	int ret;
+
+	spin_lock(&priv->clients_lock);
+
+	client = priv->default_client;
+
+	if (client)
+		aspeed_mctp_client_get(client);
+
+	spin_unlock(&priv->clients_lock);
+
+	if (client) {
+		ret = ptr_ring_produce(&client->rx_queue, packet);
+		if (ret) {
+			dev_warn(priv->dev, "Failed to produce RX packet\n");
+			packet_free(packet);
+		} else {
+			wake_up_all(&priv->wait_queue);
+		}
+		aspeed_mctp_client_put(client);
+	} else {
+		dev_dbg(priv->dev, "Failed to dispatch RX packet\n");
+		packet_free(packet);
+	}
+}
+
 static void aspeed_mctp_tx_tasklet(unsigned long data)
 {
 	struct mctp_channel *tx = (struct mctp_channel *)data;
@@ -312,42 +345,30 @@ static void aspeed_mctp_tx_tasklet(unsigned long data)
 	if (rd_ptr == 0 && tx->wr_ptr != 0)
 		return;
 
-	spin_lock(&priv->clients_lock);
-	client = list_first_entry_or_null(&priv->clients, typeof(*client),
-					  link);
-	if (!client) {
-		spin_unlock(&priv->clients_lock);
-		return;
-	}
-	aspeed_mctp_client_get(client);
-	spin_unlock(&priv->clients_lock);
-
 	/* last tx ended up with buffer size, meaning we now restart from 0 */
 	if (rd_ptr == TX_PACKET_COUNT) {
 		WRITE_ONCE(tx->rd_ptr, 0);
 		tx->wr_ptr = 0;
 	}
 
-	while (tx->wr_ptr < TX_PACKET_COUNT) {
-		struct mctp_pcie_packet *packet;
-		bool last;
+	spin_lock(&priv->clients_lock);
 
-		packet = ptr_ring_consume(&client->tx_queue);
-		if (!packet)
-			break;
+	list_for_each_entry(client, &priv->clients, link) {
+		while (tx->wr_ptr < TX_PACKET_COUNT) {
+			struct mctp_pcie_packet *packet;
 
-		last = !__ptr_ring_peek(&client->tx_queue);
+			packet = __ptr_ring_peek(&client->tx_queue);
+			if (!packet)
+				break;
 
-		aspeed_mctp_emit_tx_cmd(tx, packet, last);
-		packet_free(packet);
-
-		trigger = true;
-
-		if (last)
-			break;
+			ptr_ring_consume(&client->tx_queue);
+			aspeed_mctp_emit_tx_cmd(tx, packet);
+			packet_free(packet);
+			trigger = true;
+		}
 	}
 
-	aspeed_mctp_client_put(client);
+	spin_unlock(&priv->clients_lock);
 
 	if (trigger)
 		aspeed_mctp_tx_trigger(tx);
@@ -359,9 +380,9 @@ static void aspeed_mctp_rx_tasklet(unsigned long data)
 	struct aspeed_mctp *priv = container_of(rx, typeof(*priv), rx);
 	struct mctp_pcie_packet *rx_packet;
 	struct mctp_pcie_packet_data *rx_buf;
-	struct mctp_client *client;
-	int ret, i;
+	int i;
 	u32 *hdr;
+
 	/*
 	 * XXX: Using rd_ptr obtained from HW is unreliable so we need to
 	 * maintain the state of buffer on our own by peeking into the buffer
@@ -370,27 +391,11 @@ static void aspeed_mctp_rx_tasklet(unsigned long data)
 	rx_buf = (struct mctp_pcie_packet_data *)rx->data.vaddr;
 	hdr = (u32 *)&rx_buf[rx->wr_ptr];
 
-	spin_lock(&priv->clients_lock);
-	client = list_first_entry_or_null(&priv->clients, typeof(*client),
-					  link);
-	if (!client) {
-		spin_unlock(&priv->clients_lock);
-
-		while (*hdr != 0) {
-			*hdr = 0;
-			rx->wr_ptr = (rx->wr_ptr + 1) % RX_PACKET_COUNT;
-			hdr = (u32 *)&rx_buf[rx->wr_ptr];
-		}
-		goto out_skip;
-	}
-	aspeed_mctp_client_get(client);
-	spin_unlock(&priv->clients_lock);
-
 	while (*hdr != 0) {
 		rx_packet = packet_alloc(GFP_ATOMIC);
 		if (!rx_packet) {
 			dev_err(priv->dev, "Failed to allocate RX packet\n");
-			goto out_put;
+			break;
 		}
 		/*
 		 * XXX: HW outputs VDM header in little endian, swap to present
@@ -406,22 +411,10 @@ static void aspeed_mctp_rx_tasklet(unsigned long data)
 		rx->wr_ptr = (rx->wr_ptr + 1) % RX_PACKET_COUNT;
 		hdr = (u32 *)&rx_buf[rx->wr_ptr];
 
-		ret = ptr_ring_produce(&client->rx_queue, rx_packet);
-		if (ret) {
-			dev_warn(priv->dev, "Failed to produce RX packet: %d\n",
-				 ret);
-			packet_free(rx_packet);
-			continue;
-		}
+		aspeed_mctp_dispatch_packet(priv, rx_packet);
 	}
-out_skip:
-	if (rx->wr_ptr == 0 && client)
+	if (rx->wr_ptr == 0)
 		aspeed_mctp_rx_trigger(rx);
-
-	wake_up_all(&priv->wait_queue);
-out_put:
-	if (client)
-		aspeed_mctp_client_put(client);
 }
 
 static void aspeed_mctp_rx_chan_init(struct mctp_channel *rx)
@@ -457,26 +450,15 @@ static void aspeed_mctp_tx_chan_init(struct mctp_channel *tx)
 	regmap_write(priv->map, ASPEED_MCTP_TX_BUF_WR_PTR, 0);
 }
 
-static int aspeed_mctp_open(struct inode *inode, struct file *file)
+static struct mctp_client *aspeed_mctp_create_client(struct aspeed_mctp *priv)
 {
-	struct miscdevice *misc = file->private_data;
-	struct platform_device *pdev = to_platform_device(misc->parent);
-	struct aspeed_mctp *priv = platform_get_drvdata(pdev);
 	struct mctp_client *client;
-	int ret;
 
 	client = aspeed_mctp_client_alloc(priv);
-	if (!client) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!client)
+		return NULL;
 
 	spin_lock_bh(&priv->clients_lock);
-	/* TODO: Add support for multiple clients  */
-	if (!list_empty(&priv->clients)) {
-		ret = -EBUSY;
-		goto out_unlock;
-	}
 	list_add_tail(&client->link, &priv->clients);
 	spin_unlock_bh(&priv->clients_lock);
 
@@ -490,29 +472,56 @@ static int aspeed_mctp_open(struct inode *inode, struct file *file)
 	tasklet_hi_schedule(&priv->rx.tasklet);
 	local_bh_enable();
 
-	file->private_data = client;
-
-	return 0;
-out_unlock:
-	spin_unlock_bh(&priv->clients_lock);
-	aspeed_mctp_client_put(client);
-out:
-	return ret;
+	return client;
 }
 
-static int aspeed_mctp_release(struct inode *inode, struct file *file)
+static int aspeed_mctp_open(struct inode *inode, struct file *file)
 {
-	struct mctp_client *client = file->private_data;
+	struct miscdevice *misc = file->private_data;
+	struct platform_device *pdev = to_platform_device(misc->parent);
+	struct aspeed_mctp *priv = platform_get_drvdata(pdev);
+	struct mctp_client *client;
+
+	client = aspeed_mctp_create_client(priv);
+	if (!client)
+		return -ENOMEM;
+
+	file->private_data = client;
+	/*
+	 * XXX Temporary hack: use first user space client as default client
+	 * that receives all packets - remove this code once the mctpd
+	 * service registers itself as default client.
+	 */
+	if (!priv->default_client)
+		priv->default_client = client;
+
+	return 0;
+}
+
+static void aspeed_mctp_delete_client(struct mctp_client *client)
+{
 	struct aspeed_mctp *priv = client->priv;
 
 	spin_lock_bh(&priv->clients_lock);
+
 	list_del(&client->link);
+
+	if (priv->default_client == client)
+		priv->default_client = NULL;
+
 	spin_unlock_bh(&priv->clients_lock);
 
 	/* Disable the tasklet to appease lockdep */
 	local_bh_disable();
 	aspeed_mctp_client_put(client);
 	local_bh_enable();
+}
+
+static int aspeed_mctp_release(struct inode *inode, struct file *file)
+{
+	struct mctp_client *client = file->private_data;
+
+	aspeed_mctp_delete_client(client);
 
 	return 0;
 }
@@ -1130,26 +1139,6 @@ out:
 static int aspeed_mctp_remove(struct platform_device *pdev)
 {
 	struct aspeed_mctp *priv = platform_get_drvdata(pdev);
-	int ret;
-	u32 val;
-
-	/*
-	 * XXX: Once we trigger RX, we are not able to stop the HW until it
-	 * reaches the end of RX buffer (and stops on its own).
-	 * It may cause a problem, when we work with modules - if we unload
-	 * driver before hardware stops to receive packets, there is no
-	 * guarantee that it is idle. It may still be writing data to (now
-	 * deallocated) RX buffer.
-	 * Since module-reload is more of a development use case and is
-	 * unlikely to be used in production, rather than trying to catch up
-	 * with hardware state during probe, let's just give it a while to stop
-	 * on its own, printing a warning if we exit with HW still running.
-	 */
-	ret = regmap_read_poll_timeout(priv->map, ASPEED_MCTP_CTRL, val,
-				       !(val & RX_CMD_READY),
-				       500 * USEC_PER_MSEC, 30 * USEC_PER_SEC);
-	if (ret)
-		dev_warn(priv->dev, "Timed out waiting for RX to idle.\n");
 
 	misc_deregister(&aspeed_mctp_miscdev);
 
