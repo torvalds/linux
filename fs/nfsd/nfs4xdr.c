@@ -576,18 +576,6 @@ nfsd4_decode_fattr4(struct nfsd4_compoundargs *argp, u32 *bmval, u32 bmlen,
 }
 
 static __be32
-nfsd4_decode_stateid(struct nfsd4_compoundargs *argp, stateid_t *sid)
-{
-	DECODE_HEAD;
-
-	READ_BUF(sizeof(stateid_t));
-	sid->si_generation = be32_to_cpup(p++);
-	COPYMEM(&sid->si_opaque, sizeof(stateid_opaque_t));
-
-	DECODE_TAIL;
-}
-
-static __be32
 nfsd4_decode_stateid4(struct nfsd4_compoundargs *argp, stateid_t *sid)
 {
 	__be32 *p;
@@ -1919,25 +1907,6 @@ nfsd4_decode_fallocate(struct nfsd4_compoundargs *argp,
 	return nfs_ok;
 }
 
-static __be32
-nfsd4_decode_clone(struct nfsd4_compoundargs *argp, struct nfsd4_clone *clone)
-{
-	DECODE_HEAD;
-
-	status = nfsd4_decode_stateid(argp, &clone->cl_src_stateid);
-	if (status)
-		return status;
-	status = nfsd4_decode_stateid(argp, &clone->cl_dst_stateid);
-	if (status)
-		return status;
-
-	READ_BUF(8 + 8 + 8);
-	p = xdr_decode_hyper(p, &clone->cl_src_pos);
-	p = xdr_decode_hyper(p, &clone->cl_dst_pos);
-	p = xdr_decode_hyper(p, &clone->cl_count);
-	DECODE_TAIL;
-}
-
 static __be32 nfsd4_decode_nl4_server(struct nfsd4_compoundargs *argp,
 				      struct nl4_server *ns)
 {
@@ -2062,6 +2031,27 @@ nfsd4_decode_seek(struct nfsd4_compoundargs *argp, struct nfsd4_seek *seek)
 	if (xdr_stream_decode_u64(argp->xdr, &seek->seek_offset) < 0)
 		return nfserr_bad_xdr;
 	if (xdr_stream_decode_u32(argp->xdr, &seek->seek_whence) < 0)
+		return nfserr_bad_xdr;
+
+	return nfs_ok;
+}
+
+static __be32
+nfsd4_decode_clone(struct nfsd4_compoundargs *argp, struct nfsd4_clone *clone)
+{
+	__be32 status;
+
+	status = nfsd4_decode_stateid4(argp, &clone->cl_src_stateid);
+	if (status)
+		return status;
+	status = nfsd4_decode_stateid4(argp, &clone->cl_dst_stateid);
+	if (status)
+		return status;
+	if (xdr_stream_decode_u64(argp->xdr, &clone->cl_src_pos) < 0)
+		return nfserr_bad_xdr;
+	if (xdr_stream_decode_u64(argp->xdr, &clone->cl_dst_pos) < 0)
+		return nfserr_bad_xdr;
+	if (xdr_stream_decode_u64(argp->xdr, &clone->cl_count) < 0)
 		return nfserr_bad_xdr;
 
 	return nfs_ok;
