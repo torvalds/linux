@@ -528,6 +528,13 @@ config UID_SYS_STATS_DEBUG
 	help
 	  Per TASK based io statistics exported to /proc/uid_io
 
+config PIR_ASCHIP
+	bool "Aschip PIR(Passive Infrared Sensor)"
+	default n
+	help
+	  Provides a driver to control the sensibility of the Aschip PIR detection
+	  sensor.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
