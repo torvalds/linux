@@ -428,7 +428,7 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 
-			pin-controller@1c0 {
+			pinctrl: pin-controller@1c0 {
 				compatible = "brcm,bcm4708-pinmux";
 				reg = <0x1c0 0x24>;
 				reg-names = "cru_gpio_control";
