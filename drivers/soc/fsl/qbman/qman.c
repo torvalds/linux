@@ -1159,7 +1159,7 @@ static u32 fq_to_tag(struct qman_fq *fq)
 
 static u32 __poll_portal_slow(struct qman_portal *p, u32 is);
 static inline unsigned int __poll_portal_fast(struct qman_portal *p,
-					unsigned int poll_limit);
+					unsigned int poll_limit, bool sched_napi);
 static void qm_congestion_task(struct work_struct *work);
 static void qm_mr_process_task(struct work_struct *work);
 
@@ -1174,7 +1174,7 @@ static irqreturn_t portal_isr(int irq, void *ptr)
 
 	/* DQRR-handling if it's interrupt-driven */
 	if (is & QM_PIRQ_DQRI) {
-		__poll_portal_fast(p, QMAN_POLL_LIMIT);
+		__poll_portal_fast(p, QMAN_POLL_LIMIT, true);
 		clear = QM_DQAVAIL_MASK | QM_PIRQ_DQRI;
 	}
 	/* Handling of anything else that's interrupt-driven */
@@ -1602,7 +1602,7 @@ static noinline void clear_vdqcr(struct qman_portal *p, struct qman_fq *fq)
  * user callbacks to call into any QMan API.
  */
 static inline unsigned int __poll_portal_fast(struct qman_portal *p,
-					unsigned int poll_limit)
+					unsigned int poll_limit, bool sched_napi)
 {
 	const struct qm_dqrr_entry *dq;
 	struct qman_fq *fq;
@@ -1636,7 +1636,7 @@ static inline unsigned int __poll_portal_fast(struct qman_portal *p,
 			 * and we don't want multiple if()s in the critical
 			 * path (SDQCR).
 			 */
-			res = fq->cb.dqrr(p, fq, dq);
+			res = fq->cb.dqrr(p, fq, dq, sched_napi);
 			if (res == qman_cb_dqrr_stop)
 				break;
 			/* Check for VDQCR completion */
@@ -1646,7 +1646,7 @@ static inline unsigned int __poll_portal_fast(struct qman_portal *p,
 			/* SDQCR: context_b points to the FQ */
 			fq = tag_to_fq(be32_to_cpu(dq->context_b));
 			/* Now let the callback do its stuff */
-			res = fq->cb.dqrr(p, fq, dq);
+			res = fq->cb.dqrr(p, fq, dq, sched_napi);
 			/*
 			 * The callback can request that we exit without
 			 * consuming this entry nor advancing;
@@ -1753,7 +1753,7 @@ EXPORT_SYMBOL(qman_start_using_portal);
 
 int qman_p_poll_dqrr(struct qman_portal *p, unsigned int limit)
 {
-	return __poll_portal_fast(p, limit);
+	return __poll_portal_fast(p, limit, false);
 }
 EXPORT_SYMBOL(qman_p_poll_dqrr);
 

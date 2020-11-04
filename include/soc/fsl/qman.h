@@ -689,7 +689,8 @@ enum qman_cb_dqrr_result {
 };
 typedef enum qman_cb_dqrr_result (*qman_cb_dqrr)(struct qman_portal *qm,
 					struct qman_fq *fq,
-					const struct qm_dqrr_entry *dqrr);
+					const struct qm_dqrr_entry *dqrr,
+					bool sched_napi);
 
 /*
  * This callback type is used when handling ERNs, FQRNs and FQRLs via MR. They
