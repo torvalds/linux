@@ -17,14 +17,18 @@ KSFT_KHDR_INSTALL := 1
 include ../lib.mk
 
 GPIODIR := $(realpath ../../../gpio)
-GPIOOBJ := gpio-utils.o
+GPIOOUT := $(OUTPUT)/tools-gpio/
+GPIOOBJ := $(GPIOOUT)/gpio-utils.o
 
 override define CLEAN
 	$(RM) $(TEST_GEN_PROGS_EXTENDED)
-	$(MAKE) -C $(GPIODIR) OUTPUT=$(GPIODIR)/ clean
+	$(RM) -rf $(GPIOOUT)
 endef
 
-$(TEST_GEN_PROGS_EXTENDED): $(GPIODIR)/$(GPIOOBJ)
+$(TEST_GEN_PROGS_EXTENDED): $(GPIOOBJ)
 
-$(GPIODIR)/$(GPIOOBJ):
-	$(MAKE) OUTPUT=$(GPIODIR)/ -C $(GPIODIR)
+$(GPIOOUT):
+	mkdir -p $@
+
+$(GPIOOBJ): $(GPIOOUT)
+	$(MAKE) OUTPUT=$(GPIOOUT) -C $(GPIODIR)
