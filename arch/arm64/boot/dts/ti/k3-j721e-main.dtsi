@@ -1278,7 +1278,7 @@
 		};
 	};
 
-	dss: dss@04a00000 {
+	dss: dss@4a00000 {
 		compatible = "ti,j721e-dss";
 		reg =
 			<0x00 0x04a00000 0x00 0x10000>, /* common_m */
