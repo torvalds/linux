@@ -24,6 +24,8 @@
 #include "vc4_drv.h"
 #include "vc4_regs.h"
 
+#define HVS_NUM_CHANNELS 3
+
 struct vc4_ctm_state {
 	struct drm_private_state base;
 	struct drm_color_ctm *ctm;
@@ -660,12 +662,10 @@ static int vc4_load_tracker_obj_init(struct vc4_dev *vc4)
 	return drmm_add_action_or_reset(&vc4->base, vc4_load_tracker_obj_fini, NULL);
 }
 
-#define NUM_CHANNELS 3
-
 static int
 vc4_atomic_check(struct drm_device *dev, struct drm_atomic_state *state)
 {
-	unsigned long unassigned_channels = GENMASK(NUM_CHANNELS - 1, 0);
+	unsigned long unassigned_channels = GENMASK(HVS_NUM_CHANNELS - 1, 0);
 	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
 	struct drm_crtc *crtc;
 	int i, ret;
