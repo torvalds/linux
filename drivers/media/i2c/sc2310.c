@@ -1550,20 +1550,20 @@ static int sc2310_set_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_EXPOSURE:
 		if (sc2310->cur_mode->hdr_mode != NO_HDR)
 			return ret;
-		ctrl->val = ctrl->val << 1;
+		val = ctrl->val << 1;
 		ret = sc2310_write_reg(sc2310->client,
 					SC2310_REG_EXP_LONG_L,
 					SC2310_REG_VALUE_08BIT,
-					(ctrl->val << 4 & 0XF0));
+					(val << 4 & 0XF0));
 		ret |= sc2310_write_reg(sc2310->client,
 					SC2310_REG_EXP_LONG_M,
 					SC2310_REG_VALUE_08BIT,
-					(ctrl->val >> 4 & 0XFF));
+					(val >> 4 & 0XFF));
 		ret |= sc2310_write_reg(sc2310->client,
 					SC2310_REG_EXP_LONG_H,
 					SC2310_REG_VALUE_08BIT,
-					(ctrl->val >> 12 & 0X0F));
-		dev_dbg(&client->dev, "set exposure 0x%x\n", ctrl->val);
+					(val >> 12 & 0X0F));
+		dev_dbg(&client->dev, "set exposure 0x%x\n", val);
 		break;
 
 	case V4L2_CID_ANALOGUE_GAIN:
