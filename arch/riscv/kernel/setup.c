@@ -249,16 +249,15 @@ void __init setup_arch(char **cmdline_p)
 		pr_err("No DTB found in kernel mappings\n");
 #endif
 
+	if (IS_ENABLED(CONFIG_RISCV_SBI))
+		sbi_init();
+
 #ifdef CONFIG_SWIOTLB
 	swiotlb_init(1);
 #endif
 
 #ifdef CONFIG_KASAN
 	kasan_init();
-#endif
-
-#if IS_ENABLED(CONFIG_RISCV_SBI)
-	sbi_init();
 #endif
 
 #ifdef CONFIG_SMP
