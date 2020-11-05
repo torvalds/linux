@@ -7558,7 +7558,7 @@ static void enable_smi_window(struct kvm_vcpu *vcpu)
 
 static bool vmx_apic_init_signal_blocked(struct kvm_vcpu *vcpu)
 {
-	return to_vmx(vcpu)->nested.vmxon;
+	return to_vmx(vcpu)->nested.vmxon && !is_guest_mode(vcpu);
 }
 
 static void vmx_migrate_timers(struct kvm_vcpu *vcpu)
