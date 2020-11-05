@@ -234,8 +234,8 @@ static void gsi_irq_ieob_enable(struct gsi *gsi, u32 evt_ring_id)
 {
 	u32 val;
 
-	gsi->event_enable_bitmap |= BIT(evt_ring_id);
-	val = gsi->event_enable_bitmap;
+	gsi->ieob_enabled_bitmap |= BIT(evt_ring_id);
+	val = gsi->ieob_enabled_bitmap;
 	iowrite32(val, gsi->virt + GSI_CNTXT_SRC_IEOB_IRQ_MSK_OFFSET);
 }
 
@@ -243,8 +243,8 @@ static void gsi_irq_ieob_disable(struct gsi *gsi, u32 evt_ring_id)
 {
 	u32 val;
 
-	gsi->event_enable_bitmap &= ~BIT(evt_ring_id);
-	val = gsi->event_enable_bitmap;
+	gsi->ieob_enabled_bitmap &= ~BIT(evt_ring_id);
+	val = gsi->ieob_enabled_bitmap;
 	iowrite32(val, gsi->virt + GSI_CNTXT_SRC_IEOB_IRQ_MSK_OFFSET);
 }
 
@@ -1774,7 +1774,7 @@ static void gsi_evt_ring_init(struct gsi *gsi)
 	u32 evt_ring_id = 0;
 
 	gsi->event_bitmap = gsi_event_bitmap_init(GSI_EVT_RING_COUNT_MAX);
-	gsi->event_enable_bitmap = 0;
+	gsi->ieob_enabled_bitmap = 0;
 	do
 		init_completion(&gsi->evt_ring[evt_ring_id].completion);
 	while (++evt_ring_id < GSI_EVT_RING_COUNT_MAX);
