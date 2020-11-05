@@ -74,6 +74,14 @@ extern unsigned long		nfsd_drc_mem_used;
 extern const struct seq_operations nfs_exports_op;
 
 /*
+ * Common void argument and result helpers
+ */
+struct nfsd_voidargs { };
+struct nfsd_voidres { };
+int		nfssvc_decode_voidarg(struct svc_rqst *rqstp, __be32 *p);
+int		nfssvc_encode_voidres(struct svc_rqst *rqstp, __be32 *p);
+
+/*
  * Function prototypes.
  */
 int		nfsd_svc(int nrservs, struct net *net, const struct cred *cred);

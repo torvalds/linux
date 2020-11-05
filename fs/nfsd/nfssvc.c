@@ -1075,6 +1075,34 @@ out_encode_err:
 	return 1;
 }
 
+/**
+ * nfssvc_decode_voidarg - Decode void arguments
+ * @rqstp: Server RPC transaction context
+ * @p: buffer containing arguments to decode
+ *
+ * Return values:
+ *   %0: Arguments were not valid
+ *   %1: Decoding was successful
+ */
+int nfssvc_decode_voidarg(struct svc_rqst *rqstp, __be32 *p)
+{
+	return 1;
+}
+
+/**
+ * nfssvc_encode_voidres - Encode void results
+ * @rqstp: Server RPC transaction context
+ * @p: buffer in which to encode results
+ *
+ * Return values:
+ *   %0: Local error while encoding
+ *   %1: Encoding was successful
+ */
+int nfssvc_encode_voidres(struct svc_rqst *rqstp, __be32 *p)
+{
+        return xdr_ressize_check(rqstp, p);
+}
+
 int nfsd_pool_stats_open(struct inode *inode, struct file *file)
 {
 	int ret;

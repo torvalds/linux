@@ -192,11 +192,6 @@ __be32 *nfs2svc_encode_fattr(struct svc_rqst *rqstp, __be32 *p, struct svc_fh *f
 /*
  * XDR decode functions
  */
-int
-nfssvc_decode_void(struct svc_rqst *rqstp, __be32 *p)
-{
-	return xdr_argsize_check(rqstp, p);
-}
 
 int
 nfssvc_decode_fhandle(struct svc_rqst *rqstp, __be32 *p)
@@ -423,11 +418,6 @@ nfssvc_decode_readdirargs(struct svc_rqst *rqstp, __be32 *p)
 /*
  * XDR encode functions
  */
-int
-nfssvc_encode_void(struct svc_rqst *rqstp, __be32 *p)
-{
-	return xdr_ressize_check(rqstp, p);
-}
 
 int
 nfssvc_encode_stat(struct svc_rqst *rqstp, __be32 *p)

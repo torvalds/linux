@@ -304,11 +304,6 @@ void fill_post_wcc(struct svc_fh *fhp)
 /*
  * XDR decode functions
  */
-int
-nfs3svc_decode_voidarg(struct svc_rqst *rqstp, __be32 *p)
-{
-	return 1;
-}
 
 int
 nfs3svc_decode_fhandle(struct svc_rqst *rqstp, __be32 *p)
@@ -641,12 +636,6 @@ nfs3svc_decode_commitargs(struct svc_rqst *rqstp, __be32 *p)
 /*
  * XDR encode functions
  */
-
-int
-nfs3svc_encode_voidres(struct svc_rqst *rqstp, __be32 *p)
-{
-	return xdr_ressize_check(rqstp, p);
-}
 
 /* GETATTR */
 int

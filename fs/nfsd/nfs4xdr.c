@@ -5271,12 +5271,6 @@ nfsd4_encode_replay(struct xdr_stream *xdr, struct nfsd4_op *op)
 	p = xdr_encode_opaque_fixed(p, rp->rp_buf, rp->rp_buflen);
 }
 
-int
-nfs4svc_encode_voidres(struct svc_rqst *rqstp, __be32 *p)
-{
-        return xdr_ressize_check(rqstp, p);
-}
-
 void nfsd4_release_compoundargs(struct svc_rqst *rqstp)
 {
 	struct nfsd4_compoundargs *args = rqstp->rq_argp;
@@ -5292,12 +5286,6 @@ void nfsd4_release_compoundargs(struct svc_rqst *rqstp)
 		args->to_free = tb->next;
 		kfree(tb);
 	}
-}
-
-int
-nfs4svc_decode_voidarg(struct svc_rqst *rqstp, __be32 *p)
-{
-	return 1;
 }
 
 int
