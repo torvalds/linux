@@ -551,29 +551,15 @@ static int process_leaf(struct btrfs_root *root,
 static int walk_down_tree(struct btrfs_root *root, struct btrfs_path *path,
 			  int level, u64 *bytenr, u64 *num_bytes)
 {
-	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct extent_buffer *eb;
-	u64 block_bytenr, gen;
 	int ret = 0;
 
 	while (level >= 0) {
 		if (level) {
-			struct btrfs_key first_key;
-
-			block_bytenr = btrfs_node_blockptr(path->nodes[level],
-							   path->slots[level]);
-			gen = btrfs_node_ptr_generation(path->nodes[level],
-							path->slots[level]);
-			btrfs_node_key_to_cpu(path->nodes[level], &first_key,
-					      path->slots[level]);
-			eb = read_tree_block(fs_info, block_bytenr, gen,
-					     level - 1, &first_key);
+			eb = btrfs_read_node_slot(path->nodes[level],
+						  path->slots[level]);
 			if (IS_ERR(eb))
 				return PTR_ERR(eb);
-			if (!extent_buffer_uptodate(eb)) {
-				free_extent_buffer(eb);
-				return -EIO;
-			}
 			btrfs_tree_read_lock(eb);
 			path->nodes[level-1] = eb;
 			path->slots[level-1] = 0;
