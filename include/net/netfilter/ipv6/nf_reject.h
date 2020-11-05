@@ -20,4 +20,13 @@ void nf_reject_ip6_tcphdr_put(struct sk_buff *nskb,
 			      const struct sk_buff *oldskb,
 			      const struct tcphdr *oth, unsigned int otcplen);
 
+struct sk_buff *nf_reject_skb_v6_tcp_reset(struct net *net,
+					   struct sk_buff *oldskb,
+					   const struct net_device *dev,
+					   int hook);
+struct sk_buff *nf_reject_skb_v6_unreach(struct net *net,
+					 struct sk_buff *oldskb,
+					 const struct net_device *dev,
+					 int hook, u8 code);
+
 #endif /* _IPV6_NF_REJECT_H */
