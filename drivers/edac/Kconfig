@@ -269,6 +269,15 @@ config EDAC_PND2
 	  first used on the Apollo Lake platform and Denverton
 	  micro-server but may appear on others in the future.
 
+config EDAC_IGEN6
+	tristate "Intel client SoC Integrated MC"
+	depends on PCI && X86_64 && PCI_MMCONFIG && ARCH_HAVE_NMI_SAFE_CMPXCHG
+	help
+	  Support for error detection and correction on the Intel
+	  client SoC Integrated Memory Controller using In-Band ECC IP.
+	  This In-Band ECC is first used on the Elkhart Lake SoC but
+	  may appear on others in the future.
+
 config EDAC_MPC85XX
 	bool "Freescale MPC83xx / MPC85xx"
 	depends on FSL_SOC && EDAC=y
