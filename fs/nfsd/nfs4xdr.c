@@ -3756,8 +3756,8 @@ static __be32 nfsd4_encode_splice_read(
 {
 	struct xdr_stream *xdr = &resp->xdr;
 	struct xdr_buf *buf = xdr->buf;
+	int status, space_left;
 	u32 eof;
-	int space_left;
 	__be32 nfserr;
 	__be32 *p = xdr->p - 2;
 
@@ -3768,14 +3768,13 @@ static __be32 nfsd4_encode_splice_read(
 	nfserr = nfsd_splice_read(read->rd_rqstp, read->rd_fhp,
 				  file, read->rd_offset, &maxcount, &eof);
 	read->rd_length = maxcount;
-	if (nfserr) {
-		/*
-		 * nfsd_splice_actor may have already messed with the
-		 * page length; reset it so as not to confuse
-		 * xdr_truncate_encode:
-		 */
-		buf->page_len = 0;
-		return nfserr;
+	if (nfserr)
+		goto out_err;
+	status = svc_encode_result_payload(read->rd_rqstp,
+					   buf->head[0].iov_len, maxcount);
+	if (status) {
+		nfserr = nfserrno(status);
+		goto out_err;
 	}
 
 	*(p++) = htonl(eof);
@@ -3806,6 +3805,15 @@ static __be32 nfsd4_encode_splice_read(
 	xdr->end = (__be32 *)((void *)xdr->end + space_left);
 
 	return 0;
+
+out_err:
+	/*
+	 * nfsd_splice_actor may have already messed with the
+	 * page length; reset it so as not to confuse
+	 * xdr_truncate_encode in our caller.
+	 */
+	buf->page_len = 0;
+	return nfserr;
 }
 
 static __be32 nfsd4_encode_readv(struct nfsd4_compoundres *resp,
@@ -3897,6 +3905,7 @@ nfsd4_encode_readlink(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd
 	int zero = 0;
 	struct xdr_stream *xdr = &resp->xdr;
 	int length_offset = xdr->buf->len;
+	int status;
 	__be32 *p;
 
 	p = xdr_reserve_space(xdr, 4);
@@ -3917,9 +3926,13 @@ nfsd4_encode_readlink(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd
 						(char *)p, &maxcount);
 	if (nfserr == nfserr_isdir)
 		nfserr = nfserr_inval;
-	if (nfserr) {
-		xdr_truncate_encode(xdr, length_offset);
-		return nfserr;
+	if (nfserr)
+		goto out_err;
+	status = svc_encode_result_payload(readlink->rl_rqstp, length_offset,
+					   maxcount);
+	if (status) {
+		nfserr = nfserrno(status);
+		goto out_err;
 	}
 
 	wire_count = htonl(maxcount);
@@ -3929,6 +3942,10 @@ nfsd4_encode_readlink(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd
 		write_bytes_to_xdr_buf(xdr->buf, length_offset + 4 + maxcount,
 						&zero, 4 - (maxcount&3));
 	return 0;
+
+out_err:
+	xdr_truncate_encode(xdr, length_offset);
+	return nfserr;
 }
 
 static __be32

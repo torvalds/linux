@@ -448,7 +448,6 @@ static ssize_t svc_rdma_encode_write_chunk(__be32 *src,
  * svc_rdma_encode_write_list - Encode RPC Reply's Write chunk list
  * @rctxt: Reply context with information about the RPC Call
  * @sctxt: Send context for the RPC Reply
- * @length: size in bytes of the payload in the first Write chunk
  *
  * The client provides a Write chunk list in the Call message. Fill
  * in the segments in the first Write chunk in the Reply's transport
@@ -465,12 +464,12 @@ static ssize_t svc_rdma_encode_write_chunk(__be32 *src,
  */
 static ssize_t
 svc_rdma_encode_write_list(const struct svc_rdma_recv_ctxt *rctxt,
-			   struct svc_rdma_send_ctxt *sctxt,
-			   unsigned int length)
+			   struct svc_rdma_send_ctxt *sctxt)
 {
 	ssize_t len, ret;
 
-	ret = svc_rdma_encode_write_chunk(rctxt->rc_write_list, sctxt, length);
+	ret = svc_rdma_encode_write_chunk(rctxt->rc_write_list, sctxt,
+					  rctxt->rc_read_payload_length);
 	if (ret < 0)
 		return ret;
 	len = ret;
@@ -923,21 +922,12 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 		goto err0;
 	if (wr_lst) {
 		/* XXX: Presume the client sent only one Write chunk */
-		unsigned long offset;
-		unsigned int length;
-
-		if (rctxt->rc_read_payload_length) {
-			offset = rctxt->rc_read_payload_offset;
-			length = rctxt->rc_read_payload_length;
-		} else {
-			offset = xdr->head[0].iov_len;
-			length = xdr->page_len;
-		}
-		ret = svc_rdma_send_write_chunk(rdma, wr_lst, xdr, offset,
-						length);
+		ret = svc_rdma_send_write_chunk(rdma, wr_lst, xdr,
+						rctxt->rc_read_payload_offset,
+						rctxt->rc_read_payload_length);
 		if (ret < 0)
 			goto err2;
-		if (svc_rdma_encode_write_list(rctxt, sctxt, length) < 0)
+		if (svc_rdma_encode_write_list(rctxt, sctxt) < 0)
 			goto err0;
 	} else {
 		if (xdr_stream_encode_item_absent(&sctxt->sc_stream) < 0)
