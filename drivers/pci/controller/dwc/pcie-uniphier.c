@@ -341,12 +341,6 @@ static int uniphier_add_pcie_port(struct uniphier_pcie_priv *priv,
 
 	pp->ops = &uniphier_pcie_host_ops;
 
-	if (IS_ENABLED(CONFIG_PCI_MSI)) {
-		pp->msi_irq = platform_get_irq_byname(pdev, "msi");
-		if (pp->msi_irq < 0)
-			return pp->msi_irq;
-	}
-
 	ret = dw_pcie_host_init(pp);
 	if (ret) {
 		dev_err(dev, "Failed to initialize host (%d)\n", ret);

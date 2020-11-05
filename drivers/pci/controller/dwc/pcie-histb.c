@@ -400,12 +400,6 @@ static int histb_pcie_probe(struct platform_device *pdev)
 		return PTR_ERR(hipcie->bus_reset);
 	}
 
-	if (IS_ENABLED(CONFIG_PCI_MSI)) {
-		pp->msi_irq = platform_get_irq_byname(pdev, "msi");
-		if (pp->msi_irq < 0)
-			return pp->msi_irq;
-	}
-
 	hipcie->phy = devm_phy_get(dev, "phy");
 	if (IS_ERR(hipcie->phy)) {
 		dev_info(dev, "no pcie-phy found\n");
