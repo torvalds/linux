@@ -383,21 +383,6 @@ config LAPBETHER
 
 	  If unsure, say N.
 
-config X25_ASY
-	tristate "X.25 async driver"
-	depends on LAPB && X25 && TTY
-	help
-	  Send and receive X.25 frames over regular asynchronous serial
-	  lines such as telephone lines equipped with ordinary modems.
-
-	  Experts should note that this driver doesn't currently comply with
-	  the asynchronous HDLS framing protocols in CCITT recommendation X.25.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called x25_asy.
-
-	  If unsure, say N.
-
 config SBNI
 	tristate "Granch SBNI12 Leased Line adapter support"
 	depends on X86
