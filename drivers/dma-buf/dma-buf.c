@@ -1183,7 +1183,8 @@ int dma_buf_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma,
 		return -EINVAL;
 
 	/* readjust the vma */
-	vma_set_file(vma, dmabuf->file);
+	fput(vma->vm_file);
+	vma->vm_file = get_file(dmabuf->file);
 	vma->vm_pgoff = pgoff;
 
 	return dmabuf->ops->mmap(dmabuf, vma);
