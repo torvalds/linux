@@ -661,7 +661,7 @@ u16 rtw_get_cur_max_rate(struct adapter *adapter)
 			rf_type,
 			((psta->bw_mode == CHANNEL_WIDTH_40)?1:0),
 			short_GI,
-			psta->htpriv.ht_cap.supp_mcs_set
+			psta->htpriv.ht_cap.mcs.rx_mask
 		);
 	} else {
 		while ((pcur_bss->SupportedRates[i] != 0) && (pcur_bss->SupportedRates[i] != 0xFF)) {
