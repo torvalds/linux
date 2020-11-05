@@ -2145,7 +2145,7 @@ unsigned int OnAction_ht(struct adapter *padapter, union recv_frame *precv_frame
 
 	action = frame_body[1];
 	switch (action) {
-	case RTW_WLAN_ACTION_HT_COMPRESS_BEAMFORMING:
+	case WLAN_HT_ACTION_COMPRESSED_BF:
 		break;
 	default:
 		break;

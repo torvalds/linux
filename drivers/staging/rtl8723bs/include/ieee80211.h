@@ -920,18 +920,6 @@ enum rtw_ieee80211_back_actioncode {
 	RTW_WLAN_ACTION_DELBA = 2,
 };
 
-/* HT features action code */
-enum rtw_ieee80211_ht_actioncode {
-	RTW_WLAN_ACTION_HT_NOTI_CHNL_WIDTH = 0,
-       RTW_WLAN_ACTION_HT_SM_PS = 1,
-       RTW_WLAN_ACTION_HT_PSMP = 2,
-       RTW_WLAN_ACTION_HT_SET_PCO_PHASE = 3,
-       RTW_WLAN_ACTION_HT_CSI = 4,
-       RTW_WLAN_ACTION_HT_NON_COMPRESS_BEAMFORMING = 5,
-       RTW_WLAN_ACTION_HT_COMPRESS_BEAMFORMING = 6,
-       RTW_WLAN_ACTION_HT_ASEL_FEEDBACK = 7,
-};
-
 /* BACK (block-ack) parties */
 enum rtw_ieee80211_back_parties {
 	RTW_WLAN_BACK_RECIPIENT = 0,
