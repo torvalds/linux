@@ -258,6 +258,7 @@ static void gsi_irq_setup(struct gsi *gsi)
 	iowrite32(0, gsi->virt + GSI_CNTXT_SRC_CH_IRQ_MSK_OFFSET);
 	iowrite32(0, gsi->virt + GSI_CNTXT_SRC_EV_CH_IRQ_MSK_OFFSET);
 	iowrite32(0, gsi->virt + GSI_CNTXT_GLOB_IRQ_EN_OFFSET);
+	iowrite32(0, gsi->virt + GSI_CNTXT_SRC_IEOB_IRQ_MSK_OFFSET);
 }
 
 /* Turn off all GSI interrupts when we're all done */
@@ -269,11 +270,16 @@ static void gsi_irq_teardown(struct gsi *gsi)
 
 static void gsi_irq_ieob_enable(struct gsi *gsi, u32 evt_ring_id)
 {
+	bool enable_ieob = !gsi->ieob_enabled_bitmap;
 	u32 val;
 
 	gsi->ieob_enabled_bitmap |= BIT(evt_ring_id);
 	val = gsi->ieob_enabled_bitmap;
 	iowrite32(val, gsi->virt + GSI_CNTXT_SRC_IEOB_IRQ_MSK_OFFSET);
+
+	/* Enable the interrupt type if this is the first channel enabled */
+	if (enable_ieob)
+		gsi_irq_type_enable(gsi, GSI_IEOB);
 }
 
 static void gsi_irq_ieob_disable(struct gsi *gsi, u32 evt_ring_id)
@@ -281,6 +287,11 @@ static void gsi_irq_ieob_disable(struct gsi *gsi, u32 evt_ring_id)
 	u32 val;
 
 	gsi->ieob_enabled_bitmap &= ~BIT(evt_ring_id);
+
+	/* Disable the interrupt type if this was the last enabled channel */
+	if (!gsi->ieob_enabled_bitmap)
+		gsi_irq_type_disable(gsi, GSI_IEOB);
+
 	val = gsi->ieob_enabled_bitmap;
 	iowrite32(val, gsi->virt + GSI_CNTXT_SRC_IEOB_IRQ_MSK_OFFSET);
 }
@@ -295,10 +306,6 @@ static void gsi_irq_enable(struct gsi *gsi)
 	 */
 	iowrite32(ERROR_INT_FMASK, gsi->virt + GSI_CNTXT_GLOB_IRQ_EN_OFFSET);
 	gsi->type_enabled_bitmap |= BIT(GSI_GLOB_EE);
-
-	/* Each IEOB interrupt is enabled (later) as needed by channels */
-	iowrite32(0, gsi->virt + GSI_CNTXT_SRC_IEOB_IRQ_MSK_OFFSET);
-	gsi->type_enabled_bitmap |= BIT(GSI_IEOB);
 
 	/* We don't use inter-EE channel or event interrupts */
 
@@ -318,7 +325,6 @@ static void gsi_irq_disable(struct gsi *gsi)
 	gsi_irq_type_update(gsi);
 
 	iowrite32(0, gsi->virt + GSI_CNTXT_GSI_IRQ_EN_OFFSET);
-	iowrite32(0, gsi->virt + GSI_CNTXT_SRC_IEOB_IRQ_MSK_OFFSET);
 	iowrite32(0, gsi->virt + GSI_CNTXT_GLOB_IRQ_EN_OFFSET);
 }
 
