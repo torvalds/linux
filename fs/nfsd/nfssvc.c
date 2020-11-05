@@ -1020,6 +1020,8 @@ int nfsd_dispatch(struct svc_rqst *rqstp, __be32 *statp)
 	 * (necessary in the NFSv4.0 compound case)
 	 */
 	rqstp->rq_cachetype = proc->pc_cachetype;
+
+	svcxdr_init_decode(rqstp);
 	if (!proc->pc_decode(rqstp, argv->iov_base))
 		goto out_decode_err;
 
