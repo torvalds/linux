@@ -70,7 +70,7 @@ static int clk_branch_wait(const struct clk_branch *br, bool enabling,
 		bool (check_halt)(const struct clk_branch *, bool))
 {
 	bool voted = br->halt_check & BRANCH_VOTED;
-	const char *name = clk_hw_get_name(&br->clkr.hw);
+	const char *name = qcom_clk_hw_get_name(&br->clkr.hw);
 
 	/*
 	 * Skip checking halt bit if we're explicitly ignoring the bit or the

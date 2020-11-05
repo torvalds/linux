@@ -327,6 +327,14 @@ int qcom_cc_really_probe(struct platform_device *pdev,
 			return ret;
 
 		clk_hw_populate_clock_opp_table(dev->of_node, &rclks[i]->hw);
+
+		/*
+		 * Critical clocks are enabled by devm_clk_register_regmap()
+		 * and registration skipped. So remove from rclks so that the
+		 * get() callback returns NULL and client requests are stubbed.
+		 */
+		if (rclks[i]->flags & QCOM_CLK_IS_CRITICAL)
+			rclks[i] = NULL;
 	}
 
 	ret = devm_of_clk_add_hw_provider(dev, qcom_cc_clk_hw_get, cc);
