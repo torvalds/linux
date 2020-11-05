@@ -6353,6 +6353,13 @@ L:	linux-edac@vger.kernel.org
 S:	Maintained
 F:	drivers/edac/ie31200_edac.c
 
+EDAC-IGEN6
+M:	Tony Luck <tony.luck@intel.com>
+R:	Qiuxu Zhuo <qiuxu.zhuo@intel.com>
+L:	linux-edac@vger.kernel.org
+S:	Maintained
+F:	drivers/edac/igen6_edac.c
+
 EDAC-MPC85XX
 M:	Johannes Thumshirn <morbidrsa@gmail.com>
 L:	linux-edac@vger.kernel.org
