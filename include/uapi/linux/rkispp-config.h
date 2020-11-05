@@ -80,6 +80,22 @@
 #define RKISPP_CMD_SET_FECBUF_SIZE	\
 	_IOW('V', BASE_VIDIOC_PRIVATE + 1, struct rkispp_fecbuf_size)
 
+#define RKISPP_CMD_FEC_IN_OUT \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 10, struct rkispp_fec_in_out)
+
+struct rkispp_fec_in_out {
+	int width;
+	int height;
+	int in_fourcc;
+	int out_fourcc;
+	int in_pic_fd;
+	int out_pic_fd;
+	int mesh_xint_fd;
+	int mesh_xfra_fd;
+	int mesh_yint_fd;
+	int mesh_yfra_fd;
+};
+
 struct rkispp_tnr_config {
 	u8 opty_en;
 	u8 optc_en;

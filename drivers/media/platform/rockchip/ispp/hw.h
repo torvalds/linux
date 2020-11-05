@@ -4,6 +4,8 @@
 #ifndef _RKISPP_HW_H
 #define _RKISPP_HW_H
 
+#include "common.h"
+#include "fec.h"
 #include "../isp/isp_ispp.h"
 
 #define ISPP_MAX_BUS_CLK 4
@@ -32,6 +34,7 @@ struct rkispp_hw_dev {
 	struct rkispp_device *ispp[DEV_MAX];
 	struct rkispp_isp_buf_pool pool[RKISPP_BUF_POOL_MAX];
 	struct rkispp_dummy_buffer dummy_buf;
+	struct rkispp_fec_dev fec_dev;
 	struct max_input max_in;
 	struct list_head list;
 	int clk_rate_tbl_num;
@@ -47,5 +50,6 @@ struct rkispp_hw_dev {
 	atomic_t refcnt;
 	bool is_idle;
 	bool is_single;
+	bool is_fec_ext;
 };
 #endif

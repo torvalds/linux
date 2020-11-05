@@ -611,6 +611,9 @@ static bool is_fec_enable(struct rkispp_params_vdev *params_vdev)
 {
 	u32 cur_en;
 
+	if (params_vdev->dev->hw_dev->is_fec_ext)
+		return false;
+
 	cur_en = rkispp_read(params_vdev->dev, RKISPP_FEC_CORE_CTRL);
 	cur_en &= SW_FEC_EN;
 
@@ -803,8 +806,12 @@ static void rkispp_params_vb2_buf_queue(struct vb2_buffer *vb)
 		vb2_buffer_done(&params_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 		params_vdev->first_params = false;
 		*params_vdev->cur_params = *new_params;
-		if (new_params->module_init_ens)
+		if (new_params->module_init_ens) {
+			if (params_vdev->dev->hw_dev->is_fec_ext)
+				new_params->module_init_ens &= ~ISPP_MODULE_FEC_ST;
 			stream_vdev->module_ens = new_params->module_init_ens;
+
+		}
 		spin_unlock_irqrestore(&params_vdev->config_lock, flags);
 		wake_up(&params_vdev->dev->sync_onoff);
 		return;
@@ -980,6 +987,11 @@ void rkispp_params_isr(struct rkispp_params_vdev *params_vdev, u32 mis)
 	module_en_update = new_params->module_en_update;
 	module_cfg_update = new_params->module_cfg_update;
 	module_ens = new_params->module_ens;
+	if (params_vdev->dev->hw_dev->is_fec_ext) {
+		module_en_update &= ~ISPP_MODULE_FEC;
+		module_cfg_update &= ~ISPP_MODULE_FEC;
+		module_ens &= ~ISPP_MODULE_FEC;
+	}
 
 	isr_sync = true;
 	if ((module_en_update & ISPP_MODULE_TNR) &&
@@ -1103,6 +1115,12 @@ void rkispp_params_configure(struct rkispp_params_vdev *params_vdev)
 	u32 module_cfg_update = params_vdev->cur_params->module_cfg_update;
 	u32 module_ens = params_vdev->cur_params->module_ens;
 	unsigned long flags;
+
+	if (params_vdev->dev->hw_dev->is_fec_ext) {
+		module_en_update &= ~ISPP_MODULE_FEC;
+		module_cfg_update &= ~ISPP_MODULE_FEC;
+		module_ens &= ~ISPP_MODULE_FEC;
+	}
 
 	spin_lock_irqsave(&params_vdev->config_lock, flags);
 	if (params_vdev->first_params) {

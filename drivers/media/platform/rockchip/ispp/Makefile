@@ -9,3 +9,7 @@ video_rkispp-objs += dev.o \
 		stats.o \
 		hw.o \
 		procfs.o
+
+ifdef CONFIG_VIDEO_ROCKCHIP_ISPP_FEC
+video_rkispp-objs += fec.o
+endif
