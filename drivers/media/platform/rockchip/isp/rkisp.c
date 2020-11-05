@@ -503,10 +503,6 @@ static int rkisp_config_isp(struct rkisp_device *dev)
 	u32 signal = 0;
 	u32 acq_mult = 0;
 	u32 acq_prop = 0;
-	bool is_direct = true;
-
-	if (atomic_read(&dev->hw_dev->refcnt) > 1)
-		is_direct = false;
 
 	sensor = dev->active_sensor;
 	in_fmt = &dev->isp_sdev.in_fmt;
@@ -595,21 +591,21 @@ static int rkisp_config_isp(struct rkisp_device *dev)
 	rkisp_write(dev, CIF_ISP_ACQ_NR_FRAMES, 0, true);
 
 	/* Acquisition Size */
-	rkisp_write(dev, CIF_ISP_ACQ_H_OFFS, acq_mult * in_crop->left, is_direct);
-	rkisp_write(dev, CIF_ISP_ACQ_V_OFFS, in_crop->top, is_direct);
-	rkisp_write(dev, CIF_ISP_ACQ_H_SIZE, acq_mult * in_crop->width, is_direct);
+	rkisp_write(dev, CIF_ISP_ACQ_H_OFFS, acq_mult * in_crop->left, false);
+	rkisp_write(dev, CIF_ISP_ACQ_V_OFFS, in_crop->top, false);
+	rkisp_write(dev, CIF_ISP_ACQ_H_SIZE, acq_mult * in_crop->width, false);
 
 	/* ISP Out Area differ with ACQ is only FIFO, so don't crop in this */
 	rkisp_write(dev, CIF_ISP_OUT_H_OFFS, 0, true);
 	rkisp_write(dev, CIF_ISP_OUT_V_OFFS, 0, true);
-	rkisp_write(dev, CIF_ISP_OUT_H_SIZE, in_crop->width, is_direct);
+	rkisp_write(dev, CIF_ISP_OUT_H_SIZE, in_crop->width, false);
 
 	if (dev->cap_dev.stream[RKISP_STREAM_SP].interlaced) {
-		rkisp_write(dev, CIF_ISP_ACQ_V_SIZE, in_crop->height / 2, is_direct);
-		rkisp_write(dev, CIF_ISP_OUT_V_SIZE, in_crop->height / 2, is_direct);
+		rkisp_write(dev, CIF_ISP_ACQ_V_SIZE, in_crop->height / 2, false);
+		rkisp_write(dev, CIF_ISP_OUT_V_SIZE, in_crop->height / 2, false);
 	} else {
-		rkisp_write(dev, CIF_ISP_ACQ_V_SIZE, in_crop->height, is_direct);
-		rkisp_write(dev, CIF_ISP_OUT_V_SIZE, in_crop->height, is_direct);
+		rkisp_write(dev, CIF_ISP_ACQ_V_SIZE, in_crop->height, false);
+		rkisp_write(dev, CIF_ISP_OUT_V_SIZE, in_crop->height, false);
 	}
 
 	/* interrupt mask */
@@ -630,6 +626,10 @@ static int rkisp_config_isp(struct rkisp_device *dev)
 		rkisp_params_first_cfg(&dev->params_vdev, in_fmt,
 				       dev->isp_sdev.quantization);
 
+	if (!dev->hw_dev->is_single && atomic_read(&dev->hw_dev->refcnt) <= 1) {
+		rkisp_update_regs(dev, CIF_ISP_ACQ_H_OFFS, CIF_ISP_ACQ_V_SIZE);
+		rkisp_update_regs(dev, CIF_ISP_OUT_H_SIZE, CIF_ISP_OUT_V_SIZE);
+	}
 	return 0;
 }
 
