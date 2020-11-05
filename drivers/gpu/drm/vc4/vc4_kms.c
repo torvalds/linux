@@ -113,7 +113,7 @@ static int vc4_ctm_obj_init(struct vc4_dev *vc4)
 	drm_atomic_private_obj_init(&vc4->base, &vc4->ctm_manager, &ctm_state->base,
 				    &vc4_ctm_state_funcs);
 
-	return drmm_add_action(&vc4->base, vc4_ctm_obj_fini, NULL);
+	return drmm_add_action_or_reset(&vc4->base, vc4_ctm_obj_fini, NULL);
 }
 
 /* Converts a DRM S31.32 value to the HW S0.9 format. */
@@ -657,7 +657,7 @@ static int vc4_load_tracker_obj_init(struct vc4_dev *vc4)
 				    &load_state->base,
 				    &vc4_load_tracker_state_funcs);
 
-	return drmm_add_action(&vc4->base, vc4_load_tracker_obj_fini, NULL);
+	return drmm_add_action_or_reset(&vc4->base, vc4_load_tracker_obj_fini, NULL);
 }
 
 #define NUM_OUTPUTS  6
