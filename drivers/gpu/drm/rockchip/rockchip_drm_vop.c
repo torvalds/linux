@@ -1248,6 +1248,8 @@ static void vop_crtc_gamma_set(struct vop *vop, struct drm_crtc *crtc,
 static void vop_crtc_atomic_begin(struct drm_crtc *crtc,
 				  struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
+									  crtc);
 	struct drm_crtc_state *old_crtc_state = drm_atomic_get_old_crtc_state(state,
 									      crtc);
 	struct vop *vop = to_vop(crtc);
@@ -1256,8 +1258,8 @@ static void vop_crtc_atomic_begin(struct drm_crtc *crtc,
 	 * Only update GAMMA if the 'active' flag is not changed,
 	 * otherwise it's updated by .atomic_enable.
 	 */
-	if (crtc->state->color_mgmt_changed &&
-	    !crtc->state->active_changed)
+	if (crtc_state->color_mgmt_changed &&
+	    !crtc_state->active_changed)
 		vop_crtc_gamma_set(vop, crtc, old_crtc_state);
 }
 
