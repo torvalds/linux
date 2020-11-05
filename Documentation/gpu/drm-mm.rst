@@ -182,11 +182,11 @@ acquired and release by calling drm_gem_object_get() and drm_gem_object_put()
 respectively.
 
 When the last reference to a GEM object is released the GEM core calls
-the :c:type:`struct drm_driver <drm_driver>` gem_free_object_unlocked
+the :c:type:`struct drm_gem_object_funcs <gem_object_funcs>` free
 operation. That operation is mandatory for GEM-enabled drivers and must
 free the GEM object and all associated resources.
 
-void (\*gem_free_object) (struct drm_gem_object \*obj); Drivers are
+void (\*free) (struct drm_gem_object \*obj); Drivers are
 responsible for freeing all GEM object resources. This includes the
 resources created by the GEM core, which need to be released with
 drm_gem_object_release().

@@ -2,7 +2,7 @@
 /*
  * Implementation of mac80211 API.
  *
- * Copyright (c) 2017-2019, Silicon Laboratories, Inc.
+ * Copyright (c) 2017-2020, Silicon Laboratories, Inc.
  * Copyright (c) 2010, ST-Ericsson
  */
 #include <linux/etherdevice.h>
@@ -91,59 +91,12 @@ static void wfx_filter_beacon(struct wfx_vif *wvif, bool filter_beacon)
 	}
 }
 
-static void wfx_filter_mcast(struct wfx_vif *wvif, bool filter_mcast)
-{
-	int i;
-
-	// Temporary workaround for filters
-	hif_set_data_filtering(wvif, false, true);
-	return;
-
-	if (!filter_mcast) {
-		hif_set_data_filtering(wvif, false, true);
-		return;
-	}
-	for (i = 0; i < wvif->filter_mcast_count; i++)
-		hif_set_mac_addr_condition(wvif, i, wvif->filter_mcast_addr[i]);
-	hif_set_uc_mc_bc_condition(wvif, 0,
-				   HIF_FILTER_UNICAST | HIF_FILTER_BROADCAST);
-	hif_set_config_data_filter(wvif, true, 0, BIT(1),
-				   BIT(wvif->filter_mcast_count) - 1);
-	hif_set_data_filtering(wvif, true, true);
-}
-
-u64 wfx_prepare_multicast(struct ieee80211_hw *hw,
-			  struct netdev_hw_addr_list *mc_list)
-{
-	int i;
-	struct netdev_hw_addr *ha;
-	struct wfx_vif *wvif = NULL;
-	struct wfx_dev *wdev = hw->priv;
-	int count = netdev_hw_addr_list_count(mc_list);
-
-	while ((wvif = wvif_iterate(wdev, wvif)) != NULL) {
-		if (count > ARRAY_SIZE(wvif->filter_mcast_addr)) {
-			wvif->filter_mcast_count = 0;
-			continue;
-		}
-		wvif->filter_mcast_count = count;
-
-		i = 0;
-		netdev_hw_addr_list_for_each(ha, mc_list) {
-			ether_addr_copy(wvif->filter_mcast_addr[i], ha->addr);
-			i++;
-		}
-	}
-
-	return 0;
-}
-
 void wfx_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 			  unsigned int *total_flags, u64 unused)
 {
 	struct wfx_vif *wvif = NULL;
 	struct wfx_dev *wdev = hw->priv;
-	bool filter_bssid, filter_prbreq, filter_beacon, filter_mcast;
+	bool filter_bssid, filter_prbreq, filter_beacon;
 
 	// Notes:
 	//   - Probe responses (FIF_BCN_PRBRESP_PROMISC) are never filtered
@@ -166,16 +119,6 @@ void wfx_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 		else
 			filter_beacon = true;
 		wfx_filter_beacon(wvif, filter_beacon);
-
-		if (*total_flags & FIF_ALLMULTI) {
-			filter_mcast = false;
-		} else if (!wvif->filter_mcast_count) {
-			dev_dbg(wdev->dev, "disabling unconfigured multicast filter");
-			filter_mcast = false;
-		} else {
-			filter_mcast = true;
-		}
-		wfx_filter_mcast(wvif, filter_mcast);
 
 		if (*total_flags & FIF_OTHER_BSS)
 			filter_bssid = false;
@@ -214,7 +157,7 @@ static int wfx_get_ps_timeout(struct wfx_vif *wvif, bool *enable_ps)
 	if (chan0 && chan1 && chan0->hw_value != chan1->hw_value &&
 	    wvif->vif->type != NL80211_IFTYPE_AP) {
 		// It is necessary to enable powersave if channels
-		// are differents.
+		// are different.
 		if (enable_ps)
 			*enable_ps = true;
 		if (wvif->wdev->force_ps_timeout > -1)
@@ -323,36 +266,6 @@ void wfx_set_default_unicast_key(struct ieee80211_hw *hw,
 	hif_wep_default_key_id(wvif, idx);
 }
 
-static void wfx_set_mfp(struct wfx_vif *wvif,
-			struct cfg80211_bss *bss)
-{
-	const int pairwise_cipher_suite_count_offset = 8 / sizeof(u16);
-	const int pairwise_cipher_suite_size = 4 / sizeof(u16);
-	const int akm_suite_size = 4 / sizeof(u16);
-	const u16 *ptr = NULL;
-	bool mfpc = false;
-	bool mfpr = false;
-
-	/* 802.11w protected mgmt frames */
-
-	/* retrieve MFPC and MFPR flags from beacon or PBRSP */
-
-	rcu_read_lock();
-	if (bss)
-		ptr = (const u16 *)ieee80211_bss_get_ie(bss, WLAN_EID_RSN);
-
-	if (ptr) {
-		ptr += pairwise_cipher_suite_count_offset;
-		ptr += 1 + pairwise_cipher_suite_size * *ptr;
-		ptr += 1 + akm_suite_size * *ptr;
-		mfpr = *ptr & BIT(6);
-		mfpc = *ptr & BIT(7);
-	}
-	rcu_read_unlock();
-
-	hif_set_mfp(wvif, mfpc, mfpr);
-}
-
 void wfx_reset(struct wfx_vif *wvif)
 {
 	struct wfx_dev *wdev = wvif->wdev;
@@ -370,7 +283,115 @@ void wfx_reset(struct wfx_vif *wvif)
 		wfx_update_pm(wvif);
 }
 
-static void wfx_do_join(struct wfx_vif *wvif)
+int wfx_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		struct ieee80211_sta *sta)
+{
+	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
+	struct wfx_sta_priv *sta_priv = (struct wfx_sta_priv *)&sta->drv_priv;
+
+	sta_priv->vif_id = wvif->id;
+
+	if (vif->type == NL80211_IFTYPE_STATION)
+		hif_set_mfp(wvif, sta->mfp, sta->mfp);
+
+	// In station mode, the firmware interprets new link-id as a TDLS peer.
+	if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls)
+		return 0;
+	sta_priv->link_id = ffz(wvif->link_id_map);
+	wvif->link_id_map |= BIT(sta_priv->link_id);
+	WARN_ON(!sta_priv->link_id);
+	WARN_ON(sta_priv->link_id >= HIF_LINK_ID_MAX);
+	hif_map_link(wvif, false, sta->addr, sta_priv->link_id, sta->mfp);
+
+	return 0;
+}
+
+int wfx_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		   struct ieee80211_sta *sta)
+{
+	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
+	struct wfx_sta_priv *sta_priv = (struct wfx_sta_priv *)&sta->drv_priv;
+
+	// See note in wfx_sta_add()
+	if (!sta_priv->link_id)
+		return 0;
+	// FIXME add a mutex?
+	hif_map_link(wvif, true, sta->addr, sta_priv->link_id, false);
+	wvif->link_id_map &= ~BIT(sta_priv->link_id);
+	return 0;
+}
+
+static int wfx_upload_ap_templates(struct wfx_vif *wvif)
+{
+	struct sk_buff *skb;
+
+	skb = ieee80211_beacon_get(wvif->wdev->hw, wvif->vif);
+	if (!skb)
+		return -ENOMEM;
+	hif_set_template_frame(wvif, skb, HIF_TMPLT_BCN,
+			       API_RATE_INDEX_B_1MBPS);
+	dev_kfree_skb(skb);
+
+	skb = ieee80211_proberesp_get(wvif->wdev->hw, wvif->vif);
+	if (!skb)
+		return -ENOMEM;
+	hif_set_template_frame(wvif, skb, HIF_TMPLT_PRBRES,
+			       API_RATE_INDEX_B_1MBPS);
+	dev_kfree_skb(skb);
+	return 0;
+}
+
+static void wfx_set_mfp_ap(struct wfx_vif *wvif)
+{
+	struct sk_buff *skb = ieee80211_beacon_get(wvif->wdev->hw, wvif->vif);
+	const int ieoffset = offsetof(struct ieee80211_mgmt, u.beacon.variable);
+	const u16 *ptr = (u16 *)cfg80211_find_ie(WLAN_EID_RSN,
+						 skb->data + ieoffset,
+						 skb->len - ieoffset);
+	const int pairwise_cipher_suite_count_offset = 8 / sizeof(u16);
+	const int pairwise_cipher_suite_size = 4 / sizeof(u16);
+	const int akm_suite_size = 4 / sizeof(u16);
+
+	if (ptr) {
+		ptr += pairwise_cipher_suite_count_offset;
+		if (WARN_ON(ptr > (u16 *)skb_tail_pointer(skb)))
+			return;
+		ptr += 1 + pairwise_cipher_suite_size * *ptr;
+		if (WARN_ON(ptr > (u16 *)skb_tail_pointer(skb)))
+			return;
+		ptr += 1 + akm_suite_size * *ptr;
+		if (WARN_ON(ptr > (u16 *)skb_tail_pointer(skb)))
+			return;
+		hif_set_mfp(wvif, *ptr & BIT(7), *ptr & BIT(6));
+	}
+}
+
+int wfx_start_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+{
+	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
+	struct wfx_dev *wdev = wvif->wdev;
+	int ret;
+
+	wvif =  NULL;
+	while ((wvif = wvif_iterate(wdev, wvif)) != NULL)
+		wfx_update_pm(wvif);
+	wvif = (struct wfx_vif *)vif->drv_priv;
+	wfx_upload_ap_templates(wvif);
+	ret = hif_start(wvif, &vif->bss_conf, wvif->channel);
+	if (ret > 0)
+		return -EIO;
+	wfx_set_mfp_ap(wvif);
+	return ret;
+}
+
+void wfx_stop_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+{
+	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
+
+	wfx_reset(wvif);
+}
+
+static void wfx_join(struct wfx_vif *wvif)
 {
 	int ret;
 	struct ieee80211_bss_conf *conf = &wvif->vif->bss_conf;
@@ -400,7 +421,6 @@ static void wfx_do_join(struct wfx_vif *wvif)
 	}
 	rcu_read_unlock();
 
-	wfx_set_mfp(wvif, bss);
 	cfg80211_put_bss(wvif->wdev->hw->wiphy, bss);
 
 	wvif->join_in_progress = true;
@@ -419,90 +439,26 @@ static void wfx_do_join(struct wfx_vif *wvif)
 	wfx_tx_unlock(wvif->wdev);
 }
 
-int wfx_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		struct ieee80211_sta *sta)
-{
-	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
-	struct wfx_sta_priv *sta_priv = (struct wfx_sta_priv *)&sta->drv_priv;
-
-	sta_priv->vif_id = wvif->id;
-
-	// In station mode, the firmware interprets new link-id as a TDLS peer.
-	if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls)
-		return 0;
-	sta_priv->link_id = ffz(wvif->link_id_map);
-	wvif->link_id_map |= BIT(sta_priv->link_id);
-	WARN_ON(!sta_priv->link_id);
-	WARN_ON(sta_priv->link_id >= HIF_LINK_ID_MAX);
-	hif_map_link(wvif, sta->addr, 0, sta_priv->link_id);
-
-	return 0;
-}
-
-int wfx_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		   struct ieee80211_sta *sta)
-{
-	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
-	struct wfx_sta_priv *sta_priv = (struct wfx_sta_priv *)&sta->drv_priv;
-
-	// See note in wfx_sta_add()
-	if (!sta_priv->link_id)
-		return 0;
-	// FIXME add a mutex?
-	hif_map_link(wvif, sta->addr, 1, sta_priv->link_id);
-	wvif->link_id_map &= ~BIT(sta_priv->link_id);
-	return 0;
-}
-
-static int wfx_upload_ap_templates(struct wfx_vif *wvif)
-{
-	struct sk_buff *skb;
-
-	skb = ieee80211_beacon_get(wvif->wdev->hw, wvif->vif);
-	if (!skb)
-		return -ENOMEM;
-	hif_set_template_frame(wvif, skb, HIF_TMPLT_BCN,
-			       API_RATE_INDEX_B_1MBPS);
-	dev_kfree_skb(skb);
-
-	skb = ieee80211_proberesp_get(wvif->wdev->hw, wvif->vif);
-	if (!skb)
-		return -ENOMEM;
-	hif_set_template_frame(wvif, skb, HIF_TMPLT_PRBRES,
-			       API_RATE_INDEX_B_1MBPS);
-	dev_kfree_skb(skb);
-	return 0;
-}
-
-int wfx_start_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
-{
-	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
-	struct wfx_dev *wdev = wvif->wdev;
-	int ret;
-
-	wvif =  NULL;
-	while ((wvif = wvif_iterate(wdev, wvif)) != NULL)
-		wfx_update_pm(wvif);
-	wvif = (struct wfx_vif *)vif->drv_priv;
-	wfx_upload_ap_templates(wvif);
-	ret = hif_start(wvif, &vif->bss_conf, wvif->channel);
-	if (ret > 0)
-		return -EIO;
-	return ret;
-}
-
-void wfx_stop_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
-{
-	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
-
-	wfx_reset(wvif);
-}
-
 static void wfx_join_finalize(struct wfx_vif *wvif,
 			      struct ieee80211_bss_conf *info)
 {
+	struct ieee80211_sta *sta = NULL;
+	int ampdu_density = 0;
+	bool greenfield = false;
+
+	rcu_read_lock(); // protect sta
+	if (info->bssid && !info->ibss_joined)
+		sta = ieee80211_find_sta(wvif->vif, info->bssid);
+	if (sta && sta->ht_cap.ht_supported)
+		ampdu_density = sta->ht_cap.ampdu_density;
+	if (sta && sta->ht_cap.ht_supported &&
+	    !(info->ht_operation_mode & IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT))
+		greenfield = !!(sta->ht_cap.cap & IEEE80211_HT_CAP_GRN_FLD);
+	rcu_read_unlock();
+
 	wvif->join_in_progress = false;
-	hif_set_association_mode(wvif, info);
+	hif_set_association_mode(wvif, ampdu_density, greenfield,
+				 info->use_short_preamble);
 	hif_keep_alive_period(wvif, 0);
 	// beacon_loss_count is defined to 7 in net/mac80211/mlme.c. Let's use
 	// the same value.
@@ -516,7 +472,7 @@ int wfx_join_ibss(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
 
 	wfx_upload_ap_templates(wvif);
-	wfx_do_join(wvif);
+	wfx_join(wvif);
 	return 0;
 }
 
@@ -549,32 +505,22 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	mutex_lock(&wdev->conf_mutex);
 
-	/* TODO: BSS_CHANGED_QOS */
-	if (changed & BSS_CHANGED_ARP_FILTER) {
-		for (i = 0; i < HIF_MAX_ARP_IP_ADDRTABLE_ENTRIES; i++) {
-			__be32 *arp_addr = &info->arp_addr_list[i];
-
-			if (info->arp_addr_cnt > HIF_MAX_ARP_IP_ADDRTABLE_ENTRIES)
-				arp_addr = NULL;
-			if (i >= info->arp_addr_cnt)
-				arp_addr = NULL;
-			hif_set_arp_ipv4_filter(wvif, i, arp_addr);
-		}
-	}
-
 	if (changed & BSS_CHANGED_BASIC_RATES ||
 	    changed & BSS_CHANGED_BEACON_INT ||
 	    changed & BSS_CHANGED_BSSID) {
 		if (vif->type == NL80211_IFTYPE_STATION)
-			wfx_do_join(wvif);
+			wfx_join(wvif);
 	}
 
-	if (changed & BSS_CHANGED_AP_PROBE_RESP ||
-	    changed & BSS_CHANGED_BEACON)
-		wfx_upload_ap_templates(wvif);
-
-	if (changed & BSS_CHANGED_BEACON_ENABLED)
-		wfx_enable_beacon(wvif, info->enable_beacon);
+	if (changed & BSS_CHANGED_ASSOC) {
+		if (info->assoc || info->ibss_joined)
+			wfx_join_finalize(wvif, info);
+		else if (!info->assoc && vif->type == NL80211_IFTYPE_STATION)
+			wfx_reset(wvif);
+		else
+			dev_warn(wdev->dev, "%s: misunderstood change: ASSOC\n",
+				 __func__);
+	}
 
 	if (changed & BSS_CHANGED_BEACON_INFO) {
 		if (vif->type != NL80211_IFTYPE_STATION)
@@ -587,15 +533,24 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		wfx_filter_beacon(wvif, true);
 	}
 
-	if (changed & BSS_CHANGED_ASSOC) {
-		if (info->assoc || info->ibss_joined)
-			wfx_join_finalize(wvif, info);
-		else if (!info->assoc && vif->type == NL80211_IFTYPE_STATION)
-			wfx_reset(wvif);
-		else
-			dev_warn(wdev->dev, "%s: misunderstood change: ASSOC\n",
-				 __func__);
+	if (changed & BSS_CHANGED_ARP_FILTER) {
+		for (i = 0; i < HIF_MAX_ARP_IP_ADDRTABLE_ENTRIES; i++) {
+			__be32 *arp_addr = &info->arp_addr_list[i];
+
+			if (info->arp_addr_cnt > HIF_MAX_ARP_IP_ADDRTABLE_ENTRIES)
+				arp_addr = NULL;
+			if (i >= info->arp_addr_cnt)
+				arp_addr = NULL;
+			hif_set_arp_ipv4_filter(wvif, i, arp_addr);
+		}
 	}
+
+	if (changed & BSS_CHANGED_AP_PROBE_RESP ||
+	    changed & BSS_CHANGED_BEACON)
+		wfx_upload_ap_templates(wvif);
+
+	if (changed & BSS_CHANGED_BEACON_ENABLED)
+		wfx_enable_beacon(wvif, info->enable_beacon);
 
 	if (changed & BSS_CHANGED_KEEP_ALIVE)
 		hif_keep_alive_period(wvif, info->max_idle_period *
@@ -664,6 +619,10 @@ int wfx_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta, bool set)
 	struct wfx_sta_priv *sta_dev = (struct wfx_sta_priv *)&sta->drv_priv;
 	struct wfx_vif *wvif = wdev_to_wvif(wdev, sta_dev->vif_id);
 
+	if (!wvif) {
+		dev_warn(wdev->dev, "%s: received event for non-existent vif\n", __func__);
+		return -EIO;
+	}
 	schedule_work(&wvif->update_tim_work);
 	return 0;
 }
@@ -682,15 +641,16 @@ int wfx_ampdu_action(struct ieee80211_hw *hw,
 		     struct ieee80211_vif *vif,
 		     struct ieee80211_ampdu_params *params)
 {
-	/* Aggregation is implemented fully in firmware,
-	 * including block ack negotiation. Do not allow
-	 * mac80211 stack to do anything: it interferes with
-	 * the firmware.
-	 */
-
-	/* Note that we still need this function stubbed. */
-
-	return -ENOTSUPP;
+	// Aggregation is implemented fully in firmware
+	switch (params->action) {
+	case IEEE80211_AMPDU_RX_START:
+	case IEEE80211_AMPDU_RX_STOP:
+		// Just acknowledge it to enable frame re-ordering
+		return 0;
+	default:
+		// Leave the firmware doing its business for tx aggregation
+		return -ENOTSUPP;
+	}
 }
 
 int wfx_add_chanctx(struct ieee80211_hw *hw,
@@ -760,17 +720,6 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 		return -EOPNOTSUPP;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(wdev->vif); i++) {
-		if (!wdev->vif[i]) {
-			wdev->vif[i] = vif;
-			wvif->id = i;
-			break;
-		}
-	}
-	if (i == ARRAY_SIZE(wdev->vif)) {
-		mutex_unlock(&wdev->conf_mutex);
-		return -EOPNOTSUPP;
-	}
 	// FIXME: prefer use of container_of() to get vif
 	wvif->vif = vif;
 	wvif->wdev = wdev;
@@ -787,12 +736,22 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	init_completion(&wvif->scan_complete);
 	INIT_WORK(&wvif->scan_work, wfx_hw_scan_work);
 
-	mutex_unlock(&wdev->conf_mutex);
+	wfx_tx_queues_init(wvif);
+	wfx_tx_policy_init(wvif);
+
+	for (i = 0; i < ARRAY_SIZE(wdev->vif); i++) {
+		if (!wdev->vif[i]) {
+			wdev->vif[i] = vif;
+			wvif->id = i;
+			break;
+		}
+	}
+	WARN(i == ARRAY_SIZE(wdev->vif), "try to instantiate more vif than supported");
 
 	hif_set_macaddr(wvif, vif->addr);
 
-	wfx_tx_queues_init(wvif);
-	wfx_tx_policy_init(wvif);
+	mutex_unlock(&wdev->conf_mutex);
+
 	wvif = NULL;
 	while ((wvif = wvif_iterate(wdev, wvif)) != NULL) {
 		// Combo mode does not support Block Acks. We can re-enable them
@@ -824,6 +783,7 @@ void wfx_remove_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	wvif->vif = NULL;
 
 	mutex_unlock(&wdev->conf_mutex);
+
 	wvif = NULL;
 	while ((wvif = wvif_iterate(wdev, wvif)) != NULL) {
 		// Combo mode does not support Block Acks. We can re-enable them

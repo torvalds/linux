@@ -978,11 +978,13 @@ static const struct rcar_lvds_device_info rcar_lvds_r8a77995_info = {
 };
 
 static const struct of_device_id rcar_lvds_of_table[] = {
+	{ .compatible = "renesas,r8a7742-lvds", .data = &rcar_lvds_gen2_info },
 	{ .compatible = "renesas,r8a7743-lvds", .data = &rcar_lvds_gen2_info },
 	{ .compatible = "renesas,r8a7744-lvds", .data = &rcar_lvds_gen2_info },
 	{ .compatible = "renesas,r8a774a1-lvds", .data = &rcar_lvds_gen3_info },
 	{ .compatible = "renesas,r8a774b1-lvds", .data = &rcar_lvds_gen3_info },
 	{ .compatible = "renesas,r8a774c0-lvds", .data = &rcar_lvds_r8a77990_info },
+	{ .compatible = "renesas,r8a774e1-lvds", .data = &rcar_lvds_gen3_info },
 	{ .compatible = "renesas,r8a7790-lvds", .data = &rcar_lvds_gen2_info },
 	{ .compatible = "renesas,r8a7791-lvds", .data = &rcar_lvds_gen2_info },
 	{ .compatible = "renesas,r8a7793-lvds", .data = &rcar_lvds_gen2_info },

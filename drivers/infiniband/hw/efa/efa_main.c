@@ -331,7 +331,7 @@ static int efa_ib_device_add(struct efa_dev *dev)
 
 	ib_set_device_ops(&dev->ibdev, &efa_dev_ops);
 
-	err = ib_register_device(&dev->ibdev, "efa_%d");
+	err = ib_register_device(&dev->ibdev, "efa_%d", &pdev->dev);
 	if (err)
 		goto err_release_doorbell_bar;
 
@@ -418,7 +418,7 @@ static int efa_device_init(struct efa_com_dev *edev, struct pci_dev *pdev)
 			err);
 		return err;
 	}
-
+	dma_set_max_seg_size(&pdev->dev, UINT_MAX);
 	return 0;
 }
 

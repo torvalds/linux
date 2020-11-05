@@ -350,7 +350,7 @@ int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 	 */
 	if (!cfg->line_outs && cfg->hp_outs > 1 &&
 	    !(cond_flags & HDA_PINCFG_NO_HP_FIXUP)) {
-		int i = 0;
+		i = 0;
 		while (i < cfg->hp_outs) {
 			/* The real HPs should have the sequence 0x0f */
 			if ((hp_out[i].seq & 0x0f) == 0x0f) {

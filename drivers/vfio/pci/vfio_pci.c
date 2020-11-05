@@ -807,14 +807,24 @@ static long vfio_pci_ioctl(void *device_data,
 
 	if (cmd == VFIO_DEVICE_GET_INFO) {
 		struct vfio_device_info info;
+		struct vfio_info_cap caps = { .buf = NULL, .size = 0 };
+		unsigned long capsz;
 
 		minsz = offsetofend(struct vfio_device_info, num_irqs);
+
+		/* For backward compatibility, cannot require this */
+		capsz = offsetofend(struct vfio_iommu_type1_info, cap_offset);
 
 		if (copy_from_user(&info, (void __user *)arg, minsz))
 			return -EFAULT;
 
 		if (info.argsz < minsz)
 			return -EINVAL;
+
+		if (info.argsz >= capsz) {
+			minsz = capsz;
+			info.cap_offset = 0;
+		}
 
 		info.flags = VFIO_DEVICE_FLAGS_PCI;
 
@@ -823,6 +833,33 @@ static long vfio_pci_ioctl(void *device_data,
 
 		info.num_regions = VFIO_PCI_NUM_REGIONS + vdev->num_regions;
 		info.num_irqs = VFIO_PCI_NUM_IRQS;
+
+		if (IS_ENABLED(CONFIG_VFIO_PCI_ZDEV)) {
+			int ret = vfio_pci_info_zdev_add_caps(vdev, &caps);
+
+			if (ret && ret != -ENODEV) {
+				pci_warn(vdev->pdev, "Failed to setup zPCI info capabilities\n");
+				return ret;
+			}
+		}
+
+		if (caps.size) {
+			info.flags |= VFIO_DEVICE_FLAGS_CAPS;
+			if (info.argsz < sizeof(info) + caps.size) {
+				info.argsz = sizeof(info) + caps.size;
+			} else {
+				vfio_info_cap_shift(&caps, sizeof(info));
+				if (copy_to_user((void __user *)arg +
+						  sizeof(info), caps.buf,
+						  caps.size)) {
+					kfree(caps.buf);
+					return -EFAULT;
+				}
+				info.cap_offset = sizeof(info);
+			}
+
+			kfree(caps.buf);
+		}
 
 		return copy_to_user((void __user *)arg, &info, minsz) ?
 			-EFAULT : 0;
@@ -1480,31 +1517,29 @@ static int vfio_pci_zap_and_vma_lock(struct vfio_pci_device *vdev, bool try)
 		} else {
 			mmap_read_lock(mm);
 		}
-		if (mmget_still_valid(mm)) {
-			if (try) {
-				if (!mutex_trylock(&vdev->vma_lock)) {
-					mmap_read_unlock(mm);
-					mmput(mm);
-					return 0;
-				}
-			} else {
-				mutex_lock(&vdev->vma_lock);
+		if (try) {
+			if (!mutex_trylock(&vdev->vma_lock)) {
+				mmap_read_unlock(mm);
+				mmput(mm);
+				return 0;
 			}
-			list_for_each_entry_safe(mmap_vma, tmp,
-						 &vdev->vma_list, vma_next) {
-				struct vm_area_struct *vma = mmap_vma->vma;
-
-				if (vma->vm_mm != mm)
-					continue;
-
-				list_del(&mmap_vma->vma_next);
-				kfree(mmap_vma);
-
-				zap_vma_ptes(vma, vma->vm_start,
-					     vma->vm_end - vma->vm_start);
-			}
-			mutex_unlock(&vdev->vma_lock);
+		} else {
+			mutex_lock(&vdev->vma_lock);
 		}
+		list_for_each_entry_safe(mmap_vma, tmp,
+					 &vdev->vma_list, vma_next) {
+			struct vm_area_struct *vma = mmap_vma->vma;
+
+			if (vma->vm_mm != mm)
+				continue;
+
+			list_del(&mmap_vma->vma_next);
+			kfree(mmap_vma);
+
+			zap_vma_ptes(vma, vma->vm_start,
+				     vma->vm_end - vma->vm_start);
+		}
+		mutex_unlock(&vdev->vma_lock);
 		mmap_read_unlock(mm);
 		mmput(mm);
 	}
@@ -1862,7 +1897,6 @@ static const struct vfio_device_ops vfio_pci_ops = {
 
 static int vfio_pci_reflck_attach(struct vfio_pci_device *vdev);
 static void vfio_pci_reflck_put(struct vfio_pci_reflck *reflck);
-static struct pci_driver vfio_pci_driver;
 
 static int vfio_pci_bus_notifier(struct notifier_block *nb,
 				 unsigned long action, void *data)

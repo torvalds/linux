@@ -992,3 +992,32 @@ int gfx_v9_4_ras_error_inject(struct amdgpu_device *adev, void *inject_if)
 
 	return ret;
 }
+
+static const struct soc15_reg_entry gfx_v9_4_rdrsp_status_regs =
+	{ SOC15_REG_ENTRY(GC, 0, mmGCEA_ERR_STATUS), 0, 1, 32 };
+
+void gfx_v9_4_query_ras_error_status(struct amdgpu_device *adev)
+{
+	uint32_t i, j;
+	uint32_t reg_value;
+
+	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__GFX))
+		return;
+
+	mutex_lock(&adev->grbm_idx_mutex);
+
+	for (i = 0; i < gfx_v9_4_rdrsp_status_regs.se_num; i++) {
+		for (j = 0; j < gfx_v9_4_rdrsp_status_regs.instance;
+		     j++) {
+			gfx_v9_4_select_se_sh(adev, i, 0, j);
+			reg_value = RREG32(SOC15_REG_ENTRY_OFFSET(
+				gfx_v9_4_rdrsp_status_regs));
+			if (reg_value)
+				dev_warn(adev->dev, "GCEA err detected at instance: %d, status: 0x%x!\n",
+						j, reg_value);
+		}
+	}
+
+	gfx_v9_4_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff);
+	mutex_unlock(&adev->grbm_idx_mutex);
+}

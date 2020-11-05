@@ -235,7 +235,8 @@ KernelVersion:	4.15
 Contact:	Christian Gromm <christian.gromm@microchip.com>
 Description:
 		This is to read back the configured direction of the channel.
-		The following strings will be accepted:
+		The following strings will be accepted::
+
 			'tx',
 			'rx'
 Users:
@@ -246,7 +247,8 @@ KernelVersion:	4.15
 Contact:	Christian Gromm <christian.gromm@microchip.com>
 Description:
 		This is to read back the configured data type of the channel.
-		The following strings will be accepted:
+		The following strings will be accepted::
+
 			'control',
 			'async',
 			'sync',

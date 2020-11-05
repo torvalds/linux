@@ -7,6 +7,8 @@ Description:
 
 		Usage: <mon ip addr> <options> <pool name> <rbd image name> [<snap name>]
 
+		Example::
+
 		 $ echo "192.168.0.1 name=admin rbd foo" > /sys/bus/rbd/add
 
 		The snapshot name can be "-" or omitted to map the image
@@ -22,6 +24,8 @@ Description:
 		(WO) Remove rbd block device.
 
 		Usage: <dev-id> [force]
+
+		Example::
 
 		 $ echo 2 > /sys/bus/rbd/remove
 
@@ -80,26 +84,29 @@ Date:		Oct, 2010
 KernelVersion:	v2.6.37
 Contact:	Sage Weil <sage@newdream.net>
 Description:
-		size:		(RO) The size (in bytes) of the mapped block
+
+		==============	================================================
+		size		(RO) The size (in bytes) of the mapped block
 				device.
 
-		major:		(RO) The block device major number.
+		major		(RO) The block device major number.
 
-		client_id:	(RO) The ceph unique client id that was assigned
+		client_id	(RO) The ceph unique client id that was assigned
 				for this specific session.
 
-		pool:		(RO) The name of the storage pool where this rbd
+		pool		(RO) The name of the storage pool where this rbd
 				image resides. An rbd image name is unique
 				within its pool.
 
-		name:		(RO) The name of the rbd image.
+		name		(RO) The name of the rbd image.
 
-		refresh:	(WO) Writing to this file will reread the image
+		refresh		(WO) Writing to this file will reread the image
 				header data and set all relevant data structures
 				accordingly.
 
-		current_snap:	(RO) The current snapshot for which the device
+		current_snap	(RO) The current snapshot for which the device
 				is mapped.
+		==============	================================================
 
 
 What:		/sys/bus/rbd/devices/<dev-id>/pool_id
@@ -117,11 +124,13 @@ Date:		Oct, 2012
 KernelVersion:	v3.7
 Contact:	Sage Weil <sage@newdream.net>
 Description:
-		image_id:	(RO) The unique id for the rbd image. (For rbd
+		=========	===============================================
+		image_id	(RO) The unique id for the rbd image. (For rbd
 				image format 1 this is empty.)
 
-		features:	(RO) A hexadecimal encoding of the feature bits
+		features	(RO) A hexadecimal encoding of the feature bits
 				for this image.
+		=========	===============================================
 
 
 What:		/sys/bus/rbd/devices/<dev-id>/parent
@@ -149,14 +158,16 @@ Date:		Aug, 2016
 KernelVersion:	v4.9
 Contact:	Sage Weil <sage@newdream.net>
 Description:
-		snap_id:	(RO) The current snapshot's id.
+		============	================================================
+		snap_id		(RO) The current snapshot's id.
 
-		config_info:	(RO) The string written into
+		config_info	(RO) The string written into
 				/sys/bus/rbd/add{,_single_major}.
 
-		cluster_fsid:	(RO) The ceph cluster UUID.
+		cluster_fsid	(RO) The ceph cluster UUID.
 
-		client_addr:	(RO) The ceph unique client
+		client_addr	(RO) The ceph unique client
 				entity_addr_t (address + nonce). The format is
 				<address>:<port>/<nonce>: '1.2.3.4:1234/5678' or
 				'[1:2:3:4:5:6:7:8]:1234/5678'.
+		============	================================================

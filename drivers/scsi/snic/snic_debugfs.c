@@ -439,26 +439,14 @@ snic_trc_seq_show(struct seq_file *sfp, void *data)
 	return 0;
 }
 
-static const struct seq_operations snic_trc_seq_ops = {
+static const struct seq_operations snic_trc_sops = {
 	.start	= snic_trc_seq_start,
 	.next	= snic_trc_seq_next,
 	.stop	= snic_trc_seq_stop,
 	.show	= snic_trc_seq_show,
 };
 
-static int
-snic_trc_open(struct inode *inode, struct file *filp)
-{
-	return seq_open(filp, &snic_trc_seq_ops);
-}
-
-static const struct file_operations snic_trc_fops = {
-	.owner	= THIS_MODULE,
-	.open	= snic_trc_open,
-	.read	= seq_read,
-	.llseek = seq_lseek,
-	.release = seq_release,
-};
+DEFINE_SEQ_ATTRIBUTE(snic_trc);
 
 /*
  * snic_trc_debugfs_init : creates trace/tracing_enable files for trace

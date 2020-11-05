@@ -1,11 +1,5 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.video
 
 .. _VIDEO_GET_STATUS:
 
@@ -23,9 +17,9 @@ VIDEO_GET_STATUS
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, VIDEO_GET_STATUS, struct video_status *status)
-    :name: VIDEO_GET_STATUS
+.. c:macro:: VIDEO_GET_STATUS
 
+``int ioctl(fd, VIDEO_GET_STATUS, struct video_status *status)``
 
 Arguments
 ---------
@@ -33,7 +27,6 @@ Arguments
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-
 
     -  .. row 1
 
@@ -52,7 +45,6 @@ Arguments
        -  struct video_status \*status
 
        -  Returns the current status of the Video Device.
-
 
 Description
 -----------

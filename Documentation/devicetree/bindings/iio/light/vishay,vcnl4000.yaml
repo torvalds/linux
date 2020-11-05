@@ -24,6 +24,10 @@ properties:
       - vishay,vcnl4020
       - vishay,vcnl4040
       - vishay,vcnl4200
+
+  interrupts:
+    maxItems: 1
+
   reg:
     maxItems: 1
 

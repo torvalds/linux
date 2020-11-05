@@ -226,7 +226,7 @@ il4965_hw_nic_init(struct il_priv *il)
 	return 0;
 }
 
-/**
+/*
  * il4965_dma_addr2rbd_ptr - convert a DMA address to a uCode read buffer ptr
  */
 static inline __le32
@@ -235,7 +235,7 @@ il4965_dma_addr2rbd_ptr(struct il_priv *il, dma_addr_t dma_addr)
 	return cpu_to_le32((u32) (dma_addr >> 8));
 }
 
-/**
+/*
  * il4965_rx_queue_restock - refill RX queue from pre-allocated pool
  *
  * If there are slots in the RX queue that need to be restocked,
@@ -288,7 +288,7 @@ il4965_rx_queue_restock(struct il_priv *il)
 	}
 }
 
-/**
+/*
  * il4965_rx_replenish - Move all used packet from rx_used to rx_free
  *
  * When moving to rx_free an SKB is allocated for the slot.
@@ -544,7 +544,7 @@ il4965_translate_rx_status(struct il_priv *il, u32 decrypt_in)
 			decrypt_out |= RX_RES_STATUS_BAD_KEY_TTAK;
 			break;
 		}
-		/* fall through - if TTAK OK */
+		fallthrough;	/* if TTAK OK */
 	default:
 		if (!(decrypt_in & RX_MPDU_RES_STATUS_ICV_OK))
 			decrypt_out |= RX_RES_STATUS_BAD_ICV_MIC;
@@ -1127,7 +1127,7 @@ il4965_count_chain_bitmap(u32 chain_bitmap)
 	return res;
 }
 
-/**
+/*
  * il4965_set_rxon_chain - Set up Rx chain usage in "staging" RXON image
  *
  * Selects how many and which Rx receivers/antennas/chains to use.
@@ -1617,7 +1617,7 @@ il4965_tx_cmd_build_hwcrypto(struct il_priv *il, struct ieee80211_tx_info *info,
 
 	case WLAN_CIPHER_SUITE_WEP104:
 		tx_cmd->sec_ctl |= TX_CMD_SEC_KEY128;
-		/* fall through */
+		fallthrough;
 	case WLAN_CIPHER_SUITE_WEP40:
 		tx_cmd->sec_ctl |=
 		    (TX_CMD_SEC_WEP | (keyconf->keyidx & TX_CMD_SEC_MSK) <<
@@ -1933,7 +1933,7 @@ il4965_free_dma_ptr(struct il_priv *il, struct il_dma_ptr *ptr)
 	memset(ptr, 0, sizeof(*ptr));
 }
 
-/**
+/*
  * il4965_hw_txq_ctx_free - Free TXQ Context
  *
  * Destroy all TX DMA queues and structures
@@ -1959,12 +1959,9 @@ il4965_hw_txq_ctx_free(struct il_priv *il)
 	il_free_txq_mem(il);
 }
 
-/**
+/*
  * il4965_txq_ctx_alloc - allocate TX queue context
  * Allocate all Tx DMA structures and initialize them
- *
- * @param il
- * @return error code
  */
 int
 il4965_txq_ctx_alloc(struct il_priv *il)
@@ -2060,7 +2057,7 @@ il4965_txq_ctx_unmap(struct il_priv *il)
 			il_tx_queue_unmap(il, txq_id);
 }
 
-/**
+/*
  * il4965_txq_ctx_stop - Stop all Tx DMA channels
  */
 void
@@ -2101,7 +2098,7 @@ il4965_txq_ctx_activate_free(struct il_priv *il)
 	return -1;
 }
 
-/**
+/*
  * il4965_tx_queue_stop_scheduler - Stop queue, but keep configuration
  */
 static void
@@ -2114,7 +2111,7 @@ il4965_tx_queue_stop_scheduler(struct il_priv *il, u16 txq_id)
 		   (1 << IL49_SCD_QUEUE_STTS_REG_POS_SCD_ACT_EN));
 }
 
-/**
+/*
  * il4965_tx_queue_set_q2ratid - Map unique receiver/tid combination to a queue
  */
 static int
@@ -2141,7 +2138,7 @@ il4965_tx_queue_set_q2ratid(struct il_priv *il, u16 ra_tid, u16 txq_id)
 	return 0;
 }
 
-/**
+/*
  * il4965_tx_queue_agg_enable - Set up & enable aggregation for selected queue
  *
  * NOTE:  txq_id must be greater than IL49_FIRST_AMPDU_QUEUE,
@@ -2276,7 +2273,7 @@ il4965_tx_agg_start(struct il_priv *il, struct ieee80211_vif *vif,
 	return ret;
 }
 
-/**
+/*
  * txq_id must be greater than IL49_FIRST_AMPDU_QUEUE
  * il->lock must be held by the caller
  */
@@ -2488,7 +2485,7 @@ il4965_tx_queue_reclaim(struct il_priv *il, int txq_id, int idx)
 	return nfreed;
 }
 
-/**
+/*
  * il4965_tx_status_reply_compressed_ba - Update tx status from block-ack
  *
  * Go through block-ack's bitmap of ACK'd frames, update driver's record of
@@ -2641,7 +2638,7 @@ il4965_tx_status_to_mac80211(u32 status)
 	}
 }
 
-/**
+/*
  * il4965_tx_status_reply_tx - Handle Tx response for frames in aggregation queue
  */
 static int
@@ -2753,7 +2750,7 @@ il4965_tx_status_reply_tx(struct il_priv *il, struct il_ht_agg *agg,
 	return 0;
 }
 
-/**
+/*
  * il4965_hdl_tx - Handle standard (non-aggregation) Tx response
  */
 static void
@@ -2873,7 +2870,7 @@ il4965_hdl_tx(struct il_priv *il, struct il_rx_buf *rxb)
 	spin_unlock_irqrestore(&il->sta_lock, flags);
 }
 
-/**
+/*
  * translate ucode response to mac80211 tx status control values
  */
 void
@@ -2897,7 +2894,7 @@ il4965_hwrate_to_tx_control(struct il_priv *il, u32 rate_n_flags,
 	r->idx = il4965_hwrate_to_mac80211_idx(rate_n_flags, info->band);
 }
 
-/**
+/*
  * il4965_hdl_compressed_ba - Handler for N_COMPRESSED_BA
  *
  * Handles block-acknowledge notification from device, which reports success
@@ -3502,7 +3499,7 @@ il4965_set_dynamic_key(struct il_priv *il, struct ieee80211_key_conf *keyconf,
 	return ret;
 }
 
-/**
+/*
  * il4965_alloc_bcast_station - add broadcast station into driver's station table.
  *
  * This adds the broadcast station into the driver's station table
@@ -3543,7 +3540,7 @@ il4965_alloc_bcast_station(struct il_priv *il)
 	return 0;
 }
 
-/**
+/*
  * il4965_update_bcast_station - update broadcast station's LQ command
  *
  * Only used by iwl4965. Placed here to have all bcast station management
@@ -3579,7 +3576,7 @@ il4965_update_bcast_stations(struct il_priv *il)
 	return il4965_update_bcast_station(il);
 }
 
-/**
+/*
  * il4965_sta_tx_modify_enable_tid - Enable Tx for this TID in station table
  */
 int
@@ -3903,10 +3900,8 @@ il4965_tfd_get_num_tbs(struct il_tfd *tfd)
 	return tfd->num_tbs & 0x1f;
 }
 
-/**
+/*
  * il4965_hw_txq_free_tfd - Free all chunks referenced by TFD [txq->q.read_ptr]
- * @il - driver ilate data
- * @txq - tx queue
  *
  * Does NOT advance any TFD circular buffer read/write idxes
  * Does NOT free the TFD itself (which is within circular buffer)
@@ -4044,7 +4039,7 @@ il4965_hdl_alive(struct il_priv *il, struct il_rx_buf *rxb)
 		IL_WARN("uCode did not respond OK.\n");
 }
 
-/**
+/*
  * il4965_bg_stats_periodic - Timer callback to queue stats
  *
  * This callback is provided in order to send a stats request.
@@ -4155,7 +4150,7 @@ il4965_hdl_card_state(struct il_priv *il, struct il_rx_buf *rxb)
 		wake_up(&il->wait_command_queue);
 }
 
-/**
+/*
  * il4965_setup_handlers - Initialize Rx handler callbacks
  *
  * Setup the RX handlers for each of the reply types sent from the uCode
@@ -4199,7 +4194,7 @@ il4965_setup_handlers(struct il_priv *il)
 	il->handlers[C_TX] = il4965_hdl_tx;
 }
 
-/**
+/*
  * il4965_rx_handle - Main entry function for receiving responses from uCode
  *
  * Uses the il->handlers callback function array to invoke
@@ -4344,9 +4339,9 @@ il4965_synchronize_irq(struct il_priv *il)
 }
 
 static void
-il4965_irq_tasklet(unsigned long data)
+il4965_irq_tasklet(struct tasklet_struct *t)
 {
-	struct il_priv *il = (struct il_priv *)data;
+	struct il_priv *il = from_tasklet(il, t, irq_tasklet);
 	u32 inta, handled = 0;
 	u32 inta_fh;
 	unsigned long flags;
@@ -4756,7 +4751,7 @@ il4965_load_firmware(struct il_priv *il, const struct firmware *ucode_raw,
 	return 0;
 }
 
-/**
+/*
  * il4965_ucode_callback - callback when firmware was loaded
  *
  * If loaded successfully, copies the firmware into buffers
@@ -5259,7 +5254,7 @@ il4965_alive_notify(struct il_priv *il)
 	return 0;
 }
 
-/**
+/*
  * il4965_alive_start - called after N_ALIVE notification received
  *                   from protocol/runtime uCode (initialization uCode's
  *                   Alive gets handled by il_init_alive_start()).
@@ -6238,9 +6233,7 @@ il4965_setup_deferred_work(struct il_priv *il)
 
 	timer_setup(&il->watchdog, il_bg_watchdog, 0);
 
-	tasklet_init(&il->irq_tasklet,
-		     il4965_irq_tasklet,
-		     (unsigned long)il);
+	tasklet_setup(&il->irq_tasklet, il4965_irq_tasklet);
 }
 
 static void

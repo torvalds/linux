@@ -996,7 +996,7 @@ create_evict_fence_fail:
 	return ret;
 }
 
-int amdgpu_amdkfd_gpuvm_create_process_vm(struct kgd_dev *kgd, unsigned int pasid,
+int amdgpu_amdkfd_gpuvm_create_process_vm(struct kgd_dev *kgd, u32 pasid,
 					  void **vm, void **process_info,
 					  struct dma_fence **ef)
 {
@@ -1032,7 +1032,7 @@ amdgpu_vm_init_fail:
 }
 
 int amdgpu_amdkfd_gpuvm_acquire_process_vm(struct kgd_dev *kgd,
-					   struct file *filp, unsigned int pasid,
+					   struct file *filp, u32 pasid,
 					   void **vm, void **process_info,
 					   struct dma_fence **ef)
 {
@@ -1479,7 +1479,7 @@ int amdgpu_amdkfd_gpuvm_map_memory_to_gpu(
 		}
 	}
 
-	if (!amdgpu_ttm_tt_get_usermm(bo->tbo.ttm) && !bo->pin_count)
+	if (!amdgpu_ttm_tt_get_usermm(bo->tbo.ttm) && !bo->tbo.pin_count)
 		amdgpu_bo_fence(bo,
 				&avm->process_info->eviction_fence->base,
 				true);
@@ -1558,7 +1558,8 @@ int amdgpu_amdkfd_gpuvm_unmap_memory_from_gpu(
 	 * required.
 	 */
 	if (mem->mapped_to_gpu_memory == 0 &&
-	    !amdgpu_ttm_tt_get_usermm(mem->bo->tbo.ttm) && !mem->bo->pin_count)
+	    !amdgpu_ttm_tt_get_usermm(mem->bo->tbo.ttm) &&
+	    !mem->bo->tbo.pin_count)
 		amdgpu_amdkfd_remove_eviction_fence(mem->bo,
 						process_info->eviction_fence);
 

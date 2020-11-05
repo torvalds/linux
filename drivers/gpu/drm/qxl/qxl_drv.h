@@ -80,7 +80,6 @@ struct qxl_bo {
 	struct ttm_place		placements[3];
 	struct ttm_placement		placement;
 	struct ttm_bo_kmap_obj		kmap;
-	unsigned int pin_count;
 	void				*kptr;
 	unsigned int                    map_count;
 	int                             type;

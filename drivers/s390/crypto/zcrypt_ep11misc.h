@@ -12,22 +12,28 @@
 #include <asm/zcrypt.h>
 #include <asm/pkey.h>
 
-#define TOKVER_EP11_AES  0x03  /* EP11 AES key blob */
-
 #define EP11_API_V 4  /* highest known and supported EP11 API version */
-
 #define EP11_STRUCT_MAGIC 0x1234
-#define EP11_BLOB_PKEY_EXTRACTABLE 0x200000
+#define EP11_BLOB_PKEY_EXTRACTABLE 0x00200000
+
+/*
+ * Internal used values for the version field of the key header.
+ * Should match to the enum pkey_key_type in pkey.h.
+ */
+#define TOKVER_EP11_AES  0x03  /* EP11 AES key blob (old style) */
+#define TOKVER_EP11_AES_WITH_HEADER 0x06 /* EP11 AES key blob with header */
+#define TOKVER_EP11_ECC_WITH_HEADER 0x07 /* EP11 ECC key blob with header */
 
 /* inside view of an EP11 secure key blob */
 struct ep11keyblob {
 	union {
 		u8 session[32];
+		/* only used for PKEY_TYPE_EP11: */
 		struct {
 			u8  type;      /* 0x00 (TOKTYPE_NON_CCA) */
 			u8  res0;      /* unused */
 			u16 len;       /* total length in bytes of this blob */
-			u8  version;   /* 0x06 (TOKVER_EP11_AES) */
+			u8  version;   /* 0x03 (TOKVER_EP11_AES) */
 			u8  res1;      /* unused */
 			u16 keybitlen; /* clear key bit len, 0 for unknown */
 		} head;
@@ -41,16 +47,41 @@ struct ep11keyblob {
 	u8  mac[32];
 } __packed;
 
+/* check ep11 key magic to find out if this is an ep11 key blob */
+static inline bool is_ep11_keyblob(const u8 *key)
+{
+	struct ep11keyblob *kb = (struct ep11keyblob *) key;
+
+	return (kb->version == EP11_STRUCT_MAGIC);
+}
+
 /*
- * Simple check if the key blob is a valid EP11 secure AES key.
- * If keybitsize is given, the bitsize of the key is also checked.
+ * Simple check if the key blob is a valid EP11 AES key blob with header.
  * If checkcpacfexport is enabled, the key is also checked for the
  * attributes needed to export this key for CPACF use.
  * Returns 0 on success or errno value on failure.
  */
-int ep11_check_aeskeyblob(debug_info_t *dbg, int dbflvl,
-			  const u8 *key, int keybitsize,
-			  int checkcpacfexport);
+int ep11_check_aes_key_with_hdr(debug_info_t *dbg, int dbflvl,
+				const u8 *key, size_t keylen, int checkcpacfexp);
+
+/*
+ * Simple check if the key blob is a valid EP11 ECC key blob with header.
+ * If checkcpacfexport is enabled, the key is also checked for the
+ * attributes needed to export this key for CPACF use.
+ * Returns 0 on success or errno value on failure.
+ */
+int ep11_check_ecc_key_with_hdr(debug_info_t *dbg, int dbflvl,
+				const u8 *key, size_t keylen, int checkcpacfexp);
+
+/*
+ * Simple check if the key blob is a valid EP11 AES key blob with
+ * the header in the session field (old style EP11 AES key).
+ * If checkcpacfexport is enabled, the key is also checked for the
+ * attributes needed to export this key for CPACF use.
+ * Returns 0 on success or errno value on failure.
+ */
+int ep11_check_aes_key(debug_info_t *dbg, int dbflvl,
+		       const u8 *key, size_t keylen, int checkcpacfexp);
 
 /* EP11 card info struct */
 struct ep11_card_info {
@@ -92,12 +123,6 @@ int ep11_clr2keyblob(u16 cardnr, u16 domain, u32 keybitsize, u32 keygenflags,
 		     const u8 *clrkey, u8 *keybuf, size_t *keybufsize);
 
 /*
- * Derive proteced key from EP11 AES secure key blob.
- */
-int ep11_key2protkey(u16 cardnr, u16 domain, const u8 *key, size_t keylen,
-		     u8 *protkey, u32 *protkeylen, u32 *protkeytype);
-
-/*
  * Build a list of ep11 apqns meeting the following constrains:
  * - apqn is online and is in fact an EP11 apqn
  * - if cardnr is not FFFF only apqns with this cardnr
@@ -118,6 +143,12 @@ int ep11_key2protkey(u16 cardnr, u16 domain, const u8 *key, size_t keylen,
  */
 int ep11_findcard2(u32 **apqns, u32 *nr_apqns, u16 cardnr, u16 domain,
 		   int minhwtype, int minapi, const u8 *wkvp);
+
+/*
+ * Derive proteced key from EP11 key blob (AES and ECC keys).
+ */
+int ep11_kblob2protkey(u16 card, u16 dom, const u8 *key, size_t keylen,
+		       u8 *protkey, u32 *protkeylen, u32 *protkeytype);
 
 void zcrypt_ep11misc_exit(void);
 

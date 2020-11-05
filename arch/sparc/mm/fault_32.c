@@ -288,8 +288,6 @@ no_context:
 		if (fixup > 10) {
 			extern const unsigned int __memset_start[];
 			extern const unsigned int __memset_end[];
-			extern const unsigned int __csum_partial_copy_start[];
-			extern const unsigned int __csum_partial_copy_end[];
 
 #ifdef DEBUG_EXCEPTIONS
 			printk("Exception: PC<%08lx> faddr<%08lx>\n",
@@ -298,9 +296,7 @@ no_context:
 				regs->pc, fixup, g2);
 #endif
 			if ((regs->pc >= (unsigned long)__memset_start &&
-			     regs->pc < (unsigned long)__memset_end) ||
-			    (regs->pc >= (unsigned long)__csum_partial_copy_start &&
-			     regs->pc < (unsigned long)__csum_partial_copy_end)) {
+			     regs->pc < (unsigned long)__memset_end)) {
 				regs->u_regs[UREG_I4] = address;
 				regs->u_regs[UREG_I5] = regs->pc;
 			}

@@ -60,7 +60,7 @@ static int vmw_gmrid_man_get_node(struct ttm_resource_manager *man,
 
 	id = ida_alloc_max(&gman->gmr_ida, gman->max_gmr_ids - 1, GFP_KERNEL);
 	if (id < 0)
-		return (id != -ENOMEM ? 0 : id);
+		return id;
 
 	spin_lock(&gman->lock);
 
@@ -112,8 +112,6 @@ int vmw_gmrid_man_init(struct vmw_private *dev_priv, int type)
 	man = &gman->manager;
 
 	man->func = &vmw_gmrid_manager_func;
-	man->available_caching = TTM_PL_FLAG_CACHED;
-	man->default_caching = TTM_PL_FLAG_CACHED;
 	/* TODO: This is most likely not correct */
 	man->use_tt = true;
 	ttm_resource_manager_init(man, 0);
@@ -145,7 +143,7 @@ void vmw_gmrid_man_fini(struct vmw_private *dev_priv, int type)
 
 	ttm_resource_manager_set_used(man, false);
 
-	ttm_resource_manager_force_list_clean(&dev_priv->bdev, man);
+	ttm_resource_manager_evict_all(&dev_priv->bdev, man);
 
 	ttm_resource_manager_cleanup(man);
 

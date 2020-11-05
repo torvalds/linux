@@ -26,8 +26,6 @@
 
 #include "internal.h"
 
-ACPI_MODULE_NAME("acpi_lpss");
-
 #ifdef CONFIG_X86_INTEL_LPSS
 
 #include <asm/cpu_device_id.h>

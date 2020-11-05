@@ -26,7 +26,7 @@
 
 	memory@40000000 {
 		device_type = "memory";
-		reg =  <0x40000000 0x1ff00000>;
+		reg = <0x40000000 0x1ff00000>;
 	};
 
 	firmware@205f000 {
@@ -162,6 +162,10 @@
 	devfreq-events = <&ppmu_dmc0_3>, <&ppmu_dmc1_3>;
 	vdd-supply = <&buck1_reg>;
 	status = "okay";
+};
+
+&cmu {
+	clocks = <&xusbxti>;
 };
 
 &cpu0 {

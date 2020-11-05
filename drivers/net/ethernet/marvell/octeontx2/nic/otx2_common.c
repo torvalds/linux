@@ -355,7 +355,7 @@ int otx2_rss_init(struct otx2_nic *pfvf)
 	rss->flowkey_cfg = rss->enable ? rss->flowkey_cfg :
 			   NIX_FLOW_KEY_TYPE_IPV4 | NIX_FLOW_KEY_TYPE_IPV6 |
 			   NIX_FLOW_KEY_TYPE_TCP | NIX_FLOW_KEY_TYPE_UDP |
-			   NIX_FLOW_KEY_TYPE_SCTP;
+			   NIX_FLOW_KEY_TYPE_SCTP | NIX_FLOW_KEY_TYPE_VLAN;
 
 	ret = otx2_set_flowkey_cfg(pfvf);
 	if (ret)
@@ -363,6 +363,95 @@ int otx2_rss_init(struct otx2_nic *pfvf)
 
 	rss->enable = true;
 	return 0;
+}
+
+/* Setup UDP segmentation algorithm in HW */
+static void otx2_setup_udp_segmentation(struct nix_lso_format_cfg *lso, bool v4)
+{
+	struct nix_lso_format *field;
+
+	field = (struct nix_lso_format *)&lso->fields[0];
+	lso->field_mask = GENMASK(18, 0);
+
+	/* IP's Length field */
+	field->layer = NIX_TXLAYER_OL3;
+	/* In ipv4, length field is at offset 2 bytes, for ipv6 it's 4 */
+	field->offset = v4 ? 2 : 4;
+	field->sizem1 = 1; /* i.e 2 bytes */
+	field->alg = NIX_LSOALG_ADD_PAYLEN;
+	field++;
+
+	/* No ID field in IPv6 header */
+	if (v4) {
+		/* Increment IPID */
+		field->layer = NIX_TXLAYER_OL3;
+		field->offset = 4;
+		field->sizem1 = 1; /* i.e 2 bytes */
+		field->alg = NIX_LSOALG_ADD_SEGNUM;
+		field++;
+	}
+
+	/* Update length in UDP header */
+	field->layer = NIX_TXLAYER_OL4;
+	field->offset = 4;
+	field->sizem1 = 1;
+	field->alg = NIX_LSOALG_ADD_PAYLEN;
+}
+
+/* Setup segmentation algorithms in HW and retrieve algorithm index */
+void otx2_setup_segmentation(struct otx2_nic *pfvf)
+{
+	struct nix_lso_format_cfg_rsp *rsp;
+	struct nix_lso_format_cfg *lso;
+	struct otx2_hw *hw = &pfvf->hw;
+	int err;
+
+	mutex_lock(&pfvf->mbox.lock);
+
+	/* UDPv4 segmentation */
+	lso = otx2_mbox_alloc_msg_nix_lso_format_cfg(&pfvf->mbox);
+	if (!lso)
+		goto fail;
+
+	/* Setup UDP/IP header fields that HW should update per segment */
+	otx2_setup_udp_segmentation(lso, true);
+
+	err = otx2_sync_mbox_msg(&pfvf->mbox);
+	if (err)
+		goto fail;
+
+	rsp = (struct nix_lso_format_cfg_rsp *)
+			otx2_mbox_get_rsp(&pfvf->mbox.mbox, 0, &lso->hdr);
+	if (IS_ERR(rsp))
+		goto fail;
+
+	hw->lso_udpv4_idx = rsp->lso_format_idx;
+
+	/* UDPv6 segmentation */
+	lso = otx2_mbox_alloc_msg_nix_lso_format_cfg(&pfvf->mbox);
+	if (!lso)
+		goto fail;
+
+	/* Setup UDP/IP header fields that HW should update per segment */
+	otx2_setup_udp_segmentation(lso, false);
+
+	err = otx2_sync_mbox_msg(&pfvf->mbox);
+	if (err)
+		goto fail;
+
+	rsp = (struct nix_lso_format_cfg_rsp *)
+			otx2_mbox_get_rsp(&pfvf->mbox.mbox, 0, &lso->hdr);
+	if (IS_ERR(rsp))
+		goto fail;
+
+	hw->lso_udpv6_idx = rsp->lso_format_idx;
+	mutex_unlock(&pfvf->mbox.lock);
+	return;
+fail:
+	mutex_unlock(&pfvf->mbox.lock);
+	netdev_info(pfvf->netdev,
+		    "Failed to get LSO index for UDP GSO offload, disabling\n");
+	pfvf->netdev->hw_features &= ~NETIF_F_GSO_UDP_L4;
 }
 
 void otx2_config_irq_coalescing(struct otx2_nic *pfvf, int qidx)
@@ -670,6 +759,13 @@ static int otx2_sq_init(struct otx2_nic *pfvf, u16 qidx, u16 sqb_aura)
 	sq->sg = kcalloc(qset->sqe_cnt, sizeof(struct sg_list), GFP_KERNEL);
 	if (!sq->sg)
 		return -ENOMEM;
+
+	if (pfvf->ptp) {
+		err = qmem_alloc(pfvf->dev, &sq->timestamps, qset->sqe_cnt,
+				 sizeof(*sq->timestamps));
+		if (err)
+			return err;
+	}
 
 	sq->head = 0;
 	sq->sqe_per_sqb = (pfvf->hw.sqb_size / sq->sqe_size) - 1;

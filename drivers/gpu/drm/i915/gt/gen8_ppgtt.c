@@ -604,7 +604,8 @@ static int gen8_init_scratch(struct i915_address_space *vm)
 	return 0;
 
 free_scratch:
-	free_scratch(vm);
+	while (i--)
+		i915_gem_object_put(vm->scratch[i]);
 	return -ENOMEM;
 }
 

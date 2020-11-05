@@ -57,12 +57,19 @@ properties:
       "ranges" property should provide a "reasonable" default that is known to
       work. The software should initialize the bus controller according to it.
 
+patternProperties:
+  "^.*@[1-5],[1-9a-f][0-9a-f]+$":
+    description: Devices attached to chip selects
+    type: object
+
 required:
   - compatible
   - reg
   - "#address-cells"
   - "#size-cells"
   - ranges
+
+additionalProperties: false
 
 examples:
   - |

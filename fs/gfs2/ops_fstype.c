@@ -110,6 +110,8 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 	spin_lock_init(&sdp->sd_trunc_lock);
 	spin_lock_init(&sdp->sd_bitmap_lock);
 
+	INIT_LIST_HEAD(&sdp->sd_sc_inodes_list);
+
 	mapping = &sdp->sd_aspace;
 
 	address_space_init_once(mapping);
@@ -169,15 +171,19 @@ static int gfs2_check_sb(struct gfs2_sbd *sdp, int silent)
 		return -EINVAL;
 	}
 
-	/*  If format numbers match exactly, we're done.  */
+	if (sb->sb_fs_format != GFS2_FORMAT_FS ||
+	    sb->sb_multihost_format != GFS2_FORMAT_MULTI) {
+		fs_warn(sdp, "Unknown on-disk format, unable to mount\n");
+		return -EINVAL;
+	}
 
-	if (sb->sb_fs_format == GFS2_FORMAT_FS &&
-	    sb->sb_multihost_format == GFS2_FORMAT_MULTI)
-		return 0;
+	if (sb->sb_bsize < 512 || sb->sb_bsize > PAGE_SIZE ||
+	    (sb->sb_bsize & (sb->sb_bsize - 1))) {
+		pr_warn("Invalid superblock size\n");
+		return -EINVAL;
+	}
 
-	fs_warn(sdp, "Unknown on-disk format, unable to mount\n");
-
-	return -EINVAL;
+	return 0;
 }
 
 static void end_bio_io_page(struct bio *bio)
@@ -604,6 +610,90 @@ static int gfs2_jindex_hold(struct gfs2_sbd *sdp, struct gfs2_holder *ji_gh)
 	return error;
 }
 
+/**
+ * init_statfs - look up and initialize master and local (per node) statfs inodes
+ * @sdp: The GFS2 superblock
+ *
+ * This should be called after the jindex is initialized in init_journal() and
+ * before gfs2_journal_recovery() is called because we need to be able to write
+ * to these inodes during recovery.
+ *
+ * Returns: errno
+ */
+static int init_statfs(struct gfs2_sbd *sdp)
+{
+	int error = 0;
+	struct inode *master = d_inode(sdp->sd_master_dir);
+	struct inode *pn = NULL;
+	char buf[30];
+	struct gfs2_jdesc *jd;
+	struct gfs2_inode *ip;
+
+	sdp->sd_statfs_inode = gfs2_lookup_simple(master, "statfs");
+	if (IS_ERR(sdp->sd_statfs_inode)) {
+		error = PTR_ERR(sdp->sd_statfs_inode);
+		fs_err(sdp, "can't read in statfs inode: %d\n", error);
+		goto fail;
+	}
+
+	pn = gfs2_lookup_simple(master, "per_node");
+	if (IS_ERR(pn)) {
+		error = PTR_ERR(pn);
+		fs_err(sdp, "can't find per_node directory: %d\n", error);
+		goto put_statfs;
+	}
+
+	/* For each jid, lookup the corresponding local statfs inode in the
+	 * per_node metafs directory and save it in the sdp->sd_sc_inodes_list. */
+	list_for_each_entry(jd, &sdp->sd_jindex_list, jd_list) {
+		struct local_statfs_inode *lsi =
+			kmalloc(sizeof(struct local_statfs_inode), GFP_NOFS);
+		if (!lsi) {
+			error = -ENOMEM;
+			goto free_local;
+		}
+		sprintf(buf, "statfs_change%u", jd->jd_jid);
+		lsi->si_sc_inode = gfs2_lookup_simple(pn, buf);
+		if (IS_ERR(lsi->si_sc_inode)) {
+			error = PTR_ERR(lsi->si_sc_inode);
+			fs_err(sdp, "can't find local \"sc\" file#%u: %d\n",
+			       jd->jd_jid, error);
+			goto free_local;
+		}
+		lsi->si_jid = jd->jd_jid;
+		if (jd->jd_jid == sdp->sd_jdesc->jd_jid)
+			sdp->sd_sc_inode = lsi->si_sc_inode;
+
+		list_add_tail(&lsi->si_list, &sdp->sd_sc_inodes_list);
+	}
+
+	iput(pn);
+	ip = GFS2_I(sdp->sd_sc_inode);
+	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0,
+				   &sdp->sd_sc_gh);
+	if (error) {
+		fs_err(sdp, "can't lock local \"sc\" file: %d\n", error);
+		goto free_local;
+	}
+	return 0;
+
+free_local:
+	free_local_statfs_inodes(sdp);
+	iput(pn);
+put_statfs:
+	iput(sdp->sd_statfs_inode);
+fail:
+	return error;
+}
+
+/* Uninitialize and free up memory used by the list of statfs inodes */
+static void uninit_statfs(struct gfs2_sbd *sdp)
+{
+	gfs2_glock_dq_uninit(&sdp->sd_sc_gh);
+	free_local_statfs_inodes(sdp);
+	iput(sdp->sd_statfs_inode);
+}
+
 static int init_journal(struct gfs2_sbd *sdp, int undo)
 {
 	struct inode *master = d_inode(sdp->sd_master_dir);
@@ -690,6 +780,11 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 	}
 	trace_gfs2_log_blocks(sdp, atomic_read(&sdp->sd_log_blks_free));
 
+	/* Lookup statfs inodes here so journal recovery can use them. */
+	error = init_statfs(sdp);
+	if (error)
+		goto fail_jinode_gh;
+
 	if (sdp->sd_lockstruct.ls_first) {
 		unsigned int x;
 		for (x = 0; x < sdp->sd_journals; x++) {
@@ -698,14 +793,14 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 			if (sdp->sd_args.ar_spectator) {
 				error = check_journal_clean(sdp, jd, true);
 				if (error)
-					goto fail_jinode_gh;
+					goto fail_statfs;
 				continue;
 			}
 			error = gfs2_recover_journal(jd, true);
 			if (error) {
 				fs_err(sdp, "error recovering journal %u: %d\n",
 				       x, error);
-				goto fail_jinode_gh;
+				goto fail_statfs;
 			}
 		}
 
@@ -714,7 +809,7 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 		error = gfs2_recover_journal(sdp->sd_jdesc, true);
 		if (error) {
 			fs_err(sdp, "error recovering my journal: %d\n", error);
-			goto fail_jinode_gh;
+			goto fail_statfs;
 		}
 	}
 
@@ -725,6 +820,8 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 	INIT_WORK(&sdp->sd_freeze_work, gfs2_freeze_func);
 	return 0;
 
+fail_statfs:
+	uninit_statfs(sdp);
 fail_jinode_gh:
 	/* A withdraw may have done dq/uninit so now we need to check it */
 	if (!sdp->sd_args.ar_spectator &&
@@ -758,20 +855,12 @@ static int init_inodes(struct gfs2_sbd *sdp, int undo)
 	if (error)
 		goto fail;
 
-	/* Read in the master statfs inode */
-	sdp->sd_statfs_inode = gfs2_lookup_simple(master, "statfs");
-	if (IS_ERR(sdp->sd_statfs_inode)) {
-		error = PTR_ERR(sdp->sd_statfs_inode);
-		fs_err(sdp, "can't read in statfs inode: %d\n", error);
-		goto fail_journal;
-	}
-
 	/* Read in the resource index inode */
 	sdp->sd_rindex = gfs2_lookup_simple(master, "rindex");
 	if (IS_ERR(sdp->sd_rindex)) {
 		error = PTR_ERR(sdp->sd_rindex);
 		fs_err(sdp, "can't get resource index inode: %d\n", error);
-		goto fail_statfs;
+		goto fail_journal;
 	}
 	sdp->sd_rindex_uptodate = 0;
 
@@ -800,8 +889,6 @@ fail_qinode:
 fail_rindex:
 	gfs2_clear_rgrpd(sdp);
 	iput(sdp->sd_rindex);
-fail_statfs:
-	iput(sdp->sd_statfs_inode);
 fail_journal:
 	init_journal(sdp, UNDO);
 fail:
@@ -829,14 +916,6 @@ static int init_per_node(struct gfs2_sbd *sdp, int undo)
 		return error;
 	}
 
-	sprintf(buf, "statfs_change%u", sdp->sd_jdesc->jd_jid);
-	sdp->sd_sc_inode = gfs2_lookup_simple(pn, buf);
-	if (IS_ERR(sdp->sd_sc_inode)) {
-		error = PTR_ERR(sdp->sd_sc_inode);
-		fs_err(sdp, "can't find local \"sc\" file: %d\n", error);
-		goto fail;
-	}
-
 	sprintf(buf, "quota_change%u", sdp->sd_jdesc->jd_jid);
 	sdp->sd_qc_inode = gfs2_lookup_simple(pn, buf);
 	if (IS_ERR(sdp->sd_qc_inode)) {
@@ -848,33 +927,21 @@ static int init_per_node(struct gfs2_sbd *sdp, int undo)
 	iput(pn);
 	pn = NULL;
 
-	ip = GFS2_I(sdp->sd_sc_inode);
-	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0,
-				   &sdp->sd_sc_gh);
-	if (error) {
-		fs_err(sdp, "can't lock local \"sc\" file: %d\n", error);
-		goto fail_qc_i;
-	}
-
 	ip = GFS2_I(sdp->sd_qc_inode);
 	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0,
 				   &sdp->sd_qc_gh);
 	if (error) {
 		fs_err(sdp, "can't lock local \"qc\" file: %d\n", error);
-		goto fail_ut_gh;
+		goto fail_qc_i;
 	}
 
 	return 0;
 
 fail_qc_gh:
 	gfs2_glock_dq_uninit(&sdp->sd_qc_gh);
-fail_ut_gh:
-	gfs2_glock_dq_uninit(&sdp->sd_sc_gh);
 fail_qc_i:
 	iput(sdp->sd_qc_inode);
 fail_ut_i:
-	iput(sdp->sd_sc_inode);
-fail:
 	iput(pn);
 	return error;
 }
@@ -1062,26 +1129,14 @@ static int gfs2_fill_super(struct super_block *sb, struct fs_context *fc)
 	}
 
 	error = init_names(sdp, silent);
-	if (error) {
-		/* In this case, we haven't initialized sysfs, so we have to
-		   manually free the sdp. */
-		free_sbd(sdp);
-		sb->s_fs_info = NULL;
-		return error;
-	}
+	if (error)
+		goto fail_free;
 
 	snprintf(sdp->sd_fsname, sizeof(sdp->sd_fsname), "%s", sdp->sd_table_name);
 
 	error = gfs2_sys_fs_add(sdp);
-	/*
-	 * If we hit an error here, gfs2_sys_fs_add will have called function
-	 * kobject_put which causes the sysfs usage count to go to zero, which
-	 * causes sysfs to call function gfs2_sbd_release, which frees sdp.
-	 * Subsequent error paths here will call gfs2_sys_fs_del, which also
-	 * kobject_put to free sdp.
-	 */
 	if (error)
-		return error;
+		goto fail_free;
 
 	gfs2_create_debugfs_file(sdp);
 
@@ -1179,9 +1234,9 @@ fail_lm:
 	gfs2_lm_unmount(sdp);
 fail_debug:
 	gfs2_delete_debugfs_file(sdp);
-	/* gfs2_sys_fs_del must be the last thing we do, since it causes
-	 * sysfs to call function gfs2_sbd_release, which frees sdp. */
 	gfs2_sys_fs_del(sdp);
+fail_free:
+	free_sbd(sdp);
 	sb->s_fs_info = NULL;
 	return error;
 }

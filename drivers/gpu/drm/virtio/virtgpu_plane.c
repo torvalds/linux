@@ -142,7 +142,7 @@ static void virtio_gpu_primary_plane_update(struct drm_plane *plane,
 	if (WARN_ON(!output))
 		return;
 
-	if (!plane->state->fb || !output->enabled) {
+	if (!plane->state->fb || !output->crtc.state->active) {
 		DRM_DEBUG("nofb\n");
 		virtio_gpu_cmd_set_scanout(vgdev, output->index, 0,
 					   plane->state->src_w >> 16,
@@ -163,7 +163,9 @@ static void virtio_gpu_primary_plane_update(struct drm_plane *plane,
 	    plane->state->src_w != old_state->src_w ||
 	    plane->state->src_h != old_state->src_h ||
 	    plane->state->src_x != old_state->src_x ||
-	    plane->state->src_y != old_state->src_y) {
+	    plane->state->src_y != old_state->src_y ||
+	    output->needs_modeset) {
+		output->needs_modeset = false;
 		DRM_DEBUG("handle 0x%x, crtc %dx%d+%d+%d, src %dx%d+%d+%d\n",
 			  bo->hw_res_handle,
 			  plane->state->crtc_w, plane->state->crtc_h,
@@ -172,12 +174,23 @@ static void virtio_gpu_primary_plane_update(struct drm_plane *plane,
 			  plane->state->src_h >> 16,
 			  plane->state->src_x >> 16,
 			  plane->state->src_y >> 16);
-		virtio_gpu_cmd_set_scanout(vgdev, output->index,
-					   bo->hw_res_handle,
-					   plane->state->src_w >> 16,
-					   plane->state->src_h >> 16,
-					   plane->state->src_x >> 16,
-					   plane->state->src_y >> 16);
+
+		if (bo->host3d_blob || bo->guest_blob) {
+			virtio_gpu_cmd_set_scanout_blob
+						(vgdev, output->index, bo,
+						 plane->state->fb,
+						 plane->state->src_w >> 16,
+						 plane->state->src_h >> 16,
+						 plane->state->src_x >> 16,
+						 plane->state->src_y >> 16);
+		} else {
+			virtio_gpu_cmd_set_scanout(vgdev, output->index,
+						   bo->hw_res_handle,
+						   plane->state->src_w >> 16,
+						   plane->state->src_h >> 16,
+						   plane->state->src_x >> 16,
+						   plane->state->src_y >> 16);
+		}
 	}
 
 	virtio_gpu_cmd_resource_flush(vgdev, bo->hw_res_handle,

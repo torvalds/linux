@@ -26,6 +26,8 @@ static struct vmw_thp_manager *to_thp_manager(struct ttm_resource_manager *man)
 	return container_of(man, struct vmw_thp_manager, manager);
 }
 
+static const struct ttm_resource_manager_func vmw_thp_func;
+
 static int vmw_thp_insert_aligned(struct drm_mm *mm, struct drm_mm_node *node,
 				  unsigned long align_pages,
 				  const struct ttm_place *place,
@@ -101,7 +103,7 @@ found_unlock:
 		mem->start = node->start;
 	}
 
-	return 0;
+	return ret;
 }
 
 
@@ -123,25 +125,21 @@ static void vmw_thp_put_node(struct ttm_resource_manager *man,
 
 int vmw_thp_init(struct vmw_private *dev_priv)
 {
-	struct ttm_resource_manager *man;
 	struct vmw_thp_manager *rman;
 
 	rman = kzalloc(sizeof(*rman), GFP_KERNEL);
 	if (!rman)
 		return -ENOMEM;
 
-	man = &rman->manager;
-	man->available_caching = TTM_PL_FLAG_CACHED;
-	man->default_caching = TTM_PL_FLAG_CACHED;
-
-	ttm_resource_manager_init(man,
+	ttm_resource_manager_init(&rman->manager,
 				  dev_priv->vram_size >> PAGE_SHIFT);
 
-	drm_mm_init(&rman->mm, 0, man->size);
+	rman->manager.func = &vmw_thp_func;
+	drm_mm_init(&rman->mm, 0, rman->manager.size);
 	spin_lock_init(&rman->lock);
 
 	ttm_set_driver_manager(&dev_priv->bdev, TTM_PL_VRAM, &rman->manager);
-	ttm_resource_manager_set_used(man, true);
+	ttm_resource_manager_set_used(&rman->manager, true);
 	return 0;
 }
 
@@ -154,7 +152,7 @@ void vmw_thp_fini(struct vmw_private *dev_priv)
 
 	ttm_resource_manager_set_used(man, false);
 
-	ret = ttm_resource_manager_force_list_clean(&dev_priv->bdev, man);
+	ret = ttm_resource_manager_evict_all(&dev_priv->bdev, man);
 	if (ret)
 		return;
 	spin_lock(&rman->lock);
@@ -176,7 +174,7 @@ static void vmw_thp_debug(struct ttm_resource_manager *man,
 	spin_unlock(&rman->lock);
 }
 
-const struct ttm_resource_manager_func vmw_thp_func = {
+static const struct ttm_resource_manager_func vmw_thp_func = {
 	.alloc = vmw_thp_get_node,
 	.free = vmw_thp_put_node,
 	.debug = vmw_thp_debug

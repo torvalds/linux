@@ -214,13 +214,13 @@ static int vkms_crtc_atomic_check(struct drm_crtc *crtc,
 }
 
 static void vkms_crtc_atomic_enable(struct drm_crtc *crtc,
-				    struct drm_crtc_state *old_state)
+				    struct drm_atomic_state *state)
 {
 	drm_crtc_vblank_on(crtc);
 }
 
 static void vkms_crtc_atomic_disable(struct drm_crtc *crtc,
-				     struct drm_crtc_state *old_state)
+				     struct drm_atomic_state *state)
 {
 	drm_crtc_vblank_off(crtc);
 }

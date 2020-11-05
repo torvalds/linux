@@ -9,13 +9,14 @@ Description:
 		Note: This file is only present if CONFIG_NVMEM_SYSFS
 		is enabled
 
-		ex:
-		hexdump /sys/bus/nvmem/devices/qfprom0/nvmem
+		ex::
 
-		0000000 0000 0000 0000 0000 0000 0000 0000 0000
-		*
-		00000a0 db10 2240 0000 e000 0c00 0c00 0000 0c00
-		0000000 0000 0000 0000 0000 0000 0000 0000 0000
-		...
-		*
-		0001000
+		  hexdump /sys/bus/nvmem/devices/qfprom0/nvmem
+
+		  0000000 0000 0000 0000 0000 0000 0000 0000 0000
+		  *
+		  00000a0 db10 2240 0000 e000 0c00 0c00 0000 0c00
+		  0000000 0000 0000 0000 0000 0000 0000 0000 0000
+		  ...
+		  *
+		  0001000

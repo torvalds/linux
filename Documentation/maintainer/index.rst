@@ -13,4 +13,5 @@ additions to this manual.
    rebasing-and-merging
    pull-requests
    maintainer-entry-profile
+   modifying-patches
 

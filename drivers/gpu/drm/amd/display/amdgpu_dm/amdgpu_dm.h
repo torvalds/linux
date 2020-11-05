@@ -149,6 +149,8 @@ struct amdgpu_dm_backlight_caps {
  * @cached_state: Caches device atomic state for suspend/resume
  * @cached_dc_state: Cached state of content streams
  * @compressor: Frame buffer compression buffer. See &struct dm_comressor_info
+ * @force_timing_sync: set via debugfs. When set, indicates that all connected
+ *		       displays will be forced to synchronize.
  */
 struct amdgpu_display_manager {
 
@@ -340,13 +342,19 @@ struct amdgpu_display_manager {
 	 * fake encoders used for DP MST.
 	 */
 	struct amdgpu_encoder mst_encoders[AMDGPU_DM_MAX_CRTC];
-        bool force_timing_sync;
+	bool force_timing_sync;
+};
+
+enum dsc_clock_force_state {
+	DSC_CLK_FORCE_DEFAULT = 0,
+	DSC_CLK_FORCE_ENABLE,
+	DSC_CLK_FORCE_DISABLE,
 };
 
 struct dsc_preferred_settings {
-	bool dsc_clock_en;
-	uint32_t dsc_slice_width;
-	uint32_t dsc_slice_height;
+	enum dsc_clock_force_state dsc_force_enable;
+	uint32_t dsc_num_slices_v;
+	uint32_t dsc_num_slices_h;
 	uint32_t dsc_bits_per_pixel;
 };
 
@@ -434,7 +442,6 @@ struct dm_crtc_state {
 
 	bool vrr_supported;
 	struct mod_freesync_config freesync_config;
-	struct mod_vrr_params vrr_params;
 	struct dc_info_packet vrr_infopacket;
 
 	int abm_level;

@@ -147,6 +147,8 @@ int scmi_do_xfer_with_response(const struct scmi_handle *h,
 			       struct scmi_xfer *xfer);
 int scmi_xfer_get_init(const struct scmi_handle *h, u8 msg_id, u8 prot_id,
 		       size_t tx_size, size_t rx_size, struct scmi_xfer **p);
+void scmi_reset_rx_to_maxsz(const struct scmi_handle *handle,
+			    struct scmi_xfer *xfer);
 int scmi_handle_put(const struct scmi_handle *handle);
 struct scmi_handle *scmi_handle_get(struct device *dev);
 void scmi_set_handle(struct scmi_device *scmi_dev);
@@ -155,6 +157,30 @@ void scmi_setup_protocol_implemented(const struct scmi_handle *handle,
 				     u8 *prot_imp);
 
 int scmi_base_protocol_init(struct scmi_handle *h);
+
+int __init scmi_bus_init(void);
+void __exit scmi_bus_exit(void);
+
+#define DECLARE_SCMI_REGISTER_UNREGISTER(func)		\
+	int __init scmi_##func##_register(void);	\
+	void __exit scmi_##func##_unregister(void)
+DECLARE_SCMI_REGISTER_UNREGISTER(clock);
+DECLARE_SCMI_REGISTER_UNREGISTER(perf);
+DECLARE_SCMI_REGISTER_UNREGISTER(power);
+DECLARE_SCMI_REGISTER_UNREGISTER(reset);
+DECLARE_SCMI_REGISTER_UNREGISTER(sensors);
+DECLARE_SCMI_REGISTER_UNREGISTER(system);
+
+#define DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(id, name) \
+int __init scmi_##name##_register(void) \
+{ \
+	return scmi_protocol_register((id), &scmi_##name##_protocol_init); \
+} \
+\
+void __exit scmi_##name##_unregister(void) \
+{ \
+	scmi_protocol_unregister((id)); \
+}
 
 /* SCMI Transport */
 /**
@@ -210,7 +236,7 @@ struct scmi_transport_ops {
  * @max_msg_size: Maximum size of data per message that can be handled.
  */
 struct scmi_desc {
-	struct scmi_transport_ops *ops;
+	const struct scmi_transport_ops *ops;
 	int max_rx_timeout_ms;
 	int max_msg;
 	int max_msg_size;

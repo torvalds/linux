@@ -77,8 +77,9 @@ struct ttm_bo_driver {
 	 * Returns:
 	 * -ENOMEM: Out of memory.
 	 */
-	int (*ttm_tt_populate)(struct ttm_tt *ttm,
-			struct ttm_operation_ctx *ctx);
+	int (*ttm_tt_populate)(struct ttm_bo_device *bdev,
+			       struct ttm_tt *ttm,
+			       struct ttm_operation_ctx *ctx);
 
 	/**
 	 * ttm_tt_unpopulate
@@ -87,7 +88,18 @@ struct ttm_bo_driver {
 	 *
 	 * Free all backing page
 	 */
-	void (*ttm_tt_unpopulate)(struct ttm_tt *ttm);
+	void (*ttm_tt_unpopulate)(struct ttm_bo_device *bdev, struct ttm_tt *ttm);
+
+	/**
+	 * ttm_tt_destroy
+	 *
+	 * @bdev: Pointer to a ttm device
+	 * @ttm: Pointer to a struct ttm_tt.
+	 *
+	 * Destroy the backend. This will be call back from ttm_tt_destroy so
+	 * don't call ttm_tt_destroy from the callback or infinite loop.
+	 */
+	void (*ttm_tt_destroy)(struct ttm_bo_device *bdev, struct ttm_tt *ttm);
 
 	/**
 	 * struct ttm_bo_driver member eviction_valuable
@@ -144,18 +156,9 @@ struct ttm_bo_driver {
 			     struct file *filp);
 
 	/**
-	 * Hook to notify driver about a driver move so it
-	 * can do tiling things and book-keeping.
-	 *
-	 * @evict: whether this move is evicting the buffer from the graphics
-	 * address space
+	 * Hook to notify driver about a resource delete.
 	 */
-	void (*move_notify)(struct ttm_buffer_object *bo,
-			    bool evict,
-			    struct ttm_resource *new_mem);
-	/* notify the driver we are taking a fault on this BO
-	 * and have reserved it */
-	int (*fault_reserve_notify)(struct ttm_buffer_object *bo);
+	void (*delete_mem_notify)(struct ttm_buffer_object *bo);
 
 	/**
 	 * notify the driver that we're about to swap out this bo
@@ -356,23 +359,6 @@ struct ttm_lru_bulk_move {
 	struct ttm_lru_bulk_move_pos swap[TTM_MAX_BO_PRIORITY];
 };
 
-/**
- * ttm_flag_masked
- *
- * @old: Pointer to the result and original value.
- * @new: New value of bits.
- * @mask: Mask of bits to change.
- *
- * Convenience function to change a number of bits identified by a mask.
- */
-
-static inline uint32_t
-ttm_flag_masked(uint32_t *old, uint32_t new, uint32_t mask)
-{
-	*old ^= (*old ^ new) & mask;
-	return *old;
-}
-
 /*
  * ttm_bo.c
  */
@@ -431,20 +417,6 @@ int ttm_bo_device_init(struct ttm_bo_device *bdev,
  * @bo: tear down the virtual mappings for this BO
  */
 void ttm_bo_unmap_virtual(struct ttm_buffer_object *bo);
-
-/**
- * ttm_bo_unmap_virtual
- *
- * @bo: tear down the virtual mappings for this BO
- *
- * The caller must take ttm_mem_io_lock before calling this function.
- */
-void ttm_bo_unmap_virtual_locked(struct ttm_buffer_object *bo);
-
-int ttm_mem_io_reserve_vm(struct ttm_buffer_object *bo);
-void ttm_mem_io_free_vm(struct ttm_buffer_object *bo);
-int ttm_mem_io_lock(struct ttm_resource_manager *man, bool interruptible);
-void ttm_mem_io_unlock(struct ttm_resource_manager *man);
 
 /**
  * ttm_bo_reserve:
@@ -524,6 +496,29 @@ static inline void ttm_bo_move_to_lru_tail_unlocked(struct ttm_buffer_object *bo
 	spin_unlock(&ttm_bo_glob.lru_lock);
 }
 
+static inline void ttm_bo_assign_mem(struct ttm_buffer_object *bo,
+				     struct ttm_resource *new_mem)
+{
+	bo->mem = *new_mem;
+	new_mem->mm_node = NULL;
+}
+
+/**
+ * ttm_bo_move_null = assign memory for a buffer object.
+ * @bo: The bo to assign the memory to
+ * @new_mem: The memory to be assigned.
+ *
+ * Assign the memory from new_mem to the memory of the buffer object bo.
+ */
+static inline void ttm_bo_move_null(struct ttm_buffer_object *bo,
+				    struct ttm_resource *new_mem)
+{
+	struct ttm_resource *old_mem = &bo->mem;
+
+	WARN_ON(old_mem->mm_node != NULL);
+	ttm_bo_assign_mem(bo, new_mem);
+}
+
 /**
  * ttm_bo_unreserve
  *
@@ -540,32 +535,10 @@ static inline void ttm_bo_unreserve(struct ttm_buffer_object *bo)
 /*
  * ttm_bo_util.c
  */
-
 int ttm_mem_io_reserve(struct ttm_bo_device *bdev,
 		       struct ttm_resource *mem);
 void ttm_mem_io_free(struct ttm_bo_device *bdev,
 		     struct ttm_resource *mem);
-/**
- * ttm_bo_move_ttm
- *
- * @bo: A pointer to a struct ttm_buffer_object.
- * @interruptible: Sleep interruptible if waiting.
- * @no_wait_gpu: Return immediately if the GPU is busy.
- * @new_mem: struct ttm_resource indicating where to move.
- *
- * Optimized move function for a buffer object with both old and
- * new placement backed by a TTM. The function will, if successful,
- * free any old aperture space, and set (@new_mem)->mm_node to NULL,
- * and update the (@bo)->mem placement flags. If unsuccessful, the old
- * data remains untouched, and it's up to the caller to free the
- * memory space indicated by @new_mem.
- * Returns:
- * !0: Failure.
- */
-
-int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
-		    struct ttm_operation_ctx *ctx,
-		    struct ttm_resource *new_mem);
 
 /**
  * ttm_bo_move_memcpy
@@ -590,20 +563,12 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 		       struct ttm_resource *new_mem);
 
 /**
- * ttm_bo_free_old_node
- *
- * @bo: A pointer to a struct ttm_buffer_object.
- *
- * Utility function to free an old placement after a successful move.
- */
-void ttm_bo_free_old_node(struct ttm_buffer_object *bo);
-
-/**
  * ttm_bo_move_accel_cleanup.
  *
  * @bo: A pointer to a struct ttm_buffer_object.
  * @fence: A fence object that signals when moving is complete.
  * @evict: This is an evict move. Don't return until the buffer is idle.
+ * @pipeline: evictions are to be pipelined.
  * @new_mem: struct ttm_resource indicating where to move.
  *
  * Accelerated move function to be called when an accelerated move
@@ -615,22 +580,8 @@ void ttm_bo_free_old_node(struct ttm_buffer_object *bo);
  */
 int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 			      struct dma_fence *fence, bool evict,
+			      bool pipeline,
 			      struct ttm_resource *new_mem);
-
-/**
- * ttm_bo_pipeline_move.
- *
- * @bo: A pointer to a struct ttm_buffer_object.
- * @fence: A fence object that signals when moving is complete.
- * @evict: This is an evict move. Don't return until the buffer is idle.
- * @new_mem: struct ttm_resource indicating where to move.
- *
- * Function for pipelining accelerated moves. Either free the memory
- * immediately or hang it on a temporary buffer object.
- */
-int ttm_bo_pipeline_move(struct ttm_buffer_object *bo,
-			 struct dma_fence *fence, bool evict,
-			 struct ttm_resource *new_mem);
 
 /**
  * ttm_bo_pipeline_gutting.
@@ -644,21 +595,33 @@ int ttm_bo_pipeline_gutting(struct ttm_buffer_object *bo);
 /**
  * ttm_io_prot
  *
- * @c_state: Caching state.
+ * bo: ttm buffer object
+ * res: ttm resource object
  * @tmp: Page protection flag for a normal, cached mapping.
  *
  * Utility function that returns the pgprot_t that should be used for
  * setting up a PTE with the caching model indicated by @c_state.
  */
-pgprot_t ttm_io_prot(uint32_t caching_flags, pgprot_t tmp);
+pgprot_t ttm_io_prot(struct ttm_buffer_object *bo, struct ttm_resource *res,
+		     pgprot_t tmp);
+
+/**
+ * ttm_bo_tt_bind
+ *
+ * Bind the object tt to a memory resource.
+ */
+int ttm_bo_tt_bind(struct ttm_buffer_object *bo, struct ttm_resource *mem);
+
+/**
+ * ttm_bo_tt_destroy.
+ */
+void ttm_bo_tt_destroy(struct ttm_buffer_object *bo);
 
 /**
  * ttm_range_man_init
  *
  * @bdev: ttm device
  * @type: memory manager type
- * @available_caching: TTM_PL_FLAG_* for allowed caching modes
- * @default_caching: default caching mode
  * @use_tt: if the memory manager uses tt
  * @p_size: size of area to be managed in pages.
  *
@@ -666,10 +629,7 @@ pgprot_t ttm_io_prot(uint32_t caching_flags, pgprot_t tmp);
  * The range manager is installed for this device in the type slot.
  */
 int ttm_range_man_init(struct ttm_bo_device *bdev,
-		       unsigned type,
-		       uint32_t available_caching,
-		       uint32_t default_caching,
-		       bool use_tt,
+		       unsigned type, bool use_tt,
 		       unsigned long p_size);
 
 /**

@@ -97,7 +97,7 @@
 };
 
 &pcie {
-	status = "ok";
+	status = "okay";
 
 	perst-gpio = <&tlmm 43 GPIO_ACTIVE_LOW>;
 
@@ -106,22 +106,22 @@
 };
 
 &pcie_phy {
-	status = "ok";
+	status = "okay";
 
 	vdda-vp-supply = <&vreg_l3_1p05>;
 	vdda-vph-supply = <&vreg_l5_1p8>;
 };
 
 &remoteproc_adsp {
-	status = "ok";
+	status = "okay";
 };
 
 &remoteproc_cdsp {
-	status = "ok";
+	status = "okay";
 };
 
 &remoteproc_wcss {
-	status = "ok";
+	status = "okay";
 };
 
 &rpm_requests {
@@ -215,7 +215,7 @@
 };
 
 &sdcc1 {
-	status = "ok";
+	status = "okay";
 
 	supports-cqe;
 	mmc-ddr-1_8v;

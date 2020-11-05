@@ -174,16 +174,6 @@ static inline void ufs_qcom_deassert_reset(struct ufs_hba *hba)
 	mb();
 }
 
-struct ufs_qcom_bus_vote {
-	uint32_t client_handle;
-	uint32_t curr_vote;
-	int min_bw_vote;
-	int max_bw_vote;
-	int saved_vote;
-	bool is_max_bw_needed;
-	struct device_attribute max_bus_bw;
-};
-
 /* Host controller hardware version: major.minor.step */
 struct ufs_hw_version {
 	u16 step;
@@ -216,7 +206,6 @@ struct ufs_qcom_host {
 
 	struct phy *generic_phy;
 	struct ufs_hba *hba;
-	struct ufs_qcom_bus_vote bus_vote;
 	struct ufs_pa_layer_attr dev_req_params;
 	struct clk *rx_l0_sync_clk;
 	struct clk *tx_l0_sync_clk;

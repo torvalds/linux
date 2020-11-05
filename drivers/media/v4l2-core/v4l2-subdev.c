@@ -309,6 +309,20 @@ static int call_enum_dv_timings(struct v4l2_subdev *sd,
 	       sd->ops->pad->enum_dv_timings(sd, dvt);
 }
 
+static int call_get_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
+				struct v4l2_mbus_config *config)
+{
+	return check_pad(sd, pad) ? :
+	       sd->ops->pad->get_mbus_config(sd, pad, config);
+}
+
+static int call_set_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
+				struct v4l2_mbus_config *config)
+{
+	return check_pad(sd, pad) ? :
+	       sd->ops->pad->get_mbus_config(sd, pad, config);
+}
+
 static const struct v4l2_subdev_pad_ops v4l2_subdev_call_pad_wrappers = {
 	.get_fmt		= call_get_fmt,
 	.set_fmt		= call_set_fmt,
@@ -321,6 +335,8 @@ static const struct v4l2_subdev_pad_ops v4l2_subdev_call_pad_wrappers = {
 	.set_edid		= call_set_edid,
 	.dv_timings_cap		= call_dv_timings_cap,
 	.enum_dv_timings	= call_enum_dv_timings,
+	.get_mbus_config	= call_get_mbus_config,
+	.set_mbus_config	= call_set_mbus_config,
 };
 
 static const struct v4l2_subdev_video_ops v4l2_subdev_call_video_wrappers = {

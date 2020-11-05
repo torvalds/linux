@@ -101,7 +101,7 @@ static void sun4i_crtc_atomic_flush(struct drm_crtc *crtc,
 }
 
 static void sun4i_crtc_atomic_disable(struct drm_crtc *crtc,
-				      struct drm_crtc_state *old_state)
+				      struct drm_atomic_state *state)
 {
 	struct drm_encoder *encoder = sun4i_crtc_get_encoder(crtc);
 	struct sun4i_crtc *scrtc = drm_crtc_to_sun4i_crtc(crtc);
@@ -122,7 +122,7 @@ static void sun4i_crtc_atomic_disable(struct drm_crtc *crtc,
 }
 
 static void sun4i_crtc_atomic_enable(struct drm_crtc *crtc,
-				     struct drm_crtc_state *old_state)
+				     struct drm_atomic_state *state)
 {
 	struct drm_encoder *encoder = sun4i_crtc_get_encoder(crtc);
 	struct sun4i_crtc *scrtc = drm_crtc_to_sun4i_crtc(crtc);

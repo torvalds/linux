@@ -177,7 +177,7 @@ static int afs_compare_cell_roots(struct afs_cell *cell)
 
 is_alias:
 	rcu_read_unlock();
-	cell->alias_of = afs_get_cell(p);
+	cell->alias_of = afs_use_cell(p, afs_cell_trace_use_alias);
 	return 1;
 }
 
@@ -247,18 +247,18 @@ static int afs_query_for_alias(struct afs_cell *cell, struct key *key)
 			continue;
 		if (p->root_volume)
 			continue; /* Ignore cells that have a root.cell volume. */
-		afs_get_cell(p);
+		afs_use_cell(p, afs_cell_trace_use_check_alias);
 		mutex_unlock(&cell->net->proc_cells_lock);
 
 		if (afs_query_for_alias_one(cell, key, p) != 0)
 			goto is_alias;
 
 		if (mutex_lock_interruptible(&cell->net->proc_cells_lock) < 0) {
-			afs_put_cell(cell->net, p);
+			afs_unuse_cell(cell->net, p, afs_cell_trace_unuse_check_alias);
 			return -ERESTARTSYS;
 		}
 
-		afs_put_cell(cell->net, p);
+		afs_unuse_cell(cell->net, p, afs_cell_trace_unuse_check_alias);
 	}
 
 	mutex_unlock(&cell->net->proc_cells_lock);

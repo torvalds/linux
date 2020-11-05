@@ -70,11 +70,12 @@ static void default_release(struct device *dev)
  * @bus: hdac bus to attach to
  * @addr: codec address
  * @hdev: hdac device to init
+ * @type: codec type (HDAC_DEV_*) to use for this device
  *
  * Returns zero for success or a negative error code.
  */
 int snd_hdac_ext_bus_device_init(struct hdac_bus *bus, int addr,
-					struct hdac_device *hdev)
+				 struct hdac_device *hdev, int type)
 {
 	char name[15];
 	int ret;
@@ -88,7 +89,7 @@ int snd_hdac_ext_bus_device_init(struct hdac_bus *bus, int addr,
 		dev_err(bus->dev, "device init failed for hdac device\n");
 		return ret;
 	}
-	hdev->type = HDA_DEV_ASOC;
+	hdev->type = type;
 	hdev->dev.release = default_release;
 
 	ret = snd_hdac_device_register(hdev);

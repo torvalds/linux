@@ -284,7 +284,7 @@ struct smu10_hwmgr {
 	uint32_t                        dclk_soft_min;
 	uint32_t                        gfx_actual_soft_min_freq;
 	uint32_t                        gfx_min_freq_limit;
-	uint32_t                        gfx_max_freq_limit;
+	uint32_t                        gfx_max_freq_limit; /* in 10Khz*/
 
 	bool                           vcn_power_gated;
 	bool                           vcn_dpg_mode;
@@ -310,6 +310,7 @@ int smu10_init_function_pointers(struct pp_hwmgr *hwmgr);
 #define SMU10_UMD_PSTATE_SOCCLK                 626
 #define SMU10_UMD_PSTATE_FCLK                   933
 #define SMU10_UMD_PSTATE_VCE                    0x03C00320
+#define SMU10_UMD_PSTATE_PROFILE_VCE            0x02AD0229
 
 #define SMU10_UMD_PSTATE_PEAK_SOCCLK            757
 #define SMU10_UMD_PSTATE_PEAK_FCLK              1200

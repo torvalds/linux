@@ -19,7 +19,7 @@
 #include "exynos_drm_plane.h"
 
 static void exynos_drm_crtc_atomic_enable(struct drm_crtc *crtc,
-					  struct drm_crtc_state *old_state)
+					  struct drm_atomic_state *state)
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
 
@@ -30,7 +30,7 @@ static void exynos_drm_crtc_atomic_enable(struct drm_crtc *crtc,
 }
 
 static void exynos_drm_crtc_atomic_disable(struct drm_crtc *crtc,
-					   struct drm_crtc_state *old_state)
+					   struct drm_atomic_state *state)
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
 

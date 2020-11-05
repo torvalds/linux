@@ -90,6 +90,9 @@ static const unsigned long * const efi_tables[] = {
 	&efi.tpm_log,
 	&efi.tpm_final_log,
 	&efi_rng_seed,
+#ifdef CONFIG_LOAD_UEFI_KEYS
+	&efi.mokvar_table,
+#endif
 };
 
 u64 efi_setup;		/* efi setup_data physical address */

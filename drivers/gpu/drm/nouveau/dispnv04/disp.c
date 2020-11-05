@@ -134,7 +134,7 @@ nv04_display_init(struct drm_device *dev, bool resume, bool runtime)
 		if (!fb || !fb->obj[0])
 			continue;
 		nvbo = nouveau_gem_object(fb->obj[0]);
-		ret = nouveau_bo_pin(nvbo, TTM_PL_FLAG_VRAM, true);
+		ret = nouveau_bo_pin(nvbo, NOUVEAU_GEM_DOMAIN_VRAM, true);
 		if (ret)
 			NV_ERROR(drm, "Could not pin framebuffer\n");
 	}
@@ -144,7 +144,8 @@ nv04_display_init(struct drm_device *dev, bool resume, bool runtime)
 		if (!nv_crtc->cursor.nvbo)
 			continue;
 
-		ret = nouveau_bo_pin(nv_crtc->cursor.nvbo, TTM_PL_FLAG_VRAM, true);
+		ret = nouveau_bo_pin(nv_crtc->cursor.nvbo,
+				     NOUVEAU_GEM_DOMAIN_VRAM, true);
 		if (!ret && nv_crtc->cursor.set_offset)
 			ret = nouveau_bo_map(nv_crtc->cursor.nvbo);
 		if (ret)

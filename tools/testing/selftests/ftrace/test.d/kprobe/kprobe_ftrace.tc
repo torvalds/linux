@@ -5,29 +5,29 @@
 
 # prepare
 echo nop > current_tracer
-echo _do_fork > set_ftrace_filter
-echo 'p:testprobe _do_fork' > kprobe_events
+echo kernel_clone > set_ftrace_filter
+echo 'p:testprobe kernel_clone' > kprobe_events
 
 # kprobe on / ftrace off
 echo 1 > events/kprobes/testprobe/enable
 echo > trace
 ( echo "forked")
 grep testprobe trace
-! grep '_do_fork <-' trace
+! grep 'kernel_clone <-' trace
 
 # kprobe on / ftrace on
 echo function > current_tracer
 echo > trace
 ( echo "forked")
 grep testprobe trace
-grep '_do_fork <-' trace
+grep 'kernel_clone <-' trace
 
 # kprobe off / ftrace on
 echo 0 > events/kprobes/testprobe/enable
 echo > trace
 ( echo "forked")
 ! grep testprobe trace
-grep '_do_fork <-' trace
+grep 'kernel_clone <-' trace
 
 # kprobe on / ftrace on
 echo 1 > events/kprobes/testprobe/enable
@@ -35,11 +35,11 @@ echo function > current_tracer
 echo > trace
 ( echo "forked")
 grep testprobe trace
-grep '_do_fork <-' trace
+grep 'kernel_clone <-' trace
 
 # kprobe on / ftrace off
 echo nop > current_tracer
 echo > trace
 ( echo "forked")
 grep testprobe trace
-! grep '_do_fork <-' trace
+! grep 'kernel_clone <-' trace

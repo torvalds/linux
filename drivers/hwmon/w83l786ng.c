@@ -706,7 +706,7 @@ static void w83l786ng_init_client(struct i2c_client *client)
 }
 
 static int
-w83l786ng_probe(struct i2c_client *client, const struct i2c_device_id *id)
+w83l786ng_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct w83l786ng_data *data;
@@ -752,7 +752,7 @@ static struct i2c_driver w83l786ng_driver = {
 	.driver = {
 		   .name = "w83l786ng",
 	},
-	.probe		= w83l786ng_probe,
+	.probe_new	= w83l786ng_probe,
 	.id_table	= w83l786ng_id,
 	.detect		= w83l786ng_detect,
 	.address_list	= normal_i2c,

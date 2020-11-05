@@ -99,7 +99,7 @@ static int byt_cht_cx2072x_init(struct snd_soc_pcm_runtime *rtd)
 
 	snd_soc_dai_set_bclk_ratio(asoc_rtd_to_codec(rtd, 0), 50);
 
-	return ret;
+	return 0;
 }
 
 static int byt_cht_cx2072x_fixup(struct snd_soc_pcm_runtime *rtd,

@@ -166,6 +166,11 @@ use '-e e1 -e e2 -G foo,foo' or just use '-e e1 -e e2 -G foo'.
 If wanting to monitor, say, 'cycles' for a cgroup and also for system wide, this
 command line can be used: 'perf stat -e cycles -G cgroup_name -a -e cycles'.
 
+--for-each-cgroup name::
+Expand event list for each cgroup in "name" (allow multiple cgroups separated
+by comma).  This has same effect that repeating -e option and -G option for
+each event x name.  This option cannot be used with -G/--cgroup option.
+
 -o file::
 --output file::
 Print the output into the designated file.
@@ -180,43 +185,45 @@ with it.  --append may be used here.  Examples:
      3>results  perf stat --log-fd 3          -- $cmd
      3>>results perf stat --log-fd 3 --append -- $cmd
 
---control fd:ctl-fd[,ack-fd]
+--control=fifo:ctl-fifo[,ack-fifo]::
+--control=fd:ctl-fd[,ack-fd]::
+ctl-fifo / ack-fifo are opened and used as ctl-fd / ack-fd as follows.
 Listen on ctl-fd descriptor for command to control measurement ('enable': enable events,
 'disable': disable events). Measurements can be started with events disabled using
 --delay=-1 option. Optionally send control command completion ('ack\n') to ack-fd descriptor
 to synchronize with the controlling process. Example of bash shell script to enable and
 disable events during measurements:
 
-#!/bin/bash
+ #!/bin/bash
 
-ctl_dir=/tmp/
+ ctl_dir=/tmp/
 
-ctl_fifo=${ctl_dir}perf_ctl.fifo
-test -p ${ctl_fifo} && unlink ${ctl_fifo}
-mkfifo ${ctl_fifo}
-exec {ctl_fd}<>${ctl_fifo}
+ ctl_fifo=${ctl_dir}perf_ctl.fifo
+ test -p ${ctl_fifo} && unlink ${ctl_fifo}
+ mkfifo ${ctl_fifo}
+ exec {ctl_fd}<>${ctl_fifo}
 
-ctl_ack_fifo=${ctl_dir}perf_ctl_ack.fifo
-test -p ${ctl_ack_fifo} && unlink ${ctl_ack_fifo}
-mkfifo ${ctl_ack_fifo}
-exec {ctl_fd_ack}<>${ctl_ack_fifo}
+ ctl_ack_fifo=${ctl_dir}perf_ctl_ack.fifo
+ test -p ${ctl_ack_fifo} && unlink ${ctl_ack_fifo}
+ mkfifo ${ctl_ack_fifo}
+ exec {ctl_fd_ack}<>${ctl_ack_fifo}
 
-perf stat -D -1 -e cpu-cycles -a -I 1000       \
-          --control fd:${ctl_fd},${ctl_fd_ack} \
-          -- sleep 30 &
-perf_pid=$!
+ perf stat -D -1 -e cpu-cycles -a -I 1000       \
+           --control fd:${ctl_fd},${ctl_fd_ack} \
+           -- sleep 30 &
+ perf_pid=$!
 
-sleep 5  && echo 'enable' >&${ctl_fd} && read -u ${ctl_fd_ack} e1 && echo "enabled(${e1})"
-sleep 10 && echo 'disable' >&${ctl_fd} && read -u ${ctl_fd_ack} d1 && echo "disabled(${d1})"
+ sleep 5  && echo 'enable' >&${ctl_fd} && read -u ${ctl_fd_ack} e1 && echo "enabled(${e1})"
+ sleep 10 && echo 'disable' >&${ctl_fd} && read -u ${ctl_fd_ack} d1 && echo "disabled(${d1})"
 
-exec {ctl_fd_ack}>&-
-unlink ${ctl_ack_fifo}
+ exec {ctl_fd_ack}>&-
+ unlink ${ctl_ack_fifo}
 
-exec {ctl_fd}>&-
-unlink ${ctl_fifo}
+ exec {ctl_fd}>&-
+ unlink ${ctl_fifo}
 
-wait -n ${perf_pid}
-exit $?
+ wait -n ${perf_pid}
+ exit $?
 
 
 --pre::
@@ -361,6 +368,11 @@ if the workload is actually bound by the CPU and not by something else.
 For best results it is usually a good idea to use it with interval
 mode like -I 1000, as the bottleneck of workloads can change often.
 
+This enables --metric-only, unless overridden with --no-metric-only.
+
+The following restrictions only apply to older Intel CPUs and Atom,
+on newer CPUs (IceLake and later) TopDown can be collected for any thread:
+
 The top down metrics are collected per core instead of per
 CPU thread. Per core mode is automatically enabled
 and -a (global monitoring) is needed, requiring root rights or
@@ -371,8 +383,6 @@ disabling of the NMI watchdog (as root):
 echo 0 > /proc/sys/kernel/nmi_watchdog
 for best results. Otherwise the bottlenecks may be inconsistent
 on workload with changing phases.
-
-This enables --metric-only, unless overridden with --no-metric-only.
 
 To interpret the results it is usually needed to know on which
 CPUs the workload runs on. If needed the CPUs can be forced using

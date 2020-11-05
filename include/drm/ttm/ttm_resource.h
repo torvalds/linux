@@ -29,6 +29,7 @@
 #include <linux/mutex.h>
 #include <linux/dma-fence.h>
 #include <drm/drm_print.h>
+#include <drm/ttm/ttm_caching.h>
 
 #define TTM_MAX_BO_PRIORITY	4U
 
@@ -108,15 +109,7 @@ struct ttm_resource_manager_func {
  * @gpu_offset: If used, the GPU offset of the first managed page of
  * fixed memory or the first managed location in an aperture.
  * @size: Size of the managed region.
- * @available_caching: A mask of available caching types, TTM_PL_FLAG_XX,
- * as defined in ttm_placement_common.h
- * @default_caching: The default caching policy used for a buffer object
- * placed in this memory type if the user doesn't provide one.
  * @func: structure pointer implementing the range manager. See above
- * @io_reserve_mutex: Mutex optionally protecting shared io_reserve structures
- * @use_io_reserve_lru: Use an lru list to try to unreserve io_mem_regions
- * reserved by the TTM vm system.
- * @io_reserve_lru: Optional lru list for unreserving io mem regions.
  * @move_lock: lock for move fence
  * static information. bdev::driver::io_mem_free is never used.
  * @lru: The lru list for this memory type.
@@ -131,18 +124,8 @@ struct ttm_resource_manager {
 	bool use_type;
 	bool use_tt;
 	uint64_t size;
-	uint32_t available_caching;
-	uint32_t default_caching;
 	const struct ttm_resource_manager_func *func;
-	struct mutex io_reserve_mutex;
-	bool use_io_reserve_lru;
 	spinlock_t move_lock;
-
-	/*
-	 * Protected by @io_reserve_mutex:
-	 */
-
-	struct list_head io_reserve_lru;
 
 	/*
 	 * Protected by the global->lru_lock.
@@ -160,21 +143,16 @@ struct ttm_resource_manager {
  * struct ttm_bus_placement
  *
  * @addr:		mapped virtual address
- * @base:		bus base address
+ * @offset:		physical addr
  * @is_iomem:		is this io memory ?
- * @offset:		offset from the base address
- * @io_reserved_vm:     The VM system has a refcount in @io_reserved_count
- * @io_reserved_count:  Refcounting the numbers of callers to ttm_mem_io_reserve
  *
  * Structure indicating the bus placement of an object.
  */
 struct ttm_bus_placement {
-	void		*addr;
-	phys_addr_t	base;
-	unsigned long	offset;
-	bool		is_iomem;
-	bool		io_reserved_vm;
-	uint64_t        io_reserved_count;
+	void			*addr;
+	phys_addr_t		offset;
+	bool			is_iomem;
+	enum ttm_caching	caching;
 };
 
 /**
@@ -252,8 +230,8 @@ void ttm_resource_free(struct ttm_buffer_object *bo, struct ttm_resource *res);
 void ttm_resource_manager_init(struct ttm_resource_manager *man,
 			       unsigned long p_size);
 
-int ttm_resource_manager_force_list_clean(struct ttm_bo_device *bdev,
-					  struct ttm_resource_manager *man);
+int ttm_resource_manager_evict_all(struct ttm_bo_device *bdev,
+				   struct ttm_resource_manager *man);
 
 void ttm_resource_manager_debug(struct ttm_resource_manager *man,
 				struct drm_printer *p);

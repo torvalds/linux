@@ -328,7 +328,7 @@ static int of_apr_add_pd_lookups(struct device *dev)
 
 		pds = pdr_add_lookup(apr->pdr, service_name, service_path);
 		if (IS_ERR(pds) && PTR_ERR(pds) != -EALREADY) {
-			dev_err(dev, "pdr add lookup failed: %d\n", ret);
+			dev_err(dev, "pdr add lookup failed: %ld\n", PTR_ERR(pds));
 			return PTR_ERR(pds);
 		}
 	}

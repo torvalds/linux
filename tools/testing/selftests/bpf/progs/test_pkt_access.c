@@ -79,6 +79,24 @@ int get_skb_ifindex(int val, struct __sk_buff *skb, int var)
 	return skb->ifindex * val * var;
 }
 
+__attribute__ ((noinline))
+int test_pkt_write_access_subprog(struct __sk_buff *skb, __u32 off)
+{
+	void *data = (void *)(long)skb->data;
+	void *data_end = (void *)(long)skb->data_end;
+	struct tcphdr *tcp = NULL;
+
+	if (off > sizeof(struct ethhdr) + sizeof(struct ipv6hdr))
+		return -1;
+
+	tcp = data + off;
+	if (tcp + 1 > data_end)
+		return -1;
+	/* make modification to the packet data */
+	tcp->check++;
+	return 0;
+}
+
 SEC("classifier/test_pkt_access")
 int test_pkt_access(struct __sk_buff *skb)
 {
@@ -117,6 +135,8 @@ int test_pkt_access(struct __sk_buff *skb)
 	if (test_pkt_access_subprog3(3, skb) != skb->len * 3 * skb->ifindex)
 		return TC_ACT_SHOT;
 	if (tcp) {
+		if (test_pkt_write_access_subprog(skb, (void *)tcp - data))
+			return TC_ACT_SHOT;
 		if (((void *)(tcp) + 20) > data_end || proto != 6)
 			return TC_ACT_SHOT;
 		barrier(); /* to force ordering of checks */

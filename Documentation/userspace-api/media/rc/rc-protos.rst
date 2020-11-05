@@ -1,6 +1,4 @@
-.. SPDX-License-Identifier: GPL-2.0
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
 
 .. _Remote_controllers_Protocols:
 

@@ -132,10 +132,7 @@ static void amdgpu_display_unpin_work_func(struct work_struct *__work)
 	/* unpin of the old buffer */
 	r = amdgpu_bo_reserve(work->old_abo, true);
 	if (likely(r == 0)) {
-		r = amdgpu_bo_unpin(work->old_abo);
-		if (unlikely(r != 0)) {
-			DRM_ERROR("failed to unpin buffer after flip\n");
-		}
+		amdgpu_bo_unpin(work->old_abo);
 		amdgpu_bo_unreserve(work->old_abo);
 	} else
 		DRM_ERROR("failed to reserve buffer after flip\n");
@@ -249,8 +246,7 @@ pflip_cleanup:
 	}
 unpin:
 	if (!adev->enable_virtual_display)
-		if (unlikely(amdgpu_bo_unpin(new_abo) != 0))
-			DRM_ERROR("failed to unpin new abo in error path\n");
+		amdgpu_bo_unpin(new_abo);
 
 unreserve:
 	amdgpu_bo_unreserve(new_abo);
@@ -297,7 +293,7 @@ int amdgpu_display_crtc_set_config(struct drm_mode_set *set,
 	   take the current one */
 	if (active && !adev->have_disp_power_ref) {
 		adev->have_disp_power_ref = true;
-		goto out;
+		return ret;
 	}
 	/* if we have no active crtcs, then drop the power ref
 	   we got before */

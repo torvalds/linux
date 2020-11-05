@@ -787,7 +787,7 @@ static int venc_probe_of(struct platform_device *pdev)
 		venc.type = OMAP_DSS_VENC_TYPE_SVIDEO;
 		break;
 	default:
-		dev_err(&pdev->dev, "bad channel propert '%d'\n", channels);
+		dev_err(&pdev->dev, "bad channel property '%d'\n", channels);
 		r = -EINVAL;
 		goto err;
 	}
@@ -890,8 +890,7 @@ static int venc_remove(struct platform_device *pdev)
 
 static int venc_runtime_suspend(struct device *dev)
 {
-	if (venc.tv_dac_clk)
-		clk_disable_unprepare(venc.tv_dac_clk);
+	clk_disable_unprepare(venc.tv_dac_clk);
 
 	dispc_runtime_put();
 
@@ -906,8 +905,7 @@ static int venc_runtime_resume(struct device *dev)
 	if (r < 0)
 		return r;
 
-	if (venc.tv_dac_clk)
-		clk_prepare_enable(venc.tv_dac_clk);
+	clk_prepare_enable(venc.tv_dac_clk);
 
 	return 0;
 }

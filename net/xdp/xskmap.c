@@ -132,7 +132,7 @@ static int xsk_map_get_next_key(struct bpf_map *map, void *key, void *next_key)
 	return 0;
 }
 
-static u32 xsk_map_gen_lookup(struct bpf_map *map, struct bpf_insn *insn_buf)
+static int xsk_map_gen_lookup(struct bpf_map *map, struct bpf_insn *insn_buf)
 {
 	const int ret = BPF_REG_0, mp = BPF_REG_1, index = BPF_REG_2;
 	struct bpf_insn *insn = insn_buf;
@@ -184,11 +184,6 @@ static int xsk_map_update_elem(struct bpf_map *map, void *key, void *value,
 	}
 
 	xs = (struct xdp_sock *)sock->sk;
-
-	if (!xsk_is_setup_for_bpf_map(xs)) {
-		sockfd_put(sock);
-		return -EOPNOTSUPP;
-	}
 
 	map_entry = &m->xsk_map[i];
 	node = xsk_map_node_alloc(m, map_entry);
@@ -254,8 +249,16 @@ void xsk_map_try_sock_delete(struct xsk_map *map, struct xdp_sock *xs,
 	spin_unlock_bh(&map->lock);
 }
 
+static bool xsk_map_meta_equal(const struct bpf_map *meta0,
+			       const struct bpf_map *meta1)
+{
+	return meta0->max_entries == meta1->max_entries &&
+		bpf_map_meta_equal(meta0, meta1);
+}
+
 static int xsk_map_btf_id;
 const struct bpf_map_ops xsk_map_ops = {
+	.map_meta_equal = xsk_map_meta_equal,
 	.map_alloc = xsk_map_alloc,
 	.map_free = xsk_map_free,
 	.map_get_next_key = xsk_map_get_next_key,

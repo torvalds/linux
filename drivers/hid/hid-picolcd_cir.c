@@ -59,10 +59,10 @@ int picolcd_raw_cir(struct picolcd_data *data,
 	for (i = 0; i+1 < sz; i += 2) {
 		w = (raw_data[i] << 8) | (raw_data[i+1]);
 		rawir.pulse = !!(w & 0x8000);
-		rawir.duration = US_TO_NS(rawir.pulse ? (65536 - w) : w);
+		rawir.duration = rawir.pulse ? (65536 - w) : w;
 		/* Quirk!! - see above */
-		if (i == 0 && rawir.duration > 15000000)
-			rawir.duration -= 15000000;
+		if (i == 0 && rawir.duration > 15000)
+			rawir.duration -= 15000;
 		ir_raw_event_store(data->rc_dev, &rawir);
 	}
 	ir_raw_event_handle(data->rc_dev);
@@ -114,8 +114,8 @@ int picolcd_init_cir(struct picolcd_data *data, struct hid_report *report)
 	rdev->dev.parent       = &data->hdev->dev;
 	rdev->driver_name      = PICOLCD_NAME;
 	rdev->map_name         = RC_MAP_RC6_MCE;
-	rdev->timeout          = MS_TO_NS(100);
-	rdev->rx_resolution    = US_TO_NS(1);
+	rdev->timeout          = MS_TO_US(100);
+	rdev->rx_resolution    = 1;
 
 	ret = rc_register_device(rdev);
 	if (ret)

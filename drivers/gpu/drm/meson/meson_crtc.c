@@ -82,7 +82,7 @@ static const struct drm_crtc_funcs meson_crtc_funcs = {
 };
 
 static void meson_g12a_crtc_atomic_enable(struct drm_crtc *crtc,
-					  struct drm_crtc_state *old_state)
+					  struct drm_atomic_state *state)
 {
 	struct meson_crtc *meson_crtc = to_meson_crtc(crtc);
 	struct drm_crtc_state *crtc_state = crtc->state;
@@ -118,7 +118,7 @@ static void meson_g12a_crtc_atomic_enable(struct drm_crtc *crtc,
 }
 
 static void meson_crtc_atomic_enable(struct drm_crtc *crtc,
-				     struct drm_crtc_state *old_state)
+				     struct drm_atomic_state *state)
 {
 	struct meson_crtc *meson_crtc = to_meson_crtc(crtc);
 	struct drm_crtc_state *crtc_state = crtc->state;
@@ -146,7 +146,7 @@ static void meson_crtc_atomic_enable(struct drm_crtc *crtc,
 }
 
 static void meson_g12a_crtc_atomic_disable(struct drm_crtc *crtc,
-					   struct drm_crtc_state *old_state)
+					   struct drm_atomic_state *state)
 {
 	struct meson_crtc *meson_crtc = to_meson_crtc(crtc);
 	struct meson_drm *priv = meson_crtc->priv;
@@ -171,7 +171,7 @@ static void meson_g12a_crtc_atomic_disable(struct drm_crtc *crtc,
 }
 
 static void meson_crtc_atomic_disable(struct drm_crtc *crtc,
-				      struct drm_crtc_state *old_state)
+				      struct drm_atomic_state *state)
 {
 	struct meson_crtc *meson_crtc = to_meson_crtc(crtc);
 	struct meson_drm *priv = meson_crtc->priv;

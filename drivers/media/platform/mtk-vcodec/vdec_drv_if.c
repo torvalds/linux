@@ -13,7 +13,6 @@
 #include "mtk_vcodec_dec.h"
 #include "vdec_drv_base.h"
 #include "mtk_vcodec_dec_pm.h"
-#include "mtk_vpu.h"
 
 int vdec_if_init(struct mtk_vcodec_ctx *ctx, unsigned int fourcc)
 {

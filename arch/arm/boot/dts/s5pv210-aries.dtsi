@@ -47,6 +47,18 @@
 		};
 	};
 
+	pmic_ap_clk: clock-0 {
+		/* Workaround for missing clock on PMIC */
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <32768>;
+	};
+
+	bt_codec: bt_sco {
+		compatible = "linux,bt-sco";
+		#sound-dai-cells = <0>;
+	};
+
 	vibrator_pwr: regulator-fixed-0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vibrator-en";
@@ -54,7 +66,7 @@
 		gpio = <&gpj1 1 GPIO_ACTIVE_HIGH>;
 
 		pinctrl-names = "default";
-		pinctr-0 = <&vibrator_ena>;
+		pinctrl-0 = <&vibrator_ena>;
 	};
 
 	touchkey_vdd: regulator-fixed-1 {
@@ -533,7 +545,7 @@
 		value = <0x5200>;
 	};
 
-	spi_lcd: spi-gpio-0 {
+	spi_lcd: spi-2 {
 		compatible = "spi-gpio";
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -622,6 +634,11 @@
 		pinctrl-0 = <&ts_irq>;
 		reset-gpios = <&gpj1 3 GPIO_ACTIVE_HIGH>;
 	};
+};
+
+&i2s0 {
+	dmas = <&pdma0 9>, <&pdma0 10>, <&pdma0 11>;
+	status = "okay";
 };
 
 &mfc {
@@ -813,6 +830,11 @@
 
 &pwm {
 	samsung,pwm-outputs = <1>;
+};
+
+&rtc {
+	clocks = <&clocks CLK_RTC>, <&pmic_ap_clk>;
+	clock-names = "rtc", "rtc_src";
 };
 
 &sdhci1 {

@@ -1176,8 +1176,10 @@ mptscsih_remove(struct pci_dev *pdev)
 	MPT_SCSI_HOST		*hd;
 	int sz1;
 
-	if((hd = shost_priv(host)) == NULL)
-		return;
+	if (host == NULL)
+		hd = NULL;
+	else
+		hd = shost_priv(host);
 
 	mptscsih_shutdown(pdev);
 
@@ -1193,14 +1195,15 @@ mptscsih_remove(struct pci_dev *pdev)
 	    "Free'd ScsiLookup (%d) memory\n",
 	    ioc->name, sz1));
 
-	kfree(hd->info_kbuf);
+	if (hd)
+		kfree(hd->info_kbuf);
 
 	/* NULL the Scsi_Host pointer
 	 */
 	ioc->sh = NULL;
 
-	scsi_host_put(host);
-
+	if (host)
+		scsi_host_put(host);
 	mpt_detach(pdev);
 
 }
@@ -1516,7 +1519,6 @@ mptscsih_IssueTaskMgmt(MPT_SCSI_HOST *hd, u8 type, u8 channel, u8 id, u64 lun,
 	int		 ii;
 	int		 retval;
 	MPT_ADAPTER 	*ioc = hd->ioc;
-	unsigned long	 timeleft;
 	u8		 issue_hard_reset;
 	u32		 ioc_raw_state;
 	unsigned long	 time_count;
@@ -1614,7 +1616,7 @@ mptscsih_IssueTaskMgmt(MPT_SCSI_HOST *hd, u8 type, u8 channel, u8 id, u64 lun,
 		}
 	}
 
-	timeleft = wait_for_completion_timeout(&ioc->taskmgmt_cmds.done,
+	wait_for_completion_timeout(&ioc->taskmgmt_cmds.done,
 		timeout*HZ);
 	if (!(ioc->taskmgmt_cmds.status & MPT_MGMT_STATUS_COMMAND_GOOD)) {
 		retval = FAILED;

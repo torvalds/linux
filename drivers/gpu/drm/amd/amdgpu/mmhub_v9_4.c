@@ -330,7 +330,7 @@ static void mmhub_v9_4_setup_vmid_config(struct amdgpu_device *adev, int hubid)
 		/* Send no-retry XNACK on fault to suppress VM fault storm. */
 		tmp = REG_SET_FIELD(tmp, VML2VC0_VM_CONTEXT1_CNTL,
 				    RETRY_PERMISSION_OR_INVALID_PAGE_FAULT,
-				    !amdgpu_noretry);
+				    !adev->gmc.noretry);
 		WREG32_SOC15_OFFSET(MMHUB, 0, mmVML2VC0_VM_CONTEXT1_CNTL,
 				    hubid * MMHUB_INSTANCE_REGISTER_OFFSET +
 				    i * hub->ctx_distance, tmp);
@@ -1624,6 +1624,34 @@ static void mmhub_v9_4_reset_ras_error_count(struct amdgpu_device *adev)
 	}
 }
 
+static const struct soc15_reg_entry mmhub_v9_4_err_status_regs[] = {
+	{ SOC15_REG_ENTRY(MMHUB, 0, mmMMEA0_ERR_STATUS), 0, 0, 0 },
+	{ SOC15_REG_ENTRY(MMHUB, 0, mmMMEA1_ERR_STATUS), 0, 0, 0 },
+	{ SOC15_REG_ENTRY(MMHUB, 0, mmMMEA2_ERR_STATUS), 0, 0, 0 },
+	{ SOC15_REG_ENTRY(MMHUB, 0, mmMMEA3_ERR_STATUS), 0, 0, 0 },
+	{ SOC15_REG_ENTRY(MMHUB, 0, mmMMEA4_ERR_STATUS), 0, 0, 0 },
+	{ SOC15_REG_ENTRY(MMHUB, 0, mmMMEA5_ERR_STATUS), 0, 0, 0 },
+	{ SOC15_REG_ENTRY(MMHUB, 0, mmMMEA6_ERR_STATUS), 0, 0, 0 },
+	{ SOC15_REG_ENTRY(MMHUB, 0, mmMMEA7_ERR_STATUS), 0, 0, 0 },
+};
+
+static void mmhub_v9_4_query_ras_error_status(struct amdgpu_device *adev)
+{
+	int i;
+	uint32_t reg_value;
+
+	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__MMHUB))
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(mmhub_v9_4_err_status_regs); i++) {
+		reg_value =
+			RREG32(SOC15_REG_ENTRY_OFFSET(mmhub_v9_4_err_status_regs[i]));
+		if (reg_value)
+			dev_warn(adev->dev, "MMHUB EA err detected at instance: %d, status: 0x%x!\n",
+					i, reg_value);
+	}
+}
+
 const struct amdgpu_mmhub_funcs mmhub_v9_4_funcs = {
 	.ras_late_init = amdgpu_mmhub_ras_late_init,
 	.query_ras_error_count = mmhub_v9_4_query_ras_error_count,
@@ -1636,4 +1664,5 @@ const struct amdgpu_mmhub_funcs mmhub_v9_4_funcs = {
 	.set_clockgating = mmhub_v9_4_set_clockgating,
 	.get_clockgating = mmhub_v9_4_get_clockgating,
 	.setup_vm_pt_regs = mmhub_v9_4_setup_vm_pt_regs,
+	.query_ras_error_status = mmhub_v9_4_query_ras_error_status,
 };

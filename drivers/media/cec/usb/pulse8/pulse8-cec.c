@@ -389,7 +389,7 @@ static irqreturn_t pulse8_interrupt(struct serio *serio, unsigned char data,
 				pulse8->new_rx_msg[0] = pulse8->buf[1];
 				break;
 			}
-			/* fall through */
+			fallthrough;
 		case MSGCODE_FRAME_DATA:
 			if (pulse8->new_rx_msg_len < CEC_MAX_MSG_SIZE)
 				pulse8->new_rx_msg[pulse8->new_rx_msg_len++] =

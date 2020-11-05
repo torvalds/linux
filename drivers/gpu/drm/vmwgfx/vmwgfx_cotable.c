@@ -410,8 +410,8 @@ static int vmw_cotable_resize(struct vmw_resource *res, size_t new_size)
 	if (!buf)
 		return -ENOMEM;
 
-	ret = vmw_bo_init(dev_priv, buf, new_size, &vmw_mob_ne_placement,
-			  true, vmw_bo_bo_free);
+	ret = vmw_bo_init(dev_priv, buf, new_size, &vmw_mob_placement,
+			  true, true, vmw_bo_bo_free);
 	if (ret) {
 		DRM_ERROR("Failed initializing new cotable MOB.\n");
 		return ret;

@@ -50,6 +50,15 @@ properties:
   '#clock-cells':
     const: 1
 
+  clock-names:
+    minItems: 1
+    maxItems: 2
+    items:
+      enum: [ xin, clkin ]
+  clocks:
+    minItems: 1
+    maxItems: 2
+
 patternProperties:
   "^OUT[1-4]$":
     type: object
@@ -93,18 +102,11 @@ allOf:
           maxItems: 1
     else:
       # Devices without builtin crystal
-      properties:
-        clock-names:
-          minItems: 1
-          maxItems: 2
-          items:
-            enum: [ xin, clkin ]
-        clocks:
-          minItems: 1
-          maxItems: 2
       required:
         - clock-names
         - clocks
+
+additionalProperties: false
 
 examples:
   - |

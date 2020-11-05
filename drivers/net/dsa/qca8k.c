@@ -1294,9 +1294,13 @@ qca8k_port_fdb_dump(struct dsa_switch *ds, int port,
 }
 
 static int
-qca8k_port_vlan_filtering(struct dsa_switch *ds, int port, bool vlan_filtering)
+qca8k_port_vlan_filtering(struct dsa_switch *ds, int port, bool vlan_filtering,
+			  struct switchdev_trans *trans)
 {
 	struct qca8k_priv *priv = ds->priv;
+
+	if (switchdev_trans_ph_prepare(trans))
+		return 0;
 
 	if (vlan_filtering) {
 		qca8k_rmw(priv, QCA8K_PORT_LOOKUP_CTRL(port),

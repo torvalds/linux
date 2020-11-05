@@ -29,8 +29,7 @@ DEFINE_DRM_GEM_FOPS(hibmc_fops);
 static irqreturn_t hibmc_drm_interrupt(int irq, void *arg)
 {
 	struct drm_device *dev = (struct drm_device *)arg;
-	struct hibmc_drm_private *priv =
-		(struct hibmc_drm_private *)dev->dev_private;
+	struct hibmc_drm_private *priv = to_hibmc_drm_private(dev);
 	u32 status;
 
 	status = readl(priv->mmio + HIBMC_RAW_INTERRUPT);
@@ -122,12 +121,11 @@ static void hibmc_kms_fini(struct hibmc_drm_private *priv)
 /*
  * It can operate in one of three modes: 0, 1 or Sleep.
  */
-void hibmc_set_power_mode(struct hibmc_drm_private *priv,
-			  unsigned int power_mode)
+void hibmc_set_power_mode(struct hibmc_drm_private *priv, u32 power_mode)
 {
-	unsigned int control_value = 0;
+	u32 control_value = 0;
 	void __iomem   *mmio = priv->mmio;
-	unsigned int input = 1;
+	u32 input = 1;
 
 	if (power_mode > HIBMC_PW_MODE_CTL_MODE_SLEEP)
 		return;
@@ -145,8 +143,8 @@ void hibmc_set_power_mode(struct hibmc_drm_private *priv,
 
 void hibmc_set_current_gate(struct hibmc_drm_private *priv, unsigned int gate)
 {
-	unsigned int gate_reg;
-	unsigned int mode;
+	u32 gate_reg;
+	u32 mode;
 	void __iomem   *mmio = priv->mmio;
 
 	/* Get current power mode. */
@@ -171,7 +169,7 @@ void hibmc_set_current_gate(struct hibmc_drm_private *priv, unsigned int gate)
 
 static void hibmc_hw_config(struct hibmc_drm_private *priv)
 {
-	unsigned int reg;
+	u32 reg;
 
 	/* On hardware reset, power mode 0 is default. */
 	hibmc_set_power_mode(priv, HIBMC_PW_MODE_CTL_MODE_MODE0);
@@ -244,7 +242,7 @@ static int hibmc_hw_init(struct hibmc_drm_private *priv)
 
 static int hibmc_unload(struct drm_device *dev)
 {
-	struct hibmc_drm_private *priv = dev->dev_private;
+	struct hibmc_drm_private *priv = to_hibmc_drm_private(dev);
 
 	drm_atomic_helper_shutdown(dev);
 

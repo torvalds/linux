@@ -55,7 +55,8 @@ static void qxl_evict_flags(struct ttm_buffer_object *bo,
 	static const struct ttm_place placements = {
 		.fpfn = 0,
 		.lpfn = 0,
-		.flags = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM
+		.mem_type = TTM_PL_SYSTEM,
+		.flags = 0
 	};
 
 	if (!qxl_ttm_bo_is_qxl_bo(bo)) {
@@ -66,7 +67,7 @@ static void qxl_evict_flags(struct ttm_buffer_object *bo,
 		return;
 	}
 	qbo = to_qxl_bo(bo);
-	qxl_ttm_placement_from_domain(qbo, QXL_GEM_DOMAIN_CPU, false);
+	qxl_ttm_placement_from_domain(qbo, QXL_GEM_DOMAIN_CPU);
 	*placement = qbo->placement;
 }
 
@@ -81,13 +82,14 @@ int qxl_ttm_io_mem_reserve(struct ttm_bo_device *bdev,
 		return 0;
 	case TTM_PL_VRAM:
 		mem->bus.is_iomem = true;
-		mem->bus.base = qdev->vram_base;
-		mem->bus.offset = mem->start << PAGE_SHIFT;
+		mem->bus.offset = (mem->start << PAGE_SHIFT) + qdev->vram_base;
+		mem->bus.caching = ttm_cached;
 		break;
 	case TTM_PL_PRIV:
 		mem->bus.is_iomem = true;
-		mem->bus.base = qdev->surfaceram_base;
-		mem->bus.offset = mem->start << PAGE_SHIFT;
+		mem->bus.offset = (mem->start << PAGE_SHIFT) +
+			qdev->surfaceram_base;
+		mem->bus.caching = ttm_cached;
 		break;
 	default:
 		return -EINVAL;
@@ -98,90 +100,27 @@ int qxl_ttm_io_mem_reserve(struct ttm_bo_device *bdev,
 /*
  * TTM backend functions.
  */
-struct qxl_ttm_tt {
-	struct ttm_tt		        ttm;
-	struct qxl_device		*qdev;
-	u64				offset;
-};
-
-static int qxl_ttm_backend_bind(struct ttm_tt *ttm,
-				struct ttm_resource *bo_mem)
+static void qxl_ttm_backend_destroy(struct ttm_bo_device *bdev,
+				    struct ttm_tt *ttm)
 {
-	struct qxl_ttm_tt *gtt = (void *)ttm;
-
-	gtt->offset = (unsigned long)(bo_mem->start << PAGE_SHIFT);
-	if (!ttm->num_pages) {
-		WARN(1, "nothing to bind %lu pages for mreg %p back %p!\n",
-		     ttm->num_pages, bo_mem, ttm);
-	}
-	/* Not implemented */
-	return -1;
+	ttm_tt_destroy_common(bdev, ttm);
+	ttm_tt_fini(ttm);
+	kfree(ttm);
 }
-
-static void qxl_ttm_backend_unbind(struct ttm_tt *ttm)
-{
-	/* Not implemented */
-}
-
-static void qxl_ttm_backend_destroy(struct ttm_tt *ttm)
-{
-	struct qxl_ttm_tt *gtt = (void *)ttm;
-
-	ttm_tt_fini(&gtt->ttm);
-	kfree(gtt);
-}
-
-static struct ttm_backend_func qxl_backend_func = {
-	.bind = &qxl_ttm_backend_bind,
-	.unbind = &qxl_ttm_backend_unbind,
-	.destroy = &qxl_ttm_backend_destroy,
-};
 
 static struct ttm_tt *qxl_ttm_tt_create(struct ttm_buffer_object *bo,
 					uint32_t page_flags)
 {
-	struct qxl_device *qdev;
-	struct qxl_ttm_tt *gtt;
+	struct ttm_tt *ttm;
 
-	qdev = qxl_get_qdev(bo->bdev);
-	gtt = kzalloc(sizeof(struct qxl_ttm_tt), GFP_KERNEL);
-	if (gtt == NULL)
+	ttm = kzalloc(sizeof(struct ttm_tt), GFP_KERNEL);
+	if (ttm == NULL)
 		return NULL;
-	gtt->ttm.func = &qxl_backend_func;
-	gtt->qdev = qdev;
-	if (ttm_tt_init(&gtt->ttm, bo, page_flags)) {
-		kfree(gtt);
+	if (ttm_dma_tt_init(ttm, bo, page_flags, ttm_cached)) {
+		kfree(ttm);
 		return NULL;
 	}
-	return &gtt->ttm;
-}
-
-static void qxl_move_null(struct ttm_buffer_object *bo,
-			     struct ttm_resource *new_mem)
-{
-	struct ttm_resource *old_mem = &bo->mem;
-
-	BUG_ON(old_mem->mm_node != NULL);
-	*old_mem = *new_mem;
-	new_mem->mm_node = NULL;
-}
-
-static int qxl_bo_move(struct ttm_buffer_object *bo, bool evict,
-		       struct ttm_operation_ctx *ctx,
-		       struct ttm_resource *new_mem)
-{
-	struct ttm_resource *old_mem = &bo->mem;
-	int ret;
-
-	ret = ttm_bo_wait(bo, ctx->interruptible, ctx->no_wait_gpu);
-	if (ret)
-		return ret;
-
-	if (old_mem->mem_type == TTM_PL_SYSTEM && bo->ttm == NULL) {
-		qxl_move_null(bo, new_mem);
-		return 0;
-	}
-	return ttm_bo_move_memcpy(bo, ctx, new_mem);
+	return ttm;
 }
 
 static void qxl_bo_move_notify(struct ttm_buffer_object *bo,
@@ -200,21 +139,53 @@ static void qxl_bo_move_notify(struct ttm_buffer_object *bo,
 		qxl_surface_evict(qdev, qbo, new_mem ? true : false);
 }
 
+static int qxl_bo_move(struct ttm_buffer_object *bo, bool evict,
+		       struct ttm_operation_ctx *ctx,
+		       struct ttm_resource *new_mem)
+{
+	struct ttm_resource *old_mem = &bo->mem;
+	int ret;
+
+	qxl_bo_move_notify(bo, evict, new_mem);
+
+	ret = ttm_bo_wait_ctx(bo, ctx);
+	if (ret)
+		goto out;
+
+	if (old_mem->mem_type == TTM_PL_SYSTEM && bo->ttm == NULL) {
+		ttm_bo_move_null(bo, new_mem);
+		return 0;
+	}
+	ret = ttm_bo_move_memcpy(bo, ctx, new_mem);
+out:
+	if (ret) {
+		swap(*new_mem, bo->mem);
+		qxl_bo_move_notify(bo, false, new_mem);
+		swap(*new_mem, bo->mem);
+	}
+	return ret;
+}
+
+static void qxl_bo_delete_mem_notify(struct ttm_buffer_object *bo)
+{
+	qxl_bo_move_notify(bo, false, NULL);
+}
+
 static struct ttm_bo_driver qxl_bo_driver = {
 	.ttm_tt_create = &qxl_ttm_tt_create,
+	.ttm_tt_destroy = &qxl_ttm_backend_destroy,
 	.eviction_valuable = ttm_bo_eviction_valuable,
 	.evict_flags = &qxl_evict_flags,
 	.move = &qxl_bo_move,
 	.io_mem_reserve = &qxl_ttm_io_mem_reserve,
-	.move_notify = &qxl_bo_move_notify,
+	.delete_mem_notify = &qxl_bo_delete_mem_notify,
 };
 
 static int qxl_ttm_init_mem_type(struct qxl_device *qdev,
 				 unsigned int type,
 				 uint64_t size)
 {
-	return ttm_range_man_init(&qdev->mman.bdev, type, TTM_PL_MASK_CACHING,
-				  TTM_PL_FLAG_CACHED, false, size);
+	return ttm_range_man_init(&qdev->mman.bdev, type, false, size);
 }
 
 int qxl_ttm_init(struct qxl_device *qdev)

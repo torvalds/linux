@@ -426,7 +426,7 @@ enum ipa_cs_offload_en {
 	IPA_CS_RSVD
 };
 
-/** enum ipa_aggr_en - aggregation type field in ENDP_INIT_AGGR_N */
+/** enum ipa_aggr_en - aggregation enable field in ENDP_INIT_AGGR_N */
 enum ipa_aggr_en {
 	IPA_BYPASS_AGGR		= 0,
 	IPA_ENABLE_AGGR		= 1,

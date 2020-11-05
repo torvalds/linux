@@ -58,6 +58,12 @@ struct drm_mode_config_funcs {
 	 * actual modifier used if the request doesn't have it specified,
 	 * ie. when (@mode_cmd->flags & DRM_MODE_FB_MODIFIERS) == 0.
 	 *
+	 * IMPORTANT: These implied modifiers for legacy userspace must be
+	 * stored in struct &drm_framebuffer, including all relevant metadata
+	 * like &drm_framebuffer.pitches and &drm_framebuffer.offsets if the
+	 * modifier enables additional planes beyond the fourcc pixel format
+	 * code. This is required by the GETFB2 ioctl.
+	 *
 	 * If the parameters are deemed valid and the backing storage objects in
 	 * the underlying memory manager all exist, then the driver allocates
 	 * a new &drm_framebuffer structure, subclassed to contain
@@ -915,6 +921,13 @@ struct drm_mode_config {
 	 * @allow_fb_modifiers:
 	 *
 	 * Whether the driver supports fb modifiers in the ADDFB2.1 ioctl call.
+	 *
+	 * IMPORTANT:
+	 *
+	 * If this is set the driver must fill out the full implicit modifier
+	 * information in their &drm_mode_config_funcs.fb_create hook for legacy
+	 * userspace which does not set modifiers. Otherwise the GETFB2 ioctl is
+	 * broken for modifier aware userspace.
 	 */
 	bool allow_fb_modifiers;
 

@@ -8335,7 +8335,7 @@ static void compute_m_n(unsigned int m, unsigned int n,
 	 * which the devices expect also in synchronous clock mode.
 	 */
 	if (constant_n)
-		*ret_n = 0x8000;
+		*ret_n = DP_LINK_CONSTANT_N_VALUE;
 	else
 		*ret_n = min_t(unsigned int, roundup_pow_of_two(n), DATA_LINK_N_MAX);
 
@@ -13656,12 +13656,6 @@ encoder_retry:
 	drm_dbg_kms(&i915->drm,
 		    "hw max bpp: %i, pipe bpp: %i, dithering: %i\n",
 		    base_bpp, pipe_config->pipe_bpp, pipe_config->dither);
-
-	/*
-	 * Make drm_calc_timestamping_constants in
-	 * drm_atomic_helper_update_legacy_modeset_state() happy
-	 */
-	pipe_config->uapi.adjusted_mode = pipe_config->hw.adjusted_mode;
 
 	return 0;
 }

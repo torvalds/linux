@@ -2,7 +2,7 @@
 /*
  * Datapath implementation.
  *
- * Copyright (c) 2017-2019, Silicon Laboratories, Inc.
+ * Copyright (c) 2017-2020, Silicon Laboratories, Inc.
  * Copyright (c) 2010, ST-Ericsson
  */
 #include <linux/etherdevice.h>
@@ -16,6 +16,9 @@
 static void wfx_rx_handle_ba(struct wfx_vif *wvif, struct ieee80211_mgmt *mgmt)
 {
 	int params, tid;
+
+	if (wfx_api_older_than(wvif->wdev, 3, 6))
+		return;
 
 	switch (mgmt->u.action.u.addba_req.action_code) {
 	case WLAN_ACTION_ADDBA_REQ:
@@ -41,7 +44,7 @@ void wfx_rx_cb(struct wfx_vif *wvif,
 	memset(hdr, 0, sizeof(*hdr));
 
 	if (arg->status == HIF_STATUS_RX_FAIL_MIC)
-		hdr->flag |= RX_FLAG_MMIC_ERROR;
+		hdr->flag |= RX_FLAG_MMIC_ERROR | RX_FLAG_IV_STRIPPED;
 	else if (arg->status)
 		goto drop;
 
@@ -70,10 +73,10 @@ void wfx_rx_cb(struct wfx_vif *wvif,
 	hdr->signal = arg->rcpi_rssi / 2 - 110;
 	hdr->antenna = 0;
 
-	if (arg->rx_flags.encryp)
+	if (arg->encryp)
 		hdr->flag |= RX_FLAG_DECRYPTED;
 
-	// Block ack negociation is offloaded by the firmware. However,
+	// Block ack negotiation is offloaded by the firmware. However,
 	// re-ordering must be done by the mac80211.
 	if (ieee80211_is_action(frame->frame_control) &&
 	    mgmt->u.action.category == WLAN_CATEGORY_BACK &&

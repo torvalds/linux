@@ -122,7 +122,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_fec1>;
 	phy-mode = "rgmii-id";
-	phy-reset-gpios = <&gpio1 9 GPIO_ACTIVE_LOW>;
 	phy-handle = <&ethphy>;
 	fsl,magic-packet;
 	status = "okay";
@@ -134,6 +133,7 @@
 		ethphy: ethernet-phy@3 {
 			compatible = "ethernet-phy-ieee802.3-c22";
 			reg = <3>;
+			reset-gpios = <&gpio1 9 GPIO_ACTIVE_LOW>;
 		};
 	};
 };

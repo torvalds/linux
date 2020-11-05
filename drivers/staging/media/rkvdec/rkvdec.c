@@ -55,40 +55,28 @@ static const struct v4l2_ctrl_ops rkvdec_ctrl_ops = {
 
 static const struct rkvdec_ctrl_desc rkvdec_h264_ctrl_descs[] = {
 	{
-		.per_request = true,
 		.mandatory = true,
 		.cfg.id = V4L2_CID_MPEG_VIDEO_H264_DECODE_PARAMS,
 	},
 	{
-		.per_request = true,
-		.mandatory = true,
-		.cfg.id = V4L2_CID_MPEG_VIDEO_H264_SLICE_PARAMS,
-	},
-	{
-		.per_request = true,
 		.mandatory = true,
 		.cfg.id = V4L2_CID_MPEG_VIDEO_H264_SPS,
 		.cfg.ops = &rkvdec_ctrl_ops,
 	},
 	{
-		.per_request = true,
 		.mandatory = true,
 		.cfg.id = V4L2_CID_MPEG_VIDEO_H264_PPS,
 	},
 	{
-		.per_request = true,
-		.mandatory = true,
 		.cfg.id = V4L2_CID_MPEG_VIDEO_H264_SCALING_MATRIX,
 	},
 	{
-		.mandatory = true,
 		.cfg.id = V4L2_CID_MPEG_VIDEO_H264_DECODE_MODE,
 		.cfg.min = V4L2_MPEG_VIDEO_H264_DECODE_MODE_FRAME_BASED,
 		.cfg.max = V4L2_MPEG_VIDEO_H264_DECODE_MODE_FRAME_BASED,
 		.cfg.def = V4L2_MPEG_VIDEO_H264_DECODE_MODE_FRAME_BASED,
 	},
 	{
-		.mandatory = true,
 		.cfg.id = V4L2_CID_MPEG_VIDEO_H264_START_CODE,
 		.cfg.min = V4L2_MPEG_VIDEO_H264_START_CODE_ANNEX_B,
 		.cfg.def = V4L2_MPEG_VIDEO_H264_START_CODE_ANNEX_B,
@@ -620,7 +608,7 @@ static int rkvdec_request_validate(struct media_request *req)
 		u32 id = ctrls->ctrls[i].cfg.id;
 		struct v4l2_ctrl *ctrl;
 
-		if (!ctrls->ctrls[i].per_request || !ctrls->ctrls[i].mandatory)
+		if (!ctrls->ctrls[i].mandatory)
 			continue;
 
 		ctrl = v4l2_ctrl_request_hdl_ctrl_find(hdl, id);

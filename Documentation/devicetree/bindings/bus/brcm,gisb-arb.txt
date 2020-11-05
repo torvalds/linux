@@ -10,7 +10,8 @@ Required properties:
     "brcm,bcm7038-gisb-arb" for 130nm chips
 - reg: specifies the base physical address and size of the registers
 - interrupts: specifies the two interrupts (timeout and TEA) to be used from
-  the parent interrupt controller
+  the parent interrupt controller. A third optional interrupt may be specified
+  for breakpoints.
 
 Optional properties:
 

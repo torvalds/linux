@@ -402,6 +402,16 @@ struct bss_info_ra {
 	__le32 fast_interval;
 } __packed;
 
+struct bss_info_hw_amsdu {
+	__le16 tag;
+	__le16 len;
+	__le32 cmp_bitmap_0;
+	__le32 cmp_bitmap_1;
+	__le16 trig_thres;
+	u8 enable;
+	u8 rsv;
+} __packed;
+
 struct bss_info_he {
 	__le16 tag;
 	__le16 len;
@@ -645,6 +655,17 @@ struct sta_rec_vht {
 	u8 rsv[3];
 } __packed;
 
+struct sta_rec_uapsd {
+	__le16 tag;
+	__le16 len;
+	u8 dac_map;
+	u8 tac_map;
+	u8 max_sp;
+	u8 rsv0;
+	__le16 listen_interval;
+	u8 rsv1[2];
+} __packed;
+
 struct sta_rec_muru {
 	__le16 tag;
 	__le16 len;
@@ -723,6 +744,15 @@ struct sta_rec_ba {
 	u8 ba_en;
 	__le16 ssn;
 	__le16 winsize;
+} __packed;
+
+struct sta_rec_amsdu {
+	__le16 tag;
+	__le16 len;
+	u8 max_amsdu_num;
+	u8 max_mpdu_size;
+	u8 amsdu_en;
+	u8 rsv;
 } __packed;
 
 struct sec_key {
@@ -951,6 +981,8 @@ enum {
 					 sizeof(struct sta_rec_he) +	\
 					 sizeof(struct sta_rec_ba) +	\
 					 sizeof(struct sta_rec_vht) +	\
+					 sizeof(struct sta_rec_uapsd) + \
+					 sizeof(struct sta_rec_amsdu) +	\
 					 sizeof(struct tlv) +		\
 					 MT7915_WTBL_UPDATE_MAX_SIZE)
 
@@ -962,6 +994,7 @@ enum {
 					 sizeof(struct bss_info_basic) +\
 					 sizeof(struct bss_info_rf_ch) +\
 					 sizeof(struct bss_info_ra) +	\
+					 sizeof(struct bss_info_hw_amsdu) +\
 					 sizeof(struct bss_info_he) +	\
 					 sizeof(struct bss_info_bmc_rate) +\
 					 sizeof(struct bss_info_ext_bss) +\

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  *    driver for Microsemi PQI-based storage controllers
- *    Copyright (c) 2019 Microchip Technology Inc. and its subsidiaries
+ *    Copyright (c) 2019-2020 Microchip Technology Inc. and its subsidiaries
  *    Copyright (c) 2016-2018 Microsemi Corporation
  *    Copyright (c) 2016 PMC-Sierra, Inc.
  *
@@ -359,7 +359,7 @@ struct pqi_event_response {
 	struct pqi_iu_header header;
 	u8	event_type;
 	u8	reserved2 : 7;
-	u8	request_acknowlege : 1;
+	u8	request_acknowledge : 1;
 	__le16	event_id;
 	__le32	additional_event_id;
 	union {
@@ -927,6 +927,7 @@ struct pqi_scsi_dev {
 	u8	new_device : 1;
 	u8	keep_device : 1;
 	u8	volume_offline : 1;
+	u8	rescan : 1;
 	bool	aio_enabled;		/* only valid for physical disks */
 	bool	in_reset;
 	bool	in_remove;
@@ -962,6 +963,7 @@ struct pqi_scsi_dev {
 	struct list_head delete_list_entry;
 
 	atomic_t scsi_cmds_outstanding;
+	atomic_t raid_bypass_cnt;
 };
 
 /* VPD inquiry pages */
@@ -1255,6 +1257,7 @@ struct bmic_sense_subsystem_info {
 #define SA_DEVICE_TYPE_SATA		0x1
 #define SA_DEVICE_TYPE_SAS		0x2
 #define SA_DEVICE_TYPE_EXPANDER_SMP	0x5
+#define SA_DEVICE_TYPE_SES		0x6
 #define SA_DEVICE_TYPE_CONTROLLER	0x7
 #define SA_DEVICE_TYPE_NVME		0x9
 

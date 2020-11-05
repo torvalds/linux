@@ -45,7 +45,10 @@
                 strb    \rd, [\rx, #ASC_TX_BUF_OFF]
                 .endm
 
-                .macro  waituart,rd,rx
+		.macro	waituartcts,rd,rx
+		.endm
+
+                .macro  waituarttxrdy,rd,rx
 1001:           ldr     \rd, [\rx, #ASC_STA_OFF]
                 tst     \rd, #ASC_STA_TX_FULL
                 bne     1001b

@@ -18,21 +18,6 @@
 #include "blk-mq-tag.h"
 #include "blk-wbt.h"
 
-void blk_mq_sched_free_hctx_data(struct request_queue *q,
-				 void (*exit)(struct blk_mq_hw_ctx *))
-{
-	struct blk_mq_hw_ctx *hctx;
-	int i;
-
-	queue_for_each_hw_ctx(q, hctx, i) {
-		if (exit && hctx->sched_data)
-			exit(hctx);
-		kfree(hctx->sched_data);
-		hctx->sched_data = NULL;
-	}
-}
-EXPORT_SYMBOL_GPL(blk_mq_sched_free_hctx_data);
-
 void blk_mq_sched_assign_ioc(struct request *rq)
 {
 	struct request_queue *q = rq->q;
@@ -359,104 +344,6 @@ void blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 	}
 }
 
-bool blk_mq_sched_try_merge(struct request_queue *q, struct bio *bio,
-		unsigned int nr_segs, struct request **merged_request)
-{
-	struct request *rq;
-
-	switch (elv_merge(q, &rq, bio)) {
-	case ELEVATOR_BACK_MERGE:
-		if (!blk_mq_sched_allow_merge(q, rq, bio))
-			return false;
-		if (!bio_attempt_back_merge(rq, bio, nr_segs))
-			return false;
-		*merged_request = attempt_back_merge(q, rq);
-		if (!*merged_request)
-			elv_merged_request(q, rq, ELEVATOR_BACK_MERGE);
-		return true;
-	case ELEVATOR_FRONT_MERGE:
-		if (!blk_mq_sched_allow_merge(q, rq, bio))
-			return false;
-		if (!bio_attempt_front_merge(rq, bio, nr_segs))
-			return false;
-		*merged_request = attempt_front_merge(q, rq);
-		if (!*merged_request)
-			elv_merged_request(q, rq, ELEVATOR_FRONT_MERGE);
-		return true;
-	case ELEVATOR_DISCARD_MERGE:
-		return bio_attempt_discard_merge(q, rq, bio);
-	default:
-		return false;
-	}
-}
-EXPORT_SYMBOL_GPL(blk_mq_sched_try_merge);
-
-/*
- * Iterate list of requests and see if we can merge this bio with any
- * of them.
- */
-bool blk_mq_bio_list_merge(struct request_queue *q, struct list_head *list,
-			   struct bio *bio, unsigned int nr_segs)
-{
-	struct request *rq;
-	int checked = 8;
-
-	list_for_each_entry_reverse(rq, list, queuelist) {
-		bool merged = false;
-
-		if (!checked--)
-			break;
-
-		if (!blk_rq_merge_ok(rq, bio))
-			continue;
-
-		switch (blk_try_merge(rq, bio)) {
-		case ELEVATOR_BACK_MERGE:
-			if (blk_mq_sched_allow_merge(q, rq, bio))
-				merged = bio_attempt_back_merge(rq, bio,
-						nr_segs);
-			break;
-		case ELEVATOR_FRONT_MERGE:
-			if (blk_mq_sched_allow_merge(q, rq, bio))
-				merged = bio_attempt_front_merge(rq, bio,
-						nr_segs);
-			break;
-		case ELEVATOR_DISCARD_MERGE:
-			merged = bio_attempt_discard_merge(q, rq, bio);
-			break;
-		default:
-			continue;
-		}
-
-		return merged;
-	}
-
-	return false;
-}
-EXPORT_SYMBOL_GPL(blk_mq_bio_list_merge);
-
-/*
- * Reverse check our software queue for entries that we could potentially
- * merge with. Currently includes a hand-wavy stop count of 8, to not spend
- * too much time checking for merges.
- */
-static bool blk_mq_attempt_merge(struct request_queue *q,
-				 struct blk_mq_hw_ctx *hctx,
-				 struct blk_mq_ctx *ctx, struct bio *bio,
-				 unsigned int nr_segs)
-{
-	enum hctx_type type = hctx->type;
-
-	lockdep_assert_held(&ctx->lock);
-
-	if (blk_mq_bio_list_merge(q, &ctx->rq_lists[type], bio, nr_segs)) {
-		ctx->rq_merged++;
-		return true;
-	}
-
-	return false;
-}
-
 bool __blk_mq_sched_bio_merge(struct request_queue *q, struct bio *bio,
 		unsigned int nr_segs)
 {
@@ -470,13 +357,23 @@ bool __blk_mq_sched_bio_merge(struct request_queue *q, struct bio *bio,
 		return e->type->ops.bio_merge(hctx, bio, nr_segs);
 
 	type = hctx->type;
-	if ((hctx->flags & BLK_MQ_F_SHOULD_MERGE) &&
-			!list_empty_careful(&ctx->rq_lists[type])) {
-		/* default per sw-queue merge */
-		spin_lock(&ctx->lock);
-		ret = blk_mq_attempt_merge(q, hctx, ctx, bio, nr_segs);
-		spin_unlock(&ctx->lock);
+	if (!(hctx->flags & BLK_MQ_F_SHOULD_MERGE) ||
+	    list_empty_careful(&ctx->rq_lists[type]))
+		return false;
+
+	/* default per sw-queue merge */
+	spin_lock(&ctx->lock);
+	/*
+	 * Reverse check our software queue for entries that we could
+	 * potentially merge with. Currently includes a hand-wavy stop
+	 * count of 8, to not spend too much time checking for merges.
+	 */
+	if (blk_bio_list_merge(q, &ctx->rq_lists[type], bio, nr_segs)) {
+		ctx->rq_merged++;
+		ret = true;
 	}
+
+	spin_unlock(&ctx->lock);
 
 	return ret;
 }
@@ -525,13 +422,7 @@ void blk_mq_sched_insert_request(struct request *rq, bool at_head,
 	struct blk_mq_ctx *ctx = rq->mq_ctx;
 	struct blk_mq_hw_ctx *hctx = rq->mq_hctx;
 
-	/* flush rq in flush machinery need to be dispatched directly */
-	if (!(rq->rq_flags & RQF_FLUSH_SEQ) && op_is_flush(rq->cmd_flags)) {
-		blk_insert_flush(rq);
-		goto run;
-	}
-
-	WARN_ON(e && (rq->tag != -1));
+	WARN_ON(e && (rq->tag != BLK_MQ_NO_TAG));
 
 	if (blk_mq_sched_bypass_insert(hctx, !!e, rq)) {
 		/*
@@ -616,9 +507,11 @@ static void blk_mq_sched_free_tags(struct blk_mq_tag_set *set,
 				   struct blk_mq_hw_ctx *hctx,
 				   unsigned int hctx_idx)
 {
+	unsigned int flags = set->flags & ~BLK_MQ_F_TAG_HCTX_SHARED;
+
 	if (hctx->sched_tags) {
 		blk_mq_free_rqs(set, hctx->sched_tags, hctx_idx);
-		blk_mq_free_rq_map(hctx->sched_tags);
+		blk_mq_free_rq_map(hctx->sched_tags, flags);
 		hctx->sched_tags = NULL;
 	}
 }
@@ -628,10 +521,12 @@ static int blk_mq_sched_alloc_tags(struct request_queue *q,
 				   unsigned int hctx_idx)
 {
 	struct blk_mq_tag_set *set = q->tag_set;
+	/* Clear HCTX_SHARED so tags are init'ed */
+	unsigned int flags = set->flags & ~BLK_MQ_F_TAG_HCTX_SHARED;
 	int ret;
 
 	hctx->sched_tags = blk_mq_alloc_rq_map(set, hctx_idx, q->nr_requests,
-					       set->reserved_tags);
+					       set->reserved_tags, flags);
 	if (!hctx->sched_tags)
 		return -ENOMEM;
 
@@ -649,8 +544,11 @@ static void blk_mq_sched_tags_teardown(struct request_queue *q)
 	int i;
 
 	queue_for_each_hw_ctx(q, hctx, i) {
+		/* Clear HCTX_SHARED so tags are freed */
+		unsigned int flags = hctx->flags & ~BLK_MQ_F_TAG_HCTX_SHARED;
+
 		if (hctx->sched_tags) {
-			blk_mq_free_rq_map(hctx->sched_tags);
+			blk_mq_free_rq_map(hctx->sched_tags, flags);
 			hctx->sched_tags = NULL;
 		}
 	}

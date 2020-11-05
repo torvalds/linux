@@ -371,7 +371,7 @@ _config_request(struct MPT3SAS_ADAPTER *ioc, Mpi2ConfigRequest_t
 	}
 
 	r = 0;
-	memset(mpi_reply, 0, sizeof(Mpi2ConfigReply_t));
+	memset(ioc->config_cmds.reply, 0, sizeof(Mpi2ConfigReply_t));
 	ioc->config_cmds.status = MPT3_CMD_PENDING;
 	config_request = mpt3sas_base_get_msg_frame(ioc, smid);
 	ioc->config_cmds.smid = smid;

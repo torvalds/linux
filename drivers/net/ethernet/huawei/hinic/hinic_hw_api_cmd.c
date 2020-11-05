@@ -373,7 +373,7 @@ static int wait_for_api_cmd_completion(struct hinic_api_cmd_chain *chain)
  * @chain: chain for the command
  * @dest: destination node on the card that will receive the command
  * @cmd: command data
- * @size: the command size
+ * @cmd_size: the command size
  *
  * Return 0 - Success, negative - Failure
  **/

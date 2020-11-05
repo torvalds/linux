@@ -8064,6 +8064,20 @@
         "UMask": "0x1"
     },
     {
+        "BriefDescription": "This event is deprecated. Refer to new event OCR.DEMAND_CODE_RD.SUPPLIER_NONE.HITM_OTHER_CORE",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3",
+        "Deprecated": "1",
+        "EventCode": "0xB7, 0xBB",
+        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.SUPPLIER_NONE.HITM_OTHER_CORE",
+        "MSRIndex": "0x1a6,0x1a7",
+        "MSRValue": "0x1000020004",
+        "Offcore": "1",
+        "PublicDescription": "Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
+    },
+    {
         "BriefDescription": "This event is deprecated. Refer to new event OCR.ALL_PF_DATA_RD.L3_HIT_S.HIT_OTHER_CORE_NO_FWD",
         "Counter": "0,1,2,3",
         "CounterHTOff": "0,1,2,3",
@@ -9250,20 +9264,6 @@
         "EventName": "OFFCORE_RESPONSE.ALL_PF_RFO.L3_HIT_F.SNOOP_NONE",
         "MSRIndex": "0x1a6,0x1a7",
         "MSRValue": "0x0080200120",
-        "Offcore": "1",
-        "PublicDescription": "Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
-        "SampleAfterValue": "100003",
-        "UMask": "0x1"
-    },
-    {
-        "BriefDescription": "This event is deprecated. Refer to new event OCR.DEMAND_CODE_RD.SUPPLIER_NONE.HITM_OTHER_CORE",
-        "Counter": "0,1,2,3",
-        "CounterHTOff": "0,1,2,3",
-        "Deprecated": "1",
-        "EventCode": "0xB7, 0xBB",
-        "EventName": "OFFCORE_RESPONSE.DEMAND_CODE_RD.SUPPLIER_NONE.HITM_OTHER_CORE",
-        "MSRIndex": "0x1a6,0x1a7",
-        "MSRValue": "0x1000020004",
         "Offcore": "1",
         "PublicDescription": "Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",

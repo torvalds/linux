@@ -24,6 +24,7 @@ config SOUNDWIRE_CADENCE
 config SOUNDWIRE_INTEL
 	tristate "Intel SoundWire Master driver"
 	select SOUNDWIRE_CADENCE
+	select SOUNDWIRE_GENERIC_ALLOCATION
 	depends on ACPI && SND_SOC
 	help
 	  SoundWire Intel Master driver.
@@ -33,11 +34,15 @@ config SOUNDWIRE_INTEL
 
 config SOUNDWIRE_QCOM
 	tristate "Qualcomm SoundWire Master driver"
-	depends on SLIMBUS
+	imply SLIMBUS
 	depends on SND_SOC
 	help
 	  SoundWire Qualcomm Master driver.
 	  If you have an Qualcomm platform which has a SoundWire Master then
 	  enable this config option to get the SoundWire support for that
 	  device
+
+config SOUNDWIRE_GENERIC_ALLOCATION
+	tristate
+
 endif

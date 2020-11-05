@@ -198,7 +198,7 @@
 					reg = <0x0f000 0x1000>;
 					interrupts = <0>;
 					clocks = <&v2m_refclk32khz>, <&smbclk>;
-					clock-names = "wdogclk", "apb_pclk";
+					clock-names = "wdog_clk", "apb_pclk";
 				};
 
 				v2m_timer01: timer@11000 {

@@ -18,7 +18,9 @@
 
 #include "psb_drv.h"
 
-void psb_gem_free_object(struct drm_gem_object *obj)
+static vm_fault_t psb_gem_fault(struct vm_fault *vmf);
+
+static void psb_gem_free_object(struct drm_gem_object *obj)
 {
 	struct gtt_range *gtt = container_of(obj, struct gtt_range, gem);
 
@@ -35,6 +37,17 @@ int psb_gem_get_aperture(struct drm_device *dev, void *data,
 {
 	return -EINVAL;
 }
+
+static const struct vm_operations_struct psb_gem_vm_ops = {
+	.fault = psb_gem_fault,
+	.open = drm_gem_vm_open,
+	.close = drm_gem_vm_close,
+};
+
+const struct drm_gem_object_funcs psb_gem_object_funcs = {
+	.free = psb_gem_free_object,
+	.vm_ops = &psb_gem_vm_ops,
+};
 
 /**
  *	psb_gem_create		-	create a mappable object
@@ -63,6 +76,7 @@ int psb_gem_create(struct drm_file *file, struct drm_device *dev, u64 size,
 		dev_err(dev->dev, "no memory for %lld byte GEM object\n", size);
 		return -ENOSPC;
 	}
+	r->gem.funcs = &psb_gem_object_funcs;
 	/* Initialize the extra goodies GEM needs to do all the hard work */
 	if (drm_gem_object_init(dev, &r->gem, size) != 0) {
 		psb_gtt_free_range(dev, r);
@@ -123,7 +137,7 @@ int psb_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
  *	vma->vm_private_data points to the GEM object that is backing this
  *	mapping.
  */
-vm_fault_t psb_gem_fault(struct vm_fault *vmf)
+static vm_fault_t psb_gem_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct drm_gem_object *obj;

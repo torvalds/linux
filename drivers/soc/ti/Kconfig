@@ -101,6 +101,17 @@ config TI_K3_SOCINFO
 	  platforms to provide information about the SoC family and
 	  variant to user space.
 
+config TI_PRUSS
+	tristate "TI PRU-ICSS Subsystem Platform drivers"
+	depends on SOC_AM33XX || SOC_AM43XX || SOC_DRA7XX || ARCH_KEYSTONE || ARCH_K3
+	select MFD_SYSCON
+	help
+	  TI PRU-ICSS Subsystem platform specific support.
+
+	  Say Y or M here to support the Programmable Realtime Unit (PRU)
+	  processors on various TI SoCs. It's safe to say N here if you're
+	  not interested in the PRU or if you are unsure.
+
 endif # SOC_TI
 
 config TI_SCI_INTA_MSI_DOMAIN

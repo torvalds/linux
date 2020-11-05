@@ -2069,6 +2069,7 @@ nv50_disp_atomic_commit_tail(struct drm_atomic_state *state)
 	drm_atomic_helper_wait_for_fences(dev, state, false);
 	drm_atomic_helper_wait_for_dependencies(state);
 	drm_atomic_helper_update_legacy_modeset_state(dev, state);
+	drm_atomic_helper_calc_timestamping_constants(state);
 
 	if (atom->lock_core)
 		mutex_lock(&disp->mutex);
@@ -2622,10 +2623,11 @@ nv50_display_create(struct drm_device *dev)
 	dev->mode_config.normalize_zpos = true;
 
 	/* small shared memory area we use for notifiers and semaphores */
-	ret = nouveau_bo_new(&drm->client, 4096, 0x1000, TTM_PL_FLAG_VRAM,
+	ret = nouveau_bo_new(&drm->client, 4096, 0x1000,
+			     NOUVEAU_GEM_DOMAIN_VRAM,
 			     0, 0x0000, NULL, NULL, &disp->sync);
 	if (!ret) {
-		ret = nouveau_bo_pin(disp->sync, TTM_PL_FLAG_VRAM, true);
+		ret = nouveau_bo_pin(disp->sync, NOUVEAU_GEM_DOMAIN_VRAM, true);
 		if (!ret) {
 			ret = nouveau_bo_map(disp->sync);
 			if (ret)

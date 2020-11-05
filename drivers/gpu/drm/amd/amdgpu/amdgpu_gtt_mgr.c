@@ -95,8 +95,6 @@ int amdgpu_gtt_mgr_init(struct amdgpu_device *adev, uint64_t gtt_size)
 
 	man->use_tt = true;
 	man->func = &amdgpu_gtt_mgr_func;
-	man->available_caching = TTM_PL_MASK_CACHING;
-	man->default_caching = TTM_PL_FLAG_CACHED;
 
 	ttm_resource_manager_init(man, gtt_size >> PAGE_SHIFT);
 
@@ -138,7 +136,7 @@ void amdgpu_gtt_mgr_fini(struct amdgpu_device *adev)
 
 	ttm_resource_manager_set_used(man, false);
 
-	ret = ttm_resource_manager_force_list_clean(&adev->mman.bdev, man);
+	ret = ttm_resource_manager_evict_all(&adev->mman.bdev, man);
 	if (ret)
 		return;
 

@@ -1,0 +1,190 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pinctrl/renesas,rza1-ports.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Renesas RZ/A1 combined Pin and GPIO controller
+
+maintainers:
+  - Jacopo Mondi <jacopo+renesas@jmondi.org>
+  - Geert Uytterhoeven <geert+renesas@glider.be>
+
+description:
+  The Renesas SoCs of the RZ/A1 family feature a combined Pin and GPIO
+  controller, named "Ports" in the hardware reference manual.
+  Pin multiplexing and GPIO configuration is performed on a per-pin basis
+  writing configuration values to per-port register sets.
+  Each "port" features up to 16 pins, each of them configurable for GPIO
+  function (port mode) or in alternate function mode.
+  Up to 8 different alternate function modes exist for each single pin.
+
+properties:
+  compatible:
+    oneOf:
+      - const: renesas,r7s72100-ports     # RZ/A1H
+      - items:
+          - const: renesas,r7s72101-ports # RZ/A1M
+          - const: renesas,r7s72100-ports # fallback
+      - const: renesas,r7s72102-ports     # RZ/A1L
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+patternProperties:
+  "^gpio-[0-9]*$":
+    type: object
+
+    description:
+      Each port of the r7s72100 pin controller hardware is itself a GPIO
+      controller.
+      Different SoCs have different numbers of available pins per port, but
+      generally speaking, each of them can be configured in GPIO ("port") mode
+      on this hardware.
+      Describe GPIO controllers using sub-nodes with the following properties.
+
+    properties:
+      gpio-controller: true
+
+      '#gpio-cells':
+        const: 2
+
+      gpio-ranges:
+        maxItems: 1
+
+    required:
+      - gpio-controller
+      - '#gpio-cells'
+      - gpio-ranges
+
+
+additionalProperties:
+  anyOf:
+    - type: object
+      allOf:
+        - $ref: pincfg-node.yaml#
+        - $ref: pinmux-node.yaml#
+
+      description:
+        A pin multiplexing sub-node describes how to configure a set of (or a
+        single) pin in some desired alternate function mode.
+        A single sub-node may define several pin configurations.
+        A few alternate function require special pin configuration flags to be
+        supplied along with the alternate function configuration number.
+        The hardware reference manual specifies when a pin function requires
+        "software IO driven" mode to be specified. To do so use the generic
+        properties from the <include/linux/pinctrl/pinconf_generic.h> header
+        file to instruct the pin controller to perform the desired pin
+        configuration operation.
+        The hardware reference manual specifies when a pin has to be configured
+        to work in bi-directional mode and when the IO direction has to be
+        specified by software. Bi-directional pins must be managed by the pin
+        controller driver internally, while software driven IO direction has to
+        be explicitly selected when multiple options are available.
+
+      properties:
+        pinmux:
+          description: |
+            Integer array representing pin number and pin multiplexing
+            configuration.
+            When a pin has to be configured in alternate function mode, use
+            this property to identify the pin by its global index, and provide
+            its alternate function configuration number along with it.
+            When multiple pins are required to be configured as part of the
+            same alternate function they shall be specified as members of the
+            same argument list of a single "pinmux" property.
+            Helper macros to ease assembling the pin index from its position
+            (port where it sits on and pin number) and alternate function
+            identifier are provided by the pin controller header file at:
+            <include/dt-bindings/pinctrl/r7s72100-pinctrl.h>
+            Integers values in "pinmux" argument list are assembled as:
+            ((PORT * 16 + PIN) | MUX_FUNC << 16)
+
+        phandle: true
+        input-enable: true
+        output-enable: true
+
+      required:
+        - pinmux
+
+      additionalProperties: false
+
+    - type: object
+      properties:
+        phandle: true
+
+      additionalProperties:
+        $ref: "#/additionalProperties/anyOf/0"
+
+examples:
+  - |
+    #include <dt-bindings/pinctrl/r7s72100-pinctrl.h>
+    pinctrl: pinctrl@fcfe3000 {
+            compatible = "renesas,r7s72100-ports";
+
+            reg = <0xfcfe3000 0x4230>;
+
+            /*
+             * A GPIO controller node, controlling 16 pins indexed from 0.
+             * The GPIO controller base in the global pin indexing space is pin
+             * 48, thus pins [0 - 15] on this controller map to pins [48 - 63]
+             * in the global pin indexing space.
+             */
+            port3: gpio-3 {
+                    gpio-controller;
+                    #gpio-cells = <2>;
+                    gpio-ranges = <&pinctrl 0 48 16>;
+            };
+
+            /*
+             * A serial communication interface with a TX output pin and an RX
+             * input pin.
+             * Pin #0 on port #3 is configured as alternate function #6.
+             * Pin #2 on port #3 is configured as alternate function #4.
+             */
+            scif2_pins: serial2 {
+                    pinmux = <RZA1_PINMUX(3, 0, 6)>, <RZA1_PINMUX(3, 2, 4)>;
+            };
+
+
+            /*
+             * I2c master: both SDA and SCL pins need bi-directional operations
+             * Pin #4 on port #1 is configured as alternate function #1.
+             * Pin #5 on port #1 is configured as alternate function #1.
+             * Both need to work in bi-directional mode, the driver must manage
+             * this internally.
+             */
+            i2c2_pins: i2c2 {
+                    pinmux = <RZA1_PINMUX(1, 4, 1)>, <RZA1_PINMUX(1, 5, 1)>;
+            };
+
+
+            /*
+             * Multi-function timer input and output compare pins.
+             */
+            tioc0_pins: tioc0 {
+                    /*
+                     * Configure TIOC0A as software driven input
+                     * Pin #0 on port #4 is configured as alternate function #2
+                     * with IO direction specified by software as input.
+                     */
+                    tioc0_input_pins {
+                            pinmux = <RZA1_PINMUX(4, 0, 2)>;
+                            input-enable;
+                    };
+
+                    /*
+                     * Configure TIOC0B as software driven output
+                     * Pin #1 on port #4 is configured as alternate function #1
+                     * with IO direction specified by software as output.
+                     */
+                    tioc0_output_pins {
+                            pinmux = <RZA1_PINMUX(4, 1, 1)>;
+                            output-enable;
+                    };
+            };
+    };

@@ -140,13 +140,12 @@ struct sg_table *dma_heap_map_dma_buf(struct dma_buf_attachment *attachment,
 				      enum dma_data_direction direction)
 {
 	struct dma_heaps_attachment *a = attachment->priv;
-	struct sg_table *table;
+	struct sg_table *table = &a->table;
+	int ret;
 
-	table = &a->table;
-
-	if (!dma_map_sg(attachment->dev, table->sgl, table->nents,
-			direction))
-		table = ERR_PTR(-ENOMEM);
+	ret = dma_map_sgtable(attachment->dev, table, direction, 0);
+	if (ret)
+		table = ERR_PTR(ret);
 	return table;
 }
 
@@ -154,7 +153,7 @@ static void dma_heap_unmap_dma_buf(struct dma_buf_attachment *attachment,
 				   struct sg_table *table,
 				   enum dma_data_direction direction)
 {
-	dma_unmap_sg(attachment->dev, table->sgl, table->nents, direction);
+	dma_unmap_sgtable(attachment->dev, table, direction, 0);
 }
 
 static vm_fault_t dma_heap_vm_fault(struct vm_fault *vmf)
@@ -236,7 +235,7 @@ static int dma_heap_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
 	return 0;
 }
 
-static void *dma_heap_dma_buf_vmap(struct dma_buf *dmabuf)
+static int dma_heap_dma_buf_vmap(struct dma_buf *dmabuf, struct dma_buf_map *map)
 {
 	struct heap_helper_buffer *buffer = dmabuf->priv;
 	void *vaddr;
@@ -245,10 +244,14 @@ static void *dma_heap_dma_buf_vmap(struct dma_buf *dmabuf)
 	vaddr = dma_heap_buffer_vmap_get(buffer);
 	mutex_unlock(&buffer->lock);
 
-	return vaddr;
+	if (!vaddr)
+		return -ENOMEM;
+	dma_buf_map_set_vaddr(map, vaddr);
+
+	return 0;
 }
 
-static void dma_heap_dma_buf_vunmap(struct dma_buf *dmabuf, void *vaddr)
+static void dma_heap_dma_buf_vunmap(struct dma_buf *dmabuf, struct dma_buf_map *map)
 {
 	struct heap_helper_buffer *buffer = dmabuf->priv;
 
