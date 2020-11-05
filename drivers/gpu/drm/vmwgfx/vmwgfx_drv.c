@@ -725,7 +725,7 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 	spin_lock_init(&dev_priv->cursor_lock);
 
 	for (i = vmw_res_context; i < vmw_res_max; ++i) {
-		idr_init(&dev_priv->res_idr[i]);
+		idr_init_base(&dev_priv->res_idr[i], 1);
 		INIT_LIST_HEAD(&dev_priv->res_lru[i]);
 	}
 
