@@ -378,7 +378,7 @@
 			#iommu-cells = <0>;
 		};
 
-		bus_dmc: bus_dmc {
+		bus_dmc: bus-dmc {
 			compatible = "samsung,exynos-bus";
 			clocks = <&clock CLK_DIV_DMC>;
 			clock-names = "bus";
@@ -388,7 +388,7 @@
 			status = "disabled";
 		};
 
-		bus_acp: bus_acp {
+		bus_acp: bus-acp {
 			compatible = "samsung,exynos-bus";
 			clocks = <&clock CLK_DIV_ACP>;
 			clock-names = "bus";
@@ -396,7 +396,7 @@
 			status = "disabled";
 		};
 
-		bus_c2c: bus_c2c {
+		bus_c2c: bus-c2c {
 			compatible = "samsung,exynos-bus";
 			clocks = <&clock CLK_DIV_C2C>;
 			clock-names = "bus";
@@ -447,7 +447,7 @@
 			};
 		};
 
-		bus_leftbus: bus_leftbus {
+		bus_leftbus: bus-leftbus {
 			compatible = "samsung,exynos-bus";
 			clocks = <&clock CLK_DIV_GDL>;
 			clock-names = "bus";
@@ -457,7 +457,7 @@
 			status = "disabled";
 		};
 
-		bus_rightbus: bus_rightbus {
+		bus_rightbus: bus-rightbus {
 			compatible = "samsung,exynos-bus";
 			clocks = <&clock CLK_DIV_GDR>;
 			clock-names = "bus";
@@ -465,7 +465,7 @@
 			status = "disabled";
 		};
 
-		bus_display: bus_display {
+		bus_display: bus-display {
 			compatible = "samsung,exynos-bus";
 			clocks = <&clock CLK_ACLK160>;
 			clock-names = "bus";
@@ -475,7 +475,7 @@
 			status = "disabled";
 		};
 
-		bus_fsys: bus_fsys {
+		bus_fsys: bus-fsys {
 			compatible = "samsung,exynos-bus";
 			clocks = <&clock CLK_ACLK133>;
 			clock-names = "bus";
@@ -483,7 +483,7 @@
 			status = "disabled";
 		};
 
-		bus_peri: bus_peri {
+		bus_peri: bus-peri {
 			compatible = "samsung,exynos-bus";
 			clocks = <&clock CLK_ACLK100>;
 			clock-names = "bus";
@@ -491,7 +491,7 @@
 			status = "disabled";
 		};
 
-		bus_mfc: bus_mfc {
+		bus_mfc: bus-mfc {
 			compatible = "samsung,exynos-bus";
 			clocks = <&clock CLK_SCLK_MFC>;
 			clock-names = "bus";
