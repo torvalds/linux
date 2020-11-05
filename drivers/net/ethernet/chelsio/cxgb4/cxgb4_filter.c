@@ -145,13 +145,13 @@ static int configure_filter_smac(struct adapter *adap, struct filter_entry *f)
 	int err;
 
 	/* do a set-tcb for smac-sel and CWR bit.. */
-	err = set_tcb_tflag(adap, f, f->tid, TF_CCTRL_CWR_S, 1, 1);
-	if (err)
-		goto smac_err;
-
 	err = set_tcb_field(adap, f, f->tid, TCB_SMAC_SEL_W,
 			    TCB_SMAC_SEL_V(TCB_SMAC_SEL_M),
 			    TCB_SMAC_SEL_V(f->smt->idx), 1);
+	if (err)
+		goto smac_err;
+
+	err = set_tcb_tflag(adap, f, f->tid, TF_CCTRL_CWR_S, 1, 1);
 	if (!err)
 		return 0;
 
@@ -608,6 +608,7 @@ int set_filter_wr(struct adapter *adapter, int fidx)
 		      FW_FILTER_WR_DIRSTEERHASH_V(f->fs.dirsteerhash) |
 		      FW_FILTER_WR_LPBK_V(f->fs.action == FILTER_SWITCH) |
 		      FW_FILTER_WR_DMAC_V(f->fs.newdmac) |
+		      FW_FILTER_WR_SMAC_V(f->fs.newsmac) |
 		      FW_FILTER_WR_INSVLAN_V(f->fs.newvlan == VLAN_INSERT ||
 					     f->fs.newvlan == VLAN_REWRITE) |
 		      FW_FILTER_WR_RMVLAN_V(f->fs.newvlan == VLAN_REMOVE ||
@@ -625,7 +626,7 @@ int set_filter_wr(struct adapter *adapter, int fidx)
 		 FW_FILTER_WR_OVLAN_VLD_V(f->fs.val.ovlan_vld) |
 		 FW_FILTER_WR_IVLAN_VLDM_V(f->fs.mask.ivlan_vld) |
 		 FW_FILTER_WR_OVLAN_VLDM_V(f->fs.mask.ovlan_vld));
-	fwr->smac_sel = 0;
+	fwr->smac_sel = f->smt->idx;
 	fwr->rx_chan_rx_rpl_iq =
 		htons(FW_FILTER_WR_RX_CHAN_V(0) |
 		      FW_FILTER_WR_RX_RPL_IQ_V(adapter->sge.fw_evtq.abs_id));
@@ -1019,11 +1020,8 @@ static void mk_act_open_req6(struct filter_entry *f, struct sk_buff *skb,
 			    TX_QUEUE_V(f->fs.nat_mode) |
 			    T5_OPT_2_VALID_F |
 			    RX_CHANNEL_F |
-			    CONG_CNTRL_V((f->fs.action == FILTER_DROP) |
-					 (f->fs.dirsteer << 1)) |
 			    PACE_V((f->fs.maskhash) |
-				   ((f->fs.dirsteerhash) << 1)) |
-			    CCTRL_ECN_V(f->fs.action == FILTER_SWITCH));
+				   ((f->fs.dirsteerhash) << 1)));
 }
 
 static void mk_act_open_req(struct filter_entry *f, struct sk_buff *skb,
@@ -1059,11 +1057,8 @@ static void mk_act_open_req(struct filter_entry *f, struct sk_buff *skb,
 			    TX_QUEUE_V(f->fs.nat_mode) |
 			    T5_OPT_2_VALID_F |
 			    RX_CHANNEL_F |
-			    CONG_CNTRL_V((f->fs.action == FILTER_DROP) |
-					 (f->fs.dirsteer << 1)) |
 			    PACE_V((f->fs.maskhash) |
-				   ((f->fs.dirsteerhash) << 1)) |
-			    CCTRL_ECN_V(f->fs.action == FILTER_SWITCH));
+				   ((f->fs.dirsteerhash) << 1)));
 }
 
 static int cxgb4_set_hash_filter(struct net_device *dev,
@@ -1722,6 +1717,20 @@ void hash_filter_rpl(struct adapter *adap, const struct cpl_act_open_rpl *rpl)
 			}
 			return;
 		}
+		switch (f->fs.action) {
+		case FILTER_PASS:
+			if (f->fs.dirsteer)
+				set_tcb_tflag(adap, f, tid,
+					      TF_DIRECT_STEER_S, 1, 1);
+			break;
+		case FILTER_DROP:
+			set_tcb_tflag(adap, f, tid, TF_DROP_S, 1, 1);
+			break;
+		case FILTER_SWITCH:
+			set_tcb_tflag(adap, f, tid, TF_LPBK_S, 1, 1);
+			break;
+		}
+
 		break;
 
 	default:
@@ -1781,22 +1790,11 @@ void filter_rpl(struct adapter *adap, const struct cpl_set_tcb_rpl *rpl)
 			if (ctx)
 				ctx->result = 0;
 		} else if (ret == FW_FILTER_WR_FLT_ADDED) {
-			int err = 0;
-
-			if (f->fs.newsmac)
-				err = configure_filter_smac(adap, f);
-
-			if (!err) {
-				f->pending = 0;  /* async setup completed */
-				f->valid = 1;
-				if (ctx) {
-					ctx->result = 0;
-					ctx->tid = idx;
-				}
-			} else {
-				clear_filter(adap, f);
-				if (ctx)
-					ctx->result = err;
+			f->pending = 0;  /* async setup completed */
+			f->valid = 1;
+			if (ctx) {
+				ctx->result = 0;
+				ctx->tid = idx;
 			}
 		} else {
 			/* Something went wrong.  Issue a warning about the

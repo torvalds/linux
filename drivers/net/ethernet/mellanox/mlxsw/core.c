@@ -488,6 +488,9 @@ static void mlxsw_emad_transmit_retry(struct mlxsw_core *mlxsw_core,
 		err = mlxsw_emad_transmit(trans->core, trans);
 		if (err == 0)
 			return;
+
+		if (!atomic_dec_and_test(&trans->active))
+			return;
 	} else {
 		err = -EIO;
 	}
@@ -1111,6 +1114,8 @@ void mlxsw_core_bus_device_unregister(struct mlxsw_core *mlxsw_core,
 	if (!reload)
 		devlink_resources_unregister(devlink, NULL);
 	mlxsw_core->bus->fini(mlxsw_core->bus_priv);
+	if (!reload)
+		devlink_free(devlink);
 
 	return;
 

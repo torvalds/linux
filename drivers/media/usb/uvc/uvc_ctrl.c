@@ -1853,30 +1853,35 @@ int uvc_xu_ctrl_query(struct uvc_video_chain *chain,
 {
 	struct uvc_entity *entity;
 	struct uvc_control *ctrl;
-	unsigned int i, found = 0;
+	unsigned int i;
+	bool found;
 	u32 reqflags;
 	u16 size;
 	u8 *data = NULL;
 	int ret;
 
 	/* Find the extension unit. */
+	found = false;
 	list_for_each_entry(entity, &chain->entities, chain) {
 		if (UVC_ENTITY_TYPE(entity) == UVC_VC_EXTENSION_UNIT &&
-		    entity->id == xqry->unit)
+		    entity->id == xqry->unit) {
+			found = true;
 			break;
+		}
 	}
 
-	if (entity->id != xqry->unit) {
+	if (!found) {
 		uvc_trace(UVC_TRACE_CONTROL, "Extension unit %u not found.\n",
 			xqry->unit);
 		return -ENOENT;
 	}
 
 	/* Find the control and perform delayed initialization if needed. */
+	found = false;
 	for (i = 0; i < entity->ncontrols; ++i) {
 		ctrl = &entity->controls[i];
 		if (ctrl->index == xqry->selector - 1) {
-			found = 1;
+			found = true;
 			break;
 		}
 	}
@@ -2032,13 +2037,6 @@ static int uvc_ctrl_add_info(struct uvc_device *dev, struct uvc_control *ctrl,
 		ret = -ENOMEM;
 		goto done;
 	}
-
-	/*
-	 * Retrieve control flags from the device. Ignore errors and work with
-	 * default flag values from the uvc_ctrl array when the device doesn't
-	 * properly implement GET_INFO on standard controls.
-	 */
-	uvc_ctrl_get_flags(dev, ctrl, &ctrl->info);
 
 	ctrl->initialized = 1;
 
@@ -2262,6 +2260,13 @@ static void uvc_ctrl_init_ctrl(struct uvc_device *dev, struct uvc_control *ctrl)
 		if (uvc_entity_match_guid(ctrl->entity, info->entity) &&
 		    ctrl->index == info->index) {
 			uvc_ctrl_add_info(dev, ctrl, info);
+			/*
+			 * Retrieve control flags from the device. Ignore errors
+			 * and work with default flag values from the uvc_ctrl
+			 * array when the device doesn't properly implement
+			 * GET_INFO on standard controls.
+			 */
+			uvc_ctrl_get_flags(dev, ctrl, &ctrl->info);
 			break;
 		 }
 	}
