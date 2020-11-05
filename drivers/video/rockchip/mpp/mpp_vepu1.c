@@ -109,7 +109,7 @@ static const u16 trans_tbl_default[] = {
 };
 
 static const u16 trans_tbl_vp8e[] = {
-	5, 6, 7, 8, 9, 10, 11, 12, 13, 16, 17, 26, 51, 52, 58, 59
+	5, 6, 7, 8, 9, 10, 11, 12, 13, 16, 17, 26, 51, 52, 58, 59, 71
 };
 
 static struct mpp_trans_info trans_rk_vepu1[] = {
