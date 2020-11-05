@@ -259,6 +259,8 @@ static void gsi_irq_setup(struct gsi *gsi)
 	iowrite32(0, gsi->virt + GSI_CNTXT_SRC_EV_CH_IRQ_MSK_OFFSET);
 	iowrite32(0, gsi->virt + GSI_CNTXT_GLOB_IRQ_EN_OFFSET);
 	iowrite32(0, gsi->virt + GSI_CNTXT_SRC_IEOB_IRQ_MSK_OFFSET);
+	iowrite32(0, gsi->virt + GSI_INTER_EE_SRC_CH_IRQ_OFFSET);
+	iowrite32(0, gsi->virt + GSI_INTER_EE_SRC_EV_CH_IRQ_OFFSET);
 }
 
 /* Turn off all GSI interrupts when we're all done */
@@ -306,8 +308,6 @@ static void gsi_irq_enable(struct gsi *gsi)
 	 */
 	iowrite32(ERROR_INT_FMASK, gsi->virt + GSI_CNTXT_GLOB_IRQ_EN_OFFSET);
 	gsi->type_enabled_bitmap |= BIT(GSI_GLOB_EE);
-
-	/* We don't use inter-EE channel or event interrupts */
 
 	/* Never enable GSI_BREAK_POINT */
 	val = GSI_CNTXT_GSI_IRQ_ALL & ~BREAK_POINT_FMASK;
