@@ -561,6 +561,11 @@ Once the kernel is built and installed, a simple
 
 ...will run the tests.
 
+.. note::
+   Note that you should make sure your test depends on ``KUNIT=y`` in Kconfig
+   if the test does not support module build.  Otherwise, it will trigger
+   compile errors if ``CONFIG_KUNIT`` is ``m``.
+
 Writing new tests for other architectures
 -----------------------------------------
 
