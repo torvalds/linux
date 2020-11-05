@@ -182,7 +182,7 @@ u8 chk_sta_is_alive(struct sta_info *psta)
 {
 	#ifdef DBG_EXPIRATION_CHK
 	DBG_871X(
-		"sta:"MAC_FMT", rssi:%d, rx:"STA_PKTS_FMT", expire_to:%u, %s%ssq_len:%u\n"
+		"sta:%pM, rssi:%d, rx:"STA_PKTS_FMT", expire_to:%u, %s%ssq_len:%u\n"
 		, MAC_ARG(psta->hwaddr)
 		, psta->rssi_stat.UndecoratedSmoothedPWDB
 		/*  STA_RX_PKTS_ARG(psta) */
@@ -297,7 +297,7 @@ void expire_timeout_chk(struct adapter *padapter)
 					psta->expire_to = pstapriv->expire_to;
 					psta->state |= WIFI_STA_ALIVE_CHK_STATE;
 
-					/* DBG_871X("alive chk, sta:" MAC_FMT " is at ps mode!\n", MAC_ARG(psta->hwaddr)); */
+					/* DBG_871X("alive chk, sta:%pM is at ps mode!\n", MAC_ARG(psta->hwaddr)); */
 
 					/* to update bcn with tim_bitmap for this station */
 					pstapriv->tim_bitmap |= BIT(psta->aid);
@@ -319,7 +319,7 @@ void expire_timeout_chk(struct adapter *padapter)
 			list_del_init(&psta->asoc_list);
 			pstapriv->asoc_list_cnt--;
 			DBG_871X(
-				"asoc expire "MAC_FMT", state = 0x%x\n",
+				"asoc expire %pM, state = 0x%x\n",
 				MAC_ARG(psta->hwaddr),
 				psta->state
 			);
@@ -332,7 +332,7 @@ void expire_timeout_chk(struct adapter *padapter)
 				) / 2)
 			) {
 				DBG_871X(
-					"%s sta:"MAC_FMT", sleepq_len:%u, free_xmitframe_cnt:%u, asoc_list_cnt:%u, clear sleep_q\n",
+					"%s sta:%pM, sleepq_len:%u, free_xmitframe_cnt:%u, asoc_list_cnt:%u, clear sleep_q\n",
 					__func__,
 					MAC_ARG(psta->hwaddr),
 					psta->sleepq_len,
@@ -372,7 +372,7 @@ void expire_timeout_chk(struct adapter *padapter)
 			psta->keep_alive_trycnt++;
 			if (ret == _SUCCESS) {
 				DBG_871X(
-					"asoc check, sta(" MAC_FMT ") is alive\n",
+					"asoc check, sta(%pM) is alive\n",
 					MAC_ARG(psta->hwaddr)
 					);
 				psta->expire_to = pstapriv->expire_to;
@@ -387,10 +387,8 @@ void expire_timeout_chk(struct adapter *padapter)
 			}
 
 			psta->keep_alive_trycnt = 0;
-			DBG_871X(
-				"asoc expire "MAC_FMT", state = 0x%x\n",
-				MAC_ARG(psta->hwaddr),
-				psta->state);
+			DBG_871X("asoc expire %pM, state = 0x%x\n", MAC_ARG(psta->hwaddr),
+				 psta->state);
 			spin_lock_bh(&pstapriv->asoc_list_lock);
 			if (list_empty(&psta->asoc_list) == false) {
 				list_del_init(&psta->asoc_list);
@@ -1335,12 +1333,7 @@ int rtw_acl_add_sta(struct adapter *padapter, u8 *addr)
 	struct wlan_acl_pool *pacl_list = &pstapriv->acl_list;
 	struct __queue	*pacl_node_q = &pacl_list->acl_node_q;
 
-	DBG_871X(
-		"%s(acl_num =%d) =" MAC_FMT "\n",
-		__func__,
-		pacl_list->num,
-		MAC_ARG(addr)
-	);
+	DBG_871X("%s(acl_num =%d) =%pM\n", __func__, pacl_list->num, MAC_ARG(addr));
 
 	if ((NUM_ACL - 1) < pacl_list->num)
 		return (-1);
@@ -1404,12 +1397,7 @@ void rtw_acl_remove_sta(struct adapter *padapter, u8 *addr)
 	struct __queue	*pacl_node_q = &pacl_list->acl_node_q;
 	u8 baddr[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };	/* Baddr is used for clearing acl_list */
 
-	DBG_871X(
-		"%s(acl_num =%d) =" MAC_FMT "\n",
-		__func__,
-		pacl_list->num,
-		MAC_ARG(addr)
-	);
+	DBG_871X("%s(acl_num =%d) =%pM\n", __func__, pacl_list->num, MAC_ARG(addr));
 
 	spin_lock_bh(&(pacl_node_q->lock));
 
@@ -2021,7 +2009,7 @@ void bss_cap_update_on_sta_join(struct adapter *padapter, struct sta_info *psta)
 	if (psta->flags & WLAN_STA_HT) {
 		u16 ht_capab = le16_to_cpu(psta->htpriv.ht_cap.cap_info);
 
-		DBG_871X("HT: STA " MAC_FMT " HT Capabilities "
+		DBG_871X("HT: STA %pM HT Capabilities "
 			   "Info: 0x%04x\n", MAC_ARG(psta->hwaddr), ht_capab);
 
 		if (psta->no_ht_set) {
@@ -2034,7 +2022,7 @@ void bss_cap_update_on_sta_join(struct adapter *padapter, struct sta_info *psta)
 				psta->no_ht_gf_set = 1;
 				pmlmepriv->num_sta_ht_no_gf++;
 			}
-			DBG_871X("%s STA " MAC_FMT " - no "
+			DBG_871X("%s STA %pM - no "
 				   "greenfield, num of non-gf stations %d\n",
 				   __func__, MAC_ARG(psta->hwaddr),
 				   pmlmepriv->num_sta_ht_no_gf);
@@ -2045,7 +2033,7 @@ void bss_cap_update_on_sta_join(struct adapter *padapter, struct sta_info *psta)
 				psta->ht_20mhz_set = 1;
 				pmlmepriv->num_sta_ht_20mhz++;
 			}
-			DBG_871X("%s STA " MAC_FMT " - 20 MHz HT, "
+			DBG_871X("%s STA %pM - 20 MHz HT, "
 				   "num of 20MHz HT STAs %d\n",
 				   __func__, MAC_ARG(psta->hwaddr),
 				   pmlmepriv->num_sta_ht_20mhz);
@@ -2057,8 +2045,7 @@ void bss_cap_update_on_sta_join(struct adapter *padapter, struct sta_info *psta)
 			pmlmepriv->num_sta_no_ht++;
 		}
 		if (pmlmepriv->htpriv.ht_option == true) {
-			DBG_871X("%s STA " MAC_FMT
-				   " - no HT, num of non-HT stations %d\n",
+			DBG_871X("%s STA %pM - no HT, num of non-HT stations %d\n",
 				   __func__, MAC_ARG(psta->hwaddr),
 				   pmlmepriv->num_sta_no_ht);
 		}

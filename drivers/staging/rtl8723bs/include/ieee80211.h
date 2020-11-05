@@ -844,7 +844,6 @@ enum ieee80211_state {
 
 #define DEFAULT_MAX_SCAN_AGE (15 * HZ)
 #define DEFAULT_FTS 2346
-#define MAC_FMT "%pM"
 #define MAC_ARG(x) (x)
 #define IP_FMT "%pI4"
 #define IP_ARG(x) (x)

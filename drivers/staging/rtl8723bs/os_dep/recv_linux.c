@@ -220,7 +220,7 @@ static void rtw_os_ksocket_send(struct adapter *padapter, union recv_frame *prec
 
 		rx_pid = *(u16*)(skb->data+ETH_HLEN);
 
-		DBG_871X("eth rx(pid = 0x%x): sta("MAC_FMT") pid = 0x%x\n",
+		DBG_871X("eth rx(pid = 0x%x): sta(%pM) pid = 0x%x\n",
 			rx_pid, MAC_ARG(psta->hwaddr), psta->pid);
 
 		if (rx_pid == psta->pid) {
