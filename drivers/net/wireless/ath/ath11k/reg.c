@@ -278,6 +278,7 @@ ath11k_map_fw_dfs_region(enum ath11k_dfs_region dfs_region)
 	case ATH11K_DFS_REG_KR:
 		return NL80211_DFS_ETSI;
 	case ATH11K_DFS_REG_MKK:
+	case ATH11K_DFS_REG_MKK_N:
 		return NL80211_DFS_JP;
 	default:
 		return NL80211_DFS_UNSET;
