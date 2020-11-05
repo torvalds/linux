@@ -118,9 +118,8 @@ static int i2c_multi_inst_probe(struct platform_device *pdev)
 		}
 		multi->clients[i] = i2c_acpi_new_device(dev, i, &board_info);
 		if (IS_ERR(multi->clients[i])) {
-			ret = PTR_ERR(multi->clients[i]);
-			if (ret != -EPROBE_DEFER)
-				dev_err(dev, "Error creating i2c-client, idx %d\n", i);
+			ret = dev_err_probe(dev, PTR_ERR(multi->clients[i]),
+					    "Error creating i2c-client, idx %d\n", i);
 			goto error;
 		}
 	}
