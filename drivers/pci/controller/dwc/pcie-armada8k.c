@@ -171,8 +171,6 @@ static int armada8k_pcie_host_init(struct pcie_port *pp)
 	u32 reg;
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 
-	dw_pcie_setup_rc(pp);
-
 	if (!dw_pcie_link_up(pci)) {
 		/* Disable LTSSM state machine to enable configuration */
 		reg = dw_pcie_readl_dbi(pci, PCIE_GLOBAL_CONTROL_REG);

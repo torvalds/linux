@@ -130,8 +130,6 @@ static int spear13xx_pcie_host_init(struct pcie_port *pp)
 
 	spear13xx_pcie->app_base = pci->dbi_base + 0x2000;
 
-	dw_pcie_setup_rc(pp);
-
 	/*
 	 * this controller support only 128 bytes read size, however its
 	 * default value in capability register is 512 bytes. So force

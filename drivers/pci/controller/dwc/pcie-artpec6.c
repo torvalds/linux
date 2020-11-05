@@ -328,7 +328,6 @@ static int artpec6_pcie_host_init(struct pcie_port *pp)
 	artpec6_pcie_init_phy(artpec6_pcie);
 	artpec6_pcie_deassert_core_reset(artpec6_pcie);
 	artpec6_pcie_wait_for_phy(artpec6_pcie);
-	dw_pcie_setup_rc(pp);
 
 	return 0;
 }

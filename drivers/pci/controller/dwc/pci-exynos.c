@@ -372,7 +372,6 @@ static int exynos_pcie_host_init(struct pcie_port *pp)
 	phy_init(ep->phy);
 
 	exynos_pcie_deassert_core_reset(ep);
-	dw_pcie_setup_rc(pp);
 	exynos_pcie_assert_reset(ep);
 
 	exynos_pcie_enable_interrupts(ep);

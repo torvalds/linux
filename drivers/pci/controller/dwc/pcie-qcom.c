@@ -1280,7 +1280,6 @@ static int qcom_pcie_host_init(struct pcie_port *pp)
 			goto err_disable_phy;
 	}
 
-	dw_pcie_setup_rc(pp);
 	qcom_ep_reset_deassert(pcie);
 
 	return 0;
