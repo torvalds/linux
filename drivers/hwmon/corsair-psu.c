@@ -241,7 +241,7 @@ static int corsairpsu_get_value(struct corsairpsu_data *priv, u8 cmd, u8 rail, l
 	 * the LINEAR11 conversion are the watts values which are about 1200 for the strongest psu
 	 * supported (HX1200i)
 	 */
-	tmp = (data[3] << 24) + (data[2] << 16) + (data[1] << 8) + data[0];
+	tmp = ((long)data[3] << 24) + (data[2] << 16) + (data[1] << 8) + data[0];
 	switch (cmd) {
 	case PSU_CMD_IN_VOLTS:
 	case PSU_CMD_IN_AMPS:
