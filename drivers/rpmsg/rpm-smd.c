@@ -1430,7 +1430,7 @@ static int smd_mask_receive_interrupt(bool mask,
 
 	if (mask) {
 		irq_chip->irq_mask(irq_data);
-		if (cpumask)
+		if (cpumask && irq_chip->irq_set_affinity)
 			irq_chip->irq_set_affinity(irq_data, cpumask, true);
 	} else {
 		irq_chip->irq_unmask(irq_data);
