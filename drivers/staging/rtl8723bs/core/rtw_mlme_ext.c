@@ -1944,21 +1944,21 @@ unsigned int OnAction_back(struct adapter *padapter, union recv_frame *precv_fra
 		action = frame_body[1];
 		DBG_871X("%s, action =%d\n", __func__, action);
 		switch (action) {
-		case RTW_WLAN_ACTION_ADDBA_REQ: /* ADDBA request */
+		case WLAN_ACTION_ADDBA_REQ: /* ADDBA request */
 
 			memcpy(&(pmlmeinfo->ADDBA_req), &(frame_body[2]), sizeof(struct ADDBA_request));
 			/* process_addba_req(padapter, (u8 *)&(pmlmeinfo->ADDBA_req), GetAddr3Ptr(pframe)); */
 			process_addba_req(padapter, (u8 *)&(pmlmeinfo->ADDBA_req), addr);
 
 			if (pmlmeinfo->accept_addba_req) {
-				issue_action_BA(padapter, addr, RTW_WLAN_ACTION_ADDBA_RESP, 0);
+				issue_action_BA(padapter, addr, WLAN_ACTION_ADDBA_RESP, 0);
 			} else {
-				issue_action_BA(padapter, addr, RTW_WLAN_ACTION_ADDBA_RESP, 37);/* reject ADDBA Req */
+				issue_action_BA(padapter, addr, WLAN_ACTION_ADDBA_RESP, 37);/* reject ADDBA Req */
 			}
 
 			break;
 
-		case RTW_WLAN_ACTION_ADDBA_RESP: /* ADDBA response */
+		case WLAN_ACTION_ADDBA_RESP: /* ADDBA response */
 			status = get_unaligned_le16(&frame_body[3]);
 			tid = ((frame_body[5] >> 2) & 0x7);
 
@@ -1981,7 +1981,7 @@ unsigned int OnAction_back(struct adapter *padapter, union recv_frame *precv_fra
 			/* DBG_871X("marc: ADDBA RSP: %x\n", pmlmeinfo->agg_enable_bitmap); */
 			break;
 
-		case RTW_WLAN_ACTION_DELBA: /* DELBA */
+		case WLAN_ACTION_DELBA: /* DELBA */
 			if ((frame_body[3] & BIT(3)) == 0) {
 				psta->htpriv.agg_enable_bitmap &=
 					~BIT((frame_body[3] >> 4) & 0xf);
@@ -4199,7 +4199,7 @@ unsigned int send_delba(struct adapter *padapter, u8 initiator, u8 *addr)
 		for (tid = 0; tid < MAXTID; tid++) {
 			if (psta->recvreorder_ctrl[tid].enable) {
 				DBG_871X("rx agg disable tid(%d)\n", tid);
-				issue_action_BA(padapter, addr, RTW_WLAN_ACTION_DELBA, (((tid << 1) | initiator)&0x1F));
+				issue_action_BA(padapter, addr, WLAN_ACTION_DELBA, (((tid << 1) | initiator)&0x1F));
 				psta->recvreorder_ctrl[tid].enable = false;
 				psta->recvreorder_ctrl[tid].indicate_seq = 0xffff;
 				#ifdef DBG_RX_SEQ
@@ -4213,7 +4213,7 @@ unsigned int send_delba(struct adapter *padapter, u8 initiator, u8 *addr)
 		for (tid = 0; tid < MAXTID; tid++) {
 			if (psta->htpriv.agg_enable_bitmap & BIT(tid)) {
 				DBG_871X("tx agg disable tid(%d)\n", tid);
-				issue_action_BA(padapter, addr, RTW_WLAN_ACTION_DELBA, (((tid << 1) | initiator)&0x1F));
+				issue_action_BA(padapter, addr, WLAN_ACTION_DELBA, (((tid << 1) | initiator)&0x1F));
 				psta->htpriv.agg_enable_bitmap &= ~BIT(tid);
 				psta->htpriv.candidate_tid_bitmap &= ~BIT(tid);
 
@@ -6529,7 +6529,7 @@ u8 add_ba_hdl(struct adapter *padapter, unsigned char *pbuf)
 		/* pmlmeinfo->ADDBA_retry_count = 0; */
 		/* pmlmeinfo->candidate_tid_bitmap |= (0x1 << pparm->tid); */
 		/* psta->htpriv.candidate_tid_bitmap |= BIT(pparm->tid); */
-		issue_action_BA(padapter, pparm->addr, RTW_WLAN_ACTION_ADDBA_REQ, (u16)pparm->tid);
+		issue_action_BA(padapter, pparm->addr, WLAN_ACTION_ADDBA_REQ, (u16)pparm->tid);
 		/* _set_timer(&pmlmeext->ADDBA_timer, ADDBA_TO); */
 		_set_timer(&psta->addba_retry_timer, ADDBA_TO);
 	} else {

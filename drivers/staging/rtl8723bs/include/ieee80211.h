@@ -913,13 +913,6 @@ enum _PUBLIC_ACTION {
 	ACT_PUBLIC_MAX
 };
 
-/* BACK action code */
-enum rtw_ieee80211_back_actioncode {
-	RTW_WLAN_ACTION_ADDBA_REQ = 0,
-	RTW_WLAN_ACTION_ADDBA_RESP = 1,
-	RTW_WLAN_ACTION_DELBA = 2,
-};
-
 /* BACK (block-ack) parties */
 enum rtw_ieee80211_back_parties {
 	RTW_WLAN_BACK_RECIPIENT = 0,
