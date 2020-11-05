@@ -1942,26 +1942,15 @@ static int qgroup_trace_extent_swap(struct btrfs_trans_handle* trans,
 		struct btrfs_key dst_key;
 
 		if (src_path->nodes[cur_level] == NULL) {
-			struct btrfs_key first_key;
 			struct extent_buffer *eb;
 			int parent_slot;
-			u64 child_gen;
-			u64 child_bytenr;
 
 			eb = src_path->nodes[cur_level + 1];
 			parent_slot = src_path->slots[cur_level + 1];
-			child_bytenr = btrfs_node_blockptr(eb, parent_slot);
-			child_gen = btrfs_node_ptr_generation(eb, parent_slot);
-			btrfs_node_key_to_cpu(eb, &first_key, parent_slot);
 
-			eb = read_tree_block(fs_info, child_bytenr, child_gen,
-					     cur_level, &first_key);
+			eb = btrfs_read_node_slot(eb, parent_slot);
 			if (IS_ERR(eb)) {
 				ret = PTR_ERR(eb);
-				goto out;
-			} else if (!extent_buffer_uptodate(eb)) {
-				free_extent_buffer(eb);
-				ret = -EIO;
 				goto out;
 			}
 
