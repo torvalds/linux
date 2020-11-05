@@ -73,6 +73,11 @@
 		};
 	};
 
+	pir {
+		compatible = "aschip,pir";
+		pulse-gpios = <&gpio2 RK_PD6 GPIO_ACTIVE_LOW>;
+	};
+
 	vcc1v2_dvdd: vcc1v8_dovdd: vcc2v8_avdd: vcc-camera {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_camera";
