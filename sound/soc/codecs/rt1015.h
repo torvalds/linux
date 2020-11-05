@@ -12,6 +12,7 @@
 
 #ifndef __RT1015_H__
 #define __RT1015_H__
+#include <sound/rt1015.h>
 
 #define RT1015_DEVICE_ID_VAL			0x1011
 #define RT1015_DEVICE_ID_VAL2			0x1015
@@ -380,6 +381,7 @@ enum {
 
 struct rt1015_priv {
 	struct snd_soc_component *component;
+	struct rt1015_platform_data pdata;
 	struct regmap *regmap;
 	int sysclk;
 	int sysclk_src;
