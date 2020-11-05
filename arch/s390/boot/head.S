@@ -320,6 +320,7 @@ SYM_CODE_START_LOCAL(startup_normal)
 	spt	6f-.LPG0(%r13)
 	mvc	__LC_LAST_UPDATE_TIMER(8),6f-.LPG0(%r13)
 	larl	%r15,_stack_end-STACK_FRAME_OVERHEAD
+	brasl	%r14,sclp_early_setup_buffer
 	brasl	%r14,verify_facilities
 	brasl	%r14,startup_kernel
 SYM_CODE_END(startup_normal)
@@ -409,8 +410,5 @@ SYM_DATA_START(parmarea)
 	.byte	0
 	.org	PARMAREA+__PARMAREA_SIZE
 SYM_DATA_END(parmarea)
-
-	.org	EARLY_SCCB_OFFSET
-	.fill	EXT_SCCB_READ_SCP
 
 	.org	HEAD_END

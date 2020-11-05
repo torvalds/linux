@@ -3,6 +3,7 @@
 #include <asm/vmlinux.lds.h>
 #include <asm/thread_info.h>
 #include <asm/page.h>
+#include <asm/sclp.h>
 
 OUTPUT_FORMAT("elf64-s390", "elf64-s390", "elf64-s390")
 OUTPUT_ARCH(s390:64-bit)
@@ -54,7 +55,9 @@ SECTIONS
 		KEEP(*(.dma.ex_table))
 		_stop_dma_ex_table = .;
 	}
-	.dma.data : { *(.dma.data) }
+	.dma.data : {
+		*(.dma.data)
+	}
 	. = ALIGN(PAGE_SIZE);
 	_edma = .;
 

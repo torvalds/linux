@@ -13,6 +13,7 @@ void setup_boot_command_line(void);
 void parse_boot_command_line(void);
 void verify_facilities(void);
 void print_missing_facilities(void);
+void sclp_early_setup_buffer(void);
 void print_pgm_check_info(void);
 unsigned long get_random_base(unsigned long safe_addr);
 void __printf(1, 2) decompressor_printk(const char *fmt, ...);

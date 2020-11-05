@@ -17,7 +17,7 @@
 
 static struct read_info_sccb __bootdata(sclp_info_sccb);
 static int __bootdata(sclp_info_sccb_valid);
-char *sclp_early_sccb = (char *) EARLY_SCCB_OFFSET;
+char *__bootdata(sclp_early_sccb);
 int sclp_init_state = sclp_init_state_uninitialized;
 /*
  * Used to keep track of the size of the event masks. Qemu until version 2.11
@@ -209,6 +209,11 @@ static int sclp_early_setup(int disable, int *have_linemode, int *have_vt220)
 	*have_linemode = sclp_early_con_check_linemode(sccb);
 	*have_vt220 = !!(sccb_get_send_mask(sccb) & EVTYP_VT220MSG_MASK);
 	return rc;
+}
+
+void sclp_early_set_buffer(void *sccb)
+{
+	sclp_early_sccb = sccb;
 }
 
 /*
