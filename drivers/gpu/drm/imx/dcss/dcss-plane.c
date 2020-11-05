@@ -257,7 +257,8 @@ static bool dcss_plane_needs_setup(struct drm_plane_state *state,
 	       state->src_h  != old_state->src_h  ||
 	       fb->format->format != old_fb->format->format ||
 	       fb->modifier  != old_fb->modifier ||
-	       state->rotation != old_state->rotation;
+	       state->rotation != old_state->rotation ||
+	       state->scaling_filter != old_state->scaling_filter;
 }
 
 static void dcss_plane_atomic_update(struct drm_plane *plane,
@@ -312,6 +313,9 @@ static void dcss_plane_atomic_update(struct drm_plane *plane,
 
 	is_rotation_90_or_270 = state->rotation & (DRM_MODE_ROTATE_90 |
 						   DRM_MODE_ROTATE_270);
+
+	dcss_scaler_set_filter(dcss->scaler, dcss_plane->ch_num,
+			       state->scaling_filter);
 
 	dcss_scaler_setup(dcss->scaler, dcss_plane->ch_num,
 			  state->fb->format,
@@ -393,6 +397,10 @@ struct dcss_plane *dcss_plane_init(struct drm_device *drm,
 	ret = drm_plane_create_zpos_immutable_property(&dcss_plane->base, zpos);
 	if (ret)
 		return ERR_PTR(ret);
+
+	drm_plane_create_scaling_filter_property(&dcss_plane->base,
+					BIT(DRM_SCALING_FILTER_DEFAULT) |
+					BIT(DRM_SCALING_FILTER_NEAREST_NEIGHBOR));
 
 	drm_plane_create_rotation_property(&dcss_plane->base,
 					   DRM_MODE_ROTATE_0,
