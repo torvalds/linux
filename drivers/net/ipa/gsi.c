@@ -261,6 +261,7 @@ static void gsi_irq_setup(struct gsi *gsi)
 	iowrite32(0, gsi->virt + GSI_CNTXT_SRC_IEOB_IRQ_MSK_OFFSET);
 	iowrite32(0, gsi->virt + GSI_INTER_EE_SRC_CH_IRQ_OFFSET);
 	iowrite32(0, gsi->virt + GSI_INTER_EE_SRC_EV_CH_IRQ_OFFSET);
+	iowrite32(0, gsi->virt + GSI_CNTXT_GSI_IRQ_EN_OFFSET);
 }
 
 /* Turn off all GSI interrupts when we're all done */
@@ -309,8 +310,14 @@ static void gsi_irq_enable(struct gsi *gsi)
 	iowrite32(ERROR_INT_FMASK, gsi->virt + GSI_CNTXT_GLOB_IRQ_EN_OFFSET);
 	gsi->type_enabled_bitmap |= BIT(GSI_GLOB_EE);
 
-	/* Never enable GSI_BREAK_POINT */
-	val = GSI_CNTXT_GSI_IRQ_ALL & ~BREAK_POINT_FMASK;
+	/* General GSI interrupts are reported to all EEs; if they occur
+	 * they are unrecoverable (without reset).  A breakpoint interrupt
+	 * also exists, but we don't support that.  We want to be notified
+	 * of errors so we can report them, even if they can't be handled.
+	 */
+	val = BUS_ERROR_FMASK;
+	val |= CMD_FIFO_OVRFLOW_FMASK;
+	val |= MCS_STACK_OVRFLOW_FMASK;
 	iowrite32(val, gsi->virt + GSI_CNTXT_GSI_IRQ_EN_OFFSET);
 	gsi->type_enabled_bitmap |= BIT(GSI_GENERAL);
 
@@ -1186,8 +1193,7 @@ static void gsi_isr_general(struct gsi *gsi)
 	val = ioread32(gsi->virt + GSI_CNTXT_GSI_IRQ_STTS_OFFSET);
 	iowrite32(val, gsi->virt + GSI_CNTXT_GSI_IRQ_CLR_OFFSET);
 
-	if (val)
-		dev_err(dev, "unexpected general interrupt 0x%08x\n", val);
+	dev_err(dev, "unexpected general interrupt 0x%08x\n", val);
 }
 
 /**
