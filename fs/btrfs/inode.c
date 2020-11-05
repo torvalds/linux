@@ -2340,8 +2340,8 @@ static int btrfs_find_new_delalloc_bytes(struct btrfs_inode *inode,
 
 		ret = set_extent_bit(&inode->io_tree, search_start,
 				     search_start + em_len - 1,
-				     EXTENT_DELALLOC_NEW,
-				     NULL, cached_state, GFP_NOFS);
+				     EXTENT_DELALLOC_NEW, 0, NULL, cached_state,
+				     GFP_NOFS, NULL);
 next:
 		search_start = extent_map_end(em);
 		free_extent_map(em);
@@ -4769,7 +4769,7 @@ again:
 
 	if (only_release_metadata)
 		set_extent_bit(&inode->io_tree, block_start, block_end,
-			       EXTENT_NORESERVE, NULL, GFP_NOFS);
+			       EXTENT_NORESERVE, 0, NULL, NULL, GFP_NOFS, NULL);
 
 out_unlock:
 	if (ret) {
