@@ -2042,6 +2042,8 @@ bad:
 
 static int process_banner(struct ceph_connection *con)
 {
+	struct ceph_entity_addr *my_addr = &con->msgr->inst.addr;
+
 	dout("process_banner on %p\n", con);
 
 	if (verify_hello(con) < 0)
@@ -2068,16 +2070,14 @@ static int process_banner(struct ceph_connection *con)
 	/*
 	 * did we learn our address?
 	 */
-	if (addr_is_blank(&con->msgr->inst.addr)) {
-		int port = addr_port(&con->msgr->inst.addr);
-
-		memcpy(&con->msgr->inst.addr.in_addr,
+	if (addr_is_blank(my_addr)) {
+		memcpy(&my_addr->in_addr,
 		       &con->peer_addr_for_me.in_addr,
 		       sizeof(con->peer_addr_for_me.in_addr));
-		addr_set_port(&con->msgr->inst.addr, port);
+		addr_set_port(my_addr, 0);
 		encode_my_addr(con->msgr);
 		dout("process_banner learned my addr is %s\n",
-		     ceph_pr_addr(&con->msgr->inst.addr));
+		     ceph_pr_addr(my_addr));
 	}
 
 	return 0;
@@ -3058,12 +3058,19 @@ void ceph_messenger_init(struct ceph_messenger *msgr,
 {
 	spin_lock_init(&msgr->global_seq_lock);
 
-	if (myaddr)
-		msgr->inst.addr = *myaddr;
+	if (myaddr) {
+		memcpy(&msgr->inst.addr.in_addr, &myaddr->in_addr,
+		       sizeof(msgr->inst.addr.in_addr));
+		addr_set_port(&msgr->inst.addr, 0);
+	}
 
-	/* select a random nonce */
 	msgr->inst.addr.type = 0;
-	get_random_bytes(&msgr->inst.addr.nonce, sizeof(msgr->inst.addr.nonce));
+
+	/* generate a random non-zero nonce */
+	do {
+		get_random_bytes(&msgr->inst.addr.nonce,
+				 sizeof(msgr->inst.addr.nonce));
+	} while (!msgr->inst.addr.nonce);
 	encode_my_addr(msgr);
 
 	atomic_set(&msgr->stopping, 0);
