@@ -1962,8 +1962,14 @@ static void ath10k_sdio_hif_stop(struct ath10k *ar)
 {
 	struct ath10k_sdio_bus_request *req, *tmp_req;
 	struct ath10k_sdio *ar_sdio = ath10k_sdio_priv(ar);
+	struct sk_buff *skb;
 
 	ath10k_sdio_irq_disable(ar);
+
+	cancel_work_sync(&ar_sdio->async_work_rx);
+
+	while ((skb = skb_dequeue(&ar_sdio->rx_head)))
+		dev_kfree_skb_any(skb);
 
 	cancel_work_sync(&ar_sdio->wr_async_work);
 
