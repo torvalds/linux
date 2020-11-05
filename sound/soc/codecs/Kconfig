@@ -1789,4 +1789,8 @@ config SND_SOC_TPA6130A2
 	tristate "Texas Instruments TPA6130A2 headphone amplifier"
 	depends on I2C
 
+config SND_SOC_LPASS_WSA_MACRO
+	depends on COMMON_CLK
+	tristate "Qualcomm WSA Macro in LPASS(Low Power Audio SubSystem)"
+
 endmenu
