@@ -1570,7 +1570,6 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct extent_buffer *cur;
 	u64 blocknr;
-	u64 gen;
 	u64 search_start = *last_ret;
 	u64 last_block = 0;
 	u64 other;
@@ -1578,13 +1577,9 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 	int end_slot;
 	int i;
 	int err = 0;
-	int parent_level;
-	int uptodate;
 	u32 blocksize;
 	int progress_passed = 0;
 	struct btrfs_disk_key disk_key;
-
-	parent_level = btrfs_header_level(parent);
 
 	WARN_ON(trans->transaction != fs_info->running_transaction);
 	WARN_ON(trans->transid != fs_info->generation);
@@ -1597,7 +1592,6 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 		return 0;
 
 	for (i = start_slot; i <= end_slot; i++) {
-		struct btrfs_key first_key;
 		int close = 1;
 
 		btrfs_node_key(parent, &disk_key, i);
@@ -1606,8 +1600,6 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 
 		progress_passed = 1;
 		blocknr = btrfs_node_blockptr(parent, i);
-		gen = btrfs_node_ptr_generation(parent, i);
-		btrfs_node_key_to_cpu(parent, &first_key, i);
 		if (last_block == 0)
 			last_block = blocknr;
 
@@ -1624,31 +1616,9 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 			continue;
 		}
 
-		cur = find_extent_buffer(fs_info, blocknr);
-		if (cur)
-			uptodate = btrfs_buffer_uptodate(cur, gen, 0);
-		else
-			uptodate = 0;
-		if (!cur || !uptodate) {
-			if (!cur) {
-				cur = read_tree_block(fs_info, blocknr, gen,
-						      parent_level - 1,
-						      &first_key);
-				if (IS_ERR(cur)) {
-					return PTR_ERR(cur);
-				} else if (!extent_buffer_uptodate(cur)) {
-					free_extent_buffer(cur);
-					return -EIO;
-				}
-			} else if (!uptodate) {
-				err = btrfs_read_buffer(cur, gen,
-						parent_level - 1,&first_key);
-				if (err) {
-					free_extent_buffer(cur);
-					return err;
-				}
-			}
-		}
+		cur = btrfs_read_node_slot(parent, i);
+		if (IS_ERR(cur))
+			return PTR_ERR(cur);
 		if (search_start == 0)
 			search_start = last_block;
 
