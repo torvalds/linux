@@ -102,6 +102,8 @@ int build_id__sprintf(const struct build_id *build_id, char *bf)
 	const u8 *raw = build_id->data;
 	size_t i;
 
+	bf[0] = 0x0;
+
 	for (i = 0; i < build_id->size; ++i) {
 		sprintf(bid, "%02x", *raw);
 		++raw;
