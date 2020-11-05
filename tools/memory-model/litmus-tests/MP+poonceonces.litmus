@@ -12,13 +12,13 @@ C MP+poonceonces
 	int flag;
 }
 
-P0(int *buf, int *flag)
+P0(int *buf, int *flag) // Producer
 {
 	WRITE_ONCE(*buf, 1);
 	WRITE_ONCE(*flag, 1);
 }
 
-P1(int *buf, int *flag)
+P1(int *buf, int *flag) // Consumer
 {
 	int r0;
 	int r1;
@@ -27,4 +27,4 @@ P1(int *buf, int *flag)
 	r1 = READ_ONCE(*buf);
 }
 
-exists (1:r0=1 /\ 1:r1=0)
+exists (1:r0=1 /\ 1:r1=0) (* Bad outcome. *)

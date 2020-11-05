@@ -15,13 +15,13 @@ C MP+onceassign+derefonce
 	int y=0;
 }
 
-P0(int *x, int **p)
+P0(int *x, int **p) // Producer
 {
 	WRITE_ONCE(*x, 1);
 	rcu_assign_pointer(*p, x);
 }
 
-P1(int *x, int **p)
+P1(int *x, int **p) // Consumer
 {
 	int *r0;
 	int r1;
@@ -32,4 +32,4 @@ P1(int *x, int **p)
 	rcu_read_unlock();
 }
 
-exists (1:r0=x /\ 1:r1=0)
+exists (1:r0=x /\ 1:r1=0) (* Bad outcome. *)

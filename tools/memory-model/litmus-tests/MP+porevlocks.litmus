@@ -17,7 +17,7 @@ C MP+porevlocks
 	int flag;
 }
 
-P0(int *buf, int *flag, spinlock_t *mylock)
+P0(int *buf, int *flag, spinlock_t *mylock) // Consumer
 {
 	int r0;
 	int r1;
@@ -28,7 +28,7 @@ P0(int *buf, int *flag, spinlock_t *mylock)
 	spin_unlock(mylock);
 }
 
-P1(int *buf, int *flag, spinlock_t *mylock)
+P1(int *buf, int *flag, spinlock_t *mylock) // Producer
 {
 	spin_lock(mylock);
 	WRITE_ONCE(*buf, 1);
@@ -36,4 +36,4 @@ P1(int *buf, int *flag, spinlock_t *mylock)
 	WRITE_ONCE(*flag, 1);
 }
 
-exists (0:r0=1 /\ 0:r1=0)
+exists (0:r0=1 /\ 0:r1=0) (* Bad outcome. *)

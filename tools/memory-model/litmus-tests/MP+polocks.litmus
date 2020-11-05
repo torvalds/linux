@@ -17,7 +17,7 @@ C MP+polocks
 	int flag;
 }
 
-P0(int *buf, int *flag, spinlock_t *mylock)
+P0(int *buf, int *flag, spinlock_t *mylock) // Producer
 {
 	WRITE_ONCE(*buf, 1);
 	spin_lock(mylock);
@@ -25,7 +25,7 @@ P0(int *buf, int *flag, spinlock_t *mylock)
 	spin_unlock(mylock);
 }
 
-P1(int *buf, int *flag, spinlock_t *mylock)
+P1(int *buf, int *flag, spinlock_t *mylock) // Consumer
 {
 	int r0;
 	int r1;
@@ -36,4 +36,4 @@ P1(int *buf, int *flag, spinlock_t *mylock)
 	r1 = READ_ONCE(*buf);
 }
 
-exists (1:r0=1 /\ 1:r1=0)
+exists (1:r0=1 /\ 1:r1=0) (* Bad outcome. *)
