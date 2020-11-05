@@ -136,6 +136,10 @@
 	contiguous-area = <&gpu_reserved>;
 };
 
+&hash1 {
+	status = "okay";
+};
+
 &i2c4 {
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&i2c4_pins_a>;
