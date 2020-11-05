@@ -1586,7 +1586,7 @@ void bch2_stripes_heap_to_text(struct printbuf *out, struct bch_fs *c)
 	size_t i;
 
 	spin_lock(&c->ec_stripes_heap_lock);
-	for (i = 0; i < min(h->used, 20UL); i++) {
+	for (i = 0; i < min_t(size_t, h->used, 20); i++) {
 		m = genradix_ptr(&c->stripes[0], h->data[i].idx);
 
 		pr_buf(out, "%zu %u/%u+%u\n", h->data[i].idx,

@@ -44,6 +44,11 @@ static void journal_seq_copy(struct bch_fs *c,
 			     struct bch_inode_info *dst,
 			     u64 journal_seq)
 {
+	/*
+	 * atomic64_cmpxchg has a fallback for archs that don't support it,
+	 * cmpxchg does not:
+	 */
+	atomic64_t *dst_seq = (void *) &dst->ei_journal_seq;
 	u64 old, v = READ_ONCE(dst->ei_journal_seq);
 
 	do {
@@ -51,7 +56,7 @@ static void journal_seq_copy(struct bch_fs *c,
 
 		if (old >= journal_seq)
 			break;
-	} while ((v = cmpxchg(&dst->ei_journal_seq, old, journal_seq)) != old);
+	} while ((v = atomic64_cmpxchg(dst_seq, old, journal_seq)) != old);
 
 	bch2_journal_set_has_inum(&c->journal, dst->v.i_ino, journal_seq);
 }
