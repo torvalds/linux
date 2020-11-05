@@ -30,7 +30,13 @@ SECTIONS
 	. = ALIGN(PAGE_SIZE);
 
 	__init_begin = .;
-	INIT_TEXT_SECTION(PAGE_SIZE)
+	__init_text_begin = .;
+	.init.text : AT(ADDR(.init.text) - LOAD_OFFSET) ALIGN(SECTION_ALIGN) { \
+		_sinittext = .;						\
+		INIT_TEXT						\
+		_einittext = .;						\
+	}
+
 	. = ALIGN(8);
 	__soc_early_init_table : {
 		__soc_early_init_table_start = .;
