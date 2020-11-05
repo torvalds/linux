@@ -7,7 +7,10 @@ C MP+poonceonces
  * no ordering at all?
  *)
 
-{}
+{
+	int x;
+	int y;
+}
 
 P0(int *x, int *y)
 {

@@ -11,6 +11,8 @@ C MP+polockonce+poacquiresilsil
  *)
 
 {
+	spinlock_t lo;
+	int x;
 }
 
 P0(spinlock_t *lo, int *x)

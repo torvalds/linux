@@ -10,8 +10,9 @@ C MP+onceassign+derefonce
  *)
 
 {
-y=z;
-z=0;
+	int x;
+	int *y=z;
+	int z=0;
 }
 
 P0(int *x, int **y)

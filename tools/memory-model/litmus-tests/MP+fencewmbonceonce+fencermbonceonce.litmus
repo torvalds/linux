@@ -8,7 +8,10 @@ C MP+fencewmbonceonce+fencermbonceonce
  * is usually better to use smp_store_release() and smp_load_acquire().
  *)
 
-{}
+{
+	int x;
+	int y;
+}
 
 P0(int *x, int *y)
 {

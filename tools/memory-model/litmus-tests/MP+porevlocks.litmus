@@ -11,7 +11,11 @@ C MP+porevlocks
  * see all prior accesses by those other CPUs.
  *)
 
-{}
+{
+	spinlock_t mylock;
+	int x;
+	int y;
+}
 
 P0(int *x, int *y, spinlock_t *mylock)
 {
