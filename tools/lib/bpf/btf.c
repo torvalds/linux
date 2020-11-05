@@ -90,6 +90,14 @@ struct btf {
 	struct hashmap *strs_hash;
 	/* whether strings are already deduplicated */
 	bool strs_deduped;
+	/* extra indirection layer to make strings hashmap work with stable
+	 * string offsets and ability to transparently choose between
+	 * btf->strs_data or btf_dedup->strs_data as a source of strings.
+	 * This is used for BTF strings dedup to transfer deduplicated strings
+	 * data back to struct btf without re-building strings index.
+	 */
+	void **strs_data_ptr;
+
 	/* BTF object FD, if loaded into kernel */
 	int fd;
 
@@ -1363,17 +1371,19 @@ int btf__get_map_kv_tids(const struct btf *btf, const char *map_name,
 
 static size_t strs_hash_fn(const void *key, void *ctx)
 {
-	struct btf *btf = ctx;
-	const char *str = btf->strs_data + (long)key;
+	const struct btf *btf = ctx;
+	const char *strs = *btf->strs_data_ptr;
+	const char *str = strs + (long)key;
 
 	return str_hash(str);
 }
 
 static bool strs_hash_equal_fn(const void *key1, const void *key2, void *ctx)
 {
-	struct btf *btf = ctx;
-	const char *str1 = btf->strs_data + (long)key1;
-	const char *str2 = btf->strs_data + (long)key2;
+	const struct btf *btf = ctx;
+	const char *strs = *btf->strs_data_ptr;
+	const char *str1 = strs + (long)key1;
+	const char *str2 = strs + (long)key2;
 
 	return strcmp(str1, str2) == 0;
 }
@@ -1417,6 +1427,9 @@ static int btf_ensure_modifiable(struct btf *btf)
 	memcpy(hdr, btf->hdr, btf->hdr->hdr_len);
 	memcpy(types, btf->types_data, btf->hdr->type_len);
 	memcpy(strs, btf->strs_data, btf->hdr->str_len);
+
+	/* make hashmap below use btf->strs_data as a source of strings */
+	btf->strs_data_ptr = &btf->strs_data;
 
 	/* build lookup index for all strings */
 	hash = hashmap__new(strs_hash_fn, strs_hash_equal_fn, btf);
@@ -2824,19 +2837,11 @@ struct btf_dedup {
 	size_t hypot_cap;
 	/* Various option modifying behavior of algorithm */
 	struct btf_dedup_opts opts;
-};
-
-struct btf_str_ptr {
-	const char *str;
-	__u32 new_off;
-	bool used;
-};
-
-struct btf_str_ptrs {
-	struct btf_str_ptr *ptrs;
-	const char *data;
-	__u32 cnt;
-	__u32 cap;
+	/* temporary strings deduplication state */
+	void *strs_data;
+	size_t strs_cap;
+	size_t strs_len;
+	struct hashmap* strs_hash;
 };
 
 static long hash_combine(long h, long value)
@@ -3063,64 +3068,41 @@ static int btf_for_each_str_off(struct btf_dedup *d, str_off_fn_t fn, void *ctx)
 	return 0;
 }
 
-static int str_sort_by_content(const void *a1, const void *a2)
+static int strs_dedup_remap_str_off(__u32 *str_off_ptr, void *ctx)
 {
-	const struct btf_str_ptr *p1 = a1;
-	const struct btf_str_ptr *p2 = a2;
-
-	return strcmp(p1->str, p2->str);
-}
-
-static int str_sort_by_offset(const void *a1, const void *a2)
-{
-	const struct btf_str_ptr *p1 = a1;
-	const struct btf_str_ptr *p2 = a2;
-
-	if (p1->str != p2->str)
-		return p1->str < p2->str ? -1 : 1;
-	return 0;
-}
-
-static int btf_dedup_str_ptr_cmp(const void *str_ptr, const void *pelem)
-{
-	const struct btf_str_ptr *p = pelem;
-
-	if (str_ptr != p->str)
-		return (const char *)str_ptr < p->str ? -1 : 1;
-	return 0;
-}
-
-static int btf_str_mark_as_used(__u32 *str_off_ptr, void *ctx)
-{
-	struct btf_str_ptrs *strs;
-	struct btf_str_ptr *s;
+	struct btf_dedup *d = ctx;
+	long old_off, new_off, len;
+	const char *s;
+	void *p;
+	int err;
 
 	if (*str_off_ptr == 0)
 		return 0;
 
-	strs = ctx;
-	s = bsearch(strs->data + *str_off_ptr, strs->ptrs, strs->cnt,
-		    sizeof(struct btf_str_ptr), btf_dedup_str_ptr_cmp);
-	if (!s)
-		return -EINVAL;
-	s->used = true;
-	return 0;
-}
+	s = btf__str_by_offset(d->btf, *str_off_ptr);
+	len = strlen(s) + 1;
 
-static int btf_str_remap_offset(__u32 *str_off_ptr, void *ctx)
-{
-	struct btf_str_ptrs *strs;
-	struct btf_str_ptr *s;
+	new_off = d->strs_len;
+	p = btf_add_mem(&d->strs_data, &d->strs_cap, 1, new_off, BTF_MAX_STR_OFFSET, len);
+	if (!p)
+		return -ENOMEM;
 
-	if (*str_off_ptr == 0)
-		return 0;
+	memcpy(p, s, len);
 
-	strs = ctx;
-	s = bsearch(strs->data + *str_off_ptr, strs->ptrs, strs->cnt,
-		    sizeof(struct btf_str_ptr), btf_dedup_str_ptr_cmp);
-	if (!s)
-		return -EINVAL;
-	*str_off_ptr = s->new_off;
+	/* Now attempt to add the string, but only if the string with the same
+	 * contents doesn't exist already (HASHMAP_ADD strategy). If such
+	 * string exists, we'll get its offset in old_off (that's old_key).
+	 */
+	err = hashmap__insert(d->strs_hash, (void *)new_off, (void *)new_off,
+			      HASHMAP_ADD, (const void **)&old_off, NULL);
+	if (err == -EEXIST) {
+		*str_off_ptr = old_off;
+	} else if (err) {
+		return err;
+	} else {
+		*str_off_ptr = new_off;
+		d->strs_len += len;
+	}
 	return 0;
 }
 
@@ -3137,118 +3119,69 @@ static int btf_str_remap_offset(__u32 *str_off_ptr, void *ctx)
  */
 static int btf_dedup_strings(struct btf_dedup *d)
 {
-	char *start = d->btf->strs_data;
-	char *end = start + d->btf->hdr->str_len;
-	char *p = start, *tmp_strs = NULL;
-	struct btf_str_ptrs strs = {
-		.cnt = 0,
-		.cap = 0,
-		.ptrs = NULL,
-		.data = start,
-	};
-	int i, j, err = 0, grp_idx;
-	bool grp_used;
+	char *s;
+	int err;
 
 	if (d->btf->strs_deduped)
 		return 0;
 
-	/* build index of all strings */
-	while (p < end) {
-		if (strs.cnt + 1 > strs.cap) {
-			struct btf_str_ptr *new_ptrs;
+	s = btf_add_mem(&d->strs_data, &d->strs_cap, 1, d->strs_len, BTF_MAX_STR_OFFSET, 1);
+	if (!s)
+		return -ENOMEM;
+	/* initial empty string */
+	s[0] = 0;
+	d->strs_len = 1;
 
-			strs.cap += max(strs.cnt / 2, 16U);
-			new_ptrs = libbpf_reallocarray(strs.ptrs, strs.cap, sizeof(strs.ptrs[0]));
-			if (!new_ptrs) {
-				err = -ENOMEM;
-				goto done;
-			}
-			strs.ptrs = new_ptrs;
-		}
-
-		strs.ptrs[strs.cnt].str = p;
-		strs.ptrs[strs.cnt].used = false;
-
-		p += strlen(p) + 1;
-		strs.cnt++;
-	}
-
-	/* temporary storage for deduplicated strings */
-	tmp_strs = malloc(d->btf->hdr->str_len);
-	if (!tmp_strs) {
-		err = -ENOMEM;
-		goto done;
-	}
-
-	/* mark all used strings */
-	strs.ptrs[0].used = true;
-	err = btf_for_each_str_off(d, btf_str_mark_as_used, &strs);
-	if (err)
-		goto done;
-
-	/* sort strings by context, so that we can identify duplicates */
-	qsort(strs.ptrs, strs.cnt, sizeof(strs.ptrs[0]), str_sort_by_content);
-
-	/*
-	 * iterate groups of equal strings and if any instance in a group was
-	 * referenced, emit single instance and remember new offset
+	/* temporarily switch to use btf_dedup's strs_data for strings for hash
+	 * functions; later we'll just transfer hashmap to struct btf as is,
+	 * along the strs_data
 	 */
-	p = tmp_strs;
-	grp_idx = 0;
-	grp_used = strs.ptrs[0].used;
-	/* iterate past end to avoid code duplication after loop */
-	for (i = 1; i <= strs.cnt; i++) {
-		/*
-		 * when i == strs.cnt, we want to skip string comparison and go
-		 * straight to handling last group of strings (otherwise we'd
-		 * need to handle last group after the loop w/ duplicated code)
-		 */
-		if (i < strs.cnt &&
-		    !strcmp(strs.ptrs[i].str, strs.ptrs[grp_idx].str)) {
-			grp_used = grp_used || strs.ptrs[i].used;
-			continue;
-		}
+	d->btf->strs_data_ptr = &d->strs_data;
 
-		/*
-		 * this check would have been required after the loop to handle
-		 * last group of strings, but due to <= condition in a loop
-		 * we avoid that duplication
-		 */
-		if (grp_used) {
-			int new_off = p - tmp_strs;
-			__u32 len = strlen(strs.ptrs[grp_idx].str);
-
-			memmove(p, strs.ptrs[grp_idx].str, len + 1);
-			for (j = grp_idx; j < i; j++)
-				strs.ptrs[j].new_off = new_off;
-			p += len + 1;
-		}
-
-		if (i < strs.cnt) {
-			grp_idx = i;
-			grp_used = strs.ptrs[i].used;
-		}
+	d->strs_hash = hashmap__new(strs_hash_fn, strs_hash_equal_fn, d->btf);
+	if (IS_ERR(d->strs_hash)) {
+		err = PTR_ERR(d->strs_hash);
+		d->strs_hash = NULL;
+		goto err_out;
 	}
 
-	/* replace original strings with deduped ones */
-	d->btf->hdr->str_len = p - tmp_strs;
-	memmove(start, tmp_strs, d->btf->hdr->str_len);
-	end = start + d->btf->hdr->str_len;
-
-	/* restore original order for further binary search lookups */
-	qsort(strs.ptrs, strs.cnt, sizeof(strs.ptrs[0]), str_sort_by_offset);
+	/* insert empty string; we won't be looking it up during strings
+	 * dedup, but it's good to have it for generic BTF string lookups
+	 */
+	err = hashmap__insert(d->strs_hash, (void *)0, (void *)0,
+			      HASHMAP_ADD, NULL, NULL);
+	if (err)
+		goto err_out;
 
 	/* remap string offsets */
-	err = btf_for_each_str_off(d, btf_str_remap_offset, &strs);
+	err = btf_for_each_str_off(d, strs_dedup_remap_str_off, d);
 	if (err)
-		goto done;
+		goto err_out;
 
-	d->btf->hdr->str_len = end - start;
+	/* replace BTF string data and hash with deduped ones */
+	free(d->btf->strs_data);
+	hashmap__free(d->btf->strs_hash);
+	d->btf->strs_data = d->strs_data;
+	d->btf->strs_data_cap = d->strs_cap;
+	d->btf->hdr->str_len = d->strs_len;
+	d->btf->strs_hash = d->strs_hash;
+	/* now point strs_data_ptr back to btf->strs_data */
+	d->btf->strs_data_ptr = &d->btf->strs_data;
+
+	d->strs_data = d->strs_hash = NULL;
+	d->strs_len = d->strs_cap = 0;
 	d->btf->strs_deduped = true;
+	return 0;
 
-done:
-	free(tmp_strs);
-	free(strs.ptrs);
+err_out:
+	free(d->strs_data);
+	hashmap__free(d->strs_hash);
+	d->strs_data = d->strs_hash = NULL;
+	d->strs_len = d->strs_cap = 0;
+
+	/* restore strings pointer for existing d->btf->strs_hash back */
+	d->btf->strs_data_ptr = &d->strs_data;
+
 	return err;
 }
 
