@@ -192,7 +192,7 @@
 				};
 			};
 
-			max77693_haptic {
+			motor-driver {
 				compatible = "maxim,max77693-haptic";
 				haptic-supply = <&ldo26_reg>;
 				pwms = <&pwm 0 38022 0>;
