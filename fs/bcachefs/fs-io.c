@@ -273,28 +273,13 @@ static inline struct bch_page_state *bch2_page_state(struct page *page)
 /* for newly allocated pages: */
 static void __bch2_page_state_release(struct page *page)
 {
-	struct bch_page_state *s = __bch2_page_state(page);
-
-	if (!s)
-		return;
-
-	ClearPagePrivate(page);
-	set_page_private(page, 0);
-	put_page(page);
-	kfree(s);
+	kfree(detach_page_private(page));
 }
 
 static void bch2_page_state_release(struct page *page)
 {
-	struct bch_page_state *s = bch2_page_state(page);
-
-	if (!s)
-		return;
-
-	ClearPagePrivate(page);
-	set_page_private(page, 0);
-	put_page(page);
-	kfree(s);
+	EBUG_ON(!PageLocked(page));
+	__bch2_page_state_release(page);
 }
 
 /* for newly allocated pages: */
@@ -308,13 +293,7 @@ static struct bch_page_state *__bch2_page_state_create(struct page *page,
 		return NULL;
 
 	spin_lock_init(&s->lock);
-	/*
-	 * migrate_page_move_mapping() assumes that pages with private data
-	 * have their count elevated by 1.
-	 */
-	get_page(page);
-	set_page_private(page, (unsigned long) s);
-	SetPagePrivate(page);
+	attach_page_private(page, s);
 	return s;
 }
 
