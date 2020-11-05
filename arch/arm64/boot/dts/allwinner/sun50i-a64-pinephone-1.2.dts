@@ -8,6 +8,11 @@
 / {
 	model = "Pine64 PinePhone (1.2)";
 	compatible = "pine64,pinephone-1.2", "allwinner,sun50i-a64";
+
+	wifi_pwrseq: wifi-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		reset-gpios = <&r_pio 0 2 GPIO_ACTIVE_LOW>; /* PL2 */
+	};
 };
 
 &backlight {
@@ -37,6 +42,10 @@
 	 */
 	interrupt-parent = <&pio>;
 	interrupts = <1 1 IRQ_TYPE_EDGE_RISING>; /* PB1 */
+};
+
+&mmc1 {
+	mmc-pwrseq = <&wifi_pwrseq>;
 };
 
 &sgm3140 {
