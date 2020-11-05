@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/types.h>
 
 #define IRQ_RESOURCE_TYPE	GENMASK(1, 0)
@@ -59,7 +60,6 @@ static int i2c_multi_inst_count_resources(struct acpi_device *adev)
 static int i2c_multi_inst_probe(struct platform_device *pdev)
 {
 	struct i2c_multi_inst_data *multi;
-	const struct acpi_device_id *match;
 	const struct i2c_inst_data *inst_data;
 	struct i2c_board_info board_info = {};
 	struct device *dev = &pdev->dev;
@@ -67,12 +67,11 @@ static int i2c_multi_inst_probe(struct platform_device *pdev)
 	char name[32];
 	int i, ret;
 
-	match = acpi_match_device(dev->driver->acpi_match_table, dev);
-	if (!match) {
+	inst_data = device_get_match_data(dev);
+	if (!inst_data) {
 		dev_err(dev, "Error ACPI match data is missing\n");
 		return -ENODEV;
 	}
-	inst_data = (const struct i2c_inst_data *)match->driver_data;
 
 	adev = ACPI_COMPANION(dev);
 
