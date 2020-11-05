@@ -1793,4 +1793,8 @@ config SND_SOC_LPASS_WSA_MACRO
 	depends on COMMON_CLK
 	tristate "Qualcomm WSA Macro in LPASS(Low Power Audio SubSystem)"
 
+config SND_SOC_LPASS_VA_MACRO
+	depends on COMMON_CLK
+	tristate "Qualcomm VA Macro in LPASS(Low Power Audio SubSystem)"
+
 endmenu
