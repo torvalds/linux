@@ -175,11 +175,14 @@ static inline char *mc_event_error_type(const unsigned int err_type)
  * @MEM_RDDR3:		Registered DDR3 RAM
  *			This is a variant of the DDR3 memories.
  * @MEM_LRDDR3:		Load-Reduced DDR3 memory.
+ * @MEM_LPDDR3:		Low-Power DDR3 memory.
  * @MEM_DDR4:		Unbuffered DDR4 RAM
  * @MEM_RDDR4:		Registered DDR4 RAM
  *			This is a variant of the DDR4 memories.
  * @MEM_LRDDR4:		Load-Reduced DDR4 memory.
+ * @MEM_LPDDR4:		Low-Power DDR4 memory.
  * @MEM_NVDIMM:		Non-volatile RAM
+ * @MEM_WIO2:		Wide I/O 2.
  */
 enum mem_type {
 	MEM_EMPTY = 0,
@@ -200,10 +203,13 @@ enum mem_type {
 	MEM_DDR3,
 	MEM_RDDR3,
 	MEM_LRDDR3,
+	MEM_LPDDR3,
 	MEM_DDR4,
 	MEM_RDDR4,
 	MEM_LRDDR4,
+	MEM_LPDDR4,
 	MEM_NVDIMM,
+	MEM_WIO2,
 };
 
 #define MEM_FLAG_EMPTY		BIT(MEM_EMPTY)
@@ -223,10 +229,13 @@ enum mem_type {
 #define MEM_FLAG_XDR            BIT(MEM_XDR)
 #define MEM_FLAG_DDR3           BIT(MEM_DDR3)
 #define MEM_FLAG_RDDR3          BIT(MEM_RDDR3)
+#define MEM_FLAG_LPDDR3         BIT(MEM_LPDDR3)
 #define MEM_FLAG_DDR4           BIT(MEM_DDR4)
 #define MEM_FLAG_RDDR4          BIT(MEM_RDDR4)
 #define MEM_FLAG_LRDDR4         BIT(MEM_LRDDR4)
+#define MEM_FLAG_LPDDR4         BIT(MEM_LPDDR4)
 #define MEM_FLAG_NVDIMM         BIT(MEM_NVDIMM)
+#define MEM_FLAG_WIO2		BIT(MEM_WIO2)
 
 /**
  * enum edac-type - Error Detection and Correction capabilities and mode
