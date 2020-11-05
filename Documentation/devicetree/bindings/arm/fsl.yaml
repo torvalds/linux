@@ -898,6 +898,14 @@ properties:
               - fsl,lx2162a-qds
           - const: fsl,lx2160a
 
+      - description: SolidRun LX2160A based Boards
+        items:
+          - enum:
+              - solidrun,clearfog-cx
+              - solidrun,honeycomb
+          - const: solidrun,lx2160a-cex7
+          - const: fsl,lx2160a
+
       - description: S32V234 based Boards
         items:
           - enum:
