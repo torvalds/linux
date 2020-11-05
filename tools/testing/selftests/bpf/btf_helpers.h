@@ -8,5 +8,12 @@
 
 int fprintf_btf_type_raw(FILE *out, const struct btf *btf, __u32 id);
 const char *btf_type_raw_dump(const struct btf *btf, int type_id);
+int btf_validate_raw(struct btf *btf, int nr_types, const char *exp_types[]);
 
+#define VALIDATE_RAW_BTF(btf, raw_types...)				\
+	btf_validate_raw(btf,						\
+			 sizeof((const char *[]){raw_types})/sizeof(void *),\
+			 (const char *[]){raw_types})
+
+const char *btf_type_c_dump(const struct btf *btf);
 #endif

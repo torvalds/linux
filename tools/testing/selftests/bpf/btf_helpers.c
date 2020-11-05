@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <errno.h>
 #include <bpf/btf.h>
+#include <bpf/libbpf.h>
+#include "test_progs.h"
 
 static const char * const btf_kind_str_mapping[] = {
 	[BTF_KIND_UNKN]		= "UNKNOWN",
@@ -196,5 +198,62 @@ const char *btf_type_raw_dump(const struct btf *btf, int type_id)
 	fflush(buf_file);
 	fclose(buf_file);
 
+	return buf;
+}
+
+int btf_validate_raw(struct btf *btf, int nr_types, const char *exp_types[])
+{
+	int i;
+	bool ok = true;
+
+	ASSERT_EQ(btf__get_nr_types(btf), nr_types, "btf_nr_types");
+
+	for (i = 1; i <= nr_types; i++) {
+		if (!ASSERT_STREQ(btf_type_raw_dump(btf, i), exp_types[i - 1], "raw_dump"))
+			ok = false;
+	}
+
+	return ok;
+}
+
+static void btf_dump_printf(void *ctx, const char *fmt, va_list args)
+{
+	vfprintf(ctx, fmt, args);
+}
+
+/* Print BTF-to-C dump into a local buffer and return string pointer back.
+ * Buffer *will* be overwritten by subsequent btf_type_raw_dump() calls
+ */
+const char *btf_type_c_dump(const struct btf *btf)
+{
+	static char buf[16 * 1024];
+	FILE *buf_file;
+	struct btf_dump *d = NULL;
+	struct btf_dump_opts opts = {};
+	int err, i;
+
+	buf_file = fmemopen(buf, sizeof(buf) - 1, "w");
+	if (!buf_file) {
+		fprintf(stderr, "Failed to open memstream: %d\n", errno);
+		return NULL;
+	}
+
+	opts.ctx = buf_file;
+	d = btf_dump__new(btf, NULL, &opts, btf_dump_printf);
+	if (libbpf_get_error(d)) {
+		fprintf(stderr, "Failed to create btf_dump instance: %ld\n", libbpf_get_error(d));
+		return NULL;
+	}
+
+	for (i = 1; i <= btf__get_nr_types(btf); i++) {
+		err = btf_dump__dump_type(d, i);
+		if (err) {
+			fprintf(stderr, "Failed to dump type [%d]: %d\n", i, err);
+			return NULL;
+		}
+	}
+
+	fflush(buf_file);
+	fclose(buf_file);
 	return buf;
 }
