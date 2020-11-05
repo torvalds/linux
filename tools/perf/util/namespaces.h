@@ -8,6 +8,7 @@
 #define __PERF_NAMESPACES_H
 
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <linux/stddef.h>
 #include <linux/perf_event.h>
 #include <linux/refcount.h>
@@ -56,6 +57,7 @@ void nsinfo__mountns_enter(struct nsinfo *nsi, struct nscookie *nc);
 void nsinfo__mountns_exit(struct nscookie *nc);
 
 char *nsinfo__realpath(const char *path, struct nsinfo *nsi);
+int nsinfo__stat(const char *filename, struct stat *st, struct nsinfo *nsi);
 
 static inline void __nsinfo__zput(struct nsinfo **nsip)
 {

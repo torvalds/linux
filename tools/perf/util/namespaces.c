@@ -287,3 +287,15 @@ char *nsinfo__realpath(const char *path, struct nsinfo *nsi)
 
 	return rpath;
 }
+
+int nsinfo__stat(const char *filename, struct stat *st, struct nsinfo *nsi)
+{
+	int ret;
+	struct nscookie nsc;
+
+	nsinfo__mountns_enter(nsi, &nsc);
+	ret = stat(filename, st);
+	nsinfo__mountns_exit(&nsc);
+
+	return ret;
+}
