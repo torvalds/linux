@@ -660,7 +660,6 @@ static int vc4_load_tracker_obj_init(struct vc4_dev *vc4)
 	return drmm_add_action_or_reset(&vc4->base, vc4_load_tracker_obj_fini, NULL);
 }
 
-#define NUM_OUTPUTS  6
 #define NUM_CHANNELS 3
 
 static int
