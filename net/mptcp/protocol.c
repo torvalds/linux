@@ -466,6 +466,18 @@ static bool __mptcp_move_skbs_from_subflow(struct mptcp_sock *msk,
 	struct tcp_sock *tp;
 	u32 old_copied_seq;
 	bool done = false;
+	int sk_rbuf;
+
+	sk_rbuf = READ_ONCE(sk->sk_rcvbuf);
+
+	if (!(sk->sk_userlocks & SOCK_RCVBUF_LOCK)) {
+		int ssk_rbuf = READ_ONCE(ssk->sk_rcvbuf);
+
+		if (unlikely(ssk_rbuf > sk_rbuf)) {
+			WRITE_ONCE(sk->sk_rcvbuf, ssk_rbuf);
+			sk_rbuf = ssk_rbuf;
+		}
+	}
 
 	pr_debug("msk=%p ssk=%p", msk, ssk);
 	tp = tcp_sk(ssk);
@@ -528,7 +540,7 @@ static bool __mptcp_move_skbs_from_subflow(struct mptcp_sock *msk,
 		WRITE_ONCE(tp->copied_seq, seq);
 		more_data_avail = mptcp_subflow_data_available(ssk);
 
-		if (atomic_read(&sk->sk_rmem_alloc) > READ_ONCE(sk->sk_rcvbuf)) {
+		if (atomic_read(&sk->sk_rmem_alloc) > sk_rbuf) {
 			done = true;
 			break;
 		}
@@ -622,6 +634,7 @@ void mptcp_data_ready(struct sock *sk, struct sock *ssk)
 {
 	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(ssk);
 	struct mptcp_sock *msk = mptcp_sk(sk);
+	int sk_rbuf, ssk_rbuf;
 	bool wake;
 
 	/* move_skbs_to_msk below can legitly clear the data_avail flag,
@@ -632,12 +645,16 @@ void mptcp_data_ready(struct sock *sk, struct sock *ssk)
 	if (wake)
 		set_bit(MPTCP_DATA_READY, &msk->flags);
 
-	if (atomic_read(&sk->sk_rmem_alloc) < READ_ONCE(sk->sk_rcvbuf) &&
-	    move_skbs_to_msk(msk, ssk))
+	ssk_rbuf = READ_ONCE(ssk->sk_rcvbuf);
+	sk_rbuf = READ_ONCE(sk->sk_rcvbuf);
+	if (unlikely(ssk_rbuf > sk_rbuf))
+		sk_rbuf = ssk_rbuf;
+
+	/* over limit? can't append more skbs to msk */
+	if (atomic_read(&sk->sk_rmem_alloc) > sk_rbuf)
 		goto wake;
 
-	/* don't schedule if mptcp sk is (still) over limit */
-	if (atomic_read(&sk->sk_rmem_alloc) > READ_ONCE(sk->sk_rcvbuf))
+	if (move_skbs_to_msk(msk, ssk))
 		goto wake;
 
 	/* mptcp socket is owned, release_cb should retry */
@@ -754,8 +771,11 @@ static bool mptcp_skb_can_collapse_to(u64 write_seq,
 	if (!tcp_skb_can_collapse_to(skb))
 		return false;
 
-	/* can collapse only if MPTCP level sequence is in order */
-	return mpext && mpext->data_seq + mpext->data_len == write_seq;
+	/* can collapse only if MPTCP level sequence is in order and this
+	 * mapping has not been xmitted yet
+	 */
+	return mpext && mpext->data_seq + mpext->data_len == write_seq &&
+	       !mpext->frozen;
 }
 
 static bool mptcp_frag_can_collapse_to(const struct mptcp_sock *msk,
@@ -833,19 +853,25 @@ static void mptcp_clean_una(struct sock *sk)
 	}
 
 out:
-	if (cleaned) {
+	if (cleaned)
 		sk_mem_reclaim_partial(sk);
+}
 
-		/* Only wake up writers if a subflow is ready */
-		if (mptcp_is_writeable(msk)) {
-			set_bit(MPTCP_SEND_SPACE, &mptcp_sk(sk)->flags);
-			smp_mb__after_atomic();
+static void mptcp_clean_una_wakeup(struct sock *sk)
+{
+	struct mptcp_sock *msk = mptcp_sk(sk);
 
-			/* set SEND_SPACE before sk_stream_write_space clears
-			 * NOSPACE
-			 */
-			sk_stream_write_space(sk);
-		}
+	mptcp_clean_una(sk);
+
+	/* Only wake up writers if a subflow is ready */
+	if (mptcp_is_writeable(msk)) {
+		set_bit(MPTCP_SEND_SPACE, &msk->flags);
+		smp_mb__after_atomic();
+
+		/* set SEND_SPACE before sk_stream_write_space clears
+		 * NOSPACE
+		 */
+		sk_stream_write_space(sk);
 	}
 }
 
@@ -1476,13 +1502,14 @@ static bool __mptcp_move_skbs(struct mptcp_sock *msk)
 	__mptcp_flush_join_list(msk);
 	do {
 		struct sock *ssk = mptcp_subflow_recv_lookup(msk);
+		bool slowpath;
 
 		if (!ssk)
 			break;
 
-		lock_sock(ssk);
+		slowpath = lock_sock_fast(ssk);
 		done = __mptcp_move_skbs_from_subflow(msk, ssk, &moved);
-		release_sock(ssk);
+		unlock_sock_fast(ssk, slowpath);
 	} while (!done);
 
 	if (mptcp_ofo_queue(msk) || moved > 0) {
@@ -1748,7 +1775,7 @@ static void mptcp_worker(struct work_struct *work)
 	long timeo = 0;
 
 	lock_sock(sk);
-	mptcp_clean_una(sk);
+	mptcp_clean_una_wakeup(sk);
 	mptcp_check_data_fin_ack(sk);
 	__mptcp_flush_join_list(msk);
 	if (test_and_clear_bit(MPTCP_WORK_CLOSE_SUBFLOW, &msk->flags))
