@@ -953,22 +953,6 @@ static const struct address_space_operations btree_aops = {
 	.set_page_dirty = btree_set_page_dirty,
 };
 
-void readahead_tree_block(struct btrfs_fs_info *fs_info, u64 bytenr)
-{
-	struct extent_buffer *buf = NULL;
-	int ret;
-
-	buf = btrfs_find_create_tree_block(fs_info, bytenr);
-	if (IS_ERR(buf))
-		return;
-
-	ret = read_extent_buffer_pages(buf, WAIT_NONE, 0);
-	if (ret < 0)
-		free_extent_buffer_stale(buf);
-	else
-		free_extent_buffer(buf);
-}
-
 struct extent_buffer *btrfs_find_create_tree_block(
 						struct btrfs_fs_info *fs_info,
 						u64 bytenr)

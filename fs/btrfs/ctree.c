@@ -2226,7 +2226,7 @@ static void reada_for_search(struct btrfs_fs_info *fs_info,
 		search = btrfs_node_blockptr(node, nr);
 		if ((search <= target && target - search <= 65536) ||
 		    (search > target && search - target <= 65536)) {
-			readahead_tree_block(fs_info, search);
+			btrfs_readahead_node_child(node, nr);
 			nread += blocksize;
 		}
 		nscan++;
@@ -2235,16 +2235,11 @@ static void reada_for_search(struct btrfs_fs_info *fs_info,
 	}
 }
 
-static noinline void reada_for_balance(struct btrfs_fs_info *fs_info,
-				       struct btrfs_path *path, int level)
+static noinline void reada_for_balance(struct btrfs_path *path, int level)
 {
+	struct extent_buffer *parent;
 	int slot;
 	int nritems;
-	struct extent_buffer *parent;
-	struct extent_buffer *eb;
-	u64 gen;
-	u64 block1 = 0;
-	u64 block2 = 0;
 
 	parent = path->nodes[level + 1];
 	if (!parent)
@@ -2253,32 +2248,10 @@ static noinline void reada_for_balance(struct btrfs_fs_info *fs_info,
 	nritems = btrfs_header_nritems(parent);
 	slot = path->slots[level + 1];
 
-	if (slot > 0) {
-		block1 = btrfs_node_blockptr(parent, slot - 1);
-		gen = btrfs_node_ptr_generation(parent, slot - 1);
-		eb = find_extent_buffer(fs_info, block1);
-		/*
-		 * if we get -eagain from btrfs_buffer_uptodate, we
-		 * don't want to return eagain here.  That will loop
-		 * forever
-		 */
-		if (eb && btrfs_buffer_uptodate(eb, gen, 1) != 0)
-			block1 = 0;
-		free_extent_buffer(eb);
-	}
-	if (slot + 1 < nritems) {
-		block2 = btrfs_node_blockptr(parent, slot + 1);
-		gen = btrfs_node_ptr_generation(parent, slot + 1);
-		eb = find_extent_buffer(fs_info, block2);
-		if (eb && btrfs_buffer_uptodate(eb, gen, 1) != 0)
-			block2 = 0;
-		free_extent_buffer(eb);
-	}
-
-	if (block1)
-		readahead_tree_block(fs_info, block1);
-	if (block2)
-		readahead_tree_block(fs_info, block2);
+	if (slot > 0)
+		btrfs_readahead_node_child(parent, slot - 1);
+	if (slot + 1 < nritems)
+		btrfs_readahead_node_child(parent, slot + 1);
 }
 
 
@@ -2454,7 +2427,7 @@ setup_nodes_for_search(struct btrfs_trans_handle *trans,
 			goto again;
 		}
 
-		reada_for_balance(fs_info, p, level);
+		reada_for_balance(p, level);
 		sret = split_node(trans, root, p, level);
 
 		BUG_ON(sret > 0);
@@ -2473,7 +2446,7 @@ setup_nodes_for_search(struct btrfs_trans_handle *trans,
 			goto again;
 		}
 
-		reada_for_balance(fs_info, p, level);
+		reada_for_balance(p, level);
 		sret = balance_level(trans, root, p, level);
 
 		if (sret) {

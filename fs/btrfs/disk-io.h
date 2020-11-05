@@ -45,7 +45,6 @@ int btrfs_verify_level_key(struct extent_buffer *eb, int level,
 struct extent_buffer *read_tree_block(struct btrfs_fs_info *fs_info, u64 bytenr,
 				      u64 parent_transid, int level,
 				      struct btrfs_key *first_key);
-void readahead_tree_block(struct btrfs_fs_info *fs_info, u64 bytenr);
 struct extent_buffer *btrfs_find_create_tree_block(
 						struct btrfs_fs_info *fs_info,
 						u64 bytenr);

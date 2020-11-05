@@ -7071,12 +7071,8 @@ static void readahead_tree_node_children(struct extent_buffer *node)
 	int i;
 	const int nr_items = btrfs_header_nritems(node);
 
-	for (i = 0; i < nr_items; i++) {
-		u64 start;
-
-		start = btrfs_node_blockptr(node, i);
-		readahead_tree_block(node->fs_info, start);
-	}
+	for (i = 0; i < nr_items; i++)
+		btrfs_readahead_node_child(node, i);
 }
 
 int btrfs_read_chunk_tree(struct btrfs_fs_info *fs_info)
