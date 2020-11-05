@@ -257,6 +257,7 @@ static void gsi_irq_setup(struct gsi *gsi)
 
 	iowrite32(0, gsi->virt + GSI_CNTXT_SRC_CH_IRQ_MSK_OFFSET);
 	iowrite32(0, gsi->virt + GSI_CNTXT_SRC_EV_CH_IRQ_MSK_OFFSET);
+	iowrite32(0, gsi->virt + GSI_CNTXT_GLOB_IRQ_EN_OFFSET);
 }
 
 /* Turn off all GSI interrupts when we're all done */
@@ -289,13 +290,15 @@ static void gsi_irq_enable(struct gsi *gsi)
 {
 	u32 val;
 
+	/* Global interrupts include hardware error reports.  Enable
+	 * that so we can at least report the error should it occur.
+	 */
+	iowrite32(ERROR_INT_FMASK, gsi->virt + GSI_CNTXT_GLOB_IRQ_EN_OFFSET);
+	gsi->type_enabled_bitmap |= BIT(GSI_GLOB_EE);
+
 	/* Each IEOB interrupt is enabled (later) as needed by channels */
 	iowrite32(0, gsi->virt + GSI_CNTXT_SRC_IEOB_IRQ_MSK_OFFSET);
 	gsi->type_enabled_bitmap |= BIT(GSI_IEOB);
-
-	val = GSI_CNTXT_GLOB_IRQ_ALL;
-	iowrite32(val, gsi->virt + GSI_CNTXT_GLOB_IRQ_EN_OFFSET);
-	gsi->type_enabled_bitmap |= BIT(GSI_GLOB_EE);
 
 	/* We don't use inter-EE channel or event interrupts */
 
@@ -315,8 +318,8 @@ static void gsi_irq_disable(struct gsi *gsi)
 	gsi_irq_type_update(gsi);
 
 	iowrite32(0, gsi->virt + GSI_CNTXT_GSI_IRQ_EN_OFFSET);
-	iowrite32(0, gsi->virt + GSI_CNTXT_GLOB_IRQ_EN_OFFSET);
 	iowrite32(0, gsi->virt + GSI_CNTXT_SRC_IEOB_IRQ_MSK_OFFSET);
+	iowrite32(0, gsi->virt + GSI_CNTXT_GLOB_IRQ_EN_OFFSET);
 }
 
 /* Return the virtual address associated with a ring index */
@@ -1101,8 +1104,8 @@ static void gsi_isr_glob_err(struct gsi *gsi)
 	iowrite32(~0, gsi->virt + GSI_ERROR_LOG_CLR_OFFSET);
 
 	ee = u32_get_bits(val, ERR_EE_FMASK);
-	which = u32_get_bits(val, ERR_VIRT_IDX_FMASK);
 	type = u32_get_bits(val, ERR_TYPE_FMASK);
+	which = u32_get_bits(val, ERR_VIRT_IDX_FMASK);
 	code = u32_get_bits(val, ERR_CODE_FMASK);
 
 	if (type == GSI_ERR_TYPE_CHAN)
@@ -1606,7 +1609,18 @@ static int gsi_generic_command(struct gsi *gsi, u32 channel_id,
 			       enum gsi_generic_cmd_opcode opcode)
 {
 	struct completion *completion = &gsi->completion;
+	bool success;
 	u32 val;
+
+	/* The error global interrupt type is always enabled (until we
+	 * teardown), so we won't change that.  A generic EE command
+	 * completes with a GSI global interrupt of type GP_INT1.  We
+	 * only perform one generic command at a time (to allocate or
+	 * halt a modem channel) and only from this function.  So we
+	 * enable the GP_INT1 IRQ type here while we're expecting it.
+	 */
+	val = ERROR_INT_FMASK | GP_INT1_FMASK;
+	iowrite32(val, gsi->virt + GSI_CNTXT_GLOB_IRQ_EN_OFFSET);
 
 	/* First zero the result code field */
 	val = ioread32(gsi->virt + GSI_CNTXT_SCRATCH_0_OFFSET);
@@ -1618,8 +1632,13 @@ static int gsi_generic_command(struct gsi *gsi, u32 channel_id,
 	val |= u32_encode_bits(channel_id, GENERIC_CHID_FMASK);
 	val |= u32_encode_bits(GSI_EE_MODEM, GENERIC_EE_FMASK);
 
-	if (gsi_command(gsi, GSI_GENERIC_CMD_OFFSET, val, completion))
-		return 0;	/* Success! */
+	success = gsi_command(gsi, GSI_GENERIC_CMD_OFFSET, val, completion);
+
+	/* Disable the GP_INT1 IRQ type again */
+	iowrite32(ERROR_INT_FMASK, gsi->virt + GSI_CNTXT_GLOB_IRQ_EN_OFFSET);
+
+	if (success)
+		return 0;
 
 	dev_err(gsi->dev, "GSI generic command %u to channel %u timed out\n",
 		opcode, channel_id);
