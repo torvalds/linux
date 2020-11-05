@@ -403,38 +403,6 @@ static const struct dw_pcie_ep_ops pcie_ep_ops = {
 	.raise_irq = artpec6_pcie_raise_irq,
 };
 
-static int artpec6_add_pcie_ep(struct artpec6_pcie *artpec6_pcie,
-			       struct platform_device *pdev)
-{
-	int ret;
-	struct dw_pcie_ep *ep;
-	struct resource *res;
-	struct device *dev = &pdev->dev;
-	struct dw_pcie *pci = artpec6_pcie->pci;
-
-	ep = &pci->ep;
-	ep->ops = &pcie_ep_ops;
-
-	pci->dbi_base2 = devm_platform_ioremap_resource_byname(pdev, "dbi2");
-	if (IS_ERR(pci->dbi_base2))
-		return PTR_ERR(pci->dbi_base2);
-
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "addr_space");
-	if (!res)
-		return -EINVAL;
-
-	ep->phys_base = res->start;
-	ep->addr_size = resource_size(res);
-
-	ret = dw_pcie_ep_init(ep);
-	if (ret) {
-		dev_err(dev, "failed to initialize endpoint\n");
-		return ret;
-	}
-
-	return 0;
-}
-
 static int artpec6_pcie_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -469,10 +437,6 @@ static int artpec6_pcie_probe(struct platform_device *pdev)
 	artpec6_pcie->variant = variant;
 	artpec6_pcie->mode = mode;
 
-	pci->dbi_base = devm_platform_ioremap_resource_byname(pdev, "dbi");
-	if (IS_ERR(pci->dbi_base))
-		return PTR_ERR(pci->dbi_base);
-
 	artpec6_pcie->phy_base =
 		devm_platform_ioremap_resource_byname(pdev, "phy");
 	if (IS_ERR(artpec6_pcie->phy_base))
@@ -504,9 +468,10 @@ static int artpec6_pcie_probe(struct platform_device *pdev)
 		val = artpec6_pcie_readl(artpec6_pcie, PCIECFG);
 		val &= ~PCIECFG_DEVICE_TYPE_MASK;
 		artpec6_pcie_writel(artpec6_pcie, PCIECFG, val);
-		ret = artpec6_add_pcie_ep(artpec6_pcie, pdev);
-		if (ret < 0)
-			return ret;
+
+		pci->ep.ops = &pcie_ep_ops;
+
+		return dw_pcie_ep_init(&pci->ep);
 		break;
 	}
 	default:

@@ -237,10 +237,6 @@ static int intel_pcie_get_resources(struct platform_device *pdev)
 	struct device *dev = pci->dev;
 	int ret;
 
-	pci->dbi_base = devm_platform_ioremap_resource_byname(pdev, "dbi");
-	if (IS_ERR(pci->dbi_base))
-		return PTR_ERR(pci->dbi_base);
-
 	lpp->core_clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(lpp->core_clk)) {
 		ret = PTR_ERR(lpp->core_clk);

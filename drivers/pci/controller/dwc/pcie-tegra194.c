@@ -1907,19 +1907,12 @@ static int tegra_pcie_config_ep(struct tegra_pcie_dw *pcie,
 	struct dw_pcie *pci = &pcie->pci;
 	struct device *dev = pcie->dev;
 	struct dw_pcie_ep *ep;
-	struct resource *res;
 	char *name;
 	int ret;
 
 	ep = &pci->ep;
 	ep->ops = &pcie_ep_ops;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "addr_space");
-	if (!res)
-		return -EINVAL;
-
-	ep->phys_base = res->start;
-	ep->addr_size = resource_size(res);
 	ep->page_size = SZ_64K;
 
 	ret = gpiod_set_debounce(pcie->pex_rst_gpiod, PERST_DEBOUNCE_TIME);
@@ -1982,7 +1975,6 @@ static int tegra_pcie_dw_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct resource *atu_dma_res;
 	struct tegra_pcie_dw *pcie;
-	struct resource *dbi_res;
 	struct pcie_port *pp;
 	struct dw_pcie *pci;
 	struct phy **phys;
@@ -2090,20 +2082,6 @@ static int tegra_pcie_dw_probe(struct platform_device *pdev)
 	}
 
 	pcie->phys = phys;
-
-	dbi_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dbi");
-	if (!dbi_res) {
-		dev_err(dev, "Failed to find \"dbi\" region\n");
-		return -ENODEV;
-	}
-	pcie->dbi_res = dbi_res;
-
-	pci->dbi_base = devm_ioremap_resource(dev, dbi_res);
-	if (IS_ERR(pci->dbi_base))
-		return PTR_ERR(pci->dbi_base);
-
-	/* Tegra HW locates DBI2 at a fixed offset from DBI */
-	pci->dbi_base2 = pci->dbi_base + 0x1000;
 
 	atu_dma_res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						   "atu_dma");

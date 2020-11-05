@@ -578,7 +578,6 @@ static int __init dra7xx_add_pcie_ep(struct dra7xx_pcie *dra7xx,
 {
 	int ret;
 	struct dw_pcie_ep *ep;
-	struct resource *res;
 	struct device *dev = &pdev->dev;
 	struct dw_pcie *pci = dra7xx->pci;
 
@@ -593,13 +592,6 @@ static int __init dra7xx_add_pcie_ep(struct dra7xx_pcie *dra7xx,
 		devm_platform_ioremap_resource_byname(pdev, "ep_dbics2");
 	if (IS_ERR(pci->dbi_base2))
 		return PTR_ERR(pci->dbi_base2);
-
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "addr_space");
-	if (!res)
-		return -EINVAL;
-
-	ep->phys_base = res->start;
-	ep->addr_size = resource_size(res);
 
 	ret = dw_pcie_ep_init(ep);
 	if (ret) {

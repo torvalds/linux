@@ -400,7 +400,6 @@ static int uniphier_pcie_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct uniphier_pcie_priv *priv;
-	struct resource *res;
 	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -409,11 +408,6 @@ static int uniphier_pcie_probe(struct platform_device *pdev)
 
 	priv->pci.dev = dev;
 	priv->pci.ops = &dw_pcie_ops;
-
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dbi");
-	priv->pci.dbi_base = devm_pci_remap_cfg_resource(dev, res);
-	if (IS_ERR(priv->pci.dbi_base))
-		return PTR_ERR(priv->pci.dbi_base);
 
 	priv->base = devm_platform_ioremap_resource_byname(pdev, "link");
 	if (IS_ERR(priv->base))

@@ -977,33 +977,6 @@ static const struct dw_pcie_ep_ops ks_pcie_am654_ep_ops = {
 	.get_features = &ks_pcie_am654_get_features,
 };
 
-static int __init ks_pcie_add_pcie_ep(struct keystone_pcie *ks_pcie,
-				      struct platform_device *pdev)
-{
-	int ret;
-	struct dw_pcie_ep *ep;
-	struct resource *res;
-	struct device *dev = &pdev->dev;
-	struct dw_pcie *pci = ks_pcie->pci;
-
-	ep = &pci->ep;
-
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "addr_space");
-	if (!res)
-		return -EINVAL;
-
-	ep->phys_base = res->start;
-	ep->addr_size = resource_size(res);
-
-	ret = dw_pcie_ep_init(ep);
-	if (ret) {
-		dev_err(dev, "failed to initialize endpoint\n");
-		return ret;
-	}
-
-	return 0;
-}
-
 static void ks_pcie_disable_phy(struct keystone_pcie *ks_pcie)
 {
 	int num_lanes = ks_pcie->num_lanes;
@@ -1313,7 +1286,7 @@ static int __init ks_pcie_probe(struct platform_device *pdev)
 		}
 
 		pci->ep.ops = ep_ops;
-		ret = ks_pcie_add_pcie_ep(ks_pcie, pdev);
+		ret = dw_pcie_ep_init(&pci->ep);
 		if (ret < 0)
 			goto err_get_sync;
 		break;

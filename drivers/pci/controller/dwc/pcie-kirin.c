@@ -157,11 +157,6 @@ static long kirin_pcie_get_resource(struct kirin_pcie *kirin_pcie,
 	if (IS_ERR(kirin_pcie->phy_base))
 		return PTR_ERR(kirin_pcie->phy_base);
 
-	kirin_pcie->pci->dbi_base =
-		devm_platform_ioremap_resource_byname(pdev, "dbi");
-	if (IS_ERR(kirin_pcie->pci->dbi_base))
-		return PTR_ERR(kirin_pcie->pci->dbi_base);
-
 	kirin_pcie->crgctrl =
 		syscon_regmap_lookup_by_compatible("hisilicon,hi3660-crgctrl");
 	if (IS_ERR(kirin_pcie->crgctrl))

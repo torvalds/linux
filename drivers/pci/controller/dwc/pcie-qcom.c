@@ -1368,7 +1368,6 @@ static const struct dw_pcie_ops dw_pcie_ops = {
 static int qcom_pcie_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct resource *res;
 	struct pcie_port *pp;
 	struct dw_pcie *pci;
 	struct qcom_pcie *pcie;
@@ -1404,13 +1403,6 @@ static int qcom_pcie_probe(struct platform_device *pdev)
 	pcie->parf = devm_platform_ioremap_resource_byname(pdev, "parf");
 	if (IS_ERR(pcie->parf)) {
 		ret = PTR_ERR(pcie->parf);
-		goto err_pm_runtime_put;
-	}
-
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dbi");
-	pci->dbi_base = devm_pci_remap_cfg_resource(dev, res);
-	if (IS_ERR(pci->dbi_base)) {
-		ret = PTR_ERR(pci->dbi_base);
 		goto err_pm_runtime_put;
 	}
 

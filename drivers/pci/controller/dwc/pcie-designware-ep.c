@@ -7,6 +7,7 @@
  */
 
 #include <linux/of.h>
+#include <linux/platform_device.h>
 
 #include "pcie-designware.h"
 #include <linux/pci-epc.h>
@@ -676,19 +677,41 @@ int dw_pcie_ep_init(struct dw_pcie_ep *ep)
 	int ret;
 	void *addr;
 	u8 func_no;
+	struct resource *res;
 	struct pci_epc *epc;
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 	struct device *dev = pci->dev;
+	struct platform_device *pdev = to_platform_device(dev);
 	struct device_node *np = dev->of_node;
 	const struct pci_epc_features *epc_features;
 	struct dw_pcie_ep_func *ep_func;
 
 	INIT_LIST_HEAD(&ep->func_list);
 
-	if (!pci->dbi_base || !pci->dbi_base2) {
-		dev_err(dev, "dbi_base/dbi_base2 is not populated\n");
-		return -EINVAL;
+	if (!pci->dbi_base) {
+		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dbi");
+		pci->dbi_base = devm_pci_remap_cfg_resource(dev, res);
+		if (IS_ERR(pci->dbi_base))
+			return PTR_ERR(pci->dbi_base);
 	}
+
+	if (!pci->dbi_base2) {
+		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dbi2");
+		if (!res)
+			pci->dbi_base2 = pci->dbi_base + SZ_4K;
+		else {
+			pci->dbi_base2 = devm_pci_remap_cfg_resource(dev, res);
+			if (IS_ERR(pci->dbi_base2))
+				return PTR_ERR(pci->dbi_base2);
+		}
+	}
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "addr_space");
+	if (!res)
+		return -EINVAL;
+
+	ep->phys_base = res->start;
+	ep->addr_size = resource_size(res);
 
 	ret = of_property_read_u32(np, "num-ib-windows", &ep->num_ib_windows);
 	if (ret < 0) {

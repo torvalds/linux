@@ -152,6 +152,8 @@ static int spear13xx_pcie_host_init(struct pcie_port *pp)
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct spear13xx_pcie *spear13xx_pcie = to_spear13xx_pcie(pci);
 
+	spear13xx_pcie->app_base = pci->dbi_base + 0x2000;
+
 	spear13xx_pcie_establish_link(spear13xx_pcie);
 	spear13xx_pcie_enable_interrupts(spear13xx_pcie);
 
@@ -203,7 +205,6 @@ static int spear13xx_pcie_probe(struct platform_device *pdev)
 	struct dw_pcie *pci;
 	struct spear13xx_pcie *spear13xx_pcie;
 	struct device_node *np = dev->of_node;
-	struct resource *dbi_base;
 	int ret;
 
 	spear13xx_pcie = devm_kzalloc(dev, sizeof(*spear13xx_pcie), GFP_KERNEL);
@@ -241,14 +242,6 @@ static int spear13xx_pcie_probe(struct platform_device *pdev)
 		dev_err(dev, "couldn't enable clk for pcie\n");
 		return ret;
 	}
-
-	dbi_base = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dbi");
-	pci->dbi_base = devm_pci_remap_cfg_resource(dev, dbi_base);
-	if (IS_ERR(pci->dbi_base)) {
-		ret = PTR_ERR(pci->dbi_base);
-		goto fail_clk;
-	}
-	spear13xx_pcie->app_base = pci->dbi_base + 0x2000;
 
 	if (of_property_read_bool(np, "st,pcie-is-gen1"))
 		pci->link_gen = 1;

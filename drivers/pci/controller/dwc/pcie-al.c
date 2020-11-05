@@ -347,7 +347,6 @@ static int al_pcie_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct resource *controller_res;
 	struct resource *ecam_res;
-	struct resource *dbi_res;
 	struct al_pcie *al_pcie;
 	struct dw_pcie *pci;
 
@@ -365,11 +364,6 @@ static int al_pcie_probe(struct platform_device *pdev)
 	al_pcie->pci = pci;
 	al_pcie->dev = dev;
 
-	dbi_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dbi");
-	pci->dbi_base = devm_pci_remap_cfg_resource(dev, dbi_res);
-	if (IS_ERR(pci->dbi_base))
-		return PTR_ERR(pci->dbi_base);
-
 	ecam_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "config");
 	if (!ecam_res) {
 		dev_err(dev, "couldn't find 'config' reg in DT\n");
@@ -386,8 +380,7 @@ static int al_pcie_probe(struct platform_device *pdev)
 		return PTR_ERR(al_pcie->controller_base);
 	}
 
-	dev_dbg(dev, "From DT: dbi_base: %pR, controller_base: %pR\n",
-		dbi_res, controller_res);
+	dev_dbg(dev, "From DT: controller_base: %pR\n", controller_res);
 
 	platform_set_drvdata(pdev, al_pcie);
 
