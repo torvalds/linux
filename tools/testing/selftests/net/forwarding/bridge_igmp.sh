@@ -105,38 +105,6 @@ cleanup()
 	vrf_cleanup
 }
 
-# return 0 if the packet wasn't seen on host2_if or 1 if it was
-mcast_packet_test()
-{
-	local mac=$1
-	local src_ip=$2
-	local ip=$3
-	local host1_if=$4
-	local host2_if=$5
-	local seen=0
-
-	# Add an ACL on `host2_if` which will tell us whether the packet
-	# was received by it or not.
-	tc qdisc add dev $host2_if ingress
-	tc filter add dev $host2_if ingress protocol ip pref 1 handle 101 \
-		flower ip_proto udp dst_mac $mac action drop
-
-	$MZ $host1_if -c 1 -p 64 -b $mac -A $src_ip -B $ip -t udp "dp=4096,sp=2048" -q
-	sleep 1
-
-	tc -j -s filter show dev $host2_if ingress \
-		| jq -e ".[] | select(.options.handle == 101) \
-		| select(.options.actions[0].stats.packets == 1)" &> /dev/null
-	if [[ $? -eq 0 ]]; then
-		seen=1
-	fi
-
-	tc filter del dev $host2_if ingress protocol ip pref 1 handle 101 flower
-	tc qdisc del dev $host2_if ingress
-
-	return $seen
-}
-
 v2reportleave_test()
 {
 	RET=0
@@ -169,73 +137,6 @@ v2reportleave_test()
 	log_test "IGMPv2 leave $TEST_GROUP"
 }
 
-check_sg_entries()
-{
-	local report=$1; shift
-	local slist=("$@")
-	local sarg=""
-
-	for src in "${slist[@]}"; do
-		sarg="${sarg} and .source_list[].address == \"$src\""
-	done
-	bridge -j -d -s mdb show dev br0 \
-		| jq -e ".[].mdb[] | \
-			 select(.grp == \"$TEST_GROUP\" and .source_list != null $sarg)" &>/dev/null
-	check_err $? "Wrong *,G entry source list after $report report"
-
-	for sgent in "${slist[@]}"; do
-		bridge -j -d -s mdb show dev br0 \
-			| jq -e ".[].mdb[] | \
-				 select(.grp == \"$TEST_GROUP\" and .src == \"$sgent\")" &>/dev/null
-		check_err $? "Missing S,G entry ($sgent, $TEST_GROUP)"
-	done
-}
-
-check_sg_fwding()
-{
-	local should_fwd=$1; shift
-	local sources=("$@")
-
-	for src in "${sources[@]}"; do
-		local retval=0
-
-		mcast_packet_test $TEST_GROUP_MAC $src $TEST_GROUP $h2 $h1
-		retval=$?
-		if [ $should_fwd -eq 1 ]; then
-			check_fail $retval "Didn't forward traffic from S,G ($src, $TEST_GROUP)"
-		else
-			check_err $retval "Forwarded traffic for blocked S,G ($src, $TEST_GROUP)"
-		fi
-	done
-}
-
-check_sg_state()
-{
-	local is_blocked=$1; shift
-	local sources=("$@")
-	local should_fail=1
-
-	if [ $is_blocked -eq 1 ]; then
-		should_fail=0
-	fi
-
-	for src in "${sources[@]}"; do
-		bridge -j -d -s mdb show dev br0 \
-			| jq -e ".[].mdb[] | \
-				 select(.grp == \"$TEST_GROUP\" and .source_list != null) |
-				 .source_list[] |
-				 select(.address == \"$src\") |
-				 select(.timer == \"0.00\")" &>/dev/null
-		check_err_fail $should_fail $? "Entry $src has zero timer"
-
-		bridge -j -d -s mdb show dev br0 \
-			| jq -e ".[].mdb[] | \
-				 select(.grp == \"$TEST_GROUP\" and .src == \"$src\" and \
-				 .flags[] == \"blocked\")" &>/dev/null
-		check_err_fail $should_fail $? "Entry $src has blocked flag"
-	done
-}
-
 v3include_prepare()
 {
 	local host1_if=$1
@@ -257,7 +158,7 @@ v3include_prepare()
 			 select(.grp == \"$TEST_GROUP\" and \
 				.source_list != null and .filter_mode == \"include\")" &>/dev/null
 	check_err $? "Wrong *,G entry filter mode"
-	check_sg_entries "is_include" "${X[@]}"
+	brmcast_check_sg_entries "is_include" "${X[@]}"
 }
 
 v3exclude_prepare()
@@ -279,10 +180,10 @@ v3exclude_prepare()
 				.source_list != null and .filter_mode == \"exclude\")" &>/dev/null
 	check_err $? "Wrong *,G entry filter mode"
 
-	check_sg_entries "is_exclude" "${X[@]}" "${Y[@]}"
+	brmcast_check_sg_entries "is_exclude" "${X[@]}" "${Y[@]}"
 
-	check_sg_state 0 "${X[@]}"
-	check_sg_state 1 "${Y[@]}"
+	brmcast_check_sg_state 0 "${X[@]}"
+	brmcast_check_sg_state 1 "${Y[@]}"
 
 	bridge -j -d -s mdb show dev br0 \
 		| jq -e ".[].mdb[] | \
@@ -308,10 +209,10 @@ v3include_test()
 
 	v3include_prepare $h1 $ALL_MAC $ALL_GROUP
 
-	check_sg_state 0 "${X[@]}"
+	brmcast_check_sg_state 0 "${X[@]}"
 
-	check_sg_fwding 1 "${X[@]}"
-	check_sg_fwding 0 "192.0.2.100"
+	brmcast_check_sg_fwding 1 "${X[@]}"
+	brmcast_check_sg_fwding 0 "192.0.2.100"
 
 	log_test "IGMPv3 report $TEST_GROUP is_include"
 
@@ -327,12 +228,12 @@ v3inc_allow_test()
 
 	$MZ $h1 -c 1 -b $ALL_MAC -B $ALL_GROUP -t ip "proto=2,p=$MZPKT_ALLOW" -q
 	sleep 1
-	check_sg_entries "allow" "${X[@]}"
+	brmcast_check_sg_entries "allow" "${X[@]}"
 
-	check_sg_state 0 "${X[@]}"
+	brmcast_check_sg_state 0 "${X[@]}"
 
-	check_sg_fwding 1 "${X[@]}"
-	check_sg_fwding 0 "192.0.2.100"
+	brmcast_check_sg_fwding 1 "${X[@]}"
+	brmcast_check_sg_fwding 0 "192.0.2.100"
 
 	log_test "IGMPv3 report $TEST_GROUP include -> allow"
 
@@ -348,12 +249,12 @@ v3inc_is_include_test()
 
 	$MZ $h1 -c 1 -b $ALL_MAC -B $ALL_GROUP -t ip "proto=2,p=$MZPKT_IS_INC2" -q
 	sleep 1
-	check_sg_entries "is_include" "${X[@]}"
+	brmcast_check_sg_entries "is_include" "${X[@]}"
 
-	check_sg_state 0 "${X[@]}"
+	brmcast_check_sg_state 0 "${X[@]}"
 
-	check_sg_fwding 1 "${X[@]}"
-	check_sg_fwding 0 "192.0.2.100"
+	brmcast_check_sg_fwding 1 "${X[@]}"
+	brmcast_check_sg_fwding 0 "192.0.2.100"
 
 	log_test "IGMPv3 report $TEST_GROUP include -> is_include"
 
@@ -366,8 +267,8 @@ v3inc_is_exclude_test()
 
 	v3exclude_prepare $h1 $ALL_MAC $ALL_GROUP
 
-	check_sg_fwding 1 "${X[@]}" 192.0.2.100
-	check_sg_fwding 0 "${Y[@]}"
+	brmcast_check_sg_fwding 1 "${X[@]}" 192.0.2.100
+	brmcast_check_sg_fwding 0 "${Y[@]}"
 
 	log_test "IGMPv3 report $TEST_GROUP include -> is_exclude"
 
@@ -393,10 +294,10 @@ v3inc_to_exclude_test()
 				.source_list != null and .filter_mode == \"exclude\")" &>/dev/null
 	check_err $? "Wrong *,G entry filter mode"
 
-	check_sg_entries "to_exclude" "${X[@]}" "${Y[@]}"
+	brmcast_check_sg_entries "to_exclude" "${X[@]}" "${Y[@]}"
 
-	check_sg_state 0 "${X[@]}"
-	check_sg_state 1 "${Y[@]}"
+	brmcast_check_sg_state 0 "${X[@]}"
+	brmcast_check_sg_state 1 "${Y[@]}"
 
 	bridge -j -d -s mdb show dev br0 \
 		| jq -e ".[].mdb[] | \
@@ -411,8 +312,8 @@ v3inc_to_exclude_test()
 				.source_list[].address == \"192.0.2.21\")" &>/dev/null
 	check_fail $? "Wrong *,G entry source list, 192.0.2.21 entry still exists"
 
-	check_sg_fwding 1 "${X[@]}" 192.0.2.100
-	check_sg_fwding 0 "${Y[@]}"
+	brmcast_check_sg_fwding 1 "${X[@]}" 192.0.2.100
+	brmcast_check_sg_fwding 0 "${Y[@]}"
 
 	log_test "IGMPv3 report $TEST_GROUP include -> to_exclude"
 
@@ -431,13 +332,13 @@ v3exc_allow_test()
 
 	$MZ $h1 -c 1 -b $ALL_MAC -B $ALL_GROUP -t ip "proto=2,p=$MZPKT_ALLOW2" -q
 	sleep 1
-	check_sg_entries "allow" "${X[@]}" "${Y[@]}"
+	brmcast_check_sg_entries "allow" "${X[@]}" "${Y[@]}"
 
-	check_sg_state 0 "${X[@]}"
-	check_sg_state 1 "${Y[@]}"
+	brmcast_check_sg_state 0 "${X[@]}"
+	brmcast_check_sg_state 1 "${Y[@]}"
 
-	check_sg_fwding 1 "${X[@]}" 192.0.2.100
-	check_sg_fwding 0 "${Y[@]}"
+	brmcast_check_sg_fwding 1 "${X[@]}" 192.0.2.100
+	brmcast_check_sg_fwding 0 "${Y[@]}"
 
 	log_test "IGMPv3 report $TEST_GROUP exclude -> allow"
 
@@ -454,13 +355,13 @@ v3exc_is_include_test()
 
 	$MZ $h1 -c 1 -b $ALL_MAC -B $ALL_GROUP -t ip "proto=2,p=$MZPKT_IS_INC3" -q
 	sleep 1
-	check_sg_entries "is_include" "${X[@]}" "${Y[@]}"
+	brmcast_check_sg_entries "is_include" "${X[@]}" "${Y[@]}"
 
-	check_sg_state 0 "${X[@]}"
-	check_sg_state 1 "${Y[@]}"
+	brmcast_check_sg_state 0 "${X[@]}"
+	brmcast_check_sg_state 1 "${Y[@]}"
 
-	check_sg_fwding 1 "${X[@]}" 192.0.2.100
-	check_sg_fwding 0 "${Y[@]}"
+	brmcast_check_sg_fwding 1 "${X[@]}" 192.0.2.100
+	brmcast_check_sg_fwding 0 "${Y[@]}"
 
 	log_test "IGMPv3 report $TEST_GROUP exclude -> is_include"
 
@@ -477,13 +378,13 @@ v3exc_is_exclude_test()
 
 	$MZ $h1 -c 1 -b $ALL_MAC -B $ALL_GROUP -t ip "proto=2,p=$MZPKT_IS_EXC2" -q
 	sleep 1
-	check_sg_entries "is_exclude" "${X[@]}" "${Y[@]}"
+	brmcast_check_sg_entries "is_exclude" "${X[@]}" "${Y[@]}"
 
-	check_sg_state 0 "${X[@]}"
-	check_sg_state 1 "${Y[@]}"
+	brmcast_check_sg_state 0 "${X[@]}"
+	brmcast_check_sg_state 1 "${Y[@]}"
 
-	check_sg_fwding 1 "${X[@]}" 192.0.2.100
-	check_sg_fwding 0 "${Y[@]}"
+	brmcast_check_sg_fwding 1 "${X[@]}" 192.0.2.100
+	brmcast_check_sg_fwding 0 "${Y[@]}"
 
 	log_test "IGMPv3 report $TEST_GROUP exclude -> is_exclude"
 
@@ -503,13 +404,13 @@ v3exc_to_exclude_test()
 
 	$MZ $h1 -c 1 -b $ALL_MAC -B $ALL_GROUP -t ip "proto=2,p=$MZPKT_TO_EXC" -q
 	sleep 1
-	check_sg_entries "to_exclude" "${X[@]}" "${Y[@]}"
+	brmcast_check_sg_entries "to_exclude" "${X[@]}" "${Y[@]}"
 
-	check_sg_state 0 "${X[@]}"
-	check_sg_state 1 "${Y[@]}"
+	brmcast_check_sg_state 0 "${X[@]}"
+	brmcast_check_sg_state 1 "${Y[@]}"
 
-	check_sg_fwding 1 "${X[@]}" 192.0.2.100
-	check_sg_fwding 0 "${Y[@]}"
+	brmcast_check_sg_fwding 1 "${X[@]}" 192.0.2.100
+	brmcast_check_sg_fwding 0 "${Y[@]}"
 
 	log_test "IGMPv3 report $TEST_GROUP exclude -> to_exclude"
 
@@ -528,9 +429,9 @@ v3inc_block_test()
 	$MZ $h1 -c 1 -b $ALL_MAC -B $ALL_GROUP -t ip "proto=2,p=$MZPKT_BLOCK" -q
 	# make sure the lowered timers have expired (by default 2 seconds)
 	sleep 3
-	check_sg_entries "block" "${X[@]}"
+	brmcast_check_sg_entries "block" "${X[@]}"
 
-	check_sg_state 0 "${X[@]}"
+	brmcast_check_sg_state 0 "${X[@]}"
 
 	bridge -j -d -s mdb show dev br0 \
 		| jq -e ".[].mdb[] | \
@@ -539,8 +440,8 @@ v3inc_block_test()
 				.source_list[].address == \"192.0.2.1\")" &>/dev/null
 	check_fail $? "Wrong *,G entry source list, 192.0.2.1 entry still exists"
 
-	check_sg_fwding 1 "${X[@]}"
-	check_sg_fwding 0 "192.0.2.100"
+	brmcast_check_sg_fwding 1 "${X[@]}"
+	brmcast_check_sg_fwding 0 "192.0.2.100"
 
 	log_test "IGMPv3 report $TEST_GROUP include -> block"
 
@@ -560,13 +461,13 @@ v3exc_block_test()
 
 	$MZ $h1 -c 1 -b $ALL_MAC -B $ALL_GROUP -t ip "proto=2,p=$MZPKT_BLOCK" -q
 	sleep 1
-	check_sg_entries "block" "${X[@]}" "${Y[@]}"
+	brmcast_check_sg_entries "block" "${X[@]}" "${Y[@]}"
 
-	check_sg_state 0 "${X[@]}"
-	check_sg_state 1 "${Y[@]}"
+	brmcast_check_sg_state 0 "${X[@]}"
+	brmcast_check_sg_state 1 "${Y[@]}"
 
-	check_sg_fwding 1 "${X[@]}" 192.0.2.100
-	check_sg_fwding 0 "${Y[@]}"
+	brmcast_check_sg_fwding 1 "${X[@]}" 192.0.2.100
+	brmcast_check_sg_fwding 0 "${Y[@]}"
 
 	log_test "IGMPv3 report $TEST_GROUP exclude -> block"
 
@@ -606,12 +507,12 @@ v3exc_timeout_test()
 				.source_list[].address == \"192.0.2.2\")" &>/dev/null
 	check_fail $? "Wrong *,G entry source list, 192.0.2.2 entry still exists"
 
-	check_sg_entries "allow" "${X[@]}"
+	brmcast_check_sg_entries "allow" "${X[@]}"
 
-	check_sg_state 0 "${X[@]}"
+	brmcast_check_sg_state 0 "${X[@]}"
 
-	check_sg_fwding 1 "${X[@]}"
-	check_sg_fwding 0 192.0.2.100
+	brmcast_check_sg_fwding 1 "${X[@]}"
+	brmcast_check_sg_fwding 0 192.0.2.100
 
 	log_test "IGMPv3 group $TEST_GROUP exclude timeout"
 
@@ -642,7 +543,7 @@ v3star_ex_auto_add_test()
 				.flags[] == \"added_by_star_ex\")" &>/dev/null
 	check_err $? "Auto-added S,G entry doesn't have added_by_star_ex flag"
 
-	check_sg_fwding 1 192.0.2.3
+	brmcast_check_sg_fwding 1 192.0.2.3
 
 	log_test "IGMPv3 S,G port entry automatic add to a *,G port"
 
