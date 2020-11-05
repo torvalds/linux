@@ -12,7 +12,7 @@
 #include "mt8192-afe-common.h"
 #include "mt8192-afe-gpio.h"
 
-struct pinctrl *aud_pinctrl;
+static struct pinctrl *aud_pinctrl;
 
 enum mt8192_afe_gpio {
 	MT8192_AFE_GPIO_DAT_MISO_OFF,

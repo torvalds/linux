@@ -67,7 +67,7 @@ static int mt8192_irq_fs(struct snd_pcm_substream *substream, unsigned int rate)
 	return mt8192_general_rate_transform(afe->dev, rate);
 }
 
-int mt8192_get_memif_pbuf_size(struct snd_pcm_substream *substream)
+static int mt8192_get_memif_pbuf_size(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
@@ -2134,7 +2134,7 @@ static int mt8192_afe_component_probe(struct snd_soc_component *component)
 	return mtk_afe_add_sub_dai_control(component);
 }
 
-const struct snd_soc_component_driver mt8192_afe_component = {
+static const struct snd_soc_component_driver mt8192_afe_component = {
 	.name = AFE_PCM_NAME,
 	.probe = mt8192_afe_component_probe,
 	.pointer = mtk_afe_pcm_pointer,
