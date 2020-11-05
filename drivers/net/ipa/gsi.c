@@ -1170,6 +1170,34 @@ static irqreturn_t gsi_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static int gsi_irq_init(struct gsi *gsi, struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	unsigned int irq;
+	int ret;
+
+	ret = platform_get_irq_byname(pdev, "gsi");
+	if (ret <= 0) {
+		dev_err(dev, "DT error %d getting \"gsi\" IRQ property\n", ret);
+		return ret ? : -EINVAL;
+	}
+	irq = ret;
+
+	ret = request_irq(irq, gsi_isr, 0, "gsi", gsi);
+	if (ret) {
+		dev_err(dev, "error %d requesting \"gsi\" IRQ\n", ret);
+		return ret;
+	}
+	gsi->irq = irq;
+
+	return 0;
+}
+
+static void gsi_irq_exit(struct gsi *gsi)
+{
+	free_irq(gsi->irq, gsi);
+}
+
 /* Return the transaction associated with a transfer completion event */
 static struct gsi_trans *gsi_event_trans(struct gsi_channel *channel,
 					 struct gsi_event *event)
@@ -1962,7 +1990,6 @@ int gsi_init(struct gsi *gsi, struct platform_device *pdev,
 	struct device *dev = &pdev->dev;
 	struct resource *res;
 	resource_size_t size;
-	unsigned int irq;
 	int ret;
 
 	gsi_validate_build();
@@ -1976,55 +2003,43 @@ int gsi_init(struct gsi *gsi, struct platform_device *pdev,
 	 */
 	init_dummy_netdev(&gsi->dummy_dev);
 
-	ret = platform_get_irq_byname(pdev, "gsi");
-	if (ret <= 0) {
-		dev_err(dev, "DT error %d getting \"gsi\" IRQ property\n", ret);
-		return ret ? : -EINVAL;
-	}
-	irq = ret;
-
-	ret = request_irq(irq, gsi_isr, 0, "gsi", gsi);
-	if (ret) {
-		dev_err(dev, "error %d requesting \"gsi\" IRQ\n", ret);
-		return ret;
-	}
-	gsi->irq = irq;
-
 	/* Get GSI memory range and map it */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "gsi");
 	if (!res) {
 		dev_err(dev, "DT error getting \"gsi\" memory property\n");
-		ret = -ENODEV;
-		goto err_free_irq;
+		return -ENODEV;
 	}
 
 	size = resource_size(res);
 	if (res->start > U32_MAX || size > U32_MAX - res->start) {
 		dev_err(dev, "DT memory resource \"gsi\" out of range\n");
-		ret = -EINVAL;
-		goto err_free_irq;
+		return -EINVAL;
 	}
 
 	gsi->virt = ioremap(res->start, size);
 	if (!gsi->virt) {
 		dev_err(dev, "unable to remap \"gsi\" memory\n");
-		ret = -ENOMEM;
-		goto err_free_irq;
+		return -ENOMEM;
 	}
 
-	ret = gsi_channel_init(gsi, count, data);
+	init_completion(&gsi->completion);
+
+	ret = gsi_irq_init(gsi, pdev);
 	if (ret)
 		goto err_iounmap;
 
+	ret = gsi_channel_init(gsi, count, data);
+	if (ret)
+		goto err_irq_exit;
+
 	mutex_init(&gsi->mutex);
-	init_completion(&gsi->completion);
 
 	return 0;
 
+err_irq_exit:
+	gsi_irq_exit(gsi);
 err_iounmap:
 	iounmap(gsi->virt);
-err_free_irq:
-	free_irq(gsi->irq, gsi);
 
 	return ret;
 }
@@ -2034,7 +2049,7 @@ void gsi_exit(struct gsi *gsi)
 {
 	mutex_destroy(&gsi->mutex);
 	gsi_channel_exit(gsi);
-	free_irq(gsi->irq, gsi);
+	gsi_irq_exit(gsi);
 	iounmap(gsi->virt);
 }
 
