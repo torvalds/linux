@@ -316,6 +316,14 @@
 		#size-cells = <1>;
 		ranges;
 
+		linux,cma {
+			compatible = "shared-dma-pool";
+			inactive;
+			reusable;
+			size = <0x800000>;
+			linux,cma-default;
+		};
+
 		drm_logo: drm-logo@00000000 {
 			compatible = "rockchip,drm-logo";
 			reg = <0x0 0x0>;
@@ -323,6 +331,7 @@
 
 		isp_reserved: isp {
 			compatible = "shared-dma-pool";
+			inactive;
 			reusable;
 			size = <0x10000000>;
 		};
