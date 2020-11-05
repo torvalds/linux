@@ -9,25 +9,25 @@ C MP+fencewmbonceonce+fencermbonceonce
  *)
 
 {
-	int x;
-	int y;
+	int buf;
+	int flag;
 }
 
-P0(int *x, int *y)
+P0(int *buf, int *flag)
 {
-	WRITE_ONCE(*x, 1);
+	WRITE_ONCE(*buf, 1);
 	smp_wmb();
-	WRITE_ONCE(*y, 1);
+	WRITE_ONCE(*flag, 1);
 }
 
-P1(int *x, int *y)
+P1(int *buf, int *flag)
 {
 	int r0;
 	int r1;
 
-	r0 = READ_ONCE(*y);
+	r0 = READ_ONCE(*flag);
 	smp_rmb();
-	r1 = READ_ONCE(*x);
+	r1 = READ_ONCE(*buf);
 }
 
 exists (1:r0=1 /\ 1:r1=0)
