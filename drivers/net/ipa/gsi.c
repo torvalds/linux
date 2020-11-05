@@ -256,6 +256,7 @@ static void gsi_irq_setup(struct gsi *gsi)
 	gsi_irq_type_update(gsi);
 
 	iowrite32(0, gsi->virt + GSI_CNTXT_SRC_CH_IRQ_MSK_OFFSET);
+	iowrite32(0, gsi->virt + GSI_CNTXT_SRC_EV_CH_IRQ_MSK_OFFSET);
 }
 
 /* Turn off all GSI interrupts when we're all done */
@@ -288,10 +289,6 @@ static void gsi_irq_enable(struct gsi *gsi)
 {
 	u32 val;
 
-	val = GENMASK(gsi->evt_ring_count - 1, 0);
-	iowrite32(val, gsi->virt + GSI_CNTXT_SRC_EV_CH_IRQ_MSK_OFFSET);
-	gsi->type_enabled_bitmap |= BIT(GSI_EV_CTRL);
-
 	/* Each IEOB interrupt is enabled (later) as needed by channels */
 	iowrite32(0, gsi->virt + GSI_CNTXT_SRC_IEOB_IRQ_MSK_OFFSET);
 	gsi->type_enabled_bitmap |= BIT(GSI_IEOB);
@@ -320,7 +317,6 @@ static void gsi_irq_disable(struct gsi *gsi)
 	iowrite32(0, gsi->virt + GSI_CNTXT_GSI_IRQ_EN_OFFSET);
 	iowrite32(0, gsi->virt + GSI_CNTXT_GLOB_IRQ_EN_OFFSET);
 	iowrite32(0, gsi->virt + GSI_CNTXT_SRC_IEOB_IRQ_MSK_OFFSET);
-	iowrite32(0, gsi->virt + GSI_CNTXT_SRC_EV_CH_IRQ_MSK_OFFSET);
 }
 
 /* Return the virtual address associated with a ring index */
@@ -374,13 +370,30 @@ static int evt_ring_command(struct gsi *gsi, u32 evt_ring_id,
 	struct gsi_evt_ring *evt_ring = &gsi->evt_ring[evt_ring_id];
 	struct completion *completion = &evt_ring->completion;
 	struct device *dev = gsi->dev;
+	bool success;
 	u32 val;
+
+	/* We only perform one event ring command at a time, and event
+	 * control interrupts should only occur when such a command
+	 * is issued here.  Only permit *this* event ring to trigger
+	 * an interrupt, and only enable the event control IRQ type
+	 * when we expect it to occur.
+	 */
+	val = BIT(evt_ring_id);
+	iowrite32(val, gsi->virt + GSI_CNTXT_SRC_EV_CH_IRQ_MSK_OFFSET);
+	gsi_irq_type_enable(gsi, GSI_EV_CTRL);
 
 	val = u32_encode_bits(evt_ring_id, EV_CHID_FMASK);
 	val |= u32_encode_bits(opcode, EV_OPCODE_FMASK);
 
-	if (gsi_command(gsi, GSI_EV_CH_CMD_OFFSET, val, completion))
-		return 0;	/* Success! */
+	success = gsi_command(gsi, GSI_EV_CH_CMD_OFFSET, val, completion);
+
+	/* Disable the interrupt again */
+	gsi_irq_type_disable(gsi, GSI_EV_CTRL);
+	iowrite32(0, gsi->virt + GSI_CNTXT_SRC_EV_CH_IRQ_MSK_OFFSET);
+
+	if (success)
+		return 0;
 
 	dev_err(dev, "GSI command %u for event ring %u timed out, state %u\n",
 		opcode, evt_ring_id, evt_ring->state);
