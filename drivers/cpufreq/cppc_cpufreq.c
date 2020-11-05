@@ -26,8 +26,8 @@
 /* Minimum struct length needed for the DMI processor entry we want */
 #define DMI_ENTRY_PROCESSOR_MIN_LENGTH	48
 
-/* Offest in the DMI processor structure for the max frequency */
-#define DMI_PROCESSOR_MAX_SPEED  0x14
+/* Offset in the DMI processor structure for the max frequency */
+#define DMI_PROCESSOR_MAX_SPEED		0x14
 
 /*
  * These structs contain information parsed from per CPU
@@ -97,10 +97,10 @@ static u64 cppc_get_dmi_max_khz(void)
  * For perf/freq > Nominal, we use the ratio perf:freq at Nominal for conversion
  */
 static unsigned int cppc_cpufreq_perf_to_khz(struct cppc_cpudata *cpu,
-					unsigned int perf)
+					     unsigned int perf)
 {
-	static u64 max_khz;
 	struct cppc_perf_caps *caps = &cpu->perf_caps;
+	static u64 max_khz;
 	u64 mul, div;
 
 	if (caps->lowest_freq && caps->nominal_freq) {
@@ -121,10 +121,10 @@ static unsigned int cppc_cpufreq_perf_to_khz(struct cppc_cpudata *cpu,
 }
 
 static unsigned int cppc_cpufreq_khz_to_perf(struct cppc_cpudata *cpu,
-					unsigned int freq)
+					     unsigned int freq)
 {
-	static u64 max_khz;
 	struct cppc_perf_caps *caps = &cpu->perf_caps;
+	static u64 max_khz;
 	u64  mul, div;
 
 	if (caps->lowest_freq && caps->nominal_freq) {
@@ -146,11 +146,11 @@ static unsigned int cppc_cpufreq_khz_to_perf(struct cppc_cpudata *cpu,
 }
 
 static int cppc_cpufreq_set_target(struct cpufreq_policy *policy,
-		unsigned int target_freq,
-		unsigned int relation)
+				   unsigned int target_freq,
+				   unsigned int relation)
 {
-	struct cppc_cpudata *cpu;
 	struct cpufreq_freqs freqs;
+	struct cppc_cpudata *cpu;
 	u32 desired_perf;
 	int ret = 0;
 
@@ -171,7 +171,7 @@ static int cppc_cpufreq_set_target(struct cpufreq_policy *policy,
 
 	if (ret)
 		pr_debug("Failed to set target on CPU:%d. ret:%d\n",
-				cpu->cpu, ret);
+			 cpu->cpu, ret);
 
 	return ret;
 }
@@ -193,13 +193,13 @@ static void cppc_cpufreq_stop_cpu(struct cpufreq_policy *policy)
 	ret = cppc_set_perf(cpu_num, &cpu->perf_ctrls);
 	if (ret)
 		pr_debug("Err setting perf value:%d on CPU:%d. ret:%d\n",
-				cpu->perf_caps.lowest_perf, cpu_num, ret);
+			 cpu->perf_caps.lowest_perf, cpu_num, ret);
 }
 
 /*
  * The PCC subspace describes the rate at which platform can accept commands
  * on the shared PCC channel (including READs which do not count towards freq
- * trasition requests), so ideally we need to use the PCC values as a fallback
+ * transition requests), so ideally we need to use the PCC values as a fallback
  * if we don't have a platform specific transition_delay_us
  */
 #ifdef CONFIG_ARM64
@@ -241,8 +241,8 @@ static unsigned int cppc_cpufreq_get_transition_delay_us(int cpu)
 
 static int cppc_cpufreq_cpu_init(struct cpufreq_policy *policy)
 {
-	struct cppc_cpudata *cpu;
 	unsigned int cpu_num = policy->cpu;
+	struct cppc_cpudata *cpu;
 	int ret = 0;
 
 	cpu = all_cpu_data[policy->cpu];
@@ -252,7 +252,7 @@ static int cppc_cpufreq_cpu_init(struct cpufreq_policy *policy)
 
 	if (ret) {
 		pr_debug("Err reading CPU%d perf capabilities. ret:%d\n",
-				cpu_num, ret);
+			 cpu_num, ret);
 		return ret;
 	}
 
@@ -313,7 +313,7 @@ static int cppc_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	ret = cppc_set_perf(cpu_num, &cpu->perf_ctrls);
 	if (ret)
 		pr_debug("Err setting perf value:%d on CPU:%d. ret:%d\n",
-				cpu->perf_caps.highest_perf, cpu_num, ret);
+			 cpu->perf_caps.highest_perf, cpu_num, ret);
 
 	return ret;
 }
@@ -450,8 +450,8 @@ static void cppc_check_hisi_workaround(void)
 
 static int __init cppc_cpufreq_init(void)
 {
-	int i, ret = 0;
 	struct cppc_cpudata *cpu;
+	int i, ret = 0;
 
 	if (acpi_disabled)
 		return -ENODEV;
