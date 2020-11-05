@@ -1993,12 +1993,12 @@ void rtl8723b_download_rsvd_page(struct adapter *padapter, u8 mstatus)
 
 		if (padapter->bSurpriseRemoved || padapter->bDriverStopped) {
 		} else if (!bcn_valid)
-			DBG_871X(ADPT_FMT": 1 DL RSVD page failed! DLBcnCount:%u, poll:%u\n",
+			DBG_871X("%s: 1 DL RSVD page failed! DLBcnCount:%u, poll:%u\n",
 				ADPT_ARG(padapter), DLBcnCount, poll);
 		else {
 			struct pwrctrl_priv *pwrctl = adapter_to_pwrctl(padapter);
 			pwrctl->fw_psmode_iface_id = padapter->iface_id;
-			DBG_871X(ADPT_FMT": 1 DL RSVD page success! DLBcnCount:%u, poll:%u\n",
+			DBG_871X("%s: 1 DL RSVD page success! DLBcnCount:%u, poll:%u\n",
 				ADPT_ARG(padapter), DLBcnCount, poll);
 		}
 
@@ -2290,14 +2290,14 @@ void rtl8723b_download_BTCoex_AP_mode_rsvd_page(struct adapter *padapter)
 	if (bcn_valid) {
 		struct pwrctrl_priv *pwrctl = adapter_to_pwrctl(padapter);
 		pwrctl->fw_psmode_iface_id = padapter->iface_id;
-		DBG_8192C(ADPT_FMT": DL RSVD page success! DLBcnCount:%d, poll:%d\n",
+		DBG_8192C("%s: DL RSVD page success! DLBcnCount:%d, poll:%d\n",
 			ADPT_ARG(padapter), DLBcnCount, poll);
 	} else {
-		DBG_8192C(ADPT_FMT": DL RSVD page fail! DLBcnCount:%d, poll:%d\n",
+		DBG_8192C("%s: DL RSVD page fail! DLBcnCount:%d, poll:%d\n",
 			ADPT_ARG(padapter), DLBcnCount, poll);
-		DBG_8192C(ADPT_FMT": DL RSVD page fail! bSurpriseRemoved =%d\n",
+		DBG_8192C("%s: DL RSVD page fail! bSurpriseRemoved =%d\n",
 			ADPT_ARG(padapter), padapter->bSurpriseRemoved);
-		DBG_8192C(ADPT_FMT": DL RSVD page fail! bDriverStopped =%d\n",
+		DBG_8192C("%s: DL RSVD page fail! bDriverStopped =%d\n",
 			ADPT_ARG(padapter), padapter->bDriverStopped);
 	}
 

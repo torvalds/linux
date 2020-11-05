@@ -503,7 +503,7 @@ post_process:
 
 		cmd_process_time = jiffies_to_msecs(jiffies - cmd_start_time);
 		if (cmd_process_time > 1000) {
-			DBG_871X(ADPT_FMT "cmd= %d process_time= %lu > 1 sec\n",
+			DBG_871X("%s cmd= %d process_time= %lu > 1 sec\n",
 				 ADPT_ARG(pcmd->padapter), pcmd->cmdcode,
 				 cmd_process_time);
 		}

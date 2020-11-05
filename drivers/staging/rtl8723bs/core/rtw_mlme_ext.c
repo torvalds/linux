@@ -5108,7 +5108,7 @@ void report_surveydone_event(struct adapter *padapter)
 	psurveydone_evt = (struct surveydone_event *)(pevtcmd + sizeof(struct C2HEvent_Header));
 	psurveydone_evt->bss_cnt = pmlmeext->sitesurvey_res.bss_cnt;
 
-	DBG_871X("survey done event(%x) band:%d for "ADPT_FMT"\n", psurveydone_evt->bss_cnt, padapter->setband, ADPT_ARG(padapter));
+	DBG_871X("survey done event(%x) band:%d for %s\n", psurveydone_evt->bss_cnt, padapter->setband, ADPT_ARG(padapter));
 
 	rtw_enqueue_cmd(pcmdpriv, pcmd_obj);
 
@@ -5585,7 +5585,7 @@ void _linked_info_dump(struct adapter *padapter)
 
 	if (padapter->bLinkInfoDump) {
 
-		DBG_871X("\n ============["ADPT_FMT"] linked status check ===================\n", ADPT_ARG(padapter));
+		DBG_871X("\n ============[%s] linked status check ===================\n", ADPT_ARG(padapter));
 
 		if ((pmlmeinfo->state&0x03) == WIFI_FW_STATION_STATE) {
 			rtw_hal_get_def_var(padapter, HAL_DEF_UNDERCORATEDSMOOTHEDPWDB, &UndecoratedSmoothedPWDB);
