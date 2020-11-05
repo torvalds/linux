@@ -622,10 +622,11 @@ static int srpt_refresh_port(struct srpt_port *sport)
 /**
  * srpt_unregister_mad_agent - unregister MAD callback functions
  * @sdev: SRPT HCA pointer.
+ * @port_cnt: number of ports with registered MAD
  *
  * Note: It is safe to call this function more than once for the same device.
  */
-static void srpt_unregister_mad_agent(struct srpt_device *sdev)
+static void srpt_unregister_mad_agent(struct srpt_device *sdev, int port_cnt)
 {
 	struct ib_port_modify port_modify = {
 		.clr_port_cap_mask = IB_PORT_DEVICE_MGMT_SUP,
@@ -633,7 +634,7 @@ static void srpt_unregister_mad_agent(struct srpt_device *sdev)
 	struct srpt_port *sport;
 	int i;
 
-	for (i = 1; i <= sdev->device->phys_port_cnt; i++) {
+	for (i = 1; i <= port_cnt; i++) {
 		sport = &sdev->port[i - 1];
 		WARN_ON(sport->port != i);
 		if (sport->mad_agent) {
@@ -3185,7 +3186,8 @@ static int srpt_add_one(struct ib_device *device)
 		if (ret) {
 			pr_err("MAD registration failed for %s-%d.\n",
 			       dev_name(&sdev->device->dev), i);
-			goto err_event;
+			i--;
+			goto err_port;
 		}
 	}
 
@@ -3197,7 +3199,8 @@ static int srpt_add_one(struct ib_device *device)
 	pr_debug("added %s.\n", dev_name(&device->dev));
 	return 0;
 
-err_event:
+err_port:
+	srpt_unregister_mad_agent(sdev, i);
 	ib_unregister_event_handler(&sdev->event_handler);
 err_cm:
 	if (sdev->cm_id)
@@ -3221,7 +3224,7 @@ static void srpt_remove_one(struct ib_device *device, void *client_data)
 	struct srpt_device *sdev = client_data;
 	int i;
 
-	srpt_unregister_mad_agent(sdev);
+	srpt_unregister_mad_agent(sdev, sdev->device->phys_port_cnt);
 
 	ib_unregister_event_handler(&sdev->event_handler);
 
