@@ -366,7 +366,7 @@ static int __init early_get_arch_type(void)
 	return ret;
 }
 
-static int __init uv_set_system_type(char *_oem_id)
+static int __init uv_set_system_type(char *_oem_id, char *_oem_table_id)
 {
 	/* Save OEM_ID passed from ACPI MADT */
 	uv_stringify(sizeof(oem_id), oem_id, _oem_id);
@@ -393,6 +393,9 @@ static int __init uv_set_system_type(char *_oem_id)
 		/* UV3 Hubless: UV300/MC990X w/o hub */
 		else
 			uv_hubless_system = 0x9;
+
+		/* Copy APIC type */
+		uv_stringify(sizeof(oem_table_id), oem_table_id, _oem_table_id);
 
 		pr_info("UV: OEM IDs %s/%s, SystemType %d, HUBLESS ID %x\n",
 			oem_id, oem_table_id, uv_system_type, uv_hubless_system);
@@ -456,7 +459,7 @@ static int __init uv_acpi_madt_oem_check(char *_oem_id, char *_oem_table_id)
 	uv_cpu_info->p_uv_hub_info = &uv_hub_info_node0;
 
 	/* If not UV, return. */
-	if (likely(uv_set_system_type(_oem_id) == 0))
+	if (uv_set_system_type(_oem_id, _oem_table_id) == 0)
 		return 0;
 
 	/* Save and Decode OEM Table ID */
