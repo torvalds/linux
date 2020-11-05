@@ -39,6 +39,7 @@
 #include <drm/drm_panel.h>
 
 /**
+ * struct panel_desc
  * @modes: Pointer to array of fixed modes appropriate for this panel.  If
  *         only one mode then this can just be the address of this the mode.
  *         NOTE: cannot be used with "timings" and also if this is specified
@@ -53,6 +54,7 @@
  * @delay: Structure containing various delay values for this panel.
  * @bus_format: See MEDIA_BUS_FMT_... defines.
  * @bus_flags: See DRM_BUS_FLAG_... defines.
+ * @connector_type: LVDS, eDP, DSI, DPI, etc.
  */
 struct panel_desc {
 	const struct drm_display_mode *modes;
