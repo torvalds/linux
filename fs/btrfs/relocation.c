@@ -1218,8 +1218,6 @@ again:
 
 	parent = eb;
 	while (1) {
-		struct btrfs_key first_key;
-
 		level = btrfs_header_level(parent);
 		BUG_ON(level < lowest_level);
 
@@ -1235,7 +1233,6 @@ again:
 		old_bytenr = btrfs_node_blockptr(parent, slot);
 		blocksize = fs_info->nodesize;
 		old_ptr_gen = btrfs_node_ptr_generation(parent, slot);
-		btrfs_node_key_to_cpu(parent, &first_key, slot);
 
 		if (level <= max_level) {
 			eb = path->nodes[level];
@@ -1260,14 +1257,9 @@ again:
 				break;
 			}
 
-			eb = read_tree_block(fs_info, old_bytenr, old_ptr_gen,
-					     level - 1, &first_key);
+			eb = btrfs_read_node_slot(parent, slot);
 			if (IS_ERR(eb)) {
 				ret = PTR_ERR(eb);
-				break;
-			} else if (!extent_buffer_uptodate(eb)) {
-				ret = -EIO;
-				free_extent_buffer(eb);
 				break;
 			}
 			btrfs_tree_lock(eb);
