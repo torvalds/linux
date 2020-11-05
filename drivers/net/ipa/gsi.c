@@ -21,6 +21,7 @@
 #include "gsi_trans.h"
 #include "ipa_gsi.h"
 #include "ipa_data.h"
+#include "ipa_version.h"
 
 /**
  * DOC: The IPA Generic Software Interface
@@ -742,11 +743,12 @@ static void gsi_channel_program(struct gsi_channel *channel, bool doorbell)
 
 	/* Max prefetch is 1 segment (do not set MAX_PREFETCH_FMASK) */
 
-	/* Enable the doorbell engine if requested */
-	if (doorbell)
+	/* We enable the doorbell engine for IPA v3.5.1 */
+	if (gsi->version == IPA_VERSION_3_5_1 && doorbell)
 		val |= USE_DB_ENG_FMASK;
 
-	if (!channel->use_prefetch)
+	/* Starting with IPA v4.0 the command channel uses the escape buffer */
+	if (gsi->version != IPA_VERSION_3_5_1 && channel->command)
 		val |= USE_ESCAPE_BUF_ONLY_FMASK;
 
 	iowrite32(val, gsi->virt + GSI_CH_C_QOS_OFFSET(channel_id));
@@ -829,8 +831,8 @@ int gsi_channel_stop(struct gsi *gsi, u32 channel_id)
 	return ret;
 }
 
-/* Reset and reconfigure a channel (possibly leaving doorbell disabled) */
-void gsi_channel_reset(struct gsi *gsi, u32 channel_id, bool legacy)
+/* Reset and reconfigure a channel, (possibly) enabling the doorbell engine */
+void gsi_channel_reset(struct gsi *gsi, u32 channel_id, bool doorbell)
 {
 	struct gsi_channel *channel = &gsi->channel[channel_id];
 
@@ -838,10 +840,10 @@ void gsi_channel_reset(struct gsi *gsi, u32 channel_id, bool legacy)
 
 	gsi_channel_reset_command(channel);
 	/* Due to a hardware quirk we may need to reset RX channels twice. */
-	if (legacy && !channel->toward_ipa)
+	if (gsi->version == IPA_VERSION_3_5_1 && !channel->toward_ipa)
 		gsi_channel_reset_command(channel);
 
-	gsi_channel_program(channel, legacy);
+	gsi_channel_program(channel, doorbell);
 	gsi_channel_trans_cancel_pending(channel);
 
 	mutex_unlock(&gsi->mutex);
@@ -1452,8 +1454,7 @@ static void gsi_evt_ring_teardown(struct gsi *gsi)
 }
 
 /* Setup function for a single channel */
-static int gsi_channel_setup_one(struct gsi *gsi, u32 channel_id,
-				 bool legacy)
+static int gsi_channel_setup_one(struct gsi *gsi, u32 channel_id)
 {
 	struct gsi_channel *channel = &gsi->channel[channel_id];
 	u32 evt_ring_id = channel->evt_ring_id;
@@ -1472,7 +1473,7 @@ static int gsi_channel_setup_one(struct gsi *gsi, u32 channel_id,
 	if (ret)
 		goto err_evt_ring_de_alloc;
 
-	gsi_channel_program(channel, legacy);
+	gsi_channel_program(channel, true);
 
 	if (channel->toward_ipa)
 		netif_tx_napi_add(&gsi->dummy_dev, &channel->napi,
@@ -1549,7 +1550,7 @@ static void gsi_modem_channel_halt(struct gsi *gsi, u32 channel_id)
 }
 
 /* Setup function for channels */
-static int gsi_channel_setup(struct gsi *gsi, bool legacy)
+static int gsi_channel_setup(struct gsi *gsi)
 {
 	u32 channel_id = 0;
 	u32 mask;
@@ -1561,7 +1562,7 @@ static int gsi_channel_setup(struct gsi *gsi, bool legacy)
 	mutex_lock(&gsi->mutex);
 
 	do {
-		ret = gsi_channel_setup_one(gsi, channel_id, legacy);
+		ret = gsi_channel_setup_one(gsi, channel_id);
 		if (ret)
 			goto err_unwind;
 	} while (++channel_id < gsi->channel_count);
@@ -1647,7 +1648,7 @@ static void gsi_channel_teardown(struct gsi *gsi)
 }
 
 /* Setup function for GSI.  GSI firmware must be loaded and initialized */
-int gsi_setup(struct gsi *gsi, bool legacy)
+int gsi_setup(struct gsi *gsi)
 {
 	struct device *dev = gsi->dev;
 	u32 val;
@@ -1691,7 +1692,7 @@ int gsi_setup(struct gsi *gsi, bool legacy)
 	/* Writing 1 indicates IRQ interrupts; 0 would be MSI */
 	iowrite32(1, gsi->virt + GSI_CNTXT_INTSET_OFFSET);
 
-	return gsi_channel_setup(gsi, legacy);
+	return gsi_channel_setup(gsi);
 }
 
 /* Inverse of gsi_setup() */
@@ -1814,7 +1815,7 @@ static bool gsi_channel_data_valid(struct gsi *gsi,
 /* Init function for a single channel */
 static int gsi_channel_init_one(struct gsi *gsi,
 				const struct ipa_gsi_endpoint_data *data,
-				bool command, bool prefetch)
+				bool command)
 {
 	struct gsi_channel *channel;
 	u32 tre_count;
@@ -1838,7 +1839,6 @@ static int gsi_channel_init_one(struct gsi *gsi,
 	channel->gsi = gsi;
 	channel->toward_ipa = data->toward_ipa;
 	channel->command = command;
-	channel->use_prefetch = command && prefetch;
 	channel->tlv_count = data->channel.tlv_count;
 	channel->tre_count = tre_count;
 	channel->event_count = data->channel.event_count;
@@ -1892,12 +1892,15 @@ static void gsi_channel_exit_one(struct gsi_channel *channel)
 }
 
 /* Init function for channels */
-static int gsi_channel_init(struct gsi *gsi, bool prefetch, u32 count,
-			    const struct ipa_gsi_endpoint_data *data,
-			    bool modem_alloc)
+static int gsi_channel_init(struct gsi *gsi, u32 count,
+			    const struct ipa_gsi_endpoint_data *data)
 {
+	bool modem_alloc;
 	int ret = 0;
 	u32 i;
+
+	/* IPA v4.2 requires the AP to allocate channels for the modem */
+	modem_alloc = gsi->version == IPA_VERSION_4_2;
 
 	gsi_evt_ring_init(gsi);
 
@@ -1916,7 +1919,7 @@ static int gsi_channel_init(struct gsi *gsi, bool prefetch, u32 count,
 			continue;
 		}
 
-		ret = gsi_channel_init_one(gsi, &data[i], command, prefetch);
+		ret = gsi_channel_init_one(gsi, &data[i], command);
 		if (ret)
 			goto err_unwind;
 	}
@@ -1952,9 +1955,9 @@ static void gsi_channel_exit(struct gsi *gsi)
 }
 
 /* Init function for GSI.  GSI hardware does not need to be "ready" */
-int gsi_init(struct gsi *gsi, struct platform_device *pdev, bool prefetch,
-	     u32 count, const struct ipa_gsi_endpoint_data *data,
-	     bool modem_alloc)
+int gsi_init(struct gsi *gsi, struct platform_device *pdev,
+	     enum ipa_version version, u32 count,
+	     const struct ipa_gsi_endpoint_data *data)
 {
 	struct device *dev = &pdev->dev;
 	struct resource *res;
@@ -1965,6 +1968,7 @@ int gsi_init(struct gsi *gsi, struct platform_device *pdev, bool prefetch,
 	gsi_validate_build();
 
 	gsi->dev = dev;
+	gsi->version = version;
 
 	/* The GSI layer performs NAPI on all endpoints.  NAPI requires a
 	 * network device structure, but the GSI layer does not have one,
@@ -2008,7 +2012,7 @@ int gsi_init(struct gsi *gsi, struct platform_device *pdev, bool prefetch,
 		goto err_free_irq;
 	}
 
-	ret = gsi_channel_init(gsi, prefetch, count, data, modem_alloc);
+	ret = gsi_channel_init(gsi, count, data);
 	if (ret)
 		goto err_iounmap;
 
