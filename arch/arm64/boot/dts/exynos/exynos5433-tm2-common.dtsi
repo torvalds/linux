@@ -860,7 +860,7 @@
 		muic: max77843-muic {
 			compatible = "maxim,max77843-muic";
 
-			musb_con: musb_connector {
+			musb_con: musb-connector {
 				compatible = "samsung,usb-connector-11pin",
 					     "usb-b-connector";
 				label = "micro-USB";
@@ -1083,7 +1083,7 @@
 		PIN(INPUT, gpf5-7, DOWN, FAST_SR1);
 	};
 
-	te_irq: te_irq {
+	te_irq: te-irq {
 		samsung,pins = "gpf1-3";
 		samsung,pin-function = <0xf>;
 	};
