@@ -251,10 +251,6 @@
 
 #include "axp803.dtsi"
 
-&ac_power_supply {
-	status = "okay";
-};
-
 &battery_power_supply {
 	status = "okay";
 };
