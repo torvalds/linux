@@ -624,12 +624,6 @@ static void bch2_readpages_end_io(struct bio *bio)
 	bio_put(bio);
 }
 
-static inline void page_state_init_for_read(struct page *page)
-{
-	SetPagePrivate(page);
-	page->private = 0;
-}
-
 struct readpages_iter {
 	struct address_space	*mapping;
 	struct page		**pages;
