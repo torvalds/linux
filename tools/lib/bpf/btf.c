@@ -3785,6 +3785,19 @@ static inline __u16 btf_fwd_kind(struct btf_type *t)
 	return btf_kflag(t) ? BTF_KIND_UNION : BTF_KIND_STRUCT;
 }
 
+/* Check if given two types are identical ARRAY definitions */
+static int btf_dedup_identical_arrays(struct btf_dedup *d, __u32 id1, __u32 id2)
+{
+	struct btf_type *t1, *t2;
+
+	t1 = btf_type_by_id(d->btf, id1);
+	t2 = btf_type_by_id(d->btf, id2);
+	if (!btf_is_array(t1) || !btf_is_array(t2))
+		return 0;
+
+	return btf_equal_array(t1, t2);
+}
+
 /*
  * Check equivalence of BTF type graph formed by candidate struct/union (we'll
  * call it "candidate graph" in this description for brevity) to a type graph
@@ -3895,8 +3908,18 @@ static int btf_dedup_is_equiv(struct btf_dedup *d, __u32 cand_id,
 	canon_id = resolve_fwd_id(d, canon_id);
 
 	hypot_type_id = d->hypot_map[canon_id];
-	if (hypot_type_id <= BTF_MAX_NR_TYPES)
-		return hypot_type_id == cand_id;
+	if (hypot_type_id <= BTF_MAX_NR_TYPES) {
+		/* In some cases compiler will generate different DWARF types
+		 * for *identical* array type definitions and use them for
+		 * different fields within the *same* struct. This breaks type
+		 * equivalence check, which makes an assumption that candidate
+		 * types sub-graph has a consistent and deduped-by-compiler
+		 * types within a single CU. So work around that by explicitly
+		 * allowing identical array types here.
+		 */
+		return hypot_type_id == cand_id ||
+		       btf_dedup_identical_arrays(d, hypot_type_id, cand_id);
+	}
 
 	if (btf_dedup_hypot_map_add(d, canon_id, cand_id))
 		return -ENOMEM;
