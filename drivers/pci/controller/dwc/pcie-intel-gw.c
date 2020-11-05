@@ -58,7 +58,6 @@
 
 struct intel_pcie_soc {
 	unsigned int	pcie_ver;
-	u32		num_viewport;
 };
 
 struct intel_pcie_port {
@@ -400,7 +399,6 @@ static const struct dw_pcie_host_ops intel_pcie_dw_ops = {
 
 static const struct intel_pcie_soc pcie_data = {
 	.pcie_ver =		0x520A,
-	.num_viewport =		3,
 };
 
 static int intel_pcie_probe(struct platform_device *pdev)
@@ -442,12 +440,6 @@ static int intel_pcie_probe(struct platform_device *pdev)
 		dev_err(dev, "Cannot initialize host\n");
 		return ret;
 	}
-
-	/*
-	 * Intel PCIe doesn't configure IO region, so set viewport
-	 * to not perform IO region access.
-	 */
-	pci->num_viewport = data->num_viewport;
 
 	return 0;
 }

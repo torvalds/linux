@@ -356,10 +356,6 @@ int dw_pcie_host_init(struct pcie_port *pp)
 		}
 	}
 
-	ret = of_property_read_u32(np, "num-viewport", &pci->num_viewport);
-	if (ret)
-		pci->num_viewport = 2;
-
 	if (pci->link_gen < 1)
 		pci->link_gen = of_pci_get_max_link_speed(np);
 
@@ -598,7 +594,7 @@ void dw_pcie_setup_rc(struct pcie_port *pp)
 	dw_pcie_writel_dbi(pci, PCI_COMMAND, val);
 
 	/* Ensure all outbound windows are disabled so there are multiple matches */
-	for (i = 0; i < pci->num_viewport; i++)
+	for (i = 0; i < pci->num_ob_windows; i++)
 		dw_pcie_disable_atu(pci, i, DW_PCIE_REGION_OUTBOUND);
 
 	/*
@@ -615,7 +611,7 @@ void dw_pcie_setup_rc(struct pcie_port *pp)
 			if (resource_type(entry->res) != IORESOURCE_MEM)
 				continue;
 
-			if (pci->num_viewport <= ++atu_idx)
+			if (pci->num_ob_windows <= ++atu_idx)
 				break;
 
 			dw_pcie_prog_outbound_atu(pci, atu_idx,
@@ -625,7 +621,7 @@ void dw_pcie_setup_rc(struct pcie_port *pp)
 		}
 
 		if (pp->io_size) {
-			if (pci->num_viewport > ++atu_idx)
+			if (pci->num_ob_windows > ++atu_idx)
 				dw_pcie_prog_outbound_atu(pci, atu_idx,
 							  PCIE_ATU_TYPE_IO, pp->io_base,
 							  pp->io_bus_addr, pp->io_size);
@@ -633,9 +629,9 @@ void dw_pcie_setup_rc(struct pcie_port *pp)
 				pci->io_cfg_atu_shared = true;
 		}
 
-		if (pci->num_viewport <= atu_idx)
+		if (pci->num_ob_windows <= atu_idx)
 			dev_warn(pci->dev, "Resources exceed number of ATU entries (%d)",
-				 pci->num_viewport);
+				 pci->num_ob_windows);
 	}
 
 	dw_pcie_writel_dbi(pci, PCI_BASE_ADDRESS_0, 0);

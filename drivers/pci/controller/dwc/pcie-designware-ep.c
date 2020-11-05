@@ -714,26 +714,6 @@ int dw_pcie_ep_init(struct dw_pcie_ep *ep)
 	ep->phys_base = res->start;
 	ep->addr_size = resource_size(res);
 
-	ret = of_property_read_u32(np, "num-ib-windows", &pci->num_ib_windows);
-	if (ret < 0) {
-		dev_err(dev, "Unable to read *num-ib-windows* property\n");
-		return ret;
-	}
-	if (pci->num_ib_windows > MAX_IATU_IN) {
-		dev_err(dev, "Invalid *num-ib-windows*\n");
-		return -EINVAL;
-	}
-
-	ret = of_property_read_u32(np, "num-ob-windows", &pci->num_ob_windows);
-	if (ret < 0) {
-		dev_err(dev, "Unable to read *num-ob-windows* property\n");
-		return ret;
-	}
-	if (pci->num_ob_windows > MAX_IATU_OUT) {
-		dev_err(dev, "Invalid *num-ob-windows*\n");
-		return -EINVAL;
-	}
-
 	ep->ib_window_map = devm_kcalloc(dev,
 					 BITS_TO_LONGS(pci->num_ib_windows),
 					 sizeof(long),

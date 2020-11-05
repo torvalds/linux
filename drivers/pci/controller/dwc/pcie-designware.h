@@ -261,7 +261,7 @@ struct dw_pcie {
 	void __iomem		*dbi_base2;
 	/* Used when iatu_unroll_enabled is true */
 	void __iomem		*atu_base;
-	u32			num_viewport;
+	size_t			atu_size;
 	u32			num_ib_windows;
 	u32			num_ob_windows;
 	struct pcie_port	pp;
