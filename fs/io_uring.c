@@ -8496,6 +8496,7 @@ static void io_attempt_cancel(struct io_ring_ctx *ctx, struct io_kiocb *req)
 }
 
 static void io_cancel_defer_files(struct io_ring_ctx *ctx,
+				  struct task_struct *task,
 				  struct files_struct *files)
 {
 	struct io_defer_entry *de = NULL;
@@ -8503,7 +8504,8 @@ static void io_cancel_defer_files(struct io_ring_ctx *ctx,
 
 	spin_lock_irq(&ctx->completion_lock);
 	list_for_each_entry_reverse(de, &ctx->defer_list, list) {
-		if (io_match_files(de->req, files)) {
+		if (io_task_match(de->req, task) &&
+		    io_match_files(de->req, files)) {
 			list_cut_position(&list, &ctx->defer_list, &de->list);
 			break;
 		}
@@ -8529,7 +8531,6 @@ static bool io_uring_cancel_files(struct io_ring_ctx *ctx,
 	if (list_empty_careful(&ctx->inflight_list))
 		return false;
 
-	io_cancel_defer_files(ctx, files);
 	/* cancel all at once, should be faster than doing it one by one*/
 	io_wq_cancel_cb(ctx->io_wq, io_wq_files_match, files, true);
 
@@ -8620,6 +8621,11 @@ static void io_uring_cancel_task_requests(struct io_ring_ctx *ctx,
 		atomic_inc(&task->io_uring->in_idle);
 		io_sq_thread_park(ctx->sq_data);
 	}
+
+	if (files)
+		io_cancel_defer_files(ctx, NULL, files);
+	else
+		io_cancel_defer_files(ctx, task, NULL);
 
 	io_cqring_overflow_flush(ctx, true, task, files);
 
