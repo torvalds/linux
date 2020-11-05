@@ -4617,7 +4617,7 @@ btrfs_init_new_buffer(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct extent_buffer *buf;
 
-	buf = btrfs_find_create_tree_block(fs_info, bytenr);
+	buf = btrfs_find_create_tree_block(fs_info, bytenr, owner, level);
 	if (IS_ERR(buf))
 		return buf;
 
@@ -5018,7 +5018,8 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 
 	next = find_extent_buffer(fs_info, bytenr);
 	if (!next) {
-		next = btrfs_find_create_tree_block(fs_info, bytenr);
+		next = btrfs_find_create_tree_block(fs_info, bytenr,
+				root->root_key.objectid, level - 1);
 		if (IS_ERR(next))
 			return PTR_ERR(next);
 

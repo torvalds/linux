@@ -2513,7 +2513,8 @@ int relocate_tree_blocks(struct btrfs_trans_handle *trans,
 	/* Kick in readahead for tree blocks with missing keys */
 	rbtree_postorder_for_each_entry_safe(block, next, blocks, rb_node) {
 		if (!block->key_ready)
-			btrfs_readahead_tree_block(fs_info, block->bytenr, 0);
+			btrfs_readahead_tree_block(fs_info, block->bytenr, 0, 0,
+						   block->level);
 	}
 
 	/* Get first keys */

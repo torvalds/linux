@@ -656,12 +656,13 @@ static int reada_pick_zone(struct btrfs_device *dev)
 }
 
 static int reada_tree_block_flagged(struct btrfs_fs_info *fs_info, u64 bytenr,
-				    int mirror_num, struct extent_buffer **eb)
+				    u64 owner_root, int level, int mirror_num,
+				    struct extent_buffer **eb)
 {
 	struct extent_buffer *buf = NULL;
 	int ret;
 
-	buf = btrfs_find_create_tree_block(fs_info, bytenr);
+	buf = btrfs_find_create_tree_block(fs_info, bytenr, owner_root, level);
 	if (IS_ERR(buf))
 		return 0;
 
@@ -749,7 +750,8 @@ static int reada_start_machine_dev(struct btrfs_device *dev)
 	logical = re->logical;
 
 	atomic_inc(&dev->reada_in_flight);
-	ret = reada_tree_block_flagged(fs_info, logical, mirror_num, &eb);
+	ret = reada_tree_block_flagged(fs_info, logical, re->owner_root,
+				       re->level, mirror_num, &eb);
 	if (ret)
 		__readahead_hook(fs_info, re, NULL, ret);
 	else if (eb)

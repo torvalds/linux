@@ -47,7 +47,8 @@ struct extent_buffer *read_tree_block(struct btrfs_fs_info *fs_info, u64 bytenr,
 				      int level, struct btrfs_key *first_key);
 struct extent_buffer *btrfs_find_create_tree_block(
 						struct btrfs_fs_info *fs_info,
-						u64 bytenr);
+						u64 bytenr, u64 owner_root,
+						int level);
 void btrfs_clean_tree_block(struct extent_buffer *buf);
 int __cold open_ctree(struct super_block *sb,
 	       struct btrfs_fs_devices *fs_devices,
