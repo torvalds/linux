@@ -35,10 +35,7 @@ static const struct of_device_id dw_plat_pcie_of_match[];
 
 static int dw_plat_pcie_host_init(struct pcie_port *pp)
 {
-	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
-
 	dw_pcie_setup_rc(pp);
-	dw_pcie_wait_for_link(pci);
 	dw_pcie_msi_init(pp);
 
 	return 0;

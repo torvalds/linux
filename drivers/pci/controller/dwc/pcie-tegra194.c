@@ -1549,7 +1549,6 @@ static int tegra_pcie_deinit_controller(struct tegra_pcie_dw *pcie)
 
 static int tegra_pcie_config_rp(struct tegra_pcie_dw *pcie)
 {
-	struct pcie_port *pp = &pcie->pci.pp;
 	struct device *dev = pcie->dev;
 	char *name;
 	int ret;

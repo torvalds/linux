@@ -146,16 +146,13 @@ static int uniphier_pcie_link_up(struct dw_pcie *pci)
 	return (val & mask) == mask;
 }
 
-static int uniphier_pcie_establish_link(struct dw_pcie *pci)
+static int uniphier_pcie_start_link(struct dw_pcie *pci)
 {
 	struct uniphier_pcie_priv *priv = to_uniphier_pcie(pci);
 
-	if (dw_pcie_link_up(pci))
-		return 0;
-
 	uniphier_pcie_ltssm_enable(priv, true);
 
-	return dw_pcie_wait_for_link(pci);
+	return 0;
 }
 
 static void uniphier_pcie_stop_link(struct dw_pcie *pci)
@@ -318,10 +315,6 @@ static int uniphier_pcie_host_init(struct pcie_port *pp)
 	uniphier_pcie_irq_enable(priv);
 
 	dw_pcie_setup_rc(pp);
-	ret = uniphier_pcie_establish_link(pci);
-	if (ret)
-		return ret;
-
 	dw_pcie_msi_init(pp);
 
 	return 0;
@@ -385,7 +378,7 @@ out_clk_disable:
 }
 
 static const struct dw_pcie_ops dw_pcie_ops = {
-	.start_link = uniphier_pcie_establish_link,
+	.start_link = uniphier_pcie_start_link,
 	.stop_link = uniphier_pcie_stop_link,
 	.link_up = uniphier_pcie_link_up,
 };

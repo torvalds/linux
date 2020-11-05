@@ -745,9 +745,9 @@ static void imx6_pcie_ltssm_enable(struct device *dev)
 	}
 }
 
-static int imx6_pcie_establish_link(struct imx6_pcie *imx6_pcie)
+static int imx6_pcie_start_link(struct dw_pcie *pci)
 {
-	struct dw_pcie *pci = imx6_pcie->pci;
+	struct imx6_pcie *imx6_pcie = to_imx6_pcie(pci);
 	struct device *dev = pci->dev;
 	u8 offset = dw_pcie_find_capability(pci, PCI_CAP_ID_EXP);
 	u32 tmp;
@@ -835,7 +835,6 @@ static int imx6_pcie_host_init(struct pcie_port *pp)
 	imx6_pcie_deassert_core_reset(imx6_pcie);
 	imx6_setup_phy_mpll(imx6_pcie);
 	dw_pcie_setup_rc(pp);
-	imx6_pcie_establish_link(imx6_pcie);
 	dw_pcie_msi_init(pp);
 
 	return 0;
@@ -865,7 +864,7 @@ static int imx6_add_pcie_port(struct imx6_pcie *imx6_pcie,
 }
 
 static const struct dw_pcie_ops dw_pcie_ops = {
-	/* No special ops needed, but pcie-designware still expects this struct */
+	.start_link = imx6_pcie_start_link,
 };
 
 #ifdef CONFIG_PM_SLEEP
@@ -974,7 +973,7 @@ static int imx6_pcie_resume_noirq(struct device *dev)
 	imx6_pcie_deassert_core_reset(imx6_pcie);
 	dw_pcie_setup_rc(pp);
 
-	ret = imx6_pcie_establish_link(imx6_pcie);
+	ret = imx6_pcie_start_link(imx6_pcie->pci);
 	if (ret < 0)
 		dev_info(dev, "pcie link is down after resume.\n");
 

@@ -390,31 +390,13 @@ static int kirin_pcie_link_up(struct dw_pcie *pci)
 	return 0;
 }
 
-static int kirin_pcie_establish_link(struct pcie_port *pp)
+static int kirin_pcie_start_link(struct dw_pcie *pci)
 {
-	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct kirin_pcie *kirin_pcie = to_kirin_pcie(pci);
-	struct device *dev = kirin_pcie->pci->dev;
-	int count = 0;
-
-	if (kirin_pcie_link_up(pci))
-		return 0;
-
-	dw_pcie_setup_rc(pp);
 
 	/* assert LTSSM enable */
 	kirin_apb_ctrl_writel(kirin_pcie, PCIE_LTSSM_ENABLE_BIT,
 			      PCIE_APP_LTSSM_ENABLE);
-
-	/* check if the link is up or not */
-	while (!kirin_pcie_link_up(pci)) {
-		usleep_range(LINK_WAIT_MIN, LINK_WAIT_MAX);
-		count++;
-		if (count == 1000) {
-			dev_err(dev, "Link Fail\n");
-			return -EINVAL;
-		}
-	}
 
 	return 0;
 }
@@ -423,7 +405,7 @@ static int kirin_pcie_host_init(struct pcie_port *pp)
 {
 	pp->bridge->ops = &kirin_pci_ops;
 
-	kirin_pcie_establish_link(pp);
+	dw_pcie_setup_rc(pp);
 	dw_pcie_msi_init(pp);
 
 	return 0;
@@ -433,6 +415,7 @@ static const struct dw_pcie_ops kirin_dw_pcie_ops = {
 	.read_dbi = kirin_pcie_read_dbi,
 	.write_dbi = kirin_pcie_write_dbi,
 	.link_up = kirin_pcie_link_up,
+	.start_link = kirin_pcie_start_link,
 };
 
 static const struct dw_pcie_host_ops kirin_pcie_host_ops = {

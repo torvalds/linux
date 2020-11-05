@@ -207,18 +207,15 @@ static void qcom_ep_reset_deassert(struct qcom_pcie *pcie)
 	usleep_range(PERST_DELAY_US, PERST_DELAY_US + 500);
 }
 
-static int qcom_pcie_establish_link(struct qcom_pcie *pcie)
+static int qcom_pcie_start_link(struct dw_pcie *pci)
 {
-	struct dw_pcie *pci = pcie->pci;
-
-	if (dw_pcie_link_up(pci))
-		return 0;
+	struct qcom_pcie *pcie = to_qcom_pcie(pci);
 
 	/* Enable Link Training state machine */
 	if (pcie->ops->ltssm_enable)
 		pcie->ops->ltssm_enable(pcie);
 
-	return dw_pcie_wait_for_link(pci);
+	return 0;
 }
 
 static void qcom_pcie_2_1_0_ltssm_enable(struct qcom_pcie *pcie)
@@ -1288,15 +1285,8 @@ static int qcom_pcie_host_init(struct pcie_port *pp)
 
 	qcom_ep_reset_deassert(pcie);
 
-	ret = qcom_pcie_establish_link(pcie);
-	if (ret)
-		goto err;
-
 	return 0;
-err:
-	qcom_ep_reset_assert(pcie);
-	if (pcie->ops->post_deinit)
-		pcie->ops->post_deinit(pcie);
+
 err_disable_phy:
 	phy_power_off(pcie->phy);
 err_deinit:
@@ -1363,6 +1353,7 @@ static const struct qcom_pcie_ops ops_2_7_0 = {
 
 static const struct dw_pcie_ops dw_pcie_ops = {
 	.link_up = qcom_pcie_link_up,
+	.start_link = qcom_pcie_start_link,
 };
 
 static int qcom_pcie_probe(struct platform_device *pdev)

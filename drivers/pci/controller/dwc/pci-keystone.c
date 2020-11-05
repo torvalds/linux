@@ -511,13 +511,7 @@ static void ks_pcie_stop_link(struct dw_pcie *pci)
 static int ks_pcie_start_link(struct dw_pcie *pci)
 {
 	struct keystone_pcie *ks_pcie = to_keystone_pcie(pci);
-	struct device *dev = pci->dev;
 	u32 val;
-
-	if (dw_pcie_link_up(pci)) {
-		dev_dbg(dev, "link is already up\n");
-		return 0;
-	}
 
 	/* Initiate Link Training */
 	val = ks_pcie_app_readl(ks_pcie, CMD_STATUS);
@@ -832,9 +826,6 @@ static int __init ks_pcie_host_init(struct pcie_port *pp)
 	hook_fault_code(17, ks_pcie_fault, SIGBUS, 0,
 			"Asynchronous external abort");
 #endif
-
-	ks_pcie_start_link(pci);
-	dw_pcie_wait_for_link(pci);
 
 	return 0;
 }
