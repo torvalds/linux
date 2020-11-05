@@ -633,6 +633,15 @@ static void macb_pcs_an_restart(struct phylink_pcs *pcs)
 	/* Not supported */
 }
 
+static int macb_pcs_config(struct phylink_pcs *pcs,
+			   unsigned int mode,
+			   phy_interface_t interface,
+			   const unsigned long *advertising,
+			   bool permit_pause_to_mac)
+{
+	return 0;
+}
+
 static const struct phylink_pcs_ops macb_phylink_usx_pcs_ops = {
 	.pcs_get_state = macb_usx_pcs_get_state,
 	.pcs_config = macb_usx_pcs_config,
@@ -642,6 +651,7 @@ static const struct phylink_pcs_ops macb_phylink_usx_pcs_ops = {
 static const struct phylink_pcs_ops macb_phylink_pcs_ops = {
 	.pcs_get_state = macb_pcs_get_state,
 	.pcs_an_restart = macb_pcs_an_restart,
+	.pcs_config = macb_pcs_config,
 };
 
 static void macb_mac_config(struct phylink_config *config, unsigned int mode,
@@ -776,10 +786,13 @@ static int macb_mac_prepare(struct phylink_config *config, unsigned int mode,
 
 	if (interface == PHY_INTERFACE_MODE_10GBASER)
 		bp->phylink_pcs.ops = &macb_phylink_usx_pcs_ops;
-	else
+	else if (interface == PHY_INTERFACE_MODE_SGMII)
 		bp->phylink_pcs.ops = &macb_phylink_pcs_ops;
+	else
+		bp->phylink_pcs.ops = NULL;
 
-	phylink_set_pcs(bp->phylink, &bp->phylink_pcs);
+	if (bp->phylink_pcs.ops)
+		phylink_set_pcs(bp->phylink, &bp->phylink_pcs);
 
 	return 0;
 }
