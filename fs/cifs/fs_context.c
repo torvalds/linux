@@ -260,3 +260,59 @@ smb3_fs_context_dup(struct smb3_fs_context *new_ctx, struct smb3_fs_context *ctx
 
 	return rc;
 }
+
+/*
+ * Parse a devname into substrings and populate the ctx->UNC and ctx->prepath
+ * fields with the result. Returns 0 on success and an error otherwise
+ * (e.g. ENOMEM or EINVAL)
+ */
+int
+smb3_parse_devname(const char *devname, struct smb3_fs_context *ctx)
+{
+	char *pos;
+	const char *delims = "/\\";
+	size_t len;
+
+	if (unlikely(!devname || !*devname)) {
+		cifs_dbg(VFS, "Device name not specified\n");
+		return -EINVAL;
+	}
+
+	/* make sure we have a valid UNC double delimiter prefix */
+	len = strspn(devname, delims);
+	if (len != 2)
+		return -EINVAL;
+
+	/* find delimiter between host and sharename */
+	pos = strpbrk(devname + 2, delims);
+	if (!pos)
+		return -EINVAL;
+
+	/* skip past delimiter */
+	++pos;
+
+	/* now go until next delimiter or end of string */
+	len = strcspn(pos, delims);
+
+	/* move "pos" up to delimiter or NULL */
+	pos += len;
+	ctx->UNC = kstrndup(devname, pos - devname, GFP_KERNEL);
+	if (!ctx->UNC)
+		return -ENOMEM;
+
+	convert_delimiter(ctx->UNC, '\\');
+
+	/* skip any delimiter */
+	if (*pos == '/' || *pos == '\\')
+		pos++;
+
+	/* If pos is NULL then no prepath */
+	if (!*pos)
+		return 0;
+
+	ctx->prepath = kstrdup(pos, GFP_KERNEL);
+	if (!ctx->prepath)
+		return -ENOMEM;
+
+	return 0;
+}

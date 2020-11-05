@@ -1258,61 +1258,6 @@ static int get_option_gid(substring_t args[], kgid_t *result)
 	return 0;
 }
 
-/*
- * Parse a devname into substrings and populate the vol->UNC and vol->prepath
- * fields with the result. Returns 0 on success and an error otherwise.
- */
-static int
-cifs_parse_devname(const char *devname, struct smb3_fs_context *ctx)
-{
-	char *pos;
-	const char *delims = "/\\";
-	size_t len;
-
-	if (unlikely(!devname || !*devname)) {
-		cifs_dbg(VFS, "Device name not specified\n");
-		return -EINVAL;
-	}
-
-	/* make sure we have a valid UNC double delimiter prefix */
-	len = strspn(devname, delims);
-	if (len != 2)
-		return -EINVAL;
-
-	/* find delimiter between host and sharename */
-	pos = strpbrk(devname + 2, delims);
-	if (!pos)
-		return -EINVAL;
-
-	/* skip past delimiter */
-	++pos;
-
-	/* now go until next delimiter or end of string */
-	len = strcspn(pos, delims);
-
-	/* move "pos" up to delimiter or NULL */
-	pos += len;
-	ctx->UNC = kstrndup(devname, pos - devname, GFP_KERNEL);
-	if (!ctx->UNC)
-		return -ENOMEM;
-
-	convert_delimiter(ctx->UNC, '\\');
-
-	/* skip any delimiter */
-	if (*pos == '/' || *pos == '\\')
-		pos++;
-
-	/* If pos is NULL then no prepath */
-	if (!*pos)
-		return 0;
-
-	ctx->prepath = kstrdup(pos, GFP_KERNEL);
-	if (!ctx->prepath)
-		return -ENOMEM;
-
-	return 0;
-}
-
 static int
 cifs_parse_mount_options(const char *mountdata, const char *devname,
 			 struct smb3_fs_context *ctx, bool is_smb3)
@@ -1416,7 +1361,7 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 	ctx->backupuid_specified = false; /* no backup intent for a user */
 	ctx->backupgid_specified = false; /* no backup intent for a group */
 
-	switch (cifs_parse_devname(devname, ctx)) {
+	switch (smb3_parse_devname(devname, ctx)) {
 	case 0:
 		break;
 	case -ENOMEM:
@@ -4548,7 +4493,7 @@ static int check_dfs_prepath(struct cifs_sb_info *cifs_sb, struct smb3_fs_contex
 			struct smb3_fs_context v = {NULL};
 			/* if @path contains a tree name, skip it in the prefix path */
 			if (added_treename) {
-				rc = cifs_parse_devname(path, &v);
+				rc = smb3_parse_devname(path, &v);
 				if (rc)
 					break;
 				rc = -EREMOTE;
