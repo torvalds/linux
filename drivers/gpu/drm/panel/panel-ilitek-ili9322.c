@@ -152,7 +152,7 @@
 #define ILI9322_GAMMA_7			0x16
 #define ILI9322_GAMMA_8			0x17
 
-/**
+/*
  * enum ili9322_input - the format of the incoming signal to the panel
  *
  * The panel can be connected to various input streams and four of them can
