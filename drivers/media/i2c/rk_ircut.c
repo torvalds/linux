@@ -39,6 +39,11 @@ struct ircut_op_work {
 	struct ircut_dev *dev;
 };
 
+struct ircut_drv_data {
+	int	(*parse_dt)(struct ircut_dev *ircut, struct device_node *node);
+	void	(*ctrl)(struct ircut_dev *ircut, int cmd);
+};
+
 struct ircut_dev {
 	struct v4l2_subdev sd;
 	struct v4l2_ctrl_handler ctrl_handler;
@@ -55,13 +60,41 @@ struct ircut_dev {
 	struct gpio_desc *led_gpio;
 	u32 module_index;
 	const char *module_facing;
+	const struct ircut_drv_data *drv_data;
 };
 
 #define IRCUT_STATE_EQ(expected) \
 	((ircut->state == (expected)) ? true : false)
 
-static int ircut_gpio_parse_dt(struct ircut_dev *ircut,
-			       struct device_node *node)
+static int ap1511a_parse_dt(struct ircut_dev *ircut, struct device_node *node)
+{
+	ircut->open_gpio = devm_gpiod_get(ircut->dev, "ircut-open", GPIOD_OUT_HIGH);
+	if (IS_ERR(ircut->open_gpio)) {
+		dev_err(ircut->dev, "Failed to get ircut-open-gpios\n");
+		return PTR_ERR(ircut->open_gpio);
+	}
+
+	ircut->led_gpio = devm_gpiod_get_optional(ircut->dev, "led", GPIOD_OUT_LOW);
+	if (IS_ERR(ircut->led_gpio))
+		dev_err(ircut->dev, "Failed to get led-gpios\n");
+
+	return 0;
+}
+
+static void ap1511a_ctrl(struct ircut_dev *ircut, int cmd)
+{
+	if (cmd > 0) {
+		gpiod_set_value_cansleep(ircut->open_gpio, 1);
+		if (!IS_ERR(ircut->led_gpio))
+			gpiod_set_value_cansleep(ircut->led_gpio, 0);
+	} else {
+		gpiod_set_value_cansleep(ircut->open_gpio, 0);
+		if (!IS_ERR(ircut->led_gpio))
+			gpiod_set_value_cansleep(ircut->led_gpio, 1);
+	}
+}
+
+static int ba6208_parse_dt(struct ircut_dev *ircut, struct device_node *node)
 {
 	int ret;
 
@@ -82,8 +115,7 @@ static int ircut_gpio_parse_dt(struct ircut_dev *ircut,
 	dev_dbg(ircut->dev, "pulse-width value from dts %d\n",
 		ircut->pulse_width);
 	/* get ircut open gpio */
-	ircut->open_gpio = devm_gpiod_get(ircut->dev,
-				"ircut-open", GPIOD_OUT_LOW);
+	ircut->open_gpio = devm_gpiod_get(ircut->dev, "ircut-open", GPIOD_OUT_LOW);
 	if (IS_ERR(ircut->open_gpio))
 		dev_err(ircut->dev, "Failed to get ircut-open-gpios\n");
 
@@ -94,11 +126,32 @@ static int ircut_gpio_parse_dt(struct ircut_dev *ircut,
 		dev_err(ircut->dev, "Failed to get ircut-close-gpios\n");
 
 	/* get led gpio */
-	ircut->led_gpio = devm_gpiod_get(ircut->dev,
-				"led", GPIOD_OUT_LOW);
+	ircut->led_gpio = devm_gpiod_get_optional(ircut->dev, "led", GPIOD_OUT_LOW);
 	if (IS_ERR(ircut->led_gpio))
 		dev_err(ircut->dev, "Failed to get led-gpios\n");
+
 	return 0;
+}
+
+static void ba6208_ctrl(struct ircut_dev *ircut, int cmd)
+{
+	if (cmd > 0) {
+		if (!IS_ERR(ircut->open_gpio))
+			gpiod_set_value_cansleep(ircut->open_gpio, 1);
+		msleep(ircut->pulse_width);
+		if (!IS_ERR(ircut->open_gpio))
+			gpiod_set_value_cansleep(ircut->open_gpio, 0);
+		if (!IS_ERR(ircut->led_gpio))
+			gpiod_set_value_cansleep(ircut->led_gpio, 0);
+	} else {
+		if (!IS_ERR(ircut->close_gpio))
+			gpiod_set_value_cansleep(ircut->close_gpio, 1);
+		msleep(ircut->pulse_width);
+		if (!IS_ERR(ircut->close_gpio))
+			gpiod_set_value_cansleep(ircut->close_gpio, 0);
+		if (!IS_ERR(ircut->led_gpio))
+			gpiod_set_value_cansleep(ircut->led_gpio, 1);
+	}
 }
 
 static void ircut_op_work(struct work_struct *work)
@@ -108,25 +161,10 @@ static void ircut_op_work(struct work_struct *work)
 	struct ircut_dev *ircut = wk->dev;
 	enum IRCUT_STATE_e state;
 
-	if (wk->op_cmd > 0) {
-		if (!IS_ERR(ircut->open_gpio))
-			gpiod_set_value_cansleep(ircut->open_gpio, 1);
-		msleep(ircut->pulse_width);
-		if (!IS_ERR(ircut->open_gpio))
-			gpiod_set_value_cansleep(ircut->open_gpio, 0);
-		if (!IS_ERR(ircut->led_gpio))
-			gpiod_set_value_cansleep(ircut->led_gpio, 0);
-		state = IRCUT_STATE_OPENED;
-	} else {
-		if (!IS_ERR(ircut->close_gpio))
-			gpiod_set_value_cansleep(ircut->close_gpio, 1);
-		msleep(ircut->pulse_width);
-		if (!IS_ERR(ircut->close_gpio))
-			gpiod_set_value_cansleep(ircut->close_gpio, 0);
-		if (!IS_ERR(ircut->led_gpio))
-			gpiod_set_value_cansleep(ircut->led_gpio, 1);
-		state = IRCUT_STATE_CLOSED;
-	}
+	if (ircut->drv_data->ctrl)
+		ircut->drv_data->ctrl(ircut, wk->op_cmd);
+
+	state = (wk->op_cmd > 0) ? IRCUT_STATE_OPENED : IRCUT_STATE_CLOSED;
 	mutex_lock(&ircut->mut_state);
 	complete(&ircut->complete);
 	ircut->state = state;
@@ -271,11 +309,33 @@ static const struct v4l2_ctrl_ops ircut_ctrl_ops = {
 	.s_ctrl = ircut_s_ctrl,
 };
 
+static const struct ircut_drv_data ap1511a_drv_data = {
+	.parse_dt	= ap1511a_parse_dt,
+	.ctrl		= ap1511a_ctrl,
+};
+
+static const struct ircut_drv_data ba6208_drv_data = {
+	.parse_dt	= ba6208_parse_dt,
+	.ctrl		= ba6208_ctrl,
+};
+
+#if defined(CONFIG_OF)
+static const struct of_device_id ircut_of_match[] = {
+	{ .compatible = "rockchip,ircut",
+		.data = &ba6208_drv_data },
+	{ .compatible = "ap1511a,ircut",
+		.data = &ap1511a_drv_data },
+	{},
+};
+MODULE_DEVICE_TABLE(of, ircut_of_match);
+#endif
+
 static int ircut_probe(struct platform_device *pdev)
 {
 	struct ircut_dev *ircut = NULL;
 	struct device_node *node = pdev->dev.of_node;
 	struct v4l2_ctrl_handler *handler;
+	const struct of_device_id *match;
 	int ret = 0;
 	struct v4l2_subdev *sd;
 	char facing[2];
@@ -289,6 +349,13 @@ static int ircut_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "alloc ircut failed\n");
 		return -ENOMEM;
 	}
+
+	match = of_match_node(ircut_of_match, pdev->dev.of_node);
+	if (!match)
+		return -ENODEV;
+
+	ircut->drv_data = match->data;
+
 	ret = of_property_read_u32(node, RKMODULE_CAMERA_MODULE_INDEX,
 				   &ircut->module_index);
 	ret |= of_property_read_string(node, RKMODULE_CAMERA_MODULE_FACING,
@@ -326,6 +393,12 @@ static int ircut_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_free;
 
+	if (ircut->drv_data->parse_dt) {
+		ret = ircut->drv_data->parse_dt(ircut, node);
+		if (ret)
+			goto err_free;
+	}
+
 	sd = &ircut->sd;
 	sd->entity.function = MEDIA_ENT_F_LENS;
 	sd->entity.flags = 1;
@@ -343,8 +416,6 @@ static int ircut_probe(struct platform_device *pdev)
 	if (ret)
 		dev_err(&pdev->dev, "v4l2 async register subdev failed\n");
 
-	if (ircut_gpio_parse_dt(ircut, node) < 0)
-		return -EBUSY;
 	/* set default state to open */
 	ircut_operation(ircut, 3);
 	ircut->val = 3;
@@ -376,13 +447,6 @@ static int ircut_drv_remove(struct platform_device *pdev)
 	media_entity_cleanup(&ircut->sd.entity);
 	return 0;
 }
-
-#if defined(CONFIG_OF)
-static const struct of_device_id ircut_of_match[] = {
-	{ .compatible = "rockchip,ircut", },
-	{},
-};
-#endif
 
 static struct platform_driver ircut_driver = {
 	.driver = {
