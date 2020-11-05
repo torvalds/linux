@@ -3078,13 +3078,11 @@ void ceph_messenger_init(struct ceph_messenger *msgr,
 
 	dout("%s %p\n", __func__, msgr);
 }
-EXPORT_SYMBOL(ceph_messenger_init);
 
 void ceph_messenger_fini(struct ceph_messenger *msgr)
 {
 	put_net(read_pnet(&msgr->net));
 }
-EXPORT_SYMBOL(ceph_messenger_fini);
 
 static void msg_con_set(struct ceph_msg *msg, struct ceph_connection *con)
 {
