@@ -967,8 +967,11 @@ static int fsl_mc_bus_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, mc);
 
 	plat_res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	if (plat_res)
+	if (plat_res) {
 		mc->fsl_mc_regs = devm_ioremap_resource(&pdev->dev, plat_res);
+		if (IS_ERR(mc->fsl_mc_regs))
+			return PTR_ERR(mc->fsl_mc_regs);
+	}
 
 	if (mc->fsl_mc_regs && IS_ENABLED(CONFIG_ACPI) &&
 	    !dev_of_node(&pdev->dev)) {
