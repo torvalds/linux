@@ -2528,12 +2528,13 @@ static void process_message(struct ceph_connection *con)
 	con->in_seq++;
 	mutex_unlock(&con->mutex);
 
-	dout("===== %p %llu from %s%lld %d=%s len %d+%d (%u %u %u) =====\n",
+	dout("===== %p %llu from %s%lld %d=%s len %d+%d+%d (%u %u %u) =====\n",
 	     msg, le64_to_cpu(msg->hdr.seq),
 	     ENTITY_NAME(msg->hdr.src),
 	     le16_to_cpu(msg->hdr.type),
 	     ceph_msg_type_name(le16_to_cpu(msg->hdr.type)),
 	     le32_to_cpu(msg->hdr.front_len),
+	     le32_to_cpu(msg->hdr.middle_len),
 	     le32_to_cpu(msg->hdr.data_len),
 	     con->in_front_crc, con->in_middle_crc, con->in_data_crc);
 	con->ops->dispatch(con, msg);
