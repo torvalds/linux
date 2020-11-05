@@ -230,6 +230,18 @@ static u32 gsi_channel_id(struct gsi_channel *channel)
 	return channel - &channel->gsi->channel[0];
 }
 
+/* Turn off all GSI interrupts initially */
+static void gsi_irq_setup(struct gsi *gsi)
+{
+	iowrite32(0, gsi->virt + GSI_CNTXT_TYPE_IRQ_MSK_OFFSET);
+}
+
+/* Turn off all GSI interrupts when we're all done */
+static void gsi_irq_teardown(struct gsi *gsi)
+{
+	iowrite32(0, gsi->virt + GSI_CNTXT_TYPE_IRQ_MSK_OFFSET);
+}
+
 static void gsi_irq_ieob_enable(struct gsi *gsi, u32 evt_ring_id)
 {
 	u32 val;
@@ -253,14 +265,6 @@ static void gsi_irq_enable(struct gsi *gsi)
 {
 	u32 val;
 
-	val = BIT(GSI_CH_CTRL);
-	val |= BIT(GSI_EV_CTRL);
-	val |= BIT(GSI_GLOB_EE);
-	val |= BIT(GSI_IEOB);
-	/* We don't use inter-EE channel or event control interrupts */
-	val |= BIT(GSI_GENERAL);
-	iowrite32(val, gsi->virt + GSI_CNTXT_TYPE_IRQ_MSK_OFFSET);
-
 	val = GENMASK(gsi->channel_count - 1, 0);
 	iowrite32(val, gsi->virt + GSI_CNTXT_SRC_CH_IRQ_MSK_OFFSET);
 
@@ -276,17 +280,27 @@ static void gsi_irq_enable(struct gsi *gsi)
 	/* Never enable GSI_BREAK_POINT */
 	val = GSI_CNTXT_GSI_IRQ_ALL & ~BREAK_POINT_FMASK;
 	iowrite32(val, gsi->virt + GSI_CNTXT_GSI_IRQ_EN_OFFSET);
+
+	/* Finally enable the interrupt types we use */
+	val = BIT(GSI_CH_CTRL);
+	val |= BIT(GSI_EV_CTRL);
+	val |= BIT(GSI_GLOB_EE);
+	val |= BIT(GSI_IEOB);
+	/* We don't use inter-EE channel or event interrupts */
+	val |= BIT(GSI_GENERAL);
+	iowrite32(val, gsi->virt + GSI_CNTXT_TYPE_IRQ_MSK_OFFSET);
 }
 
 /* Disable all GSI_interrupt types */
 static void gsi_irq_disable(struct gsi *gsi)
 {
+	iowrite32(0, gsi->virt + GSI_CNTXT_TYPE_IRQ_MSK_OFFSET);
+
 	iowrite32(0, gsi->virt + GSI_CNTXT_GSI_IRQ_EN_OFFSET);
 	iowrite32(0, gsi->virt + GSI_CNTXT_GLOB_IRQ_EN_OFFSET);
 	iowrite32(0, gsi->virt + GSI_CNTXT_SRC_IEOB_IRQ_MSK_OFFSET);
 	iowrite32(0, gsi->virt + GSI_CNTXT_SRC_EV_CH_IRQ_MSK_OFFSET);
 	iowrite32(0, gsi->virt + GSI_CNTXT_SRC_CH_IRQ_MSK_OFFSET);
-	iowrite32(0, gsi->virt + GSI_CNTXT_TYPE_IRQ_MSK_OFFSET);
 }
 
 /* Return the virtual address associated with a ring index */
@@ -1683,6 +1697,7 @@ int gsi_setup(struct gsi *gsi)
 {
 	struct device *dev = gsi->dev;
 	u32 val;
+	int ret;
 
 	/* Here is where we first touch the GSI hardware */
 	val = ioread32(gsi->virt + GSI_GSI_STATUS_OFFSET);
@@ -1690,6 +1705,8 @@ int gsi_setup(struct gsi *gsi)
 		dev_err(dev, "GSI has not been enabled\n");
 		return -EIO;
 	}
+
+	gsi_irq_setup(gsi);
 
 	val = ioread32(gsi->virt + GSI_GSI_HW_PARAM_2_OFFSET);
 
@@ -1723,13 +1740,18 @@ int gsi_setup(struct gsi *gsi)
 	/* Writing 1 indicates IRQ interrupts; 0 would be MSI */
 	iowrite32(1, gsi->virt + GSI_CNTXT_INTSET_OFFSET);
 
-	return gsi_channel_setup(gsi);
+	ret = gsi_channel_setup(gsi);
+	if (ret)
+		gsi_irq_teardown(gsi);
+
+	return ret;
 }
 
 /* Inverse of gsi_setup() */
 void gsi_teardown(struct gsi *gsi)
 {
 	gsi_channel_teardown(gsi);
+	gsi_irq_teardown(gsi);
 }
 
 /* Initialize a channel's event ring */
