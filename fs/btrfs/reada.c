@@ -52,6 +52,7 @@ struct reada_extctl {
 
 struct reada_extent {
 	u64			logical;
+	u64			owner_root;
 	struct btrfs_key	top;
 	struct list_head	extctl;
 	int 			refcnt;
@@ -59,6 +60,7 @@ struct reada_extent {
 	struct reada_zone	*zones[BTRFS_MAX_MIRRORS];
 	int			nzones;
 	int			scheduled;
+	int			level;
 };
 
 struct reada_zone {
@@ -87,7 +89,8 @@ static void reada_start_machine(struct btrfs_fs_info *fs_info);
 static void __reada_start_machine(struct btrfs_fs_info *fs_info);
 
 static int reada_add_block(struct reada_control *rc, u64 logical,
-			   struct btrfs_key *top, u64 generation);
+			   struct btrfs_key *top, u64 owner_root,
+			   u64 generation, int level);
 
 /* recurses */
 /* in case of err, eb might be NULL */
@@ -165,7 +168,9 @@ static void __readahead_hook(struct btrfs_fs_info *fs_info,
 			if (rec->generation == generation &&
 			    btrfs_comp_cpu_keys(&key, &rc->key_end) < 0 &&
 			    btrfs_comp_cpu_keys(&next_key, &rc->key_start) > 0)
-				reada_add_block(rc, bytenr, &next_key, n_gen);
+				reada_add_block(rc, bytenr, &next_key,
+						btrfs_header_owner(eb), n_gen,
+						btrfs_header_level(eb) - 1);
 		}
 	}
 
@@ -298,7 +303,8 @@ static struct reada_zone *reada_find_zone(struct btrfs_device *dev, u64 logical,
 
 static struct reada_extent *reada_find_extent(struct btrfs_fs_info *fs_info,
 					      u64 logical,
-					      struct btrfs_key *top)
+					      struct btrfs_key *top,
+					      u64 owner_root, int level)
 {
 	int ret;
 	struct reada_extent *re = NULL;
@@ -331,6 +337,8 @@ static struct reada_extent *reada_find_extent(struct btrfs_fs_info *fs_info,
 	INIT_LIST_HEAD(&re->extctl);
 	spin_lock_init(&re->lock);
 	re->refcnt = 1;
+	re->owner_root = owner_root;
+	re->level = level;
 
 	/*
 	 * map block
@@ -548,14 +556,15 @@ static void reada_control_release(struct kref *kref)
 }
 
 static int reada_add_block(struct reada_control *rc, u64 logical,
-			   struct btrfs_key *top, u64 generation)
+			   struct btrfs_key *top, u64 owner_root,
+			   u64 generation, int level)
 {
 	struct btrfs_fs_info *fs_info = rc->fs_info;
 	struct reada_extent *re;
 	struct reada_extctl *rec;
 
 	/* takes one ref */
-	re = reada_find_extent(fs_info, logical, top);
+	re = reada_find_extent(fs_info, logical, top, owner_root, level);
 	if (!re)
 		return -1;
 
@@ -947,6 +956,7 @@ struct reada_control *btrfs_reada_add(struct btrfs_root *root,
 	u64 start;
 	u64 generation;
 	int ret;
+	int level;
 	struct extent_buffer *node;
 	static struct btrfs_key max_key = {
 		.objectid = (u64)-1,
@@ -969,9 +979,11 @@ struct reada_control *btrfs_reada_add(struct btrfs_root *root,
 	node = btrfs_root_node(root);
 	start = node->start;
 	generation = btrfs_header_generation(node);
+	level = btrfs_header_level(node);
 	free_extent_buffer(node);
 
-	ret = reada_add_block(rc, start, &max_key, generation);
+	ret = reada_add_block(rc, start, &max_key, root->root_key.objectid,
+			      generation, level);
 	if (ret) {
 		kfree(rc);
 		return ERR_PTR(ret);
