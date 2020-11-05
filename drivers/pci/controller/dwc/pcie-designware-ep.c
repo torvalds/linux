@@ -161,8 +161,8 @@ static int dw_pcie_ep_inbound_atu(struct dw_pcie_ep *ep, u8 func_no,
 	u32 free_win;
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 
-	free_win = find_first_zero_bit(ep->ib_window_map, ep->num_ib_windows);
-	if (free_win >= ep->num_ib_windows) {
+	free_win = find_first_zero_bit(ep->ib_window_map, pci->num_ib_windows);
+	if (free_win >= pci->num_ib_windows) {
 		dev_err(pci->dev, "No free inbound window\n");
 		return -EINVAL;
 	}
@@ -187,8 +187,8 @@ static int dw_pcie_ep_outbound_atu(struct dw_pcie_ep *ep, u8 func_no,
 	u32 free_win;
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 
-	free_win = find_first_zero_bit(ep->ob_window_map, ep->num_ob_windows);
-	if (free_win >= ep->num_ob_windows) {
+	free_win = find_first_zero_bit(ep->ob_window_map, pci->num_ob_windows);
+	if (free_win >= pci->num_ob_windows) {
 		dev_err(pci->dev, "No free outbound window\n");
 		return -EINVAL;
 	}
@@ -264,8 +264,9 @@ static int dw_pcie_find_index(struct dw_pcie_ep *ep, phys_addr_t addr,
 			      u32 *atu_index)
 {
 	u32 index;
+	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 
-	for (index = 0; index < ep->num_ob_windows; index++) {
+	for (index = 0; index < pci->num_ob_windows; index++) {
 		if (ep->outbound_addr[index] != addr)
 			continue;
 		*atu_index = index;
@@ -713,41 +714,41 @@ int dw_pcie_ep_init(struct dw_pcie_ep *ep)
 	ep->phys_base = res->start;
 	ep->addr_size = resource_size(res);
 
-	ret = of_property_read_u32(np, "num-ib-windows", &ep->num_ib_windows);
+	ret = of_property_read_u32(np, "num-ib-windows", &pci->num_ib_windows);
 	if (ret < 0) {
 		dev_err(dev, "Unable to read *num-ib-windows* property\n");
 		return ret;
 	}
-	if (ep->num_ib_windows > MAX_IATU_IN) {
+	if (pci->num_ib_windows > MAX_IATU_IN) {
 		dev_err(dev, "Invalid *num-ib-windows*\n");
 		return -EINVAL;
 	}
 
-	ret = of_property_read_u32(np, "num-ob-windows", &ep->num_ob_windows);
+	ret = of_property_read_u32(np, "num-ob-windows", &pci->num_ob_windows);
 	if (ret < 0) {
 		dev_err(dev, "Unable to read *num-ob-windows* property\n");
 		return ret;
 	}
-	if (ep->num_ob_windows > MAX_IATU_OUT) {
+	if (pci->num_ob_windows > MAX_IATU_OUT) {
 		dev_err(dev, "Invalid *num-ob-windows*\n");
 		return -EINVAL;
 	}
 
 	ep->ib_window_map = devm_kcalloc(dev,
-					 BITS_TO_LONGS(ep->num_ib_windows),
+					 BITS_TO_LONGS(pci->num_ib_windows),
 					 sizeof(long),
 					 GFP_KERNEL);
 	if (!ep->ib_window_map)
 		return -ENOMEM;
 
 	ep->ob_window_map = devm_kcalloc(dev,
-					 BITS_TO_LONGS(ep->num_ob_windows),
+					 BITS_TO_LONGS(pci->num_ob_windows),
 					 sizeof(long),
 					 GFP_KERNEL);
 	if (!ep->ob_window_map)
 		return -ENOMEM;
 
-	addr = devm_kcalloc(dev, ep->num_ob_windows, sizeof(phys_addr_t),
+	addr = devm_kcalloc(dev, pci->num_ob_windows, sizeof(phys_addr_t),
 			    GFP_KERNEL);
 	if (!addr)
 		return -ENOMEM;
