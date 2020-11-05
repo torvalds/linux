@@ -2413,7 +2413,7 @@ static int get_tree_block_key(struct btrfs_fs_info *fs_info,
 {
 	struct extent_buffer *eb;
 
-	eb = read_tree_block(fs_info, block->bytenr, block->key.offset,
+	eb = read_tree_block(fs_info, block->bytenr, 0, block->key.offset,
 			     block->level, NULL);
 	if (IS_ERR(eb)) {
 		return PTR_ERR(eb);
@@ -3038,7 +3038,7 @@ int add_data_references(struct reloc_control *rc,
 	while ((ref_node = ulist_next(leaves, &leaf_uiter))) {
 		struct extent_buffer *eb;
 
-		eb = read_tree_block(fs_info, ref_node->val, 0, 0, NULL);
+		eb = read_tree_block(fs_info, ref_node->val, 0, 0, 0, NULL);
 		if (IS_ERR(eb)) {
 			ret = PTR_ERR(eb);
 			break;

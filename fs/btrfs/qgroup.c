@@ -4208,7 +4208,7 @@ int btrfs_qgroup_trace_subtree_after_cow(struct btrfs_trans_handle *trans,
 	spin_unlock(&blocks->lock);
 
 	/* Read out reloc subtree root */
-	reloc_eb = read_tree_block(fs_info, block->reloc_bytenr,
+	reloc_eb = read_tree_block(fs_info, block->reloc_bytenr, 0,
 				   block->reloc_generation, block->level,
 				   &block->first_key);
 	if (IS_ERR(reloc_eb)) {

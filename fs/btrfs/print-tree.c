@@ -390,6 +390,7 @@ void btrfs_print_tree(struct extent_buffer *c, bool follow)
 
 		btrfs_node_key_to_cpu(c, &first_key, i);
 		next = read_tree_block(fs_info, btrfs_node_blockptr(c, i),
+				       btrfs_header_owner(c),
 				       btrfs_node_ptr_generation(c, i),
 				       level - 1, &first_key);
 		if (IS_ERR(next)) {
