@@ -160,6 +160,16 @@
 		vddio-supply = <&reg_dldo1>;
 	};
 
+	/* Light/proximity sensor */
+	stk3311@48 {
+		compatible = "sensortek,stk3311";
+		reg = <0x48>;
+		interrupt-parent = <&pio>;
+		interrupts = <1 0 IRQ_TYPE_EDGE_FALLING>; /* PB0 */
+		vdd-supply = <&reg_ldo_io0>;
+		leda-supply = <&reg_dldo1>;
+	};
+
 	/* Accelerometer/gyroscope */
 	mpu6050@68 {
 		compatible = "invensense,mpu6050";
