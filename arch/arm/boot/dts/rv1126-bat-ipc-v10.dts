@@ -29,9 +29,11 @@
 
 	cam_ircut0: cam_ircut {
 		status = "okay";
-		compatible = "rockchip,ircut";
-		ircut-open-gpios = <&gpio2 RK_PD4 GPIO_ACTIVE_HIGH>;
-		ircut-close-gpios  = <&gpio2 RK_PD5 GPIO_ACTIVE_HIGH>;
+		compatible = "ap1511a,ircut";
+		pinctrl-names = "default";
+		pinctrl-0 = <&ir_cut_en>;
+		ircut-open-gpios = <&gpio2 RK_PD5 GPIO_ACTIVE_HIGH>;
+		led-gpios = <&gpio2 RK_PB2 GPIO_ACTIVE_HIGH>;
 		rockchip,camera-module-index = <1>;
 		rockchip,camera-module-facing = "front";
 	};
@@ -289,6 +291,12 @@
 	es8311 {
 		spk_ctl: spk-ctl {
 			rockchip,pins = <2 RK_PA5 0 &pcfg_pull_none>;
+		};
+	};
+	ir-cut {
+		/omit-if-no-ref/
+		ir_cut_en: ir-cut-en {
+			rockchip,pins = <2 RK_PD4 RK_FUNC_GPIO &pcfg_output_low>;
 		};
 	};
 	regulator {
