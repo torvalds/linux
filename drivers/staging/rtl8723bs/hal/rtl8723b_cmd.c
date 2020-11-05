@@ -416,7 +416,7 @@ static void ConstructARPResponse(
 		SET_ARP_PKT_TARGET_MAC_ADDR(pARPRspPkt, get_my_bssid(&(pmlmeinfo->network)));
 		SET_ARP_PKT_TARGET_IP_ADDR(pARPRspPkt, pIPAddress);
 		DBG_871X("%s Target Mac Addr:%pM\n", __func__, MAC_ARG(get_my_bssid(&(pmlmeinfo->network))));
-		DBG_871X("%s Target IP Addr" IP_FMT "\n", __func__, IP_ARG(pIPAddress));
+		DBG_871X("%s Target IP Addr:%pI4\n", __func__, IP_ARG(pIPAddress));
 	}
 
 	*pLength += 28;
@@ -738,7 +738,7 @@ static void ConstructProbeRsp(struct adapter *padapter, u8 *pframe, u32 *pLength
 	memcpy(pwlanhdr->addr3, bssid, ETH_ALEN);
 
 	DBG_871X("%s FW Mac Addr:%pM\n", __func__, MAC_ARG(mac));
-	DBG_871X("%s FW IP Addr" IP_FMT "\n", __func__, IP_ARG(StaAddr));
+	DBG_871X("%s FW IP Addr:%pI4\n", __func__, IP_ARG(StaAddr));
 
 	SetSeqNum(pwlanhdr, 0);
 	SetFrameSubType(fctrl, WIFI_PROBERSP);
