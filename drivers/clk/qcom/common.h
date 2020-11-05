@@ -84,4 +84,9 @@ int qcom_cc_runtime_init(struct platform_device *pdev,
 int qcom_cc_runtime_suspend(struct device *dev);
 int qcom_cc_runtime_resume(struct device *dev);
 
+static inline const char *qcom_clk_hw_get_name(const struct clk_hw *hw)
+{
+	return hw->init ? hw->init->name : clk_hw_get_name(hw);
+}
+
 #endif
