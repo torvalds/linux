@@ -221,6 +221,12 @@ PNAME(mux_edp_24m_p)	= { "ext_edp_24m", "xin24m" };
 PNAME(mux_tspout_p)	= { "cpll", "gpll", "npll", "xin27m" };
 
 PNAME(mux_aclk_vcodec_pre_p)	= { "aclk_vdpu", "aclk_vepu" };
+PNAME(mux_testout_src_p) = { "aclk_peri", "armclk", "aclk_vio0", "ddrphy",
+			     "aclk_vcodec", "aclk_gpu", "sclk_rga", "aclk_cpu",
+			     "xin24m", "xin27m", "xin32k", "clk_wifi",
+			     "dclk_vop0", "dclk_vop1", "sclk_isp_jpe",
+			     "sclk_isp" };
+
 PNAME(mux_usbphy480m_p)		= { "sclk_otgphy1_480m", "sclk_otgphy2_480m",
 				    "sclk_otgphy0_480m" };
 PNAME(mux_hsicphy480m_p)	= { "cpll", "gpll", "usbphy480m_src" };
@@ -574,6 +580,12 @@ static struct rockchip_clk_branch rk3288_clk_branches[] __initdata = {
 	COMPOSITE_NOMUX(SCLK_TSADC, "sclk_tsadc", "xin32k", 0,
 			RK3288_CLKSEL_CON(2), 0, 6, DFLAGS,
 			RK3288_CLKGATE_CON(2), 7, GFLAGS),
+
+	MUX(SCLK_TESTOUT_SRC, "sclk_testout_src", mux_testout_src_p, 0,
+	    RK3288_MISC_CON, 8, 4, MFLAGS),
+	COMPOSITE_NOMUX(SCLK_TESTOUT, "sclk_testout", "sclk_testout_src", 0,
+			RK3288_CLKSEL_CON(2), 8, 5, DFLAGS,
+			RK3288_CLKGATE_CON(4), 15, GFLAGS),
 
 	COMPOSITE_NOMUX(SCLK_SARADC, "sclk_saradc", "xin24m", 0,
 			RK3288_CLKSEL_CON(24), 8, 8, DFLAGS,
