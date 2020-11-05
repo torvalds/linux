@@ -189,7 +189,7 @@ MODULE_DEVICE_TABLE(acpi, i2c_multi_inst_acpi_ids);
 static struct platform_driver i2c_multi_inst_driver = {
 	.driver	= {
 		.name = "I2C multi instantiate pseudo device driver",
-		.acpi_match_table = ACPI_PTR(i2c_multi_inst_acpi_ids),
+		.acpi_match_table = i2c_multi_inst_acpi_ids,
 	},
 	.probe = i2c_multi_inst_probe,
 	.remove = i2c_multi_inst_remove,
