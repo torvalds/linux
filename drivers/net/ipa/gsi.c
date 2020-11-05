@@ -231,30 +231,29 @@ static u32 gsi_channel_id(struct gsi_channel *channel)
 }
 
 /* Update the GSI IRQ type register with the cached value */
-static void gsi_irq_type_update(struct gsi *gsi)
+static void gsi_irq_type_update(struct gsi *gsi, u32 val)
 {
-	iowrite32(gsi->type_enabled_bitmap,
-		  gsi->virt + GSI_CNTXT_TYPE_IRQ_MSK_OFFSET);
+	gsi->type_enabled_bitmap = val;
+	iowrite32(val, gsi->virt + GSI_CNTXT_TYPE_IRQ_MSK_OFFSET);
 }
 
 static void gsi_irq_type_enable(struct gsi *gsi, enum gsi_irq_type_id type_id)
 {
-	gsi->type_enabled_bitmap |= BIT(type_id);
-	gsi_irq_type_update(gsi);
+	gsi_irq_type_update(gsi, gsi->type_enabled_bitmap | BIT(type_id));
 }
 
 static void gsi_irq_type_disable(struct gsi *gsi, enum gsi_irq_type_id type_id)
 {
-	gsi->type_enabled_bitmap &= ~BIT(type_id);
-	gsi_irq_type_update(gsi);
+	gsi_irq_type_update(gsi, gsi->type_enabled_bitmap & ~BIT(type_id));
 }
 
 /* Turn off all GSI interrupts initially */
 static void gsi_irq_setup(struct gsi *gsi)
 {
-	gsi->type_enabled_bitmap = 0;
-	gsi_irq_type_update(gsi);
+	/* Disable all interrupt types */
+	gsi_irq_type_update(gsi, 0);
 
+	/* Clear all type-specific interrupt masks */
 	iowrite32(0, gsi->virt + GSI_CNTXT_SRC_CH_IRQ_MSK_OFFSET);
 	iowrite32(0, gsi->virt + GSI_CNTXT_SRC_EV_CH_IRQ_MSK_OFFSET);
 	iowrite32(0, gsi->virt + GSI_CNTXT_GLOB_IRQ_EN_OFFSET);
@@ -267,8 +266,7 @@ static void gsi_irq_setup(struct gsi *gsi)
 /* Turn off all GSI interrupts when we're all done */
 static void gsi_irq_teardown(struct gsi *gsi)
 {
-	gsi->type_enabled_bitmap = 0;
-	gsi_irq_type_update(gsi);
+	/* Nothing to do */
 }
 
 static void gsi_irq_ieob_enable(struct gsi *gsi, u32 evt_ring_id)
@@ -308,7 +306,7 @@ static void gsi_irq_enable(struct gsi *gsi)
 	 * that so we can at least report the error should it occur.
 	 */
 	iowrite32(ERROR_INT_FMASK, gsi->virt + GSI_CNTXT_GLOB_IRQ_EN_OFFSET);
-	gsi->type_enabled_bitmap |= BIT(GSI_GLOB_EE);
+	gsi_irq_type_update(gsi, gsi->type_enabled_bitmap | BIT(GSI_GLOB_EE));
 
 	/* General GSI interrupts are reported to all EEs; if they occur
 	 * they are unrecoverable (without reset).  A breakpoint interrupt
@@ -319,18 +317,15 @@ static void gsi_irq_enable(struct gsi *gsi)
 	val |= CMD_FIFO_OVRFLOW_FMASK;
 	val |= MCS_STACK_OVRFLOW_FMASK;
 	iowrite32(val, gsi->virt + GSI_CNTXT_GSI_IRQ_EN_OFFSET);
-	gsi->type_enabled_bitmap |= BIT(GSI_GENERAL);
-
-	/* Finally update the interrupt types we want enabled */
-	gsi_irq_type_update(gsi);
+	gsi_irq_type_update(gsi, gsi->type_enabled_bitmap | BIT(GSI_GENERAL));
 }
 
 /* Disable all GSI interrupt types */
 static void gsi_irq_disable(struct gsi *gsi)
 {
-	gsi->type_enabled_bitmap = 0;
-	gsi_irq_type_update(gsi);
+	gsi_irq_type_update(gsi, 0);
 
+	/* Clear the type-specific interrupt masks set by gsi_irq_enable() */
 	iowrite32(0, gsi->virt + GSI_CNTXT_GSI_IRQ_EN_OFFSET);
 	iowrite32(0, gsi->virt + GSI_CNTXT_GLOB_IRQ_EN_OFFSET);
 }
