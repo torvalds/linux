@@ -1662,3 +1662,21 @@ int venus_helper_get_out_fmts(struct venus_inst *inst, u32 v4l2_fmt,
 	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(venus_helper_get_out_fmts);
+
+int venus_helper_set_stride(struct venus_inst *inst,
+			    unsigned int width, unsigned int height)
+{
+	const u32 ptype = HFI_PROPERTY_PARAM_UNCOMPRESSED_PLANE_ACTUAL_INFO;
+
+	struct hfi_uncompressed_plane_actual_info plane_actual_info;
+
+	plane_actual_info.buffer_type = HFI_BUFFER_INPUT;
+	plane_actual_info.num_planes = 2;
+	plane_actual_info.plane_format[0].actual_stride = width;
+	plane_actual_info.plane_format[0].actual_plane_buffer_height = height;
+	plane_actual_info.plane_format[1].actual_stride = width;
+	plane_actual_info.plane_format[1].actual_plane_buffer_height = height / 2;
+
+	return hfi_session_set_property(inst, ptype, &plane_actual_info);
+}
+EXPORT_SYMBOL_GPL(venus_helper_set_stride);

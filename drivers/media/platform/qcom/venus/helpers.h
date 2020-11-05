@@ -63,4 +63,6 @@ void venus_helper_get_ts_metadata(struct venus_inst *inst, u64 timestamp_us,
 				  struct vb2_v4l2_buffer *vbuf);
 int venus_helper_get_profile_level(struct venus_inst *inst, u32 *profile, u32 *level);
 int venus_helper_set_profile_level(struct venus_inst *inst, u32 profile, u32 level);
+int venus_helper_set_stride(struct venus_inst *inst, unsigned int aligned_width,
+			    unsigned int aligned_height);
 #endif

@@ -926,13 +926,13 @@ struct hfi_uncompressed_plane_actual {
 struct hfi_uncompressed_plane_actual_info {
 	u32 buffer_type;
 	u32 num_planes;
-	struct hfi_uncompressed_plane_actual plane_format[1];
+	struct hfi_uncompressed_plane_actual plane_format[2];
 };
 
 struct hfi_uncompressed_plane_actual_constraints_info {
 	u32 buffer_type;
 	u32 num_planes;
-	struct hfi_uncompressed_plane_constraints plane_format[1];
+	struct hfi_uncompressed_plane_constraints plane_format[2];
 };
 
 struct hfi_codec_supported {
