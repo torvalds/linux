@@ -6908,7 +6908,6 @@ int btrfs_read_sys_array(struct btrfs_fs_info *fs_info)
 	if (IS_ERR(sb))
 		return PTR_ERR(sb);
 	set_extent_buffer_uptodate(sb);
-	btrfs_set_buffer_lockdep_class(root->root_key.objectid, sb, 0);
 	/*
 	 * The sb extent buffer is artificial and just used to read the system array.
 	 * set_extent_buffer_uptodate() call does not properly mark all it's

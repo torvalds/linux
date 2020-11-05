@@ -4634,6 +4634,11 @@ btrfs_init_new_buffer(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		return ERR_PTR(-EUCLEAN);
 	}
 
+	/*
+	 * This needs to stay, because we could allocate a freed block from an
+	 * old tree into a new tree, so we need to make sure this new block is
+	 * set to the appropriate level and owner.
+	 */
 	btrfs_set_buffer_lockdep_class(owner, buf, level);
 	__btrfs_tree_lock(buf, nest);
 	btrfs_clean_tree_block(buf);
@@ -5022,9 +5027,6 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 				root->root_key.objectid, level - 1);
 		if (IS_ERR(next))
 			return PTR_ERR(next);
-
-		btrfs_set_buffer_lockdep_class(root->root_key.objectid, next,
-					       level - 1);
 		reada = 1;
 	}
 	btrfs_tree_lock(next);
