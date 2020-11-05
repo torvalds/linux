@@ -173,7 +173,6 @@ static struct btrfs_lockdep_keyset {
 	{ .id = BTRFS_EXTENT_TREE_OBJECTID,	DEFINE_NAME("extent")	},
 	{ .id = BTRFS_CHUNK_TREE_OBJECTID,	DEFINE_NAME("chunk")	},
 	{ .id = BTRFS_DEV_TREE_OBJECTID,	DEFINE_NAME("dev")	},
-	{ .id = BTRFS_FS_TREE_OBJECTID,		DEFINE_NAME("fs")	},
 	{ .id = BTRFS_CSUM_TREE_OBJECTID,	DEFINE_NAME("csum")	},
 	{ .id = BTRFS_QUOTA_TREE_OBJECTID,	DEFINE_NAME("quota")	},
 	{ .id = BTRFS_TREE_LOG_OBJECTID,	DEFINE_NAME("log")	},
