@@ -253,10 +253,12 @@ static void gsi_irq_enable(struct gsi *gsi)
 {
 	u32 val;
 
-	/* We don't use inter-EE channel or event interrupts */
-	val = GSI_CNTXT_TYPE_IRQ_MSK_ALL;
-	val &= ~INTER_EE_CH_CTRL_FMASK;
-	val &= ~INTER_EE_EV_CTRL_FMASK;
+	val = BIT(GSI_CH_CTRL);
+	val |= BIT(GSI_EV_CTRL);
+	val |= BIT(GSI_GLOB_EE);
+	val |= BIT(GSI_IEOB);
+	/* We don't use inter-EE channel or event control interrupts */
+	val |= BIT(GSI_GENERAL);
 	iowrite32(val, gsi->virt + GSI_CNTXT_TYPE_IRQ_MSK_OFFSET);
 
 	val = GENMASK(gsi->channel_count - 1, 0);
@@ -1130,6 +1132,7 @@ static irqreturn_t gsi_isr(int irq, void *dev_id)
 	u32 intr_mask;
 	u32 cnt = 0;
 
+	/* enum gsi_irq_type_id defines GSI interrupt types */
 	while ((intr_mask = ioread32(gsi->virt + GSI_CNTXT_TYPE_IRQ_OFFSET))) {
 		/* intr_mask contains bitmask of pending GSI interrupts */
 		do {
@@ -1138,19 +1141,19 @@ static irqreturn_t gsi_isr(int irq, void *dev_id)
 			intr_mask ^= gsi_intr;
 
 			switch (gsi_intr) {
-			case CH_CTRL_FMASK:
+			case BIT(GSI_CH_CTRL):
 				gsi_isr_chan_ctrl(gsi);
 				break;
-			case EV_CTRL_FMASK:
+			case BIT(GSI_EV_CTRL):
 				gsi_isr_evt_ctrl(gsi);
 				break;
-			case GLOB_EE_FMASK:
+			case BIT(GSI_GLOB_EE):
 				gsi_isr_glob_ee(gsi);
 				break;
-			case IEOB_FMASK:
+			case BIT(GSI_IEOB):
 				gsi_isr_ieob(gsi);
 				break;
-			case GENERAL_FMASK:
+			case BIT(GSI_GENERAL):
 				gsi_isr_general(gsi);
 				break;
 			default:

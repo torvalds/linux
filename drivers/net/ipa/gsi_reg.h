@@ -262,15 +262,16 @@
 			GSI_EE_N_CNTXT_TYPE_IRQ_MSK_OFFSET(GSI_EE_AP)
 #define GSI_EE_N_CNTXT_TYPE_IRQ_MSK_OFFSET(ee) \
 			(0x0001f088 + 0x4000 * (ee))
-/* The masks below are used for the TYPE_IRQ and TYPE_IRQ_MASK registers */
-#define CH_CTRL_FMASK			GENMASK(0, 0)
-#define EV_CTRL_FMASK			GENMASK(1, 1)
-#define GLOB_EE_FMASK			GENMASK(2, 2)
-#define IEOB_FMASK			GENMASK(3, 3)
-#define INTER_EE_CH_CTRL_FMASK		GENMASK(4, 4)
-#define INTER_EE_EV_CTRL_FMASK		GENMASK(5, 5)
-#define GENERAL_FMASK			GENMASK(6, 6)
-#define GSI_CNTXT_TYPE_IRQ_MSK_ALL	GENMASK(6, 0)
+/* Values here are bit positions in the TYPE_IRQ and TYPE_IRQ_MSK registers */
+enum gsi_irq_type_id {
+	GSI_CH_CTRL		= 0,	/* channel allocation, etc.  */
+	GSI_EV_CTRL		= 1,	/* event ring allocation, etc. */
+	GSI_GLOB_EE		= 2,	/* global/general event */
+	GSI_IEOB		= 3,	/* TRE completion */
+	GSI_INTER_EE_CH_CTRL	= 4,	/* remote-issued stop/reset (unused) */
+	GSI_INTER_EE_EV_CTRL	= 5,	/* remote-issued event reset (unused) */
+	GSI_GENERAL		= 6,	/* general-purpose event */
+};
 
 #define GSI_CNTXT_SRC_CH_IRQ_OFFSET \
 			GSI_EE_N_CNTXT_SRC_CH_IRQ_OFFSET(GSI_EE_AP)
