@@ -118,7 +118,7 @@ can help in this regard. If you start your code with:
 
 	int bit;
 
-	bit = ftrace_test_recursion_trylock();
+	bit = ftrace_test_recursion_trylock(ip, parent_ip);
 	if (bit < 0)
 		return;
 
@@ -130,7 +130,9 @@ The code in between will be safe to use, even if it ends up calling a
 function that the callback is tracing. Note, on success,
 ftrace_test_recursion_trylock() will disable preemption, and the
 ftrace_test_recursion_unlock() will enable it again (if it was previously
-enabled).
+enabled). The instruction pointer (ip) and its parent (parent_ip) is passed to
+ftrace_test_recursion_trylock() to record where the recursion happened
+(if CONFIG_FTRACE_RECORD_RECURSION is set).
 
 Alternatively, if the FTRACE_OPS_FL_RECURSION flag is set on the ftrace_ops
 (as explained below), then a helper trampoline will be used to test

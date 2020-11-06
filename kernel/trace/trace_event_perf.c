@@ -447,7 +447,7 @@ perf_ftrace_function_call(unsigned long ip, unsigned long parent_ip,
 	if ((unsigned long)ops->private != smp_processor_id())
 		return;
 
-	bit = ftrace_test_recursion_trylock();
+	bit = ftrace_test_recursion_trylock(ip, parent_ip);
 	if (bit < 0)
 		return;
 

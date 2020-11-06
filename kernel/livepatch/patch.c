@@ -49,7 +49,7 @@ static void notrace klp_ftrace_handler(unsigned long ip,
 
 	ops = container_of(fops, struct klp_ops, fops);
 
-	bit = ftrace_test_recursion_trylock();
+	bit = ftrace_test_recursion_trylock(ip, parent_ip);
 	if (WARN_ON_ONCE(bit < 0))
 		return;
 	/*
