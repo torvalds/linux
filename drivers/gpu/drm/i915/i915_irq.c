@@ -4212,6 +4212,9 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 	if (HAS_GT_UC(dev_priv) && INTEL_GEN(dev_priv) < 11)
 		dev_priv->gt.pm_guc_events = GUC_INTR_GUC2HOST << 16;
 
+	if (!HAS_DISPLAY(dev_priv))
+		return;
+
 	intel_hpd_init_pins(dev_priv);
 
 	intel_hpd_init_work(dev_priv);
