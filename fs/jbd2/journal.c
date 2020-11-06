@@ -891,11 +891,7 @@ int jbd2_fc_get_buf(journal_t *journal, struct buffer_head **bh_out)
 	if (!bh)
 		return -ENOMEM;
 
-	lock_buffer(bh);
 
-	clear_buffer_uptodate(bh);
-	set_buffer_dirty(bh);
-	unlock_buffer(bh);
 	journal->j_fc_wbuf[fc_off] = bh;
 
 	*bh_out = bh;
