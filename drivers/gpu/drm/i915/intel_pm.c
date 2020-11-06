@@ -4791,9 +4791,11 @@ skl_plane_wm_level(const struct intel_crtc_state *crtc_state,
 }
 
 static int
-skl_allocate_pipe_ddb(struct intel_crtc_state *crtc_state)
+skl_allocate_pipe_ddb(struct intel_atomic_state *state,
+		      struct intel_crtc *crtc)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct skl_ddb_entry *alloc = &crtc_state->wm.skl.ddb;
 	u16 alloc_size, start = 0;
@@ -5583,9 +5585,12 @@ static int icl_build_plane_wm(struct intel_crtc_state *crtc_state,
 	return 0;
 }
 
-static int skl_build_pipe_wm(struct intel_crtc_state *crtc_state)
+static int skl_build_pipe_wm(struct intel_atomic_state *state,
+			     struct intel_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 	struct skl_pipe_wm *pipe_wm = &crtc_state->wm.skl.optimal;
 	struct intel_plane *plane;
 	const struct intel_plane_state *plane_state;
@@ -5794,7 +5799,7 @@ skl_compute_ddb(struct intel_atomic_state *state)
 
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 					    new_crtc_state, i) {
-		ret = skl_allocate_pipe_ddb(new_crtc_state);
+		ret = skl_allocate_pipe_ddb(state, crtc);
 		if (ret)
 			return ret;
 
@@ -6092,7 +6097,6 @@ skl_compute_wm(struct intel_atomic_state *state)
 {
 	struct intel_crtc *crtc;
 	struct intel_crtc_state *new_crtc_state;
-	struct intel_crtc_state *old_crtc_state;
 	int ret, i;
 
 	ret = skl_ddb_add_affected_pipes(state);
@@ -6104,9 +6108,8 @@ skl_compute_wm(struct intel_atomic_state *state)
 	 * Note that skl_ddb_add_affected_pipes may have added more CRTC's that
 	 * weren't otherwise being modified if pipe allocations had to change.
 	 */
-	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
-					    new_crtc_state, i) {
-		ret = skl_build_pipe_wm(new_crtc_state);
+	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
+		ret = skl_build_pipe_wm(state, crtc);
 		if (ret)
 			return ret;
 	}
@@ -6124,8 +6127,7 @@ skl_compute_wm(struct intel_atomic_state *state)
 	 * based on how much ddb is available. Now we can actually
 	 * check if the final watermarks changed.
 	 */
-	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
-					    new_crtc_state, i) {
+	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
 		ret = skl_wm_add_affected_planes(state, crtc);
 		if (ret)
 			return ret;
