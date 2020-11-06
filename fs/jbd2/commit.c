@@ -450,6 +450,15 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 		schedule();
 		write_lock(&journal->j_state_lock);
 		finish_wait(&journal->j_fc_wait, &wait);
+		/*
+		 * TODO: by blocking fast commits here, we are increasing
+		 * fsync() latency slightly. Strictly speaking, we don't need
+		 * to block fast commits until the transaction enters T_FLUSH
+		 * state. So an optimization is possible where we block new fast
+		 * commits here and wait for existing ones to complete
+		 * just before we enter T_FLUSH. That way, the existing fast
+		 * commits and this full commit can proceed parallely.
+		 */
 	}
 	write_unlock(&journal->j_state_lock);
 
