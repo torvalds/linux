@@ -37,6 +37,7 @@
 #include "soc15.h"
 #include "soc15d.h"
 #include "gfx_v9_0.h"
+#include "amdgpu_amdkfd_gfx_v9.h"
 
 enum hqd_dequeue_request_type {
 	NO_ACTION = 0,
