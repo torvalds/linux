@@ -27,6 +27,8 @@ struct icp_qat_fw_loader_chip_info {
 	bool nn;
 	bool lm2lm3;
 	u32 lm_size;
+	u32 icp_rst_csr;
+	u32 icp_rst_mask;
 	bool fw_auth;
 };
 

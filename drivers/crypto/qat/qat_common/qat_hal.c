@@ -301,12 +301,13 @@ static unsigned short qat_hal_get_reg_addr(unsigned int type,
 
 void qat_hal_reset(struct icp_qat_fw_loader_handle *handle)
 {
-	unsigned int ae_reset_csr;
+	unsigned int reset_mask = handle->chip_info->icp_rst_mask;
+	unsigned int reset_csr = handle->chip_info->icp_rst_csr;
+	unsigned int csr_val;
 
-	ae_reset_csr = GET_CAP_CSR(handle, ICP_RESET);
-	ae_reset_csr |= handle->hal_handle->ae_mask << RST_CSR_AE_LSB;
-	ae_reset_csr |= handle->hal_handle->slice_mask << RST_CSR_QAT_LSB;
-	SET_CAP_CSR(handle, ICP_RESET, ae_reset_csr);
+	csr_val = GET_CAP_CSR(handle, reset_csr);
+	csr_val |= reset_mask;
+	SET_CAP_CSR(handle, reset_csr, csr_val);
 }
 
 static void qat_hal_wr_indr_csr(struct icp_qat_fw_loader_handle *handle,
@@ -470,28 +471,27 @@ static int qat_hal_init_esram(struct icp_qat_fw_loader_handle *handle)
 #define SHRAM_INIT_CYCLES 2060
 int qat_hal_clr_reset(struct icp_qat_fw_loader_handle *handle)
 {
+	unsigned int reset_mask = handle->chip_info->icp_rst_mask;
+	unsigned int reset_csr = handle->chip_info->icp_rst_csr;
 	unsigned long ae_mask = handle->hal_handle->ae_mask;
-	unsigned int ae_reset_csr;
-	unsigned char ae;
+	unsigned char ae = 0;
 	unsigned int clk_csr;
 	unsigned int times = 100;
-	unsigned int csr;
+	unsigned int csr_val;
 
 	/* write to the reset csr */
-	ae_reset_csr = GET_CAP_CSR(handle, ICP_RESET);
-	ae_reset_csr &= ~(handle->hal_handle->ae_mask << RST_CSR_AE_LSB);
-	ae_reset_csr &= ~(handle->hal_handle->slice_mask << RST_CSR_QAT_LSB);
+	csr_val = GET_CAP_CSR(handle, reset_csr);
+	csr_val &= ~reset_mask;
 	do {
-		SET_CAP_CSR(handle, ICP_RESET, ae_reset_csr);
+		SET_CAP_CSR(handle, reset_csr, csr_val);
 		if (!(times--))
 			goto out_err;
-		csr = GET_CAP_CSR(handle, ICP_RESET);
-	} while ((handle->hal_handle->ae_mask |
-		 (handle->hal_handle->slice_mask << RST_CSR_QAT_LSB)) & csr);
+		csr_val = GET_CAP_CSR(handle, reset_csr);
+		csr_val &= reset_mask;
+	} while (csr_val);
 	/* enable clock */
 	clk_csr = GET_CAP_CSR(handle, ICP_GLOBAL_CLK_ENABLE);
-	clk_csr |= handle->hal_handle->ae_mask << 0;
-	clk_csr |= handle->hal_handle->slice_mask << 20;
+	clk_csr |= reset_mask;
 	SET_CAP_CSR(handle, ICP_GLOBAL_CLK_ENABLE, clk_csr);
 	if (qat_hal_check_ae_alive(handle))
 		goto out_err;
@@ -700,6 +700,7 @@ static int qat_hal_chip_init(struct icp_qat_fw_loader_handle *handle,
 		handle->chip_info->nn = true;
 		handle->chip_info->lm2lm3 = false;
 		handle->chip_info->lm_size = ICP_QAT_UCLO_MAX_LMEM_REG;
+		handle->chip_info->icp_rst_csr = ICP_RESET;
 		handle->chip_info->fw_auth = true;
 		break;
 	case PCI_DEVICE_ID_INTEL_QAT_DH895XCC:
@@ -707,6 +708,7 @@ static int qat_hal_chip_init(struct icp_qat_fw_loader_handle *handle,
 		handle->chip_info->nn = true;
 		handle->chip_info->lm2lm3 = false;
 		handle->chip_info->lm_size = ICP_QAT_UCLO_MAX_LMEM_REG;
+		handle->chip_info->icp_rst_csr = ICP_RESET;
 		handle->chip_info->fw_auth = false;
 		break;
 	default:
@@ -719,6 +721,9 @@ static int qat_hal_chip_init(struct icp_qat_fw_loader_handle *handle,
 			&pci_info->pci_bars[hw_data->get_sram_bar_id(hw_data)];
 		handle->hal_sram_addr_v = sram_bar->virt_addr;
 	}
+
+	handle->chip_info->icp_rst_mask = (hw_data->ae_mask << RST_CSR_AE_LSB) |
+					  (hw_data->accel_mask << RST_CSR_QAT_LSB);
 	handle->hal_cap_g_ctl_csr_addr_v =
 		(void __iomem *)((uintptr_t)misc_bar->virt_addr +
 				 ICP_QAT_CAP_OFFSET);
