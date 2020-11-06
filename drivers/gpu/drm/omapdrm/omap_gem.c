@@ -580,7 +580,7 @@ int omap_gem_mmap_obj(struct drm_gem_object *obj,
 
 /**
  * omap_gem_dumb_create	-	create a dumb buffer
- * @drm_file: our client file
+ * @file: our client file
  * @dev: our device
  * @args: the requested arguments copied from userspace
  *
@@ -610,6 +610,7 @@ int omap_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
  * @file: our drm client file
  * @dev: drm device
  * @handle: GEM handle to the object (from dumb_create)
+ * @offset: memory map offset placeholder
  *
  * Do the necessary setup to allow the mapping of the frame buffer
  * into user memory. We don't have to do much here at the moment.
