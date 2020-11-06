@@ -558,13 +558,6 @@ static inline int dma_mmap_wc(struct device *dev,
 #define dma_unmap_len_set(PTR, LEN_NAME, VAL)    do { } while (0)
 #endif
 
-/*
- * Legacy interface to set up the dma offset map.  Drivers really should not
- * actually use it, but we have a few legacy cases left.
- */
-int dma_direct_set_offset(struct device *dev, phys_addr_t cpu_start,
-		dma_addr_t dma_start, u64 size);
-
 extern const struct dma_map_ops dma_virt_ops;
 
 #endif /* _LINUX_DMA_MAPPING_H */
