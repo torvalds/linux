@@ -441,6 +441,9 @@ perf_ftrace_function_call(unsigned long ip, unsigned long parent_ip,
 	int rctx;
 	int bit;
 
+	if (!rcu_is_watching())
+		return;
+
 	if ((unsigned long)ops->private != smp_processor_id())
 		return;
 
@@ -484,7 +487,6 @@ static int perf_ftrace_function_register(struct perf_event *event)
 {
 	struct ftrace_ops *ops = &event->ftrace_ops;
 
-	ops->flags   = FTRACE_OPS_FL_RCU;
 	ops->func    = perf_ftrace_function_call;
 	ops->private = (void *)(unsigned long)nr_cpu_ids;
 
