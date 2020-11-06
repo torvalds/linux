@@ -346,7 +346,7 @@ static void update_rawrd(struct rkisp_stream *stream)
 	} else if (dev->dmarx_dev.trigger == T_AUTO) {
 		/* internal raw wr/rd buf rotate */
 		struct rkisp_dummy_buffer *buf;
-		u32 id, rawwr_addr;
+		u32 id, rawwr_addr, val;
 
 		switch (stream->id) {
 		case RKISP_STREAM_RAWRD2:
@@ -368,22 +368,20 @@ static void update_rawrd(struct rkisp_stream *stream)
 		}
 		buf = hdr_dqbuf(&dev->hdr.q_rx[id]);
 		if (buf) {
-			mi_set_y_addr(stream, buf->dma_addr);
+			val = buf->dma_addr;
 			dev->hdr.rx_cur_buf[id] = buf;
 		} else {
-			mi_set_y_addr(stream,
-				readl(base + rawwr_addr));
+			val = readl(base + rawwr_addr);
 		}
-	}
-	if (dev->isp_ver == ISP_V20 &&
-	    dev->csi_dev.rd_mode == HDR_RDBK_FRAME1 &&
-	    stream->id == RKISP_STREAM_RAWRD2) {
-		rkisp_write(dev, MI_RAW0_RD_BASE,
-			    rkisp_read(dev, MI_RAW2_RD_BASE, false),
-			    false);
-		rkisp_write(dev, MI_RAW0_RD_LENGTH,
-			    rkisp_read(dev, MI_RAW2_RD_LENGTH, false),
-			    false);
+		mi_set_y_addr(stream, val);
+#if RKISP_NORMAL_MERGE_EN
+		if (dev->isp_ver == ISP_V20 &&
+		    dev->csi_dev.rd_mode == HDR_RDBK_FRAME1) {
+			rkisp_write(dev, MI_RAW0_RD_BASE, val, true);
+			rkisp_write(dev, MI_RAW0_RD_LENGTH,
+				rkisp_read(dev, MI_RAW2_RD_LENGTH, true), true);
+		}
+#endif
 	}
 }
 

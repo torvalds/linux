@@ -63,6 +63,8 @@
 #define RKISP_EMDDATA_FIFO_MAX		4
 #define RKISP_DMATX_CHECK              0xA5A5A5A5
 
+#define RKISP_NORMAL_MERGE_EN		1
+
 struct rkisp_device;
 
 /* ISP_V10_1 for only support MP */
