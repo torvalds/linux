@@ -18,6 +18,13 @@
 
 
 /*
+ * Force construction of an empty post-op attr
+ */
+static const struct svc_fh nfs3svc_null_fh = {
+	.fh_no_wcc	= true,
+};
+
+/*
  * Mapping of S_IF* types to NFS file types
  */
 static const u32 nfs3_ftypes[] = {
@@ -1392,27 +1399,50 @@ nfs3svc_encode_entry_plus(void *cd, const char *name,
 	return encode_entry(cd, name, namlen, offset, ino, d_type, 1);
 }
 
+static bool
+svcxdr_encode_fsstat3resok(struct xdr_stream *xdr,
+			   const struct nfsd3_fsstatres *resp)
+{
+	const struct kstatfs *s = &resp->stats;
+	u64 bs = s->f_bsize;
+	__be32 *p;
+
+	p = xdr_reserve_space(xdr, XDR_UNIT * 13);
+	if (!p)
+		return false;
+	p = xdr_encode_hyper(p, bs * s->f_blocks);	/* total bytes */
+	p = xdr_encode_hyper(p, bs * s->f_bfree);	/* free bytes */
+	p = xdr_encode_hyper(p, bs * s->f_bavail);	/* user available bytes */
+	p = xdr_encode_hyper(p, s->f_files);		/* total inodes */
+	p = xdr_encode_hyper(p, s->f_ffree);		/* free inodes */
+	p = xdr_encode_hyper(p, s->f_ffree);		/* user available inodes */
+	*p = cpu_to_be32(resp->invarsec);		/* mean unchanged time */
+
+	return true;
+}
+
 /* FSSTAT */
 int
 nfs3svc_encode_fsstatres(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct xdr_stream *xdr = &rqstp->rq_res_stream;
 	struct nfsd3_fsstatres *resp = rqstp->rq_resp;
-	struct kstatfs	*s = &resp->stats;
-	u64		bs = s->f_bsize;
 
-	*p++ = resp->status;
-	*p++ = xdr_zero;	/* no post_op_attr */
-
-	if (resp->status == 0) {
-		p = xdr_encode_hyper(p, bs * s->f_blocks);	/* total bytes */
-		p = xdr_encode_hyper(p, bs * s->f_bfree);	/* free bytes */
-		p = xdr_encode_hyper(p, bs * s->f_bavail);	/* user available bytes */
-		p = xdr_encode_hyper(p, s->f_files);	/* total inodes */
-		p = xdr_encode_hyper(p, s->f_ffree);	/* free inodes */
-		p = xdr_encode_hyper(p, s->f_ffree);	/* user available inodes */
-		*p++ = htonl(resp->invarsec);	/* mean unchanged time */
+	if (!svcxdr_encode_nfsstat3(xdr, resp->status))
+		return 0;
+	switch (resp->status) {
+	case nfs_ok:
+		if (!svcxdr_encode_post_op_attr(rqstp, xdr, &nfs3svc_null_fh))
+			return 0;
+		if (!svcxdr_encode_fsstat3resok(xdr, resp))
+			return 0;
+		break;
+	default:
+		if (!svcxdr_encode_post_op_attr(rqstp, xdr, &nfs3svc_null_fh))
+			return 0;
 	}
-	return xdr_ressize_check(rqstp, p);
+
+	return 1;
 }
 
 /* FSINFO */
