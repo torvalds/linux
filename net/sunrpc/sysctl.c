@@ -65,7 +65,7 @@ static int proc_do_xprt(struct ctl_table *table, int write,
 	char tmpbuf[256];
 	size_t len;
 
-	if ((*ppos && !write) || !*lenp) {
+	if (write || *ppos) {
 		*lenp = 0;
 		return 0;
 	}
