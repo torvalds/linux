@@ -135,7 +135,7 @@ static void ttm_pool_free_page(struct ttm_pool *pool, enum ttm_caching caching,
 		set_pages_wb(p, 1 << order);
 #endif
 
-	if (!pool->use_dma_alloc) {
+	if (!pool || !pool->use_dma_alloc) {
 		__free_pages(p, order);
 		return;
 	}
