@@ -737,25 +737,34 @@ struct g4x_wm_state {
 
 struct intel_crtc_wm_state {
 	union {
+		/*
+		 * raw:
+		 * The "raw" watermark values produced by the formula
+		 * given the plane's current state. They do not consider
+		 * how much FIFO is actually allocated for each plane.
+		 *
+		 * optimal:
+		 * The "optimal" watermark values given the current
+		 * state of the planes and the amount of FIFO
+		 * allocated to each, ignoring any previous state
+		 * of the planes.
+		 *
+		 * intermediate:
+		 * The "intermediate" watermark values when transitioning
+		 * between the old and new "optimal" values. Used when
+		 * the watermark registers are single buffered and hence
+		 * their state changes asynchronously with regards to the
+		 * actual plane registers. These are essentially the
+		 * worst case combination of the old and new "optimal"
+		 * watermarks, which are therefore safe to use when the
+		 * plane is in either its old or new state.
+		 */
 		struct {
-			/*
-			 * Intermediate watermarks; these can be
-			 * programmed immediately since they satisfy
-			 * both the current configuration we're
-			 * switching away from and the new
-			 * configuration we're switching to.
-			 */
 			struct intel_pipe_wm intermediate;
-
-			/*
-			 * Optimal watermarks, programmed post-vblank
-			 * when this state is committed.
-			 */
 			struct intel_pipe_wm optimal;
 		} ilk;
 
 		struct {
-			/* "raw" watermarks */
 			struct skl_pipe_wm raw;
 			/* gen9+ only needs 1-step wm programming */
 			struct skl_pipe_wm optimal;
@@ -765,22 +774,15 @@ struct intel_crtc_wm_state {
 		} skl;
 
 		struct {
-			/* "raw" watermarks (not inverted) */
-			struct g4x_pipe_wm raw[NUM_VLV_WM_LEVELS];
-			/* intermediate watermarks (inverted) */
-			struct vlv_wm_state intermediate;
-			/* optimal watermarks (inverted) */
-			struct vlv_wm_state optimal;
-			/* display FIFO split */
+			struct g4x_pipe_wm raw[NUM_VLV_WM_LEVELS]; /* not inverted */
+			struct vlv_wm_state intermediate; /* inverted */
+			struct vlv_wm_state optimal; /* inverted */
 			struct vlv_fifo_state fifo_state;
 		} vlv;
 
 		struct {
-			/* "raw" watermarks */
 			struct g4x_pipe_wm raw[NUM_G4X_WM_LEVELS];
-			/* intermediate watermarks */
 			struct g4x_wm_state intermediate;
-			/* optimal watermarks */
 			struct g4x_wm_state optimal;
 		} g4x;
 	};
