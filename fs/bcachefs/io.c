@@ -310,7 +310,7 @@ int bch2_extent_update(struct btree_trans *trans,
 		inode_u.bi_sectors += delta;
 
 		if (delta || new_i_size) {
-			bch2_inode_pack(&inode_p, &inode_u);
+			bch2_inode_pack(trans->c, &inode_p, &inode_u);
 			bch2_trans_update(trans, inode_iter,
 					  &inode_p.inode.k_i, 0);
 		}

@@ -537,7 +537,7 @@ retry:
 
 			bch2_trans_unlock(&trans);
 
-			bch2_inode_pack(&p, &w.inode);
+			bch2_inode_pack(c, &p, &w.inode);
 
 			ret = bch2_btree_insert(c, BTREE_ID_INODES,
 						&p.inode.k_i, NULL, NULL,
@@ -808,7 +808,7 @@ create_root:
 			0, NULL);
 	root_inode->bi_inum = BCACHEFS_ROOT_INO;
 
-	bch2_inode_pack(&packed, root_inode);
+	bch2_inode_pack(c, &packed, root_inode);
 
 	return bch2_btree_insert(c, BTREE_ID_INODES, &packed.inode.k_i,
 				 NULL, NULL,
@@ -1326,7 +1326,7 @@ static int check_inode(struct btree_trans *trans,
 	if (do_update) {
 		struct bkey_inode_buf p;
 
-		bch2_inode_pack(&p, &u);
+		bch2_inode_pack(c, &p, &u);
 
 		ret = __bch2_trans_do(trans, NULL, NULL,
 				      BTREE_INSERT_NOFAIL|

@@ -673,10 +673,10 @@ struct bch_inode_generation {
 } __attribute__((packed, aligned(8)));
 
 #define BCH_INODE_FIELDS()			\
-	x(bi_atime,			64)	\
-	x(bi_ctime,			64)	\
-	x(bi_mtime,			64)	\
-	x(bi_otime,			64)	\
+	x(bi_atime,			96)	\
+	x(bi_ctime,			96)	\
+	x(bi_mtime,			96)	\
+	x(bi_otime,			96)	\
 	x(bi_size,			64)	\
 	x(bi_sectors,			64)	\
 	x(bi_uid,			32)	\
@@ -743,7 +743,8 @@ enum {
 #define BCH_INODE_UNLINKED	(1 << __BCH_INODE_UNLINKED)
 
 LE32_BITMASK(INODE_STR_HASH,	struct bch_inode, bi_flags, 20, 24);
-LE32_BITMASK(INODE_NR_FIELDS,	struct bch_inode, bi_flags, 24, 32);
+LE32_BITMASK(INODE_NR_FIELDS,	struct bch_inode, bi_flags, 24, 31);
+LE32_BITMASK(INODE_NEW_VARINT,	struct bch_inode, bi_flags, 31, 32);
 
 /* Dirents */
 
@@ -1334,13 +1335,15 @@ LE64_BITMASK(BCH_SB_ERASURE_CODE,	struct bch_sb, flags[3],  0, 16);
 	x(btree_ptr_v2,			11)	\
 	x(extents_above_btree_updates,	12)	\
 	x(btree_updates_journalled,	13)	\
-	x(reflink_inline_data,		14)
+	x(reflink_inline_data,		14)	\
+	x(new_varint,			15)
 
 #define BCH_SB_FEATURES_ALL				\
 	((1ULL << BCH_FEATURE_new_siphash)|		\
 	 (1ULL << BCH_FEATURE_new_extent_overwrite)|	\
 	 (1ULL << BCH_FEATURE_btree_ptr_v2)|		\
-	 (1ULL << BCH_FEATURE_extents_above_btree_updates))
+	 (1ULL << BCH_FEATURE_extents_above_btree_updates)|\
+	 (1ULL << BCH_FEATURE_new_varint))\
 
 enum bch_sb_feature {
 #define x(f, n) BCH_FEATURE_##f,

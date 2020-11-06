@@ -8,6 +8,7 @@
 #include "extents.h"
 #include "inode.h"
 #include "str_hash.h"
+#include "varint.h"
 
 #include <linux/random.h>
 
@@ -89,22 +90,17 @@ static int inode_decode_field(const u8 *in, const u8 *end,
 	return bytes;
 }
 
-void bch2_inode_pack(struct bkey_inode_buf *packed,
-		     const struct bch_inode_unpacked *inode)
+static noinline void bch2_inode_pack_v1(struct bkey_inode_buf *packed,
+					const struct bch_inode_unpacked *inode)
 {
-	u8 *out = packed->inode.v.fields;
+	struct bkey_i_inode *k = &packed->inode;
+	u8 *out = k->v.fields;
 	u8 *end = (void *) &packed[1];
 	u8 *last_nonzero_field = out;
 	unsigned nr_fields = 0, last_nonzero_fieldnr = 0;
 	unsigned bytes;
 
-	bkey_inode_init(&packed->inode.k_i);
-	packed->inode.k.p.offset	= inode->bi_inum;
-	packed->inode.v.bi_hash_seed	= inode->bi_hash_seed;
-	packed->inode.v.bi_flags	= cpu_to_le32(inode->bi_flags);
-	packed->inode.v.bi_mode		= cpu_to_le16(inode->bi_mode);
-
-#define x(_name, _bits)					\
+#define x(_name, _bits)							\
 	out += inode_encode_field(out, end, 0, inode->_name);		\
 	nr_fields++;							\
 									\
@@ -123,7 +119,69 @@ void bch2_inode_pack(struct bkey_inode_buf *packed,
 	set_bkey_val_bytes(&packed->inode.k, bytes);
 	memset_u64s_tail(&packed->inode.v, 0, bytes);
 
-	SET_INODE_NR_FIELDS(&packed->inode.v, nr_fields);
+	SET_INODE_NR_FIELDS(&k->v, nr_fields);
+}
+
+static void bch2_inode_pack_v2(struct bkey_inode_buf *packed,
+			       const struct bch_inode_unpacked *inode)
+{
+	struct bkey_i_inode *k = &packed->inode;
+	u8 *out = k->v.fields;
+	u8 *end = (void *) &packed[1];
+	u8 *last_nonzero_field = out;
+	unsigned nr_fields = 0, last_nonzero_fieldnr = 0;
+	unsigned bytes;
+	int ret;
+
+#define x(_name, _bits)							\
+	nr_fields++;							\
+									\
+	if (inode->_name) {						\
+		ret = bch2_varint_encode(out, inode->_name);		\
+		out += ret;						\
+									\
+		if (_bits > 64)						\
+			*out++ = 0;					\
+									\
+		last_nonzero_field = out;				\
+		last_nonzero_fieldnr = nr_fields;			\
+	} else {							\
+		*out++ = 0;						\
+									\
+		if (_bits > 64)						\
+			*out++ = 0;					\
+	}
+
+	BCH_INODE_FIELDS()
+#undef  x
+	BUG_ON(out > end);
+
+	out = last_nonzero_field;
+	nr_fields = last_nonzero_fieldnr;
+
+	bytes = out - (u8 *) &packed->inode.v;
+	set_bkey_val_bytes(&packed->inode.k, bytes);
+	memset_u64s_tail(&packed->inode.v, 0, bytes);
+
+	SET_INODE_NR_FIELDS(&k->v, nr_fields);
+}
+
+void bch2_inode_pack(struct bch_fs *c,
+		     struct bkey_inode_buf *packed,
+		     const struct bch_inode_unpacked *inode)
+{
+	bkey_inode_init(&packed->inode.k_i);
+	packed->inode.k.p.offset	= inode->bi_inum;
+	packed->inode.v.bi_hash_seed	= inode->bi_hash_seed;
+	packed->inode.v.bi_flags	= cpu_to_le32(inode->bi_flags);
+	packed->inode.v.bi_mode		= cpu_to_le16(inode->bi_mode);
+
+	if (c->sb.features & (1ULL << BCH_FEATURE_new_varint)) {
+		SET_INODE_NEW_VARINT(&packed->inode.v, true);
+		bch2_inode_pack_v2(packed, inode);
+	} else {
+		bch2_inode_pack_v1(packed, inode);
+	}
 
 	if (IS_ENABLED(CONFIG_BCACHEFS_DEBUG)) {
 		struct bch_inode_unpacked unpacked;
@@ -135,25 +193,22 @@ void bch2_inode_pack(struct bkey_inode_buf *packed,
 		BUG_ON(unpacked.bi_hash_seed	!= inode->bi_hash_seed);
 		BUG_ON(unpacked.bi_mode		!= inode->bi_mode);
 
-#define x(_name, _bits)	BUG_ON(unpacked._name != inode->_name);
+#define x(_name, _bits)	if (unpacked._name != inode->_name)		\
+			panic("unpacked %llu should be %llu",		\
+			      (u64) unpacked._name, (u64) inode->_name);
 		BCH_INODE_FIELDS()
 #undef  x
 	}
 }
 
-int bch2_inode_unpack(struct bkey_s_c_inode inode,
-		      struct bch_inode_unpacked *unpacked)
+static noinline int bch2_inode_unpack_v1(struct bkey_s_c_inode inode,
+				struct bch_inode_unpacked *unpacked)
 {
 	const u8 *in = inode.v->fields;
-	const u8 *end = (void *) inode.v + bkey_val_bytes(inode.k);
+	const u8 *end = bkey_val_end(inode);
 	u64 field[2];
 	unsigned fieldnr = 0, field_bits;
 	int ret;
-
-	unpacked->bi_inum	= inode.k->p.offset;
-	unpacked->bi_hash_seed	= inode.v->bi_hash_seed;
-	unpacked->bi_flags	= le32_to_cpu(inode.v->bi_flags);
-	unpacked->bi_mode	= le16_to_cpu(inode.v->bi_mode);
 
 #define x(_name, _bits)					\
 	if (fieldnr++ == INODE_NR_FIELDS(inode.v)) {			\
@@ -177,6 +232,62 @@ int bch2_inode_unpack(struct bkey_s_c_inode inode,
 #undef  x
 
 	/* XXX: signal if there were more fields than expected? */
+	return 0;
+}
+
+static int bch2_inode_unpack_v2(struct bkey_s_c_inode inode,
+				struct bch_inode_unpacked *unpacked)
+{
+	const u8 *in = inode.v->fields;
+	const u8 *end = bkey_val_end(inode);
+	unsigned fieldnr = 0;
+	int ret;
+	u64 v[2];
+
+#define x(_name, _bits)							\
+	if (fieldnr < INODE_NR_FIELDS(inode.v)) {			\
+		ret = bch2_varint_decode(in, end, &v[0]);		\
+		if (ret < 0)						\
+			return ret;					\
+		in += ret;						\
+									\
+		if (_bits > 64) {					\
+			ret = bch2_varint_decode(in, end, &v[1]);	\
+			if (ret < 0)					\
+				return ret;				\
+			in += ret;					\
+		} else {						\
+			v[1] = 0;					\
+		}							\
+	} else {							\
+		v[0] = v[1] = 0;					\
+	}								\
+									\
+	unpacked->_name = v[0];						\
+	if (v[1] || v[0] != unpacked->_name)				\
+		return -1;						\
+	fieldnr++;
+
+	BCH_INODE_FIELDS()
+#undef  x
+
+	/* XXX: signal if there were more fields than expected? */
+	return 0;
+}
+
+int bch2_inode_unpack(struct bkey_s_c_inode inode,
+		      struct bch_inode_unpacked *unpacked)
+{
+	unpacked->bi_inum	= inode.k->p.offset;
+	unpacked->bi_hash_seed	= inode.v->bi_hash_seed;
+	unpacked->bi_flags	= le32_to_cpu(inode.v->bi_flags);
+	unpacked->bi_mode	= le16_to_cpu(inode.v->bi_mode);
+
+	if (INODE_NEW_VARINT(inode.v)) {
+		return bch2_inode_unpack_v2(inode, unpacked);
+	} else {
+		return bch2_inode_unpack_v1(inode, unpacked);
+	}
 
 	return 0;
 }
@@ -223,7 +334,7 @@ int bch2_inode_write(struct btree_trans *trans,
 	if (IS_ERR(inode_p))
 		return PTR_ERR(inode_p);
 
-	bch2_inode_pack(inode_p, inode);
+	bch2_inode_pack(trans->c, inode_p, inode);
 	bch2_trans_update(trans, iter, &inode_p->inode.k_i, 0);
 	return 0;
 }
@@ -426,10 +537,7 @@ found_slot:
 	inode_u->bi_inum	= k.k->p.offset;
 	inode_u->bi_generation	= bkey_generation(k);
 
-	bch2_inode_pack(inode_p, inode_u);
-	bch2_trans_update(trans, iter, &inode_p->inode.k_i, 0);
-	bch2_trans_iter_put(trans, iter);
-	return 0;
+	return bch2_inode_write(trans, iter, inode_u);
 }
 
 int bch2_inode_rm(struct bch_fs *c, u64 inode_nr)
@@ -553,32 +661,3 @@ int bch2_inode_find_by_inum(struct bch_fs *c, u64 inode_nr,
 	return bch2_trans_do(c, NULL, NULL, 0,
 		bch2_inode_find_by_inum_trans(&trans, inode_nr, inode));
 }
-
-#ifdef CONFIG_BCACHEFS_DEBUG
-void bch2_inode_pack_test(void)
-{
-	struct bch_inode_unpacked *u, test_inodes[] = {
-		{
-			.bi_atime	= U64_MAX,
-			.bi_ctime	= U64_MAX,
-			.bi_mtime	= U64_MAX,
-			.bi_otime	= U64_MAX,
-			.bi_size	= U64_MAX,
-			.bi_sectors	= U64_MAX,
-			.bi_uid		= U32_MAX,
-			.bi_gid		= U32_MAX,
-			.bi_nlink	= U32_MAX,
-			.bi_generation	= U32_MAX,
-			.bi_dev		= U32_MAX,
-		},
-	};
-
-	for (u = test_inodes;
-	     u < test_inodes + ARRAY_SIZE(test_inodes);
-	     u++) {
-		struct bkey_inode_buf p;
-
-		bch2_inode_pack(&p, u);
-	}
-}
-#endif

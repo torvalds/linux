@@ -1320,7 +1320,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 	bch2_inode_init(c, &root_inode, 0, 0,
 			S_IFDIR|S_IRWXU|S_IRUGO|S_IXUGO, 0, NULL);
 	root_inode.bi_inum = BCACHEFS_ROOT_INO;
-	bch2_inode_pack(&packed_inode, &root_inode);
+	bch2_inode_pack(c, &packed_inode, &root_inode);
 
 	err = "error creating root directory";
 	ret = bch2_btree_insert(c, BTREE_ID_INODES,

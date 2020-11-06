@@ -2027,7 +2027,6 @@ static void bcachefs_exit(void)
 static int __init bcachefs_init(void)
 {
 	bch2_bkey_pack_test();
-	bch2_inode_pack_test();
 
 	if (!(bcachefs_kset = kset_create_and_add("bcachefs", NULL, fs_kobj)) ||
 	    bch2_chardev_init() ||

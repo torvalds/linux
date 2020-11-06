@@ -24,6 +24,14 @@ void bch2_inode_generation_to_text(struct printbuf *, struct bch_fs *,
 	.val_to_text	= bch2_inode_generation_to_text,	\
 }
 
+#if 0
+typedef struct {
+	u64			lo;
+	u32			hi;
+} __packed __aligned(4) u96;
+#endif
+typedef u64 u96;
+
 struct bch_inode_unpacked {
 	u64			bi_inum;
 	__le64			bi_hash_seed;
@@ -43,7 +51,8 @@ struct bkey_inode_buf {
 #undef  x
 } __attribute__((packed, aligned(8)));
 
-void bch2_inode_pack(struct bkey_inode_buf *, const struct bch_inode_unpacked *);
+void bch2_inode_pack(struct bch_fs *, struct bkey_inode_buf *,
+		     const struct bch_inode_unpacked *);
 int bch2_inode_unpack(struct bkey_s_c_inode, struct bch_inode_unpacked *);
 
 struct btree_iter *bch2_inode_peek(struct btree_trans *,
@@ -165,11 +174,5 @@ static inline void bch2_inode_nlink_set(struct bch_inode_unpacked *bi,
 		bi->bi_flags |= BCH_INODE_UNLINKED;
 	}
 }
-
-#ifdef CONFIG_BCACHEFS_DEBUG
-void bch2_inode_pack_test(void);
-#else
-static inline void bch2_inode_pack_test(void) {}
-#endif
 
 #endif /* _BCACHEFS_INODE_H */
