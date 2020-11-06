@@ -707,6 +707,7 @@ static int qat_hal_chip_init(struct icp_qat_fw_loader_handle *handle,
 		handle->chip_info->wakeup_event_val = WAKEUP_EVENT;
 		handle->chip_info->fw_auth = true;
 		handle->chip_info->css_3k = false;
+		handle->chip_info->tgroup_share_ustore = false;
 		handle->chip_info->fcu_ctl_csr = FCU_CONTROL;
 		handle->chip_info->fcu_sts_csr = FCU_STATUS;
 		handle->chip_info->fcu_dram_addr_hi = FCU_DRAM_ADDR_HI;
@@ -725,6 +726,7 @@ static int qat_hal_chip_init(struct icp_qat_fw_loader_handle *handle,
 		handle->chip_info->wakeup_event_val = WAKEUP_EVENT;
 		handle->chip_info->fw_auth = false;
 		handle->chip_info->css_3k = false;
+		handle->chip_info->tgroup_share_ustore = false;
 		handle->chip_info->fcu_ctl_csr = 0;
 		handle->chip_info->fcu_sts_csr = 0;
 		handle->chip_info->fcu_dram_addr_hi = 0;

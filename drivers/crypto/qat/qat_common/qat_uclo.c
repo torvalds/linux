@@ -1180,21 +1180,24 @@ static int qat_uclo_map_suof(struct icp_qat_fw_loader_handle *handle,
 		if (!suof_img_hdr)
 			return -ENOMEM;
 		suof_handle->img_table.simg_hdr = suof_img_hdr;
-	}
 
-	for (i = 0; i < suof_handle->img_table.num_simgs; i++) {
-		qat_uclo_map_simg(handle, &suof_img_hdr[i],
-				  &suof_chunk_hdr[1 + i]);
-		ret = qat_uclo_check_simg_compat(handle,
-						 &suof_img_hdr[i]);
-		if (ret)
-			return ret;
-		suof_img_hdr[i].ae_mask &= handle->cfg_ae_mask;
-		if ((suof_img_hdr[i].ae_mask & 0x1) != 0)
-			ae0_img = i;
+		for (i = 0; i < suof_handle->img_table.num_simgs; i++) {
+			qat_uclo_map_simg(handle, &suof_img_hdr[i],
+					  &suof_chunk_hdr[1 + i]);
+			ret = qat_uclo_check_simg_compat(handle,
+							 &suof_img_hdr[i]);
+			if (ret)
+				return ret;
+			suof_img_hdr[i].ae_mask &= handle->cfg_ae_mask;
+			if ((suof_img_hdr[i].ae_mask & 0x1) != 0)
+				ae0_img = i;
+		}
+
+		if (!handle->chip_info->tgroup_share_ustore) {
+			qat_uclo_tail_img(suof_img_hdr, ae0_img,
+					  suof_handle->img_table.num_simgs);
+		}
 	}
-	qat_uclo_tail_img(suof_img_hdr, ae0_img,
-			  suof_handle->img_table.num_simgs);
 	return 0;
 }
 
