@@ -33,13 +33,11 @@
  * __btrfs_tree_read_lock - lock extent buffer for read
  * @eb:		the eb to be locked
  * @nest:	the nesting level to be used for lockdep
- * @recurse:	unused
  *
  * This takes the read lock on the extent buffer, using the specified nesting
  * level for lockdep purposes.
  */
-void __btrfs_tree_read_lock(struct extent_buffer *eb, enum btrfs_lock_nesting nest,
-			    bool recurse)
+void __btrfs_tree_read_lock(struct extent_buffer *eb, enum btrfs_lock_nesting nest)
 {
 	u64 start_ns = 0;
 
@@ -53,7 +51,7 @@ void __btrfs_tree_read_lock(struct extent_buffer *eb, enum btrfs_lock_nesting ne
 
 void btrfs_tree_read_lock(struct extent_buffer *eb)
 {
-	__btrfs_tree_read_lock(eb, BTRFS_NESTING_NORMAL, false);
+	__btrfs_tree_read_lock(eb, BTRFS_NESTING_NORMAL);
 }
 
 /*
