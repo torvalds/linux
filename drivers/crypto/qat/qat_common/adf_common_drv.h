@@ -133,8 +133,7 @@ void adf_vf_isr_resource_free(struct adf_accel_dev *accel_dev);
 
 int qat_hal_init(struct adf_accel_dev *accel_dev);
 void qat_hal_deinit(struct icp_qat_fw_loader_handle *handle);
-void qat_hal_start(struct icp_qat_fw_loader_handle *handle, unsigned char ae,
-		   unsigned int ctx_mask);
+int qat_hal_start(struct icp_qat_fw_loader_handle *handle);
 void qat_hal_stop(struct icp_qat_fw_loader_handle *handle, unsigned char ae,
 		  unsigned int ctx_mask);
 void qat_hal_reset(struct icp_qat_fw_loader_handle *handle);

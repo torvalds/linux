@@ -742,26 +742,32 @@ void qat_hal_deinit(struct icp_qat_fw_loader_handle *handle)
 	kfree(handle);
 }
 
-void qat_hal_start(struct icp_qat_fw_loader_handle *handle, unsigned char ae,
-		   unsigned int ctx_mask)
+int qat_hal_start(struct icp_qat_fw_loader_handle *handle)
 {
+	unsigned long ae_mask = handle->hal_handle->ae_mask;
+	unsigned int fcu_sts;
+	unsigned char ae;
+	u32 ae_ctr = 0;
 	int retry = 0;
-	unsigned int fcu_sts = 0;
 
 	if (handle->fw_auth) {
+		ae_ctr = hweight32(ae_mask);
 		SET_CAP_CSR(handle, FCU_CONTROL, FCU_CTRL_CMD_START);
 		do {
 			msleep(FW_AUTH_WAIT_PERIOD);
 			fcu_sts = GET_CAP_CSR(handle, FCU_STATUS);
 			if (((fcu_sts >> FCU_STS_DONE_POS) & 0x1))
-				return;
+				return ae_ctr;
 		} while (retry++ < FW_AUTH_MAX_RETRY);
-		pr_err("QAT: start error (AE 0x%x FCU_STS = 0x%x)\n", ae,
-		       fcu_sts);
+		pr_err("QAT: start error (FCU_STS = 0x%x)\n", fcu_sts);
+		return 0;
 	} else {
-		qat_hal_put_wakeup_event(handle, ae, (~ctx_mask) &
-				 ICP_QAT_UCLO_AE_ALL_CTX, 0x10000);
-		qat_hal_enable_ctx(handle, ae, ctx_mask);
+		for_each_set_bit(ae, &ae_mask, handle->hal_handle->ae_max_num) {
+			qat_hal_put_wakeup_event(handle, ae, 0, 0x10000);
+			qat_hal_enable_ctx(handle, ae, ICP_QAT_UCLO_AE_ALL_CTX);
+			ae_ctr++;
+		}
+		return ae_ctr;
 	}
 }
 
