@@ -4237,21 +4237,18 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 	 */
 	dev_priv->hotplug.hpd_short_storm_enabled = !HAS_DP_MST(dev_priv);
 
-	if (HAS_GMCH(dev_priv)) {
-		if (I915_HAS_HOTPLUG(dev_priv))
-			dev_priv->display.hpd_irq_setup = i915_hpd_irq_setup;
-	} else {
-		if (HAS_PCH_DG1(dev_priv))
-			dev_priv->display.hpd_irq_setup = dg1_hpd_irq_setup;
-		else if (INTEL_GEN(dev_priv) >= 11)
-			dev_priv->display.hpd_irq_setup = gen11_hpd_irq_setup;
-		else if (IS_GEN9_LP(dev_priv))
-			dev_priv->display.hpd_irq_setup = bxt_hpd_irq_setup;
-		else if (INTEL_PCH_TYPE(dev_priv) >= PCH_SPT)
-			dev_priv->display.hpd_irq_setup = spt_hpd_irq_setup;
-		else
-			dev_priv->display.hpd_irq_setup = ilk_hpd_irq_setup;
-	}
+	if (HAS_PCH_DG1(dev_priv))
+		dev_priv->display.hpd_irq_setup = dg1_hpd_irq_setup;
+	else if (INTEL_GEN(dev_priv) >= 11)
+		dev_priv->display.hpd_irq_setup = gen11_hpd_irq_setup;
+	else if (IS_GEN9_LP(dev_priv))
+		dev_priv->display.hpd_irq_setup = bxt_hpd_irq_setup;
+	else if (INTEL_PCH_TYPE(dev_priv) >= PCH_SPT)
+		dev_priv->display.hpd_irq_setup = spt_hpd_irq_setup;
+	else if (HAS_GMCH(dev_priv) && I915_HAS_HOTPLUG(dev_priv))
+		dev_priv->display.hpd_irq_setup = i915_hpd_irq_setup;
+	else
+		dev_priv->display.hpd_irq_setup = ilk_hpd_irq_setup;
 }
 
 /**
