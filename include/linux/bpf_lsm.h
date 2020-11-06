@@ -7,6 +7,7 @@
 #ifndef _LINUX_BPF_LSM_H
 #define _LINUX_BPF_LSM_H
 
+#include <linux/sched.h>
 #include <linux/bpf.h>
 #include <linux/lsm_hooks.h>
 
@@ -35,9 +36,21 @@ static inline struct bpf_storage_blob *bpf_inode(
 	return inode->i_security + bpf_lsm_blob_sizes.lbs_inode;
 }
 
+static inline struct bpf_storage_blob *bpf_task(
+	const struct task_struct *task)
+{
+	if (unlikely(!task->security))
+		return NULL;
+
+	return task->security + bpf_lsm_blob_sizes.lbs_task;
+}
+
 extern const struct bpf_func_proto bpf_inode_storage_get_proto;
 extern const struct bpf_func_proto bpf_inode_storage_delete_proto;
+extern const struct bpf_func_proto bpf_task_storage_get_proto;
+extern const struct bpf_func_proto bpf_task_storage_delete_proto;
 void bpf_inode_storage_free(struct inode *inode);
+void bpf_task_storage_free(struct task_struct *task);
 
 #else /* !CONFIG_BPF_LSM */
 
@@ -53,7 +66,17 @@ static inline struct bpf_storage_blob *bpf_inode(
 	return NULL;
 }
 
+static inline struct bpf_storage_blob *bpf_task(
+	const struct task_struct *task)
+{
+	return NULL;
+}
+
 static inline void bpf_inode_storage_free(struct inode *inode)
+{
+}
+
+static inline void bpf_task_storage_free(struct task_struct *task)
 {
 }
 
