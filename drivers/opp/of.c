@@ -975,7 +975,7 @@ int dev_pm_opp_of_add_table(struct device *dev)
 	struct opp_table *opp_table;
 	int ret;
 
-	opp_table = dev_pm_opp_get_opp_table_indexed(dev, 0);
+	opp_table = _add_opp_table_indexed(dev, 0);
 	if (IS_ERR(opp_table))
 		return PTR_ERR(opp_table);
 
@@ -1030,7 +1030,7 @@ int dev_pm_opp_of_add_table_indexed(struct device *dev, int index)
 			index = 0;
 	}
 
-	opp_table = dev_pm_opp_get_opp_table_indexed(dev, index);
+	opp_table = _add_opp_table_indexed(dev, index);
 	if (IS_ERR(opp_table))
 		return PTR_ERR(opp_table);
 

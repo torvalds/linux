@@ -2249,7 +2249,7 @@ int of_genpd_add_provider_onecell(struct device_node *np,
 			 * Save table for faster processing while setting
 			 * performance state.
 			 */
-			genpd->opp_table = dev_pm_opp_get_opp_table_indexed(&genpd->dev, i);
+			genpd->opp_table = dev_pm_opp_get_opp_table(&genpd->dev);
 			WARN_ON(IS_ERR(genpd->opp_table));
 		}
 

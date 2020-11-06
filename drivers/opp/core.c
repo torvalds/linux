@@ -1138,7 +1138,7 @@ void _get_opp_table_kref(struct opp_table *opp_table)
  * uses the opp_tables_busy flag to indicate if another creator is in the middle
  * of adding an OPP table and others should wait for it to finish.
  */
-static struct opp_table *_opp_get_opp_table(struct device *dev, int index)
+struct opp_table *_add_opp_table_indexed(struct device *dev, int index)
 {
 	struct opp_table *opp_table;
 
@@ -1188,17 +1188,16 @@ unlock:
 	return opp_table;
 }
 
+struct opp_table *_add_opp_table(struct device *dev)
+{
+	return _add_opp_table_indexed(dev, 0);
+}
+
 struct opp_table *dev_pm_opp_get_opp_table(struct device *dev)
 {
-	return _opp_get_opp_table(dev, 0);
+	return _find_opp_table(dev);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_get_opp_table);
-
-struct opp_table *dev_pm_opp_get_opp_table_indexed(struct device *dev,
-						   int index)
-{
-	return _opp_get_opp_table(dev, index);
-}
 
 static void _opp_table_kref_release(struct kref *kref)
 {
@@ -1627,7 +1626,7 @@ struct opp_table *dev_pm_opp_set_supported_hw(struct device *dev,
 {
 	struct opp_table *opp_table;
 
-	opp_table = dev_pm_opp_get_opp_table(dev);
+	opp_table = _add_opp_table(dev);
 	if (IS_ERR(opp_table))
 		return opp_table;
 
@@ -1686,7 +1685,7 @@ struct opp_table *dev_pm_opp_set_prop_name(struct device *dev, const char *name)
 {
 	struct opp_table *opp_table;
 
-	opp_table = dev_pm_opp_get_opp_table(dev);
+	opp_table = _add_opp_table(dev);
 	if (IS_ERR(opp_table))
 		return opp_table;
 
@@ -1779,7 +1778,7 @@ struct opp_table *dev_pm_opp_set_regulators(struct device *dev,
 	struct regulator *reg;
 	int ret, i;
 
-	opp_table = dev_pm_opp_get_opp_table(dev);
+	opp_table = _add_opp_table(dev);
 	if (IS_ERR(opp_table))
 		return opp_table;
 
@@ -1887,7 +1886,7 @@ struct opp_table *dev_pm_opp_set_clkname(struct device *dev, const char *name)
 	struct opp_table *opp_table;
 	int ret;
 
-	opp_table = dev_pm_opp_get_opp_table(dev);
+	opp_table = _add_opp_table(dev);
 	if (IS_ERR(opp_table))
 		return opp_table;
 
@@ -1955,7 +1954,7 @@ struct opp_table *dev_pm_opp_register_set_opp_helper(struct device *dev,
 	if (!set_opp)
 		return ERR_PTR(-EINVAL);
 
-	opp_table = dev_pm_opp_get_opp_table(dev);
+	opp_table = _add_opp_table(dev);
 	if (IS_ERR(opp_table))
 		return opp_table;
 
@@ -2039,7 +2038,7 @@ struct opp_table *dev_pm_opp_attach_genpd(struct device *dev,
 	int index = 0, ret = -EINVAL;
 	const char **name = names;
 
-	opp_table = dev_pm_opp_get_opp_table(dev);
+	opp_table = _add_opp_table(dev);
 	if (IS_ERR(opp_table))
 		return opp_table;
 
@@ -2204,7 +2203,7 @@ int dev_pm_opp_add(struct device *dev, unsigned long freq, unsigned long u_volt)
 	struct opp_table *opp_table;
 	int ret;
 
-	opp_table = dev_pm_opp_get_opp_table(dev);
+	opp_table = _add_opp_table(dev);
 	if (IS_ERR(opp_table))
 		return PTR_ERR(opp_table);
 
