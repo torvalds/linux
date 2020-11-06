@@ -4,6 +4,5 @@ config INFINIBAND_RDMAVT
 	depends on INFINIBAND_VIRT_DMA
 	depends on X86_64
 	depends on PCI
-	select DMA_VIRT_OPS
 	help
 	This is a common software verbs provider for RDMA networks.
