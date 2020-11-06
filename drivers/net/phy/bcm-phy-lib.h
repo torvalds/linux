@@ -63,6 +63,7 @@ int bcm_phy_modify_rdb(struct phy_device *phydev, u16 rdb, u16 mask,
 
 int bcm_phy_ack_intr(struct phy_device *phydev);
 int bcm_phy_config_intr(struct phy_device *phydev);
+irqreturn_t bcm_phy_handle_interrupt(struct phy_device *phydev);
 
 int bcm_phy_enable_apd(struct phy_device *phydev, bool dll_pwr_down);
 
