@@ -4,9 +4,9 @@
 # requires: set_ftrace_filter
 # flags: instance
 
-echo kernel_clone:stacktrace >> set_ftrace_filter
+echo $FUNCTION_FORK:stacktrace >> set_ftrace_filter
 
-grep -q "kernel_clone:stacktrace:unlimited" set_ftrace_filter
+grep -q "$FUNCTION_FORK:stacktrace:unlimited" set_ftrace_filter
 
 (echo "forked"; sleep 1)
 
