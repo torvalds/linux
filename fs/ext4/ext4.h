@@ -1863,6 +1863,13 @@ static inline bool ext4_verity_in_progress(struct inode *inode)
 #define EXT4_FEATURE_COMPAT_RESIZE_INODE	0x0010
 #define EXT4_FEATURE_COMPAT_DIR_INDEX		0x0020
 #define EXT4_FEATURE_COMPAT_SPARSE_SUPER2	0x0200
+/*
+ * The reason why "FAST_COMMIT" is a compat feature is that, FS becomes
+ * incompatible only if fast commit blocks are present in the FS. Since we
+ * clear the journal (and thus the fast commit blocks), we don't mark FS as
+ * incompatible. We also have a JBD2 incompat feature, which gets set when
+ * there are fast commit blocks present in the journal.
+ */
 #define EXT4_FEATURE_COMPAT_FAST_COMMIT		0x0400
 #define EXT4_FEATURE_COMPAT_STABLE_INODES	0x0800
 
