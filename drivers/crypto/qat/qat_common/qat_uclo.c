@@ -373,6 +373,7 @@ static int qat_uclo_init_ustore(struct icp_qat_fw_loader_handle *handle,
 	unsigned int ustore_size;
 	unsigned int patt_pos;
 	struct icp_qat_uclo_objhandle *obj_handle = handle->obj_handle;
+	unsigned long ae_mask = handle->hal_handle->ae_mask;
 	u64 *fill_data;
 
 	uof_image = image->img_ptr;
@@ -385,7 +386,7 @@ static int qat_uclo_init_ustore(struct icp_qat_fw_loader_handle *handle,
 		       sizeof(u64));
 	page = image->page;
 
-	for (ae = 0; ae < handle->hal_handle->ae_max_num; ae++) {
+	for_each_set_bit(ae, &ae_mask, handle->hal_handle->ae_max_num) {
 		if (!test_bit(ae, (unsigned long *)&uof_image->ae_assigned))
 			continue;
 		ustore_size = obj_handle->ae_data[ae].eff_ustore_size;
@@ -406,6 +407,7 @@ static int qat_uclo_init_memory(struct icp_qat_fw_loader_handle *handle)
 	int i, ae;
 	struct icp_qat_uclo_objhandle *obj_handle = handle->obj_handle;
 	struct icp_qat_uof_initmem *initmem = obj_handle->init_mem_tab.init_mem;
+	unsigned long ae_mask = handle->hal_handle->ae_mask;
 
 	for (i = 0; i < obj_handle->init_mem_tab.entry_num; i++) {
 		if (initmem->num_in_bytes) {
@@ -418,7 +420,8 @@ static int qat_uclo_init_memory(struct icp_qat_fw_loader_handle *handle)
 			(sizeof(struct icp_qat_uof_memvar_attr) *
 			initmem->val_attr_num));
 	}
-	for (ae = 0; ae < handle->hal_handle->ae_max_num; ae++) {
+
+	for_each_set_bit(ae, &ae_mask, handle->hal_handle->ae_max_num) {
 		if (qat_hal_batch_wr_lm(handle, ae,
 					obj_handle->lm_init_tab[ae])) {
 			pr_err("QAT: fail to batch init lmem for AE %d\n", ae);
@@ -649,11 +652,9 @@ static int qat_uclo_map_ae(struct icp_qat_fw_loader_handle *handle, int max_ae)
 	int i, ae;
 	int mflag = 0;
 	struct icp_qat_uclo_objhandle *obj_handle = handle->obj_handle;
+	unsigned long ae_mask = handle->hal_handle->ae_mask;
 
-	for (ae = 0; ae < max_ae; ae++) {
-		if (!test_bit(ae,
-			      (unsigned long *)&handle->hal_handle->ae_mask))
-			continue;
+	for_each_set_bit(ae, &ae_mask, max_ae) {
 		for (i = 0; i < obj_handle->uimage_num; i++) {
 			if (!test_bit(ae, (unsigned long *)
 			&obj_handle->ae_uimage[i].img_ptr->ae_assigned))
@@ -845,6 +846,7 @@ static int qat_uclo_init_reg_sym(struct icp_qat_fw_loader_handle *handle,
 static int qat_uclo_init_globals(struct icp_qat_fw_loader_handle *handle)
 {
 	struct icp_qat_uclo_objhandle *obj_handle = handle->obj_handle;
+	unsigned long ae_mask = handle->hal_handle->ae_mask;
 	struct icp_qat_uclo_aedata *aed;
 	unsigned int s, ae;
 
@@ -857,7 +859,7 @@ static int qat_uclo_init_globals(struct icp_qat_fw_loader_handle *handle)
 		}
 	}
 
-	for (ae = 0; ae < handle->hal_handle->ae_max_num; ae++) {
+	for_each_set_bit(ae, &ae_mask, handle->hal_handle->ae_max_num) {
 		aed = &obj_handle->ae_data[ae];
 		for (s = 0; s < aed->slice_num; s++) {
 			if (!aed->ae_slices[s].encap_image)
@@ -932,9 +934,7 @@ static int qat_uclo_set_ae_mode(struct icp_qat_fw_loader_handle *handle)
 	unsigned char ae, s;
 	int error;
 
-	for (ae = 0; ae < handle->hal_handle->ae_max_num; ae++) {
-		if (!test_bit(ae, &ae_mask))
-			continue;
+	for_each_set_bit(ae, &ae_mask, handle->hal_handle->ae_max_num) {
 		ae_data = &obj_handle->ae_data[ae];
 		for (s = 0; s < min_t(unsigned int, ae_data->slice_num,
 				      ICP_QAT_UCLO_MAX_CTX); s++) {
@@ -1372,13 +1372,14 @@ static int qat_uclo_load_fw(struct icp_qat_fw_loader_handle *handle,
 	unsigned int fcu_sts;
 	struct icp_qat_simg_ae_mode *virt_addr;
 	unsigned int fcu_loaded_ae_pos = FCU_LOADED_AE_POS;
+	unsigned long ae_mask = handle->hal_handle->ae_mask;
 
 	virt_addr = (void *)((uintptr_t)desc +
 		     sizeof(struct icp_qat_auth_chunk) +
 		     sizeof(struct icp_qat_css_hdr) +
 		     ICP_QAT_CSS_FWSK_PUB_LEN +
 		     ICP_QAT_CSS_SIGNATURE_LEN);
-	for (i = 0; i < handle->hal_handle->ae_max_num; i++) {
+	for_each_set_bit(i, &ae_mask, handle->hal_handle->ae_max_num) {
 		int retry = 0;
 
 		if (!((virt_addr->ae_mask >> i) & 0x1))
@@ -1847,6 +1848,7 @@ static void qat_uclo_wr_uimage_page(struct icp_qat_fw_loader_handle *handle,
 				    struct icp_qat_uof_image *image)
 {
 	struct icp_qat_uclo_objhandle *obj_handle = handle->obj_handle;
+	unsigned long ae_mask = handle->hal_handle->ae_mask;
 	unsigned long ae_assigned = image->ae_assigned;
 	struct icp_qat_uclo_aedata *aed;
 	unsigned int ctx_mask, s;
@@ -1860,7 +1862,7 @@ static void qat_uclo_wr_uimage_page(struct icp_qat_fw_loader_handle *handle,
 		ctx_mask = 0x55;
 	/* load the default page and set assigned CTX PC
 	 * to the entrypoint address */
-	for (ae = 0; ae < handle->hal_handle->ae_max_num; ae++) {
+	for_each_set_bit(ae, &ae_mask, handle->hal_handle->ae_max_num) {
 		if (!test_bit(ae, &ae_assigned))
 			continue;
 
