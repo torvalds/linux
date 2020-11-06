@@ -93,12 +93,12 @@ int mlx5dr_cmd_query_device(struct mlx5_core_dev *mdev,
 	caps->gvmi		= MLX5_CAP_GEN(mdev, vhca_id);
 	caps->flex_protocols	= MLX5_CAP_GEN(mdev, flex_parser_protocols);
 
-	if (mlx5dr_matcher_supp_flex_parser_icmp_v4(caps)) {
+	if (caps->flex_protocols & MLX5_FLEX_PARSER_ICMP_V4_ENABLED) {
 		caps->flex_parser_id_icmp_dw0 = MLX5_CAP_GEN(mdev, flex_parser_id_icmp_dw0);
 		caps->flex_parser_id_icmp_dw1 = MLX5_CAP_GEN(mdev, flex_parser_id_icmp_dw1);
 	}
 
-	if (mlx5dr_matcher_supp_flex_parser_icmp_v6(caps)) {
+	if (caps->flex_protocols & MLX5_FLEX_PARSER_ICMP_V6_ENABLED) {
 		caps->flex_parser_id_icmpv6_dw0 =
 			MLX5_CAP_GEN(mdev, flex_parser_id_icmpv6_dw0);
 		caps->flex_parser_id_icmpv6_dw1 =

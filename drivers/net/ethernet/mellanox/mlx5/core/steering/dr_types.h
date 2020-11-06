@@ -114,7 +114,7 @@ enum mlx5dr_ipv {
 
 struct mlx5dr_icm_pool;
 struct mlx5dr_icm_chunk;
-struct mlx5dr_icm_bucket;
+struct mlx5dr_icm_buddy_mem;
 struct mlx5dr_ste_htbl;
 struct mlx5dr_match_param;
 struct mlx5dr_cmd_caps;
@@ -288,7 +288,7 @@ int mlx5dr_ste_build_ste_arr(struct mlx5dr_matcher *matcher,
 			     struct mlx5dr_matcher_rx_tx *nic_matcher,
 			     struct mlx5dr_match_param *value,
 			     u8 *ste_arr);
-void mlx5dr_ste_build_eth_l2_src_des(struct mlx5dr_ste_build *builder,
+void mlx5dr_ste_build_eth_l2_src_dst(struct mlx5dr_ste_build *builder,
 				     struct mlx5dr_match_param *mask,
 				     bool inner, bool rx);
 void mlx5dr_ste_build_eth_l3_ipv4_5_tuple(struct mlx5dr_ste_build *sb,
@@ -312,31 +312,31 @@ void mlx5dr_ste_build_eth_l2_dst(struct mlx5dr_ste_build *sb,
 void mlx5dr_ste_build_eth_l2_tnl(struct mlx5dr_ste_build *sb,
 				 struct mlx5dr_match_param *mask,
 				 bool inner, bool rx);
-void mlx5dr_ste_build_ipv6_l3_l4(struct mlx5dr_ste_build *sb,
-				 struct mlx5dr_match_param *mask,
-				 bool inner, bool rx);
+void mlx5dr_ste_build_eth_ipv6_l3_l4(struct mlx5dr_ste_build *sb,
+				     struct mlx5dr_match_param *mask,
+				     bool inner, bool rx);
 void mlx5dr_ste_build_eth_l4_misc(struct mlx5dr_ste_build *sb,
 				  struct mlx5dr_match_param *mask,
 				  bool inner, bool rx);
-void mlx5dr_ste_build_gre(struct mlx5dr_ste_build *sb,
-			  struct mlx5dr_match_param *mask,
-			  bool inner, bool rx);
+void mlx5dr_ste_build_tnl_gre(struct mlx5dr_ste_build *sb,
+			      struct mlx5dr_match_param *mask,
+			      bool inner, bool rx);
 void mlx5dr_ste_build_mpls(struct mlx5dr_ste_build *sb,
 			   struct mlx5dr_match_param *mask,
 			   bool inner, bool rx);
-void mlx5dr_ste_build_flex_parser_0(struct mlx5dr_ste_build *sb,
+void mlx5dr_ste_build_tnl_mpls(struct mlx5dr_ste_build *sb,
+			       struct mlx5dr_match_param *mask,
+			       bool inner, bool rx);
+int mlx5dr_ste_build_icmp(struct mlx5dr_ste_build *sb,
+			  struct mlx5dr_match_param *mask,
+			  struct mlx5dr_cmd_caps *caps,
+			  bool inner, bool rx);
+void mlx5dr_ste_build_tnl_vxlan_gpe(struct mlx5dr_ste_build *sb,
 				    struct mlx5dr_match_param *mask,
 				    bool inner, bool rx);
-int mlx5dr_ste_build_flex_parser_1(struct mlx5dr_ste_build *sb,
-				   struct mlx5dr_match_param *mask,
-				   struct mlx5dr_cmd_caps *caps,
-				   bool inner, bool rx);
-void mlx5dr_ste_build_flex_parser_tnl_vxlan_gpe(struct mlx5dr_ste_build *sb,
-						struct mlx5dr_match_param *mask,
-						bool inner, bool rx);
-void mlx5dr_ste_build_flex_parser_tnl_geneve(struct mlx5dr_ste_build *sb,
-					     struct mlx5dr_match_param *mask,
-					     bool inner, bool rx);
+void mlx5dr_ste_build_tnl_geneve(struct mlx5dr_ste_build *sb,
+				 struct mlx5dr_match_param *mask,
+				 bool inner, bool rx);
 void mlx5dr_ste_build_general_purpose(struct mlx5dr_ste_build *sb,
 				      struct mlx5dr_match_param *mask,
 				      bool inner, bool rx);
@@ -588,9 +588,9 @@ struct mlx5dr_match_param {
 	struct mlx5dr_match_misc3 misc3;
 };
 
-#define DR_MASK_IS_FLEX_PARSER_ICMPV4_SET(_misc3) ((_misc3)->icmpv4_type || \
-						   (_misc3)->icmpv4_code || \
-						   (_misc3)->icmpv4_header_data)
+#define DR_MASK_IS_ICMPV4_SET(_misc3) ((_misc3)->icmpv4_type || \
+				       (_misc3)->icmpv4_code || \
+				       (_misc3)->icmpv4_header_data)
 
 struct mlx5dr_esw_caps {
 	u64 drop_icm_address_rx;
@@ -731,7 +731,6 @@ struct mlx5dr_action {
 			struct mlx5dr_domain *dmn;
 			struct mlx5dr_icm_chunk *chunk;
 			u8 *data;
-			u32 data_size;
 			u16 num_of_actions;
 			u32 index;
 			u8 allow_rx:1;
@@ -804,13 +803,18 @@ void mlx5dr_rule_update_rule_member(struct mlx5dr_ste *new_ste,
 				    struct mlx5dr_ste *ste);
 
 struct mlx5dr_icm_chunk {
-	struct mlx5dr_icm_bucket *bucket;
+	struct mlx5dr_icm_buddy_mem *buddy_mem;
 	struct list_head chunk_list;
 	u32 rkey;
 	u32 num_of_entries;
 	u32 byte_size;
 	u64 icm_addr;
 	u64 mr_addr;
+
+	/* indicates the index of this chunk in the whole memory,
+	 * used for deleting the chunk from the buddy
+	 */
+	unsigned int seg;
 
 	/* Memory optimisation */
 	struct mlx5dr_ste *ste_arr;
@@ -840,22 +844,19 @@ static inline void mlx5dr_domain_unlock(struct mlx5dr_domain *dmn)
 	mlx5dr_domain_nic_unlock(&dmn->info.rx);
 }
 
-static inline int
-mlx5dr_matcher_supp_flex_parser_icmp_v4(struct mlx5dr_cmd_caps *caps)
-{
-	return caps->flex_protocols & MLX5_FLEX_PARSER_ICMP_V4_ENABLED;
-}
-
-static inline int
-mlx5dr_matcher_supp_flex_parser_icmp_v6(struct mlx5dr_cmd_caps *caps)
-{
-	return caps->flex_protocols & MLX5_FLEX_PARSER_ICMP_V6_ENABLED;
-}
-
 int mlx5dr_matcher_select_builders(struct mlx5dr_matcher *matcher,
 				   struct mlx5dr_matcher_rx_tx *nic_matcher,
 				   enum mlx5dr_ipv outer_ipv,
 				   enum mlx5dr_ipv inner_ipv);
+
+static inline int
+mlx5dr_icm_pool_dm_type_to_entry_size(enum mlx5dr_icm_type icm_type)
+{
+	if (icm_type == DR_ICM_TYPE_STE)
+		return DR_STE_SIZE;
+
+	return DR_MODIFY_ACTION_SIZE;
+}
 
 static inline u32
 mlx5dr_icm_pool_chunk_size_to_entries(enum mlx5dr_icm_chunk_size chunk_size)
@@ -870,11 +871,7 @@ mlx5dr_icm_pool_chunk_size_to_byte(enum mlx5dr_icm_chunk_size chunk_size,
 	int num_of_entries;
 	int entry_size;
 
-	if (icm_type == DR_ICM_TYPE_STE)
-		entry_size = DR_STE_SIZE;
-	else
-		entry_size = DR_MODIFY_ACTION_SIZE;
-
+	entry_size = mlx5dr_icm_pool_dm_type_to_entry_size(icm_type);
 	num_of_entries = mlx5dr_icm_pool_chunk_size_to_entries(chunk_size);
 
 	return entry_size * num_of_entries;
