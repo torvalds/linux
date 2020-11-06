@@ -268,6 +268,8 @@ extern struct arm64_ftr_reg arm64_ftr_reg_ctrel0;
 /*
  * CPU feature detected at boot time based on feature of one or more CPUs.
  * All possible conflicts for a late CPU are ignored.
+ * NOTE: this means that a late CPU with the feature will *not* cause the
+ * capability to be advertised by cpus_have_*cap()!
  */
 #define ARM64_CPUCAP_WEAK_LOCAL_CPU_FEATURE		\
 	(ARM64_CPUCAP_SCOPE_LOCAL_CPU		|	\
