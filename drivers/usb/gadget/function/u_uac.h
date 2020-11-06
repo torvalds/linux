@@ -18,12 +18,19 @@
 #define UAC_DEF_CCHMASK		0x3
 #define UAC_DEF_CSRATE		48000
 #define UAC_DEF_CSSIZE		2
+#define UAC_DEF_CFU		0
 #define UAC_DEF_PCHMASK		0x3
 #define UAC_DEF_PSRATE		48000
 #define UAC_DEF_PSSIZE		2
+#define UAC_DEF_PFU		0
 #define UAC_DEF_REQ_NUM		2
 
 #define UAC1_OUT_EP_MAX_PACKET_SIZE 200
+
+#define EPIN_EN(_opts) ((_opts)->p_chmask != 0)
+#define EPOUT_EN(_opts) ((_opts)->c_chmask != 0)
+#define EPIN_FU(_opts) ((_opts)->p_feature_unit != 0)
+#define EPOUT_FU(_opts) ((_opts)->c_feature_unit != 0)
 
 struct f_uac_opts {
 	struct usb_function_instance	func_inst;
@@ -31,10 +38,12 @@ struct f_uac_opts {
 	int				c_srate[UAC_MAX_RATES];
 	int				c_srate_active;
 	int				c_ssize;
+	int				c_feature_unit;
 	int				p_chmask;
 	int				p_srate[UAC_MAX_RATES];
 	int				p_srate_active;
 	int				p_ssize;
+	int				p_feature_unit;
 	int				req_number;
 	unsigned			bound:1;
 
@@ -150,6 +159,12 @@ struct f_uac {
 	u8 ac_intf, as_in_intf, as_out_intf;
 	u8 ac_alt, as_in_alt, as_out_alt;	/* needed for get_alt() */
 	int ctl_id;
+
+	struct list_head cs;
+	u8 set_cmd;
+	u8 get_cmd;
+	struct usb_audio_control *set_con;
+	struct usb_audio_control *get_con;
 };
 
 static inline struct f_uac *func_to_uac(struct usb_function *f)
