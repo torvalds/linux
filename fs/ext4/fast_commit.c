@@ -155,6 +155,30 @@ void ext4_fc_init_inode(struct inode *inode)
 	ei->i_fc_committed_subtid = 0;
 }
 
+/* This function must be called with sbi->s_fc_lock held. */
+static void ext4_fc_wait_committing_inode(struct inode *inode)
+{
+	wait_queue_head_t *wq;
+	struct ext4_inode_info *ei = EXT4_I(inode);
+
+#if (BITS_PER_LONG < 64)
+	DEFINE_WAIT_BIT(wait, &ei->i_state_flags,
+			EXT4_STATE_FC_COMMITTING);
+	wq = bit_waitqueue(&ei->i_state_flags,
+				EXT4_STATE_FC_COMMITTING);
+#else
+	DEFINE_WAIT_BIT(wait, &ei->i_flags,
+			EXT4_STATE_FC_COMMITTING);
+	wq = bit_waitqueue(&ei->i_flags,
+				EXT4_STATE_FC_COMMITTING);
+#endif
+	lockdep_assert_held(&EXT4_SB(inode->i_sb)->s_fc_lock);
+	prepare_to_wait(wq, &wait.wq_entry, TASK_UNINTERRUPTIBLE);
+	spin_unlock(&EXT4_SB(inode->i_sb)->s_fc_lock);
+	schedule();
+	finish_wait(wq, &wait.wq_entry);
+}
+
 /*
  * Inform Ext4's fast about start of an inode update
  *
@@ -176,22 +200,7 @@ restart:
 		goto out;
 
 	if (ext4_test_inode_state(inode, EXT4_STATE_FC_COMMITTING)) {
-		wait_queue_head_t *wq;
-#if (BITS_PER_LONG < 64)
-		DEFINE_WAIT_BIT(wait, &ei->i_state_flags,
-				EXT4_STATE_FC_COMMITTING);
-		wq = bit_waitqueue(&ei->i_state_flags,
-				   EXT4_STATE_FC_COMMITTING);
-#else
-		DEFINE_WAIT_BIT(wait, &ei->i_flags,
-				EXT4_STATE_FC_COMMITTING);
-		wq = bit_waitqueue(&ei->i_flags,
-				   EXT4_STATE_FC_COMMITTING);
-#endif
-		prepare_to_wait(wq, &wait.wq_entry, TASK_UNINTERRUPTIBLE);
-		spin_unlock(&EXT4_SB(inode->i_sb)->s_fc_lock);
-		schedule();
-		finish_wait(wq, &wait.wq_entry);
+		ext4_fc_wait_committing_inode(inode);
 		goto restart;
 	}
 out:
@@ -234,26 +243,10 @@ restart:
 	}
 
 	if (ext4_test_inode_state(inode, EXT4_STATE_FC_COMMITTING)) {
-		wait_queue_head_t *wq;
-#if (BITS_PER_LONG < 64)
-		DEFINE_WAIT_BIT(wait, &ei->i_state_flags,
-				EXT4_STATE_FC_COMMITTING);
-		wq = bit_waitqueue(&ei->i_state_flags,
-				   EXT4_STATE_FC_COMMITTING);
-#else
-		DEFINE_WAIT_BIT(wait, &ei->i_flags,
-				EXT4_STATE_FC_COMMITTING);
-		wq = bit_waitqueue(&ei->i_flags,
-				   EXT4_STATE_FC_COMMITTING);
-#endif
-		prepare_to_wait(wq, &wait.wq_entry, TASK_UNINTERRUPTIBLE);
-		spin_unlock(&EXT4_SB(inode->i_sb)->s_fc_lock);
-		schedule();
-		finish_wait(wq, &wait.wq_entry);
+		ext4_fc_wait_committing_inode(inode);
 		goto restart;
 	}
-	if (!list_empty(&ei->i_fc_list))
-		list_del_init(&ei->i_fc_list);
+	list_del_init(&ei->i_fc_list);
 	spin_unlock(&EXT4_SB(inode->i_sb)->s_fc_lock);
 }
 
