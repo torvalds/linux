@@ -182,7 +182,7 @@ static inline int btree_iter_lock_cmp(const struct btree_iter *l,
 				      const struct btree_iter *r)
 {
 	return   cmp_int(l->btree_id, r->btree_id) ?:
-		-cmp_int(btree_iter_type(l), btree_iter_type(r)) ?:
+		-cmp_int(btree_iter_is_cached(l), btree_iter_is_cached(r)) ?:
 		 bkey_cmp(l->pos, r->pos);
 }
 

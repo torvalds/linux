@@ -238,14 +238,32 @@ bool __bch2_btree_node_lock(struct btree *b, struct bpos pos,
 			}
 		}
 
+		if (linked->btree_id != iter->btree_id) {
+			if (linked->btree_id > iter->btree_id) {
+				deadlock_iter = linked;
+				reason = 3;
+			}
+			continue;
+		}
+
+		/*
+		 * Within the same btree, cached iterators come before non
+		 * cached iterators:
+		 */
+		if (btree_iter_is_cached(linked) != btree_iter_is_cached(iter)) {
+			if (btree_iter_is_cached(iter)) {
+				deadlock_iter = linked;
+				reason = 4;
+			}
+			continue;
+		}
+
 		/*
 		 * Interior nodes must be locked before their descendants: if
 		 * another iterator has possible descendants locked of the node
 		 * we're about to lock, it must have the ancestors locked too:
 		 */
-		if (linked->btree_id == iter->btree_id &&
-		    btree_iter_is_cached(linked) == btree_iter_is_cached(iter) &&
-		    level > __fls(linked->nodes_locked)) {
+		if (level > __fls(linked->nodes_locked)) {
 			if (!(trans->nounlock)) {
 				linked->locks_want =
 					max(level + 1, max_t(unsigned,
@@ -253,27 +271,20 @@ bool __bch2_btree_node_lock(struct btree *b, struct bpos pos,
 					    iter->locks_want));
 				if (!btree_iter_get_locks(linked, true, false)) {
 					deadlock_iter = linked;
-					reason = 3;
+					reason = 5;
 				}
 			} else {
 				deadlock_iter = linked;
-				reason = 4;
+				reason = 6;
 			}
 		}
 
 		/* Must lock btree nodes in key order: */
-		if ((cmp_int(iter->btree_id, linked->btree_id) ?:
-		     -cmp_int(btree_iter_type(iter), btree_iter_type(linked))) < 0) {
-			deadlock_iter = linked;
-			reason = 5;
-		}
-
-		if (iter->btree_id == linked->btree_id &&
-		    btree_node_locked(linked, level) &&
+		if (btree_node_locked(linked, level) &&
 		    bkey_cmp(pos, btree_node_pos((void *) linked->l[level].b,
 						 btree_iter_type(linked))) <= 0) {
 			deadlock_iter = linked;
-			reason = 6;
+			reason = 7;
 		}
 
 		/*
