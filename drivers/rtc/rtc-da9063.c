@@ -243,7 +243,7 @@ static int da9063_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	al_secs = rtc_tm_to_time64(&rtc->alarm_time);
 
 	/* handle the rtc synchronisation delay */
-	if (rtc->rtc_sync == true && al_secs - tm_secs == 1)
+	if (rtc->rtc_sync && al_secs - tm_secs == 1)
 		memcpy(tm, &rtc->alarm_time, sizeof(struct rtc_time));
 	else
 		rtc->rtc_sync = false;
