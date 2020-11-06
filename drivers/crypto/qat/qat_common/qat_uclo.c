@@ -74,7 +74,7 @@ static int qat_uclo_free_ae_data(struct icp_qat_uclo_aedata *ae_data)
 static char *qat_uclo_get_string(struct icp_qat_uof_strtable *str_table,
 				 unsigned int str_offset)
 {
-	if ((!str_table->table_len) || (str_offset > str_table->table_len))
+	if (!str_table->table_len || str_offset > str_table->table_len)
 		return NULL;
 	return (char *)(((uintptr_t)(str_table->strings)) + str_offset);
 }
@@ -736,8 +736,8 @@ static int qat_uclo_check_uof_compat(struct icp_qat_uclo_objhandle *obj_handle)
 		return -EINVAL;
 	}
 	maj_ver = obj_handle->prod_rev & 0xff;
-	if ((obj_handle->encap_uof_obj.obj_hdr->max_cpu_ver < maj_ver) ||
-	    (obj_handle->encap_uof_obj.obj_hdr->min_cpu_ver > maj_ver)) {
+	if (obj_handle->encap_uof_obj.obj_hdr->max_cpu_ver < maj_ver ||
+	    obj_handle->encap_uof_obj.obj_hdr->min_cpu_ver > maj_ver) {
 		pr_err("QAT: UOF majVer 0x%x out of range\n", maj_ver);
 		return -EINVAL;
 	}
@@ -1064,8 +1064,8 @@ static int qat_uclo_check_simg_compat(struct icp_qat_fw_loader_handle *handle,
 		return -EINVAL;
 	}
 	maj_ver = prod_rev & 0xff;
-	if ((maj_ver > img_ae_mode->devmax_ver) ||
-	    (maj_ver < img_ae_mode->devmin_ver)) {
+	if (maj_ver > img_ae_mode->devmax_ver ||
+	    maj_ver < img_ae_mode->devmin_ver) {
 		pr_err("QAT: incompatible device majver 0x%x\n", maj_ver);
 		return -EINVAL;
 	}
@@ -1108,7 +1108,7 @@ static int qat_uclo_map_suof(struct icp_qat_fw_loader_handle *handle,
 	unsigned int i = 0;
 	struct icp_qat_suof_img_hdr img_header;
 
-	if (!suof_ptr || (suof_size == 0)) {
+	if (!suof_ptr || suof_size == 0) {
 		pr_err("QAT: input parameter SUOF pointer/size is NULL\n");
 		return -EINVAL;
 	}
@@ -1199,7 +1199,7 @@ static void qat_uclo_simg_free(struct icp_qat_fw_loader_handle *handle,
 {
 	dma_free_coherent(&handle->pci_dev->dev,
 			  (size_t)(dram_desc->dram_size),
-			  (dram_desc->dram_base_addr_v),
+			  dram_desc->dram_base_addr_v,
 			  dram_desc->dram_bus_addr);
 	memset(dram_desc, 0, sizeof(*dram_desc));
 }
@@ -1851,7 +1851,7 @@ static int qat_uclo_wr_suof_img(struct icp_qat_fw_loader_handle *handle)
 		if (qat_uclo_map_auth_fw(handle,
 					 (char *)simg_hdr[i].simg_buf,
 					 (unsigned int)
-					 (simg_hdr[i].simg_len),
+					 simg_hdr[i].simg_len,
 					 &desc))
 			goto wr_err;
 		if (qat_uclo_auth_fw(handle, desc))

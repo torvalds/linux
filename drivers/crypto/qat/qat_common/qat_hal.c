@@ -158,7 +158,7 @@ int qat_hal_set_ae_ctx_mode(struct icp_qat_fw_loader_handle *handle,
 {
 	unsigned int csr, new_csr;
 
-	if ((mode != 4) && (mode != 8)) {
+	if (mode != 4 && mode != 8) {
 		pr_err("QAT: bad ctx mode=%d\n", mode);
 		return -EINVAL;
 	}
@@ -430,7 +430,7 @@ static int qat_hal_init_esram(struct icp_qat_fw_loader_handle *handle)
 		qat_hal_wait_cycles(handle, 0, ESRAM_AUTO_INIT_USED_CYCLES, 0);
 		csr_val = ADF_CSR_RD(csr_addr, 0);
 	} while (!(csr_val & ESRAM_AUTO_TINIT_DONE) && times--);
-	if ((times < 0)) {
+	if (times < 0) {
 		pr_err("QAT: Fail to init eSram!\n");
 		return -EFAULT;
 	}
@@ -1128,7 +1128,7 @@ int qat_hal_batch_wr_lm(struct icp_qat_fw_loader_handle *handle,
 		plm_init = plm_init->next;
 	}
 	/* exec micro codes */
-	if (micro_inst_arry && (micro_inst_num > 0)) {
+	if (micro_inst_arry && micro_inst_num > 0) {
 		micro_inst_arry[micro_inst_num++] = 0x0E000010000ull;
 		stat = qat_hal_exec_micro_init_lm(handle, ae, 0, &first_exec,
 						  micro_inst_arry,
