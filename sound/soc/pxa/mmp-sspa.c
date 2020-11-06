@@ -239,6 +239,7 @@ static int mmp_sspa_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
+	sspa_ctrl &= ~SSPA_CTL_XPH;
 	if (dev->of_node || params_channels(params) == 2)
 		sspa_ctrl |= SSPA_CTL_XPH;
 
