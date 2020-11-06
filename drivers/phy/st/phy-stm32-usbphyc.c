@@ -311,7 +311,6 @@ static int stm32_usbphyc_probe(struct platform_device *pdev)
 	struct stm32_usbphyc *usbphyc;
 	struct device *dev = &pdev->dev;
 	struct device_node *child, *np = dev->of_node;
-	struct resource *res;
 	struct phy_provider *phy_provider;
 	u32 version;
 	int ret, port = 0;
@@ -322,8 +321,7 @@ static int stm32_usbphyc_probe(struct platform_device *pdev)
 	usbphyc->dev = dev;
 	dev_set_drvdata(dev, usbphyc);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	usbphyc->base = devm_ioremap_resource(dev, res);
+	usbphyc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(usbphyc->base))
 		return PTR_ERR(usbphyc->base);
 
