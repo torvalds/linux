@@ -1,4 +1,4 @@
-/**
+/*
  * \file radeon_drv.c
  * ATI Radeon driver
  *
