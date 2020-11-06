@@ -1752,7 +1752,7 @@ static void qat_uclo_fill_uwords(struct icp_qat_uclo_objhandle *obj_handle,
 			memcpy(&uwrd, (void *)(((uintptr_t)
 			       encap_page->uwblock[i].micro_words) + addr),
 			       obj_handle->uword_in_bytes);
-			uwrd = uwrd & 0xbffffffffffull;
+			uwrd = uwrd & GENMASK_ULL(43, 0);
 		}
 	}
 	*uword = uwrd;
