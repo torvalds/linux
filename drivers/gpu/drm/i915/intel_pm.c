@@ -3873,9 +3873,7 @@ static bool skl_crtc_can_enable_sagv(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	struct intel_plane *plane;
-	const struct intel_plane_state *plane_state;
-	int level, latency;
+	enum plane_id plane_id;
 
 	if (!intel_has_sagv(dev_priv))
 		return false;
@@ -3886,9 +3884,10 @@ static bool skl_crtc_can_enable_sagv(const struct intel_crtc_state *crtc_state)
 	if (crtc_state->hw.pipe_mode.flags & DRM_MODE_FLAG_INTERLACE)
 		return false;
 
-	intel_atomic_crtc_state_for_each_plane_state(plane, plane_state, crtc_state) {
+	for_each_plane_id_on_crtc(crtc, plane_id) {
 		const struct skl_plane_wm *wm =
-			&crtc_state->wm.skl.optimal.planes[plane->id];
+			&crtc_state->wm.skl.optimal.planes[plane_id];
+		int level;
 
 		/* Skip this plane if it's not enabled */
 		if (!wm->wm[0].plane_en)
@@ -3899,19 +3898,12 @@ static bool skl_crtc_can_enable_sagv(const struct intel_crtc_state *crtc_state)
 		     !wm->wm[level].plane_en; --level)
 		     { }
 
-		latency = dev_priv->wm.skl_latency[level];
-
-		if (skl_needs_memory_bw_wa(dev_priv) &&
-		    plane_state->uapi.fb->modifier ==
-		    I915_FORMAT_MOD_X_TILED)
-			latency += 15;
-
 		/*
 		 * If any of the planes on this pipe don't enable wm levels that
 		 * incur memory latencies higher than sagv_block_time_us we
 		 * can't enable SAGV.
 		 */
-		if (latency < dev_priv->sagv_block_time_us)
+		if (!wm->wm[level].can_sagv)
 			return false;
 	}
 
@@ -5375,6 +5367,9 @@ static void skl_compute_plane_wm(const struct intel_crtc_state *crtc_state,
 	/* Bspec says: value >= plane ddb allocation -> invalid, hence the +1 here */
 	result->min_ddb_alloc = max(min_ddb_alloc, res_blocks) + 1;
 	result->plane_en = true;
+
+	if (INTEL_GEN(dev_priv) < 12)
+		result->can_sagv = latency >= dev_priv->sagv_block_time_us;
 }
 
 static void

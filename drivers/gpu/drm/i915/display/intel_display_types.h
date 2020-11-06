@@ -686,6 +686,7 @@ struct skl_wm_level {
 	u8 plane_res_l;
 	bool plane_en;
 	bool ignore_lines;
+	bool can_sagv;
 };
 
 struct skl_plane_wm {
