@@ -733,19 +733,17 @@ config ZSMALLOC_STAT
 config GENERIC_EARLY_IOREMAP
 	bool
 
-config MAX_STACK_SIZE_MB
-	int "Maximum user stack size for 32-bit processes (MB)"
-	default 80
+config STACK_MAX_DEFAULT_SIZE_MB
+	int "Default maximum user stack size for 32-bit processes (MB)"
+	default 100
 	range 8 2048
 	depends on STACK_GROWSUP && (!64BIT || COMPAT)
 	help
 	  This is the maximum stack size in Megabytes in the VM layout of 32-bit
 	  user processes when the stack grows upwards (currently only on parisc
-	  arch). The stack will be located at the highest memory address minus
-	  the given value, unless the RLIMIT_STACK hard limit is changed to a
-	  smaller value in which case that is used.
+	  arch) when the RLIMIT_STACK hard limit is unlimited.
 
-	  A sane initial value is 80 MB.
+	  A sane initial value is 100 MB.
 
 config DEFERRED_STRUCT_PAGE_INIT
 	bool "Defer initialisation of struct pages to kthreads"
