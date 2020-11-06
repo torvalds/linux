@@ -232,7 +232,6 @@ static int exynos_pcie_phy_probe(struct platform_device *pdev)
 	struct exynos_pcie_phy *exynos_phy;
 	struct phy *generic_phy;
 	struct phy_provider *phy_provider;
-	struct resource *res;
 	const struct exynos_pcie_phy_data *drv_data;
 
 	drv_data = of_device_get_match_data(dev);
@@ -243,13 +242,11 @@ static int exynos_pcie_phy_probe(struct platform_device *pdev)
 	if (!exynos_phy)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	exynos_phy->phy_base = devm_ioremap_resource(dev, res);
+	exynos_phy->phy_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(exynos_phy->phy_base))
 		return PTR_ERR(exynos_phy->phy_base);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	exynos_phy->blk_base = devm_ioremap_resource(dev, res);
+	exynos_phy->blk_base = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(exynos_phy->blk_base))
 		return PTR_ERR(exynos_phy->blk_base);
 

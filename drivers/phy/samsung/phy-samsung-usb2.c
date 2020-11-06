@@ -143,7 +143,6 @@ static int samsung_usb2_phy_probe(struct platform_device *pdev)
 	const struct samsung_usb2_phy_config *cfg;
 	struct device *dev = &pdev->dev;
 	struct phy_provider *phy_provider;
-	struct resource *mem;
 	struct samsung_usb2_phy_driver *drv;
 	int i, ret;
 
@@ -167,8 +166,7 @@ static int samsung_usb2_phy_probe(struct platform_device *pdev)
 	drv->cfg = cfg;
 	drv->dev = dev;
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	drv->reg_phy = devm_ioremap_resource(dev, mem);
+	drv->reg_phy = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(drv->reg_phy)) {
 		dev_err(dev, "Failed to map register memory (phy)\n");
 		return PTR_ERR(drv->reg_phy);
