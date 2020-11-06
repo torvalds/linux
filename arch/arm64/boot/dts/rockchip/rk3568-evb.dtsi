@@ -918,8 +918,8 @@
 		reg = <0x14>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&touch_gpio>;
-		goodix,rst-gpio = <&gpio0 RK_PB5 GPIO_ACTIVE_HIGH>;
-		goodix,irq-gpio = <&gpio0 RK_PB6 IRQ_TYPE_LEVEL_LOW>;
+		goodix,rst-gpio = <&gpio0 RK_PB6 GPIO_ACTIVE_HIGH>;
+		goodix,irq-gpio = <&gpio0 RK_PB5 IRQ_TYPE_LEVEL_LOW>;
 	};
 };
 
@@ -1084,7 +1084,7 @@
 	vmmc-supply = <&vcc3v3_sd>;
 	vqmmc-supply = <&vccio_sd>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&sdmmc0_bus4 &sdmmc0_clk &sdmmc0_cmd>;
+	pinctrl-0 = <&sdmmc0_bus4 &sdmmc0_clk &sdmmc0_cmd &sdmmc0_det>;
 	status = "okay";
 };
 
@@ -1101,11 +1101,6 @@
 &spdif_8ch {
 	status = "okay";
 	#sound-dai-cells = <0>;
-};
-
-&saradc {
-	status = "okay";
-	vref-supply = <&vcc_1v8>;
 };
 
 &usb2phy0 {
@@ -1186,13 +1181,3 @@
 	status = "okay";
 };
 
-&sdhci {
-	bus-width = <8>;
-	cap-mmc-highspeed;
-	mmc-hs200-1_8v;
-	mmc-hs400-1_8v;
-	mmc-hs400-enhanced-strobe;
-	supports-emmc;
-	non-removable;
-	status = "okay";
-};
