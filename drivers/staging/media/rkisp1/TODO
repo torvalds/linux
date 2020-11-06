@@ -1,8 +1,0 @@
-* Fix checkpatch errors.
-
-NOTES:
-* All v4l2-compliance test must pass.
-* Stats and params can be tested with libcamera and ChromiumOS stack.
-
-Please CC patches to Linux Media <linux-media@vger.kernel.org> and
-Helen Koike <helen.koike@collabora.com>.
