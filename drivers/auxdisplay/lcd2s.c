@@ -348,8 +348,8 @@ static int lcd2s_i2c_remove(struct i2c_client *i2c)
 {
 	struct lcd2s_data *lcd2s = i2c_get_clientdata(i2c);
 
-	kfree(lcd2s->charlcd);
 	charlcd_unregister(lcd2s->charlcd);
+	kfree(lcd2s->charlcd);
 	return 0;
 }
 
