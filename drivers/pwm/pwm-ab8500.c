@@ -101,7 +101,7 @@ static int ab8500_pwm_probe(struct platform_device *pdev)
 
 	ab8500->chip.dev = &pdev->dev;
 	ab8500->chip.ops = &ab8500_pwm_ops;
-	ab8500->chip.base = pdev->id;
+	ab8500->chip.base = -1;
 	ab8500->chip.npwm = 1;
 
 	err = pwmchip_add(&ab8500->chip);
