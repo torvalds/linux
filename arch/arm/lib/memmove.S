@@ -24,9 +24,8 @@
  * occurring in the opposite direction.
  */
 
-.weak memmove
 ENTRY(__memmove)
-ENTRY(memmove)
+WEAK(memmove)
 	UNWIND(	.fnstart			)
 
 		subs	ip, r0, r1

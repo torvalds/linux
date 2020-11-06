@@ -13,10 +13,9 @@
 	.text
 	.align	5
 
-.weak memset
 ENTRY(__memset)
 ENTRY(mmioset)
-ENTRY(memset)
+WEAK(memset)
 UNWIND( .fnstart         )
 	ands	r3, r0, #3		@ 1 unaligned?
 	mov	ip, r0			@ preserve r0 as return value
