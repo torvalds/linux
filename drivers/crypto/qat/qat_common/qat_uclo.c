@@ -536,7 +536,7 @@ qat_uclo_check_image_compat(struct icp_qat_uof_encap_obj *encap_uof_obj,
 			(encap_uof_obj->beg_uof +
 			code_page->neigh_reg_tab_offset);
 	if (neigh_reg_tab->entry_num) {
-		pr_err("QAT: UOF can't contain shared control store feature\n");
+		pr_err("QAT: UOF can't contain neighbor register table\n");
 		return -EINVAL;
 	}
 	if (image->numpages > 1) {
