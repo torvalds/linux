@@ -264,13 +264,6 @@ struct rds_ib_device {
 	int			*vector_load;
 };
 
-static inline int ibdev_to_node(struct ib_device *ibdev)
-{
-	struct device *parent;
-
-	parent = ibdev->dev.parent;
-	return parent ? dev_to_node(parent) : NUMA_NO_NODE;
-}
 #define rdsibdev_to_node(rdsibdev) ibdev_to_node(rdsibdev->dev)
 
 /* bits for i_ack_flags */
