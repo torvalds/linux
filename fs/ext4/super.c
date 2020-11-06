@@ -1716,11 +1716,10 @@ enum {
 	Opt_dioread_nolock, Opt_dioread_lock,
 	Opt_discard, Opt_nodiscard, Opt_init_itable, Opt_noinit_itable,
 	Opt_max_dir_size_kb, Opt_nojournal_checksum, Opt_nombcache,
-	Opt_prefetch_block_bitmaps, Opt_no_fc,
+	Opt_prefetch_block_bitmaps,
 #ifdef CONFIG_EXT4_DEBUG
-	Opt_fc_debug_max_replay,
+	Opt_fc_debug_max_replay, Opt_fc_debug_force
 #endif
-	Opt_fc_debug_force
 };
 
 static const match_table_t tokens = {
@@ -1807,9 +1806,8 @@ static const match_table_t tokens = {
 	{Opt_init_itable, "init_itable=%u"},
 	{Opt_init_itable, "init_itable"},
 	{Opt_noinit_itable, "noinit_itable"},
-	{Opt_no_fc, "no_fc"},
-	{Opt_fc_debug_force, "fc_debug_force"},
 #ifdef CONFIG_EXT4_DEBUG
+	{Opt_fc_debug_force, "fc_debug_force"},
 	{Opt_fc_debug_max_replay, "fc_debug_max_replay=%u"},
 #endif
 	{Opt_max_dir_size_kb, "max_dir_size_kb=%u"},
@@ -2039,11 +2037,9 @@ static const struct mount_opts {
 	{Opt_nombcache, EXT4_MOUNT_NO_MBCACHE, MOPT_SET},
 	{Opt_prefetch_block_bitmaps, EXT4_MOUNT_PREFETCH_BLOCK_BITMAPS,
 	 MOPT_SET},
-	{Opt_no_fc, EXT4_MOUNT2_JOURNAL_FAST_COMMIT,
-	 MOPT_CLEAR | MOPT_2 | MOPT_EXT4_ONLY},
+#ifdef CONFIG_EXT4_DEBUG
 	{Opt_fc_debug_force, EXT4_MOUNT2_JOURNAL_FAST_COMMIT,
 	 MOPT_SET | MOPT_2 | MOPT_EXT4_ONLY},
-#ifdef CONFIG_EXT4_DEBUG
 	{Opt_fc_debug_max_replay, 0, MOPT_GTE0},
 #endif
 	{Opt_err, 0, 0}
