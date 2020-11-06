@@ -26,6 +26,7 @@ struct icp_qat_fw_loader_chip_info {
 	bool sram_visible;
 	bool nn;
 	bool lm2lm3;
+	u32 lm_size;
 	bool fw_auth;
 };
 

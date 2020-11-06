@@ -699,12 +699,14 @@ static int qat_hal_chip_init(struct icp_qat_fw_loader_handle *handle,
 		handle->chip_info->sram_visible = false;
 		handle->chip_info->nn = true;
 		handle->chip_info->lm2lm3 = false;
+		handle->chip_info->lm_size = ICP_QAT_UCLO_MAX_LMEM_REG;
 		handle->chip_info->fw_auth = true;
 		break;
 	case PCI_DEVICE_ID_INTEL_QAT_DH895XCC:
 		handle->chip_info->sram_visible = true;
 		handle->chip_info->nn = true;
 		handle->chip_info->lm2lm3 = false;
+		handle->chip_info->lm_size = ICP_QAT_UCLO_MAX_LMEM_REG;
 		handle->chip_info->fw_auth = false;
 		break;
 	default:

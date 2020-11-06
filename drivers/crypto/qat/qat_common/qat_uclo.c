@@ -311,7 +311,7 @@ static int qat_uclo_init_lmem_seg(struct icp_qat_fw_loader_handle *handle,
 	unsigned int ae;
 
 	if (qat_uclo_fetch_initmem_ae(handle, init_mem,
-				      ICP_QAT_UCLO_MAX_LMEM_REG, &ae))
+				      handle->chip_info->lm_size, &ae))
 		return -EINVAL;
 	if (qat_uclo_create_batch_init_list(handle, init_mem, ae,
 					    &obj_handle->lm_init_tab[ae]))
