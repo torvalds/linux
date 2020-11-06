@@ -1932,6 +1932,7 @@ static int battery_chg_probe(struct platform_device *pdev)
 	battery_chg_add_debugfs(bcdev);
 	battery_chg_notify_enable(bcdev);
 	device_init_wakeup(bcdev->dev, true);
+	schedule_work(&bcdev->usb_type_work);
 
 	return 0;
 error:
