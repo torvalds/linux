@@ -145,45 +145,49 @@ void update_freq_counters_refs(void)
 	this_cpu_write(arch_const_cycles_prev, read_constcnt());
 }
 
-static int validate_cpu_freq_invariance_counters(int cpu)
+static inline bool freq_counters_valid(int cpu)
 {
-	u64 max_freq_hz, ratio;
-
 	if (!cpu_has_amu_feat(cpu)) {
 		pr_debug("CPU%d: counters are not supported.\n", cpu);
-		return -EINVAL;
+		return false;
 	}
 
 	if (unlikely(!per_cpu(arch_const_cycles_prev, cpu) ||
 		     !per_cpu(arch_core_cycles_prev, cpu))) {
 		pr_debug("CPU%d: cycle counters are not enabled.\n", cpu);
-		return -EINVAL;
+		return false;
 	}
 
-	/* Convert maximum frequency from KHz to Hz and validate */
-	max_freq_hz = cpufreq_get_hw_max_freq(cpu) * 1000;
-	if (unlikely(!max_freq_hz)) {
-		pr_debug("CPU%d: invalid maximum frequency.\n", cpu);
+	return true;
+}
+
+static int freq_inv_set_max_ratio(int cpu, u64 max_rate, u64 ref_rate)
+{
+	u64 ratio;
+
+	if (unlikely(!max_rate || !ref_rate)) {
+		pr_debug("CPU%d: invalid maximum or reference frequency.\n",
+			 cpu);
 		return -EINVAL;
 	}
 
 	/*
 	 * Pre-compute the fixed ratio between the frequency of the constant
-	 * counter and the maximum frequency of the CPU.
+	 * reference counter and the maximum frequency of the CPU.
 	 *
-	 *			      const_freq
-	 * arch_max_freq_scale =   ---------------- * SCHED_CAPACITY_SCALE²
-	 *			   cpuinfo_max_freq
+	 *			    ref_rate
+	 * arch_max_freq_scale =   ---------- * SCHED_CAPACITY_SCALE²
+	 *			    max_rate
 	 *
 	 * We use a factor of 2 * SCHED_CAPACITY_SHIFT -> SCHED_CAPACITY_SCALE²
 	 * in order to ensure a good resolution for arch_max_freq_scale for
-	 * very low arch timer frequencies (down to the KHz range which should
+	 * very low reference frequencies (down to the KHz range which should
 	 * be unlikely).
 	 */
-	ratio = (u64)arch_timer_get_rate() << (2 * SCHED_CAPACITY_SHIFT);
-	ratio = div64_u64(ratio, max_freq_hz);
+	ratio = ref_rate << (2 * SCHED_CAPACITY_SHIFT);
+	ratio = div64_u64(ratio, max_rate);
 	if (!ratio) {
-		WARN_ONCE(1, "System timer frequency too low.\n");
+		WARN_ONCE(1, "Reference frequency too low.\n");
 		return -EINVAL;
 	}
 
@@ -230,8 +234,12 @@ static int __init init_amu_fie(void)
 	}
 
 	for_each_present_cpu(cpu) {
-		if (validate_cpu_freq_invariance_counters(cpu))
+		if (!freq_counters_valid(cpu) ||
+		    freq_inv_set_max_ratio(cpu,
+					   cpufreq_get_hw_max_freq(cpu) * 1000,
+					   arch_timer_get_rate()))
 			continue;
+
 		cpumask_set_cpu(cpu, valid_cpus);
 		have_policy |= enable_policy_freq_counters(cpu, valid_cpus);
 	}
