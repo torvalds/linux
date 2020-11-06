@@ -20,6 +20,7 @@ unsigned int perf_mem_events__loads_ldlat = 30;
 static struct perf_mem_event perf_mem_events[PERF_MEM_EVENTS__MAX] = {
 	E("ldlat-loads",	"cpu/mem-loads,ldlat=%u/P",	"cpu/events/mem-loads"),
 	E("ldlat-stores",	"cpu/mem-stores/P",		"cpu/events/mem-stores"),
+	E(NULL,			NULL,				NULL),
 };
 #undef E
 
@@ -75,6 +76,9 @@ int perf_mem_events__parse(const char *str)
 		for (j = 0; j < PERF_MEM_EVENTS__MAX; j++) {
 			struct perf_mem_event *e = perf_mem_events__ptr(j);
 
+			if (!e->tag)
+				continue;
+
 			if (strstr(e->tag, tok))
 				e->record = found = true;
 		}
@@ -105,6 +109,13 @@ int perf_mem_events__init(void)
 		struct perf_mem_event *e = perf_mem_events__ptr(j);
 		struct stat st;
 
+		/*
+		 * If the event entry isn't valid, skip initialization
+		 * and "e->supported" will keep false.
+		 */
+		if (!e->tag)
+			continue;
+
 		scnprintf(path, PATH_MAX, "%s/devices/%s",
 			  mnt, e->sysfs_name);
 
@@ -123,7 +134,7 @@ void perf_mem_events__list(void)
 		struct perf_mem_event *e = perf_mem_events__ptr(j);
 
 		fprintf(stderr, "%-13s%-*s%s\n",
-			e->tag,
+			e->tag ?: "",
 			verbose > 0 ? 25 : 0,
 			verbose > 0 ? perf_mem_events__name(j) : "",
 			e->supported ? ": available" : "");
