@@ -87,6 +87,7 @@ enum fcu_sts {
 #define XCWE_VOLUNTARY              (0x1)
 #define LCS_STATUS          (0x1)
 #define MMC_SHARE_CS_BITPOS         2
+#define WAKEUP_EVENT 0x10000
 #define FCU_CTRL_AE_POS     0x8
 #define FCU_AUTH_STS_MASK   0x7
 #define FCU_STS_DONE_POS    0x9

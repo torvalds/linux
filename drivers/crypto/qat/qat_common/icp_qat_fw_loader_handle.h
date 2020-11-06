@@ -30,6 +30,7 @@ struct icp_qat_fw_loader_chip_info {
 	u32 icp_rst_csr;
 	u32 icp_rst_mask;
 	u32 glb_clk_enable_csr;
+	u32 wakeup_event_val;
 	bool fw_auth;
 };
 

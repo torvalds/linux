@@ -702,6 +702,7 @@ static int qat_hal_chip_init(struct icp_qat_fw_loader_handle *handle,
 		handle->chip_info->lm_size = ICP_QAT_UCLO_MAX_LMEM_REG;
 		handle->chip_info->icp_rst_csr = ICP_RESET;
 		handle->chip_info->glb_clk_enable_csr = ICP_GLOBAL_CLK_ENABLE;
+		handle->chip_info->wakeup_event_val = WAKEUP_EVENT;
 		handle->chip_info->fw_auth = true;
 		break;
 	case PCI_DEVICE_ID_INTEL_QAT_DH895XCC:
@@ -711,6 +712,7 @@ static int qat_hal_chip_init(struct icp_qat_fw_loader_handle *handle,
 		handle->chip_info->lm_size = ICP_QAT_UCLO_MAX_LMEM_REG;
 		handle->chip_info->icp_rst_csr = ICP_RESET;
 		handle->chip_info->glb_clk_enable_csr = ICP_GLOBAL_CLK_ENABLE;
+		handle->chip_info->wakeup_event_val = WAKEUP_EVENT;
 		handle->chip_info->fw_auth = false;
 		break;
 	default:
@@ -834,6 +836,7 @@ void qat_hal_deinit(struct icp_qat_fw_loader_handle *handle)
 int qat_hal_start(struct icp_qat_fw_loader_handle *handle)
 {
 	unsigned long ae_mask = handle->hal_handle->ae_mask;
+	u32 wakeup_val = handle->chip_info->wakeup_event_val;
 	unsigned int fcu_sts;
 	unsigned char ae;
 	u32 ae_ctr = 0;
@@ -852,7 +855,7 @@ int qat_hal_start(struct icp_qat_fw_loader_handle *handle)
 		return 0;
 	} else {
 		for_each_set_bit(ae, &ae_mask, handle->hal_handle->ae_max_num) {
-			qat_hal_put_wakeup_event(handle, ae, 0, 0x10000);
+			qat_hal_put_wakeup_event(handle, ae, 0, wakeup_val);
 			qat_hal_enable_ctx(handle, ae, ICP_QAT_UCLO_AE_ALL_CTX);
 			ae_ctr++;
 		}
