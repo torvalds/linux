@@ -83,7 +83,7 @@
  *
  * Atomicity of commits
  * --------------------
- * In order to gaurantee atomicity during the commit operation, fast commit
+ * In order to guarantee atomicity during the commit operation, fast commit
  * uses "EXT4_FC_TAG_TAIL" tag that marks a fast commit as complete. Tail
  * tag contains CRC of the contents and TID of the transaction after which
  * this fast commit should be applied. Recovery code replays fast commit
@@ -542,6 +542,7 @@ static void ext4_fc_submit_bh(struct super_block *sb)
 	int write_flags = REQ_SYNC;
 	struct buffer_head *bh = EXT4_SB(sb)->s_fc_bh;
 
+	/* TODO: REQ_FUA | REQ_PREFLUSH is unnecessarily expensive. */
 	if (test_opt(sb, BARRIER))
 		write_flags |= REQ_FUA | REQ_PREFLUSH;
 	lock_buffer(bh);
