@@ -34,6 +34,10 @@ properties:
   "#size-cells":
     const: 0
 
+  dmic-gpios:
+    maxItems: 1
+    description: GPIO for switching between DMICs
+
 patternProperties:
   "^dai-link(@[0-9])?$":
     description:
@@ -83,7 +87,7 @@ examples:
   - |
     sound {
         compatible = "google,sc7180-trogdor";
-        model = "sc7180-rt5682-max98357a-1mic";
+        model = "sc7180-rt5682-max98357a-2mic";
 
         audio-routing =
                     "Headphone Jack", "HPOL",
@@ -91,6 +95,8 @@ examples:
 
         #address-cells = <1>;
         #size-cells = <0>;
+
+        dmic-gpios = <&tlmm 86 0>;
 
         dai-link@0 {
             link-name = "MultiMedia0";
