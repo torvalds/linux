@@ -5567,17 +5567,26 @@ static void pci_fixup_no_d0_pme(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ASMEDIA, 0x2142, pci_fixup_no_d0_pme);
 
 /*
- * Device [12d8:0x400e] and [12d8:0x400f]
+ * Device 12d8:0x400e [OHCI] and 12d8:0x400f [EHCI]
+ *
  * These devices advertise PME# support in all power states but don't
  * reliably assert it.
+ *
+ * These devices also advertise MSI, but documentation (PI7C9X440SL.pdf)
+ * says "The MSI Function is not implemented on this device" in chapters
+ * 7.3.27, 7.3.29-7.3.31.
  */
-static void pci_fixup_no_pme(struct pci_dev *dev)
+static void pci_fixup_no_msi_no_pme(struct pci_dev *dev)
 {
+#ifdef CONFIG_PCI_MSI
+	pci_info(dev, "MSI is not implemented on this device, disabling it\n");
+	dev->no_msi = 1;
+#endif
 	pci_info(dev, "PME# is unreliable, disabling it\n");
 	dev->pme_support = 0;
 }
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_PERICOM, 0x400e, pci_fixup_no_pme);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_PERICOM, 0x400f, pci_fixup_no_pme);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_PERICOM, 0x400e, pci_fixup_no_msi_no_pme);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_PERICOM, 0x400f, pci_fixup_no_msi_no_pme);
 
 static void apex_pci_fixup_class(struct pci_dev *pdev)
 {
