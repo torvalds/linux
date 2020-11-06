@@ -1254,7 +1254,7 @@ static int kvm_s390_set_processor(struct kvm *kvm, struct kvm_device_attr *attr)
 		ret = -EBUSY;
 		goto out;
 	}
-	proc = kzalloc(sizeof(*proc), GFP_KERNEL);
+	proc = kzalloc(sizeof(*proc), GFP_KERNEL_ACCOUNT);
 	if (!proc) {
 		ret = -ENOMEM;
 		goto out;
@@ -1416,7 +1416,7 @@ static int kvm_s390_get_processor(struct kvm *kvm, struct kvm_device_attr *attr)
 	struct kvm_s390_vm_cpu_processor *proc;
 	int ret = 0;
 
-	proc = kzalloc(sizeof(*proc), GFP_KERNEL);
+	proc = kzalloc(sizeof(*proc), GFP_KERNEL_ACCOUNT);
 	if (!proc) {
 		ret = -ENOMEM;
 		goto out;
@@ -1444,7 +1444,7 @@ static int kvm_s390_get_machine(struct kvm *kvm, struct kvm_device_attr *attr)
 	struct kvm_s390_vm_cpu_machine *mach;
 	int ret = 0;
 
-	mach = kzalloc(sizeof(*mach), GFP_KERNEL);
+	mach = kzalloc(sizeof(*mach), GFP_KERNEL_ACCOUNT);
 	if (!mach) {
 		ret = -ENOMEM;
 		goto out;
@@ -1812,7 +1812,7 @@ static long kvm_s390_get_skeys(struct kvm *kvm, struct kvm_s390_skeys *args)
 	if (args->count < 1 || args->count > KVM_S390_SKEYS_MAX)
 		return -EINVAL;
 
-	keys = kvmalloc_array(args->count, sizeof(uint8_t), GFP_KERNEL);
+	keys = kvmalloc_array(args->count, sizeof(uint8_t), GFP_KERNEL_ACCOUNT);
 	if (!keys)
 		return -ENOMEM;
 
@@ -1857,7 +1857,7 @@ static long kvm_s390_set_skeys(struct kvm *kvm, struct kvm_s390_skeys *args)
 	if (args->count < 1 || args->count > KVM_S390_SKEYS_MAX)
 		return -EINVAL;
 
-	keys = kvmalloc_array(args->count, sizeof(uint8_t), GFP_KERNEL);
+	keys = kvmalloc_array(args->count, sizeof(uint8_t), GFP_KERNEL_ACCOUNT);
 	if (!keys)
 		return -ENOMEM;
 
@@ -2625,7 +2625,7 @@ static void sca_dispose(struct kvm *kvm)
 
 int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 {
-	gfp_t alloc_flags = GFP_KERNEL;
+	gfp_t alloc_flags = GFP_KERNEL_ACCOUNT;
 	int i, rc;
 	char debug_name[16];
 	static unsigned long sca_offset;
@@ -2670,7 +2670,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 
 	BUILD_BUG_ON(sizeof(struct sie_page2) != 4096);
 	kvm->arch.sie_page2 =
-	     (struct sie_page2 *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
+	     (struct sie_page2 *) get_zeroed_page(GFP_KERNEL_ACCOUNT | GFP_DMA);
 	if (!kvm->arch.sie_page2)
 		goto out_err;
 
@@ -2900,7 +2900,7 @@ static int sca_switch_to_extended(struct kvm *kvm)
 	if (kvm->arch.use_esca)
 		return 0;
 
-	new_sca = alloc_pages_exact(sizeof(*new_sca), GFP_KERNEL|__GFP_ZERO);
+	new_sca = alloc_pages_exact(sizeof(*new_sca), GFP_KERNEL_ACCOUNT | __GFP_ZERO);
 	if (!new_sca)
 		return -ENOMEM;
 
@@ -3133,7 +3133,7 @@ void kvm_s390_vcpu_unsetup_cmma(struct kvm_vcpu *vcpu)
 
 int kvm_s390_vcpu_setup_cmma(struct kvm_vcpu *vcpu)
 {
-	vcpu->arch.sie_block->cbrlo = get_zeroed_page(GFP_KERNEL);
+	vcpu->arch.sie_block->cbrlo = get_zeroed_page(GFP_KERNEL_ACCOUNT);
 	if (!vcpu->arch.sie_block->cbrlo)
 		return -ENOMEM;
 	return 0;
@@ -3243,7 +3243,7 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 	int rc;
 
 	BUILD_BUG_ON(sizeof(struct sie_page) != 4096);
-	sie_page = (struct sie_page *) get_zeroed_page(GFP_KERNEL);
+	sie_page = (struct sie_page *) get_zeroed_page(GFP_KERNEL_ACCOUNT);
 	if (!sie_page)
 		return -ENOMEM;
 
