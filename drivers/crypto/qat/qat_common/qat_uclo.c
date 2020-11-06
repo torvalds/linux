@@ -1735,21 +1735,22 @@ static void qat_uclo_fill_uwords(struct icp_qat_uclo_objhandle *obj_handle,
 				 u64 *uword, unsigned int addr_p,
 				 unsigned int raddr, u64 fill)
 {
+	unsigned int i, addr;
 	u64 uwrd = 0;
-	unsigned int i;
 
 	if (!encap_page) {
 		*uword = fill;
 		return;
 	}
+	addr = (encap_page->page_region) ? raddr : addr_p;
 	for (i = 0; i < encap_page->uwblock_num; i++) {
-		if (raddr >= encap_page->uwblock[i].start_addr &&
-		    raddr <= encap_page->uwblock[i].start_addr +
+		if (addr >= encap_page->uwblock[i].start_addr &&
+		    addr <= encap_page->uwblock[i].start_addr +
 		    encap_page->uwblock[i].words_num - 1) {
-			raddr -= encap_page->uwblock[i].start_addr;
-			raddr *= obj_handle->uword_in_bytes;
+			addr -= encap_page->uwblock[i].start_addr;
+			addr *= obj_handle->uword_in_bytes;
 			memcpy(&uwrd, (void *)(((uintptr_t)
-			       encap_page->uwblock[i].micro_words) + raddr),
+			       encap_page->uwblock[i].micro_words) + addr),
 			       obj_handle->uword_in_bytes);
 			uwrd = uwrd & 0xbffffffffffull;
 		}
