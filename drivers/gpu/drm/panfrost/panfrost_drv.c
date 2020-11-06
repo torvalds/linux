@@ -626,6 +626,7 @@ static int panfrost_probe(struct platform_device *pdev)
 err_out1:
 	pm_runtime_disable(pfdev->dev);
 	panfrost_device_fini(pfdev);
+	pm_runtime_set_suspended(pfdev->dev);
 err_out0:
 	drm_dev_put(ddev);
 	return err;
@@ -640,9 +641,9 @@ static int panfrost_remove(struct platform_device *pdev)
 	panfrost_gem_shrinker_cleanup(ddev);
 
 	pm_runtime_get_sync(pfdev->dev);
-	panfrost_device_fini(pfdev);
-	pm_runtime_put_sync_suspend(pfdev->dev);
 	pm_runtime_disable(pfdev->dev);
+	panfrost_device_fini(pfdev);
+	pm_runtime_set_suspended(pfdev->dev);
 
 	drm_dev_put(ddev);
 	return 0;
