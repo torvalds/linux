@@ -613,6 +613,25 @@ static int con_close_socket(struct ceph_connection *con)
 	return rc;
 }
 
+static void ceph_con_reset_protocol(struct ceph_connection *con)
+{
+	dout("%s con %p\n", __func__, con);
+
+	con_close_socket(con);
+	if (con->in_msg) {
+		WARN_ON(con->in_msg->con != con);
+		ceph_msg_put(con->in_msg);
+		con->in_msg = NULL;
+	}
+	if (con->out_msg) {
+		WARN_ON(con->out_msg->con != con);
+		ceph_msg_put(con->out_msg);
+		con->out_msg = NULL;
+	}
+
+	con->out_skip = 0;
+}
+
 /*
  * Reset a connection.  Discard all incoming and outgoing messages
  * and clear *_seq state.
@@ -637,26 +656,16 @@ static void reset_connection(struct ceph_connection *con)
 	/* reset connection, out_queue, msg_ and connect_seq */
 	/* discard existing out_queue and msg_seq */
 	dout("reset_connection %p\n", con);
+
+	WARN_ON(con->in_msg);
+	WARN_ON(con->out_msg);
 	ceph_msg_remove_list(&con->out_queue);
 	ceph_msg_remove_list(&con->out_sent);
 
-	if (con->in_msg) {
-		BUG_ON(con->in_msg->con != con);
-		ceph_msg_put(con->in_msg);
-		con->in_msg = NULL;
-	}
-
 	con->connect_seq = 0;
 	con->out_seq = 0;
-	if (con->out_msg) {
-		BUG_ON(con->out_msg->con != con);
-		ceph_msg_put(con->out_msg);
-		con->out_msg = NULL;
-	}
 	con->in_seq = 0;
 	con->in_seq_acked = 0;
-
-	con->out_skip = 0;
 }
 
 /*
@@ -673,10 +682,10 @@ void ceph_con_close(struct ceph_connection *con)
 	con_flag_clear(con, CON_FLAG_WRITE_PENDING);
 	con_flag_clear(con, CON_FLAG_BACKOFF);
 
+	ceph_con_reset_protocol(con);
 	reset_connection(con);
 	con->peer_global_seq = 0;
 	cancel_con(con);
-	con_close_socket(con);
 	mutex_unlock(&con->mutex);
 }
 EXPORT_SYMBOL(ceph_con_close);
@@ -2986,23 +2995,12 @@ static void con_fault(struct ceph_connection *con)
 	       con->state != CON_STATE_NEGOTIATING &&
 	       con->state != CON_STATE_OPEN);
 
-	con_close_socket(con);
+	ceph_con_reset_protocol(con);
 
 	if (con_flag_test(con, CON_FLAG_LOSSYTX)) {
 		dout("fault on LOSSYTX channel, marking CLOSED\n");
 		con->state = CON_STATE_CLOSED;
 		return;
-	}
-
-	if (con->in_msg) {
-		BUG_ON(con->in_msg->con != con);
-		ceph_msg_put(con->in_msg);
-		con->in_msg = NULL;
-	}
-	if (con->out_msg) {
-		BUG_ON(con->out_msg->con != con);
-		ceph_msg_put(con->out_msg);
-		con->out_msg = NULL;
 	}
 
 	/* Requeue anything that hasn't been acked */
