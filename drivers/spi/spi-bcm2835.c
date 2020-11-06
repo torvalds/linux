@@ -1193,7 +1193,6 @@ static int bcm2835_spi_setup(struct spi_device *spi)
 	struct spi_controller *ctlr = spi->controller;
 	struct bcm2835_spi *bs = spi_controller_get_devdata(ctlr);
 	struct gpio_chip *chip;
-	enum gpio_lookup_flags lflags;
 	u32 cs;
 
 	/*
@@ -1261,7 +1260,7 @@ static int bcm2835_spi_setup(struct spi_device *spi)
 
 	spi->cs_gpiod = gpiochip_request_own_desc(chip, 8 - spi->chip_select,
 						  DRV_NAME,
-						  lflags,
+						  GPIO_LOOKUP_FLAGS_DEFAULT,
 						  GPIOD_OUT_LOW);
 	if (IS_ERR(spi->cs_gpiod))
 		return PTR_ERR(spi->cs_gpiod);
