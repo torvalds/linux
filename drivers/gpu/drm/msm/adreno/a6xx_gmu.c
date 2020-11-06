@@ -891,7 +891,7 @@ static void a6xx_gmu_set_initial_freq(struct msm_gpu *gpu, struct a6xx_gmu *gmu)
 	unsigned long gpu_freq = gmu->gpu_freqs[gmu->current_perf_index];
 
 	gpu_opp = dev_pm_opp_find_freq_exact(&gpu->pdev->dev, gpu_freq, true);
-	if (IS_ERR_OR_NULL(gpu_opp))
+	if (IS_ERR(gpu_opp))
 		return;
 
 	gmu->freq = 0; /* so a6xx_gmu_set_freq() doesn't exit early */
@@ -905,7 +905,7 @@ static void a6xx_gmu_set_initial_bw(struct msm_gpu *gpu, struct a6xx_gmu *gmu)
 	unsigned long gpu_freq = gmu->gpu_freqs[gmu->current_perf_index];
 
 	gpu_opp = dev_pm_opp_find_freq_exact(&gpu->pdev->dev, gpu_freq, true);
-	if (IS_ERR_OR_NULL(gpu_opp))
+	if (IS_ERR(gpu_opp))
 		return;
 
 	dev_pm_opp_set_opp(&gpu->pdev->dev, gpu_opp);
