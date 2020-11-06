@@ -33,6 +33,7 @@
 #include <drm/drm_plane_helper.h>
 
 #include "display/intel_atomic.h"
+#include "display/intel_atomic_plane.h"
 #include "display/intel_bw.h"
 #include "display/intel_display_types.h"
 #include "display/intel_fbc.h"
@@ -5102,30 +5103,6 @@ intel_get_linetime_us(const struct intel_crtc_state *crtc_state)
 	return linetime_us;
 }
 
-static u32
-skl_adjusted_plane_pixel_rate(const struct intel_crtc_state *crtc_state,
-			      const struct intel_plane_state *plane_state)
-{
-	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
-	u64 adjusted_pixel_rate;
-	uint_fixed_16_16_t downscale_amount;
-
-	/* Shouldn't reach here on disabled planes... */
-	if (drm_WARN_ON(&dev_priv->drm,
-			!intel_wm_plane_visible(crtc_state, plane_state)))
-		return 0;
-
-	/*
-	 * Adjusted plane pixel rate is just the pipe's adjusted pixel rate
-	 * with additional adjustments for plane-specific scaling.
-	 */
-	adjusted_pixel_rate = crtc_state->pixel_rate;
-	downscale_amount = skl_plane_downscale_amount(crtc_state, plane_state);
-
-	return mul_round_up_u32_fixed16(adjusted_pixel_rate,
-					    downscale_amount);
-}
-
 static int
 skl_compute_wm_params(const struct intel_crtc_state *crtc_state,
 		      int width, const struct drm_format_info *format,
@@ -5238,7 +5215,7 @@ skl_compute_plane_wm_params(const struct intel_crtc_state *crtc_state,
 	return skl_compute_wm_params(crtc_state, width,
 				     fb->format, fb->modifier,
 				     plane_state->hw.rotation,
-				     skl_adjusted_plane_pixel_rate(crtc_state, plane_state),
+				     intel_plane_pixel_rate(crtc_state, plane_state),
 				     wp, color_plane);
 }
 
