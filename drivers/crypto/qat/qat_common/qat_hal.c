@@ -471,11 +471,11 @@ static int qat_hal_init_esram(struct icp_qat_fw_loader_handle *handle)
 #define SHRAM_INIT_CYCLES 2060
 int qat_hal_clr_reset(struct icp_qat_fw_loader_handle *handle)
 {
+	unsigned int clk_csr = handle->chip_info->glb_clk_enable_csr;
 	unsigned int reset_mask = handle->chip_info->icp_rst_mask;
 	unsigned int reset_csr = handle->chip_info->icp_rst_csr;
 	unsigned long ae_mask = handle->hal_handle->ae_mask;
 	unsigned char ae = 0;
-	unsigned int clk_csr;
 	unsigned int times = 100;
 	unsigned int csr_val;
 
@@ -490,9 +490,9 @@ int qat_hal_clr_reset(struct icp_qat_fw_loader_handle *handle)
 		csr_val &= reset_mask;
 	} while (csr_val);
 	/* enable clock */
-	clk_csr = GET_CAP_CSR(handle, ICP_GLOBAL_CLK_ENABLE);
-	clk_csr |= reset_mask;
-	SET_CAP_CSR(handle, ICP_GLOBAL_CLK_ENABLE, clk_csr);
+	csr_val = GET_CAP_CSR(handle, clk_csr);
+	csr_val |= reset_mask;
+	SET_CAP_CSR(handle, clk_csr, csr_val);
 	if (qat_hal_check_ae_alive(handle))
 		goto out_err;
 
@@ -701,6 +701,7 @@ static int qat_hal_chip_init(struct icp_qat_fw_loader_handle *handle,
 		handle->chip_info->lm2lm3 = false;
 		handle->chip_info->lm_size = ICP_QAT_UCLO_MAX_LMEM_REG;
 		handle->chip_info->icp_rst_csr = ICP_RESET;
+		handle->chip_info->glb_clk_enable_csr = ICP_GLOBAL_CLK_ENABLE;
 		handle->chip_info->fw_auth = true;
 		break;
 	case PCI_DEVICE_ID_INTEL_QAT_DH895XCC:
@@ -709,6 +710,7 @@ static int qat_hal_chip_init(struct icp_qat_fw_loader_handle *handle,
 		handle->chip_info->lm2lm3 = false;
 		handle->chip_info->lm_size = ICP_QAT_UCLO_MAX_LMEM_REG;
 		handle->chip_info->icp_rst_csr = ICP_RESET;
+		handle->chip_info->glb_clk_enable_csr = ICP_GLOBAL_CLK_ENABLE;
 		handle->chip_info->fw_auth = false;
 		break;
 	default:

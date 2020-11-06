@@ -29,6 +29,7 @@ struct icp_qat_fw_loader_chip_info {
 	u32 lm_size;
 	u32 icp_rst_csr;
 	u32 icp_rst_mask;
+	u32 glb_clk_enable_csr;
 	bool fw_auth;
 };
 
