@@ -4966,7 +4966,6 @@ __alloc_extent_buffer(struct btrfs_fs_info *fs_info, u64 start,
 	eb->fs_info = fs_info;
 	eb->bflags = 0;
 	init_rwsem(&eb->lock);
-	eb->lock_recursed = false;
 
 	btrfs_leak_debug_add(&fs_info->eb_leak_lock, &eb->leak_list,
 			     &fs_info->allocated_ebs);

@@ -87,7 +87,6 @@ struct extent_buffer {
 	int read_mirror;
 	struct rcu_head rcu_head;
 	pid_t lock_owner;
-	bool lock_recursed;
 	/* >= 0 if eb belongs to a log tree, -1 otherwise */
 	s8 log_index;
 
