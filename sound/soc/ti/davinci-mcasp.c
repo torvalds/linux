@@ -94,7 +94,6 @@ struct davinci_mcasp {
 	u8	bclk_div;
 	int	streams;
 	u32	irq_request[2];
-	int	dma_request[2];
 
 	int	sysclk_freq;
 	bool	bclk_master;
@@ -1755,7 +1754,6 @@ static struct davinci_mcasp_pdata *davinci_mcasp_set_pdata_from_of(
 	struct davinci_mcasp_pdata *pdata = NULL;
 	const struct of_device_id *match =
 			of_match_device(mcasp_dt_ids, &pdev->dev);
-	struct of_phandle_args dma_spec;
 
 	const u32 *of_serial_dir32;
 	u32 val;
@@ -1808,31 +1806,6 @@ static struct davinci_mcasp_pdata *davinci_mcasp_set_pdata_from_of(
 
 		pdata->num_serializer = val;
 		pdata->serial_dir = of_serial_dir;
-	}
-
-	ret = of_property_match_string(np, "dma-names", "tx");
-	if (ret < 0)
-		goto nodata;
-
-	ret = of_parse_phandle_with_args(np, "dmas", "#dma-cells", ret,
-					 &dma_spec);
-	if (ret < 0)
-		goto nodata;
-
-	pdata->tx_dma_channel = dma_spec.args[0];
-
-	/* RX is not valid in DIT mode */
-	if (pdata->op_mode != DAVINCI_MCASP_DIT_MODE) {
-		ret = of_property_match_string(np, "dma-names", "rx");
-		if (ret < 0)
-			goto nodata;
-
-		ret = of_parse_phandle_with_args(np, "dmas", "#dma-cells", ret,
-						 &dma_spec);
-		if (ret < 0)
-			goto nodata;
-
-		pdata->rx_dma_channel = dma_spec.args[0];
 	}
 
 	ret = of_property_read_u32(np, "tx-num-evt", &val);
@@ -2127,11 +2100,10 @@ static void davinci_mcasp_get_dt_params(struct davinci_mcasp *mcasp)
 static int davinci_mcasp_probe(struct platform_device *pdev)
 {
 	struct snd_dmaengine_dai_dma_data *dma_data;
-	struct resource *mem, *res, *dat;
+	struct resource *mem, *dat;
 	struct davinci_mcasp_pdata *pdata;
 	struct davinci_mcasp *mcasp;
 	char *irq_name;
-	int *dma;
 	int irq;
 	int ret;
 
@@ -2266,45 +2238,22 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 		mcasp->dat_port = true;
 
 	dma_data = &mcasp->dma_data[SNDRV_PCM_STREAM_PLAYBACK];
+	dma_data->filter_data = "tx";
 	if (dat)
 		dma_data->addr = dat->start;
 	else
 		dma_data->addr = mem->start + davinci_mcasp_txdma_offset(pdata);
 
-	dma = &mcasp->dma_request[SNDRV_PCM_STREAM_PLAYBACK];
-	res = platform_get_resource(pdev, IORESOURCE_DMA, 0);
-	if (res)
-		*dma = res->start;
-	else
-		*dma = pdata->tx_dma_channel;
-
-	/* dmaengine filter data for DT and non-DT boot */
-	if (pdev->dev.of_node)
-		dma_data->filter_data = "tx";
-	else
-		dma_data->filter_data = dma;
 
 	/* RX is not valid in DIT mode */
 	if (mcasp->op_mode != DAVINCI_MCASP_DIT_MODE) {
 		dma_data = &mcasp->dma_data[SNDRV_PCM_STREAM_CAPTURE];
+		dma_data->filter_data = "rx";
 		if (dat)
 			dma_data->addr = dat->start;
 		else
 			dma_data->addr =
 				mem->start + davinci_mcasp_rxdma_offset(pdata);
-
-		dma = &mcasp->dma_request[SNDRV_PCM_STREAM_CAPTURE];
-		res = platform_get_resource(pdev, IORESOURCE_DMA, 1);
-		if (res)
-			*dma = res->start;
-		else
-			*dma = pdata->rx_dma_channel;
-
-		/* dmaengine filter data for DT and non-DT boot */
-		if (pdev->dev.of_node)
-			dma_data->filter_data = "rx";
-		else
-			dma_data->filter_data = dma;
 	}
 
 	if (mcasp->version < MCASP_VERSION_3) {
