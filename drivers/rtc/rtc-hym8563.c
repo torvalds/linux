@@ -534,8 +534,6 @@ static int hym8563_probe(struct i2c_client *client,
 	hym8563->client = client;
 	i2c_set_clientdata(client, hym8563);
 
-	device_set_wakeup_capable(&client->dev, true);
-
 	ret = hym8563_init_device(client);
 	if (ret) {
 		dev_err(&client->dev, "could not init device, %d\n", ret);
@@ -552,6 +550,11 @@ static int hym8563_probe(struct i2c_client *client,
 				client->irq, ret);
 			return ret;
 		}
+	}
+
+	if (client->irq > 0 ||
+	    device_property_read_bool(&client->dev, "wakeup-source")) {
+		device_init_wakeup(&client->dev, true);
 	}
 
 	/* check state of calendar information */
