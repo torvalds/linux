@@ -204,6 +204,7 @@ static int bkey_cached_check_fn(struct six_lock *lock, void *p)
 		!bkey_cmp(ck->key.pos, iter->pos) ? 0 : -1;
 }
 
+__flatten
 int bch2_btree_iter_traverse_cached(struct btree_iter *iter)
 {
 	struct btree_trans *trans = iter->trans;
