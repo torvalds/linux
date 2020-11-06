@@ -53,6 +53,15 @@ enum fcu_csr {
 	FCU_RAMBASE_ADDR_LO   = 0x8d8
 };
 
+enum fcu_csr_4xxx {
+	FCU_CONTROL_4XXX           = 0x1000,
+	FCU_STATUS_4XXX            = 0x1004,
+	FCU_ME_BROADCAST_MASK_TYPE = 0x1008,
+	FCU_AE_LOADED_4XXX         = 0x1010,
+	FCU_DRAM_ADDR_LO_4XXX      = 0x1014,
+	FCU_DRAM_ADDR_HI_4XXX      = 0x1018,
+};
+
 enum fcu_cmd {
 	FCU_CTRL_CMD_NOOP  = 0,
 	FCU_CTRL_CMD_AUTH  = 1,
@@ -90,6 +99,7 @@ enum fcu_sts {
 #define LCS_STATUS          (0x1)
 #define MMC_SHARE_CS_BITPOS         2
 #define WAKEUP_EVENT 0x10000
+#define FCU_CTRL_BROADCAST_POS   0x4
 #define FCU_CTRL_AE_POS     0x8
 #define FCU_AUTH_STS_MASK   0x7
 #define FCU_STS_DONE_POS    0x9

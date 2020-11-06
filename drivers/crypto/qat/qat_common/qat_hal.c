@@ -762,6 +762,7 @@ static int qat_hal_chip_init(struct icp_qat_fw_loader_handle *handle,
 	handle->pci_dev = pci_info->pci_dev;
 	handle->hal_handle->revision_id = accel_dev->accel_pci_dev.revid;
 	handle->hal_handle->ae_mask = hw_data->ae_mask;
+	handle->hal_handle->admin_ae_mask = hw_data->admin_ae_mask;
 	handle->hal_handle->slice_mask = hw_data->accel_mask;
 	handle->cfg_ae_mask = ALL_AE_MASK;
 	/* create AE objects */

@@ -15,6 +15,7 @@ struct icp_qat_fw_loader_ae_data {
 struct icp_qat_fw_loader_hal_handle {
 	struct icp_qat_fw_loader_ae_data aes[ICP_QAT_UCLO_MAX_AE];
 	unsigned int ae_mask;
+	unsigned int admin_ae_mask;
 	unsigned int slice_mask;
 	unsigned int revision_id;
 	unsigned int ae_max_num;

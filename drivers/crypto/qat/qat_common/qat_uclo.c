@@ -1239,6 +1239,83 @@ auth_fail:
 	return -EINVAL;
 }
 
+static bool qat_uclo_is_broadcast(struct icp_qat_fw_loader_handle *handle,
+				  int imgid)
+{
+	struct icp_qat_suof_handle *sobj_handle;
+
+	if (!handle->chip_info->tgroup_share_ustore)
+		return false;
+
+	sobj_handle = (struct icp_qat_suof_handle *)handle->sobj_handle;
+	if (handle->hal_handle->admin_ae_mask &
+	    sobj_handle->img_table.simg_hdr[imgid].ae_mask)
+		return false;
+
+	return true;
+}
+
+static int qat_uclo_broadcast_load_fw(struct icp_qat_fw_loader_handle *handle,
+				      struct icp_qat_fw_auth_desc *desc)
+{
+	unsigned long ae_mask = handle->hal_handle->ae_mask;
+	unsigned long desc_ae_mask = desc->ae_mask;
+	u32 fcu_sts, ae_broadcast_mask = 0;
+	u32 fcu_loaded_csr, ae_loaded;
+	u32 fcu_sts_csr, fcu_ctl_csr;
+	unsigned int ae, retry = 0;
+
+	if (handle->chip_info->tgroup_share_ustore) {
+		fcu_ctl_csr = handle->chip_info->fcu_ctl_csr;
+		fcu_sts_csr = handle->chip_info->fcu_sts_csr;
+		fcu_loaded_csr = handle->chip_info->fcu_loaded_ae_csr;
+	} else {
+		pr_err("Chip 0x%x doesn't support broadcast load\n",
+		       handle->pci_dev->device);
+		return -EINVAL;
+	}
+
+	for_each_set_bit(ae, &ae_mask, handle->hal_handle->ae_max_num) {
+		if (qat_hal_check_ae_active(handle, (unsigned char)ae)) {
+			pr_err("QAT: Broadcast load failed. AE is not enabled or active.\n");
+			return -EINVAL;
+		}
+
+		if (test_bit(ae, &desc_ae_mask))
+			ae_broadcast_mask |= 1 << ae;
+	}
+
+	if (ae_broadcast_mask) {
+		SET_CAP_CSR(handle, FCU_ME_BROADCAST_MASK_TYPE,
+			    ae_broadcast_mask);
+
+		SET_CAP_CSR(handle, fcu_ctl_csr, FCU_CTRL_CMD_LOAD);
+
+		do {
+			msleep(FW_AUTH_WAIT_PERIOD);
+			fcu_sts = GET_CAP_CSR(handle, fcu_sts_csr);
+			fcu_sts &= FCU_AUTH_STS_MASK;
+
+			if (fcu_sts == FCU_STS_LOAD_FAIL) {
+				pr_err("Broadcast load failed: 0x%x)\n", fcu_sts);
+				return -EINVAL;
+			} else if (fcu_sts == FCU_STS_LOAD_DONE) {
+				ae_loaded = GET_CAP_CSR(handle, fcu_loaded_csr);
+				ae_loaded >>= handle->chip_info->fcu_loaded_ae_pos;
+
+				if ((ae_loaded & ae_broadcast_mask) == ae_broadcast_mask)
+					break;
+			}
+		} while (retry++ < FW_AUTH_MAX_RETRY);
+
+		if (retry > FW_AUTH_MAX_RETRY) {
+			pr_err("QAT: broadcast load failed timeout %d\n", retry);
+			return -EINVAL;
+		}
+	}
+	return 0;
+}
+
 static int qat_uclo_simg_alloc(struct icp_qat_fw_loader_handle *handle,
 			       struct icp_firml_dram_desc *dram_desc,
 			       unsigned int size)
@@ -1420,7 +1497,9 @@ static int qat_uclo_load_fw(struct icp_qat_fw_loader_handle *handle,
 			return -EINVAL;
 		}
 		SET_CAP_CSR(handle, fcu_ctl_csr,
-			    (FCU_CTRL_CMD_LOAD | (i << FCU_CTRL_AE_POS)));
+			    (FCU_CTRL_CMD_LOAD |
+			    (1 << FCU_CTRL_BROADCAST_POS) |
+			    (i << FCU_CTRL_AE_POS)));
 
 		do {
 			msleep(FW_AUTH_WAIT_PERIOD);
@@ -1945,8 +2024,13 @@ static int qat_uclo_wr_suof_img(struct icp_qat_fw_loader_handle *handle)
 			goto wr_err;
 		if (qat_uclo_auth_fw(handle, desc))
 			goto wr_err;
-		if (qat_uclo_load_fw(handle, desc))
-			goto wr_err;
+		if (qat_uclo_is_broadcast(handle, i)) {
+			if (qat_uclo_broadcast_load_fw(handle, desc))
+				goto wr_err;
+		} else {
+			if (qat_uclo_load_fw(handle, desc))
+				goto wr_err;
+		}
 		qat_uclo_ummap_auth_fw(handle, &desc);
 	}
 	return 0;
