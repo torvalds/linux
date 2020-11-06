@@ -150,17 +150,14 @@ static void trace_selftest_test_dyn_func(unsigned long ip,
 
 static struct ftrace_ops test_probe1 = {
 	.func			= trace_selftest_test_probe1_func,
-	.flags			= FTRACE_OPS_FL_RECURSION_SAFE,
 };
 
 static struct ftrace_ops test_probe2 = {
 	.func			= trace_selftest_test_probe2_func,
-	.flags			= FTRACE_OPS_FL_RECURSION_SAFE,
 };
 
 static struct ftrace_ops test_probe3 = {
 	.func			= trace_selftest_test_probe3_func,
-	.flags			= FTRACE_OPS_FL_RECURSION_SAFE,
 };
 
 static void print_counts(void)
@@ -448,11 +445,11 @@ static void trace_selftest_test_recursion_safe_func(unsigned long ip,
 
 static struct ftrace_ops test_rec_probe = {
 	.func			= trace_selftest_test_recursion_func,
+	.flags			= FTRACE_OPS_FL_RECURSION,
 };
 
 static struct ftrace_ops test_recsafe_probe = {
 	.func			= trace_selftest_test_recursion_safe_func,
-	.flags			= FTRACE_OPS_FL_RECURSION_SAFE,
 };
 
 static int
@@ -561,7 +558,7 @@ static void trace_selftest_test_regs_func(unsigned long ip,
 
 static struct ftrace_ops test_regs_probe = {
 	.func		= trace_selftest_test_regs_func,
-	.flags		= FTRACE_OPS_FL_RECURSION_SAFE | FTRACE_OPS_FL_SAVE_REGS,
+	.flags		= FTRACE_OPS_FL_SAVE_REGS,
 };
 
 static int

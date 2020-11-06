@@ -48,7 +48,7 @@ int ftrace_allocate_ftrace_ops(struct trace_array *tr)
 
 	/* Currently only the non stack version is supported */
 	ops->func = function_trace_call;
-	ops->flags = FTRACE_OPS_FL_RECURSION_SAFE | FTRACE_OPS_FL_PID;
+	ops->flags = FTRACE_OPS_FL_PID;
 
 	tr->ops = ops;
 	ops->private = tr;
