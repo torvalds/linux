@@ -8205,12 +8205,14 @@ static void post_kvm_run_save(struct kvm_vcpu *vcpu)
 	kvm_run->if_flag = !vcpu->arch.guest_state_protected
 		&& (kvm_get_rflags(vcpu) & X86_EFLAGS_IF) != 0;
 
-	kvm_run->flags = is_smm(vcpu) ? KVM_RUN_X86_SMM : 0;
 	kvm_run->cr8 = kvm_get_cr8(vcpu);
 	kvm_run->apic_base = kvm_get_apic_base(vcpu);
 	kvm_run->ready_for_interrupt_injection =
 		pic_in_kernel(vcpu->kvm) ||
 		kvm_vcpu_ready_for_interrupt_injection(vcpu);
+
+	if (is_smm(vcpu))
+		kvm_run->flags |= KVM_RUN_X86_SMM;
 }
 
 static void update_cr8_intercept(struct kvm_vcpu *vcpu)
@@ -9320,6 +9322,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 
 	vcpu_load(vcpu);
 	kvm_sigset_activate(vcpu);
+	kvm_run->flags = 0;
 	kvm_load_guest_fpu(vcpu);
 
 	if (unlikely(vcpu->arch.mp_state == KVM_MP_STATE_UNINITIALIZED)) {
