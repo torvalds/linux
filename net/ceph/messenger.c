@@ -651,11 +651,9 @@ static void ceph_msg_remove_list(struct list_head *head)
 	}
 }
 
-static void reset_connection(struct ceph_connection *con)
+static void ceph_con_reset_session(struct ceph_connection *con)
 {
-	/* reset connection, out_queue, msg_ and connect_seq */
-	/* discard existing out_queue and msg_seq */
-	dout("reset_connection %p\n", con);
+	dout("%s con %p\n", __func__, con);
 
 	WARN_ON(con->in_msg);
 	WARN_ON(con->out_msg);
@@ -683,7 +681,7 @@ void ceph_con_close(struct ceph_connection *con)
 	con_flag_clear(con, CON_FLAG_BACKOFF);
 
 	ceph_con_reset_protocol(con);
-	reset_connection(con);
+	ceph_con_reset_session(con);
 	con->peer_global_seq = 0;
 	cancel_con(con);
 	mutex_unlock(&con->mutex);
@@ -2140,7 +2138,7 @@ static int process_connect(struct ceph_connection *con)
 		pr_err("%s%lld %s connection reset\n",
 		       ENTITY_NAME(con->peer_name),
 		       ceph_pr_addr(&con->peer_addr));
-		reset_connection(con);
+		ceph_con_reset_session(con);
 		con_out_kvec_reset(con);
 		ret = prepare_write_connect(con);
 		if (ret < 0)
