@@ -186,6 +186,8 @@ int qat_uclo_wr_mimage(struct icp_qat_fw_loader_handle *handle, void *addr_ptr,
 		       int mem_size);
 int qat_uclo_map_obj(struct icp_qat_fw_loader_handle *handle,
 		     void *addr_ptr, u32 mem_size, char *obj_name);
+int qat_uclo_set_cfg_ae_mask(struct icp_qat_fw_loader_handle *handle,
+			     unsigned int cfg_ae_mask);
 #if defined(CONFIG_PCI_IOV)
 int adf_sriov_configure(struct pci_dev *pdev, int numvfs);
 void adf_disable_sriov(struct adf_accel_dev *accel_dev);

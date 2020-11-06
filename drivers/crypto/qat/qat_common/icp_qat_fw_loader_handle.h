@@ -49,6 +49,7 @@ struct icp_qat_fw_loader_handle {
 	void *obj_handle;
 	void *sobj_handle;
 	void *mobj_handle;
+	unsigned int cfg_ae_mask;
 	void __iomem *hal_sram_addr_v;
 	void __iomem *hal_cap_g_ctl_csr_addr_v;
 	void __iomem *hal_cap_ae_xfer_csr_addr_v;

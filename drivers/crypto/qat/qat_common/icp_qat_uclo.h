@@ -432,7 +432,7 @@ struct icp_qat_suof_handle {
 
 struct icp_qat_fw_auth_desc {
 	unsigned int   img_len;
-	unsigned int   reserved;
+	unsigned int   ae_mask;
 	unsigned int   css_hdr_high;
 	unsigned int   css_hdr_low;
 	unsigned int   img_high;

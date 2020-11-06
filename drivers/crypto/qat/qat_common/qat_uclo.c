@@ -374,6 +374,7 @@ static int qat_uclo_init_ustore(struct icp_qat_fw_loader_handle *handle,
 	unsigned int patt_pos;
 	struct icp_qat_uclo_objhandle *obj_handle = handle->obj_handle;
 	unsigned long ae_mask = handle->hal_handle->ae_mask;
+	unsigned long cfg_ae_mask = handle->cfg_ae_mask;
 	u64 *fill_data;
 
 	uof_image = image->img_ptr;
@@ -389,6 +390,10 @@ static int qat_uclo_init_ustore(struct icp_qat_fw_loader_handle *handle,
 	for_each_set_bit(ae, &ae_mask, handle->hal_handle->ae_max_num) {
 		if (!test_bit(ae, (unsigned long *)&uof_image->ae_assigned))
 			continue;
+
+		if (!test_bit(ae, &cfg_ae_mask))
+			continue;
+
 		ustore_size = obj_handle->ae_data[ae].eff_ustore_size;
 		patt_pos = page->beg_addr_p + page->micro_words_num;
 
@@ -653,8 +658,12 @@ static int qat_uclo_map_ae(struct icp_qat_fw_loader_handle *handle, int max_ae)
 	int mflag = 0;
 	struct icp_qat_uclo_objhandle *obj_handle = handle->obj_handle;
 	unsigned long ae_mask = handle->hal_handle->ae_mask;
+	unsigned long cfg_ae_mask = handle->cfg_ae_mask;
 
 	for_each_set_bit(ae, &ae_mask, max_ae) {
+		if (!test_bit(ae, &cfg_ae_mask))
+			continue;
+
 		for (i = 0; i < obj_handle->uimage_num; i++) {
 			if (!test_bit(ae, (unsigned long *)
 			&obj_handle->ae_uimage[i].img_ptr->ae_assigned))
@@ -931,10 +940,14 @@ static int qat_uclo_set_ae_mode(struct icp_qat_fw_loader_handle *handle)
 	struct icp_qat_uclo_aedata *ae_data;
 	struct icp_qat_uclo_objhandle *obj_handle = handle->obj_handle;
 	unsigned long ae_mask = handle->hal_handle->ae_mask;
+	unsigned long cfg_ae_mask = handle->cfg_ae_mask;
 	unsigned char ae, s;
 	int error;
 
 	for_each_set_bit(ae, &ae_mask, handle->hal_handle->ae_max_num) {
+		if (!test_bit(ae, &cfg_ae_mask))
+			continue;
+
 		ae_data = &obj_handle->ae_data[ae];
 		for (s = 0; s < min_t(unsigned int, ae_data->slice_num,
 				      ICP_QAT_UCLO_MAX_CTX); s++) {
@@ -1176,6 +1189,7 @@ static int qat_uclo_map_suof(struct icp_qat_fw_loader_handle *handle,
 						 &suof_img_hdr[i]);
 		if (ret)
 			return ret;
+		suof_img_hdr[i].ae_mask &= handle->cfg_ae_mask;
 		if ((suof_img_hdr[i].ae_mask & 0x1) != 0)
 			ae0_img = i;
 	}
@@ -1277,6 +1291,7 @@ static int qat_uclo_map_auth_fw(struct icp_qat_fw_loader_handle *handle,
 	struct icp_qat_auth_chunk *auth_chunk;
 	u64 virt_addr,  bus_addr, virt_base;
 	unsigned int length, simg_offset = sizeof(*auth_chunk);
+	struct icp_qat_simg_ae_mode *simg_ae_mode;
 	struct icp_firml_dram_desc img_desc;
 
 	if (size > (ICP_QAT_AE_IMG_OFFSET(handle) + ICP_QAT_CSS_MAX_IMAGE_LEN)) {
@@ -1366,6 +1381,11 @@ static int qat_uclo_map_auth_fw(struct icp_qat_fw_loader_handle *handle,
 		auth_desc->img_ae_insts_high = (unsigned int)
 					     (bus_addr >> BITS_IN_DWORD);
 		auth_desc->img_ae_insts_low = (unsigned int)bus_addr;
+		virt_addr += sizeof(struct icp_qat_css_hdr);
+		virt_addr += ICP_QAT_CSS_FWSK_PUB_LEN(handle);
+		virt_addr += ICP_QAT_CSS_SIGNATURE_LEN(handle);
+		simg_ae_mode = (struct icp_qat_simg_ae_mode *)(uintptr_t)virt_addr;
+		auth_desc->ae_mask = simg_ae_mode->ae_mask & handle->cfg_ae_mask;
 	} else {
 		auth_desc->img_ae_insts_high = auth_desc->img_high;
 		auth_desc->img_ae_insts_low = auth_desc->img_low;
@@ -1377,7 +1397,6 @@ static int qat_uclo_map_auth_fw(struct icp_qat_fw_loader_handle *handle,
 static int qat_uclo_load_fw(struct icp_qat_fw_loader_handle *handle,
 			    struct icp_qat_fw_auth_desc *desc)
 {
-	struct icp_qat_simg_ae_mode *virt_addr;
 	unsigned long ae_mask = handle->hal_handle->ae_mask;
 	u32 fcu_sts_csr, fcu_ctl_csr;
 	u32 loaded_aes, loaded_csr;
@@ -1388,15 +1407,10 @@ static int qat_uclo_load_fw(struct icp_qat_fw_loader_handle *handle,
 	fcu_sts_csr = handle->chip_info->fcu_sts_csr;
 	loaded_csr = handle->chip_info->fcu_loaded_ae_csr;
 
-	virt_addr = (void *)((uintptr_t)desc +
-		     sizeof(struct icp_qat_auth_chunk) +
-		     sizeof(struct icp_qat_css_hdr) +
-		     ICP_QAT_CSS_FWSK_PUB_LEN(handle) +
-		     ICP_QAT_CSS_SIGNATURE_LEN(handle));
 	for_each_set_bit(i, &ae_mask, handle->hal_handle->ae_max_num) {
 		int retry = 0;
 
-		if (!((virt_addr->ae_mask >> i) & 0x1))
+		if (!((desc->ae_mask >> i) & 0x1))
 			continue;
 		if (qat_hal_check_ae_active(handle, i)) {
 			pr_err("QAT: AE %d is active\n", i);
@@ -1866,6 +1880,7 @@ static void qat_uclo_wr_uimage_page(struct icp_qat_fw_loader_handle *handle,
 {
 	struct icp_qat_uclo_objhandle *obj_handle = handle->obj_handle;
 	unsigned long ae_mask = handle->hal_handle->ae_mask;
+	unsigned long cfg_ae_mask = handle->cfg_ae_mask;
 	unsigned long ae_assigned = image->ae_assigned;
 	struct icp_qat_uclo_aedata *aed;
 	unsigned int ctx_mask, s;
@@ -1880,6 +1895,9 @@ static void qat_uclo_wr_uimage_page(struct icp_qat_fw_loader_handle *handle,
 	/* load the default page and set assigned CTX PC
 	 * to the entrypoint address */
 	for_each_set_bit(ae, &ae_mask, handle->hal_handle->ae_max_num) {
+		if (!test_bit(ae, &cfg_ae_mask))
+			continue;
+
 		if (!test_bit(ae, &ae_assigned))
 			continue;
 
@@ -1956,4 +1974,14 @@ int qat_uclo_wr_all_uimage(struct icp_qat_fw_loader_handle *handle)
 {
 	return (handle->chip_info->fw_auth) ? qat_uclo_wr_suof_img(handle) :
 				   qat_uclo_wr_uof_img(handle);
+}
+
+int qat_uclo_set_cfg_ae_mask(struct icp_qat_fw_loader_handle *handle,
+			     unsigned int cfg_ae_mask)
+{
+	if (!cfg_ae_mask)
+		return -EINVAL;
+
+	handle->cfg_ae_mask = cfg_ae_mask;
+	return 0;
 }

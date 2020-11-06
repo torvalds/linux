@@ -68,6 +68,8 @@ enum fcu_sts {
 	FCU_STS_LOAD_FAIL = 4,
 	FCU_STS_BUSY      = 5
 };
+
+#define ALL_AE_MASK                 0xFFFFFFFF
 #define UA_ECS                      (0x1 << 31)
 #define ACS_ABO_BITPOS              31
 #define ACS_ACNO                    0x7
