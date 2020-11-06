@@ -162,7 +162,7 @@ int ufshcd_hba_init_crypto_capabilities(struct ufs_hba *hba)
 	int err = 0;
 	enum blk_crypto_mode_num blk_mode_num;
 
-	if (hba->quirks & UFSHCD_QUIRK_BROKEN_CRYPTO_CAPS)
+	if (hba->quirks & UFSHCD_QUIRK_CUSTOM_KEYSLOT_MANAGER)
 		return 0;
 
 	/*
@@ -238,7 +238,7 @@ void ufshcd_init_crypto(struct ufs_hba *hba)
 
 	/* Clear all keyslots */
 	for (slot = 0; slot < hba->ksm.num_slots; slot++)
-		ufshcd_clear_keyslot(hba, slot);
+		hba->ksm.ksm_ll_ops.keyslot_evict(&hba->ksm, NULL, slot);
 }
 
 void ufshcd_crypto_setup_rq_keyslot_manager(struct ufs_hba *hba,
