@@ -4858,6 +4858,9 @@ void intel_display_prepare_reset(struct drm_i915_private *dev_priv)
 	struct drm_atomic_state *state;
 	int ret;
 
+	if (!HAS_DISPLAY(dev_priv))
+		return;
+
 	/* reset doesn't touch the display */
 	if (!dev_priv->params.force_reset_modeset_test &&
 	    !gpu_reset_clobbers_display(dev_priv))
@@ -4917,6 +4920,9 @@ void intel_display_finish_reset(struct drm_i915_private *dev_priv)
 	struct drm_modeset_acquire_ctx *ctx = &dev_priv->reset_ctx;
 	struct drm_atomic_state *state;
 	int ret;
+
+	if (!HAS_DISPLAY(dev_priv))
+		return;
 
 	/* reset doesn't touch the display */
 	if (!test_bit(I915_RESET_MODESET, &dev_priv->gt.reset.flags))
