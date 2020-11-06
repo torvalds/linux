@@ -765,6 +765,31 @@
 		};
 	};
 
+	rknpu: npu@fde40000 {
+		compatible = "rockchip,rknpu";
+		reg = <0x0 0xfde40000 0x0 0x10000>;
+		interrupts = <GIC_SPI 151 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru CLK_NPU>, <&cru ACLK_NPU>, <&cru HCLK_NPU>;
+		clock-names = "clk", "aclk", "hclk";
+		assigned-clocks = <&cru CLK_NPU>;
+		assigned-clock-rates = <600000000>;
+		power-domains = <&power RK3568_PD_NPU>;
+		iommus = <&rknpu_mmu>;
+		status = "disabled";
+	};
+
+	rknpu_mmu: iommu@fde4b000 {
+		compatible = "rockchip,iommu-v2";
+		reg = <0x0 0xfde4b000 0x0 0x40>;
+		interrupts = <GIC_SPI 151 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "rknpu_mmu";
+		clocks = <&cru ACLK_NPU>, <&cru HCLK_NPU>;
+		clock-names = "aclk", "iface";
+		power-domains = <&power RK3568_PD_NPU>;
+		#iommu-cells = <0>;
+		status = "disabled";
+	};
+
 	gpu: gpu@fde60000 {
 		compatible = "arm,malit602", "arm,malit60x", "arm,malit6xx", "arm,mali-midgard";
 		reg = <0x0 0xfde60000 0x0 0x4000>;
