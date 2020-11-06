@@ -2802,7 +2802,7 @@ cow_done:
 				btrfs_tree_lock(b);
 				p->locks[level] = BTRFS_WRITE_LOCK;
 			} else {
-				__btrfs_tree_read_lock(b, BTRFS_NESTING_NORMAL, 0);
+				btrfs_tree_read_lock(b);
 				p->locks[level] = BTRFS_READ_LOCK;
 			}
 			p->nodes[level] = b;
