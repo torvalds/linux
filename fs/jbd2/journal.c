@@ -777,13 +777,19 @@ static int __jbd2_fc_end_commit(journal_t *journal, tid_t tid, bool fallback)
 
 int jbd2_fc_end_commit(journal_t *journal)
 {
-	return __jbd2_fc_end_commit(journal, 0, 0);
+	return __jbd2_fc_end_commit(journal, 0, false);
 }
 EXPORT_SYMBOL(jbd2_fc_end_commit);
 
-int jbd2_fc_end_commit_fallback(journal_t *journal, tid_t tid)
+int jbd2_fc_end_commit_fallback(journal_t *journal)
 {
-	return __jbd2_fc_end_commit(journal, tid, 1);
+	tid_t tid;
+
+	read_lock(&journal->j_state_lock);
+	tid = journal->j_running_transaction ?
+		journal->j_running_transaction->t_tid : 0;
+	read_unlock(&journal->j_state_lock);
+	return __jbd2_fc_end_commit(journal, tid, true);
 }
 EXPORT_SYMBOL(jbd2_fc_end_commit_fallback);
 

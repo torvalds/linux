@@ -1143,7 +1143,7 @@ out:
 		"Fast commit ended with blks = %d, reason = %d, subtid - %d",
 		nblks, reason, subtid);
 	if (reason == EXT4_FC_REASON_FC_FAILED)
-		return jbd2_fc_end_commit_fallback(journal, commit_tid);
+		return jbd2_fc_end_commit_fallback(journal);
 	if (reason == EXT4_FC_REASON_FC_START_FAILED ||
 		reason == EXT4_FC_REASON_INELIGIBLE)
 		return jbd2_complete_transaction(journal, commit_tid);

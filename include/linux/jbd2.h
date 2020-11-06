@@ -1619,7 +1619,7 @@ extern int jbd2_cleanup_journal_tail(journal_t *);
 /* Fast commit related APIs */
 int jbd2_fc_begin_commit(journal_t *journal, tid_t tid);
 int jbd2_fc_end_commit(journal_t *journal);
-int jbd2_fc_end_commit_fallback(journal_t *journal, tid_t tid);
+int jbd2_fc_end_commit_fallback(journal_t *journal);
 int jbd2_fc_get_buf(journal_t *journal, struct buffer_head **bh_out);
 int jbd2_submit_inode_data(struct jbd2_inode *jinode);
 int jbd2_wait_inode_data(journal_t *journal, struct jbd2_inode *jinode);
