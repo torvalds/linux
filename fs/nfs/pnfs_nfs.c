@@ -860,6 +860,9 @@ static int _nfs4_pnfs_v3_ds_connect(struct nfs_server *mds_srv,
 				.addrlen = da->da_addrlen,
 				.servername = clp->cl_hostname,
 			};
+
+			if (da->da_addr.ss_family != clp->cl_addr.ss_family)
+				continue;
 			/* Add this address as an alias */
 			rpc_clnt_add_xprt(clp->cl_rpcclient, &xprt_args,
 					rpc_clnt_test_and_add_xprt, NULL);
@@ -913,17 +916,19 @@ static int _nfs4_pnfs_v4_ds_connect(struct nfs_server *mds_srv,
 			};
 			struct nfs4_add_xprt_data xprtdata = {
 				.clp = clp,
-				.cred = nfs4_get_clid_cred(clp),
 			};
 			struct rpc_add_xprt_test rpcdata = {
 				.add_xprt_test = clp->cl_mvops->session_trunk,
 				.data = &xprtdata,
 			};
 
+			if (da->da_addr.ss_family != clp->cl_addr.ss_family)
+				continue;
 			/**
 			* Test this address for session trunking and
 			* add as an alias
 			*/
+			xprtdata.cred = nfs4_get_clid_cred(clp),
 			rpc_clnt_add_xprt(clp->cl_rpcclient, &xprt_args,
 					  rpc_clnt_setup_test_and_add_xprt,
 					  &rpcdata);
