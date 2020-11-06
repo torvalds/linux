@@ -33,7 +33,7 @@
 		((((const_val) << 12) & 0x0FF00000ull) | \
 		(((const_val) <<  0) & 0x000000FFull))))
 
-#define AE(handle, ae) handle->hal_handle->aes[ae]
+#define AE(handle, ae) ((handle)->hal_handle->aes[ae])
 
 static const u64 inst_4b[] = {
 	0x0F0400C0000ull, 0x0F4400C0000ull, 0x0F040000300ull, 0x0F440000300ull,
@@ -150,8 +150,8 @@ static int qat_hal_wait_cycles(struct icp_qat_fw_loader_handle *handle,
 	return 0;
 }
 
-#define CLR_BIT(wrd, bit) (wrd & ~(1 << bit))
-#define SET_BIT(wrd, bit) (wrd | 1 << bit)
+#define CLR_BIT(wrd, bit) ((wrd) & ~(1 << (bit)))
+#define SET_BIT(wrd, bit) ((wrd) | 1 << (bit))
 
 int qat_hal_set_ae_ctx_mode(struct icp_qat_fw_loader_handle *handle,
 			    unsigned char ae, unsigned char mode)

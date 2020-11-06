@@ -88,23 +88,23 @@ enum fcu_sts {
 #define FW_AUTH_MAX_RETRY   300
 
 #define SET_CAP_CSR(handle, csr, val) \
-	ADF_CSR_WR(handle->hal_cap_g_ctl_csr_addr_v, csr, val)
+	ADF_CSR_WR((handle)->hal_cap_g_ctl_csr_addr_v, csr, val)
 #define GET_CAP_CSR(handle, csr) \
-	ADF_CSR_RD(handle->hal_cap_g_ctl_csr_addr_v, csr)
+	ADF_CSR_RD((handle)->hal_cap_g_ctl_csr_addr_v, csr)
 #define SET_GLB_CSR(handle, csr, val) SET_CAP_CSR(handle, csr + GLOBAL_CSR, val)
 #define GET_GLB_CSR(handle, csr) GET_CAP_CSR(handle, GLOBAL_CSR + csr)
 #define AE_CSR(handle, ae) \
-	((char __iomem *)handle->hal_cap_ae_local_csr_addr_v + (ae << 12))
-#define AE_CSR_ADDR(handle, ae, csr) (AE_CSR(handle, ae) + (0x3ff & csr))
+	((char __iomem *)(handle)->hal_cap_ae_local_csr_addr_v + ((ae) << 12))
+#define AE_CSR_ADDR(handle, ae, csr) (AE_CSR(handle, ae) + (0x3ff & (csr)))
 #define SET_AE_CSR(handle, ae, csr, val) \
 	ADF_CSR_WR(AE_CSR_ADDR(handle, ae, csr), 0, val)
 #define GET_AE_CSR(handle, ae, csr) ADF_CSR_RD(AE_CSR_ADDR(handle, ae, csr), 0)
 #define AE_XFER(handle, ae) \
-	((char __iomem *)handle->hal_cap_ae_xfer_csr_addr_v + (ae << 12))
+	((char __iomem *)(handle)->hal_cap_ae_xfer_csr_addr_v + ((ae) << 12))
 #define AE_XFER_ADDR(handle, ae, reg) (AE_XFER(handle, ae) + \
-	((reg & 0xff) << 2))
+	(((reg) & 0xff) << 2))
 #define SET_AE_XFER(handle, ae, reg, val) \
 	ADF_CSR_WR(AE_XFER_ADDR(handle, ae, reg), 0, val)
 #define SRAM_WRITE(handle, addr, val) \
-	ADF_CSR_WR(handle->hal_sram_addr_v, addr, val)
+	ADF_CSR_WR((handle)->hal_sram_addr_v, addr, val)
 #endif
