@@ -134,8 +134,6 @@
 /*Digi jsm */
 #define PORT_JSM        69
 
-#define PORT_PNX8XXX	70
-
 /* SUN4V Hypervisor Console */
 #define PORT_SUNHV	72
 
