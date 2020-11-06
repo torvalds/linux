@@ -727,6 +727,8 @@ int jbd2_log_wait_commit(journal_t *journal, tid_t tid)
  */
 int jbd2_fc_begin_commit(journal_t *journal, tid_t tid)
 {
+	if (unlikely(is_journal_aborted(journal)))
+		return -EIO;
 	/*
 	 * Fast commits only allowed if at least one full commit has
 	 * been processed.
