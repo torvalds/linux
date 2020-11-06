@@ -34,6 +34,12 @@ struct icp_qat_fw_loader_chip_info {
 	u32 wakeup_event_val;
 	bool fw_auth;
 	bool css_3k;
+	u32 fcu_ctl_csr;
+	u32 fcu_sts_csr;
+	u32 fcu_dram_addr_hi;
+	u32 fcu_dram_addr_lo;
+	u32 fcu_loaded_ae_csr;
+	u8 fcu_loaded_ae_pos;
 };
 
 struct icp_qat_fw_loader_handle {

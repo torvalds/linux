@@ -1190,18 +1190,26 @@ static int qat_uclo_map_suof(struct icp_qat_fw_loader_handle *handle,
 static int qat_uclo_auth_fw(struct icp_qat_fw_loader_handle *handle,
 			    struct icp_qat_fw_auth_desc *desc)
 {
-	unsigned int fcu_sts, retry = 0;
+	u32 fcu_sts, retry = 0;
+	u32 fcu_ctl_csr, fcu_sts_csr;
+	u32 fcu_dram_hi_csr, fcu_dram_lo_csr;
 	u64 bus_addr;
 
 	bus_addr = ADD_ADDR(desc->css_hdr_high, desc->css_hdr_low)
 			   - sizeof(struct icp_qat_auth_chunk);
-	SET_CAP_CSR(handle, FCU_DRAM_ADDR_HI, (bus_addr >> BITS_IN_DWORD));
-	SET_CAP_CSR(handle, FCU_DRAM_ADDR_LO, bus_addr);
-	SET_CAP_CSR(handle, FCU_CONTROL, FCU_CTRL_CMD_AUTH);
+
+	fcu_ctl_csr = handle->chip_info->fcu_ctl_csr;
+	fcu_sts_csr = handle->chip_info->fcu_sts_csr;
+	fcu_dram_hi_csr = handle->chip_info->fcu_dram_addr_hi;
+	fcu_dram_lo_csr = handle->chip_info->fcu_dram_addr_lo;
+
+	SET_CAP_CSR(handle, fcu_dram_hi_csr, (bus_addr >> BITS_IN_DWORD));
+	SET_CAP_CSR(handle, fcu_dram_lo_csr, bus_addr);
+	SET_CAP_CSR(handle, fcu_ctl_csr, FCU_CTRL_CMD_AUTH);
 
 	do {
 		msleep(FW_AUTH_WAIT_PERIOD);
-		fcu_sts = GET_CAP_CSR(handle, FCU_STATUS);
+		fcu_sts = GET_CAP_CSR(handle, fcu_sts_csr);
 		if ((fcu_sts & FCU_AUTH_STS_MASK) == FCU_STS_VERI_FAIL)
 			goto auth_fail;
 		if (((fcu_sts >> FCU_STS_AUTHFWLD_POS) & 0x1))
@@ -1369,11 +1377,16 @@ static int qat_uclo_map_auth_fw(struct icp_qat_fw_loader_handle *handle,
 static int qat_uclo_load_fw(struct icp_qat_fw_loader_handle *handle,
 			    struct icp_qat_fw_auth_desc *desc)
 {
-	unsigned int i;
-	unsigned int fcu_sts;
 	struct icp_qat_simg_ae_mode *virt_addr;
-	unsigned int fcu_loaded_ae_pos = FCU_LOADED_AE_POS;
 	unsigned long ae_mask = handle->hal_handle->ae_mask;
+	u32 fcu_sts_csr, fcu_ctl_csr;
+	u32 loaded_aes, loaded_csr;
+	unsigned int i;
+	u32 fcu_sts;
+
+	fcu_ctl_csr = handle->chip_info->fcu_ctl_csr;
+	fcu_sts_csr = handle->chip_info->fcu_sts_csr;
+	loaded_csr = handle->chip_info->fcu_loaded_ae_csr;
 
 	virt_addr = (void *)((uintptr_t)desc +
 		     sizeof(struct icp_qat_auth_chunk) +
@@ -1389,16 +1402,19 @@ static int qat_uclo_load_fw(struct icp_qat_fw_loader_handle *handle,
 			pr_err("QAT: AE %d is active\n", i);
 			return -EINVAL;
 		}
-		SET_CAP_CSR(handle, FCU_CONTROL,
+		SET_CAP_CSR(handle, fcu_ctl_csr,
 			    (FCU_CTRL_CMD_LOAD | (i << FCU_CTRL_AE_POS)));
 
 		do {
 			msleep(FW_AUTH_WAIT_PERIOD);
-			fcu_sts = GET_CAP_CSR(handle, FCU_STATUS);
-			if (((fcu_sts & FCU_AUTH_STS_MASK) ==
-			    FCU_STS_LOAD_DONE) &&
-			    ((fcu_sts >> fcu_loaded_ae_pos) & (1 << i)))
-				break;
+			fcu_sts = GET_CAP_CSR(handle, fcu_sts_csr);
+			if ((fcu_sts & FCU_AUTH_STS_MASK) ==
+			    FCU_STS_LOAD_DONE) {
+				loaded_aes = GET_CAP_CSR(handle, loaded_csr);
+				loaded_aes >>= handle->chip_info->fcu_loaded_ae_pos;
+				if (loaded_aes & (1 << i))
+					break;
+			}
 		} while (retry++ < FW_AUTH_MAX_RETRY);
 		if (retry > FW_AUTH_MAX_RETRY) {
 			pr_err("QAT: firmware load failed timeout %x\n", retry);

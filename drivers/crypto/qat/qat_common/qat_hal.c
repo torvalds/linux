@@ -707,6 +707,12 @@ static int qat_hal_chip_init(struct icp_qat_fw_loader_handle *handle,
 		handle->chip_info->wakeup_event_val = WAKEUP_EVENT;
 		handle->chip_info->fw_auth = true;
 		handle->chip_info->css_3k = false;
+		handle->chip_info->fcu_ctl_csr = FCU_CONTROL;
+		handle->chip_info->fcu_sts_csr = FCU_STATUS;
+		handle->chip_info->fcu_dram_addr_hi = FCU_DRAM_ADDR_HI;
+		handle->chip_info->fcu_dram_addr_lo = FCU_DRAM_ADDR_LO;
+		handle->chip_info->fcu_loaded_ae_csr = FCU_STATUS;
+		handle->chip_info->fcu_loaded_ae_pos = FCU_LOADED_AE_POS;
 		break;
 	case PCI_DEVICE_ID_INTEL_QAT_DH895XCC:
 		handle->chip_info->sram_visible = true;
@@ -719,6 +725,12 @@ static int qat_hal_chip_init(struct icp_qat_fw_loader_handle *handle,
 		handle->chip_info->wakeup_event_val = WAKEUP_EVENT;
 		handle->chip_info->fw_auth = false;
 		handle->chip_info->css_3k = false;
+		handle->chip_info->fcu_ctl_csr = 0;
+		handle->chip_info->fcu_sts_csr = 0;
+		handle->chip_info->fcu_dram_addr_hi = 0;
+		handle->chip_info->fcu_dram_addr_lo = 0;
+		handle->chip_info->fcu_loaded_ae_csr = 0;
+		handle->chip_info->fcu_loaded_ae_pos = 0;
 		break;
 	default:
 		ret = -EINVAL;
@@ -842,17 +854,20 @@ int qat_hal_start(struct icp_qat_fw_loader_handle *handle)
 {
 	unsigned long ae_mask = handle->hal_handle->ae_mask;
 	u32 wakeup_val = handle->chip_info->wakeup_event_val;
+	u32 fcu_ctl_csr, fcu_sts_csr;
 	unsigned int fcu_sts;
 	unsigned char ae;
 	u32 ae_ctr = 0;
 	int retry = 0;
 
 	if (handle->chip_info->fw_auth) {
+		fcu_ctl_csr = handle->chip_info->fcu_ctl_csr;
+		fcu_sts_csr = handle->chip_info->fcu_sts_csr;
 		ae_ctr = hweight32(ae_mask);
-		SET_CAP_CSR(handle, FCU_CONTROL, FCU_CTRL_CMD_START);
+		SET_CAP_CSR(handle, fcu_ctl_csr, FCU_CTRL_CMD_START);
 		do {
 			msleep(FW_AUTH_WAIT_PERIOD);
-			fcu_sts = GET_CAP_CSR(handle, FCU_STATUS);
+			fcu_sts = GET_CAP_CSR(handle, fcu_sts_csr);
 			if (((fcu_sts >> FCU_STS_DONE_POS) & 0x1))
 				return ae_ctr;
 		} while (retry++ < FW_AUTH_MAX_RETRY);
