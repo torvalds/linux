@@ -734,10 +734,12 @@ int jbd2_fc_begin_commit(journal_t *journal, tid_t tid)
 	if (!journal->j_stats.ts_tid)
 		return -EINVAL;
 
-	if (tid <= journal->j_commit_sequence)
-		return -EALREADY;
-
 	write_lock(&journal->j_state_lock);
+	if (tid <= journal->j_commit_sequence) {
+		write_unlock(&journal->j_state_lock);
+		return -EALREADY;
+	}
+
 	if (journal->j_flags & JBD2_FULL_COMMIT_ONGOING ||
 	    (journal->j_flags & JBD2_FAST_COMMIT_ONGOING)) {
 		DEFINE_WAIT(wait);
