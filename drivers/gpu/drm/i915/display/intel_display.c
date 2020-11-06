@@ -18039,10 +18039,10 @@ int intel_modeset_init(struct drm_i915_private *i915)
 {
 	int ret;
 
-	intel_overlay_setup(i915);
-
 	if (!HAS_DISPLAY(i915))
 		return 0;
+
+	intel_overlay_setup(i915);
 
 	ret = intel_fbdev_init(&i915->drm);
 	if (ret)
