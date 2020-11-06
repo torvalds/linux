@@ -183,5 +183,30 @@ static __always_inline void trace_clear_recursion(int bit)
 	current->trace_recursion = val;
 }
 
+/**
+ * ftrace_test_recursion_trylock - tests for recursion in same context
+ *
+ * Use this for ftrace callbacks. This will detect if the function
+ * tracing recursed in the same context (normal vs interrupt),
+ *
+ * Returns: -1 if a recursion happened.
+ *           >= 0 if no recursion
+ */
+static __always_inline int ftrace_test_recursion_trylock(void)
+{
+	return trace_test_and_set_recursion(TRACE_FTRACE_START, TRACE_FTRACE_MAX);
+}
+
+/**
+ * ftrace_test_recursion_unlock - called when function callback is complete
+ * @bit: The return of a successful ftrace_test_recursion_trylock()
+ *
+ * This is used at the end of a ftrace callback.
+ */
+static __always_inline void ftrace_test_recursion_unlock(int bit)
+{
+	trace_clear_recursion(bit);
+}
+
 #endif /* CONFIG_TRACING */
 #endif /* _LINUX_TRACE_RECURSION_H */
