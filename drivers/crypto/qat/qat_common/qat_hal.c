@@ -646,23 +646,41 @@ static int qat_hal_clear_gpr(struct icp_qat_fw_loader_handle *handle)
 	return 0;
 }
 
-int qat_hal_init(struct adf_accel_dev *accel_dev)
+static int qat_hal_chip_init(struct icp_qat_fw_loader_handle *handle,
+			     struct adf_accel_dev *accel_dev)
 {
-	unsigned char ae;
-	unsigned int max_en_ae_id = 0;
-	struct icp_qat_fw_loader_handle *handle;
 	struct adf_accel_pci *pci_info = &accel_dev->accel_pci_dev;
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 	struct adf_bar *misc_bar =
 			&pci_info->pci_bars[hw_data->get_misc_bar_id(hw_data)];
-	unsigned long ae_mask = hw_data->ae_mask;
-	unsigned int csr_val = 0;
+	unsigned int max_en_ae_id = 0;
 	struct adf_bar *sram_bar;
+	unsigned int csr_val = 0;
+	unsigned long ae_mask;
+	unsigned char ae = 0;
+	int ret = 0;
 
-	handle = kzalloc(sizeof(*handle), GFP_KERNEL);
-	if (!handle)
-		return -ENOMEM;
+	handle->pci_dev = pci_info->pci_dev;
+	switch (handle->pci_dev->device) {
+	case PCI_DEVICE_ID_INTEL_QAT_C62X:
+	case PCI_DEVICE_ID_INTEL_QAT_C3XXX:
+		handle->chip_info->sram_visible = false;
+		handle->chip_info->fw_auth = true;
+		break;
+	case PCI_DEVICE_ID_INTEL_QAT_DH895XCC:
+		handle->chip_info->sram_visible = true;
+		handle->chip_info->fw_auth = false;
+		break;
+	default:
+		ret = -EINVAL;
+		goto out_err;
+	}
 
+	if (handle->chip_info->sram_visible) {
+		sram_bar =
+			&pci_info->pci_bars[hw_data->get_sram_bar_id(hw_data)];
+		handle->hal_sram_addr_v = sram_bar->virt_addr;
+	}
 	handle->hal_cap_g_ctl_csr_addr_v =
 		(void __iomem *)((uintptr_t)misc_bar->virt_addr +
 				 ICP_QAT_CAP_OFFSET);
@@ -676,22 +694,14 @@ int qat_hal_init(struct adf_accel_dev *accel_dev)
 		(void __iomem *)((uintptr_t)handle->hal_cap_ae_xfer_csr_addr_v +
 				 LOCAL_TO_XFER_REG_OFFSET);
 	handle->pci_dev = pci_info->pci_dev;
-	if (handle->pci_dev->device == PCI_DEVICE_ID_INTEL_QAT_DH895XCC) {
-		sram_bar =
-			&pci_info->pci_bars[hw_data->get_sram_bar_id(hw_data)];
-		handle->hal_sram_addr_v = sram_bar->virt_addr;
-	}
-	handle->fw_auth = (handle->pci_dev->device ==
-			   PCI_DEVICE_ID_INTEL_QAT_DH895XCC) ? false : true;
-	handle->hal_handle = kzalloc(sizeof(*handle->hal_handle), GFP_KERNEL);
-	if (!handle->hal_handle)
-		goto out_hal_handle;
 	handle->hal_handle->revision_id = accel_dev->accel_pci_dev.revid;
 	handle->hal_handle->ae_mask = hw_data->ae_mask;
 	handle->hal_handle->slice_mask = hw_data->accel_mask;
 	/* create AE objects */
 	handle->hal_handle->upc_mask = 0x1ffff;
 	handle->hal_handle->max_ustore = 0x4000;
+
+	ae_mask = handle->hal_handle->ae_mask;
 	for_each_set_bit(ae, &ae_mask, ICP_QAT_UCLO_MAX_AE) {
 		handle->hal_handle->aes[ae].free_addr = 0;
 		handle->hal_handle->aes[ae].free_size =
@@ -703,16 +713,6 @@ int qat_hal_init(struct adf_accel_dev *accel_dev)
 		max_en_ae_id = ae;
 	}
 	handle->hal_handle->ae_max_num = max_en_ae_id + 1;
-	/* take all AEs out of reset */
-	if (qat_hal_clr_reset(handle)) {
-		dev_err(&GET_DEV(accel_dev), "qat_hal_clr_reset error\n");
-		goto out_err;
-	}
-	qat_hal_clear_xfer(handle);
-	if (!handle->fw_auth) {
-		if (qat_hal_clear_gpr(handle))
-			goto out_err;
-	}
 
 	/* Set SIGNATURE_ENABLE[0] to 0x1 in order to enable ALU_OUT csr */
 	for_each_set_bit(ae, &ae_mask, handle->hal_handle->ae_max_num) {
@@ -720,20 +720,68 @@ int qat_hal_init(struct adf_accel_dev *accel_dev)
 		csr_val |= 0x1;
 		qat_hal_wr_ae_csr(handle, ae, SIGNATURE_ENABLE, csr_val);
 	}
+out_err:
+	return ret;
+}
+
+int qat_hal_init(struct adf_accel_dev *accel_dev)
+{
+	struct icp_qat_fw_loader_handle *handle;
+	int ret = 0;
+
+	handle = kzalloc(sizeof(*handle), GFP_KERNEL);
+	if (!handle)
+		return -ENOMEM;
+
+	handle->hal_handle = kzalloc(sizeof(*handle->hal_handle), GFP_KERNEL);
+	if (!handle->hal_handle) {
+		ret = -ENOMEM;
+		goto out_hal_handle;
+	}
+
+	handle->chip_info = kzalloc(sizeof(*handle->chip_info), GFP_KERNEL);
+	if (!handle->chip_info) {
+		ret = -ENOMEM;
+		goto out_chip_info;
+	}
+
+	ret = qat_hal_chip_init(handle, accel_dev);
+	if (ret) {
+		dev_err(&GET_DEV(accel_dev), "qat_hal_chip_init error\n");
+		goto out_err;
+	}
+
+	/* take all AEs out of reset */
+	ret = qat_hal_clr_reset(handle);
+	if (ret) {
+		dev_err(&GET_DEV(accel_dev), "qat_hal_clr_reset error\n");
+		goto out_err;
+	}
+
+	qat_hal_clear_xfer(handle);
+	if (!handle->chip_info->fw_auth) {
+		ret = qat_hal_clear_gpr(handle);
+		if (ret)
+			goto out_err;
+	}
+
 	accel_dev->fw_loader->fw_loader = handle;
 	return 0;
 
 out_err:
+	kfree(handle->chip_info);
+out_chip_info:
 	kfree(handle->hal_handle);
 out_hal_handle:
 	kfree(handle);
-	return -EFAULT;
+	return ret;
 }
 
 void qat_hal_deinit(struct icp_qat_fw_loader_handle *handle)
 {
 	if (!handle)
 		return;
+	kfree(handle->chip_info);
 	kfree(handle->hal_handle);
 	kfree(handle);
 }
@@ -746,7 +794,7 @@ int qat_hal_start(struct icp_qat_fw_loader_handle *handle)
 	u32 ae_ctr = 0;
 	int retry = 0;
 
-	if (handle->fw_auth) {
+	if (handle->chip_info->fw_auth) {
 		ae_ctr = hweight32(ae_mask);
 		SET_CAP_CSR(handle, FCU_CONTROL, FCU_CTRL_CMD_START);
 		do {
@@ -770,7 +818,7 @@ int qat_hal_start(struct icp_qat_fw_loader_handle *handle)
 void qat_hal_stop(struct icp_qat_fw_loader_handle *handle, unsigned char ae,
 		  unsigned int ctx_mask)
 {
-	if (!handle->fw_auth)
+	if (!handle->chip_info->fw_auth)
 		qat_hal_disable_ctx(handle, ae, ctx_mask);
 }
 

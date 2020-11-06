@@ -1405,7 +1405,7 @@ int qat_uclo_wr_mimage(struct icp_qat_fw_loader_handle *handle,
 	struct icp_qat_fw_auth_desc *desc = NULL;
 	int status = 0;
 
-	if (handle->fw_auth) {
+	if (handle->chip_info->fw_auth) {
 		if (!qat_uclo_map_auth_fw(handle, addr_ptr, mem_size, &desc))
 			status = qat_uclo_auth_fw(handle, desc);
 		qat_uclo_ummap_auth_fw(handle, &desc);
@@ -1718,7 +1718,7 @@ int qat_uclo_map_obj(struct icp_qat_fw_loader_handle *handle,
 		obj_size = mem_size;
 	}
 
-	return (handle->fw_auth) ?
+	return (handle->chip_info->fw_auth) ?
 			qat_uclo_map_suof_obj(handle, obj_addr, obj_size) :
 			qat_uclo_map_uof_obj(handle, obj_addr, obj_size);
 }
@@ -1909,6 +1909,6 @@ static int qat_uclo_wr_uof_img(struct icp_qat_fw_loader_handle *handle)
 
 int qat_uclo_wr_all_uimage(struct icp_qat_fw_loader_handle *handle)
 {
-	return (handle->fw_auth) ? qat_uclo_wr_suof_img(handle) :
+	return (handle->chip_info->fw_auth) ? qat_uclo_wr_suof_img(handle) :
 				   qat_uclo_wr_uof_img(handle);
 }
