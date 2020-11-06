@@ -420,7 +420,7 @@ static struct clk_core *clk_core_get(struct clk_core *core, u8 p_index)
 static void clk_core_fill_parent_index(struct clk_core *core, u8 index)
 {
 	struct clk_parent_map *entry = &core->parents[index];
-	struct clk_core *parent = ERR_PTR(-ENOENT);
+	struct clk_core *parent;
 
 	if (entry->hw) {
 		parent = entry->hw->core;
