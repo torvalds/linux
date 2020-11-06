@@ -261,7 +261,7 @@ void ext4_fc_mark_ineligible(struct super_block *sb, int reason)
 	    (EXT4_SB(sb)->s_mount_state & EXT4_FC_REPLAY))
 		return;
 
-	sbi->s_mount_flags |= EXT4_MF_FC_INELIGIBLE;
+	ext4_set_mount_flag(sb, EXT4_MF_FC_INELIGIBLE);
 	WARN_ON(reason >= EXT4_FC_REASON_MAX);
 	sbi->s_fc_stats.fc_ineligible_reason_count[reason]++;
 }
@@ -294,14 +294,14 @@ void ext4_fc_stop_ineligible(struct super_block *sb)
 	    (EXT4_SB(sb)->s_mount_state & EXT4_FC_REPLAY))
 		return;
 
-	EXT4_SB(sb)->s_mount_flags |= EXT4_MF_FC_INELIGIBLE;
+	ext4_set_mount_flag(sb, EXT4_MF_FC_INELIGIBLE);
 	atomic_dec(&EXT4_SB(sb)->s_fc_ineligible_updates);
 }
 
 static inline int ext4_fc_is_ineligible(struct super_block *sb)
 {
-	return (EXT4_SB(sb)->s_mount_flags & EXT4_MF_FC_INELIGIBLE) ||
-		atomic_read(&EXT4_SB(sb)->s_fc_ineligible_updates);
+	return (ext4_test_mount_flag(sb, EXT4_MF_FC_INELIGIBLE) ||
+		atomic_read(&EXT4_SB(sb)->s_fc_ineligible_updates));
 }
 
 /*
@@ -349,7 +349,7 @@ static int ext4_fc_track_template(
 	spin_lock(&sbi->s_fc_lock);
 	if (list_empty(&EXT4_I(inode)->i_fc_list))
 		list_add_tail(&EXT4_I(inode)->i_fc_list,
-				(sbi->s_mount_flags & EXT4_MF_FC_COMMITTING) ?
+				(ext4_test_mount_flag(inode->i_sb, EXT4_MF_FC_COMMITTING)) ?
 				&sbi->s_fc_q[FC_Q_STAGING] :
 				&sbi->s_fc_q[FC_Q_MAIN]);
 	spin_unlock(&sbi->s_fc_lock);
@@ -402,7 +402,7 @@ static int __track_dentry_update(struct inode *inode, void *arg, bool update)
 	node->fcd_name.len = dentry->d_name.len;
 
 	spin_lock(&sbi->s_fc_lock);
-	if (sbi->s_mount_flags & EXT4_MF_FC_COMMITTING)
+	if (ext4_test_mount_flag(inode->i_sb, EXT4_MF_FC_COMMITTING))
 		list_add_tail(&node->fcd_list,
 				&sbi->s_fc_dentry_q[FC_Q_STAGING]);
 	else
@@ -857,7 +857,7 @@ static int ext4_fc_submit_inode_data_all(journal_t *journal)
 	int ret = 0;
 
 	spin_lock(&sbi->s_fc_lock);
-	sbi->s_mount_flags |= EXT4_MF_FC_COMMITTING;
+	ext4_set_mount_flag(sb, EXT4_MF_FC_COMMITTING);
 	list_for_each(pos, &sbi->s_fc_q[FC_Q_MAIN]) {
 		ei = list_entry(pos, struct ext4_inode_info, i_fc_list);
 		ext4_set_inode_state(&ei->vfs_inode, EXT4_STATE_FC_COMMITTING);
@@ -1206,8 +1206,8 @@ static void ext4_fc_cleanup(journal_t *journal, int full)
 	list_splice_init(&sbi->s_fc_q[FC_Q_STAGING],
 				&sbi->s_fc_q[FC_Q_STAGING]);
 
-	sbi->s_mount_flags &= ~EXT4_MF_FC_COMMITTING;
-	sbi->s_mount_flags &= ~EXT4_MF_FC_INELIGIBLE;
+	ext4_clear_mount_flag(sb, EXT4_MF_FC_COMMITTING);
+	ext4_clear_mount_flag(sb, EXT4_MF_FC_INELIGIBLE);
 
 	if (full)
 		sbi->s_fc_bytes = 0;

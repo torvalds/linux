@@ -2442,7 +2442,7 @@ static int mpage_map_and_submit_extent(handle_t *handle,
 			struct super_block *sb = inode->i_sb;
 
 			if (ext4_forced_shutdown(EXT4_SB(sb)) ||
-			    EXT4_SB(sb)->s_mount_flags & EXT4_MF_FS_ABORTED)
+			    ext4_test_mount_flag(sb, EXT4_MF_FS_ABORTED))
 				goto invalidate_dirty_pages;
 			/*
 			 * Let the uper layers retry transient errors.
@@ -2676,7 +2676,7 @@ static int ext4_writepages(struct address_space *mapping,
 	 * the stack trace.
 	 */
 	if (unlikely(ext4_forced_shutdown(EXT4_SB(mapping->host->i_sb)) ||
-		     sbi->s_mount_flags & EXT4_MF_FS_ABORTED)) {
+		     ext4_test_mount_flag(inode->i_sb, EXT4_MF_FS_ABORTED))) {
 		ret = -EROFS;
 		goto out_writepages;
 	}

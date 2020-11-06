@@ -1419,16 +1419,6 @@ struct ext4_super_block {
 
 #ifdef __KERNEL__
 
-/*
- * run-time mount flags
- */
-#define EXT4_MF_MNTDIR_SAMPLED		0x0001
-#define EXT4_MF_FS_ABORTED		0x0002	/* Fatal error detected */
-#define EXT4_MF_FC_INELIGIBLE		0x0004	/* Fast commit ineligible */
-#define EXT4_MF_FC_COMMITTING		0x0008	/* File system underoing a fast
-						 * commit.
-						 */
-
 #ifdef CONFIG_FS_ENCRYPTION
 #define DUMMY_ENCRYPTION_ENABLED(sbi) ((sbi)->s_dummy_enc_policy.policy != NULL)
 #else
@@ -1463,7 +1453,7 @@ struct ext4_sb_info {
 	struct buffer_head * __rcu *s_group_desc;
 	unsigned int s_mount_opt;
 	unsigned int s_mount_opt2;
-	unsigned int s_mount_flags;
+	unsigned long s_mount_flags;
 	unsigned int s_def_mount_opt;
 	ext4_fsblk_t s_sb_block;
 	atomic64_t s_resv_clusters;
@@ -1690,6 +1680,34 @@ static inline int ext4_valid_inum(struct super_block *sb, unsigned long ino)
 	rcu_read_unlock();						   \
 	_v;								   \
 })
+
+/*
+ * run-time mount flags
+ */
+enum {
+	EXT4_MF_MNTDIR_SAMPLED,
+	EXT4_MF_FS_ABORTED,	/* Fatal error detected */
+	EXT4_MF_FC_INELIGIBLE,	/* Fast commit ineligible */
+	EXT4_MF_FC_COMMITTING	/* File system underoing a fast
+				 * commit.
+				 */
+};
+
+static inline void ext4_set_mount_flag(struct super_block *sb, int bit)
+{
+	set_bit(bit, &EXT4_SB(sb)->s_mount_flags);
+}
+
+static inline void ext4_clear_mount_flag(struct super_block *sb, int bit)
+{
+	clear_bit(bit, &EXT4_SB(sb)->s_mount_flags);
+}
+
+static inline int ext4_test_mount_flag(struct super_block *sb, int bit)
+{
+	return test_bit(bit, &EXT4_SB(sb)->s_mount_flags);
+}
+
 
 /*
  * Simulate_fail codes
