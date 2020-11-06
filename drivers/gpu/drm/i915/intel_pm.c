@@ -4696,50 +4696,63 @@ skl_plane_relative_data_rate(const struct intel_crtc_state *crtc_state,
 }
 
 static u64
-skl_get_total_relative_data_rate(struct intel_crtc_state *crtc_state,
-				 u64 *plane_data_rate,
-				 u64 *uv_plane_data_rate)
+skl_get_total_relative_data_rate(struct intel_atomic_state *state,
+				 struct intel_crtc *crtc)
 {
-	struct intel_plane *plane;
+	struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 	const struct intel_plane_state *plane_state;
+	struct intel_plane *plane;
 	u64 total_data_rate = 0;
+	enum plane_id plane_id;
+	int i;
 
 	/* Calculate and cache data rate for each plane */
-	intel_atomic_crtc_state_for_each_plane_state(plane, plane_state, crtc_state) {
-		enum plane_id plane_id = plane->id;
-		u64 rate;
+	for_each_new_intel_plane_in_state(state, plane, plane_state, i) {
+		if (plane->pipe != crtc->pipe)
+			continue;
+
+		plane_id = plane->id;
 
 		/* packed/y */
-		rate = skl_plane_relative_data_rate(crtc_state, plane_state, 0);
-		plane_data_rate[plane_id] = rate;
-		total_data_rate += rate;
+		crtc_state->plane_data_rate[plane_id] =
+			skl_plane_relative_data_rate(crtc_state, plane_state, 0);
 
 		/* uv-plane */
-		rate = skl_plane_relative_data_rate(crtc_state, plane_state, 1);
-		uv_plane_data_rate[plane_id] = rate;
-		total_data_rate += rate;
+		crtc_state->uv_plane_data_rate[plane_id] =
+			skl_plane_relative_data_rate(crtc_state, plane_state, 1);
+	}
+
+	for_each_plane_id_on_crtc(crtc, plane_id) {
+		total_data_rate += crtc_state->plane_data_rate[plane_id];
+		total_data_rate += crtc_state->uv_plane_data_rate[plane_id];
 	}
 
 	return total_data_rate;
 }
 
 static u64
-icl_get_total_relative_data_rate(struct intel_crtc_state *crtc_state,
-				 u64 *plane_data_rate)
+icl_get_total_relative_data_rate(struct intel_atomic_state *state,
+				 struct intel_crtc *crtc)
 {
-	struct intel_plane *plane;
+	struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 	const struct intel_plane_state *plane_state;
+	struct intel_plane *plane;
 	u64 total_data_rate = 0;
+	enum plane_id plane_id;
+	int i;
 
 	/* Calculate and cache data rate for each plane */
-	intel_atomic_crtc_state_for_each_plane_state(plane, plane_state, crtc_state) {
-		enum plane_id plane_id = plane->id;
-		u64 rate;
+	for_each_new_intel_plane_in_state(state, plane, plane_state, i) {
+		if (plane->pipe != crtc->pipe)
+			continue;
+
+		plane_id = plane->id;
 
 		if (!plane_state->planar_linked_plane) {
-			rate = skl_plane_relative_data_rate(crtc_state, plane_state, 0);
-			plane_data_rate[plane_id] = rate;
-			total_data_rate += rate;
+			crtc_state->plane_data_rate[plane_id] =
+				skl_plane_relative_data_rate(crtc_state, plane_state, 0);
 		} else {
 			enum plane_id y_plane_id;
 
@@ -4754,16 +4767,17 @@ icl_get_total_relative_data_rate(struct intel_crtc_state *crtc_state,
 				continue;
 
 			/* Y plane rate is calculated on the slave */
-			rate = skl_plane_relative_data_rate(crtc_state, plane_state, 0);
 			y_plane_id = plane_state->planar_linked_plane->id;
-			plane_data_rate[y_plane_id] = rate;
-			total_data_rate += rate;
+			crtc_state->plane_data_rate[y_plane_id] =
+				skl_plane_relative_data_rate(crtc_state, plane_state, 0);
 
-			rate = skl_plane_relative_data_rate(crtc_state, plane_state, 1);
-			plane_data_rate[plane_id] = rate;
-			total_data_rate += rate;
+			crtc_state->plane_data_rate[plane_id] =
+				skl_plane_relative_data_rate(crtc_state, plane_state, 1);
 		}
 	}
+
+	for_each_plane_id_on_crtc(crtc, plane_id)
+		total_data_rate += crtc_state->plane_data_rate[plane_id];
 
 	return total_data_rate;
 }
@@ -4796,8 +4810,6 @@ skl_allocate_pipe_ddb(struct intel_atomic_state *state,
 	u64 total_data_rate;
 	enum plane_id plane_id;
 	int num_active;
-	u64 plane_data_rate[I915_MAX_PLANES] = {};
-	u64 uv_plane_data_rate[I915_MAX_PLANES] = {};
 	u32 blocks;
 	int level;
 	int ret;
@@ -4837,13 +4849,10 @@ skl_allocate_pipe_ddb(struct intel_atomic_state *state,
 
 	if (INTEL_GEN(dev_priv) >= 11)
 		total_data_rate =
-			icl_get_total_relative_data_rate(crtc_state,
-							 plane_data_rate);
+			icl_get_total_relative_data_rate(state, crtc);
 	else
 		total_data_rate =
-			skl_get_total_relative_data_rate(crtc_state,
-							 plane_data_rate,
-							 uv_plane_data_rate);
+			skl_get_total_relative_data_rate(state, crtc);
 
 	ret = skl_ddb_get_pipe_allocation_limits(dev_priv, crtc_state,
 						 total_data_rate,
@@ -4924,7 +4933,7 @@ skl_allocate_pipe_ddb(struct intel_atomic_state *state,
 		if (total_data_rate == 0)
 			break;
 
-		rate = plane_data_rate[plane_id];
+		rate = crtc_state->plane_data_rate[plane_id];
 		extra = min_t(u16, alloc_size,
 			      DIV64_U64_ROUND_UP(alloc_size * rate,
 						 total_data_rate));
@@ -4935,7 +4944,7 @@ skl_allocate_pipe_ddb(struct intel_atomic_state *state,
 		if (total_data_rate == 0)
 			break;
 
-		rate = uv_plane_data_rate[plane_id];
+		rate = crtc_state->uv_plane_data_rate[plane_id];
 		extra = min_t(u16, alloc_size,
 			      DIV64_U64_ROUND_UP(alloc_size * rate,
 						 total_data_rate));
