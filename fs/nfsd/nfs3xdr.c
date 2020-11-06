@@ -1501,25 +1501,47 @@ nfs3svc_encode_fsinfores(struct svc_rqst *rqstp, __be32 *p)
 	return 1;
 }
 
+static bool
+svcxdr_encode_pathconf3resok(struct xdr_stream *xdr,
+			     const struct nfsd3_pathconfres *resp)
+{
+	__be32 *p;
+
+	p = xdr_reserve_space(xdr, XDR_UNIT * 6);
+	if (!p)
+		return false;
+	*p++ = cpu_to_be32(resp->p_link_max);
+	*p++ = cpu_to_be32(resp->p_name_max);
+	p = xdr_encode_bool(p, resp->p_no_trunc);
+	p = xdr_encode_bool(p, resp->p_chown_restricted);
+	p = xdr_encode_bool(p, resp->p_case_insensitive);
+	xdr_encode_bool(p, resp->p_case_preserving);
+
+	return true;
+}
+
 /* PATHCONF */
 int
 nfs3svc_encode_pathconfres(struct svc_rqst *rqstp, __be32 *p)
 {
+	struct xdr_stream *xdr = &rqstp->rq_res_stream;
 	struct nfsd3_pathconfres *resp = rqstp->rq_resp;
 
-	*p++ = resp->status;
-	*p++ = xdr_zero;	/* no post_op_attr */
-
-	if (resp->status == 0) {
-		*p++ = htonl(resp->p_link_max);
-		*p++ = htonl(resp->p_name_max);
-		*p++ = htonl(resp->p_no_trunc);
-		*p++ = htonl(resp->p_chown_restricted);
-		*p++ = htonl(resp->p_case_insensitive);
-		*p++ = htonl(resp->p_case_preserving);
+	if (!svcxdr_encode_nfsstat3(xdr, resp->status))
+		return 0;
+	switch (resp->status) {
+	case nfs_ok:
+		if (!svcxdr_encode_post_op_attr(rqstp, xdr, &nfs3svc_null_fh))
+			return 0;
+		if (!svcxdr_encode_pathconf3resok(xdr, resp))
+			return 0;
+		break;
+	default:
+		if (!svcxdr_encode_post_op_attr(rqstp, xdr, &nfs3svc_null_fh))
+			return 0;
 	}
 
-	return xdr_ressize_check(rqstp, p);
+	return 1;
 }
 
 /* COMMIT */
