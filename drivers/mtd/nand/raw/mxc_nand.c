@@ -1681,6 +1681,11 @@ static int mxcnd_attach_chip(struct nand_chip *chip)
 	struct mxc_nand_host *host = nand_get_controller_data(chip);
 	struct device *dev = mtd->dev.parent;
 
+	chip->ecc.bytes = host->devtype_data->eccbytes;
+	host->eccsize = host->devtype_data->eccsize;
+	chip->ecc.size = 512;
+	mtd_set_ooblayout(mtd, host->devtype_data->ooblayout);
+
 	switch (chip->ecc.engine_type) {
 	case NAND_ECC_ENGINE_TYPE_ON_HOST:
 		chip->ecc.read_page = mxc_nand_read_page;
@@ -1836,19 +1841,7 @@ static int mxcnd_probe(struct platform_device *pdev)
 	if (host->devtype_data->axi_offset)
 		host->regs_axi = host->base + host->devtype_data->axi_offset;
 
-	this->ecc.bytes = host->devtype_data->eccbytes;
-	host->eccsize = host->devtype_data->eccsize;
-
 	this->legacy.select_chip = host->devtype_data->select_chip;
-	this->ecc.size = 512;
-	mtd_set_ooblayout(mtd, host->devtype_data->ooblayout);
-
-	if (host->pdata.hw_ecc) {
-		this->ecc.engine_type = NAND_ECC_ENGINE_TYPE_ON_HOST;
-	} else {
-		this->ecc.engine_type = NAND_ECC_ENGINE_TYPE_SOFT;
-		this->ecc.algo = NAND_ECC_ALGO_HAMMING;
-	}
 
 	/* NAND bus width determines access functions used by upper layer */
 	if (host->pdata.width == 2)
