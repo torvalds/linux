@@ -184,14 +184,13 @@ struct extent_buffer *btrfs_lock_root_node(struct btrfs_root *root)
  *
  * Return: root extent buffer with read lock held
  */
-struct extent_buffer *__btrfs_read_lock_root_node(struct btrfs_root *root,
-						  bool recurse)
+struct extent_buffer *btrfs_read_lock_root_node(struct btrfs_root *root)
 {
 	struct extent_buffer *eb;
 
 	while (1) {
 		eb = btrfs_root_node(root);
-		__btrfs_tree_read_lock(eb, BTRFS_NESTING_NORMAL, recurse);
+		btrfs_tree_read_lock(eb);
 		if (eb == root->node)
 			break;
 		btrfs_tree_read_unlock(eb);

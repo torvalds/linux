@@ -94,13 +94,7 @@ void btrfs_tree_read_unlock(struct extent_buffer *eb);
 int btrfs_try_tree_read_lock(struct extent_buffer *eb);
 int btrfs_try_tree_write_lock(struct extent_buffer *eb);
 struct extent_buffer *btrfs_lock_root_node(struct btrfs_root *root);
-struct extent_buffer *__btrfs_read_lock_root_node(struct btrfs_root *root,
-						  bool recurse);
-
-static inline struct extent_buffer *btrfs_read_lock_root_node(struct btrfs_root *root)
-{
-	return __btrfs_read_lock_root_node(root, false);
-}
+struct extent_buffer *btrfs_read_lock_root_node(struct btrfs_root *root);
 
 #ifdef CONFIG_BTRFS_DEBUG
 static inline void btrfs_assert_tree_locked(struct extent_buffer *eb) {
