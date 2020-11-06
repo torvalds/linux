@@ -161,7 +161,7 @@
 	status = "okay";
 
 	/* Magnetometer */
-	lis3mdl: lis3mdl@1e {
+	lis3mdl: magnetometer@1e {
 		compatible = "st,lis3mdl-magn";
 		reg = <0x1e>;
 		vdd-supply = <&reg_dldo1>;
@@ -169,7 +169,7 @@
 	};
 
 	/* Light/proximity sensor */
-	stk3311@48 {
+	light-sensor@48 {
 		compatible = "sensortek,stk3311";
 		reg = <0x48>;
 		interrupt-parent = <&pio>;
@@ -179,7 +179,7 @@
 	};
 
 	/* Accelerometer/gyroscope */
-	mpu6050@68 {
+	accelerometer@68 {
 		compatible = "invensense,mpu6050";
 		reg = <0x68>;
 		interrupt-parent = <&pio>;
