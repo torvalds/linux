@@ -988,9 +988,9 @@ struct journal_s
 	struct block_device	*j_fs_dev;
 
 	/**
-	 * @j_maxlen: Total maximum capacity of the journal region on disk.
+	 * @j_total_len: Total maximum capacity of the journal region on disk.
 	 */
-	unsigned int		j_maxlen;
+	unsigned int		j_total_len;
 
 	/**
 	 * @j_reserved_credits:
@@ -1623,6 +1623,11 @@ int jbd2_submit_inode_data(struct jbd2_inode *jinode);
 int jbd2_wait_inode_data(journal_t *journal, struct jbd2_inode *jinode);
 int jbd2_fc_wait_bufs(journal_t *journal, int num_blks);
 int jbd2_fc_release_bufs(journal_t *journal);
+
+static inline int jbd2_journal_get_max_txn_bufs(journal_t *journal)
+{
+	return (journal->j_total_len - journal->j_fc_wbufsize) / 4;
+}
 
 /*
  * is_journal_abort
