@@ -1950,6 +1950,11 @@ void ath11k_wmi_start_scan_init(struct ath11k *ar,
 				  WMI_SCAN_EVENT_DEQUEUED;
 	arg->scan_flags |= WMI_SCAN_CHAN_STAT_EVENT;
 	arg->num_bssid = 1;
+
+	/* fill bssid_list[0] with 0xff, otherwise bssid and RA will be
+	 * ZEROs in probe request
+	 */
+	eth_broadcast_addr(arg->bssid_list[0].addr);
 }
 
 static inline void
