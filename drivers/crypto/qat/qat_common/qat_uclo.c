@@ -1233,11 +1233,15 @@ static int qat_uclo_simg_alloc(struct icp_qat_fw_loader_handle *handle,
 static void qat_uclo_simg_free(struct icp_qat_fw_loader_handle *handle,
 			       struct icp_firml_dram_desc *dram_desc)
 {
-	dma_free_coherent(&handle->pci_dev->dev,
-			  (size_t)(dram_desc->dram_size),
-			  dram_desc->dram_base_addr_v,
-			  dram_desc->dram_bus_addr);
-	memset(dram_desc, 0, sizeof(*dram_desc));
+	if (handle && dram_desc && dram_desc->dram_base_addr_v) {
+		dma_free_coherent(&handle->pci_dev->dev,
+				  (size_t)(dram_desc->dram_size),
+				  dram_desc->dram_base_addr_v,
+				  dram_desc->dram_bus_addr);
+	}
+
+	if (dram_desc)
+		memset(dram_desc, 0, sizeof(*dram_desc));
 }
 
 static void qat_uclo_ummap_auth_fw(struct icp_qat_fw_loader_handle *handle,
@@ -1245,12 +1249,14 @@ static void qat_uclo_ummap_auth_fw(struct icp_qat_fw_loader_handle *handle,
 {
 	struct icp_firml_dram_desc dram_desc;
 
-	dram_desc.dram_base_addr_v = *desc;
-	dram_desc.dram_bus_addr = ((struct icp_qat_auth_chunk *)
-				   (*desc))->chunk_bus_addr;
-	dram_desc.dram_size = ((struct icp_qat_auth_chunk *)
-			       (*desc))->chunk_size;
-	qat_uclo_simg_free(handle, &dram_desc);
+	if (*desc) {
+		dram_desc.dram_base_addr_v = *desc;
+		dram_desc.dram_bus_addr = ((struct icp_qat_auth_chunk *)
+					   (*desc))->chunk_bus_addr;
+		dram_desc.dram_size = ((struct icp_qat_auth_chunk *)
+				       (*desc))->chunk_size;
+		qat_uclo_simg_free(handle, &dram_desc);
+	}
 }
 
 static int qat_uclo_map_auth_fw(struct icp_qat_fw_loader_handle *handle,
