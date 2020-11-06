@@ -54,8 +54,8 @@ static struct br_mrp *br_mrp_find_id(struct net_bridge *br, u32 ring_id)
 	struct br_mrp *res = NULL;
 	struct br_mrp *mrp;
 
-	list_for_each_entry_rcu(mrp, &br->mrp_list, list,
-				lockdep_rtnl_is_held()) {
+	hlist_for_each_entry_rcu(mrp, &br->mrp_list, list,
+				 lockdep_rtnl_is_held()) {
 		if (mrp->ring_id == ring_id) {
 			res = mrp;
 			break;
@@ -70,8 +70,8 @@ static struct br_mrp *br_mrp_find_in_id(struct net_bridge *br, u32 in_id)
 	struct br_mrp *res = NULL;
 	struct br_mrp *mrp;
 
-	list_for_each_entry_rcu(mrp, &br->mrp_list, list,
-				lockdep_rtnl_is_held()) {
+	hlist_for_each_entry_rcu(mrp, &br->mrp_list, list,
+				 lockdep_rtnl_is_held()) {
 		if (mrp->in_id == in_id) {
 			res = mrp;
 			break;
@@ -85,8 +85,8 @@ static bool br_mrp_unique_ifindex(struct net_bridge *br, u32 ifindex)
 {
 	struct br_mrp *mrp;
 
-	list_for_each_entry_rcu(mrp, &br->mrp_list, list,
-				lockdep_rtnl_is_held()) {
+	hlist_for_each_entry_rcu(mrp, &br->mrp_list, list,
+				 lockdep_rtnl_is_held()) {
 		struct net_bridge_port *p;
 
 		p = rtnl_dereference(mrp->p_port);
@@ -111,8 +111,8 @@ static struct br_mrp *br_mrp_find_port(struct net_bridge *br,
 	struct br_mrp *res = NULL;
 	struct br_mrp *mrp;
 
-	list_for_each_entry_rcu(mrp, &br->mrp_list, list,
-				lockdep_rtnl_is_held()) {
+	hlist_for_each_entry_rcu(mrp, &br->mrp_list, list,
+				 lockdep_rtnl_is_held()) {
 		if (rcu_access_pointer(mrp->p_port) == p ||
 		    rcu_access_pointer(mrp->s_port) == p ||
 		    rcu_access_pointer(mrp->i_port) == p) {
@@ -450,10 +450,10 @@ static void br_mrp_del_impl(struct net_bridge *br, struct br_mrp *mrp)
 		rcu_assign_pointer(mrp->i_port, NULL);
 	}
 
-	list_del_rcu(&mrp->list);
+	hlist_del_rcu(&mrp->list);
 	kfree_rcu(mrp, rcu);
 
-	if (list_empty(&br->mrp_list))
+	if (hlist_empty(&br->mrp_list))
 		br_del_frame(br, &mrp_frame_type);
 }
 
@@ -503,12 +503,12 @@ int br_mrp_add(struct net_bridge *br, struct br_mrp_instance *instance)
 	spin_unlock_bh(&br->lock);
 	rcu_assign_pointer(mrp->s_port, p);
 
-	if (list_empty(&br->mrp_list))
+	if (hlist_empty(&br->mrp_list))
 		br_add_frame(br, &mrp_frame_type);
 
 	INIT_DELAYED_WORK(&mrp->test_work, br_mrp_test_work_expired);
 	INIT_DELAYED_WORK(&mrp->in_test_work, br_mrp_in_test_work_expired);
-	list_add_tail_rcu(&mrp->list, &br->mrp_list);
+	hlist_add_tail_rcu(&mrp->list, &br->mrp_list);
 
 	err = br_mrp_switchdev_add(br, mrp);
 	if (err)
@@ -1198,5 +1198,5 @@ out:
 
 bool br_mrp_enabled(struct net_bridge *br)
 {
-	return !list_empty(&br->mrp_list);
+	return !hlist_empty(&br->mrp_list);
 }
