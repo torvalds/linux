@@ -7,14 +7,16 @@
  *     Tushar Dave <tushar.n.dave@intel.com>
  */
 
+#include <linux/acpi.h>
+#include <linux/delay.h>
 #include <linux/module.h>
-#include <linux/types.h>
 #include <linux/init.h>
 #include <linux/pci.h>
-#include <linux/acpi.h>
-#include <linux/thermal.h>
-#include <linux/units.h>
 #include <linux/pm.h>
+#include <linux/suspend.h>
+#include <linux/thermal.h>
+#include <linux/types.h>
+#include <linux/units.h>
 
 /* Intel PCH thermal Device IDs */
 #define PCH_THERMAL_DID_HSW_1	0x9C24 /* Haswell PCH */
@@ -35,6 +37,7 @@
 #define WPT_TSREL	0x0A	/* Thermal Sensor Report Enable and Lock */
 #define WPT_TSMIC	0x0C	/* Thermal Sensor SMI Control */
 #define WPT_CTT	0x0010	/* Catastrophic Trip Point */
+#define WPT_TSPM	0x001C	/* Thermal Sensor Power Management */
 #define WPT_TAHV	0x0014	/* Thermal Alert High Value */
 #define WPT_TALV	0x0018	/* Thermal Alert Low Value */
 #define WPT_TL		0x00000040	/* Throttle Value */
@@ -54,6 +57,22 @@
 #define WPT_TL_TOL	0x000001FF	/* T0 Level */
 #define WPT_TL_T1L	0x1ff00000	/* T1 Level */
 #define WPT_TL_TTEN	0x20000000	/* TT Enable */
+
+/* Resolution of 1/2 degree C and an offset of -50C */
+#define PCH_TEMP_OFFSET	(-50)
+#define GET_WPT_TEMP(x)	((x) * MILLIDEGREE_PER_DEGREE / 2 + WPT_TEMP_OFFSET)
+#define WPT_TEMP_OFFSET	(PCH_TEMP_OFFSET * MILLIDEGREE_PER_DEGREE)
+#define GET_PCH_TEMP(x)	(((x) / 2) + PCH_TEMP_OFFSET)
+
+/* Amount of time for each cooling delay, 100ms by default for now */
+static unsigned int delay_timeout = 100;
+module_param(delay_timeout, int, 0644);
+MODULE_PARM_DESC(delay_timeout, "amount of time delay for each iteration.");
+
+/* Number of iterations for cooling delay, 10 counts by default for now */
+static unsigned int delay_cnt = 10;
+module_param(delay_cnt, int, 0644);
+MODULE_PARM_DESC(delay_cnt, "total number of iterations for time delay.");
 
 static char driver_name[] = "Intel PCH thermal driver";
 
@@ -183,13 +202,58 @@ static int pch_wpt_get_temp(struct pch_thermal_device *ptd, int *temp)
 static int pch_wpt_suspend(struct pch_thermal_device *ptd)
 {
 	u8 tsel;
+	u8 pch_delay_cnt = 1;
+	u16 pch_thr_temp, pch_cur_temp;
 
-	if (ptd->bios_enabled)
+	/* Shutdown the thermal sensor if it is not enabled by BIOS */
+	if (!ptd->bios_enabled) {
+		tsel = readb(ptd->hw_base + WPT_TSEL);
+		writeb(tsel & 0xFE, ptd->hw_base + WPT_TSEL);
+		return 0;
+	}
+
+	/* Do not check temperature if it is not a S0ix capable platform */
+	if (!(acpi_gbl_FADT.flags & ACPI_FADT_LOW_POWER_S0))
 		return 0;
 
-	tsel = readb(ptd->hw_base + WPT_TSEL);
+	/* Do not check temperature if it is not s2idle */
+	if (pm_suspend_via_firmware())
+		return 0;
 
-	writeb(tsel & 0xFE, ptd->hw_base + WPT_TSEL);
+	/* Get the PCH temperature threshold value */
+	pch_thr_temp = GET_PCH_TEMP(WPT_TEMP_TSR & readw(ptd->hw_base + WPT_TSPM));
+
+	/* Get the PCH current temperature value */
+	pch_cur_temp = GET_PCH_TEMP(WPT_TEMP_TSR & readw(ptd->hw_base + WPT_TEMP));
+
+	/*
+	 * If current PCH temperature is higher than configured PCH threshold
+	 * value, run some delay loop with sleep to let the current temperature
+	 * go down below the threshold value which helps to allow system enter
+	 * lower power S0ix suspend state. Even after delay loop if PCH current
+	 * temperature stays above threshold, notify the warning message
+	 * which helps to indentify the reason why S0ix entry was rejected.
+	 */
+	while (pch_delay_cnt <= delay_cnt) {
+		if (pch_cur_temp <= pch_thr_temp)
+			break;
+
+		dev_warn(&ptd->pdev->dev,
+			"CPU-PCH current temp [%dC] higher than the threshold temp [%dC], sleep %d times for %d ms duration\n",
+			pch_cur_temp, pch_thr_temp, pch_delay_cnt, delay_timeout);
+		msleep(delay_timeout);
+		/* Read the PCH current temperature for next cycle. */
+		pch_cur_temp = GET_PCH_TEMP(WPT_TEMP_TSR & readw(ptd->hw_base + WPT_TEMP));
+		pch_delay_cnt++;
+	}
+
+	if (pch_cur_temp > pch_thr_temp)
+		dev_warn(&ptd->pdev->dev,
+			"CPU-PCH is hot [%dC] even after delay, continue to suspend. S0ix might fail\n",
+			pch_cur_temp);
+	else
+		dev_info(&ptd->pdev->dev,
+			"CPU-PCH is cool [%dC], continue to suspend\n", pch_cur_temp);
 
 	return 0;
 }
