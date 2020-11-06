@@ -945,8 +945,9 @@ struct journal_s
 	/**
 	 * @j_fc_off:
 	 *
-	 * Number of fast commit blocks currently allocated.
-	 * [j_state_lock].
+	 * Number of fast commit blocks currently allocated. Accessed only
+	 * during fast commit. Currently only process can do fast commit, so
+	 * this field is not protected by any lock.
 	 */
 	unsigned long		j_fc_off;
 
@@ -1109,8 +1110,9 @@ struct journal_s
 	struct buffer_head	**j_wbuf;
 
 	/**
-	 * @j_fc_wbuf: Array of fast commit bhs for
-	 * jbd2_journal_commit_transaction.
+	 * @j_fc_wbuf: Array of fast commit bhs for fast commit. Accessed only
+	 * during a fast commit. Currently only process can do fast commit, so
+	 * this field is not protected by any lock.
 	 */
 	struct buffer_head	**j_fc_wbuf;
 
