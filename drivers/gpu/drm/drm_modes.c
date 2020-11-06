@@ -1939,6 +1939,7 @@ void drm_mode_convert_to_umode(struct drm_mode_modeinfo *out,
 	strncpy(out->name, in->name, DRM_DISPLAY_MODE_LEN);
 	out->name[DRM_DISPLAY_MODE_LEN-1] = 0;
 }
+EXPORT_SYMBOL_GPL(drm_mode_convert_to_umode);
 
 /**
  * drm_crtc_convert_umode - convert a modeinfo into a drm_display_mode
