@@ -3060,6 +3060,8 @@ struct host_memory_chunk {
 	__le32 size;
 } __packed;
 
+#define WMI_IRAM_RECOVERY_HOST_MEM_REQ_ID 8
+
 struct wmi_host_mem_chunks {
 	__le32 count;
 	/* some fw revisions require at least 1 chunk regardless of count */
