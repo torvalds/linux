@@ -563,7 +563,7 @@ static int sprd_rtc_check_power_down(struct sprd_rtc *rtc)
 	 * means the RTC has been powered down, so the RTC time values are
 	 * invalid.
 	 */
-	rtc->valid = val == SPRD_RTC_POWER_RESET_VALUE ? false : true;
+	rtc->valid = val != SPRD_RTC_POWER_RESET_VALUE;
 	return 0;
 }
 
