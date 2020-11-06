@@ -729,7 +729,7 @@ static int ocelot_pinconf_get(struct pinctrl_dev *pctldev,
 		if (err)
 			return err;
 		if (param == PIN_CONFIG_BIAS_DISABLE)
-			val = (val == 0 ? true : false);
+			val = (val == 0);
 		else if (param == PIN_CONFIG_BIAS_PULL_DOWN)
 			val = (val & BIAS_PD_BIT ? true : false);
 		else    /* PIN_CONFIG_BIAS_PULL_UP */
