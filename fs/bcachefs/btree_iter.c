@@ -1991,6 +1991,7 @@ int bch2_trans_iter_free(struct btree_trans *trans,
 	return bch2_trans_iter_put(trans, iter);
 }
 
+#if 0
 static int bch2_trans_realloc_iters(struct btree_trans *trans,
 				    unsigned new_size)
 {
@@ -2053,6 +2054,7 @@ success:
 
 	return 0;
 }
+#endif
 
 static struct btree_iter *btree_trans_iter_alloc(struct btree_trans *trans)
 {
@@ -2062,28 +2064,27 @@ static struct btree_iter *btree_trans_iter_alloc(struct btree_trans *trans)
 		goto got_slot;
 
 	if (trans->nr_iters == trans->size) {
-		int ret;
+		struct btree_iter *iter;
 
-		if (trans->nr_iters >= BTREE_ITER_MAX) {
-			struct btree_iter *iter;
+		BUG_ON(trans->size < BTREE_ITER_MAX);
 
-			trans_for_each_iter(trans, iter) {
-				pr_err("iter: btree %s pos %llu:%llu%s%s%s %ps",
-				       bch2_btree_ids[iter->btree_id],
-				       iter->pos.inode,
-				       iter->pos.offset,
-				       (trans->iters_live & (1ULL << iter->idx)) ? " live" : "",
-				       (trans->iters_touched & (1ULL << iter->idx)) ? " touched" : "",
-				       iter->flags & BTREE_ITER_KEEP_UNTIL_COMMIT ? " keep" : "",
-				       (void *) iter->ip_allocated);
-			}
-
-			panic("trans iter oveflow\n");
+		trans_for_each_iter(trans, iter) {
+			pr_err("iter: btree %s pos %llu:%llu%s%s%s %ps",
+			       bch2_btree_ids[iter->btree_id],
+			       iter->pos.inode,
+			       iter->pos.offset,
+			       (trans->iters_live & (1ULL << iter->idx)) ? " live" : "",
+			       (trans->iters_touched & (1ULL << iter->idx)) ? " touched" : "",
+			       iter->flags & BTREE_ITER_KEEP_UNTIL_COMMIT ? " keep" : "",
+			       (void *) iter->ip_allocated);
 		}
 
+		panic("trans iter oveflow\n");
+#if 0
 		ret = bch2_trans_realloc_iters(trans, trans->size * 2);
 		if (ret)
 			return ERR_PTR(ret);
+#endif
 	}
 
 	idx = trans->nr_iters++;
@@ -2326,22 +2327,37 @@ void bch2_trans_reset(struct btree_trans *trans, unsigned flags)
 		bch2_btree_iter_traverse_all(trans);
 }
 
+static void bch2_trans_alloc_iters(struct btree_trans *trans, struct bch_fs *c)
+{
+	unsigned new_size = BTREE_ITER_MAX;
+	size_t iters_bytes	= sizeof(struct btree_iter) * new_size;
+	size_t updates_bytes	= sizeof(struct btree_insert_entry) * new_size;
+	void *p;
+
+	BUG_ON(trans->used_mempool);
+
+	p =     this_cpu_xchg(c->btree_iters_bufs->iter, NULL) ?:
+		mempool_alloc(&trans->c->btree_iters_pool, GFP_NOFS);
+
+	trans->iters		= p; p += iters_bytes;
+	trans->updates		= p; p += updates_bytes;
+	trans->updates2		= p; p += updates_bytes;
+	trans->size		= new_size;
+}
+
 void bch2_trans_init(struct btree_trans *trans, struct bch_fs *c,
 		     unsigned expected_nr_iters,
 		     size_t expected_mem_bytes)
 {
-	/*
-	 * reallocating iterators currently completely breaks
-	 * bch2_trans_iter_put():
-	 */
-	expected_nr_iters = BTREE_ITER_MAX;
-
 	memset(trans, 0, sizeof(*trans));
 	trans->c		= c;
 	trans->ip		= _RET_IP_;
 
-	if (expected_nr_iters > trans->size)
-		bch2_trans_realloc_iters(trans, expected_nr_iters);
+	/*
+	 * reallocating iterators currently completely breaks
+	 * bch2_trans_iter_put(), we always allocate the max:
+	 */
+	bch2_trans_alloc_iters(trans, c);
 
 	if (expected_mem_bytes)
 		bch2_trans_preload_mem(trans, expected_mem_bytes);
@@ -2356,6 +2372,8 @@ void bch2_trans_init(struct btree_trans *trans, struct bch_fs *c,
 
 int bch2_trans_exit(struct btree_trans *trans)
 {
+	struct bch_fs *c = trans->c;
+
 	bch2_trans_unlock(trans);
 
 #ifdef CONFIG_BCACHEFS_DEBUG
@@ -2368,10 +2386,11 @@ int bch2_trans_exit(struct btree_trans *trans)
 
 	kfree(trans->fs_usage_deltas);
 	kfree(trans->mem);
-	if (trans->used_mempool)
+
+	trans->iters = this_cpu_xchg(c->btree_iters_bufs->iter, trans->iters);
+	if (trans->iters)
 		mempool_free(trans->iters, &trans->c->btree_iters_pool);
-	else
-		kfree(trans->iters);
+
 	trans->mem	= (void *) 0x1;
 	trans->iters	= (void *) 0x1;
 

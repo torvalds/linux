@@ -541,6 +541,10 @@ struct journal_keys {
 	u64			journal_seq_base;
 };
 
+struct btree_iter_buf {
+	struct btree_iter	*iter;
+};
+
 struct bch_fs {
 	struct closure		cl;
 
@@ -636,6 +640,7 @@ struct bch_fs {
 	struct mutex		btree_trans_lock;
 	struct list_head	btree_trans_list;
 	mempool_t		btree_iters_pool;
+	struct btree_iter_buf  __percpu	*btree_iters_bufs;
 
 	struct btree_key_cache	btree_key_cache;
 

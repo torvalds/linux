@@ -458,6 +458,7 @@ int bch2_fs_read_write_early(struct bch_fs *c)
 static void __bch2_fs_free(struct bch_fs *c)
 {
 	unsigned i;
+	int cpu;
 
 	for (i = 0; i < BCH_TIME_STAT_NR; i++)
 		bch2_time_stats_exit(&c->times[i]);
@@ -483,6 +484,12 @@ static void __bch2_fs_free(struct bch_fs *c)
 	free_percpu(c->usage[1]);
 	free_percpu(c->usage[0]);
 	kfree(c->usage_base);
+
+	if (c->btree_iters_bufs)
+		for_each_possible_cpu(cpu)
+			kfree(per_cpu_ptr(c->btree_iters_bufs, cpu)->iter);
+
+	free_percpu(c->btree_iters_bufs);
 	free_percpu(c->pcpu);
 	mempool_exit(&c->large_bkey_pool);
 	mempool_exit(&c->btree_bounce_pool);
@@ -762,6 +769,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 			BIOSET_NEED_BVECS) ||
 	    !(c->pcpu = alloc_percpu(struct bch_fs_pcpu)) ||
 	    !(c->online_reserved = alloc_percpu(u64)) ||
+	    !(c->btree_iters_bufs = alloc_percpu(struct btree_iter_buf)) ||
 	    mempool_init_kvpmalloc_pool(&c->btree_bounce_pool, 1,
 					btree_bytes(c)) ||
 	    mempool_init_kmalloc_pool(&c->large_bkey_pool, 1, 2048) ||
