@@ -358,8 +358,12 @@ static int dump_btf_raw(const struct btf *btf,
 		}
 	} else {
 		int cnt = btf__get_nr_types(btf);
+		int start_id = 1;
 
-		for (i = 1; i <= cnt; i++) {
+		if (base_btf)
+			start_id = btf__get_nr_types(base_btf) + 1;
+
+		for (i = start_id; i <= cnt; i++) {
 			t = btf__type_by_id(btf, i);
 			dump_btf_type(btf, i, t);
 		}
@@ -438,7 +442,6 @@ static int do_dump(int argc, char **argv)
 		return -1;
 	}
 	src = GET_ARG();
-
 	if (is_prefix(src, "map")) {
 		struct bpf_map_info info = {};
 		__u32 len = sizeof(info);
@@ -499,7 +502,7 @@ static int do_dump(int argc, char **argv)
 		}
 		NEXT_ARG();
 	} else if (is_prefix(src, "file")) {
-		btf = btf__parse(*argv, NULL);
+		btf = btf__parse_split(*argv, base_btf);
 		if (IS_ERR(btf)) {
 			err = -PTR_ERR(btf);
 			btf = NULL;

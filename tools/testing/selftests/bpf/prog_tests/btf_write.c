@@ -2,6 +2,7 @@
 /* Copyright (c) 2020 Facebook */
 #include <test_progs.h>
 #include <bpf/btf.h>
+#include "btf_helpers.h"
 
 static int duration = 0;
 
@@ -39,6 +40,8 @@ void test_btf_write() {
 	ASSERT_EQ(t->size, 4, "int_sz");
 	ASSERT_EQ(btf_int_encoding(t), BTF_INT_SIGNED, "int_enc");
 	ASSERT_EQ(btf_int_bits(t), 32, "int_bits");
+	ASSERT_STREQ(btf_type_raw_dump(btf, 1),
+		     "[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED", "raw_dump");
 
 	/* invalid int size */
 	id = btf__add_int(btf, "bad sz int", 7, 0);
@@ -59,24 +62,32 @@ void test_btf_write() {
 	t = btf__type_by_id(btf, 2);
 	ASSERT_EQ(btf_kind(t), BTF_KIND_PTR, "ptr_kind");
 	ASSERT_EQ(t->type, 1, "ptr_type");
+	ASSERT_STREQ(btf_type_raw_dump(btf, 2),
+		     "[2] PTR '(anon)' type_id=1", "raw_dump");
 
 	id = btf__add_const(btf, 5); /* points forward to restrict */
 	ASSERT_EQ(id, 3, "const_id");
 	t = btf__type_by_id(btf, 3);
 	ASSERT_EQ(btf_kind(t), BTF_KIND_CONST, "const_kind");
 	ASSERT_EQ(t->type, 5, "const_type");
+	ASSERT_STREQ(btf_type_raw_dump(btf, 3),
+		     "[3] CONST '(anon)' type_id=5", "raw_dump");
 
 	id = btf__add_volatile(btf, 3);
 	ASSERT_EQ(id, 4, "volatile_id");
 	t = btf__type_by_id(btf, 4);
 	ASSERT_EQ(btf_kind(t), BTF_KIND_VOLATILE, "volatile_kind");
 	ASSERT_EQ(t->type, 3, "volatile_type");
+	ASSERT_STREQ(btf_type_raw_dump(btf, 4),
+		     "[4] VOLATILE '(anon)' type_id=3", "raw_dump");
 
 	id = btf__add_restrict(btf, 4);
 	ASSERT_EQ(id, 5, "restrict_id");
 	t = btf__type_by_id(btf, 5);
 	ASSERT_EQ(btf_kind(t), BTF_KIND_RESTRICT, "restrict_kind");
 	ASSERT_EQ(t->type, 4, "restrict_type");
+	ASSERT_STREQ(btf_type_raw_dump(btf, 5),
+		     "[5] RESTRICT '(anon)' type_id=4", "raw_dump");
 
 	/* ARRAY */
 	id = btf__add_array(btf, 1, 2, 10); /* int *[10] */
@@ -86,6 +97,8 @@ void test_btf_write() {
 	ASSERT_EQ(btf_array(t)->index_type, 1, "array_index_type");
 	ASSERT_EQ(btf_array(t)->type, 2, "array_elem_type");
 	ASSERT_EQ(btf_array(t)->nelems, 10, "array_nelems");
+	ASSERT_STREQ(btf_type_raw_dump(btf, 6),
+		     "[6] ARRAY '(anon)' type_id=2 index_type_id=1 nr_elems=10", "raw_dump");
 
 	/* STRUCT */
 	err = btf__add_field(btf, "field", 1, 0, 0);
@@ -113,6 +126,10 @@ void test_btf_write() {
 	ASSERT_EQ(m->type, 1, "f2_type");
 	ASSERT_EQ(btf_member_bit_offset(t, 1), 32, "f2_bit_off");
 	ASSERT_EQ(btf_member_bitfield_size(t, 1), 16, "f2_bit_sz");
+	ASSERT_STREQ(btf_type_raw_dump(btf, 7),
+		     "[7] STRUCT 's1' size=8 vlen=2\n"
+		     "\t'f1' type_id=1 bits_offset=0\n"
+		     "\t'f2' type_id=1 bits_offset=32 bitfield_size=16", "raw_dump");
 
 	/* UNION */
 	id = btf__add_union(btf, "u1", 8);
@@ -136,6 +153,9 @@ void test_btf_write() {
 	ASSERT_EQ(m->type, 1, "f1_type");
 	ASSERT_EQ(btf_member_bit_offset(t, 0), 0, "f1_bit_off");
 	ASSERT_EQ(btf_member_bitfield_size(t, 0), 16, "f1_bit_sz");
+	ASSERT_STREQ(btf_type_raw_dump(btf, 8),
+		     "[8] UNION 'u1' size=8 vlen=1\n"
+		     "\t'f1' type_id=1 bits_offset=0 bitfield_size=16", "raw_dump");
 
 	/* ENUM */
 	id = btf__add_enum(btf, "e1", 4);
@@ -156,6 +176,10 @@ void test_btf_write() {
 	v = btf_enum(t) + 1;
 	ASSERT_STREQ(btf__str_by_offset(btf, v->name_off), "v2", "v2_name");
 	ASSERT_EQ(v->val, 2, "v2_val");
+	ASSERT_STREQ(btf_type_raw_dump(btf, 9),
+		     "[9] ENUM 'e1' size=4 vlen=2\n"
+		     "\t'v1' val=1\n"
+		     "\t'v2' val=2", "raw_dump");
 
 	/* FWDs */
 	id = btf__add_fwd(btf, "struct_fwd", BTF_FWD_STRUCT);
@@ -164,6 +188,8 @@ void test_btf_write() {
 	ASSERT_STREQ(btf__str_by_offset(btf, t->name_off), "struct_fwd", "fwd_name");
 	ASSERT_EQ(btf_kind(t), BTF_KIND_FWD, "fwd_kind");
 	ASSERT_EQ(btf_kflag(t), 0, "fwd_kflag");
+	ASSERT_STREQ(btf_type_raw_dump(btf, 10),
+		     "[10] FWD 'struct_fwd' fwd_kind=struct", "raw_dump");
 
 	id = btf__add_fwd(btf, "union_fwd", BTF_FWD_UNION);
 	ASSERT_EQ(id, 11, "union_fwd_id");
@@ -171,6 +197,8 @@ void test_btf_write() {
 	ASSERT_STREQ(btf__str_by_offset(btf, t->name_off), "union_fwd", "fwd_name");
 	ASSERT_EQ(btf_kind(t), BTF_KIND_FWD, "fwd_kind");
 	ASSERT_EQ(btf_kflag(t), 1, "fwd_kflag");
+	ASSERT_STREQ(btf_type_raw_dump(btf, 11),
+		     "[11] FWD 'union_fwd' fwd_kind=union", "raw_dump");
 
 	id = btf__add_fwd(btf, "enum_fwd", BTF_FWD_ENUM);
 	ASSERT_EQ(id, 12, "enum_fwd_id");
@@ -179,6 +207,8 @@ void test_btf_write() {
 	ASSERT_EQ(btf_kind(t), BTF_KIND_ENUM, "enum_fwd_kind");
 	ASSERT_EQ(btf_vlen(t), 0, "enum_fwd_kind");
 	ASSERT_EQ(t->size, 4, "enum_fwd_sz");
+	ASSERT_STREQ(btf_type_raw_dump(btf, 12),
+		     "[12] ENUM 'enum_fwd' size=4 vlen=0", "raw_dump");
 
 	/* TYPEDEF */
 	id = btf__add_typedef(btf, "typedef1", 1);
@@ -187,6 +217,8 @@ void test_btf_write() {
 	ASSERT_STREQ(btf__str_by_offset(btf, t->name_off), "typedef1", "typedef_name");
 	ASSERT_EQ(btf_kind(t), BTF_KIND_TYPEDEF, "typedef_kind");
 	ASSERT_EQ(t->type, 1, "typedef_type");
+	ASSERT_STREQ(btf_type_raw_dump(btf, 13),
+		     "[13] TYPEDEF 'typedef1' type_id=1", "raw_dump");
 
 	/* FUNC & FUNC_PROTO */
 	id = btf__add_func(btf, "func1", BTF_FUNC_GLOBAL, 15);
@@ -196,6 +228,8 @@ void test_btf_write() {
 	ASSERT_EQ(t->type, 15, "func_type");
 	ASSERT_EQ(btf_kind(t), BTF_KIND_FUNC, "func_kind");
 	ASSERT_EQ(btf_vlen(t), BTF_FUNC_GLOBAL, "func_vlen");
+	ASSERT_STREQ(btf_type_raw_dump(btf, 14),
+		     "[14] FUNC 'func1' type_id=15 linkage=global", "raw_dump");
 
 	id = btf__add_func_proto(btf, 1);
 	ASSERT_EQ(id, 15, "func_proto_id");
@@ -214,6 +248,10 @@ void test_btf_write() {
 	p = btf_params(t) + 1;
 	ASSERT_STREQ(btf__str_by_offset(btf, p->name_off), "p2", "p2_name");
 	ASSERT_EQ(p->type, 2, "p2_type");
+	ASSERT_STREQ(btf_type_raw_dump(btf, 15),
+		     "[15] FUNC_PROTO '(anon)' ret_type_id=1 vlen=2\n"
+		     "\t'p1' type_id=1\n"
+		     "\t'p2' type_id=2", "raw_dump");
 
 	/* VAR */
 	id = btf__add_var(btf, "var1", BTF_VAR_GLOBAL_ALLOCATED, 1);
@@ -223,6 +261,8 @@ void test_btf_write() {
 	ASSERT_EQ(btf_kind(t), BTF_KIND_VAR, "var_kind");
 	ASSERT_EQ(t->type, 1, "var_type");
 	ASSERT_EQ(btf_var(t)->linkage, BTF_VAR_GLOBAL_ALLOCATED, "var_type");
+	ASSERT_STREQ(btf_type_raw_dump(btf, 16),
+		     "[16] VAR 'var1' type_id=1, linkage=global-alloc", "raw_dump");
 
 	/* DATASECT */
 	id = btf__add_datasec(btf, "datasec1", 12);
@@ -239,6 +279,9 @@ void test_btf_write() {
 	ASSERT_EQ(vi->type, 1, "v1_type");
 	ASSERT_EQ(vi->offset, 4, "v1_off");
 	ASSERT_EQ(vi->size, 8, "v1_sz");
+	ASSERT_STREQ(btf_type_raw_dump(btf, 17),
+		     "[17] DATASEC 'datasec1' size=12 vlen=1\n"
+		     "\ttype_id=1 offset=4 size=8", "raw_dump");
 
 	btf__free(btf);
 }
