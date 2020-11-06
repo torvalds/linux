@@ -439,8 +439,13 @@ perf_ftrace_function_call(unsigned long ip, unsigned long parent_ip,
 	struct hlist_head head;
 	struct pt_regs regs;
 	int rctx;
+	int bit;
 
 	if ((unsigned long)ops->private != smp_processor_id())
+		return;
+
+	bit = ftrace_test_recursion_trylock();
+	if (bit < 0)
 		return;
 
 	event = container_of(ops, struct perf_event, ftrace_ops);
@@ -463,13 +468,15 @@ perf_ftrace_function_call(unsigned long ip, unsigned long parent_ip,
 
 	entry = perf_trace_buf_alloc(ENTRY_SIZE, NULL, &rctx);
 	if (!entry)
-		return;
+		goto out;
 
 	entry->ip = ip;
 	entry->parent_ip = parent_ip;
 	perf_trace_buf_submit(entry, ENTRY_SIZE, rctx, TRACE_FN,
 			      1, &regs, &head, NULL);
 
+out:
+	ftrace_test_recursion_unlock(bit);
 #undef ENTRY_SIZE
 }
 
