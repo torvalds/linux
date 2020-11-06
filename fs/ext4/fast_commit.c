@@ -546,7 +546,7 @@ static void ext4_fc_submit_bh(struct super_block *sb)
 	if (test_opt(sb, BARRIER))
 		write_flags |= REQ_FUA | REQ_PREFLUSH;
 	lock_buffer(bh);
-	clear_buffer_dirty(bh);
+	set_buffer_dirty(bh);
 	set_buffer_uptodate(bh);
 	bh->b_end_io = ext4_end_buffer_io_sync;
 	submit_bh(REQ_OP_WRITE, write_flags, bh);
