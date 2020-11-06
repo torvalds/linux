@@ -585,6 +585,7 @@ void amdgpu_mm_wdoorbell64(struct amdgpu_device *adev, u32 index, u64 v)
  * @adev: amdgpu_device pointer
  * @pcie_index: mmio register offset
  * @pcie_data: mmio register offset
+ * @reg_addr: indirect register address to read from
  *
  * Returns the value of indirect register @reg_addr
  */
@@ -615,6 +616,7 @@ u32 amdgpu_device_indirect_rreg(struct amdgpu_device *adev,
  * @adev: amdgpu_device pointer
  * @pcie_index: mmio register offset
  * @pcie_data: mmio register offset
+ * @reg_addr: indirect register address to read from
  *
  * Returns the value of indirect register @reg_addr
  */
