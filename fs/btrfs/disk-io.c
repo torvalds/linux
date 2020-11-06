@@ -3149,11 +3149,13 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 	}
 
 	/*
-	 * Keep the devid that is marked to be the target device for the
-	 * device replace procedure
+	 * At this point we know all the devices that make this filesystem,
+	 * including the seed devices but we don't know yet if the replace
+	 * target is required. So free devices that are not part of this
+	 * filesystem but skip the replace traget device which is checked
+	 * below in btrfs_init_dev_replace().
 	 */
-	btrfs_free_extra_devids(fs_devices, 0);
-
+	btrfs_free_extra_devids(fs_devices);
 	if (!fs_devices->latest_bdev) {
 		btrfs_err(fs_info, "failed to read devices");
 		goto fail_tree_roots;
@@ -3199,8 +3201,6 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 		btrfs_err(fs_info, "failed to init dev_replace: %d", ret);
 		goto fail_block_groups;
 	}
-
-	btrfs_free_extra_devids(fs_devices, 1);
 
 	ret = btrfs_sysfs_add_fsid(fs_devices);
 	if (ret) {
