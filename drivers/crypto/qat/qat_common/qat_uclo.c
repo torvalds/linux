@@ -1437,18 +1437,272 @@ out_objbuf_err:
 	return -ENOMEM;
 }
 
-int qat_uclo_map_obj(struct icp_qat_fw_loader_handle *handle,
-		     void *addr_ptr, int mem_size)
+static int qat_uclo_map_mof_file_hdr(struct icp_qat_fw_loader_handle *handle,
+				     struct icp_qat_mof_file_hdr *mof_ptr,
+				     u32 mof_size)
 {
+	struct icp_qat_mof_handle *mobj_handle = handle->mobj_handle;
+	unsigned int min_ver_offset;
+	unsigned int checksum;
+
+	mobj_handle->file_id = ICP_QAT_MOF_FID;
+	mobj_handle->mof_buf = (char *)mof_ptr;
+	mobj_handle->mof_size = mof_size;
+
+	min_ver_offset = mof_size - offsetof(struct icp_qat_mof_file_hdr,
+					     min_ver);
+	checksum = qat_uclo_calc_str_checksum(&mof_ptr->min_ver,
+					      min_ver_offset);
+	if (checksum != mof_ptr->checksum) {
+		pr_err("QAT: incorrect MOF checksum\n");
+		return -EINVAL;
+	}
+
+	mobj_handle->checksum = mof_ptr->checksum;
+	mobj_handle->min_ver = mof_ptr->min_ver;
+	mobj_handle->maj_ver = mof_ptr->maj_ver;
+	return 0;
+}
+
+static void qat_uclo_del_mof(struct icp_qat_fw_loader_handle *handle)
+{
+	struct icp_qat_mof_handle *mobj_handle = handle->mobj_handle;
+
+	kfree(mobj_handle->obj_table.obj_hdr);
+	mobj_handle->obj_table.obj_hdr = NULL;
+	kfree(handle->mobj_handle);
+	handle->mobj_handle = NULL;
+}
+
+static int qat_uclo_seek_obj_inside_mof(struct icp_qat_mof_handle *mobj_handle,
+					char *obj_name, char **obj_ptr,
+					unsigned int *obj_size)
+{
+	struct icp_qat_mof_objhdr *obj_hdr = mobj_handle->obj_table.obj_hdr;
+	unsigned int i;
+
+	for (i = 0; i < mobj_handle->obj_table.num_objs; i++) {
+		if (!strncmp(obj_hdr[i].obj_name, obj_name,
+			     ICP_QAT_SUOF_OBJ_NAME_LEN)) {
+			*obj_ptr  = obj_hdr[i].obj_buf;
+			*obj_size = obj_hdr[i].obj_size;
+			return 0;
+		}
+	}
+
+	pr_err("QAT: object %s is not found inside MOF\n", obj_name);
+	return -EINVAL;
+}
+
+static int qat_uclo_map_obj_from_mof(struct icp_qat_mof_handle *mobj_handle,
+				     struct icp_qat_mof_objhdr *mobj_hdr,
+				     struct icp_qat_mof_obj_chunkhdr *obj_chunkhdr)
+{
+	u8 *obj;
+
+	if (!strncmp(obj_chunkhdr->chunk_id, ICP_QAT_UOF_IMAG,
+		     ICP_QAT_MOF_OBJ_CHUNKID_LEN)) {
+		obj = mobj_handle->uobjs_hdr + obj_chunkhdr->offset;
+	} else if (!strncmp(obj_chunkhdr->chunk_id, ICP_QAT_SUOF_IMAG,
+			    ICP_QAT_MOF_OBJ_CHUNKID_LEN)) {
+		obj = mobj_handle->sobjs_hdr + obj_chunkhdr->offset;
+	} else {
+		pr_err("QAT: unsupported chunk id\n");
+		return -EINVAL;
+	}
+	mobj_hdr->obj_buf = obj;
+	mobj_hdr->obj_size = (unsigned int)obj_chunkhdr->size;
+	mobj_hdr->obj_name = obj_chunkhdr->name + mobj_handle->sym_str;
+	return 0;
+}
+
+static int qat_uclo_map_objs_from_mof(struct icp_qat_mof_handle *mobj_handle)
+{
+	struct icp_qat_mof_obj_chunkhdr *uobj_chunkhdr;
+	struct icp_qat_mof_obj_chunkhdr *sobj_chunkhdr;
+	struct icp_qat_mof_obj_hdr *uobj_hdr;
+	struct icp_qat_mof_obj_hdr *sobj_hdr;
+	struct icp_qat_mof_objhdr *mobj_hdr;
+	unsigned int uobj_chunk_num = 0;
+	unsigned int sobj_chunk_num = 0;
+	unsigned int *valid_chunk;
+	int ret, i;
+
+	uobj_hdr = (struct icp_qat_mof_obj_hdr *)mobj_handle->uobjs_hdr;
+	sobj_hdr = (struct icp_qat_mof_obj_hdr *)mobj_handle->sobjs_hdr;
+	if (uobj_hdr)
+		uobj_chunk_num = uobj_hdr->num_chunks;
+	if (sobj_hdr)
+		sobj_chunk_num = sobj_hdr->num_chunks;
+
+	mobj_hdr = kzalloc((uobj_chunk_num + sobj_chunk_num) *
+			   sizeof(*mobj_hdr), GFP_KERNEL);
+	if (!mobj_hdr)
+		return -ENOMEM;
+
+	mobj_handle->obj_table.obj_hdr = mobj_hdr;
+	valid_chunk = &mobj_handle->obj_table.num_objs;
+	uobj_chunkhdr = (struct icp_qat_mof_obj_chunkhdr *)
+			 ((uintptr_t)uobj_hdr + sizeof(*uobj_hdr));
+	sobj_chunkhdr = (struct icp_qat_mof_obj_chunkhdr *)
+			((uintptr_t)sobj_hdr + sizeof(*sobj_hdr));
+
+	/* map uof objects */
+	for (i = 0; i < uobj_chunk_num; i++) {
+		ret = qat_uclo_map_obj_from_mof(mobj_handle,
+						&mobj_hdr[*valid_chunk],
+						&uobj_chunkhdr[i]);
+		if (ret)
+			return ret;
+		(*valid_chunk)++;
+	}
+
+	/* map suof objects */
+	for (i = 0; i < sobj_chunk_num; i++) {
+		ret = qat_uclo_map_obj_from_mof(mobj_handle,
+						&mobj_hdr[*valid_chunk],
+						&sobj_chunkhdr[i]);
+		if (ret)
+			return ret;
+		(*valid_chunk)++;
+	}
+
+	if ((uobj_chunk_num + sobj_chunk_num) != *valid_chunk) {
+		pr_err("QAT: inconsistent UOF/SUOF chunk amount\n");
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static void qat_uclo_map_mof_symobjs(struct icp_qat_mof_handle *mobj_handle,
+				     struct icp_qat_mof_chunkhdr *mof_chunkhdr)
+{
+	char **sym_str = (char **)&mobj_handle->sym_str;
+	unsigned int *sym_size = &mobj_handle->sym_size;
+	struct icp_qat_mof_str_table *str_table_obj;
+
+	*sym_size = *(unsigned int *)(uintptr_t)
+		    (mof_chunkhdr->offset + mobj_handle->mof_buf);
+	*sym_str = (char *)(uintptr_t)
+		   (mobj_handle->mof_buf + mof_chunkhdr->offset +
+		    sizeof(str_table_obj->tab_len));
+}
+
+static void qat_uclo_map_mof_chunk(struct icp_qat_mof_handle *mobj_handle,
+				   struct icp_qat_mof_chunkhdr *mof_chunkhdr)
+{
+	char *chunk_id = mof_chunkhdr->chunk_id;
+
+	if (!strncmp(chunk_id, ICP_QAT_MOF_SYM_OBJS, ICP_QAT_MOF_OBJ_ID_LEN))
+		qat_uclo_map_mof_symobjs(mobj_handle, mof_chunkhdr);
+	else if (!strncmp(chunk_id, ICP_QAT_UOF_OBJS, ICP_QAT_MOF_OBJ_ID_LEN))
+		mobj_handle->uobjs_hdr = mobj_handle->mof_buf +
+					 mof_chunkhdr->offset;
+	else if (!strncmp(chunk_id, ICP_QAT_SUOF_OBJS, ICP_QAT_MOF_OBJ_ID_LEN))
+		mobj_handle->sobjs_hdr = mobj_handle->mof_buf +
+					 mof_chunkhdr->offset;
+}
+
+static int qat_uclo_check_mof_format(struct icp_qat_mof_file_hdr *mof_hdr)
+{
+	int maj = mof_hdr->maj_ver & 0xff;
+	int min = mof_hdr->min_ver & 0xff;
+
+	if (mof_hdr->file_id != ICP_QAT_MOF_FID) {
+		pr_err("QAT: invalid header 0x%x\n", mof_hdr->file_id);
+		return -EINVAL;
+	}
+
+	if (mof_hdr->num_chunks <= 0x1) {
+		pr_err("QAT: MOF chunk amount is incorrect\n");
+		return -EINVAL;
+	}
+	if (maj != ICP_QAT_MOF_MAJVER || min != ICP_QAT_MOF_MINVER) {
+		pr_err("QAT: bad MOF version, major 0x%x, minor 0x%x\n",
+		       maj, min);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int qat_uclo_map_mof_obj(struct icp_qat_fw_loader_handle *handle,
+				struct icp_qat_mof_file_hdr *mof_ptr,
+				u32 mof_size, char *obj_name, char **obj_ptr,
+				unsigned int *obj_size)
+{
+	struct icp_qat_mof_chunkhdr *mof_chunkhdr;
+	unsigned int file_id = mof_ptr->file_id;
+	struct icp_qat_mof_handle *mobj_handle;
+	unsigned short chunks_num;
+	unsigned int i;
+	int ret;
+
+	if (file_id == ICP_QAT_UOF_FID || file_id == ICP_QAT_SUOF_FID) {
+		if (obj_ptr)
+			*obj_ptr = (char *)mof_ptr;
+		if (obj_size)
+			*obj_size = mof_size;
+		return 0;
+	}
+	if (qat_uclo_check_mof_format(mof_ptr))
+		return -EINVAL;
+
+	mobj_handle = kzalloc(sizeof(*mobj_handle), GFP_KERNEL);
+	if (!mobj_handle)
+		return -ENOMEM;
+
+	handle->mobj_handle = mobj_handle;
+	ret = qat_uclo_map_mof_file_hdr(handle, mof_ptr, mof_size);
+	if (ret)
+		return ret;
+
+	mof_chunkhdr = (void *)mof_ptr + sizeof(*mof_ptr);
+	chunks_num = mof_ptr->num_chunks;
+
+	/* Parse MOF file chunks */
+	for (i = 0; i < chunks_num; i++)
+		qat_uclo_map_mof_chunk(mobj_handle, &mof_chunkhdr[i]);
+
+	/* All sym_objs uobjs and sobjs should be available */
+	if (!mobj_handle->sym_str ||
+	    (!mobj_handle->uobjs_hdr && !mobj_handle->sobjs_hdr))
+		return -EINVAL;
+
+	ret = qat_uclo_map_objs_from_mof(mobj_handle);
+	if (ret)
+		return ret;
+
+	/* Seek specified uof object in MOF */
+	return qat_uclo_seek_obj_inside_mof(mobj_handle, obj_name,
+					    obj_ptr, obj_size);
+}
+
+int qat_uclo_map_obj(struct icp_qat_fw_loader_handle *handle,
+		     void *addr_ptr, u32 mem_size, char *obj_name)
+{
+	char *obj_addr;
+	u32 obj_size;
+	int ret;
+
 	BUILD_BUG_ON(ICP_QAT_UCLO_MAX_AE >=
 		     (sizeof(handle->hal_handle->ae_mask) * 8));
 
 	if (!handle || !addr_ptr || mem_size < 24)
 		return -EINVAL;
 
+	if (obj_name) {
+		ret = qat_uclo_map_mof_obj(handle, addr_ptr, mem_size, obj_name,
+					   &obj_addr, &obj_size);
+		if (ret)
+			return ret;
+	} else {
+		obj_addr = addr_ptr;
+		obj_size = mem_size;
+	}
+
 	return (handle->fw_auth) ?
-			qat_uclo_map_suof_obj(handle, addr_ptr, mem_size) :
-			qat_uclo_map_uof_obj(handle, addr_ptr, mem_size);
+			qat_uclo_map_suof_obj(handle, obj_addr, obj_size) :
+			qat_uclo_map_uof_obj(handle, obj_addr, obj_size);
 }
 
 void qat_uclo_del_uof_obj(struct icp_qat_fw_loader_handle *handle)
@@ -1456,6 +1710,8 @@ void qat_uclo_del_uof_obj(struct icp_qat_fw_loader_handle *handle)
 	struct icp_qat_uclo_objhandle *obj_handle = handle->obj_handle;
 	unsigned int a;
 
+	if (handle->mobj_handle)
+		qat_uclo_del_mof(handle);
 	if (handle->sobj_handle)
 		qat_uclo_del_suof(handle);
 	if (!obj_handle)

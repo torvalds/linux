@@ -27,6 +27,7 @@ struct icp_qat_fw_loader_handle {
 	struct pci_dev *pci_dev;
 	void *obj_handle;
 	void *sobj_handle;
+	void *mobj_handle;
 	bool fw_auth;
 	void __iomem *hal_sram_addr_v;
 	void __iomem *hal_cap_g_ctl_csr_addr_v;

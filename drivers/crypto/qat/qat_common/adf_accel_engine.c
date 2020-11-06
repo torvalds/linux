@@ -38,7 +38,7 @@ int adf_ae_fw_load(struct adf_accel_dev *accel_dev)
 		dev_err(&GET_DEV(accel_dev), "Failed to load MMP\n");
 		goto out_err;
 	}
-	if (qat_uclo_map_obj(loader_data->fw_loader, uof_addr, uof_size)) {
+	if (qat_uclo_map_obj(loader_data->fw_loader, uof_addr, uof_size, NULL)) {
 		dev_err(&GET_DEV(accel_dev), "Failed to map FW\n");
 		goto out_err;
 	}

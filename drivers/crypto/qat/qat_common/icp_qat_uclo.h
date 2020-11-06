@@ -31,6 +31,15 @@
 #define ICP_QAT_SUOF_FID  0x53554f46
 #define ICP_QAT_SUOF_MAJVER 0x0
 #define ICP_QAT_SUOF_MINVER 0x1
+#define ICP_QAT_SUOF_OBJ_NAME_LEN 128
+#define ICP_QAT_MOF_OBJ_ID_LEN 8
+#define ICP_QAT_MOF_OBJ_CHUNKID_LEN 8
+#define ICP_QAT_MOF_FID 0x00666f6d
+#define ICP_QAT_MOF_MAJVER 0x0
+#define ICP_QAT_MOF_MINVER 0x1
+#define ICP_QAT_MOF_SYM_OBJS "SYM_OBJS"
+#define ICP_QAT_SUOF_OBJS "SUF_OBJS"
+#define ICP_QAT_SUOF_IMAG "SUF_IMAG"
 #define ICP_QAT_SIMG_AE_INIT_SEQ_LEN    (50 * sizeof(unsigned long long))
 #define ICP_QAT_SIMG_AE_INSTS_LEN       (0x4000 * sizeof(unsigned long long))
 #define ICP_QAT_CSS_FWSK_MODULUS_LEN    256
@@ -480,5 +489,65 @@ struct icp_qat_suof_strtable {
 struct icp_qat_suof_objhdr {
 	unsigned int img_length;
 	unsigned int reserved;
+};
+
+struct icp_qat_mof_file_hdr {
+	unsigned int file_id;
+	unsigned int checksum;
+	char min_ver;
+	char maj_ver;
+	unsigned short reserved;
+	unsigned short max_chunks;
+	unsigned short num_chunks;
+};
+
+struct icp_qat_mof_chunkhdr {
+	char chunk_id[ICP_QAT_MOF_OBJ_ID_LEN];
+	u64 offset;
+	u64 size;
+};
+
+struct icp_qat_mof_str_table {
+	unsigned int tab_len;
+	unsigned int strings;
+};
+
+struct icp_qat_mof_obj_hdr {
+	unsigned short max_chunks;
+	unsigned short num_chunks;
+	unsigned int reserved;
+};
+
+struct icp_qat_mof_obj_chunkhdr {
+	char chunk_id[ICP_QAT_MOF_OBJ_CHUNKID_LEN];
+	u64 offset;
+	u64 size;
+	unsigned int name;
+	unsigned int reserved;
+};
+
+struct icp_qat_mof_objhdr {
+	char *obj_name;
+	char *obj_buf;
+	unsigned int obj_size;
+};
+
+struct icp_qat_mof_table {
+	unsigned int num_objs;
+	struct icp_qat_mof_objhdr *obj_hdr;
+};
+
+struct icp_qat_mof_handle {
+	unsigned int file_id;
+	unsigned int checksum;
+	char min_ver;
+	char maj_ver;
+	char *mof_buf;
+	u32 mof_size;
+	char *sym_str;
+	unsigned int sym_size;
+	char *uobjs_hdr;
+	char *sobjs_hdr;
+	struct icp_qat_mof_table obj_table;
 };
 #endif
