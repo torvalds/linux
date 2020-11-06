@@ -1705,7 +1705,7 @@ int qat_uclo_map_obj(struct icp_qat_fw_loader_handle *handle,
 			qat_uclo_map_uof_obj(handle, obj_addr, obj_size);
 }
 
-void qat_uclo_del_uof_obj(struct icp_qat_fw_loader_handle *handle)
+void qat_uclo_del_obj(struct icp_qat_fw_loader_handle *handle)
 {
 	struct icp_qat_uclo_objhandle *obj_handle = handle->obj_handle;
 	unsigned int a;
