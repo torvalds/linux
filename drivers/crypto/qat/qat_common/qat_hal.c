@@ -273,10 +273,10 @@ void qat_hal_reset(struct icp_qat_fw_loader_handle *handle)
 {
 	unsigned int ae_reset_csr;
 
-	ae_reset_csr = GET_GLB_CSR(handle, ICP_RESET);
+	ae_reset_csr = GET_CAP_CSR(handle, ICP_RESET);
 	ae_reset_csr |= handle->hal_handle->ae_mask << RST_CSR_AE_LSB;
 	ae_reset_csr |= handle->hal_handle->slice_mask << RST_CSR_QAT_LSB;
-	SET_GLB_CSR(handle, ICP_RESET, ae_reset_csr);
+	SET_CAP_CSR(handle, ICP_RESET, ae_reset_csr);
 }
 
 static void qat_hal_wr_indr_csr(struct icp_qat_fw_loader_handle *handle,
@@ -390,9 +390,9 @@ static void qat_hal_reset_timestamp(struct icp_qat_fw_loader_handle *handle)
 	unsigned char ae;
 
 	/* stop the timestamp timers */
-	misc_ctl = GET_GLB_CSR(handle, MISC_CONTROL);
+	misc_ctl = GET_CAP_CSR(handle, MISC_CONTROL);
 	if (misc_ctl & MC_TIMESTAMP_ENABLE)
-		SET_GLB_CSR(handle, MISC_CONTROL, misc_ctl &
+		SET_CAP_CSR(handle, MISC_CONTROL, misc_ctl &
 			    (~MC_TIMESTAMP_ENABLE));
 
 	for_each_set_bit(ae, &ae_mask, handle->hal_handle->ae_max_num) {
@@ -400,7 +400,7 @@ static void qat_hal_reset_timestamp(struct icp_qat_fw_loader_handle *handle)
 		qat_hal_wr_ae_csr(handle, ae, TIMESTAMP_HIGH, 0);
 	}
 	/* start timestamp timers */
-	SET_GLB_CSR(handle, MISC_CONTROL, misc_ctl | MC_TIMESTAMP_ENABLE);
+	SET_CAP_CSR(handle, MISC_CONTROL, misc_ctl | MC_TIMESTAMP_ENABLE);
 }
 
 #define ESRAM_AUTO_TINIT	BIT(2)
@@ -448,21 +448,21 @@ int qat_hal_clr_reset(struct icp_qat_fw_loader_handle *handle)
 	unsigned int csr;
 
 	/* write to the reset csr */
-	ae_reset_csr = GET_GLB_CSR(handle, ICP_RESET);
+	ae_reset_csr = GET_CAP_CSR(handle, ICP_RESET);
 	ae_reset_csr &= ~(handle->hal_handle->ae_mask << RST_CSR_AE_LSB);
 	ae_reset_csr &= ~(handle->hal_handle->slice_mask << RST_CSR_QAT_LSB);
 	do {
-		SET_GLB_CSR(handle, ICP_RESET, ae_reset_csr);
+		SET_CAP_CSR(handle, ICP_RESET, ae_reset_csr);
 		if (!(times--))
 			goto out_err;
-		csr = GET_GLB_CSR(handle, ICP_RESET);
+		csr = GET_CAP_CSR(handle, ICP_RESET);
 	} while ((handle->hal_handle->ae_mask |
 		 (handle->hal_handle->slice_mask << RST_CSR_QAT_LSB)) & csr);
 	/* enable clock */
-	clk_csr = GET_GLB_CSR(handle, ICP_GLOBAL_CLK_ENABLE);
+	clk_csr = GET_CAP_CSR(handle, ICP_GLOBAL_CLK_ENABLE);
 	clk_csr |= handle->hal_handle->ae_mask << 0;
 	clk_csr |= handle->hal_handle->slice_mask << 20;
-	SET_GLB_CSR(handle, ICP_GLOBAL_CLK_ENABLE, clk_csr);
+	SET_CAP_CSR(handle, ICP_GLOBAL_CLK_ENABLE, clk_csr);
 	if (qat_hal_check_ae_alive(handle))
 		goto out_err;
 

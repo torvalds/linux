@@ -5,9 +5,9 @@
 #include "icp_qat_fw_loader_handle.h"
 
 enum hal_global_csr {
-	MISC_CONTROL = 0x04,
-	ICP_RESET = 0x0c,
-	ICP_GLOBAL_CLK_ENABLE = 0x50
+	MISC_CONTROL = 0xA04,
+	ICP_RESET = 0xA0c,
+	ICP_GLOBAL_CLK_ENABLE = 0xA50
 };
 
 enum hal_ae_csr {
@@ -78,7 +78,6 @@ enum fcu_sts {
 #define XCWE_VOLUNTARY              (0x1)
 #define LCS_STATUS          (0x1)
 #define MMC_SHARE_CS_BITPOS         2
-#define GLOBAL_CSR                0xA00
 #define FCU_CTRL_AE_POS     0x8
 #define FCU_AUTH_STS_MASK   0x7
 #define FCU_STS_DONE_POS    0x9
@@ -91,8 +90,6 @@ enum fcu_sts {
 	ADF_CSR_WR((handle)->hal_cap_g_ctl_csr_addr_v, csr, val)
 #define GET_CAP_CSR(handle, csr) \
 	ADF_CSR_RD((handle)->hal_cap_g_ctl_csr_addr_v, csr)
-#define SET_GLB_CSR(handle, csr, val) SET_CAP_CSR(handle, csr + GLOBAL_CSR, val)
-#define GET_GLB_CSR(handle, csr) GET_CAP_CSR(handle, GLOBAL_CSR + csr)
 #define AE_CSR(handle, ae) \
 	((char __iomem *)(handle)->hal_cap_ae_local_csr_addr_v + ((ae) << 12))
 #define AE_CSR_ADDR(handle, ae, csr) (AE_CSR(handle, ae) + (0x3ff & (csr)))
