@@ -57,7 +57,6 @@ required:
   - power-domains
   - clocks
   - clock-names
-  - cdns,max-outbound-regions
   - dma-coherent
   - max-functions
   - phys
@@ -86,7 +85,6 @@ examples:
            power-domains = <&k3_pds 239 TI_SCI_PD_EXCLUSIVE>;
            clocks = <&k3_clks 239 1>;
            clock-names = "fck";
-           cdns,max-outbound-regions = <16>;
            max-functions = /bits/ 8 <6>;
            dma-coherent;
            phys = <&serdes0_pcie_link>;
