@@ -104,7 +104,8 @@ TRACE_DEFINE_ENUM(ES_REFERENCED_B);
 		{ EXT4_FC_REASON_SWAP_BOOT,	"SWAP_BOOT"},		\
 		{ EXT4_FC_REASON_RESIZE,	"RESIZE"},		\
 		{ EXT4_FC_REASON_RENAME_DIR,	"RENAME_DIR"},		\
-		{ EXT4_FC_REASON_FALLOC_RANGE,	"FALLOC_RANGE"})
+		{ EXT4_FC_REASON_FALLOC_RANGE,	"FALLOC_RANGE"},	\
+		{ EXT4_FC_REASON_INODE_JOURNAL_DATA,	"INODE_JOURNAL_DATA"})
 
 TRACE_EVENT(ext4_other_inode_update_time,
 	TP_PROTO(struct inode *inode, ino_t orig_ino),
@@ -2917,7 +2918,7 @@ TRACE_EVENT(ext4_fc_stats,
 		    ),
 
 	    TP_printk("dev %d:%d fc ineligible reasons:\n"
-		      "%s:%d, %s:%d, %s:%d, %s:%d, %s:%d, %s:%d, %s:%d, %s:%d; "
+		      "%s:%d, %s:%d, %s:%d, %s:%d, %s:%d, %s:%d, %s:%d, %s:%d, %s:%d; "
 		      "num_commits:%ld, ineligible: %ld, numblks: %ld",
 		      MAJOR(__entry->dev), MINOR(__entry->dev),
 		      FC_REASON_NAME_STAT(EXT4_FC_REASON_XATTR),
@@ -2928,6 +2929,7 @@ TRACE_EVENT(ext4_fc_stats,
 		      FC_REASON_NAME_STAT(EXT4_FC_REASON_RESIZE),
 		      FC_REASON_NAME_STAT(EXT4_FC_REASON_RENAME_DIR),
 		      FC_REASON_NAME_STAT(EXT4_FC_REASON_FALLOC_RANGE),
+		      FC_REASON_NAME_STAT(EXT4_FC_REASON_INODE_JOURNAL_DATA),
 		      __entry->sbi->s_fc_stats.fc_num_commits,
 		      __entry->sbi->s_fc_stats.fc_ineligible_commits,
 		      __entry->sbi->s_fc_stats.fc_numblks)

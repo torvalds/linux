@@ -483,6 +483,12 @@ void ext4_fc_track_inode(handle_t *handle, struct inode *inode)
 	if (S_ISDIR(inode->i_mode))
 		return;
 
+	if (ext4_should_journal_data(inode)) {
+		ext4_fc_mark_ineligible(inode->i_sb,
+					EXT4_FC_REASON_INODE_JOURNAL_DATA);
+		return;
+	}
+
 	ret = ext4_fc_track_template(handle, inode, __track_inode, NULL, 1);
 	trace_ext4_fc_track_inode(inode, ret);
 }
@@ -2102,6 +2108,7 @@ const char *fc_ineligible_reasons[] = {
 	"Resize",
 	"Dir renamed",
 	"Falloc range op",
+	"Data journalling",
 	"FC Commit Failed"
 };
 
