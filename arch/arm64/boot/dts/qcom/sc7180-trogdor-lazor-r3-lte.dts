@@ -5,12 +5,12 @@
  * Copyright 2020 Google LLC.
  */
 
-#include "sc7180-trogdor-lazor-r1.dts"
+#include "sc7180-trogdor-lazor-r3.dts"
 #include "sc7180-trogdor-lte-sku.dtsi"
 
 / {
-	model = "Google Lazor (rev1 - 2) with LTE";
-	compatible = "google,lazor-rev1-sku0", "google,lazor-rev2-sku0", "qcom,sc7180";
+	model = "Google Lazor (rev3+) with LTE";
+	compatible = "google,lazor-sku0", "qcom,sc7180";
 };
 
 &keyboard_backlight {
