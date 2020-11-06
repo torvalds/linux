@@ -904,6 +904,22 @@ static int qat_hal_set_modes(struct icp_qat_fw_loader_handle *handle,
 		pr_err("QAT: qat_hal_set_ae_lm_mode LMEM1 error\n");
 		return ret;
 	}
+	if (handle->chip_info->lm2lm3) {
+		mode = ICP_QAT_LOC_MEM2_MODE(uof_image->ae_mode);
+		ret = qat_hal_set_ae_lm_mode(handle, ae, ICP_LMEM2, mode);
+		if (ret) {
+			pr_err("QAT: qat_hal_set_ae_lm_mode LMEM2 error\n");
+			return ret;
+		}
+		mode = ICP_QAT_LOC_MEM3_MODE(uof_image->ae_mode);
+		ret = qat_hal_set_ae_lm_mode(handle, ae, ICP_LMEM3, mode);
+		if (ret) {
+			pr_err("QAT: qat_hal_set_ae_lm_mode LMEM3 error\n");
+			return ret;
+		}
+		mode = ICP_QAT_LOC_TINDEX_MODE(uof_image->ae_mode);
+		qat_hal_set_ae_tindex_mode(handle, ae, mode);
+	}
 	return 0;
 }
 

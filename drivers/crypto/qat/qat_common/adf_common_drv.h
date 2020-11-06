@@ -178,6 +178,8 @@ int qat_hal_init_nn(struct icp_qat_fw_loader_handle *handle,
 		    unsigned short reg_num, unsigned int regdata);
 int qat_hal_wr_lm(struct icp_qat_fw_loader_handle *handle,
 		  unsigned char ae, unsigned short lm_addr, unsigned int value);
+void qat_hal_set_ae_tindex_mode(struct icp_qat_fw_loader_handle *handle,
+				unsigned char ae, unsigned char mode);
 int qat_uclo_wr_all_uimage(struct icp_qat_fw_loader_handle *handle);
 void qat_uclo_del_obj(struct icp_qat_fw_loader_handle *handle);
 int qat_uclo_wr_mimage(struct icp_qat_fw_loader_handle *handle, void *addr_ptr,

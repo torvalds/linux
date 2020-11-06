@@ -69,6 +69,9 @@
 
 #define ICP_QAT_LOC_MEM0_MODE(ae_mode) (((ae_mode) >> 0x8) & 0x1)
 #define ICP_QAT_LOC_MEM1_MODE(ae_mode) (((ae_mode) >> 0x9) & 0x1)
+#define ICP_QAT_LOC_MEM2_MODE(ae_mode) (((ae_mode) >> 0x6) & 0x1)
+#define ICP_QAT_LOC_MEM3_MODE(ae_mode) (((ae_mode) >> 0x7) & 0x1)
+#define ICP_QAT_LOC_TINDEX_MODE(ae_mode) (((ae_mode) >> 0xe) & 0x1)
 
 enum icp_qat_uof_mem_region {
 	ICP_QAT_UOF_SRAM_REGION = 0x0,
@@ -98,6 +101,8 @@ enum icp_qat_uof_regtype {
 	ICP_LMEM0	= 27,
 	ICP_LMEM1	= 28,
 	ICP_NEIGH_REL	= 31,
+	ICP_LMEM2	= 61,
+	ICP_LMEM3	= 62,
 };
 
 enum icp_qat_css_fwtype {

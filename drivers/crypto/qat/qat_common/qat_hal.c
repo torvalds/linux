@@ -210,6 +210,16 @@ int qat_hal_set_ae_lm_mode(struct icp_qat_fw_loader_handle *handle,
 			SET_BIT(csr, CE_LMADDR_1_GLOBAL_BITPOS) :
 			CLR_BIT(csr, CE_LMADDR_1_GLOBAL_BITPOS);
 		break;
+	case ICP_LMEM2:
+		new_csr = (mode) ?
+			SET_BIT(csr, CE_LMADDR_2_GLOBAL_BITPOS) :
+			CLR_BIT(csr, CE_LMADDR_2_GLOBAL_BITPOS);
+		break;
+	case ICP_LMEM3:
+		new_csr = (mode) ?
+			SET_BIT(csr, CE_LMADDR_3_GLOBAL_BITPOS) :
+			CLR_BIT(csr, CE_LMADDR_3_GLOBAL_BITPOS);
+		break;
 	default:
 		pr_err("QAT: lmType = 0x%x\n", lm_type);
 		return -EINVAL;
@@ -218,6 +228,20 @@ int qat_hal_set_ae_lm_mode(struct icp_qat_fw_loader_handle *handle,
 	if (new_csr != csr)
 		qat_hal_wr_ae_csr(handle, ae, CTX_ENABLES, new_csr);
 	return 0;
+}
+
+void qat_hal_set_ae_tindex_mode(struct icp_qat_fw_loader_handle *handle,
+				unsigned char ae, unsigned char mode)
+{
+	unsigned int csr, new_csr;
+
+	csr = qat_hal_rd_ae_csr(handle, ae, CTX_ENABLES);
+	csr &= IGNORE_W1C_MASK;
+	new_csr = (mode) ?
+		  SET_BIT(csr, CE_T_INDEX_GLOBAL_BITPOS) :
+		  CLR_BIT(csr, CE_T_INDEX_GLOBAL_BITPOS);
+	if (new_csr != csr)
+		qat_hal_wr_ae_csr(handle, ae, CTX_ENABLES, new_csr);
 }
 
 static unsigned short qat_hal_get_reg_addr(unsigned int type,
@@ -258,6 +282,12 @@ static unsigned short qat_hal_get_reg_addr(unsigned int type,
 		break;
 	case ICP_LMEM1:
 		reg_addr = 0x220;
+		break;
+	case ICP_LMEM2:
+		reg_addr = 0x2c0;
+		break;
+	case ICP_LMEM3:
+		reg_addr = 0x2e0;
 		break;
 	case ICP_NO_DEST:
 		reg_addr = 0x300 | (reg_num & 0xff);
@@ -668,11 +698,13 @@ static int qat_hal_chip_init(struct icp_qat_fw_loader_handle *handle,
 	case PCI_DEVICE_ID_INTEL_QAT_C3XXX:
 		handle->chip_info->sram_visible = false;
 		handle->chip_info->nn = true;
+		handle->chip_info->lm2lm3 = false;
 		handle->chip_info->fw_auth = true;
 		break;
 	case PCI_DEVICE_ID_INTEL_QAT_DH895XCC:
 		handle->chip_info->sram_visible = true;
 		handle->chip_info->nn = true;
+		handle->chip_info->lm2lm3 = false;
 		handle->chip_info->fw_auth = false;
 		break;
 	default:
@@ -889,9 +921,12 @@ static int qat_hal_exec_micro_inst(struct icp_qat_fw_loader_handle *handle,
 				   int code_off, unsigned int max_cycle,
 				   unsigned int *endpc)
 {
+	unsigned int ind_lm_addr_byte0 = 0, ind_lm_addr_byte1 = 0;
+	unsigned int ind_lm_addr_byte2 = 0, ind_lm_addr_byte3 = 0;
+	unsigned int ind_t_index = 0, ind_t_index_byte = 0;
+	unsigned int ind_lm_addr0 = 0, ind_lm_addr1 = 0;
+	unsigned int ind_lm_addr2 = 0, ind_lm_addr3 = 0;
 	u64 savuwords[MAX_EXEC_INST];
-	unsigned int ind_lm_addr0, ind_lm_addr1;
-	unsigned int ind_lm_addr_byte0, ind_lm_addr_byte1;
 	unsigned int ind_cnt_sig;
 	unsigned int ind_sig, act_sig;
 	unsigned int csr_val = 0, newcsr_val;
@@ -910,6 +945,20 @@ static int qat_hal_exec_micro_inst(struct icp_qat_fw_loader_handle *handle,
 						INDIRECT_LM_ADDR_0_BYTE_INDEX);
 	ind_lm_addr_byte1 = qat_hal_rd_indr_csr(handle, ae, ctx,
 						INDIRECT_LM_ADDR_1_BYTE_INDEX);
+	if (handle->chip_info->lm2lm3) {
+		ind_lm_addr2 = qat_hal_rd_indr_csr(handle, ae, ctx,
+						   LM_ADDR_2_INDIRECT);
+		ind_lm_addr3 = qat_hal_rd_indr_csr(handle, ae, ctx,
+						   LM_ADDR_3_INDIRECT);
+		ind_lm_addr_byte2 = qat_hal_rd_indr_csr(handle, ae, ctx,
+							INDIRECT_LM_ADDR_2_BYTE_INDEX);
+		ind_lm_addr_byte3 = qat_hal_rd_indr_csr(handle, ae, ctx,
+							INDIRECT_LM_ADDR_3_BYTE_INDEX);
+		ind_t_index = qat_hal_rd_indr_csr(handle, ae, ctx,
+						  INDIRECT_T_INDEX);
+		ind_t_index_byte = qat_hal_rd_indr_csr(handle, ae, ctx,
+						       INDIRECT_T_INDEX_BYTE_INDEX);
+	}
 	if (inst_num <= MAX_EXEC_INST)
 		qat_hal_get_uwords(handle, ae, 0, inst_num, savuwords);
 	qat_hal_get_wakeup_event(handle, ae, ctx, &wakeup_events);
@@ -967,6 +1016,23 @@ static int qat_hal_exec_micro_inst(struct icp_qat_fw_loader_handle *handle,
 			    INDIRECT_LM_ADDR_0_BYTE_INDEX, ind_lm_addr_byte0);
 	qat_hal_wr_indr_csr(handle, ae, (1 << ctx),
 			    INDIRECT_LM_ADDR_1_BYTE_INDEX, ind_lm_addr_byte1);
+	if (handle->chip_info->lm2lm3) {
+		qat_hal_wr_indr_csr(handle, ae, BIT(ctx), LM_ADDR_2_INDIRECT,
+				    ind_lm_addr2);
+		qat_hal_wr_indr_csr(handle, ae, BIT(ctx), LM_ADDR_3_INDIRECT,
+				    ind_lm_addr3);
+		qat_hal_wr_indr_csr(handle, ae, BIT(ctx),
+				    INDIRECT_LM_ADDR_2_BYTE_INDEX,
+				    ind_lm_addr_byte2);
+		qat_hal_wr_indr_csr(handle, ae, BIT(ctx),
+				    INDIRECT_LM_ADDR_3_BYTE_INDEX,
+				    ind_lm_addr_byte3);
+		qat_hal_wr_indr_csr(handle, ae, BIT(ctx),
+				    INDIRECT_T_INDEX, ind_t_index);
+		qat_hal_wr_indr_csr(handle, ae, BIT(ctx),
+				    INDIRECT_T_INDEX_BYTE_INDEX,
+				    ind_t_index_byte);
+	}
 	qat_hal_wr_indr_csr(handle, ae, (1 << ctx),
 			    FUTURE_COUNT_SIGNAL_INDIRECT, ind_cnt_sig);
 	qat_hal_wr_indr_csr(handle, ae, (1 << ctx),
