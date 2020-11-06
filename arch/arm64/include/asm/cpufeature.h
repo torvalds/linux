@@ -772,6 +772,9 @@ static inline bool cpu_has_amu_feat(int cpu)
 }
 #endif
 
+/* Get a cpu that supports the Activity Monitors Unit (AMU) */
+extern int get_cpu_with_amu_feat(void);
+
 static inline unsigned int get_vmid_bits(u64 mmfr1)
 {
 	int vmid_bits;

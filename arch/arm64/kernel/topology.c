@@ -147,6 +147,9 @@ void update_freq_counters_refs(void)
 
 static inline bool freq_counters_valid(int cpu)
 {
+	if ((cpu >= nr_cpu_ids) || !cpumask_test_cpu(cpu, cpu_present_mask))
+		return false;
+
 	if (!cpu_has_amu_feat(cpu)) {
 		pr_debug("CPU%d: counters are not supported.\n", cpu);
 		return false;
@@ -323,3 +326,64 @@ store_and_exit:
 	this_cpu_write(arch_core_cycles_prev, core_cnt);
 	this_cpu_write(arch_const_cycles_prev, const_cnt);
 }
+
+#ifdef CONFIG_ACPI_CPPC_LIB
+#include <acpi/cppc_acpi.h>
+
+static void cpu_read_corecnt(void *val)
+{
+	*(u64 *)val = read_corecnt();
+}
+
+static void cpu_read_constcnt(void *val)
+{
+	*(u64 *)val = read_constcnt();
+}
+
+static inline
+int counters_read_on_cpu(int cpu, smp_call_func_t func, u64 *val)
+{
+	if (!cpu_has_amu_feat(cpu))
+		return -EOPNOTSUPP;
+
+	smp_call_function_single(cpu, func, val, 1);
+
+	return 0;
+}
+
+/*
+ * Refer to drivers/acpi/cppc_acpi.c for the description of the functions
+ * below.
+ */
+bool cpc_ffh_supported(void)
+{
+	return freq_counters_valid(get_cpu_with_amu_feat());
+}
+
+int cpc_read_ffh(int cpu, struct cpc_reg *reg, u64 *val)
+{
+	int ret = -EOPNOTSUPP;
+
+	switch ((u64)reg->address) {
+	case 0x0:
+		ret = counters_read_on_cpu(cpu, cpu_read_corecnt, val);
+		break;
+	case 0x1:
+		ret = counters_read_on_cpu(cpu, cpu_read_constcnt, val);
+		break;
+	}
+
+	if (!ret) {
+		*val &= GENMASK_ULL(reg->bit_offset + reg->bit_width - 1,
+				    reg->bit_offset);
+		*val >>= reg->bit_offset;
+	}
+
+	return ret;
+}
+
+int cpc_write_ffh(int cpunum, struct cpc_reg *reg, u64 val)
+{
+	return -EOPNOTSUPP;
+}
+#endif /* CONFIG_ACPI_CPPC_LIB */

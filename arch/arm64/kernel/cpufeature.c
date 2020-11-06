@@ -1526,6 +1526,11 @@ bool cpu_has_amu_feat(int cpu)
 	return cpumask_test_cpu(cpu, &amu_cpus);
 }
 
+int get_cpu_with_amu_feat(void)
+{
+	return cpumask_any(&amu_cpus);
+}
+
 static void cpu_amu_enable(struct arm64_cpu_capabilities const *cap)
 {
 	if (has_cpuid_feature(cap, SCOPE_LOCAL_CPU)) {
@@ -1553,6 +1558,11 @@ static bool has_amu(const struct arm64_cpu_capabilities *cap,
 	 */
 
 	return true;
+}
+#else
+int get_cpu_with_amu_feat(void)
+{
+	return nr_cpu_ids;
 }
 #endif
 
