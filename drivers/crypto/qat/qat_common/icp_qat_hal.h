@@ -85,6 +85,10 @@ enum fcu_sts {
 #define FCU_LOADED_AE_POS   0x16
 #define FW_AUTH_WAIT_PERIOD 10
 #define FW_AUTH_MAX_RETRY   300
+#define ICP_QAT_AE_OFFSET 0x20000
+#define ICP_QAT_CAP_OFFSET (ICP_QAT_AE_OFFSET + 0x10000)
+#define LOCAL_TO_XFER_REG_OFFSET 0x800
+#define ICP_QAT_EP_OFFSET 0x3a000
 
 #define SET_CAP_CSR(handle, csr, val) \
 	ADF_CSR_WR((handle)->hal_cap_g_ctl_csr_addr_v, csr, val)

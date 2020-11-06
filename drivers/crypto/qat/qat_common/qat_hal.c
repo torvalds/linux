@@ -646,10 +646,6 @@ static int qat_hal_clear_gpr(struct icp_qat_fw_loader_handle *handle)
 	return 0;
 }
 
-#define ICP_QAT_AE_OFFSET	0x20000
-#define ICP_QAT_CAP_OFFSET       (ICP_QAT_AE_OFFSET + 0x10000)
-#define LOCAL_TO_XFER_REG_OFFSET    0x800
-#define ICP_QAT_EP_OFFSET	0x3a000
 int qat_hal_init(struct adf_accel_dev *accel_dev)
 {
 	unsigned char ae;
