@@ -324,6 +324,12 @@ static int nsim_dev_resources_register(struct devlink *devlink)
 		return err;
 	}
 
+	/* Resources for nexthops */
+	err = devlink_resource_register(devlink, "nexthops", (u64)-1,
+					NSIM_RESOURCE_NEXTHOPS,
+					DEVLINK_RESOURCE_ID_PARENT_TOP,
+					&params);
+
 out:
 	return err;
 }

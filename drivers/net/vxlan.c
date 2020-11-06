@@ -4684,9 +4684,14 @@ static void vxlan_fdb_nh_flush(struct nexthop *nh)
 static int vxlan_nexthop_event(struct notifier_block *nb,
 			       unsigned long event, void *ptr)
 {
-	struct nexthop *nh = ptr;
+	struct nh_notifier_info *info = ptr;
+	struct nexthop *nh;
 
-	if (!nh || event != NEXTHOP_EVENT_DEL)
+	if (event != NEXTHOP_EVENT_DEL)
+		return NOTIFY_DONE;
+
+	nh = nexthop_find_by_id(info->net, info->id);
+	if (!nh)
 		return NOTIFY_DONE;
 
 	vxlan_fdb_nh_flush(nh);
@@ -4706,7 +4711,8 @@ static __net_init int vxlan_init_net(struct net *net)
 	for (h = 0; h < PORT_HASH_SIZE; ++h)
 		INIT_HLIST_HEAD(&vn->sock_list[h]);
 
-	return register_nexthop_notifier(net, &vn->nexthop_notifier_block);
+	return register_nexthop_notifier(net, &vn->nexthop_notifier_block,
+					 NULL);
 }
 
 static void vxlan_destroy_tunnels(struct net *net, struct list_head *head)
