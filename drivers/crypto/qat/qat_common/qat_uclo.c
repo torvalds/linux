@@ -1410,9 +1410,11 @@ int qat_uclo_wr_mimage(struct icp_qat_fw_loader_handle *handle,
 			status = qat_uclo_auth_fw(handle, desc);
 		qat_uclo_ummap_auth_fw(handle, &desc);
 	} else {
-		if (handle->pci_dev->device == PCI_DEVICE_ID_INTEL_QAT_C3XXX) {
-			pr_err("QAT: C3XXX doesn't support unsigned MMP\n");
-			return -EINVAL;
+		if (!handle->chip_info->sram_visible) {
+			dev_dbg(&handle->pci_dev->dev,
+				"QAT MMP fw not loaded for device 0x%x",
+				handle->pci_dev->device);
+			return status;
 		}
 		qat_uclo_wr_sram_by_words(handle, 0, addr_ptr, mem_size);
 	}
