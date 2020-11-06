@@ -25,43 +25,18 @@
  * - reader/reader sharing
  * - try-lock semantics for readers and writers
  *
- * Additionally we need one level nesting recursion, see below. The rwsem
- * implementation does opportunistic spinning which reduces number of times the
- * locking task needs to sleep.
- *
- *
- * Lock recursion
- * --------------
- *
- * A write operation on a tree might indirectly start a look up on the same
- * tree.  This can happen when btrfs_cow_block locks the tree and needs to
- * lookup free extents.
- *
- * btrfs_cow_block
- *   ..
- *   alloc_tree_block_no_bg_flush
- *     btrfs_alloc_tree_block
- *       btrfs_reserve_extent
- *         ..
- *         load_free_space_cache
- *           ..
- *           btrfs_lookup_file_extent
- *             btrfs_search_slot
- *
+ * The rwsem implementation does opportunistic spinning which reduces number of
+ * times the locking task needs to sleep.
  */
 
 /*
  * __btrfs_tree_read_lock - lock extent buffer for read
  * @eb:		the eb to be locked
  * @nest:	the nesting level to be used for lockdep
- * @recurse:	if this lock is able to be recursed
+ * @recurse:	unused
  *
  * This takes the read lock on the extent buffer, using the specified nesting
  * level for lockdep purposes.
- *
- * If you specify recurse = true, then we will allow this to be taken if we
- * currently own the lock already.  This should only be used in specific
- * usecases, and the subsequent unlock will not change the state of the lock.
  */
 void __btrfs_tree_read_lock(struct extent_buffer *eb, enum btrfs_lock_nesting nest,
 			    bool recurse)
@@ -71,31 +46,7 @@ void __btrfs_tree_read_lock(struct extent_buffer *eb, enum btrfs_lock_nesting ne
 	if (trace_btrfs_tree_read_lock_enabled())
 		start_ns = ktime_get_ns();
 
-	if (unlikely(recurse)) {
-		/* First see if we can grab the lock outright */
-		if (down_read_trylock(&eb->lock))
-			goto out;
-
-		/*
-		 * Ok still doesn't necessarily mean we are already holding the
-		 * lock, check the owner.
-		 */
-		if (eb->lock_owner != current->pid) {
-			down_read_nested(&eb->lock, nest);
-			goto out;
-		}
-
-		/*
-		 * Ok we have actually recursed, but we should only be recursing
-		 * once, so blow up if we're already recursed, otherwise set
-		 * ->lock_recursed and carry on.
-		 */
-		BUG_ON(eb->lock_recursed);
-		eb->lock_recursed = true;
-		goto out;
-	}
 	down_read_nested(&eb->lock, nest);
-out:
 	eb->lock_owner = current->pid;
 	trace_btrfs_tree_read_lock(eb, start_ns);
 }
@@ -136,22 +87,11 @@ int btrfs_try_tree_write_lock(struct extent_buffer *eb)
 }
 
 /*
- * Release read lock.  If the read lock was recursed then the lock stays in the
- * original state that it was before it was recursively locked.
+ * Release read lock.
  */
 void btrfs_tree_read_unlock(struct extent_buffer *eb)
 {
 	trace_btrfs_tree_read_unlock(eb);
-	/*
-	 * if we're nested, we have the write lock.  No new locking
-	 * is needed as long as we are the lock owner.
-	 * The write unlock will do a barrier for us, and the lock_recursed
-	 * field only matters to the lock owner.
-	 */
-	if (eb->lock_recursed && current->pid == eb->lock_owner) {
-		eb->lock_recursed = false;
-		return;
-	}
 	eb->lock_owner = 0;
 	up_read(&eb->lock);
 }
