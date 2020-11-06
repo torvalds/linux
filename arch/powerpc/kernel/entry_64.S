@@ -969,7 +969,7 @@ _GLOBAL(enter_prom)
 	mtsrr1	r11
 	rfi
 #else /* CONFIG_PPC_BOOK3E */
-	LOAD_REG_IMMEDIATE(r12, MSR_SF | MSR_ISF | MSR_LE)
+	LOAD_REG_IMMEDIATE(r12, MSR_SF | MSR_LE)
 	andc	r11,r11,r12
 	mtsrr1	r11
 	RFI_TO_KERNEL

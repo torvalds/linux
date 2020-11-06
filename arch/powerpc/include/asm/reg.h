@@ -29,7 +29,6 @@
 #include <asm/reg_8xx.h>
 
 #define MSR_SF_LG	63              /* Enable 64 bit mode */
-#define MSR_ISF_LG	61              /* Interrupt 64b mode valid on 630 */
 #define MSR_HV_LG 	60              /* Hypervisor state */
 #define MSR_TS_T_LG	34		/* Trans Mem state: Transactional */
 #define MSR_TS_S_LG	33		/* Trans Mem state: Suspended */
@@ -69,13 +68,11 @@
 
 #ifdef CONFIG_PPC64
 #define MSR_SF		__MASK(MSR_SF_LG)	/* Enable 64 bit mode */
-#define MSR_ISF		__MASK(MSR_ISF_LG)	/* Interrupt 64b mode valid on 630 */
 #define MSR_HV 		__MASK(MSR_HV_LG)	/* Hypervisor state */
 #define MSR_S		__MASK(MSR_S_LG)	/* Secure state */
 #else
 /* so tests for these bits fail on 32-bit */
 #define MSR_SF		0
-#define MSR_ISF		0
 #define MSR_HV		0
 #define MSR_S		0
 #endif
@@ -134,7 +131,7 @@
 #define MSR_64BIT	MSR_SF
 
 /* Server variant */
-#define __MSR		(MSR_ME | MSR_RI | MSR_IR | MSR_DR | MSR_ISF |MSR_HV)
+#define __MSR		(MSR_ME | MSR_RI | MSR_IR | MSR_DR | MSR_HV)
 #ifdef __BIG_ENDIAN__
 #define MSR_		__MSR
 #define MSR_IDLE	(MSR_ME | MSR_SF | MSR_HV)

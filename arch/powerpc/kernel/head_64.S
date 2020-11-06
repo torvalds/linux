@@ -870,8 +870,7 @@ enable_64b_mode:
 	oris	r11,r11,0x8000		/* CM bit set, we'll set ICM later */
 	mtmsr	r11
 #else /* CONFIG_PPC_BOOK3E */
-	li	r12,(MSR_64BIT | MSR_ISF)@highest
-	sldi	r12,r12,48
+	LOAD_REG_IMMEDIATE(r12, MSR_64BIT)
 	or	r11,r11,r12
 	mtmsrd	r11
 	isync
