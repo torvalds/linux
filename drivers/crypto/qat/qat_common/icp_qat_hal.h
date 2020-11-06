@@ -10,6 +10,14 @@ enum hal_global_csr {
 	ICP_GLOBAL_CLK_ENABLE = 0xA50
 };
 
+enum {
+	MISC_CONTROL_C4XXX = 0xAA0,
+	ICP_RESET_CPP0 = 0x938,
+	ICP_RESET_CPP1 = 0x93c,
+	ICP_GLOBAL_CLK_ENABLE_CPP0 = 0x964,
+	ICP_GLOBAL_CLK_ENABLE_CPP1 = 0x968
+};
+
 enum hal_ae_csr {
 	USTORE_ADDRESS = 0x000,
 	USTORE_DATA_LOWER = 0x004,
@@ -111,7 +119,9 @@ enum fcu_sts {
 #define ICP_QAT_CAP_OFFSET (ICP_QAT_AE_OFFSET + 0x10000)
 #define LOCAL_TO_XFER_REG_OFFSET 0x800
 #define ICP_QAT_EP_OFFSET 0x3a000
-
+#define ICP_QAT_EP_OFFSET_4XXX   0x200000 /* HI MMIO CSRs */
+#define ICP_QAT_AE_OFFSET_4XXX   0x600000
+#define ICP_QAT_CAP_OFFSET_4XXX  0x640000
 #define SET_CAP_CSR(handle, csr, val) \
 	ADF_CSR_WR((handle)->hal_cap_g_ctl_csr_addr_v, csr, val)
 #define GET_CAP_CSR(handle, csr) \

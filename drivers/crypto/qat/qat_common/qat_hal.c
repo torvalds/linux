@@ -695,6 +695,39 @@ static int qat_hal_chip_init(struct icp_qat_fw_loader_handle *handle,
 
 	handle->pci_dev = pci_info->pci_dev;
 	switch (handle->pci_dev->device) {
+	case ADF_4XXX_PCI_DEVICE_ID:
+		handle->chip_info->sram_visible = false;
+		handle->chip_info->nn = false;
+		handle->chip_info->lm2lm3 = true;
+		handle->chip_info->lm_size = ICP_QAT_UCLO_MAX_LMEM_REG_2X;
+		handle->chip_info->icp_rst_csr = ICP_RESET_CPP0;
+		handle->chip_info->icp_rst_mask = 0x100015;
+		handle->chip_info->glb_clk_enable_csr = ICP_GLOBAL_CLK_ENABLE_CPP0;
+		handle->chip_info->misc_ctl_csr = MISC_CONTROL_C4XXX;
+		handle->chip_info->wakeup_event_val = 0x80000000;
+		handle->chip_info->fw_auth = true;
+		handle->chip_info->css_3k = true;
+		handle->chip_info->tgroup_share_ustore = true;
+		handle->chip_info->fcu_ctl_csr = FCU_CONTROL_4XXX;
+		handle->chip_info->fcu_sts_csr = FCU_STATUS_4XXX;
+		handle->chip_info->fcu_dram_addr_hi = FCU_DRAM_ADDR_HI_4XXX;
+		handle->chip_info->fcu_dram_addr_lo = FCU_DRAM_ADDR_LO_4XXX;
+		handle->chip_info->fcu_loaded_ae_csr = FCU_AE_LOADED_4XXX;
+		handle->chip_info->fcu_loaded_ae_pos = 0;
+
+		handle->hal_cap_g_ctl_csr_addr_v =
+			(void __iomem *)((uintptr_t)misc_bar->virt_addr +
+			ICP_QAT_CAP_OFFSET_4XXX);
+		handle->hal_cap_ae_xfer_csr_addr_v =
+			(void __iomem *)((uintptr_t)misc_bar->virt_addr +
+			ICP_QAT_AE_OFFSET_4XXX);
+		handle->hal_ep_csr_addr_v =
+			(void __iomem *)((uintptr_t)misc_bar->virt_addr +
+			ICP_QAT_EP_OFFSET_4XXX);
+		handle->hal_cap_ae_local_csr_addr_v =
+			(void __iomem *)((uintptr_t)handle->hal_cap_ae_xfer_csr_addr_v
+							+ LOCAL_TO_XFER_REG_OFFSET);
+		break;
 	case PCI_DEVICE_ID_INTEL_QAT_C62X:
 	case PCI_DEVICE_ID_INTEL_QAT_C3XXX:
 		handle->chip_info->sram_visible = false;
@@ -702,6 +735,8 @@ static int qat_hal_chip_init(struct icp_qat_fw_loader_handle *handle,
 		handle->chip_info->lm2lm3 = false;
 		handle->chip_info->lm_size = ICP_QAT_UCLO_MAX_LMEM_REG;
 		handle->chip_info->icp_rst_csr = ICP_RESET;
+		handle->chip_info->icp_rst_mask = (hw_data->ae_mask << RST_CSR_AE_LSB) |
+						  (hw_data->accel_mask << RST_CSR_QAT_LSB);
 		handle->chip_info->glb_clk_enable_csr = ICP_GLOBAL_CLK_ENABLE;
 		handle->chip_info->misc_ctl_csr = MISC_CONTROL;
 		handle->chip_info->wakeup_event_val = WAKEUP_EVENT;
@@ -714,6 +749,18 @@ static int qat_hal_chip_init(struct icp_qat_fw_loader_handle *handle,
 		handle->chip_info->fcu_dram_addr_lo = FCU_DRAM_ADDR_LO;
 		handle->chip_info->fcu_loaded_ae_csr = FCU_STATUS;
 		handle->chip_info->fcu_loaded_ae_pos = FCU_LOADED_AE_POS;
+		handle->hal_cap_g_ctl_csr_addr_v =
+			(void __iomem *)((uintptr_t)misc_bar->virt_addr +
+			ICP_QAT_CAP_OFFSET);
+		handle->hal_cap_ae_xfer_csr_addr_v =
+			(void __iomem *)((uintptr_t)misc_bar->virt_addr +
+			ICP_QAT_AE_OFFSET);
+		handle->hal_ep_csr_addr_v =
+			(void __iomem *)((uintptr_t)misc_bar->virt_addr +
+			ICP_QAT_EP_OFFSET);
+		handle->hal_cap_ae_local_csr_addr_v =
+			(void __iomem *)((uintptr_t)handle->hal_cap_ae_xfer_csr_addr_v
+			+ LOCAL_TO_XFER_REG_OFFSET);
 		break;
 	case PCI_DEVICE_ID_INTEL_QAT_DH895XCC:
 		handle->chip_info->sram_visible = true;
@@ -721,6 +768,8 @@ static int qat_hal_chip_init(struct icp_qat_fw_loader_handle *handle,
 		handle->chip_info->lm2lm3 = false;
 		handle->chip_info->lm_size = ICP_QAT_UCLO_MAX_LMEM_REG;
 		handle->chip_info->icp_rst_csr = ICP_RESET;
+		handle->chip_info->icp_rst_mask = (hw_data->ae_mask << RST_CSR_AE_LSB) |
+						  (hw_data->accel_mask << RST_CSR_QAT_LSB);
 		handle->chip_info->glb_clk_enable_csr = ICP_GLOBAL_CLK_ENABLE;
 		handle->chip_info->misc_ctl_csr = MISC_CONTROL;
 		handle->chip_info->wakeup_event_val = WAKEUP_EVENT;
@@ -733,6 +782,18 @@ static int qat_hal_chip_init(struct icp_qat_fw_loader_handle *handle,
 		handle->chip_info->fcu_dram_addr_lo = 0;
 		handle->chip_info->fcu_loaded_ae_csr = 0;
 		handle->chip_info->fcu_loaded_ae_pos = 0;
+		handle->hal_cap_g_ctl_csr_addr_v =
+			(void __iomem *)((uintptr_t)misc_bar->virt_addr +
+			ICP_QAT_CAP_OFFSET);
+		handle->hal_cap_ae_xfer_csr_addr_v =
+			(void __iomem *)((uintptr_t)misc_bar->virt_addr +
+			ICP_QAT_AE_OFFSET);
+		handle->hal_ep_csr_addr_v =
+			(void __iomem *)((uintptr_t)misc_bar->virt_addr +
+			ICP_QAT_EP_OFFSET);
+		handle->hal_cap_ae_local_csr_addr_v =
+			(void __iomem *)((uintptr_t)handle->hal_cap_ae_xfer_csr_addr_v
+			+ LOCAL_TO_XFER_REG_OFFSET);
 		break;
 	default:
 		ret = -EINVAL;
@@ -744,22 +805,6 @@ static int qat_hal_chip_init(struct icp_qat_fw_loader_handle *handle,
 			&pci_info->pci_bars[hw_data->get_sram_bar_id(hw_data)];
 		handle->hal_sram_addr_v = sram_bar->virt_addr;
 	}
-
-	handle->chip_info->icp_rst_mask = (hw_data->ae_mask << RST_CSR_AE_LSB) |
-					  (hw_data->accel_mask << RST_CSR_QAT_LSB);
-	handle->hal_cap_g_ctl_csr_addr_v =
-		(void __iomem *)((uintptr_t)misc_bar->virt_addr +
-				 ICP_QAT_CAP_OFFSET);
-	handle->hal_cap_ae_xfer_csr_addr_v =
-		(void __iomem *)((uintptr_t)misc_bar->virt_addr +
-				 ICP_QAT_AE_OFFSET);
-	handle->hal_ep_csr_addr_v =
-		(void __iomem *)((uintptr_t)misc_bar->virt_addr +
-				 ICP_QAT_EP_OFFSET);
-	handle->hal_cap_ae_local_csr_addr_v =
-		(void __iomem *)((uintptr_t)handle->hal_cap_ae_xfer_csr_addr_v +
-				 LOCAL_TO_XFER_REG_OFFSET);
-	handle->pci_dev = pci_info->pci_dev;
 	handle->hal_handle->revision_id = accel_dev->accel_pci_dev.revid;
 	handle->hal_handle->ae_mask = hw_data->ae_mask;
 	handle->hal_handle->admin_ae_mask = hw_data->admin_ae_mask;
