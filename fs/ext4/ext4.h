@@ -1028,9 +1028,6 @@ struct ext4_inode_info {
 					 * protected by sbi->s_fc_lock.
 					 */
 
-	/* Fast commit subtid when this inode was committed */
-	unsigned int i_fc_committed_subtid;
-
 	/* Start of lblk range that needs to be committed in this fast commit */
 	ext4_lblk_t i_fc_lblk_start;
 

@@ -152,7 +152,6 @@ void ext4_fc_init_inode(struct inode *inode)
 	INIT_LIST_HEAD(&ei->i_fc_list);
 	init_waitqueue_head(&ei->i_fc_wait);
 	atomic_set(&ei->i_fc_updates, 0);
-	ei->i_fc_committed_subtid = 0;
 }
 
 /* This function must be called with sbi->s_fc_lock held. */
@@ -1037,8 +1036,6 @@ static int ext4_fc_perform_commit(journal_t *journal)
 		if (ret)
 			goto out;
 		spin_lock(&sbi->s_fc_lock);
-		EXT4_I(inode)->i_fc_committed_subtid =
-			atomic_read(&sbi->s_fc_subtid);
 	}
 	spin_unlock(&sbi->s_fc_lock);
 

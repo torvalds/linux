@@ -3312,8 +3312,7 @@ static bool ext4_inode_datasync_dirty(struct inode *inode)
 			EXT4_I(inode)->i_datasync_tid))
 			return false;
 		if (test_opt2(inode->i_sb, JOURNAL_FAST_COMMIT))
-			return atomic_read(&EXT4_SB(inode->i_sb)->s_fc_subtid) <
-				EXT4_I(inode)->i_fc_committed_subtid;
+			return !list_empty(&EXT4_I(inode)->i_fc_list);
 		return true;
 	}
 
