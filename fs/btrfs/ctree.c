@@ -2533,7 +2533,7 @@ static struct extent_buffer *btrfs_search_slot_get_root(struct btrfs_root *root,
 		 * We don't know the level of the root node until we actually
 		 * have it read locked
 		 */
-		b = __btrfs_read_lock_root_node(root, p->recurse);
+		b = __btrfs_read_lock_root_node(root, 0);
 		level = btrfs_header_level(b);
 		if (level > write_lock_level)
 			goto out;
@@ -2802,8 +2802,7 @@ cow_done:
 				btrfs_tree_lock(b);
 				p->locks[level] = BTRFS_WRITE_LOCK;
 			} else {
-				__btrfs_tree_read_lock(b, BTRFS_NESTING_NORMAL,
-						       p->recurse);
+				__btrfs_tree_read_lock(b, BTRFS_NESTING_NORMAL, 0);
 				p->locks[level] = BTRFS_READ_LOCK;
 			}
 			p->nodes[level] = b;
