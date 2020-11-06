@@ -755,6 +755,8 @@ struct intel_crtc_wm_state {
 		} ilk;
 
 		struct {
+			/* "raw" watermarks */
+			struct skl_pipe_wm raw;
 			/* gen9+ only needs 1-step wm programming */
 			struct skl_pipe_wm optimal;
 			struct skl_ddb_entry ddb;

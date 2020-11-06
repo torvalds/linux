@@ -5480,7 +5480,7 @@ static int skl_build_plane_wm_single(struct intel_crtc_state *crtc_state,
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	struct skl_plane_wm *wm = &crtc_state->wm.skl.optimal.planes[plane_id];
+	struct skl_plane_wm *wm = &crtc_state->wm.skl.raw.planes[plane_id];
 	struct skl_wm_params wm_params;
 	int ret;
 
@@ -5503,7 +5503,7 @@ static int skl_build_plane_wm_uv(struct intel_crtc_state *crtc_state,
 				 const struct intel_plane_state *plane_state,
 				 enum plane_id plane_id)
 {
-	struct skl_plane_wm *wm = &crtc_state->wm.skl.optimal.planes[plane_id];
+	struct skl_plane_wm *wm = &crtc_state->wm.skl.raw.planes[plane_id];
 	struct skl_wm_params wm_params;
 	int ret;
 
@@ -5524,9 +5524,12 @@ static int skl_build_plane_wm(struct intel_crtc_state *crtc_state,
 			      const struct intel_plane_state *plane_state)
 {
 	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
-	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	enum plane_id plane_id = plane->id;
+	struct skl_plane_wm *wm = &crtc_state->wm.skl.raw.planes[plane_id];
+	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	int ret;
+
+	memset(wm, 0, sizeof(*wm));
 
 	if (!intel_wm_plane_visible(crtc_state, plane_state))
 		return 0;
@@ -5549,9 +5552,13 @@ static int skl_build_plane_wm(struct intel_crtc_state *crtc_state,
 static int icl_build_plane_wm(struct intel_crtc_state *crtc_state,
 			      const struct intel_plane_state *plane_state)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
-	enum plane_id plane_id = to_intel_plane(plane_state->uapi.plane)->id;
+	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	enum plane_id plane_id = plane->id;
+	struct skl_plane_wm *wm = &crtc_state->wm.skl.raw.planes[plane_id];
 	int ret;
+
+	memset(wm, 0, sizeof(*wm));
 
 	/* Watermarks calculated in master */
 	if (plane_state->planar_slave)
@@ -5591,19 +5598,18 @@ static int skl_build_pipe_wm(struct intel_atomic_state *state,
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_crtc_state *crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
-	struct skl_pipe_wm *pipe_wm = &crtc_state->wm.skl.optimal;
-	struct intel_plane *plane;
 	const struct intel_plane_state *plane_state;
-	int ret;
+	struct intel_plane *plane;
+	int ret, i;
 
-	/*
-	 * We'll only calculate watermarks for planes that are actually
-	 * enabled, so make sure all other planes are set as disabled.
-	 */
-	memset(pipe_wm->planes, 0, sizeof(pipe_wm->planes));
-
-	intel_atomic_crtc_state_for_each_plane_state(plane, plane_state,
-						     crtc_state) {
+	for_each_new_intel_plane_in_state(state, plane, plane_state, i) {
+		/*
+		 * FIXME should perhaps check {old,new}_plane_crtc->hw.crtc
+		 * instead but we don't populate that correctly for NV12 Y
+		 * planes so for now hack this.
+		 */
+		if (plane->pipe != crtc->pipe)
+			continue;
 
 		if (INTEL_GEN(dev_priv) >= 11)
 			ret = icl_build_plane_wm(crtc_state, plane_state);
@@ -5612,6 +5618,8 @@ static int skl_build_pipe_wm(struct intel_atomic_state *state,
 		if (ret)
 			return ret;
 	}
+
+	crtc_state->wm.skl.optimal = crtc_state->wm.skl.raw;
 
 	return 0;
 }
@@ -6273,6 +6281,7 @@ void skl_wm_get_hw_state(struct drm_i915_private *dev_priv)
 		crtc_state = to_intel_crtc_state(crtc->base.state);
 
 		skl_pipe_wm_get_hw_state(crtc, &crtc_state->wm.skl.optimal);
+		crtc_state->wm.skl.raw = crtc_state->wm.skl.optimal;
 	}
 
 	if (dev_priv->active_pipes) {
