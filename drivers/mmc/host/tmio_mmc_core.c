@@ -927,6 +927,9 @@ static void tmio_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	switch (ios->power_mode) {
 	case MMC_POWER_OFF:
 		tmio_mmc_power_off(host);
+		/* Downgrade ensures a sane state for tuning HW (e.g. SCC) */
+		if (host->mmc->ops->hs400_downgrade)
+			host->mmc->ops->hs400_downgrade(host->mmc);
 		host->set_clock(host, 0);
 		break;
 	case MMC_POWER_UP:
