@@ -305,7 +305,6 @@ static int bcm_ns_usb3_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	const struct of_device_id *of_id;
 	struct bcm_ns_usb3 *usb3;
-	struct resource *res;
 	struct phy_provider *phy_provider;
 
 	usb3 = devm_kzalloc(dev, sizeof(*usb3), GFP_KERNEL);
@@ -319,15 +318,13 @@ static int bcm_ns_usb3_probe(struct platform_device *pdev)
 		return -EINVAL;
 	usb3->family = (enum bcm_ns_family)of_id->data;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dmp");
-	usb3->dmp = devm_ioremap_resource(dev, res);
+	usb3->dmp = devm_platform_ioremap_resource_byname(pdev, "dmp");
 	if (IS_ERR(usb3->dmp)) {
 		dev_err(dev, "Failed to map DMP regs\n");
 		return PTR_ERR(usb3->dmp);
 	}
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ccb-mii");
-	usb3->ccb_mii = devm_ioremap_resource(dev, res);
+	usb3->ccb_mii = devm_platform_ioremap_resource_byname(pdev, "ccb-mii");
 	if (IS_ERR(usb3->ccb_mii)) {
 		dev_err(dev, "Failed to map ChipCommon B MII regs\n");
 		return PTR_ERR(usb3->ccb_mii);
