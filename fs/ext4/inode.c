@@ -327,6 +327,8 @@ stop_handle:
 	ext4_xattr_inode_array_free(ea_inode_array);
 	return;
 no_delete:
+	if (!list_empty(&EXT4_I(inode)->i_fc_list))
+		ext4_fc_mark_ineligible(inode->i_sb, EXT4_FC_REASON_NOMEM);
 	ext4_clear_inode(inode);	/* We must guarantee clearing of inode... */
 }
 
