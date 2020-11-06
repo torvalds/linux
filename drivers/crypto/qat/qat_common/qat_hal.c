@@ -417,13 +417,14 @@ int qat_hal_check_ae_active(struct icp_qat_fw_loader_handle *handle,
 static void qat_hal_reset_timestamp(struct icp_qat_fw_loader_handle *handle)
 {
 	unsigned long ae_mask = handle->hal_handle->ae_mask;
-	unsigned int misc_ctl;
+	unsigned int misc_ctl_csr, misc_ctl;
 	unsigned char ae;
 
+	misc_ctl_csr = handle->chip_info->misc_ctl_csr;
 	/* stop the timestamp timers */
-	misc_ctl = GET_CAP_CSR(handle, MISC_CONTROL);
+	misc_ctl = GET_CAP_CSR(handle, misc_ctl_csr);
 	if (misc_ctl & MC_TIMESTAMP_ENABLE)
-		SET_CAP_CSR(handle, MISC_CONTROL, misc_ctl &
+		SET_CAP_CSR(handle, misc_ctl_csr, misc_ctl &
 			    (~MC_TIMESTAMP_ENABLE));
 
 	for_each_set_bit(ae, &ae_mask, handle->hal_handle->ae_max_num) {
@@ -431,7 +432,7 @@ static void qat_hal_reset_timestamp(struct icp_qat_fw_loader_handle *handle)
 		qat_hal_wr_ae_csr(handle, ae, TIMESTAMP_HIGH, 0);
 	}
 	/* start timestamp timers */
-	SET_CAP_CSR(handle, MISC_CONTROL, misc_ctl | MC_TIMESTAMP_ENABLE);
+	SET_CAP_CSR(handle, misc_ctl_csr, misc_ctl | MC_TIMESTAMP_ENABLE);
 }
 
 #define ESRAM_AUTO_TINIT	BIT(2)
@@ -702,6 +703,7 @@ static int qat_hal_chip_init(struct icp_qat_fw_loader_handle *handle,
 		handle->chip_info->lm_size = ICP_QAT_UCLO_MAX_LMEM_REG;
 		handle->chip_info->icp_rst_csr = ICP_RESET;
 		handle->chip_info->glb_clk_enable_csr = ICP_GLOBAL_CLK_ENABLE;
+		handle->chip_info->misc_ctl_csr = MISC_CONTROL;
 		handle->chip_info->wakeup_event_val = WAKEUP_EVENT;
 		handle->chip_info->fw_auth = true;
 		break;
@@ -712,6 +714,7 @@ static int qat_hal_chip_init(struct icp_qat_fw_loader_handle *handle,
 		handle->chip_info->lm_size = ICP_QAT_UCLO_MAX_LMEM_REG;
 		handle->chip_info->icp_rst_csr = ICP_RESET;
 		handle->chip_info->glb_clk_enable_csr = ICP_GLOBAL_CLK_ENABLE;
+		handle->chip_info->misc_ctl_csr = MISC_CONTROL;
 		handle->chip_info->wakeup_event_val = WAKEUP_EVENT;
 		handle->chip_info->fw_auth = false;
 		break;
