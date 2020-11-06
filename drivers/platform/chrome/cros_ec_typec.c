@@ -537,10 +537,9 @@ static int cros_typec_configure_mux(struct cros_typec_data *typec, int port_num,
 		port->state.mode = TYPEC_STATE_USB;
 		ret = typec_mux_set(port->mux, &port->state);
 	} else {
-		dev_info(typec->dev,
-			 "Unsupported mode requested, mux flags: %x\n",
-			 mux_flags);
-		ret = -ENOTSUPP;
+		dev_dbg(typec->dev,
+			"Unrecognized mode requested, mux flags: %x\n",
+			mux_flags);
 	}
 
 	return ret;
