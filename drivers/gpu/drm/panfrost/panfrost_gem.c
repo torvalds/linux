@@ -220,6 +220,7 @@ static const struct drm_gem_object_funcs panfrost_gem_funcs = {
  */
 struct drm_gem_object *panfrost_gem_create_object(struct drm_device *dev, size_t size)
 {
+	struct panfrost_device *pfdev = dev->dev_private;
 	struct panfrost_gem_object *obj;
 
 	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
@@ -229,6 +230,7 @@ struct drm_gem_object *panfrost_gem_create_object(struct drm_device *dev, size_t
 	INIT_LIST_HEAD(&obj->mappings.list);
 	mutex_init(&obj->mappings.lock);
 	obj->base.base.funcs = &panfrost_gem_funcs;
+	obj->base.map_cached = pfdev->coherent;
 
 	return &obj->base.base;
 }

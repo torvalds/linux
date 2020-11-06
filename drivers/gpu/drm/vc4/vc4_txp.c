@@ -386,16 +386,18 @@ static const struct drm_crtc_funcs vc4_txp_crtc_funcs = {
 };
 
 static int vc4_txp_atomic_check(struct drm_crtc *crtc,
-				struct drm_crtc_state *state)
+				struct drm_atomic_state *state)
 {
-	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(state);
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
+									  crtc);
+	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(crtc_state);
 	int ret;
 
-	ret = vc4_hvs_atomic_check(crtc, state);
+	ret = vc4_hvs_atomic_check(crtc, crtc_state);
 	if (ret)
 		return ret;
 
-	state->no_vblank = true;
+	crtc_state->no_vblank = true;
 	vc4_state->feed_txp = true;
 
 	return 0;

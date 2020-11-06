@@ -221,14 +221,18 @@ EXPORT_SYMBOL(hdmi_avi_infoframe_pack);
 int hdmi_spd_infoframe_init(struct hdmi_spd_infoframe *frame,
 			    const char *vendor, const char *product)
 {
+	size_t len;
+
 	memset(frame, 0, sizeof(*frame));
 
 	frame->type = HDMI_INFOFRAME_TYPE_SPD;
 	frame->version = 1;
 	frame->length = HDMI_SPD_INFOFRAME_SIZE;
 
-	strncpy(frame->vendor, vendor, sizeof(frame->vendor));
-	strncpy(frame->product, product, sizeof(frame->product));
+	len = strlen(vendor);
+	memcpy(frame->vendor, vendor, min(len, sizeof(frame->vendor)));
+	len = strlen(product);
+	memcpy(frame->product, product, min(len, sizeof(frame->product)));
 
 	return 0;
 }

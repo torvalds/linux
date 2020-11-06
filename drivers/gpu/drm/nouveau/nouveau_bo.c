@@ -28,7 +28,6 @@
  */
 
 #include <linux/dma-mapping.h>
-#include <linux/swiotlb.h>
 
 #include "nouveau_drv.h"
 #include "nouveau_chan.h"
@@ -1327,25 +1326,13 @@ nouveau_ttm_tt_populate(struct ttm_bo_device *bdev,
 	drm = nouveau_bdev(bdev);
 	dev = drm->dev->dev;
 
-#if IS_ENABLED(CONFIG_AGP)
-	if (drm->agp.bridge) {
-		return ttm_pool_populate(ttm, ctx);
-	}
-#endif
-
-#if IS_ENABLED(CONFIG_SWIOTLB) && IS_ENABLED(CONFIG_X86)
-	if (swiotlb_nr_tbl()) {
-		return ttm_dma_populate((void *)ttm, dev, ctx);
-	}
-#endif
-	return ttm_populate_and_map_pages(dev, ttm_dma, ctx);
+	return ttm_pool_alloc(&drm->ttm.bdev.pool, ttm, ctx);
 }
 
 static void
 nouveau_ttm_tt_unpopulate(struct ttm_bo_device *bdev,
 			  struct ttm_tt *ttm)
 {
-	struct ttm_tt *ttm_dma = (void *)ttm;
 	struct nouveau_drm *drm;
 	struct device *dev;
 	bool slave = !!(ttm->page_flags & TTM_PAGE_FLAG_SG);
@@ -1356,21 +1343,7 @@ nouveau_ttm_tt_unpopulate(struct ttm_bo_device *bdev,
 	drm = nouveau_bdev(bdev);
 	dev = drm->dev->dev;
 
-#if IS_ENABLED(CONFIG_AGP)
-	if (drm->agp.bridge) {
-		ttm_pool_unpopulate(ttm);
-		return;
-	}
-#endif
-
-#if IS_ENABLED(CONFIG_SWIOTLB) && IS_ENABLED(CONFIG_X86)
-	if (swiotlb_nr_tbl()) {
-		ttm_dma_unpopulate((void *)ttm, dev);
-		return;
-	}
-#endif
-
-	ttm_unmap_and_unpopulate_pages(dev, ttm_dma);
+	return ttm_pool_free(&drm->ttm.bdev.pool, ttm);
 }
 
 static void

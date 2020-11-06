@@ -195,8 +195,12 @@ struct ttm_bo_kmap_obj {
  *
  * @interruptible: Sleep interruptible if sleeping.
  * @no_wait_gpu: Return immediately if the GPU is busy.
+ * @gfp_retry_mayfail: Set the __GFP_RETRY_MAYFAIL when allocation pages.
+ * @allow_res_evict: Allow eviction of reserved BOs. Can be used when multiple
+ * BOs share the same reservation object.
+ * @force_alloc: Don't check the memory account during suspend or CPU page
+ * faults. Should only be used by TTM internally.
  * @resv: Reservation object to allow reserved evictions with.
- * @flags: Including the following flags
  *
  * Context for TTM operations like changing buffer placement or general memory
  * allocation.
@@ -204,15 +208,12 @@ struct ttm_bo_kmap_obj {
 struct ttm_operation_ctx {
 	bool interruptible;
 	bool no_wait_gpu;
+	bool gfp_retry_mayfail;
+	bool allow_res_evict;
+	bool force_alloc;
 	struct dma_resv *resv;
 	uint64_t bytes_moved;
-	uint32_t flags;
 };
-
-/* Allow eviction of reserved BOs */
-#define TTM_OPT_FLAG_ALLOW_RES_EVICT		0x1
-/* when serving page fault or suspend, allow alloc anyway */
-#define TTM_OPT_FLAG_FORCE_ALLOC		0x2
 
 /**
  * ttm_bo_get - reference a struct ttm_buffer_object

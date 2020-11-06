@@ -89,7 +89,7 @@ int ttm_resource_manager_evict_all(struct ttm_bo_device *bdev,
 	struct ttm_operation_ctx ctx = {
 		.interruptible = false,
 		.no_wait_gpu = false,
-		.flags = TTM_OPT_FLAG_FORCE_ALLOC
+		.force_alloc = true
 	};
 	struct ttm_bo_global *glob = &ttm_bo_glob;
 	struct dma_fence *fence;

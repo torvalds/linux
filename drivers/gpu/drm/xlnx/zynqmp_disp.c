@@ -28,7 +28,6 @@
 #include <linux/dmaengine.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_dma.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/spinlock.h>
@@ -1316,8 +1315,7 @@ static int zynqmp_disp_layer_request_dma(struct zynqmp_disp *disp,
 
 		snprintf(dma_channel_name, sizeof(dma_channel_name),
 			 "%s%u", dma_names[layer->id], i);
-		dma->chan = of_dma_request_slave_channel(disp->dev->of_node,
-							 dma_channel_name);
+		dma->chan = dma_request_chan(disp->dev, dma_channel_name);
 		if (IS_ERR(dma->chan)) {
 			dev_err(disp->dev, "failed to request dma channel\n");
 			ret = PTR_ERR(dma->chan);
@@ -1506,21 +1504,21 @@ zynqmp_disp_crtc_atomic_disable(struct drm_crtc *crtc,
 }
 
 static int zynqmp_disp_crtc_atomic_check(struct drm_crtc *crtc,
-					 struct drm_crtc_state *state)
+					 struct drm_atomic_state *state)
 {
-	return drm_atomic_add_affected_planes(state->state, crtc);
+	return drm_atomic_add_affected_planes(state, crtc);
 }
 
 static void
 zynqmp_disp_crtc_atomic_begin(struct drm_crtc *crtc,
-			      struct drm_crtc_state *old_crtc_state)
+			      struct drm_atomic_state *state)
 {
 	drm_crtc_vblank_on(crtc);
 }
 
 static void
 zynqmp_disp_crtc_atomic_flush(struct drm_crtc *crtc,
-			      struct drm_crtc_state *old_crtc_state)
+			      struct drm_atomic_state *state)
 {
 	if (crtc->state->event) {
 		struct drm_pending_vblank_event *event;

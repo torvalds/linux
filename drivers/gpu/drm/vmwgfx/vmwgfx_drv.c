@@ -595,10 +595,6 @@ static int vmw_dma_select_mode(struct vmw_private *dev_priv)
 	else
 		dev_priv->map_mode = vmw_dma_map_populate;
 
-        if (!IS_ENABLED(CONFIG_DRM_TTM_DMA_PAGE_POOL) &&
-	    (dev_priv->map_mode == vmw_dma_alloc_coherent))
-		return -EINVAL;
-
 	DRM_INFO("DMA map mode: %s\n", names[dev_priv->map_mode]);
 	return 0;
 }
@@ -798,8 +794,7 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	if (unlikely(ret != 0))
 		goto out_err0;
 
-	dma_set_max_seg_size(dev->dev, min_t(unsigned int, U32_MAX & PAGE_MASK,
-					     SCATTERLIST_MAX_SEGMENT));
+	dma_set_max_seg_size(dev->dev, U32_MAX);
 
 	if (dev_priv->capabilities & SVGA_CAP_GMR2) {
 		DRM_INFO("Max GMR ids is %u\n",
@@ -878,10 +873,11 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	drm_vma_offset_manager_init(&dev_priv->vma_manager,
 				    DRM_FILE_PAGE_OFFSET_START,
 				    DRM_FILE_PAGE_OFFSET_SIZE);
-	ret = ttm_bo_device_init(&dev_priv->bdev,
-				 &vmw_bo_driver,
+	ret = ttm_bo_device_init(&dev_priv->bdev, &vmw_bo_driver,
+				 dev_priv->dev->dev,
 				 dev->anon_inode->i_mapping,
 				 &dev_priv->vma_manager,
+				 dev_priv->map_mode == vmw_dma_alloc_coherent,
 				 false);
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("Failed initializing TTM buffer object driver.\n");

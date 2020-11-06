@@ -28,7 +28,6 @@
 #include "vmwgfx_drv.h"
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_placement.h>
-#include <drm/ttm/ttm_page_alloc.h>
 
 static const struct ttm_place vram_placement_flags = {
 	.fpfn = 0,
@@ -576,30 +575,11 @@ static void vmw_ttm_destroy(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
 static int vmw_ttm_populate(struct ttm_bo_device *bdev,
 			    struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
 {
-	struct vmw_ttm_tt *vmw_tt =
-		container_of(ttm, struct vmw_ttm_tt, dma_ttm);
-	struct vmw_private *dev_priv = vmw_tt->dev_priv;
-	struct ttm_mem_global *glob = vmw_mem_glob(dev_priv);
-	int ret;
-
+	/* TODO: maybe completely drop this ? */
 	if (ttm_tt_is_populated(ttm))
 		return 0;
 
-	if (dev_priv->map_mode == vmw_dma_alloc_coherent) {
-		size_t size =
-			ttm_round_pot(ttm->num_pages * sizeof(dma_addr_t));
-		ret = ttm_mem_global_alloc(glob, size, ctx);
-		if (unlikely(ret != 0))
-			return ret;
-
-		ret = ttm_dma_populate(&vmw_tt->dma_ttm, dev_priv->dev->dev,
-					ctx);
-		if (unlikely(ret != 0))
-			ttm_mem_global_free(glob, size);
-	} else
-		ret = ttm_pool_populate(ttm, ctx);
-
-	return ret;
+	return ttm_pool_alloc(&bdev->pool, ttm, ctx);
 }
 
 static void vmw_ttm_unpopulate(struct ttm_bo_device *bdev,
@@ -607,9 +587,6 @@ static void vmw_ttm_unpopulate(struct ttm_bo_device *bdev,
 {
 	struct vmw_ttm_tt *vmw_tt = container_of(ttm, struct vmw_ttm_tt,
 						 dma_ttm);
-	struct vmw_private *dev_priv = vmw_tt->dev_priv;
-	struct ttm_mem_global *glob = vmw_mem_glob(dev_priv);
-
 
 	if (vmw_tt->mob) {
 		vmw_mob_destroy(vmw_tt->mob);
@@ -617,14 +594,7 @@ static void vmw_ttm_unpopulate(struct ttm_bo_device *bdev,
 	}
 
 	vmw_ttm_unmap_dma(vmw_tt);
-	if (dev_priv->map_mode == vmw_dma_alloc_coherent) {
-		size_t size =
-			ttm_round_pot(ttm->num_pages * sizeof(dma_addr_t));
-
-		ttm_dma_unpopulate(&vmw_tt->dma_ttm, dev_priv->dev->dev);
-		ttm_mem_global_free(glob, size);
-	} else
-		ttm_pool_unpopulate(ttm);
+	ttm_pool_free(&bdev->pool, ttm);
 }
 
 static struct ttm_tt *vmw_ttm_tt_create(struct ttm_buffer_object *bo,

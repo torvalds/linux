@@ -37,7 +37,6 @@
 #include <linux/file.h>
 #include <drm/drm_cache.h>
 #include <drm/ttm/ttm_bo_driver.h>
-#include <drm/ttm/ttm_page_alloc.h>
 
 /**
  * Allocates a ttm structure for the given BO.
@@ -51,12 +50,6 @@ int ttm_tt_create(struct ttm_buffer_object *bo, bool zero_alloc)
 
 	if (bo->ttm)
 		return 0;
-
-	if (bdev->need_dma32)
-		page_flags |= TTM_PAGE_FLAG_DMA32;
-
-	if (bdev->no_retry)
-		page_flags |= TTM_PAGE_FLAG_NO_RETRY;
 
 	switch (bo->type) {
 	case ttm_bo_type_device:
@@ -142,7 +135,6 @@ static void ttm_tt_init_fields(struct ttm_tt *ttm,
 	ttm->dma_address = NULL;
 	ttm->swap_storage = NULL;
 	ttm->sg = bo->sg;
-	INIT_LIST_HEAD(&ttm->pages_list);
 	ttm->caching = caching;
 }
 
@@ -216,8 +208,6 @@ int ttm_tt_swapin(struct ttm_tt *ttm)
 
 	swap_space = swap_storage->f_mapping;
 	gfp_mask = mapping_gfp_mask(swap_space);
-	if (ttm->page_flags & TTM_PAGE_FLAG_NO_RETRY)
-		gfp_mask |= __GFP_RETRY_MAYFAIL;
 
 	for (i = 0; i < ttm->num_pages; ++i) {
 		from_page = shmem_read_mapping_page_gfp(swap_space, i,
@@ -265,8 +255,6 @@ int ttm_tt_swapout(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
 
 	swap_space = swap_storage->f_mapping;
 	gfp_mask = mapping_gfp_mask(swap_space);
-	if (ttm->page_flags & TTM_PAGE_FLAG_NO_RETRY)
-		gfp_mask |= __GFP_RETRY_MAYFAIL;
 
 	for (i = 0; i < ttm->num_pages; ++i) {
 		from_page = ttm->pages[i];
@@ -321,7 +309,7 @@ int ttm_tt_populate(struct ttm_bo_device *bdev,
 	if (bdev->driver->ttm_tt_populate)
 		ret = bdev->driver->ttm_tt_populate(bdev, ttm, ctx);
 	else
-		ret = ttm_pool_populate(ttm, ctx);
+		ret = ttm_pool_alloc(&bdev->pool, ttm, ctx);
 	if (ret)
 		return ret;
 
@@ -363,6 +351,6 @@ void ttm_tt_unpopulate(struct ttm_bo_device *bdev,
 	if (bdev->driver->ttm_tt_unpopulate)
 		bdev->driver->ttm_tt_unpopulate(bdev, ttm);
 	else
-		ttm_pool_unpopulate(ttm);
+		ttm_pool_free(&bdev->pool, ttm);
 	ttm->page_flags &= ~TTM_PAGE_FLAG_PRIV_POPULATED;
 }

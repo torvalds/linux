@@ -15,7 +15,6 @@
 #include <drm/drm_plane.h>
 #include <drm/drm_prime.h>
 #include <drm/drm_simple_kms_helper.h>
-#include <drm/ttm/ttm_page_alloc.h>
 
 static const struct drm_gem_object_funcs drm_gem_vram_object_funcs;
 
@@ -1045,10 +1044,10 @@ static int drm_vram_mm_init(struct drm_vram_mm *vmm, struct drm_device *dev,
 	vmm->vram_base = vram_base;
 	vmm->vram_size = vram_size;
 
-	ret = ttm_bo_device_init(&vmm->bdev, &bo_driver,
+	ret = ttm_bo_device_init(&vmm->bdev, &bo_driver, dev->dev,
 				 dev->anon_inode->i_mapping,
 				 dev->vma_offset_manager,
-				 true);
+				 false, true);
 	if (ret)
 		return ret;
 

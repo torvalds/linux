@@ -47,7 +47,6 @@
 #include <drm/ttm/ttm_bo_api.h>
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_module.h>
-#include <drm/ttm/ttm_page_alloc.h>
 #include <drm/ttm/ttm_placement.h>
 
 #include "radeon_reg.h"
@@ -679,19 +678,7 @@ static int radeon_ttm_tt_populate(struct ttm_bo_device *bdev,
 		return 0;
 	}
 
-#if IS_ENABLED(CONFIG_AGP)
-	if (rdev->flags & RADEON_IS_AGP) {
-		return ttm_pool_populate(ttm, ctx);
-	}
-#endif
-
-#ifdef CONFIG_SWIOTLB
-	if (rdev->need_swiotlb && swiotlb_nr_tbl()) {
-		return ttm_dma_populate(&gtt->ttm, rdev->dev, ctx);
-	}
-#endif
-
-	return ttm_populate_and_map_pages(rdev->dev, &gtt->ttm, ctx);
+	return ttm_pool_alloc(&rdev->mman.bdev.pool, ttm, ctx);
 }
 
 static void radeon_ttm_tt_unpopulate(struct ttm_bo_device *bdev, struct ttm_tt *ttm)
@@ -709,21 +696,7 @@ static void radeon_ttm_tt_unpopulate(struct ttm_bo_device *bdev, struct ttm_tt *
 	if (slave)
 		return;
 
-#if IS_ENABLED(CONFIG_AGP)
-	if (rdev->flags & RADEON_IS_AGP) {
-		ttm_pool_unpopulate(ttm);
-		return;
-	}
-#endif
-
-#ifdef CONFIG_SWIOTLB
-	if (rdev->need_swiotlb && swiotlb_nr_tbl()) {
-		ttm_dma_unpopulate(&gtt->ttm, rdev->dev);
-		return;
-	}
-#endif
-
-	ttm_unmap_and_unpopulate_pages(rdev->dev, &gtt->ttm);
+	return ttm_pool_free(&rdev->mman.bdev.pool, ttm);
 }
 
 int radeon_ttm_tt_set_userptr(struct radeon_device *rdev,
@@ -846,16 +819,19 @@ int radeon_ttm_init(struct radeon_device *rdev)
 	int r;
 
 	/* No others user of address space so set it to 0 */
-	r = ttm_bo_device_init(&rdev->mman.bdev,
-			       &radeon_bo_driver,
+	r = ttm_bo_device_init(&rdev->mman.bdev, &radeon_bo_driver, rdev->dev,
 			       rdev->ddev->anon_inode->i_mapping,
 			       rdev->ddev->vma_offset_manager,
+			       rdev->need_swiotlb,
 			       dma_addressing_limited(&rdev->pdev->dev));
 	if (r) {
 		DRM_ERROR("failed initializing buffer object driver(%d).\n", r);
 		return r;
 	}
 	rdev->mman.initialized = true;
+
+	ttm_pool_init(&rdev->mman.bdev.pool, rdev->dev, rdev->need_swiotlb,
+		      dma_addressing_limited(&rdev->pdev->dev));
 
 	r = radeon_ttm_init_vram(rdev);
 	if (r) {
@@ -1004,6 +980,14 @@ static int radeon_mm_dump_table(struct seq_file *m, void *data)
 	return 0;
 }
 
+static int radeon_ttm_pool_debugfs(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = (struct drm_info_node *)m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct radeon_device *rdev = dev->dev_private;
+
+	return ttm_pool_debugfs(&rdev->mman.bdev.pool, m);
+}
 
 static int ttm_pl_vram = TTM_PL_VRAM;
 static int ttm_pl_tt = TTM_PL_TT;
@@ -1011,10 +995,7 @@ static int ttm_pl_tt = TTM_PL_TT;
 static struct drm_info_list radeon_ttm_debugfs_list[] = {
 	{"radeon_vram_mm", radeon_mm_dump_table, 0, &ttm_pl_vram},
 	{"radeon_gtt_mm", radeon_mm_dump_table, 0, &ttm_pl_tt},
-	{"ttm_page_pool", ttm_page_alloc_debugfs, 0, NULL},
-#ifdef CONFIG_SWIOTLB
-	{"ttm_dma_page_pool", ttm_dma_page_alloc_debugfs, 0, NULL}
-#endif
+	{"ttm_page_pool", radeon_ttm_pool_debugfs, 0, NULL}
 };
 
 static int radeon_ttm_vram_open(struct inode *inode, struct file *filep)
@@ -1141,11 +1122,6 @@ static int radeon_ttm_debugfs_init(struct radeon_device *rdev)
 					     root, rdev, &radeon_ttm_gtt_fops);
 
 	count = ARRAY_SIZE(radeon_ttm_debugfs_list);
-
-#ifdef CONFIG_SWIOTLB
-	if (!(rdev->need_swiotlb && swiotlb_nr_tbl()))
-		--count;
-#endif
 
 	return radeon_debugfs_add_files(rdev, radeon_ttm_debugfs_list, count);
 #else

@@ -918,7 +918,7 @@ drm_atomic_helper_check_planes(struct drm_device *dev,
 		if (!funcs || !funcs->atomic_check)
 			continue;
 
-		ret = funcs->atomic_check(crtc, new_crtc_state);
+		ret = funcs->atomic_check(crtc, state);
 		if (ret) {
 			DRM_DEBUG_ATOMIC("[CRTC:%d:%s] atomic driver check failed\n",
 					 crtc->base.id, crtc->name);
@@ -2521,7 +2521,7 @@ void drm_atomic_helper_commit_planes(struct drm_device *dev,
 		if (active_only && !new_crtc_state->active)
 			continue;
 
-		funcs->atomic_begin(crtc, old_crtc_state);
+		funcs->atomic_begin(crtc, old_state);
 	}
 
 	for_each_oldnew_plane_in_state(old_state, plane, old_plane_state, new_plane_state, i) {
@@ -2579,7 +2579,7 @@ void drm_atomic_helper_commit_planes(struct drm_device *dev,
 		if (active_only && !new_crtc_state->active)
 			continue;
 
-		funcs->atomic_flush(crtc, old_crtc_state);
+		funcs->atomic_flush(crtc, old_state);
 	}
 }
 EXPORT_SYMBOL(drm_atomic_helper_commit_planes);
@@ -2617,7 +2617,7 @@ drm_atomic_helper_commit_planes_on_crtc(struct drm_crtc_state *old_crtc_state)
 
 	crtc_funcs = crtc->helper_private;
 	if (crtc_funcs && crtc_funcs->atomic_begin)
-		crtc_funcs->atomic_begin(crtc, old_crtc_state);
+		crtc_funcs->atomic_begin(crtc, old_state);
 
 	drm_for_each_plane_mask(plane, crtc->dev, plane_mask) {
 		struct drm_plane_state *old_plane_state =
@@ -2643,7 +2643,7 @@ drm_atomic_helper_commit_planes_on_crtc(struct drm_crtc_state *old_crtc_state)
 	}
 
 	if (crtc_funcs && crtc_funcs->atomic_flush)
-		crtc_funcs->atomic_flush(crtc, old_crtc_state);
+		crtc_funcs->atomic_flush(crtc, old_state);
 }
 EXPORT_SYMBOL(drm_atomic_helper_commit_planes_on_crtc);
 

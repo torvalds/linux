@@ -336,8 +336,7 @@ struct drm_crtc_helper_funcs {
 	 *
 	 * This function is called in the check phase of an atomic update. The
 	 * driver is not allowed to change anything outside of the free-standing
-	 * state objects passed-in or assembled in the overall &drm_atomic_state
-	 * update tracking structure.
+	 * state object passed-in.
 	 *
 	 * Also beware that userspace can request its own custom modes, neither
 	 * core nor helpers filter modes to the list of probe modes reported by
@@ -353,7 +352,7 @@ struct drm_crtc_helper_funcs {
 	 * deadlock.
 	 */
 	int (*atomic_check)(struct drm_crtc *crtc,
-			    struct drm_crtc_state *state);
+			    struct drm_atomic_state *state);
 
 	/**
 	 * @atomic_begin:
@@ -374,7 +373,7 @@ struct drm_crtc_helper_funcs {
 	 * transitional plane helpers, but it is optional.
 	 */
 	void (*atomic_begin)(struct drm_crtc *crtc,
-			     struct drm_crtc_state *old_crtc_state);
+			     struct drm_atomic_state *state);
 	/**
 	 * @atomic_flush:
 	 *
@@ -398,7 +397,7 @@ struct drm_crtc_helper_funcs {
 	 * transitional plane helpers, but it is optional.
 	 */
 	void (*atomic_flush)(struct drm_crtc *crtc,
-			     struct drm_crtc_state *old_crtc_state);
+			     struct drm_atomic_state *state);
 
 	/**
 	 * @atomic_enable:

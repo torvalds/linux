@@ -337,8 +337,10 @@ mclk_calc:
 }
 
 static int malidp_crtc_atomic_check(struct drm_crtc *crtc,
-				    struct drm_crtc_state *state)
+				    struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
+									  crtc);
 	struct malidp_drm *malidp = crtc_to_malidp_device(crtc);
 	struct malidp_hw_device *hwdev = malidp->dev;
 	struct drm_plane *plane;
@@ -373,7 +375,7 @@ static int malidp_crtc_atomic_check(struct drm_crtc *crtc,
 	 */
 
 	/* first count the number of rotated planes */
-	drm_atomic_crtc_state_for_each_plane_state(plane, pstate, state) {
+	drm_atomic_crtc_state_for_each_plane_state(plane, pstate, crtc_state) {
 		struct drm_framebuffer *fb = pstate->fb;
 
 		if ((pstate->rotation & MALIDP_ROTATED_MASK) || fb->modifier)
@@ -389,7 +391,7 @@ static int malidp_crtc_atomic_check(struct drm_crtc *crtc,
 		rot_mem_free += hwdev->rotation_memory[1];
 
 	/* now validate the rotation memory requirements */
-	drm_atomic_crtc_state_for_each_plane_state(plane, pstate, state) {
+	drm_atomic_crtc_state_for_each_plane_state(plane, pstate, crtc_state) {
 		struct malidp_plane *mp = to_malidp_plane(plane);
 		struct malidp_plane_state *ms = to_malidp_plane_state(pstate);
 		struct drm_framebuffer *fb = pstate->fb;
@@ -417,18 +419,18 @@ static int malidp_crtc_atomic_check(struct drm_crtc *crtc,
 	}
 
 	/* If only the writeback routing has changed, we don't need a modeset */
-	if (state->connectors_changed) {
+	if (crtc_state->connectors_changed) {
 		u32 old_mask = crtc->state->connector_mask;
-		u32 new_mask = state->connector_mask;
+		u32 new_mask = crtc_state->connector_mask;
 
 		if ((old_mask ^ new_mask) ==
 		    (1 << drm_connector_index(&malidp->mw_connector.base)))
-			state->connectors_changed = false;
+			crtc_state->connectors_changed = false;
 	}
 
-	ret = malidp_crtc_atomic_check_gamma(crtc, state);
-	ret = ret ? ret : malidp_crtc_atomic_check_ctm(crtc, state);
-	ret = ret ? ret : malidp_crtc_atomic_check_scaling(crtc, state);
+	ret = malidp_crtc_atomic_check_gamma(crtc, crtc_state);
+	ret = ret ? ret : malidp_crtc_atomic_check_ctm(crtc, crtc_state);
+	ret = ret ? ret : malidp_crtc_atomic_check_scaling(crtc, crtc_state);
 
 	return ret;
 }
