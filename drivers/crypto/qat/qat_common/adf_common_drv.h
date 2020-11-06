@@ -163,19 +163,19 @@ int qat_hal_batch_wr_lm(struct icp_qat_fw_loader_handle *handle,
 			unsigned char ae,
 			struct icp_qat_uof_batch_init *lm_init_header);
 int qat_hal_init_gpr(struct icp_qat_fw_loader_handle *handle,
-		     unsigned char ae, unsigned char ctx_mask,
+		     unsigned char ae, unsigned long ctx_mask,
 		     enum icp_qat_uof_regtype reg_type,
 		     unsigned short reg_num, unsigned int regdata);
 int qat_hal_init_wr_xfer(struct icp_qat_fw_loader_handle *handle,
-			 unsigned char ae, unsigned char ctx_mask,
+			 unsigned char ae, unsigned long ctx_mask,
 			 enum icp_qat_uof_regtype reg_type,
 			 unsigned short reg_num, unsigned int regdata);
 int qat_hal_init_rd_xfer(struct icp_qat_fw_loader_handle *handle,
-			 unsigned char ae, unsigned char ctx_mask,
+			 unsigned char ae, unsigned long ctx_mask,
 			 enum icp_qat_uof_regtype reg_type,
 			 unsigned short reg_num, unsigned int regdata);
 int qat_hal_init_nn(struct icp_qat_fw_loader_handle *handle,
-		    unsigned char ae, unsigned char ctx_mask,
+		    unsigned char ae, unsigned long ctx_mask,
 		    unsigned short reg_num, unsigned int regdata);
 int qat_hal_wr_lm(struct icp_qat_fw_loader_handle *handle,
 		  unsigned char ae, unsigned short lm_addr, unsigned int value);

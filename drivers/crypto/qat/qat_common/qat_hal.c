@@ -1274,7 +1274,7 @@ static int qat_hal_convert_abs_to_rel(struct icp_qat_fw_loader_handle
 }
 
 int qat_hal_init_gpr(struct icp_qat_fw_loader_handle *handle,
-		     unsigned char ae, unsigned char ctx_mask,
+		     unsigned char ae, unsigned long ctx_mask,
 		     enum icp_qat_uof_regtype reg_type,
 		     unsigned short reg_num, unsigned int regdata)
 {
@@ -1294,7 +1294,7 @@ int qat_hal_init_gpr(struct icp_qat_fw_loader_handle *handle,
 		} else {
 			reg = reg_num;
 			type = reg_type;
-			if (!test_bit(ctx, (unsigned long *)&ctx_mask))
+			if (!test_bit(ctx, &ctx_mask))
 				continue;
 		}
 		stat = qat_hal_wr_rel_reg(handle, ae, ctx, type, reg, regdata);
@@ -1308,7 +1308,7 @@ int qat_hal_init_gpr(struct icp_qat_fw_loader_handle *handle,
 }
 
 int qat_hal_init_wr_xfer(struct icp_qat_fw_loader_handle *handle,
-			 unsigned char ae, unsigned char ctx_mask,
+			 unsigned char ae, unsigned long ctx_mask,
 			 enum icp_qat_uof_regtype reg_type,
 			 unsigned short reg_num, unsigned int regdata)
 {
@@ -1328,7 +1328,7 @@ int qat_hal_init_wr_xfer(struct icp_qat_fw_loader_handle *handle,
 		} else {
 			reg = reg_num;
 			type = reg_type;
-			if (!test_bit(ctx, (unsigned long *)&ctx_mask))
+			if (!test_bit(ctx, &ctx_mask))
 				continue;
 		}
 		stat = qat_hal_put_rel_wr_xfer(handle, ae, ctx, type, reg,
@@ -1343,7 +1343,7 @@ int qat_hal_init_wr_xfer(struct icp_qat_fw_loader_handle *handle,
 }
 
 int qat_hal_init_rd_xfer(struct icp_qat_fw_loader_handle *handle,
-			 unsigned char ae, unsigned char ctx_mask,
+			 unsigned char ae, unsigned long ctx_mask,
 			 enum icp_qat_uof_regtype reg_type,
 			 unsigned short reg_num, unsigned int regdata)
 {
@@ -1363,7 +1363,7 @@ int qat_hal_init_rd_xfer(struct icp_qat_fw_loader_handle *handle,
 		} else {
 			reg = reg_num;
 			type = reg_type;
-			if (!test_bit(ctx, (unsigned long *)&ctx_mask))
+			if (!test_bit(ctx, &ctx_mask))
 				continue;
 		}
 		stat = qat_hal_put_rel_rd_xfer(handle, ae, ctx, type, reg,
@@ -1378,7 +1378,7 @@ int qat_hal_init_rd_xfer(struct icp_qat_fw_loader_handle *handle,
 }
 
 int qat_hal_init_nn(struct icp_qat_fw_loader_handle *handle,
-		    unsigned char ae, unsigned char ctx_mask,
+		    unsigned char ae, unsigned long ctx_mask,
 		    unsigned short reg_num, unsigned int regdata)
 {
 	int stat = 0;
@@ -1388,7 +1388,7 @@ int qat_hal_init_nn(struct icp_qat_fw_loader_handle *handle,
 		return -EINVAL;
 
 	for (ctx = 0; ctx < ICP_QAT_UCLO_MAX_CTX; ctx++) {
-		if (!test_bit(ctx, (unsigned long *)&ctx_mask))
+		if (!test_bit(ctx, &ctx_mask))
 			continue;
 		stat = qat_hal_put_rel_nn(handle, ae, ctx, reg_num, regdata);
 		if (stat) {
