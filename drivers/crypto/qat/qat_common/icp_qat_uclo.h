@@ -42,24 +42,48 @@
 #define ICP_QAT_SUOF_IMAG "SUF_IMAG"
 #define ICP_QAT_SIMG_AE_INIT_SEQ_LEN    (50 * sizeof(unsigned long long))
 #define ICP_QAT_SIMG_AE_INSTS_LEN       (0x4000 * sizeof(unsigned long long))
-#define ICP_QAT_CSS_FWSK_MODULUS_LEN    256
-#define ICP_QAT_CSS_FWSK_EXPONENT_LEN   4
-#define ICP_QAT_CSS_FWSK_PAD_LEN        252
-#define ICP_QAT_CSS_FWSK_PUB_LEN   (ICP_QAT_CSS_FWSK_MODULUS_LEN + \
-				    ICP_QAT_CSS_FWSK_EXPONENT_LEN + \
-				    ICP_QAT_CSS_FWSK_PAD_LEN)
-#define ICP_QAT_CSS_SIGNATURE_LEN   256
+
+#define DSS_FWSK_MODULUS_LEN    384 /* RSA3K */
+#define DSS_FWSK_EXPONENT_LEN   4
+#define DSS_FWSK_PADDING_LEN    380
+#define DSS_SIGNATURE_LEN       384 /* RSA3K */
+
+#define CSS_FWSK_MODULUS_LEN    256 /* RSA2K */
+#define CSS_FWSK_EXPONENT_LEN   4
+#define CSS_FWSK_PADDING_LEN    252
+#define CSS_SIGNATURE_LEN       256 /* RSA2K */
+
+#define ICP_QAT_CSS_FWSK_MODULUS_LEN(handle)	((handle)->chip_info->css_3k ? \
+						DSS_FWSK_MODULUS_LEN  : \
+						CSS_FWSK_MODULUS_LEN)
+
+#define ICP_QAT_CSS_FWSK_EXPONENT_LEN(handle)	((handle)->chip_info->css_3k ? \
+						DSS_FWSK_EXPONENT_LEN : \
+						CSS_FWSK_EXPONENT_LEN)
+
+#define ICP_QAT_CSS_FWSK_PAD_LEN(handle)	((handle)->chip_info->css_3k ? \
+						DSS_FWSK_PADDING_LEN : \
+						CSS_FWSK_PADDING_LEN)
+
+#define ICP_QAT_CSS_FWSK_PUB_LEN(handle)	(ICP_QAT_CSS_FWSK_MODULUS_LEN(handle) + \
+						ICP_QAT_CSS_FWSK_EXPONENT_LEN(handle) + \
+						ICP_QAT_CSS_FWSK_PAD_LEN(handle))
+
+#define ICP_QAT_CSS_SIGNATURE_LEN(handle)	((handle)->chip_info->css_3k ? \
+						DSS_SIGNATURE_LEN : \
+						CSS_SIGNATURE_LEN)
+
 #define ICP_QAT_CSS_AE_IMG_LEN     (sizeof(struct icp_qat_simg_ae_mode) + \
 				    ICP_QAT_SIMG_AE_INIT_SEQ_LEN +         \
 				    ICP_QAT_SIMG_AE_INSTS_LEN)
-#define ICP_QAT_CSS_AE_SIMG_LEN    (sizeof(struct icp_qat_css_hdr) + \
-				    ICP_QAT_CSS_FWSK_PUB_LEN + \
-				    ICP_QAT_CSS_SIGNATURE_LEN + \
-				    ICP_QAT_CSS_AE_IMG_LEN)
-#define ICP_QAT_AE_IMG_OFFSET	   (sizeof(struct icp_qat_css_hdr) + \
-				    ICP_QAT_CSS_FWSK_MODULUS_LEN + \
-				    ICP_QAT_CSS_FWSK_EXPONENT_LEN + \
-				    ICP_QAT_CSS_SIGNATURE_LEN)
+#define ICP_QAT_CSS_AE_SIMG_LEN(handle) (sizeof(struct icp_qat_css_hdr) + \
+					ICP_QAT_CSS_FWSK_PUB_LEN(handle) + \
+					ICP_QAT_CSS_SIGNATURE_LEN(handle) + \
+					ICP_QAT_CSS_AE_IMG_LEN)
+#define ICP_QAT_AE_IMG_OFFSET(handle) (sizeof(struct icp_qat_css_hdr) + \
+					ICP_QAT_CSS_FWSK_MODULUS_LEN(handle) + \
+					ICP_QAT_CSS_FWSK_EXPONENT_LEN(handle) + \
+					ICP_QAT_CSS_SIGNATURE_LEN(handle))
 #define ICP_QAT_CSS_MAX_IMAGE_LEN   0x40000
 
 #define ICP_QAT_CTX_MODE(ae_mode) ((ae_mode) & 0xf)

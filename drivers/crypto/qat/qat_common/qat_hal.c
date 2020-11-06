@@ -706,6 +706,7 @@ static int qat_hal_chip_init(struct icp_qat_fw_loader_handle *handle,
 		handle->chip_info->misc_ctl_csr = MISC_CONTROL;
 		handle->chip_info->wakeup_event_val = WAKEUP_EVENT;
 		handle->chip_info->fw_auth = true;
+		handle->chip_info->css_3k = false;
 		break;
 	case PCI_DEVICE_ID_INTEL_QAT_DH895XCC:
 		handle->chip_info->sram_visible = true;
@@ -717,6 +718,7 @@ static int qat_hal_chip_init(struct icp_qat_fw_loader_handle *handle,
 		handle->chip_info->misc_ctl_csr = MISC_CONTROL;
 		handle->chip_info->wakeup_event_val = WAKEUP_EVENT;
 		handle->chip_info->fw_auth = false;
+		handle->chip_info->css_3k = false;
 		break;
 	default:
 		ret = -EINVAL;

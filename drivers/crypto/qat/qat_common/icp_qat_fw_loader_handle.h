@@ -33,6 +33,7 @@ struct icp_qat_fw_loader_chip_info {
 	u32 misc_ctl_csr;
 	u32 wakeup_event_val;
 	bool fw_auth;
+	bool css_3k;
 };
 
 struct icp_qat_fw_loader_handle {
