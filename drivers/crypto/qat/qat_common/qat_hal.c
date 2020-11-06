@@ -603,7 +603,9 @@ static int qat_hal_clear_gpr(struct icp_qat_fw_loader_handle *handle)
 		qat_hal_wr_ae_csr(handle, ae, AE_MISC_CONTROL, csr_val);
 		csr_val = qat_hal_rd_ae_csr(handle, ae, CTX_ENABLES);
 		csr_val &= IGNORE_W1C_MASK;
-		csr_val |= CE_NN_MODE;
+		if (handle->chip_info->nn)
+			csr_val |= CE_NN_MODE;
+
 		qat_hal_wr_ae_csr(handle, ae, CTX_ENABLES, csr_val);
 		qat_hal_wr_uwords(handle, ae, 0, ARRAY_SIZE(inst),
 				  (u64 *)inst);
@@ -665,10 +667,12 @@ static int qat_hal_chip_init(struct icp_qat_fw_loader_handle *handle,
 	case PCI_DEVICE_ID_INTEL_QAT_C62X:
 	case PCI_DEVICE_ID_INTEL_QAT_C3XXX:
 		handle->chip_info->sram_visible = false;
+		handle->chip_info->nn = true;
 		handle->chip_info->fw_auth = true;
 		break;
 	case PCI_DEVICE_ID_INTEL_QAT_DH895XCC:
 		handle->chip_info->sram_visible = true;
+		handle->chip_info->nn = true;
 		handle->chip_info->fw_auth = false;
 		break;
 	default:
@@ -1433,6 +1437,11 @@ int qat_hal_init_nn(struct icp_qat_fw_loader_handle *handle,
 {
 	int stat = 0;
 	unsigned char ctx;
+	if (!handle->chip_info->nn) {
+		dev_err(&handle->pci_dev->dev, "QAT: No next neigh in 0x%x\n",
+			handle->pci_dev->device);
+		return -EINVAL;
+	}
 
 	if (ctx_mask == 0)
 		return -EINVAL;

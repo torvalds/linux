@@ -884,11 +884,13 @@ static int qat_hal_set_modes(struct icp_qat_fw_loader_handle *handle,
 		pr_err("QAT: qat_hal_set_ae_ctx_mode error\n");
 		return ret;
 	}
-	mode = ICP_QAT_NN_MODE(uof_image->ae_mode);
-	ret = qat_hal_set_ae_nn_mode(handle, ae, mode);
-	if (ret) {
-		pr_err("QAT: qat_hal_set_ae_nn_mode error\n");
-		return ret;
+	if (handle->chip_info->nn) {
+		mode = ICP_QAT_NN_MODE(uof_image->ae_mode);
+		ret = qat_hal_set_ae_nn_mode(handle, ae, mode);
+		if (ret) {
+			pr_err("QAT: qat_hal_set_ae_nn_mode error\n");
+			return ret;
+		}
 	}
 	mode = ICP_QAT_LOC_MEM0_MODE(uof_image->ae_mode);
 	ret = qat_hal_set_ae_lm_mode(handle, ae, ICP_LMEM0, mode);
