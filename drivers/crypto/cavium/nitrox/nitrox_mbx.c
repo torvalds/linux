@@ -4,6 +4,7 @@
 #include "nitrox_csr.h"
 #include "nitrox_hal.h"
 #include "nitrox_dev.h"
+#include "nitrox_mbx.h"
 
 #define RING_TO_VFNO(_x, _y)	((_x) / (_y))
 

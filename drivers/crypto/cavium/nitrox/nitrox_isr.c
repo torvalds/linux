@@ -7,6 +7,7 @@
 #include "nitrox_csr.h"
 #include "nitrox_common.h"
 #include "nitrox_hal.h"
+#include "nitrox_isr.h"
 #include "nitrox_mbx.h"
 
 /**
