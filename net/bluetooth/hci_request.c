@@ -1123,9 +1123,9 @@ static void cancel_adv_timeout(struct hci_dev *hdev)
 }
 
 /* This function requires the caller holds hdev->lock */
-static void hci_suspend_adv_instances(struct hci_request *req)
+void __hci_req_pause_adv_instances(struct hci_request *req)
 {
-	bt_dev_dbg(req->hdev, "Suspending advertising instances");
+	bt_dev_dbg(req->hdev, "Pausing advertising instances");
 
 	/* Call to disable any advertisements active on the controller.
 	 * This will succeed even if no advertisements are configured.
@@ -1138,7 +1138,7 @@ static void hci_suspend_adv_instances(struct hci_request *req)
 }
 
 /* This function requires the caller holds hdev->lock */
-static void hci_resume_adv_instances(struct hci_request *req)
+static void __hci_req_resume_adv_instances(struct hci_request *req)
 {
 	struct adv_info *adv;
 
@@ -1159,6 +1159,17 @@ static void hci_resume_adv_instances(struct hci_request *req)
 						req->hdev->cur_adv_instance,
 						true);
 	}
+}
+
+/* This function requires the caller holds hdev->lock */
+int hci_req_resume_adv_instances(struct hci_dev *hdev)
+{
+	struct hci_request req;
+
+	hci_req_init(&req, hdev);
+	__hci_req_resume_adv_instances(&req);
+
+	return hci_req_run(&req, NULL);
 }
 
 static void suspend_req_complete(struct hci_dev *hdev, u8 status, u16 opcode)
@@ -1214,7 +1225,7 @@ void hci_req_prepare_suspend(struct hci_dev *hdev, enum suspended_state next)
 
 		/* Pause other advertisements */
 		if (hdev->adv_instance_cnt)
-			hci_suspend_adv_instances(&req);
+			__hci_req_pause_adv_instances(&req);
 
 		hdev->advertising_paused = true;
 		hdev->advertising_old_state = old_state;
@@ -1279,7 +1290,7 @@ void hci_req_prepare_suspend(struct hci_dev *hdev, enum suspended_state next)
 
 		/* Resume other advertisements */
 		if (hdev->adv_instance_cnt)
-			hci_resume_adv_instances(&req);
+			__hci_req_resume_adv_instances(&req);
 
 		/* Unpause discovery */
 		hdev->discovery_paused = false;
