@@ -1148,7 +1148,6 @@ static int tegra_xusb_padctl_probe(struct platform_device *pdev)
 	const struct tegra_xusb_padctl_soc *soc;
 	struct tegra_xusb_padctl *padctl;
 	const struct of_device_id *match;
-	struct resource *res;
 	int err;
 
 	/* for backwards compatibility with old device trees */
@@ -1173,8 +1172,7 @@ static int tegra_xusb_padctl_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&padctl->pads);
 	mutex_init(&padctl->lock);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	padctl->regs = devm_ioremap_resource(&pdev->dev, res);
+	padctl->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(padctl->regs)) {
 		err = PTR_ERR(padctl->regs);
 		goto remove;
