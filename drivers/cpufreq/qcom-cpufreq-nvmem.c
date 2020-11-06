@@ -397,19 +397,19 @@ static int qcom_cpufreq_probe(struct platform_device *pdev)
 
 free_genpd_opp:
 	for_each_possible_cpu(cpu) {
-		if (IS_ERR_OR_NULL(drv->genpd_opp_tables[cpu]))
+		if (IS_ERR(drv->genpd_opp_tables[cpu]))
 			break;
 		dev_pm_opp_detach_genpd(drv->genpd_opp_tables[cpu]);
 	}
 	kfree(drv->genpd_opp_tables);
 free_opp:
 	for_each_possible_cpu(cpu) {
-		if (IS_ERR_OR_NULL(drv->names_opp_tables[cpu]))
+		if (IS_ERR(drv->names_opp_tables[cpu]))
 			break;
 		dev_pm_opp_put_prop_name(drv->names_opp_tables[cpu]);
 	}
 	for_each_possible_cpu(cpu) {
-		if (IS_ERR_OR_NULL(drv->hw_opp_tables[cpu]))
+		if (IS_ERR(drv->hw_opp_tables[cpu]))
 			break;
 		dev_pm_opp_put_supported_hw(drv->hw_opp_tables[cpu]);
 	}
@@ -430,12 +430,9 @@ static int qcom_cpufreq_remove(struct platform_device *pdev)
 	platform_device_unregister(cpufreq_dt_pdev);
 
 	for_each_possible_cpu(cpu) {
-		if (drv->names_opp_tables[cpu])
-			dev_pm_opp_put_supported_hw(drv->names_opp_tables[cpu]);
-		if (drv->hw_opp_tables[cpu])
-			dev_pm_opp_put_supported_hw(drv->hw_opp_tables[cpu]);
-		if (drv->genpd_opp_tables[cpu])
-			dev_pm_opp_detach_genpd(drv->genpd_opp_tables[cpu]);
+		dev_pm_opp_put_supported_hw(drv->names_opp_tables[cpu]);
+		dev_pm_opp_put_supported_hw(drv->hw_opp_tables[cpu]);
+		dev_pm_opp_detach_genpd(drv->genpd_opp_tables[cpu]);
 	}
 
 	kfree(drv->names_opp_tables);
