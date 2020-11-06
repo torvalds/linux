@@ -1095,6 +1095,34 @@ EXPORT_SYMBOL_GPL(remove_cpu);
 
 extern bool dl_cpu_busy(unsigned int cpu);
 
+int __pause_drain_rq(struct cpumask *cpus)
+{
+	unsigned int cpu;
+	int err = 0;
+
+	/*
+	 * Disabling preemption avoids that one of the stopper, started from
+	 * sched_cpu_drain_rq(), blocks firing draining for the whole cpumask.
+	 */
+	preempt_disable();
+	for_each_cpu(cpu, cpus) {
+		err = sched_cpu_drain_rq(cpu);
+		if (err)
+			break;
+	}
+	preempt_enable();
+
+	return err;
+}
+
+void __wait_drain_rq(struct cpumask *cpus)
+{
+	unsigned int cpu;
+
+	for_each_cpu(cpu, cpus)
+		sched_cpu_drain_rq_wait(cpu);
+}
+
 int pause_cpus(struct cpumask *cpus)
 {
 	int err = 0;
@@ -1125,12 +1153,57 @@ int pause_cpus(struct cpumask *cpus)
 	if (cpumask_empty(cpus))
 		goto err_cpu_maps_update;
 
+	/*
+	 * Lazy migration:
+	 *
+	 * We do care about how fast a CPU can go idle and stay this in this
+	 * state. If we try to take the cpus_write_lock() here, we would have
+	 * to wait for a few dozens of ms, as this function might schedule.
+	 * However, we can, as a first step, flip the active mask and migrate
+	 * anything currently on the run-queue, to give a chance to the paused
+	 * CPUs to reach quickly an idle state. There's a risk meanwhile for
+	 * another CPU to observe an out-of-date active_mask or to incompletely
+	 * update a cpuset. Both problems would be resolved later in the slow
+	 * path, which ensures active_mask synchronization, triggers a cpuset
+	 * rebuild and migrate any task that would have escaped the lazy
+	 * migration.
+	 */
+	for_each_cpu(cpu, cpus)
+		set_cpu_active(cpu, false);
+	err = __pause_drain_rq(cpus);
+	if (err) {
+		__wait_drain_rq(cpus);
+		for_each_cpu(cpu, cpus)
+			set_cpu_active(cpu, true);
+		goto err_cpu_maps_update;
+	}
+
+	/*
+	 * Slow path deactivation:
+	 *
+	 * Now that paused CPUs are most likely idle, we can go through a
+	 * complete scheduler deactivation.
+	 *
+	 * The cpu_active_mask being already set and cpus_write_lock calling
+	 * synchronize_rcu(), we know that all preempt-disabled and RCU users
+	 * will observe the updated value.
+	 */
 	cpus_write_lock();
+
+	__wait_drain_rq(cpus);
 
 	cpuhp_tasks_frozen = 0;
 
 	if (sched_cpus_deactivate_nosync(cpus)) {
 		err = -EBUSY;
+		goto err_cpus_write_unlock;
+	}
+
+	err = __pause_drain_rq(cpus);
+	__wait_drain_rq(cpus);
+	if (err) {
+		for_each_cpu(cpu, cpus)
+			sched_cpu_activate(cpu);
 		goto err_cpus_write_unlock;
 	}
 
