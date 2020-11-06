@@ -590,7 +590,7 @@ void vlv_force_pll_off(struct drm_i915_private *dev_priv, enum pipe pipe);
 int lpt_get_iclkip(struct drm_i915_private *dev_priv);
 bool intel_fuzzy_clock_check(int clock1, int clock2);
 
-void intel_prepare_reset(struct drm_i915_private *dev_priv);
+void intel_display_prepare_reset(struct drm_i915_private *dev_priv);
 void intel_finish_reset(struct drm_i915_private *dev_priv);
 void intel_dp_get_m_n(struct intel_crtc *crtc,
 		      struct intel_crtc_state *pipe_config);

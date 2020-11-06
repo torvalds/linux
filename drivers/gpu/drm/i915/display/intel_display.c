@@ -4851,7 +4851,7 @@ static bool gpu_reset_clobbers_display(struct drm_i915_private *dev_priv)
 		intel_has_gpu_reset(&dev_priv->gt));
 }
 
-void intel_prepare_reset(struct drm_i915_private *dev_priv)
+void intel_display_prepare_reset(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = &dev_priv->drm;
 	struct drm_modeset_acquire_ctx *ctx = &dev_priv->reset_ctx;
