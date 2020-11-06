@@ -323,13 +323,14 @@ static inline int ext4_fc_is_ineligible(struct super_block *sb)
  * If enqueue is set, this function enqueues the inode in fast commit list.
  */
 static int ext4_fc_track_template(
-	struct inode *inode, int (*__fc_track_fn)(struct inode *, void *, bool),
+	handle_t *handle, struct inode *inode,
+	int (*__fc_track_fn)(struct inode *, void *, bool),
 	void *args, int enqueue)
 {
-	tid_t running_txn_tid;
 	bool update = false;
 	struct ext4_inode_info *ei = EXT4_I(inode);
 	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
+	tid_t tid = 0;
 	int ret;
 
 	if (!test_opt2(inode->i_sb, JOURNAL_FAST_COMMIT) ||
@@ -339,15 +340,13 @@ static int ext4_fc_track_template(
 	if (ext4_fc_is_ineligible(inode->i_sb))
 		return -EINVAL;
 
-	running_txn_tid = sbi->s_journal ?
-		sbi->s_journal->j_commit_sequence + 1 : 0;
-
+	tid = handle->h_transaction->t_tid;
 	mutex_lock(&ei->i_fc_lock);
-	if (running_txn_tid == ei->i_sync_tid) {
+	if (tid == ei->i_sync_tid) {
 		update = true;
 	} else {
 		ext4_fc_reset_inode(inode);
-		ei->i_sync_tid = running_txn_tid;
+		ei->i_sync_tid = tid;
 	}
 	ret = __fc_track_fn(inode, args, update);
 	mutex_unlock(&ei->i_fc_lock);
@@ -422,7 +421,8 @@ static int __track_dentry_update(struct inode *inode, void *arg, bool update)
 	return 0;
 }
 
-void ext4_fc_track_unlink(struct inode *inode, struct dentry *dentry)
+void __ext4_fc_track_unlink(handle_t *handle,
+		struct inode *inode, struct dentry *dentry)
 {
 	struct __track_dentry_update_args args;
 	int ret;
@@ -430,12 +430,18 @@ void ext4_fc_track_unlink(struct inode *inode, struct dentry *dentry)
 	args.dentry = dentry;
 	args.op = EXT4_FC_TAG_UNLINK;
 
-	ret = ext4_fc_track_template(inode, __track_dentry_update,
+	ret = ext4_fc_track_template(handle, inode, __track_dentry_update,
 					(void *)&args, 0);
 	trace_ext4_fc_track_unlink(inode, dentry, ret);
 }
 
-void ext4_fc_track_link(struct inode *inode, struct dentry *dentry)
+void ext4_fc_track_unlink(handle_t *handle, struct dentry *dentry)
+{
+	__ext4_fc_track_unlink(handle, d_inode(dentry), dentry);
+}
+
+void __ext4_fc_track_link(handle_t *handle,
+	struct inode *inode, struct dentry *dentry)
 {
 	struct __track_dentry_update_args args;
 	int ret;
@@ -443,20 +449,26 @@ void ext4_fc_track_link(struct inode *inode, struct dentry *dentry)
 	args.dentry = dentry;
 	args.op = EXT4_FC_TAG_LINK;
 
-	ret = ext4_fc_track_template(inode, __track_dentry_update,
+	ret = ext4_fc_track_template(handle, inode, __track_dentry_update,
 					(void *)&args, 0);
 	trace_ext4_fc_track_link(inode, dentry, ret);
 }
 
-void ext4_fc_track_create(struct inode *inode, struct dentry *dentry)
+void ext4_fc_track_link(handle_t *handle, struct dentry *dentry)
+{
+	__ext4_fc_track_link(handle, d_inode(dentry), dentry);
+}
+
+void ext4_fc_track_create(handle_t *handle, struct dentry *dentry)
 {
 	struct __track_dentry_update_args args;
+	struct inode *inode = d_inode(dentry);
 	int ret;
 
 	args.dentry = dentry;
 	args.op = EXT4_FC_TAG_CREAT;
 
-	ret = ext4_fc_track_template(inode, __track_dentry_update,
+	ret = ext4_fc_track_template(handle, inode, __track_dentry_update,
 					(void *)&args, 0);
 	trace_ext4_fc_track_create(inode, dentry, ret);
 }
@@ -472,14 +484,14 @@ static int __track_inode(struct inode *inode, void *arg, bool update)
 	return 0;
 }
 
-void ext4_fc_track_inode(struct inode *inode)
+void ext4_fc_track_inode(handle_t *handle, struct inode *inode)
 {
 	int ret;
 
 	if (S_ISDIR(inode->i_mode))
 		return;
 
-	ret = ext4_fc_track_template(inode, __track_inode, NULL, 1);
+	ret = ext4_fc_track_template(handle, inode, __track_inode, NULL, 1);
 	trace_ext4_fc_track_inode(inode, ret);
 }
 
@@ -515,7 +527,7 @@ static int __track_range(struct inode *inode, void *arg, bool update)
 	return 0;
 }
 
-void ext4_fc_track_range(struct inode *inode, ext4_lblk_t start,
+void ext4_fc_track_range(handle_t *handle, struct inode *inode, ext4_lblk_t start,
 			 ext4_lblk_t end)
 {
 	struct __track_range_args args;
@@ -527,7 +539,7 @@ void ext4_fc_track_range(struct inode *inode, ext4_lblk_t start,
 	args.start = start;
 	args.end = end;
 
-	ret = ext4_fc_track_template(inode,  __track_range, &args, 1);
+	ret = ext4_fc_track_template(handle, inode,  __track_range, &args, 1);
 
 	trace_ext4_fc_track_range(inode, start, end, ret);
 }
@@ -1263,7 +1275,7 @@ static int ext4_fc_replay_unlink(struct super_block *sb, struct ext4_fc_tl *tl)
 		return 0;
 	}
 
-	ret = __ext4_unlink(old_parent, &entry, inode);
+	ret = __ext4_unlink(NULL, old_parent, &entry, inode);
 	/* -ENOENT ok coz it might not exist anymore. */
 	if (ret == -ENOENT)
 		ret = 0;

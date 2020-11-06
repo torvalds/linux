@@ -2738,12 +2738,16 @@ extern void ext4_end_bitmap_read(struct buffer_head *bh, int uptodate);
 int ext4_fc_info_show(struct seq_file *seq, void *v);
 void ext4_fc_init(struct super_block *sb, journal_t *journal);
 void ext4_fc_init_inode(struct inode *inode);
-void ext4_fc_track_range(struct inode *inode, ext4_lblk_t start,
+void ext4_fc_track_range(handle_t *handle, struct inode *inode, ext4_lblk_t start,
 			 ext4_lblk_t end);
-void ext4_fc_track_unlink(struct inode *inode, struct dentry *dentry);
-void ext4_fc_track_link(struct inode *inode, struct dentry *dentry);
-void ext4_fc_track_create(struct inode *inode, struct dentry *dentry);
-void ext4_fc_track_inode(struct inode *inode);
+void __ext4_fc_track_unlink(handle_t *handle, struct inode *inode,
+	struct dentry *dentry);
+void __ext4_fc_track_link(handle_t *handle, struct inode *inode,
+	struct dentry *dentry);
+void ext4_fc_track_unlink(handle_t *handle, struct dentry *dentry);
+void ext4_fc_track_link(handle_t *handle, struct dentry *dentry);
+void ext4_fc_track_create(handle_t *handle, struct dentry *dentry);
+void ext4_fc_track_inode(handle_t *handle, struct inode *inode);
 void ext4_fc_mark_ineligible(struct super_block *sb, int reason);
 void ext4_fc_start_ineligible(struct super_block *sb, int reason);
 void ext4_fc_stop_ineligible(struct super_block *sb);
@@ -3459,7 +3463,7 @@ extern int ext4_handle_dirty_dirblock(handle_t *handle, struct inode *inode,
 extern int ext4_ci_compare(const struct inode *parent,
 			   const struct qstr *fname,
 			   const struct qstr *entry, bool quick);
-extern int __ext4_unlink(struct inode *dir, const struct qstr *d_name,
+extern int __ext4_unlink(handle_t *handle, struct inode *dir, const struct qstr *d_name,
 			 struct inode *inode);
 extern int __ext4_link(struct inode *dir, struct inode *inode,
 		       struct dentry *dentry);

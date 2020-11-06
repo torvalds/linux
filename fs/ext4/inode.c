@@ -732,7 +732,7 @@ out_sem:
 			if (ret)
 				return ret;
 		}
-		ext4_fc_track_range(inode, map->m_lblk,
+		ext4_fc_track_range(handle, inode, map->m_lblk,
 			    map->m_lblk + map->m_len - 1);
 	}
 
@@ -4111,7 +4111,7 @@ int ext4_punch_hole(struct inode *inode, loff_t offset, loff_t length)
 
 		up_write(&EXT4_I(inode)->i_data_sem);
 	}
-	ext4_fc_track_range(inode, first_block, stop_block);
+	ext4_fc_track_range(handle, inode, first_block, stop_block);
 	if (IS_SYNC(inode))
 		ext4_handle_sync(handle);
 
@@ -5444,14 +5444,14 @@ int ext4_setattr(struct dentry *dentry, struct iattr *attr)
 			}
 
 			if (shrink)
-				ext4_fc_track_range(inode,
+				ext4_fc_track_range(handle, inode,
 					(attr->ia_size > 0 ? attr->ia_size - 1 : 0) >>
 					inode->i_sb->s_blocksize_bits,
 					(oldsize > 0 ? oldsize - 1 : 0) >>
 					inode->i_sb->s_blocksize_bits);
 			else
 				ext4_fc_track_range(
-					inode,
+					handle, inode,
 					(oldsize > 0 ? oldsize - 1 : oldsize) >>
 					inode->i_sb->s_blocksize_bits,
 					(attr->ia_size > 0 ? attr->ia_size - 1 : 0) >>
@@ -5701,7 +5701,7 @@ int ext4_mark_iloc_dirty(handle_t *handle,
 		put_bh(iloc->bh);
 		return -EIO;
 	}
-	ext4_fc_track_inode(inode);
+	ext4_fc_track_inode(handle, inode);
 
 	if (IS_I_VERSION(inode))
 		inode_inc_iversion(inode);
