@@ -8665,14 +8665,6 @@ static int io_uring_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static bool io_wq_files_match(struct io_wq_work *work, void *data)
-{
-	struct files_struct *files = data;
-
-	return !files || ((work->flags & IO_WQ_WORK_FILES) &&
-				work->identity->files == files);
-}
-
 /*
  * Returns true if 'preq' is the link parent of 'req'
  */
@@ -8805,13 +8797,11 @@ static void io_cancel_defer_files(struct io_ring_ctx *ctx,
  * Returns true if we found and killed one or more files pinning requests
  */
 static bool io_uring_cancel_files(struct io_ring_ctx *ctx,
+				  struct task_struct *task,
 				  struct files_struct *files)
 {
 	if (list_empty_careful(&ctx->inflight_list))
 		return false;
-
-	/* cancel all at once, should be faster than doing it one by one*/
-	io_wq_cancel_cb(ctx->io_wq, io_wq_files_match, files, true);
 
 	while (!list_empty_careful(&ctx->inflight_list)) {
 		struct io_kiocb *cancel_req = NULL, *req;
@@ -8819,7 +8809,8 @@ static bool io_uring_cancel_files(struct io_ring_ctx *ctx,
 
 		spin_lock_irq(&ctx->inflight_lock);
 		list_for_each_entry(req, &ctx->inflight_list, inflight_entry) {
-			if (files && (req->work.flags & IO_WQ_WORK_FILES) &&
+			if (req->task == task &&
+			    (req->work.flags & IO_WQ_WORK_FILES) &&
 			    req->work.identity->files != files)
 				continue;
 			/* req is being completed, ignore */
@@ -8862,7 +8853,7 @@ static bool __io_uring_cancel_task_requests(struct io_ring_ctx *ctx,
 {
 	bool ret;
 
-	ret = io_uring_cancel_files(ctx, files);
+	ret = io_uring_cancel_files(ctx, task, files);
 	if (!files) {
 		enum io_wq_cancel cret;
 
@@ -8901,11 +8892,7 @@ static void io_uring_cancel_task_requests(struct io_ring_ctx *ctx,
 		io_sq_thread_park(ctx->sq_data);
 	}
 
-	if (files)
-		io_cancel_defer_files(ctx, NULL, files);
-	else
-		io_cancel_defer_files(ctx, task, NULL);
-
+	io_cancel_defer_files(ctx, task, files);
 	io_cqring_overflow_flush(ctx, true, task, files);
 
 	while (__io_uring_cancel_task_requests(ctx, task, files)) {
