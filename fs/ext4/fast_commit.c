@@ -2091,8 +2091,6 @@ static int ext4_fc_replay(journal_t *journal, struct buffer_head *bh,
 
 void ext4_fc_init(struct super_block *sb, journal_t *journal)
 {
-	int num_fc_blocks;
-
 	/*
 	 * We set replay callback even if fast commit disabled because we may
 	 * could still have fast commit blocks that need to be replayed even if
@@ -2102,18 +2100,6 @@ void ext4_fc_init(struct super_block *sb, journal_t *journal)
 	if (!test_opt2(sb, JOURNAL_FAST_COMMIT))
 		return;
 	journal->j_fc_cleanup_callback = ext4_fc_cleanup;
-	if (!buffer_uptodate(journal->j_sb_buffer)
-		&& ext4_read_bh_lock(journal->j_sb_buffer, REQ_META | REQ_PRIO,
-					true)) {
-		ext4_msg(sb, KERN_ERR, "I/O error on journal");
-		return;
-	}
-	num_fc_blocks = be32_to_cpu(journal->j_superblock->s_num_fc_blks);
-	if (jbd2_fc_init(journal, num_fc_blocks ? num_fc_blocks :
-					EXT4_NUM_FC_BLKS)) {
-		pr_warn("Error while enabling fast commits, turning off.");
-		ext4_clear_feature_fast_commit(sb);
-	}
 }
 
 const char *fc_ineligible_reasons[] = {

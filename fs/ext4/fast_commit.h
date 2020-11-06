@@ -3,9 +3,6 @@
 #ifndef __FAST_COMMIT_H__
 #define __FAST_COMMIT_H__
 
-/* Number of blocks in journal area to allocate for fast commits */
-#define EXT4_NUM_FC_BLKS		256
-
 /* Fast commit tags */
 #define EXT4_FC_TAG_ADD_RANGE		0x0001
 #define EXT4_FC_TAG_DEL_RANGE		0x0002
