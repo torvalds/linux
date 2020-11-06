@@ -618,6 +618,8 @@ static int msm8974_icc_set(struct icc_node *src, struct icc_node *dst)
 
 	do_div(rate, src_qn->buswidth);
 
+	rate = min_t(u32, rate, INT_MAX);
+
 	if (src_qn->rate == rate)
 		return 0;
 
@@ -758,6 +760,7 @@ static struct platform_driver msm8974_noc_driver = {
 	.driver = {
 		.name = "qnoc-msm8974",
 		.of_match_table = msm8974_noc_of_match,
+		.sync_state = icc_sync_state,
 	},
 };
 module_platform_driver(msm8974_noc_driver);
