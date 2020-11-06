@@ -869,16 +869,52 @@ static int qat_uclo_init_globals(struct icp_qat_fw_loader_handle *handle)
 	return 0;
 }
 
+static int qat_hal_set_modes(struct icp_qat_fw_loader_handle *handle,
+			     struct icp_qat_uclo_objhandle *obj_handle,
+			     unsigned char ae,
+			     struct icp_qat_uof_image *uof_image)
+{
+	unsigned char mode;
+	int ret;
+
+	mode = ICP_QAT_CTX_MODE(uof_image->ae_mode);
+	ret = qat_hal_set_ae_ctx_mode(handle, ae, mode);
+	if (ret) {
+		pr_err("QAT: qat_hal_set_ae_ctx_mode error\n");
+		return ret;
+	}
+	mode = ICP_QAT_NN_MODE(uof_image->ae_mode);
+	ret = qat_hal_set_ae_nn_mode(handle, ae, mode);
+	if (ret) {
+		pr_err("QAT: qat_hal_set_ae_nn_mode error\n");
+		return ret;
+	}
+	mode = ICP_QAT_LOC_MEM0_MODE(uof_image->ae_mode);
+	ret = qat_hal_set_ae_lm_mode(handle, ae, ICP_LMEM0, mode);
+	if (ret) {
+		pr_err("QAT: qat_hal_set_ae_lm_mode LMEM0 error\n");
+		return ret;
+	}
+	mode = ICP_QAT_LOC_MEM1_MODE(uof_image->ae_mode);
+	ret = qat_hal_set_ae_lm_mode(handle, ae, ICP_LMEM1, mode);
+	if (ret) {
+		pr_err("QAT: qat_hal_set_ae_lm_mode LMEM1 error\n");
+		return ret;
+	}
+	return 0;
+}
+
 static int qat_uclo_set_ae_mode(struct icp_qat_fw_loader_handle *handle)
 {
-	unsigned char ae, nn_mode, s;
 	struct icp_qat_uof_image *uof_image;
 	struct icp_qat_uclo_aedata *ae_data;
 	struct icp_qat_uclo_objhandle *obj_handle = handle->obj_handle;
+	unsigned long ae_mask = handle->hal_handle->ae_mask;
+	unsigned char ae, s;
+	int error;
 
 	for (ae = 0; ae < handle->hal_handle->ae_max_num; ae++) {
-		if (!test_bit(ae,
-			      (unsigned long *)&handle->hal_handle->ae_mask))
+		if (!test_bit(ae, &ae_mask))
 			continue;
 		ae_data = &obj_handle->ae_data[ae];
 		for (s = 0; s < min_t(unsigned int, ae_data->slice_num,
@@ -886,29 +922,10 @@ static int qat_uclo_set_ae_mode(struct icp_qat_fw_loader_handle *handle)
 			if (!obj_handle->ae_data[ae].ae_slices[s].encap_image)
 				continue;
 			uof_image = ae_data->ae_slices[s].encap_image->img_ptr;
-			if (qat_hal_set_ae_ctx_mode(handle, ae,
-						    (char)ICP_QAT_CTX_MODE
-						    (uof_image->ae_mode))) {
-				pr_err("QAT: qat_hal_set_ae_ctx_mode error\n");
-				return -EFAULT;
-			}
-			nn_mode = ICP_QAT_NN_MODE(uof_image->ae_mode);
-			if (qat_hal_set_ae_nn_mode(handle, ae, nn_mode)) {
-				pr_err("QAT: qat_hal_set_ae_nn_mode error\n");
-				return -EFAULT;
-			}
-			if (qat_hal_set_ae_lm_mode(handle, ae, ICP_LMEM0,
-						   (char)ICP_QAT_LOC_MEM0_MODE
-						   (uof_image->ae_mode))) {
-				pr_err("QAT: qat_hal_set_ae_lm_mode LMEM0 error\n");
-				return -EFAULT;
-			}
-			if (qat_hal_set_ae_lm_mode(handle, ae, ICP_LMEM1,
-						   (char)ICP_QAT_LOC_MEM1_MODE
-						   (uof_image->ae_mode))) {
-				pr_err("QAT: qat_hal_set_ae_lm_mode LMEM1 error\n");
-				return -EFAULT;
-			}
+			error = qat_hal_set_modes(handle, obj_handle, ae,
+						  uof_image);
+			if (error)
+				return error;
 		}
 	}
 	return 0;
