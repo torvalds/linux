@@ -7,6 +7,7 @@
 #include "perf.h"
 
 #include <subcmd/parse-options.h>
+#include "util/auxtrace.h"
 #include "util/trace-event.h"
 #include "util/tool.h"
 #include "util/session.h"
@@ -255,6 +256,12 @@ static int process_sample_event(struct perf_tool *tool,
 
 static int report_raw_events(struct perf_mem *mem)
 {
+	struct itrace_synth_opts itrace_synth_opts = {
+		.set = true,
+		.mem = true,	/* Only enable memory event */
+		.default_no_sample = true,
+	};
+
 	struct perf_data data = {
 		.path  = input_name,
 		.mode  = PERF_DATA_MODE_READ,
@@ -266,6 +273,8 @@ static int report_raw_events(struct perf_mem *mem)
 
 	if (IS_ERR(session))
 		return PTR_ERR(session);
+
+	session->itrace_synth_opts = &itrace_synth_opts;
 
 	if (mem->cpu_list) {
 		ret = perf_session__cpu_bitmap(session, mem->cpu_list,
@@ -410,8 +419,12 @@ int cmd_mem(int argc, const char **argv)
 			.comm		= perf_event__process_comm,
 			.lost		= perf_event__process_lost,
 			.fork		= perf_event__process_fork,
+			.attr		= perf_event__process_attr,
 			.build_id	= perf_event__process_build_id,
 			.namespaces	= perf_event__process_namespaces,
+			.auxtrace_info  = perf_event__process_auxtrace_info,
+			.auxtrace       = perf_event__process_auxtrace,
+			.auxtrace_error = perf_event__process_auxtrace_error,
 			.ordered_events	= true,
 		},
 		.input_name		 = "perf.data",
