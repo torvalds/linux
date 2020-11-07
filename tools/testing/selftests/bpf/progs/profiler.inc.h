@@ -243,7 +243,10 @@ static ino_t get_inode_from_kernfs(struct kernfs_node* node)
 	}
 }
 
-int pids_cgrp_id = 1;
+extern bool CONFIG_CGROUP_PIDS __kconfig __weak;
+enum cgroup_subsys_id___local {
+	pids_cgrp_id___local = 123, /* value doesn't matter */
+};
 
 static INLINE void* populate_cgroup_info(struct cgroup_data_t* cgroup_data,
 					 struct task_struct* task,
@@ -253,7 +256,9 @@ static INLINE void* populate_cgroup_info(struct cgroup_data_t* cgroup_data,
 		BPF_CORE_READ(task, nsproxy, cgroup_ns, root_cset, dfl_cgrp, kn);
 	struct kernfs_node* proc_kernfs = BPF_CORE_READ(task, cgroups, dfl_cgrp, kn);
 
-	if (ENABLE_CGROUP_V1_RESOLVER) {
+	if (ENABLE_CGROUP_V1_RESOLVER && CONFIG_CGROUP_PIDS) {
+		int cgrp_id = bpf_core_enum_value(enum cgroup_subsys_id___local,
+						  pids_cgrp_id___local);
 #ifdef UNROLL
 #pragma unroll
 #endif
@@ -262,7 +267,7 @@ static INLINE void* populate_cgroup_info(struct cgroup_data_t* cgroup_data,
 				BPF_CORE_READ(task, cgroups, subsys[i]);
 			if (subsys != NULL) {
 				int subsys_id = BPF_CORE_READ(subsys, ss, id);
-				if (subsys_id == pids_cgrp_id) {
+				if (subsys_id == cgrp_id) {
 					proc_kernfs = BPF_CORE_READ(subsys, cgroup, kn);
 					root_kernfs = BPF_CORE_READ(subsys, ss, root, kf_root, kn);
 					break;
