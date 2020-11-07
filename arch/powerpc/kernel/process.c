@@ -1466,11 +1466,9 @@ static void print_msr_bits(unsigned long val)
 #define LAST_VOLATILE	12
 #endif
 
-void show_regs(struct pt_regs * regs)
+static void __show_regs(struct pt_regs *regs)
 {
 	int i, trap;
-
-	show_regs_print_info(KERN_DEFAULT);
 
 	printk("NIP:  "REG" LR: "REG" CTR: "REG"\n",
 	       regs->nip, regs->link, regs->ctr);
@@ -1513,6 +1511,12 @@ void show_regs(struct pt_regs * regs)
 		printk("NIP ["REG"] %pS\n", regs->nip, (void *)regs->nip);
 		printk("LR ["REG"] %pS\n", regs->link, (void *)regs->link);
 	}
+}
+
+void show_regs(struct pt_regs *regs)
+{
+	show_regs_print_info(KERN_DEFAULT);
+	__show_regs(regs);
 	show_stack(current, (unsigned long *) regs->gpr[1], KERN_DEFAULT);
 	if (!user_mode(regs))
 		show_instructions(regs);
@@ -2178,10 +2182,14 @@ void show_stack(struct task_struct *tsk, unsigned long *stack,
 		    && stack[STACK_FRAME_MARKER] == STACK_FRAME_REGS_MARKER) {
 			struct pt_regs *regs = (struct pt_regs *)
 				(sp + STACK_FRAME_OVERHEAD);
+
 			lr = regs->link;
-			printk("%s--- interrupt: %lx at %pS\n    LR = %pS\n",
-			       loglvl, regs->trap,
-			       (void *)regs->nip, (void *)lr);
+			printk("%s--- interrupt: %lx at %pS\n",
+			       loglvl, regs->trap, (void *)regs->nip);
+			__show_regs(regs);
+			printk("%s--- interrupt: %lx\n",
+			       loglvl, regs->trap);
+
 			firstframe = 1;
 		}
 
