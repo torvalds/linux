@@ -485,9 +485,9 @@ The fields of :c:type:`struct request` structure include:
      macrodefinition :c:macro:`rq_for_each_segment` if there are multiple
      buffers, or by :c:macro:`bio_data` macrodefinition in case there is only
      one associated buffer;
-   * :c:member:`bio_data`: the address of the buffer associated to the request
-   * about the :c:type:`struct bio` structure and its associated operations
-     will be discussed in the :ref:`bio_structure` section;
+
+about the :c:type:`struct bio` structure and its associated operations will be
+discussed in the :ref:`bio_structure` section;
 
 Create a request
 ----------------
