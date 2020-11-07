@@ -66,7 +66,7 @@
 #define CHTYPE_DIR_FMASK		GENMASK(3, 3)
 #define EE_FMASK			GENMASK(7, 4)
 #define CHID_FMASK			GENMASK(12, 8)
-/* The next field is present for GSI v2.0 and above */
+/* The next field is present for IPA v4.5 and above */
 #define CHTYPE_PROTOCOL_MSB_FMASK	GENMASK(13, 13)
 #define ERINDEX_FMASK			GENMASK(18, 14)
 #define CHSTATE_FMASK			GENMASK(23, 20)
@@ -95,7 +95,7 @@
 #define WRR_WEIGHT_FMASK		GENMASK(3, 0)
 #define MAX_PREFETCH_FMASK		GENMASK(8, 8)
 #define USE_DB_ENG_FMASK		GENMASK(9, 9)
-/* The next field is present for GSI v2.0 and above */
+/* The next field is only present for IPA v4.0, v4.1, and v4.2 */
 #define USE_ESCAPE_BUF_ONLY_FMASK	GENMASK(10, 10)
 
 #define GSI_CH_C_SCRATCH_0_OFFSET(ch) \
@@ -238,19 +238,19 @@
 #define IRAM_SIZE_FMASK			GENMASK(2, 0)
 #define IRAM_SIZE_ONE_KB_FVAL			0
 #define IRAM_SIZE_TWO_KB_FVAL			1
-/* The next two values are available for GSI v2.0 and above */
+/* The next two values are available for IPA v4.0 and above */
 #define IRAM_SIZE_TWO_N_HALF_KB_FVAL		2
 #define IRAM_SIZE_THREE_KB_FVAL			3
 #define NUM_CH_PER_EE_FMASK		GENMASK(7, 3)
 #define NUM_EV_PER_EE_FMASK		GENMASK(12, 8)
 #define GSI_CH_PEND_TRANSLATE_FMASK	GENMASK(13, 13)
 #define GSI_CH_FULL_LOGIC_FMASK		GENMASK(14, 14)
-/* Fields below are present for GSI v2.0 and above */
+/* Fields below are present for IPA v4.0 and above */
 #define GSI_USE_SDMA_FMASK		GENMASK(15, 15)
 #define GSI_SDMA_N_INT_FMASK		GENMASK(18, 16)
 #define GSI_SDMA_MAX_BURST_FMASK	GENMASK(26, 19)
 #define GSI_SDMA_N_IOVEC_FMASK		GENMASK(29, 27)
-/* Fields below are present for GSI v2.2 and above */
+/* Fields below are present for IPA v4.2 and above */
 #define GSI_USE_RD_WR_ENG_FMASK		GENMASK(30, 30)
 #define GSI_USE_INTER_EE_FMASK		GENMASK(31, 31)
 
@@ -262,15 +262,16 @@
 			GSI_EE_N_CNTXT_TYPE_IRQ_MSK_OFFSET(GSI_EE_AP)
 #define GSI_EE_N_CNTXT_TYPE_IRQ_MSK_OFFSET(ee) \
 			(0x0001f088 + 0x4000 * (ee))
-/* The masks below are used for the TYPE_IRQ and TYPE_IRQ_MASK registers */
-#define CH_CTRL_FMASK			GENMASK(0, 0)
-#define EV_CTRL_FMASK			GENMASK(1, 1)
-#define GLOB_EE_FMASK			GENMASK(2, 2)
-#define IEOB_FMASK			GENMASK(3, 3)
-#define INTER_EE_CH_CTRL_FMASK		GENMASK(4, 4)
-#define INTER_EE_EV_CTRL_FMASK		GENMASK(5, 5)
-#define GENERAL_FMASK			GENMASK(6, 6)
-#define GSI_CNTXT_TYPE_IRQ_MSK_ALL	GENMASK(6, 0)
+/* Values here are bit positions in the TYPE_IRQ and TYPE_IRQ_MSK registers */
+enum gsi_irq_type_id {
+	GSI_CH_CTRL		= 0,	/* channel allocation, etc.  */
+	GSI_EV_CTRL		= 1,	/* event ring allocation, etc. */
+	GSI_GLOB_EE		= 2,	/* global/general event */
+	GSI_IEOB		= 3,	/* TRE completion */
+	GSI_INTER_EE_CH_CTRL	= 4,	/* remote-issued stop/reset (unused) */
+	GSI_INTER_EE_EV_CTRL	= 5,	/* remote-issued event reset (unused) */
+	GSI_GENERAL		= 6,	/* general-purpose event */
+};
 
 #define GSI_CNTXT_SRC_CH_IRQ_OFFSET \
 			GSI_EE_N_CNTXT_SRC_CH_IRQ_OFFSET(GSI_EE_AP)
@@ -334,7 +335,6 @@
 #define GP_INT1_FMASK			GENMASK(1, 1)
 #define GP_INT2_FMASK			GENMASK(2, 2)
 #define GP_INT3_FMASK			GENMASK(3, 3)
-#define GSI_CNTXT_GLOB_IRQ_ALL		GENMASK(3, 0)
 
 #define GSI_CNTXT_GSI_IRQ_STTS_OFFSET \
 			GSI_EE_N_CNTXT_GSI_IRQ_STTS_OFFSET(GSI_EE_AP)
@@ -353,7 +353,6 @@
 #define BUS_ERROR_FMASK			GENMASK(1, 1)
 #define CMD_FIFO_OVRFLOW_FMASK		GENMASK(2, 2)
 #define MCS_STACK_OVRFLOW_FMASK		GENMASK(3, 3)
-#define GSI_CNTXT_GSI_IRQ_ALL		GENMASK(3, 0)
 
 #define GSI_CNTXT_INTSET_OFFSET \
 			GSI_EE_N_CNTXT_INTSET_OFFSET(GSI_EE_AP)
