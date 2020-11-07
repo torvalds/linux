@@ -592,52 +592,22 @@ static inline unsigned bkey_mantissa(const struct bkey_packed *k,
 	return (u16) v;
 }
 
-static void make_bfloat(struct btree *b, struct bset_tree *t,
-			unsigned j,
-			struct bkey_packed *min_key,
-			struct bkey_packed *max_key)
+__always_inline
+static inline void __make_bfloat(struct btree *b, struct bset_tree *t,
+				 unsigned j,
+				 struct bkey_packed *min_key,
+				 struct bkey_packed *max_key)
 {
 	struct bkey_float *f = bkey_float(b, t, j);
 	struct bkey_packed *m = tree_to_bkey(b, t, j);
-	struct bkey_packed *l, *r;
+	struct bkey_packed *l = is_power_of_2(j)
+		? min_key
+		: tree_to_prev_bkey(b, t, j >> ffs(j));
+	struct bkey_packed *r = is_power_of_2(j + 1)
+		? max_key
+		: tree_to_bkey(b, t, j >> (ffz(j) + 1));
 	unsigned mantissa;
 	int shift, exponent, high_bit;
-
-	if (is_power_of_2(j)) {
-		l = min_key;
-
-		if (!l->u64s) {
-			if (!bkey_pack_pos(l, b->data->min_key, b)) {
-				struct bkey_i tmp;
-
-				bkey_init(&tmp.k);
-				tmp.k.p = b->data->min_key;
-				bkey_copy(l, &tmp);
-			}
-		}
-	} else {
-		l = tree_to_prev_bkey(b, t, j >> ffs(j));
-
-		EBUG_ON(m < l);
-	}
-
-	if (is_power_of_2(j + 1)) {
-		r = max_key;
-
-		if (!r->u64s) {
-			if (!bkey_pack_pos(r, t->max_key, b)) {
-				struct bkey_i tmp;
-
-				bkey_init(&tmp.k);
-				tmp.k.p = t->max_key;
-				bkey_copy(r, &tmp);
-			}
-		}
-	} else {
-		r = tree_to_bkey(b, t, j >> (ffz(j) + 1));
-
-		EBUG_ON(m > r);
-	}
 
 	/*
 	 * for failed bfloats, the lookup code falls back to comparing against
@@ -695,6 +665,30 @@ static void make_bfloat(struct btree *b, struct bset_tree *t,
 	f->mantissa = mantissa;
 }
 
+static void make_bfloat(struct btree *b, struct bset_tree *t,
+			unsigned j,
+			struct bkey_packed *min_key,
+			struct bkey_packed *max_key)
+{
+	struct bkey_i *k;
+
+	if (is_power_of_2(j) &&
+	    !min_key->u64s) {
+		k = (void *) min_key;
+		bkey_init(&k->k);
+		k->k.p = b->data->min_key;
+	}
+
+	if (is_power_of_2(j + 1) &&
+	    !max_key->u64s) {
+		k = (void *) max_key;
+		bkey_init(&k->k);
+		k->k.p = t->max_key;
+	}
+
+	__make_bfloat(b, t, j, min_key, max_key);
+}
+
 /* bytes remaining - only valid for last bset: */
 static unsigned __bset_tree_capacity(const struct btree *b, const struct bset_tree *t)
 {
@@ -714,7 +708,7 @@ static unsigned bset_rw_tree_capacity(const struct btree *b, const struct bset_t
 	return __bset_tree_capacity(b, t) / sizeof(struct rw_aux_tree);
 }
 
-static void __build_rw_aux_tree(struct btree *b, struct bset_tree *t)
+static noinline void __build_rw_aux_tree(struct btree *b, struct bset_tree *t)
 {
 	struct bkey_packed *k;
 
@@ -733,14 +727,11 @@ static void __build_rw_aux_tree(struct btree *b, struct bset_tree *t)
 	}
 }
 
-static void __build_ro_aux_tree(struct btree *b, struct bset_tree *t)
+static noinline void __build_ro_aux_tree(struct btree *b, struct bset_tree *t)
 {
 	struct bkey_packed *prev = NULL, *k = btree_bkey_first(b, t);
-	struct bkey_packed min_key, max_key;
+	struct bkey_i min_key, max_key;
 	unsigned j, cacheline = 1;
-
-	/* signal to make_bfloat() that they're uninitialized: */
-	min_key.u64s = max_key.u64s = 0;
 
 	t->size = min(bkey_to_cacheline(b, t, btree_bkey_last(b, t)),
 		      bset_ro_tree_capacity(b, t));
@@ -777,9 +768,16 @@ retry:
 
 	t->max_key = bkey_unpack_pos(b, prev);
 
+	bkey_init(&min_key.k);
+	min_key.k.p = b->data->min_key;
+	bkey_init(&max_key.k);
+	max_key.k.p = t->max_key;
+
 	/* Then we build the tree */
 	eytzinger1_for_each(j, t->size)
-		make_bfloat(b, t, j, &min_key, &max_key);
+		__make_bfloat(b, t, j,
+			      bkey_to_packed(&min_key),
+			      bkey_to_packed(&max_key));
 }
 
 static void bset_alloc_tree(struct btree *b, struct bset_tree *t)
