@@ -1109,13 +1109,18 @@ out:
 }
 
 #ifdef CONFIG_SECCOMP_FILTER
-static int seccomp_notify_release(struct inode *inode, struct file *file)
+static void seccomp_notify_free(struct seccomp_filter *filter)
 {
-	struct seccomp_filter *filter = file->private_data;
+	kfree(filter->notif);
+	filter->notif = NULL;
+}
+
+static void seccomp_notify_detach(struct seccomp_filter *filter)
+{
 	struct seccomp_knotif *knotif;
 
 	if (!filter)
-		return 0;
+		return;
 
 	mutex_lock(&filter->notify_lock);
 
@@ -1139,9 +1144,15 @@ static int seccomp_notify_release(struct inode *inode, struct file *file)
 		complete(&knotif->ready);
 	}
 
-	kfree(filter->notif);
-	filter->notif = NULL;
+	seccomp_notify_free(filter);
 	mutex_unlock(&filter->notify_lock);
+}
+
+static int seccomp_notify_release(struct inode *inode, struct file *file)
+{
+	struct seccomp_filter *filter = file->private_data;
+
+	seccomp_notify_detach(filter);
 	__put_seccomp_filter(filter);
 	return 0;
 }
@@ -1488,7 +1499,7 @@ static struct file *init_listener(struct seccomp_filter *filter)
 
 out_notif:
 	if (IS_ERR(ret))
-		kfree(filter->notif);
+		seccomp_notify_free(filter);
 out:
 	return ret;
 }
@@ -1581,6 +1592,7 @@ out_put_fd:
 			listener_f->private_data = NULL;
 			fput(listener_f);
 			put_unused_fd(listener);
+			seccomp_notify_detach(prepared);
 		} else {
 			fd_install(listener, listener_f);
 			ret = listener;

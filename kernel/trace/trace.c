@@ -2511,7 +2511,7 @@ void trace_buffered_event_enable(void)
 
 		preempt_disable();
 		if (cpu == smp_processor_id() &&
-		    this_cpu_read(trace_buffered_event) !=
+		    __this_cpu_read(trace_buffered_event) !=
 		    per_cpu(trace_buffered_event, cpu))
 			WARN_ON_ONCE(1);
 		preempt_enable();
@@ -3782,14 +3782,14 @@ unsigned long trace_total_entries(struct trace_array *tr)
 
 static void print_lat_help_header(struct seq_file *m)
 {
-	seq_puts(m, "#                  _------=> CPU#            \n"
-		    "#                 / _-----=> irqs-off        \n"
-		    "#                | / _----=> need-resched    \n"
-		    "#                || / _---=> hardirq/softirq \n"
-		    "#                ||| / _--=> preempt-depth   \n"
-		    "#                |||| /     delay            \n"
-		    "#  cmd     pid   ||||| time  |   caller      \n"
-		    "#     \\   /      |||||  \\    |   /         \n");
+	seq_puts(m, "#                    _------=> CPU#            \n"
+		    "#                   / _-----=> irqs-off        \n"
+		    "#                  | / _----=> need-resched    \n"
+		    "#                  || / _---=> hardirq/softirq \n"
+		    "#                  ||| / _--=> preempt-depth   \n"
+		    "#                  |||| /     delay            \n"
+		    "#  cmd     pid     ||||| time  |   caller      \n"
+		    "#     \\   /        |||||  \\    |   /         \n");
 }
 
 static void print_event_info(struct array_buffer *buf, struct seq_file *m)
@@ -3810,26 +3810,26 @@ static void print_func_help_header(struct array_buffer *buf, struct seq_file *m,
 
 	print_event_info(buf, m);
 
-	seq_printf(m, "#           TASK-PID   %s  CPU#   TIMESTAMP  FUNCTION\n", tgid ? "TGID     " : "");
-	seq_printf(m, "#              | |     %s    |       |         |\n",	 tgid ? "  |      " : "");
+	seq_printf(m, "#           TASK-PID    %s CPU#     TIMESTAMP  FUNCTION\n", tgid ? "   TGID   " : "");
+	seq_printf(m, "#              | |      %s   |         |         |\n",      tgid ? "     |    " : "");
 }
 
 static void print_func_help_header_irq(struct array_buffer *buf, struct seq_file *m,
 				       unsigned int flags)
 {
 	bool tgid = flags & TRACE_ITER_RECORD_TGID;
-	const char *space = "          ";
-	int prec = tgid ? 10 : 2;
+	const char *space = "            ";
+	int prec = tgid ? 12 : 2;
 
 	print_event_info(buf, m);
 
-	seq_printf(m, "#                          %.*s  _-----=> irqs-off\n", prec, space);
-	seq_printf(m, "#                          %.*s / _----=> need-resched\n", prec, space);
-	seq_printf(m, "#                          %.*s| / _---=> hardirq/softirq\n", prec, space);
-	seq_printf(m, "#                          %.*s|| / _--=> preempt-depth\n", prec, space);
-	seq_printf(m, "#                          %.*s||| /     delay\n", prec, space);
-	seq_printf(m, "#           TASK-PID %.*sCPU#  ||||    TIMESTAMP  FUNCTION\n", prec, "   TGID   ");
-	seq_printf(m, "#              | |   %.*s  |   ||||       |         |\n", prec, "     |    ");
+	seq_printf(m, "#                            %.*s  _-----=> irqs-off\n", prec, space);
+	seq_printf(m, "#                            %.*s / _----=> need-resched\n", prec, space);
+	seq_printf(m, "#                            %.*s| / _---=> hardirq/softirq\n", prec, space);
+	seq_printf(m, "#                            %.*s|| / _--=> preempt-depth\n", prec, space);
+	seq_printf(m, "#                            %.*s||| /     delay\n", prec, space);
+	seq_printf(m, "#           TASK-PID  %.*s CPU#  ||||   TIMESTAMP  FUNCTION\n", prec, "     TGID   ");
+	seq_printf(m, "#              | |    %.*s   |   ||||      |         |\n", prec, "       |    ");
 }
 
 void
@@ -5122,10 +5122,10 @@ static const char readme_msg[] =
 	"\t           -:[<group>/]<event>\n"
 #ifdef CONFIG_KPROBE_EVENTS
 	"\t    place: [<module>:]<symbol>[+<offset>]|<memaddr>\n"
-  "place (kretprobe): [<module>:]<symbol>[+<offset>]|<memaddr>\n"
+  "place (kretprobe): [<module>:]<symbol>[+<offset>]%return|<memaddr>\n"
 #endif
 #ifdef CONFIG_UPROBE_EVENTS
-  "   place (uprobe): <path>:<offset>[(ref_ctr_offset)]\n"
+  "   place (uprobe): <path>:<offset>[%return][(ref_ctr_offset)]\n"
 #endif
 	"\t     args: <name>=fetcharg[:type]\n"
 	"\t fetcharg: %<register>, @<address>, @<symbol>[+|-<offset>],\n"
@@ -8799,7 +8799,6 @@ static int __remove_instance(struct trace_array *tr)
 	free_cpumask_var(tr->tracing_cpumask);
 	kfree(tr->name);
 	kfree(tr);
-	tr = NULL;
 
 	return 0;
 }
@@ -8971,21 +8970,21 @@ static struct vfsmount *trace_automount(struct dentry *mntpt, void *ingore)
  * directory. It is called via fs_initcall() by any of the boot up code
  * and expects to return the dentry of the top level tracing directory.
  */
-struct dentry *tracing_init_dentry(void)
+int tracing_init_dentry(void)
 {
 	struct trace_array *tr = &global_trace;
 
 	if (security_locked_down(LOCKDOWN_TRACEFS)) {
 		pr_warn("Tracing disabled due to lockdown\n");
-		return ERR_PTR(-EPERM);
+		return -EPERM;
 	}
 
 	/* The top level trace array uses  NULL as parent */
 	if (tr->dir)
-		return NULL;
+		return 0;
 
 	if (WARN_ON(!tracefs_initialized()))
-		return ERR_PTR(-ENODEV);
+		return -ENODEV;
 
 	/*
 	 * As there may still be users that expect the tracing
@@ -8996,7 +8995,7 @@ struct dentry *tracing_init_dentry(void)
 	tr->dir = debugfs_create_automount("tracing", NULL,
 					   trace_automount, NULL);
 
-	return NULL;
+	return 0;
 }
 
 extern struct trace_eval_map *__start_ftrace_eval_maps[];
@@ -9083,48 +9082,48 @@ static struct notifier_block trace_module_nb = {
 
 static __init int tracer_init_tracefs(void)
 {
-	struct dentry *d_tracer;
+	int ret;
 
 	trace_access_lock_init();
 
-	d_tracer = tracing_init_dentry();
-	if (IS_ERR(d_tracer))
+	ret = tracing_init_dentry();
+	if (ret)
 		return 0;
 
 	event_trace_init();
 
-	init_tracer_tracefs(&global_trace, d_tracer);
-	ftrace_init_tracefs_toplevel(&global_trace, d_tracer);
+	init_tracer_tracefs(&global_trace, NULL);
+	ftrace_init_tracefs_toplevel(&global_trace, NULL);
 
-	trace_create_file("tracing_thresh", 0644, d_tracer,
+	trace_create_file("tracing_thresh", 0644, NULL,
 			&global_trace, &tracing_thresh_fops);
 
-	trace_create_file("README", 0444, d_tracer,
+	trace_create_file("README", 0444, NULL,
 			NULL, &tracing_readme_fops);
 
-	trace_create_file("saved_cmdlines", 0444, d_tracer,
+	trace_create_file("saved_cmdlines", 0444, NULL,
 			NULL, &tracing_saved_cmdlines_fops);
 
-	trace_create_file("saved_cmdlines_size", 0644, d_tracer,
+	trace_create_file("saved_cmdlines_size", 0644, NULL,
 			  NULL, &tracing_saved_cmdlines_size_fops);
 
-	trace_create_file("saved_tgids", 0444, d_tracer,
+	trace_create_file("saved_tgids", 0444, NULL,
 			NULL, &tracing_saved_tgids_fops);
 
 	trace_eval_init();
 
-	trace_create_eval_file(d_tracer);
+	trace_create_eval_file(NULL);
 
 #ifdef CONFIG_MODULES
 	register_module_notifier(&trace_module_nb);
 #endif
 
 #ifdef CONFIG_DYNAMIC_FTRACE
-	trace_create_file("dyn_ftrace_total_info", 0444, d_tracer,
+	trace_create_file("dyn_ftrace_total_info", 0444, NULL,
 			NULL, &tracing_dyn_info_fops);
 #endif
 
-	create_trace_instances(d_tracer);
+	create_trace_instances(NULL);
 
 	update_tracer_options(&global_trace);
 
@@ -9287,7 +9286,7 @@ void ftrace_dump(enum ftrace_dump_mode oops_dump_mode)
 	}
 
 	/*
-	 * We need to stop all tracing on all CPUS to read the
+	 * We need to stop all tracing on all CPUS to read
 	 * the next buffer. This is a bit expensive, but is
 	 * not done often. We fill all what we can read,
 	 * and then release the locks again.

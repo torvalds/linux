@@ -488,11 +488,11 @@
 					};
 				};
 
-				target-module@5000 {
+				target-module@4000 {
 					compatible = "ti,sysc-omap2", "ti,sysc";
-					reg = <0x5000 0x4>,
-					      <0x5010 0x4>,
-					      <0x5014 0x4>;
+					reg = <0x4000 0x4>,
+					      <0x4010 0x4>,
+					      <0x4014 0x4>;
 					reg-names = "rev", "sysc", "syss";
 					ti,sysc-sidle = <SYSC_IDLE_FORCE>,
 							<SYSC_IDLE_NO>,
@@ -504,7 +504,7 @@
 					ti,syss-mask = <1>;
 					#address-cells = <1>;
 					#size-cells = <1>;
-					ranges = <0 0x5000 0x1000>;
+					ranges = <0 0x4000 0x1000>;
 
 					dsi1: encoder@0 {
 						compatible = "ti,omap5-dsi";
@@ -514,8 +514,9 @@
 						reg-names = "proto", "phy", "pll";
 						interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
 						status = "disabled";
-						clocks = <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 8>;
-						clock-names = "fck";
+						clocks = <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 8>,
+							 <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 10>;
+						clock-names = "fck", "sys_clk";
 					};
 				};
 
@@ -545,8 +546,9 @@
 						reg-names = "proto", "phy", "pll";
 						interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
 						status = "disabled";
-						clocks = <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 8>;
-						clock-names = "fck";
+						clocks = <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 8>,
+							 <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 10>;
+						clock-names = "fck", "sys_clk";
 					};
 				};
 

@@ -907,14 +907,16 @@ static int cqspi_direct_read_execute(struct cqspi_flash_pdata *f_pdata,
 	struct dma_async_tx_descriptor *tx;
 	dma_cookie_t cookie;
 	dma_addr_t dma_dst;
+	struct device *ddev;
 
 	if (!cqspi->rx_chan || !virt_addr_valid(buf)) {
 		memcpy_fromio(buf, cqspi->ahb_base + from, len);
 		return 0;
 	}
 
-	dma_dst = dma_map_single(dev, buf, len, DMA_FROM_DEVICE);
-	if (dma_mapping_error(dev, dma_dst)) {
+	ddev = cqspi->rx_chan->device->dev;
+	dma_dst = dma_map_single(ddev, buf, len, DMA_FROM_DEVICE);
+	if (dma_mapping_error(ddev, dma_dst)) {
 		dev_err(dev, "dma mapping failed\n");
 		return -ENOMEM;
 	}
@@ -948,7 +950,7 @@ static int cqspi_direct_read_execute(struct cqspi_flash_pdata *f_pdata,
 	}
 
 err_unmap:
-	dma_unmap_single(dev, dma_dst, len, DMA_FROM_DEVICE);
+	dma_unmap_single(ddev, dma_dst, len, DMA_FROM_DEVICE);
 
 	return ret;
 }
@@ -1128,8 +1130,17 @@ static int cqspi_request_mmap_dma(struct cqspi_st *cqspi)
 	return 0;
 }
 
+static const char *cqspi_get_name(struct spi_mem *mem)
+{
+	struct cqspi_st *cqspi = spi_master_get_devdata(mem->spi->master);
+	struct device *dev = &cqspi->pdev->dev;
+
+	return devm_kasprintf(dev, GFP_KERNEL, "%s.%d", dev_name(dev), mem->spi->chip_select);
+}
+
 static const struct spi_controller_mem_ops cqspi_mem_ops = {
 	.exec_op = cqspi_exec_mem_op,
+	.get_name = cqspi_get_name,
 };
 
 static int cqspi_setup_flash(struct cqspi_st *cqspi)

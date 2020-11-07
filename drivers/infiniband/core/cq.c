@@ -379,7 +379,7 @@ static int ib_alloc_cqs(struct ib_device *dev, unsigned int nr_cqes,
 {
 	LIST_HEAD(tmp_list);
 	unsigned int nr_cqs, i;
-	struct ib_cq *cq;
+	struct ib_cq *cq, *n;
 	int ret;
 
 	if (poll_ctx > IB_POLL_LAST_POOL_TYPE) {
@@ -412,7 +412,7 @@ static int ib_alloc_cqs(struct ib_device *dev, unsigned int nr_cqes,
 	return 0;
 
 out_free_cqs:
-	list_for_each_entry(cq, &tmp_list, pool_entry) {
+	list_for_each_entry_safe(cq, n, &tmp_list, pool_entry) {
 		cq->shared = false;
 		ib_free_cq(cq);
 	}

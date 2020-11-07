@@ -737,7 +737,7 @@ struct dentry *trace_create_file(const char *name,
 				 void *data,
 				 const struct file_operations *fops);
 
-struct dentry *tracing_init_dentry(void);
+int tracing_init_dentry(void);
 
 struct ring_buffer_event;
 

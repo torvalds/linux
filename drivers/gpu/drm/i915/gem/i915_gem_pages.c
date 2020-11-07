@@ -548,6 +548,20 @@ i915_gem_object_get_page(struct drm_i915_gem_object *obj, unsigned int n)
 	return nth_page(sg_page(sg), offset);
 }
 
+/* Like i915_gem_object_get_page(), but mark the returned page dirty */
+struct page *
+i915_gem_object_get_dirty_page(struct drm_i915_gem_object *obj,
+			       unsigned int n)
+{
+	struct page *page;
+
+	page = i915_gem_object_get_page(obj, n);
+	if (!obj->mm.dirty)
+		set_page_dirty(page);
+
+	return page;
+}
+
 dma_addr_t
 i915_gem_object_get_dma_address_len(struct drm_i915_gem_object *obj,
 				    unsigned long n,

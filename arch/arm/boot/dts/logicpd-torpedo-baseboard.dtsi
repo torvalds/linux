@@ -81,6 +81,8 @@
 };
 
 &mcbsp2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mcbsp2_pins>;
 	status = "okay";
 };
 

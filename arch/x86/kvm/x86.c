@@ -2731,7 +2731,7 @@ static int kvm_pv_enable_async_pf(struct kvm_vcpu *vcpu, u64 data)
 		return 1;
 
 	if (!lapic_in_kernel(vcpu))
-		return 1;
+		return data ? 1 : 0;
 
 	vcpu->arch.apf.msr_en_val = data;
 
@@ -3577,6 +3577,9 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		break;
 	case KVM_CAP_SMALLER_MAXPHYADDR:
 		r = (int) allow_smaller_maxphyaddr;
+		break;
+	case KVM_CAP_STEAL_TIME:
+		r = sched_info_on();
 		break;
 	default:
 		break;

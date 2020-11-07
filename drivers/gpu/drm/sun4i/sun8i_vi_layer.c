@@ -211,7 +211,7 @@ static int sun8i_vi_layer_update_coord(struct sun8i_mixer *mixer, int channel,
 	return 0;
 }
 
-static bool sun8i_vi_layer_get_csc_mode(const struct drm_format_info *format)
+static u32 sun8i_vi_layer_get_csc_mode(const struct drm_format_info *format)
 {
 	if (!format->is_yuv)
 		return SUN8I_CSC_MODE_OFF;

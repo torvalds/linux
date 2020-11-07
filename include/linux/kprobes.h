@@ -399,6 +399,8 @@ void unregister_kretprobes(struct kretprobe **rps, int num);
 
 void kprobe_flush_task(struct task_struct *tk);
 
+void kprobe_free_init_mem(void);
+
 int disable_kprobe(struct kprobe *kp);
 int enable_kprobe(struct kprobe *kp);
 
@@ -459,6 +461,9 @@ static inline void unregister_kretprobes(struct kretprobe **rps, int num)
 {
 }
 static inline void kprobe_flush_task(struct task_struct *tk)
+{
+}
+static inline void kprobe_free_init_mem(void)
 {
 }
 static inline int disable_kprobe(struct kprobe *kp)
