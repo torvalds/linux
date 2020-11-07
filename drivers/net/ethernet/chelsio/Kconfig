@@ -134,4 +134,6 @@ config CHELSIO_LIB
 	help
 	Common library for Chelsio drivers.
 
+source "drivers/net/ethernet/chelsio/inline_crypto/Kconfig"
+
 endif # NET_VENDOR_CHELSIO

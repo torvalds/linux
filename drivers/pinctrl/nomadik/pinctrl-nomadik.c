@@ -931,11 +931,6 @@ static void nmk_gpio_dbg_show_one(struct seq_file *s,
 		[NMK_GPIO_ALT_C+3]	= "altC3",
 		[NMK_GPIO_ALT_C+4]	= "altC4",
 	};
-	const char *pulls[] = {
-		"none     ",
-		"pull down",
-		"pull up  ",
-	};
 
 	clk_enable(nmk_chip->clk);
 	is_out = !!(readl(nmk_chip->addr + NMK_GPIO_DIR) & BIT(offset));
@@ -946,7 +941,7 @@ static void nmk_gpio_dbg_show_one(struct seq_file *s,
 		mode = nmk_prcm_gpiocr_get_mode(pctldev, gpio);
 
 	if (is_out) {
-		seq_printf(s, " gpio-%-3d (%-20.20s) out %s        %s",
+		seq_printf(s, " gpio-%-3d (%-20.20s) out %s           %s",
 			   gpio,
 			   label ?: "(none)",
 			   data_out ? "hi" : "lo",
@@ -954,11 +949,12 @@ static void nmk_gpio_dbg_show_one(struct seq_file *s,
 	} else {
 		int irq = chip->to_irq(chip, offset);
 		struct irq_desc	*desc = irq_to_desc(irq);
-		int pullidx = 0;
+		const int pullidx = pull ? 1 : 0;
 		int val;
-
-		if (pull)
-			pullidx = data_out ? 2 : 1;
+		static const char * const pulls[] = {
+			"none        ",
+			"pull enabled",
+		};
 
 		seq_printf(s, " gpio-%-3d (%-20.20s) in  %s %s",
 			   gpio,

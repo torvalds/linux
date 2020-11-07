@@ -245,7 +245,7 @@ static void gfxhub_v1_0_setup_vmid_config(struct amdgpu_device *adev)
 		/* Send no-retry XNACK on fault to suppress VM fault storm. */
 		tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL,
 				    RETRY_PERMISSION_OR_INVALID_PAGE_FAULT,
-				    !amdgpu_noretry);
+				    !adev->gmc.noretry);
 		WREG32_SOC15_OFFSET(GC, 0, mmVM_CONTEXT1_CNTL,
 				    i * hub->ctx_distance, tmp);
 		WREG32_SOC15_OFFSET(GC, 0, mmVM_CONTEXT1_PAGE_TABLE_START_ADDR_LO32,
@@ -403,3 +403,13 @@ void gfxhub_v1_0_init(struct amdgpu_device *adev)
 	hub->eng_addr_distance = mmVM_INVALIDATE_ENG1_ADDR_RANGE_LO32 -
 		mmVM_INVALIDATE_ENG0_ADDR_RANGE_LO32;
 }
+
+
+const struct amdgpu_gfxhub_funcs gfxhub_v1_0_funcs = {
+	.get_mc_fb_offset = gfxhub_v1_0_get_mc_fb_offset,
+	.setup_vm_pt_regs = gfxhub_v1_0_setup_vm_pt_regs,
+	.gart_enable = gfxhub_v1_0_gart_enable,
+	.gart_disable = gfxhub_v1_0_gart_disable,
+	.set_fault_enable_default = gfxhub_v1_0_set_fault_enable_default,
+	.init = gfxhub_v1_0_init,
+};

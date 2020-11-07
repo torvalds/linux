@@ -10,7 +10,6 @@
 #include <linux/crypto.h>
 #include <linux/list.h>
 #include <linux/kernel.h>
-#include <linux/skbuff.h>
 
 /*
  * Maximum values for blocksize and alignmask, used to allocate
@@ -27,6 +26,7 @@ struct crypto_instance;
 struct module;
 struct rtattr;
 struct seq_file;
+struct sk_buff;
 
 struct crypto_type {
 	unsigned int (*ctxsize)(struct crypto_alg *alg, u32 type, u32 mask);
@@ -275,12 +275,6 @@ noinline unsigned long __crypto_memneq(const void *a, const void *b, size_t size
 static inline int crypto_memneq(const void *a, const void *b, size_t size)
 {
 	return __crypto_memneq(a, b, size) != 0UL ? 1 : 0;
-}
-
-static inline void crypto_yield(u32 flags)
-{
-	if (flags & CRYPTO_TFM_REQ_MAY_SLEEP)
-		cond_resched();
 }
 
 int crypto_register_notifier(struct notifier_block *nb);

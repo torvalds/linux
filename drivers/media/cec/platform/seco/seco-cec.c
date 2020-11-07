@@ -369,7 +369,7 @@ static int secocec_ir_probe(void *priv)
 	cec->ir->allowed_protocols = RC_PROTO_BIT_RC5;
 	cec->ir->priv = cec;
 	cec->ir->map_name = RC_MAP_HAUPPAUGE;
-	cec->ir->timeout = MS_TO_NS(100);
+	cec->ir->timeout = MS_TO_US(100);
 
 	/* Clear the status register */
 	status = smb_rd16(SECOCEC_STATUS_REG_1, &val);

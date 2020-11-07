@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
-if MIPS_GENERIC
+if MIPS_GENERIC_KERNEL
 
 config LEGACY_BOARDS
 	bool
@@ -72,6 +72,12 @@ config FIT_IMAGE_FDT_OCELOT
 	  Enable this to include the FDT for the Ocelot development platforms
 	  from Microsemi in the FIT kernel image.
 	  This requires u-boot on the platform.
+
+config BOARD_INGENIC
+	bool "Support boards based on Ingenic SoCs"
+	select MACH_INGENIC_GENERIC
+	help
+	  Enable support for boards based on Ingenic SoCs.
 
 config VIRT_BOARD_RANCHU
 	bool "Support Ranchu platform for Android emulator"

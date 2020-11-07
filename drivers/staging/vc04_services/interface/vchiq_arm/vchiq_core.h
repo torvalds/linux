@@ -231,7 +231,7 @@ struct vchiq_bulk {
 	short mode;
 	short dir;
 	void *userdata;
-	void *data;
+	dma_addr_t data;
 	int size;
 	void *remote_data;
 	int remote_size;
@@ -534,9 +534,9 @@ vchiq_init_state(struct vchiq_state *state, struct vchiq_slot_zero *slot_zero);
 extern enum vchiq_status
 vchiq_connect_internal(struct vchiq_state *state, struct vchiq_instance *instance);
 
-extern struct vchiq_service *
+struct vchiq_service *
 vchiq_add_service_internal(struct vchiq_state *state,
-			   const struct vchiq_service_params *params,
+			   const struct vchiq_service_params_kernel *params,
 			   int srvstate, struct vchiq_instance *instance,
 			   vchiq_userdata_term userdata_term);
 
@@ -559,8 +559,8 @@ extern void
 remote_event_pollall(struct vchiq_state *state);
 
 extern enum vchiq_status
-vchiq_bulk_transfer(unsigned int handle, void *offset, int size,
-		    void *userdata, enum vchiq_bulk_mode mode,
+vchiq_bulk_transfer(unsigned int handle, void *offset, void __user *uoffset,
+		    int size, void *userdata, enum vchiq_bulk_mode mode,
 		    enum vchiq_bulk_dir dir);
 
 extern int
@@ -632,8 +632,8 @@ vchiq_queue_message(unsigned int handle,
 ** implementations must be provided. */
 
 extern enum vchiq_status
-vchiq_prepare_bulk_data(struct vchiq_bulk *bulk, void *offset, int size,
-			int dir);
+vchiq_prepare_bulk_data(struct vchiq_bulk *bulk, void *offset,
+			void __user *uoffset, int size, int dir);
 
 extern void
 vchiq_complete_bulk(struct vchiq_bulk *bulk);

@@ -8,7 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 - 2019 Intel Corporation
+ * Copyright (C) 2018 - 2020 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,7 +31,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 - 2019 Intel Corporation
+ * Copyright (C) 2018 - 2020 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -329,48 +329,56 @@ enum iwl_dev_tx_power_cmd_mode {
 	IWL_TX_POWER_MODE_SET_SAR_TIMER_DEFAULT_TABLE = 5,
 }; /* TX_POWER_REDUCED_FLAGS_TYPE_API_E_VER_5 */;
 
+#define IWL_NUM_CHAIN_TABLES	1
+#define IWL_NUM_CHAIN_TABLES_V2	2
 #define IWL_NUM_CHAIN_LIMITS	2
 #define IWL_NUM_SUB_BANDS	5
+#define IWL_NUM_SUB_BANDS_V2	11
 
 /**
- * struct iwl_dev_tx_power_cmd - TX power reduction command
+ * struct iwl_dev_tx_power_common - Common part of the TX power reduction cmd
  * @set_mode: see &enum iwl_dev_tx_power_cmd_mode
  * @mac_context_id: id of the mac ctx for which we are reducing TX power.
  * @pwr_restriction: TX power restriction in 1/8 dBms.
  * @dev_24: device TX power restriction in 1/8 dBms
  * @dev_52_low: device TX power restriction upper band - low
  * @dev_52_high: device TX power restriction upper band - high
- * @per_chain_restriction: per chain restrictions
  */
-struct iwl_dev_tx_power_cmd_v3 {
+struct iwl_dev_tx_power_common {
 	__le32 set_mode;
 	__le32 mac_context_id;
 	__le16 pwr_restriction;
 	__le16 dev_24;
 	__le16 dev_52_low;
 	__le16 dev_52_high;
-	__le16 per_chain_restriction[IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS];
+};
+
+/**
+ * struct iwl_dev_tx_power_cmd_v3 - TX power reduction command version 3
+ * @per_chain: per chain restrictions
+ */
+struct iwl_dev_tx_power_cmd_v3 {
+	__le16 per_chain[IWL_NUM_CHAIN_TABLES][IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS];
 } __packed; /* TX_REDUCED_POWER_API_S_VER_3 */
 
 #define IWL_DEV_MAX_TX_POWER 0x7FFF
 
 /**
- * struct iwl_dev_tx_power_cmd - TX power reduction command
- * @v3: version 3 of the command, embedded here for easier software handling
+ * struct iwl_dev_tx_power_cmd_v4 - TX power reduction command version 4
+ * @per_chain: per chain restrictions
  * @enable_ack_reduction: enable or disable close range ack TX power
  *	reduction.
  * @reserved: reserved (padding)
  */
 struct iwl_dev_tx_power_cmd_v4 {
-	/* v4 is just an extension of v3 - keep this here */
-	struct iwl_dev_tx_power_cmd_v3 v3;
+	__le16 per_chain[IWL_NUM_CHAIN_TABLES][IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS];
 	u8 enable_ack_reduction;
 	u8 reserved[3];
 } __packed; /* TX_REDUCED_POWER_API_S_VER_4 */
 
 /**
- * struct iwl_dev_tx_power_cmd - TX power reduction command
- * @v3: version 3 of the command, embedded here for easier software handling
+ * struct iwl_dev_tx_power_cmd_v5 - TX power reduction command version 5
+ * @per_chain: per chain restrictions
  * @enable_ack_reduction: enable or disable close range ack TX power
  *	reduction.
  * @per_chain_restriction_changed: is per_chain_restriction has changed
@@ -381,16 +389,56 @@ struct iwl_dev_tx_power_cmd_v4 {
  * @timer_period: timer in milliseconds. if expires FW will change to default
  *	BIOS values. relevant if setMode is IWL_TX_POWER_MODE_SET_SAR_TIMER
  */
-struct iwl_dev_tx_power_cmd {
-	/* v5 is just an extension of v3 - keep this here */
-	struct iwl_dev_tx_power_cmd_v3 v3;
+struct iwl_dev_tx_power_cmd_v5 {
+	__le16 per_chain[IWL_NUM_CHAIN_TABLES][IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS];
 	u8 enable_ack_reduction;
 	u8 per_chain_restriction_changed;
 	u8 reserved[2];
 	__le32 timer_period;
 } __packed; /* TX_REDUCED_POWER_API_S_VER_5 */
 
+/**
+ * struct iwl_dev_tx_power_cmd_v5 - TX power reduction command version 5
+ * @per_chain: per chain restrictions
+ * @enable_ack_reduction: enable or disable close range ack TX power
+ *	reduction.
+ * @per_chain_restriction_changed: is per_chain_restriction has changed
+ *	from last command. used if set_mode is
+ *	IWL_TX_POWER_MODE_SET_SAR_TIMER.
+ *	note: if not changed, the command is used for keep alive only.
+ * @reserved: reserved (padding)
+ * @timer_period: timer in milliseconds. if expires FW will change to default
+ *	BIOS values. relevant if setMode is IWL_TX_POWER_MODE_SET_SAR_TIMER
+ */
+struct iwl_dev_tx_power_cmd_v6 {
+	__le16 per_chain[IWL_NUM_CHAIN_TABLES_V2][IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS_V2];
+	u8 enable_ack_reduction;
+	u8 per_chain_restriction_changed;
+	u8 reserved[2];
+	__le32 timer_period;
+} __packed; /* TX_REDUCED_POWER_API_S_VER_6 */
+
+/**
+ * struct iwl_dev_tx_power_cmd - TX power reduction command (multiversion)
+ * @common: common part of the command
+ * @v3: version 3 part of the command
+ * @v4: version 4 part of the command
+ * @v5: version 5 part of the command
+ * @v6: version 6 part of the command
+ */
+struct iwl_dev_tx_power_cmd {
+	struct iwl_dev_tx_power_common common;
+	union {
+		struct iwl_dev_tx_power_cmd_v3 v3;
+		struct iwl_dev_tx_power_cmd_v4 v4;
+		struct iwl_dev_tx_power_cmd_v5 v5;
+		struct iwl_dev_tx_power_cmd_v6 v6;
+	};
+};
+
 #define IWL_NUM_GEO_PROFILES   3
+#define IWL_NUM_BANDS_PER_CHAIN_V1 2
+#define IWL_NUM_BANDS_PER_CHAIN_V2 3
 
 /**
  * enum iwl_geo_per_chain_offset_operation - type of operation
@@ -414,11 +462,6 @@ struct iwl_per_chain_offset {
 	u8 chain_b;
 } __packed; /* PER_CHAIN_LIMIT_OFFSET_PER_CHAIN_S_VER_1 */
 
-struct iwl_per_chain_offset_group {
-	struct iwl_per_chain_offset lb;
-	struct iwl_per_chain_offset hb;
-} __packed; /* PER_CHAIN_LIMIT_OFFSET_GROUP_S_VER_1 */
-
 /**
  * struct iwl_geo_tx_power_profile_cmd_v1 - struct for GEO_TX_POWER_LIMIT cmd.
  * @ops: operations, value from &enum iwl_geo_per_chain_offset_operation
@@ -426,20 +469,38 @@ struct iwl_per_chain_offset_group {
  */
 struct iwl_geo_tx_power_profiles_cmd_v1 {
 	__le32 ops;
-	struct iwl_per_chain_offset_group table[IWL_NUM_GEO_PROFILES];
+	struct iwl_per_chain_offset table[IWL_NUM_GEO_PROFILES][IWL_NUM_BANDS_PER_CHAIN_V1];
 } __packed; /* GEO_TX_POWER_LIMIT_VER_1 */
 
 /**
- * struct iwl_geo_tx_power_profile_cmd - struct for GEO_TX_POWER_LIMIT cmd.
+ * struct iwl_geo_tx_power_profile_cmd_v2 - struct for GEO_TX_POWER_LIMIT cmd.
  * @ops: operations, value from &enum iwl_geo_per_chain_offset_operation
  * @table: offset profile per band.
  * @table_revision: BIOS table revision.
  */
-struct iwl_geo_tx_power_profiles_cmd {
+struct iwl_geo_tx_power_profiles_cmd_v2 {
 	__le32 ops;
-	struct iwl_per_chain_offset_group table[IWL_NUM_GEO_PROFILES];
+	struct iwl_per_chain_offset table[IWL_NUM_GEO_PROFILES][IWL_NUM_BANDS_PER_CHAIN_V1];
 	__le32 table_revision;
-} __packed; /* GEO_TX_POWER_LIMIT */
+} __packed; /* GEO_TX_POWER_LIMIT_VER_2 */
+
+/**
+ * struct iwl_geo_tx_power_profile_cmd_v3 - struct for GEO_TX_POWER_LIMIT cmd.
+ * @ops: operations, value from &enum iwl_geo_per_chain_offset_operation
+ * @table: offset profile per band.
+ * @table_revision: BIOS table revision.
+ */
+struct iwl_geo_tx_power_profiles_cmd_v3 {
+	__le32 ops;
+	struct iwl_per_chain_offset table[IWL_NUM_GEO_PROFILES][IWL_NUM_BANDS_PER_CHAIN_V2];
+	__le32 table_revision;
+} __packed; /* GEO_TX_POWER_LIMIT_VER_3 */
+
+union iwl_geo_tx_power_profiles_cmd {
+	struct iwl_geo_tx_power_profiles_cmd_v1 v1;
+	struct iwl_geo_tx_power_profiles_cmd_v2 v2;
+	struct iwl_geo_tx_power_profiles_cmd_v3 v3;
+};
 
 /**
  * struct iwl_geo_tx_power_profiles_resp -  response to GEO_TX_POWER_LIMIT cmd
@@ -450,16 +511,26 @@ struct iwl_geo_tx_power_profiles_resp {
 } __packed; /* GEO_TX_POWER_LIMIT_RESP */
 
 /**
- * struct iwl_ppag_table_cmd - struct for PER_PLATFORM_ANT_GAIN_CMD cmd.
+ * union iwl_ppag_table_cmd - union for all versions of PPAG command
+ * @v1: version 1, table revision = 0
+ * @v2: version 2, table revision = 1
+ *
  * @enabled: 1 if PPAG is enabled, 0 otherwise
  * @gain: table of antenna gain values per chain and sub-band
  * @reserved: reserved
  */
-struct iwl_ppag_table_cmd {
-	__le32 enabled;
-	s8 gain[IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS];
-	s8 reserved[2];
-} __packed; /* PER_PLATFORM_ANT_GAIN_CMD */
+union iwl_ppag_table_cmd {
+	struct {
+		__le32 enabled;
+		s8 gain[IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS];
+		s8 reserved[2];
+	} v1;
+	struct {
+		__le32 enabled;
+		s8 gain[IWL_NUM_CHAIN_LIMITS][IWL_NUM_SUB_BANDS_V2];
+		s8 reserved[2];
+	} v2;
+} __packed;
 
 /**
  * struct iwl_beacon_filter_cmd

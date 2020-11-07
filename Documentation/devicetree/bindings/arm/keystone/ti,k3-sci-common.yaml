@@ -42,3 +42,5 @@ properties:
       - description: TI-SCI processor id for the remote processor device
       - description: TI-SCI host id to which processor control ownership
                      should be transferred to
+
+additionalProperties: true

@@ -330,7 +330,7 @@
 			power-domains = <&pd_g3d>;
 			status = "disabled";
 
-			gpu_opp_table: gpu-opp-table {
+			gpu_opp_table: opp-table {
 				compatible = "operating-points-v2";
 
 				opp-100000000 {
@@ -473,6 +473,12 @@
 			clocks = <&clock CLK_SATA_PHYI2C>;
 			clock-names = "i2c";
 			status = "disabled";
+
+			sata_phy_i2c: sata-phy-i2c@38 {
+				compatible = "samsung,exynos-sataphy-i2c";
+				reg = <0x38>;
+				status = "disabled";
+			};
 		};
 
 		spi_0: spi@12d20000 {
@@ -723,7 +729,7 @@
 			#dma-requests = <1>;
 		};
 
-		gsc_0:  gsc@13e00000 {
+		gsc_0: gsc@13e00000 {
 			compatible = "samsung,exynos5250-gsc", "samsung,exynos5-gsc";
 			reg = <0x13e00000 0x1000>;
 			interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
@@ -733,7 +739,7 @@
 			iommus = <&sysmmu_gsc0>;
 		};
 
-		gsc_1:  gsc@13e10000 {
+		gsc_1: gsc@13e10000 {
 			compatible = "samsung,exynos5250-gsc", "samsung,exynos5-gsc";
 			reg = <0x13e10000 0x1000>;
 			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
@@ -743,7 +749,7 @@
 			iommus = <&sysmmu_gsc1>;
 		};
 
-		gsc_2:  gsc@13e20000 {
+		gsc_2: gsc@13e20000 {
 			compatible = "samsung,exynos5250-gsc", "samsung,exynos5-gsc";
 			reg = <0x13e20000 0x1000>;
 			interrupts = <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
@@ -753,7 +759,7 @@
 			iommus = <&sysmmu_gsc2>;
 		};
 
-		gsc_3:  gsc@13e30000 {
+		gsc_3: gsc@13e30000 {
 			compatible = "samsung,exynos5250-gsc", "samsung,exynos5-gsc";
 			reg = <0x13e30000 0x1000>;
 			interrupts = <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>;
@@ -1085,26 +1091,6 @@
 		};
 	};
 
-	thermal-zones {
-		cpu_thermal: cpu-thermal {
-			polling-delay-passive = <0>;
-			polling-delay = <0>;
-			thermal-sensors = <&tmu 0>;
-
-			cooling-maps {
-				map0 {
-				     /* Corresponds to 800MHz at freq_table */
-				     cooling-device = <&cpu0 9 9>, <&cpu1 9 9>;
-				};
-				map1 {
-				     /* Corresponds to 200MHz at freq_table */
-				     cooling-device = <&cpu0 15 15>,
-						      <&cpu1 15 15>;
-			       };
-		       };
-		};
-	};
-
 	timer {
 		compatible = "arm,armv7-timer";
 		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
@@ -1117,6 +1103,24 @@
 		 * so we need the value from DT.
 		 */
 		clock-frequency = <24000000>;
+	};
+};
+
+&cpu_thermal {
+	polling-delay-passive = <0>;
+	polling-delay = <0>;
+	thermal-sensors = <&tmu 0>;
+
+	cooling-maps {
+		map0 {
+			/* Corresponds to 800MHz at freq_table */
+			cooling-device = <&cpu0 9 9>, <&cpu1 9 9>;
+		};
+		map1 {
+			/* Corresponds to 200MHz at freq_table */
+			cooling-device = <&cpu0 15 15>,
+					 <&cpu1 15 15>;
+		};
 	};
 };
 

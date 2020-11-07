@@ -120,6 +120,20 @@ instance node, but those are also visible from other instances. So please
 take care for event name conflict.
 
 
+When to Start
+=============
+
+All boot-time tracing options starting with ``ftrace`` will be enabled at the
+end of core_initcall. This means you can trace the events from postcore_initcall.
+Most of the subsystems and architecture dependent drivers will be initialized
+after that (arch_initcall or subsys_initcall). Thus, you can trace those with
+boot-time tracing.
+If you want to trace events before core_initcall, you can use the options
+starting with ``kernel``. Some of them will be enabled eariler than the initcall
+processing (for example,. ``kernel.ftrace=function`` and ``kernel.trace_event``
+will start before the initcall.)
+
+
 Examples
 ========
 

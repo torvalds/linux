@@ -317,6 +317,7 @@ struct usba_udc_config {
 	const struct usba_udc_errata *errata;
 	const struct usba_ep_config *config;
 	const int num_ep;
+	const bool ep_prealloc;
 };
 
 struct usba_udc {
@@ -336,7 +337,6 @@ struct usba_udc {
 	int irq;
 	struct gpio_desc *vbus_pin;
 	int num_ep;
-	int configured_ep;
 	struct usba_fifo_cfg *fifo_cfg;
 	struct clk *pclk;
 	struct clk *hclk;
@@ -344,6 +344,7 @@ struct usba_udc {
 	bool bias_pulse_needed;
 	bool clocked;
 	bool suspended;
+	bool ep_prealloc;
 
 	u16 devstatus;
 

@@ -1206,7 +1206,8 @@ again:
 	}
 
 	if (cow) {
-		ret = btrfs_cow_block(trans, dest, eb, NULL, 0, &eb);
+		ret = btrfs_cow_block(trans, dest, eb, NULL, 0, &eb,
+				      BTRFS_NESTING_COW);
 		BUG_ON(ret);
 	}
 	btrfs_set_lock_blocking_write(eb);
@@ -1274,7 +1275,8 @@ again:
 			btrfs_tree_lock(eb);
 			if (cow) {
 				ret = btrfs_cow_block(trans, dest, eb, parent,
-						      slot, &eb);
+						      slot, &eb,
+						      BTRFS_NESTING_COW);
 				BUG_ON(ret);
 			}
 			btrfs_set_lock_blocking_write(eb);
@@ -1781,7 +1783,8 @@ static noinline_for_stack int merge_reloc_root(struct reloc_control *rc,
 	 * relocated and the block is tree root.
 	 */
 	leaf = btrfs_lock_root_node(root);
-	ret = btrfs_cow_block(trans, root, leaf, NULL, 0, &leaf);
+	ret = btrfs_cow_block(trans, root, leaf, NULL, 0, &leaf,
+			      BTRFS_NESTING_COW);
 	btrfs_tree_unlock(leaf);
 	free_extent_buffer(leaf);
 	if (ret < 0)
@@ -2308,7 +2311,7 @@ static int do_relocation(struct btrfs_trans_handle *trans,
 
 		if (!node->eb) {
 			ret = btrfs_cow_block(trans, root, eb, upper->eb,
-					      slot, &eb);
+					      slot, &eb, BTRFS_NESTING_COW);
 			btrfs_tree_unlock(eb);
 			free_extent_buffer(eb);
 			if (ret < 0) {

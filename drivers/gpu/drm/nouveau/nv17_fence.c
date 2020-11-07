@@ -78,7 +78,7 @@ nv17_fence_context_new(struct nouveau_channel *chan)
 {
 	struct nv10_fence_priv *priv = chan->drm->fence;
 	struct nv10_fence_chan *fctx;
-	struct ttm_mem_reg *reg = &priv->bo->bo.mem;
+	struct ttm_resource *reg = &priv->bo->bo.mem;
 	u32 start = reg->start * PAGE_SIZE;
 	u32 limit = start + reg->size - 1;
 	int ret = 0;
@@ -130,10 +130,11 @@ nv17_fence_create(struct nouveau_drm *drm)
 	priv->base.context_del = nv10_fence_context_del;
 	spin_lock_init(&priv->lock);
 
-	ret = nouveau_bo_new(&drm->client, 4096, 0x1000, TTM_PL_FLAG_VRAM,
+	ret = nouveau_bo_new(&drm->client, 4096, 0x1000,
+			     NOUVEAU_GEM_DOMAIN_VRAM,
 			     0, 0x0000, NULL, NULL, &priv->bo);
 	if (!ret) {
-		ret = nouveau_bo_pin(priv->bo, TTM_PL_FLAG_VRAM, false);
+		ret = nouveau_bo_pin(priv->bo, NOUVEAU_GEM_DOMAIN_VRAM, false);
 		if (!ret) {
 			ret = nouveau_bo_map(priv->bo);
 			if (ret)

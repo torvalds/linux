@@ -833,6 +833,9 @@ intel_crt_detect(struct drm_connector *connector,
 		    connector->base.id, connector->name,
 		    force);
 
+	if (!INTEL_DISPLAY_ENABLED(dev_priv))
+		return connector_status_disconnected;
+
 	if (dev_priv->params.load_detect_test) {
 		wakeref = intel_display_power_get(dev_priv,
 						  intel_encoder->power_domain);

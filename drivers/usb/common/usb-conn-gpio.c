@@ -91,14 +91,14 @@ static void usb_conn_detect_cable(struct work_struct *work)
 		return;
 	}
 
-	if (info->last_role == USB_ROLE_HOST)
+	if (info->last_role == USB_ROLE_HOST && info->vbus)
 		regulator_disable(info->vbus);
 
 	ret = usb_role_switch_set_role(info->role_sw, role);
 	if (ret)
 		dev_err(info->dev, "failed to set role: %d\n", ret);
 
-	if (role == USB_ROLE_HOST) {
+	if (role == USB_ROLE_HOST && info->vbus) {
 		ret = regulator_enable(info->vbus);
 		if (ret)
 			dev_err(info->dev, "enable vbus regulator failed\n");
@@ -106,8 +106,9 @@ static void usb_conn_detect_cable(struct work_struct *work)
 
 	info->last_role = role;
 
-	dev_dbg(info->dev, "vbus regulator is %s\n",
-		regulator_is_enabled(info->vbus) ? "enabled" : "disabled");
+	if (info->vbus)
+		dev_dbg(info->dev, "vbus regulator is %s\n",
+			regulator_is_enabled(info->vbus) ? "enabled" : "disabled");
 
 	power_supply_changed(info->charger);
 }
@@ -156,6 +157,7 @@ static int usb_conn_probe(struct platform_device *pdev)
 	struct power_supply_config cfg = {
 		.of_node = dev->of_node,
 	};
+	bool need_vbus = true;
 	int ret = 0;
 
 	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
@@ -185,10 +187,26 @@ static int usb_conn_probe(struct platform_device *pdev)
 
 	INIT_DELAYED_WORK(&info->dw_det, usb_conn_detect_cable);
 
-	info->vbus = devm_regulator_get(dev, "vbus");
+	/*
+	 * If the USB connector is a child of a USB port and that port already provides the VBUS
+	 * supply, there's no need for the USB connector to provide it again.
+	 */
+	if (dev->parent && dev->parent->of_node) {
+		if (of_find_property(dev->parent->of_node, "vbus-supply", NULL))
+			need_vbus = false;
+	}
+
+	if (!need_vbus) {
+		info->vbus = devm_regulator_get_optional(dev, "vbus");
+		if (PTR_ERR(info->vbus) == -ENODEV)
+			info->vbus = NULL;
+	} else {
+		info->vbus = devm_regulator_get(dev, "vbus");
+	}
+
 	if (IS_ERR(info->vbus)) {
 		if (PTR_ERR(info->vbus) != -EPROBE_DEFER)
-			dev_err(dev, "failed to get vbus\n");
+			dev_err(dev, "failed to get vbus: %ld\n", PTR_ERR(info->vbus));
 		return PTR_ERR(info->vbus);
 	}
 
@@ -266,7 +284,7 @@ static int usb_conn_remove(struct platform_device *pdev)
 
 	cancel_delayed_work_sync(&info->dw_det);
 
-	if (info->last_role == USB_ROLE_HOST)
+	if (info->last_role == USB_ROLE_HOST && info->vbus)
 		regulator_disable(info->vbus);
 
 	usb_role_switch_put(info->role_sw);

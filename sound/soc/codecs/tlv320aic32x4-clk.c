@@ -230,7 +230,14 @@ static int clk_aic32x4_pll_set_rate(struct clk_hw *hw,
 	if (ret < 0)
 		return -EINVAL;
 
-	return clk_aic32x4_pll_set_muldiv(pll, &settings);
+	ret = clk_aic32x4_pll_set_muldiv(pll, &settings);
+	if (ret)
+		return ret;
+
+	/* 10ms is the delay to wait before the clocks are stable */
+	msleep(10);
+
+	return 0;
 }
 
 static int clk_aic32x4_pll_set_parent(struct clk_hw *hw, u8 index)

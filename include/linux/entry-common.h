@@ -38,7 +38,7 @@
 #endif
 
 /*
- * TIF flags handled in syscall_enter_from_usermode()
+ * TIF flags handled in syscall_enter_from_user_mode()
  */
 #ifndef ARCH_SYSCALL_ENTER_WORK
 # define ARCH_SYSCALL_ENTER_WORK	(0)

@@ -2,7 +2,7 @@
 /*
  * arch/arm/plat-omap/include/plat/l4_2xxx.h - L4 firewall definitions
  *
- * Copyright (C) 2010 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2010 Texas Instruments Incorporated - https://www.ti.com/
  *	Sumit Semwal
  */
 #ifndef __ARCH_ARM_PLAT_OMAP_INCLUDE_PLAT_L4_2XXX_H

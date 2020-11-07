@@ -77,18 +77,10 @@ static void tmio_mmc_set_clock(struct tmio_mmc_host *host,
 
 static void tmio_mmc_reset(struct tmio_mmc_host *host)
 {
-	/* FIXME - should we set stop clock reg here */
-	sd_ctrl_write16(host, CTL_RESET_SD, 0x0000);
 	sd_ctrl_write16(host, CTL_RESET_SDIO, 0x0000);
 	usleep_range(10000, 11000);
-	sd_ctrl_write16(host, CTL_RESET_SD, 0x0001);
 	sd_ctrl_write16(host, CTL_RESET_SDIO, 0x0001);
 	usleep_range(10000, 11000);
-
-	if (host->pdata->flags & TMIO_MMC_SDIO_IRQ) {
-		sd_ctrl_write16(host, CTL_SDIO_IRQ_MASK, host->sdio_irq_mask);
-		sd_ctrl_write16(host, CTL_TRANSACTION_CTL, 0x0001);
-	}
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -221,6 +213,7 @@ static const struct dev_pm_ops tmio_mmc_dev_pm_ops = {
 static struct platform_driver tmio_mmc_driver = {
 	.driver = {
 		.name = "tmio-mmc",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.pm = &tmio_mmc_dev_pm_ops,
 	},
 	.probe = tmio_mmc_probe,

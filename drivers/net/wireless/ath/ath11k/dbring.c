@@ -168,7 +168,7 @@ int ath11k_dbring_buf_setup(struct ath11k *ar,
 
 	srng = &ab->hal.srng_list[ring->refill_srng.ring_id];
 	ring->bufs_max = ring->refill_srng.size /
-			 ath11k_hal_srng_get_entrysize(HAL_RXDMA_DIR_BUF);
+		ath11k_hal_srng_get_entrysize(ab, HAL_RXDMA_DIR_BUF);
 
 	ring->buf_sz = db_cap->min_buf_sz;
 	ring->buf_align = db_cap->min_buf_align;

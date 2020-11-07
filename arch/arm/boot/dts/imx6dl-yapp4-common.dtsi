@@ -8,6 +8,11 @@
 #include <dt-bindings/pwm/pwm.h>
 
 / {
+	aliases: aliases {
+		ethernet1 = &eth1;
+		ethernet2 = &eth2;
+	};
+
 	backlight: backlight {
 		compatible = "pwm-backlight";
 		pwms = <&pwm1 0 500000 PWM_POLARITY_INVERTED>;
@@ -135,13 +140,13 @@
 					};
 				};
 
-				port@2 {
+				eth2: port@2 {
 					reg = <2>;
 					label = "eth2";
 					phy-handle = <&phy_port2>;
 				};
 
-				port@3 {
+				eth1: port@3 {
 					reg = <3>;
 					label = "eth1";
 					phy-handle = <&phy_port3>;
@@ -258,29 +263,35 @@
 		reg = <0x30>;
 		clock-mode = /bits/ 8 <1>;
 		status = "disabled";
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-		chan0 {
+		chan@0 {
 			chan-name = "R";
 			led-cur = /bits/ 8 <0x20>;
 			max-cur = /bits/ 8 <0x60>;
+			reg = <0>;
 		};
 
-		chan1 {
+		chan@1 {
 			chan-name = "G";
 			led-cur = /bits/ 8 <0x20>;
 			max-cur = /bits/ 8 <0x60>;
+			reg = <1>;
 		};
 
-		chan2 {
+		chan@2 {
 			chan-name = "B";
 			led-cur = /bits/ 8 <0x20>;
 			max-cur = /bits/ 8 <0x60>;
+			reg = <2>;
 		};
 
-		chan3 {
+		chan@3 {
 			chan-name = "W";
 			led-cur = /bits/ 8 <0x0>;
 			max-cur = /bits/ 8 <0x0>;
+			reg = <3>;
 		};
 	};
 
@@ -311,7 +322,20 @@
 	pinctrl-0 = <&pinctrl_i2c3>;
 	status = "okay";
 
-	oled: oled@3d {
+	oled_1309: oled@3c {
+		compatible = "solomon,ssd1309fb-i2c";
+		reg = <0x3c>;
+		solomon,height = <64>;
+		solomon,width = <128>;
+		solomon,page-offset = <0>;
+		solomon,segment-no-remap;
+		solomon,prechargep2 = <15>;
+		reset-gpios = <&gpio_oled 1 GPIO_ACTIVE_LOW>;
+		vbat-supply = <&sw2_reg>;
+		status = "disabled";
+	};
+
+	oled_1305: oled@3d {
 		compatible = "solomon,ssd1305fb-i2c";
 		reg = <0x3d>;
 		solomon,height = <64>;

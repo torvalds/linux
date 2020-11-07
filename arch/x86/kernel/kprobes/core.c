@@ -38,9 +38,9 @@
 #include <linux/kdebug.h>
 #include <linux/kallsyms.h>
 #include <linux/ftrace.h>
-#include <linux/frame.h>
 #include <linux/kasan.h>
 #include <linux/moduleloader.h>
+#include <linux/objtool.h>
 #include <linux/vmalloc.h>
 #include <linux/pgtable.h>
 
@@ -776,7 +776,6 @@ __used __visible void *trampoline_handler(struct pt_regs *regs)
 	/* fixup registers */
 	regs->cs = __KERNEL_CS;
 #ifdef CONFIG_X86_32
-	regs->cs |= get_kernel_rpl();
 	regs->gs = 0;
 #endif
 	regs->ip = (unsigned long)&kretprobe_trampoline;

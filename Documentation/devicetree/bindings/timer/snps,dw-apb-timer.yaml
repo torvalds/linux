@@ -45,7 +45,7 @@ properties:
       frequency in HZ, but is defined only for the backwards compatibility
       with the picoxcell platform.
 
-unevaluatedProperties: false
+additionalProperties: false
 
 required:
   - compatible

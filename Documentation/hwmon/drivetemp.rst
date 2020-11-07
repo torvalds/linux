@@ -30,6 +30,24 @@ Transport is not supported, the driver uses SMART attributes to read
 the drive temperature.
 
 
+Usage Note
+----------
+
+Reading the drive temperature may reset the spin down timer on some drives.
+This has been observed with WD120EFAX drives, but may be seen with other
+drives as well. The same behavior is observed if the 'hdtemp' or 'smartd'
+tools are used to access the drive.
+With the WD120EFAX drive, reading the drive temperature using the drivetemp
+driver is still possible _after_ it transitioned to standby mode, and
+reading the drive temperature in this mode will not cause the drive to
+change its mode (meaning the drive will not spin up). It is unknown if other
+drives experience similar behavior.
+
+A known workaround for WD120EFAX drives is to read the drive temperature at
+intervals larger than twice the spin-down time. Otherwise affected drives
+will never spin down.
+
+
 Sysfs entries
 -------------
 

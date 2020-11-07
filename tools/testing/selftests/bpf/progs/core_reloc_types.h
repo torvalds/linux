@@ -652,7 +652,7 @@ struct core_reloc_misc_extensible {
 };
 
 /*
- * EXISTENCE
+ * FIELD EXISTENCE
  */
 struct core_reloc_existence_output {
 	int a_exists;
@@ -808,4 +808,354 @@ struct core_reloc_size___diff_sz {
 	char arr_field[10];
 	void *ptr_field;
 	enum { OTHER_VALUE = 0xFFFFFFFFFFFFFFFF } enum_field;
+};
+
+/* Error case of two candidates with the fields (int_field) at the same
+ * offset, but with differing final relocation values: size 4 vs size 1
+ */
+struct core_reloc_size___err_ambiguous1 {
+	/* int at offset 0 */
+	int int_field;
+
+	struct { int x; } struct_field;
+	union { int x; } union_field;
+	int arr_field[4];
+	void *ptr_field;
+	enum { VALUE___1 = 123 } enum_field;
+};
+
+struct core_reloc_size___err_ambiguous2 {
+	/* char at offset 0 */
+	char int_field;
+
+	struct { int x; } struct_field;
+	union { int x; } union_field;
+	int arr_field[4];
+	void *ptr_field;
+	enum { VALUE___2 = 123 } enum_field;
+};
+
+/*
+ * TYPE EXISTENCE & SIZE
+ */
+struct core_reloc_type_based_output {
+	bool struct_exists;
+	bool union_exists;
+	bool enum_exists;
+	bool typedef_named_struct_exists;
+	bool typedef_anon_struct_exists;
+	bool typedef_struct_ptr_exists;
+	bool typedef_int_exists;
+	bool typedef_enum_exists;
+	bool typedef_void_ptr_exists;
+	bool typedef_func_proto_exists;
+	bool typedef_arr_exists;
+
+	int struct_sz;
+	int union_sz;
+	int enum_sz;
+	int typedef_named_struct_sz;
+	int typedef_anon_struct_sz;
+	int typedef_struct_ptr_sz;
+	int typedef_int_sz;
+	int typedef_enum_sz;
+	int typedef_void_ptr_sz;
+	int typedef_func_proto_sz;
+	int typedef_arr_sz;
+};
+
+struct a_struct {
+	int x;
+};
+
+union a_union {
+	int y;
+	int z;
+};
+
+typedef struct a_struct named_struct_typedef;
+
+typedef struct { int x, y, z; } anon_struct_typedef;
+
+typedef struct {
+	int a, b, c;
+} *struct_ptr_typedef;
+
+enum an_enum {
+	AN_ENUM_VAL1 = 1,
+	AN_ENUM_VAL2 = 2,
+	AN_ENUM_VAL3 = 3,
+};
+
+typedef int int_typedef;
+
+typedef enum { TYPEDEF_ENUM_VAL1, TYPEDEF_ENUM_VAL2 } enum_typedef;
+
+typedef void *void_ptr_typedef;
+
+typedef int (*func_proto_typedef)(long);
+
+typedef char arr_typedef[20];
+
+struct core_reloc_type_based {
+	struct a_struct f1;
+	union a_union f2;
+	enum an_enum f3;
+	named_struct_typedef f4;
+	anon_struct_typedef f5;
+	struct_ptr_typedef f6;
+	int_typedef f7;
+	enum_typedef f8;
+	void_ptr_typedef f9;
+	func_proto_typedef f10;
+	arr_typedef f11;
+};
+
+/* no types in target */
+struct core_reloc_type_based___all_missing {
+};
+
+/* different type sizes, extra modifiers, anon vs named enums, etc */
+struct a_struct___diff_sz {
+	long x;
+	int y;
+	char z;
+};
+
+union a_union___diff_sz {
+	char yy;
+	char zz;
+};
+
+typedef struct a_struct___diff_sz named_struct_typedef___diff_sz;
+
+typedef struct { long xx, yy, zzz; } anon_struct_typedef___diff_sz;
+
+typedef struct {
+	char aa[1], bb[2], cc[3];
+} *struct_ptr_typedef___diff_sz;
+
+enum an_enum___diff_sz {
+	AN_ENUM_VAL1___diff_sz = 0x123412341234,
+	AN_ENUM_VAL2___diff_sz = 2,
+};
+
+typedef unsigned long int_typedef___diff_sz;
+
+typedef enum an_enum___diff_sz enum_typedef___diff_sz;
+
+typedef const void * const void_ptr_typedef___diff_sz;
+
+typedef int_typedef___diff_sz (*func_proto_typedef___diff_sz)(char);
+
+typedef int arr_typedef___diff_sz[2];
+
+struct core_reloc_type_based___diff_sz {
+	struct a_struct___diff_sz f1;
+	union a_union___diff_sz f2;
+	enum an_enum___diff_sz f3;
+	named_struct_typedef___diff_sz f4;
+	anon_struct_typedef___diff_sz f5;
+	struct_ptr_typedef___diff_sz f6;
+	int_typedef___diff_sz f7;
+	enum_typedef___diff_sz f8;
+	void_ptr_typedef___diff_sz f9;
+	func_proto_typedef___diff_sz f10;
+	arr_typedef___diff_sz f11;
+};
+
+/* incompatibilities between target and local types */
+union a_struct___incompat { /* union instead of struct */
+	int x;
+};
+
+struct a_union___incompat { /* struct instead of union */
+	int y;
+	int z;
+};
+
+/* typedef to union, not to struct */
+typedef union a_struct___incompat named_struct_typedef___incompat;
+
+/* typedef to void pointer, instead of struct */
+typedef void *anon_struct_typedef___incompat;
+
+/* extra pointer indirection */
+typedef struct {
+	int a, b, c;
+} **struct_ptr_typedef___incompat;
+
+/* typedef of a struct with int, instead of int */
+typedef struct { int x; } int_typedef___incompat;
+
+/* typedef to func_proto, instead of enum */
+typedef int (*enum_typedef___incompat)(void);
+
+/* pointer to char instead of void */
+typedef char *void_ptr_typedef___incompat;
+
+/* void return type instead of int */
+typedef void (*func_proto_typedef___incompat)(long);
+
+/* multi-dimensional array instead of a single-dimensional */
+typedef int arr_typedef___incompat[20][2];
+
+struct core_reloc_type_based___incompat {
+	union a_struct___incompat f1;
+	struct a_union___incompat f2;
+	/* the only valid one is enum, to check that something still succeeds */
+	enum an_enum f3;
+	named_struct_typedef___incompat f4;
+	anon_struct_typedef___incompat f5;
+	struct_ptr_typedef___incompat f6;
+	int_typedef___incompat f7;
+	enum_typedef___incompat f8;
+	void_ptr_typedef___incompat f9;
+	func_proto_typedef___incompat f10;
+	arr_typedef___incompat f11;
+};
+
+/* func_proto with incompatible signature */
+typedef void (*func_proto_typedef___fn_wrong_ret1)(long);
+typedef int * (*func_proto_typedef___fn_wrong_ret2)(long);
+typedef struct { int x; } int_struct_typedef;
+typedef int_struct_typedef (*func_proto_typedef___fn_wrong_ret3)(long);
+typedef int (*func_proto_typedef___fn_wrong_arg)(void *);
+typedef int (*func_proto_typedef___fn_wrong_arg_cnt1)(long, long);
+typedef int (*func_proto_typedef___fn_wrong_arg_cnt2)(void);
+
+struct core_reloc_type_based___fn_wrong_args {
+	/* one valid type to make sure relos still work */
+	struct a_struct f1;
+	func_proto_typedef___fn_wrong_ret1 f2;
+	func_proto_typedef___fn_wrong_ret2 f3;
+	func_proto_typedef___fn_wrong_ret3 f4;
+	func_proto_typedef___fn_wrong_arg f5;
+	func_proto_typedef___fn_wrong_arg_cnt1 f6;
+	func_proto_typedef___fn_wrong_arg_cnt2 f7;
+};
+
+/*
+ * TYPE ID MAPPING (LOCAL AND TARGET)
+ */
+struct core_reloc_type_id_output {
+	int local_anon_struct;
+	int local_anon_union;
+	int local_anon_enum;
+	int local_anon_func_proto_ptr;
+	int local_anon_void_ptr;
+	int local_anon_arr;
+
+	int local_struct;
+	int local_union;
+	int local_enum;
+	int local_int;
+	int local_struct_typedef;
+	int local_func_proto_typedef;
+	int local_arr_typedef;
+
+	int targ_struct;
+	int targ_union;
+	int targ_enum;
+	int targ_int;
+	int targ_struct_typedef;
+	int targ_func_proto_typedef;
+	int targ_arr_typedef;
+};
+
+struct core_reloc_type_id {
+	struct a_struct f1;
+	union a_union f2;
+	enum an_enum f3;
+	named_struct_typedef f4;
+	func_proto_typedef f5;
+	arr_typedef f6;
+};
+
+struct core_reloc_type_id___missing_targets {
+	/* nothing */
+};
+
+/*
+ * ENUMERATOR VALUE EXISTENCE AND VALUE RELOCATION
+ */
+struct core_reloc_enumval_output {
+	bool named_val1_exists;
+	bool named_val2_exists;
+	bool named_val3_exists;
+	bool anon_val1_exists;
+	bool anon_val2_exists;
+	bool anon_val3_exists;
+
+	int named_val1;
+	int named_val2;
+	int anon_val1;
+	int anon_val2;
+};
+
+enum named_enum {
+	NAMED_ENUM_VAL1 = 1,
+	NAMED_ENUM_VAL2 = 2,
+	NAMED_ENUM_VAL3 = 3,
+};
+
+typedef enum {
+	ANON_ENUM_VAL1 = 0x10,
+	ANON_ENUM_VAL2 = 0x20,
+	ANON_ENUM_VAL3 = 0x30,
+} anon_enum;
+
+struct core_reloc_enumval {
+	enum named_enum f1;
+	anon_enum f2;
+};
+
+/* differing enumerator values */
+enum named_enum___diff {
+	NAMED_ENUM_VAL1___diff = 101,
+	NAMED_ENUM_VAL2___diff = 202,
+	NAMED_ENUM_VAL3___diff = 303,
+};
+
+typedef enum {
+	ANON_ENUM_VAL1___diff = 0x11,
+	ANON_ENUM_VAL2___diff = 0x22,
+	ANON_ENUM_VAL3___diff = 0x33,
+} anon_enum___diff;
+
+struct core_reloc_enumval___diff {
+	enum named_enum___diff f1;
+	anon_enum___diff f2;
+};
+
+/* missing (optional) third enum value */
+enum named_enum___val3_missing {
+	NAMED_ENUM_VAL1___val3_missing = 111,
+	NAMED_ENUM_VAL2___val3_missing = 222,
+};
+
+typedef enum {
+	ANON_ENUM_VAL1___val3_missing = 0x111,
+	ANON_ENUM_VAL2___val3_missing = 0x222,
+} anon_enum___val3_missing;
+
+struct core_reloc_enumval___val3_missing {
+	enum named_enum___val3_missing f1;
+	anon_enum___val3_missing f2;
+};
+
+/* missing (mandatory) second enum value, should fail */
+enum named_enum___err_missing {
+	NAMED_ENUM_VAL1___err_missing = 1,
+	NAMED_ENUM_VAL3___err_missing = 3,
+};
+
+typedef enum {
+	ANON_ENUM_VAL1___err_missing = 0x111,
+	ANON_ENUM_VAL3___err_missing = 0x222,
+} anon_enum___err_missing;
+
+struct core_reloc_enumval___err_missing {
+	enum named_enum___err_missing f1;
+	anon_enum___err_missing f2;
 };

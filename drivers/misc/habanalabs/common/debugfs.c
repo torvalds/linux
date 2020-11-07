@@ -21,7 +21,7 @@ static struct dentry *hl_debug_root;
 static int hl_debugfs_i2c_read(struct hl_device *hdev, u8 i2c_bus, u8 i2c_addr,
 				u8 i2c_reg, long *val)
 {
-	struct armcp_packet pkt;
+	struct cpucp_packet pkt;
 	int rc;
 
 	if (hl_device_disabled_or_in_reset(hdev))
@@ -29,8 +29,8 @@ static int hl_debugfs_i2c_read(struct hl_device *hdev, u8 i2c_bus, u8 i2c_addr,
 
 	memset(&pkt, 0, sizeof(pkt));
 
-	pkt.ctl = cpu_to_le32(ARMCP_PACKET_I2C_RD <<
-				ARMCP_PKT_CTL_OPCODE_SHIFT);
+	pkt.ctl = cpu_to_le32(CPUCP_PACKET_I2C_RD <<
+				CPUCP_PKT_CTL_OPCODE_SHIFT);
 	pkt.i2c_bus = i2c_bus;
 	pkt.i2c_addr = i2c_addr;
 	pkt.i2c_reg = i2c_reg;
@@ -47,7 +47,7 @@ static int hl_debugfs_i2c_read(struct hl_device *hdev, u8 i2c_bus, u8 i2c_addr,
 static int hl_debugfs_i2c_write(struct hl_device *hdev, u8 i2c_bus, u8 i2c_addr,
 				u8 i2c_reg, u32 val)
 {
-	struct armcp_packet pkt;
+	struct cpucp_packet pkt;
 	int rc;
 
 	if (hl_device_disabled_or_in_reset(hdev))
@@ -55,8 +55,8 @@ static int hl_debugfs_i2c_write(struct hl_device *hdev, u8 i2c_bus, u8 i2c_addr,
 
 	memset(&pkt, 0, sizeof(pkt));
 
-	pkt.ctl = cpu_to_le32(ARMCP_PACKET_I2C_WR <<
-				ARMCP_PKT_CTL_OPCODE_SHIFT);
+	pkt.ctl = cpu_to_le32(CPUCP_PACKET_I2C_WR <<
+				CPUCP_PKT_CTL_OPCODE_SHIFT);
 	pkt.i2c_bus = i2c_bus;
 	pkt.i2c_addr = i2c_addr;
 	pkt.i2c_reg = i2c_reg;
@@ -73,7 +73,7 @@ static int hl_debugfs_i2c_write(struct hl_device *hdev, u8 i2c_bus, u8 i2c_addr,
 
 static void hl_debugfs_led_set(struct hl_device *hdev, u8 led, u8 state)
 {
-	struct armcp_packet pkt;
+	struct cpucp_packet pkt;
 	int rc;
 
 	if (hl_device_disabled_or_in_reset(hdev))
@@ -81,8 +81,8 @@ static void hl_debugfs_led_set(struct hl_device *hdev, u8 led, u8 state)
 
 	memset(&pkt, 0, sizeof(pkt));
 
-	pkt.ctl = cpu_to_le32(ARMCP_PACKET_LED_SET <<
-				ARMCP_PKT_CTL_OPCODE_SHIFT);
+	pkt.ctl = cpu_to_le32(CPUCP_PACKET_LED_SET <<
+				CPUCP_PKT_CTL_OPCODE_SHIFT);
 	pkt.led_index = cpu_to_le32(led);
 	pkt.value = cpu_to_le64(state);
 
@@ -110,8 +110,8 @@ static int command_buffers_show(struct seq_file *s, void *data)
 			seq_puts(s, "---------------------------------------------------------------\n");
 		}
 		seq_printf(s,
-			"   %03d        %d    0x%08x      %d          %d          %d\n",
-			cb->id, cb->ctx_id, cb->size,
+			"   %03llu        %d    0x%08x      %d          %d          %d\n",
+			cb->id, cb->ctx->asid, cb->size,
 			kref_read(&cb->refcount),
 			cb->mmap, cb->cs_cnt);
 	}
@@ -354,6 +354,14 @@ static inline u64 get_hop4_pte_addr(struct hl_ctx *ctx,
 					mmu_specs->hop4_shift);
 }
 
+static inline u64 get_hop5_pte_addr(struct hl_ctx *ctx,
+					struct hl_mmu_properties *mmu_specs,
+					u64 hop_addr, u64 vaddr)
+{
+	return get_hopN_pte_addr(ctx, hop_addr, vaddr, mmu_specs->hop5_mask,
+					mmu_specs->hop5_shift);
+}
+
 static inline u64 get_next_hop_addr(u64 curr_pte)
 {
 	if (curr_pte & PAGE_PRESENT_MASK)
@@ -377,6 +385,7 @@ static int mmu_show(struct seq_file *s, void *data)
 		hop2_addr = 0, hop2_pte_addr = 0, hop2_pte = 0,
 		hop3_addr = 0, hop3_pte_addr = 0, hop3_pte = 0,
 		hop4_addr = 0, hop4_pte_addr = 0, hop4_pte = 0,
+		hop5_addr = 0, hop5_pte_addr = 0, hop5_pte = 0,
 		virt_addr = dev_entry->mmu_addr;
 
 	if (!hdev->mmu_enable)
@@ -428,20 +437,49 @@ static int mmu_show(struct seq_file *s, void *data)
 	hop3_pte_addr = get_hop3_pte_addr(ctx, mmu_prop, hop3_addr, virt_addr);
 	hop3_pte = hdev->asic_funcs->read_pte(hdev, hop3_pte_addr);
 
-	if (!(hop3_pte & LAST_MASK)) {
+	if (mmu_prop->num_hops == MMU_ARCH_5_HOPS) {
+		if (!(hop3_pte & LAST_MASK)) {
+			hop4_addr = get_next_hop_addr(hop3_pte);
+
+			if (hop4_addr == ULLONG_MAX)
+				goto not_mapped;
+
+			hop4_pte_addr = get_hop4_pte_addr(ctx, mmu_prop,
+							hop4_addr, virt_addr);
+			hop4_pte = hdev->asic_funcs->read_pte(hdev,
+								hop4_pte_addr);
+			if (!(hop4_pte & PAGE_PRESENT_MASK))
+				goto not_mapped;
+		} else {
+			if (!(hop3_pte & PAGE_PRESENT_MASK))
+				goto not_mapped;
+		}
+	} else {
 		hop4_addr = get_next_hop_addr(hop3_pte);
 
 		if (hop4_addr == ULLONG_MAX)
 			goto not_mapped;
 
-		hop4_pte_addr = get_hop4_pte_addr(ctx, mmu_prop, hop4_addr,
-							virt_addr);
-		hop4_pte = hdev->asic_funcs->read_pte(hdev, hop4_pte_addr);
-		if (!(hop4_pte & PAGE_PRESENT_MASK))
-			goto not_mapped;
-	} else {
-		if (!(hop3_pte & PAGE_PRESENT_MASK))
-			goto not_mapped;
+		hop4_pte_addr = get_hop4_pte_addr(ctx, mmu_prop,
+						hop4_addr, virt_addr);
+		hop4_pte = hdev->asic_funcs->read_pte(hdev,
+							hop4_pte_addr);
+		if (!(hop4_pte & LAST_MASK)) {
+			hop5_addr = get_next_hop_addr(hop4_pte);
+
+			if (hop5_addr == ULLONG_MAX)
+				goto not_mapped;
+
+			hop5_pte_addr = get_hop5_pte_addr(ctx, mmu_prop,
+							hop5_addr, virt_addr);
+			hop5_pte = hdev->asic_funcs->read_pte(hdev,
+								hop5_pte_addr);
+			if (!(hop5_pte & PAGE_PRESENT_MASK))
+				goto not_mapped;
+		} else {
+			if (!(hop4_pte & PAGE_PRESENT_MASK))
+				goto not_mapped;
+		}
 	}
 
 	seq_printf(s, "asid: %u, virt_addr: 0x%llx\n",
@@ -463,10 +501,22 @@ static int mmu_show(struct seq_file *s, void *data)
 	seq_printf(s, "hop3_pte_addr: 0x%llx\n", hop3_pte_addr);
 	seq_printf(s, "hop3_pte: 0x%llx\n", hop3_pte);
 
-	if (!(hop3_pte & LAST_MASK)) {
+	if (mmu_prop->num_hops == MMU_ARCH_5_HOPS) {
+		if (!(hop3_pte & LAST_MASK)) {
+			seq_printf(s, "hop4_addr: 0x%llx\n", hop4_addr);
+			seq_printf(s, "hop4_pte_addr: 0x%llx\n", hop4_pte_addr);
+			seq_printf(s, "hop4_pte: 0x%llx\n", hop4_pte);
+		}
+	} else {
 		seq_printf(s, "hop4_addr: 0x%llx\n", hop4_addr);
 		seq_printf(s, "hop4_pte_addr: 0x%llx\n", hop4_pte_addr);
 		seq_printf(s, "hop4_pte: 0x%llx\n", hop4_pte);
+
+		if (!(hop4_pte & LAST_MASK)) {
+			seq_printf(s, "hop5_addr: 0x%llx\n", hop5_addr);
+			seq_printf(s, "hop5_pte_addr: 0x%llx\n", hop5_pte_addr);
+			seq_printf(s, "hop5_pte: 0x%llx\n", hop5_pte);
+		}
 	}
 
 	goto out;

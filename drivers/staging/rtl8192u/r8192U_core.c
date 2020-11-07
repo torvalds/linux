@@ -2193,7 +2193,7 @@ static void rtl8192_init_priv_lock(struct r8192_priv *priv)
 
 static void rtl819x_watchdog_wqcallback(struct work_struct *work);
 
-static void rtl8192_irq_rx_tasklet(unsigned long data);
+static void rtl8192_irq_rx_tasklet(struct tasklet_struct *t);
 /* init tasklet and wait_queue here. only 2.6 above kernel is considered */
 #define DRV_NAME "wlan0"
 static void rtl8192_init_priv_task(struct net_device *dev)
@@ -2214,8 +2214,7 @@ static void rtl8192_init_priv_task(struct net_device *dev)
 			  InitialGainOperateWorkItemCallBack);
 	INIT_WORK(&priv->qos_activate, rtl8192_qos_activate);
 
-	tasklet_init(&priv->irq_rx_tasklet, rtl8192_irq_rx_tasklet,
-		     (unsigned long)priv);
+	tasklet_setup(&priv->irq_rx_tasklet, rtl8192_irq_rx_tasklet);
 }
 
 static void rtl8192_get_eeprom_size(struct net_device *dev)
@@ -4647,9 +4646,9 @@ static void rtl8192_rx_cmd(struct sk_buff *skb)
 	}
 }
 
-static void rtl8192_irq_rx_tasklet(unsigned long data)
+static void rtl8192_irq_rx_tasklet(struct tasklet_struct *t)
 {
-	struct r8192_priv *priv = (struct r8192_priv *)data;
+	struct r8192_priv *priv = from_tasklet(priv, t, irq_rx_tasklet);
 	struct sk_buff *skb;
 	struct rtl8192_rx_info *info;
 

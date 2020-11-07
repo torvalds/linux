@@ -82,9 +82,7 @@
 			VMWGFX_NUM_GB_SCREEN_TARGET)
 
 #define VMW_PL_GMR (TTM_PL_PRIV + 0)
-#define VMW_PL_FLAG_GMR (TTM_PL_FLAG_PRIV << 0)
 #define VMW_PL_MOB (TTM_PL_PRIV + 1)
-#define VMW_PL_FLAG_MOB (TTM_PL_FLAG_PRIV << 1)
 
 #define VMW_RES_CONTEXT ttm_driver_type0
 #define VMW_RES_SURFACE ttm_driver_type1
@@ -793,7 +791,7 @@ extern void vmw_resource_unreserve(struct vmw_resource *res,
 				   struct vmw_buffer_object *new_backup,
 				   unsigned long new_backup_offset);
 extern void vmw_query_move_notify(struct ttm_buffer_object *bo,
-				  struct ttm_mem_reg *mem);
+				  struct ttm_resource *mem);
 extern int vmw_query_readback_all(struct vmw_buffer_object *dx_query_mob);
 extern void vmw_resource_evict_all(struct vmw_private *dev_priv);
 extern void vmw_resource_unbind_list(struct vmw_buffer_object *vbo);
@@ -878,7 +876,7 @@ extern void vmw_bo_fence_single(struct ttm_buffer_object *bo,
 extern void *vmw_bo_map_and_cache(struct vmw_buffer_object *vbo);
 extern void vmw_bo_unmap(struct vmw_buffer_object *vbo);
 extern void vmw_bo_move_notify(struct ttm_buffer_object *bo,
-			       struct ttm_mem_reg *mem);
+			       struct ttm_resource *mem);
 extern void vmw_bo_swap_notify(struct ttm_buffer_object *bo);
 extern struct vmw_buffer_object *
 vmw_user_bo_noref_lookup(struct ttm_object_file *tfile, u32 handle);
@@ -1019,10 +1017,12 @@ extern struct ttm_placement vmw_mob_placement;
 extern struct ttm_placement vmw_mob_ne_placement;
 extern struct ttm_placement vmw_nonfixed_placement;
 extern struct ttm_bo_driver vmw_bo_driver;
-extern int vmw_bo_map_dma(struct ttm_buffer_object *bo);
-extern void vmw_bo_unmap_dma(struct ttm_buffer_object *bo);
 extern const struct vmw_sg_table *
 vmw_bo_sg_table(struct ttm_buffer_object *bo);
+extern int vmw_bo_create_and_populate(struct vmw_private *dev_priv,
+				      unsigned long bo_size,
+				      struct ttm_buffer_object **bo_p);
+
 extern void vmw_piter_start(struct vmw_piter *viter,
 			    const struct vmw_sg_table *vsgt,
 			    unsigned long p_offs);
@@ -1219,7 +1219,8 @@ int vmw_overlay_num_free_overlays(struct vmw_private *dev_priv);
  * GMR Id manager
  */
 
-extern const struct ttm_mem_type_manager_func vmw_gmrid_manager_func;
+int vmw_gmrid_man_init(struct vmw_private *dev_priv, int type);
+void vmw_gmrid_man_fini(struct vmw_private *dev_priv, int type);
 
 /**
  * Prime - vmwgfx_prime.c
@@ -1518,9 +1519,8 @@ vm_fault_t vmw_bo_vm_huge_fault(struct vm_fault *vmf,
 
 /* Transparent hugepage support - vmwgfx_thp.c */
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-extern const struct ttm_mem_type_manager_func vmw_thp_func;
-#else
-#define vmw_thp_func ttm_bo_manager_func
+extern int vmw_thp_init(struct vmw_private *dev_priv);
+void vmw_thp_fini(struct vmw_private *dev_priv);
 #endif
 
 /**

@@ -354,6 +354,11 @@ int led_classdev_register_ext(struct device *parent,
 		ret = led_compose_name(parent, init_data, composed_name);
 		if (ret < 0)
 			return ret;
+
+		if (init_data->fwnode)
+			fwnode_property_read_string(init_data->fwnode,
+				"linux,default-trigger",
+				&led_cdev->default_trigger);
 	} else {
 		proposed_name = led_cdev->name;
 	}

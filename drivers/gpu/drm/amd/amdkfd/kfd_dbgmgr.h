@@ -275,7 +275,7 @@ struct kfd_dbgdev {
 };
 
 struct kfd_dbgmgr {
-	unsigned int pasid;
+	u32 pasid;
 	struct kfd_dev *dev;
 	struct kfd_dbgdev *dbgdev;
 };

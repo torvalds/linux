@@ -16,6 +16,7 @@ struct intel_crtc_state;
 struct intel_dp;
 struct intel_dpll_hw_state;
 struct intel_encoder;
+enum transcoder;
 
 void intel_ddi_fdi_post_disable(struct intel_atomic_state *state,
 				struct intel_encoder *intel_encoder,
@@ -43,6 +44,7 @@ void intel_ddi_compute_min_voltage_level(struct drm_i915_private *dev_priv,
 u32 bxt_signal_levels(struct intel_dp *intel_dp);
 u32 ddi_signal_levels(struct intel_dp *intel_dp);
 int intel_ddi_toggle_hdcp_signalling(struct intel_encoder *intel_encoder,
+				     enum transcoder cpu_transcoder,
 				     bool enable);
 void icl_sanitize_encoder_pll_mapping(struct intel_encoder *encoder);
 

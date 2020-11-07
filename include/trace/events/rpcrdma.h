@@ -13,6 +13,7 @@
 #include <linux/scatterlist.h>
 #include <linux/sunrpc/rpc_rdma_cid.h>
 #include <linux/tracepoint.h>
+#include <rdma/ib_cm.h>
 #include <trace/events/rdma.h>
 
 /**
@@ -423,7 +424,6 @@ DEFINE_CONN_EVENT(connect);
 DEFINE_CONN_EVENT(disconnect);
 
 DEFINE_RXPRT_EVENT(xprtrdma_op_inject_dsc);
-DEFINE_RXPRT_EVENT(xprtrdma_op_setport);
 
 TRACE_EVENT(xprtrdma_op_connect,
 	TP_PROTO(
@@ -1184,68 +1184,6 @@ TRACE_EVENT(xprtrdma_decode_seg,
 	TP_printk("%u@0x%016llx:0x%08x",
 		__entry->length, (unsigned long long)__entry->offset,
 		__entry->handle
-	)
-);
-
-/**
- ** Allocation/release of rpcrdma_reqs and rpcrdma_reps
- **/
-
-TRACE_EVENT(xprtrdma_op_allocate,
-	TP_PROTO(
-		const struct rpc_task *task,
-		const struct rpcrdma_req *req
-	),
-
-	TP_ARGS(task, req),
-
-	TP_STRUCT__entry(
-		__field(unsigned int, task_id)
-		__field(unsigned int, client_id)
-		__field(const void *, req)
-		__field(size_t, callsize)
-		__field(size_t, rcvsize)
-	),
-
-	TP_fast_assign(
-		__entry->task_id = task->tk_pid;
-		__entry->client_id = task->tk_client->cl_clid;
-		__entry->req = req;
-		__entry->callsize = task->tk_rqstp->rq_callsize;
-		__entry->rcvsize = task->tk_rqstp->rq_rcvsize;
-	),
-
-	TP_printk("task:%u@%u req=%p (%zu, %zu)",
-		__entry->task_id, __entry->client_id,
-		__entry->req, __entry->callsize, __entry->rcvsize
-	)
-);
-
-TRACE_EVENT(xprtrdma_op_free,
-	TP_PROTO(
-		const struct rpc_task *task,
-		const struct rpcrdma_req *req
-	),
-
-	TP_ARGS(task, req),
-
-	TP_STRUCT__entry(
-		__field(unsigned int, task_id)
-		__field(unsigned int, client_id)
-		__field(const void *, req)
-		__field(const void *, rep)
-	),
-
-	TP_fast_assign(
-		__entry->task_id = task->tk_pid;
-		__entry->client_id = task->tk_client->cl_clid;
-		__entry->req = req;
-		__entry->rep = req->rl_reply;
-	),
-
-	TP_printk("task:%u@%u req=%p rep=%p",
-		__entry->task_id, __entry->client_id,
-		__entry->req, __entry->rep
 	)
 );
 

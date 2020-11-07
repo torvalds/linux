@@ -321,11 +321,20 @@ fb_tunnels_only_for_init_net
 ----------------------------
 
 Controls if fallback tunnels (like tunl0, gre0, gretap0, erspan0,
-sit0, ip6tnl0, ip6gre0) are automatically created when a new
-network namespace is created, if corresponding tunnel is present
-in initial network namespace.
-If set to 1, these devices are not automatically created, and
-user space is responsible for creating them if needed.
+sit0, ip6tnl0, ip6gre0) are automatically created. There are 3 possibilities
+(a) value = 0; respective fallback tunnels are created when module is
+loaded in every net namespaces (backward compatible behavior).
+(b) value = 1; [kcmd value: initns] respective fallback tunnels are
+created only in init net namespace and every other net namespace will
+not have them.
+(c) value = 2; [kcmd value: none] fallback tunnels are not created
+when a module is loaded in any of the net namespace. Setting value to
+"2" is pointless after boot if these modules are built-in, so there is
+a kernel command-line option that can change this default. Please refer to
+Documentation/admin-guide/kernel-parameters.txt for additional details.
+
+Not creating fallback tunnels gives control to userspace to create
+whatever is needed only and avoid creating devices which are redundant.
 
 Default : 0  (for compatibility reasons)
 

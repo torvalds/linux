@@ -238,7 +238,7 @@ static void free_fwp(struct mlx5_core_dev *dev, struct fw_page *fwp,
 	rb_erase(&fwp->rb_node, root);
 	if (in_free_list)
 		list_del(&fwp->list);
-	dma_unmap_page(dev->device, fwp->addr & MLX5_U64_4K_PAGE_MASK,
+	dma_unmap_page(mlx5_core_dma_dev(dev), fwp->addr & MLX5_U64_4K_PAGE_MASK,
 		       PAGE_SIZE, DMA_BIDIRECTIONAL);
 	__free_page(fwp->page);
 	kfree(fwp);
@@ -265,7 +265,7 @@ static void free_4k(struct mlx5_core_dev *dev, u64 addr, u32 func_id)
 
 static int alloc_system_page(struct mlx5_core_dev *dev, u16 func_id)
 {
-	struct device *device = dev->device;
+	struct device *device = mlx5_core_dma_dev(dev);
 	int nid = dev_to_node(device);
 	struct page *page;
 	u64 zero_addr = 1;
@@ -432,7 +432,7 @@ static int reclaim_pages_cmd(struct mlx5_core_dev *dev,
 	u32 npages;
 	u32 i = 0;
 
-	if (dev->state != MLX5_DEVICE_STATE_INTERNAL_ERROR)
+	if (!mlx5_cmd_is_down(dev))
 		return mlx5_cmd_exec(dev, in, in_size, out, out_size);
 
 	/* No hard feelings, we want our pages back! */

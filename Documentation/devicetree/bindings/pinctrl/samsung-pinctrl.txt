@@ -65,7 +65,7 @@ Required Properties:
 
 - Pin mux/config groups as child nodes: The pin mux (selecting pin function
   mode) and pin config (pull up/down, driver strength) settings are represented
-  as child nodes of the pin-controller node. There should be atleast one
+  as child nodes of the pin-controller node. There should be at least one
   child node and there is no limit on the count of these child nodes. It is
   also possible for a child node to consist of several further child nodes
   to allow grouping multiple pinctrl groups into one. The format of second
@@ -75,7 +75,7 @@ Required Properties:
   The child node should contain a list of pin(s) on which a particular pin
   function selection or pin configuration (or both) have to applied. This
   list of pins is specified using the property name "samsung,pins". There
-  should be atleast one pin specfied for this property and there is no upper
+  should be at least one pin specified for this property and there is no upper
   limit on the count of pins that can be specified. The pins are specified
   using pin names which are derived from the hardware manual of the SoC. As
   an example, the pins in GPA0 bank of the pin controller can be represented
@@ -107,7 +107,7 @@ Required Properties:
   hardware manual and these values are programmed as-is into the pin
   pull up/down and driver strength register of the pin-controller.
 
-  Note: A child should include atleast a pin function selection property or
+  Note: A child should include at least a pin function selection property or
   pin configuration property (one or more) or both.
 
   The client nodes that require a particular pin function selection and/or

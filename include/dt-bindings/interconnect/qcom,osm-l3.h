@@ -9,4 +9,7 @@
 #define MASTER_OSM_L3_APPS	0
 #define SLAVE_OSM_L3		1
 
+#define MASTER_EPSS_L3_APPS	0
+#define SLAVE_EPSS_L3_SHARED	1
+
 #endif

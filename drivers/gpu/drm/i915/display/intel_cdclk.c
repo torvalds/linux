@@ -2426,7 +2426,6 @@ static struct intel_global_state *intel_cdclk_duplicate_state(struct intel_globa
 	if (!cdclk_state)
 		return NULL;
 
-	cdclk_state->force_min_cdclk_changed = false;
 	cdclk_state->pipe = INVALID_PIPE;
 
 	return &cdclk_state->base;
@@ -2501,6 +2500,7 @@ int intel_modeset_calc_cdclk(struct intel_atomic_state *state)
 		if (ret)
 			return ret;
 	} else if (old_cdclk_state->active_pipes != new_cdclk_state->active_pipes ||
+		   old_cdclk_state->force_min_cdclk != new_cdclk_state->force_min_cdclk ||
 		   intel_cdclk_changed(&old_cdclk_state->logical,
 				       &new_cdclk_state->logical)) {
 		ret = intel_atomic_lock_global_state(&new_cdclk_state->base);
@@ -2677,7 +2677,7 @@ void intel_update_cdclk(struct drm_i915_private *dev_priv)
 	 */
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		intel_de_write(dev_priv, GMBUSFREQ_VLV,
-		               DIV_ROUND_UP(dev_priv->cdclk.hw.cdclk, 1000));
+			       DIV_ROUND_UP(dev_priv->cdclk.hw.cdclk, 1000));
 }
 
 static int cnp_rawclk(struct drm_i915_private *dev_priv)
@@ -2903,9 +2903,10 @@ void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv)
 		dev_priv->display.get_cdclk = i85x_get_cdclk;
 	else if (IS_I845G(dev_priv))
 		dev_priv->display.get_cdclk = fixed_200mhz_get_cdclk;
-	else { /* 830 */
-		drm_WARN(&dev_priv->drm, !IS_I830(dev_priv),
-			 "Unknown platform. Assuming 133 MHz CDCLK\n");
+	else if (IS_I830(dev_priv))
 		dev_priv->display.get_cdclk = fixed_133mhz_get_cdclk;
-	}
+
+	if (drm_WARN(&dev_priv->drm, !dev_priv->display.get_cdclk,
+		     "Unknown platform. Assuming 133 MHz CDCLK\n"))
+		dev_priv->display.get_cdclk = fixed_133mhz_get_cdclk;
 }

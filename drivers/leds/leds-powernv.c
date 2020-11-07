@@ -250,7 +250,7 @@ static int powernv_led_classdev(struct platform_device *pdev,
 	struct powernv_led_data *powernv_led;
 	struct device *dev = &pdev->dev;
 
-	for_each_child_of_node(led_node, np) {
+	for_each_available_child_of_node(led_node, np) {
 		p = of_find_property(np, "led-types", NULL);
 
 		while ((cur = of_prop_next_string(p, cur)) != NULL) {

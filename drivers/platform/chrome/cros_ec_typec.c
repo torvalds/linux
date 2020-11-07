@@ -13,6 +13,7 @@
 #include <linux/platform_data/cros_ec_proto.h>
 #include <linux/platform_data/cros_usbpd_notify.h>
 #include <linux/platform_device.h>
+#include <linux/usb/pd.h>
 #include <linux/usb/typec.h>
 #include <linux/usb/typec_altmode.h>
 #include <linux/usb/typec_dp.h>
@@ -496,6 +497,34 @@ static int cros_typec_enable_dp(struct cros_typec_data *typec,
 	return typec_mux_set(port->mux, &port->state);
 }
 
+static int cros_typec_enable_usb4(struct cros_typec_data *typec,
+				  int port_num,
+				  struct ec_response_usb_pd_control_v2 *pd_ctrl)
+{
+	struct cros_typec_port *port = typec->ports[port_num];
+	struct enter_usb_data data;
+
+	data.eudo = EUDO_USB_MODE_USB4 << EUDO_USB_MODE_SHIFT;
+
+	/* Cable Speed */
+	data.eudo |= pd_ctrl->cable_speed << EUDO_CABLE_SPEED_SHIFT;
+
+	/* Cable Type */
+	if (pd_ctrl->control_flags & USB_PD_CTRL_OPTICAL_CABLE)
+		data.eudo |= EUDO_CABLE_TYPE_OPTICAL << EUDO_CABLE_TYPE_SHIFT;
+	else if (pd_ctrl->control_flags & USB_PD_CTRL_ACTIVE_CABLE)
+		data.eudo |= EUDO_CABLE_TYPE_RE_TIMER << EUDO_CABLE_TYPE_SHIFT;
+
+	data.active_link_training = !!(pd_ctrl->control_flags &
+				       USB_PD_CTRL_ACTIVE_LINK_UNIDIR);
+
+	port->state.alt = NULL;
+	port->state.data = &data;
+	port->state.mode = TYPEC_MODE_USB4;
+
+	return typec_mux_set(port->mux, &port->state);
+}
+
 static int cros_typec_configure_mux(struct cros_typec_data *typec, int port_num,
 				uint8_t mux_flags,
 				struct ec_response_usb_pd_control_v2 *pd_ctrl)
@@ -516,7 +545,15 @@ static int cros_typec_configure_mux(struct cros_typec_data *typec, int port_num,
 	if (ret)
 		return ret;
 
-	if (mux_flags & USB_PD_MUX_TBT_COMPAT_ENABLED) {
+	ret = usb_role_switch_set_role(typec->ports[port_num]->role_sw,
+					pd_ctrl->role & PD_CTRL_RESP_ROLE_DATA
+					? USB_ROLE_HOST : USB_ROLE_DEVICE);
+	if (ret)
+		return ret;
+
+	if (mux_flags & USB_PD_MUX_USB4_ENABLED) {
+		ret = cros_typec_enable_usb4(typec, port_num, pd_ctrl);
+	} else if (mux_flags & USB_PD_MUX_TBT_COMPAT_ENABLED) {
 		ret = cros_typec_enable_tbt(typec, port_num, pd_ctrl);
 	} else if (mux_flags & USB_PD_MUX_DP_ENABLED) {
 		ret = cros_typec_enable_dp(typec, port_num, pd_ctrl);
@@ -590,8 +627,7 @@ static int cros_typec_port_update(struct cros_typec_data *typec, int port_num)
 	if (ret)
 		dev_warn(typec->dev, "Configure muxes failed, err = %d\n", ret);
 
-	return usb_role_switch_set_role(typec->ports[port_num]->role_sw,
-					!!(resp.role & PD_CTRL_RESP_ROLE_DATA));
+	return ret;
 }
 
 static int cros_typec_get_cmd_version(struct cros_typec_data *typec)

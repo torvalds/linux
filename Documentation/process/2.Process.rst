@@ -405,7 +405,7 @@ be found at:
 	http://vger.kernel.org/vger-lists.html
 
 There are lists hosted elsewhere, though; a number of them are at
-lists.redhat.com.
+redhat.com/mailman/listinfo.
 
 The core mailing list for kernel development is, of course, linux-kernel.
 This list is an intimidating place to be; volume can reach 500 messages per

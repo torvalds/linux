@@ -3,6 +3,7 @@
 
 #include <linux/mlx5/fs.h>
 #include "eswitch.h"
+#include "en_tc.h"
 #include "fs_core.h"
 
 struct mlx5_termtbl_handle {
@@ -228,10 +229,11 @@ static bool mlx5_eswitch_offload_is_uplink_port(const struct mlx5_eswitch *esw,
 
 bool
 mlx5_eswitch_termtbl_required(struct mlx5_eswitch *esw,
-			      struct mlx5_esw_flow_attr *attr,
+			      struct mlx5_flow_attr *attr,
 			      struct mlx5_flow_act *flow_act,
 			      struct mlx5_flow_spec *spec)
 {
+	struct mlx5_esw_flow_attr *esw_attr = attr->esw_attr;
 	int i;
 
 	if (!MLX5_CAP_ESW_FLOWTABLE_FDB(esw->dev, termination_table) ||
@@ -244,8 +246,8 @@ mlx5_eswitch_termtbl_required(struct mlx5_eswitch *esw,
 		return true;
 
 	/* hairpin */
-	for (i = attr->split_count; i < attr->out_count; i++)
-		if (attr->dests[i].rep->vport == MLX5_VPORT_UPLINK)
+	for (i = esw_attr->split_count; i < esw_attr->out_count; i++)
+		if (esw_attr->dests[i].rep->vport == MLX5_VPORT_UPLINK)
 			return true;
 
 	return false;

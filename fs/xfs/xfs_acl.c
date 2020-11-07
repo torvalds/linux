@@ -192,7 +192,7 @@ __xfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 
 	if (acl) {
 		args.valuelen = XFS_ACL_SIZE(acl->a_count);
-		args.value = kmem_zalloc_large(args.valuelen, 0);
+		args.value = kvzalloc(args.valuelen, GFP_KERNEL);
 		if (!args.value)
 			return -ENOMEM;
 		xfs_acl_to_disk(args.value, acl);

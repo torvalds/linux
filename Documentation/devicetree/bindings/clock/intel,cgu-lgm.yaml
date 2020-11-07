@@ -33,6 +33,8 @@ required:
   - reg
   - '#clock-cells'
 
+additionalProperties: false
+
 examples:
   - |
     cgu: clock-controller@e0200000 {

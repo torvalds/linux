@@ -1080,7 +1080,7 @@ config SENSORS_MCP3021
 	  will be called mcp3021.
 
 config SENSORS_MLXREG_FAN
-	tristate "Mellanox Mellanox FAN driver"
+	tristate "Mellanox FAN driver"
 	depends on MELLANOX_PLATFORM
 	imply THERMAL
 	select REGMAP
@@ -1111,6 +1111,16 @@ config SENSORS_MENF21BMC_HWMON
 
 	  This driver can also be built as a module. If so the module
 	  will be called menf21bmc_hwmon.
+
+config SENSORS_MR75203
+	tristate "Moortec Semiconductor MR75203 PVT Controller"
+	select REGMAP_MMIO
+	help
+	  If you say yes here you get support for Moortec MR75203
+	  PVT controller.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called mr75203.
 
 config SENSORS_ADCXX
 	tristate "National Semiconductor ADCxxxSxxx"
@@ -1478,6 +1488,16 @@ config SENSORS_RASPBERRYPI_HWMON
 
 	  This driver can also be built as a module. If so, the module
 	  will be called raspberrypi-hwmon.
+
+config SENSORS_SL28CPLD
+	tristate "Kontron sl28cpld hardware monitoring driver"
+	depends on MFD_SL28CPLD || COMPILE_TEST
+	help
+	  If you say yes here you get support for the fan supervisor of the
+	  sl28cpld board management controller.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called sl28cpld-hwmon.
 
 config SENSORS_SHT15
 	tristate "Sensiron humidity and temperature sensors. SHT15 and compat."
@@ -2063,6 +2083,17 @@ config SENSORS_XGENE
 	help
 	  If you say yes here you get support for the temperature
 	  and power sensors for APM X-Gene SoC.
+
+config SENSORS_INTEL_M10_BMC_HWMON
+	tristate "Intel MAX10 BMC Hardware Monitoring"
+	depends on MFD_INTEL_M10_BMC
+	help
+	  This driver provides support for the hardware monitoring functionality
+	  on Intel MAX10 BMC chip.
+
+	  This BMC Chip is used on Intel FPGA PCIe Acceleration Cards (PAC). Its
+	  sensors monitor various telemetry data of different components on the
+	  card, e.g. board temperature, FPGA core temperature/voltage/current.
 
 if ACPI
 

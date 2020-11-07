@@ -176,9 +176,9 @@ Kernel Mode Gadget API
 
 Gadget drivers declare themselves through a struct
 :c:type:`usb_gadget_driver`, which is responsible for most parts of enumeration
-for a struct :c:type:`usb_gadget`. The response to a set_configuration usually
-involves enabling one or more of the struct :c:type:`usb_ep` objects exposed by
-the gadget, and submitting one or more struct :c:type:`usb_request` buffers to
+for a struct usb_gadget. The response to a set_configuration usually
+involves enabling one or more of the struct usb_ep objects exposed by
+the gadget, and submitting one or more struct usb_request buffers to
 transfer data. Understand those four data types, and their operations,
 and you will understand how this API works.
 
@@ -339,8 +339,8 @@ multi-configuration devices (also more than one function, but not
 necessarily sharing a given configuration). There is however an optional
 framework which makes it easier to reuse and combine functions.
 
-Devices using this framework provide a struct :c:type:`usb_composite_driver`,
-which in turn provides one or more struct :c:type:`usb_configuration`
+Devices using this framework provide a struct usb_composite_driver,
+which in turn provides one or more struct usb_configuration
 instances. Each such configuration includes at least one struct
 :c:type:`usb_function`, which packages a user visible role such as "network
 link" or "mass storage device". Management functions may also exist,

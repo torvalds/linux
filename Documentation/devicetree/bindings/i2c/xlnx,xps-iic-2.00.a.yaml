@@ -36,6 +36,8 @@ required:
   - interrupts
   - clocks
 
+unevaluatedProperties: false
+
 examples:
   - |
     axi_iic_0: i2c@40800000 {

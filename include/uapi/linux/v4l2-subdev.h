@@ -65,19 +65,27 @@ struct v4l2_subdev_crop {
 	__u32 reserved[8];
 };
 
+#define V4L2_SUBDEV_MBUS_CODE_CSC_COLORSPACE	0x00000001
+#define V4L2_SUBDEV_MBUS_CODE_CSC_XFER_FUNC	0x00000002
+#define V4L2_SUBDEV_MBUS_CODE_CSC_YCBCR_ENC	0x00000004
+#define V4L2_SUBDEV_MBUS_CODE_CSC_HSV_ENC	V4L2_SUBDEV_MBUS_CODE_CSC_YCBCR_ENC
+#define V4L2_SUBDEV_MBUS_CODE_CSC_QUANTIZATION	0x00000008
+
 /**
  * struct v4l2_subdev_mbus_code_enum - Media bus format enumeration
  * @pad: pad number, as reported by the media API
  * @index: format index during enumeration
  * @code: format code (MEDIA_BUS_FMT_ definitions)
  * @which: format type (from enum v4l2_subdev_format_whence)
+ * @flags: flags set by the driver, (V4L2_SUBDEV_MBUS_CODE_*)
  */
 struct v4l2_subdev_mbus_code_enum {
 	__u32 pad;
 	__u32 index;
 	__u32 code;
 	__u32 which;
-	__u32 reserved[8];
+	__u32 flags;
+	__u32 reserved[7];
 };
 
 /**

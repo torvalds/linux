@@ -237,8 +237,9 @@ config PCIE_HISI_STB
 	  Say Y here if you want PCIe controller support on HiSilicon STB SoCs
 
 config PCI_MESON
-	bool "MESON PCIe controller"
+	tristate "MESON PCIe controller"
 	depends on PCI_MSI_IRQ_DOMAIN
+	default m if ARCH_MESON
 	select PCIE_DW_HOST
 	help
 	  Say Y here if you want to enable PCI controller support on Amlogic

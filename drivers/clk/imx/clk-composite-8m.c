@@ -5,6 +5,7 @@
 
 #include <linux/clk-provider.h>
 #include <linux/errno.h>
+#include <linux/export.h>
 #include <linux/io.h>
 #include <linux/slab.h>
 
@@ -215,6 +216,7 @@ struct clk_hw *imx8m_clk_hw_composite_flags(const char *name,
 		div->width = PCG_PREDIV_WIDTH;
 		divider_ops = &imx8m_clk_composite_divider_ops;
 		mux_ops = &clk_mux_ops;
+		flags |= CLK_SET_PARENT_GATE;
 	}
 
 	div->lock = &imx_ccm_lock;
@@ -243,3 +245,4 @@ fail:
 	kfree(mux);
 	return ERR_CAST(hw);
 }
+EXPORT_SYMBOL_GPL(imx8m_clk_hw_composite_flags);

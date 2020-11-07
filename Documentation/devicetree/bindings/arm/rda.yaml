@@ -10,11 +10,15 @@ maintainers:
   - Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
 
 properties:
+  $nodename:
+    const: "/"
   compatible:
     items:
       - enum:
           - xunlong,orangepi-2g-iot     # Orange Pi 2G-IoT
           - xunlong,orangepi-i96        # Orange Pi i96
       - const: rda,8810pl
+
+additionalProperties: true
 
 ...

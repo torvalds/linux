@@ -50,21 +50,27 @@ static ssize_t online_show(struct device *dev,
 			   struct device_attribute *attr,
 			   char *buf)
 {
-	struct zcrypt_card *zc = to_ap_card(dev)->private;
+	struct ap_card *ac = to_ap_card(dev);
+	struct zcrypt_card *zc = ac->private;
+	int online = ac->config && zc->online ? 1 : 0;
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n", zc->online);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", online);
 }
 
 static ssize_t online_store(struct device *dev,
 			    struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
-	struct zcrypt_card *zc = to_ap_card(dev)->private;
+	struct ap_card *ac = to_ap_card(dev);
+	struct zcrypt_card *zc = ac->private;
 	struct zcrypt_queue *zq;
 	int online, id;
 
 	if (sscanf(buf, "%d\n", &online) != 1 || online < 0 || online > 1)
 		return -EINVAL;
+
+	if (online && !ac->config)
+		return -ENODEV;
 
 	zc->online = online;
 	id = zc->card->id;
@@ -151,11 +157,6 @@ int zcrypt_card_register(struct zcrypt_card *zc)
 {
 	int rc;
 
-	rc = sysfs_create_group(&zc->card->ap_dev.device.kobj,
-				&zcrypt_card_attr_group);
-	if (rc)
-		return rc;
-
 	spin_lock(&zcrypt_list_lock);
 	list_add_tail(&zc->list, &zcrypt_card_list);
 	spin_unlock(&zcrypt_list_lock);
@@ -163,6 +164,14 @@ int zcrypt_card_register(struct zcrypt_card *zc)
 	zc->online = 1;
 
 	ZCRYPT_DBF(DBF_INFO, "card=%02x register online=1\n", zc->card->id);
+
+	rc = sysfs_create_group(&zc->card->ap_dev.device.kobj,
+				&zcrypt_card_attr_group);
+	if (rc) {
+		spin_lock(&zcrypt_list_lock);
+		list_del_init(&zc->list);
+		spin_unlock(&zcrypt_list_lock);
+	}
 
 	return rc;
 }
