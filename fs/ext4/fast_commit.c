@@ -156,6 +156,7 @@ void ext4_fc_init_inode(struct inode *inode)
 
 /* This function must be called with sbi->s_fc_lock held. */
 static void ext4_fc_wait_committing_inode(struct inode *inode)
+__releases(&EXT4_SB(inode->i_sb)->s_fc_lock)
 {
 	wait_queue_head_t *wq;
 	struct ext4_inode_info *ei = EXT4_I(inode);
@@ -911,6 +912,8 @@ static int ext4_fc_wait_inode_data_all(journal_t *journal)
 
 /* Commit all the directory entry updates */
 static int ext4_fc_commit_dentry_updates(journal_t *journal, u32 *crc)
+__acquires(&sbi->s_fc_lock)
+__releases(&sbi->s_fc_lock)
 {
 	struct super_block *sb = (struct super_block *)(journal->j_private);
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
@@ -2106,7 +2109,7 @@ void ext4_fc_init(struct super_block *sb, journal_t *journal)
 	journal->j_fc_cleanup_callback = ext4_fc_cleanup;
 }
 
-const char *fc_ineligible_reasons[] = {
+static const char *fc_ineligible_reasons[] = {
 	"Extended attributes changed",
 	"Cross rename",
 	"Journal flag changed",
