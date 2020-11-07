@@ -988,10 +988,13 @@ void iwl_mvm_stop_roc(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 			IWL_UCODE_TLV_CAPA_SESSION_PROT_CMD)) {
 		mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
-		iwl_mvm_cancel_session_protection(mvm, mvmvif);
-
-		if (vif->type == NL80211_IFTYPE_P2P_DEVICE)
+		if (vif->type == NL80211_IFTYPE_P2P_DEVICE) {
+			iwl_mvm_cancel_session_protection(mvm, mvmvif);
 			set_bit(IWL_MVM_STATUS_NEED_FLUSH_P2P, &mvm->status);
+		} else {
+			iwl_mvm_remove_aux_roc_te(mvm, mvmvif,
+						  &mvmvif->time_event_data);
+		}
 
 		iwl_mvm_roc_finished(mvm);
 
