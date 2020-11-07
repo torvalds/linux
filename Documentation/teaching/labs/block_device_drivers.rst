@@ -344,7 +344,7 @@ of the disk.
 Request queues
 ==============
 
-Drivers for block devices use queues to store the block requests I/O that will
+Drivers for block devices use queues to store the block I/O requests that will
 be processed. A request queue is represented by the
 :c:type:`struct request_queue` structure. The request queue is made up of a
 double-linked list of requests and their associated control information. The
