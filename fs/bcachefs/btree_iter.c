@@ -2408,9 +2408,10 @@ int bch2_trans_exit(struct btree_trans *trans)
 	return trans->error ? -EIO : 0;
 }
 
-static void bch2_btree_iter_node_to_text(struct printbuf *out,
-				 struct btree_bkey_cached_common *_b,
-				 enum btree_iter_type type)
+static void __maybe_unused
+bch2_btree_iter_node_to_text(struct printbuf *out,
+			     struct btree_bkey_cached_common *_b,
+			     enum btree_iter_type type)
 {
 	pr_buf(out, "    %px l=%u %s:",
 	       _b, _b->level, bch2_btree_ids[_b->btree_id]);
