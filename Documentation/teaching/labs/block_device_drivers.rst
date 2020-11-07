@@ -981,8 +981,9 @@ information, use the fields of the :c:type:`struct request` structure.
           section.
 
 .. hint:: You can find useful information in the
-          [block device driver example](https://github.com/martinezjavier/ldd3/blob/master/sbull/sbull.c)
-          from [Linux Device Driver](http://lwn.net/Kernel/LDD3/).
+          `block device driver example
+          <https://github.com/martinezjavier/ldd3/blob/master/sbull/sbull.c>`_
+          from `Linux Device Driver <http://lwn.net/Kernel/LDD3/>`_.
 
 For testing, use the test file :file:`user/ram-disk-test.c`.
 The test program is compiled automatically at ``make build``, copied to the
