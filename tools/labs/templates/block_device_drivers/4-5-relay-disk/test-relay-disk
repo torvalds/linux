@@ -3,8 +3,16 @@
 PHYSICAL_DISK_NAME="/dev/vdb"
 TMP_FILE="/tmp/disk_data"
 echo "abc" > "$PHYSICAL_DISK_NAME"
-insmod relay-disk.ko
-rmmod relay-disk
+if ! insmod relay-disk.ko
+then
+	echo "insmod failed"
+	exit 1
+fi
+if ! rmmod relay-disk
+then
+	echo "rmmod failed"
+	exit 1
+fi
 sleep 1
 
 echo -n "read from $PHYSICAL_DISK_NAME: "
