@@ -537,7 +537,9 @@ found_slot:
 	inode_u->bi_inum	= k.k->p.offset;
 	inode_u->bi_generation	= bkey_generation(k);
 
-	return bch2_inode_write(trans, iter, inode_u);
+	ret = bch2_inode_write(trans, iter, inode_u);
+	bch2_trans_iter_put(trans, iter);
+	return ret;
 }
 
 int bch2_inode_rm(struct bch_fs *c, u64 inode_nr)
