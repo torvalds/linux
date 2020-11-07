@@ -46,8 +46,8 @@
 			reg = <0x05800000 (20 * 0x00100000)>;
 		};
 
-		rkisp_thunderboot: rkisp@10000000 {
-			reg = <0x10000000 (144 * 0x00100000)>;
+		rkisp_thunderboot: rkisp@08000000 {
+			reg = <0x08000000 (144 * 0x00100000)>;
 		};
 	};
 
