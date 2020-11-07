@@ -205,7 +205,7 @@ static int __init my_block_init(void)
 	return 0;
 
 out:
-	/* TODO 1/1: unregister block device in case of an error */
+	/* TODO 2/1: unregister block device in case of an error */
 	unregister_blkdev(MY_BLOCK_MAJOR, MY_BLKDEV_NAME);
 	return err;
 }
