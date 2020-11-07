@@ -866,36 +866,22 @@ create_lostfound:
 	return ret;
 }
 
-struct inode_bitmap {
-	unsigned long	*bits;
-	size_t		size;
-};
+typedef GENRADIX(unsigned long) inode_bitmap;
 
-static inline bool inode_bitmap_test(struct inode_bitmap *b, size_t nr)
+static inline bool inode_bitmap_test(inode_bitmap *b, size_t nr)
 {
-	return nr < b->size ? test_bit(nr, b->bits) : false;
+	unsigned long *w = genradix_ptr(b, nr / BITS_PER_LONG);
+	return w ? test_bit(nr & (BITS_PER_LONG - 1), w) : false;
 }
 
-static inline int inode_bitmap_set(struct inode_bitmap *b, size_t nr)
+static inline int inode_bitmap_set(inode_bitmap *b, size_t nr)
 {
-	if (nr >= b->size) {
-		size_t new_size = max_t(size_t, max_t(size_t,
-					PAGE_SIZE * 8,
-					b->size * 2),
-					nr + 1);
-		void *n;
+	unsigned long *w = genradix_ptr_alloc(b, nr / BITS_PER_LONG, GFP_KERNEL);
 
-		new_size = roundup_pow_of_two(new_size);
-		n = krealloc(b->bits, new_size / 8, GFP_KERNEL|__GFP_ZERO);
-		if (!n) {
-			return -ENOMEM;
-		}
+	if (!w)
+		return -ENOMEM;
 
-		b->bits = n;
-		b->size = new_size;
-	}
-
-	__set_bit(nr, b->bits);
+	*w |= 1UL << (nr & (BITS_PER_LONG - 1));
 	return 0;
 }
 
@@ -934,7 +920,7 @@ noinline_for_stack
 static int check_directory_structure(struct bch_fs *c,
 				     struct bch_inode_unpacked *lostfound_inode)
 {
-	struct inode_bitmap dirs_done = { NULL, 0 };
+	inode_bitmap dirs_done;
 	struct pathbuf path = { 0, 0, NULL };
 	struct pathbuf_entry *e;
 	struct btree_trans trans;
@@ -951,6 +937,7 @@ static int check_directory_structure(struct bch_fs *c,
 
 	/* DFS: */
 restart_dfs:
+	genradix_init(&dirs_done);
 	had_unreachable = false;
 
 	ret = inode_bitmap_set(&dirs_done, BCACHEFS_ROOT_INO);
@@ -1057,7 +1044,7 @@ retry:
 
 	if (had_unreachable) {
 		bch_info(c, "reattached unreachable directories, restarting pass to check for loops");
-		kfree(dirs_done.bits);
+		genradix_free(&dirs_done);
 		kfree(path.entries);
 		memset(&dirs_done, 0, sizeof(dirs_done));
 		memset(&path, 0, sizeof(path));
@@ -1066,7 +1053,7 @@ retry:
 err:
 fsck_err:
 	ret = bch2_trans_exit(&trans) ?: ret;
-	kfree(dirs_done.bits);
+	genradix_free(&dirs_done);
 	kfree(path.entries);
 	return ret;
 }
