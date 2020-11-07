@@ -3150,7 +3150,7 @@ static ssize_t io_iov_buffer_select(struct io_kiocb *req, struct iovec *iov,
 	return __io_iov_buffer_select(req, iov, needs_lock);
 }
 
-static ssize_t __io_import_iovec(int rw, struct io_kiocb *req,
+static ssize_t io_import_iovec(int rw, struct io_kiocb *req,
 				 struct iovec **iovec, struct iov_iter *iter,
 				 bool needs_lock)
 {
@@ -3194,18 +3194,6 @@ static ssize_t __io_import_iovec(int rw, struct io_kiocb *req,
 
 	return __import_iovec(rw, buf, sqe_len, UIO_FASTIOV, iovec, iter,
 			      req->ctx->compat);
-}
-
-static ssize_t io_import_iovec(int rw, struct io_kiocb *req,
-			       struct iovec **iovec, struct iov_iter *iter,
-			       bool needs_lock)
-{
-	struct io_async_rw *iorw = req->async_data;
-
-	if (!iorw)
-		return __io_import_iovec(rw, req, iovec, iter, needs_lock);
-	*iovec = NULL;
-	return 0;
 }
 
 static inline loff_t *io_kiocb_ppos(struct kiocb *kiocb)
@@ -3331,7 +3319,7 @@ static inline int io_rw_prep_async(struct io_kiocb *req, int rw)
 	struct iovec *iov = iorw->fast_iov;
 	ssize_t ret;
 
-	ret = __io_import_iovec(rw, req, &iov, &iorw->iter, false);
+	ret = io_import_iovec(rw, req, &iov, &iorw->iter, false);
 	if (unlikely(ret < 0))
 		return ret;
 
@@ -3466,12 +3454,14 @@ static int io_read(struct io_kiocb *req, bool force_nonblock,
 	ssize_t io_size, ret, ret2;
 	bool no_async;
 
-	if (rw)
+	if (rw) {
 		iter = &rw->iter;
-
-	ret = io_import_iovec(READ, req, &iovec, iter, !force_nonblock);
-	if (ret < 0)
-		return ret;
+		iovec = NULL;
+	} else {
+		ret = io_import_iovec(READ, req, &iovec, iter, !force_nonblock);
+		if (ret < 0)
+			return ret;
+	}
 	io_size = iov_iter_count(iter);
 	req->result = io_size;
 	ret = 0;
@@ -3592,12 +3582,14 @@ static int io_write(struct io_kiocb *req, bool force_nonblock,
 	struct io_async_rw *rw = req->async_data;
 	ssize_t ret, ret2, io_size;
 
-	if (rw)
+	if (rw) {
 		iter = &rw->iter;
-
-	ret = io_import_iovec(WRITE, req, &iovec, iter, !force_nonblock);
-	if (ret < 0)
-		return ret;
+		iovec = NULL;
+	} else {
+		ret = io_import_iovec(WRITE, req, &iovec, iter, !force_nonblock);
+		if (ret < 0)
+			return ret;
+	}
 	io_size = iov_iter_count(iter);
 	req->result = io_size;
 
