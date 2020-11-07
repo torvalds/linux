@@ -5275,20 +5275,26 @@ ath11k_mac_op_assign_vif_chanctx(struct ieee80211_hw *hw,
 	    arvif->vdev_type != WMI_VDEV_TYPE_AP &&
 	    arvif->vdev_type != WMI_VDEV_TYPE_MONITOR) {
 		memcpy(&arvif->chanctx, ctx, sizeof(*ctx));
-		mutex_unlock(&ar->conf_mutex);
-		return 0;
+		ret = 0;
+		goto out;
 	}
 
 	if (WARN_ON(arvif->is_started)) {
-		mutex_unlock(&ar->conf_mutex);
-		return -EBUSY;
+		ret = -EBUSY;
+		goto out;
 	}
 
 	if (ab->hw_params.vdev_start_delay) {
 		param.vdev_id = arvif->vdev_id;
 		param.peer_type = WMI_PEER_TYPE_DEFAULT;
 		param.peer_addr = ar->mac_addr;
+
 		ret = ath11k_peer_create(ar, arvif, NULL, &param);
+		if (ret) {
+			ath11k_warn(ab, "failed to create peer after vdev start delay: %d",
+				    ret);
+			goto out;
+		}
 	}
 
 	ret = ath11k_mac_vdev_start(arvif, &ctx->def);
@@ -5296,23 +5302,21 @@ ath11k_mac_op_assign_vif_chanctx(struct ieee80211_hw *hw,
 		ath11k_warn(ab, "failed to start vdev %i addr %pM on freq %d: %d\n",
 			    arvif->vdev_id, vif->addr,
 			    ctx->def.chan->center_freq, ret);
-		goto err;
+		goto out;
 	}
 	if (arvif->vdev_type == WMI_VDEV_TYPE_MONITOR) {
 		ret = ath11k_monitor_vdev_up(ar, arvif->vdev_id);
 		if (ret)
-			goto err;
+			goto out;
 	}
 
 	arvif->is_started = true;
 
 	/* TODO: Setup ps and cts/rts protection */
 
-	mutex_unlock(&ar->conf_mutex);
+	ret = 0;
 
-	return 0;
-
-err:
+out:
 	mutex_unlock(&ar->conf_mutex);
 
 	return ret;
