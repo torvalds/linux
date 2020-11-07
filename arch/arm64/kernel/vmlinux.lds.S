@@ -278,7 +278,7 @@ SECTIONS
 	 * explicitly check instead of blindly discarding.
 	 */
 	.plt : {
-		*(.plt) *(.plt.*) *(.iplt) *(.igot)
+		*(.plt) *(.plt.*) *(.iplt) *(.igot .igot.plt)
 	}
 	ASSERT(SIZEOF(.plt) == 0, "Unexpected run-time procedure linkages detected!")
 

@@ -1,3 +1,6 @@
+See also /sys/class/backlight/<backlight>/ambient_light_level and
+/sys/class/backlight/<backlight>/ambient_light_zone.
+
 What:		/sys/class/backlight/<backlight>/<ambient light zone>_max
 What:		/sys/class/backlight/<backlight>/l1_daylight_max
 What:		/sys/class/backlight/<backlight>/l2_bright_max
@@ -27,30 +30,3 @@ Description:
 		set to 0. Full off when the backlight is disabled.
 		This file will also show the dim brightness level stored for
 		this <ambient light zone>.
-
-What:		/sys/class/backlight/<backlight>/ambient_light_level
-Date:		May 2011
-KernelVersion:	3.0
-Contact:	device-drivers-devel@blackfin.uclinux.org
-Description:
-		Get conversion value of the light sensor.
-		This value is updated every 80 ms (when the light sensor
-		is enabled). Returns integer between 0 (dark) and
-		8000 (max ambient brightness)
-
-What:		/sys/class/backlight/<backlight>/ambient_light_zone
-Date:		May 2011
-KernelVersion:	3.0
-Contact:	device-drivers-devel@blackfin.uclinux.org
-Description:
-		Get/Set current ambient light zone. Reading returns
-		integer between 1..5 (1 = daylight, 2 = bright, ..., 5 = dark).
-		Writing a value between 1..5 forces the backlight controller
-		to enter the corresponding ambient light zone.
-		Writing 0 returns to normal/automatic ambient light level
-		operation. The ambient light sensing feature on these devices
-		is an extension to the API documented in
-		Documentation/ABI/stable/sysfs-class-backlight.
-		It can be enabled by writing the value stored in
-		/sys/class/backlight/<backlight>/max_brightness to
-		/sys/class/backlight/<backlight>/brightness.

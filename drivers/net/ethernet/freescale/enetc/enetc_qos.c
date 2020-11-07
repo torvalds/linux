@@ -402,7 +402,7 @@ struct enetc_psfp_gate {
 	u32 num_entries;
 	refcount_t refcount;
 	struct hlist_node node;
-	struct action_gate_entry entries[0];
+	struct action_gate_entry entries[];
 };
 
 /* Only enable the green color frame now

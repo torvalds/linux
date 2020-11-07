@@ -47,16 +47,19 @@ Description:
 		online/offline state of the memory section.  When written,
 		root can toggle the the online/offline state of a removable
 		memory section (see removable file description above)
-		using the following commands.
-		# echo online > /sys/devices/system/memory/memoryX/state
-		# echo offline > /sys/devices/system/memory/memoryX/state
+		using the following commands::
+
+		  # echo online > /sys/devices/system/memory/memoryX/state
+		  # echo offline > /sys/devices/system/memory/memoryX/state
 
 		For example, if /sys/devices/system/memory/memory22/removable
 		contains a value of 1 and
 		/sys/devices/system/memory/memory22/state contains the
 		string "online" the following command can be executed by
-		by root to offline that section.
-		# echo offline > /sys/devices/system/memory/memory22/state
+		by root to offline that section::
+
+		  # echo offline > /sys/devices/system/memory/memory22/state
+
 Users:		hotplug memory remove tools
 		http://www.ibm.com/developerworks/wikis/display/LinuxP/powerpc-utils
 
@@ -78,6 +81,7 @@ Description:
 
 		For example, the following symbolic link is created for
 		memory section 9 on node0:
+
 		/sys/devices/system/memory/memory9/node0 -> ../../node/node0
 
 
@@ -90,4 +94,5 @@ Description:
 		points to the corresponding /sys/devices/system/memory/memoryY
 		memory section directory.  For example, the following symbolic
 		link is created for memory section 9 on node0.
+
 		/sys/devices/system/node/node0/memory9 -> ../../memory/memory9

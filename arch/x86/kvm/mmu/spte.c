@@ -55,7 +55,7 @@ u64 make_mmio_spte(struct kvm_vcpu *vcpu, u64 gfn, unsigned int access)
 	mask |= shadow_mmio_value | access;
 	mask |= gpa | shadow_nonpresent_or_rsvd_mask;
 	mask |= (gpa & shadow_nonpresent_or_rsvd_mask)
-		<< shadow_nonpresent_or_rsvd_mask_len;
+		<< SHADOW_NONPRESENT_OR_RSVD_MASK_LEN;
 
 	return mask;
 }
@@ -231,12 +231,12 @@ u64 mark_spte_for_access_track(u64 spte)
 		  !spte_can_locklessly_be_made_writable(spte),
 		  "kvm: Writable SPTE is not locklessly dirty-trackable\n");
 
-	WARN_ONCE(spte & (shadow_acc_track_saved_bits_mask <<
-			  shadow_acc_track_saved_bits_shift),
+	WARN_ONCE(spte & (SHADOW_ACC_TRACK_SAVED_BITS_MASK <<
+			  SHADOW_ACC_TRACK_SAVED_BITS_SHIFT),
 		  "kvm: Access Tracking saved bit locations are not zero\n");
 
-	spte |= (spte & shadow_acc_track_saved_bits_mask) <<
-		shadow_acc_track_saved_bits_shift;
+	spte |= (spte & SHADOW_ACC_TRACK_SAVED_BITS_MASK) <<
+		SHADOW_ACC_TRACK_SAVED_BITS_SHIFT;
 	spte &= ~shadow_acc_track_mask;
 
 	return spte;
@@ -245,7 +245,7 @@ u64 mark_spte_for_access_track(u64 spte)
 void kvm_mmu_set_mmio_spte_mask(u64 mmio_value, u64 access_mask)
 {
 	BUG_ON((u64)(unsigned)access_mask != access_mask);
-	WARN_ON(mmio_value & (shadow_nonpresent_or_rsvd_mask << shadow_nonpresent_or_rsvd_mask_len));
+	WARN_ON(mmio_value & (shadow_nonpresent_or_rsvd_mask << SHADOW_NONPRESENT_OR_RSVD_MASK_LEN));
 	WARN_ON(mmio_value & shadow_nonpresent_or_rsvd_lower_gfn_mask);
 	shadow_mmio_value = mmio_value | SPTE_MMIO_MASK;
 	shadow_mmio_access_mask = access_mask;
@@ -306,9 +306,9 @@ void kvm_mmu_reset_all_pte_masks(void)
 	low_phys_bits = boot_cpu_data.x86_phys_bits;
 	if (boot_cpu_has_bug(X86_BUG_L1TF) &&
 	    !WARN_ON_ONCE(boot_cpu_data.x86_cache_bits >=
-			  52 - shadow_nonpresent_or_rsvd_mask_len)) {
+			  52 - SHADOW_NONPRESENT_OR_RSVD_MASK_LEN)) {
 		low_phys_bits = boot_cpu_data.x86_cache_bits
-			- shadow_nonpresent_or_rsvd_mask_len;
+			- SHADOW_NONPRESENT_OR_RSVD_MASK_LEN;
 		shadow_nonpresent_or_rsvd_mask =
 			rsvd_bits(low_phys_bits, boot_cpu_data.x86_cache_bits - 1);
 	}

@@ -7,6 +7,7 @@ Description:
 
 		This is only for the powerpc/powernv platform.
 
+		=============== ===============================================
 		initiate_dump:	When '1' is written to it,
 				we will initiate a dump.
 				Read this file for supported commands.
@@ -19,8 +20,11 @@ Description:
 				and ID of the dump, use the id and type files.
 				Do not rely on any particular size of dump
 				type or dump id.
+		=============== ===============================================
 
 		Each dump has the following files:
+
+		=============== ===============================================
 		id:		An ASCII representation of the dump ID
 				in hex (e.g. '0x01')
 		type:		An ASCII representation of the type of
@@ -39,3 +43,4 @@ Description:
 				inaccessible.
 				Reading this file will get a list of
 				supported actions.
+		=============== ===============================================

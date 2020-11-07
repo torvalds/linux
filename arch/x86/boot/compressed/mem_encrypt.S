@@ -68,6 +68,9 @@ SYM_FUNC_START(get_sev_encryption_bit)
 SYM_FUNC_END(get_sev_encryption_bit)
 
 	.code64
+
+#include "../../kernel/sev_verify_cbit.S"
+
 SYM_FUNC_START(set_sev_encryption_mask)
 #ifdef CONFIG_AMD_MEM_ENCRYPT
 	push	%rbp
@@ -80,6 +83,19 @@ SYM_FUNC_START(set_sev_encryption_mask)
 	jz	.Lno_sev_mask
 
 	bts	%rax, sme_me_mask(%rip)	/* Create the encryption mask */
+
+	/*
+	 * Read MSR_AMD64_SEV again and store it to sev_status. Can't do this in
+	 * get_sev_encryption_bit() because this function is 32-bit code and
+	 * shared between 64-bit and 32-bit boot path.
+	 */
+	movl	$MSR_AMD64_SEV, %ecx	/* Read the SEV MSR */
+	rdmsr
+
+	/* Store MSR value in sev_status */
+	shlq	$32, %rdx
+	orq	%rdx, %rax
+	movq	%rax, sev_status(%rip)
 
 .Lno_sev_mask:
 	movq	%rbp, %rsp		/* Restore original stack pointer */
@@ -96,5 +112,7 @@ SYM_FUNC_END(set_sev_encryption_mask)
 
 #ifdef CONFIG_AMD_MEM_ENCRYPT
 	.balign	8
-SYM_DATA(sme_me_mask, .quad 0)
+SYM_DATA(sme_me_mask,		.quad 0)
+SYM_DATA(sev_status,		.quad 0)
+SYM_DATA(sev_check_data,	.quad 0)
 #endif
