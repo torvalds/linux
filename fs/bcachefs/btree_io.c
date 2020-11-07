@@ -42,7 +42,7 @@ static void verify_no_dups(struct btree *b,
 		BUG_ON(extents
 		       ? bkey_cmp(l.p, bkey_start_pos(&r)) > 0
 		       : bkey_cmp(l.p, bkey_start_pos(&r)) >= 0);
-		//BUG_ON(bkey_cmp_packed(&b->format, p, k) >= 0);
+		//BUG_ON(bch2_bkey_cmp_packed(&b->format, p, k) >= 0);
 	}
 #endif
 }
@@ -102,14 +102,14 @@ static void sort_bkey_ptrs(const struct btree *bt,
 			break;
 
 		for (b = a; c = 2 * b + 1, (d = c + 1) < n;)
-			b = bkey_cmp_packed(bt,
+			b = bch2_bkey_cmp_packed(bt,
 					    ptrs[c],
 					    ptrs[d]) >= 0 ? c : d;
 		if (d == n)
 			b = c;
 
 		while (b != a &&
-		       bkey_cmp_packed(bt,
+		       bch2_bkey_cmp_packed(bt,
 				       ptrs[a],
 				       ptrs[b]) >= 0)
 			b = (b - 1) / 2;

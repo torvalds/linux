@@ -86,7 +86,7 @@ static inline int key_sort_fix_overlapping_cmp(struct btree *b,
 					       struct bkey_packed *l,
 					       struct bkey_packed *r)
 {
-	return bkey_cmp_packed(b, l, r) ?:
+	return bch2_bkey_cmp_packed(b, l, r) ?:
 		cmp_int((unsigned long) l, (unsigned long) r);
 }
 
@@ -98,7 +98,7 @@ static inline bool should_drop_next_key(struct sort_iter *iter)
 	 * and should be dropped.
 	 */
 	return iter->used >= 2 &&
-		!bkey_cmp_packed(iter->b,
+		!bch2_bkey_cmp_packed(iter->b,
 				 iter->data[0].k,
 				 iter->data[1].k);
 }
@@ -223,7 +223,7 @@ static inline int sort_keys_cmp(struct btree *b,
 				struct bkey_packed *l,
 				struct bkey_packed *r)
 {
-	return bkey_cmp_packed(b, l, r) ?:
+	return bch2_bkey_cmp_packed(b, l, r) ?:
 		(int) bkey_deleted(r) - (int) bkey_deleted(l) ?:
 		(int) l->needs_whiteout - (int) r->needs_whiteout;
 }
@@ -245,7 +245,7 @@ unsigned bch2_sort_keys(struct bkey_packed *dst,
 			continue;
 
 		while ((next = sort_iter_peek(iter)) &&
-		       !bkey_cmp_packed(iter->b, in, next)) {
+		       !bch2_bkey_cmp_packed(iter->b, in, next)) {
 			BUG_ON(in->needs_whiteout &&
 			       next->needs_whiteout);
 			needs_whiteout |= in->needs_whiteout;
@@ -406,7 +406,7 @@ static inline int sort_extents_cmp(struct btree *b,
 				   struct bkey_packed *l,
 				   struct bkey_packed *r)
 {
-	return bkey_cmp_packed(b, l, r) ?:
+	return bch2_bkey_cmp_packed(b, l, r) ?:
 		(int) bkey_deleted(l) - (int) bkey_deleted(r);
 }
 

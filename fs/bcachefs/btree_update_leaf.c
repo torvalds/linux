@@ -72,7 +72,7 @@ bool bch2_btree_bset_insert_key(struct btree_iter *iter,
 	EBUG_ON(iter->flags & BTREE_ITER_IS_EXTENTS);
 
 	k = bch2_btree_node_iter_peek_all(node_iter, b);
-	if (k && bkey_cmp_packed(b, k, &insert->k))
+	if (k && bkey_cmp_left_packed(b, k, &insert->k.p))
 		k = NULL;
 
 	/* @k is the key being overwritten/deleted, if any: */

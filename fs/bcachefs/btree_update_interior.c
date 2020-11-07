@@ -1313,7 +1313,7 @@ bch2_btree_insert_keys_interior(struct btree_update *as, struct btree *b,
 	 * the node the iterator points to:
 	 */
 	while ((k = bch2_btree_node_iter_prev_all(&node_iter, b)) &&
-	       (bkey_cmp_packed(b, k, &insert->k) >= 0))
+	       (bkey_cmp_left_packed(b, k, &insert->k.p) >= 0))
 		;
 
 	for_each_keylist_key(keys, insert)

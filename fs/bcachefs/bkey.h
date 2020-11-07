@@ -75,22 +75,12 @@ static inline void set_bkey_val_bytes(struct bkey *k, unsigned bytes)
 #define bkey_whiteout(_k)				\
 	((_k)->type == KEY_TYPE_deleted || (_k)->type == KEY_TYPE_discard)
 
-#define bkey_packed_typecheck(_k)					\
-({									\
-	BUILD_BUG_ON(!type_is(_k, struct bkey *) &&			\
-		     !type_is(_k, struct bkey_packed *));		\
-	type_is(_k, struct bkey_packed *);				\
-})
-
 enum bkey_lr_packed {
 	BKEY_PACKED_BOTH,
 	BKEY_PACKED_RIGHT,
 	BKEY_PACKED_LEFT,
 	BKEY_PACKED_NONE,
 };
-
-#define bkey_lr_packed_typecheck(_l, _r)				\
-	(!bkey_packed_typecheck(_l) + ((!bkey_packed_typecheck(_r)) << 1))
 
 #define bkey_lr_packed(_l, _r)						\
 	((_l)->format + ((_r)->format << 1))
@@ -140,9 +130,9 @@ int __bch2_bkey_cmp_left_packed_format_checked(const struct btree *,
 					  const struct bpos *);
 
 __pure
-int __bch2_bkey_cmp_packed(const struct bkey_packed *,
-			   const struct bkey_packed *,
-			   const struct btree *);
+int bch2_bkey_cmp_packed(const struct btree *,
+			 const struct bkey_packed *,
+			 const struct bkey_packed *);
 
 __pure
 int __bch2_bkey_cmp_left_packed(const struct btree *,
@@ -167,37 +157,6 @@ static inline int bkey_cmp_left_packed_byval(const struct btree *b,
 {
 	return bkey_cmp_left_packed(b, l, &r);
 }
-
-/*
- * If @_l or @_r are struct bkey * (not bkey_packed *), uses type information to
- * skip dispatching on k->format:
- */
-#define bkey_cmp_packed(_b, _l, _r)					\
-({									\
-	int _cmp;							\
-									\
-	switch (bkey_lr_packed_typecheck(_l, _r)) {			\
-	case BKEY_PACKED_NONE:						\
-		_cmp = bkey_cmp(((struct bkey *) (_l))->p,		\
-				((struct bkey *) (_r))->p);		\
-		break;							\
-	case BKEY_PACKED_LEFT:						\
-		_cmp = bkey_cmp_left_packed((_b),			\
-				  (struct bkey_packed *) (_l),		\
-				  &((struct bkey *) (_r))->p);		\
-		break;							\
-	case BKEY_PACKED_RIGHT:						\
-		_cmp = -bkey_cmp_left_packed((_b),			\
-				  (struct bkey_packed *) (_r),		\
-				  &((struct bkey *) (_l))->p);		\
-		break;							\
-	case BKEY_PACKED_BOTH:						\
-		_cmp = __bch2_bkey_cmp_packed((void *) (_l),		\
-					 (void *) (_r), (_b));		\
-		break;							\
-	}								\
-	_cmp;								\
-})
 
 #if 1
 static __always_inline int bkey_cmp(struct bpos l, struct bpos r)

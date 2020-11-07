@@ -413,7 +413,7 @@ static bool bkey_packed_successor(struct bkey_packed *out,
 
 		if ((*p & mask) != mask) {
 			*p += 1ULL << offset;
-			EBUG_ON(bkey_cmp_packed(b, out, &k) <= 0);
+			EBUG_ON(bch2_bkey_cmp_packed(b, out, &k) <= 0);
 			return true;
 		}
 
@@ -1057,9 +1057,9 @@ int __bch2_bkey_cmp_left_packed_format_checked(const struct btree *b,
 }
 
 __pure __flatten
-int __bch2_bkey_cmp_packed(const struct bkey_packed *l,
-			   const struct bkey_packed *r,
-			   const struct btree *b)
+int bch2_bkey_cmp_packed(const struct btree *b,
+			 const struct bkey_packed *l,
+			 const struct bkey_packed *r)
 {
 	struct bkey unpacked;
 

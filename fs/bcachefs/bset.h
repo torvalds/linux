@@ -481,7 +481,7 @@ static inline int bkey_iter_cmp(const struct btree *b,
 				const struct bkey_packed *l,
 				const struct bkey_packed *r)
 {
-	return bkey_cmp_packed(b, l, r)
+	return bch2_bkey_cmp_packed(b, l, r)
 		?: (int) bkey_deleted(r) - (int) bkey_deleted(l)
 		?: cmp_int(l, r);
 }
