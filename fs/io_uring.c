@@ -3128,7 +3128,7 @@ static ssize_t __io_import_iovec(int rw, struct io_kiocb *req,
 
 		ret = import_single_range(rw, buf, sqe_len, *iovec, iter);
 		*iovec = NULL;
-		return ret < 0 ? ret : sqe_len;
+		return ret;
 	}
 
 	if (req->flags & REQ_F_BUFFER_SELECT) {
@@ -3154,7 +3154,7 @@ static ssize_t io_import_iovec(int rw, struct io_kiocb *req,
 	if (!iorw)
 		return __io_import_iovec(rw, req, iovec, iter, needs_lock);
 	*iovec = NULL;
-	return iov_iter_count(&iorw->iter);
+	return 0;
 }
 
 static inline loff_t *io_kiocb_ppos(struct kiocb *kiocb)
@@ -3423,7 +3423,7 @@ static int io_read(struct io_kiocb *req, bool force_nonblock,
 	if (ret < 0)
 		return ret;
 	iov_count = iov_iter_count(iter);
-	io_size = ret;
+	io_size = iov_count;
 	req->result = io_size;
 	ret = 0;
 
@@ -3552,7 +3552,7 @@ static int io_write(struct io_kiocb *req, bool force_nonblock,
 	if (ret < 0)
 		return ret;
 	iov_count = iov_iter_count(iter);
-	io_size = ret;
+	io_size = iov_count;
 	req->result = io_size;
 
 	/* Ensure we clear previously set non-block flag */
