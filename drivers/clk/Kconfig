@@ -188,6 +188,14 @@ config COMMON_CLK_CS2000_CP
 	help
 	  If you say yes here you get support for the CS2000 clock multiplier.
 
+config COMMON_CLK_FSL_FLEXSPI
+	tristate "Clock driver for FlexSPI on Layerscape SoCs"
+	depends on ARCH_LAYERSCAPE || COMPILE_TEST
+	default ARCH_LAYERSCAPE && SPI_NXP_FLEXSPI
+	help
+	  On Layerscape SoCs there is a special clock for the FlexSPI
+	  interface.
+
 config COMMON_CLK_FSL_SAI
 	bool "Clock driver for BCLK of Freescale SAI cores"
 	depends on ARCH_LAYERSCAPE || COMPILE_TEST
