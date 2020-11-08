@@ -3870,7 +3870,6 @@ static struct smack_known *smack_from_netlbl(struct sock *sk, u16 family,
 	struct netlbl_lsm_secattr secattr;
 	struct socket_smack *ssp = NULL;
 	struct smack_known *skp = NULL;
-	int rc;
 
 	netlbl_secattr_init(&secattr);
 
@@ -3880,7 +3879,7 @@ static struct smack_known *smack_from_netlbl(struct sock *sk, u16 family,
 	if (netlbl_skbuff_getattr(skb, family, &secattr) == 0) {
 		skp = smack_from_secattr(&secattr, ssp);
 		if (secattr.flags & NETLBL_SECATTR_CACHEABLE)
-			rc = netlbl_cache_add(skb, family, &skp->smk_netlabel);
+			netlbl_cache_add(skb, family, &skp->smk_netlabel);
 	}
 
 	netlbl_secattr_destroy(&secattr);
