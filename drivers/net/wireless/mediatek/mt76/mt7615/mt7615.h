@@ -106,19 +106,11 @@ struct mt7615_rate_desc {
 	u8 bw;
 };
 
-enum mt7615_wtbl_desc_type {
-	MT7615_WTBL_RATE_DESC,
-};
-
-struct mt7615_wtbl_desc {
+struct mt7615_wtbl_rate_desc {
 	struct list_head node;
 
-	enum mt7615_wtbl_desc_type type;
+	struct mt7615_rate_desc rate;
 	struct mt7615_sta *sta;
-
-	union {
-		struct mt7615_rate_desc rate;
-	};
 };
 
 struct mt7615_sta {
@@ -281,8 +273,8 @@ struct mt7615_dev {
 
 	u8 fw_ver;
 
-	struct work_struct wtbl_work;
-	struct list_head wd_head;
+	struct work_struct rate_work;
+	struct list_head wrd_head;
 
 	u32 debugfs_rf_wf;
 	u32 debugfs_rf_reg;
@@ -649,7 +641,6 @@ int mt7663_usb_sdio_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 bool mt7663_usb_sdio_tx_status_data(struct mt76_dev *mdev, u8 *update);
 void mt7663_usb_sdio_tx_complete_skb(struct mt76_dev *mdev,
 				     struct mt76_queue_entry *e);
-void mt7663_usb_sdio_wtbl_work(struct work_struct *work);
 int mt7663_usb_sdio_register_device(struct mt7615_dev *dev);
 int mt7663u_mcu_init(struct mt7615_dev *dev);
 
