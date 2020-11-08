@@ -1717,7 +1717,7 @@
 		reg = <0x0 0xfe530000 0x0 0x4000>;
 		interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru ACLK_DMAC0>;
+		clocks = <&cru ACLK_BUS>;
 		clock-names = "apb_pclk";
 		#dma-cells = <1>;
 		arm,pl330-periph-burst;
@@ -1728,7 +1728,7 @@
 		reg = <0x0 0xfe550000 0x0 0x4000>;
 		interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru ACLK_DMAC1>;
+		clocks = <&cru ACLK_BUS>;
 		clock-names = "apb_pclk";
 		#dma-cells = <1>;
 		arm,pl330-periph-burst;
