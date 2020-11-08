@@ -701,7 +701,7 @@ Follow the directions marked with ``TODO 2``. You can also follow the implementa
 To check the functionality, we need a function for reading the root inode.
 For the time being, use the ``myfs_get_inode`` function from ``myfs`` file system exercises.
 Copy the function into the source code and call it the same as you did for myfs.
-The second argument when calling the ``myfs_get_inode`` function is the inode creation permissions, similar to the virtual file system exercise (myfs).
+The third argument when calling the ``myfs_get_inode`` function is the inode creation permissions, similar to the virtual file system exercise (myfs).
 
 Validate the implementation by executing the commands from the previous exercise.
 
