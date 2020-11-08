@@ -1657,7 +1657,7 @@ static ssize_t dsi_host_transfer(struct mipi_dsi_host *host,
 	return ret;
 }
 
-static struct mipi_dsi_host_ops dsi_host_ops = {
+static const struct mipi_dsi_host_ops dsi_host_ops = {
 	.attach = dsi_host_attach,
 	.detach = dsi_host_detach,
 	.transfer = dsi_host_transfer,
