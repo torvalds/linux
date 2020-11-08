@@ -1026,9 +1026,9 @@ static int lan743x_phy_open(struct lan743x_adapter *adapter)
 
 	netdev = adapter->netdev;
 	phynode = of_node_get(adapter->pdev->dev.of_node);
-	adapter->phy_mode = PHY_INTERFACE_MODE_GMII;
 
 	if (phynode) {
+		/* try devicetree phy, or fixed link */
 		of_get_phy_mode(phynode, &adapter->phy_mode);
 
 		if (of_phy_is_fixed_link(phynode)) {
@@ -1044,13 +1044,15 @@ static int lan743x_phy_open(struct lan743x_adapter *adapter)
 					lan743x_phy_link_status_change, 0,
 					adapter->phy_mode);
 		of_node_put(phynode);
-		if (!phydev)
-			goto return_error;
-	} else {
+	}
+
+	if (!phydev) {
+		/* try internal phy */
 		phydev = phy_find_first(adapter->mdiobus);
 		if (!phydev)
 			goto return_error;
 
+		adapter->phy_mode = PHY_INTERFACE_MODE_GMII;
 		ret = phy_connect_direct(netdev, phydev,
 					 lan743x_phy_link_status_change,
 					 adapter->phy_mode);
