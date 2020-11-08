@@ -632,7 +632,7 @@ Follow the diagram below to clarify the role of structures within the ``minfs`` 
 
     dd if=/dev/zero of=mydisk.img bs=1M count=100
 
-  and add the ``-drive file=qemu/mydisk.img,if=virtio,format=raw`` argument to the ``qemu`` command in ``qemu/Makefile`` (in the ``QEMU_OPTS`` variable).
+  and add the ``-drive file=mydisk.img,if=virtio,format=raw`` argument to the ``qemu`` command in ``qemu/Makefile`` (in the ``QEMU_OPTS`` variable).
   The new argument for the ``qemu`` command must be added after the one for the existing disk (``YOCTO_IMAGE``).
 
 To register and unregister the file system, you will need to fill the ``minfs_fs_type`` and ``minfs_mount`` functions in ``minfs.c``. Follow the directions marked with ``TODO 1``.
