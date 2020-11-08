@@ -1334,8 +1334,8 @@ static const struct rockchip_domain_info rk3568_pm_domains[] = {
 	[RK3568_PD_VO]		= DOMAIN_RK3568_PROTECT(BIT(7),  BIT(4), false),
 	[RK3568_PD_RGA]		= DOMAIN_RK3568(BIT(5),  BIT(5), false),
 	[RK3568_PD_VPU]		= DOMAIN_RK3568(BIT(2), BIT(6), false),
-	[RK3568_PD_RKVDEC]	= DOMAIN_RK3568(BIT(4), BIT(7), false),
-	[RK3568_PD_RKVENC]	= DOMAIN_RK3568(BIT(3), BIT(8), false),
+	[RK3568_PD_RKVDEC]	= DOMAIN_RK3568(BIT(4), BIT(8), false),
+	[RK3568_PD_RKVENC]	= DOMAIN_RK3568(BIT(3), BIT(7), false),
 	[RK3568_PD_PIPE]	= DOMAIN_RK3568(BIT(8), BIT(11), false),
 };
 
