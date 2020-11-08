@@ -22,12 +22,14 @@ static struct sclp_ipl_info sclp_ipl_info;
 struct sclp_info sclp;
 EXPORT_SYMBOL(sclp);
 
-static void __init sclp_early_facilities_detect(struct read_info_sccb *sccb)
+static void __init sclp_early_facilities_detect(void)
 {
 	struct sclp_core_entry *cpue;
+	struct read_info_sccb *sccb;
 	u16 boot_cpu_address, cpu;
 
-	if (sclp_early_get_info(sccb))
+	sccb = sclp_early_get_info();
+	if (!sccb)
 		return;
 
 	sclp.facilities = sccb->facilities;
@@ -155,7 +157,7 @@ void __init sclp_early_detect(void)
 {
 	void *sccb = sclp_early_sccb;
 
-	sclp_early_facilities_detect(sccb);
+	sclp_early_facilities_detect();
 
 	/*
 	 * Turn off SCLP event notifications.  Also save remote masks in the

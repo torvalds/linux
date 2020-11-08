@@ -258,13 +258,12 @@ int __init sclp_early_read_info(void)
 	return -EIO;
 }
 
-int __init sclp_early_get_info(struct read_info_sccb *info)
+struct read_info_sccb * __init sclp_early_get_info(void)
 {
 	if (!sclp_info_sccb_valid)
-		return -EIO;
+		return NULL;
 
-	*info = sclp_info_sccb;
-	return 0;
+	return &sclp_info_sccb;
 }
 
 int __init sclp_early_get_memsize(unsigned long *mem)

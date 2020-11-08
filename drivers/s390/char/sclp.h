@@ -328,7 +328,7 @@ unsigned int sclp_early_con_check_vt220(struct init_sccb *sccb);
 int sclp_early_set_event_mask(struct init_sccb *sccb,
 			      sccb_mask_t receive_mask,
 			      sccb_mask_t send_mask);
-int sclp_early_get_info(struct read_info_sccb *info);
+struct read_info_sccb * __init sclp_early_get_info(void);
 
 /* useful inlines */
 
