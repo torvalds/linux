@@ -9,9 +9,11 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/errno.h>
+#include <linux/memblock.h>
 #include <asm/ctl_reg.h>
 #include <asm/sclp.h>
 #include <asm/ipl.h>
+#include <asm/setup.h>
 #include "sclp_sdias.h"
 #include "sclp.h"
 
@@ -107,29 +109,34 @@ void __init sclp_early_get_ipl_info(struct sclp_ipl_info *info)
 	*info = sclp_ipl_info;
 }
 
-static struct sclp_core_info sclp_early_core_info __initdata;
-static int sclp_early_core_info_valid __initdata;
-
-static void __init sclp_early_init_core_info(struct read_cpu_info_sccb *sccb)
-{
-	if (!SCLP_HAS_CPU_INFO)
-		return;
-	memset(sccb, 0, sizeof(*sccb));
-	sccb->header.length = sizeof(*sccb);
-	if (sclp_early_cmd(SCLP_CMDW_READ_CPU_INFO, sccb))
-		return;
-	if (sccb->header.response_code != 0x0010)
-		return;
-	sclp_fill_core_info(&sclp_early_core_info, sccb);
-	sclp_early_core_info_valid = 1;
-}
-
 int __init sclp_early_get_core_info(struct sclp_core_info *info)
 {
-	if (!sclp_early_core_info_valid)
-		return -EIO;
-	*info = sclp_early_core_info;
-	return 0;
+	struct read_cpu_info_sccb *sccb;
+	int length = PAGE_SIZE;
+	int rc = 0;
+
+	if (!SCLP_HAS_CPU_INFO)
+		return -EOPNOTSUPP;
+
+	sccb = memblock_alloc_low(length, PAGE_SIZE);
+	if (!sccb)
+		return -ENOMEM;
+
+	memset(sccb, 0, length);
+	sccb->header.length = length;
+	sccb->header.control_mask[2] = 0x80;
+	if (sclp_early_cmd(SCLP_CMDW_READ_CPU_INFO, sccb)) {
+		rc = -EIO;
+		goto out;
+	}
+	if (sccb->header.response_code != 0x0010) {
+		rc = -EIO;
+		goto out;
+	}
+	sclp_fill_core_info(info, sccb);
+out:
+	memblock_free_early((unsigned long)sccb, length);
+	return rc;
 }
 
 static void __init sclp_early_console_detect(struct init_sccb *sccb)
@@ -149,7 +156,6 @@ void __init sclp_early_detect(void)
 	void *sccb = sclp_early_sccb;
 
 	sclp_early_facilities_detect(sccb);
-	sclp_early_init_core_info(sccb);
 
 	/*
 	 * Turn off SCLP event notifications.  Also save remote masks in the
