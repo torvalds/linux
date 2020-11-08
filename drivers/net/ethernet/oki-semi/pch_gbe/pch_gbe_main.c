@@ -2412,7 +2412,6 @@ static int __pch_gbe_suspend(struct pci_dev *pdev)
 	struct pch_gbe_adapter *adapter = netdev_priv(netdev);
 	struct pch_gbe_hw *hw = &adapter->hw;
 	u32 wufc = adapter->wake_up_evt;
-	int retval = 0;
 
 	netif_device_detach(netdev);
 	if (netif_running(netdev))
@@ -2432,7 +2431,7 @@ static int __pch_gbe_suspend(struct pci_dev *pdev)
 		pch_gbe_mac_set_wol_event(hw, wufc);
 		pci_disable_device(pdev);
 	}
-	return retval;
+	return 0;
 }
 
 #ifdef CONFIG_PM
