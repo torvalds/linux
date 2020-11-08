@@ -652,11 +652,11 @@ Load the kernel module and then check the presence of the ``minfs`` file system 
 
 To test the mounting of the ``minfs`` file system we will need to format the disk with its structure. Formatting requires the ``mkfs.minfs`` formatting tool from the ``minfs/user`` directory. The utility is automatically compiled when running ``make build`` and copied to the virtual machine at ``make copy``.
 
-After compiling, copying, and starting the virtual machine, format the ``/dev/vdb`` using the formatting utility:
+After compiling, copying, and starting the virtual machine, format the ``/dev/vdd`` using the formatting utility:
 
 .. code-block:: console
 
-  # ./mkfs.minfs /dev/vdb
+  # ./mkfs.minfs /dev/vdd
 
 Load the kernel module:
 
@@ -674,7 +674,7 @@ and mount the filesystem
 
 .. code-block:: console
 
-  # mount -t minfs /dev/vdX /mnt/minfs/
+  # mount -t minfs /dev/vdd /mnt/minfs/
 
 The operation fails because the root inode is not initialized.
 
