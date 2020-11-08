@@ -37,6 +37,15 @@ int sdei_event_unregister(u32 event_num);
 int sdei_event_enable(u32 event_num);
 int sdei_event_disable(u32 event_num);
 
+#ifdef CONFIG_FIQ_DEBUGGER_TRUST_ZONE
+int sdei_event_enable_nolock(u32 event_num);
+int sdei_event_disable_nolock(u32 event_num);
+int sdei_event_routing_set_nolock(u32 event_num, unsigned long flags,
+				  unsigned long affinity);
+int sdei_event_routing_set(u32 event_num, unsigned long flags,
+			   unsigned long affinity);
+#endif
+
 /* GHES register/unregister helpers */
 int sdei_register_ghes(struct ghes *ghes, sdei_event_callback *normal_cb,
 		       sdei_event_callback *critical_cb);

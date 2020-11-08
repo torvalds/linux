@@ -920,6 +920,45 @@ int sdei_unregister_ghes(struct ghes *ghes)
 	return err;
 }
 
+#ifdef CONFIG_FIQ_DEBUGGER_TRUST_ZONE
+int sdei_event_enable_nolock(u32 event_num)
+{
+	return sdei_api_event_enable(event_num);
+}
+
+int sdei_event_disable_nolock(u32 event_num)
+{
+	return sdei_api_event_disable(event_num);
+}
+
+int sdei_event_routing_set_nolock(u32 event_num, unsigned long flags,
+				  unsigned long affinity)
+{
+	return invoke_sdei_fn(SDEI_1_0_FN_SDEI_EVENT_ROUTING_SET, event_num,
+			      (unsigned long)flags, (unsigned long)affinity,
+			      0, 0, 0);
+}
+
+int sdei_event_routing_set(u32 event_num, unsigned long flags,
+			   unsigned long affinity)
+{
+	int err = -EINVAL;
+	struct sdei_event *event;
+
+	mutex_lock(&sdei_events_lock);
+	event = sdei_event_find(event_num);
+	if (!event) {
+		mutex_unlock(&sdei_events_lock);
+		return -ENOENT;
+	}
+
+	err = sdei_event_routing_set_nolock(event_num, flags, affinity);
+	mutex_unlock(&sdei_events_lock);
+
+	return err;
+}
+#endif
+
 static int sdei_get_conduit(struct platform_device *pdev)
 {
 	const char *method;
