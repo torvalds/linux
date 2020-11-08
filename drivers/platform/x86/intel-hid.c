@@ -141,7 +141,7 @@ static bool intel_hid_execute_method(acpi_handle handle,
 
 	method_name = (char *)intel_hid_dsm_fn_to_method[fn_index];
 
-	if (!(intel_hid_dsm_fn_mask & fn_index))
+	if (!(intel_hid_dsm_fn_mask & BIT(fn_index)))
 		goto skip_dsm_exec;
 
 	/* All methods expects a package with one integer element */
@@ -214,7 +214,19 @@ static void intel_hid_init_dsm(acpi_handle handle)
 	obj = acpi_evaluate_dsm_typed(handle, &intel_dsm_guid, 1, 0, NULL,
 				      ACPI_TYPE_BUFFER);
 	if (obj) {
-		intel_hid_dsm_fn_mask = *obj->buffer.pointer;
+		switch (obj->buffer.length) {
+		default:
+		case 2:
+			intel_hid_dsm_fn_mask = *(u16 *)obj->buffer.pointer;
+			break;
+		case 1:
+			intel_hid_dsm_fn_mask = *obj->buffer.pointer;
+			break;
+		case 0:
+			acpi_handle_warn(handle, "intel_hid_dsm_fn_mask length is zero\n");
+			intel_hid_dsm_fn_mask = 0;
+			break;
+		}
 		ACPI_FREE(obj);
 	}
 
