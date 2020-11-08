@@ -742,6 +742,16 @@
 		status = "disabled";
 	};
 
+	rk_rga: rk_rga@fdeb0000 {
+		compatible = "rockchip,rga2";
+		reg = <0x0 0xfdeb0000 0x0 0x1000>;
+		interrupts = <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_RGA>, <&cru HCLK_RGA>, <&cru CLK_RGA_CORE>;
+		clock-names = "aclk_rga", "hclk_rga", "clk_rga";
+		power-domains = <&power RK3568_PD_RGA>;
+		status = "disabled";
+	};
+
 	jpegd: jpegd@fded0000 {
 		compatible = "rockchip,rkv-jpeg-decoder-v1";
 		reg = <0x0 0xfded0000 0x0 0x400>;
