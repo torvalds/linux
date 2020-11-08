@@ -251,6 +251,11 @@
 				#clock-cells = <1>;
 			};
 		};
+
+		sdei: sdei {
+			compatible = "arm,sdei-1.0";
+			method = "smc";
+		};
 	};
 
 	mpp_srv: mpp-srv {
