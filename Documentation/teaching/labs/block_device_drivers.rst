@@ -486,8 +486,8 @@ The fields of :c:type:`struct request` structure include:
      buffers, or by :c:macro:`bio_data` macrodefinition in case there is only
      one associated buffer;
 
-about the :c:type:`struct bio` structure and its associated operations will be
-discussed in the :ref:`bio_structure` section;
+We will discuss more about the :c:type:`struct bio` structure and its
+associated operations in the :ref:`bio_structure` section.
 
 Create a request
 ----------------
