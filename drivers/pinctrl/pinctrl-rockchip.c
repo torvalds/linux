@@ -3244,6 +3244,35 @@ static int rk3328_calc_schmitt_reg_and_bit(struct rockchip_pin_bank *bank,
 	return 0;
 }
 
+#define RK3568_SCHMITT_BITS_PER_PIN		2
+#define RK3568_SCHMITT_PINS_PER_REG		8
+#define RK3568_SCHMITT_BANK_STRIDE		0x10
+#define RK3568_SCHMITT_GRF_OFFSET		0xc0
+#define RK3568_SCHMITT_PMUGRF_OFFSET		0x30
+
+static int rk3568_calc_schmitt_reg_and_bit(struct rockchip_pin_bank *bank,
+					   int pin_num,
+					   struct regmap **regmap,
+					   int *reg, u8 *bit)
+{
+	struct rockchip_pinctrl *info = bank->drvdata;
+
+	if (bank->bank_num == 0) {
+		*regmap = info->regmap_pmu;
+		*reg = RK3568_SCHMITT_PMUGRF_OFFSET;
+	} else {
+		*regmap = info->regmap_base;
+		*reg = RK3568_SCHMITT_GRF_OFFSET;
+		*reg += (bank->bank_num - 1) * RK3568_SCHMITT_BANK_STRIDE;
+	}
+
+	*reg += ((pin_num / RK3568_SCHMITT_PINS_PER_REG) * 4);
+	*bit = pin_num % RK3568_SCHMITT_PINS_PER_REG;
+	*bit *= RK3568_SCHMITT_BITS_PER_PIN;
+
+	return 0;
+}
+
 static int rockchip_get_schmitt(struct rockchip_pin_bank *bank, int pin_num)
 {
 	struct rockchip_pinctrl *info = bank->drvdata;
@@ -3262,6 +3291,13 @@ static int rockchip_get_schmitt(struct rockchip_pin_bank *bank, int pin_num)
 		return ret;
 
 	data >>= bit;
+	switch (ctrl->type) {
+	case RK3568:
+		return data & ((1 << RK3568_SCHMITT_BITS_PER_PIN) - 1);
+	default:
+		break;
+	}
+
 	return data & 0x1;
 }
 
@@ -3283,8 +3319,17 @@ static int rockchip_set_schmitt(struct rockchip_pin_bank *bank,
 		return ret;
 
 	/* enable the write to the equivalent lower bits */
-	data = BIT(bit + 16) | (enable << bit);
-	rmask = BIT(bit + 16) | BIT(bit);
+	switch (ctrl->type) {
+	case RK3568:
+		data = ((1 << RK3568_SCHMITT_BITS_PER_PIN) - 1) << (bit + 16);
+		rmask = data | (data >> 16);
+		data |= ((enable ? 0x2 : 0x1) << bit);
+		break;
+	default:
+		data = BIT(bit + 16) | (enable << bit);
+		rmask = BIT(bit + 16) | BIT(bit);
+		break;
+	}
 
 	return regmap_update_bits(regmap, reg, rmask, data);
 }
@@ -4671,6 +4716,7 @@ static struct rockchip_pin_ctrl rk3568_pin_ctrl = {
 	.pull_calc_reg		= rk3568_calc_pull_reg_and_bit,
 	.drv_calc_reg		= rk3568_calc_drv_reg_and_bit,
 	.slew_rate_calc_reg	= rk3568_calc_slew_rate_reg_and_bit,
+	.schmitt_calc_reg	= rk3568_calc_schmitt_reg_and_bit,
 };
 
 static const struct of_device_id rockchip_pinctrl_dt_match[] = {
