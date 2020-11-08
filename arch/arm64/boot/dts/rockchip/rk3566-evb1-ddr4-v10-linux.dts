@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+#include "rk3566-evb1-ddr4-v10.dtsi"
+#include "rk3568-linux.dtsi"
+
+/ {
+	model = "Rockchip RK3566 EVB1 DDR4 V10 Linux Board";
+	compatible = "rockchip,rk3566-evb1-ddr4-v10-linux", "rockchip,rk3566";
+};
