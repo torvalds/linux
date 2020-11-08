@@ -369,7 +369,7 @@ Reading the root inode is done in the :c:func:`ramfs_get_inode` function, and co
 An example implementation for a disk file system is the :c:func:`minix_fill_super` function in the minix file system.
 The functionality for the disk file system is similar to that of the virtual file system, with the exception of using the buffer cache.
 Also, the minix file system keeps private data using the :c:type:`struct minix_sb_info` structure.
-A large part of this function deals with the initialization of these private data (not included in the code snippet above for clarity).
+A large part of this function deals with the initialization of these private data.
 The private data is allocated using the :c:func:`kzalloc` function and stored in the ``s_fs_info`` field of the superblock structure.
 
 VFS functions typically get as arguments the superblock, an inode and/or a dentry that contain a pointer to the superblock so that these private data can be easily accessed.
