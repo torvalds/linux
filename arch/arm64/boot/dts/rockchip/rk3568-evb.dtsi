@@ -725,8 +725,9 @@
 			vdd_logic: DCDC_REG1 {
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-min-microvolt = <900000>;
+				regulator-min-microvolt = <500000>;
 				regulator-max-microvolt = <1350000>;
+				regulator-init-microvolt = <900000>;
 				regulator-ramp-delay = <6001>;
 				regulator-initial-mode = <0x2>;
 				regulator-name = "vdd_logic";
@@ -739,8 +740,9 @@
 			vdd_gpu: DCDC_REG2 {
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-min-microvolt = <900000>;
-				regulator-max-microvolt = <900000>;
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <1350000>;
+				regulator-init-microvolt = <900000>;
 				regulator-ramp-delay = <6001>;
 				regulator-initial-mode = <0x2>;
 				regulator-name = "vdd_gpu";
@@ -759,20 +761,25 @@
 				};
 			};
 
-			vcc_npu: DCDC_REG4 {
-				regulator-min-microvolt = <900000>;
-				regulator-max-microvolt = <900000>;
+			vdd_npu: DCDC_REG4 {
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <1350000>;
+				regulator-init-microvolt = <900000>;
+				regulator-ramp-delay = <6001>;
 				regulator-initial-mode = <0x2>;
-				regulator-name = "vcc_npu";
+				regulator-name = "vdd_npu";
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
 			};
 
 			vdda0v9_image: LDO_REG1 {
+				regulator-boot-on;
+				regulator-always-on;
 				regulator-min-microvolt = <900000>;
 				regulator-max-microvolt = <900000>;
-				regulator-initial-mode = <0x1>;
 				regulator-name = "vdda0v9_image";
 				regulator-state-mem {
 					regulator-off-in-suspend;
