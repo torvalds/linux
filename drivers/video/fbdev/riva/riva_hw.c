@@ -247,14 +247,13 @@ static int nv3_iterate(nv3_fifo_info *res_info, nv3_sim_state * state, nv3_arb_i
     int mburst_size = 32;
     int mmisses, gmisses, vmisses;
     int misses;
-    int vlwm, glwm, mlwm;
+    int vlwm, glwm;
     int last, next, cur;
     int max_gfsize ;
     long ns;
 
     vlwm = 0;
     glwm = 0;
-    mlwm = 0;
     vfsize = 0;
     gfsize = 0;
     cur = ainfo->cur;
@@ -656,13 +655,12 @@ static void nv4CalcArbitration
     nv4_sim_state *arb
 )
 {
-    int data, pagemiss, cas,width, video_enable, color_key_enable, bpp, align;
+    int data, pagemiss, cas,width, video_enable, bpp;
     int nvclks, mclks, pclks, vpagemiss, crtpagemiss, vbs;
     int found, mclk_extra, mclk_loop, cbs, m1, p1;
     int mclk_freq, pclk_freq, nvclk_freq, mp_enable;
     int us_m, us_n, us_p, video_drain_rate, crtc_drain_rate;
     int vpm_us, us_video, vlwm, video_fill_us, cpm_us, us_crt,clwm;
-    int craw, vraw;
 
     fifo->valid = 1;
     pclk_freq = arb->pclk_khz;
@@ -672,9 +670,7 @@ static void nv4CalcArbitration
     cas = arb->mem_latency;
     width = arb->memory_width >> 6;
     video_enable = arb->enable_video;
-    color_key_enable = arb->gr_during_vid;
     bpp = arb->pix_bpp;
-    align = arb->mem_aligned;
     mp_enable = arb->enable_mp;
     clwm = 0;
     vlwm = 0;
@@ -782,8 +778,6 @@ static void nv4CalcArbitration
                 mclk_extra--;
             }
         }
-        craw = clwm;
-        vraw = vlwm;
         if (clwm < 384) clwm = 384;
         if (vlwm < 128) vlwm = 128;
         data = (int)(clwm);
@@ -842,7 +836,7 @@ static void nv10CalcArbitration
     nv10_sim_state *arb
 )
 {
-    int data, pagemiss, cas,width, video_enable, color_key_enable, bpp, align;
+    int data, pagemiss, cas,width, video_enable, bpp;
     int nvclks, mclks, pclks, vpagemiss, crtpagemiss, vbs;
     int nvclk_fill, us_extra;
     int found, mclk_extra, mclk_loop, cbs, m1;
@@ -863,9 +857,7 @@ static void nv10CalcArbitration
     cas = arb->mem_latency;
     width = arb->memory_width/64;
     video_enable = arb->enable_video;
-    color_key_enable = arb->gr_during_vid;
     bpp = arb->pix_bpp;
-    align = arb->mem_aligned;
     mp_enable = arb->enable_mp;
     clwm = 0;
     vlwm = 1024;
