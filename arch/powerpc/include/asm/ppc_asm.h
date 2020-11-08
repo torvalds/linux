@@ -498,11 +498,6 @@ END_FTR_SECTION_NESTED(CPU_FTR_CELL_TB_BUG, CPU_FTR_CELL_TB_BUG, 96)
 #define MTMSRD(r)	mtmsrd	r
 #define MTMSR_EERI(reg)	mtmsrd	reg,1
 #else
-#ifndef CONFIG_40x
-#define	RFI		rfi
-#else
-#define RFI		rfi; b .	/* Prevent prefetch past rfi */
-#endif
 #define MTMSRD(r)	mtmsr	r
 #define MTMSR_EERI(reg)	mtmsr	reg
 #endif

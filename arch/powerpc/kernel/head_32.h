@@ -222,7 +222,10 @@
 #endif
 	mtspr	SPRN_SRR1,r10
 	mtspr	SPRN_SRR0,r11
-	RFI				/* jump to handler, enable MMU */
+	rfi				/* jump to handler, enable MMU */
+#ifdef CONFIG_40x
+	b .	/* Prevent prefetch past rfi */
+#endif
 99:	b	ret_from_kernel_syscall
 .endm
 

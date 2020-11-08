@@ -234,7 +234,10 @@ transfer_to_handler_cont:
 	mtspr	SPRN_SRR0,r11
 	mtspr	SPRN_SRR1,r10
 	mtlr	r9
-	RFI				/* jump to handler, enable MMU */
+	rfi				/* jump to handler, enable MMU */
+#ifdef CONFIG_40x
+	b .	/* Prevent prefetch past rfi */
+#endif
 
 #if defined (CONFIG_PPC_BOOK3S_32) || defined(CONFIG_E500)
 4:	rlwinm	r12,r12,0,~_TLF_NAPPING
@@ -263,7 +266,10 @@ _ASM_NOKPROBE_SYMBOL(transfer_to_handler_cont)
 	LOAD_REG_IMMEDIATE(r0, MSR_KERNEL)
 	mtspr	SPRN_SRR0,r12
 	mtspr	SPRN_SRR1,r0
-	RFI
+	rfi
+#ifdef CONFIG_40x
+	b .	/* Prevent prefetch past rfi */
+#endif
 
 reenable_mmu:
 	/*
@@ -321,7 +327,10 @@ stack_ovf:
 #endif
 	mtspr	SPRN_SRR0,r9
 	mtspr	SPRN_SRR1,r10
-	RFI
+	rfi
+#ifdef CONFIG_40x
+	b .	/* Prevent prefetch past rfi */
+#endif
 _ASM_NOKPROBE_SYMBOL(stack_ovf)
 #endif
 
@@ -470,7 +479,10 @@ syscall_exit_finish:
 #endif
 	mtspr	SPRN_SRR0,r7
 	mtspr	SPRN_SRR1,r8
-	RFI
+	rfi
+#ifdef CONFIG_40x
+	b .	/* Prevent prefetch past rfi */
+#endif
 _ASM_NOKPROBE_SYMBOL(syscall_exit_finish)
 #ifdef CONFIG_44x
 2:	li	r7,0
@@ -600,7 +612,10 @@ ret_from_kernel_syscall:
 #endif
 	mtspr	SPRN_SRR0, r9
 	mtspr	SPRN_SRR1, r10
-	RFI
+	rfi
+#ifdef CONFIG_40x
+	b .	/* Prevent prefetch past rfi */
+#endif
 _ASM_NOKPROBE_SYMBOL(ret_from_kernel_syscall)
 
 /*
@@ -803,7 +818,10 @@ fast_exception_return:
 	REST_GPR(9, r11)
 	REST_GPR(12, r11)
 	lwz	r11,GPR11(r11)
-	RFI
+	rfi
+#ifdef CONFIG_40x
+	b .	/* Prevent prefetch past rfi */
+#endif
 _ASM_NOKPROBE_SYMBOL(fast_exception_return)
 
 #if !(defined(CONFIG_4xx) || defined(CONFIG_BOOKE))
