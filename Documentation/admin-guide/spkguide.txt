@@ -344,6 +344,7 @@ spk key_slash = say_attributes
 spk key_8 = speakup_paste
 shift spk key_m = say_first_char
  ctrl spk key_semicolon = say_last_char
+spk key_r = read_all_doc
 
 5.  The Speakup Sys System
 
