@@ -361,7 +361,7 @@ An example of implementation is the :c:func:`ramfs_fill_super` function which is
 
 
 The kernel provides generic function to implement operations with file system structures.
-The :c:func:`generic_drop_inode` and :c:func:`simple_statfs` functions used in the above code are such functions and can be used to implement the drivers if their functionality is sufficient.
+The :c:func:`generic_delete_inode` and :c:func:`simple_statfs` functions used in the above code are such functions and can be used to implement the drivers if their functionality is sufficient.
 
 The :c:func:`ramfs_fill_super` function in the above code fills some fields in the superblock, then reads the root inode and allocates the root dentry.
 Reading the root inode is done in the :c:func:`ramfs_get_inode` function, and consists of allocating a new inode using :c:func:`new_inode` and initializing it. In order to free the inode, :c:func:`iput` is used, and :c:func:`d_make_root` is used to allocate the root dentry.
