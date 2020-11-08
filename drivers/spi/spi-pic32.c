@@ -839,6 +839,7 @@ static int pic32_spi_probe(struct platform_device *pdev)
 	return 0;
 
 err_bailout:
+	pic32_spi_dma_unprep(pic32s);
 	clk_disable_unprepare(pic32s->clk);
 err_master:
 	spi_master_put(master);
