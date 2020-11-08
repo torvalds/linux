@@ -1061,7 +1061,7 @@ static void io_sq_thread_drop_mm_files(void)
 	}
 }
 
-static void __io_sq_thread_acquire_files(struct io_ring_ctx *ctx)
+static int __io_sq_thread_acquire_files(struct io_ring_ctx *ctx)
 {
 	if (!current->files) {
 		struct files_struct *files;
@@ -1071,7 +1071,7 @@ static void __io_sq_thread_acquire_files(struct io_ring_ctx *ctx)
 		files = ctx->sqo_task->files;
 		if (!files) {
 			task_unlock(ctx->sqo_task);
-			return;
+			return -EOWNERDEAD;
 		}
 		atomic_inc(&files->count);
 		get_nsproxy(ctx->sqo_task->nsproxy);
@@ -1083,6 +1083,7 @@ static void __io_sq_thread_acquire_files(struct io_ring_ctx *ctx)
 		current->nsproxy = nsproxy;
 		task_unlock(current);
 	}
+	return 0;
 }
 
 static int __io_sq_thread_acquire_mm(struct io_ring_ctx *ctx)
@@ -1114,15 +1115,19 @@ static int io_sq_thread_acquire_mm_files(struct io_ring_ctx *ctx,
 					 struct io_kiocb *req)
 {
 	const struct io_op_def *def = &io_op_defs[req->opcode];
+	int ret;
 
 	if (def->work_flags & IO_WQ_WORK_MM) {
-		int ret = __io_sq_thread_acquire_mm(ctx);
+		ret = __io_sq_thread_acquire_mm(ctx);
 		if (unlikely(ret))
 			return ret;
 	}
 
-	if (def->needs_file || (def->work_flags & IO_WQ_WORK_FILES))
-		__io_sq_thread_acquire_files(ctx);
+	if (def->needs_file || (def->work_flags & IO_WQ_WORK_FILES)) {
+		ret = __io_sq_thread_acquire_files(ctx);
+		if (unlikely(ret))
+			return ret;
+	}
 
 	return 0;
 }
@@ -2130,8 +2135,8 @@ static void __io_req_task_submit(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 
-	if (!__io_sq_thread_acquire_mm(ctx)) {
-		__io_sq_thread_acquire_files(ctx);
+	if (!__io_sq_thread_acquire_mm(ctx) &&
+	    !__io_sq_thread_acquire_files(ctx)) {
 		mutex_lock(&ctx->uring_lock);
 		__io_queue_sqe(req, NULL);
 		mutex_unlock(&ctx->uring_lock);
