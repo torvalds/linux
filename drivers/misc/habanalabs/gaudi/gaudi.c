@@ -65,7 +65,7 @@
 
 #define GAUDI_DMA_POOL_BLK_SIZE		0x100 /* 256 bytes */
 
-#define GAUDI_RESET_TIMEOUT_MSEC	1000		/* 1000ms */
+#define GAUDI_RESET_TIMEOUT_MSEC	2000		/* 2000ms */
 #define GAUDI_RESET_WAIT_MSEC		1		/* 1ms */
 #define GAUDI_CPU_RESET_WAIT_MSEC	200		/* 200ms */
 #define GAUDI_TEST_QUEUE_WAIT_USEC	100000		/* 100ms */
@@ -3523,7 +3523,6 @@ static void gaudi_halt_engines(struct hl_device *hdev, bool hard_reset)
 		wait_timeout_ms = GAUDI_RESET_WAIT_MSEC;
 
 	gaudi_stop_nic_qmans(hdev);
-
 	gaudi_stop_mme_qmans(hdev);
 	gaudi_stop_tpc_qmans(hdev);
 	gaudi_stop_hbm_dma_qmans(hdev);
@@ -3900,26 +3899,31 @@ static void gaudi_hw_fini(struct hl_device *hdev, bool hard_reset)
 	/* Set device to handle FLR by H/W as we will put the device CPU to
 	 * halt mode
 	 */
-	WREG32(mmPCIE_AUX_FLR_CTRL, (PCIE_AUX_FLR_CTRL_HW_CTRL_MASK |
+	if (!hdev->asic_prop.hard_reset_done_by_fw)
+		WREG32(mmPCIE_AUX_FLR_CTRL, (PCIE_AUX_FLR_CTRL_HW_CTRL_MASK |
 					PCIE_AUX_FLR_CTRL_INT_MASK_MASK));
 
 	/* I don't know what is the state of the CPU so make sure it is
 	 * stopped in any means necessary
 	 */
 	WREG32(mmPSOC_GLOBAL_CONF_KMD_MSG_TO_CPU, KMD_MSG_GOTO_WFE);
+
 	WREG32(mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR, GAUDI_EVENT_HALT_MACHINE);
 
-	msleep(cpu_timeout_ms);
+	if (!hdev->asic_prop.hard_reset_done_by_fw) {
+		msleep(cpu_timeout_ms);
 
-	/* Tell ASIC not to re-initialize PCIe */
-	WREG32(mmPREBOOT_PCIE_EN, LKD_HARD_RESET_MAGIC);
+		/* Tell ASIC not to re-initialize PCIe */
+		WREG32(mmPREBOOT_PCIE_EN, LKD_HARD_RESET_MAGIC);
 
-	/* Restart BTL/BLR upon hard-reset */
-	if (hdev->asic_prop.fw_security_disabled)
-		WREG32(mmPSOC_GLOBAL_CONF_BOOT_SEQ_RE_START, 1);
+		/* Restart BTL/BLR upon hard-reset */
+		if (hdev->asic_prop.fw_security_disabled)
+			WREG32(mmPSOC_GLOBAL_CONF_BOOT_SEQ_RE_START, 1);
 
-	WREG32(mmPSOC_GLOBAL_CONF_SW_ALL_RST,
+		WREG32(mmPSOC_GLOBAL_CONF_SW_ALL_RST,
 			1 << PSOC_GLOBAL_CONF_SW_ALL_RST_IND_SHIFT);
+	}
+
 	dev_info(hdev->dev,
 		"Issued HARD reset command, going to wait %dms\n",
 		reset_timeout_ms);
