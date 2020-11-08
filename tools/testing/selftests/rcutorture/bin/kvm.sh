@@ -536,6 +536,10 @@ then
 	egrep 'Start batch|Starting build\.' $T/script |
 		grep -v ">>" |
 		sed -e 's/:.*$//' -e 's/^echo //'
+	nbuilds="`grep 'Starting build\.' $T/script |
+		  grep -v ">>" | sed -e 's/:.*$//' -e 's/^echo //' |
+		  awk '{ print $1 }' | grep -v '\.' | wc -l`"
+	echo Total number of builds: $nbuilds
 	nbatches="`grep 'Start batch' $T/script | grep -v ">>" | wc -l`"
 	echo Total number of batches: $nbatches
 	exit 0
