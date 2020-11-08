@@ -35,7 +35,7 @@ There will be a file system that will be the root, the rest being mounted in its
 The general file system model
 =============================
 
-The general file system model, to which any implemented file system needs to be reduced, consists of several well-defined entities: :c:type:`superbloc`, :c:type:`inode`, :c:type:`file`, and :c:type:`dentry`.
+The general file system model, to which any implemented file system needs to be reduced, consists of several well-defined entities: :c:type:`superblock`, :c:type:`inode`, :c:type:`file`, and :c:type:`dentry`.
 These entities are file system metadata (they contain information about data or other metadata).
 
 Model entities interact using some VFS or kernel subsystems: dentry cache, inode cache, buffer cache.
@@ -283,7 +283,7 @@ The superblock can be viewed as an abstract object to which its own data is adde
 Superblock operations
 ---------------------
 
-The superbloc operations are described by the :c:type:`struct super_operations` structure:
+The superblock operations are described by the :c:type:`struct super_operations` structure:
 
 .. code-block:: c
 
@@ -380,7 +380,7 @@ Buffer cache
 ============
 
 Buffer cache is a kernel subsystem that handles caching (both read and write) blocks from block devices.
-The base entity used by cache buffer is the :c:type:`struct buffer_head` structure.
+The base entity used by buffer cache is the :c:type:`struct buffer_head` structure.
 The most important fields in this structure are:
 
   * ``b_data``, pointer to a memory area where the data was read from or where the data must be written to
@@ -621,8 +621,8 @@ Follow the diagram below to clarify the role of structures within the ``minfs`` 
 
 .. image:: minfs.png
 
-1. Registering and unregister the minfs file system
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+1. Registering and unregistering the minfs file system
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. note::
 
@@ -635,7 +635,7 @@ Follow the diagram below to clarify the role of structures within the ``minfs`` 
   and add the ``-drive file=qemu/mydisk.img,if=virtio,format=raw`` argument to the ``qemu`` command in ``qemu/Makefile`` (in the ``QEMU_OPTS`` variable).
   The new argument for the ``qemu`` command must be added after the one for the existing disk (``YOCTO_IMAGE``).
 
-To register and register the file system, you will need to fill the ``minfs_fs_type`` and ``minfs_mount`` functions in ``minfs.c``. Follow the directions marked with ``TODO 1``.
+To register and unregister the file system, you will need to fill the ``minfs_fs_type`` and ``minfs_mount`` functions in ``minfs.c``. Follow the directions marked with ``TODO 1``.
 
 .. note::
 
@@ -747,12 +747,12 @@ In the ``minfs_fill_super`` function, replace the ``myfs_get_inode`` call with t
 .. note::
   To implement the ``minfs_iget`` function, follow the implementation of `V1_minix_iget <https://elixir.bootlin.com/linux/v4.15/source/fs/minix/inode.c#L460>`_.
   To read a block, use the :c:func:`sb_bread` function.
-  Cast the read data (the ``b_data`` field of the :c:type:`struct structure_head` structure) to the minfs inode from the disk (:c:type:`struct minfs_inode`).
+  Cast the read data (the ``b_data`` field of the :c:type:`struct buffer_head` structure) to the minfs inode from the disk (:c:type:`struct minfs_inode`).
 
   The ``i_uid``, ``i_gid``, ``i_mode``, ``i_size`` must be filled in the VFS inode with the values in the minfs inode structure read from disk.
   To initialize the ``i_uid`` and ``i_gid fields``, use the functions :c:func:`i_uid_write` , and :c:func:`i_gid_write`.
 
-  Initialize the ``i_atime`` , ``i_atime``, and ``i_mtime`` fields of the VFS inode to the value returned by the :c:func:`current_time` function.
+  Initialize the ``i_atime`` , ``i_ctime``, and ``i_mtime`` fields of the VFS inode to the value returned by the :c:func:`current_time` function.
 
   You will need to initialize the operations for the inode with type directory. To do this, follow the steps:
 
