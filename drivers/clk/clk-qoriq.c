@@ -7,6 +7,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <dt-bindings/clock/fsl,qoriq-clockgen.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/clkdev.h>
@@ -1368,33 +1369,33 @@ static struct clk *clockgen_clk_get(struct of_phandle_args *clkspec, void *data)
 	idx = clkspec->args[1];
 
 	switch (type) {
-	case 0:
+	case QORIQ_CLK_SYSCLK:
 		if (idx != 0)
 			goto bad_args;
 		clk = cg->sysclk;
 		break;
-	case 1:
+	case QORIQ_CLK_CMUX:
 		if (idx >= ARRAY_SIZE(cg->cmux))
 			goto bad_args;
 		clk = cg->cmux[idx];
 		break;
-	case 2:
+	case QORIQ_CLK_HWACCEL:
 		if (idx >= ARRAY_SIZE(cg->hwaccel))
 			goto bad_args;
 		clk = cg->hwaccel[idx];
 		break;
-	case 3:
+	case QORIQ_CLK_FMAN:
 		if (idx >= ARRAY_SIZE(cg->fman))
 			goto bad_args;
 		clk = cg->fman[idx];
 		break;
-	case 4:
+	case QORIQ_CLK_PLATFORM_PLL:
 		pll = &cg->pll[PLATFORM_PLL];
 		if (idx >= ARRAY_SIZE(pll->div))
 			goto bad_args;
 		clk = pll->div[idx].clk;
 		break;
-	case 5:
+	case QORIQ_CLK_CORECLK:
 		if (idx != 0)
 			goto bad_args;
 		clk = cg->coreclk;
