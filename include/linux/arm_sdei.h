@@ -39,6 +39,15 @@ int sdei_event_unregister(u32 event_num);
 int sdei_event_enable(u32 event_num);
 int sdei_event_disable(u32 event_num);
 
+#ifdef CONFIG_FIQ_DEBUGGER_TRUST_ZONE
+int sdei_event_enable_nolock(u32 event_num);
+int sdei_event_disable_nolock(u32 event_num);
+int sdei_event_routing_set_nolock(u32 event_num, unsigned long flags,
+				  unsigned long affinity);
+int sdei_event_routing_set(u32 event_num, unsigned long flags,
+			   unsigned long affinity);
+#endif
+
 #ifdef CONFIG_ARM_SDE_INTERFACE
 /* For use by arch code when CPU hotplug notifiers are not appropriate. */
 int sdei_mask_local_cpu(void);
