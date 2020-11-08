@@ -178,6 +178,7 @@ int __fsnotify_parent(struct dentry *dentry, __u32 mask, const void *data,
 	struct inode *inode = d_inode(dentry);
 	struct dentry *parent;
 	bool parent_watched = dentry->d_flags & DCACHE_FSNOTIFY_PARENT_WATCHED;
+	bool parent_needed, parent_interested;
 	__u32 p_mask;
 	struct inode *p_inode = NULL;
 	struct name_snapshot name;
@@ -193,7 +194,8 @@ int __fsnotify_parent(struct dentry *dentry, __u32 mask, const void *data,
 		return 0;
 
 	parent = NULL;
-	if (!parent_watched && !fsnotify_event_needs_parent(inode, mnt, mask))
+	parent_needed = fsnotify_event_needs_parent(inode, mnt, mask);
+	if (!parent_watched && !parent_needed)
 		goto notify;
 
 	/* Does parent inode care about events on children? */
@@ -205,17 +207,17 @@ int __fsnotify_parent(struct dentry *dentry, __u32 mask, const void *data,
 
 	/*
 	 * Include parent/name in notification either if some notification
-	 * groups require parent info (!parent_watched case) or the parent is
-	 * interested in this event.
+	 * groups require parent info or the parent is interested in this event.
 	 */
-	if (!parent_watched || (mask & p_mask & ALL_FSNOTIFY_EVENTS)) {
+	parent_interested = mask & p_mask & ALL_FSNOTIFY_EVENTS;
+	if (parent_needed || parent_interested) {
 		/* When notifying parent, child should be passed as data */
 		WARN_ON_ONCE(inode != fsnotify_data_inode(data, data_type));
 
 		/* Notify both parent and child with child name info */
 		take_dentry_name_snapshot(&name, dentry);
 		file_name = &name.name;
-		if (parent_watched)
+		if (parent_interested)
 			mask |= FS_EVENT_ON_CHILD;
 	}
 
