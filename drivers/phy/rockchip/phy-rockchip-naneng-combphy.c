@@ -19,49 +19,47 @@
 #include <dt-bindings/phy/phy.h>
 
 #define BIT_WRITEABLE_SHIFT		16
-#define COMBPHY_MAX_MODE		4
-#define COMBPHY_MODE_PCIE		0
-#define COMBPHY_MODE_USB3		1
-#define COMBPHY_MODE_SATA		2
-#define COMBPHY_MODE_QSGMII		3
-#define COMBPHY_MODE_INVALID		4
-#define COMBPHY_DISABLED_REG_OFFSET	0xFFFF
 
 struct combphy_reg {
 	u16 offset;
 	u16 bitend;
 	u16 bitstart;
-	u16 data[COMBPHY_MAX_MODE];
+	u16 disable;
+	u16 enable;
 };
 
 struct rockchip_combphy_grfcfg {
-	struct combphy_reg mode_set;
-	struct combphy_reg data_width_set;
+	struct combphy_reg pcie_mode_set;
+	struct combphy_reg usb_mode_set;
+	struct combphy_reg sata_mode_set;
+	struct combphy_reg qsgmii_mode_set;
+	struct combphy_reg pipe_rxterm_sel;
+	struct combphy_reg pipe_rxterm_set;
+	struct combphy_reg pipe_txcomp_sel;
+	struct combphy_reg pipe_txcomp_set;
+	struct combphy_reg pipe_txelec_sel;
+	struct combphy_reg pipe_txelec_set;
 };
 
 struct rockchip_combphy_priv {
 	u8 mode;
 	void __iomem *mmio;
+	struct device *dev;
 	struct regmap *pipe_grf;
 	struct regmap *phy_grf;
 	struct phy *phy;
 	const struct rockchip_combphy_grfcfg *cfg;
 };
 
-static inline bool param_read(struct regmap *base, const struct combphy_reg *reg, u8 mode)
+static inline bool param_read(struct regmap *base,
+			      const struct combphy_reg *reg, u32 val)
 {
 	int ret;
-	u32 mask, orig, tmp, val;
-
-	if (reg->offset == COMBPHY_DISABLED_REG_OFFSET ||
-	    mode >= COMBPHY_MODE_INVALID)
-		return true;
+	u32 mask, orig, tmp;
 
 	ret = regmap_read(base, reg->offset, &orig);
 	if (ret)
 		return false;
-
-	val = reg->data[mode];
 
 	mask = GENMASK(reg->bitend, reg->bitstart);
 	tmp = (orig & mask) >> reg->bitstart;
@@ -69,15 +67,12 @@ static inline bool param_read(struct regmap *base, const struct combphy_reg *reg
 	return tmp == val;
 }
 
-static int param_write(struct regmap *base, const struct combphy_reg *reg, u8 mode)
+static int param_write(struct regmap *base,
+		       const struct combphy_reg *reg, bool en)
 {
 	u32 val, mask, tmp;
 
-	if (reg->offset == COMBPHY_DISABLED_REG_OFFSET ||
-	    mode >= COMBPHY_MODE_INVALID)
-		return 0;
-
-	tmp = reg->data[mode];
+	tmp = en ? reg->enable : reg->disable;
 	mask = GENMASK(reg->bitend, reg->bitstart);
 	val = (tmp << reg->bitstart) | (mask << BIT_WRITEABLE_SHIFT);
 
@@ -87,16 +82,26 @@ static int param_write(struct regmap *base, const struct combphy_reg *reg, u8 mo
 static int rockchip_combphy_set_mode(struct rockchip_combphy_priv *priv)
 {
 	const struct rockchip_combphy_grfcfg *cfg = priv->cfg;
-	if (priv->mode >= COMBPHY_MODE_INVALID)
-		return -EINVAL;
 
-	param_write(priv->phy_grf, &cfg->mode_set, priv->mode);
-	param_write(priv->phy_grf, &cfg->data_width_set, priv->mode);
+	switch (priv->mode) {
+	case PHY_TYPE_PCIE:
+		param_write(priv->phy_grf, &cfg->pcie_mode_set, true);
+		break;
+	case PHY_TYPE_USB3:
+		param_write(priv->phy_grf, &cfg->usb_mode_set, true);
+		break;
+	case PHY_TYPE_SATA:
+		param_write(priv->phy_grf, &cfg->sata_mode_set, true);
+		break;
+	default:
+		dev_err(priv->dev, "incompatible PHY type\n");
+		return -EINVAL;
+	}
 
 	return 0;
 }
 
-static int rochchip_combphy_init(struct phy *phy)
+static int rockchip_combphy_init(struct phy *phy)
 {
 	struct rockchip_combphy_priv *priv = phy_get_drvdata(phy);
 	int ret;
@@ -108,14 +113,14 @@ static int rochchip_combphy_init(struct phy *phy)
 	return 0;
 }
 
-static int rochchip_combphy_exit(struct phy *phy)
+static int rockchip_combphy_exit(struct phy *phy)
 {
 	return 0;
 }
 
 static const struct phy_ops rochchip_combphy_ops = {
-	.init = rochchip_combphy_init,
-	.exit = rochchip_combphy_exit,
+	.init = rockchip_combphy_init,
+	.exit = rockchip_combphy_exit,
 	.owner = THIS_MODULE,
 };
 
@@ -123,33 +128,17 @@ static struct phy *rockchip_combphy_xlate(struct device *dev,
 					  struct of_phandle_args *args)
 {
 	struct rockchip_combphy_priv *priv = dev_get_drvdata(dev);
-	int mode;
 
 	if (args->args_count != 1) {
 		dev_err(dev, "invalid number of arguments\n");
 		return ERR_PTR(-EINVAL);
 	}
 
-	mode = args->args[0];
+	if (priv->mode != PHY_NONE && priv->mode != args->args[0])
+		dev_warn(dev, "phy type select %d overwriting type %d\n",
+			 args->args[0], priv->mode);
 
-	switch (mode) {
-	case PHY_TYPE_USB2:
-	case PHY_TYPE_USB3:
-		priv->mode = COMBPHY_MODE_USB3;
-		break;
-
-	case PHY_TYPE_PCIE:
-		priv->mode = COMBPHY_MODE_PCIE;
-		break;
-
-	case PHY_TYPE_SATA:
-		priv->mode = COMBPHY_MODE_SATA;
-		break;
-
-	default:
-		dev_err(dev, "unsupported device type: %d\n", mode);
-		return ERR_PTR(-EINVAL);
-	}
+	priv->mode = args->args[0];
 
 	return priv->phy;
 }
@@ -193,6 +182,8 @@ static int rockchip_combphy_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->phy_grf);
 	}
 
+	priv->dev = dev;
+	priv->mode = PHY_NONE;
 	priv->cfg = phy_cfg;
 	priv->phy = devm_phy_create(dev, NULL, &rochchip_combphy_ops);
 	if (IS_ERR(priv->phy)) {
@@ -209,9 +200,16 @@ static int rockchip_combphy_probe(struct platform_device *pdev)
 }
 
 static const struct rockchip_combphy_grfcfg rk3568_combphy_cfgs = {
-			/* offset end start pcie  usb  sata  qsgmii */
-	.mode_set	= { 0x0000, 3, 2, {0x00, 0x01, 0x02, 0x03} },
-	.data_width_set	= { 0x0000, 0, 0, {0x01, 0x00, 0x01, 0x01} },
+	.pcie_mode_set		= { 0x0000, 5, 0, 0x00, 0x11 },
+	.usb_mode_set		= { 0x0000, 5, 0, 0x00, 0x04 },
+	.sata_mode_set		= { 0x0000, 5, 0, 0x00, 0x19 },
+	.qsgmii_mode_set	= { 0x0000, 5, 0, 0x00, 0x0d },
+	.pipe_rxterm_sel	= { 0x0008, 8, 8, 0x00, 0x01 },
+	.pipe_rxterm_set	= { 0x0000, 12, 12, 0x00, 0x01 },
+	.pipe_txcomp_sel	= { 0x0008, 15, 15, 0x00, 0x01 },
+	.pipe_txcomp_set	= { 0x0004, 4, 4, 0x00, 0x01 },
+	.pipe_txelec_sel	= { 0x0008, 12, 12, 0x00, 0x01 },
+	.pipe_txelec_set	= { 0x0004, 1, 1, 0x00, 0x01 },
 };
 
 static const struct of_device_id rockchip_combphy_of_match[] = {
