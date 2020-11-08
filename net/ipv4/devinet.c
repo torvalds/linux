@@ -650,8 +650,7 @@ static int inet_rtm_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct in_device *in_dev;
 	struct ifaddrmsg *ifm;
 	struct in_ifaddr *ifa;
-
-	int err = -EINVAL;
+	int err;
 
 	ASSERT_RTNL();
 
