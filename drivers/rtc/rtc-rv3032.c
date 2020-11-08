@@ -889,7 +889,7 @@ static int rv3032_probe(struct i2c_client *client)
 	if (ret)
 		return ret;
 
-	nvmem_cfg.priv = rv3032;
+	nvmem_cfg.priv = rv3032->regmap;
 	rtc_nvmem_register(rv3032->rtc, &nvmem_cfg);
 	eeprom_cfg.priv = rv3032;
 	rtc_nvmem_register(rv3032->rtc, &eeprom_cfg);
