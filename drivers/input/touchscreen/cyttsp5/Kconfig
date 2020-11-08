@@ -1,0 +1,205 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+#  Touchscreen driver configuration
+#
+config TOUCHSCREEN_CYPRESS_CYTTSP5
+	tristate "Parade TrueTouch Gen5 Touchscreen Driver"
+	help
+	  Core driver for Parade TrueTouch(tm) Standard Product
+	  Geneartion5 touchscreen controllers.
+
+	  Say Y here if you have a Parade Gen5 touchscreen.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cyttsp5.
+
+config TOUCHSCREEN_CYPRESS_CYTTSP5_DEVICETREE_SUPPORT
+	bool "Enable Device Tree support"
+	depends on TOUCHSCREEN_CYPRESS_CYTTSP5 && OF
+	help
+	  Say Y here to enable support for device tree.
+
+	  If unsure, say N.
+
+config TOUCHSCREEN_CYPRESS_CYTTSP5_I2C
+	tristate "Parade TrueTouch Gen5 I2C"
+	depends on TOUCHSCREEN_CYPRESS_CYTTSP5
+	select I2C
+	help
+	  Say Y here to enable I2C bus interface to Parade TrueTouch(tm)
+	  Standard Product Generation5 touchscreen controller.
+
+	  If unsure, say Y.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cyttsp5_i2c.
+
+config TOUCHSCREEN_CYPRESS_CYTTSP5_SPI
+	tristate "Parade TrueTouch Gen5 SPI"
+	depends on TOUCHSCREEN_CYPRESS_CYTTSP5
+	select SPI
+	help
+	  Say Y here to enable SPI bus interface to Parade TrueTouch(tm)
+	  Standard Product Generation5 touchscreen controller.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cyttsp5_spi.
+
+choice
+	bool "Parade TrueTouch Gen5 MultiTouch Protocol"
+	depends on TOUCHSCREEN_CYPRESS_CYTTSP5
+	default TOUCHSCREEN_CYPRESS_CYTTSP5_MT_B
+	help
+	  This option controls which MultiTouch protocol will be used to
+	  report the touch events.
+
+config TOUCHSCREEN_CYPRESS_CYTTSP5_MT_A
+	bool "Protocol A"
+	help
+	  Select to enable MultiTouch touch reporting using protocol A
+	  on Parade TrueTouch(tm) Standard Product Generation4 touchscreen
+	  controller.
+
+config TOUCHSCREEN_CYPRESS_CYTTSP5_MT_B
+	bool "Protocol B"
+	help
+	  Select to enable MultiTouch touch reporting using protocol B
+	  on Parade TrueTouch(tm) Standard Product Generation4 touchscreen
+	  controller.
+
+endchoice
+
+config TOUCHSCREEN_CYPRESS_CYTTSP5_BUTTON
+	bool "Parade TrueTouch Gen5 MultiTouch CapSense Button"
+	depends on TOUCHSCREEN_CYPRESS_CYTTSP5
+	help
+	  Say Y here to enable CapSense reporting on Parade TrueTouch(tm)
+	  Standard Product Generation5 touchscreen controller.
+
+	  If unsure, say N.
+
+config TOUCHSCREEN_CYPRESS_CYTTSP5_PROXIMITY
+	bool "Parade TrueTouch Gen5 Proximity"
+	depends on TOUCHSCREEN_CYPRESS_CYTTSP5
+	help
+	  Say Y here to enable proximity reporting on Parade TrueTouch(tm)
+	  Standard Product Generation5 touchscreen controller.
+
+	  If unsure, say N.
+
+config TOUCHSCREEN_CYPRESS_CYTTSP5_DEVICE_ACCESS
+	tristate "Parade TrueTouch Gen5 MultiTouch Device Access"
+	depends on TOUCHSCREEN_CYPRESS_CYTTSP5
+	help
+	  Say Y here to enable Parade TrueTouch(tm) Standard Product
+	  Generation5 touchscreen controller device access module.
+
+	  This modules adds an interface to access touchscreen
+	  controller using driver sysfs nodes.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cyttsp5_device_access.
+
+config TOUCHSCREEN_CYPRESS_CYTTSP5_DEVICE_ACCESS_API
+	bool "Enable Device Access kernel API"
+	depends on TOUCHSCREEN_CYPRESS_CYTTSP5_DEVICE_ACCESS
+	help
+	  Say Y here to enable Device access kernel API which provides
+	  access to Parade TrueTouch(tm) Standard Product Generation5
+	  touchscreen controller for other modules.
+
+	  If unsure, say N.
+
+config TOUCHSCREEN_CYPRESS_CYTTSP5_TEST_DEVICE_ACCESS_API
+	tristate "Simple Test module for Device Access kernel API"
+	depends on TOUCHSCREEN_CYPRESS_CYTTSP5_DEVICE_ACCESS
+	depends on TOUCHSCREEN_CYPRESS_CYTTSP5_DEVICE_ACCESS_API
+	help
+	  Say Y here to enable test module for Device access kernel API.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cyttsp5_test_device_access_api.
+
+config TOUCHSCREEN_CYPRESS_CYTTSP5_LOADER
+	tristate "Parade TrueTouch Gen5 MultiTouch Loader"
+	depends on TOUCHSCREEN_CYPRESS_CYTTSP5
+	help
+	  Say Y here to enable Parade TrueTouch(tm) Standard Product
+	  Generation5 touchscreen controller FW Loader module.
+
+	  This module enables support for Firmware upgrade.
+
+	  If unsure, say Y.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cyttsp5_loader.
+
+config TOUCHSCREEN_CYPRESS_CYTTSP5_PLATFORM_FW_UPGRADE
+	bool "FW upgrade from header file"
+	depends on TOUCHSCREEN_CYPRESS_CYTTSP5_LOADER
+	help
+	  Say Y here to include Parade TrueTouch(tm) Standard Product
+	  Generation5 device Firmware into driver.
+
+	  Need proper header file for this.
+
+	  If unsure, say N.
+
+config TOUCHSCREEN_CYPRESS_CYTTSP5_BINARY_FW_UPGRADE
+	bool "FW upgrade from binary file"
+	depends on TOUCHSCREEN_CYPRESS_CYTTSP5_LOADER
+	help
+	  Say Y here to include Parade TrueTouch(tm) Standard Product
+	  Generation5 device Firmware into kernel as binary blob.
+
+	  This should be enabled for manual FW upgrade support.
+
+	  If unsure, say Y.
+
+config TOUCHSCREEN_CYPRESS_CYTTSP5_PLATFORM_TTCONFIG_UPGRADE
+	bool "TT Configuration upgrade from header file"
+	depends on TOUCHSCREEN_CYPRESS_CYTTSP5_LOADER
+	help
+	  Say Y here to include Parade TrueTouch(tm) Standard Product
+	  Generation5 device TrueTouch Configuration into kernel itself.
+
+	  Need proper header file for this.
+
+	  If unsure, say N.
+
+config TOUCHSCREEN_CYPRESS_CYTTSP5_MANUAL_TTCONFIG_UPGRADE
+	bool "TT Configuration upgrade via SysFs"
+	depends on TOUCHSCREEN_CYPRESS_CYTTSP5_LOADER
+	help
+	  Say Y here to provide a SysFs interface to upgrade TrueTouch
+	  Configuration with a binary configuration file.
+
+	  Need proper binary version of config file for this
+	  feature.
+
+	  If unsure, say Y.
+
+config TOUCHSCREEN_CYPRESS_CYTTSP5_DEBUG_MDL
+	tristate "Parade TrueTouch Gen5 MultiTouch Debug Module"
+	depends on TOUCHSCREEN_CYPRESS_CYTTSP5
+	help
+	  Say Y here to enable Parade TrueTouch(tm) Standard Product
+	  Generation5 Debug module.
+
+	  This module adds support for verbose printing touch
+	  information.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cyttsp5_debug.
+
+          

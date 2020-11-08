@@ -1400,4 +1400,6 @@ config TOUCHSCREEN_FTS
 	  Say Y here if you have Focaltech touch panel.
 	  If unsure, say N.
 
+source "drivers/input/touchscreen/cyttsp5/Kconfig"
+
 endif
