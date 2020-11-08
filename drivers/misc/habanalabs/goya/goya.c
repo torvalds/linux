@@ -458,6 +458,7 @@ int goya_get_fixed_properties(struct hl_device *hdev)
 	/* disable fw security for now, set it in a later stage */
 	prop->fw_security_disabled = true;
 	prop->fw_security_status_valid = false;
+	prop->hard_reset_done_by_fw = false;
 
 	return 0;
 }
