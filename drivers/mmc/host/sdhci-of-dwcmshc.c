@@ -33,7 +33,7 @@
 #define DWCMSHC_EMMC_DLL_STRBIN		0x80c
 #define DWCMSHC_EMMC_DLL_STATUS0	0x840
 #define DWCMSHC_EMMC_DLL_START		BIT(0)
-#define DWCMSHC_EMMC_DLL_RXCLK_SRCSEL	29
+#define DWCMSHC_EMMC_DLL_TXCLK_SRCSEL	29
 #define DWCMSHC_EMMC_DLL_START_POINT	16
 #define DWCMSHC_EMMC_DLL_INC		8
 #define DWCMSHC_EMMC_DLL_DLYENA		BIT(27)
@@ -187,8 +187,8 @@ static int rockchip_pltf_init(struct sdhci_host *host, struct dwcmshc_priv *priv
 
 	/* FixMe: clk inverter? */
 	extra = DWCMSHC_EMMC_DLL_DLYENA |
-		DLL_RXCLK_NO_INVERTER << DWCMSHC_EMMC_DLL_RXCLK_SRCSEL;
-	sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_RXCLK);
+		DLL_RXCLK_NO_INVERTER << DWCMSHC_EMMC_DLL_TXCLK_SRCSEL;
+	sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_TXCLK);
 
 	extra = DWCMSHC_EMMC_DLL_DLYENA |
 		DLL_RXCLK_TAPNUM_DEFAULT |
