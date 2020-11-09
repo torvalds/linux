@@ -1351,7 +1351,7 @@ int hl_mem_ioctl(struct hl_fpriv *hpriv, void *data)
 		 * the user's input, the driver can't ensure the validity
 		 * of this accounting.
 		 */
-		if (!hdev->dram_supports_virtual_memory) {
+		if (!hdev->asic_prop.dram_supports_virtual_memory) {
 			atomic64_add(args->in.alloc.mem_size,
 					&ctx->dram_phys_mem);
 			atomic64_add(args->in.alloc.mem_size,
@@ -1380,7 +1380,7 @@ int hl_mem_ioctl(struct hl_fpriv *hpriv, void *data)
 		 * the user's input, the driver can't ensure the validity
 		 * of this accounting.
 		 */
-		if (!hdev->dram_supports_virtual_memory) {
+		if (!hdev->asic_prop.dram_supports_virtual_memory) {
 			atomic64_sub(args->in.alloc.mem_size,
 					&ctx->dram_phys_mem);
 			atomic64_sub(args->in.alloc.mem_size,
@@ -1915,7 +1915,7 @@ void hl_vm_ctx_fini(struct hl_ctx *ctx)
 	 * because the user notifies us on allocations. If the user is no more,
 	 * all DRAM is available
 	 */
-	if (!ctx->hdev->dram_supports_virtual_memory)
+	if (!ctx->hdev->asic_prop.dram_supports_virtual_memory)
 		atomic64_set(&ctx->hdev->dram_used_mem, 0);
 }
 

@@ -411,6 +411,7 @@ struct hl_mmu_properties {
  *                        false otherwise
  * @fw_security_status_valid: security status bits are valid and can be fetched
  *                            from BOOT_DEV_STS0
+ * @dram_supports_virtual_memory: is there an MMU towards the DRAM
  */
 struct asic_fixed_properties {
 	struct hw_queue_properties	*hw_queues_props;
@@ -467,6 +468,7 @@ struct asic_fixed_properties {
 	u8				completion_queues_count;
 	u8				fw_security_disabled;
 	u8				fw_security_status_valid;
+	u8				dram_supports_virtual_memory;
 };
 
 /**
@@ -1772,7 +1774,6 @@ struct hl_mmu_funcs {
  * @heartbeat: is heartbeat sanity check towards CPU-CP enabled.
  * @reset_on_lockup: true if a reset should be done in case of stuck CS, false
  *                   otherwise.
- * @dram_supports_virtual_memory: is MMU enabled towards DRAM.
  * @dram_default_page_mapping: is DRAM default page mapping enabled.
  * @memory_scrub: true to perform device memory scrub in various locations,
  *                such as context-switch, context close, page free, etc.
@@ -1886,7 +1887,6 @@ struct hl_device {
 	u8				hard_reset_pending;
 	u8				heartbeat;
 	u8				reset_on_lockup;
-	u8				dram_supports_virtual_memory;
 	u8				dram_default_page_mapping;
 	u8				memory_scrub;
 	u8				pmmu_huge_range;

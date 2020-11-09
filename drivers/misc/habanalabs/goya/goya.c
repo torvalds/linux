@@ -410,6 +410,7 @@ int goya_get_fixed_properties(struct hl_device *hdev)
 	prop->mmu_hop_table_size = HOP_TABLE_SIZE;
 	prop->mmu_hop0_tables_total_size = HOP0_TABLES_TOTAL_SIZE;
 	prop->dram_page_size = PAGE_SIZE_2MB;
+	prop->dram_supports_virtual_memory = true;
 
 	prop->dmmu.hop0_shift = HOP0_SHIFT;
 	prop->dmmu.hop1_shift = HOP1_SHIFT;
@@ -2481,7 +2482,6 @@ int goya_mmu_init(struct hl_device *hdev)
 	if (goya->hw_cap_initialized & HW_CAP_MMU)
 		return 0;
 
-	hdev->dram_supports_virtual_memory = true;
 	hdev->dram_default_page_mapping = true;
 
 	for (i = 0 ; i < prop->max_asid ; i++) {

@@ -598,7 +598,7 @@ static bool hl_is_device_va(struct hl_device *hdev, u64 addr)
 	if (!hdev->mmu_enable)
 		goto out;
 
-	if (hdev->dram_supports_virtual_memory &&
+	if (prop->dram_supports_virtual_memory &&
 		(addr >= prop->dmmu.start_addr && addr < prop->dmmu.end_addr))
 		return true;
 

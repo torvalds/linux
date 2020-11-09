@@ -462,6 +462,7 @@ static int gaudi_get_fixed_properties(struct hl_device *hdev)
 	prop->mmu_hop_table_size = HOP_TABLE_SIZE;
 	prop->mmu_hop0_tables_total_size = HOP0_TABLES_TOTAL_SIZE;
 	prop->dram_page_size = PAGE_SIZE_2MB;
+	prop->dram_supports_virtual_memory = false;
 
 	prop->pmmu.hop0_shift = HOP0_SHIFT;
 	prop->pmmu.hop1_shift = HOP1_SHIFT;
@@ -3561,8 +3562,6 @@ static int gaudi_mmu_init(struct hl_device *hdev)
 
 	if (gaudi->hw_cap_initialized & HW_CAP_MMU)
 		return 0;
-
-	hdev->dram_supports_virtual_memory = false;
 
 	for (i = 0 ; i < prop->max_asid ; i++) {
 		hop0_addr = prop->mmu_pgt_addr +
