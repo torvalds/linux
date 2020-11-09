@@ -249,6 +249,17 @@ struct ceph_msg {
 #define CEPH_CON_S_OPEN			5
 #define CEPH_CON_S_STANDBY		6
 
+/*
+ * ceph_connection flag bits
+ */
+#define CEPH_CON_F_LOSSYTX		0  /* we can close channel or drop
+					      messages on errors */
+#define CEPH_CON_F_KEEPALIVE_PENDING	1  /* we need to send a keepalive */
+#define CEPH_CON_F_WRITE_PENDING	2  /* we have data ready to send */
+#define CEPH_CON_F_SOCK_CLOSED		3  /* socket state changed to closed */
+#define CEPH_CON_F_BACKOFF		4  /* need to retry queuing delayed
+					      work */
+
 /* ceph connection fault delay defaults, for exponential backoff */
 #define BASE_DELAY_INTERVAL	(HZ / 4)
 #define MAX_DELAY_INTERVAL	(15 * HZ)
@@ -273,7 +284,7 @@ struct ceph_connection {
 	struct ceph_entity_addr peer_addr; /* peer address */
 	struct ceph_entity_addr peer_addr_for_me;
 
-	unsigned long flags;
+	unsigned long flags;  /* CEPH_CON_F_* */
 	const char *error_msg;  /* error message, if any */
 
 	struct ceph_entity_name peer_name; /* peer name */
