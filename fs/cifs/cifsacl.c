@@ -617,6 +617,17 @@ static void access_flags_to_mode(__le32 ace_flags, int type, umode_t *pmode,
 			!(*pdenied & mask & 0111))
 		*pmode |= mask & 0111;
 
+	/* If DELETE_CHILD is set only on an owner ACE, set sticky bit */
+	if (flags & FILE_DELETE_CHILD) {
+		if (mask == ACL_OWNER_MASK) {
+			if (!(*pdenied & 01000))
+				*pmode |= 01000;
+		} else if (!(*pdenied & 01000)) {
+			*pmode &= ~01000;
+			*pdenied |= 01000;
+		}
+	}
+
 	cifs_dbg(NOISY, "access flags 0x%x mode now %04o\n", flags, *pmode);
 	return;
 }
@@ -652,7 +663,9 @@ static void mode_to_access_flags(umode_t mode, umode_t bits_to_use,
 }
 
 static __u16 fill_ace_for_sid(struct cifs_ace *pntace,
-			const struct cifs_sid *psid, __u64 nmode, umode_t bits, __u8 access_type)
+			const struct cifs_sid *psid, __u64 nmode,
+			umode_t bits, __u8 access_type,
+			bool allow_delete_child)
 {
 	int i;
 	__u16 size = 0;
@@ -661,10 +674,15 @@ static __u16 fill_ace_for_sid(struct cifs_ace *pntace,
 	pntace->type = access_type;
 	pntace->flags = 0x0;
 	mode_to_access_flags(nmode, bits, &access_req);
+
+	if (access_type == ACCESS_ALLOWED && allow_delete_child)
+		access_req |= FILE_DELETE_CHILD;
+
 	if (access_type == ACCESS_ALLOWED && !access_req)
 		access_req = SET_MINIMUM_RIGHTS;
 	else if (access_type == ACCESS_DENIED)
 		access_req &= ~SET_MINIMUM_RIGHTS;
+
 	pntace->access_req = cpu_to_le32(access_req);
 
 	pntace->sid.revision = psid->revision;
@@ -716,10 +734,6 @@ static void dump_ace(struct cifs_ace *pace, char *end_of_acl)
 	return;
 }
 #endif
-
-#define ACL_OWNER_MASK 0700
-#define ACL_GROUP_MASK 0770
-#define ACL_EVERYONE_MASK 0777
 
 static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl,
 		       struct cifs_sid *pownersid, struct cifs_sid *pgrpsid,
@@ -904,6 +918,7 @@ static int set_chmod_dacl(struct cifs_acl *pndacl, struct cifs_sid *pownersid,
 	__u64 other_mode;
 	__u64 deny_user_mode = 0;
 	__u64 deny_group_mode = 0;
+	bool sticky_set = false;
 
 	pnndacl = (struct cifs_acl *)((char *)pndacl + sizeof(struct cifs_acl));
 
@@ -945,31 +960,35 @@ static int set_chmod_dacl(struct cifs_acl *pndacl, struct cifs_sid *pownersid,
 
 	*pnmode = user_mode | group_mode | other_mode | (nmode & ~0777);
 
+	/* This tells if we should allow delete child for group and everyone. */
+	if (nmode & 01000)
+		sticky_set = true;
+
 	if (deny_user_mode) {
 		size += fill_ace_for_sid((struct cifs_ace *)((char *)pnndacl + size),
-				pownersid, deny_user_mode, 0700, ACCESS_DENIED);
+				pownersid, deny_user_mode, 0700, ACCESS_DENIED, false);
 		num_aces++;
 	}
 	/* Group DENY ACE does not conflict with owner ALLOW ACE. Keep in preferred order*/
 	if (deny_group_mode && !(deny_group_mode & (user_mode >> 3))) {
 		size += fill_ace_for_sid((struct cifs_ace *)((char *)pnndacl + size),
-				pgrpsid, deny_group_mode, 0070, ACCESS_DENIED);
+				pgrpsid, deny_group_mode, 0070, ACCESS_DENIED, false);
 		num_aces++;
 	}
 	size += fill_ace_for_sid((struct cifs_ace *) ((char *)pnndacl + size),
-			pownersid, user_mode, 0700, ACCESS_ALLOWED);
+			pownersid, user_mode, 0700, ACCESS_ALLOWED, true);
 	num_aces++;
 	/* Group DENY ACE conflicts with owner ALLOW ACE. So keep it after. */
 	if (deny_group_mode && (deny_group_mode & (user_mode >> 3))) {
 		size += fill_ace_for_sid((struct cifs_ace *)((char *)pnndacl + size),
-				pgrpsid, deny_group_mode, 0070, ACCESS_DENIED);
+				pgrpsid, deny_group_mode, 0070, ACCESS_DENIED, false);
 		num_aces++;
 	}
 	size += fill_ace_for_sid((struct cifs_ace *)((char *)pnndacl + size),
-			pgrpsid, group_mode, 0070, ACCESS_ALLOWED);
+			pgrpsid, group_mode, 0070, ACCESS_ALLOWED, !sticky_set);
 	num_aces++;
 	size += fill_ace_for_sid((struct cifs_ace *)((char *)pnndacl + size),
-			&sid_everyone, other_mode, 0007, ACCESS_ALLOWED);
+			&sid_everyone, other_mode, 0007, ACCESS_ALLOWED, !sticky_set);
 	num_aces++;
 
 set_size:
