@@ -784,7 +784,7 @@ TRACE_EVENT(xprtrdma_post_recvs,
 	)
 );
 
-TRACE_EVENT(xprtrdma_post_linv,
+TRACE_EVENT(xprtrdma_post_linv_err,
 	TP_PROTO(
 		const struct rpcrdma_req *req,
 		int status
@@ -793,19 +793,21 @@ TRACE_EVENT(xprtrdma_post_linv,
 	TP_ARGS(req, status),
 
 	TP_STRUCT__entry(
-		__field(const void *, req)
+		__field(unsigned int, task_id)
+		__field(unsigned int, client_id)
 		__field(int, status)
-		__field(u32, xid)
 	),
 
 	TP_fast_assign(
-		__entry->req = req;
+		const struct rpc_task *task = req->rl_slot.rq_task;
+
+		__entry->task_id = task->tk_pid;
+		__entry->client_id = task->tk_client->cl_clid;
 		__entry->status = status;
-		__entry->xid = be32_to_cpu(req->rl_slot.rq_xid);
 	),
 
-	TP_printk("req=%p xid=0x%08x status=%d",
-		__entry->req, __entry->xid, __entry->status
+	TP_printk("task:%u@%u status=%d",
+		__entry->task_id, __entry->client_id, __entry->status
 	)
 );
 
