@@ -65,18 +65,23 @@ void frwr_release_mr(struct rpcrdma_mr *mr)
 	kfree(mr);
 }
 
-static void frwr_mr_recycle(struct rpcrdma_mr *mr)
+static void frwr_mr_unmap(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr *mr)
 {
-	struct rpcrdma_xprt *r_xprt = mr->mr_xprt;
-
-	trace_xprtrdma_mr_recycle(mr);
-
 	if (mr->mr_dir != DMA_NONE) {
 		trace_xprtrdma_mr_unmap(mr);
 		ib_dma_unmap_sg(r_xprt->rx_ep->re_id->device,
 				mr->mr_sg, mr->mr_nents, mr->mr_dir);
 		mr->mr_dir = DMA_NONE;
 	}
+}
+
+static void frwr_mr_recycle(struct rpcrdma_mr *mr)
+{
+	struct rpcrdma_xprt *r_xprt = mr->mr_xprt;
+
+	trace_xprtrdma_mr_recycle(mr);
+
+	frwr_mr_unmap(r_xprt, mr);
 
 	spin_lock(&r_xprt->rx_buf.rb_lock);
 	list_del(&mr->mr_all);
@@ -84,6 +89,16 @@ static void frwr_mr_recycle(struct rpcrdma_mr *mr)
 	spin_unlock(&r_xprt->rx_buf.rb_lock);
 
 	frwr_release_mr(mr);
+}
+
+static void frwr_mr_put(struct rpcrdma_mr *mr)
+{
+	frwr_mr_unmap(mr->mr_xprt, mr);
+
+	/* The MR is returned to the req's MR free list instead
+	 * of to the xprt's MR free list. No spinlock is needed.
+	 */
+	rpcrdma_mr_push(mr, &mr->mr_req->rl_free_mrs);
 }
 
 /* frwr_reset - Place MRs back on the free list
@@ -101,7 +116,7 @@ void frwr_reset(struct rpcrdma_req *req)
 	struct rpcrdma_mr *mr;
 
 	while ((mr = rpcrdma_mr_pop(&req->rl_registered)))
-		rpcrdma_mr_put(mr);
+		frwr_mr_put(mr);
 }
 
 /**
@@ -431,17 +446,17 @@ void frwr_reminv(struct rpcrdma_rep *rep, struct list_head *mrs)
 	list_for_each_entry(mr, mrs, mr_list)
 		if (mr->mr_handle == rep->rr_inv_rkey) {
 			list_del_init(&mr->mr_list);
-			rpcrdma_mr_put(mr);
+			frwr_mr_put(mr);
 			break;	/* only one invalidated MR per RPC */
 		}
 }
 
-static void __frwr_release_mr(struct ib_wc *wc, struct rpcrdma_mr *mr)
+static void frwr_mr_done(struct ib_wc *wc, struct rpcrdma_mr *mr)
 {
 	if (wc->status != IB_WC_SUCCESS)
 		frwr_mr_recycle(mr);
 	else
-		rpcrdma_mr_put(mr);
+		frwr_mr_put(mr);
 }
 
 /**
@@ -459,7 +474,7 @@ static void frwr_wc_localinv(struct ib_cq *cq, struct ib_wc *wc)
 
 	/* WARNING: Only wr_cqe and status are reliable at this point */
 	trace_xprtrdma_wc_li(wc, &frwr->fr_cid);
-	__frwr_release_mr(wc, mr);
+	frwr_mr_done(wc, mr);
 
 	rpcrdma_flush_disconnect(cq->cq_context, wc);
 }
@@ -480,7 +495,7 @@ static void frwr_wc_localinv_wake(struct ib_cq *cq, struct ib_wc *wc)
 
 	/* WARNING: Only wr_cqe and status are reliable at this point */
 	trace_xprtrdma_wc_li_wake(wc, &frwr->fr_cid);
-	__frwr_release_mr(wc, mr);
+	frwr_mr_done(wc, mr);
 	complete(&frwr->fr_linv_done);
 
 	rpcrdma_flush_disconnect(cq->cq_context, wc);
@@ -587,9 +602,9 @@ static void frwr_wc_localinv_done(struct ib_cq *cq, struct ib_wc *wc)
 
 	/* WARNING: Only wr_cqe and status are reliable at this point */
 	trace_xprtrdma_wc_li_done(wc, &frwr->fr_cid);
-	__frwr_release_mr(wc, mr);
+	frwr_mr_done(wc, mr);
 
-	/* Ensure @rep is generated before __frwr_release_mr */
+	/* Ensure @rep is generated before frwr_mr_done */
 	smp_rmb();
 	rpcrdma_complete_rqst(rep);
 
