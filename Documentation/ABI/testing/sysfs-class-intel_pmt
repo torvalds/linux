@@ -1,0 +1,119 @@
+What:		/sys/class/intel_pmt/
+Date:		October 2020
+KernelVersion:	5.10
+Contact:	David Box <david.e.box@linux.intel.com>
+Description:
+		The intel_pmt/ class directory contains information for
+		devices that expose hardware telemetry using Intel Platform
+		Monitoring Technology (PMT)
+
+What:		/sys/class/intel_pmt/telem<x>
+Date:		October 2020
+KernelVersion:	5.10
+Contact:	David Box <david.e.box@linux.intel.com>
+Description:
+		The telem<x> directory contains files describing an instance of
+		a PMT telemetry device that exposes hardware telemetry. Each
+		telem<x> directory has an associated telem file. This file
+		may be opened and mapped or read to access the telemetry space
+		of the device. The register layout of the telemetry space is
+		determined from an XML file that matches the PCI device id and
+		GUID for the device.
+
+What:		/sys/class/intel_pmt/telem<x>/telem
+Date:		October 2020
+KernelVersion:	5.10
+Contact:	David Box <david.e.box@linux.intel.com>
+Description:
+		(RO) The telemetry data for this telemetry device. This file
+		may be mapped or read to obtain the data.
+
+What:		/sys/class/intel_pmt/telem<x>/guid
+Date:		October 2020
+KernelVersion:	5.10
+Contact:	David Box <david.e.box@linux.intel.com>
+Description:
+		(RO) The GUID for this telemetry device. The GUID identifies
+		the version of the XML file for the parent device that is to
+		be used to get the register layout.
+
+What:		/sys/class/intel_pmt/telem<x>/size
+Date:		October 2020
+KernelVersion:	5.10
+Contact:	David Box <david.e.box@linux.intel.com>
+Description:
+		(RO) The size of telemetry region in bytes that corresponds to
+		the mapping size for the telem file.
+
+What:		/sys/class/intel_pmt/telem<x>/offset
+Date:		October 2020
+KernelVersion:	5.10
+Contact:	David Box <david.e.box@linux.intel.com>
+Description:
+		(RO) The offset of telemetry region in bytes that corresponds to
+		the mapping for the telem file.
+
+What:		/sys/class/intel_pmt/crashlog<x>
+Date:		October 2020
+KernelVersion:	5.10
+Contact:	Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Description:
+		The crashlog<x> directory contains files for configuring an
+		instance of a PMT crashlog device that can perform crash data
+		recording. Each crashlog<x> device has an associated crashlog
+		file. This file can be opened and mapped or read to access the
+		resulting crashlog buffer. The register layout for the buffer
+		can be determined from an XML file of specified GUID for the
+		parent device.
+
+What:		/sys/class/intel_pmt/crashlog<x>/crashlog
+Date:		October 2020
+KernelVersion:	5.10
+Contact:	David Box <david.e.box@linux.intel.com>
+Description:
+		(RO) The crashlog buffer for this crashlog device. This file
+		may be mapped or read to obtain the data.
+
+What:		/sys/class/intel_pmt/crashlog<x>/guid
+Date:		October 2020
+KernelVersion:	5.10
+Contact:	Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Description:
+		(RO) The GUID for this crashlog device. The GUID identifies the
+		version of the XML file for the parent device that should be
+		used to determine the register layout.
+
+What:		/sys/class/intel_pmt/crashlog<x>/size
+Date:		October 2020
+KernelVersion:	5.10
+Contact:	Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Description:
+		(RO) The length of the result buffer in bytes that corresponds
+		to the size for the crashlog buffer.
+
+What:		/sys/class/intel_pmt/crashlog<x>/offset
+Date:		October 2020
+KernelVersion:	5.10
+Contact:	Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Description:
+		(RO) The offset of the buffer in bytes that corresponds
+		to the mapping for the crashlog device.
+
+What:		/sys/class/intel_pmt/crashlog<x>/enable
+Date:		October 2020
+KernelVersion:	5.10
+Contact:	Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Description:
+		(RW) Boolean value controlling if the crashlog functionality
+		is enabled for the crashlog device.
+
+What:		/sys/class/intel_pmt/crashlog<x>/trigger
+Date:		October 2020
+KernelVersion:	5.10
+Contact:	Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Description:
+		(RW) Boolean value controlling the triggering of the crashlog
+		device node. When read it provides data on if the crashlog has
+		been triggered. When written to it can be used to either clear
+		the current trigger by writing false, or to trigger a new
+		event if the trigger is not currently set.
