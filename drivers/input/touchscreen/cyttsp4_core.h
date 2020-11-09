@@ -233,20 +233,6 @@ enum cyttsp4_tch_abs {	/* for ordering within the extracted touch data array */
 	CY_TCH_NUM_ABS
 };
 
-static const char * const cyttsp4_tch_abs_string[] = {
-	[CY_TCH_X]	= "X",
-	[CY_TCH_Y]	= "Y",
-	[CY_TCH_P]	= "P",
-	[CY_TCH_T]	= "T",
-	[CY_TCH_E]	= "E",
-	[CY_TCH_O]	= "O",
-	[CY_TCH_W]	= "W",
-	[CY_TCH_MAJ]	= "MAJ",
-	[CY_TCH_MIN]	= "MIN",
-	[CY_TCH_OR]	= "OR",
-	[CY_TCH_NUM_ABS] = "INVALID"
-};
-
 struct cyttsp4_touch {
 	int abs[CY_TCH_NUM_ABS];
 };
