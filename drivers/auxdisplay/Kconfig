@@ -27,6 +27,7 @@ config CHARLCD
 
 config HD44780_COMMON
 	tristate "Common functions for HD44780 (and compatibles) LCD displays" if COMPILE_TEST
+	select CHARLCD
 	help
 	  This is a module with the common symbols for HD44780 (and compatibles)
 	  displays. This is the code that multiple other modules use. It is not
@@ -37,7 +38,6 @@ config HD44780_COMMON
 config HD44780
 	tristate "HD44780 Character LCD support"
 	depends on GPIOLIB || COMPILE_TEST
-	select CHARLCD
 	select HD44780_COMMON
 	help
 	  Enable support for Character LCDs using a HD44780 controller.
@@ -196,7 +196,6 @@ config ARM_CHARLCD
 menuconfig PARPORT_PANEL
 	tristate "Parallel port LCD/Keypad Panel support"
 	depends on PARPORT
-	select CHARLCD
 	select HD44780_COMMON
 	help
 	  Say Y here if you have an HD44780 or KS-0074 LCD connected to your
