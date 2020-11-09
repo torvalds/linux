@@ -84,7 +84,7 @@ static int max8997_battery_probe(struct platform_device *pdev)
 	int ret = 0;
 	struct charger_data *charger;
 	struct max8997_dev *iodev = dev_get_drvdata(pdev->dev.parent);
-	struct max8997_platform_data *pdata = dev_get_platdata(iodev->dev);
+	struct max8997_platform_data *pdata = iodev->pdata;
 	struct power_supply_config psy_cfg = {};
 
 	if (!pdata)
