@@ -489,6 +489,8 @@
 #define REG_2ND_CCA_CTRL	0x0976
 
 #define REG_CCK0_FAREPORT	0xa2c
+#define BIT_CCK0_2RX		BIT(18)
+#define BIT_CCK0_MRC		BIT(22)
 
 #define REG_DIS_DPD		0x0a70
 #define DIS_DPD_MASK		GENMASK(9, 0)

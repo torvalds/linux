@@ -3454,6 +3454,10 @@ rtw8822c_phy_cck_pd_set_reg(struct rtw_dev *rtwdev,
 			 rtw8822c_cck_pd_reg[bw][nrx].reg_cs,
 			 rtw8822c_cck_pd_reg[bw][nrx].mask_cs,
 			 cs);
+
+	rtw_dbg(rtwdev, RTW_DBG_PHY,
+		"is_linked=%d, bw=%d, nrx=%d, cs_ratio=0x%x, pd_th=0x%x\n",
+		rtw_is_assoc(rtwdev), bw, nrx, cs, pd);
 }
 
 static void rtw8822c_phy_cck_pd_set(struct rtw_dev *rtwdev, u8 new_lvl)
@@ -3466,6 +3470,10 @@ static void rtw8822c_phy_cck_pd_set(struct rtw_dev *rtwdev, u8 new_lvl)
 
 	nrx = (u8)rtw_read32_mask(rtwdev, 0x1a2c, 0x60000);
 	bw = (u8)rtw_read32_mask(rtwdev, 0x9b0, 0xc);
+
+	rtw_dbg(rtwdev, RTW_DBG_PHY, "lv: (%d) -> (%d) bw=%d nr=%d cck_fa_avg=%d\n",
+		dm_info->cck_pd_lv[bw][nrx], new_lvl, bw, nrx,
+		dm_info->cck_fa_avg);
 
 	if (dm_info->cck_pd_lv[bw][nrx] == new_lvl)
 		return;
