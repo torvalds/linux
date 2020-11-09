@@ -216,6 +216,7 @@ enum {
 struct rpcrdma_req;
 struct rpcrdma_sendctx {
 	struct ib_cqe		sc_cqe;
+	struct rpc_rdma_cid	sc_cid;
 	struct rpcrdma_req	*sc_req;
 	unsigned int		sc_unmap_count;
 	struct ib_sge		sc_sges[];

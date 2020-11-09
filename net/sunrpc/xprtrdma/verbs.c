@@ -167,7 +167,7 @@ static void rpcrdma_wc_send(struct ib_cq *cq, struct ib_wc *wc)
 	struct rpcrdma_xprt *r_xprt = cq->cq_context;
 
 	/* WARNING: Only wr_cqe and status are reliable at this point */
-	trace_xprtrdma_wc_send(sc, wc);
+	trace_xprtrdma_wc_send(wc, &sc->sc_cid);
 	rpcrdma_sendctx_put_locked(r_xprt, sc);
 	rpcrdma_flush_disconnect(r_xprt, wc);
 }
@@ -643,6 +643,9 @@ static struct rpcrdma_sendctx *rpcrdma_sendctx_create(struct rpcrdma_ep *ep)
 		return NULL;
 
 	sc->sc_cqe.done = rpcrdma_wc_send;
+	sc->sc_cid.ci_queue_id = ep->re_attr.send_cq->res.id;
+	sc->sc_cid.ci_completion_id =
+		atomic_inc_return(&ep->re_completion_ids);
 	return sc;
 }
 

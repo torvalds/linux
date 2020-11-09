@@ -735,8 +735,8 @@ TRACE_EVENT(xprtrdma_post_send,
 	TP_ARGS(req),
 
 	TP_STRUCT__entry(
-		__field(const void *, req)
-		__field(const void *, sc)
+		__field(u32, cq_id)
+		__field(int, completion_id)
 		__field(unsigned int, task_id)
 		__field(unsigned int, client_id)
 		__field(int, num_sge)
@@ -745,20 +745,21 @@ TRACE_EVENT(xprtrdma_post_send,
 
 	TP_fast_assign(
 		const struct rpc_rqst *rqst = &req->rl_slot;
+		const struct rpcrdma_sendctx *sc = req->rl_sendctx;
 
+		__entry->cq_id = sc->sc_cid.ci_queue_id;
+		__entry->completion_id = sc->sc_cid.ci_completion_id;
 		__entry->task_id = rqst->rq_task->tk_pid;
 		__entry->client_id = rqst->rq_task->tk_client ?
 				     rqst->rq_task->tk_client->cl_clid : -1;
-		__entry->req = req;
-		__entry->sc = req->rl_sendctx;
 		__entry->num_sge = req->rl_wr.num_sge;
 		__entry->signaled = req->rl_wr.send_flags & IB_SEND_SIGNALED;
 	),
 
-	TP_printk("task:%u@%u req=%p sc=%p (%d SGE%s) %s",
+	TP_printk("task:%u@%u cq.id=%u cid=%d (%d SGE%s) %s",
 		__entry->task_id, __entry->client_id,
-		__entry->req, __entry->sc, __entry->num_sge,
-		(__entry->num_sge == 1 ? "" : "s"),
+		__entry->cq_id, __entry->completion_id,
+		__entry->num_sge, (__entry->num_sge == 1 ? "" : "s"),
 		(__entry->signaled ? "signaled" : "")
 	)
 );
@@ -848,37 +849,7 @@ TRACE_EVENT(xprtrdma_post_linv,
  **/
 
 DEFINE_COMPLETION_EVENT(xprtrdma_wc_receive);
-
-TRACE_EVENT(xprtrdma_wc_send,
-	TP_PROTO(
-		const struct rpcrdma_sendctx *sc,
-		const struct ib_wc *wc
-	),
-
-	TP_ARGS(sc, wc),
-
-	TP_STRUCT__entry(
-		__field(const void *, req)
-		__field(const void *, sc)
-		__field(unsigned int, unmap_count)
-		__field(unsigned int, status)
-		__field(unsigned int, vendor_err)
-	),
-
-	TP_fast_assign(
-		__entry->req = sc->sc_req;
-		__entry->sc = sc;
-		__entry->unmap_count = sc->sc_unmap_count;
-		__entry->status = wc->status;
-		__entry->vendor_err = __entry->status ? wc->vendor_err : 0;
-	),
-
-	TP_printk("req=%p sc=%p unmapped=%u: %s (%u/0x%x)",
-		__entry->req, __entry->sc, __entry->unmap_count,
-		rdma_show_wc_status(__entry->status),
-		__entry->status, __entry->vendor_err
-	)
-);
+DEFINE_COMPLETION_EVENT(xprtrdma_wc_send);
 
 DEFINE_FRWR_DONE_EVENT(xprtrdma_wc_fastreg);
 DEFINE_FRWR_DONE_EVENT(xprtrdma_wc_li);
