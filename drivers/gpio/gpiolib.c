@@ -2106,25 +2106,13 @@ static int gpio_set_config_with_argument(struct gpio_desc *desc,
 
 static int gpio_set_config(struct gpio_desc *desc, enum pin_config_param mode)
 {
-	unsigned int arg;
-
-	switch (mode) {
-	case PIN_CONFIG_BIAS_PULL_DOWN:
-	case PIN_CONFIG_BIAS_PULL_UP:
-		arg = 1;
-		break;
-
-	default:
-		arg = 0;
-		break;
-	}
-
-	return gpio_set_config_with_argument(desc, mode, arg);
+	return gpio_set_config_with_argument(desc, mode, 0);
 }
 
 static int gpio_set_bias(struct gpio_desc *desc)
 {
 	enum pin_config_param bias;
+	unsigned int arg;
 	int ret;
 
 	if (test_bit(FLAG_BIAS_DISABLE, &desc->flags))
@@ -2136,7 +2124,18 @@ static int gpio_set_bias(struct gpio_desc *desc)
 	else
 		return 0;
 
-	ret = gpio_set_config(desc, bias);
+	switch (bias) {
+	case PIN_CONFIG_BIAS_PULL_DOWN:
+	case PIN_CONFIG_BIAS_PULL_UP:
+		arg = 1;
+		break;
+
+	default:
+		arg = 0;
+		break;
+	}
+
+	ret = gpio_set_config_with_argument(desc, bias, arg);
 	if (ret != -ENOTSUPP)
 		return ret;
 
