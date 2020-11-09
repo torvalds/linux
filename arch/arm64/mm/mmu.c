@@ -1538,6 +1538,53 @@ static struct notifier_block prevent_bootmem_remove_nb = {
 	.notifier_call = prevent_bootmem_remove_notifier,
 };
 
+/*
+ * This ensures that boot memory sections on the platform are online
+ * from early boot. Memory sections could not be prevented from being
+ * offlined, unless for some reason they are not online to begin with.
+ * This helps validate the basic assumption on which the above memory
+ * event notifier works to prevent boot memory section offlining and
+ * its possible removal.
+ */
+static void validate_bootmem_online(void)
+{
+	phys_addr_t start, end, addr;
+	struct mem_section *ms;
+	u64 i;
+
+	/*
+	 * Scanning across all memblock might be expensive
+	 * on some big memory systems. Hence enable this
+	 * validation only with DEBUG_VM.
+	 */
+	if (!IS_ENABLED(CONFIG_DEBUG_VM))
+		return;
+
+	for_each_mem_range(i, &start, &end) {
+		for (addr = start; addr < end; addr += (1UL << PA_SECTION_SHIFT)) {
+			ms = __pfn_to_section(PHYS_PFN(addr));
+
+			/*
+			 * All memory ranges in the system at this point
+			 * should have been marked as early sections.
+			 */
+			WARN_ON(!early_section(ms));
+
+			/*
+			 * Memory notifier mechanism here to prevent boot
+			 * memory offlining depends on the fact that each
+			 * early section memory on the system is initially
+			 * online. Otherwise a given memory section which
+			 * is already offline will be overlooked and can
+			 * be removed completely. Call out such sections.
+			 */
+			if (!online_section(ms))
+				pr_err("Boot memory [%llx %llx] is offline, can be removed\n",
+					addr, addr + (1UL << PA_SECTION_SHIFT));
+		}
+	}
+}
+
 static int __init prevent_bootmem_remove_init(void)
 {
 	int ret = 0;
@@ -1545,6 +1592,7 @@ static int __init prevent_bootmem_remove_init(void)
 	if (!IS_ENABLED(CONFIG_MEMORY_HOTREMOVE))
 		return ret;
 
+	validate_bootmem_online();
 	ret = register_memory_notifier(&prevent_bootmem_remove_nb);
 	if (ret)
 		pr_err("%s: Notifier registration failed %d\n", __func__, ret);
