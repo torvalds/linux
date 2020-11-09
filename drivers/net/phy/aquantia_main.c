@@ -250,7 +250,7 @@ static int aqr_config_intr(struct phy_device *phydev)
 	if (en) {
 		/* Clear any pending interrupts before enabling them */
 		err = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_TX_VEND_INT_STATUS2);
-		if (err)
+		if (err < 0)
 			return err;
 	}
 
@@ -273,7 +273,7 @@ static int aqr_config_intr(struct phy_device *phydev)
 	if (!en) {
 		/* Clear any pending interrupts after we have disabled them */
 		err = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_TX_VEND_INT_STATUS2);
-		if (err)
+		if (err < 0)
 			return err;
 	}
 
