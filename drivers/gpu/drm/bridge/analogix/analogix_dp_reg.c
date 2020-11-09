@@ -374,7 +374,6 @@ void analogix_dp_set_analog_power_down(struct analogix_dp_device *dp,
 int analogix_dp_init_analog_func(struct analogix_dp_device *dp)
 {
 	u32 reg;
-	int timeout_loop = 0;
 
 	analogix_dp_set_analog_power_down(dp, POWER_ALL, 0);
 
@@ -386,18 +385,7 @@ int analogix_dp_init_analog_func(struct analogix_dp_device *dp)
 	analogix_dp_write(dp, ANALOGIX_DP_DEBUG_CTL, reg);
 
 	/* Power up PLL */
-	if (analogix_dp_get_pll_lock_status(dp) == PLL_UNLOCKED) {
-		analogix_dp_set_pll_power_down(dp, 0);
-
-		while (analogix_dp_get_pll_lock_status(dp) == PLL_UNLOCKED) {
-			timeout_loop++;
-			if (DP_TIMEOUT_LOOP_COUNT < timeout_loop) {
-				dev_err(dp->dev, "failed to get pll lock status\n");
-				return -ETIMEDOUT;
-			}
-			usleep_range(10, 20);
-		}
-	}
+	analogix_dp_set_pll_power_down(dp, 0);
 
 	/* Enable Serdes FIFO function and Link symbol clock domain module */
 	reg = analogix_dp_read(dp, ANALOGIX_DP_FUNC_EN_2);
@@ -544,11 +532,20 @@ void analogix_dp_enable_sw_function(struct analogix_dp_device *dp)
 
 void analogix_dp_set_link_bandwidth(struct analogix_dp_device *dp, u32 bwtype)
 {
-	u32 reg;
+	u32 reg, status;
+	int ret;
 
 	reg = bwtype;
 	if ((bwtype == DP_LINK_BW_2_7) || (bwtype == DP_LINK_BW_1_62))
 		analogix_dp_write(dp, ANALOGIX_DP_LINK_BW_SET, reg);
+
+	ret = readx_poll_timeout(analogix_dp_get_pll_lock_status, dp, status,
+				 status != PLL_UNLOCKED, 120,
+				 120 * DP_TIMEOUT_LOOP_COUNT);
+	if (ret) {
+		dev_err(dp->dev, "Wait for pll lock failed %d\n", ret);
+		return;
+	}
 }
 
 void analogix_dp_get_link_bandwidth(struct analogix_dp_device *dp, u32 *bwtype)
