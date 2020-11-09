@@ -64,6 +64,7 @@ enum ast_chip {
 	AST2300,
 	AST2400,
 	AST2500,
+	AST2600,
 };
 
 enum ast_tx_chip {
