@@ -22,7 +22,7 @@ properties:
     $ref: "regulator.yaml#"
     type: object
 
-unevaluatedProperties: false
+additionalProperties: false
 
 required:
   - compatible
