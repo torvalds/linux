@@ -1364,6 +1364,7 @@ encode_entry(struct readdir_cd *ccd, const char *name, int namlen,
 		return -EINVAL;
 	}
 
+	cd->count += num_entry_words;
 	cd->buflen -= num_entry_words;
 	cd->buffer = p;
 	cd->common.err = nfs_ok;
