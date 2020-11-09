@@ -1744,6 +1744,17 @@ static int chcr_short_record_handler(struct chcr_ktls_info *tx_info,
 		atomic64_inc(&tx_info->adap->ch_ktls_stats.ktls_tx_trimmed_pkts);
 	}
 
+	/* check if it is only the header part. */
+	if (tls_rec_offset + data_len <= (TLS_HEADER_SIZE + tx_info->iv_size)) {
+		if (chcr_ktls_tx_plaintxt(tx_info, skb, tcp_seq, mss,
+					  tcp_push_no_fin, q,
+					  tx_info->port_id, prior_data,
+					  data_len, skb_offset, prior_data_len))
+			goto out;
+
+		return 0;
+	}
+
 	/* check if the middle record's start point is 16 byte aligned. CTR
 	 * needs 16 byte aligned start point to start encryption.
 	 */
@@ -1812,20 +1823,6 @@ static int chcr_short_record_handler(struct chcr_ktls_info *tx_info,
 			goto out;
 		atomic64_inc(&tx_info->adap->ch_ktls_stats.ktls_tx_middle_pkts);
 	} else {
-		/* Else means, its a partial first part of the record. Check if
-		 * its only the header, don't need to send for encryption then.
-		 */
-		if (data_len <= TLS_HEADER_SIZE + tx_info->iv_size) {
-			if (chcr_ktls_tx_plaintxt(tx_info, skb, tcp_seq, mss,
-						  tcp_push_no_fin, q,
-						  tx_info->port_id,
-						  prior_data,
-						  data_len, skb_offset,
-						  prior_data_len)) {
-				goto out;
-			}
-			return 0;
-		}
 		atomic64_inc(&tx_info->adap->ch_ktls_stats.ktls_tx_start_pkts);
 	}
 
