@@ -680,9 +680,6 @@ static void ipa_validate_build(void)
 	 */
 	BUILD_BUG_ON(GSI_TLV_MAX > U8_MAX);
 
-	/* Exceeding 128 bytes makes the transaction pool *much* larger */
-	BUILD_BUG_ON(sizeof(struct gsi_trans) > 128);
-
 	/* This is used as a divisor */
 	BUILD_BUG_ON(!IPA_AGGR_GRANULARITY);
 
