@@ -37,9 +37,10 @@
  *     M0 -> FW_DL_ERR
  *     M0 -> M3_ENTER -> M3 -> M3_EXIT --> M0
  * L1: SYS_ERR_DETECT -> SYS_ERR_PROCESS --> POR
- * L2: SHUTDOWN_PROCESS -> DISABLE
+ * L2: SHUTDOWN_PROCESS -> LD_ERR_FATAL_DETECT
+ *     SHUTDOWN_PROCESS -> DISABLE
  * L3: LD_ERR_FATAL_DETECT <--> LD_ERR_FATAL_DETECT
- *     LD_ERR_FATAL_DETECT -> SHUTDOWN_PROCESS
+ *     LD_ERR_FATAL_DETECT -> DISABLE
  */
 static struct mhi_pm_transitions const dev_state_transitions[] = {
 	/* L0 States */
@@ -72,7 +73,7 @@ static struct mhi_pm_transitions const dev_state_transitions[] = {
 	{
 		MHI_PM_M3,
 		MHI_PM_M3_EXIT | MHI_PM_SYS_ERR_DETECT |
-		MHI_PM_SHUTDOWN_PROCESS | MHI_PM_LD_ERR_FATAL_DETECT
+		MHI_PM_LD_ERR_FATAL_DETECT
 	},
 	{
 		MHI_PM_M3_EXIT,
@@ -103,7 +104,7 @@ static struct mhi_pm_transitions const dev_state_transitions[] = {
 	/* L3 States */
 	{
 		MHI_PM_LD_ERR_FATAL_DETECT,
-		MHI_PM_LD_ERR_FATAL_DETECT | MHI_PM_SHUTDOWN_PROCESS
+		MHI_PM_LD_ERR_FATAL_DETECT | MHI_PM_DISABLE
 	},
 };
 
@@ -445,10 +446,9 @@ error_mission_mode:
 }
 
 /* Handle shutdown transitions */
-static void mhi_pm_disable_transition(struct mhi_controller *mhi_cntrl,
-				      enum mhi_pm_state transition_state)
+static void mhi_pm_disable_transition(struct mhi_controller *mhi_cntrl)
 {
-	enum mhi_pm_state cur_state, prev_state;
+	enum mhi_pm_state cur_state;
 	struct mhi_event *mhi_event;
 	struct mhi_cmd_ctxt *cmd_ctxt;
 	struct mhi_cmd *mhi_cmd;
@@ -456,33 +456,13 @@ static void mhi_pm_disable_transition(struct mhi_controller *mhi_cntrl,
 	struct device *dev = &mhi_cntrl->mhi_dev->dev;
 	int ret, i;
 
-	dev_dbg(dev, "Transitioning from PM state: %s to: %s\n",
-		to_mhi_pm_state_str(mhi_cntrl->pm_state),
-		to_mhi_pm_state_str(transition_state));
+	dev_dbg(dev, "Processing disable transition with PM state: %s\n",
+		to_mhi_pm_state_str(mhi_cntrl->pm_state));
 
 	mutex_lock(&mhi_cntrl->pm_mutex);
-	write_lock_irq(&mhi_cntrl->pm_lock);
-	prev_state = mhi_cntrl->pm_state;
-	cur_state = mhi_tryset_pm_state(mhi_cntrl, transition_state);
-	if (cur_state == transition_state) {
-		mhi_cntrl->ee = MHI_EE_DISABLE_TRANSITION;
-		mhi_cntrl->dev_state = MHI_STATE_RESET;
-	}
-	write_unlock_irq(&mhi_cntrl->pm_lock);
-
-	/* Wake up threads waiting for state transition */
-	wake_up_all(&mhi_cntrl->state_event);
-
-	if (cur_state != transition_state) {
-		dev_err(dev, "Failed to transition to state: %s from: %s\n",
-			to_mhi_pm_state_str(transition_state),
-			to_mhi_pm_state_str(cur_state));
-		mutex_unlock(&mhi_cntrl->pm_mutex);
-		return;
-	}
 
 	/* Trigger MHI RESET so that the device will not access host memory */
-	if (MHI_REG_ACCESS_VALID(prev_state)) {
+	if (!MHI_PM_IN_FATAL_STATE(mhi_cntrl->pm_state)) {
 		u32 in_reset = -1;
 		unsigned long timeout = msecs_to_jiffies(mhi_cntrl->timeout_ms);
 
@@ -785,8 +765,7 @@ void mhi_pm_st_worker(struct work_struct *work)
 			mhi_pm_sys_error_transition(mhi_cntrl);
 			break;
 		case DEV_ST_TRANSITION_DISABLE:
-			mhi_pm_disable_transition
-				(mhi_cntrl, MHI_PM_SHUTDOWN_PROCESS);
+			mhi_pm_disable_transition(mhi_cntrl);
 			break;
 		default:
 			break;
@@ -1153,22 +1132,32 @@ EXPORT_SYMBOL_GPL(mhi_async_power_up);
 
 void mhi_power_down(struct mhi_controller *mhi_cntrl, bool graceful)
 {
-	enum mhi_pm_state cur_state;
+	enum mhi_pm_state cur_state, transition_state;
 	struct device *dev = &mhi_cntrl->mhi_dev->dev;
 
 	/* If it's not a graceful shutdown, force MHI to linkdown state */
-	if (!graceful) {
-		mutex_lock(&mhi_cntrl->pm_mutex);
-		write_lock_irq(&mhi_cntrl->pm_lock);
-		cur_state = mhi_tryset_pm_state(mhi_cntrl,
-						MHI_PM_LD_ERR_FATAL_DETECT);
-		write_unlock_irq(&mhi_cntrl->pm_lock);
-		mutex_unlock(&mhi_cntrl->pm_mutex);
-		if (cur_state != MHI_PM_LD_ERR_FATAL_DETECT)
-			dev_dbg(dev, "Failed to move to state: %s from: %s\n",
-				to_mhi_pm_state_str(MHI_PM_LD_ERR_FATAL_DETECT),
-				to_mhi_pm_state_str(mhi_cntrl->pm_state));
+	transition_state = (graceful) ? MHI_PM_SHUTDOWN_PROCESS :
+			   MHI_PM_LD_ERR_FATAL_DETECT;
+
+	mutex_lock(&mhi_cntrl->pm_mutex);
+	write_lock_irq(&mhi_cntrl->pm_lock);
+	cur_state = mhi_tryset_pm_state(mhi_cntrl, transition_state);
+	if (cur_state != transition_state) {
+		dev_err(dev, "Failed to move to state: %s from: %s\n",
+			to_mhi_pm_state_str(transition_state),
+			to_mhi_pm_state_str(mhi_cntrl->pm_state));
+		/* Force link down or error fatal detected state */
+		mhi_cntrl->pm_state = MHI_PM_LD_ERR_FATAL_DETECT;
 	}
+
+	/* mark device inactive to avoid any further host processing */
+	mhi_cntrl->ee = MHI_EE_DISABLE_TRANSITION;
+	mhi_cntrl->dev_state = MHI_STATE_RESET;
+
+	wake_up_all(&mhi_cntrl->state_event);
+
+	write_unlock_irq(&mhi_cntrl->pm_lock);
+	mutex_unlock(&mhi_cntrl->pm_mutex);
 
 	mhi_queue_state_transition(mhi_cntrl, DEV_ST_TRANSITION_DISABLE);
 
