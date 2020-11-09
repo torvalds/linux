@@ -1128,6 +1128,88 @@ DEFINE_REPLY_EVENT(xprtrdma_reply_rqst);
 DEFINE_REPLY_EVENT(xprtrdma_reply_short);
 DEFINE_REPLY_EVENT(xprtrdma_reply_hdr);
 
+TRACE_EVENT(xprtrdma_err_vers,
+	TP_PROTO(
+		const struct rpc_rqst *rqst,
+		__be32 *min,
+		__be32 *max
+	),
+
+	TP_ARGS(rqst, min, max),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, task_id)
+		__field(unsigned int, client_id)
+		__field(u32, xid)
+		__field(u32, min)
+		__field(u32, max)
+	),
+
+	TP_fast_assign(
+		__entry->task_id = rqst->rq_task->tk_pid;
+		__entry->client_id = rqst->rq_task->tk_client->cl_clid;
+		__entry->xid = be32_to_cpu(rqst->rq_xid);
+		__entry->min = be32_to_cpup(min);
+		__entry->max = be32_to_cpup(max);
+	),
+
+	TP_printk("task:%u@%u xid=0x%08x versions=[%u, %u]",
+		__entry->task_id, __entry->client_id, __entry->xid,
+		__entry->min, __entry->max
+	)
+);
+
+TRACE_EVENT(xprtrdma_err_chunk,
+	TP_PROTO(
+		const struct rpc_rqst *rqst
+	),
+
+	TP_ARGS(rqst),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, task_id)
+		__field(unsigned int, client_id)
+		__field(u32, xid)
+	),
+
+	TP_fast_assign(
+		__entry->task_id = rqst->rq_task->tk_pid;
+		__entry->client_id = rqst->rq_task->tk_client->cl_clid;
+		__entry->xid = be32_to_cpu(rqst->rq_xid);
+	),
+
+	TP_printk("task:%u@%u xid=0x%08x",
+		__entry->task_id, __entry->client_id, __entry->xid
+	)
+);
+
+TRACE_EVENT(xprtrdma_err_unrecognized,
+	TP_PROTO(
+		const struct rpc_rqst *rqst,
+		__be32 *procedure
+	),
+
+	TP_ARGS(rqst, procedure),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, task_id)
+		__field(unsigned int, client_id)
+		__field(u32, xid)
+		__field(u32, procedure)
+	),
+
+	TP_fast_assign(
+		__entry->task_id = rqst->rq_task->tk_pid;
+		__entry->client_id = rqst->rq_task->tk_client->cl_clid;
+		__entry->procedure = be32_to_cpup(procedure);
+	),
+
+	TP_printk("task:%u@%u xid=0x%08x procedure=%u",
+		__entry->task_id, __entry->client_id, __entry->xid,
+		__entry->procedure
+	)
+);
+
 TRACE_EVENT(xprtrdma_fixup,
 	TP_PROTO(
 		const struct rpc_rqst *rqst,

@@ -1322,20 +1322,13 @@ rpcrdma_decode_error(struct rpcrdma_xprt *r_xprt, struct rpcrdma_rep *rep,
 		p = xdr_inline_decode(xdr, 2 * sizeof(*p));
 		if (!p)
 			break;
-		dprintk("RPC:       %s: server reports "
-			"version error (%u-%u), xid %08x\n", __func__,
-			be32_to_cpup(p), be32_to_cpu(*(p + 1)),
-			be32_to_cpu(rep->rr_xid));
+		trace_xprtrdma_err_vers(rqst, p, p + 1);
 		break;
 	case err_chunk:
-		dprintk("RPC:       %s: server reports "
-			"header decoding error, xid %08x\n", __func__,
-			be32_to_cpu(rep->rr_xid));
+		trace_xprtrdma_err_chunk(rqst);
 		break;
 	default:
-		dprintk("RPC:       %s: server reports "
-			"unrecognized error %d, xid %08x\n", __func__,
-			be32_to_cpup(p), be32_to_cpu(rep->rr_xid));
+		trace_xprtrdma_err_unrecognized(rqst, p);
 	}
 
 	return -EIO;
