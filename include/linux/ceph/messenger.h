@@ -343,6 +343,7 @@ struct ceph_connection {
 	unsigned long       delay;          /* current delay interval */
 };
 
+extern struct page *ceph_zero_page;
 
 extern const char *ceph_pr_addr(const struct ceph_entity_addr *addr);
 

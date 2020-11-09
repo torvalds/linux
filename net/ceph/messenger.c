@@ -164,7 +164,7 @@ static void con_fault(struct ceph_connection *con);
 static char addr_str[ADDR_STR_COUNT][MAX_ADDR_STR_LEN];
 static atomic_t addr_str_seq = ATOMIC_INIT(0);
 
-static struct page *zero_page;		/* used in certain error cases */
+struct page *ceph_zero_page;		/* used in certain error cases */
 
 const char *ceph_pr_addr(const struct ceph_entity_addr *addr)
 {
@@ -234,9 +234,9 @@ static void _ceph_msgr_exit(void)
 		ceph_msgr_wq = NULL;
 	}
 
-	BUG_ON(zero_page == NULL);
-	put_page(zero_page);
-	zero_page = NULL;
+	BUG_ON(!ceph_zero_page);
+	put_page(ceph_zero_page);
+	ceph_zero_page = NULL;
 
 	ceph_msgr_slab_exit();
 }
@@ -246,9 +246,9 @@ int __init ceph_msgr_init(void)
 	if (ceph_msgr_slab_init())
 		return -ENOMEM;
 
-	BUG_ON(zero_page != NULL);
-	zero_page = ZERO_PAGE(0);
-	get_page(zero_page);
+	BUG_ON(ceph_zero_page);
+	ceph_zero_page = ZERO_PAGE(0);
+	get_page(ceph_zero_page);
 
 	/*
 	 * The number of active work items is limited by the number of
@@ -1645,7 +1645,8 @@ static int write_partial_skip(struct ceph_connection *con)
 
 		if (size == con->out_skip)
 			more = MSG_MORE;
-		ret = ceph_tcp_sendpage(con->sock, zero_page, 0, size, more);
+		ret = ceph_tcp_sendpage(con->sock, ceph_zero_page, 0, size,
+					more);
 		if (ret <= 0)
 			goto out;
 		con->out_skip -= ret;
