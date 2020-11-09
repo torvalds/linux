@@ -1604,6 +1604,7 @@ static const char *const rk3568_cru_critical_clocks[] __initconst = {
 
 static const char *const rk3568_pmucru_critical_clocks[] __initconst = {
 	"pclk_pdpmu",
+	"pclk_pmu",
 	"clk_pmu",
 };
 
