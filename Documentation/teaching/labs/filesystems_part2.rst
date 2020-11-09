@@ -172,7 +172,7 @@ The type of the inode determines the operations that it needs to implement.
 Regular files inode operations
 ------------------------------
 
-In the ``minix`` file system, the ``minix_file_inode_operations`` structure is defined for the operations on an inode and for the file operations the ``minix_file_operations structure`` is defined:
+In the ``minix`` file system, the ``minix_file_inode_operations`` structure is defined for the operations on an inode and for the file operations the ``minix_file_operations`` structure is defined:
 
 .. code-block:: c
 
