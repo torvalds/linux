@@ -359,7 +359,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	TEST_ASSERT(iterations > 2, "Iterations must be greater than two");
+	TEST_ASSERT(iterations >= 2, "The test should have at least two iterations");
 
 	pr_info("Test iterations: %"PRIu64"\n",	iterations);
 
