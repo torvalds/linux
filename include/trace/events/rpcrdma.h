@@ -1167,6 +1167,28 @@ TRACE_EVENT(xprtrdma_decode_seg,
 	)
 );
 
+TRACE_EVENT(xprtrdma_mrs_zap,
+	TP_PROTO(
+		const struct rpc_task *task
+	),
+
+	TP_ARGS(task),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, task_id)
+		__field(unsigned int, client_id)
+	),
+
+	TP_fast_assign(
+		__entry->task_id = task->tk_pid;
+		__entry->client_id = task->tk_client->cl_clid;
+	),
+
+	TP_printk("task:%u@%u",
+		__entry->task_id, __entry->client_id
+	)
+);
+
 /**
  ** Callback events
  **/
