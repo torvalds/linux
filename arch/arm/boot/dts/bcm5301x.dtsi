@@ -483,7 +483,7 @@
 		};
 	};
 
-	srab: srab@18007000 {
+	srab: ethernet-switch@18007000 {
 		compatible = "brcm,bcm5301x-srab";
 		reg = <0x18007000 0x1000>;
 
