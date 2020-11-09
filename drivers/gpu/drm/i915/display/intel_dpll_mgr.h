@@ -300,10 +300,11 @@ struct intel_shared_dpll_funcs {
 	 * @get_freq:
 	 *
 	 * Hook for calculating the pll's output frequency based on its
-	 * current state.
+	 * passed in state.
 	 */
 	int (*get_freq)(struct drm_i915_private *i915,
-			const struct intel_shared_dpll *pll);
+			const struct intel_shared_dpll *pll,
+			const struct intel_dpll_hw_state *pll_state);
 };
 
 /**
@@ -399,7 +400,8 @@ void intel_update_active_dpll(struct intel_atomic_state *state,
 			      struct intel_crtc *crtc,
 			      struct intel_encoder *encoder);
 int intel_dpll_get_freq(struct drm_i915_private *i915,
-			const struct intel_shared_dpll *pll);
+			const struct intel_shared_dpll *pll,
+			const struct intel_dpll_hw_state *pll_state);
 bool intel_dpll_get_hw_state(struct drm_i915_private *i915,
 			     struct intel_shared_dpll *pll,
 			     struct intel_dpll_hw_state *hw_state);

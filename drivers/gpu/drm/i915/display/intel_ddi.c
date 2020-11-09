@@ -1755,7 +1755,8 @@ static void intel_ddi_clock_get(struct intel_encoder *encoder,
 								encoder->port);
 	else
 		pipe_config->port_clock =
-			intel_dpll_get_freq(dev_priv, pipe_config->shared_dpll);
+			intel_dpll_get_freq(dev_priv, pipe_config->shared_dpll,
+					    &pipe_config->dpll_hw_state);
 
 	ddi_dotclock_get(pipe_config);
 }

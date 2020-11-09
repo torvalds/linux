@@ -1496,7 +1496,8 @@ static void gen11_dsi_get_config(struct intel_encoder *encoder,
 
 	/* FIXME: adapt icl_ddi_clock_get() for DSI and use that? */
 	pipe_config->port_clock = intel_dpll_get_freq(i915,
-						      pipe_config->shared_dpll);
+						      pipe_config->shared_dpll,
+						      &pipe_config->dpll_hw_state);
 
 	pipe_config->hw.adjusted_mode.crtc_clock = intel_dsi->pclk;
 	if (intel_dsi->dual_link)

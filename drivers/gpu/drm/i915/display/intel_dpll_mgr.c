@@ -891,11 +891,12 @@ hsw_ddi_wrpll_get_dpll(struct intel_atomic_state *state,
 }
 
 static int hsw_ddi_wrpll_get_freq(struct drm_i915_private *dev_priv,
-				  const struct intel_shared_dpll *pll)
+				  const struct intel_shared_dpll *pll,
+				  const struct intel_dpll_hw_state *pll_state)
 {
 	int refclk;
 	int n, p, r;
-	u32 wrpll = pll->state.hw_state.wrpll;
+	u32 wrpll = pll_state->wrpll;
 
 	switch (wrpll & WRPLL_REF_MASK) {
 	case WRPLL_REF_SPECIAL_HSW:
@@ -962,7 +963,8 @@ hsw_ddi_lcpll_get_dpll(struct intel_crtc_state *crtc_state)
 }
 
 static int hsw_ddi_lcpll_get_freq(struct drm_i915_private *i915,
-				  const struct intel_shared_dpll *pll)
+				  const struct intel_shared_dpll *pll,
+				  const struct intel_dpll_hw_state *pll_state)
 {
 	int link_clock = 0;
 
@@ -1002,11 +1004,12 @@ hsw_ddi_spll_get_dpll(struct intel_atomic_state *state,
 }
 
 static int hsw_ddi_spll_get_freq(struct drm_i915_private *i915,
-				 const struct intel_shared_dpll *pll)
+				 const struct intel_shared_dpll *pll,
+				 const struct intel_dpll_hw_state *pll_state)
 {
 	int link_clock = 0;
 
-	switch (pll->state.hw_state.spll & SPLL_FREQ_MASK) {
+	switch (pll_state->spll & SPLL_FREQ_MASK) {
 	case SPLL_FREQ_810MHz:
 		link_clock = 81000;
 		break;
@@ -1577,9 +1580,9 @@ static bool skl_ddi_hdmi_pll_dividers(struct intel_crtc_state *crtc_state)
 }
 
 static int skl_ddi_wrpll_get_freq(struct drm_i915_private *i915,
-				  const struct intel_shared_dpll *pll)
+				  const struct intel_shared_dpll *pll,
+				  const struct intel_dpll_hw_state *pll_state)
 {
-	const struct intel_dpll_hw_state *pll_state = &pll->state.hw_state;
 	int ref_clock = i915->dpll.ref_clks.nssc;
 	u32 p0, p1, p2, dco_freq;
 
@@ -1688,12 +1691,12 @@ skl_ddi_dp_set_dpll_hw_state(struct intel_crtc_state *crtc_state)
 }
 
 static int skl_ddi_lcpll_get_freq(struct drm_i915_private *i915,
-				  const struct intel_shared_dpll *pll)
+				  const struct intel_shared_dpll *pll,
+				  const struct intel_dpll_hw_state *pll_state)
 {
 	int link_clock = 0;
 
-	switch ((pll->state.hw_state.ctrl1 &
-		 DPLL_CTRL1_LINK_RATE_MASK(0)) >>
+	switch ((pll_state->ctrl1 & DPLL_CTRL1_LINK_RATE_MASK(0)) >>
 		DPLL_CTRL1_LINK_RATE_SHIFT(0)) {
 	case DPLL_CTRL1_LINK_RATE_810:
 		link_clock = 81000;
@@ -1771,16 +1774,17 @@ static bool skl_get_dpll(struct intel_atomic_state *state,
 }
 
 static int skl_ddi_pll_get_freq(struct drm_i915_private *i915,
-				const struct intel_shared_dpll *pll)
+				const struct intel_shared_dpll *pll,
+				const struct intel_dpll_hw_state *pll_state)
 {
 	/*
 	 * ctrl1 register is already shifted for each pll, just use 0 to get
 	 * the internal shift for each field
 	 */
-	if (pll->state.hw_state.ctrl1 & DPLL_CTRL1_HDMI_MODE(0))
-		return skl_ddi_wrpll_get_freq(i915, pll);
+	if (pll_state->ctrl1 & DPLL_CTRL1_HDMI_MODE(0))
+		return skl_ddi_wrpll_get_freq(i915, pll, pll_state);
 	else
-		return skl_ddi_lcpll_get_freq(i915, pll);
+		return skl_ddi_lcpll_get_freq(i915, pll, pll_state);
 }
 
 static void skl_update_dpll_ref_clks(struct drm_i915_private *i915)
@@ -2218,9 +2222,9 @@ bxt_ddi_hdmi_set_dpll_hw_state(struct intel_crtc_state *crtc_state)
 }
 
 static int bxt_ddi_pll_get_freq(struct drm_i915_private *i915,
-				const struct intel_shared_dpll *pll)
+				const struct intel_shared_dpll *pll,
+				const struct intel_dpll_hw_state *pll_state)
 {
-	const struct intel_dpll_hw_state *pll_state = &pll->state.hw_state;
 	struct dpll clock;
 
 	clock.m1 = 2;
@@ -2650,9 +2654,9 @@ ehl_combo_pll_div_frac_wa_needed(struct drm_i915_private *i915)
 
 static int __cnl_ddi_wrpll_get_freq(struct drm_i915_private *dev_priv,
 				    const struct intel_shared_dpll *pll,
+				    const struct intel_dpll_hw_state *pll_state,
 				    int ref_clock)
 {
-	const struct intel_dpll_hw_state *pll_state = &pll->state.hw_state;
 	u32 dco_fraction;
 	u32 p0, p1, p2, dco_freq;
 
@@ -2711,9 +2715,11 @@ static int __cnl_ddi_wrpll_get_freq(struct drm_i915_private *dev_priv,
 }
 
 static int cnl_ddi_wrpll_get_freq(struct drm_i915_private *i915,
-				  const struct intel_shared_dpll *pll)
+				  const struct intel_shared_dpll *pll,
+				  const struct intel_dpll_hw_state *pll_state)
 {
-	return __cnl_ddi_wrpll_get_freq(i915, pll, i915->dpll.ref_clks.nssc);
+	return __cnl_ddi_wrpll_get_freq(i915, pll, pll_state,
+					i915->dpll.ref_clks.nssc);
 }
 
 static bool
@@ -2762,11 +2768,12 @@ cnl_ddi_dp_set_dpll_hw_state(struct intel_crtc_state *crtc_state)
 }
 
 static int cnl_ddi_lcpll_get_freq(struct drm_i915_private *i915,
-				  const struct intel_shared_dpll *pll)
+				  const struct intel_shared_dpll *pll,
+				  const struct intel_dpll_hw_state *pll_state)
 {
 	int link_clock = 0;
 
-	switch (pll->state.hw_state.cfgcr0 & DPLL_CFGCR0_LINK_RATE_MASK) {
+	switch (pll_state->cfgcr0 & DPLL_CFGCR0_LINK_RATE_MASK) {
 	case DPLL_CFGCR0_LINK_RATE_810:
 		link_clock = 81000;
 		break;
@@ -2849,12 +2856,13 @@ static bool cnl_get_dpll(struct intel_atomic_state *state,
 }
 
 static int cnl_ddi_pll_get_freq(struct drm_i915_private *i915,
-				const struct intel_shared_dpll *pll)
+				const struct intel_shared_dpll *pll,
+				const struct intel_dpll_hw_state *pll_state)
 {
-	if (pll->state.hw_state.cfgcr0 & DPLL_CFGCR0_HDMI_MODE)
-		return cnl_ddi_wrpll_get_freq(i915, pll);
+	if (pll_state->cfgcr0 & DPLL_CFGCR0_HDMI_MODE)
+		return cnl_ddi_wrpll_get_freq(i915, pll, pll_state);
 	else
-		return cnl_ddi_lcpll_get_freq(i915, pll);
+		return cnl_ddi_lcpll_get_freq(i915, pll, pll_state);
 }
 
 static void cnl_update_dpll_ref_clks(struct drm_i915_private *i915)
@@ -3039,7 +3047,8 @@ static bool icl_calc_tbt_pll(struct intel_crtc_state *crtc_state,
 }
 
 static int icl_ddi_tbt_pll_get_freq(struct drm_i915_private *i915,
-				    const struct intel_shared_dpll *pll)
+				    const struct intel_shared_dpll *pll,
+				    const struct intel_dpll_hw_state *pll_state)
 {
 	/*
 	 * The PLL outputs multiple frequencies at the same time, selection is
@@ -3075,9 +3084,10 @@ icl_calc_wrpll(struct intel_crtc_state *crtc_state,
 }
 
 static int icl_ddi_combo_pll_get_freq(struct drm_i915_private *i915,
-				      const struct intel_shared_dpll *pll)
+				      const struct intel_shared_dpll *pll,
+				      const struct intel_dpll_hw_state *pll_state)
 {
-	return __cnl_ddi_wrpll_get_freq(i915, pll,
+	return __cnl_ddi_wrpll_get_freq(i915, pll, pll_state,
 					icl_wrpll_ref_clock(i915));
 }
 
@@ -3402,9 +3412,9 @@ static bool icl_calc_mg_pll_state(struct intel_crtc_state *crtc_state,
 }
 
 static int icl_ddi_mg_pll_get_freq(struct drm_i915_private *dev_priv,
-				   const struct intel_shared_dpll *pll)
+				   const struct intel_shared_dpll *pll,
+				   const struct intel_dpll_hw_state *pll_state)
 {
-	const struct intel_dpll_hw_state *pll_state = &pll->state.hw_state;
 	u32 m1, m2_int, m2_frac, div1, div2, ref_clock;
 	u64 tmp;
 
@@ -4515,16 +4525,18 @@ void intel_update_active_dpll(struct intel_atomic_state *state,
  * intel_dpll_get_freq - calculate the DPLL's output frequency
  * @i915: i915 device
  * @pll: DPLL for which to calculate the output frequency
+ * @pll_state: DPLL state from which to calculate the output frequency
  *
- * Return the output frequency corresponding to @pll's current state.
+ * Return the output frequency corresponding to @pll's passed in @pll_state.
  */
 int intel_dpll_get_freq(struct drm_i915_private *i915,
-			const struct intel_shared_dpll *pll)
+			const struct intel_shared_dpll *pll,
+			const struct intel_dpll_hw_state *pll_state)
 {
 	if (drm_WARN_ON(&i915->drm, !pll->info->funcs->get_freq))
 		return 0;
 
-	return pll->info->funcs->get_freq(i915, pll);
+	return pll->info->funcs->get_freq(i915, pll, pll_state);
 }
 
 /**
