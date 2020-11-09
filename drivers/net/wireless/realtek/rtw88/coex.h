@@ -31,6 +31,7 @@
 #define TDMA_4SLOT	BIT(8)
 
 #define COEX_RSSI_STEP		4
+
 #define COEX_RSSI_HIGH(rssi) \
 	({ typeof(rssi) __rssi__ = rssi; \
 	   (__rssi__ == COEX_RSSI_STATE_HIGH || \
@@ -371,13 +372,12 @@ void rtw_coex_init_hw_config(struct rtw_dev *rtwdev, bool wifi_only);
 void rtw_coex_ips_notify(struct rtw_dev *rtwdev, u8 type);
 void rtw_coex_lps_notify(struct rtw_dev *rtwdev, u8 type);
 void rtw_coex_scan_notify(struct rtw_dev *rtwdev, u8 type);
-void rtw_coex_connect_notify(struct rtw_dev *rtwdev, u8 action);
-void rtw_coex_media_status_notify(struct rtw_dev *rtwdev, u8 status);
-void rtw_coex_bt_info_notify(struct rtw_dev *rtwdev, u8 *buf, u8 len);
+void rtw_coex_connect_notify(struct rtw_dev *rtwdev, u8 type);
+void rtw_coex_media_status_notify(struct rtw_dev *rtwdev, u8 type);
+void rtw_coex_bt_info_notify(struct rtw_dev *rtwdev, u8 *buf, u8 length);
 void rtw_coex_wl_fwdbginfo_notify(struct rtw_dev *rtwdev, u8 *buf, u8 length);
 void rtw_coex_switchband_notify(struct rtw_dev *rtwdev, u8 type);
-void rtw_coex_wl_status_change_notify(struct rtw_dev *rtwdev);
-
+void rtw_coex_wl_status_change_notify(struct rtw_dev *rtwdev, u32 type);
 void rtw_coex_display_coex_info(struct rtw_dev *rtwdev, struct seq_file *m);
 
 #endif
