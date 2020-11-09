@@ -334,6 +334,7 @@ static int __maybe_unused rkispp_runtime_resume(struct device *dev)
 		memcpy_fromio(buf, base, ISPP_SW_REG_SIZE);
 		default_sw_reg_flag(hw_dev->ispp[i]);
 	}
+	hw_dev->is_idle = true;
 	return 0;
 }
 
