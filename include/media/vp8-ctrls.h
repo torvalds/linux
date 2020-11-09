@@ -53,11 +53,13 @@ struct v4l2_vp8_quantization_header {
 	__u16 padding;
 };
 
+#define V4L2_VP8_COEFF_PROB_CNT 11
+#define V4L2_VP8_MV_PROB_CNT 19
 struct v4l2_vp8_entropy_header {
-	__u8 coeff_probs[4][8][3][11];
+	__u8 coeff_probs[4][8][3][V4L2_VP8_COEFF_PROB_CNT];
 	__u8 y_mode_probs[4];
 	__u8 uv_mode_probs[3];
-	__u8 mv_probs[2][19];
+	__u8 mv_probs[2][V4L2_VP8_MV_PROB_CNT];
 	__u8 padding[3];
 };
 
