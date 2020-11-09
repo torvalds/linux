@@ -58,6 +58,8 @@
  * @board:	keypad platform device
  * @keymap:	matrix scan code table for keycodes
  * @clk:	clock structure pointer
+ * @pclk:	clock structure pointer
+ * @ske_keypad_lock: spinlock protecting the keypad read/writes
  */
 struct ske_keypad {
 	int irq;
