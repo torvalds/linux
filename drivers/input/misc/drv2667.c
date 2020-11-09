@@ -90,12 +90,14 @@
 
 /**
  * struct drv2667_data -
- * @input_dev - Pointer to the input device
- * @client - Pointer to the I2C client
- * @regmap - Register map of the device
- * @work - Work item used to off load the enable/disable of the vibration
- * @regulator - Pointer to the regulator for the IC
- * @magnitude - Magnitude of the vibration event
+ * @input_dev: Pointer to the input device
+ * @client: Pointer to the I2C client
+ * @regmap: Register map of the device
+ * @work: Work item used to off load the enable/disable of the vibration
+ * @regulator: Pointer to the regulator for the IC
+ * @page: Page number
+ * @magnitude: Magnitude of the vibration event
+ * @frequency: Frequency of the vibration event
 **/
 struct drv2667_data {
 	struct input_dev *input_dev;
