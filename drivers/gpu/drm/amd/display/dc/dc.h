@@ -484,7 +484,6 @@ struct dc_debug_options {
 	bool performance_trace;
 	bool az_endpoint_mute_only;
 	bool always_use_regamma;
-	bool p010_mpo_support;
 	bool recovery_enabled;
 	bool avoid_vbios_exec_table;
 	bool scl_reset_length10;
