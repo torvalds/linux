@@ -2093,10 +2093,19 @@ static int gpio_do_set_config(struct gpio_chip *gc, unsigned int offset,
 	return gc->set_config(gc, offset, config);
 }
 
-static int gpio_set_config(struct gpio_desc *desc, enum pin_config_param mode)
+static int gpio_set_config_with_argument(struct gpio_desc *desc,
+					 enum pin_config_param mode,
+					 u32 argument)
 {
 	struct gpio_chip *gc = desc->gdev->chip;
 	unsigned long config;
+
+	config = pinconf_to_config_packed(mode, argument);
+	return gpio_do_set_config(gc, gpio_chip_hwgpio(desc), config);
+}
+
+static int gpio_set_config(struct gpio_desc *desc, enum pin_config_param mode)
+{
 	unsigned int arg;
 
 	switch (mode) {
@@ -2110,8 +2119,7 @@ static int gpio_set_config(struct gpio_desc *desc, enum pin_config_param mode)
 		break;
 	}
 
-	config = pinconf_to_config_packed(mode, arg);
-	return gpio_do_set_config(gc, gpio_chip_hwgpio(desc), config);
+	return gpio_set_config_with_argument(desc, mode, arg);
 }
 
 static int gpio_set_bias(struct gpio_desc *desc)
