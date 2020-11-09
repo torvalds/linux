@@ -1091,11 +1091,9 @@ void radeon_compute_pll_avivo(struct radeon_pll *pll,
 /* pre-avivo */
 static inline uint32_t radeon_div(uint64_t n, uint32_t d)
 {
-	uint64_t mod;
-
 	n += d / 2;
 
-	mod = do_div(n, d);
+	do_div(n, d);
 	return n;
 }
 
