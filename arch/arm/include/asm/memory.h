@@ -173,6 +173,7 @@ extern unsigned long vectors_base;
  * so that all we need to do is modify the 8-bit constant field.
  */
 #define __PV_BITS_31_24	0x81000000
+#define __PV_BITS_23_16	0x810000
 #define __PV_BITS_7_0	0x81
 
 extern unsigned long __pv_phys_pfn_offset;
@@ -183,43 +184,65 @@ extern const void *__pv_table_begin, *__pv_table_end;
 #define PHYS_OFFSET	((phys_addr_t)__pv_phys_pfn_offset << PAGE_SHIFT)
 #define PHYS_PFN_OFFSET	(__pv_phys_pfn_offset)
 
-#define __pv_stub(from,to,instr,type)			\
+#ifndef CONFIG_THUMB2_KERNEL
+#define __pv_stub(from,to,instr)			\
 	__asm__("@ __pv_stub\n"				\
 	"1:	" instr "	%0, %1, %2\n"		\
+	"2:	" instr "	%0, %0, %3\n"		\
 	"	.pushsection .pv_table,\"a\"\n"		\
-	"	.long	1b\n"				\
+	"	.long	1b - ., 2b - .\n"		\
 	"	.popsection\n"				\
 	: "=r" (to)					\
-	: "r" (from), "I" (type))
-
-#define __pv_stub_mov_hi(t)				\
-	__asm__ volatile("@ __pv_stub_mov\n"		\
-	"1:	mov	%R0, %1\n"			\
-	"	.pushsection .pv_table,\"a\"\n"		\
-	"	.long	1b\n"				\
-	"	.popsection\n"				\
-	: "=r" (t)					\
-	: "I" (__PV_BITS_7_0))
+	: "r" (from), "I" (__PV_BITS_31_24),		\
+	  "I"(__PV_BITS_23_16))
 
 #define __pv_add_carry_stub(x, y)			\
-	__asm__ volatile("@ __pv_add_carry_stub\n"	\
-	"1:	adds	%Q0, %1, %2\n"			\
+	__asm__("@ __pv_add_carry_stub\n"		\
+	"0:	movw	%R0, #0\n"			\
+	"	adds	%Q0, %1, %R0, lsl #20\n"	\
+	"1:	mov	%R0, %2\n"			\
 	"	adc	%R0, %R0, #0\n"			\
 	"	.pushsection .pv_table,\"a\"\n"		\
-	"	.long	1b\n"				\
+	"	.long	0b - ., 1b - .\n"		\
 	"	.popsection\n"				\
-	: "+r" (y)					\
-	: "r" (x), "I" (__PV_BITS_31_24)		\
+	: "=&r" (y)					\
+	: "r" (x), "I" (__PV_BITS_7_0)			\
 	: "cc")
+
+#else
+#define __pv_stub(from,to,instr)			\
+	__asm__("@ __pv_stub\n"				\
+	"0:	movw	%0, #0\n"			\
+	"	lsl	%0, #21\n"			\
+	"	" instr " %0, %1, %0\n"			\
+	"	.pushsection .pv_table,\"a\"\n"		\
+	"	.long	0b - .\n"			\
+	"	.popsection\n"				\
+	: "=&r" (to)					\
+	: "r" (from))
+
+#define __pv_add_carry_stub(x, y)			\
+	__asm__("@ __pv_add_carry_stub\n"		\
+	"0:	movw	%R0, #0\n"			\
+	"	lsls	%R0, #21\n"			\
+	"	adds	%Q0, %1, %R0\n"			\
+	"1:	mvn	%R0, #0\n"			\
+	"	adc	%R0, %R0, #0\n"			\
+	"	.pushsection .pv_table,\"a\"\n"		\
+	"	.long	0b - ., 1b - .\n"		\
+	"	.popsection\n"				\
+	: "=&r" (y)					\
+	: "r" (x)					\
+	: "cc")
+#endif
 
 static inline phys_addr_t __virt_to_phys_nodebug(unsigned long x)
 {
 	phys_addr_t t;
 
 	if (sizeof(phys_addr_t) == 4) {
-		__pv_stub(x, t, "add", __PV_BITS_31_24);
+		__pv_stub(x, t, "add");
 	} else {
-		__pv_stub_mov_hi(t);
 		__pv_add_carry_stub(x, t);
 	}
 	return t;
@@ -235,7 +258,7 @@ static inline unsigned long __phys_to_virt(phys_addr_t x)
 	 * assembler expression receives 32 bit argument
 	 * in place where 'r' 32 bit operand is expected.
 	 */
-	__pv_stub((unsigned long) x, t, "sub", __PV_BITS_31_24);
+	__pv_stub((unsigned long) x, t, "sub");
 	return t;
 }
 
