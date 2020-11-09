@@ -261,41 +261,6 @@ DECLARE_EVENT_CLASS(xprtrdma_wrch_event,
 				),					\
 				TP_ARGS(task, mr, nsegs))
 
-DECLARE_EVENT_CLASS(xprtrdma_frwr_done,
-	TP_PROTO(
-		const struct ib_wc *wc,
-		const struct rpcrdma_frwr *frwr
-	),
-
-	TP_ARGS(wc, frwr),
-
-	TP_STRUCT__entry(
-		__field(u32, mr_id)
-		__field(unsigned int, status)
-		__field(unsigned int, vendor_err)
-	),
-
-	TP_fast_assign(
-		__entry->mr_id = frwr->fr_mr->res.id;
-		__entry->status = wc->status;
-		__entry->vendor_err = __entry->status ? wc->vendor_err : 0;
-	),
-
-	TP_printk(
-		"mr.id=%u: %s (%u/0x%x)",
-		__entry->mr_id, rdma_show_wc_status(__entry->status),
-		__entry->status, __entry->vendor_err
-	)
-);
-
-#define DEFINE_FRWR_DONE_EVENT(name)					\
-		DEFINE_EVENT(xprtrdma_frwr_done, name,			\
-				TP_PROTO(				\
-					const struct ib_wc *wc,		\
-					const struct rpcrdma_frwr *frwr	\
-				),					\
-				TP_ARGS(wc, frwr))
-
 TRACE_DEFINE_ENUM(DMA_BIDIRECTIONAL);
 TRACE_DEFINE_ENUM(DMA_TO_DEVICE);
 TRACE_DEFINE_ENUM(DMA_FROM_DEVICE);
@@ -850,11 +815,10 @@ TRACE_EVENT(xprtrdma_post_linv,
 
 DEFINE_COMPLETION_EVENT(xprtrdma_wc_receive);
 DEFINE_COMPLETION_EVENT(xprtrdma_wc_send);
-
-DEFINE_FRWR_DONE_EVENT(xprtrdma_wc_fastreg);
-DEFINE_FRWR_DONE_EVENT(xprtrdma_wc_li);
-DEFINE_FRWR_DONE_EVENT(xprtrdma_wc_li_wake);
-DEFINE_FRWR_DONE_EVENT(xprtrdma_wc_li_done);
+DEFINE_COMPLETION_EVENT(xprtrdma_wc_fastreg);
+DEFINE_COMPLETION_EVENT(xprtrdma_wc_li);
+DEFINE_COMPLETION_EVENT(xprtrdma_wc_li_wake);
+DEFINE_COMPLETION_EVENT(xprtrdma_wc_li_done);
 
 TRACE_EVENT(xprtrdma_frwr_alloc,
 	TP_PROTO(

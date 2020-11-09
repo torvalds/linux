@@ -363,10 +363,19 @@ static void frwr_wc_fastreg(struct ib_cq *cq, struct ib_wc *wc)
 		container_of(cqe, struct rpcrdma_frwr, fr_cqe);
 
 	/* WARNING: Only wr_cqe and status are reliable at this point */
-	trace_xprtrdma_wc_fastreg(wc, frwr);
+	trace_xprtrdma_wc_fastreg(wc, &frwr->fr_cid);
 	/* The MR will get recycled when the associated req is retransmitted */
 
 	rpcrdma_flush_disconnect(cq->cq_context, wc);
+}
+
+static void frwr_cid_init(struct rpcrdma_ep *ep,
+			  struct rpcrdma_frwr *frwr)
+{
+	struct rpc_rdma_cid *cid = &frwr->fr_cid;
+
+	cid->ci_queue_id = ep->re_attr.send_cq->res.id;
+	cid->ci_completion_id = frwr->fr_mr->res.id;
 }
 
 /**
@@ -385,6 +394,7 @@ static void frwr_wc_fastreg(struct ib_cq *cq, struct ib_wc *wc)
  */
 int frwr_send(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 {
+	struct rpcrdma_ep *ep = r_xprt->rx_ep;
 	struct ib_send_wr *post_wr;
 	struct rpcrdma_mr *mr;
 
@@ -395,6 +405,7 @@ int frwr_send(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 		frwr = &mr->frwr;
 
 		frwr->fr_cqe.done = frwr_wc_fastreg;
+		frwr_cid_init(ep, frwr);
 		frwr->fr_regwr.wr.next = post_wr;
 		frwr->fr_regwr.wr.wr_cqe = &frwr->fr_cqe;
 		frwr->fr_regwr.wr.num_sge = 0;
@@ -404,7 +415,7 @@ int frwr_send(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 		post_wr = &frwr->fr_regwr.wr;
 	}
 
-	return ib_post_send(r_xprt->rx_ep->re_id->qp, post_wr, NULL);
+	return ib_post_send(ep->re_id->qp, post_wr, NULL);
 }
 
 /**
@@ -448,7 +459,7 @@ static void frwr_wc_localinv(struct ib_cq *cq, struct ib_wc *wc)
 	struct rpcrdma_mr *mr = container_of(frwr, struct rpcrdma_mr, frwr);
 
 	/* WARNING: Only wr_cqe and status are reliable at this point */
-	trace_xprtrdma_wc_li(wc, frwr);
+	trace_xprtrdma_wc_li(wc, &frwr->fr_cid);
 	__frwr_release_mr(wc, mr);
 
 	rpcrdma_flush_disconnect(cq->cq_context, wc);
@@ -469,7 +480,7 @@ static void frwr_wc_localinv_wake(struct ib_cq *cq, struct ib_wc *wc)
 	struct rpcrdma_mr *mr = container_of(frwr, struct rpcrdma_mr, frwr);
 
 	/* WARNING: Only wr_cqe and status are reliable at this point */
-	trace_xprtrdma_wc_li_wake(wc, frwr);
+	trace_xprtrdma_wc_li_wake(wc, &frwr->fr_cid);
 	__frwr_release_mr(wc, mr);
 	complete(&frwr->fr_linv_done);
 
@@ -490,6 +501,7 @@ static void frwr_wc_localinv_wake(struct ib_cq *cq, struct ib_wc *wc)
 void frwr_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 {
 	struct ib_send_wr *first, **prev, *last;
+	struct rpcrdma_ep *ep = r_xprt->rx_ep;
 	const struct ib_send_wr *bad_wr;
 	struct rpcrdma_frwr *frwr;
 	struct rpcrdma_mr *mr;
@@ -509,6 +521,7 @@ void frwr_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 
 		frwr = &mr->frwr;
 		frwr->fr_cqe.done = frwr_wc_localinv;
+		frwr_cid_init(ep, frwr);
 		last = &frwr->fr_invwr;
 		last->next = NULL;
 		last->wr_cqe = &frwr->fr_cqe;
@@ -534,7 +547,7 @@ void frwr_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 	 * unless re_id->qp is a valid pointer.
 	 */
 	bad_wr = NULL;
-	rc = ib_post_send(r_xprt->rx_ep->re_id->qp, first, &bad_wr);
+	rc = ib_post_send(ep->re_id->qp, first, &bad_wr);
 
 	/* The final LOCAL_INV WR in the chain is supposed to
 	 * do the wake. If it was never posted, the wake will
@@ -574,7 +587,7 @@ static void frwr_wc_localinv_done(struct ib_cq *cq, struct ib_wc *wc)
 	struct rpcrdma_rep *rep = mr->mr_req->rl_reply;
 
 	/* WARNING: Only wr_cqe and status are reliable at this point */
-	trace_xprtrdma_wc_li_done(wc, frwr);
+	trace_xprtrdma_wc_li_done(wc, &frwr->fr_cid);
 	__frwr_release_mr(wc, mr);
 
 	/* Ensure @rep is generated before __frwr_release_mr */
@@ -597,6 +610,7 @@ static void frwr_wc_localinv_done(struct ib_cq *cq, struct ib_wc *wc)
 void frwr_unmap_async(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 {
 	struct ib_send_wr *first, *last, **prev;
+	struct rpcrdma_ep *ep = r_xprt->rx_ep;
 	const struct ib_send_wr *bad_wr;
 	struct rpcrdma_frwr *frwr;
 	struct rpcrdma_mr *mr;
@@ -614,6 +628,7 @@ void frwr_unmap_async(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 
 		frwr = &mr->frwr;
 		frwr->fr_cqe.done = frwr_wc_localinv;
+		frwr_cid_init(ep, frwr);
 		last = &frwr->fr_invwr;
 		last->next = NULL;
 		last->wr_cqe = &frwr->fr_cqe;
@@ -639,7 +654,7 @@ void frwr_unmap_async(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 	 * unless re_id->qp is a valid pointer.
 	 */
 	bad_wr = NULL;
-	rc = ib_post_send(r_xprt->rx_ep->re_id->qp, first, &bad_wr);
+	rc = ib_post_send(ep->re_id->qp, first, &bad_wr);
 	if (!rc)
 		return;
 

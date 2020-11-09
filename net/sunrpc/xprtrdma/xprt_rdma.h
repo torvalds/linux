@@ -231,6 +231,7 @@ struct rpcrdma_sendctx {
 struct rpcrdma_frwr {
 	struct ib_mr			*fr_mr;
 	struct ib_cqe			fr_cqe;
+	struct rpc_rdma_cid		fr_cid;
 	struct completion		fr_linv_done;
 	union {
 		struct ib_reg_wr	fr_regwr;
