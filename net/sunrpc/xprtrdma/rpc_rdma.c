@@ -315,7 +315,6 @@ static struct rpcrdma_mr_seg *rpcrdma_mr_prepare(struct rpcrdma_xprt *r_xprt,
 		*mr = rpcrdma_mr_get(r_xprt);
 		if (!*mr)
 			goto out_getmr_err;
-		trace_xprtrdma_mr_get(req);
 		(*mr)->mr_req = req;
 	}
 

@@ -274,7 +274,55 @@ TRACE_DEFINE_ENUM(DMA_NONE);
 				{ DMA_FROM_DEVICE, "FROM_DEVICE" },	\
 				{ DMA_NONE, "NONE" })
 
-DECLARE_EVENT_CLASS(xprtrdma_mr,
+DECLARE_EVENT_CLASS(xprtrdma_mr_class,
+	TP_PROTO(
+		const struct rpcrdma_mr *mr
+	),
+
+	TP_ARGS(mr),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, task_id)
+		__field(unsigned int, client_id)
+		__field(u32, mr_id)
+		__field(int, nents)
+		__field(u32, handle)
+		__field(u32, length)
+		__field(u64, offset)
+		__field(u32, dir)
+	),
+
+	TP_fast_assign(
+		const struct rpcrdma_req *req = mr->mr_req;
+		const struct rpc_task *task = req->rl_slot.rq_task;
+
+		__entry->task_id = task->tk_pid;
+		__entry->client_id = task->tk_client->cl_clid;
+		__entry->mr_id  = mr->frwr.fr_mr->res.id;
+		__entry->nents  = mr->mr_nents;
+		__entry->handle = mr->mr_handle;
+		__entry->length = mr->mr_length;
+		__entry->offset = mr->mr_offset;
+		__entry->dir    = mr->mr_dir;
+	),
+
+	TP_printk("task:%u@%u mr.id=%u nents=%d %u@0x%016llx:0x%08x (%s)",
+		__entry->task_id, __entry->client_id,
+		__entry->mr_id, __entry->nents, __entry->length,
+		(unsigned long long)__entry->offset, __entry->handle,
+		xprtrdma_show_direction(__entry->dir)
+	)
+);
+
+#define DEFINE_MR_EVENT(name)						\
+		DEFINE_EVENT(xprtrdma_mr_class,				\
+				xprtrdma_mr_##name,			\
+				TP_PROTO(				\
+					const struct rpcrdma_mr *mr	\
+				),					\
+				TP_ARGS(mr))
+
+DECLARE_EVENT_CLASS(xprtrdma_anonymous_mr_class,
 	TP_PROTO(
 		const struct rpcrdma_mr *mr
 	),
@@ -306,11 +354,12 @@ DECLARE_EVENT_CLASS(xprtrdma_mr,
 	)
 );
 
-#define DEFINE_MR_EVENT(name) \
-		DEFINE_EVENT(xprtrdma_mr, xprtrdma_mr_##name, \
-				TP_PROTO( \
-					const struct rpcrdma_mr *mr \
-				), \
+#define DEFINE_ANON_MR_EVENT(name)					\
+		DEFINE_EVENT(xprtrdma_anonymous_mr_class,		\
+				xprtrdma_mr_##name,			\
+				TP_PROTO(				\
+					const struct rpcrdma_mr *mr	\
+				),					\
 				TP_ARGS(mr))
 
 DECLARE_EVENT_CLASS(xprtrdma_callback_class,
@@ -513,35 +562,6 @@ TRACE_EVENT(xprtrdma_createmrs,
 	TP_printk("peer=[%s]:%s r_xprt=%p: created %u MRs",
 		__get_str(addr), __get_str(port), __entry->r_xprt,
 		__entry->count
-	)
-);
-
-TRACE_EVENT(xprtrdma_mr_get,
-	TP_PROTO(
-		const struct rpcrdma_req *req
-	),
-
-	TP_ARGS(req),
-
-	TP_STRUCT__entry(
-		__field(const void *, req)
-		__field(unsigned int, task_id)
-		__field(unsigned int, client_id)
-		__field(u32, xid)
-	),
-
-	TP_fast_assign(
-		const struct rpc_rqst *rqst = &req->rl_slot;
-
-		__entry->req = req;
-		__entry->task_id = rqst->rq_task->tk_pid;
-		__entry->client_id = rqst->rq_task->tk_client->cl_clid;
-		__entry->xid = be32_to_cpu(rqst->rq_xid);
-	),
-
-	TP_printk("task:%u@%u xid=0x%08x req=%p",
-		__entry->task_id, __entry->client_id, __entry->xid,
-		__entry->req
 	)
 );
 
@@ -946,9 +966,9 @@ TRACE_EVENT(xprtrdma_frwr_maperr,
 
 DEFINE_MR_EVENT(localinv);
 DEFINE_MR_EVENT(map);
-DEFINE_MR_EVENT(unmap);
-DEFINE_MR_EVENT(reminv);
-DEFINE_MR_EVENT(recycle);
+
+DEFINE_ANON_MR_EVENT(unmap);
+DEFINE_ANON_MR_EVENT(recycle);
 
 TRACE_EVENT(xprtrdma_dma_maperr,
 	TP_PROTO(

@@ -431,7 +431,6 @@ void frwr_reminv(struct rpcrdma_rep *rep, struct list_head *mrs)
 	list_for_each_entry(mr, mrs, mr_list)
 		if (mr->mr_handle == rep->rr_inv_rkey) {
 			list_del_init(&mr->mr_list);
-			trace_xprtrdma_mr_reminv(mr);
 			rpcrdma_mr_put(mr);
 			break;	/* only one invalidated MR per RPC */
 		}
