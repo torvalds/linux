@@ -308,7 +308,7 @@ static void hellcreek_get_ethtool_stats(struct dsa_switch *ds, int port,
 		const struct hellcreek_counter *counter = &hellcreek_counter[i];
 		u8 offset = counter->offset + port * 64;
 		u16 high, low;
-		u64 value = 0;
+		u64 value;
 
 		mutex_lock(&hellcreek->reg_lock);
 
@@ -320,7 +320,7 @@ static void hellcreek_get_ethtool_stats(struct dsa_switch *ds, int port,
 		 */
 		high  = hellcreek_read(hellcreek, HR_CRDH);
 		low   = hellcreek_read(hellcreek, HR_CRDL);
-		value = (high << 16) | low;
+		value = ((u64)high << 16) | low;
 
 		hellcreek_port->counter_values[i] += value;
 		data[i] = hellcreek_port->counter_values[i];
