@@ -59,8 +59,9 @@
 #define PCLK_GPIO0		46
 #define PCLK_PMUPVTM		47
 #define PCLK_PWM0		48
+#define CLK_PDPMU		49
 
-#define CLKPMU_NR_CLKS		(PCLK_PWM0 + 1)
+#define CLKPMU_NR_CLKS		(CLK_PDPMU + 1)
 
 /* cru-clocks indices */
 

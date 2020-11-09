@@ -293,11 +293,10 @@ PNAME(cpll500_gpll400_gpll300_xin24m_p)	= { "cpll_500m", "gpll_400m", "gpll_300m
 PNAME(gpll400_gpll300_gpll200_xin24m_p)	= { "gpll_400m", "gpll_300m", "gpll_200m", "xin24m" };
 PNAME(xin24m_cpll100_p)			= { "xin24m", "cpll_100m" };
 PNAME(ppll_usb480m_cpll_gpll_p)		= { "ppll", "usb480m", "cpll", "gpll"};
-PNAME(xin24m_ppll_p)			= { "xin24m", "ppll" };
 PNAME(clk_usbphy0_ref_p)		= { "clk_ref24m", "xin_osc0_usbphy0_g" };
 PNAME(clk_usbphy1_ref_p)		= { "clk_ref24m", "xin_osc0_usbphy1_g" };
 PNAME(clk_mipidsiphy0_ref_p)		= { "clk_ref24m", "xin_osc0_mipidsiphy0_g" };
-PNAME(clk_mipidsiphy1_ref_p)		= { "clk_ref24m", "xin_osc1_mipidsiphy0_g" };
+PNAME(clk_mipidsiphy1_ref_p)		= { "clk_ref24m", "xin_osc0_mipidsiphy1_g" };
 PNAME(clk_wifi_p)			= { "clk_wifi_osc0", "clk_wifi_div" };
 PNAME(clk_pciephy0_ref_p)		= { "clk_pciephy0_osc0", "clk_pciephy0_div" };
 PNAME(clk_pciephy1_ref_p)		= { "clk_pciephy1_osc0", "clk_pciephy1_div" };
@@ -311,8 +310,9 @@ PNAME(mux_gmac1_rgmii_speed_p)		= { "clk_gmac1", "clk_gmac1", "clk_gmac1_tx0_div
 PNAME(mux_gmac1_rmii_speed_p)		= { "clk_gmac1_rx_div20", "clk_gmac1_rx_div2" };
 PNAME(mux_gmac1_rx_tx_p)		= { "clk_gmac1_rgmii_speed", "clk_gmac1_rmii_speed" };
 PNAME(clk_hdmi_ref_p)			= { "hpll", "hpll_ph0" };
-PNAME(pclk_pdpmu_p)			= { "ppll", "gpll" };
+PNAME(clk_pdpmu_p)			= { "ppll", "gpll" };
 PNAME(clk_mac_2top_p)			= { "cpll_125m", "cpll_50m", "cpll_25m", "ppll" };
+PNAME(clk_pwm0_p)			= { "xin24m", "clk_pdpmu" };
 
 static struct rockchip_pll_clock rk3568_pmu_pll_clks[] __initdata = {
 	[ppll] = PLL(pll_rk3328, PLL_PPLL, "ppll",  mux_pll_p,
@@ -517,7 +517,7 @@ static struct rockchip_clk_branch rk3568_clk_branches[] __initdata = {
 	COMPOSITE_NOMUX(0, "cntclk_core", "periphclk_core_pre", CLK_IGNORE_UNUSED,
 			RK3568_CLKSEL_CON(5), 4, 4, DFLAGS | CLK_DIVIDER_READ_ONLY,
 			RK3568_CLKGATE_CON(0), 15, GFLAGS),
-	COMPOSITE_NOMUX(0, "aclk_core_ndft", "sclk_core_pre", CLK_IGNORE_UNUSED,
+	COMPOSITE_NOMUX(0, "aclk_core", "sclk_core", CLK_IGNORE_UNUSED,
 			RK3568_CLKSEL_CON(5), 8, 5, DFLAGS | CLK_DIVIDER_READ_ONLY,
 			RK3568_CLKGATE_CON(1), 0, GFLAGS),
 
@@ -553,9 +553,9 @@ static struct rockchip_clk_branch rk3568_clk_branches[] __initdata = {
 			RK3568_CLKGATE_CON(2), 6, GFLAGS),
 	GATE(CLK_GPU_PVTM, "clk_gpu_pvtm", "xin24m", 0,
 			RK3568_CLKGATE_CON(2), 7, GFLAGS),
-	GATE(CLK_GPU_PVTM_CORE, "clk_gpu_pvtm_core", "clk_gpu_pre_ndft", 0,
+	GATE(CLK_GPU_PVTM_CORE, "clk_gpu_pvtm_core", "clk_gpu_src", 0,
 			RK3568_CLKGATE_CON(2), 8, GFLAGS),
-	GATE(CLK_GPU_PVTPLL, "clk_gpu_pvtpll", "clk_gpu_pre_ndft", 0,
+	GATE(CLK_GPU_PVTPLL, "clk_gpu_pvtpll", "clk_gpu_src", 0,
 			RK3568_CLKGATE_CON(2), 9, GFLAGS),
 
 	/* PD_NPU */
@@ -1475,8 +1475,10 @@ static struct rockchip_clk_branch rk3568_clk_pmu_branches[] __initdata = {
 	FACTOR(0, "ppll_ph180", "ppll", 0, 1, 2),
 	FACTOR(0, "hpll_ph0", "hpll", 0, 1, 2),
 
-	COMPOSITE(PCLK_PDPMU, "pclk_pdpmu", pclk_pdpmu_p, 0,
-			RK3568_PMU_CLKSEL_CON(2), 15, 1, MFLAGS, 0, 5, DFLAGS,
+	MUX(CLK_PDPMU, "clk_pdpmu", clk_pdpmu_p, 0,
+			RK3568_PMU_CLKSEL_CON(2), 15, 1, MFLAGS),
+	COMPOSITE_NOMUX(PCLK_PDPMU, "pclk_pdpmu", "clk_pdpmu", 0,
+			RK3568_PMU_CLKSEL_CON(2), 0, 5, DFLAGS,
 			RK3568_PMU_CLKGATE_CON(0), 2, GFLAGS),
 	GATE(PCLK_PMU, "pclk_pmu", "pclk_pdpmu", 0,
 			RK3568_PMU_CLKGATE_CON(0), 6, GFLAGS),
@@ -1484,7 +1486,7 @@ static struct rockchip_clk_branch rk3568_clk_pmu_branches[] __initdata = {
 			RK3568_PMU_CLKGATE_CON(0), 7, GFLAGS),
 	GATE(PCLK_I2C0, "pclk_i2c0", "pclk_pdpmu", 0,
 			RK3568_PMU_CLKGATE_CON(1), 0, GFLAGS),
-	COMPOSITE_NOMUX(CLK_I2C0, "clk_i2c0", "ppll", 0,
+	COMPOSITE_NOMUX(CLK_I2C0, "clk_i2c0", "clk_pdpmu", 0,
 			RK3568_PMU_CLKSEL_CON(3), 0, 7, DFLAGS,
 			RK3568_PMU_CLKGATE_CON(1), 1, GFLAGS),
 	GATE(PCLK_UART0, "pclk_uart0", "pclk_pdpmu", 0,
@@ -1516,7 +1518,7 @@ static struct rockchip_clk_branch rk3568_clk_pmu_branches[] __initdata = {
 			RK3568_PMU_CLKGATE_CON(1), 10, GFLAGS),
 	GATE(PCLK_PWM0, "pclk_pwm0", "pclk_pdpmu", 0,
 			RK3568_PMU_CLKGATE_CON(1), 6, GFLAGS),
-	COMPOSITE(CLK_PWM0, "clk_pwm0", xin24m_ppll_p, 0,
+	COMPOSITE(CLK_PWM0, "clk_pwm0", clk_pwm0_p, 0,
 			RK3568_PMU_CLKSEL_CON(6), 7, 1, MFLAGS, 0, 7, DFLAGS,
 			RK3568_PMU_CLKGATE_CON(1), 7, GFLAGS),
 	GATE(CLK_CAPTURE_PWM0_NDFT, "clk_capture_pwm0_ndft", "xin24m", 0,
@@ -1527,26 +1529,26 @@ static struct rockchip_clk_branch rk3568_clk_pmu_branches[] __initdata = {
 			RK3568_PMU_CLKGATE_CON(1), 12, GFLAGS),
 	GATE(CLK_CORE_PMUPVTM, "clk_core_pmupvtm", "xin24m", 0,
 			RK3568_PMU_CLKGATE_CON(1), 13, GFLAGS),
-	COMPOSITE_NOMUX(CLK_REF24M, "clk_ref24m", "ppll", 0,
+	COMPOSITE_NOMUX(CLK_REF24M, "clk_ref24m", "clk_pdpmu", 0,
 			RK3568_PMU_CLKSEL_CON(7), 0, 6, DFLAGS,
 			RK3568_PMU_CLKGATE_CON(2), 0, GFLAGS),
-	GATE(XIN_OSC0_USBPHY0_G, "xin_osc0_usbphy0_g", "xin_osc0_usbphy0", 0,
+	GATE(XIN_OSC0_USBPHY0_G, "xin_osc0_usbphy0_g", "xin24m", 0,
 			RK3568_PMU_CLKGATE_CON(2), 1, GFLAGS),
 	MUX(CLK_USBPHY0_REF, "clk_usbphy0_ref", clk_usbphy0_ref_p, 0,
 			RK3568_PMU_CLKSEL_CON(8), 0, 1, MFLAGS),
-	GATE(XIN_OSC0_USBPHY1_G, "xin_osc0_usbphy1_g", "xin_osc0_usbphy1", 0,
+	GATE(XIN_OSC0_USBPHY1_G, "xin_osc0_usbphy1_g", "xin24m", 0,
 			RK3568_PMU_CLKGATE_CON(2), 2, GFLAGS),
 	MUX(CLK_USBPHY1_REF, "clk_usbphy1_ref", clk_usbphy1_ref_p, 0,
 			RK3568_PMU_CLKSEL_CON(8), 1, 1, MFLAGS),
-	GATE(XIN_OSC0_MIPIDSIPHY0_G, "xin_osc0_mipidsiphy0_g", "xin_osc0_mipidsiphy0", 0,
+	GATE(XIN_OSC0_MIPIDSIPHY0_G, "xin_osc0_mipidsiphy0_g", "xin24m", 0,
 			RK3568_PMU_CLKGATE_CON(2), 3, GFLAGS),
 	MUX(CLK_MIPIDSIPHY0_REF, "clk_mipidsiphy0_ref", clk_mipidsiphy0_ref_p, 0,
 			RK3568_PMU_CLKSEL_CON(8), 2, 1, MFLAGS),
-	GATE(XIN_OSC0_MIPIDSIPHY1_G, "xin_osc0_mipidsiphy1_g", "xin_osc0_mipidsiphy1", 0,
+	GATE(XIN_OSC0_MIPIDSIPHY1_G, "xin_osc0_mipidsiphy1_g", "xin24m", 0,
 			RK3568_PMU_CLKGATE_CON(2), 4, GFLAGS),
 	MUX(CLK_MIPIDSIPHY1_REF, "clk_mipidsiphy1_ref", clk_mipidsiphy1_ref_p, 0,
 			RK3568_PMU_CLKSEL_CON(8), 3, 1, MFLAGS),
-	COMPOSITE_NOMUX(CLK_WIFI_DIV, "clk_wifi_div", "ppll", 0,
+	COMPOSITE_NOMUX(CLK_WIFI_DIV, "clk_wifi_div", "clk_pdpmu", 0,
 			RK3568_PMU_CLKSEL_CON(8), 8, 6, DFLAGS,
 			RK3568_PMU_CLKGATE_CON(2), 5, GFLAGS),
 	GATE(CLK_WIFI_OSC0, "clk_wifi_osc0", "xin24m", 0,
@@ -1556,21 +1558,21 @@ static struct rockchip_clk_branch rk3568_clk_pmu_branches[] __initdata = {
 	COMPOSITE_NOMUX(CLK_PCIEPHY0_DIV, "clk_pciephy0_div", "ppll", 0,
 			RK3568_PMU_CLKSEL_CON(9), 0, 3, DFLAGS,
 			RK3568_PMU_CLKGATE_CON(2), 7, GFLAGS),
-	GATE(CLK_PCIEPHY0_OSC0, "clk_pciephy0_osc0", "xin_osc0_pciephy0", 0,
+	GATE(CLK_PCIEPHY0_OSC0, "clk_pciephy0_osc0", "xin24m", 0,
 			RK3568_PMU_CLKGATE_CON(2), 8, GFLAGS),
 	MUX(CLK_PCIEPHY0_REF, "clk_pciephy0_ref", clk_pciephy0_ref_p, 0,
 			RK3568_PMU_CLKSEL_CON(9), 3, 1, MFLAGS),
 	COMPOSITE_NOMUX(CLK_PCIEPHY1_DIV, "clk_pciephy1_div", "ppll", 0,
 			RK3568_PMU_CLKSEL_CON(9), 4, 3, DFLAGS,
 			RK3568_PMU_CLKGATE_CON(2), 9, GFLAGS),
-	GATE(CLK_PCIEPHY1_OSC0, "clk_pciephy1_osc0", "xin_osc0_pciephy1", 0,
+	GATE(CLK_PCIEPHY1_OSC0, "clk_pciephy1_osc0", "xin24m", 0,
 			RK3568_PMU_CLKGATE_CON(2), 10, GFLAGS),
 	MUX(CLK_PCIEPHY1_REF, "clk_pciephy1_ref", clk_pciephy1_ref_p, 0,
 			RK3568_PMU_CLKSEL_CON(9), 7, 1, MFLAGS),
 	COMPOSITE_NOMUX(CLK_PCIEPHY2_DIV, "clk_pciephy2_div", "ppll", 0,
 			RK3568_PMU_CLKSEL_CON(9), 8, 3, DFLAGS,
 			RK3568_PMU_CLKGATE_CON(2), 11, GFLAGS),
-	GATE(CLK_PCIEPHY2_OSC0, "clk_pciephy2_osc0", "xin_osc0_pciephy2", 0,
+	GATE(CLK_PCIEPHY2_OSC0, "clk_pciephy2_osc0", "xin24m", 0,
 			RK3568_PMU_CLKGATE_CON(2), 12, GFLAGS),
 	MUX(CLK_PCIEPHY2_REF, "clk_pciephy2_ref", clk_pciephy2_ref_p, 0,
 			RK3568_PMU_CLKSEL_CON(9), 11, 1, MFLAGS),
@@ -1578,7 +1580,7 @@ static struct rockchip_clk_branch rk3568_clk_pmu_branches[] __initdata = {
 			RK3568_PMU_CLKGATE_CON(2), 13, GFLAGS),
 	GATE(CLK_PCIE30PHY_REF_N, "clk_pcie30phy_ref_n", "ppll_ph180", 0,
 			RK3568_PMU_CLKGATE_CON(2), 14, GFLAGS),
-	GATE(XIN_OSC0_EDPPHY_G, "xin_osc0_edpphy_g", "xin_osc0_edpphy", 0,
+	GATE(XIN_OSC0_EDPPHY_G, "xin_osc0_edpphy_g", "xin24m", 0,
 			RK3568_PMU_CLKGATE_CON(2), 15, GFLAGS),
 	MUX(CLK_HDMI_REF, "clk_hdmi_ref", clk_hdmi_ref_p, 0,
 			RK3568_PMU_CLKSEL_CON(8), 7, 1, MFLAGS),
