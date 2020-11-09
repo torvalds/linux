@@ -669,9 +669,10 @@
 &i2c0 {
 	status = "okay";
 
-	vdd_cpu: tcs4525@10 {
+	vdd_cpu: tcs4525@1c {
 		compatible = "tcs,tcs452x";
-		reg = <0x10>;
+		reg = <0x1c>;
+		vin-supply = <&vcc5v0_sys>;
 		regulator-compatible = "fan53555-reg";
 		regulator-name = "vdd_cpu";
 		regulator-min-microvolt = <712500>;
