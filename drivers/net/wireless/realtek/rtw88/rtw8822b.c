@@ -1341,6 +1341,7 @@ static void rtw8822b_coex_cfg_wl_rx_gain(struct rtw_dev *rtwdev, bool low_gain)
 	coex_dm->cur_wl_rx_low_gain_en = low_gain;
 
 	if (coex_dm->cur_wl_rx_low_gain_en) {
+		rtw_dbg(rtwdev, RTW_DBG_COEX, "[BTCoex], Hi-Li Table On!\n");
 		for (i = 0; i < ARRAY_SIZE(wl_rx_low_gain_on); i++)
 			rtw_write32(rtwdev, REG_RX_GAIN_EN, wl_rx_low_gain_on[i]);
 
@@ -1350,6 +1351,7 @@ static void rtw8822b_coex_cfg_wl_rx_gain(struct rtw_dev *rtwdev, bool low_gain)
 		rtw_write_rf(rtwdev, RF_PATH_B, RF_RCKD, 0x2, 0x1);
 		rtw_write_rf(rtwdev, RF_PATH_B, RF_RCK, 0x3f, 0x3f);
 	} else {
+		rtw_dbg(rtwdev, RTW_DBG_COEX, "[BTCoex], Hi-Li Table Off!\n");
 		for (i = 0; i < ARRAY_SIZE(wl_rx_low_gain_off); i++)
 			rtw_write32(rtwdev, 0x81c, wl_rx_low_gain_off[i]);
 

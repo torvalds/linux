@@ -5,12 +5,6 @@
 #ifndef __RTW_COEX_H__
 #define __RTW_COEX_H__
 
-/* BT profile map bit definition */
-#define BPM_HFP		BIT(0)
-#define BPM_HID		BIT(1)
-#define BPM_A2DP		BIT(2)
-#define BPM_PAN		BIT(3)
-
 #define COEX_RESP_ACK_BY_WL_FW	0x1
 #define COEX_REQUEST_TIMEOUT	msecs_to_jiffies(10)
 
@@ -145,6 +139,25 @@ enum coex_algorithm {
 	COEX_ALGO_A2DP_PAN_HID	= 8,
 
 	COEX_ALGO_MAX
+};
+
+enum coex_bt_profile {
+	BPM_NOPROFILE		= 0,
+	BPM_HFP			= BIT(0),
+	BPM_HID			= BIT(1),
+	BPM_A2DP		= BIT(2),
+	BPM_PAN			= BIT(3),
+	BPM_HID_HFP		= BPM_HID | BPM_HFP,
+	BPM_A2DP_HFP		= BPM_A2DP | BPM_HFP,
+	BPM_A2DP_HID		= BPM_A2DP | BPM_HID,
+	BPM_A2DP_HID_HFP	= BPM_A2DP | BPM_HID | BPM_HFP,
+	BPM_PAN_HFP		= BPM_PAN | BPM_HFP,
+	BPM_PAN_HID		= BPM_PAN | BPM_HID,
+	BPM_PAN_HID_HFP		= BPM_PAN | BPM_HID | BPM_HFP,
+	BPM_PAN_A2DP		= BPM_PAN | BPM_A2DP,
+	BPM_PAN_A2DP_HFP	= BPM_PAN | BPM_A2DP | BPM_HFP,
+	BPM_PAN_A2DP_HID	= BPM_PAN | BPM_A2DP | BPM_HID,
+	BPM_PAN_A2DP_HID_HFP	= BPM_PAN | BPM_A2DP | BPM_HID | BPM_HFP,
 };
 
 enum coex_wl_link_mode {
