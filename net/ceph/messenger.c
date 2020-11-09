@@ -372,7 +372,7 @@ static void ceph_sock_data_ready(struct sock *sk)
 	}
 
 	if (sk->sk_state != TCP_CLOSE_WAIT) {
-		dout("%s on %p state = %lu, queueing work\n", __func__,
+		dout("%s %p state = %d, queueing work\n", __func__,
 		     con, con->state);
 		queue_con(con);
 	}
@@ -406,7 +406,7 @@ static void ceph_sock_state_change(struct sock *sk)
 {
 	struct ceph_connection *con = sk->sk_user_data;
 
-	dout("%s %p state = %lu sk_state = %u\n", __func__,
+	dout("%s %p state = %d sk_state = %u\n", __func__,
 	     con, con->state, sk->sk_state);
 
 	switch (sk->sk_state) {
@@ -2582,7 +2582,7 @@ static int try_write(struct ceph_connection *con)
 {
 	int ret = 1;
 
-	dout("try_write start %p state %lu\n", con, con->state);
+	dout("try_write start %p state %d\n", con, con->state);
 	if (con->state != CON_STATE_PREOPEN &&
 	    con->state != CON_STATE_CONNECTING &&
 	    con->state != CON_STATE_NEGOTIATING &&
@@ -2600,7 +2600,7 @@ static int try_write(struct ceph_connection *con)
 
 		BUG_ON(con->in_msg);
 		con->in_tag = CEPH_MSGR_TAG_READY;
-		dout("try_write initiating connect on %p new state %lu\n",
+		dout("try_write initiating connect on %p new state %d\n",
 		     con, con->state);
 		ret = ceph_tcp_connect(con);
 		if (ret < 0) {
@@ -2679,7 +2679,7 @@ static int try_read(struct ceph_connection *con)
 	int ret = -1;
 
 more:
-	dout("try_read start on %p state %lu\n", con, con->state);
+	dout("try_read start %p state %d\n", con, con->state);
 	if (con->state != CON_STATE_CONNECTING &&
 	    con->state != CON_STATE_NEGOTIATING &&
 	    con->state != CON_STATE_OPEN)
@@ -2876,11 +2876,7 @@ static bool con_sock_closed(struct ceph_connection *con)
 	CASE(OPEN);
 	CASE(STANDBY);
 	default:
-		pr_warn("%s con %p unrecognized state %lu\n",
-			__func__, con, con->state);
-		con->error_msg = "unrecognized con state";
 		BUG();
-		break;
 	}
 #undef CASE
 
@@ -2998,7 +2994,7 @@ static void ceph_con_workfn(struct work_struct *work)
  */
 static void con_fault(struct ceph_connection *con)
 {
-	dout("fault %p state %lu to peer %s\n",
+	dout("fault %p state %d to peer %s\n",
 	     con, con->state, ceph_pr_addr(&con->peer_addr));
 
 	pr_warn("%s%lld %s %s\n", ENTITY_NAME(con->peer_name),
