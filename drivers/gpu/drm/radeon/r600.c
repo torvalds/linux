@@ -1080,7 +1080,6 @@ void r600_pcie_gart_tlb_flush(struct radeon_device *rdev)
 	if ((rdev->family >= CHIP_RV770) && (rdev->family <= CHIP_RV740) &&
 	    !(rdev->flags & RADEON_IS_AGP)) {
 		void __iomem *ptr = (void *)rdev->gart.ptr;
-		u32 tmp;
 
 		/* r7xx hw bug.  write to HDP_DEBUG1 followed by fb read
 		 * rather than write to HDP_REG_COHERENCY_FLUSH_CNTL
@@ -1088,7 +1087,7 @@ void r600_pcie_gart_tlb_flush(struct radeon_device *rdev)
 		 * method for them.
 		 */
 		WREG32(HDP_DEBUG1, 0);
-		tmp = readl((void __iomem *)ptr);
+		readl((void __iomem *)ptr);
 	} else
 		WREG32(R_005480_HDP_MEM_COHERENCY_FLUSH_CNTL, 0x1);
 
@@ -4390,10 +4389,9 @@ void r600_mmio_hdp_flush(struct radeon_device *rdev)
 	if ((rdev->family >= CHIP_RV770) && (rdev->family <= CHIP_RV740) &&
 	    rdev->vram_scratch.ptr && !(rdev->flags & RADEON_IS_AGP)) {
 		void __iomem *ptr = (void *)rdev->vram_scratch.ptr;
-		u32 tmp;
 
 		WREG32(HDP_DEBUG1, 0);
-		tmp = readl((void __iomem *)ptr);
+		readl((void __iomem *)ptr);
 	} else
 		WREG32(R_005480_HDP_MEM_COHERENCY_FLUSH_CNTL, 0x1);
 }
