@@ -28,12 +28,12 @@
 
 /* Rockchip specific Registers */
 #define DWCMSHC_EMMC_DLL_CTRL		0x800
-#define DWCMSHC_EMMC_DLL_TXCLK		0x804
-#define DWCMSHC_EMMC_DLL_RXCLK		0x808
+#define DWCMSHC_EMMC_DLL_RXCLK		0x804
+#define DWCMSHC_EMMC_DLL_TXCLK		0x808
 #define DWCMSHC_EMMC_DLL_STRBIN		0x80c
 #define DWCMSHC_EMMC_DLL_STATUS0	0x840
 #define DWCMSHC_EMMC_DLL_START		BIT(0)
-#define DWCMSHC_EMMC_DLL_TXCLK_SRCSEL	29
+#define DWCMSHC_EMMC_DLL_RXCLK_SRCSEL	29
 #define DWCMSHC_EMMC_DLL_START_POINT	16
 #define DWCMSHC_EMMC_DLL_INC		8
 #define DWCMSHC_EMMC_DLL_DLYENA		BIT(27)
@@ -124,6 +124,61 @@ static void dwcmshc_hs400_enhanced_strobe(struct mmc_host *mmc,
 	sdhci_writel(host, vendor, DWCMSHC_EMMC_CONTROL);
 }
 
+static void dwcmshc_rk_set_clock(struct sdhci_host *host, unsigned int clock)
+{
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	int err;
+	u32 extra;
+
+	host->mmc->actual_clock = 0;
+	if (clock == 0)
+		return;
+
+	/* Rockchip platform only support 375KHz for identify mode */
+	if (clock <= 400000)
+		clock = 375000;
+
+	err = clk_set_rate(pltfm_host->clk, clock);
+	if (err)
+		dev_err(mmc_dev(host->mmc), "fail to set clock %d", clock);
+
+	sdhci_set_clock(host, clock);
+
+	if (clock <= 400000)
+		return;
+
+	/* Reset DLL */
+	sdhci_writel(host, BIT(1), DWCMSHC_EMMC_DLL_CTRL);
+	udelay(1);
+	sdhci_writel(host, 0x0, DWCMSHC_EMMC_DLL_CTRL);
+
+	/* Init DLL settings */
+	extra = 0x5 << DWCMSHC_EMMC_DLL_START_POINT |
+		0x2 << DWCMSHC_EMMC_DLL_INC |
+		DWCMSHC_EMMC_DLL_START;
+	sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_CTRL);
+	err = readl_poll_timeout(host->ioaddr + DWCMSHC_EMMC_DLL_STATUS0,
+				 extra, DLL_LOCK_WO_TMOUT(extra), 1,
+				 500 * USEC_PER_MSEC);
+	if (err) {
+		dev_err(mmc_dev(host->mmc), "DLL lock timeout!\n");
+		return;
+	}
+
+	extra = DWCMSHC_EMMC_DLL_DLYENA |
+		DLL_RXCLK_NO_INVERTER << DWCMSHC_EMMC_DLL_RXCLK_SRCSEL;
+	sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_RXCLK);
+
+	extra = DWCMSHC_EMMC_DLL_DLYENA |
+		DLL_RXCLK_TAPNUM_DEFAULT |
+		DLL_RXCLK_TAPNUM_FROM_SW;
+	sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_TXCLK);
+
+	extra = DWCMSHC_EMMC_DLL_DLYENA |
+		DLL_STRBIN_TAPNUM_DEFAULT;
+	sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_STRBIN);
+}
+
 static const struct sdhci_ops sdhci_dwcmshc_ops = {
 	.set_clock		= sdhci_set_clock,
 	.set_bus_width		= sdhci_set_bus_width,
@@ -133,13 +188,21 @@ static const struct sdhci_ops sdhci_dwcmshc_ops = {
 	.adma_write_desc	= dwcmshc_adma_write_desc,
 };
 
+static const struct sdhci_ops sdhci_dwcmshc_rk_ops = {
+	.set_clock		= dwcmshc_rk_set_clock,
+	.set_bus_width		= sdhci_set_bus_width,
+	.set_uhs_signaling	= dwcmshc_set_uhs_signaling,
+	.get_max_clock		= sdhci_pltfm_clk_get_max_clock,
+	.reset			= sdhci_reset,
+};
+
 static const struct sdhci_pltfm_data sdhci_dwcmshc_pdata = {
 	.ops = &sdhci_dwcmshc_ops,
 	.quirks = SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
 };
 
 static const struct sdhci_pltfm_data sdhci_dwcmshc_rk_pdata = {
-	.ops = &sdhci_dwcmshc_ops,
+	.ops = &sdhci_dwcmshc_rk_ops,
 	.quirks = SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
 	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
 			SDHCI_QUIRK2_CLOCK_DIV_ZERO_BROKEN,
@@ -166,38 +229,9 @@ static int rockchip_pltf_init(struct sdhci_host *host, struct dwcmshc_priv *priv
 		return err;
 	}
 
-	/* Reset DLL */
-	sdhci_writel(host, BIT(1), DWCMSHC_EMMC_DLL_CTRL);
-	udelay(1);
-	sdhci_writel(host, 0x0, DWCMSHC_EMMC_DLL_CTRL);
-
-	/* Init DLL settings */
-	extra = 0x5 << DWCMSHC_EMMC_DLL_START_POINT |
-		0x2 << DWCMSHC_EMMC_DLL_INC |
-		DWCMSHC_EMMC_DLL_START;
-	sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_CTRL);
-	err = readl_poll_timeout(host->ioaddr + DWCMSHC_EMMC_DLL_STATUS0,
-				 extra, DLL_LOCK_WO_TMOUT(extra), 1,
-				 500 * USEC_PER_MSEC);
-	if (err) {
-		dev_err(mmc_dev(host->mmc), "DLL lock timeout!\n");
-		/* FixMe: change start_point or inc ? */
-		return -ETIMEDOUT;
-	}
-
-	/* FixMe: clk inverter? */
 	extra = DWCMSHC_EMMC_DLL_DLYENA |
-		DLL_RXCLK_NO_INVERTER << DWCMSHC_EMMC_DLL_TXCLK_SRCSEL;
-	sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_TXCLK);
-
-	extra = DWCMSHC_EMMC_DLL_DLYENA |
-		DLL_RXCLK_TAPNUM_DEFAULT |
-		DLL_RXCLK_TAPNUM_FROM_SW;
-	sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_TXCLK);
-
-	extra = DWCMSHC_EMMC_DLL_DLYENA |
-		DLL_STRBIN_TAPNUM_DEFAULT;
-	sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_STRBIN);
+		DLL_RXCLK_NO_INVERTER << DWCMSHC_EMMC_DLL_RXCLK_SRCSEL;
+	sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_RXCLK);
 	return 0;
 }
 
