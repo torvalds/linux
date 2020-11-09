@@ -626,7 +626,7 @@ At the end of these exercises, we will be able to create, modify and delete regu
 We will mostly use the ``inode`` and ``dentry`` VFS structures.
 The ``inode`` structure defines a file (of any type: regular, directory, link), while the ``dentry`` structure defines a name, which is an entry in a directory.
 
-For this we will access the ``myfs/kernel`` directory in the lab skeleton.
+For this we will access the ``myfs`` directory in the lab skeleton.
 The previously generated skeleton contains the solution for the previous lab; we will start from this. As in the previous lab, we will use the ``ramfs`` file system as a starting point.
 
 1. Directory operations
@@ -796,7 +796,7 @@ If the implementation is correct, no error messages will be displayed when runni
 minfs
 -----
 
-For the exercises below, we will use the minfs file system whose development we started in the previous lab.
+For the exercises below, we will use the minfs file system whose development started in the previous lab.
 This is a file system with disk support.
 We stopped after mounting the file system and now we will continue with the operations on regular files and directories.
 At the end of these exercises we will be able to create and delete entries in the file system.
@@ -1030,7 +1030,7 @@ For this, you will iterate over the directory data block and you will find the f
 .. tip::
 
   In order to work with the directory, get the inode of type ``struct minfs_inode_info`` corresponding to the parent directory (the **dir** inode).
-  Do not use the variable ``inode`` to get ``struct_minfs_inode_info``; that inode belongs to the file, not to the parent directory inside which you want to add the link/dentry.
+  Do not use the variable ``inode`` to get ``struct minfs_inode_info``; that inode belongs to the file, not to the parent directory inside which you want to add the link/dentry.
   To get the ``struct minfs_inode_info`` structure, use :c:func:`container_of`.
 
   The structure ``struct minfs_inode_info`` is useful for finding the directory data block (the one indicated by the ``dentry->d_parent->d_inode``, which is the ``dir`` variable).
