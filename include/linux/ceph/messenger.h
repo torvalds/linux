@@ -239,6 +239,16 @@ struct ceph_msg {
 	struct ceph_msgpool *pool;
 };
 
+/*
+ * connection states
+ */
+#define CEPH_CON_S_CLOSED		1
+#define CEPH_CON_S_PREOPEN		2
+#define CEPH_CON_S_V1_BANNER		3
+#define CEPH_CON_S_V1_CONNECT_MSG	4
+#define CEPH_CON_S_OPEN			5
+#define CEPH_CON_S_STANDBY		6
+
 /* ceph connection fault delay defaults, for exponential backoff */
 #define BASE_DELAY_INTERVAL	(HZ / 4)
 #define MAX_DELAY_INTERVAL	(15 * HZ)
@@ -257,7 +267,7 @@ struct ceph_connection {
 
 	struct ceph_messenger *msgr;
 
-	int state;
+	int state;  /* CEPH_CON_S_* */
 	atomic_t sock_state;
 	struct socket *sock;
 	struct ceph_entity_addr peer_addr; /* peer address */

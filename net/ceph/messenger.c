@@ -83,16 +83,6 @@
 #define CON_SOCK_STATE_CLOSING		4	/* -> CLOSED */
 
 /*
- * connection states
- */
-#define CON_STATE_CLOSED        1  /* -> PREOPEN */
-#define CON_STATE_PREOPEN       2  /* -> CONNECTING, CLOSED */
-#define CON_STATE_CONNECTING    3  /* -> NEGOTIATING, CLOSED */
-#define CON_STATE_NEGOTIATING   4  /* -> OPEN, CLOSED */
-#define CON_STATE_OPEN          5  /* -> STANDBY, CLOSED */
-#define CON_STATE_STANDBY       6  /* -> PREOPEN, CLOSED */
-
-/*
  * ceph_connection flag bits
  */
 #define CON_FLAG_LOSSYTX           0  /* we can close channel or drop
@@ -674,7 +664,7 @@ void ceph_con_close(struct ceph_connection *con)
 {
 	mutex_lock(&con->mutex);
 	dout("con_close %p peer %s\n", con, ceph_pr_addr(&con->peer_addr));
-	con->state = CON_STATE_CLOSED;
+	con->state = CEPH_CON_S_CLOSED;
 
 	con_flag_clear(con, CON_FLAG_LOSSYTX);	/* so we retry next connect */
 	con_flag_clear(con, CON_FLAG_KEEPALIVE_PENDING);
@@ -698,8 +688,8 @@ void ceph_con_open(struct ceph_connection *con,
 	mutex_lock(&con->mutex);
 	dout("con_open %p %s\n", con, ceph_pr_addr(addr));
 
-	WARN_ON(con->state != CON_STATE_CLOSED);
-	con->state = CON_STATE_PREOPEN;
+	WARN_ON(con->state != CEPH_CON_S_CLOSED);
+	con->state = CEPH_CON_S_PREOPEN;
 
 	con->peer_name.type = (__u8) entity_type;
 	con->peer_name.num = cpu_to_le64(entity_num);
@@ -739,7 +729,7 @@ void ceph_con_init(struct ceph_connection *con, void *private,
 	INIT_LIST_HEAD(&con->out_sent);
 	INIT_DELAYED_WORK(&con->work, ceph_con_workfn);
 
-	con->state = CON_STATE_CLOSED;
+	con->state = CEPH_CON_S_CLOSED;
 }
 EXPORT_SYMBOL(ceph_con_init);
 
@@ -2183,7 +2173,7 @@ static int process_connect(struct ceph_connection *con)
 		if (con->ops->peer_reset)
 			con->ops->peer_reset(con);
 		mutex_lock(&con->mutex);
-		if (con->state != CON_STATE_NEGOTIATING)
+		if (con->state != CEPH_CON_S_V1_CONNECT_MSG)
 			return -EAGAIN;
 		break;
 
@@ -2232,8 +2222,8 @@ static int process_connect(struct ceph_connection *con)
 			return -1;
 		}
 
-		WARN_ON(con->state != CON_STATE_NEGOTIATING);
-		con->state = CON_STATE_OPEN;
+		WARN_ON(con->state != CEPH_CON_S_V1_CONNECT_MSG);
+		con->state = CEPH_CON_S_OPEN;
 		con->auth_retry = 0;    /* we authenticated; clear flag */
 		con->peer_global_seq = le32_to_cpu(con->in_reply.global_seq);
 		con->connect_seq++;
@@ -2583,16 +2573,16 @@ static int try_write(struct ceph_connection *con)
 	int ret = 1;
 
 	dout("try_write start %p state %d\n", con, con->state);
-	if (con->state != CON_STATE_PREOPEN &&
-	    con->state != CON_STATE_CONNECTING &&
-	    con->state != CON_STATE_NEGOTIATING &&
-	    con->state != CON_STATE_OPEN)
+	if (con->state != CEPH_CON_S_PREOPEN &&
+	    con->state != CEPH_CON_S_V1_BANNER &&
+	    con->state != CEPH_CON_S_V1_CONNECT_MSG &&
+	    con->state != CEPH_CON_S_OPEN)
 		return 0;
 
 	/* open the socket first? */
-	if (con->state == CON_STATE_PREOPEN) {
+	if (con->state == CEPH_CON_S_PREOPEN) {
 		BUG_ON(con->sock);
-		con->state = CON_STATE_CONNECTING;
+		con->state = CEPH_CON_S_V1_BANNER;
 
 		con_out_kvec_reset(con);
 		prepare_write_banner(con);
@@ -2646,7 +2636,7 @@ more:
 	}
 
 do_next:
-	if (con->state == CON_STATE_OPEN) {
+	if (con->state == CEPH_CON_S_OPEN) {
 		if (con_flag_test_and_clear(con, CON_FLAG_KEEPALIVE_PENDING)) {
 			prepare_write_keepalive(con);
 			goto more;
@@ -2680,9 +2670,9 @@ static int try_read(struct ceph_connection *con)
 
 more:
 	dout("try_read start %p state %d\n", con, con->state);
-	if (con->state != CON_STATE_CONNECTING &&
-	    con->state != CON_STATE_NEGOTIATING &&
-	    con->state != CON_STATE_OPEN)
+	if (con->state != CEPH_CON_S_V1_BANNER &&
+	    con->state != CEPH_CON_S_V1_CONNECT_MSG &&
+	    con->state != CEPH_CON_S_OPEN)
 		return 0;
 
 	BUG_ON(!con->sock);
@@ -2690,8 +2680,7 @@ more:
 	dout("try_read tag %d in_base_pos %d\n", (int)con->in_tag,
 	     con->in_base_pos);
 
-	if (con->state == CON_STATE_CONNECTING) {
-		dout("try_read connecting\n");
+	if (con->state == CEPH_CON_S_V1_BANNER) {
 		ret = read_partial_banner(con);
 		if (ret <= 0)
 			goto out;
@@ -2699,7 +2688,7 @@ more:
 		if (ret < 0)
 			goto out;
 
-		con->state = CON_STATE_NEGOTIATING;
+		con->state = CEPH_CON_S_V1_CONNECT_MSG;
 
 		/*
 		 * Received banner is good, exchange connection info.
@@ -2715,8 +2704,7 @@ more:
 		goto out;
 	}
 
-	if (con->state == CON_STATE_NEGOTIATING) {
-		dout("try_read negotiating\n");
+	if (con->state == CEPH_CON_S_V1_CONNECT_MSG) {
 		ret = read_partial_connect(con);
 		if (ret <= 0)
 			goto out;
@@ -2726,7 +2714,7 @@ more:
 		goto more;
 	}
 
-	WARN_ON(con->state != CON_STATE_OPEN);
+	WARN_ON(con->state != CEPH_CON_S_OPEN);
 
 	if (con->in_base_pos < 0) {
 		/*
@@ -2760,7 +2748,7 @@ more:
 			break;
 		case CEPH_MSGR_TAG_CLOSE:
 			con_close_socket(con);
-			con->state = CON_STATE_CLOSED;
+			con->state = CEPH_CON_S_CLOSED;
 			goto out;
 		default:
 			goto bad_tag;
@@ -2785,7 +2773,7 @@ more:
 		if (con->in_tag == CEPH_MSGR_TAG_READY)
 			goto more;
 		process_message(con);
-		if (con->state == CON_STATE_OPEN)
+		if (con->state == CEPH_CON_S_OPEN)
 			prepare_read_tag(con);
 		goto more;
 	}
@@ -2864,15 +2852,15 @@ static bool con_sock_closed(struct ceph_connection *con)
 		return false;
 
 #define CASE(x)								\
-	case CON_STATE_ ## x:						\
+	case CEPH_CON_S_ ## x:						\
 		con->error_msg = "socket closed (con state " #x ")";	\
 		break;
 
 	switch (con->state) {
 	CASE(CLOSED);
 	CASE(PREOPEN);
-	CASE(CONNECTING);
-	CASE(NEGOTIATING);
+	CASE(V1_BANNER);
+	CASE(V1_CONNECT_MSG);
 	CASE(OPEN);
 	CASE(STANDBY);
 	default:
@@ -2943,16 +2931,16 @@ static void ceph_con_workfn(struct work_struct *work)
 			dout("%s: con %p BACKOFF\n", __func__, con);
 			break;
 		}
-		if (con->state == CON_STATE_STANDBY) {
+		if (con->state == CEPH_CON_S_STANDBY) {
 			dout("%s: con %p STANDBY\n", __func__, con);
 			break;
 		}
-		if (con->state == CON_STATE_CLOSED) {
+		if (con->state == CEPH_CON_S_CLOSED) {
 			dout("%s: con %p CLOSED\n", __func__, con);
 			BUG_ON(con->sock);
 			break;
 		}
-		if (con->state == CON_STATE_PREOPEN) {
+		if (con->state == CEPH_CON_S_PREOPEN) {
 			dout("%s: con %p PREOPEN\n", __func__, con);
 			BUG_ON(con->sock);
 		}
@@ -3001,15 +2989,15 @@ static void con_fault(struct ceph_connection *con)
 		ceph_pr_addr(&con->peer_addr), con->error_msg);
 	con->error_msg = NULL;
 
-	WARN_ON(con->state != CON_STATE_CONNECTING &&
-	       con->state != CON_STATE_NEGOTIATING &&
-	       con->state != CON_STATE_OPEN);
+	WARN_ON(con->state != CEPH_CON_S_V1_BANNER &&
+	       con->state != CEPH_CON_S_V1_CONNECT_MSG &&
+	       con->state != CEPH_CON_S_OPEN);
 
 	ceph_con_reset_protocol(con);
 
 	if (con_flag_test(con, CON_FLAG_LOSSYTX)) {
 		dout("fault on LOSSYTX channel, marking CLOSED\n");
-		con->state = CON_STATE_CLOSED;
+		con->state = CEPH_CON_S_CLOSED;
 		return;
 	}
 
@@ -3022,10 +3010,10 @@ static void con_fault(struct ceph_connection *con)
 	    !con_flag_test(con, CON_FLAG_KEEPALIVE_PENDING)) {
 		dout("fault %p setting STANDBY clearing WRITE_PENDING\n", con);
 		con_flag_clear(con, CON_FLAG_WRITE_PENDING);
-		con->state = CON_STATE_STANDBY;
+		con->state = CEPH_CON_S_STANDBY;
 	} else {
 		/* retry after a delay. */
-		con->state = CON_STATE_PREOPEN;
+		con->state = CEPH_CON_S_PREOPEN;
 		if (!con->delay) {
 			con->delay = BASE_DELAY_INTERVAL;
 		} else if (con->delay < MAX_DELAY_INTERVAL) {
@@ -3092,9 +3080,9 @@ static void msg_con_set(struct ceph_msg *msg, struct ceph_connection *con)
 static void clear_standby(struct ceph_connection *con)
 {
 	/* come back from STANDBY? */
-	if (con->state == CON_STATE_STANDBY) {
+	if (con->state == CEPH_CON_S_STANDBY) {
 		dout("clear_standby %p and ++connect_seq\n", con);
-		con->state = CON_STATE_PREOPEN;
+		con->state = CEPH_CON_S_PREOPEN;
 		con->connect_seq++;
 		WARN_ON(con_flag_test(con, CON_FLAG_WRITE_PENDING));
 		WARN_ON(con_flag_test(con, CON_FLAG_KEEPALIVE_PENDING));
@@ -3115,7 +3103,7 @@ void ceph_con_send(struct ceph_connection *con, struct ceph_msg *msg)
 
 	mutex_lock(&con->mutex);
 
-	if (con->state == CON_STATE_CLOSED) {
+	if (con->state == CEPH_CON_S_CLOSED) {
 		dout("con_send %p closed, dropping %p\n", con, msg);
 		ceph_msg_put(msg);
 		mutex_unlock(&con->mutex);
@@ -3456,7 +3444,7 @@ static int ceph_con_in_msg_alloc(struct ceph_connection *con,
 	mutex_unlock(&con->mutex);
 	msg = con->ops->alloc_msg(con, hdr, skip);
 	mutex_lock(&con->mutex);
-	if (con->state != CON_STATE_OPEN) {
+	if (con->state != CEPH_CON_S_OPEN) {
 		if (msg)
 			ceph_msg_put(msg);
 		return -EAGAIN;
