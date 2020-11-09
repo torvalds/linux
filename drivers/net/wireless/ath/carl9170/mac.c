@@ -329,10 +329,6 @@ int carl9170_set_operating_mode(struct ar9170 *ar)
 			/* iwlagn 802.11n STA Workaround */
 			rx_ctrl |= AR9170_MAC_RX_CTRL_PASS_TO_HOST;
 			break;
-		case NL80211_IFTYPE_WDS:
-			cam_mode |= AR9170_MAC_CAM_AP_WDS;
-			rx_ctrl |= AR9170_MAC_RX_CTRL_PASS_TO_HOST;
-			break;
 		case NL80211_IFTYPE_STATION:
 			cam_mode |= AR9170_MAC_CAM_STA;
 			rx_ctrl |= AR9170_MAC_RX_CTRL_PASS_TO_HOST;
