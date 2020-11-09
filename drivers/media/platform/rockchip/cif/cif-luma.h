@@ -53,6 +53,7 @@ struct rkcif_luma_node {
 struct rkcif_luma_vdev {
 	struct rkcif_luma_node vnode;
 	struct rkcif_device *cifdev;
+	bool enable;
 
 	spinlock_t irq_lock;	/* tasklet queue lock */
 	struct list_head stat;
@@ -71,7 +72,7 @@ void rkcif_start_luma(struct rkcif_luma_vdev *luma_vdev, const struct cif_input_
 
 void rkcif_stop_luma(struct rkcif_luma_vdev *luma_vdev);
 
-void rkcif_luma_isr(struct rkcif_luma_vdev *luma_vdev, int isp_stat);
+void rkcif_luma_isr(struct rkcif_luma_vdev *luma_vdev, int isp_stat, u32 frame_id);
 
 int rkcif_register_luma_vdev(struct rkcif_luma_vdev *luma_vdev,
 			     struct v4l2_device *v4l2_dev,

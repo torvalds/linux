@@ -291,10 +291,9 @@ static void rkcif_luma_readout_task(unsigned long data)
 	}
 }
 
-void rkcif_luma_isr(struct rkcif_luma_vdev *luma_vdev, int mipi_id)
+void rkcif_luma_isr(struct rkcif_luma_vdev *luma_vdev, int mipi_id, u32 frame_id)
 {
 	u8 hdr_mode = luma_vdev->cifdev->hdr.mode;
-	unsigned int cur_frame_id = rkcif_get_sof(luma_vdev->cifdev);
 	enum rkcif_luma_frm_mode frm_mode;
 	bool send_task;
 	u32 i, value;
@@ -304,6 +303,9 @@ void rkcif_luma_isr(struct rkcif_luma_vdev *luma_vdev, int mipi_id)
 		goto unlock;
 
 	switch (hdr_mode) {
+	case NO_HDR:
+		frm_mode = RKCIF_LUMA_ONEFRM;
+		break;
 	case HDR_X2:
 		frm_mode = RKCIF_LUMA_TWOFRM;
 		break;
@@ -364,7 +366,7 @@ void rkcif_luma_isr(struct rkcif_luma_vdev *luma_vdev, int mipi_id)
 	if (send_task) {
 		luma_vdev->work.readout = RKCIF_READOUT_LUMA;
 		luma_vdev->work.timestamp = ktime_get_ns();
-		luma_vdev->work.frame_id = cur_frame_id;
+		luma_vdev->work.frame_id = frame_id;
 
 		if (frm_mode == RKCIF_LUMA_THREEFRM)
 			luma_vdev->work.meas_type = ISP2X_RAW0_Y_STATE | ISP2X_RAW1_Y_STATE |
@@ -425,11 +427,13 @@ void rkcif_start_luma(struct rkcif_luma_vdev *luma_vdev, const struct cif_input_
 
 	rkcif_write_register(luma_vdev->cifdev, CIF_REG_Y_STAT_CONTROL,
 			     SW_Y_STAT_BAYER_TYPE(bayer) | SW_Y_STAT_EN);
+	luma_vdev->enable = true;
 }
 
 void rkcif_stop_luma(struct rkcif_luma_vdev *luma_vdev)
 {
 	rkcif_write_register(luma_vdev->cifdev, CIF_REG_Y_STAT_CONTROL, 0x0);
+	luma_vdev->enable = false;
 }
 
 static void rkcif_init_luma_vdev(struct rkcif_luma_vdev *luma_vdev)
