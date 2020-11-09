@@ -168,18 +168,7 @@ static struct platform_driver max8997_battery_driver = {
 	.probe = max8997_battery_probe,
 	.id_table = max8997_battery_id,
 };
-
-static int __init max8997_battery_init(void)
-{
-	return platform_driver_register(&max8997_battery_driver);
-}
-subsys_initcall(max8997_battery_init);
-
-static void __exit max8997_battery_cleanup(void)
-{
-	platform_driver_unregister(&max8997_battery_driver);
-}
-module_exit(max8997_battery_cleanup);
+module_platform_driver(max8997_battery_driver);
 
 MODULE_DESCRIPTION("MAXIM 8997/8966 battery control driver");
 MODULE_AUTHOR("MyungJoo Ham <myungjoo.ham@samsung.com>");
