@@ -92,7 +92,7 @@ static irqreturn_t axp20x_usb_power_irq(int irq, void *devid)
 
 	power_supply_changed(power->supply);
 
-	mod_delayed_work(system_wq, &power->vbus_detect, DEBOUNCE_TIME);
+	mod_delayed_work(system_power_efficient_wq, &power->vbus_detect, DEBOUNCE_TIME);
 
 	return IRQ_HANDLED;
 }
@@ -117,7 +117,7 @@ static void axp20x_usb_power_poll_vbus(struct work_struct *work)
 
 out:
 	if (axp20x_usb_vbus_needs_polling(power))
-		mod_delayed_work(system_wq, &power->vbus_detect, DEBOUNCE_TIME);
+		mod_delayed_work(system_power_efficient_wq, &power->vbus_detect, DEBOUNCE_TIME);
 }
 
 static int axp20x_get_current_max(struct axp20x_usb_power *power, int *val)
@@ -525,7 +525,7 @@ static int axp20x_usb_power_resume(struct device *dev)
 	while (i < power->num_irqs)
 		enable_irq(power->irqs[i++]);
 
-	mod_delayed_work(system_wq, &power->vbus_detect, DEBOUNCE_TIME);
+	mod_delayed_work(system_power_efficient_wq, &power->vbus_detect, DEBOUNCE_TIME);
 
 	return 0;
 }
@@ -647,7 +647,7 @@ static int axp20x_usb_power_probe(struct platform_device *pdev)
 
 	INIT_DELAYED_WORK(&power->vbus_detect, axp20x_usb_power_poll_vbus);
 	if (axp20x_usb_vbus_needs_polling(power))
-		queue_delayed_work(system_wq, &power->vbus_detect, 0);
+		queue_delayed_work(system_power_efficient_wq, &power->vbus_detect, 0);
 
 	return 0;
 }
