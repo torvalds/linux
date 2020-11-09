@@ -345,12 +345,49 @@ struct ceph_connection {
 
 extern struct page *ceph_zero_page;
 
+void ceph_con_flag_clear(struct ceph_connection *con, unsigned long con_flag);
+void ceph_con_flag_set(struct ceph_connection *con, unsigned long con_flag);
+bool ceph_con_flag_test(struct ceph_connection *con, unsigned long con_flag);
+bool ceph_con_flag_test_and_clear(struct ceph_connection *con,
+				  unsigned long con_flag);
+bool ceph_con_flag_test_and_set(struct ceph_connection *con,
+				unsigned long con_flag);
+
+void ceph_encode_my_addr(struct ceph_messenger *msgr);
+
+int ceph_tcp_connect(struct ceph_connection *con);
+int ceph_con_close_socket(struct ceph_connection *con);
+void ceph_con_reset_session(struct ceph_connection *con);
+
+u32 ceph_get_global_seq(struct ceph_messenger *msgr, u32 gt);
+void ceph_con_discard_sent(struct ceph_connection *con, u64 ack_seq);
+void ceph_con_discard_requeued(struct ceph_connection *con, u64 reconnect_seq);
+
+void ceph_msg_data_cursor_init(struct ceph_msg_data_cursor *cursor,
+			       struct ceph_msg *msg, size_t length);
+struct page *ceph_msg_data_next(struct ceph_msg_data_cursor *cursor,
+				size_t *page_offset, size_t *length,
+				bool *last_piece);
+void ceph_msg_data_advance(struct ceph_msg_data_cursor *cursor, size_t bytes);
+
+u32 ceph_crc32c_page(u32 crc, struct page *page, unsigned int page_offset,
+		     unsigned int length);
+
+bool ceph_addr_is_blank(const struct ceph_entity_addr *addr);
+int ceph_addr_port(const struct ceph_entity_addr *addr);
+void ceph_addr_set_port(struct ceph_entity_addr *addr, int p);
+
+void ceph_con_process_message(struct ceph_connection *con);
+int ceph_con_in_msg_alloc(struct ceph_connection *con,
+			  struct ceph_msg_header *hdr, int *skip);
+void ceph_con_get_out_msg(struct ceph_connection *con);
+
+
 extern const char *ceph_pr_addr(const struct ceph_entity_addr *addr);
 
 extern int ceph_parse_ips(const char *c, const char *end,
 			  struct ceph_entity_addr *addr,
 			  int max_count, int *count);
-
 
 extern int ceph_msgr_init(void);
 extern void ceph_msgr_exit(void);
