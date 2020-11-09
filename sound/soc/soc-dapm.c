@@ -1276,7 +1276,7 @@ static int is_connected_input_ep(struct snd_soc_dapm_widget *widget,
 }
 
 /**
- * snd_soc_dapm_get_connected_widgets - query audio path and it's widgets.
+ * snd_soc_dapm_dai_get_connected_widgets - query audio path and it's widgets.
  * @dai: the soc DAI.
  * @stream: stream direction.
  * @list: list of active widgets for this stream.

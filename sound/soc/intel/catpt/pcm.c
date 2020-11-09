@@ -667,7 +667,17 @@ static int catpt_dai_pcm_new(struct snd_soc_pcm_runtime *rtm,
 		break;
 	}
 
+	/* see if this is a new configuration */
+	if (!memcmp(&cdev->devfmt[devfmt.iface], &devfmt, sizeof(devfmt)))
+		return 0;
+
+	pm_runtime_get_sync(cdev->dev);
+
 	ret = catpt_ipc_set_device_format(cdev, &devfmt);
+
+	pm_runtime_mark_last_busy(cdev->dev);
+	pm_runtime_put_autosuspend(cdev->dev);
+
 	if (ret)
 		return CATPT_IPC_ERROR(ret);
 

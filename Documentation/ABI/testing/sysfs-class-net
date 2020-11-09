@@ -152,7 +152,7 @@ Description:
 		When an interface is under test, it cannot be expected
 		to pass packets as normal.
 
-What:		/sys/clas/net/<iface>/duplex
+What:		/sys/class/net/<iface>/duplex
 Date:		October 2009
 KernelVersion:	2.6.33
 Contact:	netdev@vger.kernel.org

@@ -66,7 +66,6 @@ def isolate_kunit_output(kernel_output):
 def raw_output(kernel_output):
 	for line in kernel_output:
 		print(line)
-		yield line
 
 DIVIDER = '=' * 60
 
@@ -242,7 +241,7 @@ def parse_test_suite(lines: List[str], expected_suite_index: int) -> TestSuite:
 		return None
 	test_suite.name = name
 	expected_test_case_num = parse_subtest_plan(lines)
-	if not expected_test_case_num:
+	if expected_test_case_num is None:
 		return None
 	while expected_test_case_num > 0:
 		test_case = parse_test_case(lines)
