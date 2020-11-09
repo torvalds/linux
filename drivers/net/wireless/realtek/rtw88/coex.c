@@ -2335,17 +2335,19 @@ void rtw_coex_bt_info_notify(struct rtw_dev *rtwdev, u8 *buf, u8 length)
 	struct rtw_coex *coex = &rtwdev->coex;
 	struct rtw_coex_stat *coex_stat = &coex->stat;
 	struct rtw_chip_info *chip = rtwdev->chip;
+	struct rtw_coex_dm *coex_dm = &coex->dm;
 	u32 bt_relink_time;
 	u8 i, rsp_source = 0, type;
 	bool inq_page = false;
 
 	rsp_source = buf[0] & 0xf;
 	if (rsp_source >= COEX_BTINFO_SRC_MAX)
-		rsp_source = COEX_BTINFO_SRC_WL_FW;
+		return;
+	coex_stat->cnt_bt_info_c2h[rsp_source]++;
 
 	if (rsp_source == COEX_BTINFO_SRC_BT_IQK) {
 		coex_stat->bt_iqk_state = buf[1];
-		if (coex_stat->bt_iqk_state == 1)
+		if (coex_stat->bt_iqk_state == 0)
 			coex_stat->cnt_bt[COEX_CNT_BT_IQK]++;
 		else if (coex_stat->bt_iqk_state == 2)
 			coex_stat->cnt_bt[COEX_CNT_BT_IQKFAIL]++;
@@ -2362,6 +2364,17 @@ void rtw_coex_bt_info_notify(struct rtw_dev *rtwdev, u8 *buf, u8 length)
 		return;
 	}
 
+	if (rsp_source == COEX_BTINFO_SRC_H2C60) {
+		for (i = 1; i <= COEX_WL_TDMA_PARA_LENGTH; i++)
+			coex_dm->fw_tdma_para[i - 1] = buf[i];
+		return;
+	}
+
+	if (rsp_source == COEX_BTINFO_SRC_WL_FW) {
+		rtw_coex_update_bt_link_info(rtwdev);
+		return;
+	}
+
 	if (rsp_source == COEX_BTINFO_SRC_BT_RSP ||
 	    rsp_source == COEX_BTINFO_SRC_BT_ACT) {
 		if (coex_stat->bt_disabled) {
@@ -2373,18 +2386,15 @@ void rtw_coex_bt_info_notify(struct rtw_dev *rtwdev, u8 *buf, u8 length)
 		}
 	}
 
-	for (i = 0; i < length; i++) {
-		if (i < COEX_BTINFO_LENGTH_MAX)
-			coex_stat->bt_info_c2h[rsp_source][i] = buf[i];
-		else
-			break;
-	}
+	if (length != COEX_BTINFO_LENGTH) {
+		rtw_dbg(rtwdev, RTW_DBG_COEX,
+			"[BTCoex], Bt_info length = %d invalid!!\n", length);
 
-	if (rsp_source == COEX_BTINFO_SRC_WL_FW) {
-		rtw_coex_update_bt_link_info(rtwdev);
-		rtw_coex_run_coex(rtwdev, COEX_RSN_BTINFO);
 		return;
 	}
+
+	for (i = 0; i < COEX_BTINFO_LENGTH; i++)
+		coex_stat->bt_info_c2h[rsp_source][i] = buf[i];
 
 	/* get the same info from bt, skip it */
 	if (coex_stat->bt_info_c2h[rsp_source][1] == coex_stat->bt_info_lb2 &&
@@ -2446,17 +2456,8 @@ void rtw_coex_bt_info_notify(struct rtw_dev *rtwdev, u8 *buf, u8 length)
 		coex_stat->cnt_bt[COEX_CNT_BT_INQ]++;
 
 	coex_stat->bt_page = ((coex_stat->bt_info_lb3 & BIT(7)) == BIT(7));
-	if (coex_stat->bt_page) {
+	if (coex_stat->bt_page)
 		coex_stat->cnt_bt[COEX_CNT_BT_PAGE]++;
-		if (coex_stat->wl_linkscan_proc ||
-		    coex_stat->wl_hi_pri_task1 ||
-		    coex_stat->wl_hi_pri_task2 || coex_stat->wl_gl_busy)
-			rtw_coex_write_scbd(rtwdev, COEX_SCBD_SCAN, true);
-		else
-			rtw_coex_write_scbd(rtwdev, COEX_SCBD_SCAN, false);
-	} else {
-		rtw_coex_write_scbd(rtwdev, COEX_SCBD_SCAN, false);
-	}
 
 	/* unit: % (value-100 to translate to unit: dBm in coex info) */
 	if (chip->bt_rssi_type == COEX_BTRSSI_RATIO) {

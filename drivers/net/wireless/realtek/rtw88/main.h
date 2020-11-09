@@ -1241,6 +1241,8 @@ struct rtw_coex_rfe {
 	bool wlg_at_btg;
 };
 
+#define COEX_WL_TDMA_PARA_LENGTH	5
+
 struct rtw_coex_dm {
 	bool cur_ps_tdma_on;
 	bool cur_wl_rx_low_gain_en;
@@ -1260,6 +1262,7 @@ struct rtw_coex_dm {
 	u32 cur_ant_pos_type;
 	u32 cur_switch_status;
 	u32 setting_tdma;
+	u8 fw_tdma_para[COEX_WL_TDMA_PARA_LENGTH];
 };
 
 #define COEX_BTINFO_SRC_WL_FW	0x0
@@ -1267,7 +1270,8 @@ struct rtw_coex_dm {
 #define COEX_BTINFO_SRC_BT_ACT	0x2
 #define COEX_BTINFO_SRC_BT_IQK	0x3
 #define COEX_BTINFO_SRC_BT_SCBD	0x4
-#define COEX_BTINFO_SRC_MAX	0x5
+#define COEX_BTINFO_SRC_H2C60	0x5
+#define COEX_BTINFO_SRC_MAX	0x6
 
 #define COEX_INFO_FTP		BIT(7)
 #define COEX_INFO_A2DP		BIT(6)
@@ -1278,6 +1282,7 @@ struct rtw_coex_dm {
 #define COEX_INFO_SCO_ESCO	BIT(1)
 #define COEX_INFO_CONNECTION	BIT(0)
 #define COEX_BTINFO_LENGTH_MAX	10
+#define COEX_BTINFO_LENGTH	7
 
 struct rtw_coex_stat {
 	bool bt_disabled;
@@ -1363,6 +1368,9 @@ struct rtw_coex_stat {
 
 	/* counters to record wifi states */
 	u32 cnt_wl[COEX_CNT_WL_MAX];
+
+	/* counters to record bt c2h data */
+	u32 cnt_bt_info_c2h[COEX_BTINFO_SRC_MAX];
 
 	u32 darfrc;
 	u32 darfrch;
