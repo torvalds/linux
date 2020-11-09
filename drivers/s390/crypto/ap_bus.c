@@ -711,12 +711,6 @@ static int __ap_queue_devices_with_id_unregister(struct device *dev, void *data)
 	return 0;
 }
 
-static struct bus_type ap_bus_type = {
-	.name = "ap",
-	.match = &ap_bus_match,
-	.uevent = &ap_uevent,
-};
-
 static int __ap_revise_reserved(struct device *dev, void *dummy)
 {
 	int rc, card, queue, devres, drvres;
@@ -1301,22 +1295,30 @@ static ssize_t bindings_show(struct bus_type *bus, char *buf)
 
 static BUS_ATTR_RO(bindings);
 
-static struct bus_attribute *const ap_bus_attrs[] = {
-	&bus_attr_ap_domain,
-	&bus_attr_ap_control_domain_mask,
-	&bus_attr_ap_usage_domain_mask,
-	&bus_attr_ap_adapter_mask,
-	&bus_attr_config_time,
-	&bus_attr_poll_thread,
-	&bus_attr_ap_interrupts,
-	&bus_attr_poll_timeout,
-	&bus_attr_ap_max_domain_id,
-	&bus_attr_ap_max_adapter_id,
-	&bus_attr_apmask,
-	&bus_attr_aqmask,
-	&bus_attr_scans,
-	&bus_attr_bindings,
+static struct attribute *ap_bus_attrs[] = {
+	&bus_attr_ap_domain.attr,
+	&bus_attr_ap_control_domain_mask.attr,
+	&bus_attr_ap_usage_domain_mask.attr,
+	&bus_attr_ap_adapter_mask.attr,
+	&bus_attr_config_time.attr,
+	&bus_attr_poll_thread.attr,
+	&bus_attr_ap_interrupts.attr,
+	&bus_attr_poll_timeout.attr,
+	&bus_attr_ap_max_domain_id.attr,
+	&bus_attr_ap_max_adapter_id.attr,
+	&bus_attr_apmask.attr,
+	&bus_attr_aqmask.attr,
+	&bus_attr_scans.attr,
+	&bus_attr_bindings.attr,
 	NULL,
+};
+ATTRIBUTE_GROUPS(ap_bus);
+
+static struct bus_type ap_bus_type = {
+	.name = "ap",
+	.bus_groups = ap_bus_groups,
+	.match = &ap_bus_match,
+	.uevent = &ap_uevent,
 };
 
 /**
@@ -1798,7 +1800,7 @@ static void __init ap_perms_init(void)
  */
 static int __init ap_module_init(void)
 {
-	int rc, i;
+	int rc;
 
 	rc = ap_debug_init();
 	if (rc)
@@ -1837,11 +1839,6 @@ static int __init ap_module_init(void)
 	rc = bus_register(&ap_bus_type);
 	if (rc)
 		goto out;
-	for (i = 0; ap_bus_attrs[i]; i++) {
-		rc = bus_create_file(&ap_bus_type, ap_bus_attrs[i]);
-		if (rc)
-			goto out_bus;
-	}
 
 	/* Create /sys/devices/ap. */
 	ap_root_device = root_device_register("ap");
@@ -1877,8 +1874,6 @@ out_work:
 	hrtimer_cancel(&ap_poll_timer);
 	root_device_unregister(ap_root_device);
 out_bus:
-	while (i--)
-		bus_remove_file(&ap_bus_type, ap_bus_attrs[i]);
 	bus_unregister(&ap_bus_type);
 out:
 	if (ap_using_interrupts())
