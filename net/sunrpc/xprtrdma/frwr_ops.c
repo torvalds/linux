@@ -67,11 +67,11 @@ void frwr_release_mr(struct rpcrdma_mr *mr)
 
 static void frwr_mr_unmap(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr *mr)
 {
-	if (mr->mr_dir != DMA_NONE) {
+	if (mr->mr_device) {
 		trace_xprtrdma_mr_unmap(mr);
-		ib_dma_unmap_sg(r_xprt->rx_ep->re_id->device,
-				mr->mr_sg, mr->mr_nents, mr->mr_dir);
-		mr->mr_dir = DMA_NONE;
+		ib_dma_unmap_sg(mr->mr_device, mr->mr_sg, mr->mr_nents,
+				mr->mr_dir);
+		mr->mr_device = NULL;
 	}
 }
 
@@ -145,7 +145,7 @@ int frwr_mr_init(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr *mr)
 
 	mr->mr_xprt = r_xprt;
 	mr->frwr.fr_mr = frmr;
-	mr->mr_dir = DMA_NONE;
+	mr->mr_device = NULL;
 	INIT_LIST_HEAD(&mr->mr_list);
 	init_completion(&mr->frwr.fr_linv_done);
 
@@ -330,6 +330,7 @@ struct rpcrdma_mr_seg *frwr_map(struct rpcrdma_xprt *r_xprt,
 				  mr->mr_dir);
 	if (!dma_nents)
 		goto out_dmamap_err;
+	mr->mr_device = ep->re_id->device;
 
 	ibmr = mr->frwr.fr_mr;
 	n = ib_map_mr_sg(ibmr, mr->mr_sg, dma_nents, NULL, PAGE_SIZE);
@@ -356,7 +357,6 @@ struct rpcrdma_mr_seg *frwr_map(struct rpcrdma_xprt *r_xprt,
 	return seg;
 
 out_dmamap_err:
-	mr->mr_dir = DMA_NONE;
 	trace_xprtrdma_frwr_sgerr(mr, i);
 	return ERR_PTR(-EIO);
 
