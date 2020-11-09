@@ -269,6 +269,17 @@
 		vin-supply = <&vcc_3v3>;
 	};
 
+	vcc28_lcd_n: vcc28-lcd-n {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc28_lcd_n";
+		regulator-boot-on;
+		gpio = <&gpio0 RK_PC0 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-state-mem {
+			regulator-off-in-suspend;
+		};
+	};
+
 	sdio_pwrseq: sdio-pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		clocks = <&rk809 1>;
@@ -953,6 +964,7 @@
 		reg = <0x14>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&touch_gpio>;
+		power-supply = <&vcc28_lcd_n>;
 		goodix,rst-gpio = <&gpio0 RK_PB6 GPIO_ACTIVE_HIGH>;
 		goodix,irq-gpio = <&gpio0 RK_PB5 IRQ_TYPE_LEVEL_LOW>;
 	};
@@ -1037,9 +1049,9 @@
 	};
 
 	touch {
-		touch_gpio: touch_gpio {
-		rockchip,pins =
-				<0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>,
+		touch_gpio: touch-gpio {
+			rockchip,pins =
+				<0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_up>,
 				<0 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
