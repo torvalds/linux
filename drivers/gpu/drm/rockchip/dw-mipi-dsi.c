@@ -1310,6 +1310,9 @@ static void dw_mipi_dsi_encoder_enable(struct drm_encoder *encoder)
 	else
 		dw_mipi_dsi_calc_pll_cfg(dsi, lane_rate);
 
+	if (dsi->slave && dsi->slave->dphy.phy)
+		dw_mipi_dsi_set_hs_clk(dsi->slave, lane_rate);
+
 	DRM_DEV_INFO(dsi->dev, "final DSI-Link bandwidth: %u x %d Mbps\n",
 		     dsi->lane_mbps, dsi->slave ? dsi->lanes * 2 : dsi->lanes);
 
