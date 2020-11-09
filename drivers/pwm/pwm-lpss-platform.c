@@ -69,9 +69,13 @@ static int pwm_lpss_probe_platform(struct platform_device *pdev)
 	 *    this causes it to stay on during the next suspend causing high
 	 *    battery drain (because S0i3 is not reached)
 	 * 2. The state restoring code unexpectedly messing with the controller
+	 *
+	 * Leaving the controller runtime-suspended (skipping runtime-resume +
+	 * normal-suspend) during suspend is fine.
 	 */
 	if (info->other_devices_aml_touches_pwm_regs)
-		dev_pm_set_driver_flags(&pdev->dev, DPM_FLAG_NO_DIRECT_COMPLETE);
+		dev_pm_set_driver_flags(&pdev->dev, DPM_FLAG_NO_DIRECT_COMPLETE|
+						    DPM_FLAG_SMART_SUSPEND);
 
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
