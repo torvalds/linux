@@ -728,9 +728,6 @@ struct ath11k_base {
 	} stats;
 	u32 pktlog_defs_checksum;
 
-	/* Round robbin based TCL ring selector */
-	atomic_t tcl_ring_selector;
-
 	struct ath11k_dbring_cap *db_caps;
 	u32 num_db_cap;
 

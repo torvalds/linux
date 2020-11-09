@@ -105,14 +105,14 @@ int ath11k_dp_tx(struct ath11k *ar, struct ath11k_vif *arvif,
 
 	pool_id = skb_get_queue_mapping(skb) & (ATH11K_HW_MAX_QUEUES - 1);
 
-	/* Let the default ring selection be based on a round robin
-	 * fashion where one of the 3 tcl rings are selected based on
-	 * the tcl_ring_selector counter. In case that ring
+	/* Let the default ring selection be based on current processor
+	 * number, where one of the 3 tcl rings are selected based on
+	 * the smp_processor_id(). In case that ring
 	 * is full/busy, we resort to other available rings.
 	 * If all rings are full, we drop the packet.
 	 * //TODO Add throttling logic when all rings are full
 	 */
-	ring_selector = atomic_inc_return(&ab->tcl_ring_selector);
+	ring_selector = smp_processor_id();
 
 tcl_ring_sel:
 	tcl_ring_retry = false;
