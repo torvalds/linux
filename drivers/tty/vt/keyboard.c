@@ -462,9 +462,9 @@ static void fn_enter(struct vc_data *vc)
 		diacr = 0;
 	}
 
-	put_queue(vc, 13);
+	put_queue(vc, '\r');
 	if (vc_kbd_mode(kbd, VC_CRLF))
-		put_queue(vc, 10);
+		put_queue(vc, '\n');
 }
 
 static void fn_caps_toggle(struct vc_data *vc)
@@ -827,7 +827,7 @@ static void k_pad(struct vc_data *vc, unsigned char value, char up_flag)
 
 	put_queue(vc, pad_chars[value]);
 	if (value == KVAL(K_PENTER) && vc_kbd_mode(kbd, VC_CRLF))
-		put_queue(vc, 10);
+		put_queue(vc, '\n');
 }
 
 static void k_shift(struct vc_data *vc, unsigned char value, char up_flag)
