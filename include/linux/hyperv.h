@@ -779,6 +779,7 @@ struct vmbus_requestor {
 
 #define VMBUS_NO_RQSTOR U64_MAX
 #define VMBUS_RQST_ERROR (U64_MAX - 1)
+#define VMBUS_RQST_ID_NO_RESPONSE (U64_MAX - 2)
 
 struct vmbus_device {
 	u16  dev_type;
