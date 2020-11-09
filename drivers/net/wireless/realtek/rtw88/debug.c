@@ -775,7 +775,7 @@ static ssize_t rtw_debugfs_set_coex_enable(struct file *filp,
 	}
 
 	mutex_lock(&rtwdev->mutex);
-	coex->stop_dm = enable == 0;
+	coex->manual_control = enable == 0;
 	mutex_unlock(&rtwdev->mutex);
 
 	return count;
@@ -788,7 +788,7 @@ static int rtw_debugfs_get_coex_enable(struct seq_file *m, void *v)
 	struct rtw_coex *coex = &rtwdev->coex;
 
 	seq_printf(m, "coex mechanism %s\n",
-		   coex->stop_dm ? "disabled" : "enabled");
+		   coex->manual_control ? "disabled" : "enabled");
 
 	return 0;
 }
