@@ -145,7 +145,7 @@ static int ep93xx_rtc_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	return rtc_register_device(ep93xx_rtc->rtc);
+	return devm_rtc_register_device(ep93xx_rtc->rtc);
 }
 
 static struct platform_driver ep93xx_rtc_driver = {

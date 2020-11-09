@@ -370,7 +370,7 @@ static int pl031_probe(struct amba_device *adev, const struct amba_id *id)
 	ldata->rtc->range_min = vendor->range_min;
 	ldata->rtc->range_max = vendor->range_max;
 
-	ret = rtc_register_device(ldata->rtc);
+	ret = devm_rtc_register_device(ldata->rtc);
 	if (ret)
 		goto out;
 

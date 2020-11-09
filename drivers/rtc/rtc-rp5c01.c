@@ -259,7 +259,7 @@ static int __init rp5c01_rtc_probe(struct platform_device *dev)
 	if (error)
 		return error;
 
-	return rtc_register_device(rtc);
+	return devm_rtc_register_device(rtc);
 }
 
 static struct platform_driver rp5c01_rtc_driver = {

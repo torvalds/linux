@@ -494,7 +494,7 @@ static int da9063_rtc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to request ALARM IRQ %d: %d\n",
 			irq_alarm, ret);
 
-	return rtc_register_device(rtc->rtc_dev);
+	return devm_rtc_register_device(rtc->rtc_dev);
 }
 
 static struct platform_driver da9063_rtc_driver = {

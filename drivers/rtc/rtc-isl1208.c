@@ -894,7 +894,7 @@ isl1208_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (rc)
 		return rc;
 
-	return rtc_register_device(isl1208->rtc);
+	return devm_rtc_register_device(isl1208->rtc);
 }
 
 static struct i2c_driver isl1208_driver = {

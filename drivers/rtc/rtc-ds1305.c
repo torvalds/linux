@@ -694,7 +694,7 @@ static int ds1305_probe(struct spi_device *spi)
 	ds1305->rtc->range_max = RTC_TIMESTAMP_END_2099;
 
 	ds1305_nvmem_cfg.priv = ds1305;
-	status = rtc_register_device(ds1305->rtc);
+	status = devm_rtc_register_device(ds1305->rtc);
 	if (status)
 		return status;
 

@@ -726,7 +726,7 @@ static int sun6i_rtc_probe(struct platform_device *pdev)
 	chip->rtc->ops = &sun6i_rtc_ops;
 	chip->rtc->range_max = 2019686399LL; /* 2033-12-31 23:59:59 */
 
-	ret = rtc_register_device(chip->rtc);
+	ret = devm_rtc_register_device(chip->rtc);
 	if (ret)
 		return ret;
 

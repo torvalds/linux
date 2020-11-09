@@ -885,7 +885,7 @@ static int rv3032_probe(struct i2c_client *client)
 	rv3032->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
 	rv3032->rtc->range_max = RTC_TIMESTAMP_END_2099;
 	rv3032->rtc->ops = &rv3032_rtc_ops;
-	ret = rtc_register_device(rv3032->rtc);
+	ret = devm_rtc_register_device(rv3032->rtc);
 	if (ret)
 		return ret;
 

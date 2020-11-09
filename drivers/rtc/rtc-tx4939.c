@@ -275,7 +275,7 @@ static int __init tx4939_rtc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	return rtc_register_device(rtc);
+	return devm_rtc_register_device(rtc);
 }
 
 static int __exit tx4939_rtc_remove(struct platform_device *pdev)

@@ -191,7 +191,7 @@ static int ds1742_rtc_probe(struct platform_device *pdev)
 
 	rtc->ops = &ds1742_rtc_ops;
 
-	ret = rtc_register_device(rtc);
+	ret = devm_rtc_register_device(rtc);
 	if (ret)
 		return ret;
 

@@ -387,7 +387,7 @@ static int snvs_rtc_probe(struct platform_device *pdev)
 	data->rtc->ops = &snvs_rtc_ops;
 	data->rtc->range_max = U32_MAX;
 
-	return rtc_register_device(data->rtc);
+	return devm_rtc_register_device(data->rtc);
 }
 
 static int __maybe_unused snvs_rtc_suspend_noirq(struct device *dev)

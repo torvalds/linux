@@ -408,7 +408,7 @@ static int ds1343_probe(struct spi_device *spi)
 		dev_err(&spi->dev,
 			"unable to create sysfs entries for rtc ds1343\n");
 
-	res = rtc_register_device(priv->rtc);
+	res = devm_rtc_register_device(priv->rtc);
 	if (res)
 		return res;
 

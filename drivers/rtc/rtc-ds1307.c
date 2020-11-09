@@ -2001,7 +2001,7 @@ static int ds1307_probe(struct i2c_client *client,
 	if (err)
 		return err;
 
-	err = rtc_register_device(ds1307->rtc);
+	err = devm_rtc_register_device(ds1307->rtc);
 	if (err)
 		return err;
 

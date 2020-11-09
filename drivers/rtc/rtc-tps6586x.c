@@ -280,7 +280,7 @@ static int tps6586x_rtc_probe(struct platform_device *pdev)
 		goto fail_rtc_register;
 	}
 
-	ret = rtc_register_device(rtc->rtc);
+	ret = devm_rtc_register_device(rtc->rtc);
 	if (ret)
 		goto fail_rtc_register;
 

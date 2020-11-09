@@ -404,7 +404,7 @@ static int ab8500_rtc_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	return rtc_register_device(rtc);
+	return devm_rtc_register_device(rtc);
 }
 
 static int ab8500_rtc_remove(struct platform_device *pdev)

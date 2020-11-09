@@ -408,7 +408,7 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "failed to enable irq wake\n");
 	}
 
-	ret = rtc_register_device(rtc);
+	ret = devm_rtc_register_device(rtc);
 
 	return ret;
 }

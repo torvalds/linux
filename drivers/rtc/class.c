@@ -321,8 +321,10 @@ static void rtc_device_get_offset(struct rtc_device *rtc)
  *
  * @rtc: the RTC class device to destroy
  */
-static void rtc_device_unregister(struct rtc_device *rtc)
+static void devm_rtc_unregister_device(void *data)
 {
+	struct rtc_device *rtc = data;
+
 	mutex_lock(&rtc->ops_lock);
 	/*
 	 * Remove innards of this RTC, then disable it, before
@@ -339,10 +341,7 @@ static void devm_rtc_release_device(struct device *dev, void *res)
 {
 	struct rtc_device *rtc = *(struct rtc_device **)res;
 
-	if (rtc->registered)
-		rtc_device_unregister(rtc);
-	else
-		put_device(&rtc->dev);
+	put_device(&rtc->dev);
 }
 
 struct rtc_device *devm_rtc_allocate_device(struct device *dev)
@@ -383,7 +382,7 @@ exit_ida:
 }
 EXPORT_SYMBOL_GPL(devm_rtc_allocate_device);
 
-int __rtc_register_device(struct module *owner, struct rtc_device *rtc)
+int __devm_rtc_register_device(struct module *owner, struct rtc_device *rtc)
 {
 	struct rtc_wkalrm alrm;
 	int err;
@@ -413,7 +412,6 @@ int __rtc_register_device(struct module *owner, struct rtc_device *rtc)
 
 	rtc_proc_add_device(rtc);
 
-	rtc->registered = true;
 	dev_info(rtc->dev.parent, "registered as %s\n",
 		 dev_name(&rtc->dev));
 
@@ -422,9 +420,10 @@ int __rtc_register_device(struct module *owner, struct rtc_device *rtc)
 		rtc_hctosys(rtc);
 #endif
 
-	return 0;
+	return devm_add_action_or_reset(rtc->dev.parent,
+					devm_rtc_unregister_device, rtc);
 }
-EXPORT_SYMBOL_GPL(__rtc_register_device);
+EXPORT_SYMBOL_GPL(__devm_rtc_register_device);
 
 /**
  * devm_rtc_device_register - resource managed rtc_device_register()
@@ -454,7 +453,7 @@ struct rtc_device *devm_rtc_device_register(struct device *dev,
 
 	rtc->ops = ops;
 
-	err = __rtc_register_device(owner, rtc);
+	err = __devm_rtc_register_device(owner, rtc);
 	if (err)
 		return ERR_PTR(err);
 

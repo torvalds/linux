@@ -336,7 +336,7 @@ static int cdns_rtc_probe(struct platform_device *pdev)
 	writel(0, crtc->regs + CDNS_RTC_HMR);
 	writel(CDNS_RTC_KRTCR_KRTC, crtc->regs + CDNS_RTC_KRTCR);
 
-	ret = rtc_register_device(crtc->rtc_dev);
+	ret = devm_rtc_register_device(crtc->rtc_dev);
 	if (ret)
 		goto err_disable_wakeup;
 

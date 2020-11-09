@@ -750,7 +750,7 @@ static int rv3029_probe(struct device *dev, struct regmap *regmap, int irq,
 	rv3029->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
 	rv3029->rtc->range_max = RTC_TIMESTAMP_END_2079;
 
-	rc = rtc_register_device(rv3029->rtc);
+	rc = devm_rtc_register_device(rv3029->rtc);
 	if (rc)
 		return rc;
 

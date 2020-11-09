@@ -470,7 +470,7 @@ static int m48t59_rtc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = rtc_register_device(m48t59->rtc);
+	ret = devm_rtc_register_device(m48t59->rtc);
 	if (ret)
 		return ret;
 

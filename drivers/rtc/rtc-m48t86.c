@@ -255,7 +255,7 @@ static int m48t86_rtc_probe(struct platform_device *pdev)
 
 	info->rtc->ops = &m48t86_rtc_ops;
 
-	err = rtc_register_device(info->rtc);
+	err = devm_rtc_register_device(info->rtc);
 	if (err)
 		return err;
 

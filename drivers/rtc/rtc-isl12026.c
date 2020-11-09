@@ -469,7 +469,7 @@ static int isl12026_probe_new(struct i2c_client *client)
 	if (ret)
 		return ret;
 
-	return rtc_register_device(priv->rtc);
+	return devm_rtc_register_device(priv->rtc);
 }
 
 static int isl12026_remove(struct i2c_client *client)

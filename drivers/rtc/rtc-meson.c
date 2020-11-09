@@ -369,7 +369,7 @@ static int meson_rtc_probe(struct platform_device *pdev)
 	if (ret)
 		goto out_disable_vdd;
 
-	ret = rtc_register_device(rtc->rtc);
+	ret = devm_rtc_register_device(rtc->rtc);
 	if (ret)
 		goto out_disable_vdd;
 

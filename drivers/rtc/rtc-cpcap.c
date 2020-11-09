@@ -301,7 +301,7 @@ static int cpcap_rtc_probe(struct platform_device *pdev)
 		/* ignore error and continue without wakeup support */
 	}
 
-	return rtc_register_device(rtc->rtc_dev);
+	return devm_rtc_register_device(rtc->rtc_dev);
 }
 
 static const struct of_device_id cpcap_rtc_of_match[] = {

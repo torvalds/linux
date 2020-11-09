@@ -614,7 +614,7 @@ static int pcf85063_probe(struct i2c_client *client)
 	pcf85063_clkout_register_clk(pcf85063);
 #endif
 
-	return rtc_register_device(pcf85063->rtc);
+	return devm_rtc_register_device(pcf85063->rtc);
 }
 
 #ifdef CONFIG_OF

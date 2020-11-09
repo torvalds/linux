@@ -252,7 +252,7 @@ static int brcmstb_waketmr_probe(struct platform_device *pdev)
 	timer->rtc->ops = &brcmstb_waketmr_ops;
 	timer->rtc->range_max = U32_MAX;
 
-	ret = rtc_register_device(timer->rtc);
+	ret = devm_rtc_register_device(timer->rtc);
 	if (ret)
 		goto err_notifier;
 
