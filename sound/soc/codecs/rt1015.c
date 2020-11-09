@@ -492,18 +492,40 @@ static void rt1015_calibrate(struct rt1015_priv *rt1015)
 	snd_soc_dapm_mutex_lock(&component->dapm);
 	regcache_cache_bypass(regmap, true);
 
-	regmap_write(regmap, RT1015_PWR1, 0xd7df);
-	regmap_write(regmap, RT1015_PWR4, 0x00b2);
-	regmap_write(regmap, RT1015_CLSD_INTERNAL8, 0x2008);
+	regmap_write(regmap, RT1015_PWR9, 0xAA60);
+	regmap_write(regmap, RT1015_PWR_STATE_CTRL, 0x0089);
+	regmap_write(regmap, RT1015_PWR_STATE_CTRL, 0x008A);
+	regmap_write(regmap, RT1015_PWR_STATE_CTRL, 0x008C);
+	regmap_write(regmap, RT1015_PWR_STATE_CTRL, 0x008D);
+	regmap_write(regmap, RT1015_PWR4, 0x80B2);
+	regmap_write(regmap, RT1015_CLASSD_SEQ, 0x5797);
+	regmap_write(regmap, RT1015_CLSD_INTERNAL8, 0x2100);
+	regmap_write(regmap, RT1015_CLSD_INTERNAL9, 0x0100);
+	regmap_write(regmap, RT1015_PWR5, 0x2175);
+	regmap_write(regmap, RT1015_MIXER1, 0x005D);
+	regmap_write(regmap, RT1015_CLSD_INTERNAL1, 0x00A1);
+	regmap_write(regmap, RT1015_CLSD_INTERNAL2, 0x12F7);
+	regmap_write(regmap, RT1015_DC_CALIB_CLSD1, 0x1205);
+	msleep(200);
+	regmap_write(regmap, RT1015_CLSD_INTERNAL8, 0x2000);
+	regmap_write(regmap, RT1015_CLSD_INTERNAL9, 0x0180);
+	regmap_write(regmap, RT1015_CLSD_INTERNAL1, 0x00A1);
+	regmap_write(regmap, RT1015_DC_CALIB_CLSD1, 0x0A05);
+	msleep(200);
+	regmap_write(regmap, RT1015_PWR4, 0x00B2);
+	regmap_write(regmap, RT1015_CLSD_INTERNAL8, 0x2028);
 	regmap_write(regmap, RT1015_CLSD_INTERNAL9, 0x0140);
-	regmap_write(regmap, RT1015_GAT_BOOST, 0x0efe);
-	regmap_write(regmap, RT1015_PWR_STATE_CTRL, 0x000d);
-	regmap_write(regmap, RT1015_PWR_STATE_CTRL, 0x000e);
-	regmap_write(regmap, RT1015_DC_CALIB_CLSD1, 0x5a00);
-	regmap_write(regmap, RT1015_DC_CALIB_CLSD1, 0x5a01);
-	regmap_write(regmap, RT1015_DC_CALIB_CLSD1, 0x5a05);
-	msleep(500);
-	regmap_write(regmap, RT1015_PWR1, 0x0);
+	regmap_write(regmap, RT1015_PWR5, 0x0175);
+	regmap_write(regmap, RT1015_CLSD_INTERNAL1, 0x1721);
+	regmap_write(regmap, RT1015_CLASSD_SEQ, 0x570E);
+	regmap_write(regmap, RT1015_MIXER1, 0x203D);
+	regmap_write(regmap, RT1015_DC_CALIB_CLSD1, 0x5A01);
+	regmap_write(regmap, RT1015_CLSD_INTERNAL2, 0x12FF);
+	regmap_write(regmap, RT1015_GAT_BOOST, 0x0eFE);
+	regmap_write(regmap, RT1015_PWR_STATE_CTRL, 0x008E);
+	regmap_write(regmap, RT1015_PWR_STATE_CTRL, 0x0088);
+	regmap_write(regmap, RT1015_SYS_RST1, 0x05F5);
+	regmap_write(regmap, RT1015_SYS_RST2, 0x0b9a);
 
 	regcache_cache_bypass(regmap, false);
 	regcache_mark_dirty(regmap);
@@ -599,6 +621,8 @@ static int r1015_dac_event(struct snd_soc_dapm_widget *w,
 			snd_soc_component_write(component,
 				RT1015_SYS_RST1, 0x05f7);
 			snd_soc_component_write(component,
+				RT1015_SYS_RST2, 0x0b0a);
+			snd_soc_component_write(component,
 				RT1015_GAT_BOOST, 0xacfe);
 			snd_soc_component_write(component,
 				RT1015_PWR9, 0xaa00);
@@ -606,9 +630,13 @@ static int r1015_dac_event(struct snd_soc_dapm_widget *w,
 				RT1015_GAT_BOOST, 0xecfe);
 		} else {
 			snd_soc_component_write(component,
+				0x032d, 0xaa60);
+			snd_soc_component_write(component,
 				RT1015_SYS_RST1, 0x05f7);
 			snd_soc_component_write(component,
-				RT1015_PWR_STATE_CTRL, 0x026e);
+				RT1015_SYS_RST2, 0x0b0a);
+			snd_soc_component_write(component,
+				RT1015_PWR_STATE_CTRL, 0x008e);
 		}
 		break;
 
@@ -622,11 +650,17 @@ static int r1015_dac_event(struct snd_soc_dapm_widget *w,
 				RT1015_PWR9, 0xa800);
 			snd_soc_component_write(component,
 				RT1015_SYS_RST1, 0x05f5);
+			snd_soc_component_write(component,
+				RT1015_SYS_RST2, 0x0b9a);
 		} else {
 			snd_soc_component_write(component,
-				RT1015_PWR_STATE_CTRL, 0x0268);
+				0x032d, 0xaa60);
+			snd_soc_component_write(component,
+				RT1015_PWR_STATE_CTRL, 0x0088);
 			snd_soc_component_write(component,
 				RT1015_SYS_RST1, 0x05f5);
+			snd_soc_component_write(component,
+				RT1015_SYS_RST2, 0x0b9a);
 		}
 		rt1015->dac_is_used = 0;
 
@@ -658,38 +692,12 @@ static int rt1015_amp_drv_event(struct snd_soc_dapm_widget *w,
 }
 
 static const struct snd_soc_dapm_widget rt1015_dapm_widgets[] = {
-	SND_SOC_DAPM_SUPPLY("LDO2", RT1015_PWR1, RT1015_PWR_LDO2_BIT, 0,
-		NULL, 0),
-	SND_SOC_DAPM_SUPPLY("INT RC CLK", RT1015_PWR1, RT1015_PWR_INTCLK_BIT,
-		0, NULL, 0),
-	SND_SOC_DAPM_SUPPLY("ISENSE", RT1015_PWR1, RT1015_PWR_ISENSE_BIT, 0,
-		NULL, 0),
-	SND_SOC_DAPM_SUPPLY("VSENSE", RT1015_PWR1, RT1015_PWR_VSENSE_BIT, 0,
-		NULL, 0),
 	SND_SOC_DAPM_SUPPLY("PLL", RT1015_PWR1, RT1015_PWR_PLL_BIT, 0,
 		NULL, 0),
-	SND_SOC_DAPM_SUPPLY("BG1 BG2", RT1015_PWR1, RT1015_PWR_BG_1_2_BIT, 0,
-		NULL, 0),
-	SND_SOC_DAPM_SUPPLY("MBIAS BG", RT1015_PWR1, RT1015_PWR_MBIAS_BG_BIT, 0,
-		NULL, 0),
-	SND_SOC_DAPM_SUPPLY("VBAT", RT1015_PWR1, RT1015_PWR_VBAT_BIT, 0, NULL,
-		0),
-	SND_SOC_DAPM_SUPPLY("MBIAS", RT1015_PWR1, RT1015_PWR_MBIAS_BIT, 0,
-		NULL, 0),
-	SND_SOC_DAPM_SUPPLY("ADCV", RT1015_PWR1, RT1015_PWR_ADCV_BIT, 0, NULL,
-		0),
-	SND_SOC_DAPM_SUPPLY("MIXERV", RT1015_PWR1, RT1015_PWR_MIXERV_BIT, 0,
-		NULL, 0),
-	SND_SOC_DAPM_SUPPLY("SUMV", RT1015_PWR1, RT1015_PWR_SUMV_BIT, 0, NULL,
-		0),
-	SND_SOC_DAPM_SUPPLY("VREFLV", RT1015_PWR1, RT1015_PWR_VREFLV_BIT, 0,
-		NULL, 0),
-
 	SND_SOC_DAPM_AIF_IN("AIFRX", "AIF Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC_E("DAC", NULL, RT1015_PWR1, RT1015_PWR_DAC_BIT, 0,
+	SND_SOC_DAPM_DAC_E("DAC", NULL, SND_SOC_NOPM, 0, 0,
 		r1015_dac_event, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
 		SND_SOC_DAPM_POST_PMD),
-
 	SND_SOC_DAPM_OUT_DRV_E("Amp Drv", SND_SOC_NOPM, 0, 0, NULL, 0,
 			rt1015_amp_drv_event, SND_SOC_DAPM_POST_PMU),
 	SND_SOC_DAPM_OUTPUT("SPO"),
@@ -697,19 +705,7 @@ static const struct snd_soc_dapm_widget rt1015_dapm_widgets[] = {
 
 static const struct snd_soc_dapm_route rt1015_dapm_routes[] = {
 	{ "DAC", NULL, "AIFRX" },
-	{ "DAC", NULL, "LDO2" },
 	{ "DAC", NULL, "PLL", rt1015_is_sys_clk_from_pll},
-	{ "DAC", NULL, "INT RC CLK" },
-	{ "DAC", NULL, "ISENSE" },
-	{ "DAC", NULL, "VSENSE" },
-	{ "DAC", NULL, "BG1 BG2" },
-	{ "DAC", NULL, "MBIAS BG" },
-	{ "DAC", NULL, "VBAT" },
-	{ "DAC", NULL, "MBIAS" },
-	{ "DAC", NULL, "ADCV" },
-	{ "DAC", NULL, "MIXERV" },
-	{ "DAC", NULL, "SUMV" },
-	{ "DAC", NULL, "VREFLV" },
 	{ "Amp Drv", NULL, "DAC" },
 	{ "SPO", NULL, "Amp Drv" },
 };
@@ -1052,7 +1048,6 @@ static int rt1015_probe(struct snd_soc_component *component)
 	rt1015->component = component;
 	rt1015->bclk_ratio = 0;
 	rt1015->cali_done = 0;
-	snd_soc_component_write(component, RT1015_BAT_RPO_STEP1, 0x061c);
 
 	INIT_DELAYED_WORK(&rt1015->flush_work, rt1015_flush_work);
 
