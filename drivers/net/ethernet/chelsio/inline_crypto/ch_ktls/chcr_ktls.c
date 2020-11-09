@@ -1909,11 +1909,6 @@ static int chcr_ktls_xmit(struct sk_buff *skb, struct net_device *dev)
 			goto out;
 		}
 
-		if (unlikely(tls_record_is_start_marker(record))) {
-			spin_unlock_irqrestore(&tx_ctx->base.lock, flags);
-			atomic64_inc(&port_stats->ktls_tx_skip_no_sync_data);
-			goto out;
-		}
 		tls_end_offset = record->end_seq - tcp_seq;
 
 		pr_debug("seq 0x%x, end_seq 0x%x prev_seq 0x%x, datalen 0x%x\n",
@@ -1938,6 +1933,39 @@ static int chcr_ktls_xmit(struct sk_buff *skb, struct net_device *dev)
 				goto out;
 			}
 		}
+
+		if (unlikely(tls_record_is_start_marker(record))) {
+			atomic64_inc(&port_stats->ktls_tx_skip_no_sync_data);
+			/* If tls_end_offset < data_len, means there is some
+			 * data after start marker, which needs encryption, send
+			 * plaintext first and take skb refcount. else send out
+			 * complete pkt as plaintext.
+			 */
+			if (tls_end_offset < data_len)
+				skb_get(skb);
+			else
+				tls_end_offset = data_len;
+
+			ret = chcr_ktls_tx_plaintxt(tx_info, skb, tcp_seq, mss,
+						    (!th->fin && th->psh), q,
+						    tx_info->port_id, NULL,
+						    tls_end_offset, skb_offset,
+						    0);
+
+			spin_unlock_irqrestore(&tx_ctx->base.lock, flags);
+			if (ret) {
+				/* free the refcount taken earlier */
+				if (tls_end_offset < data_len)
+					dev_kfree_skb_any(skb);
+				goto out;
+			}
+
+			data_len -= tls_end_offset;
+			tcp_seq = record->end_seq;
+			skb_offset += tls_end_offset;
+			continue;
+		}
+
 		/* increase page reference count of the record, so that there
 		 * won't be any chance of page free in middle if in case stack
 		 * receives ACK and try to delete the record.
