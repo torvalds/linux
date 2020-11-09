@@ -673,8 +673,6 @@
 		compatible = "tcs,tcs452x";
 		reg = <0x10>;
 		regulator-compatible = "fan53555-reg";
-		pinctrl-0 = <&soc_slppin_gpio>;
-		vsel-gpios = <&gpio0 2 GPIO_ACTIVE_LOW>;
 		regulator-name = "vdd_cpu";
 		regulator-min-microvolt = <712500>;
 		regulator-max-microvolt = <1390000>;
