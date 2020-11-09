@@ -71,10 +71,6 @@
 
 #include "nfs4trace.h"
 
-#ifdef CONFIG_NFS_V4_2
-#include "nfs42.h"
-#endif /* CONFIG_NFS_V4_2 */
-
 #define NFSDBG_FACILITY		NFSDBG_PROC
 
 #define NFS4_BITMASK_SZ		3
