@@ -1878,10 +1878,6 @@ static int chcr_ktls_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	mss = skb_is_gso(skb) ? skb_shinfo(skb)->gso_size : skb->data_len;
 
-	/* check if we haven't set it for ktls offload */
-	if (!skb->sk || !tls_is_sk_tx_device_offloaded(skb->sk))
-		goto out;
-
 	tls_ctx = tls_get_ctx(skb->sk);
 	if (unlikely(tls_ctx->netdev != dev))
 		goto out;

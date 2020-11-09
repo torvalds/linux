@@ -1422,7 +1422,8 @@ static netdev_tx_t cxgb4_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 #endif /* CHELSIO_IPSEC_INLINE */
 
 #if IS_ENABLED(CONFIG_CHELSIO_TLS_DEVICE)
-	if (skb->decrypted)
+	if (cxgb4_is_ktls_skb(skb) &&
+	    (skb->len - (skb_transport_offset(skb) + tcp_hdrlen(skb))))
 		return adap->uld[CXGB4_ULD_KTLS].tx_handler(skb, dev);
 #endif /* CHELSIO_TLS_DEVICE */
 
