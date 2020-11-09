@@ -574,9 +574,6 @@ static ssize_t ieee80211_if_parse_tsf(
 IEEE80211_IF_FILE_RW(tsf);
 
 
-/* WDS attributes */
-IEEE80211_IF_FILE(peer, u.wds.remote_addr, MAC);
-
 #ifdef CONFIG_MAC80211_MESH
 IEEE80211_IF_FILE(estab_plinks, u.mesh.estab_plinks, ATOMIC);
 
@@ -701,11 +698,6 @@ static void add_ibss_files(struct ieee80211_sub_if_data *sdata)
 	DEBUGFS_ADD_MODE(tsf, 0600);
 }
 
-static void add_wds_files(struct ieee80211_sub_if_data *sdata)
-{
-	DEBUGFS_ADD(peer);
-}
-
 #ifdef CONFIG_MAC80211_MESH
 
 static void add_mesh_files(struct ieee80211_sub_if_data *sdata)
@@ -804,9 +796,6 @@ static void add_files(struct ieee80211_sub_if_data *sdata)
 		break;
 	case NL80211_IFTYPE_AP_VLAN:
 		add_vlan_files(sdata);
-		break;
-	case NL80211_IFTYPE_WDS:
-		add_wds_files(sdata);
 		break;
 	default:
 		break;
