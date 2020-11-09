@@ -120,6 +120,8 @@ xchk_bmap_get_rmap(
 
 	if (info->whichfork == XFS_ATTR_FORK)
 		rflags |= XFS_RMAP_ATTR_FORK;
+	if (irec->br_state == XFS_EXT_UNWRITTEN)
+		rflags |= XFS_RMAP_UNWRITTEN;
 
 	/*
 	 * CoW staging extents are owned (on disk) by the refcountbt, so
