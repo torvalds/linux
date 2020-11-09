@@ -974,17 +974,14 @@ TRACE_EVENT(xprtrdma_reply,
 	TP_PROTO(
 		const struct rpc_task *task,
 		const struct rpcrdma_rep *rep,
-		const struct rpcrdma_req *req,
 		unsigned int credits
 	),
 
-	TP_ARGS(task, rep, req, credits),
+	TP_ARGS(task, rep, credits),
 
 	TP_STRUCT__entry(
 		__field(unsigned int, task_id)
 		__field(unsigned int, client_id)
-		__field(const void *, rep)
-		__field(const void *, req)
 		__field(u32, xid)
 		__field(unsigned int, credits)
 	),
@@ -992,42 +989,13 @@ TRACE_EVENT(xprtrdma_reply,
 	TP_fast_assign(
 		__entry->task_id = task->tk_pid;
 		__entry->client_id = task->tk_client->cl_clid;
-		__entry->rep = rep;
-		__entry->req = req;
 		__entry->xid = be32_to_cpu(rep->rr_xid);
 		__entry->credits = credits;
 	),
 
-	TP_printk("task:%u@%u xid=0x%08x, %u credits, rep=%p -> req=%p",
+	TP_printk("task:%u@%u xid=0x%08x credits=%u",
 		__entry->task_id, __entry->client_id, __entry->xid,
-		__entry->credits, __entry->rep, __entry->req
-	)
-);
-
-TRACE_EVENT(xprtrdma_defer_cmp,
-	TP_PROTO(
-		const struct rpcrdma_rep *rep
-	),
-
-	TP_ARGS(rep),
-
-	TP_STRUCT__entry(
-		__field(unsigned int, task_id)
-		__field(unsigned int, client_id)
-		__field(const void *, rep)
-		__field(u32, xid)
-	),
-
-	TP_fast_assign(
-		__entry->task_id = rep->rr_rqst->rq_task->tk_pid;
-		__entry->client_id = rep->rr_rqst->rq_task->tk_client->cl_clid;
-		__entry->rep = rep;
-		__entry->xid = be32_to_cpu(rep->rr_xid);
-	),
-
-	TP_printk("task:%u@%u xid=0x%08x rep=%p",
-		__entry->task_id, __entry->client_id, __entry->xid,
-		__entry->rep
+		__entry->credits
 	)
 );
 
@@ -1211,34 +1179,6 @@ TRACE_EVENT(xprtrdma_cb_setup,
 
 DEFINE_CB_EVENT(xprtrdma_cb_call);
 DEFINE_CB_EVENT(xprtrdma_cb_reply);
-
-TRACE_EVENT(xprtrdma_leaked_rep,
-	TP_PROTO(
-		const struct rpc_rqst *rqst,
-		const struct rpcrdma_rep *rep
-	),
-
-	TP_ARGS(rqst, rep),
-
-	TP_STRUCT__entry(
-		__field(unsigned int, task_id)
-		__field(unsigned int, client_id)
-		__field(u32, xid)
-		__field(const void *, rep)
-	),
-
-	TP_fast_assign(
-		__entry->task_id = rqst->rq_task->tk_pid;
-		__entry->client_id = rqst->rq_task->tk_client->cl_clid;
-		__entry->xid = be32_to_cpu(rqst->rq_xid);
-		__entry->rep = rep;
-	),
-
-	TP_printk("task:%u@%u xid=0x%08x rep=%p",
-		__entry->task_id, __entry->client_id, __entry->xid,
-		__entry->rep
-	)
-);
 
 /**
  ** Server-side RPC/RDMA events

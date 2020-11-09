@@ -1443,14 +1443,12 @@ void rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 	rpcrdma_post_recvs(r_xprt, false);
 
 	req = rpcr_to_rdmar(rqst);
-	if (req->rl_reply) {
-		trace_xprtrdma_leaked_rep(rqst, req->rl_reply);
+	if (unlikely(req->rl_reply))
 		rpcrdma_recv_buffer_put(req->rl_reply);
-	}
 	req->rl_reply = rep;
 	rep->rr_rqst = rqst;
 
-	trace_xprtrdma_reply(rqst->rq_task, rep, req, credits);
+	trace_xprtrdma_reply(rqst->rq_task, rep, credits);
 
 	if (rep->rr_wc_flags & IB_WC_WITH_INVALIDATE)
 		frwr_reminv(rep, &req->rl_registered);
