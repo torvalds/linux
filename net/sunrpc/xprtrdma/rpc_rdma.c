@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (c) 2014-2017 Oracle.  All rights reserved.
+ * Copyright (c) 2014-2020, Oracle and/or its affiliates.
  * Copyright (c) 2003-2007 Network Appliance, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -1369,7 +1369,7 @@ out:
 	return;
 
 out_badheader:
-	trace_xprtrdma_reply_hdr(rep);
+	trace_xprtrdma_reply_hdr_err(rep);
 	r_xprt->rx_stats.bad_reply_count++;
 	rqst->rq_task->tk_status = status;
 	status = 0;
@@ -1462,16 +1462,16 @@ void rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 	return;
 
 out_badversion:
-	trace_xprtrdma_reply_vers(rep);
+	trace_xprtrdma_reply_vers_err(rep);
 	goto out;
 
 out_norqst:
 	spin_unlock(&xprt->queue_lock);
-	trace_xprtrdma_reply_rqst(rep);
+	trace_xprtrdma_reply_rqst_err(rep);
 	goto out;
 
 out_shortreply:
-	trace_xprtrdma_reply_short(rep);
+	trace_xprtrdma_reply_short_err(rep);
 
 out:
 	rpcrdma_recv_buffer_put(rep);

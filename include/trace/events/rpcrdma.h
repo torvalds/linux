@@ -60,7 +60,7 @@ DECLARE_EVENT_CLASS(rpcrdma_completion_class,
 				),					\
 				TP_ARGS(wc, cid))
 
-DECLARE_EVENT_CLASS(xprtrdma_reply_event,
+DECLARE_EVENT_CLASS(xprtrdma_reply_class,
 	TP_PROTO(
 		const struct rpcrdma_rep *rep
 	),
@@ -68,29 +68,30 @@ DECLARE_EVENT_CLASS(xprtrdma_reply_event,
 	TP_ARGS(rep),
 
 	TP_STRUCT__entry(
-		__field(const void *, rep)
-		__field(const void *, r_xprt)
 		__field(u32, xid)
 		__field(u32, version)
 		__field(u32, proc)
+		__string(addr, rpcrdma_addrstr(rep->rr_rxprt))
+		__string(port, rpcrdma_portstr(rep->rr_rxprt))
 	),
 
 	TP_fast_assign(
-		__entry->rep = rep;
-		__entry->r_xprt = rep->rr_rxprt;
 		__entry->xid = be32_to_cpu(rep->rr_xid);
 		__entry->version = be32_to_cpu(rep->rr_vers);
 		__entry->proc = be32_to_cpu(rep->rr_proc);
+		__assign_str(addr, rpcrdma_addrstr(rep->rr_rxprt));
+		__assign_str(port, rpcrdma_portstr(rep->rr_rxprt));
 	),
 
-	TP_printk("rxprt %p xid=0x%08x rep=%p: version %u proc %u",
-		__entry->r_xprt, __entry->xid, __entry->rep,
-		__entry->version, __entry->proc
+	TP_printk("peer=[%s]:%s xid=0x%08x version=%u proc=%u",
+		__get_str(addr), __get_str(port),
+		__entry->xid, __entry->version, __entry->proc
 	)
 );
 
 #define DEFINE_REPLY_EVENT(name)					\
-		DEFINE_EVENT(xprtrdma_reply_event, name,		\
+		DEFINE_EVENT(xprtrdma_reply_class,			\
+				xprtrdma_reply_##name##_err,		\
 				TP_PROTO(				\
 					const struct rpcrdma_rep *rep	\
 				),					\
@@ -1030,10 +1031,10 @@ TRACE_EVENT(xprtrdma_defer_cmp,
 	)
 );
 
-DEFINE_REPLY_EVENT(xprtrdma_reply_vers);
-DEFINE_REPLY_EVENT(xprtrdma_reply_rqst);
-DEFINE_REPLY_EVENT(xprtrdma_reply_short);
-DEFINE_REPLY_EVENT(xprtrdma_reply_hdr);
+DEFINE_REPLY_EVENT(vers);
+DEFINE_REPLY_EVENT(rqst);
+DEFINE_REPLY_EVENT(short);
+DEFINE_REPLY_EVENT(hdr);
 
 TRACE_EVENT(xprtrdma_err_vers,
 	TP_PROTO(
