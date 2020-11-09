@@ -313,38 +313,39 @@ DECLARE_EVENT_CLASS(xprtrdma_mr,
 				), \
 				TP_ARGS(mr))
 
-DECLARE_EVENT_CLASS(xprtrdma_cb_event,
+DECLARE_EVENT_CLASS(xprtrdma_callback_class,
 	TP_PROTO(
+		const struct rpcrdma_xprt *r_xprt,
 		const struct rpc_rqst *rqst
 	),
 
-	TP_ARGS(rqst),
+	TP_ARGS(r_xprt, rqst),
 
 	TP_STRUCT__entry(
-		__field(const void *, rqst)
-		__field(const void *, rep)
-		__field(const void *, req)
 		__field(u32, xid)
+		__string(addr, rpcrdma_addrstr(r_xprt))
+		__string(port, rpcrdma_portstr(r_xprt))
 	),
 
 	TP_fast_assign(
-		__entry->rqst = rqst;
-		__entry->req = rpcr_to_rdmar(rqst);
-		__entry->rep = rpcr_to_rdmar(rqst)->rl_reply;
 		__entry->xid = be32_to_cpu(rqst->rq_xid);
+		__assign_str(addr, rpcrdma_addrstr(r_xprt));
+		__assign_str(port, rpcrdma_portstr(r_xprt));
 	),
 
-	TP_printk("xid=0x%08x, rqst=%p req=%p rep=%p",
-		__entry->xid, __entry->rqst, __entry->req, __entry->rep
+	TP_printk("peer=[%s]:%s xid=0x%08x",
+		__get_str(addr), __get_str(port), __entry->xid
 	)
 );
 
-#define DEFINE_CB_EVENT(name)						\
-		DEFINE_EVENT(xprtrdma_cb_event, name,			\
+#define DEFINE_CALLBACK_EVENT(name)					\
+		DEFINE_EVENT(xprtrdma_callback_class,			\
+				xprtrdma_cb_##name,			\
 				TP_PROTO(				\
+					const struct rpcrdma_xprt *r_xprt, \
 					const struct rpc_rqst *rqst	\
 				),					\
-				TP_ARGS(rqst))
+				TP_ARGS(r_xprt, rqst))
 
 /**
  ** Connection events
@@ -1177,8 +1178,8 @@ TRACE_EVENT(xprtrdma_cb_setup,
 	)
 );
 
-DEFINE_CB_EVENT(xprtrdma_cb_call);
-DEFINE_CB_EVENT(xprtrdma_cb_reply);
+DEFINE_CALLBACK_EVENT(call);
+DEFINE_CALLBACK_EVENT(reply);
 
 /**
  ** Server-side RPC/RDMA events
