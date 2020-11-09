@@ -77,7 +77,7 @@ static void kmb_crtc_set_mode(struct drm_crtc *crtc)
 	/* Initialize mipi */
 	kmb_dsi_mode_set(kmb->kmb_dsi, m, kmb->sys_clk_mhz);
 	drm_info(dev,
-		 "vfp= %d vbp= %d vsyc_len=%d hfp=%d hbp=%d hsync_len=%d\n",
+		 "vfp= %d vbp= %d vsync_len=%d hfp=%d hbp=%d hsync_len=%d\n",
 		 m->crtc_vsync_start - m->crtc_vdisplay,
 		 m->crtc_vtotal - m->crtc_vsync_end,
 		 m->crtc_vsync_end - m->crtc_vsync_start,
@@ -94,7 +94,7 @@ static void kmb_crtc_set_mode(struct drm_crtc *crtc)
 	vm.hback_porch = 0;
 	vm.hsync_len = 28;
 
-	drm_dbg(dev, "%s : %dactive height= %d vbp=%d vfp=%d vsync-w=%d h-active=%d h-bp=%d h-fp=%d hysnc-l=%d",
+	drm_dbg(dev, "%s : %dactive height= %d vbp=%d vfp=%d vsync-w=%d h-active=%d h-bp=%d h-fp=%d hsync-l=%d",
 		__func__, __LINE__,
 			m->crtc_vdisplay, vm.vback_porch, vm.vfront_porch,
 			vm.vsync_len, m->crtc_hdisplay, vm.hback_porch,
