@@ -143,7 +143,7 @@ int ext4_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	if (sb_rdonly(inode->i_sb)) {
 		/* Make sure that we read updated s_mount_flags value */
 		smp_rmb();
-		if (sbi->s_mount_flags & EXT4_MF_FS_ABORTED)
+		if (ext4_test_mount_flag(inode->i_sb, EXT4_MF_FS_ABORTED))
 			ret = -EROFS;
 		goto out;
 	}
