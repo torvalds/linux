@@ -141,7 +141,7 @@ void assert_shared_dpll(struct drm_i915_private *dev_priv,
 		     "asserting DPLL %s with no DPLL\n", onoff(state)))
 		return;
 
-	cur_state = pll->info->funcs->get_hw_state(dev_priv, pll, &hw_state);
+	cur_state = intel_dpll_get_hw_state(dev_priv, pll, &hw_state);
 	I915_STATE_WARN(cur_state != state,
 	     "%s assertion failure (expected %s, current %s)\n",
 			pll->info->name, onoff(state), onoff(cur_state));
@@ -4527,13 +4527,27 @@ int intel_dpll_get_freq(struct drm_i915_private *i915,
 	return pll->info->funcs->get_freq(i915, pll);
 }
 
+/**
+ * intel_dpll_get_hw_state - readout the DPLL's hardware state
+ * @i915: i915 device
+ * @pll: DPLL for which to calculate the output frequency
+ * @hw_state: DPLL's hardware state
+ *
+ * Read out @pll's hardware state into @hw_state.
+ */
+bool intel_dpll_get_hw_state(struct drm_i915_private *i915,
+			     struct intel_shared_dpll *pll,
+			     struct intel_dpll_hw_state *hw_state)
+{
+	return pll->info->funcs->get_hw_state(i915, pll, hw_state);
+}
+
 static void readout_dpll_hw_state(struct drm_i915_private *i915,
 				  struct intel_shared_dpll *pll)
 {
 	struct intel_crtc *crtc;
 
-	pll->on = pll->info->funcs->get_hw_state(i915, pll,
-						 &pll->state.hw_state);
+	pll->on = intel_dpll_get_hw_state(i915, pll, &pll->state.hw_state);
 
 	if (IS_JSL_EHL(i915) && pll->on &&
 	    pll->info->id == DPLL_ID_EHL_DPLL4) {

@@ -10857,6 +10857,7 @@ static bool ilk_get_pipe_config(struct intel_crtc *crtc,
 	if (intel_de_read(dev_priv, PCH_TRANSCONF(crtc->pipe)) & TRANS_ENABLE) {
 		struct intel_shared_dpll *pll;
 		enum intel_dpll_id pll_id;
+		bool pll_active;
 
 		pipe_config->has_pch_encoder = true;
 
@@ -10884,8 +10885,9 @@ static bool ilk_get_pipe_config(struct intel_crtc *crtc,
 			intel_get_shared_dpll_by_id(dev_priv, pll_id);
 		pll = pipe_config->shared_dpll;
 
-		drm_WARN_ON(dev, !pll->info->funcs->get_hw_state(dev_priv, pll,
-						 &pipe_config->dpll_hw_state));
+		pll_active = intel_dpll_get_hw_state(dev_priv, pll,
+						     &pipe_config->dpll_hw_state);
+		drm_WARN_ON(dev, !pll_active);
 
 		tmp = pipe_config->dpll_hw_state.dpll;
 		pipe_config->pixel_multiplier =
@@ -11276,9 +11278,9 @@ static void hsw_get_ddi_port_state(struct intel_crtc *crtc,
 
 	pll = pipe_config->shared_dpll;
 	if (pll) {
-		drm_WARN_ON(&dev_priv->drm,
-			    !pll->info->funcs->get_hw_state(dev_priv, pll,
-						&pipe_config->dpll_hw_state));
+		bool pll_active = intel_dpll_get_hw_state(dev_priv, pll,
+							  &pipe_config->dpll_hw_state);
+		drm_WARN_ON(&dev_priv->drm, !pll_active);
 	}
 
 	/*
@@ -14553,7 +14555,7 @@ verify_single_dpll_state(struct drm_i915_private *dev_priv,
 
 	drm_dbg_kms(&dev_priv->drm, "%s\n", pll->info->name);
 
-	active = pll->info->funcs->get_hw_state(dev_priv, pll, &dpll_hw_state);
+	active = intel_dpll_get_hw_state(dev_priv, pll, &dpll_hw_state);
 
 	if (!(pll->info->flags & INTEL_DPLL_ALWAYS_ON)) {
 		I915_STATE_WARN(!pll->on && pll->active_mask,
