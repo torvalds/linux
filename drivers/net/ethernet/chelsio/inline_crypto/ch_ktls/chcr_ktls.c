@@ -835,7 +835,7 @@ static int chcr_ktls_xmit_tcb_cpls(struct chcr_ktls_info *tx_info,
 {
 	bool first_wr = ((tx_info->prev_ack == 0) && (tx_info->prev_win == 0));
 	struct ch_ktls_port_stats_debug *port_stats;
-	u32 len, cpl = 0, ndesc, wr_len;
+	u32 len, cpl = 0, ndesc, wr_len, wr_mid = 0;
 	struct fw_ulptx_wr *wr;
 	int credits;
 	void *pos;
@@ -849,6 +849,11 @@ static int chcr_ktls_xmit_tcb_cpls(struct chcr_ktls_info *tx_info,
 	if (unlikely(credits < 0)) {
 		chcr_eth_txq_stop(q);
 		return NETDEV_TX_BUSY;
+	}
+
+	if (unlikely(credits < ETHTXQ_STOP_THRES)) {
+		chcr_eth_txq_stop(q);
+		wr_mid |= FW_WR_EQUEQ_F | FW_WR_EQUIQ_F;
 	}
 
 	pos = &q->q.desc[q->q.pidx];
@@ -905,7 +910,8 @@ static int chcr_ktls_xmit_tcb_cpls(struct chcr_ktls_info *tx_info,
 		wr->op_to_compl = htonl(FW_WR_OP_V(FW_ULPTX_WR));
 		wr->cookie = 0;
 		/* fill len in wr field */
-		wr->flowid_len16 = htonl(FW_WR_LEN16_V(DIV_ROUND_UP(len, 16)));
+		wr->flowid_len16 = htonl(wr_mid |
+					 FW_WR_LEN16_V(DIV_ROUND_UP(len, 16)));
 
 		ndesc = DIV_ROUND_UP(len, 64);
 		chcr_txq_advance(&q->q, ndesc);
@@ -986,6 +992,7 @@ chcr_ktls_write_tcp_options(struct chcr_ktls_info *tx_info, struct sk_buff *skb,
 	struct tcphdr *tcp;
 	int len16, pktlen;
 	struct iphdr *ip;
+	u32 wr_mid = 0;
 	int credits;
 	u8 buf[150];
 	u64 cntrl1;
@@ -1010,6 +1017,11 @@ chcr_ktls_write_tcp_options(struct chcr_ktls_info *tx_info, struct sk_buff *skb,
 		return NETDEV_TX_BUSY;
 	}
 
+	if (unlikely(credits < ETHTXQ_STOP_THRES)) {
+		chcr_eth_txq_stop(q);
+		wr_mid |= FW_WR_EQUEQ_F | FW_WR_EQUIQ_F;
+	}
+
 	pos = &q->q.desc[q->q.pidx];
 	wr = pos;
 
@@ -1017,7 +1029,7 @@ chcr_ktls_write_tcp_options(struct chcr_ktls_info *tx_info, struct sk_buff *skb,
 	wr->op_immdlen = htonl(FW_WR_OP_V(FW_ETH_TX_PKT_WR) |
 			       FW_WR_IMMDLEN_V(ctrl));
 
-	wr->equiq_to_len16 = htonl(FW_WR_LEN16_V(len16));
+	wr->equiq_to_len16 = htonl(wr_mid | FW_WR_LEN16_V(len16));
 	wr->r3 = 0;
 
 	cpl = (void *)(wr + 1);
