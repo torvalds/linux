@@ -1693,7 +1693,7 @@
 	};
 
 	spdif_8ch: spdif@fe460000 {
-		compatible = "rockchip,rk3588-spdif";
+		compatible = "rockchip,rk3568-spdif";
 		reg = <0x0 0xfe460000 0x0 0x1000>;
 		interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
 		dmas = <&dmac1 1>;
