@@ -1510,7 +1510,16 @@ static struct notifier_block prevent_bootmem_remove_nb = {
 
 static int __init prevent_bootmem_remove_init(void)
 {
-	return register_memory_notifier(&prevent_bootmem_remove_nb);
+	int ret = 0;
+
+	if (!IS_ENABLED(CONFIG_MEMORY_HOTREMOVE))
+		return ret;
+
+	ret = register_memory_notifier(&prevent_bootmem_remove_nb);
+	if (ret)
+		pr_err("%s: Notifier registration failed %d\n", __func__, ret);
+
+	return ret;
 }
-device_initcall(prevent_bootmem_remove_init);
+early_initcall(prevent_bootmem_remove_init);
 #endif
