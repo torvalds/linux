@@ -857,7 +857,7 @@ static int sec_aead_auth_set_key(struct sec_auth_ctx *ctx,
 				 struct crypto_authenc_keys *keys)
 {
 	struct crypto_shash *hash_tfm = ctx->hash_tfm;
-	int blocksize, ret;
+	int blocksize, digestsize, ret;
 
 	if (!keys->authkeylen) {
 		pr_err("hisi_sec2: aead auth key error!\n");
@@ -865,6 +865,7 @@ static int sec_aead_auth_set_key(struct sec_auth_ctx *ctx,
 	}
 
 	blocksize = crypto_shash_blocksize(hash_tfm);
+	digestsize = crypto_shash_digestsize(hash_tfm);
 	if (keys->authkeylen > blocksize) {
 		ret = crypto_shash_tfm_digest(hash_tfm, keys->authkey,
 					      keys->authkeylen, ctx->a_key);
@@ -872,7 +873,7 @@ static int sec_aead_auth_set_key(struct sec_auth_ctx *ctx,
 			pr_err("hisi_sec2: aead auth digest error!\n");
 			return -EINVAL;
 		}
-		ctx->a_key_len = blocksize;
+		ctx->a_key_len = digestsize;
 	} else {
 		memcpy(ctx->a_key, keys->authkey, keys->authkeylen);
 		ctx->a_key_len = keys->authkeylen;
