@@ -2060,8 +2060,6 @@ static void nvme_update_disk_info(struct gendisk *disk,
 
 	if (id->nsattr & NVME_NS_ATTR_RO)
 		set_disk_ro(disk, true);
-	else
-		set_disk_ro(disk, false);
 }
 
 static inline bool nvme_first_scan(struct gendisk *disk)
