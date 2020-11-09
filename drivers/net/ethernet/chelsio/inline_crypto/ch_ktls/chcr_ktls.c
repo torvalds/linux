@@ -967,7 +967,7 @@ chcr_ktls_write_tcp_options(struct chcr_ktls_info *tx_info, struct sk_buff *skb,
 	/* packet length = eth hdr len + ip hdr len + tcp hdr len
 	 * (including options).
 	 */
-	pktlen = skb->len - skb->data_len;
+	pktlen = skb_transport_offset(skb) + tcp_hdrlen(skb);
 
 	ctrl = sizeof(*cpl) + pktlen;
 	len16 = DIV_ROUND_UP(sizeof(*wr) + ctrl, 16);
@@ -1860,6 +1860,7 @@ out:
 /* nic tls TX handler */
 static int chcr_ktls_xmit(struct sk_buff *skb, struct net_device *dev)
 {
+	u32 tls_end_offset, tcp_seq, skb_data_len, skb_offset;
 	struct ch_ktls_port_stats_debug *port_stats;
 	struct chcr_ktls_ofld_ctx_tx *tx_ctx;
 	struct ch_ktls_stats_debug *stats;
@@ -1867,7 +1868,6 @@ static int chcr_ktls_xmit(struct sk_buff *skb, struct net_device *dev)
 	int data_len, qidx, ret = 0, mss;
 	struct tls_record_info *record;
 	struct chcr_ktls_info *tx_info;
-	u32 tls_end_offset, tcp_seq;
 	struct tls_context *tls_ctx;
 	struct sk_buff *local_skb;
 	struct sge_eth_txq *q;
@@ -1875,8 +1875,11 @@ static int chcr_ktls_xmit(struct sk_buff *skb, struct net_device *dev)
 	unsigned long flags;
 
 	tcp_seq = ntohl(th->seq);
+	skb_offset = skb_transport_offset(skb) + tcp_hdrlen(skb);
+	skb_data_len = skb->len - skb_offset;
+	data_len = skb_data_len;
 
-	mss = skb_is_gso(skb) ? skb_shinfo(skb)->gso_size : skb->data_len;
+	mss = skb_is_gso(skb) ? skb_shinfo(skb)->gso_size : data_len;
 
 	tls_ctx = tls_get_ctx(skb->sk);
 	if (unlikely(tls_ctx->netdev != dev))
@@ -1922,8 +1925,6 @@ static int chcr_ktls_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* copy skb contents into local skb */
 	chcr_ktls_skb_copy(skb, local_skb);
 
-	/* go through the skb and send only one record at a time. */
-	data_len = skb->data_len;
 	/* TCP segments can be in received either complete or partial.
 	 * chcr_end_part_handler will handle cases if complete record or end
 	 * part of the record is received. Incase of partial end part of record,
@@ -2020,9 +2021,9 @@ clear_ref:
 
 	} while (data_len > 0);
 
-	tx_info->prev_seq = ntohl(th->seq) + skb->data_len;
+	tx_info->prev_seq = ntohl(th->seq) + skb_data_len;
 	atomic64_inc(&port_stats->ktls_tx_encrypted_packets);
-	atomic64_add(skb->data_len, &port_stats->ktls_tx_encrypted_bytes);
+	atomic64_add(skb_data_len, &port_stats->ktls_tx_encrypted_bytes);
 
 	/* tcp finish is set, send a separate tcp msg including all the options
 	 * as well.
