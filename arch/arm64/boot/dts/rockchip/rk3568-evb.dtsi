@@ -1106,6 +1106,10 @@
 	status = "okay";
 };
 
+&sfc {
+	status = "okay";
+};
+
 &spdif_8ch {
 	status = "okay";
 	#sound-dai-cells = <0>;
