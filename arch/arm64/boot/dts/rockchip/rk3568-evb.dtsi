@@ -1101,6 +1101,7 @@
 	supports-emmc;
 	non-removable;
 	keep-power-in-suspend;
+	max-frequemcy = <200000000>;
 	mmc-hs400-enhanced-strobe;
 	status = "okay";
 };
