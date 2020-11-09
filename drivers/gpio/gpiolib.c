@@ -2110,7 +2110,7 @@ static int gpio_set_config(struct gpio_desc *desc, enum pin_config_param mode)
 		break;
 	}
 
-	config = PIN_CONF_PACKED(mode, arg);
+	config = pinconf_to_config_packed(mode, arg);
 	return gpio_do_set_config(gc, gpio_chip_hwgpio(desc), config);
 }
 
