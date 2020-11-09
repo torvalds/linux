@@ -186,7 +186,7 @@ static void rpcrdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
 	struct rpcrdma_xprt *r_xprt = cq->cq_context;
 
 	/* WARNING: Only wr_cqe and status are reliable at this point */
-	trace_xprtrdma_wc_receive(wc);
+	trace_xprtrdma_wc_receive(wc, &rep->rr_cid);
 	--r_xprt->rx_ep->re_receive_count;
 	if (wc->status != IB_WC_SUCCESS)
 		goto out_flushed;
@@ -972,6 +972,9 @@ struct rpcrdma_rep *rpcrdma_rep_create(struct rpcrdma_xprt *r_xprt,
 	if (!rpcrdma_regbuf_dma_map(r_xprt, rep->rr_rdmabuf))
 		goto out_free_regbuf;
 
+	rep->rr_cid.ci_completion_id =
+		atomic_inc_return(&r_xprt->rx_ep->re_completion_ids);
+
 	xdr_buf_init(&rep->rr_hdrbuf, rdmab_data(rep->rr_rdmabuf),
 		     rdmab_length(rep->rr_rdmabuf));
 	rep->rr_cqe.done = rpcrdma_wc_receive;
@@ -1411,6 +1414,7 @@ void rpcrdma_post_recvs(struct rpcrdma_xprt *r_xprt, bool temp)
 		if (!rep)
 			break;
 
+		rep->rr_cid.ci_queue_id = ep->re_attr.recv_cq->res.id;
 		trace_xprtrdma_post_recv(rep);
 		rep->rr_recv_wr.next = wr;
 		wr = &rep->rr_recv_wr;

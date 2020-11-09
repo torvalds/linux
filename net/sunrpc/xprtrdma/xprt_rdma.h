@@ -53,6 +53,7 @@
 #include <rdma/ib_verbs.h>		/* RDMA verbs api */
 
 #include <linux/sunrpc/clnt.h> 		/* rpc_xprt */
+#include <linux/sunrpc/rpc_rdma_cid.h> 	/* completion IDs */
 #include <linux/sunrpc/rpc_rdma.h> 	/* RPC/RDMA protocol */
 #include <linux/sunrpc/xprtrdma.h> 	/* xprt parameters */
 
@@ -93,6 +94,8 @@ struct rpcrdma_ep {
 	unsigned int		re_max_requests; /* depends on device */
 	unsigned int		re_inline_send;	/* negotiated */
 	unsigned int		re_inline_recv;	/* negotiated */
+
+	atomic_t		re_completion_ids;
 };
 
 /* Pre-allocate extra Work Requests for handling backward receives
@@ -180,6 +183,8 @@ enum {
 
 struct rpcrdma_rep {
 	struct ib_cqe		rr_cqe;
+	struct rpc_rdma_cid	rr_cid;
+
 	__be32			rr_xid;
 	__be32			rr_vers;
 	__be32			rr_proc;

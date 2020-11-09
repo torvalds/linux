@@ -771,15 +771,17 @@ TRACE_EVENT(xprtrdma_post_recv,
 	TP_ARGS(rep),
 
 	TP_STRUCT__entry(
-		__field(const void *, rep)
+		__field(u32, cq_id)
+		__field(int, completion_id)
 	),
 
 	TP_fast_assign(
-		__entry->rep = rep;
+		__entry->cq_id = rep->rr_cid.ci_queue_id;
+		__entry->completion_id = rep->rr_cid.ci_completion_id;
 	),
 
-	TP_printk("rep=%p",
-		__entry->rep
+	TP_printk("cq.id=%d cid=%d",
+		__entry->cq_id, __entry->completion_id
 	)
 );
 
@@ -845,6 +847,8 @@ TRACE_EVENT(xprtrdma_post_linv,
  ** Completion events
  **/
 
+DEFINE_COMPLETION_EVENT(xprtrdma_wc_receive);
+
 TRACE_EVENT(xprtrdma_wc_send,
 	TP_PROTO(
 		const struct rpcrdma_sendctx *sc,
@@ -871,40 +875,6 @@ TRACE_EVENT(xprtrdma_wc_send,
 
 	TP_printk("req=%p sc=%p unmapped=%u: %s (%u/0x%x)",
 		__entry->req, __entry->sc, __entry->unmap_count,
-		rdma_show_wc_status(__entry->status),
-		__entry->status, __entry->vendor_err
-	)
-);
-
-TRACE_EVENT(xprtrdma_wc_receive,
-	TP_PROTO(
-		const struct ib_wc *wc
-	),
-
-	TP_ARGS(wc),
-
-	TP_STRUCT__entry(
-		__field(const void *, rep)
-		__field(u32, byte_len)
-		__field(unsigned int, status)
-		__field(u32, vendor_err)
-	),
-
-	TP_fast_assign(
-		__entry->rep = container_of(wc->wr_cqe, struct rpcrdma_rep,
-					    rr_cqe);
-		__entry->status = wc->status;
-		if (wc->status) {
-			__entry->byte_len = 0;
-			__entry->vendor_err = wc->vendor_err;
-		} else {
-			__entry->byte_len = wc->byte_len;
-			__entry->vendor_err = 0;
-		}
-	),
-
-	TP_printk("rep=%p %u bytes: %s (%u/0x%x)",
-		__entry->rep, __entry->byte_len,
 		rdma_show_wc_status(__entry->status),
 		__entry->status, __entry->vendor_err
 	)
