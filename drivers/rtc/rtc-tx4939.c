@@ -266,7 +266,6 @@ static int __init tx4939_rtc_probe(struct platform_device *pdev)
 		return PTR_ERR(rtc);
 
 	rtc->ops = &tx4939_rtc_ops;
-	rtc->nvram_old_abi = true;
 	rtc->range_max = U32_MAX;
 
 	pdata->rtc = rtc;

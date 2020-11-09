@@ -1316,7 +1316,6 @@ ds1685_rtc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	rtc_dev->nvram_old_abi = true;
 	nvmem_cfg.priv = rtc;
 	ret = rtc_nvmem_register(rtc_dev, &nvmem_cfg);
 	if (ret)

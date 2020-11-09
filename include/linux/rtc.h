@@ -120,10 +120,6 @@ struct rtc_device {
 
 	bool registered;
 
-	/* Old ABI support */
-	bool nvram_old_abi;
-	struct bin_attribute *nvram;
-
 	time64_t range_min;
 	timeu64_t range_max;
 	time64_t start_secs;
@@ -250,14 +246,12 @@ extern int rtc_hctosys_ret;
 #ifdef CONFIG_RTC_NVMEM
 int rtc_nvmem_register(struct rtc_device *rtc,
 		       struct nvmem_config *nvmem_config);
-void rtc_nvmem_unregister(struct rtc_device *rtc);
 #else
 static inline int rtc_nvmem_register(struct rtc_device *rtc,
 				     struct nvmem_config *nvmem_config)
 {
 	return 0;
 }
-static inline void rtc_nvmem_unregister(struct rtc_device *rtc) {}
 #endif
 
 #ifdef CONFIG_RTC_INTF_SYSFS

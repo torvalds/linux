@@ -2016,7 +2016,6 @@ static int ds1307_probe(struct i2c_client *client,
 			.priv = ds1307,
 		};
 
-		ds1307->rtc->nvram_old_abi = true;
 		rtc_nvmem_register(ds1307->rtc, &nvmem_cfg);
 	}
 

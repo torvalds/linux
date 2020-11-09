@@ -466,8 +466,6 @@ static int ds1511_rtc_probe(struct platform_device *pdev)
 
 	pdata->rtc->ops = &ds1511_rtc_ops;
 
-	pdata->rtc->nvram_old_abi = true;
-
 	ret = rtc_register_device(pdata->rtc);
 	if (ret)
 		return ret;

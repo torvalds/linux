@@ -251,7 +251,6 @@ static int __init rp5c01_rtc_probe(struct platform_device *dev)
 		return PTR_ERR(rtc);
 
 	rtc->ops = &rp5c01_rtc_ops;
-	rtc->nvram_old_abi = true;
 
 	priv->rtc = rtc;
 

@@ -254,7 +254,6 @@ static int m48t86_rtc_probe(struct platform_device *pdev)
 		return PTR_ERR(info->rtc);
 
 	info->rtc->ops = &m48t86_rtc_ops;
-	info->rtc->nvram_old_abi = true;
 
 	err = rtc_register_device(info->rtc);
 	if (err)

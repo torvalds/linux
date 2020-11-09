@@ -190,7 +190,6 @@ static int ds1742_rtc_probe(struct platform_device *pdev)
 		return PTR_ERR(rtc);
 
 	rtc->ops = &ds1742_rtc_ops;
-	rtc->nvram_old_abi = true;
 
 	ret = rtc_register_device(rtc);
 	if (ret)

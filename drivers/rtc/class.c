@@ -339,8 +339,6 @@ static void devm_rtc_release_device(struct device *dev, void *res)
 {
 	struct rtc_device *rtc = *(struct rtc_device **)res;
 
-	rtc_nvmem_unregister(rtc);
-
 	if (rtc->registered)
 		rtc_device_unregister(rtc);
 	else
