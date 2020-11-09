@@ -1433,10 +1433,7 @@ static void kbd_keycode(unsigned int keycode, int down, bool hw_raw)
 		raw_mode = true;
 	}
 
-	if (down)
-		set_bit(keycode, key_down);
-	else
-		clear_bit(keycode, key_down);
+	assign_bit(keycode, key_down, down);
 
 	if (rep &&
 	    (!vc_kbd_mode(kbd, VC_REPEAT) ||
