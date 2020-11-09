@@ -145,13 +145,13 @@ static void rtw_coex_wl_ccklock_action(struct rtw_dev *rtwdev)
 			coex_stat->cnt_wl[COEX_CNT_WL_5MS_NOEXTEND] = 0;
 
 		if (coex_stat->cnt_wl[COEX_CNT_WL_5MS_NOEXTEND] == 7) {
-			para[1] = 0x1; /* disable 5ms extend */
+			para[1] = PARA1_H2C69_DIS_5MS;
 			rtw_fw_bt_wifi_control(rtwdev, para[0], &para[1]);
 			coex_stat->wl_slot_extend = false;
 			coex_stat->cnt_wl[COEX_CNT_WL_5MS_NOEXTEND] = 0;
 		}
 	} else if (!coex_stat->wl_slot_extend && coex_stat->wl_cck_lock) {
-		para[1] = 0x0; /* enable 5ms extend */
+		para[1] = PARA1_H2C69_EN_5MS;
 		rtw_fw_bt_wifi_control(rtwdev, para[0], &para[1]);
 		coex_stat->wl_slot_extend = true;
 	}
@@ -777,14 +777,14 @@ static void rtw_coex_coex_ctrl_owner(struct rtw_dev *rtwdev, bool wifi_control)
 
 static void rtw_coex_set_gnt_bt(struct rtw_dev *rtwdev, u8 state)
 {
-	rtw_coex_write_indirect_reg(rtwdev, 0x38, 0xc000, state);
-	rtw_coex_write_indirect_reg(rtwdev, 0x38, 0x0c00, state);
+	rtw_coex_write_indirect_reg(rtwdev, LTE_COEX_CTRL, 0xc000, state);
+	rtw_coex_write_indirect_reg(rtwdev, LTE_COEX_CTRL, 0x0c00, state);
 }
 
 static void rtw_coex_set_gnt_wl(struct rtw_dev *rtwdev, u8 state)
 {
-	rtw_coex_write_indirect_reg(rtwdev, 0x38, 0x3000, state);
-	rtw_coex_write_indirect_reg(rtwdev, 0x38, 0x0300, state);
+	rtw_coex_write_indirect_reg(rtwdev, LTE_COEX_CTRL, 0x3000, state);
+	rtw_coex_write_indirect_reg(rtwdev, LTE_COEX_CTRL, 0x0300, state);
 }
 
 static void rtw_coex_set_table(struct rtw_dev *rtwdev, u32 table0, u32 table1)
@@ -2916,14 +2916,16 @@ void rtw_coex_display_coex_info(struct rtw_dev *rtwdev, struct seq_file *m)
 
 	score_board_BW = rtw_coex_read_scbd(rtwdev);
 	score_board_WB = coex_stat->score_board;
-	wl_reg_6c0 = rtw_read32(rtwdev, 0x6c0);
-	wl_reg_6c4 = rtw_read32(rtwdev, 0x6c4);
-	wl_reg_6c8 = rtw_read32(rtwdev, 0x6c8);
-	wl_reg_6cc = rtw_read32(rtwdev, 0x6cc);
-	wl_reg_778 = rtw_read32(rtwdev, 0x778);
-	bt_hi_pri = rtw_read32(rtwdev, 0x770);
-	bt_lo_pri = rtw_read32(rtwdev, 0x774);
-	rtw_write8(rtwdev, 0x76e, 0xc);
+	wl_reg_6c0 = rtw_read32(rtwdev, REG_BT_COEX_TABLE0);
+	wl_reg_6c4 = rtw_read32(rtwdev, REG_BT_COEX_TABLE1);
+	wl_reg_6c8 = rtw_read32(rtwdev, REG_BT_COEX_BRK_TABLE);
+	wl_reg_6cc = rtw_read32(rtwdev, REG_BT_COEX_TABLE_H);
+	wl_reg_778 = rtw_read8(rtwdev, REG_BT_STAT_CTRL);
+
+	bt_hi_pri = rtw_read32(rtwdev, REG_BT_ACT_STATISTICS);
+	bt_lo_pri = rtw_read32(rtwdev, REG_BT_ACT_STATISTICS_1);
+	rtw_write8(rtwdev, REG_BT_COEX_ENH_INTR_CTRL,
+		   BIT_R_GRANTALL_WLMASK | BIT_STATIS_BT_EN);
 	sys_lte = rtw_read8(rtwdev, 0x73);
 	lte_coex = rtw_coex_read_indirect_reg(rtwdev, 0x38);
 	bt_coex = rtw_coex_read_indirect_reg(rtwdev, 0x54);

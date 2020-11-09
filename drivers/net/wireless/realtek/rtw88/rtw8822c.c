@@ -2153,7 +2153,7 @@ static void rtw8822c_coex_cfg_init(struct rtw_dev *rtwdev)
 	rtw_write8_clr(rtwdev, REG_DUMMY_PAGE4_V1, BIT_BTCCA_CTRL);
 
 	/* to avoid RF parameter error */
-	rtw_write_rf(rtwdev, RF_PATH_B, 0x1, 0xfffff, 0x40000);
+	rtw_write_rf(rtwdev, RF_PATH_B, RF_MODOPT, 0xfffff, 0x40000);
 }
 
 static void rtw8822c_coex_cfg_gnt_fix(struct rtw_dev *rtwdev)
@@ -2190,10 +2190,10 @@ static void rtw8822c_coex_cfg_gnt_fix(struct rtw_dev *rtwdev)
 	 * disable WL-S1 BB chage RF mode if GNT_BT
 	 * since RF TRx mask can do it
 	 */
-	rtw_write8_mask(rtwdev, 0x1c32, BIT(6), 1);
-	rtw_write8_mask(rtwdev, 0x1c39, BIT(4), 0);
-	rtw_write8_mask(rtwdev, 0x1c3b, BIT(4), 1);
-	rtw_write8_mask(rtwdev, 0x4160, BIT(3), 1);
+	rtw_write8_mask(rtwdev, REG_ANAPAR + 2, BIT_ANAPAR_BTPS >> 16, 1);
+	rtw_write8_mask(rtwdev, REG_RSTB_SEL + 1, BIT_DAC_OFF_ENABLE, 0);
+	rtw_write8_mask(rtwdev, REG_RSTB_SEL + 3, BIT_DAC_OFF_ENABLE, 1);
+	rtw_write8_mask(rtwdev, REG_IGN_GNTBT4, BIT_PI_IGNORE_GNT_BT, 1);
 
 	/* disable WL-S0 BB chage RF mode if wifi is at 5G,
 	 * or antenna path is separated
@@ -2201,26 +2201,32 @@ static void rtw8822c_coex_cfg_gnt_fix(struct rtw_dev *rtwdev)
 	if (coex_stat->wl_coex_mode == COEX_WLINK_5G ||
 	    coex->under_5g || !efuse->share_ant) {
 		if (coex_stat->kt_ver >= 3) {
-			rtw_write8_mask(rtwdev, 0x1860, BIT(3), 0);
-			rtw_write8_mask(rtwdev, 0x1ca7, BIT(3), 1);
+			rtw_write8_mask(rtwdev, REG_IGN_GNT_BT1,
+					BIT_PI_IGNORE_GNT_BT, 0);
+			rtw_write8_mask(rtwdev, REG_NOMASK_TXBT,
+					BIT_NOMASK_TXBT_ENABLE, 1);
 		} else {
-			rtw_write8_mask(rtwdev, 0x1860, BIT(3), 1);
+			rtw_write8_mask(rtwdev, REG_IGN_GNT_BT1,
+					BIT_PI_IGNORE_GNT_BT, 1);
 		}
 	} else {
 		/* shared-antenna */
-		rtw_write8_mask(rtwdev, 0x1860, BIT(3), 0);
-		if (coex_stat->kt_ver >= 3)
-			rtw_write8_mask(rtwdev, 0x1ca7, BIT(3), 0);
+		rtw_write8_mask(rtwdev, REG_IGN_GNT_BT1,
+				BIT_PI_IGNORE_GNT_BT, 0);
+		if (coex_stat->kt_ver >= 3) {
+			rtw_write8_mask(rtwdev, REG_NOMASK_TXBT,
+					BIT_NOMASK_TXBT_ENABLE, 0);
+		}
 	}
 }
 
 static void rtw8822c_coex_cfg_gnt_debug(struct rtw_dev *rtwdev)
 {
-	rtw_write8_mask(rtwdev, 0x66, BIT(4), 0);
-	rtw_write8_mask(rtwdev, 0x67, BIT(0), 0);
-	rtw_write8_mask(rtwdev, 0x42, BIT(3), 0);
-	rtw_write8_mask(rtwdev, 0x65, BIT(7), 0);
-	rtw_write8_mask(rtwdev, 0x73, BIT(3), 0);
+	rtw_write8_mask(rtwdev, REG_PAD_CTRL1 + 2, BIT_BTGP_SPI_EN >> 16, 0);
+	rtw_write8_mask(rtwdev, REG_PAD_CTRL1 + 3, BIT_BTGP_JTAG_EN >> 24, 0);
+	rtw_write8_mask(rtwdev, REG_GPIO_MUXCFG + 2, BIT_FSPI_EN >> 16, 0);
+	rtw_write8_mask(rtwdev, REG_PAD_CTRL1 + 1, BIT_LED1DIS >> 8, 0);
+	rtw_write8_mask(rtwdev, REG_SYS_SDIO_CTRL + 3, BIT_DBG_GNT_WL_BT >> 24, 0);
 }
 
 static void rtw8822c_coex_cfg_rfe_type(struct rtw_dev *rtwdev)
@@ -2241,9 +2247,9 @@ static void rtw8822c_coex_cfg_rfe_type(struct rtw_dev *rtwdev)
 		coex_rfe->wlg_at_btg = false;
 
 	/* disable LTE coex in wifi side */
-	rtw_coex_write_indirect_reg(rtwdev, 0x38, BIT_LTE_COEX_EN, 0x0);
-	rtw_coex_write_indirect_reg(rtwdev, 0xa0, MASKLWORD, 0xffff);
-	rtw_coex_write_indirect_reg(rtwdev, 0xa4, MASKLWORD, 0xffff);
+	rtw_coex_write_indirect_reg(rtwdev, LTE_COEX_CTRL, BIT_LTE_COEX_EN, 0x0);
+	rtw_coex_write_indirect_reg(rtwdev, LTE_WL_TRX_CTRL, MASKLWORD, 0xffff);
+	rtw_coex_write_indirect_reg(rtwdev, LTE_BT_TRX_CTRL, MASKLWORD, 0xffff);
 }
 
 static void rtw8822c_coex_cfg_wl_tx_power(struct rtw_dev *rtwdev, u8 wl_pwr)
@@ -2269,15 +2275,17 @@ static void rtw8822c_coex_cfg_wl_rx_gain(struct rtw_dev *rtwdev, bool low_gain)
 
 	if (coex_dm->cur_wl_rx_low_gain_en) {
 		/* set Rx filter corner RCK offset */
-		rtw_write_rf(rtwdev, RF_PATH_A, 0xde, 0xfffff, 0x22);
-		rtw_write_rf(rtwdev, RF_PATH_A, 0x1d, 0xfffff, 0x36);
-		rtw_write_rf(rtwdev, RF_PATH_B, 0xde, 0xfffff, 0x22);
-		rtw_write_rf(rtwdev, RF_PATH_B, 0x1d, 0xfffff, 0x36);
+		rtw_write_rf(rtwdev, RF_PATH_A, RF_RCKD, RFREG_MASK, 0x22);
+		rtw_write_rf(rtwdev, RF_PATH_A, RF_RCK, RFREG_MASK, 0x36);
+		rtw_write_rf(rtwdev, RF_PATH_B, RF_RCKD, RFREG_MASK, 0x22);
+		rtw_write_rf(rtwdev, RF_PATH_B, RF_RCK, RFREG_MASK, 0x36);
+
 	} else {
 		/* set Rx filter corner RCK offset */
-		rtw_write_rf(rtwdev, RF_PATH_A, 0xde, 0xfffff, 0x20);
-		rtw_write_rf(rtwdev, RF_PATH_A, 0x1d, 0xfffff, 0x0);
-		rtw_write_rf(rtwdev, RF_PATH_B, 0x1d, 0xfffff, 0x0);
+		rtw_write_rf(rtwdev, RF_PATH_A, RF_RCKD, RFREG_MASK, 0x20);
+		rtw_write_rf(rtwdev, RF_PATH_A, RF_RCK, RFREG_MASK, 0x0);
+		rtw_write_rf(rtwdev, RF_PATH_B, RF_RCKD, RFREG_MASK, 0x20);
+		rtw_write_rf(rtwdev, RF_PATH_B, RF_RCK, RFREG_MASK, 0x0);
 	}
 }
 
