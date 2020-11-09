@@ -2107,6 +2107,7 @@ static int gpio_set_config(struct gpio_desc *desc, enum pin_config_param mode)
 
 	default:
 		arg = 0;
+		break;
 	}
 
 	config = PIN_CONF_PACKED(mode, arg);
