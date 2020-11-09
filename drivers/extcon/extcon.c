@@ -1350,8 +1350,8 @@ int extcon_dev_register(struct extcon_dev *edev)
 	{
 		const char *name = extcon_get_link_name(edev);
 
-		ret = sysfs_create_link(&edev->dev.class->p->subsys.kobj,
-					&edev->dev.kobj, name);
+		ret = sysfs_create_link_nowarn(&edev->dev.class->p->subsys.kobj,
+					       &edev->dev.kobj, name);
 		if (ret)
 			dev_err(&edev->dev,
 				"failed to create extcon %s link\n", name);
