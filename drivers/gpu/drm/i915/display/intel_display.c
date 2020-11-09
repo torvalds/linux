@@ -10940,7 +10940,10 @@ static void dg1_get_ddi_pll(struct drm_i915_private *dev_priv, enum port port,
 {
 	enum icl_port_dpll_id port_dpll_id = ICL_PORT_DPLL_DEFAULT;
 	enum phy phy = intel_port_to_phy(dev_priv, port);
+	struct icl_port_dpll *port_dpll;
+	struct intel_shared_dpll *pll;
 	enum intel_dpll_id id;
+	bool pll_active;
 	u32 clk_sel;
 
 	clk_sel = intel_de_read(dev_priv, DG1_DPCLKA_CFGCR0(phy)) & DG1_DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(phy);
@@ -10949,8 +10952,13 @@ static void dg1_get_ddi_pll(struct drm_i915_private *dev_priv, enum port port,
 	if (WARN_ON(id > DPLL_ID_DG1_DPLL3))
 		return;
 
-	pipe_config->icl_port_dplls[port_dpll_id].pll =
-		intel_get_shared_dpll_by_id(dev_priv, id);
+	pll = intel_get_shared_dpll_by_id(dev_priv, id);
+	port_dpll = &pipe_config->icl_port_dplls[port_dpll_id];
+
+	port_dpll->pll = pll;
+	pll_active = intel_dpll_get_hw_state(dev_priv, pll,
+					     &port_dpll->hw_state);
+	drm_WARN_ON(&dev_priv->drm, !pll_active);
 
 	icl_set_active_port_dpll(pipe_config, port_dpll_id);
 }
@@ -10958,7 +10966,9 @@ static void dg1_get_ddi_pll(struct drm_i915_private *dev_priv, enum port port,
 static void cnl_get_ddi_pll(struct drm_i915_private *dev_priv, enum port port,
 			    struct intel_crtc_state *pipe_config)
 {
+	struct intel_shared_dpll *pll;
 	enum intel_dpll_id id;
+	bool pll_active;
 	u32 temp;
 
 	temp = intel_de_read(dev_priv, DPCLKA_CFGCR0) & DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(port);
@@ -10967,7 +10977,12 @@ static void cnl_get_ddi_pll(struct drm_i915_private *dev_priv, enum port port,
 	if (drm_WARN_ON(&dev_priv->drm, id < SKL_DPLL0 || id > SKL_DPLL2))
 		return;
 
-	pipe_config->shared_dpll = intel_get_shared_dpll_by_id(dev_priv, id);
+	pll = intel_get_shared_dpll_by_id(dev_priv, id);
+
+	pipe_config->shared_dpll = pll;
+	pll_active = intel_dpll_get_hw_state(dev_priv, pll,
+					     &pipe_config->dpll_hw_state);
+	drm_WARN_ON(&dev_priv->drm, !pll_active);
 }
 
 static void icl_get_ddi_pll(struct drm_i915_private *dev_priv, enum port port,
@@ -10975,7 +10990,10 @@ static void icl_get_ddi_pll(struct drm_i915_private *dev_priv, enum port port,
 {
 	enum phy phy = intel_port_to_phy(dev_priv, port);
 	enum icl_port_dpll_id port_dpll_id;
+	struct icl_port_dpll *port_dpll;
+	struct intel_shared_dpll *pll;
 	enum intel_dpll_id id;
+	bool pll_active;
 	u32 temp;
 
 	if (intel_phy_is_combo(dev_priv, phy)) {
@@ -11010,8 +11028,13 @@ static void icl_get_ddi_pll(struct drm_i915_private *dev_priv, enum port port,
 		return;
 	}
 
-	pipe_config->icl_port_dplls[port_dpll_id].pll =
-		intel_get_shared_dpll_by_id(dev_priv, id);
+	pll = intel_get_shared_dpll_by_id(dev_priv, id);
+	port_dpll = &pipe_config->icl_port_dplls[port_dpll_id];
+
+	port_dpll->pll = pll;
+	pll_active = intel_dpll_get_hw_state(dev_priv, pll,
+					     &port_dpll->hw_state);
+	drm_WARN_ON(&dev_priv->drm, !pll_active);
 
 	icl_set_active_port_dpll(pipe_config, port_dpll_id);
 }
@@ -11020,7 +11043,9 @@ static void bxt_get_ddi_pll(struct drm_i915_private *dev_priv,
 				enum port port,
 				struct intel_crtc_state *pipe_config)
 {
+	struct intel_shared_dpll *pll;
 	enum intel_dpll_id id;
+	bool pll_active;
 
 	switch (port) {
 	case PORT_A:
@@ -11037,13 +11062,20 @@ static void bxt_get_ddi_pll(struct drm_i915_private *dev_priv,
 		return;
 	}
 
-	pipe_config->shared_dpll = intel_get_shared_dpll_by_id(dev_priv, id);
+	pll = intel_get_shared_dpll_by_id(dev_priv, id);
+
+	pipe_config->shared_dpll = pll;
+	pll_active = intel_dpll_get_hw_state(dev_priv, pll,
+					     &pipe_config->dpll_hw_state);
+	drm_WARN_ON(&dev_priv->drm, !pll_active);
 }
 
 static void skl_get_ddi_pll(struct drm_i915_private *dev_priv, enum port port,
 			    struct intel_crtc_state *pipe_config)
 {
+	struct intel_shared_dpll *pll;
 	enum intel_dpll_id id;
+	bool pll_active;
 	u32 temp;
 
 	temp = intel_de_read(dev_priv, DPLL_CTRL2) & DPLL_CTRL2_DDI_CLK_SEL_MASK(port);
@@ -11052,14 +11084,21 @@ static void skl_get_ddi_pll(struct drm_i915_private *dev_priv, enum port port,
 	if (drm_WARN_ON(&dev_priv->drm, id < SKL_DPLL0 || id > SKL_DPLL3))
 		return;
 
-	pipe_config->shared_dpll = intel_get_shared_dpll_by_id(dev_priv, id);
+	pll = intel_get_shared_dpll_by_id(dev_priv, id);
+
+	pipe_config->shared_dpll = pll;
+	pll_active = intel_dpll_get_hw_state(dev_priv, pll,
+					     &pipe_config->dpll_hw_state);
+	drm_WARN_ON(&dev_priv->drm, !pll_active);
 }
 
 static void hsw_get_ddi_pll(struct drm_i915_private *dev_priv, enum port port,
 			    struct intel_crtc_state *pipe_config)
 {
+	struct intel_shared_dpll *pll;
 	enum intel_dpll_id id;
 	u32 ddi_pll_sel = intel_de_read(dev_priv, PORT_CLK_SEL(port));
+	bool pll_active;
 
 	switch (ddi_pll_sel) {
 	case PORT_CLK_SEL_WRPLL1:
@@ -11087,7 +11126,12 @@ static void hsw_get_ddi_pll(struct drm_i915_private *dev_priv, enum port port,
 		return;
 	}
 
-	pipe_config->shared_dpll = intel_get_shared_dpll_by_id(dev_priv, id);
+	pll = intel_get_shared_dpll_by_id(dev_priv, id);
+
+	pipe_config->shared_dpll = pll;
+	pll_active = intel_dpll_get_hw_state(dev_priv, pll,
+					     &pipe_config->dpll_hw_state);
+	drm_WARN_ON(&dev_priv->drm, !pll_active);
 }
 
 static bool hsw_get_transcoder_state(struct intel_crtc *crtc,
@@ -11247,7 +11291,6 @@ static void hsw_get_ddi_port_state(struct intel_crtc *crtc,
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum transcoder cpu_transcoder = pipe_config->cpu_transcoder;
-	struct intel_shared_dpll *pll;
 	enum port port;
 	u32 tmp;
 
@@ -11275,13 +11318,6 @@ static void hsw_get_ddi_port_state(struct intel_crtc *crtc,
 		bxt_get_ddi_pll(dev_priv, port, pipe_config);
 	else
 		hsw_get_ddi_pll(dev_priv, port, pipe_config);
-
-	pll = pipe_config->shared_dpll;
-	if (pll) {
-		bool pll_active = intel_dpll_get_hw_state(dev_priv, pll,
-							  &pipe_config->dpll_hw_state);
-		drm_WARN_ON(&dev_priv->drm, !pll_active);
-	}
 
 	/*
 	 * Haswell has only FDI/PCH transcoder A. It is which is connected to
