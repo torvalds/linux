@@ -2825,8 +2825,8 @@ static int rk3568_calc_slew_rate_reg_and_bit(struct rockchip_pin_bank *bank,
 	return 0;
 }
 
-#define RK3568_PULL_GRF_OFFSET		0x20
-#define RK3568_PULL_PMU_OFFSET		0x80
+#define RK3568_PULL_PMU_OFFSET		0x20
+#define RK3568_PULL_GRF_OFFSET		0x80
 #define RK3568_PULL_BITS_PER_PIN	2
 #define RK3568_PULL_PINS_PER_REG	8
 #define RK3568_PULL_BANK_STRIDE		0x10
