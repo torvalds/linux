@@ -1523,7 +1523,7 @@ static void rtw_coex_action_bt_a2dp(struct rtw_dev *rtwdev)
 		slot_type = TDMA_4SLOT;
 
 		if (coex_stat->wl_gl_busy && coex_stat->wl_noisy_level == 0)
-			table_case = 10;
+			table_case = 11;
 		else
 			table_case = 9;
 
