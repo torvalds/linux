@@ -271,7 +271,7 @@ static int __init tx4939_rtc_probe(struct platform_device *pdev)
 	pdata->rtc = rtc;
 
 	nvmem_cfg.priv = pdata;
-	ret = rtc_nvmem_register(rtc, &nvmem_cfg);
+	ret = devm_rtc_nvmem_register(rtc, &nvmem_cfg);
 	if (ret)
 		return ret;
 

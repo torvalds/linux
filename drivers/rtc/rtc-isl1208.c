@@ -890,7 +890,7 @@ isl1208_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (rc)
 		return rc;
 
-	rc = rtc_nvmem_register(isl1208->rtc, &isl1208->nvmem_config);
+	rc = devm_rtc_nvmem_register(isl1208->rtc, &isl1208->nvmem_config);
 	if (rc)
 		return rc;
 

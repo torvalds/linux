@@ -2016,7 +2016,7 @@ static int ds1307_probe(struct i2c_client *client,
 			.priv = ds1307,
 		};
 
-		rtc_nvmem_register(ds1307->rtc, &nvmem_cfg);
+		devm_rtc_nvmem_register(ds1307->rtc, &nvmem_cfg);
 	}
 
 	ds1307_hwmon_register(ds1307);

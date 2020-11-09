@@ -698,7 +698,7 @@ static int ds1305_probe(struct spi_device *spi)
 	if (status)
 		return status;
 
-	rtc_nvmem_register(ds1305->rtc, &ds1305_nvmem_cfg);
+	devm_rtc_nvmem_register(ds1305->rtc, &ds1305_nvmem_cfg);
 
 	/* Maybe set up alarm IRQ; be ready to handle it triggering right
 	 * away.  NOTE that we don't share this.  The signal is active low,

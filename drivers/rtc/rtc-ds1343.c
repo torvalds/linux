@@ -413,7 +413,7 @@ static int ds1343_probe(struct spi_device *spi)
 		return res;
 
 	nvmem_cfg.priv = priv;
-	rtc_nvmem_register(priv->rtc, &nvmem_cfg);
+	devm_rtc_nvmem_register(priv->rtc, &nvmem_cfg);
 
 	priv->irq = spi->irq;
 

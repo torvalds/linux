@@ -309,7 +309,7 @@ static int ds1553_rtc_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (rtc_nvmem_register(pdata->rtc, &nvmem_cfg))
+	if (devm_rtc_nvmem_register(pdata->rtc, &nvmem_cfg))
 		dev_err(&pdev->dev, "unable to register nvmem\n");
 
 	return 0;

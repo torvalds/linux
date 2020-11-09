@@ -890,9 +890,9 @@ static int rv3032_probe(struct i2c_client *client)
 		return ret;
 
 	nvmem_cfg.priv = rv3032->regmap;
-	rtc_nvmem_register(rv3032->rtc, &nvmem_cfg);
+	devm_rtc_nvmem_register(rv3032->rtc, &nvmem_cfg);
 	eeprom_cfg.priv = rv3032;
-	rtc_nvmem_register(rv3032->rtc, &eeprom_cfg);
+	devm_rtc_nvmem_register(rv3032->rtc, &eeprom_cfg);
 
 	rv3032->rtc->max_user_freq = 1;
 

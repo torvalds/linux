@@ -755,7 +755,7 @@ static int rv3029_probe(struct device *dev, struct regmap *regmap, int irq,
 		return rc;
 
 	nvmem_cfg.priv = rv3029->regmap;
-	rtc_nvmem_register(rv3029->rtc, &nvmem_cfg);
+	devm_rtc_nvmem_register(rv3029->rtc, &nvmem_cfg);
 
 	return 0;
 }

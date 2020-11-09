@@ -466,7 +466,7 @@ static int m48t59_rtc_probe(struct platform_device *pdev)
 	m48t59->rtc->ops = ops;
 
 	nvmem_cfg.size = pdata->offset;
-	ret = rtc_nvmem_register(m48t59->rtc, &nvmem_cfg);
+	ret = devm_rtc_nvmem_register(m48t59->rtc, &nvmem_cfg);
 	if (ret)
 		return ret;
 

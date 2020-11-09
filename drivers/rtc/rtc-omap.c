@@ -890,7 +890,7 @@ static int omap_rtc_probe(struct platform_device *pdev)
 	if (ret)
 		goto err;
 
-	rtc_nvmem_register(rtc->rtc, &omap_rtc_nvmem_config);
+	devm_rtc_nvmem_register(rtc->rtc, &omap_rtc_nvmem_config);
 
 	if (rtc->is_pmic_controller) {
 		if (!pm_power_off) {

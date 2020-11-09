@@ -365,7 +365,7 @@ static int meson_rtc_probe(struct platform_device *pdev)
 	}
 
 	meson_rtc_nvmem_config.priv = rtc;
-	ret = rtc_nvmem_register(rtc->rtc, &meson_rtc_nvmem_config);
+	ret = devm_rtc_nvmem_register(rtc->rtc, &meson_rtc_nvmem_config);
 	if (ret)
 		goto out_disable_vdd;
 

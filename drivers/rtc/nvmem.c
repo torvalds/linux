@@ -10,7 +10,7 @@
 #include <linux/nvmem-consumer.h>
 #include <linux/rtc.h>
 
-int rtc_nvmem_register(struct rtc_device *rtc,
+int devm_rtc_nvmem_register(struct rtc_device *rtc,
 		       struct nvmem_config *nvmem_config)
 {
 	struct nvmem_device *nvmem;
@@ -24,4 +24,4 @@ int rtc_nvmem_register(struct rtc_device *rtc,
 
 	return PTR_ERR_OR_ZERO(nvmem);
 }
-EXPORT_SYMBOL_GPL(rtc_nvmem_register);
+EXPORT_SYMBOL_GPL(devm_rtc_nvmem_register);

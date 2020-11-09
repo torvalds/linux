@@ -255,7 +255,7 @@ static int __init rp5c01_rtc_probe(struct platform_device *dev)
 	priv->rtc = rtc;
 
 	nvmem_cfg.priv = priv;
-	error = rtc_nvmem_register(rtc, &nvmem_cfg);
+	error = devm_rtc_nvmem_register(rtc, &nvmem_cfg);
 	if (error)
 		return error;
 
