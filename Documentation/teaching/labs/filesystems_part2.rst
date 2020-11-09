@@ -731,6 +731,7 @@ To unload the kernel module, use the command
 
 .. code-block:: console
 
+  umount /mnt/myfs
   rmmod myfs
 
 To test the functionality provided by the kernel module, we can use the dedicated script ``test-myfs-1.sh``.
