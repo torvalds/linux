@@ -776,8 +776,7 @@ cifs_smb3_do_mount(struct file_system_type *fs_type,
 {
 	int rc;
 	struct super_block *sb;
-	struct cifs_sb_info *cifs_sb;
-	struct smb3_fs_context *ctx;
+	struct cifs_sb_info *cifs_sb = NULL;
 	struct cifs_mnt_data mnt_data;
 	struct dentry *root;
 
@@ -790,49 +789,51 @@ cifs_smb3_do_mount(struct file_system_type *fs_type,
 	else
 		cifs_info("Attempting to mount %s\n", old_ctx->UNC);
 
-	ctx = kzalloc(sizeof(struct smb3_fs_context), GFP_KERNEL);
-	if (!ctx)
-		return ERR_PTR(-ENOMEM);
-	rc = smb3_fs_context_dup(ctx, old_ctx);
-	if (rc) {
-		root = ERR_PTR(rc);
-		goto out;
-	}
-
-	rc = cifs_setup_volume_info(ctx);
-	if (rc) {
-		root = ERR_PTR(rc);
-		goto out;
-	}
-
 	cifs_sb = kzalloc(sizeof(struct cifs_sb_info), GFP_KERNEL);
 	if (cifs_sb == NULL) {
 		root = ERR_PTR(-ENOMEM);
-		goto out_nls;
+		goto out;
 	}
 
-	cifs_sb->mountdata = kstrndup(ctx->mount_options, PAGE_SIZE, GFP_KERNEL);
-	if (cifs_sb->mountdata == NULL) {
+	cifs_sb->ctx = kzalloc(sizeof(struct smb3_fs_context), GFP_KERNEL);
+	if (!cifs_sb->ctx) {
 		root = ERR_PTR(-ENOMEM);
-		goto out_free;
+		goto out;
 	}
-
-	rc = cifs_setup_cifs_sb(ctx, cifs_sb);
+	rc = smb3_fs_context_dup(cifs_sb->ctx, old_ctx);
 	if (rc) {
 		root = ERR_PTR(rc);
-		goto out_free;
+		goto out;
 	}
 
-	rc = cifs_mount(cifs_sb, ctx);
+	rc = cifs_setup_volume_info(cifs_sb->ctx);
+	if (rc) {
+		root = ERR_PTR(rc);
+		goto out;
+	}
+
+	cifs_sb->mountdata = kstrndup(cifs_sb->ctx->mount_options, PAGE_SIZE, GFP_KERNEL);
+	if (cifs_sb->mountdata == NULL) {
+		root = ERR_PTR(-ENOMEM);
+		goto out;
+	}
+
+	rc = cifs_setup_cifs_sb(cifs_sb->ctx, cifs_sb);
+	if (rc) {
+		root = ERR_PTR(rc);
+		goto out;
+	}
+
+	rc = cifs_mount(cifs_sb, cifs_sb->ctx);
 	if (rc) {
 		if (!(flags & SB_SILENT))
 			cifs_dbg(VFS, "cifs_mount failed w/return code = %d\n",
 				 rc);
 		root = ERR_PTR(rc);
-		goto out_free;
+		goto out;
 	}
 
-	mnt_data.ctx = ctx;
+	mnt_data.ctx = cifs_sb->ctx;
 	mnt_data.cifs_sb = cifs_sb;
 	mnt_data.flags = flags;
 
@@ -859,26 +860,23 @@ cifs_smb3_do_mount(struct file_system_type *fs_type,
 		sb->s_flags |= SB_ACTIVE;
 	}
 
-	root = cifs_get_root(ctx, sb);
+	root = cifs_get_root(cifs_sb->ctx, sb);
 	if (IS_ERR(root))
 		goto out_super;
 
 	cifs_dbg(FYI, "dentry root is: %p\n", root);
-	goto out;
+	return root;
 
 out_super:
 	deactivate_locked_super(sb);
 out:
-	cifs_cleanup_volume_info(ctx);
+	if (cifs_sb) {
+		kfree(cifs_sb->prepath);
+		kfree(cifs_sb->mountdata);
+		cifs_cleanup_volume_info(cifs_sb->ctx);
+		kfree(cifs_sb);
+	}
 	return root;
-
-out_free:
-	kfree(cifs_sb->prepath);
-	kfree(cifs_sb->mountdata);
-	kfree(cifs_sb);
-out_nls:
-	unload_nls(ctx->local_nls);
-	goto out;
 }
 
 
