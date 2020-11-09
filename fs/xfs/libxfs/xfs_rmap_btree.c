@@ -247,8 +247,8 @@ xfs_rmapbt_key_diff(
 	else if (y > x)
 		return -1;
 
-	x = XFS_RMAP_OFF(be64_to_cpu(kp->rm_offset));
-	y = rec->rm_offset;
+	x = be64_to_cpu(kp->rm_offset);
+	y = xfs_rmap_irec_offset_pack(rec);
 	if (x > y)
 		return 1;
 	else if (y > x)
@@ -279,8 +279,8 @@ xfs_rmapbt_diff_two_keys(
 	else if (y > x)
 		return -1;
 
-	x = XFS_RMAP_OFF(be64_to_cpu(kp1->rm_offset));
-	y = XFS_RMAP_OFF(be64_to_cpu(kp2->rm_offset));
+	x = be64_to_cpu(kp1->rm_offset);
+	y = be64_to_cpu(kp2->rm_offset);
 	if (x > y)
 		return 1;
 	else if (y > x)
@@ -393,8 +393,8 @@ xfs_rmapbt_keys_inorder(
 		return 1;
 	else if (a > b)
 		return 0;
-	a = XFS_RMAP_OFF(be64_to_cpu(k1->rmap.rm_offset));
-	b = XFS_RMAP_OFF(be64_to_cpu(k2->rmap.rm_offset));
+	a = be64_to_cpu(k1->rmap.rm_offset);
+	b = be64_to_cpu(k2->rmap.rm_offset);
 	if (a <= b)
 		return 1;
 	return 0;
@@ -423,8 +423,8 @@ xfs_rmapbt_recs_inorder(
 		return 1;
 	else if (a > b)
 		return 0;
-	a = XFS_RMAP_OFF(be64_to_cpu(r1->rmap.rm_offset));
-	b = XFS_RMAP_OFF(be64_to_cpu(r2->rmap.rm_offset));
+	a = be64_to_cpu(r1->rmap.rm_offset);
+	b = be64_to_cpu(r2->rmap.rm_offset);
 	if (a <= b)
 		return 1;
 	return 0;
