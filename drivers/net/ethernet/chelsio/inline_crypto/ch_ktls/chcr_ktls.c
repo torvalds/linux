@@ -1729,10 +1729,13 @@ static int chcr_short_record_handler(struct chcr_ktls_info *tx_info,
 
 	if (remaining_record > 0 &&
 	    remaining_record < TLS_CIPHER_AES_GCM_128_TAG_SIZE) {
-		int trimmed_len = data_len -
-			(TLS_CIPHER_AES_GCM_128_TAG_SIZE - remaining_record);
-		/* don't process the pkt if it is only a partial tag */
-		if (data_len < TLS_CIPHER_AES_GCM_128_TAG_SIZE)
+		int trimmed_len = 0;
+
+		if (tls_end_offset > TLS_CIPHER_AES_GCM_128_TAG_SIZE)
+			trimmed_len = data_len -
+				      (TLS_CIPHER_AES_GCM_128_TAG_SIZE -
+				       remaining_record);
+		if (!trimmed_len)
 			goto out;
 
 		WARN_ON(trimmed_len > data_len);
