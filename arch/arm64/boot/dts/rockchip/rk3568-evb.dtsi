@@ -996,6 +996,12 @@
 &i2s1_8ch {
 	status = "okay";
 	#sound-dai-cells = <0>;
+	rockchip,clk-trcm = <1>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2s1sclktxm0
+		     &i2s1lrcktxm0
+		     &i2s1sdi0m0
+		     &i2s1sdo0m0>;
 };
 
 &jpegd {
