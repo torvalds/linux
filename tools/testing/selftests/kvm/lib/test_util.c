@@ -4,10 +4,13 @@
  *
  * Copyright (C) 2020, Google LLC.
  */
-#include <stdlib.h>
+
+#include <assert.h>
 #include <ctype.h>
 #include <limits.h>
-#include <assert.h>
+#include <stdlib.h>
+#include <time.h>
+
 #include "test_util.h"
 
 /*
@@ -79,6 +82,21 @@ struct timespec timespec_sub(struct timespec ts1, struct timespec ts2)
 	int64_t ns1 = timespec_to_ns(ts1);
 	int64_t ns2 = timespec_to_ns(ts2);
 	return timespec_add_ns((struct timespec){0}, ns1 - ns2);
+}
+
+struct timespec timespec_diff_now(struct timespec start)
+{
+	struct timespec end;
+
+	clock_gettime(CLOCK_MONOTONIC, &end);
+	return timespec_sub(end, start);
+}
+
+struct timespec timespec_div(struct timespec ts, int divisor)
+{
+	int64_t ns = timespec_to_ns(ts) / divisor;
+
+	return timespec_add_ns((struct timespec){0}, ns);
 }
 
 void print_skip(const char *fmt, ...)
