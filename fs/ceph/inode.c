@@ -2340,15 +2340,23 @@ int ceph_permission(struct inode *inode, int mask)
 }
 
 /* Craft a mask of needed caps given a set of requested statx attrs. */
-static int statx_to_caps(u32 want)
+static int statx_to_caps(u32 want, umode_t mode)
 {
 	int mask = 0;
 
 	if (want & (STATX_MODE|STATX_UID|STATX_GID|STATX_CTIME|STATX_BTIME))
 		mask |= CEPH_CAP_AUTH_SHARED;
 
-	if (want & (STATX_NLINK|STATX_CTIME))
-		mask |= CEPH_CAP_LINK_SHARED;
+	if (want & (STATX_NLINK|STATX_CTIME)) {
+		/*
+		 * The link count for directories depends on inode->i_subdirs,
+		 * and that is only updated when Fs caps are held.
+		 */
+		if (S_ISDIR(mode))
+			mask |= CEPH_CAP_FILE_SHARED;
+		else
+			mask |= CEPH_CAP_LINK_SHARED;
+	}
 
 	if (want & (STATX_ATIME|STATX_MTIME|STATX_CTIME|STATX_SIZE|
 		    STATX_BLOCKS))
@@ -2374,8 +2382,9 @@ int ceph_getattr(const struct path *path, struct kstat *stat,
 
 	/* Skip the getattr altogether if we're asked not to sync */
 	if (!(flags & AT_STATX_DONT_SYNC)) {
-		err = ceph_do_getattr(inode, statx_to_caps(request_mask),
-				      flags & AT_STATX_FORCE_SYNC);
+		err = ceph_do_getattr(inode,
+				statx_to_caps(request_mask, inode->i_mode),
+				flags & AT_STATX_FORCE_SYNC);
 		if (err)
 			return err;
 	}
