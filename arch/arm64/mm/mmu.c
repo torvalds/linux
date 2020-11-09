@@ -1493,13 +1493,43 @@ static int prevent_bootmem_remove_notifier(struct notifier_block *nb,
 	unsigned long end_pfn = arg->start_pfn + arg->nr_pages;
 	unsigned long pfn = arg->start_pfn;
 
-	if (action != MEM_GOING_OFFLINE)
+	if ((action != MEM_GOING_OFFLINE) && (action != MEM_OFFLINE))
 		return NOTIFY_OK;
 
 	for (; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
+		unsigned long start = PFN_PHYS(pfn);
+		unsigned long end = start + (1UL << PA_SECTION_SHIFT);
+
 		ms = __pfn_to_section(pfn);
-		if (early_section(ms))
+		if (!early_section(ms))
+			continue;
+
+		if (action == MEM_GOING_OFFLINE) {
+			/*
+			 * Boot memory removal is not supported. Prevent
+			 * it via blocking any attempted offline request
+			 * for the boot memory and just report it.
+			 */
+			pr_warn("Boot memory [%lx %lx] offlining attempted\n", start, end);
 			return NOTIFY_BAD;
+		} else if (action == MEM_OFFLINE) {
+			/*
+			 * This should have never happened. Boot memory
+			 * offlining should have been prevented by this
+			 * very notifier. Probably some memory removal
+			 * procedure might have changed which would then
+			 * require further debug.
+			 */
+			pr_err("Boot memory [%lx %lx] offlined\n", start, end);
+
+			/*
+			 * Core memory hotplug does not process a return
+			 * code from the notifier for MEM_OFFLINE events.
+			 * The error condition has been reported. Return
+			 * from here as if ignored.
+			 */
+			return NOTIFY_DONE;
+		}
 	}
 	return NOTIFY_OK;
 }
