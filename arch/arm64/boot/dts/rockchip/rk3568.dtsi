@@ -245,6 +245,8 @@
 			reg = <0x0 0xfcc00000 0x0 0x400000>;
 			interrupts = <GIC_SPI 169 IRQ_TYPE_LEVEL_HIGH>;
 			dr_mode = "otg";
+			phys = <&u2phy0_otg>;
+			phy-names = "usb2-phy";
 			phy_type = "utmi_wide";
 			power-domains = <&power RK3568_PD_PIPE>;
 			resets = <&cru SRST_USB3OTG0>;
