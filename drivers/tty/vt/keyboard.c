@@ -53,7 +53,7 @@
  * Exported functions/variables
  */
 
-#define KBD_DEFMODE ((1 << VC_REPEAT) | (1 << VC_META))
+#define KBD_DEFMODE (BIT(VC_REPEAT) | BIT(VC_META))
 
 #if defined(CONFIG_X86) || defined(CONFIG_PARISC)
 #include <asm/kbdleds.h>
@@ -857,9 +857,9 @@ static void k_shift(struct vc_data *vc, unsigned char value, char up_flag)
 		shift_down[value]++;
 
 	if (shift_down[value])
-		shift_state |= (1 << value);
+		shift_state |= BIT(value);
 	else
-		shift_state &= ~(1 << value);
+		shift_state &= ~BIT(value);
 
 	/* kludge */
 	if (up_flag && shift_state != old_state && npadch_active) {
@@ -880,7 +880,7 @@ static void k_meta(struct vc_data *vc, unsigned char value, char up_flag)
 		put_queue(vc, '\033');
 		put_queue(vc, value);
 	} else
-		put_queue(vc, value | 0x80);
+		put_queue(vc, value | BIT(7));
 }
 
 static void k_ascii(struct vc_data *vc, unsigned char value, char up_flag)
@@ -976,7 +976,7 @@ static void k_brl(struct vc_data *vc, unsigned char value, char up_flag)
 		return;
 
 	if (!up_flag) {
-		pressed |= 1 << (value - 1);
+		pressed |= BIT(value - 1);
 		if (!brl_timeout)
 			committing = pressed;
 	} else if (brl_timeout) {
@@ -986,7 +986,7 @@ static void k_brl(struct vc_data *vc, unsigned char value, char up_flag)
 			committing = pressed;
 			releasestart = jiffies;
 		}
-		pressed &= ~(1 << (value - 1));
+		pressed &= ~BIT(value - 1);
 		if (!pressed && committing) {
 			k_brlcommit(vc, committing, 0);
 			committing = 0;
@@ -996,7 +996,7 @@ static void k_brl(struct vc_data *vc, unsigned char value, char up_flag)
 			k_brlcommit(vc, committing, 0);
 			committing = 0;
 		}
-		pressed &= ~(1 << (value - 1));
+		pressed &= ~BIT(value - 1);
 	}
 }
 
@@ -1096,9 +1096,9 @@ static int kbd_update_leds_helper(struct input_handle *handle, void *data)
 	unsigned int leds = *(unsigned int *)data;
 
 	if (test_bit(EV_LED, handle->dev->evbit)) {
-		input_inject_event(handle, EV_LED, LED_SCROLLL, !!(leds & 0x01));
-		input_inject_event(handle, EV_LED, LED_NUML,    !!(leds & 0x02));
-		input_inject_event(handle, EV_LED, LED_CAPSL,   !!(leds & 0x04));
+		input_inject_event(handle, EV_LED, LED_SCROLLL, !!(leds & BIT(0)));
+		input_inject_event(handle, EV_LED, LED_NUML,    !!(leds & BIT(1)));
+		input_inject_event(handle, EV_LED, LED_CAPSL,   !!(leds & BIT(2)));
 		input_inject_event(handle, EV_SYN, SYN_REPORT, 0);
 	}
 
@@ -1427,8 +1427,8 @@ static void kbd_keycode(unsigned int keycode, int down, bool hw_raw)
 			put_queue(vc, keycode | (!down << 7));
 		} else {
 			put_queue(vc, !down << 7);
-			put_queue(vc, (keycode >> 7) | 0x80);
-			put_queue(vc, keycode | 0x80);
+			put_queue(vc, (keycode >> 7) | BIT(7));
+			put_queue(vc, keycode | BIT(7));
 		}
 		raw_mode = true;
 	}
@@ -1487,7 +1487,7 @@ static void kbd_keycode(unsigned int keycode, int down, bool hw_raw)
 	if (type == KT_LETTER) {
 		type = KT_LATIN;
 		if (vc_kbd_led(kbd, VC_CAPSLOCK)) {
-			key_map = key_maps[shift_final ^ (1 << KG_SHIFT)];
+			key_map = key_maps[shift_final ^ BIT(KG_SHIFT)];
 			if (key_map)
 				keysym = key_map[keycode];
 		}
