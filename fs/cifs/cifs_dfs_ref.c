@@ -23,6 +23,7 @@
 #include "cifs_debug.h"
 #include "cifs_unicode.h"
 #include "dfs_cache.h"
+#include "fs_context.h"
 
 static LIST_HEAD(cifs_dfs_automount_list);
 
@@ -275,7 +276,7 @@ static struct vfsmount *cifs_dfs_do_mount(struct dentry *mntpt,
 	/* See afs_mntpt_do_automount in fs/afs/mntpt.c for an example */
 
 	/* strip first '\' from fullpath */
-	mountdata = cifs_compose_mount_options(cifs_sb->mountdata,
+	mountdata = cifs_compose_mount_options(cifs_sb->ctx->mount_options,
 					       fullpath + 1, NULL);
 	if (IS_ERR(mountdata)) {
 		kfree(devname);

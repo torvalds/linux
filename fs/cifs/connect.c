@@ -3012,7 +3012,7 @@ build_unc_path_to_root(const struct smb3_fs_context *ctx,
  * expand_dfs_referral - Perform a dfs referral query and update the cifs_sb
  *
  *
- * If a referral is found, cifs_sb->mountdata will be (re-)allocated
+ * If a referral is found, cifs_sb->ctx->mount_options will be (re-)allocated
  * to a string containing updated options for the submount.  Otherwise it
  * will be left untouched.
  *
@@ -3038,7 +3038,7 @@ expand_dfs_referral(const unsigned int xid, struct cifs_ses *ses,
 	rc = dfs_cache_find(xid, ses, cifs_sb->local_nls, cifs_remap(cifs_sb),
 			    ref_path, &referral, NULL);
 	if (!rc) {
-		mdata = cifs_compose_mount_options(cifs_sb->mountdata,
+		mdata = cifs_compose_mount_options(cifs_sb->ctx->mount_options,
 						   full_path + 1, &referral);
 		free_dfs_info_param(&referral);
 
@@ -3049,8 +3049,8 @@ expand_dfs_referral(const unsigned int xid, struct cifs_ses *ses,
 			cifs_cleanup_volume_info_contents(ctx);
 			rc = cifs_setup_volume_info(ctx);
 		}
-		kfree(cifs_sb->mountdata);
-		cifs_sb->mountdata = mdata;
+		kfree(cifs_sb->ctx->mount_options);
+		cifs_sb->ctx->mount_options = mdata;
 	}
 	kfree(full_path);
 	return rc;
@@ -3109,7 +3109,8 @@ static int setup_dfs_tgt_conn(const char *path, const char *full_path,
 	if (rc)
 		return rc;
 
-	mdata = cifs_compose_mount_options(cifs_sb->mountdata, full_path + 1, &ref);
+	mdata = cifs_compose_mount_options(cifs_sb->ctx->mount_options,
+					   full_path + 1, &ref);
 	free_dfs_info_param(&ref);
 
 	if (IS_ERR(mdata)) {
@@ -3438,7 +3439,8 @@ int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb3_fs_context *ctx)
 			goto error;
 	}
 	/* Save mount options */
-	mntdata = kstrndup(cifs_sb->mountdata, strlen(cifs_sb->mountdata), GFP_KERNEL);
+	mntdata = kstrndup(cifs_sb->ctx->mount_options,
+			   strlen(cifs_sb->ctx->mount_options), GFP_KERNEL);
 	if (!mntdata) {
 		rc = -ENOMEM;
 		goto error;
@@ -3462,12 +3464,12 @@ int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb3_fs_context *ctx)
 			break;
 		}
 		/* Chase referral */
-		oldmnt = cifs_sb->mountdata;
+		oldmnt = cifs_sb->ctx->mount_options;
 		rc = expand_dfs_referral(xid, root_ses, ctx, cifs_sb, ref_path + 1);
 		if (rc)
 			break;
 		/* Connect to new DFS target only if we were redirected */
-		if (oldmnt != cifs_sb->mountdata) {
+		if (oldmnt != cifs_sb->ctx->mount_options) {
 			mount_put_conns(cifs_sb, xid, server, ses, tcon);
 			rc = mount_get_conns(ctx, cifs_sb, &xid, &server, &ses, &tcon);
 		}
@@ -3774,7 +3776,6 @@ cifs_umount(struct cifs_sb_info *cifs_sb)
 	}
 	spin_unlock(&cifs_sb->tlink_tree_lock);
 
-	kfree(cifs_sb->mountdata);
 	kfree(cifs_sb->prepath);
 #ifdef CONFIG_CIFS_DFS_UPCALL
 	dfs_cache_del_vol(cifs_sb->origin_fullpath);

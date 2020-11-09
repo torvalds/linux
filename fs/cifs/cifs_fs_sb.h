@@ -74,7 +74,6 @@ struct cifs_sb_info {
 	umode_t	mnt_file_mode;
 	umode_t	mnt_dir_mode;
 	unsigned int mnt_cifs_flags;
-	char   *mountdata; /* options received at mount time or via DFS refs */
 	struct delayed_work prune_tlinks;
 	struct rcu_head rcu;
 

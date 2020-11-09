@@ -812,12 +812,6 @@ cifs_smb3_do_mount(struct file_system_type *fs_type,
 		goto out;
 	}
 
-	cifs_sb->mountdata = kstrndup(cifs_sb->ctx->mount_options, PAGE_SIZE, GFP_KERNEL);
-	if (cifs_sb->mountdata == NULL) {
-		root = ERR_PTR(-ENOMEM);
-		goto out;
-	}
-
 	rc = cifs_setup_cifs_sb(cifs_sb->ctx, cifs_sb);
 	if (rc) {
 		root = ERR_PTR(rc);
@@ -872,7 +866,6 @@ out_super:
 out:
 	if (cifs_sb) {
 		kfree(cifs_sb->prepath);
-		kfree(cifs_sb->mountdata);
 		cifs_cleanup_volume_info(cifs_sb->ctx);
 		kfree(cifs_sb);
 	}
