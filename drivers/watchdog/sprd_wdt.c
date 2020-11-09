@@ -6,6 +6,7 @@
 
 #include <linux/bitops.h>
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
@@ -53,7 +54,7 @@
 
 #define SPRD_WDT_CNT_HIGH_SHIFT		16
 #define SPRD_WDT_LOW_VALUE_MASK		GENMASK(15, 0)
-#define SPRD_WDT_LOAD_TIMEOUT		1000
+#define SPRD_WDT_LOAD_TIMEOUT		11
 
 struct sprd_wdt {
 	void __iomem *base;
@@ -109,15 +110,17 @@ static int sprd_wdt_load_value(struct sprd_wdt *wdt, u32 timeout,
 	u32 prtmr_step = pretimeout * SPRD_WDT_CNT_STEP;
 
 	/*
-	 * Waiting the load value operation done,
-	 * it needs two or three RTC clock cycles.
+	 * Checking busy bit to make sure the previous loading operation is
+	 * done. According to the specification, the busy bit would be set
+	 * after a new loading operation and last 2 or 3 RTC clock
+	 * cycles (about 60us~92us).
 	 */
 	do {
 		val = readl_relaxed(wdt->base + SPRD_WDT_INT_RAW);
 		if (!(val & SPRD_WDT_LD_BUSY_BIT))
 			break;
 
-		cpu_relax();
+		usleep_range(10, 100);
 	} while (delay_cnt++ < SPRD_WDT_LOAD_TIMEOUT);
 
 	if (delay_cnt >= SPRD_WDT_LOAD_TIMEOUT)
