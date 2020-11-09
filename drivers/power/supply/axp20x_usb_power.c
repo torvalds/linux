@@ -397,7 +397,7 @@ static int axp20x_usb_power_prop_writeable(struct power_supply *psy,
 	struct axp20x_usb_power *power = power_supply_get_drvdata(psy);
 
 	/*
-	 * The VBUS path select flag works differently on on AXP288 and newer:
+	 * The VBUS path select flag works differently on AXP288 and newer:
 	 *  - On AXP20x and AXP22x, the flag enables VBUS (ignoring N_VBUSEN).
 	 *  - On AXP288 and AXP8xx, the flag disables VBUS (ignoring N_VBUSEN).
 	 * We only expose the control on variants where it can be used to force
