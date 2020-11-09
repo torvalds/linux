@@ -2259,7 +2259,6 @@ static const struct coex_tdma_para tdma_nsant_8822b[] = {
 /* rssi in percentage % (dbm = % - 100) */
 static const u8 wl_rssi_step_8822b[] = {60, 50, 44, 30};
 static const u8 bt_rssi_step_8822b[] = {30, 30, 30, 30};
-static const struct coex_5g_afh_map afh_5g_8822b[] = { {0, 0, 0} };
 
 /* wl_tx_dec_power, bt_tx_dec_power, wl_rx_gain, bt_rx_lna_constrain */
 static const struct coex_rf_para rf_para_tx_8822b[] = {
@@ -2280,6 +2279,27 @@ static const struct coex_rf_para rf_para_rx_8822b[] = {
 	{1, 13, true, 1}
 };
 
+static const struct coex_5g_afh_map afh_5g_8822b[] = {
+	{120, 2, 4},
+	{124, 8, 8},
+	{128, 17, 8},
+	{132, 26, 10},
+	{136, 34, 8},
+	{140, 42, 10},
+	{144, 51, 8},
+	{149, 62, 8},
+	{153, 71, 10},
+	{157, 77, 4},
+	{118, 2, 4},
+	{126, 12, 16},
+	{134, 29, 16},
+	{142, 46, 16},
+	{151, 66, 16},
+	{159, 76, 4},
+	{122, 10, 20},
+	{138, 37, 34},
+	{155, 68, 20}
+};
 static_assert(ARRAY_SIZE(rf_para_tx_8822b) == ARRAY_SIZE(rf_para_rx_8822b));
 
 static const u8
