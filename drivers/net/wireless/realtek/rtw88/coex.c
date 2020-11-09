@@ -1544,10 +1544,10 @@ static void rtw_coex_action_bt_a2dp(struct rtw_dev *rtwdev)
 		else
 			table_case = 9;
 
-		if (coex_stat->wl_gl_busy)
-			tdma_case = 13;
-		else
+		if (coex_stat->wl_connecting || !coex_stat->wl_gl_busy)
 			tdma_case = 14;
+		else
+			tdma_case = 13;
 	} else {
 		/* Non-Shared-Ant */
 		table_case = 112;
@@ -2270,6 +2270,11 @@ void rtw_coex_connect_notify(struct rtw_dev *rtwdev, u8 type)
 	} else if (type == COEX_ASSOCIATE_START) {
 		coex_stat->wl_hi_pri_task1 = true;
 		coex_stat->cnt_wl[COEX_CNT_WL_CONNPKT] = 2;
+		coex_stat->wl_connecting = true;
+		ieee80211_queue_delayed_work(rtwdev->hw,
+					     &coex->wl_connecting_work, 2 * HZ);
+
+		rtw_dbg(rtwdev, RTW_DBG_COEX, "[BTCoex], 2G start\n");
 
 		/* Force antenna setup for no scan result issue */
 		rtw_coex_set_ant_path(rtwdev, true, COEX_SET_ANT_2G);
@@ -2285,6 +2290,8 @@ void rtw_coex_connect_notify(struct rtw_dev *rtwdev, u8 type)
 	} else {
 		coex_stat->wl_hi_pri_task1 = false;
 		coex->freeze = false;
+
+		rtw_dbg(rtwdev, RTW_DBG_COEX, "[BTCoex], 2G finish\n");
 
 		rtw_coex_run_coex(rtwdev, COEX_RSN_2GCONFINISH);
 	}
@@ -2630,6 +2637,19 @@ void rtw_coex_bt_remain_work(struct work_struct *work)
 	mutex_lock(&rtwdev->mutex);
 	coex_stat->bt_inq_remain = coex_stat->bt_inq_page;
 	rtw_coex_run_coex(rtwdev, COEX_RSN_BTSTATUS);
+	mutex_unlock(&rtwdev->mutex);
+}
+
+void rtw_coex_wl_connecting_work(struct work_struct *work)
+{
+	struct rtw_dev *rtwdev = container_of(work, struct rtw_dev,
+					      coex.wl_connecting_work.work);
+	struct rtw_coex_stat *coex_stat = &rtwdev->coex.stat;
+
+	mutex_lock(&rtwdev->mutex);
+	coex_stat->wl_connecting = false;
+	rtw_dbg(rtwdev, RTW_DBG_COEX, "[BTCoex], WL connecting stop!!\n");
+	rtw_coex_run_coex(rtwdev, COEX_RSN_WLSTATUS);
 	mutex_unlock(&rtwdev->mutex);
 }
 
