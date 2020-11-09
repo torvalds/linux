@@ -468,15 +468,10 @@ dtb_check_done:
 
 		/*
 		 * Compute the address of the hyp vectors after relocation.
-		 * This requires some arithmetic since we cannot directly
-		 * reference __hyp_stub_vectors in a PC-relative way.
 		 * Call __hyp_set_vectors with the new address so that we
 		 * can HVC again after the copy.
 		 */
-0:		adr	r0, 0b
-		movw	r1, #:lower16:__hyp_stub_vectors - 0b
-		movt	r1, #:upper16:__hyp_stub_vectors - 0b
-		add	r0, r0, r1
+		adr_l	r0, __hyp_stub_vectors
 		sub	r0, r0, r5
 		add	r0, r0, r10
 		bl	__hyp_set_vectors
@@ -627,17 +622,11 @@ not_relocated:	mov	r0, #0
 		cmp	r0, #HYP_MODE		@ if not booted in HYP mode...
 		bne	__enter_kernel		@ boot kernel directly
 
-		adr	r12, .L__hyp_reentry_vectors_offset
-		ldr	r0, [r12]
-		add	r0, r0, r12
-
+		adr_l	r0, __hyp_reentry_vectors
 		bl	__hyp_set_vectors
 		__HVC(0)			@ otherwise bounce to hyp mode
 
 		b	.			@ should never be reached
-
-		.align	2
-.L__hyp_reentry_vectors_offset:	.long	__hyp_reentry_vectors - .
 #else
 		b	__enter_kernel
 #endif
@@ -1440,8 +1429,7 @@ ENTRY(efi_enter_kernel)
 		mov	r4, r0			@ preserve image base
 		mov	r8, r1			@ preserve DT pointer
 
- ARM(		adrl	r0, call_cache_fn	)
- THUMB(		adr	r0, call_cache_fn	)
+		adr_l	r0, call_cache_fn
 		adr	r1, 0f			@ clean the region of code we
 		bl	cache_clean_flush	@ may run with the MMU off
 
