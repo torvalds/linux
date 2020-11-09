@@ -19,6 +19,18 @@ config QCOM_BAM_DMA
 	  Enable support for the QCOM BAM DMA controller.  This controller
 	  provides DMA capabilities for a variety of on-chip devices.
 
+config QCOM_GPI_DMA
+        tristate "Qualcomm Technologies GPI DMA support"
+        depends on ARCH_QCOM
+        select DMA_ENGINE
+        select DMA_VIRTUAL_CHANNELS
+        help
+          Enable support for the QCOM GPI DMA controller. This controller
+          provides DMA capabilities for a variety of peripheral buses such
+          as I2C, UART, and SPI. By using GPI dmaengine driver, bus drivers
+          can use a standardize interface that is protocol independent to
+          transfer data between DDR and peripheral.
+
 config QCOM_HIDMA_MGMT
 	tristate "Qualcomm Technologies HIDMA Management support"
 	select DMA_ENGINE
