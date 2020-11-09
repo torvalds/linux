@@ -1005,13 +1005,7 @@ static int gic_irq_domain_map(struct irq_domain *d, unsigned int irq,
 	struct irq_data *irqd = irq_desc_get_irq_data(irq_to_desc(irq));
 
 	switch (hw) {
-	case 0 ... 15:
-		irq_set_percpu_devid(irq);
-		irq_domain_set_info(d, irq, hw, &gic->chip, d->host_data,
-				    handle_percpu_devid_fasteoi_ipi,
-				    NULL, NULL);
-		break;
-	case 16 ... 31:
+	case 0 ... 31:
 		irq_set_percpu_devid(irq);
 		irq_domain_set_info(d, irq, hw, &gic->chip, d->host_data,
 				    handle_percpu_devid_irq, NULL, NULL);
