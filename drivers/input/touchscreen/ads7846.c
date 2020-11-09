@@ -481,7 +481,7 @@ SHOW(in1_input, vbatt, vbatt_adjust)
 static umode_t ads7846_is_visible(struct kobject *kobj, struct attribute *attr,
 				  int index)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct ads7846 *ts = dev_get_drvdata(dev);
 
 	if (ts->model == 7843 && index < 2)	/* in0, in1 */
