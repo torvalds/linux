@@ -895,7 +895,7 @@
 		reg = <0x0 0xfe010000 0x0 0x10000>;
 		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "macirq1", "eth_wake_irq1";
+		interrupt-names = "macirq", "eth_wake_irq";
 		rockchip,grf = <&grf>;
 		clocks = <&cru SCLK_GMAC1>, <&cru SCLK_GMAC1_RX_TX>,
 			 <&cru SCLK_GMAC1_RX_TX>, <&cru CLK_MAC1_REFOUT>,
@@ -1474,7 +1474,7 @@
 		reg = <0x0 0xfe2a0000 0x0 0x10000>;
 		interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "macirq0", "eth_wake_irq0";
+		interrupt-names = "macirq", "eth_wake_irq";
 		rockchip,grf = <&grf>;
 		clocks = <&cru SCLK_GMAC0>, <&cru SCLK_GMAC0_RX_TX>,
 			 <&cru SCLK_GMAC0_RX_TX>, <&cru CLK_MAC0_REFOUT>,
