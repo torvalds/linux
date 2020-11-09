@@ -14,6 +14,23 @@ struct btree_write;
 struct btree;
 struct btree_iter;
 
+static inline bool btree_node_dirty(struct btree *b)
+{
+	return test_bit(BTREE_NODE_dirty, &b->flags);
+}
+
+static inline void set_btree_node_dirty(struct bch_fs *c, struct btree *b)
+{
+	if (!test_and_set_bit(BTREE_NODE_dirty, &b->flags))
+		atomic_inc(&c->btree_cache.dirty);
+}
+
+static inline void clear_btree_node_dirty(struct bch_fs *c, struct btree *b)
+{
+	if (test_and_clear_bit(BTREE_NODE_dirty, &b->flags))
+		atomic_dec(&c->btree_cache.dirty);
+}
+
 struct btree_read_bio {
 	struct bch_fs		*c;
 	u64			start_time;

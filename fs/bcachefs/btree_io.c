@@ -1498,6 +1498,8 @@ void __bch2_btree_node_write(struct bch_fs *c, struct btree *b,
 		new ^=  (1 << BTREE_NODE_write_idx);
 	} while (cmpxchg_acquire(&b->flags, old, new) != old);
 
+	atomic_dec(&c->btree_cache.dirty);
+
 	BUG_ON(btree_node_fake(b));
 	BUG_ON((b->will_make_reachable != 0) != !b->written);
 

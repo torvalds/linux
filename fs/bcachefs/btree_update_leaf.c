@@ -191,7 +191,7 @@ static bool btree_insert_key_leaf(struct btree_trans *trans,
 	bch2_btree_add_journal_pin(c, b, trans->journal_res.seq);
 
 	if (unlikely(!btree_node_dirty(b)))
-		set_btree_node_dirty(b);
+		set_btree_node_dirty(c, b);
 
 	live_u64s_added = (int) b->nr.live_u64s - old_live_u64s;
 	u64s_added = (int) bset_u64s(t) - old_u64s;

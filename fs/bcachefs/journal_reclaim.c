@@ -547,6 +547,12 @@ void bch2_journal_reclaim(struct journal *j)
 
 		if (j->prereserved.reserved * 2 > j->prereserved.remaining)
 			min_nr = 1;
+
+		if ((atomic_read(&c->btree_cache.dirty) * 4 >
+		     c->btree_cache.used  * 3) ||
+		    (c->btree_key_cache.nr_dirty * 4 >
+		     c->btree_key_cache.nr_keys))
+			min_nr = 1;
 	} while (journal_flush_pins(j, seq_to_flush, min_nr));
 
 	if (!bch2_journal_error(j))

@@ -65,6 +65,8 @@ static void bkey_cached_evict(struct btree_key_cache *c,
 	BUG_ON(rhashtable_remove_fast(&c->table, &ck->hash,
 				      bch2_btree_key_cache_params));
 	memset(&ck->key, ~0, sizeof(ck->key));
+
+	c->nr_keys--;
 }
 
 static void bkey_cached_free(struct btree_key_cache *c,
@@ -134,6 +136,8 @@ btree_key_cache_create(struct btree_key_cache *c,
 		bkey_cached_free(c, ck);
 		return NULL;
 	}
+
+	c->nr_keys++;
 
 	list_move(&ck->list, &c->clean);
 	six_unlock_write(&ck->c.lock);
@@ -355,10 +359,14 @@ err:
 
 	bch2_journal_pin_drop(j, &ck->journal);
 	bch2_journal_preres_put(j, &ck->res);
-	clear_bit(BKEY_CACHED_DIRTY, &ck->flags);
 
 	if (!evict) {
 		mutex_lock(&c->btree_key_cache.lock);
+		if (test_bit(BKEY_CACHED_DIRTY, &ck->flags)) {
+			clear_bit(BKEY_CACHED_DIRTY, &ck->flags);
+			c->btree_key_cache.nr_dirty--;
+		}
+
 		list_move_tail(&ck->list, &c->btree_key_cache.clean);
 		mutex_unlock(&c->btree_key_cache.lock);
 	} else {
@@ -371,6 +379,11 @@ evict:
 		six_lock_write(&ck->c.lock, NULL, NULL);
 
 		mutex_lock(&c->btree_key_cache.lock);
+		if (test_bit(BKEY_CACHED_DIRTY, &ck->flags)) {
+			clear_bit(BKEY_CACHED_DIRTY, &ck->flags);
+			c->btree_key_cache.nr_dirty--;
+		}
+
 		bkey_cached_evict(&c->btree_key_cache, ck);
 		bkey_cached_free(&c->btree_key_cache, ck);
 		mutex_unlock(&c->btree_key_cache.lock);
@@ -448,9 +461,10 @@ bool bch2_btree_insert_key_cached(struct btree_trans *trans,
 
 	if (!test_bit(BKEY_CACHED_DIRTY, &ck->flags)) {
 		mutex_lock(&c->btree_key_cache.lock);
-		list_del_init(&ck->list);
+		list_move(&ck->list, &c->btree_key_cache.dirty);
 
 		set_bit(BKEY_CACHED_DIRTY, &ck->flags);
+		c->btree_key_cache.nr_dirty++;
 		mutex_unlock(&c->btree_key_cache.lock);
 	}
 
@@ -467,20 +481,28 @@ void bch2_btree_key_cache_verify_clean(struct btree_trans *trans,
 }
 #endif
 
-void bch2_fs_btree_key_cache_exit(struct btree_key_cache *c)
+void bch2_fs_btree_key_cache_exit(struct btree_key_cache *bc)
 {
+	struct bch_fs *c = container_of(bc, struct bch_fs, btree_key_cache);
 	struct bkey_cached *ck, *n;
 
-	mutex_lock(&c->lock);
-	list_for_each_entry_safe(ck, n, &c->clean, list) {
+	mutex_lock(&bc->lock);
+	list_splice(&bc->dirty, &bc->clean);
+
+	list_for_each_entry_safe(ck, n, &bc->clean, list) {
 		kfree(ck->k);
 		kfree(ck);
+		bc->nr_keys--;
 	}
-	list_for_each_entry_safe(ck, n, &c->freed, list)
-		kfree(ck);
-	mutex_unlock(&c->lock);
 
-	rhashtable_destroy(&c->table);
+	BUG_ON(bc->nr_dirty && !bch2_journal_error(&c->journal));
+	BUG_ON(bc->nr_keys);
+
+	list_for_each_entry_safe(ck, n, &bc->freed, list)
+		kfree(ck);
+	mutex_unlock(&bc->lock);
+
+	rhashtable_destroy(&bc->table);
 }
 
 void bch2_fs_btree_key_cache_init_early(struct btree_key_cache *c)
@@ -488,6 +510,7 @@ void bch2_fs_btree_key_cache_init_early(struct btree_key_cache *c)
 	mutex_init(&c->lock);
 	INIT_LIST_HEAD(&c->freed);
 	INIT_LIST_HEAD(&c->clean);
+	INIT_LIST_HEAD(&c->dirty);
 }
 
 int bch2_fs_btree_key_cache_init(struct btree_key_cache *c)

@@ -382,10 +382,12 @@ void bch2_fs_btree_cache_exit(struct bch_fs *c)
 
 		if (btree_node_dirty(b))
 			bch2_btree_complete_write(c, b, btree_current_write(b));
-		clear_btree_node_dirty(b);
+		clear_btree_node_dirty(c, b);
 
 		btree_node_data_free(c, b);
 	}
+
+	BUG_ON(atomic_read(&c->btree_cache.dirty));
 
 	while (!list_empty(&bc->freed)) {
 		b = list_first_entry(&bc->freed, struct btree, list);

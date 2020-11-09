@@ -158,6 +158,7 @@ struct btree_cache {
 	/* Number of elements in live + freeable lists */
 	unsigned		used;
 	unsigned		reserve;
+	atomic_t		dirty;
 	struct shrinker		shrink;
 
 	/*
@@ -294,6 +295,10 @@ struct btree_key_cache {
 	struct rhashtable	table;
 	struct list_head	freed;
 	struct list_head	clean;
+	struct list_head	dirty;
+
+	size_t			nr_keys;
+	size_t			nr_dirty;
 };
 
 struct bkey_cached_key {
@@ -411,7 +416,6 @@ enum btree_flags {
 
 BTREE_FLAG(read_in_flight);
 BTREE_FLAG(read_error);
-BTREE_FLAG(dirty);
 BTREE_FLAG(need_write);
 BTREE_FLAG(noevict);
 BTREE_FLAG(write_idx);
