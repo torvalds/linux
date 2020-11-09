@@ -38,7 +38,7 @@ static void rtw_coex_limited_tx(struct rtw_dev *rtwdev,
 	struct rtw_chip_info *chip = rtwdev->chip;
 	struct rtw_coex *coex = &rtwdev->coex;
 	struct rtw_coex_stat *coex_stat = &coex->stat;
-	bool wifi_under_b_mode = false;
+	u8 num_of_active_port = 1;
 
 	if (!chip->scbd_support)
 		return;
@@ -70,17 +70,13 @@ static void rtw_coex_limited_tx(struct rtw_dev *rtwdev,
 		/* set queue life time to avoid can't reach tx retry limit
 		 * if tx is always broken by GNT_BT
 		 */
-		rtw_write8_set(rtwdev, REG_LIFETIME_EN, 0xf);
+		if (num_of_active_port <= 1)
+			rtw_write8_set(rtwdev, REG_LIFETIME_EN, 0xf);
 		rtw_write16(rtwdev, REG_RETRY_LIMIT, 0x0808);
 
 		/* auto rate fallback step within 8 retries */
-		if (wifi_under_b_mode) {
-			rtw_write32(rtwdev, REG_DARFRC, 0x1000000);
-			rtw_write32(rtwdev, REG_DARFRCH, 0x1010101);
-		} else {
-			rtw_write32(rtwdev, REG_DARFRC, 0x1000000);
-			rtw_write32(rtwdev, REG_DARFRCH, 0x4030201);
-		}
+		rtw_write32(rtwdev, REG_DARFRC, 0x1000000);
+		rtw_write32(rtwdev, REG_DARFRCH, 0x4030201);
 	} else {
 		rtw_write8_clr(rtwdev, REG_TX_HANG_CTRL, BIT_EN_GNT_BT_AWAKE);
 		rtw_write8_clr(rtwdev, REG_LIFETIME_EN, 0xf);
@@ -101,18 +97,12 @@ static void rtw_coex_limited_wl(struct rtw_dev *rtwdev)
 {
 	struct rtw_coex *coex = &rtwdev->coex;
 	struct rtw_coex_dm *coex_dm = &coex->dm;
-	struct rtw_coex_stat *coex_stat = &coex->stat;
 	bool tx_limit = false;
 	bool tx_agg_ctrl = false;
 
-	if (coex->under_5g ||
-	    coex_dm->bt_status == COEX_BTSTATUS_NCON_IDLE) {
-		/* no need to limit tx */
-	} else {
+	if (!coex->under_5g && coex_dm->bt_status != COEX_BTSTATUS_NCON_IDLE) {
 		tx_limit = true;
-		if (coex_stat->bt_hid_exist || coex_stat->bt_hfp_exist ||
-		    coex_stat->bt_hid_pair_num > 0)
-			tx_agg_ctrl = true;
+		tx_agg_ctrl = true;
 	}
 
 	rtw_coex_limited_tx(rtwdev, tx_limit, tx_agg_ctrl);
