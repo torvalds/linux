@@ -329,6 +329,8 @@ void mv88e6xxx_g1_atu_prob_irq_free(struct mv88e6xxx_chip *chip);
 int mv88e6165_g1_atu_get_hash(struct mv88e6xxx_chip *chip, u8 *hash);
 int mv88e6165_g1_atu_set_hash(struct mv88e6xxx_chip *chip, u8 hash);
 
+int mv88e6xxx_g1_vtu_getnext(struct mv88e6xxx_chip *chip,
+			     struct mv88e6xxx_vtu_entry *entry);
 int mv88e6185_g1_vtu_getnext(struct mv88e6xxx_chip *chip,
 			     struct mv88e6xxx_vtu_entry *entry);
 int mv88e6185_g1_vtu_loadpurge(struct mv88e6xxx_chip *chip,
