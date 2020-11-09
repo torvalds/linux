@@ -8,7 +8,7 @@ function update_config() {
          -e UNWINDER_FRAME_POINTER \
 
     (cd ${OUT_DIR} && \
-     make O=${OUT_DIR} $archsubarch CLANG_TRIPLE=${CLANG_TRIPLE} CROSS_COMPILE=${CROSS_COMPILE} "${TOOL_ARGS[@]}" ${MAKE_ARGS} olddefconfig)
+     make O=${OUT_DIR} $archsubarch CROSS_COMPILE=${CROSS_COMPILE} "${TOOL_ARGS[@]}" ${MAKE_ARGS} olddefconfig)
 }
 
 ADDITIONAL_HOST_TOOLS="${ADDITIONAL_HOST_TOOLS} openssl"
