@@ -416,18 +416,23 @@ static void rk_platform_disable_gpu_regulator(struct device *dev)
 
 static int rk_platform_power_on_gpu(struct device *dev)
 {
+	struct rk_context *platform = s_rk_context;
 	int ret = 0;
 
-	ret = rk_platform_enable_clk_gpu(dev);
-	if (ret) {
-		E("fail to enable clk_gpu, ret : %d.", ret);
-		goto fail_to_enable_clk;
-	}
+	if (!(platform->is_powered)) {
+		ret = rk_platform_enable_clk_gpu(dev);
+		if (ret) {
+			E("fail to enable clk_gpu, ret : %d.", ret);
+			goto fail_to_enable_clk;
+		}
 
-	ret = rk_platform_enable_gpu_regulator(dev);
-	if (ret) {
-		E("fail to enable vdd_gpu, ret : %d.", ret);
-		goto fail_to_enable_regulator;
+		ret = rk_platform_enable_gpu_regulator(dev);
+		if (ret) {
+			E("fail to enable vdd_gpu, ret : %d.", ret);
+			goto fail_to_enable_regulator;
+		}
+
+		platform->is_powered = true;
 	}
 
 	return 0;
@@ -441,8 +446,14 @@ fail_to_enable_clk:
 
 static void rk_platform_power_off_gpu(struct device *dev)
 {
-	rk_platform_disable_clk_gpu(dev);
-	rk_platform_disable_gpu_regulator(dev);
+	struct rk_context *platform = s_rk_context;
+
+	if (platform->is_powered) {
+		rk_platform_disable_clk_gpu(dev);
+		rk_platform_disable_gpu_regulator(dev);
+
+		platform->is_powered = false;
+	}
 }
 
 int rk_platform_init_opp_table(struct device *dev)
