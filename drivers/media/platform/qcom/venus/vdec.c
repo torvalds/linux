@@ -620,12 +620,20 @@ static int vdec_set_properties(struct venus_inst *inst)
 {
 	struct vdec_controls *ctr = &inst->controls.dec;
 	struct hfi_enable en = { .enable = 1 };
-	u32 ptype;
+	u32 ptype, decode_order;
 	int ret;
 
 	if (ctr->post_loop_deb_mode) {
 		ptype = HFI_PROPERTY_CONFIG_VDEC_POST_LOOP_DEBLOCKER;
 		ret = hfi_session_set_property(inst, ptype, &en);
+		if (ret)
+			return ret;
+	}
+
+	if (ctr->display_delay_enable && ctr->display_delay == 0) {
+		ptype = HFI_PROPERTY_PARAM_VDEC_OUTPUT_ORDER;
+		decode_order = HFI_OUTPUT_ORDER_DECODE;
+		ret = hfi_session_set_property(inst, ptype, &decode_order);
 		if (ret)
 			return ret;
 	}
