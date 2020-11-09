@@ -23,7 +23,7 @@
 #define GRTS_MAX_POS_MASK				GENMASK(11, 0)
 
 /**
- * grts_state - generic resistive touch screen information struct
+ * struct grts_state - generic resistive touch screen information struct
  * @pressure_min:	number representing the minimum for the pressure
  * @pressure:		are we getting pressure info or not
  * @iio_chans:		list of channels acquired
