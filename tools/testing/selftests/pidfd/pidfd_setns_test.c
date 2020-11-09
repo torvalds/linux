@@ -16,7 +16,6 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
-#include <linux/kcmp.h>
 
 #include "pidfd.h"
 #include "../clone3/clone3_selftests.h"

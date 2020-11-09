@@ -111,10 +111,6 @@ static int dw_hdmi_imx_parse_dt(struct imx_hdmi *hdmi)
 	return 0;
 }
 
-static void dw_hdmi_imx_encoder_disable(struct drm_encoder *encoder)
-{
-}
-
 static void dw_hdmi_imx_encoder_enable(struct drm_encoder *encoder)
 {
 	struct imx_hdmi *hdmi = enc_to_imx_hdmi(encoder);
@@ -140,7 +136,6 @@ static int dw_hdmi_imx_atomic_check(struct drm_encoder *encoder,
 
 static const struct drm_encoder_helper_funcs dw_hdmi_imx_encoder_helper_funcs = {
 	.enable     = dw_hdmi_imx_encoder_enable,
-	.disable    = dw_hdmi_imx_encoder_disable,
 	.atomic_check = dw_hdmi_imx_atomic_check,
 };
 
@@ -219,15 +214,9 @@ static int dw_hdmi_imx_bind(struct device *dev, struct device *master,
 	hdmi->dev = &pdev->dev;
 	encoder = &hdmi->encoder;
 
-	encoder->possible_crtcs = drm_of_find_possible_crtcs(drm, dev->of_node);
-	/*
-	 * If we failed to find the CRTC(s) which this encoder is
-	 * supposed to be connected to, it's because the CRTC has
-	 * not been registered yet.  Defer probing, and hope that
-	 * the required CRTC is added later.
-	 */
-	if (encoder->possible_crtcs == 0)
-		return -EPROBE_DEFER;
+	ret = imx_drm_encoder_parse_of(drm, encoder, dev->of_node);
+	if (ret)
+		return ret;
 
 	ret = dw_hdmi_imx_parse_dt(hdmi);
 	if (ret < 0)
