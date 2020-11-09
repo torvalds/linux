@@ -838,11 +838,6 @@ DEFINE_EVENT(wiphy_netdev_mac_evt, rdev_del_mpath,
 	TP_ARGS(wiphy, netdev, mac)
 );
 
-DEFINE_EVENT(wiphy_netdev_mac_evt, rdev_set_wds_peer,
-	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev, const u8 *mac),
-	TP_ARGS(wiphy, netdev, mac)
-);
-
 TRACE_EVENT(rdev_dump_station,
 	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev, int _idx,
 		 u8 *mac),
