@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020 Rockchip Electronics Co. Ltd.
- *
  */
 
 #include <linux/init.h>
@@ -18,30 +17,14 @@
 #include <linux/of_device.h>
 #include <linux/of_irq.h>
 #include <linux/regmap.h>
+
 #include "../pinctrl/core.h"
+#include "../pinctrl/pinctrl-rockchip.h"
 
 #define GPIO_TYPE_V1	(0)           /* GPIO Version ID reserved */
 #define GPIO_TYPE_V2	(0x01000C2B)  /* GPIO Version ID 0x01000C2B */
 
 #define GPIO_BANK_PIN_NUM	(32)
-
-struct rockchip_gpio_regs {
-	u32 port_dr;
-	u32 port_ddr;
-	u32 int_en;
-	u32 int_mask;
-	u32 int_type;
-	u32 int_polarity;
-	u32 int_bothedge;
-	u32 int_status;
-	u32 int_rawstatus;
-	u32 debounce;
-	u32 dbclk_div_en;
-	u32 dbclk_div_con;
-	u32 port_eoi;
-	u32 ext_port;
-	u32 version_id;
-};
 
 static const struct rockchip_gpio_regs gpio_regs_v1 = {
 	.port_dr = 0x00,
@@ -73,39 +56,6 @@ static const struct rockchip_gpio_regs gpio_regs_v2 = {
 	.port_eoi = 0x60,
 	.ext_port = 0x70,
 	.version_id = 0x78,
-};
-
-/**
- * @reg_base: register base of the gpio bank
- * @clk: clock of the gpio bank
- * @db_clk: clock of the gpio debounce
- * @irq: interrupt of the gpio bank
- * @saved_masks: Saved content of GPIO_INTEN at suspend time.
- * @pin_base: first pin number
- * @nr_pins: number of pins in this bank
- * @name: name of the bank
- * @of_node: dt node of this bank
- * @domain: irqdomain of the gpio bank
- * @gpio_chip: gpiolib chip
- * @slock: spinlock for the gpio bank
- */
-struct rockchip_pin_bank {
-	struct device *dev;
-	void __iomem			*reg_base;
-	struct clk			*clk;
-	struct clk			*db_clk;
-	int				irq;
-	u32				saved_masks;
-	u32				pin_base;
-	u8				nr_pins;
-	char				*name;
-	u32				gpio_type;
-	struct device_node		*of_node;
-	struct irq_domain		*domain;
-	struct gpio_chip		gpio_chip;
-	raw_spinlock_t			slock;
-	const struct rockchip_gpio_regs	*gpio_regs;
-	u32				toggle_edge_mode;
 };
 
 static inline void gpio_writel_v2(u32 val, void __iomem *reg)
@@ -686,29 +636,49 @@ static int rockchip_get_bank_data(struct rockchip_pin_bank *bank)
 	return 0;
 }
 
+static struct rockchip_pin_bank *rockchip_gpio_find_bank(struct pinctrl_dev *pctldev, int id)
+{
+	struct rockchip_pinctrl *info;
+	struct rockchip_pin_bank *bank;
+	int i, found = 0;
+
+	info = pinctrl_dev_get_drvdata(pctldev);
+	bank = info->ctrl->pin_banks;
+	for (i = 0; i < info->ctrl->nr_banks; i++, bank++) {
+		if (bank->bank_num == id) {
+			found = 1;
+			break;
+		}
+	}
+
+	return found ? bank : NULL;
+}
+
 static int rockchip_gpio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = pdev->dev.of_node;
-	struct rockchip_pin_bank *bank;
+	struct device_node *pctlnp = of_get_parent(np);
+	struct pinctrl_dev *pctldev = NULL;
+	struct rockchip_pin_bank *bank = NULL;
 	static int gpio;
-	int ret;
-	int id;
+	int id, ret;
 
-	bank = devm_kzalloc(dev, sizeof(*bank), GFP_KERNEL);
-	if (!bank)
-		return -ENOMEM;
-
-	if (!np)
+	if (!np || !pctlnp)
 		return -ENODEV;
+
+	pctldev = of_pinctrl_get(pctlnp);
+	if (!pctldev)
+		return -EPROBE_DEFER;
 
 	id = of_alias_get_id(np, "gpio");
 	if (id < 0)
 		id = gpio++;
 
-	bank->pin_base = id * GPIO_BANK_PIN_NUM;
-	bank->name = devm_kasprintf(dev, GFP_KERNEL, "GPIO%d", id);
-	bank->nr_pins = GPIO_BANK_PIN_NUM;
+	bank = rockchip_gpio_find_bank(pctldev, id);
+	if (!bank)
+		return -EINVAL;
+
 	bank->dev = dev;
 	bank->of_node = dev->of_node;
 
