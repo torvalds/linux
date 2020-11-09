@@ -351,7 +351,7 @@ pgtable_t pte_alloc_one(struct mm_struct *mm)
 	pte_t *ptep;
 	struct page *page;
 
-	if ((ptep = pte_alloc_one_kernel(mm)) == 0)
+	if (!(ptep = pte_alloc_one_kernel(mm)))
 		return NULL;
 	page = pfn_to_page(__nocache_pa((unsigned long)ptep) >> PAGE_SHIFT);
 	spin_lock(&mm->page_table_lock);
