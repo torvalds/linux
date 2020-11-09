@@ -388,6 +388,7 @@ struct ch_ktls_stats_debug {
 	atomic64_t ktls_tx_retransmit_pkts;
 	atomic64_t ktls_tx_complete_pkts;
 	atomic64_t ktls_tx_trimmed_pkts;
+	atomic64_t ktls_tx_fallback;
 };
 #endif
 

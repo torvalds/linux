@@ -1545,6 +1545,88 @@ static int chcr_ktls_tx_plaintxt(struct chcr_ktls_info *tx_info,
 	return 0;
 }
 
+static int chcr_ktls_tunnel_pkt(struct chcr_ktls_info *tx_info,
+				struct sk_buff *skb,
+				struct sge_eth_txq *q)
+{
+	u32 ctrl, iplen, maclen, wr_mid = 0, len16;
+	struct tx_sw_desc *sgl_sdesc;
+	struct fw_eth_tx_pkt_wr *wr;
+	struct cpl_tx_pkt_core *cpl;
+	unsigned int flits, ndesc;
+	int credits, last_desc;
+	u64 cntrl1, *end;
+	void *pos;
+
+	ctrl = sizeof(*cpl);
+	flits = DIV_ROUND_UP(sizeof(*wr) + ctrl, 8);
+
+	flits += chcr_sgl_len(skb_shinfo(skb)->nr_frags + 1);
+	len16 = DIV_ROUND_UP(flits, 2);
+	/* check how many descriptors needed */
+	ndesc = DIV_ROUND_UP(flits, 8);
+
+	credits = chcr_txq_avail(&q->q) - ndesc;
+	if (unlikely(credits < 0)) {
+		chcr_eth_txq_stop(q);
+		return -ENOMEM;
+	}
+
+	if (unlikely(credits < ETHTXQ_STOP_THRES)) {
+		chcr_eth_txq_stop(q);
+		wr_mid |= FW_WR_EQUEQ_F | FW_WR_EQUIQ_F;
+	}
+
+	last_desc = q->q.pidx + ndesc - 1;
+	if (last_desc >= q->q.size)
+		last_desc -= q->q.size;
+	sgl_sdesc = &q->q.sdesc[last_desc];
+
+	if (unlikely(cxgb4_map_skb(tx_info->adap->pdev_dev, skb,
+				   sgl_sdesc->addr) < 0)) {
+		memset(sgl_sdesc->addr, 0, sizeof(sgl_sdesc->addr));
+		q->mapping_err++;
+		return -ENOMEM;
+	}
+
+	iplen = skb_network_header_len(skb);
+	maclen = skb_mac_header_len(skb);
+
+	pos = &q->q.desc[q->q.pidx];
+	end = (u64 *)pos + flits;
+	wr = pos;
+
+	/* Firmware work request header */
+	wr->op_immdlen = htonl(FW_WR_OP_V(FW_ETH_TX_PKT_WR) |
+			       FW_WR_IMMDLEN_V(ctrl));
+
+	wr->equiq_to_len16 = htonl(wr_mid | FW_WR_LEN16_V(len16));
+	wr->r3 = 0;
+
+	cpl = (void *)(wr + 1);
+
+	/* CPL header */
+	cpl->ctrl0 = htonl(TXPKT_OPCODE_V(CPL_TX_PKT) |
+			   TXPKT_INTF_V(tx_info->tx_chan) |
+			   TXPKT_PF_V(tx_info->adap->pf));
+	cpl->pack = 0;
+	cntrl1 = TXPKT_CSUM_TYPE_V(tx_info->ip_family == AF_INET ?
+				   TX_CSUM_TCPIP : TX_CSUM_TCPIP6);
+	cntrl1 |= T6_TXPKT_ETHHDR_LEN_V(maclen - ETH_HLEN) |
+		  TXPKT_IPHDR_LEN_V(iplen);
+	/* checksum offload */
+	cpl->ctrl1 = cpu_to_be64(cntrl1);
+	cpl->len = htons(skb->len);
+
+	pos = cpl + 1;
+
+	cxgb4_write_sgl(skb, &q->q, pos, end, 0, sgl_sdesc->addr);
+	sgl_sdesc->skb = skb;
+	chcr_txq_advance(&q->q, ndesc);
+	cxgb4_ring_tx_db(tx_info->adap, &q->q, ndesc);
+	return 0;
+}
+
 /*
  * chcr_ktls_copy_record_in_skb
  * @nskb - new skb where the frags to be added.
@@ -1733,7 +1815,7 @@ static int chcr_short_record_handler(struct chcr_ktls_info *tx_info,
 				      (TLS_CIPHER_AES_GCM_128_TAG_SIZE -
 				       remaining_record);
 		if (!trimmed_len)
-			goto out;
+			return FALLBACK;
 
 		WARN_ON(trimmed_len > data_len);
 
@@ -1837,6 +1919,34 @@ out:
 	return NETDEV_TX_BUSY;
 }
 
+static int chcr_ktls_sw_fallback(struct sk_buff *skb,
+				 struct chcr_ktls_info *tx_info,
+				 struct sge_eth_txq *q)
+{
+	u32 data_len, skb_offset;
+	struct sk_buff *nskb;
+	struct tcphdr *th;
+
+	nskb = tls_encrypt_skb(skb);
+
+	if (!nskb)
+		return 0;
+
+	th = tcp_hdr(nskb);
+	skb_offset =  skb_transport_offset(nskb) + tcp_hdrlen(nskb);
+	data_len = nskb->len - skb_offset;
+	skb_tx_timestamp(nskb);
+
+	if (chcr_ktls_tunnel_pkt(tx_info, nskb, q))
+		goto out;
+
+	tx_info->prev_seq = ntohl(th->seq) + data_len;
+	atomic64_inc(&tx_info->adap->ch_ktls_stats.ktls_tx_fallback);
+	return 0;
+out:
+	dev_kfree_skb_any(nskb);
+	return 0;
+}
 /* nic tls TX handler */
 static int chcr_ktls_xmit(struct sk_buff *skb, struct net_device *dev)
 {
@@ -2012,6 +2122,10 @@ static int chcr_ktls_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (ret) {
 			if (th->fin)
 				dev_kfree_skb_any(skb);
+
+			if (ret == FALLBACK)
+				return chcr_ktls_sw_fallback(skb, tx_info, q);
+
 			return NETDEV_TX_OK;
 		}
 
