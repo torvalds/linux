@@ -4453,6 +4453,12 @@ mlxsw_sp_router_ll_basic_fib_entry_commit(struct mlxsw_sp *mlxsw_sp,
 			       op_ctx_basic->ralue_pl);
 }
 
+static bool
+mlxsw_sp_router_ll_basic_fib_entry_is_committed(struct mlxsw_sp_fib_entry_priv *priv)
+{
+	return true;
+}
+
 static void mlxsw_sp_fib_entry_pack(struct mlxsw_sp_fib_entry_op_ctx *op_ctx,
 				    struct mlxsw_sp_fib_entry *fib_entry,
 				    enum mlxsw_sp_fib_entry_op op)
@@ -4712,6 +4718,10 @@ static int mlxsw_sp_fib_entry_del(struct mlxsw_sp *mlxsw_sp,
 				  struct mlxsw_sp_fib_entry_op_ctx *op_ctx,
 				  struct mlxsw_sp_fib_entry *fib_entry)
 {
+	const struct mlxsw_sp_router_ll_ops *ll_ops = fib_entry->fib_node->fib->ll_ops;
+
+	if (!ll_ops->fib_entry_is_committed(fib_entry->priv))
+		return 0;
 	return mlxsw_sp_fib_entry_op(mlxsw_sp, op_ctx, fib_entry,
 				     MLXSW_SP_FIB_ENTRY_OP_DELETE);
 }
@@ -8370,6 +8380,7 @@ static const struct mlxsw_sp_router_ll_ops mlxsw_sp_router_ll_basic_ops = {
 	.fib_entry_act_ip2me_pack = mlxsw_sp_router_ll_basic_fib_entry_act_ip2me_pack,
 	.fib_entry_act_ip2me_tun_pack = mlxsw_sp_router_ll_basic_fib_entry_act_ip2me_tun_pack,
 	.fib_entry_commit = mlxsw_sp_router_ll_basic_fib_entry_commit,
+	.fib_entry_is_committed = mlxsw_sp_router_ll_basic_fib_entry_is_committed,
 };
 
 static int mlxsw_sp_router_ll_op_ctx_init(struct mlxsw_sp_router *router)
