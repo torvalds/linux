@@ -448,6 +448,320 @@ static int check_block_group_item(struct btrfs_fs_info *fs_info,
 	return 0;
 }
 
+__printf(5, 6)
+__cold
+static void chunk_err(const struct btrfs_fs_info *fs_info,
+		      const struct extent_buffer *leaf,
+		      const struct btrfs_chunk *chunk, u64 logical,
+		      const char *fmt, ...)
+{
+	bool is_sb;
+	struct va_format vaf;
+	va_list args;
+	int i;
+	int slot = -1;
+
+	/* Only superblock eb is able to have such small offset */
+	is_sb = (leaf->start == BTRFS_SUPER_INFO_OFFSET);
+
+	if (!is_sb) {
+		/*
+		 * Get the slot number by iterating through all slots, this
+		 * would provide better readability.
+		 */
+		for (i = 0; i < btrfs_header_nritems(leaf); i++) {
+			if (btrfs_item_ptr_offset(leaf, i) ==
+					(unsigned long)chunk) {
+				slot = i;
+				break;
+			}
+		}
+	}
+	va_start(args, fmt);
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	if (is_sb)
+		btrfs_crit(fs_info,
+		"corrupt superblock syschunk array: chunk_start=%llu, %pV",
+			   logical, &vaf);
+	else
+		btrfs_crit(fs_info,
+	"corrupt leaf: root=%llu block=%llu slot=%d chunk_start=%llu, %pV",
+			   BTRFS_CHUNK_TREE_OBJECTID, leaf->start, slot,
+			   logical, &vaf);
+	va_end(args);
+}
+
+/*
+ * The common chunk check which could also work on super block sys chunk array.
+ *
+ * Return -EUCLEAN if anything is corrupted.
+ * Return 0 if everything is OK.
+ */
+int btrfs_check_chunk_valid(struct btrfs_fs_info *fs_info,
+			    struct extent_buffer *leaf,
+			    struct btrfs_chunk *chunk, u64 logical)
+{
+	u64 length;
+	u64 stripe_len;
+	u16 num_stripes;
+	u16 sub_stripes;
+	u64 type;
+	u64 features;
+	bool mixed = false;
+
+	length = btrfs_chunk_length(leaf, chunk);
+	stripe_len = btrfs_chunk_stripe_len(leaf, chunk);
+	num_stripes = btrfs_chunk_num_stripes(leaf, chunk);
+	sub_stripes = btrfs_chunk_sub_stripes(leaf, chunk);
+	type = btrfs_chunk_type(leaf, chunk);
+
+	if (!num_stripes) {
+		chunk_err(fs_info, leaf, chunk, logical,
+			  "invalid chunk num_stripes, have %u", num_stripes);
+		return -EUCLEAN;
+	}
+	if (!IS_ALIGNED(logical, fs_info->sectorsize)) {
+		chunk_err(fs_info, leaf, chunk, logical,
+		"invalid chunk logical, have %llu should aligned to %u",
+			  logical, fs_info->sectorsize);
+		return -EUCLEAN;
+	}
+	if (btrfs_chunk_sector_size(leaf, chunk) != fs_info->sectorsize) {
+		chunk_err(fs_info, leaf, chunk, logical,
+			  "invalid chunk sectorsize, have %u expect %u",
+			  btrfs_chunk_sector_size(leaf, chunk),
+			  fs_info->sectorsize);
+		return -EUCLEAN;
+	}
+	if (!length || !IS_ALIGNED(length, fs_info->sectorsize)) {
+		chunk_err(fs_info, leaf, chunk, logical,
+			  "invalid chunk length, have %llu", length);
+		return -EUCLEAN;
+	}
+	if (!is_power_of_2(stripe_len) || stripe_len != BTRFS_STRIPE_LEN) {
+		chunk_err(fs_info, leaf, chunk, logical,
+			  "invalid chunk stripe length: %llu",
+			  stripe_len);
+		return -EUCLEAN;
+	}
+	if (~(BTRFS_BLOCK_GROUP_TYPE_MASK | BTRFS_BLOCK_GROUP_PROFILE_MASK) &
+	    type) {
+		chunk_err(fs_info, leaf, chunk, logical,
+			  "unrecognized chunk type: 0x%llx",
+			  ~(BTRFS_BLOCK_GROUP_TYPE_MASK |
+			    BTRFS_BLOCK_GROUP_PROFILE_MASK) &
+			  btrfs_chunk_type(leaf, chunk));
+		return -EUCLEAN;
+	}
+
+	if (!is_power_of_2(type & BTRFS_BLOCK_GROUP_PROFILE_MASK) &&
+	    (type & BTRFS_BLOCK_GROUP_PROFILE_MASK) != 0) {
+		chunk_err(fs_info, leaf, chunk, logical,
+		"invalid chunk profile flag: 0x%llx, expect 0 or 1 bit set",
+			  type & BTRFS_BLOCK_GROUP_PROFILE_MASK);
+		return -EUCLEAN;
+	}
+	if ((type & BTRFS_BLOCK_GROUP_TYPE_MASK) == 0) {
+		chunk_err(fs_info, leaf, chunk, logical,
+	"missing chunk type flag, have 0x%llx one bit must be set in 0x%llx",
+			  type, BTRFS_BLOCK_GROUP_TYPE_MASK);
+		return -EUCLEAN;
+	}
+
+	if ((type & BTRFS_BLOCK_GROUP_SYSTEM) &&
+	    (type & (BTRFS_BLOCK_GROUP_METADATA | BTRFS_BLOCK_GROUP_DATA))) {
+		chunk_err(fs_info, leaf, chunk, logical,
+			  "system chunk with data or metadata type: 0x%llx",
+			  type);
+		return -EUCLEAN;
+	}
+
+	features = btrfs_super_incompat_flags(fs_info->super_copy);
+	if (features & BTRFS_FEATURE_INCOMPAT_MIXED_GROUPS)
+		mixed = true;
+
+	if (!mixed) {
+		if ((type & BTRFS_BLOCK_GROUP_METADATA) &&
+		    (type & BTRFS_BLOCK_GROUP_DATA)) {
+			chunk_err(fs_info, leaf, chunk, logical,
+			"mixed chunk type in non-mixed mode: 0x%llx", type);
+			return -EUCLEAN;
+		}
+	}
+
+	if ((type & BTRFS_BLOCK_GROUP_RAID10 && sub_stripes != 2) ||
+	    (type & BTRFS_BLOCK_GROUP_RAID1 && num_stripes != 2) ||
+	    (type & BTRFS_BLOCK_GROUP_RAID5 && num_stripes < 2) ||
+	    (type & BTRFS_BLOCK_GROUP_RAID6 && num_stripes < 3) ||
+	    (type & BTRFS_BLOCK_GROUP_DUP && num_stripes != 2) ||
+	    ((type & BTRFS_BLOCK_GROUP_PROFILE_MASK) == 0 && num_stripes != 1)) {
+		chunk_err(fs_info, leaf, chunk, logical,
+			"invalid num_stripes:sub_stripes %u:%u for profile %llu",
+			num_stripes, sub_stripes,
+			type & BTRFS_BLOCK_GROUP_PROFILE_MASK);
+		return -EUCLEAN;
+	}
+
+	return 0;
+}
+
+__printf(4, 5)
+__cold
+static void dev_item_err(const struct btrfs_fs_info *fs_info,
+			 const struct extent_buffer *eb, int slot,
+			 const char *fmt, ...)
+{
+	struct btrfs_key key;
+	struct va_format vaf;
+	va_list args;
+
+	btrfs_item_key_to_cpu(eb, &key, slot);
+	va_start(args, fmt);
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	btrfs_crit(fs_info,
+	"corrupt %s: root=%llu block=%llu slot=%d devid=%llu %pV",
+		btrfs_header_level(eb) == 0 ? "leaf" : "node",
+		btrfs_header_owner(eb), btrfs_header_bytenr(eb), slot,
+		key.objectid, &vaf);
+	va_end(args);
+}
+
+static int check_dev_item(struct btrfs_fs_info *fs_info,
+			  struct extent_buffer *leaf,
+			  struct btrfs_key *key, int slot)
+{
+	struct btrfs_dev_item *ditem;
+
+	if (key->objectid != BTRFS_DEV_ITEMS_OBJECTID) {
+		dev_item_err(fs_info, leaf, slot,
+			     "invalid objectid: has=%llu expect=%llu",
+			     key->objectid, BTRFS_DEV_ITEMS_OBJECTID);
+		return -EUCLEAN;
+	}
+	ditem = btrfs_item_ptr(leaf, slot, struct btrfs_dev_item);
+	if (btrfs_device_id(leaf, ditem) != key->offset) {
+		dev_item_err(fs_info, leaf, slot,
+			     "devid mismatch: key has=%llu item has=%llu",
+			     key->offset, btrfs_device_id(leaf, ditem));
+		return -EUCLEAN;
+	}
+
+	/*
+	 * For device total_bytes, we don't have reliable way to check it, as
+	 * it can be 0 for device removal. Device size check can only be done
+	 * by dev extents check.
+	 */
+	if (btrfs_device_bytes_used(leaf, ditem) >
+	    btrfs_device_total_bytes(leaf, ditem)) {
+		dev_item_err(fs_info, leaf, slot,
+			     "invalid bytes used: have %llu expect [0, %llu]",
+			     btrfs_device_bytes_used(leaf, ditem),
+			     btrfs_device_total_bytes(leaf, ditem));
+		return -EUCLEAN;
+	}
+	/*
+	 * Remaining members like io_align/type/gen/dev_group aren't really
+	 * utilized.  Skip them to make later usage of them easier.
+	 */
+	return 0;
+}
+
+/* Inode item error output has the same format as dir_item_err() */
+#define inode_item_err(fs_info, eb, slot, fmt, ...)			\
+	dir_item_err(fs_info, eb, slot, fmt, __VA_ARGS__)
+
+static int check_inode_item(struct btrfs_fs_info *fs_info,
+			    struct extent_buffer *leaf,
+			    struct btrfs_key *key, int slot)
+{
+	struct btrfs_inode_item *iitem;
+	u64 super_gen = btrfs_super_generation(fs_info->super_copy);
+	u32 valid_mask = (S_IFMT | S_ISUID | S_ISGID | S_ISVTX | 0777);
+	u32 mode;
+
+	if ((key->objectid < BTRFS_FIRST_FREE_OBJECTID ||
+	     key->objectid > BTRFS_LAST_FREE_OBJECTID) &&
+	    key->objectid != BTRFS_ROOT_TREE_DIR_OBJECTID &&
+	    key->objectid != BTRFS_FREE_INO_OBJECTID) {
+		generic_err(fs_info, leaf, slot,
+	"invalid key objectid: has %llu expect %llu or [%llu, %llu] or %llu",
+			    key->objectid, BTRFS_ROOT_TREE_DIR_OBJECTID,
+			    BTRFS_FIRST_FREE_OBJECTID,
+			    BTRFS_LAST_FREE_OBJECTID,
+			    BTRFS_FREE_INO_OBJECTID);
+		return -EUCLEAN;
+	}
+	if (key->offset != 0) {
+		inode_item_err(fs_info, leaf, slot,
+			"invalid key offset: has %llu expect 0",
+			key->offset);
+		return -EUCLEAN;
+	}
+	iitem = btrfs_item_ptr(leaf, slot, struct btrfs_inode_item);
+
+	/* Here we use super block generation + 1 to handle log tree */
+	if (btrfs_inode_generation(leaf, iitem) > super_gen + 1) {
+		inode_item_err(fs_info, leaf, slot,
+			"invalid inode generation: has %llu expect (0, %llu]",
+			       btrfs_inode_generation(leaf, iitem),
+			       super_gen + 1);
+		return -EUCLEAN;
+	}
+	/* Note for ROOT_TREE_DIR_ITEM, mkfs could set its transid 0 */
+	if (btrfs_inode_transid(leaf, iitem) > super_gen + 1) {
+		inode_item_err(fs_info, leaf, slot,
+			"invalid inode transid: has %llu expect [0, %llu]",
+			       btrfs_inode_transid(leaf, iitem), super_gen + 1);
+		return -EUCLEAN;
+	}
+
+	/*
+	 * For size and nbytes it's better not to be too strict, as for dir
+	 * item its size/nbytes can easily get wrong, but doesn't affect
+	 * anything in the fs. So here we skip the check.
+	 */
+	mode = btrfs_inode_mode(leaf, iitem);
+	if (mode & ~valid_mask) {
+		inode_item_err(fs_info, leaf, slot,
+			       "unknown mode bit detected: 0x%x",
+			       mode & ~valid_mask);
+		return -EUCLEAN;
+	}
+
+	/*
+	 * S_IFMT is not bit mapped so we can't completely rely on is_power_of_2,
+	 * but is_power_of_2() can save us from checking FIFO/CHR/DIR/REG.
+	 * Only needs to check BLK, LNK and SOCKS
+	 */
+	if (!is_power_of_2(mode & S_IFMT)) {
+		if (!S_ISLNK(mode) && !S_ISBLK(mode) && !S_ISSOCK(mode)) {
+			inode_item_err(fs_info, leaf, slot,
+			"invalid mode: has 0%o expect valid S_IF* bit(s)",
+				       mode & S_IFMT);
+			return -EUCLEAN;
+		}
+	}
+	if (S_ISDIR(mode) && btrfs_inode_nlink(leaf, iitem) > 1) {
+		inode_item_err(fs_info, leaf, slot,
+		       "invalid nlink: has %u expect no more than 1 for dir",
+			btrfs_inode_nlink(leaf, iitem));
+		return -EUCLEAN;
+	}
+	if (btrfs_inode_flags(leaf, iitem) & ~BTRFS_INODE_FLAG_MASK) {
+		inode_item_err(fs_info, leaf, slot,
+			       "unknown flags detected: 0x%llx",
+			       btrfs_inode_flags(leaf, iitem) &
+			       ~BTRFS_INODE_FLAG_MASK);
+		return -EUCLEAN;
+	}
+	return 0;
+}
+
 /*
  * Common point to switch the item-specific validation.
  */
@@ -456,6 +770,7 @@ static int check_leaf_item(struct btrfs_fs_info *fs_info,
 			   struct btrfs_key *key, int slot)
 {
 	int ret = 0;
+	struct btrfs_chunk *chunk;
 
 	switch (key->type) {
 	case BTRFS_EXTENT_DATA_KEY:
@@ -471,6 +786,17 @@ static int check_leaf_item(struct btrfs_fs_info *fs_info,
 		break;
 	case BTRFS_BLOCK_GROUP_ITEM_KEY:
 		ret = check_block_group_item(fs_info, leaf, key, slot);
+		break;
+	case BTRFS_CHUNK_ITEM_KEY:
+		chunk = btrfs_item_ptr(leaf, slot, struct btrfs_chunk);
+		ret = btrfs_check_chunk_valid(fs_info, leaf, chunk,
+					      key->offset);
+		break;
+	case BTRFS_DEV_ITEM_KEY:
+		ret = check_dev_item(fs_info, leaf, key, slot);
+		break;
+	case BTRFS_INODE_ITEM_KEY:
+		ret = check_inode_item(fs_info, leaf, key, slot);
 		break;
 	}
 	return ret;
