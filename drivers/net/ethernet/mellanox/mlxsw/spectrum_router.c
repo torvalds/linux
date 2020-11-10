@@ -4307,7 +4307,7 @@ mlxsw_sp_fib_entry_hw_flags_refresh(struct mlxsw_sp *mlxsw_sp,
 	}
 }
 
-static void
+void
 mlxsw_sp_fib_entry_ralue_pack(char *ralue_pl, enum mlxsw_sp_l3proto proto,
 			      enum mlxsw_sp_fib_entry_op op, u16 virtual_router,
 			      u8 prefix_len, unsigned char *addr)
