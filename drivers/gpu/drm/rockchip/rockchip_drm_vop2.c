@@ -1117,6 +1117,12 @@ err_disable_hclk:
 	return ret;
 }
 
+static void vop2_core_clks_disable(struct vop2 *vop2)
+{
+	clk_disable(vop2->aclk);
+	clk_disable(vop2->hclk);
+}
+
 static void vop2_crtc_load_lut(struct drm_crtc *crtc)
 {
 }
@@ -3501,6 +3507,8 @@ static irqreturn_t vop2_isr(int irq, void *data)
 		if (active_irqs)
 			DRM_ERROR("Unknown axi_bus%d IRQs: %02x\n", i, active_irqs);
 	}
+
+	vop2_core_clks_disable(vop2);
 out:
 	pm_runtime_put(vop2->dev);
 	return ret;
