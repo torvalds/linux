@@ -23,11 +23,15 @@
 	};
 };
 
-&dsi_panel {
-	enable-gpios = <&gpio0 RK_PC7 GPIO_ACTIVE_HIGH>;
+&dsi0_panel {
+	power-supply = <&vcc3v3_lcd0_n>;
 	reset-gpios = <&gpio1 RK_PA5 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&lcd_enable_gpio>, <&lcd_rst_gpio>;
+	pinctrl-0 = <&lcd_rst_gpio>;
+};
+
+&gt1x {
+	power-supply = <&vcc3v3_lcd0_n>;
 };
 
 &i2s1_8ch {
@@ -83,10 +87,6 @@
 	lcd {
 		lcd_rst_gpio: lcd-rst-gpio {
 			rockchip,pins = <1 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-
-		lcd_enable_gpio: lcd-enable-gpio {
-			rockchip,pins = <0 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
@@ -165,6 +165,11 @@
 
 &uart1 {
 	status = "okay";
+};
+
+&vcc3v3_lcd0_n {
+	gpio = <&gpio0 RK_PC0 GPIO_ACTIVE_HIGH>;
+	enable-active-high;
 };
 
 &wireless_wlan {

@@ -53,11 +53,34 @@
 	};
 };
 
-&dsi_panel {
-	enable-gpios = <&gpio0 RK_PC7 GPIO_ACTIVE_HIGH>;
+&dsi0 {
+	status = "okay";
+};
+
+&dsi1 {
+	status = "disabled";
+};
+
+&dsi0_panel {
+	power-supply = <&vcc3v3_lcd0_n>;
 	reset-gpios = <&gpio3 RK_PA3 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&lcd_enable_gpio>, <&lcd_rst_gpio>;
+	pinctrl-0 = <&lcd0_rst_gpio>;
+};
+
+&dsi1_panel {
+	power-supply = <&vcc3v3_lcd1_n>;
+	reset-gpios = <&gpio3 RK_PA4 GPIO_ACTIVE_LOW>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&lcd1_rst_gpio>;
+};
+
+/*
+ * power-supply should switche to vcc3v3_lcd1_n
+ * when mipi panel is connected to dsi1.
+ */
+&gt1x {
+	power-supply = <&vcc3v3_lcd0_n>;
 };
 
 &pinctrl {
@@ -79,13 +102,15 @@
 		};
 	};
 
-	lcd {
-		lcd_rst_gpio: lcd-rst-gpio {
+	lcd0 {
+		lcd0_rst_gpio: lcd0-rst-gpio {
 			rockchip,pins = <3 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
+	};
 
-		lcd_enable_gpio: lcd-enable-gpio {
-			rockchip,pins = <0 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>;
+	lcd1 {
+		lcd1_rst_gpio: lcd1-rst-gpio {
+			rockchip,pins = <3 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };
@@ -130,6 +155,15 @@
 	status = "okay";
 };
 
+&vcc3v3_lcd0_n {
+	gpio = <&gpio0 RK_PC7 GPIO_ACTIVE_HIGH>;
+	enable-active-high;
+};
+
+&vcc3v3_lcd1_n {
+	gpio = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
+	enable-active-high;
+};
 &wireless_wlan {
 	compatible = "wlan-platdata";
 	rockchip,grf = <&grf>;

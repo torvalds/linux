@@ -73,6 +73,30 @@
 	};
 };
 
+&dsi0 {
+	status = "okay";
+};
+
+&dsi1 {
+	status = "disabled";
+};
+
+&dsi0_panel {
+	power-supply = <&vcc3v3_lcd0_n>;
+};
+
+&dsi1_panel {
+	power-supply = <&vcc3v3_lcd1_n>;
+};
+
+/*
+ * power-supply should switche to vcc3v3_lcd1_n
+ * when mipi panel is connected to dsi1.
+ */
+&gt1x {
+	power-supply = <&vcc3v3_lcd0_n>;
+};
+
 &gmac0 {
 	phy-mode = "rgmii";
 	clock_in_out = "output";
@@ -137,26 +161,24 @@
 	status = "okay";
 };
 
-&dsi_panel {
-	enable-gpios = <&gpio0 RK_PC7 GPIO_ACTIVE_HIGH>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&lcd_enable_gpio>;
-};
-
 &pinctrl {
 	headphone {
 		hp_det: hp-det {
 			rockchip,pins = <3 RK_PC2 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
-
-	lcd {
-		lcd_enable_gpio: lcd-enable-gpio {
-			rockchip,pins = <0 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
 };
 
 &sata2 {
 	status = "okay";
+};
+
+&vcc3v3_lcd0_n {
+	gpio = <&gpio0 RK_PC7 GPIO_ACTIVE_HIGH>;
+	enable-active-high;
+};
+
+&vcc3v3_lcd1_n {
+	gpio = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
+	enable-active-high;
 };
