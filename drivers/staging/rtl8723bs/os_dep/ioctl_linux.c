@@ -985,23 +985,23 @@ static int rtw_wx_set_pmkid(struct net_device *dev,
 		    if (psecuritypriv->PMKIDIndex == 16)
 		        psecuritypriv->PMKIDIndex = 0;
 		}
-        } else if (pPMK->cmd == IW_PMKSA_REMOVE) {
-                DBG_871X("[rtw_wx_set_pmkid] IW_PMKSA_REMOVE!\n");
-                intReturn = true;
+	} else if (pPMK->cmd == IW_PMKSA_REMOVE) {
+		DBG_871X("[rtw_wx_set_pmkid] IW_PMKSA_REMOVE!\n");
+		intReturn = true;
 		for (j = 0; j < NUM_PMKID_CACHE; j++) {
 			if (!memcmp(psecuritypriv->PMKIDList[j].Bssid, strIssueBssid, ETH_ALEN)) {
 				/*  BSSID is matched, the same AP => Remove this PMKID information and reset it. */
-                                eth_zero_addr(psecuritypriv->PMKIDList[j].Bssid);
-                                psecuritypriv->PMKIDList[j].bUsed = false;
+				eth_zero_addr(psecuritypriv->PMKIDList[j].Bssid);
+				psecuritypriv->PMKIDList[j].bUsed = false;
 				break;
 			}
 	        }
-        } else if (pPMK->cmd == IW_PMKSA_FLUSH) {
-            DBG_871X("[rtw_wx_set_pmkid] IW_PMKSA_FLUSH!\n");
-            memset(&psecuritypriv->PMKIDList[0], 0x00, sizeof(RT_PMKID_LIST) * NUM_PMKID_CACHE);
-            psecuritypriv->PMKIDIndex = 0;
-            intReturn = true;
-        }
+	} else if (pPMK->cmd == IW_PMKSA_FLUSH) {
+		DBG_871X("[rtw_wx_set_pmkid] IW_PMKSA_FLUSH!\n");
+		memset(&psecuritypriv->PMKIDList[0], 0x00, sizeof(RT_PMKID_LIST) * NUM_PMKID_CACHE);
+		psecuritypriv->PMKIDIndex = 0;
+		intReturn = true;
+	}
 	return intReturn;
 }
 
@@ -2222,8 +2222,8 @@ static int rtw_wx_get_nick(struct net_device *dev,
 }
 
 static int rtw_wx_read32(struct net_device *dev,
-                            struct iw_request_info *info,
-                            union iwreq_data *wrqu, char *extra)
+			 struct iw_request_info *info,
+			 union iwreq_data *wrqu, char *extra)
 {
 	struct adapter *padapter;
 	struct iw_point *p;
@@ -2282,8 +2282,8 @@ exit:
 }
 
 static int rtw_wx_write32(struct net_device *dev,
-                            struct iw_request_info *info,
-                            union iwreq_data *wrqu, char *extra)
+			  struct iw_request_info *info,
+			  union iwreq_data *wrqu, char *extra)
 {
 	struct adapter *padapter = rtw_netdev_priv(dev);
 
@@ -2319,8 +2319,8 @@ static int rtw_wx_write32(struct net_device *dev,
 }
 
 static int rtw_wx_read_rf(struct net_device *dev,
-                            struct iw_request_info *info,
-                            union iwreq_data *wrqu, char *extra)
+			  struct iw_request_info *info,
+			  union iwreq_data *wrqu, char *extra)
 {
 	struct adapter *padapter = rtw_netdev_priv(dev);
 	u32 path, addr, data32;
@@ -2340,8 +2340,8 @@ static int rtw_wx_read_rf(struct net_device *dev,
 }
 
 static int rtw_wx_write_rf(struct net_device *dev,
-                            struct iw_request_info *info,
-                            union iwreq_data *wrqu, char *extra)
+			   struct iw_request_info *info,
+			   union iwreq_data *wrqu, char *extra)
 {
 	struct adapter *padapter = rtw_netdev_priv(dev);
 	u32 path, addr, data32;
@@ -2375,8 +2375,8 @@ static int dummy(struct net_device *dev, struct iw_request_info *a,
 }
 
 static int rtw_wx_set_channel_plan(struct net_device *dev,
-                               struct iw_request_info *info,
-                               union iwreq_data *wrqu, char *extra)
+				   struct iw_request_info *info,
+				   union iwreq_data *wrqu, char *extra)
 {
 	struct adapter *padapter = rtw_netdev_priv(dev);
 	u8 channel_plan_req = (u8)(*((int *)wrqu));
@@ -2425,8 +2425,8 @@ static  int rtw_drvext_hdl(struct net_device *dev, struct iw_request_info *info,
 }
 
 static int rtw_get_ap_info(struct net_device *dev,
-                               struct iw_request_info *info,
-                               union iwreq_data *wrqu, char *extra)
+			   struct iw_request_info *info,
+			   union iwreq_data *wrqu, char *extra)
 {
 	int ret = 0;
 	int wpa_ielen;
@@ -2523,8 +2523,8 @@ exit:
 }
 
 static int rtw_set_pid(struct net_device *dev,
-                               struct iw_request_info *info,
-                               union iwreq_data *wrqu, char *extra)
+		       struct iw_request_info *info,
+		       union iwreq_data *wrqu, char *extra)
 {
 
 	int ret = 0;
@@ -2552,8 +2552,8 @@ exit:
 }
 
 static int rtw_wps_start(struct net_device *dev,
-                               struct iw_request_info *info,
-                               union iwreq_data *wrqu, char *extra)
+			 struct iw_request_info *info,
+			 union iwreq_data *wrqu, char *extra)
 {
 
 	int ret = 0;
@@ -2582,8 +2582,8 @@ exit:
 }
 
 static int rtw_p2p_set(struct net_device *dev,
-                               struct iw_request_info *info,
-                               union iwreq_data *wrqu, char *extra)
+		       struct iw_request_info *info,
+		       union iwreq_data *wrqu, char *extra)
 {
 
 	return 0;
@@ -2591,8 +2591,8 @@ static int rtw_p2p_set(struct net_device *dev,
 }
 
 static int rtw_p2p_get(struct net_device *dev,
-                               struct iw_request_info *info,
-                               union iwreq_data *wrqu, char *extra)
+		       struct iw_request_info *info,
+		       union iwreq_data *wrqu, char *extra)
 {
 
 	return 0;
@@ -2609,8 +2609,8 @@ static int rtw_p2p_get2(struct net_device *dev,
 }
 
 static int rtw_rereg_nd_name(struct net_device *dev,
-                               struct iw_request_info *info,
-                               union iwreq_data *wrqu, char *extra)
+			     struct iw_request_info *info,
+			     union iwreq_data *wrqu, char *extra)
 {
 	int ret = 0;
 	struct adapter *padapter = rtw_netdev_priv(dev);
@@ -2658,8 +2658,8 @@ exit:
 }
 
 static int rtw_dbg_port(struct net_device *dev,
-                               struct iw_request_info *info,
-                               union iwreq_data *wrqu, char *extra)
+			struct iw_request_info *info,
+			union iwreq_data *wrqu, char *extra)
 {
 	u8 major_cmd, minor_cmd;
 	u16 arg;
@@ -3014,7 +3014,7 @@ static int rtw_dbg_port(struct net_device *dev,
 							pregistrypriv->ldpc_cap = (u8)(extra_arg&0x33);
 						}
 					}
-                                        break;
+					break;
 				case 0x1a:
 					{
 						struct registry_priv *pregistrypriv = &padapter->registrypriv;
@@ -3029,7 +3029,7 @@ static int rtw_dbg_port(struct net_device *dev,
 							pregistrypriv->stbc_cap = (u8)(extra_arg&0x33);
 						}
 					}
-                                        break;
+					break;
 				case 0x1b:
 					{
 						struct registry_priv *pregistrypriv = &padapter->registrypriv;
@@ -3065,7 +3065,7 @@ static int rtw_dbg_port(struct net_device *dev,
 							}
 						}
 					}
-                                        break;
+					break;
 				case 0x1c: /* enable/disable driver control AMPDU Density for peer sta's rx */
 					{
 						if (arg == 0) {
@@ -4409,8 +4409,8 @@ FREE_EXT:
 }
 
 static int rtw_pm_set(struct net_device *dev,
-                               struct iw_request_info *info,
-                               union iwreq_data *wrqu, char *extra)
+		      struct iw_request_info *info,
+		      union iwreq_data *wrqu, char *extra)
 {
 	int ret = 0;
 	unsigned	mode = 0;
