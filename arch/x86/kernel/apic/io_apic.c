@@ -809,9 +809,9 @@ static bool irq_is_level(int idx)
 	case MP_IRQTRIG_DEFAULT:
 		/*
 		 * Conforms to spec, ie. bus-type dependent trigger
-		 * mode. PCI defaults to egde, ISA to level.
+		 * mode. PCI defaults to level, ISA to edge.
 		 */
-		level = test_bit(bus, mp_bus_not_pci);
+		level = !test_bit(bus, mp_bus_not_pci);
 		/* Take EISA into account */
 		return eisa_irq_is_level(idx, bus, level);
 	case MP_IRQTRIG_EDGE:
