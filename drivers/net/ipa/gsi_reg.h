@@ -263,11 +263,6 @@ enum gsi_generic_cmd_opcode {
 #define GSI_EE_N_GSI_HW_PARAM_2_OFFSET(ee) \
 			(0x0001f040 + 0x4000 * (ee))
 #define IRAM_SIZE_FMASK			GENMASK(2, 0)
-#define IRAM_SIZE_ONE_KB_FVAL			0
-#define IRAM_SIZE_TWO_KB_FVAL			1
-/* The next two values are available for IPA v4.0 and above */
-#define IRAM_SIZE_TWO_N_HALF_KB_FVAL		2
-#define IRAM_SIZE_THREE_KB_FVAL			3
 #define NUM_CH_PER_EE_FMASK		GENMASK(7, 3)
 #define NUM_EV_PER_EE_FMASK		GENMASK(12, 8)
 #define GSI_CH_PEND_TRANSLATE_FMASK	GENMASK(13, 13)
@@ -280,6 +275,14 @@ enum gsi_generic_cmd_opcode {
 /* Fields below are present for IPA v4.2 and above */
 #define GSI_USE_RD_WR_ENG_FMASK		GENMASK(30, 30)
 #define GSI_USE_INTER_EE_FMASK		GENMASK(31, 31)
+/** enum gsi_iram_size - IRAM_SIZE field values in HW_PARAM_2 */
+enum gsi_iram_size {
+	IRAM_SIZE_ONE_KB			= 0x0,
+	IRAM_SIZE_TWO_KB			= 0x1,
+/* The next two values are available for IPA v4.0 and above */
+	IRAM_SIZE_TWO_N_HALF_KB			= 0x2,
+	IRAM_SIZE_THREE_KB			= 0x3,
+};
 
 /* IRQ condition for each type is cleared by writing type-specific register */
 #define GSI_CNTXT_TYPE_IRQ_OFFSET \
@@ -432,10 +435,15 @@ enum gsi_err_type {
 			(0x0001f400 + 0x4000 * (ee))
 #define INTER_EE_RESULT_FMASK		GENMASK(2, 0)
 #define GENERIC_EE_RESULT_FMASK		GENMASK(7, 5)
-#define GENERIC_EE_SUCCESS_FVAL			1
-#define GENERIC_EE_INCORRECT_DIRECTION_FVAL	3
-#define GENERIC_EE_INCORRECT_CHANNEL_FVAL	5
-#define GENERIC_EE_NO_RESOURCES_FVAL		7
+enum gsi_generic_ee_result {
+	GENERIC_EE_SUCCESS			= 0x1,
+	GENERIC_EE_CHANNEL_NOT_RUNNING		= 0x2,
+	GENERIC_EE_INCORRECT_DIRECTION		= 0x3,
+	GENERIC_EE_INCORRECT_CHANNEL_TYPE	= 0x4,
+	GENERIC_EE_INCORRECT_CHANNEL		= 0x5,
+	GENERIC_EE_RETRY			= 0x6,
+	GENERIC_EE_NO_RESOURCES			= 0x7,
+};
 #define USB_MAX_PACKET_FMASK		GENMASK(15, 15)	/* 0: HS; 1: SS */
 #define MHI_BASE_CHANNEL_FMASK		GENMASK(31, 24)
 

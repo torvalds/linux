@@ -1077,7 +1077,7 @@ static void gsi_isr_gp_int1(struct gsi *gsi)
 
 	val = ioread32(gsi->virt + GSI_CNTXT_SCRATCH_0_OFFSET);
 	result = u32_get_bits(val, GENERIC_EE_RESULT_FMASK);
-	if (result != GENERIC_EE_SUCCESS_FVAL)
+	if (result != GENERIC_EE_SUCCESS)
 		dev_err(gsi->dev, "global INT1 generic result %u\n", result);
 
 	complete(&gsi->completion);
