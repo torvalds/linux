@@ -70,6 +70,11 @@ void cedrus_device_run(void *priv)
 			V4L2_CID_MPEG_VIDEO_HEVC_SLICE_PARAMS);
 		break;
 
+	case V4L2_PIX_FMT_VP8_FRAME:
+		run.vp8.frame_params = cedrus_find_control_data(ctx,
+			V4L2_CID_MPEG_VIDEO_VP8_FRAME_HEADER);
+		break;
+
 	default:
 		break;
 	}

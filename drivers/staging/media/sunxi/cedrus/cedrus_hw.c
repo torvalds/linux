@@ -47,7 +47,9 @@ int cedrus_engine_enable(struct cedrus_ctx *ctx, enum cedrus_codec codec)
 		reg |= VE_MODE_DEC_MPEG;
 		break;
 
+	/* H.264 and VP8 both use the same decoding mode bit. */
 	case CEDRUS_CODEC_H264:
+	case CEDRUS_CODEC_VP8:
 		reg |= VE_MODE_DEC_H264;
 		break;
 
