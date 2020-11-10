@@ -223,6 +223,14 @@ enum gsi_channel_type {
 			(0x0001f008 + 0x4000 * (ee))
 #define CH_CHID_FMASK			GENMASK(7, 0)
 #define CH_OPCODE_FMASK			GENMASK(31, 24)
+/** enum gsi_ch_cmd_opcode - CH_OPCODE field values in CH_CMD */
+enum gsi_ch_cmd_opcode {
+	GSI_CH_ALLOCATE				= 0x0,
+	GSI_CH_START				= 0x1,
+	GSI_CH_STOP				= 0x2,
+	GSI_CH_RESET				= 0x9,
+	GSI_CH_DE_ALLOC				= 0xa,
+};
 
 #define GSI_EV_CH_CMD_OFFSET \
 			GSI_EE_N_EV_CH_CMD_OFFSET(GSI_EE_AP)
@@ -230,6 +238,12 @@ enum gsi_channel_type {
 			(0x0001f010 + 0x4000 * (ee))
 #define EV_CHID_FMASK			GENMASK(7, 0)
 #define EV_OPCODE_FMASK			GENMASK(31, 24)
+/** enum gsi_evt_cmd_opcode - EV_OPCODE field values in EV_CH_CMD */
+enum gsi_evt_cmd_opcode {
+	GSI_EVT_ALLOCATE			= 0x0,
+	GSI_EVT_RESET				= 0x9,
+	GSI_EVT_DE_ALLOC			= 0xa,
+};
 
 #define GSI_GENERIC_CMD_OFFSET \
 			GSI_EE_N_GENERIC_CMD_OFFSET(GSI_EE_AP)
@@ -238,6 +252,11 @@ enum gsi_channel_type {
 #define GENERIC_OPCODE_FMASK		GENMASK(4, 0)
 #define GENERIC_CHID_FMASK		GENMASK(9, 5)
 #define GENERIC_EE_FMASK		GENMASK(13, 10)
+/** enum gsi_generic_cmd_opcode - GENERIC_OPCODE field values in GENERIC_CMD */
+enum gsi_generic_cmd_opcode {
+	GSI_GENERIC_HALT_CHANNEL		= 0x1,
+	GSI_GENERIC_ALLOCATE_CHANNEL		= 0x2,
+};
 
 #define GSI_GSI_HW_PARAM_2_OFFSET \
 			GSI_EE_N_GSI_HW_PARAM_2_OFFSET(GSI_EE_AP)

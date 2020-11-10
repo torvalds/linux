@@ -109,28 +109,6 @@ struct gsi_event {
 	u8 chid;
 };
 
-/* Hardware values representing an event ring immediate command opcode */
-enum gsi_evt_cmd_opcode {
-	GSI_EVT_ALLOCATE	= 0x0,
-	GSI_EVT_RESET		= 0x9,
-	GSI_EVT_DE_ALLOC	= 0xa,
-};
-
-/* Hardware values representing a generic immediate command opcode */
-enum gsi_generic_cmd_opcode {
-	GSI_GENERIC_HALT_CHANNEL	= 0x1,
-	GSI_GENERIC_ALLOCATE_CHANNEL	= 0x2,
-};
-
-/* Hardware values representing a channel immediate command opcode */
-enum gsi_ch_cmd_opcode {
-	GSI_CH_ALLOCATE	= 0x0,
-	GSI_CH_START	= 0x1,
-	GSI_CH_STOP	= 0x2,
-	GSI_CH_RESET	= 0x9,
-	GSI_CH_DE_ALLOC	= 0xa,
-};
-
 /** gsi_channel_scratch_gpi - GPI protocol scratch register
  * @max_outstanding_tre:
  *	Defines the maximum number of TREs allowed in a single transaction
