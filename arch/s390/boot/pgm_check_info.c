@@ -3,9 +3,11 @@
 #include <linux/string.h>
 #include <linux/ctype.h>
 #include <asm/stacktrace.h>
+#include <asm/boot_data.h>
 #include <asm/lowcore.h>
 #include <asm/setup.h>
 #include <asm/sclp.h>
+#include <asm/uv.h>
 #include <stdarg.h>
 #include "boot.h"
 
@@ -149,6 +151,8 @@ void print_pgm_check_info(void)
 	struct psw_bits *psw = &psw_bits(S390_lowcore.psw_save_area);
 
 	decompressor_printk("Linux version %s\n", kernel_version);
+	if (!is_prot_virt_guest() && early_command_line[0])
+		decompressor_printk("Kernel command line: %s\n", early_command_line);
 	decompressor_printk("Kernel fault: interruption code %04x ilc:%x\n",
 			    S390_lowcore.pgm_code, S390_lowcore.pgm_ilc >> 1);
 	if (kaslr_enabled)
@@ -171,4 +175,7 @@ void print_pgm_check_info(void)
 	decompressor_printk("      %016lx %016lx %016lx %016lx\n",
 			    gpregs[12], gpregs[13], gpregs[14], gpregs[15]);
 	print_stacktrace();
+	decompressor_printk("Last Breaking-Event-Address:\n");
+	decompressor_printk(" [<%016lx>] %pS\n", (unsigned long)S390_lowcore.breaking_event_addr,
+			    (void *)S390_lowcore.breaking_event_addr);
 }
