@@ -227,6 +227,7 @@ static void nvmet_passthru_execute_cmd(struct nvmet_req *req)
 	struct request_queue *q = ctrl->admin_q;
 	struct nvme_ns *ns = NULL;
 	struct request *rq = NULL;
+	unsigned int timeout = 0;
 	u32 effects;
 	u16 status;
 	int ret;
@@ -242,6 +243,8 @@ static void nvmet_passthru_execute_cmd(struct nvmet_req *req)
 		}
 
 		q = ns->queue;
+	} else {
+		timeout = req->sq->ctrl->subsys->admin_timeout;
 	}
 
 	rq = nvme_alloc_request(q, req->cmd, 0, NVME_QID_ANY);
@@ -249,6 +252,9 @@ static void nvmet_passthru_execute_cmd(struct nvmet_req *req)
 		status = NVME_SC_INTERNAL;
 		goto out_put_ns;
 	}
+
+	if (timeout)
+		rq->timeout = timeout;
 
 	if (req->sg_cnt) {
 		ret = nvmet_passthru_map_sg(req, rq);
