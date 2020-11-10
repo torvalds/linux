@@ -75,6 +75,8 @@ extern const struct tb_nhi_ops icl_nhi_ops;
 #define PCI_DEVICE_ID_INTEL_ICL_NHI0			0x8a17
 #define PCI_DEVICE_ID_INTEL_TGL_NHI0			0x9a1b
 #define PCI_DEVICE_ID_INTEL_TGL_NHI1			0x9a1d
+#define PCI_DEVICE_ID_INTEL_TGL_H_NHI0			0x9a1f
+#define PCI_DEVICE_ID_INTEL_TGL_H_NHI1			0x9a21
 
 #define PCI_CLASS_SERIAL_USB_USB4			0x0c0340
 

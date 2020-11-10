@@ -9,6 +9,7 @@
 
 #include <linux/debugfs.h>
 #include <linux/pm_runtime.h>
+#include <linux/uaccess.h>
 
 #include "tb.h"
 
