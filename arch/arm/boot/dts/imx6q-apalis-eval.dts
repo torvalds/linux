@@ -140,7 +140,7 @@
 		reg = <0x4a>;
 		interrupt-parent = <&gpio6>;
 		interrupts = <10 IRQ_TYPE_EDGE_FALLING>;
-		reset-gpios = <&gpio6 9 GPIO_ACTIVE_HIGH>; /* SODIMM 13 */
+		reset-gpios = <&gpio6 9 GPIO_ACTIVE_LOW>; /* SODIMM 13 */
 		status = "disabled";
 	};
 
