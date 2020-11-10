@@ -102,7 +102,10 @@ MODULE_ALIAS("platform:smc911x");
 
 #define PRINTK(dev, args...)   netdev_info(dev, args)
 #else
-#define DBG(n, dev, args...)   do { } while (0)
+#define DBG(n, dev, args...)			 \
+	while (0) {				 \
+		netdev_dbg(dev, args);		 \
+	}
 #define PRINTK(dev, args...)   netdev_dbg(dev, args)
 #endif
 
