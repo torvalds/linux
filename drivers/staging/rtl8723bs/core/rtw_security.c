@@ -140,12 +140,7 @@ static u32 arcfour_byte(struct arc4context	*parc4ctx)
 	return state[(sx + sy) & 0xff];
 }
 
-static void arcfour_encrypt(
-	struct arc4context *parc4ctx,
-	u8 *dest,
-	u8 *src,
-	u32 len
-)
+static void arcfour_encrypt(struct arc4context *parc4ctx, u8 *dest, u8 *src, u32 len)
 {
 	u32 i;
 
@@ -882,36 +877,28 @@ exit:
 /*****************************/
 
 static void bitwise_xor(u8 *ina, u8 *inb, u8 *out);
-static void construct_mic_iv(
-	u8 *mic_header1,
-	sint qc_exists,
-	sint a4_exists,
-	u8 *mpdu,
-	uint payload_length,
-	u8 *pn_vector,
-	uint frtype
-);/*  add for CONFIG_IEEE80211W, none 11w also can use */
-static void construct_mic_header1(
-	u8 *mic_header1,
-	sint header_length,
-	u8 *mpdu,
-	uint frtype
-);/*  add for CONFIG_IEEE80211W, none 11w also can use */
-static void construct_mic_header2(
-	u8 *mic_header2,
-	u8 *mpdu,
-	sint a4_exists,
-	sint qc_exists
-);
-static void construct_ctr_preload(
-	u8 *ctr_preload,
-	sint a4_exists,
-	sint qc_exists,
-	u8 *mpdu,
-	u8 *pn_vector,
-	sint c,
-	uint frtype
-);/*  add for CONFIG_IEEE80211W, none 11w also can use */
+static void construct_mic_iv(u8 *mic_header1,
+			     sint qc_exists,
+			     sint a4_exists,
+			     u8 *mpdu,
+			     uint payload_length,
+			     u8 *pn_vector,
+			     uint frtype); /*  add for CONFIG_IEEE80211W, none 11w also can use */
+static void construct_mic_header1(u8 *mic_header1,
+				  sint header_length,
+				  u8 *mpdu,
+				  uint frtype); /* for CONFIG_IEEE80211W, none 11w also can use */
+static void construct_mic_header2(u8 *mic_header2,
+				  u8 *mpdu,
+				  sint a4_exists,
+				  sint qc_exists);
+static void construct_ctr_preload(u8 *ctr_preload,
+				  sint a4_exists,
+				  sint qc_exists,
+				  u8 *mpdu,
+				  u8 *pn_vector,
+				  sint c,
+				  uint frtype); /* for CONFIG_IEEE80211W, none 11w also can use */
 static void xor_128(u8 *a, u8 *b, u8 *out);
 static void xor_32(u8 *a, u8 *b, u8 *out);
 static u8 sbox(u8 a);
@@ -1103,15 +1090,13 @@ static void aes128k128d(u8 *key, u8 *data, u8 *ciphertext)
 /* Baron think the function is construct CCM    */
 /* nonce                                        */
 /************************************************/
-static void construct_mic_iv(
-	u8 *mic_iv,
-	sint qc_exists,
-	sint a4_exists,
-	u8 *mpdu,
-	uint payload_length,
-	u8 *pn_vector,
-	uint frtype/*  add for CONFIG_IEEE80211W, none 11w also can use */
-)
+static void construct_mic_iv(u8 *mic_iv,
+			     sint qc_exists,
+			     sint a4_exists,
+			     u8 *mpdu,
+			     uint payload_length,
+			     u8 *pn_vector,
+			     uint frtype) /* add for CONFIG_IEEE80211W, none 11w also can use */
 {
 		sint i;
 
@@ -1149,12 +1134,10 @@ static void construct_mic_iv(
 /* header fields.                               */
 /* Build AAD SC, A1, A2                           */
 /************************************************/
-static void construct_mic_header1(
-	u8 *mic_header1,
-	sint header_length,
-	u8 *mpdu,
-	uint frtype/*  add for CONFIG_IEEE80211W, none 11w also can use */
-)
+static void construct_mic_header1(u8 *mic_header1,
+				  sint header_length,
+				  u8 *mpdu,
+				  uint frtype) /* for CONFIG_IEEE80211W, none 11w also can use */
 {
 		mic_header1[0] = (u8)((header_length - 2) / 256);
 		mic_header1[1] = (u8)((header_length - 2) % 256);
@@ -1185,12 +1168,10 @@ static void construct_mic_header1(
 /* Builds the last MIC header block from        */
 /* header fields.                               */
 /************************************************/
-static void construct_mic_header2(
-	u8 *mic_header2,
-	u8 *mpdu,
-	sint a4_exists,
-	sint qc_exists
-)
+static void construct_mic_header2(u8 *mic_header2,
+				  u8 *mpdu,
+				  sint a4_exists,
+				  sint qc_exists)
 {
 		sint i;
 
@@ -1233,15 +1214,13 @@ static void construct_mic_header2(
 /* Baron think the function is construct CCM    */
 /* nonce                                        */
 /************************************************/
-static void construct_ctr_preload(
-	u8 *ctr_preload,
-	sint a4_exists,
-	sint qc_exists,
-	u8 *mpdu,
-	u8 *pn_vector,
-	sint c,
-	uint frtype /*  add for CONFIG_IEEE80211W, none 11w also can use */
-)
+static void construct_ctr_preload(u8 *ctr_preload,
+				  sint a4_exists,
+				  sint qc_exists,
+				  u8 *mpdu,
+				  u8 *pn_vector,
+				  sint c,
+				  uint frtype) /* for CONFIG_IEEE80211W, none 11w also can use */
 {
 	sint i = 0;
 
@@ -1347,28 +1326,23 @@ static sint aes_cipher(u8 *key, uint	hdrlen,
 	pn_vector[4] = pframe[hdrlen+6];
 	pn_vector[5] = pframe[hdrlen+7];
 
-	construct_mic_iv(
-			mic_iv,
-			qc_exists,
-			a4_exists,
-			pframe,	 /* message, */
-			plen,
-			pn_vector,
-			frtype /*  add for CONFIG_IEEE80211W, none 11w also can use */
-	);
+	construct_mic_iv(mic_iv,
+			 qc_exists,
+			 a4_exists,
+			 pframe,	 /* message, */
+			 plen,
+			 pn_vector,
+			 frtype); /*  add for CONFIG_IEEE80211W, none 11w also can use */
 
-	construct_mic_header1(
-		mic_header1,
-		hdrlen,
-		pframe,	/* message */
-		frtype /*  add for CONFIG_IEEE80211W, none 11w also can use */
-	);
-	construct_mic_header2(
-		mic_header2,
-		pframe,	/* message, */
-		a4_exists,
-		qc_exists
-	);
+	construct_mic_header1(mic_header1,
+			      hdrlen,
+			      pframe,	/* message */
+			      frtype); /*  add for CONFIG_IEEE80211W, none 11w also can use */
+
+	construct_mic_header2(mic_header2,
+			      pframe,	/* message, */
+			      a4_exists,
+			      qc_exists);
 
 	payload_remainder = plen % 16;
 	num_blocks = plen / 16;
@@ -1410,15 +1384,9 @@ static sint aes_cipher(u8 *key, uint	hdrlen,
 
 	payload_index = hdrlen + 8;
 	for (i = 0; i < num_blocks; i++) {
-		construct_ctr_preload(
-			ctr_preload,
-			a4_exists,
-			qc_exists,
-			pframe,	/* message, */
-			pn_vector,
-			i+1,
-			frtype
-		); /*  add for CONFIG_IEEE80211W, none 11w also can use */
+		construct_ctr_preload(ctr_preload, a4_exists, qc_exists, pframe, /* message, */
+				      pn_vector, i+1, frtype);
+		/*  add for CONFIG_IEEE80211W, none 11w also can use */
 		aes128k128d(key, ctr_preload, aes_out);
 		bitwise_xor(aes_out, &pframe[payload_index], chain_buffer);
 		for (j = 0; j < 16; j++)
@@ -1428,15 +1396,9 @@ static sint aes_cipher(u8 *key, uint	hdrlen,
 	if (payload_remainder > 0) {
 		/* If there is a short final block, then pad it,*/
 		/* encrypt it and copy the unpadded part back   */
-		construct_ctr_preload(
-			ctr_preload,
-			a4_exists,
-			qc_exists,
-			pframe,	/* message, */
-			pn_vector,
-			num_blocks+1,
-			frtype
-		); /*  add for CONFIG_IEEE80211W, none 11w also can use */
+		construct_ctr_preload(ctr_preload, a4_exists, qc_exists, pframe, /* message, */
+				      pn_vector, num_blocks+1, frtype);
+		/*  add for CONFIG_IEEE80211W, none 11w also can use */
 
 		for (j = 0; j < 16; j++)
 			padded_buffer[j] = 0x00;
@@ -1450,15 +1412,9 @@ static sint aes_cipher(u8 *key, uint	hdrlen,
 	}
 
 	/* Encrypt the MIC */
-	construct_ctr_preload(
-		ctr_preload,
-		a4_exists,
-		qc_exists,
-		pframe,	/* message, */
-		pn_vector,
-		0,
-		frtype
-	); /*  add for CONFIG_IEEE80211W, none 11w also can use */
+	construct_ctr_preload(ctr_preload, a4_exists, qc_exists, pframe, /* message, */
+			      pn_vector, 0, frtype);
+	/*  add for CONFIG_IEEE80211W, none 11w also can use */
 
 	for (j = 0; j < 16; j++)
 		padded_buffer[j] = 0x00;
@@ -1613,15 +1569,9 @@ static sint aes_decipher(u8 *key, uint	hdrlen,
 	if (payload_remainder > 0) {
 		/* If there is a short final block, then pad it,*/
 		/* encrypt it and copy the unpadded part back   */
-		construct_ctr_preload(
-			ctr_preload,
-			a4_exists,
-			qc_exists,
-			pframe,
-			pn_vector,
-			num_blocks+1,
-			frtype /*  add for CONFIG_IEEE80211W, none 11w also can use */
-		);
+		construct_ctr_preload(ctr_preload, a4_exists, qc_exists, pframe, pn_vector,
+				      num_blocks+1, frtype);
+		/*  add for CONFIG_IEEE80211W, none 11w also can use */
 
 		for (j = 0; j < 16; j++)
 			padded_buffer[j] = 0x00;
@@ -1645,28 +1595,12 @@ static sint aes_decipher(u8 *key, uint	hdrlen,
 	pn_vector[4] = pframe[hdrlen+6];
 	pn_vector[5] = pframe[hdrlen+7];
 
-	construct_mic_iv(
-		mic_iv,
-		qc_exists,
-		a4_exists,
-		message,
-		plen-8,
-		pn_vector,
-		frtype /*  add for CONFIG_IEEE80211W, none 11w also can use */
-	);
+	construct_mic_iv(mic_iv, qc_exists, a4_exists, message, plen-8, pn_vector, frtype);
+	/*  add for CONFIG_IEEE80211W, none 11w also can use */
 
-	construct_mic_header1(
-		mic_header1,
-		hdrlen,
-		message,
-		frtype /*  add for CONFIG_IEEE80211W, none 11w also can use */
-	);
-	construct_mic_header2(
-		mic_header2,
-		message,
-		a4_exists,
-		qc_exists
-	);
+	construct_mic_header1(mic_header1, hdrlen, message, frtype);
+	/*  add for CONFIG_IEEE80211W, none 11w also can use */
+	construct_mic_header2(mic_header2, message, a4_exists, qc_exists);
 
 	payload_remainder = (plen-8) % 16;
 	num_blocks = (plen-8) / 16;
@@ -1708,15 +1642,9 @@ static sint aes_decipher(u8 *key, uint	hdrlen,
 
 	payload_index = hdrlen + 8;
 	for (i = 0; i < num_blocks; i++) {
-		construct_ctr_preload(
-			ctr_preload,
-			a4_exists,
-			qc_exists,
-			message,
-			pn_vector,
-			i+1,
-			frtype
-		); /*  add for CONFIG_IEEE80211W, none 11w also can use */
+		construct_ctr_preload(ctr_preload, a4_exists, qc_exists, message, pn_vector, i+1,
+				      frtype);
+		/*  add for CONFIG_IEEE80211W, none 11w also can use */
 		aes128k128d(key, ctr_preload, aes_out);
 		bitwise_xor(aes_out, &message[payload_index], chain_buffer);
 		for (j = 0; j < 16; j++)
@@ -1726,15 +1654,9 @@ static sint aes_decipher(u8 *key, uint	hdrlen,
 	if (payload_remainder > 0) {
 		/* If there is a short final block, then pad it,*/
 		/* encrypt it and copy the unpadded part back   */
-		construct_ctr_preload(
-			ctr_preload,
-			a4_exists,
-			qc_exists,
-			message,
-			pn_vector,
-			num_blocks+1,
-			frtype
-		); /*  add for CONFIG_IEEE80211W, none 11w also can use */
+		construct_ctr_preload(ctr_preload, a4_exists, qc_exists, message, pn_vector,
+				      num_blocks+1, frtype);
+		/*  add for CONFIG_IEEE80211W, none 11w also can use */
 
 		for (j = 0; j < 16; j++)
 			padded_buffer[j] = 0x00;
@@ -1748,15 +1670,8 @@ static sint aes_decipher(u8 *key, uint	hdrlen,
 	}
 
 	/* Encrypt the MIC */
-	construct_ctr_preload(
-		ctr_preload,
-		a4_exists,
-		qc_exists,
-		message,
-		pn_vector,
-		0,
-		frtype
-	); /*  add for CONFIG_IEEE80211W, none 11w also can use */
+	construct_ctr_preload(ctr_preload, a4_exists, qc_exists, message, pn_vector, 0, frtype);
+	/*  add for CONFIG_IEEE80211W, none 11w also can use */
 
 	for (j = 0; j < 16; j++)
 		padded_buffer[j] = 0x00;

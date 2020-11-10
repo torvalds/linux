@@ -2586,9 +2586,7 @@ void xmit_delivery_enabled_frames(struct adapter *padapter, struct sta_info *pst
 	spin_unlock_bh(&pxmitpriv->lock);
 }
 
-void enqueue_pending_xmitbuf(
-	struct xmit_priv *pxmitpriv,
-	struct xmit_buf *pxmitbuf)
+void enqueue_pending_xmitbuf(struct xmit_priv *pxmitpriv, struct xmit_buf *pxmitbuf)
 {
 	struct __queue *pqueue;
 	struct adapter *pri_adapter = pxmitpriv->adapter;
@@ -2603,9 +2601,7 @@ void enqueue_pending_xmitbuf(
 	complete(&pri_adapter->xmitpriv.xmit_comp);
 }
 
-void enqueue_pending_xmitbuf_to_head(
-	struct xmit_priv *pxmitpriv,
-	struct xmit_buf *pxmitbuf)
+void enqueue_pending_xmitbuf_to_head(struct xmit_priv *pxmitpriv, struct xmit_buf *pxmitbuf)
 {
 	struct __queue *pqueue;
 
@@ -2617,8 +2613,7 @@ void enqueue_pending_xmitbuf_to_head(
 	spin_unlock_bh(&pqueue->lock);
 }
 
-struct xmit_buf *dequeue_pending_xmitbuf(
-	struct xmit_priv *pxmitpriv)
+struct xmit_buf *dequeue_pending_xmitbuf(struct xmit_priv *pxmitpriv)
 {
 	struct xmit_buf *pxmitbuf;
 	struct __queue *pqueue;
@@ -2642,8 +2637,7 @@ struct xmit_buf *dequeue_pending_xmitbuf(
 	return pxmitbuf;
 }
 
-struct xmit_buf *dequeue_pending_xmitbuf_under_survey(
-	struct xmit_priv *pxmitpriv)
+struct xmit_buf *dequeue_pending_xmitbuf_under_survey(struct xmit_priv *pxmitpriv)
 {
 	struct xmit_buf *pxmitbuf;
 	struct __queue *pqueue;
@@ -2683,8 +2677,7 @@ struct xmit_buf *dequeue_pending_xmitbuf_under_survey(
 	return pxmitbuf;
 }
 
-sint check_pending_xmitbuf(
-	struct xmit_priv *pxmitpriv)
+sint check_pending_xmitbuf(struct xmit_priv *pxmitpriv)
 {
 	struct __queue *pqueue;
 	sint	ret = false;

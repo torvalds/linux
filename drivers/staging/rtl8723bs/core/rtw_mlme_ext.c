@@ -2487,11 +2487,9 @@ void issue_beacon(struct adapter *padapter, int timeout_ms)
 			int len_diff;
 
 			memcpy(pframe, cur_network->IEs, cur_network->IELength);
-			len_diff = update_hidden_ssid(
-				pframe+_BEACON_IE_OFFSET_
-				, cur_network->IELength-_BEACON_IE_OFFSET_
-				, pmlmeinfo->hidden_ssid_mode
-			);
+			len_diff = update_hidden_ssid(pframe+_BEACON_IE_OFFSET_,
+						      cur_network->IELength-_BEACON_IE_OFFSET_,
+						      pmlmeinfo->hidden_ssid_mode);
 			pframe += (cur_network->IELength+len_diff);
 			pattrib->pktlen += (cur_network->IELength+len_diff);
 		}
@@ -6584,11 +6582,9 @@ u8 set_tx_beacon_cmd(struct adapter *padapter)
 
 	memcpy(&(ptxBeacon_parm->network), &(pmlmeinfo->network), sizeof(struct wlan_bssid_ex));
 
-	len_diff = update_hidden_ssid(
-		ptxBeacon_parm->network.IEs+_BEACON_IE_OFFSET_
-		, ptxBeacon_parm->network.IELength-_BEACON_IE_OFFSET_
-		, pmlmeinfo->hidden_ssid_mode
-	);
+	len_diff = update_hidden_ssid(ptxBeacon_parm->network.IEs+_BEACON_IE_OFFSET_,
+				      ptxBeacon_parm->network.IELength-_BEACON_IE_OFFSET_,
+				      pmlmeinfo->hidden_ssid_mode);
 	ptxBeacon_parm->network.IELength += len_diff;
 
 	init_h2fwcmd_w_parm_no_rsp(ph2c, ptxBeacon_parm, GEN_CMD_CODE(_TX_Beacon));

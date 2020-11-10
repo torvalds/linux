@@ -765,16 +765,10 @@ void count_rx_stats(struct adapter *padapter, union recv_frame *prframe, struct 
 	traffic_check_for_leave_lps(padapter, false, 0);
 }
 
-sint sta2sta_data_frame(
-	struct adapter *adapter,
-	union recv_frame *precv_frame,
-	struct sta_info **psta
-);
-sint sta2sta_data_frame(
-	struct adapter *adapter,
-	union recv_frame *precv_frame,
-	struct sta_info **psta
-)
+sint sta2sta_data_frame(struct adapter *adapter, union recv_frame *precv_frame,
+			struct sta_info **psta);
+sint sta2sta_data_frame(struct adapter *adapter, union recv_frame *precv_frame,
+			struct sta_info **psta)
 {
 	u8 *ptr = precv_frame->u.hdr.rx_data;
 	sint ret = _SUCCESS;
@@ -866,14 +860,10 @@ exit:
 	return ret;
 }
 
-sint ap2sta_data_frame(
-	struct adapter *adapter,
-	union recv_frame *precv_frame,
-	struct sta_info **psta);
-sint ap2sta_data_frame(
-	struct adapter *adapter,
-	union recv_frame *precv_frame,
-	struct sta_info **psta)
+sint ap2sta_data_frame(struct adapter *adapter, union recv_frame *precv_frame,
+		       struct sta_info **psta);
+sint ap2sta_data_frame(struct adapter *adapter, union recv_frame *precv_frame,
+		       struct sta_info **psta)
 {
 	u8 *ptr = precv_frame->u.hdr.rx_data;
 	struct rx_pkt_attrib *pattrib = &precv_frame->u.hdr.attrib;
@@ -1015,14 +1005,10 @@ exit:
 	return ret;
 }
 
-sint sta2ap_data_frame(
-	struct adapter *adapter,
-	union recv_frame *precv_frame,
-	struct sta_info **psta);
-sint sta2ap_data_frame(
-	struct adapter *adapter,
-	union recv_frame *precv_frame,
-	struct sta_info **psta)
+sint sta2ap_data_frame(struct adapter *adapter, union recv_frame *precv_frame,
+		       struct sta_info **psta);
+sint sta2ap_data_frame(struct adapter *adapter, union recv_frame *precv_frame,
+		       struct sta_info **psta)
 {
 	u8 *ptr = precv_frame->u.hdr.rx_data;
 	struct rx_pkt_attrib *pattrib = &precv_frame->u.hdr.attrib;

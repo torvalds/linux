@@ -119,14 +119,11 @@ u8 *rtw_set_fixed_ie(unsigned char *pbuf, unsigned int len, unsigned char *sourc
 }
 
 /*  rtw_set_ie will update frame length */
-u8 *rtw_set_ie
-(
-	u8 *pbuf,
-	sint index,
-	uint len,
-	u8 *source,
-	uint *frlen /* frame length */
-)
+u8 *rtw_set_ie(u8 *pbuf,
+	       sint index,
+	       uint len,
+	       u8 *source,
+	       uint *frlen) /* frame length */
 {
 	*pbuf = (u8)index;
 

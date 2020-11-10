@@ -672,8 +672,7 @@ void LeaveAllPowerSaveMode(struct adapter *Adapter)
 	}
 }
 
-void LPS_Leave_check(
-	struct adapter *padapter)
+void LPS_Leave_check(struct adapter *padapter)
 {
 	struct pwrctrl_priv *pwrpriv;
 	unsigned long	start_time;
@@ -714,9 +713,7 @@ void LPS_Leave_check(
  *
  * using to update cpwn of drv; and drv willl make a decision to up or down pwr level
  */
-void cpwm_int_hdl(
-	struct adapter *padapter,
-	struct reportpwrstate_parm *preportpwrstate)
+void cpwm_int_hdl(struct adapter *padapter, struct reportpwrstate_parm *preportpwrstate)
 {
 	struct pwrctrl_priv *pwrpriv;
 
