@@ -5,6 +5,7 @@ config DRM_KMB_DISPLAY
 	select DRM_KMS_HELPER
 	select DRM_KMS_CMA_HELPER
 	select DRM_GEM_CMA_HELPER
+	select DRM_MIPI_DSI
 	help
 	Choose this option if you have Intel's KeemBay SOC which integrates
 	an ARM Cortex A53 CPU with an Intel Movidius VPU.
