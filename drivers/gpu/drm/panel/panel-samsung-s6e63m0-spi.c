@@ -72,7 +72,8 @@ static int s6e63m0_spi_probe(struct spi_device *spi)
 	int ret;
 
 	spi->bits_per_word = 9;
-	spi->mode = SPI_MODE_3;
+	/* Preserve e.g. SPI_3WIRE setting */
+	spi->mode |= SPI_MODE_3;
 	ret = spi_setup(spi);
 	if (ret < 0) {
 		dev_err(dev, "spi setup failed.\n");
