@@ -1597,16 +1597,38 @@ static int dualshock4_get_calibration_data(struct sony_sc *sc)
 	 * of the controller, so that it sends input reports of type 0x11.
 	 */
 	if (sc->quirks & (DUALSHOCK4_CONTROLLER_USB | DUALSHOCK4_DONGLE)) {
+		int retries;
+
 		buf = kmalloc(DS4_FEATURE_REPORT_0x02_SIZE, GFP_KERNEL);
 		if (!buf)
 			return -ENOMEM;
 
-		ret = hid_hw_raw_request(sc->hdev, 0x02, buf,
-					 DS4_FEATURE_REPORT_0x02_SIZE,
-					 HID_FEATURE_REPORT,
-					 HID_REQ_GET_REPORT);
-		if (ret < 0)
-			goto err_stop;
+		/* We should normally receive the feature report data we asked
+		 * for, but hidraw applications such as Steam can issue feature
+		 * reports as well. In particular for Dongle reconnects, Steam
+		 * and this function are competing resulting in often receiving
+		 * data for a different HID report, so retry a few times.
+		 */
+		for (retries = 0; retries < 3; retries++) {
+			ret = hid_hw_raw_request(sc->hdev, 0x02, buf,
+						 DS4_FEATURE_REPORT_0x02_SIZE,
+						 HID_FEATURE_REPORT,
+						 HID_REQ_GET_REPORT);
+			if (ret < 0)
+				goto err_stop;
+
+			if (buf[0] != 0x02) {
+				if (retries < 2) {
+					hid_warn(sc->hdev, "Retrying DualShock 4 get calibration report (0x02) request\n");
+					continue;
+				} else {
+					ret = -EILSEQ;
+					goto err_stop;
+				}
+			} else {
+				break;
+			}
+		}
 	} else {
 		u8 bthdr = 0xA3;
 		u32 crc;
