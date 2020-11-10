@@ -79,6 +79,7 @@ void radeon_sync_fence(struct radeon_sync *sync,
 /**
  * radeon_sync_resv - use the semaphores to sync to a reservation object
  *
+ * @rdev: radeon_device pointer
  * @sync: sync object to add fences from reservation object to
  * @resv: reservation object with embedded fence
  * @shared: true if we should only sync to the exclusive fence
