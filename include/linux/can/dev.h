@@ -105,7 +105,6 @@ static inline unsigned int can_bit_time(const struct can_bittiming *bt)
  * ISO 11898-1 Chapter 8.4.2.3 (DLC field)
  */
 #define can_cc_dlc2len(dlc)	(min_t(u8, (dlc), CAN_MAX_DLEN))
-#define get_canfd_dlc(dlc)	(min_t(u8, (dlc), CANFD_MAX_DLC))
 
 /* Check for outgoing skbs that have not been created by the CAN subsystem */
 static inline bool can_skb_headroom_valid(struct net_device *dev,
