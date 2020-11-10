@@ -244,7 +244,6 @@ config SND_SOC_EUKREA_TLV320
 	depends on ARCH_MXC && !ARM64 && I2C
 	select SND_SOC_TLV320AIC23_I2C
 	select SND_SOC_IMX_AUDMUX
-	select SND_SOC_IMX_SSI
 	select SND_SOC_FSL_SSI
 	select SND_SOC_IMX_PCM_DMA
 	help
