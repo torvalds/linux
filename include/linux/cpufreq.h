@@ -580,6 +580,9 @@ struct cpufreq_governor {
 /* For governors which change frequency dynamically by themselves */
 #define CPUFREQ_GOV_DYNAMIC_SWITCHING	BIT(0)
 
+/* For governors wanting the target frequency to be set exactly */
+#define CPUFREQ_GOV_STRICT_TARGET	BIT(1)
+
 
 /* Pass a target to the cpufreq driver */
 unsigned int cpufreq_driver_fast_switch(struct cpufreq_policy *policy,
