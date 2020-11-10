@@ -1219,6 +1219,28 @@ out:
 	return p;
 }
 
+/**
+ * nfs3svc_encode_cookie3 - Encode a directory offset cookie
+ * @resp: readdir result context
+ * @offset: offset cookie to encode
+ *
+ */
+void nfs3svc_encode_cookie3(struct nfsd3_readdirres *resp, u64 offset)
+{
+	if (!resp->offset)
+		return;
+
+	if (resp->offset1) {
+		/* we ended up with offset on a page boundary */
+		*resp->offset = cpu_to_be32(offset >> 32);
+		*resp->offset1 = cpu_to_be32(offset & 0xffffffff);
+		resp->offset1 = NULL;
+	} else {
+		xdr_encode_hyper(resp->offset, offset);
+	}
+	resp->offset = NULL;
+}
+
 /*
  * Encode a directory entry. This one works for both normal readdir
  * and readdirplus.
@@ -1244,19 +1266,7 @@ encode_entry(struct readdir_cd *ccd, const char *name, int namlen,
 	int		elen;		/* estimated entry length in words */
 	int		num_entry_words = 0;	/* actual number of words */
 
-	if (cd->offset) {
-		u64 offset64 = offset;
-
-		if (unlikely(cd->offset1)) {
-			/* we ended up with offset on a page boundary */
-			*cd->offset = htonl(offset64 >> 32);
-			*cd->offset1 = htonl(offset64 & 0xffffffff);
-			cd->offset1 = NULL;
-		} else {
-			xdr_encode_hyper(cd->offset, offset64);
-		}
-		cd->offset = NULL;
-	}
+	nfs3svc_encode_cookie3(cd, offset);
 
 	/*
 	dprintk("encode_entry(%.*s @%ld%s)\n",
