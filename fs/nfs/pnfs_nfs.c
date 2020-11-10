@@ -661,6 +661,20 @@ _data_server_lookup_locked(const struct list_head *dsaddrs)
 	return NULL;
 }
 
+static struct nfs4_pnfs_ds_addr *nfs4_pnfs_ds_addr_alloc(gfp_t gfp_flags)
+{
+	struct nfs4_pnfs_ds_addr *da = kzalloc(sizeof(*da), gfp_flags);
+	if (da)
+		INIT_LIST_HEAD(&da->da_node);
+	return da;
+}
+
+static void nfs4_pnfs_ds_addr_free(struct nfs4_pnfs_ds_addr *da)
+{
+	kfree(da->da_remotestr);
+	kfree(da);
+}
+
 static void destroy_ds(struct nfs4_pnfs_ds *ds)
 {
 	struct nfs4_pnfs_ds_addr *da;
@@ -676,8 +690,7 @@ static void destroy_ds(struct nfs4_pnfs_ds *ds)
 				      struct nfs4_pnfs_ds_addr,
 				      da_node);
 		list_del_init(&da->da_node);
-		kfree(da->da_remotestr);
-		kfree(da);
+		nfs4_pnfs_ds_addr_free(da);
 	}
 
 	kfree(ds->ds_remotestr);
@@ -1094,11 +1107,9 @@ nfs4_decode_mp_ds_addr(struct net *net, struct xdr_stream *xdr, gfp_t gfp_flags)
 	}
 	*portstr = '\0';
 
-	da = kzalloc(sizeof(*da), gfp_flags);
+	da = nfs4_pnfs_ds_addr_alloc(gfp_flags);
 	if (unlikely(!da))
 		goto out_free_buf;
-
-	INIT_LIST_HEAD(&da->da_node);
 
 	if (!rpc_pton(net, buf, portstr-buf, (struct sockaddr *)&da->da_addr,
 		      sizeof(da->da_addr))) {
