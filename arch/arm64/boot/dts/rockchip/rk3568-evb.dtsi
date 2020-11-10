@@ -199,94 +199,6 @@
 		regulator-name = "vcc5v0_otg";
 	};
 
-	/*
-	 * Configure for io-domain node according to Power Sequence/IO Domain Map
-	 * For example, RK3568 EVB V10
-	 * -vccpmuio1,vccpmuio2
-	 * -vccio1,vccio2,vccio3,vccio4,vccio5,vccio6,vccio7
-	 */
-	vccpmuio1: vcc-pmuio1 {
-		compatible = "regulator-fixed";
-		regulator-name = "vccpmuio1";
-		regulator-always-on;
-		regulator-boot-on;
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		vin-supply = <&vcc3v3_pmu>;
-	};
-
-	vccpmuio2: vcc-pmuio2 {
-		compatible = "regulator-fixed";
-		regulator-name = "vccpmuio2";
-		regulator-always-on;
-		regulator-boot-on;
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		vin-supply = <&vcc3v3_pmu>;
-	};
-
-	vccio1: vccio1 {
-		compatible = "regulator-fixed";
-		regulator-name = "vccio1";
-		regulator-always-on;
-		regulator-boot-on;
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		vin-supply = <&vccio_acodec>;
-	};
-
-	/* vccio2 reserved, selected by pin "FLASH_VOL_SEL" */
-
-	vccio3: vccio3 {
-		compatible = "regulator-fixed";
-		regulator-name = "vccio3";
-		regulator-always-on;
-		regulator-boot-on;
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <3300000>;
-		vin-supply = <&vccio_sd>;
-	};
-
-	vccio4: vccio4 {
-		compatible = "regulator-fixed";
-		regulator-name = "vccio4";
-		regulator-always-on;
-		regulator-boot-on;
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-		vin-supply = <&vcc_1v8>;
-	};
-
-	vccio5: vccio5 {
-		compatible = "regulator-fixed";
-		regulator-name = "vccio5";
-		regulator-always-on;
-		regulator-boot-on;
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		vin-supply = <&vcc_3v3>;
-	};
-
-	vccio6: vccio6 {
-		compatible = "regulator-fixed";
-		regulator-name = "vccio6";
-		regulator-always-on;
-		regulator-boot-on;
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-		vin-supply = <&vcc_1v8>;
-	};
-
-	vccio7: vccio7 {
-		compatible = "regulator-fixed";
-		regulator-name = "vccio7";
-		regulator-always-on;
-		regulator-boot-on;
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		vin-supply = <&vcc_3v3>;
-	};
-
 	vcc28_lcd_n: vcc28-lcd-n {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc28_lcd_n";
@@ -1109,6 +1021,18 @@
 			rockchip,pins = <2 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
+};
+
+&pmu_io_domains {
+	status = "okay";
+	pmuio1-supply = <&vcc3v3_pmu>;
+	pmuio2-supply = <&vcc3v3_pmu>;
+	vccio1-supply = <&vccio_acodec>;
+	vccio3-supply = <&vccio_sd>;
+	vccio4-supply = <&vcc_1v8>;
+	vccio5-supply = <&vcc_3v3>;
+	vccio6-supply = <&vcc_1v8>;
+	vccio7-supply = <&vcc_3v3>;
 };
 
 &pwm4 {

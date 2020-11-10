@@ -22,19 +22,3 @@
 		status = "okay";
 	};
 };
-
-&io_domains {
-	status = "okay";
-	vccio1-supply = <&vccio1>;
-	vccio3-supply = <&vccio3>;
-	vccio4-supply = <&vccio4>;
-	vccio5-supply = <&vccio5>;
-	vccio6-supply = <&vccio6>;
-	vccio7-supply = <&vccio7>;
-};
-
-&pmu_io_domains {
-	status = "okay";
-	pmuio1-supply = <&vccpmuio1>;
-	pmuio2-supply = <&vccpmuio2>;
-};
