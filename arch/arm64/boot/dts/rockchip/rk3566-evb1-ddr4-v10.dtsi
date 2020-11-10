@@ -57,7 +57,7 @@
 
 &sdio_pwrseq {
 	compatible = "mmc-pwrseq-simple";
-	clocks = <&pmucru CLK_RTC_32K>;
+	clocks = <&rk809 1>;
 	clock-names = "ext_clock";
 	pinctrl-names = "default";
 	pinctrl-0 = <&wifi_enable_h>;
@@ -121,7 +121,7 @@
 &uart1 {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart1m1_xfer>;
+	pinctrl-0 = <&uart1m1_xfer &uart1ctsnm1>;
 };
 
 &vcc3v3_lcd0_n {
@@ -137,6 +137,8 @@
 &wireless_wlan {
 	compatible = "wlan-platdata";
 	rockchip,grf = <&grf>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&wifi_host_wake_irq>;
 	wifi_chip_type = "ap6398s";
 	WIFI,host_wake_irq = <&gpio3 RK_PD4 GPIO_ACTIVE_HIGH>;
 	status = "okay";
@@ -144,12 +146,12 @@
 
 &wireless_bluetooth {
 	compatible = "bluetooth-platdata";
-	clocks = <&pmucru CLK_RTC_32K>;
+	clocks = <&rk809 1>;
 	clock-names = "ext_clock";
 	//wifi-bt-power-toggle;
 	uart_rts_gpios = <&gpio4 RK_PB6 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default", "rts_gpio";
-	pinctrl-0 = <&uart1ctsnm1>;
+	pinctrl-0 = <&uart1rtsnm1>;
 	pinctrl-1 = <&uart1_gpios>;
 	BT,reset_gpio    = <&gpio4 RK_PA5 GPIO_ACTIVE_HIGH>;
 	BT,wake_gpio     = <&gpio4 RK_PA6 GPIO_ACTIVE_HIGH>;
@@ -173,6 +175,12 @@
 	lcd1 {
 		lcd1_rst_gpio: lcd1-rst-gpio {
 			rockchip,pins = <4 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	wireless-wlan {
+		wifi_host_wake_irq: wifi-host-wake-irq {
+			rockchip,pins = <3 RK_PD4 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
 
