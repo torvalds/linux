@@ -1057,8 +1057,11 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_resource *reg)
 	struct nvkm_device *device = nvxx_device(&drm->client.device);
 	struct nouveau_mem *mem = nouveau_mem(reg);
 	struct nvif_mmu *mmu = &drm->client.mmu;
-	const u8 type = mmu->type[drm->ttm.type_vram].type;
+	u8 type = 0;
 	int ret;
+
+	if (drm->ttm.type_vram >= 0)
+		type = mmu->type[drm->ttm.type_vram].type;
 
 	mutex_lock(&drm->ttm.io_reserve_mutex);
 retry:
