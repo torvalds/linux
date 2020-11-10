@@ -42,10 +42,17 @@ static int s6e63m0_spi_dcs_write(struct device *dev, const u8 *data, size_t len)
 	int ret = 0;
 
 	dev_dbg(dev, "SPI writing dcs seq: %*ph\n", (int)len, data);
+
+	/*
+	 * This sends 9 bits with the first bit (bit 8) set to 0
+	 * This indicates that this is a command. Anything after the
+	 * command is data.
+	 */
 	ret = s6e63m0_spi_write_word(dev, *data);
 
 	while (!ret && --len) {
 		++data;
+		/* This sends 9 bits with the first bit (bit 8) set to 1 */
 		ret = s6e63m0_spi_write_word(dev, *data | DATA_MASK);
 	}
 
