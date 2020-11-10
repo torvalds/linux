@@ -1942,10 +1942,8 @@ ssize_t xdr_stream_decode_string_dup(struct xdr_stream *xdr, char **str,
 
 	ret = xdr_stream_decode_opaque_inline(xdr, &p, maxlen);
 	if (ret > 0) {
-		char *s = kmalloc(ret + 1, gfp_flags);
+		char *s = kmemdup_nul(p, ret, gfp_flags);
 		if (s != NULL) {
-			memcpy(s, p, ret);
-			s[ret] = '\0';
 			*str = s;
 			return strlen(s);
 		}
