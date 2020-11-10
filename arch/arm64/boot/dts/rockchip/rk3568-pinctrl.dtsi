@@ -31,44 +31,26 @@
 				<1 RK_PA5 5 &pcfg_pull_none>;
 		};
 	};
-	audiopwmlout {
+	audiopwmout {
 		/omit-if-no-ref/
-		audiopwmlout_pins: audiopwmlout-pins {
+		audiopwmout_pins: audiopwmout-pins {
 			rockchip,pins =
 				/* audiopwmlout */
 				<1 RK_PA0 4 &pcfg_pull_none>,
-				/* audiopwmlout */
-				<1 RK_PA1 6 &pcfg_pull_none>;
-		};
-	};
-	audiopwmloutp {
-		/omit-if-no-ref/
-		audiopwmloutp_pins: audiopwmloutp-pins {
-			rockchip,pins =
-				/* audiopwmloutp */
-				<1 RK_PA0 6 &pcfg_pull_none>;
-		};
-	};
-	audiopwmrout {
-		/omit-if-no-ref/
-		audiopwmrout_pins: audiopwmrout-pins {
-			rockchip,pins =
 				/* audiopwmrout */
 				<1 RK_PA1 4 &pcfg_pull_none>;
 		};
 	};
-	audiopwmroutn {
+	audiopwmoutdiff {
 		/omit-if-no-ref/
-		audiopwmroutn_pins: audiopwmroutn-pins {
+		audiopwmoutdiff_pins: audiopwmoutdiff-pins {
 			rockchip,pins =
+				/* audiopwmloutn */
+				<1 RK_PA1 6 &pcfg_pull_none>,
+				/* audiopwmloutp */
+				<1 RK_PA0 6 &pcfg_pull_none>,
 				/* audiopwmroutn */
-				<1 RK_PA7 4 &pcfg_pull_none>;
-		};
-	};
-	audiopwmroutp {
-		/omit-if-no-ref/
-		audiopwmroutp_pins: audiopwmroutp-pins {
-			rockchip,pins =
+				<1 RK_PA7 4 &pcfg_pull_none>,
 				/* audiopwmroutp */
 				<1 RK_PA6 4 &pcfg_pull_none>;
 		};
