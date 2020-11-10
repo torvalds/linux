@@ -154,7 +154,6 @@ u32 _rtw_free_sta_priv(struct	sta_priv *pstapriv)
 	int	index;
 
 	if (pstapriv) {
-
 		/*delete all reordering_ctrl_timer		*/
 		spin_lock_bh(&pstapriv->sta_hash_lock);
 		for (index = 0; index < NUM_STA; index++) {
@@ -179,7 +178,6 @@ u32 _rtw_free_sta_priv(struct	sta_priv *pstapriv)
 		kfree_sta_priv_lock(pstapriv);
 
 		vfree(pstapriv->pallocated_stainfo_buf);
-
 	}
 	return _SUCCESS;
 }
@@ -241,9 +239,8 @@ struct	sta_info *rtw_alloc_stainfo(struct	sta_priv *pstapriv, u8 *hwaddr)
 /*  In this case, this packet will be dropped by recv_decache function if we use the 0x00 as the default value for tid_rxseq variable. */
 /*  So, we initialize the tid_rxseq variable as the 0xffff. */
 
-		for (i = 0; i < 16; i++) {
+		for (i = 0; i < 16; i++)
 			memcpy(&psta->sta_recvpriv.rxcache.tid_rxseq[i], &wRxSeqInitialValue, 2);
-		}
 
 		RT_TRACE(
 			_module_rtl871x_sta_mgt_c_,
@@ -292,7 +289,6 @@ struct	sta_info *rtw_alloc_stainfo(struct	sta_priv *pstapriv, u8 *hwaddr)
 		spin_unlock_bh(&(pstapriv->sta_hash_lock));
 		/* alloc mac id for non-bc/mc station, */
 		rtw_alloc_macid(pstapriv->padapter, psta);
-
 	}
 
 exit:
@@ -420,7 +416,6 @@ u32 rtw_free_stainfo(struct adapter *padapter, struct sta_info *psta)
 		}
 
 		spin_unlock_bh(&ppending_recvframe_queue->lock);
-
 	}
 
 	if (!(psta->state & WIFI_AP_STATE))
@@ -496,7 +491,6 @@ void rtw_free_all_stainfo(struct adapter *padapter)
 
 			if (pbcmc_stainfo != psta)
 				rtw_free_stainfo(padapter, psta);
-
 		}
 	}
 
@@ -528,7 +522,6 @@ struct sta_info *rtw_get_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 	plist = get_next(phead);
 
 	while (phead != plist) {
-
 		psta = LIST_CONTAINOR(plist, struct sta_info, hash_list);
 
 		if ((!memcmp(psta->hwaddr, addr, ETH_ALEN)))
@@ -545,7 +538,6 @@ struct sta_info *rtw_get_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 
 u32 rtw_init_bcmc_stainfo(struct adapter *padapter)
 {
-
 	struct sta_info *psta;
 	u32 res = _SUCCESS;
 	NDIS_802_11_MAC_ADDRESS	bcast_addr = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
@@ -598,7 +590,6 @@ u8 rtw_access_ctrl(struct adapter *padapter, u8 *mac_addr)
 				match = true;
 				break;
 			}
-
 	}
 	spin_unlock_bh(&(pacl_node_q->lock));
 

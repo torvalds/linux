@@ -1336,8 +1336,9 @@ static sint aes_cipher(u8 *key, uint	hdrlen,
 			hdrlen += 2;
 
 		qc_exists = 1;
-	} else
+	} else {
 		qc_exists = 0;
+	}
 
 	pn_vector[0] = pframe[hdrlen];
 	pn_vector[1] = pframe[hdrlen+1];
@@ -1393,9 +1394,9 @@ static sint aes_cipher(u8 *key, uint	hdrlen,
 	if (payload_remainder > 0) {
 		for (j = 0; j < 16; j++)
 			padded_buffer[j] = 0x00;
-		for (j = 0; j < payload_remainder; j++) {
+		for (j = 0; j < payload_remainder; j++)
 			padded_buffer[j] = pframe[payload_index++];
-		}
+
 		bitwise_xor(aes_out, padded_buffer, chain_buffer);
 		aes128k128d(key, chain_buffer, aes_out);
 	}
@@ -1576,20 +1577,21 @@ static sint aes_decipher(u8 *key, uint	hdrlen,
 	    ((frtype|frsubtype) == WIFI_DATA_CFPOLL) ||
 	    ((frtype|frsubtype) == WIFI_DATA_CFACKPOLL)) {
 		qc_exists = 1;
-		if (hdrlen !=  WLAN_HDR_A3_QOS_LEN) {
+		if (hdrlen !=  WLAN_HDR_A3_QOS_LEN)
 			hdrlen += 2;
-		}
+
 	} else if ((frtype == WIFI_DATA) && /* only for data packet . add for CONFIG_IEEE80211W, none 11w also can use */
 		   ((frsubtype == 0x08) ||
 		   (frsubtype == 0x09) ||
 		   (frsubtype == 0x0a) ||
 		   (frsubtype == 0x0b))) {
-		if (hdrlen !=  WLAN_HDR_A3_QOS_LEN) {
+		if (hdrlen !=  WLAN_HDR_A3_QOS_LEN)
 			hdrlen += 2;
-		}
+
 		qc_exists = 1;
-	} else
+	} else {
 		qc_exists = 0;
+	}
 
 	/*  now, decrypt pframe with hdrlen offset and plen long */
 
@@ -1623,9 +1625,9 @@ static sint aes_decipher(u8 *key, uint	hdrlen,
 
 		for (j = 0; j < 16; j++)
 			padded_buffer[j] = 0x00;
-		for (j = 0; j < payload_remainder; j++) {
+		for (j = 0; j < payload_remainder; j++)
 			padded_buffer[j] = pframe[payload_index+j];
-		}
+
 		aes128k128d(key, ctr_preload, aes_out);
 		bitwise_xor(aes_out, padded_buffer, chain_buffer);
 		for (j = 0; j < payload_remainder; j++)
@@ -1690,9 +1692,9 @@ static sint aes_decipher(u8 *key, uint	hdrlen,
 	if (payload_remainder > 0) {
 		for (j = 0; j < 16; j++)
 			padded_buffer[j] = 0x00;
-		for (j = 0; j < payload_remainder; j++) {
+		for (j = 0; j < payload_remainder; j++)
 			padded_buffer[j] = message[payload_index++];
-		}
+
 		bitwise_xor(aes_out, padded_buffer, chain_buffer);
 		aes128k128d(key, chain_buffer, aes_out);
 	}
@@ -1736,9 +1738,9 @@ static sint aes_decipher(u8 *key, uint	hdrlen,
 
 		for (j = 0; j < 16; j++)
 			padded_buffer[j] = 0x00;
-		for (j = 0; j < payload_remainder; j++) {
+		for (j = 0; j < payload_remainder; j++)
 			padded_buffer[j] = message[payload_index+j];
-		}
+
 		aes128k128d(key, ctr_preload, aes_out);
 		bitwise_xor(aes_out, padded_buffer, chain_buffer);
 		for (j = 0; j < payload_remainder; j++)
@@ -1758,9 +1760,8 @@ static sint aes_decipher(u8 *key, uint	hdrlen,
 
 	for (j = 0; j < 16; j++)
 		padded_buffer[j] = 0x00;
-	for (j = 0; j < 8; j++) {
+	for (j = 0; j < 8; j++)
 		padded_buffer[j] = message[j+hdrlen+8+plen-8];
-	}
 
 	aes128k128d(key, ctr_preload, aes_out);
 	bitwise_xor(aes_out, padded_buffer, chain_buffer);
@@ -1856,8 +1857,9 @@ u32 rtw_aes_decrypt(struct adapter *padapter, u8 *precvframe)
 					res = _FAIL;
 					goto exit;
 				}
-			} else
+			} else {
 				prwskey = &stainfo->dot118021x_UncstKey.skey[0];
+			}
 
 			length = ((union recv_frame *)precvframe)->u.hdr.len-prxattrib->hdrlen-prxattrib->iv_len;
 
@@ -1941,11 +1943,13 @@ u32 rtw_BIP_verify(struct adapter *padapter, u8 *precvframe)
 		if (!memcmp(mic, pframe+pattrib->pkt_len-8, 8)) {
 			pmlmeext->mgnt_80211w_IPN_rx = temp_ipn;
 			res = _SUCCESS;
-		} else
+		} else {
 			DBG_871X("BIP MIC error!\n");
+		}
 
-	} else
+	} else {
 		res = RTW_RX_HANDLED;
+	}
 BIP_exit:
 
 	kfree(BIP_AAD);

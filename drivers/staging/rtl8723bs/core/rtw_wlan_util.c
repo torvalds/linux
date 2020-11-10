@@ -957,9 +957,10 @@ static void bwmode_update_check(struct adapter *padapter, struct ndis_80211_var_
 	if (pmlmeext->cur_channel > 14) {
 		if ((pregistrypriv->bw_mode & 0xf0) > 0)
 			cbw40_enable = 1;
-	} else
+	} else {
 		if ((pregistrypriv->bw_mode & 0x0f) > 0)
 			cbw40_enable = 1;
+	}
 
 	if ((pHT_info->infos[0] & BIT(2)) && cbw40_enable) {
 		new_bwmode = CHANNEL_WIDTH_40;
@@ -991,8 +992,9 @@ static void bwmode_update_check(struct adapter *padapter, struct ndis_80211_var_
 
 		/* update HT info also */
 		HT_info_handler(padapter, pIE);
-	} else
+	} else {
 		pmlmeinfo->bwmode_updated = false;
+	}
 
 	if (true == pmlmeinfo->bwmode_updated) {
 		struct sta_info *psta;
@@ -1521,8 +1523,9 @@ unsigned int is_ap_in_tkip(struct adapter *padapter)
 		}
 
 		return false;
-	} else
+	} else {
 		return false;
+	}
 }
 
 int support_short_GI(struct adapter *padapter, struct HT_caps_element *pHT_caps, u8 bwmode)
@@ -1626,8 +1629,9 @@ unsigned char check_assoc_AP(u8 *pframe, uint len)
 			} else if (!memcmp(pIE->data, AIRGOCAP_OUI, 3)) {
 				DBG_871X("link to Airgo Cap\n");
 				return HT_IOT_PEER_AIRGO;
-			} else
+			} else {
 				break;
+			}
 
 		default:
 			break;
@@ -1697,23 +1701,24 @@ void update_capinfo(struct adapter *Adapter, u16 updateCap)
 		}
 	}
 
-	if (updateCap & cIBSS)
+	if (updateCap & cIBSS) {
 		/* Filen: See 802.11-2007 p.91 */
 		pmlmeinfo->slotTime = NON_SHORT_SLOT_TIME;
-	else {
+	} else {
 		/* Filen: See 802.11-2007 p.90 */
-		if (pmlmeext->cur_wireless_mode & (WIRELESS_11_24N | WIRELESS_11A | WIRELESS_11_5N | WIRELESS_11AC))
+		if (pmlmeext->cur_wireless_mode & (WIRELESS_11_24N | WIRELESS_11A | WIRELESS_11_5N | WIRELESS_11AC)) {
 			pmlmeinfo->slotTime = SHORT_SLOT_TIME;
-		else if (pmlmeext->cur_wireless_mode & (WIRELESS_11G)) {
+		} else if (pmlmeext->cur_wireless_mode & (WIRELESS_11G)) {
 			if ((updateCap & cShortSlotTime) /* && (!(pMgntInfo->pHTInfo->RT2RT_HT_Mode & RT_HT_CAP_USE_LONG_PREAMBLE)) */)
 				/*  Short Slot Time */
 				pmlmeinfo->slotTime = SHORT_SLOT_TIME;
 			else
 				/*  Long Slot Time */
 				pmlmeinfo->slotTime = NON_SHORT_SLOT_TIME;
-		} else
+		} else {
 			/* B Mode */
 			pmlmeinfo->slotTime = NON_SHORT_SLOT_TIME;
+		}
 	}
 
 	rtw_hal_set_hwreg(Adapter, HW_VAR_SLOT_TIME, &pmlmeinfo->slotTime);
