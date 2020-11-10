@@ -1340,8 +1340,8 @@ void rtw_ps_deny(struct adapter *padapter, enum PS_DENY_REASON reason)
 {
 	struct pwrctrl_priv *pwrpriv;
 
-/* 	DBG_871X("+" FUNC_ADPT_FMT ": Request PS deny for %d (0x%08X)\n", */
-/* 		FUNC_ADPT_ARG(padapter), reason, BIT(reason)); */
+	/* DBG_871X("+" FUNC_ADPT_FMT ": Request PS deny for %d (0x%08X)\n", */
+	/* FUNC_ADPT_ARG(padapter), reason, BIT(reason)); */
 
 	pwrpriv = adapter_to_pwrctl(padapter);
 
@@ -1353,8 +1353,8 @@ void rtw_ps_deny(struct adapter *padapter, enum PS_DENY_REASON reason)
 	pwrpriv->ps_deny |= BIT(reason);
 	mutex_unlock(&pwrpriv->lock);
 
-/* 	DBG_871X("-" FUNC_ADPT_FMT ": Now PS deny for 0x%08X\n", */
-/* 		FUNC_ADPT_ARG(padapter), pwrpriv->ps_deny); */
+	/* DBG_871X("-" FUNC_ADPT_FMT ": Now PS deny for 0x%08X\n", */
+	/* FUNC_ADPT_ARG(padapter), pwrpriv->ps_deny); */
 }
 
 /*
@@ -1366,8 +1366,8 @@ void rtw_ps_deny_cancel(struct adapter *padapter, enum PS_DENY_REASON reason)
 	struct pwrctrl_priv *pwrpriv;
 
 
-/* 	DBG_871X("+" FUNC_ADPT_FMT ": Cancel PS deny for %d(0x%08X)\n", */
-/* 		FUNC_ADPT_ARG(padapter), reason, BIT(reason)); */
+	/* DBG_871X("+" FUNC_ADPT_FMT ": Cancel PS deny for %d(0x%08X)\n", */
+	/* FUNC_ADPT_ARG(padapter), reason, BIT(reason)); */
 
 	pwrpriv = adapter_to_pwrctl(padapter);
 
@@ -1379,8 +1379,8 @@ void rtw_ps_deny_cancel(struct adapter *padapter, enum PS_DENY_REASON reason)
 	pwrpriv->ps_deny &= ~BIT(reason);
 	mutex_unlock(&pwrpriv->lock);
 
-/* 	DBG_871X("-" FUNC_ADPT_FMT ": Now PS deny for 0x%08X\n", */
-/* 		FUNC_ADPT_ARG(padapter), pwrpriv->ps_deny); */
+	/* DBG_871X("-" FUNC_ADPT_FMT ": Now PS deny for 0x%08X\n", */
+	/* FUNC_ADPT_ARG(padapter), pwrpriv->ps_deny); */
 }
 
 /*
