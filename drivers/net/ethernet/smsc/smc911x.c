@@ -879,7 +879,7 @@ static void smc911x_phy_configure(struct work_struct *work)
 	int phyaddr = lp->mii.phy_id;
 	int my_phy_caps; /* My PHY capabilities */
 	int my_ad_caps; /* My Advertised capabilities */
-	int status;
+	int status __always_unused;
 	unsigned long flags;
 
 	DBG(SMC_DEBUG_FUNC, dev, "--> %s()\n", __func__);
@@ -973,7 +973,7 @@ static void smc911x_phy_interrupt(struct net_device *dev)
 {
 	struct smc911x_local *lp = netdev_priv(dev);
 	int phyaddr = lp->mii.phy_id;
-	int status;
+	int status __always_unused;
 
 	DBG(SMC_DEBUG_FUNC, dev, "--> %s\n", __func__);
 
