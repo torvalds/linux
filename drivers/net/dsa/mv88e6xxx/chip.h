@@ -673,6 +673,11 @@ static inline unsigned int mv88e6xxx_num_ports(struct mv88e6xxx_chip *chip)
 	return chip->info->num_ports;
 }
 
+static inline unsigned int mv88e6xxx_max_vid(struct mv88e6xxx_chip *chip)
+{
+	return chip->info->max_vid;
+}
+
 static inline u16 mv88e6xxx_port_mask(struct mv88e6xxx_chip *chip)
 {
 	return GENMASK((s32)mv88e6xxx_num_ports(chip) - 1, 0);

@@ -450,14 +450,14 @@ static int mv88e6xxx_region_vtu_snapshot(struct devlink *dl,
 	struct mv88e6xxx_vtu_entry vlan;
 	int err;
 
-	table = kcalloc(chip->info->max_vid + 1,
+	table = kcalloc(mv88e6xxx_max_vid(chip) + 1,
 			sizeof(struct mv88e6xxx_devlink_vtu_entry),
 			GFP_KERNEL);
 	if (!table)
 		return -ENOMEM;
 
 	entry = table;
-	vlan.vid = chip->info->max_vid;
+	vlan.vid = mv88e6xxx_max_vid(chip);
 	vlan.valid = false;
 
 	mv88e6xxx_reg_lock(chip);
@@ -488,7 +488,7 @@ static int mv88e6xxx_region_vtu_snapshot(struct devlink *dl,
 			break;
 
 		entry++;
-	} while (vlan.vid < chip->info->max_vid);
+	} while (vlan.vid < mv88e6xxx_max_vid(chip));
 
 	mv88e6xxx_reg_unlock(chip);
 
@@ -676,7 +676,7 @@ static int mv88e6xxx_setup_devlink_regions_global(struct dsa_switch *ds,
 				sizeof(struct mv88e6xxx_devlink_atu_entry);
 			break;
 		case MV88E6XXX_REGION_VTU:
-			size = chip->info->max_vid *
+			size = mv88e6xxx_max_vid(chip) *
 				sizeof(struct mv88e6xxx_devlink_vtu_entry);
 			break;
 		}
