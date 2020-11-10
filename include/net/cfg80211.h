@@ -1008,14 +1008,21 @@ struct survey_info {
  * @sae_pwd: password for SAE authentication (for devices supporting SAE
  *	offload)
  * @sae_pwd_len: length of SAE password (for devices supporting SAE offload)
- * @sae_pwe: The mechanisms allowed for SAE PWE derivation
- *	NL80211_SAE_PWE_UNSPECIFIED: Not-specified, used to indicate userspace
- *		did not specify any preference. The driver should follow its
- *		internal policy in such a scenario.
- *	NL80211_SAE_PWE_HUNT_AND_PECK: Allow hunting-and-pecking loop only
- *	NL80211_SAE_PWE_HASH_TO_ELEMENT: Allow hash-to-element only
- *	NL80211_SAE_PWE_BOTH: Allow either hunting-and-pecking loop
- *		or hash-to-element
+ * @sae_pwe: The mechanisms allowed for SAE PWE derivation:
+ *
+ *	NL80211_SAE_PWE_UNSPECIFIED
+ *	  Not-specified, used to indicate userspace did not specify any
+ *	  preference. The driver should follow its internal policy in
+ *	  such a scenario.
+ *
+ *	NL80211_SAE_PWE_HUNT_AND_PECK
+ *	  Allow hunting-and-pecking loop only
+ *
+ *	NL80211_SAE_PWE_HASH_TO_ELEMENT
+ *	  Allow hash-to-element only
+ *
+ *	NL80211_SAE_PWE_BOTH
+ *	  Allow either hunting-and-pecking loop or hash-to-element
  */
 struct cfg80211_crypto_settings {
 	u32 wpa_versions;
