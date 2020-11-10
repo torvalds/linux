@@ -326,11 +326,8 @@ static int stm32_usbphyc_probe(struct platform_device *pdev)
 		return PTR_ERR(usbphyc->base);
 
 	usbphyc->clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(usbphyc->clk)) {
-		ret = PTR_ERR(usbphyc->clk);
-		dev_err(dev, "clk get failed: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(usbphyc->clk))
+		return dev_err_probe(dev, PTR_ERR(usbphyc->clk), "clk get_failed\n");
 
 	ret = clk_prepare_enable(usbphyc->clk);
 	if (ret) {
