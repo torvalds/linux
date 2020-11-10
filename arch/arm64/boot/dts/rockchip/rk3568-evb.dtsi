@@ -35,13 +35,13 @@
 		menu-key {
 			label = "menu";
 			linux,code = <KEY_MENU>;
-			press-threshold-microvolt = <1305500>;
+			press-threshold-microvolt = <980000>;
 		};
 
 		back-key {
 			label = "back";
 			linux,code = <KEY_BACK>;
-			press-threshold-microvolt = <980000>;
+			press-threshold-microvolt = <1305500>;
 		};
 	};
 
