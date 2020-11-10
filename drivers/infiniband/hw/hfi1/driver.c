@@ -1686,7 +1686,6 @@ static void hfi1_ipoib_ib_rcv(struct hfi1_packet *packet)
 	u32 extra_bytes;
 	u32 tlen, qpnum;
 	bool do_work, do_cnp;
-	struct hfi1_ipoib_dev_priv *priv;
 
 	trace_hfi1_rcvhdr(packet);
 
@@ -1734,8 +1733,7 @@ static void hfi1_ipoib_ib_rcv(struct hfi1_packet *packet)
 	if (unlikely(!skb))
 		goto drop;
 
-	priv = hfi1_ipoib_priv(netdev);
-	hfi1_ipoib_update_rx_netstats(priv, 1, skb->len);
+	dev_sw_netstats_rx_add(netdev, skb->len);
 
 	skb->dev = netdev;
 	skb->pkt_type = PACKET_HOST;
