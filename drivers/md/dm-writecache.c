@@ -2479,6 +2479,8 @@ static void writecache_status(struct dm_target *ti, status_type_t type,
 			extra_args += 2;
 		if (wc->autocommit_time_set)
 			extra_args += 2;
+		if (wc->max_age != MAX_AGE_UNSPECIFIED)
+			extra_args += 2;
 		if (wc->cleaner)
 			extra_args++;
 		if (wc->writeback_fua_set)
