@@ -639,28 +639,40 @@
 			/* These power domains are grouped by VD_NPU */
 			pd_npu@RK3568_PD_NPU {
 				reg = <RK3568_PD_NPU>;
+				clocks = <&cru ACLK_NPU_PRE>,
+					 <&cru HCLK_NPU_PRE>,
+					 <&cru PCLK_NPU_PRE>;
 				pm_qos = <&qos_npu>;
 			};
 			/* These power domains are grouped by VD_GPU */
 			pd_gpu@RK3568_PD_GPU {
 				reg = <RK3568_PD_GPU>;
+				clocks = <&cru ACLK_GPU_PRE>,
+					 <&cru PCLK_GPU_PRE>;
 				pm_qos = <&qos_gpu>;
 			};
 			/* These power domains are grouped by VD_LOGIC */
 			pd_vi@RK3568_PD_VI {
 				reg = <RK3568_PD_VI>;
+				clocks = <&cru HCLK_VI>,
+					 <&cru PCLK_VI>;
 				pm_qos = <&qos_isp>,
 					 <&qos_vicap0>,
 					 <&qos_vicap1>;
 			};
 			pd_vo@RK3568_PD_VO {
 				reg = <RK3568_PD_VO>;
+				clocks = <&cru HCLK_VO>,
+					 <&cru PCLK_VO>,
+					 <&cru ACLK_VOP_PRE>;
 				pm_qos = <&qos_hdcp>,
 					 <&qos_vop_m0>,
 					 <&qos_vop_m1>;
 			};
 			pd_rga@RK3568_PD_RGA {
 				reg = <RK3568_PD_RGA>;
+				clocks = <&cru HCLK_RGA_PRE>,
+					 <&cru PCLK_RGA_PRE>;
 				pm_qos = <&qos_ebc>,
 					 <&qos_iep>,
 					 <&qos_jpeg_dec>,
@@ -670,20 +682,24 @@
 			};
 			pd_vpu@RK3568_PD_VPU {
 				reg = <RK3568_PD_VPU>;
+				clocks = <&cru HCLK_VPU_PRE>;
 				pm_qos = <&qos_vpu>;
 			};
 			pd_rkvdec@RK3568_PD_RKVDEC {
+				clocks = <&cru HCLK_RKVDEC_PRE>;
 				reg = <RK3568_PD_RKVDEC>;
 				pm_qos = <&qos_rkvdec>;
 			};
 			pd_rkvenc@RK3568_PD_RKVENC {
 				reg = <RK3568_PD_RKVENC>;
+				clocks = <&cru HCLK_RKVENC_PRE>;
 				pm_qos = <&qos_rkvenc_rd_m0>,
 					 <&qos_rkvenc_rd_m1>,
 					 <&qos_rkvenc_wr_m0>;
 			};
 			pd_pipe@RK3568_PD_PIPE {
 				reg = <RK3568_PD_PIPE>;
+				clocks = <&cru PCLK_PIPE>;
 				pm_qos = <&qos_pcie2x1>,
 					 <&qos_pcie3x1>,
 					 <&qos_pcie3x2>,
