@@ -1015,7 +1015,7 @@ static int evergreen_cs_track_check(struct radeon_cs_parser *p)
 
 /**
  * evergreen_cs_packet_parse_vline() - parse userspace VLINE packet
- * @parser:		parser structure holding parsing context.
+ * @p:		parser structure holding parsing context.
  *
  * This is an Evergreen(+)-specific function for parsing VLINE packets.
  * Real work is done by r600_cs_common_vline_parse function.
@@ -1087,7 +1087,7 @@ static int evergreen_cs_parse_packet0(struct radeon_cs_parser *p,
 
 /**
  * evergreen_cs_handle_reg() - process registers that need special handling.
- * @parser: parser structure holding parsing context
+ * @p: parser structure holding parsing context
  * @reg: register we are testing
  * @idx: index into the cs buffer
  */
@@ -1747,7 +1747,7 @@ static int evergreen_cs_handle_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 
 /**
  * evergreen_is_safe_reg() - check if register is authorized or not
- * @parser: parser structure holding parsing context
+ * @p: parser structure holding parsing context
  * @reg: register we are testing
  *
  * This function will test against reg_safe_bm and return true
