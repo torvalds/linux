@@ -21,7 +21,6 @@
 #include <linux/completion.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/platform_data/mtd-mxc_nand.h>
 
 #define DRIVER_NAME "mxc_nand"
 
@@ -184,7 +183,6 @@ struct mxc_nand_host {
 	unsigned int		buf_start;
 
 	const struct mxc_nand_devtype_data *devtype_data;
-	struct mxc_nand_platform_data pdata;
 };
 
 static const char * const part_probes[] = {
@@ -1611,29 +1609,6 @@ static inline int is_imx53_nfc(struct mxc_nand_host *host)
 	return host->devtype_data == &imx53_nand_devtype_data;
 }
 
-static const struct platform_device_id mxcnd_devtype[] = {
-	{
-		.name = "imx21-nand",
-		.driver_data = (kernel_ulong_t) &imx21_nand_devtype_data,
-	}, {
-		.name = "imx27-nand",
-		.driver_data = (kernel_ulong_t) &imx27_nand_devtype_data,
-	}, {
-		.name = "imx25-nand",
-		.driver_data = (kernel_ulong_t) &imx25_nand_devtype_data,
-	}, {
-		.name = "imx51-nand",
-		.driver_data = (kernel_ulong_t) &imx51_nand_devtype_data,
-	}, {
-		.name = "imx53-nand",
-		.driver_data = (kernel_ulong_t) &imx53_nand_devtype_data,
-	}, {
-		/* sentinel */
-	}
-};
-MODULE_DEVICE_TABLE(platform, mxcnd_devtype);
-
-#ifdef CONFIG_OF
 static const struct of_device_id mxcnd_dt_ids[] = {
 	{
 		.compatible = "fsl,imx21-nand",
@@ -1654,26 +1629,6 @@ static const struct of_device_id mxcnd_dt_ids[] = {
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, mxcnd_dt_ids);
-
-static int mxcnd_probe_dt(struct mxc_nand_host *host)
-{
-	struct device_node *np = host->dev->of_node;
-	const struct of_device_id *of_id =
-		of_match_device(mxcnd_dt_ids, host->dev);
-
-	if (!np)
-		return 1;
-
-	host->devtype_data = of_id->data;
-
-	return 0;
-}
-#else
-static int mxcnd_probe_dt(struct mxc_nand_host *host)
-{
-	return 1;
-}
-#endif
 
 static int mxcnd_attach_chip(struct nand_chip *chip)
 {
@@ -1759,6 +1714,7 @@ static const struct nand_controller_ops mxcnd_controller_ops = {
 
 static int mxcnd_probe(struct platform_device *pdev)
 {
+	const struct of_device_id *of_id;
 	struct nand_chip *this;
 	struct mtd_info *mtd;
 	struct mxc_nand_host *host;
@@ -1800,20 +1756,8 @@ static int mxcnd_probe(struct platform_device *pdev)
 	if (IS_ERR(host->clk))
 		return PTR_ERR(host->clk);
 
-	err = mxcnd_probe_dt(host);
-	if (err > 0) {
-		struct mxc_nand_platform_data *pdata =
-					dev_get_platdata(&pdev->dev);
-		if (pdata) {
-			host->pdata = *pdata;
-			host->devtype_data = (struct mxc_nand_devtype_data *)
-						pdev->id_entry->driver_data;
-		} else {
-			err = -ENODEV;
-		}
-	}
-	if (err < 0)
-		return err;
+	of_id = of_match_device(mxcnd_dt_ids, host->dev);
+	host->devtype_data = of_id->data;
 
 	if (!host->devtype_data->setup_interface)
 		this->options |= NAND_KEEP_TIMINGS;
@@ -1842,14 +1786,6 @@ static int mxcnd_probe(struct platform_device *pdev)
 		host->regs_axi = host->base + host->devtype_data->axi_offset;
 
 	this->legacy.select_chip = host->devtype_data->select_chip;
-
-	/* NAND bus width determines access functions used by upper layer */
-	if (host->pdata.width == 2)
-		this->options |= NAND_BUSWIDTH_16;
-
-	/* update flash based bbt */
-	if (host->pdata.flash_bbt)
-		this->bbt_options |= NAND_BBT_USE_FLASH;
 
 	init_completion(&host->op_completion);
 
@@ -1891,9 +1827,7 @@ static int mxcnd_probe(struct platform_device *pdev)
 		goto escan;
 
 	/* Register the partitions */
-	err = mtd_device_parse_register(mtd, part_probes, NULL,
-					host->pdata.parts,
-					host->pdata.nr_parts);
+	err = mtd_device_parse_register(mtd, part_probes, NULL, NULL, 0);
 	if (err)
 		goto cleanup_nand;
 
@@ -1930,7 +1864,6 @@ static struct platform_driver mxcnd_driver = {
 		   .name = DRIVER_NAME,
 		   .of_match_table = of_match_ptr(mxcnd_dt_ids),
 	},
-	.id_table = mxcnd_devtype,
 	.probe = mxcnd_probe,
 	.remove = mxcnd_remove,
 };
