@@ -1276,6 +1276,8 @@ int amdgpu_enable_vblank_kms(struct drm_crtc *crtc);
 void amdgpu_disable_vblank_kms(struct drm_crtc *crtc);
 long amdgpu_kms_compat_ioctl(struct file *filp, unsigned int cmd,
 			     unsigned long arg);
+int amdgpu_info_ioctl(struct drm_device *dev, void *data,
+		      struct drm_file *filp);
 
 /*
  * functions used by amdgpu_encoder.c
