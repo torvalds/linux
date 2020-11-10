@@ -742,9 +742,14 @@ show_btf_plain(struct bpf_btf_info *info, int fd,
 	       struct btf_attach_table *btf_map_table)
 {
 	struct btf_attach_point *obj;
+	const char *name = u64_to_ptr(info->name);
 	int n;
 
 	printf("%u: ", info->id);
+	if (info->kernel_btf)
+		printf("name [%s]  ", name);
+	else if (name && name[0])
+		printf("name %s  ", name);
 	printf("size %uB", info->btf_size);
 
 	n = 0;
@@ -771,6 +776,7 @@ show_btf_json(struct bpf_btf_info *info, int fd,
 	      struct btf_attach_table *btf_map_table)
 {
 	struct btf_attach_point *obj;
+	const char *name = u64_to_ptr(info->name);
 
 	jsonw_start_object(json_wtr);	/* btf object */
 	jsonw_uint_field(json_wtr, "id", info->id);
@@ -796,6 +802,11 @@ show_btf_json(struct bpf_btf_info *info, int fd,
 
 	emit_obj_refs_json(&refs_table, info->id, json_wtr); /* pids */
 
+	jsonw_bool_field(json_wtr, "kernel", info->kernel_btf);
+
+	if (name && name[0])
+		jsonw_string_field(json_wtr, "name", name);
+
 	jsonw_end_object(json_wtr);	/* btf object */
 }
 
@@ -803,14 +814,29 @@ static int
 show_btf(int fd, struct btf_attach_table *btf_prog_table,
 	 struct btf_attach_table *btf_map_table)
 {
-	struct bpf_btf_info info = {};
+	struct bpf_btf_info info;
 	__u32 len = sizeof(info);
+	char name[64];
 	int err;
 
+	memset(&info, 0, sizeof(info));
 	err = bpf_obj_get_info_by_fd(fd, &info, &len);
 	if (err) {
 		p_err("can't get BTF object info: %s", strerror(errno));
 		return -1;
+	}
+	/* if kernel support emitting BTF object name, pass name pointer */
+	if (info.name_len) {
+		memset(&info, 0, sizeof(info));
+		info.name_len = sizeof(name);
+		info.name = ptr_to_u64(name);
+		len = sizeof(info);
+
+		err = bpf_obj_get_info_by_fd(fd, &info, &len);
+		if (err) {
+			p_err("can't get BTF object info: %s", strerror(errno));
+			return -1;
+		}
 	}
 
 	if (json_output)
