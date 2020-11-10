@@ -4308,16 +4308,15 @@ mlxsw_sp_fib_entry_hw_flags_refresh(struct mlxsw_sp *mlxsw_sp,
 }
 
 static void
-mlxsw_sp_fib_entry_ralue_pack(char *ralue_pl,
-			      const struct mlxsw_sp_fib_entry *fib_entry,
-			      enum mlxsw_sp_fib_entry_op op)
+mlxsw_sp_fib_entry_ralue_pack(char *ralue_pl, enum mlxsw_sp_l3proto proto,
+			      enum mlxsw_sp_fib_entry_op op, u16 virtual_router,
+			      u8 prefix_len, unsigned char *addr)
 {
-	struct mlxsw_sp_fib *fib = fib_entry->fib_node->fib;
-	enum mlxsw_reg_ralxx_protocol proto;
+	enum mlxsw_reg_ralxx_protocol ralxx_proto;
 	enum mlxsw_reg_ralue_op ralue_op;
 	u32 *p_dip;
 
-	proto = (enum mlxsw_reg_ralxx_protocol) fib->proto;
+	ralxx_proto = (enum mlxsw_reg_ralxx_protocol) proto;
 
 	switch (op) {
 	case MLXSW_SP_FIB_ENTRY_OP_WRITE:
@@ -4331,19 +4330,29 @@ mlxsw_sp_fib_entry_ralue_pack(char *ralue_pl,
 		return;
 	}
 
-	switch (fib->proto) {
+	switch (proto) {
 	case MLXSW_SP_L3_PROTO_IPV4:
-		p_dip = (u32 *) fib_entry->fib_node->key.addr;
-		mlxsw_reg_ralue_pack4(ralue_pl, proto, ralue_op, fib->vr->id,
-				      fib_entry->fib_node->key.prefix_len,
-				      *p_dip);
+		p_dip = (u32 *) addr;
+		mlxsw_reg_ralue_pack4(ralue_pl, ralxx_proto, ralue_op,
+				      virtual_router, prefix_len, *p_dip);
 		break;
 	case MLXSW_SP_L3_PROTO_IPV6:
-		mlxsw_reg_ralue_pack6(ralue_pl, proto, ralue_op, fib->vr->id,
-				      fib_entry->fib_node->key.prefix_len,
-				      fib_entry->fib_node->key.addr);
+		mlxsw_reg_ralue_pack6(ralue_pl, ralxx_proto, ralue_op,
+				      virtual_router, prefix_len, addr);
 		break;
 	}
+}
+
+static void mlxsw_sp_fib_entry_pack(struct mlxsw_sp_fib_entry_op_ctx *op_ctx,
+				    struct mlxsw_sp_fib_entry *fib_entry,
+				    enum mlxsw_sp_fib_entry_op op)
+{
+	struct mlxsw_sp_fib *fib = fib_entry->fib_node->fib;
+
+	mlxsw_sp_fib_entry_ralue_pack(op_ctx->ralue_pl, fib->proto, op,
+				      fib->vr->id,
+				      fib_entry->fib_node->key.prefix_len,
+				      fib_entry->fib_node->key.addr);
 }
 
 static int mlxsw_sp_adj_discard_write(struct mlxsw_sp *mlxsw_sp, u16 rif_index)
@@ -4414,7 +4423,7 @@ static int mlxsw_sp_fib_entry_op_remote(struct mlxsw_sp *mlxsw_sp,
 		trap_id = MLXSW_TRAP_ID_RTR_INGRESS0;
 	}
 
-	mlxsw_sp_fib_entry_ralue_pack(ralue_pl, fib_entry, op);
+	mlxsw_sp_fib_entry_pack(op_ctx, fib_entry, op);
 	mlxsw_reg_ralue_act_remote_pack(ralue_pl, trap_action, trap_id,
 					adjacency_index, ecmp_size);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ralue), ralue_pl);
@@ -4439,7 +4448,7 @@ static int mlxsw_sp_fib_entry_op_local(struct mlxsw_sp *mlxsw_sp,
 		trap_id = MLXSW_TRAP_ID_RTR_INGRESS0;
 	}
 
-	mlxsw_sp_fib_entry_ralue_pack(ralue_pl, fib_entry, op);
+	mlxsw_sp_fib_entry_pack(op_ctx, fib_entry, op);
 	mlxsw_reg_ralue_act_local_pack(ralue_pl, trap_action, trap_id,
 				       rif_index);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ralue), ralue_pl);
@@ -4452,7 +4461,7 @@ static int mlxsw_sp_fib_entry_op_trap(struct mlxsw_sp *mlxsw_sp,
 {
 	char *ralue_pl = op_ctx->ralue_pl;
 
-	mlxsw_sp_fib_entry_ralue_pack(ralue_pl, fib_entry, op);
+	mlxsw_sp_fib_entry_pack(op_ctx, fib_entry, op);
 	mlxsw_reg_ralue_act_ip2me_pack(ralue_pl);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ralue), ralue_pl);
 }
@@ -4466,7 +4475,7 @@ static int mlxsw_sp_fib_entry_op_blackhole(struct mlxsw_sp *mlxsw_sp,
 	char *ralue_pl = op_ctx->ralue_pl;
 
 	trap_action = MLXSW_REG_RALUE_TRAP_ACTION_DISCARD_ERROR;
-	mlxsw_sp_fib_entry_ralue_pack(ralue_pl, fib_entry, op);
+	mlxsw_sp_fib_entry_pack(op_ctx, fib_entry, op);
 	mlxsw_reg_ralue_act_local_pack(ralue_pl, trap_action, 0, 0);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ralue), ralue_pl);
 }
@@ -4484,7 +4493,7 @@ mlxsw_sp_fib_entry_op_unreachable(struct mlxsw_sp *mlxsw_sp,
 	trap_action = MLXSW_REG_RALUE_TRAP_ACTION_TRAP;
 	trap_id = MLXSW_TRAP_ID_RTR_INGRESS1;
 
-	mlxsw_sp_fib_entry_ralue_pack(ralue_pl, fib_entry, op);
+	mlxsw_sp_fib_entry_pack(op_ctx, fib_entry, op);
 	mlxsw_reg_ralue_act_local_pack(ralue_pl, trap_action, trap_id, 0);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ralue), ralue_pl);
 }
@@ -4513,7 +4522,7 @@ static int mlxsw_sp_fib_entry_op_nve_decap(struct mlxsw_sp *mlxsw_sp,
 {
 	char *ralue_pl = op_ctx->ralue_pl;
 
-	mlxsw_sp_fib_entry_ralue_pack(ralue_pl, fib_entry, op);
+	mlxsw_sp_fib_entry_pack(op_ctx, fib_entry, op);
 	mlxsw_reg_ralue_act_ip2me_tun_pack(ralue_pl,
 					   fib_entry->decap.tunnel_index);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ralue), ralue_pl);
