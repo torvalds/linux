@@ -2881,6 +2881,8 @@ config:
 	data |= (ret << bit);
 
 	ret = regmap_update_bits(regmap, reg, rmask, data);
+	if (ret)
+		return ret;
 
 	if (ctrl->type == RK3568) {
 		if (bank->bank_num == 1 && pin_num == 21)
@@ -2896,16 +2898,18 @@ config:
 		else if (bank->bank_num == 4 && pin_num == 0)
 			reg = 0x0854;
 		else
-			return ret;
+			return 0;
 
 		data = ((1 << rmask_bits) - 1) << 16;
 		rmask = data | (data >> 16);
-		data |= (ret << bit);
+		data |= (1 << (strength + 1)) - 1;
 
 		ret = regmap_update_bits(regmap, reg, rmask, data);
+		if (ret)
+			return ret;
 	}
 
-	return ret;
+	return 0;
 }
 
 static int rockchip_pull_list[PULL_TYPE_MAX][4] = {
