@@ -65,7 +65,7 @@ static int nau8315_enpin_event(struct snd_soc_dapm_widget *w,
 	struct nau8315_priv *nau8315 =
 		snd_soc_component_get_drvdata(component);
 
-	if (event & SND_SOC_DAPM_POST_PMU)
+	if (event & SND_SOC_DAPM_PRE_PMU)
 		nau8315->enpin_switch = 1;
 	else if (event & SND_SOC_DAPM_POST_PMD)
 		nau8315->enpin_switch = 0;
@@ -77,7 +77,7 @@ static const struct snd_soc_dapm_widget nau8315_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("Speaker"),
 	SND_SOC_DAPM_OUT_DRV_E("EN_Pin", SND_SOC_NOPM, 0, 0, NULL, 0,
 			nau8315_enpin_event,
-			SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
+			SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 };
 
 static const struct snd_soc_dapm_route nau8315_dapm_routes[] = {
