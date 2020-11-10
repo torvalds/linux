@@ -63,9 +63,9 @@
 #define RK3399_PMUGRF_CON0_VSEL		BIT(8)
 #define RK3399_PMUGRF_VSEL_SUPPLY_NUM	9
 
-#define RK3568_PMU_GRF_IO_VSEL0		(0x0124)
-#define RK3568_PMU_GRF_IO_VSEL1		(0x0128)
-#define RK3568_PMU_GRF_IO_VSEL2		(0x012C)
+#define RK3568_PMU_GRF_IO_VSEL0		(0x0140)
+#define RK3568_PMU_GRF_IO_VSEL1		(0x0144)
+#define RK3568_PMU_GRF_IO_VSEL2		(0x0148)
 
 struct rockchip_iodomain;
 
@@ -491,7 +491,7 @@ static const struct rockchip_iodomain_soc_data soc_data_rk3399_pmu = {
 };
 
 static const struct rockchip_iodomain_soc_data soc_data_rk3568_pmu = {
-	.grf_offset = 0x124,
+	.grf_offset = 0x140,
 	.supply_names = {
 		"pmuio0",
 		"pmuio1",
