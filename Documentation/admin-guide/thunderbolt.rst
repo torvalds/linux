@@ -153,6 +153,22 @@ If the user still wants to connect the device they can either approve
 the device without a key or write a new key and write 1 to the
 ``authorized`` file to get the new key stored on the device NVM.
 
+De-authorizing devices
+----------------------
+It is possible to de-authorize devices by writing ``0`` to their
+``authorized`` attribute. This requires support from the connection
+manager implementation and can be checked by reading domain
+``deauthorization`` attribute. If it reads ``1`` then the feature is
+supported.
+
+When a device is de-authorized the PCIe tunnel from the parent device
+PCIe downstream (or root) port to the device PCIe upstream port is torn
+down. This is essentially the same thing as PCIe hot-remove and the PCIe
+toplogy in question will not be accessible anymore until the device is
+authorized again. If there is storage such as NVMe or similar involved,
+there is a risk for data loss if the filesystem on that storage is not
+properly shut down. You have been warned!
+
 DMA protection utilizing IOMMU
 ------------------------------
 Recent systems from 2018 and forward with Thunderbolt ports may natively

@@ -238,6 +238,16 @@ err_free_str:
 }
 static DEVICE_ATTR_RW(boot_acl);
 
+static ssize_t deauthorization_show(struct device *dev,
+				    struct device_attribute *attr,
+				    char *buf)
+{
+	const struct tb *tb = container_of(dev, struct tb, dev);
+
+	return sprintf(buf, "%d\n", !!tb->cm_ops->disapprove_switch);
+}
+static DEVICE_ATTR_RO(deauthorization);
+
 static ssize_t iommu_dma_protection_show(struct device *dev,
 					 struct device_attribute *attr,
 					 char *buf)
@@ -267,6 +277,7 @@ static DEVICE_ATTR_RO(security);
 
 static struct attribute *domain_attrs[] = {
 	&dev_attr_boot_acl.attr,
+	&dev_attr_deauthorization.attr,
 	&dev_attr_iommu_dma_protection.attr,
 	&dev_attr_security.attr,
 	NULL,
@@ -602,13 +613,30 @@ int tb_domain_runtime_resume(struct tb *tb)
 }
 
 /**
+ * tb_domain_disapprove_switch() - Disapprove switch
+ * @tb: Domain the switch belongs to
+ * @sw: Switch to disapprove
+ *
+ * This will disconnect PCIe tunnel from parent to this @sw.
+ *
+ * Return: %0 on success and negative errno in case of failure.
+ */
+int tb_domain_disapprove_switch(struct tb *tb, struct tb_switch *sw)
+{
+	if (!tb->cm_ops->disapprove_switch)
+		return -EPERM;
+
+	return tb->cm_ops->disapprove_switch(tb, sw);
+}
+
+/**
  * tb_domain_approve_switch() - Approve switch
  * @tb: Domain the switch belongs to
  * @sw: Switch to approve
  *
  * This will approve switch by connection manager specific means. In
- * case of success the connection manager will create tunnels for all
- * supported protocols.
+ * case of success the connection manager will create PCIe tunnel from
+ * parent to @sw.
  */
 int tb_domain_approve_switch(struct tb *tb, struct tb_switch *sw)
 {

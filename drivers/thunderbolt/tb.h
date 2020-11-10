@@ -361,6 +361,7 @@ struct tb_path {
  * @handle_event: Handle thunderbolt event
  * @get_boot_acl: Get boot ACL list
  * @set_boot_acl: Set boot ACL list
+ * @disapprove_switch: Disapprove switch (disconnect PCIe tunnel)
  * @approve_switch: Approve switch
  * @add_switch_key: Add key to switch
  * @challenge_switch_key: Challenge switch using key
@@ -394,6 +395,7 @@ struct tb_cm_ops {
 			     const void *buf, size_t size);
 	int (*get_boot_acl)(struct tb *tb, uuid_t *uuids, size_t nuuids);
 	int (*set_boot_acl)(struct tb *tb, const uuid_t *uuids, size_t nuuids);
+	int (*disapprove_switch)(struct tb *tb, struct tb_switch *sw);
 	int (*approve_switch)(struct tb *tb, struct tb_switch *sw);
 	int (*add_switch_key)(struct tb *tb, struct tb_switch *sw);
 	int (*challenge_switch_key)(struct tb *tb, struct tb_switch *sw,
@@ -629,6 +631,7 @@ int tb_domain_thaw_noirq(struct tb *tb);
 void tb_domain_complete(struct tb *tb);
 int tb_domain_runtime_suspend(struct tb *tb);
 int tb_domain_runtime_resume(struct tb *tb);
+int tb_domain_disapprove_switch(struct tb *tb, struct tb_switch *sw);
 int tb_domain_approve_switch(struct tb *tb, struct tb_switch *sw);
 int tb_domain_approve_switch_key(struct tb *tb, struct tb_switch *sw);
 int tb_domain_challenge_switch_key(struct tb *tb, struct tb_switch *sw);
