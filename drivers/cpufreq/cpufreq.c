@@ -2280,6 +2280,8 @@ static int cpufreq_init_governor(struct cpufreq_policy *policy)
 		}
 	}
 
+	policy->strict_target = !!(policy->governor->flags & CPUFREQ_GOV_STRICT_TARGET);
+
 	return 0;
 }
 

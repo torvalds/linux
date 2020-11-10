@@ -110,6 +110,12 @@ struct cpufreq_policy {
 	bool			fast_switch_enabled;
 
 	/*
+	 * Set if the CPUFREQ_GOV_STRICT_TARGET flag is set for the current
+	 * governor.
+	 */
+	bool			strict_target;
+
+	/*
 	 * Preferred average time interval between consecutive invocations of
 	 * the driver to set the frequency for this policy.  To be set by the
 	 * scaling driver (0, which is the default, means no preference).
