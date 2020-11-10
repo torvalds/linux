@@ -127,14 +127,6 @@ enum gsi_err_type {
 	GSI_ERR_TYPE_EVT	= 0x3,
 };
 
-/* Hardware values used when programming a channel or event ring type */
-enum gsi_channel_type {
-	GSI_CHANNEL_TYPE_MHI			= 0x0,
-	GSI_CHANNEL_TYPE_XHCI			= 0x1,
-	GSI_CHANNEL_TYPE_GPI			= 0x2,
-	GSI_CHANNEL_TYPE_XDCI			= 0x3,
-};
-
 /* Hardware values representing an event ring immediate command opcode */
 enum gsi_evt_cmd_opcode {
 	GSI_EVT_ALLOCATE	= 0x0,

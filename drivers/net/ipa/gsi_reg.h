@@ -71,6 +71,13 @@
 #define ERINDEX_FMASK			GENMASK(18, 14)
 #define CHSTATE_FMASK			GENMASK(23, 20)
 #define ELEMENT_SIZE_FMASK		GENMASK(31, 24)
+/** enum gsi_channel_type - CHTYPE_PROTOCOL field values in CH_C_CNTXT_0 */
+enum gsi_channel_type {
+	GSI_CHANNEL_TYPE_MHI			= 0x0,
+	GSI_CHANNEL_TYPE_XHCI			= 0x1,
+	GSI_CHANNEL_TYPE_GPI			= 0x2,
+	GSI_CHANNEL_TYPE_XDCI			= 0x3,
+};
 
 #define GSI_CH_C_CNTXT_1_OFFSET(ch) \
 		GSI_EE_N_CH_C_CNTXT_1_OFFSET((ch), GSI_EE_AP)
@@ -128,6 +135,7 @@
 #define EV_INTYPE_FMASK			GENMASK(16, 16)
 #define EV_CHSTATE_FMASK		GENMASK(23, 20)
 #define EV_ELEMENT_SIZE_FMASK		GENMASK(31, 24)
+/* enum gsi_channel_type defines EV_CHTYPE field values in EV_CH_E_CNTXT_0 */
 
 #define GSI_EV_CH_E_CNTXT_1_OFFSET(ev) \
 		GSI_EE_N_EV_CH_E_CNTXT_1_OFFSET((ev), GSI_EE_AP)
