@@ -3308,6 +3308,10 @@ static long btrfs_fallocate(struct file *file, int mode,
 	int blocksize = btrfs_inode_sectorsize(BTRFS_I(inode));
 	int ret;
 
+	/* Do not allow fallocate in ZONED mode */
+	if (btrfs_is_zoned(btrfs_sb(inode->i_sb)))
+		return -EOPNOTSUPP;
+
 	alloc_start = round_down(offset, blocksize);
 	alloc_end = round_up(offset + len, blocksize);
 	cur_offset = alloc_start;
