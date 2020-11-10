@@ -543,15 +543,15 @@
 				/* gmac0_rxdvcrs */
 				<2 RK_PC0 2 &pcfg_pull_none>,
 				/* gmac0_txclk */
-				<2 RK_PB0 2 &pcfg_pull_none>,
+				<2 RK_PB0 2 &pcfg_pull_none_drv_level_15>,
 				/* gmac0_txd0 */
-				<2 RK_PB3 1 &pcfg_pull_none>,
+				<2 RK_PB3 1 &pcfg_pull_none_drv_level_15>,
 				/* gmac0_txd1 */
-				<2 RK_PB4 1 &pcfg_pull_none>,
+				<2 RK_PB4 1 &pcfg_pull_none_drv_level_15>,
 				/* gmac0_txd2 */
-				<2 RK_PA6 2 &pcfg_pull_none>,
+				<2 RK_PA6 2 &pcfg_pull_none_drv_level_15>,
 				/* gmac0_txd3 */
-				<2 RK_PA7 2 &pcfg_pull_none>,
+				<2 RK_PA7 2 &pcfg_pull_none_drv_level_15>,
 				/* gmac0_txen */
 				<2 RK_PB5 1 &pcfg_pull_none>;
 		};
@@ -601,15 +601,15 @@
 				/* gmac1_rxdvcrsm0 */
 				<3 RK_PB3 3 &pcfg_pull_none>,
 				/* gmac1_txclkm0 */
-				<3 RK_PA6 3 &pcfg_pull_none>,
+				<3 RK_PA6 3 &pcfg_pull_none_drv_level_15>,
 				/* gmac1_txd0m0 */
-				<3 RK_PB5 3 &pcfg_pull_none>,
+				<3 RK_PB5 3 &pcfg_pull_none_drv_level_15>,
 				/* gmac1_txd1m0 */
-				<3 RK_PB6 3 &pcfg_pull_none>,
+				<3 RK_PB6 3 &pcfg_pull_none_drv_level_15>,
 				/* gmac1_txd2m0 */
-				<3 RK_PA2 3 &pcfg_pull_none>,
+				<3 RK_PA2 3 &pcfg_pull_none_drv_level_15>,
 				/* gmac1_txd3m0 */
-				<3 RK_PA3 3 &pcfg_pull_none>,
+				<3 RK_PA3 3 &pcfg_pull_none_drv_level_15>,
 				/* gmac1_txenm0 */
 				<3 RK_PB7 3 &pcfg_pull_none>;
 		};
@@ -657,15 +657,15 @@
 				/* gmac1_rxdvcrsm1 */
 				<4 RK_PB1 3 &pcfg_pull_none>,
 				/* gmac1_txclkm1 */
-				<4 RK_PA0 3 &pcfg_pull_none>,
+				<4 RK_PA0 3 &pcfg_pull_none_drv_level_15>,
 				/* gmac1_txd0m1 */
-				<4 RK_PA4 3 &pcfg_pull_none>,
+				<4 RK_PA4 3 &pcfg_pull_none_drv_level_15>,
 				/* gmac1_txd1m1 */
-				<4 RK_PA5 3 &pcfg_pull_none>,
+				<4 RK_PA5 3 &pcfg_pull_none_drv_level_15>,
 				/* gmac1_txd2m1 */
-				<3 RK_PD6 3 &pcfg_pull_none>,
+				<3 RK_PD6 3 &pcfg_pull_none_drv_level_15>,
 				/* gmac1_txd3m1 */
-				<3 RK_PD7 3 &pcfg_pull_none>,
+				<3 RK_PD7 3 &pcfg_pull_none_drv_level_15>,
 				/* gmac1_txenm1 */
 				<4 RK_PA6 3 &pcfg_pull_none>;
 		};
