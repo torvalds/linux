@@ -71,6 +71,20 @@ struct mlxsw_sp_router_ll_ops {
 	int (*ralta_write)(struct mlxsw_sp *mlxsw_sp, char *xralta_pl);
 	int (*ralst_write)(struct mlxsw_sp *mlxsw_sp, char *xralst_pl);
 	int (*raltb_write)(struct mlxsw_sp *mlxsw_sp, char *xraltb_pl);
+	void (*fib_entry_pack)(struct mlxsw_sp_fib_entry_op_ctx *op_ctx,
+			       enum mlxsw_sp_l3proto proto, enum mlxsw_sp_fib_entry_op op,
+			       u16 virtual_router, u8 prefix_len, unsigned char *addr);
+	void (*fib_entry_act_remote_pack)(struct mlxsw_sp_fib_entry_op_ctx *op_ctx,
+					  enum mlxsw_reg_ralue_trap_action trap_action,
+					  u16 trap_id, u32 adjacency_index, u16 ecmp_size);
+	void (*fib_entry_act_local_pack)(struct mlxsw_sp_fib_entry_op_ctx *op_ctx,
+					 enum mlxsw_reg_ralue_trap_action trap_action,
+					 u16 trap_id, u16 local_erif);
+	void (*fib_entry_act_ip2me_pack)(struct mlxsw_sp_fib_entry_op_ctx *op_ctx);
+	void (*fib_entry_act_ip2me_tun_pack)(struct mlxsw_sp_fib_entry_op_ctx *op_ctx,
+					     u32 tunnel_ptr);
+	int (*fib_entry_commit)(struct mlxsw_sp *mlxsw_sp,
+				struct mlxsw_sp_fib_entry_op_ctx *op_ctx);
 };
 
 struct mlxsw_sp_rif_ipip_lb;
@@ -172,10 +186,5 @@ static inline bool mlxsw_sp_l3addr_eq(const union mlxsw_sp_l3addr *addr1,
 
 int mlxsw_sp_ipip_ecn_encap_init(struct mlxsw_sp *mlxsw_sp);
 int mlxsw_sp_ipip_ecn_decap_init(struct mlxsw_sp *mlxsw_sp);
-
-void
-mlxsw_sp_fib_entry_ralue_pack(char *ralue_pl, enum mlxsw_sp_l3proto proto,
-			      enum mlxsw_sp_fib_entry_op op, u16 virtual_router,
-			      u8 prefix_len, unsigned char *addr);
 
 #endif /* _MLXSW_ROUTER_H_*/
