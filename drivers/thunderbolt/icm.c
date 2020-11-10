@@ -870,7 +870,13 @@ icm_fr_device_disconnected(struct tb *tb, const struct icm_pkg_header *hdr)
 		return;
 	}
 
+	pm_runtime_get_sync(sw->dev.parent);
+
 	remove_switch(sw);
+
+	pm_runtime_mark_last_busy(sw->dev.parent);
+	pm_runtime_put_autosuspend(sw->dev.parent);
+
 	tb_switch_put(sw);
 }
 
@@ -1280,8 +1286,13 @@ icm_tr_device_disconnected(struct tb *tb, const struct icm_pkg_header *hdr)
 		tb_warn(tb, "no switch exists at %llx, ignoring\n", route);
 		return;
 	}
+	pm_runtime_get_sync(sw->dev.parent);
 
 	remove_switch(sw);
+
+	pm_runtime_mark_last_busy(sw->dev.parent);
+	pm_runtime_put_autosuspend(sw->dev.parent);
+
 	tb_switch_put(sw);
 }
 
