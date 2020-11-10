@@ -11,9 +11,22 @@
 #include <linux/uaccess.h>
 #include <linux/slab.h>
 
+/**
+ * enum hl_cs_wait_status - cs wait status
+ * @CS_WAIT_STATUS_BUSY: cs was not completed yet
+ * @CS_WAIT_STATUS_COMPLETED: cs completed
+ * @CS_WAIT_STATUS_GONE: cs completed but fence is already gone
+ */
+enum hl_cs_wait_status {
+	CS_WAIT_STATUS_BUSY,
+	CS_WAIT_STATUS_COMPLETED,
+	CS_WAIT_STATUS_GONE
+};
+
 static void job_wq_completion(struct work_struct *work);
-static long _hl_cs_wait_ioctl(struct hl_device *hdev,
-		struct hl_ctx *ctx, u64 timeout_us, u64 seq);
+static int _hl_cs_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
+				u64 timeout_us, u64 seq,
+				enum hl_cs_wait_status *status);
 static void cs_do_release(struct kref *ref);
 
 static void hl_sob_reset(struct kref *ref)
@@ -942,7 +955,7 @@ static int hl_cs_ctx_switch(struct hl_fpriv *hpriv, union hl_cs_args *args,
 	int rc = 0, do_ctx_switch;
 	void __user *chunks;
 	u32 num_chunks, tmp;
-	long ret;
+	int ret;
 
 	do_ctx_switch = atomic_cmpxchg(&ctx->thread_ctx_switch_token, 1, 0);
 
@@ -996,18 +1009,19 @@ static int hl_cs_ctx_switch(struct hl_fpriv *hpriv, union hl_cs_args *args,
 
 		/* Need to wait for restore completion before execution phase */
 		if (num_chunks) {
+			enum hl_cs_wait_status status;
 wait_again:
 			ret = _hl_cs_wait_ioctl(hdev, ctx,
 					jiffies_to_usecs(hdev->timeout_jiffies),
-					*cs_seq);
-			if (ret <= 0) {
+					*cs_seq, &status);
+			if (ret) {
 				if (ret == -ERESTARTSYS) {
 					usleep_range(100, 200);
 					goto wait_again;
 				}
 
 				dev_err(hdev->dev,
-					"Restore CS for context %d failed to complete %ld\n",
+					"Restore CS for context %d failed to complete %d\n",
 					ctx->asid, ret);
 				rc = -ENOEXEC;
 				goto out;
@@ -1337,12 +1351,14 @@ out:
 	return rc;
 }
 
-static long _hl_cs_wait_ioctl(struct hl_device *hdev,
-		struct hl_ctx *ctx, u64 timeout_us, u64 seq)
+static int _hl_cs_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
+				u64 timeout_us, u64 seq,
+				enum hl_cs_wait_status *status)
 {
 	struct hl_fence *fence;
 	unsigned long timeout;
-	long rc;
+	int rc = 0;
+	long completion_rc;
 
 	if (timeout_us == MAX_SCHEDULE_TIMEOUT)
 		timeout = timeout_us;
@@ -1360,10 +1376,16 @@ static long _hl_cs_wait_ioctl(struct hl_device *hdev,
 				seq, ctx->cs_sequence);
 	} else if (fence) {
 		if (!timeout_us)
-			rc = completion_done(&fence->completion);
+			completion_rc = completion_done(&fence->completion);
 		else
-			rc = wait_for_completion_interruptible_timeout(
+			completion_rc =
+				wait_for_completion_interruptible_timeout(
 					&fence->completion, timeout);
+
+		if (completion_rc > 0)
+			*status = CS_WAIT_STATUS_COMPLETED;
+		else
+			*status = CS_WAIT_STATUS_BUSY;
 
 		if (fence->error == -ETIMEDOUT)
 			rc = -ETIMEDOUT;
@@ -1375,7 +1397,7 @@ static long _hl_cs_wait_ioctl(struct hl_device *hdev,
 		dev_dbg(hdev->dev,
 			"Can't wait on seq %llu because current CS is at seq %llu (Fence is gone)\n",
 			seq, ctx->cs_sequence);
-		rc = 1;
+		*status = CS_WAIT_STATUS_GONE;
 	}
 
 	hl_ctx_put(ctx);
@@ -1387,14 +1409,16 @@ int hl_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 {
 	struct hl_device *hdev = hpriv->hdev;
 	union hl_wait_cs_args *args = data;
+	enum hl_cs_wait_status status;
 	u64 seq = args->in.seq;
-	long rc;
+	int rc;
 
-	rc = _hl_cs_wait_ioctl(hdev, hpriv->ctx, args->in.timeout_us, seq);
+	rc = _hl_cs_wait_ioctl(hdev, hpriv->ctx, args->in.timeout_us, seq,
+				&status);
 
 	memset(args, 0, sizeof(*args));
 
-	if (rc < 0) {
+	if (rc) {
 		if (rc == -ERESTARTSYS) {
 			dev_err_ratelimited(hdev->dev,
 				"user process got signal while waiting for CS handle %llu\n",
@@ -1415,10 +1439,18 @@ int hl_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 		return rc;
 	}
 
-	if (rc == 0)
-		args->out.status = HL_WAIT_CS_STATUS_BUSY;
-	else
+	switch (status) {
+	case CS_WAIT_STATUS_GONE:
+		args->out.flags |= HL_WAIT_CS_STATUS_FLAG_GONE;
+		fallthrough;
+	case CS_WAIT_STATUS_COMPLETED:
 		args->out.status = HL_WAIT_CS_STATUS_COMPLETED;
+		break;
+	case CS_WAIT_STATUS_BUSY:
+	default:
+		args->out.status = HL_WAIT_CS_STATUS_BUSY;
+		break;
+	}
 
 	return 0;
 }

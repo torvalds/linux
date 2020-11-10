@@ -662,10 +662,13 @@ struct hl_wait_cs_in {
 #define HL_WAIT_CS_STATUS_ABORTED	3
 #define HL_WAIT_CS_STATUS_INTERRUPTED	4
 
+#define HL_WAIT_CS_STATUS_FLAG_GONE	0x1
+
 struct hl_wait_cs_out {
 	/* HL_WAIT_CS_STATUS_* */
 	__u32 status;
-	__u32 pad;
+	/* HL_WAIT_CS_STATUS_FLAG* */
+	__u32 flags;
 };
 
 union hl_wait_cs_args {
