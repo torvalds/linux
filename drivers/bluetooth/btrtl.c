@@ -581,7 +581,7 @@ struct btrtl_device_info *btrtl_initialize(struct hci_dev *hdev,
 		cmd[1] = opcode >> 8;
 
 		skb = bt_skb_alloc(sizeof(cmd), GFP_KERNEL);
-		if (IS_ERR(skb))
+		if (!skb)
 			goto out_free;
 
 		skb_put_data(skb, cmd, sizeof(cmd));
