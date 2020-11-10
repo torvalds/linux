@@ -264,7 +264,7 @@ void __exit rdtgroup_exit(void);
 struct rftype {
 	char			*name;
 	umode_t			mode;
-	struct kernfs_ops	*kf_ops;
+	const struct kernfs_ops	*kf_ops;
 	unsigned long		flags;
 	unsigned long		fflags;
 
