@@ -127,20 +127,12 @@ enum gsi_err_type {
 	GSI_ERR_TYPE_EVT	= 0x3,
 };
 
-/* Hardware values used when programming an event ring */
-enum gsi_evt_chtype {
-	GSI_EVT_CHTYPE_MHI_EV	= 0x0,
-	GSI_EVT_CHTYPE_XHCI_EV	= 0x1,
-	GSI_EVT_CHTYPE_GPI_EV	= 0x2,
-	GSI_EVT_CHTYPE_XDCI_EV	= 0x3,
-};
-
-/* Hardware values used when programming a channel */
-enum gsi_channel_protocol {
-	GSI_CHANNEL_PROTOCOL_MHI	= 0x0,
-	GSI_CHANNEL_PROTOCOL_XHCI	= 0x1,
-	GSI_CHANNEL_PROTOCOL_GPI	= 0x2,
-	GSI_CHANNEL_PROTOCOL_XDCI	= 0x3,
+/* Hardware values used when programming a channel or event ring type */
+enum gsi_channel_type {
+	GSI_CHANNEL_TYPE_MHI			= 0x0,
+	GSI_CHANNEL_TYPE_XHCI			= 0x1,
+	GSI_CHANNEL_TYPE_GPI			= 0x2,
+	GSI_CHANNEL_TYPE_XDCI			= 0x3,
 };
 
 /* Hardware values representing an event ring immediate command opcode */
@@ -684,7 +676,8 @@ static void gsi_evt_ring_program(struct gsi *gsi, u32 evt_ring_id)
 	size_t size = evt_ring->ring.count * GSI_RING_ELEMENT_SIZE;
 	u32 val;
 
-	val = u32_encode_bits(GSI_EVT_CHTYPE_GPI_EV, EV_CHTYPE_FMASK);
+	/* We program all event rings as GPI type/protocol */
+	val = u32_encode_bits(GSI_CHANNEL_TYPE_GPI, EV_CHTYPE_FMASK);
 	val |= EV_INTYPE_FMASK;
 	val |= u32_encode_bits(GSI_RING_ELEMENT_SIZE, EV_ELEMENT_SIZE_FMASK);
 	iowrite32(val, gsi->virt + GSI_EV_CH_E_CNTXT_0_OFFSET(evt_ring_id));
@@ -791,8 +784,8 @@ static void gsi_channel_program(struct gsi_channel *channel, bool doorbell)
 	/* Arbitrarily pick TRE 0 as the first channel element to use */
 	channel->tre_ring.index = 0;
 
-	/* We program all channels to use GPI protocol */
-	val = u32_encode_bits(GSI_CHANNEL_PROTOCOL_GPI, CHTYPE_PROTOCOL_FMASK);
+	/* We program all channels as GPI type/protocol */
+	val = u32_encode_bits(GSI_CHANNEL_TYPE_GPI, CHTYPE_PROTOCOL_FMASK);
 	if (channel->toward_ipa)
 		val |= CHTYPE_DIR_FMASK;
 	val |= u32_encode_bits(channel->evt_ring_id, ERINDEX_FMASK);
