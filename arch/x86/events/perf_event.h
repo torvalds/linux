@@ -682,8 +682,7 @@ struct x86_pmu {
 
 	/* PMI handler bits */
 	unsigned int	late_ack		:1,
-			enabled_ack		:1,
-			counter_freezing	:1;
+			enabled_ack		:1;
 	/*
 	 * sysfs attrs
 	 */

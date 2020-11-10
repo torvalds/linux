@@ -2134,18 +2134,6 @@ static void intel_tfa_pmu_enable_all(int added)
 	intel_pmu_enable_all(added);
 }
 
-static void enable_counter_freeze(void)
-{
-	update_debugctlmsr(get_debugctlmsr() |
-			DEBUGCTLMSR_FREEZE_PERFMON_ON_PMI);
-}
-
-static void disable_counter_freeze(void)
-{
-	update_debugctlmsr(get_debugctlmsr() &
-			~DEBUGCTLMSR_FREEZE_PERFMON_ON_PMI);
-}
-
 static inline u64 intel_pmu_get_status(void)
 {
 	u64 status;
@@ -2706,95 +2694,6 @@ static int handle_pmi_common(struct pt_regs *regs, u64 status)
 			x86_pmu_stop(event, 0);
 	}
 
-	return handled;
-}
-
-static bool disable_counter_freezing = true;
-static int __init intel_perf_counter_freezing_setup(char *s)
-{
-	bool res;
-
-	if (kstrtobool(s, &res))
-		return -EINVAL;
-
-	disable_counter_freezing = !res;
-	return 1;
-}
-__setup("perf_v4_pmi=", intel_perf_counter_freezing_setup);
-
-/*
- * Simplified handler for Arch Perfmon v4:
- * - We rely on counter freezing/unfreezing to enable/disable the PMU.
- * This is done automatically on PMU ack.
- * - Ack the PMU only after the APIC.
- */
-
-static int intel_pmu_handle_irq_v4(struct pt_regs *regs)
-{
-	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
-	int handled = 0;
-	bool bts = false;
-	u64 status;
-	int pmu_enabled = cpuc->enabled;
-	int loops = 0;
-
-	/* PMU has been disabled because of counter freezing */
-	cpuc->enabled = 0;
-	if (test_bit(INTEL_PMC_IDX_FIXED_BTS, cpuc->active_mask)) {
-		bts = true;
-		intel_bts_disable_local();
-		handled = intel_pmu_drain_bts_buffer();
-		handled += intel_bts_interrupt();
-	}
-	status = intel_pmu_get_status();
-	if (!status)
-		goto done;
-again:
-	intel_pmu_lbr_read();
-	if (++loops > 100) {
-		static bool warned;
-
-		if (!warned) {
-			WARN(1, "perfevents: irq loop stuck!\n");
-			perf_event_print_debug();
-			warned = true;
-		}
-		intel_pmu_reset();
-		goto done;
-	}
-
-
-	handled += handle_pmi_common(regs, status);
-done:
-	/* Ack the PMI in the APIC */
-	apic_write(APIC_LVTPC, APIC_DM_NMI);
-
-	/*
-	 * The counters start counting immediately while ack the status.
-	 * Make it as close as possible to IRET. This avoids bogus
-	 * freezing on Skylake CPUs.
-	 */
-	if (status) {
-		intel_pmu_ack_status(status);
-	} else {
-		/*
-		 * CPU may issues two PMIs very close to each other.
-		 * When the PMI handler services the first one, the
-		 * GLOBAL_STATUS is already updated to reflect both.
-		 * When it IRETs, the second PMI is immediately
-		 * handled and it sees clear status. At the meantime,
-		 * there may be a third PMI, because the freezing bit
-		 * isn't set since the ack in first PMI handlers.
-		 * Double check if there is more work to be done.
-		 */
-		status = intel_pmu_get_status();
-		if (status)
-			goto again;
-	}
-
-	if (bts)
-		intel_bts_enable_local();
-	cpuc->enabled = pmu_enabled;
 	return handled;
 }
 
@@ -4074,9 +3973,6 @@ static void intel_pmu_cpu_starting(int cpu)
 	if (x86_pmu.version > 1)
 		flip_smm_bit(&x86_pmu.attr_freeze_on_smi);
 
-	if (x86_pmu.counter_freezing)
-		enable_counter_freeze();
-
 	/* Disable perf metrics if any added CPU doesn't support it. */
 	if (x86_pmu.intel_cap.perf_metrics) {
 		union perf_capabilities perf_cap;
@@ -4147,9 +4043,6 @@ static void free_excl_cntrs(struct cpu_hw_events *cpuc)
 static void intel_pmu_cpu_dying(int cpu)
 {
 	fini_debug_store_on_cpu(cpu);
-
-	if (x86_pmu.counter_freezing)
-		disable_counter_freeze();
 }
 
 void intel_cpuc_finish(struct cpu_hw_events *cpuc)
@@ -4541,39 +4434,6 @@ static __init void intel_nehalem_quirk(void)
 	}
 }
 
-static const struct x86_cpu_desc counter_freezing_ucodes[] = {
-	INTEL_CPU_DESC(INTEL_FAM6_ATOM_GOLDMONT,	 2, 0x0000000e),
-	INTEL_CPU_DESC(INTEL_FAM6_ATOM_GOLDMONT,	 9, 0x0000002e),
-	INTEL_CPU_DESC(INTEL_FAM6_ATOM_GOLDMONT,	10, 0x00000008),
-	INTEL_CPU_DESC(INTEL_FAM6_ATOM_GOLDMONT_D,	 1, 0x00000028),
-	INTEL_CPU_DESC(INTEL_FAM6_ATOM_GOLDMONT_PLUS,	 1, 0x00000028),
-	INTEL_CPU_DESC(INTEL_FAM6_ATOM_GOLDMONT_PLUS,	 8, 0x00000006),
-	{}
-};
-
-static bool intel_counter_freezing_broken(void)
-{
-	return !x86_cpu_has_min_microcode_rev(counter_freezing_ucodes);
-}
-
-static __init void intel_counter_freezing_quirk(void)
-{
-	/* Check if it's already disabled */
-	if (disable_counter_freezing)
-		return;
-
-	/*
-	 * If the system starts with the wrong ucode, leave the
-	 * counter-freezing feature permanently disabled.
-	 */
-	if (intel_counter_freezing_broken()) {
-		pr_info("PMU counter freezing disabled due to CPU errata,"
-			"please upgrade microcode\n");
-		x86_pmu.counter_freezing = false;
-		x86_pmu.handle_irq = intel_pmu_handle_irq;
-	}
-}
-
 /*
  * enable software workaround for errata:
  * SNB: BJ122
@@ -4959,9 +4819,6 @@ __init int intel_pmu_init(void)
 			max((int)edx.split.num_counters_fixed, assume);
 	}
 
-	if (version >= 4)
-		x86_pmu.counter_freezing = !disable_counter_freezing;
-
 	if (boot_cpu_has(X86_FEATURE_PDCM)) {
 		u64 capabilities;
 
@@ -5089,7 +4946,6 @@ __init int intel_pmu_init(void)
 
 	case INTEL_FAM6_ATOM_GOLDMONT:
 	case INTEL_FAM6_ATOM_GOLDMONT_D:
-		x86_add_quirk(intel_counter_freezing_quirk);
 		memcpy(hw_cache_event_ids, glm_hw_cache_event_ids,
 		       sizeof(hw_cache_event_ids));
 		memcpy(hw_cache_extra_regs, glm_hw_cache_extra_regs,
@@ -5116,7 +4972,6 @@ __init int intel_pmu_init(void)
 		break;
 
 	case INTEL_FAM6_ATOM_GOLDMONT_PLUS:
-		x86_add_quirk(intel_counter_freezing_quirk);
 		memcpy(hw_cache_event_ids, glp_hw_cache_event_ids,
 		       sizeof(hw_cache_event_ids));
 		memcpy(hw_cache_extra_regs, glp_hw_cache_extra_regs,
@@ -5580,13 +5435,6 @@ __init int intel_pmu_init(void)
 		x86_pmu.perfctr = MSR_IA32_PMC0;
 		pr_cont("full-width counters, ");
 	}
-
-	/*
-	 * For arch perfmon 4 use counter freezing to avoid
-	 * several MSR accesses in the PMI.
-	 */
-	if (x86_pmu.counter_freezing)
-		x86_pmu.handle_irq = intel_pmu_handle_irq_v4;
 
 	if (x86_pmu.intel_cap.perf_metrics)
 		x86_pmu.intel_ctrl |= 1ULL << GLOBAL_CTRL_EN_PERF_METRICS;

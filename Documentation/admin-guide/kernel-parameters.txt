@@ -944,12 +944,6 @@
 			causing system reset or hang due to sending
 			INIT from AP to BSP.
 
-	perf_v4_pmi=	[X86,INTEL]
-			Format: <bool>
-			Disable Intel PMU counter freezing feature.
-			The feature only exists starting from
-			Arch Perfmon v4 (Skylake and newer).
-
 	disable_ddw	[PPC/PSERIES]
 			Disable Dynamic DMA Window support. Use this
 			to workaround buggy firmware.
