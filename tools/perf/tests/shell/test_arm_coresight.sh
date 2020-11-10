@@ -105,7 +105,7 @@ arm_cs_iterate_devices() {
 		#     `> device_name = 'tmc_etf0'
 		device_name=$(basename $path)
 
-		if is_device_sink $path $devce_name; then
+		if is_device_sink $path $device_name; then
 
 			record_touch_file $device_name $2 &&
 			perf_script_branch_samples touch &&
