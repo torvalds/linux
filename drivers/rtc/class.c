@@ -28,6 +28,7 @@ static void rtc_device_release(struct device *dev)
 	struct rtc_device *rtc = to_rtc_device(dev);
 
 	ida_simple_remove(&rtc_ida, rtc->id);
+	mutex_destroy(&rtc->ops_lock);
 	kfree(rtc);
 }
 
