@@ -84,7 +84,7 @@ int __ref map_kernel_page(unsigned long va, phys_addr_t pa, pgprot_t prot)
 		pg = pte_alloc_kernel(pd, va);
 	else
 		pg = early_pte_alloc_kernel(pd, va);
-	if (pg != 0) {
+	if (pg) {
 		err = 0;
 		/* The PTE should never be already set nor present in the
 		 * hash table
