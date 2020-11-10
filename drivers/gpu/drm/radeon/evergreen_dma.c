@@ -98,7 +98,7 @@ void evergreen_dma_ring_ib_execute(struct radeon_device *rdev,
  * @src_offset: src GPU address
  * @dst_offset: dst GPU address
  * @num_gpu_pages: number of GPU pages to xfer
- * @fence: radeon fence object
+ * @resv: reservation object with embedded fence
  *
  * Copy GPU paging using the DMA engine (evergreen-cayman).
  * Used by the radeon ttm implementation to move pages if
