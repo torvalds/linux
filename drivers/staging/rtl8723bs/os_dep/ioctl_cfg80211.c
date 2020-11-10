@@ -563,7 +563,7 @@ static int rtw_cfg80211_ap_set_encryption(struct net_device *dev, struct ieee_pa
 	struct sta_info *psta = NULL, *pbcmc_sta = NULL;
 	struct adapter *padapter = rtw_netdev_priv(dev);
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-	struct security_priv* psecuritypriv =  &(padapter->securitypriv);
+	struct security_priv *psecuritypriv =  &(padapter->securitypriv);
 	struct sta_priv *pstapriv = &padapter->stapriv;
 
 	DBG_8192C("%s\n", __func__);
@@ -924,8 +924,8 @@ static int rtw_cfg80211_set_encryption(struct net_device *dev, struct ieee_param
 
 	if (padapter->securitypriv.dot11AuthAlgrthm == dot11AuthAlgrthm_8021X) /*  802_1x */
 	{
-		struct sta_info * psta, *pbcmc_sta;
-		struct sta_priv * pstapriv = &padapter->stapriv;
+		struct sta_info *psta, *pbcmc_sta;
+		struct sta_priv *pstapriv = &padapter->stapriv;
 
 		/* DBG_8192C("%s, : dot11AuthAlgrthm == dot11AuthAlgrthm_8021X\n", __func__); */
 
@@ -2529,8 +2529,8 @@ static const struct net_device_ops rtw_cfg80211_monitor_if_ops = {
 static int rtw_cfg80211_add_monitor_if(struct adapter *padapter, char *name, struct net_device **ndev)
 {
 	int ret = 0;
-	struct net_device* mon_ndev = NULL;
-	struct wireless_dev* mon_wdev = NULL;
+	struct net_device *mon_ndev = NULL;
+	struct wireless_dev *mon_wdev = NULL;
 	struct rtw_netdev_priv_indicator *pnpi;
 	struct rtw_wdev_priv *pwdev_priv = adapter_wdev_data(padapter);
 
@@ -2609,7 +2609,7 @@ static struct wireless_dev *
 		enum nl80211_iftype type, struct vif_params *params)
 {
 	int ret = 0;
-	struct net_device* ndev = NULL;
+	struct net_device *ndev = NULL;
 	struct adapter *padapter = wiphy_to_adapter(wiphy);
 
 	DBG_871X(FUNC_ADPT_FMT " wiphy:%s, name:%s, type:%d\n",
@@ -2911,7 +2911,7 @@ static int	cfg80211_rtw_change_bss(struct wiphy *wiphy, struct net_device *ndev,
 	return 0;
 }
 
-void rtw_cfg80211_rx_action(struct adapter *adapter, u8 *frame, uint frame_len, const char*msg)
+void rtw_cfg80211_rx_action(struct adapter *adapter, u8 *frame, uint frame_len, const char *msg)
 {
 	s32 freq;
 	int channel;

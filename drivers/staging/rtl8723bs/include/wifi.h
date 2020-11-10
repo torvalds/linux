@@ -355,20 +355,20 @@ static inline int IS_MCAST(unsigned char *da)
 		return false;
 }
 
-static inline unsigned char * get_ra(unsigned char *pframe)
+static inline unsigned char *get_ra(unsigned char *pframe)
 {
 	unsigned char *ra;
 	ra = GetAddr1Ptr(pframe);
 	return ra;
 }
-static inline unsigned char * get_ta(unsigned char *pframe)
+static inline unsigned char *get_ta(unsigned char *pframe)
 {
 	unsigned char *ta;
 	ta = GetAddr2Ptr(pframe);
 	return ta;
 }
 
-static inline unsigned char * get_da(unsigned char *pframe)
+static inline unsigned char *get_da(unsigned char *pframe)
 {
 	unsigned char *da;
 	unsigned int	to_fr_ds	= (GetToDs(pframe) << 1) | GetFrDs(pframe);
@@ -392,7 +392,7 @@ static inline unsigned char * get_da(unsigned char *pframe)
 }
 
 
-static inline unsigned char * get_sa(unsigned char *pframe)
+static inline unsigned char *get_sa(unsigned char *pframe)
 {
 	unsigned char *sa;
 	unsigned int	to_fr_ds	= (GetToDs(pframe) << 1) | GetFrDs(pframe);
@@ -415,7 +415,7 @@ static inline unsigned char * get_sa(unsigned char *pframe)
 	return sa;
 }
 
-static inline unsigned char * get_hdr_bssid(unsigned char *pframe)
+static inline unsigned char *get_hdr_bssid(unsigned char *pframe)
 {
 	unsigned char *sa = NULL;
 	unsigned int	to_fr_ds	= (GetToDs(pframe) << 1) | GetFrDs(pframe);

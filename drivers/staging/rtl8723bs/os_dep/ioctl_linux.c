@@ -78,7 +78,7 @@ void rtw_indicate_wx_disassoc_event(struct adapter *padapter)
 }
 
 static char *translate_scan(struct adapter *padapter,
-				struct iw_request_info* info, struct wlan_network *pnetwork,
+				struct iw_request_info *info, struct wlan_network *pnetwork,
 				char *start, char *stop)
 {
 	struct iw_event iwe;
@@ -765,7 +765,7 @@ static int rtw_wx_get_name(struct net_device *dev,
 	u8 ht_cap = false, vht_cap = false;
 	struct	mlme_priv *pmlmepriv = &(padapter->mlmepriv);
 	struct wlan_bssid_ex  *pcur_bss = &pmlmepriv->cur_network.network;
-	NDIS_802_11_RATES_EX* prates = NULL;
+	NDIS_802_11_RATES_EX *prates = NULL;
 
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_, ("cmd_code =%x\n", info->cmd));
 
@@ -937,7 +937,7 @@ static int rtw_wx_set_pmkid(struct net_device *dev,
 	u8          j, blInserted = false;
 	int         intReturn = false;
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
-        struct iw_pmksa*  pPMK = (struct iw_pmksa *)extra;
+        struct iw_pmksa *pPMK = (struct iw_pmksa *)extra;
         u8     strZeroMacAddress[ETH_ALEN] = { 0x00 };
         u8     strIssueBssid[ETH_ALEN] = { 0x00 };
 
@@ -3430,7 +3430,7 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 	struct sta_info *psta = NULL, *pbcmc_sta = NULL;
 	struct adapter *padapter = rtw_netdev_priv(dev);
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-	struct security_priv* psecuritypriv = &(padapter->securitypriv);
+	struct security_priv *psecuritypriv = &(padapter->securitypriv);
 	struct sta_priv *pstapriv = &padapter->stapriv;
 
 	DBG_871X("%s\n", __func__);
