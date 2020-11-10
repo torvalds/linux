@@ -946,6 +946,8 @@
 			compatible = "rockchip,rk809-codec", "rockchip,rk817-codec";
 			clocks = <&cru I2S1_MCLKOUT_TX>;
 			clock-names = "mclk";
+			assigned-clocks = <&cru I2S1_MCLKOUT_TX>;
+			assigned-clock-parents = <&cru CLK_I2S1_8CH_TX>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&i2s1mclkm0>;
 			hp-volume = <20>;
