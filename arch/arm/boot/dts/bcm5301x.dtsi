@@ -490,6 +490,10 @@
 		status = "disabled";
 
 		/* ports are defined in board DTS */
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
 	};
 
 	rng: rng@18004000 {

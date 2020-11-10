@@ -68,9 +68,6 @@
 	status = "okay";
 
 	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
 		port@4 {
 			reg = <4>;
 			label = "lan";
