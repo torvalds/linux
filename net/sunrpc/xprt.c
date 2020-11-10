@@ -158,6 +158,32 @@ xprt_class_release(const struct xprt_class *t)
 }
 
 static const struct xprt_class *
+xprt_class_find_by_ident_locked(int ident)
+{
+	const struct xprt_class *t;
+
+	list_for_each_entry(t, &xprt_list, list) {
+		if (t->ident != ident)
+			continue;
+		if (!try_module_get(t->owner))
+			continue;
+		return t;
+	}
+	return NULL;
+}
+
+static const struct xprt_class *
+xprt_class_find_by_ident(int ident)
+{
+	const struct xprt_class *t;
+
+	spin_lock(&xprt_list_lock);
+	t = xprt_class_find_by_ident_locked(ident);
+	spin_unlock(&xprt_list_lock);
+	return t;
+}
+
+static const struct xprt_class *
 xprt_class_find_by_netid_locked(const char *netid)
 {
 	const struct xprt_class *t;
@@ -1929,21 +1955,17 @@ static void xprt_init(struct rpc_xprt *xprt, struct net *net)
 struct rpc_xprt *xprt_create_transport(struct xprt_create *args)
 {
 	struct rpc_xprt	*xprt;
-	struct xprt_class *t;
+	const struct xprt_class *t;
 
-	spin_lock(&xprt_list_lock);
-	list_for_each_entry(t, &xprt_list, list) {
-		if (t->ident == args->ident) {
-			spin_unlock(&xprt_list_lock);
-			goto found;
-		}
+	t = xprt_class_find_by_ident(args->ident);
+	if (!t) {
+		dprintk("RPC: transport (%d) not supported\n", args->ident);
+		return ERR_PTR(-EIO);
 	}
-	spin_unlock(&xprt_list_lock);
-	dprintk("RPC: transport (%d) not supported\n", args->ident);
-	return ERR_PTR(-EIO);
 
-found:
 	xprt = t->setup(args);
+	xprt_class_release(t);
+
 	if (IS_ERR(xprt))
 		goto out;
 	if (args->flags & XPRT_CREATE_NO_IDLE_TIMEOUT)
