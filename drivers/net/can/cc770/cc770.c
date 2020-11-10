@@ -486,7 +486,7 @@ static void cc770_rx(struct net_device *dev, unsigned int mo, u8 ctrl1)
 		}
 
 		cf->can_id = id;
-		cf->can_dlc = get_can_dlc((config & 0xf0) >> 4);
+		cf->can_dlc = can_cc_dlc2len((config & 0xf0) >> 4);
 		for (i = 0; i < cf->can_dlc; i++)
 			cf->data[i] = cc770_read_reg(priv, msgobj[mo].data[i]);
 	}

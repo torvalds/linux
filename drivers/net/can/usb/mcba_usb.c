@@ -451,7 +451,7 @@ static void mcba_usb_process_can(struct mcba_priv *priv,
 	if (msg->dlc & MCBA_DLC_RTR_MASK)
 		cf->can_id |= CAN_RTR_FLAG;
 
-	cf->can_dlc = get_can_dlc(msg->dlc & MCBA_DLC_MASK);
+	cf->can_dlc = can_cc_dlc2len(msg->dlc & MCBA_DLC_MASK);
 
 	memcpy(cf->data, msg->data, cf->can_dlc);
 

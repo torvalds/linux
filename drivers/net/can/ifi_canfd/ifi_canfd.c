@@ -273,7 +273,7 @@ static void ifi_canfd_read_fifo(struct net_device *ndev)
 	if (rxdlc & IFI_CANFD_RXFIFO_DLC_EDL)
 		cf->len = can_dlc2len(dlc);
 	else
-		cf->len = get_can_dlc(dlc);
+		cf->len = can_cc_dlc2len(dlc);
 
 	rxid = readl(priv->base + IFI_CANFD_RXFIFO_ID);
 	id = (rxid >> IFI_CANFD_RXFIFO_ID_ID_OFFSET);

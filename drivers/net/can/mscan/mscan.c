@@ -312,7 +312,7 @@ static void mscan_get_rx_frame(struct net_device *dev, struct can_frame *frame)
 	if (can_id & 1)
 		frame->can_id |= CAN_RTR_FLAG;
 
-	frame->can_dlc = get_can_dlc(in_8(&regs->rx.dlr) & 0xf);
+	frame->can_dlc = can_cc_dlc2len(in_8(&regs->rx.dlr) & 0xf);
 
 	if (!(frame->can_id & CAN_RTR_FLAG)) {
 		void __iomem *data = &regs->rx.dsr1_0;

@@ -683,7 +683,7 @@ static int pch_can_rx_normal(struct net_device *ndev, u32 obj_num, int quota)
 		if (id2 & PCH_ID2_DIR)
 			cf->can_id |= CAN_RTR_FLAG;
 
-		cf->can_dlc = get_can_dlc((ioread32(&priv->regs->
+		cf->can_dlc = can_cc_dlc2len((ioread32(&priv->regs->
 						    ifregs[0].mcont)) & 0xF);
 
 		for (i = 0; i < cf->can_dlc; i += 2) {
@@ -715,7 +715,7 @@ static void pch_can_tx_complete(struct net_device *ndev, u32 int_stat)
 	iowrite32(PCH_CMASK_RX_TX_GET | PCH_CMASK_CLRINTPND,
 		  &priv->regs->ifregs[1].cmask);
 	pch_can_rw_msg_obj(&priv->regs->ifregs[1].creq, int_stat);
-	dlc = get_can_dlc(ioread32(&priv->regs->ifregs[1].mcont) &
+	dlc = can_cc_dlc2len(ioread32(&priv->regs->ifregs[1].mcont) &
 			  PCH_IF_MCONT_DLC);
 	stats->tx_bytes += dlc;
 	stats->tx_packets++;

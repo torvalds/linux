@@ -303,12 +303,12 @@ struct ucan_priv {
 	struct ucan_urb_context *context_array;
 };
 
-static u8 ucan_get_can_dlc(struct ucan_can_msg *msg, u16 len)
+static u8 ucan_can_cc_dlc2len(struct ucan_can_msg *msg, u16 len)
 {
 	if (le32_to_cpu(msg->id) & CAN_RTR_FLAG)
-		return get_can_dlc(msg->dlc);
+		return can_cc_dlc2len(msg->dlc);
 	else
-		return get_can_dlc(len - (UCAN_IN_HDR_SIZE + sizeof(msg->id)));
+		return can_cc_dlc2len(len - (UCAN_IN_HDR_SIZE + sizeof(msg->id)));
 }
 
 static void ucan_release_context_array(struct ucan_priv *up)
@@ -614,7 +614,7 @@ static void ucan_rx_can_msg(struct ucan_priv *up, struct ucan_message_in *m)
 	cf->can_id = canid;
 
 	/* compute DLC taking RTR_FLAG into account */
-	cf->can_dlc = ucan_get_can_dlc(&m->msg.can_msg, len);
+	cf->can_dlc = ucan_can_cc_dlc2len(&m->msg.can_msg, len);
 
 	/* copy the payload of non RTR frames */
 	if (!(cf->can_id & CAN_RTR_FLAG) || (cf->can_id & CAN_ERR_FLAG))

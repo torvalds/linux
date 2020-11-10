@@ -459,7 +459,7 @@ static void m_can_read_fifo(struct net_device *dev, u32 rxfs)
 	if (dlc & RX_BUF_FDF)
 		cf->len = can_dlc2len((dlc >> 16) & 0x0F);
 	else
-		cf->len = get_can_dlc((dlc >> 16) & 0x0F);
+		cf->len = can_cc_dlc2len((dlc >> 16) & 0x0F);
 
 	id = m_can_fifo_read(cdev, fgi, M_CAN_FIFO_ID);
 	if (id & RX_BUF_XTD)

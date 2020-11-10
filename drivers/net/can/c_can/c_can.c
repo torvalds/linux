@@ -397,7 +397,7 @@ static int c_can_read_msg_object(struct net_device *dev, int iface, u32 ctrl)
 		return -ENOMEM;
 	}
 
-	frame->can_dlc = get_can_dlc(ctrl & 0x0F);
+	frame->can_dlc = can_cc_dlc2len(ctrl & 0x0F);
 
 	arb = priv->read_reg32(priv, C_CAN_IFACE(ARB1_REG, iface));
 

@@ -499,7 +499,7 @@ static int pcan_usb_fd_decode_canmsg(struct pcan_usb_fd_if *usb_if,
 		if (!skb)
 			return -ENOMEM;
 
-		cfd->len = get_can_dlc(pucan_msg_get_dlc(rm));
+		cfd->len = can_cc_dlc2len(pucan_msg_get_dlc(rm));
 	}
 
 	cfd->can_id = le32_to_cpu(rm->can_id);

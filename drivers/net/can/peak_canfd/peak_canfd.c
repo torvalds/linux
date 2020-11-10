@@ -259,7 +259,7 @@ static int pucan_handle_can_rx(struct peak_canfd_priv *priv,
 	if (rx_msg_flags & PUCAN_MSG_EXT_DATA_LEN)
 		cf_len = can_dlc2len(get_canfd_dlc(pucan_msg_get_dlc(msg)));
 	else
-		cf_len = get_can_dlc(pucan_msg_get_dlc(msg));
+		cf_len = can_cc_dlc2len(pucan_msg_get_dlc(msg));
 
 	/* if this frame is an echo, */
 	if (rx_msg_flags & PUCAN_MSG_LOOPED_BACK) {

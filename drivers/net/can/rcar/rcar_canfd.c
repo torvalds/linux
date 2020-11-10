@@ -1448,7 +1448,7 @@ static void rcar_canfd_rx_pkt(struct rcar_canfd_channel *priv)
 		if (sts & RCANFD_RFFDSTS_RFFDF)
 			cf->len = can_dlc2len(RCANFD_RFPTR_RFDLC(dlc));
 		else
-			cf->len = get_can_dlc(RCANFD_RFPTR_RFDLC(dlc));
+			cf->len = can_cc_dlc2len(RCANFD_RFPTR_RFDLC(dlc));
 
 		if (sts & RCANFD_RFFDSTS_RFESI) {
 			cf->flags |= CANFD_ESI;
@@ -1464,7 +1464,7 @@ static void rcar_canfd_rx_pkt(struct rcar_canfd_channel *priv)
 			rcar_canfd_get_data(priv, cf, RCANFD_F_RFDF(ridx, 0));
 		}
 	} else {
-		cf->len = get_can_dlc(RCANFD_RFPTR_RFDLC(dlc));
+		cf->len = can_cc_dlc2len(RCANFD_RFPTR_RFDLC(dlc));
 		if (id & RCANFD_RFID_RFRTR)
 			cf->can_id |= CAN_RTR_FLAG;
 		else
