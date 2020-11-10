@@ -47,6 +47,7 @@ int btrfs_get_dev_zone_info(struct btrfs_device *device)
 {
 	struct btrfs_zoned_device_info *zone_info = NULL;
 	struct block_device *bdev = device->bdev;
+	struct request_queue *queue = bdev_get_queue(bdev);
 	sector_t nr_sectors;
 	sector_t sector = 0;
 	struct blk_zone *zones = NULL;
@@ -70,6 +71,8 @@ int btrfs_get_dev_zone_info(struct btrfs_device *device)
 	ASSERT(zone_sectors != 0 && (zone_sectors & (zone_sectors - 1)) == 0);
 	zone_info->zone_size = zone_sectors << SECTOR_SHIFT;
 	zone_info->zone_size_shift = ilog2(zone_info->zone_size);
+	zone_info->max_zone_append_size =
+		(u64)queue_max_zone_append_sectors(queue) << SECTOR_SHIFT;
 	zone_info->nr_zones = nr_sectors >> ilog2(zone_sectors);
 	if (!IS_ALIGNED(nr_sectors, zone_sectors))
 		zone_info->nr_zones++;
@@ -174,6 +177,7 @@ int btrfs_check_zoned_mode(struct btrfs_fs_info *fs_info)
 	u64 zoned_devices = 0;
 	u64 nr_devices = 0;
 	u64 zone_size = 0;
+	u64 max_zone_append_size = 0;
 	const bool incompat_zoned = btrfs_is_zoned(fs_info);
 	int ret = 0;
 
@@ -187,10 +191,13 @@ int btrfs_check_zoned_mode(struct btrfs_fs_info *fs_info)
 		model = bdev_zoned_model(device->bdev);
 		if (model == BLK_ZONED_HM ||
 		    (model == BLK_ZONED_HA && incompat_zoned)) {
+			struct btrfs_zoned_device_info *zone_info;
+
+			zone_info = device->zone_info;
 			zoned_devices++;
 			if (!zone_size) {
-				zone_size = device->zone_info->zone_size;
-			} else if (device->zone_info->zone_size != zone_size) {
+				zone_size = zone_info->zone_size;
+			} else if (zone_info->zone_size != zone_size) {
 				btrfs_err(fs_info,
 		"zoned: unequal block device zone sizes: have %llu found %llu",
 					  device->zone_info->zone_size,
@@ -198,6 +205,11 @@ int btrfs_check_zoned_mode(struct btrfs_fs_info *fs_info)
 				ret = -EINVAL;
 				goto out;
 			}
+			if (!max_zone_append_size ||
+			    (zone_info->max_zone_append_size &&
+			     zone_info->max_zone_append_size < max_zone_append_size))
+				max_zone_append_size =
+					zone_info->max_zone_append_size;
 		}
 		nr_devices++;
 	}
@@ -241,6 +253,7 @@ int btrfs_check_zoned_mode(struct btrfs_fs_info *fs_info)
 	}
 
 	fs_info->zone_size = zone_size;
+	fs_info->max_zone_append_size = max_zone_append_size;
 
 	btrfs_info(fs_info, "zoned mode enabled with zone size %llu", zone_size);
 out:
