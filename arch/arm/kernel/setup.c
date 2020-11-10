@@ -1136,7 +1136,7 @@ void __init setup_arch(char **cmdline_p)
 	efi_init();
 	/*
 	 * Make sure the calculation for lowmem/highmem is set appropriately
-	 * before reserving/allocating any mmeory
+	 * before reserving/allocating any memory
 	 */
 	adjust_lowmem_bounds();
 	arm_memblock_init(mdesc);
