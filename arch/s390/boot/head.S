@@ -28,6 +28,7 @@
 #include <asm/thread_info.h>
 #include <asm/page.h>
 #include <asm/ptrace.h>
+#include "boot.h"
 
 #define ARCH_OFFSET	4
 
@@ -325,7 +326,7 @@ SYM_CODE_START_LOCAL(startup_normal)
 SYM_CODE_END(startup_normal)
 
 .Lstack:
-	.long	0x8000 + (1<<(PAGE_SHIFT+BOOT_STACK_ORDER)) - STACK_FRAME_OVERHEAD
+	.long	BOOT_STACK_OFFSET + BOOT_STACK_SIZE - STACK_FRAME_OVERHEAD
 	.align	8
 6:	.long	0x7fffffff,0xffffffff
 .Lext_new_psw:

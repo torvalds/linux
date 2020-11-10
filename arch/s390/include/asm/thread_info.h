@@ -18,7 +18,7 @@
 #else
 #define THREAD_SIZE_ORDER 2
 #endif
-#define BOOT_STACK_ORDER  2
+#define BOOT_STACK_SIZE (PAGE_SIZE << 2)
 #define THREAD_SIZE (PAGE_SIZE << THREAD_SIZE_ORDER)
 
 #ifndef __ASSEMBLY__

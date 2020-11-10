@@ -2,6 +2,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
+#include <asm/stacktrace.h>
 #include <asm/lowcore.h>
 #include <asm/setup.h>
 #include <asm/sclp.h>
@@ -121,6 +122,27 @@ out:
 	sclp_early_printk(buf);
 }
 
+static noinline void print_stacktrace(void)
+{
+	struct stack_info boot_stack = { STACK_TYPE_TASK, BOOT_STACK_OFFSET,
+					 BOOT_STACK_OFFSET + BOOT_STACK_SIZE };
+	unsigned long sp = S390_lowcore.gpregs_save_area[15];
+	bool first = true;
+
+	decompressor_printk("Call Trace:\n");
+	while (!(sp & 0x7) && on_stack(&boot_stack, sp, sizeof(struct stack_frame))) {
+		struct stack_frame *sf = (struct stack_frame *)sp;
+
+		decompressor_printk(first ? "(sp:%016lx [<%016lx>] %pS)\n" :
+					    " sp:%016lx [<%016lx>] %pS\n",
+				    sp, sf->gprs[8], (void *)sf->gprs[8]);
+		if (sf->back_chain <= sp)
+			break;
+		sp = sf->back_chain;
+		first = false;
+	}
+}
+
 void print_pgm_check_info(void)
 {
 	unsigned long *gpregs = (unsigned long *)S390_lowcore.gpregs_save_area;
@@ -148,4 +170,5 @@ void print_pgm_check_info(void)
 			    gpregs[8], gpregs[9], gpregs[10], gpregs[11]);
 	decompressor_printk("      %016lx %016lx %016lx %016lx\n",
 			    gpregs[12], gpregs[13], gpregs[14], gpregs[15]);
+	print_stacktrace();
 }

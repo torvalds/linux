@@ -4,6 +4,10 @@
 
 #include <linux/types.h>
 
+#define BOOT_STACK_OFFSET 0x8000
+
+#ifndef __ASSEMBLY__
+
 #include <linux/compiler.h>
 
 void startup_kernel(void);
@@ -25,4 +29,5 @@ extern int kaslr_enabled;
 
 unsigned long read_ipl_report(unsigned long safe_offset);
 
+#endif /* __ASSEMBLY__ */
 #endif /* BOOT_BOOT_H */
