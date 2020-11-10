@@ -59,8 +59,9 @@ config DEBUG_GPIO
 	  that are most common when setting up new platforms or boards.
 
 config GPIO_SYSFS
-	bool "/sys/class/gpio/... (sysfs interface)"
+	bool "/sys/class/gpio/... (sysfs interface)" if EXPERT
 	depends on SYSFS
+	select GPIO_CDEV # We need to encourage the new ABI
 	help
 	  Say Y here to add the legacy sysfs interface for GPIOs.
 
