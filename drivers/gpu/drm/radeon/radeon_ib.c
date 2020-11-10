@@ -48,6 +48,7 @@ static int radeon_debugfs_sa_init(struct radeon_device *rdev);
  *
  * @rdev: radeon_device pointer
  * @ring: ring index the IB is associated with
+ * @vm: requested vm
  * @ib: IB object returned
  * @size: requested IB size
  *
