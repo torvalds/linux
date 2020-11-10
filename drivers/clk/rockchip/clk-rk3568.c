@@ -319,7 +319,7 @@ static struct rockchip_pll_clock rk3568_pmu_pll_clks[] __initdata = {
 		     0, RK3568_PMU_PLL_CON(0),
 		     RK3568_PMU_MODE_CON0, 0, 4, 0, rk3568_pll_rates),
 	[hpll] = PLL(pll_rk3328, PLL_HPLL, "hpll",  mux_pll_p,
-		     0, RK3568_PMU_PLL_CON(8),
+		     0, RK3568_PMU_PLL_CON(16),
 		     RK3568_PMU_MODE_CON0, 2, 7, 0, rk3568_pll_rates),
 };
 
