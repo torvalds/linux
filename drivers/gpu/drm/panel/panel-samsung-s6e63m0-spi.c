@@ -25,16 +25,9 @@ static int s6e63m0_spi_dcs_read(struct device *dev, const u8 cmd, u8 *data)
 static int s6e63m0_spi_write_word(struct device *dev, u16 data)
 {
 	struct spi_device *spi = to_spi_device(dev);
-	struct spi_transfer xfer = {
-		.len	= 2,
-		.tx_buf = &data,
-	};
-	struct spi_message msg;
 
-	spi_message_init(&msg);
-	spi_message_add_tail(&xfer, &msg);
-
-	return spi_sync(spi, &msg);
+	/* SPI buffers are always in CPU order */
+	return spi_write(spi, &data, 2);
 }
 
 static int s6e63m0_spi_dcs_write(struct device *dev, const u8 *data, size_t len)
