@@ -56,7 +56,8 @@ struct mlxsw_sp_ipip_ops {
 			    struct mlxsw_sp_fib_entry_op_ctx *op_ctx,
 			    struct mlxsw_sp_ipip_entry *ipip_entry,
 			    enum mlxsw_sp_fib_entry_op op,
-			    u32 tunnel_index);
+			    u32 tunnel_index,
+			    struct mlxsw_sp_fib_entry_priv *priv);
 
 	int (*ol_netdev_change)(struct mlxsw_sp *mlxsw_sp,
 				struct mlxsw_sp_ipip_entry *ipip_entry,
