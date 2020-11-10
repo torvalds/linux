@@ -163,6 +163,7 @@ u32 _rtw_free_sta_priv(struct	sta_priv *pstapriv)
 
 			while (phead != plist) {
 				int i;
+
 				psta = LIST_CONTAINOR(plist, struct sta_info, hash_list);
 				plist = get_next(plist);
 
@@ -282,7 +283,6 @@ struct	sta_info *rtw_alloc_stainfo(struct	sta_priv *pstapriv, u8 *hwaddr)
 			rtw_init_recv_timer(preorder_ctrl);
 		}
 
-
 		/* init for DM */
 		psta->rssi_stat.UndecoratedSmoothedPWDB = (-1);
 		psta->rssi_stat.UndecoratedSmoothedCCK = (-1);
@@ -296,7 +296,6 @@ struct	sta_info *rtw_alloc_stainfo(struct	sta_priv *pstapriv, u8 *hwaddr)
 	}
 
 exit:
-
 
 	return psta;
 }
@@ -315,13 +314,11 @@ u32 rtw_free_stainfo(struct adapter *padapter, struct sta_info *psta)
 	if (!psta)
 		goto exit;
 
-
 	spin_lock_bh(&psta->lock);
 	psta->state &= ~_FW_LINKED;
 	spin_unlock_bh(&psta->lock);
 
 	pfree_sta_queue = &pstapriv->free_sta_queue;
-
 
 	pstaxmitpriv = &psta->sta_xmitpriv;
 
@@ -404,7 +401,6 @@ u32 rtw_free_stainfo(struct adapter *padapter, struct sta_info *psta)
 		preorder_ctrl = &psta->recvreorder_ctrl[i];
 
 		del_timer_sync(&preorder_ctrl->reordering_ctrl_timer);
-
 
 		ppending_recvframe_queue = &preorder_ctrl->pending_recvframe_queue;
 
@@ -530,7 +526,6 @@ struct sta_info *rtw_get_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 
 	phead = &(pstapriv->sta_hash[index]);
 	plist = get_next(phead);
-
 
 	while (phead != plist) {
 
