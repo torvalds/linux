@@ -182,11 +182,12 @@ mlxsw_sp_ipip_fib_entry_op_gre4_rtdp(struct mlxsw_sp *mlxsw_sp,
 
 static int
 mlxsw_sp_ipip_fib_entry_op_gre4_ralue(struct mlxsw_sp *mlxsw_sp,
+				      struct mlxsw_sp_fib_entry_op_ctx *op_ctx,
 				      u32 dip, u8 prefix_len, u16 ul_vr_id,
 				      enum mlxsw_sp_fib_entry_op op,
 				      u32 tunnel_index)
 {
-	char ralue_pl[MLXSW_REG_RALUE_LEN];
+	char *ralue_pl = op_ctx->ralue_pl;
 	enum mlxsw_reg_ralue_op ralue_op;
 
 	switch (op) {
@@ -208,9 +209,9 @@ mlxsw_sp_ipip_fib_entry_op_gre4_ralue(struct mlxsw_sp *mlxsw_sp,
 }
 
 static int mlxsw_sp_ipip_fib_entry_op_gre4(struct mlxsw_sp *mlxsw_sp,
-					struct mlxsw_sp_ipip_entry *ipip_entry,
-					enum mlxsw_sp_fib_entry_op op,
-					u32 tunnel_index)
+					   struct mlxsw_sp_fib_entry_op_ctx *op_ctx,
+					   struct mlxsw_sp_ipip_entry *ipip_entry,
+					   enum mlxsw_sp_fib_entry_op op, u32 tunnel_index)
 {
 	u16 ul_vr_id = mlxsw_sp_ipip_lb_ul_vr_id(ipip_entry->ol_lb);
 	__be32 dip;
@@ -223,7 +224,7 @@ static int mlxsw_sp_ipip_fib_entry_op_gre4(struct mlxsw_sp *mlxsw_sp,
 
 	dip = mlxsw_sp_ipip_netdev_saddr(MLXSW_SP_L3_PROTO_IPV4,
 					 ipip_entry->ol_dev).addr4;
-	return mlxsw_sp_ipip_fib_entry_op_gre4_ralue(mlxsw_sp, be32_to_cpu(dip),
+	return mlxsw_sp_ipip_fib_entry_op_gre4_ralue(mlxsw_sp, op_ctx, be32_to_cpu(dip),
 						     32, ul_vr_id, op,
 						     tunnel_index);
 }

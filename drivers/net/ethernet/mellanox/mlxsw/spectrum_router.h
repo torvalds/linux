@@ -55,6 +55,15 @@ struct mlxsw_sp_router {
 	const struct mlxsw_sp_router_ll_ops *proto_ll_ops[MLXSW_SP_L3_PROTO_MAX];
 };
 
+enum mlxsw_sp_fib_entry_op {
+	MLXSW_SP_FIB_ENTRY_OP_WRITE,
+	MLXSW_SP_FIB_ENTRY_OP_DELETE,
+};
+
+struct mlxsw_sp_fib_entry_op_ctx {
+	char ralue_pl[MLXSW_REG_RALUE_LEN];
+};
+
 /* Low-level router ops. Basically this is to handle the different
  * register sets to work with ordinary and XM trees and FIB entries.
  */
@@ -62,11 +71,6 @@ struct mlxsw_sp_router_ll_ops {
 	int (*ralta_write)(struct mlxsw_sp *mlxsw_sp, char *xralta_pl);
 	int (*ralst_write)(struct mlxsw_sp *mlxsw_sp, char *xralst_pl);
 	int (*raltb_write)(struct mlxsw_sp *mlxsw_sp, char *xraltb_pl);
-};
-
-enum mlxsw_sp_fib_entry_op {
-	MLXSW_SP_FIB_ENTRY_OP_WRITE,
-	MLXSW_SP_FIB_ENTRY_OP_DELETE,
 };
 
 struct mlxsw_sp_rif_ipip_lb;
