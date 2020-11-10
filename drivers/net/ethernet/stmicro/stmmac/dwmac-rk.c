@@ -48,6 +48,7 @@ struct rk_gmac_ops {
 struct rk_priv_data {
 	struct platform_device *pdev;
 	int phy_iface;
+	int bus_id;
 	struct regulator *regulator;
 	bool suspended;
 	const struct rk_gmac_ops *ops;
@@ -1164,27 +1165,24 @@ static void rk3568_set_to_rgmii(struct rk_priv_data *bsp_priv,
 				int tx_delay, int rx_delay)
 {
 	struct device *dev = &bsp_priv->pdev->dev;
+	u32 offset_con0, offset_con1;
 
 	if (IS_ERR(bsp_priv->grf)) {
 		dev_err(dev, "Missing rockchip,grf property\n");
 		return;
 	}
 
-	regmap_write(bsp_priv->grf, RK3568_GRF_GMAC0_CON1,
+	offset_con0 = (bsp_priv->bus_id == 1)
+		      ? RK3568_GRF_GMAC1_CON0 : RK3568_GRF_GMAC0_CON0;
+	offset_con1 = (bsp_priv->bus_id == 1)
+		      ? RK3568_GRF_GMAC1_CON1 : RK3568_GRF_GMAC0_CON1;
+
+	regmap_write(bsp_priv->grf, offset_con1,
 		     RK3568_GMAC_PHY_INTF_SEL_RGMII |
 		     RK3568_GMAC_RXCLK_DLY_ENABLE |
 		     RK3568_GMAC_TXCLK_DLY_ENABLE);
 
-	regmap_write(bsp_priv->grf, RK3568_GRF_GMAC0_CON0,
-		     RK3568_GMAC_CLK_RX_DL_CFG(rx_delay) |
-		     RK3568_GMAC_CLK_TX_DL_CFG(tx_delay));
-
-	regmap_write(bsp_priv->grf, RK3568_GRF_GMAC1_CON1,
-		     RK3568_GMAC_PHY_INTF_SEL_RGMII |
-		     RK3568_GMAC_RXCLK_DLY_ENABLE |
-		     RK3568_GMAC_TXCLK_DLY_ENABLE);
-
-	regmap_write(bsp_priv->grf, RK3568_GRF_GMAC1_CON0,
+	regmap_write(bsp_priv->grf, offset_con0,
 		     RK3568_GMAC_CLK_RX_DL_CFG(rx_delay) |
 		     RK3568_GMAC_CLK_TX_DL_CFG(tx_delay));
 }
@@ -1192,16 +1190,17 @@ static void rk3568_set_to_rgmii(struct rk_priv_data *bsp_priv,
 static void rk3568_set_to_rmii(struct rk_priv_data *bsp_priv)
 {
 	struct device *dev = &bsp_priv->pdev->dev;
+	u32 offset_con1;
 
 	if (IS_ERR(bsp_priv->grf)) {
 		dev_err(dev, "%s: Missing rockchip,grf property\n", __func__);
 		return;
 	}
 
-	regmap_write(bsp_priv->grf, RK3568_GRF_GMAC0_CON1,
-		     RK3568_GMAC_PHY_INTF_SEL_RMII);
+	offset_con1 = (bsp_priv->bus_id == 1)
+		      ? RK3568_GRF_GMAC1_CON1 : RK3568_GRF_GMAC0_CON1;
 
-	regmap_write(bsp_priv->grf, RK3568_GRF_GMAC1_CON1,
+	regmap_write(bsp_priv->grf, offset_con1,
 		     RK3568_GMAC_PHY_INTF_SEL_RMII);
 }
 
@@ -1644,6 +1643,7 @@ static struct rk_priv_data *rk_gmac_setup(struct platform_device *pdev,
 
 	bsp_priv->phy_iface = of_get_phy_mode(dev->of_node);
 	bsp_priv->ops = ops;
+	bsp_priv->bus_id = plat->bus_id;
 
 	bsp_priv->regulator = devm_regulator_get_optional(dev, "phy");
 	if (IS_ERR(bsp_priv->regulator)) {
