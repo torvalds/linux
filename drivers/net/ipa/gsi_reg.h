@@ -384,6 +384,23 @@ enum gsi_general_id {
 #define ERR_VIRT_IDX_FMASK		GENMASK(23, 19)
 #define ERR_TYPE_FMASK			GENMASK(27, 24)
 #define ERR_EE_FMASK			GENMASK(31, 28)
+/** enum gsi_err_code - ERR_CODE field values in EE_ERR_LOG */
+enum gsi_err_code {
+	GSI_INVALID_TRE				= 0x1,
+	GSI_OUT_OF_BUFFERS			= 0x2,
+	GSI_OUT_OF_RESOURCES			= 0x3,
+	GSI_UNSUPPORTED_INTER_EE_OP		= 0x4,
+	GSI_EVT_RING_EMPTY			= 0x5,
+	GSI_NON_ALLOCATED_EVT_ACCESS		= 0x6,
+	/* 7 is not assigned */
+	GSI_HWO_1				= 0x8,
+};
+/** enum gsi_err_type - ERR_TYPE field values in EE_ERR_LOG */
+enum gsi_err_type {
+	GSI_ERR_TYPE_GLOB			= 0x1,
+	GSI_ERR_TYPE_CHAN			= 0x2,
+	GSI_ERR_TYPE_EVT			= 0x3,
+};
 
 #define GSI_ERROR_LOG_CLR_OFFSET \
 			GSI_EE_N_ERROR_LOG_CLR_OFFSET(GSI_EE_AP)

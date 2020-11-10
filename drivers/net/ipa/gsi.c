@@ -109,24 +109,6 @@ struct gsi_event {
 	u8 chid;
 };
 
-/* Hardware values from the error log register error code field */
-enum gsi_err_code {
-	GSI_INVALID_TRE_ERR			= 0x1,
-	GSI_OUT_OF_BUFFERS_ERR			= 0x2,
-	GSI_OUT_OF_RESOURCES_ERR		= 0x3,
-	GSI_UNSUPPORTED_INTER_EE_OP_ERR		= 0x4,
-	GSI_EVT_RING_EMPTY_ERR			= 0x5,
-	GSI_NON_ALLOCATED_EVT_ACCESS_ERR	= 0x6,
-	GSI_HWO_1_ERR				= 0x8,
-};
-
-/* Hardware values from the error log register error type field */
-enum gsi_err_type {
-	GSI_ERR_TYPE_GLOB	= 0x1,
-	GSI_ERR_TYPE_CHAN	= 0x2,
-	GSI_ERR_TYPE_EVT	= 0x3,
-};
-
 /* Hardware values representing an event ring immediate command opcode */
 enum gsi_evt_cmd_opcode {
 	GSI_EVT_ALLOCATE	= 0x0,
@@ -1052,7 +1034,7 @@ static void gsi_isr_evt_ctrl(struct gsi *gsi)
 static void
 gsi_isr_glob_chan_err(struct gsi *gsi, u32 err_ee, u32 channel_id, u32 code)
 {
-	if (code == GSI_OUT_OF_RESOURCES_ERR) {
+	if (code == GSI_OUT_OF_RESOURCES) {
 		dev_err(gsi->dev, "channel %u out of resources\n", channel_id);
 		complete(&gsi->channel[channel_id].completion);
 		return;
@@ -1067,7 +1049,7 @@ gsi_isr_glob_chan_err(struct gsi *gsi, u32 err_ee, u32 channel_id, u32 code)
 static void
 gsi_isr_glob_evt_err(struct gsi *gsi, u32 err_ee, u32 evt_ring_id, u32 code)
 {
-	if (code == GSI_OUT_OF_RESOURCES_ERR) {
+	if (code == GSI_OUT_OF_RESOURCES) {
 		struct gsi_evt_ring *evt_ring = &gsi->evt_ring[evt_ring_id];
 		u32 channel_id = gsi_channel_id(evt_ring->channel);
 
