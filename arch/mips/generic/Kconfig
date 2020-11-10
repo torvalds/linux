@@ -78,6 +78,14 @@ config FIT_IMAGE_FDT_OCELOT
 	  from Microsemi in the FIT kernel image.
 	  This requires u-boot on the platform.
 
+config FIT_IMAGE_FDT_LUTON
+	bool "Include FDT for Microsemi Luton development platforms"
+	select SOC_VCOREIII
+	help
+	  Enable this to include the FDT for the Luton development platforms
+	  from Microsemi in the FIT kernel image.
+	  This requires u-boot on the platform.
+
 config BOARD_INGENIC
 	bool "Support boards based on Ingenic SoCs"
 	select MACH_INGENIC_GENERIC
