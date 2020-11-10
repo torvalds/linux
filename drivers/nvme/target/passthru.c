@@ -227,7 +227,7 @@ static void nvmet_passthru_execute_cmd(struct nvmet_req *req)
 	struct request_queue *q = ctrl->admin_q;
 	struct nvme_ns *ns = NULL;
 	struct request *rq = NULL;
-	unsigned int timeout = 0;
+	unsigned int timeout;
 	u32 effects;
 	u16 status;
 	int ret;
@@ -243,6 +243,7 @@ static void nvmet_passthru_execute_cmd(struct nvmet_req *req)
 		}
 
 		q = ns->queue;
+		timeout = req->sq->ctrl->subsys->io_timeout;
 	} else {
 		timeout = req->sq->ctrl->subsys->admin_timeout;
 	}
