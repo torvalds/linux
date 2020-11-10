@@ -592,6 +592,7 @@ struct hl_cs_chunk {
 #define HL_CS_FLAGS_SIGNAL		0x2
 #define HL_CS_FLAGS_WAIT		0x4
 #define HL_CS_FLAGS_COLLECTIVE_WAIT	0x8
+#define HL_CS_FLAGS_TIMESTAMP		0x20
 
 #define HL_CS_STATUS_SUCCESS		0
 
@@ -662,13 +663,16 @@ struct hl_wait_cs_in {
 #define HL_WAIT_CS_STATUS_ABORTED	3
 #define HL_WAIT_CS_STATUS_INTERRUPTED	4
 
-#define HL_WAIT_CS_STATUS_FLAG_GONE	0x1
+#define HL_WAIT_CS_STATUS_FLAG_GONE		0x1
+#define HL_WAIT_CS_STATUS_FLAG_TIMESTAMP_VLD	0x2
 
 struct hl_wait_cs_out {
 	/* HL_WAIT_CS_STATUS_* */
 	__u32 status;
 	/* HL_WAIT_CS_STATUS_FLAG* */
 	__u32 flags;
+	/* valid only if HL_WAIT_CS_STATUS_FLAG_TIMESTAMP_VLD is set */
+	__s64 timestamp_nsec;
 };
 
 union hl_wait_cs_args {

@@ -481,12 +481,14 @@ struct asic_fixed_properties {
  * @completion: fence is implemented using completion
  * @refcount: refcount for this fence
  * @error: mark this fence with error
+ * @timestamp: timestamp upon completion
  *
  */
 struct hl_fence {
 	struct completion	completion;
 	struct kref		refcount;
 	int			error;
+	ktime_t			timestamp;
 };
 
 /**
@@ -1127,6 +1129,7 @@ struct hl_userptr {
  * @tdr_active: true if TDR was activated for this CS (to prevent
  *		double TDR activation).
  * @aborted: true if CS was aborted due to some device error.
+ * @timestamp: true if a timestmap must be captured upon completion
  */
 struct hl_cs {
 	u16			*jobs_in_queue_cnt;
@@ -1147,6 +1150,7 @@ struct hl_cs {
 	u8			timedout;
 	u8			tdr_active;
 	u8			aborted;
+	u8			timestamp;
 };
 
 /**

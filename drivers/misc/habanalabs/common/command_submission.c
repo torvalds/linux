@@ -26,7 +26,7 @@ enum hl_cs_wait_status {
 static void job_wq_completion(struct work_struct *work);
 static int _hl_cs_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 				u64 timeout_us, u64 seq,
-				enum hl_cs_wait_status *status);
+				enum hl_cs_wait_status *status, s64 *timestamp);
 static void cs_do_release(struct kref *ref);
 
 static void hl_sob_reset(struct kref *ref)
@@ -150,6 +150,7 @@ static void hl_fence_init(struct hl_fence *fence)
 {
 	kref_init(&fence->refcount);
 	fence->error = 0;
+	fence->timestamp = ktime_set(0, 0);
 	init_completion(&fence->completion);
 }
 
@@ -404,6 +405,8 @@ out:
 	else if (!cs->submitted)
 		cs->fence->error = -EBUSY;
 
+	if (cs->timestamp)
+		cs->fence->timestamp = ktime_get();
 	complete_all(&cs->fence->completion);
 	hl_fence_put(cs->fence);
 
@@ -734,7 +737,8 @@ static int hl_cs_sanity_checks(struct hl_fpriv *hpriv, union hl_cs_args *args)
 		return -EBUSY;
 	}
 
-	cs_type_flags = args->in.cs_flags & ~HL_CS_FLAGS_FORCE_RESTORE;
+	cs_type_flags = args->in.cs_flags &
+			~(HL_CS_FLAGS_FORCE_RESTORE | HL_CS_FLAGS_TIMESTAMP);
 
 	if (unlikely(cs_type_flags && !is_power_of_2(cs_type_flags))) {
 		dev_err(hdev->dev,
@@ -798,7 +802,7 @@ static int hl_cs_copy_chunk_array(struct hl_device *hdev,
 }
 
 static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
-				u32 num_chunks, u64 *cs_seq)
+				u32 num_chunks, u64 *cs_seq, bool timestamp)
 {
 	bool int_queues_only = true;
 	struct hl_device *hdev = hpriv->hdev;
@@ -825,6 +829,7 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 		goto free_cs_chunk_array;
 	}
 
+	cs->timestamp = !!timestamp;
 	*cs_seq = cs->sequence;
 
 	hl_debugfs_add_cs(cs);
@@ -995,7 +1000,7 @@ static int hl_cs_ctx_switch(struct hl_fpriv *hpriv, union hl_cs_args *args,
 			rc = 0;
 		} else {
 			rc = cs_ioctl_default(hpriv, chunks, num_chunks,
-						cs_seq);
+						cs_seq, false);
 		}
 
 		mutex_unlock(&hpriv->restore_phase_mutex);
@@ -1013,7 +1018,7 @@ static int hl_cs_ctx_switch(struct hl_fpriv *hpriv, union hl_cs_args *args,
 wait_again:
 			ret = _hl_cs_wait_ioctl(hdev, ctx,
 					jiffies_to_usecs(hdev->timeout_jiffies),
-					*cs_seq, &status);
+					*cs_seq, &status, NULL);
 			if (ret) {
 				if (ret == -ERESTARTSYS) {
 					usleep_range(100, 200);
@@ -1154,7 +1159,7 @@ static int cs_ioctl_signal_wait_create_jobs(struct hl_device *hdev,
 
 static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 				void __user *chunks, u32 num_chunks,
-				u64 *cs_seq)
+				u64 *cs_seq, bool timestamp)
 {
 	struct hl_cs_chunk *cs_chunk_array, *chunk;
 	struct hw_queue_properties *hw_queue_prop;
@@ -1259,6 +1264,8 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 		goto free_cs_chunk_array;
 	}
 
+	cs->timestamp = !!timestamp;
+
 	/*
 	 * Save the signal CS fence for later initialization right before
 	 * hanging the wait CS on the queue.
@@ -1334,10 +1341,11 @@ int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
 	case CS_TYPE_WAIT:
 	case CS_TYPE_COLLECTIVE_WAIT:
 		rc = cs_ioctl_signal_wait(hpriv, cs_type, chunks, num_chunks,
-						&cs_seq);
+			&cs_seq, args->in.cs_flags & HL_CS_FLAGS_TIMESTAMP);
 		break;
 	default:
-		rc = cs_ioctl_default(hpriv, chunks, num_chunks, &cs_seq);
+		rc = cs_ioctl_default(hpriv, chunks, num_chunks, &cs_seq,
+				args->in.cs_flags & HL_CS_FLAGS_TIMESTAMP);
 		break;
 	}
 
@@ -1353,12 +1361,15 @@ out:
 
 static int _hl_cs_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 				u64 timeout_us, u64 seq,
-				enum hl_cs_wait_status *status)
+				enum hl_cs_wait_status *status, s64 *timestamp)
 {
 	struct hl_fence *fence;
 	unsigned long timeout;
 	int rc = 0;
 	long completion_rc;
+
+	if (timestamp)
+		*timestamp = 0;
 
 	if (timeout_us == MAX_SCHEDULE_TIMEOUT)
 		timeout = timeout_us;
@@ -1382,10 +1393,13 @@ static int _hl_cs_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 				wait_for_completion_interruptible_timeout(
 					&fence->completion, timeout);
 
-		if (completion_rc > 0)
+		if (completion_rc > 0) {
 			*status = CS_WAIT_STATUS_COMPLETED;
-		else
+			if (timestamp)
+				*timestamp = ktime_to_ns(fence->timestamp);
+		} else {
 			*status = CS_WAIT_STATUS_BUSY;
+		}
 
 		if (fence->error == -ETIMEDOUT)
 			rc = -ETIMEDOUT;
@@ -1411,10 +1425,11 @@ int hl_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 	union hl_wait_cs_args *args = data;
 	enum hl_cs_wait_status status;
 	u64 seq = args->in.seq;
+	s64 timestamp;
 	int rc;
 
 	rc = _hl_cs_wait_ioctl(hdev, hpriv->ctx, args->in.timeout_us, seq,
-				&status);
+				&status, &timestamp);
 
 	memset(args, 0, sizeof(*args));
 
@@ -1437,6 +1452,11 @@ int hl_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 			args->out.status = HL_WAIT_CS_STATUS_ABORTED;
 		}
 		return rc;
+	}
+
+	if (timestamp) {
+		args->out.flags |= HL_WAIT_CS_STATUS_FLAG_TIMESTAMP_VLD;
+		args->out.timestamp_nsec = timestamp;
 	}
 
 	switch (status) {
