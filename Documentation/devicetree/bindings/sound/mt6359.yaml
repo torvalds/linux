@@ -17,6 +17,11 @@ description: |
   Must be a child node of PMIC wrapper.
 
 properties:
+  LDO_VAUD18-supply:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: |
+      Regulator of LDO VAUD18 at 1.8V.
+
   mediatek,dmic-mode:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: |
@@ -49,11 +54,15 @@ properties:
     description: |
       Specifies the type of mic type connected to adc2
 
+required:
+  - LDO_VAUD18-supply
+
 additionalProperties: false
 
 examples:
   - |
     mt6359codec: mt6359codec {
+      LDO_VAUD18-supply = <&mt6359p_vaud18_reg>;
       mediatek,dmic-mode = <0>;
       mediatek,mic-type-0 = <2>;
     };
