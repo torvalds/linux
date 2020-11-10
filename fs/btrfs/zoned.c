@@ -274,5 +274,10 @@ int btrfs_check_mountopts_zoned(struct btrfs_fs_info *info)
 		return -EINVAL;
 	}
 
+	if (btrfs_test_opt(info, NODATACOW)) {
+		btrfs_err(info, "zoned: NODATACOW not supported");
+		return -EINVAL;
+	}
+
 	return 0;
 }

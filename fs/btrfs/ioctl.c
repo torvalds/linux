@@ -193,6 +193,15 @@ static int check_fsflags(unsigned int old_flags, unsigned int flags)
 	return 0;
 }
 
+static int check_fsflags_compatible(struct btrfs_fs_info *fs_info,
+				    unsigned int flags)
+{
+	if (btrfs_is_zoned(fs_info) && (flags & FS_NOCOW_FL))
+		return -EPERM;
+
+	return 0;
+}
+
 static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 {
 	struct inode *inode = file_inode(file);
@@ -227,6 +236,10 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 		goto out_unlock;
 
 	ret = check_fsflags(old_fsflags, fsflags);
+	if (ret)
+		goto out_unlock;
+
+	ret = check_fsflags_compatible(fs_info, fsflags);
 	if (ret)
 		goto out_unlock;
 
