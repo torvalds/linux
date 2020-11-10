@@ -5764,8 +5764,8 @@ static int __mlxsw_sp_router_set_abort_trap(struct mlxsw_sp *mlxsw_sp,
 		if (err)
 			return err;
 
-		mlxsw_reg_ralue_pack(ralue_pl, ralxx_proto,
-				     MLXSW_REG_RALUE_OP_WRITE_WRITE, vr->id, 0);
+		mlxsw_sp_fib_entry_ralue_pack(ralue_pl, proto,
+					      MLXSW_SP_FIB_ENTRY_OP_WRITE, vr->id, 0, NULL);
 		mlxsw_reg_ralue_act_ip2me_pack(ralue_pl);
 		err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ralue),
 				      ralue_pl);
