@@ -573,7 +573,7 @@ static long _hl_ioctl(struct file *filep, unsigned int cmd, unsigned long arg,
 	int retcode;
 
 	if (hdev->hard_reset_pending) {
-		dev_crit_ratelimited(hdev->dev_ctrl,
+		dev_crit_ratelimited(dev,
 			"Device HARD reset pending! Please close FD\n");
 		return -ENODEV;
 	}
