@@ -636,9 +636,12 @@ static int rockchip_usb2phy_init(struct phy *phy)
 
 	mutex_lock(&rport->mutex);
 
-	if (rport->port_id == USB2PHY_PORT_OTG) {
+	if (rport->port_id == USB2PHY_PORT_OTG &&
+	    (rport->mode == USB_DR_MODE_PERIPHERAL ||
+	     rport->mode == USB_DR_MODE_OTG)) {
 		/* clear id status and enable id detect irq */
-		if (rport->id_irq > 0 || rport->otg_mux_irq > 0) {
+		if (rport->id_irq > 0 || rport->otg_mux_irq > 0 ||
+		    rphy->irq > 0) {
 			ret = rockchip_usb2phy_enable_id_irq(rphy, rport,
 							     true);
 			if (ret) {
@@ -649,8 +652,8 @@ static int rockchip_usb2phy_init(struct phy *phy)
 		}
 
 		/* clear bvalid status and enable bvalid detect irq */
-		if ((rport->bvalid_irq > 0 || rport->otg_mux_irq > 0) &&
-		    !rport->vbus_always_on) {
+		if ((rport->bvalid_irq > 0 || rport->otg_mux_irq > 0 ||
+		    rphy->irq > 0) && !rport->vbus_always_on) {
 			ret = rockchip_usb2phy_enable_vbus_irq(rphy, rport,
 							       true);
 			if (ret) {
@@ -1531,7 +1534,9 @@ static irqreturn_t rockchip_usb2phy_irq(int irq, void *data)
 
 		ret = rockchip_usb2phy_linestate_irq(irq, rport);
 
-		if (rport->port_id == USB2PHY_PORT_OTG) {
+		if (rport->port_id == USB2PHY_PORT_OTG &&
+		    (rport->mode == USB_DR_MODE_PERIPHERAL ||
+		     rport->mode == USB_DR_MODE_OTG)) {
 			if (!rport->vbus_always_on)
 				ret |= rockchip_usb2phy_bvalid_irq(irq, rport);
 
@@ -2816,7 +2821,7 @@ static const struct rockchip_usb2phy_cfg rk3568_phy_cfgs[] = {
 				.utmi_ls	= { 0x00c0, 5, 4, 0, 1 },
 			},
 			[USB2PHY_PORT_HOST] = {
-				.phy_sus	= { 0x0004, 8, 0, 0, 0x1d1 },
+				.phy_sus	= { 0x0004, 8, 0, 0x1d2, 0x1d5 },
 				.ls_det_en	= { 0x0080, 1, 1, 0, 1 },
 				.ls_det_st	= { 0x0084, 1, 1, 0, 1 },
 				.ls_det_clr	= { 0x008c, 1, 1, 0, 1 },
@@ -2843,7 +2848,7 @@ static const struct rockchip_usb2phy_cfg rk3568_phy_cfgs[] = {
 		.clkout_ctl	= { 0x0008, 4, 4, 1, 0 },
 		.port_cfgs	= {
 			[USB2PHY_PORT_OTG] = {
-				.phy_sus	= { 0x0000, 8, 0, 0, 0x1d1 },
+				.phy_sus	= { 0x0000, 8, 0, 0x1d2, 0x1d5 },
 				.ls_det_en	= { 0x0080, 0, 0, 0, 1 },
 				.ls_det_st	= { 0x0084, 0, 0, 0, 1 },
 				.ls_det_clr	= { 0x008c, 0, 0, 0, 1 },
@@ -2851,7 +2856,7 @@ static const struct rockchip_usb2phy_cfg rk3568_phy_cfgs[] = {
 				.utmi_hstdet	= { 0x00c0, 7, 7, 0, 1 }
 			},
 			[USB2PHY_PORT_HOST] = {
-				.phy_sus	= { 0x0004, 8, 0, 0, 0x1d1 },
+				.phy_sus	= { 0x0004, 8, 0, 0x1d2, 0x1d5 },
 				.ls_det_en	= { 0x0080, 1, 1, 0, 1 },
 				.ls_det_st	= { 0x0084, 1, 1, 0, 1 },
 				.ls_det_clr	= { 0x008c, 1, 1, 0, 1 },
