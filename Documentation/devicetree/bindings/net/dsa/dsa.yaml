@@ -78,6 +78,10 @@ patternProperties:
 
           mac-address: true
 
+          sfp: true
+
+          managed: true
+
         required:
           - reg
 
