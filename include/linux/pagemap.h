@@ -296,10 +296,7 @@ static inline struct page *page_cache_alloc(struct address_space *x)
 	return __page_cache_alloc(mapping_gfp_mask(x));
 }
 
-static inline gfp_t readahead_gfp_mask(struct address_space *x)
-{
-	return mapping_gfp_mask(x) | __GFP_NORETRY | __GFP_NOWARN;
-}
+gfp_t readahead_gfp_mask(struct address_space *x);
 
 typedef int filler_t(void *, struct page *);
 

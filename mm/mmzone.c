@@ -9,6 +9,7 @@
 #include <linux/stddef.h>
 #include <linux/mm.h>
 #include <linux/mmzone.h>
+#include <trace/hooks/mm.h>
 
 struct pglist_data *first_online_pgdat(void)
 {
@@ -113,3 +114,19 @@ int page_cpupid_xchg_last(struct page *page, int cpupid)
 	return last_cpupid;
 }
 #endif
+
+enum zone_type gfp_zone(gfp_t flags)
+{
+	enum zone_type z;
+	gfp_t local_flags = flags;
+	int bit;
+
+	trace_android_rvh_set_gfp_zone_flags(&local_flags);
+
+	bit = (__force int) ((local_flags) & GFP_ZONEMASK);
+
+	z = (GFP_ZONE_TABLE >> (bit * GFP_ZONES_SHIFT)) &
+					 ((1 << GFP_ZONES_SHIFT) - 1);
+	VM_BUG_ON((GFP_ZONE_BAD >> bit) & 1);
+	return z;
+}

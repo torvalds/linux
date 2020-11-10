@@ -462,16 +462,7 @@ static inline bool gfpflags_normal_context(const gfp_t gfp_flags)
 	| 1 << (___GFP_MOVABLE | ___GFP_DMA32 | ___GFP_DMA | ___GFP_HIGHMEM)  \
 )
 
-static inline enum zone_type gfp_zone(gfp_t flags)
-{
-	enum zone_type z;
-	int bit = (__force int) (flags & GFP_ZONEMASK);
-
-	z = (GFP_ZONE_TABLE >> (bit * GFP_ZONES_SHIFT)) &
-					 ((1 << GFP_ZONES_SHIFT) - 1);
-	VM_BUG_ON((GFP_ZONE_BAD >> bit) & 1);
-	return z;
-}
+enum zone_type gfp_zone(gfp_t flags);
 
 /*
  * There is only one page-allocator function, and two main namespaces to
