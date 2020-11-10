@@ -4350,6 +4350,7 @@ mlxsw_sp_fib_entry_hw_flags_refresh(struct mlxsw_sp *mlxsw_sp,
 {
 	switch (op) {
 	case MLXSW_SP_FIB_ENTRY_OP_WRITE:
+	case MLXSW_SP_FIB_ENTRY_OP_UPDATE:
 		mlxsw_sp_fib_entry_hw_flags_set(mlxsw_sp, fib_entry);
 		break;
 	case MLXSW_SP_FIB_ENTRY_OP_DELETE:
@@ -4381,6 +4382,7 @@ mlxsw_sp_router_ll_basic_fib_entry_pack(struct mlxsw_sp_fib_entry_op_ctx *op_ctx
 
 	switch (op) {
 	case MLXSW_SP_FIB_ENTRY_OP_WRITE:
+	case MLXSW_SP_FIB_ENTRY_OP_UPDATE:
 		ralue_op = MLXSW_REG_RALUE_OP_WRITE_WRITE;
 		break;
 	case MLXSW_SP_FIB_ENTRY_OP_DELETE:
@@ -4699,10 +4701,12 @@ static int mlxsw_sp_fib_entry_op(struct mlxsw_sp *mlxsw_sp,
 
 static int __mlxsw_sp_fib_entry_update(struct mlxsw_sp *mlxsw_sp,
 				       struct mlxsw_sp_fib_entry_op_ctx *op_ctx,
-				       struct mlxsw_sp_fib_entry *fib_entry)
+				       struct mlxsw_sp_fib_entry *fib_entry,
+				       bool is_new)
 {
 	return mlxsw_sp_fib_entry_op(mlxsw_sp, op_ctx, fib_entry,
-				     MLXSW_SP_FIB_ENTRY_OP_WRITE);
+				     is_new ? MLXSW_SP_FIB_ENTRY_OP_WRITE :
+					      MLXSW_SP_FIB_ENTRY_OP_UPDATE);
 }
 
 static int mlxsw_sp_fib_entry_update(struct mlxsw_sp *mlxsw_sp,
@@ -4711,7 +4715,7 @@ static int mlxsw_sp_fib_entry_update(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_fib_entry_op_ctx *op_ctx = mlxsw_sp->router->ll_op_ctx;
 
 	mlxsw_sp_fib_entry_op_ctx_clear(op_ctx);
-	return __mlxsw_sp_fib_entry_update(mlxsw_sp, op_ctx, fib_entry);
+	return __mlxsw_sp_fib_entry_update(mlxsw_sp, op_ctx, fib_entry, false);
 }
 
 static int mlxsw_sp_fib_entry_del(struct mlxsw_sp *mlxsw_sp,
@@ -5091,11 +5095,12 @@ static int mlxsw_sp_fib_node_entry_link(struct mlxsw_sp *mlxsw_sp,
 					struct mlxsw_sp_fib_entry *fib_entry)
 {
 	struct mlxsw_sp_fib_node *fib_node = fib_entry->fib_node;
+	bool is_new = !fib_node->fib_entry;
 	int err;
 
 	fib_node->fib_entry = fib_entry;
 
-	err = __mlxsw_sp_fib_entry_update(mlxsw_sp, op_ctx, fib_entry);
+	err = __mlxsw_sp_fib_entry_update(mlxsw_sp, op_ctx, fib_entry, is_new);
 	if (err)
 		goto err_fib_entry_update;
 
@@ -5509,7 +5514,8 @@ static int mlxsw_sp_nexthop6_group_update(struct mlxsw_sp *mlxsw_sp,
 	 * currently associated with it in the device's table is that
 	 * of the old group. Start using the new one instead.
 	 */
-	err = __mlxsw_sp_fib_entry_update(mlxsw_sp, op_ctx, &fib6_entry->common);
+	err = __mlxsw_sp_fib_entry_update(mlxsw_sp, op_ctx,
+					  &fib6_entry->common, false);
 	if (err)
 		goto err_fib_entry_update;
 

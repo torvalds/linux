@@ -84,6 +84,7 @@ struct mlxsw_sp_fib_entry_priv {
 
 enum mlxsw_sp_fib_entry_op {
 	MLXSW_SP_FIB_ENTRY_OP_WRITE,
+	MLXSW_SP_FIB_ENTRY_OP_UPDATE,
 	MLXSW_SP_FIB_ENTRY_OP_DELETE,
 };
 
