@@ -845,6 +845,8 @@
 			};
 
 			vccio_acodec: LDO_REG4 {
+				regulator-always-on;
+				regulator-boot-on;
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-name = "vccio_acodec";
