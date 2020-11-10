@@ -312,6 +312,7 @@ int hl_get_temperature(struct hl_device *hdev,
 			int sensor_index, u32 attr, long *value)
 {
 	struct cpucp_packet pkt;
+	u64 result;
 	int rc;
 
 	memset(&pkt, 0, sizeof(pkt));
@@ -322,7 +323,9 @@ int hl_get_temperature(struct hl_device *hdev,
 	pkt.type = __cpu_to_le16(attr);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
-						0, value);
+						0, &result);
+
+	*value = (long) result;
 
 	if (rc) {
 		dev_err(hdev->dev,
@@ -363,6 +366,7 @@ int hl_get_voltage(struct hl_device *hdev,
 			int sensor_index, u32 attr, long *value)
 {
 	struct cpucp_packet pkt;
+	u64 result;
 	int rc;
 
 	memset(&pkt, 0, sizeof(pkt));
@@ -373,7 +377,9 @@ int hl_get_voltage(struct hl_device *hdev,
 	pkt.type = __cpu_to_le16(attr);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
-						0, value);
+						0, &result);
+
+	*value = (long) result;
 
 	if (rc) {
 		dev_err(hdev->dev,
@@ -389,6 +395,7 @@ int hl_get_current(struct hl_device *hdev,
 			int sensor_index, u32 attr, long *value)
 {
 	struct cpucp_packet pkt;
+	u64 result;
 	int rc;
 
 	memset(&pkt, 0, sizeof(pkt));
@@ -399,7 +406,9 @@ int hl_get_current(struct hl_device *hdev,
 	pkt.type = __cpu_to_le16(attr);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
-						0, value);
+						0, &result);
+
+	*value = (long) result;
 
 	if (rc) {
 		dev_err(hdev->dev,
@@ -415,6 +424,7 @@ int hl_get_fan_speed(struct hl_device *hdev,
 			int sensor_index, u32 attr, long *value)
 {
 	struct cpucp_packet pkt;
+	u64 result;
 	int rc;
 
 	memset(&pkt, 0, sizeof(pkt));
@@ -425,7 +435,9 @@ int hl_get_fan_speed(struct hl_device *hdev,
 	pkt.type = __cpu_to_le16(attr);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
-						0, value);
+						0, &result);
+
+	*value = (long) result;
 
 	if (rc) {
 		dev_err(hdev->dev,
@@ -441,6 +453,7 @@ int hl_get_pwm_info(struct hl_device *hdev,
 			int sensor_index, u32 attr, long *value)
 {
 	struct cpucp_packet pkt;
+	u64 result;
 	int rc;
 
 	memset(&pkt, 0, sizeof(pkt));
@@ -451,7 +464,9 @@ int hl_get_pwm_info(struct hl_device *hdev,
 	pkt.type = __cpu_to_le16(attr);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
-						0, value);
+						0, &result);
+
+	*value = (long) result;
 
 	if (rc) {
 		dev_err(hdev->dev,

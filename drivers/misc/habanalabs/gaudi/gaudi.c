@@ -4561,7 +4561,7 @@ static void *gaudi_get_int_queue_base(struct hl_device *hdev,
 }
 
 static int gaudi_send_cpu_message(struct hl_device *hdev, u32 *msg,
-				u16 len, u32 timeout, long *result)
+				u16 len, u32 timeout, u64 *result)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
 

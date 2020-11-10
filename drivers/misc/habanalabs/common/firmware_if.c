@@ -88,7 +88,7 @@ int hl_fw_send_pci_access_msg(struct hl_device *hdev, u32 opcode)
 }
 
 int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
-				u16 len, u32 timeout, long *result)
+				u16 len, u32 timeout, u64 *result)
 {
 	struct cpucp_packet *pkt;
 	dma_addr_t pkt_dma_addr;
@@ -143,7 +143,7 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 						>> CPUCP_PKT_CTL_OPCODE_SHIFT);
 		rc = -EIO;
 	} else if (result) {
-		*result = (long) le64_to_cpu(pkt->result);
+		*result = le64_to_cpu(pkt->result);
 	}
 
 out:
@@ -157,7 +157,7 @@ out:
 int hl_fw_unmask_irq(struct hl_device *hdev, u16 event_type)
 {
 	struct cpucp_packet pkt;
-	long result;
+	u64 result;
 	int rc;
 
 	memset(&pkt, 0, sizeof(pkt));
@@ -180,7 +180,7 @@ int hl_fw_unmask_irq_arr(struct hl_device *hdev, const u32 *irq_arr,
 {
 	struct cpucp_unmask_irq_arr_packet *pkt;
 	size_t total_pkt_size;
-	long result;
+	u64 result;
 	int rc;
 
 	total_pkt_size = sizeof(struct cpucp_unmask_irq_arr_packet) +
@@ -219,7 +219,7 @@ int hl_fw_unmask_irq_arr(struct hl_device *hdev, const u32 *irq_arr,
 int hl_fw_test_cpu_queue(struct hl_device *hdev)
 {
 	struct cpucp_packet test_pkt = {};
-	long result;
+	u64 result;
 	int rc;
 
 	test_pkt.ctl = cpu_to_le32(CPUCP_PACKET_TEST <<
@@ -232,7 +232,7 @@ int hl_fw_test_cpu_queue(struct hl_device *hdev)
 	if (!rc) {
 		if (result != CPUCP_PACKET_FENCE_VAL)
 			dev_err(hdev->dev,
-				"CPU queue test failed (0x%08lX)\n", result);
+				"CPU queue test failed (%#08llx)\n", result);
 	} else {
 		dev_err(hdev->dev, "CPU queue test failed, error %d\n", rc);
 	}
@@ -263,7 +263,7 @@ void hl_fw_cpu_accessible_dma_pool_free(struct hl_device *hdev, size_t size,
 int hl_fw_send_heartbeat(struct hl_device *hdev)
 {
 	struct cpucp_packet hb_pkt = {};
-	long result;
+	u64 result;
 	int rc;
 
 	hb_pkt.ctl = cpu_to_le32(CPUCP_PACKET_TEST <<
@@ -285,7 +285,7 @@ int hl_fw_cpucp_info_get(struct hl_device *hdev)
 	struct cpucp_packet pkt = {};
 	void *cpucp_info_cpu_addr;
 	dma_addr_t cpucp_info_dma_addr;
-	long result;
+	u64 result;
 	int rc;
 
 	cpucp_info_cpu_addr =
@@ -336,7 +336,7 @@ int hl_fw_get_eeprom_data(struct hl_device *hdev, void *data, size_t max_size)
 	struct cpucp_packet pkt = {};
 	void *eeprom_info_cpu_addr;
 	dma_addr_t eeprom_info_dma_addr;
-	long result;
+	u64 result;
 	int rc;
 
 	eeprom_info_cpu_addr =
@@ -379,7 +379,7 @@ int hl_fw_cpucp_pci_counters_get(struct hl_device *hdev,
 		struct hl_info_pci_counters *counters)
 {
 	struct cpucp_packet pkt = {};
-	long result;
+	u64 result;
 	int rc;
 
 	pkt.ctl = cpu_to_le32(CPUCP_PACKET_PCIE_THROUGHPUT_GET <<
@@ -426,7 +426,7 @@ int hl_fw_cpucp_pci_counters_get(struct hl_device *hdev,
 int hl_fw_cpucp_total_energy_get(struct hl_device *hdev, u64 *total_energy)
 {
 	struct cpucp_packet pkt = {};
-	long result;
+	u64 result;
 	int rc;
 
 	pkt.ctl = cpu_to_le32(CPUCP_PACKET_TOTAL_ENERGY_GET <<
@@ -452,7 +452,7 @@ int hl_fw_cpucp_pll_info_get(struct hl_device *hdev,
 		u32 *pll_info)
 {
 	struct cpucp_packet pkt;
-	long result;
+	u64 result;
 	int rc;
 
 	memset(&pkt, 0, sizeof(pkt));
@@ -467,7 +467,7 @@ int hl_fw_cpucp_pll_info_get(struct hl_device *hdev,
 	if (rc)
 		dev_err(hdev->dev, "Failed to read PLL info, error %d\n", rc);
 
-	*pll_info = result;
+	*pll_info = (u32) result;
 
 	return rc;
 }

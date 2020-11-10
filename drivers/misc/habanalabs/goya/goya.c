@@ -2954,7 +2954,7 @@ free_fence_ptr:
 }
 
 int goya_send_cpu_message(struct hl_device *hdev, u32 *msg, u16 len,
-				u32 timeout, long *result)
+				u32 timeout, u64 *result)
 {
 	struct goya_device *goya = hdev->asic_specific;
 
@@ -4540,7 +4540,7 @@ static int goya_unmask_irq_arr(struct hl_device *hdev, u32 *irq_arr,
 {
 	struct cpucp_unmask_irq_arr_packet *pkt;
 	size_t total_pkt_size;
-	long result;
+	u64 result;
 	int rc;
 	int irq_num_entries, irq_arr_index;
 	__le32 *goya_irq_arr;
@@ -4599,7 +4599,7 @@ static int goya_soft_reset_late_init(struct hl_device *hdev)
 static int goya_unmask_irq(struct hl_device *hdev, u16 event_type)
 {
 	struct cpucp_packet pkt;
-	long result;
+	u64 result;
 	int rc;
 
 	memset(&pkt, 0, sizeof(pkt));

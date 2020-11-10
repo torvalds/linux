@@ -192,7 +192,7 @@ int goya_test_queue(struct hl_device *hdev, u32 hw_queue_id);
 int goya_test_queues(struct hl_device *hdev);
 int goya_test_cpu_queue(struct hl_device *hdev);
 int goya_send_cpu_message(struct hl_device *hdev, u32 *msg, u16 len,
-				u32 timeout, long *result);
+				u32 timeout, u64 *result);
 
 long goya_get_temperature(struct hl_device *hdev, int sensor_index, u32 attr);
 long goya_get_voltage(struct hl_device *hdev, int sensor_index, u32 attr);

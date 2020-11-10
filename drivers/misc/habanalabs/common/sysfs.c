@@ -12,7 +12,7 @@
 long hl_get_frequency(struct hl_device *hdev, u32 pll_index, bool curr)
 {
 	struct cpucp_packet pkt;
-	long result;
+	u64 result;
 	int rc;
 
 	memset(&pkt, 0, sizeof(pkt));
@@ -32,10 +32,10 @@ long hl_get_frequency(struct hl_device *hdev, u32 pll_index, bool curr)
 		dev_err(hdev->dev,
 			"Failed to get frequency of PLL %d, error %d\n",
 			pll_index, rc);
-		result = rc;
+		return rc;
 	}
 
-	return result;
+	return (long) result;
 }
 
 void hl_set_frequency(struct hl_device *hdev, u32 pll_index, u64 freq)
@@ -62,7 +62,7 @@ void hl_set_frequency(struct hl_device *hdev, u32 pll_index, u64 freq)
 u64 hl_get_max_power(struct hl_device *hdev)
 {
 	struct cpucp_packet pkt;
-	long result;
+	u64 result;
 	int rc;
 
 	memset(&pkt, 0, sizeof(pkt));
@@ -75,7 +75,7 @@ u64 hl_get_max_power(struct hl_device *hdev)
 
 	if (rc) {
 		dev_err(hdev->dev, "Failed to get max power, error %d\n", rc);
-		result = rc;
+		return (u64) rc;
 	}
 
 	return result;
