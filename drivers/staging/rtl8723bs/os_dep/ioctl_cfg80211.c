@@ -2870,7 +2870,8 @@ static struct sta_info *rtw_sta_info_get_by_idx(const int idx, struct sta_priv *
 
 	/* check asoc_queue */
 	while (phead != plist) {
-		if (idx == i) psta = LIST_CONTAINOR(plist, struct sta_info, asoc_list);
+		if (idx == i)
+			psta = LIST_CONTAINOR(plist, struct sta_info, asoc_list);
 		plist = get_next(plist);
 		i++;
 	}

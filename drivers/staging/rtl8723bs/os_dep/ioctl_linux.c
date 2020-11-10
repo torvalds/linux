@@ -3151,7 +3151,8 @@ static int rtw_dbg_port(struct net_device *dev,
 #endif
 				case 0xaa:
 					{
-						if ((extra_arg & 0x7F) > 0x3F) extra_arg = 0xFF;
+						if ((extra_arg & 0x7F) > 0x3F)
+							extra_arg = 0xFF;
 						DBG_871X("chang data rate to :0x%02x\n", extra_arg);
 						padapter->fix_rate = extra_arg;
 					}
@@ -4934,7 +4935,8 @@ static int rtw_ioctl_wext_private(struct net_device *dev, union iwreq_data *wrq_
 			count = 0;
 			do {
 				str = strsep(&ptr, delim);
-				if (NULL == str) break;
+				if (NULL == str)
+					break;
 				sscanf(str, "%i", &temp);
 				buffer[count++] = (u8)temp;
 			} while (1);
@@ -4952,7 +4954,8 @@ static int rtw_ioctl_wext_private(struct net_device *dev, union iwreq_data *wrq_
 			count = 0;
 			do {
 				str = strsep(&ptr, delim);
-				if (NULL == str) break;
+				if (NULL == str)
+					break;
 				sscanf(str, "%i", &temp);
 				((s32 *)buffer)[count++] = (s32)temp;
 			} while (1);
