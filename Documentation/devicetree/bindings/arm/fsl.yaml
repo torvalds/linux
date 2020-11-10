@@ -581,9 +581,15 @@ properties:
       - description: i.MX7S based Boards
         items:
           - enum:
-              - toradex,colibri-imx7s           # Colibri iMX7 Solo Module
-              - toradex,colibri-imx7s-aster     # Colibri iMX7 Solo Module on Aster Carrier Board
-              - toradex,colibri-imx7s-eval-v3   # Colibri iMX7 Solo Module on Colibri Evaluation Board V3
+              - element14,imx7s-warp      # Element14 Warp i.MX7 Board
+          - const: fsl,imx7s
+
+      - description: i.MX7S Boards with Toradex Colibri iMX7S Module
+        items:
+          - enum:
+              - toradex,colibri-imx7s-aster     # Module on Aster Carrier Board
+              - toradex,colibri-imx7s-eval-v3   # Module on Colibri Evaluation Board V3
+          - const: toradex,colibri-imx7s
           - const: fsl,imx7s
 
       - description: TQ-Systems TQMa7S SoM on MBa7x board
