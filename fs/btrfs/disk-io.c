@@ -42,6 +42,7 @@
 #include "block-group.h"
 #include "discard.h"
 #include "space-info.h"
+#include "zoned.h"
 
 #define BTRFS_SUPER_FLAG_SUPP	(BTRFS_HEADER_FLAG_WRITTEN |\
 				 BTRFS_HEADER_FLAG_RELOC |\
@@ -3046,6 +3047,8 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 	if (features & BTRFS_FEATURE_INCOMPAT_SKINNY_METADATA)
 		btrfs_info(fs_info, "has skinny extents");
 
+	fs_info->zoned = (features & BTRFS_FEATURE_INCOMPAT_ZONED);
+
 	/*
 	 * flag our filesystem as having big metadata blocks if
 	 * they are bigger than the page size
@@ -3199,6 +3202,13 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 	ret = btrfs_init_dev_replace(fs_info);
 	if (ret) {
 		btrfs_err(fs_info, "failed to init dev_replace: %d", ret);
+		goto fail_block_groups;
+	}
+
+	ret = btrfs_check_zoned_mode(fs_info);
+	if (ret) {
+		btrfs_err(fs_info, "failed to initialize zoned mode: %d",
+			  ret);
 		goto fail_block_groups;
 	}
 

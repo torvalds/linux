@@ -166,3 +166,83 @@ int btrfs_get_dev_zone(struct btrfs_device *device, u64 pos,
 
 	return 0;
 }
+
+int btrfs_check_zoned_mode(struct btrfs_fs_info *fs_info)
+{
+	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
+	struct btrfs_device *device;
+	u64 zoned_devices = 0;
+	u64 nr_devices = 0;
+	u64 zone_size = 0;
+	const bool incompat_zoned = btrfs_is_zoned(fs_info);
+	int ret = 0;
+
+	/* Count zoned devices */
+	list_for_each_entry(device, &fs_devices->devices, dev_list) {
+		enum blk_zoned_model model;
+
+		if (!device->bdev)
+			continue;
+
+		model = bdev_zoned_model(device->bdev);
+		if (model == BLK_ZONED_HM ||
+		    (model == BLK_ZONED_HA && incompat_zoned)) {
+			zoned_devices++;
+			if (!zone_size) {
+				zone_size = device->zone_info->zone_size;
+			} else if (device->zone_info->zone_size != zone_size) {
+				btrfs_err(fs_info,
+		"zoned: unequal block device zone sizes: have %llu found %llu",
+					  device->zone_info->zone_size,
+					  zone_size);
+				ret = -EINVAL;
+				goto out;
+			}
+		}
+		nr_devices++;
+	}
+
+	if (!zoned_devices && !incompat_zoned)
+		goto out;
+
+	if (!zoned_devices && incompat_zoned) {
+		/* No zoned block device found on ZONED filesystem */
+		btrfs_err(fs_info,
+			  "zoned: no zoned devices found on a zoned filesystem");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (zoned_devices && !incompat_zoned) {
+		btrfs_err(fs_info,
+			  "zoned: mode not enabled but zoned device found");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (zoned_devices != nr_devices) {
+		btrfs_err(fs_info,
+			  "zoned: cannot mix zoned and regular devices");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	/*
+	 * stripe_size is always aligned to BTRFS_STRIPE_LEN in
+	 * __btrfs_alloc_chunk(). Since we want stripe_len == zone_size,
+	 * check the alignment here.
+	 */
+	if (!IS_ALIGNED(zone_size, BTRFS_STRIPE_LEN)) {
+		btrfs_err(fs_info,
+			  "zoned: zone size %llu not aligned to stripe %u",
+			  zone_size, BTRFS_STRIPE_LEN);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	fs_info->zone_size = zone_size;
+
+	btrfs_info(fs_info, "zoned mode enabled with zone size %llu", zone_size);
+out:
+	return ret;
+}

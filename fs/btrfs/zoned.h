@@ -4,6 +4,7 @@
 #define BTRFS_ZONED_H
 
 #include <linux/types.h>
+#include <linux/blkdev.h>
 
 struct btrfs_zoned_device_info {
 	/*
@@ -22,6 +23,7 @@ int btrfs_get_dev_zone(struct btrfs_device *device, u64 pos,
 		       struct blk_zone *zone);
 int btrfs_get_dev_zone_info(struct btrfs_device *device);
 void btrfs_destroy_dev_zone_info(struct btrfs_device *device);
+int btrfs_check_zoned_mode(struct btrfs_fs_info *fs_info);
 #else /* CONFIG_BLK_DEV_ZONED */
 static inline int btrfs_get_dev_zone(struct btrfs_device *device, u64 pos,
 				     struct blk_zone *zone)
@@ -35,6 +37,15 @@ static inline int btrfs_get_dev_zone_info(struct btrfs_device *device)
 }
 
 static inline void btrfs_destroy_dev_zone_info(struct btrfs_device *device) { }
+
+static inline int btrfs_check_zoned_mode(const struct btrfs_fs_info *fs_info)
+{
+	if (!btrfs_is_zoned(fs_info))
+		return 0;
+
+	btrfs_err(fs_info, "zoned block devices support is not enabled");
+	return -EOPNOTSUPP;
+}
 
 #endif
 
@@ -82,6 +93,21 @@ static inline void btrfs_dev_set_zone_empty(struct btrfs_device *device, u64 pos
 static inline void btrfs_dev_clear_zone_empty(struct btrfs_device *device, u64 pos)
 {
 	btrfs_dev_set_empty_zone_bit(device, pos, false);
+}
+
+static inline bool btrfs_check_device_zone_type(const struct btrfs_fs_info *fs_info,
+						struct block_device *bdev)
+{
+	u64 zone_size;
+
+	if (btrfs_is_zoned(fs_info)) {
+		zone_size = bdev_zone_sectors(bdev) << SECTOR_SHIFT;
+		/* Do not allow non-zoned device */
+		return bdev_is_zoned(bdev) && fs_info->zone_size == zone_size;
+	}
+
+	/* Do not allow Host Manged zoned device */
+	return bdev_zoned_model(bdev) != BLK_ZONED_HM;
 }
 
 #endif
