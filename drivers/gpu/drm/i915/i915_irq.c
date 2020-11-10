@@ -3058,8 +3058,10 @@ static void gen11_display_irq_reset(struct drm_i915_private *dev_priv)
 	if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
 		GEN3_IRQ_RESET(uncore, SDE);
 
-	/* Wa_14010685332:icl,jsl,ehl,tgl,rkl */
-	if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP) {
+	/* Wa_14010685332:cnp/cmp,tgp,adp */
+	if (INTEL_PCH_TYPE(dev_priv) == PCH_CNP ||
+	    (INTEL_PCH_TYPE(dev_priv) >= PCH_TGP &&
+	     INTEL_PCH_TYPE(dev_priv) < PCH_DG1)) {
 		intel_uncore_rmw(uncore, SOUTH_CHICKEN1,
 				 SBCLK_RUN_REFCLK_DIS, SBCLK_RUN_REFCLK_DIS);
 		intel_uncore_rmw(uncore, SOUTH_CHICKEN1,
