@@ -305,7 +305,7 @@ static void gsi_irq_enable(struct gsi *gsi)
 	/* Global interrupts include hardware error reports.  Enable
 	 * that so we can at least report the error should it occur.
 	 */
-	iowrite32(ERROR_INT_FMASK, gsi->virt + GSI_CNTXT_GLOB_IRQ_EN_OFFSET);
+	iowrite32(BIT(ERROR_INT), gsi->virt + GSI_CNTXT_GLOB_IRQ_EN_OFFSET);
 	gsi_irq_type_update(gsi, gsi->type_enabled_bitmap | BIT(GSI_GLOB_EE));
 
 	/* General GSI interrupts are reported to all EEs; if they occur
@@ -313,9 +313,9 @@ static void gsi_irq_enable(struct gsi *gsi)
 	 * also exists, but we don't support that.  We want to be notified
 	 * of errors so we can report them, even if they can't be handled.
 	 */
-	val = BUS_ERROR_FMASK;
-	val |= CMD_FIFO_OVRFLOW_FMASK;
-	val |= MCS_STACK_OVRFLOW_FMASK;
+	val = BIT(BUS_ERROR);
+	val |= BIT(CMD_FIFO_OVRFLOW);
+	val |= BIT(MCS_STACK_OVRFLOW);
 	iowrite32(val, gsi->virt + GSI_CNTXT_GSI_IRQ_EN_OFFSET);
 	gsi_irq_type_update(gsi, gsi->type_enabled_bitmap | BIT(GSI_GENERAL));
 }
@@ -1145,15 +1145,15 @@ static void gsi_isr_glob_ee(struct gsi *gsi)
 
 	val = ioread32(gsi->virt + GSI_CNTXT_GLOB_IRQ_STTS_OFFSET);
 
-	if (val & ERROR_INT_FMASK)
+	if (val & BIT(ERROR_INT))
 		gsi_isr_glob_err(gsi);
 
 	iowrite32(val, gsi->virt + GSI_CNTXT_GLOB_IRQ_CLR_OFFSET);
 
-	val &= ~ERROR_INT_FMASK;
+	val &= ~BIT(ERROR_INT);
 
-	if (val & GP_INT1_FMASK) {
-		val ^= GP_INT1_FMASK;
+	if (val & BIT(GP_INT1)) {
+		val ^= BIT(GP_INT1);
 		gsi_isr_gp_int1(gsi);
 	}
 
@@ -1626,7 +1626,7 @@ static int gsi_generic_command(struct gsi *gsi, u32 channel_id,
 	 * halt a modem channel) and only from this function.  So we
 	 * enable the GP_INT1 IRQ type here while we're expecting it.
 	 */
-	val = ERROR_INT_FMASK | GP_INT1_FMASK;
+	val = BIT(ERROR_INT) | BIT(GP_INT1);
 	iowrite32(val, gsi->virt + GSI_CNTXT_GLOB_IRQ_EN_OFFSET);
 
 	/* First zero the result code field */
@@ -1642,7 +1642,7 @@ static int gsi_generic_command(struct gsi *gsi, u32 channel_id,
 	success = gsi_command(gsi, GSI_GENERIC_CMD_OFFSET, val, completion);
 
 	/* Disable the GP_INT1 IRQ type again */
-	iowrite32(ERROR_INT_FMASK, gsi->virt + GSI_CNTXT_GLOB_IRQ_EN_OFFSET);
+	iowrite32(BIT(ERROR_INT), gsi->virt + GSI_CNTXT_GLOB_IRQ_EN_OFFSET);
 
 	if (success)
 		return 0;

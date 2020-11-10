@@ -254,6 +254,7 @@
 #define GSI_USE_RD_WR_ENG_FMASK		GENMASK(30, 30)
 #define GSI_USE_INTER_EE_FMASK		GENMASK(31, 31)
 
+/* IRQ condition for each type is cleared by writing type-specific register */
 #define GSI_CNTXT_TYPE_IRQ_OFFSET \
 			GSI_EE_N_CNTXT_TYPE_IRQ_OFFSET(GSI_EE_AP)
 #define GSI_EE_N_CNTXT_TYPE_IRQ_OFFSET(ee) \
@@ -330,11 +331,13 @@ enum gsi_irq_type_id {
 			GSI_EE_N_CNTXT_GLOB_IRQ_CLR_OFFSET(GSI_EE_AP)
 #define GSI_EE_N_CNTXT_GLOB_IRQ_CLR_OFFSET(ee) \
 			(0x0001f110 + 0x4000 * (ee))
-/* The masks below are used for the general IRQ STTS, EN, and CLR registers */
-#define ERROR_INT_FMASK			GENMASK(0, 0)
-#define GP_INT1_FMASK			GENMASK(1, 1)
-#define GP_INT2_FMASK			GENMASK(2, 2)
-#define GP_INT3_FMASK			GENMASK(3, 3)
+/* Values here are bit positions in the GLOB_IRQ_* registers */
+enum gsi_global_irq_id {
+	ERROR_INT				= 0x0,
+	GP_INT1					= 0x1,
+	GP_INT2					= 0x2,
+	GP_INT3					= 0x3,
+};
 
 #define GSI_CNTXT_GSI_IRQ_STTS_OFFSET \
 			GSI_EE_N_CNTXT_GSI_IRQ_STTS_OFFSET(GSI_EE_AP)
@@ -348,11 +351,13 @@ enum gsi_irq_type_id {
 			GSI_EE_N_CNTXT_GSI_IRQ_CLR_OFFSET(GSI_EE_AP)
 #define GSI_EE_N_CNTXT_GSI_IRQ_CLR_OFFSET(ee) \
 			(0x0001f128 + 0x4000 * (ee))
-/* The masks below are used for the general IRQ STTS, EN, and CLR registers */
-#define BREAK_POINT_FMASK		GENMASK(0, 0)
-#define BUS_ERROR_FMASK			GENMASK(1, 1)
-#define CMD_FIFO_OVRFLOW_FMASK		GENMASK(2, 2)
-#define MCS_STACK_OVRFLOW_FMASK		GENMASK(3, 3)
+/* Values here are bit positions in the (general) GSI_IRQ_* registers */
+enum gsi_general_id {
+	BREAK_POINT				= 0x0,
+	BUS_ERROR				= 0x1,
+	CMD_FIFO_OVRFLOW			= 0x2,
+	MCS_STACK_OVRFLOW			= 0x3,
+};
 
 #define GSI_CNTXT_INTSET_OFFSET \
 			GSI_EE_N_CNTXT_INTSET_OFFSET(GSI_EE_AP)
