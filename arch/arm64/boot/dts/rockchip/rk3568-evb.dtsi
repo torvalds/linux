@@ -109,6 +109,24 @@
 		};
 	};
 
+	pdmics: dummy-codec {
+		status = "disabled";
+		compatible = "rockchip,dummy-codec";
+		#sound-dai-cells = <0>;
+	};
+
+	pdm_mic_array: pdm-mic_array {
+		status = "disabled";
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "rockchip,pdm-mic-array";
+		simple-audio-card,cpu {
+			sound-dai = <&pdm>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&pdmics>;
+		};
+	};
+
 	rk809_sound: rk809-sound {
 		status = "okay";
 		compatible = "simple-audio-card";
@@ -1026,6 +1044,10 @@
 
 &nandc0 {
 	status = "okay";
+};
+
+&pdm {
+	#sound-dai-cells = <0>;
 };
 
 &pinctrl {
