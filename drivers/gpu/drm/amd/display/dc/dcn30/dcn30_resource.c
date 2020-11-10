@@ -1470,20 +1470,8 @@ int dcn30_populate_dml_pipes_from_context(
 	return pipe_cnt;
 }
 
-/*
- * This must be noinline to ensure anything that deals with FP registers
- * is contained within this call; previously our compiling with hard-float
- * would result in fp instructions being emitted outside of the boundaries
- * of the DC_FP_START/END macros, which makes sense as the compiler has no
- * idea about what is wrapped and what is not
- *
- * This is largely just a workaround to avoid breakage introduced with 5.6,
- * ideally all fp-using code should be moved into its own file, only that
- * should be compiled with hard-float, and all code exported from there
- * should be strictly wrapped with DC_FP_START/END
- */
-static noinline void dcn30_populate_dml_writeback_from_context_fp(
-		struct dc *dc, struct resource_context *res_ctx, display_e2e_pipe_params_st *pipes)
+void dcn30_populate_dml_writeback_from_context(
+	struct dc *dc, struct resource_context *res_ctx, display_e2e_pipe_params_st *pipes)
 {
 	int pipe_cnt, i, j;
 	double max_calc_writeback_dispclk;
@@ -1569,14 +1557,6 @@ static noinline void dcn30_populate_dml_writeback_from_context_fp(
 		pipe_cnt++;
 	}
 
-}
-
-void dcn30_populate_dml_writeback_from_context(
-		struct dc *dc, struct resource_context *res_ctx, display_e2e_pipe_params_st *pipes)
-{
-	DC_FP_START();
-	dcn30_populate_dml_writeback_from_context_fp(dc, res_ctx, pipes);
-	DC_FP_END();
 }
 
 unsigned int dcn30_calc_max_scaled_time(
@@ -1977,7 +1957,7 @@ static struct pipe_ctx *dcn30_find_split_pipe(
 	return pipe;
 }
 
-static bool dcn30_internal_validate_bw(
+static noinline bool dcn30_internal_validate_bw(
 		struct dc *dc,
 		struct dc_state *context,
 		display_e2e_pipe_params_st *pipes,
@@ -1999,6 +1979,7 @@ static bool dcn30_internal_validate_bw(
 
 	pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc, context, pipes, fast_validate);
 
+	DC_FP_START();
 	if (!pipe_cnt) {
 		out = true;
 		goto validate_out;
@@ -2222,6 +2203,7 @@ validate_fail:
 	out = false;
 
 validate_out:
+	DC_FP_END();
 	return out;
 }
 
@@ -2404,7 +2386,7 @@ void dcn30_calculate_wm_and_dlg(
 	DC_FP_END();
 }
 
-static noinline bool dcn30_validate_bandwidth_fp(struct dc *dc,
+bool dcn30_validate_bandwidth(struct dc *dc,
 		struct dc_state *context,
 		bool fast_validate)
 {
@@ -2451,19 +2433,6 @@ validate_out:
 	kfree(pipes);
 
 	BW_VAL_TRACE_FINISH();
-
-	return out;
-}
-
-bool dcn30_validate_bandwidth(struct dc *dc,
-		struct dc_state *context,
-		bool fast_validate)
-{
-	bool out;
-
-	DC_FP_START();
-	out = dcn30_validate_bandwidth_fp(dc, context, fast_validate);
-	DC_FP_END();
 
 	return out;
 }
