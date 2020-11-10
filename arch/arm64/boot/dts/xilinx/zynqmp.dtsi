@@ -182,25 +182,6 @@
 		ranges;
 	};
 
-	amba_apu: axi@0 {
-		compatible = "simple-bus";
-		#address-cells = <2>;
-		#size-cells = <1>;
-		ranges = <0 0 0 0 0xffffffff>;
-
-		gic: interrupt-controller@f9010000 {
-			compatible = "arm,gic-400";
-			#interrupt-cells = <3>;
-			reg = <0x0 0xf9010000 0x10000>,
-			      <0x0 0xf9020000 0x20000>,
-			      <0x0 0xf9040000 0x20000>,
-			      <0x0 0xf9060000 0x20000>;
-			interrupt-controller;
-			interrupt-parent = <&gic>;
-			interrupts = <1 9 0xf04>;
-		};
-	};
-
 	amba: axi {
 		compatible = "simple-bus";
 		#address-cells = <2>;
@@ -337,6 +318,18 @@
 			clock-names = "clk_main", "clk_apb";
 			xlnx,bus-width = <128>;
 			power-domains = <&zynqmp_firmware PD_GDMA>;
+		};
+
+		gic: interrupt-controller@f9010000 {
+			compatible = "arm,gic-400";
+			#interrupt-cells = <3>;
+			reg = <0x0 0xf9010000 0x0 0x10000>,
+			      <0x0 0xf9020000 0x0 0x20000>,
+			      <0x0 0xf9040000 0x0 0x20000>,
+			      <0x0 0xf9060000 0x0 0x20000>;
+			interrupt-controller;
+			interrupt-parent = <&gic>;
+			interrupts = <1 9 0xf04>;
 		};
 
 		/* LPDDMA default allows only secured access. inorder to enable
