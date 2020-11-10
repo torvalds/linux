@@ -765,7 +765,7 @@ int __init arm_add_memory(u64 start, u64 size)
 #ifndef CONFIG_PHYS_ADDR_T_64BIT
 	if (aligned_start > ULONG_MAX) {
 		pr_crit("Ignoring memory at 0x%08llx outside 32-bit physical address space\n",
-			(long long)start);
+			start);
 		return -EINVAL;
 	}
 
