@@ -5685,15 +5685,17 @@ static void mlxsw_sp_router_fib6_del(struct mlxsw_sp *mlxsw_sp,
 }
 
 static int __mlxsw_sp_router_set_abort_trap(struct mlxsw_sp *mlxsw_sp,
-					    enum mlxsw_reg_ralxx_protocol proto,
+					    enum mlxsw_sp_l3proto proto,
 					    u8 tree_id)
 {
 	const struct mlxsw_sp_router_ll_ops *ll_ops = mlxsw_sp->router->proto_ll_ops[proto];
+	enum mlxsw_reg_ralxx_protocol ralxx_proto =
+				(enum mlxsw_reg_ralxx_protocol) proto;
 	char xralta_pl[MLXSW_REG_XRALTA_LEN];
 	char xralst_pl[MLXSW_REG_XRALST_LEN];
 	int i, err;
 
-	mlxsw_reg_xralta_pack(xralta_pl, true, proto, tree_id);
+	mlxsw_reg_xralta_pack(xralta_pl, true, ralxx_proto, tree_id);
 	err = ll_ops->ralta_write(mlxsw_sp, xralta_pl);
 	if (err)
 		return err;
@@ -5708,12 +5710,12 @@ static int __mlxsw_sp_router_set_abort_trap(struct mlxsw_sp *mlxsw_sp,
 		char xraltb_pl[MLXSW_REG_XRALTB_LEN];
 		char ralue_pl[MLXSW_REG_RALUE_LEN];
 
-		mlxsw_reg_xraltb_pack(xraltb_pl, vr->id, proto, tree_id);
+		mlxsw_reg_xraltb_pack(xraltb_pl, vr->id, ralxx_proto, tree_id);
 		err = ll_ops->raltb_write(mlxsw_sp, xraltb_pl);
 		if (err)
 			return err;
 
-		mlxsw_reg_ralue_pack(ralue_pl, proto,
+		mlxsw_reg_ralue_pack(ralue_pl, ralxx_proto,
 				     MLXSW_REG_RALUE_OP_WRITE_WRITE, vr->id, 0);
 		mlxsw_reg_ralue_act_ip2me_pack(ralue_pl);
 		err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ralue),
@@ -5813,7 +5815,7 @@ mlxsw_sp_router_fibmr_vif_del(struct mlxsw_sp *mlxsw_sp,
 
 static int mlxsw_sp_router_set_abort_trap(struct mlxsw_sp *mlxsw_sp)
 {
-	enum mlxsw_reg_ralxx_protocol proto = MLXSW_REG_RALXX_PROTOCOL_IPV4;
+	enum mlxsw_sp_l3proto proto = MLXSW_SP_L3_PROTO_IPV4;
 	int err;
 
 	err = __mlxsw_sp_router_set_abort_trap(mlxsw_sp, proto,
@@ -5825,7 +5827,7 @@ static int mlxsw_sp_router_set_abort_trap(struct mlxsw_sp *mlxsw_sp)
 	 * packets that don't match any routes are trapped to the CPU.
 	 */
 
-	proto = MLXSW_REG_RALXX_PROTOCOL_IPV6;
+	proto = MLXSW_SP_L3_PROTO_IPV6;
 	return __mlxsw_sp_router_set_abort_trap(mlxsw_sp, proto,
 						MLXSW_SP_LPM_TREE_MIN + 1);
 }
