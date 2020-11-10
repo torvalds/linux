@@ -217,7 +217,7 @@ struct vop2_plane_state {
 	unsigned long offset;
 	int pdaf_data_type;
 	bool async_commit;
-	struct vop2_dump_list *planlist;
+	struct vop_dump_list *planlist;
 };
 
 struct vop2_win {
@@ -1498,7 +1498,7 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 
 #if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
 	bool AFBC_flag = false;
-	struct vop2_dump_list *planlist;
+	struct vop_dump_list *planlist;
 	unsigned long num_pages;
 	struct page **pages;
 	struct rockchip_drm_fb *rk_fb;
@@ -1514,7 +1514,7 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 		num_pages = rk_obj->num_pages;
 		pages = rk_obj->pages;
 	}
-	if (fb->modifier == DRM_FORMAT_MOD_ARM_AFBC(AFBC_FORMAT_MOD_BLOCK_SIZE_16x16))
+	if (rockchip_afbc(fb->modifier))
 		AFBC_flag = true;
 	else
 		AFBC_flag = false;
@@ -1607,32 +1607,31 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 
 	vop2->is_iommu_needed = true;
 #if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
-	kfree(vop2_plane_state->planlist);
-	vop2_plane_state->planlist = NULL;
+	kfree(vpstate->planlist);
+	vpstate->planlist = NULL;
 
 	planlist = kmalloc(sizeof(*planlist), GFP_KERNEL);
 	if (planlist) {
 		planlist->dump_info.AFBC_flag = AFBC_flag;
 		planlist->dump_info.area_id = win->area_id;
 		planlist->dump_info.win_id = win->win_id;
-		planlist->dump_info.yuv_format =
-			is_yuv_support(fb->format->format);
+		planlist->dump_info.yuv_format = is_yuv_support(fb->format->format);
 		planlist->dump_info.num_pages = num_pages;
 		planlist->dump_info.pages = pages;
-		planlist->dump_info.offset = vop2_plane_state->offset;
+		planlist->dump_info.offset = vpstate->offset;
 		planlist->dump_info.pitches = fb->pitches[0];
 		planlist->dump_info.height = actual_h;
 		planlist->dump_info.pixel_format = fb->format->format;
-		list_add_tail(&planlist->entry, &crtc->vop2_dump_list_head);
-		vop2_plane_state->planlist = planlist;
+		list_add_tail(&planlist->entry, &crtc->vop_dump_list_head);
+		vpstate->planlist = planlist;
 	} else {
 		DRM_ERROR("can't alloc a node of planlist %p\n", planlist);
 		return;
 	}
-	if (crtc->vop2_dump_status == DUMP_KEEP ||
-	    crtc->vop2_dump_times > 0) {
-		vop2_plane_dump(&planlist->dump_info, crtc->frame_count);
-		crtc->vop2_dump_times--;
+	if (crtc->vop_dump_status == DUMP_KEEP ||
+	    crtc->vop_dump_times > 0) {
+		vop_plane_dump(&planlist->dump_info, crtc->frame_count);
+		crtc->vop_dump_times--;
 	}
 #endif
 }
@@ -2115,22 +2114,21 @@ static int vop2_crtc_debugfs_init(struct drm_minor *minor, struct drm_crtc *crtc
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = vp->vop2;
 	int ret, i;
+	char name[12];
 
-	vop2->debugfs = debugfs_create_dir(dev_name(vop2->dev),
-					   minor->debugfs_root);
-
+	snprintf(name, sizeof(name), "video_port%d", vp->id);
+	vop2->debugfs = debugfs_create_dir(name, minor->debugfs_root);
 	if (!vop2->debugfs)
 		return -ENOMEM;
 
-	vop2->debugfs_files = kmemdup(vop2_debugfs_files,
-				      sizeof(vop2_debugfs_files),
+	vop2->debugfs_files = kmemdup(vop2_debugfs_files, sizeof(vop2_debugfs_files),
 				      GFP_KERNEL);
 	if (!vop2->debugfs_files) {
 		ret = -ENOMEM;
 		goto remove;
 	}
 #if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
-	drm_debugfs_vop2_add(crtc, vop2->debugfs);
+	drm_debugfs_vop_add(crtc, vop2->debugfs);
 #endif
 	for (i = 0; i < ARRAY_SIZE(vop2_debugfs_files); i++)
 		vop2->debugfs_files[i].data = vop2;
@@ -2269,22 +2267,22 @@ static size_t vop2_crtc_bandwidth(struct drm_crtc *crtc,
 	uint64_t bandwidth;
 	int8_t cnt = 0, plane_num = 0;
 #if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
-	struct vop2_dump_list *pos, *n;
+	struct vop_dump_list *pos, *n;
 #endif
 
 	if (!htotal || !vdisplay)
 		return 0;
 
 #if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
-	if (!crtc->vop2_dump_list_init_flag) {
-		INIT_LIST_HEAD(&crtc->vop2_dump_list_head);
-		crtc->vop2_dump_list_init_flag = true;
+	if (!crtc->vop_dump_list_init_flag) {
+		INIT_LIST_HEAD(&crtc->vop_dump_list_head);
+		crtc->vop_dump_list_init_flag = true;
 	}
-	list_for_each_entry_safe(pos, n, &crtc->vop2_dump_list_head, entry) {
+	list_for_each_entry_safe(pos, n, &crtc->vop_dump_list_head, entry) {
 		list_del(&pos->entry);
 	}
-	if (crtc->vop2_dump_status == DUMP_KEEP ||
-	    crtc->vop2_dump_times > 0) {
+	if (crtc->vop_dump_status == DUMP_KEEP ||
+	    crtc->vop_dump_times > 0) {
 		crtc->frame_count++;
 	}
 #endif
