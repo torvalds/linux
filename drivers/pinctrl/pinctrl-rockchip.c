@@ -2800,6 +2800,10 @@ static int rockchip_set_drive_perpin(struct rockchip_pin_bank *bank,
 		rmask_bits = RV1126_DRV_BITS_PER_PIN;
 		ret = strength;
 		goto config;
+	} else if (ctrl->type == RK3568) {
+		rmask_bits = RK3568_DRV_BITS_PER_PIN;
+		ret = (1 << (strength + 1)) - 1;
+		goto config;
 	}
 
 	ret = -EINVAL;
@@ -2877,6 +2881,29 @@ config:
 	data |= (ret << bit);
 
 	ret = regmap_update_bits(regmap, reg, rmask, data);
+
+	if (ctrl->type == RK3568) {
+		if (bank->bank_num == 1 && pin_num == 21)
+			reg = 0x0840;
+		else if (bank->bank_num == 2 && pin_num == 2)
+			reg = 0x0844;
+		else if (bank->bank_num == 2 && pin_num == 8)
+			reg = 0x0848;
+		else if (bank->bank_num == 3 && pin_num == 0)
+			reg = 0x084c;
+		else if (bank->bank_num == 3 && pin_num == 6)
+			reg = 0x0850;
+		else if (bank->bank_num == 4 && pin_num == 0)
+			reg = 0x0854;
+		else
+			return ret;
+
+		data = ((1 << rmask_bits) - 1) << 16;
+		rmask = data | (data >> 16);
+		data |= (ret << bit);
+
+		ret = regmap_update_bits(regmap, reg, rmask, data);
+	}
 
 	return ret;
 }
