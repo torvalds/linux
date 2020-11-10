@@ -349,31 +349,31 @@ static struct rockchip_pll_clock rk3568_pll_clks[] __initdata = {
 #define GFLAGS (CLK_GATE_HIWORD_MASK | CLK_GATE_SET_TO_DISABLE)
 
 static struct rockchip_clk_branch rk3568_i2s0_8ch_tx_fracmux __initdata =
-	MUX(0, "clk_i2s0_8ch_tx", clk_i2s0_8ch_tx_p, CLK_SET_RATE_PARENT,
+	MUX(CLK_I2S0_8CH_TX, "clk_i2s0_8ch_tx", clk_i2s0_8ch_tx_p, CLK_SET_RATE_PARENT,
 			RK3568_CLKSEL_CON(11), 10, 2, MFLAGS);
 
 static struct rockchip_clk_branch rk3568_i2s0_8ch_rx_fracmux __initdata =
-	MUX(0, "clk_i2s0_8ch_rx", clk_i2s0_8ch_rx_p, CLK_SET_RATE_PARENT,
+	MUX(CLK_I2S0_8CH_RX, "clk_i2s0_8ch_rx", clk_i2s0_8ch_rx_p, CLK_SET_RATE_PARENT,
 			RK3568_CLKSEL_CON(13), 10, 2, MFLAGS);
 
 static struct rockchip_clk_branch rk3568_i2s1_8ch_tx_fracmux __initdata =
-	MUX(0, "clk_i2s1_8ch_tx", clk_i2s1_8ch_tx_p, CLK_SET_RATE_PARENT,
+	MUX(CLK_I2S1_8CH_TX, "clk_i2s1_8ch_tx", clk_i2s1_8ch_tx_p, CLK_SET_RATE_PARENT,
 			RK3568_CLKSEL_CON(15), 10, 2, MFLAGS);
 
 static struct rockchip_clk_branch rk3568_i2s1_8ch_rx_fracmux __initdata =
-	MUX(0, "clk_i2s1_8ch_rx", clk_i2s1_8ch_rx_p, CLK_SET_RATE_PARENT,
+	MUX(CLK_I2S1_8CH_RX, "clk_i2s1_8ch_rx", clk_i2s1_8ch_rx_p, CLK_SET_RATE_PARENT,
 			RK3568_CLKSEL_CON(17), 10, 2, MFLAGS);
 
 static struct rockchip_clk_branch rk3568_i2s2_2ch_fracmux __initdata =
-	MUX(0, "clk_i2s2_2ch", clk_i2s2_2ch_p, CLK_SET_RATE_PARENT,
+	MUX(CLK_I2S2_2CH, "clk_i2s2_2ch", clk_i2s2_2ch_p, CLK_SET_RATE_PARENT,
 			RK3568_CLKSEL_CON(19), 10, 2, MFLAGS);
 
 static struct rockchip_clk_branch rk3568_i2s3_2ch_tx_fracmux __initdata =
-	MUX(0, "clk_i2s3_2ch_tx", clk_i2s3_2ch_tx_p, CLK_SET_RATE_PARENT,
+	MUX(CLK_I2S3_2CH_TX, "clk_i2s3_2ch_tx", clk_i2s3_2ch_tx_p, CLK_SET_RATE_PARENT,
 			RK3568_CLKSEL_CON(21), 10, 2, MFLAGS);
 
 static struct rockchip_clk_branch rk3568_i2s3_2ch_rx_fracmux __initdata =
-	MUX(0, "clk_i2s3_2ch_rx", clk_i2s3_2ch_rx_p, CLK_SET_RATE_PARENT,
+	MUX(CLK_I2S3_2CH_RX, "clk_i2s3_2ch_rx", clk_i2s3_2ch_rx_p, CLK_SET_RATE_PARENT,
 			RK3568_CLKSEL_CON(83), 10, 2, MFLAGS);
 
 static struct rockchip_clk_branch rk3568_spdif_8ch_fracmux __initdata =

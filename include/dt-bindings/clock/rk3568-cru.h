@@ -462,6 +462,13 @@
 #define SCLK_EMMC_SAMPLE	401
 #define PCLK_EDPPHY_GRF		402
 #define CLK_HDMI_CEC            403
+#define CLK_I2S0_8CH_TX		404
+#define CLK_I2S0_8CH_RX		405
+#define CLK_I2S1_8CH_TX		406
+#define CLK_I2S1_8CH_RX		407
+#define CLK_I2S2_2CH		408
+#define CLK_I2S3_2CH_TX		409
+#define CLK_I2S3_2CH_RX		410
 #define PCLK_CORE_PVTM		450
 
 #define CLK_NR_CLKS		(PCLK_CORE_PVTM + 1)
