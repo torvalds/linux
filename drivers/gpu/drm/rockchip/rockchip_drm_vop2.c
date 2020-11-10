@@ -1514,6 +1514,7 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 	uint32_t afbc_tile_num;
 	uint32_t afbc_half_block_en;
 	uint32_t lb_mode;
+	uint32_t stride;
 
 #if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
 	bool AFBC_flag = false;
@@ -1559,7 +1560,7 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 	dsp_h = drm_rect_height(dest);
 	act_info = (actual_h - 1) << 16 | ((actual_w - 1) & 0xffff);
 	dsp_info = (dsp_h - 1) << 16 | ((dsp_w - 1) & 0xffff);
-
+	stride = DIV_ROUND_UP(fb->pitches[0], 4);
 	dsp_stx = dest->x1;
 	dsp_sty = dest->y1;
 	dsp_st = dsp_sty << 16 | (dsp_stx & 0xffff);
@@ -1581,7 +1582,7 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 		VOP_AFBC_SET(vop2, win, half_block_en, afbc_half_block_en);
 		VOP_AFBC_SET(vop2, win, hdr_ptr, vpstate->yrgb_mst);
 		VOP_AFBC_SET(vop2, win, pic_size, act_info);
-		VOP_AFBC_SET(vop2, win, pic_vir_width, fb->width);
+		VOP_AFBC_SET(vop2, win, pic_vir_width, stride);
 		VOP_AFBC_SET(vop2, win, tile_num, afbc_tile_num);
 		VOP_AFBC_SET(vop2, win, xmirror, vpstate->xmirror_en);
 		VOP_AFBC_SET(vop2, win, ymirror, vpstate->ymirror_en);
@@ -1600,7 +1601,8 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 	}
 
 	VOP_WIN_SET(vop2, win, format, format);
-	VOP_WIN_SET(vop2, win, yrgb_vir, DIV_ROUND_UP(fb->pitches[0], 4));
+	/* win->yrgb_vir only take effect at non-afbc mode */
+	VOP_WIN_SET(vop2, win, yrgb_vir, stride);
 	VOP_WIN_SET(vop2, win, yrgb_mst, vpstate->yrgb_mst);
 
 	rb_swap = has_rb_swapped(fb->format->format);
