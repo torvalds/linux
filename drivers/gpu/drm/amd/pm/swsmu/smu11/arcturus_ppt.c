@@ -717,6 +717,7 @@ static int arcturus_print_clk_levels(struct smu_context *smu,
 	struct smu_11_0_dpm_table *single_dpm_table;
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
 	struct smu_11_0_dpm_context *dpm_context = NULL;
+	uint32_t gen_speed, lane_width;
 
 	if (amdgpu_ras_intr_triggered())
 		return snprintf(buf, PAGE_SIZE, "unavailable\n");
@@ -818,6 +819,23 @@ static int arcturus_print_clk_levels(struct smu_context *smu,
 				(arcturus_freqs_in_same_level(
 				clocks.data[i].clocks_in_khz / 1000,
 				now) ? "*" : ""));
+		break;
+
+	case SMU_PCIE:
+		gen_speed = smu_v11_0_get_current_pcie_link_speed_level(smu);
+		lane_width = smu_v11_0_get_current_pcie_link_width_level(smu);
+		size += sprintf(buf + size, "0: %s %s %dMhz *\n",
+				(gen_speed == 0) ? "2.5GT/s," :
+				(gen_speed == 1) ? "5.0GT/s," :
+				(gen_speed == 2) ? "8.0GT/s," :
+				(gen_speed == 3) ? "16.0GT/s," : "",
+				(lane_width == 1) ? "x1" :
+				(lane_width == 2) ? "x2" :
+				(lane_width == 3) ? "x4" :
+				(lane_width == 4) ? "x8" :
+				(lane_width == 5) ? "x12" :
+				(lane_width == 6) ? "x16" : "",
+				smu->smu_table.boot_values.lclk / 100);
 		break;
 
 	default:
@@ -1121,14 +1139,9 @@ static int arcturus_get_fan_speed_rpm(struct smu_context *smu,
 	if (!speed)
 		return -EINVAL;
 
-	switch (smu_v11_0_get_fan_control_mode(smu)) {
-	case AMD_FAN_CTRL_AUTO:
-		return arcturus_get_smu_metrics_data(smu,
-						     METRICS_CURR_FANSPEED,
-						     speed);
-	default:
-		return smu_v11_0_get_fan_speed_rpm(smu, speed);
-	}
+	return arcturus_get_smu_metrics_data(smu,
+					     METRICS_CURR_FANSPEED,
+					     speed);
 }
 
 static int arcturus_get_fan_parameters(struct smu_context *smu)

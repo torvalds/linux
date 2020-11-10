@@ -48,10 +48,8 @@ enum cursor_lines_per_chunk {
 enum hubp_ind_block_size {
 	hubp_ind_block_unconstrained = 0,
 	hubp_ind_block_64b,
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	hubp_ind_block_128b,
 	hubp_ind_block_64b_no_128bcl,
-#endif
 };
 
 struct hubp {
@@ -187,6 +185,9 @@ struct hubp_funcs {
 			struct _vcs_dpi_display_rq_regs_st *dml_rq_regs,
 			struct _vcs_dpi_display_dlg_regs_st *dml_dlg_attr,
 			struct _vcs_dpi_display_ttu_regs_st *dml_ttu_attr);
+	void (*set_unbounded_requesting)(
+		struct hubp *hubp,
+		bool enable);
 
 };
 

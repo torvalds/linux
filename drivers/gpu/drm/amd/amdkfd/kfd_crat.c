@@ -141,6 +141,7 @@ static struct kfd_gpu_cache_info carrizo_cache_info[] = {
 #define renoir_cache_info carrizo_cache_info
 /* TODO - check & update Navi10 cache details */
 #define navi10_cache_info carrizo_cache_info
+#define vangogh_cache_info carrizo_cache_info
 
 static void kfd_populated_cu_info_cpu(struct kfd_topology_device *dev,
 		struct crat_subtype_computeunit *cu)
@@ -680,8 +681,13 @@ static int kfd_fill_gpu_cache_info(struct kfd_dev *kdev,
 	case CHIP_NAVI14:
 	case CHIP_SIENNA_CICHLID:
 	case CHIP_NAVY_FLOUNDER:
+	case CHIP_DIMGREY_CAVEFISH:
 		pcache_info = navi10_cache_info;
 		num_of_cache_types = ARRAY_SIZE(navi10_cache_info);
+		break;
+	case CHIP_VANGOGH:
+		pcache_info = vangogh_cache_info;
+		num_of_cache_types = ARRAY_SIZE(vangogh_cache_info);
 		break;
 	default:
 		return -EINVAL;
@@ -798,10 +804,10 @@ int kfd_create_crat_image_acpi(void **crat_image, size_t *size)
 	}
 
 	pcrat_image = kvmalloc(crat_table->length, GFP_KERNEL);
-	memcpy(pcrat_image, crat_table, crat_table->length);
 	if (!pcrat_image)
 		return -ENOMEM;
 
+	memcpy(pcrat_image, crat_table, crat_table->length);
 	*crat_image = pcrat_image;
 	*size = crat_table->length;
 

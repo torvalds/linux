@@ -246,7 +246,7 @@ static ssize_t amdgpu_xgmi_show_error(struct device *dev,
 
 	adev->df.funcs->set_fica(adev, ficaa_pie_status_in, 0, 0);
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", error_count);
+	return snprintf(buf, PAGE_SIZE, "%u\n", error_count);
 }
 
 

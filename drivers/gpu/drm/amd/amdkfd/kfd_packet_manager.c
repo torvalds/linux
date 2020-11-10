@@ -247,6 +247,8 @@ int pm_init(struct packet_manager *pm, struct device_queue_manager *dqm)
 	case CHIP_NAVI14:
 	case CHIP_SIENNA_CICHLID:
 	case CHIP_NAVY_FLOUNDER:
+	case CHIP_VANGOGH:
+	case CHIP_DIMGREY_CAVEFISH:
 		pm->pmf = &kfd_v9_pm_funcs;
 		break;
 	default:

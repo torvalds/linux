@@ -346,6 +346,43 @@ int smu_cmn_get_enabled_mask(struct smu_context *smu,
 	return ret;
 }
 
+int smu_cmn_get_enabled_32_bits_mask(struct smu_context *smu,
+					uint32_t *feature_mask,
+					uint32_t num)
+{
+	uint32_t feature_mask_en_low = 0;
+	uint32_t feature_mask_en_high = 0;
+	struct smu_feature *feature = &smu->smu_feature;
+	int ret = 0;
+
+	if (!feature_mask || num < 2)
+		return -EINVAL;
+
+	if (bitmap_empty(feature->enabled, feature->feature_num)) {
+		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_GetEnabledSmuFeatures, 0,
+										 &feature_mask_en_low);
+
+		if (ret)
+			return ret;
+
+		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_GetEnabledSmuFeatures, 1,
+										 &feature_mask_en_high);
+
+		if (ret)
+			return ret;
+
+		feature_mask[0] = feature_mask_en_low;
+		feature_mask[1] = feature_mask_en_high;
+
+	} else {
+		bitmap_copy((unsigned long *)feature_mask, feature->enabled,
+				 feature->feature_num);
+	}
+
+	return ret;
+
+}
+
 int smu_cmn_feature_update_enable_state(struct smu_context *smu,
 					uint64_t feature_mask,
 					bool enabled)
@@ -437,11 +474,19 @@ size_t smu_cmn_get_pp_feature_mask(struct smu_context *smu,
 	size_t size = 0;
 	int ret = 0, i;
 
-	ret = smu_cmn_get_enabled_mask(smu,
-				       feature_mask,
-				       2);
-	if (ret)
-		return 0;
+	if (!smu->is_apu) {
+		ret = smu_cmn_get_enabled_mask(smu,
+						feature_mask,
+						2);
+		if (ret)
+			return 0;
+	} else {
+		ret = smu_cmn_get_enabled_32_bits_mask(smu,
+					feature_mask,
+					2);
+		if (ret)
+			return 0;
+	}
 
 	size =  sprintf(buf + size, "features high: 0x%08x low: 0x%08x\n",
 			feature_mask[1], feature_mask[0]);

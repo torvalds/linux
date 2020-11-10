@@ -1991,6 +1991,7 @@ struct radeon_asic {
 		int (*get_fan_speed_percent)(struct radeon_device *rdev, u32 *speed);
 		u32 (*get_current_sclk)(struct radeon_device *rdev);
 		u32 (*get_current_mclk)(struct radeon_device *rdev);
+		u16 (*get_current_vddc)(struct radeon_device *rdev);
 	} dpm;
 	/* pageflipping */
 	struct {

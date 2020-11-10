@@ -346,13 +346,6 @@ bool dm_pp_get_clock_levels_by_type(
 			get_default_clock_levels(clk_type, dc_clks);
 			return true;
 		}
-	} else if (adev->smu.ppt_funcs && adev->smu.ppt_funcs->get_clock_by_type) {
-		if (smu_get_clock_by_type(&adev->smu,
-					  dc_to_pp_clock_type(clk_type),
-					  &pp_clks)) {
-			get_default_clock_levels(clk_type, dc_clks);
-			return true;
-		}
 	}
 
 	pp_to_dc_clock_levels(&pp_clks, dc_clks, clk_type);
@@ -361,13 +354,6 @@ bool dm_pp_get_clock_levels_by_type(
 		if (adev->powerplay.pp_funcs->get_display_mode_validation_clocks(
 						pp_handle, &validation_clks)) {
 			/* Error in pplib. Provide default values. */
-			DRM_INFO("DM_PPLIB: Warning: using default validation clocks!\n");
-			validation_clks.engine_max_clock = 72000;
-			validation_clks.memory_max_clock = 80000;
-			validation_clks.level = 0;
-		}
-	} else if (adev->smu.ppt_funcs && adev->smu.ppt_funcs->get_max_high_clocks) {
-		if (smu_get_max_high_clocks(&adev->smu, &validation_clks)) {
 			DRM_INFO("DM_PPLIB: Warning: using default validation clocks!\n");
 			validation_clks.engine_max_clock = 72000;
 			validation_clks.memory_max_clock = 80000;
@@ -461,11 +447,6 @@ bool dm_pp_get_clock_levels_by_type_with_voltage(
 						&pp_clk_info);
 		if (ret)
 			return false;
-	} else if (adev->smu.ppt_funcs && adev->smu.ppt_funcs->get_clock_by_type_with_voltage) {
-		if (smu_get_clock_by_type_with_voltage(&adev->smu,
-						       dc_to_pp_clock_type(clk_type),
-						       &pp_clk_info))
-			return false;
 	}
 
 	pp_to_dc_clock_levels_with_voltage(&pp_clk_info, clk_level_info, clk_type);
@@ -477,7 +458,21 @@ bool dm_pp_notify_wm_clock_changes(
 	const struct dc_context *ctx,
 	struct dm_pp_wm_sets_with_clock_ranges *wm_with_clock_ranges)
 {
-	/* TODO: to be implemented */
+	struct amdgpu_device *adev = ctx->driver_context;
+	void *pp_handle = adev->powerplay.pp_handle;
+	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+
+	/*
+	 * Limit this watermark setting for Polaris for now
+	 * TODO: expand this to other ASICs
+	 */
+	if ((adev->asic_type >= CHIP_POLARIS10) && (adev->asic_type <= CHIP_VEGAM)
+	     && pp_funcs && pp_funcs->set_watermarks_for_clocks_ranges) {
+		if (!pp_funcs->set_watermarks_for_clocks_ranges(pp_handle,
+						(void *)wm_with_clock_ranges))
+			return true;
+	}
+
 	return false;
 }
 
@@ -528,8 +523,6 @@ bool dm_pp_get_static_clocks(
 		ret = adev->powerplay.pp_funcs->get_current_clocks(
 			adev->powerplay.pp_handle,
 			&pp_clk_info);
-	else if (adev->smu.ppt_funcs)
-		ret = smu_get_current_clocks(&adev->smu, &pp_clk_info);
 	else
 		return false;
 	if (ret)
@@ -603,8 +596,6 @@ void pp_rv_set_pme_wa_enable(struct pp_smu *pp)
 
 	if (pp_funcs && pp_funcs->notify_smu_enable_pwe)
 		pp_funcs->notify_smu_enable_pwe(pp_handle);
-	else if (adev->smu.ppt_funcs)
-		smu_notify_smu_enable_pwe(&adev->smu);
 }
 
 void pp_rv_set_active_display_count(struct pp_smu *pp, int count)

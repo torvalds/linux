@@ -69,6 +69,7 @@ MODULE_FIRMWARE("amdgpu/picasso_sdma.bin");
 MODULE_FIRMWARE("amdgpu/raven2_sdma.bin");
 MODULE_FIRMWARE("amdgpu/arcturus_sdma.bin");
 MODULE_FIRMWARE("amdgpu/renoir_sdma.bin");
+MODULE_FIRMWARE("amdgpu/green_sardine_sdma.bin");
 
 #define SDMA0_POWER_CNTL__ON_OFF_CONDITION_HOLD_TIME_MASK  0x000000F8L
 #define SDMA0_POWER_CNTL__ON_OFF_STATUS_DURATION_TIME_MASK 0xFC000000L
@@ -568,7 +569,7 @@ static void sdma_v4_0_destroy_inst_ctx(struct amdgpu_device *adev)
 			break;
 	}
 
-	memset((void*)adev->sdma.instance, 0,
+	memset((void *)adev->sdma.instance, 0,
 		sizeof(struct amdgpu_sdma_instance) * AMDGPU_MAX_SDMA_INSTANCES);
 }
 
@@ -619,7 +620,10 @@ static int sdma_v4_0_init_microcode(struct amdgpu_device *adev)
 		chip_name = "arcturus";
 		break;
 	case CHIP_RENOIR:
-		chip_name = "renoir";
+		if (adev->apu_flags & AMD_APU_IS_RENOIR)
+			chip_name = "renoir";
+		else
+			chip_name = "green_sardine";
 		break;
 	default:
 		BUG();
@@ -639,8 +643,8 @@ static int sdma_v4_0_init_microcode(struct amdgpu_device *adev)
 		if (adev->asic_type == CHIP_ARCTURUS) {
 			/* Acturus will leverage the same FW memory
 			   for every SDMA instance */
-			memcpy((void*)&adev->sdma.instance[i],
-			       (void*)&adev->sdma.instance[0],
+			memcpy((void *)&adev->sdma.instance[i],
+			       (void *)&adev->sdma.instance[0],
 			       sizeof(struct amdgpu_sdma_instance));
 		}
 		else {

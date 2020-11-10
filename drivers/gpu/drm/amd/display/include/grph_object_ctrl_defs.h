@@ -284,6 +284,16 @@ struct ext_hdmi_settings {
 	struct i2c_reg_info      reg_settings_6g[3];
 };
 
+struct edp_info {
+	uint16_t edp_backlight_pwm_hz;
+	uint16_t edp_ss_percentage;
+	uint16_t edp_ss_rate_10hz;
+	uint8_t  edp_pwr_on_off_delay;
+	uint8_t  edp_pwr_on_vary_bl_to_blon;
+	uint8_t  edp_pwr_down_bloff_to_vary_bloff;
+	uint8_t  edp_panel_bpc;
+	uint8_t  edp_bootup_bl_level;
+};
 
 /* V6 */
 struct integrated_info {
@@ -403,6 +413,9 @@ struct integrated_info {
 	struct i2c_reg_info dp3_ext_hdmi_6g_reg_settings[3];
 	/* V11 */
 	uint32_t dp_ss_control;
+	/* V2.1 */
+	struct edp_info edp1_info;
+	struct edp_info edp2_info;
 };
 
 /**

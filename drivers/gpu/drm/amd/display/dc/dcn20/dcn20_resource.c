@@ -1882,9 +1882,16 @@ bool dcn20_split_stream_for_odm(
 		next_odm_pipe->next_odm_pipe = prev_odm_pipe->next_odm_pipe;
 		next_odm_pipe->next_odm_pipe->prev_odm_pipe = next_odm_pipe;
 	}
+	if (prev_odm_pipe->top_pipe && prev_odm_pipe->top_pipe->next_odm_pipe) {
+		prev_odm_pipe->top_pipe->next_odm_pipe->bottom_pipe = next_odm_pipe;
+		next_odm_pipe->top_pipe = prev_odm_pipe->top_pipe->next_odm_pipe;
+	}
+	if (prev_odm_pipe->bottom_pipe && prev_odm_pipe->bottom_pipe->next_odm_pipe) {
+		prev_odm_pipe->bottom_pipe->next_odm_pipe->top_pipe = next_odm_pipe;
+		next_odm_pipe->bottom_pipe = prev_odm_pipe->bottom_pipe->next_odm_pipe;
+	}
 	prev_odm_pipe->next_odm_pipe = next_odm_pipe;
 	next_odm_pipe->prev_odm_pipe = prev_odm_pipe;
-	ASSERT(next_odm_pipe->top_pipe == NULL);
 
 	if (prev_odm_pipe->plane_state) {
 		struct scaler_data *sd = &prev_odm_pipe->plane_res.scl_data;
@@ -1922,7 +1929,10 @@ bool dcn20_split_stream_for_odm(
 				sd->ratios.horz_c, sd->h_active - sd->recout.x));
 		sd->recout.x = 0;
 	}
-	next_odm_pipe->stream_res.opp = pool->opps[next_odm_pipe->pipe_idx];
+	if (!next_odm_pipe->top_pipe)
+		next_odm_pipe->stream_res.opp = pool->opps[next_odm_pipe->pipe_idx];
+	else
+		next_odm_pipe->stream_res.opp = next_odm_pipe->top_pipe->stream_res.opp;
 	if (next_odm_pipe->stream->timing.flags.DSC == 1) {
 		dcn20_acquire_dsc(dc, res_ctx, &next_odm_pipe->stream_res.dsc, next_odm_pipe->pipe_idx);
 		ASSERT(next_odm_pipe->stream_res.dsc);
@@ -2033,10 +2043,8 @@ int dcn20_populate_dml_pipes_from_context(
 		unsigned int v_total;
 		unsigned int front_porch;
 		int output_bpc;
-
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 		struct audio_check aud_check = {0};
-#endif
+
 		if (!res_ctx->pipe_ctx[i].stream)
 			continue;
 
@@ -2091,11 +2099,9 @@ int dcn20_populate_dml_pipes_from_context(
 		case 1:
 			pipes[pipe_cnt].pipe.dest.odm_combine = dm_odm_combine_mode_2to1;
 			break;
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 		case 3:
 			pipes[pipe_cnt].pipe.dest.odm_combine = dm_odm_combine_mode_4to1;
 			break;
-#endif
 		default:
 			pipes[pipe_cnt].pipe.dest.odm_combine = dm_odm_combine_mode_disabled;
 		}
@@ -2201,11 +2207,9 @@ int dcn20_populate_dml_pipes_from_context(
 
 		/* todo: default max for now, until there is logic reflecting this in dc*/
 		pipes[pipe_cnt].dout.output_bpc = 12;
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 		/*fill up the audio sample rate (unit in kHz)*/
 		get_audio_check(&res_ctx->pipe_ctx[i].stream->audio_info, &aud_check);
 		pipes[pipe_cnt].dout.max_audio_sample_rate = aud_check.max_audiosample_rate / 1000;
-#endif
 		/*
 		 * For graphic plane, cursor number is 1, nv12 is 0
 		 * bw calculations due to cursor on/off
@@ -2252,13 +2256,10 @@ int dcn20_populate_dml_pipes_from_context(
 			if (pipes[pipe_cnt].pipe.dest.odm_combine == dm_odm_combine_mode_2to1) {
 				pipes[pipe_cnt].pipe.src.viewport_width /= 2;
 				pipes[pipe_cnt].pipe.dest.recout_width /= 2;
-			}
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
-			else if (pipes[pipe_cnt].pipe.dest.odm_combine == dm_odm_combine_mode_4to1) {
+			} else if (pipes[pipe_cnt].pipe.dest.odm_combine == dm_odm_combine_mode_4to1) {
 				pipes[pipe_cnt].pipe.src.viewport_width /= 4;
 				pipes[pipe_cnt].pipe.dest.recout_width /= 4;
 			}
-#endif
 		} else {
 			struct dc_plane_state *pln = res_ctx->pipe_ctx[i].plane_state;
 			struct scaler_data *scl = &res_ctx->pipe_ctx[i].plane_res.scl_data;
@@ -2287,12 +2288,8 @@ int dcn20_populate_dml_pipes_from_context(
 			pipes[pipe_cnt].pipe.src.surface_height_y = pln->plane_size.surface_size.height;
 			pipes[pipe_cnt].pipe.src.surface_width_c = pln->plane_size.chroma_size.width;
 			pipes[pipe_cnt].pipe.src.surface_height_c = pln->plane_size.chroma_size.height;
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 			if (pln->format == SURFACE_PIXEL_FORMAT_GRPH_RGBE_ALPHA
 					|| pln->format >= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN) {
-#else
-			if (pln->format >= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN) {
-#endif
 				pipes[pipe_cnt].pipe.src.data_pitch = pln->plane_size.surface_pitch;
 				pipes[pipe_cnt].pipe.src.data_pitch_c = pln->plane_size.chroma_pitch;
 				pipes[pipe_cnt].pipe.src.meta_pitch = pln->dcc.meta_pitch;
@@ -2308,10 +2305,8 @@ int dcn20_populate_dml_pipes_from_context(
 			pipes[pipe_cnt].pipe.dest.full_recout_width = scl->recout.width;
 			if (pipes[pipe_cnt].pipe.dest.odm_combine == dm_odm_combine_mode_2to1)
 				pipes[pipe_cnt].pipe.dest.full_recout_width *= 2;
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 			else if (pipes[pipe_cnt].pipe.dest.odm_combine == dm_odm_combine_mode_4to1)
 				pipes[pipe_cnt].pipe.dest.full_recout_width *= 4;
-#endif
 			else {
 				struct pipe_ctx *split_pipe = res_ctx->pipe_ctx[i].bottom_pipe;
 
@@ -2368,11 +2363,9 @@ int dcn20_populate_dml_pipes_from_context(
 			case SURFACE_PIXEL_FORMAT_GRPH_PALETA_256_COLORS:
 				pipes[pipe_cnt].pipe.src.source_format = dm_444_8;
 				break;
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 			case SURFACE_PIXEL_FORMAT_GRPH_RGBE_ALPHA:
 				pipes[pipe_cnt].pipe.src.source_format = dm_rgbe_alpha;
 				break;
-#endif
 			default:
 				pipes[pipe_cnt].pipe.src.source_format = dm_444_32;
 				break;
@@ -2582,7 +2575,7 @@ struct pipe_ctx *dcn20_find_secondary_pipe(struct dc *dc,
 	return secondary_pipe;
 }
 
-static void dcn20_merge_pipes_for_validate(
+void dcn20_merge_pipes_for_validate(
 		struct dc *dc,
 		struct dc_state *context)
 {
@@ -2749,7 +2742,6 @@ int dcn20_validate_apply_pipe_split_flags(
 			split[i] = 2;
 			v->ODMCombineEnablePerState[vlevel][pipe_plane] = dm_odm_combine_mode_2to1;
 		}
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 		if (dc->debug.force_odm_combine_4to1 & (1 << pipe->stream_res.tg->inst)) {
 			split[i] = 4;
 			v->ODMCombineEnablePerState[vlevel][pipe_plane] = dm_odm_combine_mode_4to1;
@@ -2759,7 +2751,6 @@ int dcn20_validate_apply_pipe_split_flags(
 				pipe->stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR420) {
 			split[i] = 4;
 		}
-#endif
 		v->ODMCombineEnabled[pipe_plane] =
 			v->ODMCombineEnablePerState[vlevel][pipe_plane];
 
@@ -3801,7 +3792,9 @@ static bool dcn20_resource_construct(
 
 	dc->caps.max_downscale_ratio = 200;
 	dc->caps.i2c_speed_in_khz = 100;
+	dc->caps.i2c_speed_in_khz_hdcp = 100; /*1.4 w/a not applied by default*/
 	dc->caps.max_cursor_size = 256;
+	dc->caps.min_horizontal_blanking_period = 80;
 	dc->caps.dmdata_alloc_size = 2048;
 
 	dc->caps.max_slave_planes = 1;

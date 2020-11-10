@@ -27,9 +27,9 @@
 #include "dmub_dcn20.h"
 #include "dmub_dcn21.h"
 #include "dmub_cmd.h"
-#ifdef CONFIG_DRM_AMD_DC_DCN3_0
 #include "dmub_dcn30.h"
-#endif
+#include "dmub_dcn301.h"
+#include "dmub_dcn302.h"
 #include "os_types.h"
 /*
  * Note: the DMUB service is standalone. No additional headers should be
@@ -136,9 +136,9 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 	switch (asic) {
 	case DMUB_ASIC_DCN20:
 	case DMUB_ASIC_DCN21:
-#ifdef CONFIG_DRM_AMD_DC_DCN3_0
 	case DMUB_ASIC_DCN30:
-#endif
+	case DMUB_ASIC_DCN301:
+	case DMUB_ASIC_DCN302:
 		dmub->regs = &dmub_srv_dcn20_regs;
 
 		funcs->reset = dmub_dcn20_reset;
@@ -160,7 +160,6 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 			funcs->is_auto_load_done = dmub_dcn21_is_auto_load_done;
 			funcs->is_phy_init = dmub_dcn21_is_phy_init;
 		}
-#ifdef CONFIG_DRM_AMD_DC_DCN3_0
 		if (asic == DMUB_ASIC_DCN30) {
 			dmub->regs = &dmub_srv_dcn30_regs;
 
@@ -168,7 +167,18 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 			funcs->backdoor_load = dmub_dcn30_backdoor_load;
 			funcs->setup_windows = dmub_dcn30_setup_windows;
 		}
-#endif
+		if (asic == DMUB_ASIC_DCN301) {
+			dmub->regs = &dmub_srv_dcn301_regs;
+
+			funcs->backdoor_load = dmub_dcn30_backdoor_load;
+			funcs->setup_windows = dmub_dcn30_setup_windows;
+		}
+		if (asic == DMUB_ASIC_DCN302) {
+			dmub->regs = &dmub_srv_dcn302_regs;
+
+			funcs->backdoor_load = dmub_dcn30_backdoor_load;
+			funcs->setup_windows = dmub_dcn30_setup_windows;
+		}
 		break;
 
 	default:
@@ -404,15 +414,16 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 		cw1.region.base = DMUB_CW1_BASE;
 		cw1.region.top = cw1.region.base + stack_fb->size - 1;
 
-		/**
-		 * Read back all the instruction memory so we don't hang the
-		 * DMCUB when backdoor loading if the write from x86 hasn't been
-		 * flushed yet. This only occurs in backdoor loading.
-		 */
-		dmub_flush_buffer_mem(inst_fb);
+		if (params->load_inst_const && dmub->hw_funcs.backdoor_load) {
+		    /**
+		     * Read back all the instruction memory so we don't hang the
+		     * DMCUB when backdoor loading if the write from x86 hasn't been
+		     * flushed yet. This only occurs in backdoor loading.
+		     */
+		    dmub_flush_buffer_mem(inst_fb);
+		    dmub->hw_funcs.backdoor_load(dmub, &cw0, &cw1);
+		}
 
-		if (params->load_inst_const && dmub->hw_funcs.backdoor_load)
-			dmub->hw_funcs.backdoor_load(dmub, &cw0, &cw1);
 	}
 
 	if (dmub->hw_funcs.reset)

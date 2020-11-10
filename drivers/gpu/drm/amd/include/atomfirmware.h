@@ -1304,9 +1304,65 @@ struct atom_integrated_system_info_v1_12
   struct atom_hdmi_retimer_redriver_set dp3_retimer_set;   //for DP3
   struct atom_DCN_dpphy_dp_tuningset hbr_tuningset;    //hbr 2.7G dp tuning set
   struct atom_DCN_dpphy_dp_tuningset hbr2_tuningset;   //hbr2 5.4G dp turnig set
-  struct atom_DCN_dpphy_dp_tuningset edp_tunings;       //edp tuning set  
+  struct atom_DCN_dpphy_dp_tuningset edp_tunings;       //edp tuning set
   struct atom_DCN_dpphy_dvihdmi_tuningset  hdmiCLK6_tuningset;
   uint32_t  reserved[63];
+};
+
+struct edp_info_table
+{
+        uint16_t edp_backlight_pwm_hz;
+        uint16_t edp_ss_percentage;
+        uint16_t edp_ss_rate_10hz;
+        uint16_t reserved1;
+        uint32_t reserved2;
+        uint8_t  edp_pwr_on_off_delay;
+        uint8_t  edp_pwr_on_vary_bl_to_blon;
+        uint8_t  edp_pwr_down_bloff_to_vary_bloff;
+        uint8_t  edp_panel_bpc;
+        uint8_t  edp_bootup_bl_level;
+        uint8_t  reserved3[3];
+        uint32_t reserved4[3];
+};
+
+struct atom_integrated_system_info_v2_1
+{
+        struct  atom_common_table_header  table_header;
+        uint32_t  vbios_misc;                       //enum of atom_system_vbiosmisc_def
+        uint32_t  gpucapinfo;                       //enum of atom_system_gpucapinf_def
+        uint32_t  system_config;
+        uint32_t  cpucapinfo;
+        uint16_t  gpuclk_ss_percentage;             //unit of 0.001%,   1000 mean 1%
+        uint16_t  gpuclk_ss_type;
+        uint16_t  dpphy_override;                   // bit vector, enum of atom_sysinfo_dpphy_override_def
+        uint8_t   memorytype;                       // enum of atom_dmi_t17_mem_type_def, APU memory type indication.
+        uint8_t   umachannelnumber;                 // number of memory channels
+        uint8_t   htc_hyst_limit;
+        uint8_t   htc_tmp_limit;
+        uint8_t   reserved1;
+        uint8_t   reserved2;
+        struct edp_info_table edp1_info;
+        struct edp_info_table edp2_info;
+        uint32_t  reserved3[8];
+        struct atom_external_display_connection_info extdispconninfo;
+        struct atom_DCN_dpphy_dvihdmi_tuningset  TMDS_tuningset;
+        struct atom_DCN_dpphy_dvihdmi_tuningset  hdmiCLK5_tuningset; //add clk6
+        struct atom_DCN_dpphy_dvihdmi_tuningset  hdmiCLK6_tuningset;
+        struct atom_DCN_dpphy_dvihdmi_tuningset  hdmiCLK8_tuningset;
+        uint32_t reserved4[6];//reserve 2*sizeof(atom_DCN_dpphy_dvihdmi_tuningset)
+        struct atom_DCN_dpphy_dp_tuningset rbr_tuningset;        // rbr 1.62G dp tuning set
+        struct atom_DCN_dpphy_dp_tuningset hbr_tuningset;    //hbr 2.7G dp tuning set
+        struct atom_DCN_dpphy_dp_tuningset hbr2_tuningset;   //hbr2 5.4G dp turnig set
+        struct atom_DCN_dpphy_dp_tuningset hbr3_tuningset;   // HBR3 dp tuning set
+        struct atom_DCN_dpphy_dp_tuningset edp_tunings;       //edp tuning set
+        uint32_t reserved5[28];//reserve 2*sizeof(atom_DCN_dpphy_dp_tuningset)
+        struct atom_hdmi_retimer_redriver_set dp0_retimer_set;   //for DP0
+        struct atom_hdmi_retimer_redriver_set dp1_retimer_set;   //for DP1
+        struct atom_hdmi_retimer_redriver_set dp2_retimer_set;   //for DP2
+        struct atom_hdmi_retimer_redriver_set dp3_retimer_set;   //for DP3
+        uint32_t reserved6[30];// reserve size of(atom_camera_data) for camera_info
+        uint32_t reserved7[32];
+
 };
 
 // system_config
@@ -1367,6 +1423,11 @@ enum atom_dmi_t17_mem_type_def{
   LpDdr2MemType,                                        ///< Assign 28 to LPDDR2
   LpDdr3MemType,                                        ///< Assign 29 to LPDDR3
   LpDdr4MemType,                                        ///< Assign 30 to LPDDR4
+  GDdr6MemType,                                         ///< Assign 31 to GDDR6
+  HbmMemType,                                           ///< Assign 32 to HBM
+  Hbm2MemType,                                          ///< Assign 33 to HBM2
+  Ddr5MemType,                                          ///< Assign 34 to DDR5
+  LpDdr5MemType,                                        ///< Assign 35 to LPDDR5
 };
 
 

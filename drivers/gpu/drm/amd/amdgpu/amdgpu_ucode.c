@@ -391,6 +391,8 @@ amdgpu_ucode_get_load_type(struct amdgpu_device *adev, int load_type)
 	case CHIP_NAVI12:
 	case CHIP_SIENNA_CICHLID:
 	case CHIP_NAVY_FLOUNDER:
+	case CHIP_VANGOGH:
+	case CHIP_DIMGREY_CAVEFISH:
 		if (!load_type)
 			return AMDGPU_FW_LOAD_DIRECT;
 		else
@@ -586,8 +588,8 @@ static int amdgpu_ucode_patch_jt(struct amdgpu_firmware_info *ucode,
 {
 	const struct gfx_firmware_header_v1_0 *header = NULL;
 	const struct common_firmware_header *comm_hdr = NULL;
-	uint8_t* src_addr = NULL;
-	uint8_t* dst_addr = NULL;
+	uint8_t *src_addr = NULL;
+	uint8_t *dst_addr = NULL;
 
 	if (NULL == ucode->fw)
 		return 0;

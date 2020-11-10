@@ -38,6 +38,7 @@
 #include <drm/drm_edid.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_vblank.h>
 
 static void amdgpu_display_flip_callback(struct dma_fence *f,
@@ -524,6 +525,10 @@ uint32_t amdgpu_display_supported_domains(struct amdgpu_device *adev,
 			    (adev->apu_flags & AMD_APU_IS_PICASSO))
 				domain |= AMDGPU_GEM_DOMAIN_GTT;
 			break;
+		case CHIP_RENOIR:
+			domain |= AMDGPU_GEM_DOMAIN_GTT;
+			break;
+
 		default:
 			break;
 		}
@@ -531,6 +536,154 @@ uint32_t amdgpu_display_supported_domains(struct amdgpu_device *adev,
 #endif
 
 	return domain;
+}
+
+static int convert_tiling_flags_to_modifier(struct amdgpu_framebuffer *afb)
+{
+	struct amdgpu_device *adev = drm_to_adev(afb->base.dev);
+	uint64_t modifier = 0;
+
+	if (!afb->tiling_flags || !AMDGPU_TILING_GET(afb->tiling_flags, SWIZZLE_MODE)) {
+		modifier = DRM_FORMAT_MOD_LINEAR;
+	} else {
+		int swizzle = AMDGPU_TILING_GET(afb->tiling_flags, SWIZZLE_MODE);
+		bool has_xor = swizzle >= 16;
+		int block_size_bits;
+		int version;
+		int pipe_xor_bits = 0;
+		int bank_xor_bits = 0;
+		int packers = 0;
+		uint32_t dcc_offset = AMDGPU_TILING_GET(afb->tiling_flags, DCC_OFFSET_256B);
+
+		switch (swizzle >> 2) {
+		case 0: /* 256B */
+			block_size_bits = 8;
+			break;
+		case 1: /* 4KiB */
+		case 5: /* 4KiB _X */
+			block_size_bits = 12;
+			break;
+		case 2: /* 64KiB */
+		case 4: /* 64 KiB _T */
+		case 6: /* 64 KiB _X */
+			block_size_bits = 16;
+			break;
+		default:
+			/* RESERVED or VAR */
+			return -EINVAL;
+		}
+
+		if (adev->asic_type >= CHIP_SIENNA_CICHLID)
+			version = AMD_FMT_MOD_TILE_VER_GFX10_RBPLUS;
+		else if (adev->family == AMDGPU_FAMILY_NV)
+			version = AMD_FMT_MOD_TILE_VER_GFX10;
+		else
+			version = AMD_FMT_MOD_TILE_VER_GFX9;
+
+		switch (swizzle & 3) {
+		case 0: /* Z microtiling */
+			return -EINVAL;
+		case 1: /* S microtiling */
+			if (!has_xor)
+				version = AMD_FMT_MOD_TILE_VER_GFX9;
+			break;
+		case 2:
+			if (!has_xor && afb->base.format->cpp[0] != 4)
+				version = AMD_FMT_MOD_TILE_VER_GFX9;
+			break;
+		case 3:
+			break;
+		}
+
+		if (has_xor) {
+			switch (version) {
+			case AMD_FMT_MOD_TILE_VER_GFX10_RBPLUS:
+				pipe_xor_bits = min(block_size_bits - 8,
+						    ilog2(adev->gfx.config.gb_addr_config_fields.num_pipes));
+				packers = min(block_size_bits - 8 - pipe_xor_bits,
+					      ilog2(adev->gfx.config.gb_addr_config_fields.num_pkrs));
+				break;
+			case AMD_FMT_MOD_TILE_VER_GFX10:
+				pipe_xor_bits = min(block_size_bits - 8,
+						    ilog2(adev->gfx.config.gb_addr_config_fields.num_pipes));
+				break;
+			case AMD_FMT_MOD_TILE_VER_GFX9:
+				pipe_xor_bits = min(block_size_bits - 8,
+						    ilog2(adev->gfx.config.gb_addr_config_fields.num_pipes) +
+						    ilog2(adev->gfx.config.gb_addr_config_fields.num_se));
+				bank_xor_bits = min(block_size_bits - 8 - pipe_xor_bits,
+						    ilog2(adev->gfx.config.gb_addr_config_fields.num_banks));
+				break;
+			}
+		}
+
+		modifier = AMD_FMT_MOD |
+			   AMD_FMT_MOD_SET(TILE, AMDGPU_TILING_GET(afb->tiling_flags, SWIZZLE_MODE)) |
+			   AMD_FMT_MOD_SET(TILE_VERSION, version) |
+			   AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipe_xor_bits) |
+			   AMD_FMT_MOD_SET(BANK_XOR_BITS, bank_xor_bits) |
+			   AMD_FMT_MOD_SET(PACKERS, packers);
+
+		if (dcc_offset != 0) {
+			bool dcc_i64b = AMDGPU_TILING_GET(afb->tiling_flags, DCC_INDEPENDENT_64B) != 0;
+			bool dcc_i128b = version >= AMD_FMT_MOD_TILE_VER_GFX10_RBPLUS;
+
+			/* Enable constant encode on RAVEN2 and later. */
+			bool dcc_constant_encode = adev->asic_type > CHIP_RAVEN ||
+						   (adev->asic_type == CHIP_RAVEN &&
+						    adev->external_rev_id >= 0x81);
+
+			int max_cblock_size = dcc_i64b ? AMD_FMT_MOD_DCC_BLOCK_64B :
+					      dcc_i128b ? AMD_FMT_MOD_DCC_BLOCK_128B :
+					      AMD_FMT_MOD_DCC_BLOCK_256B;
+
+			modifier |= AMD_FMT_MOD_SET(DCC, 1) |
+				    AMD_FMT_MOD_SET(DCC_CONSTANT_ENCODE, dcc_constant_encode) |
+				    AMD_FMT_MOD_SET(DCC_INDEPENDENT_64B, dcc_i64b) |
+				    AMD_FMT_MOD_SET(DCC_INDEPENDENT_128B, dcc_i128b) |
+				    AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, max_cblock_size);
+
+			afb->base.offsets[1] = dcc_offset * 256 + afb->base.offsets[0];
+			afb->base.pitches[1] = AMDGPU_TILING_GET(afb->tiling_flags, DCC_PITCH_MAX) + 1;
+		}
+	}
+
+	afb->base.modifier = modifier;
+	afb->base.flags |= DRM_MODE_FB_MODIFIERS;
+	return 0;
+}
+
+static int amdgpu_display_get_fb_info(const struct amdgpu_framebuffer *amdgpu_fb,
+				      uint64_t *tiling_flags, bool *tmz_surface)
+{
+	struct amdgpu_bo *rbo;
+	int r;
+
+	if (!amdgpu_fb) {
+		*tiling_flags = 0;
+		*tmz_surface = false;
+		return 0;
+	}
+
+	rbo = gem_to_amdgpu_bo(amdgpu_fb->base.obj[0]);
+	r = amdgpu_bo_reserve(rbo, false);
+
+	if (unlikely(r)) {
+		/* Don't show error message when returning -ERESTARTSYS */
+		if (r != -ERESTARTSYS)
+			DRM_ERROR("Unable to reserve buffer: %d\n", r);
+		return r;
+	}
+
+	if (tiling_flags)
+		amdgpu_bo_get_tiling_flags(rbo, tiling_flags);
+
+	if (tmz_surface)
+		*tmz_surface = amdgpu_bo_encrypted(rbo);
+
+	amdgpu_bo_unreserve(rbo);
+
+	return r;
 }
 
 int amdgpu_display_framebuffer_init(struct drm_device *dev,
@@ -542,11 +695,25 @@ int amdgpu_display_framebuffer_init(struct drm_device *dev,
 	rfb->base.obj[0] = obj;
 	drm_helper_mode_fill_fb_struct(dev, &rfb->base, mode_cmd);
 	ret = drm_framebuffer_init(dev, &rfb->base, &amdgpu_fb_funcs);
-	if (ret) {
-		rfb->base.obj[0] = NULL;
-		return ret;
+	if (ret)
+		goto fail;
+
+	ret = amdgpu_display_get_fb_info(rfb, &rfb->tiling_flags, &rfb->tmz_surface);
+	if (ret)
+		goto fail;
+
+	if (dev->mode_config.allow_fb_modifiers &&
+	    !(rfb->base.flags & DRM_MODE_FB_MODIFIERS)) {
+		ret = convert_tiling_flags_to_modifier(rfb);
+		if (ret)
+			goto fail;
 	}
+
 	return 0;
+
+fail:
+	rfb->base.obj[0] = NULL;
+	return ret;
 }
 
 struct drm_framebuffer *

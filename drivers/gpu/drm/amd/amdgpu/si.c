@@ -1350,7 +1350,7 @@ static void si_vga_set_state(struct amdgpu_device *adev, bool state)
 
 static u32 si_get_xclk(struct amdgpu_device *adev)
 {
-        u32 reference_clock = adev->clock.spll.reference_freq;
+	u32 reference_clock = adev->clock.spll.reference_freq;
 	u32 tmp;
 
 	tmp = RREG32(CG_CLKPIN_CNTL_2);

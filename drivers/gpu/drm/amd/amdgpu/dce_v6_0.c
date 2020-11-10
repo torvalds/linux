@@ -2567,7 +2567,7 @@ static int dce_v6_0_crtc_set_base_atomic(struct drm_crtc *crtc,
 					 struct drm_framebuffer *fb,
 					 int x, int y, enum mode_set_atomic state)
 {
-       return dce_v6_0_crtc_do_set_base(crtc, fb, x, y, 1);
+	return dce_v6_0_crtc_do_set_base(crtc, fb, x, y, 1);
 }
 
 static const struct drm_crtc_helper_funcs dce_v6_0_crtc_helper_funcs = {

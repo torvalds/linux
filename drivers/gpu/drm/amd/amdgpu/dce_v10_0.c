@@ -2202,22 +2202,18 @@ static int dce_v10_0_pick_dig_encoder(struct drm_encoder *encoder)
 			return 1;
 		else
 			return 0;
-		break;
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
 		if (dig->linkb)
 			return 3;
 		else
 			return 2;
-		break;
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
 		if (dig->linkb)
 			return 5;
 		else
 			return 4;
-		break;
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY3:
 		return 6;
-		break;
 	default:
 		DRM_ERROR("invalid encoder_id: 0x%x\n", amdgpu_encoder->encoder_id);
 		return 0;
@@ -2677,7 +2673,7 @@ static int dce_v10_0_crtc_set_base_atomic(struct drm_crtc *crtc,
 					 struct drm_framebuffer *fb,
 					 int x, int y, enum mode_set_atomic state)
 {
-       return dce_v10_0_crtc_do_set_base(crtc, fb, x, y, 1);
+	return dce_v10_0_crtc_do_set_base(crtc, fb, x, y, 1);
 }
 
 static const struct drm_crtc_helper_funcs dce_v10_0_crtc_helper_funcs = {

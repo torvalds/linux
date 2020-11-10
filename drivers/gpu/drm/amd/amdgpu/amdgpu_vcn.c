@@ -37,24 +37,30 @@
 #define FIRMWARE_RAVEN		"amdgpu/raven_vcn.bin"
 #define FIRMWARE_PICASSO	"amdgpu/picasso_vcn.bin"
 #define FIRMWARE_RAVEN2		"amdgpu/raven2_vcn.bin"
-#define FIRMWARE_ARCTURUS 	"amdgpu/arcturus_vcn.bin"
-#define FIRMWARE_RENOIR 	"amdgpu/renoir_vcn.bin"
-#define FIRMWARE_NAVI10 	"amdgpu/navi10_vcn.bin"
-#define FIRMWARE_NAVI14 	"amdgpu/navi14_vcn.bin"
-#define FIRMWARE_NAVI12 	"amdgpu/navi12_vcn.bin"
-#define FIRMWARE_SIENNA_CICHLID 	"amdgpu/sienna_cichlid_vcn.bin"
-#define FIRMWARE_NAVY_FLOUNDER 	"amdgpu/navy_flounder_vcn.bin"
+#define FIRMWARE_ARCTURUS	"amdgpu/arcturus_vcn.bin"
+#define FIRMWARE_RENOIR		"amdgpu/renoir_vcn.bin"
+#define FIRMWARE_GREEN_SARDINE	"amdgpu/green_sardine_vcn.bin"
+#define FIRMWARE_NAVI10		"amdgpu/navi10_vcn.bin"
+#define FIRMWARE_NAVI14		"amdgpu/navi14_vcn.bin"
+#define FIRMWARE_NAVI12		"amdgpu/navi12_vcn.bin"
+#define FIRMWARE_SIENNA_CICHLID	"amdgpu/sienna_cichlid_vcn.bin"
+#define FIRMWARE_NAVY_FLOUNDER	"amdgpu/navy_flounder_vcn.bin"
+#define FIRMWARE_VANGOGH	"amdgpu/vangogh_vcn.bin"
+#define FIRMWARE_DIMGREY_CAVEFISH	"amdgpu/dimgrey_cavefish_vcn.bin"
 
 MODULE_FIRMWARE(FIRMWARE_RAVEN);
 MODULE_FIRMWARE(FIRMWARE_PICASSO);
 MODULE_FIRMWARE(FIRMWARE_RAVEN2);
 MODULE_FIRMWARE(FIRMWARE_ARCTURUS);
 MODULE_FIRMWARE(FIRMWARE_RENOIR);
+MODULE_FIRMWARE(FIRMWARE_GREEN_SARDINE);
 MODULE_FIRMWARE(FIRMWARE_NAVI10);
 MODULE_FIRMWARE(FIRMWARE_NAVI14);
 MODULE_FIRMWARE(FIRMWARE_NAVI12);
 MODULE_FIRMWARE(FIRMWARE_SIENNA_CICHLID);
 MODULE_FIRMWARE(FIRMWARE_NAVY_FLOUNDER);
+MODULE_FIRMWARE(FIRMWARE_VANGOGH);
+MODULE_FIRMWARE(FIRMWARE_DIMGREY_CAVEFISH);
 
 static void amdgpu_vcn_idle_work_handler(struct work_struct *work);
 
@@ -89,7 +95,11 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 			adev->vcn.indirect_sram = true;
 		break;
 	case CHIP_RENOIR:
-		fw_name = FIRMWARE_RENOIR;
+		if (adev->apu_flags & AMD_APU_IS_RENOIR)
+			fw_name = FIRMWARE_RENOIR;
+		else
+			fw_name = FIRMWARE_GREEN_SARDINE;
+
 		if ((adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) &&
 		    (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG))
 			adev->vcn.indirect_sram = true;
@@ -120,6 +130,15 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 		break;
 	case CHIP_NAVY_FLOUNDER:
 		fw_name = FIRMWARE_NAVY_FLOUNDER;
+		if ((adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) &&
+		    (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG))
+			adev->vcn.indirect_sram = true;
+		break;
+	case CHIP_VANGOGH:
+		fw_name = FIRMWARE_VANGOGH;
+		break;
+	case CHIP_DIMGREY_CAVEFISH:
+		fw_name = FIRMWARE_DIMGREY_CAVEFISH;
 		if ((adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) &&
 		    (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG))
 			adev->vcn.indirect_sram = true;
@@ -313,6 +332,7 @@ static void amdgpu_vcn_idle_work_handler(struct work_struct *work)
 		container_of(work, struct amdgpu_device, vcn.idle_work.work);
 	unsigned int fences = 0, fence[AMDGPU_MAX_VCN_INSTANCES] = {0};
 	unsigned int i, j;
+	int r = 0;
 
 	for (j = 0; j < adev->vcn.num_vcn_inst; ++j) {
 		if (adev->vcn.harvest_config & (1 << j))
@@ -339,8 +359,13 @@ static void amdgpu_vcn_idle_work_handler(struct work_struct *work)
 	}
 
 	if (!fences && !atomic_read(&adev->vcn.total_submission_cnt)) {
+		amdgpu_gfx_off_ctrl(adev, true);
 		amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VCN,
 		       AMD_PG_STATE_GATE);
+		r = amdgpu_dpm_switch_power_profile(adev, PP_SMC_POWER_PROFILE_VIDEO,
+				false);
+		if (r)
+			dev_warn(adev->dev, "(%d) failed to disable video power profile mode\n", r);
 	} else {
 		schedule_delayed_work(&adev->vcn.idle_work, VCN_IDLE_TIMEOUT);
 	}
@@ -349,9 +374,17 @@ static void amdgpu_vcn_idle_work_handler(struct work_struct *work)
 void amdgpu_vcn_ring_begin_use(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
+	int r = 0;
 
 	atomic_inc(&adev->vcn.total_submission_cnt);
-	cancel_delayed_work_sync(&adev->vcn.idle_work);
+
+	if (!cancel_delayed_work_sync(&adev->vcn.idle_work)) {
+		amdgpu_gfx_off_ctrl(adev, false);
+		r = amdgpu_dpm_switch_power_profile(adev, PP_SMC_POWER_PROFILE_VIDEO,
+				true);
+		if (r)
+			dev_warn(adev->dev, "(%d) failed to switch to video power profile mode\n", r);
+	}
 
 	mutex_lock(&adev->vcn.vcn_pg_lock);
 	amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VCN,

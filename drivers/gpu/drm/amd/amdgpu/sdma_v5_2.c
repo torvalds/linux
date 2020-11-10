@@ -46,6 +46,9 @@
 
 MODULE_FIRMWARE("amdgpu/sienna_cichlid_sdma.bin");
 MODULE_FIRMWARE("amdgpu/navy_flounder_sdma.bin");
+MODULE_FIRMWARE("amdgpu/dimgrey_cavefish_sdma.bin");
+
+MODULE_FIRMWARE("amdgpu/vangogh_sdma.bin");
 
 #define SDMA1_REG_OFFSET 0x600
 #define SDMA3_REG_OFFSET 0x400
@@ -87,6 +90,8 @@ static void sdma_v5_2_init_golden_registers(struct amdgpu_device *adev)
 	switch (adev->asic_type) {
 	case CHIP_SIENNA_CICHLID:
 	case CHIP_NAVY_FLOUNDER:
+	case CHIP_VANGOGH:
+	case CHIP_DIMGREY_CAVEFISH:
 		break;
 	default:
 		break;
@@ -124,7 +129,7 @@ static void sdma_v5_2_destroy_inst_ctx(struct amdgpu_device *adev)
 			break;
 	}
 
-	memset((void*)adev->sdma.instance, 0,
+	memset((void *)adev->sdma.instance, 0,
 	       sizeof(struct amdgpu_sdma_instance) * AMDGPU_MAX_SDMA_INSTANCES);
 }
 
@@ -160,6 +165,12 @@ static int sdma_v5_2_init_microcode(struct amdgpu_device *adev)
 	case CHIP_NAVY_FLOUNDER:
 		chip_name = "navy_flounder";
 		break;
+	case CHIP_VANGOGH:
+		chip_name = "vangogh";
+		break;
+	case CHIP_DIMGREY_CAVEFISH:
+		chip_name = "dimgrey_cavefish";
+		break;
 	default:
 		BUG();
 	}
@@ -175,10 +186,10 @@ static int sdma_v5_2_init_microcode(struct amdgpu_device *adev)
 		goto out;
 
 	for (i = 1; i < adev->sdma.num_instances; i++) {
-		if (adev->asic_type == CHIP_SIENNA_CICHLID ||
-		    adev->asic_type == CHIP_NAVY_FLOUNDER) {
-			memcpy((void*)&adev->sdma.instance[i],
-			       (void*)&adev->sdma.instance[0],
+		if (adev->asic_type >= CHIP_SIENNA_CICHLID &&
+		    adev->asic_type <= CHIP_DIMGREY_CAVEFISH) {
+			memcpy((void *)&adev->sdma.instance[i],
+			       (void *)&adev->sdma.instance[0],
 			       sizeof(struct amdgpu_sdma_instance));
 		} else {
 			snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_sdma%d.bin", chip_name, i);
@@ -696,7 +707,7 @@ static int sdma_v5_2_gfx_resume(struct amdgpu_device *adev)
 		temp &= 0xFF0FFF;
 		temp |= ((CACHE_READ_POLICY_L2__DEFAULT << 12) |
 			 (CACHE_WRITE_POLICY_L2__DEFAULT << 14) |
-			 0x01000000);
+			 SDMA0_UTCL1_PAGE__LLC_NOALLOC_MASK);
 		WREG32(sdma_v5_2_get_reg_offset(adev, i, mmSDMA0_UTCL1_PAGE), temp);
 
 		if (!amdgpu_sriov_vf(adev)) {
@@ -1169,7 +1180,11 @@ static int sdma_v5_2_early_init(void *handle)
 		adev->sdma.num_instances = 4;
 		break;
 	case CHIP_NAVY_FLOUNDER:
+	case CHIP_DIMGREY_CAVEFISH:
 		adev->sdma.num_instances = 2;
+		break;
+	case CHIP_VANGOGH:
+		adev->sdma.num_instances = 1;
 		break;
 	default:
 		break;
@@ -1567,6 +1582,8 @@ static int sdma_v5_2_set_clockgating_state(void *handle,
 	switch (adev->asic_type) {
 	case CHIP_SIENNA_CICHLID:
 	case CHIP_NAVY_FLOUNDER:
+	case CHIP_VANGOGH:
+	case CHIP_DIMGREY_CAVEFISH:
 		sdma_v5_2_update_medium_grain_clock_gating(adev,
 				state == AMD_CG_STATE_GATE ? true : false);
 		sdma_v5_2_update_medium_grain_light_sleep(adev,

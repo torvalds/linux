@@ -729,8 +729,13 @@ static void gfx_v8_0_get_cu_info(struct amdgpu_device *adev);
 static void gfx_v8_0_ring_emit_ce_meta(struct amdgpu_ring *ring);
 static void gfx_v8_0_ring_emit_de_meta(struct amdgpu_ring *ring);
 
+#define CG_ACLK_CNTL__ACLK_DIVIDER_MASK                    0x0000007fL
+#define CG_ACLK_CNTL__ACLK_DIVIDER__SHIFT                  0x00000000L
+
 static void gfx_v8_0_init_golden_registers(struct amdgpu_device *adev)
 {
+	uint32_t data;
+
 	switch (adev->asic_type) {
 	case CHIP_TOPAZ:
 		amdgpu_device_program_register_sequence(adev,
@@ -790,11 +795,14 @@ static void gfx_v8_0_init_golden_registers(struct amdgpu_device *adev)
 		amdgpu_device_program_register_sequence(adev,
 							polaris10_golden_common_all,
 							ARRAY_SIZE(polaris10_golden_common_all));
-		WREG32_SMC(ixCG_ACLK_CNTL, 0x0000001C);
-		if (adev->pdev->revision == 0xc7 &&
+		data = RREG32_SMC(ixCG_ACLK_CNTL);
+		data &= ~CG_ACLK_CNTL__ACLK_DIVIDER_MASK;
+		data |= 0x18 << CG_ACLK_CNTL__ACLK_DIVIDER__SHIFT;
+		WREG32_SMC(ixCG_ACLK_CNTL, data);
+		if ((adev->pdev->device == 0x67DF) && (adev->pdev->revision == 0xc7) &&
 		    ((adev->pdev->subsystem_device == 0xb37 && adev->pdev->subsystem_vendor == 0x1002) ||
 		     (adev->pdev->subsystem_device == 0x4a8 && adev->pdev->subsystem_vendor == 0x1043) ||
-		     (adev->pdev->subsystem_device == 0x9480 && adev->pdev->subsystem_vendor == 0x1682))) {
+		     (adev->pdev->subsystem_device == 0x9480 && adev->pdev->subsystem_vendor == 0x1680))) {
 			amdgpu_atombios_i2c_channel_trans(adev, 0x10, 0x96, 0x1E, 0xDD);
 			amdgpu_atombios_i2c_channel_trans(adev, 0x10, 0x96, 0x1F, 0xD0);
 		}
@@ -5058,7 +5066,7 @@ static int gfx_v8_0_pre_soft_reset(void *handle)
 		gfx_v8_0_cp_compute_enable(adev, false);
 	}
 
-       return 0;
+	return 0;
 }
 
 static int gfx_v8_0_soft_reset(void *handle)
@@ -5295,7 +5303,8 @@ static int gfx_v8_0_early_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	adev->gfx.num_gfx_rings = GFX8_NUM_GFX_RINGS;
-	adev->gfx.num_compute_rings = amdgpu_num_kcq;
+	adev->gfx.num_compute_rings = min(amdgpu_gfx_get_num_kcq(adev),
+					  AMDGPU_MAX_COMPUTE_RINGS);
 	adev->gfx.funcs = &gfx_v8_0_gfx_funcs;
 	gfx_v8_0_set_ring_funcs(adev);
 	gfx_v8_0_set_irq_funcs(adev);

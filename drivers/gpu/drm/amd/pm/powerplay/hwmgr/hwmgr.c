@@ -479,11 +479,17 @@ int polaris_set_asic_special_caps(struct pp_hwmgr *hwmgr)
 						PHM_PlatformCaps_RegulatorHot);
 
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_MemorySpreadSpectrumSupport);
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_EngineSpreadSpectrumSupport);
+
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 					PHM_PlatformCaps_AutomaticDCTransition);
 
-	if (hwmgr->chip_id != CHIP_POLARIS10)
+	if (((hwmgr->chip_id == CHIP_POLARIS11) && !hwmgr->is_kicker) ||
+	    (hwmgr->chip_id == CHIP_POLARIS12))
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-					PHM_PlatformCaps_SPLLShutdownSupport);
+				PHM_PlatformCaps_SPLLShutdownSupport);
 
 	if (hwmgr->chip_id != CHIP_POLARIS11) {
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps,

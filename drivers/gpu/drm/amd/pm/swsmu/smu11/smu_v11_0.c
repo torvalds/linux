@@ -62,6 +62,7 @@ MODULE_FIRMWARE("amdgpu/navi14_smc.bin");
 MODULE_FIRMWARE("amdgpu/navi12_smc.bin");
 MODULE_FIRMWARE("amdgpu/sienna_cichlid_smc.bin");
 MODULE_FIRMWARE("amdgpu/navy_flounder_smc.bin");
+MODULE_FIRMWARE("amdgpu/dimgrey_cavefish_smc.bin");
 
 #define SMU11_VOLTAGE_SCALE 4
 
@@ -84,7 +85,7 @@ int smu_v11_0_init_microcode(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
 	const char *chip_name;
-	char fw_name[30];
+	char fw_name[SMU_FW_NAME_LEN];
 	int err = 0;
 	const struct smc_firmware_header_v1_0 *hdr;
 	const struct common_firmware_header *header;
@@ -108,6 +109,9 @@ int smu_v11_0_init_microcode(struct smu_context *smu)
 		break;
 	case CHIP_NAVY_FLOUNDER:
 		chip_name = "navy_flounder";
+		break;
+	case CHIP_DIMGREY_CAVEFISH:
+		chip_name = "dimgrey_cavefish";
 		break;
 	default:
 		dev_err(adev->dev, "Unsupported ASIC type %d\n", adev->asic_type);
@@ -244,6 +248,12 @@ int smu_v11_0_check_fw_version(struct smu_context *smu)
 	case CHIP_NAVY_FLOUNDER:
 		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_Navy_Flounder;
 		break;
+	case CHIP_VANGOGH:
+		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_VANGOGH;
+		break;
+	case CHIP_DIMGREY_CAVEFISH:
+		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_Dimgrey_Cavefish;
+		break;
 	default:
 		dev_err(smu->adev->dev, "smu unsupported asic type:%d.\n", smu->adev->asic_type);
 		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_INV;
@@ -327,7 +337,7 @@ int smu_v11_0_setup_pptable(struct smu_context *smu)
 		version_major = le16_to_cpu(hdr->header.header_version_major);
 		version_minor = le16_to_cpu(hdr->header.header_version_minor);
 		if ((version_major == 2 && smu->smu_table.boot_values.pp_table_id > 0) ||
-			adev->asic_type == CHIP_NAVY_FLOUNDER) {
+		    adev->asic_type == CHIP_DIMGREY_CAVEFISH) {
 			dev_info(adev->dev, "use driver provided pptable %d\n", smu->smu_table.boot_values.pp_table_id);
 			switch (version_minor) {
 			case 0:
@@ -592,6 +602,11 @@ int smu_v11_0_get_vbios_bootup_values(struct smu_context *smu)
 						 (uint8_t)SMU11_SYSPLL1_2_ID,
 						 &smu->smu_table.boot_values.fclk);
 
+	smu_v11_0_atom_get_smu_clockinfo(smu->adev,
+					 (uint8_t)SMU11_SYSPLL3_1_LCLK_ID,
+					 (uint8_t)SMU11_SYSPLL3_1_ID,
+					 &smu->smu_table.boot_values.lclk);
+
 	return 0;
 }
 
@@ -699,8 +714,11 @@ int smu_v11_0_init_display_count(struct smu_context *smu, uint32_t count)
 {
 	struct amdgpu_device *adev = smu->adev;
 
-	/* Navy_Flounder do not support to change display num currently */
-	if (adev->asic_type == CHIP_NAVY_FLOUNDER)
+	/* Navy_Flounder/Dimgrey_Cavefish do not support to change
+	 * display num currently
+	 */
+	if (adev->asic_type >= CHIP_NAVY_FLOUNDER &&
+	    adev->asic_type <= CHIP_DIMGREY_CAVEFISH)
 		return 0;
 
 	return smu_cmn_send_smc_msg_with_param(smu,
@@ -1068,6 +1086,7 @@ int smu_v11_0_gfx_off_control(struct smu_context *smu, bool enable)
 	case CHIP_NAVI12:
 	case CHIP_SIENNA_CICHLID:
 	case CHIP_NAVY_FLOUNDER:
+	case CHIP_DIMGREY_CAVEFISH:
 		if (!(adev->pm.pp_feature & PP_GFXOFF_MASK))
 			return 0;
 		if (enable)

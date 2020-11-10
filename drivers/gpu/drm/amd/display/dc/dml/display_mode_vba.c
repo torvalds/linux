@@ -288,9 +288,7 @@ static void fetch_ip_params(struct display_mode_lib *mode_lib)
 
 	// IP Parameters
 	mode_lib->vba.UseMinimumRequiredDCFCLK = ip->use_min_dcfclk;
-#ifdef CONFIG_DRM_AMD_DC_DCN3_0
 	mode_lib->vba.ClampMinDCFCLK = ip->clamp_min_dcfclk;
-#endif
 	mode_lib->vba.MaxNumDPP = ip->max_num_dpp;
 	mode_lib->vba.MaxNumOTG = ip->max_num_otg;
 	mode_lib->vba.MaxNumHDMIFRLOutputs = ip->max_num_hdmi_frl_outputs;
