@@ -53,7 +53,6 @@ properties:
           - const: st,stm32h743
       - items:
           - enum:
-              - lxa,stm32mp157c-mc1
               - shiratech,stm32mp157a-iot-box # IoT Box
               - shiratech,stm32mp157a-stinger96 # Stinger96
               - st,stm32mp157c-ed1
@@ -65,6 +64,13 @@ properties:
           - const: st,stm32mp157c-ev1
           - const: st,stm32mp157c-ed1
           - const: st,stm32mp157
+      - description: Octavo OSD32MP15x System-in-Package based boards
+        items:
+          - enum:
+              - lxa,stm32mp157c-mc1 # Linux Automation MC-1
+          - const: oct,stm32mp15xx-osd32
+          - enum:
+              - st,stm32mp157
       - description: Odyssey STM32MP1 SoM based Boards
         items:
               - enum:
