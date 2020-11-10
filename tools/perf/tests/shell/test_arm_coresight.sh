@@ -44,7 +44,7 @@ perf_script_branch_samples() {
 	#   touch  6512          1         branches:u:      ffffb22082e0 strcmp+0xa0 (/lib/aarch64-linux-gnu/ld-2.27.so)
 	#   touch  6512          1         branches:u:      ffffb2208320 strcmp+0xe0 (/lib/aarch64-linux-gnu/ld-2.27.so)
 	perf script -F,-time -i ${perfdata} | \
-		egrep " +$1 +[0-9]+ .* +branches:([u|k]:)? +"
+		egrep " +$1 +[0-9]+ .* +branches:(.*:)? +"
 }
 
 perf_report_branch_samples() {
