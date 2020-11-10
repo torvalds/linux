@@ -240,21 +240,6 @@ int xprt_find_transport_ident(const char *netid)
 }
 EXPORT_SYMBOL_GPL(xprt_find_transport_ident);
 
-/**
- * xprt_load_transport - load a transport implementation
- * @netid: transport to load
- *
- * Returns:
- * 0:		transport successfully loaded
- * -ENOENT:	transport module not available
- */
-int xprt_load_transport(const char *netid)
-{
-	int ret = xprt_find_transport_ident(netid);
-	return ret < 0 ? ret : 0;
-}
-EXPORT_SYMBOL_GPL(xprt_load_transport);
-
 static void xprt_clear_locked(struct rpc_xprt *xprt)
 {
 	xprt->snd_task = NULL;
