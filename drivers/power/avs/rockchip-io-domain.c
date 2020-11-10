@@ -493,8 +493,8 @@ static const struct rockchip_iodomain_soc_data soc_data_rk3399_pmu = {
 static const struct rockchip_iodomain_soc_data soc_data_rk3568_pmu = {
 	.grf_offset = 0x140,
 	.supply_names = {
-		"pmuio0",
 		"pmuio1",
+		"pmuio2",
 		"vccio1",
 		"vccio2",
 		"vccio3",
