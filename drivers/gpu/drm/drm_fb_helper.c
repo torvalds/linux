@@ -2038,7 +2038,7 @@ static ssize_t fb_read_screen_base(struct fb_info *info, char __user *buf, size_
 				   loff_t pos)
 {
 	const char __iomem *src = info->screen_base + pos;
-	size_t alloc_size = min(count, PAGE_SIZE);
+	size_t alloc_size = min_t(size_t, count, PAGE_SIZE);
 	ssize_t ret = 0;
 	int err = 0;
 	char *tmp;
@@ -2112,7 +2112,7 @@ static ssize_t fb_write_screen_base(struct fb_info *info, const char __user *buf
 				    loff_t pos)
 {
 	char __iomem *dst = info->screen_base + pos;
-	size_t alloc_size = min(count, PAGE_SIZE);
+	size_t alloc_size = min_t(size_t, count, PAGE_SIZE);
 	ssize_t ret = 0;
 	int err = 0;
 	u8 *tmp;
