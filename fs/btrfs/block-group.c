@@ -1679,6 +1679,7 @@ out:
 static int exclude_super_stripes(struct btrfs_block_group *cache)
 {
 	struct btrfs_fs_info *fs_info = cache->fs_info;
+	const bool zoned = btrfs_is_zoned(fs_info);
 	u64 bytenr;
 	u64 *logical;
 	int stripe_len;
@@ -1699,6 +1700,14 @@ static int exclude_super_stripes(struct btrfs_block_group *cache)
 				       bytenr, &logical, &nr, &stripe_len);
 		if (ret)
 			return ret;
+
+		/* Shouldn't have super stripes in sequential zones */
+		if (zoned && nr) {
+			btrfs_err(fs_info,
+			"zoned: block group %llu must not contain super block",
+				  cache->start);
+			return -EUCLEAN;
+		}
 
 		while (nr--) {
 			u64 len = min_t(u64, stripe_len,

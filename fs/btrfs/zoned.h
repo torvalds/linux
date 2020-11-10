@@ -5,6 +5,8 @@
 
 #include <linux/types.h>
 #include <linux/blkdev.h>
+#include "volumes.h"
+#include "disk-io.h"
 
 struct btrfs_zoned_device_info {
 	/*
@@ -17,6 +19,7 @@ struct btrfs_zoned_device_info {
 	u32 nr_zones;
 	unsigned long *seq_zones;
 	unsigned long *empty_zones;
+	struct blk_zone sb_zones[2 * BTRFS_SUPER_MIRROR_MAX];
 };
 
 #ifdef CONFIG_BLK_DEV_ZONED
@@ -26,6 +29,12 @@ int btrfs_get_dev_zone_info(struct btrfs_device *device);
 void btrfs_destroy_dev_zone_info(struct btrfs_device *device);
 int btrfs_check_zoned_mode(struct btrfs_fs_info *fs_info);
 int btrfs_check_mountopts_zoned(struct btrfs_fs_info *info);
+int btrfs_sb_log_location_bdev(struct block_device *bdev, int mirror, int rw,
+			       u64 *bytenr_ret);
+int btrfs_sb_log_location(struct btrfs_device *device, int mirror, int rw,
+			  u64 *bytenr_ret);
+void btrfs_advance_sb_log(struct btrfs_device *device, int mirror);
+int btrfs_reset_sb_log_zones(struct block_device *bdev, int mirror);
 #else /* CONFIG_BLK_DEV_ZONED */
 static inline int btrfs_get_dev_zone(struct btrfs_device *device, u64 pos,
 				     struct blk_zone *zone)
@@ -50,6 +59,28 @@ static inline int btrfs_check_zoned_mode(const struct btrfs_fs_info *fs_info)
 }
 
 static inline int btrfs_check_mountopts_zoned(struct btrfs_fs_info *info)
+{
+	return 0;
+}
+
+static inline int btrfs_sb_log_location_bdev(struct block_device *bdev,
+					     int mirror, int rw, u64 *bytenr_ret)
+{
+	*bytenr_ret = btrfs_sb_offset(mirror);
+	return 0;
+}
+
+static inline int btrfs_sb_log_location(struct btrfs_device *device, int mirror,
+					int rw, u64 *bytenr_ret)
+{
+	*bytenr_ret = btrfs_sb_offset(mirror);
+	return 0;
+}
+
+static inline void btrfs_advance_sb_log(struct btrfs_device *device, int mirror)
+{ }
+
+static inline int btrfs_reset_sb_log_zones(struct block_device *bdev, int mirror)
 {
 	return 0;
 }
@@ -115,6 +146,15 @@ static inline bool btrfs_check_device_zone_type(const struct btrfs_fs_info *fs_i
 
 	/* Do not allow Host Manged zoned device */
 	return bdev_zoned_model(bdev) != BLK_ZONED_HM;
+}
+
+static inline bool btrfs_check_super_location(struct btrfs_device *device, u64 pos)
+{
+	/*
+	 * On a non-zoned device, any address is OK. On a zoned device,
+	 * non-SEQUENTIAL WRITE REQUIRED zones are capable.
+	 */
+	return device->zone_info == NULL || !btrfs_dev_is_sequential(device, pos);
 }
 
 #endif
