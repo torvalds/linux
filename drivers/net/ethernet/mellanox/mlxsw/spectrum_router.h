@@ -15,6 +15,23 @@ struct mlxsw_sp_router_nve_decap {
 	u8 valid:1;
 };
 
+struct mlxsw_sp_fib_entry_op_ctx {
+	u8 bulk_ok:1, /* Indicate to the low-level op it is ok to bulk
+		       * the actual entry with the one that is the next
+		       * in queue.
+		       */
+	   initialized:1; /* Bit that the low-level op sets in case
+			   * the context priv is initialized.
+			   */
+	unsigned long ll_priv[];
+};
+
+static inline void
+mlxsw_sp_fib_entry_op_ctx_clear(struct mlxsw_sp_fib_entry_op_ctx *op_ctx)
+{
+	memset(op_ctx, 0, sizeof(*op_ctx));
+}
+
 struct mlxsw_sp_router {
 	struct mlxsw_sp *mlxsw_sp;
 	struct mlxsw_sp_rif **rifs;
@@ -53,16 +70,12 @@ struct mlxsw_sp_router {
 	spinlock_t fib_event_queue_lock; /* Protects fib event queue list */
 	/* One set of ops for each protocol: IPv4 and IPv6 */
 	const struct mlxsw_sp_router_ll_ops *proto_ll_ops[MLXSW_SP_L3_PROTO_MAX];
+	struct mlxsw_sp_fib_entry_op_ctx *ll_op_ctx;
 };
 
 enum mlxsw_sp_fib_entry_op {
 	MLXSW_SP_FIB_ENTRY_OP_WRITE,
 	MLXSW_SP_FIB_ENTRY_OP_DELETE,
-};
-
-struct mlxsw_sp_fib_entry_op_ctx {
-	u8 bulk_ok:1;
-	char ralue_pl[MLXSW_REG_RALUE_LEN];
 };
 
 /* Low-level router ops. Basically this is to handle the different
@@ -72,6 +85,7 @@ struct mlxsw_sp_router_ll_ops {
 	int (*ralta_write)(struct mlxsw_sp *mlxsw_sp, char *xralta_pl);
 	int (*ralst_write)(struct mlxsw_sp *mlxsw_sp, char *xralst_pl);
 	int (*raltb_write)(struct mlxsw_sp *mlxsw_sp, char *xraltb_pl);
+	size_t fib_entry_op_ctx_size;
 	void (*fib_entry_pack)(struct mlxsw_sp_fib_entry_op_ctx *op_ctx,
 			       enum mlxsw_sp_l3proto proto, enum mlxsw_sp_fib_entry_op op,
 			       u16 virtual_router, u8 prefix_len, unsigned char *addr);
