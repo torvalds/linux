@@ -74,6 +74,23 @@
 	};
 };
 
+&pdm {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pdmclk1m1
+		     &pdmsdi1m1
+		     &pdmsdi2m1
+		     &pdmsdi3m1>;
+};
+
+&pdmics {
+	status = "disabled";
+};
+
+&pdm_mic_array {
+	status = "disabled";
+};
+
 &uart1 {
 	status = "okay";
 	pinctrl-names = "default";
