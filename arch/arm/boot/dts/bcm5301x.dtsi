@@ -484,7 +484,7 @@
 	};
 
 	srab: ethernet-switch@18007000 {
-		compatible = "brcm,bcm5301x-srab";
+		compatible = "brcm,bcm53011-srab", "brcm,bcm5301x-srab";
 		reg = <0x18007000 0x1000>;
 
 		status = "disabled";
