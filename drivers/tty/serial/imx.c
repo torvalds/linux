@@ -30,7 +30,6 @@
 #include <linux/dma-mapping.h>
 
 #include <asm/irq.h>
-#include <linux/platform_data/serial-imx.h>
 #include <linux/platform_data/dma-imx.h>
 
 #include "serial_mctrl_gpio.h"
@@ -2191,10 +2190,9 @@ static struct uart_driver imx_uart_uart_driver = {
 	.cons           = IMX_CONSOLE,
 };
 
-#ifdef CONFIG_OF
 /*
- * This function returns 1 iff pdev isn't a device instatiated by dt, 0 iff it
- * could successfully get all information from dt or a negative errno.
+ * This function returns 0 iff it could successfully get all information
+ * from dt or a negative errno.
  */
 static int imx_uart_probe_dt(struct imx_port *sport,
 			     struct platform_device *pdev)
@@ -2231,28 +2229,6 @@ static int imx_uart_probe_dt(struct imx_port *sport,
 		sport->inverted_rx = 1;
 
 	return 0;
-}
-#else
-static inline int imx_uart_probe_dt(struct imx_port *sport,
-				    struct platform_device *pdev)
-{
-	return 1;
-}
-#endif
-
-static void imx_uart_probe_pdata(struct imx_port *sport,
-				 struct platform_device *pdev)
-{
-	struct imxuart_platform_data *pdata = dev_get_platdata(&pdev->dev);
-
-	sport->port.line = pdev->id;
-	sport->devdata = (struct imx_uart_data	*) pdev->id_entry->driver_data;
-
-	if (!pdata)
-		return;
-
-	if (pdata->flags & IMXUART_HAVE_RTSCTS)
-		sport->have_rtscts = 1;
 }
 
 static enum hrtimer_restart imx_trigger_start_tx(struct hrtimer *t)
@@ -2295,9 +2271,7 @@ static int imx_uart_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	ret = imx_uart_probe_dt(sport, pdev);
-	if (ret > 0)
-		imx_uart_probe_pdata(sport, pdev);
-	else if (ret < 0)
+	if (ret < 0)
 		return ret;
 
 	if (sport->port.line >= ARRAY_SIZE(imx_uart_ports)) {
