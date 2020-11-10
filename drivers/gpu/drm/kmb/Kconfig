@@ -1,7 +1,7 @@
 config DRM_KMB_DISPLAY
 	tristate "INTEL KEEMBAY DISPLAY"
-	depends on DRM && OF && (ARM || ARM64)
-	depends on COMMON_CLK
+	depends on DRM
+	depends on ARCH_KEEMBAY || COMPILE_TEST
 	select DRM_KMS_HELPER
 	select DRM_KMS_CMA_HELPER
 	select DRM_GEM_CMA_HELPER
