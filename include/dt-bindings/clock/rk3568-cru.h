@@ -290,7 +290,6 @@
 #define PCLK_HDCP		229
 #define PCLK_HDMI_HOST		230
 #define CLK_HDMI_SFR		231
-#define CLK_HDMI_CEC		231
 #define PCLK_DSITX_0		232
 #define PCLK_DSITX_1		233
 #define PCLK_EDP_CTRL		234
@@ -462,7 +461,8 @@
 #define SCLK_EMMC_DRV		400
 #define SCLK_EMMC_SAMPLE	401
 #define PCLK_EDPPHY_GRF		402
-#define PCLK_CORE_PVTM		403
+#define CLK_HDMI_CEC            403
+#define PCLK_CORE_PVTM		450
 
 #define CLK_NR_CLKS		(PCLK_CORE_PVTM + 1)
 
