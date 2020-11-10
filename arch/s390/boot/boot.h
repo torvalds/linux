@@ -4,6 +4,8 @@
 
 #include <linux/types.h>
 
+#include <linux/compiler.h>
+
 void startup_kernel(void);
 unsigned long detect_memory(void);
 bool is_ipl_block_dump(void);
@@ -14,6 +16,7 @@ void verify_facilities(void);
 void print_missing_facilities(void);
 void print_pgm_check_info(void);
 unsigned long get_random_base(unsigned long safe_addr);
+void __printf(1, 2) decompressor_printk(const char *fmt, ...);
 
 extern const char kernel_version[];
 extern unsigned long memory_limit;
