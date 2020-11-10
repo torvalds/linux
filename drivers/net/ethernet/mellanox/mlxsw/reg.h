@@ -7282,7 +7282,8 @@ static inline void mlxsw_reg_ralue_pack4(char *payload,
 					 u32 *dip)
 {
 	mlxsw_reg_ralue_pack(payload, protocol, op, virtual_router, prefix_len);
-	mlxsw_reg_ralue_dip4_set(payload, *dip);
+	if (dip)
+		mlxsw_reg_ralue_dip4_set(payload, *dip);
 }
 
 static inline void mlxsw_reg_ralue_pack6(char *payload,
@@ -7292,7 +7293,8 @@ static inline void mlxsw_reg_ralue_pack6(char *payload,
 					 const void *dip)
 {
 	mlxsw_reg_ralue_pack(payload, protocol, op, virtual_router, prefix_len);
-	mlxsw_reg_ralue_dip6_memcpy_to(payload, dip);
+	if (dip)
+		mlxsw_reg_ralue_dip6_memcpy_to(payload, dip);
 }
 
 static inline void
