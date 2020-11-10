@@ -31,11 +31,11 @@ static const u8 dlc2len[] = {0, 1, 2, 3, 4, 5, 6, 7,
 			     8, 12, 16, 20, 24, 32, 48, 64};
 
 /* get data length from raw data length code (DLC) */
-u8 can_dlc2len(u8 dlc)
+u8 can_fd_dlc2len(u8 dlc)
 {
 	return dlc2len[dlc & 0x0F];
 }
-EXPORT_SYMBOL_GPL(can_dlc2len);
+EXPORT_SYMBOL_GPL(can_fd_dlc2len);
 
 static const u8 len2dlc[] = {0, 1, 2, 3, 4, 5, 6, 7, 8,		/* 0 - 8 */
 			     9, 9, 9, 9,			/* 9 - 12 */
@@ -49,14 +49,14 @@ static const u8 len2dlc[] = {0, 1, 2, 3, 4, 5, 6, 7, 8,		/* 0 - 8 */
 			     15, 15, 15, 15, 15, 15, 15, 15};	/* 57 - 64 */
 
 /* map the sanitized data length to an appropriate data length code */
-u8 can_len2dlc(u8 len)
+u8 can_fd_len2dlc(u8 len)
 {
 	if (unlikely(len > 64))
 		return 0xF;
 
 	return len2dlc[len];
 }
-EXPORT_SYMBOL_GPL(can_len2dlc);
+EXPORT_SYMBOL_GPL(can_fd_len2dlc);
 
 #ifdef CONFIG_CAN_CALC_BITTIMING
 #define CAN_CALC_MAX_ERROR 50 /* in one-tenth of a percent */

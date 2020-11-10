@@ -186,10 +186,10 @@ static inline void can_set_static_ctrlmode(struct net_device *dev,
 }
 
 /* get data length from raw data length code (DLC) */
-u8 can_dlc2len(u8 dlc);
+u8 can_fd_dlc2len(u8 dlc);
 
 /* map the sanitized data length to an appropriate data length code */
-u8 can_len2dlc(u8 len);
+u8 can_fd_len2dlc(u8 len);
 
 struct net_device *alloc_candev_mqs(int sizeof_priv, unsigned int echo_skb_max,
 				    unsigned int txqs, unsigned int rxqs);

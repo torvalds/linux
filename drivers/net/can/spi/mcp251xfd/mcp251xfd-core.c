@@ -1405,7 +1405,7 @@ mcp251xfd_hw_rx_obj_to_skb(const struct mcp251xfd_priv *priv,
 			cfd->flags |= CANFD_BRS;
 
 		dlc = FIELD_GET(MCP251XFD_OBJ_FLAGS_DLC, hw_rx_obj->flags);
-		cfd->len = can_dlc2len(dlc);
+		cfd->len = can_fd_dlc2len(dlc);
 	} else {
 		if (hw_rx_obj->flags & MCP251XFD_OBJ_FLAGS_RTR)
 			cfd->can_id |= CAN_RTR_FLAG;
@@ -2244,7 +2244,7 @@ mcp251xfd_tx_obj_from_skb(const struct mcp251xfd_priv *priv,
 	 * harm, only the lower 7 bits will be transferred into the
 	 * TEF object.
 	 */
-	dlc = can_len2dlc(cfd->len);
+	dlc = can_fd_len2dlc(cfd->len);
 	flags |= FIELD_PREP(MCP251XFD_OBJ_FLAGS_SEQ_MCP2518FD_MASK, seq) |
 		FIELD_PREP(MCP251XFD_OBJ_FLAGS_DLC, dlc);
 
@@ -2273,7 +2273,7 @@ mcp251xfd_tx_obj_from_skb(const struct mcp251xfd_priv *priv,
 
 	/* Clear data at end of CAN frame */
 	offset = round_down(cfd->len, sizeof(u32));
-	len = round_up(can_dlc2len(dlc), sizeof(u32)) - offset;
+	len = round_up(can_fd_dlc2len(dlc), sizeof(u32)) - offset;
 	if (MCP251XFD_SANITIZE_CAN && len)
 		memset(hw_tx_obj->data + offset, 0x0, len);
 	memcpy(hw_tx_obj->data, cfd->data, cfd->len);
@@ -2281,7 +2281,7 @@ mcp251xfd_tx_obj_from_skb(const struct mcp251xfd_priv *priv,
 	/* Number of bytes to be written into the RAM of the controller */
 	len = sizeof(hw_tx_obj->id) + sizeof(hw_tx_obj->flags);
 	if (MCP251XFD_SANITIZE_CAN)
-		len += round_up(can_dlc2len(dlc), sizeof(u32));
+		len += round_up(can_fd_dlc2len(dlc), sizeof(u32));
 	else
 		len += round_up(cfd->len, sizeof(u32));
 

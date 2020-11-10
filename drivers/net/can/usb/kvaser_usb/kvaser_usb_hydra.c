@@ -1120,7 +1120,7 @@ static void kvaser_usb_hydra_tx_acknowledge(const struct kvaser_usb *dev,
 		struct net_device_stats *stats = &priv->netdev->stats;
 
 		stats->tx_packets++;
-		stats->tx_bytes += can_dlc2len(context->dlc);
+		stats->tx_bytes += can_fd_dlc2len(context->dlc);
 	}
 
 	spin_lock_irqsave(&priv->tx_contexts_lock, irq_flags);
@@ -1251,7 +1251,7 @@ static void kvaser_usb_hydra_rx_msg_ext(const struct kvaser_usb *dev,
 		kvaser_usb_can_rx_over_error(priv->netdev);
 
 	if (flags & KVASER_USB_HYDRA_CF_FLAG_FDF) {
-		cf->len = can_dlc2len(dlc);
+		cf->len = can_fd_dlc2len(dlc);
 		if (flags & KVASER_USB_HYDRA_CF_FLAG_BRS)
 			cf->flags |= CANFD_BRS;
 		if (flags & KVASER_USB_HYDRA_CF_FLAG_ESI)
@@ -1351,7 +1351,7 @@ kvaser_usb_hydra_frame_to_cmd_ext(const struct kvaser_usb_net_priv *priv,
 	struct kvaser_usb *dev = priv->dev;
 	struct kvaser_cmd_ext *cmd;
 	struct canfd_frame *cf = (struct canfd_frame *)skb->data;
-	u8 dlc = can_len2dlc(cf->len);
+	u8 dlc = can_fd_len2dlc(cf->len);
 	u8 nbr_of_bytes = cf->len;
 	u32 flags;
 	u32 id;

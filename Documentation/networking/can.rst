@@ -1332,7 +1332,7 @@ layer is a plain value from 0 .. 64 instead of the CAN 'data length code'.
 The data length code was a 1:1 mapping to the payload length in the legacy
 CAN frames anyway. The payload length to the bus-relevant DLC mapping is
 only performed inside the CAN drivers, preferably with the helper
-functions can_dlc2len() and can_len2dlc().
+functions can_fd_dlc2len() and can_fd_len2dlc().
 
 The CAN netdevice driver capabilities can be distinguished by the network
 devices maximum transfer unit (MTU)::

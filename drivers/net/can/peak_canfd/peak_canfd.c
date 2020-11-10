@@ -257,7 +257,7 @@ static int pucan_handle_can_rx(struct peak_canfd_priv *priv,
 	u8 cf_len;
 
 	if (rx_msg_flags & PUCAN_MSG_EXT_DATA_LEN)
-		cf_len = can_dlc2len(pucan_msg_get_dlc(msg));
+		cf_len = can_fd_dlc2len(pucan_msg_get_dlc(msg));
 	else
 		cf_len = can_cc_dlc2len(pucan_msg_get_dlc(msg));
 
@@ -682,7 +682,7 @@ static netdev_tx_t peak_canfd_start_xmit(struct sk_buff *skb,
 
 	if (can_is_canfd_skb(skb)) {
 		/* CAN FD frame format */
-		len = can_len2dlc(cf->len);
+		len = can_fd_len2dlc(cf->len);
 
 		msg_flags |= PUCAN_MSG_EXT_DATA_LEN;
 

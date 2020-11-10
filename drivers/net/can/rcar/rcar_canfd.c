@@ -1357,7 +1357,7 @@ static netdev_tx_t rcar_canfd_start_xmit(struct sk_buff *skb,
 	if (cf->can_id & CAN_RTR_FLAG)
 		id |= RCANFD_CFID_CFRTR;
 
-	dlc = RCANFD_CFPTR_CFDLC(can_len2dlc(cf->len));
+	dlc = RCANFD_CFPTR_CFDLC(can_fd_len2dlc(cf->len));
 
 	if (priv->can.ctrlmode & CAN_CTRLMODE_FD) {
 		rcar_canfd_write(priv->base,
@@ -1446,7 +1446,7 @@ static void rcar_canfd_rx_pkt(struct rcar_canfd_channel *priv)
 
 	if (priv->can.ctrlmode & CAN_CTRLMODE_FD) {
 		if (sts & RCANFD_RFFDSTS_RFFDF)
-			cf->len = can_dlc2len(RCANFD_RFPTR_RFDLC(dlc));
+			cf->len = can_fd_dlc2len(RCANFD_RFPTR_RFDLC(dlc));
 		else
 			cf->len = can_cc_dlc2len(RCANFD_RFPTR_RFDLC(dlc));
 
