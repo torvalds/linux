@@ -36,10 +36,10 @@
 
 /* Firmware versioning. */
 #ifdef DMUB_EXPOSE_VERSION
-#define DMUB_FW_VERSION_GIT_HASH 0x9cf8f05fe
+#define DMUB_FW_VERSION_GIT_HASH 0x9f0af34af
 #define DMUB_FW_VERSION_MAJOR 0
 #define DMUB_FW_VERSION_MINOR 0
-#define DMUB_FW_VERSION_REVISION 35
+#define DMUB_FW_VERSION_REVISION 40
 #define DMUB_FW_VERSION_TEST 0
 #define DMUB_FW_VERSION_VBIOS 0
 #define DMUB_FW_VERSION_HOTFIX 0
@@ -189,7 +189,9 @@ union dmub_fw_boot_options {
 		uint32_t pemu_env : 1;
 		uint32_t fpga_env : 1;
 		uint32_t optimized_init : 1;
-		uint32_t reserved : 29;
+		uint32_t skip_phy_access : 1;
+		uint32_t disable_clk_gate: 1;
+		uint32_t reserved : 27;
 	} bits;
 	uint32_t all;
 };
@@ -272,6 +274,7 @@ enum dmub_gpint_command {
 	 * ARGS: Stream mask, 1 bit per active stream index.
 	 */
 	DMUB_GPINT__IDLE_OPT_NOTIFY_STREAM_MASK = 8,
+	DMUB_GPINT__PSR_RESIDENCY = 9,
 };
 
 //==============================================================================
@@ -298,6 +301,7 @@ enum dmub_cmd_type {
 	DMUB_CMD__REG_REG_WAIT = 4,
 	DMUB_CMD__PLAT_54186_WA = 5,
 	DMUB_CMD__PSR = 64,
+	DMUB_CMD__MALL = 65,
 	DMUB_CMD__ABM = 66,
 	DMUB_CMD__HW_LOCK = 69,
 	DMUB_CMD__DP_AUX_ACCESS = 70,
@@ -425,6 +429,18 @@ struct dmub_rb_cmd_PLAT_54186_wa {
 	struct dmub_cmd_PLAT_54186_wa flip;
 };
 
+struct dmub_rb_cmd_mall {
+	struct dmub_cmd_header header;
+	union dmub_addr cursor_copy_src;
+	union dmub_addr cursor_copy_dst;
+	uint32_t tmr_delay;
+	uint32_t tmr_scale;
+	uint16_t cursor_width;
+	uint16_t cursor_pitch;
+	uint16_t cursor_height;
+	uint8_t cursor_bpp;
+};
+
 struct dmub_cmd_digx_encoder_control_data {
 	union dig_encoder_control_parameters_v1_5 dig;
 };
@@ -477,6 +493,14 @@ enum dp_aux_request_action {
 	DP_AUX_REQ_ACTION_DPCD_READ		= 0x90
 };
 
+enum aux_return_code_type {
+	AUX_RET_SUCCESS = 0,
+	AUX_RET_ERROR_TIMEOUT,
+	AUX_RET_ERROR_NO_DATA,
+	AUX_RET_ERROR_INVALID_OPERATION,
+	AUX_RET_ERROR_PROTOCOL_ERROR,
+};
+
 /* DP AUX command */
 struct aux_transaction_parameters {
 	uint8_t is_i2c_over_aux;
@@ -526,6 +550,17 @@ struct dmub_rb_cmd_dp_aux_reply {
 	struct aux_reply_data reply_data;
 };
 
+/* DP HPD Notify command - OutBox Cmd */
+enum dp_hpd_type {
+	DP_HPD = 0,
+	DP_IRQ
+};
+
+enum dp_hpd_status {
+	DP_HPD_UNPLUG = 0,
+	DP_HPD_PLUG
+};
+
 struct dp_hpd_data {
 	uint8_t phy_port_index;
 	uint8_t hpd_type;
@@ -549,11 +584,18 @@ enum dmub_cmd_psr_type {
 	DMUB_CMD__PSR_ENABLE			= 2,
 	DMUB_CMD__PSR_DISABLE			= 3,
 	DMUB_CMD__PSR_SET_LEVEL			= 4,
+	DMUB_CMD__PSR_FORCE_STATIC		= 5,
 };
 
 enum psr_version {
 	PSR_VERSION_1				= 0,
 	PSR_VERSION_UNSUPPORTED			= 0xFFFFFFFF,
+};
+
+enum dmub_cmd_mall_type {
+	DMUB_CMD__MALL_ACTION_ALLOW = 0,
+	DMUB_CMD__MALL_ACTION_DISALLOW = 1,
+	DMUB_CMD__MALL_ACTION_COPY_CURSOR = 2,
 };
 
 struct dmub_cmd_psr_copy_settings_data {
@@ -601,6 +643,10 @@ struct dmub_cmd_psr_set_version_data {
 struct dmub_rb_cmd_psr_set_version {
 	struct dmub_cmd_header header;
 	struct dmub_cmd_psr_set_version_data psr_set_version_data;
+};
+
+struct dmub_rb_cmd_psr_force_static {
+	struct dmub_cmd_header header;
 };
 
 union dmub_hw_lock_flags {
@@ -760,7 +806,9 @@ union dmub_rb_cmd {
 	struct dmub_rb_cmd_psr_copy_settings psr_copy_settings;
 	struct dmub_rb_cmd_psr_enable psr_enable;
 	struct dmub_rb_cmd_psr_set_level psr_set_level;
+	struct dmub_rb_cmd_psr_force_static psr_force_static;
 	struct dmub_rb_cmd_PLAT_54186_wa PLAT_54186_wa;
+	struct dmub_rb_cmd_mall mall;
 	struct dmub_rb_cmd_abm_set_pipe abm_set_pipe;
 	struct dmub_rb_cmd_abm_set_backlight abm_set_backlight;
 	struct dmub_rb_cmd_abm_set_level abm_set_level;

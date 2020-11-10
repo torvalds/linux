@@ -656,7 +656,7 @@ static void dpp1_dscl_set_recout(
 			 RECOUT_WIDTH, recout->width,
 		/* Number of RECOUT vertical lines */
 			 RECOUT_HEIGHT, recout->height
-			 - visual_confirm_on * 4 * (dpp->base.inst + 1));
+			 - visual_confirm_on * 2 * (dpp->base.inst + 1));
 }
 
 /* Main function to program scaler and line buffer in manual scaling mode */

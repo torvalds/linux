@@ -126,9 +126,7 @@ struct _vcs_dpi_soc_bounding_box_st {
 
 struct _vcs_dpi_ip_params_st {
 	bool use_min_dcfclk;
-#ifdef CONFIG_DRM_AMD_DC_DCN3_0
 	bool clamp_min_dcfclk;
-#endif
 	bool gpuvm_enable;
 	bool hostvm_enable;
 	bool dsc422_native_support;

@@ -75,7 +75,7 @@ int amdgpu_sa_bo_manager_init(struct amdgpu_device *adev,
 }
 
 void amdgpu_sa_bo_manager_fini(struct amdgpu_device *adev,
-                              struct amdgpu_sa_manager *sa_manager)
+			       struct amdgpu_sa_manager *sa_manager)
 {
 	struct amdgpu_sa_bo *sa_bo, *tmp;
 

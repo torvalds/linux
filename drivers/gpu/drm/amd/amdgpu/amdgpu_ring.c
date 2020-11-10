@@ -396,7 +396,7 @@ static ssize_t amdgpu_debugfs_ring_read(struct file *f, char __user *buf,
 			return result;
 
 		value = ring->ring[(*pos - 12)/4];
-		r = put_user(value, (uint32_t*)buf);
+		r = put_user(value, (uint32_t *)buf);
 		if (r)
 			return r;
 		buf += 4;

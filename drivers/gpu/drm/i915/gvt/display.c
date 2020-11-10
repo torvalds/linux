@@ -173,23 +173,24 @@ static void emulate_monitor_status_change(struct intel_vgpu *vgpu)
 	int pipe;
 
 	if (IS_BROXTON(dev_priv)) {
-		vgpu_vreg_t(vgpu, GEN8_DE_PORT_ISR) &= ~(BXT_DE_PORT_HP_DDIA |
-			BXT_DE_PORT_HP_DDIB |
-			BXT_DE_PORT_HP_DDIC);
+		vgpu_vreg_t(vgpu, GEN8_DE_PORT_ISR) &=
+			~(GEN8_DE_PORT_HOTPLUG(HPD_PORT_A) |
+			  GEN8_DE_PORT_HOTPLUG(HPD_PORT_B) |
+			  GEN8_DE_PORT_HOTPLUG(HPD_PORT_C));
 
 		if (intel_vgpu_has_monitor_on_port(vgpu, PORT_A)) {
 			vgpu_vreg_t(vgpu, GEN8_DE_PORT_ISR) |=
-				BXT_DE_PORT_HP_DDIA;
+				GEN8_DE_PORT_HOTPLUG(HPD_PORT_A);
 		}
 
 		if (intel_vgpu_has_monitor_on_port(vgpu, PORT_B)) {
 			vgpu_vreg_t(vgpu, GEN8_DE_PORT_ISR) |=
-				BXT_DE_PORT_HP_DDIB;
+				GEN8_DE_PORT_HOTPLUG(HPD_PORT_B);
 		}
 
 		if (intel_vgpu_has_monitor_on_port(vgpu, PORT_C)) {
 			vgpu_vreg_t(vgpu, GEN8_DE_PORT_ISR) |=
-				BXT_DE_PORT_HP_DDIC;
+				GEN8_DE_PORT_HOTPLUG(HPD_PORT_C);
 		}
 
 		return;
@@ -327,7 +328,7 @@ static void emulate_monitor_status_change(struct intel_vgpu *vgpu)
 	if (intel_vgpu_has_monitor_on_port(vgpu, PORT_A)) {
 		if (IS_BROADWELL(dev_priv))
 			vgpu_vreg_t(vgpu, GEN8_DE_PORT_ISR) |=
-				GEN8_PORT_DP_A_HOTPLUG;
+				GEN8_DE_PORT_HOTPLUG(HPD_PORT_A);
 		else
 			vgpu_vreg_t(vgpu, SDEISR) |= SDE_PORTA_HOTPLUG_SPT;
 

@@ -116,4 +116,9 @@ bool hubbub3_program_watermarks(
 		unsigned int refclk_mhz,
 		bool safe_to_lower);
 
+void hubbub3_force_pstate_change_control(struct hubbub *hubbub,
+		bool force, bool allow);
+
+void hubbub3_init_watermarks(struct hubbub *hubbub);
+
 #endif

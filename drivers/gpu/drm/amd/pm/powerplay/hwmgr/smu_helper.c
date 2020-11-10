@@ -492,13 +492,12 @@ int phm_get_sclk_for_voltage_evv(struct pp_hwmgr *hwmgr,
  */
 int phm_initializa_dynamic_state_adjustment_rule_settings(struct pp_hwmgr *hwmgr)
 {
-	uint32_t table_size;
 	struct phm_clock_voltage_dependency_table *table_clk_vlt;
 	struct phm_ppt_v1_information *pptable_info = (struct phm_ppt_v1_information *)(hwmgr->pptable);
 
 	/* initialize vddc_dep_on_dal_pwrl table */
-	table_size = sizeof(uint32_t) + 4 * sizeof(struct phm_clock_voltage_dependency_record);
-	table_clk_vlt = kzalloc(table_size, GFP_KERNEL);
+	table_clk_vlt = kzalloc(struct_size(table_clk_vlt, entries, 4),
+				GFP_KERNEL);
 
 	if (NULL == table_clk_vlt) {
 		pr_err("Can not allocate space for vddc_dep_on_dal_pwrl! \n");
@@ -506,11 +505,23 @@ int phm_initializa_dynamic_state_adjustment_rule_settings(struct pp_hwmgr *hwmgr
 	} else {
 		table_clk_vlt->count = 4;
 		table_clk_vlt->entries[0].clk = PP_DAL_POWERLEVEL_ULTRALOW;
-		table_clk_vlt->entries[0].v = 0;
+		if (hwmgr->chip_id >= CHIP_POLARIS10 &&
+		    hwmgr->chip_id <= CHIP_VEGAM)
+			table_clk_vlt->entries[0].v = 700;
+		else
+			table_clk_vlt->entries[0].v = 0;
 		table_clk_vlt->entries[1].clk = PP_DAL_POWERLEVEL_LOW;
-		table_clk_vlt->entries[1].v = 720;
+		if (hwmgr->chip_id >= CHIP_POLARIS10 &&
+		    hwmgr->chip_id <= CHIP_VEGAM)
+			table_clk_vlt->entries[1].v = 740;
+		else
+			table_clk_vlt->entries[1].v = 720;
 		table_clk_vlt->entries[2].clk = PP_DAL_POWERLEVEL_NOMINAL;
-		table_clk_vlt->entries[2].v = 810;
+		if (hwmgr->chip_id >= CHIP_POLARIS10 &&
+		    hwmgr->chip_id <= CHIP_VEGAM)
+			table_clk_vlt->entries[2].v = 800;
+		else
+			table_clk_vlt->entries[2].v = 810;
 		table_clk_vlt->entries[3].clk = PP_DAL_POWERLEVEL_PERFORMANCE;
 		table_clk_vlt->entries[3].v = 900;
 		if (pptable_info != NULL)

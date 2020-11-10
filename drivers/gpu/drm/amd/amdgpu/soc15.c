@@ -62,6 +62,7 @@
 #include "nbio_v7_0.h"
 #include "nbio_v7_4.h"
 #include "vega10_ih.h"
+#include "navi10_ih.h"
 #include "sdma_v4_0.h"
 #include "uvd_v7_0.h"
 #include "vce_v4_0.h"
@@ -734,9 +735,15 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 				else
 					amdgpu_device_ip_block_add(adev, &psp_v3_1_ip_block);
 			}
-			amdgpu_device_ip_block_add(adev, &vega10_ih_ip_block);
+			if (adev->asic_type == CHIP_VEGA20)
+				amdgpu_device_ip_block_add(adev, &navi10_ih_ip_block);
+			else
+				amdgpu_device_ip_block_add(adev, &vega10_ih_ip_block);
 		} else {
-			amdgpu_device_ip_block_add(adev, &vega10_ih_ip_block);
+			if (adev->asic_type == CHIP_VEGA20)
+				amdgpu_device_ip_block_add(adev, &navi10_ih_ip_block);
+			else
+				amdgpu_device_ip_block_add(adev, &vega10_ih_ip_block);
 			if (likely(adev->firmware.load_type == AMDGPU_FW_LOAD_PSP)) {
 				if (adev->asic_type == CHIP_VEGA20)
 					amdgpu_device_ip_block_add(adev, &psp_v11_0_ip_block);
@@ -787,9 +794,9 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 		if (amdgpu_sriov_vf(adev)) {
 			if (likely(adev->firmware.load_type == AMDGPU_FW_LOAD_PSP))
 				amdgpu_device_ip_block_add(adev, &psp_v11_0_ip_block);
-			amdgpu_device_ip_block_add(adev, &vega10_ih_ip_block);
+			amdgpu_device_ip_block_add(adev, &navi10_ih_ip_block);
 		} else {
-			amdgpu_device_ip_block_add(adev, &vega10_ih_ip_block);
+			amdgpu_device_ip_block_add(adev, &navi10_ih_ip_block);
 			if (likely(adev->firmware.load_type == AMDGPU_FW_LOAD_PSP))
 				amdgpu_device_ip_block_add(adev, &psp_v11_0_ip_block);
 		}
@@ -822,7 +829,7 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
 #if defined(CONFIG_DRM_AMD_DC)
                 else if (amdgpu_device_has_dc_support(adev))
-                        amdgpu_device_ip_block_add(adev, &dm_ip_block);
+			amdgpu_device_ip_block_add(adev, &dm_ip_block);
 #endif
 		amdgpu_device_ip_block_add(adev, &vcn_v2_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &jpeg_v2_0_ip_block);
@@ -1195,8 +1202,7 @@ static int soc15_common_early_init(void *handle)
 
 			adev->pg_flags = AMD_PG_SUPPORT_SDMA |
 				AMD_PG_SUPPORT_MMHUB |
-				AMD_PG_SUPPORT_VCN |
-				AMD_PG_SUPPORT_VCN_DPG;
+				AMD_PG_SUPPORT_VCN;
 		} else {
 			adev->cg_flags = AMD_CG_SUPPORT_GFX_MGCG |
 				AMD_CG_SUPPORT_GFX_MGLS |
@@ -1243,7 +1249,15 @@ static int soc15_common_early_init(void *handle)
 		break;
 	case CHIP_RENOIR:
 		adev->asic_funcs = &soc15_asic_funcs;
-		adev->apu_flags |= AMD_APU_IS_RENOIR;
+		if (adev->pdev->device == 0x1636)
+			adev->apu_flags |= AMD_APU_IS_RENOIR;
+		else
+			adev->apu_flags |= AMD_APU_IS_GREEN_SARDINE;
+
+		if (adev->apu_flags & AMD_APU_IS_RENOIR)
+			adev->external_rev_id = adev->rev_id + 0x91;
+		else
+			adev->external_rev_id = adev->rev_id + 0xa1;
 		adev->cg_flags = AMD_CG_SUPPORT_GFX_MGCG |
 				 AMD_CG_SUPPORT_GFX_MGLS |
 				 AMD_CG_SUPPORT_GFX_3D_CGCG |
@@ -1268,7 +1282,6 @@ static int soc15_common_early_init(void *handle)
 				 AMD_PG_SUPPORT_VCN |
 				 AMD_PG_SUPPORT_JPEG |
 				 AMD_PG_SUPPORT_VCN_DPG;
-		adev->external_rev_id = adev->rev_id + 0x91;
 		break;
 	default:
 		/* FIXME: not supported yet */

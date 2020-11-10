@@ -166,6 +166,43 @@ int atomctrl_initialize_mc_reg_table(
 	return result;
 }
 
+int atomctrl_initialize_mc_reg_table_v2_2(
+		struct pp_hwmgr *hwmgr,
+		uint8_t module_index,
+		pp_atomctrl_mc_reg_table *table)
+{
+	ATOM_VRAM_INFO_HEADER_V2_2 *vram_info;
+	ATOM_INIT_REG_BLOCK *reg_block;
+	int result = 0;
+	u8 frev, crev;
+	u16 size;
+
+	vram_info = (ATOM_VRAM_INFO_HEADER_V2_2 *)
+		smu_atom_get_data_table(hwmgr->adev,
+				GetIndexIntoMasterTable(DATA, VRAM_Info), &size, &frev, &crev);
+
+	if (module_index >= vram_info->ucNumOfVRAMModule) {
+		pr_err("Invalid VramInfo table.");
+		result = -1;
+	} else if (vram_info->sHeader.ucTableFormatRevision < 2) {
+		pr_err("Invalid VramInfo table.");
+		result = -1;
+	}
+
+	if (0 == result) {
+		reg_block = (ATOM_INIT_REG_BLOCK *)
+			((uint8_t *)vram_info + le16_to_cpu(vram_info->usMemClkPatchTblOffset));
+		result = atomctrl_set_mc_reg_address_table(reg_block, table);
+	}
+
+	if (0 == result) {
+		result = atomctrl_retrieve_ac_timing(module_index,
+					reg_block, table);
+	}
+
+	return result;
+}
+
 /**
  * Set DRAM timings based on engine clock and memory clock.
  */
@@ -1208,6 +1245,17 @@ static ATOM_ASIC_INTERNAL_SS_INFO *asic_internal_ss_get_ss_table(void *device)
 	return table;
 }
 
+bool atomctrl_is_asic_internal_ss_supported(struct pp_hwmgr *hwmgr)
+{
+	ATOM_ASIC_INTERNAL_SS_INFO *table =
+		asic_internal_ss_get_ss_table(hwmgr->adev);
+
+	if (table)
+		return true;
+	else
+		return false;
+}
+
 /**
  * Get the asic internal spread spectrum assignment
  */
@@ -1295,11 +1343,17 @@ int atomctrl_get_engine_clock_spread_spectrum(
 }
 
 int atomctrl_read_efuse(struct pp_hwmgr *hwmgr, uint16_t start_index,
-		uint16_t end_index, uint32_t mask, uint32_t *efuse)
+		uint16_t end_index, uint32_t *efuse)
 {
 	struct amdgpu_device *adev = hwmgr->adev;
+	uint32_t mask;
 	int result;
 	READ_EFUSE_VALUE_PARAMETER efuse_param;
+
+	if ((end_index - start_index)  == 31)
+		mask = 0xFFFFFFFF;
+	else
+		mask = (1 << ((end_index - start_index) + 1)) - 1;
 
 	efuse_param.sEfuse.usEfuseIndex = cpu_to_le16((start_index / 32) * 4);
 	efuse_param.sEfuse.ucBitShift = (uint8_t)
@@ -1380,6 +1434,20 @@ int atomctrl_get_smc_sclk_range_table(struct pp_hwmgr *hwmgr, struct pp_atom_ctr
 		table->entry[i].usRcw_trans_lower =
 			le16_to_cpu(psmu_info->asSclkFcwRangeEntry[i].ucRcw_trans_lower);
 	}
+
+	return 0;
+}
+
+int atomctrl_get_vddc_shared_railinfo(struct pp_hwmgr *hwmgr, uint8_t *shared_rail)
+{
+	ATOM_SMU_INFO_V2_1 *psmu_info =
+		(ATOM_SMU_INFO_V2_1 *)smu_atom_get_data_table(hwmgr->adev,
+			GetIndexIntoMasterTable(DATA, SMU_Info),
+			NULL, NULL, NULL);
+	if (!psmu_info)
+		return -1;
+
+	*shared_rail = psmu_info->ucSharePowerSource;
 
 	return 0;
 }
@@ -1559,4 +1627,57 @@ void atomctrl_get_voltage_range(struct pp_hwmgr *hwmgr, uint32_t *max_vddc,
 	}
 	*max_vddc = 0;
 	*min_vddc = 0;
+}
+
+int atomctrl_get_edc_hilo_leakage_offset_table(struct pp_hwmgr *hwmgr,
+					       AtomCtrl_HiLoLeakageOffsetTable *table)
+{
+	ATOM_GFX_INFO_V2_3 *gfxinfo = smu_atom_get_data_table(hwmgr->adev,
+					GetIndexIntoMasterTable(DATA, GFX_Info),
+					NULL, NULL, NULL);
+	if (!gfxinfo)
+		return -ENOENT;
+
+	table->usHiLoLeakageThreshold = gfxinfo->usHiLoLeakageThreshold;
+	table->usEdcDidtLoDpm7TableOffset = gfxinfo->usEdcDidtLoDpm7TableOffset;
+	table->usEdcDidtHiDpm7TableOffset = gfxinfo->usEdcDidtHiDpm7TableOffset;
+
+	return 0;
+}
+
+static AtomCtrl_EDCLeakgeTable *get_edc_leakage_table(struct pp_hwmgr *hwmgr,
+						      uint16_t offset)
+{
+	void *table_address;
+	char *temp;
+
+	table_address = smu_atom_get_data_table(hwmgr->adev,
+			GetIndexIntoMasterTable(DATA, GFX_Info),
+			NULL, NULL, NULL);
+	if (!table_address)
+		return NULL;
+
+	temp = (char *)table_address;
+	table_address += offset;
+
+	return (AtomCtrl_EDCLeakgeTable *)temp;
+}
+
+int atomctrl_get_edc_leakage_table(struct pp_hwmgr *hwmgr,
+				   AtomCtrl_EDCLeakgeTable *table,
+				   uint16_t offset)
+{
+	uint32_t length, i;
+	AtomCtrl_EDCLeakgeTable *leakage_table =
+		get_edc_leakage_table(hwmgr, offset);
+
+	if (!leakage_table)
+		return -ENOENT;
+
+	length = sizeof(leakage_table->DIDT_REG) /
+		 sizeof(leakage_table->DIDT_REG[0]);
+	for (i = 0; i < length; i++)
+		table->DIDT_REG[i] = leakage_table->DIDT_REG[i];
+
+	return 0;
 }

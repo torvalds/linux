@@ -104,7 +104,7 @@ static void dcn3_init_single_clock(struct clk_mgr_internal *clk_mgr, PPCLK_e clk
 	}
 }
 
-static void dcn3_build_wm_range_table(struct clk_mgr_internal *clk_mgr)
+static noinline void dcn3_build_wm_range_table(struct clk_mgr_internal *clk_mgr)
 {
 	/* defaults */
 	double pstate_latency_us = clk_mgr->base.ctx->dc->dml.soc.dram_clock_change_latency_us;
@@ -145,6 +145,16 @@ static void dcn3_build_wm_range_table(struct clk_mgr_internal *clk_mgr)
 	clk_mgr->base.bw_params->wm_table.nv_entries[WM_C].pmfw_breakdown.min_uclk = min_uclk_mhz;
 	clk_mgr->base.bw_params->wm_table.nv_entries[WM_C].pmfw_breakdown.max_uclk = 0xFFFF;
 
+	/* Set D - MALL - SR enter and exit times adjusted for MALL */
+//	clk_mgr->base.bw_params->wm_table.nv_entries[WM_D].valid = true;
+//	clk_mgr->base.bw_params->wm_table.nv_entries[WM_D].dml_input.pstate_latency_us = pstate_latency_us;
+//	clk_mgr->base.bw_params->wm_table.nv_entries[WM_D].dml_input.sr_exit_time_us = 2;
+//	clk_mgr->base.bw_params->wm_table.nv_entries[WM_D].dml_input.sr_enter_plus_exit_time_us = 4;
+//	clk_mgr->base.bw_params->wm_table.nv_entries[WM_D].pmfw_breakdown.wm_type = WATERMARKS_MALL;
+//	clk_mgr->base.bw_params->wm_table.nv_entries[WM_D].pmfw_breakdown.min_dcfclk = 0;
+//	clk_mgr->base.bw_params->wm_table.nv_entries[WM_D].pmfw_breakdown.max_dcfclk = 0xFFFF;
+//	clk_mgr->base.bw_params->wm_table.nv_entries[WM_D].pmfw_breakdown.min_uclk = min_uclk_mhz;
+//	clk_mgr->base.bw_params->wm_table.nv_entries[WM_D].pmfw_breakdown.max_uclk = 0xFFFF;
 }
 
 void dcn3_init_clocks(struct clk_mgr *clk_mgr_base)
@@ -201,7 +211,9 @@ void dcn3_init_clocks(struct clk_mgr *clk_mgr_base)
 	clk_mgr_base->funcs->get_memclk_states_from_smu(clk_mgr_base);
 
 	/* WM range table */
+	DC_FP_START();
 	dcn3_build_wm_range_table(clk_mgr);
+	DC_FP_END();
 }
 
 static int dcn30_get_vco_frequency_from_reg(struct clk_mgr_internal *clk_mgr)

@@ -60,7 +60,7 @@ struct vi_dpm_level {
 
 struct vi_dpm_table {
 	uint32_t count;
-	struct vi_dpm_level dpm_level[1];
+	struct vi_dpm_level dpm_level[];
 };
 
 #define PCIE_PERF_REQ_REMOVE_REGISTRY   0
@@ -91,7 +91,7 @@ struct phm_set_power_state_input {
 
 struct phm_clock_array {
 	uint32_t count;
-	uint32_t values[1];
+	uint32_t values[];
 };
 
 struct phm_clock_voltage_dependency_record {
@@ -122,8 +122,8 @@ struct phm_acpclock_voltage_dependency_record {
 };
 
 struct phm_clock_voltage_dependency_table {
-	uint32_t count;										/* Number of entries. */
-	struct phm_clock_voltage_dependency_record entries[1];		/* Dynamically allocate count entries. */
+	uint32_t count;							/* Number of entries. */
+	struct phm_clock_voltage_dependency_record entries[];		/* Dynamically allocate count entries. */
 };
 
 struct phm_phase_shedding_limits_record {
@@ -140,7 +140,7 @@ struct phm_uvd_clock_voltage_dependency_record {
 
 struct phm_uvd_clock_voltage_dependency_table {
 	uint8_t count;
-	struct phm_uvd_clock_voltage_dependency_record entries[1];
+	struct phm_uvd_clock_voltage_dependency_record entries[];
 };
 
 struct phm_acp_clock_voltage_dependency_record {
@@ -150,7 +150,7 @@ struct phm_acp_clock_voltage_dependency_record {
 
 struct phm_acp_clock_voltage_dependency_table {
 	uint32_t count;
-	struct phm_acp_clock_voltage_dependency_record entries[1];
+	struct phm_acp_clock_voltage_dependency_record entries[];
 };
 
 struct phm_vce_clock_voltage_dependency_record {
@@ -161,7 +161,7 @@ struct phm_vce_clock_voltage_dependency_record {
 
 struct phm_phase_shedding_limits_table {
 	uint32_t                           count;
-	struct phm_phase_shedding_limits_record  entries[1];
+	struct phm_phase_shedding_limits_record  entries[];
 };
 
 struct phm_vceclock_voltage_dependency_table {
@@ -186,7 +186,7 @@ struct phm_acpclock_voltage_dependency_table {
 
 struct phm_vce_clock_voltage_dependency_table {
 	uint8_t count;
-	struct phm_vce_clock_voltage_dependency_record entries[1];
+	struct phm_vce_clock_voltage_dependency_record entries[];
 };
 
 
@@ -229,6 +229,7 @@ struct pp_smumgr_func {
 	bool (*is_hw_avfs_present)(struct pp_hwmgr  *hwmgr);
 	int (*update_dpm_settings)(struct pp_hwmgr *hwmgr, void *profile_setting);
 	int (*smc_table_manager)(struct pp_hwmgr *hwmgr, uint8_t *table, uint16_t table_id, bool rw); /*rw: true for read, false for write */
+	int (*stop_smc)(struct pp_hwmgr *hwmgr);
 };
 
 struct pp_hwmgr_func {
@@ -393,7 +394,7 @@ union phm_cac_leakage_record {
 
 struct phm_cac_leakage_table {
 	uint32_t count;
-	union phm_cac_leakage_record entries[1];
+	union phm_cac_leakage_record entries[];
 };
 
 struct phm_samu_clock_voltage_dependency_record {
@@ -404,7 +405,7 @@ struct phm_samu_clock_voltage_dependency_record {
 
 struct phm_samu_clock_voltage_dependency_table {
 	uint8_t count;
-	struct phm_samu_clock_voltage_dependency_record entries[1];
+	struct phm_samu_clock_voltage_dependency_record entries[];
 };
 
 struct phm_cac_tdp_table {
@@ -441,6 +442,7 @@ struct phm_cac_tdp_table {
 	uint8_t  ucPlx_I2C_Line;
 	uint32_t usBoostPowerLimit;
 	uint8_t  ucCKS_LDO_REFSEL;
+	uint8_t  ucHotSpotOnly;
 };
 
 struct phm_tdp_table {

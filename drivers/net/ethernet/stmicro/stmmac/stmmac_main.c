@@ -4757,6 +4757,7 @@ static void stmmac_napi_add(struct net_device *dev)
 
 		ch->priv_data = priv;
 		ch->index = queue;
+		spin_lock_init(&ch->lock);
 
 		if (queue < priv->plat->rx_queues_to_use) {
 			netif_napi_add(dev, &ch->rx_napi, stmmac_napi_poll_rx,

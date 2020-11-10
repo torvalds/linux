@@ -43,7 +43,6 @@
 #define DCN_MINIMUM_DISPCLK_Khz 100000
 #define DCN_MINIMUM_DPPCLK_Khz 100000
 
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 struct dcn3_clk_internal {
 	int dummy;
 	/*TODO:
@@ -61,7 +60,21 @@ struct dcn3_clk_internal {
 	*/
 };
 
-#endif
+struct dcn301_clk_internal {
+	int dummy;
+	uint32_t CLK1_CLK0_CURRENT_CNT; //dispclk
+	uint32_t CLK1_CLK1_CURRENT_CNT; //dppclk
+	uint32_t CLK1_CLK2_CURRENT_CNT; //dprefclk
+	uint32_t CLK1_CLK3_CURRENT_CNT; //dcfclk
+	uint32_t CLK1_CLK3_DS_CNTL;	//dcf_deep_sleep_divider
+	uint32_t CLK1_CLK3_ALLOW_DS;	//dcf_deep_sleep_allow
+
+	uint32_t CLK1_CLK0_BYPASS_CNTL; //dispclk bypass
+	uint32_t CLK1_CLK1_BYPASS_CNTL; //dppclk bypass
+	uint32_t CLK1_CLK2_BYPASS_CNTL; //dprefclk bypass
+	uint32_t CLK1_CLK3_BYPASS_CNTL; //dcfclk bypass
+};
+
 /* Will these bw structures be ASIC specific? */
 
 #define MAX_NUM_DPM_LVL		8
@@ -74,12 +87,10 @@ struct clk_limit_table_entry {
 	unsigned int fclk_mhz;
 	unsigned int memclk_mhz;
 	unsigned int socclk_mhz;
-#ifdef CONFIG_DRM_AMD_DC_DCN3_0
 	unsigned int dtbclk_mhz;
 	unsigned int dispclk_mhz;
 	unsigned int dppclk_mhz;
 	unsigned int phyclk_mhz;
-#endif
 };
 
 /* This table is contiguous */
@@ -96,8 +107,6 @@ struct wm_range_table_entry {
 	double sr_enter_plus_exit_time_us;
 	bool valid;
 };
-
-#ifdef CONFIG_DRM_AMD_DC_DCN3_0
 
 struct nv_wm_range_entry {
 	bool valid;
@@ -116,7 +125,6 @@ struct nv_wm_range_entry {
 		double sr_enter_plus_exit_time_us;
 	} dml_input;
 };
-#endif
 
 struct clk_log_info {
 	bool enabled;
@@ -188,14 +196,10 @@ struct clk_bypass {
  * D occupied, C will be emptry.
  */
 struct wm_table {
-#ifdef CONFIG_DRM_AMD_DC_DCN3_0
 	union {
 		struct nv_wm_range_entry nv_entries[WM_SET_COUNT];
-#endif
-	struct wm_range_table_entry entries[WM_SET_COUNT];
-#ifdef CONFIG_DRM_AMD_DC_DCN3_0
+		struct wm_range_table_entry entries[WM_SET_COUNT];
 	};
-#endif
 };
 
 struct dummy_pstate_entry {
@@ -246,7 +250,6 @@ struct clk_mgr_funcs {
 
 	/* Notify clk_mgr of a change in link rate, update phyclk frequency if necessary */
 	void (*notify_link_rate_change)(struct clk_mgr *clk_mgr, struct dc_link *link);
-#ifdef CONFIG_DRM_AMD_DC_DCN3_0
 	/*
 	 * Send message to PMFW to set hard min memclk frequency
 	 * When current_mode = false, set DPM0
@@ -259,7 +262,14 @@ struct clk_mgr_funcs {
 
 	/* Get current memclk states from PMFW, update relevant structures */
 	void (*get_memclk_states_from_smu)(struct clk_mgr *clk_mgr);
-#endif
+};
+
+struct dpm_clocks;
+struct wartermarks;
+
+struct smu_watermark_set {
+	struct watermarks *wm_set;
+	union large_integer mc_address;
 };
 
 struct clk_mgr {
@@ -267,14 +277,13 @@ struct clk_mgr {
 	struct clk_mgr_funcs *funcs;
 	struct dc_clocks clks;
 	bool psr_allow_active_cache;
-#ifdef CONFIG_DRM_AMD_DC_DCN3_0
 	bool force_smu_not_present;
-#endif
 	int dprefclk_khz; // Used by program pixel clock in clock source funcs, need to figureout where this goes
 	int dentist_vco_freq_khz;
 	struct clk_state_registers_and_bypass boot_snapshot;
 	struct clk_bw_params *bw_params;
 	struct pp_smu_wm_range_sets ranges;
+	struct smu_watermark_set smu_wm_set;
 };
 
 /* forward declarations */

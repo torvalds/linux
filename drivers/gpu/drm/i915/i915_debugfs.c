@@ -786,7 +786,6 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 	struct intel_uncore *uncore = &dev_priv->uncore;
 	struct intel_rps *rps = &dev_priv->gt.rps;
 	intel_wakeref_t wakeref;
-	int ret = 0;
 
 	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 
@@ -1009,7 +1008,7 @@ static int i915_frequency_info(struct seq_file *m, void *unused)
 	seq_printf(m, "Max pixel clock frequency: %d kHz\n", dev_priv->max_dotclk_freq);
 
 	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
-	return ret;
+	return 0;
 }
 
 static int i915_ring_freq_table(struct seq_file *m, void *unused)

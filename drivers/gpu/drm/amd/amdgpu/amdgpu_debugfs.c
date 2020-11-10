@@ -35,6 +35,7 @@
 #include "amdgpu_dm_debugfs.h"
 #include "amdgpu_ras.h"
 #include "amdgpu_rap.h"
+#include "amdgpu_fw_attestation.h"
 
 /**
  * amdgpu_debugfs_add_files - Add simple debugfs entries
@@ -169,14 +170,14 @@ static void amdgpu_debugfs_autodump_init(struct amdgpu_device *adev)
  *
  * Bit 62:  Indicates a GRBM bank switch is needed
  * Bit 61:  Indicates a SRBM bank switch is needed (implies bit 62 is
- * 			zero)
+ * 	    zero)
  * Bits 24..33: The SE or ME selector if needed
  * Bits 34..43: The SH (or SA) or PIPE selector if needed
  * Bits 44..53: The INSTANCE (or CU/WGP) or QUEUE selector if needed
  *
  * Bit 23:  Indicates that the PM power gating lock should be held
- * 			This is necessary to read registers that might be
- * 			unreliable during a power gating transistion.
+ * 	    This is necessary to read registers that might be
+ * 	    unreliable during a power gating transistion.
  *
  * The lower bits are the BYTE offset of the register to read.  This
  * allows reading multiple registers in a single call and having
@@ -864,7 +865,7 @@ static ssize_t amdgpu_debugfs_wave_read(struct file *f, char __user *buf,
 {
 	struct amdgpu_device *adev = f->f_inode->i_private;
 	int r, x;
-	ssize_t result=0;
+	ssize_t result = 0;
 	uint32_t offset, se, sh, cu, wave, simd, data[32];
 
 	if (size & 3 || *pos & 3)
@@ -1210,7 +1211,7 @@ static const char *debugfs_regs_names[] = {
 
 /**
  * amdgpu_debugfs_regs_init -	Initialize debugfs entries that provide
- * 								register access.
+ * 				register access.
  *
  * @adev: The device to attach the debugfs entries to
  */
@@ -1338,11 +1339,41 @@ static int amdgpu_debugfs_evict_gtt(struct seq_file *m, void *data)
 	return 0;
 }
 
+static int amdgpu_debugfs_vm_info(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = (struct drm_info_node *)m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_file *file;
+	int r;
+
+	r = mutex_lock_interruptible(&dev->filelist_mutex);
+	if (r)
+		return r;
+
+	list_for_each_entry(file, &dev->filelist, lhead) {
+		struct amdgpu_fpriv *fpriv = file->driver_priv;
+		struct amdgpu_vm *vm = &fpriv->vm;
+
+		seq_printf(m, "pid:%d\tProcess:%s ----------\n",
+				vm->task_info.pid, vm->task_info.process_name);
+		r = amdgpu_bo_reserve(vm->root.base.bo, true);
+		if (r)
+			break;
+		amdgpu_debugfs_vm_bo_info(vm, m);
+		amdgpu_bo_unreserve(vm->root.base.bo);
+	}
+
+	mutex_unlock(&dev->filelist_mutex);
+
+	return r;
+}
+
 static const struct drm_info_list amdgpu_debugfs_list[] = {
 	{"amdgpu_vbios", amdgpu_debugfs_get_vbios_dump},
 	{"amdgpu_test_ib", &amdgpu_debugfs_test_ib},
 	{"amdgpu_evict_vram", &amdgpu_debugfs_evict_vram},
 	{"amdgpu_evict_gtt", &amdgpu_debugfs_evict_gtt},
+	{"amdgpu_vm_info", &amdgpu_debugfs_vm_info},
 };
 
 static void amdgpu_ib_preempt_fences_swap(struct amdgpu_ring *ring,
@@ -1637,6 +1668,8 @@ int amdgpu_debugfs_init(struct amdgpu_device *adev)
 	amdgpu_debugfs_autodump_init(adev);
 
 	amdgpu_rap_debugfs_init(adev);
+
+	amdgpu_fw_attestation_debugfs_init(adev);
 
 	return amdgpu_debugfs_add_files(adev, amdgpu_debugfs_list,
 					ARRAY_SIZE(amdgpu_debugfs_list));

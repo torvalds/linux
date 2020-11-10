@@ -150,14 +150,12 @@ enum ipp_degamma_mode {
 	IPP_DEGAMMA_MODE_USER_PWL
 };
 
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 enum gamcor_mode {
 	GAMCOR_MODE_BYPASS,
 	GAMCOR_MODE_RESERVED_1,
 	GAMCOR_MODE_USER_PWL,
 	GAMCOR_MODE_RESERVED_3
 };
-#endif
 
 enum ipp_output_format {
 	IPP_OUTPUT_FORMAT_12_BIT_FIX,

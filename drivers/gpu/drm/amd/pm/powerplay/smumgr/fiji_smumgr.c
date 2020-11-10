@@ -318,13 +318,12 @@ static bool fiji_is_hw_avfs_present(struct pp_hwmgr *hwmgr)
 {
 
 	uint32_t efuse = 0;
-	uint32_t mask = (1 << ((AVFS_EN_MSB - AVFS_EN_LSB) + 1)) - 1;
 
 	if (!hwmgr->not_vf)
 		return false;
 
 	if (!atomctrl_read_efuse(hwmgr, AVFS_EN_LSB, AVFS_EN_MSB,
-			mask, &efuse)) {
+			&efuse)) {
 		if (efuse)
 			return true;
 	}

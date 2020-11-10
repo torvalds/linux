@@ -352,17 +352,10 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 				break;
 			case CHIP_POLARIS11:
 				if (type == CGS_UCODE_ID_SMU) {
-					if (((adev->pdev->device == 0x67ef) &&
-					     ((adev->pdev->revision == 0xe0) ||
-					      (adev->pdev->revision == 0xe5))) ||
-					    ((adev->pdev->device == 0x67ff) &&
-					     ((adev->pdev->revision == 0xcf) ||
-					      (adev->pdev->revision == 0xef) ||
-					      (adev->pdev->revision == 0xff)))) {
+					if (ASICID_IS_P21(adev->pdev->device, adev->pdev->revision)) {
 						info->is_kicker = true;
 						strcpy(fw_name, "amdgpu/polaris11_k_smc.bin");
-					} else if ((adev->pdev->device == 0x67ef) &&
-						   (adev->pdev->revision == 0xe2)) {
+					} else if (ASICID_IS_P31(adev->pdev->device, adev->pdev->revision)) {
 						info->is_kicker = true;
 						strcpy(fw_name, "amdgpu/polaris11_k2_smc.bin");
 					} else {
@@ -374,21 +367,10 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 				break;
 			case CHIP_POLARIS10:
 				if (type == CGS_UCODE_ID_SMU) {
-					if (((adev->pdev->device == 0x67df) &&
-					     ((adev->pdev->revision == 0xe0) ||
-					      (adev->pdev->revision == 0xe3) ||
-					      (adev->pdev->revision == 0xe4) ||
-					      (adev->pdev->revision == 0xe5) ||
-					      (adev->pdev->revision == 0xe7) ||
-					      (adev->pdev->revision == 0xef))) ||
-					    ((adev->pdev->device == 0x6fdf) &&
-					     ((adev->pdev->revision == 0xef) ||
-					      (adev->pdev->revision == 0xff)))) {
+					if (ASICID_IS_P20(adev->pdev->device, adev->pdev->revision)) {
 						info->is_kicker = true;
 						strcpy(fw_name, "amdgpu/polaris10_k_smc.bin");
-					} else if ((adev->pdev->device == 0x67df) &&
-						   ((adev->pdev->revision == 0xe1) ||
-						    (adev->pdev->revision == 0xf7))) {
+					} else if (ASICID_IS_P30(adev->pdev->device, adev->pdev->revision)) {
 						info->is_kicker = true;
 						strcpy(fw_name, "amdgpu/polaris10_k2_smc.bin");
 					} else {
@@ -399,13 +381,7 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 				}
 				break;
 			case CHIP_POLARIS12:
-				if (((adev->pdev->device == 0x6987) &&
-				     ((adev->pdev->revision == 0xc0) ||
-				      (adev->pdev->revision == 0xc3))) ||
-				    ((adev->pdev->device == 0x6981) &&
-				     ((adev->pdev->revision == 0x00) ||
-				      (adev->pdev->revision == 0x01) ||
-				      (adev->pdev->revision == 0x10)))) {
+				if (ASICID_IS_P23(adev->pdev->device, adev->pdev->revision)) {
 					info->is_kicker = true;
 					strcpy(fw_name, "amdgpu/polaris12_k_smc.bin");
 				} else {

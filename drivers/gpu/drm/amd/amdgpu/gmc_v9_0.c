@@ -510,15 +510,16 @@ static int gmc_v9_0_vm_fault_interrupt_state(struct amdgpu_device *adev,
 }
 
 static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
-				struct amdgpu_irq_src *source,
-				struct amdgpu_iv_entry *entry)
+				      struct amdgpu_irq_src *source,
+				      struct amdgpu_iv_entry *entry)
 {
-	struct amdgpu_vmhub *hub;
 	bool retry_fault = !!(entry->src_data[1] & 0x80);
 	uint32_t status = 0, cid = 0, rw = 0;
-	u64 addr;
-	char hub_name[10];
+	struct amdgpu_task_info task_info;
+	struct amdgpu_vmhub *hub;
 	const char *mmhub_cid;
+	const char *hub_name;
+	u64 addr;
 
 	addr = (u64)entry->src_data[0] << 12;
 	addr |= ((u64)entry->src_data[1] & 0xf) << 44;
@@ -527,105 +528,103 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 						    entry->timestamp))
 		return 1; /* This also prevents sending it to KFD */
 
-	if (entry->client_id == SOC15_IH_CLIENTID_VMC) {
-		snprintf(hub_name, sizeof(hub_name), "mmhub0");
-		hub = &adev->vmhub[AMDGPU_MMHUB_0];
-	} else if (entry->client_id == SOC15_IH_CLIENTID_VMC1) {
-		snprintf(hub_name, sizeof(hub_name), "mmhub1");
-		hub = &adev->vmhub[AMDGPU_MMHUB_1];
-	} else {
-		snprintf(hub_name, sizeof(hub_name), "gfxhub0");
-		hub = &adev->vmhub[AMDGPU_GFXHUB_0];
-	}
-
 	/* If it's the first fault for this address, process it normally */
 	if (retry_fault && !in_interrupt() &&
 	    amdgpu_vm_handle_fault(adev, entry->pasid, addr))
 		return 1; /* This also prevents sending it to KFD */
 
-	if (!amdgpu_sriov_vf(adev)) {
-		/*
-		 * Issue a dummy read to wait for the status register to
-		 * be updated to avoid reading an incorrect value due to
-		 * the new fast GRBM interface.
-		 */
-		if (entry->vmid_src == AMDGPU_GFXHUB_0)
-			RREG32(hub->vm_l2_pro_fault_status);
+	if (!printk_ratelimit())
+		return 0;
 
-		status = RREG32(hub->vm_l2_pro_fault_status);
-		cid = REG_GET_FIELD(status,
-				    VM_L2_PROTECTION_FAULT_STATUS, CID);
-		rw = REG_GET_FIELD(status,
-				   VM_L2_PROTECTION_FAULT_STATUS, RW);
-		WREG32_P(hub->vm_l2_pro_fault_cntl, 1, ~1);
+	if (entry->client_id == SOC15_IH_CLIENTID_VMC) {
+		hub_name = "mmhub0";
+		hub = &adev->vmhub[AMDGPU_MMHUB_0];
+	} else if (entry->client_id == SOC15_IH_CLIENTID_VMC1) {
+		hub_name = "mmhub1";
+		hub = &adev->vmhub[AMDGPU_MMHUB_1];
+	} else {
+		hub_name = "gfxhub0";
+		hub = &adev->vmhub[AMDGPU_GFXHUB_0];
 	}
 
-	if (printk_ratelimit()) {
-		struct amdgpu_task_info task_info;
+	memset(&task_info, 0, sizeof(struct amdgpu_task_info));
+	amdgpu_vm_get_task_info(adev, entry->pasid, &task_info);
 
-		memset(&task_info, 0, sizeof(struct amdgpu_task_info));
-		amdgpu_vm_get_task_info(adev, entry->pasid, &task_info);
+	dev_err(adev->dev,
+		"[%s] %s page fault (src_id:%u ring:%u vmid:%u "
+		"pasid:%u, for process %s pid %d thread %s pid %d)\n",
+		hub_name, retry_fault ? "retry" : "no-retry",
+		entry->src_id, entry->ring_id, entry->vmid,
+		entry->pasid, task_info.process_name, task_info.tgid,
+		task_info.task_name, task_info.pid);
+	dev_err(adev->dev, "  in page starting at address 0x%016llx from client %d\n",
+		addr, entry->client_id);
 
-		dev_err(adev->dev,
-			"[%s] %s page fault (src_id:%u ring:%u vmid:%u "
-			"pasid:%u, for process %s pid %d thread %s pid %d)\n",
-			hub_name, retry_fault ? "retry" : "no-retry",
-			entry->src_id, entry->ring_id, entry->vmid,
-			entry->pasid, task_info.process_name, task_info.tgid,
-			task_info.task_name, task_info.pid);
-		dev_err(adev->dev, "  in page starting at address 0x%016llx from client %d\n",
-			addr, entry->client_id);
-		if (!amdgpu_sriov_vf(adev)) {
-			dev_err(adev->dev,
-				"VM_L2_PROTECTION_FAULT_STATUS:0x%08X\n",
-				status);
-			if (hub == &adev->vmhub[AMDGPU_GFXHUB_0]) {
-				dev_err(adev->dev, "\t Faulty UTCL2 client ID: %s (0x%x)\n",
-					cid >= ARRAY_SIZE(gfxhub_client_ids) ? "unknown" : gfxhub_client_ids[cid],
-					cid);
-			} else {
-				switch (adev->asic_type) {
-				case CHIP_VEGA10:
-					mmhub_cid = mmhub_client_ids_vega10[cid][rw];
-					break;
-				case CHIP_VEGA12:
-					mmhub_cid = mmhub_client_ids_vega12[cid][rw];
-					break;
-				case CHIP_VEGA20:
-					mmhub_cid = mmhub_client_ids_vega20[cid][rw];
-					break;
-				case CHIP_ARCTURUS:
-					mmhub_cid = mmhub_client_ids_arcturus[cid][rw];
-					break;
-				case CHIP_RAVEN:
-					mmhub_cid = mmhub_client_ids_raven[cid][rw];
-					break;
-				case CHIP_RENOIR:
-					mmhub_cid = mmhub_client_ids_renoir[cid][rw];
-					break;
-				default:
-					mmhub_cid = NULL;
-					break;
-				}
-				dev_err(adev->dev, "\t Faulty UTCL2 client ID: %s (0x%x)\n",
-					mmhub_cid ? mmhub_cid : "unknown", cid);
-			}
-			dev_err(adev->dev, "\t MORE_FAULTS: 0x%lx\n",
-				REG_GET_FIELD(status,
-				VM_L2_PROTECTION_FAULT_STATUS, MORE_FAULTS));
-			dev_err(adev->dev, "\t WALKER_ERROR: 0x%lx\n",
-				REG_GET_FIELD(status,
-				VM_L2_PROTECTION_FAULT_STATUS, WALKER_ERROR));
-			dev_err(adev->dev, "\t PERMISSION_FAULTS: 0x%lx\n",
-				REG_GET_FIELD(status,
-				VM_L2_PROTECTION_FAULT_STATUS, PERMISSION_FAULTS));
-			dev_err(adev->dev, "\t MAPPING_ERROR: 0x%lx\n",
-				REG_GET_FIELD(status,
-				VM_L2_PROTECTION_FAULT_STATUS, MAPPING_ERROR));
-			dev_err(adev->dev, "\t RW: 0x%x\n", rw);
+	if (amdgpu_sriov_vf(adev))
+		return 0;
+
+	/*
+	 * Issue a dummy read to wait for the status register to
+	 * be updated to avoid reading an incorrect value due to
+	 * the new fast GRBM interface.
+	 */
+	if (entry->vmid_src == AMDGPU_GFXHUB_0)
+		RREG32(hub->vm_l2_pro_fault_status);
+
+	status = RREG32(hub->vm_l2_pro_fault_status);
+	cid = REG_GET_FIELD(status, VM_L2_PROTECTION_FAULT_STATUS, CID);
+	rw = REG_GET_FIELD(status, VM_L2_PROTECTION_FAULT_STATUS, RW);
+	WREG32_P(hub->vm_l2_pro_fault_cntl, 1, ~1);
+
+
+	dev_err(adev->dev,
+		"VM_L2_PROTECTION_FAULT_STATUS:0x%08X\n",
+		status);
+	if (hub == &adev->vmhub[AMDGPU_GFXHUB_0]) {
+		dev_err(adev->dev, "\t Faulty UTCL2 client ID: %s (0x%x)\n",
+			cid >= ARRAY_SIZE(gfxhub_client_ids) ? "unknown" :
+			gfxhub_client_ids[cid],
+			cid);
+	} else {
+		switch (adev->asic_type) {
+		case CHIP_VEGA10:
+			mmhub_cid = mmhub_client_ids_vega10[cid][rw];
+			break;
+		case CHIP_VEGA12:
+			mmhub_cid = mmhub_client_ids_vega12[cid][rw];
+			break;
+		case CHIP_VEGA20:
+			mmhub_cid = mmhub_client_ids_vega20[cid][rw];
+			break;
+		case CHIP_ARCTURUS:
+			mmhub_cid = mmhub_client_ids_arcturus[cid][rw];
+			break;
+		case CHIP_RAVEN:
+			mmhub_cid = mmhub_client_ids_raven[cid][rw];
+			break;
+		case CHIP_RENOIR:
+			mmhub_cid = mmhub_client_ids_renoir[cid][rw];
+			break;
+		default:
+			mmhub_cid = NULL;
+			break;
 		}
+		dev_err(adev->dev, "\t Faulty UTCL2 client ID: %s (0x%x)\n",
+			mmhub_cid ? mmhub_cid : "unknown", cid);
 	}
-
+	dev_err(adev->dev, "\t MORE_FAULTS: 0x%lx\n",
+		REG_GET_FIELD(status,
+		VM_L2_PROTECTION_FAULT_STATUS, MORE_FAULTS));
+	dev_err(adev->dev, "\t WALKER_ERROR: 0x%lx\n",
+		REG_GET_FIELD(status,
+		VM_L2_PROTECTION_FAULT_STATUS, WALKER_ERROR));
+	dev_err(adev->dev, "\t PERMISSION_FAULTS: 0x%lx\n",
+		REG_GET_FIELD(status,
+		VM_L2_PROTECTION_FAULT_STATUS, PERMISSION_FAULTS));
+	dev_err(adev->dev, "\t MAPPING_ERROR: 0x%lx\n",
+		REG_GET_FIELD(status,
+		VM_L2_PROTECTION_FAULT_STATUS, MAPPING_ERROR));
+	dev_err(adev->dev, "\t RW: 0x%x\n", rw);
 	return 0;
 }
 
@@ -1166,15 +1165,7 @@ static void gmc_v9_0_set_mmhub_funcs(struct amdgpu_device *adev)
 
 static void gmc_v9_0_set_gfxhub_funcs(struct amdgpu_device *adev)
 {
-	switch (adev->asic_type) {
-	case CHIP_ARCTURUS:
-	case CHIP_VEGA20:
-		adev->gfxhub.funcs = &gfxhub_v1_1_funcs;
-		break;
-	default:
-		adev->gfxhub.funcs = &gfxhub_v1_0_funcs;
-		break;
-	}
+	adev->gfxhub.funcs = &gfxhub_v1_0_funcs;
 }
 
 static int gmc_v9_0_early_init(void *handle)

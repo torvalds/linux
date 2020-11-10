@@ -153,6 +153,10 @@ void opp2_set_disp_pattern_generator(
 	int height,
 	int offset);
 
+void opp2_program_dpg_dimensions(
+		struct output_pixel_processor *opp,
+		int width, int height);
+
 bool opp2_dpg_is_blanked(struct output_pixel_processor *opp);
 
 void opp2_dpg_set_blank_color(

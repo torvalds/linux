@@ -204,7 +204,10 @@ TEST_F(child, fetch_fd)
 	fd = sys_pidfd_getfd(self->pidfd, self->remote_fd, 0);
 	ASSERT_GE(fd, 0);
 
-	EXPECT_EQ(0, sys_kcmp(getpid(), self->pid, KCMP_FILE, fd, self->remote_fd));
+	ret = sys_kcmp(getpid(), self->pid, KCMP_FILE, fd, self->remote_fd);
+	if (ret < 0 && errno == ENOSYS)
+		SKIP(return, "kcmp() syscall not supported");
+	EXPECT_EQ(ret, 0);
 
 	ret = fcntl(fd, F_GETFD);
 	ASSERT_GE(ret, 0);

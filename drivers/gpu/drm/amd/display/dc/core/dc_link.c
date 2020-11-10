@@ -854,6 +854,7 @@ static bool dc_link_detect_helper(struct dc_link *link,
 	struct dpcd_caps prev_dpcd_caps;
 	bool same_dpcd = true;
 	enum dc_connection_type new_connection_type = dc_connection_none;
+	enum dc_connection_type pre_connection_type = dc_connection_none;
 	bool perform_dp_seamless_boot = false;
 	const uint32_t post_oui_delay = 30; // 30ms
 
@@ -889,6 +890,7 @@ static bool dc_link_detect_helper(struct dc_link *link,
 
 	link_disconnect_sink(link);
 	if (new_connection_type != dc_connection_none) {
+		pre_connection_type = link->type;
 		link->type = new_connection_type;
 		link->link_state_valid = false;
 
@@ -960,6 +962,12 @@ static bool dc_link_detect_helper(struct dc_link *link,
 					/* Downstream unplug */
 					dc_sink_release(prev_sink);
 				return true;
+			}
+
+			// link switch from MST to non-MST stop topology manager
+			if (pre_connection_type == dc_connection_mst_branch &&
+				link->type != dc_connection_mst_branch) {
+				dm_helpers_dp_mst_stop_top_mgr(link->ctx, link);
 			}
 
 			if (link->type == dc_connection_mst_branch) {
@@ -2732,7 +2740,8 @@ bool dc_link_setup_psr(struct dc_link *link,
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 	/*skip power down the single pipe since it blocks the cstate*/
-	if (ASICREV_IS_RAVEN(link->ctx->asic_id.hw_internal_rev))
+	if ((link->ctx->asic_id.chip_family == FAMILY_RV) &&
+	     ASICREV_IS_RAVEN(link->ctx->asic_id.hw_internal_rev))
 		psr_context->psr_level.bits.SKIP_CRTC_DISABLE = true;
 #endif
 
@@ -2943,6 +2952,10 @@ enum dc_status dc_link_allocate_mst_payload(struct pipe_ctx *pipe_ctx)
 
 	/* slot X.Y for only current stream */
 	pbn_per_slot = get_pbn_per_slot(stream);
+	if (pbn_per_slot.value == 0) {
+		DC_LOG_ERROR("Failure: pbn_per_slot==0 not allowed. Cannot continue, returning DC_UNSUPPORTED_VALUE.\n");
+		return DC_UNSUPPORTED_VALUE;
+	}
 	pbn = get_pbn_from_timing(pipe_ctx);
 	avg_time_slots_per_mtp = dc_fixpt_div(pbn, pbn_per_slot);
 
@@ -3106,7 +3119,7 @@ void core_link_enable_stream(
 	struct dc *dc = pipe_ctx->stream->ctx->dc;
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	enum dc_status status;
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 	enum otg_out_mux_dest otg_out_dest = OUT_MUX_DIO;
 #endif
 	DC_LOGGER_INIT(pipe_ctx->stream->ctx->logger);
@@ -3142,7 +3155,7 @@ void core_link_enable_stream(
 
 	pipe_ctx->stream->link->link_state_valid = true;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 	if (pipe_ctx->stream_res.tg->funcs->set_out_mux)
 		pipe_ctx->stream_res.tg->funcs->set_out_mux(pipe_ctx->stream_res.tg, otg_out_dest);
 #endif
@@ -3283,8 +3296,9 @@ void core_link_disable_stream(struct pipe_ctx *pipe_ctx)
 			dc_is_virtual_signal(pipe_ctx->stream->signal))
 		return;
 
-	if (dc_is_hdmi_signal(pipe_ctx->stream->signal)) {
-		core_link_set_avmute(pipe_ctx, true);
+	if (!pipe_ctx->stream->sink->edid_caps.panel_patch.skip_avmute) {
+		if (dc_is_hdmi_signal(pipe_ctx->stream->signal))
+			core_link_set_avmute(pipe_ctx, true);
 	}
 
 #if defined(CONFIG_DRM_AMD_DC_HDCP)

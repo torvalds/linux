@@ -120,11 +120,13 @@ bool mod_color_calculate_degamma_curve(enum dc_transfer_func_predefined trans,
 
 bool calculate_user_regamma_coeff(struct dc_transfer_func *output_tf,
 		const struct regamma_lut *regamma,
-		struct calculate_buffer *cal_buffer);
+		struct calculate_buffer *cal_buffer,
+		const struct dc_gamma *ramp);
 
 bool calculate_user_regamma_ramp(struct dc_transfer_func *output_tf,
 		const struct regamma_lut *regamma,
-		struct calculate_buffer *cal_buffer);
+		struct calculate_buffer *cal_buffer,
+		const struct dc_gamma *ramp);
 
 
 #endif /* COLOR_MOD_COLOR_GAMMA_H_ */
