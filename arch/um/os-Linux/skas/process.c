@@ -400,7 +400,20 @@ void userspace(struct uml_pt_regs *regs, unsigned long *aux_fp_regs)
 		if (WIFSTOPPED(status)) {
 			int sig = WSTOPSIG(status);
 
-			ptrace(PTRACE_GETSIGINFO, pid, 0, (struct siginfo *)&si);
+			/* These signal handlers need the si argument.
+			 * The SIGIO and SIGALARM handlers which constitute the
+			 * majority of invocations, do not use it.
+			 */
+			switch (sig) {
+			case SIGSEGV:
+			case SIGTRAP:
+			case SIGILL:
+			case SIGBUS:
+			case SIGFPE:
+			case SIGWINCH:
+				ptrace(PTRACE_GETSIGINFO, pid, 0, (struct siginfo *)&si);
+				break;
+			}
 
 			switch (sig) {
 			case SIGSEGV:
