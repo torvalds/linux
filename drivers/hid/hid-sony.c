@@ -550,7 +550,9 @@ struct sony_sc {
 	struct power_supply_desc battery_desc;
 	int device_id;
 	unsigned fw_version;
+	bool fw_version_created;
 	unsigned hw_version;
+	bool hw_version_created;
 	u8 *output_report_dmabuf;
 
 #ifdef CONFIG_SONY_FF
@@ -2738,19 +2740,17 @@ static int sony_input_configured(struct hid_device *hdev,
 
 		ret = device_create_file(&sc->hdev->dev, &dev_attr_firmware_version);
 		if (ret) {
-			/* Make zero for cleanup reasons of sysfs entries. */
-			sc->fw_version = 0;
-			sc->hw_version = 0;
 			hid_err(sc->hdev, "can't create sysfs firmware_version attribute err: %d\n", ret);
 			goto err_stop;
 		}
+		sc->fw_version_created = true;
 
 		ret = device_create_file(&sc->hdev->dev, &dev_attr_hardware_version);
 		if (ret) {
-			sc->hw_version = 0;
 			hid_err(sc->hdev, "can't create sysfs hardware_version attribute err: %d\n", ret);
 			goto err_stop;
 		}
+		sc->hw_version_created = true;
 
 		/*
 		 * The Dualshock 4 touchpad supports 2 touches and has a
@@ -2842,9 +2842,9 @@ err_stop:
 	 */
 	if (sc->ds4_bt_poll_interval)
 		device_remove_file(&sc->hdev->dev, &dev_attr_bt_poll_interval);
-	if (sc->fw_version)
+	if (sc->fw_version_created)
 		device_remove_file(&sc->hdev->dev, &dev_attr_firmware_version);
-	if (sc->hw_version)
+	if (sc->hw_version_created)
 		device_remove_file(&sc->hdev->dev, &dev_attr_hardware_version);
 	sony_cancel_work_sync(sc);
 	sony_remove_dev_list(sc);
@@ -2929,10 +2929,10 @@ static void sony_remove(struct hid_device *hdev)
 	if (sc->quirks & DUALSHOCK4_CONTROLLER_BT)
 		device_remove_file(&sc->hdev->dev, &dev_attr_bt_poll_interval);
 
-	if (sc->fw_version)
+	if (sc->fw_version_created)
 		device_remove_file(&sc->hdev->dev, &dev_attr_firmware_version);
 
-	if (sc->hw_version)
+	if (sc->hw_version_created)
 		device_remove_file(&sc->hdev->dev, &dev_attr_hardware_version);
 
 	sony_cancel_work_sync(sc);
