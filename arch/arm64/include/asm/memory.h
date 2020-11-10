@@ -308,13 +308,15 @@ static inline void *phys_to_virt(phys_addr_t x)
 #else
 #define page_to_virt(x)	({						\
 	__typeof__(x) __page = x;					\
-	u64 __addr = (u64)__page << VMEMMAP_SHIFT;			\
+	u64 __idx = ((u64)__page - VMEMMAP_START) / sizeof(struct page);\
+	u64 __addr = PAGE_OFFSET + (__idx * PAGE_SIZE);			\
 	(void *)__tag_set((const void *)__addr, page_kasan_tag(__page));\
 })
 
 #define virt_to_page(x)	({						\
-	u64 __addr = __tag_reset((u64)(x)) & PAGE_MASK;			\
-	(struct page *)((s64)__addr >> VMEMMAP_SHIFT);			\
+	u64 __idx = (__tag_reset((u64)x) - PAGE_OFFSET) / PAGE_SIZE;	\
+	u64 __addr = VMEMMAP_START + (__idx * sizeof(struct page));	\
+	(struct page *)__addr;						\
 })
 #endif /* !CONFIG_SPARSEMEM_VMEMMAP || CONFIG_DEBUG_VIRTUAL */
 
