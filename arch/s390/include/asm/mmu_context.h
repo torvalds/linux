@@ -78,13 +78,6 @@ static inline void set_user_asce(struct mm_struct *mm)
 	clear_cpu_flag(CIF_ASCE_PRIMARY);
 }
 
-static inline void clear_user_asce(void)
-{
-	S390_lowcore.user_asce = S390_lowcore.kernel_asce;
-	__ctl_load(S390_lowcore.kernel_asce, 1, 1);
-	set_cpu_flag(CIF_ASCE_PRIMARY);
-}
-
 mm_segment_t enable_sacf_uaccess(void);
 void disable_sacf_uaccess(mm_segment_t old_fs);
 
