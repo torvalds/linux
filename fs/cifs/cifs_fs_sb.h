@@ -65,7 +65,6 @@ struct cifs_sb_info {
 	unsigned int bsize;
 	unsigned int rsize;
 	unsigned int wsize;
-	unsigned long actimeo; /* attribute cache timeout (jiffies) */
 	atomic_t active;
 	unsigned int mnt_cifs_flags;
 	struct delayed_work prune_tlinks;

@@ -2251,7 +2251,7 @@ compare_mount_options(struct super_block *sb, struct cifs_mnt_data *mnt_data)
 	if (strcmp(old->local_nls->charset, new->local_nls->charset))
 		return 0;
 
-	if (old->actimeo != new->actimeo)
+	if (old->ctx->actimeo != new->ctx->actimeo)
 		return 0;
 
 	return 1;
@@ -2711,7 +2711,6 @@ int cifs_setup_cifs_sb(struct smb3_fs_context *ctx,
 	cifs_dbg(FYI, "file mode: %04ho  dir mode: %04ho\n",
 		 cifs_sb->ctx->file_mode, cifs_sb->ctx->dir_mode);
 
-	cifs_sb->actimeo = ctx->actimeo;
 	cifs_sb->local_nls = ctx->local_nls;
 
 	if (ctx->nodfs)

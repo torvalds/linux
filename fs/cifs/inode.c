@@ -2198,11 +2198,11 @@ cifs_inode_needs_reval(struct inode *inode)
 	if (!lookupCacheEnabled)
 		return true;
 
-	if (!cifs_sb->actimeo)
+	if (!cifs_sb->ctx->actimeo)
 		return true;
 
 	if (!time_in_range(jiffies, cifs_i->time,
-				cifs_i->time + cifs_sb->actimeo))
+				cifs_i->time + cifs_sb->ctx->actimeo))
 		return true;
 
 	/* hardlinked files w/ noserverino get "special" treatment */
