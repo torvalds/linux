@@ -7897,6 +7897,15 @@ F:	include/linux/hippidevice.h
 F:	include/uapi/linux/if_hippi.h
 F:	net/802/hippi.c
 
+HIRSCHMANN HELLCREEK ETHERNET SWITCH DRIVER
+M:	Kurt Kanzenbach <kurt@linutronix.de>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/net/dsa/hirschmann,hellcreek.yaml
+F:	drivers/net/dsa/hirschmann/*
+F:	include/linux/platform_data/hirschmann-hellcreek.h
+F:	net/dsa/tag_hellcreek.c
+
 HISILICON DMA DRIVER
 M:	Zhou Wang <wangzhou1@hisilicon.com>
 L:	dmaengine@vger.kernel.org
