@@ -1321,7 +1321,7 @@ static int ceph_write_begin(struct file *file, struct address_space *mapping,
 	dout("write_begin file %p inode %p page %p %d~%d\n", file, inode, page, (int)pos, (int)len);
 
 	for (;;) {
-		page = grab_cache_page_write_begin(mapping, index, 0);
+		page = grab_cache_page_write_begin(mapping, index, flags);
 		if (!page) {
 			r = -ENOMEM;
 			break;
