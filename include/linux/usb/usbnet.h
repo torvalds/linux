@@ -284,6 +284,4 @@ extern void usbnet_status_stop(struct usbnet *dev);
 
 extern void usbnet_update_max_qlen(struct usbnet *dev);
 
-#define usbnet_get_stats64 dev_get_tstats64
-
 #endif /* __LINUX_USB_USBNET_H */
