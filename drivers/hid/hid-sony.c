@@ -562,9 +562,8 @@ struct sony_sc {
 	u8 hotplug_worker_initialized;
 	u8 state_worker_initialized;
 	u8 defer_initialization;
-	u8 cable_state;
-	u8 battery_charging;
 	u8 battery_capacity;
+	int battery_status;
 	u8 led_state[MAX_LEDS];
 	u8 led_delay_on[MAX_LEDS];
 	u8 led_delay_off[MAX_LEDS];
@@ -892,7 +891,8 @@ static void sixaxis_parse_report(struct sony_sc *sc, u8 *rd, int size)
 	static const u8 sixaxis_battery_capacity[] = { 0, 1, 25, 50, 75, 100 };
 	unsigned long flags;
 	int offset;
-	u8 cable_state, battery_capacity, battery_charging;
+	u8 battery_capacity;
+	int battery_status;
 
 	/*
 	 * The sixaxis is charging if the battery value is 0xee
@@ -904,19 +904,16 @@ static void sixaxis_parse_report(struct sony_sc *sc, u8 *rd, int size)
 
 	if (rd[offset] >= 0xee) {
 		battery_capacity = 100;
-		battery_charging = !(rd[offset] & 0x01);
-		cable_state = 1;
+		battery_status = (rd[offset] & 0x01) ? POWER_SUPPLY_STATUS_FULL : POWER_SUPPLY_STATUS_CHARGING;
 	} else {
 		u8 index = rd[offset] <= 5 ? rd[offset] : 5;
 		battery_capacity = sixaxis_battery_capacity[index];
-		battery_charging = 0;
-		cable_state = 0;
+		battery_status = POWER_SUPPLY_STATUS_DISCHARGING;
 	}
 
 	spin_lock_irqsave(&sc->lock, flags);
-	sc->cable_state = cable_state;
 	sc->battery_capacity = battery_capacity;
-	sc->battery_charging = battery_charging;
+	sc->battery_status = battery_status;
 	spin_unlock_irqrestore(&sc->lock, flags);
 
 	if (sc->quirks & SIXAXIS_CONTROLLER) {
@@ -944,7 +941,8 @@ static void dualshock4_parse_report(struct sony_sc *sc, u8 *rd, int size)
 	struct input_dev *input_dev = hidinput->input;
 	unsigned long flags;
 	int n, m, offset, num_touch_data, max_touch_data;
-	u8 cable_state, battery_capacity, battery_charging;
+	u8 cable_state, battery_capacity;
+	int battery_status;
 	u16 timestamp;
 
 	/* When using Bluetooth the header is 2 bytes longer, so skip these. */
@@ -1049,29 +1047,52 @@ static void dualshock4_parse_report(struct sony_sc *sc, u8 *rd, int size)
 	 */
 	offset = data_offset + DS4_INPUT_REPORT_BATTERY_OFFSET;
 	cable_state = (rd[offset] >> 4) & 0x01;
-	battery_capacity = rd[offset] & 0x0F;
 
 	/*
-	 * When a USB power source is connected the battery level ranges from
-	 * 0 to 10, and when running on battery power it ranges from 0 to 9.
-	 * A battery level above 10 when plugged in means charge completed.
+	 * Interpretation of the battery_capacity data depends on the cable state.
+	 * When no cable is connected (bit4 is 0):
+	 * - 0:10: percentage in units of 10%.
+	 * When a cable is plugged in:
+	 * - 0-10: percentage in units of 10%.
+	 * - 11: battery is full
+	 * - 14: not charging due to Voltage or temperature error
+	 * - 15: charge error
 	 */
-	if (!cable_state || battery_capacity > 10)
-		battery_charging = 0;
-	else
-		battery_charging = 1;
+	if (cable_state) {
+		u8 battery_data = rd[offset] & 0xf;
 
-	if (!cable_state)
-		battery_capacity++;
-	if (battery_capacity > 10)
-		battery_capacity = 10;
+		if (battery_data < 10) {
+			/* Take the mid-point for each battery capacity value,
+			 * because on the hardware side 0 = 0-9%, 1=10-19%, etc.
+			 * This matches official platform behavior, which does
+			 * the same.
+			 */
+			battery_capacity = battery_data * 10 + 5;
+			battery_status = POWER_SUPPLY_STATUS_CHARGING;
+		} else if (battery_data == 10) {
+			battery_capacity = 100;
+			battery_status = POWER_SUPPLY_STATUS_CHARGING;
+		} else if (battery_data == 11) {
+			battery_capacity = 100;
+			battery_status = POWER_SUPPLY_STATUS_FULL;
+		} else { /* 14, 15 and undefined values */
+			battery_capacity = 0;
+			battery_status = POWER_SUPPLY_STATUS_UNKNOWN;
+		}
+	} else {
+		u8 battery_data = rd[offset] & 0xf;
 
-	battery_capacity *= 10;
+		if (battery_data < 10)
+			battery_capacity = battery_data * 10 + 5;
+		else /* 10 */
+			battery_capacity = 100;
+
+		battery_status = POWER_SUPPLY_STATUS_DISCHARGING;
+	}
 
 	spin_lock_irqsave(&sc->lock, flags);
-	sc->cable_state = cable_state;
 	sc->battery_capacity = battery_capacity;
-	sc->battery_charging = battery_charging;
+	sc->battery_status = battery_status;
 	spin_unlock_irqrestore(&sc->lock, flags);
 
 	/*
@@ -2300,12 +2321,12 @@ static int sony_battery_get_property(struct power_supply *psy,
 	struct sony_sc *sc = power_supply_get_drvdata(psy);
 	unsigned long flags;
 	int ret = 0;
-	u8 battery_charging, battery_capacity, cable_state;
+	u8 battery_capacity;
+	int battery_status;
 
 	spin_lock_irqsave(&sc->lock, flags);
-	battery_charging = sc->battery_charging;
 	battery_capacity = sc->battery_capacity;
-	cable_state = sc->cable_state;
+	battery_status = sc->battery_status;
 	spin_unlock_irqrestore(&sc->lock, flags);
 
 	switch (psp) {
@@ -2319,13 +2340,7 @@ static int sony_battery_get_property(struct power_supply *psy,
 		val->intval = battery_capacity;
 		break;
 	case POWER_SUPPLY_PROP_STATUS:
-		if (battery_charging)
-			val->intval = POWER_SUPPLY_STATUS_CHARGING;
-		else
-			if (battery_capacity == 100 && cable_state)
-				val->intval = POWER_SUPPLY_STATUS_FULL;
-			else
-				val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
+		val->intval = battery_status;
 		break;
 	default:
 		ret = -EINVAL;
