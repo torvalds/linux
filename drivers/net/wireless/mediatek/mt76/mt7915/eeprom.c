@@ -29,10 +29,10 @@ static int mt7915_eeprom_load(struct mt7915_dev *dev)
 
 static int mt7915_check_eeprom(struct mt7915_dev *dev)
 {
-	u16 val;
 	u8 *eeprom = dev->mt76.eeprom.data;
+	u16 val;
 
-	mt7915_eeprom_read(dev, 0);
+	mt7915_eeprom_read(dev, MT_EE_CHIP_ID);
 	val = get_unaligned_le16(eeprom);
 
 	switch (val) {
