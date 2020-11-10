@@ -4314,7 +4314,6 @@ mlxsw_sp_fib_entry_ralue_pack(char *ralue_pl, enum mlxsw_sp_l3proto proto,
 {
 	enum mlxsw_reg_ralxx_protocol ralxx_proto;
 	enum mlxsw_reg_ralue_op ralue_op;
-	u32 *p_dip;
 
 	ralxx_proto = (enum mlxsw_reg_ralxx_protocol) proto;
 
@@ -4332,9 +4331,8 @@ mlxsw_sp_fib_entry_ralue_pack(char *ralue_pl, enum mlxsw_sp_l3proto proto,
 
 	switch (proto) {
 	case MLXSW_SP_L3_PROTO_IPV4:
-		p_dip = (u32 *) addr;
 		mlxsw_reg_ralue_pack4(ralue_pl, ralxx_proto, ralue_op,
-				      virtual_router, prefix_len, *p_dip);
+				      virtual_router, prefix_len, (u32 *) addr);
 		break;
 	case MLXSW_SP_L3_PROTO_IPV6:
 		mlxsw_reg_ralue_pack6(ralue_pl, ralxx_proto, ralue_op,
