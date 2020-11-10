@@ -1366,7 +1366,6 @@ static void ci_set_dpm_event_sources(struct radeon_device *rdev, u32 sources)
 {
 	struct ci_power_info *pi = ci_get_pi(rdev);
 	bool want_thermal_protection;
-	enum radeon_dpm_event_src dpm_event_src;
 	u32 tmp;
 
 	switch (sources) {
@@ -1376,28 +1375,17 @@ static void ci_set_dpm_event_sources(struct radeon_device *rdev, u32 sources)
 		break;
 	case (1 << RADEON_DPM_AUTO_THROTTLE_SRC_THERMAL):
 		want_thermal_protection = true;
-		dpm_event_src = RADEON_DPM_EVENT_SRC_DIGITAL;
 		break;
 	case (1 << RADEON_DPM_AUTO_THROTTLE_SRC_EXTERNAL):
 		want_thermal_protection = true;
-		dpm_event_src = RADEON_DPM_EVENT_SRC_EXTERNAL;
 		break;
 	case ((1 << RADEON_DPM_AUTO_THROTTLE_SRC_EXTERNAL) |
 	      (1 << RADEON_DPM_AUTO_THROTTLE_SRC_THERMAL)):
 		want_thermal_protection = true;
-		dpm_event_src = RADEON_DPM_EVENT_SRC_DIGIAL_OR_EXTERNAL;
 		break;
 	}
 
 	if (want_thermal_protection) {
-#if 0
-		/* XXX: need to figure out how to handle this properly */
-		tmp = RREG32_SMC(CG_THERMAL_CTRL);
-		tmp &= DPM_EVENT_SRC_MASK;
-		tmp |= DPM_EVENT_SRC(dpm_event_src);
-		WREG32_SMC(CG_THERMAL_CTRL, tmp);
-#endif
-
 		tmp = RREG32_SMC(GENERAL_PWRMGT);
 		if (pi->thermal_protection)
 			tmp &= ~THERMAL_PROTECTION_DIS;
