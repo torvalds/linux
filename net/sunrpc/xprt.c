@@ -219,6 +219,28 @@ xprt_class_find_by_netid(const char *netid)
 }
 
 /**
+ * xprt_find_transport_ident - convert a netid into a transport identifier
+ * @netid: transport to load
+ *
+ * Returns:
+ * > 0:		transport identifier
+ * -ENOENT:	transport module not available
+ */
+int xprt_find_transport_ident(const char *netid)
+{
+	const struct xprt_class *t;
+	int ret;
+
+	t = xprt_class_find_by_netid(netid);
+	if (!t)
+		return -ENOENT;
+	ret = t->ident;
+	xprt_class_release(t);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(xprt_find_transport_ident);
+
+/**
  * xprt_load_transport - load a transport implementation
  * @netid: transport to load
  *
@@ -228,13 +250,8 @@ xprt_class_find_by_netid(const char *netid)
  */
 int xprt_load_transport(const char *netid)
 {
-	const struct xprt_class *t;
-
-	t = xprt_class_find_by_netid(netid);
-	if (!t)
-		return -ENOENT;
-	xprt_class_release(t);
-	return 0;
+	int ret = xprt_find_transport_ident(netid);
+	return ret < 0 ? ret : 0;
 }
 EXPORT_SYMBOL_GPL(xprt_load_transport);
 
