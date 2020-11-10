@@ -279,8 +279,8 @@ iplstart:
 # or linload or SALIPL
 #
 	.org	0x10000
-ENTRY(startup)
-	j	.Lep_startup_normal
+SYM_CODE_START(startup)
+	j	startup_normal
 	.org	EP_OFFSET
 #
 # This is a list of s390 kernel entry points. At address 0x1000f the number of
@@ -294,9 +294,9 @@ ENTRY(startup)
 # kdump startup-code at 0x10010, running in 64 bit absolute addressing mode
 #
 	.org	0x10010
-ENTRY(startup_kdump)
-	j	.Lep_startup_kdump
-.Lep_startup_normal:
+	j	startup_kdump
+SYM_CODE_END(startup)
+SYM_CODE_START_LOCAL(startup_normal)
 	mvi	__LC_AR_MODE_ID,1	# set esame flag
 	slr	%r0,%r0 		# set cpuid to zero
 	lhi	%r1,2			# mode 2 = esame (dump)
@@ -322,6 +322,7 @@ ENTRY(startup_kdump)
 	l	%r15,.Lstack-.LPG0(%r13)
 	brasl	%r14,verify_facilities
 	brasl	%r14,startup_kernel
+SYM_CODE_END(startup_normal)
 
 .Lstack:
 	.long	0x8000 + (1<<(PAGE_SHIFT+BOOT_STACK_ORDER)) - STACK_FRAME_OVERHEAD
@@ -371,7 +372,7 @@ ENTRY(startup_kdump)
 # It simply saves general/control registers and psw in
 # the save area and does disabled wait with a faulty address.
 #
-ENTRY(startup_pgm_check_handler)
+SYM_CODE_START_LOCAL(startup_pgm_check_handler)
 	stmg	%r8,%r15,__LC_SAVE_AREA_SYNC
 	la	%r8,4095
 	stctg	%c0,%c15,__LC_CREGS_SAVE_AREA-4095(%r8)
@@ -390,9 +391,9 @@ ENTRY(startup_pgm_check_handler)
 	la	%r8,4095
 	lmg	%r0,%r15,__LC_GPREGS_SAVE_AREA-4095(%r8)
 	lpswe	__LC_RETURN_PSW		# disabled wait
+SYM_CODE_END(startup_pgm_check_handler)
 .Ldump_info_stack:
 	.long	0x5000 + PAGE_SIZE - STACK_FRAME_OVERHEAD
-ENDPROC(startup_pgm_check_handler)
 
 #
 # params at 10400 (setup.h)
