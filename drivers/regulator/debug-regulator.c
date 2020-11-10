@@ -116,7 +116,7 @@ static int reg_debug_bypass_enable_get(void *data, u64 *val)
 	bool enable = false;
 	int ret = 0;
 
-	regulator_lock(rdev);
+	ww_mutex_lock(&rdev->mutex, NULL);
 	if (rdev->desc->ops->get_bypass) {
 		ret = rdev->desc->ops->get_bypass(rdev, &enable);
 		if (ret)
@@ -124,7 +124,7 @@ static int reg_debug_bypass_enable_get(void *data, u64 *val)
 	} else {
 		enable = (rdev->bypass_count == rdev->open_count);
 	}
-	regulator_unlock(rdev);
+	ww_mutex_unlock(&rdev->mutex);
 
 	*val = enable;
 
@@ -307,7 +307,7 @@ static int reg_debug_consumers_show(struct seq_file *m, void *v)
 	struct regulator *reg;
 	const char *supply_name;
 
-	regulator_lock(rdev);
+	ww_mutex_lock(&rdev->mutex, NULL);
 
 	/* Print a header if there are consumers. */
 	if (rdev->open_count)
@@ -327,7 +327,7 @@ static int reg_debug_consumers_show(struct seq_file *m, void *v)
 			reg->uA_load);
 	}
 
-	regulator_unlock(rdev);
+	ww_mutex_unlock(&rdev->mutex);
 
 	return 0;
 }
