@@ -2192,6 +2192,12 @@ MODULE_DEVICE_TABLE(of, smc91x_match);
 
 /**
  * of_try_set_control_gpio - configure a gpio if it exists
+ * @dev: net device
+ * @desc: where to store the GPIO descriptor, if it exists
+ * @name: name of the GPIO in DT
+ * @index: index of the GPIO in DT
+ * @value: set the GPIO to this value
+ * @nsdelay: delay before setting the GPIO
  */
 static int try_toggle_control_gpio(struct device *dev,
 				   struct gpio_desc **desc,
