@@ -1206,7 +1206,9 @@ static int a5xx_pm_resume(struct msm_gpu *gpu)
 static int a5xx_pm_suspend(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreno_gpu);
 	u32 mask = 0xf;
+	int i, ret;
 
 	/* A510 has 3 XIN ports in VBIF */
 	if (adreno_is_a510(adreno_gpu))
@@ -1226,7 +1228,15 @@ static int a5xx_pm_suspend(struct msm_gpu *gpu)
 	gpu_write(gpu, REG_A5XX_RBBM_BLOCK_SW_RESET_CMD, 0x003C0000);
 	gpu_write(gpu, REG_A5XX_RBBM_BLOCK_SW_RESET_CMD, 0x00000000);
 
-	return msm_gpu_pm_suspend(gpu);
+	ret = msm_gpu_pm_suspend(gpu);
+	if (ret)
+		return ret;
+
+	if (a5xx_gpu->has_whereami)
+		for (i = 0; i < gpu->nr_rings; i++)
+			a5xx_gpu->shadow[i] = 0;
+
+	return 0;
 }
 
 static int a5xx_get_timestamp(struct msm_gpu *gpu, uint64_t *value)
