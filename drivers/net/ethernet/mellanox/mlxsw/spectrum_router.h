@@ -48,6 +48,9 @@ struct mlxsw_sp_router {
 	bool adj_discard_index_valid;
 	struct mlxsw_sp_router_nve_decap nve_decap_config;
 	struct mutex lock; /* Protects shared router resources */
+	struct work_struct fib_event_work;
+	struct list_head fib_event_queue;
+	spinlock_t fib_event_queue_lock; /* Protects fib event queue list */
 	/* One set of ops for each protocol: IPv4 and IPv6 */
 	const struct mlxsw_sp_router_ll_ops *proto_ll_ops[MLXSW_SP_L3_PROTO_MAX];
 };
