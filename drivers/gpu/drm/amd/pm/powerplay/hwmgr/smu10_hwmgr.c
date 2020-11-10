@@ -130,9 +130,10 @@ static int smu10_construct_max_power_limits_table(struct pp_hwmgr *hwmgr,
 static int smu10_init_dynamic_state_adjustment_rule_settings(
 							struct pp_hwmgr *hwmgr)
 {
+	int count = 8;
 	struct phm_clock_voltage_dependency_table *table_clk_vlt;
 
-	table_clk_vlt = kzalloc(struct_size(table_clk_vlt, entries, 7),
+	table_clk_vlt = kzalloc(struct_size(table_clk_vlt, entries, count),
 				GFP_KERNEL);
 
 	if (NULL == table_clk_vlt) {
@@ -140,7 +141,7 @@ static int smu10_init_dynamic_state_adjustment_rule_settings(
 		return -ENOMEM;
 	}
 
-	table_clk_vlt->count = 8;
+	table_clk_vlt->count = count;
 	table_clk_vlt->entries[0].clk = PP_DAL_POWERLEVEL_0;
 	table_clk_vlt->entries[0].v = 0;
 	table_clk_vlt->entries[1].clk = PP_DAL_POWERLEVEL_1;
