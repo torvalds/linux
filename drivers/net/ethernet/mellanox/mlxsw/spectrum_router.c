@@ -6191,14 +6191,25 @@ static void mlxsw_sp_router_fib_event_work(struct work_struct *work)
 	struct mlxsw_sp_router *router = container_of(work, struct mlxsw_sp_router, fib_event_work);
 	struct mlxsw_sp_fib_entry_op_ctx op_ctx = {};
 	struct mlxsw_sp *mlxsw_sp = router->mlxsw_sp;
-	struct mlxsw_sp_fib_event *fib_event, *tmp;
+	struct mlxsw_sp_fib_event *next_fib_event;
+	struct mlxsw_sp_fib_event *fib_event;
 	LIST_HEAD(fib_event_queue);
 
 	spin_lock_bh(&router->fib_event_queue_lock);
 	list_splice_init(&router->fib_event_queue, &fib_event_queue);
 	spin_unlock_bh(&router->fib_event_queue_lock);
 
-	list_for_each_entry_safe(fib_event, tmp, &fib_event_queue, list) {
+	list_for_each_entry_safe(fib_event, next_fib_event,
+				 &fib_event_queue, list) {
+		/* Check if the next entry in the queue exists and it is
+		 * of the same type (family and event) as the currect one.
+		 * In that case it is permitted to do the bulking
+		 * of multiple FIB entries to a single register write.
+		 */
+		op_ctx.bulk_ok = !list_is_last(&fib_event->list, &fib_event_queue) &&
+				 fib_event->family == next_fib_event->family &&
+				 fib_event->event == next_fib_event->event;
+
 		switch (fib_event->family) {
 		case AF_INET:
 			mlxsw_sp_router_fib4_event_process(mlxsw_sp, &op_ctx,

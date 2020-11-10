@@ -61,6 +61,7 @@ enum mlxsw_sp_fib_entry_op {
 };
 
 struct mlxsw_sp_fib_entry_op_ctx {
+	u8 bulk_ok:1;
 	char ralue_pl[MLXSW_REG_RALUE_LEN];
 };
 
