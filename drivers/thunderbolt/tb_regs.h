@@ -211,6 +211,7 @@ struct tb_regs_switch_header {
 #define ROUTER_CS_9				0x09
 #define ROUTER_CS_25				0x19
 #define ROUTER_CS_26				0x1a
+#define ROUTER_CS_26_OPCODE_MASK		GENMASK(15, 0)
 #define ROUTER_CS_26_STATUS_MASK		GENMASK(29, 24)
 #define ROUTER_CS_26_STATUS_SHIFT		24
 #define ROUTER_CS_26_ONS			BIT(30)

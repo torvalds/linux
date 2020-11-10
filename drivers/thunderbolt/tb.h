@@ -972,6 +972,7 @@ int usb4_switch_nvm_read(struct tb_switch *sw, unsigned int address, void *buf,
 int usb4_switch_nvm_write(struct tb_switch *sw, unsigned int address,
 			  const void *buf, size_t size);
 int usb4_switch_nvm_authenticate(struct tb_switch *sw);
+int usb4_switch_nvm_authenticate_status(struct tb_switch *sw, u32 *status);
 bool usb4_switch_query_dp_resource(struct tb_switch *sw, struct tb_port *in);
 int usb4_switch_alloc_dp_resource(struct tb_switch *sw, struct tb_port *in);
 int usb4_switch_dealloc_dp_resource(struct tb_switch *sw, struct tb_port *in);

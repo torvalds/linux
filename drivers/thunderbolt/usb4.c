@@ -192,7 +192,9 @@ static int usb4_switch_op(struct tb_switch *sw, u16 opcode, u8 *status)
 	if (val & ROUTER_CS_26_ONS)
 		return -EOPNOTSUPP;
 
-	*status = (val & ROUTER_CS_26_STATUS_MASK) >> ROUTER_CS_26_STATUS_SHIFT;
+	if (status)
+		*status = (val & ROUTER_CS_26_STATUS_MASK) >>
+			ROUTER_CS_26_STATUS_SHIFT;
 	return 0;
 }
 
@@ -634,32 +636,71 @@ int usb4_switch_nvm_write(struct tb_switch *sw, unsigned int address,
  * @sw: USB4 router
  *
  * After the new NVM has been written via usb4_switch_nvm_write(), this
- * function triggers NVM authentication process. If the authentication
- * is successful the router is power cycled and the new NVM starts
+ * function triggers NVM authentication process. The router gets power
+ * cycled and if the authentication is successful the new NVM starts
  * running. In case of failure returns negative errno.
+ *
+ * The caller should call usb4_switch_nvm_authenticate_status() to read
+ * the status of the authentication after power cycle. It should be the
+ * first router operation to avoid the status being lost.
  */
 int usb4_switch_nvm_authenticate(struct tb_switch *sw)
 {
-	u8 status = 0;
 	int ret;
 
-	ret = usb4_switch_op(sw, USB4_SWITCH_OP_NVM_AUTH, &status);
+	ret = usb4_switch_op(sw, USB4_SWITCH_OP_NVM_AUTH, NULL);
+	switch (ret) {
+	/*
+	 * The router is power cycled once NVM_AUTH is started so it is
+	 * expected to get any of the following errors back.
+	 */
+	case -EACCES:
+	case -ENOTCONN:
+	case -ETIMEDOUT:
+		return 0;
+
+	default:
+		return ret;
+	}
+}
+
+/**
+ * usb4_switch_nvm_authenticate_status() - Read status of last NVM authenticate
+ * @sw: USB4 router
+ * @status: Status code of the operation
+ *
+ * The function checks if there is status available from the last NVM
+ * authenticate router operation. If there is status then %0 is returned
+ * and the status code is placed in @status. Returns negative errno in case
+ * of failure.
+ *
+ * Must be called before any other router operation.
+ */
+int usb4_switch_nvm_authenticate_status(struct tb_switch *sw, u32 *status)
+{
+	u16 opcode;
+	u32 val;
+	int ret;
+
+	ret = tb_sw_read(sw, &val, TB_CFG_SWITCH, ROUTER_CS_26, 1);
 	if (ret)
 		return ret;
 
-	switch (status) {
-	case 0x0:
-		tb_sw_dbg(sw, "NVM authentication successful\n");
-		return 0;
-	case 0x1:
-		return -EINVAL;
-	case 0x2:
-		return -EAGAIN;
-	case 0x3:
-		return -EOPNOTSUPP;
-	default:
-		return -EIO;
+	/* Check that the opcode is correct */
+	opcode = val & ROUTER_CS_26_OPCODE_MASK;
+	if (opcode == USB4_SWITCH_OP_NVM_AUTH) {
+		if (val & ROUTER_CS_26_OV)
+			return -EBUSY;
+		if (val & ROUTER_CS_26_ONS)
+			return -EOPNOTSUPP;
+
+		*status = (val & ROUTER_CS_26_STATUS_MASK) >>
+			ROUTER_CS_26_STATUS_SHIFT;
+	} else {
+		*status = 0;
 	}
+
+	return 0;
 }
 
 /**
