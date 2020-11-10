@@ -2980,7 +2980,7 @@ ATMEL MAXTOUCH DRIVER
 M:	Nick Dyer <nick@shmanahar.org>
 S:	Maintained
 T:	git git://github.com/ndyer/linux.git
-F:	Documentation/devicetree/bindings/input/atmel,maxtouch.txt
+F:	Documentation/devicetree/bindings/input/atmel,maxtouch.yaml
 F:	drivers/input/touchscreen/atmel_mxt_ts.c
 
 ATMEL WIRELESS DRIVER
