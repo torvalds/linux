@@ -3133,7 +3133,7 @@ static int evergreen_cp_resume(struct radeon_device *rdev)
 static void evergreen_gpu_init(struct radeon_device *rdev)
 {
 	u32 gb_addr_config;
-	u32 mc_shared_chmap, mc_arb_ramcfg;
+	u32 mc_arb_ramcfg;
 	u32 sx_debug_1;
 	u32 smx_dc_ctl0;
 	u32 sq_config;
@@ -3397,7 +3397,7 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 
 	evergreen_fix_pci_max_read_req_size(rdev);
 
-	mc_shared_chmap = RREG32(MC_SHARED_CHMAP);
+	RREG32(MC_SHARED_CHMAP);
 	if ((rdev->family == CHIP_PALM) ||
 	    (rdev->family == CHIP_SUMO) ||
 	    (rdev->family == CHIP_SUMO2))
