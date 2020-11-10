@@ -8,6 +8,12 @@
 #ifndef _CRYPTO_KRB5_H
 #define _CRYPTO_KRB5_H
 
+#include <linux/crypto.h>
+#include <crypto/aead.h>
+
+struct crypto_shash;
+struct scatterlist;
+
 /*
  * Per Kerberos v5 protocol spec crypto types from the wire.  These get mapped
  * to linux kernel crypto routines.
@@ -47,5 +53,53 @@
 #define KEY_USAGE_SEED_CHECKSUM         (0x99)
 #define KEY_USAGE_SEED_ENCRYPTION       (0xAA)
 #define KEY_USAGE_SEED_INTEGRITY        (0x55)
+
+/*
+ * Mode of operation.
+ */
+enum krb5_crypto_mode {
+	KRB5_CHECKSUM_MODE,	/* Checksum only */
+	KRB5_ENCRYPT_MODE,	/* Fully encrypted, possibly with integrity checksum */
+};
+
+struct krb5_buffer {
+	unsigned int	len;
+	void		*data;
+};
+
+/*
+ * Kerberos encoding type definition.
+ */
+struct krb5_enctype {
+	int		etype;		/* Encryption (key) type */
+	int		ctype;		/* Checksum type */
+	const char	*name;		/* "Friendly" name */
+	const char	*encrypt_name;	/* Crypto encrypt+checksum name */
+	const char	*cksum_name;	/* Crypto checksum name */
+	const char	*hash_name;	/* Crypto hash name */
+	const char	*derivation_enc; /* Cipher used in key derivation */
+	u16		block_len;	/* Length of encryption block */
+	u16		conf_len;	/* Length of confounder (normally == block_len) */
+	u16		cksum_len;	/* Length of checksum */
+	u16		key_bytes;	/* Length of raw key, in bytes */
+	u16		key_len;	/* Length of final key, in bytes */
+	u16		hash_len;	/* Length of hash in bytes */
+	u16		prf_len;	/* Length of PRF() result in bytes */
+	u16		Kc_len;		/* Length of Kc in bytes */
+	u16		Ke_len;		/* Length of Ke in bytes */
+	u16		Ki_len;		/* Length of Ki in bytes */
+	bool		keyed_cksum;	/* T if a keyed cksum */
+
+	const struct krb5_crypto_profile *profile;
+
+	int (*random_to_key)(const struct krb5_enctype *krb5,
+			     const struct krb5_buffer *in,
+			     struct krb5_buffer *out);	/* complete key generation */
+};
+
+/*
+ * krb5_api.c
+ */
+const struct krb5_enctype *crypto_krb5_find_enctype(u32 enctype);
 
 #endif /* _CRYPTO_KRB5_H */
