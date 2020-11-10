@@ -714,6 +714,19 @@ static enum vop2_afbc_format vop2_convert_afbc_format(uint32_t format)
 	return -EINVAL;
 }
 
+static bool has_rb_swapped(uint32_t format)
+{
+	switch (format) {
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_ABGR8888:
+	case DRM_FORMAT_BGR888:
+	case DRM_FORMAT_BGR565:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static bool is_yuv_support(uint32_t format)
 {
 	switch (format) {
@@ -1396,7 +1409,6 @@ static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_plane_sta
 	vpstate->format = vop2_convert_format(fb->format->format);
 	if (vpstate->format < 0)
 		return vpstate->format;
-
 	if (drm_rect_width(src) >> 16 > vop2_data->max_input.width ||
 	    drm_rect_height(src) >> 16 > vop2_data->max_input.height) {
 		DRM_ERROR("Invalid source: %dx%d. max input: %dx%d\n",
@@ -1490,6 +1502,7 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 	uint32_t act_info, dsp_info, dsp_st;
 	uint32_t format;
 	uint32_t afbc_format;
+	uint32_t rb_swap;
 	struct drm_rect *src = &vpstate->src;
 	struct drm_rect *dest = &vpstate->dest;
 	uint32_t afbc_tile_num;
@@ -1583,6 +1596,9 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 	VOP_WIN_SET(vop2, win, format, format);
 	VOP_WIN_SET(vop2, win, yrgb_vir, DIV_ROUND_UP(fb->pitches[0], 4));
 	VOP_WIN_SET(vop2, win, yrgb_mst, vpstate->yrgb_mst);
+
+	rb_swap = has_rb_swapped(fb->format->format);
+	VOP_WIN_SET(vop2, win, rb_swap, rb_swap);
 
 	if (fb->format->is_yuv) {
 		VOP_WIN_SET(vop2, win, uv_vir, DIV_ROUND_UP(fb->pitches[1], 4));
