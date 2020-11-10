@@ -20,10 +20,10 @@
 #include <net/netfilter/ipv6/nf_defrag_ipv6.h>
 #include "../bridge/br_private.h"
 
-int ip6_route_me_harder(struct net *net, struct sk_buff *skb)
+int ip6_route_me_harder(struct net *net, struct sock *sk_partial, struct sk_buff *skb)
 {
 	const struct ipv6hdr *iph = ipv6_hdr(skb);
-	struct sock *sk = sk_to_full_sk(skb->sk);
+	struct sock *sk = sk_to_full_sk(sk_partial);
 	unsigned int hh_len;
 	struct dst_entry *dst;
 	int strict = (ipv6_addr_type(&iph->daddr) &
@@ -84,7 +84,7 @@ static int nf_ip6_reroute(struct sk_buff *skb,
 		if (!ipv6_addr_equal(&iph->daddr, &rt_info->daddr) ||
 		    !ipv6_addr_equal(&iph->saddr, &rt_info->saddr) ||
 		    skb->mark != rt_info->mark)
-			return ip6_route_me_harder(entry->state.net, skb);
+			return ip6_route_me_harder(entry->state.net, entry->state.sk, skb);
 	}
 	return 0;
 }

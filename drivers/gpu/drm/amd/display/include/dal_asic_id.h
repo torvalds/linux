@@ -217,6 +217,10 @@ enum {
 #ifndef ASICREV_IS_VANGOGH
 #define ASICREV_IS_VANGOGH(eChipRev) ((eChipRev >= VANGOGH_A0) && (eChipRev < VANGOGH_UNKNOWN))
 #endif
+#define GREEN_SARDINE_A0 0xA1
+#ifndef ASICREV_IS_GREEN_SARDINE
+#define ASICREV_IS_GREEN_SARDINE(eChipRev) ((eChipRev >= GREEN_SARDINE_A0) && (eChipRev < 0xFF))
+#endif
 
 /*
  * ASIC chip ID

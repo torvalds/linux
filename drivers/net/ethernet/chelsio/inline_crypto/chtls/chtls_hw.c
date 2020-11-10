@@ -383,6 +383,9 @@ int chtls_setkey(struct chtls_sock *csk, u32 keylen,
 	if (ret)
 		goto out_notcb;
 
+	if (unlikely(csk_flag(sk, CSK_ABORT_SHUTDOWN)))
+		goto out_notcb;
+
 	set_wr_txq(skb, CPL_PRIORITY_DATA, csk->tlshws.txqid);
 	csk->wr_credits -= DIV_ROUND_UP(len, 16);
 	csk->wr_unacked += DIV_ROUND_UP(len, 16);
