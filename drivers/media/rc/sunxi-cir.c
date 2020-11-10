@@ -73,10 +73,6 @@
 #define SUNXI_IR_BASE_CLK     8000000
 /* Noise threshold in samples  */
 #define SUNXI_IR_RXNOISE      1
-/* Idle Threshold in samples */
-#define SUNXI_IR_RXIDLE       20
-/* Time after which device stops sending data in ms */
-#define SUNXI_IR_TIMEOUT      120
 
 /**
  * struct sunxi_ir_quirks - Differences between SoC variants.
@@ -144,6 +140,41 @@ static irqreturn_t sunxi_ir_irq(int irqno, void *dev_id)
 	spin_unlock(&ir->ir_lock);
 
 	return IRQ_HANDLED;
+}
+
+/* Convert idle threshold to usec */
+static unsigned int sunxi_ithr_to_usec(unsigned int base_clk, unsigned int ithr)
+{
+	return DIV_ROUND_CLOSEST(USEC_PER_SEC * (ithr + 1),
+				 base_clk / (128 * 64));
+}
+
+/* Convert usec to idle threshold */
+static unsigned int sunxi_usec_to_ithr(unsigned int base_clk, unsigned int usec)
+{
+	/* make sure we don't end up with a timeout less than requested */
+	return DIV_ROUND_UP((base_clk / (128 * 64)) * usec,  USEC_PER_SEC) - 1;
+}
+
+static int sunxi_ir_set_timeout(struct rc_dev *rc_dev, unsigned int timeout)
+{
+	struct sunxi_ir *ir = rc_dev->priv;
+	unsigned int base_clk = clk_get_rate(ir->clk);
+	unsigned long flags;
+
+	unsigned int ithr = sunxi_usec_to_ithr(base_clk, timeout);
+
+	dev_dbg(rc_dev->dev.parent, "setting idle threshold to %u\n", ithr);
+
+	spin_lock_irqsave(&ir->ir_lock, flags);
+	/* Set noise threshold and idle threshold */
+	writel(REG_CIR_NTHR(SUNXI_IR_RXNOISE) | REG_CIR_ITHR(ithr),
+	       ir->base + SUNXI_IR_CIR_REG);
+	spin_unlock_irqrestore(&ir->ir_lock, flags);
+
+	rc_dev->timeout = sunxi_ithr_to_usec(base_clk, ithr);
+
+	return 0;
 }
 
 static int sunxi_ir_probe(struct platform_device *pdev)
@@ -242,9 +273,11 @@ static int sunxi_ir_probe(struct platform_device *pdev)
 	ir->rc->map_name = ir->map_name ?: RC_MAP_EMPTY;
 	ir->rc->dev.parent = dev;
 	ir->rc->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
-	/* Frequency after IR internal divider with sample period in ns */
+	/* Frequency after IR internal divider with sample period in us */
 	ir->rc->rx_resolution = (USEC_PER_SEC / (b_clk_freq / 64));
-	ir->rc->timeout = MS_TO_US(SUNXI_IR_TIMEOUT);
+	ir->rc->min_timeout = sunxi_ithr_to_usec(b_clk_freq, 0);
+	ir->rc->max_timeout = sunxi_ithr_to_usec(b_clk_freq, 255);
+	ir->rc->s_timeout = sunxi_ir_set_timeout;
 	ir->rc->driver_name = SUNXI_IR_DEV;
 
 	ret = rc_register_device(ir->rc);
@@ -272,8 +305,7 @@ static int sunxi_ir_probe(struct platform_device *pdev)
 	writel(REG_CTL_MD, ir->base+SUNXI_IR_CTL_REG);
 
 	/* Set noise threshold and idle threshold */
-	writel(REG_CIR_NTHR(SUNXI_IR_RXNOISE)|REG_CIR_ITHR(SUNXI_IR_RXIDLE),
-	       ir->base + SUNXI_IR_CIR_REG);
+	sunxi_ir_set_timeout(ir->rc, IR_DEFAULT_TIMEOUT);
 
 	/* Invert Input Signal */
 	writel(REG_RXCTL_RPPI, ir->base + SUNXI_IR_RXCTL_REG);
