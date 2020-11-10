@@ -115,6 +115,11 @@ struct panel_desc {
 		 *
 		 * The time (in milliseconds) that it takes for the panel
 		 * to power itself down completely.
+		 *
+		 * This time is used to prevent a future "prepare" from
+		 * starting until at least this many milliseconds has passed.
+		 * If at prepare time less time has passed since unprepare
+		 * finished, the driver waits for the remaining time.
 		 */
 		unsigned int unprepare;
 	} delay;
@@ -129,6 +134,8 @@ struct panel_simple {
 	bool prepared;
 	bool enabled;
 	bool no_hpd;
+
+	ktime_t unprepared_time;
 
 	const struct panel_desc *desc;
 
@@ -257,6 +264,20 @@ static int panel_simple_get_non_edid_modes(struct panel_simple *panel,
 	return num;
 }
 
+static void panel_simple_wait(ktime_t start_ktime, unsigned int min_ms)
+{
+	ktime_t now_ktime, min_ktime;
+
+	if (!min_ms)
+		return;
+
+	min_ktime = ktime_add(start_ktime, ms_to_ktime(min_ms));
+	now_ktime = ktime_get();
+
+	if (ktime_before(now_ktime, min_ktime))
+		msleep(ktime_to_ms(ktime_sub(min_ktime, now_ktime)) + 1);
+}
+
 static int panel_simple_disable(struct drm_panel *panel)
 {
 	struct panel_simple *p = to_panel_simple(panel);
@@ -283,10 +304,8 @@ static int panel_simple_unprepare(struct drm_panel *panel)
 
 	regulator_disable(p->supply);
 
-	if (p->desc->delay.unprepare)
-		msleep(p->desc->delay.unprepare);
-
 	p->prepared = false;
+	p->unprepared_time = ktime_get();
 
 	return 0;
 }
@@ -325,6 +344,8 @@ static int panel_simple_prepare(struct drm_panel *panel)
 
 	if (p->prepared)
 		return 0;
+
+	panel_simple_wait(p->unprepared_time, p->desc->delay.unprepare);
 
 	err = regulator_enable(p->supply);
 	if (err < 0) {
