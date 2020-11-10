@@ -330,7 +330,7 @@ struct ufs_hba_variant_ops {
 			       const union ufs_crypto_cfg_entry *cfg, int slot);
 	int	(*fill_prdt)(struct ufs_hba *hba, struct ufshcd_lrb *lrbp,
 			     unsigned int segments);
-	void    (*prepare_command)(struct ufs_hba *hba,
+	int	(*prepare_command)(struct ufs_hba *hba,
 				struct request *rq, struct ufshcd_lrb *lrbp);
 	int     (*update_sysfs)(struct ufs_hba *hba);
 	void	(*send_command)(struct ufs_hba *hba, struct ufshcd_lrb *lrbp);
@@ -1247,11 +1247,12 @@ static inline int ufshcd_vops_fill_prdt(struct ufs_hba *hba,
 	return 0;
 }
 
-static inline void ufshcd_vops_prepare_command(struct ufs_hba *hba,
+static inline int ufshcd_vops_prepare_command(struct ufs_hba *hba,
 		struct request *rq, struct ufshcd_lrb *lrbp)
 {
 	if (hba->vops && hba->vops->prepare_command)
-		hba->vops->prepare_command(hba, rq, lrbp);
+		return hba->vops->prepare_command(hba, rq, lrbp);
+	return 0;
 }
 
 static inline int ufshcd_vops_update_sysfs(struct ufs_hba *hba)
