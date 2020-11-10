@@ -207,6 +207,7 @@ u32 sumo_get_sleep_divider_from_id(u32 id);
 u32 sumo_get_sleep_divider_id_from_clock(struct radeon_device *rdev,
 					 u32 sclk,
 					 u32 min_sclk_in_sr);
+struct sumo_power_info *sumo_get_pi(struct radeon_device *rdev);
 
 /* sumo_smc.c */
 void sumo_initialize_m3_arb(struct radeon_device *rdev);
