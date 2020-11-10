@@ -39,8 +39,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&gmac1m1_miim_pins &gmac1m1_rgmii_pins>;
 
-	tx_delay = <0x2a>;
-	rx_delay = <0x1a>;
+	tx_delay = <0x4f>;
+	rx_delay = <0x25>;
 
 	phy-handle = <&rgmii_phy0>;
 	status = "okay";
