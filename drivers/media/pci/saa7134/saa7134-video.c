@@ -1276,8 +1276,10 @@ static int saa7134_g_fmt_vid_overlay(struct file *file, void *priv,
 		return -EINVAL;
 	}
 	f->fmt.win = dev->win;
-	if (!f->fmt.win.clips)
-		clipcount = 0;
+	if (!f->fmt.win.clips) {
+		f->fmt.win.clipcount = 0;
+		return 0;
+	}
 	if (dev->nclips < clipcount)
 		clipcount = dev->nclips;
 	f->fmt.win.clipcount = clipcount;
