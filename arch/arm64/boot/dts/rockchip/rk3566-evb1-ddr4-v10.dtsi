@@ -21,6 +21,10 @@
 	};
 };
 
+&combphy1_usq {
+	status = "okay";
+};
+
 &dsi_panel {
 	power-supply = <&vcc28_lcd_n>;
 	reset-gpios = <&gpio4 RK_PC5 GPIO_ACTIVE_LOW>;
