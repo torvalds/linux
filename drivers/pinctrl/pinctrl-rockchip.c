@@ -1674,8 +1674,11 @@ static struct rockchip_mux_route_data rk3568_mux_route_data[] = {
 	MR_TOPGRF(RK_GPIO4, RK_PB6, RK_FUNC_5, 0x0310, RK_GENMASK_VAL(12, 12, 1)), /* I2S2 IO mux selection M1 */
 	MR_TOPGRF(RK_GPIO3, RK_PA2, RK_FUNC_4, 0x0310, RK_GENMASK_VAL(14, 14, 0)), /* I2S3 IO mux selection M0 */
 	MR_TOPGRF(RK_GPIO4, RK_PC2, RK_FUNC_5, 0x0310, RK_GENMASK_VAL(14, 14, 1)), /* I2S3 IO mux selection M1 */
-	MR_TOPGRF(RK_GPIO1, RK_PA6, RK_FUNC_3, 0x0314, RK_GENMASK_VAL(0, 0, 0)), /* PDM IO mux selection M0 */
-	MR_TOPGRF(RK_GPIO3, RK_PD6, RK_FUNC_5, 0x0314, RK_GENMASK_VAL(0, 0, 1)), /* PDM IO mux selection M1 */
+	MR_TOPGRF(RK_GPIO1, RK_PA4, RK_FUNC_3, 0x0314, RK_GENMASK_VAL(1, 0, 0)), /* PDM IO mux selection M0 */
+	MR_TOPGRF(RK_GPIO1, RK_PA6, RK_FUNC_3, 0x0314, RK_GENMASK_VAL(1, 0, 0)), /* PDM IO mux selection M0 */
+	MR_TOPGRF(RK_GPIO3, RK_PD6, RK_FUNC_5, 0x0314, RK_GENMASK_VAL(1, 0, 1)), /* PDM IO mux selection M1 */
+	MR_TOPGRF(RK_GPIO4, RK_PA0, RK_FUNC_4, 0x0314, RK_GENMASK_VAL(1, 0, 1)), /* PDM IO mux selection M1 */
+	MR_TOPGRF(RK_GPIO3, RK_PC4, RK_FUNC_5, 0x0314, RK_GENMASK_VAL(1, 0, 2)), /* PDM IO mux selection M2 */
 	MR_TOPGRF(RK_GPIO0, RK_PA5, RK_FUNC_3, 0x0314, RK_GENMASK_VAL(3, 2, 0)), /* PCIE20 IO mux selection M0 */
 	MR_TOPGRF(RK_GPIO2, RK_PD0, RK_FUNC_4, 0x0314, RK_GENMASK_VAL(3, 2, 1)), /* PCIE20 IO mux selection M1 */
 	MR_TOPGRF(RK_GPIO1, RK_PB0, RK_FUNC_4, 0x0314, RK_GENMASK_VAL(3, 2, 2)), /* PCIE20 IO mux selection M2 */
