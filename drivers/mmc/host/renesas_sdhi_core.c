@@ -424,9 +424,11 @@ static void renesas_sdhi_hs400_complete(struct mmc_host *mmc)
 		priv->needs_adjust_hs400 = true;
 }
 
-static void renesas_sdhi_reset_scc(struct tmio_mmc_host *host,
-				   struct renesas_sdhi *priv)
+static void renesas_sdhi_disable_scc(struct mmc_host *mmc)
 {
+	struct tmio_mmc_host *host = mmc_priv(mmc);
+	struct renesas_sdhi *priv = host_to_priv(host);
+
 	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, ~CLK_CTL_SCLKEN &
 			sd_ctrl_read16(host, CTL_SD_CARD_CLK_CTL));
 
@@ -434,14 +436,6 @@ static void renesas_sdhi_reset_scc(struct tmio_mmc_host *host,
 		       ~SH_MOBILE_SDHI_SCC_CKSEL_DTSEL &
 		       sd_scc_read32(host, priv,
 				     SH_MOBILE_SDHI_SCC_CKSEL));
-}
-
-static void renesas_sdhi_disable_scc(struct mmc_host *mmc)
-{
-	struct tmio_mmc_host *host = mmc_priv(mmc);
-	struct renesas_sdhi *priv = host_to_priv(host);
-
-	renesas_sdhi_reset_scc(host, priv);
 
 	sd_scc_write32(host, priv, SH_MOBILE_SDHI_SCC_DTCNTL,
 		       ~SH_MOBILE_SDHI_SCC_DTCNTL_TAPEN &
