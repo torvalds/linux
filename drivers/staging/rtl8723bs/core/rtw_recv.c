@@ -499,9 +499,8 @@ union recv_frame *decryptor(struct adapter *padapter, union recv_frame *precv_fr
 		default:
 				break;
 		}
-	} else if (prxattrib->bdecrypted == 1
-		&& prxattrib->encrypt > 0
-		&& (psecuritypriv->busetkipkey == 1 || prxattrib->encrypt != _TKIP_)
+	} else if (prxattrib->bdecrypted == 1 && prxattrib->encrypt > 0 &&
+		   (psecuritypriv->busetkipkey == 1 || prxattrib->encrypt != _TKIP_)
 		) {
 		DBG_COUNTER(padapter->rx_logs.core_rx_post_decrypt_hw);
 
@@ -874,9 +873,9 @@ sint ap2sta_data_frame(struct adapter *adapter, union recv_frame *precv_frame,
 	u8 *myhwaddr = myid(&adapter->eeprompriv);
 	sint bmcast = IS_MCAST(pattrib->dst);
 
-	if ((check_fwstate(pmlmepriv, WIFI_STATION_STATE) == true)
-		&& (check_fwstate(pmlmepriv, _FW_LINKED) == true
-			|| check_fwstate(pmlmepriv, _FW_UNDER_LINKING) == true)
+	if ((check_fwstate(pmlmepriv, WIFI_STATION_STATE) == true) &&
+	    (check_fwstate(pmlmepriv, _FW_LINKED) == true ||
+	     check_fwstate(pmlmepriv, _FW_UNDER_LINKING) == true)
 		) {
 
 		/*  filter packets that SA is myself or multicast or broadcast */
@@ -1226,8 +1225,8 @@ sint validate_recv_mgnt_frame(struct adapter *padapter, union recv_frame *precv_
 			else if (GetFrameSubType(precv_frame->u.hdr.rx_data) == WIFI_PROBERSP) {
 				if (!memcmp(padapter->eeprompriv.mac_addr, GetAddr1Ptr(precv_frame->u.hdr.rx_data), ETH_ALEN))
 					psta->sta_stats.rx_probersp_pkts++;
-				else if (is_broadcast_mac_addr(GetAddr1Ptr(precv_frame->u.hdr.rx_data))
-					|| is_multicast_mac_addr(GetAddr1Ptr(precv_frame->u.hdr.rx_data)))
+				else if (is_broadcast_mac_addr(GetAddr1Ptr(precv_frame->u.hdr.rx_data)) ||
+					 is_multicast_mac_addr(GetAddr1Ptr(precv_frame->u.hdr.rx_data)))
 					psta->sta_stats.rx_probersp_bm_pkts++;
 				else
 					psta->sta_stats.rx_probersp_uo_pkts++;
@@ -1388,8 +1387,8 @@ static sint validate_80211w_mgmt(struct adapter *adapter, union recv_frame *prec
 	subtype = GetFrameSubType(ptr); /* bit(7)~bit(2) */
 
 	/* only support station mode */
-	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE) && check_fwstate(pmlmepriv, _FW_LINKED)
-		&& adapter->securitypriv.binstallBIPkey == true) {
+	if (check_fwstate(pmlmepriv, WIFI_STATION_STATE) && check_fwstate(pmlmepriv, _FW_LINKED) &&
+	    adapter->securitypriv.binstallBIPkey == true) {
 		/* unicast management frame decrypt */
 		if (pattrib->privacy && !(IS_MCAST(GetAddr1Ptr(ptr))) &&
 			(subtype == WIFI_DEAUTH || subtype == WIFI_DISASSOC || subtype == WIFI_ACTION)) {
@@ -2601,15 +2600,15 @@ static void rtw_signal_stat_timer_hdl(struct timer_list *t)
 		}
 
 		if (num_signal_strength == 0) {
-			if (rtw_get_on_cur_ch_time(adapter) == 0
-				|| jiffies_to_msecs(jiffies - rtw_get_on_cur_ch_time(adapter)) < 2 * adapter->mlmeextpriv.mlmext_info.bcn_interval
+			if (rtw_get_on_cur_ch_time(adapter) == 0 ||
+			    jiffies_to_msecs(jiffies - rtw_get_on_cur_ch_time(adapter)) < 2 * adapter->mlmeextpriv.mlmext_info.bcn_interval
 			) {
 				goto set_timer;
 			}
 		}
 
-		if (check_fwstate(&adapter->mlmepriv, _FW_UNDER_SURVEY) == true
-			|| check_fwstate(&adapter->mlmepriv, _FW_LINKED) == false
+		if (check_fwstate(&adapter->mlmepriv, _FW_UNDER_SURVEY) == true ||
+		    check_fwstate(&adapter->mlmepriv, _FW_LINKED) == false
 		) {
 			goto set_timer;
 		}
