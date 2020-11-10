@@ -340,6 +340,10 @@ static int stm32_usbphyc_probe(struct platform_device *pdev)
 		reset_control_assert(usbphyc->rst);
 		udelay(2);
 		reset_control_deassert(usbphyc->rst);
+	} else {
+		ret = PTR_ERR(usbphyc->rst);
+		if (ret == -EPROBE_DEFER)
+			goto clk_disable;
 	}
 
 	usbphyc->switch_setup = -EINVAL;
