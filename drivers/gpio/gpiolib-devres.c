@@ -477,9 +477,9 @@ void devm_gpio_free(struct device *dev, unsigned int gpio)
 }
 EXPORT_SYMBOL_GPL(devm_gpio_free);
 
-static void devm_gpio_chip_release(struct device *dev, void *res)
+static void devm_gpio_chip_release(void *data)
 {
-	struct gpio_chip *gc = *(struct gpio_chip **)res;
+	struct gpio_chip *gc = data;
 
 	gpiochip_remove(gc);
 }
@@ -505,23 +505,12 @@ int devm_gpiochip_add_data_with_key(struct device *dev, struct gpio_chip *gc, vo
 				    struct lock_class_key *lock_key,
 				    struct lock_class_key *request_key)
 {
-	struct gpio_chip **ptr;
 	int ret;
 
-	ptr = devres_alloc(devm_gpio_chip_release, sizeof(*ptr),
-			     GFP_KERNEL);
-	if (!ptr)
-		return -ENOMEM;
-
 	ret = gpiochip_add_data_with_key(gc, data, lock_key, request_key);
-	if (ret < 0) {
-		devres_free(ptr);
+	if (ret < 0)
 		return ret;
-	}
 
-	*ptr = gc;
-	devres_add(dev, ptr);
-
-	return 0;
+	return devm_add_action_or_reset(dev, devm_gpio_chip_release, gc);
 }
 EXPORT_SYMBOL_GPL(devm_gpiochip_add_data_with_key);
