@@ -397,15 +397,24 @@ void gsi_trans_cmd_add(struct gsi_trans *trans, void *buf, u32 size,
 
 	/* assert(which < trans->tre_count); */
 
-	/* Set the page information for the buffer.  We also need to fill in
-	 * the DMA address and length for the buffer (something dma_map_sg()
-	 * normally does).
+	/* Commands are quite different from data transfer requests.
+	 * Their payloads come from a pool whose memory is allocated
+	 * using dma_alloc_coherent().  We therefore do *not* map them
+	 * for DMA (unlike what we do for pages and skbs).
+	 *
+	 * When a transaction completes, the SGL is normally unmapped.
+	 * A command transaction has direction DMA_NONE, which tells
+	 * gsi_trans_complete() to skip the unmapping step.
+	 *
+	 * The only things we use directly in a command scatter/gather
+	 * entry are the DMA address and length.  We still need the SG
+	 * table flags to be maintained though, so assign a NULL page
+	 * pointer for that purpose.
 	 */
 	sg = &trans->sgl[which];
-
-	sg_set_buf(sg, buf, size);
+	sg_assign_page(sg, NULL);
 	sg_dma_address(sg) = addr;
-	sg_dma_len(sg) = sg->length;
+	sg_dma_len(sg) = size;
 
 	info = &trans->info[which];
 	info->opcode = opcode;

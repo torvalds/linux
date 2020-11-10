@@ -46,7 +46,8 @@ properties:
   spi-max-frequency: true
 
   spi-cpol: true
-  spi-cpha : true
+
+  spi-cpha: true
 
   "#io-channel-cells":
     const: 1

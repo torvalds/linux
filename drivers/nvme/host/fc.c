@@ -146,7 +146,8 @@ struct nvme_fc_rport {
 
 /* fc_ctrl flags values - specified as bit positions */
 #define ASSOC_ACTIVE		0
-#define FCCTRL_TERMIO		1
+#define ASSOC_FAILED		1
+#define FCCTRL_TERMIO		2
 
 struct nvme_fc_ctrl {
 	spinlock_t		lock;
@@ -157,7 +158,6 @@ struct nvme_fc_ctrl {
 	u32			cnum;
 
 	bool			ioq_live;
-	atomic_t		err_work_active;
 	u64			association_id;
 	struct nvmefc_ls_rcv_op	*rcv_disconn;
 
@@ -167,7 +167,6 @@ struct nvme_fc_ctrl {
 	struct blk_mq_tag_set	tag_set;
 
 	struct delayed_work	connect_work;
-	struct work_struct	err_work;
 
 	struct kref		ref;
 	unsigned long		flags;
@@ -2414,24 +2413,97 @@ nvme_fc_nvme_ctrl_freed(struct nvme_ctrl *nctrl)
 	nvme_fc_ctrl_put(ctrl);
 }
 
+/*
+ * This routine is used by the transport when it needs to find active
+ * io on a queue that is to be terminated. The transport uses
+ * blk_mq_tagset_busy_itr() to find the busy requests, which then invoke
+ * this routine to kill them on a 1 by 1 basis.
+ *
+ * As FC allocates FC exchange for each io, the transport must contact
+ * the LLDD to terminate the exchange, thus releasing the FC exchange.
+ * After terminating the exchange the LLDD will call the transport's
+ * normal io done path for the request, but it will have an aborted
+ * status. The done path will return the io request back to the block
+ * layer with an error status.
+ */
+static bool
+nvme_fc_terminate_exchange(struct request *req, void *data, bool reserved)
+{
+	struct nvme_ctrl *nctrl = data;
+	struct nvme_fc_ctrl *ctrl = to_fc_ctrl(nctrl);
+	struct nvme_fc_fcp_op *op = blk_mq_rq_to_pdu(req);
+
+	__nvme_fc_abort_op(ctrl, op);
+	return true;
+}
+
+/*
+ * This routine runs through all outstanding commands on the association
+ * and aborts them.  This routine is typically be called by the
+ * delete_association routine. It is also called due to an error during
+ * reconnect. In that scenario, it is most likely a command that initializes
+ * the controller, including fabric Connect commands on io queues, that
+ * may have timed out or failed thus the io must be killed for the connect
+ * thread to see the error.
+ */
+static void
+__nvme_fc_abort_outstanding_ios(struct nvme_fc_ctrl *ctrl, bool start_queues)
+{
+	/*
+	 * If io queues are present, stop them and terminate all outstanding
+	 * ios on them. As FC allocates FC exchange for each io, the
+	 * transport must contact the LLDD to terminate the exchange,
+	 * thus releasing the FC exchange. We use blk_mq_tagset_busy_itr()
+	 * to tell us what io's are busy and invoke a transport routine
+	 * to kill them with the LLDD.  After terminating the exchange
+	 * the LLDD will call the transport's normal io done path, but it
+	 * will have an aborted status. The done path will return the
+	 * io requests back to the block layer as part of normal completions
+	 * (but with error status).
+	 */
+	if (ctrl->ctrl.queue_count > 1) {
+		nvme_stop_queues(&ctrl->ctrl);
+		blk_mq_tagset_busy_iter(&ctrl->tag_set,
+				nvme_fc_terminate_exchange, &ctrl->ctrl);
+		blk_mq_tagset_wait_completed_request(&ctrl->tag_set);
+		if (start_queues)
+			nvme_start_queues(&ctrl->ctrl);
+	}
+
+	/*
+	 * Other transports, which don't have link-level contexts bound
+	 * to sqe's, would try to gracefully shutdown the controller by
+	 * writing the registers for shutdown and polling (call
+	 * nvme_shutdown_ctrl()). Given a bunch of i/o was potentially
+	 * just aborted and we will wait on those contexts, and given
+	 * there was no indication of how live the controlelr is on the
+	 * link, don't send more io to create more contexts for the
+	 * shutdown. Let the controller fail via keepalive failure if
+	 * its still present.
+	 */
+
+	/*
+	 * clean up the admin queue. Same thing as above.
+	 */
+	blk_mq_quiesce_queue(ctrl->ctrl.admin_q);
+	blk_mq_tagset_busy_iter(&ctrl->admin_tag_set,
+				nvme_fc_terminate_exchange, &ctrl->ctrl);
+	blk_mq_tagset_wait_completed_request(&ctrl->admin_tag_set);
+}
+
 static void
 nvme_fc_error_recovery(struct nvme_fc_ctrl *ctrl, char *errmsg)
 {
-	int active;
-
 	/*
-	 * if an error (io timeout, etc) while (re)connecting,
-	 * it's an error on creating the new association.
-	 * Start the error recovery thread if it hasn't already
-	 * been started. It is expected there could be multiple
-	 * ios hitting this path before things are cleaned up.
+	 * if an error (io timeout, etc) while (re)connecting, the remote
+	 * port requested terminating of the association (disconnect_ls)
+	 * or an error (timeout or abort) occurred on an io while creating
+	 * the controller.  Abort any ios on the association and let the
+	 * create_association error path resolve things.
 	 */
 	if (ctrl->ctrl.state == NVME_CTRL_CONNECTING) {
-		active = atomic_xchg(&ctrl->err_work_active, 1);
-		if (!active && !queue_work(nvme_fc_wq, &ctrl->err_work)) {
-			atomic_set(&ctrl->err_work_active, 0);
-			WARN_ON(1);
-		}
+		__nvme_fc_abort_outstanding_ios(ctrl, true);
+		set_bit(ASSOC_FAILED, &ctrl->flags);
 		return;
 	}
 
@@ -2745,30 +2817,6 @@ nvme_fc_complete_rq(struct request *rq)
 	nvme_fc_ctrl_put(ctrl);
 }
 
-/*
- * This routine is used by the transport when it needs to find active
- * io on a queue that is to be terminated. The transport uses
- * blk_mq_tagset_busy_itr() to find the busy requests, which then invoke
- * this routine to kill them on a 1 by 1 basis.
- *
- * As FC allocates FC exchange for each io, the transport must contact
- * the LLDD to terminate the exchange, thus releasing the FC exchange.
- * After terminating the exchange the LLDD will call the transport's
- * normal io done path for the request, but it will have an aborted
- * status. The done path will return the io request back to the block
- * layer with an error status.
- */
-static bool
-nvme_fc_terminate_exchange(struct request *req, void *data, bool reserved)
-{
-	struct nvme_ctrl *nctrl = data;
-	struct nvme_fc_ctrl *ctrl = to_fc_ctrl(nctrl);
-	struct nvme_fc_fcp_op *op = blk_mq_rq_to_pdu(req);
-
-	__nvme_fc_abort_op(ctrl, op);
-	return true;
-}
-
 
 static const struct blk_mq_ops nvme_fc_mq_ops = {
 	.queue_rq	= nvme_fc_queue_rq,
@@ -2988,6 +3036,8 @@ nvme_fc_create_association(struct nvme_fc_ctrl *ctrl)
 		ctrl->cnum, ctrl->lport->localport.port_name,
 		ctrl->rport->remoteport.port_name, ctrl->ctrl.opts->subsysnqn);
 
+	clear_bit(ASSOC_FAILED, &ctrl->flags);
+
 	/*
 	 * Create the admin queue
 	 */
@@ -3016,7 +3066,7 @@ nvme_fc_create_association(struct nvme_fc_ctrl *ctrl)
 	 */
 
 	ret = nvme_enable_ctrl(&ctrl->ctrl);
-	if (ret)
+	if (ret || test_bit(ASSOC_FAILED, &ctrl->flags))
 		goto out_disconnect_admin_queue;
 
 	ctrl->ctrl.max_segments = ctrl->lport->ops->max_sgl_segments;
@@ -3026,7 +3076,7 @@ nvme_fc_create_association(struct nvme_fc_ctrl *ctrl)
 	blk_mq_unquiesce_queue(ctrl->ctrl.admin_q);
 
 	ret = nvme_init_identify(&ctrl->ctrl);
-	if (ret)
+	if (ret || test_bit(ASSOC_FAILED, &ctrl->flags))
 		goto out_disconnect_admin_queue;
 
 	/* sanity checks */
@@ -3071,9 +3121,9 @@ nvme_fc_create_association(struct nvme_fc_ctrl *ctrl)
 			ret = nvme_fc_create_io_queues(ctrl);
 		else
 			ret = nvme_fc_recreate_io_queues(ctrl);
-		if (ret)
-			goto out_term_aen_ops;
 	}
+	if (ret || test_bit(ASSOC_FAILED, &ctrl->flags))
+		goto out_term_aen_ops;
 
 	changed = nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_LIVE);
 
@@ -3106,60 +3156,6 @@ out_free_queue:
 	return ret;
 }
 
-
-/*
- * This routine runs through all outstanding commands on the association
- * and aborts them.  This routine is typically be called by the
- * delete_association routine. It is also called due to an error during
- * reconnect. In that scenario, it is most likely a command that initializes
- * the controller, including fabric Connect commands on io queues, that
- * may have timed out or failed thus the io must be killed for the connect
- * thread to see the error.
- */
-static void
-__nvme_fc_abort_outstanding_ios(struct nvme_fc_ctrl *ctrl, bool start_queues)
-{
-	/*
-	 * If io queues are present, stop them and terminate all outstanding
-	 * ios on them. As FC allocates FC exchange for each io, the
-	 * transport must contact the LLDD to terminate the exchange,
-	 * thus releasing the FC exchange. We use blk_mq_tagset_busy_itr()
-	 * to tell us what io's are busy and invoke a transport routine
-	 * to kill them with the LLDD.  After terminating the exchange
-	 * the LLDD will call the transport's normal io done path, but it
-	 * will have an aborted status. The done path will return the
-	 * io requests back to the block layer as part of normal completions
-	 * (but with error status).
-	 */
-	if (ctrl->ctrl.queue_count > 1) {
-		nvme_stop_queues(&ctrl->ctrl);
-		blk_mq_tagset_busy_iter(&ctrl->tag_set,
-				nvme_fc_terminate_exchange, &ctrl->ctrl);
-		blk_mq_tagset_wait_completed_request(&ctrl->tag_set);
-		if (start_queues)
-			nvme_start_queues(&ctrl->ctrl);
-	}
-
-	/*
-	 * Other transports, which don't have link-level contexts bound
-	 * to sqe's, would try to gracefully shutdown the controller by
-	 * writing the registers for shutdown and polling (call
-	 * nvme_shutdown_ctrl()). Given a bunch of i/o was potentially
-	 * just aborted and we will wait on those contexts, and given
-	 * there was no indication of how live the controlelr is on the
-	 * link, don't send more io to create more contexts for the
-	 * shutdown. Let the controller fail via keepalive failure if
-	 * its still present.
-	 */
-
-	/*
-	 * clean up the admin queue. Same thing as above.
-	 */
-	blk_mq_quiesce_queue(ctrl->ctrl.admin_q);
-	blk_mq_tagset_busy_iter(&ctrl->admin_tag_set,
-				nvme_fc_terminate_exchange, &ctrl->ctrl);
-	blk_mq_tagset_wait_completed_request(&ctrl->admin_tag_set);
-}
 
 /*
  * This routine stops operation of the controller on the host side.
@@ -3237,7 +3233,6 @@ nvme_fc_delete_ctrl(struct nvme_ctrl *nctrl)
 {
 	struct nvme_fc_ctrl *ctrl = to_fc_ctrl(nctrl);
 
-	cancel_work_sync(&ctrl->err_work);
 	cancel_delayed_work_sync(&ctrl->connect_work);
 	/*
 	 * kill the association on the link side.  this will block
@@ -3292,78 +3287,34 @@ nvme_fc_reconnect_or_delete(struct nvme_fc_ctrl *ctrl, int status)
 }
 
 static void
-__nvme_fc_terminate_io(struct nvme_fc_ctrl *ctrl)
-{
-	/*
-	 * if state is CONNECTING - the error occurred as part of a
-	 * reconnect attempt. Abort any ios on the association and
-	 * let the create_association error paths resolve things.
-	 */
-	if (ctrl->ctrl.state == NVME_CTRL_CONNECTING) {
-		__nvme_fc_abort_outstanding_ios(ctrl, true);
-		return;
-	}
-
-	/*
-	 * For any other state, kill the association. As this routine
-	 * is a common io abort routine for resetting and such, after
-	 * the association is terminated, ensure that the state is set
-	 * to CONNECTING.
-	 */
-
-	nvme_stop_keep_alive(&ctrl->ctrl);
-
-	/* will block will waiting for io to terminate */
-	nvme_fc_delete_association(ctrl);
-
-	if (ctrl->ctrl.state != NVME_CTRL_CONNECTING &&
-	    !nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_CONNECTING))
-		dev_err(ctrl->ctrl.device,
-			"NVME-FC{%d}: error_recovery: Couldn't change state "
-			"to CONNECTING\n", ctrl->cnum);
-}
-
-static void
 nvme_fc_reset_ctrl_work(struct work_struct *work)
 {
 	struct nvme_fc_ctrl *ctrl =
 		container_of(work, struct nvme_fc_ctrl, ctrl.reset_work);
-	int ret;
-
-	__nvme_fc_terminate_io(ctrl);
 
 	nvme_stop_ctrl(&ctrl->ctrl);
 
-	if (ctrl->rport->remoteport.port_state == FC_OBJSTATE_ONLINE)
-		ret = nvme_fc_create_association(ctrl);
-	else
-		ret = -ENOTCONN;
+	/* will block will waiting for io to terminate */
+	nvme_fc_delete_association(ctrl);
 
-	if (ret)
-		nvme_fc_reconnect_or_delete(ctrl, ret);
-	else
-		dev_info(ctrl->ctrl.device,
-			"NVME-FC{%d}: controller reset complete\n",
-			ctrl->cnum);
+	if (!nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_CONNECTING))
+		dev_err(ctrl->ctrl.device,
+			"NVME-FC{%d}: error_recovery: Couldn't change state "
+			"to CONNECTING\n", ctrl->cnum);
+
+	if (ctrl->rport->remoteport.port_state == FC_OBJSTATE_ONLINE) {
+		if (!queue_delayed_work(nvme_wq, &ctrl->connect_work, 0)) {
+			dev_err(ctrl->ctrl.device,
+				"NVME-FC{%d}: failed to schedule connect "
+				"after reset\n", ctrl->cnum);
+		} else {
+			flush_delayed_work(&ctrl->connect_work);
+		}
+	} else {
+		nvme_fc_reconnect_or_delete(ctrl, -ENOTCONN);
+	}
 }
 
-static void
-nvme_fc_connect_err_work(struct work_struct *work)
-{
-	struct nvme_fc_ctrl *ctrl =
-			container_of(work, struct nvme_fc_ctrl, err_work);
-
-	__nvme_fc_terminate_io(ctrl);
-
-	atomic_set(&ctrl->err_work_active, 0);
-
-	/*
-	 * Rescheduling the connection after recovering
-	 * from the io error is left to the reconnect work
-	 * item, which is what should have stalled waiting on
-	 * the io that had the error that scheduled this work.
-	 */
-}
 
 static const struct nvme_ctrl_ops nvme_fc_ctrl_ops = {
 	.name			= "fc",
@@ -3491,7 +3442,6 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 	ctrl->dev = lport->dev;
 	ctrl->cnum = idx;
 	ctrl->ioq_live = false;
-	atomic_set(&ctrl->err_work_active, 0);
 	init_waitqueue_head(&ctrl->ioabort_wait);
 
 	get_device(ctrl->dev);
@@ -3499,7 +3449,6 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 
 	INIT_WORK(&ctrl->ctrl.reset_work, nvme_fc_reset_ctrl_work);
 	INIT_DELAYED_WORK(&ctrl->connect_work, nvme_fc_connect_ctrl_work);
-	INIT_WORK(&ctrl->err_work, nvme_fc_connect_err_work);
 	spin_lock_init(&ctrl->lock);
 
 	/* io queue count */
@@ -3592,7 +3541,6 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 fail_ctrl:
 	nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_DELETING);
 	cancel_work_sync(&ctrl->ctrl.reset_work);
-	cancel_work_sync(&ctrl->err_work);
 	cancel_delayed_work_sync(&ctrl->connect_work);
 
 	ctrl->ctrl.opts = NULL;

@@ -1031,12 +1031,6 @@ static int ibmveth_is_packet_unsupported(struct sk_buff *skb,
 		ret = -EOPNOTSUPP;
 	}
 
-	if (!ether_addr_equal(ether_header->h_source, netdev->dev_addr)) {
-		netdev_dbg(netdev, "source packet MAC address does not match veth device's, dropping packet.\n");
-		netdev->stats.tx_dropped++;
-		ret = -EOPNOTSUPP;
-	}
-
 	return ret;
 }
 

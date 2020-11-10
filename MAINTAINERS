@@ -2375,7 +2375,6 @@ F:	sound/soc/rockchip/
 N:	rockchip
 
 ARM/SAMSUNG EXYNOS ARM ARCHITECTURES
-M:	Kukjin Kim <kgene@kernel.org>
 M:	Krzysztof Kozlowski <krzk@kernel.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	linux-samsung-soc@vger.kernel.org
@@ -2642,10 +2641,8 @@ F:	drivers/pinctrl/visconti/
 N:	visconti
 
 ARM/UNIPHIER ARCHITECTURE
-M:	Masahiro Yamada <yamada.masahiro@socionext.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/masahiroy/linux-uniphier.git
+S:	Orphan
 F:	Documentation/devicetree/bindings/arm/socionext/uniphier.yaml
 F:	Documentation/devicetree/bindings/gpio/socionext,uniphier-gpio.yaml
 F:	Documentation/devicetree/bindings/pinctrl/socionext,uniphier-pinctrl.yaml
@@ -5006,9 +5003,8 @@ T:	git git://linuxtv.org/media_tree.git
 F:	drivers/media/platform/sti/delta
 
 DENALI NAND DRIVER
-M:	Masahiro Yamada <yamada.masahiro@socionext.com>
 L:	linux-mtd@lists.infradead.org
-S:	Supported
+S:	Orphan
 F:	drivers/mtd/nand/raw/denali*
 
 DESIGNWARE EDMA CORE IP DRIVER
@@ -8975,22 +8971,6 @@ L:	platform-driver-x86@vger.kernel.org
 S:	Supported
 W:	https://01.org/linux-acpi
 F:	drivers/platform/x86/intel_menlow.c
-
-INTEL MIC DRIVERS (mic)
-M:	Sudeep Dutt <sudeep.dutt@intel.com>
-M:	Ashutosh Dixit <ashutosh.dixit@intel.com>
-S:	Supported
-W:	https://github.com/sudeepdutt/mic
-W:	http://software.intel.com/en-us/mic-developer
-F:	Documentation/misc-devices/mic/
-F:	drivers/dma/mic_x100_dma.c
-F:	drivers/dma/mic_x100_dma.h
-F:	drivers/misc/mic/
-F:	include/linux/mic_bus.h
-F:	include/linux/scif.h
-F:	include/uapi/linux/mic_common.h
-F:	include/uapi/linux/mic_ioctl.h
-F:	include/uapi/linux/scif_ioctl.h
 
 INTEL P-Unit IPC DRIVER
 M:	Zha Qipeng <qipeng.zha@intel.com>
@@ -15380,7 +15360,6 @@ F:	security/safesetid/
 
 SAMSUNG AUDIO (ASoC) DRIVERS
 M:	Krzysztof Kozlowski <krzk@kernel.org>
-M:	Sangbeom Kim <sbkim73@samsung.com>
 M:	Sylwester Nawrocki <s.nawrocki@samsung.com>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Supported
@@ -15415,7 +15394,6 @@ S:	Maintained
 F:	drivers/platform/x86/samsung-laptop.c
 
 SAMSUNG MULTIFUNCTION PMIC DEVICE DRIVERS
-M:	Sangbeom Kim <sbkim73@samsung.com>
 M:	Krzysztof Kozlowski <krzk@kernel.org>
 M:	Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
 L:	linux-kernel@vger.kernel.org
@@ -15497,7 +15475,6 @@ F:	include/linux/clk/samsung.h
 F:	include/linux/platform_data/clk-s3c2410.h
 
 SAMSUNG SPI DRIVERS
-M:	Kukjin Kim <kgene@kernel.org>
 M:	Krzysztof Kozlowski <krzk@kernel.org>
 M:	Andi Shyti <andi@etezian.org>
 L:	linux-spi@vger.kernel.org

@@ -92,8 +92,12 @@ int main(int argc, char *argv[])
 	err = mte_default_setup();
 	if (err)
 		return err;
+
 	/* Register signal handlers */
 	mte_register_signal(SIGSEGV, mte_default_handler);
+
+	/* Set test plan */
+	ksft_set_plan(4);
 
 	evaluate_test(check_usermem_access_fault(USE_MMAP, MTE_SYNC_ERR, MAP_PRIVATE),
 		"Check memory access from kernel in sync mode, private mapping and mmap memory\n");

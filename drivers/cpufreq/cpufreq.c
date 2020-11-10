@@ -1908,6 +1908,18 @@ void cpufreq_resume(void)
 }
 
 /**
+ * cpufreq_driver_test_flags - Test cpufreq driver's flags against given ones.
+ * @flags: Flags to test against the current cpufreq driver's flags.
+ *
+ * Assumes that the driver is there, so callers must ensure that this is the
+ * case.
+ */
+bool cpufreq_driver_test_flags(u16 flags)
+{
+	return !!(cpufreq_driver->flags & flags);
+}
+
+/**
  *	cpufreq_get_current_driver - return current driver's name
  *
  *	Return the name string of the currently loaded cpufreq driver
@@ -2187,7 +2199,8 @@ int __cpufreq_driver_target(struct cpufreq_policy *policy,
 	 * exactly same freq is called again and so we can save on few function
 	 * calls.
 	 */
-	if (target_freq == policy->cur)
+	if (target_freq == policy->cur &&
+	    !(cpufreq_driver->flags & CPUFREQ_NEED_UPDATE_LIMITS))
 		return 0;
 
 	/* Save last value to restore later on errors */

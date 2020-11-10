@@ -1373,7 +1373,7 @@ static int hclge_tm_bp_setup(struct hclge_dev *hdev)
 			return ret;
 	}
 
-	return ret;
+	return 0;
 }
 
 int hclge_pause_setup_hw(struct hclge_dev *hdev, bool init)
