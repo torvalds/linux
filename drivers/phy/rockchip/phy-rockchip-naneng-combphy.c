@@ -88,6 +88,8 @@ static int rockchip_combphy_set_mode(struct rockchip_combphy_priv *priv)
 		param_write(priv->phy_grf, &cfg->pcie_mode_set, true);
 		break;
 	case PHY_TYPE_USB3:
+		param_write(priv->phy_grf, &cfg->pipe_txcomp_sel, false);
+		param_write(priv->phy_grf, &cfg->pipe_txelec_sel, false);
 		param_write(priv->phy_grf, &cfg->usb_mode_set, true);
 		break;
 	case PHY_TYPE_SATA:
