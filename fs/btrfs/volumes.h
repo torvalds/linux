@@ -52,6 +52,8 @@ struct btrfs_io_geometry {
 #define BTRFS_DEV_STATE_FLUSH_SENT	(4)
 #define BTRFS_DEV_STATE_NO_READA	(5)
 
+struct btrfs_zoned_device_info;
+
 struct btrfs_device {
 	struct list_head dev_list; /* device_list_mutex */
 	struct list_head dev_alloc_list; /* chunk mutex */
@@ -64,6 +66,8 @@ struct btrfs_device {
 	u64 generation;
 
 	struct block_device *bdev;
+
+	struct btrfs_zoned_device_info *zone_info;
 
 	/* the mode sent to blkdev_get */
 	fmode_t mode;
