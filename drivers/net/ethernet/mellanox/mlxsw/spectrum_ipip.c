@@ -183,12 +183,25 @@ mlxsw_sp_ipip_fib_entry_op_gre4_rtdp(struct mlxsw_sp *mlxsw_sp,
 static int
 mlxsw_sp_ipip_fib_entry_op_gre4_ralue(struct mlxsw_sp *mlxsw_sp,
 				      u32 dip, u8 prefix_len, u16 ul_vr_id,
-				      enum mlxsw_reg_ralue_op op,
+				      enum mlxsw_sp_fib_entry_op op,
 				      u32 tunnel_index)
 {
 	char ralue_pl[MLXSW_REG_RALUE_LEN];
+	enum mlxsw_reg_ralue_op ralue_op;
 
-	mlxsw_reg_ralue_pack4(ralue_pl, MLXSW_REG_RALXX_PROTOCOL_IPV4, op,
+	switch (op) {
+	case MLXSW_SP_FIB_ENTRY_OP_WRITE:
+		ralue_op = MLXSW_REG_RALUE_OP_WRITE_WRITE;
+		break;
+	case MLXSW_SP_FIB_ENTRY_OP_DELETE:
+		ralue_op = MLXSW_REG_RALUE_OP_WRITE_DELETE;
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		return -EINVAL;
+	}
+
+	mlxsw_reg_ralue_pack4(ralue_pl, MLXSW_REG_RALXX_PROTOCOL_IPV4, ralue_op,
 			      ul_vr_id, prefix_len, dip);
 	mlxsw_reg_ralue_act_ip2me_tun_pack(ralue_pl, tunnel_index);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ralue), ralue_pl);
@@ -196,7 +209,7 @@ mlxsw_sp_ipip_fib_entry_op_gre4_ralue(struct mlxsw_sp *mlxsw_sp,
 
 static int mlxsw_sp_ipip_fib_entry_op_gre4(struct mlxsw_sp *mlxsw_sp,
 					struct mlxsw_sp_ipip_entry *ipip_entry,
-					enum mlxsw_reg_ralue_op op,
+					enum mlxsw_sp_fib_entry_op op,
 					u32 tunnel_index)
 {
 	u16 ul_vr_id = mlxsw_sp_ipip_lb_ul_vr_id(ipip_entry->ol_lb);

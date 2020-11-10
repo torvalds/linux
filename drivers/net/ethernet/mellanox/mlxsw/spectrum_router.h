@@ -61,6 +61,11 @@ struct mlxsw_sp_router_ll_ops {
 	int (*raltb_write)(struct mlxsw_sp *mlxsw_sp, char *xraltb_pl);
 };
 
+enum mlxsw_sp_fib_entry_op {
+	MLXSW_SP_FIB_ENTRY_OP_WRITE,
+	MLXSW_SP_FIB_ENTRY_OP_DELETE,
+};
+
 struct mlxsw_sp_rif_ipip_lb;
 struct mlxsw_sp_rif_ipip_lb_config {
 	enum mlxsw_reg_ritr_loopback_ipip_type lb_ipipt;
