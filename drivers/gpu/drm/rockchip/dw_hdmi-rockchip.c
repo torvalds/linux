@@ -306,6 +306,7 @@ dw_hdmi_rockchip_encoder_atomic_check(struct drm_encoder *encoder,
 
 	s->output_mode = ROCKCHIP_OUT_MODE_AAAA;
 	s->output_type = DRM_MODE_CONNECTOR_HDMIA;
+	s->output_if = VOP_OUTPUT_IF_HDMI0;
 
 	return 0;
 }
