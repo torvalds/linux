@@ -25,11 +25,19 @@
 	status = "okay";
 };
 
+/*
+ * mipi_dphy0 needs to be enabled
+ * when dsi0 is enabled
+ */
 &dsi0 {
 	status = "okay";
 };
 
-&dsi1 {
+&dsi0_in_vp0 {
+	status = "okay";
+};
+
+&dsi0_in_vp1 {
 	status = "disabled";
 };
 
@@ -38,6 +46,22 @@
 	reset-gpios = <&gpio4 RK_PC5 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&lcd0_rst_gpio>;
+};
+
+/*
+ * mipi_dphy1 needs to be enabled
+ * when dsi1 is enabled
+ */
+&dsi1 {
+	status = "disabled";
+};
+
+&dsi1_in_vp0 {
+	status = "disabled";
+};
+
+&dsi1_in_vp1 {
+	status = "disabled";
 };
 
 &dsi1_panel {
@@ -99,6 +123,14 @@
 		compatible = "ethernet-phy-ieee802.3-c22";
 		reg = <0x0>;
 	};
+};
+
+&mipi_dphy0 {
+	status = "okay";
+};
+
+&mipi_dphy1 {
+	status = "disabled";
 };
 
 &pdm {

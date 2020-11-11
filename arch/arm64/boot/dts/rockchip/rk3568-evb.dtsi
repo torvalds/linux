@@ -306,7 +306,7 @@
 };
 
 &dsi0 {
-	status = "okay";
+	status = "disabled";
 	//rockchip,lane-rate = <1000>;
 	dsi0_panel: panel@0 {
 		status = "okay";
@@ -635,14 +635,6 @@
 		};
 	};
 
-};
-
-&dsi0_in_vp0 {
-	status = "okay";
-};
-
-&dsi0_in_vp1 {
-	status = "disabled";
 };
 
 &dsi1 {
@@ -975,14 +967,6 @@
 		};
 	};
 
-};
-
-&dsi1_in_vp0 {
-	status = "disabled";
-};
-
-&dsi1_in_vp1 {
-	status = "okay";
 };
 
 &gpu {
@@ -1333,14 +1317,6 @@
 };
 
 &mpp_srv {
-	status = "okay";
-};
-
-&mipi_dphy0 {
-	status = "okay";
-};
-
-&mipi_dphy1 {
 	status = "okay";
 };
 

@@ -23,6 +23,22 @@
 	};
 };
 
+/*
+ * mipi_dphy0 needs to be enabled
+ * when dsi0 is enabled
+ */
+&dsi0 {
+	status = "okay";
+};
+
+&dsi0_in_vp0 {
+	status = "okay";
+};
+
+&dsi0_in_vp1 {
+	status = "disabled";
+};
+
 &dsi0_panel {
 	power-supply = <&vcc3v3_lcd0_n>;
 	reset-gpios = <&gpio1 RK_PA5 GPIO_ACTIVE_LOW>;
@@ -47,6 +63,10 @@
 			     &i2s3lrckm1
 			     &i2s3sdim1
 			     &i2s3sdom1>;
+};
+
+&mipi_dphy0 {
+	status = "okay";
 };
 
 &rk809_codec {

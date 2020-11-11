@@ -23,6 +23,52 @@
 	};
 };
 
+/*
+ * mipi_dphy0 needs to be enabled
+ * when dsi0 is enabled
+ */
+&dsi0 {
+	status = "okay";
+};
+
+&dsi0_in_vp0 {
+	status = "okay";
+};
+
+&dsi0_in_vp1 {
+	status = "disabled";
+};
+
+&dsi0_panel {
+	power-supply = <&vcc3v3_lcd0_n>;
+	reset-gpios = <&gpio3 RK_PA3 GPIO_ACTIVE_LOW>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&lcd0_rst_gpio>;
+};
+
+/*
+ * mipi_dphy1 needs to be enabled
+ * when dsi1 is enabled
+ */
+&dsi1 {
+	status = "disabled";
+};
+
+&dsi1_in_vp0 {
+	status = "disabled";
+};
+
+&dsi1_in_vp1 {
+	status = "disabled";
+};
+
+&dsi1_panel {
+	power-supply = <&vcc3v3_lcd1_n>;
+	reset-gpios = <&gpio3 RK_PA4 GPIO_ACTIVE_LOW>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&lcd1_rst_gpio>;
+};
+
 &gmac1 {
 	phy-mode = "rgmii";
 	clock_in_out = "output";
@@ -53,27 +99,7 @@
 	};
 };
 
-&dsi0 {
-	status = "okay";
-};
 
-&dsi1 {
-	status = "disabled";
-};
-
-&dsi0_panel {
-	power-supply = <&vcc3v3_lcd0_n>;
-	reset-gpios = <&gpio3 RK_PA3 GPIO_ACTIVE_LOW>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&lcd0_rst_gpio>;
-};
-
-&dsi1_panel {
-	power-supply = <&vcc3v3_lcd1_n>;
-	reset-gpios = <&gpio3 RK_PA4 GPIO_ACTIVE_LOW>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&lcd1_rst_gpio>;
-};
 
 /*
  * power-supply should switche to vcc3v3_lcd1_n
@@ -81,6 +107,14 @@
  */
 &gt1x {
 	power-supply = <&vcc3v3_lcd0_n>;
+};
+
+&mipi_dphy0 {
+	status = "okay";
+};
+
+&mipi_dphy1 {
+	status = "disabled";
 };
 
 &pinctrl {
