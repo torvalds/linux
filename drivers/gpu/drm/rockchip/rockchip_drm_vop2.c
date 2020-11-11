@@ -2025,20 +2025,25 @@ static int vop2_plane_info_dump(struct seq_file *s, struct drm_plane *plane)
 	src = &vpstate->src;
 	dest = &vpstate->dest;
 
+	DEBUG_PRINT("\twin_id: %d\n", win->win_id);
+
 	drm_get_format_name(fb->format->format, &format_name);
 	DEBUG_PRINT("\tformat: %s%s%s[%d] color_space[%d]\n",
 		    format_name.str,
 		    rockchip_afbc(fb->modifier) ? "[AFBC]" : "",
 		    vpstate->eotf ? " HDR" : " SDR", vpstate->eotf,
 		    vpstate->color_space);
+	DEBUG_PRINT("\trotate: xmirror: %d ymirror: %d rotate_90: %d rotate_270: %d\n",
+		    vpstate->xmirror_en, vpstate->ymirror_en, vpstate->rotate_90_en,
+		    vpstate->rotate_270_en);
 	DEBUG_PRINT("\tcsc: y2r[%d] r2y[%d] csc mode[%d]\n",
 		    vpstate->y2r_en, vpstate->r2y_en,
 		    vpstate->csc_mode);
 	DEBUG_PRINT("\tzpos: %d\n", vpstate->zpos);
-	DEBUG_PRINT("\tsrc: pos[%dx%d] rect[%dx%d]\n", src->x1 >> 16,
+	DEBUG_PRINT("\tsrc: pos[%d, %d] rect[%d x %d]\n", src->x1 >> 16,
 		    src->y1 >> 16, drm_rect_width(src) >> 16,
 		    drm_rect_height(src) >> 16);
-	DEBUG_PRINT("\tdst: pos[%dx%d] rect[%dx%d]\n", dest->x1, dest->y1,
+	DEBUG_PRINT("\tdst: pos[%d, %d] rect[%d x %d]\n", dest->x1, dest->y1,
 		    drm_rect_width(dest), drm_rect_height(dest));
 
 	for (i = 0; i < drm_format_num_planes(fb->format->format); i++) {
