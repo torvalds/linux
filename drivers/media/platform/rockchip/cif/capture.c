@@ -271,48 +271,56 @@ static const struct cif_input_fmt in_fmts[] = {
 		.mbus_code	= MEDIA_BUS_FMT_YUYV8_2X8,
 		.dvp_fmt_val	= YUV_INPUT_422 | YUV_INPUT_ORDER_YUYV,
 		.csi_fmt_val	= CSI_WRDDR_TYPE_YUV422,
+		.csi_yuv_order	= CSI_YUV_INPUT_ORDER_YUYV,
 		.fmt_type	= CIF_FMT_TYPE_YUV,
 		.field		= V4L2_FIELD_NONE,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_YUYV8_2X8,
 		.dvp_fmt_val	= YUV_INPUT_422 | YUV_INPUT_ORDER_YUYV,
 		.csi_fmt_val	= CSI_WRDDR_TYPE_YUV422,
+		.csi_yuv_order	= CSI_YUV_INPUT_ORDER_YUYV,
 		.fmt_type	= CIF_FMT_TYPE_YUV,
 		.field		= V4L2_FIELD_INTERLACED,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_YVYU8_2X8,
 		.dvp_fmt_val	= YUV_INPUT_422 | YUV_INPUT_ORDER_YVYU,
 		.csi_fmt_val	= CSI_WRDDR_TYPE_YUV422,
+		.csi_yuv_order	= CSI_YUV_INPUT_ORDER_YVYU,
 		.fmt_type	= CIF_FMT_TYPE_YUV,
 		.field		= V4L2_FIELD_NONE,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_YVYU8_2X8,
 		.dvp_fmt_val	= YUV_INPUT_422 | YUV_INPUT_ORDER_YVYU,
 		.csi_fmt_val	= CSI_WRDDR_TYPE_YUV422,
+		.csi_yuv_order	= CSI_YUV_INPUT_ORDER_YVYU,
 		.fmt_type	= CIF_FMT_TYPE_YUV,
 		.field		= V4L2_FIELD_INTERLACED,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_UYVY8_2X8,
 		.dvp_fmt_val	= YUV_INPUT_422 | YUV_INPUT_ORDER_UYVY,
 		.csi_fmt_val	= CSI_WRDDR_TYPE_YUV422,
+		.csi_yuv_order	= CSI_YUV_INPUT_ORDER_UYVY,
 		.fmt_type	= CIF_FMT_TYPE_YUV,
 		.field		= V4L2_FIELD_NONE,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_UYVY8_2X8,
 		.dvp_fmt_val	= YUV_INPUT_422 | YUV_INPUT_ORDER_UYVY,
 		.csi_fmt_val	= CSI_WRDDR_TYPE_YUV422,
+		.csi_yuv_order	= CSI_YUV_INPUT_ORDER_UYVY,
 		.fmt_type	= CIF_FMT_TYPE_YUV,
 		.field		= V4L2_FIELD_INTERLACED,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_VYUY8_2X8,
 		.dvp_fmt_val	= YUV_INPUT_422 | YUV_INPUT_ORDER_VYUY,
 		.csi_fmt_val	= CSI_WRDDR_TYPE_YUV422,
+		.csi_yuv_order	= CSI_YUV_INPUT_ORDER_VYUY,
 		.fmt_type	= CIF_FMT_TYPE_YUV,
 		.field		= V4L2_FIELD_NONE,
 	}, {
 		.mbus_code	= MEDIA_BUS_FMT_VYUY8_2X8,
 		.dvp_fmt_val	= YUV_INPUT_422 | YUV_INPUT_ORDER_VYUY,
 		.csi_fmt_val	= CSI_WRDDR_TYPE_YUV422,
+		.csi_yuv_order	= CSI_YUV_INPUT_ORDER_VYUY,
 		.fmt_type	= CIF_FMT_TYPE_YUV,
 		.field		= V4L2_FIELD_INTERLACED,
 	}, {
@@ -1452,6 +1460,9 @@ static int rkcif_csi_channel_set(struct rkcif_stream *stream,
 			val |= CSI_ENABLE_MIPI_COMPACT;
 		else
 			val &= ~CSI_ENABLE_MIPI_COMPACT;
+
+		if (stream->cifdev->chip_id >= CHIP_RK3568_CIF)
+			val |= stream->cif_fmt_in->csi_yuv_order;
 	} else if (mbus_type  == V4L2_MBUS_CCP2) {
 		rkcif_csi_set_lvds_sav_eav(stream, channel);
 		val = LVDS_ENABLE_CAPTURE | LVDS_MODE(channel->lvds_cfg.mode) |
@@ -1853,8 +1864,10 @@ static u32 rkcif_determine_input_mode(struct rkcif_stream *stream)
 {
 	struct rkcif_device *dev = stream->cifdev;
 	struct rkcif_sensor_info *sensor_info = dev->active_sensor;
-	v4l2_std_id std;
+	struct rkcif_sensor_info *terminal_sensor = &dev->terminal_sensor;
+	__u32 intf = BT656_STD_RAW;
 	u32 mode = INPUT_MODE_YUV;
+	v4l2_std_id std;
 	int ret;
 
 	ret = v4l2_subdev_call(sensor_info->sd, video, querystd, &std);
@@ -1878,10 +1891,32 @@ static u32 rkcif_determine_input_mode(struct rkcif_stream *stream)
 		/* determine input mode by mbus_code (fmt_type) */
 		switch (stream->cif_fmt_in->fmt_type) {
 		case CIF_FMT_TYPE_YUV:
-			mode = INPUT_MODE_YUV;
+			if (dev->chip_id >= CHIP_RK3568_CIF) {
+				if (sensor_info->mbus.type == V4L2_MBUS_BT656)
+					mode = INPUT_MODE_BT656_YUV422;
+				else
+					mode = INPUT_MODE_YUV;
+			} else {
+				mode = INPUT_MODE_YUV;
+			}
 			break;
 		case CIF_FMT_TYPE_RAW:
-			mode = INPUT_MODE_RAW;
+			if (dev->chip_id >= CHIP_RK3568_CIF) {
+				ret = v4l2_subdev_call(terminal_sensor->sd,
+						       core, ioctl,
+						       RKMODULE_GET_BT656_INTF_TYPE,
+						       &intf);
+				if (!ret) {
+					if (intf == BT656_SONY_RAW)
+						mode = INPUT_MODE_SONY_RAW;
+					else
+						mode = INPUT_MODE_RAW;
+				} else {
+					mode = INPUT_MODE_RAW;
+				}
+			} else {
+				mode = INPUT_MODE_RAW;
+			}
 			break;
 		}
 	}
@@ -2029,13 +2064,9 @@ static int rkcif_stream_start(struct rkcif_stream *stream)
 
 	mbus_flags = sensor_info->mbus.flags;
 	if (mbus_flags & V4L2_MBUS_PCLK_SAMPLE_RISING)
-		rkcif_write_grf_reg(dev,
-				    CIF_REG_GRF_CIFIO_CON,
-				    CIF_PCLK_SAMPLING_EDGE_RISING);
+		rkcif_config_dvp_clk_sampling_edge(dev, RKCIF_CLK_RISING);
 	else
-		rkcif_write_grf_reg(dev,
-				    CIF_REG_GRF_CIFIO_CON,
-				    CIF_PCLK_SAMPLING_EDGE_FALLING);
+		rkcif_config_dvp_clk_sampling_edge(dev, RKCIF_CLK_FALLING);
 
 	href_pol = (mbus_flags & V4L2_MBUS_HSYNC_ACTIVE_HIGH) ?
 		    HSY_HIGH_ACTIVE : HSY_LOW_ACTIVE;
@@ -2108,7 +2139,8 @@ static int rkcif_stream_start(struct rkcif_stream *stream)
 	rkcif_write_register(dev, CIF_REG_DVP_SCL_CTRL, rkcif_scl_ctl(stream));
 
 	if ((dev->chip_id == CHIP_RK1808_CIF ||
-	     dev->chip_id == CHIP_RV1126_CIF) &&
+	     dev->chip_id == CHIP_RV1126_CIF ||
+	     dev->chip_id == CHIP_RK3568_CIF) &&
 	     inputmode == INPUT_MODE_BT1120)
 		rkcif_assign_new_buffer_pingpong(stream, 1, 0);
 	else
@@ -2127,7 +2159,8 @@ static int rkcif_stream_start(struct rkcif_stream *stream)
 		workmode = MODE_LINELOOP;
 
 	if ((dev->chip_id == CHIP_RK1808_CIF ||
-	     dev->chip_id == CHIP_RV1126_CIF) &&
+	     dev->chip_id == CHIP_RV1126_CIF ||
+	     dev->chip_id == CHIP_RK3568_CIF) &&
 	     inputmode == INPUT_MODE_BT1120) {
 		dev->workmode = RKCIF_WORKMODE_PINGPONG;
 		rkcif_write_register(dev, CIF_REG_DVP_CTRL,
@@ -2279,7 +2312,8 @@ static int rkcif_start_streaming(struct vb2_queue *queue, unsigned int count)
 
 	if (dev->chip_id == CHIP_RK1808_CIF ||
 	    dev->chip_id == CHIP_RV1126_CIF ||
-	    dev->chip_id == CHIP_RV1126_CIF_LITE) {
+	    dev->chip_id == CHIP_RV1126_CIF_LITE ||
+	    dev->chip_id == CHIP_RK3568_CIF) {
 		if (dev->active_sensor->mbus.type == V4L2_MBUS_CSI2 ||
 		    dev->active_sensor->mbus.type == V4L2_MBUS_CCP2)
 			ret = rkcif_csi_stream_start(stream);
@@ -2569,7 +2603,8 @@ static int rkcif_fh_open(struct file *filp)
 	 */
 	if (cifdev->chip_id == CHIP_RK1808_CIF ||
 	    cifdev->chip_id == CHIP_RV1126_CIF ||
-	    cifdev->chip_id == CHIP_RV1126_CIF_LITE) {
+	    cifdev->chip_id == CHIP_RV1126_CIF_LITE ||
+	    cifdev->chip_id == CHIP_RK3568_CIF) {
 		mutex_lock(&cifdev->stream_lock);
 		if (!atomic_read(&cifdev->fh_cnt))
 			rkcif_soft_reset(cifdev, true);
@@ -3799,7 +3834,8 @@ static void rkcif_update_stream(struct rkcif_device *cif_dev,
 	rkcif_assign_new_buffer_pingpong(stream, 0, mipi_id);
 
 	if (cif_dev->chip_id == CHIP_RV1126_CIF ||
-	    cif_dev->chip_id == CHIP_RV1126_CIF_LITE)
+	    cif_dev->chip_id == CHIP_RV1126_CIF_LITE ||
+	    cif_dev->chip_id == CHIP_RK3568_CIF)
 		rkcif_luma_isr(&cif_dev->luma_vdev, mipi_id, stream->frame_idx);
 
 	if (active_buf) {
@@ -4182,7 +4218,8 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 	if ((mbus->type == V4L2_MBUS_CSI2 ||
 	     mbus->type == V4L2_MBUS_CCP2) &&
 	    (cif_dev->chip_id == CHIP_RK1808_CIF ||
-	     cif_dev->chip_id == CHIP_RV1126_CIF)) {
+	     cif_dev->chip_id == CHIP_RV1126_CIF ||
+	     cif_dev->chip_id == CHIP_RK3568_CIF)) {
 		int mipi_id;
 		u32 lastline = 0;
 

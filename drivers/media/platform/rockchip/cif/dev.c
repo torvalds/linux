@@ -224,6 +224,30 @@ u32 rkcif_read_grf_reg(struct rkcif_device *dev, enum cif_reg_index index)
 	return val;
 }
 
+void rkcif_config_dvp_clk_sampling_edge(struct rkcif_device *dev,
+					enum rkcif_clk_edge edge)
+{
+	struct rkcif_hw *cif_hw = dev->hw_dev;
+	u32 val = 0x0;
+
+	if (!IS_ERR(cif_hw->grf)) {
+		if (dev->chip_id == CHIP_RV1126_CIF) {
+			if (edge == RKCIF_CLK_RISING)
+				val = CIF_PCLK_SAMPLING_EDGE_RISING;
+			else
+				val = CIF_PCLK_SAMPLING_EDGE_FALLING;
+		}
+
+		if (dev->chip_id == CHIP_RK3568_CIF) {
+			if (edge == RKCIF_CLK_RISING)
+				val = RK3568_CIF_PCLK_SAMPLING_EDGE_RISING;
+			else
+				val = RK3568_CIF_PCLK_SAMPLING_EDGE_FALLING;
+		}
+		rkcif_write_grf_reg(dev, CIF_REG_GRF_CIFIO_CON, val);
+	}
+}
+
 static bool is_iommu_enable(struct device *dev)
 {
 	struct device_node *iommu;
@@ -465,7 +489,8 @@ static int rkcif_create_links(struct rkcif_device *dev)
 				if ((linked_sensor.mbus.type == V4L2_MBUS_BT656 ||
 				     linked_sensor.mbus.type == V4L2_MBUS_PARALLEL) &&
 				    (dev->chip_id == CHIP_RK1808_CIF ||
-				     dev->chip_id == CHIP_RV1126_CIF)) {
+				     dev->chip_id == CHIP_RV1126_CIF ||
+				     dev->chip_id == CHIP_RK3568_CIF)) {
 					source_entity = &linked_sensor.sd->entity;
 					sink_entity = &dev->stream[RKCIF_STREAM_CIF].vnode.vdev.entity;
 
@@ -486,7 +511,8 @@ static int rkcif_create_links(struct rkcif_device *dev)
 
 					if ((dev->chip_id != CHIP_RK1808_CIF &&
 					     dev->chip_id != CHIP_RV1126_CIF &&
-					     dev->chip_id != CHIP_RV1126_CIF_LITE) ||
+					     dev->chip_id != CHIP_RV1126_CIF_LITE &&
+					     dev->chip_id != CHIP_RK3568_CIF) ||
 					    (id == pad - 1 && !mipi_lvds_linked))
 						flags = MEDIA_LNK_FL_ENABLED;
 					else
@@ -853,7 +879,8 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 		goto err_unreg_media_dev;
 
 	if (cif_dev->chip_id == CHIP_RV1126_CIF ||
-	    cif_dev->chip_id == CHIP_RV1126_CIF_LITE)
+	    cif_dev->chip_id == CHIP_RV1126_CIF_LITE ||
+	    cif_dev->chip_id == CHIP_RK3568_CIF)
 		rkcif_register_luma_vdev(&cif_dev->luma_vdev, v4l2_dev, cif_dev);
 
 	mutex_lock(&rkcif_dev_mutex);

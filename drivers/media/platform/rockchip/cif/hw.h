@@ -33,15 +33,20 @@
 #define write_cif_reg_and(base, addr, val) \
 	writel(readl((addr) + (base)) & (val), (addr) + (base))
 
+/*
+ * add new chip id in tail in time order
+ * by increasing to distinguish cif version
+ */
 enum rkcif_chip_id {
 	CHIP_PX30_CIF,
-	CHIP_RK1808_CIF,
 	CHIP_RK3128_CIF,
 	CHIP_RK3288_CIF,
 	CHIP_RK3328_CIF,
 	CHIP_RK3368_CIF,
+	CHIP_RK1808_CIF,
 	CHIP_RV1126_CIF,
 	CHIP_RV1126_CIF_LITE,
+	CHIP_RK3568_CIF,
 };
 
 struct rkcif_hw_match_data {

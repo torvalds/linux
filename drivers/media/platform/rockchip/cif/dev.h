@@ -112,6 +112,11 @@ enum rkcif_inf_id {
 	RKCIF_MIPI_LVDS,
 };
 
+enum rkcif_clk_edge {
+	RKCIF_CLK_RISING = 0x0,
+	RKCIF_CLK_FALLING,
+};
+
 /*
  * for distinguishing cropping from senosr or usr
  */
@@ -219,6 +224,7 @@ struct cif_input_fmt {
 	u32 mbus_code;
 	u32 dvp_fmt_val;
 	u32 csi_fmt_val;
+	u32 csi_yuv_order;
 	enum cif_fmt_type fmt_type;
 	enum v4l2_field field;
 };
@@ -502,5 +508,7 @@ int rkcif_attach_hw(struct rkcif_device *cif_dev);
 int rkcif_update_sensor_info(struct rkcif_stream *stream);
 int rkcif_reset_notifier(struct notifier_block *nb, unsigned long action, void *data);
 void rkcif_reset_watchdog_timer_handler(struct timer_list *t);
+void rkcif_config_dvp_clk_sampling_edge(struct rkcif_device *dev,
+					enum rkcif_clk_edge edge);
 
 #endif
