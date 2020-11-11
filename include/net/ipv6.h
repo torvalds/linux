@@ -1064,6 +1064,8 @@ int ipv6_skip_exthdr(const struct sk_buff *, int start, u8 *nexthdrp,
 
 bool ipv6_ext_hdr(u8 nexthdr);
 
+bool ipv6_frag_thdr_truncated(struct sk_buff *skb, int start, u8 *nexthdrp);
+
 enum {
 	IP6_FH_F_FRAG		= (1 << 0),
 	IP6_FH_F_AUTH		= (1 << 1),
