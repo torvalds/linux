@@ -541,7 +541,8 @@
 			<&cru ACLK_BUS>, <&cru PCLK_BUS>,
 			<&cru ACLK_TOP_HIGH>, <&cru ACLK_TOP_LOW>,
 			<&cru HCLK_TOP>, <&cru PCLK_TOP>,
-			<&cru ACLK_PERIMID>, <&cru HCLK_PERIMID>;
+			<&cru ACLK_PERIMID>, <&cru HCLK_PERIMID>,
+			<&cru PLL_NPLL>;
 		assigned-clock-rates =
 			<32768>, <100000000>,
 			<100000000>, <1000000000>,
@@ -549,7 +550,8 @@
 			<150000000>, <100000000>,
 			<300000000>, <200000000>,
 			<150000000>, <100000000>,
-			<300000000>, <150000000>;
+			<300000000>, <150000000>,
+			<1200000000>;
 		assigned-clock-parents =
 			<&pmucru CLK_RTC32K_FRAC>;
 	};
