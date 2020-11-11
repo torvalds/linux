@@ -58,6 +58,7 @@
 #define CPU_FTR_NOEXECUTE	0
 #endif
 
+static DEFINE_MUTEX(linear_mapping_mutex);
 unsigned long long memory_limit;
 bool init_mem_is_free;
 
@@ -126,8 +127,10 @@ int __ref arch_create_linear_mapping(int nid, u64 start, u64 size,
 	int rc;
 
 	start = (unsigned long)__va(start);
+	mutex_lock(&linear_mapping_mutex);
 	rc = create_section_mapping(start, start + size, nid,
 				    params->pgprot);
+	mutex_unlock(&linear_mapping_mutex);
 	if (rc) {
 		pr_warn("Unable to create linear mapping for 0x%llx..0x%llx: %d\n",
 			start, start + size, rc);
@@ -144,7 +147,9 @@ void __ref arch_remove_linear_mapping(u64 start, u64 size)
 	start = (unsigned long)__va(start);
 	flush_dcache_range_chunked(start, start + size, FLUSH_CHUNK_SIZE);
 
+	mutex_lock(&linear_mapping_mutex);
 	ret = remove_section_mapping(start, start + size);
+	mutex_unlock(&linear_mapping_mutex);
 	WARN_ON_ONCE(ret);
 
 	/* Ensure all vmalloc mappings are flushed in case they also
