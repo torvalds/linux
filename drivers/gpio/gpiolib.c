@@ -936,67 +936,6 @@ bool gpiochip_irqchip_irq_valid(const struct gpio_chip *gc,
 }
 EXPORT_SYMBOL_GPL(gpiochip_irqchip_irq_valid);
 
-/**
- * gpiochip_set_cascaded_irqchip() - connects a cascaded irqchip to a gpiochip
- * @gc: the gpiochip to set the irqchip chain to
- * @parent_irq: the irq number corresponding to the parent IRQ for this
- * cascaded irqchip
- * @parent_handler: the parent interrupt handler for the accumulated IRQ
- * coming out of the gpiochip. If the interrupt is nested rather than
- * cascaded, pass NULL in this handler argument
- */
-static void gpiochip_set_cascaded_irqchip(struct gpio_chip *gc,
-					  unsigned int parent_irq,
-					  irq_flow_handler_t parent_handler)
-{
-	struct gpio_irq_chip *girq = &gc->irq;
-	struct device *dev = &gc->gpiodev->dev;
-
-	if (!girq->domain) {
-		chip_err(gc, "called %s before setting up irqchip\n",
-			 __func__);
-		return;
-	}
-
-	if (parent_handler) {
-		if (gc->can_sleep) {
-			chip_err(gc,
-				 "you cannot have chained interrupts on a chip that may sleep\n");
-			return;
-		}
-		girq->parents = devm_kcalloc(dev, 1,
-					     sizeof(*girq->parents),
-					     GFP_KERNEL);
-		if (!girq->parents) {
-			chip_err(gc, "out of memory allocating parent IRQ\n");
-			return;
-		}
-		girq->parents[0] = parent_irq;
-		girq->num_parents = 1;
-		/*
-		 * The parent irqchip is already using the chip_data for this
-		 * irqchip, so our callbacks simply use the handler_data.
-		 */
-		irq_set_chained_handler_and_data(parent_irq, parent_handler,
-						 gc);
-	}
-}
-
-/**
- * gpiochip_set_nested_irqchip() - connects a nested irqchip to a gpiochip
- * @gc: the gpiochip to set the irqchip nested handler to
- * @irqchip: the irqchip to nest to the gpiochip
- * @parent_irq: the irq number corresponding to the parent IRQ for this
- * nested irqchip
- */
-void gpiochip_set_nested_irqchip(struct gpio_chip *gc,
-				 struct irq_chip *irqchip,
-				 unsigned int parent_irq)
-{
-	gpiochip_set_cascaded_irqchip(gc, parent_irq, NULL);
-}
-EXPORT_SYMBOL_GPL(gpiochip_set_nested_irqchip);
-
 #ifdef CONFIG_IRQ_DOMAIN_HIERARCHY
 
 /**
@@ -1648,98 +1587,6 @@ static void gpiochip_irqchip_remove(struct gpio_chip *gc)
 }
 
 /**
- * gpiochip_irqchip_add_key() - adds an irqchip to a gpiochip
- * @gc: the gpiochip to add the irqchip to
- * @irqchip: the irqchip to add to the gpiochip
- * @first_irq: if not dynamically assigned, the base (first) IRQ to
- * allocate gpiochip irqs from
- * @handler: the irq handler to use (often a predefined irq core function)
- * @type: the default type for IRQs on this irqchip, pass IRQ_TYPE_NONE
- * to have the core avoid setting up any default type in the hardware.
- * @threaded: whether this irqchip uses a nested thread handler
- * @lock_key: lockdep class for IRQ lock
- * @request_key: lockdep class for IRQ request
- *
- * This function closely associates a certain irqchip with a certain
- * gpiochip, providing an irq domain to translate the local IRQs to
- * global irqs in the gpiolib core, and making sure that the gpiochip
- * is passed as chip data to all related functions. Driver callbacks
- * need to use gpiochip_get_data() to get their local state containers back
- * from the gpiochip passed as chip data. An irqdomain will be stored
- * in the gpiochip that shall be used by the driver to handle IRQ number
- * translation. The gpiochip will need to be initialized and registered
- * before calling this function.
- *
- * This function will handle two cell:ed simple IRQs and assumes all
- * the pins on the gpiochip can generate a unique IRQ. Everything else
- * need to be open coded.
- */
-int gpiochip_irqchip_add_key(struct gpio_chip *gc,
-			     struct irq_chip *irqchip,
-			     unsigned int first_irq,
-			     irq_flow_handler_t handler,
-			     unsigned int type,
-			     bool threaded,
-			     struct lock_class_key *lock_key,
-			     struct lock_class_key *request_key)
-{
-	struct device_node *of_node;
-
-	if (!gc || !irqchip)
-		return -EINVAL;
-
-	if (!gc->parent) {
-		chip_err(gc, "missing gpiochip .dev parent pointer\n");
-		return -EINVAL;
-	}
-	gc->irq.threaded = threaded;
-	of_node = gc->parent->of_node;
-#ifdef CONFIG_OF_GPIO
-	/*
-	 * If the gpiochip has an assigned OF node this takes precedence
-	 * FIXME: get rid of this and use gc->parent->of_node
-	 * everywhere
-	 */
-	if (gc->of_node)
-		of_node = gc->of_node;
-#endif
-	/*
-	 * Specifying a default trigger is a terrible idea if DT or ACPI is
-	 * used to configure the interrupts, as you may end-up with
-	 * conflicting triggers. Tell the user, and reset to NONE.
-	 */
-	if (WARN(of_node && type != IRQ_TYPE_NONE,
-		 "%pOF: Ignoring %d default trigger\n", of_node, type))
-		type = IRQ_TYPE_NONE;
-	if (has_acpi_companion(gc->parent) && type != IRQ_TYPE_NONE) {
-		acpi_handle_warn(ACPI_HANDLE(gc->parent),
-				 "Ignoring %d default trigger\n", type);
-		type = IRQ_TYPE_NONE;
-	}
-
-	gc->irq.chip = irqchip;
-	gc->irq.handler = handler;
-	gc->irq.default_type = type;
-	gc->to_irq = gpiochip_to_irq;
-	gc->irq.lock_key = lock_key;
-	gc->irq.request_key = request_key;
-	gc->irq.domain = irq_domain_add_simple(of_node,
-					gc->ngpio, first_irq,
-					&gpiochip_domain_ops, gc);
-	if (!gc->irq.domain) {
-		gc->irq.chip = NULL;
-		return -EINVAL;
-	}
-
-	gpiochip_set_irq_hooks(gc);
-
-	acpi_gpiochip_request_interrupts(gc);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(gpiochip_irqchip_add_key);
-
-/**
  * gpiochip_irqchip_add_domain() - adds an irqdomain to a gpiochip
  * @gc: the gpiochip to add the irqchip to
  * @domain: the irqdomain to add to the gpiochip
@@ -2268,8 +2115,8 @@ static int gpio_set_config(struct gpio_desc *desc, enum pin_config_param mode)
 
 static int gpio_set_bias(struct gpio_desc *desc)
 {
-	int bias = 0;
-	int ret = 0;
+	enum pin_config_param bias;
+	int ret;
 
 	if (test_bit(FLAG_BIAS_DISABLE, &desc->flags))
 		bias = PIN_CONFIG_BIAS_DISABLE;
@@ -2277,12 +2124,13 @@ static int gpio_set_bias(struct gpio_desc *desc)
 		bias = PIN_CONFIG_BIAS_PULL_UP;
 	else if (test_bit(FLAG_PULL_DOWN, &desc->flags))
 		bias = PIN_CONFIG_BIAS_PULL_DOWN;
+	else
+		return 0;
 
-	if (bias) {
-		ret = gpio_set_config(desc, bias);
-		if (ret != -ENOTSUPP)
-			return ret;
-	}
+	ret = gpio_set_config(desc, bias);
+	if (ret != -ENOTSUPP)
+		return ret;
+
 	return 0;
 }
 
