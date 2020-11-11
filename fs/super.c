@@ -1631,36 +1631,6 @@ int super_setup_bdi(struct super_block *sb)
 }
 EXPORT_SYMBOL(super_setup_bdi);
 
-/*
- * This is an internal function, please use sb_end_{write,pagefault,intwrite}
- * instead.
- */
-void __sb_end_write(struct super_block *sb, int level)
-{
-	percpu_up_read(sb->s_writers.rw_sem + level-1);
-}
-EXPORT_SYMBOL(__sb_end_write);
-
-/*
- * This is an internal function, please use sb_start_{write,pagefault,intwrite}
- * instead.
- */
-void __sb_start_write(struct super_block *sb, int level)
-{
-	percpu_down_read(sb->s_writers.rw_sem + level - 1);
-}
-EXPORT_SYMBOL(__sb_start_write);
-
-/*
- * This is an internal function, please use sb_start_{write,pagefault,intwrite}
- * instead.
- */
-bool __sb_start_write_trylock(struct super_block *sb, int level)
-{
-	return percpu_down_read_trylock(sb->s_writers.rw_sem + level - 1);
-}
-EXPORT_SYMBOL_GPL(__sb_start_write_trylock);
-
 /**
  * sb_wait_write - wait until all writers to given file system finish
  * @sb: the super for which we wait
