@@ -1087,6 +1087,26 @@ int analogix_dp_send_psr_spd(struct analogix_dp_device *dp,
 	return 0;
 }
 
+void analogix_dp_phy_power_on(struct analogix_dp_device *dp)
+{
+	if (dp->phy_enabled)
+		return;
+
+	phy_power_on(dp->phy);
+
+	dp->phy_enabled = true;
+}
+
+void analogix_dp_phy_power_off(struct analogix_dp_device *dp)
+{
+	if (!dp->phy_enabled)
+		return;
+
+	phy_power_off(dp->phy);
+
+	dp->phy_enabled = false;
+}
+
 ssize_t analogix_dp_transfer(struct analogix_dp_device *dp,
 			     struct drm_dp_aux_msg *msg)
 {
@@ -1102,8 +1122,10 @@ ssize_t analogix_dp_transfer(struct analogix_dp_device *dp,
 		return -E2BIG;
 
 	reg = analogix_dp_read(dp, ANALOGIX_DP_FUNC_EN_2);
-	if (reg & AUX_FUNC_EN_N)
+	if (reg & AUX_FUNC_EN_N) {
+		analogix_dp_phy_power_on(dp);
 		analogix_dp_init_aux(dp);
+	}
 
 	/* Clear AUX CH data buffer */
 	reg = BUF_CLR;

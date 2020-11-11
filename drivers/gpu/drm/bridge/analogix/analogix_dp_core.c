@@ -1204,7 +1204,7 @@ static int analogix_dp_set_bridge(struct analogix_dp_device *dp)
 	if (dp->plat_data->power_on_start)
 		dp->plat_data->power_on_start(dp->plat_data);
 
-	phy_power_on(dp->phy);
+	analogix_dp_phy_power_on(dp);
 
 	ret = analogix_dp_init_dp(dp);
 	if (ret)
@@ -1234,7 +1234,7 @@ static int analogix_dp_set_bridge(struct analogix_dp_device *dp)
 	return 0;
 
 out_dp_init:
-	phy_power_off(dp->phy);
+	analogix_dp_phy_power_off(dp);
 	if (dp->plat_data->power_off)
 		dp->plat_data->power_off(dp->plat_data);
 	clk_disable_unprepare(dp->clock);
@@ -1286,7 +1286,7 @@ static void analogix_dp_bridge_disable(struct drm_bridge *bridge)
 		dp->plat_data->power_off(dp->plat_data);
 
 	analogix_dp_set_analog_power_down(dp, POWER_ALL, 1);
-	phy_power_off(dp->phy);
+	analogix_dp_phy_power_off(dp);
 
 	clk_disable_unprepare(dp->clock);
 

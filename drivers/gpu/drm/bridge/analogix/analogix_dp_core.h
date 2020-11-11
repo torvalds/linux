@@ -177,6 +177,7 @@ struct analogix_dp_device {
 	struct video_info	video_info;
 	struct link_train	link_train;
 	struct phy		*phy;
+	bool			phy_enabled;
 	int			dpms_mode;
 	struct gpio_desc	*hpd_gpiod;
 	bool                    force_hpd;
@@ -249,5 +250,7 @@ ssize_t analogix_dp_transfer(struct analogix_dp_device *dp,
 void analogix_dp_set_video_format(struct analogix_dp_device *dp);
 void analogix_dp_video_bist_enable(struct analogix_dp_device *dp);
 bool analogix_dp_ssc_supported(struct analogix_dp_device *dp);
+void analogix_dp_phy_power_on(struct analogix_dp_device *dp);
+void analogix_dp_phy_power_off(struct analogix_dp_device *dp);
 
 #endif /* _ANALOGIX_DP_CORE_H */
