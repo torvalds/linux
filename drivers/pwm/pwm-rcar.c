@@ -168,7 +168,7 @@ static int rcar_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	/* This HW/driver only supports normal polarity */
 	if (state->polarity != PWM_POLARITY_NORMAL)
-		return -ENOTSUPP;
+		return -EINVAL;
 
 	if (!state->enabled) {
 		rcar_pwm_disable(rp);
