@@ -1451,7 +1451,7 @@ ssize_t fuse_direct_io(struct fuse_io_priv *io, struct iov_iter *iter,
 
 		if (write) {
 			if (!capable(CAP_FSETID))
-				ia->write.in.write_flags |= FUSE_WRITE_KILL_PRIV;
+				ia->write.in.write_flags |= FUSE_WRITE_KILL_SUIDGID;
 
 			nres = fuse_send_write(ia, pos, nbytes, owner);
 		} else {
