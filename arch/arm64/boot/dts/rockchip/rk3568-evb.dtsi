@@ -1509,6 +1509,10 @@
 	#sound-dai-cells = <0>;
 };
 
+&tsadc {
+	status = "okay";
+};
+
 &usb2phy0 {
 	status = "okay";
 
