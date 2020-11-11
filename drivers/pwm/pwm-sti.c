@@ -505,7 +505,6 @@ static int sti_pwm_probe_dt(struct sti_pwm_chip *pc)
 	if (IS_ERR(pc->prescale_high))
 		return PTR_ERR(pc->prescale_high);
 
-
 	pc->pwm_out_en = devm_regmap_field_alloc(dev, pc->regmap,
 						 reg_fields[PWM_OUT_EN]);
 	if (IS_ERR(pc->pwm_out_en))
