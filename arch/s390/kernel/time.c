@@ -927,41 +927,25 @@ static ssize_t online_store(struct device *dev,
  */
 static DEVICE_ATTR_RW(online);
 
-static struct device_attribute *stp_attributes[] = {
-	&dev_attr_ctn_id,
-	&dev_attr_ctn_type,
-	&dev_attr_dst_offset,
-	&dev_attr_leap_seconds,
-	&dev_attr_online,
-	&dev_attr_leap_seconds_scheduled,
-	&dev_attr_stratum,
-	&dev_attr_time_offset,
-	&dev_attr_time_zone_offset,
-	&dev_attr_timing_mode,
-	&dev_attr_timing_state,
+static struct attribute *stp_dev_attrs[] = {
+	&dev_attr_ctn_id.attr,
+	&dev_attr_ctn_type.attr,
+	&dev_attr_dst_offset.attr,
+	&dev_attr_leap_seconds.attr,
+	&dev_attr_online.attr,
+	&dev_attr_leap_seconds_scheduled.attr,
+	&dev_attr_stratum.attr,
+	&dev_attr_time_offset.attr,
+	&dev_attr_time_zone_offset.attr,
+	&dev_attr_timing_mode.attr,
+	&dev_attr_timing_state.attr,
 	NULL
 };
+ATTRIBUTE_GROUPS(stp_dev);
 
 static int __init stp_init_sysfs(void)
 {
-	struct device_attribute **attr;
-	int rc;
-
-	rc = subsys_system_register(&stp_subsys, NULL);
-	if (rc)
-		goto out;
-	for (attr = stp_attributes; *attr; attr++) {
-		rc = device_create_file(stp_subsys.dev_root, *attr);
-		if (rc)
-			goto out_unreg;
-	}
-	return 0;
-out_unreg:
-	for (; attr >= stp_attributes; attr--)
-		device_remove_file(stp_subsys.dev_root, *attr);
-	bus_unregister(&stp_subsys);
-out:
-	return rc;
+	return subsys_system_register(&stp_subsys, stp_dev_groups);
 }
 
 device_initcall(stp_init_sysfs);
