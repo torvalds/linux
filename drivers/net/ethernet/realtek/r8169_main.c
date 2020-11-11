@@ -4144,7 +4144,8 @@ static bool rtl8169_tso_csum_v2(struct rtl8169_private *tp,
 static bool rtl_tx_slots_avail(struct rtl8169_private *tp,
 			       unsigned int nr_frags)
 {
-	unsigned int slots_avail = tp->dirty_tx + NUM_TX_DESC - tp->cur_tx;
+	unsigned int slots_avail = READ_ONCE(tp->dirty_tx) + NUM_TX_DESC
+					- READ_ONCE(tp->cur_tx);
 
 	/* A skbuff with nr_frags needs nr_frags+1 entries in the tx queue */
 	return slots_avail > nr_frags;
