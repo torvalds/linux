@@ -27,6 +27,7 @@
 #include <asm/page.h>
 #include <asm/sclp.h>
 #include <asm/numa.h>
+#include <asm/facility.h>
 
 #include "sclp.h"
 
@@ -87,14 +88,17 @@ out:
 int _sclp_get_core_info(struct sclp_core_info *info)
 {
 	int rc;
+	int length = test_facility(140) ? EXT_SCCB_READ_CPU : PAGE_SIZE;
 	struct read_cpu_info_sccb *sccb;
 
 	if (!SCLP_HAS_CPU_INFO)
 		return -EOPNOTSUPP;
-	sccb = (void *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
+
+	sccb = (void *)__get_free_pages(GFP_KERNEL | GFP_DMA | __GFP_ZERO, get_order(length));
 	if (!sccb)
 		return -ENOMEM;
-	sccb->header.length = sizeof(*sccb);
+	sccb->header.length = length;
+	sccb->header.control_mask[2] = 0x80;
 	rc = sclp_sync_request_timeout(SCLP_CMDW_READ_CPU_INFO, sccb,
 				       SCLP_QUEUE_INTERVAL);
 	if (rc)
@@ -107,7 +111,7 @@ int _sclp_get_core_info(struct sclp_core_info *info)
 	}
 	sclp_fill_core_info(info, sccb);
 out:
-	free_page((unsigned long) sccb);
+	free_pages((unsigned long) sccb, get_order(length));
 	return rc;
 }
 

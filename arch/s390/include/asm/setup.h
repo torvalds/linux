@@ -16,8 +16,6 @@
 #define EARLY_SCCB_OFFSET	0x11000
 #define HEAD_END		0x12000
 
-#define EARLY_SCCB_SIZE		PAGE_SIZE
-
 /*
  * Machine features detected in early.c
  */

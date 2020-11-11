@@ -14,6 +14,7 @@
 #include <asm/sclp.h>
 #include <asm/ipl.h>
 #include <asm/setup.h>
+#include <asm/facility.h>
 #include "sclp_sdias.h"
 #include "sclp.h"
 
@@ -114,7 +115,7 @@ void __init sclp_early_get_ipl_info(struct sclp_ipl_info *info)
 int __init sclp_early_get_core_info(struct sclp_core_info *info)
 {
 	struct read_cpu_info_sccb *sccb;
-	int length = PAGE_SIZE;
+	int length = test_facility(140) ? EXT_SCCB_READ_CPU : PAGE_SIZE;
 	int rc = 0;
 
 	if (!SCLP_HAS_CPU_INFO)
