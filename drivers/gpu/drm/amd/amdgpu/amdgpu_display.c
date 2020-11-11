@@ -623,6 +623,57 @@ amdgpu_lookup_format_info(u32 format, uint64_t modifier)
 	return NULL;
 }
 
+
+/*
+ * Tries to extract the renderable DCC offset from the opaque metadata attached
+ * to the buffer.
+ */
+static int
+extract_render_dcc_offset(struct amdgpu_device *adev,
+			  struct drm_gem_object *obj,
+			  uint64_t *offset)
+{
+	struct amdgpu_bo *rbo;
+	int r = 0;
+	uint32_t metadata[10]; /* Something that fits a descriptor + header. */
+	uint32_t size;
+
+	rbo = gem_to_amdgpu_bo(obj);
+	r = amdgpu_bo_reserve(rbo, false);
+
+	if (unlikely(r)) {
+		/* Don't show error message when returning -ERESTARTSYS */
+		if (r != -ERESTARTSYS)
+			DRM_ERROR("Unable to reserve buffer: %d\n", r);
+		return r;
+	}
+
+	r = amdgpu_bo_get_metadata(rbo, metadata, sizeof(metadata), &size, NULL);
+	amdgpu_bo_unreserve(rbo);
+
+	if (r)
+		return r;
+
+	/*
+	 * The first word is the metadata version, and we need space for at least
+	 * the version + pci vendor+device id + 8 words for a descriptor.
+	 */
+	if (size < 40  || metadata[0] != 1)
+		return -EINVAL;
+
+	if (adev->family >= AMDGPU_FAMILY_NV) {
+		/* resource word 6/7 META_DATA_ADDRESS{_LO} */
+		*offset = ((u64)metadata[9] << 16u) |
+			  ((metadata[8] & 0xFF000000u) >> 16);
+	} else {
+		/* resource word 5/7 META_DATA_ADDRESS */
+		*offset = ((u64)metadata[9] << 8u) |
+			  ((u64)(metadata[7] & 0x1FE0000u) << 23);
+	}
+
+	return 0;
+}
+
 static int convert_tiling_flags_to_modifier(struct amdgpu_framebuffer *afb)
 {
 	struct amdgpu_device *adev = drm_to_adev(afb->base.dev);
@@ -638,6 +689,8 @@ static int convert_tiling_flags_to_modifier(struct amdgpu_framebuffer *afb)
 		int pipe_xor_bits = 0;
 		int bank_xor_bits = 0;
 		int packers = 0;
+		int rb = 0;
+		int pipes = ilog2(adev->gfx.config.gb_addr_config_fields.num_pipes);
 		uint32_t dcc_offset = AMDGPU_TILING_GET(afb->tiling_flags, DCC_OFFSET_256B);
 
 		switch (swizzle >> 2) {
@@ -683,18 +736,17 @@ static int convert_tiling_flags_to_modifier(struct amdgpu_framebuffer *afb)
 		if (has_xor) {
 			switch (version) {
 			case AMD_FMT_MOD_TILE_VER_GFX10_RBPLUS:
-				pipe_xor_bits = min(block_size_bits - 8,
-						    ilog2(adev->gfx.config.gb_addr_config_fields.num_pipes));
+				pipe_xor_bits = min(block_size_bits - 8, pipes);
 				packers = min(block_size_bits - 8 - pipe_xor_bits,
 					      ilog2(adev->gfx.config.gb_addr_config_fields.num_pkrs));
 				break;
 			case AMD_FMT_MOD_TILE_VER_GFX10:
-				pipe_xor_bits = min(block_size_bits - 8,
-						    ilog2(adev->gfx.config.gb_addr_config_fields.num_pipes));
+				pipe_xor_bits = min(block_size_bits - 8, pipes);
 				break;
 			case AMD_FMT_MOD_TILE_VER_GFX9:
-				pipe_xor_bits = min(block_size_bits - 8,
-						    ilog2(adev->gfx.config.gb_addr_config_fields.num_pipes) +
+				rb = ilog2(adev->gfx.config.gb_addr_config_fields.num_se) +
+				     ilog2(adev->gfx.config.gb_addr_config_fields.num_rb_per_se);
+				pipe_xor_bits = min(block_size_bits - 8, pipes +
 						    ilog2(adev->gfx.config.gb_addr_config_fields.num_se));
 				bank_xor_bits = min(block_size_bits - 8 - pipe_xor_bits,
 						    ilog2(adev->gfx.config.gb_addr_config_fields.num_banks));
@@ -713,6 +765,7 @@ static int convert_tiling_flags_to_modifier(struct amdgpu_framebuffer *afb)
 			bool dcc_i64b = AMDGPU_TILING_GET(afb->tiling_flags, DCC_INDEPENDENT_64B) != 0;
 			bool dcc_i128b = version >= AMD_FMT_MOD_TILE_VER_GFX10_RBPLUS;
 			const struct drm_format_info *format_info;
+			u64 render_dcc_offset;
 
 			/* Enable constant encode on RAVEN2 and later. */
 			bool dcc_constant_encode = adev->asic_type > CHIP_RAVEN ||
@@ -730,8 +783,45 @@ static int convert_tiling_flags_to_modifier(struct amdgpu_framebuffer *afb)
 				    AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, max_cblock_size);
 
 			afb->base.offsets[1] = dcc_offset * 256 + afb->base.offsets[0];
-			afb->base.pitches[1] = AMDGPU_TILING_GET(afb->tiling_flags, DCC_PITCH_MAX) + 1;
+			afb->base.pitches[1] =
+				AMDGPU_TILING_GET(afb->tiling_flags, DCC_PITCH_MAX) + 1;
 
+			/*
+			 * If the userspace driver uses retiling the tiling flags do not contain
+			 * info on the renderable DCC buffer. Luckily the opaque metadata contains
+			 * the info so we can try to extract it. The kernel does not use this info
+			 * but we should convert it to a modifier plane for getfb2, so the
+			 * userspace driver that gets it doesn't have to juggle around another DCC
+			 * plane internally.
+			 */
+			if (extract_render_dcc_offset(adev, afb->base.obj[0],
+						      &render_dcc_offset) == 0 &&
+			    render_dcc_offset != 0 &&
+			    render_dcc_offset != afb->base.offsets[1] &&
+			    render_dcc_offset < UINT_MAX) {
+				uint32_t dcc_block_bits;  /* of base surface data */
+
+				modifier |= AMD_FMT_MOD_SET(DCC_RETILE, 1);
+				afb->base.offsets[2] = render_dcc_offset;
+
+				if (adev->family >= AMDGPU_FAMILY_NV) {
+					int extra_pipe = 0;
+
+					if (adev->asic_type >= CHIP_SIENNA_CICHLID &&
+					    pipes == packers && pipes > 1)
+						extra_pipe = 1;
+
+					dcc_block_bits = max(20, 16 + pipes + extra_pipe);
+				} else {
+					modifier |= AMD_FMT_MOD_SET(RB, rb) |
+						    AMD_FMT_MOD_SET(PIPE, pipes);
+					dcc_block_bits = max(20, 18 + rb);
+				}
+
+				dcc_block_bits -= ilog2(afb->base.format->cpp[0]);
+				afb->base.pitches[2] = ALIGN(afb->base.width,
+							     1u << ((dcc_block_bits + 1) / 2));
+			}
 			format_info = amdgpu_lookup_format_info(afb->base.format->format,
 								modifier);
 			if (!format_info)
