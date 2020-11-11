@@ -271,7 +271,7 @@ int idxd_wq_map_portal(struct idxd_wq *wq)
 	resource_size_t start;
 
 	start = pci_resource_start(pdev, IDXD_WQ_BAR);
-	start = start + wq->id * IDXD_PORTAL_SIZE;
+	start += idxd_get_wq_portal_full_offset(wq->id, IDXD_PORTAL_LIMITED);
 
 	wq->dportal = devm_ioremap(dev, start, IDXD_PORTAL_SIZE);
 	if (!wq->dportal)

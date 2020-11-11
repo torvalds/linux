@@ -8,7 +8,7 @@
 
 #define IDXD_MMIO_BAR		0
 #define IDXD_WQ_BAR		2
-#define IDXD_PORTAL_SIZE	0x4000
+#define IDXD_PORTAL_SIZE	PAGE_SIZE
 
 /* MMIO Device BAR0 Registers */
 #define IDXD_VER_OFFSET			0x00
