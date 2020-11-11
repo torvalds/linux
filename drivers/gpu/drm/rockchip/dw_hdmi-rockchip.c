@@ -813,6 +813,15 @@ dw_hdmi_rockchip_encoder_atomic_check(struct drm_encoder *encoder,
 	return 0;
 }
 
+static void dw_hdmi_rockchip_encoder_mode_set(struct drm_encoder *encoder,
+					      struct drm_display_mode *mode,
+					      struct drm_display_mode *adj)
+{
+	struct rockchip_hdmi *hdmi = to_rockchip_hdmi(encoder);
+
+	clk_set_rate(hdmi->phyref_clk, adj->crtc_clock * 1000);
+}
+
 static unsigned long
 dw_hdmi_rockchip_get_input_bus_format(void *data)
 {
@@ -1175,6 +1184,7 @@ static const struct drm_encoder_helper_funcs dw_hdmi_rockchip_encoder_helper_fun
 	.enable     = dw_hdmi_rockchip_encoder_enable,
 	.disable    = dw_hdmi_rockchip_encoder_disable,
 	.atomic_check = dw_hdmi_rockchip_encoder_atomic_check,
+	.mode_set = dw_hdmi_rockchip_encoder_mode_set,
 };
 
 static void dw_hdmi_rockchip_genphy_disable(struct dw_hdmi *dw_hdmi, void *data)
