@@ -539,14 +539,11 @@ EXPORT_SYMBOL_GPL(mt76_rx);
 
 bool mt76_has_tx_pending(struct mt76_phy *phy)
 {
-	struct mt76_dev *dev = phy->dev;
 	struct mt76_queue *q;
-	int i, offset;
-
-	offset = __MT_TXQ_MAX * (phy != &dev->phy);
+	int i;
 
 	for (i = 0; i < __MT_TXQ_MAX; i++) {
-		q = dev->q_tx[offset + i];
+		q = phy->q_tx[i];
 		if (q && q->queued)
 			return true;
 	}

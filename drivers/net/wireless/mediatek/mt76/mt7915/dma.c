@@ -6,16 +6,16 @@
 #include "mac.h"
 
 static int
-mt7915_init_tx_queues(struct mt7915_dev *dev, int idx, int n_desc)
+mt7915_init_tx_queues(struct mt7915_phy *phy, int idx, int n_desc)
 {
 	int i, err;
 
-	err = mt76_init_tx_queue(&dev->mphy, 0, idx, n_desc, MT_TX_RING_BASE);
+	err = mt76_init_tx_queue(phy->mt76, 0, idx, n_desc, MT_TX_RING_BASE);
 	if (err < 0)
 		return err;
 
 	for (i = 0; i <= MT_TXQ_PSD; i++)
-		dev->mt76.q_tx[i] = dev->mt76.q_tx[0];
+		phy->mt76->q_tx[i] = phy->mt76->q_tx[0];
 
 	return 0;
 }
@@ -237,7 +237,7 @@ int mt7915_dma_init(struct mt7915_dev *dev)
 	mt76_wr(dev, MT_WFDMA1_PRI_DLY_INT_CFG0, 0);
 
 	/* init tx queue */
-	ret = mt7915_init_tx_queues(dev, MT7915_TXQ_BAND0,
+	ret = mt7915_init_tx_queues(&dev->phy, MT7915_TXQ_BAND0,
 				    MT7915_TX_RING_SIZE);
 	if (ret)
 		return ret;

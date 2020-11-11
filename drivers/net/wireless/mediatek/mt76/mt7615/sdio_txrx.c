@@ -287,7 +287,7 @@ void mt7663s_txrx_worker(struct mt76_worker *w)
 
 		/* tx */
 		for (i = 0; i <= MT_TXQ_PSD; i++) {
-			ret = mt7663s_tx_run_queue(dev, dev->q_tx[i]);
+			ret = mt7663s_tx_run_queue(dev, dev->phy.q_tx[i]);
 			if (ret > 0)
 				nframes += ret;
 		}

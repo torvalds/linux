@@ -488,7 +488,7 @@ int mt76x02_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	u8 cw_min = 5, cw_max = 10, qid;
 	u32 val;
 
-	qid = dev->mt76.q_tx[queue]->hw_idx;
+	qid = dev->mphy.q_tx[queue]->hw_idx;
 
 	if (params->cw_min)
 		cw_min = fls(params->cw_min);
@@ -622,7 +622,7 @@ void mt76x02_sta_ps(struct mt76_dev *mdev, struct ieee80211_sta *sta,
 	struct mt76x02_sta *msta = (struct mt76x02_sta *)sta->drv_priv;
 	int idx = msta->wcid.idx;
 
-	mt76_stop_tx_queues(&dev->mt76, sta, true);
+	mt76_stop_tx_queues(&dev->mphy, sta, true);
 	if (mt76_is_mmio(mdev))
 		mt76x02_mac_wcid_set_drop(dev, idx, ps);
 }

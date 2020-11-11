@@ -187,7 +187,7 @@ mt7615_reset_test_set(void *data, u64 val)
 	skb_put(skb, 1);
 
 	mt7615_mutex_acquire(dev);
-	mt76_tx_queue_skb_raw(dev, dev->mt76.q_tx[0], skb, 0);
+	mt76_tx_queue_skb_raw(dev, dev->mphy.q_tx[0], skb, 0);
 	mt7615_mutex_release(dev);
 
 	return 0;
@@ -336,7 +336,7 @@ mt7615_queues_read(struct seq_file *s, void *data)
 		struct mt76_queue *q;
 		char *queue;
 	} queue_map[] = {
-		{ dev->mt76.q_tx[MT_TXQ_BE], "PDMA0" },
+		{ dev->mphy.q_tx[MT_TXQ_BE], "PDMA0" },
 		{ dev->mt76.q_mcu[MT_MCUQ_WM], "MCUQ" },
 		{ dev->mt76.q_mcu[MT_MCUQ_FWDL], "MCUFWQ" },
 	};

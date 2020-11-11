@@ -284,7 +284,7 @@ mt7915_queues_read(struct seq_file *s, void *data)
 		struct mt76_queue *q;
 		char *queue;
 	} queue_map[] = {
-		{ dev->mt76.q_tx[MT_TXQ_BE], "WFDMA0" },
+		{ dev->mphy.q_tx[MT_TXQ_BE], "WFDMA0" },
 		{ dev->mt76.q_mcu[MT_MCUQ_WM], "MCUWM" },
 		{ dev->mt76.q_mcu[MT_MCUQ_WA], "MCUWA" },
 		{ dev->mt76.q_mcu[MT_MCUQ_FWDL], "MCUFWQ" },

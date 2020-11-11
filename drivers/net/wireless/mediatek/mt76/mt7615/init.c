@@ -385,7 +385,7 @@ int mt7615_register_ext_phy(struct mt7615_dev *dev)
 {
 	struct mt7615_phy *phy = mt7615_ext_phy(dev);
 	struct mt76_phy *mphy;
-	int ret;
+	int i, ret;
 
 	if (!is_mt7615(&dev->mt76))
 		return -EOPNOTSUPP;
@@ -428,6 +428,10 @@ int mt7615_register_ext_phy(struct mt7615_dev *dev)
 	/* second phy can only handle 5 GHz */
 	mphy->sband_2g.sband.n_channels = 0;
 	mphy->hw->wiphy->bands[NL80211_BAND_2GHZ] = NULL;
+
+	/* mt7615 second phy shares the same hw queues with the primary one */
+	for (i = 0; i <= MT_TXQ_PSD ; i++)
+		mphy->q_tx[i] = dev->mphy.q_tx[i];
 
 	ret = mt76_register_phy(mphy);
 	if (ret)

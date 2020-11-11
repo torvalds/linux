@@ -60,7 +60,7 @@ mt7615_init_tx_queues(struct mt7615_dev *dev)
 		return ret;
 
 	for (i = 1; i <= MT_TXQ_PSD ; i++)
-		dev->mt76.q_tx[i] = dev->mt76.q_tx[0];
+		dev->mphy.q_tx[i] = dev->mphy.q_tx[0];
 
 	return mt76_init_mcu_queue(&dev->mt76, MT_MCUQ_WM, MT7615_TXQ_MCU,
 				   MT7615_TX_MCU_RING_SIZE, MT_TX_RING_BASE);
