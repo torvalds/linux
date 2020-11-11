@@ -22,3 +22,7 @@
 		status = "okay";
 	};
 };
+
+&vop {
+	support-multi-area;
+};
