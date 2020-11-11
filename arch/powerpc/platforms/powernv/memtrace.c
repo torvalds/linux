@@ -70,6 +70,23 @@ static int change_memblock_state(struct memory_block *mem, void *arg)
 	return 0;
 }
 
+static void memtrace_clear_range(unsigned long start_pfn,
+				 unsigned long nr_pages)
+{
+	unsigned long pfn;
+
+	/*
+	 * As pages are offline, we cannot trust the memmap anymore. As HIGHMEM
+	 * does not apply, avoid passing around "struct page" and use
+	 * clear_page() instead directly.
+	 */
+	for (pfn = start_pfn; pfn < start_pfn + nr_pages; pfn++) {
+		if (IS_ALIGNED(pfn, PAGES_PER_SECTION))
+			cond_resched();
+		clear_page(__va(PFN_PHYS(pfn)));
+	}
+}
+
 /* called with device_hotplug_lock held */
 static bool memtrace_offline_pages(u32 nid, u64 start_pfn, u64 nr_pages)
 {
@@ -114,6 +131,11 @@ static u64 memtrace_alloc_node(u32 nid, u64 size)
 	lock_device_hotplug();
 	for (base_pfn = end_pfn; base_pfn > start_pfn; base_pfn -= nr_pages) {
 		if (memtrace_offline_pages(nid, base_pfn, nr_pages) == true) {
+			/*
+			 * Clear the range while we still have a linear
+			 * mapping.
+			 */
+			memtrace_clear_range(base_pfn, nr_pages);
 			/*
 			 * Remove memory in memory block size chunks so that
 			 * iomem resources are always split to the same size and
