@@ -986,6 +986,8 @@ u32 venus_helper_get_framesz(u32 v4l2_fmt, u32 width, u32 height)
 
 	if (compressed) {
 		sz = ALIGN(height, 32) * ALIGN(width, 32) * 3 / 2 / 2;
+		if (width < 1280 || height < 720)
+			sz *= 8;
 		return ALIGN(sz, SZ_4K);
 	}
 
