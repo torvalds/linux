@@ -5,6 +5,7 @@
  * Copyright (C) 2018, Google LLC.
  */
 
+#define _GNU_SOURCE /* for program_invocation_name */
 #include "test_util.h"
 #include "kvm_util.h"
 #include "kvm_util_internal.h"
@@ -277,6 +278,31 @@ struct kvm_vm *vm_create(enum vm_guest_mode mode, uint64_t phy_pages, int perm)
 	if (phy_pages != 0)
 		vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS,
 					    0, 0, phy_pages, 0);
+
+	return vm;
+}
+
+struct kvm_vm *vm_create_default(uint32_t vcpuid, uint64_t extra_mem_pages,
+				 void *guest_code)
+{
+	/* The maximum page table size for a memory region will be when the
+	 * smallest pages are used. Considering each page contains x page
+	 * table descriptors, the total extra size for page tables (for extra
+	 * N pages) will be: N/x+N/x^2+N/x^3+... which is definitely smaller
+	 * than N/x*2.
+	 */
+	uint64_t extra_pg_pages = (extra_mem_pages / PTES_PER_MIN_PAGE) * 2;
+	struct kvm_vm *vm;
+
+	vm = vm_create(VM_MODE_DEFAULT, DEFAULT_GUEST_PHY_PAGES + extra_pg_pages, O_RDWR);
+
+	kvm_vm_elf_load(vm, program_invocation_name, 0, 0);
+
+#ifdef __x86_64__
+	vm_create_irqchip(vm);
+#endif
+
+	vm_vcpu_add_default(vm, vcpuid, guest_code);
 
 	return vm;
 }

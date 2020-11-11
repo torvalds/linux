@@ -45,12 +45,27 @@ enum vm_guest_mode {
 };
 
 #if defined(__aarch64__)
-#define VM_MODE_DEFAULT VM_MODE_P40V48_4K
+
+#define VM_MODE_DEFAULT			VM_MODE_P40V48_4K
+#define MIN_PAGE_SHIFT			12U
+#define ptes_per_page(page_size)	((page_size) / 8)
+
 #elif defined(__x86_64__)
-#define VM_MODE_DEFAULT VM_MODE_PXXV48_4K
-#else
-#define VM_MODE_DEFAULT VM_MODE_P52V48_4K
+
+#define VM_MODE_DEFAULT			VM_MODE_PXXV48_4K
+#define MIN_PAGE_SHIFT			12U
+#define ptes_per_page(page_size)	((page_size) / 8)
+
+#elif defined(__s390x__)
+
+#define VM_MODE_DEFAULT			VM_MODE_P52V48_4K
+#define MIN_PAGE_SHIFT			12U
+#define ptes_per_page(page_size)	((page_size) / 16)
+
 #endif
+
+#define MIN_PAGE_SIZE		(1U << MIN_PAGE_SHIFT)
+#define PTES_PER_MIN_PAGE	ptes_per_page(MIN_PAGE_SIZE)
 
 #define vm_guest_mode_string(m) vm_guest_mode_string[m]
 extern const char * const vm_guest_mode_string[];
