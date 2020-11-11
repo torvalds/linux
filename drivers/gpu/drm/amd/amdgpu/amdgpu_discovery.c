@@ -128,6 +128,7 @@ static int hw_id_map[MAX_HWIP] = {
 	[NBIF_HWIP]	= NBIF_HWID,
 	[THM_HWIP]	= THM_HWID,
 	[CLK_HWIP]	= CLKA_HWID,
+	[UMC_HWIP]	= UMC_HWID,
 };
 
 static int amdgpu_discovery_read_binary(struct amdgpu_device *adev, uint8_t *binary)
