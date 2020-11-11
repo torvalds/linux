@@ -209,7 +209,11 @@ int main(int argc, char *argv[])
 	run = vcpu_state(vm, VCPU_ID);
 
 	rc = kvm_check_cap(KVM_CAP_X86_USER_SPACE_MSR);
-	TEST_ASSERT(rc, "KVM_CAP_X86_USER_SPACE_MSR is available");
+	if (!rc) {
+		print_skip("KVM_CAP_X86_USER_SPACE_MSR not supported");
+		exit(KSFT_SKIP);
+	}
+
 	vm_enable_cap(vm, &cap);
 
 	rc = kvm_check_cap(KVM_CAP_X86_MSR_FILTER);
