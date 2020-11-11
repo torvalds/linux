@@ -150,7 +150,9 @@ void __ref arch_remove_linear_mapping(u64 start, u64 size)
 	mutex_lock(&linear_mapping_mutex);
 	ret = remove_section_mapping(start, start + size);
 	mutex_unlock(&linear_mapping_mutex);
-	WARN_ON_ONCE(ret);
+	if (ret)
+		pr_warn("Unable to remove linear mapping for 0x%llx..0x%llx: %d\n",
+			start, start + size, ret);
 
 	/* Ensure all vmalloc mappings are flushed in case they also
 	 * hit that section of memory
