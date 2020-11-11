@@ -639,7 +639,7 @@ static void md_submit_flush_data(struct work_struct *ws)
 	 * could wait for this and below md_handle_request could wait for those
 	 * bios because of suspend check
 	 */
-	mddev->last_flush = mddev->start_flush;
+	mddev->prev_flush_start = mddev->start_flush;
 	mddev->flush_bio = NULL;
 	wake_up(&mddev->sb_wait);
 
@@ -660,13 +660,13 @@ static void md_submit_flush_data(struct work_struct *ws)
  */
 bool md_flush_request(struct mddev *mddev, struct bio *bio)
 {
-	ktime_t start = ktime_get_boottime();
+	ktime_t req_start = ktime_get_boottime();
 	spin_lock_irq(&mddev->lock);
 	wait_event_lock_irq(mddev->sb_wait,
 			    !mddev->flush_bio ||
-			    ktime_after(mddev->last_flush, start),
+			    ktime_after(mddev->prev_flush_start, req_start),
 			    mddev->lock);
-	if (!ktime_after(mddev->last_flush, start)) {
+	if (!ktime_after(mddev->prev_flush_start, req_start)) {
 		WARN_ON(mddev->flush_bio);
 		mddev->flush_bio = bio;
 		bio = NULL;
