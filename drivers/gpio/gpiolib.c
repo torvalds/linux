@@ -2104,6 +2104,29 @@ static int gpio_set_config_with_argument(struct gpio_desc *desc,
 	return gpio_do_set_config(gc, gpio_chip_hwgpio(desc), config);
 }
 
+static int gpio_set_config_with_argument_optional(struct gpio_desc *desc,
+						  enum pin_config_param mode,
+						  u32 argument)
+{
+	struct device *dev = &desc->gdev->dev;
+	int gpio = gpio_chip_hwgpio(desc);
+	int ret;
+
+	ret = gpio_set_config_with_argument(desc, mode, argument);
+	if (ret != -ENOTSUPP)
+		return ret;
+
+	switch (mode) {
+	case PIN_CONFIG_PERSIST_STATE:
+		dev_dbg(dev, "Persistence not supported for GPIO %d\n", gpio);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 static int gpio_set_config(struct gpio_desc *desc, enum pin_config_param mode)
 {
 	return gpio_set_config_with_argument(desc, mode, 0);
@@ -2113,7 +2136,6 @@ static int gpio_set_bias(struct gpio_desc *desc)
 {
 	enum pin_config_param bias;
 	unsigned int arg;
-	int ret;
 
 	if (test_bit(FLAG_BIAS_DISABLE, &desc->flags))
 		bias = PIN_CONFIG_BIAS_DISABLE;
@@ -2135,11 +2157,7 @@ static int gpio_set_bias(struct gpio_desc *desc)
 		break;
 	}
 
-	ret = gpio_set_config_with_argument(desc, bias, arg);
-	if (ret != -ENOTSUPP)
-		return ret;
-
-	return 0;
+	return gpio_set_config_with_argument_optional(desc, bias, arg);
 }
 
 /**
@@ -2380,11 +2398,6 @@ EXPORT_SYMBOL_GPL(gpiod_set_debounce);
  */
 int gpiod_set_transitory(struct gpio_desc *desc, bool transitory)
 {
-	struct gpio_chip *gc;
-	unsigned long packed;
-	int gpio;
-	int rc;
-
 	VALIDATE_DESC(desc);
 	/*
 	 * Handle FLAG_TRANSITORY first, enabling queries to gpiolib for
@@ -2393,21 +2406,9 @@ int gpiod_set_transitory(struct gpio_desc *desc, bool transitory)
 	assign_bit(FLAG_TRANSITORY, &desc->flags, transitory);
 
 	/* If the driver supports it, set the persistence state now */
-	gc = desc->gdev->chip;
-	if (!gc->set_config)
-		return 0;
-
-	packed = pinconf_to_config_packed(PIN_CONFIG_PERSIST_STATE,
-					  !transitory);
-	gpio = gpio_chip_hwgpio(desc);
-	rc = gpio_do_set_config(gc, gpio, packed);
-	if (rc == -ENOTSUPP) {
-		dev_dbg(&desc->gdev->dev, "Persistence not supported for GPIO %d\n",
-				gpio);
-		return 0;
-	}
-
-	return rc;
+	return gpio_set_config_with_argument_optional(desc,
+						      PIN_CONFIG_PERSIST_STATE,
+						      !transitory);
 }
 EXPORT_SYMBOL_GPL(gpiod_set_transitory);
 
