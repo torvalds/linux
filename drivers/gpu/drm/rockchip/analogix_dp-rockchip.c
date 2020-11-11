@@ -56,6 +56,7 @@
  * @lcdsel_big: reg value of selecting vop big for eDP
  * @lcdsel_lit: reg value of selecting vop little for eDP
  * @chip_type: specific chip type
+ * @ssc: check if SSC is supported by source
  */
 struct rockchip_dp_chip_data {
 	u32	lcdsel_grf_reg;
