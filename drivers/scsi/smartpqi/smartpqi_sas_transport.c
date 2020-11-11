@@ -549,7 +549,6 @@ void pqi_sas_smp_handler(struct bsg_job *job, struct Scsi_Host *shost,
 	reslen = pqi_build_sas_smp_handler_reply(smp_buf, job, &error_info);
 out:
 	bsg_job_done(job, rc, reslen);
-	pqi_ctrl_unbusy(ctrl_info);
 }
 struct sas_function_template pqi_sas_transport_functions = {
 	.get_linkerrors = pqi_sas_get_linkerrors,
