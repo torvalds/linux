@@ -669,7 +669,7 @@ void xdr_init_encode(struct xdr_stream *xdr, struct xdr_buf *buf, __be32 *p,
 	struct kvec *iov = buf->head;
 	int scratch_len = buf->buflen - buf->page_len - buf->tail[0].iov_len;
 
-	xdr_set_scratch_buffer(xdr, NULL, 0);
+	xdr_reset_scratch_buffer(xdr);
 	BUG_ON(scratch_len < 0);
 	xdr->buf = buf;
 	xdr->iov = iov;
@@ -713,7 +713,7 @@ inline void xdr_commit_encode(struct xdr_stream *xdr)
 	page = page_address(*xdr->page_ptr);
 	memcpy(xdr->scratch.iov_base, page, shift);
 	memmove(page, page + shift, (void *)xdr->p - page);
-	xdr->scratch.iov_len = 0;
+	xdr_reset_scratch_buffer(xdr);
 }
 EXPORT_SYMBOL_GPL(xdr_commit_encode);
 
@@ -743,8 +743,7 @@ static __be32 *xdr_get_next_encode_buffer(struct xdr_stream *xdr,
 	 * the "scratch" iov to track any temporarily unused fragment of
 	 * space at the end of the previous buffer:
 	 */
-	xdr->scratch.iov_base = xdr->p;
-	xdr->scratch.iov_len = frag1bytes;
+	xdr_set_scratch_buffer(xdr, xdr->p, frag1bytes);
 	p = page_address(*xdr->page_ptr);
 	/*
 	 * Note this is where the next encode will start after we've
@@ -1052,8 +1051,7 @@ void xdr_init_decode(struct xdr_stream *xdr, struct xdr_buf *buf, __be32 *p,
 		     struct rpc_rqst *rqst)
 {
 	xdr->buf = buf;
-	xdr->scratch.iov_base = NULL;
-	xdr->scratch.iov_len = 0;
+	xdr_reset_scratch_buffer(xdr);
 	xdr->nwords = XDR_QUADLEN(buf->len);
 	if (buf->head[0].iov_len != 0)
 		xdr_set_iov(xdr, buf->head, buf->len);
@@ -1100,24 +1098,6 @@ static __be32 * __xdr_inline_decode(struct xdr_stream *xdr, size_t nbytes)
 	xdr->nwords -= nwords;
 	return p;
 }
-
-/**
- * xdr_set_scratch_buffer - Attach a scratch buffer for decoding data.
- * @xdr: pointer to xdr_stream struct
- * @buf: pointer to an empty buffer
- * @buflen: size of 'buf'
- *
- * The scratch buffer is used when decoding from an array of pages.
- * If an xdr_inline_decode() call spans across page boundaries, then
- * we copy the data into the scratch buffer in order to allow linear
- * access.
- */
-void xdr_set_scratch_buffer(struct xdr_stream *xdr, void *buf, size_t buflen)
-{
-	xdr->scratch.iov_base = buf;
-	xdr->scratch.iov_len = buflen;
-}
-EXPORT_SYMBOL_GPL(xdr_set_scratch_buffer);
 
 static __be32 *xdr_copy_to_scratch(struct xdr_stream *xdr, size_t nbytes)
 {
