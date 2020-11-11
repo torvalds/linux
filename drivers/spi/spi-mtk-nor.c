@@ -103,6 +103,7 @@ struct mtk_nor {
 	dma_addr_t buffer_dma;
 	struct clk *spi_clk;
 	struct clk *ctlr_clk;
+	struct clk *axi_clk;
 	unsigned int spi_freq;
 	bool wbuf_en;
 	bool has_irq;
@@ -672,6 +673,7 @@ static void mtk_nor_disable_clk(struct mtk_nor *sp)
 {
 	clk_disable_unprepare(sp->spi_clk);
 	clk_disable_unprepare(sp->ctlr_clk);
+	clk_disable_unprepare(sp->axi_clk);
 }
 
 static int mtk_nor_enable_clk(struct mtk_nor *sp)
@@ -685,6 +687,13 @@ static int mtk_nor_enable_clk(struct mtk_nor *sp)
 	ret = clk_prepare_enable(sp->ctlr_clk);
 	if (ret) {
 		clk_disable_unprepare(sp->spi_clk);
+		return ret;
+	}
+
+	ret = clk_prepare_enable(sp->axi_clk);
+	if (ret) {
+		clk_disable_unprepare(sp->spi_clk);
+		clk_disable_unprepare(sp->ctlr_clk);
 		return ret;
 	}
 
@@ -746,7 +755,7 @@ static int mtk_nor_probe(struct platform_device *pdev)
 	struct spi_controller *ctlr;
 	struct mtk_nor *sp;
 	void __iomem *base;
-	struct clk *spi_clk, *ctlr_clk;
+	struct clk *spi_clk, *ctlr_clk, *axi_clk;
 	int ret, irq;
 	unsigned long dma_bits;
 
@@ -761,6 +770,10 @@ static int mtk_nor_probe(struct platform_device *pdev)
 	ctlr_clk = devm_clk_get(&pdev->dev, "sf");
 	if (IS_ERR(ctlr_clk))
 		return PTR_ERR(ctlr_clk);
+
+	axi_clk = devm_clk_get_optional(&pdev->dev, "axi");
+	if (IS_ERR(axi_clk))
+		return PTR_ERR(axi_clk);
 
 	dma_bits = (unsigned long)of_device_get_match_data(&pdev->dev);
 	if (dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(dma_bits))) {
@@ -794,6 +807,7 @@ static int mtk_nor_probe(struct platform_device *pdev)
 	sp->dev = &pdev->dev;
 	sp->spi_clk = spi_clk;
 	sp->ctlr_clk = ctlr_clk;
+	sp->axi_clk = axi_clk;
 	sp->high_dma = (dma_bits > 32);
 	sp->buffer = dmam_alloc_coherent(&pdev->dev,
 				MTK_NOR_BOUNCE_BUF_SIZE + MTK_NOR_DMA_ALIGN,
