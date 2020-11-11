@@ -1645,15 +1645,21 @@ EXPORT_SYMBOL(__sb_end_write);
  * This is an internal function, please use sb_start_{write,pagefault,intwrite}
  * instead.
  */
-int __sb_start_write(struct super_block *sb, int level, bool wait)
+void __sb_start_write(struct super_block *sb, int level)
 {
-	if (!wait)
-		return percpu_down_read_trylock(sb->s_writers.rw_sem + level-1);
-
-	percpu_down_read(sb->s_writers.rw_sem + level-1);
-	return 1;
+	percpu_down_read(sb->s_writers.rw_sem + level - 1);
 }
 EXPORT_SYMBOL(__sb_start_write);
+
+/*
+ * This is an internal function, please use sb_start_{write,pagefault,intwrite}
+ * instead.
+ */
+bool __sb_start_write_trylock(struct super_block *sb, int level)
+{
+	return percpu_down_read_trylock(sb->s_writers.rw_sem + level - 1);
+}
+EXPORT_SYMBOL_GPL(__sb_start_write_trylock);
 
 /**
  * sb_wait_write - wait until all writers to given file system finish
