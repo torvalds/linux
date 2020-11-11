@@ -366,7 +366,11 @@ For 32-bit we have the following conventions - kernel is built with
  */
 .macro LOAD_CPU_AND_NODE_SEG_LIMIT reg:req
 	movq	$__CPUNODE_SEG, \reg
+#ifdef __clang__
+	.quad 0xc0030f48
+#else
 	lsl	\reg, \reg
+#endif
 .endm
 
 /*
