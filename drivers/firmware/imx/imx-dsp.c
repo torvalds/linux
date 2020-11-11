@@ -79,6 +79,7 @@ static int imx_dsp_setup_channels(struct imx_dsp_ipc *dsp_ipc)
 			return -ENOMEM;
 
 		dsp_chan = &dsp_ipc->chans[i];
+		dsp_chan->name = chan_name;
 		cl = &dsp_chan->cl;
 		cl->dev = dev;
 		cl->tx_block = false;
@@ -97,16 +98,14 @@ static int imx_dsp_setup_channels(struct imx_dsp_ipc *dsp_ipc)
 		}
 
 		dev_dbg(dev, "request mbox chan %s\n", chan_name);
-		/* chan_name is not used anymore by framework */
-		kfree(chan_name);
 	}
 
 	return 0;
 out:
-	kfree(chan_name);
 	for (j = 0; j < i; j++) {
 		dsp_chan = &dsp_ipc->chans[j];
 		mbox_free_channel(dsp_chan->ch);
+		kfree(dsp_chan->name);
 	}
 
 	return ret;
@@ -147,6 +146,7 @@ static int imx_dsp_remove(struct platform_device *pdev)
 	for (i = 0; i < DSP_MU_CHAN_NUM; i++) {
 		dsp_chan = &dsp_ipc->chans[i];
 		mbox_free_channel(dsp_chan->ch);
+		kfree(dsp_chan->name);
 	}
 
 	return 0;
