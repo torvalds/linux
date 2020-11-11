@@ -39,6 +39,9 @@ struct rockchip_combphy_grfcfg {
 	struct combphy_reg pipe_txcomp_set;
 	struct combphy_reg pipe_txelec_sel;
 	struct combphy_reg pipe_txelec_set;
+	struct combphy_reg pipe_sel_usb;
+	struct combphy_reg pipe_sel_sata;
+	struct combphy_reg pipe_sel_qsgmii;
 };
 
 struct rockchip_combphy_priv {
@@ -88,11 +91,13 @@ static int rockchip_combphy_set_mode(struct rockchip_combphy_priv *priv)
 		param_write(priv->phy_grf, &cfg->pcie_mode_set, true);
 		break;
 	case PHY_TYPE_USB3:
+		param_write(priv->phy_grf, &cfg->pipe_sel_usb, true);
 		param_write(priv->phy_grf, &cfg->pipe_txcomp_sel, false);
 		param_write(priv->phy_grf, &cfg->pipe_txelec_sel, false);
 		param_write(priv->phy_grf, &cfg->usb_mode_set, true);
 		break;
 	case PHY_TYPE_SATA:
+		param_write(priv->phy_grf, &cfg->pipe_sel_sata, true);
 		param_write(priv->phy_grf, &cfg->sata_mode_set, true);
 		break;
 	default:
@@ -212,6 +217,9 @@ static const struct rockchip_combphy_grfcfg rk3568_combphy_cfgs = {
 	.pipe_txcomp_set	= { 0x0004, 4, 4, 0x00, 0x01 },
 	.pipe_txelec_sel	= { 0x0008, 12, 12, 0x00, 0x01 },
 	.pipe_txelec_set	= { 0x0004, 1, 1, 0x00, 0x01 },
+	.pipe_sel_usb		= { 0x000c, 14, 13, 0x00, 0x01 },
+	.pipe_sel_sata		= { 0x000c, 14, 13, 0x00, 0x02 },
+	.pipe_sel_qsgmii	= { 0x000c, 14, 13, 0x00, 0x03 },
 };
 
 static const struct of_device_id rockchip_combphy_of_match[] = {
