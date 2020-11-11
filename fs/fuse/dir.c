@@ -328,12 +328,11 @@ static struct vfsmount *fuse_dentry_automount(struct path *path)
 	if (!fm)
 		goto out_put_fsc;
 
-	refcount_set(&fm->count, 1);
 	fsc->s_fs_info = fm;
 	sb = sget_fc(fsc, NULL, set_anon_super_fc);
 	if (IS_ERR(sb)) {
 		err = PTR_ERR(sb);
-		fuse_mount_put(fm);
+		kfree(fm);
 		goto out_put_fsc;
 	}
 	fm->fc = fuse_conn_get(fc);

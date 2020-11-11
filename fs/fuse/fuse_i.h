@@ -801,9 +801,6 @@ struct fuse_mount {
 	/* Underlying (potentially shared) connection to the FUSE server */
 	struct fuse_conn *fc;
 
-	/* Refcount */
-	refcount_t count;
-
 	/*
 	 * Super block for this connection (fc->killsb must be held when
 	 * accessing this).
@@ -1023,11 +1020,6 @@ void fuse_conn_init(struct fuse_conn *fc, struct fuse_mount *fm,
  * Release reference to fuse_conn
  */
 void fuse_conn_put(struct fuse_conn *fc);
-
-/**
- * Release reference to fuse_mount
- */
-void fuse_mount_put(struct fuse_mount *fm);
 
 struct fuse_dev *fuse_dev_alloc_install(struct fuse_conn *fc);
 struct fuse_dev *fuse_dev_alloc(void);

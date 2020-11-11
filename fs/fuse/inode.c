@@ -452,7 +452,8 @@ static void fuse_put_super(struct super_block *sb)
 {
 	struct fuse_mount *fm = get_fuse_mount_super(sb);
 
-	fuse_mount_put(fm);
+	fuse_conn_put(fm->fc);
+	kfree(fm);
 }
 
 static void convert_fuse_statfs(struct kstatfs *stbuf, struct fuse_kstatfs *attr)
@@ -705,7 +706,6 @@ void fuse_conn_init(struct fuse_conn *fc, struct fuse_mount *fm,
 	INIT_LIST_HEAD(&fc->mounts);
 	list_add(&fm->fc_entry, &fc->mounts);
 	fm->fc = fc;
-	refcount_set(&fm->count, 1);
 }
 EXPORT_SYMBOL_GPL(fuse_conn_init);
 
@@ -731,16 +731,6 @@ struct fuse_conn *fuse_conn_get(struct fuse_conn *fc)
 	return fc;
 }
 EXPORT_SYMBOL_GPL(fuse_conn_get);
-
-void fuse_mount_put(struct fuse_mount *fm)
-{
-	if (refcount_dec_and_test(&fm->count)) {
-		if (fm->fc)
-			fuse_conn_put(fm->fc);
-		kfree(fm);
-	}
-}
-EXPORT_SYMBOL_GPL(fuse_mount_put);
 
 static struct inode *fuse_get_root_inode(struct super_block *sb, unsigned mode)
 {
@@ -1458,7 +1448,8 @@ static int fuse_fill_super(struct super_block *sb, struct fs_context *fsc)
 	return 0;
 
  err_put_conn:
-	fuse_mount_put(fm);
+	fuse_conn_put(fc);
+	kfree(fm);
 	sb->s_fs_info = NULL;
  err_fput:
 	fput(file);
