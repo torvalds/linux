@@ -370,7 +370,6 @@ MODULE_DEVICE_TABLE(of, lcd2s_of_table);
 static struct i2c_driver lcd2s_i2c_driver = {
 	.driver = {
 		.name = "lcd2s",
-		.owner = THIS_MODULE,
 #ifdef CONFIG_OF
 		.of_match_table = of_match_ptr(lcd2s_of_table),
 #endif
