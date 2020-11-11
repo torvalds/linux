@@ -20,14 +20,17 @@ properties:
           - fsl,imx8qm-flexcan
           - fsl,imx8mp-flexcan
           - fsl,imx6q-flexcan
-          - fsl,imx53-flexcan
-          - fsl,imx35-flexcan
           - fsl,imx28-flexcan
           - fsl,imx25-flexcan
           - fsl,p1010-flexcan
           - fsl,vf610-flexcan
           - fsl,ls1021ar2-flexcan
           - fsl,lx2160ar1-flexcan
+      - items:
+          - enum:
+              - fsl,imx53-flexcan
+              - fsl,imx35-flexcan
+          - const: fsl,imx25-flexcan
       - items:
           - enum:
               - fsl,imx7d-flexcan
