@@ -659,11 +659,12 @@ static void ceph_con_reset_session(struct ceph_connection *con)
 	WARN_ON(con->out_msg);
 	ceph_msg_remove_list(&con->out_queue);
 	ceph_msg_remove_list(&con->out_sent);
-
-	con->connect_seq = 0;
 	con->out_seq = 0;
 	con->in_seq = 0;
 	con->in_seq_acked = 0;
+
+	con->connect_seq = 0;
+	con->peer_global_seq = 0;
 }
 
 /*
@@ -682,7 +683,6 @@ void ceph_con_close(struct ceph_connection *con)
 
 	ceph_con_reset_protocol(con);
 	ceph_con_reset_session(con);
-	con->peer_global_seq = 0;
 	cancel_con(con);
 	mutex_unlock(&con->mutex);
 }
