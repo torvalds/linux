@@ -10,7 +10,7 @@ mt7915_init_tx_queues(struct mt7915_dev *dev, int idx, int n_desc)
 {
 	int i, err;
 
-	err = mt76_init_tx_queue(&dev->mt76, 0, idx, n_desc, MT_TX_RING_BASE);
+	err = mt76_init_tx_queue(&dev->mphy, 0, idx, n_desc, MT_TX_RING_BASE);
 	if (err < 0)
 		return err;
 
@@ -243,19 +243,19 @@ int mt7915_dma_init(struct mt7915_dev *dev)
 		return ret;
 
 	/* command to WM */
-	ret = mt76_init_tx_queue(&dev->mt76, MT_TXQ_MCU, MT7915_TXQ_MCU_WM,
+	ret = mt76_init_tx_queue(&dev->mphy, MT_TXQ_MCU, MT7915_TXQ_MCU_WM,
 				 MT7915_TX_MCU_RING_SIZE, MT_TX_RING_BASE);
 	if (ret)
 		return ret;
 
 	/* command to WA */
-	ret = mt76_init_tx_queue(&dev->mt76, MT_TXQ_MCU_WA, MT7915_TXQ_MCU_WA,
+	ret = mt76_init_tx_queue(&dev->mphy, MT_TXQ_MCU_WA, MT7915_TXQ_MCU_WA,
 				 MT7915_TX_MCU_RING_SIZE, MT_TX_RING_BASE);
 	if (ret)
 		return ret;
 
 	/* firmware download */
-	ret = mt76_init_tx_queue(&dev->mt76, MT_TXQ_FWDL, MT7915_TXQ_FWDL,
+	ret = mt76_init_tx_queue(&dev->mphy, MT_TXQ_FWDL, MT7915_TXQ_FWDL,
 				 MT7915_TX_FWDL_RING_SIZE, MT_TX_RING_BASE);
 	if (ret)
 		return ret;

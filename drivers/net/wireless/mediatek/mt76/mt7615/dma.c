@@ -24,20 +24,20 @@ mt7622_init_tx_queues_multi(struct mt7615_dev *dev)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(wmm_queue_map); i++) {
-		ret = mt76_init_tx_queue(&dev->mt76, i, wmm_queue_map[i],
+		ret = mt76_init_tx_queue(&dev->mphy, i, wmm_queue_map[i],
 					 MT7615_TX_RING_SIZE / 2,
 					 MT_TX_RING_BASE);
 		if (ret)
 			return ret;
 	}
 
-	ret = mt76_init_tx_queue(&dev->mt76, MT_TXQ_PSD, MT7622_TXQ_MGMT,
+	ret = mt76_init_tx_queue(&dev->mphy, MT_TXQ_PSD, MT7622_TXQ_MGMT,
 				 MT7615_TX_MGMT_RING_SIZE,
 				 MT_TX_RING_BASE);
 	if (ret)
 		return ret;
 
-	return mt76_init_tx_queue(&dev->mt76, MT_TXQ_MCU, MT7622_TXQ_MCU,
+	return mt76_init_tx_queue(&dev->mphy, MT_TXQ_MCU, MT7622_TXQ_MCU,
 				  MT7615_TX_MCU_RING_SIZE,
 				  MT_TX_RING_BASE);
 }
@@ -47,7 +47,7 @@ mt7615_init_tx_queues(struct mt7615_dev *dev)
 {
 	int ret, i;
 
-	ret = mt76_init_tx_queue(&dev->mt76, MT_TXQ_FWDL, MT7615_TXQ_FWDL,
+	ret = mt76_init_tx_queue(&dev->mphy, MT_TXQ_FWDL, MT7615_TXQ_FWDL,
 				 MT7615_TX_FWDL_RING_SIZE,
 				 MT_TX_RING_BASE);
 	if (ret)
@@ -56,7 +56,7 @@ mt7615_init_tx_queues(struct mt7615_dev *dev)
 	if (!is_mt7615(&dev->mt76))
 		return mt7622_init_tx_queues_multi(dev);
 
-	ret = mt76_init_tx_queue(&dev->mt76, 0, 0, MT7615_TX_RING_SIZE,
+	ret = mt76_init_tx_queue(&dev->mphy, 0, 0, MT7615_TX_RING_SIZE,
 				 MT_TX_RING_BASE);
 	if (ret)
 		return ret;
@@ -64,7 +64,7 @@ mt7615_init_tx_queues(struct mt7615_dev *dev)
 	for (i = 1; i < MT_TXQ_MCU; i++)
 		dev->mt76.q_tx[i] = dev->mt76.q_tx[0];
 
-	return mt76_init_tx_queue(&dev->mt76, MT_TXQ_MCU, MT7615_TXQ_MCU,
+	return mt76_init_tx_queue(&dev->mphy, MT_TXQ_MCU, MT7615_TXQ_MCU,
 				  MT7615_TX_MCU_RING_SIZE,
 				  MT_TX_RING_BASE);
 }

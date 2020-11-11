@@ -9,7 +9,7 @@ mt7603_init_tx_queue(struct mt7603_dev *dev, int qid, int idx, int n_desc)
 {
 	int err;
 
-	err = mt76_init_tx_queue(&dev->mt76, qid, idx, n_desc,
+	err = mt76_init_tx_queue(&dev->mphy, qid, idx, n_desc,
 				 MT_TX_RING_BASE);
 	if (err < 0)
 		return err;

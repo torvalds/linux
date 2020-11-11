@@ -1214,23 +1214,21 @@ int mt76_get_antenna(struct ieee80211_hw *hw, u32 *tx_ant, u32 *rx_ant)
 }
 EXPORT_SYMBOL_GPL(mt76_get_antenna);
 
-int mt76_init_tx_queue(struct mt76_dev *dev, int qid, int idx,
-		       int n_desc, int ring_base)
+struct mt76_queue *
+mt76_init_queue(struct mt76_dev *dev, int qid, int idx, int n_desc,
+		int ring_base)
 {
 	struct mt76_queue *hwq;
 	int err;
 
 	hwq = devm_kzalloc(dev->dev, sizeof(*hwq), GFP_KERNEL);
 	if (!hwq)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	err = dev->queue_ops->alloc(dev, hwq, idx, n_desc, 0, ring_base);
 	if (err < 0)
-		return err;
+		return ERR_PTR(err);
 
-	hwq->qid = qid;
-	dev->q_tx[qid] = hwq;
-
-	return 0;
+	return hwq;
 }
-EXPORT_SYMBOL_GPL(mt76_init_tx_queue);
+EXPORT_SYMBOL_GPL(mt76_init_queue);
