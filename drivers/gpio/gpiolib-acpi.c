@@ -244,6 +244,28 @@ acpi_gpio_to_gpiod_flags(const struct acpi_resource_gpio *agpio, int polarity)
 	return GPIOD_ASIS;
 }
 
+static struct gpio_desc *acpi_request_own_gpiod(struct gpio_chip *chip,
+						struct acpi_resource_gpio *agpio,
+						unsigned int index,
+						const char *label)
+{
+	int polarity = GPIO_ACTIVE_HIGH;
+	enum gpiod_flags flags = acpi_gpio_to_gpiod_flags(agpio, polarity);
+	unsigned int pin = agpio->pin_table[index];
+	struct gpio_desc *desc;
+	int ret;
+
+	desc = gpiochip_request_own_desc(chip, pin, label, polarity, flags);
+	if (IS_ERR(desc))
+		return desc;
+
+	ret = gpio_set_debounce_timeout(desc, agpio->debounce_timeout);
+	if (ret)
+		gpiochip_free_own_desc(desc);
+
+	return ret ? ERR_PTR(ret) : desc;
+}
+
 static bool acpi_gpio_in_ignore_list(const char *controller_in, int pin_in)
 {
 	const char *controller, *pin_str;
@@ -329,18 +351,13 @@ static acpi_status acpi_gpiochip_alloc_event(struct acpi_resource *ares,
 	if (!handler)
 		return AE_OK;
 
-	desc = gpiochip_request_own_desc(chip, pin, "ACPI:Event",
-					 GPIO_ACTIVE_HIGH, GPIOD_IN);
+	desc = acpi_request_own_gpiod(chip, agpio, 0, "ACPI:Event");
 	if (IS_ERR(desc)) {
 		dev_err(chip->parent,
 			"Failed to request GPIO for pin 0x%04X, err %ld\n",
 			pin, PTR_ERR(desc));
 		return AE_OK;
 	}
-
-	ret = gpio_set_debounce_timeout(desc, agpio->debounce_timeout);
-	if (ret)
-		goto fail_free_desc;
 
 	ret = gpiochip_lock_as_irq(chip, pin);
 	if (ret) {
@@ -1061,23 +1078,8 @@ acpi_gpio_adr_space_handler(u32 function, acpi_physical_address address,
 		}
 
 		if (!found) {
-			int polarity = GPIO_ACTIVE_HIGH;
-			enum gpiod_flags flags = acpi_gpio_to_gpiod_flags(agpio, polarity);
-			const char *label = "ACPI:OpRegion";
-			int ret;
-
-			desc = gpiochip_request_own_desc(chip, pin, label,
-							 polarity,
-							 flags);
+			desc = acpi_request_own_gpiod(chip, agpio, i, "ACPI:OpRegion");
 			if (IS_ERR(desc)) {
-				mutex_unlock(&achip->conn_lock);
-				status = AE_ERROR;
-				goto out;
-			}
-
-			ret = gpio_set_debounce_timeout(desc, agpio->debounce_timeout);
-			if (ret) {
-				gpiochip_free_own_desc(desc);
 				mutex_unlock(&achip->conn_lock);
 				status = AE_ERROR;
 				goto out;
