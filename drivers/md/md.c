@@ -662,10 +662,14 @@ bool md_flush_request(struct mddev *mddev, struct bio *bio)
 {
 	ktime_t req_start = ktime_get_boottime();
 	spin_lock_irq(&mddev->lock);
+	/* flush requests wait until ongoing flush completes,
+	 * hence coalescing all the pending requests.
+	 */
 	wait_event_lock_irq(mddev->sb_wait,
 			    !mddev->flush_bio ||
 			    ktime_after(mddev->prev_flush_start, req_start),
 			    mddev->lock);
+	/* new request after previous flush is completed */
 	if (!ktime_after(mddev->prev_flush_start, req_start)) {
 		WARN_ON(mddev->flush_bio);
 		mddev->flush_bio = bio;
