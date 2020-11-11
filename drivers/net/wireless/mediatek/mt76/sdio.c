@@ -155,12 +155,11 @@ static void mt76s_net_worker(struct mt76_worker *w)
 	} while (nframes > 0);
 }
 
-static int mt76s_process_tx_queue(struct mt76_dev *dev, enum mt76_txq_id qid)
+static int mt76s_process_tx_queue(struct mt76_dev *dev, struct mt76_queue *q)
 {
-	struct mt76_queue *q = dev->q_tx[qid];
+	bool wake, mcu = q == dev->q_tx[MT_TXQ_MCU];
 	struct mt76_queue_entry entry;
 	int nframes = 0;
-	bool wake;
 
 	while (q->queued > 0) {
 		if (!q->entry[q->tail].done)
@@ -169,7 +168,7 @@ static int mt76s_process_tx_queue(struct mt76_dev *dev, enum mt76_txq_id qid)
 		entry = q->entry[q->tail];
 		q->entry[q->tail].done = false;
 
-		if (qid == MT_TXQ_MCU) {
+		if (mcu) {
 			dev_kfree_skb(entry.skb);
 			entry.skb = NULL;
 		}
@@ -185,13 +184,13 @@ static int mt76s_process_tx_queue(struct mt76_dev *dev, enum mt76_txq_id qid)
 	if (!q->queued)
 		wake_up(&dev->tx_wait);
 
-	if (qid == MT_TXQ_MCU)
+	if (mcu)
 		goto out;
 
-	mt76_txq_schedule(&dev->phy, qid);
+	mt76_txq_schedule(&dev->phy, q->qid);
 
 	if (wake)
-		ieee80211_wake_queue(dev->hw, qid);
+		ieee80211_wake_queue(dev->hw, q->qid);
 out:
 	return nframes;
 }
@@ -206,7 +205,7 @@ static void mt76s_status_worker(struct mt76_worker *w)
 	do {
 		nframes = 0;
 		for (i = 0; i < MT_TXQ_MCU_WA; i++)
-			nframes += mt76s_process_tx_queue(dev, i);
+			nframes += mt76s_process_tx_queue(dev, dev->q_tx[i]);
 
 		if (dev->drv->tx_status_data &&
 		    !test_and_set_bit(MT76_READING_STATS, &dev->phy.state))
