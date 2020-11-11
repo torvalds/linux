@@ -243,6 +243,10 @@ struct vop2_win {
 	 */
 	uint8_t area_id;
 	/**
+	 * @plane_id: unique plane id.
+	 */
+	uint8_t plane_id;
+	/**
 	 * @layer_id: id of the layer which the window attached to
 	 */
 	uint8_t layer_id;
@@ -3525,7 +3529,7 @@ static int vop2_plane_create_name_property(struct vop2 *vop2, struct vop2_win *w
 {
 	struct drm_prop_enum_list *props = vop2->plane_name_list;
 	struct drm_property *prop;
-	uint64_t bits = BIT_ULL(win->win_id);
+	uint64_t bits = BIT_ULL(win->plane_id);
 
 	prop = drm_property_create_bitmask(vop2->drm_dev,
 					   DRM_MODE_PROP_IMMUTABLE, "NAME",
@@ -3776,6 +3780,7 @@ static int vop2_win_init(struct vop2 *vop2)
 	struct drm_property *prop;
 	char name[DRM_PROP_NAME_LEN];
 	unsigned int num_wins = 0;
+	uint8_t plane_id = 0;
 	unsigned int i, j;
 
 	for (i = 0; i < vop2_data->win_size; i++) {
@@ -3795,6 +3800,7 @@ static int vop2_win_init(struct vop2 *vop2)
 		win->phys_id = win_data->phys_id;
 		win->layer_sel_id = win_data->layer_sel_id;
 		win->win_id = i;
+		win->plane_id = plane_id++;
 		win->area_id = 0;
 		win->zpos = i;
 		win->vop2 = vop2;
@@ -3823,8 +3829,10 @@ static int vop2_win_init(struct vop2 *vop2)
 			area->win_id = i;
 			area->phys_id = win->phys_id;
 			area->area_id = j + 1;
+			area->plane_id = plane_id++;
 			area->layer_sel_id = -1;
-			sprintf(name, "%s_win%d\n", win->name, area->area_id);
+			snprintf(name, min(sizeof(name), strlen(win->name)), "%s", win->name);
+			snprintf(name, sizeof(name), "%s%d", name, area->area_id);
 			area->name = devm_kstrdup(vop2->dev, name, GFP_KERNEL);
 			num_wins++;
 		}
@@ -3849,7 +3857,7 @@ static int vop2_win_init(struct vop2 *vop2)
 
 	for (i = 0; i < vop2->registered_num_wins; i++) {
 		win = &vop2->win[i];
-		plane_name_list[i].type = win->win_id;
+		plane_name_list[i].type = win->plane_id;
 		plane_name_list[i].name = win->name;
 	}
 

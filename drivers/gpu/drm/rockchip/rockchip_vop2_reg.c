@@ -588,7 +588,68 @@ static const struct vop2_scl_regs rk3568_esmart_win_scl = {
 	.vsd_cbcr_gt4 = VOP_REG(RK3568_ESMART0_REGION0_CTRL, 0x1, 11),
 };
 
+static const struct vop2_scl_regs rk3568_area1_scl = {
+	.scale_yrgb_x = VOP_REG(RK3568_ESMART0_REGION1_SCL_FACTOR_YRGB, 0xffff, 0x0),
+	.scale_yrgb_y = VOP_REG(RK3568_ESMART0_REGION1_SCL_FACTOR_YRGB, 0xffff, 16),
+	.scale_cbcr_x = VOP_REG(RK3568_ESMART0_REGION1_SCL_FACTOR_CBR, 0xffff, 0x0),
+	.scale_cbcr_y = VOP_REG(RK3568_ESMART0_REGION1_SCL_FACTOR_CBR, 0xffff, 16),
+	.yrgb_hor_scl_mode = VOP_REG(RK3568_ESMART0_REGION1_SCL_CTRL, 0x3, 0),
+	.yrgb_hscl_filter_mode = VOP_REG(RK3568_ESMART0_REGION1_SCL_CTRL, 0x3, 2),
+	.yrgb_ver_scl_mode = VOP_REG(RK3568_ESMART0_REGION1_SCL_CTRL, 0x3, 4),
+	.yrgb_vscl_filter_mode = VOP_REG(RK3568_ESMART0_REGION1_SCL_CTRL, 0x3, 6),
+	.cbcr_hor_scl_mode = VOP_REG(RK3568_ESMART0_REGION1_SCL_CTRL, 0x3, 8),
+	.cbcr_hscl_filter_mode = VOP_REG(RK3568_ESMART0_REGION1_SCL_CTRL, 0x3, 10),
+	.cbcr_ver_scl_mode = VOP_REG(RK3568_ESMART0_REGION1_SCL_CTRL, 0x3, 12),
+	.cbcr_vscl_filter_mode = VOP_REG(RK3568_ESMART0_REGION1_SCL_CTRL, 0x3, 14),
+	.bic_coe_sel = VOP_REG(RK3568_ESMART0_REGION1_SCL_CTRL, 0x3, 16),
+	.vsd_yrgb_gt2 = VOP_REG(RK3568_ESMART0_REGION1_CTRL, 0x1, 8),
+	.vsd_yrgb_gt4 = VOP_REG(RK3568_ESMART0_REGION1_CTRL, 0x1, 9),
+	.vsd_cbcr_gt2 = VOP_REG(RK3568_ESMART0_REGION1_CTRL, 0x1, 10),
+	.vsd_cbcr_gt4 = VOP_REG(RK3568_ESMART0_REGION1_CTRL, 0x1, 11),
+};
+
+static const struct vop2_scl_regs rk3568_area2_scl = {
+	.scale_yrgb_x = VOP_REG(RK3568_ESMART0_REGION2_SCL_FACTOR_YRGB, 0xffff, 0x0),
+	.scale_yrgb_y = VOP_REG(RK3568_ESMART0_REGION2_SCL_FACTOR_YRGB, 0xffff, 16),
+	.scale_cbcr_x = VOP_REG(RK3568_ESMART0_REGION2_SCL_FACTOR_CBR, 0xffff, 0x0),
+	.scale_cbcr_y = VOP_REG(RK3568_ESMART0_REGION2_SCL_FACTOR_CBR, 0xffff, 16),
+	.yrgb_hor_scl_mode = VOP_REG(RK3568_ESMART0_REGION2_SCL_CTRL, 0x3, 0),
+	.yrgb_hscl_filter_mode = VOP_REG(RK3568_ESMART0_REGION2_SCL_CTRL, 0x3, 2),
+	.yrgb_ver_scl_mode = VOP_REG(RK3568_ESMART0_REGION2_SCL_CTRL, 0x3, 4),
+	.yrgb_vscl_filter_mode = VOP_REG(RK3568_ESMART0_REGION2_SCL_CTRL, 0x3, 6),
+	.cbcr_hor_scl_mode = VOP_REG(RK3568_ESMART0_REGION2_SCL_CTRL, 0x3, 8),
+	.cbcr_hscl_filter_mode = VOP_REG(RK3568_ESMART0_REGION2_SCL_CTRL, 0x3, 10),
+	.cbcr_ver_scl_mode = VOP_REG(RK3568_ESMART0_REGION2_SCL_CTRL, 0x3, 12),
+	.cbcr_vscl_filter_mode = VOP_REG(RK3568_ESMART0_REGION2_SCL_CTRL, 0x3, 14),
+	.bic_coe_sel = VOP_REG(RK3568_ESMART0_REGION2_SCL_CTRL, 0x3, 16),
+	.vsd_yrgb_gt2 = VOP_REG(RK3568_ESMART0_REGION2_CTRL, 0x1, 8),
+	.vsd_yrgb_gt4 = VOP_REG(RK3568_ESMART0_REGION2_CTRL, 0x1, 9),
+	.vsd_cbcr_gt2 = VOP_REG(RK3568_ESMART0_REGION2_CTRL, 0x1, 10),
+	.vsd_cbcr_gt4 = VOP_REG(RK3568_ESMART0_REGION2_CTRL, 0x1, 11),
+};
+
+static const struct vop2_scl_regs rk3568_area3_scl = {
+	.scale_yrgb_x = VOP_REG(RK3568_ESMART0_REGION3_SCL_FACTOR_YRGB, 0xffff, 0x0),
+	.scale_yrgb_y = VOP_REG(RK3568_ESMART0_REGION3_SCL_FACTOR_YRGB, 0xffff, 16),
+	.scale_cbcr_x = VOP_REG(RK3568_ESMART0_REGION3_SCL_FACTOR_CBR, 0xffff, 0x0),
+	.scale_cbcr_y = VOP_REG(RK3568_ESMART0_REGION3_SCL_FACTOR_CBR, 0xffff, 16),
+	.yrgb_hor_scl_mode = VOP_REG(RK3568_ESMART0_REGION3_SCL_CTRL, 0x3, 0),
+	.yrgb_hscl_filter_mode = VOP_REG(RK3568_ESMART0_REGION3_SCL_CTRL, 0x3, 2),
+	.yrgb_ver_scl_mode = VOP_REG(RK3568_ESMART0_REGION3_SCL_CTRL, 0x3, 4),
+	.yrgb_vscl_filter_mode = VOP_REG(RK3568_ESMART0_REGION3_SCL_CTRL, 0x3, 6),
+	.cbcr_hor_scl_mode = VOP_REG(RK3568_ESMART0_REGION3_SCL_CTRL, 0x3, 8),
+	.cbcr_hscl_filter_mode = VOP_REG(RK3568_ESMART0_REGION3_SCL_CTRL, 0x3, 10),
+	.cbcr_ver_scl_mode = VOP_REG(RK3568_ESMART0_REGION3_SCL_CTRL, 0x3, 12),
+	.cbcr_vscl_filter_mode = VOP_REG(RK3568_ESMART0_REGION3_SCL_CTRL, 0x3, 14),
+	.bic_coe_sel = VOP_REG(RK3568_ESMART0_REGION3_SCL_CTRL, 0x3, 16),
+	.vsd_yrgb_gt2 = VOP_REG(RK3568_ESMART0_REGION3_CTRL, 0x1, 8),
+	.vsd_yrgb_gt4 = VOP_REG(RK3568_ESMART0_REGION3_CTRL, 0x1, 9),
+	.vsd_cbcr_gt2 = VOP_REG(RK3568_ESMART0_REGION3_CTRL, 0x1, 10),
+	.vsd_cbcr_gt4 = VOP_REG(RK3568_ESMART0_REGION3_CTRL, 0x1, 11),
+};
+
 static const struct vop2_win_regs rk3568_area1_data = {
+	.scl = &rk3568_area1_scl,
 	.enable = VOP_REG(RK3568_ESMART0_REGION1_CTRL, 0x1, 0),
 	.format = VOP_REG(RK3568_ESMART0_REGION1_CTRL, 0x1f, 1),
 	.rb_swap = VOP_REG(RK3568_ESMART0_REGION1_CTRL, 0x1, 14),
@@ -602,6 +663,7 @@ static const struct vop2_win_regs rk3568_area1_data = {
 };
 
 static const struct vop2_win_regs rk3568_area2_data = {
+	.scl = &rk3568_area2_scl,
 	.enable = VOP_REG(RK3568_ESMART0_REGION2_CTRL, 0x1, 0),
 	.format = VOP_REG(RK3568_ESMART0_REGION2_CTRL, 0x1f, 1),
 	.rb_swap = VOP_REG(RK3568_ESMART0_REGION2_CTRL, 0x1, 14),
@@ -614,6 +676,7 @@ static const struct vop2_win_regs rk3568_area2_data = {
 };
 
 static const struct vop2_win_regs rk3568_area3_data = {
+	.scl = &rk3568_area3_scl,
 	.enable = VOP_REG(RK3568_ESMART0_REGION3_CTRL, 0x1, 0),
 	.format = VOP_REG(RK3568_ESMART0_REGION3_CTRL, 0x1f, 1),
 	.rb_swap = VOP_REG(RK3568_ESMART0_REGION3_CTRL, 0x1, 14),
