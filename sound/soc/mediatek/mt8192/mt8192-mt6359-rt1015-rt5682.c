@@ -540,7 +540,9 @@ SND_SOC_DAILINK_DEFS(playback_hdmi,
 SND_SOC_DAILINK_DEFS(primary_codec,
 		     DAILINK_COMP_ARRAY(COMP_CPU("ADDA")),
 		     DAILINK_COMP_ARRAY(COMP_CODEC("mt6359-sound",
-						   "mt6359-snd-codec-aif1")),
+						   "mt6359-snd-codec-aif1"),
+					COMP_CODEC("dmic-codec",
+						   "dmic-hifi")),
 		     DAILINK_COMP_ARRAY(COMP_EMPTY()));
 
 SND_SOC_DAILINK_DEFS(primary_codec_ch34,

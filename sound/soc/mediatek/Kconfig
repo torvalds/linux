@@ -176,6 +176,7 @@ config SND_SOC_MT8192_MT6359_RT1015_RT5682
 	select SND_SOC_MT6359
 	select SND_SOC_RT1015
 	select SND_SOC_RT5682_I2C
+	select SND_SOC_DMIC
 	help
 	  This adds ASoC driver for Mediatek MT8192 boards
 	  with the MT6359 RT1015 RT5682 audio codec.
