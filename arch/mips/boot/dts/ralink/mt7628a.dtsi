@@ -275,7 +275,7 @@
 		reset-names = "host", "device";
 	};
 
-	ehci@101c0000 {
+	usb@101c0000 {
 		compatible = "generic-ehci";
 		reg = <0x101c0000 0x1000>;
 
