@@ -1063,8 +1063,8 @@ acpi_gpio_adr_space_handler(u32 function, acpi_physical_address address,
 							 GPIO_ACTIVE_HIGH,
 							 flags);
 			if (IS_ERR(desc)) {
-				status = AE_ERROR;
 				mutex_unlock(&achip->conn_lock);
+				status = AE_ERROR;
 				goto out;
 			}
 
@@ -1078,9 +1078,9 @@ acpi_gpio_adr_space_handler(u32 function, acpi_physical_address address,
 
 			conn = kzalloc(sizeof(*conn), GFP_KERNEL);
 			if (!conn) {
-				status = AE_NO_MEMORY;
 				gpiochip_free_own_desc(desc);
 				mutex_unlock(&achip->conn_lock);
+				status = AE_NO_MEMORY;
 				goto out;
 			}
 
