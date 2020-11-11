@@ -36,28 +36,46 @@ mt76s_alloc_rx_queue(struct mt76_dev *dev, enum mt76_rxq_id qid)
 	return 0;
 }
 
+static struct mt76_queue *mt76s_alloc_tx_queue(struct mt76_dev *dev)
+{
+	struct mt76_queue *q;
+
+	q = devm_kzalloc(dev->dev, sizeof(*q), GFP_KERNEL);
+	if (!q)
+		return ERR_PTR(-ENOMEM);
+
+	spin_lock_init(&q->lock);
+	q->entry = devm_kcalloc(dev->dev,
+				MT_NUM_TX_ENTRIES, sizeof(*q->entry),
+				GFP_KERNEL);
+	if (!q->entry)
+		return ERR_PTR(-ENOMEM);
+
+	q->ndesc = MT_NUM_TX_ENTRIES;
+
+	return q;
+}
+
 static int mt76s_alloc_tx(struct mt76_dev *dev)
 {
 	struct mt76_queue *q;
 	int i;
 
-	for (i = 0; i < MT_TXQ_MCU_WA; i++) {
-		q = devm_kzalloc(dev->dev, sizeof(*q), GFP_KERNEL);
-		if (!q)
-			return -ENOMEM;
+	for (i = 0; i <= MT_TXQ_PSD; i++) {
+		q = mt76s_alloc_tx_queue(dev);
+		if (IS_ERR(q))
+			return PTR_ERR(q);
 
-		spin_lock_init(&q->lock);
-		q->hw_idx = i;
+		q->qid = i;
 		dev->q_tx[i] = q;
-
-		q->entry = devm_kcalloc(dev->dev,
-					MT_NUM_TX_ENTRIES, sizeof(*q->entry),
-					GFP_KERNEL);
-		if (!q->entry)
-			return -ENOMEM;
-
-		q->ndesc = MT_NUM_TX_ENTRIES;
 	}
+
+	q = mt76s_alloc_tx_queue(dev);
+	if (IS_ERR(q))
+		return PTR_ERR(q);
+
+	q->qid = MT_TXQ_MCU;
+	dev->q_tx[MT_TXQ_MCU] = q;
 
 	return 0;
 }
