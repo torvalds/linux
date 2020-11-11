@@ -2438,13 +2438,13 @@ glance as if rcu_read_unlock_bh() was executing very slowly.
 
 The `RCU-bh
 API <https://lwn.net/Articles/609973/#RCU%20Per-Flavor%20API%20Table>`__
-includes rcu_read_lock_bh(), rcu_read_unlock_bh(),
-rcu_dereference_bh(), rcu_dereference_bh_check(),
-synchronize_rcu_bh(), synchronize_rcu_bh_expedited(),
-call_rcu_bh(), rcu_barrier_bh(), and
-rcu_read_lock_bh_held(). However, the update-side APIs are now
-simple wrappers for other RCU flavors, namely RCU-sched in
-CONFIG_PREEMPT=n kernels and RCU-preempt otherwise.
+includes rcu_read_lock_bh(), rcu_read_unlock_bh(), rcu_dereference_bh(),
+rcu_dereference_bh_check(), and rcu_read_lock_bh_held(). However, the
+old RCU-bh update-side APIs are now gone, replaced by synchronize_rcu(),
+synchronize_rcu_expedited(), call_rcu(), and rcu_barrier().  In addition,
+anything that disables bottom halves also marks an RCU-bh read-side
+critical section, including local_bh_disable() and local_bh_enable(),
+local_irq_save() and local_irq_restore(), and so on.
 
 Sched Flavor (Historical)
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2481,13 +2481,13 @@ The `RCU-sched
 API <https://lwn.net/Articles/609973/#RCU%20Per-Flavor%20API%20Table>`__
 includes rcu_read_lock_sched(), rcu_read_unlock_sched(),
 rcu_read_lock_sched_notrace(), rcu_read_unlock_sched_notrace(),
-rcu_dereference_sched(), rcu_dereference_sched_check(),
-synchronize_sched(), synchronize_rcu_sched_expedited(),
-call_rcu_sched(), rcu_barrier_sched(), and
-rcu_read_lock_sched_held(). However, anything that disables
-preemption also marks an RCU-sched read-side critical section, including
-preempt_disable() and preempt_enable(), local_irq_save() and
-local_irq_restore(), and so on.
+rcu_dereference_sched(), rcu_dereference_sched_check(), and
+rcu_read_lock_sched_held().  However, the old RCU-sched update-side APIs
+are now gone, replaced by synchronize_rcu(), synchronize_rcu_expedited(),
+call_rcu(), and rcu_barrier().  In addition, anything that disables
+preemption also marks an RCU-sched read-side critical section,
+including preempt_disable() and preempt_enable(), local_irq_save()
+and local_irq_restore(), and so on.
 
 Sleepable RCU
 ~~~~~~~~~~~~~
