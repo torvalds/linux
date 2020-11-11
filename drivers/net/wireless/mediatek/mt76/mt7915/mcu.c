@@ -326,7 +326,7 @@ exit:
 	if (wait_seq)
 		*wait_seq = seq;
 
-	return mt76_tx_queue_skb_raw(dev, txq, skb, 0);
+	return mt76_tx_queue_skb_raw(dev, mdev->q_tx[txq], skb, 0);
 }
 
 static void

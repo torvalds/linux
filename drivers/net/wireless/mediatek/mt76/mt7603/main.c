@@ -380,9 +380,11 @@ mt7603_ps_tx_list(struct mt7603_dev *dev, struct sk_buff_head *list)
 {
 	struct sk_buff *skb;
 
-	while ((skb = __skb_dequeue(list)) != NULL)
-		mt76_tx_queue_skb_raw(dev, skb_get_queue_mapping(skb),
-				      skb, 0);
+	while ((skb = __skb_dequeue(list)) != NULL) {
+		int qid = skb_get_queue_mapping(skb);
+
+		mt76_tx_queue_skb_raw(dev, dev->mt76.q_tx[qid], skb, 0);
+	}
 }
 
 void

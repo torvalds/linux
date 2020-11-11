@@ -187,7 +187,7 @@ mt7615_reset_test_set(void *data, u64 val)
 	skb_put(skb, 1);
 
 	mt7615_mutex_acquire(dev);
-	mt76_tx_queue_skb_raw(dev, 0, skb, 0);
+	mt76_tx_queue_skb_raw(dev, dev->mt76.q_tx[0], skb, 0);
 	mt7615_mutex_release(dev);
 
 	return 0;

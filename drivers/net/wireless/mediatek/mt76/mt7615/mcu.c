@@ -239,7 +239,7 @@ mt7615_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 	else
 		qid = MT_TXQ_FWDL;
 
-	return mt76_tx_queue_skb_raw(dev, qid, skb, 0);
+	return mt76_tx_queue_skb_raw(dev, dev->mt76.q_tx[qid], skb, 0);
 }
 
 u32 mt7615_rf_rr(struct mt7615_dev *dev, u32 wf, u32 reg)

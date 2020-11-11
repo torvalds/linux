@@ -42,7 +42,7 @@ mt7663s_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 	int ret;
 
 	mt7615_mcu_fill_msg(dev, skb, cmd, seq);
-	ret = mt76_tx_queue_skb_raw(dev, MT_TXQ_MCU, skb, 0);
+	ret = mt76_tx_queue_skb_raw(dev, mdev->q_tx[MT_TXQ_MCU], skb, 0);
 	if (ret)
 		return ret;
 

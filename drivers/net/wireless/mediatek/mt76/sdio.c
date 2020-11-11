@@ -266,10 +266,9 @@ mt76s_tx_queue_skb(struct mt76_dev *dev, struct mt76_queue *q,
 }
 
 static int
-mt76s_tx_queue_skb_raw(struct mt76_dev *dev, enum mt76_txq_id qid,
+mt76s_tx_queue_skb_raw(struct mt76_dev *dev, struct mt76_queue *q,
 		       struct sk_buff *skb, u32 tx_info)
 {
-	struct mt76_queue *q = dev->q_tx[qid];
 	int ret = -ENOSPC, len = skb->len, pad;
 
 	if (q->queued == q->ndesc)

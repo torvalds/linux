@@ -175,7 +175,7 @@ struct mt76_queue_ops {
 			    struct sk_buff *skb, struct mt76_wcid *wcid,
 			    struct ieee80211_sta *sta);
 
-	int (*tx_queue_skb_raw)(struct mt76_dev *dev, enum mt76_txq_id qid,
+	int (*tx_queue_skb_raw)(struct mt76_dev *dev, struct mt76_queue *q,
 				struct sk_buff *skb, u32 tx_info);
 
 	void *(*dequeue)(struct mt76_dev *dev, struct mt76_queue *q, bool flush,
