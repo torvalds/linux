@@ -740,9 +740,6 @@ static void run_test(enum vm_guest_mode mode, unsigned long iterations,
 	/* Cache the HVA pointer of the region */
 	host_test_mem = addr_gpa2hva(vm, (vm_paddr_t)guest_test_phys_mem);
 
-#ifdef __x86_64__
-	vcpu_set_cpuid(vm, VCPU_ID, kvm_get_supported_cpuid());
-#endif
 	ucall_init(vm, NULL);
 
 	/* Export the shared variables to the guest */

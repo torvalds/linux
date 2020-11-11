@@ -311,8 +311,15 @@ struct kvm_vm *vm_create_with_vcpus(enum vm_guest_mode mode, uint32_t nr_vcpus,
 	vm_create_irqchip(vm);
 #endif
 
-	for (i = 0; i < nr_vcpus; ++i)
-		vm_vcpu_add_default(vm, vcpuids ? vcpuids[i] : i, guest_code);
+	for (i = 0; i < nr_vcpus; ++i) {
+		uint32_t vcpuid = vcpuids ? vcpuids[i] : i;
+
+		vm_vcpu_add_default(vm, vcpuid, guest_code);
+
+#ifdef __x86_64__
+		vcpu_set_cpuid(vm, vcpuid, kvm_get_supported_cpuid());
+#endif
+	}
 
 	return vm;
 }
