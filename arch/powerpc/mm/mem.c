@@ -120,33 +120,25 @@ static void flush_dcache_range_chunked(unsigned long start, unsigned long stop,
 	}
 }
 
-int __ref arch_add_memory(int nid, u64 start, u64 size,
-			  struct mhp_params *params)
+int __ref arch_create_linear_mapping(int nid, u64 start, u64 size,
+				     struct mhp_params *params)
 {
-	unsigned long start_pfn = start >> PAGE_SHIFT;
-	unsigned long nr_pages = size >> PAGE_SHIFT;
 	int rc;
 
 	start = (unsigned long)__va(start);
 	rc = create_section_mapping(start, start + size, nid,
 				    params->pgprot);
 	if (rc) {
-		pr_warn("Unable to create mapping for hot added memory 0x%llx..0x%llx: %d\n",
+		pr_warn("Unable to create linear mapping for 0x%llx..0x%llx: %d\n",
 			start, start + size, rc);
 		return -EFAULT;
 	}
-
-	return __add_pages(nid, start_pfn, nr_pages, params);
+	return 0;
 }
 
-void __ref arch_remove_memory(int nid, u64 start, u64 size,
-			     struct vmem_altmap *altmap)
+void __ref arch_remove_linear_mapping(u64 start, u64 size)
 {
-	unsigned long start_pfn = start >> PAGE_SHIFT;
-	unsigned long nr_pages = size >> PAGE_SHIFT;
 	int ret;
-
-	__remove_pages(start_pfn, nr_pages, altmap);
 
 	/* Remove htab bolted mappings for this section of memory */
 	start = (unsigned long)__va(start);
@@ -159,6 +151,29 @@ void __ref arch_remove_memory(int nid, u64 start, u64 size,
 	 * hit that section of memory
 	 */
 	vm_unmap_aliases();
+}
+
+int __ref arch_add_memory(int nid, u64 start, u64 size,
+			  struct mhp_params *params)
+{
+	unsigned long start_pfn = start >> PAGE_SHIFT;
+	unsigned long nr_pages = size >> PAGE_SHIFT;
+	int rc;
+
+	rc = arch_create_linear_mapping(nid, start, size, params);
+	if (rc)
+		return rc;
+	return __add_pages(nid, start_pfn, nr_pages, params);
+}
+
+void __ref arch_remove_memory(int nid, u64 start, u64 size,
+			      struct vmem_altmap *altmap)
+{
+	unsigned long start_pfn = start >> PAGE_SHIFT;
+	unsigned long nr_pages = size >> PAGE_SHIFT;
+
+	__remove_pages(start_pfn, nr_pages, altmap);
+	arch_remove_linear_mapping(start, size);
 }
 #endif
 
