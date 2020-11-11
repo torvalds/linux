@@ -1967,13 +1967,15 @@ static int iommu_setup_msi(struct amd_iommu *iommu)
 
 union intcapxt {
 	u64	capxt;
-	u64	reserved_0		:  2,
-		dest_mode_logical	:  1,
-		reserved_1		:  5,
-		destid_0_23		: 24,
-		vector			:  8,
-		reserved_2		: 16,
-		destid_24_31		:  8;
+	struct {
+		u64	reserved_0		:  2,
+			dest_mode_logical	:  1,
+			reserved_1		:  5,
+			destid_0_23		: 24,
+			vector			:  8,
+			reserved_2		: 16,
+			destid_24_31		:  8;
+	};
 } __attribute__ ((packed));
 
 /*
