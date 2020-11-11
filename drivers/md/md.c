@@ -667,10 +667,10 @@ bool md_flush_request(struct mddev *mddev, struct bio *bio)
 	 */
 	wait_event_lock_irq(mddev->sb_wait,
 			    !mddev->flush_bio ||
-			    ktime_after(mddev->prev_flush_start, req_start),
+			    ktime_before(req_start, mddev->prev_flush_start),
 			    mddev->lock);
 	/* new request after previous flush is completed */
-	if (!ktime_after(mddev->prev_flush_start, req_start)) {
+	if (ktime_after(req_start, mddev->prev_flush_start)) {
 		WARN_ON(mddev->flush_bio);
 		mddev->flush_bio = bio;
 		bio = NULL;
