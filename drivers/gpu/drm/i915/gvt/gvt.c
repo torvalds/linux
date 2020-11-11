@@ -415,7 +415,7 @@ intel_gvt_pm_resume(struct intel_gvt *gvt)
 }
 
 int
-intel_gvt_register_hypervisor(struct intel_gvt_mpt *m)
+intel_gvt_register_hypervisor(const struct intel_gvt_mpt *m)
 {
 	int ret;
 	void *gvt;
