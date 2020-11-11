@@ -238,6 +238,8 @@ setup_overlay_ipv4()
 	# The intermediate namespaces don't have routes for the reverse path,
 	# as it will be handled by tc. So we need to ensure that rp_filter is
 	# not going to block the traffic.
+	ip netns exec "${NS1}" sysctl -qw net.ipv4.conf.all.rp_filter=0
+	ip netns exec "${NS2}" sysctl -qw net.ipv4.conf.all.rp_filter=0
 	ip netns exec "${NS1}" sysctl -qw net.ipv4.conf.default.rp_filter=0
 	ip netns exec "${NS2}" sysctl -qw net.ipv4.conf.default.rp_filter=0
 }
