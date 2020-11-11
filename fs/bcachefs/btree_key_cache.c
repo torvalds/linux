@@ -490,6 +490,9 @@ void bch2_fs_btree_key_cache_exit(struct btree_key_cache *bc)
 	list_splice(&bc->dirty, &bc->clean);
 
 	list_for_each_entry_safe(ck, n, &bc->clean, list) {
+		bch2_journal_pin_drop(&c->journal, &ck->journal);
+		bch2_journal_preres_put(&c->journal, &ck->res);
+
 		kfree(ck->k);
 		kfree(ck);
 		bc->nr_keys--;
