@@ -1661,12 +1661,7 @@ static int gsi_modem_channel_alloc(struct gsi *gsi, u32 channel_id)
 
 static void gsi_modem_channel_halt(struct gsi *gsi, u32 channel_id)
 {
-	int ret;
-
-	ret = gsi_generic_command(gsi, channel_id, GSI_GENERIC_HALT_CHANNEL);
-	if (ret)
-		dev_err(gsi->dev, "error %d halting modem channel %u\n",
-			ret, channel_id);
+	(void)gsi_generic_command(gsi, channel_id, GSI_GENERIC_HALT_CHANNEL);
 }
 
 /* Setup function for channels */

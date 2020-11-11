@@ -160,13 +160,13 @@ int ipa_mem_config(struct ipa *ipa)
 	mem_size = 8 * u32_get_bits(val, SHARED_MEM_SIZE_FMASK);
 
 	/* If the sizes don't match, issue a warning */
-	if (ipa->mem_offset + mem_size > ipa->mem_size) {
-		dev_warn(dev, "ignoring larger reported memory size: 0x%08x\n",
-			mem_size);
-	} else if (ipa->mem_offset + mem_size < ipa->mem_size) {
+	if (ipa->mem_offset + mem_size < ipa->mem_size) {
 		dev_warn(dev, "limiting IPA memory size to 0x%08x\n",
 			 mem_size);
 		ipa->mem_size = mem_size;
+	} else if (ipa->mem_offset + mem_size > ipa->mem_size) {
+		dev_dbg(dev, "ignoring larger reported memory size: 0x%08x\n",
+			mem_size);
 	}
 
 	/* Prealloc DMA memory for zeroing regions */

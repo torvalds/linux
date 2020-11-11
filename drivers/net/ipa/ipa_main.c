@@ -335,7 +335,6 @@ static void ipa_hardware_config(struct ipa *ipa)
 	ipa_hardware_config_qsb(ipa);
 
 	/* Configure aggregation granularity */
-	val = ioread32(ipa->reg_virt + IPA_REG_COUNTER_CFG_OFFSET);
 	granularity = ipa_aggr_granularity_val(IPA_AGGR_GRANULARITY);
 	val = u32_encode_bits(granularity, AGGR_GRANULARITY);
 	iowrite32(val, ipa->reg_virt + IPA_REG_COUNTER_CFG_OFFSET);
@@ -680,9 +679,6 @@ static void ipa_validate_build(void)
 	 */
 	BUILD_BUG_ON(GSI_TLV_MAX > U8_MAX);
 
-	/* Exceeding 128 bytes makes the transaction pool *much* larger */
-	BUILD_BUG_ON(sizeof(struct gsi_trans) > 128);
-
 	/* This is used as a divisor */
 	BUILD_BUG_ON(!IPA_AGGR_GRANULARITY);
 
@@ -790,7 +786,7 @@ static int ipa_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_mem_exit;
 
-	/* Result is a non-zero mask endpoints that support filtering */
+	/* Result is a non-zero mask of endpoints that support filtering */
 	ipa->filter_map = ipa_endpoint_init(ipa, data->endpoint_count,
 					    data->endpoint_data);
 	if (!ipa->filter_map) {
