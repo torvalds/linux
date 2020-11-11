@@ -496,7 +496,7 @@ static int lp_pin_config_get(struct pinctrl_dev *pctldev, unsigned int pin,
 	enum pin_config_param param = pinconf_to_config_param(*config);
 	unsigned long flags;
 	u32 value, pull;
-	u16 arg = 0;
+	u16 arg;
 
 	raw_spin_lock_irqsave(&lg->lock, flags);
 	value = ioread32(conf2);
@@ -506,8 +506,9 @@ static int lp_pin_config_get(struct pinctrl_dev *pctldev, unsigned int pin,
 
 	switch (param) {
 	case PIN_CONFIG_BIAS_DISABLE:
-		if (pull)
+		if (pull != GPIWP_NONE)
 			return -EINVAL;
+		arg = 0;
 		break;
 	case PIN_CONFIG_BIAS_PULL_DOWN:
 		if (pull != GPIWP_DOWN)
@@ -550,6 +551,7 @@ static int lp_pin_config_set(struct pinctrl_dev *pctldev, unsigned int pin,
 		switch (param) {
 		case PIN_CONFIG_BIAS_DISABLE:
 			value &= ~GPIWP_MASK;
+			value |= GPIWP_NONE;
 			break;
 		case PIN_CONFIG_BIAS_PULL_DOWN:
 			value &= ~GPIWP_MASK;
