@@ -35,6 +35,7 @@ struct rk_codec_digital_priv {
 	struct regmap *regmap;
 	struct clk *clk_adc;
 	struct clk *clk_dac;
+	struct clk *clk_i2c;
 	struct clk *pclk;
 	bool pwmout;
 	struct reset_control *rc;
@@ -607,11 +608,17 @@ static int rk_codec_digital_runtime_resume(struct device *dev)
 
 	ret = clk_prepare_enable(rcd->clk_dac);
 	if (ret)
-		goto err_clk;
+		goto err_adc;
+
+	ret = clk_prepare_enable(rcd->clk_i2c);
+	if (ret)
+		goto err_dac;
 
 	return 0;
 
-err_clk:
+err_dac:
+	clk_disable_unprepare(rcd->clk_dac);
+err_adc:
 	clk_disable_unprepare(rcd->clk_adc);
 err:
 	clk_disable_unprepare(rcd->pclk);
@@ -625,6 +632,7 @@ static int rk_codec_digital_runtime_suspend(struct device *dev)
 
 	clk_disable_unprepare(rcd->clk_adc);
 	clk_disable_unprepare(rcd->clk_dac);
+	clk_disable_unprepare(rcd->clk_i2c);
 	clk_disable_unprepare(rcd->pclk);
 
 	return 0;
@@ -655,6 +663,11 @@ static int rk_codec_digital_platform_probe(struct platform_device *pdev)
 	rcd->clk_dac = devm_clk_get(&pdev->dev, "dac");
 	if (IS_ERR(rcd->clk_dac))
 		return PTR_ERR(rcd->clk_dac);
+
+	/* optional on some platform */
+	rcd->clk_i2c = devm_clk_get_optional(&pdev->dev, "i2c");
+	if (IS_ERR(rcd->clk_i2c))
+		return PTR_ERR(rcd->clk_i2c);
 
 	rcd->pclk = devm_clk_get(&pdev->dev, "pclk");
 	if (IS_ERR(rcd->pclk))
