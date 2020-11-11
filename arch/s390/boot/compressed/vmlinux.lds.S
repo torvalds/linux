@@ -82,6 +82,14 @@ SECTIONS
 		*(.vmlinux.info)
 	}
 
+	.decompressor.syms : {
+		. += 1; /* make sure we have \0 before the first entry */
+		. = ALIGN(2);
+		_decompressor_syms_start = .;
+		*(.decompressor.syms)
+		_decompressor_syms_end = .;
+	}
+
 #ifdef CONFIG_KERNEL_UNCOMPRESSED
 	. = 0x100000;
 #else

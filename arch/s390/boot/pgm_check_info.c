@@ -19,6 +19,65 @@ static char *as_hex(char *dst, unsigned long val, int pad)
 	return end;
 }
 
+static char *symstart(char *p)
+{
+	while (*p)
+		p--;
+	return p + 1;
+}
+
+extern char _decompressor_syms_start[], _decompressor_syms_end[];
+static noinline char *findsym(unsigned long ip, unsigned short *off, unsigned short *len)
+{
+	/* symbol entries are in a form "10000 c4 startup\0" */
+	char *a = _decompressor_syms_start;
+	char *b = _decompressor_syms_end;
+	unsigned long start;
+	unsigned long size;
+	char *pivot;
+	char *endp;
+
+	while (a < b) {
+		pivot = symstart(a + (b - a) / 2);
+		start = simple_strtoull(pivot, &endp, 16);
+		size = simple_strtoull(endp + 1, &endp, 16);
+		if (ip < start) {
+			b = pivot;
+			continue;
+		}
+		if (ip > start + size) {
+			a = pivot + strlen(pivot) + 1;
+			continue;
+		}
+		*off = ip - start;
+		*len = size;
+		return endp + 1;
+	}
+	return NULL;
+}
+
+static noinline char *strsym(void *ip)
+{
+	static char buf[64];
+	unsigned short off;
+	unsigned short len;
+	char *p;
+
+	p = findsym((unsigned long)ip, &off, &len);
+	if (p) {
+		strncpy(buf, p, sizeof(buf));
+		/* reserve 15 bytes for offset/len in symbol+0x1234/0x1234 */
+		p = buf + strnlen(buf, sizeof(buf) - 15);
+		strcpy(p, "+0x");
+		p = as_hex(p + 3, off, 0);
+		strcpy(p, "/0x");
+		as_hex(p + 3, len, 0);
+	} else {
+		as_hex(buf, (unsigned long)ip, 16);
+	}
+	return buf;
+}
+
 void decompressor_printk(const char *fmt, ...)
 {
 	char buf[1024] = { 0 };
@@ -37,6 +96,11 @@ void decompressor_printk(const char *fmt, ...)
 		switch (*fmt) {
 		case 's':
 			p = buf + strlcat(buf, va_arg(args, char *), sizeof(buf));
+			break;
+		case 'p':
+			if (*++fmt != 'S')
+				goto out;
+			p = buf + strlcat(buf, strsym(va_arg(args, void *)), sizeof(buf));
 			break;
 		case 'l':
 			if (*++fmt != 'x' || end - p <= max(sizeof(long) * 2, pad))
@@ -67,9 +131,10 @@ void print_pgm_check_info(void)
 			    S390_lowcore.pgm_code, S390_lowcore.pgm_ilc >> 1);
 	if (kaslr_enabled)
 		decompressor_printk("Kernel random base: %lx\n", __kaslr_offset);
-	decompressor_printk("PSW : %016lx %016lx\n",
+	decompressor_printk("PSW : %016lx %016lx (%pS)\n",
 			    S390_lowcore.psw_save_area.mask,
-			    S390_lowcore.psw_save_area.addr);
+			    S390_lowcore.psw_save_area.addr,
+			    (void *)S390_lowcore.psw_save_area.addr);
 	decompressor_printk(
 		"      R:%x T:%x IO:%x EX:%x Key:%x M:%x W:%x P:%x AS:%x CC:%x PM:%x RI:%x EA:%x\n",
 		psw->per, psw->dat, psw->io, psw->ext, psw->key, psw->mcheck,
