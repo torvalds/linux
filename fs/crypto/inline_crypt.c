@@ -74,7 +74,7 @@ int fscrypt_select_encryption_impl(struct fscrypt_info *ci)
 	int i;
 
 	/* The file must need contents encryption, not filenames encryption */
-	if (!fscrypt_needs_contents_encryption(inode))
+	if (!S_ISREG(inode->i_mode))
 		return 0;
 
 	/* The crypto mode must have a blk-crypto counterpart */
