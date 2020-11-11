@@ -486,6 +486,9 @@ config HAVE_ARCH_SECCOMP_FILTER
 	  - secure_computing return value is checked and a return value of -1
 	    results in the system call being skipped immediately.
 	  - seccomp syscall wired up
+	  - if !HAVE_SPARSE_SYSCALL_NR, have SECCOMP_ARCH_NATIVE,
+	    SECCOMP_ARCH_NATIVE_NR, SECCOMP_ARCH_NATIVE_NAME defined. If
+	    COMPAT is supported, have the SECCOMP_ARCH_COMPAT* defines too.
 
 config SECCOMP
 	prompt "Enable seccomp to safely execute untrusted bytecode"
@@ -513,6 +516,20 @@ config SECCOMP_FILTER
 	  task-defined system call filtering polices.
 
 	  See Documentation/userspace-api/seccomp_filter.rst for details.
+
+config SECCOMP_CACHE_DEBUG
+	bool "Show seccomp filter cache status in /proc/pid/seccomp_cache"
+	depends on SECCOMP_FILTER && !HAVE_SPARSE_SYSCALL_NR
+	depends on PROC_FS
+	help
+	  This enables the /proc/pid/seccomp_cache interface to monitor
+	  seccomp cache data. The file format is subject to change. Reading
+	  the file requires CAP_SYS_ADMIN.
+
+	  This option is for debugging only. Enabling presents the risk that
+	  an adversary may be able to infer the seccomp filter logic.
+
+	  If unsure, say N.
 
 config HAVE_ARCH_STACKLEAK
 	bool
