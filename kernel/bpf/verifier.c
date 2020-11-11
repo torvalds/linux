@@ -9572,12 +9572,13 @@ static int check_pseudo_btf_id(struct bpf_verifier_env *env,
 			       struct bpf_insn *insn,
 			       struct bpf_insn_aux_data *aux)
 {
-	u32 datasec_id, type, id = insn->imm;
 	const struct btf_var_secinfo *vsi;
 	const struct btf_type *datasec;
 	const struct btf_type *t;
 	const char *sym_name;
 	bool percpu = false;
+	u32 type, id = insn->imm;
+	s32 datasec_id;
 	u64 addr;
 	int i;
 
