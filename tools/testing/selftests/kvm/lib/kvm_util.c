@@ -282,8 +282,9 @@ struct kvm_vm *vm_create(enum vm_guest_mode mode, uint64_t phy_pages, int perm)
 	return vm;
 }
 
-struct kvm_vm *vm_create_default(uint32_t vcpuid, uint64_t extra_mem_pages,
-				 void *guest_code)
+struct kvm_vm *vm_create_with_vcpus(enum vm_guest_mode mode, uint32_t nr_vcpus,
+				    uint64_t extra_mem_pages, uint32_t num_percpu_pages,
+				    void *guest_code, uint32_t vcpuids[])
 {
 	/* The maximum page table size for a memory region will be when the
 	 * smallest pages are used. Considering each page contains x page
@@ -291,10 +292,18 @@ struct kvm_vm *vm_create_default(uint32_t vcpuid, uint64_t extra_mem_pages,
 	 * N pages) will be: N/x+N/x^2+N/x^3+... which is definitely smaller
 	 * than N/x*2.
 	 */
-	uint64_t extra_pg_pages = (extra_mem_pages / PTES_PER_MIN_PAGE) * 2;
+	uint64_t vcpu_pages = (DEFAULT_STACK_PGS + num_percpu_pages) * nr_vcpus;
+	uint64_t extra_pg_pages = (extra_mem_pages + vcpu_pages) / PTES_PER_MIN_PAGE * 2;
+	uint64_t pages = DEFAULT_GUEST_PHY_PAGES + vcpu_pages + extra_pg_pages;
 	struct kvm_vm *vm;
+	int i;
 
-	vm = vm_create(VM_MODE_DEFAULT, DEFAULT_GUEST_PHY_PAGES + extra_pg_pages, O_RDWR);
+	TEST_ASSERT(nr_vcpus <= kvm_check_cap(KVM_CAP_MAX_VCPUS),
+		    "nr_vcpus = %d too large for host, max-vcpus = %d",
+		    nr_vcpus, kvm_check_cap(KVM_CAP_MAX_VCPUS));
+
+	pages = vm_adjust_num_guest_pages(mode, pages);
+	vm = vm_create(mode, pages, O_RDWR);
 
 	kvm_vm_elf_load(vm, program_invocation_name, 0, 0);
 
@@ -302,9 +311,25 @@ struct kvm_vm *vm_create_default(uint32_t vcpuid, uint64_t extra_mem_pages,
 	vm_create_irqchip(vm);
 #endif
 
-	vm_vcpu_add_default(vm, vcpuid, guest_code);
+	for (i = 0; i < nr_vcpus; ++i)
+		vm_vcpu_add_default(vm, vcpuids ? vcpuids[i] : i, guest_code);
 
 	return vm;
+}
+
+struct kvm_vm *vm_create_default_with_vcpus(uint32_t nr_vcpus, uint64_t extra_mem_pages,
+					    uint32_t num_percpu_pages, void *guest_code,
+					    uint32_t vcpuids[])
+{
+	return vm_create_with_vcpus(VM_MODE_DEFAULT, nr_vcpus, extra_mem_pages,
+				    num_percpu_pages, guest_code, vcpuids);
+}
+
+struct kvm_vm *vm_create_default(uint32_t vcpuid, uint64_t extra_mem_pages,
+				 void *guest_code)
+{
+	return vm_create_default_with_vcpus(1, extra_mem_pages, 0, guest_code,
+					    (uint32_t []){ vcpuid });
 }
 
 /*

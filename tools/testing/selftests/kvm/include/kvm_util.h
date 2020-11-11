@@ -266,6 +266,16 @@ vm_paddr_t vm_phy_pages_alloc(struct kvm_vm *vm, size_t num,
 struct kvm_vm *vm_create_default(uint32_t vcpuid, uint64_t extra_mem_pages,
 				 void *guest_code);
 
+/* Same as vm_create_default, but can be used for more than one vcpu */
+struct kvm_vm *vm_create_default_with_vcpus(uint32_t nr_vcpus, uint64_t extra_mem_pages,
+					    uint32_t num_percpu_pages, void *guest_code,
+					    uint32_t vcpuids[]);
+
+/* Like vm_create_default_with_vcpus, but accepts mode as a parameter */
+struct kvm_vm *vm_create_with_vcpus(enum vm_guest_mode mode, uint32_t nr_vcpus,
+				    uint64_t extra_mem_pages, uint32_t num_percpu_pages,
+				    void *guest_code, uint32_t vcpuids[]);
+
 /*
  * Adds a vCPU with reasonable defaults (e.g. a stack)
  *
