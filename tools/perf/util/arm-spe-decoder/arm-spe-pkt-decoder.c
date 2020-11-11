@@ -8,13 +8,12 @@
 #include <string.h>
 #include <endian.h>
 #include <byteswap.h>
+#include <linux/bitops.h>
 
 #include "arm-spe-pkt-decoder.h"
 
-#define BIT(n)		(1ULL << (n))
-
-#define NS_FLAG		BIT(63)
-#define EL_FLAG		(BIT(62) | BIT(61))
+#define NS_FLAG		BIT_ULL(63)
+#define EL_FLAG		(BIT_ULL(62) | BIT_ULL(61))
 
 #define SPE_HEADER0_PAD			0x0
 #define SPE_HEADER0_END			0x1

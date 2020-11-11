@@ -12,6 +12,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <linux/bitops.h>
 #include <linux/compiler.h>
 #include <linux/zalloc.h>
 
@@ -20,10 +21,6 @@
 #include "../util.h"
 
 #include "arm-spe-decoder.h"
-
-#ifndef BIT
-#define BIT(n)		(1UL << (n))
-#endif
 
 static u64 arm_spe_calc_ip(int index, u64 payload)
 {
