@@ -425,7 +425,7 @@
 				status = "disabled";
 			};
 
-			can1: flexcan@2090000 {
+			can1: can@2090000 {
 				compatible = "fsl,imx6ul-flexcan", "fsl,imx6q-flexcan";
 				reg = <0x02090000 0x4000>;
 				interrupts = <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>;
@@ -436,7 +436,7 @@
 				status = "disabled";
 			};
 
-			can2: flexcan@2094000 {
+			can2: can@2094000 {
 				compatible = "fsl,imx6ul-flexcan", "fsl,imx6q-flexcan";
 				reg = <0x02094000 0x4000>;
 				interrupts = <GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>;
