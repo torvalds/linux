@@ -5087,6 +5087,18 @@ static int regulator_summary_show_children(struct device *dev, void *data)
 	return 0;
 }
 
+static void strrcpy(char *dst, int dst_len, const char *src)
+{
+	int src_len = strlen(src);
+
+	if (src_len > dst_len)
+		src += src_len - dst_len;
+
+	strncpy(dst, src, dst_len);
+}
+
+#define REGULATOR_NAME_LEN	(50)
+
 static void regulator_summary_show_subtree(struct seq_file *s,
 					   struct regulator_dev *rdev,
 					   int level)
@@ -5094,13 +5106,17 @@ static void regulator_summary_show_subtree(struct seq_file *s,
 	struct regulation_constraints *c;
 	struct regulator *consumer;
 	struct summary_data summary_data;
+	char buf[REGULATOR_NAME_LEN];
+	const char *devname;
 
 	if (!rdev)
 		return;
 
+	devname = rdev_get_name(rdev);
+	strrcpy(buf, REGULATOR_NAME_LEN - level * 3, devname);
 	seq_printf(s, "%*s%-*s %3d %4d %6d ",
 		   level * 3 + 1, "",
-		   30 - level * 3, rdev_get_name(rdev),
+		   REGULATOR_NAME_LEN - level * 3, buf,
 		   rdev->use_count, rdev->open_count, rdev->bypass_count);
 
 	seq_printf(s, "%5dmV ", _regulator_get_voltage(rdev) / 1000);
@@ -5126,10 +5142,11 @@ static void regulator_summary_show_subtree(struct seq_file *s,
 		if (consumer->dev && consumer->dev->class == &regulator_class)
 			continue;
 
+		devname = consumer->dev ? consumer->supply_name : "deviceless";
+		strrcpy(buf, REGULATOR_NAME_LEN - (level + 1) * 3, devname);
 		seq_printf(s, "%*s%-*s ",
 			   (level + 1) * 3 + 1, "",
-			   30 - (level + 1) * 3,
-			   consumer->dev ? dev_name(consumer->dev) : "deviceless");
+			   REGULATOR_NAME_LEN - (level + 1) * 3, buf);
 
 		switch (rdev->desc->type) {
 		case REGULATOR_VOLTAGE:
@@ -5165,8 +5182,14 @@ static int regulator_summary_show_roots(struct device *dev, void *data)
 
 static int regulator_summary_show(struct seq_file *s, void *data)
 {
-	seq_puts(s, " regulator                      use open bypass voltage current     min     max\n");
-	seq_puts(s, "-------------------------------------------------------------------------------\n");
+	int i;
+
+	seq_printf(s, "%-*s %3s %4s %6s %7s %7s %7s %7s\n",
+		   REGULATOR_NAME_LEN + 1, " regulator",
+		   "use", "open", "bypass", "voltage", "current", "min", "max");
+	for (i = 0; i < REGULATOR_NAME_LEN + 49; i++)
+		seq_puts(s, "-");
+	seq_puts(s, "\n");
 
 	class_for_each_device(&regulator_class, NULL, s,
 			      regulator_summary_show_roots);
