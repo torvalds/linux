@@ -1472,6 +1472,35 @@ static void rk_iommu_domain_free(struct iommu_domain *domain)
 	kfree(rk_domain);
 }
 
+static void rk_iommu_domain_free_v2(struct iommu_domain *domain)
+{
+	struct rk_iommu_domain *rk_domain = to_rk_domain(domain);
+	int i;
+
+	WARN_ON(!list_empty(&rk_domain->iommus));
+
+	for (i = 0; i < NUM_DT_ENTRIES; i++) {
+		u32 dte = rk_domain->dt[i];
+
+		if (rk_dte_is_pt_valid(dte)) {
+			phys_addr_t pt_phys = rk_dte_pt_address_v2(dte);
+			u32 *page_table = phys_to_virt(pt_phys);
+
+			dma_unmap_single(dma_dev, pt_phys,
+					 SPAGE_SIZE, DMA_TO_DEVICE);
+			free_page((unsigned long)page_table);
+		}
+	}
+
+	dma_unmap_single(dma_dev, rk_domain->dt_dma,
+			 SPAGE_SIZE, DMA_TO_DEVICE);
+	free_page((unsigned long)rk_domain->dt);
+
+	if (domain->type == IOMMU_DOMAIN_DMA)
+		iommu_put_dma_cookie(&rk_domain->domain);
+	kfree(rk_domain);
+}
+
 static int rk_iommu_add_device(struct device *dev)
 {
 	struct iommu_group *group;
@@ -1613,7 +1642,7 @@ static const struct iommu_ops rk_iommu_ops = {
 
 static const struct iommu_ops rk_iommu_ops_v2 = {
 	.domain_alloc = rk_iommu_domain_alloc,
-	.domain_free = rk_iommu_domain_free,
+	.domain_free = rk_iommu_domain_free_v2,
 	.attach_dev = rk_iommu_attach_device,
 	.detach_dev = rk_iommu_detach_device,
 	.map = rk_iommu_map_v2,
