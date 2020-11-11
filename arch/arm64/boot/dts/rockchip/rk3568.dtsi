@@ -317,8 +317,8 @@
 		reg = <0x0 0xfd800000 0x0 0x40000>;
 		interrupts = <GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru HCLK_USB2HOST0>, <&cru HCLK_USB2HOST0_ARB>,
-			 <&usb2phy1>;
-		clock-names = "usbhost", "arbiter", "utmi";
+			 <&cru PCLK_USB>, <&usb2phy1>;
+		clock-names = "usbhost", "arbiter", "pclk", "utmi";
 		phys = <&u2phy1_otg>;
 		phy-names = "usb2-phy";
 		status = "disabled";
@@ -329,8 +329,8 @@
 		reg = <0x0 0xfd840000 0x0 0x40000>;
 		interrupts = <GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru HCLK_USB2HOST0>, <&cru HCLK_USB2HOST0_ARB>,
-			 <&usb2phy1>;
-		clock-names = "usbhost", "arbiter", "utmi";
+			 <&cru PCLK_USB>, <&usb2phy1>;
+		clock-names = "usbhost", "arbiter", "pclk", "utmi";
 		phys = <&u2phy1_otg>;
 		phy-names = "usb2-phy";
 		status = "disabled";
@@ -341,8 +341,8 @@
 		reg = <0x0 0xfd880000 0x0 0x40000>;
 		interrupts = <GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru HCLK_USB2HOST1>, <&cru HCLK_USB2HOST1_ARB>,
-			 <&usb2phy1>;
-		clock-names = "usbhost", "arbiter", "utmi";
+			 <&cru PCLK_USB>, <&usb2phy1>;
+		clock-names = "usbhost", "arbiter", "pclk", "utmi";
 		phys = <&u2phy1_host>;
 		phy-names = "usb2-phy";
 		status = "disabled";
@@ -353,8 +353,8 @@
 		reg = <0x0 0xfd8c0000 0x0 0x40000>;
 		interrupts = <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru HCLK_USB2HOST1>, <&cru HCLK_USB2HOST1_ARB>,
-			 <&usb2phy1>;
-		clock-names = "usbhost", "arbiter", "utmi";
+			 <&cru PCLK_USB>, <&usb2phy1>;
+		clock-names = "usbhost", "arbiter", "pclk", "utmi";
 		phys = <&u2phy1_host>;
 		phy-names = "usb2-phy";
 		status = "disabled";
