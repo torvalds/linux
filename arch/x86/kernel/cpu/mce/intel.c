@@ -521,9 +521,10 @@ static void intel_imc_init(struct cpuinfo_x86 *c)
 	case INTEL_FAM6_SANDYBRIDGE_X:
 	case INTEL_FAM6_IVYBRIDGE_X:
 	case INTEL_FAM6_HASWELL_X:
-		rdmsrl(MSR_ERROR_CONTROL, error_control);
+		if (rdmsrl_safe(MSR_ERROR_CONTROL, &error_control))
+			return;
 		error_control |= 2;
-		wrmsrl(MSR_ERROR_CONTROL, error_control);
+		wrmsrl_safe(MSR_ERROR_CONTROL, error_control);
 		break;
 	}
 }
