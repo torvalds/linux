@@ -21,7 +21,8 @@
 /*
  * On 64-bit we don't want to invoke hash_page on user addresses from
  * interrupt context, so if the access faults, we read the page tables
- * to find which page (if any) is mapped and access it directly.
+ * to find which page (if any) is mapped and access it directly. Radix
+ * has no need for this so it doesn't use read_user_stack_slow.
  */
 int read_user_stack_slow(const void __user *ptr, void *buf, int nb)
 {
