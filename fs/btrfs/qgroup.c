@@ -3435,23 +3435,19 @@ static int qgroup_unreserve_range(struct btrfs_inode *inode,
 {
 	struct rb_node *node;
 	struct rb_node *next;
-	struct ulist_node *entry = NULL;
+	struct ulist_node *entry;
 	int ret = 0;
 
 	node = reserved->range_changed.root.rb_node;
+	if (!node)
+		return 0;
 	while (node) {
 		entry = rb_entry(node, struct ulist_node, rb_node);
 		if (entry->val < start)
 			node = node->rb_right;
-		else if (entry)
-			node = node->rb_left;
 		else
-			break;
+			node = node->rb_left;
 	}
-
-	/* Empty changeset */
-	if (!entry)
-		return 0;
 
 	if (entry->val > start && rb_prev(&entry->rb_node))
 		entry = rb_entry(rb_prev(&entry->rb_node), struct ulist_node,
