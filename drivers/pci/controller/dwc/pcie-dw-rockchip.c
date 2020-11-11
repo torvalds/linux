@@ -123,6 +123,7 @@ struct rk_pcie {
 	bool				is_rk1808;
 	bool				bifurcation;
 	int				link_gen;
+	struct regulator		*vpcie3v3;
 };
 
 struct rk_pcie_of_data {
@@ -397,10 +398,19 @@ static int rk_pcie_establish_link(struct dw_pcie *pci)
 {
 	int retries;
 	struct rk_pcie *rk_pcie = to_rk_pcie(pci);
+	int err = 0;
 
 	if (dw_pcie_link_up(pci)) {
 		dev_err(pci->dev, "link is already up\n");
 		return 0;
+	}
+
+	if (!IS_ERR(rk_pcie->vpcie3v3)) {
+		err = regulator_enable(rk_pcie->vpcie3v3);
+		if (err) {
+			dev_err(pci->dev, "fail to enable vpcie3v3 regulator\n");
+			return err;
+		}
 	}
 
 	/* Rest the device */
@@ -1011,18 +1021,6 @@ static void rk_pcie_fast_link_setup(struct rk_pcie *rk_pcie)
 {
 	u32 val;
 
-	val = dw_pcie_readl_dbi(rk_pcie->pci, PCIE_PORT_LINK_CONTROL);
-	val |= BIT(7); /* Fast link mode */
-	dw_pcie_writel_dbi(rk_pcie->pci, PCIE_PORT_LINK_CONTROL, val);
-
-	val = dw_pcie_readl_dbi(rk_pcie->pci, PCIE_LINK_WIDTH_SPEED_CONTROL);
-	val |= PCIE_DIRECT_SPEED_CHANGE;
-	dw_pcie_writel_dbi(rk_pcie->pci, PCIE_LINK_WIDTH_SPEED_CONTROL, val);
-
-	val = dw_pcie_readl_dbi(rk_pcie->pci, PCIE_TIMER_CTRL_MAX_FUNC_NUM);
-	val &= FAST_LINK_SCALING_FACTOR; /* 00: 1ms is 1us */
-	dw_pcie_writel_dbi(rk_pcie->pci, PCIE_TIMER_CTRL_MAX_FUNC_NUM, val);
-
 	/* LTSSM EN ctrl mode */
 	val = rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_HOT_RESET_CTRL);
 	val |= PCIE_LTSSM_ENABLE_ENHANCE | (PCIE_LTSSM_ENABLE_ENHANCE << 16);
@@ -1096,6 +1094,13 @@ static int rk_pcie_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, rk_pcie);
 
+	rk_pcie->vpcie3v3 = devm_regulator_get_optional(dev, "vpcie3v3");
+	if (IS_ERR(rk_pcie->vpcie3v3)) {
+		if (PTR_ERR(rk_pcie->vpcie3v3) != -ENODEV)
+			return PTR_ERR(rk_pcie->vpcie3v3);
+		dev_info(dev, "no vpcie3v3 regulator found\n");
+	}
+
 	ret = rk_pcie_clk_init(rk_pcie);
 	if (ret) {
 		dev_err(dev, "clock init failed\n");
@@ -1152,7 +1157,8 @@ static int rk_pcie_probe(struct platform_device *pdev)
 
 deinit_clk:
 	rk_pcie_clk_deinit(rk_pcie);
-
+	if (!IS_ERR(rk_pcie->vpcie3v3))
+		regulator_disable(rk_pcie->vpcie3v3);
 	return ret;
 }
 
@@ -1224,13 +1230,13 @@ static int __maybe_unused rockchip_dw_pcie_resume(struct device *dev)
 	ret = rk_pcie_establish_link(rk_pcie->pci);
 	if (ret) {
 		dev_err(dev, "failed to establish pcie link\n");
-		return ret;
+		goto err;
 	}
 
 	ret = rk_pcie_ep_atu_init(rk_pcie);
 	if (ret) {
 		dev_err(dev, "failed to init ep device\n");
-		return ret;
+		goto err;
 	}
 
 	rk_pcie_ep_setup(rk_pcie);
@@ -1238,13 +1244,17 @@ static int __maybe_unused rockchip_dw_pcie_resume(struct device *dev)
 	/* hold link reset grant after link-up */
 	ret = rk_pcie_reset_grant_ctrl(rk_pcie, false);
 	if (ret)
-		return ret;
+		goto err;
 
 	dw_pcie_dbi_ro_wr_dis(rk_pcie->pci);
 
 	rk_pcie->in_suspend = false;
 
 	return 0;
+err:
+	if (!IS_ERR(rk_pcie->vpcie3v3))
+		regulator_disable(rk_pcie->vpcie3v3);
+	return ret;
 }
 
 static const struct dev_pm_ops rockchip_dw_pcie_pm_ops = {
