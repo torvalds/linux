@@ -1464,6 +1464,8 @@ static int virtio_fs_get_tree(struct fs_context *fsc)
 	if (!sb->s_root) {
 		err = virtio_fs_fill_super(sb, fsc);
 		if (err) {
+			fuse_mount_put(fm);
+			sb->s_fs_info = NULL;
 			deactivate_locked_super(sb);
 			return err;
 		}
