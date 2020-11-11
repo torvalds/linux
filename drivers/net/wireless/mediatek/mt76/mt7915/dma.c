@@ -6,41 +6,16 @@
 #include "mac.h"
 
 static int
-mt7915_init_tx_queues(struct mt7915_dev *dev, int n_desc)
+mt7915_init_tx_queues(struct mt7915_dev *dev, int idx, int n_desc)
 {
-	struct mt76_queue *hwq;
-	int err, i;
+	int i, err;
 
-	hwq = devm_kzalloc(dev->mt76.dev, sizeof(*hwq), GFP_KERNEL);
-	if (!hwq)
-		return -ENOMEM;
-
-	err = mt76_queue_alloc(dev, hwq, MT7915_TXQ_BAND0, n_desc, 0,
-			       MT_TX_RING_BASE);
+	err = mt76_init_tx_queue(&dev->mt76, 0, idx, n_desc, MT_TX_RING_BASE);
 	if (err < 0)
 		return err;
 
 	for (i = 0; i < MT_TXQ_MCU; i++)
-		dev->mt76.q_tx[i] = hwq;
-
-	return 0;
-}
-
-static int
-mt7915_init_mcu_queue(struct mt7915_dev *dev, int qid, int idx, int n_desc)
-{
-	struct mt76_queue *hwq;
-	int err;
-
-	hwq = devm_kzalloc(dev->mt76.dev, sizeof(*hwq), GFP_KERNEL);
-	if (!hwq)
-		return -ENOMEM;
-
-	err = mt76_queue_alloc(dev, hwq, idx, n_desc, 0, MT_TX_RING_BASE);
-	if (err < 0)
-		return err;
-
-	dev->mt76.q_tx[qid] = hwq;
+		dev->mt76.q_tx[i] = dev->mt76.q_tx[0];
 
 	return 0;
 }
@@ -262,25 +237,26 @@ int mt7915_dma_init(struct mt7915_dev *dev)
 	mt76_wr(dev, MT_WFDMA1_PRI_DLY_INT_CFG0, 0);
 
 	/* init tx queue */
-	ret = mt7915_init_tx_queues(dev, MT7915_TX_RING_SIZE);
+	ret = mt7915_init_tx_queues(dev, MT7915_TXQ_BAND0,
+				    MT7915_TX_RING_SIZE);
 	if (ret)
 		return ret;
 
 	/* command to WM */
-	ret = mt7915_init_mcu_queue(dev, MT_TXQ_MCU, MT7915_TXQ_MCU_WM,
-				    MT7915_TX_MCU_RING_SIZE);
+	ret = mt76_init_tx_queue(&dev->mt76, MT_TXQ_MCU, MT7915_TXQ_MCU_WM,
+				 MT7915_TX_MCU_RING_SIZE, MT_TX_RING_BASE);
 	if (ret)
 		return ret;
 
 	/* command to WA */
-	ret = mt7915_init_mcu_queue(dev, MT_TXQ_MCU_WA, MT7915_TXQ_MCU_WA,
-				    MT7915_TX_MCU_RING_SIZE);
+	ret = mt76_init_tx_queue(&dev->mt76, MT_TXQ_MCU_WA, MT7915_TXQ_MCU_WA,
+				 MT7915_TX_MCU_RING_SIZE, MT_TX_RING_BASE);
 	if (ret)
 		return ret;
 
 	/* firmware download */
-	ret = mt7915_init_mcu_queue(dev, MT_TXQ_FWDL, MT7915_TXQ_FWDL,
-				    MT7915_TX_FWDL_RING_SIZE);
+	ret = mt76_init_tx_queue(&dev->mt76, MT_TXQ_FWDL, MT7915_TXQ_FWDL,
+				 MT7915_TX_FWDL_RING_SIZE, MT_TX_RING_BASE);
 	if (ret)
 		return ret;
 

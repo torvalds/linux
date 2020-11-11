@@ -7,18 +7,12 @@
 static int
 mt7603_init_tx_queue(struct mt7603_dev *dev, int qid, int idx, int n_desc)
 {
-	struct mt76_queue *hwq;
 	int err;
 
-	hwq = devm_kzalloc(dev->mt76.dev, sizeof(*hwq), GFP_KERNEL);
-	if (!hwq)
-		return -ENOMEM;
-
-	err = mt76_queue_alloc(dev, hwq, idx, n_desc, 0, MT_TX_RING_BASE);
+	err = mt76_init_tx_queue(&dev->mt76, qid, idx, n_desc,
+				 MT_TX_RING_BASE);
 	if (err < 0)
 		return err;
-
-	dev->mt76.q_tx[qid] = hwq;
 
 	mt7603_irq_enable(dev, MT_INT_TX_DONE(idx));
 
