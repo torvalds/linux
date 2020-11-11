@@ -1672,7 +1672,7 @@ static int qca_setup(struct hci_uart *hu)
 retry:
 	ret = qca_power_on(hdev);
 	if (ret)
-		return ret;
+		goto out;
 
 	clear_bit(QCA_SSR_TRIGGERED, &qca->flags);
 
@@ -1681,7 +1681,7 @@ retry:
 
 		ret = qca_read_soc_version(hdev, &soc_ver, soc_type);
 		if (ret)
-			return ret;
+			goto out;
 	} else {
 		qca_set_speed(hu, QCA_INIT_SPEED);
 	}
@@ -1691,7 +1691,7 @@ retry:
 	if (speed) {
 		ret = qca_set_speed(hu, QCA_OPER_SPEED);
 		if (ret)
-			return ret;
+			goto out;
 
 		qca_baudrate = qca_get_baudrate_value(speed);
 	}
@@ -1700,7 +1700,7 @@ retry:
 		/* Get QCA version information */
 		ret = qca_read_soc_version(hdev, &soc_ver, soc_type);
 		if (ret)
-			return ret;
+			goto out;
 	}
 
 	bt_dev_info(hdev, "QCA controller version 0x%08x", soc_ver);
@@ -1721,20 +1721,22 @@ retry:
 		 * patch/nvm-config is found, so run with original fw/config.
 		 */
 		ret = 0;
-	} else {
-		if (retries < MAX_INIT_RETRIES) {
-			qca_power_shutdown(hu);
-			if (hu->serdev) {
-				serdev_device_close(hu->serdev);
-				ret = serdev_device_open(hu->serdev);
-				if (ret) {
-					bt_dev_err(hdev, "failed to open port");
-					return ret;
-				}
+	}
+
+out:
+	if (ret && retries < MAX_INIT_RETRIES) {
+		bt_dev_warn(hdev, "Retry BT power ON:%d", retries);
+		qca_power_shutdown(hu);
+		if (hu->serdev) {
+			serdev_device_close(hu->serdev);
+			ret = serdev_device_open(hu->serdev);
+			if (ret) {
+				bt_dev_err(hdev, "failed to open port");
+				return ret;
 			}
-			retries++;
-			goto retry;
 		}
+		retries++;
+		goto retry;
 	}
 
 	/* Setup bdaddr */
