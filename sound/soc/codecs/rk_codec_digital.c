@@ -37,7 +37,7 @@ struct rk_codec_digital_priv {
 	struct clk *clk_dac;
 	struct clk *pclk;
 	atomic_t enable;
-
+	bool pwmout;
 	struct reset_control *rc;
 	const struct rk_codec_digital_soc_data *data;
 };
@@ -361,6 +361,12 @@ static int rk_codec_digital_hw_params(struct snd_pcm_substream *substream,
 		regmap_update_bits(rcd->regmap, I2S_RXCR0,
 				   ACDCDIG_I2S_RXCR0_VDW_MASK,
 				   ACDCDIG_I2S_RXCR0_VDW(val));
+		if (rcd->pwmout)
+			regmap_update_bits(rcd->regmap, DACPWM_CTRL,
+					   ACDCDIG_DACPWM_CTRL_PWM_MODE_CKE_MASK |
+					   ACDCDIG_DACPWM_CTRL_PWM_EN_MASK,
+					   ACDCDIG_DACPWM_CTRL_PWM_MODE_CKE_EN |
+					   ACDCDIG_DACPWM_CTRL_PWM_EN);
 	} else {
 		switch (params_rate(params)) {
 		case 8000:
@@ -466,6 +472,12 @@ static void rk_codec_digital_pcm_shutdown(struct snd_pcm_substream *substream,
 		snd_soc_component_get_drvdata(dai->component);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		if (rcd->pwmout)
+			regmap_update_bits(rcd->regmap, DACPWM_CTRL,
+					   ACDCDIG_DACPWM_CTRL_PWM_MODE_CKE_MASK |
+					   ACDCDIG_DACPWM_CTRL_PWM_EN_MASK,
+					   ACDCDIG_DACPWM_CTRL_PWM_MODE_CKE_DIS |
+					   ACDCDIG_DACPWM_CTRL_PWM_DIS);
 		regmap_update_bits(rcd->regmap, I2S_XFER,
 				   ACDCDIG_I2S_XFER_RXS_MASK,
 				   ACDCDIG_I2S_XFER_RXS_STOP);
@@ -662,6 +674,7 @@ static int rk_codec_digital_platform_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	rcd->grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
+	rcd->pwmout = of_property_read_bool(np, "rockchip,pwm-output-mode");
 
 	rcd->rc = devm_reset_control_get(&pdev->dev, "reset");
 
@@ -703,6 +716,11 @@ static int rk_codec_digital_platform_probe(struct platform_device *pdev)
 		if (ret)
 			goto err_pm_disable;
 	}
+
+	if (rcd->pwmout)
+		regmap_update_bits(rcd->regmap, DACPWM_CTRL,
+				   ACDCDIG_DACPWM_CTRL_PWM_MODE_MASK,
+				   ACDCDIG_DACPWM_CTRL_PWM_MODE_0);
 
 	ret = devm_snd_soc_register_component(&pdev->dev, &soc_codec_dev_rcd,
 					      rcd_dai, ARRAY_SIZE(rcd_dai));

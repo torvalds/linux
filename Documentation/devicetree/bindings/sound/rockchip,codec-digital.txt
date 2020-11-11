@@ -15,6 +15,10 @@ Required properties:
 - reset-names: reset names, should include "reset".
 - rockchip,grf: the phandle of the syscon node for GRF register.
 
+Optional properties:
+- rockchip,pwm-output-mode: This is a boolean property, if present, output pwm
+  to drive spk.
+
 Example:
 
 rkacdc_dig: codec-digital@ff850000 {
