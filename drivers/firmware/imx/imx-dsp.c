@@ -60,6 +60,31 @@ static void imx_dsp_handle_rx(struct mbox_client *c, void *msg)
 	}
 }
 
+struct mbox_chan *imx_dsp_request_channel(struct imx_dsp_ipc *dsp_ipc, int idx)
+{
+	struct imx_dsp_chan *dsp_chan;
+
+	if (idx >= DSP_MU_CHAN_NUM)
+		return ERR_PTR(-EINVAL);
+
+	dsp_chan = &dsp_ipc->chans[idx];
+	dsp_chan->ch = mbox_request_channel_byname(&dsp_chan->cl, dsp_chan->name);
+	return dsp_chan->ch;
+}
+EXPORT_SYMBOL(imx_dsp_request_channel);
+
+void imx_dsp_free_channel(struct imx_dsp_ipc *dsp_ipc, int idx)
+{
+	struct imx_dsp_chan *dsp_chan;
+
+	if (idx >= DSP_MU_CHAN_NUM)
+		return;
+
+	dsp_chan = &dsp_ipc->chans[idx];
+	mbox_free_channel(dsp_chan->ch);
+}
+EXPORT_SYMBOL(imx_dsp_free_channel);
+
 static int imx_dsp_setup_channels(struct imx_dsp_ipc *dsp_ipc)
 {
 	struct device *dev = dsp_ipc->dev;
