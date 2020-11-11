@@ -237,6 +237,9 @@ static inline ssize_t __bch_btree_u64s_remaining(struct bch_fs *c,
 		b->whiteout_u64s;
 	ssize_t total = c->opts.btree_node_size << 6;
 
+	/* Always leave one extra u64 for bch2_varint_decode: */
+	used++;
+
 	return total - used;
 }
 
