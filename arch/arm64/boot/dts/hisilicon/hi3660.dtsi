@@ -1169,7 +1169,7 @@
 			};
 		};
 
-		dwc3: dwc3@ff100000 {
+		dwc3: usb@ff100000 {
 			compatible = "snps,dwc3";
 			reg = <0x0 0xff100000 0x0 0x100000>;
 
