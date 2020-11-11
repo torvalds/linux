@@ -147,13 +147,13 @@ static int mt7603_poll_tx(struct napi_struct *napi, int budget)
 	dev->tx_dma_check = 0;
 
 	for (i = MT_TXQ_MCU; i >= 0; i--)
-		mt76_queue_tx_cleanup(dev, i, false);
+		mt76_queue_tx_cleanup(dev, dev->mt76.q_tx[i], false);
 
 	if (napi_complete_done(napi, 0))
 		mt7603_irq_enable(dev, MT_INT_TX_DONE_ALL);
 
 	for (i = MT_TXQ_MCU; i >= 0; i--)
-		mt76_queue_tx_cleanup(dev, i, false);
+		mt76_queue_tx_cleanup(dev, dev->mt76.q_tx[i], false);
 
 	mt7603_mac_sta_poll(dev);
 

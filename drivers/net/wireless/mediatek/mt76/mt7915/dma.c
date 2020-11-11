@@ -56,8 +56,8 @@ void mt7915_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 static void
 mt7915_tx_cleanup(struct mt7915_dev *dev)
 {
-	mt76_queue_tx_cleanup(dev, MT_TXQ_MCU, false);
-	mt76_queue_tx_cleanup(dev, MT_TXQ_MCU_WA, false);
+	mt76_queue_tx_cleanup(dev, dev->mt76.q_tx[MT_TXQ_MCU], false);
+	mt76_queue_tx_cleanup(dev, dev->mt76.q_tx[MT_TXQ_MCU_WA], false);
 }
 
 static int mt7915_poll_tx(struct napi_struct *napi, int budget)

@@ -2464,7 +2464,7 @@ int mt7615_mcu_init(struct mt7615_dev *dev)
 	if (ret)
 		return ret;
 
-	mt76_queue_tx_cleanup(dev, MT_TXQ_FWDL, false);
+	mt76_queue_tx_cleanup(dev, dev->mt76.q_tx[MT_TXQ_FWDL], false);
 	dev_dbg(dev->mt76.dev, "Firmware init done\n");
 	set_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state);
 	mt7615_mcu_fw_log_2_host(dev, 0);

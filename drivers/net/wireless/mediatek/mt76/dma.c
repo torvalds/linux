@@ -217,9 +217,8 @@ mt76_dma_kick_queue(struct mt76_dev *dev, struct mt76_queue *q)
 }
 
 static void
-mt76_dma_tx_cleanup(struct mt76_dev *dev, enum mt76_txq_id qid, bool flush)
+mt76_dma_tx_cleanup(struct mt76_dev *dev, struct mt76_queue *q, bool flush)
 {
-	struct mt76_queue *q = dev->q_tx[qid];
 	struct mt76_queue_entry entry;
 	bool wake = false;
 	int last;
@@ -255,7 +254,7 @@ mt76_dma_tx_cleanup(struct mt76_dev *dev, enum mt76_txq_id qid, bool flush)
 	}
 
 	wake = wake && q->stopped &&
-	       qid < IEEE80211_NUM_ACS && q->queued < q->ndesc - 8;
+	       q->qid < IEEE80211_NUM_ACS && q->queued < q->ndesc - 8;
 	if (wake)
 		q->stopped = false;
 
@@ -263,7 +262,7 @@ mt76_dma_tx_cleanup(struct mt76_dev *dev, enum mt76_txq_id qid, bool flush)
 		wake_up(&dev->tx_wait);
 
 	if (wake)
-		ieee80211_wake_queue(dev->hw, qid);
+		ieee80211_wake_queue(dev->hw, q->qid);
 }
 
 static void *
@@ -664,7 +663,7 @@ void mt76_dma_cleanup(struct mt76_dev *dev)
 	mt76_worker_disable(&dev->tx_worker);
 	netif_napi_del(&dev->tx_napi);
 	for (i = 0; i < ARRAY_SIZE(dev->q_tx); i++)
-		mt76_dma_tx_cleanup(dev, i, true);
+		mt76_dma_tx_cleanup(dev, dev->q_tx[i], true);
 
 	mt76_for_each_q_rx(dev, i) {
 		netif_napi_del(&dev->napi[i]);

@@ -89,7 +89,7 @@ void mt7603_pre_tbtt_tasklet(struct tasklet_struct *t)
 	/* Flush all previous CAB queue packets */
 	mt76_wr(dev, MT_WF_ARB_CAB_FLUSH, GENMASK(30, 16) | BIT(0));
 
-	mt76_queue_tx_cleanup(dev, MT_TXQ_CAB, false);
+	mt76_queue_tx_cleanup(dev, dev->mt76.q_tx[MT_TXQ_CAB], false);
 
 	mt76_csa_check(&dev->mt76);
 	if (dev->mt76.csa_complete)
@@ -135,7 +135,7 @@ void mt7603_pre_tbtt_tasklet(struct tasklet_struct *t)
 		 ((1 << (MT7603_MAX_INTERFACES - 1)) - 1)));
 
 out:
-	mt76_queue_tx_cleanup(dev, MT_TXQ_BEACON, false);
+	mt76_queue_tx_cleanup(dev, dev->mt76.q_tx[MT_TXQ_BEACON], false);
 	if (dev->mt76.q_tx[MT_TXQ_BEACON]->queued >
 	    hweight8(dev->mt76.beacon_mask))
 		dev->beacon_check++;

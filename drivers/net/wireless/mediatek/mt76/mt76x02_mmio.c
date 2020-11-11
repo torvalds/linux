@@ -164,13 +164,13 @@ static int mt76x02_poll_tx(struct napi_struct *napi, int budget)
 	mt76x02_mac_poll_tx_status(dev, false);
 
 	for (i = MT_TXQ_MCU; i >= 0; i--)
-		mt76_queue_tx_cleanup(dev, i, false);
+		mt76_queue_tx_cleanup(dev, dev->mt76.q_tx[i], false);
 
 	if (napi_complete_done(napi, 0))
 		mt76x02_irq_enable(dev, MT_INT_TX_DONE_ALL);
 
 	for (i = MT_TXQ_MCU; i >= 0; i--)
-		mt76_queue_tx_cleanup(dev, i, false);
+		mt76_queue_tx_cleanup(dev, dev->mt76.q_tx[i], false);
 
 	mt76_worker_schedule(&dev->mt76.tx_worker);
 
@@ -469,7 +469,7 @@ static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
 		mt76_mcu_restart(dev);
 
 	for (i = 0; i < __MT_TXQ_MAX; i++)
-		mt76_queue_tx_cleanup(dev, i, true);
+		mt76_queue_tx_cleanup(dev, dev->mt76.q_tx[i], true);
 
 	mt76_for_each_q_rx(&dev->mt76, i) {
 		mt76_queue_rx_reset(dev, i);

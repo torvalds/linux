@@ -2799,7 +2799,7 @@ static int mt7915_load_firmware(struct mt7915_dev *dev)
 		return -EIO;
 	}
 
-	mt76_queue_tx_cleanup(dev, MT_TXQ_FWDL, false);
+	mt76_queue_tx_cleanup(dev, dev->mt76.q_tx[MT_TXQ_FWDL], false);
 
 	dev_dbg(dev->mt76.dev, "Firmware init done\n");
 

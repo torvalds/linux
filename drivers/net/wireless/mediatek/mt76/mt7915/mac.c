@@ -1072,8 +1072,8 @@ void mt7915_mac_tx_free(struct mt7915_dev *dev, struct sk_buff *skb)
 	u8 i, count;
 
 	/* clean DMA queues and unmap buffers first */
-	mt76_queue_tx_cleanup(dev, MT_TXQ_PSD, false);
-	mt76_queue_tx_cleanup(dev, MT_TXQ_BE, false);
+	mt76_queue_tx_cleanup(dev, mdev->q_tx[MT_TXQ_PSD], false);
+	mt76_queue_tx_cleanup(dev, mdev->q_tx[MT_TXQ_BE], false);
 
 	/*
 	 * TODO: MT_TX_FREE_LATENCY is msdu time from the TXD is queued into PLE,
@@ -1421,7 +1421,7 @@ mt7915_dma_reset(struct mt7915_dev *dev)
 	usleep_range(1000, 2000);
 
 	for (i = 0; i < __MT_TXQ_MAX; i++)
-		mt76_queue_tx_cleanup(dev, i, true);
+		mt76_queue_tx_cleanup(dev, dev->mt76.q_tx[i], true);
 
 	mt76_for_each_q_rx(&dev->mt76, i) {
 		mt76_queue_rx_reset(dev, i);

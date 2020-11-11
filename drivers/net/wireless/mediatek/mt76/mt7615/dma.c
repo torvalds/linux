@@ -75,7 +75,7 @@ static int mt7615_poll_tx(struct napi_struct *napi, int budget)
 
 	dev = container_of(napi, struct mt7615_dev, mt76.tx_napi);
 
-	mt76_queue_tx_cleanup(dev, MT_TXQ_MCU, false);
+	mt76_queue_tx_cleanup(dev, dev->mt76.q_tx[MT_TXQ_MCU], false);
 
 	if (napi_complete_done(napi, 0))
 		mt7615_irq_enable(dev, mt7615_tx_mcu_int_mask(dev));
