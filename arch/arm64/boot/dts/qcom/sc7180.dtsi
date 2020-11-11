@@ -3522,7 +3522,7 @@
 
 	thermal-zones {
 		cpu0-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens0 1>;
@@ -3571,7 +3571,7 @@
 		};
 
 		cpu1-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens0 2>;
@@ -3620,7 +3620,7 @@
 		};
 
 		cpu2-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens0 3>;
@@ -3669,7 +3669,7 @@
 		};
 
 		cpu3-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens0 4>;
@@ -3718,7 +3718,7 @@
 		};
 
 		cpu4-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens0 5>;
@@ -3767,7 +3767,7 @@
 		};
 
 		cpu5-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens0 6>;
@@ -3816,7 +3816,7 @@
 		};
 
 		cpu6-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens0 9>;
@@ -3857,7 +3857,7 @@
 		};
 
 		cpu7-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens0 10>;
@@ -3898,7 +3898,7 @@
 		};
 
 		cpu8-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens0 11>;
@@ -3939,7 +3939,7 @@
 		};
 
 		cpu9-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens0 12>;
@@ -3980,7 +3980,7 @@
 		};
 
 		aoss0-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens0 0>;
@@ -4001,7 +4001,7 @@
 		};
 
 		cpuss0-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens0 7>;
@@ -4021,7 +4021,7 @@
 		};
 
 		cpuss1-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens0 8>;
@@ -4041,7 +4041,7 @@
 		};
 
 		gpuss0-thermal {
-			polling-delay-passive = <100>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens0 13>;
@@ -4069,7 +4069,7 @@
 		};
 
 		gpuss1-thermal {
-			polling-delay-passive = <100>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens0 14>;
@@ -4097,7 +4097,7 @@
 		};
 
 		aoss1-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens1 0>;
@@ -4118,7 +4118,7 @@
 		};
 
 		cwlan-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens1 1>;
@@ -4139,7 +4139,7 @@
 		};
 
 		audio-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens1 2>;
@@ -4160,7 +4160,7 @@
 		};
 
 		ddr-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens1 3>;
@@ -4181,7 +4181,7 @@
 		};
 
 		q6-hvx-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens1 4>;
@@ -4202,7 +4202,7 @@
 		};
 
 		camera-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens1 5>;
@@ -4223,7 +4223,7 @@
 		};
 
 		mdm-core-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens1 6>;
@@ -4244,7 +4244,7 @@
 		};
 
 		mdm-dsp-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens1 7>;
@@ -4265,7 +4265,7 @@
 		};
 
 		npu-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens1 8>;
@@ -4286,7 +4286,7 @@
 		};
 
 		video-thermal {
-			polling-delay-passive = <0>;
+			polling-delay-passive = <250>;
 			polling-delay = <0>;
 
 			thermal-sensors = <&tsens1 9>;
