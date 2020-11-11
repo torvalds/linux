@@ -1541,7 +1541,7 @@ void fuse_conn_destroy(struct fuse_mount *fm)
 }
 EXPORT_SYMBOL_GPL(fuse_conn_destroy);
 
-static void fuse_kill_sb_anon(struct super_block *sb)
+static void fuse_sb_destroy(struct super_block *sb)
 {
 	struct fuse_mount *fm = get_fuse_mount_super(sb);
 	bool last;
@@ -1551,6 +1551,11 @@ static void fuse_kill_sb_anon(struct super_block *sb)
 		if (last)
 			fuse_conn_destroy(fm);
 	}
+}
+
+static void fuse_kill_sb_anon(struct super_block *sb)
+{
+	fuse_sb_destroy(sb);
 	kill_anon_super(sb);
 }
 
@@ -1567,14 +1572,7 @@ MODULE_ALIAS_FS("fuse");
 #ifdef CONFIG_BLOCK
 static void fuse_kill_sb_blk(struct super_block *sb)
 {
-	struct fuse_mount *fm = get_fuse_mount_super(sb);
-	bool last;
-
-	if (fm) {
-		last = fuse_mount_remove(fm);
-		if (last)
-			fuse_conn_destroy(fm);
-	}
+	fuse_sb_destroy(sb);
 	kill_block_super(sb);
 }
 
