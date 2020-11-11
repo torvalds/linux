@@ -687,12 +687,25 @@ int amdgpu_display_framebuffer_init(struct drm_device *dev,
 				    const struct drm_mode_fb_cmd2 *mode_cmd,
 				    struct drm_gem_object *obj)
 {
-	int ret;
+	int ret, i;
 	rfb->base.obj[0] = obj;
 	drm_helper_mode_fill_fb_struct(dev, &rfb->base, mode_cmd);
 	ret = drm_framebuffer_init(dev, &rfb->base, &amdgpu_fb_funcs);
 	if (ret)
 		goto fail;
+
+	/*
+	 * This needs to happen before modifier conversion as that might change
+	 * the number of planes.
+	 */
+	for (i = 1; i < rfb->base.format->num_planes; ++i) {
+		if (mode_cmd->handles[i] != mode_cmd->handles[0]) {
+			dev_err(&dev->pdev->dev, "Plane 0 and %d have different BOs: %u vs. %u\n",
+				i, mode_cmd->handles[0], mode_cmd->handles[i]);
+			ret = -EINVAL;
+			goto fail;
+		}
+	}
 
 	ret = amdgpu_display_get_fb_info(rfb, &rfb->tiling_flags, &rfb->tmz_surface);
 	if (ret)
@@ -703,6 +716,11 @@ int amdgpu_display_framebuffer_init(struct drm_device *dev,
 		ret = convert_tiling_flags_to_modifier(rfb);
 		if (ret)
 			goto fail;
+	}
+
+	for (i = 1; i < rfb->base.format->num_planes; ++i) {
+		rfb->base.obj[i] = rfb->base.obj[0];
+		drm_gem_object_get(rfb->base.obj[i]);
 	}
 
 	return 0;
