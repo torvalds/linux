@@ -227,6 +227,8 @@ static ssize_t vop_dump_write(struct file *file, const char __user *ubuf,
 	struct vop_dump_list *pos, *n;
 	int i = 0;
 
+	if (!crtc->vop_dump_list_init_flag)
+		return -EPERM;
 	if (len > sizeof(buf) - 1)
 		return -EINVAL;
 	if (copy_from_user(buf, ubuf, len))
