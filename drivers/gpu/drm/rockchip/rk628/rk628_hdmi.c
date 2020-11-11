@@ -1267,10 +1267,12 @@ static int rk628_hdmi_i2c_write(struct rk628_hdmi *hdmi, struct i2c_msg *msgs)
 	    ((msgs->addr != DDC_ADDR) && (msgs->addr != DDC_SEGMENT_ADDR)))
 		return -EINVAL;
 
-	if (msgs->addr == DDC_SEGMENT_ADDR)
-		hdmi->i2c->segment_addr = msgs->buf[0];
 	if (msgs->addr == DDC_ADDR)
 		hdmi->i2c->ddc_addr = msgs->buf[0];
+	if (msgs->addr == DDC_SEGMENT_ADDR) {
+		hdmi->i2c->segment_addr = msgs->buf[0];
+		return 0;
+	}
 
 	/* Set edid fifo first addr */
 	hdmi_writeb(hdmi, HDMI_EDID_FIFO_OFFSET, 0x00);
@@ -1292,6 +1294,9 @@ static int rk628_hdmi_i2c_xfer(struct i2c_adapter *adap,
 	int i, ret = 0;
 
 	mutex_lock(&i2c->lock);
+
+	hdmi->i2c->ddc_addr = 0;
+	hdmi->i2c->segment_addr = 0;
 
 	/* Clear the EDID interrupt flag and unmute the interrupt */
 	hdmi_writeb(hdmi, HDMI_INTERRUPT_STATUS1, INT_EDID_READY);
