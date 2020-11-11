@@ -56,7 +56,7 @@
 		interrupt-parent = <&cpu_intc>;
 	};
 
-	ehci@1b200000 {
+	usb@1b200000 {
 		compatible = "generic-ehci";
 		reg = <0x1b200000 0x1000>;
 
