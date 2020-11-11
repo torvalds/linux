@@ -1057,6 +1057,82 @@
 		status = "disabled";
 	};
 
+	mipi_csi2: mipi-csi2@fdfb0000 {
+		compatible = "rockchip,rk3568-mipi-csi2";
+		reg = <0x0 0xfdfb0000 0x0 0x10000>;
+		reg-names = "csihost_regs";
+		interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "csi-intr1", "csi-intr2";
+		clocks = <&cru PCLK_CSI2HOST1>, <&cru SRST_P_CSI2HOST1>;
+		clock-names = "pclk_csi2host", "srst_csihost_p";
+		power-domains = <&power RK3568_PD_VI>;
+		status = "disabled";
+	};
+
+	rkcif: rkcif@fdfe0000 {
+		compatible = "rockchip,rk3568-cif";
+		reg = <0x0 0xfdfe0000 0x0 0x8000>;
+		reg-names = "cif_regs";
+		interrupts = <GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "cif-intr";
+
+		clocks = <&cru ACLK_VICAP>, <&cru HCLK_VICAP>,
+			 <&cru DCLK_VICAP>, <&cru ICLK_VICAP_G>;
+		clock-names = "aclk_cif", "hclk_cif",
+			      "dclk_cif", "iclk_cif_g";
+		resets = <&cru SRST_A_VICAP>, <&cru SRST_H_VICAP>,
+			 <&cru SRST_D_VICAP>, <&cru SRST_P_VICAP>,
+			 <&cru SRST_I_VICAP>;
+		reset-names = "rst_cif_a", "rst_cif_h",
+			      "rst_cif_d", "rst_cif_p",
+			      "rst_cif_i";
+		assigned-clocks = <&cru DCLK_VICAP>;
+		assigned-clock-rates = <300000000>;
+		power-domains = <&power RK3568_PD_VI>;
+		rockchip,grf = <&grf>;
+		iommus = <&rkcif_mmu>;
+		status = "disabled";
+	};
+
+	rkcif_mmu: iommu@fdfe0800 {
+		compatible = "rockchip,iommu";
+		reg = <0x0 0xfdfe0800 0x0 0x100>;
+		interrupts = <GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "cif_mmu";
+		clocks = <&cru ACLK_VICAP>, <&cru HCLK_VICAP>;
+		clock-names = "aclk", "iface";
+		power-domains = <&power RK3568_PD_VI>;
+		#iommu-cells = <0>;
+		status = "disabled";
+	};
+
+	rkcif_dvp: rkcif_dvp {
+		compatible = "rockchip,rkcif-dvp";
+		rockchip,hw = <&rkcif>;
+		iommus = <&rkcif_mmu>;
+		status = "disabled";
+	};
+
+	rkcif_dvp_sditf: rkcif_dvp_sditf {
+		compatible = "rockchip,rkcif-sditf";
+		rockchip,cif = <&rkcif_dvp>;
+		status = "disabled";
+	};
+
+	rkcif_mipi_lvds: rkcif_mipi_lvds {
+		compatible = "rockchip,rkcif-mipi-lvds";
+		rockchip,hw = <&rkcif>;
+		iommus = <&rkcif_mmu>;
+		status = "disabled";
+	};
+
+	rkcif_mipi_lvds_sditf: rkcif_mipi_lvds_sditf {
+		compatible = "rockchip,rkcif-sditf";
+		rockchip,cif = <&rkcif_mipi_lvds>;
+		status = "disabled";
+	};
+
 	rkisp: rkisp@fdff0000 {
 		compatible = "rockchip,rk3568-rkisp";
 		reg = <0x0 0xfdff0000 0x0 0x10000>;
@@ -2536,6 +2612,15 @@
 		reset-names = "rst";
 		power-domains = <&power RK3568_PD_VO>;
 		#phy-cells = <0>;
+		status = "disabled";
+	};
+
+	csi_dphy: csi-dphy@fe870000 {
+		compatible = "rockchip,rk3568-csi-dphy";
+		reg = <0x0 0xfe870000 0x0 0x1000>;
+		clocks = <&cru PCLK_MIPICSIPHY>;
+		clock-names = "pclk";
+		rockchip,grf = <&grf>;
 		status = "disabled";
 	};
 
