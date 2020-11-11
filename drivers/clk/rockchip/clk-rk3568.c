@@ -1598,6 +1598,7 @@ static const char *const rk3568_cru_critical_clocks[] __initconst = {
 	"aclk_secure_flash",
 	"hclk_secure_flash",
 	"aclk_core_niu2bus",
+	"npll",
 };
 
 static const char *const rk3568_pmucru_critical_clocks[] __initconst = {
