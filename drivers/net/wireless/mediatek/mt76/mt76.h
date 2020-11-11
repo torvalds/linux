@@ -167,7 +167,7 @@ struct mt76_queue_ops {
 		     int idx, int n_desc, int bufsize,
 		     u32 ring_base);
 
-	int (*tx_queue_skb)(struct mt76_dev *dev, enum mt76_txq_id qid,
+	int (*tx_queue_skb)(struct mt76_dev *dev, struct mt76_queue *q,
 			    struct sk_buff *skb, struct mt76_wcid *wcid,
 			    struct ieee80211_sta *sta);
 

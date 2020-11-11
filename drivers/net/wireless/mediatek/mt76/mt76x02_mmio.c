@@ -14,7 +14,8 @@
 static void mt76x02_pre_tbtt_tasklet(struct tasklet_struct *t)
 {
 	struct mt76x02_dev *dev = from_tasklet(dev, t, mt76.pre_tbtt_tasklet);
-	struct mt76_queue *q = dev->mt76.q_tx[MT_TXQ_PSD];
+	struct mt76_dev *mdev = &dev->mt76;
+	struct mt76_queue *q = mdev->q_tx[MT_TXQ_PSD];
 	struct beacon_bc_data data = {};
 	struct sk_buff *skb;
 	int i;
@@ -35,9 +36,9 @@ static void mt76x02_pre_tbtt_tasklet(struct tasklet_struct *t)
 	mt76_wr(dev, MT_BCN_BYPASS_MASK,
 		0xff00 | ~(0xff00 >> dev->beacon_data_count));
 
-	mt76_csa_check(&dev->mt76);
+	mt76_csa_check(mdev);
 
-	if (dev->mt76.csa_complete)
+	if (mdev->csa_complete)
 		return;
 
 	mt76x02_enqueue_buffered_bc(dev, &data, 8);
@@ -58,8 +59,8 @@ static void mt76x02_pre_tbtt_tasklet(struct tasklet_struct *t)
 		struct ieee80211_vif *vif = info->control.vif;
 		struct mt76x02_vif *mvif = (struct mt76x02_vif *)vif->drv_priv;
 
-		mt76_tx_queue_skb(dev, MT_TXQ_PSD, skb, &mvif->group_wcid,
-				  NULL);
+		mt76_tx_queue_skb(dev, mdev->q_tx[MT_TXQ_PSD], skb,
+				  &mvif->group_wcid, NULL);
 	}
 	spin_unlock_bh(&q->lock);
 }

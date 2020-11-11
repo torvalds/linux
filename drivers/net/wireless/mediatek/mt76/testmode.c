@@ -39,7 +39,8 @@ void mt76_testmode_tx_pending(struct mt76_dev *dev)
 	       q->queued < q->ndesc / 2) {
 		int ret;
 
-		ret = dev->queue_ops->tx_queue_skb(dev, qid, skb_get(skb), wcid, NULL);
+		ret = dev->queue_ops->tx_queue_skb(dev, q, skb_get(skb), wcid,
+						   NULL);
 		if (ret < 0)
 			break;
 
