@@ -170,7 +170,10 @@ int __ref arch_add_memory(int nid, u64 start, u64 size,
 	rc = arch_create_linear_mapping(nid, start, size, params);
 	if (rc)
 		return rc;
-	return __add_pages(nid, start_pfn, nr_pages, params);
+	rc = __add_pages(nid, start_pfn, nr_pages, params);
+	if (rc)
+		arch_remove_linear_mapping(start, size);
+	return rc;
 }
 
 void __ref arch_remove_memory(int nid, u64 start, u64 size,
