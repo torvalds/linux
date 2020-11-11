@@ -1211,6 +1211,7 @@ static int omap8250_no_handle_irq(struct uart_port *port)
 static const struct soc_device_attribute k3_soc_devices[] = {
 	{ .family = "AM65X",  },
 	{ .family = "J721E", .revision = "SR1.0" },
+	{ /* sentinel */ }
 };
 
 static struct omap8250_dma_params am654_dma = {
