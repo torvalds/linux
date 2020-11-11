@@ -1784,8 +1784,9 @@
 	dig_acodec: codec-digital@fe478000 {
 		compatible = "rockchip,rk3568-codec-digital", "rockchip,codec-digital-v1";
 		reg = <0x0 0xfe478000 0x0 0x1000>;
-		clocks = <&cru CLK_ACDCDIG_ADC>, <&cru CLK_ACDCDIG_DAC>, <&cru HCLK_ACDCDIG>;
-		clock-names = "adc", "dac", "pclk";
+		clocks = <&cru CLK_ACDCDIG_ADC>, <&cru CLK_ACDCDIG_DAC>,
+			 <&cru CLK_ACDCDIG_I2C>, <&cru HCLK_ACDCDIG>;
+		clock-names = "adc", "dac", "i2c", "pclk";
 		pinctrl-names = "default";
 		pinctrl-0 = <&acodec_pins>;
 		resets = <&cru SRST_ACDCDIG>;
