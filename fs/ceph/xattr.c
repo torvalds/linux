@@ -304,6 +304,23 @@ static ssize_t ceph_vxattrcb_snap_btime(struct ceph_inode_info *ci, char *val,
 				ci->i_snap_btime.tv_nsec);
 }
 
+static ssize_t ceph_vxattrcb_cluster_fsid(struct ceph_inode_info *ci,
+					  char *val, size_t size)
+{
+	struct ceph_fs_client *fsc = ceph_sb_to_client(ci->vfs_inode.i_sb);
+
+	return ceph_fmt_xattr(val, size, "%pU", &fsc->client->fsid);
+}
+
+static ssize_t ceph_vxattrcb_client_id(struct ceph_inode_info *ci,
+				       char *val, size_t size)
+{
+	struct ceph_fs_client *fsc = ceph_sb_to_client(ci->vfs_inode.i_sb);
+
+	return ceph_fmt_xattr(val, size, "client%lld",
+			      ceph_client_gid(fsc->client));
+}
+
 #define CEPH_XATTR_NAME(_type, _name)	XATTR_CEPH_PREFIX #_type "." #_name
 #define CEPH_XATTR_NAME2(_type, _name, _name2)	\
 	XATTR_CEPH_PREFIX #_type "." #_name "." #_name2
@@ -407,6 +424,24 @@ static struct ceph_vxattr ceph_file_vxattrs[] = {
 	{ .name = NULL, 0 }	/* Required table terminator */
 };
 
+static struct ceph_vxattr ceph_common_vxattrs[] = {
+	{
+		.name = "ceph.cluster_fsid",
+		.name_size = sizeof("ceph.cluster_fsid"),
+		.getxattr_cb = ceph_vxattrcb_cluster_fsid,
+		.exists_cb = NULL,
+		.flags = VXATTR_FLAG_READONLY,
+	},
+	{
+		.name = "ceph.client_id",
+		.name_size = sizeof("ceph.client_id"),
+		.getxattr_cb = ceph_vxattrcb_client_id,
+		.exists_cb = NULL,
+		.flags = VXATTR_FLAG_READONLY,
+	},
+	{ .name = NULL, 0 }	/* Required table terminator */
+};
+
 static struct ceph_vxattr *ceph_inode_vxattrs(struct inode *inode)
 {
 	if (S_ISDIR(inode->i_mode))
@@ -427,6 +462,13 @@ static struct ceph_vxattr *ceph_match_vxattr(struct inode *inode,
 				return vxattr;
 			vxattr++;
 		}
+	}
+
+	vxattr = ceph_common_vxattrs;
+	while (vxattr->name) {
+		if (!strcmp(vxattr->name, name))
+			return vxattr;
+		vxattr++;
 	}
 
 	return NULL;
