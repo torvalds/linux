@@ -207,7 +207,7 @@ struct tegra_mc *devm_tegra_memory_controller_get(struct device *dev);
 static inline struct tegra_mc *
 devm_tegra_memory_controller_get(struct device *dev)
 {
-	ERR_PTR(-ENODEV);
+	return ERR_PTR(-ENODEV);
 }
 #endif
 
