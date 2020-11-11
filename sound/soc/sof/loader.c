@@ -124,7 +124,7 @@ int snd_sof_fw_parse_ext_data(struct snd_sof_dev *sdev, u32 bar, u32 offset)
 			/* They are supported but we don't do anything here */
 			break;
 		default:
-			dev_warn(sdev->dev, "warning: unknown ext header type %d size 0x%x\n",
+			dev_info(sdev->dev, "unknown ext header type %d size 0x%x\n",
 				 ext_hdr->type, ext_hdr->hdr.size);
 			ret = 0;
 			break;
@@ -280,7 +280,7 @@ static int snd_sof_fw_ext_man_parse(struct snd_sof_dev *sdev,
 			ret = ext_man_get_dbg_abi_info(sdev, elem_hdr);
 			break;
 		default:
-			dev_warn(sdev->dev, "warning: unknown sof_ext_man header type %d size 0x%X\n",
+			dev_info(sdev->dev, "unknown sof_ext_man header type %d size 0x%X\n",
 				 elem_hdr->type, elem_hdr->size);
 			break;
 		}
