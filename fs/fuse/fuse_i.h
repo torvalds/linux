@@ -1025,11 +1025,6 @@ void fuse_conn_init(struct fuse_conn *fc, struct fuse_mount *fm,
 void fuse_conn_put(struct fuse_conn *fc);
 
 /**
- * Acquire reference to fuse_mount
- */
-struct fuse_mount *fuse_mount_get(struct fuse_mount *fm);
-
-/**
  * Release reference to fuse_mount
  */
 void fuse_mount_put(struct fuse_mount *fm);

@@ -1402,18 +1402,6 @@ static int virtio_fs_test_super(struct super_block *sb,
 	return fsc_fm->fc->iq.priv == sb_fm->fc->iq.priv;
 }
 
-static int virtio_fs_set_super(struct super_block *sb,
-			       struct fs_context *fsc)
-{
-	int err;
-
-	err = get_anon_bdev(&sb->s_dev);
-	if (!err)
-		fuse_mount_get(fsc->s_fs_info);
-
-	return err;
-}
-
 static int virtio_fs_get_tree(struct fs_context *fsc)
 {
 	struct virtio_fs *fs;
@@ -1456,8 +1444,9 @@ static int virtio_fs_get_tree(struct fs_context *fsc)
 	fc->auto_submounts = true;
 
 	fsc->s_fs_info = fm;
-	sb = sget_fc(fsc, virtio_fs_test_super, virtio_fs_set_super);
-	fuse_mount_put(fm);
+	sb = sget_fc(fsc, virtio_fs_test_super, set_anon_super_fc);
+	if (fsc->s_fs_info)
+		fuse_mount_put(fm);
 	if (IS_ERR(sb))
 		return PTR_ERR(sb);
 

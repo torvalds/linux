@@ -742,13 +742,6 @@ void fuse_mount_put(struct fuse_mount *fm)
 }
 EXPORT_SYMBOL_GPL(fuse_mount_put);
 
-struct fuse_mount *fuse_mount_get(struct fuse_mount *fm)
-{
-	refcount_inc(&fm->count);
-	return fm;
-}
-EXPORT_SYMBOL_GPL(fuse_mount_get);
-
 static struct inode *fuse_get_root_inode(struct super_block *sb, unsigned mode)
 {
 	struct fuse_attr attr;
