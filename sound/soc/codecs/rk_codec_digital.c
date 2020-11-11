@@ -36,7 +36,6 @@ struct rk_codec_digital_priv {
 	struct clk *clk_adc;
 	struct clk *clk_dac;
 	struct clk *pclk;
-	atomic_t enable;
 	bool pwmout;
 	struct reset_control *rc;
 	const struct rk_codec_digital_soc_data *data;
@@ -164,17 +163,6 @@ static void rk_codec_digital_enable_clk_adc(struct rk_codec_digital_priv *rcd)
 			   ACDCDIG_ADCCLKCTRL_ADC_SYNC_ENA_EN);
 }
 
-static void rk_codec_digital_disable_clk_adc(struct rk_codec_digital_priv *rcd)
-{
-	regmap_update_bits(rcd->regmap, ADCCLKCTRL,
-			   ACDCDIG_ADCCLKCTRL_ADC_CKE_MASK |
-			   ACDCDIG_ADCCLKCTRL_I2STX_CKE_MASK |
-			   ACDCDIG_ADCCLKCTRL_CKE_BCLKTX_MASK,
-			   ACDCDIG_ADCCLKCTRL_ADC_CKE_DIS |
-			   ACDCDIG_ADCCLKCTRL_I2STX_CKE_DIS |
-			   ACDCDIG_ADCCLKCTRL_CKE_BCLKTX_DIS);
-}
-
 static void rk_codec_digital_enable_clk_dac(struct rk_codec_digital_priv *rcd)
 {
 	regmap_update_bits(rcd->regmap, DACCLKCTRL,
@@ -188,17 +176,6 @@ static void rk_codec_digital_enable_clk_dac(struct rk_codec_digital_priv *rcd)
 			   ACDCDIG_DACCLKCTRL_CKE_BCLKRX_EN |
 			   ACDCDIG_DACCLKCTRL_DAC_SYNC_ENA_EN |
 			   ACDCDIG_DACCLKCTRL_DAC_MODE_ATTENU_EN);
-}
-
-static void rk_codec_digital_disable_clk_dac(struct rk_codec_digital_priv *rcd)
-{
-	regmap_update_bits(rcd->regmap, DACCLKCTRL,
-			   ACDCDIG_DACCLKCTRL_DAC_CKE_MASK |
-			   ACDCDIG_DACCLKCTRL_I2SRX_CKE_MASK |
-			   ACDCDIG_DACCLKCTRL_CKE_BCLKRX_MASK,
-			   ACDCDIG_DACCLKCTRL_DAC_CKE_DIS |
-			   ACDCDIG_DACCLKCTRL_I2SRX_CKE_DIS |
-			   ACDCDIG_DACCLKCTRL_CKE_BCLKRX_DIS);
 }
 
 static int rk_codec_digital_set_clk(struct rk_codec_digital_priv *rcd,
@@ -306,10 +283,8 @@ static int rk_codec_digital_hw_params(struct snd_pcm_substream *substream,
 		snd_soc_component_get_drvdata(dai->component);
 	unsigned int srt = 0, val = 0;
 
-	if (atomic_inc_return(&rcd->enable) == 1) {
-		rk_codec_digital_set_clk(rcd, substream->stream, params_rate(params));
-		rk_codec_digital_reset(rcd);
-	}
+	rk_codec_digital_set_clk(rcd, substream->stream, params_rate(params));
+	rk_codec_digital_reset(rcd);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		switch (params_rate(params)) {
@@ -505,11 +480,6 @@ static void rk_codec_digital_pcm_shutdown(struct snd_pcm_substream *substream,
 				   ACDCDIG_ADCDIGEN_ADCEN_L2_DIS |
 				   ACDCDIG_ADCDIGEN_ADCEN_L0R1_DIS);
 	}
-
-	if (atomic_dec_and_test(&rcd->enable)) {
-		rk_codec_digital_disable_clk_adc(rcd);
-		rk_codec_digital_disable_clk_dac(rcd);
-	}
 }
 
 static const struct snd_soc_dai_ops rcd_dai_ops = {
@@ -700,7 +670,6 @@ static int rk_codec_digital_platform_probe(struct platform_device *pdev)
 	if (IS_ERR(rcd->regmap))
 		return PTR_ERR(rcd->regmap);
 
-	atomic_set(&rcd->enable, 0);
 	platform_set_drvdata(pdev, rcd);
 
 	rcd->data = of_device_get_match_data(&pdev->dev);
