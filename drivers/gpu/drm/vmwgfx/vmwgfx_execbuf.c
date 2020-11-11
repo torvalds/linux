@@ -4046,11 +4046,7 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 	}
 
 	if (throttle_us) {
-		ret = vmw_wait_lag(dev_priv, &dev_priv->fifo.marker_queue,
-				   throttle_us);
-
-		if (ret)
-			goto out_free_fence_fd;
+		VMW_DEBUG_USER("Throttling is no longer supported.\n");
 	}
 
 	kernel_commands = vmw_execbuf_cmdbuf(dev_priv, user_commands,

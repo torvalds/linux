@@ -276,13 +276,6 @@ struct vmw_surface {
 	struct list_head view_list;
 };
 
-struct vmw_marker_queue {
-	struct list_head head;
-	u64 lag;
-	u64 lag_time;
-	spinlock_t lock;
-};
-
 struct vmw_fifo_state {
 	unsigned long reserved_size;
 	u32 *dynamic_buffer;
@@ -292,7 +285,6 @@ struct vmw_fifo_state {
 	uint32_t capabilities;
 	struct mutex fifo_mutex;
 	struct rw_semaphore rwsem;
-	struct vmw_marker_queue marker_queue;
 	bool dx;
 };
 
@@ -1120,19 +1112,6 @@ extern void vmw_generic_waiter_add(struct vmw_private *dev_priv, u32 flag,
 extern void vmw_generic_waiter_remove(struct vmw_private *dev_priv,
 				      u32 flag, int *waiter_count);
 
-/**
- * Rudimentary fence-like objects currently used only for throttling -
- * vmwgfx_marker.c
- */
-
-extern void vmw_marker_queue_init(struct vmw_marker_queue *queue);
-extern void vmw_marker_queue_takedown(struct vmw_marker_queue *queue);
-extern int vmw_marker_push(struct vmw_marker_queue *queue,
-			   uint32_t seqno);
-extern int vmw_marker_pull(struct vmw_marker_queue *queue,
-			   uint32_t signaled_seqno);
-extern int vmw_wait_lag(struct vmw_private *dev_priv,
-			struct vmw_marker_queue *queue, uint32_t us);
 
 /**
  * Kernel framebuffer - vmwgfx_fb.c

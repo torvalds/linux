@@ -157,7 +157,6 @@ int vmw_fifo_init(struct vmw_private *dev_priv, struct vmw_fifo_state *fifo)
 
 	atomic_set(&dev_priv->marker_seq, dev_priv->last_read_seqno);
 	vmw_fifo_mem_write(dev_priv, SVGA_FIFO_FENCE, dev_priv->last_read_seqno);
-	vmw_marker_queue_init(&fifo->marker_queue);
 
 	return 0;
 }
@@ -184,8 +183,6 @@ void vmw_fifo_release(struct vmw_private *dev_priv, struct vmw_fifo_state *fifo)
 		  dev_priv->enable_state);
 	vmw_write(dev_priv, SVGA_REG_TRACES,
 		  dev_priv->traces_state);
-
-	vmw_marker_queue_takedown(&fifo->marker_queue);
 
 	if (likely(fifo->static_buffer != NULL)) {
 		vfree(fifo->static_buffer);
@@ -563,7 +560,6 @@ int vmw_fifo_send_fence(struct vmw_private *dev_priv, uint32_t *seqno)
 	cmd_fence = (struct svga_fifo_cmd_fence *) fm;
 	cmd_fence->fence = *seqno;
 	vmw_fifo_commit_flush(dev_priv, bytes);
-	(void) vmw_marker_push(&fifo_state->marker_queue, *seqno);
 	vmw_update_seqno(dev_priv, fifo_state);
 
 out_err:
