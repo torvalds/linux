@@ -31,6 +31,8 @@
 	chosen { };
 
 	aliases {
+		mmc1 = &sdhc_1;
+		mmc2 = &sdhc_2;
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
