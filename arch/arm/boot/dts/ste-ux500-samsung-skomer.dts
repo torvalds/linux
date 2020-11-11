@@ -433,6 +433,16 @@
 		};
 	};
 
+	/* The unused FBCLK needs to be pulled down on this machine */
+	sdi2 {
+		mc2_a_1_default {
+			default_cfg2 {
+				pins = "GPIO130_C8"; /* FBCLK */
+				ste,config = <&in_pd>;
+			};
+		};
+	};
+
 	mcde {
 		dsi_default_mode: dsi_default {
 			default_mux1 {
