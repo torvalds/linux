@@ -714,6 +714,20 @@
 		};
 	};
 
+	pvtm@fde00000 {
+		compatible = "rockchip,rk3568-core-pvtm";
+		reg = <0x0 0xfde00000 0x0 0x100>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pvtm@0 {
+			reg = <0>;
+			clocks = <&cru CLK_CORE_PVTM>, <&cru PCLK_CORE_PVTM>;
+			clock-names = "clk", "pclk";
+			resets = <&cru SRST_CORE_PVTM>, <&cru SRST_P_CORE_PVTM>;
+			reset-names = "rts", "rst-p";
+		};
+	};
+
 	gpu: gpu@fde60000 {
 		compatible = "arm,malit602", "arm,malit60x", "arm,malit6xx", "arm,mali-midgard";
 		reg = <0x0 0xfde60000 0x0 0x4000>;
@@ -760,6 +774,35 @@
 		opp-600000000 {
 			opp-hz = /bits/ 64 <600000000>;
 			opp-microvolt = <1000000>;
+		};
+	};
+
+	pvtm@fde80000 {
+		compatible = "rockchip,rk3568-gpu-pvtm";
+		reg = <0x0 0xfde80000 0x0 0x100>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pvtm@1 {
+			reg = <1>;
+			clocks = <&cru CLK_GPU_PVTM>, <&cru PCLK_GPU_PVTM>;
+			clock-names = "clk", "pclk";
+			resets = <&cru SRST_GPU_PVTM>, <&cru SRST_P_GPU_PVTM>;
+			reset-names = "rts", "rst-p";
+		};
+	};
+
+	pvtm@fde90000 {
+		compatible = "rockchip,rk3568-npu-pvtm";
+		reg = <0x0 0xfde90000 0x0 0x100>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pvtm@2 {
+			reg = <2>;
+			clocks = <&cru CLK_NPU_PVTM>, <&cru PCLK_NPU_PVTM>,
+				 <&cru HCLK_NPU_PRE>;
+			clock-names = "clk", "pclk", "hclk";
+			resets = <&cru SRST_NPU_PVTM>, <&cru SRST_P_NPU_PVTM>;
+			reset-names = "rts", "rst-p";
 		};
 	};
 
