@@ -26,6 +26,7 @@ static inline void pagecache_lock_init(struct pagecache_lock *lock)
 }
 
 void bch2_pagecache_add_put(struct pagecache_lock *);
+bool bch2_pagecache_add_tryget(struct pagecache_lock *);
 void bch2_pagecache_add_get(struct pagecache_lock *);
 void bch2_pagecache_block_put(struct pagecache_lock *);
 void bch2_pagecache_block_get(struct pagecache_lock *);

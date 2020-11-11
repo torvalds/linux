@@ -44,6 +44,22 @@ static inline bool bio_full(struct bio *bio, unsigned len)
 	return false;
 }
 
+static inline struct address_space *faults_disabled_mapping(void)
+{
+	return (void *) (((unsigned long) current->faults_disabled_mapping) & ~1UL);
+}
+
+static inline void set_fdm_dropped_locks(void)
+{
+	current->faults_disabled_mapping =
+		(void *) (((unsigned long) current->faults_disabled_mapping)|1);
+}
+
+static inline bool fdm_dropped_locks(void)
+{
+	return ((unsigned long) current->faults_disabled_mapping) & 1;
+}
+
 struct quota_res {
 	u64				sectors;
 };
@@ -501,10 +517,35 @@ static void bch2_set_page_dirty(struct bch_fs *c,
 vm_fault_t bch2_page_fault(struct vm_fault *vmf)
 {
 	struct file *file = vmf->vma->vm_file;
+	struct address_space *mapping = file->f_mapping;
+	struct address_space *fdm = faults_disabled_mapping();
 	struct bch_inode_info *inode = file_bch_inode(file);
 	int ret;
 
+	if (fdm == mapping)
+		return VM_FAULT_SIGBUS;
+
+	/* Lock ordering: */
+	if (fdm > mapping) {
+		struct bch_inode_info *fdm_host = to_bch_ei(fdm->host);
+
+		if (bch2_pagecache_add_tryget(&inode->ei_pagecache_lock))
+			goto got_lock;
+
+		bch2_pagecache_block_put(&fdm_host->ei_pagecache_lock);
+
+		bch2_pagecache_add_get(&inode->ei_pagecache_lock);
+		bch2_pagecache_add_put(&inode->ei_pagecache_lock);
+
+		bch2_pagecache_block_get(&fdm_host->ei_pagecache_lock);
+
+		/* Signal that lock has been dropped: */
+		set_fdm_dropped_locks();
+		return VM_FAULT_SIGBUS;
+	}
+
 	bch2_pagecache_add_get(&inode->ei_pagecache_lock);
+got_lock:
 	ret = filemap_fault(vmf);
 	bch2_pagecache_add_put(&inode->ei_pagecache_lock);
 
@@ -1765,14 +1806,16 @@ static long bch2_dio_write_loop(struct dio_write *dio)
 	struct bio *bio = &dio->op.wbio.bio;
 	struct bvec_iter_all iter;
 	struct bio_vec *bv;
-	unsigned unaligned;
-	bool sync = dio->sync;
+	unsigned unaligned, iter_count;
+	bool sync = dio->sync, dropped_locks;
 	long ret;
 
 	if (dio->loop)
 		goto loop;
 
 	while (1) {
+		iter_count = dio->iter.count;
+
 		if (kthread)
 			kthread_use_mm(dio->mm);
 		BUG_ON(current->faults_disabled_mapping);
@@ -1780,12 +1823,33 @@ static long bch2_dio_write_loop(struct dio_write *dio)
 
 		ret = bio_iov_iter_get_pages(bio, &dio->iter);
 
+		dropped_locks = fdm_dropped_locks();
+
 		current->faults_disabled_mapping = NULL;
 		if (kthread)
 			kthread_unuse_mm(dio->mm);
 
+		/*
+		 * If the fault handler returned an error but also signalled
+		 * that it dropped & retook ei_pagecache_lock, we just need to
+		 * re-shoot down the page cache and retry:
+		 */
+		if (dropped_locks && ret)
+			ret = 0;
+
 		if (unlikely(ret < 0))
 			goto err;
+
+		if (unlikely(dropped_locks)) {
+			ret = write_invalidate_inode_pages_range(mapping,
+					req->ki_pos,
+					req->ki_pos + iter_count - 1);
+			if (unlikely(ret))
+				goto err;
+
+			if (!bio->bi_iter.bi_size)
+				continue;
+		}
 
 		unaligned = bio->bi_iter.bi_size & (block_bytes(c) - 1);
 		bio->bi_iter.bi_size -= unaligned;

@@ -93,6 +93,11 @@ void bch2_pagecache_add_put(struct pagecache_lock *lock)
 	__pagecache_lock_put(lock, 1);
 }
 
+bool bch2_pagecache_add_tryget(struct pagecache_lock *lock)
+{
+	return __pagecache_lock_tryget(lock, 1);
+}
+
 void bch2_pagecache_add_get(struct pagecache_lock *lock)
 {
 	__pagecache_lock_get(lock, 1);
