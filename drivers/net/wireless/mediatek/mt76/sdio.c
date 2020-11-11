@@ -74,8 +74,8 @@ static int mt76s_alloc_tx(struct mt76_dev *dev)
 	if (IS_ERR(q))
 		return PTR_ERR(q);
 
-	q->qid = MT_TXQ_MCU;
-	dev->q_tx[MT_TXQ_MCU] = q;
+	q->qid = MT_MCUQ_WM;
+	dev->q_mcu[MT_MCUQ_WM] = q;
 
 	return 0;
 }
@@ -157,7 +157,7 @@ static void mt76s_net_worker(struct mt76_worker *w)
 
 static int mt76s_process_tx_queue(struct mt76_dev *dev, struct mt76_queue *q)
 {
-	bool wake, mcu = q == dev->q_tx[MT_TXQ_MCU];
+	bool wake, mcu = q == dev->q_mcu[MT_MCUQ_WM];
 	struct mt76_queue_entry entry;
 	int nframes = 0;
 
@@ -203,8 +203,9 @@ static void mt76s_status_worker(struct mt76_worker *w)
 	int i, nframes;
 
 	do {
-		nframes = 0;
-		for (i = 0; i < MT_TXQ_MCU_WA; i++)
+		nframes = mt76s_process_tx_queue(dev, dev->q_mcu[MT_MCUQ_WM]);
+
+		for (i = 0; i <= MT_TXQ_PSD; i++)
 			nframes += mt76s_process_tx_queue(dev, dev->q_tx[i]);
 
 		if (dev->drv->tx_status_data &&

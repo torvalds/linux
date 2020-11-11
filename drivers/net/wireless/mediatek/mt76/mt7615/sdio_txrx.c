@@ -217,7 +217,7 @@ static int __mt7663s_xmit_queue(struct mt76_dev *dev, u8 *data, int len)
 static int mt7663s_tx_run_queue(struct mt76_dev *dev, struct mt76_queue *q)
 {
 	int qid, err, nframes = 0, len = 0, pse_sz = 0, ple_sz = 0;
-	bool mcu = q == dev->q_tx[MT_TXQ_MCU];
+	bool mcu = q == dev->q_mcu[MT_MCUQ_WM];
 	struct mt76_sdio *sdio = &dev->sdio;
 
 	qid = mcu ? ARRAY_SIZE(sdio->xmit_buf) - 1 : q->qid;
@@ -286,11 +286,14 @@ void mt7663s_txrx_worker(struct mt76_worker *w)
 		nframes = 0;
 
 		/* tx */
-		for (i = 0; i < MT_TXQ_MCU_WA; i++) {
+		for (i = 0; i <= MT_TXQ_PSD; i++) {
 			ret = mt7663s_tx_run_queue(dev, dev->q_tx[i]);
 			if (ret > 0)
 				nframes += ret;
 		}
+		ret = mt7663s_tx_run_queue(dev, dev->q_mcu[MT_MCUQ_WM]);
+		if (ret > 0)
+			nframes += ret;
 
 		/* rx */
 		ret = mt7663s_rx_handler(dev);

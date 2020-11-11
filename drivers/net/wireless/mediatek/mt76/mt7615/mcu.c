@@ -235,11 +235,11 @@ mt7615_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 
 	mt7615_mcu_fill_msg(dev, skb, cmd, seq);
 	if (test_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state))
-		qid = MT_TXQ_MCU;
+		qid = MT_MCUQ_WM;
 	else
-		qid = MT_TXQ_FWDL;
+		qid = MT_MCUQ_FWDL;
 
-	return mt76_tx_queue_skb_raw(dev, dev->mt76.q_tx[qid], skb, 0);
+	return mt76_tx_queue_skb_raw(dev, dev->mt76.q_mcu[qid], skb, 0);
 }
 
 u32 mt7615_rf_rr(struct mt7615_dev *dev, u32 wf, u32 reg)
@@ -2464,7 +2464,7 @@ int mt7615_mcu_init(struct mt7615_dev *dev)
 	if (ret)
 		return ret;
 
-	mt76_queue_tx_cleanup(dev, dev->mt76.q_tx[MT_TXQ_FWDL], false);
+	mt76_queue_tx_cleanup(dev, dev->mt76.q_mcu[MT_MCUQ_FWDL], false);
 	dev_dbg(dev->mt76.dev, "Firmware init done\n");
 	set_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state);
 	mt7615_mcu_fw_log_2_host(dev, 0);

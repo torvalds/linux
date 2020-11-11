@@ -105,21 +105,6 @@ void mt76x02e_init_beacon_config(struct mt76x02_dev *dev)
 EXPORT_SYMBOL_GPL(mt76x02e_init_beacon_config);
 
 static int
-mt76x02_init_tx_queue(struct mt76x02_dev *dev, int qid, int idx, int n_desc)
-{
-	int err;
-
-	err = mt76_init_tx_queue(&dev->mphy, qid, idx, n_desc,
-				 MT_TX_RING_BASE);
-	if (err < 0)
-		return err;
-
-	mt76x02_irq_enable(dev, MT_INT_TX_DONE(idx));
-
-	return 0;
-}
-
-static int
 mt76x02_init_rx_queue(struct mt76x02_dev *dev, struct mt76_queue *q,
 		      int idx, int n_desc, int bufsize)
 {
@@ -164,13 +149,15 @@ static int mt76x02_poll_tx(struct napi_struct *napi, int budget)
 
 	mt76x02_mac_poll_tx_status(dev, false);
 
-	for (i = MT_TXQ_MCU; i >= 0; i--)
+	mt76_queue_tx_cleanup(dev, dev->mt76.q_mcu[MT_MCUQ_WM], false);
+	for (i = MT_TXQ_PSD; i >= 0; i--)
 		mt76_queue_tx_cleanup(dev, dev->mt76.q_tx[i], false);
 
 	if (napi_complete_done(napi, 0))
 		mt76x02_irq_enable(dev, MT_INT_TX_DONE_ALL);
 
-	for (i = MT_TXQ_MCU; i >= 0; i--)
+	mt76_queue_tx_cleanup(dev, dev->mt76.q_mcu[MT_MCUQ_WM], false);
+	for (i = MT_TXQ_PSD; i >= 0; i--)
 		mt76_queue_tx_cleanup(dev, dev->mt76.q_tx[i], false);
 
 	mt76_worker_schedule(&dev->mt76.tx_worker);
@@ -203,21 +190,30 @@ int mt76x02_dma_init(struct mt76x02_dev *dev)
 	mt76_wr(dev, MT_WPDMA_RST_IDX, ~0);
 
 	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
-		ret = mt76x02_init_tx_queue(dev, i, mt76_ac_to_hwq(i),
-					    MT76x02_TX_RING_SIZE);
+		ret = mt76_init_tx_queue(&dev->mphy, i, mt76_ac_to_hwq(i),
+					 MT76x02_TX_RING_SIZE,
+					 MT_TX_RING_BASE);
 		if (ret)
 			return ret;
 	}
 
-	ret = mt76x02_init_tx_queue(dev, MT_TXQ_PSD,
-				    MT_TX_HW_QUEUE_MGMT, MT76x02_PSD_RING_SIZE);
+	ret = mt76_init_tx_queue(&dev->mphy, MT_TXQ_PSD, MT_TX_HW_QUEUE_MGMT,
+				 MT76x02_PSD_RING_SIZE, MT_TX_RING_BASE);
 	if (ret)
 		return ret;
 
-	ret = mt76x02_init_tx_queue(dev, MT_TXQ_MCU,
-				    MT_TX_HW_QUEUE_MCU, MT_MCU_RING_SIZE);
+	ret = mt76_init_mcu_queue(&dev->mt76, MT_MCUQ_WM, MT_TX_HW_QUEUE_MCU,
+				  MT_MCU_RING_SIZE, MT_TX_RING_BASE);
 	if (ret)
 		return ret;
+
+	mt76x02_irq_enable(dev,
+			   MT_INT_TX_DONE(IEEE80211_AC_VO) |
+			   MT_INT_TX_DONE(IEEE80211_AC_VI) |
+			   MT_INT_TX_DONE(IEEE80211_AC_BE) |
+			   MT_INT_TX_DONE(IEEE80211_AC_BK) |
+			   MT_INT_TX_DONE(MT_TX_HW_QUEUE_MGMT) |
+			   MT_INT_TX_DONE(MT_TX_HW_QUEUE_MCU));
 
 	ret = mt76x02_init_rx_queue(dev, &dev->mt76.q_rx[MT_RXQ_MCU], 1,
 				    MT_MCU_RING_SIZE, MT_RX_BUF_SIZE);
@@ -469,6 +465,7 @@ static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
 	if (restart)
 		mt76_mcu_restart(dev);
 
+	mt76_queue_tx_cleanup(dev, dev->mt76.q_mcu[MT_MCUQ_WM], true);
 	for (i = 0; i < __MT_TXQ_MAX; i++)
 		mt76_queue_tx_cleanup(dev, dev->mt76.q_tx[i], true);
 

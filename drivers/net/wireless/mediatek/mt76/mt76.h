@@ -64,15 +64,15 @@ enum mt76_txq_id {
 	MT_TXQ_BE = IEEE80211_AC_BE,
 	MT_TXQ_BK = IEEE80211_AC_BK,
 	MT_TXQ_PSD,
-	MT_TXQ_MCU,
-	MT_TXQ_MCU_WA,
 	MT_TXQ_BEACON,
 	MT_TXQ_CAB,
-	MT_TXQ_FWDL,
 	__MT_TXQ_MAX
 };
 
 enum mt76_mcuq_id {
+	MT_MCUQ_WM,
+	MT_MCUQ_WA,
+	MT_MCUQ_FWDL,
 	__MT_MCUQ_MAX
 };
 
@@ -811,7 +811,7 @@ static inline int mt76_init_mcu_queue(struct mt76_dev *dev, int qid, int idx,
 	if (IS_ERR(q))
 		return PTR_ERR(q);
 
-	q->qid = qid;
+	q->qid = __MT_TXQ_MAX + qid;
 	dev->q_mcu[qid] = q;
 
 	return 0;

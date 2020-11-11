@@ -332,21 +332,18 @@ static int
 mt7615_queues_read(struct seq_file *s, void *data)
 {
 	struct mt7615_dev *dev = dev_get_drvdata(s->private);
-	static const struct {
+	struct {
+		struct mt76_queue *q;
 		char *queue;
-		int id;
 	} queue_map[] = {
-		{ "PDMA0", MT_TXQ_BE },
-		{ "MCUQ", MT_TXQ_MCU },
-		{ "MCUFWQ", MT_TXQ_FWDL },
+		{ dev->mt76.q_tx[MT_TXQ_BE], "PDMA0" },
+		{ dev->mt76.q_mcu[MT_MCUQ_WM], "MCUQ" },
+		{ dev->mt76.q_mcu[MT_MCUQ_FWDL], "MCUFWQ" },
 	};
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(queue_map); i++) {
-		struct mt76_queue *q = dev->mt76.q_tx[queue_map[i].id];
-
-		if (!q)
-			continue;
+		struct mt76_queue *q = queue_map[i].q;
 
 		seq_printf(s,
 			   "%s:	queued=%d head=%d tail=%d\n",
