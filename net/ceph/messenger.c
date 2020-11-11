@@ -2135,9 +2135,9 @@ static int process_connect(struct ceph_connection *con)
 		 */
 		dout("process_connect got RESET peer seq %u\n",
 		     le32_to_cpu(con->in_reply.connect_seq));
-		pr_err("%s%lld %s connection reset\n",
-		       ENTITY_NAME(con->peer_name),
-		       ceph_pr_addr(&con->peer_addr));
+		pr_info("%s%lld %s session reset\n",
+			ENTITY_NAME(con->peer_name),
+			ceph_pr_addr(&con->peer_addr));
 		ceph_con_reset_session(con);
 		con_out_kvec_reset(con);
 		ret = prepare_write_connect(con);
@@ -2147,7 +2147,6 @@ static int process_connect(struct ceph_connection *con)
 
 		/* Tell ceph about it. */
 		mutex_unlock(&con->mutex);
-		pr_info("reset on %s%lld\n", ENTITY_NAME(con->peer_name));
 		if (con->ops->peer_reset)
 			con->ops->peer_reset(con);
 		mutex_lock(&con->mutex);
