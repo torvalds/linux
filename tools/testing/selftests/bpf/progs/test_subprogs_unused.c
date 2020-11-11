@@ -4,12 +4,12 @@
 
 const char LICENSE[] SEC("license") = "GPL";
 
-__attribute__((maybe_unused)) __noinline int unused1(int x)
+__attribute__((unused)) __noinline int unused1(int x)
 {
 	return x + 1;
 }
 
-static __attribute__((maybe_unused)) __noinline int unused2(int x)
+static __attribute__((unused)) __noinline int unused2(int x)
 {
 	return x + 2;
 }
