@@ -500,9 +500,14 @@ static void dpp3_power_on_blnd_lut(
 {
 	struct dcn3_dpp *dpp = TO_DCN30_DPP(dpp_base);
 
-	REG_SET(CM_MEM_PWR_CTRL, 0,
-			BLNDGAM_MEM_PWR_FORCE, power_on == true ? 0:1);
-
+	if (dpp_base->ctx->dc->debug.enable_mem_low_power.bits.cm) {
+		REG_UPDATE(CM_MEM_PWR_CTRL, BLNDGAM_MEM_PWR_FORCE, power_on ? 0 : 3);
+		if (power_on)
+			REG_WAIT(CM_MEM_PWR_STATUS, BLNDGAM_MEM_PWR_STATE, 0, 1, 5);
+	} else {
+		REG_SET(CM_MEM_PWR_CTRL, 0,
+				BLNDGAM_MEM_PWR_FORCE, power_on == true ? 0 : 1);
+	}
 }
 
 static void dpp3_configure_blnd_lut(
@@ -675,6 +680,8 @@ bool dpp3_program_blnd_lut(
 
 	if (params == NULL) {
 		REG_SET(CM_BLNDGAM_CONTROL, 0, CM_BLNDGAM_MODE, 0);
+		if (dpp_base->ctx->dc->debug.enable_mem_low_power.bits.cm)
+			dpp3_power_on_blnd_lut(dpp_base, false);
 		return false;
 	}
 
