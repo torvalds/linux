@@ -37,15 +37,18 @@ static const struct soc15_reg_golden golden_settings_gc_9_4_2_alde_die_0[] = {
 
 static const struct soc15_reg_golden golden_settings_gc_9_4_2_alde_die_1[] = {
 	SOC15_REG_GOLDEN_VALUE(GC, 0, regTCP_CHAN_STEER_0, 0x3fffffff, 0x2591aa38),
-	SOC15_REG_GOLDEN_VALUE(GC, 0, regTCP_CHAN_STEER_1, 0x3fffffff, 0xac9688B),
-	SOC15_REG_GOLDEN_VALUE(GC, 0, regTCP_CHAN_STEER_2, 0x3fffffff, 0x2bc3369B),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, regTCP_CHAN_STEER_1, 0x3fffffff, 0xac9688b),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, regTCP_CHAN_STEER_2, 0x3fffffff, 0x2bc3369b),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, regTCP_CHAN_STEER_3, 0x3fffffff, 0xfb74ee),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, regTCP_CHAN_STEER_4, 0x3fffffff, 0x21f0a2fe),
 	SOC15_REG_GOLDEN_VALUE(GC, 0, regTCP_CHAN_STEER_5, 0x3ff, 0x49),
 };
 
 static const struct soc15_reg_golden golden_settings_gc_9_4_2_alde[] = {
-	SOC15_REG_GOLDEN_VALUE(GC, 0, regTCP_UTCL1_CNTL1, 0x30000000, 0x30000000),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, regGB_ADDR_CONFIG, 0xffff77ff, 0x2a114042),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, regTA_CNTL_AUX, 0xfffffeef, 0x10b0000),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, regTCP_UTCL1_CNTL1, 0xffffffff, 0x30800400),
+	SOC15_REG_GOLDEN_VALUE(GC, 0, regTCI_CNTL_3, 0xff, 0x20),
 };
 
 void gfx_v9_4_2_init_golden_registers(struct amdgpu_device *adev,
