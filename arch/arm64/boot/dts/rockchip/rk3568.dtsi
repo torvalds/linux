@@ -1227,8 +1227,9 @@
 		clocks = <&cru PCLK_HDMI_HOST>,
 			 <&cru CLK_HDMI_SFR>,
 			 <&cru CLK_HDMI_CEC>,
-			 <&pmucru PLL_HPLL>;
-		clock-names = "iahb", "isfr", "cec", "ref";
+			 <&pmucru PLL_HPLL>,
+			 <&cru HCLK_VOP>;
+		clock-names = "iahb", "isfr", "cec", "ref", "hclk";
 		power-domains = <&power RK3568_PD_VO>;
 		reg-io-width = <4>;
 		rockchip,grf = <&grf>;
