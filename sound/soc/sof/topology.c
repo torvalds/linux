@@ -1041,6 +1041,15 @@ static int sof_control_load_volume(struct snd_soc_component *scomp,
 		goto out;
 	}
 
+	/*
+	 * If control has more than 2 channels we need to override the info. This is because even if
+	 * ASoC layer has defined topology's max channel count to SND_SOC_TPLG_MAX_CHAN = 8, the
+	 * pre-defined dapm control types (and related functions) creating the actual control
+	 * restrict the channels only to mono or stereo.
+	 */
+	if (le32_to_cpu(mc->num_channels) > 2)
+		kc->info = snd_sof_volume_info;
+
 	/* init the volume get/put data */
 	scontrol->size = struct_size(scontrol->control_data, chanv,
 				     le32_to_cpu(mc->num_channels));
