@@ -1389,6 +1389,31 @@ static void rtw_coex_action_freerun(struct rtw_dev *rtwdev)
 	rtw_coex_tdma(rtwdev, false, 100);
 }
 
+static void rtw_coex_action_rf4ce(struct rtw_dev *rtwdev)
+{
+	struct rtw_efuse *efuse = &rtwdev->efuse;
+	struct rtw_chip_info *chip = rtwdev->chip;
+	u8 table_case, tdma_case;
+
+	rtw_dbg(rtwdev, RTW_DBG_COEX, "[BTCoex], %s()\n", __func__);
+
+	rtw_coex_set_ant_path(rtwdev, false, COEX_SET_ANT_2G);
+	rtw_coex_set_rf_para(rtwdev, chip->wl_rf_para_rx[0]);
+
+	if (efuse->share_ant) {
+		/* Shared-Ant */
+		table_case = 9;
+		tdma_case = 16;
+	} else {
+		/* Non-Shared-Ant */
+		table_case = 100;
+		tdma_case = 100;
+	}
+
+	rtw_coex_table(rtwdev, false, table_case);
+	rtw_coex_tdma(rtwdev, false, tdma_case);
+}
+
 static void rtw_coex_action_bt_whql_test(struct rtw_dev *rtwdev)
 {
 	struct rtw_efuse *efuse = &rtwdev->efuse;
@@ -2179,6 +2204,7 @@ static void rtw_coex_run_coex(struct rtw_dev *rtwdev, u8 reason)
 	struct rtw_coex *coex = &rtwdev->coex;
 	struct rtw_coex_dm *coex_dm = &coex->dm;
 	struct rtw_coex_stat *coex_stat = &coex->stat;
+	bool rf4ce_en = false;
 
 	lockdep_assert_held(&rtwdev->mutex);
 
@@ -2234,7 +2260,12 @@ static void rtw_coex_run_coex(struct rtw_dev *rtwdev, u8 reason)
 	coex_stat->wl_coex_mode = COEX_WLINK_2G1PORT;
 	rtw_coex_write_scbd(rtwdev, COEX_SCBD_FIX2M, false);
 	if (coex_stat->bt_disabled) {
-		rtw_coex_action_wl_only(rtwdev);
+		if (coex_stat->wl_connected && rf4ce_en)
+			rtw_coex_action_rf4ce(rtwdev);
+		else if (!coex_stat->wl_connected)
+			rtw_coex_action_wl_not_connected(rtwdev);
+		else
+			rtw_coex_action_wl_only(rtwdev);
 		goto exit;
 	}
 
