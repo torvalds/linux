@@ -466,6 +466,7 @@ static const struct vop2_video_port_data rk3568_vop_video_ports[] = {
 	{
 	 .id = 0,
 	 .soc_id = 0x3568,
+	 .feature = VOP_FEATURE_OUTPUT_10BIT,
 	 .pre_scan_max_dly = { 40, 49, 33, 42 },
 	 .intr = &rk3568_vp0_intr,
 	 .hdr_table = &rk3568_vop_hdr_table,

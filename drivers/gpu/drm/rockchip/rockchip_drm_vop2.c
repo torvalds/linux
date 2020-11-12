@@ -2504,6 +2504,7 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 	u16 vact_end = vact_st + vdisplay;
 	bool interlaced = !!(adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE);
 	int sys_status = SYS_STATUS_LCDC0;
+	uint8_t out_mode;
 	int for_ddr_freq = 0;
 	bool dclk_inv;
 	int act_end;
@@ -2630,7 +2631,12 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 		VOP_CTRL_SET(vop2, hdmi_dclk_pol, 1);
 	}
 
-	VOP_MODULE_SET(vop2, vp, out_mode, vcstate->output_mode);
+	if (vcstate->output_mode == ROCKCHIP_OUT_MODE_AAAA &&
+	    !(vp_data->feature & VOP_FEATURE_OUTPUT_10BIT))
+		out_mode = ROCKCHIP_OUT_MODE_P888;
+	else
+		out_mode = vcstate->output_mode;
+	VOP_MODULE_SET(vop2, vp, out_mode, out_mode);
 	VOP_MODULE_SET(vop2, vp, overlay_mode, is_yuv_output(vcstate->bus_format));
 
 	vop2_dither_setup(crtc);
