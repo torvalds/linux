@@ -382,19 +382,15 @@ static struct snd_soc_dai_link cht_dailink[] = {
 	},
 };
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_BAYTRAIL)
 /* use space before codec name to simplify card ID, and simplify driver name */
-#define CARD_NAME "bytcht max98090" /* card name will be 'sof-bytcht max98090 */
-#define DRIVER_NAME "SOF"
-#else
+#define SOF_CARD_NAME "bytcht max98090" /* card name will be 'sof-bytcht max98090 */
+#define SOF_DRIVER_NAME "SOF"
+
 #define CARD_NAME "chtmax98090"
 #define DRIVER_NAME NULL /* card name will be used for driver name */
-#endif
 
 /* SoC card */
 static struct snd_soc_card snd_soc_card_cht = {
-	.name = CARD_NAME,
-	.driver_name = DRIVER_NAME,
 	.owner = THIS_MODULE,
 	.dai_link = cht_dailink,
 	.num_links = ARRAY_SIZE(cht_dailink),
@@ -540,6 +536,7 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 	const char *mclk_name;
 	struct snd_soc_acpi_mach *mach;
 	const char *platform_name;
+	bool sof_parent;
 
 	drv = devm_kzalloc(&pdev->dev, sizeof(*drv), GFP_KERNEL);
 	if (!drv)
@@ -600,6 +597,17 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "MCLK enable error: %d\n", ret_val);
 			return ret_val;
 		}
+	}
+
+	sof_parent = snd_soc_acpi_sof_parent(&pdev->dev);
+
+	/* set card and driver name */
+	if (sof_parent) {
+		snd_soc_card_cht.name = SOF_CARD_NAME;
+		snd_soc_card_cht.driver_name = SOF_DRIVER_NAME;
+	} else {
+		snd_soc_card_cht.name = CARD_NAME;
+		snd_soc_card_cht.driver_name = DRIVER_NAME;
 	}
 
 	ret_val = devm_snd_soc_register_card(&pdev->dev, &snd_soc_card_cht);

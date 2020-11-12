@@ -1136,18 +1136,14 @@ static int byt_rt5640_resume(struct snd_soc_card *card)
 	return 0;
 }
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_BAYTRAIL)
 /* use space before codec name to simplify card ID, and simplify driver name */
-#define CARD_NAME "bytcht rt5640" /* card name will be 'sof-bytcht rt5640' */
-#define DRIVER_NAME "SOF"
-#else
+#define SOF_CARD_NAME "bytcht rt5640" /* card name will be 'sof-bytcht rt5640' */
+#define SOF_DRIVER_NAME "SOF"
+
 #define CARD_NAME "bytcr-rt5640"
 #define DRIVER_NAME NULL /* card name will be used for driver name */
-#endif
 
 static struct snd_soc_card byt_rt5640_card = {
-	.name = CARD_NAME,
-	.driver_name = DRIVER_NAME,
 	.owner = THIS_MODULE,
 	.dai_link = byt_rt5640_dais,
 	.num_links = ARRAY_SIZE(byt_rt5640_dais),
@@ -1173,6 +1169,7 @@ static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
 	struct snd_soc_acpi_mach *mach;
 	const char *platform_name;
 	struct acpi_device *adev;
+	bool sof_parent;
 	int ret_val = 0;
 	int dai_index = 0;
 	int i;
@@ -1335,6 +1332,17 @@ static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
 							platform_name);
 	if (ret_val)
 		return ret_val;
+
+	sof_parent = snd_soc_acpi_sof_parent(&pdev->dev);
+
+	/* set card and driver name */
+	if (sof_parent) {
+		byt_rt5640_card.name = SOF_CARD_NAME;
+		byt_rt5640_card.driver_name = SOF_DRIVER_NAME;
+	} else {
+		byt_rt5640_card.name = CARD_NAME;
+		byt_rt5640_card.driver_name = DRIVER_NAME;
+	}
 
 	ret_val = devm_snd_soc_register_card(&pdev->dev, &byt_rt5640_card);
 
