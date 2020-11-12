@@ -868,6 +868,19 @@
 		status = "disabled";
 	};
 
+	ebc: ebc@fdec0000 {
+		compatible = "rockchip,rk3568-ebc-tcon";
+		reg = <0x0 0xfdec0000 0x0 0x5000>;
+		interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru HCLK_EBC>, <&cru DCLK_EBC>;
+		clock-names = "hclk", "dclk";
+		power-domains = <&power RK3568_PD_RGA>;
+		rockchip,grf = <&grf>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&ebc_pins>;
+		status = "disabled";
+	};
+
 	jpegd: jpegd@fded0000 {
 		compatible = "rockchip,rkv-jpeg-decoder-v1";
 		reg = <0x0 0xfded0000 0x0 0x400>;
@@ -927,6 +940,15 @@
 		clocks = <&cru ACLK_JENC>, <&cru HCLK_JENC>;
 		power-domains = <&power RK3568_PD_RGA>;
 		#iommu-cells = <0>;
+		status = "disabled";
+	};
+
+	eink: eink@fdf00000 {
+		compatible = "rockchip,rk3568-eink-tcon";
+		reg = <0x0 0xfdf00000 0x0 0x74>;
+		interrupts = <GIC_SPI 178 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru PCLK_EINK>, <&cru HCLK_EINK>;
+		clock-names = "pclk", "hclk";
 		status = "disabled";
 	};
 
