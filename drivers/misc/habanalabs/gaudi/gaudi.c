@@ -7868,18 +7868,16 @@ static void gaudi_internal_cb_pool_fini(struct hl_device *hdev,
 
 static int gaudi_ctx_init(struct hl_ctx *ctx)
 {
+	if (ctx->asid == HL_KERNEL_ASID_ID)
+		return 0;
+
 	gaudi_mmu_prepare(ctx->hdev, ctx->asid);
 	return gaudi_internal_cb_pool_init(ctx->hdev, ctx);
 }
 
 static void gaudi_ctx_fini(struct hl_ctx *ctx)
 {
-	struct hl_device *hdev = ctx->hdev;
-
-	/* Gaudi will NEVER support more then a single compute context.
-	 * Therefore, don't clear anything unless it is the compute context
-	 */
-	if (hdev->compute_ctx != ctx)
+	if (ctx->asid == HL_KERNEL_ASID_ID)
 		return;
 
 	gaudi_internal_cb_pool_fini(ctx->hdev, ctx);

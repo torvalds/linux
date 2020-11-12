@@ -1312,11 +1312,16 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 
 	hdev->compute_ctx = NULL;
 
+	hl_debugfs_add_device(hdev);
+
+	/* debugfs nodes are created in hl_ctx_init so it must be called after
+	 * hl_debugfs_add_device.
+	 */
 	rc = hl_ctx_init(hdev, hdev->kernel_ctx, true);
 	if (rc) {
 		dev_err(hdev->dev, "failed to initialize kernel context\n");
 		kfree(hdev->kernel_ctx);
-		goto mmu_fini;
+		goto remove_device_from_debugfs;
 	}
 
 	rc = hl_cb_pool_init(hdev);
@@ -1324,8 +1329,6 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 		dev_err(hdev->dev, "failed to initialize CB pool\n");
 		goto release_ctx;
 	}
-
-	hl_debugfs_add_device(hdev);
 
 	/*
 	 * From this point, in case of an error, add char devices and create
@@ -1415,6 +1418,8 @@ release_ctx:
 	if (hl_ctx_put(hdev->kernel_ctx) != 1)
 		dev_err(hdev->dev,
 			"kernel ctx is still alive on initialization failure\n");
+remove_device_from_debugfs:
+	hl_debugfs_remove_device(hdev);
 mmu_fini:
 	hl_mmu_fini(hdev);
 eq_fini:
@@ -1513,8 +1518,6 @@ void hl_device_fini(struct hl_device *hdev)
 
 	device_late_fini(hdev);
 
-	hl_debugfs_remove_device(hdev);
-
 	/*
 	 * Halt the engines and disable interrupts so we won't get any more
 	 * completions from H/W and we won't have any accesses from the
@@ -1545,6 +1548,8 @@ void hl_device_fini(struct hl_device *hdev)
 	/* Release kernel context */
 	if ((hdev->kernel_ctx) && (hl_ctx_put(hdev->kernel_ctx) != 1))
 		dev_err(hdev->dev, "kernel ctx is still alive\n");
+
+	hl_debugfs_remove_device(hdev);
 
 	hl_vm_fini(hdev);
 

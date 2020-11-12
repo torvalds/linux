@@ -56,6 +56,8 @@ static void hl_ctx_fini(struct hl_ctx *ctx)
 				idle_mask);
 	} else {
 		dev_dbg(hdev->dev, "closing kernel context\n");
+		hdev->asic_funcs->ctx_fini(ctx);
+		hl_vm_ctx_fini(ctx);
 		hl_mmu_ctx_fini(ctx);
 	}
 }
@@ -151,10 +153,17 @@ int hl_ctx_init(struct hl_device *hdev, struct hl_ctx *ctx, bool is_kernel_ctx)
 
 	if (is_kernel_ctx) {
 		ctx->asid = HL_KERNEL_ASID_ID; /* Kernel driver gets ASID 0 */
-		rc = hl_mmu_ctx_init(ctx);
+		rc = hl_vm_ctx_init(ctx);
 		if (rc) {
-			dev_err(hdev->dev, "Failed to init mmu ctx module\n");
+			dev_err(hdev->dev, "Failed to init mem ctx module\n");
+			rc = -ENOMEM;
 			goto err_free_cs_pending;
+		}
+
+		rc = hdev->asic_funcs->ctx_init(ctx);
+		if (rc) {
+			dev_err(hdev->dev, "ctx_init failed\n");
+			goto err_vm_ctx_fini;
 		}
 	} else {
 		ctx->asid = hl_asid_alloc(hdev);
@@ -194,7 +203,8 @@ err_cb_va_pool_fini:
 err_vm_ctx_fini:
 	hl_vm_ctx_fini(ctx);
 err_asid_free:
-	hl_asid_free(hdev, ctx->asid);
+	if (ctx->asid != HL_KERNEL_ASID_ID)
+		hl_asid_free(hdev, ctx->asid);
 err_free_cs_pending:
 	kfree(ctx->cs_pending);
 

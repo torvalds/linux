@@ -1929,7 +1929,8 @@ void hl_vm_ctx_fini(struct hl_ctx *ctx)
 	 * because the user notifies us on allocations. If the user is no more,
 	 * all DRAM is available
 	 */
-	if (!ctx->hdev->asic_prop.dram_supports_virtual_memory)
+	if (ctx->asid != HL_KERNEL_ASID_ID &&
+			!ctx->hdev->asic_prop.dram_supports_virtual_memory)
 		atomic64_set(&ctx->hdev->dram_used_mem, 0);
 }
 
