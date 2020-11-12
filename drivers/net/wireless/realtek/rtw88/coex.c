@@ -1061,6 +1061,7 @@ static void rtw_coex_set_ant_path(struct rtw_dev *rtwdev, bool force, u8 phase)
 {
 	struct rtw_coex *coex = &rtwdev->coex;
 	struct rtw_coex_stat *coex_stat = &coex->stat;
+	struct rtw_coex_rfe *coex_rfe = &coex->rfe;
 	struct rtw_coex_dm *coex_dm = &coex->dm;
 	u8 ctrl_type = COEX_SWITCH_CTRL_MAX;
 	u8 pos_type = COEX_SWITCH_TO_MAX;
@@ -1156,8 +1157,8 @@ static void rtw_coex_set_ant_path(struct rtw_dev *rtwdev, bool force, u8 phase)
 		rtw_dbg(rtwdev, RTW_DBG_COEX,
 			"[BTCoex], %s() - PHASE_5G_RUNTIME\n", __func__);
 
-		/* set GNT_BT to PTA */
-		rtw_coex_set_gnt_bt(rtwdev, COEX_GNT_SET_SW_HIGH);
+		/* set GNT_BT to HW PTA */
+		rtw_coex_set_gnt_bt(rtwdev, COEX_GNT_SET_HW_PTA);
 
 		/* set GNT_WL to SW high */
 		rtw_coex_set_gnt_wl(rtwdev, COEX_GNT_SET_SW_HIGH);
@@ -1172,8 +1173,8 @@ static void rtw_coex_set_ant_path(struct rtw_dev *rtwdev, bool force, u8 phase)
 		rtw_dbg(rtwdev, RTW_DBG_COEX,
 			"[BTCoex], %s() - PHASE_2G_FREERUN\n", __func__);
 
-		/* set GNT_BT to SW high */
-		rtw_coex_set_gnt_bt(rtwdev, COEX_GNT_SET_SW_HIGH);
+		/* set GNT_BT to HW PTA */
+		rtw_coex_set_gnt_bt(rtwdev, COEX_GNT_SET_HW_PTA);
 
 		/* Set GNT_WL to SW high */
 		rtw_coex_set_gnt_wl(rtwdev, COEX_GNT_SET_SW_HIGH);
@@ -1204,7 +1205,8 @@ static void rtw_coex_set_ant_path(struct rtw_dev *rtwdev, bool force, u8 phase)
 		return;
 	}
 
-	if (ctrl_type < COEX_SWITCH_CTRL_MAX && pos_type < COEX_SWITCH_TO_MAX)
+	if (ctrl_type < COEX_SWITCH_CTRL_MAX && pos_type < COEX_SWITCH_TO_MAX &&
+	    coex_rfe->ant_switch_exist)
 		rtw_coex_set_ant_switch(rtwdev, ctrl_type, pos_type);
 }
 
