@@ -6847,23 +6847,19 @@ static int __io_sq_thread(struct io_ring_ctx *ctx, bool cap_entries)
 	unsigned int to_submit;
 	int ret = 0;
 
-	if (!list_empty(&ctx->iopoll_list)) {
-		unsigned nr_events = 0;
-
-		mutex_lock(&ctx->uring_lock);
-		if (!list_empty(&ctx->iopoll_list))
-			io_do_iopoll(ctx, &nr_events, 0);
-		mutex_unlock(&ctx->uring_lock);
-	}
-
 	to_submit = io_sqring_entries(ctx);
 	/* if we're handling multiple rings, cap submit size for fairness */
 	if (cap_entries && to_submit > 8)
 		to_submit = 8;
 
-	if (to_submit) {
+	if (!list_empty(&ctx->iopoll_list) || to_submit) {
+		unsigned nr_events = 0;
+
 		mutex_lock(&ctx->uring_lock);
-		if (likely(!percpu_ref_is_dying(&ctx->refs)))
+		if (!list_empty(&ctx->iopoll_list))
+			io_do_iopoll(ctx, &nr_events, 0);
+
+		if (to_submit && likely(!percpu_ref_is_dying(&ctx->refs)))
 			ret = io_submit_sqes(ctx, to_submit);
 		mutex_unlock(&ctx->uring_lock);
 	}
