@@ -30,6 +30,7 @@ enum sgx_encl_flags {
 	SGX_ENCL_IOCTL		= BIT(0),
 	SGX_ENCL_DEBUG		= BIT(1),
 	SGX_ENCL_CREATED	= BIT(2),
+	SGX_ENCL_INITIALIZED	= BIT(3),
 };
 
 struct sgx_encl {
@@ -41,6 +42,8 @@ struct sgx_encl {
 	struct mutex lock;
 	struct xarray page_array;
 	struct sgx_encl_page secs;
+	unsigned long attributes;
+	unsigned long attributes_mask;
 };
 
 extern const struct vm_operations_struct sgx_vm_ops;

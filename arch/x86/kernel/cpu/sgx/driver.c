@@ -10,6 +10,10 @@
 #include "driver.h"
 #include "encl.h"
 
+u64 sgx_attributes_reserved_mask;
+u64 sgx_xfrm_reserved_mask = ~0x3;
+u32 sgx_misc_reserved_mask;
+
 static int sgx_open(struct inode *inode, struct file *file)
 {
 	struct sgx_encl *encl;
@@ -117,8 +121,31 @@ static struct miscdevice sgx_dev_enclave = {
 
 int __init sgx_drv_init(void)
 {
+	unsigned int eax, ebx, ecx, edx;
+	u64 attr_mask;
+	u64 xfrm_mask;
+
 	if (!cpu_feature_enabled(X86_FEATURE_SGX_LC))
 		return -ENODEV;
+
+	cpuid_count(SGX_CPUID, 0, &eax, &ebx, &ecx, &edx);
+
+	if (!(eax & 1))  {
+		pr_err("SGX disabled: SGX1 instruction support not available.\n");
+		return -ENODEV;
+	}
+
+	sgx_misc_reserved_mask = ~ebx | SGX_MISC_RESERVED_MASK;
+
+	cpuid_count(SGX_CPUID, 1, &eax, &ebx, &ecx, &edx);
+
+	attr_mask = (((u64)ebx) << 32) + (u64)eax;
+	sgx_attributes_reserved_mask = ~attr_mask | SGX_ATTR_RESERVED_MASK;
+
+	if (cpu_feature_enabled(X86_FEATURE_OSXSAVE)) {
+		xfrm_mask = (((u64)edx) << 32) + (u64)ecx;
+		sgx_xfrm_reserved_mask = ~xfrm_mask;
+	}
 
 	return misc_register(&sgx_dev_enclave);
 }
