@@ -20,6 +20,7 @@
 
 #define GRF_PCIE30PHY_CON1 0x4
 #define GRF_PCIE30PHY_CON6 0x18
+#define GRF_PCIE30PHY_CON9 0x24
 
 struct rockchip_p3phy_priv {
 	void __iomem *mmio;
@@ -78,6 +79,9 @@ static int rochchip_p3phy_init(struct phy *phy)
 	reset_control_assert(priv->p30phy);
 	udelay(1);
 
+	/* Deassert PCIe PMA output clamp mode */
+	regmap_write(priv->phy_grf, GRF_PCIE30PHY_CON9,
+		     (0x1 << 15) | (0x1 << 31));
 	/* Set bifurcation if needed, and it doesn't care RC/EP */
 	if (priv->is_bifurcation) {
 		regmap_write(priv->phy_grf, GRF_PCIE30PHY_CON6,
