@@ -51,6 +51,19 @@ Optional properties only for parent bus device:
 - exynos,saturation-ratio: the percentage value which is used to calibrate
 			the performance count against total cycle count.
 
+Optional properties for the interconnect functionality (QoS frequency
+constraints):
+- #interconnect-cells: should be 0.
+- interconnects: as documented in ../interconnect.txt, describes a path at the
+  higher level interconnects used by this interconnect provider.
+  If this interconnect provider is directly linked to a top level interconnect
+  provider the property contains only one phandle. The provider extends
+  the interconnect graph by linking its node to a node registered by provider
+  pointed to by first phandle in the 'interconnects' property.
+
+- samsung,data-clock-ratio: ratio of the data throughput in B/s to minimum data
+   clock frequency in Hz, default value is 8 when this property is missing.
+
 Detailed correlation between sub-blocks and power line according to Exynos SoC:
 - In case of Exynos3250, there are two power line as following:
 	VDD_MIF |--- DMC
@@ -135,7 +148,7 @@ Detailed correlation between sub-blocks and power line according to Exynos SoC:
 		|--- PERIC (Fixed clock rate)
 		|--- FSYS  (Fixed clock rate)
 
-Example1:
+Example 1:
 	Show the AXI buses of Exynos3250 SoC. Exynos3250 divides the buses to
 	power line (regulator). The MIF (Memory Interface) AXI bus is used to
 	transfer data between DRAM and CPU and uses the VDD_MIF regulator.
@@ -184,7 +197,7 @@ Example1:
 	|L5   |200000 |200000  |400000 |300000 |       ||1000000 |
 	----------------------------------------------------------
 
-Example2 :
+Example 2:
 	The bus of DMC (Dynamic Memory Controller) block in exynos3250.dtsi
 	is listed below:
 
@@ -418,4 +431,58 @@ Example2 :
 	&bus_mfc {
 		devfreq = <&bus_leftbus>;
 		status = "okay";
+	};
+
+Example 3:
+	An interconnect path "bus_display -- bus_leftbus -- bus_dmc" on
+	Exynos4412 SoC with video mixer as an interconnect consumer device.
+
+	soc {
+		bus_dmc: bus_dmc {
+			compatible = "samsung,exynos-bus";
+			clocks = <&clock CLK_DIV_DMC>;
+			clock-names = "bus";
+			operating-points-v2 = <&bus_dmc_opp_table>;
+			samsung,data-clock-ratio = <4>;
+			#interconnect-cells = <0>;
+		};
+
+		bus_leftbus: bus_leftbus {
+			compatible = "samsung,exynos-bus";
+			clocks = <&clock CLK_DIV_GDL>;
+			clock-names = "bus";
+			operating-points-v2 = <&bus_leftbus_opp_table>;
+			#interconnect-cells = <0>;
+			interconnects = <&bus_dmc>;
+		};
+
+		bus_display: bus_display {
+			compatible = "samsung,exynos-bus";
+			clocks = <&clock CLK_ACLK160>;
+			clock-names = "bus";
+			operating-points-v2 = <&bus_display_opp_table>;
+			#interconnect-cells = <0>;
+			interconnects = <&bus_leftbus &bus_dmc>;
+		};
+
+		bus_dmc_opp_table: opp_table1 {
+			compatible = "operating-points-v2";
+			/* ... */
+		}
+
+		bus_leftbus_opp_table: opp_table3 {
+			compatible = "operating-points-v2";
+			/* ... */
+		};
+
+		bus_display_opp_table: opp_table4 {
+			compatible = "operating-points-v2";
+			/* .. */
+		};
+
+		&mixer {
+			compatible = "samsung,exynos4212-mixer";
+			interconnects = <&bus_display &bus_dmc>;
+			/* ... */
+		};
 	};
