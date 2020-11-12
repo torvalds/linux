@@ -561,6 +561,7 @@ struct mt76_phy {
 	struct mt76_channel_state *chan_state;
 	ktime_t survey_time;
 
+	struct mt76_hw_cap cap;
 	struct mt76_sband sband_2g;
 	struct mt76_sband sband_5g;
 
@@ -630,7 +631,6 @@ struct mt76_dev {
 
 	struct debugfs_blob_wrapper eeprom;
 	struct debugfs_blob_wrapper otp;
-	struct mt76_hw_cap cap;
 
 	struct mt76_rate_power rate_power;
 
