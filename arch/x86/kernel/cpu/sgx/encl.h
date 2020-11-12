@@ -26,9 +26,16 @@ struct sgx_encl_page {
 	struct sgx_encl *encl;
 };
 
+enum sgx_encl_flags {
+	SGX_ENCL_IOCTL		= BIT(0),
+	SGX_ENCL_DEBUG		= BIT(1),
+	SGX_ENCL_CREATED	= BIT(2),
+};
+
 struct sgx_encl {
 	unsigned long base;
 	unsigned long size;
+	unsigned long flags;
 	unsigned int page_cnt;
 	unsigned int secs_child_cnt;
 	struct mutex lock;
