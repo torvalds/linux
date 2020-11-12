@@ -2327,8 +2327,8 @@ static size_t vop2_crtc_bandwidth(struct drm_crtc *crtc,
 	if (!pbandwidth)
 		return -ENOMEM;
 	drm_atomic_crtc_state_for_each_plane(plane, crtc_state) {
-		pstate = drm_atomic_get_plane_state(state, plane);
-		if (pstate->crtc != crtc || !pstate->fb)
+		pstate = drm_atomic_get_new_plane_state(state, plane);
+		if (!pstate || pstate->crtc != crtc || !pstate->fb)
 			continue;
 
 		vpstate = to_vop2_plane_state(pstate);
