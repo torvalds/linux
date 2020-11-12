@@ -415,7 +415,7 @@ static int rk_pcie_establish_link(struct dw_pcie *pci)
 
 	/* Rest the device */
 	gpiod_set_value_cansleep(rk_pcie->rst_gpio, 0);
-	msleep(100);
+	msleep(1000);
 	gpiod_set_value_cansleep(rk_pcie->rst_gpio, 1);
 
 	rk_pcie_disable_ltssm(rk_pcie);
