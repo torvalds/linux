@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2015-2016,2018 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2016, 2018, 2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -21,7 +21,7 @@
  */
 
 #include "backend/gpu/mali_kbase_cache_policy_backend.h"
-#include <backend/gpu/mali_kbase_device_internal.h>
+#include <device/mali_kbase_device.h>
 
 void kbase_cache_set_coherency_mode(struct kbase_device *kbdev,
 		u32 mode)

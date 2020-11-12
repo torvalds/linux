@@ -26,6 +26,10 @@
 #include <mali_kbase.h>
 #include "mali_kbase_tlstream.h"
 
+#if MALI_USE_CSF
+#include "csf/mali_kbase_csf_tl_reader.h"
+#include "csf/mali_kbase_csf_trace_buffer.h"
+#endif
 
 #include <linux/timer.h>
 #include <linux/atomic.h>
@@ -57,6 +61,9 @@ struct kbase_timeline {
 	atomic_t         *timeline_flags;
 	size_t            obj_header_btc;
 	size_t            aux_header_btc;
+#if MALI_USE_CSF
+	struct kbase_csf_tl_reader csf_tl_reader;
+#endif
 };
 
 extern const struct file_operations kbasep_tlstream_fops;

@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2012-2014, 2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2014, 2016, 2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -34,8 +34,20 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 
+/* kbase_io_history_add - add new entry to the register access history
+ *
+ * @h: Pointer to the history data structure
+ * @addr: Register address
+ * @value: The value that is either read from or written to the register
+ * @write: 1 if it's a register write, 0 if it's a read
+ */
+void kbase_io_history_add(struct kbase_io_history *h, void __iomem const *addr,
+		u32 value, u8 write);
+
 /**
- * @brief Initialize gpu_memory debugfs entry
+ * kbasep_gpu_memory_debugfs_init - Initialize gpu_memory debugfs entry
+ *
+ * @kbdev: Device pointer
  */
 void kbasep_gpu_memory_debugfs_init(struct kbase_device *kbdev);
 

@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2018 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2018, 2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -27,8 +27,6 @@
  * There was a big rename in the 4.10 kernel (fence* -> dma_fence*)
  * This file hides the compatibility issues with this for the rest the driver
  */
-
-#if defined(CONFIG_MALI_BIFROST_DMA_FENCE) || defined(CONFIG_SYNC_FILE)
 
 #include <linux/version.h>
 
@@ -62,7 +60,5 @@
 #endif
 
 #endif /* < 4.10.0 */
-
-#endif /* CONFIG_MALI_BIFROST_DMA_FENCE || CONFIG_SYNC_FILE */
 
 #endif /* _KBASE_FENCE_DEFS_H_ */

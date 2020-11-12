@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2016-2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2016-2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -49,7 +49,8 @@ static const struct kbase_ipa_model_ops *kbase_ipa_all_model_ops[] = {
 	&kbase_g51_ipa_model_ops,
 	&kbase_g77_ipa_model_ops,
 	&kbase_tnax_ipa_model_ops,
-	&kbase_tbex_ipa_model_ops
+	&kbase_tbex_ipa_model_ops,
+	&kbase_tbax_ipa_model_ops
 };
 
 int kbase_ipa_model_recalculate(struct kbase_ipa_model *model)
@@ -115,6 +116,8 @@ const char *kbase_ipa_model_name_from_id(u32 gpu_id)
 		return "mali-g77-power-model";
 	case GPU_ID2_PRODUCT_TBEX:
 		return "mali-tbex-power-model";
+	case GPU_ID2_PRODUCT_TBAX:
+		return "mali-tbax-power-model";
 	default:
 		return KBASE_IPA_FALLBACK_MODEL_NAME;
 	}

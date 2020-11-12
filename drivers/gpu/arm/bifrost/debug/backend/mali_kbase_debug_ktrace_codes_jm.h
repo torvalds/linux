@@ -30,6 +30,9 @@
  * The purpose of this header file is just to contain a list of trace code
  * identifiers
  *
+ * When updating this file, also remember to update
+ * mali_kbase_debug_linux_ktrace_jm.h
+ *
  * IMPORTANT: THIS FILE MUST NOT BE USED FOR ANY OTHER PURPOSE OTHER THAN THAT
  * DESCRIBED IN mali_kbase_debug_ktrace_codes.h
  */

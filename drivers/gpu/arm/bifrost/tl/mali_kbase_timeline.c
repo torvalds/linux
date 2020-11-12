@@ -109,6 +109,9 @@ int kbase_timeline_init(struct kbase_timeline **timeline,
 {
 	enum tl_stream_type i;
 	struct kbase_timeline *result;
+#if MALI_USE_CSF
+	struct kbase_tlstream *csffw_stream;
+#endif
 
 	if (!timeline || !timeline_flags)
 		return -EINVAL;
@@ -131,6 +134,10 @@ int kbase_timeline_init(struct kbase_timeline **timeline,
 			  kbasep_timeline_autoflush_timer_callback);
 	result->timeline_flags = timeline_flags;
 
+#if MALI_USE_CSF
+	csffw_stream = &result->streams[TL_STREAM_TYPE_CSFFW];
+	kbase_csf_tl_reader_init(&result->csf_tl_reader, csffw_stream);
+#endif
 
 	*timeline = result;
 	return 0;
@@ -143,6 +150,9 @@ void kbase_timeline_term(struct kbase_timeline *timeline)
 	if (!timeline)
 		return;
 
+#if MALI_USE_CSF
+	kbase_csf_tl_reader_term(&timeline->csf_tl_reader);
+#endif
 
 	for (i = (enum tl_stream_type)0; i < TL_STREAM_TYPE_COUNT; i++)
 		kbase_tlstream_term(&timeline->streams[i]);
@@ -182,6 +192,17 @@ int kbase_timeline_io_acquire(struct kbase_device *kbdev, u32 flags)
 	if (!atomic_cmpxchg(timeline->timeline_flags, 0, timeline_flags)) {
 		int rcode;
 
+#if MALI_USE_CSF
+		if (flags & BASE_TLSTREAM_ENABLE_CSFFW_TRACEPOINTS) {
+			ret = kbase_csf_tl_reader_start(
+				&timeline->csf_tl_reader, kbdev);
+			if (ret)
+			{
+				atomic_set(timeline->timeline_flags, 0);
+				return ret;
+			}
+		}
+#endif
 		ret = anon_inode_getfd(
 				"[mali_tlstream]",
 				&kbasep_tlstream_fops,
@@ -189,6 +210,9 @@ int kbase_timeline_io_acquire(struct kbase_device *kbdev, u32 flags)
 				O_RDONLY | O_CLOEXEC);
 		if (ret < 0) {
 			atomic_set(timeline->timeline_flags, 0);
+#if MALI_USE_CSF
+			kbase_csf_tl_reader_stop(&timeline->csf_tl_reader);
+#endif
 			return ret;
 		}
 
@@ -206,6 +230,7 @@ int kbase_timeline_io_acquire(struct kbase_device *kbdev, u32 flags)
 				jiffies + msecs_to_jiffies(AUTOFLUSH_INTERVAL));
 		CSTD_UNUSED(rcode);
 
+#if !MALI_USE_CSF
 		/* If job dumping is enabled, readjust the software event's
 		 * timeout as the default value of 3 seconds is often
 		 * insufficient.
@@ -216,6 +241,7 @@ int kbase_timeline_io_acquire(struct kbase_device *kbdev, u32 flags)
 			atomic_set(&kbdev->js_data.soft_job_timeout_ms,
 					1800000);
 		}
+#endif /* !MALI_USE_CSF */
 
 		/* Summary stream was cleared during acquire.
 		 * Create static timeline objects that will be
@@ -242,6 +268,10 @@ void kbase_timeline_streams_flush(struct kbase_timeline *timeline)
 {
 	enum tl_stream_type stype;
 
+#if MALI_USE_CSF
+	kbase_csf_tl_reader_flush_buffer(&timeline->csf_tl_reader);
+#endif
+
 	for (stype = 0; stype < TL_STREAM_TYPE_COUNT; stype++)
 		kbase_tlstream_flush_stream(&timeline->streams[stype]);
 }
@@ -252,6 +282,10 @@ void kbase_timeline_streams_body_reset(struct kbase_timeline *timeline)
 			&timeline->streams[TL_STREAM_TYPE_OBJ]);
 	kbase_tlstream_reset(
 			&timeline->streams[TL_STREAM_TYPE_AUX]);
+#if MALI_USE_CSF
+	kbase_tlstream_reset(
+			&timeline->streams[TL_STREAM_TYPE_CSFFW]);
+#endif
 }
 
 #if MALI_UNIT_TEST

@@ -106,6 +106,8 @@ void kbasep_ktrace_add_jm(struct kbase_device *kbdev,
 	/* Clamp refcount */
 	trace_msg->backend.refcount = MIN((unsigned int)refcount, 0xFF);
 
+	WARN_ON((trace_msg->backend.flags & ~KBASE_KTRACE_FLAG_ALL));
+
 	/* Done */
 	spin_unlock_irqrestore(&kbdev->ktrace.lock, irqflags);
 }

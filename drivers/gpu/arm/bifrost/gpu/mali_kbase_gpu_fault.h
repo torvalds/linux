@@ -33,17 +33,6 @@
  */
 const char *kbase_gpu_exception_name(u32 exception_code);
 
-/** Returns the name associated with a Mali fatal exception code
- *
- * @fatal_exception_code: fatal exception code
- *
- * This function is called from the interrupt handler when a GPU fatal
- * exception occurs.
- *
- * Return: name associated with the fatal exception code
- */
-const char *kbase_gpu_fatal_exception_name(u32 const fatal_exception_code);
-
 /**
  * kbase_gpu_access_type_name - Convert MMU_AS_CONTROL.FAULTSTATUS.ACCESS_TYPE
  * into string.

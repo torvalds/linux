@@ -31,6 +31,34 @@
 				  KBASE_DUMMY_JOB_WA_FLAG_WAIT_POWERUP | \
 				  KBASE_DUMMY_JOB_WA_FLAG_LOGICAL_SHADER_POWER)
 
+#if MALI_USE_CSF
+
+static inline int kbase_dummy_job_wa_load(struct kbase_device *kbdev)
+{
+	CSTD_UNUSED(kbdev);
+	return 0;
+}
+
+static inline void kbase_dummy_job_wa_cleanup(struct kbase_device *kbdev)
+{
+	CSTD_UNUSED(kbdev);
+}
+
+static inline int kbase_dummy_job_wa_execute(struct kbase_device *kbdev,
+		u64 cores)
+{
+	CSTD_UNUSED(kbdev);
+	CSTD_UNUSED(cores);
+	return 0;
+}
+
+static inline bool kbase_dummy_job_wa_enabled(struct kbase_device *kbdev)
+{
+	CSTD_UNUSED(kbdev);
+	return false;
+}
+
+#else
 
 int kbase_dummy_job_wa_load(struct kbase_device *kbdev);
 void kbase_dummy_job_wa_cleanup(struct kbase_device *kbdev);
@@ -41,5 +69,6 @@ static inline bool kbase_dummy_job_wa_enabled(struct kbase_device *kbdev)
 	return (kbdev->dummy_job_wa.ctx != NULL);
 }
 
+#endif /* MALI_USE_CSF */
 
 #endif /* _KBASE_DUMMY_JOB_WORKAROUND_ */

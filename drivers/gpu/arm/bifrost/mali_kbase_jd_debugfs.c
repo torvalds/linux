@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -228,6 +228,12 @@ static const struct file_operations kbasep_jd_debugfs_atoms_fops = {
 
 void kbasep_jd_debugfs_ctx_init(struct kbase_context *kctx)
 {
+#if (KERNEL_VERSION(4, 7, 0) <= LINUX_VERSION_CODE)
+	const mode_t mode = S_IRUGO;
+#else
+	const mode_t mode = S_IRUSR;
+#endif
+
 	/* Caller already ensures this, but we keep the pattern for
 	 * maintenance safety.
 	 */
@@ -236,7 +242,7 @@ void kbasep_jd_debugfs_ctx_init(struct kbase_context *kctx)
 		return;
 
 	/* Expose all atoms */
-	debugfs_create_file("atoms", S_IRUGO, kctx->kctx_dentry, kctx,
+	debugfs_create_file("atoms", mode, kctx->kctx_dentry, kctx,
 			&kbasep_jd_debugfs_atoms_fops);
 
 }

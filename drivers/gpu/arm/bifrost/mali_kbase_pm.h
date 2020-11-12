@@ -35,6 +35,13 @@
 #define PM_ENABLE_IRQS       0x01
 #define PM_HW_ISSUES_DETECT  0x02
 
+#ifdef CONFIG_MALI_ARBITER_SUPPORT
+/* In the case that the GPU was granted by the Arbiter, it will have
+ * already been reset. The following flag ensures it is not reset
+ * twice.
+ */
+#define PM_NO_RESET          0x04
+#endif
 
 /** Initialize the power management framework.
  *

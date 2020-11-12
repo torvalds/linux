@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2012-2017, 2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2017, 2019-2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -68,6 +68,11 @@ static const struct file_operations kbasep_mem_profile_debugfs_fops = {
 int kbasep_mem_profile_debugfs_insert(struct kbase_context *kctx, char *data,
 					size_t size)
 {
+#if (KERNEL_VERSION(4, 7, 0) <= LINUX_VERSION_CODE)
+	const mode_t mode = 0444;
+#else
+	const mode_t mode = 0400;
+#endif
 	int err = 0;
 
 	mutex_lock(&kctx->mem_profile_lock);
@@ -78,7 +83,7 @@ int kbasep_mem_profile_debugfs_insert(struct kbase_context *kctx, char *data,
 	if (!kbase_ctx_flag(kctx, KCTX_MEM_PROFILE_INITIALIZED)) {
 		if (IS_ERR_OR_NULL(kctx->kctx_dentry)) {
 			err  = -ENOMEM;
-		} else if (!debugfs_create_file("mem_profile", 0444,
+		} else if (!debugfs_create_file("mem_profile", mode,
 					kctx->kctx_dentry, kctx,
 					&kbasep_mem_profile_debugfs_fops)) {
 			err = -EAGAIN;

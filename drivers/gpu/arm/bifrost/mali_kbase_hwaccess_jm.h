@@ -154,6 +154,7 @@ void kbase_backend_cache_clean(struct kbase_device *kbdev,
 void kbase_backend_complete_wq(struct kbase_device *kbdev,
 				struct kbase_jd_atom *katom);
 
+#if !MALI_USE_CSF
 /**
  * kbase_backend_complete_wq_post_sched - Perform backend-specific actions
  *                                        required on completing an atom, after
@@ -166,6 +167,7 @@ void kbase_backend_complete_wq(struct kbase_device *kbdev,
  */
 void kbase_backend_complete_wq_post_sched(struct kbase_device *kbdev,
 		base_jd_core_req core_req);
+#endif /* !MALI_USE_CSF */
 
 /**
  * kbase_backend_reset() - The GPU is being reset. Cancel all jobs on the GPU

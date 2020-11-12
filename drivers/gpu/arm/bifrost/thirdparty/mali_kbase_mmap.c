@@ -317,6 +317,7 @@ unsigned long kbase_context_get_unmapped_area(struct kbase_context *const kctx,
 					align_mask = align_offset - 1;
 					is_shader_code = true;
 				}
+#if !MALI_USE_CSF
 			} else if (reg->flags & KBASE_REG_TILER_ALIGN_TOP) {
 				unsigned long extent_bytes =
 				     (unsigned long)(reg->extent << PAGE_SHIFT);
@@ -330,6 +331,7 @@ unsigned long kbase_context_get_unmapped_area(struct kbase_context *const kctx,
 				align_mask = extent_bytes - 1;
 				align_offset =
 				      extent_bytes - (reg->initial_commit << PAGE_SHIFT);
+#endif /* !MALI_USE_CSF */
 			} else if (reg->flags & KBASE_REG_GPU_VA_SAME_4GB_PAGE) {
 				is_same_4gb_page = true;
 			}

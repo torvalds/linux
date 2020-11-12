@@ -29,23 +29,28 @@
 #define _KBASE_DEBUG_LINUX_KTRACE_JM_H_
 
 DECLARE_EVENT_CLASS(mali_jm_slot_template,
-	TP_PROTO(int jobslot, u64 info_val),
-	TP_ARGS(jobslot, info_val),
+	TP_PROTO(struct kbase_context *kctx, int jobslot, u64 info_val),
+	TP_ARGS(kctx, jobslot, info_val),
 	TP_STRUCT__entry(
+		__field(pid_t, kctx_tgid)
+		__field(u32, kctx_id)
 		__field(unsigned int, jobslot)
 		__field(u64, info_val)
 	),
 	TP_fast_assign(
+		__entry->kctx_id = (kctx) ? kctx->id : 0u;
+		__entry->kctx_tgid = (kctx) ? kctx->tgid : 0;
 		__entry->jobslot = jobslot;
 		__entry->info_val = info_val;
 	),
-	TP_printk("jobslot=%u info=0x%llx", __entry->jobslot, __entry->info_val)
+	TP_printk("kctx=%d_%u jobslot=%u info=0x%llx", __entry->kctx_tgid,
+			__entry->kctx_id, __entry->jobslot, __entry->info_val)
 );
 
 #define DEFINE_MALI_JM_SLOT_EVENT(name) \
 DEFINE_EVENT(mali_jm_slot_template, mali_##name, \
-	TP_PROTO(int jobslot, u64 info_val), \
-	TP_ARGS(jobslot, info_val))
+	TP_PROTO(struct kbase_context *kctx, int jobslot, u64 info_val), \
+	TP_ARGS(kctx, jobslot, info_val))
 DEFINE_MALI_JM_SLOT_EVENT(JM_SUBMIT);
 DEFINE_MALI_JM_SLOT_EVENT(JM_JOB_DONE);
 DEFINE_MALI_JM_SLOT_EVENT(JM_UPDATE_HEAD);
@@ -75,23 +80,28 @@ DEFINE_MALI_JM_SLOT_EVENT(JS_POLICY_DEQUEUE_JOB_IRQ);
 #undef DEFINE_MALI_JM_SLOT_EVENT
 
 DECLARE_EVENT_CLASS(mali_jm_refcount_template,
-	TP_PROTO(int refcount, u64 info_val),
-	TP_ARGS(refcount, info_val),
+	TP_PROTO(struct kbase_context *kctx, int refcount, u64 info_val),
+	TP_ARGS(kctx, refcount, info_val),
 	TP_STRUCT__entry(
+		__field(pid_t, kctx_tgid)
+		__field(u32, kctx_id)
 		__field(unsigned int, refcount)
 		__field(u64, info_val)
 	),
 	TP_fast_assign(
+		__entry->kctx_id = (kctx) ? kctx->id : 0u;
+		__entry->kctx_tgid = (kctx) ? kctx->tgid : 0;
 		__entry->refcount = refcount;
 		__entry->info_val = info_val;
 	),
-	TP_printk("refcount=%u info=0x%llx", __entry->refcount, __entry->info_val)
+	TP_printk("kctx=%d_%u refcount=%u info=0x%llx", __entry->kctx_tgid,
+			__entry->kctx_id, __entry->refcount, __entry->info_val)
 );
 
 #define DEFINE_MALI_JM_REFCOUNT_EVENT(name) \
 DEFINE_EVENT(mali_jm_refcount_template, mali_##name, \
-	TP_PROTO(int refcount, u64 info_val), \
-	TP_ARGS(refcount, info_val))
+	TP_PROTO(struct kbase_context *kctx, int refcount, u64 info_val), \
+	TP_ARGS(kctx, refcount, info_val))
 DEFINE_MALI_JM_REFCOUNT_EVENT(JS_ADD_JOB);
 DEFINE_MALI_JM_REFCOUNT_EVENT(JS_REMOVE_JOB);
 DEFINE_MALI_JM_REFCOUNT_EVENT(JS_TRY_SCHEDULE_HEAD_CTX);
@@ -106,23 +116,28 @@ DEFINE_MALI_JM_REFCOUNT_EVENT(JS_POLICY_FOREACH_CTX_JOBS);
 #undef DEFINE_MALI_JM_REFCOUNT_EVENT
 
 DECLARE_EVENT_CLASS(mali_jm_add_template,
-	TP_PROTO(u64 gpu_addr, u64 info_val),
-	TP_ARGS(gpu_addr, info_val),
+	TP_PROTO(struct kbase_context *kctx, u64 gpu_addr, u64 info_val),
+	TP_ARGS(kctx, gpu_addr, info_val),
 	TP_STRUCT__entry(
+		__field(pid_t, kctx_tgid)
+		__field(u32, kctx_id)
 		__field(u64, gpu_addr)
 		__field(u64, info_val)
 	),
 	TP_fast_assign(
+		__entry->kctx_id = (kctx) ? kctx->id : 0u;
+		__entry->kctx_tgid = (kctx) ? kctx->tgid : 0;
 		__entry->gpu_addr = gpu_addr;
 		__entry->info_val = info_val;
 	),
-	TP_printk("gpu_addr=0x%llx info=0x%llx", __entry->gpu_addr, __entry->info_val)
+	TP_printk("kctx=%d_%u gpu_addr=0x%llx info=0x%llx", __entry->kctx_tgid,
+			__entry->kctx_id, __entry->gpu_addr, __entry->info_val)
 );
 
 #define DEFINE_MALI_JM_ADD_EVENT(name) \
 DEFINE_EVENT(mali_jm_add_template, mali_##name, \
-	TP_PROTO(u64 gpu_addr, u64 info_val), \
-	TP_ARGS(gpu_addr, info_val))
+	TP_PROTO(struct kbase_context *kctx, u64 gpu_addr, u64 info_val), \
+	TP_ARGS(kctx, gpu_addr, info_val))
 DEFINE_MALI_JM_ADD_EVENT(JD_DONE_WORKER);
 DEFINE_MALI_JM_ADD_EVENT(JD_DONE_WORKER_END);
 DEFINE_MALI_JM_ADD_EVENT(JD_CANCEL_WORKER);

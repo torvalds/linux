@@ -26,7 +26,7 @@
  */
 
 #include <mali_kbase.h>
-#include <backend/gpu/mali_kbase_device_internal.h>
+#include <device/mali_kbase_device.h>
 #include <backend/gpu/mali_kbase_pm_internal.h>
 #include <mali_kbase_hwaccess_gpuprops.h>
 
@@ -41,8 +41,12 @@ int kbase_backend_gpuprops_get(struct kbase_device *kbdev,
 
 	registers.l2_features = kbase_reg_read(kbdev,
 				GPU_CONTROL_REG(L2_FEATURES));
+#if !MALI_USE_CSF
 	registers.core_features = kbase_reg_read(kbdev,
 				GPU_CONTROL_REG(CORE_FEATURES));
+#else /* !MALI_USE_CSF */
+	registers.core_features = 0;
+#endif /* !MALI_USE_CSF */
 	registers.tiler_features = kbase_reg_read(kbdev,
 				GPU_CONTROL_REG(TILER_FEATURES));
 	registers.mem_features = kbase_reg_read(kbdev,
@@ -51,12 +55,20 @@ int kbase_backend_gpuprops_get(struct kbase_device *kbdev,
 				GPU_CONTROL_REG(MMU_FEATURES));
 	registers.as_present = kbase_reg_read(kbdev,
 				GPU_CONTROL_REG(AS_PRESENT));
+#if !MALI_USE_CSF
 	registers.js_present = kbase_reg_read(kbdev,
 				GPU_CONTROL_REG(JS_PRESENT));
+#else /* !MALI_USE_CSF */
+	registers.js_present = 0;
+#endif /* !MALI_USE_CSF */
 
 	for (i = 0; i < GPU_MAX_JOB_SLOTS; i++)
+#if !MALI_USE_CSF
 		registers.js_features[i] = kbase_reg_read(kbdev,
 				GPU_CONTROL_REG(JS_FEATURES_REG(i)));
+#else /* !MALI_USE_CSF */
+		registers.js_features[i] = 0;
+#endif /* !MALI_USE_CSF */
 
 	for (i = 0; i < BASE_GPU_NUM_TEXTURE_FEATURES_REGISTERS; i++)
 		registers.texture_features[i] = kbase_reg_read(kbdev,
@@ -93,7 +105,7 @@ int kbase_backend_gpuprops_get(struct kbase_device *kbdev,
 	registers.stack_present_hi = kbase_reg_read(kbdev,
 				GPU_CONTROL_REG(STACK_PRESENT_HI));
 
-	if (!kbase_is_gpu_lost(kbdev)) {
+	if (!kbase_is_gpu_removed(kbdev)) {
 		*regdump = registers;
 		return 0;
 	} else
@@ -112,7 +124,7 @@ int kbase_backend_gpuprops_get_features(struct kbase_device *kbdev,
 		coherency_features = kbase_reg_read(kbdev,
 				GPU_CONTROL_REG(COHERENCY_FEATURES));
 
-		if (kbase_is_gpu_lost(kbdev))
+		if (kbase_is_gpu_removed(kbdev))
 			return -EIO;
 
 		regdump->coherency_features = coherency_features;
@@ -136,7 +148,7 @@ int kbase_backend_gpuprops_get_l2_features(struct kbase_device *kbdev,
 		u32 l2_features = kbase_reg_read(kbdev,
 				GPU_CONTROL_REG(L2_FEATURES));
 
-		if (kbase_is_gpu_lost(kbdev))
+		if (kbase_is_gpu_removed(kbdev))
 			return -EIO;
 
 		regdump->l2_features = l2_features;

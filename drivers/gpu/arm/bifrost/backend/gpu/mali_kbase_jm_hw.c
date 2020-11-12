@@ -33,10 +33,12 @@
 #include <mali_kbase_hwaccess_jm.h>
 #include <mali_kbase_reset_gpu.h>
 #include <mali_kbase_ctx_sched.h>
+#include <mali_kbase_kinstr_jm.h>
 #include <mali_kbase_hwcnt_context.h>
-#include <backend/gpu/mali_kbase_device_internal.h>
+#include <device/mali_kbase_device.h>
 #include <backend/gpu/mali_kbase_irq_internal.h>
 #include <backend/gpu/mali_kbase_jm_internal.h>
+#include <mali_kbase_regs_history_debugfs.h>
 
 static void kbasep_try_reset_gpu_early_locked(struct kbase_device *kbdev);
 
@@ -277,6 +279,7 @@ void kbase_job_hw_submit(struct kbase_device *kbdev,
 			katom,
 			&kbdev->gpu_props.props.raw_props.js_features[js],
 			"ctx_nr,atom_nr");
+	kbase_kinstr_jm_atom_hw_submit(katom);
 #ifdef CONFIG_GPU_TRACEPOINTS
 	if (!kbase_backend_nr_atoms_submitted(kbdev, js)) {
 		/* If this is the only job on the slot, trace it as starting */
@@ -692,12 +695,40 @@ void kbase_backend_jm_kill_running_jobs_from_kctx(struct kbase_context *kctx)
 		kbase_job_slot_hardstop(kctx, i, NULL);
 }
 
+/**
+ * kbase_is_existing_atom_submitted_later_than_ready
+ * @ready: sequence number of the ready atom
+ * @existing: sequence number of the existing atom
+ *
+ * Returns true if the existing atom has been submitted later than the
+ * ready atom. It is used to understand if an atom that is ready has been
+ * submitted earlier than the currently running atom, so that the currently
+ * running atom should be preempted to allow the ready atom to run.
+ */
+static inline bool kbase_is_existing_atom_submitted_later_than_ready(u64 ready, u64 existing)
+{
+	/* No seq_nr set? */
+	if (!ready || !existing)
+		return false;
+
+	/* Efficiently handle the unlikely case of wrapping.
+	 * The following code assumes that the delta between the sequence number
+	 * of the two atoms is less than INT64_MAX.
+	 * In the extremely unlikely case where the delta is higher, the comparison
+	 * defaults for no preemption.
+	 * The code also assumes that the conversion from unsigned to signed types
+	 * works because the signed integers are 2's complement.
+	 */
+	return (s64)(ready - existing) < 0;
+}
+
 void kbase_job_slot_ctx_priority_check_locked(struct kbase_context *kctx,
 				struct kbase_jd_atom *target_katom)
 {
 	struct kbase_device *kbdev;
 	int js = target_katom->slot_nr;
 	int priority = target_katom->sched_priority;
+	int seq_nr = target_katom->seq_nr;
 	int i;
 	bool stop_sent = false;
 
@@ -719,7 +750,8 @@ void kbase_job_slot_ctx_priority_check_locked(struct kbase_context *kctx,
 				(katom->kctx != kctx))
 			continue;
 
-		if (katom->sched_priority > priority) {
+		if ((katom->sched_priority > priority) ||
+		    (katom->kctx == kctx && kbase_is_existing_atom_submitted_later_than_ready(seq_nr, katom->seq_nr))) {
 			if (!stop_sent)
 				KBASE_TLSTREAM_TL_ATTRIB_ATOM_PRIORITIZED(
 						kbdev,
@@ -1276,6 +1308,15 @@ bool kbase_prepare_to_reset_gpu_locked(struct kbase_device *kbdev)
 	int i;
 
 	KBASE_DEBUG_ASSERT(kbdev);
+
+#ifdef CONFIG_MALI_ARBITER_SUPPORT
+	if (kbase_pm_is_gpu_lost(kbdev)) {
+		/* GPU access has been removed, reset will be done by
+		 * Arbiter instead
+		 */
+		return false;
+	}
+#endif
 
 	if (atomic_cmpxchg(&kbdev->hwaccess.backend.reset_gpu,
 						KBASE_RESET_GPU_NOT_PENDING,

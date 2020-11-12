@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -43,8 +43,8 @@ void kbase_device_vinstr_term(struct kbase_device *kbdev);
 int kbase_device_timeline_init(struct kbase_device *kbdev);
 void kbase_device_timeline_term(struct kbase_device *kbdev);
 
-int kbase_device_hwcnt_backend_gpu_init(struct kbase_device *kbdev);
-void kbase_device_hwcnt_backend_gpu_term(struct kbase_device *kbdev);
+int kbase_device_hwcnt_backend_jm_init(struct kbase_device *kbdev);
+void kbase_device_hwcnt_backend_jm_term(struct kbase_device *kbdev);
 
 int kbase_device_hwcnt_context_init(struct kbase_device *kbdev);
 void kbase_device_hwcnt_context_term(struct kbase_device *kbdev);

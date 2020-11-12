@@ -38,7 +38,7 @@ static void on_gpu_stop(struct device *dev)
 {
 	struct kbase_device *kbdev = dev_get_drvdata(dev);
 
-	KBASE_TLSTREAM_TL_EVENT_ARB_STOP_REQUESTED(kbdev, kbdev);
+	KBASE_TLSTREAM_TL_ARBITER_STOP_REQUESTED(kbdev, kbdev);
 	kbase_arbiter_pm_vm_event(kbdev, KBASE_VM_GPU_STOP_EVT);
 }
 
@@ -46,7 +46,7 @@ static void on_gpu_granted(struct device *dev)
 {
 	struct kbase_device *kbdev = dev_get_drvdata(dev);
 
-	KBASE_TLSTREAM_TL_EVENT_ARB_GRANTED(kbdev, kbdev);
+	KBASE_TLSTREAM_TL_ARBITER_GRANTED(kbdev, kbdev);
 	kbase_arbiter_pm_vm_event(kbdev, KBASE_VM_GPU_GRANTED_EVT);
 }
 
@@ -106,7 +106,7 @@ int kbase_arbif_init(struct kbase_device *kbdev)
 		err = arb_if->vm_ops.vm_arb_register_dev(arb_if,
 			kbdev->dev, &ops);
 		if (err) {
-			dev_err(kbdev->dev, "Arbiter registration failed.\n");
+			dev_err(&pdev->dev, "Failed to register with arbiter\n");
 			module_put(pdev->dev.driver->owner);
 			return err;
 		}
@@ -149,7 +149,7 @@ void kbase_arbif_gpu_stopped(struct kbase_device *kbdev, u8 gpu_required)
 
 	if (arb_if && arb_if->vm_ops.vm_arb_gpu_stopped) {
 		dev_dbg(kbdev->dev, "%s\n", __func__);
-		KBASE_TLSTREAM_TL_EVENT_ARB_STOPPED(kbdev, kbdev);
+		KBASE_TLSTREAM_TL_ARBITER_STOPPED(kbdev, kbdev);
 		arb_if->vm_ops.vm_arb_gpu_stopped(arb_if, gpu_required);
 	}
 }

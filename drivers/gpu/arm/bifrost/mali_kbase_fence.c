@@ -23,70 +23,11 @@
 #include <linux/atomic.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
-#include <mali_kbase_fence_defs.h>
 #include <mali_kbase_fence.h>
 #include <mali_kbase.h>
 
 /* Spin lock protecting all Mali fences as fence->lock. */
 static DEFINE_SPINLOCK(kbase_fence_lock);
-
-static const char *
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0))
-kbase_fence_get_driver_name(struct fence *fence)
-#else
-kbase_fence_get_driver_name(struct dma_fence *fence)
-#endif
-{
-	return kbase_drv_name;
-}
-
-static const char *
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0))
-kbase_fence_get_timeline_name(struct fence *fence)
-#else
-kbase_fence_get_timeline_name(struct dma_fence *fence)
-#endif
-{
-	return kbase_timeline_name;
-}
-
-static bool
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0))
-kbase_fence_enable_signaling(struct fence *fence)
-#else
-kbase_fence_enable_signaling(struct dma_fence *fence)
-#endif
-{
-	return true;
-}
-
-static void
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0))
-kbase_fence_fence_value_str(struct fence *fence, char *str, int size)
-#else
-kbase_fence_fence_value_str(struct dma_fence *fence, char *str, int size)
-#endif
-{
-#if (KERNEL_VERSION(5, 1, 0) > LINUX_VERSION_CODE)
-	snprintf(str, size, "%u", fence->seqno);
-#else
-	snprintf(str, size, "%llu", fence->seqno);
-#endif
-}
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0))
-const struct fence_ops kbase_fence_ops = {
-	.wait = fence_default_wait,
-#else
-const struct dma_fence_ops kbase_fence_ops = {
-	.wait = dma_fence_default_wait,
-#endif
-	.get_driver_name = kbase_fence_get_driver_name,
-	.get_timeline_name = kbase_fence_get_timeline_name,
-	.enable_signaling = kbase_fence_enable_signaling,
-	.fence_value_str = kbase_fence_fence_value_str
-};
-
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0))
 struct fence *
@@ -211,4 +152,3 @@ kbase_fence_add_callback(struct kbase_jd_atom *katom,
 
 	return err;
 }
-

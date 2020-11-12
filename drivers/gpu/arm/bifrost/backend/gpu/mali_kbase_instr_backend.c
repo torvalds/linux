@@ -29,7 +29,7 @@
 #include <mali_kbase.h>
 #include <gpu/mali_kbase_gpu_regmap.h>
 #include <mali_kbase_hwaccess_instr.h>
-#include <backend/gpu/mali_kbase_device_internal.h>
+#include <device/mali_kbase_device.h>
 #include <backend/gpu/mali_kbase_instr_internal.h>
 
 
@@ -39,7 +39,9 @@ int kbase_instr_hwcnt_enable_internal(struct kbase_device *kbdev,
 {
 	unsigned long flags;
 	int err = -EINVAL;
+#if !MALI_USE_CSF
 	u32 irq_mask;
+#endif
 	u32 prfcnt_config;
 
 	lockdep_assert_held(&kbdev->hwaccess_lock);
@@ -56,10 +58,12 @@ int kbase_instr_hwcnt_enable_internal(struct kbase_device *kbdev,
 		goto out_err;
 	}
 
+#if !MALI_USE_CSF
 	/* Enable interrupt */
 	irq_mask = kbase_reg_read(kbdev, GPU_CONTROL_REG(GPU_IRQ_MASK));
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_IRQ_MASK), irq_mask |
 						PRFCNT_SAMPLE_COMPLETED);
+#endif
 
 	/* In use, this context is the owner */
 	kbdev->hwcnt.kctx = kctx;
@@ -78,6 +82,29 @@ int kbase_instr_hwcnt_enable_internal(struct kbase_device *kbdev,
 #endif
 		prfcnt_config |= 1 << PRFCNT_CONFIG_SETSELECT_SHIFT;
 
+#if MALI_USE_CSF
+	kbase_reg_write(kbdev, GPU_CONTROL_MCU_REG(PRFCNT_CONFIG),
+			prfcnt_config | PRFCNT_CONFIG_MODE_OFF);
+
+	kbase_reg_write(kbdev, GPU_CONTROL_MCU_REG(PRFCNT_BASE_LO),
+					enable->dump_buffer & 0xFFFFFFFF);
+	kbase_reg_write(kbdev, GPU_CONTROL_MCU_REG(PRFCNT_BASE_HI),
+					enable->dump_buffer >> 32);
+
+	kbase_reg_write(kbdev, GPU_CONTROL_MCU_REG(PRFCNT_CSHW_EN),
+					enable->fe_bm);
+
+	kbase_reg_write(kbdev, GPU_CONTROL_MCU_REG(PRFCNT_SHADER_EN),
+					enable->shader_bm);
+	kbase_reg_write(kbdev, GPU_CONTROL_MCU_REG(PRFCNT_MMU_L2_EN),
+					enable->mmu_l2_bm);
+
+	kbase_reg_write(kbdev, GPU_CONTROL_MCU_REG(PRFCNT_TILER_EN),
+					enable->tiler_bm);
+
+	kbase_reg_write(kbdev, GPU_CONTROL_MCU_REG(PRFCNT_CONFIG),
+			prfcnt_config | PRFCNT_CONFIG_MODE_MANUAL);
+#else
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(PRFCNT_CONFIG),
 			prfcnt_config | PRFCNT_CONFIG_MODE_OFF);
 
@@ -87,7 +114,7 @@ int kbase_instr_hwcnt_enable_internal(struct kbase_device *kbdev,
 					enable->dump_buffer >> 32);
 
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(PRFCNT_JM_EN),
-					enable->jm_bm);
+					enable->fe_bm);
 
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(PRFCNT_SHADER_EN),
 					enable->shader_bm);
@@ -99,6 +126,7 @@ int kbase_instr_hwcnt_enable_internal(struct kbase_device *kbdev,
 
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(PRFCNT_CONFIG),
 			prfcnt_config | PRFCNT_CONFIG_MODE_MANUAL);
+#endif
 
 	spin_lock_irqsave(&kbdev->hwcnt.lock, flags);
 
@@ -120,7 +148,9 @@ int kbase_instr_hwcnt_disable_internal(struct kbase_context *kctx)
 {
 	unsigned long flags, pm_flags;
 	int err = -EINVAL;
+#if !MALI_USE_CSF
 	u32 irq_mask;
+#endif
 	struct kbase_device *kbdev = kctx->kbdev;
 
 	while (1) {
@@ -155,6 +185,10 @@ int kbase_instr_hwcnt_disable_internal(struct kbase_context *kctx)
 	kbdev->hwcnt.backend.state = KBASE_INSTR_STATE_DISABLED;
 	kbdev->hwcnt.backend.triggered = 0;
 
+#if MALI_USE_CSF
+	/* Disable the counters */
+	kbase_reg_write(kbdev, GPU_CONTROL_MCU_REG(PRFCNT_CONFIG), 0);
+#else
 	/* Disable interrupt */
 	irq_mask = kbase_reg_read(kbdev, GPU_CONTROL_REG(GPU_IRQ_MASK));
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_IRQ_MASK),
@@ -162,6 +196,7 @@ int kbase_instr_hwcnt_disable_internal(struct kbase_context *kctx)
 
 	/* Disable the counters */
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(PRFCNT_CONFIG), 0);
+#endif
 
 	kbdev->hwcnt.kctx = NULL;
 	kbdev->hwcnt.addr = 0ULL;
@@ -205,18 +240,31 @@ int kbase_instr_hwcnt_request_dump(struct kbase_context *kctx)
 	kbdev->hwcnt.backend.state = KBASE_INSTR_STATE_DUMPING;
 
 
+#if MALI_USE_CSF
+	/* Reconfigure the dump address */
+	kbase_reg_write(kbdev, GPU_CONTROL_MCU_REG(PRFCNT_BASE_LO),
+					kbdev->hwcnt.addr & 0xFFFFFFFF);
+	kbase_reg_write(kbdev, GPU_CONTROL_MCU_REG(PRFCNT_BASE_HI),
+					kbdev->hwcnt.addr >> 32);
+#else
 	/* Reconfigure the dump address */
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(PRFCNT_BASE_LO),
 					kbdev->hwcnt.addr & 0xFFFFFFFF);
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(PRFCNT_BASE_HI),
 					kbdev->hwcnt.addr >> 32);
+#endif
 
 	/* Start dumping */
 	KBASE_KTRACE_ADD(kbdev, CORE_GPU_PRFCNT_SAMPLE, NULL,
 			kbdev->hwcnt.addr);
 
+#if MALI_USE_CSF
+	kbase_reg_write(kbdev, GPU_CONTROL_MCU_REG(GPU_COMMAND),
+					GPU_COMMAND_PRFCNT_SAMPLE);
+#else
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_COMMAND),
 					GPU_COMMAND_PRFCNT_SAMPLE);
+#endif
 
 	dev_dbg(kbdev->dev, "HW counters dumping done for context %p", kctx);
 
@@ -225,6 +273,9 @@ int kbase_instr_hwcnt_request_dump(struct kbase_context *kctx)
  unlock:
 	spin_unlock_irqrestore(&kbdev->hwcnt.lock, flags);
 
+#if MALI_USE_CSF
+	tasklet_schedule(&kbdev->hwcnt.backend.csf_hwc_irq_poll_tasklet);
+#endif
 
 	return err;
 }
@@ -287,6 +338,52 @@ void kbasep_cache_clean_worker(struct work_struct *data)
 	spin_unlock_irqrestore(&kbdev->hwcnt.lock, flags);
 }
 
+#if MALI_USE_CSF
+/**
+ * kbasep_hwcnt_irq_poll_tasklet - tasklet to poll MCU IRQ status register
+ *
+ * @data: tasklet parameter which pointer to kbdev
+ *
+ * This tasklet poll GPU_IRQ_STATUS register in GPU_CONTROL_MCU page to check
+ * PRFCNT_SAMPLE_COMPLETED bit.
+ *
+ * Tasklet is needed here since work_queue is too slow and cuased some test
+ * cases timeout, the poll_count variable is introduced to avoid infinite
+ * loop in unexpected cases, the poll_count is 1 or 2 in normal case, 128
+ * should be big enough to exit the tasklet in abnormal cases.
+ *
+ * Return: void
+ */
+static void kbasep_hwcnt_irq_poll_tasklet(unsigned long int data)
+{
+	struct kbase_device *kbdev = (struct kbase_device *)data;
+	unsigned long flags, pm_flags;
+	u32 mcu_gpu_irq_raw_status = 0;
+	u32 poll_count = 0;
+
+	while (1) {
+		spin_lock_irqsave(&kbdev->hwaccess_lock, pm_flags);
+		spin_lock_irqsave(&kbdev->hwcnt.lock, flags);
+		mcu_gpu_irq_raw_status = kbase_reg_read(kbdev,
+			GPU_CONTROL_MCU_REG(GPU_IRQ_RAWSTAT));
+		spin_unlock_irqrestore(&kbdev->hwcnt.lock, flags);
+		spin_unlock_irqrestore(&kbdev->hwaccess_lock, pm_flags);
+		if (mcu_gpu_irq_raw_status & PRFCNT_SAMPLE_COMPLETED) {
+			kbase_reg_write(kbdev,
+				GPU_CONTROL_MCU_REG(GPU_IRQ_CLEAR),
+				PRFCNT_SAMPLE_COMPLETED);
+			kbase_instr_hwcnt_sample_done(kbdev);
+			break;
+		} else if (poll_count++ > 128) {
+			dev_err(kbdev->dev,
+				"Err: HWC dump timeout, count: %u", poll_count);
+			/* Still call sample_done to unblock waiting thread */
+			kbase_instr_hwcnt_sample_done(kbdev);
+			break;
+		}
+	}
+}
+#endif
 
 void kbase_instr_hwcnt_sample_done(struct kbase_device *kbdev)
 {
@@ -360,8 +457,13 @@ int kbase_instr_hwcnt_clear(struct kbase_context *kctx)
 
 	/* Clear the counters */
 	KBASE_KTRACE_ADD(kbdev, CORE_GPU_PRFCNT_CLEAR, NULL, 0);
+#if MALI_USE_CSF
+	kbase_reg_write(kbdev, GPU_CONTROL_MCU_REG(GPU_COMMAND),
+					GPU_COMMAND_PRFCNT_CLEAR);
+#else
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_COMMAND),
 						GPU_COMMAND_PRFCNT_CLEAR);
+#endif
 
 	err = 0;
 
@@ -381,6 +483,10 @@ int kbase_instr_backend_init(struct kbase_device *kbdev)
 	INIT_WORK(&kbdev->hwcnt.backend.cache_clean_work,
 						kbasep_cache_clean_worker);
 
+#if MALI_USE_CSF
+	tasklet_init(&kbdev->hwcnt.backend.csf_hwc_irq_poll_tasklet,
+		     kbasep_hwcnt_irq_poll_tasklet, (unsigned long int)kbdev);
+#endif
 
 	kbdev->hwcnt.backend.triggered = 0;
 
@@ -398,6 +504,9 @@ int kbase_instr_backend_init(struct kbase_device *kbdev)
 
 void kbase_instr_backend_term(struct kbase_device *kbdev)
 {
+#if MALI_USE_CSF
+	tasklet_kill(&kbdev->hwcnt.backend.csf_hwc_irq_poll_tasklet);
+#endif
 	destroy_workqueue(kbdev->hwcnt.backend.cache_clean_wq);
 }
 

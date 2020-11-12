@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2017, 2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -29,10 +29,11 @@
 #include <linux/preempt.h>
 #include <linux/wait.h>
 #include <linux/uaccess.h>
+#include <linux/export.h>
 
 static DEFINE_SPINLOCK(kutf_input_lock);
 
-static bool pending_input(struct kutf_context *context)
+bool kutf_helper_pending_input(struct kutf_context *context)
 {
 	bool input_pending;
 
@@ -44,6 +45,7 @@ static bool pending_input(struct kutf_context *context)
 
 	return input_pending;
 }
+EXPORT_SYMBOL(kutf_helper_pending_input);
 
 char *kutf_helper_input_dequeue(struct kutf_context *context, size_t *str_size)
 {
@@ -59,7 +61,7 @@ char *kutf_helper_input_dequeue(struct kutf_context *context, size_t *str_size)
 		spin_unlock(&kutf_input_lock);
 
 		err = wait_event_interruptible(context->userdata.input_waitq,
-				pending_input(context));
+				kutf_helper_pending_input(context));
 
 		if (err)
 			return ERR_PTR(-EINTR);

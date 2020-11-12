@@ -85,6 +85,25 @@ static int kbasep_timeline_io_packet_pending(
 }
 
 /**
+ * kbasep_timeline_has_header_data() -
+ *	check timeline headers for pending packets
+ *
+ * @timeline:      Timeline instance
+ *
+ * Return: non-zero if any of timeline headers has at last one packet ready.
+ */
+static int kbasep_timeline_has_header_data(
+	struct kbase_timeline *timeline)
+{
+	return timeline->obj_header_btc
+		|| timeline->aux_header_btc
+#if MALI_USE_CSF
+		|| timeline->csf_tl_reader.tl_header.btc
+#endif
+		;
+}
+
+/**
  * copy_stream_header() - copy timeline stream header.
  *
  * @buffer:      Pointer to the buffer provided by user.
@@ -152,6 +171,13 @@ static inline int kbasep_timeline_copy_headers(
 			aux_desc_header_size,
 			&timeline->aux_header_btc))
 		return -1;
+#if MALI_USE_CSF
+	if (copy_stream_header(buffer, size, copy_len,
+			timeline->csf_tl_reader.tl_header.data,
+			timeline->csf_tl_reader.tl_header.size,
+			&timeline->csf_tl_reader.tl_header.btc))
+		return -1;
+#endif
 	return 0;
 }
 
@@ -294,6 +320,10 @@ static unsigned int kbasep_timeline_io_poll(struct file *filp, poll_table *wait)
 
 	timeline = (struct kbase_timeline *) filp->private_data;
 
+	/* If there are header bytes to copy, read will not block */
+	if (kbasep_timeline_has_header_data(timeline))
+		return POLLIN;
+
 	poll_wait(filp, &timeline->event_queue, wait);
 	if (kbasep_timeline_io_packet_pending(timeline, &stream, &rb_idx))
 		return POLLIN;
@@ -319,6 +349,9 @@ static int kbasep_timeline_io_release(struct inode *inode, struct file *filp)
 
 	timeline = (struct kbase_timeline *) filp->private_data;
 
+#if MALI_USE_CSF
+	kbase_csf_tl_reader_stop(&timeline->csf_tl_reader);
+#endif
 
 	/* Stop autoflush timer before releasing access to streams. */
 	atomic_set(&timeline->autoflush_timer_active, 0);

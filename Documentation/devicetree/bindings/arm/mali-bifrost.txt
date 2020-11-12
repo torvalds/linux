@@ -64,8 +64,8 @@ for details.
 - power_model : Sets the power model parameters. Defined power models include:
 	  "mali-simple-power-model", "mali-g51-power-model", "mali-g52-power-model",
 	  "mali-g52_r1-power-model", "mali-g71-power-model", "mali-g72-power-model",
-	  "mali-g76-power-model", "mali-g77-power-model", "mali-tnax-power-model"
-	  and "mali-tbex-power-model".
+	  "mali-g76-power-model", "mali-g77-power-model", "mali-tnax-power-model",
+	  "mali-tbex-power-model" and "mali-tbax-power-model".
 	- mali-simple-power-model: this model derives the GPU power usage based
 	  on the GPU voltage scaled by the system temperature. Note: it was
 	  designed for the Juno platform, and may not be suitable for others.

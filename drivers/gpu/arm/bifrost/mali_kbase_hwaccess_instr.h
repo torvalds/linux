@@ -35,7 +35,7 @@
  * struct kbase_instr_hwcnt_enable - Enable hardware counter collection.
  * @dump_buffer:       GPU address to write counters to.
  * @dump_buffer_bytes: Size in bytes of the buffer pointed to by dump_buffer.
- * @jm_bm:             counters selection bitmask (JM).
+ * @fe_bm:             counters selection bitmask (Front End).
  * @shader_bm:         counters selection bitmask (Shader).
  * @tiler_bm:          counters selection bitmask (Tiler).
  * @mmu_l2_bm:         counters selection bitmask (MMU_L2).
@@ -45,7 +45,7 @@
 struct kbase_instr_hwcnt_enable {
 	u64 dump_buffer;
 	u64 dump_buffer_bytes;
-	u32 jm_bm;
+	u32 fe_bm;
 	u32 shader_bm;
 	u32 tiler_bm;
 	u32 mmu_l2_bm;

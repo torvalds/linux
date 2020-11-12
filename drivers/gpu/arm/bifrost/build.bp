@@ -25,6 +25,9 @@ bob_defaults {
     mali_real_hw: {
         kbuild_options: ["CONFIG_MALI_REAL_HW=y"],
     },
+    mali_dma_fence: {
+        kbuild_options: ["CONFIG_MALI_BIFROST_DMA_FENCE=y"],
+    },
     mali_devfreq: {
         kbuild_options: ["CONFIG_MALI_BIFROST_DEVFREQ=y"],
     },

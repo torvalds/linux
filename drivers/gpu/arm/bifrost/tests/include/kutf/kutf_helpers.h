@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2017, 2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -32,6 +32,14 @@
  */
 
 #include <kutf/kutf_suite.h>
+
+/**
+ * kutf_helper_pending_input() - Check any pending lines sent by user space
+ * @context:    KUTF context
+ *
+ * Return: true if there are pending lines, otherwise false
+ */
+bool kutf_helper_pending_input(struct kutf_context *context);
 
 /**
  * kutf_helper_input_dequeue() - Dequeue a line sent by user space

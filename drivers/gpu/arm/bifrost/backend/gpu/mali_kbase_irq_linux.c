@@ -21,7 +21,7 @@
  */
 
 #include <mali_kbase.h>
-#include <backend/gpu/mali_kbase_device_internal.h>
+#include <device/mali_kbase_device.h>
 #include <backend/gpu/mali_kbase_irq_internal.h>
 
 #include <linux/interrupt.h>
@@ -72,7 +72,12 @@ static irqreturn_t kbase_job_irq_handler(int irq, void *data)
 
 	dev_dbg(kbdev->dev, "%s: irq %d irqstatus 0x%x\n", __func__, irq, val);
 
+#if MALI_USE_CSF
+	/* call the csf interrupt handler */
+	kbase_csf_interrupt(kbdev, val);
+#else
 	kbase_job_done(kbdev, val);
+#endif
 
 	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 

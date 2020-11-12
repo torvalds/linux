@@ -1,5 +1,5 @@
 #
-# (C) COPYRIGHT 2017 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2017, 2020 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -21,3 +21,4 @@
 
 obj-$(CONFIG_MALI_KUTF) += kutf/
 obj-$(CONFIG_MALI_IRQ_LATENCY) += mali_kutf_irq_test/
+obj-$(CONFIG_MALI_CLK_RATE_TRACE_PORTAL) += mali_kutf_clk_rate_trace/kernel/

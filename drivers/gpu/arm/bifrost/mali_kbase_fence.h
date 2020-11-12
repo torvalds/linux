@@ -88,6 +88,7 @@ struct dma_fence *kbase_fence_out_new(struct kbase_jd_atom *katom);
 #endif
 
 
+#if !MALI_USE_CSF
 /**
  * kbase_fence_out_remove() - Removes the output fence from atom
  * @katom: Atom to remove output fence for
@@ -269,6 +270,7 @@ bool kbase_fence_free_callbacks(struct kbase_jd_atom *katom);
  */
 #define kbase_fence_out_get(katom) dma_fence_get((katom)->dma_fence.fence)
 
+#endif /* !MALI_USE_CSF */
 
 /**
  * kbase_fence_put() - Releases a reference to a fence

@@ -80,9 +80,11 @@ struct slot_rb {
 struct kbase_backend_data {
 	struct slot_rb slot_rb[BASE_JM_MAX_NR_SLOTS];
 
+#if !MALI_USE_CSF
 	struct hrtimer scheduling_timer;
 
 	bool timer_running;
+#endif
 	bool suspend_timer;
 
 	atomic_t reset_gpu;

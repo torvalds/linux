@@ -58,8 +58,10 @@ static void assign_and_activate_kctx_addr_space(struct kbase_device *kbdev,
 	lockdep_assert_held(&js_devdata->runpool_mutex);
 	lockdep_assert_held(&kbdev->hwaccess_lock);
 
+#if !MALI_USE_CSF
 	/* Attribute handling */
 	kbasep_js_ctx_attr_runpool_retain_ctx(kbdev, kctx);
+#endif
 
 	/* Allow it to run jobs */
 	kbasep_js_set_submit_allowed(js_devdata, kctx);

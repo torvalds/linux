@@ -194,8 +194,8 @@ int kbase_mem_grow_gpu_mapping(struct kbase_context *kctx,
  * Take the provided region and make all the physical pages within it
  * reclaimable by the kernel, updating the per-process VM stats as well.
  * Remove any CPU mappings (as these can't be removed in the shrinker callback
- * as mmap_sem might already be taken) but leave the GPU mapping intact as
- * and until the shrinker reclaims the allocation.
+ * as mmap_sem/mmap_lock might already be taken) but leave the GPU mapping
+ * intact as and until the shrinker reclaims the allocation.
  *
  * Note: Must be called with the region lock of the containing context.
  */
@@ -460,5 +460,19 @@ static inline vm_fault_t vmf_insert_pfn_prot(struct vm_area_struct *vma,
 	return VM_FAULT_NOPAGE;
 }
 #endif
+
+/**
+ * kbase_mem_get_process_mmap_lock - Return the mmap lock for the current process
+ *
+ * Return: the mmap lock for the current process
+ */
+static inline struct rw_semaphore *kbase_mem_get_process_mmap_lock(void)
+{
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0)
+	return &current->mm->mmap_sem;
+#else /* LINUX_VERSION_CODE >= KERNEL_VERSION(5, 8, 0) */
+	return &current->mm->mmap_lock;
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0) */
+}
 
 #endif				/* _KBASE_MEM_LINUX_H_ */

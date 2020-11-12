@@ -28,6 +28,7 @@
 #ifndef _KBASE_JM_H_
 #define _KBASE_JM_H_
 
+#if !MALI_USE_CSF
 /**
  * kbase_jm_kick() - Indicate that there are jobs ready to run.
  * @kbdev:	Device pointer
@@ -73,6 +74,7 @@ void kbase_jm_try_kick(struct kbase_device *kbdev, u32 js_mask);
  * kbase_jm_kick_all() otherwise it will do nothing.
  */
 void kbase_jm_try_kick_all(struct kbase_device *kbdev);
+#endif /* !MALI_USE_CSF */
 
 /**
  * kbase_jm_idle_ctx() - Mark a context as idle.
@@ -89,6 +91,7 @@ void kbase_jm_try_kick_all(struct kbase_device *kbdev);
  */
 void kbase_jm_idle_ctx(struct kbase_device *kbdev, struct kbase_context *kctx);
 
+#if !MALI_USE_CSF
 /**
  * kbase_jm_return_atom_to_js() - Return an atom to the job scheduler that has
  *				  been soft-stopped or will fail due to a
@@ -111,5 +114,6 @@ struct kbase_jd_atom *kbase_jm_return_atom_to_js(struct kbase_device *kbdev,
  */
 struct kbase_jd_atom *kbase_jm_complete(struct kbase_device *kbdev,
 		struct kbase_jd_atom *katom, ktime_t *end_timestamp);
+#endif /* !MALI_USE_CSF */
 
 #endif /* _KBASE_JM_H_ */

@@ -205,6 +205,29 @@ int kbase_pm_init_hw(struct kbase_device *kbdev, unsigned int flags);
  */
 void kbase_pm_reset_done(struct kbase_device *kbdev);
 
+#if MALI_USE_CSF
+/**
+ * kbase_pm_wait_for_desired_state - Wait for the desired power state to be
+ *                                   reached
+ *
+ * Wait for the L2 and MCU state machines to reach the states corresponding
+ * to the values of 'kbase_pm_is_l2_desired' and 'kbase_pm_is_mcu_desired'.
+ *
+ * The usual use-case for this is to ensure that all parts of GPU have been
+ * powered up after performing a GPU Reset.
+ *
+ * Unlike kbase_pm_update_state(), the caller must not hold hwaccess_lock,
+ * because this function will take that lock itself.
+ *
+ * NOTE: This may not wait until the correct state is reached if there is a
+ * power off in progress and kbase_pm_context_active() was called instead of
+ * kbase_csf_scheduler_pm_active().
+ *
+ * @kbdev: The kbase device structure for the device (must be a valid pointer)
+ *
+ * Return: 0 on success, error code on error
+ */
+#else
 /**
  * kbase_pm_wait_for_desired_state - Wait for the desired power state to be
  *                                   reached
@@ -224,15 +247,17 @@ void kbase_pm_reset_done(struct kbase_device *kbdev);
  * kbase_pm_wait_for_poweroff_complete()
  *
  * @kbdev: The kbase device structure for the device (must be a valid pointer)
+ *
+ * Return: 0 on success, error code on error
  */
-void kbase_pm_wait_for_desired_state(struct kbase_device *kbdev);
+#endif
+int kbase_pm_wait_for_desired_state(struct kbase_device *kbdev);
 
 /**
  * kbase_pm_wait_for_l2_powered - Wait for the L2 cache to be powered on
  *
- * Wait for the L2 to be powered on, and for the L2 and shader state machines to
- * stabilise by reaching the states corresponding to the values of 'l2_desired'
- * and 'shaders_desired'.
+ * Wait for the L2 to be powered on, and for the L2 and the state machines of
+ * its dependent stack components to stabilise.
  *
  * kbdev->pm.active_count must be non-zero when calling this function.
  *
@@ -692,7 +717,9 @@ bool kbase_pm_is_l2_desired(struct kbase_device *kbdev);
  */
 static inline void kbase_pm_lock(struct kbase_device *kbdev)
 {
+#if !MALI_USE_CSF
 	mutex_lock(&kbdev->js_data.runpool_mutex);
+#endif /* !MALI_USE_CSF */
 	mutex_lock(&kbdev->pm.lock);
 }
 
@@ -704,7 +731,9 @@ static inline void kbase_pm_lock(struct kbase_device *kbdev)
 static inline void kbase_pm_unlock(struct kbase_device *kbdev)
 {
 	mutex_unlock(&kbdev->pm.lock);
+#if !MALI_USE_CSF
 	mutex_unlock(&kbdev->js_data.runpool_mutex);
+#endif /* !MALI_USE_CSF */
 }
 
 #endif /* _KBASE_BACKEND_PM_INTERNAL_H_ */

@@ -168,6 +168,16 @@ void kbase_event_post(struct kbase_context *ctx, struct kbase_jd_atom *atom)
 
 	dev_dbg(kbdev->dev, "Posting event for atom %p\n", (void *)atom);
 
+	if (WARN_ON(atom->status != KBASE_JD_ATOM_STATE_COMPLETED)) {
+		dev_warn(kbdev->dev,
+				"%s: Atom %d (%p) not completed (status %d)\n",
+				__func__,
+				kbase_jd_atom_id(atom->kctx, atom),
+				atom->kctx,
+				atom->status);
+		return;
+	}
+
 	if (atom->core_req & BASE_JD_REQ_EVENT_ONLY_ON_FAILURE) {
 		if (atom->event_code == BASE_JD_EVENT_DONE) {
 			dev_dbg(kbdev->dev, "Suppressing event (atom done)\n");

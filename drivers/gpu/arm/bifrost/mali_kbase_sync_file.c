@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2012-2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -59,6 +59,7 @@ int kbase_sync_fence_stream_create(const char *name, int *const out_fd)
 	return 0;
 }
 
+#if !MALI_USE_CSF
 int kbase_sync_fence_out_create(struct kbase_jd_atom *katom, int stream_fd)
 {
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0))
@@ -119,6 +120,7 @@ int kbase_sync_fence_in_from_fd(struct kbase_jd_atom *katom, int fd)
 
 	return 0;
 }
+#endif /* !MALI_USE_CSF */
 
 int kbase_sync_fence_validate(int fd)
 {
@@ -136,6 +138,7 @@ int kbase_sync_fence_validate(int fd)
 	return 0; /* valid */
 }
 
+#if !MALI_USE_CSF
 enum base_jd_event_code
 kbase_sync_fence_out_trigger(struct kbase_jd_atom *katom, int result)
 {
@@ -175,7 +178,7 @@ static void kbase_fence_wait_callback(struct dma_fence *fence,
 #if (KERNEL_VERSION(4, 11, 0) <= LINUX_VERSION_CODE || \
 	 (KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE && \
 	  KERNEL_VERSION(4, 9, 68) <= LINUX_VERSION_CODE))
-	if (dma_fence_is_signaled(kcb->fence) && kcb->fence->error)
+	if (dma_fence_is_signaled(kcb->fence) && kcb->fence->error < 0)
 #else
 	if (dma_fence_is_signaled(kcb->fence) && kcb->fence->status < 0)
 #endif
@@ -273,6 +276,7 @@ void kbase_sync_fence_in_remove(struct kbase_jd_atom *katom)
 	kbase_fence_free_callbacks(katom);
 	kbase_fence_in_remove(katom);
 }
+#endif /* !MALI_USE_CSF */
 
 #if (KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE)
 void kbase_sync_fence_info_get(struct fence *fence,
@@ -317,6 +321,7 @@ void kbase_sync_fence_info_get(struct dma_fence *fence,
 #endif
 }
 
+#if !MALI_USE_CSF
 int kbase_sync_fence_in_info_get(struct kbase_jd_atom *katom,
 				 struct kbase_sync_fence_info *info)
 {
@@ -364,3 +369,4 @@ void kbase_sync_fence_in_dump(struct kbase_jd_atom *katom)
 	/* Not implemented */
 }
 #endif
+#endif /* !MALI_USE_CSF*/

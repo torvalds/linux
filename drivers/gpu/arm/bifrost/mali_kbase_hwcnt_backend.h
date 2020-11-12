@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2018 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018, 2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -137,6 +137,8 @@ typedef int (*kbase_hwcnt_backend_dump_clear_fn)(
  * typedef kbase_hwcnt_backend_dump_request_fn - Request an asynchronous counter
  *                                               dump.
  * @backend: Non-NULL pointer to backend.
+ * @dump_time_ns: Non-NULL pointer where the timestamp of when the dump was
+ *                requested will be written out to on success.
  *
  * If the backend is not enabled or another dump is already in progress,
  * returns an error.
@@ -144,7 +146,8 @@ typedef int (*kbase_hwcnt_backend_dump_clear_fn)(
  * Return: 0 on success, else error code.
  */
 typedef int (*kbase_hwcnt_backend_dump_request_fn)(
-	struct kbase_hwcnt_backend *backend);
+	struct kbase_hwcnt_backend *backend,
+	u64 *dump_time_ns);
 
 /**
  * typedef kbase_hwcnt_backend_dump_wait_fn - Wait until the last requested

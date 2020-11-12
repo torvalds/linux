@@ -30,6 +30,9 @@
  * The purpose of this header file is just to contain a list of trace code
  * identifiers
  *
+ * When updating this file, also remember to update
+ * mali_kbase_debug_linux_ktrace.h
+ *
  * Each identifier is wrapped in a macro, so that its string form and enum form
  * can be created
  *
@@ -144,7 +147,11 @@ int dummy_array[] = {
 	KBASE_KTRACE_CODE_MAKE_CODE(SCHED_RELEASE_CTX),
 
 
+#if MALI_USE_CSF
+#include "debug/backend/mali_kbase_debug_ktrace_codes_csf.h"
+#else
 #include "debug/backend/mali_kbase_debug_ktrace_codes_jm.h"
+#endif
 	/*
 	 * Unused code just to make it easier to not have a comma at the end.
 	 * All other codes MUST come before this

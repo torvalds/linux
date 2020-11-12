@@ -80,6 +80,7 @@
  * The list of tracepoints to process.
  *
  * It should be defined as follows:
+ *
  * #define MIPE_HEADER_TRACEPOINT_LIST \
  *     TRACEPOINT_DESC(FIRST_TRACEPOINT, "Some description", "@II", "first_arg,second_arg") \
  *     TRACEPOINT_DESC(SECOND_TRACEPOINT, "Some description", "@II", "first_arg,second_arg") \
@@ -105,6 +106,7 @@
  * The list of enums to process.
  *
  * It should be defined as follows:
+ *
  * #define MIPE_HEADER_ENUM_LIST \
  *     ENUM_DESC(enum_arg_name, enum_value) \
  *     ENUM_DESC(enum_arg_name, enum_value) \

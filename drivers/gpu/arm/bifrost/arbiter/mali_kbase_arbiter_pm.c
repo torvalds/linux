@@ -189,6 +189,7 @@ int kbase_arbiter_pm_early_init(struct kbase_device *kbdev)
 
 	err = kbase_arbif_init(kbdev);
 	if (err) {
+		dev_err(kbdev->dev, "Failed to initialise arbif module\n");
 		goto arbif_init_fail;
 	}
 	if (kbdev->arb.arb_if) {
@@ -214,9 +215,10 @@ void kbase_arbiter_pm_early_term(struct kbase_device *kbdev)
 	struct kbase_arbiter_vm_state *arb_vm_state = kbdev->pm.arb_vm_state;
 
 	mutex_lock(&arb_vm_state->vm_state_lock);
-	if (arb_vm_state->vm_state > KBASE_VM_STATE_STOPPED_GPU_REQUESTED)
+	if (arb_vm_state->vm_state > KBASE_VM_STATE_STOPPED_GPU_REQUESTED) {
+		kbase_pm_set_gpu_lost(kbdev, false);
 		kbase_arbif_gpu_stopped(kbdev, false);
-
+	}
 	mutex_unlock(&arb_vm_state->vm_state_lock);
 	kbase_arbif_destroy(kbdev);
 	destroy_workqueue(arb_vm_state->vm_arb_wq);
@@ -271,6 +273,7 @@ void kbase_arbiter_pm_vm_stopped(struct kbase_device *kbdev)
 		break;
 	}
 
+	kbase_pm_set_gpu_lost(kbdev, false);
 	kbase_arbif_gpu_stopped(kbdev, request_gpu);
 }
 
@@ -291,6 +294,7 @@ static void kbase_arbiter_pm_vm_gpu_start(struct kbase_device *kbdev)
 			&arb_vm_state->vm_resume_work);
 		break;
 	case KBASE_VM_STATE_SUSPEND_WAIT_FOR_GRANT:
+		kbase_pm_set_gpu_lost(kbdev, false);
 		kbase_arbif_gpu_stopped(kbdev, false);
 		kbase_arbiter_pm_vm_set_state(kbdev, KBASE_VM_STATE_SUSPENDED);
 		break;
@@ -347,6 +351,7 @@ static void kbase_arbiter_pm_vm_gpu_stop(struct kbase_device *kbdev)
 static void kbase_gpu_lost(struct kbase_device *kbdev)
 {
 	struct kbase_arbiter_vm_state *arb_vm_state = kbdev->pm.arb_vm_state;
+	bool handle_gpu_lost = false;
 
 	lockdep_assert_held(&arb_vm_state->vm_state_lock);
 
@@ -357,31 +362,38 @@ static void kbase_gpu_lost(struct kbase_device *kbdev)
 		dev_warn(kbdev->dev, "GPU lost in state %s",
 		kbase_arbiter_pm_vm_state_str(arb_vm_state->vm_state));
 		kbase_arbiter_pm_vm_gpu_stop(kbdev);
-		mutex_unlock(&arb_vm_state->vm_state_lock);
-		kbase_pm_handle_gpu_lost(kbdev);
-		mutex_lock(&arb_vm_state->vm_state_lock);
+		handle_gpu_lost = true;
 		break;
 	case KBASE_VM_STATE_STOPPING_IDLE:
 	case KBASE_VM_STATE_STOPPING_ACTIVE:
 	case KBASE_VM_STATE_SUSPEND_PENDING:
-		dev_info(kbdev->dev, "GPU lost while stopping");
-		mutex_unlock(&arb_vm_state->vm_state_lock);
-		kbase_pm_handle_gpu_lost(kbdev);
-		mutex_lock(&arb_vm_state->vm_state_lock);
+		dev_dbg(kbdev->dev, "GPU lost while stopping");
+		handle_gpu_lost = true;
 		break;
 	case KBASE_VM_STATE_SUSPENDED:
 	case KBASE_VM_STATE_STOPPED:
 	case KBASE_VM_STATE_STOPPED_GPU_REQUESTED:
-		dev_info(kbdev->dev, "GPU lost while already stopped");
+		dev_dbg(kbdev->dev, "GPU lost while already stopped");
 		break;
 	case KBASE_VM_STATE_SUSPEND_WAIT_FOR_GRANT:
-		dev_info(kbdev->dev, "GPU lost while waiting to suspend");
+		dev_dbg(kbdev->dev, "GPU lost while waiting to suspend");
 		kbase_arbiter_pm_vm_set_state(kbdev, KBASE_VM_STATE_SUSPENDED);
 		break;
 	default:
 		break;
 	}
-
+	if (handle_gpu_lost) {
+		/* Releasing the VM state lock here is safe because
+		 * we are guaranteed to be in either STOPPING_IDLE,
+		 * STOPPING_ACTIVE or SUSPEND_PENDING at this point.
+		 * The only transitions that are valid from here are to
+		 * STOPPED, STOPPED_GPU_REQUESTED or SUSPENDED which can
+		 * only happen at the completion of the GPU lost handling.
+		 */
+		mutex_unlock(&arb_vm_state->vm_state_lock);
+		kbase_pm_handle_gpu_lost(kbdev);
+		mutex_lock(&arb_vm_state->vm_state_lock);
+	}
 }
 
 static inline bool kbase_arbiter_pm_vm_os_suspend_ready_state(
@@ -506,7 +518,7 @@ void kbase_arbiter_pm_vm_event(struct kbase_device *kbdev,
 		kbase_arbiter_pm_vm_gpu_stop(kbdev);
 		break;
 	case KBASE_VM_GPU_LOST_EVT:
-		dev_info(kbdev->dev, "KBASE_ARBIF_GPU_LOST_EVT!");
+		dev_dbg(kbdev->dev, "KBASE_ARBIF_GPU_LOST_EVT!");
 		kbase_gpu_lost(kbdev);
 		break;
 	case KBASE_VM_OS_SUSPEND_EVENT:
@@ -530,7 +542,7 @@ void kbase_arbiter_pm_vm_event(struct kbase_device *kbdev,
 	case KBASE_VM_REF_EVENT:
 		switch (arb_vm_state->vm_state) {
 		case KBASE_VM_STATE_STARTING:
-			KBASE_TLSTREAM_TL_EVENT_ARB_STARTED(kbdev, kbdev);
+			KBASE_TLSTREAM_TL_ARBITER_STARTED(kbdev, kbdev);
 			/* FALL THROUGH */
 		case KBASE_VM_STATE_IDLE:
 			kbase_arbiter_pm_vm_set_state(kbdev,
@@ -547,15 +559,21 @@ void kbase_arbiter_pm_vm_event(struct kbase_device *kbdev,
 		break;
 
 	case KBASE_VM_GPU_INITIALIZED_EVT:
-		lockdep_assert_held(&kbdev->pm.lock);
-		if (kbdev->pm.active_count > 0) {
-			kbase_arbiter_pm_vm_set_state(kbdev,
-				KBASE_VM_STATE_ACTIVE);
-			kbase_arbif_gpu_active(kbdev);
-		} else {
-			kbase_arbiter_pm_vm_set_state(kbdev,
-				KBASE_VM_STATE_IDLE);
-			kbase_arbif_gpu_idle(kbdev);
+		switch (arb_vm_state->vm_state) {
+		case KBASE_VM_STATE_INITIALIZING_WITH_GPU:
+			lockdep_assert_held(&kbdev->pm.lock);
+			if (kbdev->pm.active_count > 0) {
+				kbase_arbiter_pm_vm_set_state(kbdev,
+					KBASE_VM_STATE_ACTIVE);
+				kbase_arbif_gpu_active(kbdev);
+			} else {
+				kbase_arbiter_pm_vm_set_state(kbdev,
+					KBASE_VM_STATE_IDLE);
+				kbase_arbif_gpu_idle(kbdev);
+			}
+			break;
+		default:
+			break;
 		}
 		break;
 
@@ -565,6 +583,8 @@ void kbase_arbiter_pm_vm_event(struct kbase_device *kbdev,
 	}
 	mutex_unlock(&arb_vm_state->vm_state_lock);
 }
+
+KBASE_EXPORT_TEST_API(kbase_arbiter_pm_vm_event);
 
 static void kbase_arbiter_pm_vm_wait_gpu_assignment(struct kbase_device *kbdev)
 {
@@ -592,6 +612,7 @@ int kbase_arbiter_pm_ctx_active_handle_suspend(struct kbase_device *kbdev,
 {
 	struct kbasep_js_device_data *js_devdata = &kbdev->js_data;
 	struct kbase_arbiter_vm_state *arb_vm_state = kbdev->pm.arb_vm_state;
+	int res = 0;
 
 	if (kbdev->arb.arb_if) {
 		mutex_lock(&arb_vm_state->vm_state_lock);
@@ -612,21 +633,31 @@ int kbase_arbiter_pm_ctx_active_handle_suspend(struct kbase_device *kbdev,
 
 			if (suspend_handler !=
 				KBASE_PM_SUSPEND_HANDLER_NOT_POSSIBLE) {
-				if (suspend_handler ==
-					KBASE_PM_SUSPEND_HANDLER_VM_GPU_GRANTED
-						||
-						kbdev->pm.active_count > 0)
+
+				/* In case of GPU lost, even if
+				 * active_count > 0, we no longer have GPU
+				 * access
+				 */
+				if (kbase_pm_is_gpu_lost(kbdev))
+					res = 1;
+
+				switch (suspend_handler) {
+				case KBASE_PM_SUSPEND_HANDLER_DONT_INCREASE:
+					res = 1;
 					break;
-
-				mutex_unlock(&arb_vm_state->vm_state_lock);
-				mutex_unlock(&kbdev->pm.lock);
-				mutex_unlock(&js_devdata->runpool_mutex);
-				return 1;
-			}
-
-			if (arb_vm_state->vm_state ==
-					KBASE_VM_STATE_INITIALIZING_WITH_GPU)
+				case KBASE_PM_SUSPEND_HANDLER_DONT_REACTIVATE:
+					if (kbdev->pm.active_count == 0)
+						res = 1;
+					break;
+				case KBASE_PM_SUSPEND_HANDLER_VM_GPU_GRANTED:
+					break;
+				default:
+					WARN(1, "Unknown suspend_handler\n");
+					res = 1;
+					break;
+				}
 				break;
+			}
 
 			/* Need to synchronously wait for GPU assignment */
 			arb_vm_state->vm_arb_users_waiting++;
@@ -641,5 +672,5 @@ int kbase_arbiter_pm_ctx_active_handle_suspend(struct kbase_device *kbdev,
 		}
 		mutex_unlock(&arb_vm_state->vm_state_lock);
 	}
-	return 0;
+	return res;
 }

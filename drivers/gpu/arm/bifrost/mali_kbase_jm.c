@@ -29,6 +29,7 @@
 #include "mali_kbase_hwaccess_jm.h"
 #include "mali_kbase_jm.h"
 
+#if !MALI_USE_CSF
 /**
  * kbase_jm_next_job() - Attempt to run the next @nr_jobs_to_submit jobs on slot
  *			 @js on the active context.
@@ -109,6 +110,7 @@ void kbase_jm_try_kick_all(struct kbase_device *kbdev)
 		up(&js_devdata->schedule_sem);
 	}
 }
+#endif /* !MALI_USE_CSF */
 
 void kbase_jm_idle_ctx(struct kbase_device *kbdev, struct kbase_context *kctx)
 {
@@ -125,6 +127,7 @@ void kbase_jm_idle_ctx(struct kbase_device *kbdev, struct kbase_context *kctx)
 	}
 }
 
+#if !MALI_USE_CSF
 struct kbase_jd_atom *kbase_jm_return_atom_to_js(struct kbase_device *kbdev,
 				struct kbase_jd_atom *katom)
 {
@@ -149,3 +152,4 @@ struct kbase_jd_atom *kbase_jm_complete(struct kbase_device *kbdev,
 
 	return kbase_js_complete_atom(katom, end_timestamp);
 }
+#endif /* !MALI_USE_CSF */

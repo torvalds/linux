@@ -242,6 +242,7 @@ static void kbasep_hwcnt_accumulator_disable(
 	bool backend_enabled = false;
 	struct kbase_hwcnt_accumulator *accum;
 	unsigned long flags;
+	u64 dump_time_ns;
 
 	WARN_ON(!hctx);
 	lockdep_assert_held(&hctx->accum_lock);
@@ -271,7 +272,7 @@ static void kbasep_hwcnt_accumulator_disable(
 		goto disable;
 
 	/* Try and accumulate before disabling */
-	errcode = hctx->iface->dump_request(accum->backend);
+	errcode = hctx->iface->dump_request(accum->backend, &dump_time_ns);
 	if (errcode)
 		goto disable;
 
@@ -419,23 +420,16 @@ static int kbasep_hwcnt_accumulator_dump(
 
 	/* Initiate the dump if the backend is enabled. */
 	if ((state == ACCUM_STATE_ENABLED) && cur_map_any_enabled) {
-		/* Disable pre-emption, to make the timestamp as accurate as
-		 * possible.
-		 */
-		preempt_disable();
-		{
+		if (dump_buf) {
+			errcode = hctx->iface->dump_request(
+					accum->backend, &dump_time_ns);
+			dump_requested = true;
+		} else {
 			dump_time_ns = hctx->iface->timestamp_ns(
-				accum->backend);
-			if (dump_buf) {
-				errcode = hctx->iface->dump_request(
 					accum->backend);
-				dump_requested = true;
-			} else {
-				errcode = hctx->iface->dump_clear(
-					accum->backend);
-			}
+			errcode = hctx->iface->dump_clear(accum->backend);
 		}
-		preempt_enable();
+
 		if (errcode)
 			goto error;
 	} else {

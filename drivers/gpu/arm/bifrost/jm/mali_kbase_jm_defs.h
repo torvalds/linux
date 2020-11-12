@@ -496,9 +496,9 @@ struct kbase_jd_atom {
 	struct list_head jd_item;
 	bool in_jd_list;
 
-#if MALI_JIT_PRESSURE_LIMIT
+#if MALI_JIT_PRESSURE_LIMIT_BASE
 	u8 jit_ids[2];
-#endif /* MALI_JIT_PRESSURE_LIMIT */
+#endif /* MALI_JIT_PRESSURE_LIMIT_BASE */
 
 	u16 nr_extres;
 	struct kbase_ext_res *extres;
@@ -607,6 +607,9 @@ struct kbase_jd_atom {
 	bool need_cache_flush_cores_retained;
 
 	atomic_t blocked;
+
+	/* user-space sequence number, to order atoms in some temporal order */
+	u64 seq_nr;
 
 	struct kbase_jd_atom *pre_dep;
 	struct kbase_jd_atom *post_dep;
@@ -813,6 +816,29 @@ struct kbase_jd_context {
 struct jsctx_queue {
 	struct rb_root runnable_tree;
 	struct list_head x_dep_head;
+};
+
+/**
+ * struct kbase_as   - Object representing an address space of GPU.
+ * @number:            Index at which this address space structure is present
+ *                     in an array of address space structures embedded inside
+ *                     the &struct kbase_device.
+ * @pf_wq:             Workqueue for processing work items related to
+ *                     Page fault and Bus fault handling.
+ * @work_pagefault:    Work item for the Page fault handling.
+ * @work_busfault:     Work item for the Bus fault handling.
+ * @pf_data:           Data relating to Page fault.
+ * @bf_data:           Data relating to Bus fault.
+ * @current_setup:     Stores the MMU configuration for this address space.
+ */
+struct kbase_as {
+	int number;
+	struct workqueue_struct *pf_wq;
+	struct work_struct work_pagefault;
+	struct work_struct work_busfault;
+	struct kbase_fault pf_data;
+	struct kbase_fault bf_data;
+	struct kbase_mmu_setup current_setup;
 };
 
 #endif /* _KBASE_JM_DEFS_H_ */

@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2016-2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2016-2018, 2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -25,7 +25,7 @@
 #include <linux/interrupt.h>
 
 #include "mali_kbase.h"
-#include <midgard/backend/gpu/mali_kbase_device_internal.h>
+#include <midgard/device/mali_kbase_device.h>
 #include <midgard/backend/gpu/mali_kbase_pm_internal.h>
 
 #include <kutf/kutf_suite.h>

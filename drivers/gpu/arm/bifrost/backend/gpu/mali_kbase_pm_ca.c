@@ -106,6 +106,8 @@ u64 kbase_pm_ca_get_instr_core_mask(struct kbase_device *kbdev)
 
 #ifdef CONFIG_MALI_BIFROST_NO_MALI
 	return (((1ull) << KBASE_DUMMY_MODEL_MAX_SHADER_CORES) - 1);
+#elif MALI_USE_CSF
+	return kbase_pm_get_ready_cores(kbdev, KBASE_PM_CORE_SHADER);
 #else
 	return kbdev->pm.backend.pm_shaders_core_mask;
 #endif

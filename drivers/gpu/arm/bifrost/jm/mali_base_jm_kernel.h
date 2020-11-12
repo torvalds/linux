@@ -80,7 +80,8 @@
  */
 #define BASE_MEM_COHERENT_LOCAL ((base_mem_alloc_flags)1 << 11)
 
-/* Should be cached on the CPU
+/* IN/OUT */
+/* Should be cached on the CPU, returned if actually cached
  */
 #define BASE_MEM_CACHED_CPU ((base_mem_alloc_flags)1 << 12)
 
@@ -155,18 +156,25 @@
 /* Use the GPU VA chosen by the kernel client */
 #define BASE_MEM_FLAG_MAP_FIXED ((base_mem_alloc_flags)1 << 27)
 
+/* OUT */
+/* Kernel side cache sync ops required */
+#define BASE_MEM_KERNEL_SYNC ((base_mem_alloc_flags)1 << 28)
+
+/* Force trimming of JIT allocations when creating a new allocation */
+#define BASEP_MEM_PERFORM_JIT_TRIM ((base_mem_alloc_flags)1 << 29)
+
 /* Number of bits used as flags for base memory management
  *
  * Must be kept in sync with the base_mem_alloc_flags flags
  */
-#define BASE_MEM_FLAGS_NR_BITS 28
+#define BASE_MEM_FLAGS_NR_BITS 30
 
 /* A mask of all the flags which are only valid for allocations within kbase,
  * and may not be passed from user space.
  */
 #define BASEP_MEM_FLAGS_KERNEL_ONLY \
 	(BASEP_MEM_PERMANENT_KERNEL_MAPPING | BASEP_MEM_NO_USER_FREE | \
-	 BASE_MEM_FLAG_MAP_FIXED)
+	 BASE_MEM_FLAG_MAP_FIXED | BASEP_MEM_PERFORM_JIT_TRIM)
 
 /* A mask for all output bits, excluding IN/OUT bits.
  */
@@ -191,6 +199,28 @@
 #define BASE_MEM_COOKIE_BASE                   (64ul  << 12)
 #define BASE_MEM_FIRST_FREE_ADDRESS            ((BITS_PER_LONG << 12) + \
 						BASE_MEM_COOKIE_BASE)
+
+/* Similar to BASE_MEM_TILER_ALIGN_TOP, memory starting from the end of the
+ * initial commit is aligned to 'extent' pages, where 'extent' must be a power
+ * of 2 and no more than BASE_MEM_TILER_ALIGN_TOP_EXTENT_MAX_PAGES
+ */
+#define BASE_JIT_ALLOC_MEM_TILER_ALIGN_TOP  (1 << 0)
+
+/**
+ * If set, the heap info address points to a u32 holding the used size in bytes;
+ * otherwise it points to a u64 holding the lowest address of unused memory.
+ */
+#define BASE_JIT_ALLOC_HEAP_INFO_IS_SIZE  (1 << 1)
+
+/**
+ * Valid set of just-in-time memory allocation flags
+ *
+ * Note: BASE_JIT_ALLOC_HEAP_INFO_IS_SIZE cannot be set if heap_info_gpu_addr
+ * in %base_jit_alloc_info is 0 (atom with BASE_JIT_ALLOC_HEAP_INFO_IS_SIZE set
+ * and heap_info_gpu_addr being 0 will be rejected).
+ */
+#define BASE_JIT_ALLOC_VALID_FLAGS \
+	(BASE_JIT_ALLOC_MEM_TILER_ALIGN_TOP | BASE_JIT_ALLOC_HEAP_INFO_IS_SIZE)
 
 /**
  * typedef base_context_create_flags - Flags to pass to ::base_context_init.
@@ -787,6 +817,54 @@ struct base_jd_atom_v2 {
 	u8 padding[7];
 };
 
+/**
+ * struct base_jd_atom - Same as base_jd_atom_v2, but has an extra seq_nr
+ *                          at the beginning.
+ *
+ * @seq_nr:        Sequence number of logical grouping of atoms.
+ * @jc:            GPU address of a job chain or (if BASE_JD_REQ_END_RENDERPASS
+ *                 is set in the base_jd_core_req) the CPU address of a
+ *                 base_jd_fragment object.
+ * @udata:         User data.
+ * @extres_list:   List of external resources.
+ * @nr_extres:     Number of external resources or JIT allocations.
+ * @jit_id:        Zero-terminated array of IDs of just-in-time memory
+ *                 allocations written to by the atom. When the atom
+ *                 completes, the value stored at the
+ *                 &struct_base_jit_alloc_info.heap_info_gpu_addr of
+ *                 each allocation is read in order to enforce an
+ *                 overall physical memory usage limit.
+ * @pre_dep:       Pre-dependencies. One need to use SETTER function to assign
+ *                 this field; this is done in order to reduce possibility of
+ *                 improper assignment of a dependency field.
+ * @atom_number:   Unique number to identify the atom.
+ * @prio:          Atom priority. Refer to base_jd_prio for more details.
+ * @device_nr:     Core group when BASE_JD_REQ_SPECIFIC_COHERENT_GROUP
+ *                 specified.
+ * @jobslot:       Job slot to use when BASE_JD_REQ_JOB_SLOT is specified.
+ * @core_req:      Core requirements.
+ * @renderpass_id: Renderpass identifier used to associate an atom that has
+ *                 BASE_JD_REQ_START_RENDERPASS set in its core requirements
+ *                 with an atom that has BASE_JD_REQ_END_RENDERPASS set.
+ * @padding:       Unused. Must be zero.
+ */
+typedef struct base_jd_atom {
+	u64 seq_nr;
+	u64 jc;
+	struct base_jd_udata udata;
+	u64 extres_list;
+	u16 nr_extres;
+	u8 jit_id[2];
+	struct base_dependency pre_dep[2];
+	base_atom_id atom_number;
+	base_jd_prio prio;
+	u8 device_nr;
+	u8 jobslot;
+	base_jd_core_req core_req;
+	u8 renderpass_id;
+	u8 padding[7];
+} base_jd_atom;
+
 /* Job chain event code bits
  * Defines the bits used to create ::base_jd_event_code
  */
@@ -982,7 +1060,7 @@ struct base_jd_event_v2 {
  *                                     jobs.
  *
  * This structure is stored into the memory pointed to by the @jc field
- * of &struct base_jd_atom_v2.
+ * of &struct base_jd_atom.
  *
  * It must not occupy the same CPU cache line(s) as any neighboring data.
  * This is to avoid cases where access to pages containing the structure

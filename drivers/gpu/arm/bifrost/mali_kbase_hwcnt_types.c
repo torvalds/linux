@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2018 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018, 2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -53,6 +53,10 @@ int kbase_hwcnt_metadata_create(
 	size_t offset;
 
 	if (!desc || !out_metadata)
+		return -EINVAL;
+
+	/* The maximum number of clock domains is 64. */
+	if (desc->clk_cnt > (sizeof(u64) * BITS_PER_BYTE))
 		return -EINVAL;
 
 	/* Calculate the bytes needed to tightly pack the metadata */
@@ -158,6 +162,7 @@ int kbase_hwcnt_metadata_create(
 		enable_map_count * KBASE_HWCNT_BITFIELD_BYTES;
 	metadata->dump_buf_bytes = dump_buf_count * KBASE_HWCNT_VALUE_BYTES;
 	metadata->avail_mask = desc->avail_mask;
+	metadata->clk_cnt = desc->clk_cnt;
 
 	WARN_ON(size != offset);
 	/* Due to the block alignment, there should be exactly one enable map
@@ -187,12 +192,17 @@ int kbase_hwcnt_enable_map_alloc(
 	if (!metadata || !enable_map)
 		return -EINVAL;
 
-	enable_map_buf = kzalloc(metadata->enable_map_bytes, GFP_KERNEL);
-	if (!enable_map_buf)
-		return -ENOMEM;
+	if (metadata->enable_map_bytes > 0) {
+		enable_map_buf =
+			kzalloc(metadata->enable_map_bytes, GFP_KERNEL);
+		if (!enable_map_buf)
+			return -ENOMEM;
+	} else {
+		enable_map_buf = NULL;
+	}
 
 	enable_map->metadata = metadata;
-	enable_map->enable_map = enable_map_buf;
+	enable_map->hwcnt_enable_map = enable_map_buf;
 	return 0;
 }
 KBASE_EXPORT_TEST_API(kbase_hwcnt_enable_map_alloc);
@@ -202,8 +212,8 @@ void kbase_hwcnt_enable_map_free(struct kbase_hwcnt_enable_map *enable_map)
 	if (!enable_map)
 		return;
 
-	kfree(enable_map->enable_map);
-	enable_map->enable_map = NULL;
+	kfree(enable_map->hwcnt_enable_map);
+	enable_map->hwcnt_enable_map = NULL;
 	enable_map->metadata = NULL;
 }
 KBASE_EXPORT_TEST_API(kbase_hwcnt_enable_map_free);
@@ -212,17 +222,25 @@ int kbase_hwcnt_dump_buffer_alloc(
 	const struct kbase_hwcnt_metadata *metadata,
 	struct kbase_hwcnt_dump_buffer *dump_buf)
 {
-	u32 *buf;
+	size_t dump_buf_bytes;
+	size_t clk_cnt_buf_bytes;
+	u8 *buf;
 
 	if (!metadata || !dump_buf)
 		return -EINVAL;
 
-	buf = kmalloc(metadata->dump_buf_bytes, GFP_KERNEL);
+	dump_buf_bytes = metadata->dump_buf_bytes;
+	clk_cnt_buf_bytes = sizeof(*dump_buf->clk_cnt_buf) * metadata->clk_cnt;
+
+	/* Make a single allocation for both dump_buf and clk_cnt_buf. */
+	buf = kmalloc(dump_buf_bytes + clk_cnt_buf_bytes, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
 	dump_buf->metadata = metadata;
-	dump_buf->dump_buf = buf;
+	dump_buf->dump_buf = (u32 *)buf;
+	dump_buf->clk_cnt_buf = (u64 *)(buf + dump_buf_bytes);
+
 	return 0;
 }
 KBASE_EXPORT_TEST_API(kbase_hwcnt_dump_buffer_alloc);
@@ -246,9 +264,15 @@ int kbase_hwcnt_dump_buffer_array_alloc(
 	size_t buf_idx;
 	unsigned int order;
 	unsigned long addr;
+	size_t dump_buf_bytes;
+	size_t clk_cnt_buf_bytes;
 
 	if (!metadata || !dump_bufs)
 		return -EINVAL;
+
+	dump_buf_bytes = metadata->dump_buf_bytes;
+	clk_cnt_buf_bytes =
+		sizeof(*dump_bufs->bufs->clk_cnt_buf) * metadata->clk_cnt;
 
 	/* Allocate memory for the dump buffer struct array */
 	buffers = kmalloc_array(n, sizeof(*buffers), GFP_KERNEL);
@@ -258,8 +282,8 @@ int kbase_hwcnt_dump_buffer_array_alloc(
 	/* Allocate pages for the actual dump buffers, as they tend to be fairly
 	 * large.
 	 */
-	order = get_order(metadata->dump_buf_bytes * n);
-	addr = __get_free_pages(GFP_KERNEL, order);
+	order = get_order((dump_buf_bytes + clk_cnt_buf_bytes) * n);
+	addr = __get_free_pages(GFP_KERNEL | __GFP_ZERO, order);
 
 	if (!addr) {
 		kfree(buffers);
@@ -273,10 +297,14 @@ int kbase_hwcnt_dump_buffer_array_alloc(
 
 	/* Set the buffer of each dump buf */
 	for (buf_idx = 0; buf_idx < n; buf_idx++) {
-		const size_t offset = metadata->dump_buf_bytes * buf_idx;
+		const size_t dump_buf_offset = dump_buf_bytes * buf_idx;
+		const size_t clk_cnt_buf_offset =
+			(dump_buf_bytes * n) + (clk_cnt_buf_bytes * buf_idx);
 
 		buffers[buf_idx].metadata = metadata;
-		buffers[buf_idx].dump_buf = (u32 *)(addr + offset);
+		buffers[buf_idx].dump_buf = (u32 *)(addr + dump_buf_offset);
+		buffers[buf_idx].clk_cnt_buf =
+			(u64 *)(addr + clk_cnt_buf_offset);
 	}
 
 	return 0;
@@ -324,6 +352,9 @@ void kbase_hwcnt_dump_buffer_zero(
 
 		kbase_hwcnt_dump_buffer_block_zero(dst_blk, val_cnt);
 	}
+
+	memset(dst->clk_cnt_buf, 0,
+		sizeof(*dst->clk_cnt_buf) * metadata->clk_cnt);
 }
 KBASE_EXPORT_TEST_API(kbase_hwcnt_dump_buffer_zero);
 
@@ -334,6 +365,9 @@ void kbase_hwcnt_dump_buffer_zero_strict(
 		return;
 
 	memset(dst->dump_buf, 0, dst->metadata->dump_buf_bytes);
+
+	memset(dst->clk_cnt_buf, 0,
+		sizeof(*dst->clk_cnt_buf) * dst->metadata->clk_cnt);
 }
 KBASE_EXPORT_TEST_API(kbase_hwcnt_dump_buffer_zero_strict);
 
@@ -384,6 +418,7 @@ void kbase_hwcnt_dump_buffer_copy(
 {
 	const struct kbase_hwcnt_metadata *metadata;
 	size_t grp, blk, blk_inst;
+	size_t clk;
 
 	if (WARN_ON(!dst) ||
 	    WARN_ON(!src) ||
@@ -413,6 +448,12 @@ void kbase_hwcnt_dump_buffer_copy(
 
 		kbase_hwcnt_dump_buffer_block_copy(dst_blk, src_blk, val_cnt);
 	}
+
+	kbase_hwcnt_metadata_for_each_clock(metadata, clk) {
+		if (kbase_hwcnt_clk_enable_map_enabled(
+			dst_enable_map->clk_enable_map, clk))
+			dst->clk_cnt_buf[clk] = src->clk_cnt_buf[clk];
+	}
 }
 KBASE_EXPORT_TEST_API(kbase_hwcnt_dump_buffer_copy);
 
@@ -423,6 +464,7 @@ void kbase_hwcnt_dump_buffer_copy_strict(
 {
 	const struct kbase_hwcnt_metadata *metadata;
 	size_t grp, blk, blk_inst;
+	size_t clk;
 
 	if (WARN_ON(!dst) ||
 	    WARN_ON(!src) ||
@@ -451,6 +493,14 @@ void kbase_hwcnt_dump_buffer_copy_strict(
 		kbase_hwcnt_dump_buffer_block_copy_strict(
 			dst_blk, src_blk, blk_em, val_cnt);
 	}
+
+	kbase_hwcnt_metadata_for_each_clock(metadata, clk) {
+		bool clk_enabled =
+			kbase_hwcnt_clk_enable_map_enabled(
+				dst_enable_map->clk_enable_map, clk);
+
+		dst->clk_cnt_buf[clk] = clk_enabled ? src->clk_cnt_buf[clk] : 0;
+	}
 }
 KBASE_EXPORT_TEST_API(kbase_hwcnt_dump_buffer_copy_strict);
 
@@ -461,6 +511,7 @@ void kbase_hwcnt_dump_buffer_accumulate(
 {
 	const struct kbase_hwcnt_metadata *metadata;
 	size_t grp, blk, blk_inst;
+	size_t clk;
 
 	if (WARN_ON(!dst) ||
 	    WARN_ON(!src) ||
@@ -494,6 +545,12 @@ void kbase_hwcnt_dump_buffer_accumulate(
 		kbase_hwcnt_dump_buffer_block_accumulate(
 			dst_blk, src_blk, hdr_cnt, ctr_cnt);
 	}
+
+	kbase_hwcnt_metadata_for_each_clock(metadata, clk) {
+		if (kbase_hwcnt_clk_enable_map_enabled(
+			dst_enable_map->clk_enable_map, clk))
+			dst->clk_cnt_buf[clk] += src->clk_cnt_buf[clk];
+	}
 }
 KBASE_EXPORT_TEST_API(kbase_hwcnt_dump_buffer_accumulate);
 
@@ -504,6 +561,7 @@ void kbase_hwcnt_dump_buffer_accumulate_strict(
 {
 	const struct kbase_hwcnt_metadata *metadata;
 	size_t grp, blk, blk_inst;
+	size_t clk;
 
 	if (WARN_ON(!dst) ||
 	    WARN_ON(!src) ||
@@ -533,6 +591,14 @@ void kbase_hwcnt_dump_buffer_accumulate_strict(
 
 		kbase_hwcnt_dump_buffer_block_accumulate_strict(
 			dst_blk, src_blk, blk_em, hdr_cnt, ctr_cnt);
+	}
+
+	kbase_hwcnt_metadata_for_each_clock(metadata, clk) {
+		if (kbase_hwcnt_clk_enable_map_enabled(
+			dst_enable_map->clk_enable_map, clk))
+			dst->clk_cnt_buf[clk] += src->clk_cnt_buf[clk];
+		else
+			dst->clk_cnt_buf[clk] = 0;
 	}
 }
 KBASE_EXPORT_TEST_API(kbase_hwcnt_dump_buffer_accumulate_strict);

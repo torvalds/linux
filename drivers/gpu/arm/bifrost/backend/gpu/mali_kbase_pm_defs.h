@@ -87,6 +87,33 @@ enum kbase_l2_core_state {
 #undef KBASEP_L2_STATE
 };
 
+#if MALI_USE_CSF
+/**
+ * enum kbase_mcu_state - The states used for the MCU state machine.
+ *
+ * @KBASE_MCU_OFF:            The MCU is powered off.
+ * @KBASE_MCU_PEND_ON_RELOAD: The warm boot of MCU or cold boot of MCU (with
+ *                            firmware reloading) is in progress.
+ * @KBASE_MCU_ON_GLB_REINIT_PEND: The MCU is enabled and Global configuration
+ *                                requests have been sent to the firmware.
+ * @KBASE_MCU_ON_HWCNT_ENABLE: The Global requests have completed and MCU is
+ *                             now ready for use and hwcnt is being enabled.
+ * @KBASE_MCU_ON:             The MCU is active and hwcnt has been enabled.
+ * @KBASE_MCU_ON_HWCNT_DISABLE: The MCU is on and hwcnt is being disabled.
+ * @KBASE_MCU_ON_HALT:        The MCU is on and hwcnt has been disabled,
+ *                            MCU halt would be triggered.
+ * @KBASE_MCU_ON_PEND_HALT:   MCU halt in progress, confirmation pending.
+ * @KBASE_MCU_POWER_DOWN:     MCU halted operations, pending being disabled.
+ * @KBASE_MCU_PEND_OFF:       MCU is being disabled, pending on powering off.
+ * @KBASE_MCU_RESET_WAIT:     The GPU is resetting, MCU state is unknown.
+ */
+enum kbase_mcu_state {
+#define KBASEP_MCU_STATE(n) KBASE_MCU_ ## n,
+#include "mali_kbase_pm_mcu_states.h"
+#undef KBASEP_MCU_STATE
+};
+#endif
+
 /**
  * enum kbase_shader_core_state - The states used for the shaders' state machine.
  *
@@ -254,6 +281,11 @@ union kbase_pm_policy_data {
  *                     variable should be protected by: both the hwaccess_lock
  *                     spinlock and the pm.lock mutex for writes; or at least
  *                     one of either lock for reads.
+ * @gpu_ready:         Indicates whether the GPU is in a state in which it is
+ *                     safe to perform PM changes. When false, the PM state
+ *                     machine needs to wait before making changes to the GPU
+ *                     power policy, DevFreq or core_mask, so as to avoid these
+ *                     changing while implicit GPU resets are ongoing.
  * @pm_shaders_core_mask: Shader PM state synchronised shaders core mask. It
  *                     holds the cores enabled in a hardware counters dump,
  *                     and may differ from @shaders_avail when under different
@@ -373,6 +405,7 @@ struct kbase_pm_backend_data {
 	wait_queue_head_t gpu_in_desired_state_wait;
 
 	bool gpu_powered;
+	bool gpu_ready;
 
 	u64 pm_shaders_core_mask;
 
@@ -406,10 +439,20 @@ struct kbase_pm_backend_data {
 
 	u64 ca_cores_enabled;
 
+#if MALI_USE_CSF
+	/* The current state of the micro-control unit, only applicable
+	 * to GPUs that has such a component
+	 */
+	enum kbase_mcu_state mcu_state;
+#endif
 	enum kbase_l2_core_state l2_state;
 	enum kbase_shader_core_state shaders_state;
 	u64 shaders_avail;
 	u64 shaders_desired_mask;
+#if MALI_USE_CSF
+	/* True if the micro-control unit should be powered on */
+	bool mcu_desired;
+#endif
 	bool l2_desired;
 	bool l2_always_on;
 	bool shaders_desired;

@@ -30,23 +30,13 @@ extern "C" {
 #include <asm-generic/ioctl.h>
 #include <linux/types.h>
 
+#if MALI_USE_CSF
+#include "csf/mali_kbase_csf_ioctl.h"
+#else
 #include "jm/mali_kbase_jm_ioctl.h"
+#endif /* MALI_USE_CSF */
 
 #define KBASE_IOCTL_TYPE 0x80
-
-/**
- * struct kbase_ioctl_version_check - Check version compatibility with kernel
- *
- * @major: Major version number
- * @minor: Minor version number
- */
-struct kbase_ioctl_version_check {
-	__u16 major;
-	__u16 minor;
-};
-
-#define KBASE_IOCTL_VERSION_CHECK \
-	_IOWR(KBASE_IOCTL_TYPE, 0, struct kbase_ioctl_version_check)
 
 /**
  * struct kbase_ioctl_set_flags - Set kernel context creation flags
@@ -166,7 +156,7 @@ struct kbase_ioctl_mem_free {
 /**
  * struct kbase_ioctl_hwcnt_reader_setup - Setup HWC dumper/reader
  * @buffer_count: requested number of dumping buffers
- * @jm_bm:        counters selection bitmask (JM)
+ * @fe_bm:        counters selection bitmask (Front end)
  * @shader_bm:    counters selection bitmask (Shader)
  * @tiler_bm:     counters selection bitmask (Tiler)
  * @mmu_l2_bm:    counters selection bitmask (MMU_L2)
@@ -175,7 +165,7 @@ struct kbase_ioctl_mem_free {
  */
 struct kbase_ioctl_hwcnt_reader_setup {
 	__u32 buffer_count;
-	__u32 jm_bm;
+	__u32 fe_bm;
 	__u32 shader_bm;
 	__u32 tiler_bm;
 	__u32 mmu_l2_bm;
@@ -187,14 +177,14 @@ struct kbase_ioctl_hwcnt_reader_setup {
 /**
  * struct kbase_ioctl_hwcnt_enable - Enable hardware counter collection
  * @dump_buffer:  GPU address to write counters to
- * @jm_bm:        counters selection bitmask (JM)
+ * @fe_bm:        counters selection bitmask (Front end)
  * @shader_bm:    counters selection bitmask (Shader)
  * @tiler_bm:     counters selection bitmask (Tiler)
  * @mmu_l2_bm:    counters selection bitmask (MMU_L2)
  */
 struct kbase_ioctl_hwcnt_enable {
 	__u64 dump_buffer;
-	__u32 jm_bm;
+	__u32 fe_bm;
 	__u32 shader_bm;
 	__u32 tiler_bm;
 	__u32 mmu_l2_bm;

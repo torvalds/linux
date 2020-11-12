@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -23,6 +23,9 @@
 #ifndef _KBASE_GPU_REGMAP_JM_H_
 #define _KBASE_GPU_REGMAP_JM_H_
 
+#if MALI_USE_CSF
+#error "Cannot be compiled with CSF"
+#endif
 
 /* Set to implementation defined, outer caching */
 #define AS_MEMATTR_AARCH64_OUTER_IMPL_DEF 0x88ull
@@ -258,5 +261,28 @@
 #define GPU_COMMAND_CLEAN_CACHES       0x07 /* Clean all caches */
 #define GPU_COMMAND_CLEAN_INV_CACHES   0x08 /* Clean and invalidate all caches */
 #define GPU_COMMAND_SET_PROTECTED_MODE 0x09 /* Places the GPU in protected mode */
+
+/* IRQ flags */
+#define GPU_FAULT               (1 << 0)    /* A GPU Fault has occurred */
+#define MULTIPLE_GPU_FAULTS     (1 << 7)    /* More than one GPU Fault occurred.  */
+#define RESET_COMPLETED         (1 << 8)    /* Set when a reset has completed.  */
+#define POWER_CHANGED_SINGLE    (1 << 9)    /* Set when a single core has finished powering up or down. */
+#define POWER_CHANGED_ALL       (1 << 10)   /* Set when all cores have finished powering up or down. */
+#define PRFCNT_SAMPLE_COMPLETED (1 << 16)   /* Set when a performance count sample has completed. */
+#define CLEAN_CACHES_COMPLETED  (1 << 17)   /* Set when a cache clean operation has completed. */
+
+/*
+ * In Debug build,
+ * GPU_IRQ_REG_COMMON | POWER_CHANGED_SINGLE is used to clear and enable interupts sources of GPU_IRQ
+ * by writing it onto GPU_IRQ_CLEAR/MASK registers.
+ *
+ * In Release build,
+ * GPU_IRQ_REG_COMMON is used.
+ *
+ * Note:
+ * CLEAN_CACHES_COMPLETED - Used separately for cache operation.
+ */
+#define GPU_IRQ_REG_COMMON (GPU_FAULT | MULTIPLE_GPU_FAULTS | RESET_COMPLETED \
+		| POWER_CHANGED_ALL | PRFCNT_SAMPLE_COMPLETED)
 
 #endif /* _KBASE_GPU_REGMAP_JM_H_ */

@@ -34,7 +34,7 @@
 #include <linux/atomic.h>
 
 #include <backend/gpu/mali_kbase_jm_rb.h>
-#include <backend/gpu/mali_kbase_device_internal.h>
+#include <device/mali_kbase_device.h>
 
 /**
  * kbase_job_submit_nolock() - Submit a job to a certain job-slot
@@ -71,11 +71,13 @@ static inline char *kbasep_make_job_slot_string(int js, char *js_string,
 }
 #endif
 
+#if !MALI_USE_CSF
 static inline int kbasep_jm_is_js_free(struct kbase_device *kbdev, int js,
 						struct kbase_context *kctx)
 {
 	return !kbase_reg_read(kbdev, JOB_SLOT_REG(js, JS_COMMAND_NEXT));
 }
+#endif
 
 
 /**
@@ -94,6 +96,7 @@ void kbase_job_hw_submit(struct kbase_device *kbdev,
 				struct kbase_jd_atom *katom,
 				int js);
 
+#if !MALI_USE_CSF
 /**
  * kbasep_job_slot_soft_or_hard_stop_do_action() - Perform a soft or hard stop
  *						   on the specified atom
@@ -112,6 +115,7 @@ void kbasep_job_slot_soft_or_hard_stop_do_action(struct kbase_device *kbdev,
 					u32 action,
 					base_jd_core_req core_reqs,
 					struct kbase_jd_atom *target_katom);
+#endif /* !MALI_USE_CSF */
 
 /**
  * kbase_backend_soft_hard_stop_slot() - Soft or hard stop jobs on a given job

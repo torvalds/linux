@@ -212,6 +212,13 @@ void kbase_ctx_sched_restore_all_as(struct kbase_device *kbdev)
 	for (i = 0; i != kbdev->nr_hw_address_spaces; ++i) {
 		struct kbase_context *kctx;
 
+#if MALI_USE_CSF
+		if ((i == MCU_AS_NR) && kbdev->csf.firmware_inited) {
+			kbase_mmu_update(kbdev, &kbdev->csf.mcu_mmu,
+					 MCU_AS_NR);
+			continue;
+		}
+#endif
 		kctx = kbdev->as_to_kctx[i];
 		if (kctx) {
 			if (atomic_read(&kctx->refcount)) {
@@ -265,6 +272,7 @@ struct kbase_context *kbase_ctx_sched_as_to_ctx_refcount(
 struct kbase_context *kbase_ctx_sched_as_to_ctx(struct kbase_device *kbdev,
 		size_t as_nr)
 {
+	unsigned long flags;
 	struct kbase_context *found_kctx;
 
 	if (WARN_ON(kbdev == NULL))
@@ -273,13 +281,16 @@ struct kbase_context *kbase_ctx_sched_as_to_ctx(struct kbase_device *kbdev,
 	if (WARN_ON(as_nr >= BASE_MAX_NR_AS))
 		return NULL;
 
+	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
+
 	found_kctx = kbdev->as_to_kctx[as_nr];
 
-	if (WARN_ON(!found_kctx))
-		return NULL;
+	if (found_kctx) {
+		if (WARN_ON(atomic_read(&found_kctx->refcount) <= 0))
+			found_kctx = NULL;
+	}
 
-	if (WARN_ON(atomic_read(&found_kctx->refcount) <= 0))
-		return NULL;
+	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 
 	return found_kctx;
 }

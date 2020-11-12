@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -25,7 +25,7 @@
  */
 
 #include <mali_kbase.h>
-#include <backend/gpu/mali_kbase_device_internal.h>
+#include <device/mali_kbase_device.h>
 #include <mali_kbase_dummy_job_wa.h>
 
 #include <linux/firmware.h>

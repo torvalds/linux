@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -125,15 +125,5 @@ int kbase_reset_gpu_init(struct kbase_device *kbdev);
  * @kbdev: Device pointer
  */
 void kbase_reset_gpu_term(struct kbase_device *kbdev);
-
-/**
- * kbase_reset_gpu_register_complete_cb - Register the callback function to be
- *                                        invoked on completion of GPU reset.
- *
- * @kbdev: Device pointer
- * @complete_callback: Pointer to the callback function
- */
-void kbase_reset_gpu_register_complete_cb(struct kbase_device *kbdev,
-			int (*complete_callback)(struct kbase_device *kbdev));
 
 #endif

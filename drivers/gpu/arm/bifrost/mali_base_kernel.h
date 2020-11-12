@@ -213,28 +213,6 @@ struct base_mem_aliasing_info {
  */
 #define BASE_JIT_ALLOC_COUNT (255)
 
-/* Similar to BASE_MEM_TILER_ALIGN_TOP, memory starting from the end of the
- * initial commit is aligned to 'extent' pages, where 'extent' must be a power
- * of 2 and no more than BASE_MEM_TILER_ALIGN_TOP_EXTENT_MAX_PAGES
- */
-#define BASE_JIT_ALLOC_MEM_TILER_ALIGN_TOP  (1 << 0)
-
-/**
- * If set, the heap info address points to a u32 holding the used size in bytes;
- * otherwise it points to a u64 holding the lowest address of unused memory.
- */
-#define BASE_JIT_ALLOC_HEAP_INFO_IS_SIZE  (1 << 1)
-
-/**
- * Valid set of just-in-time memory allocation flags
- *
- * Note: BASE_JIT_ALLOC_HEAP_INFO_IS_SIZE cannot be set if heap_info_gpu_addr
- * in %base_jit_alloc_info is 0 (atom with BASE_JIT_ALLOC_HEAP_INFO_IS_SIZE set
- * and heap_info_gpu_addr being 0 will be rejected).
- */
-#define BASE_JIT_ALLOC_VALID_FLAGS \
-	(BASE_JIT_ALLOC_MEM_TILER_ALIGN_TOP | BASE_JIT_ALLOC_HEAP_INFO_IS_SIZE)
-
 /* base_jit_alloc_info in use for kernel driver versions 10.2 to early 11.5
  *
  * jit_version is 1
@@ -719,7 +697,11 @@ struct base_gpu_props {
 	struct mali_base_gpu_coherent_group_info coherency_info;
 };
 
+#if MALI_USE_CSF
+#include "csf/mali_base_csf_kernel.h"
+#else
 #include "jm/mali_base_jm_kernel.h"
+#endif
 
 /**
  * base_mem_group_id_get() - Get group ID from flags
@@ -751,8 +733,10 @@ static inline int base_mem_group_id_get(base_mem_alloc_flags flags)
  */
 static inline base_mem_alloc_flags base_mem_group_id_set(int id)
 {
-	LOCAL_ASSERT(id >= 0);
-	LOCAL_ASSERT(id < BASE_MEM_GROUP_COUNT);
+	if ((id < 0) || (id >= BASE_MEM_GROUP_COUNT)) {
+		/* Set to default value when id is out of range. */
+		id = BASE_MEM_GROUP_DEFAULT;
+	}
 
 	return ((base_mem_alloc_flags)id << BASEP_MEM_GROUP_ID_SHIFT) &
 		BASE_MEM_GROUP_ID_MASK;

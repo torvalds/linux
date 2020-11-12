@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -119,8 +119,6 @@ const char *kbase_gpu_exception_name(u32 const exception_code)
 		e = "TRANSLATION_FAULT";
 		break;
 	case 0xC8:
-		e = "PERMISSION_FAULT";
-		break;
 	case 0xC9:
 	case 0xCA:
 	case 0xCB:
@@ -141,8 +139,6 @@ const char *kbase_gpu_exception_name(u32 const exception_code)
 		e = "TRANSTAB_BUS_FAULT";
 		break;
 	case 0xD8:
-		e = "ACCESS_FLAG";
-		break;
 	case 0xD9:
 	case 0xDA:
 	case 0xDB:

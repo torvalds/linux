@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2017, 2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -36,7 +36,10 @@
  */
 #define PLATFORM_FUNCS (NULL)
 
+#define CLK_RATE_TRACE_OPS (&clk_rate_trace_ops)
+
 extern struct kbase_pm_callback_conf pm_callbacks;
+extern struct kbase_clk_rate_trace_op_conf clk_rate_trace_ops;
 
 /**
  * Autosuspend delay

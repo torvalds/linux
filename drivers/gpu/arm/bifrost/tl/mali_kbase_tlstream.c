@@ -131,6 +131,14 @@ static const struct {
 		TL_PACKET_TYPE_BODY,
 		TL_STREAM_ID_KERNEL,
 	},
+#if MALI_USE_CSF
+	{
+		TL_PACKET_FAMILY_TL,
+		TL_PACKET_CLASS_OBJ,
+		TL_PACKET_TYPE_BODY,
+		TL_STREAM_ID_CSFFW,
+	},
+#endif
 };
 
 void kbase_tlstream_init(

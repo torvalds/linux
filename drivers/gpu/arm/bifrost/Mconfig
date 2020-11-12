@@ -83,7 +83,7 @@ config MALI_PLATFORM_NAME
 
 config MALI_ARBITER_SUPPORT
 	bool "Enable arbiter support for Mali"
-	depends on MALI_BIFROST
+	depends on MALI_BIFROST && !GPU_HAS_CSF
 	default n
 	help
 	  Enable support for the arbiter interface in the driver.

@@ -30,6 +30,7 @@
 #include <mali_kbase.h>
 #include <mali_kbase_ctx_sched.h>
 #include <mali_kbase_dma_fence.h>
+#include <mali_kbase_kinstr_jm.h>
 #include <mali_kbase_mem_linux.h>
 #include <mali_kbase_mem_pool_group.h>
 #include <mmu/mali_kbase_mmu.h>
@@ -70,6 +71,21 @@ void kbase_context_debugfs_term(struct kbase_context *const kctx)
 KBASE_EXPORT_SYMBOL(kbase_context_debugfs_term);
 #endif /* CONFIG_DEBUG_FS */
 
+static int kbase_context_kbase_kinstr_jm_init(struct kbase_context *kctx)
+{
+	int ret = kbase_kinstr_jm_init(&kctx->kinstr_jm);
+
+	if (!ret)
+		return ret;
+
+	return 0;
+}
+
+static void kbase_context_kbase_kinstr_jm_term(struct kbase_context *kctx)
+{
+	kbase_kinstr_jm_term(kctx->kinstr_jm);
+}
+
 static int kbase_context_kbase_timer_setup(struct kbase_context *kctx)
 {
 	kbase_timer_setup(&kctx->soft_job_timeout,
@@ -99,31 +115,32 @@ static int kbase_context_submit_check(struct kbase_context *kctx)
 }
 
 static const struct kbase_context_init context_init[] = {
-	{kbase_context_common_init, kbase_context_common_term, NULL},
-	{kbase_context_mem_pool_group_init, kbase_context_mem_pool_group_term,
-			"Memory pool goup initialization failed"},
-	{kbase_mem_evictable_init, kbase_mem_evictable_deinit,
-			"Memory evictable initialization failed"},
-	{kbasep_js_kctx_init, kbasep_js_kctx_term,
-			"JS kctx initialization failed"},
-	{kbase_jd_init, kbase_jd_exit,
-			"JD initialization failed"},
-	{kbase_event_init, kbase_event_cleanup,
-			"Event initialization failed"},
-	{kbase_dma_fence_init, kbase_dma_fence_term,
-			"DMA fence initialization failed"},
-	{kbase_context_mmu_init, kbase_context_mmu_term,
-			"MMU initialization failed"},
-	{kbase_context_mem_alloc_page, kbase_context_mem_pool_free,
-			"Memory alloc page failed"},
-	{kbase_region_tracker_init, kbase_region_tracker_term,
-			"Region tracker initialization failed"},
-	{kbase_sticky_resource_init, kbase_context_sticky_resource_term,
-			"Sticky resource initialization failed"},
-	{kbase_jit_init, kbase_jit_term,
-			"JIT initialization failed"},
-	{kbase_context_kbase_timer_setup, NULL, NULL},
-	{kbase_context_submit_check, NULL, NULL},
+	{ kbase_context_common_init, kbase_context_common_term, NULL },
+	{ kbase_dma_fence_init, kbase_dma_fence_term,
+	  "DMA fence initialization failed" },
+	{ kbase_context_mem_pool_group_init, kbase_context_mem_pool_group_term,
+	  "Memory pool goup initialization failed" },
+	{ kbase_mem_evictable_init, kbase_mem_evictable_deinit,
+	  "Memory evictable initialization failed" },
+	{ kbase_context_mmu_init, kbase_context_mmu_term,
+	  "MMU initialization failed" },
+	{ kbase_context_mem_alloc_page, kbase_context_mem_pool_free,
+	  "Memory alloc page failed" },
+	{ kbase_region_tracker_init, kbase_region_tracker_term,
+	  "Region tracker initialization failed" },
+	{ kbase_sticky_resource_init, kbase_context_sticky_resource_term,
+	  "Sticky resource initialization failed" },
+	{ kbase_jit_init, kbase_jit_term, "JIT initialization failed" },
+	{ kbase_context_kbase_kinstr_jm_init,
+	  kbase_context_kbase_kinstr_jm_term,
+	  "JM instrumentation initialization failed" },
+	{ kbase_context_kbase_timer_setup, NULL, NULL },
+	{ kbase_event_init, kbase_event_cleanup,
+	  "Event initialization failed" },
+	{ kbasep_js_kctx_init, kbasep_js_kctx_term,
+	  "JS kctx initialization failed" },
+	{ kbase_jd_init, kbase_jd_exit, "JD initialization failed" },
+	{ kbase_context_submit_check, NULL, NULL },
 };
 
 static void kbase_context_term_partial(

@@ -37,7 +37,15 @@
 #ifndef _KBASE_DEBUG_KTRACE_H_
 #define _KBASE_DEBUG_KTRACE_H_
 
+#if KBASE_KTRACE_TARGET_FTRACE
+#include "mali_linux_trace.h"
+#endif
+
+#if MALI_USE_CSF
+#include "debug/backend/mali_kbase_debug_ktrace_csf.h"
+#else
 #include "debug/backend/mali_kbase_debug_ktrace_jm.h"
+#endif
 
 /**
  * kbase_ktrace_init - initialize kbase ktrace.
@@ -140,10 +148,9 @@ void kbasep_ktrace_dump(struct kbase_device *kbdev);
  * KTrace target for Linux's ftrace
  */
 #if KBASE_KTRACE_TARGET_FTRACE
-#include "mali_linux_trace.h"
 
 #define KBASE_KTRACE_FTRACE_ADD(kbdev, code, kctx, info_val) \
-	trace_mali_##code(info_val)
+	trace_mali_##code(kctx, info_val)
 
 #else /* KBASE_KTRACE_TARGET_FTRACE */
 #define KBASE_KTRACE_FTRACE_ADD(kbdev, code, kctx, info_val) \

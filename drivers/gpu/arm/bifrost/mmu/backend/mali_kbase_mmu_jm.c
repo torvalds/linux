@@ -27,10 +27,9 @@
 #include <mali_kbase.h>
 #include <gpu/mali_kbase_gpu_fault.h>
 #include <mali_kbase_hwaccess_jm.h>
-#include <backend/gpu/mali_kbase_device_internal.h>
+#include <device/mali_kbase_device.h>
 #include <mali_kbase_as_fault_debugfs.h>
 #include "../mali_kbase_mmu_internal.h"
-#include "mali_kbase_device_internal.h"
 
 void kbase_mmu_get_as_setup(struct kbase_mmu_table *mmut,
 		struct kbase_mmu_setup * const setup)
@@ -187,7 +186,17 @@ void kbase_mmu_report_fault_and_kill(struct kbase_context *kctx,
 			KBASE_MMU_FAULT_TYPE_PAGE_UNEXPECTED);
 }
 
-void kbase_mmu_interrupt_process(struct kbase_device *kbdev,
+/**
+ * kbase_mmu_interrupt_process() - Process a bus or page fault.
+ * @kbdev:	The kbase_device the fault happened on
+ * @kctx:	The kbase_context for the faulting address space if one was
+ *		found.
+ * @as:		The address space that has the fault
+ * @fault:	Data relating to the fault
+ *
+ * This function will process a fault on a specific address space
+ */
+static void kbase_mmu_interrupt_process(struct kbase_device *kbdev,
 		struct kbase_context *kctx, struct kbase_as *as,
 		struct kbase_fault *fault)
 {
@@ -296,7 +305,6 @@ void kbase_mmu_interrupt(struct kbase_device *kbdev, u32 irq_stat)
 	unsigned long flags;
 	u32 new_mask;
 	u32 tmp, bf_bits, pf_bits;
-	bool gpu_lost = false;
 
 	dev_dbg(kbdev->dev, "Entering %s irq_stat %u\n",
 		__func__, irq_stat);
@@ -371,14 +379,6 @@ void kbase_mmu_interrupt(struct kbase_device *kbdev, u32 irq_stat)
 					MMU_AS_REG(as_no, AS_FAULTEXTRA_LO));
 		}
 
-		/* check if we still have GPU */
-		gpu_lost = kbase_is_gpu_lost(kbdev);
-		if (gpu_lost) {
-			if (kctx)
-				kbasep_js_runpool_release_ctx(kbdev, kctx);
-			return;
-		}
-
 		if (kbase_as_has_bus_fault(as, fault)) {
 			/* Mark bus fault as handled.
 			 * Note that a bus fault is processed first in case
@@ -421,4 +421,20 @@ int kbase_mmu_switch_to_ir(struct kbase_context *const kctx,
 		"Switching to incremental rendering for region %p\n",
 		(void *)reg);
 	return kbase_job_slot_softstop_start_rp(kctx, reg);
+}
+
+int kbase_mmu_as_init(struct kbase_device *kbdev, int i)
+{
+	kbdev->as[i].number = i;
+	kbdev->as[i].bf_data.addr = 0ULL;
+	kbdev->as[i].pf_data.addr = 0ULL;
+
+	kbdev->as[i].pf_wq = alloc_workqueue("mali_mmu%d", 0, 1, i);
+	if (!kbdev->as[i].pf_wq)
+		return -ENOMEM;
+
+	INIT_WORK(&kbdev->as[i].work_pagefault, kbase_mmu_page_fault_worker);
+	INIT_WORK(&kbdev->as[i].work_busfault, kbase_mmu_bus_fault_worker);
+
+	return 0;
 }

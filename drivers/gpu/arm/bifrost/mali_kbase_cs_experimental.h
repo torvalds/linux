@@ -41,9 +41,6 @@
  */
 static inline void mali_kbase_print_cs_experimental(void)
 {
-#if MALI_JIT_PRESSURE_LIMIT
-	pr_info("mali_kbase: JIT_PRESSURE_LIMIT (experimental) enabled");
-#endif /* MALI_JIT_PRESSURE_LIMIT */
 #if MALI_INCREMENTAL_RENDERING
 	pr_info("mali_kbase: INCREMENTAL_RENDERING (experimental) enabled");
 #endif /* MALI_INCREMENTAL_RENDERING */

@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -25,7 +25,7 @@
 #include <mali_kbase_mem.h>
 #include <mmu/mali_kbase_mmu_hw.h>
 #include <tl/mali_kbase_tracepoints.h>
-#include <backend/gpu/mali_kbase_device_internal.h>
+#include <device/mali_kbase_device.h>
 #include <mali_kbase_as_fault_debugfs.h>
 
 /**
@@ -230,10 +230,11 @@ void kbase_mmu_hw_clear_fault(struct kbase_device *kbdev, struct kbase_as *as,
 
 	/* Clear the page (and bus fault IRQ as well in case one occurred) */
 	pf_bf_mask = MMU_PAGE_FAULT(as->number);
+#if !MALI_USE_CSF
 	if (type == KBASE_MMU_FAULT_TYPE_BUS ||
 			type == KBASE_MMU_FAULT_TYPE_BUS_UNEXPECTED)
 		pf_bf_mask |= MMU_BUS_ERROR(as->number);
-
+#endif
 	kbase_reg_write(kbdev, MMU_REG(MMU_IRQ_CLEAR), pf_bf_mask);
 
 unlock:
@@ -261,10 +262,11 @@ void kbase_mmu_hw_enable_fault(struct kbase_device *kbdev, struct kbase_as *as,
 	irq_mask = kbase_reg_read(kbdev, MMU_REG(MMU_IRQ_MASK)) |
 			MMU_PAGE_FAULT(as->number);
 
+#if !MALI_USE_CSF
 	if (type == KBASE_MMU_FAULT_TYPE_BUS ||
 			type == KBASE_MMU_FAULT_TYPE_BUS_UNEXPECTED)
 		irq_mask |= MMU_BUS_ERROR(as->number);
-
+#endif
 	kbase_reg_write(kbdev, MMU_REG(MMU_IRQ_MASK), irq_mask);
 
 unlock:

@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2018 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018, 2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -69,7 +69,7 @@ int kbase_hwcnt_legacy_client_create(
 		goto error;
 
 	/* Translate from the ioctl enable map to the internal one */
-	phys_em.jm_bm = enable->jm_bm;
+	phys_em.fe_bm = enable->fe_bm;
 	phys_em.shader_bm = enable->shader_bm;
 	phys_em.tiler_bm = enable->tiler_bm;
 	phys_em.mmu_l2_bm = enable->mmu_l2_bm;

@@ -1,0 +1,34 @@
+/*
+ * (C) COPYRIGHT 2020 ARM Limited. All rights reserved.
+ *
+ * This program is free software and is provided to you under the terms of the
+ * GNU General Public License version 2 as published by the Free Software
+ * Foundation, and any use by you of this program is subject to the terms
+ * of such GNU licence.
+ *
+ * A copy of the licence is included with the program, and can also be obtained
+ * from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+ * Boston, MA  02110-1301, USA.
+ */
+
+bob_kernel_module {
+    name: "mali_kutf_clk_rate_trace_test_portal",
+    defaults: [
+        "mali_kbase_shared_config_defaults",
+        "kernel_test_includes",
+    ],
+    srcs: [
+        "../mali_kutf_clk_rate_trace_test.h",
+        "Makefile",
+        "mali_kutf_clk_rate_trace_test.c",
+    ],
+    extra_symbols: [
+        "mali_kbase",
+        "kutf",
+    ],
+    enabled: false,
+    base_build_kutf: {
+        enabled: true,
+        kbuild_options: ["CONFIG_MALI_CLK_RATE_TRACE_PORTAL=m"],
+    },
+}

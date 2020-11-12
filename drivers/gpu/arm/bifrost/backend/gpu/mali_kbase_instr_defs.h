@@ -54,6 +54,9 @@ struct kbase_instr_backend {
 	enum kbase_instr_state state;
 	struct workqueue_struct *cache_clean_wq;
 	struct work_struct  cache_clean_work;
+#if MALI_USE_CSF
+	struct tasklet_struct csf_hwc_irq_poll_tasklet;
+#endif
 };
 
 #endif /* _KBASE_INSTR_DEFS_H_ */

@@ -29,7 +29,9 @@
 #include <mali_kbase.h>
 #include <mali_kbase_pm.h>
 #include <backend/gpu/mali_kbase_pm_internal.h>
+#if !MALI_USE_CSF
 #include <backend/gpu/mali_kbase_jm_rb.h>
+#endif /* !MALI_USE_CSF */
 #include <backend/gpu/mali_kbase_pm_defs.h>
 #include <mali_linux_trace.h>
 
@@ -246,6 +248,7 @@ void kbase_pm_metrics_stop(struct kbase_device *kbdev)
 
 #endif /* CONFIG_MALI_BIFROST_DVFS */
 
+#if !MALI_USE_CSF
 /**
  * kbase_pm_metrics_active_calc - Update PM active counts based on currently
  *                                running atoms
@@ -293,6 +296,7 @@ static void kbase_pm_metrics_active_calc(struct kbase_device *kbdev)
 		}
 	}
 }
+#endif /* !MALI_USE_CSF */
 
 /* called when job is submitted to or removed from a GPU slot */
 void kbase_pm_metrics_update(struct kbase_device *kbdev, ktime_t *timestamp)
@@ -312,7 +316,9 @@ void kbase_pm_metrics_update(struct kbase_device *kbdev, ktime_t *timestamp)
 	/* Track how long CL and/or GL jobs have been busy for */
 	kbase_pm_get_dvfs_utilisation_calc(kbdev, *timestamp);
 
+#if !MALI_USE_CSF
 	kbase_pm_metrics_active_calc(kbdev);
+#endif /* !MALI_USE_CSF */
 
 	spin_unlock_irqrestore(&kbdev->pm.backend.metrics.lock, flags);
 }

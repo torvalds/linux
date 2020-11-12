@@ -25,7 +25,11 @@
 
 #include "mali_kbase_gpu_coherency.h"
 #include "mali_kbase_gpu_id.h"
+#if MALI_USE_CSF
+#include "backend/mali_kbase_gpu_regmap_csf.h"
+#else
 #include "backend/mali_kbase_gpu_regmap_jm.h"
+#endif
 
 /* Begin Register Offsets */
 /* GPU control registers */
@@ -222,21 +226,7 @@
 
 /* End Register Offsets */
 
-/* IRQ flags */
-#define GPU_FAULT               (1 << 0)    /* A GPU Fault has occurred */
-#define MULTIPLE_GPU_FAULTS     (1 << 7)    /* More than one GPU Fault occurred. */
-#define RESET_COMPLETED         (1 << 8)    /* Set when a reset has completed. */
-#define POWER_CHANGED_SINGLE    (1 << 9)    /* Set when a single core has finished powering up or down. */
-#define POWER_CHANGED_ALL       (1 << 10)   /* Set when all cores have finished powering up or down. */
-
-#define PRFCNT_SAMPLE_COMPLETED (1 << 16)   /* Set when a performance count sample has completed. */
-#define CLEAN_CACHES_COMPLETED  (1 << 17)   /* Set when a cache clean operation has completed. */
-
-/* Include POWER_CHANGED_SINGLE in debug builds for use in irq latency test.
- */
-#define GPU_IRQ_REG_COMMON (GPU_FAULT | MULTIPLE_GPU_FAULTS | RESET_COMPLETED \
-		| POWER_CHANGED_ALL | PRFCNT_SAMPLE_COMPLETED)
-
+/* Include POWER_CHANGED_SINGLE in debug builds for use in irq latency test. */
 #ifdef CONFIG_MALI_BIFROST_DEBUG
 #define GPU_IRQ_REG_ALL (GPU_IRQ_REG_COMMON | POWER_CHANGED_SINGLE)
 #else /* CONFIG_MALI_BIFROST_DEBUG */
@@ -290,6 +280,7 @@
 #define AS_FAULTSTATUS_EXCEPTION_TYPE_MASK (0xFF << AS_FAULTSTATUS_EXCEPTION_TYPE_SHIFT)
 #define AS_FAULTSTATUS_EXCEPTION_TYPE_GET(reg_val) \
 	(((reg_val)&AS_FAULTSTATUS_EXCEPTION_TYPE_MASK) >> AS_FAULTSTATUS_EXCEPTION_TYPE_SHIFT)
+#define AS_FAULTSTATUS_EXCEPTION_TYPE_TRANSLATION_FAULT_0 0xC0
 
 #define AS_FAULTSTATUS_ACCESS_TYPE_SHIFT 8
 #define AS_FAULTSTATUS_ACCESS_TYPE_MASK (0x3 << AS_FAULTSTATUS_ACCESS_TYPE_SHIFT)

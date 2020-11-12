@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2017, 2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2017, 2019-2020 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -221,6 +221,88 @@ struct kbase_pm_callback_conf {
 	 * be raised. On error, return the corresponding OS error code.
 	 */
 	int (*soft_reset_callback)(struct kbase_device *kbdev);
+};
+
+/* struct kbase_gpu_clk_notifier_data - Data for clock rate change notifier.
+ *
+ * Pointer to this structure is supposed to be passed to the gpu clock rate
+ * change notifier function. This structure is deliberately aligned with the
+ * common clock framework notification structure 'struct clk_notifier_data'
+ * and such alignment should be maintained.
+ *
+ * @gpu_clk_handle: Handle of the GPU clock for which notifier was registered.
+ * @old_rate:       Previous rate of this GPU clock.
+ * @new_rate:       New rate of this GPU clock.
+ */
+struct kbase_gpu_clk_notifier_data {
+	void *gpu_clk_handle;
+	unsigned long old_rate;
+	unsigned long new_rate;
+};
+
+/**
+ * kbase_clk_rate_trace_op_conf - Specifies GPU clock rate trace operations.
+ *
+ * Specifies the functions pointers for platform specific GPU clock rate trace
+ * operations. By default no functions are required.
+ */
+struct kbase_clk_rate_trace_op_conf {
+	/**
+	 * enumerate_gpu_clk - Enumerate a GPU clock on the given index
+	 * @kbdev - kbase_device pointer
+	 * @index - GPU clock index
+	 *
+	 * Returns a handle unique to the given GPU clock, or NULL if the clock
+	 * array has been exhausted at the given index value.
+	 *
+	 * Kbase will use this function pointer to enumerate the existence of a
+	 * GPU clock on the given index.
+	 */
+	void *(*enumerate_gpu_clk)(struct kbase_device *kbdev,
+		unsigned int index);
+
+	/**
+	 * get_gpu_clk_rate - Get the current rate for an enumerated clock.
+	 * @kbdev          - kbase_device pointer
+	 * @gpu_clk_handle - Handle unique to the enumerated GPU clock
+	 *
+	 * Returns current rate of the GPU clock in unit of Hz.
+	 */
+	unsigned long (*get_gpu_clk_rate)(struct kbase_device *kbdev,
+		void *gpu_clk_handle);
+
+	/**
+	 * gpu_clk_notifier_register - Register a clock rate change notifier.
+	 * @kbdev          - kbase_device pointer
+	 * @gpu_clk_handle - Handle unique to the enumerated GPU clock
+	 * @nb             - notifier block containing the callback function
+	 *                   pointer
+	 *
+	 * Returns 0 on success, negative error code otherwise.
+	 *
+	 * This function pointer is used to register a callback function that
+	 * is supposed to be invoked whenever the rate of clock corresponding
+	 * to @gpu_clk_handle changes.
+	 * @nb contains the pointer to callback function.
+	 * The callback function expects the pointer of type
+	 * 'struct kbase_gpu_clk_notifier_data' as the third argument.
+	 */
+	int (*gpu_clk_notifier_register)(struct kbase_device *kbdev,
+		void *gpu_clk_handle, struct notifier_block *nb);
+
+	/**
+	 * gpu_clk_notifier_unregister - Unregister clock rate change notifier
+	 * @kbdev          - kbase_device pointer
+	 * @gpu_clk_handle - Handle unique to the enumerated GPU clock
+	 * @nb             - notifier block containing the callback function
+	 *                   pointer
+	 *
+	 * This function pointer is used to unregister a callback function that
+	 * was previously registered to get notified of the change in rate
+	 * of clock corresponding to @gpu_clk_handle.
+	 */
+	void (*gpu_clk_notifier_unregister)(struct kbase_device *kbdev,
+		void *gpu_clk_handle, struct notifier_block *nb);
 };
 
 #ifdef CONFIG_OF

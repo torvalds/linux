@@ -93,6 +93,9 @@ void kbase_pm_update_active(struct kbase_device *kbdev)
 			pm->backend.invoke_poweroff_wait_wq_when_l2_off = false;
 			pm->backend.poweroff_wait_in_progress = false;
 			pm->backend.l2_desired = true;
+#if MALI_USE_CSF
+			pm->backend.mcu_desired = true;
+#endif
 
 			spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 			kbase_pm_do_poweron(kbdev, false);
@@ -123,6 +126,14 @@ void kbase_pm_update_dynamic_cores_onoff(struct kbase_device *kbdev)
 	lockdep_assert_held(&kbdev->hwaccess_lock);
 	lockdep_assert_held(&kbdev->pm.lock);
 
+#if MALI_USE_CSF
+	/* On CSF GPUs, Host driver isn't supposed to do the power management
+	 * for shader cores. CSF firmware will power up the cores appropriately
+	 * and so from Driver's standpoint 'shaders_desired' flag shall always
+	 * remain 0.
+	 */
+	return;
+#endif
 	if (kbdev->pm.backend.pm_current_policy == NULL)
 		return;
 	if (kbdev->pm.backend.poweroff_wait_in_progress)
@@ -158,6 +169,14 @@ void kbase_pm_update_cores_state_nolock(struct kbase_device *kbdev)
 	else
 		shaders_desired = kbdev->pm.backend.pm_current_policy->shaders_needed(kbdev);
 
+#if MALI_USE_CSF
+	/* On CSF GPUs, Host driver isn't supposed to do the power management
+	 * for shader cores. CSF firmware will power up the cores appropriately
+	 * and so from Driver's standpoint 'shaders_desired' flag shall always
+	 * remain 0.
+	 */
+	shaders_desired = false;
+#endif
 	if (kbdev->pm.backend.shaders_desired != shaders_desired) {
 		KBASE_KTRACE_ADD(kbdev, PM_CORES_CHANGE_DESIRED, NULL, kbdev->pm.backend.shaders_desired);
 

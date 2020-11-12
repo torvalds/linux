@@ -22,15 +22,15 @@
 
 #include <mali_kbase.h>
 #include <mali_kbase_hwaccess_time.h>
-#include <backend/gpu/mali_kbase_device_internal.h>
+#include <device/mali_kbase_device.h>
 #include <backend/gpu/mali_kbase_pm_internal.h>
 
-void kbase_backend_get_gpu_time(struct kbase_device *kbdev, u64 *cycle_counter,
-				u64 *system_time, struct timespec64 *ts)
+void kbase_backend_get_gpu_time_norequest(struct kbase_device *kbdev,
+					  u64 *cycle_counter,
+					  u64 *system_time,
+					  struct timespec64 *ts)
 {
 	u32 hi1, hi2;
-
-	kbase_pm_request_gpu_cycle_counter(kbdev);
 
 	if (cycle_counter) {
 		/* Read hi, lo, hi to ensure a coherent u64 */
@@ -65,6 +65,17 @@ void kbase_backend_get_gpu_time(struct kbase_device *kbdev, u64 *cycle_counter,
 #else
 		ktime_get_raw_ts64(ts);
 #endif
+}
 
+void kbase_backend_get_gpu_time(struct kbase_device *kbdev, u64 *cycle_counter,
+				u64 *system_time, struct timespec64 *ts)
+{
+#if !MALI_USE_CSF
+	kbase_pm_request_gpu_cycle_counter(kbdev);
+#endif
+	kbase_backend_get_gpu_time_norequest(
+		kbdev, cycle_counter, system_time, ts);
+#if !MALI_USE_CSF
 	kbase_pm_release_gpu_cycle_counter(kbdev);
+#endif
 }

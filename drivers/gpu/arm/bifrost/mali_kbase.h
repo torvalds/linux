@@ -46,6 +46,7 @@
 #include <linux/vmalloc.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
+#include <linux/interrupt.h>
 
 #include "mali_base_kernel.h"
 #include <mali_kbase_linux.h>
@@ -67,10 +68,12 @@
 #include "mali_kbase_mem_profile_debugfs.h"
 #include "mali_kbase_gpuprops.h"
 #include "mali_kbase_ioctl.h"
+#if !MALI_USE_CSF
 #include "mali_kbase_debug_job_fault.h"
 #include "mali_kbase_jd_debugfs.h"
 #include "mali_kbase_jm.h"
 #include "mali_kbase_js.h"
+#endif /* !MALI_USE_CSF */
 
 #include "ipa/mali_kbase_ipa.h"
 
@@ -80,12 +83,24 @@
 
 #include "mali_linux_trace.h"
 
+#if MALI_USE_CSF
+#include "csf/mali_kbase_csf.h"
+#endif
 
 #ifndef u64_to_user_ptr
 /* Introduced in Linux v4.6 */
 #define u64_to_user_ptr(x) ((void __user *)(uintptr_t)x)
 #endif
 
+#if MALI_USE_CSF
+/* Physical memory group ID for command stream frontend user I/O.
+ */
+#define KBASE_MEM_GROUP_CSF_IO BASE_MEM_GROUP_DEFAULT
+
+/* Physical memory group ID for command stream frontend firmware.
+ */
+#define KBASE_MEM_GROUP_CSF_FW BASE_MEM_GROUP_DEFAULT
+#endif
 
 /* Physical memory group ID for a special page which can alias several regions.
  */
@@ -206,6 +221,7 @@ int buslog_init(struct kbase_device *kbdev);
 void buslog_term(struct kbase_device *kbdev);
 #endif
 
+#if !MALI_USE_CSF
 int kbase_jd_init(struct kbase_context *kctx);
 void kbase_jd_exit(struct kbase_context *kctx);
 
@@ -213,9 +229,9 @@ void kbase_jd_exit(struct kbase_context *kctx);
  * kbase_jd_submit - Submit atoms to the job dispatcher
  *
  * @kctx: The kbase context to submit to
- * @user_addr: The address in user space of the struct base_jd_atom_v2 array
+ * @user_addr: The address in user space of the struct base_jd_atom array
  * @nr_atoms: The number of atoms in the array
- * @stride: sizeof(struct base_jd_atom_v2)
+ * @stride: sizeof(struct base_jd_atom)
  * @uk6_atom: true if the atoms are legacy atoms (struct base_jd_atom_v2_uk6)
  *
  * Return: 0 on success or error code
@@ -306,9 +322,12 @@ void kbase_job_check_enter_disjoint(struct kbase_device *kbdev, u32 action,
 void kbase_job_check_leave_disjoint(struct kbase_device *kbdev,
 		struct kbase_jd_atom *target_katom);
 
+#endif /* !MALI_USE_CSF */
 
 void kbase_event_post(struct kbase_context *ctx, struct kbase_jd_atom *event);
+#if !MALI_USE_CSF
 int kbase_event_dequeue(struct kbase_context *ctx, struct base_jd_event_v2 *uevent);
+#endif /* !MALI_USE_CSF */
 int kbase_event_pending(struct kbase_context *ctx);
 int kbase_event_init(struct kbase_context *kctx);
 void kbase_event_close(struct kbase_context *kctx);
@@ -372,6 +391,7 @@ static inline void kbase_free_user_buffer(
  */
 int kbase_mem_copy_from_extres(struct kbase_context *kctx,
 		struct kbase_debug_copy_buffer *buf_data);
+#if !MALI_USE_CSF
 int kbase_process_soft_job(struct kbase_jd_atom *katom);
 int kbase_prepare_soft_job(struct kbase_jd_atom *katom);
 void kbase_finish_soft_job(struct kbase_jd_atom *katom);
@@ -387,6 +407,7 @@ int kbase_soft_event_update(struct kbase_context *kctx,
 
 void kbasep_soft_job_timeout_worker(struct timer_list *timer);
 void kbasep_complete_triggered_soft_events(struct kbase_context *kctx, u64 evt);
+#endif /* !MALI_USE_CSF */
 
 void kbasep_as_do_poke(struct work_struct *work);
 
@@ -419,7 +440,23 @@ static inline bool kbase_pm_is_suspending(struct kbase_device *kbdev)
  */
 static inline bool kbase_pm_is_gpu_lost(struct kbase_device *kbdev)
 {
-	return kbdev->pm.gpu_lost;
+	return (atomic_read(&kbdev->pm.gpu_lost) == 0 ? false : true);
+}
+
+/*
+ * Set or clear gpu lost state
+ *
+ * @kbdev: The kbase device structure for the device (must be a valid pointer)
+ * @gpu_lost: true to activate GPU lost state, FALSE is deactive it
+ *
+ * Puts power management code into gpu lost state or takes it out of the
+ * state.  Once in gpu lost state new GPU jobs will no longer be
+ * scheduled.
+ */
+static inline void kbase_pm_set_gpu_lost(struct kbase_device *kbdev,
+	bool gpu_lost)
+{
+	atomic_set(&kbdev->pm.gpu_lost, (gpu_lost ? 1 : 0));
 }
 #endif
 
@@ -455,9 +492,10 @@ void kbase_pm_metrics_start(struct kbase_device *kbdev);
  */
 void kbase_pm_metrics_stop(struct kbase_device *kbdev);
 
+#if !MALI_USE_CSF
 /**
  * Return the atom's ID, as was originally supplied by userspace in
- * base_jd_atom_v2::atom_number
+ * base_jd_atom::atom_number
  */
 static inline int kbase_jd_atom_id(struct kbase_context *kctx, struct kbase_jd_atom *katom)
 {
@@ -484,6 +522,7 @@ static inline struct kbase_jd_atom *kbase_jd_atom_from_id(
 {
 	return &kctx->jctx.atoms[id];
 }
+#endif /* !MALI_USE_CSF */
 
 /**
  * Initialize the disjoint state
@@ -571,54 +610,5 @@ void kbase_disjoint_state_down(struct kbase_device *kbdev);
 #if !defined(UINT64_MAX)
 	#define UINT64_MAX ((uint64_t)0xFFFFFFFFFFFFFFFFULL)
 #endif
-
-#if defined(CONFIG_DEBUG_FS) && !defined(CONFIG_MALI_BIFROST_NO_MALI)
-
-/* kbase_io_history_init - initialize data struct for register access history
- *
- * @kbdev The register history to initialize
- * @n The number of register accesses that the buffer could hold
- *
- * @return 0 if successfully initialized, failure otherwise
- */
-int kbase_io_history_init(struct kbase_io_history *h, u16 n);
-
-/* kbase_io_history_term - uninit all resources for the register access history
- *
- * @h The register history to terminate
- */
-void kbase_io_history_term(struct kbase_io_history *h);
-
-/* kbase_io_history_dump - print the register history to the kernel ring buffer
- *
- * @kbdev Pointer to kbase_device containing the register history to dump
- */
-void kbase_io_history_dump(struct kbase_device *kbdev);
-
-/**
- * kbase_io_history_resize - resize the register access history buffer.
- *
- * @h: Pointer to a valid register history to resize
- * @new_size: Number of accesses the buffer could hold
- *
- * A successful resize will clear all recent register accesses.
- * If resizing fails for any reason (e.g., could not allocate memory, invalid
- * buffer size) then the original buffer will be kept intact.
- *
- * @return 0 if the buffer was resized, failure otherwise
- */
-int kbase_io_history_resize(struct kbase_io_history *h, u16 new_size);
-
-#else /* CONFIG_DEBUG_FS */
-
-#define kbase_io_history_init(...) ((int)0)
-
-#define kbase_io_history_term CSTD_NOP
-
-#define kbase_io_history_dump CSTD_NOP
-
-#define kbase_io_history_resize CSTD_NOP
-
-#endif /* CONFIG_DEBUG_FS */
 
 #endif
