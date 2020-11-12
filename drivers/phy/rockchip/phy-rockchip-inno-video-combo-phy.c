@@ -85,6 +85,13 @@
 #define SAMPLE_CLOCK_DIRECTION_MASK		BIT(4)
 #define SAMPLE_CLOCK_DIRECTION_REVERSE		BIT(4)
 #define SAMPLE_CLOCK_DIRECTION_FORWARD		0
+#define LOWFRE_EN_MASK				BIT(5)
+#define PLL_OUTPUT_FREQUENCY_DIV_BY_1		0
+#define PLL_OUTPUT_FREQUENCY_DIV_BY_2		1
+/* Analog Register Part: reg1e */
+#define PLL_MODE_SEL_MASK			GENMASK(6, 5)
+#define PLL_MODE_SEL_LVDS_MODE			0
+#define PLL_MODE_SEL_MIPI_MODE			BIT(5)
 /* Digital Register Part: reg00 */
 #define REG_DIG_RSTN_MASK			BIT(0)
 #define REG_DIG_RSTN_NORMAL			BIT(0)
@@ -447,9 +454,9 @@ static void inno_video_phy_lvds_mode_enable(struct inno_video_phy *inno)
 
 	/* Sample clock reverse direction */
 	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x08,
-			SAMPLE_CLOCK_DIRECTION_MASK,
-			SAMPLE_CLOCK_DIRECTION_REVERSE);
-
+			SAMPLE_CLOCK_DIRECTION_MASK | LOWFRE_EN_MASK,
+			SAMPLE_CLOCK_DIRECTION_REVERSE |
+			PLL_OUTPUT_FREQUENCY_DIV_BY_1);
 	/* Select LVDS mode */
 	phy_update_bits(inno, REGISTER_PART_LVDS, 0x03,
 			MODE_ENABLE_MASK, LVDS_MODE_ENABLE);
@@ -470,6 +477,9 @@ static void inno_video_phy_lvds_mode_enable(struct inno_video_phy *inno)
 					 val, val & PHY_LOCK, 50, 10000);
 	if (ret)
 		dev_err(inno->dev, "PLL is not lock\n");
+	/* Select PLL mode */
+	phy_update_bits(inno, REGISTER_PART_ANALOG, 0x1e,
+			PLL_MODE_SEL_MASK, PLL_MODE_SEL_LVDS_MODE);
 
 	/* Reset LVDS digital logic */
 	phy_update_bits(inno, REGISTER_PART_LVDS, 0x00,
@@ -725,10 +735,13 @@ static int inno_video_phy_pll_register(struct inno_video_phy *inno)
 	const char *parent_name;
 	struct clk_init_data init = {};
 	int ret;
+	static int phy_pll_num;
+	char pll_name[20] = "video_phy_pll_";
 
 	parent_name = __clk_get_name(inno->ref_clk);
 
-	init.name = "video_phy_pll";
+	strcat(pll_name, phy_pll_num++ ? "1" : "0");
+	init.name = pll_name;
 	init.ops = &inno_video_phy_pll_clk_ops;
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
