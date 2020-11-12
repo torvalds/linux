@@ -75,18 +75,18 @@ properties:
                 bus-type:
                   const: 6
             then:
-                properties:
-                  hsync-active: false
-                  vsync-active: false
+              properties:
+                hsync-active: false
+                vsync-active: false
 
           - if:
               properties:
                 bus-width:
                   const: 10
             then:
-                properties:
-                  data-shift:
-                    const: 0
+              properties:
+                data-shift:
+                  const: 0
 
         required:
           - bus-type
