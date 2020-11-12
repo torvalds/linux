@@ -263,7 +263,7 @@ static int iptunnel_pmtud_check_icmp(struct sk_buff *skb, int mtu)
 	const struct icmphdr *icmph = icmp_hdr(skb);
 	const struct iphdr *iph = ip_hdr(skb);
 
-	if (mtu <= 576 || iph->frag_off != htons(IP_DF))
+	if (mtu < 576 || iph->frag_off != htons(IP_DF))
 		return 0;
 
 	if (ipv4_is_lbcast(iph->daddr)  || ipv4_is_multicast(iph->daddr) ||
@@ -359,7 +359,7 @@ static int iptunnel_pmtud_check_icmpv6(struct sk_buff *skb, int mtu)
 	__be16 frag_off;
 	int offset;
 
-	if (mtu <= IPV6_MIN_MTU)
+	if (mtu < IPV6_MIN_MTU)
 		return 0;
 
 	if (stype == IPV6_ADDR_ANY || stype == IPV6_ADDR_MULTICAST ||

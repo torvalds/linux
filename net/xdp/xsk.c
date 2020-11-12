@@ -1146,7 +1146,8 @@ static void xsk_destruct(struct sock *sk)
 	if (!sock_flag(sk, SOCK_DEAD))
 		return;
 
-	xp_put_pool(xs->pool);
+	if (!xp_put_pool(xs->pool))
+		xdp_put_umem(xs->umem);
 
 	sk_refcnt_debug_dec(sk);
 }
