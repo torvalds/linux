@@ -451,18 +451,16 @@ static bool virtio_mem_could_add_memory(struct virtio_mem *vm, uint64_t size)
 }
 
 /*
- * Try to add a memory block to Linux. This will usually only fail
- * if out of memory.
+ * Try adding memory to Linux. Will usually only fail if out of memory.
  *
  * Must not be called with the vm->hotplug_mutex held (possible deadlock with
  * onlining code).
  *
- * Will not modify the state of the memory block.
+ * Will not modify the state of memory blocks in virtio-mem.
  */
-static int virtio_mem_mb_add(struct virtio_mem *vm, unsigned long mb_id)
+static int virtio_mem_add_memory(struct virtio_mem *vm, uint64_t addr,
+				 uint64_t size)
 {
-	const uint64_t addr = virtio_mem_mb_id_to_phys(mb_id);
-	const uint64_t size = memory_block_size_bytes();
 	int rc;
 
 	/*
@@ -476,32 +474,50 @@ static int virtio_mem_mb_add(struct virtio_mem *vm, unsigned long mb_id)
 			return -ENOMEM;
 	}
 
-	dev_dbg(&vm->vdev->dev, "adding memory block: %lu\n", mb_id);
+	dev_dbg(&vm->vdev->dev, "adding memory: 0x%llx - 0x%llx\n", addr,
+		addr + size - 1);
 	/* Memory might get onlined immediately. */
 	atomic64_add(size, &vm->offline_size);
 	rc = add_memory_driver_managed(vm->nid, addr, size, vm->resource_name,
 				       MEMHP_MERGE_RESOURCE);
-	if (rc)
+	if (rc) {
 		atomic64_sub(size, &vm->offline_size);
+		dev_warn(&vm->vdev->dev, "adding memory failed: %d\n", rc);
+		/*
+		 * TODO: Linux MM does not properly clean up yet in all cases
+		 * where adding of memory failed - especially on -ENOMEM.
+		 */
+	}
 	return rc;
 }
 
 /*
- * Try to remove a memory block from Linux. Will only fail if the memory block
- * is not offline.
+ * See virtio_mem_add_memory(): Try adding a single Linux memory block.
+ */
+static int virtio_mem_sbm_add_mb(struct virtio_mem *vm, unsigned long mb_id)
+{
+	const uint64_t addr = virtio_mem_mb_id_to_phys(mb_id);
+	const uint64_t size = memory_block_size_bytes();
+
+	return virtio_mem_add_memory(vm, addr, size);
+}
+
+/*
+ * Try removing memory from Linux. Will only fail if memory blocks aren't
+ * offline.
  *
  * Must not be called with the vm->hotplug_mutex held (possible deadlock with
  * onlining code).
  *
- * Will not modify the state of the memory block.
+ * Will not modify the state of memory blocks in virtio-mem.
  */
-static int virtio_mem_mb_remove(struct virtio_mem *vm, unsigned long mb_id)
+static int virtio_mem_remove_memory(struct virtio_mem *vm, uint64_t addr,
+				    uint64_t size)
 {
-	const uint64_t addr = virtio_mem_mb_id_to_phys(mb_id);
-	const uint64_t size = memory_block_size_bytes();
 	int rc;
 
-	dev_dbg(&vm->vdev->dev, "removing memory block: %lu\n", mb_id);
+	dev_dbg(&vm->vdev->dev, "removing memory: 0x%llx - 0x%llx\n", addr,
+		addr + size - 1);
 	rc = remove_memory(vm->nid, addr, size);
 	if (!rc) {
 		atomic64_sub(size, &vm->offline_size);
@@ -510,27 +526,41 @@ static int virtio_mem_mb_remove(struct virtio_mem *vm, unsigned long mb_id)
 		 * immediately instead of waiting.
 		 */
 		virtio_mem_retry(vm);
+	} else {
+		dev_dbg(&vm->vdev->dev, "removing memory failed: %d\n", rc);
 	}
 	return rc;
 }
 
 /*
- * Try to offline and remove a memory block from Linux.
+ * See virtio_mem_remove_memory(): Try removing a single Linux memory block.
+ */
+static int virtio_mem_sbm_remove_mb(struct virtio_mem *vm, unsigned long mb_id)
+{
+	const uint64_t addr = virtio_mem_mb_id_to_phys(mb_id);
+	const uint64_t size = memory_block_size_bytes();
+
+	return virtio_mem_remove_memory(vm, addr, size);
+}
+
+/*
+ * Try offlining and removing memory from Linux.
  *
  * Must not be called with the vm->hotplug_mutex held (possible deadlock with
  * onlining code).
  *
- * Will not modify the state of the memory block.
+ * Will not modify the state of memory blocks in virtio-mem.
  */
-static int virtio_mem_mb_offline_and_remove(struct virtio_mem *vm,
-					    unsigned long mb_id)
+static int virtio_mem_offline_and_remove_memory(struct virtio_mem *vm,
+						uint64_t addr,
+						uint64_t size)
 {
-	const uint64_t addr = virtio_mem_mb_id_to_phys(mb_id);
-	const uint64_t size = memory_block_size_bytes();
 	int rc;
 
-	dev_dbg(&vm->vdev->dev, "offlining and removing memory block: %lu\n",
-		mb_id);
+	dev_dbg(&vm->vdev->dev,
+		"offlining and removing memory: 0x%llx - 0x%llx\n", addr,
+		addr + size - 1);
+
 	rc = offline_and_remove_memory(vm->nid, addr, size);
 	if (!rc) {
 		atomic64_sub(size, &vm->offline_size);
@@ -539,8 +569,24 @@ static int virtio_mem_mb_offline_and_remove(struct virtio_mem *vm,
 		 * immediately instead of waiting.
 		 */
 		virtio_mem_retry(vm);
+	} else {
+		dev_dbg(&vm->vdev->dev,
+			"offlining and removing memory failed: %d\n", rc);
 	}
 	return rc;
+}
+
+/*
+ * See virtio_mem_offline_and_remove_memory(): Try offlining and removing
+ * a single Linux memory block.
+ */
+static int virtio_mem_sbm_offline_and_remove_mb(struct virtio_mem *vm,
+						unsigned long mb_id)
+{
+	const uint64_t addr = virtio_mem_mb_id_to_phys(mb_id);
+	const uint64_t size = memory_block_size_bytes();
+
+	return virtio_mem_offline_and_remove_memory(vm, addr, size);
 }
 
 /*
@@ -1248,17 +1294,10 @@ static int virtio_mem_sbm_plug_and_add_mb(struct virtio_mem *vm,
 					    VIRTIO_MEM_SBM_MB_OFFLINE_PARTIAL);
 
 	/* Add the memory block to linux - if that fails, try to unplug. */
-	rc = virtio_mem_mb_add(vm, mb_id);
+	rc = virtio_mem_sbm_add_mb(vm, mb_id);
 	if (rc) {
 		int new_state = VIRTIO_MEM_SBM_MB_UNUSED;
 
-		dev_err(&vm->vdev->dev,
-			"adding memory block %lu failed with %d\n", mb_id, rc);
-
-		/*
-		 * TODO: Linux MM does not properly clean up yet in all cases
-		 * where adding of memory failed - especially on -ENOMEM.
-		 */
 		if (virtio_mem_sbm_unplug_sb(vm, mb_id, 0, count))
 			new_state = VIRTIO_MEM_SBM_MB_PLUGGED;
 		virtio_mem_sbm_set_mb_state(vm, mb_id, new_state);
@@ -1429,7 +1468,7 @@ static int virtio_mem_sbm_unplug_any_sb_offline(struct virtio_mem *vm,
 					    VIRTIO_MEM_SBM_MB_UNUSED);
 
 		mutex_unlock(&vm->hotplug_mutex);
-		rc = virtio_mem_mb_remove(vm, mb_id);
+		rc = virtio_mem_sbm_remove_mb(vm, mb_id);
 		BUG_ON(rc);
 		mutex_lock(&vm->hotplug_mutex);
 	}
@@ -1522,7 +1561,7 @@ unplugged:
 	 */
 	if (virtio_mem_sbm_test_sb_unplugged(vm, mb_id, 0, vm->sbm.sbs_per_mb)) {
 		mutex_unlock(&vm->hotplug_mutex);
-		rc = virtio_mem_mb_offline_and_remove(vm, mb_id);
+		rc = virtio_mem_sbm_offline_and_remove_mb(vm, mb_id);
 		mutex_lock(&vm->hotplug_mutex);
 		if (!rc)
 			virtio_mem_sbm_set_mb_state(vm, mb_id,
@@ -2009,7 +2048,7 @@ static void virtio_mem_remove(struct virtio_device *vdev)
 	 */
 	virtio_mem_sbm_for_each_mb(vm, mb_id,
 				   VIRTIO_MEM_SBM_MB_OFFLINE_PARTIAL) {
-		rc = virtio_mem_mb_remove(vm, mb_id);
+		rc = virtio_mem_sbm_remove_mb(vm, mb_id);
 		BUG_ON(rc);
 		virtio_mem_sbm_set_mb_state(vm, mb_id,
 					    VIRTIO_MEM_SBM_MB_UNUSED);
