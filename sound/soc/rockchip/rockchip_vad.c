@@ -55,6 +55,16 @@ struct vad_buf {
 	bool sorted;
 };
 
+struct audio_src_addr_map {
+	u32 id;
+	u32 addr;
+};
+
+struct vad_soc_data {
+	enum rk_vad_version version;
+	const struct audio_src_addr_map *map;
+};
+
 struct rockchip_vad {
 	struct device *dev;
 	struct device_node *audio_node;
@@ -68,6 +78,7 @@ struct rockchip_vad {
 	struct vad_uparams uparams;
 	struct snd_soc_dai *cpu_dai;
 	struct snd_pcm_substream *substream;
+	struct vad_soc_data *soc_data;
 	int mode;
 	u32 audio_src;
 	u32 audio_src_addr;
@@ -81,11 +92,6 @@ struct rockchip_vad {
 	bool vswitch;
 	bool h_16bit;
 	enum rk_vad_version version;
-};
-
-struct audio_src_addr_map {
-	u32 id;
-	u32 addr;
 };
 
 static inline int vframe_size(struct rockchip_vad *vad, int bytes)
@@ -255,11 +261,44 @@ static struct rockchip_vad *substream_get_drvdata(struct snd_pcm_substream *subs
 		struct snd_soc_dai *codec_dai = rtd->codec_dais[i];
 
 		if (strstr(codec_dai->name, "vad"))
-			vad = snd_soc_codec_get_drvdata(codec_dai->codec);
+			vad = snd_soc_component_get_drvdata(codec_dai->component);
 	}
 
 	return vad;
 }
+
+/**
+ * snd_pcm_vad_avail - Get the available (readable) space for vad
+ * @runtime: PCM substream instance
+ *
+ * Result is between 0 ... (boundary - 1)
+ */
+snd_pcm_uframes_t snd_pcm_vad_avail(struct snd_pcm_substream *substream)
+{
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct rockchip_vad *vad = NULL;
+	struct vad_buf *vbuf;
+	snd_pcm_uframes_t vframes;
+
+	vad = substream_get_drvdata(substream);
+
+	if (!vad)
+		return 0;
+
+	vbuf = &vad->vbuf;
+
+	if (vbuf->size <= 0)
+		return 0;
+
+	vframes = samples_to_bytes(runtime, vad->channels);
+	if (vframes)
+		vframes = vbuf->size / vframes;
+	if (!vframes)
+		dev_err(vad->dev, "residue bytes: %d\n", vbuf->size);
+
+	return vframes;
+}
+EXPORT_SYMBOL(snd_pcm_vad_avail);
 
 snd_pcm_sframes_t snd_pcm_vad_read(struct snd_pcm_substream *substream,
 				   void __user *buf, snd_pcm_uframes_t frames)
@@ -341,39 +380,6 @@ snd_pcm_sframes_t snd_pcm_vad_read(struct snd_pcm_substream *substream,
 	return avail;
 }
 EXPORT_SYMBOL(snd_pcm_vad_read);
-
-/**
- * snd_pcm_vad_avail - Get the available (readable) space for vad
- * @runtime: PCM substream instance
- *
- * Result is between 0 ... (boundary - 1)
- */
-snd_pcm_uframes_t snd_pcm_vad_avail(struct snd_pcm_substream *substream)
-{
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct rockchip_vad *vad = NULL;
-	struct vad_buf *vbuf;
-	snd_pcm_uframes_t vframes;
-
-	vad = substream_get_drvdata(substream);
-
-	if (!vad)
-		return 0;
-
-	vbuf = &vad->vbuf;
-
-	if (vbuf->size <= 0)
-		return 0;
-
-	vframes = samples_to_bytes(runtime, vad->channels);
-	if (vframes)
-		vframes = vbuf->size / vframes;
-	if (!vframes)
-		dev_err(vad->dev, "residue bytes: %d\n", vbuf->size);
-
-	return vframes;
-}
-EXPORT_SYMBOL(snd_pcm_vad_avail);
 
 int snd_pcm_vad_preprocess(struct snd_pcm_substream *substream,
 			   void *buf, snd_pcm_uframes_t size)
@@ -594,26 +600,46 @@ static const struct regmap_config rk3308_vad_regmap_config = {
 	.cache_type = REGCACHE_FLAT,
 };
 
-static const struct audio_src_addr_map addr_maps[] = {
-	{0, 0xff300800},
-	{1, 0xff310800},
-	{2, 0xff320800},
-	{3, 0xff330800},
-	{4, 0xff380400},
-	{1, 0xff7e0800},
-	{3, 0xff7f0800},
-	{4, 0xff800400},
+static const struct audio_src_addr_map rk1808_addr_map[] = {
+	{ 1, RK1808_I2S0 },
+	{ 3, RK1808_I2S1 },
+	{ 4, RK1808_PDM },
+	{ /* sentinel */ },
+};
+
+static const struct audio_src_addr_map rk3308_addr_map[] = {
+	{ 0, RK3308_I2S_8CH_0 },
+	{ 1, RK3308_I2S_8CH_1 },
+	{ 2, RK3308_I2S_8CH_2 },
+	{ 3, RK3308_I2S_8CH_3 },
+	{ 4, RK3308_PDM_8CH },
+	{ /* sentinel */ },
+};
+
+static const struct vad_soc_data rk1808es_soc_data = {
+	.version = VAD_RK1808ES,
+	.map = rk1808_addr_map,
+};
+
+static const struct vad_soc_data rk1808_soc_data = {
+	.version = VAD_RK1808,
+	.map = rk1808_addr_map,
+};
+
+static const struct vad_soc_data rk3308_soc_data = {
+	.version = VAD_RK3308,
+	.map = rk3308_addr_map,
 };
 
 static int rockchip_vad_get_audio_src_address(struct rockchip_vad *vad,
 					      u32 addr)
 {
-	unsigned int i;
+	const struct audio_src_addr_map *map = vad->soc_data->map;
 
-	for (i = 0; i < ARRAY_SIZE(addr_maps); i++) {
-		if ((addr & addr_maps[i].addr) == addr) {
-			vad->audio_src = addr_maps[i].id;
-			vad->audio_src_addr = addr_maps[i].addr;
+	for (; map->addr; map++) {
+		if ((addr & map->addr) == addr) {
+			vad->audio_src = map->id;
+			vad->audio_src_addr = map->addr;
 			return 0;
 		}
 	}
@@ -654,8 +680,8 @@ static const struct reg_sequence rockchip_vad_acodec_adc_enable[] = {
 static int rockchip_vad_config_acodec(struct snd_pcm_hw_params *params,
 				      struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct rockchip_vad *vad = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct rockchip_vad *vad = snd_soc_component_get_drvdata(component);
 	unsigned int val = 0;
 
 	if (!vad->acodec_cfg)
@@ -698,7 +724,7 @@ static void rockchip_vad_params_fixup(struct snd_pcm_substream *substream,
 				      struct snd_pcm_hw_params *params,
 				      struct snd_soc_dai *dai)
 {
-	struct rockchip_vad *vad = snd_soc_codec_get_drvdata(dai->codec);
+	struct rockchip_vad *vad = snd_soc_component_get_drvdata(dai->component);
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai, *audio_src_dai;
 	struct device_node *np;
@@ -726,8 +752,8 @@ static int rockchip_vad_hw_params(struct snd_pcm_substream *substream,
 				  struct snd_pcm_hw_params *params,
 				  struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct rockchip_vad *vad = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct rockchip_vad *vad = snd_soc_component_get_drvdata(component);
 	unsigned int val = 0, mask = 0, frame_bytes, buf_time;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
@@ -870,8 +896,8 @@ static int rockchip_vad_pcm_startup(struct snd_pcm_substream *substream,
 static void rockchip_vad_pcm_shutdown(struct snd_pcm_substream *substream,
 				      struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct rockchip_vad *vad = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct rockchip_vad *vad = snd_soc_component_get_drvdata(component);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		return;
@@ -887,8 +913,8 @@ static void rockchip_vad_pcm_shutdown(struct snd_pcm_substream *substream,
 static int rockchip_vad_trigger(struct snd_pcm_substream *substream, int cmd,
 				struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct rockchip_vad *vad = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct rockchip_vad *vad = snd_soc_component_get_drvdata(component);
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -991,11 +1017,9 @@ static const struct snd_kcontrol_new rockchip_vad_dapm_controls[] = {
 	SOC_ROCKCHIP_VAD_SWITCH_DECL("vad switch"),
 };
 
-static struct snd_soc_codec_driver soc_vad_codec = {
-	.component_driver = {
-		.controls = rockchip_vad_dapm_controls,
-		.num_controls = ARRAY_SIZE(rockchip_vad_dapm_controls),
-	},
+static const struct snd_soc_component_driver soc_vad_codec = {
+	.controls = rockchip_vad_dapm_controls,
+	.num_controls = ARRAY_SIZE(rockchip_vad_dapm_controls),
 };
 
 #if defined(CONFIG_DEBUG_FS)
@@ -1089,9 +1113,9 @@ static void rockchip_vad_init(struct rockchip_vad *vad)
 }
 
 static const struct of_device_id rockchip_vad_match[] = {
-	{ .compatible = "rockchip,rk1808es-vad", .data = (void *)VAD_RK1808ES },
-	{ .compatible = "rockchip,rk1808-vad", .data = (void *)VAD_RK1808 },
-	{ .compatible = "rockchip,rk3308-vad", .data = (void *)VAD_RK3308 },
+	{ .compatible = "rockchip,rk1808es-vad", .data = &rk1808es_soc_data },
+	{ .compatible = "rockchip,rk1808-vad", .data = &rk1808_soc_data },
+	{ .compatible = "rockchip,rk3308-vad", .data = &rk3308_soc_data },
 	{},
 };
 
@@ -1117,8 +1141,11 @@ static int rockchip_vad_probe(struct platform_device *pdev)
 	vad->dev = &pdev->dev;
 
 	match = of_match_device(rockchip_vad_match, &pdev->dev);
-	if (match)
-		vad->version = (enum rk_vad_version)match->data;
+	if (!match || !match->data)
+		return -EINVAL;
+
+	vad->soc_data = (struct vad_soc_data *)match->data;
+	vad->version = vad->soc_data->version;
 
 	switch (vad->version) {
 	case VAD_RK1808:
@@ -1220,8 +1247,8 @@ static int rockchip_vad_probe(struct platform_device *pdev)
 #endif
 
 	platform_set_drvdata(pdev, vad);
-	ret = snd_soc_register_codec(&pdev->dev, &soc_vad_codec,
-				     &vad_dai, 1);
+	ret = snd_soc_register_component(&pdev->dev, &soc_vad_codec,
+					 &vad_dai, 1);
 	if (ret)
 		goto err;
 
@@ -1243,7 +1270,7 @@ static int rockchip_vad_remove(struct platform_device *pdev)
 	if (!IS_ERR(vad->hclk))
 		clk_disable_unprepare(vad->hclk);
 	of_node_put(vad->audio_node);
-	snd_soc_unregister_codec(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 	return 0;
 }
 
