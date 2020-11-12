@@ -296,6 +296,7 @@ struct btree_key_cache {
 	struct list_head	freed;
 	struct list_head	clean;
 	struct list_head	dirty;
+	struct shrinker		shrink;
 
 	size_t			nr_keys;
 	size_t			nr_dirty;
@@ -314,6 +315,7 @@ struct bkey_cached {
 	unsigned long		flags;
 	u8			u64s;
 	bool			valid;
+	u32			btree_trans_barrier_seq;
 	struct bkey_cached_key	key;
 
 	struct rhash_head	hash;
