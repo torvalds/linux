@@ -388,6 +388,7 @@ struct ch_ktls_stats_debug {
 	atomic64_t ktls_tx_retransmit_pkts;
 	atomic64_t ktls_tx_complete_pkts;
 	atomic64_t ktls_tx_trimmed_pkts;
+	atomic64_t ktls_tx_fallback;
 };
 #endif
 
@@ -492,6 +493,11 @@ struct cxgb4_uld_info {
 	const struct xfrmdev_ops *xfrmdev_ops;
 #endif
 };
+
+static inline bool cxgb4_is_ktls_skb(struct sk_buff *skb)
+{
+	return skb->sk && tls_is_sk_tx_device_offloaded(skb->sk);
+}
 
 void cxgb4_uld_enable(struct adapter *adap);
 void cxgb4_register_uld(enum cxgb4_uld type, const struct cxgb4_uld_info *p);
