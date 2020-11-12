@@ -6,6 +6,7 @@
 /dts-v1/;
 #include "imx50.dtsi"
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 
 / {
 	model = "Kobo Aura (N514)";
@@ -119,7 +120,14 @@
 	pinctrl-0 = <&pinctrl_i2c1>;
 	status = "okay";
 
-	/* TODO: ektf2132 touch controller at 0x15 */
+	touchscreen@15 {
+		reg = <0x15>;
+		compatible = "elan,ektf2132";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_ts>;
+		power-gpios = <&gpio4 9 GPIO_ACTIVE_HIGH>;
+		interrupts-extended = <&gpio5 13 IRQ_TYPE_EDGE_FALLING>;
+	};
 };
 
 &i2c2 {
@@ -222,6 +230,13 @@
 			MX50_PAD_SD3_D5__ESDHC3_DAT5		0x1d4
 			MX50_PAD_SD3_D6__ESDHC3_DAT6		0x1d4
 			MX50_PAD_SD3_D7__ESDHC3_DAT7		0x1d4
+		>;
+	};
+
+	pinctrl_ts: tsgrp {
+		fsl,pins = <
+			MX50_PAD_CSPI_MOSI__GPIO4_9		0x0
+			MX50_PAD_SD2_D5__GPIO5_13		0x0
 		>;
 	};
 
