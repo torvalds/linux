@@ -177,7 +177,7 @@
 
 	sata0: sata@fc000000 {
 		compatible = "snps,dwc-ahci";
-		reg = <0 0xfc300000 0 0x1000>;
+		reg = <0 0xfc000000 0 0x1000>;
 		clocks = <&cru ACLK_SATA0>, <&cru CLK_SATA0_PMALIVE>,
 			 <&cru CLK_SATA0_RXOOB>;
 		clock-names = "sata", "pmalive", "rxoob";
@@ -192,7 +192,7 @@
 
 	sata1: sata@fc400000 {
 		compatible = "snps,dwc-ahci";
-		reg = <0 0xfc340000 0 0x1000>;
+		reg = <0 0xfc400000 0 0x1000>;
 		clocks = <&cru ACLK_SATA1>, <&cru CLK_SATA1_PMALIVE>,
 			 <&cru CLK_SATA1_RXOOB>;
 		clock-names = "sata", "pmalive", "rxoob";
@@ -207,7 +207,7 @@
 
 	sata2: sata@fc800000 {
 		compatible = "snps,dwc-ahci";
-		reg = <0 0xfc380000 0 0x1000>;
+		reg = <0 0xfc800000 0 0x1000>;
 		clocks = <&cru ACLK_SATA2>, <&cru CLK_SATA2_PMALIVE>,
 			 <&cru CLK_SATA2_RXOOB>;
 		clock-names = "sata", "pmalive", "rxoob";
