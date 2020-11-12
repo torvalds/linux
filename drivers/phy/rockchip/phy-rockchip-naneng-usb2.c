@@ -951,8 +951,11 @@ static void rockchip_usb2phy_otg_sm_work(struct work_struct *work)
 			break;
 		}
 	} else {
-		if (!rport->perip_connected)
+		if (!rport->perip_connected) {
+			if (extcon_get_state(rphy->edev, EXTCON_CHG_USB_DCP) > 0)
+				extcon_set_state_sync(rphy->edev, EXTCON_CHG_USB_DCP, 0);
 			return;
+		}
 
 		dev_dbg(&rport->phy->dev, "usb peripheral disconnect\n");
 		wake_unlock(&rport->wakelock);
