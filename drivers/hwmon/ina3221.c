@@ -139,7 +139,7 @@ static inline bool ina3221_is_enabled(struct ina3221_data *ina, int channel)
 	       (ina->reg_config & INA3221_CONFIG_CHx_EN(channel));
 }
 
-/**
+/*
  * Helper function to return the resistor value for current summation.
  *
  * There is a condition to calculate current summation -- all the shunt
