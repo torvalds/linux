@@ -571,6 +571,9 @@ phy_RFSerialWrite(
 	BB_REGISTER_DEFINITION_T	*pPhyReg = &pHalData->PHYRegDef[eRFPath];
 	u32						NewOffset;
 
+	if (eRFPath >= MAX_RF_PATH)
+		return;
+
 #if 0
 	/* <Roger_TODO> We should check valid regs for RF_6052 case. */
 	if (pHalData->RFChipID == RF_8225 && Offset > 0x24) /* 36 valid regs */

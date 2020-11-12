@@ -339,6 +339,9 @@ phy_RFSerialWrite_8188F(
 	BB_REGISTER_DEFINITION_T	*pPhyReg = &pHalData->PHYRegDef[eRFPath];
 	u32						NewOffset;
 
+	if (eRFPath >= MAX_RF_PATH)
+		return;
+
 	Offset &= 0xff;
 
 	/* */
