@@ -382,6 +382,14 @@ int ceph_con_in_msg_alloc(struct ceph_connection *con,
 			  struct ceph_msg_header *hdr, int *skip);
 void ceph_con_get_out_msg(struct ceph_connection *con);
 
+int ceph_con_v1_try_read(struct ceph_connection *con);
+int ceph_con_v1_try_write(struct ceph_connection *con);
+void ceph_con_v1_revoke(struct ceph_connection *con);
+void ceph_con_v1_revoke_incoming(struct ceph_connection *con);
+bool ceph_con_v1_opened(struct ceph_connection *con);
+void ceph_con_v1_reset_session(struct ceph_connection *con);
+void ceph_con_v1_reset_protocol(struct ceph_connection *con);
+
 
 extern const char *ceph_pr_addr(const struct ceph_entity_addr *addr);
 
