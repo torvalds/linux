@@ -405,6 +405,8 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 		break;
 	case CHIP_VANGOGH:
 		vangogh_set_ppt_funcs(smu);
+		/* enable the OD by default to allow the fine grain tuning function */
+		smu->od_enabled = true;
 		break;
 	default:
 		return -EINVAL;
@@ -473,6 +475,8 @@ static int smu_late_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct smu_context *smu = &adev->smu;
 	int ret = 0;
+
+	smu_set_fine_grain_gfx_freq_parameters(smu);
 
 	if (adev->asic_type == CHIP_VANGOGH)
 		return 0;
