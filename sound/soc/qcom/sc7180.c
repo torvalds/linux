@@ -221,14 +221,67 @@ static void sc7180_snd_shutdown(struct snd_pcm_substream *substream)
 	}
 }
 
+static int sc7180_adau7002_init(struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
+
+	switch (cpu_dai->id) {
+	case MI2S_PRIMARY:
+		return 0;
+	case MI2S_SECONDARY:
+		return 0;
+	case LPASS_DP_RX:
+		return sc7180_hdmi_init(rtd);
+	default:
+		dev_err(rtd->dev, "%s: invalid dai id 0x%x\n", __func__,
+			cpu_dai->id);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int sc7180_adau7002_snd_startup(struct snd_pcm_substream *substream)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
+
+	switch (cpu_dai->id) {
+	case MI2S_PRIMARY:
+		snd_soc_dai_set_fmt(codec_dai,
+				    SND_SOC_DAIFMT_CBS_CFS |
+				    SND_SOC_DAIFMT_NB_NF |
+				    SND_SOC_DAIFMT_I2S);
+
+		break;
+	case MI2S_SECONDARY:
+		break;
+	case LPASS_DP_RX:
+		break;
+	default:
+		dev_err(rtd->dev, "%s: invalid dai id 0x%x\n", __func__,
+			cpu_dai->id);
+		return -EINVAL;
+	}
+	return 0;
+}
+
 static const struct snd_soc_ops sc7180_ops = {
 	.startup = sc7180_snd_startup,
 	.shutdown = sc7180_snd_shutdown,
 };
 
+static const struct snd_soc_ops sc7180_adau7002_ops = {
+	.startup = sc7180_adau7002_snd_startup,
+};
+
 static const struct snd_soc_dapm_widget sc7180_snd_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone Jack", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
+};
+
+static const struct snd_soc_dapm_widget sc7180_adau7002_snd_widgets[] = {
+	SND_SOC_DAPM_MIC("DMIC", NULL),
 };
 
 static const char * const dmic_mux_text[] = {
@@ -255,23 +308,15 @@ static const struct snd_soc_dapm_route sc7180_snd_dual_mic_audio_route[] = {
 	{"Dmic Mux", "Rear Mic", "DMIC"},
 };
 
-static void sc7180_add_ops(struct snd_soc_card *card)
-{
-	struct snd_soc_dai_link *link;
-	int i;
-
-	for_each_card_prelinks(card, i, link) {
-		link->ops = &sc7180_ops;
-		link->init = sc7180_init;
-	}
-}
-
 static int sc7180_snd_platform_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card;
 	struct sc7180_snd_data *data;
 	struct device *dev = &pdev->dev;
+	struct snd_soc_dai_link *link;
 	int ret;
+	int i;
+	bool no_headphone;
 
 	/* Allocate the private data */
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
@@ -299,17 +344,32 @@ static int sc7180_snd_platform_probe(struct platform_device *pdev)
 		}
 	}
 
+	if (of_device_is_compatible(dev->of_node, "google,sc7180-coachz")) {
+		no_headphone = true;
+		card->dapm_widgets = sc7180_adau7002_snd_widgets;
+		card->num_dapm_widgets = ARRAY_SIZE(sc7180_adau7002_snd_widgets);
+	}
+
 	ret = qcom_snd_parse_of(card);
 	if (ret)
 		return ret;
 
-	sc7180_add_ops(card);
+	for_each_card_prelinks(card, i, link) {
+		if (no_headphone) {
+			link->ops = &sc7180_adau7002_ops;
+			link->init = sc7180_adau7002_init;
+		} else {
+			link->ops = &sc7180_ops;
+			link->init = sc7180_init;
+		}
+	}
 
 	return devm_snd_soc_register_card(dev, card);
 }
 
 static const struct of_device_id sc7180_snd_device_id[]  = {
-	{ .compatible = "google,sc7180-trogdor"},
+	{.compatible = "google,sc7180-trogdor"},
+	{.compatible = "google,sc7180-coachz"},
 	{},
 };
 MODULE_DEVICE_TABLE(of, sc7180_snd_device_id);
