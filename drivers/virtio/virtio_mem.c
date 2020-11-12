@@ -390,6 +390,12 @@ static int virtio_mem_bbm_bb_states_prepare_next_bb(struct virtio_mem *vm)
 	     _bb_id++) \
 		if (virtio_mem_bbm_get_bb_state(_vm, _bb_id) == _state)
 
+#define virtio_mem_bbm_for_each_bb_rev(_vm, _bb_id, _state) \
+	for (_bb_id = vm->bbm.next_bb_id - 1; \
+	     _bb_id >= vm->bbm.first_bb_id && _vm->bbm.bb_count[_state]; \
+	     _bb_id--) \
+		if (virtio_mem_bbm_get_bb_state(_vm, _bb_id) == _state)
+
 /*
  * Set the state of a memory block, taking care of the state counter.
  */
@@ -686,6 +692,18 @@ static int virtio_mem_sbm_remove_mb(struct virtio_mem *vm, unsigned long mb_id)
 }
 
 /*
+ * See virtio_mem_remove_memory(): Try to remove all Linux memory blocks covered
+ * by the big block.
+ */
+static int virtio_mem_bbm_remove_bb(struct virtio_mem *vm, unsigned long bb_id)
+{
+	const uint64_t addr = virtio_mem_bb_id_to_phys(vm, bb_id);
+	const uint64_t size = vm->bbm.bb_size;
+
+	return virtio_mem_remove_memory(vm, addr, size);
+}
+
+/*
  * Try offlining and removing memory from Linux.
  *
  * Must not be called with the vm->hotplug_mutex held (possible deadlock with
@@ -727,6 +745,19 @@ static int virtio_mem_sbm_offline_and_remove_mb(struct virtio_mem *vm,
 {
 	const uint64_t addr = virtio_mem_mb_id_to_phys(mb_id);
 	const uint64_t size = memory_block_size_bytes();
+
+	return virtio_mem_offline_and_remove_memory(vm, addr, size);
+}
+
+/*
+ * See virtio_mem_offline_and_remove_memory(): Try to offline and remove a
+ * all Linux memory blocks covered by the big block.
+ */
+static int virtio_mem_bbm_offline_and_remove_bb(struct virtio_mem *vm,
+						unsigned long bb_id)
+{
+	const uint64_t addr = virtio_mem_bb_id_to_phys(vm, bb_id);
+	const uint64_t size = vm->bbm.bb_size;
 
 	return virtio_mem_offline_and_remove_memory(vm, addr, size);
 }
@@ -1929,13 +1960,136 @@ out_unlock:
 }
 
 /*
+ * Try to offline and remove a big block from Linux and unplug it. Will fail
+ * with -EBUSY if some memory is busy and cannot get unplugged.
+ *
+ * Will modify the state of the memory block. Might temporarily drop the
+ * hotplug_mutex.
+ */
+static int virtio_mem_bbm_offline_remove_and_unplug_bb(struct virtio_mem *vm,
+						       unsigned long bb_id)
+{
+	int rc;
+
+	if (WARN_ON_ONCE(virtio_mem_bbm_get_bb_state(vm, bb_id) !=
+			 VIRTIO_MEM_BBM_BB_ADDED))
+		return -EINVAL;
+
+	rc = virtio_mem_bbm_offline_and_remove_bb(vm, bb_id);
+	if (rc)
+		return rc;
+
+	rc = virtio_mem_bbm_unplug_bb(vm, bb_id);
+	if (rc)
+		virtio_mem_bbm_set_bb_state(vm, bb_id,
+					    VIRTIO_MEM_BBM_BB_PLUGGED);
+	else
+		virtio_mem_bbm_set_bb_state(vm, bb_id,
+					    VIRTIO_MEM_BBM_BB_UNUSED);
+	return rc;
+}
+
+/*
+ * Try to remove a big block from Linux and unplug it. Will fail with
+ * -EBUSY if some memory is online.
+ *
+ * Will modify the state of the memory block.
+ */
+static int virtio_mem_bbm_remove_and_unplug_bb(struct virtio_mem *vm,
+					       unsigned long bb_id)
+{
+	int rc;
+
+	if (WARN_ON_ONCE(virtio_mem_bbm_get_bb_state(vm, bb_id) !=
+			 VIRTIO_MEM_BBM_BB_ADDED))
+		return -EINVAL;
+
+	rc = virtio_mem_bbm_remove_bb(vm, bb_id);
+	if (rc)
+		return -EBUSY;
+
+	rc = virtio_mem_bbm_unplug_bb(vm, bb_id);
+	if (rc)
+		virtio_mem_bbm_set_bb_state(vm, bb_id,
+					    VIRTIO_MEM_BBM_BB_PLUGGED);
+	else
+		virtio_mem_bbm_set_bb_state(vm, bb_id,
+					    VIRTIO_MEM_BBM_BB_UNUSED);
+	return rc;
+}
+
+/*
+ * Test if a big block is completely offline.
+ */
+static bool virtio_mem_bbm_bb_is_offline(struct virtio_mem *vm,
+					 unsigned long bb_id)
+{
+	const unsigned long start_pfn = PFN_DOWN(virtio_mem_bb_id_to_phys(vm, bb_id));
+	const unsigned long nr_pages = PFN_DOWN(vm->bbm.bb_size);
+	unsigned long pfn;
+
+	for (pfn = start_pfn; pfn < start_pfn + nr_pages;
+	     pfn += PAGES_PER_SECTION) {
+		if (pfn_to_online_page(pfn))
+			return false;
+	}
+
+	return true;
+}
+
+static int virtio_mem_bbm_unplug_request(struct virtio_mem *vm, uint64_t diff)
+{
+	uint64_t nb_bb = diff / vm->bbm.bb_size;
+	uint64_t bb_id;
+	int rc;
+
+	if (!nb_bb)
+		return 0;
+
+	/* Try to unplug completely offline big blocks first. */
+	virtio_mem_bbm_for_each_bb_rev(vm, bb_id, VIRTIO_MEM_BBM_BB_ADDED) {
+		cond_resched();
+		/*
+		 * As we're holding no locks, this check is racy as memory
+		 * can get onlined in the meantime - but we'll fail gracefully.
+		 */
+		if (!virtio_mem_bbm_bb_is_offline(vm, bb_id))
+			continue;
+		rc = virtio_mem_bbm_remove_and_unplug_bb(vm, bb_id);
+		if (rc == -EBUSY)
+			continue;
+		if (!rc)
+			nb_bb--;
+		if (rc || !nb_bb)
+			return rc;
+	}
+
+	if (!unplug_online)
+		return 0;
+
+	/* Try to unplug any big blocks. */
+	virtio_mem_bbm_for_each_bb_rev(vm, bb_id, VIRTIO_MEM_BBM_BB_ADDED) {
+		cond_resched();
+		rc = virtio_mem_bbm_offline_remove_and_unplug_bb(vm, bb_id);
+		if (rc == -EBUSY)
+			continue;
+		if (!rc)
+			nb_bb--;
+		if (rc || !nb_bb)
+			return rc;
+	}
+
+	return nb_bb ? -EBUSY : 0;
+}
+
+/*
  * Try to unplug the requested amount of memory.
  */
 static int virtio_mem_unplug_request(struct virtio_mem *vm, uint64_t diff)
 {
 	if (vm->in_sbm)
 		return virtio_mem_sbm_unplug_request(vm, diff);
-	return -EBUSY;
+	return virtio_mem_bbm_unplug_request(vm, diff);
 }
 
 /*
