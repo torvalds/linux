@@ -10,6 +10,7 @@
 struct ice_info_ctx {
 	char buf[128];
 	struct ice_nvm_info pending_nvm;
+	struct ice_netlist_info pending_netlist;
 	struct ice_hw_dev_caps dev_caps;
 };
 
@@ -169,6 +170,32 @@ static int ice_info_netlist_build(struct ice_pf *pf, struct ice_info_ctx *ctx)
 	return 0;
 }
 
+static int
+ice_info_pending_netlist_ver(struct ice_pf __always_unused *pf, struct ice_info_ctx *ctx)
+{
+	struct ice_netlist_info *netlist = &ctx->pending_netlist;
+
+	/* The netlist version fields are BCD formatted */
+	if (ctx->dev_caps.common_cap.nvm_update_pending_netlist)
+		snprintf(ctx->buf, sizeof(ctx->buf), "%x.%x.%x-%x.%x.%x",
+			 netlist->major, netlist->minor,
+			 netlist->type >> 16, netlist->type & 0xFFFF, netlist->rev,
+			 netlist->cust_ver);
+
+	return 0;
+}
+
+static int
+ice_info_pending_netlist_build(struct ice_pf __always_unused *pf, struct ice_info_ctx *ctx)
+{
+	struct ice_netlist_info *netlist = &ctx->pending_netlist;
+
+	if (ctx->dev_caps.common_cap.nvm_update_pending_netlist)
+		snprintf(ctx->buf, sizeof(ctx->buf), "0x%08x", netlist->hash);
+
+	return 0;
+}
+
 #define fixed(key, getter) { ICE_VERSION_FIXED, key, getter, NULL }
 #define running(key, getter) { ICE_VERSION_RUNNING, key, getter, NULL }
 #define stored(key, getter, fallback) { ICE_VERSION_STORED, key, getter, fallback }
@@ -209,8 +236,8 @@ static const struct ice_devlink_version {
 	running("fw.app.name", ice_info_ddp_pkg_name),
 	running(DEVLINK_INFO_VERSION_GENERIC_FW_APP, ice_info_ddp_pkg_version),
 	running("fw.app.bundle_id", ice_info_ddp_pkg_bundle_id),
-	running("fw.netlist", ice_info_netlist_ver),
-	running("fw.netlist.build", ice_info_netlist_build),
+	combined("fw.netlist", ice_info_netlist_ver, ice_info_pending_netlist_ver),
+	combined("fw.netlist.build", ice_info_netlist_build, ice_info_pending_netlist_build),
 };
 
 /**
@@ -255,6 +282,17 @@ static int ice_devlink_info_get(struct devlink *devlink,
 
 			/* disable display of pending Option ROM */
 			ctx->dev_caps.common_cap.nvm_update_pending_nvm = false;
+		}
+	}
+
+	if (ctx->dev_caps.common_cap.nvm_update_pending_netlist) {
+		status = ice_get_inactive_netlist_ver(hw, &ctx->pending_netlist);
+		if (status) {
+			dev_dbg(dev, "Unable to read inactive Netlist version data, status %s aq_err %s\n",
+				ice_stat_str(status), ice_aq_str(hw->adminq.sq_last_status));
+
+			/* disable display of pending Option ROM */
+			ctx->dev_caps.common_cap.nvm_update_pending_netlist = false;
 		}
 	}
 

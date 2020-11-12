@@ -6250,6 +6250,8 @@ const char *ice_stat_str(enum ice_status stat_err)
 		return "ICE_ERR_OUT_OF_RANGE";
 	case ICE_ERR_ALREADY_EXISTS:
 		return "ICE_ERR_ALREADY_EXISTS";
+	case ICE_ERR_NVM:
+		return "ICE_ERR_NVM";
 	case ICE_ERR_NVM_CHECKSUM:
 		return "ICE_ERR_NVM_CHECKSUM";
 	case ICE_ERR_BUF_TOO_SHORT:
