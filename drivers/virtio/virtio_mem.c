@@ -717,7 +717,7 @@ static int virtio_mem_memory_notifier_cb(struct notifier_block *nb,
  * (via generic_online_page()) using PageDirty().
  */
 static void virtio_mem_set_fake_offline(unsigned long pfn,
-					unsigned int nr_pages, bool onlined)
+					unsigned long nr_pages, bool onlined)
 {
 	for (; nr_pages--; pfn++) {
 		struct page *page = pfn_to_page(pfn);
@@ -736,7 +736,7 @@ static void virtio_mem_set_fake_offline(unsigned long pfn,
  * (via generic_online_page()), clear PageDirty().
  */
 static void virtio_mem_clear_fake_offline(unsigned long pfn,
-					  unsigned int nr_pages, bool onlined)
+					  unsigned long nr_pages, bool onlined)
 {
 	for (; nr_pages--; pfn++) {
 		struct page *page = pfn_to_page(pfn);
@@ -751,10 +751,10 @@ static void virtio_mem_clear_fake_offline(unsigned long pfn,
  * Release a range of fake-offline pages to the buddy, effectively
  * fake-onlining them.
  */
-static void virtio_mem_fake_online(unsigned long pfn, unsigned int nr_pages)
+static void virtio_mem_fake_online(unsigned long pfn, unsigned long nr_pages)
 {
 	const unsigned long max_nr_pages = MAX_ORDER_NR_PAGES;
-	int i;
+	unsigned long i;
 
 	/*
 	 * We are always called at least with MAX_ORDER_NR_PAGES
