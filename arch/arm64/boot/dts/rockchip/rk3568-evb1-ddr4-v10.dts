@@ -216,14 +216,66 @@
 			rockchip,pins = <3 RK_PC2 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
+
+	sdio-pwrseq {
+		wifi_enable_h: wifi-enable-h {
+			rockchip,pins = <3 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	wireless-wlan {
+		wifi_host_wake_irq: wifi-host-wake-irq {
+			rockchip,pins = <3 RK_PD4 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+	};
+
+	wireless-bluetooth {
+		uart8_gpios: uart8-gpios {
+			rockchip,pins = <2 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
 };
 
 &sata2 {
 	status = "okay";
 };
 
+&sdio_pwrseq {
+	compatible = "mmc-pwrseq-simple";
+	clocks = <&rk809 1>;
+	clock-names = "ext_clock";
+	pinctrl-names = "default";
+	pinctrl-0 = <&wifi_enable_h>;
+
+	/*
+	 * On the module itself this is one of these (depending
+	 * on the actual card populated):
+	 * - SDIO_RESET_L_WL_REG_ON
+	 * - PDN (power down when low)
+	 */
+	reset-gpios = <&gpio3 RK_PD5 GPIO_ACTIVE_LOW>;
+};
+
+&sdmmc2 {
+	max-frequency = <150000000>;
+	supports-sdio;
+	bus-width = <4>;
+	disable-wp;
+	cap-sd-highspeed;
+	cap-sdio-irq;
+	keep-power-in-suspend;
+	mmc-pwrseq = <&sdio_pwrseq>;
+	non-removable;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdmmc2m0_bus4 &sdmmc2m0_cmd &sdmmc2m0_clk>;
+	sd-uhs-sdr104;
+	status = "okay";
+};
+
 &uart8 {
 	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart8m0_xfer &uart8ctsnm0>;
 };
 
 &vcc3v3_lcd0_n {
@@ -234,4 +286,29 @@
 &vcc3v3_lcd1_n {
 	gpio = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
 	enable-active-high;
+};
+
+&wireless_wlan {
+	compatible = "wlan-platdata";
+	rockchip,grf = <&grf>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&wifi_host_wake_irq>;
+	wifi_chip_type = "ap6398s";
+	WIFI,host_wake_irq = <&gpio3 RK_PD4 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&wireless_bluetooth {
+	compatible = "bluetooth-platdata";
+	clocks = <&rk809 1>;
+	clock-names = "ext_clock";
+	//wifi-bt-power-toggle;
+	uart_rts_gpios = <&gpio2 RK_PB1 GPIO_ACTIVE_LOW>;
+	pinctrl-names = "default", "rts_gpio";
+	pinctrl-0 = <&uart8rtsnm0>;
+	pinctrl-1 = <&uart8_gpios>;
+	BT,reset_gpio    = <&gpio3 RK_PA0 GPIO_ACTIVE_HIGH>;
+	BT,wake_gpio     = <&gpio3 RK_PA2 GPIO_ACTIVE_HIGH>;
+	BT,wake_host_irq = <&gpio3 RK_PA1 GPIO_ACTIVE_HIGH>;
+	status = "okay";
 };
