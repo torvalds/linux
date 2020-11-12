@@ -6,6 +6,7 @@
 #include <linux/types.h>
 #include <linux/spinlock.h>
 #include <linux/bpf.h>
+#include <linux/btf.h>
 #include <linux/btf_ids.h>
 #include <linux/bpf_local_storage.h>
 #include <net/bpf_sk_storage.h>
@@ -376,6 +377,79 @@ const struct bpf_func_proto bpf_sk_storage_delete_proto = {
 	.ret_type	= RET_INTEGER,
 	.arg1_type	= ARG_CONST_MAP_PTR,
 	.arg2_type	= ARG_PTR_TO_BTF_ID_SOCK_COMMON,
+};
+
+static bool bpf_sk_storage_tracing_allowed(const struct bpf_prog *prog)
+{
+	const struct btf *btf_vmlinux;
+	const struct btf_type *t;
+	const char *tname;
+	u32 btf_id;
+
+	if (prog->aux->dst_prog)
+		return false;
+
+	/* Ensure the tracing program is not tracing
+	 * any bpf_sk_storage*() function and also
+	 * use the bpf_sk_storage_(get|delete) helper.
+	 */
+	switch (prog->expected_attach_type) {
+	case BPF_TRACE_RAW_TP:
+		/* bpf_sk_storage has no trace point */
+		return true;
+	case BPF_TRACE_FENTRY:
+	case BPF_TRACE_FEXIT:
+		btf_vmlinux = bpf_get_btf_vmlinux();
+		btf_id = prog->aux->attach_btf_id;
+		t = btf_type_by_id(btf_vmlinux, btf_id);
+		tname = btf_name_by_offset(btf_vmlinux, t->name_off);
+		return !!strncmp(tname, "bpf_sk_storage",
+				 strlen("bpf_sk_storage"));
+	default:
+		return false;
+	}
+
+	return false;
+}
+
+BPF_CALL_4(bpf_sk_storage_get_tracing, struct bpf_map *, map, struct sock *, sk,
+	   void *, value, u64, flags)
+{
+	if (!in_serving_softirq() && !in_task())
+		return (unsigned long)NULL;
+
+	return (unsigned long)____bpf_sk_storage_get(map, sk, value, flags);
+}
+
+BPF_CALL_2(bpf_sk_storage_delete_tracing, struct bpf_map *, map,
+	   struct sock *, sk)
+{
+	if (!in_serving_softirq() && !in_task())
+		return -EPERM;
+
+	return ____bpf_sk_storage_delete(map, sk);
+}
+
+const struct bpf_func_proto bpf_sk_storage_get_tracing_proto = {
+	.func		= bpf_sk_storage_get_tracing,
+	.gpl_only	= false,
+	.ret_type	= RET_PTR_TO_MAP_VALUE_OR_NULL,
+	.arg1_type	= ARG_CONST_MAP_PTR,
+	.arg2_type	= ARG_PTR_TO_BTF_ID,
+	.arg2_btf_id	= &btf_sock_ids[BTF_SOCK_TYPE_SOCK_COMMON],
+	.arg3_type	= ARG_PTR_TO_MAP_VALUE_OR_NULL,
+	.arg4_type	= ARG_ANYTHING,
+	.allowed	= bpf_sk_storage_tracing_allowed,
+};
+
+const struct bpf_func_proto bpf_sk_storage_delete_tracing_proto = {
+	.func		= bpf_sk_storage_delete_tracing,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_CONST_MAP_PTR,
+	.arg2_type	= ARG_PTR_TO_BTF_ID,
+	.arg2_btf_id	= &btf_sock_ids[BTF_SOCK_TYPE_SOCK_COMMON],
+	.allowed	= bpf_sk_storage_tracing_allowed,
 };
 
 struct bpf_sk_storage_diag {
