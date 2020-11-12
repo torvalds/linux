@@ -13,6 +13,7 @@
  *
  */
 
+#include <linux/extcon-provider.h>
 #include <linux/device.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -39,11 +40,13 @@ struct gpio_charger {
 
 	struct power_supply *charger;
 	struct power_supply_desc charger_desc;
+	struct extcon_dev *edev;
 	struct gpio_desc *gpiod;
 	struct gpio_desc *charge_status;
 
 	struct gpio_descs *current_limit_gpios;
 	struct gpio_mapping *current_limit_map;
+	struct notifier_block cable_cg_nb;
 	u32 current_limit_map_size;
 	u32 charge_current_limit;
 };
@@ -246,6 +249,22 @@ static int init_charge_current_limit(struct device *dev,
 	return 0;
 }
 
+static int gpio_charger_evt_notifier(struct notifier_block *nb,
+				     unsigned long event, void *ptr)
+{
+	int limit_ua;
+	struct gpio_charger *charger =
+		container_of(nb, struct gpio_charger, cable_cg_nb);
+
+	limit_ua = charger->current_limit_map[charger->current_limit_map_size - 1].limit_ua;
+	if (extcon_get_state(charger->edev, EXTCON_CHG_USB_DCP) > 0)
+		limit_ua = charger->current_limit_map[0].limit_ua;
+
+	set_charge_current_limit(charger, limit_ua);
+
+	return NOTIFY_DONE;
+}
+
 /*
  * The entries will be overwritten by driver's probe routine depending
  * on the available features. This list ensures, that the array is big
@@ -261,6 +280,7 @@ static int gpio_charger_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	const struct gpio_charger_platform_data *pdata = dev->platform_data;
+	struct extcon_dev *edev;
 	struct power_supply_config psy_cfg = {};
 	struct gpio_charger *gpio_charger;
 	struct power_supply_desc *charger_desc;
@@ -278,6 +298,27 @@ static int gpio_charger_probe(struct platform_device *pdev)
 	if (!gpio_charger)
 		return -ENOMEM;
 	gpio_charger->dev = dev;
+
+	if (of_property_read_bool(dev->of_node, "extcon")) {
+		edev = extcon_get_edev_by_phandle(dev, 0);
+		if (IS_ERR(edev)) {
+			if (PTR_ERR(edev) != -EPROBE_DEFER)
+				dev_err(dev, "Invalid or missing extcon\n");
+			return PTR_ERR(edev);
+		}
+		gpio_charger->edev = edev;
+		gpio_charger->cable_cg_nb.notifier_call =
+			gpio_charger_evt_notifier;
+		ret = devm_extcon_register_notifier(dev, edev,
+						    EXTCON_CHG_USB_DCP,
+						    &gpio_charger->cable_cg_nb);
+		if (ret) {
+			dev_err(dev, "failed to register notifier for CDP\n");
+			return ret;
+		}
+	} else {
+		gpio_charger->edev = ERR_PTR(-ENODEV);
+	}
 
 	/*
 	 * This will fetch a GPIO descriptor from device tree, ACPI or
