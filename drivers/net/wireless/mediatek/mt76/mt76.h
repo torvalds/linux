@@ -775,7 +775,8 @@ void mt76_unregister_phy(struct mt76_phy *phy);
 
 struct mt76_phy *mt76_alloc_phy(struct mt76_dev *dev, unsigned int size,
 				const struct ieee80211_ops *ops);
-int mt76_register_phy(struct mt76_phy *phy);
+int mt76_register_phy(struct mt76_phy *phy, bool vht,
+		      struct ieee80211_rate *rates, int n_rates);
 
 struct dentry *mt76_register_debugfs(struct mt76_dev *dev);
 int mt76_queues_read(struct seq_file *s, void *data);

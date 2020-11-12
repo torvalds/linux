@@ -332,65 +332,57 @@ mt76_alloc_phy(struct mt76_dev *dev, unsigned int size,
 	       const struct ieee80211_ops *ops)
 {
 	struct ieee80211_hw *hw;
+	unsigned int phy_size;
 	struct mt76_phy *phy;
-	unsigned int phy_size, chan_size;
-	unsigned int size_2g, size_5g;
-	void *priv;
 
 	phy_size = ALIGN(sizeof(*phy), 8);
-	chan_size = sizeof(dev->phy.sband_2g.chan[0]);
-	size_2g = ALIGN(ARRAY_SIZE(mt76_channels_2ghz) * chan_size, 8);
-	size_5g = ALIGN(ARRAY_SIZE(mt76_channels_5ghz) * chan_size, 8);
-
-	size += phy_size + size_2g + size_5g;
-	hw = ieee80211_alloc_hw(size, ops);
+	hw = ieee80211_alloc_hw(size + phy_size, ops);
 	if (!hw)
 		return NULL;
 
 	phy = hw->priv;
 	phy->dev = dev;
 	phy->hw = hw;
-
-	mt76_phy_init(dev, hw);
-
-	priv = hw->priv + phy_size;
-
-	phy->sband_2g = dev->phy.sband_2g;
-	phy->sband_2g.chan = priv;
-	priv += size_2g;
-
-	phy->sband_5g = dev->phy.sband_5g;
-	phy->sband_5g.chan = priv;
-	priv += size_5g;
-
-	phy->priv = priv;
-
-	hw->wiphy->bands[NL80211_BAND_2GHZ] = &phy->sband_2g.sband;
-	hw->wiphy->bands[NL80211_BAND_5GHZ] = &phy->sband_5g.sband;
-
-	mt76_check_sband(phy, &phy->sband_2g, NL80211_BAND_2GHZ);
-	mt76_check_sband(phy, &phy->sband_5g, NL80211_BAND_5GHZ);
+	phy->priv = hw->priv + phy_size;
 
 	return phy;
 }
 EXPORT_SYMBOL_GPL(mt76_alloc_phy);
 
-int
-mt76_register_phy(struct mt76_phy *phy)
+int mt76_register_phy(struct mt76_phy *phy, bool vht,
+		      struct ieee80211_rate *rates, int n_rates)
 {
 	int ret;
+
+	mt76_phy_init(phy->dev, phy->hw);
+
+	if (phy->cap.has_2ghz) {
+		ret = mt76_init_sband_2g(phy, rates, n_rates);
+		if (ret)
+			return ret;
+	}
+
+	if (phy->cap.has_5ghz) {
+		ret = mt76_init_sband_5g(phy, rates + 4, n_rates - 4, vht);
+		if (ret)
+			return ret;
+	}
+
+	wiphy_read_of_freq_limits(phy->hw->wiphy);
+	mt76_check_sband(phy, &phy->sband_2g, NL80211_BAND_2GHZ);
+	mt76_check_sband(phy, &phy->sband_5g, NL80211_BAND_5GHZ);
 
 	ret = ieee80211_register_hw(phy->hw);
 	if (ret)
 		return ret;
 
 	phy->dev->phy2 = phy;
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mt76_register_phy);
 
-void
-mt76_unregister_phy(struct mt76_phy *phy)
+void mt76_unregister_phy(struct mt76_phy *phy)
 {
 	struct mt76_dev *dev = phy->dev;
 

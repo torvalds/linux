@@ -620,7 +620,8 @@ int mt7915_register_ext_phy(struct mt7915_dev *dev)
 	mphy->hw->wiphy->perm_addr[0] |= 2;
 	mphy->hw->wiphy->perm_addr[0] ^= BIT(7);
 
-	ret = mt76_register_phy(mphy);
+	ret = mt76_register_phy(mphy, true, mt7915_rates,
+				ARRAY_SIZE(mt7915_rates));
 	if (ret)
 		ieee80211_free_hw(mphy->hw);
 

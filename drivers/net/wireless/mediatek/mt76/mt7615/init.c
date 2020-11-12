@@ -426,14 +426,14 @@ int mt7615_register_ext_phy(struct mt7615_dev *dev)
 	mphy->hw->wiphy->perm_addr[0] ^= BIT(7);
 
 	/* second phy can only handle 5 GHz */
-	mphy->sband_2g.sband.n_channels = 0;
-	mphy->hw->wiphy->bands[NL80211_BAND_2GHZ] = NULL;
+	mphy->cap.has_5ghz = true;
 
 	/* mt7615 second phy shares the same hw queues with the primary one */
 	for (i = 0; i <= MT_TXQ_PSD ; i++)
 		mphy->q_tx[i] = dev->mphy.q_tx[i];
 
-	ret = mt76_register_phy(mphy);
+	ret = mt76_register_phy(mphy, true, mt7615_rates,
+				ARRAY_SIZE(mt7615_rates));
 	if (ret)
 		ieee80211_free_hw(mphy->hw);
 
