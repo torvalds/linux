@@ -15,6 +15,8 @@ struct vdso_image {
 	unsigned long size;   /* Always a multiple of PAGE_SIZE */
 
 	unsigned long alt, alt_len;
+	unsigned long extable_base, extable_len;
+	const void *extable;
 
 	long sym_vvar_start;  /* Negative offset to the vvar area */
 
@@ -45,6 +47,9 @@ extern void __init init_vdso_image(const struct vdso_image *image);
 
 extern int map_vdso_once(const struct vdso_image *image, unsigned long addr);
 
+extern bool fixup_vdso_exception(struct pt_regs *regs, int trapnr,
+				 unsigned long error_code,
+				 unsigned long fault_addr);
 #endif /* __ASSEMBLER__ */
 
 #endif /* _ASM_X86_VDSO_H */
