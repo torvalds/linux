@@ -379,6 +379,20 @@ int snd_intel_dsp_driver_probe(struct pci_dev *pci)
 	if (pci->vendor != 0x8086)
 		return SND_INTEL_DSP_DRIVER_ANY;
 
+	/*
+	 * Legacy devices don't have a PCI-based DSP and use HDaudio
+	 * for HDMI/DP support, ignore kernel parameter
+	 */
+	switch (pci->device) {
+	case 0x160c: /* Broadwell */
+	case 0x0a0c: /* Haswell */
+	case 0x0c0c:
+	case 0x0d0c:
+	case 0x0f04: /* Baytrail */
+	case 0x2284: /* Braswell */
+		return SND_INTEL_DSP_DRIVER_ANY;
+	}
+
 	if (dsp_driver > 0 && dsp_driver <= SND_INTEL_DSP_DRIVER_LAST)
 		return dsp_driver;
 
