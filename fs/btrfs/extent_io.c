@@ -2919,7 +2919,7 @@ static void end_bio_extent_readpage(struct bio *bio)
 							     start, end, mirror);
 			else
 				ret = btrfs_validate_metadata_buffer(io_bio,
-					offset, page, start, end, mirror);
+					page, start, end, mirror);
 			if (ret)
 				uptodate = 0;
 			else
