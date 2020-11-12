@@ -397,15 +397,16 @@ static void rtw_coex_monitor_bt_enable(struct rtw_dev *rtwdev)
 		coex_stat->bt_disabled = bt_disabled;
 		coex_stat->bt_ble_scan_type = 0;
 		coex_dm->cur_bt_lna_lvl = 0;
-	}
 
-	if (!coex_stat->bt_disabled) {
-		coex_stat->bt_reenable = true;
-		ieee80211_queue_delayed_work(rtwdev->hw,
-					     &coex->bt_reenable_work, 15 * HZ);
-	} else {
-		coex_stat->bt_mailbox_reply = false;
-		coex_stat->bt_reenable = false;
+		if (!coex_stat->bt_disabled) {
+			coex_stat->bt_reenable = true;
+			ieee80211_queue_delayed_work(rtwdev->hw,
+						     &coex->bt_reenable_work,
+						     15 * HZ);
+		} else {
+			coex_stat->bt_mailbox_reply = false;
+			coex_stat->bt_reenable = false;
+		}
 	}
 }
 
@@ -610,15 +611,6 @@ static void rtw_coex_update_bt_link_info(struct rtw_dev *rtwdev)
 		rssi_state = rtw_coex_next_rssi_state(rtwdev, rssi_state, rssi,
 						      rssi_step);
 		coex_dm->bt_rssi_state[i] = rssi_state;
-	}
-
-	for (i = 0; i < COEX_RSSI_STEP; i++) {
-		rssi_state = coex_dm->wl_rssi_state[i];
-		rssi_step = chip->wl_rssi_step[i];
-		rssi = rtwdev->dm_info.min_rssi;
-		rssi_state = rtw_coex_next_rssi_state(rtwdev, rssi_state,
-						      rssi, rssi_step);
-		coex_dm->wl_rssi_state[i] = rssi_state;
 	}
 
 	if (coex_stat->bt_ble_scan_en &&
@@ -991,7 +983,7 @@ static void rtw_coex_tdma(struct rtw_dev *rtwdev, bool force, u32 tcase)
 	bool turn_on;
 	bool wl_busy = false;
 
-	if (tcase & TDMA_4SLOT)/* 4-slot (50ms) mode */
+	if (tcase & TDMA_4SLOT) /* 4-slot (50ms) mode */
 		rtw_coex_tdma_timer_base(rtwdev, TDMA_TIMER_TYPE_4SLOT);
 	else
 		rtw_coex_tdma_timer_base(rtwdev, TDMA_TIMER_TYPE_2SLOT);
@@ -2864,11 +2856,6 @@ void rtw_coex_wl_fwdbginfo_notify(struct rtw_dev *rtwdev, u8 *buf, u8 length)
 
 void rtw_coex_wl_status_change_notify(struct rtw_dev *rtwdev, u32 type)
 {
-	struct rtw_coex *coex = &rtwdev->coex;
-
-	if (coex->stop_dm)
-		return;
-
 	rtw_coex_run_coex(rtwdev, COEX_RSN_WLSTATUS);
 }
 
