@@ -1669,6 +1669,15 @@ config VIDEO_I2C
 	  To compile this driver as a module, choose M here: the
 	  module will be called video-i2c
 
+config VIDEO_NVP6324
+	tristate "NEXTCHIP nvp6324 driver support"
+	depends on VIDEO_V4L2 && I2C
+	---help---
+	  Support for the NVP6324.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called jaguar1_drv.
+
 config VIDEO_HALL_DC_MOTOR
 	tristate "Hall dc-motor driver for camera iris"
 	depends on PWM && VIDEO_V4L2
