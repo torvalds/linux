@@ -332,7 +332,8 @@ static void rtw_wow_fw_security_type_iter(struct ieee80211_hw *hw,
 		key->flags |= IEEE80211_KEY_FLAG_SW_MGMT_TX;
 		break;
 	default:
-		rtw_err(rtwdev, "Unsupported key type for wowlan mode\n");
+		rtw_err(rtwdev, "Unsupported key type for wowlan mode: %#x\n",
+			key->cipher);
 		hw_key_type = 0;
 		break;
 	}
