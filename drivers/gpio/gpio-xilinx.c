@@ -298,7 +298,8 @@ static int xgpio_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, chip);
 
 	/* Update GPIO state shadow register with default value */
-	of_property_read_u32(np, "xlnx,dout-default", &chip->gpio_state[0]);
+	if (of_property_read_u32(np, "xlnx,dout-default", &chip->gpio_state[0]))
+		chip->gpio_state[0] = 0x0;
 
 	/* Update GPIO direction shadow register with default value */
 	if (of_property_read_u32(np, "xlnx,tri-default", &chip->gpio_dir[0]))
@@ -318,8 +319,9 @@ static int xgpio_probe(struct platform_device *pdev)
 
 	if (is_dual) {
 		/* Update GPIO state shadow register with default value */
-		of_property_read_u32(np, "xlnx,dout-default-2",
-				     &chip->gpio_state[1]);
+		if (of_property_read_u32(np, "xlnx,dout-default-2",
+					 &chip->gpio_state[1]))
+			chip->gpio_state[1] = 0x0;
 
 		/* Update GPIO direction shadow register with default value */
 		if (of_property_read_u32(np, "xlnx,tri-default-2",
