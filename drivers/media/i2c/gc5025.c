@@ -149,6 +149,7 @@ struct gc5025 {
 	struct clk		*xvclk;
 	struct gpio_desc	*reset_gpio;
 	struct gpio_desc	*pwdn_gpio;
+	struct gpio_desc	*power_gpio;
 	struct regulator_bulk_data supplies[GC5025_NUM_SUPPLIES];
 
 	struct pinctrl		*pinctrl;
@@ -1384,6 +1385,11 @@ static int __gc5025_power_on(struct gc5025 *gc5025)
 	u32 delay_us;
 	struct device *dev = &gc5025->client->dev;
 
+	if (!IS_ERR(gc5025->power_gpio)) {
+		gpiod_set_value_cansleep(gc5025->power_gpio, 1);
+		usleep_range(5000, 5100);
+	}
+
 	if (!IS_ERR_OR_NULL(gc5025->pins_default)) {
 		ret = pinctrl_select_state(gc5025->pinctrl,
 					   gc5025->pins_default);
@@ -1505,6 +1511,36 @@ static int gc5025_enum_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int gc5025_g_mbus_config(struct v4l2_subdev *sd,
+				 struct v4l2_mbus_config *config)
+{
+	u32 val = 0;
+
+	val = 1 << (GC5025_LANES - 1) |
+	V4L2_MBUS_CSI2_CHANNEL_0 |
+	V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
+
+	config->type = V4L2_MBUS_CSI2;
+	config->flags = val;
+
+	return 0;
+}
+
+static int gc5025_get_selection(struct v4l2_subdev *sd,
+				struct v4l2_subdev_pad_config *cfg,
+				struct v4l2_subdev_selection *sel)
+{
+
+	if (sel->target == V4L2_SEL_TGT_CROP_BOUNDS) {
+		sel->r.left = 0;
+		sel->r.width = 2592;
+		sel->r.top = 0;
+		sel->r.height = 1944;
+		return 0;
+	}
+	return -EINVAL;
+}
+
 static const struct dev_pm_ops gc5025_pm_ops = {
 	SET_RUNTIME_PM_OPS(gc5025_runtime_suspend,
 			   gc5025_runtime_resume, NULL)
@@ -1527,6 +1563,7 @@ static const struct v4l2_subdev_core_ops gc5025_core_ops = {
 static const struct v4l2_subdev_video_ops gc5025_video_ops = {
 	.s_stream = gc5025_s_stream,
 	.g_frame_interval = gc5025_g_frame_interval,
+	.g_mbus_config = gc5025_g_mbus_config,
 };
 
 static const struct v4l2_subdev_pad_ops gc5025_pad_ops = {
@@ -1535,6 +1572,7 @@ static const struct v4l2_subdev_pad_ops gc5025_pad_ops = {
 	.enum_frame_interval = gc5025_enum_frame_interval,
 	.get_fmt = gc5025_get_fmt,
 	.set_fmt = gc5025_set_fmt,
+	.get_selection = gc5025_get_selection,
 };
 
 static const struct v4l2_subdev_ops gc5025_subdev_ops = {
@@ -1741,6 +1779,7 @@ static int gc5025_check_sensor_id(struct gc5025 *gc5025,
 		dev_err(dev, "Unexpected sensor id(%06x), ret(%d)\n", id, ret);
 		return -ENODEV;
 	}
+
 	ret |= gc5025_read_reg(client, 0x26, &flag_doublereset);
 	ret |= gc5025_read_reg(client, 0x27, &flag_GC5025A);
 	if ((flag_GC5025A & 0x01) == 0x01) {
@@ -1809,6 +1848,10 @@ static int gc5025_probe(struct i2c_client *client,
 		dev_err(dev, "Failed to get xvclk\n");
 		return -EINVAL;
 	}
+
+	gc5025->power_gpio = devm_gpiod_get(dev, "power", GPIOD_OUT_LOW);
+	if (IS_ERR(gc5025->power_gpio))
+		dev_warn(dev, "Failed to get power-gpios\n");
 
 	gc5025->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(gc5025->reset_gpio))
