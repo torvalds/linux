@@ -25,6 +25,8 @@ enum sgx_page_flags {
 	_IOWR(SGX_MAGIC, 0x01, struct sgx_enclave_add_pages)
 #define SGX_IOC_ENCLAVE_INIT \
 	_IOW(SGX_MAGIC, 0x02, struct sgx_enclave_init)
+#define SGX_IOC_ENCLAVE_PROVISION \
+	_IOW(SGX_MAGIC, 0x03, struct sgx_enclave_provision)
 
 /**
  * struct sgx_enclave_create - parameter structure for the
@@ -61,6 +63,15 @@ struct sgx_enclave_add_pages {
  */
 struct sgx_enclave_init {
 	__u64 sigstruct;
+};
+
+/**
+ * struct sgx_enclave_provision - parameter structure for the
+ *				  %SGX_IOC_ENCLAVE_PROVISION ioctl
+ * @fd:		file handle of /dev/sgx_provision
+ */
+struct sgx_enclave_provision {
+	__u64 fd;
 };
 
 #endif /* _UAPI_ASM_X86_SGX_H */

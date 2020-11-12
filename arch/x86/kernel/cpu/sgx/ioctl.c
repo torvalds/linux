@@ -569,6 +569,40 @@ out:
 	return ret;
 }
 
+/**
+ * sgx_ioc_enclave_provision() - handler for %SGX_IOC_ENCLAVE_PROVISION
+ * @enclave:	an enclave pointer
+ * @arg:	userspace pointer to a struct sgx_enclave_provision instance
+ *
+ * Allow ATTRIBUTE.PROVISION_KEY for an enclave by providing a file handle to
+ * /dev/sgx_provision.
+ *
+ * Return:
+ * - 0:		Success.
+ * - -errno:	Otherwise.
+ */
+static long sgx_ioc_enclave_provision(struct sgx_encl *encl, void __user *arg)
+{
+	struct sgx_enclave_provision params;
+	struct file *file;
+
+	if (copy_from_user(&params, arg, sizeof(params)))
+		return -EFAULT;
+
+	file = fget(params.fd);
+	if (!file)
+		return -EINVAL;
+
+	if (file->f_op != &sgx_provision_fops) {
+		fput(file);
+		return -EINVAL;
+	}
+
+	encl->attributes_mask |= SGX_ATTR_PROVISIONKEY;
+
+	fput(file);
+	return 0;
+}
 
 long sgx_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 {
@@ -587,6 +621,9 @@ long sgx_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 		break;
 	case SGX_IOC_ENCLAVE_INIT:
 		ret = sgx_ioc_enclave_init(encl, (void __user *)arg);
+		break;
+	case SGX_IOC_ENCLAVE_PROVISION:
+		ret = sgx_ioc_enclave_provision(encl, (void __user *)arg);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;

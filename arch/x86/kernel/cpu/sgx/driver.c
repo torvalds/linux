@@ -112,6 +112,10 @@ static const struct file_operations sgx_encl_fops = {
 	.get_unmapped_area	= sgx_get_unmapped_area,
 };
 
+const struct file_operations sgx_provision_fops = {
+	.owner			= THIS_MODULE,
+};
+
 static struct miscdevice sgx_dev_enclave = {
 	.minor = MISC_DYNAMIC_MINOR,
 	.name = "sgx_enclave",
@@ -119,11 +123,19 @@ static struct miscdevice sgx_dev_enclave = {
 	.fops = &sgx_encl_fops,
 };
 
+static struct miscdevice sgx_dev_provision = {
+	.minor = MISC_DYNAMIC_MINOR,
+	.name = "sgx_provision",
+	.nodename = "sgx_provision",
+	.fops = &sgx_provision_fops,
+};
+
 int __init sgx_drv_init(void)
 {
 	unsigned int eax, ebx, ecx, edx;
 	u64 attr_mask;
 	u64 xfrm_mask;
+	int ret;
 
 	if (!cpu_feature_enabled(X86_FEATURE_SGX_LC))
 		return -ENODEV;
@@ -147,5 +159,15 @@ int __init sgx_drv_init(void)
 		sgx_xfrm_reserved_mask = ~xfrm_mask;
 	}
 
-	return misc_register(&sgx_dev_enclave);
+	ret = misc_register(&sgx_dev_enclave);
+	if (ret)
+		return ret;
+
+	ret = misc_register(&sgx_dev_provision);
+	if (ret) {
+		misc_deregister(&sgx_dev_enclave);
+		return ret;
+	}
+
+	return 0;
 }
