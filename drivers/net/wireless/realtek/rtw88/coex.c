@@ -2368,19 +2368,19 @@ static void __rtw_coex_init_hw_config(struct rtw_dev *rtwdev, bool wifi_only)
 			__func__);
 	} else if (wifi_only) {
 		rtw_coex_set_ant_path(rtwdev, true, COEX_SET_ANT_WONLY);
-		rtw_coex_write_scbd(rtwdev, COEX_SCBD_ACTIVE | COEX_SCBD_SCAN,
+		rtw_coex_write_scbd(rtwdev, COEX_SCBD_ACTIVE | COEX_SCBD_ONOFF,
 				    true);
 		coex->stop_dm = true;
 	} else {
 		rtw_coex_set_ant_path(rtwdev, true, COEX_SET_ANT_INIT);
-		rtw_coex_write_scbd(rtwdev, COEX_SCBD_ACTIVE | COEX_SCBD_SCAN,
+		rtw_coex_write_scbd(rtwdev, COEX_SCBD_ACTIVE | COEX_SCBD_ONOFF,
 				    true);
 		coex->stop_dm = false;
 		coex->freeze = true;
 	}
 
 	/* PTA parameter */
-	rtw_coex_table(rtwdev, false, 0);
+	rtw_coex_table(rtwdev, true, 1);
 	rtw_coex_tdma(rtwdev, true, 0);
 	rtw_coex_query_bt_info(rtwdev);
 }
@@ -2388,6 +2388,7 @@ static void __rtw_coex_init_hw_config(struct rtw_dev *rtwdev, bool wifi_only)
 void rtw_coex_power_on_setting(struct rtw_dev *rtwdev)
 {
 	struct rtw_coex *coex = &rtwdev->coex;
+	u8 table_case = 1;
 
 	rtw_dbg(rtwdev, RTW_DBG_COEX, "[BTCoex], %s()\n", __func__);
 
@@ -2404,6 +2405,7 @@ void rtw_coex_power_on_setting(struct rtw_dev *rtwdev)
 	/* set antenna path to BT */
 	rtw_coex_set_ant_path(rtwdev, true, COEX_SET_ANT_POWERON);
 
+	rtw_coex_table(rtwdev, true, table_case);
 	/* red x issue */
 	rtw_write8(rtwdev, 0xff1a, 0x0);
 }
