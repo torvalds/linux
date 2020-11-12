@@ -1502,7 +1502,7 @@
 		reg-names = "pcie-dbi", "pcie-apb";
 		resets = <&cru SRST_PCIE30X1_POWERUP>;
 		reset-names = "pipe";
-		rockchip,bifurcation; /* lane1 when using 1+1 */
+		/* rockchip,bifurcation; lane1 when using 1+1 */
 		status = "disabled";
 	};
 
@@ -1538,7 +1538,7 @@
 		reg-names = "pcie-dbi", "pcie-apb";
 		resets = <&cru SRST_PCIE30X2_POWERUP>;
 		reset-names = "pipe";
-		rockchip,bifurcation; /* lane0 when using 1+1 */
+		/* rockchip,bifurcation; lane0 when using 1+1 */
 		status = "disabled";
 	};
 
