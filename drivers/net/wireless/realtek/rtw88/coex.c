@@ -928,7 +928,7 @@ static void rtw_coex_power_save_state(struct rtw_dev *rtwdev, u8 ps_type,
 	case COEX_PS_LPS_OFF:
 		coex_stat->wl_force_lps_ctrl = true;
 		if (lps_mode)
-			rtw_fw_coex_tdma_type(rtwdev, 0x8, 0, 0, 0, 0);
+			rtw_fw_coex_tdma_type(rtwdev, 0, 0, 0, 0, 0);
 
 		rtw_leave_lps(rtwdev);
 		rtw_dbg(rtwdev, RTW_DBG_COEX,
