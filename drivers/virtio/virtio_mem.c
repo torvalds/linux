@@ -37,6 +37,11 @@ module_param(bbm_block_size, ulong, 0444);
 MODULE_PARM_DESC(bbm_block_size,
 		 "Big Block size in bytes. Default is 0 (auto-detection).");
 
+static bool bbm_safe_unplug = true;
+module_param(bbm_safe_unplug, bool, 0444);
+MODULE_PARM_DESC(bbm_safe_unplug,
+	     "Use a safe unplug mechanism in BBM, avoiding long/endless loops");
+
 /*
  * virtio-mem currently supports the following modes of operation:
  *
@@ -87,6 +92,8 @@ enum virtio_mem_bbm_bb_state {
 	VIRTIO_MEM_BBM_BB_PLUGGED,
 	/* Plugged and added to Linux. */
 	VIRTIO_MEM_BBM_BB_ADDED,
+	/* All online parts are fake-offline, ready to remove. */
+	VIRTIO_MEM_BBM_BB_FAKE_OFFLINE,
 	VIRTIO_MEM_BBM_BB_COUNT
 };
 
@@ -889,6 +896,32 @@ static void virtio_mem_sbm_notify_cancel_offline(struct virtio_mem *vm,
 	}
 }
 
+static void virtio_mem_bbm_notify_going_offline(struct virtio_mem *vm,
+						unsigned long bb_id,
+						unsigned long pfn,
+						unsigned long nr_pages)
+{
+	/*
+	 * When marked as "fake-offline", all online memory of this device block
+	 * is allocated by us. Otherwise, we don't have any memory allocated.
+	 */
+	if (virtio_mem_bbm_get_bb_state(vm, bb_id) !=
+	    VIRTIO_MEM_BBM_BB_FAKE_OFFLINE)
+		return;
+	virtio_mem_fake_offline_going_offline(pfn, nr_pages);
+}
+
+static void virtio_mem_bbm_notify_cancel_offline(struct virtio_mem *vm,
+						 unsigned long bb_id,
+						 unsigned long pfn,
+						 unsigned long nr_pages)
+{
+	if (virtio_mem_bbm_get_bb_state(vm, bb_id) !=
+	    VIRTIO_MEM_BBM_BB_FAKE_OFFLINE)
+		return;
+	virtio_mem_fake_offline_cancel_offline(pfn, nr_pages);
+}
+
 /*
  * This callback will either be called synchronously from add_memory() or
  * asynchronously (e.g., triggered via user space). We have to be careful
@@ -949,6 +982,10 @@ static int virtio_mem_memory_notifier_cb(struct notifier_block *nb,
 		vm->hotplug_active = true;
 		if (vm->in_sbm)
 			virtio_mem_sbm_notify_going_offline(vm, id);
+		else
+			virtio_mem_bbm_notify_going_offline(vm, id,
+							    mhp->start_pfn,
+							    mhp->nr_pages);
 		break;
 	case MEM_GOING_ONLINE:
 		mutex_lock(&vm->hotplug_mutex);
@@ -999,6 +1036,10 @@ static int virtio_mem_memory_notifier_cb(struct notifier_block *nb,
 			break;
 		if (vm->in_sbm)
 			virtio_mem_sbm_notify_cancel_offline(vm, id);
+		else
+			virtio_mem_bbm_notify_cancel_offline(vm, id,
+							     mhp->start_pfn,
+							     mhp->nr_pages);
 		vm->hotplug_active = false;
 		mutex_unlock(&vm->hotplug_mutex);
 		break;
@@ -1189,7 +1230,13 @@ static void virtio_mem_online_page_cb(struct page *page, unsigned int order)
 			do_online = virtio_mem_sbm_test_sb_plugged(vm, id,
 								   sb_id, 1);
 		} else {
-			do_online = true;
+			/*
+			 * If the whole block is marked fake offline, keep
+			 * everything that way.
+			 */
+			id = virtio_mem_phys_to_bb_id(vm, addr);
+			do_online = virtio_mem_bbm_get_bb_state(vm, id) !=
+				    VIRTIO_MEM_BBM_BB_FAKE_OFFLINE;
 		}
 		if (do_online)
 			generic_online_page(page, order);
@@ -1969,15 +2016,50 @@ out_unlock:
 static int virtio_mem_bbm_offline_remove_and_unplug_bb(struct virtio_mem *vm,
 						       unsigned long bb_id)
 {
+	const unsigned long start_pfn = PFN_DOWN(virtio_mem_bb_id_to_phys(vm, bb_id));
+	const unsigned long nr_pages = PFN_DOWN(vm->bbm.bb_size);
+	unsigned long end_pfn = start_pfn + nr_pages;
+	unsigned long pfn;
+	struct page *page;
 	int rc;
 
 	if (WARN_ON_ONCE(virtio_mem_bbm_get_bb_state(vm, bb_id) !=
 			 VIRTIO_MEM_BBM_BB_ADDED))
 		return -EINVAL;
 
+	if (bbm_safe_unplug) {
+		/*
+		 * Start by fake-offlining all memory. Once we marked the device
+		 * block as fake-offline, all newly onlined memory will
+		 * automatically be kept fake-offline. Protect from concurrent
+		 * onlining/offlining until we have a consistent state.
+		 */
+		mutex_lock(&vm->hotplug_mutex);
+		virtio_mem_bbm_set_bb_state(vm, bb_id,
+					    VIRTIO_MEM_BBM_BB_FAKE_OFFLINE);
+
+		for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
+			page = pfn_to_online_page(pfn);
+			if (!page)
+				continue;
+
+			rc = virtio_mem_fake_offline(pfn, PAGES_PER_SECTION);
+			if (rc) {
+				end_pfn = pfn;
+				goto rollback_safe_unplug;
+			}
+		}
+		mutex_unlock(&vm->hotplug_mutex);
+	}
+
 	rc = virtio_mem_bbm_offline_and_remove_bb(vm, bb_id);
-	if (rc)
+	if (rc) {
+		if (bbm_safe_unplug) {
+			mutex_lock(&vm->hotplug_mutex);
+			goto rollback_safe_unplug;
+		}
 		return rc;
+	}
 
 	rc = virtio_mem_bbm_unplug_bb(vm, bb_id);
 	if (rc)
@@ -1986,6 +2068,17 @@ static int virtio_mem_bbm_offline_remove_and_unplug_bb(struct virtio_mem *vm,
 	else
 		virtio_mem_bbm_set_bb_state(vm, bb_id,
 					    VIRTIO_MEM_BBM_BB_UNUSED);
+	return rc;
+
+rollback_safe_unplug:
+	for (pfn = start_pfn; pfn < end_pfn; pfn += PAGES_PER_SECTION) {
+		page = pfn_to_online_page(pfn);
+		if (!page)
+			continue;
+		virtio_mem_fake_online(pfn, PAGES_PER_SECTION);
+	}
+	virtio_mem_bbm_set_bb_state(vm, bb_id, VIRTIO_MEM_BBM_BB_ADDED);
+	mutex_unlock(&vm->hotplug_mutex);
 	return rc;
 }
 
