@@ -154,6 +154,7 @@ struct link_train {
 	u8 lane_count;
 	u8 training_lane[4];
 	bool ssc;
+	bool enhanced_framing;
 
 	enum link_training_state lt_state;
 };
