@@ -1465,7 +1465,7 @@
 		reg = <0x3 0xc0000000 0x0 0x400000>,
 		      <0x0 0xfe260000 0x0 0x10000>;
 		reg-names = "pcie-dbi", "pcie-apb";
-		resets = <&cru SRST_P_PCIE20>;
+		resets = <&cru SRST_PCIE20_POWERUP>;
 		reset-names = "pipe";
 		status = "disabled";
 	};
@@ -1500,7 +1500,7 @@
 		reg = <0x3 0xc0400000 0x0 0x400000>,
 		      <0x0 0xfe270000 0x0 0x10000>;
 		reg-names = "pcie-dbi", "pcie-apb";
-		resets = <&cru SRST_P_PCIE30X1>;
+		resets = <&cru SRST_PCIE30X1_POWERUP>;
 		reset-names = "pipe";
 		rockchip,bifurcation; /* lane1 when using 1+1 */
 		status = "disabled";
@@ -1536,7 +1536,7 @@
 		reg = <0x3 0xc0800000 0x0 0x400000>,
 		      <0x0 0xfe280000 0x0 0x10000>;
 		reg-names = "pcie-dbi", "pcie-apb";
-		resets = <&cru SRST_P_PCIE30X1>;
+		resets = <&cru SRST_PCIE30X2_POWERUP>;
 		reset-names = "pipe";
 		rockchip,bifurcation; /* lane0 when using 1+1 */
 		status = "disabled";
@@ -2404,9 +2404,8 @@
 		clocks = <&pmucru CLK_PCIE30PHY_REF_M>, <&pmucru CLK_PCIE30PHY_REF_N>,
 			 <&cru PCLK_PCIE30PHY>;
 		clock-names = "refclk_m", "refclk_n", "pclk";
-		resets = <&cru SRST_PCIE30PHY>, <&cru SRST_P_PCIE30X1>,
-			 <&cru SRST_P_PCIE30X2>;
-		reset-names = "phy", "p30x1", "p30x2";
+		resets = <&cru SRST_PCIE30PHY>;
+		reset-names = "phy";
 		rockchip,phy-grf = <&pcie30_phy_grf>;
 		status = "disabled";
 	};
