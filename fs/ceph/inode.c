@@ -1315,15 +1315,10 @@ retry_lookup:
 	}
 
 	if (rinfo->head->is_target) {
-		tvino.ino = le64_to_cpu(rinfo->targeti.in->ino);
-		tvino.snap = le64_to_cpu(rinfo->targeti.in->snapid);
+		/* Should be filled in by handle_reply */
+		BUG_ON(!req->r_target_inode);
 
-		in = ceph_get_inode(sb, tvino);
-		if (IS_ERR(in)) {
-			err = PTR_ERR(in);
-			goto done;
-		}
-
+		in = req->r_target_inode;
 		err = ceph_fill_inode(in, req->r_locked_page, &rinfo->targeti,
 				NULL, session,
 				(!test_bit(CEPH_MDS_R_ABORTED, &req->r_req_flags) &&
@@ -1333,13 +1328,13 @@ retry_lookup:
 		if (err < 0) {
 			pr_err("ceph_fill_inode badness %p %llx.%llx\n",
 				in, ceph_vinop(in));
+			req->r_target_inode = NULL;
 			if (in->i_state & I_NEW)
 				discard_new_inode(in);
 			else
 				iput(in);
 			goto done;
 		}
-		req->r_target_inode = in;
 		if (in->i_state & I_NEW)
 			unlock_new_inode(in);
 	}

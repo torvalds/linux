@@ -3179,6 +3179,23 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 		err = parse_reply_info(session, msg, rinfo, session->s_con.peer_features);
 	mutex_unlock(&mdsc->mutex);
 
+	/* Must find target inode outside of mutexes to avoid deadlocks */
+	if ((err >= 0) && rinfo->head->is_target) {
+		struct inode *in;
+		struct ceph_vino tvino = {
+			.ino  = le64_to_cpu(rinfo->targeti.in->ino),
+			.snap = le64_to_cpu(rinfo->targeti.in->snapid)
+		};
+
+		in = ceph_get_inode(mdsc->fsc->sb, tvino);
+		if (IS_ERR(in)) {
+			err = PTR_ERR(in);
+			mutex_lock(&session->s_mutex);
+			goto out_err;
+		}
+		req->r_target_inode = in;
+	}
+
 	mutex_lock(&session->s_mutex);
 	if (err < 0) {
 		pr_err("mdsc_handle_reply got corrupt reply mds%d(tid:%lld)\n", mds, tid);
