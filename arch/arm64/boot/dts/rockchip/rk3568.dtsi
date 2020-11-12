@@ -1755,6 +1755,19 @@
 		status = "disabled";
 	};
 
+	vad: vad@fe450000 {
+		compatible = "rockchip,rk3568-vad";
+		reg = <0x0 0xfe450000 0x0 0x10000>;
+		reg-names = "vad";
+		clocks = <&cru HCLK_VAD>;
+		clock-names = "hclk";
+		interrupts = <GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>;
+		rockchip,audio-src = <0>;
+		rockchip,det-channel = <0>;
+		rockchip,mode = <0>;
+		status = "disabled";
+	};
+
 	spdif_8ch: spdif@fe460000 {
 		compatible = "rockchip,rk3568-spdif";
 		reg = <0x0 0xfe460000 0x0 0x1000>;
