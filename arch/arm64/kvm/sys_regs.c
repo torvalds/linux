@@ -1070,10 +1070,15 @@ static u64 read_id_reg(const struct kvm_vcpu *vcpu,
 			 (0xfUL << ID_AA64ISAR1_GPA_SHIFT) |
 			 (0xfUL << ID_AA64ISAR1_GPI_SHIFT));
 	} else if (id == SYS_ID_AA64DFR0_EL1) {
+		u64 cap = 0;
+
 		/* Limit guests to PMUv3 for ARMv8.1 */
+		if (kvm_vcpu_has_pmu(vcpu))
+			cap = ID_AA64DFR0_PMUVER_8_1;
+
 		val = cpuid_feature_cap_perfmon_field(val,
 						ID_AA64DFR0_PMUVER_SHIFT,
-						ID_AA64DFR0_PMUVER_8_1);
+						cap);
 	} else if (id == SYS_ID_DFR0_EL1) {
 		/* Limit guests to PMUv3 for ARMv8.1 */
 		val = cpuid_feature_cap_perfmon_field(val,
