@@ -851,9 +851,19 @@ static void rtw_coex_set_gnt_wl(struct rtw_dev *rtwdev, u8 state)
 	rtw_coex_write_indirect_reg(rtwdev, LTE_COEX_CTRL, 0x0300, state);
 }
 
-static void rtw_coex_set_table(struct rtw_dev *rtwdev, u32 table0, u32 table1)
+static void rtw_coex_set_table(struct rtw_dev *rtwdev, bool force, u32 table0,
+			       u32 table1)
 {
 #define DEF_BRK_TABLE_VAL 0xf0ffffff
+	struct rtw_coex *coex = &rtwdev->coex;
+	struct rtw_coex_dm *coex_dm = &coex->dm;
+
+	/* If last tdma is wl slot toggle, force write table*/
+	if (!force && coex_dm->reason != COEX_RSN_LPS) {
+		if (table0 == rtw_read32(rtwdev, REG_BT_COEX_TABLE0) &&
+		    table1 == rtw_read32(rtwdev, REG_BT_COEX_TABLE1))
+			return;
+	}
 	rtw_write32(rtwdev, REG_BT_COEX_TABLE0, table0);
 	rtw_write32(rtwdev, REG_BT_COEX_TABLE1, table1);
 	rtw_write32(rtwdev, REG_BT_COEX_BRK_TABLE, DEF_BRK_TABLE_VAL);
@@ -863,7 +873,7 @@ static void rtw_coex_set_table(struct rtw_dev *rtwdev, u32 table0, u32 table1)
 		table1);
 }
 
-static void rtw_coex_table(struct rtw_dev *rtwdev, u8 type)
+static void rtw_coex_table(struct rtw_dev *rtwdev, bool force, u8 type)
 {
 	struct rtw_coex *coex = &rtwdev->coex;
 	struct rtw_coex_dm *coex_dm = &coex->dm;
@@ -876,13 +886,13 @@ static void rtw_coex_table(struct rtw_dev *rtwdev, u8 type)
 
 	if (efuse->share_ant) {
 		if (type < chip->table_sant_num)
-			rtw_coex_set_table(rtwdev,
+			rtw_coex_set_table(rtwdev, force,
 					   chip->table_sant[type].bt,
 					   chip->table_sant[type].wl);
 	} else {
 		type = type - 100;
 		if (type < chip->table_nsant_num)
-			rtw_coex_set_table(rtwdev,
+			rtw_coex_set_table(rtwdev, force,
 					   chip->table_nsant[type].bt,
 					   chip->table_nsant[type].wl);
 	}
@@ -1331,7 +1341,7 @@ static void rtw_coex_action_coex_all_off(struct rtw_dev *rtwdev)
 		tdma_case = 100;
 	}
 
-	rtw_coex_table(rtwdev, table_case);
+	rtw_coex_table(rtwdev, false, table_case);
 	rtw_coex_tdma(rtwdev, false, tdma_case);
 }
 
@@ -1375,7 +1385,7 @@ static void rtw_coex_action_freerun(struct rtw_dev *rtwdev)
 	else
 		rtw_coex_set_rf_para(rtwdev, chip->wl_rf_para_rx[level]);
 
-	rtw_coex_table(rtwdev, 100);
+	rtw_coex_table(rtwdev, false, 100);
 	rtw_coex_tdma(rtwdev, false, 100);
 }
 
@@ -1400,7 +1410,7 @@ static void rtw_coex_action_bt_whql_test(struct rtw_dev *rtwdev)
 		tdma_case = 100;
 	}
 
-	rtw_coex_table(rtwdev, table_case);
+	rtw_coex_table(rtwdev, false, table_case);
 	rtw_coex_tdma(rtwdev, false, tdma_case);
 }
 
@@ -1425,7 +1435,7 @@ static void rtw_coex_action_bt_relink(struct rtw_dev *rtwdev)
 		tdma_case = 100;
 	}
 
-	rtw_coex_table(rtwdev, table_case);
+	rtw_coex_table(rtwdev, false, table_case);
 	rtw_coex_tdma(rtwdev, false, tdma_case);
 }
 
@@ -1456,7 +1466,7 @@ static void rtw_coex_action_bt_idle(struct rtw_dev *rtwdev)
 
 	if (table_case != 0xff && tdma_case != 0xff) {
 		rtw_coex_set_ant_path(rtwdev, false, COEX_SET_ANT_2G_FREERUN);
-		rtw_coex_table(rtwdev, table_case);
+		rtw_coex_table(rtwdev, false, table_case);
 		rtw_coex_tdma(rtwdev, false, tdma_case);
 		return;
 	}
@@ -1490,7 +1500,7 @@ static void rtw_coex_action_bt_idle(struct rtw_dev *rtwdev)
 		}
 	}
 
-	rtw_coex_table(rtwdev, table_case);
+	rtw_coex_table(rtwdev, false, table_case);
 	rtw_coex_tdma(rtwdev, false, tdma_case);
 }
 
@@ -1585,7 +1595,7 @@ static void rtw_coex_action_bt_inquiry(struct rtw_dev *rtwdev)
 	rtw_dbg(rtwdev, RTW_DBG_COEX, "[BTCoex], wifi hi(%d), bt page(%d)\n",
 		wl_hi_pri, coex_stat->bt_page);
 
-	rtw_coex_table(rtwdev, table_case);
+	rtw_coex_table(rtwdev, false, table_case);
 	rtw_coex_tdma(rtwdev, false, tdma_case | slot_type);
 }
 
@@ -1621,7 +1631,7 @@ static void rtw_coex_action_bt_hfp(struct rtw_dev *rtwdev)
 		}
 	}
 
-	rtw_coex_table(rtwdev, table_case);
+	rtw_coex_table(rtwdev, false, table_case);
 	rtw_coex_tdma(rtwdev, false, tdma_case);
 }
 
@@ -1694,7 +1704,7 @@ static void rtw_coex_action_bt_hid(struct rtw_dev *rtwdev)
 		}
 	}
 
-	rtw_coex_table(rtwdev, table_case);
+	rtw_coex_table(rtwdev, false, table_case);
 	rtw_coex_tdma(rtwdev, false, tdma_case);
 }
 
@@ -1736,7 +1746,7 @@ static void rtw_coex_action_bt_a2dp(struct rtw_dev *rtwdev)
 			tdma_case = 113;
 	}
 
-	rtw_coex_table(rtwdev, table_case);
+	rtw_coex_table(rtwdev, false, table_case);
 	rtw_coex_tdma(rtwdev, false, tdma_case | slot_type);
 }
 
@@ -1775,7 +1785,7 @@ static void rtw_coex_action_bt_a2dpsink(struct rtw_dev *rtwdev)
 		}
 	}
 
-	rtw_coex_table(rtwdev, table_case);
+	rtw_coex_table(rtwdev, false, table_case);
 	rtw_coex_tdma(rtwdev, false, tdma_case);
 }
 
@@ -1812,7 +1822,7 @@ static void rtw_coex_action_bt_pan(struct rtw_dev *rtwdev)
 			tdma_case = 119;
 	}
 
-	rtw_coex_table(rtwdev, table_case);
+	rtw_coex_table(rtwdev, false, table_case);
 	rtw_coex_tdma(rtwdev, false, tdma_case);
 }
 
@@ -1856,7 +1866,7 @@ static void rtw_coex_action_bt_a2dp_hid(struct rtw_dev *rtwdev)
 			tdma_case = 113;
 	}
 
-	rtw_coex_table(rtwdev, table_case);
+	rtw_coex_table(rtwdev, false, table_case);
 	rtw_coex_tdma(rtwdev, false, tdma_case | slot_type);
 }
 
@@ -1894,7 +1904,7 @@ static void rtw_coex_action_bt_a2dp_pan(struct rtw_dev *rtwdev)
 			tdma_case = 120;
 	}
 
-	rtw_coex_table(rtwdev, table_case);
+	rtw_coex_table(rtwdev, false, table_case);
 	rtw_coex_tdma(rtwdev, false, tdma_case);
 }
 
@@ -1929,7 +1939,7 @@ static void rtw_coex_action_bt_pan_hid(struct rtw_dev *rtwdev)
 			tdma_case = 119;
 	}
 
-	rtw_coex_table(rtwdev, table_case);
+	rtw_coex_table(rtwdev, false, table_case);
 	rtw_coex_tdma(rtwdev, false, tdma_case);
 }
 
@@ -1963,7 +1973,7 @@ static void rtw_coex_action_bt_a2dp_pan_hid(struct rtw_dev *rtwdev)
 			tdma_case = 120;
 	}
 
-	rtw_coex_table(rtwdev, table_case);
+	rtw_coex_table(rtwdev, false, table_case);
 	rtw_coex_tdma(rtwdev, false, tdma_case);
 }
 
@@ -1990,7 +2000,7 @@ static void rtw_coex_action_wl_under5g(struct rtw_dev *rtwdev)
 		tdma_case = 100;
 	}
 
-	rtw_coex_table(rtwdev, table_case);
+	rtw_coex_table(rtwdev, false, table_case);
 	rtw_coex_tdma(rtwdev, false, tdma_case);
 }
 
@@ -2014,7 +2024,7 @@ static void rtw_coex_action_wl_only(struct rtw_dev *rtwdev)
 		tdma_case = 100;
 	}
 
-	rtw_coex_table(rtwdev, table_case);
+	rtw_coex_table(rtwdev, false, table_case);
 	rtw_coex_tdma(rtwdev, false, tdma_case);
 }
 
@@ -2043,7 +2053,7 @@ static void rtw_coex_action_wl_native_lps(struct rtw_dev *rtwdev)
 		tdma_case = 100;
 	}
 
-	rtw_coex_table(rtwdev, table_case);
+	rtw_coex_table(rtwdev, false, table_case);
 	rtw_coex_tdma(rtwdev, false, tdma_case);
 }
 
@@ -2081,7 +2091,7 @@ static void rtw_coex_action_wl_linkscan(struct rtw_dev *rtwdev)
 		}
 	}
 
-	rtw_coex_table(rtwdev, table_case);
+	rtw_coex_table(rtwdev, false, table_case);
 	rtw_coex_tdma(rtwdev, false, tdma_case | slot_type);
 }
 
@@ -2105,7 +2115,7 @@ static void rtw_coex_action_wl_not_connected(struct rtw_dev *rtwdev)
 		tdma_case = 100;
 	}
 
-	rtw_coex_table(rtwdev, table_case);
+	rtw_coex_table(rtwdev, false, table_case);
 	rtw_coex_tdma(rtwdev, false, tdma_case);
 }
 
@@ -2337,7 +2347,7 @@ static void __rtw_coex_init_hw_config(struct rtw_dev *rtwdev, bool wifi_only)
 	}
 
 	/* PTA parameter */
-	rtw_coex_table(rtwdev, 0);
+	rtw_coex_table(rtwdev, false, 0);
 	rtw_coex_tdma(rtwdev, true, 0);
 	rtw_coex_query_bt_info(rtwdev);
 }
