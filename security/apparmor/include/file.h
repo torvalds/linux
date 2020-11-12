@@ -184,7 +184,6 @@ struct aa_file_rules {
 	struct aa_perms *fperms_table;
 };
 
-void aa_compute_fperms(struct aa_file_rules *file_rules);
 struct aa_perms *aa_lookup_fperms(struct aa_file_rules *file_rules,
 				 unsigned int state, struct path_cond *cond);
 unsigned int aa_str_perms(struct aa_file_rules *file_rules, unsigned int start,

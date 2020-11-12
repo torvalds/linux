@@ -669,6 +669,104 @@ static int datacmp(struct rhashtable_compare_arg *arg, const void *obj)
 	return strcmp(data->key, *key);
 }
 
+/**
+ * map_old_perms - map old file perms layout to the new layout
+ * @old: permission set in old mapping
+ *
+ * Returns: new permission mapping
+ */
+static u32 map_old_perms(u32 old)
+{
+	u32 new = old & 0xf;
+
+	if (old & MAY_READ)
+		new |= AA_MAY_GETATTR | AA_MAY_OPEN;
+	if (old & MAY_WRITE)
+		new |= AA_MAY_SETATTR | AA_MAY_CREATE | AA_MAY_DELETE |
+		       AA_MAY_CHMOD | AA_MAY_CHOWN | AA_MAY_OPEN;
+	if (old & 0x10)
+		new |= AA_MAY_LINK;
+	/* the old mapping lock and link_subset flags where overlaid
+	 * and use was determined by part of a pair that they were in
+	 */
+	if (old & 0x20)
+		new |= AA_MAY_LOCK | AA_LINK_SUBSET;
+	if (old & 0x40)	/* AA_EXEC_MMAP */
+		new |= AA_EXEC_MMAP;
+
+	return new;
+}
+
+static void __aa_compute_fperms_allow(struct aa_perms *perms,
+				      struct aa_dfa *dfa,
+				      unsigned int state)
+{
+	perms->allow |= AA_MAY_GETATTR;
+
+	/* change_profile wasn't determined by ownership in old mapping */
+	if (ACCEPT_TABLE(dfa)[state] & 0x80000000)
+		perms->allow |= AA_MAY_CHANGE_PROFILE;
+	if (ACCEPT_TABLE(dfa)[state] & 0x40000000)
+		perms->allow |= AA_MAY_ONEXEC;
+}
+
+static struct aa_perms __aa_compute_fperms_user(struct aa_dfa *dfa,
+						unsigned int state)
+{
+	struct aa_perms perms = { };
+
+	perms.allow = map_old_perms(dfa_user_allow(dfa, state));
+	perms.audit = map_old_perms(dfa_user_audit(dfa, state));
+	perms.quiet = map_old_perms(dfa_user_quiet(dfa, state));
+	perms.xindex = dfa_user_xindex(dfa, state);
+
+	__aa_compute_fperms_allow(&perms, dfa, state);
+
+	return perms;
+}
+
+static struct aa_perms __aa_compute_fperms_other(struct aa_dfa *dfa,
+						 unsigned int state)
+{
+	struct aa_perms perms = { };
+
+	perms.allow = map_old_perms(dfa_other_allow(dfa, state));
+	perms.audit = map_old_perms(dfa_other_audit(dfa, state));
+	perms.quiet = map_old_perms(dfa_other_quiet(dfa, state));
+	perms.xindex = dfa_other_xindex(dfa, state);
+
+	__aa_compute_fperms_allow(&perms, dfa, state);
+
+	return perms;
+}
+
+/**
+ * aa_compute_fperms - convert dfa compressed perms to internal perms and store
+ *		       them so they can be retrieved later.
+ * @file_rules: a file_rules structure containing a dfa (NOT NULL) for which
+ *		permissions will be computed   (NOT NULL)
+ *
+ * TODO: convert from dfa + state to permission entry
+ */
+static void aa_compute_fperms(struct aa_file_rules *file_rules)
+{
+	int state;
+	int state_count = file_rules->dfa->tables[YYTD_ID_BASE]->td_lolen;
+
+	// DFAs are restricted from having a state_count of less than 2
+	file_rules->fperms_table = kvzalloc(
+			state_count * 2 * sizeof(struct aa_perms), GFP_KERNEL);
+
+	// Since fperms_table is initialized with zeroes via kvzalloc(), we can
+	// skip the trap state (state == 0)
+	for (state = 1; state < state_count; state++) {
+		file_rules->fperms_table[state * 2] =
+			__aa_compute_fperms_user(file_rules->dfa, state);
+		file_rules->fperms_table[state * 2 + 1] =
+			__aa_compute_fperms_other(file_rules->dfa, state);
+	}
+}
+
 static u32 *aa_compute_xmatch_perms(struct aa_dfa *xmatch)
 {
 	u32 *perms_table;
