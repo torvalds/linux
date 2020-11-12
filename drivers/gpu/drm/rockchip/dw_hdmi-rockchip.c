@@ -68,6 +68,7 @@
 /**
  * struct rockchip_hdmi_chip_data - splite the grf setting of kind of chips
  * @lcdsel_grf_reg: grf register offset of lcdc select
+ * @ddc_en_reg: grf register offset of hdmi ddc enable
  * @lcdsel_big: reg value of selecting vop big for HDMI
  * @lcdsel_lit: reg value of selecting vop little for HDMI
  */
