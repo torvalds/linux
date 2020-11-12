@@ -2592,8 +2592,6 @@ void rtw_coex_connect_notify(struct rtw_dev *rtwdev, u8 type)
 void rtw_coex_media_status_notify(struct rtw_dev *rtwdev, u8 type)
 {
 	struct rtw_coex *coex = &rtwdev->coex;
-	struct rtw_coex_stat *coex_stat = &coex->stat;
-	u8 para[6] = {0};
 
 	if (coex->manual_control || coex->stop_dm)
 		return;
@@ -2615,15 +2613,8 @@ void rtw_coex_media_status_notify(struct rtw_dev *rtwdev, u8 type)
 
 		/* Set CCK Rx high Pri */
 		rtw_coex_set_wl_pri_mask(rtwdev, COEX_WLPRI_RX_CCK, 1);
-
-		/* always enable 5ms extend if connect */
-		para[0] = COEX_H2C69_WL_LEAKAP;
-		para[1] = PARA1_H2C69_EN_5MS; /* enable 5ms extend */
-		rtw_fw_bt_wifi_control(rtwdev, para[0], &para[1]);
-		coex_stat->wl_slot_extend = true;
 		rtw_coex_run_coex(rtwdev, COEX_RSN_2GMEDIA);
 	} else {
-		rtw_coex_write_scbd(rtwdev, COEX_SCBD_ACTIVE, false);
 		rtw_dbg(rtwdev, RTW_DBG_COEX, "[BTCoex], %s(): disconnect!!\n",
 			__func__);
 		rtw_coex_set_wl_pri_mask(rtwdev, COEX_WLPRI_RX_CCK, 0);
