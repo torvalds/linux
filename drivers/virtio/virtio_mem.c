@@ -1070,7 +1070,7 @@ static int virtio_mem_mb_plug_and_add(struct virtio_mem *vm,
 				      uint64_t *nb_sb)
 {
 	const int count = min_t(int, *nb_sb, vm->nb_sb_per_mb);
-	int rc, rc2;
+	int rc;
 
 	if (WARN_ON_ONCE(!count))
 		return -EINVAL;
@@ -1101,13 +1101,12 @@ static int virtio_mem_mb_plug_and_add(struct virtio_mem *vm,
 
 		dev_err(&vm->vdev->dev,
 			"adding memory block %lu failed with %d\n", mb_id, rc);
-		rc2 = virtio_mem_mb_unplug_sb(vm, mb_id, 0, count);
 
 		/*
 		 * TODO: Linux MM does not properly clean up yet in all cases
 		 * where adding of memory failed - especially on -ENOMEM.
 		 */
-		if (rc2)
+		if (virtio_mem_mb_unplug_sb(vm, mb_id, 0, count))
 			new_state = VIRTIO_MEM_MB_STATE_PLUGGED;
 		virtio_mem_mb_set_state(vm, mb_id, new_state);
 		return rc;
