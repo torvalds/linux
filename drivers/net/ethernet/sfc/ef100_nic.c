@@ -185,11 +185,16 @@ static int efx_ef100_init_datapath_caps(struct efx_nic *efx)
 	if (efx_ef100_has_cap(nic_data->datapath_caps2, TX_TSO_V3)) {
 		struct net_device *net_dev = efx->net_dev;
 		netdev_features_t tso = NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_GSO_PARTIAL |
-					NETIF_F_GSO_UDP_TUNNEL | NETIF_F_GSO_UDP_TUNNEL_CSUM;
+					NETIF_F_GSO_UDP_TUNNEL | NETIF_F_GSO_UDP_TUNNEL_CSUM |
+					NETIF_F_GSO_GRE | NETIF_F_GSO_GRE_CSUM;
 
 		net_dev->features |= tso;
 		net_dev->hw_features |= tso;
 		net_dev->hw_enc_features |= tso;
+		/* EF100 HW can only offload outer checksums if they are UDP,
+		 * so for GRE_CSUM we have to use GSO_PARTIAL.
+		 */
+		net_dev->gso_partial_features |= NETIF_F_GSO_GRE_CSUM;
 	}
 	efx->num_mac_stats = MCDI_WORD(outbuf,
 				       GET_CAPABILITIES_V4_OUT_MAC_STATS_NUM_STATS);
