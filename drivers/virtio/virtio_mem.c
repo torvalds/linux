@@ -291,6 +291,16 @@ static int virtio_mem_mb_state_prepare_next_mb(struct virtio_mem *vm)
 		if (virtio_mem_mb_get_state(_vm, _mb_id) == _state)
 
 /*
+ * Calculate the bit number in the subblock bitmap for the given subblock
+ * inside the given memory block.
+ */
+static int virtio_mem_sb_bitmap_bit_nr(struct virtio_mem *vm,
+				       unsigned long mb_id, int sb_id)
+{
+	return (mb_id - vm->first_mb_id) * vm->nb_sb_per_mb + sb_id;
+}
+
+/*
  * Mark all selected subblocks plugged.
  *
  * Will not modify the state of the memory block.
@@ -299,7 +309,7 @@ static void virtio_mem_mb_set_sb_plugged(struct virtio_mem *vm,
 					 unsigned long mb_id, int sb_id,
 					 int count)
 {
-	const int bit = (mb_id - vm->first_mb_id) * vm->nb_sb_per_mb + sb_id;
+	const int bit = virtio_mem_sb_bitmap_bit_nr(vm, mb_id, sb_id);
 
 	__bitmap_set(vm->sb_bitmap, bit, count);
 }
@@ -313,7 +323,7 @@ static void virtio_mem_mb_set_sb_unplugged(struct virtio_mem *vm,
 					   unsigned long mb_id, int sb_id,
 					   int count)
 {
-	const int bit = (mb_id - vm->first_mb_id) * vm->nb_sb_per_mb + sb_id;
+	const int bit = virtio_mem_sb_bitmap_bit_nr(vm, mb_id, sb_id);
 
 	__bitmap_clear(vm->sb_bitmap, bit, count);
 }
@@ -325,7 +335,7 @@ static bool virtio_mem_mb_test_sb_plugged(struct virtio_mem *vm,
 					  unsigned long mb_id, int sb_id,
 					  int count)
 {
-	const int bit = (mb_id - vm->first_mb_id) * vm->nb_sb_per_mb + sb_id;
+	const int bit = virtio_mem_sb_bitmap_bit_nr(vm, mb_id, sb_id);
 
 	if (count == 1)
 		return test_bit(bit, vm->sb_bitmap);
@@ -342,7 +352,7 @@ static bool virtio_mem_mb_test_sb_unplugged(struct virtio_mem *vm,
 					    unsigned long mb_id, int sb_id,
 					    int count)
 {
-	const int bit = (mb_id - vm->first_mb_id) * vm->nb_sb_per_mb + sb_id;
+	const int bit = virtio_mem_sb_bitmap_bit_nr(vm, mb_id, sb_id);
 
 	/* TODO: Helper similar to bitmap_set() */
 	return find_next_bit(vm->sb_bitmap, bit + count, bit) >= bit + count;
@@ -355,7 +365,7 @@ static bool virtio_mem_mb_test_sb_unplugged(struct virtio_mem *vm,
 static int virtio_mem_mb_first_unplugged_sb(struct virtio_mem *vm,
 					    unsigned long mb_id)
 {
-	const int bit = (mb_id - vm->first_mb_id) * vm->nb_sb_per_mb;
+	const int bit = virtio_mem_sb_bitmap_bit_nr(vm, mb_id, 0);
 
 	return find_next_zero_bit(vm->sb_bitmap, bit + vm->nb_sb_per_mb, bit) -
 	       bit;
