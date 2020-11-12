@@ -225,6 +225,8 @@ static void rtw_coex_tdma_timer_base(struct rtw_dev *rtwdev, u8 type)
 	struct rtw_coex *coex = &rtwdev->coex;
 	struct rtw_coex_stat *coex_stat = &coex->stat;
 	u8 para[2] = {0};
+	u8 times;
+	u16 tbtt_interval = coex_stat->wl_beacon_interval;
 
 	if (coex_stat->tdma_timer_base == type)
 		return;
@@ -233,10 +235,27 @@ static void rtw_coex_tdma_timer_base(struct rtw_dev *rtwdev, u8 type)
 
 	para[0] = COEX_H2C69_TDMA_SLOT;
 
-	if (type == 3) /* 4-slot  */
+	rtw_dbg(rtwdev, RTW_DBG_COEX, "[BTCoex], tbtt_interval = %d\n",
+		tbtt_interval);
+
+	if (type == TDMA_TIMER_TYPE_4SLOT) {
 		para[1] = PARA1_H2C69_TDMA_4SLOT; /* 4-slot */
-	else /* 2-slot  */
+	} else if (tbtt_interval < 80 && tbtt_interval > 0) {
+		times = 100 / tbtt_interval;
+		if (100 % tbtt_interval != 0)
+			times++;
+
+		para[1] = FIELD_PREP(PARA1_H2C69_TBTT_TIMES, times);
+	} else if (tbtt_interval >= 180) {
+		times = tbtt_interval / 100;
+		if (tbtt_interval % 100 <= 80)
+			times--;
+
+		para[1] = FIELD_PREP(PARA1_H2C69_TBTT_TIMES, times) |
+			  FIELD_PREP(PARA1_H2C69_TBTT_DIV100, 1);
+	} else {
 		para[1] = PARA1_H2C69_TDMA_2SLOT;
+	}
 
 	rtw_fw_bt_wifi_control(rtwdev, para[0], &para[1]);
 
@@ -973,9 +992,9 @@ static void rtw_coex_tdma(struct rtw_dev *rtwdev, bool force, u32 tcase)
 	bool wl_busy = false;
 
 	if (tcase & TDMA_4SLOT)/* 4-slot (50ms) mode */
-		rtw_coex_tdma_timer_base(rtwdev, 3);
+		rtw_coex_tdma_timer_base(rtwdev, TDMA_TIMER_TYPE_4SLOT);
 	else
-		rtw_coex_tdma_timer_base(rtwdev, 0);
+		rtw_coex_tdma_timer_base(rtwdev, TDMA_TIMER_TYPE_2SLOT);
 
 	type = (u8)(tcase & 0xff);
 
