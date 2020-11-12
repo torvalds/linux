@@ -145,6 +145,7 @@ struct ov02k10_mode {
 struct ov02k10 {
 	struct i2c_client	*client;
 	struct clk		*xvclk;
+	struct gpio_desc	*power_gpio;
 	struct gpio_desc	*reset_gpio;
 	struct gpio_desc	*pwdn_gpio;
 	struct regulator_bulk_data supplies[OV02K10_NUM_SUPPLIES];
@@ -1428,6 +1429,11 @@ static int __ov02k10_power_on(struct ov02k10 *ov02k10)
 	if (!IS_ERR(ov02k10->reset_gpio))
 		gpiod_set_value_cansleep(ov02k10->reset_gpio, 0);
 
+	if (!IS_ERR(ov02k10->power_gpio)) {
+		gpiod_set_value_cansleep(ov02k10->power_gpio, 1);
+		usleep_range(5000, 5100);
+	}
+
 	ret = regulator_bulk_enable(OV02K10_NUM_SUPPLIES, ov02k10->supplies);
 	if (ret < 0) {
 		dev_err(dev, "Failed to enable regulators\n");
@@ -1530,6 +1536,21 @@ static int ov02k10_enum_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int ov02k10_get_selection(struct v4l2_subdev *sd,
+				struct v4l2_subdev_pad_config *cfg,
+				struct v4l2_subdev_selection *sel)
+{
+
+	if (sel->target == V4L2_SEL_TGT_CROP_BOUNDS) {
+		sel->r.left = 0;
+		sel->r.width = 1920;
+		sel->r.top = 0;
+		sel->r.height = 1080;
+		return 0;
+	}
+	return -EINVAL;
+}
+
 static const struct dev_pm_ops ov02k10_pm_ops = {
 	SET_RUNTIME_PM_OPS(ov02k10_runtime_suspend,
 			   ov02k10_runtime_resume, NULL)
@@ -1561,6 +1582,7 @@ static const struct v4l2_subdev_pad_ops ov02k10_pad_ops = {
 	.enum_frame_interval = ov02k10_enum_frame_interval,
 	.get_fmt = ov02k10_get_fmt,
 	.set_fmt = ov02k10_set_fmt,
+	.get_selection = ov02k10_get_selection,
 };
 
 static const struct v4l2_subdev_ops ov02k10_subdev_ops = {
@@ -1781,6 +1803,7 @@ static int ov02k10_check_sensor_id(struct ov02k10 *ov02k10,
 
 	ret = ov02k10_read_reg(client, OV02K10_REG_CHIP_ID,
 			       OV02K10_REG_VALUE_24BIT, &id);
+
 	if (id != CHIP_ID) {
 		dev_err(dev, "Unexpected sensor id(%06x), ret(%d)\n", id, ret);
 		return -ENODEV;
@@ -1857,6 +1880,10 @@ static int ov02k10_probe(struct i2c_client *client,
 		dev_err(dev, "Failed to get xvclk\n");
 		return -EINVAL;
 	}
+
+	ov02k10->power_gpio = devm_gpiod_get(dev, "power", GPIOD_OUT_LOW);
+	if (IS_ERR(ov02k10->power_gpio))
+		dev_warn(dev, "Failed to get power-gpios\n");
 
 	ov02k10->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(ov02k10->reset_gpio))
