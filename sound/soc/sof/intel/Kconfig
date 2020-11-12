@@ -62,17 +62,16 @@ if SND_SOC_SOF_INTEL_ACPI
 
 config SND_SOC_SOF_BAYTRAIL_SUPPORT
 	bool "SOF support for Baytrail, Braswell and Cherrytrail"
-	depends on SND_SST_ATOM_HIFI2_PLATFORM_ACPI=n
 	help
 	  This adds support for Sound Open Firmware for Intel(R) platforms
 	  using the Baytrail, Braswell or Cherrytrail processors.
-	  This option is mutually exclusive with the Atom/SST and Baytrail
-	  legacy drivers. If you want to enable SOF on Baytrail/Cherrytrail,
-	  you need to deselect those options first.
-	  SOF does not support Baytrail-CR for now, so this option is not
-	  recommended for distros. At some point all legacy drivers will be
-	  deprecated but not before all userspace firmware/topology/UCM files
-	  are made available to downstream distros.
+	  This option can coexist in the same build with the Atom legacy
+	  drivers, currently the default but which will be deprecated
+	  at some point.
+	  Existing firmware/topology binaries and UCM configurations
+	  typically located in the root file system are already
+	  compatible with both SOF or Atom/SST legacy drivers.
+	  This is a recommended option for distributions.
 	  Say Y if you want to enable SOF on Baytrail/Cherrytrail.
 	  If unsure select "N".
 
