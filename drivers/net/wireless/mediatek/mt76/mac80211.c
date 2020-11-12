@@ -167,13 +167,14 @@ void mt76_set_stream_caps(struct mt76_phy *phy, bool vht)
 EXPORT_SYMBOL_GPL(mt76_set_stream_caps);
 
 static int
-mt76_init_sband(struct mt76_dev *dev, struct mt76_sband *msband,
+mt76_init_sband(struct mt76_phy *phy, struct mt76_sband *msband,
 		const struct ieee80211_channel *chan, int n_chan,
 		struct ieee80211_rate *rates, int n_rates, bool vht)
 {
 	struct ieee80211_supported_band *sband = &msband->sband;
-	struct ieee80211_sta_ht_cap *ht_cap;
 	struct ieee80211_sta_vht_cap *vht_cap;
+	struct ieee80211_sta_ht_cap *ht_cap;
+	struct mt76_dev *dev = phy->dev;
 	void *chanlist;
 	int size;
 
@@ -203,7 +204,7 @@ mt76_init_sband(struct mt76_dev *dev, struct mt76_sband *msband,
 	ht_cap->mcs.tx_params = IEEE80211_HT_MCS_TX_DEFINED;
 	ht_cap->ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K;
 
-	mt76_init_stream_cap(&dev->phy, sband, vht);
+	mt76_init_stream_cap(phy, sband, vht);
 
 	if (!vht)
 		return 0;
@@ -221,27 +222,25 @@ mt76_init_sband(struct mt76_dev *dev, struct mt76_sband *msband,
 }
 
 static int
-mt76_init_sband_2g(struct mt76_dev *dev, struct ieee80211_rate *rates,
+mt76_init_sband_2g(struct mt76_phy *phy, struct ieee80211_rate *rates,
 		   int n_rates)
 {
-	dev->hw->wiphy->bands[NL80211_BAND_2GHZ] = &dev->phy.sband_2g.sband;
+	phy->hw->wiphy->bands[NL80211_BAND_2GHZ] = &phy->sband_2g.sband;
 
-	return mt76_init_sband(dev, &dev->phy.sband_2g,
-			       mt76_channels_2ghz,
-			       ARRAY_SIZE(mt76_channels_2ghz),
-			       rates, n_rates, false);
+	return mt76_init_sband(phy, &phy->sband_2g, mt76_channels_2ghz,
+			       ARRAY_SIZE(mt76_channels_2ghz), rates,
+			       n_rates, false);
 }
 
 static int
-mt76_init_sband_5g(struct mt76_dev *dev, struct ieee80211_rate *rates,
+mt76_init_sband_5g(struct mt76_phy *phy, struct ieee80211_rate *rates,
 		   int n_rates, bool vht)
 {
-	dev->hw->wiphy->bands[NL80211_BAND_5GHZ] = &dev->phy.sband_5g.sband;
+	phy->hw->wiphy->bands[NL80211_BAND_5GHZ] = &phy->sband_5g.sband;
 
-	return mt76_init_sband(dev, &dev->phy.sband_5g,
-			       mt76_channels_5ghz,
-			       ARRAY_SIZE(mt76_channels_5ghz),
-			       rates, n_rates, vht);
+	return mt76_init_sband(phy, &phy->sband_5g, mt76_channels_5ghz,
+			       ARRAY_SIZE(mt76_channels_5ghz), rates,
+			       n_rates, vht);
 }
 
 static void
@@ -462,13 +461,13 @@ int mt76_register_device(struct mt76_dev *dev, bool vht,
 	mt76_phy_init(dev, hw);
 
 	if (phy->cap.has_2ghz) {
-		ret = mt76_init_sband_2g(dev, rates, n_rates);
+		ret = mt76_init_sband_2g(phy, rates, n_rates);
 		if (ret)
 			return ret;
 	}
 
 	if (phy->cap.has_5ghz) {
-		ret = mt76_init_sband_5g(dev, rates + 4, n_rates - 4, vht);
+		ret = mt76_init_sband_5g(phy, rates + 4, n_rates - 4, vht);
 		if (ret)
 			return ret;
 	}
