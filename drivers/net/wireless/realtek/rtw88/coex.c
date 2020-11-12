@@ -460,6 +460,12 @@ static void rtw_coex_update_wl_link_info(struct rtw_dev *rtwdev, u8 reason)
 		coex_dm->wl_rssi_state[i] = rssi_state;
 	}
 
+	if (coex_stat->wl_linkscan_proc || coex_stat->wl_hi_pri_task1 ||
+	    coex_stat->wl_hi_pri_task2 || coex_stat->wl_gl_busy)
+		rtw_coex_write_scbd(rtwdev, COEX_SCBD_SCAN, true);
+	else
+		rtw_coex_write_scbd(rtwdev, COEX_SCBD_SCAN, false);
+
 	switch (reason) {
 	case COEX_RSN_5GSCANSTART:
 	case COEX_RSN_5GSWITCHBAND:
