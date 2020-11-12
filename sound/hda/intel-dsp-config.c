@@ -466,6 +466,26 @@ static const struct config_entry acpi_config_table[] = {
 		.acpi_hid = "808622A8",
 	},
 #endif
+/* Broadwell */
+#if IS_ENABLED(CONFIG_SND_SOC_INTEL_CATPT)
+	{
+		.flags = FLAG_SST,
+		.acpi_hid = "INT3438"
+	},
+#endif
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_BROADWELL)
+	{
+		.flags = FLAG_SOF,
+		.acpi_hid = "INT3438"
+	},
+#endif
+/* Haswell - not supported by SOF but added for consistency */
+#if IS_ENABLED(CONFIG_SND_SOC_INTEL_CATPT)
+	{
+		.flags = FLAG_SST,
+		.acpi_hid = "INT33C8"
+	},
+#endif
 };
 
 static const struct config_entry *snd_intel_acpi_dsp_find_config(const u8 acpi_hid[ACPI_ID_LEN],
