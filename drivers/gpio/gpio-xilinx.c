@@ -6,6 +6,7 @@
  */
 
 #include <linux/bitops.h>
+#include <linux/clk.h>
 #include <linux/errno.h>
 #include <linux/gpio/driver.h>
 #include <linux/init.h>
@@ -38,6 +39,7 @@
  * @gpio_state: GPIO state shadow register
  * @gpio_dir: GPIO direction shadow register
  * @gpio_lock: Lock used for synchronization
+ * @clk: clock resource for this driver
  */
 struct xgpio_instance {
 	struct gpio_chip gc;
@@ -46,6 +48,7 @@ struct xgpio_instance {
 	u32 gpio_state[2];
 	u32 gpio_dir[2];
 	spinlock_t gpio_lock[2];
+	struct clk *clk;
 };
 
 static inline int xgpio_index(struct xgpio_instance *chip, int gpio)
@@ -334,11 +337,25 @@ static int xgpio_probe(struct platform_device *pdev)
 		return PTR_ERR(chip->regs);
 	}
 
+	chip->clk = devm_clk_get_optional(&pdev->dev, NULL);
+	if (IS_ERR(chip->clk)) {
+		if (PTR_ERR(chip->clk) != -EPROBE_DEFER)
+			dev_dbg(&pdev->dev, "Input clock not found\n");
+		return PTR_ERR(chip->clk);
+	}
+
+	status = clk_prepare_enable(chip->clk);
+	if (status < 0) {
+		dev_err(&pdev->dev, "Failed to prepare clk\n");
+		return status;
+	}
+
 	xgpio_save_regs(chip);
 
 	status = devm_gpiochip_add_data(&pdev->dev, &chip->gc, chip);
 	if (status) {
 		dev_err(&pdev->dev, "failed to add GPIO chip\n");
+		clk_disable_unprepare(chip->clk);
 		return status;
 	}
 
