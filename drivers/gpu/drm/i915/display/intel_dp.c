@@ -721,6 +721,9 @@ intel_dp_mode_valid(struct drm_connector *connector,
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return MODE_NO_DBLESCAN;
 
+	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
+		return MODE_H_ILLEGAL;
+
 	if (intel_dp_is_edp(intel_dp) && fixed_mode) {
 		if (mode->hdisplay > fixed_mode->hdisplay)
 			return MODE_PANEL;
@@ -730,6 +733,9 @@ intel_dp_mode_valid(struct drm_connector *connector,
 
 		target_clock = fixed_mode->clock;
 	}
+
+	if (mode->clock < 10000)
+		return MODE_CLOCK_LOW;
 
 	max_link_clock = intel_dp_max_link_rate(intel_dp);
 	max_lanes = intel_dp_max_lane_count(intel_dp);
@@ -770,12 +776,6 @@ intel_dp_mode_valid(struct drm_connector *connector,
 	if ((mode_rate > max_rate && !(dsc_max_output_bpp && dsc_slice_count)) ||
 	    target_clock > max_dotclk)
 		return MODE_CLOCK_HIGH;
-
-	if (mode->clock < 10000)
-		return MODE_CLOCK_LOW;
-
-	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
-		return MODE_H_ILLEGAL;
 
 	status = intel_dp_mode_valid_downstream(intel_connector,
 						mode, target_clock);
