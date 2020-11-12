@@ -6,13 +6,13 @@
  */
 
 #include <linux/bitops.h>
-#include <linux/init.h>
 #include <linux/errno.h>
+#include <linux/gpio/driver.h>
+#include <linux/init.h>
+#include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
-#include <linux/io.h>
-#include <linux/gpio/driver.h>
 #include <linux/slab.h>
 
 /* Register Offset Definitions */
