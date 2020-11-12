@@ -2054,6 +2054,8 @@ static bool amd_set_max_freq_ratio(void)
 	}
 
 	perf_ratio = div_u64(highest_perf * SCHED_CAPACITY_SCALE, nominal_perf);
+	/* midpoint between max_boost and max_P */
+	perf_ratio = (perf_ratio + SCHED_CAPACITY_SCALE) >> 1;
 	if (!perf_ratio) {
 		pr_debug("Non-zero highest/nominal perf values led to a 0 ratio\n");
 		return false;
