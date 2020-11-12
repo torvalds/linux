@@ -1129,29 +1129,10 @@ static void ionic_lif_rx_mode(struct ionic_lif *lif, unsigned int rx_mode)
 		lif->rx_mode = rx_mode;
 }
 
-static void _ionic_lif_rx_mode(struct ionic_lif *lif, unsigned int rx_mode,
-			       bool from_ndo)
-{
-	struct ionic_deferred_work *work;
-
-	if (from_ndo) {
-		work = kzalloc(sizeof(*work), GFP_ATOMIC);
-		if (!work) {
-			netdev_err(lif->netdev, "%s OOM\n", __func__);
-			return;
-		}
-		work->type = IONIC_DW_TYPE_RX_MODE;
-		work->rx_mode = rx_mode;
-		netdev_dbg(lif->netdev, "deferred: rx_mode\n");
-		ionic_lif_deferred_enqueue(&lif->deferred, work);
-	} else {
-		ionic_lif_rx_mode(lif, rx_mode);
-	}
-}
-
 static void ionic_set_rx_mode(struct net_device *netdev, bool from_ndo)
 {
 	struct ionic_lif *lif = netdev_priv(netdev);
+	struct ionic_deferred_work *work;
 	unsigned int nfilters;
 	unsigned int rx_mode;
 
@@ -1197,8 +1178,21 @@ static void ionic_set_rx_mode(struct net_device *netdev, bool from_ndo)
 			rx_mode &= ~IONIC_RX_MODE_F_ALLMULTI;
 	}
 
-	if (lif->rx_mode != rx_mode)
-		_ionic_lif_rx_mode(lif, rx_mode, from_ndo);
+	if (lif->rx_mode != rx_mode) {
+		if (from_ndo) {
+			work = kzalloc(sizeof(*work), GFP_ATOMIC);
+			if (!work) {
+				netdev_err(lif->netdev, "%s OOM\n", __func__);
+				return;
+			}
+			work->type = IONIC_DW_TYPE_RX_MODE;
+			work->rx_mode = rx_mode;
+			netdev_dbg(lif->netdev, "deferred: rx_mode\n");
+			ionic_lif_deferred_enqueue(&lif->deferred, work);
+		} else {
+			ionic_lif_rx_mode(lif, rx_mode);
+		}
+	}
 }
 
 static void ionic_ndo_set_rx_mode(struct net_device *netdev)
