@@ -497,7 +497,8 @@ static int __elan_update_firmware(struct elan_tp_data *data,
 	u16 sw_checksum = 0, fw_checksum = 0;
 
 	error = data->ops->prepare_fw_update(client, data->ic_type,
-					     data->iap_version);
+					     data->iap_version,
+					     data->fw_page_size);
 	if (error)
 		return error;
 
