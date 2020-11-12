@@ -79,7 +79,7 @@ static void ovl_dentry_release(struct dentry *dentry)
 static struct dentry *ovl_d_real(struct dentry *dentry,
 				 const struct inode *inode)
 {
-	struct dentry *real;
+	struct dentry *real = NULL, *lower;
 
 	/* It's an overlay file */
 	if (inode && d_inode(dentry) == inode)
@@ -98,9 +98,10 @@ static struct dentry *ovl_d_real(struct dentry *dentry,
 	if (real && !inode && ovl_has_upperdata(d_inode(dentry)))
 		return real;
 
-	real = ovl_dentry_lowerdata(dentry);
-	if (!real)
+	lower = ovl_dentry_lowerdata(dentry);
+	if (!lower)
 		goto bug;
+	real = lower;
 
 	/* Handle recursion */
 	real = d_real(real, inode);
@@ -108,8 +109,10 @@ static struct dentry *ovl_d_real(struct dentry *dentry,
 	if (!inode || inode == d_inode(real))
 		return real;
 bug:
-	WARN(1, "ovl_d_real(%pd4, %s:%lu): real dentry not found\n", dentry,
-	     inode ? inode->i_sb->s_id : "NULL", inode ? inode->i_ino : 0);
+	WARN(1, "%s(%pd4, %s:%lu): real dentry (%p/%lu) not found\n",
+	     __func__, dentry, inode ? inode->i_sb->s_id : "NULL",
+	     inode ? inode->i_ino : 0, real,
+	     real && d_inode(real) ? d_inode(real)->i_ino : 0);
 	return dentry;
 }
 
