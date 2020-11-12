@@ -16,7 +16,7 @@
 DEFINE_BPF_STORAGE_CACHE(sk_cache);
 
 static struct bpf_local_storage_data *
-sk_storage_lookup(struct sock *sk, struct bpf_map *map, bool cacheit_lockit)
+bpf_sk_storage_lookup(struct sock *sk, struct bpf_map *map, bool cacheit_lockit)
 {
 	struct bpf_local_storage *sk_storage;
 	struct bpf_local_storage_map *smap;
@@ -29,11 +29,11 @@ sk_storage_lookup(struct sock *sk, struct bpf_map *map, bool cacheit_lockit)
 	return bpf_local_storage_lookup(sk_storage, smap, cacheit_lockit);
 }
 
-static int sk_storage_delete(struct sock *sk, struct bpf_map *map)
+static int bpf_sk_storage_del(struct sock *sk, struct bpf_map *map)
 {
 	struct bpf_local_storage_data *sdata;
 
-	sdata = sk_storage_lookup(sk, map, false);
+	sdata = bpf_sk_storage_lookup(sk, map, false);
 	if (!sdata)
 		return -ENOENT;
 
@@ -82,7 +82,7 @@ void bpf_sk_storage_free(struct sock *sk)
 		kfree_rcu(sk_storage, rcu);
 }
 
-static void sk_storage_map_free(struct bpf_map *map)
+static void bpf_sk_storage_map_free(struct bpf_map *map)
 {
 	struct bpf_local_storage_map *smap;
 
@@ -91,7 +91,7 @@ static void sk_storage_map_free(struct bpf_map *map)
 	bpf_local_storage_map_free(smap);
 }
 
-static struct bpf_map *sk_storage_map_alloc(union bpf_attr *attr)
+static struct bpf_map *bpf_sk_storage_map_alloc(union bpf_attr *attr)
 {
 	struct bpf_local_storage_map *smap;
 
@@ -118,7 +118,7 @@ static void *bpf_fd_sk_storage_lookup_elem(struct bpf_map *map, void *key)
 	fd = *(int *)key;
 	sock = sockfd_lookup(fd, &err);
 	if (sock) {
-		sdata = sk_storage_lookup(sock->sk, map, true);
+		sdata = bpf_sk_storage_lookup(sock->sk, map, true);
 		sockfd_put(sock);
 		return sdata ? sdata->data : NULL;
 	}
@@ -154,7 +154,7 @@ static int bpf_fd_sk_storage_delete_elem(struct bpf_map *map, void *key)
 	fd = *(int *)key;
 	sock = sockfd_lookup(fd, &err);
 	if (sock) {
-		err = sk_storage_delete(sock->sk, map);
+		err = bpf_sk_storage_del(sock->sk, map);
 		sockfd_put(sock);
 		return err;
 	}
@@ -260,7 +260,7 @@ BPF_CALL_4(bpf_sk_storage_get, struct bpf_map *, map, struct sock *, sk,
 	if (!sk || !sk_fullsock(sk) || flags > BPF_SK_STORAGE_GET_F_CREATE)
 		return (unsigned long)NULL;
 
-	sdata = sk_storage_lookup(sk, map, true);
+	sdata = bpf_sk_storage_lookup(sk, map, true);
 	if (sdata)
 		return (unsigned long)sdata->data;
 
@@ -293,7 +293,7 @@ BPF_CALL_2(bpf_sk_storage_delete, struct bpf_map *, map, struct sock *, sk)
 	if (refcount_inc_not_zero(&sk->sk_refcnt)) {
 		int err;
 
-		err = sk_storage_delete(sk, map);
+		err = bpf_sk_storage_del(sk, map);
 		sock_put(sk);
 		return err;
 	}
@@ -301,8 +301,8 @@ BPF_CALL_2(bpf_sk_storage_delete, struct bpf_map *, map, struct sock *, sk)
 	return -ENOENT;
 }
 
-static int sk_storage_charge(struct bpf_local_storage_map *smap,
-			     void *owner, u32 size)
+static int bpf_sk_storage_charge(struct bpf_local_storage_map *smap,
+				 void *owner, u32 size)
 {
 	struct sock *sk = (struct sock *)owner;
 
@@ -316,8 +316,8 @@ static int sk_storage_charge(struct bpf_local_storage_map *smap,
 	return -ENOMEM;
 }
 
-static void sk_storage_uncharge(struct bpf_local_storage_map *smap,
-				void *owner, u32 size)
+static void bpf_sk_storage_uncharge(struct bpf_local_storage_map *smap,
+				    void *owner, u32 size)
 {
 	struct sock *sk = owner;
 
@@ -325,7 +325,7 @@ static void sk_storage_uncharge(struct bpf_local_storage_map *smap,
 }
 
 static struct bpf_local_storage __rcu **
-sk_storage_ptr(void *owner)
+bpf_sk_storage_ptr(void *owner)
 {
 	struct sock *sk = owner;
 
@@ -336,8 +336,8 @@ static int sk_storage_map_btf_id;
 const struct bpf_map_ops sk_storage_map_ops = {
 	.map_meta_equal = bpf_map_meta_equal,
 	.map_alloc_check = bpf_local_storage_map_alloc_check,
-	.map_alloc = sk_storage_map_alloc,
-	.map_free = sk_storage_map_free,
+	.map_alloc = bpf_sk_storage_map_alloc,
+	.map_free = bpf_sk_storage_map_free,
 	.map_get_next_key = notsupp_get_next_key,
 	.map_lookup_elem = bpf_fd_sk_storage_lookup_elem,
 	.map_update_elem = bpf_fd_sk_storage_update_elem,
@@ -345,9 +345,9 @@ const struct bpf_map_ops sk_storage_map_ops = {
 	.map_check_btf = bpf_local_storage_map_check_btf,
 	.map_btf_name = "bpf_local_storage_map",
 	.map_btf_id = &sk_storage_map_btf_id,
-	.map_local_storage_charge = sk_storage_charge,
-	.map_local_storage_uncharge = sk_storage_uncharge,
-	.map_owner_storage_ptr = sk_storage_ptr,
+	.map_local_storage_charge = bpf_sk_storage_charge,
+	.map_local_storage_uncharge = bpf_sk_storage_uncharge,
+	.map_owner_storage_ptr = bpf_sk_storage_ptr,
 };
 
 const struct bpf_func_proto bpf_sk_storage_get_proto = {
