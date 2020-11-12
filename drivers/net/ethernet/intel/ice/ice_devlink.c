@@ -6,126 +6,141 @@
 #include "ice_devlink.h"
 #include "ice_fw_update.h"
 
-static void ice_info_get_dsn(struct ice_pf *pf, char *buf, size_t len)
+/* context for devlink info version reporting */
+struct ice_info_ctx {
+	char buf[128];
+};
+
+/* The following functions are used to format specific strings for various
+ * devlink info versions. The ctx parameter is used to provide the storage
+ * buffer, as well as any ancillary information calculated when the info
+ * request was made.
+ *
+ * If a version does not exist, for example when attempting to get the
+ * inactive version of flash when there is no pending update, the function
+ * should leave the buffer in the ctx structure empty and return 0.
+ */
+
+static void ice_info_get_dsn(struct ice_pf *pf, struct ice_info_ctx *ctx)
 {
 	u8 dsn[8];
 
 	/* Copy the DSN into an array in Big Endian format */
 	put_unaligned_be64(pci_get_dsn(pf->pdev), dsn);
 
-	snprintf(buf, len, "%8phD", dsn);
+	snprintf(ctx->buf, sizeof(ctx->buf), "%8phD", dsn);
 }
 
-static int ice_info_pba(struct ice_pf *pf, char *buf, size_t len)
+static int ice_info_pba(struct ice_pf *pf, struct ice_info_ctx *ctx)
 {
 	struct ice_hw *hw = &pf->hw;
 	enum ice_status status;
 
-	status = ice_read_pba_string(hw, (u8 *)buf, len);
+	status = ice_read_pba_string(hw, (u8 *)ctx->buf, sizeof(ctx->buf));
 	if (status)
 		return -EIO;
 
 	return 0;
 }
 
-static int ice_info_fw_mgmt(struct ice_pf *pf, char *buf, size_t len)
+static int ice_info_fw_mgmt(struct ice_pf *pf, struct ice_info_ctx *ctx)
 {
 	struct ice_hw *hw = &pf->hw;
 
-	snprintf(buf, len, "%u.%u.%u", hw->fw_maj_ver, hw->fw_min_ver,
+	snprintf(ctx->buf, sizeof(ctx->buf), "%u.%u.%u", hw->fw_maj_ver, hw->fw_min_ver,
 		 hw->fw_patch);
 
 	return 0;
 }
 
-static int ice_info_fw_api(struct ice_pf *pf, char *buf, size_t len)
+static int ice_info_fw_api(struct ice_pf *pf, struct ice_info_ctx *ctx)
 {
 	struct ice_hw *hw = &pf->hw;
 
-	snprintf(buf, len, "%u.%u", hw->api_maj_ver, hw->api_min_ver);
+	snprintf(ctx->buf, sizeof(ctx->buf), "%u.%u", hw->api_maj_ver, hw->api_min_ver);
 
 	return 0;
 }
 
-static int ice_info_fw_build(struct ice_pf *pf, char *buf, size_t len)
+static int ice_info_fw_build(struct ice_pf *pf, struct ice_info_ctx *ctx)
 {
 	struct ice_hw *hw = &pf->hw;
 
-	snprintf(buf, len, "0x%08x", hw->fw_build);
+	snprintf(ctx->buf, sizeof(ctx->buf), "0x%08x", hw->fw_build);
 
 	return 0;
 }
 
-static int ice_info_orom_ver(struct ice_pf *pf, char *buf, size_t len)
+static int ice_info_orom_ver(struct ice_pf *pf, struct ice_info_ctx *ctx)
 {
 	struct ice_orom_info *orom = &pf->hw.flash.orom;
 
-	snprintf(buf, len, "%u.%u.%u", orom->major, orom->build, orom->patch);
+	snprintf(ctx->buf, sizeof(ctx->buf), "%u.%u.%u", orom->major, orom->build, orom->patch);
 
 	return 0;
 }
 
-static int ice_info_nvm_ver(struct ice_pf *pf, char *buf, size_t len)
+static int ice_info_nvm_ver(struct ice_pf *pf, struct ice_info_ctx *ctx)
 {
 	struct ice_nvm_info *nvm = &pf->hw.flash.nvm;
 
-	snprintf(buf, len, "%x.%02x", nvm->major, nvm->minor);
+	snprintf(ctx->buf, sizeof(ctx->buf), "%x.%02x", nvm->major, nvm->minor);
 
 	return 0;
 }
 
-static int ice_info_eetrack(struct ice_pf *pf, char *buf, size_t len)
+static int ice_info_eetrack(struct ice_pf *pf, struct ice_info_ctx *ctx)
 {
 	struct ice_nvm_info *nvm = &pf->hw.flash.nvm;
 
-	snprintf(buf, len, "0x%08x", nvm->eetrack);
+	snprintf(ctx->buf, sizeof(ctx->buf), "0x%08x", nvm->eetrack);
 
 	return 0;
 }
 
-static int ice_info_ddp_pkg_name(struct ice_pf *pf, char *buf, size_t len)
+static int ice_info_ddp_pkg_name(struct ice_pf *pf, struct ice_info_ctx *ctx)
 {
 	struct ice_hw *hw = &pf->hw;
 
-	snprintf(buf, len, "%s", hw->active_pkg_name);
+	snprintf(ctx->buf, sizeof(ctx->buf), "%s", hw->active_pkg_name);
 
 	return 0;
 }
 
-static int ice_info_ddp_pkg_version(struct ice_pf *pf, char *buf, size_t len)
+static int ice_info_ddp_pkg_version(struct ice_pf *pf, struct ice_info_ctx *ctx)
 {
 	struct ice_pkg_ver *pkg = &pf->hw.active_pkg_ver;
 
-	snprintf(buf, len, "%u.%u.%u.%u", pkg->major, pkg->minor, pkg->update,
+	snprintf(ctx->buf, sizeof(ctx->buf), "%u.%u.%u.%u", pkg->major, pkg->minor, pkg->update,
 		 pkg->draft);
 
 	return 0;
 }
 
-static int ice_info_ddp_pkg_bundle_id(struct ice_pf *pf, char *buf, size_t len)
+static int ice_info_ddp_pkg_bundle_id(struct ice_pf *pf, struct ice_info_ctx *ctx)
 {
-	snprintf(buf, len, "0x%08x", pf->hw.active_track_id);
+	snprintf(ctx->buf, sizeof(ctx->buf), "0x%08x", pf->hw.active_track_id);
 
 	return 0;
 }
 
-static int ice_info_netlist_ver(struct ice_pf *pf, char *buf, size_t len)
+static int ice_info_netlist_ver(struct ice_pf *pf, struct ice_info_ctx *ctx)
 {
 	struct ice_netlist_info *netlist = &pf->hw.flash.netlist;
 
 	/* The netlist version fields are BCD formatted */
-	snprintf(buf, len, "%x.%x.%x-%x.%x.%x", netlist->major, netlist->minor,
+	snprintf(ctx->buf, sizeof(ctx->buf), "%x.%x.%x-%x.%x.%x", netlist->major, netlist->minor,
 		 netlist->type >> 16, netlist->type & 0xFFFF, netlist->rev,
 		 netlist->cust_ver);
 
 	return 0;
 }
 
-static int ice_info_netlist_build(struct ice_pf *pf, char *buf, size_t len)
+static int ice_info_netlist_build(struct ice_pf *pf, struct ice_info_ctx *ctx)
 {
 	struct ice_netlist_info *netlist = &pf->hw.flash.netlist;
 
-	snprintf(buf, len, "0x%08x", netlist->hash);
+	snprintf(ctx->buf, sizeof(ctx->buf), "0x%08x", netlist->hash);
 
 	return 0;
 }
@@ -142,7 +157,7 @@ enum ice_version_type {
 static const struct ice_devlink_version {
 	enum ice_version_type type;
 	const char *key;
-	int (*getter)(struct ice_pf *pf, char *buf, size_t len);
+	int (*getter)(struct ice_pf *pf, struct ice_info_ctx *ctx);
 } ice_devlink_versions[] = {
 	fixed(DEVLINK_INFO_VERSION_GENERIC_BOARD_ID, ice_info_pba),
 	running(DEVLINK_INFO_VERSION_GENERIC_FW_MGMT, ice_info_fw_mgmt),
@@ -174,60 +189,72 @@ static int ice_devlink_info_get(struct devlink *devlink,
 				struct netlink_ext_ack *extack)
 {
 	struct ice_pf *pf = devlink_priv(devlink);
-	char buf[100];
+	struct ice_info_ctx *ctx;
 	size_t i;
 	int err;
+
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	if (!ctx)
+		return -ENOMEM;
 
 	err = devlink_info_driver_name_put(req, KBUILD_MODNAME);
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack, "Unable to set driver name");
-		return err;
+		goto out_free_ctx;
 	}
 
-	ice_info_get_dsn(pf, buf, sizeof(buf));
+	ice_info_get_dsn(pf, ctx);
 
-	err = devlink_info_serial_number_put(req, buf);
+	err = devlink_info_serial_number_put(req, ctx->buf);
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack, "Unable to set serial number");
-		return err;
+		goto out_free_ctx;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(ice_devlink_versions); i++) {
 		enum ice_version_type type = ice_devlink_versions[i].type;
 		const char *key = ice_devlink_versions[i].key;
 
-		err = ice_devlink_versions[i].getter(pf, buf, sizeof(buf));
+		memset(ctx->buf, 0, sizeof(ctx->buf));
+
+		err = ice_devlink_versions[i].getter(pf, ctx);
 		if (err) {
 			NL_SET_ERR_MSG_MOD(extack, "Unable to obtain version info");
-			return err;
+			goto out_free_ctx;
 		}
+
+		/* Do not report missing versions */
+		if (ctx->buf[0] == '\0')
+			continue;
 
 		switch (type) {
 		case ICE_VERSION_FIXED:
-			err = devlink_info_version_fixed_put(req, key, buf);
+			err = devlink_info_version_fixed_put(req, key, ctx->buf);
 			if (err) {
 				NL_SET_ERR_MSG_MOD(extack, "Unable to set fixed version");
-				return err;
+				goto out_free_ctx;
 			}
 			break;
 		case ICE_VERSION_RUNNING:
-			err = devlink_info_version_running_put(req, key, buf);
+			err = devlink_info_version_running_put(req, key, ctx->buf);
 			if (err) {
 				NL_SET_ERR_MSG_MOD(extack, "Unable to set running version");
-				return err;
+				goto out_free_ctx;
 			}
 			break;
 		case ICE_VERSION_STORED:
-			err = devlink_info_version_stored_put(req, key, buf);
+			err = devlink_info_version_stored_put(req, key, ctx->buf);
 			if (err) {
 				NL_SET_ERR_MSG_MOD(extack, "Unable to set stored version");
-				return err;
+				goto out_free_ctx;
 			}
 			break;
 		}
 	}
 
-	return 0;
+out_free_ctx:
+	kfree(ctx);
+	return err;
 }
 
 /**
