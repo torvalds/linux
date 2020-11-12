@@ -171,9 +171,11 @@ void dcn21_set_abm_immediate_disable(struct pipe_ctx *pipe_ctx)
 		return;
 	}
 
-	if (abm && panel_cntl)
+	if (abm && panel_cntl) {
 		dmub_abm_set_pipe(abm, otg_inst, SET_ABM_PIPE_IMMEDIATELY_DISABLE,
 				panel_cntl->inst);
+		panel_cntl->funcs->store_backlight_level(panel_cntl);
+	}
 }
 
 void dcn21_set_pipe(struct pipe_ctx *pipe_ctx)
