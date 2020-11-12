@@ -784,19 +784,34 @@ static void virtio_mem_fake_online(unsigned long pfn, unsigned long nr_pages)
  */
 static int virtio_mem_fake_offline(unsigned long pfn, unsigned long nr_pages)
 {
-	int rc;
+	const bool is_movable = zone_idx(page_zone(pfn_to_page(pfn))) ==
+				ZONE_MOVABLE;
+	int rc, retry_count;
 
-	rc = alloc_contig_range(pfn, pfn + nr_pages, MIGRATE_MOVABLE,
-				GFP_KERNEL);
-	if (rc == -ENOMEM)
-		/* whoops, out of memory */
-		return rc;
-	if (rc)
-		return -EBUSY;
+	/*
+	 * TODO: We want an alloc_contig_range() mode that tries to allocate
+	 * harder (e.g., dealing with temporarily pinned pages, PCP), especially
+	 * with ZONE_MOVABLE. So for now, retry a couple of times with
+	 * ZONE_MOVABLE before giving up - because that zone is supposed to give
+	 * some guarantees.
+	 */
+	for (retry_count = 0; retry_count < 5; retry_count++) {
+		rc = alloc_contig_range(pfn, pfn + nr_pages, MIGRATE_MOVABLE,
+					GFP_KERNEL);
+		if (rc == -ENOMEM)
+			/* whoops, out of memory */
+			return rc;
+		else if (rc && !is_movable)
+			break;
+		else if (rc)
+			continue;
 
-	virtio_mem_set_fake_offline(pfn, nr_pages, true);
-	adjust_managed_page_count(pfn_to_page(pfn), -nr_pages);
-	return 0;
+		virtio_mem_set_fake_offline(pfn, nr_pages, true);
+		adjust_managed_page_count(pfn_to_page(pfn), -nr_pages);
+		return 0;
+	}
+
+	return -EBUSY;
 }
 
 /*
