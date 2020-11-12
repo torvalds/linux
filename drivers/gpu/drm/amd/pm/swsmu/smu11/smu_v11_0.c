@@ -438,11 +438,13 @@ int smu_v11_0_fini_smc_tables(struct smu_context *smu)
 	kfree(smu_table->overdrive_table);
 	kfree(smu_table->max_sustainable_clocks);
 	kfree(smu_table->driver_pptable);
+	kfree(smu_table->clocks_table);
 	smu_table->gpu_metrics_table = NULL;
 	smu_table->boot_overdrive_table = NULL;
 	smu_table->overdrive_table = NULL;
 	smu_table->max_sustainable_clocks = NULL;
 	smu_table->driver_pptable = NULL;
+	smu_table->clocks_table = NULL;
 	kfree(smu_table->hardcode_pptable);
 	smu_table->hardcode_pptable = NULL;
 

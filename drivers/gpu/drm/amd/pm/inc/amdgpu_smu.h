@@ -459,6 +459,11 @@ struct smu_context
 
 	unsigned fan_max_rpm;
 	unsigned manual_fan_speed_rpm;
+
+	uint32_t gfx_default_hard_min_freq;
+	uint32_t gfx_default_soft_max_freq;
+	uint32_t gfx_actual_hard_min_freq;
+	uint32_t gfx_actual_soft_max_freq;
 };
 
 struct i2c_adapter;
@@ -577,6 +582,7 @@ struct pptable_funcs {
 	void (*interrupt_work)(struct smu_context *smu);
 	int (*gpo_control)(struct smu_context *smu, bool enablement);
 	int (*gfx_state_change_set)(struct smu_context *smu, uint32_t state);
+	int (*set_fine_grain_gfx_freq_parameters)(struct smu_context *smu);
 };
 
 typedef enum {
