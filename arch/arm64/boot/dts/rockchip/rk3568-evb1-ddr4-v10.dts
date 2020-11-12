@@ -84,32 +84,24 @@
 	};
 };
 
-&dsi0 {
+&combphy2_psq {
 	status = "okay";
 };
 
-&dsi1 {
-	status = "disabled";
+&dsi0 {
+	status = "okay";
 };
 
 &dsi0_panel {
 	power-supply = <&vcc3v3_lcd0_n>;
 };
 
+&dsi1 {
+	status = "disabled";
+};
+
 &dsi1_panel {
 	power-supply = <&vcc3v3_lcd1_n>;
-};
-
-/*
- * power-supply should switche to vcc3v3_lcd1_n
- * when mipi panel is connected to dsi1.
- */
-&gt1x {
-	power-supply = <&vcc3v3_lcd0_n>;
-};
-
-&combphy2_psq {
-	status = "okay";
 };
 
 &gmac0 {
@@ -158,6 +150,14 @@
 	status = "okay";
 };
 
+/*
+ * power-supply should switche to vcc3v3_lcd1_n
+ * when mipi panel is connected to dsi1.
+ */
+&gt1x {
+	power-supply = <&vcc3v3_lcd0_n>;
+};
+
 &mdio0 {
 	rgmii_phy0: phy@0 {
 		compatible = "ethernet-phy-ieee802.3-c22";
@@ -170,10 +170,6 @@
 		compatible = "ethernet-phy-ieee802.3-c22";
 		reg = <0x0>;
 	};
-};
-
-&uart8 {
-	status = "okay";
 };
 
 &pcie2x1 {
@@ -191,6 +187,10 @@
 };
 
 &sata2 {
+	status = "okay";
+};
+
+&uart8 {
 	status = "okay";
 };
 
