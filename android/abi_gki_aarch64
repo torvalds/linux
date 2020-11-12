@@ -10,6 +10,9 @@
   dummy_dma_ops
   find_next_bit
   find_next_zero_bit
+  finish_wait
+  init_wait_entry
+  __init_waitqueue_head
   kfree
   __kmalloc
   kmalloc_caches
@@ -26,16 +29,19 @@
   of_property_read_variable_u32_array
   platform_get_irq
   platform_get_resource
+  prepare_to_wait_event
   printk
   __put_task_struct
   ___ratelimit
   _raw_spin_lock_irqsave
   _raw_spin_unlock_irqrestore
+  schedule
   snprintf
   __stack_chk_fail
   __stack_chk_guard
   strcmp
   __udelay
+  __wake_up
 
 # required by arm-smmu.ko
   alloc_io_pgtable_ops
@@ -80,6 +86,30 @@
   platform_driver_unregister
   put_device
 
+# required by dm-user.ko
+  bio_advance
+  bio_endio
+  bio_put
+  __check_object_size
+  _copy_from_iter
+  copy_page_from_iter
+  copy_page_to_iter
+  _copy_to_iter
+  dm_register_target
+  dm_unregister_target
+  kasprintf
+  __list_del_entry_valid
+  __ll_sc_atomic_add
+  mempool_alloc
+  mempool_exit
+  mempool_free
+  mempool_init
+  mempool_kfree
+  mempool_kmalloc
+  misc_deregister
+  misc_register
+  no_llseek
+
 # required by ufshcd-core.ko
   __alloc_workqueue_key
   async_schedule
@@ -121,13 +151,10 @@
   down_write
   event_triggers_call
   find_last_bit
-  finish_wait
   flush_work
   free_irq
   __init_rwsem
   init_timer_key
-  init_wait_entry
-  __init_waitqueue_head
   jiffies
   jiffies_to_usecs
   keyslot_manager_create
@@ -150,7 +177,6 @@
   __pm_runtime_idle
   __pm_runtime_resume
   preempt_schedule_notrace
-  prepare_to_wait_event
   print_hex_dump
   queue_delayed_work_on
   queue_work_on
@@ -162,7 +188,6 @@
   regulator_set_load
   regulator_set_voltage
   request_threaded_irq
-  schedule
   schedule_timeout
   __scsi_add_device
   scsi_add_host_with_dma
@@ -208,7 +233,6 @@
   usleep_range
   utf16s_to_utf8s
   wait_for_completion_timeout
-  __wake_up
   __warn_printk
 
 # required by ufshcd-pltfrm.ko
