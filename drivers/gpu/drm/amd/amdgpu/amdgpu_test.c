@@ -42,16 +42,11 @@ static void amdgpu_do_test_moves(struct amdgpu_device *adev)
 	size = 1024 * 1024;
 
 	/* Number of tests =
-	 * (Total GTT - IB pool - writeback page - ring buffers) / test size
+	 * (Total GTT - gart_pin_size - (2 transfer windows for buffer moves)) / test size
 	 */
-	n = adev->gmc.gart_size - AMDGPU_IB_POOL_SIZE;
-	for (i = 0; i < AMDGPU_MAX_RINGS; ++i)
-		if (adev->rings[i])
-			n -= adev->rings[i]->ring_size;
-	if (adev->wb.wb_obj)
-		n -= AMDGPU_GPU_PAGE_SIZE;
-	if (adev->irq.ih.ring_obj)
-		n -= adev->irq.ih.ring_size;
+	n = adev->gmc.gart_size - atomic64_read(&adev->gart_pin_size);
+	n -= AMDGPU_GTT_MAX_TRANSFER_SIZE * AMDGPU_GTT_NUM_TRANSFER_WINDOWS *
+		AMDGPU_GPU_PAGE_SIZE;
 	n /= size;
 
 	gtt_obj = kcalloc(n, sizeof(*gtt_obj), GFP_KERNEL);
