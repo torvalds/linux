@@ -636,7 +636,7 @@ error_cmd_send:
  *
  * @i2400m: device descriptor
  * @chunk: the buffer to write
- * @chunk_len: length of the buffer to write
+ * @__chunk_len: length of the buffer to write
  * @addr: address in the device memory space
  * @direct: bootrom write mode
  * @do_csum: should a checksum validation be performed
