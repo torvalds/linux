@@ -607,58 +607,101 @@ enum ice_status ice_get_inactive_nvm_ver(struct ice_hw *hw, struct ice_nvm_info 
 }
 
 /**
- * ice_get_orom_ver_info - Read Option ROM version information
+ * ice_get_orom_civd_data - Get the combo version information from Option ROM
  * @hw: pointer to the HW struct
- * @orom: pointer to Option ROM info structure
+ * @bank: whether to read from the active or inactive flash module
+ * @civd: storage for the Option ROM CIVD data.
  *
- * Read the Combo Image version data from the Boot Configuration TLV and fill
- * in the option ROM version data.
+ * Searches through the Option ROM flash contents to locate the CIVD data for
+ * the image.
  */
 static enum ice_status
-ice_get_orom_ver_info(struct ice_hw *hw, struct ice_orom_info *orom)
+ice_get_orom_civd_data(struct ice_hw *hw, enum ice_bank_select bank,
+		       struct ice_orom_civd_info *civd)
 {
-	u16 combo_hi, combo_lo, boot_cfg_tlv, boot_cfg_tlv_len;
+	struct ice_orom_civd_info tmp;
+	enum ice_status status;
+	u32 offset;
+
+	/* The CIVD section is located in the Option ROM aligned to 512 bytes.
+	 * The first 4 bytes must contain the ASCII characters "$CIV".
+	 * A simple modulo 256 sum of all of the bytes of the structure must
+	 * equal 0.
+	 */
+	for (offset = 0; (offset + 512) <= hw->flash.banks.orom_size; offset += 512) {
+		u8 sum = 0, i;
+
+		status = ice_read_flash_module(hw, bank, ICE_SR_1ST_OROM_BANK_PTR,
+					       offset, (u8 *)&tmp, sizeof(tmp));
+		if (status) {
+			ice_debug(hw, ICE_DBG_NVM, "Unable to read Option ROM CIVD data\n");
+			return status;
+		}
+
+		/* Skip forward until we find a matching signature */
+		if (memcmp("$CIV", tmp.signature, sizeof(tmp.signature)) != 0)
+			continue;
+
+		/* Verify that the simple checksum is zero */
+		for (i = 0; i < sizeof(tmp); i++)
+			sum += ((u8 *)&tmp)[i];
+
+		if (sum) {
+			ice_debug(hw, ICE_DBG_NVM, "Found CIVD data with invalid checksum of %u\n",
+				  sum);
+			return ICE_ERR_NVM;
+		}
+
+		*civd = tmp;
+		return 0;
+	}
+
+	return ICE_ERR_NVM;
+}
+
+/**
+ * ice_get_orom_ver_info - Read Option ROM version information
+ * @hw: pointer to the HW struct
+ * @bank: whether to read from the active or inactive flash module
+ * @orom: pointer to Option ROM info structure
+ *
+ * Read Option ROM version and security revision from the Option ROM flash
+ * section.
+ */
+static enum ice_status
+ice_get_orom_ver_info(struct ice_hw *hw, enum ice_bank_select bank, struct ice_orom_info *orom)
+{
+	struct ice_orom_civd_info civd;
 	enum ice_status status;
 	u32 combo_ver;
 
-	status = ice_get_pfa_module_tlv(hw, &boot_cfg_tlv, &boot_cfg_tlv_len,
-					ICE_SR_BOOT_CFG_PTR);
+	status = ice_get_orom_civd_data(hw, bank, &civd);
 	if (status) {
-		ice_debug(hw, ICE_DBG_INIT, "Failed to read Boot Configuration Block TLV.\n");
+		ice_debug(hw, ICE_DBG_NVM, "Failed to locate valid Option ROM CIVD data\n");
 		return status;
 	}
 
-	/* Boot Configuration Block must have length at least 2 words
-	 * (Combo Image Version High and Combo Image Version Low)
-	 */
-	if (boot_cfg_tlv_len < 2) {
-		ice_debug(hw, ICE_DBG_INIT, "Invalid Boot Configuration Block TLV size.\n");
-		return ICE_ERR_INVAL_SIZE;
-	}
+	combo_ver = le32_to_cpu(civd.combo_ver);
 
-	status = ice_read_sr_word(hw, (boot_cfg_tlv + ICE_NVM_OROM_VER_OFF),
-				  &combo_hi);
-	if (status) {
-		ice_debug(hw, ICE_DBG_INIT, "Failed to read OROM_VER hi.\n");
-		return status;
-	}
-
-	status = ice_read_sr_word(hw, (boot_cfg_tlv + ICE_NVM_OROM_VER_OFF + 1),
-				  &combo_lo);
-	if (status) {
-		ice_debug(hw, ICE_DBG_INIT, "Failed to read OROM_VER lo.\n");
-		return status;
-	}
-
-	combo_ver = ((u32)combo_hi << 16) | combo_lo;
-
-	orom->major = (u8)((combo_ver & ICE_OROM_VER_MASK) >>
-			   ICE_OROM_VER_SHIFT);
+	orom->major = (u8)((combo_ver & ICE_OROM_VER_MASK) >> ICE_OROM_VER_SHIFT);
 	orom->patch = (u8)(combo_ver & ICE_OROM_VER_PATCH_MASK);
-	orom->build = (u16)((combo_ver & ICE_OROM_VER_BUILD_MASK) >>
-			    ICE_OROM_VER_BUILD_SHIFT);
+	orom->build = (u16)((combo_ver & ICE_OROM_VER_BUILD_MASK) >> ICE_OROM_VER_BUILD_SHIFT);
 
 	return 0;
+}
+
+/**
+ * ice_get_inactive_orom_ver - Read Option ROM version from the inactive bank
+ * @hw: pointer to the HW structure
+ * @orom: storage for Option ROM version information
+ *
+ * Reads the Option ROM version and security revision data for the inactive
+ * section of flash. Used to access version data for a pending update that has
+ * not yet been activated.
+ */
+enum ice_status ice_get_inactive_orom_ver(struct ice_hw *hw, struct ice_orom_info *orom)
+{
+	return ice_get_orom_ver_info(hw, ICE_INACTIVE_FLASH_BANK, orom);
 }
 
 /**
@@ -998,11 +1041,9 @@ enum ice_status ice_init_nvm(struct ice_hw *hw)
 		return status;
 	}
 
-	status = ice_get_orom_ver_info(hw, &flash->orom);
-	if (status) {
+	status = ice_get_orom_ver_info(hw, ICE_ACTIVE_FLASH_BANK, &flash->orom);
+	if (status)
 		ice_debug(hw, ICE_DBG_INIT, "Failed to read Option ROM info.\n");
-		return status;
-	}
 
 	/* read the netlist version information */
 	status = ice_get_netlist_info(hw, ICE_ACTIVE_FLASH_BANK, &flash->netlist);

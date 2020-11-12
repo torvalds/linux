@@ -9,6 +9,7 @@
 /* context for devlink info version reporting */
 struct ice_info_ctx {
 	char buf[128];
+	struct ice_orom_info pending_orom;
 	struct ice_nvm_info pending_nvm;
 	struct ice_netlist_info pending_netlist;
 	struct ice_hw_dev_caps dev_caps;
@@ -79,6 +80,18 @@ static int ice_info_orom_ver(struct ice_pf *pf, struct ice_info_ctx *ctx)
 	struct ice_orom_info *orom = &pf->hw.flash.orom;
 
 	snprintf(ctx->buf, sizeof(ctx->buf), "%u.%u.%u", orom->major, orom->build, orom->patch);
+
+	return 0;
+}
+
+static int
+ice_info_pending_orom_ver(struct ice_pf __always_unused *pf, struct ice_info_ctx *ctx)
+{
+	struct ice_orom_info *orom = &ctx->pending_orom;
+
+	if (ctx->dev_caps.common_cap.nvm_update_pending_orom)
+		snprintf(ctx->buf, sizeof(ctx->buf), "%u.%u.%u",
+			 orom->major, orom->build, orom->patch);
 
 	return 0;
 }
@@ -230,7 +243,7 @@ static const struct ice_devlink_version {
 	running(DEVLINK_INFO_VERSION_GENERIC_FW_MGMT, ice_info_fw_mgmt),
 	running("fw.mgmt.api", ice_info_fw_api),
 	running("fw.mgmt.build", ice_info_fw_build),
-	running(DEVLINK_INFO_VERSION_GENERIC_FW_UNDI, ice_info_orom_ver),
+	combined(DEVLINK_INFO_VERSION_GENERIC_FW_UNDI, ice_info_orom_ver, ice_info_pending_orom_ver),
 	combined("fw.psid.api", ice_info_nvm_ver, ice_info_pending_nvm_ver),
 	combined(DEVLINK_INFO_VERSION_GENERIC_FW_BUNDLE_ID, ice_info_eetrack, ice_info_pending_eetrack),
 	running("fw.app.name", ice_info_ddp_pkg_name),
@@ -272,6 +285,17 @@ static int ice_devlink_info_get(struct devlink *devlink,
 	if (status) {
 		err = -EIO;
 		goto out_free_ctx;
+	}
+
+	if (ctx->dev_caps.common_cap.nvm_update_pending_orom) {
+		status = ice_get_inactive_orom_ver(hw, &ctx->pending_orom);
+		if (status) {
+			dev_dbg(dev, "Unable to read inactive Option ROM version data, status %s aq_err %s\n",
+				ice_stat_str(status), ice_aq_str(hw->adminq.sq_last_status));
+
+			/* disable display of pending Option ROM */
+			ctx->dev_caps.common_cap.nvm_update_pending_orom = false;
+		}
 	}
 
 	if (ctx->dev_caps.common_cap.nvm_update_pending_nvm) {
