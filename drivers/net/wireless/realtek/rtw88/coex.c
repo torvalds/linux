@@ -2882,7 +2882,7 @@ void rtw_coex_wl_fwdbginfo_notify(struct rtw_dev *rtwdev, u8 *buf, u8 length)
 		if (buf[i] >= val)
 			coex_stat->wl_fw_dbg_info[i] = buf[i] - val;
 		else
-			coex_stat->wl_fw_dbg_info[i] = val - buf[i];
+			coex_stat->wl_fw_dbg_info[i] = 255 - val + buf[i];
 
 		coex_stat->wl_fw_dbg_info_pre[i] = buf[i];
 	}
