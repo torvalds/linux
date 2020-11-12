@@ -2057,6 +2057,13 @@
 		clock-names = "pdm_clk", "pdm_hclk";
 		dmas = <&dmac1 9>;
 		dma-names = "rx";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pdmm0_clk
+			     &pdmm0_clk1
+			     &pdmm0_sdi0
+			     &pdmm0_sdi1
+			     &pdmm0_sdi2
+			     &pdmm0_sdi3>;
 		#sound-dai-cells = <0>;
 		status = "disabled";
 	};
