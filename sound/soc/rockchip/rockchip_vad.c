@@ -616,6 +616,14 @@ static const struct audio_src_addr_map rk3308_addr_map[] = {
 	{ /* sentinel */ },
 };
 
+static const struct audio_src_addr_map rk3568_addr_map[] = {
+	{ 0, RK3568_I2S_8CH_1 },
+	{ 1, RK3568_I2S_2CH_2 },
+	{ 2, RK3568_I2S_2CH_3 },
+	{ 3, RK3568_PDM },
+	{ /* sentinel */ },
+};
+
 static const struct vad_soc_data rk1808es_soc_data = {
 	.version = VAD_RK1808ES,
 	.map = rk1808_addr_map,
@@ -629,6 +637,11 @@ static const struct vad_soc_data rk1808_soc_data = {
 static const struct vad_soc_data rk3308_soc_data = {
 	.version = VAD_RK3308,
 	.map = rk3308_addr_map,
+};
+
+static const struct vad_soc_data rk3568_soc_data = {
+	.version = VAD_RK1808,
+	.map = rk3568_addr_map,
 };
 
 static int rockchip_vad_get_audio_src_address(struct rockchip_vad *vad,
@@ -1116,6 +1129,7 @@ static const struct of_device_id rockchip_vad_match[] = {
 	{ .compatible = "rockchip,rk1808es-vad", .data = &rk1808es_soc_data },
 	{ .compatible = "rockchip,rk1808-vad", .data = &rk1808_soc_data },
 	{ .compatible = "rockchip,rk3308-vad", .data = &rk3308_soc_data },
+	{ .compatible = "rockchip,rk3568-vad", .data = &rk3568_soc_data },
 	{},
 };
 

@@ -6,6 +6,7 @@ Required properties:
   - "rockchip,rk1808es-vad": for rk1808es
   - "rockchip,rk1808-vad": for rk1808
   - "rockchip,rk3308-vad": for rk3308
+  - "rockchip,rk3568-vad": for rk3568
 - reg: physical base address of the controller and length of memory mapped
   region.
 - clocks: a list of phandle + clock-specifer pairs, one for each entry in clock-names.
