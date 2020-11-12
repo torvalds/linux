@@ -175,15 +175,6 @@
 		clock-output-names = "xin24m";
 	};
 
-	xin_osc0_edpphy: xin-osc0-edpphy {
-		compatible = "fixed-factor-clock";
-		clocks = <&xin24m>;
-		clock-mult = <1>;
-		clock-div = <1>;
-		clock-output-names = "xin_osc0_edpphy";
-		#clock-cells = <0>;
-	};
-
 	sata0: sata@fc000000 {
 		compatible = "snps,dwc-ahci";
 		reg = <0 0xfc300000 0 0x1000>;
