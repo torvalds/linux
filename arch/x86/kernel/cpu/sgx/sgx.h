@@ -14,6 +14,7 @@
 #define pr_fmt(fmt) "sgx: " fmt
 
 #define SGX_MAX_EPC_SECTIONS		8
+#define SGX_EEXTEND_BLOCK_SIZE		256
 
 struct sgx_epc_page {
 	unsigned int section;
