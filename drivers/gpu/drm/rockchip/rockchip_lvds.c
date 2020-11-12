@@ -641,14 +641,16 @@ static void rk3568_lvds_enable(struct rockchip_lvds *lvds)
 	if (lvds->id) {
 		regmap_write(lvds->grf, RK3568_GRF_VO_CON3,
 			     RK3568_LVDS1_MODE_EN(1) |
-			     RK3568_LVDS1_P2S_EN(1));
+			     RK3568_LVDS1_P2S_EN(1) |
+			     RK3568_LVDS1_DCLK_INV_SEL(1));
 		regmap_write(lvds->grf, RK3568_GRF_VO_CON0,
 			     RK3568_LVDS1_SELECT(lvds->format) |
 			     RK3568_LVDS1_MSBSEL(1));
 	} else {
 		regmap_write(lvds->grf, RK3568_GRF_VO_CON2,
 			     RK3568_LVDS0_MODE_EN(1) |
-			     RK3568_LVDS0_P2S_EN(1));
+			     RK3568_LVDS0_P2S_EN(1) |
+			     RK3568_LVDS0_DCLK_INV_SEL(1));
 		regmap_write(lvds->grf, RK3568_GRF_VO_CON0,
 			     RK3568_LVDS0_SELECT(lvds->format) |
 			     RK3568_LVDS0_MSBSEL(1));
