@@ -123,6 +123,12 @@ static void ionic_link_status_check(struct ionic_lif *lif)
 	link_up = link_status == IONIC_PORT_OPER_STATUS_UP;
 
 	if (link_up) {
+		if (lif->netdev->flags & IFF_UP && netif_running(lif->netdev)) {
+			mutex_lock(&lif->queue_lock);
+			ionic_start_queues(lif);
+			mutex_unlock(&lif->queue_lock);
+		}
+
 		if (!netif_carrier_ok(netdev)) {
 			u32 link_speed;
 
@@ -131,12 +137,6 @@ static void ionic_link_status_check(struct ionic_lif *lif)
 			netdev_info(netdev, "Link up - %d Gbps\n",
 				    link_speed / 1000);
 			netif_carrier_on(netdev);
-		}
-
-		if (lif->netdev->flags & IFF_UP && netif_running(lif->netdev)) {
-			mutex_lock(&lif->queue_lock);
-			ionic_start_queues(lif);
-			mutex_unlock(&lif->queue_lock);
 		}
 	} else {
 		if (netif_carrier_ok(netdev)) {
