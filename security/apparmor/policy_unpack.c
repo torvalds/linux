@@ -697,9 +697,8 @@ static u32 map_old_perms(u32 old)
 	return new;
 }
 
-static void __aa_compute_fperms_allow(struct aa_perms *perms,
-				      struct aa_dfa *dfa,
-				      unsigned int state)
+static void compute_fperms_allow(struct aa_perms *perms, struct aa_dfa *dfa,
+				 unsigned int state)
 {
 	perms->allow |= AA_MAY_GETATTR;
 
@@ -710,8 +709,8 @@ static void __aa_compute_fperms_allow(struct aa_perms *perms,
 		perms->allow |= AA_MAY_ONEXEC;
 }
 
-static struct aa_perms __aa_compute_fperms_user(struct aa_dfa *dfa,
-						unsigned int state)
+static struct aa_perms compute_fperms_user(struct aa_dfa *dfa,
+					   unsigned int state)
 {
 	struct aa_perms perms = { };
 
@@ -720,13 +719,13 @@ static struct aa_perms __aa_compute_fperms_user(struct aa_dfa *dfa,
 	perms.quiet = map_old_perms(dfa_user_quiet(dfa, state));
 	perms.xindex = dfa_user_xindex(dfa, state);
 
-	__aa_compute_fperms_allow(&perms, dfa, state);
+	compute_fperms_allow(&perms, dfa, state);
 
 	return perms;
 }
 
-static struct aa_perms __aa_compute_fperms_other(struct aa_dfa *dfa,
-						 unsigned int state)
+static struct aa_perms compute_fperms_other(struct aa_dfa *dfa,
+					    unsigned int state)
 {
 	struct aa_perms perms = { };
 
@@ -735,7 +734,7 @@ static struct aa_perms __aa_compute_fperms_other(struct aa_dfa *dfa,
 	perms.quiet = map_old_perms(dfa_other_quiet(dfa, state));
 	perms.xindex = dfa_other_xindex(dfa, state);
 
-	__aa_compute_fperms_allow(&perms, dfa, state);
+	compute_fperms_allow(&perms, dfa, state);
 
 	return perms;
 }
@@ -743,41 +742,46 @@ static struct aa_perms __aa_compute_fperms_other(struct aa_dfa *dfa,
 /**
  * aa_compute_fperms - convert dfa compressed perms to internal perms and store
  *		       them so they can be retrieved later.
- * @file_rules: a file_rules structure containing a dfa (NOT NULL) for which
- *		permissions will be computed   (NOT NULL)
+ * @dfa: a dfa using fperms to remap to internal permissions
  *
- * TODO: convert from dfa + state to permission entry
+ * Returns: remapped perm table
  */
-static void aa_compute_fperms(struct aa_file_rules *file_rules)
+static struct aa_perms *compute_fperms(struct aa_dfa *dfa)
 {
 	int state;
-	int state_count = file_rules->dfa->tables[YYTD_ID_BASE]->td_lolen;
+	int state_count;
+	struct aa_perms *table;
 
-	// DFAs are restricted from having a state_count of less than 2
-	file_rules->fperms_table = kvzalloc(
-			state_count * 2 * sizeof(struct aa_perms), GFP_KERNEL);
+	AA_BUG(!dfa);
 
-	// Since fperms_table is initialized with zeroes via kvzalloc(), we can
-	// skip the trap state (state == 0)
+	state_count = dfa->tables[YYTD_ID_BASE]->td_lolen;
+	/* DFAs are restricted from having a state_count of less than 2 */
+	table = kvzalloc(state_count * 2 * sizeof(struct aa_perms), GFP_KERNEL);
+	if (!table)
+		return NULL;
+
+	/* zero init so skip the trap state (state == 0) */
 	for (state = 1; state < state_count; state++) {
-		file_rules->fperms_table[state * 2] =
-			__aa_compute_fperms_user(file_rules->dfa, state);
-		file_rules->fperms_table[state * 2 + 1] =
-			__aa_compute_fperms_other(file_rules->dfa, state);
+		table[state * 2] = compute_fperms_user(dfa, state);
+		table[state * 2 + 1] = compute_fperms_other(dfa, state);
 	}
+
+	return table;
 }
 
-static u32 *aa_compute_xmatch_perms(struct aa_dfa *xmatch)
+static u32 *compute_xmatch_perms(struct aa_dfa *xmatch)
 {
 	u32 *perms_table;
 	int state;
-	int state_count = xmatch->tables[YYTD_ID_BASE]->td_lolen;
+	int state_count;
 
-	// DFAs are restricted from having a state_count of less than 2
+	AA_BUG(!xmatch);
+
+	state_count = xmatch->tables[YYTD_ID_BASE]->td_lolen;
+	/* DFAs are restricted from having a state_count of less than 2 */
 	perms_table = kvcalloc(state_count, sizeof(u32), GFP_KERNEL);
 
-	// Since perms_table is initialized with zeroes via kvcalloc(), we can
-	// skip the trap state (state == 0)
+	/* zero init so skip the trap state (state == 0) */
 	for (state = 1; state < state_count; state++)
 		perms_table[state] = dfa_user_allow(xmatch, state);
 
@@ -850,8 +854,7 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 		}
 		profile->xmatch_len = tmp;
 
-		profile->xmatch_perms = aa_compute_xmatch_perms(
-			profile->xmatch);
+		profile->xmatch_perms = compute_xmatch_perms(profile->xmatch);
 	}
 
 	/* disconnected attachment string is optional */
@@ -997,8 +1000,11 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 	} else
 		profile->file.dfa = aa_get_dfa(nulldfa);
 
-	aa_compute_fperms(&(profile->file));
-
+	profile->file.fperms_table = compute_fperms(profile->file.dfa);
+	if (!profile->file.fperms_table) {
+		info = "failed to remap file permission table";
+		goto fail;
+	}
 	if (!unpack_trans_table(e, profile)) {
 		info = "failed to unpack profile transition table";
 		goto fail;
