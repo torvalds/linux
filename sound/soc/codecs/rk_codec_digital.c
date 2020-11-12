@@ -602,6 +602,13 @@ static int rk_codec_digital_runtime_resume(struct device *dev)
 	if (ret)
 		return ret;
 
+	regcache_cache_only(rcd->regmap, false);
+	regcache_mark_dirty(rcd->regmap);
+
+	ret = regcache_sync(rcd->regmap);
+	if (ret)
+		goto err;
+
 	ret = clk_prepare_enable(rcd->clk_adc);
 	if (ret)
 		goto err;
@@ -630,6 +637,7 @@ static int rk_codec_digital_runtime_suspend(struct device *dev)
 {
 	struct rk_codec_digital_priv *rcd = dev_get_drvdata(dev);
 
+	regcache_cache_only(rcd->regmap, true);
 	clk_disable_unprepare(rcd->clk_adc);
 	clk_disable_unprepare(rcd->clk_dac);
 	clk_disable_unprepare(rcd->clk_i2c);
