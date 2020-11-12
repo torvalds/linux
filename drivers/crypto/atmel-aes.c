@@ -1539,7 +1539,7 @@ static int atmel_aes_gcm_length(struct atmel_aes_dev *dd)
 
 	/* Write incr32(J0) into IV. */
 	j0_lsw = j0[3];
-	j0[3] = cpu_to_be32(be32_to_cpu(j0[3]) + 1);
+	be32_add_cpu(&j0[3], 1);
 	atmel_aes_write_block(dd, AES_IVR(0), j0);
 	j0[3] = j0_lsw;
 

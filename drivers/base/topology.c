@@ -14,11 +14,11 @@
 #include <linux/hardirq.h>
 #include <linux/topology.h>
 
-#define define_id_show_func(name)				\
-static ssize_t name##_show(struct device *dev,			\
-		struct device_attribute *attr, char *buf)	\
-{								\
-	return sprintf(buf, "%d\n", topology_##name(dev->id));	\
+#define define_id_show_func(name)					\
+static ssize_t name##_show(struct device *dev,				\
+			   struct device_attribute *attr, char *buf)	\
+{									\
+	return sysfs_emit(buf, "%d\n", topology_##name(dev->id));	\
 }
 
 #define define_siblings_show_map(name, mask)				\

@@ -11,13 +11,15 @@
 
 #include <linux/clk.h>
 #include <linux/completion.h>
-#include <linux/crypto.h>
+#include <linux/device.h>
+#include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 #include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/irqreturn.h>
+#include <linux/kernel.h>
 #include <linux/klist.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
@@ -27,7 +29,6 @@
 #include <linux/platform_data/dma-ste-dma40.h>
 
 #include <crypto/aes.h>
-#include <crypto/algapi.h>
 #include <crypto/ctr.h>
 #include <crypto/internal/des.h>
 #include <crypto/internal/skcipher.h>
@@ -90,17 +91,6 @@ struct cryp_ctx {
 };
 
 static struct cryp_driver_data driver_data;
-
-/**
- * uint8p_to_uint32_be - 4*uint8 to uint32 big endian
- * @in: Data to convert.
- */
-static inline u32 uint8p_to_uint32_be(u8 *in)
-{
-	u32 *data = (u32 *)in;
-
-	return cpu_to_be32p(data);
-}
 
 /**
  * swap_bits_in_byte - mirror the bits in a byte
@@ -284,6 +274,7 @@ static int cfg_ivs(struct cryp_device_data *device_data, struct cryp_ctx *ctx)
 	int i;
 	int status = 0;
 	int num_of_regs = ctx->blocksize / 8;
+	__be32 *civ = (__be32 *)ctx->iv;
 	u32 iv[AES_BLOCK_SIZE / 4];
 
 	dev_dbg(device_data->dev, "[%s]", __func__);
@@ -300,7 +291,7 @@ static int cfg_ivs(struct cryp_device_data *device_data, struct cryp_ctx *ctx)
 	}
 
 	for (i = 0; i < ctx->blocksize / 4; i++)
-		iv[i] = uint8p_to_uint32_be(ctx->iv + i*4);
+		iv[i] = be32_to_cpup(civ + i);
 
 	for (i = 0; i < num_of_regs; i++) {
 		status = cfg_iv(device_data, iv[i*2], iv[i*2+1],
@@ -339,23 +330,24 @@ static int cfg_keys(struct cryp_ctx *ctx)
 	int i;
 	int num_of_regs = ctx->keylen / 8;
 	u32 swapped_key[CRYP_MAX_KEY_SIZE / 4];
+	__be32 *ckey = (__be32 *)ctx->key;
 	int cryp_error = 0;
 
 	dev_dbg(ctx->device->dev, "[%s]", __func__);
 
 	if (mode_is_aes(ctx->config.algomode)) {
-		swap_words_in_key_and_bits_in_byte((u8 *)ctx->key,
+		swap_words_in_key_and_bits_in_byte((u8 *)ckey,
 						   (u8 *)swapped_key,
 						   ctx->keylen);
 	} else {
 		for (i = 0; i < ctx->keylen / 4; i++)
-			swapped_key[i] = uint8p_to_uint32_be(ctx->key + i*4);
+			swapped_key[i] = be32_to_cpup(ckey + i);
 	}
 
 	for (i = 0; i < num_of_regs; i++) {
 		cryp_error = set_key(ctx->device,
-				     *(((u32 *)swapped_key)+i*2),
-				     *(((u32 *)swapped_key)+i*2+1),
+				     swapped_key[i * 2],
+				     swapped_key[i * 2 + 1],
 				     (enum cryp_key_reg_index) i);
 
 		if (cryp_error != 0) {

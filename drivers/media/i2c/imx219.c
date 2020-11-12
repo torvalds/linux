@@ -1188,7 +1188,7 @@ static int __maybe_unused imx219_resume(struct device *dev)
 
 error:
 	imx219_stop_streaming(imx219);
-	imx219->streaming = 0;
+	imx219->streaming = false;
 
 	return ret;
 }

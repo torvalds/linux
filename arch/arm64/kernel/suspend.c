@@ -10,6 +10,7 @@
 #include <asm/daifflags.h>
 #include <asm/debug-monitors.h>
 #include <asm/exec.h>
+#include <asm/mte.h>
 #include <asm/memory.h>
 #include <asm/mmu_context.h>
 #include <asm/smp_plat.h>
@@ -73,6 +74,9 @@ void notrace __cpu_suspend_exit(void)
 	 * disabled it, make sure their wishes are obeyed.
 	 */
 	spectre_v4_enable_mitigation(NULL);
+
+	/* Restore additional MTE-specific configuration */
+	mte_suspend_exit();
 }
 
 /*

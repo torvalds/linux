@@ -43,6 +43,7 @@ struct mcde_dsi {
 	struct drm_bridge *bridge_out;
 	struct mipi_dsi_host dsi_host;
 	struct mipi_dsi_device *mdsi;
+	const struct drm_display_mode *mode;
 	struct clk *hs_clk;
 	struct clk *lp_clk;
 	unsigned long hs_freq;
@@ -148,9 +149,22 @@ static void mcde_dsi_attach_to_mcde(struct mcde_dsi *d)
 {
 	d->mcde->mdsi = d->mdsi;
 
-	d->mcde->video_mode = !!(d->mdsi->mode_flags & MIPI_DSI_MODE_VIDEO);
-	/* Enable use of the TE signal for all command mode panels */
-	d->mcde->te_sync = !d->mcde->video_mode;
+	/*
+	 * Select the way the DSI data flow is pushing to the display:
+	 * currently we just support video or command mode depending
+	 * on the type of display. Video mode defaults to using the
+	 * formatter itself for synchronization (stateless video panel).
+	 *
+	 * FIXME: add flags to struct mipi_dsi_device .flags to indicate
+	 * displays that require BTA (bus turn around) so we can handle
+	 * such displays as well. Figure out how to properly handle
+	 * single frame on-demand updates with DRM for command mode
+	 * displays (MCDE_COMMAND_ONESHOT_FLOW).
+	 */
+	if (d->mdsi->mode_flags & MIPI_DSI_MODE_VIDEO)
+		d->mcde->flow_mode = MCDE_VIDEO_FORMATTER_FLOW;
+	else
+		d->mcde->flow_mode = MCDE_COMMAND_TE_FLOW;
 }
 
 static int mcde_dsi_host_attach(struct mipi_dsi_host *host,
@@ -194,15 +208,97 @@ static int mcde_dsi_host_detach(struct mipi_dsi_host *host,
 	 (type == MIPI_DSI_GENERIC_READ_REQUEST_2_PARAM) || \
 	 (type == MIPI_DSI_DCS_READ))
 
+static int mcde_dsi_execute_transfer(struct mcde_dsi *d,
+				     const struct mipi_dsi_msg *msg)
+{
+	const u32 loop_delay_us = 10; /* us */
+	u32 loop_counter;
+	size_t txlen = msg->tx_len;
+	size_t rxlen = msg->rx_len;
+	int i;
+	u32 val;
+	int ret;
+
+	writel(~0, d->regs + DSI_DIRECT_CMD_STS_CLR);
+	writel(~0, d->regs + DSI_CMD_MODE_STS_CLR);
+	/* Send command */
+	writel(1, d->regs + DSI_DIRECT_CMD_SEND);
+
+	loop_counter = 1000 * 1000 / loop_delay_us;
+	if (MCDE_DSI_HOST_IS_READ(msg->type)) {
+		/* Read command */
+		while (!(readl(d->regs + DSI_DIRECT_CMD_STS) &
+			 (DSI_DIRECT_CMD_STS_READ_COMPLETED |
+			  DSI_DIRECT_CMD_STS_READ_COMPLETED_WITH_ERR))
+		       && --loop_counter)
+			usleep_range(loop_delay_us, (loop_delay_us * 3) / 2);
+		if (!loop_counter) {
+			dev_err(d->dev, "DSI read timeout!\n");
+			/* Set exit code and retry */
+			return -ETIME;
+		}
+	} else {
+		/* Writing only */
+		while (!(readl(d->regs + DSI_DIRECT_CMD_STS) &
+			 DSI_DIRECT_CMD_STS_WRITE_COMPLETED)
+		       && --loop_counter)
+			usleep_range(loop_delay_us, (loop_delay_us * 3) / 2);
+
+		if (!loop_counter) {
+			/* Set exit code and retry */
+			dev_err(d->dev, "DSI write timeout!\n");
+			return -ETIME;
+		}
+	}
+
+	val = readl(d->regs + DSI_DIRECT_CMD_STS);
+	if (val & DSI_DIRECT_CMD_STS_READ_COMPLETED_WITH_ERR) {
+		dev_err(d->dev, "read completed with error\n");
+		writel(1, d->regs + DSI_DIRECT_CMD_RD_INIT);
+		return -EIO;
+	}
+	if (val & DSI_DIRECT_CMD_STS_ACKNOWLEDGE_WITH_ERR_RECEIVED) {
+		val >>= DSI_DIRECT_CMD_STS_ACK_VAL_SHIFT;
+		dev_err(d->dev, "error during transmission: %04x\n",
+			val);
+		return -EIO;
+	}
+
+	if (!MCDE_DSI_HOST_IS_READ(msg->type)) {
+		/* Return number of bytes written */
+		ret = txlen;
+	} else {
+		/* OK this is a read command, get the response */
+		u32 rdsz;
+		u32 rddat;
+		u8 *rx = msg->rx_buf;
+
+		rdsz = readl(d->regs + DSI_DIRECT_CMD_RD_PROPERTY);
+		rdsz &= DSI_DIRECT_CMD_RD_PROPERTY_RD_SIZE_MASK;
+		rddat = readl(d->regs + DSI_DIRECT_CMD_RDDAT);
+		if (rdsz < rxlen) {
+			dev_err(d->dev, "read error, requested %zd got %d\n",
+				rxlen, rdsz);
+			return -EIO;
+		}
+		/* FIXME: read more than 4 bytes */
+		for (i = 0; i < 4 && i < rxlen; i++)
+			rx[i] = (rddat >> (i * 8)) & 0xff;
+		ret = rdsz;
+	}
+
+	/* Successful transmission */
+	return ret;
+}
+
 static ssize_t mcde_dsi_host_transfer(struct mipi_dsi_host *host,
 				      const struct mipi_dsi_msg *msg)
 {
 	struct mcde_dsi *d = host_to_mcde_dsi(host);
-	const u32 loop_delay_us = 10; /* us */
 	const u8 *tx = msg->tx_buf;
-	u32 loop_counter;
 	size_t txlen = msg->tx_len;
 	size_t rxlen = msg->rx_len;
+	unsigned int retries = 0;
 	u32 val;
 	int ret;
 	int i;
@@ -268,72 +364,16 @@ static ssize_t mcde_dsi_host_transfer(struct mipi_dsi_host *host,
 		writel(val, d->regs + DSI_DIRECT_CMD_WRDAT3);
 	}
 
-	writel(~0, d->regs + DSI_DIRECT_CMD_STS_CLR);
-	writel(~0, d->regs + DSI_CMD_MODE_STS_CLR);
-	/* Send command */
-	writel(1, d->regs + DSI_DIRECT_CMD_SEND);
-
-	loop_counter = 1000 * 1000 / loop_delay_us;
-	if (MCDE_DSI_HOST_IS_READ(msg->type)) {
-		/* Read command */
-		while (!(readl(d->regs + DSI_DIRECT_CMD_STS) &
-			 (DSI_DIRECT_CMD_STS_READ_COMPLETED |
-			  DSI_DIRECT_CMD_STS_READ_COMPLETED_WITH_ERR))
-		       && --loop_counter)
-			usleep_range(loop_delay_us, (loop_delay_us * 3) / 2);
-		if (!loop_counter) {
-			dev_err(d->dev, "DSI read timeout!\n");
-			return -ETIME;
-		}
-	} else {
-		/* Writing only */
-		while (!(readl(d->regs + DSI_DIRECT_CMD_STS) &
-			 DSI_DIRECT_CMD_STS_WRITE_COMPLETED)
-		       && --loop_counter)
-			usleep_range(loop_delay_us, (loop_delay_us * 3) / 2);
-
-		if (!loop_counter) {
-			dev_err(d->dev, "DSI write timeout!\n");
-			return -ETIME;
-		}
+	while (retries < 3) {
+		ret = mcde_dsi_execute_transfer(d, msg);
+		if (ret >= 0)
+			break;
+		retries++;
 	}
+	if (ret < 0 && retries)
+		dev_err(d->dev, "gave up after %d retries\n", retries);
 
-	val = readl(d->regs + DSI_DIRECT_CMD_STS);
-	if (val & DSI_DIRECT_CMD_STS_READ_COMPLETED_WITH_ERR) {
-		dev_err(d->dev, "read completed with error\n");
-		writel(1, d->regs + DSI_DIRECT_CMD_RD_INIT);
-		return -EIO;
-	}
-	if (val & DSI_DIRECT_CMD_STS_ACKNOWLEDGE_WITH_ERR_RECEIVED) {
-		val >>= DSI_DIRECT_CMD_STS_ACK_VAL_SHIFT;
-		dev_err(d->dev, "error during transmission: %04x\n",
-			val);
-		return -EIO;
-	}
-
-	if (!MCDE_DSI_HOST_IS_READ(msg->type)) {
-		/* Return number of bytes written */
-		ret = txlen;
-	} else {
-		/* OK this is a read command, get the response */
-		u32 rdsz;
-		u32 rddat;
-		u8 *rx = msg->rx_buf;
-
-		rdsz = readl(d->regs + DSI_DIRECT_CMD_RD_PROPERTY);
-		rdsz &= DSI_DIRECT_CMD_RD_PROPERTY_RD_SIZE_MASK;
-		rddat = readl(d->regs + DSI_DIRECT_CMD_RDDAT);
-		if (rdsz < rxlen) {
-			dev_err(d->dev, "read error, requested %zd got %d\n",
-				rxlen, rdsz);
-			return -EIO;
-		}
-		/* FIXME: read more than 4 bytes */
-		for (i = 0; i < 4 && i < rxlen; i++)
-			rx[i] = (rddat >> (i * 8)) & 0xff;
-		ret = rdsz;
-	}
-
+	/* Clear any errors */
 	writel(~0, d->regs + DSI_DIRECT_CMD_STS_CLR);
 	writel(~0, d->regs + DSI_CMD_MODE_STS_CLR);
 
@@ -799,10 +839,11 @@ static void mcde_dsi_start(struct mcde_dsi *d)
 	/* Command mode, clear IF1 ID */
 	val = readl(d->regs + DSI_CMD_MODE_CTL);
 	/*
-	 * If we enable low-power mode here, with
-	 * val |= DSI_CMD_MODE_CTL_IF1_LP_EN
+	 * If we enable low-power mode here,
 	 * then display updates become really slow.
 	 */
+	if (d->mdsi->mode_flags & MIPI_DSI_MODE_LPM)
+		val |= DSI_CMD_MODE_CTL_IF1_LP_EN;
 	val &= ~DSI_CMD_MODE_CTL_IF1_ID_MASK;
 	writel(val, d->regs + DSI_CMD_MODE_CTL);
 
@@ -811,23 +852,11 @@ static void mcde_dsi_start(struct mcde_dsi *d)
 	dev_info(d->dev, "DSI link enabled\n");
 }
 
-
-static void mcde_dsi_bridge_enable(struct drm_bridge *bridge)
-{
-	struct mcde_dsi *d = bridge_to_mcde_dsi(bridge);
-	u32 val;
-
-	if (d->mdsi->mode_flags & MIPI_DSI_MODE_VIDEO) {
-		/* Enable video mode */
-		val = readl(d->regs + DSI_MCTL_MAIN_DATA_CTL);
-		val |= DSI_MCTL_MAIN_DATA_CTL_VID_EN;
-		writel(val, d->regs + DSI_MCTL_MAIN_DATA_CTL);
-	}
-
-	dev_info(d->dev, "enable DSI master\n");
-};
-
-static void mcde_dsi_bridge_pre_enable(struct drm_bridge *bridge)
+/*
+ * Notice that this is called from inside the display controller
+ * and not from the bridge callbacks.
+ */
+void mcde_dsi_enable(struct drm_bridge *bridge)
 {
 	struct mcde_dsi *d = bridge_to_mcde_dsi(bridge);
 	unsigned long hs_freq, lp_freq;
@@ -871,7 +900,25 @@ static void mcde_dsi_bridge_pre_enable(struct drm_bridge *bridge)
 		dev_info(d->dev, "DSI HS clock rate %lu Hz\n",
 			 d->hs_freq);
 
+	/* Assert RESET through the PRCMU, active low */
+	/* FIXME: which DSI block? */
+	regmap_update_bits(d->prcmu, PRCM_DSI_SW_RESET,
+			   PRCM_DSI_SW_RESET_DSI0_SW_RESETN, 0);
+
+	usleep_range(100, 200);
+
+	/* De-assert RESET again */
+	regmap_update_bits(d->prcmu, PRCM_DSI_SW_RESET,
+			   PRCM_DSI_SW_RESET_DSI0_SW_RESETN,
+			   PRCM_DSI_SW_RESET_DSI0_SW_RESETN);
+
+	/* Start up the hardware */
+	mcde_dsi_start(d);
+
 	if (d->mdsi->mode_flags & MIPI_DSI_MODE_VIDEO) {
+		/* Set up the video mode from the DRM mode */
+		mcde_dsi_setup_video_mode(d, d->mode);
+
 		/* Put IF1 into video mode */
 		val = readl(d->regs + DSI_MCTL_MAIN_DATA_CTL);
 		val |= DSI_MCTL_MAIN_DATA_CTL_IF1_MODE;
@@ -887,17 +934,25 @@ static void mcde_dsi_bridge_pre_enable(struct drm_bridge *bridge)
 		val |= DSI_VID_MODE_STS_CTL_ERR_MISSING_VSYNC;
 		val |= DSI_VID_MODE_STS_CTL_ERR_MISSING_DATA;
 		writel(val, d->regs + DSI_VID_MODE_STS_CTL);
+
+		/* Enable video mode */
+		val = readl(d->regs + DSI_MCTL_MAIN_DATA_CTL);
+		val |= DSI_MCTL_MAIN_DATA_CTL_VID_EN;
+		writel(val, d->regs + DSI_MCTL_MAIN_DATA_CTL);
 	} else {
 		/* Command mode, clear IF1 ID */
 		val = readl(d->regs + DSI_CMD_MODE_CTL);
 		/*
-		 * If we enable low-power mode here with
-		 * val |= DSI_CMD_MODE_CTL_IF1_LP_EN
+		 * If we enable low-power mode here
 		 * the display updates become really slow.
 		 */
+		if (d->mdsi->mode_flags & MIPI_DSI_MODE_LPM)
+			val |= DSI_CMD_MODE_CTL_IF1_LP_EN;
 		val &= ~DSI_CMD_MODE_CTL_IF1_ID_MASK;
 		writel(val, d->regs + DSI_CMD_MODE_CTL);
 	}
+
+	dev_info(d->dev, "enabled MCDE DSI master\n");
 }
 
 static void mcde_dsi_bridge_mode_set(struct drm_bridge *bridge,
@@ -911,13 +966,12 @@ static void mcde_dsi_bridge_mode_set(struct drm_bridge *bridge,
 		return;
 	}
 
+	d->mode = mode;
+
 	dev_info(d->dev, "set DSI master to %dx%d %u Hz %s mode\n",
 		 mode->hdisplay, mode->vdisplay, mode->clock * 1000,
 		 (d->mdsi->mode_flags & MIPI_DSI_MODE_VIDEO) ? "VIDEO" : "CMD"
 		);
-
-	if (d->mdsi->mode_flags & MIPI_DSI_MODE_VIDEO)
-		mcde_dsi_setup_video_mode(d, mode);
 }
 
 static void mcde_dsi_wait_for_command_mode_stop(struct mcde_dsi *d)
@@ -961,13 +1015,14 @@ static void mcde_dsi_wait_for_video_mode_stop(struct mcde_dsi *d)
 	}
 }
 
-static void mcde_dsi_bridge_disable(struct drm_bridge *bridge)
+/*
+ * Notice that this is called from inside the display controller
+ * and not from the bridge callbacks.
+ */
+void mcde_dsi_disable(struct drm_bridge *bridge)
 {
 	struct mcde_dsi *d = bridge_to_mcde_dsi(bridge);
 	u32 val;
-
-	/* Disable all error interrupts */
-	writel(0, d->regs + DSI_VID_MODE_STS_CTL);
 
 	if (d->mdsi->mode_flags & MIPI_DSI_MODE_VIDEO) {
 		/* Stop video mode */
@@ -980,7 +1035,14 @@ static void mcde_dsi_bridge_disable(struct drm_bridge *bridge)
 		mcde_dsi_wait_for_command_mode_stop(d);
 	}
 
-	/* Stop clocks */
+	/*
+	 * Stop clocks and terminate any DSI traffic here so the panel can
+	 * send commands to shut down the display using DSI direct write until
+	 * this point.
+	 */
+
+	/* Disable all error interrupts */
+	writel(0, d->regs + DSI_VID_MODE_STS_CTL);
 	clk_disable_unprepare(d->hs_clk);
 	clk_disable_unprepare(d->lp_clk);
 }
@@ -1010,9 +1072,6 @@ static int mcde_dsi_bridge_attach(struct drm_bridge *bridge,
 static const struct drm_bridge_funcs mcde_dsi_bridge_funcs = {
 	.attach = mcde_dsi_bridge_attach,
 	.mode_set = mcde_dsi_bridge_mode_set,
-	.disable = mcde_dsi_bridge_disable,
-	.enable = mcde_dsi_bridge_enable,
-	.pre_enable = mcde_dsi_bridge_pre_enable,
 };
 
 static int mcde_dsi_bind(struct device *dev, struct device *master,
@@ -1047,21 +1106,6 @@ static int mcde_dsi_bind(struct device *dev, struct device *master,
 		dev_err(dev, "unable to get LP clock\n");
 		return PTR_ERR(d->lp_clk);
 	}
-
-	/* Assert RESET through the PRCMU, active low */
-	/* FIXME: which DSI block? */
-	regmap_update_bits(d->prcmu, PRCM_DSI_SW_RESET,
-			   PRCM_DSI_SW_RESET_DSI0_SW_RESETN, 0);
-
-	usleep_range(100, 200);
-
-	/* De-assert RESET again */
-	regmap_update_bits(d->prcmu, PRCM_DSI_SW_RESET,
-			   PRCM_DSI_SW_RESET_DSI0_SW_RESETN,
-			   PRCM_DSI_SW_RESET_DSI0_SW_RESETN);
-
-	/* Start up the hardware */
-	mcde_dsi_start(d);
 
 	/* Look for a panel as a child to this node */
 	for_each_available_child_of_node(dev->of_node, child) {

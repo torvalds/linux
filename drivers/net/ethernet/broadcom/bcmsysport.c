@@ -20,6 +20,7 @@
 #include <linux/phy.h>
 #include <linux/phy_fixed.h>
 #include <net/dsa.h>
+#include <linux/clk.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
 
@@ -186,6 +187,11 @@ static int bcm_sysport_set_features(struct net_device *dev,
 				    netdev_features_t features)
 {
 	struct bcm_sysport_priv *priv = netdev_priv(dev);
+	int ret;
+
+	ret = clk_prepare_enable(priv->clk);
+	if (ret)
+		return ret;
 
 	/* Read CRC forward */
 	if (!priv->is_lite)
@@ -196,6 +202,8 @@ static int bcm_sysport_set_features(struct net_device *dev,
 
 	bcm_sysport_set_rx_csum(dev, features);
 	bcm_sysport_set_tx_csum(dev, features);
+
+	clk_disable_unprepare(priv->clk);
 
 	return 0;
 }
@@ -1940,6 +1948,8 @@ static int bcm_sysport_open(struct net_device *dev)
 	unsigned int i;
 	int ret;
 
+	clk_prepare_enable(priv->clk);
+
 	/* Reset UniMAC */
 	umac_reset(priv);
 
@@ -1970,7 +1980,8 @@ static int bcm_sysport_open(struct net_device *dev)
 				0, priv->phy_interface);
 	if (!phydev) {
 		netdev_err(dev, "could not attach to PHY\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto out_clk_disable;
 	}
 
 	/* Reset house keeping link status */
@@ -2048,6 +2059,8 @@ out_free_irq0:
 	free_irq(priv->irq0, dev);
 out_phy_disconnect:
 	phy_disconnect(phydev);
+out_clk_disable:
+	clk_disable_unprepare(priv->clk);
 	return ret;
 }
 
@@ -2105,6 +2118,8 @@ static int bcm_sysport_stop(struct net_device *dev)
 
 	/* Disconnect from PHY */
 	phy_disconnect(dev->phydev);
+
+	clk_disable_unprepare(priv->clk);
 
 	return 0;
 }
@@ -2487,6 +2502,10 @@ static int bcm_sysport_probe(struct platform_device *pdev)
 	/* Initialize private members */
 	priv = netdev_priv(dev);
 
+	priv->clk = devm_clk_get_optional(&pdev->dev, "sw_sysport");
+	if (IS_ERR(priv->clk))
+		return PTR_ERR(priv->clk);
+
 	/* Allocate number of TX rings */
 	priv->tx_rings = devm_kcalloc(&pdev->dev, txq,
 				      sizeof(struct bcm_sysport_tx_ring),
@@ -2566,6 +2585,10 @@ static int bcm_sysport_probe(struct platform_device *pdev)
 	if (!ret)
 		device_set_wakeup_capable(&pdev->dev, 1);
 
+	priv->wol_clk = devm_clk_get_optional(&pdev->dev, "sw_sysportwol");
+	if (IS_ERR(priv->wol_clk))
+		return PTR_ERR(priv->wol_clk);
+
 	/* Set the needed headroom once and for all */
 	BUILD_BUG_ON(sizeof(struct bcm_tsb) != 8);
 	dev->needed_headroom += sizeof(struct bcm_tsb);
@@ -2590,6 +2613,8 @@ static int bcm_sysport_probe(struct platform_device *pdev)
 		goto err_deregister_notifier;
 	}
 
+	clk_prepare_enable(priv->clk);
+
 	priv->rev = topctrl_readl(priv, REV_CNTL) & REV_MASK;
 	dev_info(&pdev->dev,
 		 "Broadcom SYSTEMPORT%s " REV_FMT
@@ -2597,6 +2622,8 @@ static int bcm_sysport_probe(struct platform_device *pdev)
 		 priv->is_lite ? " Lite" : "",
 		 (priv->rev >> 8) & 0xff, priv->rev & 0xff,
 		 priv->irq0, priv->irq1, txq, rxq);
+
+	clk_disable_unprepare(priv->clk);
 
 	return 0;
 
@@ -2751,8 +2778,12 @@ static int __maybe_unused bcm_sysport_suspend(struct device *d)
 	bcm_sysport_fini_rx_ring(priv);
 
 	/* Get prepared for Wake-on-LAN */
-	if (device_may_wakeup(d) && priv->wolopts)
+	if (device_may_wakeup(d) && priv->wolopts) {
+		clk_prepare_enable(priv->wol_clk);
 		ret = bcm_sysport_suspend_to_wol(priv);
+	}
+
+	clk_disable_unprepare(priv->clk);
 
 	return ret;
 }
@@ -2766,6 +2797,10 @@ static int __maybe_unused bcm_sysport_resume(struct device *d)
 
 	if (!netif_running(dev))
 		return 0;
+
+	clk_prepare_enable(priv->clk);
+	if (priv->wolopts)
+		clk_disable_unprepare(priv->wol_clk);
 
 	umac_reset(priv);
 
@@ -2846,6 +2881,7 @@ out_free_rx_ring:
 out_free_tx_rings:
 	for (i = 0; i < dev->num_tx_queues; i++)
 		bcm_sysport_fini_tx_ring(priv, i);
+	clk_disable_unprepare(priv->clk);
 	return ret;
 }
 

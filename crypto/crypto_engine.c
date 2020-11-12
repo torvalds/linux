@@ -9,6 +9,7 @@
 
 #include <linux/err.h>
 #include <linux/delay.h>
+#include <linux/device.h>
 #include <crypto/engine.h>
 #include <uapi/linux/sched/types.h>
 #include "internal.h"
@@ -465,7 +466,7 @@ EXPORT_SYMBOL_GPL(crypto_engine_stop);
  * crypto-engine queue.
  * @dev: the device attached with one hardware engine
  * @retry_support: whether hardware has support for retry mechanism
- * @cbk_do_batch: pointer to a callback function to be invoked when executing a
+ * @cbk_do_batch: pointer to a callback function to be invoked when executing
  *                a batch of requests.
  *                This has the form:
  *                callback(struct crypto_engine *engine)

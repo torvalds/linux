@@ -12,18 +12,11 @@
 
 void ath10k_bmi_start(struct ath10k *ar)
 {
-	int ret;
-
 	ath10k_dbg(ar, ATH10K_DBG_BMI, "bmi start\n");
 
 	ar->bmi.done_sent = false;
-
-	/* Enable hardware clock to speed up firmware download */
-	if (ar->hw_params.hw_ops->enable_pll_clk) {
-		ret = ar->hw_params.hw_ops->enable_pll_clk(ar);
-		ath10k_dbg(ar, ATH10K_DBG_BMI, "bmi enable pll ret %d\n", ret);
-	}
 }
+EXPORT_SYMBOL(ath10k_bmi_start);
 
 int ath10k_bmi_done(struct ath10k *ar)
 {
@@ -197,6 +190,7 @@ int ath10k_bmi_read_memory(struct ath10k *ar,
 
 	return 0;
 }
+EXPORT_SYMBOL(ath10k_bmi_read_memory);
 
 int ath10k_bmi_write_soc_reg(struct ath10k *ar, u32 address, u32 reg_val)
 {

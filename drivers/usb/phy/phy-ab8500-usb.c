@@ -518,7 +518,7 @@ static int ab8500_usb_link_status_update(struct ab8500_usb *ab,
  *   3. Enable AB regulators
  *   4. Enable USB phy
  *   5. Reset the musb controller
- *   6. Switch the ULPI GPIO pins to fucntion mode
+ *   6. Switch the ULPI GPIO pins to function mode
  *   7. Enable the musb Peripheral5 clock
  *   8. Restore MUSB context
  */

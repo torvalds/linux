@@ -198,7 +198,7 @@ struct spi_nor_locking_ops {
  *                      higher index in the array, the higher priority.
  * @erase_map:		the erase map parsed from the SFDP Sector Map Parameter
  *                      Table.
- * @quad_enable:	enables/disables SPI NOR Quad mode.
+ * @quad_enable:	enables SPI NOR quad mode.
  * @set_4byte_addr_mode: puts the SPI NOR in 4 byte addressing mode.
  * @convert_addr:	converts an absolute address into something the flash
  *                      will understand. Particularly useful when pagesize is
@@ -219,7 +219,7 @@ struct spi_nor_flash_parameter {
 
 	struct spi_nor_erase_map        erase_map;
 
-	int (*quad_enable)(struct spi_nor *nor, bool enable);
+	int (*quad_enable)(struct spi_nor *nor);
 	int (*set_4byte_addr_mode)(struct spi_nor *nor, bool enable);
 	u32 (*convert_addr)(struct spi_nor *nor, u32 addr);
 	int (*setup)(struct spi_nor *nor, const struct spi_nor_hwcaps *hwcaps);
@@ -406,9 +406,9 @@ int spi_nor_write_ear(struct spi_nor *nor, u8 ear);
 int spi_nor_wait_till_ready(struct spi_nor *nor);
 int spi_nor_lock_and_prep(struct spi_nor *nor);
 void spi_nor_unlock_and_unprep(struct spi_nor *nor);
-int spi_nor_sr1_bit6_quad_enable(struct spi_nor *nor, bool enable);
-int spi_nor_sr2_bit1_quad_enable(struct spi_nor *nor, bool enable);
-int spi_nor_sr2_bit7_quad_enable(struct spi_nor *nor, bool enable);
+int spi_nor_sr1_bit6_quad_enable(struct spi_nor *nor);
+int spi_nor_sr2_bit1_quad_enable(struct spi_nor *nor);
+int spi_nor_sr2_bit7_quad_enable(struct spi_nor *nor);
 
 int spi_nor_xread_sr(struct spi_nor *nor, u8 *sr);
 ssize_t spi_nor_read_data(struct spi_nor *nor, loff_t from, size_t len,

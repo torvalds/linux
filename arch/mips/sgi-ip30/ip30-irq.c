@@ -14,6 +14,8 @@
 #include <asm/irq_cpu.h>
 #include <asm/sgi/heart.h>
 
+#include "ip30-common.h"
+
 struct heart_irq_data {
 	u64	*irq_mask;
 	int	cpu;

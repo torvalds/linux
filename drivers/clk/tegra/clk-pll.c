@@ -1611,9 +1611,6 @@ static int clk_plle_tegra114_enable(struct clk_hw *hw)
 	unsigned long flags = 0;
 	unsigned long input_rate;
 
-	if (clk_pll_is_enabled(hw))
-		return 0;
-
 	input_rate = clk_hw_get_rate(clk_hw_get_parent(hw));
 
 	if (_get_table_rate(hw, &sel, pll->params->fixed_rate, input_rate))
@@ -1673,7 +1670,7 @@ static int clk_plle_tegra114_enable(struct clk_hw *hw)
 	pll_writel(val, PLLE_SS_CTRL, pll);
 	udelay(1);
 
-	/* Enable hw control of xusb brick pll */
+	/* Enable HW control of XUSB brick PLL */
 	val = pll_readl_misc(pll);
 	val &= ~PLLE_MISC_IDDQ_SW_CTRL;
 	pll_writel_misc(val, pll);
@@ -1696,7 +1693,7 @@ static int clk_plle_tegra114_enable(struct clk_hw *hw)
 	val |= XUSBIO_PLL_CFG0_SEQ_ENABLE;
 	pll_writel(val, XUSBIO_PLL_CFG0, pll);
 
-	/* Enable hw control of SATA pll */
+	/* Enable HW control of SATA PLL */
 	val = pll_readl(SATA_PLL_CFG0, pll);
 	val &= ~SATA_PLL_CFG0_PADPLL_RESET_SWCTL;
 	val |= SATA_PLL_CFG0_PADPLL_USE_LOCKDET;

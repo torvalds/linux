@@ -131,6 +131,7 @@ enum ta_fw_type {
 	TA_FW_TYPE_PSP_RAS,
 	TA_FW_TYPE_PSP_HDCP,
 	TA_FW_TYPE_PSP_DTM,
+	TA_FW_TYPE_PSP_RAP,
 };
 
 struct ta_fw_bin_desc {
@@ -219,6 +220,15 @@ struct rlc_firmware_header_v2_1 {
 	uint32_t save_restore_list_srm_feature_ver;
 	uint32_t save_restore_list_srm_size_bytes;
 	uint32_t save_restore_list_srm_offset_bytes;
+};
+
+/* version_major=2, version_minor=1 */
+struct rlc_firmware_header_v2_2 {
+	struct rlc_firmware_header_v2_1 v2_1;
+	uint32_t rlc_iram_ucode_size_bytes;
+	uint32_t rlc_iram_ucode_offset_bytes;
+	uint32_t rlc_dram_ucode_size_bytes;
+	uint32_t rlc_dram_ucode_offset_bytes;
 };
 
 /* version_major=1, version_minor=0 */
@@ -338,6 +348,8 @@ enum AMDGPU_UCODE_ID {
 	AMDGPU_UCODE_ID_RLC_RESTORE_LIST_CNTL,
 	AMDGPU_UCODE_ID_RLC_RESTORE_LIST_GPM_MEM,
 	AMDGPU_UCODE_ID_RLC_RESTORE_LIST_SRM_MEM,
+	AMDGPU_UCODE_ID_RLC_IRAM,
+	AMDGPU_UCODE_ID_RLC_DRAM,
 	AMDGPU_UCODE_ID_RLC_G,
 	AMDGPU_UCODE_ID_STORAGE,
 	AMDGPU_UCODE_ID_SMC,

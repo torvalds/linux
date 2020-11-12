@@ -62,13 +62,6 @@ enum mt7915_rxq_id {
 	MT7915_RXQ_MCU_WA,
 };
 
-enum mt7915_ampdu_state {
-	MT7915_AGGR_STOP,
-	MT7915_AGGR_PROGRESS,
-	MT7915_AGGR_START,
-	MT7915_AGGR_OPERATIONAL
-};
-
 struct mt7915_sta_stats {
 	struct rate_info prob_rate;
 	struct rate_info tx_rate;
@@ -83,14 +76,14 @@ struct mt7915_sta {
 
 	struct mt7915_vif *vif;
 
+	struct list_head stats_list;
 	struct list_head poll_list;
+	struct list_head rc_list;
 	u32 airtime_ac[8];
 
 	struct mt7915_sta_stats stats;
-	struct work_struct stats_work;
 
-	spinlock_t ampdu_lock;
-	enum mt7915_ampdu_state ampdu_state[IEEE80211_NUM_TIDS];
+	unsigned long ampdu_state;
 };
 
 struct mt7915_vif {
@@ -100,7 +93,7 @@ struct mt7915_vif {
 	u8 wmm_idx;
 
 	struct mt7915_sta sta;
-	struct mt7915_dev *dev;
+	struct mt7915_phy *phy;
 
 	struct ieee80211_tx_queue_params queue_params[IEEE80211_NUM_ACS];
 };
@@ -135,9 +128,11 @@ struct mt7915_phy {
 	u32 ampdu_ref;
 
 	struct mib_stats mib;
+	struct list_head stats_list;
 
 	struct delayed_work mac_work;
 	u8 mac_work_count;
+	u8 sta_work_count;
 };
 
 struct mt7915_dev {
@@ -146,15 +141,18 @@ struct mt7915_dev {
 		struct mt76_phy mphy;
 	};
 
+	const struct mt76_bus_ops *bus_ops;
 	struct mt7915_phy phy;
 
 	u16 chainmask;
 
 	struct work_struct init_work;
+	struct work_struct rc_work;
 	struct work_struct reset_work;
 	wait_queue_head_t reset_wait;
 	u32 reset_state;
 
+	struct list_head sta_rc_list;
 	struct list_head sta_poll_list;
 	spinlock_t sta_poll_lock;
 
@@ -260,26 +258,8 @@ mt7915_ext_phy(struct mt7915_dev *dev)
 
 static inline u8 mt7915_lmac_mapping(struct mt7915_dev *dev, u8 ac)
 {
-	static const u8 lmac_queue_map[] = {
-		[IEEE80211_AC_BK] = MT_LMAC_AC00,
-		[IEEE80211_AC_BE] = MT_LMAC_AC01,
-		[IEEE80211_AC_VI] = MT_LMAC_AC02,
-		[IEEE80211_AC_VO] = MT_LMAC_AC03,
-	};
-
-	if (WARN_ON_ONCE(ac >= ARRAY_SIZE(lmac_queue_map)))
-		return MT_LMAC_AC01; /* BE */
-
-	return lmac_queue_map[ac];
-}
-
-static inline void
-mt7915_set_aggr_state(struct mt7915_sta *msta, u8 tid,
-		      enum mt7915_ampdu_state state)
-{
-	spin_lock_bh(&msta->ampdu_lock);
-	msta->ampdu_state[tid] = state;
-	spin_unlock_bh(&msta->ampdu_lock);
+	/* LMAC uses the reverse order of mac80211 AC indexes */
+	return 3 - ac;
 }
 
 extern const struct ieee80211_ops mt7915_ops;
@@ -448,7 +428,6 @@ mt7915_l2_rmw(struct mt7915_dev *dev, u32 addr, u32 mask, u32 val)
 bool mt7915_mac_wtbl_update(struct mt7915_dev *dev, int idx, u32 mask);
 void mt7915_mac_reset_counters(struct mt7915_phy *phy);
 void mt7915_mac_cca_stats_reset(struct mt7915_phy *phy);
-void mt7915_mac_sta_poll(struct mt7915_dev *dev);
 void mt7915_mac_write_txwi(struct mt7915_dev *dev, __le32 *txwi,
 			   struct sk_buff *skb, struct mt76_wcid *wcid,
 			   struct ieee80211_key_conf *key, bool beacon);
@@ -461,13 +440,12 @@ void mt7915_mac_sta_remove(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta);
 void mt7915_mac_work(struct work_struct *work);
 void mt7915_mac_reset_work(struct work_struct *work);
-void mt7915_mac_sta_stats_work(struct work_struct *work);
+void mt7915_mac_sta_rc_work(struct work_struct *work);
 int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 			  enum mt76_txq_id qid, struct mt76_wcid *wcid,
 			  struct ieee80211_sta *sta,
 			  struct mt76_tx_info *tx_info);
-void mt7915_tx_complete_skb(struct mt76_dev *mdev, enum mt76_txq_id qid,
-			    struct mt76_queue_entry *e);
+void mt7915_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue_entry *e);
 void mt7915_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			 struct sk_buff *skb);
 void mt7915_sta_ps(struct mt76_dev *mdev, struct ieee80211_sta *sta, bool ps);

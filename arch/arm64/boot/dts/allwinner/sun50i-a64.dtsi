@@ -51,7 +51,7 @@
 			reg = <0>;
 			enable-method = "psci";
 			next-level-cache = <&L2>;
-			clocks = <&ccu 21>;
+			clocks = <&ccu CLK_CPUX>;
 			clock-names = "cpu";
 			#cooling-cells = <2>;
 		};
@@ -62,7 +62,7 @@
 			reg = <1>;
 			enable-method = "psci";
 			next-level-cache = <&L2>;
-			clocks = <&ccu 21>;
+			clocks = <&ccu CLK_CPUX>;
 			clock-names = "cpu";
 			#cooling-cells = <2>;
 		};
@@ -73,7 +73,7 @@
 			reg = <2>;
 			enable-method = "psci";
 			next-level-cache = <&L2>;
-			clocks = <&ccu 21>;
+			clocks = <&ccu CLK_CPUX>;
 			clock-names = "cpu";
 			#cooling-cells = <2>;
 		};
@@ -84,7 +84,7 @@
 			reg = <3>;
 			enable-method = "psci";
 			next-level-cache = <&L2>;
-			clocks = <&ccu 21>;
+			clocks = <&ccu CLK_CPUX>;
 			clock-names = "cpu";
 			#cooling-cells = <2>;
 		};
@@ -139,10 +139,10 @@
 		simple-audio-card,mclk-fs = <128>;
 		simple-audio-card,aux-devs = <&codec_analog>;
 		simple-audio-card,routing =
-				"Left DAC", "AIF1 Slot 0 Left",
-				"Right DAC", "AIF1 Slot 0 Right",
-				"AIF1 Slot 0 Left ADC", "Left ADC",
-				"AIF1 Slot 0 Right ADC", "Right ADC";
+				"Left DAC", "DACL",
+				"Right DAC", "DACR",
+				"ADCL", "Left ADC",
+				"ADCR", "Right ADC";
 		status = "disabled";
 
 		cpudai: simple-audio-card,cpu {
@@ -157,6 +157,7 @@
 	timer {
 		compatible = "arm,armv8-timer";
 		allwinner,erratum-unknown1;
+		arm,no-tick-in-suspend;
 		interrupts = <GIC_PPI 13
 			(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>,
 			     <GIC_PPI 14
@@ -860,7 +861,8 @@
 
 		codec: codec@1c22e00 {
 			#sound-dai-cells = <0>;
-			compatible = "allwinner,sun8i-a33-codec";
+			compatible = "allwinner,sun50i-a64-codec",
+				     "allwinner,sun8i-a33-codec";
 			reg = <0x01c22e00 0x600>;
 			interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&ccu CLK_BUS_CODEC>, <&ccu CLK_AC_DIG>;

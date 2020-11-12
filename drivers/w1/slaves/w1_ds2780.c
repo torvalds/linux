@@ -141,7 +141,7 @@ static void w1_ds2780_remove_slave(struct w1_slave *sl)
 	platform_device_unregister(pdev);
 }
 
-static struct w1_family_ops w1_ds2780_fops = {
+static const struct w1_family_ops w1_ds2780_fops = {
 	.add_slave    = w1_ds2780_add_slave,
 	.remove_slave = w1_ds2780_remove_slave,
 	.groups       = w1_ds2780_groups,

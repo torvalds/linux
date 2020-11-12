@@ -195,18 +195,6 @@ struct smb_rqst {
 	unsigned int	rq_tailsz;	/* length of last page */
 };
 
-enum smb_version {
-	Smb_1 = 1,
-	Smb_20,
-	Smb_21,
-	Smb_30,
-	Smb_302,
-	Smb_311,
-	Smb_3any,
-	Smb_default,
-	Smb_version_err
-};
-
 struct mid_q_entry;
 struct TCP_Server_Info;
 struct cifsFileInfo;
@@ -310,6 +298,10 @@ struct smb_version_operations {
 	/* query file data from the server */
 	int (*query_file_info)(const unsigned int, struct cifs_tcon *,
 			       struct cifs_fid *, FILE_ALL_INFO *);
+	/* query reparse tag from srv to determine which type of special file */
+	int (*query_reparse_tag)(const unsigned int xid, struct cifs_tcon *tcon,
+				struct cifs_sb_info *cifs_sb, const char *path,
+				__u32 *reparse_tag);
 	/* get server index number */
 	int (*get_srv_inum)(const unsigned int, struct cifs_tcon *,
 			    struct cifs_sb_info *, const char *,
@@ -510,6 +502,8 @@ struct smb_version_operations {
 		      struct fiemap_extent_info *, u64, u64);
 	/* version specific llseek implementation */
 	loff_t (*llseek)(struct file *, struct cifs_tcon *, loff_t, int);
+	/* Check for STATUS_IO_TIMEOUT */
+	bool (*is_status_io_timeout)(char *buf);
 };
 
 struct smb_version_values {
@@ -1954,6 +1948,8 @@ extern bool lookupCacheEnabled;
 extern unsigned int global_secflags;	/* if on, session setup sent
 				with more secure ntlmssp2 challenge/resp */
 extern unsigned int sign_CIFS_PDUs;  /* enable smb packet signing */
+extern bool enable_gcm_256; /* allow optional negotiate of strongest signing (aes-gcm-256) */
+extern bool require_gcm_256; /* require use of strongest signing (aes-gcm-256) */
 extern bool linuxExtEnabled;/*enable Linux/Unix CIFS extensions*/
 extern unsigned int CIFSMaxBufSize;  /* max size not including hdr */
 extern unsigned int cifs_min_rcv;    /* min size of big ntwrk buf pool */

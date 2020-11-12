@@ -655,7 +655,7 @@ EXPORT_SYMBOL_NS(sof_bdw_ops, SND_SOC_SOF_BROADWELL);
 
 const struct sof_intel_dsp_desc bdw_chip_info = {
 	.cores_num = 1,
-	.cores_mask = 1,
+	.host_managed_cores_mask = 1,
 };
 EXPORT_SYMBOL_NS(bdw_chip_info, SND_SOC_SOF_BROADWELL);
 

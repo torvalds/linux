@@ -97,7 +97,7 @@ void sxgbe_disable_eee_mode(struct sxgbe_priv_data * const priv)
 
 /**
  * sxgbe_eee_ctrl_timer
- * @arg : data hook
+ * @t: timer list containing a data
  * Description:
  *  If there is no data transfer and if we are not in LPI state,
  *  then MAC Transmitter can be moved to LPI state.
@@ -255,7 +255,7 @@ static void sxgbe_adjust_link(struct net_device *dev)
 
 /**
  * sxgbe_init_phy - PHY initialization
- * @dev: net device structure
+ * @ndev: net device structure
  * Description: it initializes the driver's PHY state, and attaches the PHY
  * to the mac driver.
  *  Return value:
@@ -364,8 +364,11 @@ static int sxgbe_init_rx_buffers(struct net_device *dev,
 /**
  * sxgbe_free_rx_buffers - free what sxgbe_init_rx_buffers() allocated
  * @dev: net device structure
+ * @p: dec pointer
+ * @i: index
+ * @dma_buf_sz: size
  * @rx_ring: ring to be freed
- * @rx_rsize: ring size
+ *
  * Description:  this function initializes the DMA RX descriptor
  */
 static void sxgbe_free_rx_buffers(struct net_device *dev,
@@ -383,6 +386,7 @@ static void sxgbe_free_rx_buffers(struct net_device *dev,
 /**
  * init_tx_ring - init the TX descriptor ring
  * @dev: net device structure
+ * @queue_no: queue
  * @tx_ring: ring to be initialised
  * @tx_rsize: ring size
  * Description:  this function initializes the DMA TX descriptor
@@ -449,6 +453,7 @@ static void free_rx_ring(struct device *dev, struct sxgbe_rx_queue *rx_ring,
 /**
  * init_rx_ring - init the RX descriptor ring
  * @dev: net device structure
+ * @queue_no: queue
  * @rx_ring: ring to be initialised
  * @rx_rsize: ring size
  * Description:  this function initializes the DMA RX descriptor
@@ -548,7 +553,7 @@ static void free_tx_ring(struct device *dev, struct sxgbe_tx_queue *tx_ring,
 
 /**
  * init_dma_desc_rings - init the RX/TX descriptor rings
- * @dev: net device structure
+ * @netd: net device structure
  * Description:  this function initializes the DMA RX/TX descriptors
  * and allocates the socket buffers. It suppors the chained and ring
  * modes.
@@ -724,7 +729,7 @@ static void sxgbe_mtl_operation_mode(struct sxgbe_priv_data *priv)
 
 /**
  * sxgbe_tx_queue_clean:
- * @priv: driver private structure
+ * @tqueue: queue pointer
  * Description: it reclaims resources after transmission completes.
  */
 static void sxgbe_tx_queue_clean(struct sxgbe_tx_queue *tqueue)
@@ -807,6 +812,7 @@ static void sxgbe_tx_all_clean(struct sxgbe_priv_data * const priv)
 /**
  * sxgbe_restart_tx_queue: irq tx error mng function
  * @priv: driver private structure
+ * @queue_num: queue number
  * Description: it cleans the descriptors and restarts the transmission
  * in case of errors.
  */
@@ -1567,6 +1573,7 @@ static int sxgbe_poll(struct napi_struct *napi, int budget)
 /**
  *  sxgbe_tx_timeout
  *  @dev : Pointer to net device structure
+ *  @txqueue: index of the hanging queue
  *  Description: this function is called when a packet transmission fails to
  *   complete within a reasonable time. The driver will mark the error in the
  *   netdev structure and arrange for the device to be reset to a sane state

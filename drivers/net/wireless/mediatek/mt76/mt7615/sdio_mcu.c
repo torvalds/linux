@@ -53,7 +53,7 @@ mt7663s_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 	if (ret)
 		goto out;
 
-	mt76_queue_kick(dev, mdev->q_tx[MT_TXQ_MCU].q);
+	mt76_queue_kick(dev, mdev->q_tx[MT_TXQ_MCU]);
 	if (wait_resp)
 		ret = mt7615_mcu_wait_response(dev, cmd, seq);
 
@@ -63,7 +63,7 @@ out:
 	return ret;
 }
 
-int mt7663s_driver_own(struct mt7615_dev *dev)
+static int mt7663s_mcu_drv_pmctrl(struct mt7615_dev *dev)
 {
 	struct sdio_func *func = dev->mt76.sdio.func;
 	struct mt76_phy *mphy = &dev->mt76.phy;
@@ -75,7 +75,7 @@ int mt7663s_driver_own(struct mt7615_dev *dev)
 
 	sdio_claim_host(func);
 
-	sdio_writel(func, WHLPCR_FW_OWN_REQ_CLR, MCR_WHLPCR, 0);
+	sdio_writel(func, WHLPCR_FW_OWN_REQ_CLR, MCR_WHLPCR, NULL);
 
 	ret = readx_poll_timeout(mt7663s_read_pcr, dev, status,
 				 status & WHLPCR_IS_DRIVER_OWN, 2000, 1000000);
@@ -95,7 +95,7 @@ out:
 	return 0;
 }
 
-int mt7663s_firmware_own(struct mt7615_dev *dev)
+static int mt7663s_mcu_fw_pmctrl(struct mt7615_dev *dev)
 {
 	struct sdio_func *func = dev->mt76.sdio.func;
 	struct mt76_phy *mphy = &dev->mt76.phy;
@@ -107,7 +107,7 @@ int mt7663s_firmware_own(struct mt7615_dev *dev)
 
 	sdio_claim_host(func);
 
-	sdio_writel(func, WHLPCR_FW_OWN_REQ_SET, MCR_WHLPCR, 0);
+	sdio_writel(func, WHLPCR_FW_OWN_REQ_SET, MCR_WHLPCR, NULL);
 
 	ret = readx_poll_timeout(mt7663s_read_pcr, dev, status,
 				 !(status & WHLPCR_IS_DRIVER_OWN), 2000, 1000000);
@@ -132,9 +132,10 @@ int mt7663s_mcu_init(struct mt7615_dev *dev)
 		.mcu_rr = mt7615_mcu_reg_rr,
 		.mcu_wr = mt7615_mcu_reg_wr,
 	};
+	struct mt7615_mcu_ops *mcu_ops;
 	int ret;
 
-	ret = mt7663s_driver_own(dev);
+	ret = mt7663s_mcu_drv_pmctrl(dev);
 	if (ret)
 		return ret;
 
@@ -151,6 +152,15 @@ int mt7663s_mcu_init(struct mt7615_dev *dev)
 	ret = __mt7663_load_firmware(dev);
 	if (ret)
 		return ret;
+
+	mcu_ops = devm_kmemdup(dev->mt76.dev, dev->mcu_ops, sizeof(*mcu_ops),
+			       GFP_KERNEL);
+	if (!mcu_ops)
+		return -ENOMEM;
+
+	mcu_ops->set_drv_ctrl = mt7663s_mcu_drv_pmctrl;
+	mcu_ops->set_fw_ctrl = mt7663s_mcu_fw_pmctrl;
+	dev->mcu_ops = mcu_ops;
 
 	ret = mt7663s_mcu_init_sched(dev);
 	if (ret)

@@ -25,6 +25,11 @@ attachments, but then the attachments should have content-type
 it makes quoting portions of the patch more difficult in the patch
 review process.
 
+It's also strongly recommended that you use plain text in your email body,
+for patches and other emails alike. https://useplaintext.email may be useful
+for information on how to configure your preferred email client, as well as
+listing recommended email clients should you not already have a preference.
+
 Email clients that are used for Linux kernel patches should send the
 patch text untouched.  For example, they should not modify or delete tabs
 or spaces, even at the beginning or end of lines.

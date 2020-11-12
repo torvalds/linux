@@ -162,10 +162,8 @@
 		};
 
 		gic: interrupt-controller@10481000 {
-			compatible = "arm,cortex-a15-gic", "arm,cortex-a9-gic";
+			compatible = "arm,gic-400", "arm,cortex-a15-gic";
 			#interrupt-cells = <3>;
-			#address-cells = <0>;
-			#size-cells = <0>;
 			interrupt-controller;
 			reg = <0x10481000 0x1000>,
 				<0x10482000 0x2000>,

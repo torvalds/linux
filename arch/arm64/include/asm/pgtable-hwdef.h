@@ -81,25 +81,15 @@
 /*
  * Contiguous page definitions.
  */
-#ifdef CONFIG_ARM64_64K_PAGES
-#define CONT_PTE_SHIFT		(5 + PAGE_SHIFT)
-#define CONT_PMD_SHIFT		(5 + PMD_SHIFT)
-#elif defined(CONFIG_ARM64_16K_PAGES)
-#define CONT_PTE_SHIFT		(7 + PAGE_SHIFT)
-#define CONT_PMD_SHIFT		(5 + PMD_SHIFT)
-#else
-#define CONT_PTE_SHIFT		(4 + PAGE_SHIFT)
-#define CONT_PMD_SHIFT		(4 + PMD_SHIFT)
-#endif
-
+#define CONT_PTE_SHIFT		(CONFIG_ARM64_CONT_PTE_SHIFT + PAGE_SHIFT)
 #define CONT_PTES		(1 << (CONT_PTE_SHIFT - PAGE_SHIFT))
 #define CONT_PTE_SIZE		(CONT_PTES * PAGE_SIZE)
 #define CONT_PTE_MASK		(~(CONT_PTE_SIZE - 1))
+
+#define CONT_PMD_SHIFT		(CONFIG_ARM64_CONT_PMD_SHIFT + PMD_SHIFT)
 #define CONT_PMDS		(1 << (CONT_PMD_SHIFT - PMD_SHIFT))
 #define CONT_PMD_SIZE		(CONT_PMDS * PMD_SIZE)
 #define CONT_PMD_MASK		(~(CONT_PMD_SIZE - 1))
-/* the numerical offset of the PTE within a range of CONT_PTES */
-#define CONT_RANGE_OFFSET(addr) (((addr)>>PAGE_SHIFT)&(CONT_PTES-1))
 
 /*
  * Hardware page table definitions.

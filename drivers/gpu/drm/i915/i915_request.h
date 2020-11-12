@@ -284,10 +284,6 @@ struct i915_request {
 	/** timeline->request entry for this request */
 	struct list_head link;
 
-	struct drm_i915_file_private *file_priv;
-	/** file_priv list entry for this request */
-	struct list_head client_link;
-
 	I915_SELFTEST_DECLARE(struct {
 		struct list_head link;
 		unsigned long delay;
@@ -364,10 +360,6 @@ void i915_request_submit(struct i915_request *request);
 
 void __i915_request_unsubmit(struct i915_request *request);
 void i915_request_unsubmit(struct i915_request *request);
-
-/* Note: part of the intel_breadcrumbs family */
-bool i915_request_enable_breadcrumb(struct i915_request *request);
-void i915_request_cancel_breadcrumb(struct i915_request *request);
 
 long i915_request_wait(struct i915_request *rq,
 		       unsigned int flags,

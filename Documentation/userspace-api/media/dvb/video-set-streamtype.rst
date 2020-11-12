@@ -1,11 +1,5 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.video
 
 .. _VIDEO_SET_STREAMTYPE:
 
@@ -23,9 +17,9 @@ VIDEO_SET_STREAMTYPE
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, VIDEO_SET_STREAMTYPE, int type)
-    :name: VIDEO_SET_STREAMTYPE
+.. c:macro:: VIDEO_SET_STREAMTYPE
 
+``int ioctl(fd, VIDEO_SET_STREAMTYPE, int type)``
 
 Arguments
 ---------
@@ -33,7 +27,6 @@ Arguments
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-
 
     -  .. row 1
 
@@ -53,14 +46,12 @@ Arguments
 
        -  stream type
 
-
 Description
 -----------
 
 This ioctl tells the driver which kind of stream to expect being written
 to it. If this call is not used the default of video PES is used. Some
 drivers might not support this call and always expect PES.
-
 
 Return Value
 ------------

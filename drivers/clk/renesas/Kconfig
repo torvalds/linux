@@ -30,6 +30,7 @@ config CLK_RENESAS
 	select CLK_R8A77980 if ARCH_R8A77980
 	select CLK_R8A77990 if ARCH_R8A77990
 	select CLK_R8A77995 if ARCH_R8A77995
+	select CLK_R8A779A0 if ARCH_R8A779A0
 	select CLK_R9A06G032 if ARCH_R9A06G032
 	select CLK_SH73A0 if ARCH_SH73A0
 
@@ -145,6 +146,10 @@ config CLK_R8A77995
 	bool "R-Car D3 clock support" if COMPILE_TEST
 	select CLK_RCAR_GEN3_CPG
 
+config CLK_R8A779A0
+	bool "R-Car V3U clock support" if COMPILE_TEST
+	select CLK_RENESAS_CPG_MSSR
+
 config CLK_R9A06G032
 	bool "Renesas R9A06G032 clock driver"
 	help
@@ -162,7 +167,7 @@ config CLK_RCAR_GEN2_CPG
 	select CLK_RENESAS_CPG_MSSR
 
 config CLK_RCAR_GEN3_CPG
-	bool "R-Car Gen3 CPG clock support" if COMPILE_TEST
+	bool "R-Car Gen3 and RZ/G2 CPG clock support" if COMPILE_TEST
 	select CLK_RENESAS_CPG_MSSR
 
 config CLK_RCAR_USB2_CLOCK_SEL

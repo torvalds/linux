@@ -58,6 +58,12 @@ properties:
       - 2 # D1~6 with VOUT, D7~9 with VDD
       - 3 # D1~9 are connected to VOUT
 
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 0
+
 patternProperties:
   "(^led@[0-9a-f]$|led)":
     type: object
@@ -97,6 +103,8 @@ patternProperties:
 required:
   - compatible
   - reg
+
+additionalProperties: false
 
 examples:
   - |
@@ -189,7 +197,7 @@ examples:
                #address-cells = <1>;
                #size-cells = <0>;
                reg = <0x2>;
-               color = <LED_COLOR_ID_MULTI>;
+               color = <LED_COLOR_ID_RGB>;
                function = LED_FUNCTION_STANDBY;
                linux,default-trigger = "heartbeat";
 

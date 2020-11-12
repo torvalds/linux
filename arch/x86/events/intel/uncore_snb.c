@@ -126,6 +126,10 @@
 #define ICL_UNC_CBO_0_PER_CTR0			0x702
 #define ICL_UNC_CBO_MSR_OFFSET			0x8
 
+/* ICL ARB register */
+#define ICL_UNC_ARB_PER_CTR			0x3b1
+#define ICL_UNC_ARB_PERFEVTSEL			0x3b3
+
 DEFINE_UNCORE_FORMAT_ATTR(event, event, "config:0-7");
 DEFINE_UNCORE_FORMAT_ATTR(umask, umask, "config:8-15");
 DEFINE_UNCORE_FORMAT_ATTR(edge, edge, "config:18");
@@ -313,15 +317,21 @@ void skl_uncore_cpu_init(void)
 	snb_uncore_arb.ops = &skl_uncore_msr_ops;
 }
 
+static struct intel_uncore_ops icl_uncore_msr_ops = {
+	.disable_event	= snb_uncore_msr_disable_event,
+	.enable_event	= snb_uncore_msr_enable_event,
+	.read_counter	= uncore_msr_read_counter,
+};
+
 static struct intel_uncore_type icl_uncore_cbox = {
 	.name		= "cbox",
-	.num_counters   = 4,
+	.num_counters   = 2,
 	.perf_ctr_bits	= 44,
 	.perf_ctr	= ICL_UNC_CBO_0_PER_CTR0,
 	.event_ctl	= SNB_UNC_CBO_0_PERFEVTSEL0,
 	.event_mask	= SNB_UNC_RAW_EVENT_MASK,
 	.msr_offset	= ICL_UNC_CBO_MSR_OFFSET,
-	.ops		= &skl_uncore_msr_ops,
+	.ops		= &icl_uncore_msr_ops,
 	.format_group	= &snb_uncore_format_group,
 };
 
@@ -350,13 +360,25 @@ static struct intel_uncore_type icl_uncore_clockbox = {
 	.single_fixed	= 1,
 	.event_mask	= SNB_UNC_CTL_EV_SEL_MASK,
 	.format_group	= &icl_uncore_clock_format_group,
-	.ops		= &skl_uncore_msr_ops,
+	.ops		= &icl_uncore_msr_ops,
 	.event_descs	= icl_uncore_events,
+};
+
+static struct intel_uncore_type icl_uncore_arb = {
+	.name		= "arb",
+	.num_counters   = 1,
+	.num_boxes	= 1,
+	.perf_ctr_bits	= 44,
+	.perf_ctr	= ICL_UNC_ARB_PER_CTR,
+	.event_ctl	= ICL_UNC_ARB_PERFEVTSEL,
+	.event_mask	= SNB_UNC_RAW_EVENT_MASK,
+	.ops		= &icl_uncore_msr_ops,
+	.format_group	= &snb_uncore_format_group,
 };
 
 static struct intel_uncore_type *icl_msr_uncores[] = {
 	&icl_uncore_cbox,
-	&snb_uncore_arb,
+	&icl_uncore_arb,
 	&icl_uncore_clockbox,
 	NULL,
 };
@@ -374,6 +396,21 @@ void icl_uncore_cpu_init(void)
 {
 	uncore_msr_uncores = icl_msr_uncores;
 	icl_uncore_cbox.num_boxes = icl_get_cbox_num();
+}
+
+static struct intel_uncore_type *tgl_msr_uncores[] = {
+	&icl_uncore_cbox,
+	&snb_uncore_arb,
+	&icl_uncore_clockbox,
+	NULL,
+};
+
+void tgl_uncore_cpu_init(void)
+{
+	uncore_msr_uncores = tgl_msr_uncores;
+	icl_uncore_cbox.num_boxes = icl_get_cbox_num();
+	icl_uncore_cbox.ops = &skl_uncore_msr_ops;
+	icl_uncore_clockbox.ops = &skl_uncore_msr_ops;
 	snb_uncore_arb.ops = &skl_uncore_msr_ops;
 }
 

@@ -73,7 +73,3 @@ $(obj)/startup.a: $(OBJECTS) FORCE
 install:
 	sh -x  $(srctree)/$(obj)/install.sh $(KERNELRELEASE) $(obj)/bzImage \
 	      System.map "$(INSTALL_PATH)"
-
-chkbss := $(obj-y)
-chkbss-target := startup.a
-include $(srctree)/arch/s390/scripts/Makefile.chkbss

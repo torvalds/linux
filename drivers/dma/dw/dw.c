@@ -14,7 +14,7 @@
 static void dw_dma_initialize_chan(struct dw_dma_chan *dwc)
 {
 	struct dw_dma *dw = to_dw_dma(dwc->chan.device);
-	u32 cfghi = DWC_CFGH_FIFO_MODE;
+	u32 cfghi = is_slave_direction(dwc->direction) ? 0 : DWC_CFGH_FIFO_MODE;
 	u32 cfglo = DWC_CFGL_CH_PRIOR(dwc->priority);
 	bool hs_polarity = dwc->dws.hs_polarity;
 
@@ -67,9 +67,8 @@ static size_t dw_dma_block2bytes(struct dw_dma_chan *dwc, u32 block, u32 width)
 static u32 dw_dma_prepare_ctllo(struct dw_dma_chan *dwc)
 {
 	struct dma_slave_config	*sconfig = &dwc->dma_sconfig;
-	bool is_slave = is_slave_direction(dwc->direction);
-	u8 smsize = is_slave ? sconfig->src_maxburst : DW_DMA_MSIZE_16;
-	u8 dmsize = is_slave ? sconfig->dst_maxburst : DW_DMA_MSIZE_16;
+	u8 smsize = (dwc->direction == DMA_DEV_TO_MEM) ? sconfig->src_maxburst : 0;
+	u8 dmsize = (dwc->direction == DMA_MEM_TO_DEV) ? sconfig->dst_maxburst : 0;
 	u8 p_master = dwc->dws.p_master;
 	u8 m_master = dwc->dws.m_master;
 	u8 dms = (dwc->direction == DMA_MEM_TO_DEV) ? p_master : m_master;

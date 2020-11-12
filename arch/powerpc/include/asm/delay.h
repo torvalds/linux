@@ -54,7 +54,7 @@ extern void udelay(unsigned long usecs);
 ({                                                                             \
 	typeof(condition) __ret;                                               \
 	unsigned long __loops = tb_ticks_per_usec * timeout;                   \
-	unsigned long __start = get_tbl();                                     \
+	unsigned long __start = mftb();                                     \
                                                                                \
 	if (delay) {                                                           \
 		while (!(__ret = (condition)) &&                               \

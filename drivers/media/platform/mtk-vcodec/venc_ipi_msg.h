@@ -62,6 +62,11 @@ struct venc_ap_ipi_msg_set_param {
 	uint32_t data[8];
 };
 
+struct venc_ap_ipi_msg_set_param_ext {
+	struct venc_ap_ipi_msg_set_param base;
+	uint32_t data_ext[24];
+};
+
 /**
  * struct venc_ap_ipi_msg_enc - AP to VPU enc cmd structure
  * @msg_id:	message id (AP_IPIMSG_XXX_ENC_ENCODE)
@@ -80,6 +85,19 @@ struct venc_ap_ipi_msg_enc {
 	uint32_t input_addr[3];
 	uint32_t bs_addr;
 	uint32_t bs_size;
+};
+
+/**
+ * struct venc_ap_ipi_msg_enc_ext - AP to SCP extended enc cmd structure
+ *
+ * @base:	base msg structure
+ * @data_item:	number of items in the data array
+ * @data[8]:	data array to store the set parameters
+ */
+struct venc_ap_ipi_msg_enc_ext {
+	struct venc_ap_ipi_msg_enc base;
+	uint32_t data_item;
+	uint32_t data[32];
 };
 
 /**
@@ -120,16 +138,17 @@ struct venc_vpu_ipi_msg_common {
  * @venc_inst:	AP encoder instance (struct venc_vp8_inst/venc_h264_inst *)
  * @vpu_inst_addr:	VPU encoder instance addr
  *			(struct venc_vp8_vsi/venc_h264_vsi *)
- * @reserved:	reserved for future use. vpu is running in 32bit. Without
- *		this reserved field, if kernel run in 64bit. this struct size
- *		will be different between kernel and vpu
+ * @venc_abi_version:	ABI version of the firmware. Kernel can use it to
+ *			ensure that it is compatible with the firmware.
+ *			For MT8173 the value of this field is undefined and
+ *			should not be used.
  */
 struct venc_vpu_ipi_msg_init {
 	uint32_t msg_id;
 	uint32_t status;
 	uint64_t venc_inst;
 	uint32_t vpu_inst_addr;
-	uint32_t reserved;
+	uint32_t venc_abi_version;
 };
 
 /**

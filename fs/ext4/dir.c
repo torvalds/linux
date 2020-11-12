@@ -148,7 +148,7 @@ static int ext4_readdir(struct file *file, struct dir_context *ctx)
 	}
 
 	if (IS_ENCRYPTED(inode)) {
-		err = fscrypt_fname_alloc_buffer(inode, EXT4_NAME_LEN, &fstr);
+		err = fscrypt_fname_alloc_buffer(EXT4_NAME_LEN, &fstr);
 		if (err < 0)
 			return err;
 	}
@@ -674,7 +674,7 @@ static int ext4_d_compare(const struct dentry *dentry, unsigned int len,
 {
 	struct qstr qstr = {.name = str, .len = len };
 	const struct dentry *parent = READ_ONCE(dentry->d_parent);
-	const struct inode *inode = READ_ONCE(parent->d_inode);
+	const struct inode *inode = d_inode_rcu(parent);
 	char strbuf[DNAME_INLINE_LEN];
 
 	if (!inode || !IS_CASEFOLDED(inode) ||
@@ -706,7 +706,7 @@ static int ext4_d_hash(const struct dentry *dentry, struct qstr *str)
 {
 	const struct ext4_sb_info *sbi = EXT4_SB(dentry->d_sb);
 	const struct unicode_map *um = sbi->s_encoding;
-	const struct inode *inode = READ_ONCE(dentry->d_inode);
+	const struct inode *inode = d_inode_rcu(dentry);
 	unsigned char *norm;
 	int len, ret = 0;
 

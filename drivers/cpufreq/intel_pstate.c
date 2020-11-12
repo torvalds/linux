@@ -1420,6 +1420,24 @@ static void __init intel_pstate_sysfs_expose_params(void)
 	}
 }
 
+static void __init intel_pstate_sysfs_remove(void)
+{
+	if (!intel_pstate_kobject)
+		return;
+
+	sysfs_remove_group(intel_pstate_kobject, &intel_pstate_attr_group);
+
+	if (!per_cpu_limits) {
+		sysfs_remove_file(intel_pstate_kobject, &max_perf_pct.attr);
+		sysfs_remove_file(intel_pstate_kobject, &min_perf_pct.attr);
+
+		if (x86_match_cpu(intel_pstate_cpu_ee_disable_ids))
+			sysfs_remove_file(intel_pstate_kobject, &energy_efficiency.attr);
+	}
+
+	kobject_put(intel_pstate_kobject);
+}
+
 static void intel_pstate_sysfs_expose_hwp_dynamic_boost(void)
 {
 	int rc;
@@ -2781,6 +2799,7 @@ static int intel_pstate_update_status(const char *buf, size_t size)
 
 		cpufreq_unregister_driver(intel_pstate_driver);
 		intel_pstate_driver_cleanup();
+		return 0;
 	}
 
 	if (size == 6 && !strncmp(buf, "active", size)) {
@@ -3062,8 +3081,10 @@ hwp_cpu_matched:
 	mutex_lock(&intel_pstate_driver_lock);
 	rc = intel_pstate_register_driver(default_driver);
 	mutex_unlock(&intel_pstate_driver_lock);
-	if (rc)
+	if (rc) {
+		intel_pstate_sysfs_remove();
 		return rc;
+	}
 
 	if (hwp_active) {
 		const struct x86_cpu_id *id;

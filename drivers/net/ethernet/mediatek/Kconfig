@@ -17,6 +17,7 @@ config NET_MEDIATEK_SOC
 config NET_MEDIATEK_STAR_EMAC
 	tristate "MediaTek STAR Ethernet MAC support"
 	select PHYLIB
+	select REGMAP_MMIO
 	help
 	  This driver supports the ethernet MAC IP first used on
 	  MediaTek MT85** SoCs.

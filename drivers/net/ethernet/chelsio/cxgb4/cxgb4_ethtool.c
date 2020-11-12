@@ -117,15 +117,7 @@ static const char stats_strings[][ETH_GSTRING_LEN] = {
 	"vlan_insertions        ",
 	"gro_packets            ",
 	"gro_merged             ",
-};
-
-static char adapter_stats_strings[][ETH_GSTRING_LEN] = {
-	"db_drop                ",
-	"db_full                ",
-	"db_empty               ",
-	"write_coal_success     ",
-	"write_coal_fail        ",
-#ifdef CONFIG_CHELSIO_TLS_DEVICE
+#if  IS_ENABLED(CONFIG_CHELSIO_TLS_DEVICE)
 	"tx_tls_encrypted_packets",
 	"tx_tls_encrypted_bytes  ",
 	"tx_tls_ctx              ",
@@ -134,6 +126,14 @@ static char adapter_stats_strings[][ETH_GSTRING_LEN] = {
 	"tx_tls_drop_no_sync_data",
 	"tx_tls_drop_bypass_req  ",
 #endif
+};
+
+static char adapter_stats_strings[][ETH_GSTRING_LEN] = {
+	"db_drop                ",
+	"db_full                ",
+	"db_empty               ",
+	"write_coal_success     ",
+	"write_coal_fail        ",
 };
 
 static char loopback_stats_strings[][ETH_GSTRING_LEN] = {
@@ -257,15 +257,7 @@ struct queue_port_stats {
 	u64 vlan_ins;
 	u64 gro_pkts;
 	u64 gro_merged;
-};
-
-struct adapter_stats {
-	u64 db_drop;
-	u64 db_full;
-	u64 db_empty;
-	u64 wc_success;
-	u64 wc_fail;
-#ifdef CONFIG_CHELSIO_TLS_DEVICE
+#if IS_ENABLED(CONFIG_CHELSIO_TLS_DEVICE)
 	u64 tx_tls_encrypted_packets;
 	u64 tx_tls_encrypted_bytes;
 	u64 tx_tls_ctx;
@@ -276,12 +268,23 @@ struct adapter_stats {
 #endif
 };
 
+struct adapter_stats {
+	u64 db_drop;
+	u64 db_full;
+	u64 db_empty;
+	u64 wc_success;
+	u64 wc_fail;
+};
+
 static void collect_sge_port_stats(const struct adapter *adap,
 				   const struct port_info *p,
 				   struct queue_port_stats *s)
 {
 	const struct sge_eth_txq *tx = &adap->sge.ethtxq[p->first_qset];
 	const struct sge_eth_rxq *rx = &adap->sge.ethrxq[p->first_qset];
+#if IS_ENABLED(CONFIG_CHELSIO_TLS_DEVICE)
+	const struct ch_ktls_port_stats_debug *ktls_stats;
+#endif
 	struct sge_eohw_txq *eohw_tx;
 	unsigned int i;
 
@@ -306,6 +309,21 @@ static void collect_sge_port_stats(const struct adapter *adap,
 			s->vlan_ins += eohw_tx->vlan_ins;
 		}
 	}
+#if IS_ENABLED(CONFIG_CHELSIO_TLS_DEVICE)
+	ktls_stats = &adap->ch_ktls_stats.ktls_port[p->port_id];
+	s->tx_tls_encrypted_packets =
+		atomic64_read(&ktls_stats->ktls_tx_encrypted_packets);
+	s->tx_tls_encrypted_bytes =
+		atomic64_read(&ktls_stats->ktls_tx_encrypted_bytes);
+	s->tx_tls_ctx = atomic64_read(&ktls_stats->ktls_tx_ctx);
+	s->tx_tls_ooo = atomic64_read(&ktls_stats->ktls_tx_ooo);
+	s->tx_tls_skip_no_sync_data =
+		atomic64_read(&ktls_stats->ktls_tx_skip_no_sync_data);
+	s->tx_tls_drop_no_sync_data =
+		atomic64_read(&ktls_stats->ktls_tx_drop_no_sync_data);
+	s->tx_tls_drop_bypass_req =
+		atomic64_read(&ktls_stats->ktls_tx_drop_bypass_req);
+#endif
 }
 
 static void collect_adapter_stats(struct adapter *adap, struct adapter_stats *s)

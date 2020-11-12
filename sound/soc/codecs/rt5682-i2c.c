@@ -294,6 +294,7 @@ static struct i2c_driver rt5682_i2c_driver = {
 		.name = "rt5682",
 		.of_match_table = rt5682_of_match,
 		.acpi_match_table = rt5682_acpi_match,
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe = rt5682_i2c_probe,
 	.shutdown = rt5682_i2c_shutdown,

@@ -121,6 +121,13 @@ static int dwc2_get_dr_mode(struct dwc2_hsotg *hsotg)
 	return 0;
 }
 
+static void __dwc2_disable_regulators(void *data)
+{
+	struct dwc2_hsotg *hsotg = data;
+
+	regulator_bulk_disable(ARRAY_SIZE(hsotg->supplies), hsotg->supplies);
+}
+
 static int __dwc2_lowlevel_hw_enable(struct dwc2_hsotg *hsotg)
 {
 	struct platform_device *pdev = to_platform_device(hsotg->dev);
@@ -128,6 +135,11 @@ static int __dwc2_lowlevel_hw_enable(struct dwc2_hsotg *hsotg)
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(hsotg->supplies),
 				    hsotg->supplies);
+	if (ret)
+		return ret;
+
+	ret = devm_add_action_or_reset(&pdev->dev,
+				       __dwc2_disable_regulators, hsotg);
 	if (ret)
 		return ret;
 
@@ -186,10 +198,7 @@ static int __dwc2_lowlevel_hw_disable(struct dwc2_hsotg *hsotg)
 	if (hsotg->clk)
 		clk_disable_unprepare(hsotg->clk);
 
-	ret = regulator_bulk_disable(ARRAY_SIZE(hsotg->supplies),
-				     hsotg->supplies);
-
-	return ret;
+	return 0;
 }
 
 /**
@@ -313,6 +322,8 @@ static int dwc2_driver_remove(struct platform_device *dev)
 		dwc2_hcd_remove(hsotg);
 	if (hsotg->gadget_enabled)
 		dwc2_hsotg_remove(hsotg);
+
+	dwc2_drd_exit(hsotg);
 
 	if (hsotg->params.activate_stm_id_vb_detection)
 		regulator_disable(hsotg->usb33d);
@@ -533,10 +544,17 @@ static int dwc2_driver_probe(struct platform_device *dev)
 		dwc2_writel(hsotg, ggpio, GGPIO);
 	}
 
+	retval = dwc2_drd_init(hsotg);
+	if (retval) {
+		if (retval != -EPROBE_DEFER)
+			dev_err(hsotg->dev, "failed to initialize dual-role\n");
+		goto error_init;
+	}
+
 	if (hsotg->dr_mode != USB_DR_MODE_HOST) {
 		retval = dwc2_gadget_init(hsotg);
 		if (retval)
-			goto error_init;
+			goto error_drd;
 		hsotg->gadget_enabled = 1;
 	}
 
@@ -562,7 +580,7 @@ static int dwc2_driver_probe(struct platform_device *dev)
 		if (retval) {
 			if (hsotg->gadget_enabled)
 				dwc2_hsotg_remove(hsotg);
-			goto error_init;
+			goto error_drd;
 		}
 		hsotg->hcd_enabled = 1;
 	}
@@ -584,11 +602,18 @@ static int dwc2_driver_probe(struct platform_device *dev)
 		if (retval) {
 			hsotg->gadget.udc = NULL;
 			dwc2_hsotg_remove(hsotg);
-			goto error_init;
+			goto error_debugfs;
 		}
 	}
 #endif /* CONFIG_USB_DWC2_PERIPHERAL || CONFIG_USB_DWC2_DUAL_ROLE */
 	return 0;
+
+error_debugfs:
+	dwc2_debugfs_exit(hsotg);
+	if (hsotg->hcd_enabled)
+		dwc2_hcd_remove(hsotg);
+error_drd:
+	dwc2_drd_exit(hsotg);
 
 error_init:
 	if (hsotg->params.activate_stm_id_vb_detection)
@@ -607,6 +632,8 @@ static int __maybe_unused dwc2_suspend(struct device *dev)
 
 	if (is_device_mode)
 		dwc2_hsotg_suspend(dwc2);
+
+	dwc2_drd_suspend(dwc2);
 
 	if (dwc2->params.activate_stm_id_vb_detection) {
 		unsigned long flags;
@@ -687,6 +714,8 @@ static int __maybe_unused dwc2_resume(struct device *dev)
 
 	/* Need to restore FORCEDEVMODE/FORCEHOSTMODE */
 	dwc2_force_dr_mode(dwc2);
+
+	dwc2_drd_resume(dwc2);
 
 	if (dwc2_is_device_mode(dwc2))
 		ret = dwc2_hsotg_resume(dwc2);

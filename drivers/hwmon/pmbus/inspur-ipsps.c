@@ -190,11 +190,10 @@ static struct pmbus_platform_data ipsps_pdata = {
 	.flags = PMBUS_SKIP_STATUS_CHECK,
 };
 
-static int ipsps_probe(struct i2c_client *client,
-		       const struct i2c_device_id *id)
+static int ipsps_probe(struct i2c_client *client)
 {
 	client->dev.platform_data = &ipsps_pdata;
-	return pmbus_do_probe(client, id, &ipsps_info);
+	return pmbus_do_probe(client, &ipsps_info);
 }
 
 static const struct i2c_device_id ipsps_id[] = {
@@ -216,7 +215,7 @@ static struct i2c_driver ipsps_driver = {
 		.name = "inspur-ipsps",
 		.of_match_table = of_match_ptr(ipsps_of_match),
 	},
-	.probe = ipsps_probe,
+	.probe_new = ipsps_probe,
 	.remove = pmbus_do_remove,
 	.id_table = ipsps_id,
 };

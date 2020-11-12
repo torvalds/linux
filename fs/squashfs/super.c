@@ -380,8 +380,7 @@ static int squashfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_files = msblk->inodes;
 	buf->f_ffree = 0;
 	buf->f_namelen = SQUASHFS_NAME_LEN;
-	buf->f_fsid.val[0] = (u32)id;
-	buf->f_fsid.val[1] = (u32)(id >> 32);
+	buf->f_fsid = u64_to_fsid(id);
 
 	return 0;
 }

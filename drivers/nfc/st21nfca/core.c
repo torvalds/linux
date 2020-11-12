@@ -794,7 +794,6 @@ static int st21nfca_hci_im_transceive(struct nfc_hci_dev *hdev,
 					      skb->len,
 					      st21nfca_hci_data_exchange_cb,
 					      info);
-		break;
 	default:
 		return 1;
 	}

@@ -1,11 +1,5 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _VIDIOC_ENUM_DV_TIMINGS:
 
@@ -18,26 +12,25 @@ Name
 
 VIDIOC_ENUM_DV_TIMINGS - VIDIOC_SUBDEV_ENUM_DV_TIMINGS - Enumerate supported Digital Video timings
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, VIDIOC_ENUM_DV_TIMINGS, struct v4l2_enum_dv_timings *argp )
-    :name: VIDIOC_ENUM_DV_TIMINGS
+.. c:macro:: VIDIOC_ENUM_DV_TIMINGS
 
-.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_ENUM_DV_TIMINGS, struct v4l2_enum_dv_timings *argp )
-    :name: VIDIOC_SUBDEV_ENUM_DV_TIMINGS
+``int ioctl(int fd, VIDIOC_ENUM_DV_TIMINGS, struct v4l2_enum_dv_timings *argp)``
 
+.. c:macro:: VIDIOC_SUBDEV_ENUM_DV_TIMINGS
+
+``int ioctl(int fd, VIDIOC_SUBDEV_ENUM_DV_TIMINGS, struct v4l2_enum_dv_timings *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to struct :c:type:`v4l2_enum_dv_timings`.
-
 
 Description
 ===========
@@ -72,7 +65,6 @@ pad number in the struct
 Attempts to enumerate timings on a pad that doesn't support them will
 return an ``EINVAL`` error code.
 
-
 .. c:type:: v4l2_enum_dv_timings
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
@@ -97,7 +89,6 @@ return an ``EINVAL`` error code.
     * - struct :c:type:`v4l2_dv_timings`
       - ``timings``
       - The timings.
-
 
 Return Value
 ============

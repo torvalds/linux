@@ -281,7 +281,7 @@ static void w1_f0d_remove_slave(struct w1_slave *sl)
 	sysfs_remove_bin_file(&sl->dev.kobj, &w1_f0d_bin_attr);
 }
 
-static struct w1_family_ops w1_f0d_fops = {
+static const struct w1_family_ops w1_f0d_fops = {
 	.add_slave      = w1_f0d_add_slave,
 	.remove_slave   = w1_f0d_remove_slave,
 };

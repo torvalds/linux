@@ -164,7 +164,7 @@ static int psbfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	return 0;
 }
 
-static struct fb_ops psbfb_ops = {
+static const struct fb_ops psbfb_ops = {
 	.owner = THIS_MODULE,
 	DRM_FB_HELPER_DEFAULT_OPS,
 	.fb_setcolreg = psbfb_setcolreg,
@@ -175,7 +175,7 @@ static struct fb_ops psbfb_ops = {
 	.fb_sync = psbfb_sync,
 };
 
-static struct fb_ops psbfb_roll_ops = {
+static const struct fb_ops psbfb_roll_ops = {
 	.owner = THIS_MODULE,
 	DRM_FB_HELPER_DEFAULT_OPS,
 	.fb_setcolreg = psbfb_setcolreg,
@@ -186,7 +186,7 @@ static struct fb_ops psbfb_roll_ops = {
 	.fb_mmap = psbfb_mmap,
 };
 
-static struct fb_ops psbfb_unaccel_ops = {
+static const struct fb_ops psbfb_unaccel_ops = {
 	.owner = THIS_MODULE,
 	DRM_FB_HELPER_DEFAULT_OPS,
 	.fb_setcolreg = psbfb_setcolreg,

@@ -237,7 +237,7 @@ static struct platform_driver dptf_power_driver = {
 	.probe = dptf_power_add,
 	.remove = dptf_power_remove,
 	.driver = {
-		.name = "DPTF Platform Power",
+		.name = "dptf_power",
 		.acpi_match_table = int3407_device_ids,
 	},
 };

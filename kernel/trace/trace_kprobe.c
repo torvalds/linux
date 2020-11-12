@@ -106,9 +106,10 @@ static nokprobe_inline bool trace_kprobe_has_gone(struct trace_kprobe *tk)
 static nokprobe_inline bool trace_kprobe_within_module(struct trace_kprobe *tk,
 						 struct module *mod)
 {
-	int len = strlen(mod->name);
+	int len = strlen(module_name(mod));
 	const char *name = trace_kprobe_symbol(tk);
-	return strncmp(mod->name, name, len) == 0 && name[len] == ':';
+
+	return strncmp(module_name(mod), name, len) == 0 && name[len] == ':';
 }
 
 static nokprobe_inline bool trace_kprobe_module_exist(struct trace_kprobe *tk)
@@ -688,7 +689,7 @@ static int trace_kprobe_module_callback(struct notifier_block *nb,
 			if (ret)
 				pr_warn("Failed to re-register probe %s on %s: %d\n",
 					trace_probe_name(&tk->tp),
-					mod->name, ret);
+					module_name(mod), ret);
 		}
 	}
 	mutex_unlock(&event_mutex);
@@ -717,6 +718,9 @@ static int trace_kprobe_create(int argc, const char *argv[])
 	 *      p[:[GRP/]EVENT] [MOD:]KSYM[+OFFS]|KADDR [FETCHARGS]
 	 *  - Add kretprobe:
 	 *      r[MAXACTIVE][:[GRP/]EVENT] [MOD:]KSYM[+0] [FETCHARGS]
+	 *    Or
+	 *      p:[GRP/]EVENT] [MOD:]KSYM[+0]%return [FETCHARGS]
+	 *
 	 * Fetch args:
 	 *  $retval	: fetch return value
 	 *  $stack	: fetch stack address
@@ -746,7 +750,6 @@ static int trace_kprobe_create(int argc, const char *argv[])
 	switch (argv[0][0]) {
 	case 'r':
 		is_return = true;
-		flags |= TPARG_FL_RETURN;
 		break;
 	case 'p':
 		break;
@@ -804,12 +807,26 @@ static int trace_kprobe_create(int argc, const char *argv[])
 		symbol = kstrdup(argv[1], GFP_KERNEL);
 		if (!symbol)
 			return -ENOMEM;
+
+		tmp = strchr(symbol, '%');
+		if (tmp) {
+			if (!strcmp(tmp, "%return")) {
+				*tmp = '\0';
+				is_return = true;
+			} else {
+				trace_probe_log_err(tmp - symbol, BAD_ADDR_SUFFIX);
+				goto parse_error;
+			}
+		}
+
 		/* TODO: support .init module functions */
 		ret = traceprobe_split_symbol_offset(symbol, &offset);
 		if (ret || offset < 0 || offset > UINT_MAX) {
 			trace_probe_log_err(0, BAD_PROBE_ADDR);
 			goto parse_error;
 		}
+		if (is_return)
+			flags |= TPARG_FL_RETURN;
 		if (kprobe_on_func_entry(NULL, symbol, offset))
 			flags |= TPARG_FL_FENTRY;
 		if (offset && is_return && !(flags & TPARG_FL_FENTRY)) {
@@ -1880,8 +1897,8 @@ static __init void setup_boot_kprobe_events(void)
 }
 
 /*
- * Register dynevent at subsys_initcall. This allows kernel to setup kprobe
- * events in fs_initcall without tracefs.
+ * Register dynevent at core_initcall. This allows kernel to setup kprobe
+ * events in postcore_initcall without tracefs.
  */
 static __init int init_kprobe_trace_early(void)
 {
@@ -1896,19 +1913,19 @@ static __init int init_kprobe_trace_early(void)
 
 	return 0;
 }
-subsys_initcall(init_kprobe_trace_early);
+core_initcall(init_kprobe_trace_early);
 
 /* Make a tracefs interface for controlling probe points */
 static __init int init_kprobe_trace(void)
 {
-	struct dentry *d_tracer;
+	int ret;
 	struct dentry *entry;
 
-	d_tracer = tracing_init_dentry();
-	if (IS_ERR(d_tracer))
+	ret = tracing_init_dentry();
+	if (ret)
 		return 0;
 
-	entry = tracefs_create_file("kprobe_events", 0644, d_tracer,
+	entry = tracefs_create_file("kprobe_events", 0644, NULL,
 				    NULL, &kprobe_events_ops);
 
 	/* Event list interface */
@@ -1916,7 +1933,7 @@ static __init int init_kprobe_trace(void)
 		pr_warn("Could not create tracefs 'kprobe_events' entry\n");
 
 	/* Profile interface */
-	entry = tracefs_create_file("kprobe_profile", 0444, d_tracer,
+	entry = tracefs_create_file("kprobe_profile", 0444, NULL,
 				    NULL, &kprobe_profile_ops);
 
 	if (!entry)

@@ -28,11 +28,13 @@ static struct i915_global_active {
 } global;
 
 struct active_node {
+	struct rb_node node;
 	struct i915_active_fence base;
 	struct i915_active *ref;
-	struct rb_node node;
 	u64 timeline;
 };
+
+#define fetch_node(x) rb_entry(READ_ONCE(x), typeof(struct active_node), node)
 
 static inline struct active_node *
 node_from_active(struct i915_active_fence *active)
@@ -81,7 +83,7 @@ static void *active_debug_hint(void *addr)
 	return (void *)ref->active ?: (void *)ref->retire ?: (void *)ref;
 }
 
-static struct debug_obj_descr active_debug_desc = {
+static const struct debug_obj_descr active_debug_desc = {
 	.name = "i915_active",
 	.debug_hint = active_debug_hint,
 };
@@ -128,8 +130,8 @@ static inline void debug_active_assert(struct i915_active *ref) { }
 static void
 __active_retire(struct i915_active *ref)
 {
+	struct rb_root root = RB_ROOT;
 	struct active_node *it, *n;
-	struct rb_root root;
 	unsigned long flags;
 
 	GEM_BUG_ON(i915_active_is_idle(ref));
@@ -141,9 +143,25 @@ __active_retire(struct i915_active *ref)
 	GEM_BUG_ON(rcu_access_pointer(ref->excl.fence));
 	debug_active_deactivate(ref);
 
-	root = ref->tree;
-	ref->tree = RB_ROOT;
-	ref->cache = NULL;
+	/* Even if we have not used the cache, we may still have a barrier */
+	if (!ref->cache)
+		ref->cache = fetch_node(ref->tree.rb_node);
+
+	/* Keep the MRU cached node for reuse */
+	if (ref->cache) {
+		/* Discard all other nodes in the tree */
+		rb_erase(&ref->cache->node, &ref->tree);
+		root = ref->tree;
+
+		/* Rebuild the tree with only the cached node */
+		rb_link_node(&ref->cache->node, NULL, &ref->tree.rb_node);
+		rb_insert_color(&ref->cache->node, &ref->tree);
+		GEM_BUG_ON(ref->tree.rb_node != &ref->cache->node);
+
+		/* Make the cached node available for reuse with any timeline */
+		if (IS_ENABLED(CONFIG_64BIT))
+			ref->cache->timeline = 0; /* needs cmpxchg(u64) */
+	}
 
 	spin_unlock_irqrestore(&ref->tree_lock, flags);
 
@@ -154,6 +172,7 @@ __active_retire(struct i915_active *ref)
 	/* ... except if you wait on it, you must manage your own references! */
 	wake_up_var(ref);
 
+	/* Finally free the discarded timeline tree  */
 	rbtree_postorder_for_each_entry_safe(it, n, &root, node) {
 		GEM_BUG_ON(i915_active_fence_isset(&it->base));
 		kmem_cache_free(global.slab_cache, it);
@@ -216,12 +235,11 @@ excl_retire(struct dma_fence *fence, struct dma_fence_cb *cb)
 		active_retire(container_of(cb, struct i915_active, excl.cb));
 }
 
-static struct i915_active_fence *
-active_instance(struct i915_active *ref, struct intel_timeline *tl)
+static struct active_node *__active_lookup(struct i915_active *ref, u64 idx)
 {
-	struct active_node *node, *prealloc;
-	struct rb_node **p, *parent;
-	u64 idx = tl->fence_context;
+	struct active_node *it;
+
+	GEM_BUG_ON(idx == 0); /* 0 is the unordered timeline, rsvd for cache */
 
 	/*
 	 * We track the most recently used timeline to skip a rbtree search
@@ -230,8 +248,59 @@ active_instance(struct i915_active *ref, struct intel_timeline *tl)
 	 * after the previous activity has been retired, or if it matches the
 	 * current timeline.
 	 */
-	node = READ_ONCE(ref->cache);
-	if (node && node->timeline == idx)
+	it = READ_ONCE(ref->cache);
+	if (it) {
+		u64 cached = READ_ONCE(it->timeline);
+
+		/* Once claimed, this slot will only belong to this idx */
+		if (cached == idx)
+			return it;
+
+#ifdef CONFIG_64BIT /* for cmpxchg(u64) */
+		/*
+		 * An unclaimed cache [.timeline=0] can only be claimed once.
+		 *
+		 * If the value is already non-zero, some other thread has
+		 * claimed the cache and we know that is does not match our
+		 * idx. If, and only if, the timeline is currently zero is it
+		 * worth competing to claim it atomically for ourselves (for
+		 * only the winner of that race will cmpxchg return the old
+		 * value of 0).
+		 */
+		if (!cached && !cmpxchg(&it->timeline, 0, idx))
+			return it;
+#endif
+	}
+
+	BUILD_BUG_ON(offsetof(typeof(*it), node));
+
+	/* While active, the tree can only be built; not destroyed */
+	GEM_BUG_ON(i915_active_is_idle(ref));
+
+	it = fetch_node(ref->tree.rb_node);
+	while (it) {
+		if (it->timeline < idx) {
+			it = fetch_node(it->node.rb_right);
+		} else if (it->timeline > idx) {
+			it = fetch_node(it->node.rb_left);
+		} else {
+			WRITE_ONCE(ref->cache, it);
+			break;
+		}
+	}
+
+	/* NB: If the tree rotated beneath us, we may miss our target. */
+	return it;
+}
+
+static struct i915_active_fence *
+active_instance(struct i915_active *ref, u64 idx)
+{
+	struct active_node *node, *prealloc;
+	struct rb_node **p, *parent;
+
+	node = __active_lookup(ref, idx);
+	if (likely(node))
 		return &node->base;
 
 	/* Preallocate a replacement, just in case */
@@ -268,10 +337,9 @@ active_instance(struct i915_active *ref, struct intel_timeline *tl)
 	rb_insert_color(&node->node, &ref->tree);
 
 out:
-	ref->cache = node;
+	WRITE_ONCE(ref->cache, node);
 	spin_unlock_irq(&ref->tree_lock);
 
-	BUILD_BUG_ON(offsetof(typeof(*node), base));
 	return &node->base;
 }
 
@@ -353,67 +421,114 @@ __active_del_barrier(struct i915_active *ref, struct active_node *node)
 	return ____active_del_barrier(ref, node, barrier_to_engine(node));
 }
 
-int i915_active_ref(struct i915_active *ref,
-		    struct intel_timeline *tl,
-		    struct dma_fence *fence)
+static bool
+replace_barrier(struct i915_active *ref, struct i915_active_fence *active)
+{
+	if (!is_barrier(active)) /* proto-node used by our idle barrier? */
+		return false;
+
+	/*
+	 * This request is on the kernel_context timeline, and so
+	 * we can use it to substitute for the pending idle-barrer
+	 * request that we want to emit on the kernel_context.
+	 */
+	__active_del_barrier(ref, node_from_active(active));
+	return true;
+}
+
+int i915_active_ref(struct i915_active *ref, u64 idx, struct dma_fence *fence)
 {
 	struct i915_active_fence *active;
 	int err;
-
-	lockdep_assert_held(&tl->mutex);
 
 	/* Prevent reaping in case we malloc/wait while building the tree */
 	err = i915_active_acquire(ref);
 	if (err)
 		return err;
 
-	active = active_instance(ref, tl);
+	active = active_instance(ref, idx);
 	if (!active) {
 		err = -ENOMEM;
 		goto out;
 	}
 
-	if (is_barrier(active)) { /* proto-node used by our idle barrier */
-		/*
-		 * This request is on the kernel_context timeline, and so
-		 * we can use it to substitute for the pending idle-barrer
-		 * request that we want to emit on the kernel_context.
-		 */
-		__active_del_barrier(ref, node_from_active(active));
+	if (replace_barrier(ref, active)) {
 		RCU_INIT_POINTER(active->fence, NULL);
 		atomic_dec(&ref->count);
 	}
 	if (!__i915_active_fence_set(active, fence))
-		atomic_inc(&ref->count);
+		__i915_active_acquire(ref);
 
 out:
 	i915_active_release(ref);
 	return err;
 }
 
-struct dma_fence *
-i915_active_set_exclusive(struct i915_active *ref, struct dma_fence *f)
+static struct dma_fence *
+__i915_active_set_fence(struct i915_active *ref,
+			struct i915_active_fence *active,
+			struct dma_fence *fence)
 {
 	struct dma_fence *prev;
 
-	/* We expect the caller to manage the exclusive timeline ordering */
-	GEM_BUG_ON(i915_active_is_idle(ref));
+	if (replace_barrier(ref, active)) {
+		RCU_INIT_POINTER(active->fence, fence);
+		return NULL;
+	}
 
 	rcu_read_lock();
-	prev = __i915_active_fence_set(&ref->excl, f);
+	prev = __i915_active_fence_set(active, fence);
 	if (prev)
 		prev = dma_fence_get_rcu(prev);
 	else
-		atomic_inc(&ref->count);
+		__i915_active_acquire(ref);
 	rcu_read_unlock();
 
 	return prev;
+}
+
+static struct i915_active_fence *
+__active_fence(struct i915_active *ref, u64 idx)
+{
+	struct active_node *it;
+
+	it = __active_lookup(ref, idx);
+	if (unlikely(!it)) { /* Contention with parallel tree builders! */
+		spin_lock_irq(&ref->tree_lock);
+		it = __active_lookup(ref, idx);
+		spin_unlock_irq(&ref->tree_lock);
+	}
+	GEM_BUG_ON(!it); /* slot must be preallocated */
+
+	return &it->base;
+}
+
+struct dma_fence *
+__i915_active_ref(struct i915_active *ref, u64 idx, struct dma_fence *fence)
+{
+	/* Only valid while active, see i915_active_acquire_for_context() */
+	return __i915_active_set_fence(ref, __active_fence(ref, idx), fence);
+}
+
+struct dma_fence *
+i915_active_set_exclusive(struct i915_active *ref, struct dma_fence *f)
+{
+	/* We expect the caller to manage the exclusive timeline ordering */
+	return __i915_active_set_fence(ref, &ref->excl, f);
 }
 
 bool i915_active_acquire_if_busy(struct i915_active *ref)
 {
 	debug_active_assert(ref);
 	return atomic_add_unless(&ref->count, 1, 0);
+}
+
+static void __i915_active_activate(struct i915_active *ref)
+{
+	spin_lock_irq(&ref->tree_lock); /* __active_retire() */
+	if (!atomic_fetch_inc(&ref->count))
+		debug_active_activate(ref);
+	spin_unlock_irq(&ref->tree_lock);
 }
 
 int i915_active_acquire(struct i915_active *ref)
@@ -423,24 +538,42 @@ int i915_active_acquire(struct i915_active *ref)
 	if (i915_active_acquire_if_busy(ref))
 		return 0;
 
+	if (!ref->active) {
+		__i915_active_activate(ref);
+		return 0;
+	}
+
 	err = mutex_lock_interruptible(&ref->mutex);
 	if (err)
 		return err;
 
 	if (likely(!i915_active_acquire_if_busy(ref))) {
-		if (ref->active)
-			err = ref->active(ref);
-		if (!err) {
-			spin_lock_irq(&ref->tree_lock); /* __active_retire() */
-			debug_active_activate(ref);
-			atomic_inc(&ref->count);
-			spin_unlock_irq(&ref->tree_lock);
-		}
+		err = ref->active(ref);
+		if (!err)
+			__i915_active_activate(ref);
 	}
 
 	mutex_unlock(&ref->mutex);
 
 	return err;
+}
+
+int i915_active_acquire_for_context(struct i915_active *ref, u64 idx)
+{
+	struct i915_active_fence *active;
+	int err;
+
+	err = i915_active_acquire(ref);
+	if (err)
+		return err;
+
+	active = active_instance(ref, idx);
+	if (!active) {
+		i915_active_release(ref);
+		return -ENOMEM;
+	}
+
+	return 0; /* return with active ref */
 }
 
 void i915_active_release(struct i915_active *ref)
@@ -651,16 +784,16 @@ int i915_sw_fence_await_active(struct i915_sw_fence *fence,
 	return await_active(ref, flags, sw_await_fence, fence, fence);
 }
 
-#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)
 void i915_active_fini(struct i915_active *ref)
 {
 	debug_active_fini(ref);
 	GEM_BUG_ON(atomic_read(&ref->count));
 	GEM_BUG_ON(work_pending(&ref->work));
-	GEM_BUG_ON(!RB_EMPTY_ROOT(&ref->tree));
 	mutex_destroy(&ref->mutex);
+
+	if (ref->cache)
+		kmem_cache_free(global.slab_cache, ref->cache);
 }
-#endif
 
 static inline bool is_idle_barrier(struct active_node *node, u64 idx)
 {
@@ -674,7 +807,6 @@ static struct active_node *reuse_idle_barrier(struct i915_active *ref, u64 idx)
 	if (RB_EMPTY_ROOT(&ref->tree))
 		return NULL;
 
-	spin_lock_irq(&ref->tree_lock);
 	GEM_BUG_ON(i915_active_is_idle(ref));
 
 	/*
@@ -700,9 +832,9 @@ static struct active_node *reuse_idle_barrier(struct i915_active *ref, u64 idx)
 
 		prev = p;
 		if (node->timeline < idx)
-			p = p->rb_right;
+			p = READ_ONCE(p->rb_right);
 		else
-			p = p->rb_left;
+			p = READ_ONCE(p->rb_left);
 	}
 
 	/*
@@ -739,14 +871,13 @@ static struct active_node *reuse_idle_barrier(struct i915_active *ref, u64 idx)
 			goto match;
 	}
 
-	spin_unlock_irq(&ref->tree_lock);
-
 	return NULL;
 
 match:
+	spin_lock_irq(&ref->tree_lock);
 	rb_erase(p, &ref->tree); /* Hide from waits and sibling allocations */
 	if (p == &ref->cache->node)
-		ref->cache = NULL;
+		WRITE_ONCE(ref->cache, NULL);
 	spin_unlock_irq(&ref->tree_lock);
 
 	return rb_entry(p, struct active_node, node);
@@ -758,7 +889,6 @@ int i915_active_acquire_preallocate_barrier(struct i915_active *ref,
 	intel_engine_mask_t tmp, mask = engine->mask;
 	struct llist_node *first = NULL, *last = NULL;
 	struct intel_gt *gt = engine->gt;
-	int err;
 
 	GEM_BUG_ON(i915_active_is_idle(ref));
 
@@ -778,13 +908,13 @@ int i915_active_acquire_preallocate_barrier(struct i915_active *ref,
 		struct llist_node *prev = first;
 		struct active_node *node;
 
+		rcu_read_lock();
 		node = reuse_idle_barrier(ref, idx);
+		rcu_read_unlock();
 		if (!node) {
 			node = kmem_cache_alloc(global.slab_cache, GFP_KERNEL);
-			if (!node) {
-				err = ENOMEM;
+			if (!node)
 				goto unwind;
-			}
 
 			RCU_INIT_POINTER(node->base.fence, NULL);
 			node->base.cb.func = node_retire;
@@ -804,7 +934,7 @@ int i915_active_acquire_preallocate_barrier(struct i915_active *ref,
 			 */
 			RCU_INIT_POINTER(node->base.fence, ERR_PTR(-EAGAIN));
 			node->base.cb.node.prev = (void *)engine;
-			atomic_inc(&ref->count);
+			__i915_active_acquire(ref);
 		}
 		GEM_BUG_ON(rcu_access_pointer(node->base.fence) != ERR_PTR(-EAGAIN));
 
@@ -832,7 +962,7 @@ unwind:
 
 		kmem_cache_free(global.slab_cache, node);
 	}
-	return err;
+	return -ENOMEM;
 }
 
 void i915_active_acquire_barrier(struct i915_active *ref)

@@ -387,6 +387,8 @@ lpfc_gen_req(struct lpfc_vport *vport, struct lpfc_dmabuf *bmp,
 	rc = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, geniocb, 0);
 
 	if (rc == IOCB_ERROR) {
+		geniocb->context_un.ndlp = NULL;
+		lpfc_nlp_put(ndlp);
 		lpfc_sli_release_iocbq(phba, geniocb);
 		return 1;
 	}

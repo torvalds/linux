@@ -10,6 +10,7 @@
 
 #include <linux/device.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/i2c.h>
 #include <linux/pm_runtime.h>
 #include <linux/crc8.h>
@@ -645,7 +646,7 @@ static struct i2c_driver icp10100_driver = {
 	.driver = {
 		.name = "icp10100",
 		.pm = &icp10100_pm,
-		.of_match_table = of_match_ptr(icp10100_of_match),
+		.of_match_table = icp10100_of_match,
 	},
 	.probe = icp10100_probe,
 	.id_table = icp10100_id,

@@ -25,7 +25,6 @@
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_panel.h>
-#include <drm/drm_print.h>
 
 #define LDI_MTP_LENGTH			24
 #define GAMMA_LEVEL_NUM			25
@@ -928,7 +927,7 @@ static int s6e8aa0_get_modes(struct drm_panel *panel,
 
 	mode = drm_mode_create(connector->dev);
 	if (!mode) {
-		DRM_ERROR("failed to create a new display mode\n");
+		dev_err(panel->dev, "failed to create a new display mode\n");
 		return 0;
 	}
 
@@ -1020,9 +1019,7 @@ static int s6e8aa0_probe(struct mipi_dsi_device *dsi)
 	drm_panel_init(&ctx->panel, dev, &s6e8aa0_drm_funcs,
 		       DRM_MODE_CONNECTOR_DSI);
 
-	ret = drm_panel_add(&ctx->panel);
-	if (ret < 0)
-		return ret;
+	drm_panel_add(&ctx->panel);
 
 	ret = mipi_dsi_attach(dsi);
 	if (ret < 0)

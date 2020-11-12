@@ -394,13 +394,10 @@ static int lm3692x_probe_dt(struct lm3692x_led *led)
 	led->regulator = devm_regulator_get_optional(&led->client->dev, "vled");
 	if (IS_ERR(led->regulator)) {
 		ret = PTR_ERR(led->regulator);
-		if (ret != -ENODEV) {
-			if (ret != -EPROBE_DEFER)
-				dev_err(&led->client->dev,
-					"Failed to get vled regulator: %d\n",
-					ret);
-			return ret;
-		}
+		if (ret != -ENODEV)
+			return dev_err_probe(&led->client->dev, ret,
+					     "Failed to get vled regulator\n");
+
 		led->regulator = NULL;
 	}
 
@@ -435,9 +432,6 @@ static int lm3692x_probe_dt(struct lm3692x_led *led)
 		dev_err(&led->client->dev, "No LED Child node\n");
 		return -ENODEV;
 	}
-
-	fwnode_property_read_string(child, "linux,default-trigger",
-				    &led->led_dev.default_trigger);
 
 	ret = fwnode_property_read_u32(child, "reg", &led->led_enable);
 	if (ret) {

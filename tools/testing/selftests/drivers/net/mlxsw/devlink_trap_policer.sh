@@ -207,7 +207,7 @@ __rate_test()
 
 	RET=0
 
-	devlink trap policer set $DEVLINK_DEV policer $id rate 1000 burst 16
+	devlink trap policer set $DEVLINK_DEV policer $id rate 1000 burst 512
 	devlink trap group set $DEVLINK_DEV group l3_drops policer $id
 
 	# Send packets at highest possible rate and make sure they are dropped
@@ -220,8 +220,8 @@ __rate_test()
 
 	rate=$(trap_rate_get)
 	pct=$((100 * (rate - 1000) / 1000))
-	((-5 <= pct && pct <= 5))
-	check_err $? "Expected rate 1000 pps, got $rate pps, which is $pct% off. Required accuracy is +-5%"
+	((-10 <= pct && pct <= 10))
+	check_err $? "Expected rate 1000 pps, got $rate pps, which is $pct% off. Required accuracy is +-10%"
 	log_info "Expected rate 1000 pps, measured rate $rate pps"
 
 	drop_rate=$(policer_drop_rate_get $id)
@@ -288,35 +288,12 @@ __burst_test()
 
 	RET=0
 
-	devlink trap policer set $DEVLINK_DEV policer $id rate 1000 burst 32
+	devlink trap policer set $DEVLINK_DEV policer $id rate 1000 burst 512
 	devlink trap group set $DEVLINK_DEV group l3_drops policer $id
-
-	# Send a burst of 64 packets and make sure that about 32 are received
-	# and the rest are dropped by the policer
-	log_info "=== Tx burst size: 64, Policer burst size: 32 pps ==="
-
-	t0_rx=$(devlink_trap_rx_packets_get blackhole_route)
-	t0_drop=$(devlink_trap_policer_rx_dropped_get $id)
-
-	start_traffic $h1 192.0.2.1 198.51.100.100 $rp1_mac -c 64
-
-	t1_rx=$(devlink_trap_rx_packets_get blackhole_route)
-	t1_drop=$(devlink_trap_policer_rx_dropped_get $id)
-
-	rx=$((t1_rx - t0_rx))
-	pct=$((100 * (rx - 32) / 32))
-	((-20 <= pct && pct <= 20))
-	check_err $? "Expected burst size of 32 packets, got $rx packets, which is $pct% off. Required accuracy is +-20%"
-	log_info "Expected burst size of 32 packets, measured burst size of $rx packets"
-
-	drop=$((t1_drop - t0_drop))
-	(( drop > 0 ))
-	check_err $? "Expected non-zero policer drops, got 0"
-	log_info "Measured policer drops of $drop packets"
 
 	# Send a burst of 16 packets and make sure that 16 are received
 	# and that none are dropped by the policer
-	log_info "=== Tx burst size: 16, Policer burst size: 32 pps ==="
+	log_info "=== Tx burst size: 16, Policer burst size: 512 ==="
 
 	t0_rx=$(devlink_trap_rx_packets_get blackhole_route)
 	t0_drop=$(devlink_trap_policer_rx_dropped_get $id)

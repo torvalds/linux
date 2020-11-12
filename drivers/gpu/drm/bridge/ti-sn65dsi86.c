@@ -394,9 +394,6 @@ static int ti_sn_bridge_attach(struct drm_bridge *bridge,
 	}
 	pdata->dsi = dsi;
 
-	/* attach panel to bridge */
-	drm_panel_attach(pdata->panel, &pdata->connector);
-
 	return 0;
 
 err_dsi_attach:

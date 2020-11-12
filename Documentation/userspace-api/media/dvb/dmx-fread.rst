@@ -1,11 +1,5 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.dmx
 
 .. _dmx_fread:
 
@@ -18,18 +12,16 @@ Name
 
 Digital TV demux read()
 
-
 Synopsis
 --------
 
 .. c:function:: size_t read(int fd, void *buf, size_t count)
-    :name: dvb-dmx-read
 
 Arguments
 ---------
 
 ``fd``
-  File descriptor returned by a previous call to :c:func:`open() <dvb-ca-open>`.
+  File descriptor returned by a previous call to :c:func:`open()`.
 
  ``buf``
    Buffer to be filled
@@ -50,7 +42,6 @@ to be transferred is implied by count.
    if a section filter created with
    :c:type:`DMX_CHECK_CRC <dmx_sct_filter_params>` flag set,
    data that fails on CRC check will be silently ignored.
-
 
 Return Value
 ------------
@@ -81,7 +72,6 @@ appropriately.
     -  -  ``EFAULT``
        -  The driver failed to write to the callers buffer due to an
           invalid \*buf pointer.
-
 
 The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

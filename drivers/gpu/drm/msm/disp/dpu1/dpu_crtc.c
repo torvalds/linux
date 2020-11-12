@@ -265,11 +265,6 @@ enum dpu_intf_mode dpu_crtc_get_intf_mode(struct drm_crtc *crtc)
 {
 	struct drm_encoder *encoder;
 
-	if (!crtc) {
-		DPU_ERROR("invalid crtc\n");
-		return INTF_MODE_NONE;
-	}
-
 	/*
 	 * TODO: This function is called from dpu debugfs and as part of atomic
 	 * check. When called from debugfs, the crtc->mutex must be held to
@@ -297,7 +292,6 @@ void dpu_crtc_vblank_callback(struct drm_crtc *crtc)
 		dpu_crtc->vblank_cb_time = ktime_get();
 	else
 		dpu_crtc->vblank_cb_count++;
-	_dpu_crtc_complete_flip(crtc);
 	drm_crtc_handle_vblank(crtc);
 	trace_dpu_crtc_vblank_cb(DRMID(crtc));
 }
@@ -402,6 +396,7 @@ static void dpu_crtc_frame_event_cb(void *data, u32 event)
 void dpu_crtc_complete_commit(struct drm_crtc *crtc)
 {
 	trace_dpu_crtc_complete_commit(DRMID(crtc));
+	_dpu_crtc_complete_flip(crtc);
 }
 
 static void _dpu_crtc_setup_lm_bounds(struct drm_crtc *crtc,
@@ -421,8 +416,6 @@ static void _dpu_crtc_setup_lm_bounds(struct drm_crtc *crtc,
 
 		trace_dpu_crtc_setup_lm_bounds(DRMID(crtc), i, r);
 	}
-
-	drm_mode_debug_printmodeline(adj_mode);
 }
 
 static void _dpu_crtc_get_pcc_coeff(struct drm_crtc_state *state,
@@ -457,7 +450,6 @@ static void _dpu_crtc_setup_cp_blocks(struct drm_crtc *crtc)
 	struct dpu_crtc_mixer *mixer = cstate->mixers;
 	struct dpu_hw_pcc_cfg cfg;
 	struct dpu_hw_ctl *ctl;
-	struct dpu_hw_mixer *lm;
 	struct dpu_hw_dspp *dspp;
 	int i;
 
@@ -467,7 +459,6 @@ static void _dpu_crtc_setup_cp_blocks(struct drm_crtc *crtc)
 
 	for (i = 0; i < cstate->num_mixers; i++) {
 		ctl = mixer[i].lm_ctl;
-		lm = mixer[i].hw_lm;
 		dspp = mixer[i].hw_dspp;
 
 		if (!dspp || !dspp->ops.setup_pcc)
@@ -496,16 +487,8 @@ static void _dpu_crtc_setup_cp_blocks(struct drm_crtc *crtc)
 static void dpu_crtc_atomic_begin(struct drm_crtc *crtc,
 		struct drm_crtc_state *old_state)
 {
-	struct dpu_crtc *dpu_crtc;
-	struct dpu_crtc_state *cstate;
+	struct dpu_crtc_state *cstate = to_dpu_crtc_state(crtc->state);
 	struct drm_encoder *encoder;
-	struct drm_device *dev;
-	unsigned long flags;
-
-	if (!crtc) {
-		DPU_ERROR("invalid crtc\n");
-		return;
-	}
 
 	if (!crtc->state->enable) {
 		DPU_DEBUG("crtc%d -> enable %d, skip atomic_begin\n",
@@ -515,20 +498,7 @@ static void dpu_crtc_atomic_begin(struct drm_crtc *crtc,
 
 	DPU_DEBUG("crtc%d\n", crtc->base.id);
 
-	dpu_crtc = to_dpu_crtc(crtc);
-	cstate = to_dpu_crtc_state(crtc->state);
-	dev = crtc->dev;
-
 	_dpu_crtc_setup_lm_bounds(crtc, crtc->state);
-
-	if (dpu_crtc->event) {
-		WARN_ON(dpu_crtc->event);
-	} else {
-		spin_lock_irqsave(&dev->event_lock, flags);
-		dpu_crtc->event = crtc->state->event;
-		crtc->state->event = NULL;
-		spin_unlock_irqrestore(&dev->event_lock, flags);
-	}
 
 	/* encoder will trigger pending mask now */
 	drm_for_each_encoder_mask(encoder, crtc->dev, crtc->state->encoder_mask)
@@ -583,14 +553,11 @@ static void dpu_crtc_atomic_flush(struct drm_crtc *crtc,
 		return;
 	}
 
-	if (dpu_crtc->event) {
-		DPU_DEBUG("already received dpu_crtc->event\n");
-	} else {
-		spin_lock_irqsave(&dev->event_lock, flags);
-		dpu_crtc->event = crtc->state->event;
-		crtc->state->event = NULL;
-		spin_unlock_irqrestore(&dev->event_lock, flags);
-	}
+	WARN_ON(dpu_crtc->event);
+	spin_lock_irqsave(&dev->event_lock, flags);
+	dpu_crtc->event = crtc->state->event;
+	crtc->state->event = NULL;
+	spin_unlock_irqrestore(&dev->event_lock, flags);
 
 	/*
 	 * If no mixers has been allocated in dpu_crtc_atomic_check(),
@@ -635,14 +602,7 @@ static void dpu_crtc_atomic_flush(struct drm_crtc *crtc,
 static void dpu_crtc_destroy_state(struct drm_crtc *crtc,
 		struct drm_crtc_state *state)
 {
-	struct dpu_crtc_state *cstate;
-
-	if (!crtc || !state) {
-		DPU_ERROR("invalid argument(s)\n");
-		return;
-	}
-
-	cstate = to_dpu_crtc_state(state);
+	struct dpu_crtc_state *cstate = to_dpu_crtc_state(state);
 
 	DPU_DEBUG("crtc%d\n", crtc->base.id);
 
@@ -731,14 +691,8 @@ static void dpu_crtc_reset(struct drm_crtc *crtc)
  */
 static struct drm_crtc_state *dpu_crtc_duplicate_state(struct drm_crtc *crtc)
 {
-	struct dpu_crtc_state *cstate, *old_cstate;
+	struct dpu_crtc_state *cstate, *old_cstate = to_dpu_crtc_state(crtc->state);
 
-	if (!crtc || !crtc->state) {
-		DPU_ERROR("invalid argument(s)\n");
-		return NULL;
-	}
-
-	old_cstate = to_dpu_crtc_state(crtc->state);
 	cstate = kmemdup(old_cstate, sizeof(*old_cstate), GFP_KERNEL);
 	if (!cstate) {
 		DPU_ERROR("failed to allocate state\n");
@@ -754,18 +708,11 @@ static struct drm_crtc_state *dpu_crtc_duplicate_state(struct drm_crtc *crtc)
 static void dpu_crtc_disable(struct drm_crtc *crtc,
 			     struct drm_crtc_state *old_crtc_state)
 {
-	struct dpu_crtc *dpu_crtc;
-	struct dpu_crtc_state *cstate;
+	struct dpu_crtc *dpu_crtc = to_dpu_crtc(crtc);
+	struct dpu_crtc_state *cstate = to_dpu_crtc_state(crtc->state);
 	struct drm_encoder *encoder;
 	unsigned long flags;
 	bool release_bandwidth = false;
-
-	if (!crtc || !crtc->state) {
-		DPU_ERROR("invalid crtc\n");
-		return;
-	}
-	dpu_crtc = to_dpu_crtc(crtc);
-	cstate = to_dpu_crtc_state(crtc->state);
 
 	DRM_DEBUG_KMS("crtc%d\n", crtc->base.id);
 
@@ -825,19 +772,13 @@ static void dpu_crtc_disable(struct drm_crtc *crtc,
 static void dpu_crtc_enable(struct drm_crtc *crtc,
 		struct drm_crtc_state *old_crtc_state)
 {
-	struct dpu_crtc *dpu_crtc;
+	struct dpu_crtc *dpu_crtc = to_dpu_crtc(crtc);
 	struct drm_encoder *encoder;
 	bool request_bandwidth = false;
-
-	if (!crtc) {
-		DPU_ERROR("invalid crtc\n");
-		return;
-	}
 
 	pm_runtime_get_sync(crtc->dev->dev);
 
 	DRM_DEBUG_KMS("crtc%d\n", crtc->base.id);
-	dpu_crtc = to_dpu_crtc(crtc);
 
 	drm_for_each_encoder_mask(encoder, crtc->dev, crtc->state->encoder_mask) {
 		/* in video mode, we hold an extra bandwidth reference
@@ -873,15 +814,15 @@ struct plane_state {
 static int dpu_crtc_atomic_check(struct drm_crtc *crtc,
 		struct drm_crtc_state *state)
 {
-	struct dpu_crtc *dpu_crtc;
+	struct dpu_crtc *dpu_crtc = to_dpu_crtc(crtc);
+	struct dpu_crtc_state *cstate = to_dpu_crtc_state(state);
 	struct plane_state *pstates;
-	struct dpu_crtc_state *cstate;
 
 	const struct drm_plane_state *pstate;
 	struct drm_plane *plane;
 	struct drm_display_mode *mode;
 
-	int cnt = 0, rc = 0, mixer_width, i, z_pos;
+	int cnt = 0, rc = 0, mixer_width = 0, i, z_pos;
 
 	struct dpu_multirect_plane_states multirect_plane[DPU_STAGE_MAX * 2];
 	int multirect_count = 0;
@@ -889,15 +830,7 @@ static int dpu_crtc_atomic_check(struct drm_crtc *crtc,
 	int left_zpos_cnt = 0, right_zpos_cnt = 0;
 	struct drm_rect crtc_rect = { 0 };
 
-	if (!crtc) {
-		DPU_ERROR("invalid crtc\n");
-		return -EINVAL;
-	}
-
 	pstates = kzalloc(sizeof(*pstates) * DPU_STAGE_MAX * 4, GFP_KERNEL);
-
-	dpu_crtc = to_dpu_crtc(crtc);
-	cstate = to_dpu_crtc_state(state);
 
 	if (!state->enable || !state->active) {
 		DPU_DEBUG("crtc%d -> enable %d, active %d, skip atomic_check\n",
@@ -914,9 +847,11 @@ static int dpu_crtc_atomic_check(struct drm_crtc *crtc,
 
 	memset(pipe_staged, 0, sizeof(pipe_staged));
 
-	mixer_width = mode->hdisplay / cstate->num_mixers;
+	if (cstate->num_mixers) {
+		mixer_width = mode->hdisplay / cstate->num_mixers;
 
-	_dpu_crtc_setup_lm_bounds(crtc, state);
+		_dpu_crtc_setup_lm_bounds(crtc, state);
+	}
 
 	crtc_rect.x2 = mode->hdisplay;
 	crtc_rect.y2 = mode->vdisplay;
@@ -1242,23 +1177,7 @@ static int _dpu_debugfs_status_show(struct seq_file *s, void *data)
 	return 0;
 }
 
-static int _dpu_debugfs_status_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, _dpu_debugfs_status_show, inode->i_private);
-}
-
-#define DEFINE_DPU_DEBUGFS_SEQ_FOPS(__prefix)                          \
-static int __prefix ## _open(struct inode *inode, struct file *file)	\
-{									\
-	return single_open(file, __prefix ## _show, inode->i_private);	\
-}									\
-static const struct file_operations __prefix ## _fops = {		\
-	.owner = THIS_MODULE,						\
-	.open = __prefix ## _open,					\
-	.release = single_release,					\
-	.read = seq_read,						\
-	.llseek = seq_lseek,						\
-}
+DEFINE_SHOW_ATTRIBUTE(_dpu_debugfs_status);
 
 static int dpu_crtc_debugfs_state_show(struct seq_file *s, void *v)
 {
@@ -1275,25 +1194,18 @@ static int dpu_crtc_debugfs_state_show(struct seq_file *s, void *v)
 
 	return 0;
 }
-DEFINE_DPU_DEBUGFS_SEQ_FOPS(dpu_crtc_debugfs_state);
+DEFINE_SHOW_ATTRIBUTE(dpu_crtc_debugfs_state);
 
 static int _dpu_crtc_init_debugfs(struct drm_crtc *crtc)
 {
 	struct dpu_crtc *dpu_crtc = to_dpu_crtc(crtc);
-
-	static const struct file_operations debugfs_status_fops = {
-		.open =		_dpu_debugfs_status_open,
-		.read =		seq_read,
-		.llseek =	seq_lseek,
-		.release =	single_release,
-	};
 
 	dpu_crtc->debugfs_root = debugfs_create_dir(dpu_crtc->name,
 			crtc->dev->primary->debugfs_root);
 
 	debugfs_create_file("status", 0400,
 			dpu_crtc->debugfs_root,
-			dpu_crtc, &debugfs_status_fops);
+			dpu_crtc, &_dpu_debugfs_status_fops);
 	debugfs_create_file("state", 0600,
 			dpu_crtc->debugfs_root,
 			&dpu_crtc->base,

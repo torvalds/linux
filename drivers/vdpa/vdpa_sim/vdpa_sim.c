@@ -18,7 +18,7 @@
 #include <linux/wait.h>
 #include <linux/uuid.h>
 #include <linux/iommu.h>
-#include <linux/dma-mapping.h>
+#include <linux/dma-map-ops.h>
 #include <linux/sysfs.h>
 #include <linux/file.h>
 #include <linux/etherdevice.h>

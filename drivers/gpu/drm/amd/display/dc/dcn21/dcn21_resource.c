@@ -894,6 +894,8 @@ static const struct dc_debug_options debug_defaults_diags = {
 		.disable_pplib_wm_range = true,
 		.disable_stutter = true,
 		.disable_48mhz_pwrdwn = true,
+		.disable_psr = true,
+		.enable_tri_buf = true
 };
 
 enum dcn20_clk_src_array_id {
@@ -1183,6 +1185,9 @@ bool dcn21_validate_bandwidth(struct dc *dc, struct dc_state *context,
 	DC_LOGGER_INIT(dc->ctx->logger);
 
 	BW_VAL_TRACE_COUNT();
+
+	/*Unsafe due to current pipe merge and split logic*/
+	ASSERT(context != dc->current_state);
 
 	out = dcn20_fast_validate_bw(dc, context, pipes, &pipe_cnt, pipe_split_from, &vlevel);
 
@@ -1754,7 +1759,7 @@ enum dc_status dcn21_patch_unknown_plane_state(struct dc_plane_state *plane_stat
 	return result;
 }
 
-static struct resource_funcs dcn21_res_pool_funcs = {
+static const struct resource_funcs dcn21_res_pool_funcs = {
 	.destroy = dcn21_destroy_resource_pool,
 	.link_enc_create = dcn21_link_encoder_create,
 	.panel_cntl_create = dcn21_panel_cntl_create,

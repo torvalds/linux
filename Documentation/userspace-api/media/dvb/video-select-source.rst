@@ -1,11 +1,5 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.video
 
 .. _VIDEO_SELECT_SOURCE:
 
@@ -23,9 +17,9 @@ VIDEO_SELECT_SOURCE
 Synopsis
 --------
 
-.. c:function:: int ioctl(fd, VIDEO_SELECT_SOURCE, video_stream_source_t source)
-    :name: VIDEO_SELECT_SOURCE
+.. c:macro:: VIDEO_SELECT_SOURCE
 
+``int ioctl(fd, VIDEO_SELECT_SOURCE, video_stream_source_t source)``
 
 Arguments
 ---------
@@ -33,7 +27,6 @@ Arguments
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-
 
     -  .. row 1
 
@@ -52,7 +45,6 @@ Arguments
        -  video_stream_source_t source
 
        -  Indicates which source shall be used for the Video stream.
-
 
 Description
 -----------

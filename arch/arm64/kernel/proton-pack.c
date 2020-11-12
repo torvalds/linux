@@ -67,7 +67,8 @@ ssize_t cpu_show_spectre_v1(struct device *dev, struct device_attribute *attr,
  * - Mitigated in hardware and advertised by ID_AA64PFR0_EL1.CSV2.
  * - Mitigated in hardware and listed in our "safe list".
  * - Mitigated in software by firmware.
- * - Mitigated in software by a CPU-specific dance in the kernel.
+ * - Mitigated in software by a CPU-specific dance in the kernel and a
+ *   firmware call at EL2.
  * - Vulnerable.
  *
  * It's not unlikely for different CPUs in a big.LITTLE system to fall into
@@ -204,8 +205,8 @@ static void install_bp_hardening_cb(bp_hardening_cb_t fn)
 				   __SMCCC_WORKAROUND_1_SMC_SZ;
 
 	/*
-	 * detect_harden_bp_fw() passes NULL for the hyp_vecs start/end if
-	 * we're a guest. Skip the hyp-vectors work.
+	 * Vinz Clortho takes the hyp_vecs start/end "keys" at
+	 * the door when we're a guest. Skip the hyp-vectors work.
 	 */
 	if (!is_hyp_mode_available()) {
 		__this_cpu_write(bp_hardening_data.fn, fn);
@@ -259,6 +260,16 @@ static void qcom_link_stack_sanitisation(void)
 		     : "=&r" (tmp));
 }
 
+static bp_hardening_cb_t spectre_v2_get_sw_mitigation_cb(void)
+{
+	u32 midr = read_cpuid_id();
+	if (((midr & MIDR_CPU_MODEL_MASK) != MIDR_QCOM_FALKOR) &&
+	    ((midr & MIDR_CPU_MODEL_MASK) != MIDR_QCOM_FALKOR_V1))
+		return NULL;
+
+	return qcom_link_stack_sanitisation;
+}
+
 static enum mitigation_state spectre_v2_enable_fw_mitigation(void)
 {
 	bp_hardening_cb_t cb;
@@ -284,23 +295,12 @@ static enum mitigation_state spectre_v2_enable_fw_mitigation(void)
 		return SPECTRE_VULNERABLE;
 	}
 
+	/*
+	 * Prefer a CPU-specific workaround if it exists. Note that we
+	 * still rely on firmware for the mitigation at EL2.
+	 */
+	cb = spectre_v2_get_sw_mitigation_cb() ?: cb;
 	install_bp_hardening_cb(cb);
-	return SPECTRE_MITIGATED;
-}
-
-static enum mitigation_state spectre_v2_enable_sw_mitigation(void)
-{
-	u32 midr;
-
-	if (spectre_v2_mitigations_off())
-		return SPECTRE_VULNERABLE;
-
-	midr = read_cpuid_id();
-	if (((midr & MIDR_CPU_MODEL_MASK) != MIDR_QCOM_FALKOR) &&
-	    ((midr & MIDR_CPU_MODEL_MASK) != MIDR_QCOM_FALKOR_V1))
-		return SPECTRE_VULNERABLE;
-
-	install_bp_hardening_cb(qcom_link_stack_sanitisation);
 	return SPECTRE_MITIGATED;
 }
 
@@ -313,8 +313,6 @@ void spectre_v2_enable_mitigation(const struct arm64_cpu_capabilities *__unused)
 	state = spectre_v2_get_cpu_hw_mitigation_state();
 	if (state == SPECTRE_VULNERABLE)
 		state = spectre_v2_enable_fw_mitigation();
-	if (state == SPECTRE_VULNERABLE)
-		state = spectre_v2_enable_sw_mitigation();
 
 	update_mitigation_state(&spectre_v2_state, state);
 }

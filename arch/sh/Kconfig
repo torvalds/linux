@@ -71,6 +71,7 @@ config SUPERH
 	select PERF_EVENTS
 	select PERF_USE_VMALLOC
 	select RTC_LIB
+	select SET_FS
 	select SPARSE_IRQ
 	help
 	  The SuperH is a RISC processor targeted for use in embedded systems
@@ -599,22 +600,6 @@ config PHYSICAL_START
 	  Different values are primarily used in the case of kexec on panic
 	  where the fail safe kernel needs to run at a different address
 	  than the panic-ed kernel.
-
-config SECCOMP
-	bool "Enable seccomp to safely compute untrusted bytecode"
-	depends on PROC_FS
-	help
-	  This kernel feature is useful for number crunching applications
-	  that may need to compute untrusted bytecode during their
-	  execution. By using pipes or other transports made available to
-	  the process as file descriptors supporting the read/write
-	  syscalls, it's possible to isolate those applications in
-	  their own address space using seccomp. Once seccomp is
-	  enabled via prctl, it cannot be disabled and the task is only
-	  allowed to execute a few safe syscalls defined by each seccomp
-	  mode.
-
-	  If unsure, say N.
 
 config SMP
 	bool "Symmetric multi-processing support"

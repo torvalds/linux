@@ -1,11 +1,11 @@
 #
 # Kernel configuration file for the SMARTPQI
 #
-# Copyright (c) 2019 Microchip Technology Inc. and its subsidiaries
+# Copyright (c) 2019-2020 Microchip Technology Inc. and its subsidiaries
 # Copyright (c) 2017-2018 Microsemi Corporation
 # Copyright (c) 2016 Microsemi Corporation
 # Copyright (c) 2016 PMC-Sierra, Inc.
-#  (mailto:esc.storagedev@microsemi.com)
+#  (mailto:storagedev@microchip.com)
 
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License

@@ -1227,7 +1227,7 @@ static irqreturn_t service_interrupt(int irq, void *dev_id)
 
 		case ISR_RxFRAMELOST:
 			priv->wstats.discard.misc++;
-			/* fall through */
+			fallthrough;
 		case ISR_RxCOMPLETE:
 			rx_done_irq(priv);
 			break;
@@ -4228,7 +4228,7 @@ static void atmel_wmem32(struct atmel_private *priv, u16 pos, u32 data)
 /* Copyright 2003 Matthew T. Russotto                                      */
 /* But derived from the Atmel 76C502 firmware written by Atmel and         */
 /* included in "atmel wireless lan drivers" package                        */
-/**
+/*
     This file is part of net.russotto.AtmelMACFW, hereto referred to
     as AtmelMACFW
 

@@ -46,7 +46,7 @@ DEFINE_PER_CPU(unsigned int, CURRENT_SAVE);	/* Saved current pointer */
  * ASM code. Default position is BSS section which is cleared
  * in machine_early_init().
  */
-char cmd_line[COMMAND_LINE_SIZE] __attribute__ ((section(".data")));
+char cmd_line[COMMAND_LINE_SIZE] __section(".data");
 
 void __init setup_arch(char **cmdline_p)
 {

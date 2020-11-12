@@ -583,7 +583,7 @@ static const struct nla_policy hwsim_genl_policy[MAC802154_HWSIM_ATTR_MAX + 1] =
 };
 
 /* Generic Netlink operations array */
-static const struct genl_ops hwsim_nl_ops[] = {
+static const struct genl_small_ops hwsim_nl_ops[] = {
 	{
 		.cmd = MAC802154_HWSIM_CMD_NEW_RADIO,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
@@ -628,8 +628,8 @@ static struct genl_family hwsim_genl_family __ro_after_init = {
 	.maxattr = MAC802154_HWSIM_ATTR_MAX,
 	.policy = hwsim_genl_policy,
 	.module = THIS_MODULE,
-	.ops = hwsim_nl_ops,
-	.n_ops = ARRAY_SIZE(hwsim_nl_ops),
+	.small_ops = hwsim_nl_ops,
+	.n_small_ops = ARRAY_SIZE(hwsim_nl_ops),
 	.mcgrps = hwsim_mcgrps,
 	.n_mcgrps = ARRAY_SIZE(hwsim_mcgrps),
 };

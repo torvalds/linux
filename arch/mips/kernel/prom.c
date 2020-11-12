@@ -36,31 +36,6 @@ char *mips_get_machine_name(void)
 }
 
 #ifdef CONFIG_USE_OF
-void __init early_init_dt_add_memory_arch(u64 base, u64 size)
-{
-	if (base >= PHYS_ADDR_MAX) {
-		pr_warn("Trying to add an invalid memory region, skipped\n");
-		return;
-	}
-
-	/* Truncate the passed memory region instead of type casting */
-	if (base + size - 1 >= PHYS_ADDR_MAX || base + size < base) {
-		pr_warn("Truncate memory region %llx @ %llx to size %llx\n",
-			size, base, PHYS_ADDR_MAX - base);
-		size = PHYS_ADDR_MAX - base;
-	}
-
-	add_memory_region(base, size, BOOT_MEM_RAM);
-}
-
-int __init early_init_dt_reserve_memory_arch(phys_addr_t base,
-					phys_addr_t size, bool nomap)
-{
-	add_memory_region(base, size,
-			  nomap ? BOOT_MEM_NOMAP : BOOT_MEM_RESERVED);
-
-	return 0;
-}
 
 void __init __dt_setup_arch(void *bph)
 {

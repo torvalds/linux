@@ -1192,8 +1192,9 @@ static void w83781d_remove_files(struct device *dev)
 	sysfs_remove_group(&dev->kobj, &w83781d_group_other);
 }
 
-static int
-w83781d_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static const struct i2c_device_id w83781d_ids[];
+
+static int w83781d_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct w83781d_data *data;
@@ -1207,7 +1208,7 @@ w83781d_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	mutex_init(&data->lock);
 	mutex_init(&data->update_lock);
 
-	data->type = id->driver_data;
+	data->type = i2c_match_id(w83781d_ids, client)->driver_data;
 	data->client = client;
 
 	/* attach secondary i2c lm75-like clients */
@@ -1575,7 +1576,7 @@ static struct i2c_driver w83781d_driver = {
 	.driver = {
 		.name = "w83781d",
 	},
-	.probe		= w83781d_probe,
+	.probe_new	= w83781d_probe,
 	.remove		= w83781d_remove,
 	.id_table	= w83781d_ids,
 	.detect		= w83781d_detect,

@@ -632,7 +632,7 @@ int mxl111sf_set_gpio(struct mxl111sf_state *state, int gpio, int val)
 	default:
 		mxl_printk(KERN_ERR,
 			   "gpio_port_expander undefined, assuming PCA9534");
-		/* fall-thru */
+		fallthrough;
 	case mxl111sf_PCA9534:
 		return pca9534_set_gpio(state, gpio, val);
 	case mxl111sf_gpio_hw:
@@ -693,7 +693,7 @@ int mxl111sf_init_port_expander(struct mxl111sf_state *state)
 	default:
 		mxl_printk(KERN_ERR,
 			   "gpio_port_expander undefined, assuming PCA9534");
-		/* fall-thru */
+		fallthrough;
 	case mxl111sf_PCA9534:
 		return pca9534_init_port_expander(state);
 	case mxl111sf_gpio_hw:

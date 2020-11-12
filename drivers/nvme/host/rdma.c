@@ -835,6 +835,7 @@ static void nvme_rdma_destroy_admin_queue(struct nvme_rdma_ctrl *ctrl,
 		blk_mq_free_tag_set(ctrl->ctrl.admin_tagset);
 	}
 	if (ctrl->async_event_sqe.data) {
+		cancel_work_sync(&ctrl->ctrl.async_event_work);
 		nvme_rdma_free_qe(ctrl->device->dev, &ctrl->async_event_sqe,
 				sizeof(struct nvme_command), DMA_TO_DEVICE);
 		ctrl->async_event_sqe.data = NULL;
@@ -1729,10 +1730,11 @@ static void nvme_rdma_process_nvme_rsp(struct nvme_rdma_queue *queue,
 	req->result = cqe->result;
 
 	if (wc->wc_flags & IB_WC_WITH_INVALIDATE) {
-		if (unlikely(wc->ex.invalidate_rkey != req->mr->rkey)) {
+		if (unlikely(!req->mr ||
+			     wc->ex.invalidate_rkey != req->mr->rkey)) {
 			dev_err(queue->ctrl->ctrl.device,
 				"Bogus remote invalidation for rkey %#x\n",
-				req->mr->rkey);
+				req->mr ? req->mr->rkey : 0);
 			nvme_rdma_error_recovery(queue->ctrl);
 		}
 	} else if (req->mr) {
@@ -1925,7 +1927,6 @@ static int nvme_rdma_cm_handler(struct rdma_cm_id *cm_id,
 		complete(&queue->cm_done);
 		return 0;
 	case RDMA_CM_EVENT_REJECTED:
-		nvme_rdma_destroy_queue_ib(queue);
 		cm_error = nvme_rdma_conn_rejected(queue, ev);
 		break;
 	case RDMA_CM_EVENT_ROUTE_ERROR:

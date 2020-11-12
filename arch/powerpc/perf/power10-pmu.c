@@ -9,7 +9,6 @@
 #define pr_fmt(fmt)	"power10-pmu: " fmt
 
 #include "isa207-common.h"
-#include "internal.h"
 
 /*
  * Raw event encoding for Power10:

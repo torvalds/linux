@@ -237,7 +237,7 @@ int snd_skl_parse_uuids(struct sst_dsp *ctx, const struct firmware *fw,
 	struct uuid_module *module;
 	struct firmware stripped_fw;
 	unsigned int safe_file;
-	int ret = 0;
+	int ret;
 
 	/* Get the FW pointer to derive ADSP header */
 	stripped_fw.data = fw->data;

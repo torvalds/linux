@@ -12,7 +12,6 @@
 
 #include "mtk_vcodec_dec_pm.h"
 #include "mtk_vcodec_util.h"
-#include "mtk_vpu.h"
 
 int mtk_vcodec_init_dec_pm(struct mtk_vcodec_dev *mtkdev)
 {

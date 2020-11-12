@@ -4,7 +4,7 @@
  */
 #include <linux/export.h>
 #include <linux/mm.h>
-#include <linux/dma-mapping.h>
+#include <linux/dma-map-ops.h>
 #include <linux/scatterlist.h>
 
 static void *dma_virt_alloc(struct device *dev, size_t size,
@@ -55,5 +55,7 @@ const struct dma_map_ops dma_virt_ops = {
 	.free			= dma_virt_free,
 	.map_page		= dma_virt_map_page,
 	.map_sg			= dma_virt_map_sg,
+	.alloc_pages		= dma_common_alloc_pages,
+	.free_pages		= dma_common_free_pages,
 };
 EXPORT_SYMBOL(dma_virt_ops);

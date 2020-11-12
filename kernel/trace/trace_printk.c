@@ -96,7 +96,7 @@ static int module_trace_bprintk_format_notify(struct notifier_block *self,
 		if (val == MODULE_STATE_COMING)
 			hold_module_trace_bprintk_format(start, end);
 	}
-	return 0;
+	return NOTIFY_OK;
 }
 
 /*
@@ -174,7 +174,7 @@ __init static int
 module_trace_bprintk_format_notify(struct notifier_block *self,
 		unsigned long val, void *data)
 {
-	return 0;
+	return NOTIFY_OK;
 }
 static inline const char **
 find_next_mod_format(int start_index, void *v, const char **fmt, loff_t *pos)
@@ -367,13 +367,13 @@ static const struct file_operations ftrace_formats_fops = {
 
 static __init int init_trace_printk_function_export(void)
 {
-	struct dentry *d_tracer;
+	int ret;
 
-	d_tracer = tracing_init_dentry();
-	if (IS_ERR(d_tracer))
+	ret = tracing_init_dentry();
+	if (ret)
 		return 0;
 
-	trace_create_file("printk_formats", 0444, d_tracer,
+	trace_create_file("printk_formats", 0444, NULL,
 				    NULL, &ftrace_formats_fops);
 
 	return 0;

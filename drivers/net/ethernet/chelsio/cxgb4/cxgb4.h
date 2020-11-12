@@ -146,6 +146,11 @@ enum {
 	CXGB4_ETHTOOL_FLASH_BOOTCFG = 4
 };
 
+enum cxgb4_netdev_tls_ops {
+	CXGB4_TLSDEV_OPS  = 1,
+	CXGB4_XFRMDEV_OPS
+};
+
 struct cxgb4_bootcfg_data {
 	__le16 signature;
 	__u8 reserved[2];
@@ -1196,6 +1201,12 @@ struct adapter {
 	struct cxgb4_tc_u32_table *tc_u32;
 	struct chcr_ktls chcr_ktls;
 	struct chcr_stats_debug chcr_stats;
+#if IS_ENABLED(CONFIG_CHELSIO_TLS_DEVICE)
+	struct ch_ktls_stats_debug ch_ktls_stats;
+#endif
+#if IS_ENABLED(CONFIG_CHELSIO_IPSEC_INLINE)
+	struct ch_ipsec_stats_debug ch_ipsec_stats;
+#endif
 
 	/* TC flower offload */
 	bool tc_flower_initialized;
@@ -2100,7 +2111,7 @@ void free_tx_desc(struct adapter *adap, struct sge_txq *q,
 void cxgb4_eosw_txq_free_desc(struct adapter *adap, struct sge_eosw_txq *txq,
 			      u32 ndesc);
 int cxgb4_ethofld_send_flowc(struct net_device *dev, u32 eotid, u32 tc);
-void cxgb4_ethofld_restart(unsigned long data);
+void cxgb4_ethofld_restart(struct tasklet_struct *t);
 int cxgb4_ethofld_rx_handler(struct sge_rspq *q, const __be64 *rsp,
 			     const struct pkt_gl *si);
 void free_txq(struct adapter *adap, struct sge_txq *q);
@@ -2169,7 +2180,7 @@ void cxgb4_enable_rx(struct adapter *adap, struct sge_rspq *q);
 void cxgb4_quiesce_rx(struct sge_rspq *q);
 int cxgb4_port_mirror_alloc(struct net_device *dev);
 void cxgb4_port_mirror_free(struct net_device *dev);
-#ifdef CONFIG_CHELSIO_TLS_DEVICE
+#if IS_ENABLED(CONFIG_CHELSIO_TLS_DEVICE)
 int cxgb4_set_ktls_feature(struct adapter *adap, bool enable);
 #endif
 #endif /* __CXGB4_H__ */

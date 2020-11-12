@@ -967,7 +967,7 @@ static int rpmh_regulator_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id rpmh_regulator_match_table[] = {
+static const struct of_device_id __maybe_unused rpmh_regulator_match_table[] = {
 	{
 		.compatible = "qcom,pm8005-rpmh-regulators",
 		.data = pm8005_vreg_data,

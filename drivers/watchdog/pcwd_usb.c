@@ -656,7 +656,7 @@ static int usb_pcwd_probe(struct usb_interface *interface,
 
 	/* set up the memory buffer's */
 	usb_pcwd->intr_buffer = usb_alloc_coherent(udev, usb_pcwd->intr_size,
-					GFP_ATOMIC, &usb_pcwd->intr_dma);
+					GFP_KERNEL, &usb_pcwd->intr_dma);
 	if (!usb_pcwd->intr_buffer) {
 		pr_err("Out of memory\n");
 		goto error;

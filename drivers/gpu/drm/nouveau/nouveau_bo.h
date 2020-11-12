@@ -18,6 +18,7 @@ struct nouveau_bo {
 	bool force_coherent;
 	struct ttm_bo_kmap_obj kmap;
 	struct list_head head;
+	struct list_head io_reserve_lru;
 
 	/* protected by ttm_bo_reserve() */
 	struct drm_file *reserved_by;
@@ -76,10 +77,10 @@ extern struct ttm_bo_driver nouveau_bo_driver;
 
 void nouveau_bo_move_init(struct nouveau_drm *);
 struct nouveau_bo *nouveau_bo_alloc(struct nouveau_cli *, u64 *size, int *align,
-				    u32 flags, u32 tile_mode, u32 tile_flags);
-int  nouveau_bo_init(struct nouveau_bo *, u64 size, int align, u32 flags,
+				    u32 domain, u32 tile_mode, u32 tile_flags);
+int  nouveau_bo_init(struct nouveau_bo *, u64 size, int align, u32 domain,
 		     struct sg_table *sg, struct dma_resv *robj);
-int  nouveau_bo_new(struct nouveau_cli *, u64 size, int align, u32 flags,
+int  nouveau_bo_new(struct nouveau_cli *, u64 size, int align, u32 domain,
 		    u32 tile_mode, u32 tile_flags, struct sg_table *sg,
 		    struct dma_resv *robj,
 		    struct nouveau_bo **);
@@ -96,6 +97,8 @@ int  nouveau_bo_validate(struct nouveau_bo *, bool interruptible,
 			 bool no_wait_gpu);
 void nouveau_bo_sync_for_device(struct nouveau_bo *nvbo);
 void nouveau_bo_sync_for_cpu(struct nouveau_bo *nvbo);
+void nouveau_bo_add_io_reserve_lru(struct ttm_buffer_object *bo);
+void nouveau_bo_del_io_reserve_lru(struct ttm_buffer_object *bo);
 
 /* TODO: submit equivalent to TTM generic API upstream? */
 static inline void __iomem *
@@ -119,13 +122,13 @@ nouveau_bo_unmap_unpin_unref(struct nouveau_bo **pnvbo)
 }
 
 static inline int
-nouveau_bo_new_pin_map(struct nouveau_cli *cli, u64 size, int align, u32 flags,
+nouveau_bo_new_pin_map(struct nouveau_cli *cli, u64 size, int align, u32 domain,
 		       struct nouveau_bo **pnvbo)
 {
-	int ret = nouveau_bo_new(cli, size, align, flags,
+	int ret = nouveau_bo_new(cli, size, align, domain,
 				 0, 0, NULL, NULL, pnvbo);
 	if (ret == 0) {
-		ret = nouveau_bo_pin(*pnvbo, flags, true);
+		ret = nouveau_bo_pin(*pnvbo, domain, true);
 		if (ret == 0) {
 			ret = nouveau_bo_map(*pnvbo);
 			if (ret == 0)
@@ -139,28 +142,28 @@ nouveau_bo_new_pin_map(struct nouveau_cli *cli, u64 size, int align, u32 flags,
 
 int nv04_bo_move_init(struct nouveau_channel *, u32);
 int nv04_bo_move_m2mf(struct nouveau_channel *, struct ttm_buffer_object *,
-		      struct ttm_mem_reg *, struct ttm_mem_reg *);
+		      struct ttm_resource *, struct ttm_resource *);
 
 int nv50_bo_move_init(struct nouveau_channel *, u32);
 int nv50_bo_move_m2mf(struct nouveau_channel *, struct ttm_buffer_object *,
-		      struct ttm_mem_reg *, struct ttm_mem_reg *);
+		      struct ttm_resource *, struct ttm_resource *);
 
 int nv84_bo_move_exec(struct nouveau_channel *, struct ttm_buffer_object *,
-		      struct ttm_mem_reg *, struct ttm_mem_reg *);
+		      struct ttm_resource *, struct ttm_resource *);
 
 int nva3_bo_move_copy(struct nouveau_channel *, struct ttm_buffer_object *,
-		      struct ttm_mem_reg *, struct ttm_mem_reg *);
+		      struct ttm_resource *, struct ttm_resource *);
 
 int nvc0_bo_move_init(struct nouveau_channel *, u32);
 int nvc0_bo_move_m2mf(struct nouveau_channel *, struct ttm_buffer_object *,
-		      struct ttm_mem_reg *, struct ttm_mem_reg *);
+		      struct ttm_resource *, struct ttm_resource *);
 
 int nvc0_bo_move_copy(struct nouveau_channel *, struct ttm_buffer_object *,
-		      struct ttm_mem_reg *, struct ttm_mem_reg *);
+		      struct ttm_resource *, struct ttm_resource *);
 
 int nve0_bo_move_init(struct nouveau_channel *, u32);
 int nve0_bo_move_copy(struct nouveau_channel *, struct ttm_buffer_object *,
-		      struct ttm_mem_reg *, struct ttm_mem_reg *);
+		      struct ttm_resource *, struct ttm_resource *);
 
 #define NVBO_WR32_(b,o,dr,f) nouveau_bo_wr32((b), (o)/4 + (dr), (f))
 #define NVBO_RD32_(b,o,dr)   nouveau_bo_rd32((b), (o)/4 + (dr))

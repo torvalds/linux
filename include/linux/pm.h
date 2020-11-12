@@ -590,7 +590,7 @@ struct dev_pm_info {
 #endif
 #ifdef CONFIG_PM
 	struct hrtimer		suspend_timer;
-	unsigned long		timer_expires;
+	u64			timer_expires;
 	struct work_struct	work;
 	wait_queue_head_t	wait_queue;
 	struct wake_irq		*wakeirq;
