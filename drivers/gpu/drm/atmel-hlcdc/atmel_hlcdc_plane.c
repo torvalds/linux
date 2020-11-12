@@ -280,8 +280,8 @@ atmel_hlcdc_plane_scaler_set_phicoeff(struct atmel_hlcdc_plane *plane,
 					    coeff_tab[i]);
 }
 
-void atmel_hlcdc_plane_setup_scaler(struct atmel_hlcdc_plane *plane,
-				    struct atmel_hlcdc_plane_state *state)
+static void atmel_hlcdc_plane_setup_scaler(struct atmel_hlcdc_plane *plane,
+					   struct atmel_hlcdc_plane_state *state)
 {
 	const struct atmel_hlcdc_layer_desc *desc = plane->layer.desc;
 	u32 xfactor, yfactor;
