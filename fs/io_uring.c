@@ -6908,7 +6908,7 @@ static int io_sq_thread(void *data)
 	const struct cred *old_cred = NULL;
 	struct io_sq_data *sqd = data;
 	struct io_ring_ctx *ctx;
-	unsigned long timeout;
+	unsigned long timeout = 0;
 	DEFINE_WAIT(wait);
 
 	task_lock(current);
