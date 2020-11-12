@@ -587,8 +587,8 @@ static bool virtio_mem_contains_range(struct virtio_mem *vm, uint64_t start,
 	return start >= vm->addr && start + size <= vm->addr + vm->region_size;
 }
 
-static int virtio_mem_notify_going_online(struct virtio_mem *vm,
-					  unsigned long mb_id)
+static int virtio_mem_sbm_notify_going_online(struct virtio_mem *vm,
+					      unsigned long mb_id)
 {
 	switch (virtio_mem_sbm_get_mb_state(vm, mb_id)) {
 	case VIRTIO_MEM_SBM_MB_OFFLINE_PARTIAL:
@@ -602,8 +602,8 @@ static int virtio_mem_notify_going_online(struct virtio_mem *vm,
 	return NOTIFY_BAD;
 }
 
-static void virtio_mem_notify_offline(struct virtio_mem *vm,
-				      unsigned long mb_id)
+static void virtio_mem_sbm_notify_offline(struct virtio_mem *vm,
+					  unsigned long mb_id)
 {
 	switch (virtio_mem_sbm_get_mb_state(vm, mb_id)) {
 	case VIRTIO_MEM_SBM_MB_ONLINE_PARTIAL:
@@ -620,7 +620,8 @@ static void virtio_mem_notify_offline(struct virtio_mem *vm,
 	}
 }
 
-static void virtio_mem_notify_online(struct virtio_mem *vm, unsigned long mb_id)
+static void virtio_mem_sbm_notify_online(struct virtio_mem *vm,
+					 unsigned long mb_id)
 {
 	switch (virtio_mem_sbm_get_mb_state(vm, mb_id)) {
 	case VIRTIO_MEM_SBM_MB_OFFLINE_PARTIAL:
@@ -637,8 +638,8 @@ static void virtio_mem_notify_online(struct virtio_mem *vm, unsigned long mb_id)
 	}
 }
 
-static void virtio_mem_notify_going_offline(struct virtio_mem *vm,
-					    unsigned long mb_id)
+static void virtio_mem_sbm_notify_going_offline(struct virtio_mem *vm,
+						unsigned long mb_id)
 {
 	const unsigned long nr_pages = PFN_DOWN(vm->sbm.sb_size);
 	unsigned long pfn;
@@ -653,8 +654,8 @@ static void virtio_mem_notify_going_offline(struct virtio_mem *vm,
 	}
 }
 
-static void virtio_mem_notify_cancel_offline(struct virtio_mem *vm,
-					     unsigned long mb_id)
+static void virtio_mem_sbm_notify_cancel_offline(struct virtio_mem *vm,
+						 unsigned long mb_id)
 {
 	const unsigned long nr_pages = PFN_DOWN(vm->sbm.sb_size);
 	unsigned long pfn;
@@ -714,7 +715,7 @@ static int virtio_mem_memory_notifier_cb(struct notifier_block *nb,
 			break;
 		}
 		vm->hotplug_active = true;
-		virtio_mem_notify_going_offline(vm, mb_id);
+		virtio_mem_sbm_notify_going_offline(vm, mb_id);
 		break;
 	case MEM_GOING_ONLINE:
 		mutex_lock(&vm->hotplug_mutex);
@@ -724,10 +725,10 @@ static int virtio_mem_memory_notifier_cb(struct notifier_block *nb,
 			break;
 		}
 		vm->hotplug_active = true;
-		rc = virtio_mem_notify_going_online(vm, mb_id);
+		rc = virtio_mem_sbm_notify_going_online(vm, mb_id);
 		break;
 	case MEM_OFFLINE:
-		virtio_mem_notify_offline(vm, mb_id);
+		virtio_mem_sbm_notify_offline(vm, mb_id);
 
 		atomic64_add(size, &vm->offline_size);
 		/*
@@ -741,7 +742,7 @@ static int virtio_mem_memory_notifier_cb(struct notifier_block *nb,
 		mutex_unlock(&vm->hotplug_mutex);
 		break;
 	case MEM_ONLINE:
-		virtio_mem_notify_online(vm, mb_id);
+		virtio_mem_sbm_notify_online(vm, mb_id);
 
 		atomic64_sub(size, &vm->offline_size);
 		/*
@@ -760,7 +761,7 @@ static int virtio_mem_memory_notifier_cb(struct notifier_block *nb,
 	case MEM_CANCEL_OFFLINE:
 		if (!vm->hotplug_active)
 			break;
-		virtio_mem_notify_cancel_offline(vm, mb_id);
+		virtio_mem_sbm_notify_cancel_offline(vm, mb_id);
 		vm->hotplug_active = false;
 		mutex_unlock(&vm->hotplug_mutex);
 		break;
