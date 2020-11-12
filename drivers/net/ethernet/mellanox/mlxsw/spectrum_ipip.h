@@ -52,9 +52,12 @@ struct mlxsw_sp_ipip_ops {
 			      const struct net_device *ol_dev);
 
 	int (*fib_entry_op)(struct mlxsw_sp *mlxsw_sp,
+			    const struct mlxsw_sp_router_ll_ops *ll_ops,
+			    struct mlxsw_sp_fib_entry_op_ctx *op_ctx,
 			    struct mlxsw_sp_ipip_entry *ipip_entry,
-			    enum mlxsw_reg_ralue_op op,
-			    u32 tunnel_index);
+			    enum mlxsw_sp_fib_entry_op op,
+			    u32 tunnel_index,
+			    struct mlxsw_sp_fib_entry_priv *priv);
 
 	int (*ol_netdev_change)(struct mlxsw_sp *mlxsw_sp,
 				struct mlxsw_sp_ipip_entry *ipip_entry,

@@ -181,23 +181,26 @@ mlxsw_sp_ipip_fib_entry_op_gre4_rtdp(struct mlxsw_sp *mlxsw_sp,
 }
 
 static int
-mlxsw_sp_ipip_fib_entry_op_gre4_ralue(struct mlxsw_sp *mlxsw_sp,
-				      u32 dip, u8 prefix_len, u16 ul_vr_id,
-				      enum mlxsw_reg_ralue_op op,
-				      u32 tunnel_index)
+mlxsw_sp_ipip_fib_entry_op_gre4_do(struct mlxsw_sp *mlxsw_sp,
+				   const struct mlxsw_sp_router_ll_ops *ll_ops,
+				   struct mlxsw_sp_fib_entry_op_ctx *op_ctx,
+				   u32 dip, u8 prefix_len, u16 ul_vr_id,
+				   enum mlxsw_sp_fib_entry_op op,
+				   u32 tunnel_index,
+				   struct mlxsw_sp_fib_entry_priv *priv)
 {
-	char ralue_pl[MLXSW_REG_RALUE_LEN];
-
-	mlxsw_reg_ralue_pack4(ralue_pl, MLXSW_REG_RALXX_PROTOCOL_IPV4, op,
-			      ul_vr_id, prefix_len, dip);
-	mlxsw_reg_ralue_act_ip2me_tun_pack(ralue_pl, tunnel_index);
-	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ralue), ralue_pl);
+	ll_ops->fib_entry_pack(op_ctx, MLXSW_SP_L3_PROTO_IPV4, op, ul_vr_id,
+			       prefix_len, (unsigned char *) &dip, priv);
+	ll_ops->fib_entry_act_ip2me_tun_pack(op_ctx, tunnel_index);
+	return mlxsw_sp_fib_entry_commit(mlxsw_sp, op_ctx, ll_ops);
 }
 
 static int mlxsw_sp_ipip_fib_entry_op_gre4(struct mlxsw_sp *mlxsw_sp,
-					struct mlxsw_sp_ipip_entry *ipip_entry,
-					enum mlxsw_reg_ralue_op op,
-					u32 tunnel_index)
+					   const struct mlxsw_sp_router_ll_ops *ll_ops,
+					   struct mlxsw_sp_fib_entry_op_ctx *op_ctx,
+					   struct mlxsw_sp_ipip_entry *ipip_entry,
+					   enum mlxsw_sp_fib_entry_op op, u32 tunnel_index,
+					   struct mlxsw_sp_fib_entry_priv *priv)
 {
 	u16 ul_vr_id = mlxsw_sp_ipip_lb_ul_vr_id(ipip_entry->ol_lb);
 	__be32 dip;
@@ -210,9 +213,8 @@ static int mlxsw_sp_ipip_fib_entry_op_gre4(struct mlxsw_sp *mlxsw_sp,
 
 	dip = mlxsw_sp_ipip_netdev_saddr(MLXSW_SP_L3_PROTO_IPV4,
 					 ipip_entry->ol_dev).addr4;
-	return mlxsw_sp_ipip_fib_entry_op_gre4_ralue(mlxsw_sp, be32_to_cpu(dip),
-						     32, ul_vr_id, op,
-						     tunnel_index);
+	return mlxsw_sp_ipip_fib_entry_op_gre4_do(mlxsw_sp, ll_ops, op_ctx, be32_to_cpu(dip),
+						  32, ul_vr_id, op, tunnel_index, priv);
 }
 
 static bool mlxsw_sp_ipip_tunnel_complete(enum mlxsw_sp_l3proto proto,
