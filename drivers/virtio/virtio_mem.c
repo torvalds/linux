@@ -96,13 +96,6 @@ struct virtio_mem {
 	/* Maximum region size in bytes. */
 	uint64_t region_size;
 
-	/* Id of the first memory block of this device. */
-	unsigned long first_mb_id;
-	/* Id of the last usable memory block of this device. */
-	unsigned long last_usable_mb_id;
-	/* Id of the next memory bock to prepare when needed. */
-	unsigned long next_mb_id;
-
 	/* The parent resource for all memory added via this device. */
 	struct resource *parent_resource;
 	/*
@@ -121,6 +114,13 @@ struct virtio_mem {
 	uint64_t offline_threshold;
 
 	struct {
+		/* Id of the first memory block of this device. */
+		unsigned long first_mb_id;
+		/* Id of the last usable memory block of this device. */
+		unsigned long last_usable_mb_id;
+		/* Id of the next memory bock to prepare when needed. */
+		unsigned long next_mb_id;
+
 		/* The subblock size. */
 		uint64_t sb_size;
 		/* The number of subblocks per Linux memory block. */
@@ -265,7 +265,7 @@ static unsigned long virtio_mem_phys_to_sb_id(struct virtio_mem *vm,
 static void virtio_mem_sbm_set_mb_state(struct virtio_mem *vm,
 					unsigned long mb_id, uint8_t state)
 {
-	const unsigned long idx = mb_id - vm->first_mb_id;
+	const unsigned long idx = mb_id - vm->sbm.first_mb_id;
 	uint8_t old_state;
 
 	old_state = vm->sbm.mb_states[idx];
@@ -282,7 +282,7 @@ static void virtio_mem_sbm_set_mb_state(struct virtio_mem *vm,
 static uint8_t virtio_mem_sbm_get_mb_state(struct virtio_mem *vm,
 					   unsigned long mb_id)
 {
-	const unsigned long idx = mb_id - vm->first_mb_id;
+	const unsigned long idx = mb_id - vm->sbm.first_mb_id;
 
 	return vm->sbm.mb_states[idx];
 }
@@ -292,8 +292,8 @@ static uint8_t virtio_mem_sbm_get_mb_state(struct virtio_mem *vm,
  */
 static int virtio_mem_sbm_mb_states_prepare_next_mb(struct virtio_mem *vm)
 {
-	int old_pages = PFN_UP(vm->next_mb_id - vm->first_mb_id);
-	int new_pages = PFN_UP(vm->next_mb_id - vm->first_mb_id + 1);
+	int old_pages = PFN_UP(vm->sbm.next_mb_id - vm->sbm.first_mb_id);
+	int new_pages = PFN_UP(vm->sbm.next_mb_id - vm->sbm.first_mb_id + 1);
 	uint8_t *new_array;
 
 	if (vm->sbm.mb_states && old_pages == new_pages)
@@ -314,14 +314,14 @@ static int virtio_mem_sbm_mb_states_prepare_next_mb(struct virtio_mem *vm)
 }
 
 #define virtio_mem_sbm_for_each_mb(_vm, _mb_id, _state) \
-	for (_mb_id = _vm->first_mb_id; \
-	     _mb_id < _vm->next_mb_id && _vm->sbm.mb_count[_state]; \
+	for (_mb_id = _vm->sbm.first_mb_id; \
+	     _mb_id < _vm->sbm.next_mb_id && _vm->sbm.mb_count[_state]; \
 	     _mb_id++) \
 		if (virtio_mem_sbm_get_mb_state(_vm, _mb_id) == _state)
 
 #define virtio_mem_sbm_for_each_mb_rev(_vm, _mb_id, _state) \
-	for (_mb_id = _vm->next_mb_id - 1; \
-	     _mb_id >= _vm->first_mb_id && _vm->sbm.mb_count[_state]; \
+	for (_mb_id = _vm->sbm.next_mb_id - 1; \
+	     _mb_id >= _vm->sbm.first_mb_id && _vm->sbm.mb_count[_state]; \
 	     _mb_id--) \
 		if (virtio_mem_sbm_get_mb_state(_vm, _mb_id) == _state)
 
@@ -332,7 +332,7 @@ static int virtio_mem_sbm_mb_states_prepare_next_mb(struct virtio_mem *vm)
 static int virtio_mem_sbm_sb_state_bit_nr(struct virtio_mem *vm,
 					  unsigned long mb_id, int sb_id)
 {
-	return (mb_id - vm->first_mb_id) * vm->sbm.sbs_per_mb + sb_id;
+	return (mb_id - vm->sbm.first_mb_id) * vm->sbm.sbs_per_mb + sb_id;
 }
 
 /*
@@ -412,7 +412,7 @@ static int virtio_mem_sbm_first_unplugged_sb(struct virtio_mem *vm,
  */
 static int virtio_mem_sbm_sb_states_prepare_next_mb(struct virtio_mem *vm)
 {
-	const unsigned long old_nb_mb = vm->next_mb_id - vm->first_mb_id;
+	const unsigned long old_nb_mb = vm->sbm.next_mb_id - vm->sbm.first_mb_id;
 	const unsigned long old_nb_bits = old_nb_mb * vm->sbm.sbs_per_mb;
 	const unsigned long new_nb_bits = (old_nb_mb + 1) * vm->sbm.sbs_per_mb;
 	int old_pages = PFN_UP(BITS_TO_LONGS(old_nb_bits) * sizeof(long));
@@ -1194,7 +1194,7 @@ static int virtio_mem_prepare_next_mb(struct virtio_mem *vm,
 {
 	int rc;
 
-	if (vm->next_mb_id > vm->last_usable_mb_id)
+	if (vm->sbm.next_mb_id > vm->sbm.last_usable_mb_id)
 		return -ENOSPC;
 
 	/* Resize the state array if required. */
@@ -1208,7 +1208,7 @@ static int virtio_mem_prepare_next_mb(struct virtio_mem *vm,
 		return rc;
 
 	vm->sbm.mb_count[VIRTIO_MEM_SBM_MB_UNUSED]++;
-	*mb_id = vm->next_mb_id++;
+	*mb_id = vm->sbm.next_mb_id++;
 	return 0;
 }
 
@@ -1643,7 +1643,7 @@ static void virtio_mem_refresh_config(struct virtio_mem *vm)
 			usable_region_size, &usable_region_size);
 	end_addr = vm->addr + usable_region_size;
 	end_addr = min(end_addr, phys_limit);
-	vm->last_usable_mb_id = virtio_mem_phys_to_mb_id(end_addr) - 1;
+	vm->sbm.last_usable_mb_id = virtio_mem_phys_to_mb_id(end_addr) - 1;
 
 	/* see if there is a request to change the size */
 	virtio_cread_le(vm->vdev, struct virtio_mem_config, requested_size,
@@ -1834,9 +1834,9 @@ static int virtio_mem_init(struct virtio_mem *vm)
 	vm->sbm.sbs_per_mb = memory_block_size_bytes() / vm->sbm.sb_size;
 
 	/* Round up to the next full memory block */
-	vm->first_mb_id = virtio_mem_phys_to_mb_id(vm->addr - 1 +
-						   memory_block_size_bytes());
-	vm->next_mb_id = vm->first_mb_id;
+	vm->sbm.first_mb_id = virtio_mem_phys_to_mb_id(vm->addr - 1 +
+						       memory_block_size_bytes());
+	vm->sbm.next_mb_id = vm->sbm.first_mb_id;
 
 	/* Prepare the offline threshold - make sure we can add two blocks. */
 	vm->offline_threshold = max_t(uint64_t, 2 * memory_block_size_bytes(),
