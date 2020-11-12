@@ -724,10 +724,8 @@ static int nfp_pci_probe(struct pci_dev *pdev,
 	}
 
 	pf->cpp = nfp_cpp_from_nfp6000_pcie(pdev);
-	if (IS_ERR_OR_NULL(pf->cpp)) {
+	if (IS_ERR(pf->cpp)) {
 		err = PTR_ERR(pf->cpp);
-		if (err >= 0)
-			err = -ENOMEM;
 		goto err_disable_msix;
 	}
 
