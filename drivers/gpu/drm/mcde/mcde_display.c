@@ -859,73 +859,43 @@ static int mcde_dsi_get_pkt_div(int ppl, int fifo_size)
 	return 1;
 }
 
-static void mcde_display_enable(struct drm_simple_display_pipe *pipe,
-				struct drm_crtc_state *cstate,
-				struct drm_plane_state *plane_state)
+static void mcde_setup_dsi(struct mcde *mcde, const struct drm_display_mode *mode,
+			   int cpp, int *fifo_wtrmrk_lvl, int *dsi_formatter_frame,
+			   int *dsi_pkt_size)
 {
-	struct drm_crtc *crtc = &pipe->crtc;
-	struct drm_plane *plane = &pipe->plane;
-	struct drm_device *drm = crtc->dev;
-	struct mcde *mcde = to_mcde(drm);
-	const struct drm_display_mode *mode = &cstate->mode;
-	struct drm_framebuffer *fb = plane->state->fb;
-	u32 format = fb->format->format;
 	u32 formatter_ppl = mode->hdisplay; /* pixels per line */
 	u32 formatter_lpf = mode->vdisplay; /* lines per frame */
-	int pkt_size, fifo_wtrmrk;
-	int cpp = fb->format->cpp[0];
+	int formatter_frame;
 	int formatter_cpp;
-	struct drm_format_name_buf tmp;
-	u32 formatter_frame;
+	int fifo_wtrmrk;
 	u32 pkt_div;
+	int pkt_size;
 	u32 val;
-	int ret;
 
-	/* This powers up the entire MCDE block and the DSI hardware */
-	ret = regulator_enable(mcde->epod);
-	if (ret) {
-		dev_err(drm->dev, "can't re-enable EPOD regulator\n");
-		return;
-	}
-
-	dev_info(drm->dev, "enable MCDE, %d x %d format %s\n",
-		 mode->hdisplay, mode->vdisplay,
-		 drm_get_format_name(format, &tmp));
-	if (!mcde->mdsi) {
-		/* TODO: deal with this for non-DSI output */
-		dev_err(drm->dev, "no DSI master attached!\n");
-		return;
-	}
-
-	/* Set up the main control, watermark level at 7 */
-	val = 7 << MCDE_CONF0_IFIFOCTRLWTRMRKLVL_SHIFT;
-	/* 24 bits DPI: connect LSB Ch B to D[0:7] */
-	val |= 3 << MCDE_CONF0_OUTMUX0_SHIFT;
-	/* TV out: connect LSB Ch B to D[8:15] */
-	val |= 3 << MCDE_CONF0_OUTMUX1_SHIFT;
-	/* Don't care about this muxing */
-	val |= 0 << MCDE_CONF0_OUTMUX2_SHIFT;
-	/* 24 bits DPI: connect MID Ch B to D[24:31] */
-	val |= 4 << MCDE_CONF0_OUTMUX3_SHIFT;
-	/* 5: 24 bits DPI: connect MSB Ch B to D[32:39] */
-	val |= 5 << MCDE_CONF0_OUTMUX4_SHIFT;
-	/* Syncmux bits zero: DPI channel A and B on output pins A and B resp */
-	writel(val, mcde->regs + MCDE_CONF0);
-
-	/* Clear any pending interrupts */
-	mcde_display_disable_irqs(mcde);
-	writel(0, mcde->regs + MCDE_IMSCERR);
-	writel(0xFFFFFFFF, mcde->regs + MCDE_RISERR);
-
-	dev_info(drm->dev, "output in %s mode, format %dbpp\n",
+	dev_info(mcde->dev, "output in %s mode, format %dbpp\n",
 		 (mcde->mdsi->mode_flags & MIPI_DSI_MODE_VIDEO) ?
 		 "VIDEO" : "CMD",
 		 mipi_dsi_pixel_format_to_bpp(mcde->mdsi->format));
 	formatter_cpp =
 		mipi_dsi_pixel_format_to_bpp(mcde->mdsi->format) / 8;
-	dev_info(drm->dev, "overlay CPP %d bytes, DSI CPP %d bytes\n",
-		 cpp,
-		 formatter_cpp);
+	dev_info(mcde->dev, "Overlay CPP: %d bytes, DSI formatter CPP %d bytes\n",
+		 cpp, formatter_cpp);
+
+	/* Set up the main control, watermark level at 7 */
+	val = 7 << MCDE_CONF0_IFIFOCTRLWTRMRKLVL_SHIFT;
+
+	/*
+	 * This is the internal silicon muxing of the DPI
+	 * (parallell display) lines. Since we are not using
+	 * this at all (we are using DSI) these are just
+	 * dummy values from the vendor tree.
+	 */
+	val |= 3 << MCDE_CONF0_OUTMUX0_SHIFT;
+	val |= 3 << MCDE_CONF0_OUTMUX1_SHIFT;
+	val |= 0 << MCDE_CONF0_OUTMUX2_SHIFT;
+	val |= 4 << MCDE_CONF0_OUTMUX3_SHIFT;
+	val |= 5 << MCDE_CONF0_OUTMUX4_SHIFT;
+	writel(val, mcde->regs + MCDE_CONF0);
 
 	/* Calculations from mcde_fmtr_dsi.c, fmtr_dsi_enable_video() */
 
@@ -947,9 +917,9 @@ static void mcde_display_enable(struct drm_simple_display_pipe *pipe,
 		/* The FIFO is 640 entries deep on this v3 hardware */
 		pkt_div = mcde_dsi_get_pkt_div(mode->hdisplay, 640);
 	}
-	dev_dbg(drm->dev, "FIFO watermark after flooring: %d bytes\n",
+	dev_dbg(mcde->dev, "FIFO watermark after flooring: %d bytes\n",
 		fifo_wtrmrk);
-	dev_dbg(drm->dev, "Packet divisor: %d bytes\n", pkt_div);
+	dev_dbg(mcde->dev, "Packet divisor: %d bytes\n", pkt_div);
 
 	/* NOTE: pkt_div is 1 for video mode */
 	pkt_size = (formatter_ppl * formatter_cpp) / pkt_div;
@@ -957,16 +927,61 @@ static void mcde_display_enable(struct drm_simple_display_pipe *pipe,
 	if (!(mcde->mdsi->mode_flags & MIPI_DSI_MODE_VIDEO))
 		pkt_size++;
 
-	dev_dbg(drm->dev, "DSI packet size: %d * %d bytes per line\n",
+	dev_dbg(mcde->dev, "DSI packet size: %d * %d bytes per line\n",
 		pkt_size, pkt_div);
-	dev_dbg(drm->dev, "Overlay frame size: %u bytes\n",
+	dev_dbg(mcde->dev, "Overlay frame size: %u bytes\n",
 		mode->hdisplay * mode->vdisplay * cpp);
-	mcde->stride = mode->hdisplay * cpp;
-	dev_dbg(drm->dev, "Overlay line stride: %u bytes\n",
-		mcde->stride);
 	/* NOTE: pkt_div is 1 for video mode */
 	formatter_frame = pkt_size * pkt_div * formatter_lpf;
-	dev_dbg(drm->dev, "Formatter frame size: %u bytes\n", formatter_frame);
+	dev_dbg(mcde->dev, "Formatter frame size: %u bytes\n", formatter_frame);
+
+	*fifo_wtrmrk_lvl = fifo_wtrmrk;
+	*dsi_pkt_size = pkt_size;
+	*dsi_formatter_frame = formatter_frame;
+}
+
+static void mcde_display_enable(struct drm_simple_display_pipe *pipe,
+				struct drm_crtc_state *cstate,
+				struct drm_plane_state *plane_state)
+{
+	struct drm_crtc *crtc = &pipe->crtc;
+	struct drm_plane *plane = &pipe->plane;
+	struct drm_device *drm = crtc->dev;
+	struct mcde *mcde = to_mcde(drm);
+	const struct drm_display_mode *mode = &cstate->mode;
+	struct drm_framebuffer *fb = plane->state->fb;
+	u32 format = fb->format->format;
+	int dsi_pkt_size;
+	int fifo_wtrmrk;
+	int cpp = fb->format->cpp[0];
+	struct drm_format_name_buf tmp;
+	u32 dsi_formatter_frame;
+	u32 val;
+	int ret;
+
+	/* This powers up the entire MCDE block and the DSI hardware */
+	ret = regulator_enable(mcde->epod);
+	if (ret) {
+		dev_err(drm->dev, "can't re-enable EPOD regulator\n");
+		return;
+	}
+
+	dev_info(drm->dev, "enable MCDE, %d x %d format %s\n",
+		 mode->hdisplay, mode->vdisplay,
+		 drm_get_format_name(format, &tmp));
+
+
+	/* Clear any pending interrupts */
+	mcde_display_disable_irqs(mcde);
+	writel(0, mcde->regs + MCDE_IMSCERR);
+	writel(0xFFFFFFFF, mcde->regs + MCDE_RISERR);
+
+	mcde_setup_dsi(mcde, mode, cpp, &fifo_wtrmrk,
+		       &dsi_formatter_frame, &dsi_pkt_size);
+
+	mcde->stride = mode->hdisplay * cpp;
+	dev_dbg(drm->dev, "Overlay line stride: %u bytes\n",
+		 mcde->stride);
 
 	/* Drain the FIFO A + channel 0 pipe so we have a clean slate */
 	mcde_drain_pipe(mcde, MCDE_FIFO_A, MCDE_CHANNEL_0);
@@ -1010,7 +1025,7 @@ static void mcde_display_enable(struct drm_simple_display_pipe *pipe,
 
 	/* Configure the DSI formatter 0 for the DSI panel output */
 	mcde_configure_dsi_formatter(mcde, MCDE_DSI_FORMATTER_0,
-				     formatter_frame, pkt_size);
+				     dsi_formatter_frame, dsi_pkt_size);
 
 	switch (mcde->flow_mode) {
 	case MCDE_COMMAND_TE_FLOW:
