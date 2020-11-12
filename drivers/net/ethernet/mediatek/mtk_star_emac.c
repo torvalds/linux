@@ -1053,7 +1053,7 @@ static int mtk_star_netdev_start_xmit(struct sk_buff *skb,
 err_drop_packet:
 	dev_kfree_skb(skb);
 	ndev->stats.tx_dropped++;
-	return NETDEV_TX_BUSY;
+	return NETDEV_TX_OK;
 }
 
 /* Returns the number of bytes sent or a negative number on the first
