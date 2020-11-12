@@ -1358,11 +1358,6 @@ static int sisusbdummycon_font_default(struct vc_data *vc,
 	return 0;
 }
 
-static int sisusbdummycon_font_copy(struct vc_data *vc, int con)
-{
-	return 0;
-}
-
 static const struct consw sisusb_dummy_con = {
 	.owner =		THIS_MODULE,
 	.con_startup =		sisusbdummycon_startup,
@@ -1377,7 +1372,6 @@ static const struct consw sisusb_dummy_con = {
 	.con_blank =		sisusbdummycon_blank,
 	.con_font_set =		sisusbdummycon_font_set,
 	.con_font_default =	sisusbdummycon_font_default,
-	.con_font_copy =	sisusbdummycon_font_copy,
 };
 
 int
