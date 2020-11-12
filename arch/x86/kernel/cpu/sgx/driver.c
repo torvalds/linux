@@ -17,13 +17,24 @@ u32 sgx_misc_reserved_mask;
 static int sgx_open(struct inode *inode, struct file *file)
 {
 	struct sgx_encl *encl;
+	int ret;
 
 	encl = kzalloc(sizeof(*encl), GFP_KERNEL);
 	if (!encl)
 		return -ENOMEM;
 
+	kref_init(&encl->refcount);
 	xa_init(&encl->page_array);
 	mutex_init(&encl->lock);
+	INIT_LIST_HEAD(&encl->va_pages);
+	INIT_LIST_HEAD(&encl->mm_list);
+	spin_lock_init(&encl->mm_lock);
+
+	ret = init_srcu_struct(&encl->srcu);
+	if (ret) {
+		kfree(encl);
+		return ret;
+	}
 
 	file->private_data = encl;
 
@@ -33,31 +44,37 @@ static int sgx_open(struct inode *inode, struct file *file)
 static int sgx_release(struct inode *inode, struct file *file)
 {
 	struct sgx_encl *encl = file->private_data;
-	struct sgx_encl_page *entry;
-	unsigned long index;
+	struct sgx_encl_mm *encl_mm;
 
-	xa_for_each(&encl->page_array, index, entry) {
-		if (entry->epc_page) {
-			sgx_free_epc_page(entry->epc_page);
-			encl->secs_child_cnt--;
-			entry->epc_page = NULL;
+	/*
+	 * Drain the remaining mm_list entries. At this point the list contains
+	 * entries for processes, which have closed the enclave file but have
+	 * not exited yet. The processes, which have exited, are gone from the
+	 * list by sgx_mmu_notifier_release().
+	 */
+	for ( ; ; )  {
+		spin_lock(&encl->mm_lock);
+
+		if (list_empty(&encl->mm_list)) {
+			encl_mm = NULL;
+		} else {
+			encl_mm = list_first_entry(&encl->mm_list,
+						   struct sgx_encl_mm, list);
+			list_del_rcu(&encl_mm->list);
 		}
 
-		kfree(entry);
+		spin_unlock(&encl->mm_lock);
+
+		/* The enclave is no longer mapped by any mm. */
+		if (!encl_mm)
+			break;
+
+		synchronize_srcu(&encl->srcu);
+		mmu_notifier_unregister(&encl_mm->mmu_notifier, encl_mm->mm);
+		kfree(encl_mm);
 	}
 
-	xa_destroy(&encl->page_array);
-
-	if (!encl->secs_child_cnt && encl->secs.epc_page) {
-		sgx_free_epc_page(encl->secs.epc_page);
-		encl->secs.epc_page = NULL;
-	}
-
-	/* Detect EPC page leaks. */
-	WARN_ON_ONCE(encl->secs_child_cnt);
-	WARN_ON_ONCE(encl->secs.epc_page);
-
-	kfree(encl);
+	kref_put(&encl->refcount, sgx_encl_release);
 	return 0;
 }
 
@@ -67,6 +84,10 @@ static int sgx_mmap(struct file *file, struct vm_area_struct *vma)
 	int ret;
 
 	ret = sgx_encl_may_map(encl, vma->vm_start, vma->vm_end, vma->vm_flags);
+	if (ret)
+		return ret;
+
+	ret = sgx_encl_mm_add(encl, vma->vm_mm);
 	if (ret)
 		return ret;
 
