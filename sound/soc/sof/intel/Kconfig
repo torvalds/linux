@@ -79,6 +79,7 @@ config SND_SOC_SOF_BAYTRAIL_SUPPORT
 config SND_SOC_SOF_BAYTRAIL
 	tristate
 	select SND_SOC_SOF_INTEL_ATOM_HIFI_EP
+	select SND_INTEL_DSP_CONFIG
 	help
 	  This option is not user-selectable but automagically handled by
 	  'select' statements at a higher level.
