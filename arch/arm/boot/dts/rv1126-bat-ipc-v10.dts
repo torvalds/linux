@@ -38,6 +38,19 @@
 		rockchip,camera-module-facing = "front";
 	};
 
+	charger {
+		compatible = "gpio-charger";
+		pinctrl-names = "default";
+		pinctrl-0 = <&charger_io>;
+		gpios = <&gpio0 RK_PB2 GPIO_ACTIVE_LOW>;
+		charger-type = "usb-dcp";
+		charge-status-gpios = <&gpio0 RK_PB1 GPIO_ACTIVE_LOW>;
+		charge-current-limit-gpios = <&gpio0 RK_PC3 GPIO_ACTIVE_HIGH>,
+					     <&gpio0 RK_PC2 GPIO_ACTIVE_HIGH>;
+		charge-current-limit-mapping = <2000000 0x03>, <500000 0x00>;
+		extcon = <&u2phy0>;
+	};
+
 	gpio-poweroff {
 		compatible = "gpio-poweroff";
 		gpios = <&gpio0 RK_PA0 GPIO_ACTIVE_LOW>;
@@ -191,8 +204,6 @@
 		compatible = "cw201x";
 		reg = <0x62>;
 		bat_low_gpio = <&gpio2 RK_PD7 GPIO_ACTIVE_LOW>;
-		dc_det_gpio = <&gpio0 RK_PB2 GPIO_ACTIVE_LOW>;
-		chg_ok_gpio = <&gpio0 RK_PB1 GPIO_ACTIVE_HIGH>;
 		bat_config_info = <0x15 0x7E 0x7A 0x6E 0x6A 0x67 0x63 0x62 0x62 0x61 0x5E
 				   0x59 0x56 0x57 0x51 0x3C 0x30 0x27 0x29 0x29 0x2E 0x3A
 				   0x49 0x57 0x64 0x57 0x0B 0x85 0x30 0x50 0x60 0x67 0x6A
@@ -288,6 +299,13 @@
 };
 
 &pinctrl {
+	charger {
+		/omit-if-no-ref/
+		charger_io: charger-io {
+			rockchip,pins = <0 RK_PB1 RK_FUNC_GPIO &pcfg_pull_up>,
+					<0 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
 	es8311 {
 		spk_ctl: spk-ctl {
 			rockchip,pins = <2 RK_PA5 0 &pcfg_pull_none>;
