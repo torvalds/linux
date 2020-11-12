@@ -30,6 +30,16 @@
 #define AFBDC_FMT_RGB565	0x0
 #define AFBDC_FMT_U8U8U8U8	0x5
 #define AFBDC_FMT_U8U8U8	0x4
+#define VOP_FEATURE_OUTPUT_10BIT	BIT(0)
+#define VOP_FEATURE_AFBDC		BIT(1)
+#define VOP_FEATURE_ALPHA_SCALE		BIT(2)
+
+#define WIN_FEATURE_HDR2SDR		BIT(0)
+#define WIN_FEATURE_SDR2HDR		BIT(1)
+#define WIN_FEATURE_PRE_OVERLAY		BIT(2)
+#define WIN_FEATURE_AFBDC		BIT(3)
+#define WIN_FEATURE_CLUSTER_MAIN	BIT(4)
+#define WIN_FEATURE_CLUSTER_SUB		BIT(5)
 
 enum bcsh_out_mode {
 	BCSH_OUT_MODE_BLACK,
@@ -101,6 +111,11 @@ struct vop_csc {
 	uint32_t y2r_offset;
 	uint32_t r2r_offset;
 	uint32_t r2y_offset;
+};
+
+struct vop_rect {
+	int width;
+	int height;
 };
 
 struct vop_ctrl {
@@ -586,6 +601,7 @@ struct vop2_video_port_data {
 	char id;
 	uint32_t feature;
 	uint64_t soc_id;
+	struct vop_rect max_output;
 	const u8 pre_scan_max_dly[4];
 	const struct vop_intr *intr;
 	const struct vop_hdr_table *hdr_table;
@@ -627,22 +643,6 @@ struct vop2_layer_data {
 
 struct vop_grf_ctrl {
 	struct vop_reg grf_dclk_inv;
-};
-
-#define VOP_FEATURE_OUTPUT_10BIT	BIT(0)
-#define VOP_FEATURE_AFBDC		BIT(1)
-#define VOP_FEATURE_ALPHA_SCALE		BIT(2)
-
-#define WIN_FEATURE_HDR2SDR		BIT(0)
-#define WIN_FEATURE_SDR2HDR		BIT(1)
-#define WIN_FEATURE_PRE_OVERLAY		BIT(2)
-#define WIN_FEATURE_AFBDC		BIT(3)
-#define WIN_FEATURE_CLUSTER_MAIN	BIT(4)
-#define WIN_FEATURE_CLUSTER_SUB		BIT(5)
-
-struct vop_rect {
-	int width;
-	int height;
 };
 
 struct vop_data {

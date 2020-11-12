@@ -2192,19 +2192,16 @@ vop2_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode,
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = vp->vop2;
 	const struct vop2_data *vop2_data = vop2->data;
+	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
 	int request_clock = mode->clock;
 	int clock;
 
-	if (mode->hdisplay > vop2_data->max_output.width)
+	if (mode->hdisplay > vp_data->max_output.width)
 		return MODE_BAD_HVALUE;
-
-	if ((mode->flags & DRM_MODE_FLAG_INTERLACE) &&
-	    VOP_MAJOR(vop2->version) == 3 &&
-	    VOP_MINOR(vop2->version) <= 2)
-		return MODE_BAD;
 
 	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
 		request_clock *= 2;
+
 	clock = clk_round_rate(vp->dclk, request_clock * 1000) / 1000;
 
 	/*
