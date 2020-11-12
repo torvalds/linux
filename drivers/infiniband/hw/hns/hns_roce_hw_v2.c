@@ -2582,6 +2582,8 @@ static int hns_roce_v2_init(struct hns_roce_dev *hr_dev)
 	if (ret)
 		goto err_get_hem_table_failed;
 
+	return 0;
+
 err_get_hem_table_failed:
 	hns_roce_free_link_table(hr_dev, &priv->tpq);
 
