@@ -1448,11 +1448,11 @@ static void con_fault_finish(struct ceph_connection *con)
 	 * in case we faulted due to authentication, invalidate our
 	 * current tickets so that we can get new ones.
 	 */
-	if (con->auth_retry) {
-		dout("auth_retry %d, invalidating\n", con->auth_retry);
+	if (con->v1.auth_retry) {
+		dout("auth_retry %d, invalidating\n", con->v1.auth_retry);
 		if (con->ops->invalidate_authorizer)
 			con->ops->invalidate_authorizer(con);
-		con->auth_retry = 0;
+		con->v1.auth_retry = 0;
 	}
 
 	if (con->ops->fault)
@@ -1631,7 +1631,7 @@ static void clear_standby(struct ceph_connection *con)
 	if (con->state == CEPH_CON_S_STANDBY) {
 		dout("clear_standby %p and ++connect_seq\n", con);
 		con->state = CEPH_CON_S_PREOPEN;
-		con->connect_seq++;
+		con->v1.connect_seq++;
 		WARN_ON(ceph_con_flag_test(con, CEPH_CON_F_WRITE_PENDING));
 		WARN_ON(ceph_con_flag_test(con, CEPH_CON_F_KEEPALIVE_PENDING));
 	}

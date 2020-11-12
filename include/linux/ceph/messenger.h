@@ -264,6 +264,43 @@ struct ceph_msg {
 #define BASE_DELAY_INTERVAL	(HZ / 4)
 #define MAX_DELAY_INTERVAL	(15 * HZ)
 
+struct ceph_connection_v1_info {
+	struct kvec out_kvec[8],         /* sending header/footer data */
+		*out_kvec_cur;
+	int out_kvec_left;   /* kvec's left in out_kvec */
+	int out_skip;        /* skip this many bytes */
+	int out_kvec_bytes;  /* total bytes left */
+	bool out_more;       /* there is more data after the kvecs */
+	bool out_msg_done;
+
+	struct ceph_auth_handshake *auth;
+	int auth_retry;       /* true if we need a newer authorizer */
+
+	/* connection negotiation temps */
+	u8 in_banner[CEPH_BANNER_MAX_LEN];
+	struct ceph_entity_addr actual_peer_addr;
+	struct ceph_entity_addr peer_addr_for_me;
+	struct ceph_msg_connect out_connect;
+	struct ceph_msg_connect_reply in_reply;
+
+	int in_base_pos;     /* bytes read */
+
+	/* message in temps */
+	u8 in_tag;           /* protocol control byte */
+	struct ceph_msg_header in_hdr;
+	__le64 in_temp_ack;  /* for reading an ack */
+
+	/* message out temps */
+	struct ceph_msg_header out_hdr;
+	__le64 out_temp_ack;  /* for writing an ack */
+	struct ceph_timespec out_temp_keepalive2;  /* for writing keepalive2
+						      stamp */
+
+	u32 connect_seq;      /* identify the most recent connection
+				 attempt for this session */
+	u32 peer_global_seq;  /* peer's global seq for this connection */
+};
+
 /*
  * A single connection with another host.
  *
@@ -281,21 +318,13 @@ struct ceph_connection {
 	int state;  /* CEPH_CON_S_* */
 	atomic_t sock_state;
 	struct socket *sock;
-	struct ceph_entity_addr peer_addr; /* peer address */
-	struct ceph_entity_addr peer_addr_for_me;
 
 	unsigned long flags;  /* CEPH_CON_F_* */
 	const char *error_msg;  /* error message, if any */
 
 	struct ceph_entity_name peer_name; /* peer name */
-
+	struct ceph_entity_addr peer_addr; /* peer address */
 	u64 peer_features;
-	u32 connect_seq;      /* identify the most recent connection
-				 attempt for this connection, client */
-	u32 peer_global_seq;  /* peer's global seq for this connection */
-
-	struct ceph_auth_handshake *auth;
-	int auth_retry;       /* true if we need a newer authorizer */
 
 	struct mutex mutex;
 
@@ -306,41 +335,18 @@ struct ceph_connection {
 
 	u64 in_seq, in_seq_acked;  /* last message received, acked */
 
-	/* connection negotiation temps */
-	char in_banner[CEPH_BANNER_MAX_LEN];
-	struct ceph_msg_connect out_connect;
-	struct ceph_msg_connect_reply in_reply;
-	struct ceph_entity_addr actual_peer_addr;
-
-	/* message out temps */
-	struct ceph_msg_header out_hdr;
+	struct ceph_msg *in_msg;
 	struct ceph_msg *out_msg;        /* sending message (== tail of
 					    out_sent) */
-	bool out_msg_done;
 
-	struct kvec out_kvec[8],         /* sending header/footer data */
-		*out_kvec_cur;
-	int out_kvec_left;   /* kvec's left in out_kvec */
-	int out_skip;        /* skip this many bytes */
-	int out_kvec_bytes;  /* total bytes left */
-	int out_more;        /* there is more data after the kvecs */
-	__le64 out_temp_ack; /* for writing an ack */
-	struct ceph_timespec out_temp_keepalive2; /* for writing keepalive2
-						     stamp */
-
-	/* message in temps */
-	struct ceph_msg_header in_hdr;
-	struct ceph_msg *in_msg;
 	u32 in_front_crc, in_middle_crc, in_data_crc;  /* calculated crc */
-
-	char in_tag;         /* protocol control byte */
-	int in_base_pos;     /* bytes read */
-	__le64 in_temp_ack;  /* for reading an ack */
 
 	struct timespec64 last_keepalive_ack; /* keepalive2 ack stamp */
 
 	struct delayed_work work;	    /* send|recv work */
 	unsigned long       delay;          /* current delay interval */
+
+	struct ceph_connection_v1_info v1;
 };
 
 extern struct page *ceph_zero_page;
