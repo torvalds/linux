@@ -1510,6 +1510,8 @@ void vsc8584_config_ts_intr(struct phy_device *phydev)
 int vsc8584_ptp_init(struct phy_device *phydev)
 {
 	switch (phydev->phy_id & phydev->drv->phy_id_mask) {
+	case PHY_ID_VSC8572:
+	case PHY_ID_VSC8574:
 	case PHY_ID_VSC8575:
 	case PHY_ID_VSC8582:
 	case PHY_ID_VSC8584:
