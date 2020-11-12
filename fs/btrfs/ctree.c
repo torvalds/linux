@@ -3459,7 +3459,6 @@ static noinline int split_node(struct btrfs_trans_handle *trans,
 			   (c_nritems - mid) * sizeof(struct btrfs_key_ptr));
 	btrfs_set_header_nritems(split, c_nritems - mid);
 	btrfs_set_header_nritems(c, mid);
-	ret = 0;
 
 	btrfs_mark_buffer_dirty(c);
 	btrfs_mark_buffer_dirty(split);
@@ -3477,7 +3476,7 @@ static noinline int split_node(struct btrfs_trans_handle *trans,
 		btrfs_tree_unlock(split);
 		free_extent_buffer(split);
 	}
-	return ret;
+	return 0;
 }
 
 /*
