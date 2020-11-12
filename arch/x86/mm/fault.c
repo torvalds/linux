@@ -1102,6 +1102,18 @@ access_error(unsigned long error_code, struct vm_area_struct *vma)
 		return 1;
 
 	/*
+	 * SGX hardware blocked the access.  This usually happens
+	 * when the enclave memory contents have been destroyed, like
+	 * after a suspend/resume cycle. In any case, the kernel can't
+	 * fix the cause of the fault.  Handle the fault as an access
+	 * error even in cases where no actual access violation
+	 * occurred.  This allows userspace to rebuild the enclave in
+	 * response to the signal.
+	 */
+	if (unlikely(error_code & X86_PF_SGX))
+		return 1;
+
+	/*
 	 * Make sure to check the VMA so that we do not perform
 	 * faults just to hit a X86_PF_PK as soon as we fill in a
 	 * page.
