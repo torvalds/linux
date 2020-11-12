@@ -110,7 +110,6 @@ struct hfi1_ipoib_dev_priv {
 
 	const struct net_device_ops *netdev_ops;
 	struct rvt_qp *qp;
-	struct pcpu_sw_netstats __percpu *netstats;
 };
 
 /* hfi1 ipoib rdma netdev's private data structure */
@@ -124,32 +123,6 @@ static inline struct hfi1_ipoib_dev_priv *
 hfi1_ipoib_priv(const struct net_device *dev)
 {
 	return &((struct hfi1_ipoib_rdma_netdev *)netdev_priv(dev))->dev_priv;
-}
-
-static inline void
-hfi1_ipoib_update_rx_netstats(struct hfi1_ipoib_dev_priv *priv,
-			      u64 packets,
-			      u64 bytes)
-{
-	struct pcpu_sw_netstats *netstats = this_cpu_ptr(priv->netstats);
-
-	u64_stats_update_begin(&netstats->syncp);
-	netstats->rx_packets += packets;
-	netstats->rx_bytes += bytes;
-	u64_stats_update_end(&netstats->syncp);
-}
-
-static inline void
-hfi1_ipoib_update_tx_netstats(struct hfi1_ipoib_dev_priv *priv,
-			      u64 packets,
-			      u64 bytes)
-{
-	struct pcpu_sw_netstats *netstats = this_cpu_ptr(priv->netstats);
-
-	u64_stats_update_begin(&netstats->syncp);
-	netstats->tx_packets += packets;
-	netstats->tx_bytes += bytes;
-	u64_stats_update_end(&netstats->syncp);
 }
 
 int hfi1_ipoib_send_dma(struct net_device *dev,
