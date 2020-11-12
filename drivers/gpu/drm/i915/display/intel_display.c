@@ -8162,10 +8162,26 @@ static void intel_crtc_compute_pixel_rate(struct intel_crtc_state *crtc_state)
 			ilk_pipe_pixel_rate(crtc_state);
 }
 
+static void intel_crtc_readout_derived_state(struct intel_crtc_state *crtc_state)
+{
+	struct drm_display_mode *mode = &crtc_state->hw.mode;
+	struct drm_display_mode *adjusted_mode = &crtc_state->hw.adjusted_mode;
+
+	intel_mode_from_crtc_timings(adjusted_mode, adjusted_mode);
+
+	intel_crtc_compute_pixel_rate(crtc_state);
+
+	drm_mode_copy(mode, adjusted_mode);
+	mode->hdisplay = crtc_state->pipe_src_w;
+	mode->vdisplay = crtc_state->pipe_src_h;
+}
+
 static void intel_encoder_get_config(struct intel_encoder *encoder,
 				     struct intel_crtc_state *crtc_state)
 {
 	encoder->get_config(encoder, crtc_state);
+
+	intel_crtc_readout_derived_state(crtc_state);
 }
 
 static int intel_crtc_compute_config(struct intel_crtc *crtc,
@@ -9046,9 +9062,6 @@ static void intel_get_pipe_src_size(struct intel_crtc *crtc,
 	tmp = intel_de_read(dev_priv, PIPESRC(crtc->pipe));
 	pipe_config->pipe_src_h = (tmp & 0xffff) + 1;
 	pipe_config->pipe_src_w = ((tmp >> 16) & 0xffff) + 1;
-
-	pipe_config->hw.mode.vdisplay = pipe_config->pipe_src_h;
-	pipe_config->hw.mode.hdisplay = pipe_config->pipe_src_w;
 }
 
 static void i9xx_set_pipeconf(const struct intel_crtc_state *crtc_state)
@@ -11416,6 +11429,8 @@ static bool intel_crtc_get_pipe_config(struct intel_crtc_state *crtc_state)
 		return false;
 
 	crtc_state->hw.active = true;
+
+	intel_crtc_readout_derived_state(crtc_state);
 
 	return true;
 }
@@ -14468,8 +14483,6 @@ verify_crtc_state(struct intel_crtc *crtc,
 		if (active)
 			intel_encoder_get_config(encoder, pipe_config);
 	}
-
-	intel_crtc_compute_pixel_rate(pipe_config);
 
 	if (!new_crtc_state->hw.active)
 		return;
@@ -18839,15 +18852,6 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 		int min_cdclk = 0;
 
 		if (crtc_state->hw.active) {
-			struct drm_display_mode *mode = &crtc_state->hw.mode;
-
-			intel_mode_from_crtc_timings(&crtc_state->hw.adjusted_mode,
-						     &crtc_state->hw.adjusted_mode);
-
-			*mode = crtc_state->hw.adjusted_mode;
-			mode->hdisplay = crtc_state->pipe_src_w;
-			mode->vdisplay = crtc_state->pipe_src_h;
-
 			/*
 			 * The initial mode needs to be set in order to keep
 			 * the atomic core happy. It wants a valid mode if the
@@ -18858,8 +18862,6 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 			 * needed on the next commit.
 			 */
 			crtc_state->inherited = true;
-
-			intel_crtc_compute_pixel_rate(crtc_state);
 
 			intel_crtc_update_active_timings(crtc_state);
 
