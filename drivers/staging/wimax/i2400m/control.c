@@ -1183,11 +1183,11 @@ error_alloc:
  * Set basic configuration settings
  *
  * @i2400m: device descriptor
- * @args: array of pointers to the TLV headers to send for
+ * @arg: array of pointers to the TLV headers to send for
  *     configuration (each followed by its payload).
  *     TLV headers and payloads must be properly initialized, with the
  *     right endianess (LE).
- * @arg_size: number of pointers in the @args array
+ * @args: number of pointers in the @arg array
  */
 static int i2400m_set_init_config(struct i2400m *i2400m,
 				  const struct i2400m_tlv_hdr **arg,
