@@ -257,10 +257,8 @@ static enum virtio_mem_mb_state virtio_mem_mb_get_state(struct virtio_mem *vm,
  */
 static int virtio_mem_mb_state_prepare_next_mb(struct virtio_mem *vm)
 {
-	unsigned long old_bytes = vm->next_mb_id - vm->first_mb_id + 1;
-	unsigned long new_bytes = vm->next_mb_id - vm->first_mb_id + 2;
-	int old_pages = PFN_UP(old_bytes);
-	int new_pages = PFN_UP(new_bytes);
+	int old_pages = PFN_UP(vm->next_mb_id - vm->first_mb_id);
+	int new_pages = PFN_UP(vm->next_mb_id - vm->first_mb_id + 1);
 	uint8_t *new_mb_state;
 
 	if (vm->mb_state && old_pages == new_pages)
