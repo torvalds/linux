@@ -462,7 +462,7 @@ static struct rockchip_clk_branch rk3568_clk_branches[] __initdata = {
 	COMPOSITE_NOMUX(0, "cpll_500m", "cpll", CLK_IGNORE_UNUSED,
 			RK3568_CLKSEL_CON(78), 8, 5, DFLAGS,
 			RK3568_CLKGATE_CON(35), 7, GFLAGS),
-	COMPOSITE_NOMUX(0, "cpll_333m", "cpll", CLK_IGNORE_UNUSED,
+	COMPOSITE_NOMUX(CPLL_333M, "cpll_333m", "cpll", CLK_IGNORE_UNUSED,
 			RK3568_CLKSEL_CON(79), 0, 5, DFLAGS,
 			RK3568_CLKGATE_CON(35), 8, GFLAGS),
 	COMPOSITE_NOMUX(0, "cpll_250m", "cpll", CLK_IGNORE_UNUSED,

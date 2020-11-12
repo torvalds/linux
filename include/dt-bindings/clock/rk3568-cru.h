@@ -74,6 +74,7 @@
 #define PLL_NPLL		6
 
 /* cru clocks */
+#define CPLL_333M		9
 #define ARMCLK			10
 #define USB480M			11
 #define ACLK_CORE_NIU2BUS	18
