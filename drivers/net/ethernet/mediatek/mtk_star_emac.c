@@ -966,6 +966,7 @@ static int mtk_star_enable(struct net_device *ndev)
 				      mtk_star_adjust_link, 0, priv->phy_intf);
 	if (!priv->phydev) {
 		netdev_err(ndev, "failed to connect to PHY\n");
+		ret = -ENODEV;
 		goto err_free_irq;
 	}
 
