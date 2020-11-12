@@ -100,9 +100,10 @@ smb2_add_credits(struct TCP_Server_Info *server,
 	spin_unlock(&server->req_lock);
 	wake_up(&server->request_q);
 
-	if (reconnect_detected)
+	if (reconnect_detected) {
 		cifs_dbg(FYI, "trying to put %d credits from the old server instance %d\n",
 			 add, instance);
+	}
 
 	if (server->tcpStatus == CifsNeedReconnect
 	    || server->tcpStatus == CifsExiting)
@@ -124,7 +125,7 @@ smb2_add_credits(struct TCP_Server_Info *server,
 	default:
 		trace_smb3_add_credits(server->CurrentMid,
 			server->hostname, rc, add);
-		cifs_dbg(FYI, "add %u credits total=%d\n", add, rc);
+		cifs_dbg(FYI, "%s: added %u credits total=%d\n", __func__, add, rc);
 	}
 }
 
@@ -136,6 +137,11 @@ smb2_set_credits(struct TCP_Server_Info *server, const int val)
 	if (val == 1)
 		server->reconnect_instance++;
 	spin_unlock(&server->req_lock);
+
+	trace_smb3_set_credits(server->CurrentMid,
+			server->hostname, val, val);
+	cifs_dbg(FYI, "%s: set %u credits\n", __func__, val);
+
 	/* don't log while holding the lock */
 	if (val == 1)
 		cifs_dbg(FYI, "set credits to 1 due to smb2 reconnect\n");
@@ -202,6 +208,7 @@ smb2_wait_mtu_credits(struct TCP_Server_Info *server, unsigned int size,
 				DIV_ROUND_UP(*num, SMB2_MAX_BUFFER_SIZE);
 			credits->instance = server->reconnect_instance;
 			server->credits -= credits->value;
+			scredits = server->credits;
 			server->in_flight++;
 			if (server->in_flight > server->max_in_flight)
 				server->max_in_flight = server->in_flight;
@@ -209,6 +216,12 @@ smb2_wait_mtu_credits(struct TCP_Server_Info *server, unsigned int size,
 		}
 	}
 	spin_unlock(&server->req_lock);
+
+	trace_smb3_add_credits(server->CurrentMid,
+			server->hostname, scredits, -(credits->value));
+	cifs_dbg(FYI, "%s: removed %u credits total=%d\n",
+			__func__, credits->value, scredits);
+
 	return rc;
 }
 
@@ -218,13 +231,17 @@ smb2_adjust_credits(struct TCP_Server_Info *server,
 		    const unsigned int payload_size)
 {
 	int new_val = DIV_ROUND_UP(payload_size, SMB2_MAX_BUFFER_SIZE);
+	int scredits;
 
 	if (!credits->value || credits->value == new_val)
 		return 0;
 
 	if (credits->value < new_val) {
-		WARN_ONCE(1, "request has less credits (%d) than required (%d)",
-			  credits->value, new_val);
+		trace_smb3_too_many_credits(server->CurrentMid,
+				server->hostname, 0, credits->value - new_val);
+		cifs_server_dbg(VFS, "request has less credits (%d) than required (%d)",
+				credits->value, new_val);
+
 		return -ENOTSUPP;
 	}
 
@@ -232,15 +249,24 @@ smb2_adjust_credits(struct TCP_Server_Info *server,
 
 	if (server->reconnect_instance != credits->instance) {
 		spin_unlock(&server->req_lock);
+		trace_smb3_reconnect_detected(server->CurrentMid,
+			server->hostname, 0, 0);
 		cifs_server_dbg(VFS, "trying to return %d credits to old session\n",
 			 credits->value - new_val);
 		return -EAGAIN;
 	}
 
 	server->credits += credits->value - new_val;
+	scredits = server->credits;
 	spin_unlock(&server->req_lock);
 	wake_up(&server->request_q);
 	credits->value = new_val;
+
+	trace_smb3_add_credits(server->CurrentMid,
+			server->hostname, scredits, credits->value - new_val);
+	cifs_dbg(FYI, "%s: adjust added %u credits total=%d\n",
+			__func__, credits->value - new_val, scredits);
+
 	return 0;
 }
 
@@ -2343,6 +2369,7 @@ static bool
 smb2_is_status_pending(char *buf, struct TCP_Server_Info *server)
 {
 	struct smb2_sync_hdr *shdr = (struct smb2_sync_hdr *)buf;
+	int scredits;
 
 	if (shdr->Status != STATUS_PENDING)
 		return false;
@@ -2350,8 +2377,14 @@ smb2_is_status_pending(char *buf, struct TCP_Server_Info *server)
 	if (shdr->CreditRequest) {
 		spin_lock(&server->req_lock);
 		server->credits += le16_to_cpu(shdr->CreditRequest);
+		scredits = server->credits;
 		spin_unlock(&server->req_lock);
 		wake_up(&server->request_q);
+
+		trace_smb3_add_credits(server->CurrentMid,
+				server->hostname, scredits, le16_to_cpu(shdr->CreditRequest));
+		cifs_dbg(FYI, "%s: status pending add %u credits total=%d\n",
+				__func__, le16_to_cpu(shdr->CreditRequest), scredits);
 	}
 
 	return true;
