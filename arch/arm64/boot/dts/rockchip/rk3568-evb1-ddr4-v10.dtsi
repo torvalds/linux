@@ -73,6 +73,17 @@
 		vin-supply = <&vcc3v3_sys>;
 	};
 
+	pcie30_3v3: gpio-regulator {
+		compatible = "regulator-gpio";
+		regulator-name = "pcie30_3v3";
+		regulator-min-microvolt = <0100000>;
+		regulator-max-microvolt = <3300000>;
+		gpios = <&gpio0 RK_PD4 GPIO_ACTIVE_HIGH>;
+		gpios-states = <0x1>;
+		states = <0100000 0x0
+			  3300000 0x1>;
+	};
+
 	vcc3v3_bu: vcc3v3-bu {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_bu";
@@ -208,6 +219,16 @@
 	reset-gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&pcie20_3v3>;
 	status = "okay";
+};
+
+&pcie30phy {
+	status = "disabled";
+};
+
+&pcie3x2 {
+	reset-gpios = <&gpio2 RK_PD6 GPIO_ACTIVE_HIGH>;
+	vpcie3v3-supply = <&pcie30_3v3>;
+	status = "disabled";
 };
 
 &pinctrl {
