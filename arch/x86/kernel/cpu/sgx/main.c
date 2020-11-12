@@ -9,6 +9,8 @@
 #include <linux/sched/mm.h>
 #include <linux/sched/signal.h>
 #include <linux/slab.h>
+#include "driver.h"
+#include "encl.h"
 #include "encls.h"
 
 struct sgx_epc_section sgx_epc_sections[SGX_MAX_EPC_SECTIONS];
@@ -232,9 +234,10 @@ static bool __init sgx_page_cache_init(void)
 
 static void __init sgx_init(void)
 {
+	int ret;
 	int i;
 
-	if (!boot_cpu_has(X86_FEATURE_SGX))
+	if (!cpu_feature_enabled(X86_FEATURE_SGX))
 		return;
 
 	if (!sgx_page_cache_init())
@@ -243,7 +246,14 @@ static void __init sgx_init(void)
 	if (!sgx_page_reclaimer_init())
 		goto err_page_cache;
 
+	ret = sgx_drv_init();
+	if (ret)
+		goto err_kthread;
+
 	return;
+
+err_kthread:
+	kthread_stop(ksgxd_tsk);
 
 err_page_cache:
 	for (i = 0; i < sgx_nr_epc_sections; i++) {
