@@ -8128,6 +8128,27 @@ static u32 ilk_pipe_pixel_rate(const struct intel_crtc_state *crtc_state)
 		       pfit_w * pfit_h);
 }
 
+static void intel_mode_from_crtc_timings(struct drm_display_mode *mode,
+					 const struct drm_display_mode *timings)
+{
+	mode->hdisplay = timings->crtc_hdisplay;
+	mode->htotal = timings->crtc_htotal;
+	mode->hsync_start = timings->crtc_hsync_start;
+	mode->hsync_end = timings->crtc_hsync_end;
+
+	mode->vdisplay = timings->crtc_vdisplay;
+	mode->vtotal = timings->crtc_vtotal;
+	mode->vsync_start = timings->crtc_vsync_start;
+	mode->vsync_end = timings->crtc_vsync_end;
+
+	mode->flags = timings->flags;
+	mode->type = DRM_MODE_TYPE_DRIVER;
+
+	mode->clock = timings->crtc_clock;
+
+	drm_mode_set_name(mode);
+}
+
 static void intel_crtc_compute_pixel_rate(struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
@@ -9028,27 +9049,6 @@ static void intel_get_pipe_src_size(struct intel_crtc *crtc,
 
 	pipe_config->hw.mode.vdisplay = pipe_config->pipe_src_h;
 	pipe_config->hw.mode.hdisplay = pipe_config->pipe_src_w;
-}
-
-void intel_mode_from_pipe_config(struct drm_display_mode *mode,
-				 struct intel_crtc_state *pipe_config)
-{
-	mode->hdisplay = pipe_config->hw.adjusted_mode.crtc_hdisplay;
-	mode->htotal = pipe_config->hw.adjusted_mode.crtc_htotal;
-	mode->hsync_start = pipe_config->hw.adjusted_mode.crtc_hsync_start;
-	mode->hsync_end = pipe_config->hw.adjusted_mode.crtc_hsync_end;
-
-	mode->vdisplay = pipe_config->hw.adjusted_mode.crtc_vdisplay;
-	mode->vtotal = pipe_config->hw.adjusted_mode.crtc_vtotal;
-	mode->vsync_start = pipe_config->hw.adjusted_mode.crtc_vsync_start;
-	mode->vsync_end = pipe_config->hw.adjusted_mode.crtc_vsync_end;
-
-	mode->flags = pipe_config->hw.adjusted_mode.flags;
-	mode->type = DRM_MODE_TYPE_DRIVER;
-
-	mode->clock = pipe_config->hw.adjusted_mode.crtc_clock;
-
-	drm_mode_set_name(mode);
 }
 
 static void i9xx_set_pipeconf(const struct intel_crtc_state *crtc_state)
@@ -12424,7 +12424,7 @@ intel_encoder_current_mode(struct intel_encoder *encoder)
 
 	intel_encoder_get_config(encoder, crtc_state);
 
-	intel_mode_from_pipe_config(mode, crtc_state);
+	intel_mode_from_crtc_timings(mode, &crtc_state->hw.adjusted_mode);
 
 	kfree(crtc_state);
 
@@ -18841,8 +18841,8 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 		if (crtc_state->hw.active) {
 			struct drm_display_mode *mode = &crtc_state->hw.mode;
 
-			intel_mode_from_pipe_config(&crtc_state->hw.adjusted_mode,
-						    crtc_state);
+			intel_mode_from_crtc_timings(&crtc_state->hw.adjusted_mode,
+						     &crtc_state->hw.adjusted_mode);
 
 			*mode = crtc_state->hw.adjusted_mode;
 			mode->hdisplay = crtc_state->pipe_src_w;
