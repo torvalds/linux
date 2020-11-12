@@ -426,12 +426,15 @@ static inline void *arch_kmap_local_high_get(struct page *page)
 #endif
 
 /* Unmap a local mapping which was obtained by kmap_high_get() */
-static inline void kmap_high_unmap_local(unsigned long vaddr)
+static inline bool kmap_high_unmap_local(unsigned long vaddr)
 {
 #ifdef ARCH_NEEDS_KMAP_HIGH_GET
-	if (vaddr >= PKMAP_ADDR(0) && vaddr < PKMAP_ADDR(LAST_PKMAP))
+	if (vaddr >= PKMAP_ADDR(0) && vaddr < PKMAP_ADDR(LAST_PKMAP)) {
 		kunmap_high(pte_page(pkmap_page_table[PKMAP_NR(vaddr)]));
+		return true;
+	}
 #endif
+	return false;
 }
 
 static inline int kmap_local_calc_idx(int idx)
@@ -491,10 +494,14 @@ void kunmap_local_indexed(void *vaddr)
 
 	if (addr < __fix_to_virt(FIX_KMAP_END) ||
 	    addr > __fix_to_virt(FIX_KMAP_BEGIN)) {
-		WARN_ON_ONCE(addr < PAGE_OFFSET);
-
-		/* Handle mappings which were obtained by kmap_high_get() */
-		kmap_high_unmap_local(addr);
+		/*
+		 * Handle mappings which were obtained by kmap_high_get()
+		 * first as the virtual address of such mappings is below
+		 * PAGE_OFFSET. Warn for all other addresses which are in
+		 * the user space part of the virtual address space.
+		 */
+		if (!kmap_high_unmap_local(addr))
+			WARN_ON_ONCE(addr < PAGE_OFFSET);
 		return;
 	}
 
