@@ -446,6 +446,7 @@ static struct platform_driver bdw_rt5677_audio = {
 	.probe = bdw_rt5677_probe,
 	.driver = {
 		.name = "bdw-rt5677",
+		.pm = &snd_soc_pm_ops
 	},
 };
 
