@@ -1142,7 +1142,6 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_resource *reg)
 	struct nvkm_device *device = nvxx_device(&drm->client.device);
 	struct nouveau_mem *mem = nouveau_mem(reg);
 	struct nvif_mmu *mmu = &drm->client.mmu;
-	const u8 type = mmu->type[drm->ttm.type_vram].type;
 	int ret;
 
 	mutex_lock(&drm->ttm.io_reserve_mutex);
@@ -1175,7 +1174,7 @@ retry:
 
 		/* Some BARs do not support being ioremapped WC */
 		if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA &&
-		    type & NVIF_MEM_UNCACHED)
+		    mmu->type[drm->ttm.type_vram].type & NVIF_MEM_UNCACHED)
 			reg->bus.caching = ttm_uncached;
 		else
 			reg->bus.caching = ttm_write_combined;
