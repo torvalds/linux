@@ -146,7 +146,7 @@ static struct platform_driver sprd_hwspinlock_driver = {
 	.probe = sprd_hwspinlock_probe,
 	.driver = {
 		.name = "sprd_hwspinlock",
-		.of_match_table = of_match_ptr(sprd_hwspinlock_of_match),
+		.of_match_table = sprd_hwspinlock_of_match,
 	},
 };
 module_platform_driver(sprd_hwspinlock_driver);
