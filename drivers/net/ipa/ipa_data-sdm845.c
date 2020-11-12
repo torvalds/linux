@@ -150,11 +150,11 @@ static const struct ipa_resource_src ipa_resource_src[] = {
 		.type = IPA_RESOURCE_TYPE_SRC_PKT_CONTEXTS,
 		.limits[0] = {
 			.min = 1,
-			.max = 63,
+			.max = 255,
 		},
 		.limits[1] = {
 			.min = 1,
-			.max = 63,
+			.max = 255,
 		},
 	},
 	{
