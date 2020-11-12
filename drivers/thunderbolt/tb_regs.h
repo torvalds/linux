@@ -217,6 +217,19 @@ struct tb_regs_switch_header {
 #define ROUTER_CS_26_ONS			BIT(30)
 #define ROUTER_CS_26_OV				BIT(31)
 
+/* USB4 router operations opcodes */
+enum usb4_switch_op {
+	USB4_SWITCH_OP_QUERY_DP_RESOURCE = 0x10,
+	USB4_SWITCH_OP_ALLOC_DP_RESOURCE = 0x11,
+	USB4_SWITCH_OP_DEALLOC_DP_RESOURCE = 0x12,
+	USB4_SWITCH_OP_NVM_WRITE = 0x20,
+	USB4_SWITCH_OP_NVM_AUTH = 0x21,
+	USB4_SWITCH_OP_NVM_READ = 0x22,
+	USB4_SWITCH_OP_NVM_SET_OFFSET = 0x23,
+	USB4_SWITCH_OP_DROM_READ = 0x24,
+	USB4_SWITCH_OP_NVM_SECTOR_SIZE = 0x25,
+};
+
 /* Router TMU configuration */
 #define TMU_RTR_CS_0				0x00
 #define TMU_RTR_CS_0_TD				BIT(27)
