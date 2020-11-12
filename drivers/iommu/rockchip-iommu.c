@@ -666,14 +666,20 @@ static void log_iova(struct rk_iommu *iommu, int index, dma_addr_t iova)
 	if (!rk_dte_is_pt_valid(dte))
 		goto print_it;
 
-	pte_addr_phys = rk_dte_pt_address(dte) + (pte_index * 4);
+	if (iommu->version >= 0x2)
+		pte_addr_phys = rk_dte_pt_address_v2(dte) + (pte_index * 4);
+	else
+		pte_addr_phys = rk_dte_pt_address(dte) + (pte_index * 4);
 	pte_addr = phys_to_virt(pte_addr_phys);
 	pte = *pte_addr;
 
 	if (!rk_pte_is_page_valid(pte))
 		goto print_it;
 
-	page_addr_phys = rk_pte_page_address(pte) + page_offset;
+	if (iommu->version >= 0x2)
+		page_addr_phys = rk_pte_page_address_v2(pte) + page_offset;
+	else
+		page_addr_phys = rk_pte_page_address(pte) + page_offset;
 	page_flags = pte & RK_PTE_PAGE_FLAGS_MASK;
 
 print_it:
