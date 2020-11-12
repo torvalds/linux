@@ -99,6 +99,29 @@
 		};
 	};
 
+	zynqmp_ipi {
+		compatible = "xlnx,zynqmp-ipi-mailbox";
+		interrupt-parent = <&gic>;
+		interrupts = <0 35 4>;
+		xlnx,ipi-id = <0>;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		ipi_mailbox_pmu1: mailbox@ff990400 {
+			reg = <0x0 0xff9905c0 0x0 0x20>,
+			      <0x0 0xff9905e0 0x0 0x20>,
+			      <0x0 0xff990e80 0x0 0x20>,
+			      <0x0 0xff990ea0 0x0 0x20>;
+			reg-names = "local_request_region",
+				    "local_response_region",
+				    "remote_request_region",
+				    "remote_response_region";
+			#mbox-cells = <1>;
+			xlnx,ipi-id = <4>;
+		};
+	};
+
 	dcc: dcc {
 		compatible = "arm,dcc";
 		status = "disabled";
@@ -128,6 +151,8 @@
 				compatible = "xlnx,zynqmp-power";
 				interrupt-parent = <&gic>;
 				interrupts = <0 35 4>;
+				mboxes = <&ipi_mailbox_pmu1 0>, <&ipi_mailbox_pmu1 1>;
+				mbox-names = "tx", "rx";
 			};
 
 			zynqmp_clk: clock-controller {
