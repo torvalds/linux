@@ -216,6 +216,14 @@
 			#sound-dai-cells = <0>;
 	};
 
+	vad_sound: vad-sound {
+		status = "disabled";
+		compatible = "rockchip,multicodecs-card";
+		rockchip,card-name = "rockchip,rk3568-vad";
+		rockchip,cpu = <&i2s1_8ch>;
+		rockchip,codec = <&rk809_codec>, <&vad>;
+	};
+
 	vcc3v3_sys: vcc3v3-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_sys";
@@ -1561,6 +1569,14 @@
 	usbhost_dwc3: dwc3@fd000000 {
 		status = "okay";
 	};
+};
+
+&vad {
+	rockchip,audio-src = <&i2s1_8ch>;
+	rockchip,buffer-time-ms = <128>;
+	rockchip,det-channel = <0>;
+	rockchip,mode = <0>;
+	#sound-dai-cells = <0>;
 };
 
 &vdpu {
