@@ -318,6 +318,7 @@ static struct platform_driver broadwell_audio = {
 	.remove = broadwell_audio_remove,
 	.driver = {
 		.name = "broadwell-audio",
+		.pm = &snd_soc_pm_ops
 	},
 };
 
