@@ -574,7 +574,7 @@ static const struct ethtool_ops i2400m_ethtool_ops = {
 	.get_link = ethtool_op_get_link,
 };
 
-/**
+/*
  * i2400m_netdev_setup - Setup setup @net_dev's i2400m private data
  *
  * Called by alloc_netdev()
