@@ -962,6 +962,32 @@
 			};
 		};
 
+		iva_hd_target: target-module@5a000000 {
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0x5a05a400 0x4>,
+			      <0x5a05a410 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-midle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			power-domains = <&prm_iva>;
+			resets = <&prm_iva 2>;
+			reset-names = "rstctrl";
+			clocks = <&iva_clkctrl DRA7_IVA_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x5a000000 0x5a000000 0x1000000>,
+				 <0x5b000000 0x5b000000 0x1000000>;
+
+			iva {
+				compatible = "ti,ivahd";
+			};
+		};
+
 		opp_supply_mpu: opp-supply@4a003b20 {
 			compatible = "ti,omap5-opp-supply";
 			reg = <0x4a003b20 0xc>;
@@ -1067,6 +1093,7 @@
 	prm_iva: prm@f00 {
 		compatible = "ti,dra7-prm-inst", "ti,omap-prm-inst";
 		reg = <0xf00 0x100>;
+		#reset-cells = <1>;
 		#power-domain-cells = <0>;
 	};
 
