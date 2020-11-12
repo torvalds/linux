@@ -10,7 +10,7 @@
 #include <linux/list.h>
 #include <linux/hashtable.h>
 
-#include "elf.h"
+#include <objtool/elf.h>
 
 #define __weak __attribute__((weak))
 

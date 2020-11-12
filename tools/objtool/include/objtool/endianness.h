@@ -2,9 +2,9 @@
 #ifndef _OBJTOOL_ENDIANNESS_H
 #define _OBJTOOL_ENDIANNESS_H
 
+#include <arch/endianness.h>
 #include <linux/kernel.h>
 #include <endian.h>
-#include "arch_endianness.h"
 
 #ifndef __TARGET_BYTE_ORDER
 #error undefined arch __TARGET_BYTE_ORDER

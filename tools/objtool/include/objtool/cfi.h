@@ -6,7 +6,7 @@
 #ifndef _OBJTOOL_CFI_H
 #define _OBJTOOL_CFI_H
 
-#include "cfi_regs.h"
+#include <arch/cfi_regs.h>
 
 #define CFI_UNDEFINED		-1
 #define CFI_CFA			-2

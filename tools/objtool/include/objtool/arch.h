@@ -8,8 +8,8 @@
 
 #include <stdbool.h>
 #include <linux/list.h>
-#include "objtool.h"
-#include "cfi.h"
+#include <objtool/objtool.h>
+#include <objtool/cfi.h>
 
 #ifdef INSN_USE_ORC
 #include <asm/orc_types.h>
