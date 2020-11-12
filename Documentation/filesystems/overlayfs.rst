@@ -97,11 +97,13 @@ directory trees to be in the same filesystem and there is no
 requirement that the root of a filesystem be given for either upper or
 lower.
 
-The lower filesystem can be any filesystem supported by Linux and does
-not need to be writable.  The lower filesystem can even be another
-overlayfs.  The upper filesystem will normally be writable and if it
-is it must support the creation of trusted.* extended attributes, and
-must provide valid d_type in readdir responses, so NFS is not suitable.
+A wide range of filesystems supported by Linux can be the lower filesystem,
+but not all filesystems that are mountable by Linux have the features
+needed for OverlayFS to work.  The lower filesystem does not need to be
+writable.  The lower filesystem can even be another overlayfs.  The upper
+filesystem will normally be writable and if it is it must support the
+creation of trusted.* extended attributes, and must provide valid d_type in
+readdir responses, so NFS is not suitable.
 
 A read-only overlay of two read-only filesystems may use any
 filesystem type.
