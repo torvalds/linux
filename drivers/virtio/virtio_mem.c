@@ -753,14 +753,15 @@ static void virtio_mem_clear_fake_offline(unsigned long pfn,
  */
 static void virtio_mem_fake_online(unsigned long pfn, unsigned int nr_pages)
 {
-	const int order = MAX_ORDER - 1;
+	const unsigned long max_nr_pages = MAX_ORDER_NR_PAGES;
 	int i;
 
 	/*
-	 * We are always called with subblock granularity, which is at least
-	 * aligned to MAX_ORDER - 1.
+	 * We are always called at least with MAX_ORDER_NR_PAGES
+	 * granularity/alignment (e.g., the way subblocks work). All pages
+	 * inside such a block are alike.
 	 */
-	for (i = 0; i < nr_pages; i += 1 << order) {
+	for (i = 0; i < nr_pages; i += max_nr_pages) {
 		struct page *page = pfn_to_page(pfn + i);
 
 		/*
@@ -770,14 +771,14 @@ static void virtio_mem_fake_online(unsigned long pfn, unsigned int nr_pages)
 		 * alike.
 		 */
 		if (PageDirty(page)) {
-			virtio_mem_clear_fake_offline(pfn + i, 1 << order,
+			virtio_mem_clear_fake_offline(pfn + i, max_nr_pages,
 						      false);
-			generic_online_page(page, order);
+			generic_online_page(page, MAX_ORDER - 1);
 		} else {
-			virtio_mem_clear_fake_offline(pfn + i, 1 << order,
+			virtio_mem_clear_fake_offline(pfn + i, max_nr_pages,
 						      true);
-			free_contig_range(pfn + i, 1 << order);
-			adjust_managed_page_count(page, 1 << order);
+			free_contig_range(pfn + i, max_nr_pages);
+			adjust_managed_page_count(page, max_nr_pages);
 		}
 	}
 }
@@ -790,7 +791,7 @@ static void virtio_mem_online_page_cb(struct page *page, unsigned int order)
 	int sb_id;
 
 	/*
-	 * We exploit here that subblocks have at least MAX_ORDER - 1
+	 * We exploit here that subblocks have at least MAX_ORDER_NR_PAGES.
 	 * size/alignment and that this callback is is called with such a
 	 * size/alignment. So we cannot cross subblocks and therefore
 	 * also not memory blocks.
@@ -1673,13 +1674,15 @@ static int virtio_mem_init(struct virtio_mem *vm)
 			 "Some memory is not addressable. This can make some memory unusable.\n");
 
 	/*
-	 * Calculate the subblock size:
-	 * - At least MAX_ORDER - 1 / pageblock_order.
-	 * - At least the device block size.
-	 * In the worst case, a single subblock per memory block.
+	 * We want subblocks to span at least MAX_ORDER_NR_PAGES and
+	 * pageblock_nr_pages pages. This:
+	 * - Simplifies our page onlining code (virtio_mem_online_page_cb)
+	 *   and fake page onlining code (virtio_mem_fake_online).
+	 * - Is required for now for alloc_contig_range() to work reliably -
+	 *   it doesn't properly handle smaller granularity on ZONE_NORMAL.
 	 */
-	vm->subblock_size = PAGE_SIZE * 1ul << max_t(uint32_t, MAX_ORDER - 1,
-						     pageblock_order);
+	vm->subblock_size = max_t(uint64_t, MAX_ORDER_NR_PAGES,
+				  pageblock_nr_pages) * PAGE_SIZE;
 	vm->subblock_size = max_t(uint64_t, vm->device_block_size,
 				  vm->subblock_size);
 	vm->nb_sb_per_mb = memory_block_size_bytes() / vm->subblock_size;
