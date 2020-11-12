@@ -9,6 +9,8 @@
 /* context for devlink info version reporting */
 struct ice_info_ctx {
 	char buf[128];
+	struct ice_nvm_info pending_nvm;
+	struct ice_hw_dev_caps dev_caps;
 };
 
 /* The following functions are used to format specific strings for various
@@ -89,11 +91,33 @@ static int ice_info_nvm_ver(struct ice_pf *pf, struct ice_info_ctx *ctx)
 	return 0;
 }
 
+static int
+ice_info_pending_nvm_ver(struct ice_pf __always_unused *pf, struct ice_info_ctx *ctx)
+{
+	struct ice_nvm_info *nvm = &ctx->pending_nvm;
+
+	if (ctx->dev_caps.common_cap.nvm_update_pending_nvm)
+		snprintf(ctx->buf, sizeof(ctx->buf), "%x.%02x", nvm->major, nvm->minor);
+
+	return 0;
+}
+
 static int ice_info_eetrack(struct ice_pf *pf, struct ice_info_ctx *ctx)
 {
 	struct ice_nvm_info *nvm = &pf->hw.flash.nvm;
 
 	snprintf(ctx->buf, sizeof(ctx->buf), "0x%08x", nvm->eetrack);
+
+	return 0;
+}
+
+static int
+ice_info_pending_eetrack(struct ice_pf __always_unused *pf, struct ice_info_ctx *ctx)
+{
+	struct ice_nvm_info *nvm = &ctx->pending_nvm;
+
+	if (ctx->dev_caps.common_cap.nvm_update_pending_nvm)
+		snprintf(ctx->buf, sizeof(ctx->buf), "0x%08x", nvm->eetrack);
 
 	return 0;
 }
@@ -145,8 +169,23 @@ static int ice_info_netlist_build(struct ice_pf *pf, struct ice_info_ctx *ctx)
 	return 0;
 }
 
-#define fixed(key, getter) { ICE_VERSION_FIXED, key, getter }
-#define running(key, getter) { ICE_VERSION_RUNNING, key, getter }
+#define fixed(key, getter) { ICE_VERSION_FIXED, key, getter, NULL }
+#define running(key, getter) { ICE_VERSION_RUNNING, key, getter, NULL }
+#define stored(key, getter, fallback) { ICE_VERSION_STORED, key, getter, fallback }
+
+/* The combined() macro inserts both the running entry as well as a stored
+ * entry. The running entry will always report the version from the active
+ * handler. The stored entry will first try the pending handler, and fallback
+ * to the active handler if the pending function does not report a version.
+ * The pending handler should check the status of a pending update for the
+ * relevant flash component. It should only fill in the buffer in the case
+ * where a valid pending version is available. This ensures that the related
+ * stored and running versions remain in sync, and that stored versions are
+ * correctly reported as expected.
+ */
+#define combined(key, active, pending) \
+	running(key, active), \
+	stored(key, pending, active)
 
 enum ice_version_type {
 	ICE_VERSION_FIXED,
@@ -158,14 +197,15 @@ static const struct ice_devlink_version {
 	enum ice_version_type type;
 	const char *key;
 	int (*getter)(struct ice_pf *pf, struct ice_info_ctx *ctx);
+	int (*fallback)(struct ice_pf *pf, struct ice_info_ctx *ctx);
 } ice_devlink_versions[] = {
 	fixed(DEVLINK_INFO_VERSION_GENERIC_BOARD_ID, ice_info_pba),
 	running(DEVLINK_INFO_VERSION_GENERIC_FW_MGMT, ice_info_fw_mgmt),
 	running("fw.mgmt.api", ice_info_fw_api),
 	running("fw.mgmt.build", ice_info_fw_build),
 	running(DEVLINK_INFO_VERSION_GENERIC_FW_UNDI, ice_info_orom_ver),
-	running("fw.psid.api", ice_info_nvm_ver),
-	running(DEVLINK_INFO_VERSION_GENERIC_FW_BUNDLE_ID, ice_info_eetrack),
+	combined("fw.psid.api", ice_info_nvm_ver, ice_info_pending_nvm_ver),
+	combined(DEVLINK_INFO_VERSION_GENERIC_FW_BUNDLE_ID, ice_info_eetrack, ice_info_pending_eetrack),
 	running("fw.app.name", ice_info_ddp_pkg_name),
 	running(DEVLINK_INFO_VERSION_GENERIC_FW_APP, ice_info_ddp_pkg_version),
 	running("fw.app.bundle_id", ice_info_ddp_pkg_bundle_id),
@@ -189,13 +229,34 @@ static int ice_devlink_info_get(struct devlink *devlink,
 				struct netlink_ext_ack *extack)
 {
 	struct ice_pf *pf = devlink_priv(devlink);
+	struct device *dev = ice_pf_to_dev(pf);
+	struct ice_hw *hw = &pf->hw;
 	struct ice_info_ctx *ctx;
+	enum ice_status status;
 	size_t i;
 	int err;
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
+
+	/* discover capabilities first */
+	status = ice_discover_dev_caps(hw, &ctx->dev_caps);
+	if (status) {
+		err = -EIO;
+		goto out_free_ctx;
+	}
+
+	if (ctx->dev_caps.common_cap.nvm_update_pending_nvm) {
+		status = ice_get_inactive_nvm_ver(hw, &ctx->pending_nvm);
+		if (status) {
+			dev_dbg(dev, "Unable to read inactive NVM version data, status %s aq_err %s\n",
+				ice_stat_str(status), ice_aq_str(hw->adminq.sq_last_status));
+
+			/* disable display of pending Option ROM */
+			ctx->dev_caps.common_cap.nvm_update_pending_nvm = false;
+		}
+	}
 
 	err = devlink_info_driver_name_put(req, KBUILD_MODNAME);
 	if (err) {
@@ -221,6 +282,19 @@ static int ice_devlink_info_get(struct devlink *devlink,
 		if (err) {
 			NL_SET_ERR_MSG_MOD(extack, "Unable to obtain version info");
 			goto out_free_ctx;
+		}
+
+		/* If the default getter doesn't report a version, use the
+		 * fallback function. This is primarily useful in the case of
+		 * "stored" versions that want to report the same value as the
+		 * running version in the normal case of no pending update.
+		 */
+		if (ctx->buf[0] == '\0' && ice_devlink_versions[i].fallback) {
+			err = ice_devlink_versions[i].fallback(pf, ctx);
+			if (err) {
+				NL_SET_ERR_MSG_MOD(extack, "Unable to obtain version info");
+				goto out_free_ctx;
+			}
 		}
 
 		/* Do not report missing versions */
