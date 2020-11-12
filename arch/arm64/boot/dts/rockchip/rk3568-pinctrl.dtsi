@@ -2047,6 +2047,10 @@
 	};
 	tsadc {
 		/omit-if-no-ref/
+		tsadc_gpio: tsadc-gpio {
+			rockchip,pins = <0 RK_PA1 0 &pcfg_pull_none>;
+		};
+		/omit-if-no-ref/
 		tsadcm0_pins: tsadcm0-pins {
 			rockchip,pins =
 				/* tsadc_shutm0 */
