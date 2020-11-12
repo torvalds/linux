@@ -665,7 +665,7 @@ out:
 }
 
 
-/**
+/*
  * i2400m_dev_reset_handle - Handle a device's reset in a thread context
  *
  * Schedule a device reset handling out on a thread context, so it
@@ -685,7 +685,7 @@ int i2400m_dev_reset_handle(struct i2400m *i2400m, const char *reason)
 EXPORT_SYMBOL_GPL(i2400m_dev_reset_handle);
 
 
- /*
+/*
  * The actual work of error recovery.
  *
  * The current implementation of error recovery is to trigger a bus reset.
@@ -766,7 +766,7 @@ void i2400m_bm_buf_free(struct i2400m *i2400m)
 }
 
 
-/**
+/*
  * i2400m_init - Initialize a 'struct i2400m' from all zeroes
  *
  * This is a bus-generic API call.
@@ -831,6 +831,7 @@ EXPORT_SYMBOL_GPL(i2400m_reset);
  * i2400m_setup - bus-generic setup function for the i2400m device
  *
  * @i2400m: device descriptor (bus-specific parts have been initialized)
+ * @bm_flags: boot mode flags
  *
  * Returns: 0 if ok, < 0 errno code on error.
  *
@@ -933,7 +934,7 @@ error_bm_buf_alloc:
 EXPORT_SYMBOL_GPL(i2400m_setup);
 
 
-/**
+/*
  * i2400m_release - release the bus-generic driver resources
  *
  * Sends a disconnect message and undoes any setup done by i2400m_setup()
