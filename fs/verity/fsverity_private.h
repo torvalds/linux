@@ -67,19 +67,19 @@ struct merkle_tree_params {
  * When a verity file is first opened, an instance of this struct is allocated
  * and stored in ->i_verity_info; it remains until the inode is evicted.  It
  * caches information about the Merkle tree that's needed to efficiently verify
- * data read from the file.  It also caches the file measurement.  The Merkle
- * tree pages themselves are not cached here, but the filesystem may cache them.
+ * data read from the file.  It also caches the file digest.  The Merkle tree
+ * pages themselves are not cached here, but the filesystem may cache them.
  */
 struct fsverity_info {
 	struct merkle_tree_params tree_params;
 	u8 root_hash[FS_VERITY_MAX_DIGEST_SIZE];
-	u8 measurement[FS_VERITY_MAX_DIGEST_SIZE];
+	u8 file_digest[FS_VERITY_MAX_DIGEST_SIZE];
 	const struct inode *inode;
 };
 
 /*
- * Merkle tree properties.  The file measurement is the hash of this structure
- * excluding the signature and with the sig_size field set to 0.
+ * Merkle tree properties.  The fs-verity file digest is the hash of this
+ * structure excluding the signature and with the sig_size field set to 0.
  */
 struct fsverity_descriptor {
 	__u8 version;		/* must be 1 */
@@ -101,7 +101,7 @@ struct fsverity_descriptor {
 					 sizeof(struct fsverity_descriptor))
 
 /*
- * Format in which verity file measurements are signed in built-in signatures.
+ * Format in which fs-verity file digests are signed in built-in signatures.
  * This is the same as 'struct fsverity_digest', except here some magic bytes
  * are prepended to provide some context about what is being signed in case the
  * same key is used for non-fsverity purposes, and here the fields have fixed
