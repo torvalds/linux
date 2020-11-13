@@ -64,14 +64,14 @@
    -------------------------------------------------------------------------- */
 
 
-/* ACPI PCI Interrupt Link (pci_link.c) */
+/* ACPI PCI Interrupt Link */
 
 int acpi_irq_penalty_init(void);
 int acpi_pci_link_allocate_irq(acpi_handle handle, int index, int *triggering,
 			       int *polarity, char **name);
 int acpi_pci_link_free_irq(acpi_handle handle);
 
-/* ACPI PCI Device Binding (pci_bind.c) */
+/* ACPI PCI Device Binding */
 
 struct pci_bus;
 
