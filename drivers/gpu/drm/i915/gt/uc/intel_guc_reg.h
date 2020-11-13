@@ -118,6 +118,11 @@ struct guc_doorbell_info {
 #define   GEN8_DRB_VALID		  (1<<0)
 #define GEN8_DRBREGU(x)			_MMIO(0x1000 + (x) * 8 + 4)
 
+#define GEN12_DIST_DBS_POPULATED		_MMIO(0xd08)
+#define   GEN12_DOORBELLS_PER_SQIDI_SHIFT	16
+#define   GEN12_DOORBELLS_PER_SQIDI		(0xff)
+#define   GEN12_SQIDIS_DOORBELL_EXIST		(0xffff)
+
 #define DE_GUCRMR			_MMIO(0x44054)
 
 #define GUC_BCS_RCS_IER			_MMIO(0xC550)

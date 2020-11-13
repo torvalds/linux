@@ -1973,7 +1973,7 @@ static struct drm_i915_private *mchdev_get(void)
 
 	rcu_read_lock();
 	i915 = rcu_dereference(ips_mchdev);
-	if (!kref_get_unless_zero(&i915->drm.ref))
+	if (i915 && !kref_get_unless_zero(&i915->drm.ref))
 		i915 = NULL;
 	rcu_read_unlock();
 

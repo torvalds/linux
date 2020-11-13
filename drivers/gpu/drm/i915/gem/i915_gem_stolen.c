@@ -497,6 +497,43 @@ static int i915_gem_init_stolen(struct drm_i915_private *i915)
 	return 0;
 }
 
+static void dbg_poison(struct i915_ggtt *ggtt,
+		       dma_addr_t addr, resource_size_t size,
+		       u8 x)
+{
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)
+	if (!drm_mm_node_allocated(&ggtt->error_capture))
+		return;
+
+	if (ggtt->vm.bind_async_flags & I915_VMA_GLOBAL_BIND)
+		return; /* beware stop_machine() inversion */
+
+	GEM_BUG_ON(!IS_ALIGNED(size, PAGE_SIZE));
+
+	mutex_lock(&ggtt->error_mutex);
+	while (size) {
+		void __iomem *s;
+
+		ggtt->vm.insert_page(&ggtt->vm, addr,
+				     ggtt->error_capture.start,
+				     I915_CACHE_NONE, 0);
+		mb();
+
+		s = io_mapping_map_wc(&ggtt->iomap,
+				      ggtt->error_capture.start,
+				      PAGE_SIZE);
+		memset_io(s, x, PAGE_SIZE);
+		io_mapping_unmap(s);
+
+		addr += PAGE_SIZE;
+		size -= PAGE_SIZE;
+	}
+	mb();
+	ggtt->vm.clear_range(&ggtt->vm, ggtt->error_capture.start, PAGE_SIZE);
+	mutex_unlock(&ggtt->error_mutex);
+#endif
+}
+
 static struct sg_table *
 i915_pages_create_for_stolen(struct drm_device *dev,
 			     resource_size_t offset, resource_size_t size)
@@ -540,6 +577,11 @@ static int i915_gem_object_get_pages_stolen(struct drm_i915_gem_object *obj)
 	if (IS_ERR(pages))
 		return PTR_ERR(pages);
 
+	dbg_poison(&to_i915(obj->base.dev)->ggtt,
+		   sg_dma_address(pages->sgl),
+		   sg_dma_len(pages->sgl),
+		   POISON_INUSE);
+
 	__i915_gem_object_set_pages(obj, pages, obj->stolen->size);
 
 	return 0;
@@ -549,6 +591,12 @@ static void i915_gem_object_put_pages_stolen(struct drm_i915_gem_object *obj,
 					     struct sg_table *pages)
 {
 	/* Should only be called from i915_gem_object_release_stolen() */
+
+	dbg_poison(&to_i915(obj->base.dev)->ggtt,
+		   sg_dma_address(pages->sgl),
+		   sg_dma_len(pages->sgl),
+		   POISON_FREE);
+
 	sg_free_table(pages);
 	kfree(pages);
 }
