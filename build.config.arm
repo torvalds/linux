@@ -4,12 +4,12 @@ CROSS_COMPILE=arm-linux-gnueabi-
 LINUX_GCC_CROSS_COMPILE_PREBUILTS_BIN=prebuilts/gas/linux-x86
 
 MAKE_GOALS="
-Image
+zImage
 modules
 "
 
 FILES="
-arch/arm/boot/Image
+arch/arm/boot/zImage
 vmlinux
 System.map
 "
