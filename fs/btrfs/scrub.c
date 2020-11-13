@@ -71,11 +71,9 @@ struct scrub_page {
 	u64			physical;
 	u64			physical_for_dev_replace;
 	atomic_t		refs;
-	struct {
-		unsigned int	mirror_num:8;
-		unsigned int	have_csum:1;
-		unsigned int	io_error:1;
-	};
+	u8			mirror_num;
+	int			have_csum:1;
+	int			io_error:1;
 	u8			csum[BTRFS_CSUM_SIZE];
 
 	struct scrub_recover	*recover;
