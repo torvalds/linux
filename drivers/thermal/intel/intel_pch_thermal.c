@@ -28,6 +28,7 @@
 #define PCH_THERMAL_DID_CNL_H	0xA379 /* CNL-H PCH */
 #define PCH_THERMAL_DID_CNL_LP	0x02F9 /* CNL-LP PCH */
 #define PCH_THERMAL_DID_CML_H	0X06F9 /* CML-H PCH */
+#define PCH_THERMAL_DID_LWB	0xA1B1 /* Lewisburg PCH */
 
 /* Wildcat Point-LP  PCH Thermal registers */
 #define WPT_TEMP	0x0000	/* Temperature */
@@ -340,6 +341,7 @@ enum board_ids {
 	board_skl,
 	board_cnl,
 	board_cml,
+	board_lwb,
 };
 
 static const struct board_info {
@@ -365,7 +367,11 @@ static const struct board_info {
 	[board_cml] = {
 		.name = "pch_cometlake",
 		.ops = &pch_dev_ops_wpt,
-	}
+	},
+	[board_lwb] = {
+		.name = "pch_lewisburg",
+		.ops = &pch_dev_ops_wpt,
+	},
 };
 
 static int intel_pch_thermal_probe(struct pci_dev *pdev,
@@ -479,6 +485,8 @@ static const struct pci_device_id intel_pch_thermal_id[] = {
 		.driver_data = board_cnl, },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCH_THERMAL_DID_CML_H),
 		.driver_data = board_cml, },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCH_THERMAL_DID_LWB),
+		.driver_data = board_lwb, },
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, intel_pch_thermal_id);
