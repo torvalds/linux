@@ -5208,15 +5208,6 @@ static void gfx_v7_0_get_cu_info(struct amdgpu_device *adev)
 	cu_info->lds_size = 64;
 }
 
-static const struct amdgpu_ip_block_version gfx_v7_0_ip_block =
-{
-	.type = AMD_IP_BLOCK_TYPE_GFX,
-	.major = 7,
-	.minor = 0,
-	.rev = 0,
-	.funcs = &gfx_v7_0_ip_funcs,
-};
-
 const struct amdgpu_ip_block_version gfx_v7_1_ip_block =
 {
 	.type = AMD_IP_BLOCK_TYPE_GFX,
