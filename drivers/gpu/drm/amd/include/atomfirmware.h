@@ -2789,6 +2789,22 @@ struct atom_vram_info_header_v2_5 {
 	struct   atom_vram_module_v11  vram_module[16];        // just for allocation, real number of blocks is in ucNumOfVRAMModule;
 };
 
+struct atom_vram_info_header_v2_6 {
+	struct atom_common_table_header table_header;
+	uint16_t mem_adjust_tbloffset;
+	uint16_t mem_clk_patch_tbloffset;
+	uint16_t mc_adjust_pertile_tbloffset;
+	uint16_t mc_phyinit_tbloffset;
+	uint16_t dram_data_remap_tbloffset;
+	uint16_t tmrs_seq_offset;
+	uint16_t post_ucode_init_offset;
+	uint16_t vram_rsd2;
+	uint8_t  vram_module_num;
+	uint8_t  umcip_min_ver;
+	uint8_t  umcip_max_ver;
+	uint8_t  mc_phy_tile_num;
+	struct atom_vram_module_v9 vram_module[16];
+};
 /* 
   ***************************************************************************
     Data Table voltageobject_info  structure
