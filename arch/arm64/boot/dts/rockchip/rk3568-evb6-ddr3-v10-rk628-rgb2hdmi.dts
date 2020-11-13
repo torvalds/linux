@@ -1,0 +1,96 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
+ */
+
+#include "rk3568-evb6-ddr3-v10.dtsi"
+#include "rk3568-android.dtsi"
+
+&dsi0 {
+	status = "disabled";
+};
+
+&i2c3 {
+	clock-frequency = <400000>;
+	status = "okay";
+
+	rk628: rk628@50 {
+		reg = <0x50>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <RK_PA0 IRQ_TYPE_LEVEL_HIGH>;
+		enable-gpios = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio0 RK_PB7 GPIO_ACTIVE_LOW>;
+		status = "okay";
+	};
+};
+
+#include <arm/rk628.dtsi>
+
+&rk628_hdmi {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+
+			hdmi_in_post_process: endpoint {
+				remote-endpoint = <&post_process_out_hdmi>;
+			};
+		};
+	};
+};
+
+&rk628_post_process {
+	pinctrl-names = "default";
+	pinctrl-0 = <&vop_pins>;
+	status = "okay";
+
+	mode-sync-pol = <0>;
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+
+			post_process_in_rgb: endpoint {
+				remote-endpoint = <&rgb_out_post_process>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+
+			post_process_out_hdmi: endpoint {
+				remote-endpoint = <&hdmi_in_post_process>;
+			};
+		};
+	};
+};
+
+&rgb {
+	status = "okay";
+
+	ports {
+		port@1 {
+			reg = <1>;
+
+			rgb_out_post_process: endpoint {
+				remote-endpoint = <&post_process_in_rgb>;
+			};
+		};
+	};
+};
+
+&rgb_in_vp2 {
+	status = "okay";
+};
+
+&vcc3v3_lcd1_n {
+	status = "disabled";
+	gpio = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
+	enable-active-high;
+};
