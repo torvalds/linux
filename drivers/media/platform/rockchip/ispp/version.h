@@ -60,6 +60,9 @@
  * 5. fix monitor thread exit
  * 6. tnr/nr/fec sync to start
  * 7. fec read yuyv format
+ *
+ * v1.2.1:
+ * 1. fix can't work due to last abnormal exit
  */
 
 #define RKISPP_DRIVER_VERSION ISPP_API_VERSION

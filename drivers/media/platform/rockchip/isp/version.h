@@ -63,6 +63,11 @@
  * 1. resolution write directly to reg for first dev
  * 2. normal read back to enable hdr merge
  * 3. enable LDCH in 2th frame
+ *
+ * v1.2.1:
+ * 1. fix normal merge enable config
+ * 2. fix size no update for multi sensor switch
+ * 3. dmatx add yuyv format
  */
 
 #define RKISP_DRIVER_VERSION RKISP_API_VERSION
