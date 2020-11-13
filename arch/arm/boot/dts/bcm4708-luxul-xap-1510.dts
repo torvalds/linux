@@ -57,10 +57,6 @@
 	status = "okay";
 };
 
-&usb3_phy {
-	status = "okay";
-};
-
 &srab {
 	status = "okay";
 
