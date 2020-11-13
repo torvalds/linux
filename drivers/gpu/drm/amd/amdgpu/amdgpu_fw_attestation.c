@@ -26,6 +26,7 @@
 #include <linux/dma-mapping.h>
 
 #include "amdgpu.h"
+#include "amdgpu_fw_attestation.h"
 #include "amdgpu_psp.h"
 #include "amdgpu_ucode.h"
 #include "soc15_common.h"
