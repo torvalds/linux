@@ -252,12 +252,7 @@ static int corsairpsu_get_value(struct corsairpsu_data *priv, u8 cmd, u8 rail, l
 		*val = corsairpsu_linear11_to_int(tmp & 0xFFFF) * 1000;
 		break;
 	case PSU_CMD_FAN:
-		/*
-		 * this value is best guess, so the calculated value could be wrong, it is hard
-		 * to ge the fan to spin in these semi-passive power supplies, which need a
-		 * quite high load to do so
-		 */
-		*val = ((tmp & 0xFF) << 8) + ((tmp >> 8) & 0xFF);
+		*val = corsairpsu_linear11_to_int(tmp & 0xFFFF);
 		break;
 	case PSU_CMD_RAIL_WATTS:
 	case PSU_CMD_TOTAL_WATTS:
