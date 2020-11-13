@@ -384,8 +384,11 @@ static int rkvenc_write_req_l2(struct mpp_dev *mpp,
 	int i;
 
 	for (i = start_idx; i < end_idx; i++) {
-		mpp_write_relaxed(mpp, RKVENC_L2_ADDR_BASE, i * sizeof(u32));
-		mpp_write_relaxed(mpp, RKVENC_L2_WRITE_BASE, regs[i]);
+		int reg = i * sizeof(u32);
+
+		mpp_debug(DEBUG_SET_REG_L2, "reg[%03d]: %04x: 0x%08x\n", i, reg, regs[i]);
+		writel_relaxed(reg, mpp->reg_base + RKVENC_L2_ADDR_BASE);
+		writel_relaxed(regs[i], mpp->reg_base + RKVENC_L2_WRITE_BASE);
 	}
 
 	return 0;
@@ -398,8 +401,11 @@ static int rkvenc_read_req_l2(struct mpp_dev *mpp,
 	int i;
 
 	for (i = start_idx; i < end_idx; i++) {
-		mpp_write_relaxed(mpp, RKVENC_L2_ADDR_BASE, i * sizeof(u32));
-		regs[i] = mpp_read_relaxed(mpp, RKVENC_L2_READ_BASE);
+		int reg = i * sizeof(u32);
+
+		writel_relaxed(reg, mpp->reg_base + RKVENC_L2_ADDR_BASE);
+		regs[i] = readl_relaxed(mpp->reg_base + RKVENC_L2_READ_BASE);
+		mpp_debug(DEBUG_GET_REG_L2, "reg[%03d]: %04x: 0x%08x\n", i, reg, regs[i]);
 	}
 
 	return 0;
