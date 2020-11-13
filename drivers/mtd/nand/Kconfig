@@ -13,7 +13,7 @@ menu "ECC engine support"
 
 config MTD_NAND_ECC
        bool
-       depends on MTD_NAND_CORE
+       select MTD_NAND_CORE
 
 config MTD_NAND_ECC_SW_HAMMING
 	bool "Software Hamming ECC engine"
