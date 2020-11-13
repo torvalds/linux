@@ -595,8 +595,7 @@ nfsd_proc_readdir(struct svc_rqst *rqstp)
 				    &resp->common, nfssvc_encode_entry);
 
 	resp->count = resp->buffer - buffer;
-	if (resp->offset)
-		*resp->offset = htonl(offset);
+	nfssvc_encode_nfscookie(resp, offset);
 
 	fh_put(&argp->fh);
 	return rpc_success;

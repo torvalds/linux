@@ -614,6 +614,21 @@ nfssvc_encode_statfsres(struct svc_rqst *rqstp, __be32 *p)
 	return 1;
 }
 
+/**
+ * nfssvc_encode_nfscookie - Encode a directory offset cookie
+ * @resp: readdir result context
+ * @offset: offset cookie to encode
+ *
+ */
+void nfssvc_encode_nfscookie(struct nfsd_readdirres *resp, u32 offset)
+{
+	if (!resp->offset)
+		return;
+
+	*resp->offset = cpu_to_be32(offset);
+	resp->offset = NULL;
+}
+
 int
 nfssvc_encode_entry(void *ccdv, const char *name,
 		    int namlen, loff_t offset, u64 ino, unsigned int d_type)
@@ -632,8 +647,7 @@ nfssvc_encode_entry(void *ccdv, const char *name,
 		cd->common.err = nfserr_fbig;
 		return -EINVAL;
 	}
-	if (cd->offset)
-		*cd->offset = htonl(offset);
+	nfssvc_encode_nfscookie(cd, offset);
 
 	/* truncate filename */
 	namlen = min(namlen, NFS2_MAXNAMLEN);
