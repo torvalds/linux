@@ -667,32 +667,6 @@ static void ezusb_request_in_callback(struct ezusb_priv *upriv,
 
 typedef void (*ezusb_ctx_wait)(struct ezusb_priv *, struct request_context *);
 
-static void ezusb_req_ctx_wait(struct ezusb_priv *upriv,
-			       struct request_context *ctx)
-{
-	switch (ctx->state) {
-	case EZUSB_CTX_QUEUED:
-	case EZUSB_CTX_REQ_SUBMITTED:
-	case EZUSB_CTX_REQ_COMPLETE:
-	case EZUSB_CTX_RESP_RECEIVED:
-		if (in_softirq()) {
-			/* If we get called from a timer, timeout timers don't
-			 * get the chance to run themselves. So we make sure
-			 * that we don't sleep for ever */
-			int msecs = DEF_TIMEOUT * (1000 / HZ);
-
-			while (!try_wait_for_completion(&ctx->done) && msecs--)
-				udelay(1000);
-		} else {
-			wait_for_completion(&ctx->done);
-		}
-		break;
-	default:
-		/* Done or failed - nothing to wait for */
-		break;
-	}
-}
-
 static void ezusb_req_ctx_wait_compl(struct ezusb_priv *upriv,
 				     struct request_context *ctx)
 {
@@ -1032,8 +1006,10 @@ static int ezusb_write_ltv(struct hermes *hw, int bap, u16 rid,
 				 ezusb_req_ctx_wait_poll);
 }
 
-static int ezusb_read_ltv(struct hermes *hw, int bap, u16 rid,
-			  unsigned bufsize, u16 *length, void *buf)
+static int __ezusb_read_ltv(struct hermes *hw, int bap, u16 rid,
+			    unsigned bufsize, u16 *length, void *buf,
+			    ezusb_ctx_wait ezusb_ctx_wait_func)
+
 {
 	struct ezusb_priv *upriv = hw->priv;
 	struct request_context *ctx;
@@ -1046,7 +1022,21 @@ static int ezusb_read_ltv(struct hermes *hw, int bap, u16 rid,
 		return -ENOMEM;
 
 	return ezusb_access_ltv(upriv, ctx, 0, NULL, EZUSB_FRAME_CONTROL,
-				buf, bufsize, length, ezusb_req_ctx_wait);
+				buf, bufsize, length, ezusb_req_ctx_wait_poll);
+}
+
+static int ezusb_read_ltv(struct hermes *hw, int bap, u16 rid,
+			    unsigned bufsize, u16 *length, void *buf)
+{
+	return __ezusb_read_ltv(hw, bap, rid, bufsize, length, buf,
+				ezusb_req_ctx_wait_poll);
+}
+
+static int ezusb_read_ltv_preempt(struct hermes *hw, int bap, u16 rid,
+				  unsigned bufsize, u16 *length, void *buf)
+{
+	return __ezusb_read_ltv(hw, bap, rid, bufsize, length, buf,
+				ezusb_req_ctx_wait_compl);
 }
 
 static int ezusb_doicmd_wait(struct hermes *hw, u16 cmd, u16 parm0, u16 parm1,
@@ -1586,6 +1576,7 @@ static const struct hermes_ops ezusb_ops = {
 	.init_cmd_wait = ezusb_doicmd_wait,
 	.allocate = ezusb_allocate,
 	.read_ltv = ezusb_read_ltv,
+	.read_ltv_pr = ezusb_read_ltv_preempt,
 	.write_ltv = ezusb_write_ltv,
 	.bap_pread = ezusb_bap_pread,
 	.read_pda = ezusb_read_pda,
