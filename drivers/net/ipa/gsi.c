@@ -109,62 +109,6 @@ struct gsi_event {
 	u8 chid;
 };
 
-/* Hardware values from the error log register error code field */
-enum gsi_err_code {
-	GSI_INVALID_TRE_ERR			= 0x1,
-	GSI_OUT_OF_BUFFERS_ERR			= 0x2,
-	GSI_OUT_OF_RESOURCES_ERR		= 0x3,
-	GSI_UNSUPPORTED_INTER_EE_OP_ERR		= 0x4,
-	GSI_EVT_RING_EMPTY_ERR			= 0x5,
-	GSI_NON_ALLOCATED_EVT_ACCESS_ERR	= 0x6,
-	GSI_HWO_1_ERR				= 0x8,
-};
-
-/* Hardware values from the error log register error type field */
-enum gsi_err_type {
-	GSI_ERR_TYPE_GLOB	= 0x1,
-	GSI_ERR_TYPE_CHAN	= 0x2,
-	GSI_ERR_TYPE_EVT	= 0x3,
-};
-
-/* Hardware values used when programming an event ring */
-enum gsi_evt_chtype {
-	GSI_EVT_CHTYPE_MHI_EV	= 0x0,
-	GSI_EVT_CHTYPE_XHCI_EV	= 0x1,
-	GSI_EVT_CHTYPE_GPI_EV	= 0x2,
-	GSI_EVT_CHTYPE_XDCI_EV	= 0x3,
-};
-
-/* Hardware values used when programming a channel */
-enum gsi_channel_protocol {
-	GSI_CHANNEL_PROTOCOL_MHI	= 0x0,
-	GSI_CHANNEL_PROTOCOL_XHCI	= 0x1,
-	GSI_CHANNEL_PROTOCOL_GPI	= 0x2,
-	GSI_CHANNEL_PROTOCOL_XDCI	= 0x3,
-};
-
-/* Hardware values representing an event ring immediate command opcode */
-enum gsi_evt_cmd_opcode {
-	GSI_EVT_ALLOCATE	= 0x0,
-	GSI_EVT_RESET		= 0x9,
-	GSI_EVT_DE_ALLOC	= 0xa,
-};
-
-/* Hardware values representing a generic immediate command opcode */
-enum gsi_generic_cmd_opcode {
-	GSI_GENERIC_HALT_CHANNEL	= 0x1,
-	GSI_GENERIC_ALLOCATE_CHANNEL	= 0x2,
-};
-
-/* Hardware values representing a channel immediate command opcode */
-enum gsi_ch_cmd_opcode {
-	GSI_CH_ALLOCATE	= 0x0,
-	GSI_CH_START	= 0x1,
-	GSI_CH_STOP	= 0x2,
-	GSI_CH_RESET	= 0x9,
-	GSI_CH_DE_ALLOC	= 0xa,
-};
-
 /** gsi_channel_scratch_gpi - GPI protocol scratch register
  * @max_outstanding_tre:
  *	Defines the maximum number of TREs allowed in a single transaction
@@ -305,7 +249,7 @@ static void gsi_irq_enable(struct gsi *gsi)
 	/* Global interrupts include hardware error reports.  Enable
 	 * that so we can at least report the error should it occur.
 	 */
-	iowrite32(ERROR_INT_FMASK, gsi->virt + GSI_CNTXT_GLOB_IRQ_EN_OFFSET);
+	iowrite32(BIT(ERROR_INT), gsi->virt + GSI_CNTXT_GLOB_IRQ_EN_OFFSET);
 	gsi_irq_type_update(gsi, gsi->type_enabled_bitmap | BIT(GSI_GLOB_EE));
 
 	/* General GSI interrupts are reported to all EEs; if they occur
@@ -313,9 +257,9 @@ static void gsi_irq_enable(struct gsi *gsi)
 	 * also exists, but we don't support that.  We want to be notified
 	 * of errors so we can report them, even if they can't be handled.
 	 */
-	val = BUS_ERROR_FMASK;
-	val |= CMD_FIFO_OVRFLOW_FMASK;
-	val |= MCS_STACK_OVRFLOW_FMASK;
+	val = BIT(BUS_ERROR);
+	val |= BIT(CMD_FIFO_OVRFLOW);
+	val |= BIT(MCS_STACK_OVRFLOW);
 	iowrite32(val, gsi->virt + GSI_CNTXT_GSI_IRQ_EN_OFFSET);
 	gsi_irq_type_update(gsi, gsi->type_enabled_bitmap | BIT(GSI_GENERAL));
 }
@@ -684,7 +628,8 @@ static void gsi_evt_ring_program(struct gsi *gsi, u32 evt_ring_id)
 	size_t size = evt_ring->ring.count * GSI_RING_ELEMENT_SIZE;
 	u32 val;
 
-	val = u32_encode_bits(GSI_EVT_CHTYPE_GPI_EV, EV_CHTYPE_FMASK);
+	/* We program all event rings as GPI type/protocol */
+	val = u32_encode_bits(GSI_CHANNEL_TYPE_GPI, EV_CHTYPE_FMASK);
 	val |= EV_INTYPE_FMASK;
 	val |= u32_encode_bits(GSI_RING_ELEMENT_SIZE, EV_ELEMENT_SIZE_FMASK);
 	iowrite32(val, gsi->virt + GSI_EV_CH_E_CNTXT_0_OFFSET(evt_ring_id));
@@ -791,8 +736,8 @@ static void gsi_channel_program(struct gsi_channel *channel, bool doorbell)
 	/* Arbitrarily pick TRE 0 as the first channel element to use */
 	channel->tre_ring.index = 0;
 
-	/* We program all channels to use GPI protocol */
-	val = u32_encode_bits(GSI_CHANNEL_PROTOCOL_GPI, CHTYPE_PROTOCOL_FMASK);
+	/* We program all channels as GPI type/protocol */
+	val = u32_encode_bits(GSI_CHANNEL_TYPE_GPI, CHTYPE_PROTOCOL_FMASK);
 	if (channel->toward_ipa)
 		val |= CHTYPE_DIR_FMASK;
 	val |= u32_encode_bits(channel->evt_ring_id, ERINDEX_FMASK);
@@ -1067,7 +1012,7 @@ static void gsi_isr_evt_ctrl(struct gsi *gsi)
 static void
 gsi_isr_glob_chan_err(struct gsi *gsi, u32 err_ee, u32 channel_id, u32 code)
 {
-	if (code == GSI_OUT_OF_RESOURCES_ERR) {
+	if (code == GSI_OUT_OF_RESOURCES) {
 		dev_err(gsi->dev, "channel %u out of resources\n", channel_id);
 		complete(&gsi->channel[channel_id].completion);
 		return;
@@ -1082,7 +1027,7 @@ gsi_isr_glob_chan_err(struct gsi *gsi, u32 err_ee, u32 channel_id, u32 code)
 static void
 gsi_isr_glob_evt_err(struct gsi *gsi, u32 err_ee, u32 evt_ring_id, u32 code)
 {
-	if (code == GSI_OUT_OF_RESOURCES_ERR) {
+	if (code == GSI_OUT_OF_RESOURCES) {
 		struct gsi_evt_ring *evt_ring = &gsi->evt_ring[evt_ring_id];
 		u32 channel_id = gsi_channel_id(evt_ring->channel);
 
@@ -1132,7 +1077,7 @@ static void gsi_isr_gp_int1(struct gsi *gsi)
 
 	val = ioread32(gsi->virt + GSI_CNTXT_SCRATCH_0_OFFSET);
 	result = u32_get_bits(val, GENERIC_EE_RESULT_FMASK);
-	if (result != GENERIC_EE_SUCCESS_FVAL)
+	if (result != GENERIC_EE_SUCCESS)
 		dev_err(gsi->dev, "global INT1 generic result %u\n", result);
 
 	complete(&gsi->completion);
@@ -1145,15 +1090,15 @@ static void gsi_isr_glob_ee(struct gsi *gsi)
 
 	val = ioread32(gsi->virt + GSI_CNTXT_GLOB_IRQ_STTS_OFFSET);
 
-	if (val & ERROR_INT_FMASK)
+	if (val & BIT(ERROR_INT))
 		gsi_isr_glob_err(gsi);
 
 	iowrite32(val, gsi->virt + GSI_CNTXT_GLOB_IRQ_CLR_OFFSET);
 
-	val &= ~ERROR_INT_FMASK;
+	val &= ~BIT(ERROR_INT);
 
-	if (val & GP_INT1_FMASK) {
-		val ^= GP_INT1_FMASK;
+	if (val & BIT(GP_INT1)) {
+		val ^= BIT(GP_INT1);
 		gsi_isr_gp_int1(gsi);
 	}
 
@@ -1626,7 +1571,7 @@ static int gsi_generic_command(struct gsi *gsi, u32 channel_id,
 	 * halt a modem channel) and only from this function.  So we
 	 * enable the GP_INT1 IRQ type here while we're expecting it.
 	 */
-	val = ERROR_INT_FMASK | GP_INT1_FMASK;
+	val = BIT(ERROR_INT) | BIT(GP_INT1);
 	iowrite32(val, gsi->virt + GSI_CNTXT_GLOB_IRQ_EN_OFFSET);
 
 	/* First zero the result code field */
@@ -1642,7 +1587,7 @@ static int gsi_generic_command(struct gsi *gsi, u32 channel_id,
 	success = gsi_command(gsi, GSI_GENERIC_CMD_OFFSET, val, completion);
 
 	/* Disable the GP_INT1 IRQ type again */
-	iowrite32(ERROR_INT_FMASK, gsi->virt + GSI_CNTXT_GLOB_IRQ_EN_OFFSET);
+	iowrite32(BIT(ERROR_INT), gsi->virt + GSI_CNTXT_GLOB_IRQ_EN_OFFSET);
 
 	if (success)
 		return 0;
