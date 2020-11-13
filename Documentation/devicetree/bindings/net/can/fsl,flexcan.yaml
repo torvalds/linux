@@ -20,14 +20,17 @@ properties:
           - fsl,imx8qm-flexcan
           - fsl,imx8mp-flexcan
           - fsl,imx6q-flexcan
-          - fsl,imx53-flexcan
-          - fsl,imx35-flexcan
           - fsl,imx28-flexcan
           - fsl,imx25-flexcan
           - fsl,p1010-flexcan
           - fsl,vf610-flexcan
           - fsl,ls1021ar2-flexcan
           - fsl,lx2160ar1-flexcan
+      - items:
+          - enum:
+              - fsl,imx53-flexcan
+              - fsl,imx35-flexcan
+          - const: fsl,imx25-flexcan
       - items:
           - enum:
               - fsl,imx7d-flexcan
@@ -81,11 +84,12 @@ properties:
       req_bit is the bit offset of CAN stop request.
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
-      - description: The 'gpr' is the phandle to general purpose register node.
-      - description: The 'req_gpr' is the gpr register offset of CAN stop request.
-        maximum: 0xff
-      - description: The 'req_bit' is the bit offset of CAN stop request.
-        maximum: 0x1f
+      items:
+        - description: The 'gpr' is the phandle to general purpose register node.
+        - description: The 'req_gpr' is the gpr register offset of CAN stop request.
+          maximum: 0xff
+        - description: The 'req_bit' is the bit offset of CAN stop request.
+          maximum: 0x1f
 
   fsl,clk-source:
     description: |
