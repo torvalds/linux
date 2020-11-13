@@ -444,6 +444,24 @@ int snd_soc_component_compr_open(struct snd_compr_stream *cstream,
 }
 EXPORT_SYMBOL_GPL(snd_soc_component_compr_open);
 
+void snd_soc_component_compr_free(struct snd_compr_stream *cstream,
+				  struct snd_soc_component *last)
+{
+	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
+	struct snd_soc_component *component;
+	int i;
+
+	for_each_rtd_components(rtd, i, component) {
+		if (component == last)
+			break;
+
+		if (component->driver->compress_ops &&
+		    component->driver->compress_ops->free)
+			component->driver->compress_ops->free(component, cstream);
+	}
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_compr_free);
+
 static unsigned int soc_component_read_no_lock(
 	struct snd_soc_component *component,
 	unsigned int reg)

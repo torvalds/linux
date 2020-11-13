@@ -22,27 +22,6 @@
 #include <sound/soc-link.h>
 #include <linux/pm_runtime.h>
 
-static int soc_compr_components_free(struct snd_compr_stream *cstream,
-				     struct snd_soc_component *last)
-{
-	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
-	struct snd_soc_component *component;
-	int i;
-
-	for_each_rtd_components(rtd, i, component) {
-		if (component == last)
-			break;
-
-		if (!component->driver->compress_ops ||
-		    !component->driver->compress_ops->free)
-			continue;
-
-		component->driver->compress_ops->free(component, cstream);
-	}
-
-	return 0;
-}
-
 static int soc_compr_open(struct snd_compr_stream *cstream)
 {
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
@@ -76,7 +55,7 @@ static int soc_compr_open(struct snd_compr_stream *cstream)
 	return 0;
 
 machine_err:
-	soc_compr_components_free(cstream, component);
+	snd_soc_component_compr_free(cstream, component);
 
 	snd_soc_dai_compr_shutdown(cpu_dai, cstream);
 out:
@@ -150,7 +129,7 @@ static int soc_compr_open_fe(struct snd_compr_stream *cstream)
 	return 0;
 
 machine_err:
-	soc_compr_components_free(cstream, component);
+	snd_soc_component_compr_free(cstream, component);
 open_err:
 	snd_soc_dai_compr_shutdown(cpu_dai, cstream);
 out:
@@ -182,7 +161,7 @@ static int soc_compr_free(struct snd_compr_stream *cstream)
 
 	snd_soc_link_compr_shutdown(cstream);
 
-	soc_compr_components_free(cstream, NULL);
+	snd_soc_component_compr_free(cstream, NULL);
 
 	snd_soc_dai_compr_shutdown(cpu_dai, cstream);
 
@@ -230,7 +209,7 @@ static int soc_compr_free_fe(struct snd_compr_stream *cstream)
 
 	snd_soc_link_compr_shutdown(cstream);
 
-	soc_compr_components_free(cstream, NULL);
+	snd_soc_component_compr_free(cstream, NULL);
 
 	snd_soc_dai_compr_shutdown(cpu_dai, cstream);
 
