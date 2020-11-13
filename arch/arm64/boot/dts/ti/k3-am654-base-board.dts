@@ -529,3 +529,19 @@
 	phy-mode = "rgmii-rxid";
 	phy-handle = <&phy0>;
 };
+
+&mcasp0 {
+	status = "disabled";
+};
+
+&mcasp1 {
+	status = "disabled";
+};
+
+&mcasp2 {
+	status = "disabled";
+};
+
+&dss {
+	status = "disabled";
+};
