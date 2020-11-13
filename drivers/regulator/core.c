@@ -4037,6 +4037,9 @@ int regulator_set_voltage_time(struct regulator *regulator,
 		if (i < rdev->desc->linear_min_sel)
 			continue;
 
+		if (old_sel >= 0 && new_sel >= 0)
+			break;
+
 		voltage = regulator_list_voltage(regulator, i);
 		if (voltage < 0)
 			return -EINVAL;
