@@ -714,16 +714,7 @@ static struct acpi_driver acpi_sbs_driver = {
 
 static int __init acpi_sbs_init(void)
 {
-	int result = 0;
-
-	if (acpi_disabled)
-		return -ENODEV;
-
-	result = acpi_bus_register_driver(&acpi_sbs_driver);
-	if (result < 0)
-		return -ENODEV;
-
-	return 0;
+	return acpi_bus_register_driver(&acpi_sbs_driver);
 }
 
 static void __exit acpi_sbs_exit(void)
