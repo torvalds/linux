@@ -181,8 +181,12 @@ void bch2_bpos_to_text(struct printbuf *out, struct bpos pos)
 void bch2_bkey_to_text(struct printbuf *out, const struct bkey *k)
 {
 	if (k) {
-		pr_buf(out, "u64s %u type %s ", k->u64s,
-		       bch2_bkey_types[k->type]);
+		pr_buf(out, "u64s %u type ", k->u64s);
+
+		if (k->type < KEY_TYPE_MAX)
+			pr_buf(out, "%s ", bch2_bkey_types[k->type]);
+		else
+			pr_buf(out, "%u ", k->type);
 
 		bch2_bpos_to_text(out, k->p);
 
@@ -196,10 +200,14 @@ void bch2_bkey_to_text(struct printbuf *out, const struct bkey *k)
 void bch2_val_to_text(struct printbuf *out, struct bch_fs *c,
 		      struct bkey_s_c k)
 {
-	const struct bkey_ops *ops = &bch2_bkey_ops[k.k->type];
+	if (k.k->type < KEY_TYPE_MAX) {
+		const struct bkey_ops *ops = &bch2_bkey_ops[k.k->type];
 
-	if (likely(ops->val_to_text))
-		ops->val_to_text(out, c, k);
+		if (likely(ops->val_to_text))
+			ops->val_to_text(out, c, k);
+	} else {
+		pr_buf(out, "(invalid type %u)", k.k->type);
+	}
 }
 
 void bch2_bkey_val_to_text(struct printbuf *out, struct bch_fs *c,
