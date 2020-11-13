@@ -905,13 +905,6 @@ int amdgpu_ras_error_inject(struct amdgpu_device *adev,
 	return ret;
 }
 
-int amdgpu_ras_error_cure(struct amdgpu_device *adev,
-		struct ras_cure_if *info)
-{
-	/* psp fw has no cure interface for now. */
-	return 0;
-}
-
 /* get the total error counts on all IPs */
 unsigned long amdgpu_ras_query_error_count(struct amdgpu_device *adev,
 		bool is_ce)
