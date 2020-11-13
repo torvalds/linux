@@ -1157,7 +1157,7 @@ static int ezusb_read_pda(struct hermes *hw, __le16 *pda,
 
 	return ezusb_access_ltv(upriv, ctx, sizeof(data), &data,
 				EZUSB_FRAME_CONTROL, &pda[2], pda_len - 4,
-				NULL, ezusb_req_ctx_wait);
+				NULL, ezusb_req_ctx_wait_compl);
 }
 
 static int ezusb_program_init(struct hermes *hw, u32 entry_point)
