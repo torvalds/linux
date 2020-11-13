@@ -1068,6 +1068,7 @@ static int check_root_item(struct extent_buffer *leaf, struct btrfs_key *key,
 			    "invalid root item size, have %u expect %zu or %u",
 			    btrfs_item_size_nr(leaf, slot), sizeof(ri),
 			    btrfs_legacy_root_item_size());
+		return -EUCLEAN;
 	}
 
 	/*
