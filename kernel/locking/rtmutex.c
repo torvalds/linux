@@ -1604,8 +1604,11 @@ void __sched rt_mutex_unlock(struct rt_mutex *lock)
 EXPORT_SYMBOL_GPL(rt_mutex_unlock);
 
 /**
- * Futex variant, that since futex variants do not use the fast-path, can be
- * simple and will not need to retry.
+ * __rt_mutex_futex_unlock - Futex variant, that since futex variants
+ * do not use the fast-path, can be simple and will not need to retry.
+ *
+ * @lock:	The rt_mutex to be unlocked
+ * @wake_q:	The wake queue head from which to get the next lock waiter
  */
 bool __sched __rt_mutex_futex_unlock(struct rt_mutex *lock,
 				    struct wake_q_head *wake_q)
@@ -1662,13 +1665,15 @@ void rt_mutex_destroy(struct rt_mutex *lock)
 EXPORT_SYMBOL_GPL(rt_mutex_destroy);
 
 /**
- * __rt_mutex_init - initialize the rt lock
+ * __rt_mutex_init - initialize the rt_mutex
  *
- * @lock: the rt lock to be initialized
+ * @lock:	The rt_mutex to be initialized
+ * @name:	The lock name used for debugging
+ * @key:	The lock class key used for debugging
  *
- * Initialize the rt lock to unlocked state.
+ * Initialize the rt_mutex to unlocked state.
  *
- * Initializing of a locked rt lock is not allowed
+ * Initializing of a locked rt_mutex is not allowed
  */
 void __rt_mutex_init(struct rt_mutex *lock, const char *name,
 		     struct lock_class_key *key)
