@@ -2188,6 +2188,10 @@ static int gfx_v9_0_gpu_early_init(struct amdgpu_device *adev)
 		gb_addr_config = RREG32_SOC15(GC, 0, mmGB_ADDR_CONFIG);
 		gb_addr_config &= ~0xf3e777ff;
 		gb_addr_config |= 0x22014042;
+		/* check vbios table if gpu info is not available */
+		err = amdgpu_atomfirmware_get_gfx_info(adev);
+		if (err)
+			return err;
 		break;
 	default:
 		BUG();
