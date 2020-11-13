@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Handle detection, reporting and mitigation of Spectre v1, v2 and v4, as
+ * Handle detection, reporting and mitigation of Spectre v1, v2, v3a and v4, as
  * detailed at:
  *
  *   https://developer.arm.com/support/arm-security-updates/speculative-processor-vulnerability
@@ -271,11 +271,18 @@ void spectre_v2_enable_mitigation(const struct arm64_cpu_capabilities *__unused)
 	update_mitigation_state(&spectre_v2_state, state);
 }
 
-void cpu_el2_vector_harden_enable(const struct arm64_cpu_capabilities *__unused)
+/*
+ * Spectre-v3a.
+ *
+ * Phew, there's not an awful lot to do here! We just instruct EL2 to use
+ * an indirect trampoline for the hyp vectors so that guests can't read
+ * VBAR_EL2 to defeat randomisation of the hypervisor VA layout.
+ */
+void spectre_v3a_enable_mitigation(const struct arm64_cpu_capabilities *__unused)
 {
 	struct bp_hardening_data *data = this_cpu_ptr(&bp_hardening_data);
 
-	if (this_cpu_has_cap(ARM64_HARDEN_EL2_VECTORS))
+	if (this_cpu_has_cap(ARM64_SPECTRE_V3A))
 		data->slot += HYP_VECTOR_INDIRECT;
 }
 

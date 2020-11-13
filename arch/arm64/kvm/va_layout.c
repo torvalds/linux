@@ -140,10 +140,8 @@ void kvm_patch_vector_branch(struct alt_instr *alt,
 
 	BUG_ON(nr_inst != 4);
 
-	if (!cpus_have_const_cap(ARM64_HARDEN_EL2_VECTORS) ||
-	    WARN_ON_ONCE(has_vhe())) {
+	if (!cpus_have_const_cap(ARM64_SPECTRE_V3A) || WARN_ON_ONCE(has_vhe()))
 		return;
-	}
 
 	/*
 	 * Compute HYP VA by using the same computation as kern_hyp_va()

@@ -1329,7 +1329,7 @@ static int kvm_init_vector_slots(void)
 	base = kern_hyp_va(kvm_ksym_ref(__bp_harden_hyp_vecs));
 	kvm_init_vector_slot(base, HYP_VECTOR_SPECTRE_DIRECT);
 
-	if (!cpus_have_const_cap(ARM64_HARDEN_EL2_VECTORS))
+	if (!cpus_have_const_cap(ARM64_SPECTRE_V3A))
 		return 0;
 
 	if (!has_vhe()) {
@@ -1403,15 +1403,15 @@ static void cpu_hyp_reset(void)
  *   placed in one of the vector slots, which is executed before jumping
  *   to the real vectors.
  *
- * - If the CPU also has the ARM64_HARDEN_EL2_VECTORS cap, the slot
+ * - If the CPU also has the ARM64_SPECTRE_V3A cap, the slot
  *   containing the hardening sequence is mapped next to the idmap page,
  *   and executed before jumping to the real vectors.
  *
- * - If the CPU only has the ARM64_HARDEN_EL2_VECTORS cap, then an
+ * - If the CPU only has the ARM64_SPECTRE_V3A cap, then an
  *   empty slot is selected, mapped next to the idmap page, and
  *   executed before jumping to the real vectors.
  *
- * Note that ARM64_HARDEN_EL2_VECTORS is somewhat incompatible with
+ * Note that ARM64_SPECTRE_V3A is somewhat incompatible with
  * VHE, as we don't have hypervisor-specific mappings. If the system
  * is VHE and yet selects this capability, it will be ignored.
  */

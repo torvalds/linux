@@ -462,10 +462,10 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 #ifdef CONFIG_RANDOMIZE_BASE
 	{
 	/* Must come after the Spectre-v2 entry */
-		.desc = "EL2 vector hardening",
-		.capability = ARM64_HARDEN_EL2_VECTORS,
+		.desc = "Spectre-v3a",
+		.capability = ARM64_SPECTRE_V3A,
 		ERRATA_MIDR_RANGE_LIST(ca57_a72),
-		.cpu_enable = cpu_el2_vector_harden_enable,
+		.cpu_enable = spectre_v3a_enable_mitigation,
 	},
 #endif
 	{

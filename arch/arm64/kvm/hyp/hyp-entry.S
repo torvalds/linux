@@ -209,8 +209,7 @@ SYM_CODE_END(__kvm_hyp_vector)
 	.if \indirect != 0
 	alternative_cb  kvm_patch_vector_branch
 	/*
-	 * For ARM64_HARDEN_EL2_VECTORS configurations, these NOPs get replaced
-	 * with:
+	 * For ARM64_SPECTRE_V3A configurations, these NOPs get replaced with:
 	 *
 	 * movz	x0, #(addr & 0xffff)
 	 * movk	x0, #((addr >> 16) & 0xffff), lsl #16
