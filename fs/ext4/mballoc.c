@@ -4477,7 +4477,7 @@ static inline void ext4_mb_show_pa(struct super_block *sb)
 {
 	ext4_group_t i, ngroups;
 
-	if (EXT4_SB(sb)->s_mount_flags & EXT4_MF_FS_ABORTED)
+	if (ext4_test_mount_flag(sb, EXT4_MF_FS_ABORTED))
 		return;
 
 	ngroups = ext4_get_groups_count(sb);
@@ -4508,7 +4508,7 @@ static void ext4_mb_show_ac(struct ext4_allocation_context *ac)
 {
 	struct super_block *sb = ac->ac_sb;
 
-	if (EXT4_SB(sb)->s_mount_flags & EXT4_MF_FS_ABORTED)
+	if (ext4_test_mount_flag(sb, EXT4_MF_FS_ABORTED))
 		return;
 
 	mb_debug(sb, "Can't allocate:"
@@ -5167,7 +5167,7 @@ static ext4_fsblk_t ext4_mb_new_blocks_simple(handle_t *handle,
 	struct super_block *sb = ar->inode->i_sb;
 	ext4_group_t group;
 	ext4_grpblk_t blkoff;
-	int  i;
+	int i = sb->s_blocksize;
 	ext4_fsblk_t goal, block;
 	struct ext4_super_block *es = EXT4_SB(sb)->s_es;
 

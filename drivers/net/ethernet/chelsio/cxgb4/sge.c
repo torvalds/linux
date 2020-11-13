@@ -890,6 +890,114 @@ void cxgb4_write_sgl(const struct sk_buff *skb, struct sge_txq *q,
 }
 EXPORT_SYMBOL(cxgb4_write_sgl);
 
+/*	cxgb4_write_partial_sgl - populate SGL for partial packet
+ *	@skb: the packet
+ *	@q: the Tx queue we are writing into
+ *	@sgl: starting location for writing the SGL
+ *	@end: points right after the end of the SGL
+ *	@addr: the list of bus addresses for the SGL elements
+ *	@start: start offset in the SKB where partial data starts
+ *	@len: length of data from @start to send out
+ *
+ *	This API will handle sending out partial data of a skb if required.
+ *	Unlike cxgb4_write_sgl, @start can be any offset into the skb data,
+ *	and @len will decide how much data after @start offset to send out.
+ */
+void cxgb4_write_partial_sgl(const struct sk_buff *skb, struct sge_txq *q,
+			     struct ulptx_sgl *sgl, u64 *end,
+			     const dma_addr_t *addr, u32 start, u32 len)
+{
+	struct ulptx_sge_pair buf[MAX_SKB_FRAGS / 2 + 1] = {0}, *to;
+	u32 frag_size, skb_linear_data_len = skb_headlen(skb);
+	struct skb_shared_info *si = skb_shinfo(skb);
+	u8 i = 0, frag_idx = 0, nfrags = 0;
+	skb_frag_t *frag;
+
+	/* Fill the first SGL either from linear data or from partial
+	 * frag based on @start.
+	 */
+	if (unlikely(start < skb_linear_data_len)) {
+		frag_size = min(len, skb_linear_data_len - start);
+		sgl->len0 = htonl(frag_size);
+		sgl->addr0 = cpu_to_be64(addr[0] + start);
+		len -= frag_size;
+		nfrags++;
+	} else {
+		start -= skb_linear_data_len;
+		frag = &si->frags[frag_idx];
+		frag_size = skb_frag_size(frag);
+		/* find the first frag */
+		while (start >= frag_size) {
+			start -= frag_size;
+			frag_idx++;
+			frag = &si->frags[frag_idx];
+			frag_size = skb_frag_size(frag);
+		}
+
+		frag_size = min(len, skb_frag_size(frag) - start);
+		sgl->len0 = cpu_to_be32(frag_size);
+		sgl->addr0 = cpu_to_be64(addr[frag_idx + 1] + start);
+		len -= frag_size;
+		nfrags++;
+		frag_idx++;
+	}
+
+	/* If the entire partial data fit in one SGL, then send it out
+	 * now.
+	 */
+	if (!len)
+		goto done;
+
+	/* Most of the complexity below deals with the possibility we hit the
+	 * end of the queue in the middle of writing the SGL.  For this case
+	 * only we create the SGL in a temporary buffer and then copy it.
+	 */
+	to = (u8 *)end > (u8 *)q->stat ? buf : sgl->sge;
+
+	/* If the skb couldn't fit in first SGL completely, fill the
+	 * rest of the frags in subsequent SGLs. Note that each SGL
+	 * pair can store 2 frags.
+	 */
+	while (len) {
+		frag_size = min(len, skb_frag_size(&si->frags[frag_idx]));
+		to->len[i & 1] = cpu_to_be32(frag_size);
+		to->addr[i & 1] = cpu_to_be64(addr[frag_idx + 1]);
+		if (i && (i & 1))
+			to++;
+		nfrags++;
+		frag_idx++;
+		i++;
+		len -= frag_size;
+	}
+
+	/* If we ended in an odd boundary, then set the second SGL's
+	 * length in the pair to 0.
+	 */
+	if (i & 1)
+		to->len[1] = cpu_to_be32(0);
+
+	/* Copy from temporary buffer to Tx ring, in case we hit the
+	 * end of the queue in the middle of writing the SGL.
+	 */
+	if (unlikely((u8 *)end > (u8 *)q->stat)) {
+		u32 part0 = (u8 *)q->stat - (u8 *)sgl->sge, part1;
+
+		if (likely(part0))
+			memcpy(sgl->sge, buf, part0);
+		part1 = (u8 *)end - (u8 *)q->stat;
+		memcpy(q->desc, (u8 *)buf + part0, part1);
+		end = (void *)q->desc + part1;
+	}
+
+	/* 0-pad to multiple of 16 */
+	if ((uintptr_t)end & 8)
+		*end = 0;
+done:
+	sgl->cmd_nsge = htonl(ULPTX_CMD_V(ULP_TX_SC_DSGL) |
+			ULPTX_NSGE_V(nfrags));
+}
+EXPORT_SYMBOL(cxgb4_write_partial_sgl);
+
 /* This function copies 64 byte coalesced work request to
  * memory mapped BAR2 space. For coalesced WR SGE fetches
  * data from the FIFO instead of from Host.
@@ -1422,7 +1530,8 @@ static netdev_tx_t cxgb4_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 #endif /* CHELSIO_IPSEC_INLINE */
 
 #if IS_ENABLED(CONFIG_CHELSIO_TLS_DEVICE)
-	if (skb->decrypted)
+	if (cxgb4_is_ktls_skb(skb) &&
+	    (skb->len - (skb_transport_offset(skb) + tcp_hdrlen(skb))))
 		return adap->uld[CXGB4_ULD_KTLS].tx_handler(skb, dev);
 #endif /* CHELSIO_TLS_DEVICE */
 

@@ -202,9 +202,7 @@ SystemCall:
 
 InstructionTLBMiss:
 	mtspr	SPRN_SPRG_SCRATCH0, r10
-#if defined(ITLB_MISS_KERNEL) || defined(CONFIG_SWAP) || defined(CONFIG_HUGETLBFS)
 	mtspr	SPRN_SPRG_SCRATCH1, r11
-#endif
 
 	/* If we are faulting a kernel address, we have to use the
 	 * kernel page tables.
@@ -224,25 +222,13 @@ InstructionTLBMiss:
 3:
 	mtcr	r11
 #endif
-#if defined(CONFIG_HUGETLBFS) || !defined(CONFIG_PIN_TLB_TEXT)
 	lwz	r11, (swapper_pg_dir-PAGE_OFFSET)@l(r10)	/* Get level 1 entry */
 	mtspr	SPRN_MD_TWC, r11
-#else
-	lwz	r10, (swapper_pg_dir-PAGE_OFFSET)@l(r10)	/* Get level 1 entry */
-	mtspr	SPRN_MI_TWC, r10	/* Set segment attributes */
-	mtspr	SPRN_MD_TWC, r10
-#endif
 	mfspr	r10, SPRN_MD_TWC
 	lwz	r10, 0(r10)	/* Get the pte */
-#if defined(CONFIG_HUGETLBFS) || !defined(CONFIG_PIN_TLB_TEXT)
+	rlwimi	r11, r10, 0, _PAGE_GUARDED | _PAGE_ACCESSED
 	rlwimi	r11, r10, 32 - 9, _PMD_PAGE_512K
 	mtspr	SPRN_MI_TWC, r11
-#endif
-#ifdef CONFIG_SWAP
-	rlwinm	r11, r10, 32-5, _PAGE_PRESENT
-	and	r11, r11, r10
-	rlwimi	r10, r11, 0, _PAGE_PRESENT
-#endif
 	/* The Linux PTE won't go exactly into the MMU TLB.
 	 * Software indicator bits 20 and 23 must be clear.
 	 * Software indicator bits 22, 24, 25, 26, and 27 must be
@@ -256,9 +242,7 @@ InstructionTLBMiss:
 
 	/* Restore registers */
 0:	mfspr	r10, SPRN_SPRG_SCRATCH0
-#if defined(ITLB_MISS_KERNEL) || defined(CONFIG_SWAP) || defined(CONFIG_HUGETLBFS)
 	mfspr	r11, SPRN_SPRG_SCRATCH1
-#endif
 	rfi
 	patch_site	0b, patch__itlbmiss_exit_1
 
@@ -268,9 +252,7 @@ InstructionTLBMiss:
 	addi	r10, r10, 1
 	stw	r10, (itlb_miss_counter - PAGE_OFFSET)@l(0)
 	mfspr	r10, SPRN_SPRG_SCRATCH0
-#if defined(ITLB_MISS_KERNEL) || defined(CONFIG_SWAP)
 	mfspr	r11, SPRN_SPRG_SCRATCH1
-#endif
 	rfi
 #endif
 
@@ -297,30 +279,16 @@ DataStoreTLBMiss:
 	mfspr	r10, SPRN_MD_TWC
 	lwz	r10, 0(r10)	/* Get the pte */
 
-	/* Insert the Guarded flag into the TWC from the Linux PTE.
+	/* Insert Guarded and Accessed flags into the TWC from the Linux PTE.
 	 * It is bit 27 of both the Linux PTE and the TWC (at least
 	 * I got that right :-).  It will be better when we can put
 	 * this into the Linux pgd/pmd and load it in the operation
 	 * above.
 	 */
-	rlwimi	r11, r10, 0, _PAGE_GUARDED
+	rlwimi	r11, r10, 0, _PAGE_GUARDED | _PAGE_ACCESSED
 	rlwimi	r11, r10, 32 - 9, _PMD_PAGE_512K
 	mtspr	SPRN_MD_TWC, r11
 
-	/* Both _PAGE_ACCESSED and _PAGE_PRESENT has to be set.
-	 * We also need to know if the insn is a load/store, so:
-	 * Clear _PAGE_PRESENT and load that which will
-	 * trap into DTLB Error with store bit set accordinly.
-	 */
-	/* PRESENT=0x1, ACCESSED=0x20
-	 * r11 = ((r10 & PRESENT) & ((r10 & ACCESSED) >> 5));
-	 * r10 = (r10 & ~PRESENT) | r11;
-	 */
-#ifdef CONFIG_SWAP
-	rlwinm	r11, r10, 32-5, _PAGE_PRESENT
-	and	r11, r11, r10
-	rlwimi	r10, r11, 0, _PAGE_PRESENT
-#endif
 	/* The Linux PTE won't go exactly into the MMU TLB.
 	 * Software indicator bits 24, 25, 26, and 27 must be
 	 * set.  All other Linux PTE bits control the behavior
@@ -711,7 +679,7 @@ initial_mmu:
 	li	r9, 4				/* up to 4 pages of 8M */
 	mtctr	r9
 	lis	r9, KERNELBASE@h		/* Create vaddr for TLB */
-	li	r10, MI_PS8MEG | MI_SVALID	/* Set 8M byte page */
+	li	r10, MI_PS8MEG | _PMD_ACCESSED | MI_SVALID
 	li	r11, MI_BOOTINIT		/* Create RPN for address 0 */
 1:
 	mtspr	SPRN_MI_CTR, r8	/* Set instruction MMU control */
@@ -775,7 +743,7 @@ _GLOBAL(mmu_pin_tlb)
 #ifdef CONFIG_PIN_TLB_TEXT
 	LOAD_REG_IMMEDIATE(r5, 28 << 8)
 	LOAD_REG_IMMEDIATE(r6, PAGE_OFFSET)
-	LOAD_REG_IMMEDIATE(r7, MI_SVALID | MI_PS8MEG)
+	LOAD_REG_IMMEDIATE(r7, MI_SVALID | MI_PS8MEG | _PMD_ACCESSED)
 	LOAD_REG_IMMEDIATE(r8, 0xf0 | _PAGE_RO | _PAGE_SPS | _PAGE_SH | _PAGE_PRESENT)
 	LOAD_REG_ADDR(r9, _sinittext)
 	li	r0, 4
@@ -797,7 +765,7 @@ _GLOBAL(mmu_pin_tlb)
 	LOAD_REG_IMMEDIATE(r5, 28 << 8 | MD_TWAM)
 #ifdef CONFIG_PIN_TLB_DATA
 	LOAD_REG_IMMEDIATE(r6, PAGE_OFFSET)
-	LOAD_REG_IMMEDIATE(r7, MI_SVALID | MI_PS8MEG)
+	LOAD_REG_IMMEDIATE(r7, MI_SVALID | MI_PS8MEG | _PMD_ACCESSED)
 #ifdef CONFIG_PIN_TLB_IMMR
 	li	r0, 3
 #else
@@ -834,7 +802,7 @@ _GLOBAL(mmu_pin_tlb)
 #endif
 #ifdef CONFIG_PIN_TLB_IMMR
 	LOAD_REG_IMMEDIATE(r0, VIRT_IMMR_BASE | MD_EVALID)
-	LOAD_REG_IMMEDIATE(r7, MD_SVALID | MD_PS512K | MD_GUARDED)
+	LOAD_REG_IMMEDIATE(r7, MD_SVALID | MD_PS512K | MD_GUARDED | _PMD_ACCESSED)
 	mfspr   r8, SPRN_IMMR
 	rlwinm	r8, r8, 0, 0xfff80000
 	ori	r8, r8, 0xf0 | _PAGE_DIRTY | _PAGE_SPS | _PAGE_SH | \

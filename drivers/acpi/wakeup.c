@@ -44,7 +44,7 @@ void acpi_enable_wakeup_devices(u8 sleep_state)
 		if (!dev->wakeup.flags.valid
 		    || sleep_state > (u32) dev->wakeup.sleep_state
 		    || !(device_may_wakeup(&dev->dev)
-		        || dev->wakeup.prepare_count))
+			 || dev->wakeup.prepare_count))
 			continue;
 
 		if (device_may_wakeup(&dev->dev))
@@ -69,7 +69,7 @@ void acpi_disable_wakeup_devices(u8 sleep_state)
 		if (!dev->wakeup.flags.valid
 		    || sleep_state > (u32) dev->wakeup.sleep_state
 		    || !(device_may_wakeup(&dev->dev)
-		        || dev->wakeup.prepare_count))
+			 || dev->wakeup.prepare_count))
 			continue;
 
 		acpi_set_gpe_wake_mask(dev->wakeup.gpe_device, dev->wakeup.gpe_number,
