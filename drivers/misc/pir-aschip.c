@@ -76,7 +76,7 @@ static const struct file_operations pir_aschip_sensibility_fops = {
 	.write		= pir_aschip_sensibility_write,
 };
 
-static int __init pir_aschip_create_procfs(struct aschip_pir_drv_data *drv_data)
+static int pir_aschip_create_procfs(struct aschip_pir_drv_data *drv_data)
 {
 	struct proc_dir_entry *ent;
 
@@ -95,7 +95,7 @@ fail:
 	return -ENOMEM;
 }
 
-static void __exit pir_aschip_proc_release(struct aschip_pir_drv_data *drv_data)
+static void pir_aschip_proc_release(struct aschip_pir_drv_data *drv_data)
 {
 	remove_proc_entry("sensibility", NULL);
 	proc_remove(drv_data->procfs);
