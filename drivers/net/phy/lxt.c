@@ -78,10 +78,23 @@ static int lxt970_ack_interrupt(struct phy_device *phydev)
 
 static int lxt970_config_intr(struct phy_device *phydev)
 {
-	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
-		return phy_write(phydev, MII_LXT970_IER, MII_LXT970_IER_IEN);
-	else
-		return phy_write(phydev, MII_LXT970_IER, 0);
+	int err;
+
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		err = lxt970_ack_interrupt(phydev);
+		if (err)
+			return err;
+
+		err = phy_write(phydev, MII_LXT970_IER, MII_LXT970_IER_IEN);
+	} else {
+		err = phy_write(phydev, MII_LXT970_IER, 0);
+		if (err)
+			return err;
+
+		err = lxt970_ack_interrupt(phydev);
+	}
+
+	return err;
 }
 
 static irqreturn_t lxt970_handle_interrupt(struct phy_device *phydev)
@@ -129,10 +142,23 @@ static int lxt971_ack_interrupt(struct phy_device *phydev)
 
 static int lxt971_config_intr(struct phy_device *phydev)
 {
-	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
-		return phy_write(phydev, MII_LXT971_IER, MII_LXT971_IER_IEN);
-	else
-		return phy_write(phydev, MII_LXT971_IER, 0);
+	int err;
+
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		err = lxt971_ack_interrupt(phydev);
+		if (err)
+			return err;
+
+		err = phy_write(phydev, MII_LXT971_IER, MII_LXT971_IER_IEN);
+	} else {
+		err = phy_write(phydev, MII_LXT971_IER, 0);
+		if (err)
+			return err;
+
+		err = lxt971_ack_interrupt(phydev);
+	}
+
+	return err;
 }
 
 static irqreturn_t lxt971_handle_interrupt(struct phy_device *phydev)
@@ -285,7 +311,6 @@ static struct phy_driver lxt97x_driver[] = {
 	.phy_id_mask	= 0xfffffff0,
 	/* PHY_BASIC_FEATURES */
 	.config_init	= lxt970_config_init,
-	.ack_interrupt	= lxt970_ack_interrupt,
 	.config_intr	= lxt970_config_intr,
 	.handle_interrupt = lxt970_handle_interrupt,
 }, {
@@ -293,7 +318,6 @@ static struct phy_driver lxt97x_driver[] = {
 	.name		= "LXT971",
 	.phy_id_mask	= 0xfffffff0,
 	/* PHY_BASIC_FEATURES */
-	.ack_interrupt	= lxt971_ack_interrupt,
 	.config_intr	= lxt971_config_intr,
 	.handle_interrupt = lxt971_handle_interrupt,
 	.suspend	= genphy_suspend,
