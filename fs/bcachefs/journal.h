@@ -127,11 +127,6 @@ static inline struct journal_buf *journal_cur_buf(struct journal *j)
 	return j->buf + j->reservations.idx;
 }
 
-static inline struct journal_buf *journal_prev_buf(struct journal *j)
-{
-	return j->buf + !j->reservations.idx;
-}
-
 /* Sequence number of oldest dirty journal entry */
 
 static inline u64 journal_last_seq(struct journal *j)
@@ -151,13 +146,21 @@ void bch2_journal_set_has_inum(struct journal *, u64, u64);
 
 static inline int journal_state_count(union journal_res_state s, int idx)
 {
-	return idx == 0 ? s.buf0_count : s.buf1_count;
+	switch (idx) {
+	case 0: return s.buf0_count;
+	case 1: return s.buf1_count;
+	case 2: return s.buf2_count;
+	case 3: return s.buf3_count;
+	}
+	BUG();
 }
 
 static inline void journal_state_inc(union journal_res_state *s)
 {
 	s->buf0_count += s->idx == 0;
 	s->buf1_count += s->idx == 1;
+	s->buf2_count += s->idx == 2;
+	s->buf3_count += s->idx == 3;
 }
 
 static inline void bch2_journal_set_has_inode(struct journal *j,
@@ -257,21 +260,24 @@ static inline bool journal_entry_empty(struct jset *j)
 	return true;
 }
 
-void __bch2_journal_buf_put(struct journal *, bool);
+void __bch2_journal_buf_put(struct journal *);
 
-static inline void bch2_journal_buf_put(struct journal *j, unsigned idx,
-				       bool need_write_just_set)
+static inline void bch2_journal_buf_put(struct journal *j, unsigned idx)
 {
 	union journal_res_state s;
 
 	s.v = atomic64_sub_return(((union journal_res_state) {
 				    .buf0_count = idx == 0,
 				    .buf1_count = idx == 1,
+				    .buf2_count = idx == 2,
+				    .buf3_count = idx == 3,
 				    }).v, &j->reservations.counter);
-	if (!journal_state_count(s, idx)) {
-		EBUG_ON(s.idx == idx || !s.prev_buf_unwritten);
-		__bch2_journal_buf_put(j, need_write_just_set);
-	}
+
+	EBUG_ON(((s.idx - idx) & 3) >
+		((s.idx - s.unwritten_idx) & 3));
+
+	if (!journal_state_count(s, idx) && idx == s.unwritten_idx)
+		__bch2_journal_buf_put(j);
 }
 
 /*
@@ -291,7 +297,7 @@ static inline void bch2_journal_res_put(struct journal *j,
 				       BCH_JSET_ENTRY_btree_keys,
 				       0, 0, NULL, 0);
 
-	bch2_journal_buf_put(j, res->idx, false);
+	bch2_journal_buf_put(j, res->idx);
 
 	res->ref = 0;
 }
@@ -327,11 +333,18 @@ static inline int journal_res_get_fast(struct journal *j,
 		    !test_bit(JOURNAL_MAY_GET_UNRESERVED, &j->flags))
 			return 0;
 
-		if (flags & JOURNAL_RES_GET_CHECK)
-			return 1;
-
 		new.cur_entry_offset += res->u64s;
 		journal_state_inc(&new);
+
+		/*
+		 * If the refcount would overflow, we have to wait:
+		 * XXX - tracepoint this:
+		 */
+		if (!journal_state_count(new, new.idx))
+			return 0;
+
+		if (flags & JOURNAL_RES_GET_CHECK)
+			return 1;
 	} while ((v = atomic64_cmpxchg(&j->reservations.counter,
 				       old.v, new.v)) != old.v);
 

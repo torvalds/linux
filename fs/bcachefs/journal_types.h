@@ -11,13 +11,13 @@
 
 struct journal_res;
 
-#define JOURNAL_BUF_BITS	1
+#define JOURNAL_BUF_BITS	2
 #define JOURNAL_BUF_NR		(1U << JOURNAL_BUF_BITS)
 #define JOURNAL_BUF_MASK	(JOURNAL_BUF_NR - 1)
 
 /*
- * We put two of these in struct journal; we used them for writes to the
- * journal that are being staged or in flight.
+ * We put JOURNAL_BUF_NR of these in struct journal; we used them for writes to
+ * the journal that are being staged or in flight.
  */
 struct journal_buf {
 	struct jset		*data;
@@ -85,10 +85,12 @@ union journal_res_state {
 
 	struct {
 		u64		cur_entry_offset:20,
-				idx:1,
-				prev_buf_unwritten:1,
-				buf0_count:21,
-				buf1_count:21;
+				idx:2,
+				unwritten_idx:2,
+				buf0_count:10,
+				buf1_count:10,
+				buf2_count:10,
+				buf3_count:10;
 	};
 };
 
@@ -169,7 +171,7 @@ struct journal {
 	 * Two journal entries -- one is currently open for new entries, the
 	 * other is possibly being written out.
 	 */
-	struct journal_buf	buf[2];
+	struct journal_buf	buf[JOURNAL_BUF_NR];
 
 	spinlock_t		lock;
 

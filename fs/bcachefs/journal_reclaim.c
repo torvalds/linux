@@ -58,6 +58,19 @@ static void journal_set_remaining(struct journal *j, unsigned u64s_remaining)
 				       old.v, new.v)) != old.v);
 }
 
+static inline unsigned get_unwritten_sectors(struct journal *j, unsigned *idx)
+{
+	unsigned sectors = 0;
+
+	while (!sectors && *idx != j->reservations.idx) {
+		sectors = j->buf[*idx].sectors;
+
+		*idx = (*idx + 1) & JOURNAL_BUF_MASK;
+	}
+
+	return sectors;
+}
+
 static struct journal_space {
 	unsigned	next_entry;
 	unsigned	remaining;
@@ -69,15 +82,14 @@ static struct journal_space {
 	unsigned sectors_next_entry	= UINT_MAX;
 	unsigned sectors_total		= UINT_MAX;
 	unsigned i, nr_devs = 0;
-	unsigned unwritten_sectors = j->reservations.prev_buf_unwritten
-		? journal_prev_buf(j)->sectors
-		: 0;
+	unsigned unwritten_sectors;
 
 	rcu_read_lock();
 	for_each_member_device_rcu(ca, c, i,
 				   &c->rw_devs[BCH_DATA_journal]) {
 		struct journal_device *ja = &ca->journal;
 		unsigned buckets_this_device, sectors_this_device;
+		unsigned idx = j->reservations.unwritten_idx;
 
 		if (!ja->nr)
 			continue;
@@ -89,15 +101,19 @@ static struct journal_space {
 		 * We that we don't allocate the space for a journal entry
 		 * until we write it out - thus, account for it here:
 		 */
-		if (unwritten_sectors >= sectors_this_device) {
-			if (!buckets_this_device)
-				continue;
+		while ((unwritten_sectors = get_unwritten_sectors(j, &idx))) {
+			if (unwritten_sectors >= sectors_this_device) {
+				if (!buckets_this_device) {
+					sectors_this_device = 0;
+					break;
+				}
 
-			buckets_this_device--;
-			sectors_this_device = ca->mi.bucket_size;
+				buckets_this_device--;
+				sectors_this_device = ca->mi.bucket_size;
+			}
+
+			sectors_this_device -= unwritten_sectors;
 		}
-
-		sectors_this_device -= unwritten_sectors;
 
 		if (sectors_this_device < ca->mi.bucket_size &&
 		    buckets_this_device) {
@@ -275,6 +291,14 @@ static void bch2_journal_reclaim_fast(struct journal *j)
 
 	if (popped)
 		bch2_journal_space_available(j);
+}
+
+void __bch2_journal_pin_put(struct journal *j, u64 seq)
+{
+	struct journal_entry_pin_list *pin_list = journal_seq_pin(j, seq);
+
+	if (atomic_dec_and_test(&pin_list->count))
+		bch2_journal_reclaim_fast(j);
 }
 
 void bch2_journal_pin_put(struct journal *j, u64 seq)

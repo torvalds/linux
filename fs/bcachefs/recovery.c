@@ -1048,13 +1048,13 @@ int bch2_fs_recovery(struct bch_fs *c)
 	if (!c->sb.clean) {
 		ret = bch2_journal_seq_blacklist_add(c,
 						     journal_seq,
-						     journal_seq + 4);
+						     journal_seq + 8);
 		if (ret) {
 			bch_err(c, "error creating new journal seq blacklist entry");
 			goto err;
 		}
 
-		journal_seq += 4;
+		journal_seq += 8;
 
 		/*
 		 * The superblock needs to be written before we do any btree

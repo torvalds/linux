@@ -950,16 +950,23 @@ static void journal_buf_realloc(struct journal *j, struct journal_buf *buf)
 	buf->buf_size	= new_size;
 }
 
+static inline struct journal_buf *journal_last_unwritten_buf(struct journal *j)
+{
+	return j->buf + j->reservations.unwritten_idx;
+}
+
 static void journal_write_done(struct closure *cl)
 {
 	struct journal *j = container_of(cl, struct journal, io);
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
-	struct journal_buf *w = journal_prev_buf(j);
+	struct journal_buf *w = journal_last_unwritten_buf(j);
 	struct bch_devs_list devs =
 		bch2_bkey_devs(bkey_i_to_s_c(&w->key));
 	struct bch_replicas_padded replicas;
+	union journal_res_state old, new;
 	u64 seq = le64_to_cpu(w->data->seq);
 	u64 last_seq = le64_to_cpu(w->data->last_seq);
+	u64 v;
 	int err = 0;
 
 	bch2_time_stats_update(j->write_time, j->write_start_time);
@@ -998,9 +1005,14 @@ static void journal_write_done(struct closure *cl)
 	/* also must come before signalling write completion: */
 	closure_debug_destroy(cl);
 
-	BUG_ON(!j->reservations.prev_buf_unwritten);
-	atomic64_sub(((union journal_res_state) { .prev_buf_unwritten = 1 }).v,
-		     &j->reservations.counter);
+	v = atomic64_read(&j->reservations.counter);
+	do {
+		old.v = new.v = v;
+		BUG_ON(new.idx == new.unwritten_idx);
+
+		new.unwritten_idx++;
+	} while ((v = atomic64_cmpxchg(&j->reservations.counter,
+				       old.v, new.v)) != old.v);
 
 	closure_wake_up(&w->wait);
 	journal_wake(j);
@@ -1008,6 +1020,10 @@ static void journal_write_done(struct closure *cl)
 	if (test_bit(JOURNAL_NEED_WRITE, &j->flags))
 		mod_delayed_work(system_freezable_wq, &j->write_work, 0);
 	spin_unlock(&j->lock);
+
+	if (new.unwritten_idx != new.idx &&
+	    !journal_state_count(new, new.unwritten_idx))
+		closure_call(&j->io, bch2_journal_write, system_highpri_wq, NULL);
 }
 
 static void journal_write_endio(struct bio *bio)
@@ -1018,7 +1034,7 @@ static void journal_write_endio(struct bio *bio)
 	if (bch2_dev_io_err_on(bio->bi_status, ca, "journal write error: %s",
 			       bch2_blk_status_to_str(bio->bi_status)) ||
 	    bch2_meta_write_fault("journal")) {
-		struct journal_buf *w = journal_prev_buf(j);
+		struct journal_buf *w = journal_last_unwritten_buf(j);
 		unsigned long flags;
 
 		spin_lock_irqsave(&j->err_lock, flags);
@@ -1035,7 +1051,7 @@ void bch2_journal_write(struct closure *cl)
 	struct journal *j = container_of(cl, struct journal, io);
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	struct bch_dev *ca;
-	struct journal_buf *w = journal_prev_buf(j);
+	struct journal_buf *w = journal_last_unwritten_buf(j);
 	struct jset_entry *start, *end;
 	struct jset *jset;
 	struct bio *bio;
@@ -1045,8 +1061,6 @@ void bch2_journal_write(struct closure *cl)
 	int ret;
 
 	BUG_ON(BCH_SB_CLEAN(c->disk_sb.sb));
-
-	bch2_journal_pin_put(j, le64_to_cpu(w->data->seq));
 
 	journal_buf_realloc(j, w);
 	jset = w->data;
