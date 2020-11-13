@@ -54,12 +54,8 @@
  * This function is useful for iterating over all regulators and accessing their
  * registers in a generic way or accessing a regulator device by its id.
  */
-#define MCP16502_BASE(i) (((i) + 1) << 4)
+#define MCP16502_REG_BASE(i, r) ((((i) + 1) << 4) + MCP16502_REG_##r)
 #define MCP16502_STAT_BASE(i) ((i) + 5)
-
-#define MCP16502_OFFSET_MODE_A 0
-#define MCP16502_OFFSET_MODE_LPM 1
-#define MCP16502_OFFSET_MODE_HIB 2
 
 #define MCP16502_OPMODE_ACTIVE REGULATOR_MODE_NORMAL
 #define MCP16502_OPMODE_LPM REGULATOR_MODE_IDLE
@@ -74,6 +70,23 @@
 
 #define MCP16502_MIN_REG 0x0
 #define MCP16502_MAX_REG 0x65
+
+/**
+ * enum mcp16502_reg - MCP16502 regulators's registers
+ * @MCP16502_REG_A: active state register
+ * @MCP16502_REG_LPM: low power mode state register
+ * @MCP16502_REG_HIB: hibernate state register
+ * @MCP16502_REG_SEQ: startup sequence register
+ * @MCP16502_REG_CFG: configuration register
+ */
+enum mcp16502_reg {
+	MCP16502_REG_A,
+	MCP16502_REG_LPM,
+	MCP16502_REG_HIB,
+	MCP16502_REG_HPM,
+	MCP16502_REG_SEQ,
+	MCP16502_REG_CFG,
+};
 
 static unsigned int mcp16502_of_map_mode(unsigned int mode)
 {
@@ -144,22 +157,20 @@ static void mcp16502_gpio_set_mode(struct mcp16502 *mcp, int mode)
 }
 
 /*
- * mcp16502_get_reg() - get the PMIC's configuration register for opmode
+ * mcp16502_get_reg() - get the PMIC's state configuration register for opmode
  *
  * @rdev: the regulator whose register we are searching
  * @opmode: the PMIC's operating mode ACTIVE, Low-power, Hibernate
  */
-static int mcp16502_get_reg(struct regulator_dev *rdev, int opmode)
+static int mcp16502_get_state_reg(struct regulator_dev *rdev, int opmode)
 {
-	int reg = MCP16502_BASE(rdev_get_id(rdev));
-
 	switch (opmode) {
 	case MCP16502_OPMODE_ACTIVE:
-		return reg + MCP16502_OFFSET_MODE_A;
+		return MCP16502_REG_BASE(rdev_get_id(rdev), A);
 	case MCP16502_OPMODE_LPM:
-		return reg + MCP16502_OFFSET_MODE_LPM;
+		return MCP16502_REG_BASE(rdev_get_id(rdev), LPM);
 	case MCP16502_OPMODE_HIB:
-		return reg + MCP16502_OFFSET_MODE_HIB;
+		return MCP16502_REG_BASE(rdev_get_id(rdev), HIB);
 	default:
 		return -EINVAL;
 	}
@@ -179,7 +190,7 @@ static unsigned int mcp16502_get_mode(struct regulator_dev *rdev)
 	unsigned int val;
 	int ret, reg;
 
-	reg = mcp16502_get_reg(rdev, MCP16502_OPMODE_ACTIVE);
+	reg = mcp16502_get_state_reg(rdev, MCP16502_OPMODE_ACTIVE);
 	if (reg < 0)
 		return reg;
 
@@ -210,7 +221,7 @@ static int _mcp16502_set_mode(struct regulator_dev *rdev, unsigned int mode,
 	int val;
 	int reg;
 
-	reg = mcp16502_get_reg(rdev, op_mode);
+	reg = mcp16502_get_state_reg(rdev, op_mode);
 	if (reg < 0)
 		return reg;
 
@@ -269,10 +280,10 @@ static int mcp16502_suspend_get_target_reg(struct regulator_dev *rdev)
 {
 	switch (pm_suspend_target_state) {
 	case PM_SUSPEND_STANDBY:
-		return mcp16502_get_reg(rdev, MCP16502_OPMODE_LPM);
+		return mcp16502_get_state_reg(rdev, MCP16502_OPMODE_LPM);
 	case PM_SUSPEND_ON:
 	case PM_SUSPEND_MEM:
-		return mcp16502_get_reg(rdev, MCP16502_OPMODE_HIB);
+		return mcp16502_get_state_reg(rdev, MCP16502_OPMODE_HIB);
 	default:
 		dev_err(&rdev->dev, "invalid suspend target: %d\n",
 			pm_suspend_target_state);
