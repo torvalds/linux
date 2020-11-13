@@ -12,7 +12,6 @@
 #include <linux/crypto.h>
 #include <linux/verification.h>
 #include <crypto/hash.h>
-#include <crypto/sha.h>
 #include <crypto/algapi.h>
 #include <keys/user-type.h>
 #include <keys/asymmetric-type.h>

@@ -9,7 +9,7 @@
 #include <linux/completion.h>
 #include <linux/firmware.h>
 #include <crypto/hash.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
 
 #include "s3fwrn5.h"
 #include "firmware.h"

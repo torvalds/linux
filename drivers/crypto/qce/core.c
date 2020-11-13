@@ -13,7 +13,6 @@
 #include <linux/types.h>
 #include <crypto/algapi.h>
 #include <crypto/internal/hash.h>
-#include <crypto/sha.h>
 
 #include "core.h"
 #include "cipher.h"

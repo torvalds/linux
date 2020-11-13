@@ -14,7 +14,7 @@
 
 #define pr_fmt(fmt) "fs-verity: " fmt
 
-#include <crypto/sha.h>
+#include <crypto/sha2.h>
 #include <linux/fsverity.h>
 #include <linux/mempool.h>
 

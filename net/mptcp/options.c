@@ -7,7 +7,7 @@
 #define pr_fmt(fmt) "MPTCP: " fmt
 
 #include <linux/kernel.h>
-#include <crypto/sha.h>
+#include <crypto/sha2.h>
 #include <net/tcp.h>
 #include <net/mptcp.h>
 #include "protocol.h"

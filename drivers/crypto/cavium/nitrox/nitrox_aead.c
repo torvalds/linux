@@ -7,7 +7,6 @@
 #include <crypto/aead.h>
 #include <crypto/authenc.h>
 #include <crypto/des.h>
-#include <crypto/sha.h>
 #include <crypto/internal/aead.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/gcm.h>

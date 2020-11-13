@@ -13,7 +13,8 @@
 #define _K3_SA2UL_
 
 #include <crypto/aes.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
+#include <crypto/sha2.h>
 
 #define SA_ENGINE_ENABLE_CONTROL	0x1000
 
