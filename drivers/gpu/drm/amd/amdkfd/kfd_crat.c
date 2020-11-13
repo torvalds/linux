@@ -786,6 +786,11 @@ int kfd_create_crat_image_acpi(void **crat_image, size_t *size)
 
 	*crat_image = NULL;
 
+	if (kfd_ignore_crat()) {
+		pr_info("CRAT table disabled by module option\n");
+		return -ENODATA;
+	}
+
 	/* Fetch the CRAT table from ACPI */
 	status = acpi_get_table(CRAT_SIGNATURE, 0, &crat_table);
 	if (status == AE_NOT_FOUND) {
@@ -796,11 +801,6 @@ int kfd_create_crat_image_acpi(void **crat_image, size_t *size)
 
 		pr_err("CRAT table error: %s\n", err);
 		return -EINVAL;
-	}
-
-	if (kfd_ignore_crat()) {
-		pr_info("CRAT table disabled by module option\n");
-		return -ENODATA;
 	}
 
 	pcrat_image = kvmalloc(crat_table->length, GFP_KERNEL);
