@@ -851,7 +851,6 @@ int kvm_arm_pmu_v3_enable(struct kvm_vcpu *vcpu)
 	}
 
 	kvm_pmu_vcpu_reset(vcpu);
-	vcpu->arch.pmu.ready = true;
 
 	return 0;
 }
