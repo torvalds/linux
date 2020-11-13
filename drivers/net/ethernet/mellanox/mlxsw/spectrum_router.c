@@ -2835,6 +2835,7 @@ struct mlxsw_sp_nexthop {
 						* this belongs to
 						*/
 	struct rhash_head ht_node;
+	struct neigh_table *neigh_tbl;
 	struct mlxsw_sp_nexthop_key key;
 	unsigned char gw_addr[sizeof(struct in6_addr)];
 	int ifindex;
@@ -2869,7 +2870,6 @@ struct mlxsw_sp_nexthop_group {
 	void *priv;
 	struct rhash_head ht_node;
 	struct list_head fib_list; /* list of fib entries that use this group */
-	struct neigh_table *neigh_tbl;
 	enum mlxsw_sp_nexthop_group_type type;
 	u8 adj_index_valid:1,
 	   gateway:1; /* routes using the group use a gateway */
@@ -3674,10 +3674,9 @@ mlxsw_sp_nexthop_dead_neigh_replace(struct mlxsw_sp *mlxsw_sp,
 	nh = list_first_entry(&neigh_entry->nexthop_list,
 			      struct mlxsw_sp_nexthop, neigh_list_node);
 
-	n = neigh_lookup(nh->nh_grp->neigh_tbl, &nh->gw_addr, nh->rif->dev);
+	n = neigh_lookup(nh->neigh_tbl, &nh->gw_addr, nh->rif->dev);
 	if (!n) {
-		n = neigh_create(nh->nh_grp->neigh_tbl, &nh->gw_addr,
-				 nh->rif->dev);
+		n = neigh_create(nh->neigh_tbl, &nh->gw_addr, nh->rif->dev);
 		if (IS_ERR(n))
 			return PTR_ERR(n);
 		neigh_event_send(n, NULL);
@@ -3776,10 +3775,9 @@ static int mlxsw_sp_nexthop_neigh_init(struct mlxsw_sp *mlxsw_sp,
 	 * The reference is taken either in neigh_lookup() or
 	 * in neigh_create() in case n is not found.
 	 */
-	n = neigh_lookup(nh->nh_grp->neigh_tbl, &nh->gw_addr, nh->rif->dev);
+	n = neigh_lookup(nh->neigh_tbl, &nh->gw_addr, nh->rif->dev);
 	if (!n) {
-		n = neigh_create(nh->nh_grp->neigh_tbl, &nh->gw_addr,
-				 nh->rif->dev);
+		n = neigh_create(nh->neigh_tbl, &nh->gw_addr, nh->rif->dev);
 		if (IS_ERR(n))
 			return PTR_ERR(n);
 		neigh_event_send(n, NULL);
@@ -3968,6 +3966,7 @@ static int mlxsw_sp_nexthop4_init(struct mlxsw_sp *mlxsw_sp,
 	nh->nh_weight = 1;
 #endif
 	memcpy(&nh->gw_addr, &fib_nh->fib_nh_gw4, sizeof(fib_nh->fib_nh_gw4));
+	nh->neigh_tbl = &arp_tbl;
 	err = mlxsw_sp_nexthop_insert(mlxsw_sp, nh);
 	if (err)
 		return err;
@@ -4104,7 +4103,6 @@ mlxsw_sp_nexthop4_group_create(struct mlxsw_sp *mlxsw_sp, struct fib_info *fi)
 		return ERR_PTR(-ENOMEM);
 	nh_grp->priv = fi;
 	INIT_LIST_HEAD(&nh_grp->fib_list);
-	nh_grp->neigh_tbl = &arp_tbl;
 	nh_grp->type = MLXSW_SP_NEXTHOP_GROUP_TYPE_IPV4;
 
 	nh_grp->gateway = mlxsw_sp_fi_is_gateway(mlxsw_sp, fi);
@@ -5373,6 +5371,9 @@ static int mlxsw_sp_nexthop6_init(struct mlxsw_sp *mlxsw_sp,
 	nh->nh_grp = nh_grp;
 	nh->nh_weight = rt->fib6_nh->fib_nh_weight;
 	memcpy(&nh->gw_addr, &rt->fib6_nh->fib_nh_gw6, sizeof(nh->gw_addr));
+#if IS_ENABLED(CONFIG_IPV6)
+	nh->neigh_tbl = &nd_tbl;
+#endif
 	mlxsw_sp_nexthop_counter_alloc(mlxsw_sp, nh);
 
 	list_add_tail(&nh->router_list_node, &mlxsw_sp->router->nexthop_list);
@@ -5414,9 +5415,6 @@ mlxsw_sp_nexthop6_group_create(struct mlxsw_sp *mlxsw_sp,
 	if (!nh_grp)
 		return ERR_PTR(-ENOMEM);
 	INIT_LIST_HEAD(&nh_grp->fib_list);
-#if IS_ENABLED(CONFIG_IPV6)
-	nh_grp->neigh_tbl = &nd_tbl;
-#endif
 	nh_grp->type = MLXSW_SP_NEXTHOP_GROUP_TYPE_IPV6;
 	mlxsw_sp_rt6 = list_first_entry(&fib6_entry->rt6_list,
 					struct mlxsw_sp_rt6, list);
