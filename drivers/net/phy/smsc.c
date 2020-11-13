@@ -72,6 +72,30 @@ static int smsc_phy_ack_interrupt(struct phy_device *phydev)
 	return rc < 0 ? rc : 0;
 }
 
+static irqreturn_t smsc_phy_handle_interrupt(struct phy_device *phydev)
+{
+	int irq_status, irq_enabled;
+
+	irq_enabled = phy_read(phydev, MII_LAN83C185_IM);
+	if (irq_enabled < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	irq_status = phy_read(phydev, MII_LAN83C185_ISF);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	if (!(irq_status & irq_enabled))
+		return IRQ_NONE;
+
+	phy_trigger_machine(phydev);
+
+	return IRQ_HANDLED;
+}
+
 static int smsc_phy_config_init(struct phy_device *phydev)
 {
 	struct smsc_phy_priv *priv = phydev->priv;
@@ -314,6 +338,7 @@ static struct phy_driver smsc_phy_driver[] = {
 	/* IRQ related */
 	.ack_interrupt	= smsc_phy_ack_interrupt,
 	.config_intr	= smsc_phy_config_intr,
+	.handle_interrupt = smsc_phy_handle_interrupt,
 
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
@@ -333,6 +358,7 @@ static struct phy_driver smsc_phy_driver[] = {
 	/* IRQ related */
 	.ack_interrupt	= smsc_phy_ack_interrupt,
 	.config_intr	= smsc_phy_config_intr,
+	.handle_interrupt = smsc_phy_handle_interrupt,
 
 	/* Statistics */
 	.get_sset_count = smsc_get_sset_count,
@@ -362,6 +388,7 @@ static struct phy_driver smsc_phy_driver[] = {
 	/* IRQ related */
 	.ack_interrupt	= smsc_phy_ack_interrupt,
 	.config_intr	= smsc_phy_config_intr,
+	.handle_interrupt = smsc_phy_handle_interrupt,
 
 	/* Statistics */
 	.get_sset_count = smsc_get_sset_count,
@@ -385,6 +412,7 @@ static struct phy_driver smsc_phy_driver[] = {
 	/* IRQ related */
 	.ack_interrupt	= smsc_phy_ack_interrupt,
 	.config_intr	= smsc_phy_config_intr,
+	.handle_interrupt = smsc_phy_handle_interrupt,
 
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
@@ -410,6 +438,7 @@ static struct phy_driver smsc_phy_driver[] = {
 	/* IRQ related */
 	.ack_interrupt	= smsc_phy_ack_interrupt,
 	.config_intr	= smsc_phy_config_intr,
+	.handle_interrupt = smsc_phy_handle_interrupt,
 
 	/* Statistics */
 	.get_sset_count = smsc_get_sset_count,
@@ -436,6 +465,7 @@ static struct phy_driver smsc_phy_driver[] = {
 	/* IRQ related */
 	.ack_interrupt	= smsc_phy_ack_interrupt,
 	.config_intr	= smsc_phy_config_intr,
+	.handle_interrupt = smsc_phy_handle_interrupt,
 
 	/* Statistics */
 	.get_sset_count = smsc_get_sset_count,
