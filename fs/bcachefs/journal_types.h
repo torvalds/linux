@@ -11,6 +11,10 @@
 
 struct journal_res;
 
+#define JOURNAL_BUF_BITS	1
+#define JOURNAL_BUF_NR		(1U << JOURNAL_BUF_BITS)
+#define JOURNAL_BUF_MASK	(JOURNAL_BUF_NR - 1)
+
 /*
  * We put two of these in struct journal; we used them for writes to the
  * journal that are being staged or in flight.

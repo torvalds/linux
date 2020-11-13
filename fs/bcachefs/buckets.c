@@ -207,13 +207,13 @@ static inline struct bch_fs_usage *fs_usage_ptr(struct bch_fs *c,
 {
 	return this_cpu_ptr(gc
 			    ? c->usage_gc
-			    : c->usage[journal_seq & 1]);
+			    : c->usage[journal_seq & JOURNAL_BUF_MASK]);
 }
 
 u64 bch2_fs_usage_read_one(struct bch_fs *c, u64 *v)
 {
 	ssize_t offset = v - (u64 *) c->usage_base;
-	unsigned seq;
+	unsigned i, seq;
 	u64 ret;
 
 	BUG_ON(offset < 0 || offset >= fs_usage_u64s(c));
@@ -221,9 +221,10 @@ u64 bch2_fs_usage_read_one(struct bch_fs *c, u64 *v)
 
 	do {
 		seq = read_seqcount_begin(&c->usage_lock);
-		ret = *v +
-			percpu_u64_get((u64 __percpu *) c->usage[0] + offset) +
-			percpu_u64_get((u64 __percpu *) c->usage[1] + offset);
+		ret = *v;
+
+		for (i = 0; i < ARRAY_SIZE(c->usage); i++)
+			ret += percpu_u64_get((u64 __percpu *) c->usage[i] + offset);
 	} while (read_seqcount_retry(&c->usage_lock, seq));
 
 	return ret;
@@ -232,15 +233,20 @@ u64 bch2_fs_usage_read_one(struct bch_fs *c, u64 *v)
 struct bch_fs_usage_online *bch2_fs_usage_read(struct bch_fs *c)
 {
 	struct bch_fs_usage_online *ret;
-	unsigned seq, i, u64s;
+	unsigned seq, i, v, u64s = fs_usage_u64s(c);
+retry:
+	ret = kmalloc(u64s * sizeof(u64), GFP_NOFS);
+	if (unlikely(!ret))
+		return NULL;
 
 	percpu_down_read(&c->mark_lock);
 
-	ret = kmalloc(sizeof(struct bch_fs_usage_online) +
-		      sizeof(u64) + c->replicas.nr, GFP_NOFS);
-	if (unlikely(!ret)) {
+	v = fs_usage_u64s(c);
+	if (unlikely(u64s != v)) {
+		u64s = v;
 		percpu_up_read(&c->mark_lock);
-		return NULL;
+		kfree(ret);
+		goto retry;
 	}
 
 	ret->online_reserved = percpu_u64_get(c->online_reserved);
@@ -248,7 +254,7 @@ struct bch_fs_usage_online *bch2_fs_usage_read(struct bch_fs *c)
 	u64s = fs_usage_u64s(c);
 	do {
 		seq = read_seqcount_begin(&c->usage_lock);
-		memcpy(&ret->u, c->usage_base, u64s * sizeof(u64));
+		memcpy(ret, c->usage_base, u64s * sizeof(u64));
 		for (i = 0; i < ARRAY_SIZE(c->usage); i++)
 			acc_u64s_percpu((u64 *) &ret->u, (u64 __percpu *) c->usage[i], u64s);
 	} while (read_seqcount_retry(&c->usage_lock, seq));

@@ -603,7 +603,6 @@ static int bch2_gc_done(struct bch_fs *c,
 		struct genradix_iter dst_iter = genradix_iter_init(&c->stripes[0], 0);
 		struct genradix_iter src_iter = genradix_iter_init(&c->stripes[1], 0);
 		struct stripe *dst, *src;
-		unsigned i;
 
 		c->ec_stripes_heap.used = 0;
 

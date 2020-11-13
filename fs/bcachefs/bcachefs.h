@@ -676,7 +676,7 @@ struct bch_fs {
 
 	seqcount_t			usage_lock;
 	struct bch_fs_usage		*usage_base;
-	struct bch_fs_usage __percpu	*usage[2];
+	struct bch_fs_usage __percpu	*usage[JOURNAL_BUF_NR];
 	struct bch_fs_usage __percpu	*usage_gc;
 	u64 __percpu		*online_reserved;
 
