@@ -514,16 +514,6 @@ struct isp2x_goc_cfg {
 	u8 gamma_y[17];
 } __attribute__ ((packed));
 
-struct isp2x_hdrtmo_predict {
-	bool global_tmo;
-	s32 iir_max;
-	s32 global_tmo_strength;
-
-	bool scene_stable;
-	s32 k_rolgmean;
-	s32 iir;
-} __attribute__ ((packed));
-
 struct isp2x_hdrtmo_cfg {
 	u16 cnt_vsize;
 	u8 gain_ld_off2;
@@ -575,8 +565,6 @@ struct isp2x_hdrtmo_cfg {
 
 	u16 maxgain;
 	u16 maxpalpha;
-
-	struct isp2x_hdrtmo_predict predict;
 } __attribute__ ((packed));
 
 struct isp2x_hdrtmo_stat {
