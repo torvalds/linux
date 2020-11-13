@@ -194,8 +194,10 @@ static void ef100_make_tso_desc(struct efx_nic *efx,
 	u16 vlan_tci = skb_vlan_tag_get(skb);
 	u32 mss = skb_shinfo(skb)->gso_size;
 	bool encap = skb->encapsulation;
+	bool udp_encap = false;
 	u16 vlan_enable = 0;
 	struct tcphdr *tcp;
+	bool outer_csum;
 	u32 paylen;
 
 	if (skb_shinfo(skb)->gso_type & SKB_GSO_TCP_FIXEDID)
@@ -211,24 +213,29 @@ static void ef100_make_tso_desc(struct efx_nic *efx,
 		outer_l4_offset = skb_transport_offset(skb);
 		ip_offset = skb_inner_network_offset(skb);
 		tcp_offset = skb_inner_transport_offset(skb);
+		if (skb_shinfo(skb)->gso_type &
+		    (SKB_GSO_UDP_TUNNEL | SKB_GSO_UDP_TUNNEL_CSUM))
+			udp_encap = true;
 	} else {
 		ip_offset =  skb_network_offset(skb);
 		tcp_offset = skb_transport_offset(skb);
 		outer_ip_offset = outer_l4_offset = 0;
 	}
+	outer_csum = skb_shinfo(skb)->gso_type & SKB_GSO_UDP_TUNNEL_CSUM;
 
 	/* subtract TCP payload length from inner checksum */
 	tcp = (void *)skb->data + tcp_offset;
 	paylen = skb->len - tcp_offset;
 	csum_replace_by_diff(&tcp->check, (__force __wsum)htonl(paylen));
 
-	EFX_POPULATE_OWORD_17(*txd,
+	EFX_POPULATE_OWORD_19(*txd,
 			      ESF_GZ_TX_DESC_TYPE, ESE_GZ_TX_DESC_TYPE_TSO,
 			      ESF_GZ_TX_TSO_MSS, mss,
 			      ESF_GZ_TX_TSO_HDR_NUM_SEGS, 1,
 			      ESF_GZ_TX_TSO_PAYLOAD_NUM_SEGS, payload_segs,
 			      ESF_GZ_TX_TSO_HDR_LEN_W, buffer->len >> 1,
 			      ESF_GZ_TX_TSO_PAYLOAD_LEN, len,
+			      ESF_GZ_TX_TSO_CSO_OUTER_L4, outer_csum,
 			      ESF_GZ_TX_TSO_CSO_INNER_L4, 1,
 			      ESF_GZ_TX_TSO_INNER_L3_OFF_W, ip_offset >> 1,
 			      ESF_GZ_TX_TSO_INNER_L4_OFF_W, tcp_offset >> 1,
@@ -236,7 +243,8 @@ static void ef100_make_tso_desc(struct efx_nic *efx,
 			      ESF_GZ_TX_TSO_ED_INNER_IP_LEN, 1,
 			      ESF_GZ_TX_TSO_OUTER_L3_OFF_W, outer_ip_offset >> 1,
 			      ESF_GZ_TX_TSO_OUTER_L4_OFF_W, outer_l4_offset >> 1,
-			      ESF_GZ_TX_TSO_ED_OUTER_UDP_LEN, encap && !gso_partial,
+			      ESF_GZ_TX_TSO_ED_OUTER_UDP_LEN, udp_encap && !gso_partial,
+			      ESF_GZ_TX_TSO_ED_OUTER_IP_LEN, encap && !gso_partial,
 			      ESF_GZ_TX_TSO_ED_OUTER_IP4_ID, encap ? mangleid :
 								     ESE_GZ_TX_DESC_IP4_ID_NO_OP,
 			      ESF_GZ_TX_TSO_VLAN_INSERT_EN, vlan_enable,
