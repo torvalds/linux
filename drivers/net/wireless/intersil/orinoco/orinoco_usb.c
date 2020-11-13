@@ -1029,7 +1029,7 @@ static int ezusb_write_ltv(struct hermes *hw, int bap, u16 rid,
 			   u16 length, const void *data)
 {
 	return __ezusb_write_ltv(hw, bap, rid, length, data,
-				 ezusb_req_ctx_wait);
+				 ezusb_req_ctx_wait_poll);
 }
 
 static int ezusb_read_ltv(struct hermes *hw, int bap, u16 rid,
