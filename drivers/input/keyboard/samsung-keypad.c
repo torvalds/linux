@@ -146,13 +146,12 @@ static irqreturn_t samsung_keypad_irq(int irq, void *dev_id)
 {
 	struct samsung_keypad *keypad = dev_id;
 	unsigned int row_state[SAMSUNG_MAX_COLS];
-	unsigned int val;
 	bool key_down;
 
 	pm_runtime_get_sync(&keypad->pdev->dev);
 
 	do {
-		val = readl(keypad->base + SAMSUNG_KEYIFSTSCLR);
+		readl(keypad->base + SAMSUNG_KEYIFSTSCLR);
 		/* Clear interrupt. */
 		writel(~0x0, keypad->base + SAMSUNG_KEYIFSTSCLR);
 
