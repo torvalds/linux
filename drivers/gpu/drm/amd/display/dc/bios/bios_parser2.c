@@ -65,11 +65,6 @@
 	GENERIC_OBJECT_ID_BRACKET_LAYOUT << OBJECT_ID_SHIFT)
 #endif /* GENERICOBJECT_BRACKET_LAYOUT_ENUM_ID2 */
 
-
-//TODO: Remove this temp define after atomfirmware.h is updated.
-#define  ATOM_DISP_CONNECTOR_CAPS_RECORD_TYPE 23
-
-
 #define DC_LOGGER \
 	bp->base.ctx->logger
 
