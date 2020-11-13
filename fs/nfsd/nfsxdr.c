@@ -584,7 +584,7 @@ nfssvc_encode_readdirres(struct svc_rqst *rqstp, __be32 *p)
 	p = resp->buffer;
 	*p++ = 0;			/* no more entries */
 	*p++ = htonl((resp->common.err == nfserr_eof));
-	rqstp->rq_res.page_len = (((unsigned long)p-1) & ~PAGE_MASK)+1;
+	rqstp->rq_res.page_len = resp->count << 2;
 
 	return 1;
 }
@@ -667,6 +667,7 @@ nfssvc_encode_entry(void *ccdv, const char *name,
 	cd->offset = p;			/* remember pointer */
 	*p++ = htonl(~0U);		/* offset of next entry */
 
+	cd->count += p - cd->buffer;
 	cd->buflen = buflen;
 	cd->buffer = p;
 	cd->common.err = nfs_ok;
