@@ -11,6 +11,7 @@
 #include <asm/barrier.h>
 #include <soc/mediatek/smi.h>
 
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_probe_helper.h>
@@ -577,17 +578,19 @@ static void mtk_drm_crtc_atomic_disable(struct drm_crtc *crtc,
 static void mtk_drm_crtc_atomic_begin(struct drm_crtc *crtc,
 				      struct drm_atomic_state *state)
 {
-	struct mtk_crtc_state *crtc_state = to_mtk_crtc_state(crtc->state);
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
+									  crtc);
+	struct mtk_crtc_state *mtk_crtc_state = to_mtk_crtc_state(crtc_state);
 	struct mtk_drm_crtc *mtk_crtc = to_mtk_crtc(crtc);
 
-	if (mtk_crtc->event && crtc_state->base.event)
+	if (mtk_crtc->event && mtk_crtc_state->base.event)
 		DRM_ERROR("new event while there is still a pending event\n");
 
-	if (crtc_state->base.event) {
-		crtc_state->base.event->pipe = drm_crtc_index(crtc);
+	if (mtk_crtc_state->base.event) {
+		mtk_crtc_state->base.event->pipe = drm_crtc_index(crtc);
 		WARN_ON(drm_crtc_vblank_get(crtc) != 0);
-		mtk_crtc->event = crtc_state->base.event;
-		crtc_state->base.event = NULL;
+		mtk_crtc->event = mtk_crtc_state->base.event;
+		mtk_crtc_state->base.event = NULL;
 	}
 }
 

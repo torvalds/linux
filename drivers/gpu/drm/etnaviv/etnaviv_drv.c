@@ -480,7 +480,7 @@ static const struct file_operations fops = {
 	.mmap               = etnaviv_gem_mmap,
 };
 
-static struct drm_driver etnaviv_drm_driver = {
+static const struct drm_driver etnaviv_drm_driver = {
 	.driver_features    = DRIVER_GEM | DRIVER_RENDER,
 	.open               = etnaviv_open,
 	.postclose           = etnaviv_postclose,

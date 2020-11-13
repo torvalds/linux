@@ -26,10 +26,9 @@
 #define GET_URB_TIMEOUT	HZ
 #define FREE_URB_TIMEOUT (HZ*2)
 
-static int udl_parse_vendor_descriptor(struct drm_device *dev,
-				       struct usb_device *usbdev)
+static int udl_parse_vendor_descriptor(struct udl_device *udl)
 {
-	struct udl_device *udl = to_udl(dev);
+	struct usb_device *udev = udl_to_usb_device(udl);
 	char *desc;
 	char *buf;
 	char *desc_end;
@@ -41,7 +40,7 @@ static int udl_parse_vendor_descriptor(struct drm_device *dev,
 		return false;
 	desc = buf;
 
-	total_len = usb_get_descriptor(usbdev, 0x5f, /* vendor specific */
+	total_len = usb_get_descriptor(udev, 0x5f, /* vendor specific */
 				    0, desc, MAX_VENDOR_DESCRIPTOR_SIZE);
 	if (total_len > 5) {
 		DRM_INFO("vendor descriptor length:%x data:%11ph\n",
@@ -98,19 +97,20 @@ success:
  */
 static int udl_select_std_channel(struct udl_device *udl)
 {
-	int ret;
 	static const u8 set_def_chn[] = {0x57, 0xCD, 0xDC, 0xA7,
 					 0x1C, 0x88, 0x5E, 0x15,
 					 0x60, 0xFE, 0xC6, 0x97,
 					 0x16, 0x3D, 0x47, 0xF2};
+
 	void *sendbuf;
+	int ret;
+	struct usb_device *udev = udl_to_usb_device(udl);
 
 	sendbuf = kmemdup(set_def_chn, sizeof(set_def_chn), GFP_KERNEL);
 	if (!sendbuf)
 		return -ENOMEM;
 
-	ret = usb_control_msg(udl->udev,
-			      usb_sndctrlpipe(udl->udev, 0),
+	ret = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 			      NR_USB_REQUEST_CHANNEL,
 			      (USB_DIR_OUT | USB_TYPE_VENDOR), 0, 0,
 			      sendbuf, sizeof(set_def_chn),
@@ -202,6 +202,7 @@ static int udl_alloc_urb_list(struct drm_device *dev, int count, size_t size)
 	struct urb_node *unode;
 	char *buf;
 	size_t wanted_size = count * size;
+	struct usb_device *udev = udl_to_usb_device(udl);
 
 	spin_lock_init(&udl->urbs.lock);
 
@@ -229,7 +230,7 @@ retry:
 		}
 		unode->urb = urb;
 
-		buf = usb_alloc_coherent(udl->udev, size, GFP_KERNEL,
+		buf = usb_alloc_coherent(udev, size, GFP_KERNEL,
 					 &urb->transfer_dma);
 		if (!buf) {
 			kfree(unode);
@@ -243,8 +244,8 @@ retry:
 		}
 
 		/* urb->transfer_buffer_length set to actual before submit */
-		usb_fill_bulk_urb(urb, udl->udev, usb_sndbulkpipe(udl->udev, 1),
-			buf, size, udl_urb_completion, unode);
+		usb_fill_bulk_urb(urb, udev, usb_sndbulkpipe(udev, 1),
+				  buf, size, udl_urb_completion, unode);
 		urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
 		list_add_tail(&unode->entry, &udl->urbs.list);
@@ -316,7 +317,7 @@ int udl_init(struct udl_device *udl)
 
 	mutex_init(&udl->gem_lock);
 
-	if (!udl_parse_vendor_descriptor(dev, udl->udev)) {
+	if (!udl_parse_vendor_descriptor(udl)) {
 		ret = -ENODEV;
 		DRM_ERROR("firmware not recognized. Assume incompatible device\n");
 		goto err;

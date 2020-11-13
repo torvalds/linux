@@ -509,7 +509,6 @@ struct radeon_bo {
 	/* Constant after initialization */
 	struct radeon_device		*rdev;
 
-	struct ttm_bo_kmap_obj		dma_buf_vmap;
 	pid_t				pid;
 
 #ifdef CONFIG_MMU_NOTIFIER
@@ -2245,6 +2244,7 @@ int radeon_gem_set_tiling_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *filp);
 int radeon_gem_get_tiling_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *filp);
+int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp);
 
 /* VRAM scratch page for HDP bug, default vram page */
 struct r600_vram_scratch {

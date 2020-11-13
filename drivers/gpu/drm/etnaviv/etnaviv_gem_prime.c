@@ -22,14 +22,16 @@ struct sg_table *etnaviv_gem_prime_get_sg_table(struct drm_gem_object *obj)
 	return drm_prime_pages_to_sg(obj->dev, etnaviv_obj->pages, npages);
 }
 
-void *etnaviv_gem_prime_vmap(struct drm_gem_object *obj)
+int etnaviv_gem_prime_vmap(struct drm_gem_object *obj, struct dma_buf_map *map)
 {
-	return etnaviv_gem_vmap(obj);
-}
+	void *vaddr;
 
-void etnaviv_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
-{
-	/* TODO msm_gem_vunmap() */
+	vaddr = etnaviv_gem_vmap(obj);
+	if (!vaddr)
+		return -ENOMEM;
+	dma_buf_map_set_vaddr(map, vaddr);
+
+	return 0;
 }
 
 int etnaviv_gem_prime_mmap(struct drm_gem_object *obj,

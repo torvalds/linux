@@ -140,7 +140,8 @@ static void qxl_bo_move_notify(struct ttm_buffer_object *bo,
 
 static int qxl_bo_move(struct ttm_buffer_object *bo, bool evict,
 		       struct ttm_operation_ctx *ctx,
-		       struct ttm_resource *new_mem)
+		       struct ttm_resource *new_mem,
+		       struct ttm_place *hop)
 {
 	struct ttm_resource *old_mem = &bo->mem;
 	int ret;

@@ -31,6 +31,7 @@
 #include <drm/drm_debugfs.h>
 #include <drm/drm_device.h>
 #include <drm/drm_file.h>
+#include <drm/drm_gem_ttm_helper.h>
 #include <drm/radeon_drm.h>
 
 #include "radeon.h"
@@ -40,8 +41,6 @@ struct dma_buf *radeon_gem_prime_export(struct drm_gem_object *gobj,
 struct sg_table *radeon_gem_prime_get_sg_table(struct drm_gem_object *obj);
 int radeon_gem_prime_pin(struct drm_gem_object *obj);
 void radeon_gem_prime_unpin(struct drm_gem_object *obj);
-void *radeon_gem_prime_vmap(struct drm_gem_object *obj);
-void radeon_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr);
 
 static const struct drm_gem_object_funcs radeon_gem_object_funcs;
 
@@ -235,8 +234,8 @@ static const struct drm_gem_object_funcs radeon_gem_object_funcs = {
 	.pin = radeon_gem_prime_pin,
 	.unpin = radeon_gem_prime_unpin,
 	.get_sg_table = radeon_gem_prime_get_sg_table,
-	.vmap = radeon_gem_prime_vmap,
-	.vunmap = radeon_gem_prime_vunmap,
+	.vmap = drm_gem_ttm_vmap,
+	.vunmap = drm_gem_ttm_vunmap,
 };
 
 /*

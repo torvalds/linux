@@ -861,96 +861,6 @@ nouveau_bo_move_init(struct nouveau_drm *drm)
 	NV_INFO(drm, "MM: using %s for buffer copies\n", name);
 }
 
-static int
-nouveau_bo_move_flipd(struct ttm_buffer_object *bo, bool evict,
-		      struct ttm_operation_ctx *ctx,
-		      struct ttm_resource *new_reg)
-{
-	struct ttm_place placement_memtype = {
-		.fpfn = 0,
-		.lpfn = 0,
-		.mem_type = TTM_PL_TT,
-		.flags = 0
-	};
-	struct ttm_placement placement;
-	struct ttm_resource tmp_reg;
-	int ret;
-
-	placement.num_placement = placement.num_busy_placement = 1;
-	placement.placement = placement.busy_placement = &placement_memtype;
-
-	tmp_reg = *new_reg;
-	tmp_reg.mm_node = NULL;
-	ret = ttm_bo_mem_space(bo, &placement, &tmp_reg, ctx);
-	if (ret)
-		return ret;
-
-	ret = ttm_tt_populate(bo->bdev, bo->ttm, ctx);
-	if (ret)
-		goto out;
-
-	ret = nouveau_ttm_tt_bind(bo->bdev, bo->ttm, &tmp_reg);
-	if (ret)
-		goto out;
-
-	ret = nouveau_bo_move_m2mf(bo, true, ctx, &tmp_reg);
-	if (ret)
-		goto out;
-
-	ret = ttm_bo_wait_ctx(bo, ctx);
-	if (ret)
-		goto out;
-
-	nouveau_ttm_tt_unbind(bo->bdev, bo->ttm);
-	ttm_resource_free(bo, &bo->mem);
-	ttm_bo_assign_mem(bo, &tmp_reg);
-out:
-	ttm_resource_free(bo, &tmp_reg);
-	return ret;
-}
-
-static int
-nouveau_bo_move_flips(struct ttm_buffer_object *bo, bool evict,
-		      struct ttm_operation_ctx *ctx,
-		      struct ttm_resource *new_reg)
-{
-	struct ttm_place placement_memtype = {
-		.fpfn = 0,
-		.lpfn = 0,
-		.mem_type = TTM_PL_TT,
-		.flags = 0
-	};
-	struct ttm_placement placement;
-	struct ttm_resource tmp_reg;
-	int ret;
-
-	placement.num_placement = placement.num_busy_placement = 1;
-	placement.placement = placement.busy_placement = &placement_memtype;
-
-	tmp_reg = *new_reg;
-	tmp_reg.mm_node = NULL;
-	ret = ttm_bo_mem_space(bo, &placement, &tmp_reg, ctx);
-	if (ret)
-		return ret;
-
-	ret = ttm_tt_populate(bo->bdev, bo->ttm, ctx);
-	if (unlikely(ret != 0))
-		return ret;
-
-	ret = nouveau_ttm_tt_bind(bo->bdev, bo->ttm, &tmp_reg);
-	if (unlikely(ret != 0))
-		return ret;
-
-	ttm_bo_assign_mem(bo, &tmp_reg);
-	ret = nouveau_bo_move_m2mf(bo, true, ctx, new_reg);
-	if (ret)
-		goto out;
-
-out:
-	ttm_resource_free(bo, &tmp_reg);
-	return ret;
-}
-
 static void
 nouveau_bo_move_ntfy(struct ttm_buffer_object *bo, bool evict,
 		     struct ttm_resource *new_reg)
@@ -1023,13 +933,25 @@ nouveau_bo_vm_cleanup(struct ttm_buffer_object *bo,
 static int
 nouveau_bo_move(struct ttm_buffer_object *bo, bool evict,
 		struct ttm_operation_ctx *ctx,
-		struct ttm_resource *new_reg)
+		struct ttm_resource *new_reg,
+		struct ttm_place *hop)
 {
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct ttm_resource *old_reg = &bo->mem;
 	struct nouveau_drm_tile *new_tile = NULL;
 	int ret = 0;
+
+	if ((old_reg->mem_type == TTM_PL_SYSTEM &&
+	     new_reg->mem_type == TTM_PL_VRAM) ||
+	    (old_reg->mem_type == TTM_PL_VRAM &&
+	     new_reg->mem_type == TTM_PL_SYSTEM)) {
+		hop->fpfn = 0;
+		hop->lpfn = 0;
+		hop->mem_type = TTM_PL_TT;
+		hop->flags = 0;
+		return -EMULTIHOP;
+	}
 
 	if (new_reg->mem_type == TTM_PL_TT) {
 		ret = nouveau_ttm_tt_bind(bo->bdev, bo->ttm, new_reg);
@@ -1073,15 +995,8 @@ nouveau_bo_move(struct ttm_buffer_object *bo, bool evict,
 
 	/* Hardware assisted copy. */
 	if (drm->ttm.move) {
-		if (new_reg->mem_type == TTM_PL_SYSTEM)
-			ret = nouveau_bo_move_flipd(bo, evict, ctx,
-						    new_reg);
-		else if (old_reg->mem_type == TTM_PL_SYSTEM)
-			ret = nouveau_bo_move_flips(bo, evict, ctx,
-						    new_reg);
-		else
-			ret = nouveau_bo_move_m2mf(bo, evict, ctx,
-						   new_reg);
+		ret = nouveau_bo_move_m2mf(bo, evict, ctx,
+					   new_reg);
 		if (!ret)
 			goto out;
 	}
@@ -1142,8 +1057,11 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_resource *reg)
 	struct nvkm_device *device = nvxx_device(&drm->client.device);
 	struct nouveau_mem *mem = nouveau_mem(reg);
 	struct nvif_mmu *mmu = &drm->client.mmu;
-	const u8 type = mmu->type[drm->ttm.type_vram].type;
+	u8 type = 0;
 	int ret;
+
+	if (drm->ttm.type_vram >= 0)
+		type = mmu->type[drm->ttm.type_vram].type;
 
 	mutex_lock(&drm->ttm.io_reserve_mutex);
 retry:

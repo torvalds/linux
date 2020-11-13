@@ -240,23 +240,25 @@ struct drm_gem_object *mtk_gem_prime_import_sg_table(struct drm_device *dev,
 	return &mtk_gem->base;
 }
 
-void *mtk_drm_gem_prime_vmap(struct drm_gem_object *obj)
+int mtk_drm_gem_prime_vmap(struct drm_gem_object *obj, struct dma_buf_map *map)
 {
 	struct mtk_drm_gem_obj *mtk_gem = to_mtk_gem_obj(obj);
-	struct sg_table *sgt;
+	struct sg_table *sgt = NULL;
 	unsigned int npages;
 
 	if (mtk_gem->kvaddr)
-		return mtk_gem->kvaddr;
+		goto out;
 
 	sgt = mtk_gem_prime_get_sg_table(obj);
 	if (IS_ERR(sgt))
-		return NULL;
+		return PTR_ERR(sgt);
 
 	npages = obj->size >> PAGE_SHIFT;
 	mtk_gem->pages = kcalloc(npages, sizeof(*mtk_gem->pages), GFP_KERNEL);
-	if (!mtk_gem->pages)
-		goto out;
+	if (!mtk_gem->pages) {
+		kfree(sgt);
+		return -ENOMEM;
+	}
 
 	drm_prime_sg_to_page_addr_arrays(sgt, mtk_gem->pages, NULL, npages);
 
@@ -265,13 +267,15 @@ void *mtk_drm_gem_prime_vmap(struct drm_gem_object *obj)
 
 out:
 	kfree(sgt);
+	dma_buf_map_set_vaddr(map, mtk_gem->kvaddr);
 
-	return mtk_gem->kvaddr;
+	return 0;
 }
 
-void mtk_drm_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
+void mtk_drm_gem_prime_vunmap(struct drm_gem_object *obj, struct dma_buf_map *map)
 {
 	struct mtk_drm_gem_obj *mtk_gem = to_mtk_gem_obj(obj);
+	void *vaddr = map->vaddr;
 
 	if (!mtk_gem->pages)
 		return;

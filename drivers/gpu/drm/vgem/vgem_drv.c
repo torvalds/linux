@@ -361,24 +361,30 @@ static struct drm_gem_object *vgem_prime_import_sg_table(struct drm_device *dev,
 	return &obj->base;
 }
 
-static void *vgem_prime_vmap(struct drm_gem_object *obj)
+static int vgem_prime_vmap(struct drm_gem_object *obj, struct dma_buf_map *map)
 {
 	struct drm_vgem_gem_object *bo = to_vgem_bo(obj);
 	long n_pages = obj->size >> PAGE_SHIFT;
 	struct page **pages;
+	void *vaddr;
 
 	pages = vgem_pin_pages(bo);
 	if (IS_ERR(pages))
-		return NULL;
+		return PTR_ERR(pages);
 
-	return vmap(pages, n_pages, 0, pgprot_writecombine(PAGE_KERNEL));
+	vaddr = vmap(pages, n_pages, 0, pgprot_writecombine(PAGE_KERNEL));
+	if (!vaddr)
+		return -ENOMEM;
+	dma_buf_map_set_vaddr(map, vaddr);
+
+	return 0;
 }
 
-static void vgem_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
+static void vgem_prime_vunmap(struct drm_gem_object *obj, struct dma_buf_map *map)
 {
 	struct drm_vgem_gem_object *bo = to_vgem_bo(obj);
 
-	vunmap(vaddr);
+	vunmap(map->vaddr);
 	vgem_unpin_pages(bo);
 }
 
@@ -415,7 +421,7 @@ static const struct drm_gem_object_funcs vgem_gem_object_funcs = {
 	.vm_ops = &vgem_gem_vm_ops,
 };
 
-static struct drm_driver vgem_driver = {
+static const struct drm_driver vgem_driver = {
 	.driver_features		= DRIVER_GEM | DRIVER_RENDER,
 	.open				= vgem_open,
 	.postclose			= vgem_postclose,

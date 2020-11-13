@@ -231,7 +231,8 @@ EXPORT_SYMBOL(ttm_bo_bulk_move_lru_tail);
 
 static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 				  struct ttm_resource *mem, bool evict,
-				  struct ttm_operation_ctx *ctx)
+				  struct ttm_operation_ctx *ctx,
+				  struct ttm_place *hop)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
 	struct ttm_resource_manager *old_man = ttm_manager_type(bdev, bo->mem.mem_type);
@@ -259,9 +260,12 @@ static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 		}
 	}
 
-	ret = bdev->driver->move(bo, evict, ctx, mem);
-	if (ret)
+	ret = bdev->driver->move(bo, evict, ctx, mem, hop);
+	if (ret) {
+		if (ret == -EMULTIHOP)
+			return ret;
 		goto out_err;
+	}
 
 	ctx->bytes_moved += bo->num_pages << PAGE_SHIFT;
 	return 0;
@@ -566,7 +570,10 @@ static int ttm_bo_evict(struct ttm_buffer_object *bo,
 	struct ttm_bo_device *bdev = bo->bdev;
 	struct ttm_resource evict_mem;
 	struct ttm_placement placement;
+	struct ttm_place hop;
 	int ret = 0;
+
+	memset(&hop, 0, sizeof(hop));
 
 	dma_resv_assert_held(bo->base.resv);
 
@@ -596,8 +603,9 @@ static int ttm_bo_evict(struct ttm_buffer_object *bo,
 		goto out;
 	}
 
-	ret = ttm_bo_handle_move_mem(bo, &evict_mem, true, ctx);
+	ret = ttm_bo_handle_move_mem(bo, &evict_mem, true, ctx, &hop);
 	if (unlikely(ret)) {
+		WARN(ret == -EMULTIHOP, "Unexpected multihop in eviction - likely driver bug\n");
 		if (ret != -ERESTARTSYS)
 			pr_err("Buffer eviction failed\n");
 		ttm_resource_free(bo, &evict_mem);
@@ -936,14 +944,44 @@ error:
 }
 EXPORT_SYMBOL(ttm_bo_mem_space);
 
+static int ttm_bo_bounce_temp_buffer(struct ttm_buffer_object *bo,
+				     struct ttm_resource *mem,
+				     struct ttm_operation_ctx *ctx,
+				     struct ttm_place *hop)
+{
+	struct ttm_placement hop_placement;
+	int ret;
+	struct ttm_resource hop_mem = *mem;
+
+	hop_mem.mm_node = NULL;
+	hop_mem.mem_type = TTM_PL_SYSTEM;
+	hop_mem.placement = 0;
+
+	hop_placement.num_placement = hop_placement.num_busy_placement = 1;
+	hop_placement.placement = hop_placement.busy_placement = hop;
+
+	/* find space in the bounce domain */
+	ret = ttm_bo_mem_space(bo, &hop_placement, &hop_mem, ctx);
+	if (ret)
+		return ret;
+	/* move to the bounce domain */
+	ret = ttm_bo_handle_move_mem(bo, &hop_mem, false, ctx, NULL);
+	if (ret)
+		return ret;
+	return 0;
+}
+
 static int ttm_bo_move_buffer(struct ttm_buffer_object *bo,
 			      struct ttm_placement *placement,
 			      struct ttm_operation_ctx *ctx)
 {
 	int ret = 0;
+	struct ttm_place hop;
 	struct ttm_resource mem;
 
 	dma_resv_assert_held(bo->base.resv);
+
+	memset(&hop, 0, sizeof(hop));
 
 	mem.num_pages = bo->num_pages;
 	mem.size = mem.num_pages << PAGE_SHIFT;
@@ -954,12 +992,25 @@ static int ttm_bo_move_buffer(struct ttm_buffer_object *bo,
 
 	/*
 	 * Determine where to move the buffer.
+	 *
+	 * If driver determines move is going to need
+	 * an extra step then it will return -EMULTIHOP
+	 * and the buffer will be moved to the temporary
+	 * stop and the driver will be called to make
+	 * the second hop.
 	 */
+bounce:
 	ret = ttm_bo_mem_space(bo, placement, &mem, ctx);
 	if (ret)
-		goto out_unlock;
-	ret = ttm_bo_handle_move_mem(bo, &mem, false, ctx);
-out_unlock:
+		return ret;
+	ret = ttm_bo_handle_move_mem(bo, &mem, false, ctx, &hop);
+	if (ret == -EMULTIHOP) {
+		ret = ttm_bo_bounce_temp_buffer(bo, &mem, ctx, &hop);
+		if (ret)
+			return ret;
+		/* try and move to final place now. */
+		goto bounce;
+	}
 	if (ret)
 		ttm_resource_free(bo, &mem);
 	return ret;
@@ -1432,15 +1483,20 @@ int ttm_bo_swapout(struct ttm_operation_ctx *ctx)
 	if (bo->mem.mem_type != TTM_PL_SYSTEM) {
 		struct ttm_operation_ctx ctx = { false, false };
 		struct ttm_resource evict_mem;
+		struct ttm_place hop;
+
+		memset(&hop, 0, sizeof(hop));
 
 		evict_mem = bo->mem;
 		evict_mem.mm_node = NULL;
 		evict_mem.placement = 0;
 		evict_mem.mem_type = TTM_PL_SYSTEM;
 
-		ret = ttm_bo_handle_move_mem(bo, &evict_mem, true, &ctx);
-		if (unlikely(ret != 0))
+		ret = ttm_bo_handle_move_mem(bo, &evict_mem, true, &ctx, &hop);
+		if (unlikely(ret != 0)) {
+			WARN(ret == -EMULTIHOP, "Unexpected multihop in swaput - likely driver bug.\n");
 			goto out;
+		}
 	}
 
 	/**

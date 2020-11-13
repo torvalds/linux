@@ -50,6 +50,43 @@ void drm_gem_ttm_print_info(struct drm_printer *p, unsigned int indent,
 EXPORT_SYMBOL(drm_gem_ttm_print_info);
 
 /**
+ * drm_gem_ttm_vmap() - vmap &ttm_buffer_object
+ * @gem: GEM object.
+ * @map: [out] returns the dma-buf mapping.
+ *
+ * Maps a GEM object with ttm_bo_vmap(). This function can be used as
+ * &drm_gem_object_funcs.vmap callback.
+ *
+ * Returns:
+ * 0 on success, or a negative errno code otherwise.
+ */
+int drm_gem_ttm_vmap(struct drm_gem_object *gem,
+		     struct dma_buf_map *map)
+{
+	struct ttm_buffer_object *bo = drm_gem_ttm_of_gem(gem);
+
+	return ttm_bo_vmap(bo, map);
+}
+EXPORT_SYMBOL(drm_gem_ttm_vmap);
+
+/**
+ * drm_gem_ttm_vunmap() - vunmap &ttm_buffer_object
+ * @gem: GEM object.
+ * @map: dma-buf mapping.
+ *
+ * Unmaps a GEM object with ttm_bo_vunmap(). This function can be used as
+ * &drm_gem_object_funcs.vmap callback.
+ */
+void drm_gem_ttm_vunmap(struct drm_gem_object *gem,
+			struct dma_buf_map *map)
+{
+	struct ttm_buffer_object *bo = drm_gem_ttm_of_gem(gem);
+
+	ttm_bo_vunmap(bo, map);
+}
+EXPORT_SYMBOL(drm_gem_ttm_vunmap);
+
+/**
  * drm_gem_ttm_mmap() - mmap &ttm_buffer_object
  * @gem: GEM object.
  * @vma: vm area.

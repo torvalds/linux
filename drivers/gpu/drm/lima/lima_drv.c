@@ -261,7 +261,7 @@ DEFINE_DRM_GEM_FOPS(lima_drm_driver_fops);
  * - 1.1.0 - add heap buffer support
  */
 
-static struct drm_driver lima_drm_driver = {
+static const struct drm_driver lima_drm_driver = {
 	.driver_features    = DRIVER_RENDER | DRIVER_GEM | DRIVER_SYNCOBJ,
 	.open               = lima_drm_driver_open,
 	.postclose          = lima_drm_driver_postclose,

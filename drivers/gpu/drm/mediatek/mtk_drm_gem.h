@@ -45,7 +45,7 @@ int mtk_drm_gem_mmap_buf(struct drm_gem_object *obj,
 struct sg_table *mtk_gem_prime_get_sg_table(struct drm_gem_object *obj);
 struct drm_gem_object *mtk_gem_prime_import_sg_table(struct drm_device *dev,
 			struct dma_buf_attachment *attach, struct sg_table *sg);
-void *mtk_drm_gem_prime_vmap(struct drm_gem_object *obj);
-void mtk_drm_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr);
+int mtk_drm_gem_prime_vmap(struct drm_gem_object *obj, struct dma_buf_map *map);
+void mtk_drm_gem_prime_vunmap(struct drm_gem_object *obj, struct dma_buf_map *map);
 
 #endif

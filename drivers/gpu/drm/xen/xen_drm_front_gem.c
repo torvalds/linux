@@ -290,22 +290,28 @@ int xen_drm_front_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 	return gem_mmap_obj(xen_obj, vma);
 }
 
-void *xen_drm_front_gem_prime_vmap(struct drm_gem_object *gem_obj)
+int xen_drm_front_gem_prime_vmap(struct drm_gem_object *gem_obj, struct dma_buf_map *map)
 {
 	struct xen_gem_object *xen_obj = to_xen_gem_obj(gem_obj);
+	void *vaddr;
 
 	if (!xen_obj->pages)
-		return NULL;
+		return -ENOMEM;
 
 	/* Please see comment in gem_mmap_obj on mapping and attributes. */
-	return vmap(xen_obj->pages, xen_obj->num_pages,
-		    VM_MAP, PAGE_KERNEL);
+	vaddr = vmap(xen_obj->pages, xen_obj->num_pages,
+		     VM_MAP, PAGE_KERNEL);
+	if (!vaddr)
+		return -ENOMEM;
+	dma_buf_map_set_vaddr(map, vaddr);
+
+	return 0;
 }
 
 void xen_drm_front_gem_prime_vunmap(struct drm_gem_object *gem_obj,
-				    void *vaddr)
+				    struct dma_buf_map *map)
 {
-	vunmap(vaddr);
+	vunmap(map->vaddr);
 }
 
 int xen_drm_front_gem_prime_mmap(struct drm_gem_object *gem_obj,

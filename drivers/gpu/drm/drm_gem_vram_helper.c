@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <linux/dma-buf-map.h>
 #include <linux/module.h>
 
 #include <drm/drm_debugfs.h>
@@ -112,8 +113,8 @@ static void drm_gem_vram_cleanup(struct drm_gem_vram_object *gbo)
 	 * up; only release the GEM object.
 	 */
 
-	WARN_ON(gbo->kmap_use_count);
-	WARN_ON(gbo->kmap.virtual);
+	WARN_ON(gbo->vmap_use_count);
+	WARN_ON(dma_buf_map_is_set(&gbo->map));
 
 	drm_gem_object_release(&gbo->bo.base);
 }
@@ -378,39 +379,37 @@ int drm_gem_vram_unpin(struct drm_gem_vram_object *gbo)
 }
 EXPORT_SYMBOL(drm_gem_vram_unpin);
 
-static void *drm_gem_vram_kmap_locked(struct drm_gem_vram_object *gbo,
-				      bool map, bool *is_iomem)
+static int drm_gem_vram_kmap_locked(struct drm_gem_vram_object *gbo,
+				    struct dma_buf_map *map)
 {
 	int ret;
-	struct ttm_bo_kmap_obj *kmap = &gbo->kmap;
 
-	if (gbo->kmap_use_count > 0)
+	if (gbo->vmap_use_count > 0)
 		goto out;
 
-	if (kmap->virtual || !map)
-		goto out;
-
-	ret = ttm_bo_kmap(&gbo->bo, 0, gbo->bo.num_pages, kmap);
+	ret = ttm_bo_vmap(&gbo->bo, &gbo->map);
 	if (ret)
-		return ERR_PTR(ret);
+		return ret;
 
 out:
-	if (!kmap->virtual) {
-		if (is_iomem)
-			*is_iomem = false;
-		return NULL; /* not mapped; don't increment ref */
-	}
-	++gbo->kmap_use_count;
-	if (is_iomem)
-		return ttm_kmap_obj_virtual(kmap, is_iomem);
-	return kmap->virtual;
+	++gbo->vmap_use_count;
+	*map = gbo->map;
+
+	return 0;
 }
 
-static void drm_gem_vram_kunmap_locked(struct drm_gem_vram_object *gbo)
+static void drm_gem_vram_kunmap_locked(struct drm_gem_vram_object *gbo,
+				       struct dma_buf_map *map)
 {
-	if (WARN_ON_ONCE(!gbo->kmap_use_count))
+	struct drm_device *dev = gbo->bo.base.dev;
+
+	if (drm_WARN_ON_ONCE(dev, !gbo->vmap_use_count))
 		return;
-	if (--gbo->kmap_use_count > 0)
+
+	if (drm_WARN_ON_ONCE(dev, !dma_buf_map_is_equal(&gbo->map, map)))
+		return; /* BUG: map not mapped from this BO */
+
+	if (--gbo->vmap_use_count > 0)
 		return;
 
 	/*
@@ -424,7 +423,9 @@ static void drm_gem_vram_kunmap_locked(struct drm_gem_vram_object *gbo)
 /**
  * drm_gem_vram_vmap() - Pins and maps a GEM VRAM object into kernel address
  *                       space
- * @gbo:	The GEM VRAM object to map
+ * @gbo: The GEM VRAM object to map
+ * @map: Returns the kernel virtual address of the VRAM GEM object's backing
+ *       store.
  *
  * The vmap function pins a GEM VRAM object to its current location, either
  * system or video memory, and maps its buffer into kernel address space.
@@ -433,48 +434,44 @@ static void drm_gem_vram_kunmap_locked(struct drm_gem_vram_object *gbo)
  * unmap and unpin the GEM VRAM object.
  *
  * Returns:
- * The buffer's virtual address on success, or
- * an ERR_PTR()-encoded error code otherwise.
+ * 0 on success, or a negative error code otherwise.
  */
-void *drm_gem_vram_vmap(struct drm_gem_vram_object *gbo)
+int drm_gem_vram_vmap(struct drm_gem_vram_object *gbo, struct dma_buf_map *map)
 {
 	int ret;
-	void *base;
 
 	ret = ttm_bo_reserve(&gbo->bo, true, false, NULL);
 	if (ret)
-		return ERR_PTR(ret);
+		return ret;
 
 	ret = drm_gem_vram_pin_locked(gbo, 0);
 	if (ret)
 		goto err_ttm_bo_unreserve;
-	base = drm_gem_vram_kmap_locked(gbo, true, NULL);
-	if (IS_ERR(base)) {
-		ret = PTR_ERR(base);
+	ret = drm_gem_vram_kmap_locked(gbo, map);
+	if (ret)
 		goto err_drm_gem_vram_unpin_locked;
-	}
 
 	ttm_bo_unreserve(&gbo->bo);
 
-	return base;
+	return 0;
 
 err_drm_gem_vram_unpin_locked:
 	drm_gem_vram_unpin_locked(gbo);
 err_ttm_bo_unreserve:
 	ttm_bo_unreserve(&gbo->bo);
-	return ERR_PTR(ret);
+	return ret;
 }
 EXPORT_SYMBOL(drm_gem_vram_vmap);
 
 /**
  * drm_gem_vram_vunmap() - Unmaps and unpins a GEM VRAM object
- * @gbo:	The GEM VRAM object to unmap
- * @vaddr:	The mapping's base address as returned by drm_gem_vram_vmap()
+ * @gbo: The GEM VRAM object to unmap
+ * @map: Kernel virtual address where the VRAM GEM object was mapped
  *
  * A call to drm_gem_vram_vunmap() unmaps and unpins a GEM VRAM buffer. See
  * the documentation for drm_gem_vram_vmap() for more information.
  */
-void drm_gem_vram_vunmap(struct drm_gem_vram_object *gbo, void *vaddr)
+void drm_gem_vram_vunmap(struct drm_gem_vram_object *gbo, struct dma_buf_map *map)
 {
 	int ret;
 
@@ -482,7 +479,7 @@ void drm_gem_vram_vunmap(struct drm_gem_vram_object *gbo, void *vaddr)
 	if (WARN_ONCE(ret, "ttm_bo_reserve_failed(): ret=%d\n", ret))
 		return;
 
-	drm_gem_vram_kunmap_locked(gbo);
+	drm_gem_vram_kunmap_locked(gbo, map);
 	drm_gem_vram_unpin_locked(gbo);
 
 	ttm_bo_unreserve(&gbo->bo);
@@ -573,15 +570,13 @@ static void drm_gem_vram_bo_driver_move_notify(struct drm_gem_vram_object *gbo,
 					       bool evict,
 					       struct ttm_resource *new_mem)
 {
-	struct ttm_bo_kmap_obj *kmap = &gbo->kmap;
+	struct ttm_buffer_object *bo = &gbo->bo;
+	struct drm_device *dev = bo->base.dev;
 
-	if (WARN_ON_ONCE(gbo->kmap_use_count))
+	if (drm_WARN_ON_ONCE(dev, gbo->vmap_use_count))
 		return;
 
-	if (!kmap->virtual)
-		return;
-	ttm_bo_kunmap(kmap);
-	kmap->virtual = NULL;
+	ttm_bo_vunmap(bo, &gbo->map);
 }
 
 static int drm_gem_vram_bo_driver_move(struct drm_gem_vram_object *gbo,
@@ -847,37 +842,33 @@ static void drm_gem_vram_object_unpin(struct drm_gem_object *gem)
 }
 
 /**
- * drm_gem_vram_object_vmap() - \
-	Implements &struct drm_gem_object_funcs.vmap
- * @gem:	The GEM object to map
+ * drm_gem_vram_object_vmap() -
+ *	Implements &struct drm_gem_object_funcs.vmap
+ * @gem: The GEM object to map
+ * @map: Returns the kernel virtual address of the VRAM GEM object's backing
+ *       store.
  *
  * Returns:
- * The buffers virtual address on success, or
- * NULL otherwise.
+ * 0 on success, or a negative error code otherwise.
  */
-static void *drm_gem_vram_object_vmap(struct drm_gem_object *gem)
+static int drm_gem_vram_object_vmap(struct drm_gem_object *gem, struct dma_buf_map *map)
 {
 	struct drm_gem_vram_object *gbo = drm_gem_vram_of_gem(gem);
-	void *base;
 
-	base = drm_gem_vram_vmap(gbo);
-	if (IS_ERR(base))
-		return NULL;
-	return base;
+	return drm_gem_vram_vmap(gbo, map);
 }
 
 /**
- * drm_gem_vram_object_vunmap() - \
-	Implements &struct drm_gem_object_funcs.vunmap
- * @gem:	The GEM object to unmap
- * @vaddr:	The mapping's base address
+ * drm_gem_vram_object_vunmap() -
+ *	Implements &struct drm_gem_object_funcs.vunmap
+ * @gem: The GEM object to unmap
+ * @map: Kernel virtual address where the VRAM GEM object was mapped
  */
-static void drm_gem_vram_object_vunmap(struct drm_gem_object *gem,
-				       void *vaddr)
+static void drm_gem_vram_object_vunmap(struct drm_gem_object *gem, struct dma_buf_map *map)
 {
 	struct drm_gem_vram_object *gbo = drm_gem_vram_of_gem(gem);
 
-	drm_gem_vram_vunmap(gbo, vaddr);
+	drm_gem_vram_vunmap(gbo, map);
 }
 
 /*
@@ -964,7 +955,8 @@ static void bo_driver_delete_mem_notify(struct ttm_buffer_object *bo)
 static int bo_driver_move(struct ttm_buffer_object *bo,
 			  bool evict,
 			  struct ttm_operation_ctx *ctx,
-			  struct ttm_resource *new_mem)
+			  struct ttm_resource *new_mem,
+			  struct ttm_place *hop)
 {
 	struct drm_gem_vram_object *gbo;
 

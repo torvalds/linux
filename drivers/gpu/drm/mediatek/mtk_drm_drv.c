@@ -321,7 +321,7 @@ struct drm_gem_object *mtk_drm_gem_prime_import(struct drm_device *dev,
 	return drm_gem_prime_import_dev(dev, dma_buf, private->dma_dev);
 }
 
-static struct drm_driver mtk_drm_driver = {
+static const struct drm_driver mtk_drm_driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
 
 	.dumb_create = mtk_drm_gem_dumb_create,

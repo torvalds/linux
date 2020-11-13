@@ -191,7 +191,7 @@ static void aspeed_gfx_unload(struct drm_device *drm)
 
 DEFINE_DRM_GEM_CMA_FOPS(fops);
 
-static struct drm_driver aspeed_gfx_driver = {
+static const struct drm_driver aspeed_gfx_driver = {
 	.driver_features        = DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	DRM_GEM_CMA_DRIVER_OPS,
 	.fops = &fops,

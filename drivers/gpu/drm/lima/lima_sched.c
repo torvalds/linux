@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /* Copyright 2017-2019 Qiang Yu <yuq825@gmail.com> */
 
+#include <linux/dma-buf-map.h>
 #include <linux/kthread.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
@@ -303,6 +304,8 @@ static void lima_sched_build_error_task_list(struct lima_sched_task *task)
 	struct lima_dump_chunk_buffer *buffer_chunk;
 	u32 size, task_size, mem_size;
 	int i;
+	struct dma_buf_map map;
+	int ret;
 
 	mutex_lock(&dev->error_task_list_lock);
 
@@ -388,15 +391,15 @@ static void lima_sched_build_error_task_list(struct lima_sched_task *task)
 		} else {
 			buffer_chunk->size = lima_bo_size(bo);
 
-			data = drm_gem_shmem_vmap(&bo->base.base);
-			if (IS_ERR_OR_NULL(data)) {
+			ret = drm_gem_shmem_vmap(&bo->base.base, &map);
+			if (ret) {
 				kvfree(et);
 				goto out;
 			}
 
-			memcpy(buffer_chunk + 1, data, buffer_chunk->size);
+			memcpy(buffer_chunk + 1, map.vaddr, buffer_chunk->size);
 
-			drm_gem_shmem_vunmap(&bo->base.base, data);
+			drm_gem_shmem_vunmap(&bo->base.base, &map);
 		}
 
 		buffer_chunk = (void *)(buffer_chunk + 1) + buffer_chunk->size;

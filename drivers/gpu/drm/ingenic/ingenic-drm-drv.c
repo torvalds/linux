@@ -305,11 +305,13 @@ ingenic_drm_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode
 static void ingenic_drm_crtc_atomic_begin(struct drm_crtc *crtc,
 					  struct drm_atomic_state *state)
 {
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
+									  crtc);
 	struct ingenic_drm *priv = drm_crtc_get_priv(crtc);
 	u32 ctrl = 0;
 
 	if (priv->soc_info->has_osd &&
-	    drm_atomic_crtc_needs_modeset(crtc->state)) {
+	    drm_atomic_crtc_needs_modeset(crtc_state)) {
 		/*
 		 * If IPU plane is enabled, enable IPU as source for the F1
 		 * plane; otherwise use regular DMA.
@@ -326,7 +328,8 @@ static void ingenic_drm_crtc_atomic_flush(struct drm_crtc *crtc,
 					  struct drm_atomic_state *state)
 {
 	struct ingenic_drm *priv = drm_crtc_get_priv(crtc);
-	struct drm_crtc_state *crtc_state = crtc->state;
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
+									  crtc);
 	struct drm_pending_vblank_event *event = crtc_state->event;
 
 	if (drm_atomic_crtc_needs_modeset(crtc_state)) {
@@ -716,7 +719,7 @@ static void ingenic_drm_disable_vblank(struct drm_crtc *crtc)
 
 DEFINE_DRM_GEM_CMA_FOPS(ingenic_drm_fops);
 
-static struct drm_driver ingenic_drm_driver_data = {
+static const struct drm_driver ingenic_drm_driver_data = {
 	.driver_features	= DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
 	.name			= "ingenic-drm",
 	.desc			= "DRM module for Ingenic SoCs",
