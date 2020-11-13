@@ -76,6 +76,24 @@ static int ste10Xp_ack_interrupt(struct phy_device *phydev)
 	return 0;
 }
 
+static irqreturn_t ste10Xp_handle_interrupt(struct phy_device *phydev)
+{
+	int irq_status;
+
+	irq_status = phy_read(phydev, MII_XCIIS);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	if (!(irq_status & MII_XIE_DEFAULT_MASK))
+		return IRQ_NONE;
+
+	phy_trigger_machine(phydev);
+
+	return IRQ_HANDLED;
+}
+
 static struct phy_driver ste10xp_pdriver[] = {
 {
 	.phy_id = STE101P_PHY_ID,
@@ -85,6 +103,7 @@ static struct phy_driver ste10xp_pdriver[] = {
 	.config_init = ste10Xp_config_init,
 	.ack_interrupt = ste10Xp_ack_interrupt,
 	.config_intr = ste10Xp_config_intr,
+	.handle_interrupt = ste10Xp_handle_interrupt,
 	.suspend = genphy_suspend,
 	.resume = genphy_resume,
 }, {
@@ -95,6 +114,7 @@ static struct phy_driver ste10xp_pdriver[] = {
 	.config_init = ste10Xp_config_init,
 	.ack_interrupt = ste10Xp_ack_interrupt,
 	.config_intr = ste10Xp_config_intr,
+	.handle_interrupt = ste10Xp_handle_interrupt,
 	.suspend = genphy_suspend,
 	.resume = genphy_resume,
 } };
