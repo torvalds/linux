@@ -79,7 +79,7 @@
 
 &wkup_uart0 {
 	/* Wakeup UART is used by System firmware */
-	status = "disabled";
+	status = "reserved";
 };
 
 &main_uart0 {
@@ -89,7 +89,7 @@
 
 &main_uart2 {
 	/* MAIN UART 2 is used by R5F firmware */
-	status = "disabled";
+	status = "reserved";
 };
 
 &main_uart3 {
