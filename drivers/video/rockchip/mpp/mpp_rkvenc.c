@@ -1319,9 +1319,8 @@ static int rkvenc_set_freq(struct mpp_dev *mpp,
 		mutex_unlock(&enc->devfreq->lock);
 		return 0;
 	}
-#else
-	mpp_clk_set_rate(&enc->core_clk_info, task->clk_mode);
 #endif
+	mpp_clk_set_rate(&enc->core_clk_info, task->clk_mode);
 
 	return 0;
 }
