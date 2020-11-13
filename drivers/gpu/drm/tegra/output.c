@@ -129,7 +129,6 @@ int tegra_output_probe(struct tegra_output *output)
 
 		if (!output->ddc) {
 			err = -EPROBE_DEFER;
-			of_node_put(ddc);
 			return err;
 		}
 	}
