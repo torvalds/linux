@@ -5253,6 +5253,7 @@ static void mlx5e_nic_disable(struct mlx5e_priv *priv)
 
 	mlx5e_disable_async_events(priv);
 	mlx5_lag_remove(mdev);
+	mlx5_vxlan_reset_to_default(mdev->vxlan);
 }
 
 int mlx5e_update_nic_rx(struct mlx5e_priv *priv)
