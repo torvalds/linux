@@ -225,13 +225,18 @@ static void flush_end_io(struct request *flush_rq, blk_status_t error)
 	/* release the tag's ownership to the req cloned from */
 	spin_lock_irqsave(&fq->mq_flush_lock, flags);
 
-	WRITE_ONCE(flush_rq->state, MQ_RQ_IDLE);
 	if (!refcount_dec_and_test(&flush_rq->ref)) {
 		fq->rq_status = error;
 		spin_unlock_irqrestore(&fq->mq_flush_lock, flags);
 		return;
 	}
 
+	/*
+	 * Flush request has to be marked as IDLE when it is really ended
+	 * because its .end_io() is called from timeout code path too for
+	 * avoiding use-after-free.
+	 */
+	WRITE_ONCE(flush_rq->state, MQ_RQ_IDLE);
 	if (fq->rq_status != BLK_STS_OK)
 		error = fq->rq_status;
 
