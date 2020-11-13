@@ -224,7 +224,6 @@ static struct dma_fence *lima_sched_run_job(struct drm_sched_job *job)
 	struct lima_sched_pipe *pipe = to_lima_pipe(job->sched);
 	struct lima_device *ldev = pipe->ldev;
 	struct lima_fence *fence;
-	struct dma_fence *ret;
 	int i, err;
 
 	/* after GPU reset */
@@ -246,7 +245,7 @@ static struct dma_fence *lima_sched_run_job(struct drm_sched_job *job)
 	/* for caller usage of the fence, otherwise irq handler
 	 * may consume the fence before caller use it
 	 */
-	ret = dma_fence_get(task->fence);
+	dma_fence_get(task->fence);
 
 	pipe->current_task = task;
 
