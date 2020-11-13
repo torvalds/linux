@@ -13,7 +13,7 @@ config DRM_CDNS_MHDP8546
 if DRM_CDNS_MHDP8546
 
 config DRM_CDNS_MHDP8546_J721E
-	depends on ARCH_K3_J721E_SOC || COMPILE_TEST
+	depends on ARCH_K3 || COMPILE_TEST
 	bool "J721E Cadence DPI/DP wrapper support"
 	default y
 	help
