@@ -774,6 +774,7 @@ static void timekeeping_update(struct timekeeper *tk, unsigned int action)
 
 /**
  * timekeeping_forward_now - update clock to the current time
+ * @tk:		Pointer to the timekeeper to update
  *
  * Forward the current clock to update its state since the last call to
  * update_wall_time(). This is useful before significant clock changes,
@@ -1350,7 +1351,7 @@ EXPORT_SYMBOL(do_settimeofday64);
 
 /**
  * timekeeping_inject_offset - Adds or subtracts from the current time.
- * @tv:		pointer to the timespec variable containing the offset
+ * @ts:		Pointer to the timespec variable containing the offset
  *
  * Adds or subtracts an offset value from the current time.
  */
@@ -1558,6 +1559,7 @@ u64 timekeeping_max_deferment(void)
 
 /**
  * read_persistent_clock64 -  Return time from the persistent clock.
+ * @ts: Pointer to the storage for the readout value
  *
  * Weak dummy function for arches that do not yet support it.
  * Reads the time from the battery backed persistent clock.
@@ -1663,7 +1665,8 @@ static struct timespec64 timekeeping_suspend_time;
 
 /**
  * __timekeeping_inject_sleeptime - Internal function to add sleep interval
- * @delta: pointer to a timespec delta value
+ * @tk:		Pointer to the timekeeper to be updated
+ * @delta:	Pointer to the delta value in timespec64 format
  *
  * Takes a timespec offset measuring a suspend interval and properly
  * adds the sleep offset to the timekeeping variables.
