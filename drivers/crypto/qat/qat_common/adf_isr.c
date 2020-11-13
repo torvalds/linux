@@ -21,6 +21,9 @@ static int adf_enable_msix(struct adf_accel_dev *accel_dev)
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 	u32 msix_num_entries = 1;
 
+	if (hw_data->set_msix_rttable)
+		hw_data->set_msix_rttable(accel_dev);
+
 	/* If SR-IOV is disabled, add entries for each bank */
 	if (!accel_dev->pf.vf_info) {
 		int i;
