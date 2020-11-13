@@ -1447,15 +1447,18 @@ static int vop2_plane_atomic_check(struct drm_plane *plane, struct drm_plane_sta
 	vpstate->offset = offset + fb->offsets[0];
 
 	/*
-	 * DRM_MODE_REFLECT_Y by afbc don't need to add the offset.
+	 * AFBC HDR_PTR must set to the zero offset of the framebuffer.
 	 */
-	if (vpstate->ymirror_en && !vpstate->afbc_en)
+	if (vpstate->afbc_en)
+		offset = 0;
+	else if (vpstate->ymirror_en)
 		offset += ((src->y2 >> 16) - 1) * fb->pitches[0];
 	else
 		offset += (src->y1 >> 16) * fb->pitches[0];
 
 	dma_addr = rockchip_fb_get_dma_addr(fb, 0);
 	kvaddr = rockchip_fb_get_kvaddr(fb, 0);
+
 	vpstate->yrgb_mst = dma_addr + offset + fb->offsets[0];
 	vpstate->yrgb_kvaddr = kvaddr + offset + fb->offsets[0];
 	if (fb->format->is_yuv) {
@@ -1586,6 +1589,8 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 		VOP_AFBC_SET(vop2, win, half_block_en, afbc_half_block_en);
 		VOP_AFBC_SET(vop2, win, hdr_ptr, vpstate->yrgb_mst);
 		VOP_AFBC_SET(vop2, win, pic_size, act_info);
+		VOP_AFBC_SET(vop2, win, pic_offset, ((src->x1 >> 16) | src->y1));
+		VOP_AFBC_SET(vop2, win, dsp_offset, (dest->x1 | (dest->y1 << 16)));
 		VOP_AFBC_SET(vop2, win, pic_vir_width, stride);
 		VOP_AFBC_SET(vop2, win, tile_num, afbc_tile_num);
 		VOP_AFBC_SET(vop2, win, xmirror, vpstate->xmirror_en);
