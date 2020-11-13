@@ -300,7 +300,7 @@ end:
 	return result;
 }
 
-/**
+/*
  * amdgpu_debugfs_regs_read - Callback for reading MMIO registers
  */
 static ssize_t amdgpu_debugfs_regs_read(struct file *f, char __user *buf,
@@ -309,7 +309,7 @@ static ssize_t amdgpu_debugfs_regs_read(struct file *f, char __user *buf,
 	return amdgpu_debugfs_process_reg_op(true, f, buf, size, pos);
 }
 
-/**
+/*
  * amdgpu_debugfs_regs_write - Callback for writing MMIO registers
  */
 static ssize_t amdgpu_debugfs_regs_write(struct file *f, const char __user *buf,
