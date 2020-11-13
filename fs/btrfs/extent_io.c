@@ -2842,6 +2842,17 @@ update:
 	processed->uptodate = uptodate;
 }
 
+static void endio_readpage_update_page_status(struct page *page, bool uptodate)
+{
+	if (uptodate) {
+		SetPageUptodate(page);
+	} else {
+		ClearPageUptodate(page);
+		SetPageError(page);
+	}
+	unlock_page(page);
+}
+
 /*
  * after a readpage IO is done, we need to:
  * clear the uptodate bits on error
@@ -2964,14 +2975,11 @@ readpage_ok:
 			off = offset_in_page(i_size);
 			if (page->index == end_index && off)
 				zero_user_segment(page, off, PAGE_SIZE);
-			SetPageUptodate(page);
-		} else {
-			ClearPageUptodate(page);
-			SetPageError(page);
 		}
-		unlock_page(page);
 		offset += len;
 
+		/* Update page status and unlock */
+		endio_readpage_update_page_status(page, uptodate);
 		endio_readpage_release_extent(&processed, BTRFS_I(inode),
 					      start, end, uptodate);
 	}
