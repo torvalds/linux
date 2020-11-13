@@ -142,7 +142,7 @@ struct extent_page_data {
 	unsigned int sync_io:1;
 };
 
-static int add_extent_changeset(struct extent_state *state, unsigned bits,
+static int add_extent_changeset(struct extent_state *state, u32 bits,
 				 struct extent_changeset *changeset,
 				 int set)
 {
@@ -530,7 +530,7 @@ static void merge_state(struct extent_io_tree *tree,
 }
 
 static void set_state_bits(struct extent_io_tree *tree,
-			   struct extent_state *state, unsigned *bits,
+			   struct extent_state *state, u32 *bits,
 			   struct extent_changeset *changeset);
 
 /*
@@ -547,7 +547,7 @@ static int insert_state(struct extent_io_tree *tree,
 			struct extent_state *state, u64 start, u64 end,
 			struct rb_node ***p,
 			struct rb_node **parent,
-			unsigned *bits, struct extent_changeset *changeset)
+			u32 *bits, struct extent_changeset *changeset)
 {
 	struct rb_node *node;
 
@@ -628,11 +628,11 @@ static struct extent_state *next_state(struct extent_state *state)
  */
 static struct extent_state *clear_state_bit(struct extent_io_tree *tree,
 					    struct extent_state *state,
-					    unsigned *bits, int wake,
+					    u32 *bits, int wake,
 					    struct extent_changeset *changeset)
 {
 	struct extent_state *next;
-	unsigned bits_to_clear = *bits & ~EXTENT_CTLBITS;
+	u32 bits_to_clear = *bits & ~EXTENT_CTLBITS;
 	int ret;
 
 	if ((bits_to_clear & EXTENT_DIRTY) && (state->state & EXTENT_DIRTY)) {
@@ -695,9 +695,9 @@ static void extent_io_tree_panic(struct extent_io_tree *tree, int err)
  * This takes the tree lock, and returns 0 on success and < 0 on error.
  */
 int __clear_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
-			      unsigned bits, int wake, int delete,
-			      struct extent_state **cached_state,
-			      gfp_t mask, struct extent_changeset *changeset)
+		       u32 bits, int wake, int delete,
+		       struct extent_state **cached_state,
+		       gfp_t mask, struct extent_changeset *changeset)
 {
 	struct extent_state *state;
 	struct extent_state *cached;
@@ -868,7 +868,7 @@ static void wait_on_state(struct extent_io_tree *tree,
  * The tree lock is taken by this function
  */
 static void wait_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
-			    unsigned long bits)
+			    u32 bits)
 {
 	struct extent_state *state;
 	struct rb_node *node;
@@ -915,9 +915,9 @@ out:
 
 static void set_state_bits(struct extent_io_tree *tree,
 			   struct extent_state *state,
-			   unsigned *bits, struct extent_changeset *changeset)
+			   u32 *bits, struct extent_changeset *changeset)
 {
-	unsigned bits_to_set = *bits & ~EXTENT_CTLBITS;
+	u32 bits_to_set = *bits & ~EXTENT_CTLBITS;
 	int ret;
 
 	if (tree->private_data && is_data_inode(tree->private_data))
@@ -961,8 +961,8 @@ static void cache_state(struct extent_state *state,
  *
  * [start, end] is inclusive This takes the tree lock.
  */
-int set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end, unsigned bits,
-		   unsigned exclusive_bits, u64 *failed_start,
+int set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end, u32 bits,
+		   u32 exclusive_bits, u64 *failed_start,
 		   struct extent_state **cached_state, gfp_t mask,
 		   struct extent_changeset *changeset)
 {
@@ -1200,7 +1200,7 @@ out:
  * All allocations are done with GFP_NOFS.
  */
 int convert_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
-		       unsigned bits, unsigned clear_bits,
+		       u32 bits, u32 clear_bits,
 		       struct extent_state **cached_state)
 {
 	struct extent_state *state;
@@ -1401,7 +1401,7 @@ out:
 
 /* wrappers around set/clear extent bit */
 int set_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
-			   unsigned bits, struct extent_changeset *changeset)
+			   u32 bits, struct extent_changeset *changeset)
 {
 	/*
 	 * We don't support EXTENT_LOCKED yet, as current changeset will
@@ -1416,14 +1416,14 @@ int set_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 }
 
 int set_extent_bits_nowait(struct extent_io_tree *tree, u64 start, u64 end,
-			   unsigned bits)
+			   u32 bits)
 {
 	return set_extent_bit(tree, start, end, bits, 0, NULL, NULL,
 			      GFP_NOWAIT, NULL);
 }
 
 int clear_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
-		     unsigned bits, int wake, int delete,
+		     u32 bits, int wake, int delete,
 		     struct extent_state **cached)
 {
 	return __clear_extent_bit(tree, start, end, bits, wake, delete,
@@ -1431,7 +1431,7 @@ int clear_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 }
 
 int clear_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
-		unsigned bits, struct extent_changeset *changeset)
+		u32 bits, struct extent_changeset *changeset)
 {
 	/*
 	 * Don't support EXTENT_LOCKED case, same reason as
@@ -1519,8 +1519,7 @@ void extent_range_redirty_for_io(struct inode *inode, u64 start, u64 end)
  * nothing was found after 'start'
  */
 static struct extent_state *
-find_first_extent_bit_state(struct extent_io_tree *tree,
-			    u64 start, unsigned bits)
+find_first_extent_bit_state(struct extent_io_tree *tree, u64 start, u32 bits)
 {
 	struct rb_node *node;
 	struct extent_state *state;
@@ -1555,7 +1554,7 @@ out:
  * Return 1 if we found nothing.
  */
 int find_first_extent_bit(struct extent_io_tree *tree, u64 start,
-			  u64 *start_ret, u64 *end_ret, unsigned bits,
+			  u64 *start_ret, u64 *end_ret, u32 bits,
 			  struct extent_state **cached_state)
 {
 	struct extent_state *state;
@@ -1606,7 +1605,7 @@ out:
  * returned will be the full contiguous area with the bits set.
  */
 int find_contiguous_extent_bit(struct extent_io_tree *tree, u64 start,
-			       u64 *start_ret, u64 *end_ret, unsigned bits)
+			       u64 *start_ret, u64 *end_ret, u32 bits)
 {
 	struct extent_state *state;
 	int ret = 1;
@@ -1643,7 +1642,7 @@ int find_contiguous_extent_bit(struct extent_io_tree *tree, u64 start,
  * trim @end_ret to the appropriate size.
  */
 void find_first_clear_extent_bit(struct extent_io_tree *tree, u64 start,
-				 u64 *start_ret, u64 *end_ret, unsigned bits)
+				 u64 *start_ret, u64 *end_ret, u32 bits)
 {
 	struct extent_state *state;
 	struct rb_node *node, *prev = NULL, *next;
@@ -2014,8 +2013,7 @@ out:
 
 void extent_clear_unlock_delalloc(struct btrfs_inode *inode, u64 start, u64 end,
 				  struct page *locked_page,
-				  unsigned clear_bits,
-				  unsigned long page_ops)
+				  u32 clear_bits, unsigned long page_ops)
 {
 	clear_extent_bit(&inode->io_tree, start, end, clear_bits, 1, 0, NULL);
 
@@ -2031,7 +2029,7 @@ void extent_clear_unlock_delalloc(struct btrfs_inode *inode, u64 start, u64 end,
  */
 u64 count_range_bits(struct extent_io_tree *tree,
 		     u64 *start, u64 search_end, u64 max_bytes,
-		     unsigned bits, int contig)
+		     u32 bits, int contig)
 {
 	struct rb_node *node;
 	struct extent_state *state;
@@ -2151,7 +2149,7 @@ out:
  * range is found set.
  */
 int test_range_bit(struct extent_io_tree *tree, u64 start, u64 end,
-		   unsigned bits, int filled, struct extent_state *cached)
+		   u32 bits, int filled, struct extent_state *cached)
 {
 	struct extent_state *state = NULL;
 	struct rb_node *node;
