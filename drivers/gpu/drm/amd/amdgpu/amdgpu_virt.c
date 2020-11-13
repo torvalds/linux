@@ -555,7 +555,7 @@ static int amdgpu_virt_write_vf2pf_data(struct amdgpu_device *adev)
 	return 0;
 }
 
-void amdgpu_virt_update_vf2pf_work_item(struct work_struct *work)
+static void amdgpu_virt_update_vf2pf_work_item(struct work_struct *work)
 {
 	struct amdgpu_device *adev = container_of(work, struct amdgpu_device, virt.vf2pf_work.work);
 
