@@ -433,7 +433,6 @@ struct mlxsw_sp_fib4_entry {
 	struct mlxsw_sp_fib_entry common;
 	struct fib_info *fi;
 	u32 tb_id;
-	u32 prio;
 	u8 tos;
 	u8 type;
 };
@@ -4832,7 +4831,6 @@ mlxsw_sp_fib4_entry_create(struct mlxsw_sp *mlxsw_sp,
 
 	fib4_entry->fi = fen_info->fi;
 	fib_info_hold(fib4_entry->fi);
-	fib4_entry->prio = fen_info->fi->fib_priority;
 	fib4_entry->tb_id = fen_info->tb_id;
 	fib4_entry->type = fen_info->type;
 	fib4_entry->tos = fen_info->tos;
