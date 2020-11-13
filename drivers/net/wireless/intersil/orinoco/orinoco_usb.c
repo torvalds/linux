@@ -1319,7 +1319,7 @@ static netdev_tx_t ezusb_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	err = ezusb_access_ltv(upriv, ctx, tx_size, NULL,
 			       EZUSB_FRAME_DATA, NULL, 0, NULL,
-			       ezusb_req_ctx_wait);
+			       ezusb_req_ctx_wait_skip);
 
 	if (err) {
 		netif_start_queue(dev);
