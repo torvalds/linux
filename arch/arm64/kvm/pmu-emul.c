@@ -384,7 +384,7 @@ static void kvm_pmu_update_state(struct kvm_vcpu *vcpu)
 	struct kvm_pmu *pmu = &vcpu->arch.pmu;
 	bool overflow;
 
-	if (!kvm_arm_pmu_v3_ready(vcpu))
+	if (!kvm_vcpu_has_pmu(vcpu))
 		return;
 
 	overflow = !!kvm_pmu_overflow_status(vcpu);
