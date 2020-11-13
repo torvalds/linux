@@ -343,8 +343,15 @@ static void cpu_read_constcnt(void *val)
 static inline
 int counters_read_on_cpu(int cpu, smp_call_func_t func, u64 *val)
 {
+	/*
+	 * Abort call on counterless CPU or when interrupts are
+	 * disabled - can lead to deadlock in smp sync call.
+	 */
 	if (!cpu_has_amu_feat(cpu))
 		return -EOPNOTSUPP;
+
+	if (WARN_ON_ONCE(irqs_disabled()))
+		return -EPERM;
 
 	smp_call_function_single(cpu, func, val, 1);
 
