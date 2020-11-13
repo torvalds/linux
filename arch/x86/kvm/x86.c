@@ -9624,6 +9624,8 @@ static bool kvm_is_valid_sregs(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs)
 		 */
 		if (!(sregs->cr4 & X86_CR4_PAE) || !(sregs->efer & EFER_LMA))
 			return false;
+		if (sregs->cr3 & vcpu->arch.cr3_lm_rsvd_bits)
+			return false;
 	} else {
 		/*
 		 * Not in 64-bit mode: EFER.LMA is clear and the code
