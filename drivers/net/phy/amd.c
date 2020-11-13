@@ -52,10 +52,19 @@ static int am79c_config_intr(struct phy_device *phydev)
 {
 	int err;
 
-	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		err = am79c_ack_interrupt(phydev);
+		if (err)
+			return err;
+
 		err = phy_write(phydev, MII_AM79C_IR, MII_AM79C_IR_IMASK_INIT);
-	else
+	} else {
 		err = phy_write(phydev, MII_AM79C_IR, 0);
+		if (err)
+			return err;
+
+		err = am79c_ack_interrupt(phydev);
+	}
 
 	return err;
 }
@@ -84,7 +93,6 @@ static struct phy_driver am79c_driver[] = { {
 	.phy_id_mask	= 0xfffffff0,
 	/* PHY_BASIC_FEATURES */
 	.config_init	= am79c_config_init,
-	.ack_interrupt	= am79c_ack_interrupt,
 	.config_intr	= am79c_config_intr,
 	.handle_interrupt = am79c_handle_interrupt,
 } };
