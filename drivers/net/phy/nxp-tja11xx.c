@@ -44,6 +44,9 @@
 #define MII_CFG2_SLEEP_REQUEST_TO_16MS	0x3
 
 #define MII_INTSRC			21
+#define MII_INTSRC_LINK_FAIL		BIT(10)
+#define MII_INTSRC_LINK_UP		BIT(9)
+#define MII_INTSRC_MASK			(MII_INTSRC_LINK_FAIL | MII_INTSRC_LINK_UP)
 #define MII_INTSRC_TEMP_ERR		BIT(1)
 #define MII_INTSRC_UV_ERR		BIT(3)
 
@@ -604,6 +607,24 @@ static int tja11xx_config_intr(struct phy_device *phydev)
 	return phy_write(phydev, MII_INTEN, value);
 }
 
+static irqreturn_t tja11xx_handle_interrupt(struct phy_device *phydev)
+{
+	int irq_status;
+
+	irq_status = phy_read(phydev, MII_INTSRC);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	if (!(irq_status & MII_INTSRC_MASK))
+		return IRQ_NONE;
+
+	phy_trigger_machine(phydev);
+
+	return IRQ_HANDLED;
+}
+
 static int tja11xx_cable_test_start(struct phy_device *phydev)
 {
 	int ret;
@@ -749,6 +770,7 @@ static struct phy_driver tja11xx_driver[] = {
 		.get_stats	= tja11xx_get_stats,
 		.ack_interrupt	= tja11xx_ack_interrupt,
 		.config_intr	= tja11xx_config_intr,
+		.handle_interrupt = tja11xx_handle_interrupt,
 		.cable_test_start = tja11xx_cable_test_start,
 		.cable_test_get_status = tja11xx_cable_test_get_status,
 	}, {
@@ -772,6 +794,7 @@ static struct phy_driver tja11xx_driver[] = {
 		.get_stats	= tja11xx_get_stats,
 		.ack_interrupt	= tja11xx_ack_interrupt,
 		.config_intr	= tja11xx_config_intr,
+		.handle_interrupt = tja11xx_handle_interrupt,
 		.cable_test_start = tja11xx_cable_test_start,
 		.cable_test_get_status = tja11xx_cable_test_get_status,
 	}
