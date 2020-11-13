@@ -83,6 +83,14 @@ properties:
           - const: samsung,exynos4412
           - const: samsung,exynos4
 
+      - description: Samsung p4note family boards
+        items:
+          - enum:
+              - samsung,n8010                   # Samsung GT-N8010/GT-N8013
+          - const: samsung,p4note
+          - const: samsung,exynos4412
+          - const: samsung,exynos4
+
       - description: Exynos5250 based boards
         items:
           - enum:
