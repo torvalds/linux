@@ -18,6 +18,11 @@
 #include <drm/drm_of.h>
 #include <drm/drmP.h>
 
+enum rk628_mode_sync_pol {
+	MODE_FLAG_NSYNC,
+	MODE_FLAG_PSYNC,
+};
+
 struct rk628_post_process {
 	struct drm_bridge base;
 	struct drm_bridge *bridge;
@@ -31,6 +36,7 @@ struct rk628_post_process {
 	struct reset_control *rstc_clk_rx;
 	struct reset_control *rstc_vop;
 	struct rk628 *parent;
+	int sync_pol;
 };
 
 static inline struct rk628_post_process *bridge_to_pp(struct drm_bridge *bridge)
@@ -227,9 +233,9 @@ static void rk628_post_process_bridge_pre_enable(struct drm_bridge *bridge)
 	udelay(10);
 
 	regmap_update_bits(pp->grf, GRF_SYSTEM_CON0, SW_VSYNC_POL_MASK,
-			   SW_VSYNC_POL(1));
+			   SW_VSYNC_POL(pp->sync_pol));
 	regmap_update_bits(pp->grf, GRF_SYSTEM_CON0, SW_HSYNC_POL_MASK,
-			   SW_HSYNC_POL(1));
+			   SW_HSYNC_POL(pp->sync_pol));
 
 	rk628_post_process_scaler_init(pp, src, dst);
 }
@@ -296,9 +302,15 @@ rk628_post_process_bridge_mode_fixup(struct drm_bridge *bridge,
 				     const struct drm_display_mode *mode,
 				     struct drm_display_mode *adj)
 {
-	/* Fixup sync polarities, both hsync and vsync are active high */
-	adj->flags &= ~(DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC);
-	adj->flags |= (DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC);
+	struct rk628_post_process *pp = bridge_to_pp(bridge);
+
+	if (pp->sync_pol == MODE_FLAG_NSYNC) {
+		adj->flags &= ~(DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC);
+		adj->flags |= (DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC);
+	} else {
+		adj->flags &= ~(DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC);
+		adj->flags |= (DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC);
+	}
 
 	return true;
 }
@@ -376,6 +388,7 @@ static int rk628_post_process_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct rk628_post_process *pp;
 	u32 bus_flags;
+	u32 val;
 	int ret;
 
 	if (!of_device_is_available(dev->of_node))
@@ -424,6 +437,12 @@ static int rk628_post_process_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to get vop reset: %d\n", ret);
 		return ret;
 	}
+
+	ret = of_property_read_u32(dev->of_node, "mode-sync-pol", &val);
+	if (ret < 0)
+		pp->sync_pol = MODE_FLAG_PSYNC;
+	else
+		pp->sync_pol = (!val ? MODE_FLAG_NSYNC : MODE_FLAG_PSYNC);
 
 	pp->base.funcs = &rk628_post_process_bridge_funcs;
 	pp->base.of_node = dev->of_node;
