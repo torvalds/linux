@@ -255,7 +255,7 @@ static const struct drm_ioctl_desc lima_drm_driver_ioctls[] = {
 
 DEFINE_DRM_GEM_FOPS(lima_drm_driver_fops);
 
-/**
+/*
  * Changelog:
  *
  * - 1.1.0 - add heap buffer support
