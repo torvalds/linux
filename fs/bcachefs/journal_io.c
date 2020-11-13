@@ -172,7 +172,9 @@ static int journal_validate_key(struct bch_fs *c, struct jset *jset,
 	int ret = 0;
 
 	if (journal_entry_err_on(!k->k.u64s, c,
-			"invalid %s in journal: k->u64s 0", type)) {
+			"invalid %s in journal entry %llu offset %zi: k->u64s 0",
+			type, le64_to_cpu(jset->seq),
+			(u64 *) entry - jset->_data)) {
 		entry->u64s = cpu_to_le16((u64 *) k - entry->_data);
 		journal_entry_null_range(vstruct_next(entry), next);
 		return 0;
@@ -180,16 +182,19 @@ static int journal_validate_key(struct bch_fs *c, struct jset *jset,
 
 	if (journal_entry_err_on((void *) bkey_next(k) >
 				(void *) vstruct_next(entry), c,
-			"invalid %s in journal: extends past end of journal entry",
-			type)) {
+			"invalid %s in journal entry %llu offset %zi: extends past end of journal entry",
+			type, le64_to_cpu(jset->seq),
+			(u64 *) entry - jset->_data)) {
 		entry->u64s = cpu_to_le16((u64 *) k - entry->_data);
 		journal_entry_null_range(vstruct_next(entry), next);
 		return 0;
 	}
 
 	if (journal_entry_err_on(k->k.format != KEY_FORMAT_CURRENT, c,
-			"invalid %s in journal: bad format %u",
-			type, k->k.format)) {
+			"invalid %s in journal entry %llu offset %zi: bad format %u",
+			type, le64_to_cpu(jset->seq),
+			(u64 *) entry - jset->_data,
+			k->k.format)) {
 		le16_add_cpu(&entry->u64s, -k->k.u64s);
 		memmove(k, bkey_next(k), next - (void *) bkey_next(k));
 		journal_entry_null_range(vstruct_next(entry), next);
@@ -207,8 +212,10 @@ static int journal_validate_key(struct bch_fs *c, struct jset *jset,
 		char buf[160];
 
 		bch2_bkey_val_to_text(&PBUF(buf), c, bkey_i_to_s_c(k));
-		mustfix_fsck_err(c, "invalid %s in journal: %s\n%s",
-				 type, invalid, buf);
+		mustfix_fsck_err(c, "invalid %s in journal entry %llu offset %zi: %s\n%s",
+				 type, le64_to_cpu(jset->seq),
+				 (u64 *) entry - jset->_data,
+				 invalid, buf);
 
 		le16_add_cpu(&entry->u64s, -k->k.u64s);
 		memmove(k, bkey_next(k), next - (void *) bkey_next(k));
