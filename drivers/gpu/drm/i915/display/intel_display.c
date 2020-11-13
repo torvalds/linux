@@ -13421,7 +13421,9 @@ static void
 intel_crtc_copy_uapi_to_hw_state_nomodeset(struct intel_atomic_state *state,
 					   struct intel_crtc_state *crtc_state)
 {
-	intel_crtc_copy_color_blobs(crtc_state);
+	const struct intel_crtc_state *from_crtc_state = crtc_state;
+
+	intel_crtc_copy_color_blobs(crtc_state, from_crtc_state);
 }
 
 static void
