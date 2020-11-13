@@ -104,7 +104,7 @@ pe_header:
 	 */
 SYM_CODE_START(primary_entry)
 	bl	preserve_boot_args
-	bl	el2_setup			// Drop to EL1, w0=cpu_boot_mode
+	bl	init_kernel_el			// w0=cpu_boot_mode
 	adrp	x23, __PHYS_OFFSET
 	and	x23, x23, MIN_KIMG_ALIGN - 1	// KASLR offset, defaults to 0
 	bl	set_cpu_boot_mode_flag
@@ -482,13 +482,14 @@ EXPORT_SYMBOL(kimage_vaddr)
 	.section ".idmap.text","awx"
 
 /*
- * If we're fortunate enough to boot at EL2, ensure that the world is
- * sane before dropping to EL1.
+ * Starting from EL2 or EL1, configure the CPU to execute at the highest
+ * reachable EL supported by the kernel in a chosen default state. If dropping
+ * from EL2 to EL1, configure EL2 before configuring EL1.
  *
  * Returns either BOOT_CPU_MODE_EL1 or BOOT_CPU_MODE_EL2 in w0 if
  * booted in EL1 or EL2 respectively.
  */
-SYM_FUNC_START(el2_setup)
+SYM_FUNC_START(init_kernel_el)
 	msr	SPsel, #1			// We want to use SP_EL{1,2}
 	mrs	x0, CurrentEL
 	cmp	x0, #CurrentEL_EL2
@@ -649,7 +650,7 @@ SYM_INNER_LABEL(install_el2_stub, SYM_L_LOCAL)
 	msr	elr_el2, lr
 	mov	w0, #BOOT_CPU_MODE_EL2		// This CPU booted in EL2
 	eret
-SYM_FUNC_END(el2_setup)
+SYM_FUNC_END(init_kernel_el)
 
 /*
  * Sets the __boot_cpu_mode flag depending on the CPU boot mode passed
@@ -699,7 +700,7 @@ SYM_DATA_END(__early_cpu_boot_status)
 	 * cores are held until we're ready for them to initialise.
 	 */
 SYM_FUNC_START(secondary_holding_pen)
-	bl	el2_setup			// Drop to EL1, w0=cpu_boot_mode
+	bl	init_kernel_el			// w0=cpu_boot_mode
 	bl	set_cpu_boot_mode_flag
 	mrs	x0, mpidr_el1
 	mov_q	x1, MPIDR_HWID_BITMASK
@@ -717,7 +718,7 @@ SYM_FUNC_END(secondary_holding_pen)
 	 * be used where CPUs are brought online dynamically by the kernel.
 	 */
 SYM_FUNC_START(secondary_entry)
-	bl	el2_setup			// Drop to EL1
+	bl	init_kernel_el			// w0=cpu_boot_mode
 	bl	set_cpu_boot_mode_flag
 	b	secondary_startup
 SYM_FUNC_END(secondary_entry)
