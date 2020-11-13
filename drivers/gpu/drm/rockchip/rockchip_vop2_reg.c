@@ -731,8 +731,8 @@ static const struct vop2_win_regs rk3568_esmart_win_data = {
 	.yrgb_vir = VOP_REG(RK3568_ESMART0_REGION0_VIR, 0xffff, 0),
 	.uv_vir = VOP_REG(RK3568_ESMART0_REGION0_VIR, 0xffff, 16),
 	.y2r_en = VOP_REG(RK3568_ESMART0_CTRL0, 0x1, 0),
-	.r2y_en = VOP_REG(RK3568_ESMART0_CTRL0, 0x1, 9),
-	.csc_mode = VOP_REG(RK3568_ESMART0_CTRL0, 0x3, 10),
+	.r2y_en = VOP_REG(RK3568_ESMART0_CTRL0, 0x1, 1),
+	.csc_mode = VOP_REG(RK3568_ESMART0_CTRL0, 0x3, 2),
 };
 
 /*
