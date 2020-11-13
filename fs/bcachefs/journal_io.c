@@ -431,46 +431,45 @@ static int jset_validate(struct bch_fs *c,
 			"%s sector %llu seq %llu: unknown journal entry version %u",
 			ca->name, sector, le64_to_cpu(jset->seq),
 			version)) {
-		/* XXX: note we might have missing journal entries */
-		return JOURNAL_ENTRY_BAD;
+		/* don't try to continue: */
+		return EINVAL;
 	}
+
+	if (bytes > (sectors_read << 9) &&
+	    sectors_read < bucket_sectors_left)
+		return JOURNAL_ENTRY_REREAD;
 
 	if (journal_entry_err_on(bytes > bucket_sectors_left << 9, c,
 			"%s sector %llu seq %llu: journal entry too big (%zu bytes)",
 			ca->name, sector, le64_to_cpu(jset->seq), bytes)) {
-		/* XXX: note we might have missing journal entries */
-		return JOURNAL_ENTRY_BAD;
+		ret = JOURNAL_ENTRY_BAD;
+		le32_add_cpu(&jset->u64s,
+			     -((bytes - (bucket_sectors_left << 9)) / 8));
 	}
-
-	if (bytes > sectors_read << 9)
-		return JOURNAL_ENTRY_REREAD;
 
 	if (fsck_err_on(!bch2_checksum_type_valid(c, JSET_CSUM_TYPE(jset)), c,
 			"%s sector %llu seq %llu: journal entry with unknown csum type %llu",
 			ca->name, sector, le64_to_cpu(jset->seq),
-			JSET_CSUM_TYPE(jset)))
-		return JOURNAL_ENTRY_BAD;
+			JSET_CSUM_TYPE(jset))) {
+		ret = JOURNAL_ENTRY_BAD;
+		goto bad_csum_type;
+	}
 
 	csum = csum_vstruct(c, JSET_CSUM_TYPE(jset), journal_nonce(jset), jset);
 	if (journal_entry_err_on(bch2_crc_cmp(csum, jset->csum), c,
 				 "%s sector %llu seq %llu: journal checksum bad",
-				 ca->name, sector, le64_to_cpu(jset->seq))) {
-		/* XXX: retry IO, when we start retrying checksum errors */
-		/* XXX: note we might have missing journal entries */
-		return JOURNAL_ENTRY_BAD;
-	}
+				 ca->name, sector, le64_to_cpu(jset->seq)))
+		ret = JOURNAL_ENTRY_BAD;
 
 	bch2_encrypt(c, JSET_CSUM_TYPE(jset), journal_nonce(jset),
 		     jset->encrypted_start,
 		     vstruct_end(jset) - (void *) jset->encrypted_start);
-
+bad_csum_type:
 	if (journal_entry_err_on(le64_to_cpu(jset->last_seq) > le64_to_cpu(jset->seq), c,
 				 "invalid journal entry: last_seq > seq")) {
 		jset->last_seq = jset->seq;
 		return JOURNAL_ENTRY_BAD;
 	}
-
-	return 0;
 fsck_err:
 	return ret;
 }
