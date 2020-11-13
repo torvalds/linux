@@ -1082,7 +1082,7 @@ static int __ezusb_docmd_wait(struct hermes *hw, u16 cmd, u16 parm0,
 static int ezusb_docmd_wait(struct hermes *hw, u16 cmd, u16 parm0,
 			    struct hermes_response *resp)
 {
-	return __ezusb_docmd_wait(hw, cmd, parm0, resp, ezusb_req_ctx_wait);
+	return __ezusb_docmd_wait(hw, cmd, parm0, resp, ezusb_req_ctx_wait_poll);
 }
 
 static int ezusb_bap_pread(struct hermes *hw, int bap,
