@@ -165,6 +165,7 @@ struct mt7915_dev {
 
 	s8 **rate_power; /* TODO: use mt76_rate_power */
 
+	bool dbdc_support;
 	bool fw_debug;
 
 #ifdef CONFIG_NL80211_TESTMODE
@@ -278,6 +279,7 @@ void mt7915_unregister_device(struct mt7915_dev *dev);
 int mt7915_register_ext_phy(struct mt7915_dev *dev);
 void mt7915_unregister_ext_phy(struct mt7915_dev *dev);
 int mt7915_eeprom_init(struct mt7915_dev *dev);
+void mt7915_eeprom_parse_band_config(struct mt7915_phy *phy);
 int mt7915_eeprom_get_target_power(struct mt7915_dev *dev,
 				   struct ieee80211_channel *chan,
 				   u8 chain_idx);
@@ -461,6 +463,7 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 			  struct ieee80211_sta *sta,
 			  struct mt76_tx_info *tx_info);
 void mt7915_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue_entry *e);
+int mt7915_init_tx_queues(struct mt7915_phy *phy, int idx, int n_desc);
 void mt7915_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			 struct sk_buff *skb);
 void mt7915_sta_ps(struct mt76_dev *mdev, struct ieee80211_sta *sta, bool ps);

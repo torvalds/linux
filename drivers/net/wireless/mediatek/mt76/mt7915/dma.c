@@ -5,8 +5,7 @@
 #include "../dma.h"
 #include "mac.h"
 
-static int
-mt7915_init_tx_queues(struct mt7915_phy *phy, int idx, int n_desc)
+int mt7915_init_tx_queues(struct mt7915_phy *phy, int idx, int n_desc)
 {
 	int i, err;
 
@@ -274,12 +273,20 @@ int mt7915_dma_init(struct mt7915_dev *dev)
 	if (ret)
 		return ret;
 
-	/* rx data */
-	ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_MAIN], 0,
-			       MT7915_RX_RING_SIZE, rx_buf_size,
-			       MT_RX_DATA_RING_BASE);
+	/* rx data queue */
+	ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_MAIN],
+			       MT7915_RXQ_BAND0, MT7915_RX_RING_SIZE,
+			       rx_buf_size, MT_RX_DATA_RING_BASE);
 	if (ret)
 		return ret;
+
+	if (dev->dbdc_support) {
+		ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_EXT],
+				       MT7915_RXQ_BAND1, MT7915_RX_RING_SIZE,
+				       rx_buf_size, MT_RX_DATA_RING_BASE);
+		if (ret)
+			return ret;
+	}
 
 	ret = mt76_init_queues(dev);
 	if (ret < 0)

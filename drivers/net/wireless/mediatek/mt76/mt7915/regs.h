@@ -73,11 +73,10 @@
 #define MT_TMAC_TRCR0(_band)		MT_WF_TMAC(_band, 0x09c)
 #define MT_TMAC_TFCR0(_band)		MT_WF_TMAC(_band, 0x1e0)
 
-/* DMA Band 0 */
-#define MT_WF_DMA_BASE			0x21e00
-#define MT_WF_DMA(ofs)			(MT_WF_DMA_BASE + (ofs))
+#define MT_WF_DMA_BASE(_band)		((_band) ? 0xa1e00 : 0x21e00)
+#define MT_WF_DMA(_band, ofs)		(MT_WF_DMA_BASE(_band) + (ofs))
 
-#define MT_DMA_DCR0			MT_WF_DMA(0x000)
+#define MT_DMA_DCR0(_band)		MT_WF_DMA(_band, 0x000)
 #define MT_DMA_DCR0_MAX_RX_LEN		GENMASK(15, 3)
 #define MT_DMA_DCR0_RXD_G5_EN		BIT(23)
 
@@ -339,11 +338,11 @@
 
 #define MT_INT_SOURCE_CSR		MT_WFDMA_EXT_CSR(0x10)
 #define MT_INT_MASK_CSR			MT_WFDMA_EXT_CSR(0x14)
-#define MT_INT_RX_DONE_DATA		BIT(16)
+#define MT_INT_RX_DONE_DATA0		BIT(16)
+#define MT_INT_RX_DONE_DATA1		BIT(17)
 #define MT_INT_RX_DONE_WM		BIT(0)
 #define MT_INT_RX_DONE_WA		BIT(1)
-#define MT_INT_RX_DONE(_n)		((_n) ? BIT((_n) - 1) : BIT(16))
-#define MT_INT_RX_DONE_ALL		(BIT(0) | BIT(1) | BIT(16))
+#define MT_INT_RX_DONE_ALL		(BIT(0) | BIT(1) | GENMASK(17, 16))
 #define MT_INT_TX_DONE_MCU_WA		BIT(15)
 #define MT_INT_TX_DONE_FWDL		BIT(26)
 #define MT_INT_TX_DONE_MCU_WM		BIT(27)

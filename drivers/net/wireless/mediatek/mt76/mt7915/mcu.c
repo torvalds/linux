@@ -962,7 +962,7 @@ mt7915_mcu_muar_config(struct mt7915_phy *phy, struct ieee80211_vif *vif,
 		.mode = !!mask || enable,
 		.entry_count = 1,
 		.write = 1,
-
+		.band = phy != &dev->phy,
 		.index = idx * 2 + bssid,
 	};
 
@@ -3146,7 +3146,7 @@ int mt7915_mcu_set_chan_info(struct mt7915_phy *phy, int cmd)
 		.center_ch = ieee80211_frequency_to_channel(freq1),
 		.bw = mt7915_mcu_chan_bw(chandef),
 		.tx_streams_num = hweight8(phy->mt76->antenna_mask),
-		.rx_streams = phy->chainmask,
+		.rx_streams = phy->mt76->antenna_mask,
 		.band_idx = phy != &dev->phy,
 		.channel_band = chandef->chan->band,
 	};
