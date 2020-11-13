@@ -422,16 +422,15 @@ int copy_thread(unsigned long clone_flags, unsigned long stack_start,
 		if (clone_flags & CLONE_SETTLS)
 			p->thread.uw.tp_value = tls;
 	} else {
+		/*
+		 * A kthread has no context to ERET to, so ensure any buggy
+		 * ERET is treated as an illegal exception return.
+		 *
+		 * When a user task is created from a kthread, childregs will
+		 * be initialized by start_thread() or start_compat_thread().
+		 */
 		memset(childregs, 0, sizeof(struct pt_regs));
-		childregs->pstate = PSR_MODE_EL1h;
-		if (IS_ENABLED(CONFIG_ARM64_UAO) &&
-		    cpus_have_const_cap(ARM64_HAS_UAO))
-			childregs->pstate |= PSR_UAO_BIT;
-
-		spectre_v4_enable_task_mitigation(p);
-
-		if (system_uses_irq_prio_masking())
-			childregs->pmr_save = GIC_PRIO_IRQON;
+		childregs->pstate = PSR_MODE_EL1h | PSR_IL_BIT;
 
 		p->thread.cpu_context.x19 = stack_start;
 		p->thread.cpu_context.x20 = stk_sz;
