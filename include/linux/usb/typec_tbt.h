@@ -39,7 +39,6 @@ struct typec_thunderbolt_data {
 #define   TBT_CABLE_USB3_GEN1		1
 #define   TBT_CABLE_USB3_PASSIVE	2
 #define   TBT_CABLE_10_AND_20GBPS	3
-#define TBT_CABLE_ROUNDED		BIT(19)
 #define TBT_CABLE_ROUNDED_SUPPORT(_vdo_) \
 					(((_vdo_) & GENMASK(20, 19)) >> 19)
 #define   TBT_GEN3_NON_ROUNDED                 0
