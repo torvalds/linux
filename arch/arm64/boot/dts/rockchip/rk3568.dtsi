@@ -1476,6 +1476,7 @@
 			 <&cru ACLK_PCIE20_DBI>, <&cru PCLK_PCIE20>;
 		clock-names = "aclk_mst", "aclk_slv",
 			      "aclk_dbi", "pclk";
+		device_type = "pci";
 		interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>,
@@ -1511,13 +1512,14 @@
 			 <&cru ACLK_PCIE30X1_DBI>, <&cru PCLK_PCIE30X1>;
 		clock-names = "aclk_mst", "aclk_slv",
 			      "aclk_dbi", "pclk";
+		device_type = "pci";
 		interrupts = <GIC_SPI 160 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 159 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 158 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 157 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 156 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "sys", "pmc", "msg", "legacy", "err";
-		linux,pci-domain = <0>;
+		linux,pci-domain = <1>;
 		num-ib-windows = <6>;
 		num-ob-windows = <2>;
 		max-link-speed = <3>;
@@ -1547,13 +1549,14 @@
 			 <&cru ACLK_PCIE30X2_DBI>, <&cru PCLK_PCIE30X2>;
 		clock-names = "aclk_mst", "aclk_slv",
 			      "aclk_dbi", "pclk";
+		device_type = "pci";
 		interrupts = <GIC_SPI 165 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 164 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 163 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 162 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 161 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "sys", "pmc", "msg", "legacy", "err";
-		linux,pci-domain = <0>;
+		linux,pci-domain = <2>;
 		num-ib-windows = <6>;
 		num-ob-windows = <2>;
 		max-link-speed = <3>;
