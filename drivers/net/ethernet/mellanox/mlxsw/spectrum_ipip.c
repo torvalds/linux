@@ -233,8 +233,7 @@ static bool mlxsw_sp_ipip_tunnel_complete(enum mlxsw_sp_l3proto proto,
 }
 
 static bool mlxsw_sp_ipip_can_offload_gre4(const struct mlxsw_sp *mlxsw_sp,
-					   const struct net_device *ol_dev,
-					   enum mlxsw_sp_l3proto ol_proto)
+					   const struct net_device *ol_dev)
 {
 	struct ip_tunnel *tunnel = netdev_priv(ol_dev);
 	__be16 okflags = TUNNEL_KEY; /* We can't offload any other features. */

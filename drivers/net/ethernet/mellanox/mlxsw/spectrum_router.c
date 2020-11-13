@@ -1453,11 +1453,7 @@ static bool mlxsw_sp_netdevice_ipip_can_offload(struct mlxsw_sp *mlxsw_sp,
 	const struct mlxsw_sp_ipip_ops *ops
 		= mlxsw_sp->router->ipip_ops_arr[ipipt];
 
-	/* For deciding whether decap should be offloaded, we don't care about
-	 * overlay protocol, so ask whether either one is supported.
-	 */
-	return ops->can_offload(mlxsw_sp, ol_dev, MLXSW_SP_L3_PROTO_IPV4) ||
-	       ops->can_offload(mlxsw_sp, ol_dev, MLXSW_SP_L3_PROTO_IPV6);
+	return ops->can_offload(mlxsw_sp, ol_dev);
 }
 
 static int mlxsw_sp_netdevice_ipip_ol_reg_event(struct mlxsw_sp *mlxsw_sp,
@@ -3925,8 +3921,7 @@ static int mlxsw_sp_nexthop4_type_init(struct mlxsw_sp *mlxsw_sp,
 	ipip_entry = mlxsw_sp_ipip_entry_find_by_ol_dev(mlxsw_sp, dev);
 	if (ipip_entry) {
 		ipip_ops = mlxsw_sp->router->ipip_ops_arr[ipip_entry->ipipt];
-		if (ipip_ops->can_offload(mlxsw_sp, dev,
-					  MLXSW_SP_L3_PROTO_IPV4)) {
+		if (ipip_ops->can_offload(mlxsw_sp, dev)) {
 			nh->type = MLXSW_SP_NEXTHOP_TYPE_IPIP;
 			mlxsw_sp_nexthop_ipip_init(mlxsw_sp, nh, ipip_entry);
 			return 0;
@@ -5371,8 +5366,7 @@ static int mlxsw_sp_nexthop6_type_init(struct mlxsw_sp *mlxsw_sp,
 	ipip_entry = mlxsw_sp_ipip_entry_find_by_ol_dev(mlxsw_sp, dev);
 	if (ipip_entry) {
 		ipip_ops = mlxsw_sp->router->ipip_ops_arr[ipip_entry->ipipt];
-		if (ipip_ops->can_offload(mlxsw_sp, dev,
-					  MLXSW_SP_L3_PROTO_IPV6)) {
+		if (ipip_ops->can_offload(mlxsw_sp, dev)) {
 			nh->type = MLXSW_SP_NEXTHOP_TYPE_IPIP;
 			mlxsw_sp_nexthop_ipip_init(mlxsw_sp, nh, ipip_entry);
 			return 0;
