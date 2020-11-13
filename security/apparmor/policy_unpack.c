@@ -837,6 +837,29 @@ static struct aa_perms *compute_perms(struct aa_dfa *dfa)
 }
 
 /**
+ * remap_dfa_accept - remap old dfa accept table to be an index
+ * @dfa: dfa to do the remapping on
+ * @factor: scaling factor for the index conversion.
+ *
+ * Used in conjunction with compute_Xperms, it converts old style perms
+ * that are encoded in the dfa accept tables to the new style where
+ * there is a permission table and the accept table is an index into
+ * the permission table.
+ */
+static void remap_dfa_accept(struct aa_dfa *dfa, unsigned int factor)
+{
+	unsigned int state;
+	unsigned int state_count = dfa->tables[YYTD_ID_BASE]->td_lolen;
+
+	AA_BUG(!dfa);
+
+	for (state = 0; state < state_count; state++)
+		ACCEPT_TABLE(dfa)[state] = state * factor;
+	kvfree(dfa->tables[YYTD_ID_ACCEPT2]);
+	dfa->tables[YYTD_ID_ACCEPT2] = NULL;
+}
+
+/**
  * unpack_profile - unpack a serialized profile
  * @e: serialized data extent information (NOT NULL)
  * @ns_name: pointer of newly allocated copy of %NULL in case of error
@@ -1051,22 +1074,22 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 				"dfa_start"))
 			/* default start state */
 			profile->file.start[AA_CLASS_FILE] = DFA_START;
+		profile->file.perms = compute_fperms(profile->file.dfa);
+		if (!profile->file.perms) {
+			info = "failed to remap file permission table";
+			goto fail;
+		}
+		remap_dfa_accept(profile->file.dfa, 2);
+		if (!unpack_trans_table(e, profile)) {
+			info = "failed to unpack profile transition table";
+			goto fail;
+		}
 	} else if (profile->policy.dfa &&
 		   profile->policy.start[AA_CLASS_FILE]) {
 		profile->file.dfa = aa_get_dfa(profile->policy.dfa);
 		profile->file.start[AA_CLASS_FILE] = profile->policy.start[AA_CLASS_FILE];
 	} else
 		profile->file.dfa = aa_get_dfa(nulldfa);
-
-	profile->file.perms = compute_fperms(profile->file.dfa);
-	if (!profile->file.perms) {
-		info = "failed to remap file permission table";
-		goto fail;
-	}
-	if (!unpack_trans_table(e, profile)) {
-		info = "failed to unpack profile transition table";
-		goto fail;
-	}
 
 	if (unpack_nameX(e, AA_STRUCT, "data")) {
 		info = "out of memory";
@@ -1198,9 +1221,7 @@ static bool verify_dfa_xindex(struct aa_dfa *dfa, int table_size)
 {
 	int i;
 	for (i = 0; i < dfa->tables[YYTD_ID_ACCEPT]->td_lolen; i++) {
-		if (!verify_xindex(dfa_user_xindex(dfa, i), table_size))
-			return false;
-		if (!verify_xindex(dfa_other_xindex(dfa, i), table_size))
+		if (!verify_xindex(ACCEPT_TABLE(dfa)[i], table_size))
 			return false;
 	}
 	return true;
@@ -1211,14 +1232,16 @@ static bool verify_dfa_xindex(struct aa_dfa *dfa, int table_size)
  * @profile: profile to verify (NOT NULL)
  *
  * Returns: 0 if passes verification else error
+ *
+ * This verification is post any unpack mapping or changes
  */
 static int verify_profile(struct aa_profile *profile)
 {
 	if (profile->file.dfa &&
-	    !verify_dfa_xindex(profile->file.dfa,
-			       profile->file.trans.size)) {
-		audit_iface(profile, NULL, NULL, "Invalid named transition",
-			    NULL, -EPROTO);
+	     !verify_dfa_xindex(profile->file.dfa,
+				profile->file.trans.size)) {
+		audit_iface(profile, NULL, NULL,
+			    "Unpack: Invalid named transition", NULL, -EPROTO);
 		return -EPROTO;
 	}
 

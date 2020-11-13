@@ -188,13 +188,15 @@ struct aa_perms default_perms = {};
 struct aa_perms *aa_lookup_fperms(struct aa_policydb *file_rules,
 				 unsigned int state, struct path_cond *cond)
 {
+	unsigned int index = ACCEPT_TABLE(file_rules->dfa)[state];
+
 	if (!(file_rules->perms))
 		return &default_perms;
 
 	if (uid_eq(current_fsuid(), cond->uid))
-		return &(file_rules->perms[state * 2]);
+		return &(file_rules->perms[index]);
 
-	return &(file_rules->perms[state * 2 + 1]);
+	return &(file_rules->perms[index + 1]);
 }
 
 /**
