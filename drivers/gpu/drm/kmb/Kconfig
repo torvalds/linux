@@ -1,5 +1,5 @@
 config DRM_KMB_DISPLAY
-	tristate "INTEL KEEMBAY DISPLAY"
+	tristate "Intel Keembay Display"
 	depends on DRM
 	depends on ARCH_KEEMBAY || COMPILE_TEST
 	select DRM_KMS_HELPER
