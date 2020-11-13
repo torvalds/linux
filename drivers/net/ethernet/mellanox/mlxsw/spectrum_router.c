@@ -2995,7 +2995,7 @@ mlxsw_sp_nexthop4_group_fi(const struct mlxsw_sp_nexthop_group *nh_grp)
 }
 
 struct mlxsw_sp_nexthop_group_cmp_arg {
-	enum mlxsw_sp_l3proto proto;
+	enum mlxsw_sp_nexthop_group_type type;
 	union {
 		struct fib_info *fi;
 		struct mlxsw_sp_fib6_entry *fib6_entry;
@@ -3052,14 +3052,13 @@ mlxsw_sp_nexthop_group_cmp(struct rhashtable_compare_arg *arg, const void *ptr)
 	const struct mlxsw_sp_nexthop_group_cmp_arg *cmp_arg = arg->key;
 	const struct mlxsw_sp_nexthop_group *nh_grp = ptr;
 
-	switch (cmp_arg->proto) {
-	case MLXSW_SP_L3_PROTO_IPV4:
-		if (nh_grp->type != MLXSW_SP_NEXTHOP_GROUP_TYPE_IPV4)
-			return 1;
+	if (nh_grp->type != cmp_arg->type)
+		return 1;
+
+	switch (cmp_arg->type) {
+	case MLXSW_SP_NEXTHOP_GROUP_TYPE_IPV4:
 		return cmp_arg->fi != mlxsw_sp_nexthop4_group_fi(nh_grp);
-	case MLXSW_SP_L3_PROTO_IPV6:
-		if (nh_grp->type != MLXSW_SP_NEXTHOP_GROUP_TYPE_IPV6)
-			return 1;
+	case MLXSW_SP_NEXTHOP_GROUP_TYPE_IPV6:
 		return !mlxsw_sp_nexthop6_group_cmp(nh_grp,
 						    cmp_arg->fib6_entry);
 	default:
@@ -3117,10 +3116,10 @@ mlxsw_sp_nexthop_group_hash(const void *data, u32 len, u32 seed)
 {
 	const struct mlxsw_sp_nexthop_group_cmp_arg *cmp_arg = data;
 
-	switch (cmp_arg->proto) {
-	case MLXSW_SP_L3_PROTO_IPV4:
+	switch (cmp_arg->type) {
+	case MLXSW_SP_NEXTHOP_GROUP_TYPE_IPV4:
 		return jhash(&cmp_arg->fi, sizeof(cmp_arg->fi), seed);
-	case MLXSW_SP_L3_PROTO_IPV6:
+	case MLXSW_SP_NEXTHOP_GROUP_TYPE_IPV6:
 		return mlxsw_sp_nexthop6_group_hash(cmp_arg->fib6_entry, seed);
 	default:
 		WARN_ON(1);
@@ -3165,7 +3164,7 @@ mlxsw_sp_nexthop4_group_lookup(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_nexthop_group_cmp_arg cmp_arg;
 
-	cmp_arg.proto = MLXSW_SP_L3_PROTO_IPV4;
+	cmp_arg.type = MLXSW_SP_NEXTHOP_GROUP_TYPE_IPV4;
 	cmp_arg.fi = fi;
 	return rhashtable_lookup_fast(&mlxsw_sp->router->nexthop_group_ht,
 				      &cmp_arg,
@@ -3178,7 +3177,7 @@ mlxsw_sp_nexthop6_group_lookup(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_nexthop_group_cmp_arg cmp_arg;
 
-	cmp_arg.proto = MLXSW_SP_L3_PROTO_IPV6;
+	cmp_arg.type = MLXSW_SP_NEXTHOP_GROUP_TYPE_IPV6;
 	cmp_arg.fib6_entry = fib6_entry;
 	return rhashtable_lookup_fast(&mlxsw_sp->router->nexthop_group_ht,
 				      &cmp_arg,
