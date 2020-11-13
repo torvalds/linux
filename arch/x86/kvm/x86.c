@@ -4422,9 +4422,9 @@ static int kvm_vcpu_ioctl_x86_set_debugregs(struct kvm_vcpu *vcpu,
 	if (dbgregs->flags)
 		return -EINVAL;
 
-	if (dbgregs->dr6 & ~0xffffffffull)
+	if (!kvm_dr6_valid(dbgregs->dr6))
 		return -EINVAL;
-	if (dbgregs->dr7 & ~0xffffffffull)
+	if (!kvm_dr7_valid(dbgregs->dr7))
 		return -EINVAL;
 
 	memcpy(vcpu->arch.db, dbgregs->db, sizeof(vcpu->arch.db));
