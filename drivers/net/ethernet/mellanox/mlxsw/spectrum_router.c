@@ -5621,12 +5621,6 @@ static void mlxsw_sp_fib6_entry_type_set(struct mlxsw_sp *mlxsw_sp,
 					 struct mlxsw_sp_fib_entry *fib_entry,
 					 const struct fib6_info *rt)
 {
-	/* Packets hitting RTF_REJECT routes need to be discarded by the
-	 * stack. We can rely on their destination device not having a
-	 * RIF (it's the loopback device) and can thus use action type
-	 * local, which will cause them to be trapped with a lower
-	 * priority than packets that need to be locally received.
-	 */
 	if (rt->fib6_flags & (RTF_LOCAL | RTF_ANYCAST))
 		fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_TRAP;
 	else if (rt->fib6_type == RTN_BLACKHOLE)
