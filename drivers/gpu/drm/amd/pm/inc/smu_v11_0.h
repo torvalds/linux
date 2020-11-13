@@ -33,7 +33,7 @@
 #define SMU11_DRIVER_IF_VERSION_Sienna_Cichlid 0x3A
 #define SMU11_DRIVER_IF_VERSION_Navy_Flounder 0x5
 #define SMU11_DRIVER_IF_VERSION_VANGOGH 0x02
-#define SMU11_DRIVER_IF_VERSION_Dimgrey_Cavefish 0xB
+#define SMU11_DRIVER_IF_VERSION_Dimgrey_Cavefish 0xD
 
 /* MP Apertures */
 #define MP0_Public			0x03800000
