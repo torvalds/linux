@@ -491,7 +491,13 @@ static int __init lpass_sc7180_init(void)
 	if (ret)
 		return ret;
 
-	return platform_driver_register(&lpass_hm_sc7180_driver);
+	ret = platform_driver_register(&lpass_hm_sc7180_driver);
+	if (ret) {
+		platform_driver_unregister(&lpass_core_cc_sc7180_driver);
+		return ret;
+	}
+
+	return 0;
 }
 subsys_initcall(lpass_sc7180_init);
 
