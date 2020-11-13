@@ -32,7 +32,6 @@ void rt2x00lib_config_intf(struct rt2x00_dev *rt2x00dev,
 		break;
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_MESH_POINT:
-	case NL80211_IFTYPE_WDS:
 		conf.sync = TSF_SYNC_AP_NONE;
 		break;
 	case NL80211_IFTYPE_STATION:

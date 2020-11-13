@@ -757,7 +757,8 @@
  *	of any other interfaces, and other interfaces will again take
  *	precedence when they are used.
  *
- * @NL80211_CMD_SET_WDS_PEER: Set the MAC address of the peer on a WDS interface.
+ * @NL80211_CMD_SET_WDS_PEER: Set the MAC address of the peer on a WDS interface
+ *	(no longer supported).
  *
  * @NL80211_CMD_SET_MULTICAST_TO_UNICAST: Configure if this AP should perform
  *	multicast to unicast conversion. When enabled, all multicast packets
@@ -1750,8 +1751,9 @@ enum nl80211_commands {
  *	specify just a single bitrate, which is to be used for the beacon.
  *	The driver must also specify support for this with the extended
  *	features NL80211_EXT_FEATURE_BEACON_RATE_LEGACY,
- *	NL80211_EXT_FEATURE_BEACON_RATE_HT and
- *	NL80211_EXT_FEATURE_BEACON_RATE_VHT.
+ *	NL80211_EXT_FEATURE_BEACON_RATE_HT,
+ *	NL80211_EXT_FEATURE_BEACON_RATE_VHT and
+ *	NL80211_EXT_FEATURE_BEACON_RATE_HE.
  *
  * @NL80211_ATTR_FRAME_MATCH: A binary attribute which typically must contain
  *	at least one byte, currently used with @NL80211_CMD_REGISTER_FRAME.
@@ -2527,6 +2529,11 @@ enum nl80211_commands {
  *	override mask. Used with NL80211_ATTR_S1G_CAPABILITY in
  *	NL80211_CMD_ASSOCIATE or NL80211_CMD_CONNECT.
  *
+ * @NL80211_ATTR_SAE_PWE: Indicates the mechanism(s) allowed for SAE PWE
+ *	derivation in WPA3-Personal networks which are using SAE authentication.
+ *	This is a u8 attribute that encapsulates one of the values from
+ *	&enum nl80211_sae_pwe_mechanism.
+ *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
@@ -3015,6 +3022,8 @@ enum nl80211_attrs {
 
 	NL80211_ATTR_S1G_CAPABILITY,
 	NL80211_ATTR_S1G_CAPABILITY_MASK,
+
+	NL80211_ATTR_SAE_PWE,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -5896,6 +5905,9 @@ enum nl80211_feature_flags {
  * @NL80211_EXT_FEATURE_UNSOL_BCAST_PROBE_RESP: Driver/device supports
  *	unsolicited broadcast probe response transmission
  *
+ * @NL80211_EXT_FEATURE_BEACON_RATE_HE: Driver supports beacon rate
+ *	configuration (AP/mesh) with HE rates.
+ *
  * @NUM_NL80211_EXT_FEATURES: number of extended features.
  * @MAX_NL80211_EXT_FEATURES: highest extended feature index.
  */
@@ -5956,6 +5968,7 @@ enum nl80211_ext_feature_index {
 	NL80211_EXT_FEATURE_SAE_OFFLOAD_AP,
 	NL80211_EXT_FEATURE_FILS_DISCOVERY,
 	NL80211_EXT_FEATURE_UNSOL_BCAST_PROBE_RESP,
+	NL80211_EXT_FEATURE_BEACON_RATE_HE,
 
 	/* add new features before the definition below */
 	NUM_NL80211_EXT_FEATURES,
@@ -7123,5 +7136,24 @@ enum nl80211_unsol_bcast_probe_resp_attributes {
 	__NL80211_UNSOL_BCAST_PROBE_RESP_ATTR_LAST,
 	NL80211_UNSOL_BCAST_PROBE_RESP_ATTR_MAX =
 		__NL80211_UNSOL_BCAST_PROBE_RESP_ATTR_LAST - 1
+};
+
+/**
+ * enum nl80211_sae_pwe_mechanism - The mechanism(s) allowed for SAE PWE
+ *	derivation. Applicable only when WPA3-Personal SAE authentication is
+ *	used.
+ *
+ * @NL80211_SAE_PWE_UNSPECIFIED: not specified, used internally to indicate that
+ *	attribute is not present from userspace.
+ * @NL80211_SAE_PWE_HUNT_AND_PECK: hunting-and-pecking loop only
+ * @NL80211_SAE_PWE_HASH_TO_ELEMENT: hash-to-element only
+ * @NL80211_SAE_PWE_BOTH: both hunting-and-pecking loop and hash-to-element
+ *	can be used.
+ */
+enum nl80211_sae_pwe_mechanism {
+	NL80211_SAE_PWE_UNSPECIFIED,
+	NL80211_SAE_PWE_HUNT_AND_PECK,
+	NL80211_SAE_PWE_HASH_TO_ELEMENT,
+	NL80211_SAE_PWE_BOTH,
 };
 #endif /* __LINUX_NL80211_H */

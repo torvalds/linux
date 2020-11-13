@@ -49,9 +49,6 @@ int cfg80211_wext_siwmode(struct net_device *dev, struct iw_request_info *info,
 	case IW_MODE_ADHOC:
 		type = NL80211_IFTYPE_ADHOC;
 		break;
-	case IW_MODE_REPEAT:
-		type = NL80211_IFTYPE_WDS;
-		break;
 	case IW_MODE_MONITOR:
 		type = NL80211_IFTYPE_MONITOR;
 		break;
@@ -1150,50 +1147,6 @@ static int cfg80211_wext_giwpower(struct net_device *dev,
 	return 0;
 }
 
-static int cfg80211_wds_wext_siwap(struct net_device *dev,
-				   struct iw_request_info *info,
-				   struct sockaddr *addr, char *extra)
-{
-	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
-	int err;
-
-	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_WDS))
-		return -EINVAL;
-
-	if (addr->sa_family != ARPHRD_ETHER)
-		return -EINVAL;
-
-	if (netif_running(dev))
-		return -EBUSY;
-
-	if (!rdev->ops->set_wds_peer)
-		return -EOPNOTSUPP;
-
-	err = rdev_set_wds_peer(rdev, dev, (u8 *)&addr->sa_data);
-	if (err)
-		return err;
-
-	memcpy(&wdev->wext.bssid, (u8 *) &addr->sa_data, ETH_ALEN);
-
-	return 0;
-}
-
-static int cfg80211_wds_wext_giwap(struct net_device *dev,
-				   struct iw_request_info *info,
-				   struct sockaddr *addr, char *extra)
-{
-	struct wireless_dev *wdev = dev->ieee80211_ptr;
-
-	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_WDS))
-		return -EINVAL;
-
-	addr->sa_family = ARPHRD_ETHER;
-	memcpy(&addr->sa_data, wdev->wext.bssid, ETH_ALEN);
-
-	return 0;
-}
-
 static int cfg80211_wext_siwrate(struct net_device *dev,
 				 struct iw_request_info *info,
 				 struct iw_param *rate, char *extra)
@@ -1371,8 +1324,6 @@ static int cfg80211_wext_siwap(struct net_device *dev,
 		return cfg80211_ibss_wext_siwap(dev, info, ap_addr, extra);
 	case NL80211_IFTYPE_STATION:
 		return cfg80211_mgd_wext_siwap(dev, info, ap_addr, extra);
-	case NL80211_IFTYPE_WDS:
-		return cfg80211_wds_wext_siwap(dev, info, ap_addr, extra);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -1389,8 +1340,6 @@ static int cfg80211_wext_giwap(struct net_device *dev,
 		return cfg80211_ibss_wext_giwap(dev, info, ap_addr, extra);
 	case NL80211_IFTYPE_STATION:
 		return cfg80211_mgd_wext_giwap(dev, info, ap_addr, extra);
-	case NL80211_IFTYPE_WDS:
-		return cfg80211_wds_wext_giwap(dev, info, ap_addr, extra);
 	default:
 		return -EOPNOTSUPP;
 	}

@@ -582,16 +582,6 @@ static inline int rdev_get_tx_power(struct cfg80211_registered_device *rdev,
 	return ret;
 }
 
-static inline int rdev_set_wds_peer(struct cfg80211_registered_device *rdev,
-				    struct net_device *dev, const u8 *addr)
-{
-	int ret;
-	trace_rdev_set_wds_peer(&rdev->wiphy, dev, addr);
-	ret = rdev->ops->set_wds_peer(&rdev->wiphy, dev, addr);
-	trace_rdev_return_int(&rdev->wiphy, ret);
-	return ret;
-}
-
 static inline int
 rdev_set_multicast_to_unicast(struct cfg80211_registered_device *rdev,
 			      struct net_device *dev,

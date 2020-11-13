@@ -311,11 +311,6 @@ struct ieee80211_if_ap {
 	bool multicast_to_unicast;
 };
 
-struct ieee80211_if_wds {
-	struct sta_info *sta;
-	u8 remote_addr[ETH_ALEN];
-};
-
 struct ieee80211_if_vlan {
 	struct list_head list; /* write-protected with RTNL and local->mtx */
 
@@ -985,7 +980,6 @@ struct ieee80211_sub_if_data {
 
 	union {
 		struct ieee80211_if_ap ap;
-		struct ieee80211_if_wds wds;
 		struct ieee80211_if_vlan vlan;
 		struct ieee80211_if_managed mgd;
 		struct ieee80211_if_ibss ibss;

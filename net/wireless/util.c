@@ -550,8 +550,7 @@ int ieee80211_data_to_8023_exthdr(struct sk_buff *skb, struct ethhdr *ehdr,
 			return -1;
 		break;
 	case cpu_to_le16(IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS):
-		if (unlikely(iftype != NL80211_IFTYPE_WDS &&
-			     iftype != NL80211_IFTYPE_MESH_POINT &&
+		if (unlikely(iftype != NL80211_IFTYPE_MESH_POINT &&
 			     iftype != NL80211_IFTYPE_AP_VLAN &&
 			     iftype != NL80211_IFTYPE_STATION))
 			return -1;
@@ -1051,7 +1050,6 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 		case NL80211_IFTYPE_P2P_GO:
 		case NL80211_IFTYPE_AP:
 		case NL80211_IFTYPE_AP_VLAN:
-		case NL80211_IFTYPE_WDS:
 		case NL80211_IFTYPE_MESH_POINT:
 			/* bridging OK */
 			break;
@@ -1063,6 +1061,7 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 			/* not happening */
 			break;
 		case NL80211_IFTYPE_P2P_DEVICE:
+		case NL80211_IFTYPE_WDS:
 		case NL80211_IFTYPE_NAN:
 			WARN_ON(1);
 			break;
@@ -1276,20 +1275,22 @@ static u32 cfg80211_calculate_bitrate_vht(struct rate_info *rate)
 
 static u32 cfg80211_calculate_bitrate_he(struct rate_info *rate)
 {
-#define SCALE 2048
-	u16 mcs_divisors[12] = {
-		34133, /* 16.666666... */
-		17067, /*  8.333333... */
-		11378, /*  5.555555... */
-		 8533, /*  4.166666... */
-		 5689, /*  2.777777... */
-		 4267, /*  2.083333... */
-		 3923, /*  1.851851... */
-		 3413, /*  1.666666... */
-		 2844, /*  1.388888... */
-		 2560, /*  1.250000... */
-		 2276, /*  1.111111... */
-		 2048, /*  1.000000... */
+#define SCALE 6144
+	u32 mcs_divisors[14] = {
+		102399, /* 16.666666... */
+		 51201, /*  8.333333... */
+		 34134, /*  5.555555... */
+		 25599, /*  4.166666... */
+		 17067, /*  2.777777... */
+		 12801, /*  2.083333... */
+		 11769, /*  1.851851... */
+		 10239, /*  1.666666... */
+		  8532, /*  1.388888... */
+		  7680, /*  1.250000... */
+		  6828, /*  1.111111... */
+		  6144, /*  1.000000... */
+		  5690, /*  0.926106... */
+		  5120, /*  0.833333... */
 	};
 	u32 rates_160M[3] = { 960777777, 907400000, 816666666 };
 	u32 rates_969[3] =  { 480388888, 453700000, 408333333 };
@@ -1301,7 +1302,7 @@ static u32 cfg80211_calculate_bitrate_he(struct rate_info *rate)
 	u64 tmp;
 	u32 result;
 
-	if (WARN_ON_ONCE(rate->mcs > 11))
+	if (WARN_ON_ONCE(rate->mcs > 13))
 		return 0;
 
 	if (WARN_ON_ONCE(rate->he_gi > NL80211_RATE_INFO_HE_GI_3_2))
