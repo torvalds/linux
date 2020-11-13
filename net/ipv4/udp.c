@@ -550,7 +550,6 @@ struct sock *udp4_lib_lookup_skb(const struct sk_buff *skb,
 				 iph->daddr, dport, inet_iif(skb),
 				 inet_sdif(skb), &udp_table, NULL);
 }
-EXPORT_SYMBOL_GPL(udp4_lib_lookup_skb);
 
 /* Must be called under rcu_read_lock().
  * Does increment socket refcount.
