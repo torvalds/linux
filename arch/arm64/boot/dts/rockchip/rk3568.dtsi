@@ -452,6 +452,8 @@
 
 		rgb: rgb {
 			compatible = "rockchip,rk3568-rgb";
+			pinctrl-names = "default";
+			pinctrl-0 = <&lcdc_ctl>;
 			status = "disabled";
 
 			ports {
