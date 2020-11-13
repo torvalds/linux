@@ -363,16 +363,13 @@ exit:
 }
 
 static void nci_hci_resp_received(struct nci_dev *ndev, u8 pipe,
-				  u8 result, struct sk_buff *skb)
+				  struct sk_buff *skb)
 {
 	struct nci_conn_info    *conn_info;
-	u8 status = result;
 
 	conn_info = ndev->hci_dev->conn_info;
-	if (!conn_info) {
-		status = NCI_STATUS_REJECTED;
+	if (!conn_info)
 		goto exit;
-	}
 
 	conn_info->rx_skb = skb;
 
@@ -388,7 +385,7 @@ static void nci_hci_hcp_message_rx(struct nci_dev *ndev, u8 pipe,
 {
 	switch (type) {
 	case NCI_HCI_HCP_RESPONSE:
-		nci_hci_resp_received(ndev, pipe, instruction, skb);
+		nci_hci_resp_received(ndev, pipe, skb);
 		break;
 	case NCI_HCI_HCP_COMMAND:
 		nci_hci_cmd_received(ndev, pipe, instruction, skb);
