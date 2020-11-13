@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * fs/verity/measure.c: ioctl to get a verity file's measurement
+ * Ioctl to get a verity file's measurement
  *
  * Copyright 2019 Google LLC
  */
