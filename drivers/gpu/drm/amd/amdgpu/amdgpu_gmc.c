@@ -61,9 +61,8 @@ void amdgpu_gmc_get_pde_for_bo(struct amdgpu_bo *bo, int level,
 	amdgpu_gmc_get_vm_pde(adev, level, addr, flags);
 }
 
-/**
+/*
  * amdgpu_gmc_pd_addr - return the address of the root directory
- *
  */
 uint64_t amdgpu_gmc_pd_addr(struct amdgpu_bo *bo)
 {
@@ -112,7 +111,7 @@ int amdgpu_gmc_set_pte_pde(struct amdgpu_device *adev, void *cpu_pt_addr,
 /**
  * amdgpu_gmc_agp_addr - return the address in the AGP address space
  *
- * @tbo: TTM BO which needs the address, must be in GTT domain
+ * @bo: TTM BO which needs the address, must be in GTT domain
  *
  * Tries to figure out how to access the BO through the AGP aperture. Returns
  * AMDGPU_BO_INVALID_OFFSET if that is not possible.
