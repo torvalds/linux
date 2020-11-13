@@ -37,6 +37,8 @@
 
 #define MII_LXT970_ISR       18  /* Interrupt Status Register */
 
+#define MII_LXT970_IRS_MINT  BIT(15)
+
 #define MII_LXT970_CONFIG    19  /* Configuration Register    */
 
 /* ------------------------------------------------------------------------- */
@@ -47,6 +49,7 @@
 #define MII_LXT971_IER_IEN	0x00f2
 
 #define MII_LXT971_ISR		19  /* Interrupt Status Register */
+#define MII_LXT971_ISR_MASK	0x00f0
 
 /* register definitions for the 973 */
 #define MII_LXT973_PCR 16 /* Port Configuration Register */
@@ -81,6 +84,33 @@ static int lxt970_config_intr(struct phy_device *phydev)
 		return phy_write(phydev, MII_LXT970_IER, 0);
 }
 
+static irqreturn_t lxt970_handle_interrupt(struct phy_device *phydev)
+{
+	int irq_status;
+
+	/* The interrupt status register is cleared by reading BMSR
+	 * followed by MII_LXT970_ISR
+	 */
+	irq_status = phy_read(phydev, MII_BMSR);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	irq_status = phy_read(phydev, MII_LXT970_ISR);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	if (!(irq_status & MII_LXT970_IRS_MINT))
+		return IRQ_NONE;
+
+	phy_trigger_machine(phydev);
+
+	return IRQ_HANDLED;
+}
+
 static int lxt970_config_init(struct phy_device *phydev)
 {
 	return phy_write(phydev, MII_LXT970_CONFIG, 0);
@@ -103,6 +133,24 @@ static int lxt971_config_intr(struct phy_device *phydev)
 		return phy_write(phydev, MII_LXT971_IER, MII_LXT971_IER_IEN);
 	else
 		return phy_write(phydev, MII_LXT971_IER, 0);
+}
+
+static irqreturn_t lxt971_handle_interrupt(struct phy_device *phydev)
+{
+	int irq_status;
+
+	irq_status = phy_read(phydev, MII_LXT971_ISR);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	if (!(irq_status & MII_LXT971_ISR_MASK))
+		return IRQ_NONE;
+
+	phy_trigger_machine(phydev);
+
+	return IRQ_HANDLED;
 }
 
 /*
@@ -239,6 +287,7 @@ static struct phy_driver lxt97x_driver[] = {
 	.config_init	= lxt970_config_init,
 	.ack_interrupt	= lxt970_ack_interrupt,
 	.config_intr	= lxt970_config_intr,
+	.handle_interrupt = lxt970_handle_interrupt,
 }, {
 	.phy_id		= 0x001378e0,
 	.name		= "LXT971",
@@ -246,6 +295,7 @@ static struct phy_driver lxt97x_driver[] = {
 	/* PHY_BASIC_FEATURES */
 	.ack_interrupt	= lxt971_ack_interrupt,
 	.config_intr	= lxt971_config_intr,
+	.handle_interrupt = lxt971_handle_interrupt,
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
 }, {
