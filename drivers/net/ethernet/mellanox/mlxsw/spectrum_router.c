@@ -2860,11 +2860,17 @@ struct mlxsw_sp_nexthop {
 	bool counter_valid;
 };
 
+enum mlxsw_sp_nexthop_group_type {
+	MLXSW_SP_NEXTHOP_GROUP_TYPE_IPV4,
+	MLXSW_SP_NEXTHOP_GROUP_TYPE_IPV6,
+};
+
 struct mlxsw_sp_nexthop_group {
 	void *priv;
 	struct rhash_head ht_node;
 	struct list_head fib_list; /* list of fib entries that use this group */
 	struct neigh_table *neigh_tbl;
+	enum mlxsw_sp_nexthop_group_type type;
 	u8 adj_index_valid:1,
 	   gateway:1; /* routes using the group use a gateway */
 	u32 adj_index;
@@ -3041,12 +3047,6 @@ mlxsw_sp_nexthop6_group_cmp(const struct mlxsw_sp_nexthop_group *nh_grp,
 }
 
 static int
-mlxsw_sp_nexthop_group_type(const struct mlxsw_sp_nexthop_group *nh_grp)
-{
-	return nh_grp->neigh_tbl->family;
-}
-
-static int
 mlxsw_sp_nexthop_group_cmp(struct rhashtable_compare_arg *arg, const void *ptr)
 {
 	const struct mlxsw_sp_nexthop_group_cmp_arg *cmp_arg = arg->key;
@@ -3054,11 +3054,11 @@ mlxsw_sp_nexthop_group_cmp(struct rhashtable_compare_arg *arg, const void *ptr)
 
 	switch (cmp_arg->proto) {
 	case MLXSW_SP_L3_PROTO_IPV4:
-		if (mlxsw_sp_nexthop_group_type(nh_grp) != AF_INET)
+		if (nh_grp->type != MLXSW_SP_NEXTHOP_GROUP_TYPE_IPV4)
 			return 1;
 		return cmp_arg->fi != mlxsw_sp_nexthop4_group_fi(nh_grp);
 	case MLXSW_SP_L3_PROTO_IPV6:
-		if (mlxsw_sp_nexthop_group_type(nh_grp) != AF_INET6)
+		if (nh_grp->type != MLXSW_SP_NEXTHOP_GROUP_TYPE_IPV6)
 			return 1;
 		return !mlxsw_sp_nexthop6_group_cmp(nh_grp,
 						    cmp_arg->fib6_entry);
@@ -3076,11 +3076,11 @@ static u32 mlxsw_sp_nexthop_group_hash_obj(const void *data, u32 len, u32 seed)
 	unsigned int val;
 	int i;
 
-	switch (mlxsw_sp_nexthop_group_type(nh_grp)) {
-	case AF_INET:
+	switch (nh_grp->type) {
+	case MLXSW_SP_NEXTHOP_GROUP_TYPE_IPV4:
 		fi = mlxsw_sp_nexthop4_group_fi(nh_grp);
 		return jhash(&fi, sizeof(fi), seed);
-	case AF_INET6:
+	case MLXSW_SP_NEXTHOP_GROUP_TYPE_IPV6:
 		val = nh_grp->count;
 		for (i = 0; i < nh_grp->count; i++) {
 			nh = &nh_grp->nexthops[i];
@@ -3138,7 +3138,7 @@ static const struct rhashtable_params mlxsw_sp_nexthop_group_ht_params = {
 static int mlxsw_sp_nexthop_group_insert(struct mlxsw_sp *mlxsw_sp,
 					 struct mlxsw_sp_nexthop_group *nh_grp)
 {
-	if (mlxsw_sp_nexthop_group_type(nh_grp) == AF_INET6 &&
+	if (nh_grp->type == MLXSW_SP_NEXTHOP_GROUP_TYPE_IPV6 &&
 	    !nh_grp->gateway)
 		return 0;
 
@@ -3150,7 +3150,7 @@ static int mlxsw_sp_nexthop_group_insert(struct mlxsw_sp *mlxsw_sp,
 static void mlxsw_sp_nexthop_group_remove(struct mlxsw_sp *mlxsw_sp,
 					  struct mlxsw_sp_nexthop_group *nh_grp)
 {
-	if (mlxsw_sp_nexthop_group_type(nh_grp) == AF_INET6 &&
+	if (nh_grp->type == MLXSW_SP_NEXTHOP_GROUP_TYPE_IPV6 &&
 	    !nh_grp->gateway)
 		return;
 
@@ -3528,11 +3528,11 @@ static void
 mlxsw_sp_nexthop_group_offload_refresh(struct mlxsw_sp *mlxsw_sp,
 				       struct mlxsw_sp_nexthop_group *nh_grp)
 {
-	switch (mlxsw_sp_nexthop_group_type(nh_grp)) {
-	case AF_INET:
+	switch (nh_grp->type) {
+	case MLXSW_SP_NEXTHOP_GROUP_TYPE_IPV4:
 		mlxsw_sp_nexthop4_group_offload_refresh(mlxsw_sp, nh_grp);
 		break;
-	case AF_INET6:
+	case MLXSW_SP_NEXTHOP_GROUP_TYPE_IPV6:
 		mlxsw_sp_nexthop6_group_offload_refresh(mlxsw_sp, nh_grp);
 		break;
 	}
@@ -4106,6 +4106,7 @@ mlxsw_sp_nexthop4_group_create(struct mlxsw_sp *mlxsw_sp, struct fib_info *fi)
 	nh_grp->priv = fi;
 	INIT_LIST_HEAD(&nh_grp->fib_list);
 	nh_grp->neigh_tbl = &arp_tbl;
+	nh_grp->type = MLXSW_SP_NEXTHOP_GROUP_TYPE_IPV4;
 
 	nh_grp->gateway = mlxsw_sp_fi_is_gateway(mlxsw_sp, fi);
 	nh_grp->count = nhs;
@@ -5417,6 +5418,7 @@ mlxsw_sp_nexthop6_group_create(struct mlxsw_sp *mlxsw_sp,
 #if IS_ENABLED(CONFIG_IPV6)
 	nh_grp->neigh_tbl = &nd_tbl;
 #endif
+	nh_grp->type = MLXSW_SP_NEXTHOP_GROUP_TYPE_IPV6;
 	mlxsw_sp_rt6 = list_first_entry(&fib6_entry->rt6_list,
 					struct mlxsw_sp_rt6, list);
 	nh_grp->gateway = mlxsw_sp_rt6_is_gateway(mlxsw_sp, mlxsw_sp_rt6->rt);
