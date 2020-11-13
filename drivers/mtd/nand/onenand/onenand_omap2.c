@@ -371,12 +371,12 @@ static int omap2_onenand_read_bufferram(struct mtd_info *mtd, int area,
 
 	bram_offset = omap2_onenand_bufferram_offset(mtd, area) + area + offset;
 	/*
-	 * If the buffer address is not DMA-able, len is not long enough to make
-	 * DMA transfers profitable or panic_write() may be in an interrupt
-	 * context fallback to PIO mode.
+	 * If the buffer address is not DMA-able, len is not long enough to
+	 * make DMA transfers profitable or if invoked from panic_write()
+	 * fallback to PIO mode.
 	 */
 	if (!virt_addr_valid(buf) || bram_offset & 3 || (size_t)buf & 3 ||
-	    count < 384 || in_interrupt() || oops_in_progress)
+	    count < 384 || mtd->oops_panic_write)
 		goto out_copy;
 
 	xtra = count & 3;
@@ -418,12 +418,12 @@ static int omap2_onenand_write_bufferram(struct mtd_info *mtd, int area,
 
 	bram_offset = omap2_onenand_bufferram_offset(mtd, area) + area + offset;
 	/*
-	 * If the buffer address is not DMA-able, len is not long enough to make
-	 * DMA transfers profitable or panic_write() may be in an interrupt
-	 * context fallback to PIO mode.
+	 * If the buffer address is not DMA-able, len is not long enough to
+	 * make DMA transfers profitable or if invoked from panic_write()
+	 * fallback to PIO mode.
 	 */
 	if (!virt_addr_valid(buf) || bram_offset & 3 || (size_t)buf & 3 ||
-	    count < 384 || in_interrupt() || oops_in_progress)
+	    count < 384 || mtd->oops_panic_write)
 		goto out_copy;
 
 	dma_src = dma_map_single(dev, buf, count, DMA_TO_DEVICE);
