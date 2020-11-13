@@ -161,9 +161,9 @@ found:
 			b = insn->prefixes.bytes[3];
 			for (i = 0; i < nb; i++)
 				if (prefixes->bytes[i] == lb)
-					prefixes->bytes[i] = b;
+					insn_set_byte(prefixes, i, b);
 		}
-		insn->prefixes.bytes[3] = lb;
+		insn_set_byte(&insn->prefixes, 3, lb);
 	}
 
 	/* Decode REX prefix */
@@ -194,13 +194,13 @@ found:
 			if (X86_MODRM_MOD(b2) != 3)
 				goto vex_end;
 		}
-		insn->vex_prefix.bytes[0] = b;
-		insn->vex_prefix.bytes[1] = b2;
+		insn_set_byte(&insn->vex_prefix, 0, b);
+		insn_set_byte(&insn->vex_prefix, 1, b2);
 		if (inat_is_evex_prefix(attr)) {
 			b2 = peek_nbyte_next(insn_byte_t, insn, 2);
-			insn->vex_prefix.bytes[2] = b2;
+			insn_set_byte(&insn->vex_prefix, 2, b2);
 			b2 = peek_nbyte_next(insn_byte_t, insn, 3);
-			insn->vex_prefix.bytes[3] = b2;
+			insn_set_byte(&insn->vex_prefix, 3, b2);
 			insn->vex_prefix.nbytes = 4;
 			insn->next_byte += 4;
 			if (insn->x86_64 && X86_VEX_W(b2))
@@ -208,7 +208,7 @@ found:
 				insn->opnd_bytes = 8;
 		} else if (inat_is_vex3_prefix(attr)) {
 			b2 = peek_nbyte_next(insn_byte_t, insn, 2);
-			insn->vex_prefix.bytes[2] = b2;
+			insn_set_byte(&insn->vex_prefix, 2, b2);
 			insn->vex_prefix.nbytes = 3;
 			insn->next_byte += 3;
 			if (insn->x86_64 && X86_VEX_W(b2))
@@ -220,7 +220,7 @@ found:
 			 * Makes it easier to decode vex.W, vex.vvvv,
 			 * vex.L and vex.pp. Masking with 0x7f sets vex.W == 0.
 			 */
-			insn->vex_prefix.bytes[2] = b2 & 0x7f;
+			insn_set_byte(&insn->vex_prefix, 2, b2 & 0x7f);
 			insn->vex_prefix.nbytes = 2;
 			insn->next_byte += 2;
 		}
@@ -256,7 +256,7 @@ void insn_get_opcode(struct insn *insn)
 
 	/* Get first opcode */
 	op = get_next(insn_byte_t, insn);
-	opcode->bytes[0] = op;
+	insn_set_byte(opcode, 0, op);
 	opcode->nbytes = 1;
 
 	/* Check if there is VEX prefix or not */

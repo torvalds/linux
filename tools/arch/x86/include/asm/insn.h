@@ -30,6 +30,12 @@ static inline void insn_field_set(struct insn_field *p, insn_value_t v,
 	p->nbytes = n;
 }
 
+static inline void insn_set_byte(struct insn_field *p, unsigned char n,
+				 insn_byte_t v)
+{
+	p->bytes[n] = v;
+}
+
 #else
 
 struct insn_field {
@@ -51,6 +57,12 @@ static inline void insn_field_set(struct insn_field *p, insn_value_t v,
 	p->nbytes = n;
 }
 
+static inline void insn_set_byte(struct insn_field *p, unsigned char n,
+				 insn_byte_t v)
+{
+	p->bytes[n] = v;
+	p->value = __le32_to_cpu(p->little);
+}
 #endif
 
 struct insn {
