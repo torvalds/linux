@@ -239,7 +239,6 @@ SYM_CODE_END(__kvm_hyp_vector)
 
 	.align	11
 SYM_CODE_START(__bp_harden_hyp_vecs)
-	generate_vectors indirect = 0, spectrev2 = 0 // HYP_VECTOR_DIRECT
 	generate_vectors indirect = 0, spectrev2 = 1 // HYP_VECTOR_SPECTRE_DIRECT
 	generate_vectors indirect = 1, spectrev2 = 0 // HYP_VECTOR_INDIRECT
 	generate_vectors indirect = 1, spectrev2 = 1 // HYP_VECTOR_SPECTRE_INDIRECT

@@ -1313,9 +1313,16 @@ static unsigned long nvhe_percpu_order(void)
 /* A lookup table holding the hypervisor VA for each vector slot */
 static void *hyp_spectre_vector_selector[BP_HARDEN_EL2_SLOTS];
 
+static int __kvm_vector_slot2idx(enum arm64_hyp_spectre_vector slot)
+{
+	return slot - (slot != HYP_VECTOR_DIRECT);
+}
+
 static void kvm_init_vector_slot(void *base, enum arm64_hyp_spectre_vector slot)
 {
-	hyp_spectre_vector_selector[slot] = base + (slot * SZ_2K);
+	int idx = __kvm_vector_slot2idx(slot);
+
+	hyp_spectre_vector_selector[slot] = base + (idx * SZ_2K);
 }
 
 static int kvm_init_vector_slots(void)
