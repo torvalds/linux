@@ -1923,7 +1923,7 @@ static int migration_cpu_stop(void *data)
 		else
 			p->wake_cpu = dest_cpu;
 
-	} else if (dest_cpu < 0) {
+	} else if (dest_cpu < 0 || pending) {
 		/*
 		 * This happens when we get migrated between migrate_enable()'s
 		 * preempt_enable() and scheduling the stopper task. At that
@@ -1932,6 +1932,17 @@ static int migration_cpu_stop(void *data)
 		 * A !PREEMPT kernel has a giant hole here, which makes it far
 		 * more likely.
 		 */
+
+		/*
+		 * The task moved before the stopper got to run. We're holding
+		 * ->pi_lock, so the allowed mask is stable - if it got
+		 * somewhere allowed, we're done.
+		 */
+		if (pending && cpumask_test_cpu(task_cpu(p), p->cpus_ptr)) {
+			p->migration_pending = NULL;
+			complete = true;
+			goto out;
+		}
 
 		/*
 		 * When this was migrate_enable() but we no longer have an
