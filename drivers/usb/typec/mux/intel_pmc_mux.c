@@ -256,6 +256,7 @@ static int
 pmc_usb_mux_tbt(struct pmc_usb_port *port, struct typec_mux_state *state)
 {
 	struct typec_thunderbolt_data *data = state->data;
+	u8 cable_rounded = TBT_CABLE_ROUNDED_SUPPORT(data->cable_mode);
 	u8 cable_speed = TBT_CABLE_SPEED(data->cable_mode);
 	struct altmode_req req = { };
 
@@ -283,6 +284,8 @@ pmc_usb_mux_tbt(struct pmc_usb_port *port, struct typec_mux_state *state)
 		req.mode_data |= PMC_USB_ALTMODE_ACTIVE_CABLE;
 
 	req.mode_data |= PMC_USB_ALTMODE_CABLE_SPD(cable_speed);
+
+	req.mode_data |= PMC_USB_ALTMODE_TBT_GEN(cable_rounded);
 
 	return pmc_usb_command(port, (void *)&req, sizeof(req));
 }
