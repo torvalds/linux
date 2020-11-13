@@ -135,8 +135,6 @@ enum {
 
 /*
  * struct mcp16502 - PMIC representation
- * @rdev: the regulators belonging to this chip
- * @rmap: regmap to be used for I2C communication
  * @lpm: LPM GPIO descriptor
  */
 struct mcp16502 {
