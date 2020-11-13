@@ -388,8 +388,6 @@ nfssvc_decode_readdirargs(struct svc_rqst *rqstp, __be32 *p)
 		return 0;
 	args->cookie = ntohl(*p++);
 	args->count  = ntohl(*p++);
-	args->count  = min_t(u32, args->count, PAGE_SIZE);
-	args->buffer = page_address(*(rqstp->rq_next_page++));
 
 	return xdr_argsize_check(rqstp, p);
 }

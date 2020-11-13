@@ -553,6 +553,20 @@ nfsd_proc_rmdir(struct svc_rqst *rqstp)
 	return rpc_success;
 }
 
+static void nfsd_init_dirlist_pages(struct svc_rqst *rqstp,
+				    struct nfsd_readdirres *resp,
+				    int count)
+{
+	count = min_t(u32, count, PAGE_SIZE);
+
+	/* Convert byte count to number of words (i.e. >> 2),
+	 * and reserve room for the NULL ptr & eof flag (-2 words) */
+	resp->buflen = (count >> 2) - 2;
+
+	resp->buffer = page_address(*rqstp->rq_next_page);
+	rqstp->rq_next_page++;
+}
+
 /*
  * Read a portion of a directory.
  */
@@ -561,31 +575,24 @@ nfsd_proc_readdir(struct svc_rqst *rqstp)
 {
 	struct nfsd_readdirargs *argp = rqstp->rq_argp;
 	struct nfsd_readdirres *resp = rqstp->rq_resp;
-	int		count;
 	loff_t		offset;
+	__be32		*buffer;
 
 	dprintk("nfsd: READDIR  %s %d bytes at %d\n",
 		SVCFH_fmt(&argp->fh),		
 		argp->count, argp->cookie);
 
-	/* Shrink to the client read size */
-	count = (argp->count >> 2) - 2;
+	nfsd_init_dirlist_pages(rqstp, resp, argp->count);
+	buffer = resp->buffer;
 
-	/* Make sure we've room for the NULL ptr & eof flag */
-	count -= 2;
-	if (count < 0)
-		count = 0;
-
-	resp->buffer = argp->buffer;
 	resp->offset = NULL;
-	resp->buflen = count;
 	resp->common.err = nfs_ok;
 	/* Read directory and encode entries on the fly */
 	offset = argp->cookie;
 	resp->status = nfsd_readdir(rqstp, &argp->fh, &offset,
 				    &resp->common, nfssvc_encode_entry);
 
-	resp->count = resp->buffer - argp->buffer;
+	resp->count = resp->buffer - buffer;
 	if (resp->offset)
 		*resp->offset = htonl(offset);
 
