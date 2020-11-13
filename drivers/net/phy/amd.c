@@ -20,6 +20,10 @@
 #define MII_AM79C_IR_EN_ANEG	0x0100	/* IR enable Aneg Complete */
 #define MII_AM79C_IR_IMASK_INIT	(MII_AM79C_IR_EN_LINK | MII_AM79C_IR_EN_ANEG)
 
+#define MII_AM79C_IR_LINK_DOWN	BIT(2)
+#define MII_AM79C_IR_ANEG_DONE	BIT(0)
+#define MII_AM79C_IR_IMASK_STAT	(MII_AM79C_IR_LINK_DOWN | MII_AM79C_IR_ANEG_DONE)
+
 MODULE_DESCRIPTION("AMD PHY driver");
 MODULE_AUTHOR("Heiko Schocher <hs@denx.de>");
 MODULE_LICENSE("GPL");
@@ -56,6 +60,24 @@ static int am79c_config_intr(struct phy_device *phydev)
 	return err;
 }
 
+static irqreturn_t am79c_handle_interrupt(struct phy_device *phydev)
+{
+	int irq_status;
+
+	irq_status = phy_read(phydev, MII_AM79C_IR);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	if (!(irq_status & MII_AM79C_IR_IMASK_STAT))
+		return IRQ_NONE;
+
+	phy_trigger_machine(phydev);
+
+	return IRQ_HANDLED;
+}
+
 static struct phy_driver am79c_driver[] = { {
 	.phy_id		= PHY_ID_AM79C874,
 	.name		= "AM79C874",
@@ -64,6 +86,7 @@ static struct phy_driver am79c_driver[] = { {
 	.config_init	= am79c_config_init,
 	.ack_interrupt	= am79c_ack_interrupt,
 	.config_intr	= am79c_config_intr,
+	.handle_interrupt = am79c_handle_interrupt,
 } };
 
 module_phy_driver(am79c_driver);
