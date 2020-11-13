@@ -256,7 +256,7 @@ int ccs_write_addr_no_quirk(struct ccs_sensor *sensor, u32 reg, u32 val)
 	put_unaligned_be16(CCS_REG_ADDR(reg), data);
 	put_unaligned_be32(val << (8 * (sizeof(val) - len)), data + 2);
 
-	for (retries = 0; retries < 5; retries++) {
+	for (retries = 0; retries < 10; retries++) {
 		/*
 		 * Due to unknown reason sensor stops responding. This
 		 * loop is a temporaty solution until the root cause
@@ -271,7 +271,7 @@ int ccs_write_addr_no_quirk(struct ccs_sensor *sensor, u32 reg, u32 val)
 			return 0;
 		}
 
-		usleep_range(2000, 2000);
+		usleep_range(1000, 2000);
 	}
 
 	dev_err(&client->dev,
