@@ -6,166 +6,6 @@
 #include "mac.h"
 #include "eeprom.h"
 
-static void
-mt7915_mac_init_band(struct mt7915_dev *dev, u8 band)
-{
-	u32 mask, set;
-
-	mt76_rmw_field(dev, MT_TMAC_CTCR0(band),
-		       MT_TMAC_CTCR0_INS_DDLMT_REFTIME, 0x3f);
-	mt76_set(dev, MT_TMAC_CTCR0(band),
-		 MT_TMAC_CTCR0_INS_DDLMT_VHT_SMPDU_EN |
-		 MT_TMAC_CTCR0_INS_DDLMT_EN);
-
-	mask = MT_MDP_RCFR0_MCU_RX_MGMT |
-	       MT_MDP_RCFR0_MCU_RX_CTL_NON_BAR |
-	       MT_MDP_RCFR0_MCU_RX_CTL_BAR;
-	set = FIELD_PREP(MT_MDP_RCFR0_MCU_RX_MGMT, MT_MDP_TO_HIF) |
-	      FIELD_PREP(MT_MDP_RCFR0_MCU_RX_CTL_NON_BAR, MT_MDP_TO_HIF) |
-	      FIELD_PREP(MT_MDP_RCFR0_MCU_RX_CTL_BAR, MT_MDP_TO_HIF);
-	mt76_rmw(dev, MT_MDP_BNRCFR0(band), mask, set);
-
-	mask = MT_MDP_RCFR1_MCU_RX_BYPASS |
-	       MT_MDP_RCFR1_RX_DROPPED_UCAST |
-	       MT_MDP_RCFR1_RX_DROPPED_MCAST;
-	set = FIELD_PREP(MT_MDP_RCFR1_MCU_RX_BYPASS, MT_MDP_TO_HIF) |
-	      FIELD_PREP(MT_MDP_RCFR1_RX_DROPPED_UCAST, MT_MDP_TO_HIF) |
-	      FIELD_PREP(MT_MDP_RCFR1_RX_DROPPED_MCAST, MT_MDP_TO_HIF);
-	mt76_rmw(dev, MT_MDP_BNRCFR1(band), mask, set);
-
-	mt76_set(dev, MT_WF_RMAC_MIB_TIME0(band), MT_WF_RMAC_MIB_RXTIME_EN);
-	mt76_set(dev, MT_WF_RMAC_MIB_AIRTIME0(band), MT_WF_RMAC_MIB_RXTIME_EN);
-
-	mt76_rmw_field(dev, MT_DMA_DCR0(band), MT_DMA_DCR0_MAX_RX_LEN, 1536);
-	/* disable rx rate report by default due to hw issues */
-	mt76_clear(dev, MT_DMA_DCR0(band), MT_DMA_DCR0_RXD_G5_EN);
-}
-
-static void mt7915_mac_init(struct mt7915_dev *dev)
-{
-	int i;
-
-	mt76_rmw_field(dev, MT_MDP_DCR1, MT_MDP_DCR1_MAX_RX_LEN, 1536);
-	/* disable hardware de-agg */
-	mt76_clear(dev, MT_MDP_DCR0, MT_MDP_DCR0_DAMSDU_EN);
-
-	for (i = 0; i < MT7915_WTBL_SIZE; i++)
-		mt7915_mac_wtbl_update(dev, i,
-				       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
-	for (i = 0; i < 2; i++)
-		mt7915_mac_init_band(dev, i);
-
-	mt7915_mcu_set_rts_thresh(&dev->phy, 0x92b);
-}
-
-static int mt7915_txbf_init(struct mt7915_dev *dev)
-{
-	int ret;
-
-	/*
-	 * TODO: DBDC & check whether iBF phase calibration data has
-	 * been stored in eeprom offset 0x651~0x7b8, then write down
-	 * 0x1111 into 0x651 and 0x651 to trigger iBF.
-	 */
-
-	/* trigger sounding packets */
-	ret = mt7915_mcu_set_txbf_sounding(dev);
-	if (ret)
-		return ret;
-
-	/* enable iBF & eBF */
-	return mt7915_mcu_set_txbf_type(dev);
-}
-
-static void
-mt7915_init_txpower_band(struct mt7915_dev *dev,
-			 struct ieee80211_supported_band *sband)
-{
-	int i, n_chains = hweight8(dev->mphy.antenna_mask);
-
-	for (i = 0; i < sband->n_channels; i++) {
-		struct ieee80211_channel *chan = &sband->channels[i];
-		u32 target_power = 0;
-		int j;
-
-		for (j = 0; j < n_chains; j++) {
-			u32 val;
-
-			val = mt7915_eeprom_get_target_power(dev, chan, j);
-			target_power = max(target_power, val);
-		}
-
-		chan->max_power = min_t(int, chan->max_reg_power,
-					target_power / 2);
-		chan->orig_mpwr = target_power / 2;
-	}
-}
-
-static void mt7915_init_txpower(struct mt7915_dev *dev)
-{
-	mt7915_init_txpower_band(dev, &dev->mphy.sband_2g.sband);
-	mt7915_init_txpower_band(dev, &dev->mphy.sband_5g.sband);
-
-	mt7915_eeprom_init_sku(dev);
-}
-
-static void mt7915_init_work(struct work_struct *work)
-{
-	struct mt7915_dev *dev = container_of(work, struct mt7915_dev,
-				 init_work);
-
-	mt7915_mcu_set_eeprom(dev);
-	mt7915_mac_init(dev);
-	mt7915_init_txpower(dev);
-	mt7915_txbf_init(dev);
-	mt7915_register_ext_phy(dev);
-}
-
-static int mt7915_init_hardware(struct mt7915_dev *dev)
-{
-	int ret, idx;
-
-	mt76_wr(dev, MT_INT_SOURCE_CSR, ~0);
-
-	INIT_WORK(&dev->init_work, mt7915_init_work);
-	spin_lock_init(&dev->token_lock);
-	idr_init(&dev->token);
-
-	dev->dbdc_support = !!(mt7915_l1_rr(dev, MT_HW_BOUND) & BIT(5));
-
-	ret = mt7915_dma_init(dev);
-	if (ret)
-		return ret;
-
-	set_bit(MT76_STATE_INITIALIZED, &dev->mphy.state);
-
-	/*
-	 * force firmware operation mode into normal state,
-	 * which should be set before firmware download stage.
-	 */
-	mt76_wr(dev, MT_SWDEF_MODE, MT_SWDEF_NORMAL_MODE);
-
-	ret = mt7915_mcu_init(dev);
-	if (ret)
-		return ret;
-
-	ret = mt7915_eeprom_init(dev);
-	if (ret < 0)
-		return ret;
-
-	/* Beacon and mgmt frames should occupy wcid 0 */
-	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, MT7915_WTBL_STA - 1);
-	if (idx)
-		return -ENOSPC;
-
-	dev->mt76.global_wcid.idx = idx;
-	dev->mt76.global_wcid.hw_key_idx = -1;
-	dev->mt76.global_wcid.tx_info |= MT_WCID_TX_INFO_SET;
-	rcu_assign_pointer(dev->mt76.wcid[idx], &dev->mt76.global_wcid);
-
-	return 0;
-}
-
 #define CCK_RATE(_idx, _rate) {						\
 	.bitrate = _rate,						\
 	.flags = IEEE80211_RATE_SHORT_PREAMBLE,				\
@@ -271,6 +111,220 @@ mt7915_init_wiphy(struct ieee80211_hw *hw)
 	ieee80211_hw_set(hw, WANT_MONITOR_VIF);
 
 	hw->max_tx_fragments = 4;
+}
+
+static void
+mt7915_mac_init_band(struct mt7915_dev *dev, u8 band)
+{
+	u32 mask, set;
+
+	mt76_rmw_field(dev, MT_TMAC_CTCR0(band),
+		       MT_TMAC_CTCR0_INS_DDLMT_REFTIME, 0x3f);
+	mt76_set(dev, MT_TMAC_CTCR0(band),
+		 MT_TMAC_CTCR0_INS_DDLMT_VHT_SMPDU_EN |
+		 MT_TMAC_CTCR0_INS_DDLMT_EN);
+
+	mask = MT_MDP_RCFR0_MCU_RX_MGMT |
+	       MT_MDP_RCFR0_MCU_RX_CTL_NON_BAR |
+	       MT_MDP_RCFR0_MCU_RX_CTL_BAR;
+	set = FIELD_PREP(MT_MDP_RCFR0_MCU_RX_MGMT, MT_MDP_TO_HIF) |
+	      FIELD_PREP(MT_MDP_RCFR0_MCU_RX_CTL_NON_BAR, MT_MDP_TO_HIF) |
+	      FIELD_PREP(MT_MDP_RCFR0_MCU_RX_CTL_BAR, MT_MDP_TO_HIF);
+	mt76_rmw(dev, MT_MDP_BNRCFR0(band), mask, set);
+
+	mask = MT_MDP_RCFR1_MCU_RX_BYPASS |
+	       MT_MDP_RCFR1_RX_DROPPED_UCAST |
+	       MT_MDP_RCFR1_RX_DROPPED_MCAST;
+	set = FIELD_PREP(MT_MDP_RCFR1_MCU_RX_BYPASS, MT_MDP_TO_HIF) |
+	      FIELD_PREP(MT_MDP_RCFR1_RX_DROPPED_UCAST, MT_MDP_TO_HIF) |
+	      FIELD_PREP(MT_MDP_RCFR1_RX_DROPPED_MCAST, MT_MDP_TO_HIF);
+	mt76_rmw(dev, MT_MDP_BNRCFR1(band), mask, set);
+
+	mt76_set(dev, MT_WF_RMAC_MIB_TIME0(band), MT_WF_RMAC_MIB_RXTIME_EN);
+	mt76_set(dev, MT_WF_RMAC_MIB_AIRTIME0(band), MT_WF_RMAC_MIB_RXTIME_EN);
+
+	mt76_rmw_field(dev, MT_DMA_DCR0(band), MT_DMA_DCR0_MAX_RX_LEN, 1536);
+	/* disable rx rate report by default due to hw issues */
+	mt76_clear(dev, MT_DMA_DCR0(band), MT_DMA_DCR0_RXD_G5_EN);
+}
+
+static void mt7915_mac_init(struct mt7915_dev *dev)
+{
+	int i;
+
+	mt76_rmw_field(dev, MT_MDP_DCR1, MT_MDP_DCR1_MAX_RX_LEN, 1536);
+	/* disable hardware de-agg */
+	mt76_clear(dev, MT_MDP_DCR0, MT_MDP_DCR0_DAMSDU_EN);
+
+	for (i = 0; i < MT7915_WTBL_SIZE; i++)
+		mt7915_mac_wtbl_update(dev, i,
+				       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
+	for (i = 0; i < 2; i++)
+		mt7915_mac_init_band(dev, i);
+
+	mt7915_mcu_set_rts_thresh(&dev->phy, 0x92b);
+}
+
+static int mt7915_txbf_init(struct mt7915_dev *dev)
+{
+	int ret;
+
+	/*
+	 * TODO: DBDC & check whether iBF phase calibration data has
+	 * been stored in eeprom offset 0x651~0x7b8, then write down
+	 * 0x1111 into 0x651 and 0x651 to trigger iBF.
+	 */
+
+	/* trigger sounding packets */
+	ret = mt7915_mcu_set_txbf_sounding(dev);
+	if (ret)
+		return ret;
+
+	/* enable iBF & eBF */
+	return mt7915_mcu_set_txbf_type(dev);
+}
+
+static void
+mt7915_init_txpower_band(struct mt7915_dev *dev,
+			 struct ieee80211_supported_band *sband)
+{
+	int i, n_chains = hweight8(dev->mphy.antenna_mask);
+
+	for (i = 0; i < sband->n_channels; i++) {
+		struct ieee80211_channel *chan = &sband->channels[i];
+		u32 target_power = 0;
+		int j;
+
+		for (j = 0; j < n_chains; j++) {
+			u32 val;
+
+			val = mt7915_eeprom_get_target_power(dev, chan, j);
+			target_power = max(target_power, val);
+		}
+
+		chan->max_power = min_t(int, chan->max_reg_power,
+					target_power / 2);
+		chan->orig_mpwr = target_power / 2;
+	}
+}
+
+static void mt7915_init_txpower(struct mt7915_dev *dev)
+{
+	mt7915_init_txpower_band(dev, &dev->mphy.sband_2g.sband);
+	mt7915_init_txpower_band(dev, &dev->mphy.sband_5g.sband);
+
+	mt7915_eeprom_init_sku(dev);
+}
+
+static int mt7915_register_ext_phy(struct mt7915_dev *dev)
+{
+	struct mt7915_phy *phy = mt7915_ext_phy(dev);
+	struct mt76_phy *mphy;
+	int ret;
+
+	if (!dev->dbdc_support)
+		return 0;
+
+	if (phy)
+		return 0;
+
+	mphy = mt76_alloc_phy(&dev->mt76, sizeof(*phy), &mt7915_ops);
+	if (!mphy)
+		return -ENOMEM;
+
+	phy = mphy->priv;
+	phy->dev = dev;
+	phy->mt76 = mphy;
+	phy->chainmask = dev->chainmask & ~dev->phy.chainmask;
+	mphy->antenna_mask = BIT(hweight8(phy->chainmask)) - 1;
+	mt7915_init_wiphy(mphy->hw);
+
+	INIT_LIST_HEAD(&phy->stats_list);
+	INIT_DELAYED_WORK(&phy->mac_work, mt7915_mac_work);
+
+	mt7915_eeprom_parse_band_config(phy);
+	mt7915_set_stream_vht_txbf_caps(phy);
+	mt7915_set_stream_he_caps(phy);
+
+	memcpy(mphy->macaddr, dev->mt76.eeprom.data + MT_EE_MAC_ADDR2,
+	       ETH_ALEN);
+	mt76_eeprom_override(mphy);
+
+	/* The second interface does not get any packets unless it has a vif */
+	ieee80211_hw_set(mphy->hw, WANT_MONITOR_VIF);
+
+	ret = mt7915_init_tx_queues(phy, MT7915_TXQ_BAND1,
+				    MT7915_TX_RING_SIZE);
+	if (ret)
+		goto error;
+
+	ret = mt76_register_phy(mphy, true, mt7915_rates,
+				ARRAY_SIZE(mt7915_rates));
+	if (ret)
+		goto error;
+
+	return 0;
+
+error:
+	ieee80211_free_hw(mphy->hw);
+	return ret;
+}
+
+static void mt7915_init_work(struct work_struct *work)
+{
+	struct mt7915_dev *dev = container_of(work, struct mt7915_dev,
+				 init_work);
+
+	mt7915_mcu_set_eeprom(dev);
+	mt7915_mac_init(dev);
+	mt7915_init_txpower(dev);
+	mt7915_txbf_init(dev);
+	mt7915_register_ext_phy(dev);
+}
+
+static int mt7915_init_hardware(struct mt7915_dev *dev)
+{
+	int ret, idx;
+
+	mt76_wr(dev, MT_INT_SOURCE_CSR, ~0);
+
+	INIT_WORK(&dev->init_work, mt7915_init_work);
+	spin_lock_init(&dev->token_lock);
+	idr_init(&dev->token);
+
+	dev->dbdc_support = !!(mt7915_l1_rr(dev, MT_HW_BOUND) & BIT(5));
+
+	ret = mt7915_dma_init(dev);
+	if (ret)
+		return ret;
+
+	set_bit(MT76_STATE_INITIALIZED, &dev->mphy.state);
+
+	/*
+	 * force firmware operation mode into normal state,
+	 * which should be set before firmware download stage.
+	 */
+	mt76_wr(dev, MT_SWDEF_MODE, MT_SWDEF_NORMAL_MODE);
+
+	ret = mt7915_mcu_init(dev);
+	if (ret)
+		return ret;
+
+	ret = mt7915_eeprom_init(dev);
+	if (ret < 0)
+		return ret;
+
+	/* Beacon and mgmt frames should occupy wcid 0 */
+	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, MT7915_WTBL_STA - 1);
+	if (idx)
+		return -ENOSPC;
+
+	dev->mt76.global_wcid.idx = idx;
+	dev->mt76.global_wcid.hw_key_idx = -1;
+	dev->mt76.global_wcid.tx_info |= MT_WCID_TX_INFO_SET;
+	rcu_assign_pointer(dev->mt76.wcid[idx], &dev->mt76.global_wcid);
+
+	return 0;
 }
 
 void mt7915_set_stream_vht_txbf_caps(struct mt7915_phy *phy)
@@ -546,61 +600,7 @@ void mt7915_set_stream_he_caps(struct mt7915_phy *phy)
 	}
 }
 
-int mt7915_register_ext_phy(struct mt7915_dev *dev)
-{
-	struct mt7915_phy *phy = mt7915_ext_phy(dev);
-	struct mt76_phy *mphy;
-	int ret;
-
-	if (!dev->dbdc_support)
-		return 0;
-
-	if (phy)
-		return 0;
-
-	mphy = mt76_alloc_phy(&dev->mt76, sizeof(*phy), &mt7915_ops);
-	if (!mphy)
-		return -ENOMEM;
-
-	phy = mphy->priv;
-	phy->dev = dev;
-	phy->mt76 = mphy;
-	phy->chainmask = dev->chainmask & ~dev->phy.chainmask;
-	mphy->antenna_mask = BIT(hweight8(phy->chainmask)) - 1;
-	mt7915_init_wiphy(mphy->hw);
-
-	INIT_LIST_HEAD(&phy->stats_list);
-	INIT_DELAYED_WORK(&phy->mac_work, mt7915_mac_work);
-
-	mt7915_eeprom_parse_band_config(phy);
-	mt7915_set_stream_vht_txbf_caps(phy);
-	mt7915_set_stream_he_caps(phy);
-
-	memcpy(mphy->macaddr, dev->mt76.eeprom.data + MT_EE_MAC_ADDR2,
-	       ETH_ALEN);
-	mt76_eeprom_override(mphy);
-
-	/* The second interface does not get any packets unless it has a vif */
-	ieee80211_hw_set(mphy->hw, WANT_MONITOR_VIF);
-
-	ret = mt7915_init_tx_queues(phy, MT7915_TXQ_BAND1,
-				    MT7915_TX_RING_SIZE);
-	if (ret)
-		goto error;
-
-	ret = mt76_register_phy(mphy, true, mt7915_rates,
-				ARRAY_SIZE(mt7915_rates));
-	if (ret)
-		goto error;
-
-	return 0;
-
-error:
-	ieee80211_free_hw(mphy->hw);
-	return ret;
-}
-
-void mt7915_unregister_ext_phy(struct mt7915_dev *dev)
+static void mt7915_unregister_ext_phy(struct mt7915_dev *dev)
 {
 	struct mt7915_phy *phy = mt7915_ext_phy(dev);
 	struct mt76_phy *mphy = dev->mt76.phy2;

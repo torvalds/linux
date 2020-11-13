@@ -48,32 +48,6 @@ DEFINE_DEBUGFS_ATTRIBUTE(fops_radar_trigger, NULL,
 			 mt7915_radar_trigger, "%lld\n");
 
 static int
-mt7915_dbdc_set(void *data, u64 val)
-{
-	struct mt7915_dev *dev = data;
-
-	if (val)
-		mt7915_register_ext_phy(dev);
-	else
-		mt7915_unregister_ext_phy(dev);
-
-	return 0;
-}
-
-static int
-mt7915_dbdc_get(void *data, u64 *val)
-{
-	struct mt7915_dev *dev = data;
-
-	*val = !!mt7915_ext_phy(dev);
-
-	return 0;
-}
-
-DEFINE_DEBUGFS_ATTRIBUTE(fops_dbdc, mt7915_dbdc_get,
-			 mt7915_dbdc_set, "%lld\n");
-
-static int
 mt7915_fw_debug_set(void *data, u64 val)
 {
 	struct mt7915_dev *dev = data;
@@ -380,7 +354,6 @@ int mt7915_init_debugfs(struct mt7915_dev *dev)
 	debugfs_create_devm_seqfile(dev->mt76.dev, "acq", dir,
 				    mt7915_queues_acq);
 	debugfs_create_file("tx_stats", 0400, dir, dev, &fops_tx_stats);
-	debugfs_create_file("dbdc", 0600, dir, dev, &fops_dbdc);
 	debugfs_create_file("fw_debug", 0600, dir, dev, &fops_fw_debug);
 	debugfs_create_u32("dfs_hw_pattern", 0400, dir, &dev->hw_pattern);
 	/* test knobs */

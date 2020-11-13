@@ -276,8 +276,6 @@ u32 mt7915_reg_map(struct mt7915_dev *dev, u32 addr);
 
 int mt7915_register_device(struct mt7915_dev *dev);
 void mt7915_unregister_device(struct mt7915_dev *dev);
-int mt7915_register_ext_phy(struct mt7915_dev *dev);
-void mt7915_unregister_ext_phy(struct mt7915_dev *dev);
 int mt7915_eeprom_init(struct mt7915_dev *dev);
 void mt7915_eeprom_parse_band_config(struct mt7915_phy *phy);
 int mt7915_eeprom_get_target_power(struct mt7915_dev *dev,
