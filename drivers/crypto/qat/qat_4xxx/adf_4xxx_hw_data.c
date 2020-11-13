@@ -1,0 +1,218 @@
+// SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0-only)
+/* Copyright(c) 2020 Intel Corporation */
+#include <adf_accel_devices.h>
+#include <adf_common_drv.h>
+#include <adf_pf2vf_msg.h>
+#include <adf_gen4_hw_data.h>
+#include "adf_4xxx_hw_data.h"
+
+struct adf_fw_config {
+	u32 ae_mask;
+	char *obj_name;
+};
+
+static struct adf_fw_config adf_4xxx_fw_config[] = {
+	{0xF0, ADF_4XXX_SYM_OBJ},
+	{0xF, ADF_4XXX_ASYM_OBJ},
+	{0x100, ADF_4XXX_ADMIN_OBJ},
+};
+
+/* Worker thread to service arbiter mappings */
+static u32 thrd_to_arb_map[] = {
+	0x5555555, 0x5555555, 0x5555555, 0x5555555,
+	0xAAAAAAA, 0xAAAAAAA, 0xAAAAAAA, 0xAAAAAAA,
+	0x0
+};
+
+static struct adf_hw_device_class adf_4xxx_class = {
+	.name = ADF_4XXX_DEVICE_NAME,
+	.type = DEV_4XXX,
+	.instances = 0,
+};
+
+static u32 get_accel_mask(struct adf_hw_device_data *self)
+{
+	return ADF_4XXX_ACCELERATORS_MASK;
+}
+
+static u32 get_ae_mask(struct adf_hw_device_data *self)
+{
+	u32 me_disable = self->fuses;
+
+	return ~me_disable & ADF_4XXX_ACCELENGINES_MASK;
+}
+
+static u32 get_num_accels(struct adf_hw_device_data *self)
+{
+	return ADF_4XXX_MAX_ACCELERATORS;
+}
+
+static u32 get_num_aes(struct adf_hw_device_data *self)
+{
+	if (!self || !self->ae_mask)
+		return 0;
+
+	return hweight32(self->ae_mask);
+}
+
+static u32 get_misc_bar_id(struct adf_hw_device_data *self)
+{
+	return ADF_4XXX_PMISC_BAR;
+}
+
+static u32 get_etr_bar_id(struct adf_hw_device_data *self)
+{
+	return ADF_4XXX_ETR_BAR;
+}
+
+static u32 get_sram_bar_id(struct adf_hw_device_data *self)
+{
+	return ADF_4XXX_SRAM_BAR;
+}
+
+/*
+ * The vector routing table is used to select the MSI-X entry to use for each
+ * interrupt source.
+ * The first ADF_4XXX_ETR_MAX_BANKS entries correspond to ring interrupts.
+ * The final entry corresponds to VF2PF or error interrupts.
+ * This vector table could be used to configure one MSI-X entry to be shared
+ * between multiple interrupt sources.
+ *
+ * The default routing is set to have a one to one correspondence between the
+ * interrupt source and the MSI-X entry used.
+ */
+static void set_msix_default_rttable(struct adf_accel_dev *accel_dev)
+{
+	void __iomem *csr;
+	int i;
+
+	csr = (&GET_BARS(accel_dev)[ADF_4XXX_PMISC_BAR])->virt_addr;
+	for (i = 0; i <= ADF_4XXX_ETR_MAX_BANKS; i++)
+		ADF_CSR_WR(csr, ADF_4XXX_MSIX_RTTABLE_OFFSET(i), i);
+}
+
+static enum dev_sku_info get_sku(struct adf_hw_device_data *self)
+{
+	return DEV_SKU_1;
+}
+
+static void adf_get_arbiter_mapping(struct adf_accel_dev *accel_dev,
+				    u32 const **arb_map_config)
+{
+	struct adf_hw_device_data *hw_device = accel_dev->hw_device;
+	unsigned long ae_mask = hw_device->ae_mask;
+	int i;
+
+	for_each_clear_bit(i, &ae_mask, ADF_4XXX_MAX_ACCELENGINES)
+		thrd_to_arb_map[i] = 0;
+
+	*arb_map_config = thrd_to_arb_map;
+}
+
+static void get_arb_info(struct arb_info *arb_info)
+{
+	arb_info->arb_cfg = ADF_4XXX_ARB_CONFIG;
+	arb_info->arb_offset = ADF_4XXX_ARB_OFFSET;
+	arb_info->wt2sam_offset = ADF_4XXX_ARB_WRK_2_SER_MAP_OFFSET;
+}
+
+static void get_admin_info(struct admin_info *admin_csrs_info)
+{
+	admin_csrs_info->mailbox_offset = ADF_4XXX_MAILBOX_BASE_OFFSET;
+	admin_csrs_info->admin_msg_ur = ADF_4XXX_ADMINMSGUR_OFFSET;
+	admin_csrs_info->admin_msg_lr = ADF_4XXX_ADMINMSGLR_OFFSET;
+}
+
+static void adf_enable_error_correction(struct adf_accel_dev *accel_dev)
+{
+	struct adf_bar *misc_bar = &GET_BARS(accel_dev)[ADF_4XXX_PMISC_BAR];
+	void __iomem *csr = misc_bar->virt_addr;
+
+	/* Enable all in errsou3 except VFLR notification on host */
+	ADF_CSR_WR(csr, ADF_4XXX_ERRMSK3, ADF_4XXX_VFLNOTIFY);
+}
+
+static void adf_enable_ints(struct adf_accel_dev *accel_dev)
+{
+	void __iomem *addr;
+
+	addr = (&GET_BARS(accel_dev)[ADF_4XXX_PMISC_BAR])->virt_addr;
+
+	/* Enable bundle interrupts */
+	ADF_CSR_WR(addr, ADF_4XXX_SMIAPF_RP_X0_MASK_OFFSET, 0);
+	ADF_CSR_WR(addr, ADF_4XXX_SMIAPF_RP_X1_MASK_OFFSET, 0);
+
+	/* Enable misc interrupts */
+	ADF_CSR_WR(addr, ADF_4XXX_SMIAPF_MASK_OFFSET, 0);
+}
+
+static int adf_pf_enable_vf2pf_comms(struct adf_accel_dev *accel_dev)
+{
+	return 0;
+}
+
+static u32 uof_get_num_objs(void)
+{
+	return ARRAY_SIZE(adf_4xxx_fw_config);
+}
+
+static char *uof_get_name(u32 obj_num)
+{
+	return adf_4xxx_fw_config[obj_num].obj_name;
+}
+
+static u32 uof_get_ae_mask(u32 obj_num)
+{
+	return adf_4xxx_fw_config[obj_num].ae_mask;
+}
+
+void adf_init_hw_data_4xxx(struct adf_hw_device_data *hw_data)
+{
+	hw_data->dev_class = &adf_4xxx_class;
+	hw_data->instance_id = adf_4xxx_class.instances++;
+	hw_data->num_banks = ADF_4XXX_ETR_MAX_BANKS;
+	hw_data->num_rings_per_bank = ADF_4XXX_NUM_RINGS_PER_BANK;
+	hw_data->num_accel = ADF_4XXX_MAX_ACCELERATORS;
+	hw_data->num_engines = ADF_4XXX_MAX_ACCELENGINES;
+	hw_data->num_logical_accel = 1;
+	hw_data->tx_rx_gap = ADF_4XXX_RX_RINGS_OFFSET;
+	hw_data->tx_rings_mask = ADF_4XXX_TX_RINGS_MASK;
+	hw_data->alloc_irq = adf_isr_resource_alloc;
+	hw_data->free_irq = adf_isr_resource_free;
+	hw_data->enable_error_correction = adf_enable_error_correction;
+	hw_data->get_accel_mask = get_accel_mask;
+	hw_data->get_ae_mask = get_ae_mask;
+	hw_data->get_num_accels = get_num_accels;
+	hw_data->get_num_aes = get_num_aes;
+	hw_data->get_sram_bar_id = get_sram_bar_id;
+	hw_data->get_etr_bar_id = get_etr_bar_id;
+	hw_data->get_misc_bar_id = get_misc_bar_id;
+	hw_data->get_arb_info = get_arb_info;
+	hw_data->get_admin_info = get_admin_info;
+	hw_data->get_sku = get_sku;
+	hw_data->fw_name = ADF_4XXX_FW;
+	hw_data->fw_mmp_name = ADF_4XXX_MMP;
+	hw_data->init_admin_comms = adf_init_admin_comms;
+	hw_data->exit_admin_comms = adf_exit_admin_comms;
+	hw_data->disable_iov = adf_disable_sriov;
+	hw_data->send_admin_init = adf_send_admin_init;
+	hw_data->init_arb = adf_init_arb;
+	hw_data->exit_arb = adf_exit_arb;
+	hw_data->get_arb_mapping = adf_get_arbiter_mapping;
+	hw_data->enable_ints = adf_enable_ints;
+	hw_data->enable_vf2pf_comms = adf_pf_enable_vf2pf_comms;
+	hw_data->reset_device = adf_reset_flr;
+	hw_data->min_iov_compat_ver = ADF_PFVF_COMPATIBILITY_VERSION;
+	hw_data->admin_ae_mask = ADF_4XXX_ADMIN_AE_MASK;
+	hw_data->uof_get_num_objs = uof_get_num_objs;
+	hw_data->uof_get_name = uof_get_name;
+	hw_data->uof_get_ae_mask = uof_get_ae_mask;
+	hw_data->set_msix_rttable = set_msix_default_rttable;
+
+	adf_gen4_init_hw_csr_ops(&hw_data->csr_ops);
+}
+
+void adf_clean_hw_data_4xxx(struct adf_hw_device_data *hw_data)
+{
+	hw_data->dev_class->instances--;
+}
