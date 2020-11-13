@@ -93,6 +93,7 @@ static unsigned int mcp16502_of_map_mode(unsigned int mode)
 		.owner			= THIS_MODULE,			\
 		.n_voltages		= MCP16502_VSEL + 1,		\
 		.linear_ranges		= _ranges,			\
+		.linear_min_sel		= VDD_LOW_SEL,			\
 		.n_linear_ranges	= ARRAY_SIZE(_ranges),		\
 		.of_match		= of_match_ptr(_name),		\
 		.of_map_mode		= mcp16502_of_map_mode,		\
