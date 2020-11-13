@@ -213,13 +213,6 @@ config USB_EHCI_FSL
 	help
 	  Variation of ARC USB block used in some Freescale chips.
 
-config USB_EHCI_MXC
-	tristate "Support for Freescale i.MX on-chip EHCI USB controller"
-	depends on ARCH_MXC || COMPILE_TEST
-	select USB_EHCI_ROOT_HUB_TT
-	help
-	  Variation of ARC USB block used in some Freescale chips.
-
 config USB_EHCI_HCD_NPCM7XX
 	tristate "Support for Nuvoton NPCM7XX on-chip EHCI USB controller"
 	depends on (USB_EHCI_HCD && ARCH_NPCM7XX) || COMPILE_TEST
