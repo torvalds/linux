@@ -59,13 +59,14 @@ static int
 mt76_testmode_tx_init(struct mt76_dev *dev)
 {
 	struct mt76_testmode_data *td = &dev->test;
+	struct mt76_phy *phy = &dev->phy;
 	struct ieee80211_tx_info *info;
 	struct ieee80211_hdr *hdr;
 	struct sk_buff *skb;
 	u16 fc = IEEE80211_FTYPE_DATA | IEEE80211_STYPE_DATA |
 		 IEEE80211_FCTL_FROMDS;
 	struct ieee80211_tx_rate *rate;
-	u8 max_nss = hweight8(dev->phy.antenna_mask);
+	u8 max_nss = hweight8(phy->antenna_mask);
 
 	if (td->tx_antenna_mask)
 		max_nss = min_t(u8, max_nss, hweight8(td->tx_antenna_mask));
@@ -78,9 +79,9 @@ mt76_testmode_tx_init(struct mt76_dev *dev)
 	td->tx_skb = skb;
 	hdr = __skb_put_zero(skb, td->tx_msdu_len);
 	hdr->frame_control = cpu_to_le16(fc);
-	memcpy(hdr->addr1, dev->macaddr, sizeof(dev->macaddr));
-	memcpy(hdr->addr2, dev->macaddr, sizeof(dev->macaddr));
-	memcpy(hdr->addr3, dev->macaddr, sizeof(dev->macaddr));
+	memcpy(hdr->addr1, phy->macaddr, sizeof(phy->macaddr));
+	memcpy(hdr->addr2, phy->macaddr, sizeof(phy->macaddr));
+	memcpy(hdr->addr3, phy->macaddr, sizeof(phy->macaddr));
 
 	info = IEEE80211_SKB_CB(skb);
 	info->flags = IEEE80211_TX_CTL_INJECTED |
@@ -96,14 +97,14 @@ mt76_testmode_tx_init(struct mt76_dev *dev)
 
 	switch (td->tx_rate_mode) {
 	case MT76_TM_TX_MODE_CCK:
-		if (dev->phy.chandef.chan->band != NL80211_BAND_2GHZ)
+		if (phy->chandef.chan->band != NL80211_BAND_2GHZ)
 			return -EINVAL;
 
 		if (rate->idx > 4)
 			return -EINVAL;
 		break;
 	case MT76_TM_TX_MODE_OFDM:
-		if (dev->phy.chandef.chan->band != NL80211_BAND_2GHZ)
+		if (phy->chandef.chan->band != NL80211_BAND_2GHZ)
 			break;
 
 		if (rate->idx > 8)
@@ -114,7 +115,7 @@ mt76_testmode_tx_init(struct mt76_dev *dev)
 	case MT76_TM_TX_MODE_HT:
 		if (rate->idx > 8 * max_nss &&
 			!(rate->idx == 32 &&
-			  dev->phy.chandef.width >= NL80211_CHAN_WIDTH_40))
+			  phy->chandef.width >= NL80211_CHAN_WIDTH_40))
 			return -EINVAL;
 
 		rate->flags |= IEEE80211_TX_RC_MCS;
@@ -143,7 +144,7 @@ mt76_testmode_tx_init(struct mt76_dev *dev)
 		info->flags |= IEEE80211_TX_CTL_STBC;
 
 	if (td->tx_rate_mode >= MT76_TM_TX_MODE_HT) {
-		switch (dev->phy.chandef.width) {
+		switch (phy->chandef.width) {
 		case NL80211_CHAN_WIDTH_40:
 			rate->flags |= IEEE80211_TX_RC_40_MHZ_WIDTH;
 			break;

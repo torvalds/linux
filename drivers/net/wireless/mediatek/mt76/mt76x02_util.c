@@ -305,12 +305,12 @@ mt76x02_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	/* Allow to change address in HW if we create first interface. */
 	if (!dev->mphy.vif_mask &&
-	    (((vif->addr[0] ^ dev->mt76.macaddr[0]) & ~GENMASK(4, 1)) ||
-	     memcmp(vif->addr + 1, dev->mt76.macaddr + 1, ETH_ALEN - 1)))
+	    (((vif->addr[0] ^ dev->mphy.macaddr[0]) & ~GENMASK(4, 1)) ||
+	     memcmp(vif->addr + 1, dev->mphy.macaddr + 1, ETH_ALEN - 1)))
 		mt76x02_mac_setaddr(dev, vif->addr);
 
 	if (vif->addr[0] & BIT(1))
-		idx = 1 + (((dev->mt76.macaddr[0] ^ vif->addr[0]) >> 2) & 7);
+		idx = 1 + (((dev->mphy.macaddr[0] ^ vif->addr[0]) >> 2) & 7);
 
 	/*
 	 * Client mode typically only has one configurable BSSID register,
@@ -678,7 +678,7 @@ void mt76x02_config_mac_addr_list(struct mt76x02_dev *dev)
 	for (i = 0; i < ARRAY_SIZE(dev->macaddr_list); i++) {
 		u8 *addr = dev->macaddr_list[i].addr;
 
-		memcpy(addr, dev->mt76.macaddr, ETH_ALEN);
+		memcpy(addr, dev->mphy.macaddr, ETH_ALEN);
 
 		if (!i)
 			continue;

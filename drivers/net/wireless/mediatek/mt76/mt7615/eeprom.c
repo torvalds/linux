@@ -342,10 +342,10 @@ int mt7615_eeprom_init(struct mt7615_dev *dev, u32 addr)
 	}
 
 	mt7615_eeprom_parse_hw_cap(dev);
-	memcpy(dev->mt76.macaddr, dev->mt76.eeprom.data + MT_EE_MAC_ADDR,
+	memcpy(dev->mphy.macaddr, dev->mt76.eeprom.data + MT_EE_MAC_ADDR,
 	       ETH_ALEN);
 
-	mt76_eeprom_override(&dev->mt76);
+	mt76_eeprom_override(&dev->mphy);
 
 	return 0;
 }

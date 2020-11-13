@@ -273,12 +273,13 @@ mt76_check_sband(struct mt76_phy *phy, struct mt76_sband *msband,
 }
 
 static void
-mt76_phy_init(struct mt76_dev *dev, struct ieee80211_hw *hw)
+mt76_phy_init(struct mt76_phy *phy, struct ieee80211_hw *hw)
 {
+	struct mt76_dev *dev = phy->dev;
 	struct wiphy *wiphy = hw->wiphy;
 
 	SET_IEEE80211_DEV(hw, dev->dev);
-	SET_IEEE80211_PERM_ADDR(hw, dev->macaddr);
+	SET_IEEE80211_PERM_ADDR(hw, phy->macaddr);
 
 	wiphy->features |= NL80211_FEATURE_ACTIVE_MONITOR;
 	wiphy->flags |= WIPHY_FLAG_HAS_CHANNEL_SWITCH |
@@ -354,7 +355,7 @@ int mt76_register_phy(struct mt76_phy *phy, bool vht,
 {
 	int ret;
 
-	mt76_phy_init(phy->dev, phy->hw);
+	mt76_phy_init(phy, phy->hw);
 
 	if (phy->cap.has_2ghz) {
 		ret = mt76_init_sband_2g(phy, rates, n_rates);
@@ -450,7 +451,7 @@ int mt76_register_device(struct mt76_dev *dev, bool vht,
 	int ret;
 
 	dev_set_drvdata(dev->dev, dev);
-	mt76_phy_init(dev, hw);
+	mt76_phy_init(phy, hw);
 
 	if (phy->cap.has_2ghz) {
 		ret = mt76_init_sband_2g(phy, rates, n_rates);
@@ -830,7 +831,7 @@ mt76_airtime_check(struct mt76_dev *dev, struct sk_buff *skb)
 		return;
 
 	if (!wcid || !wcid->sta) {
-		if (!ether_addr_equal(hdr->addr1, dev->macaddr))
+		if (!ether_addr_equal(hdr->addr1, dev->phy.macaddr))
 			return;
 
 		wcid = NULL;
