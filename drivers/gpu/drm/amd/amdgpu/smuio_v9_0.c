@@ -35,7 +35,7 @@ static u32 smuio_v9_0_get_rom_data_offset(struct amdgpu_device *adev)
 	return SOC15_REG_OFFSET(SMUIO, 0, mmROM_DATA);
 }
 
-void smuio_v9_0_update_rom_clock_gating(struct amdgpu_device *adev, bool enable)
+static void smuio_v9_0_update_rom_clock_gating(struct amdgpu_device *adev, bool enable)
 {
 	u32 def, data;
 
@@ -56,7 +56,7 @@ void smuio_v9_0_update_rom_clock_gating(struct amdgpu_device *adev, bool enable)
 		WREG32_SOC15(SMUIO, 0, mmCGTT_ROM_CLK_CTRL0, data);
 }
 
-void smuio_v9_0_get_clock_gating_state(struct amdgpu_device *adev, u32 *flags)
+static void smuio_v9_0_get_clock_gating_state(struct amdgpu_device *adev, u32 *flags)
 {
 	u32 data;
 
