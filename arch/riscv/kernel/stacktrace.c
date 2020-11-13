@@ -43,7 +43,7 @@ void notrace walk_stackframe(struct task_struct *task, struct pt_regs *regs,
 		unsigned long low, high;
 		struct stackframe *frame;
 
-		if (unlikely(!__kernel_text_address(pc) || fn(pc, arg)))
+		if (unlikely(!__kernel_text_address(pc) || fn(arg, pc)))
 			break;
 
 		/* Validate frame pointer */
@@ -63,7 +63,7 @@ void notrace walk_stackframe(struct task_struct *task, struct pt_regs *regs,
 #else /* !CONFIG_FRAME_POINTER */
 
 void notrace walk_stackframe(struct task_struct *task,
-	struct pt_regs *regs, bool (*fn)(unsigned long, void *), void *arg)
+	struct pt_regs *regs, bool (*fn)(void *, unsigned long), void *arg)
 {
 	unsigned long sp, pc;
 	unsigned long *ksp;
@@ -85,7 +85,7 @@ void notrace walk_stackframe(struct task_struct *task,
 
 	ksp = (unsigned long *)sp;
 	while (!kstack_end(ksp)) {
-		if (__kernel_text_address(pc) && unlikely(fn(pc, arg)))
+		if (__kernel_text_address(pc) && unlikely(fn(arg, pc)))
 			break;
 		pc = (*ksp++) - 0x4;
 	}
@@ -107,7 +107,7 @@ void show_stack(struct task_struct *task, unsigned long *sp, const char *loglvl)
 	walk_stackframe(task, NULL, print_trace_address, (void *)loglvl);
 }
 
-static bool save_wchan(unsigned long pc, void *arg)
+static bool save_wchan(void *arg, unsigned long pc)
 {
 	if (!in_sched_functions(pc)) {
 		unsigned long *p = arg;
@@ -143,7 +143,7 @@ static bool __save_trace(unsigned long pc, void *arg, bool nosched)
 	return (trace->nr_entries >= trace->max_entries);
 }
 
-static bool save_trace(unsigned long pc, void *arg)
+static bool save_trace(void *arg, unsigned long pc)
 {
 	return __save_trace(pc, arg, false);
 }

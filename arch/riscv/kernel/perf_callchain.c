@@ -70,7 +70,7 @@ void perf_callchain_user(struct perf_callchain_entry_ctx *entry,
 		fp = user_backtrace(entry, fp, 0);
 }
 
-static bool fill_callchain(unsigned long pc, void *entry)
+static bool fill_callchain(void *entry, unsigned long pc)
 {
 	return perf_callchain_store(entry, pc);
 }

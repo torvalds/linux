@@ -12,6 +12,6 @@ struct stackframe {
 };
 
 extern void notrace walk_stackframe(struct task_struct *task, struct pt_regs *regs,
-				    bool (*fn)(unsigned long, void *), void *arg);
+				    bool (*fn)(void *, unsigned long), void *arg);
 
 #endif /* _ASM_RISCV_STACKTRACE_H */
