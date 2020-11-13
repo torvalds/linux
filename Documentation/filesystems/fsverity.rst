@@ -334,16 +334,12 @@ root hash as well as other fields such as the file size::
             __u8 hash_algorithm;    /* Merkle tree hash algorithm */
             __u8 log_blocksize;     /* log2 of size of data and tree blocks */
             __u8 salt_size;         /* size of salt in bytes; 0 if none */
-            __le32 sig_size;        /* must be 0 */
+            __le32 __reserved_0x04; /* must be 0 */
             __le64 data_size;       /* size of file the Merkle tree is built over */
             __u8 root_hash[64];     /* Merkle tree root hash */
             __u8 salt[32];          /* salt prepended to each hashed block */
             __u8 __reserved[144];   /* must be 0's */
     };
-
-Note that the ``sig_size`` field must be set to 0 for the purpose of
-computing the file measurement, even if a signature was provided (or
-will be provided) to `FS_IOC_ENABLE_VERITY`_.
 
 Built-in signature verification
 ===============================
