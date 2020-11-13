@@ -409,29 +409,6 @@ err:
 	return ret;
 }
 
-static int soc_compr_get_codec_caps(struct snd_compr_stream *cstream,
-				    struct snd_compr_codec_caps *codec)
-{
-	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
-	struct snd_soc_component *component;
-	int i, ret = 0;
-
-	mutex_lock_nested(&rtd->card->pcm_mutex, rtd->card->pcm_subclass);
-
-	for_each_rtd_components(rtd, i, component) {
-		if (!component->driver->compress_ops ||
-		    !component->driver->compress_ops->get_codec_caps)
-			continue;
-
-		ret = component->driver->compress_ops->get_codec_caps(
-			component, cstream, codec);
-		break;
-	}
-
-	mutex_unlock(&rtd->card->pcm_mutex);
-	return ret;
-}
-
 static int soc_compr_ack(struct snd_compr_stream *cstream, size_t bytes)
 {
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
@@ -574,7 +551,7 @@ static struct snd_compr_ops soc_compr_ops = {
 	.pointer	= soc_compr_pointer,
 	.ack		= soc_compr_ack,
 	.get_caps	= snd_soc_component_compr_get_caps,
-	.get_codec_caps = soc_compr_get_codec_caps
+	.get_codec_caps = snd_soc_component_compr_get_codec_caps,
 };
 
 /* ASoC Dynamic Compress operations */
@@ -589,7 +566,7 @@ static struct snd_compr_ops soc_compr_dyn_ops = {
 	.pointer	= soc_compr_pointer,
 	.ack		= soc_compr_ack,
 	.get_caps	= snd_soc_component_compr_get_caps,
-	.get_codec_caps = soc_compr_get_codec_caps
+	.get_codec_caps = snd_soc_component_compr_get_codec_caps,
 };
 
 /**
