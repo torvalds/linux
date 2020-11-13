@@ -372,7 +372,7 @@ kernel.  Specifically, it adds support for:
 File measurements must be signed in the following format, which is
 similar to the structure used by `FS_IOC_MEASURE_VERITY`_::
 
-    struct fsverity_signed_digest {
+    struct fsverity_formatted_digest {
             char magic[8];                  /* must be "FSVerity" */
             __le16 digest_algorithm;
             __le16 digest_size;
