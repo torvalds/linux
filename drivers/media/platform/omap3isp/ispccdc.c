@@ -299,11 +299,10 @@ static int ccdc_lsc_busy(struct isp_ccdc_device *ccdc)
 			     ISPCCDC_LSC_BUSY;
 }
 
-/* __ccdc_lsc_configure - Apply a new configuration to the LSC engine
+/*
+ * __ccdc_lsc_configure - Apply a new configuration to the LSC engine
  * @ccdc: Pointer to ISP CCDC device
  * @req: New configuration request
- *
- * context: in_interrupt()
  */
 static int __ccdc_lsc_configure(struct isp_ccdc_device *ccdc,
 				struct ispccdc_lsc_config_req *req)
