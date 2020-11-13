@@ -28,11 +28,41 @@ enum mitigation_state {
 
 struct task_struct;
 
+/*
+ * Note: the order of this enum corresponds to __bp_harden_hyp_vecs and
+ * we rely on having the direct vectors first.
+ */
+enum arm64_hyp_spectre_vector {
+	/*
+	 * Take exceptions directly to __kvm_hyp_vector. This must be
+	 * 0 so that it used by default when mitigations are not needed.
+	 */
+	HYP_VECTOR_DIRECT,
+
+	/*
+	 * Bounce via a slot in the hypervisor text mapping of
+	 * __bp_harden_hyp_vecs, which contains an SMC call.
+	 */
+	HYP_VECTOR_SPECTRE_DIRECT,
+
+	/*
+	 * Bounce via a slot in a special mapping of __bp_harden_hyp_vecs
+	 * next to the idmap page.
+	 */
+	HYP_VECTOR_INDIRECT,
+
+	/*
+	 * Bounce via a slot in a special mapping of __bp_harden_hyp_vecs
+	 * next to the idmap page, which contains an SMC call.
+	 */
+	HYP_VECTOR_SPECTRE_INDIRECT,
+};
+
 typedef void (*bp_hardening_cb_t)(void);
 
 struct bp_hardening_data {
-	int			hyp_vectors_slot;
-	bp_hardening_cb_t	fn;
+	enum arm64_hyp_spectre_vector	slot;
+	bp_hardening_cb_t		fn;
 };
 
 DECLARE_PER_CPU_READ_MOSTLY(struct bp_hardening_data, bp_hardening_data);
@@ -52,6 +82,8 @@ static inline void arm64_apply_bp_hardening(void)
 enum mitigation_state arm64_get_spectre_v2_state(void);
 bool has_spectre_v2(const struct arm64_cpu_capabilities *cap, int scope);
 void spectre_v2_enable_mitigation(const struct arm64_cpu_capabilities *__unused);
+
+void cpu_el2_vector_harden_enable(const struct arm64_cpu_capabilities *__unused);
 
 enum mitigation_state arm64_get_spectre_v4_state(void);
 bool has_spectre_v4(const struct arm64_cpu_capabilities *cap, int scope);

@@ -138,7 +138,7 @@ void kvm_patch_vector_branch(struct alt_instr *alt,
 	u64 addr;
 	u32 insn;
 
-	BUG_ON(nr_inst != 5);
+	BUG_ON(nr_inst != 4);
 
 	if (!cpus_have_const_cap(ARM64_HARDEN_EL2_VECTORS) ||
 	    WARN_ON_ONCE(has_vhe())) {
@@ -160,15 +160,6 @@ void kvm_patch_vector_branch(struct alt_instr *alt,
 	 * the stack (which we already perform in the hardening vectors).
 	 */
 	addr += KVM_VECTOR_PREAMBLE;
-
-	/* stp x0, x1, [sp, #-16]! */
-	insn = aarch64_insn_gen_load_store_pair(AARCH64_INSN_REG_0,
-						AARCH64_INSN_REG_1,
-						AARCH64_INSN_REG_SP,
-						-16,
-						AARCH64_INSN_VARIANT_64BIT,
-						AARCH64_INSN_LDST_STORE_PAIR_PRE_INDEX);
-	*updptr++ = cpu_to_le32(insn);
 
 	/* movz x0, #(addr & 0xffff) */
 	insn = aarch64_insn_gen_movewide(AARCH64_INSN_REG_0,

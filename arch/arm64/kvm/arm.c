@@ -50,14 +50,6 @@ DECLARE_KVM_HYP_PER_CPU(unsigned long, kvm_hyp_vector);
 static DEFINE_PER_CPU(unsigned long, kvm_arm_hyp_stack_page);
 unsigned long kvm_arm_hyp_percpu_base[NR_CPUS];
 
-/* Hypervisor VA of the indirect vector trampoline page */
-static void *__kvm_bp_vect_base;
-/*
- * Slot in the hyp vector page for use by the indirect vector trampoline
- * when mitigation against Spectre-v2 is not required.
- */
-static int __kvm_harden_el2_vector_slot;
-
 /* The VMID used in the VTTBR */
 static atomic64_t kvm_vmid_gen = ATOMIC64_INIT(1);
 static u32 kvm_next_vmid;
@@ -1318,33 +1310,38 @@ static unsigned long nvhe_percpu_order(void)
 	return size ? get_order(size) : 0;
 }
 
-static int kvm_map_vectors(void)
-{
-	int slot;
+/* A lookup table holding the hypervisor VA for each vector slot */
+static void *hyp_spectre_vector_selector[BP_HARDEN_EL2_SLOTS];
 
-	/*
-	 * SV2  = ARM64_SPECTRE_V2
-	 * HEL2 = ARM64_HARDEN_EL2_VECTORS
-	 *
-	 * !SV2 + !HEL2 -> use direct vectors
-	 *  SV2 + !HEL2 -> use hardened vectors in place
-	 * !SV2 +  HEL2 -> allocate one vector slot and use exec mapping
-	 *  SV2 +  HEL2 -> use hardened vectors and use exec mapping
-	 */
+static void kvm_init_vector_slot(void *base, enum arm64_hyp_spectre_vector slot)
+{
+	hyp_spectre_vector_selector[slot] = base + (slot * SZ_2K);
+}
+
+static int kvm_init_vector_slots(void)
+{
+	int err;
+	void *base;
+
+	base = kern_hyp_va(kvm_ksym_ref(__kvm_hyp_vector));
+	kvm_init_vector_slot(base, HYP_VECTOR_DIRECT);
+
+	base = kern_hyp_va(kvm_ksym_ref(__bp_harden_hyp_vecs));
+	kvm_init_vector_slot(base, HYP_VECTOR_SPECTRE_DIRECT);
+
 	if (!cpus_have_const_cap(ARM64_HARDEN_EL2_VECTORS))
 		return 0;
 
-	/*
-	 * Always allocate a spare vector slot, as we don't know yet which CPUs
-	 * have a BP hardening slot that we can reuse.
-	 */
-	slot = atomic_inc_return(&arm64_el2_vector_last_slot);
-	BUG_ON(slot >= BP_HARDEN_EL2_SLOTS);
-	__kvm_harden_el2_vector_slot = slot;
+	if (!has_vhe()) {
+		err = create_hyp_exec_mappings(__pa_symbol(__bp_harden_hyp_vecs),
+					       __BP_HARDEN_HYP_VECS_SZ, &base);
+		if (err)
+			return err;
+	}
 
-	return create_hyp_exec_mappings(__pa_symbol(__bp_harden_hyp_vecs),
-					__BP_HARDEN_HYP_VECS_SZ,
-					&__kvm_bp_vect_base);
+	kvm_init_vector_slot(base, HYP_VECTOR_INDIRECT);
+	kvm_init_vector_slot(base, HYP_VECTOR_SPECTRE_INDIRECT);
+	return 0;
 }
 
 static void cpu_init_hyp_mode(void)
@@ -1421,24 +1418,9 @@ static void cpu_hyp_reset(void)
 static void cpu_set_hyp_vector(void)
 {
 	struct bp_hardening_data *data = this_cpu_ptr(&bp_hardening_data);
-	void *vect = kern_hyp_va(kvm_ksym_ref(__kvm_hyp_vector));
-	int slot = -1;
+	void *vector = hyp_spectre_vector_selector[data->slot];
 
-	if (cpus_have_const_cap(ARM64_SPECTRE_V2) && data->fn) {
-		vect = kern_hyp_va(kvm_ksym_ref(__bp_harden_hyp_vecs));
-		slot = data->hyp_vectors_slot;
-	}
-
-	if (this_cpu_has_cap(ARM64_HARDEN_EL2_VECTORS) && !has_vhe()) {
-		vect = __kvm_bp_vect_base;
-		if (slot == -1)
-			slot = __kvm_harden_el2_vector_slot;
-	}
-
-	if (slot != -1)
-		vect += slot * SZ_2K;
-
-	*this_cpu_ptr_hyp_sym(kvm_hyp_vector) = (unsigned long)vect;
+	*this_cpu_ptr_hyp_sym(kvm_hyp_vector) = (unsigned long)vector;
 }
 
 static void cpu_hyp_reinit(void)
@@ -1676,12 +1658,6 @@ static int init_hyp_mode(void)
 		goto out_err;
 	}
 
-	err = kvm_map_vectors();
-	if (err) {
-		kvm_err("Cannot map vectors\n");
-		goto out_err;
-	}
-
 	/*
 	 * Map the Hyp stack pages
 	 */
@@ -1823,6 +1799,12 @@ int kvm_arch_init(void *opaque)
 		err = init_hyp_mode();
 		if (err)
 			goto out_err;
+	}
+
+	err = kvm_init_vector_slots();
+	if (err) {
+		kvm_err("Cannot initialise vector slots\n");
+		goto out_err;
 	}
 
 	err = init_subsystems();
