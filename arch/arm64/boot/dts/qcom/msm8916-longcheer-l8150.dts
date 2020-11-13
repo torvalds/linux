@@ -6,6 +6,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/leds/common.h>
 
 / {
 	model = "Longcheer L8150";
@@ -64,6 +65,21 @@
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&ctp_pwr_en_default>;
+	};
+
+	flash-led-controller {
+		compatible = "sgmicro,sgm3140";
+		flash-gpios = <&msmgpio 31 GPIO_ACTIVE_HIGH>;
+		enable-gpios = <&msmgpio 32 GPIO_ACTIVE_HIGH>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&camera_flash_default>;
+
+		flash_led: led {
+			function = LED_FUNCTION_FLASH;
+			color = <LED_COLOR_ID_WHITE>;
+			flash-max-timeout-us = <250000>;
+		};
 	};
 };
 
@@ -286,6 +302,14 @@
 };
 
 &msmgpio {
+	camera_flash_default: camera-flash-default {
+		pins = "gpio31", "gpio32";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
+	};
+
 	ctp_pwr_en_default: ctp-pwr-en-default {
 		pins = "gpio17";
 		function = "gpio";
