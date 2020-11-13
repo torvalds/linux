@@ -456,6 +456,7 @@ retry:
 		__bch2_btree_iter_set_pos(split_iter, split->k.p, false);
 		bch2_trans_update(&trans, split_iter, split,
 				  BTREE_TRIGGER_NORUN);
+		bch2_trans_iter_put(&trans, split_iter);
 
 		bch2_btree_iter_set_pos(iter, split->k.p);
 
@@ -481,6 +482,8 @@ retry:
 				BTREE_INSERT_LAZY_RW|
 				BTREE_INSERT_JOURNAL_REPLAY);
 err:
+	bch2_trans_iter_put(&trans, iter);
+
 	if (ret == -EINTR)
 		goto retry;
 
