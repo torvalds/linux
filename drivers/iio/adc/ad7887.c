@@ -232,6 +232,13 @@ static const struct iio_info ad7887_info = {
 	.read_raw = &ad7887_read_raw,
 };
 
+static void ad7887_reg_disable(void *data)
+{
+	struct regulator *reg = data;
+
+	regulator_disable(reg);
+}
+
 static int ad7887_probe(struct spi_device *spi)
 {
 	struct ad7887_platform_data *pdata = spi->dev.platform_data;
@@ -256,6 +263,10 @@ static int ad7887_probe(struct spi_device *spi)
 
 	if (st->reg) {
 		ret = regulator_enable(st->reg);
+		if (ret)
+			return ret;
+
+		ret = devm_add_action_or_reset(&spi->dev, ad7887_reg_disable, st->reg);
 		if (ret)
 			return ret;
 	}
@@ -316,36 +327,13 @@ static int ad7887_probe(struct spi_device *spi)
 		indio_dev->num_channels = st->chip_info->num_channels;
 	}
 
-	ret = iio_triggered_buffer_setup(indio_dev, &iio_pollfunc_store_time,
+	ret = devm_iio_triggered_buffer_setup(&spi->dev, indio_dev,
+			&iio_pollfunc_store_time,
 			&ad7887_trigger_handler, &ad7887_ring_setup_ops);
 	if (ret)
-		goto error_disable_reg;
+		return ret;
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto error_unregister_ring;
-
-	return 0;
-error_unregister_ring:
-	iio_triggered_buffer_cleanup(indio_dev);
-error_disable_reg:
-	if (st->reg)
-		regulator_disable(st->reg);
-
-	return ret;
-}
-
-static int ad7887_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-	struct ad7887_state *st = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-	iio_triggered_buffer_cleanup(indio_dev);
-	if (st->reg)
-		regulator_disable(st->reg);
-
-	return 0;
+	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
 static const struct spi_device_id ad7887_id[] = {
@@ -359,7 +347,6 @@ static struct spi_driver ad7887_driver = {
 		.name	= "ad7887",
 	},
 	.probe		= ad7887_probe,
-	.remove		= ad7887_remove,
 	.id_table	= ad7887_id,
 };
 module_spi_driver(ad7887_driver);
