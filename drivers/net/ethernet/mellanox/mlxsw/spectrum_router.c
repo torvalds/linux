@@ -2867,7 +2867,11 @@ enum mlxsw_sp_nexthop_group_type {
 };
 
 struct mlxsw_sp_nexthop_group {
-	void *priv;
+	union {
+		struct {
+			struct fib_info *fi;
+		} ipv4;
+	};
 	struct rhash_head ht_node;
 	struct list_head fib_list; /* list of fib entries that use this group */
 	enum mlxsw_sp_nexthop_group_type type;
@@ -2988,12 +2992,6 @@ bool mlxsw_sp_nexthop_group_has_ipip(struct mlxsw_sp_nexthop *nh)
 	return false;
 }
 
-static struct fib_info *
-mlxsw_sp_nexthop4_group_fi(const struct mlxsw_sp_nexthop_group *nh_grp)
-{
-	return nh_grp->priv;
-}
-
 struct mlxsw_sp_nexthop_group_cmp_arg {
 	enum mlxsw_sp_nexthop_group_type type;
 	union {
@@ -3057,7 +3055,7 @@ mlxsw_sp_nexthop_group_cmp(struct rhashtable_compare_arg *arg, const void *ptr)
 
 	switch (cmp_arg->type) {
 	case MLXSW_SP_NEXTHOP_GROUP_TYPE_IPV4:
-		return cmp_arg->fi != mlxsw_sp_nexthop4_group_fi(nh_grp);
+		return cmp_arg->fi != nh_grp->ipv4.fi;
 	case MLXSW_SP_NEXTHOP_GROUP_TYPE_IPV6:
 		return !mlxsw_sp_nexthop6_group_cmp(nh_grp,
 						    cmp_arg->fib6_entry);
@@ -3077,7 +3075,7 @@ static u32 mlxsw_sp_nexthop_group_hash_obj(const void *data, u32 len, u32 seed)
 
 	switch (nh_grp->type) {
 	case MLXSW_SP_NEXTHOP_GROUP_TYPE_IPV4:
-		fi = mlxsw_sp_nexthop4_group_fi(nh_grp);
+		fi = nh_grp->ipv4.fi;
 		return jhash(&fi, sizeof(fi), seed);
 	case MLXSW_SP_NEXTHOP_GROUP_TYPE_IPV6:
 		val = nh_grp->count;
@@ -4101,12 +4099,12 @@ mlxsw_sp_nexthop4_group_create(struct mlxsw_sp *mlxsw_sp, struct fib_info *fi)
 	nh_grp = kzalloc(struct_size(nh_grp, nexthops, nhs), GFP_KERNEL);
 	if (!nh_grp)
 		return ERR_PTR(-ENOMEM);
-	nh_grp->priv = fi;
 	INIT_LIST_HEAD(&nh_grp->fib_list);
 	nh_grp->type = MLXSW_SP_NEXTHOP_GROUP_TYPE_IPV4;
 
 	nh_grp->gateway = mlxsw_sp_fi_is_gateway(mlxsw_sp, fi);
 	nh_grp->count = nhs;
+	nh_grp->ipv4.fi = fi;
 	fib_info_hold(fi);
 	for (i = 0; i < nh_grp->count; i++) {
 		nh = &nh_grp->nexthops[i];
@@ -4146,7 +4144,7 @@ mlxsw_sp_nexthop4_group_destroy(struct mlxsw_sp *mlxsw_sp,
 	}
 	mlxsw_sp_nexthop_group_refresh(mlxsw_sp, nh_grp);
 	WARN_ON_ONCE(nh_grp->adj_index_valid);
-	fib_info_put(mlxsw_sp_nexthop4_group_fi(nh_grp));
+	fib_info_put(nh_grp->ipv4.fi);
 	kfree(nh_grp);
 }
 
