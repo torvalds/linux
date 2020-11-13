@@ -5352,7 +5352,6 @@ static bool mlxsw_sp_nexthop6_ipip_type(const struct mlxsw_sp *mlxsw_sp,
 }
 
 static int mlxsw_sp_nexthop6_type_init(struct mlxsw_sp *mlxsw_sp,
-				       struct mlxsw_sp_nexthop_group *nh_grp,
 				       struct mlxsw_sp_nexthop *nh,
 				       const struct net_device *dev)
 {
@@ -5415,7 +5414,7 @@ static int mlxsw_sp_nexthop6_init(struct mlxsw_sp *mlxsw_sp,
 		return 0;
 	nh->ifindex = dev->ifindex;
 
-	return mlxsw_sp_nexthop6_type_init(mlxsw_sp, nh_grp, nh, dev);
+	return mlxsw_sp_nexthop6_type_init(mlxsw_sp, nh, dev);
 }
 
 static void mlxsw_sp_nexthop6_fini(struct mlxsw_sp *mlxsw_sp,
