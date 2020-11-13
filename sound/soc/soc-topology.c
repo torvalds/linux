@@ -2017,7 +2017,7 @@ static void set_link_hw_format(struct snd_soc_dai_link *link,
 			struct snd_soc_tplg_link_config *cfg)
 {
 	struct snd_soc_tplg_hw_config *hw_config;
-	unsigned char bclk_master, fsync_master;
+	unsigned char bclk_provider, fsync_provider;
 	unsigned char invert_bclk, invert_fsync;
 	int i;
 
@@ -2057,18 +2057,18 @@ static void set_link_hw_format(struct snd_soc_dai_link *link,
 			link->dai_fmt |= SND_SOC_DAIFMT_IB_IF;
 
 		/* clock masters */
-		bclk_master = (hw_config->bclk_master ==
-			       SND_SOC_TPLG_BCLK_CM);
-		fsync_master = (hw_config->fsync_master ==
-				SND_SOC_TPLG_FSYNC_CM);
-		if (bclk_master && fsync_master)
-			link->dai_fmt |= SND_SOC_DAIFMT_CBM_CFM;
-		else if (!bclk_master && fsync_master)
-			link->dai_fmt |= SND_SOC_DAIFMT_CBS_CFM;
-		else if (bclk_master && !fsync_master)
-			link->dai_fmt |= SND_SOC_DAIFMT_CBM_CFS;
+		bclk_provider = (hw_config->bclk_provider ==
+			       SND_SOC_TPLG_BCLK_CP);
+		fsync_provider = (hw_config->fsync_provider ==
+				SND_SOC_TPLG_FSYNC_CP);
+		if (bclk_provider && fsync_provider)
+			link->dai_fmt |= SND_SOC_DAIFMT_CBP_CFP;
+		else if (!bclk_provider && fsync_provider)
+			link->dai_fmt |= SND_SOC_DAIFMT_CBC_CFP;
+		else if (bclk_provider && !fsync_provider)
+			link->dai_fmt |= SND_SOC_DAIFMT_CBP_CFC;
 		else
-			link->dai_fmt |= SND_SOC_DAIFMT_CBS_CFS;
+			link->dai_fmt |= SND_SOC_DAIFMT_CBC_CFC;
 	}
 }
 

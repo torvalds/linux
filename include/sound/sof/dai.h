@@ -34,15 +34,21 @@
 #define SOF_DAI_FMT_IB_NF	(3 << 8) /**< invert BCLK + nor FRM */
 #define SOF_DAI_FMT_IB_IF	(4 << 8) /**< invert BCLK + FRM */
 
-#define SOF_DAI_FMT_CBM_CFM	(0 << 12) /**< codec clk & FRM master */
-#define SOF_DAI_FMT_CBS_CFM	(2 << 12) /**< codec clk slave & FRM master */
-#define SOF_DAI_FMT_CBM_CFS	(3 << 12) /**< codec clk master & frame slave */
-#define SOF_DAI_FMT_CBS_CFS	(4 << 12) /**< codec clk & FRM slave */
+#define SOF_DAI_FMT_CBP_CFP	(0 << 12) /**< codec bclk provider & frame provider */
+#define SOF_DAI_FMT_CBC_CFP	(2 << 12) /**< codec bclk consumer & frame provider */
+#define SOF_DAI_FMT_CBP_CFC	(3 << 12) /**< codec bclk provider & frame consumer */
+#define SOF_DAI_FMT_CBC_CFC	(4 << 12) /**< codec bclk consumer & frame consumer */
+
+/* keep old definitions for backwards compatibility */
+#define SOF_DAI_FMT_CBM_CFM	SOF_DAI_FMT_CBP_CFP
+#define SOF_DAI_FMT_CBS_CFM	SOF_DAI_FMT_CBC_CFP
+#define SOF_DAI_FMT_CBM_CFS	SOF_DAI_FMT_CBP_CFC
+#define SOF_DAI_FMT_CBS_CFS	SOF_DAI_FMT_CBC_CFC
 
 #define SOF_DAI_FMT_FORMAT_MASK		0x000f
 #define SOF_DAI_FMT_CLOCK_MASK		0x00f0
 #define SOF_DAI_FMT_INV_MASK		0x0f00
-#define SOF_DAI_FMT_MASTER_MASK		0xf000
+#define SOF_DAI_FMT_CLOCK_PROVIDER_MASK	0xf000
 
 /** \brief Types of DAI */
 enum sof_ipc_dai_type {
