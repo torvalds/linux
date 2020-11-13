@@ -1052,25 +1052,8 @@ static int ezusb_read_ltv(struct hermes *hw, int bap, u16 rid,
 static int ezusb_doicmd_wait(struct hermes *hw, u16 cmd, u16 parm0, u16 parm1,
 			     u16 parm2, struct hermes_response *resp)
 {
-	struct ezusb_priv *upriv = hw->priv;
-	struct request_context *ctx;
-
-	__le16 data[4] = {
-		cpu_to_le16(cmd),
-		cpu_to_le16(parm0),
-		cpu_to_le16(parm1),
-		cpu_to_le16(parm2),
-	};
-	netdev_dbg(upriv->dev,
-		   "0x%04X, parm0 0x%04X, parm1 0x%04X, parm2 0x%04X\n", cmd,
-		   parm0, parm1, parm2);
-	ctx = ezusb_alloc_ctx(upriv, EZUSB_RID_DOCMD, EZUSB_RID_ACK);
-	if (!ctx)
-		return -ENOMEM;
-
-	return ezusb_access_ltv(upriv, ctx, sizeof(data), &data,
-				EZUSB_FRAME_CONTROL, NULL, 0, NULL,
-				ezusb_req_ctx_wait);
+	WARN_ON_ONCE(1);
+	return -EINVAL;
 }
 
 static int __ezusb_docmd_wait(struct hermes *hw, u16 cmd, u16 parm0,
