@@ -175,6 +175,9 @@ struct adf_hw_device_data {
 	void (*enable_ints)(struct adf_accel_dev *accel_dev);
 	int (*enable_vf2pf_comms)(struct adf_accel_dev *accel_dev);
 	void (*reset_device)(struct adf_accel_dev *accel_dev);
+	char *(*uof_get_name)(u32 obj_num);
+	u32 (*uof_get_num_objs)(void);
+	u32 (*uof_get_ae_mask)(u32 obj_num);
 	struct adf_hw_csr_ops csr_ops;
 	const char *fw_name;
 	const char *fw_mmp_name;
