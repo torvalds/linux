@@ -56,8 +56,8 @@ DECLARE_EVENT_CLASS(ci_log_trb,
 		__entry->td = td;
 		__entry->dma = td->dma;
 		__entry->td_remaining_size = td->td_remaining_size;
-		__entry->next = td->ptr->next;
-		__entry->token = td->ptr->token;
+		__entry->next = le32_to_cpu(td->ptr->next);
+		__entry->token = le32_to_cpu(td->ptr->token);
 		__entry->type = usb_endpoint_type(hwep->ep.desc);
 	),
 	TP_printk("%s: req: %p, td: %p, td_dma_address: %pad, remaining_size: %d, "
