@@ -431,8 +431,7 @@ static int soc_compr_pointer(struct snd_compr_stream *cstream,
 			     struct snd_compr_tstamp *tstamp)
 {
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
-	struct snd_soc_component *component;
-	int i, ret = 0;
+	int ret;
 	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
 
 	mutex_lock_nested(&rtd->card->pcm_mutex, rtd->card->pcm_subclass);
@@ -441,15 +440,7 @@ static int soc_compr_pointer(struct snd_compr_stream *cstream,
 	if (ret < 0)
 		goto out;
 
-	for_each_rtd_components(rtd, i, component) {
-		if (!component->driver->compress_ops ||
-		    !component->driver->compress_ops->pointer)
-			continue;
-
-		ret = component->driver->compress_ops->pointer(
-			component, cstream, tstamp);
-		break;
-	}
+	ret = snd_soc_component_compr_pointer(cstream, tstamp);
 out:
 	mutex_unlock(&rtd->card->pcm_mutex);
 	return ret;

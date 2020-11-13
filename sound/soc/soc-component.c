@@ -591,6 +591,26 @@ int snd_soc_component_compr_ack(struct snd_compr_stream *cstream, size_t bytes)
 }
 EXPORT_SYMBOL_GPL(snd_soc_component_compr_ack);
 
+int snd_soc_component_compr_pointer(struct snd_compr_stream *cstream,
+				    struct snd_compr_tstamp *tstamp)
+{
+	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
+	struct snd_soc_component *component;
+	int i, ret;
+
+	for_each_rtd_components(rtd, i, component) {
+		if (component->driver->compress_ops &&
+		    component->driver->compress_ops->pointer) {
+			ret = component->driver->compress_ops->pointer(
+				component, cstream, tstamp);
+			return soc_component_ret(component, ret);
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_compr_pointer);
+
 static unsigned int soc_component_read_no_lock(
 	struct snd_soc_component *component,
 	unsigned int reg)
