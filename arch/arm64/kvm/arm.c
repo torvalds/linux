@@ -1420,7 +1420,7 @@ static void cpu_hyp_reset(void)
  */
 static void cpu_set_hyp_vector(void)
 {
-	struct bp_hardening_data *data = arm64_get_bp_hardening_data();
+	struct bp_hardening_data *data = this_cpu_ptr(&bp_hardening_data);
 	void *vect = kern_hyp_va(kvm_ksym_ref(__kvm_hyp_vector));
 	int slot = -1;
 
