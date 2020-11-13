@@ -118,6 +118,32 @@
 	power-supply = <&vcc3v3_lcd0_n>;
 };
 
+&i2c2 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2m1_xfer>;
+
+	mxc6655xa: mxc6655xa@15 {
+		status = "okay";
+		compatible = "gs_mxc6655xa";
+		pinctrl-names = "default";
+		pinctrl-0 = <&mxc6655xa_irq_gpio>;
+		reg = <0x15>;
+		irq-gpio = <&gpio3 RK_PC1 IRQ_TYPE_LEVEL_LOW>;
+		irq_enable = <0>;
+		poll_delay_ms = <30>;
+		type = <SENSOR_TYPE_ACCEL>;
+		power-off-in-suspend = <1>;
+		layout = <4>;
+	};
+};
+
+&i2c5 {
+	status = "disabled";
+
+	/delete-node/ mxc6655xa@15;
+};
+
 &mipi_dphy0 {
 	status = "okay";
 };
