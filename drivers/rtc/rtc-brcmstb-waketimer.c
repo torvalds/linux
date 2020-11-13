@@ -264,8 +264,7 @@ err_notifier:
 	unregister_reboot_notifier(&timer->reboot_notifier);
 
 err_clk:
-	if (timer->clk)
-		clk_disable_unprepare(timer->clk);
+	clk_disable_unprepare(timer->clk);
 
 	return ret;
 }
