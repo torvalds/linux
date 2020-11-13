@@ -604,8 +604,7 @@ const struct dentry_operations kernfs_dops = {
  */
 struct kernfs_node *kernfs_node_from_dentry(struct dentry *dentry)
 {
-	if (dentry->d_sb->s_op == &kernfs_sops &&
-	    !d_really_is_negative(dentry))
+	if (dentry->d_sb->s_op == &kernfs_sops)
 		return kernfs_dentry_node(dentry);
 	return NULL;
 }
