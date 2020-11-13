@@ -126,7 +126,7 @@ config RDA_TIMER
 	  Enables the support for the RDA Micro timer driver.
 
 config SUN4I_TIMER
-	bool "Sun4i timer driver" if COMPILE_TEST
+	bool "Sun4i timer driver"
 	depends on HAS_IOMEM
 	select CLKSRC_MMIO
 	select TIMER_OF
