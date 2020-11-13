@@ -3893,24 +3893,9 @@ static bool mlxsw_sp_nexthop4_ipip_type(const struct mlxsw_sp *mlxsw_sp,
 	       mlxsw_sp_netdev_ipip_type(mlxsw_sp, dev, p_ipipt);
 }
 
-static void mlxsw_sp_nexthop_type_fini(struct mlxsw_sp *mlxsw_sp,
-				       struct mlxsw_sp_nexthop *nh)
-{
-	switch (nh->type) {
-	case MLXSW_SP_NEXTHOP_TYPE_ETH:
-		mlxsw_sp_nexthop_neigh_fini(mlxsw_sp, nh);
-		mlxsw_sp_nexthop_rif_fini(nh);
-		break;
-	case MLXSW_SP_NEXTHOP_TYPE_IPIP:
-		mlxsw_sp_nexthop_rif_fini(nh);
-		mlxsw_sp_nexthop_ipip_fini(mlxsw_sp, nh);
-		break;
-	}
-}
-
-static int mlxsw_sp_nexthop4_type_init(struct mlxsw_sp *mlxsw_sp,
-				       struct mlxsw_sp_nexthop *nh,
-				       const struct net_device *dev)
+static int mlxsw_sp_nexthop_type_init(struct mlxsw_sp *mlxsw_sp,
+				      struct mlxsw_sp_nexthop *nh,
+				      const struct net_device *dev)
 {
 	const struct mlxsw_sp_ipip_ops *ipip_ops;
 	struct mlxsw_sp_ipip_entry *ipip_entry;
@@ -3942,6 +3927,21 @@ static int mlxsw_sp_nexthop4_type_init(struct mlxsw_sp *mlxsw_sp,
 err_neigh_init:
 	mlxsw_sp_nexthop_rif_fini(nh);
 	return err;
+}
+
+static void mlxsw_sp_nexthop_type_fini(struct mlxsw_sp *mlxsw_sp,
+				       struct mlxsw_sp_nexthop *nh)
+{
+	switch (nh->type) {
+	case MLXSW_SP_NEXTHOP_TYPE_ETH:
+		mlxsw_sp_nexthop_neigh_fini(mlxsw_sp, nh);
+		mlxsw_sp_nexthop_rif_fini(nh);
+		break;
+	case MLXSW_SP_NEXTHOP_TYPE_IPIP:
+		mlxsw_sp_nexthop_rif_fini(nh);
+		mlxsw_sp_nexthop_ipip_fini(mlxsw_sp, nh);
+		break;
+	}
 }
 
 static void mlxsw_sp_nexthop4_type_fini(struct mlxsw_sp *mlxsw_sp,
@@ -3987,7 +3987,7 @@ static int mlxsw_sp_nexthop4_init(struct mlxsw_sp *mlxsw_sp,
 	}
 	rcu_read_unlock();
 
-	err = mlxsw_sp_nexthop4_type_init(mlxsw_sp, nh, dev);
+	err = mlxsw_sp_nexthop_type_init(mlxsw_sp, nh, dev);
 	if (err)
 		goto err_nexthop_neigh_init;
 
@@ -4023,7 +4023,7 @@ static void mlxsw_sp_nexthop4_event(struct mlxsw_sp *mlxsw_sp,
 
 	switch (event) {
 	case FIB_EVENT_NH_ADD:
-		mlxsw_sp_nexthop4_type_init(mlxsw_sp, nh, fib_nh->fib_nh_dev);
+		mlxsw_sp_nexthop_type_init(mlxsw_sp, nh, fib_nh->fib_nh_dev);
 		break;
 	case FIB_EVENT_NH_DEL:
 		mlxsw_sp_nexthop4_type_fini(mlxsw_sp, nh);
@@ -5351,42 +5351,6 @@ static bool mlxsw_sp_nexthop6_ipip_type(const struct mlxsw_sp *mlxsw_sp,
 	       mlxsw_sp_netdev_ipip_type(mlxsw_sp, rt->fib6_nh->fib_nh_dev, ret);
 }
 
-static int mlxsw_sp_nexthop6_type_init(struct mlxsw_sp *mlxsw_sp,
-				       struct mlxsw_sp_nexthop *nh,
-				       const struct net_device *dev)
-{
-	const struct mlxsw_sp_ipip_ops *ipip_ops;
-	struct mlxsw_sp_ipip_entry *ipip_entry;
-	struct mlxsw_sp_rif *rif;
-	int err;
-
-	ipip_entry = mlxsw_sp_ipip_entry_find_by_ol_dev(mlxsw_sp, dev);
-	if (ipip_entry) {
-		ipip_ops = mlxsw_sp->router->ipip_ops_arr[ipip_entry->ipipt];
-		if (ipip_ops->can_offload(mlxsw_sp, dev)) {
-			nh->type = MLXSW_SP_NEXTHOP_TYPE_IPIP;
-			mlxsw_sp_nexthop_ipip_init(mlxsw_sp, nh, ipip_entry);
-			return 0;
-		}
-	}
-
-	nh->type = MLXSW_SP_NEXTHOP_TYPE_ETH;
-	rif = mlxsw_sp_rif_find_by_dev(mlxsw_sp, dev);
-	if (!rif)
-		return 0;
-	mlxsw_sp_nexthop_rif_init(nh, rif);
-
-	err = mlxsw_sp_nexthop_neigh_init(mlxsw_sp, nh);
-	if (err)
-		goto err_nexthop_neigh_init;
-
-	return 0;
-
-err_nexthop_neigh_init:
-	mlxsw_sp_nexthop_rif_fini(nh);
-	return err;
-}
-
 static void mlxsw_sp_nexthop6_type_fini(struct mlxsw_sp *mlxsw_sp,
 					struct mlxsw_sp_nexthop *nh)
 {
@@ -5414,7 +5378,7 @@ static int mlxsw_sp_nexthop6_init(struct mlxsw_sp *mlxsw_sp,
 		return 0;
 	nh->ifindex = dev->ifindex;
 
-	return mlxsw_sp_nexthop6_type_init(mlxsw_sp, nh, dev);
+	return mlxsw_sp_nexthop_type_init(mlxsw_sp, nh, dev);
 }
 
 static void mlxsw_sp_nexthop6_fini(struct mlxsw_sp *mlxsw_sp,
