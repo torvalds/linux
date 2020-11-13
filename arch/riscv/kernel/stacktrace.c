@@ -12,14 +12,11 @@
 #include <linux/stacktrace.h>
 #include <linux/ftrace.h>
 
+#include <asm/stacktrace.h>
+
 register unsigned long sp_in_global __asm__("sp");
 
 #ifdef CONFIG_FRAME_POINTER
-
-struct stackframe {
-	unsigned long fp;
-	unsigned long ra;
-};
 
 void notrace walk_stackframe(struct task_struct *task, struct pt_regs *regs,
 			     bool (*fn)(unsigned long, void *), void *arg)
@@ -96,7 +93,6 @@ void notrace walk_stackframe(struct task_struct *task,
 
 #endif /* CONFIG_FRAME_POINTER */
 
-
 static bool print_trace_address(unsigned long pc, void *arg)
 {
 	const char *loglvl = arg;
@@ -129,7 +125,6 @@ unsigned long get_wchan(struct task_struct *task)
 		walk_stackframe(task, NULL, save_wchan, &pc);
 	return pc;
 }
-
 
 #ifdef CONFIG_STACKTRACE
 
