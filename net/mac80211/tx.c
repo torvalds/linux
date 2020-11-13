@@ -38,16 +38,6 @@
 
 /* misc utils */
 
-static inline void ieee80211_tx_stats(struct net_device *dev, u32 len)
-{
-	struct pcpu_sw_netstats *tstats = this_cpu_ptr(dev->tstats);
-
-	u64_stats_update_begin(&tstats->syncp);
-	tstats->tx_packets++;
-	tstats->tx_bytes += len;
-	u64_stats_update_end(&tstats->syncp);
-}
-
 static __le16 ieee80211_duration(struct ieee80211_tx_data *tx,
 				 struct sk_buff *skb, int group_addr,
 				 int next_frag_len)
@@ -3386,7 +3376,7 @@ static void ieee80211_xmit_fast_finish(struct ieee80211_sub_if_data *sdata,
 	if (key)
 		info->control.hw_key = &key->conf;
 
-	ieee80211_tx_stats(skb->dev, skb->len);
+	dev_sw_netstats_tx_add(skb->dev, 1, skb->len);
 
 	if (hdr->frame_control & cpu_to_le16(IEEE80211_STYPE_QOS_DATA)) {
 		tid = skb->priority & IEEE80211_QOS_CTL_TAG1D_MASK;
@@ -4004,7 +3994,7 @@ void __ieee80211_subif_start_xmit(struct sk_buff *skb,
 			goto out;
 		}
 
-		ieee80211_tx_stats(dev, skb->len);
+		dev_sw_netstats_tx_add(dev, 1, skb->len);
 
 		ieee80211_xmit(sdata, sta, skb);
 	}
@@ -4231,7 +4221,7 @@ static void ieee80211_8023_xmit(struct ieee80211_sub_if_data *sdata,
 
 	info->hw_queue = sdata->vif.hw_queue[skb_get_queue_mapping(skb)];
 
-	ieee80211_tx_stats(dev, skb->len);
+	dev_sw_netstats_tx_add(dev, 1, skb->len);
 
 	sta->tx_stats.bytes[skb_get_queue_mapping(skb)] += skb->len;
 	sta->tx_stats.packets[skb_get_queue_mapping(skb)]++;
