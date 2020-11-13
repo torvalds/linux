@@ -1114,6 +1114,25 @@ drm_fourcc_canonicalize_nvidia_format_mod(__u64 modifier)
  *
  * For multi-plane formats the above surfaces get merged into one plane for
  * each format plane, based on the required alignment only.
+ *
+ * Bits  Parameter                Notes
+ * ----- ------------------------ ---------------------------------------------
+ *
+ *   7:0 TILE_VERSION             Values are AMD_FMT_MOD_TILE_VER_*
+ *  12:8 TILE                     Values are AMD_FMT_MOD_TILE_<version>_*
+ *    13 DCC
+ *    14 DCC_RETILE
+ *    15 DCC_PIPE_ALIGN
+ *    16 DCC_INDEPENDENT_64B
+ *    17 DCC_INDEPENDENT_128B
+ * 19:18 DCC_MAX_COMPRESSED_BLOCK Values are AMD_FMT_MOD_DCC_BLOCK_*
+ *    20 DCC_CONSTANT_ENCODE
+ * 23:21 PIPE_XOR_BITS            Only for some chips
+ * 26:24 BANK_XOR_BITS            Only for some chips
+ * 29:27 PACKERS                  Only for some chips
+ * 32:30 RB                       Only for some chips
+ * 35:33 PIPE                     Only for some chips
+ * 55:36 -                        Reserved for future use, must be zero
  */
 #define AMD_FMT_MOD fourcc_mod_code(AMD, 0)
 
