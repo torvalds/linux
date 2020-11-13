@@ -74,8 +74,10 @@ static int __init aspeed_socinfo_init(void)
 	}
 
 	reg = of_iomap(np, 0);
-	if (!reg)
+	if (!reg) {
+		of_node_put(np);
 		return -ENODEV;
+	}
 	siliconid = readl(reg);
 	iounmap(reg);
 
