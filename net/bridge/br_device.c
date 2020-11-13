@@ -207,6 +207,7 @@ static void br_get_stats64(struct net_device *dev,
 {
 	struct net_bridge *br = netdev_priv(dev);
 
+	netdev_stats_to_stats64(stats, &dev->stats);
 	dev_fetch_sw_netstats(stats, br->stats);
 }
 
