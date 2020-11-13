@@ -540,6 +540,46 @@
 				 <&k3_clks 152 18>;	/* PLL23_HSDIV0 */
 };
 
+&mcasp0 {
+	status = "disabled";
+};
+
+&mcasp1 {
+	status = "disabled";
+};
+
+&mcasp2 {
+	status = "disabled";
+};
+
+&mcasp3 {
+	status = "disabled";
+};
+
+&mcasp4 {
+	status = "disabled";
+};
+
+&mcasp5 {
+	status = "disabled";
+};
+
+&mcasp6 {
+	status = "disabled";
+};
+
+&mcasp7 {
+	status = "disabled";
+};
+
+&mcasp8 {
+	status = "disabled";
+};
+
+&mcasp9 {
+	status = "disabled";
+};
+
 &mcasp10 {
 	#sound-dai-cells = <0>;
 
@@ -556,8 +596,10 @@
 	>;
 	tx-num-evt = <0>;
 	rx-num-evt = <0>;
+};
 
-	status = "okay";
+&mcasp11 {
+	status = "disabled";
 };
 
 &serdes0 {
@@ -637,5 +679,9 @@
 };
 
 &pcie3_ep {
+	status = "disabled";
+};
+
+&dss {
 	status = "disabled";
 };
