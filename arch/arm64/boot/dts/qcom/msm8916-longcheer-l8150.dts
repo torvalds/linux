@@ -67,6 +67,44 @@
 	};
 };
 
+&blsp_i2c2 {
+	status = "okay";
+
+	accelerometer@10 {
+		compatible = "bosch,bmc150_accel";
+		reg = <0x10>;
+
+		vdd-supply = <&pm8916_l17>;
+		vddio-supply = <&pm8916_l6>;
+
+		mount-matrix = "0", "1", "0",
+			      "-1", "0", "0",
+			       "0", "0", "1";
+	};
+
+	magnetometer@12 {
+		compatible = "bosch,bmc150_magn";
+		reg = <0x12>;
+
+		vdd-supply = <&pm8916_l17>;
+		vddio-supply = <&pm8916_l6>;
+	};
+
+	gyroscope@68 {
+		compatible = "bosch,bmg160";
+		reg = <0x68>;
+
+		interrupt-parent = <&msmgpio>;
+		interrupts = <23 IRQ_TYPE_EDGE_RISING>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&gyro_int_default>;
+
+		vdd-supply = <&pm8916_l17>;
+		vddio-supply = <&pm8916_l6>;
+	};
+};
+
 &blsp_i2c5 {
 	status = "okay";
 
@@ -262,6 +300,14 @@
 
 		drive-strength = <2>;
 		bias-pull-up;
+	};
+
+	gyro_int_default: gyro-int-default {
+		pins = "gpio23";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
 	};
 
 	tp_int_default: tp-int-default {
