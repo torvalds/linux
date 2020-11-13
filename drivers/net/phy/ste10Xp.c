@@ -48,32 +48,37 @@ static int ste10Xp_config_init(struct phy_device *phydev)
 	return 0;
 }
 
-static int ste10Xp_config_intr(struct phy_device *phydev)
-{
-	int err, value;
-
-	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
-		/* Enable all STe101P interrupts (PR12) */
-		err = phy_write(phydev, MII_XIE, MII_XIE_DEFAULT_MASK);
-		/* clear any pending interrupts */
-		if (err == 0) {
-			value = phy_read(phydev, MII_XCIIS);
-			if (value < 0)
-				err = value;
-		}
-	} else
-		err = phy_write(phydev, MII_XIE, 0);
-
-	return err;
-}
-
 static int ste10Xp_ack_interrupt(struct phy_device *phydev)
 {
 	int err = phy_read(phydev, MII_XCIIS);
+
 	if (err < 0)
 		return err;
 
 	return 0;
+}
+
+static int ste10Xp_config_intr(struct phy_device *phydev)
+{
+	int err;
+
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		/* clear any pending interrupts */
+		err = ste10Xp_ack_interrupt(phydev);
+		if (err)
+			return err;
+
+		/* Enable all STe101P interrupts (PR12) */
+		err = phy_write(phydev, MII_XIE, MII_XIE_DEFAULT_MASK);
+	} else {
+		err = phy_write(phydev, MII_XIE, 0);
+		if (err)
+			return err;
+
+		err = ste10Xp_ack_interrupt(phydev);
+	}
+
+	return err;
 }
 
 static irqreturn_t ste10Xp_handle_interrupt(struct phy_device *phydev)
@@ -101,7 +106,6 @@ static struct phy_driver ste10xp_pdriver[] = {
 	.name = "STe101p",
 	/* PHY_BASIC_FEATURES */
 	.config_init = ste10Xp_config_init,
-	.ack_interrupt = ste10Xp_ack_interrupt,
 	.config_intr = ste10Xp_config_intr,
 	.handle_interrupt = ste10Xp_handle_interrupt,
 	.suspend = genphy_suspend,
@@ -112,7 +116,6 @@ static struct phy_driver ste10xp_pdriver[] = {
 	.name = "STe100p",
 	/* PHY_BASIC_FEATURES */
 	.config_init = ste10Xp_config_init,
-	.ack_interrupt = ste10Xp_ack_interrupt,
 	.config_intr = ste10Xp_config_intr,
 	.handle_interrupt = ste10Xp_handle_interrupt,
 	.suspend = genphy_suspend,
