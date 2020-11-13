@@ -217,27 +217,6 @@ static int soc_compr_free_fe(struct snd_compr_stream *cstream)
 	return 0;
 }
 
-static int soc_compr_components_trigger(struct snd_compr_stream *cstream,
-					int cmd)
-{
-	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
-	struct snd_soc_component *component;
-	int i, ret;
-
-	for_each_rtd_components(rtd, i, component) {
-		if (!component->driver->compress_ops ||
-		    !component->driver->compress_ops->trigger)
-			continue;
-
-		ret = component->driver->compress_ops->trigger(
-			component, cstream, cmd);
-		if (ret < 0)
-			return ret;
-	}
-
-	return 0;
-}
-
 static int soc_compr_trigger(struct snd_compr_stream *cstream, int cmd)
 {
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
@@ -248,7 +227,7 @@ static int soc_compr_trigger(struct snd_compr_stream *cstream, int cmd)
 
 	mutex_lock_nested(&rtd->card->pcm_mutex, rtd->card->pcm_subclass);
 
-	ret = soc_compr_components_trigger(cstream, cmd);
+	ret = snd_soc_component_compr_trigger(cstream, cmd);
 	if (ret < 0)
 		goto out;
 
@@ -279,7 +258,7 @@ static int soc_compr_trigger_fe(struct snd_compr_stream *cstream, int cmd)
 
 	if (cmd == SND_COMPR_TRIGGER_PARTIAL_DRAIN ||
 	    cmd == SND_COMPR_TRIGGER_DRAIN)
-		return soc_compr_components_trigger(cstream, cmd);
+		return snd_soc_component_compr_trigger(cstream, cmd);
 
 	mutex_lock_nested(&fe->card->mutex, SND_SOC_CARD_CLASS_RUNTIME);
 
@@ -287,7 +266,7 @@ static int soc_compr_trigger_fe(struct snd_compr_stream *cstream, int cmd)
 	if (ret < 0)
 		goto out;
 
-	ret = soc_compr_components_trigger(cstream, cmd);
+	ret = snd_soc_component_compr_trigger(cstream, cmd);
 	if (ret < 0)
 		goto out;
 
