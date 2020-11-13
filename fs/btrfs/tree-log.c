@@ -172,7 +172,6 @@ static int start_log_trans(struct btrfs_trans_handle *trans,
 		root->log_start_pid = current->pid;
 	}
 
-	atomic_inc(&root->log_batch);
 	atomic_inc(&root->log_writers);
 	if (ctx && !ctx->logging_new_name) {
 		int index = root->log_transid % 2;
