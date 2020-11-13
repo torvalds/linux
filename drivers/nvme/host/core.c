@@ -2929,7 +2929,7 @@ int nvme_get_log(struct nvme_ctrl *ctrl, u32 nsid, u8 log_page, u8 lsp, u8 csi,
 static int nvme_get_effects_log(struct nvme_ctrl *ctrl, u8 csi,
 				struct nvme_effects_log **log)
 {
-	struct nvme_cel *cel = xa_load(&ctrl->cels, csi);
+	struct nvme_effects_log	*cel = xa_load(&ctrl->cels, csi);
 	int ret;
 
 	if (cel)
@@ -2940,16 +2940,15 @@ static int nvme_get_effects_log(struct nvme_ctrl *ctrl, u8 csi,
 		return -ENOMEM;
 
 	ret = nvme_get_log(ctrl, 0x00, NVME_LOG_CMD_EFFECTS, 0, csi,
-			&cel->log, sizeof(cel->log), 0);
+			cel, sizeof(*cel), 0);
 	if (ret) {
 		kfree(cel);
 		return ret;
 	}
 
-	cel->csi = csi;
-	xa_store(&ctrl->cels, cel->csi, cel, GFP_KERNEL);
+	xa_store(&ctrl->cels, csi, cel, GFP_KERNEL);
 out:
-	*log = &cel->log;
+	*log = cel;
 	return 0;
 }
 
