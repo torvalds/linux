@@ -230,7 +230,7 @@ static struct mpp_hw_info rkvenc_hw_info = {
 static const u16 trans_tbl_h264e[] = {
 	70, 71, 72, 73, 74, 75, 76, 77, 78, 79,
 	80, 81, 82, 83, 84, 85, 86, 124, 125,
-	126, 127, 128, 129, 130, 131
+	126, 127, 128, 129, 130, 131, 95, 96
 };
 
 static const u16 trans_tbl_h265e[] = {
@@ -346,6 +346,7 @@ static void *rkvenc_alloc_task(struct mpp_session *session,
 	ret = rkvenc_extract_task_msg(task, msgs);
 	if (ret)
 		goto fail;
+	task->fmt = RKVENC_GET_FORMAT(task->reg[RKVENC_ENC_PIC_INDEX]);
 	/* process fd in register */
 	if (!(msgs->flags & MPP_FLAGS_REG_FD_NO_TRANS)) {
 		ret = mpp_translate_reg_address(session,
@@ -485,6 +486,7 @@ static int rkvenc_irq(struct mpp_dev *mpp)
 	if (!mpp->irq_status)
 		return IRQ_NONE;
 
+	mpp_write(mpp, RKVENC_INT_MSK_BASE, 0x100);
 	mpp_write(mpp, RKVENC_INT_CLR_BASE, 0xffffffff);
 	udelay(5);
 	mpp_write(mpp, RKVENC_INT_STATUS_BASE, 0);
