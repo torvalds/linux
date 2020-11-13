@@ -177,7 +177,8 @@ static void __init exynos_dt_machine_init(void)
 	if (of_machine_is_compatible("samsung,exynos4210") ||
 	    (of_machine_is_compatible("samsung,exynos4412") &&
 	     (of_machine_is_compatible("samsung,trats2") ||
-		  of_machine_is_compatible("samsung,midas"))) ||
+		  of_machine_is_compatible("samsung,midas") ||
+		  of_machine_is_compatible("samsung,p4note"))) ||
 	    of_machine_is_compatible("samsung,exynos3250") ||
 	    of_machine_is_compatible("samsung,exynos5250"))
 		platform_device_register(&exynos_cpuidle);
