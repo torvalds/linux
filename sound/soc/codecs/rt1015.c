@@ -544,7 +544,7 @@ static void rt1015_flush_work(struct work_struct *work)
 	struct rt1015_priv *rt1015 = container_of(work, struct rt1015_priv,
 						flush_work.work);
 	struct snd_soc_component *component = rt1015->component;
-	unsigned int val, i = 0, count = 20;
+	unsigned int val, i = 0, count = 200;
 
 	while (i < count) {
 		usleep_range(1000, 1500);
