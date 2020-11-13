@@ -3041,6 +3041,12 @@ mlxsw_sp_nexthop6_group_cmp(const struct mlxsw_sp_nexthop_group *nh_grp,
 }
 
 static int
+mlxsw_sp_nexthop_group_type(const struct mlxsw_sp_nexthop_group *nh_grp)
+{
+	return nh_grp->neigh_tbl->family;
+}
+
+static int
 mlxsw_sp_nexthop_group_cmp(struct rhashtable_compare_arg *arg, const void *ptr)
 {
 	const struct mlxsw_sp_nexthop_group_cmp_arg *cmp_arg = arg->key;
@@ -3048,20 +3054,18 @@ mlxsw_sp_nexthop_group_cmp(struct rhashtable_compare_arg *arg, const void *ptr)
 
 	switch (cmp_arg->proto) {
 	case MLXSW_SP_L3_PROTO_IPV4:
+		if (mlxsw_sp_nexthop_group_type(nh_grp) != AF_INET)
+			return 1;
 		return cmp_arg->fi != mlxsw_sp_nexthop4_group_fi(nh_grp);
 	case MLXSW_SP_L3_PROTO_IPV6:
+		if (mlxsw_sp_nexthop_group_type(nh_grp) != AF_INET6)
+			return 1;
 		return !mlxsw_sp_nexthop6_group_cmp(nh_grp,
 						    cmp_arg->fib6_entry);
 	default:
 		WARN_ON(1);
 		return 1;
 	}
-}
-
-static int
-mlxsw_sp_nexthop_group_type(const struct mlxsw_sp_nexthop_group *nh_grp)
-{
-	return nh_grp->neigh_tbl->family;
 }
 
 static u32 mlxsw_sp_nexthop_group_hash_obj(const void *data, u32 len, u32 seed)
