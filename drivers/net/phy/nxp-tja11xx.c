@@ -600,11 +600,24 @@ static int tja11xx_ack_interrupt(struct phy_device *phydev)
 static int tja11xx_config_intr(struct phy_device *phydev)
 {
 	int value = 0;
+	int err;
 
-	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		err = tja11xx_ack_interrupt(phydev);
+		if (err)
+			return err;
+
 		value = MII_INTEN_LINK_FAIL | MII_INTEN_LINK_UP;
+		err = phy_write(phydev, MII_INTEN, value);
+	} else {
+		err = phy_write(phydev, MII_INTEN, value);
+		if (err)
+			return err;
 
-	return phy_write(phydev, MII_INTEN, value);
+		err = tja11xx_ack_interrupt(phydev);
+	}
+
+	return err;
 }
 
 static irqreturn_t tja11xx_handle_interrupt(struct phy_device *phydev)
@@ -768,7 +781,6 @@ static struct phy_driver tja11xx_driver[] = {
 		.get_sset_count = tja11xx_get_sset_count,
 		.get_strings	= tja11xx_get_strings,
 		.get_stats	= tja11xx_get_stats,
-		.ack_interrupt	= tja11xx_ack_interrupt,
 		.config_intr	= tja11xx_config_intr,
 		.handle_interrupt = tja11xx_handle_interrupt,
 		.cable_test_start = tja11xx_cable_test_start,
@@ -792,7 +804,6 @@ static struct phy_driver tja11xx_driver[] = {
 		.get_sset_count = tja11xx_get_sset_count,
 		.get_strings	= tja11xx_get_strings,
 		.get_stats	= tja11xx_get_stats,
-		.ack_interrupt	= tja11xx_ack_interrupt,
 		.config_intr	= tja11xx_config_intr,
 		.handle_interrupt = tja11xx_handle_interrupt,
 		.cable_test_start = tja11xx_cable_test_start,
