@@ -297,7 +297,11 @@ blk_status_t btrfs_lookup_bio_sums(struct inode *inode, struct bio *bio,
 		csum = dst;
 	}
 
-	if (bio->bi_iter.bi_size > PAGE_SIZE * 8)
+	/*
+	 * If requested number of sectors is larger than one leaf can contain,
+	 * kick the readahead for csum tree.
+	 */
+	if (nblocks > fs_info->csums_per_leaf)
 		path->reada = READA_FORWARD;
 
 	/*
