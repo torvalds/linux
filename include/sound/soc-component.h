@@ -464,6 +464,8 @@ int snd_soc_component_compr_copy(struct snd_compr_stream *cstream,
 				 char __user *buf, size_t count);
 int snd_soc_component_compr_set_metadata(struct snd_compr_stream *cstream,
 					 struct snd_compr_metadata *metadata);
+int snd_soc_component_compr_get_metadata(struct snd_compr_stream *cstream,
+					 struct snd_compr_metadata *metadata);
 
 int snd_soc_pcm_component_pointer(struct snd_pcm_substream *substream);
 int snd_soc_pcm_component_ioctl(struct snd_pcm_substream *substream,

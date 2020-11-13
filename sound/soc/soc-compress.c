@@ -464,24 +464,14 @@ static int soc_compr_get_metadata(struct snd_compr_stream *cstream,
 				  struct snd_compr_metadata *metadata)
 {
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
-	struct snd_soc_component *component;
 	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
-	int i, ret;
+	int ret;
 
 	ret = snd_soc_dai_compr_get_metadata(cpu_dai, cstream, metadata);
 	if (ret < 0)
 		return ret;
 
-	for_each_rtd_components(rtd, i, component) {
-		if (!component->driver->compress_ops ||
-		    !component->driver->compress_ops->get_metadata)
-			continue;
-
-		return component->driver->compress_ops->get_metadata(
-			component, cstream, metadata);
-	}
-
-	return 0;
+	return snd_soc_component_compr_get_metadata(cstream, metadata);
 }
 
 /* ASoC Compress operations */
