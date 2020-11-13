@@ -213,9 +213,11 @@ int btrfs_setxattr(struct btrfs_trans_handle *trans, struct inode *inode,
 	}
 out:
 	btrfs_free_path(path);
-	if (!ret)
+	if (!ret) {
 		set_bit(BTRFS_INODE_COPY_EVERYTHING,
 			&BTRFS_I(inode)->runtime_flags);
+		clear_bit(BTRFS_INODE_NO_XATTRS, &BTRFS_I(inode)->runtime_flags);
+	}
 	return ret;
 }
 
