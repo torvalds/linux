@@ -394,9 +394,8 @@ static int soc_compr_get_params(struct snd_compr_stream *cstream,
 				struct snd_codec *params)
 {
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
-	struct snd_soc_component *component;
 	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
-	int i, ret = 0;
+	int ret = 0;
 
 	mutex_lock_nested(&rtd->card->pcm_mutex, rtd->card->pcm_subclass);
 
@@ -404,16 +403,7 @@ static int soc_compr_get_params(struct snd_compr_stream *cstream,
 	if (ret < 0)
 		goto err;
 
-	for_each_rtd_components(rtd, i, component) {
-		if (!component->driver->compress_ops ||
-		    !component->driver->compress_ops->get_params)
-			continue;
-
-		ret = component->driver->compress_ops->get_params(
-			component, cstream, params);
-		break;
-	}
-
+	ret = snd_soc_component_compr_get_params(cstream, params);
 err:
 	mutex_unlock(&rtd->card->pcm_mutex);
 	return ret;

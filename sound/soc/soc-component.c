@@ -503,6 +503,26 @@ int snd_soc_component_compr_set_params(struct snd_compr_stream *cstream,
 }
 EXPORT_SYMBOL_GPL(snd_soc_component_compr_set_params);
 
+int snd_soc_component_compr_get_params(struct snd_compr_stream *cstream,
+				       struct snd_codec *params)
+{
+	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
+	struct snd_soc_component *component;
+	int i, ret;
+
+	for_each_rtd_components(rtd, i, component) {
+		if (component->driver->compress_ops &&
+		    component->driver->compress_ops->get_params) {
+			ret = component->driver->compress_ops->get_params(
+				component, cstream, params);
+			return soc_component_ret(component, ret);
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_compr_get_params);
+
 static unsigned int soc_component_read_no_lock(
 	struct snd_soc_component *component,
 	unsigned int reg)
