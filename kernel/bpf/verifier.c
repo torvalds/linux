@@ -7786,9 +7786,11 @@ static int check_return_code(struct bpf_verifier_env *env)
 	struct tnum range = tnum_range(0, 1);
 	enum bpf_prog_type prog_type = resolve_prog_type(env->prog);
 	int err;
+	const bool is_subprog = env->cur_state->frame[0]->subprogno;
 
 	/* LSM and struct_ops func-ptr's return type could be "void" */
-	if ((prog_type == BPF_PROG_TYPE_STRUCT_OPS ||
+	if (!is_subprog &&
+	    (prog_type == BPF_PROG_TYPE_STRUCT_OPS ||
 	     prog_type == BPF_PROG_TYPE_LSM) &&
 	    !prog->aux->attach_func_proto->type)
 		return 0;
@@ -7806,6 +7808,16 @@ static int check_return_code(struct bpf_verifier_env *env)
 	if (is_pointer_value(env, BPF_REG_0)) {
 		verbose(env, "R0 leaks addr as return value\n");
 		return -EACCES;
+	}
+
+	reg = cur_regs(env) + BPF_REG_0;
+	if (is_subprog) {
+		if (reg->type != SCALAR_VALUE) {
+			verbose(env, "At subprogram exit the register R0 is not a scalar value (%s)\n",
+				reg_type_str[reg->type]);
+			return -EINVAL;
+		}
+		return 0;
 	}
 
 	switch (prog_type) {
@@ -7861,7 +7873,6 @@ static int check_return_code(struct bpf_verifier_env *env)
 		return 0;
 	}
 
-	reg = cur_regs(env) + BPF_REG_0;
 	if (reg->type != SCALAR_VALUE) {
 		verbose(env, "At program exit the register R0 is not a known value (%s)\n",
 			reg_type_str[reg->type]);
