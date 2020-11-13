@@ -1261,6 +1261,39 @@ static ssize_t wq_max_batch_size_store(struct device *dev, struct device_attribu
 static struct device_attribute dev_attr_wq_max_batch_size =
 		__ATTR(max_batch_size, 0644, wq_max_batch_size_show, wq_max_batch_size_store);
 
+static ssize_t wq_ats_disable_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct idxd_wq *wq = container_of(dev, struct idxd_wq, conf_dev);
+
+	return sprintf(buf, "%u\n", wq->ats_dis);
+}
+
+static ssize_t wq_ats_disable_store(struct device *dev, struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	struct idxd_wq *wq = container_of(dev, struct idxd_wq, conf_dev);
+	struct idxd_device *idxd = wq->idxd;
+	bool ats_dis;
+	int rc;
+
+	if (wq->state != IDXD_WQ_DISABLED)
+		return -EPERM;
+
+	if (!idxd->hw.wq_cap.wq_ats_support)
+		return -EOPNOTSUPP;
+
+	rc = kstrtobool(buf, &ats_dis);
+	if (rc < 0)
+		return rc;
+
+	wq->ats_dis = ats_dis;
+
+	return count;
+}
+
+static struct device_attribute dev_attr_wq_ats_disable =
+		__ATTR(ats_disable, 0644, wq_ats_disable_show, wq_ats_disable_store);
+
 static struct attribute *idxd_wq_attributes[] = {
 	&dev_attr_wq_clients.attr,
 	&dev_attr_wq_state.attr,
@@ -1275,6 +1308,7 @@ static struct attribute *idxd_wq_attributes[] = {
 	&dev_attr_wq_cdev_minor.attr,
 	&dev_attr_wq_max_transfer_size.attr,
 	&dev_attr_wq_max_batch_size.attr,
+	&dev_attr_wq_ats_disable.attr,
 	NULL,
 };
 

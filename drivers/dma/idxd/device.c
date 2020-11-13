@@ -354,6 +354,7 @@ void idxd_wq_disable_cleanup(struct idxd_wq *wq)
 	wq->group = NULL;
 	wq->threshold = 0;
 	wq->priority = 0;
+	wq->ats_dis = 0;
 	clear_bit(WQ_FLAG_DEDICATED, &wq->flags);
 	memset(wq->name, 0, WQ_NAME_SIZE);
 
@@ -630,6 +631,9 @@ static int idxd_wq_config_write(struct idxd_wq *wq)
 	if (idxd->hw.gen_cap.block_on_fault &&
 	    test_bit(WQ_FLAG_BLOCK_ON_FAULT, &wq->flags))
 		wq->wqcfg->bof = 1;
+
+	if (idxd->hw.wq_cap.wq_ats_support)
+		wq->wqcfg->wq_ats_disable = wq->ats_dis;
 
 	/* bytes 12-15 */
 	wq->wqcfg->max_xfer_shift = ilog2(wq->max_xfer_bytes);
