@@ -994,8 +994,9 @@ static int ezusb_access_ltv(struct ezusb_priv *upriv,
 	return retval;
 }
 
-static int ezusb_write_ltv(struct hermes *hw, int bap, u16 rid,
-			   u16 length, const void *data)
+static int __ezusb_write_ltv(struct hermes *hw, int bap, u16 rid,
+			   u16 length, const void *data,
+			   ezusb_ctx_wait ezusb_ctx_wait_func)
 {
 	struct ezusb_priv *upriv = hw->priv;
 	u16 frame_type;
@@ -1021,7 +1022,14 @@ static int ezusb_write_ltv(struct hermes *hw, int bap, u16 rid,
 		frame_type = EZUSB_FRAME_CONTROL;
 
 	return ezusb_access_ltv(upriv, ctx, length, data, frame_type,
-				NULL, 0, NULL, ezusb_req_ctx_wait);
+				NULL, 0, NULL, ezusb_ctx_wait_func);
+}
+
+static int ezusb_write_ltv(struct hermes *hw, int bap, u16 rid,
+			   u16 length, const void *data)
+{
+	return __ezusb_write_ltv(hw, bap, rid, length, data,
+				 ezusb_req_ctx_wait);
 }
 
 static int ezusb_read_ltv(struct hermes *hw, int bap, u16 rid,
@@ -1065,8 +1073,9 @@ static int ezusb_doicmd_wait(struct hermes *hw, u16 cmd, u16 parm0, u16 parm1,
 				ezusb_req_ctx_wait);
 }
 
-static int ezusb_docmd_wait(struct hermes *hw, u16 cmd, u16 parm0,
-			    struct hermes_response *resp)
+static int __ezusb_docmd_wait(struct hermes *hw, u16 cmd, u16 parm0,
+			    struct hermes_response *resp,
+			    ezusb_ctx_wait ezusb_ctx_wait_func)
 {
 	struct ezusb_priv *upriv = hw->priv;
 	struct request_context *ctx;
@@ -1084,7 +1093,13 @@ static int ezusb_docmd_wait(struct hermes *hw, u16 cmd, u16 parm0,
 
 	return ezusb_access_ltv(upriv, ctx, sizeof(data), &data,
 				EZUSB_FRAME_CONTROL, NULL, 0, NULL,
-				ezusb_req_ctx_wait);
+				ezusb_ctx_wait_func);
+}
+
+static int ezusb_docmd_wait(struct hermes *hw, u16 cmd, u16 parm0,
+			    struct hermes_response *resp)
+{
+	return __ezusb_docmd_wait(hw, cmd, parm0, resp, ezusb_req_ctx_wait);
 }
 
 static int ezusb_bap_pread(struct hermes *hw, int bap,
@@ -1416,14 +1431,16 @@ static int ezusb_init(struct hermes *hw)
 	usb_kill_urb(upriv->read_urb);
 	ezusb_submit_in_urb(upriv);
 
-	retval = ezusb_write_ltv(hw, 0, EZUSB_RID_INIT1,
-				 HERMES_BYTES_TO_RECLEN(2), "\x10\x00");
+	retval = __ezusb_write_ltv(hw, 0, EZUSB_RID_INIT1,
+				 HERMES_BYTES_TO_RECLEN(2), "\x10\x00",
+				 ezusb_req_ctx_wait_compl);
 	if (retval < 0) {
 		printk(KERN_ERR PFX "EZUSB_RID_INIT1 error %d\n", retval);
 		return retval;
 	}
 
-	retval = ezusb_docmd_wait(hw, HERMES_CMD_INIT, 0, NULL);
+	retval = __ezusb_docmd_wait(hw, HERMES_CMD_INIT, 0, NULL,
+				    ezusb_req_ctx_wait_compl);
 	if (retval < 0) {
 		printk(KERN_ERR PFX "HERMES_CMD_INIT error %d\n", retval);
 		return retval;
