@@ -11836,6 +11836,7 @@ L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/media/i2c/mipi-ccs.yaml
 F:	Documentation/driver-api/media/drivers/ccs/
+F:	Documentation/userspace-api/media/drivers/ccs.rst
 F:	drivers/media/i2c/ccs-pll.c
 F:	drivers/media/i2c/ccs-pll.h
 F:	drivers/media/i2c/ccs/
