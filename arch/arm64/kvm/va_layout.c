@@ -132,9 +132,6 @@ void __init kvm_update_va_mask(struct alt_instr *alt,
 	}
 }
 
-void *__kvm_bp_vect_base;
-int __kvm_harden_el2_vector_slot;
-
 void kvm_patch_vector_branch(struct alt_instr *alt,
 			     __le32 *origptr, __le32 *updptr, int nr_inst)
 {

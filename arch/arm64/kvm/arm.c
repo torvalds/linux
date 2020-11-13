@@ -50,6 +50,14 @@ DECLARE_KVM_HYP_PER_CPU(unsigned long, kvm_hyp_vector);
 static DEFINE_PER_CPU(unsigned long, kvm_arm_hyp_stack_page);
 unsigned long kvm_arm_hyp_percpu_base[NR_CPUS];
 
+/* Hypervisor VA of the indirect vector trampoline page */
+static void *__kvm_bp_vect_base;
+/*
+ * Slot in the hyp vector page for use by the indirect vector trampoline
+ * when mitigation against Spectre-v2 is not required.
+ */
+static int __kvm_harden_el2_vector_slot;
+
 /* The VMID used in the VTTBR */
 static atomic64_t kvm_vmid_gen = ATOMIC64_INIT(1);
 static u32 kvm_next_vmid;
