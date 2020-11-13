@@ -191,7 +191,8 @@ union dmub_fw_boot_options {
 		uint32_t optimized_init : 1;
 		uint32_t skip_phy_access : 1;
 		uint32_t disable_clk_gate: 1;
-		uint32_t reserved : 27;
+		uint32_t skip_phy_init_panel_sequence: 1;
+		uint32_t reserved : 26;
 	} bits;
 	uint32_t all;
 };

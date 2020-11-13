@@ -153,17 +153,18 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 		funcs->set_gpint = dmub_dcn20_set_gpint;
 		funcs->is_gpint_acked = dmub_dcn20_is_gpint_acked;
 		funcs->get_gpint_response = dmub_dcn20_get_gpint_response;
+		funcs->get_fw_status = dmub_dcn20_get_fw_boot_status;
+		funcs->enable_dmub_boot_options = dmub_dcn20_enable_dmub_boot_options;
+		funcs->skip_dmub_panel_power_sequence = dmub_dcn20_skip_dmub_panel_power_sequence;
 
 		if (asic == DMUB_ASIC_DCN21) {
 			dmub->regs = &dmub_srv_dcn21_regs;
 
-			funcs->is_auto_load_done = dmub_dcn21_is_auto_load_done;
 			funcs->is_phy_init = dmub_dcn21_is_phy_init;
 		}
 		if (asic == DMUB_ASIC_DCN30) {
 			dmub->regs = &dmub_srv_dcn30_regs;
 
-			funcs->is_auto_load_done = dmub_dcn30_is_auto_load_done;
 			funcs->backdoor_load = dmub_dcn30_backdoor_load;
 			funcs->setup_windows = dmub_dcn30_setup_windows;
 		}
@@ -535,11 +536,10 @@ enum dmub_status dmub_srv_wait_for_auto_load(struct dmub_srv *dmub,
 	if (!dmub->hw_init)
 		return DMUB_STATUS_INVALID;
 
-	if (!dmub->hw_funcs.is_auto_load_done)
-		return DMUB_STATUS_OK;
-
 	for (i = 0; i <= timeout_us; i += 100) {
-		if (dmub->hw_funcs.is_auto_load_done(dmub))
+		union dmub_fw_boot_status status = dmub->hw_funcs.get_fw_status(dmub);
+
+		if (status.bits.dal_fw && status.bits.mailbox_rdy)
 			return DMUB_STATUS_OK;
 
 		udelay(100);
@@ -631,6 +631,20 @@ enum dmub_status dmub_srv_get_gpint_response(struct dmub_srv *dmub,
 		return DMUB_STATUS_INVALID;
 
 	*response = dmub->hw_funcs.get_gpint_response(dmub);
+
+	return DMUB_STATUS_OK;
+}
+
+enum dmub_status dmub_srv_get_fw_boot_status(struct dmub_srv *dmub,
+					     union dmub_fw_boot_status *status)
+{
+	status->all = 0;
+
+	if (!dmub->sw_init)
+		return DMUB_STATUS_INVALID;
+
+	if (dmub->hw_funcs.get_fw_status)
+		*status = dmub->hw_funcs.get_fw_status(dmub);
 
 	return DMUB_STATUS_OK;
 }
