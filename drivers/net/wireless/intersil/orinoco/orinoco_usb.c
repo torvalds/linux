@@ -1172,7 +1172,7 @@ static int ezusb_program_init(struct hermes *hw, u32 entry_point)
 
 	return ezusb_access_ltv(upriv, ctx, sizeof(data), &data,
 				EZUSB_FRAME_CONTROL, NULL, 0, NULL,
-				ezusb_req_ctx_wait);
+				ezusb_req_ctx_wait_compl);
 }
 
 static int ezusb_program_end(struct hermes *hw)
@@ -1186,7 +1186,7 @@ static int ezusb_program_end(struct hermes *hw)
 
 	return ezusb_access_ltv(upriv, ctx, 0, NULL,
 				EZUSB_FRAME_CONTROL, NULL, 0, NULL,
-				ezusb_req_ctx_wait);
+				ezusb_req_ctx_wait_compl);
 }
 
 static int ezusb_program_bytes(struct hermes *hw, const char *buf,
@@ -1203,7 +1203,7 @@ static int ezusb_program_bytes(struct hermes *hw, const char *buf,
 
 	err = ezusb_access_ltv(upriv, ctx, sizeof(data), &data,
 			       EZUSB_FRAME_CONTROL, NULL, 0, NULL,
-			       ezusb_req_ctx_wait);
+			       ezusb_req_ctx_wait_compl);
 	if (err)
 		return err;
 
@@ -1213,7 +1213,7 @@ static int ezusb_program_bytes(struct hermes *hw, const char *buf,
 
 	return ezusb_access_ltv(upriv, ctx, len, buf,
 				EZUSB_FRAME_CONTROL, NULL, 0, NULL,
-				ezusb_req_ctx_wait);
+				ezusb_req_ctx_wait_compl);
 }
 
 static int ezusb_program(struct hermes *hw, const char *buf,
