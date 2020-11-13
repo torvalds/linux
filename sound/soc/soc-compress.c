@@ -412,9 +412,8 @@ err:
 static int soc_compr_ack(struct snd_compr_stream *cstream, size_t bytes)
 {
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
-	struct snd_soc_component *component;
 	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
-	int i, ret = 0;
+	int ret;
 
 	mutex_lock_nested(&rtd->card->pcm_mutex, rtd->card->pcm_subclass);
 
@@ -422,17 +421,7 @@ static int soc_compr_ack(struct snd_compr_stream *cstream, size_t bytes)
 	if (ret < 0)
 		goto err;
 
-	for_each_rtd_components(rtd, i, component) {
-		if (!component->driver->compress_ops ||
-		    !component->driver->compress_ops->ack)
-			continue;
-
-		ret = component->driver->compress_ops->ack(
-			component, cstream, bytes);
-		if (ret < 0)
-			goto err;
-	}
-
+	ret = snd_soc_component_compr_ack(cstream, bytes);
 err:
 	mutex_unlock(&rtd->card->pcm_mutex);
 	return ret;

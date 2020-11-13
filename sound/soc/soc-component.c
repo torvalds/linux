@@ -571,6 +571,26 @@ int snd_soc_component_compr_get_codec_caps(struct snd_compr_stream *cstream,
 }
 EXPORT_SYMBOL_GPL(snd_soc_component_compr_get_codec_caps);
 
+int snd_soc_component_compr_ack(struct snd_compr_stream *cstream, size_t bytes)
+{
+	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
+	struct snd_soc_component *component;
+	int i, ret;
+
+	for_each_rtd_components(rtd, i, component) {
+		if (component->driver->compress_ops &&
+		    component->driver->compress_ops->ack) {
+			ret = component->driver->compress_ops->ack(
+				component, cstream, bytes);
+			if (ret < 0)
+				return soc_component_ret(component, ret);
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_compr_ack);
+
 static unsigned int soc_component_read_no_lock(
 	struct snd_soc_component *component,
 	unsigned int reg)

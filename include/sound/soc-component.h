@@ -457,6 +457,7 @@ int snd_soc_component_compr_get_caps(struct snd_compr_stream *cstream,
 				     struct snd_compr_caps *caps);
 int snd_soc_component_compr_get_codec_caps(struct snd_compr_stream *cstream,
 					   struct snd_compr_codec_caps *codec);
+int snd_soc_component_compr_ack(struct snd_compr_stream *cstream, size_t bytes);
 
 int snd_soc_pcm_component_pointer(struct snd_pcm_substream *substream);
 int snd_soc_pcm_component_ioctl(struct snd_pcm_substream *substream,
