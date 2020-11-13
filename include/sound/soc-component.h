@@ -449,6 +449,8 @@ int snd_soc_component_compr_open(struct snd_compr_stream *cstream,
 void snd_soc_component_compr_free(struct snd_compr_stream *cstream,
 				  struct snd_soc_component *last);
 int snd_soc_component_compr_trigger(struct snd_compr_stream *cstream, int cmd);
+int snd_soc_component_compr_set_params(struct snd_compr_stream *cstream,
+				       struct snd_compr_params *params);
 
 int snd_soc_pcm_component_pointer(struct snd_pcm_substream *substream);
 int snd_soc_pcm_component_ioctl(struct snd_pcm_substream *substream,

@@ -295,27 +295,6 @@ out:
 	return ret;
 }
 
-static int soc_compr_components_set_params(struct snd_compr_stream *cstream,
-					   struct snd_compr_params *params)
-{
-	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
-	struct snd_soc_component *component;
-	int i, ret;
-
-	for_each_rtd_components(rtd, i, component) {
-		if (!component->driver->compress_ops ||
-		    !component->driver->compress_ops->set_params)
-			continue;
-
-		ret = component->driver->compress_ops->set_params(
-			component, cstream, params);
-		if (ret < 0)
-			return ret;
-	}
-
-	return 0;
-}
-
 static int soc_compr_set_params(struct snd_compr_stream *cstream,
 				struct snd_compr_params *params)
 {
@@ -337,7 +316,7 @@ static int soc_compr_set_params(struct snd_compr_stream *cstream,
 	if (ret < 0)
 		goto err;
 
-	ret = soc_compr_components_set_params(cstream, params);
+	ret = snd_soc_component_compr_set_params(cstream, params);
 	if (ret < 0)
 		goto err;
 
@@ -394,7 +373,7 @@ static int soc_compr_set_params_fe(struct snd_compr_stream *cstream,
 	if (ret < 0)
 		goto out;
 
-	ret = soc_compr_components_set_params(cstream, params);
+	ret = snd_soc_component_compr_set_params(cstream, params);
 	if (ret < 0)
 		goto out;
 
