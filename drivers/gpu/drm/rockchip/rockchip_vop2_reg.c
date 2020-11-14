@@ -675,6 +675,7 @@ static const struct vop2_win_regs rk3568_area2_data = {
 	.dsp_info = VOP_REG(RK3568_ESMART0_REGION2_DSP_INFO, 0x0fff0fff, 0),
 	.dsp_st = VOP_REG(RK3568_ESMART0_REGION2_DSP_ST, 0x1fff1fff, 0),
 	.yrgb_mst = VOP_REG(RK3568_ESMART0_REGION2_YRGB_MST, 0xffffffff, 0),
+	.uv_mst = VOP_REG(RK3568_ESMART0_REGION2_CBR_MST, 0xffffffff, 0),
 	.yrgb_vir = VOP_REG(RK3568_ESMART0_REGION2_VIR, 0xffff, 0),
 	.uv_vir = VOP_REG(RK3568_ESMART0_REGION2_VIR, 0xffff, 16),
 };
@@ -688,6 +689,7 @@ static const struct vop2_win_regs rk3568_area3_data = {
 	.dsp_info = VOP_REG(RK3568_ESMART0_REGION3_DSP_INFO, 0x0fff0fff, 0),
 	.dsp_st = VOP_REG(RK3568_ESMART0_REGION3_DSP_ST, 0x1fff1fff, 0),
 	.yrgb_mst = VOP_REG(RK3568_ESMART0_REGION3_YRGB_MST, 0xffffffff, 0),
+	.uv_mst = VOP_REG(RK3568_ESMART0_REGION3_CBR_MST, 0xffffffff, 0),
 	.yrgb_vir = VOP_REG(RK3568_ESMART0_REGION3_VIR, 0xffff, 0),
 	.uv_vir = VOP_REG(RK3568_ESMART0_REGION3_VIR, 0xffff, 16),
 };
@@ -733,6 +735,7 @@ static const struct vop2_win_regs rk3568_esmart_win_data = {
 	.y2r_en = VOP_REG(RK3568_ESMART0_CTRL0, 0x1, 0),
 	.r2y_en = VOP_REG(RK3568_ESMART0_CTRL0, 0x1, 1),
 	.csc_mode = VOP_REG(RK3568_ESMART0_CTRL0, 0x3, 2),
+	.ymirror = VOP_REG(RK3568_ESMART0_CTRL1, 0x1, 31),
 };
 
 /*

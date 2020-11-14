@@ -1599,8 +1599,8 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 		VOP_AFBC_SET(vop2, win, rotate_90, vpstate->rotate_90_en);
 	} else {
 		VOP_AFBC_SET(vop2, win, enable, 0);
-		VOP_WIN_SET(vop2, win, ymirror, vpstate->xmirror_en);
-		VOP_WIN_SET(vop2, win, xmirror, vpstate->ymirror_en);
+		VOP_WIN_SET(vop2, win, ymirror, vpstate->ymirror_en);
+		VOP_WIN_SET(vop2, win, xmirror, vpstate->xmirror_en);
 	}
 
 	if (vpstate->rotate_90_en || vpstate->rotate_270_en) {
@@ -3833,6 +3833,7 @@ static int vop2_win_init(struct vop2 *vop2)
 			area->nformats = win->nformats;
 			area->max_upscale_factor = win_data->max_upscale_factor;
 			area->max_downscale_factor = win_data->max_downscale_factor;
+			area->supported_rotations = win_data->supported_rotations;
 			area->vop2 = vop2;
 			area->win_id = i;
 			area->phys_id = win->phys_id;
