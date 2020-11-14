@@ -15,6 +15,7 @@
 #include "rvu_struct.h"
 #include "common.h"
 #include "mbox.h"
+#include "npc.h"
 
 /* PCI device IDs */
 #define	PCI_DEVID_OCTEONTX2_RVU_AF		0xA065
@@ -105,6 +106,36 @@ struct nix_mce_list {
 	int			max;
 };
 
+/* layer metadata to uniquely identify a packet header field */
+struct npc_layer_mdata {
+	u8 lid;
+	u8 ltype;
+	u8 hdr;
+	u8 key;
+	u8 len;
+};
+
+/* Structure to represent a field present in the
+ * generated key. A key field may present anywhere and can
+ * be of any size in the generated key. Once this structure
+ * is populated for fields of interest then field's presence
+ * and location (if present) can be known.
+ */
+struct npc_key_field {
+	/* Masks where all set bits indicate position
+	 * of a field in the key
+	 */
+	u64 kw_mask[NPC_MAX_KWS_IN_KEY];
+	/* Number of words in the key a field spans. If a field is
+	 * of 16 bytes and key offset is 4 then the field will use
+	 * 4 bytes in KW0, 8 bytes in KW1 and 4 bytes in KW2 and
+	 * nr_kws will be 3(KW0, KW1 and KW2).
+	 */
+	int nr_kws;
+	/* used by packet header fields */
+	struct npc_layer_mdata layer_mdata;
+};
+
 struct npc_mcam {
 	struct rsrc_bmap counters;
 	struct mutex	lock;	/* MCAM entries and counters update lock */
@@ -128,6 +159,11 @@ struct npc_mcam {
 	u16	hprio_count;
 	u16	hprio_end;
 	u16     rx_miss_act_cntr; /* Counter for RX MISS action */
+	/* fields present in the generated key */
+	struct npc_key_field	tx_key_fields[NPC_KEY_FIELDS_MAX];
+	struct npc_key_field	rx_key_fields[NPC_KEY_FIELDS_MAX];
+	u64	tx_features;
+	u64	rx_features;
 };
 
 /* Structure for per RVU func info ie PF/VF */
@@ -537,6 +573,8 @@ bool is_npc_intf_rx(u8 intf);
 bool is_npc_interface_valid(struct rvu *rvu, u8 intf);
 int rvu_npc_get_tx_nibble_cfg(struct rvu *rvu, u64 nibble_ena);
 int npc_mcam_verify_channel(struct rvu *rvu, u16 pcifunc, u8 intf, u16 channel);
+int npc_flow_steering_init(struct rvu *rvu, int blkaddr);
+const char *npc_get_field_name(u8 hdr);
 
 #ifdef CONFIG_DEBUG_FS
 void rvu_dbg_init(struct rvu *rvu);

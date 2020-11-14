@@ -1400,12 +1400,19 @@ int rvu_npc_init(struct rvu *rvu)
 
 	rvu_npc_setup_interfaces(rvu, blkaddr);
 
+	/* Configure MKEX profile */
+	npc_load_mkex_profile(rvu, blkaddr, rvu->mkex_pfl_name);
+
 	err = npc_mcam_rsrcs_init(rvu, blkaddr);
 	if (err)
 		return err;
 
-	/* Configure MKEX profile */
-	npc_load_mkex_profile(rvu, blkaddr, rvu->mkex_pfl_name);
+	err = npc_flow_steering_init(rvu, blkaddr);
+	if (err) {
+		dev_err(rvu->dev,
+			"Incorrect mkex profile loaded using default mkex\n");
+		npc_load_mkex_profile(rvu, blkaddr, def_pfl_name);
+	}
 
 	return 0;
 }

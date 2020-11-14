@@ -149,6 +149,54 @@ enum npc_pkind_type {
 	NPC_TX_DEF_PKIND = 63ULL,	/* NIX-TX PKIND */
 };
 
+/* list of known and supported fields in packet header and
+ * fields present in key structure.
+ */
+enum key_fields {
+	NPC_DMAC,
+	NPC_SMAC,
+	NPC_ETYPE,
+	NPC_OUTER_VID,
+	NPC_TOS,
+	NPC_SIP_IPV4,
+	NPC_DIP_IPV4,
+	NPC_SIP_IPV6,
+	NPC_DIP_IPV6,
+	NPC_SPORT_TCP,
+	NPC_DPORT_TCP,
+	NPC_SPORT_UDP,
+	NPC_DPORT_UDP,
+	NPC_SPORT_SCTP,
+	NPC_DPORT_SCTP,
+	NPC_HEADER_FIELDS_MAX,
+	NPC_CHAN = NPC_HEADER_FIELDS_MAX, /* Valid when Rx */
+	NPC_PF_FUNC, /* Valid when Tx */
+	NPC_ERRLEV,
+	NPC_ERRCODE,
+	NPC_LXMB,
+	NPC_LA,
+	NPC_LB,
+	NPC_LC,
+	NPC_LD,
+	NPC_LE,
+	NPC_LF,
+	NPC_LG,
+	NPC_LH,
+	/* Ethertype for untagged frame */
+	NPC_ETYPE_ETHER,
+	/* Ethertype for single tagged frame */
+	NPC_ETYPE_TAG1,
+	/* Ethertype for double tagged frame */
+	NPC_ETYPE_TAG2,
+	/* outer vlan tci for single tagged frame */
+	NPC_VLAN_TAG1,
+	/* outer vlan tci for double tagged frame */
+	NPC_VLAN_TAG2,
+	/* other header fields programmed to extract but not of our interest */
+	NPC_UNKNOWN,
+	NPC_KEY_FIELDS_MAX,
+};
+
 struct npc_kpu_profile_cam {
 	u8 state;
 	u8 state_mask;
