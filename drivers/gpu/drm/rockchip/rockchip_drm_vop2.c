@@ -44,6 +44,7 @@
 #include "rockchip_drm_fb.h"
 #include "rockchip_drm_psr.h"
 #include "rockchip_drm_vop.h"
+#include "rockchip_vop_reg.h"
 
 #define _REG_SET(vop2, name, off, reg, mask, v, relaxed) \
 		vop2_mask_write(vop2, off + reg.offset, mask, reg.shift, v, reg.write_mask, relaxed)
@@ -2108,17 +2109,37 @@ static void vop2_crtc_regs_dump(struct drm_crtc *crtc, struct seq_file *s)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = vp->vop2;
-	struct drm_crtc_state *crtc_state = crtc->state;
-	int dump_len = vop2->len > 0x400 ? 0x400 : vop2->len;
-	int i;
+	struct drm_crtc_state *cstate = crtc->state;
+	uint32_t addr[] = {
+		RK3568_REG_CFG_DONE,
+		RK3568_OVL_CTRL,
+		RK3568_VP0_DSP_CTRL,
+		RK3568_VP1_DSP_CTRL,
+		RK3568_VP2_DSP_CTRL,
+		RK3568_CLUSTER0_WIN0_CTRL0,
+		RK3568_CLUSTER1_WIN0_CTRL0,
+		RK3568_ESMART0_CTRL0,
+		RK3568_ESMART1_CTRL0,
+		RK3568_SMART0_CTRL0,
+		RK3568_SMART1_CTRL0,
+	};
+	uint32_t buf[64];
+	unsigned int len = ARRAY_SIZE(buf);
+	unsigned int n, i, j;
+	uint32_t base;
 
-	if (!crtc_state->active)
+	if (!cstate->active)
 		return;
 
-	for (i = 0; i < dump_len; i += 4) {
-		if (i % 16 == 0)
-			DEBUG_PRINT("\n0x%08x: ", i);
-		DEBUG_PRINT("%08x ", vop2_readl(vop2, i));
+	n = sizeof(addr) >> 2;
+
+	for (i = 0; i < n; i++) {
+		base = addr[i];
+		pr_info("0x%08x:\n", base);
+		for (j = 0; j < len; j++)
+			buf[j] = vop2_readl(vop2, base + (4 * j));
+		print_hex_dump(KERN_ERR, "", DUMP_PREFIX_OFFSET, 16, 4, buf,
+			       len << 2, 0);
 	}
 }
 
