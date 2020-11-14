@@ -4,12 +4,6 @@
 
 #define JOURNAL_PIN	(32 * 1024)
 
-enum journal_space_from {
-	journal_space_discarded,
-	journal_space_clean_ondisk,
-	journal_space_clean,
-};
-
 static inline void journal_reclaim_kick(struct journal *j)
 {
 	struct task_struct *p = READ_ONCE(j->reclaim_thread);

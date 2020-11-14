@@ -71,84 +71,94 @@ static inline unsigned get_unwritten_sectors(struct journal *j, unsigned *idx)
 	return sectors;
 }
 
-static struct journal_space {
-	unsigned	next_entry;
-	unsigned	remaining;
-} __journal_space_available(struct journal *j, unsigned nr_devs_want,
+static struct journal_space
+journal_dev_space_available(struct journal *j, struct bch_dev *ca,
+			    enum journal_space_from from)
+{
+	struct journal_device *ja = &ca->journal;
+	unsigned sectors, buckets, unwritten, idx = j->reservations.unwritten_idx;
+
+	if (from == journal_space_total)
+		return (struct journal_space) {
+			.next_entry	= ca->mi.bucket_size,
+			.total		= ca->mi.bucket_size * ja->nr,
+		};
+
+	buckets = bch2_journal_dev_buckets_available(j, ja, from);
+	sectors = ja->sectors_free;
+
+	/*
+	 * We that we don't allocate the space for a journal entry
+	 * until we write it out - thus, account for it here:
+	 */
+	while ((unwritten = get_unwritten_sectors(j, &idx))) {
+		if (unwritten >= sectors) {
+			if (!buckets) {
+				sectors = 0;
+				break;
+			}
+
+			buckets--;
+			sectors = ca->mi.bucket_size;
+		}
+
+		sectors -= unwritten;
+	}
+
+	if (sectors < ca->mi.bucket_size && buckets) {
+		buckets--;
+		sectors = ca->mi.bucket_size;
+	}
+
+	return (struct journal_space) {
+		.next_entry	= sectors,
+		.total		= sectors + buckets * ca->mi.bucket_size,
+	};
+}
+
+static struct journal_space __journal_space_available(struct journal *j, unsigned nr_devs_want,
 			    enum journal_space_from from)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	struct bch_dev *ca;
-	unsigned sectors_next_entry	= UINT_MAX;
-	unsigned sectors_total		= UINT_MAX;
-	unsigned i, nr_devs = 0;
-	unsigned unwritten_sectors;
+	unsigned i, pos, nr_devs = 0;
+	struct journal_space space, dev_space[BCH_SB_MEMBERS_MAX];
+
+	BUG_ON(nr_devs_want > ARRAY_SIZE(dev_space));
 
 	rcu_read_lock();
 	for_each_member_device_rcu(ca, c, i,
 				   &c->rw_devs[BCH_DATA_journal]) {
-		struct journal_device *ja = &ca->journal;
-		unsigned buckets_this_device, sectors_this_device;
-		unsigned idx = j->reservations.unwritten_idx;
-
-		if (!ja->nr)
+		if (!ca->journal.nr)
 			continue;
 
-		buckets_this_device = bch2_journal_dev_buckets_available(j, ja, from);
-		sectors_this_device = ja->sectors_free;
-
-		/*
-		 * We that we don't allocate the space for a journal entry
-		 * until we write it out - thus, account for it here:
-		 */
-		while ((unwritten_sectors = get_unwritten_sectors(j, &idx))) {
-			if (unwritten_sectors >= sectors_this_device) {
-				if (!buckets_this_device) {
-					sectors_this_device = 0;
-					break;
-				}
-
-				buckets_this_device--;
-				sectors_this_device = ca->mi.bucket_size;
-			}
-
-			sectors_this_device -= unwritten_sectors;
-		}
-
-		if (sectors_this_device < ca->mi.bucket_size &&
-		    buckets_this_device) {
-			buckets_this_device--;
-			sectors_this_device = ca->mi.bucket_size;
-		}
-
-		if (!sectors_this_device)
+		space = journal_dev_space_available(j, ca, from);
+		if (!space.next_entry)
 			continue;
 
-		sectors_next_entry = min(sectors_next_entry,
-					 sectors_this_device);
+		for (pos = 0; pos < nr_devs; pos++)
+			if (space.total > dev_space[pos].total)
+				break;
 
-		sectors_total = min(sectors_total,
-			buckets_this_device * ca->mi.bucket_size +
-			sectors_this_device);
-
-		nr_devs++;
+		array_insert_item(dev_space, nr_devs, pos, space);
 	}
 	rcu_read_unlock();
 
 	if (nr_devs < nr_devs_want)
 		return (struct journal_space) { 0, 0 };
 
-	return (struct journal_space) {
-		.next_entry	= sectors_next_entry,
-		.remaining	= max_t(int, 0, sectors_total - sectors_next_entry),
-	};
+	/*
+	 * We sorted largest to smallest, and we want the smallest out of the
+	 * @nr_devs_want largest devices:
+	 */
+	return dev_space[nr_devs_want - 1];
 }
 
 void bch2_journal_space_available(struct journal *j)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	struct bch_dev *ca;
-	struct journal_space discarded, clean_ondisk, clean;
+	unsigned clean;
 	unsigned overhead, u64s_remaining = 0;
 	unsigned max_entry_size	 = min(j->buf[0].buf_size >> 9,
 				       j->buf[1].buf_size >> 9);
@@ -189,27 +199,25 @@ void bch2_journal_space_available(struct journal *j)
 		goto out;
 	}
 
-	if (!fifo_free(&j->pin)) {
-		ret = cur_entry_journal_pin_full;
-		goto out;
-	}
-
 	nr_devs_want = min_t(unsigned, nr_online, c->opts.metadata_replicas);
 
-	discarded	= __journal_space_available(j, nr_devs_want, journal_space_discarded);
-	clean_ondisk	= __journal_space_available(j, nr_devs_want, journal_space_clean_ondisk);
-	clean		= __journal_space_available(j, nr_devs_want, journal_space_clean);
+	for (i = 0; i < journal_space_nr; i++)
+		j->space[i] = __journal_space_available(j, nr_devs_want, i);
 
-	if (!discarded.next_entry)
+	clean		= j->space[journal_space_clean].total;
+
+	if (!j->space[journal_space_discarded].next_entry)
 		ret = cur_entry_journal_full;
+	else if (!fifo_free(&j->pin))
+		ret = cur_entry_journal_pin_full;
 
-	overhead = DIV_ROUND_UP(clean.remaining, max_entry_size) *
+	overhead = DIV_ROUND_UP(clean, max_entry_size) *
 		journal_entry_overhead(j);
-	u64s_remaining = clean.remaining << 6;
+	u64s_remaining = clean << 6;
 	u64s_remaining = max_t(int, 0, u64s_remaining - overhead);
 	u64s_remaining /= 4;
 out:
-	j->cur_entry_sectors	= !ret ? discarded.next_entry : 0;
+	j->cur_entry_sectors	= !ret ? j->space[journal_space_discarded].next_entry : 0;
 	j->cur_entry_error	= ret;
 	journal_set_remaining(j, u64s_remaining);
 	journal_check_may_get_unreserved(j);

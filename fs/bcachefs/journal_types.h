@@ -9,8 +9,6 @@
 #include "super_types.h"
 #include "fifo.h"
 
-struct journal_res;
-
 #define JOURNAL_BUF_BITS	2
 #define JOURNAL_BUF_NR		(1U << JOURNAL_BUF_BITS)
 #define JOURNAL_BUF_MASK	(JOURNAL_BUF_NR - 1)
@@ -122,6 +120,20 @@ union journal_preres_state {
 #define JOURNAL_ENTRY_CLOSED_VAL	(JOURNAL_ENTRY_OFFSET_MAX - 1)
 #define JOURNAL_ENTRY_ERROR_VAL		(JOURNAL_ENTRY_OFFSET_MAX)
 
+struct journal_space {
+	/* Units of 512 bytes sectors: */
+	unsigned	next_entry; /* How big the next journal entry can be */
+	unsigned	total;
+};
+
+enum journal_space_from {
+	journal_space_discarded,
+	journal_space_clean_ondisk,
+	journal_space_clean,
+	journal_space_total,
+	journal_space_nr,
+};
+
 /*
  * JOURNAL_NEED_WRITE - current (pending) journal entry should be written ASAP,
  * either because something's waiting on the write to complete or because it's
@@ -215,6 +227,8 @@ struct journal {
 		u64 front, back, size, mask;
 		struct journal_entry_pin_list *data;
 	}			pin;
+
+	struct journal_space	space[journal_space_nr];
 
 	u64			replay_journal_seq;
 	u64			replay_journal_seq_end;

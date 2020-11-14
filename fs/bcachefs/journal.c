@@ -1147,7 +1147,7 @@ void bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
 	}
 
 	pr_buf(out,
-	       "current entry:\tidx %u refcount %u\n",
+	       "current entry:\t\tidx %u refcount %u\n",
 	       s.idx, journal_state_count(s, s.idx));
 
 	i = s.idx;
@@ -1164,6 +1164,20 @@ void bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
 	       test_bit(JOURNAL_NEED_WRITE,	&j->flags),
 	       test_bit(JOURNAL_REPLAY_DONE,	&j->flags));
 
+	pr_buf(out, "space:\n");
+	pr_buf(out, "\tdiscarded\t%u:%u\n",
+	       j->space[journal_space_discarded].next_entry,
+	       j->space[journal_space_discarded].total);
+	pr_buf(out, "\tclean ondisk\t%u:%u\n",
+	       j->space[journal_space_clean_ondisk].next_entry,
+	       j->space[journal_space_clean_ondisk].total);
+	pr_buf(out, "\tclean\t\t%u:%u\n",
+	       j->space[journal_space_clean].next_entry,
+	       j->space[journal_space_clean].total);
+	pr_buf(out, "\ttotal\t\t%u:%u\n",
+	       j->space[journal_space_total].next_entry,
+	       j->space[journal_space_total].total);
+
 	for_each_member_device_rcu(ca, c, i,
 				   &c->rw_devs[BCH_DATA_journal]) {
 		struct journal_device *ja = &ca->journal;
@@ -1174,12 +1188,13 @@ void bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
 		pr_buf(out,
 		       "dev %u:\n"
 		       "\tnr\t\t%u\n"
+		       "\tbucket size\t%u\n"
 		       "\tavailable\t%u:%u\n"
-		       "\tdiscard_idx\t\t%u\n"
-		       "\tdirty_idx_ondisk\t%u (seq %llu)\n"
-		       "\tdirty_idx\t\t%u (seq %llu)\n"
+		       "\tdiscard_idx\t%u\n"
+		       "\tdirty_ondisk\t%u (seq %llu)\n"
+		       "\tdirty_idx\t%u (seq %llu)\n"
 		       "\tcur_idx\t\t%u (seq %llu)\n",
-		       i, ja->nr,
+		       i, ja->nr, ca->mi.bucket_size,
 		       bch2_journal_dev_buckets_available(j, ja, journal_space_discarded),
 		       ja->sectors_free,
 		       ja->discard_idx,
