@@ -715,43 +715,34 @@ static ssize_t iio_format_list(char *buf, const int *vals, int type, int length,
 			       const char *prefix, const char *suffix)
 {
 	ssize_t len;
+	int stride;
 	int i;
-
-	len = scnprintf(buf, PAGE_SIZE, prefix);
 
 	switch (type) {
 	case IIO_VAL_INT:
-		for (i = 0; i < length; i++) {
-			len += __iio_format_value(buf + len, PAGE_SIZE - len,
-						  type, 1, &vals[i]);
-			if (len >= PAGE_SIZE)
-				return -EFBIG;
-			if (i < length - 1)
-				len += scnprintf(buf + len, PAGE_SIZE - len,
-						" ");
-			else
-				len += scnprintf(buf + len, PAGE_SIZE - len,
-						"%s\n", suffix);
-			if (len >= PAGE_SIZE)
-				return -EFBIG;
-		}
+		stride = 1;
 		break;
 	default:
-		for (i = 0; i < length / 2; i++) {
-			len += __iio_format_value(buf + len, PAGE_SIZE - len,
-						  type, 2, &vals[i * 2]);
-			if (len >= PAGE_SIZE)
-				return -EFBIG;
-			if (i < length / 2 - 1)
-				len += scnprintf(buf + len, PAGE_SIZE - len,
-						" ");
-			else
-				len += scnprintf(buf + len, PAGE_SIZE - len,
-						"%s\n", suffix);
+		stride = 2;
+		break;
+	}
+
+	len = scnprintf(buf, PAGE_SIZE, prefix);
+
+	for (i = 0; i <= length - stride; i += stride) {
+		if (i != 0) {
+			len += scnprintf(buf + len, PAGE_SIZE - len, " ");
 			if (len >= PAGE_SIZE)
 				return -EFBIG;
 		}
+
+		len += __iio_format_value(buf + len, PAGE_SIZE - len, type,
+					  stride, &vals[i]);
+		if (len >= PAGE_SIZE)
+			return -EFBIG;
 	}
+
+	len += scnprintf(buf + len, PAGE_SIZE - len, "%s\n", suffix);
 
 	return len;
 }
