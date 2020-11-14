@@ -12,6 +12,11 @@
 
 #define DSA_HLEN	4
 
+#define FRAME_TYPE_TO_CPU	0x00
+#define FRAME_TYPE_FORWARD	0x03
+
+#define TO_CPU_CODE_IGMP_MLD_TRAP	0x02
+
 static struct sk_buff *dsa_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct dsa_port *dp = dsa_slave_to_port(dev);
@@ -61,6 +66,8 @@ static struct sk_buff *dsa_rcv(struct sk_buff *skb, struct net_device *dev,
 	u8 *dsa_header;
 	int source_device;
 	int source_port;
+	int frame_type;
+	int code;
 
 	if (unlikely(!pskb_may_pull(skb, DSA_HLEN)))
 		return NULL;
@@ -73,8 +80,29 @@ static struct sk_buff *dsa_rcv(struct sk_buff *skb, struct net_device *dev,
 	/*
 	 * Check that frame type is either TO_CPU or FORWARD.
 	 */
-	if ((dsa_header[0] & 0xc0) != 0x00 && (dsa_header[0] & 0xc0) != 0xc0)
+	frame_type = dsa_header[0] >> 6;
+
+	switch (frame_type) {
+	case FRAME_TYPE_TO_CPU:
+		code = (dsa_header[1] & 0x6) | ((dsa_header[2] >> 4) & 1);
+
+		/*
+		 * Mark the frame to never egress on any port of the same switch
+		 * unless it's a trapped IGMP/MLD packet, in which case the
+		 * bridge might want to forward it.
+		 */
+		if (code != TO_CPU_CODE_IGMP_MLD_TRAP)
+			skb->offload_fwd_mark = 1;
+
+		break;
+
+	case FRAME_TYPE_FORWARD:
+		skb->offload_fwd_mark = 1;
+		break;
+
+	default:
 		return NULL;
+	}
 
 	/*
 	 * Determine source device and port.
@@ -131,8 +159,6 @@ static struct sk_buff *dsa_rcv(struct sk_buff *skb, struct net_device *dev,
 			skb->data - ETH_HLEN - DSA_HLEN,
 			2 * ETH_ALEN);
 	}
-
-	skb->offload_fwd_mark = 1;
 
 	return skb;
 }
