@@ -2193,6 +2193,30 @@ exit:
 	return rc;
 }
 
+int rvu_mbox_handler_npc_mcam_read_entry(struct rvu *rvu,
+					 struct npc_mcam_read_entry_req *req,
+					 struct npc_mcam_read_entry_rsp *rsp)
+{
+	struct npc_mcam *mcam = &rvu->hw->mcam;
+	u16 pcifunc = req->hdr.pcifunc;
+	int blkaddr, rc;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
+	if (blkaddr < 0)
+		return NPC_MCAM_INVALID_REQ;
+
+	mutex_lock(&mcam->lock);
+	rc = npc_mcam_verify_entry(mcam, pcifunc, req->entry);
+	if (!rc) {
+		npc_read_mcam_entry(rvu, mcam, blkaddr, req->entry,
+				    &rsp->entry_data,
+				    &rsp->intf, &rsp->enable);
+	}
+
+	mutex_unlock(&mcam->lock);
+	return rc;
+}
+
 int rvu_mbox_handler_npc_mcam_write_entry(struct rvu *rvu,
 					  struct npc_mcam_write_entry_req *req,
 					  struct msg_rsp *rsp)
@@ -2752,4 +2776,50 @@ bool rvu_npc_write_default_rule(struct rvu *rvu, int blkaddr, int nixlf,
 			      entry, enable);
 
 	return enable;
+}
+
+int rvu_mbox_handler_npc_read_base_steer_rule(struct rvu *rvu,
+					      struct msg_req *req,
+					      struct npc_mcam_read_base_rule_rsp *rsp)
+{
+	struct npc_mcam *mcam = &rvu->hw->mcam;
+	int index, blkaddr, nixlf, rc = 0;
+	u16 pcifunc = req->hdr.pcifunc;
+	struct rvu_pfvf *pfvf;
+	u8 intf, enable;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
+	if (blkaddr < 0)
+		return NPC_MCAM_INVALID_REQ;
+
+	/* Return the channel number in case of PF */
+	if (!(pcifunc & RVU_PFVF_FUNC_MASK)) {
+		pfvf = rvu_get_pfvf(rvu, pcifunc);
+		rsp->entry.kw[0] = pfvf->rx_chan_base;
+		rsp->entry.kw_mask[0] = 0xFFFULL;
+		goto out;
+	}
+
+	/* Find the pkt steering rule installed by PF to this VF */
+	mutex_lock(&mcam->lock);
+	for (index = 0; index < mcam->bmap_entries; index++) {
+		if (mcam->entry2target_pffunc[index] == pcifunc)
+			goto read_entry;
+	}
+
+	rc = nix_get_nixlf(rvu, pcifunc, &nixlf, NULL);
+	if (rc < 0) {
+		mutex_unlock(&mcam->lock);
+		goto out;
+	}
+	/* Read the default ucast entry if there is no pkt steering rule */
+	index = npc_get_nixlf_mcam_index(mcam, pcifunc, nixlf,
+					 NIXLF_UCAST_ENTRY);
+read_entry:
+	/* Read the mcam entry */
+	npc_read_mcam_entry(rvu, mcam, blkaddr, index, &rsp->entry, &intf,
+			    &enable);
+	mutex_unlock(&mcam->lock);
+out:
+	return rc;
 }
