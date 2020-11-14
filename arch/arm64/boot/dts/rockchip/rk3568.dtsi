@@ -943,6 +943,36 @@
 		status = "disabled";
 	};
 
+	iep: iep@fdef0000 {
+		compatible = "rockchip,iep-v2";
+		reg = <0x0 0xfdef0000 0x0 0x500>;
+		interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_IEP>, <&cru HCLK_IEP>, <&cru CLK_IEP_CORE>;
+		clock-names = "aclk", "hclk", "sclk";
+		resets = <&cru SRST_A_IEP>, <&cru SRST_H_IEP>,
+			<&cru SRST_IEP_CORE>;
+		reset-names = "rst_a", "rst_h", "rst_s";
+		power-domains = <&power RK3568_PD_RGA>;
+		rockchip,srv = <&mpp_srv>;
+		rockchip,taskqueue-node = <5>;
+		rockchip,resetgroup-node = <5>;
+		iommus = <&iep_mmu>;
+		status = "disabled";
+	};
+
+	iep_mmu: iommu@fdef0800 {
+		compatible = "rockchip,iommu-v2";
+		reg = <0x0 0xfdef0800 0x0 0x100>;
+		interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "iep_mmu";
+		clocks = <&cru ACLK_IEP>, <&cru HCLK_IEP>;
+		clock-names = "aclk", "iface";
+		#iommu-cells = <0>;
+		power-domains = <&power RK3568_PD_RGA>;
+		//rockchip,disable-device-link-resume;
+		status = "disabled";
+	};
+
 	eink: eink@fdf00000 {
 		compatible = "rockchip,rk3568-eink-tcon";
 		reg = <0x0 0xfdf00000 0x0 0x74>;
