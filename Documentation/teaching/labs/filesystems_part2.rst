@@ -1045,7 +1045,7 @@ For this, you will iterate over the directory data block and you will find the f
 
   When you have found a free place, fill in the corresponding entry:
 
-    * the ``ino`` field in ``de->ino``
+    * the ``inode->i_ino`` field in ``de->ino``
     * the ``dentry->d_name.name`` field in ``de->name``
 
   Then mark the buffer dirty.
