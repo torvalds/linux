@@ -159,76 +159,96 @@ void hns_roce_bitmap_cleanup(struct hns_roce_bitmap *bitmap)
 
 void hns_roce_buf_free(struct hns_roce_dev *hr_dev, struct hns_roce_buf *buf)
 {
-	struct device *dev = hr_dev->dev;
-	u32 size = buf->size;
-	int i;
+	struct hns_roce_buf_list *trunks;
+	u32 i;
 
-	if (size == 0)
+	if (!buf)
 		return;
 
-	buf->size = 0;
+	trunks = buf->trunk_list;
+	if (trunks) {
+		buf->trunk_list = NULL;
+		for (i = 0; i < buf->ntrunks; i++)
+			dma_free_coherent(hr_dev->dev, 1 << buf->trunk_shift,
+					  trunks[i].buf, trunks[i].map);
 
-	if (hns_roce_buf_is_direct(buf)) {
-		dma_free_coherent(dev, size, buf->direct.buf, buf->direct.map);
-	} else {
-		for (i = 0; i < buf->npages; ++i)
-			if (buf->page_list[i].buf)
-				dma_free_coherent(dev, 1 << buf->page_shift,
-						  buf->page_list[i].buf,
-						  buf->page_list[i].map);
-		kfree(buf->page_list);
-		buf->page_list = NULL;
+		kfree(trunks);
 	}
+
+	kfree(buf);
 }
 
-int hns_roce_buf_alloc(struct hns_roce_dev *hr_dev, u32 size, u32 max_direct,
-		       struct hns_roce_buf *buf, u32 page_shift)
+/*
+ * Allocate the dma buffer for storing ROCEE table entries
+ *
+ * @size: required size
+ * @page_shift: the unit size in a continuous dma address range
+ * @flags: HNS_ROCE_BUF_ flags to control the allocation flow.
+ */
+struct hns_roce_buf *hns_roce_buf_alloc(struct hns_roce_dev *hr_dev, u32 size,
+					u32 page_shift, u32 flags)
 {
-	struct hns_roce_buf_list *buf_list;
-	struct device *dev = hr_dev->dev;
-	u32 page_size;
-	int i;
+	u32 trunk_size, page_size, alloced_size;
+	struct hns_roce_buf_list *trunks;
+	struct hns_roce_buf *buf;
+	gfp_t gfp_flags;
+	u32 ntrunk, i;
 
 	/* The minimum shift of the page accessed by hw is HNS_HW_PAGE_SHIFT */
-	buf->page_shift = max_t(int, HNS_HW_PAGE_SHIFT, page_shift);
+	if (WARN_ON(page_shift < HNS_HW_PAGE_SHIFT))
+		return ERR_PTR(-EINVAL);
 
+	gfp_flags = (flags & HNS_ROCE_BUF_NOSLEEP) ? GFP_ATOMIC : GFP_KERNEL;
+	buf = kzalloc(sizeof(*buf), gfp_flags);
+	if (!buf)
+		return ERR_PTR(-ENOMEM);
+
+	buf->page_shift = page_shift;
 	page_size = 1 << buf->page_shift;
-	buf->npages = DIV_ROUND_UP(size, page_size);
 
-	/* required size is not bigger than one trunk size */
-	if (size <= max_direct) {
-		buf->page_list = NULL;
-		buf->direct.buf = dma_alloc_coherent(dev, size,
-						     &buf->direct.map,
-						     GFP_KERNEL);
-		if (!buf->direct.buf)
-			return -ENOMEM;
+	/* Calc the trunk size and num by required size and page_shift */
+	if (flags & HNS_ROCE_BUF_DIRECT) {
+		buf->trunk_shift = ilog2(ALIGN(size, PAGE_SIZE));
+		ntrunk = 1;
 	} else {
-		buf_list = kcalloc(buf->npages, sizeof(*buf_list), GFP_KERNEL);
-		if (!buf_list)
-			return -ENOMEM;
-
-		for (i = 0; i < buf->npages; i++) {
-			buf_list[i].buf = dma_alloc_coherent(dev, page_size,
-							     &buf_list[i].map,
-							     GFP_KERNEL);
-			if (!buf_list[i].buf)
-				break;
-		}
-
-		if (i != buf->npages && i > 0) {
-			while (i-- > 0)
-				dma_free_coherent(dev, page_size,
-						  buf_list[i].buf,
-						  buf_list[i].map);
-			kfree(buf_list);
-			return -ENOMEM;
-		}
-		buf->page_list = buf_list;
+		buf->trunk_shift = ilog2(ALIGN(page_size, PAGE_SIZE));
+		ntrunk = DIV_ROUND_UP(size, 1 << buf->trunk_shift);
 	}
-	buf->size = size;
 
-	return 0;
+	trunks = kcalloc(ntrunk, sizeof(*trunks), gfp_flags);
+	if (!trunks) {
+		kfree(buf);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	trunk_size = 1 << buf->trunk_shift;
+	alloced_size = 0;
+	for (i = 0; i < ntrunk; i++) {
+		trunks[i].buf = dma_alloc_coherent(hr_dev->dev, trunk_size,
+						   &trunks[i].map, gfp_flags);
+		if (!trunks[i].buf)
+			break;
+
+		alloced_size += trunk_size;
+	}
+
+	buf->ntrunks = i;
+
+	/* In nofail mode, it's only failed when the alloced size is 0 */
+	if ((flags & HNS_ROCE_BUF_NOFAIL) ? i == 0 : i != ntrunk) {
+		for (i = 0; i < buf->ntrunks; i++)
+			dma_free_coherent(hr_dev->dev, trunk_size,
+					  trunks[i].buf, trunks[i].map);
+
+		kfree(trunks);
+		kfree(buf);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	buf->npages = DIV_ROUND_UP(alloced_size, page_size);
+	buf->trunk_list = trunks;
+
+	return buf;
 }
 
 int hns_roce_get_kmem_bufs(struct hns_roce_dev *hr_dev, dma_addr_t *bufs,
