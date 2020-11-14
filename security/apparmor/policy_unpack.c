@@ -769,9 +769,9 @@ static struct aa_perms *compute_fperms(struct aa_dfa *dfa)
 	return table;
 }
 
-static u32 *compute_xmatch_perms(struct aa_dfa *xmatch)
+static struct aa_perms *compute_xmatch_perms(struct aa_dfa *xmatch)
 {
-	u32 *perms_table;
+	struct aa_perms *perms_table;
 	int state;
 	int state_count;
 
@@ -779,11 +779,12 @@ static u32 *compute_xmatch_perms(struct aa_dfa *xmatch)
 
 	state_count = xmatch->tables[YYTD_ID_BASE]->td_lolen;
 	/* DFAs are restricted from having a state_count of less than 2 */
-	perms_table = kvcalloc(state_count, sizeof(u32), GFP_KERNEL);
+	  perms_table = kvcalloc(state_count, sizeof(struct aa_perms),
+			       GFP_KERNEL);
 
 	/* zero init so skip the trap state (state == 0) */
 	for (state = 1; state < state_count; state++)
-		perms_table[state] = dfa_user_allow(xmatch, state);
+		perms_table[state].allow = dfa_user_allow(xmatch, state);
 
 	return perms_table;
 }
@@ -855,6 +856,10 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 		profile->xmatch_len = tmp;
 
 		profile->xmatch_perms = compute_xmatch_perms(profile->xmatch);
+		if (!profile->xmatch_perms) {
+			info = "failed to convert xmatch permission table";
+			goto fail;
+		}
 	}
 
 	/* disconnected attachment string is optional */
