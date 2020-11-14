@@ -644,7 +644,7 @@ nv50_audio_component_get_eld(struct device *kdev, int port, int dev_id,
 		if (!nv_connector)
 			continue;
 
-		nv_crtc = nouveau_crtc(encoder->crtc);
+		nv_crtc = nouveau_crtc(nv_encoder->crtc);
 		if (!nv_crtc || nv_encoder->or != port ||
 		    nv_crtc->index != dev_id)
 			continue;
