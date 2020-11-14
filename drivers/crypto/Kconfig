@@ -648,7 +648,7 @@ choice
 	default CRYPTO_DEV_QCE_ENABLE_ALL
 	depends on CRYPTO_DEV_QCE
 	help
-	  This option allows to choose whether to build support for all algorihtms
+	  This option allows to choose whether to build support for all algorithms
 	  (default), hashes-only, or skciphers-only.
 
 	  The QCE engine does not appear to scale as well as the CPU to handle
