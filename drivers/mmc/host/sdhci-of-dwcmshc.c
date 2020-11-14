@@ -37,9 +37,9 @@
 #define DWCMSHC_EMMC_DLL_START_POINT	16
 #define DWCMSHC_EMMC_DLL_INC		8
 #define DWCMSHC_EMMC_DLL_DLYENA		BIT(27)
-#define DLL_RXCLK_TAPNUM_DEFAULT	0x8
+#define DLL_TXCLK_TAPNUM_DEFAULT	0x8
 #define DLL_STRBIN_TAPNUM_DEFAULT	0x8
-#define DLL_RXCLK_TAPNUM_FROM_SW	BIT(24)
+#define DLL_TXCLK_TAPNUM_FROM_SW	BIT(24)
 #define DLL_STRBIN_TAPNUM_FROM_SW	BIT(24)
 #define DWCMSHC_EMMC_DLL_LOCKED		BIT(8)
 #define DWCMSHC_EMMC_DLL_TIMEOUT	BIT(9)
@@ -59,6 +59,7 @@ struct dwcmshc_priv {
 
 	/* Rockchip specified optional clocks */
 	struct clk_bulk_data rockchip_clks[ROCKCHIP_MAX_CLKS];
+	int txclk_tapnum;
 };
 
 /*
@@ -128,8 +129,9 @@ static void dwcmshc_hs400_enhanced_strobe(struct mmc_host *mmc,
 static void dwcmshc_rk_set_clock(struct sdhci_host *host, unsigned int clock)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct dwcmshc_priv *priv = sdhci_pltfm_priv(pltfm_host);
+	u32 txclk_tapnum = DLL_TXCLK_TAPNUM_DEFAULT, extra;
 	int err;
-	u32 extra;
 
 	host->mmc->actual_clock = 0;
 	if (clock == 0)
@@ -166,9 +168,13 @@ static void dwcmshc_rk_set_clock(struct sdhci_host *host, unsigned int clock)
 		return;
 	}
 
+	if (host->mmc->ios.timing == MMC_TIMING_MMC_HS200 ||
+	    host->mmc->ios.timing == MMC_TIMING_MMC_HS400)
+		txclk_tapnum = priv->txclk_tapnum;
+
 	extra = DWCMSHC_EMMC_DLL_DLYENA |
-		DLL_RXCLK_TAPNUM_DEFAULT |
-		DLL_RXCLK_TAPNUM_FROM_SW;
+		DLL_TXCLK_TAPNUM_FROM_SW |
+		txclk_tapnum;
 	sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_TXCLK);
 
 	extra = DWCMSHC_EMMC_DLL_DLYENA |
@@ -226,6 +232,10 @@ static int rockchip_pltf_init(struct sdhci_host *host, struct dwcmshc_priv *priv
 		dev_err(mmc_dev(host->mmc), "failed to enable clocks %d\n", err);
 		return err;
 	}
+
+	if (of_property_read_u32(mmc_dev(host->mmc)->of_node, "rockchip,txclk-tapnum",
+				 &priv->txclk_tapnum))
+		priv->txclk_tapnum = DLL_TXCLK_TAPNUM_DEFAULT;
 
 	extra = DWCMSHC_EMMC_DLL_DLYENA |
 		DLL_RXCLK_NO_INVERTER << DWCMSHC_EMMC_DLL_RXCLK_SRCSEL;
