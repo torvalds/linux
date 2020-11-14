@@ -2190,9 +2190,9 @@ void atomisp_css_stop(struct atomisp_sub_device *asd,
 	memset(&asd->params.css_param, 0, sizeof(asd->params.css_param));
 }
 
-int atomisp_css_continuous_set_num_raw_frames(
-    struct atomisp_sub_device *asd,
-    int num_frames)
+void atomisp_css_continuous_set_num_raw_frames(
+     struct atomisp_sub_device *asd,
+     int num_frames)
 {
 	if (asd->enable_raw_buffer_lock->val) {
 		asd->stream_env[ATOMISP_INPUT_STREAM_GENERAL]
@@ -2216,7 +2216,6 @@ int atomisp_css_continuous_set_num_raw_frames(
 
 	asd->stream_env[ATOMISP_INPUT_STREAM_GENERAL]
 	.stream_config.target_num_cont_raw_buf = num_frames;
-	return 0;
 }
 
 static enum ia_css_pipe_mode __pipe_id_to_pipe_mode(

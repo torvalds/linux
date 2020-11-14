@@ -5083,11 +5083,8 @@ static int __enable_continuous_mode(struct atomisp_sub_device *asd,
 	atomisp_css_enable_continuous(asd, enable);
 	atomisp_css_enable_cvf(asd, asd->continuous_viewfinder->val);
 
-	if (atomisp_css_continuous_set_num_raw_frames(asd,
-		asd->continuous_raw_buffer_size->val)) {
-		dev_err(isp->dev, "css_continuous_set_num_raw_frames failed\n");
-		return -EINVAL;
-	}
+	atomisp_css_continuous_set_num_raw_frames(asd,
+		asd->continuous_raw_buffer_size->val);
 
 	if (!enable) {
 		atomisp_css_enable_raw_binning(asd, false);
