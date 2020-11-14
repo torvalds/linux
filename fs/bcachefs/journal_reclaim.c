@@ -158,7 +158,7 @@ void bch2_journal_space_available(struct journal *j)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	struct bch_dev *ca;
-	unsigned clean;
+	unsigned clean, clean_ondisk, total;
 	unsigned overhead, u64s_remaining = 0;
 	unsigned max_entry_size	 = min(j->buf[0].buf_size >> 9,
 				       j->buf[1].buf_size >> 9);
@@ -204,12 +204,20 @@ void bch2_journal_space_available(struct journal *j)
 	for (i = 0; i < journal_space_nr; i++)
 		j->space[i] = __journal_space_available(j, nr_devs_want, i);
 
+	clean_ondisk	= j->space[journal_space_clean_ondisk].total;
 	clean		= j->space[journal_space_clean].total;
+	total		= j->space[journal_space_total].total;
 
 	if (!j->space[journal_space_discarded].next_entry)
 		ret = cur_entry_journal_full;
 	else if (!fifo_free(&j->pin))
 		ret = cur_entry_journal_pin_full;
+
+	if ((clean - clean_ondisk <= total / 8) &&
+	    (clean_ondisk * 2 > clean ))
+		set_bit(JOURNAL_MAY_SKIP_FLUSH, &j->flags);
+	else
+		clear_bit(JOURNAL_MAY_SKIP_FLUSH, &j->flags);
 
 	overhead = DIV_ROUND_UP(clean, max_entry_size) *
 		journal_entry_overhead(j);

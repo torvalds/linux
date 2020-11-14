@@ -118,7 +118,7 @@ out_write_sb:
 out:
 	mutex_unlock(&c->sb_lock);
 
-	return ret;
+	return ret ?: bch2_blacklist_table_initialize(c);
 }
 
 static int journal_seq_blacklist_table_cmp(const void *_l,
@@ -164,8 +164,6 @@ int bch2_blacklist_table_initialize(struct bch_fs *c)
 	struct journal_seq_blacklist_table *t;
 	unsigned i, nr = blacklist_nr_entries(bl);
 
-	BUG_ON(c->journal_seq_blacklist_table);
-
 	if (!bl)
 		return 0;
 
@@ -187,6 +185,7 @@ int bch2_blacklist_table_initialize(struct bch_fs *c)
 			journal_seq_blacklist_table_cmp,
 			NULL);
 
+	kfree(c->journal_seq_blacklist_table);
 	c->journal_seq_blacklist_table = t;
 	return 0;
 }

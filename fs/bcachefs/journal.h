@@ -136,7 +136,7 @@ static inline u64 journal_last_seq(struct journal *j)
 
 static inline u64 journal_cur_seq(struct journal *j)
 {
-	BUG_ON(j->pin.back - 1 != atomic64_read(&j->seq));
+	EBUG_ON(j->pin.back - 1 != atomic64_read(&j->seq));
 
 	return j->pin.back - 1;
 }

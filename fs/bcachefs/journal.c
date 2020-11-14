@@ -79,6 +79,8 @@ static void bch2_journal_buf_init(struct journal *j)
 	struct journal_buf *buf = journal_cur_buf(j);
 
 	bkey_extent_init(&buf->key);
+	buf->noflush	= false;
+	buf->must_flush	= false;
 
 	memset(buf->has_inode, 0, sizeof(buf->has_inode));
 
@@ -574,7 +576,7 @@ int bch2_journal_flush_seq_async(struct journal *j, u64 seq,
 	struct journal_buf *buf;
 	int ret = 0;
 
-	if (seq <= j->seq_ondisk)
+	if (seq <= j->flushed_seq_ondisk)
 		return 1;
 
 	spin_lock(&j->lock);
@@ -585,16 +587,53 @@ int bch2_journal_flush_seq_async(struct journal *j, u64 seq,
 		goto out;
 	}
 
-	if (seq <= j->seq_ondisk) {
+	if (seq <= j->flushed_seq_ondisk) {
 		ret = 1;
 		goto out;
 	}
 
-	if (parent &&
-	    (buf = journal_seq_to_buf(j, seq)))
-		if (!closure_wait(&buf->wait, parent))
+	/* if seq was written, but not flushed - flush a newer one instead */
+	seq = max(seq, last_unwritten_seq(j));
+
+recheck_need_open:
+	if (seq == journal_cur_seq(j) && !journal_entry_is_open(j)) {
+		struct journal_res res = { 0 };
+
+		spin_unlock(&j->lock);
+
+		ret = bch2_journal_res_get(j, &res, jset_u64s(0), 0);
+		if (ret)
+			return ret;
+
+		seq = res.seq;
+		buf = j->buf + (seq & JOURNAL_BUF_MASK);
+		buf->must_flush = true;
+		set_bit(JOURNAL_NEED_WRITE, &j->flags);
+
+		if (parent && !closure_wait(&buf->wait, parent))
 			BUG();
 
+		bch2_journal_res_put(j, &res);
+
+		spin_lock(&j->lock);
+		goto want_write;
+	}
+
+	/*
+	 * if write was kicked off without a flush, flush the next sequence
+	 * number instead
+	 */
+	buf = journal_seq_to_buf(j, seq);
+	if (buf->noflush) {
+		seq++;
+		goto recheck_need_open;
+	}
+
+	buf->must_flush = true;
+
+	if (parent && !closure_wait(&buf->wait, parent))
+		BUG();
+want_write:
 	if (seq == journal_cur_seq(j))
 		journal_entry_want_write(j);
 out:
@@ -979,6 +1018,7 @@ int bch2_fs_journal_start(struct journal *j, u64 cur_seq,
 	spin_lock(&j->lock);
 
 	set_bit(JOURNAL_STARTED, &j->flags);
+	j->last_flush_write = jiffies;
 
 	journal_pin_new_entry(j, 1);
 
@@ -1116,6 +1156,8 @@ void bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
 	       "last_seq:\t\t%llu\n"
 	       "last_seq_ondisk:\t%llu\n"
 	       "prereserved:\t\t%u/%u\n"
+	       "nr flush writes:\t%llu\n"
+	       "nr noflush writes:\t%llu\n"
 	       "nr direct reclaim:\t%llu\n"
 	       "nr background reclaim:\t%llu\n"
 	       "current entry sectors:\t%u\n"
@@ -1127,6 +1169,8 @@ void bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
 	       j->last_seq_ondisk,
 	       j->prereserved.reserved,
 	       j->prereserved.remaining,
+	       j->nr_flush_writes,
+	       j->nr_noflush_writes,
 	       j->nr_direct_reclaim,
 	       j->nr_background_reclaim,
 	       j->cur_entry_sectors,

@@ -10,8 +10,25 @@
 #include "journal.h"
 #include "journal_io.h"
 #include "journal_reclaim.h"
+#include "journal_seq_blacklist.h"
 #include "replicas.h"
 #include "trace.h"
+
+static void __journal_replay_free(struct journal_replay *i)
+{
+	list_del(&i->list);
+	kvpfree(i, offsetof(struct journal_replay, j) +
+		vstruct_bytes(&i->j));
+
+}
+
+static void journal_replay_free(struct bch_fs *c, struct journal_replay *i)
+{
+	i->ignore = true;
+
+	if (!c->opts.read_entire_journal)
+		__journal_replay_free(i);
+}
 
 struct journal_list {
 	struct closure		cl;
@@ -35,28 +52,29 @@ static int journal_entry_add(struct bch_fs *c, struct bch_dev *ca,
 	struct bch_devs_list devs = { .nr = 0 };
 	struct list_head *where;
 	size_t bytes = vstruct_bytes(j);
-	__le64 last_seq;
+	u64 last_seq = 0;
 	int ret;
 
-	last_seq = !list_empty(jlist->head)
-		? list_last_entry(jlist->head, struct journal_replay,
-				  list)->j.last_seq
-		: 0;
-
-	if (!c->opts.read_entire_journal) {
-		/* Is this entry older than the range we need? */
-		if (le64_to_cpu(j->seq) < le64_to_cpu(last_seq)) {
-			ret = JOURNAL_ENTRY_ADD_OUT_OF_RANGE;
-			goto out;
+	list_for_each_entry_reverse(i, jlist->head, list) {
+		if (!JSET_NO_FLUSH(&i->j)) {
+			last_seq = le64_to_cpu(i->j.last_seq);
+			break;
 		}
+	}
 
-		/* Drop entries we don't need anymore */
+	/* Is this entry older than the range we need? */
+	if (!c->opts.read_entire_journal &&
+	    le64_to_cpu(j->seq) < last_seq) {
+		ret = JOURNAL_ENTRY_ADD_OUT_OF_RANGE;
+		goto out;
+	}
+
+	/* Drop entries we don't need anymore */
+	if (!JSET_NO_FLUSH(j)) {
 		list_for_each_entry_safe(i, pos, jlist->head, list) {
 			if (le64_to_cpu(i->j.seq) >= le64_to_cpu(j->last_seq))
 				break;
-			list_del(&i->list);
-			kvpfree(i, offsetof(struct journal_replay, j) +
-				vstruct_bytes(&i->j));
+			journal_replay_free(c, i);
 		}
 	}
 
@@ -80,9 +98,7 @@ add:
 	if (i && le64_to_cpu(j->seq) == le64_to_cpu(i->j.seq)) {
 		if (i->bad) {
 			devs = i->devs;
-			list_del(&i->list);
-			kvpfree(i, offsetof(struct journal_replay, j) +
-				vstruct_bytes(&i->j));
+			__journal_replay_free(i);
 		} else if (bad) {
 			goto found;
 		} else {
@@ -104,6 +120,7 @@ add:
 	list_add(&i->list, where);
 	i->devs = devs;
 	i->bad	= bad;
+	i->ignore = false;
 	unsafe_memcpy(&i->j, j, bytes, "embedded variable length struct");
 found:
 	if (!bch2_dev_list_has_dev(i->devs, ca->dev_idx))
@@ -698,14 +715,16 @@ err:
 	goto out;
 }
 
-int bch2_journal_read(struct bch_fs *c, struct list_head *list)
+int bch2_journal_read(struct bch_fs *c, struct list_head *list,
+		      u64 *blacklist_seq, u64 *start_seq)
 {
 	struct journal_list jlist;
-	struct journal_replay *i;
+	struct journal_replay *i, *t;
 	struct bch_dev *ca;
 	unsigned iter;
 	size_t keys = 0, entries = 0;
 	bool degraded = false;
+	u64 seq, last_seq = 0;
 	int ret = 0;
 
 	closure_init_stack(&jlist.cl);
@@ -734,11 +753,96 @@ int bch2_journal_read(struct bch_fs *c, struct list_head *list)
 	if (jlist.ret)
 		return jlist.ret;
 
+	if (list_empty(list)) {
+		bch_info(c, "journal read done, but no entries found");
+		return 0;
+	}
+
+	i = list_last_entry(list, struct journal_replay, list);
+	*start_seq = le64_to_cpu(i->j.seq) + 1;
+
+	/*
+	 * Find most recent flush entry, and ignore newer non flush entries -
+	 * those entries will be blacklisted:
+	 */
+	list_for_each_entry_safe_reverse(i, t, list, list) {
+		if (i->ignore)
+			continue;
+
+		if (!JSET_NO_FLUSH(&i->j)) {
+			last_seq	= le64_to_cpu(i->j.last_seq);
+			*blacklist_seq	= le64_to_cpu(i->j.seq) + 1;
+			break;
+		}
+
+		journal_replay_free(c, i);
+	}
+
+	if (!last_seq) {
+		fsck_err(c, "journal read done, but no entries found after dropping non-flushes");
+		return -1;
+	}
+
+	/* Drop blacklisted entries and entries older than last_seq: */
+	list_for_each_entry_safe(i, t, list, list) {
+		if (i->ignore)
+			continue;
+
+		seq = le64_to_cpu(i->j.seq);
+		if (seq < last_seq) {
+			journal_replay_free(c, i);
+			continue;
+		}
+
+		if (bch2_journal_seq_is_blacklisted(c, seq, true)) {
+			fsck_err_on(!JSET_NO_FLUSH(&i->j), c,
+				    "found blacklisted journal entry %llu", seq);
+
+			journal_replay_free(c, i);
+		}
+	}
+
+	/* Check for missing entries: */
+	seq = last_seq;
+	list_for_each_entry(i, list, list) {
+		if (i->ignore)
+			continue;
+
+		BUG_ON(seq > le64_to_cpu(i->j.seq));
+
+		while (seq < le64_to_cpu(i->j.seq)) {
+			u64 missing_start, missing_end;
+
+			while (seq < le64_to_cpu(i->j.seq) &&
+			       bch2_journal_seq_is_blacklisted(c, seq, false))
+				seq++;
+
+			if (seq == le64_to_cpu(i->j.seq))
+				break;
+
+			missing_start = seq;
+
+			while (seq < le64_to_cpu(i->j.seq) &&
+			       !bch2_journal_seq_is_blacklisted(c, seq, false))
+				seq++;
+
+			missing_end = seq - 1;
+			fsck_err(c, "journal entries %llu-%llu missing! (replaying %llu-%llu)",
+				 missing_start, missing_end,
+				 last_seq, *blacklist_seq - 1);
+		}
+
+		seq++;
+	}
+
 	list_for_each_entry(i, list, list) {
 		struct jset_entry *entry;
 		struct bkey_i *k, *_n;
 		struct bch_replicas_padded replicas;
 		char buf[80];
+
+		if (i->ignore)
+			continue;
 
 		ret = jset_validate_entries(c, &i->j, READ);
 		if (ret)
@@ -767,12 +871,12 @@ int bch2_journal_read(struct bch_fs *c, struct list_head *list)
 		entries++;
 	}
 
-	if (!list_empty(list)) {
-		i = list_last_entry(list, struct journal_replay, list);
+	bch_info(c, "journal read done, %zu keys in %zu entries, seq %llu",
+		 keys, entries, *start_seq);
 
-		bch_info(c, "journal read done, %zu keys in %zu entries, seq %llu",
-			 keys, entries, le64_to_cpu(i->j.seq));
-	}
+	if (*start_seq != *blacklist_seq)
+		bch_info(c, "dropped unflushed entries %llu-%llu",
+			 *blacklist_seq, *start_seq - 1);
 fsck_err:
 	return ret;
 }
@@ -990,8 +1094,12 @@ static void journal_write_done(struct closure *cl)
 	j->seq_ondisk		= seq;
 	if (err && (!j->err_seq || seq < j->err_seq))
 		j->err_seq	= seq;
-	j->last_seq_ondisk	= last_seq;
-	bch2_journal_space_available(j);
+
+	if (!w->noflush) {
+		j->flushed_seq_ondisk = seq;
+		j->last_seq_ondisk = last_seq;
+		bch2_journal_space_available(j);
+	}
 
 	/*
 	 * Updating last_seq_ondisk may let bch2_journal_reclaim_work() discard
@@ -1066,6 +1174,22 @@ void bch2_journal_write(struct closure *cl)
 	jset = w->data;
 
 	j->write_start_time = local_clock();
+
+	spin_lock(&j->lock);
+	if (c->sb.features & (1ULL << BCH_FEATURE_journal_no_flush) &&
+	    !w->must_flush &&
+	    (jiffies - j->last_flush_write) < msecs_to_jiffies(j->write_delay_ms) &&
+	    test_bit(JOURNAL_MAY_SKIP_FLUSH, &j->flags)) {
+		w->noflush = true;
+		SET_JSET_NO_FLUSH(jset, true);
+		jset->last_seq = cpu_to_le64(j->last_seq_ondisk);
+
+		j->nr_noflush_writes++;
+	} else {
+		j->last_flush_write = jiffies;
+		j->nr_flush_writes++;
+	}
+	spin_unlock(&j->lock);
 
 	/*
 	 * New btree roots are set by journalling them; when the journal entry
@@ -1183,11 +1307,12 @@ retry_alloc:
 			     sectors);
 
 		bio = ca->journal.bio;
-		bio_reset(bio, ca->disk_sb.bdev,
-			  REQ_OP_WRITE|REQ_SYNC|REQ_META|REQ_PREFLUSH|REQ_FUA);
+		bio_reset(bio, ca->disk_sb.bdev, REQ_OP_WRITE|REQ_SYNC|REQ_META);
 		bio->bi_iter.bi_sector	= ptr->offset;
 		bio->bi_end_io		= journal_write_endio;
 		bio->bi_private		= ca;
+		if (!JSET_NO_FLUSH(jset))
+			bio->bi_opf    |= REQ_PREFLUSH|REQ_FUA;
 		bch2_bio_map(bio, jset, sectors << 9);
 
 		trace_journal_write(bio);
@@ -1196,18 +1321,19 @@ retry_alloc:
 		ca->journal.bucket_seq[ca->journal.cur_idx] = le64_to_cpu(jset->seq);
 	}
 
-	for_each_rw_member(ca, c, i)
-		if (journal_flushes_device(ca) &&
-		    !bch2_bkey_has_device(bkey_i_to_s_c(&w->key), i)) {
-			percpu_ref_get(&ca->io_ref);
+	if (!JSET_NO_FLUSH(jset)) {
+		for_each_rw_member(ca, c, i)
+			if (journal_flushes_device(ca) &&
+			    !bch2_bkey_has_device(bkey_i_to_s_c(&w->key), i)) {
+				percpu_ref_get(&ca->io_ref);
 
-			bio = ca->journal.bio;
-			bio_reset(bio, ca->disk_sb.bdev, REQ_OP_FLUSH);
-			bio->bi_end_io		= journal_write_endio;
-			bio->bi_private		= ca;
-			closure_bio_submit(bio, cl);
-		}
-
+				bio = ca->journal.bio;
+				bio_reset(bio, ca->disk_sb.bdev, REQ_OP_FLUSH);
+				bio->bi_end_io		= journal_write_endio;
+				bio->bi_private		= ca;
+				closure_bio_submit(bio, cl);
+			}
+	}
 no_io:
 	bch2_bucket_seq_cleanup(c);
 

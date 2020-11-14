@@ -29,6 +29,8 @@ struct journal_buf {
 	unsigned		disk_sectors;	/* maximum size entry could have been, if
 						   buf_size was bigger */
 	unsigned		u64s_reserved;
+	bool			noflush;	/* write has already been kicked off, and was noflush */
+	bool			must_flush;	/* something wants a flush */
 	/* bloom filter: */
 	unsigned long		has_inode[1024 / sizeof(unsigned long)];
 };
@@ -146,6 +148,7 @@ enum {
 	JOURNAL_RECLAIM_STARTED,
 	JOURNAL_NEED_WRITE,
 	JOURNAL_MAY_GET_UNRESERVED,
+	JOURNAL_MAY_SKIP_FLUSH,
 };
 
 /* Embedded in struct bch_fs */
@@ -203,6 +206,7 @@ struct journal {
 
 	/* seq, last_seq from the most recent journal entry successfully written */
 	u64			seq_ondisk;
+	u64			flushed_seq_ondisk;
 	u64			last_seq_ondisk;
 	u64			err_seq;
 	u64			last_empty_seq;
@@ -252,10 +256,14 @@ struct journal {
 
 	unsigned		write_delay_ms;
 	unsigned		reclaim_delay_ms;
+	unsigned long		last_flush_write;
 
 	u64			res_get_blocked_start;
 	u64			need_write_time;
 	u64			write_start_time;
+
+	u64			nr_flush_writes;
+	u64			nr_noflush_writes;
 
 	struct bch2_time_stats	*write_time;
 	struct bch2_time_stats	*delay_time;

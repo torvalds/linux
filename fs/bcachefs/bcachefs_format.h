@@ -1336,14 +1336,16 @@ LE64_BITMASK(BCH_SB_ERASURE_CODE,	struct bch_sb, flags[3],  0, 16);
 	x(extents_above_btree_updates,	12)	\
 	x(btree_updates_journalled,	13)	\
 	x(reflink_inline_data,		14)	\
-	x(new_varint,			15)
+	x(new_varint,			15)	\
+	x(journal_no_flush,		16)
 
 #define BCH_SB_FEATURES_ALL				\
 	((1ULL << BCH_FEATURE_new_siphash)|		\
 	 (1ULL << BCH_FEATURE_new_extent_overwrite)|	\
 	 (1ULL << BCH_FEATURE_btree_ptr_v2)|		\
 	 (1ULL << BCH_FEATURE_extents_above_btree_updates)|\
-	 (1ULL << BCH_FEATURE_new_varint))\
+	 (1ULL << BCH_FEATURE_new_varint)|		\
+	 (1ULL << BCH_FEATURE_journal_no_flush))
 
 enum bch_sb_feature {
 #define x(f, n) BCH_FEATURE_##f,
@@ -1582,6 +1584,7 @@ struct jset {
 
 LE32_BITMASK(JSET_CSUM_TYPE,	struct jset, flags, 0, 4);
 LE32_BITMASK(JSET_BIG_ENDIAN,	struct jset, flags, 4, 5);
+LE32_BITMASK(JSET_NO_FLUSH,	struct jset, flags, 5, 6);
 
 #define BCH_JOURNAL_BUCKETS_MIN		8
 
