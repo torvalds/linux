@@ -274,7 +274,6 @@ static int rkispp_hw_probe(struct platform_device *pdev)
 	spin_lock_init(&hw_dev->irq_lock);
 	spin_lock_init(&hw_dev->buf_lock);
 	atomic_set(&hw_dev->refcnt, 0);
-	atomic_set(&hw_dev->power_cnt, 0);
 	INIT_LIST_HEAD(&hw_dev->list);
 	hw_dev->is_idle = true;
 	hw_dev->is_single = true;

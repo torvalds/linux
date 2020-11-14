@@ -45,7 +45,6 @@ struct rkispp_hw_dev {
 	struct mutex dev_lock;
 	spinlock_t buf_lock;
 	atomic_t refcnt;
-	atomic_t power_cnt;
 	bool is_idle;
 	bool is_single;
 };

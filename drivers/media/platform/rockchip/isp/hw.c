@@ -690,9 +690,9 @@ static int rkisp_hw_probe(struct platform_device *pdev)
 	hw_dev->cur_dev_id = 0;
 	hw_dev->mipi_dev_id = 0;
 	hw_dev->isp_ver = match_data->isp_ver;
+	mutex_init(&hw_dev->dev_lock);
 	spin_lock_init(&hw_dev->rdbk_lock);
 	atomic_set(&hw_dev->refcnt, 0);
-	atomic_set(&hw_dev->power_cnt, 0);
 	spin_lock_init(&hw_dev->buf_lock);
 	INIT_LIST_HEAD(&hw_dev->list);
 	hw_dev->is_idle = true;
@@ -713,7 +713,10 @@ err:
 
 static int rkisp_hw_remove(struct platform_device *pdev)
 {
+	struct rkisp_hw_dev *hw_dev = platform_get_drvdata(pdev);
+
 	pm_runtime_disable(&pdev->dev);
+	mutex_destroy(&hw_dev->dev_lock);
 	return 0;
 }
 

@@ -302,23 +302,29 @@ static int rkispp_plat_remove(struct platform_device *pdev)
 static int __maybe_unused rkispp_runtime_suspend(struct device *dev)
 {
 	struct rkispp_device *ispp_dev = dev_get_drvdata(dev);
+	int ret;
 
-	if (atomic_dec_return(&ispp_dev->hw_dev->power_cnt))
-		return 0;
 	rkispp_free_common_dummy_buf(ispp_dev);
-	return pm_runtime_put_sync(ispp_dev->hw_dev->dev);
+
+	mutex_lock(&ispp_dev->hw_dev->dev_lock);
+	ret = pm_runtime_put_sync(ispp_dev->hw_dev->dev);
+	mutex_unlock(&ispp_dev->hw_dev->dev_lock);
+	return (ret > 0) ? 0 : ret;
 }
 
 static int __maybe_unused rkispp_runtime_resume(struct device *dev)
 {
 	struct rkispp_device *ispp_dev = dev_get_drvdata(dev);
+	int ret;
 
 	ispp_dev->isp_mode = rkisp_ispp_mode;
 	ispp_dev->stream_sync = rkispp_stream_sync;
 	ispp_dev->stream_vdev.monitor.is_en = rkispp_monitor;
-	if (atomic_inc_return(&ispp_dev->hw_dev->power_cnt) > 1)
-		return 0;
-	return pm_runtime_get_sync(ispp_dev->hw_dev->dev);
+
+	mutex_lock(&ispp_dev->hw_dev->dev_lock);
+	ret = pm_runtime_get_sync(ispp_dev->hw_dev->dev);
+	mutex_unlock(&ispp_dev->hw_dev->dev_lock);
+	return (ret > 0) ? 0 : ret;
 }
 
 static const struct dev_pm_ops rkispp_plat_pm_ops = {

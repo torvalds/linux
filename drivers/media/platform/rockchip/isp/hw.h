@@ -44,7 +44,6 @@ struct rkisp_hw_dev {
 	/* lock for multi dev */
 	struct mutex dev_lock;
 	spinlock_t rdbk_lock;
-	atomic_t power_cnt;
 	atomic_t refcnt;
 
 	/* share buf for multi dev */
