@@ -3735,3 +3735,12 @@ int rvu_mbox_handler_nix_lso_format_cfg(struct rvu *rvu,
 
 	return 0;
 }
+
+void rvu_nix_reset_mac(struct rvu_pfvf *pfvf, int pcifunc)
+{
+	bool from_vf = !!(pcifunc & RVU_PFVF_FUNC_MASK);
+
+	/* overwrite vf mac address with default_mac */
+	if (from_vf)
+		ether_addr_copy(pfvf->mac_addr, pfvf->default_mac);
+}
