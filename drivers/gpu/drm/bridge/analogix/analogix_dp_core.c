@@ -41,6 +41,20 @@ struct bridge_init {
 	struct device_node *node;
 };
 
+static bool analogix_dp_bandwidth_ok(struct analogix_dp_device *dp,
+				     const struct drm_display_mode *mode,
+				     unsigned int rate, unsigned int lanes)
+{
+	u32 max_bw, req_bw, bpp = 24;
+
+	req_bw = mode->clock * bpp / 8;
+	max_bw = lanes * rate;
+	if (req_bw > max_bw)
+		return false;
+
+	return true;
+}
+
 static int analogix_dp_init_dp(struct analogix_dp_device *dp)
 {
 	int ret;
@@ -607,6 +621,7 @@ static void analogix_dp_get_max_rx_lane_count(struct analogix_dp_device *dp,
 static int analogix_dp_full_link_train(struct analogix_dp_device *dp,
 				       u32 max_lanes, u32 max_rate)
 {
+	struct video_info *video = &dp->video_info;
 	int retval = 0;
 	bool training_finished = false;
 	u8 dpcd;
@@ -633,6 +648,13 @@ static int analogix_dp_full_link_train(struct analogix_dp_device *dp,
 		dev_err(dp->dev, "Rx Max Lane count is abnormal :%x !\n",
 			dp->link_train.lane_count);
 		dp->link_train.lane_count = (u8)LANE_COUNT1;
+	}
+
+	if (!analogix_dp_bandwidth_ok(dp, &video->mode,
+				      drm_dp_bw_code_to_link_rate(dp->link_train.link_rate),
+				      dp->link_train.lane_count)) {
+		dev_err(dp->dev, "bandwidth overflow\n");
+		return -EINVAL;
 	}
 
 	drm_dp_dpcd_readb(&dp->aux, DP_MAX_DOWNSPREAD, &dpcd);
@@ -1482,6 +1504,21 @@ static void analogix_dp_bridge_mode_set(struct drm_bridge *bridge,
 		video->interlaced = true;
 }
 
+static enum drm_mode_status
+analogix_dp_bridge_mode_valid(struct drm_bridge *bridge,
+			      const struct drm_display_info *info,
+			      const struct drm_display_mode *mode)
+{
+	struct analogix_dp_device *dp = bridge->driver_private;
+
+	if (!analogix_dp_bandwidth_ok(dp, mode,
+				      drm_dp_bw_code_to_link_rate(dp->video_info.max_link_rate),
+				      dp->video_info.max_lane_count))
+		return MODE_BAD;
+
+	return MODE_OK;
+}
+
 static const struct drm_bridge_funcs analogix_dp_bridge_funcs = {
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
@@ -1492,6 +1529,7 @@ static const struct drm_bridge_funcs analogix_dp_bridge_funcs = {
 	.atomic_post_disable = analogix_dp_bridge_atomic_post_disable,
 	.mode_set = analogix_dp_bridge_mode_set,
 	.attach = analogix_dp_bridge_attach,
+	.mode_valid = analogix_dp_bridge_mode_valid,
 };
 
 static int analogix_dp_create_bridge(struct drm_device *drm_dev,
