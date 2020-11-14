@@ -380,6 +380,35 @@ static void *section_objs(const struct load_info *info,
 	return (void *)info->sechdrs[sec].sh_addr;
 }
 
+/* Find a module section: 0 means not found. Ignores SHF_ALLOC flag. */
+static unsigned int find_any_sec(const struct load_info *info, const char *name)
+{
+	unsigned int i;
+
+	for (i = 1; i < info->hdr->e_shnum; i++) {
+		Elf_Shdr *shdr = &info->sechdrs[i];
+		if (strcmp(info->secstrings + shdr->sh_name, name) == 0)
+			return i;
+	}
+	return 0;
+}
+
+/*
+ * Find a module section, or NULL. Fill in number of "objects" in section.
+ * Ignores SHF_ALLOC flag.
+ */
+static __maybe_unused void *any_section_objs(const struct load_info *info,
+					     const char *name,
+					     size_t object_size,
+					     unsigned int *num)
+{
+	unsigned int sec = find_any_sec(info, name);
+
+	/* Section 0 has sh_addr 0 and sh_size 0. */
+	*num = info->sechdrs[sec].sh_size / object_size;
+	return (void *)info->sechdrs[sec].sh_addr;
+}
+
 /* Provided by the linker */
 extern const struct kernel_symbol __start___ksymtab[];
 extern const struct kernel_symbol __stop___ksymtab[];
@@ -3249,6 +3278,9 @@ static int find_module_sections(struct module *mod, struct load_info *info)
 	mod->bpf_raw_events = section_objs(info, "__bpf_raw_tp_map",
 					   sizeof(*mod->bpf_raw_events),
 					   &mod->num_bpf_raw_events);
+#endif
+#ifdef CONFIG_DEBUG_INFO_BTF_MODULES
+	mod->btf_data = any_section_objs(info, ".BTF", 1, &mod->btf_data_size);
 #endif
 #ifdef CONFIG_JUMP_LABEL
 	mod->jump_entries = section_objs(info, "__jump_table",

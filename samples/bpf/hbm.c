@@ -51,7 +51,6 @@
 #include "cgroup_helpers.h"
 #include "hbm.h"
 #include "bpf_util.h"
-#include <bpf/bpf.h>
 #include <bpf/libbpf.h>
 
 bool outFlag = true;

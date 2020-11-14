@@ -14,5 +14,7 @@ struct tcpbpf_globals {
 	__u64 bytes_acked;
 	__u32 num_listen;
 	__u32 num_close_events;
+	__u32 tcp_save_syn;
+	__u32 tcp_saved_syn;
 };
 #endif
