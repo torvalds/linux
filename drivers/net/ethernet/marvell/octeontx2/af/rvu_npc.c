@@ -2730,30 +2730,6 @@ int rvu_mbox_handler_npc_get_kex_cfg(struct rvu *rvu, struct msg_req *req,
 	return 0;
 }
 
-int rvu_npc_update_rxvlan(struct rvu *rvu, u16 pcifunc, int nixlf)
-{
-	struct rvu_pfvf *pfvf = rvu_get_pfvf(rvu, pcifunc);
-	struct npc_mcam *mcam = &rvu->hw->mcam;
-	int blkaddr, index;
-	bool enable;
-
-	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
-	if (blkaddr < 0)
-		return NIX_AF_ERR_AF_LF_INVALID;
-
-	if (!pfvf->rxvlan)
-		return 0;
-
-	index = npc_get_nixlf_mcam_index(mcam, pcifunc, nixlf,
-					 NIXLF_UCAST_ENTRY);
-	pfvf->entry.action = npc_get_mcam_action(rvu, mcam, blkaddr, index);
-	enable = is_mcam_entry_enabled(rvu, mcam, blkaddr, index);
-	npc_config_mcam_entry(rvu, mcam, blkaddr, pfvf->rxvlan_index,
-			      pfvf->nix_rx_intf, &pfvf->entry, enable);
-
-	return 0;
-}
-
 bool rvu_npc_write_default_rule(struct rvu *rvu, int blkaddr, int nixlf,
 				u16 pcifunc, u8 intf, struct mcam_entry *entry,
 				int *index)
