@@ -418,11 +418,12 @@ void blkdev_show(struct seq_file *seqf, off_t offset)
 #endif /* CONFIG_PROC_FS */
 
 /**
- * register_blkdev - register a new block device
+ * __register_blkdev - register a new block device
  *
  * @major: the requested major device number [1..BLKDEV_MAJOR_MAX-1]. If
  *         @major = 0, try to allocate any unused major number.
  * @name: the name of the new block device as a zero terminated string
+ * @probe: allback that is called on access to any minor number of @major
  *
  * The @name must be unique within the system.
  *
@@ -436,6 +437,8 @@ void blkdev_show(struct seq_file *seqf, off_t offset)
  *
  * See Documentation/admin-guide/devices.txt for the list of allocated
  * major numbers.
+ *
+ * Use register_blkdev instead for any new code.
  */
 int __register_blkdev(unsigned int major, const char *name,
 		void (*probe)(dev_t devt))
