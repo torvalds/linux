@@ -383,6 +383,18 @@
 	status = "okay";
 };
 
+&hdmi_sound {
+	status = "okay";
+};
+
+&hdmi_in_vp0 {
+	status = "okay";
+};
+
+&hdmi_in_vp1 {
+	status = "disabled";
+};
+
 &i2c0 {
 	status = "okay";
 
