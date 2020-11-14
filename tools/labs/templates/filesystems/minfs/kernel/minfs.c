@@ -324,7 +324,7 @@ static struct inode *minfs_new_inode(struct inode *dir)
 
 	/* TODO 7/5: Find first available inode. */
 	idx = find_first_zero_bit(&sbi->imap, MINFS_NUM_INODES);
-	if (idx < 0) {
+	if (idx == MINFS_NUM_INODES) {
 		printk(LOG_LEVEL "no space left in imap\n");
 		return NULL;
 	}
