@@ -944,24 +944,29 @@ static void journal_write_done(struct closure *cl)
 	struct bch_replicas_padded replicas;
 	u64 seq = le64_to_cpu(w->data->seq);
 	u64 last_seq = le64_to_cpu(w->data->last_seq);
+	int err = 0;
 
 	bch2_time_stats_update(j->write_time, j->write_start_time);
 
 	if (!devs.nr) {
 		bch_err(c, "unable to write journal to sufficient devices");
-		goto err;
+		err = -EIO;
+	} else {
+		bch2_devlist_to_replicas(&replicas.e, BCH_DATA_journal, devs);
+		if (bch2_mark_replicas(c, &replicas.e))
+			err = -EIO;
 	}
 
-	bch2_devlist_to_replicas(&replicas.e, BCH_DATA_journal, devs);
-
-	if (bch2_mark_replicas(c, &replicas.e))
-		goto err;
+	if (err)
+		bch2_fatal_error(c);
 
 	spin_lock(&j->lock);
 	if (seq >= j->pin.front)
 		journal_seq_pin(j, seq)->devs = devs;
 
 	j->seq_ondisk		= seq;
+	if (err && (!j->err_seq || seq < j->err_seq))
+		j->err_seq	= seq;
 	j->last_seq_ondisk	= last_seq;
 	bch2_journal_space_available(j);
 
@@ -973,7 +978,7 @@ static void journal_write_done(struct closure *cl)
 	 * bch2_fs_journal_stop():
 	 */
 	mod_delayed_work(c->journal_reclaim_wq, &j->reclaim_work, 0);
-out:
+
 	/* also must come before signalling write completion: */
 	closure_debug_destroy(cl);
 
@@ -987,11 +992,6 @@ out:
 	if (test_bit(JOURNAL_NEED_WRITE, &j->flags))
 		mod_delayed_work(system_freezable_wq, &j->write_work, 0);
 	spin_unlock(&j->lock);
-	return;
-err:
-	bch2_fatal_error(c);
-	spin_lock(&j->lock);
-	goto out;
 }
 
 static void journal_write_endio(struct bio *bio)
@@ -1071,6 +1071,9 @@ void bch2_journal_write(struct closure *cl)
 
 	SET_JSET_BIG_ENDIAN(jset, CPU_BIG_ENDIAN);
 	SET_JSET_CSUM_TYPE(jset, bch2_meta_checksum_type(c));
+
+	if (journal_entry_empty(jset))
+		j->last_empty_seq = le64_to_cpu(jset->seq);
 
 	if (bch2_csum_type_is_encryption(JSET_CSUM_TYPE(jset)))
 		validate_before_checksum = true;

@@ -127,7 +127,6 @@ enum {
 	JOURNAL_STARTED,
 	JOURNAL_RECLAIM_STARTED,
 	JOURNAL_NEED_WRITE,
-	JOURNAL_NOT_EMPTY,
 	JOURNAL_MAY_GET_UNRESERVED,
 };
 
@@ -181,6 +180,8 @@ struct journal {
 	/* seq, last_seq from the most recent journal entry successfully written */
 	u64			seq_ondisk;
 	u64			last_seq_ondisk;
+	u64			err_seq;
+	u64			last_empty_seq;
 
 	/*
 	 * FIFO of journal entries whose btree updates have not yet been
