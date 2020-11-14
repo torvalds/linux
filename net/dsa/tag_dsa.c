@@ -129,21 +129,17 @@ static struct sk_buff *dsa_xmit_ll(struct sk_buff *skb, struct net_device *dev,
 	u8 *dsa_header;
 
 	if (skb->protocol == htons(ETH_P_8021Q)) {
-		/*
-		 * Construct tagged FROM_CPU DSA tag from 802.1q tag.
-		 */
 		if (extra) {
 			skb_push(skb, extra);
 			memmove(skb->data, skb->data + extra, 2 * ETH_ALEN);
 		}
 
+		/* Construct tagged FROM_CPU DSA tag from 802.1Q tag. */
 		dsa_header = skb->data + 2 * ETH_ALEN + extra;
 		dsa_header[0] = (DSA_CMD_FROM_CPU << 6) | 0x20 | dp->ds->index;
 		dsa_header[1] = dp->index << 3;
 
-		/*
-		 * Move CFI field from byte 2 to byte 1.
-		 */
+		/* Move CFI field from byte 2 to byte 1. */
 		if (dsa_header[2] & 0x10) {
 			dsa_header[1] |= 0x01;
 			dsa_header[2] &= ~0x10;
@@ -152,9 +148,7 @@ static struct sk_buff *dsa_xmit_ll(struct sk_buff *skb, struct net_device *dev,
 		skb_push(skb, DSA_HLEN + extra);
 		memmove(skb->data, skb->data + DSA_HLEN + extra, 2 * ETH_ALEN);
 
-		/*
-		 * Construct untagged FROM_CPU DSA tag.
-		 */
+		/* Construct untagged FROM_CPU DSA tag. */
 		dsa_header = skb->data + 2 * ETH_ALEN + extra;
 		dsa_header[0] = (DSA_CMD_FROM_CPU << 6) | dp->ds->index;
 		dsa_header[1] = dp->index << 3;
@@ -173,9 +167,7 @@ static struct sk_buff *dsa_rcv_ll(struct sk_buff *skb, struct net_device *dev,
 	enum dsa_cmd cmd;
 	u8 *dsa_header;
 
-	/*
-	 * The ethertype field is part of the DSA header.
-	 */
+	/* The ethertype field is part of the DSA header. */
 	dsa_header = skb->data - 2;
 
 	cmd = dsa_header[0] >> 6;
@@ -236,8 +228,7 @@ static struct sk_buff *dsa_rcv_ll(struct sk_buff *skb, struct net_device *dev,
 	if (dsa_header[0] & 0x20) {
 		u8 new_header[4];
 
-		/*
-		 * Insert 802.1q ethertype and copy the VLAN-related
+		/* Insert 802.1Q ethertype and copy the VLAN-related
 		 * fields, but clear the bit that will hold CFI (since
 		 * DSA uses that bit location for another purpose).
 		 */
@@ -246,16 +237,13 @@ static struct sk_buff *dsa_rcv_ll(struct sk_buff *skb, struct net_device *dev,
 		new_header[2] = dsa_header[2] & ~0x10;
 		new_header[3] = dsa_header[3];
 
-		/*
-		 * Move CFI bit from its place in the DSA header to
-		 * its 802.1q-designated place.
+		/* Move CFI bit from its place in the DSA header to
+		 * its 802.1Q-designated place.
 		 */
 		if (dsa_header[1] & 0x01)
 			new_header[2] |= 0x10;
 
-		/*
-		 * Update packet checksum if skb is CHECKSUM_COMPLETE.
-		 */
+		/* Update packet checksum if skb is CHECKSUM_COMPLETE. */
 		if (skb->ip_summed == CHECKSUM_COMPLETE) {
 			__wsum c = skb->csum;
 			c = csum_add(c, csum_partial(new_header + 2, 2, 0));
