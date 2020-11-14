@@ -1770,6 +1770,198 @@ static int rvu_dbg_npc_rx_miss_stats_display(struct seq_file *filp,
 
 RVU_DEBUG_SEQ_FOPS(npc_rx_miss_act, npc_rx_miss_stats_display, NULL);
 
+static void rvu_dbg_npc_mcam_show_flows(struct seq_file *s,
+					struct rvu_npc_mcam_rule *rule)
+{
+	u8 bit;
+
+	for_each_set_bit(bit, (unsigned long *)&rule->features, 64) {
+		seq_printf(s, "\t%s  ", npc_get_field_name(bit));
+		switch (bit) {
+		case NPC_DMAC:
+			seq_printf(s, "%pM ", rule->packet.dmac);
+			seq_printf(s, "mask %pM\n", rule->mask.dmac);
+			break;
+		case NPC_SMAC:
+			seq_printf(s, "%pM ", rule->packet.smac);
+			seq_printf(s, "mask %pM\n", rule->mask.smac);
+			break;
+		case NPC_ETYPE:
+			seq_printf(s, "0x%x ", ntohs(rule->packet.etype));
+			seq_printf(s, "mask 0x%x\n", ntohs(rule->mask.etype));
+			break;
+		case NPC_OUTER_VID:
+			seq_printf(s, "%d ", ntohs(rule->packet.vlan_tci));
+			seq_printf(s, "mask 0x%x\n",
+				   ntohs(rule->mask.vlan_tci));
+			break;
+		case NPC_TOS:
+			seq_printf(s, "%d ", rule->packet.tos);
+			seq_printf(s, "mask 0x%x\n", rule->mask.tos);
+			break;
+		case NPC_SIP_IPV4:
+			seq_printf(s, "%pI4 ", &rule->packet.ip4src);
+			seq_printf(s, "mask %pI4\n", &rule->mask.ip4src);
+			break;
+		case NPC_DIP_IPV4:
+			seq_printf(s, "%pI4 ", &rule->packet.ip4dst);
+			seq_printf(s, "mask %pI4\n", &rule->mask.ip4dst);
+			break;
+		case NPC_SIP_IPV6:
+			seq_printf(s, "%pI6 ", rule->packet.ip6src);
+			seq_printf(s, "mask %pI6\n", rule->mask.ip6src);
+			break;
+		case NPC_DIP_IPV6:
+			seq_printf(s, "%pI6 ", rule->packet.ip6dst);
+			seq_printf(s, "mask %pI6\n", rule->mask.ip6dst);
+			break;
+		case NPC_SPORT_TCP:
+		case NPC_SPORT_UDP:
+		case NPC_SPORT_SCTP:
+			seq_printf(s, "%d ", ntohs(rule->packet.sport));
+			seq_printf(s, "mask 0x%x\n", ntohs(rule->mask.sport));
+			break;
+		case NPC_DPORT_TCP:
+		case NPC_DPORT_UDP:
+		case NPC_DPORT_SCTP:
+			seq_printf(s, "%d ", ntohs(rule->packet.dport));
+			seq_printf(s, "mask 0x%x\n", ntohs(rule->mask.dport));
+			break;
+		default:
+			break;
+		}
+	}
+}
+
+static void rvu_dbg_npc_mcam_show_action(struct seq_file *s,
+					 struct rvu_npc_mcam_rule *rule)
+{
+	if (rule->intf == NIX_INTF_TX) {
+		switch (rule->tx_action.op) {
+		case NIX_TX_ACTIONOP_DROP:
+			seq_puts(s, "\taction: Drop\n");
+			break;
+		case NIX_TX_ACTIONOP_UCAST_DEFAULT:
+			seq_puts(s, "\taction: Unicast to default channel\n");
+			break;
+		case NIX_TX_ACTIONOP_UCAST_CHAN:
+			seq_printf(s, "\taction: Unicast to channel %d\n",
+				   rule->tx_action.index);
+			break;
+		case NIX_TX_ACTIONOP_MCAST:
+			seq_puts(s, "\taction: Multicast\n");
+			break;
+		case NIX_TX_ACTIONOP_DROP_VIOL:
+			seq_puts(s, "\taction: Lockdown Violation Drop\n");
+			break;
+		default:
+			break;
+		};
+	} else {
+		switch (rule->rx_action.op) {
+		case NIX_RX_ACTIONOP_DROP:
+			seq_puts(s, "\taction: Drop\n");
+			break;
+		case NIX_RX_ACTIONOP_UCAST:
+			seq_printf(s, "\taction: Direct to queue %d\n",
+				   rule->rx_action.index);
+			break;
+		case NIX_RX_ACTIONOP_RSS:
+			seq_puts(s, "\taction: RSS\n");
+			break;
+		case NIX_RX_ACTIONOP_UCAST_IPSEC:
+			seq_puts(s, "\taction: Unicast ipsec\n");
+			break;
+		case NIX_RX_ACTIONOP_MCAST:
+			seq_puts(s, "\taction: Multicast\n");
+			break;
+		default:
+			break;
+		};
+	}
+}
+
+static const char *rvu_dbg_get_intf_name(int intf)
+{
+	switch (intf) {
+	case NIX_INTFX_RX(0):
+		return "NIX0_RX";
+	case NIX_INTFX_RX(1):
+		return "NIX1_RX";
+	case NIX_INTFX_TX(0):
+		return "NIX0_TX";
+	case NIX_INTFX_TX(1):
+		return "NIX1_TX";
+	default:
+		break;
+	}
+
+	return "unknown";
+}
+
+static int rvu_dbg_npc_mcam_show_rules(struct seq_file *s, void *unused)
+{
+	struct rvu_npc_mcam_rule *iter;
+	struct rvu *rvu = s->private;
+	struct npc_mcam *mcam;
+	int pf, vf = -1;
+	int blkaddr;
+	u16 target;
+	u64 hits;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
+	if (blkaddr < 0)
+		return 0;
+
+	mcam = &rvu->hw->mcam;
+
+	mutex_lock(&mcam->lock);
+	list_for_each_entry(iter, &mcam->mcam_rules, list) {
+		pf = (iter->owner >> RVU_PFVF_PF_SHIFT) & RVU_PFVF_PF_MASK;
+		seq_printf(s, "\n\tInstalled by: PF%d ", pf);
+
+		if (iter->owner & RVU_PFVF_FUNC_MASK) {
+			vf = (iter->owner & RVU_PFVF_FUNC_MASK) - 1;
+			seq_printf(s, "VF%d", vf);
+		}
+		seq_puts(s, "\n");
+
+		seq_printf(s, "\tdirection: %s\n", is_npc_intf_rx(iter->intf) ?
+						    "RX" : "TX");
+		seq_printf(s, "\tinterface: %s\n",
+			   rvu_dbg_get_intf_name(iter->intf));
+		seq_printf(s, "\tmcam entry: %d\n", iter->entry);
+
+		rvu_dbg_npc_mcam_show_flows(s, iter);
+		if (iter->intf == NIX_INTF_RX) {
+			target = iter->rx_action.pf_func;
+			pf = (target >> RVU_PFVF_PF_SHIFT) & RVU_PFVF_PF_MASK;
+			seq_printf(s, "\tForward to: PF%d ", pf);
+
+			if (target & RVU_PFVF_FUNC_MASK) {
+				vf = (target & RVU_PFVF_FUNC_MASK) - 1;
+				seq_printf(s, "VF%d", vf);
+			}
+			seq_puts(s, "\n");
+		}
+
+		rvu_dbg_npc_mcam_show_action(s, iter);
+		seq_printf(s, "\tenabled: %s\n", iter->enable ? "yes" : "no");
+
+		if (!iter->has_cntr)
+			continue;
+		seq_printf(s, "\tcounter: %d\n", iter->cntr);
+
+		hits = rvu_read64(rvu, blkaddr, NPC_AF_MATCH_STATX(iter->cntr));
+		seq_printf(s, "\thits: %lld\n", hits);
+	}
+	mutex_unlock(&mcam->lock);
+
+	return 0;
+}
+
+RVU_DEBUG_SEQ_FOPS(npc_mcam_rules, npc_mcam_show_rules, NULL);
+
 static void rvu_dbg_npc_init(struct rvu *rvu)
 {
 	const struct device *dev = &rvu->pdev->dev;
@@ -1781,6 +1973,11 @@ static void rvu_dbg_npc_init(struct rvu *rvu)
 
 	pfile = debugfs_create_file("mcam_info", 0444, rvu->rvu_dbg.npc,
 				    rvu, &rvu_dbg_npc_mcam_info_fops);
+	if (!pfile)
+		goto create_failed;
+
+	pfile = debugfs_create_file("mcam_rules", 0444, rvu->rvu_dbg.npc,
+				    rvu, &rvu_dbg_npc_mcam_rules_fops);
 	if (!pfile)
 		goto create_failed;
 
