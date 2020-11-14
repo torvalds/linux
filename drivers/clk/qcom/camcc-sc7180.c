@@ -1669,16 +1669,14 @@ static int cam_cc_sc7180_probe(struct platform_device *pdev)
 		goto disable_pm_runtime;
 	}
 
-	ret = pm_clk_runtime_resume(&pdev->dev);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "pm runtime resume failed\n");
+	ret = pm_runtime_get(&pdev->dev);
+	if (ret)
 		goto destroy_pm_clk;
-	}
 
 	regmap = qcom_cc_map(pdev, &cam_cc_sc7180_desc);
 	if (IS_ERR(regmap)) {
 		ret = PTR_ERR(regmap);
-		pm_clk_runtime_suspend(&pdev->dev);
+		pm_runtime_put(&pdev->dev);
 		goto destroy_pm_clk;
 	}
 
@@ -1688,9 +1686,7 @@ static int cam_cc_sc7180_probe(struct platform_device *pdev)
 	clk_fabia_pll_configure(&cam_cc_pll3, regmap, &cam_cc_pll3_config);
 
 	ret = qcom_cc_really_probe(pdev, &cam_cc_sc7180_desc, regmap);
-
-	pm_clk_runtime_suspend(&pdev->dev);
-
+	pm_runtime_put(&pdev->dev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to register CAM CC clocks\n");
 		goto destroy_pm_clk;
