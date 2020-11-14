@@ -1258,7 +1258,7 @@
 		rockchip,grf = <&grf>;
 		#sound-dai-cells = <0>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&hdmitx_scl &hdmitx_sda>;
+		pinctrl-0 = <&hdmitx_scl &hdmitx_sda &hdmitxm0_cec>;
 		status = "disabled";
 
 		ports {

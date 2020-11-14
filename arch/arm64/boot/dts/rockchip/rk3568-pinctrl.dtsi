@@ -664,13 +664,13 @@
 	};
 	hdmitx {
 		/omit-if-no-ref/
-		hdmitxm0_pins: hdmitxm0-pins {
+		hdmitxm0_cec: hdmitxm0-cec {
 			rockchip,pins =
 				/* hdmitx_cecm0 */
 				<4 RK_PD1 1 &pcfg_pull_none>;
 		};
 		/omit-if-no-ref/
-		hdmitxm1_pins: hdmitxm1-pins {
+		hdmitxm1_cec: hdmitxm1-cec {
 			rockchip,pins =
 				/* hdmitx_cecm1 */
 				<0 RK_PC7 1 &pcfg_pull_none>;
