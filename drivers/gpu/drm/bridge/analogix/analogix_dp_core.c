@@ -43,6 +43,20 @@ struct bridge_init {
 	struct device_node *node;
 };
 
+static bool analogix_dp_bandwidth_ok(struct analogix_dp_device *dp,
+				     const struct drm_display_mode *mode,
+				     unsigned int rate, unsigned int lanes)
+{
+	u32 max_bw, req_bw, bpp = 24;
+
+	req_bw = mode->clock * bpp / 8;
+	max_bw = lanes * rate;
+	if (req_bw > max_bw)
+		return false;
+
+	return true;
+}
+
 static int analogix_dp_init_dp(struct analogix_dp_device *dp)
 {
 	int ret;
@@ -965,6 +979,13 @@ static int analogix_dp_commit(struct analogix_dp_device *dp)
 		return ret;
 	}
 
+	if (!analogix_dp_bandwidth_ok(dp, &video->mode,
+				      drm_dp_bw_code_to_link_rate(dp->link_train.link_rate),
+				      dp->link_train.lane_count)) {
+		dev_err(dp->dev, "bandwidth overflow\n");
+		return -EINVAL;
+	}
+
 	ret = analogix_dp_enable_scramble(dp, 1);
 	if (ret < 0) {
 		dev_err(dp->dev, "can not enable scramble\n");
@@ -1384,6 +1405,20 @@ static void analogix_dp_bridge_mode_set(struct drm_bridge *bridge,
 		video->interlaced = true;
 }
 
+static enum drm_mode_status
+analogix_dp_bridge_mode_valid(struct drm_bridge *bridge,
+			      const struct drm_display_mode *mode)
+{
+	struct analogix_dp_device *dp = bridge->driver_private;
+
+	if (!analogix_dp_bandwidth_ok(dp, mode,
+				      drm_dp_bw_code_to_link_rate(dp->video_info.max_link_rate),
+				      dp->video_info.max_lane_count))
+		return MODE_BAD;
+
+	return MODE_OK;
+}
+
 static void analogix_dp_bridge_nop(struct drm_bridge *bridge)
 {
 	/* do nothing */
@@ -1396,6 +1431,7 @@ static const struct drm_bridge_funcs analogix_dp_bridge_funcs = {
 	.post_disable = analogix_dp_bridge_nop,
 	.mode_set = analogix_dp_bridge_mode_set,
 	.attach = analogix_dp_bridge_attach,
+	.mode_valid = analogix_dp_bridge_mode_valid,
 };
 
 static int analogix_dp_create_bridge(struct drm_device *drm_dev,
