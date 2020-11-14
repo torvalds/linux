@@ -18,6 +18,7 @@
 #include <linux/timecounter.h>
 
 #include <mbox.h>
+#include <npc.h>
 #include "otx2_reg.h"
 #include "otx2_txrx.h"
 #include <rvu_trace.h>
@@ -228,6 +229,16 @@ struct otx2_ptp {
 
 #define OTX2_HW_TIMESTAMP_LEN	8
 
+struct otx2_flow_config {
+	u16			entry[NPC_MAX_NONCONTIG_ENTRIES];
+	u32			nr_flows;
+#define OTX2_MAX_NTUPLE_FLOWS	32
+#define OTX2_MCAM_COUNT		OTX2_MAX_NTUPLE_FLOWS
+	u32			ntuple_offset;
+	u32                     ntuple_max_flows;
+	struct list_head	flow_list;
+};
+
 struct otx2_nic {
 	void __iomem		*reg_base;
 	struct net_device	*netdev;
@@ -238,6 +249,8 @@ struct otx2_nic {
 #define OTX2_FLAG_RX_TSTAMP_ENABLED		BIT_ULL(0)
 #define OTX2_FLAG_TX_TSTAMP_ENABLED		BIT_ULL(1)
 #define OTX2_FLAG_INTF_DOWN			BIT_ULL(2)
+#define OTX2_FLAG_MCAM_ENTRIES_ALLOC		BIT_ULL(3)
+#define OTX2_FLAG_NTUPLE_SUPPORT		BIT_ULL(4)
 #define OTX2_FLAG_RX_PAUSE_ENABLED		BIT_ULL(9)
 #define OTX2_FLAG_TX_PAUSE_ENABLED		BIT_ULL(10)
 	u64			flags;
@@ -275,6 +288,8 @@ struct otx2_nic {
 
 	struct otx2_ptp		*ptp;
 	struct hwtstamp_config	tstamp;
+
+	struct otx2_flow_config	*flow_cfg;
 };
 
 static inline bool is_otx2_lbkvf(struct pci_dev *pdev)
@@ -644,4 +659,20 @@ int otx2_open(struct net_device *netdev);
 int otx2_stop(struct net_device *netdev);
 int otx2_set_real_num_queues(struct net_device *netdev,
 			     int tx_queues, int rx_queues);
+/* MCAM filter related APIs */
+int otx2_mcam_flow_init(struct otx2_nic *pf);
+int otx2_alloc_mcam_entries(struct otx2_nic *pfvf);
+void otx2_mcam_flow_del(struct otx2_nic *pf);
+int otx2_destroy_ntuple_flows(struct otx2_nic *pf);
+int otx2_destroy_mcam_flows(struct otx2_nic *pfvf);
+int otx2_get_flow(struct otx2_nic *pfvf,
+		  struct ethtool_rxnfc *nfc, u32 location);
+int otx2_get_all_flows(struct otx2_nic *pfvf,
+		       struct ethtool_rxnfc *nfc, u32 *rule_locs);
+int otx2_add_flow(struct otx2_nic *pfvf,
+		  struct ethtool_rx_flow_spec *fsp);
+int otx2_remove_flow(struct otx2_nic *pfvf, u32 location);
+int otx2_prepare_flow_request(struct ethtool_rx_flow_spec *fsp,
+			      struct npc_install_flow_req *req);
+
 #endif /* OTX2_COMMON_H */
