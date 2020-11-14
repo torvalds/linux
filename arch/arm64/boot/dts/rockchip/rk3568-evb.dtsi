@@ -1332,6 +1332,14 @@
 		     &i2s1sdo0m0>;
 };
 
+&iep {
+	status = "okay";
+};
+
+&iep_mmu {
+	status = "okay";
+};
+
 &jpegd {
 	status = "okay";
 };
