@@ -359,6 +359,58 @@ static void npc_get_keyword(struct mcam_entry *entry, int idx,
 	*cam0 = ~*cam1 & kw_mask;
 }
 
+static void npc_fill_entryword(struct mcam_entry *entry, int idx,
+			       u64 cam0, u64 cam1)
+{
+	/* Similar to npc_get_keyword, but fills mcam_entry structure from
+	 * CAM registers.
+	 */
+	switch (idx) {
+	case 0:
+		entry->kw[0] = cam1;
+		entry->kw_mask[0] = cam1 ^ cam0;
+		break;
+	case 1:
+		entry->kw[1] = cam1;
+		entry->kw_mask[1] = cam1 ^ cam0;
+		break;
+	case 2:
+		entry->kw[1] |= (cam1 & CAM_MASK(16)) << 48;
+		entry->kw[2] = (cam1 >> 16) & CAM_MASK(48);
+		entry->kw_mask[1] |= ((cam1 ^ cam0) & CAM_MASK(16)) << 48;
+		entry->kw_mask[2] = ((cam1 ^ cam0) >> 16) & CAM_MASK(48);
+		break;
+	case 3:
+		entry->kw[2] |= (cam1 & CAM_MASK(16)) << 48;
+		entry->kw[3] = (cam1 >> 16) & CAM_MASK(32);
+		entry->kw_mask[2] |= ((cam1 ^ cam0) & CAM_MASK(16)) << 48;
+		entry->kw_mask[3] = ((cam1 ^ cam0) >> 16) & CAM_MASK(32);
+		break;
+	case 4:
+		entry->kw[3] |= (cam1 & CAM_MASK(32)) << 32;
+		entry->kw[4] = (cam1 >> 32) & CAM_MASK(32);
+		entry->kw_mask[3] |= ((cam1 ^ cam0) & CAM_MASK(32)) << 32;
+		entry->kw_mask[4] = ((cam1 ^ cam0) >> 32) & CAM_MASK(32);
+		break;
+	case 5:
+		entry->kw[4] |= (cam1 & CAM_MASK(32)) << 32;
+		entry->kw[5] = (cam1 >> 32) & CAM_MASK(16);
+		entry->kw_mask[4] |= ((cam1 ^ cam0) & CAM_MASK(32)) << 32;
+		entry->kw_mask[5] = ((cam1 ^ cam0) >> 32) & CAM_MASK(16);
+		break;
+	case 6:
+		entry->kw[5] |= (cam1 & CAM_MASK(48)) << 16;
+		entry->kw[6] = (cam1 >> 48) & CAM_MASK(16);
+		entry->kw_mask[5] |= ((cam1 ^ cam0) & CAM_MASK(48)) << 16;
+		entry->kw_mask[6] = ((cam1 ^ cam0) >> 48) & CAM_MASK(16);
+		break;
+	case 7:
+		entry->kw[6] |= (cam1 & CAM_MASK(48)) << 16;
+		entry->kw_mask[6] |= ((cam1 ^ cam0) & CAM_MASK(48)) << 16;
+		break;
+	}
+}
+
 static void npc_get_default_entry_action(struct rvu *rvu, struct npc_mcam *mcam,
 					 int blkaddr, int index,
 					 struct mcam_entry *entry)
@@ -457,6 +509,42 @@ static void npc_config_mcam_entry(struct rvu *rvu, struct npc_mcam *mcam,
 	/* Enable the entry */
 	if (enable)
 		npc_enable_mcam_entry(rvu, mcam, blkaddr, actindex, true);
+}
+
+void npc_read_mcam_entry(struct rvu *rvu, struct npc_mcam *mcam,
+			 int blkaddr, u16 src,
+			 struct mcam_entry *entry, u8 *intf, u8 *ena)
+{
+	int sbank = npc_get_bank(mcam, src);
+	int bank, kw = 0;
+	u64 cam0, cam1;
+
+	src &= (mcam->banksize - 1);
+	bank = sbank;
+
+	for (; bank < (sbank + mcam->banks_per_entry); bank++, kw = kw + 2) {
+		cam1 = rvu_read64(rvu, blkaddr,
+				  NPC_AF_MCAMEX_BANKX_CAMX_W0(src, bank, 1));
+		cam0 = rvu_read64(rvu, blkaddr,
+				  NPC_AF_MCAMEX_BANKX_CAMX_W0(src, bank, 0));
+		npc_fill_entryword(entry, kw, cam0, cam1);
+
+		cam1 = rvu_read64(rvu, blkaddr,
+				  NPC_AF_MCAMEX_BANKX_CAMX_W1(src, bank, 1));
+		cam0 = rvu_read64(rvu, blkaddr,
+				  NPC_AF_MCAMEX_BANKX_CAMX_W1(src, bank, 0));
+		npc_fill_entryword(entry, kw + 1, cam0, cam1);
+	}
+
+	entry->action = rvu_read64(rvu, blkaddr,
+				   NPC_AF_MCAMEX_BANKX_ACTION(src, sbank));
+	entry->vtag_action =
+		rvu_read64(rvu, blkaddr,
+			   NPC_AF_MCAMEX_BANKX_TAG_ACT(src, sbank));
+	*intf = rvu_read64(rvu, blkaddr,
+			   NPC_AF_MCAMEX_BANKX_CAMX_INTF(src, sbank, 1)) & 3;
+	*ena = rvu_read64(rvu, blkaddr,
+			  NPC_AF_MCAMEX_BANKX_CFG(src, sbank)) & 1;
 }
 
 static void npc_copy_mcam_entry(struct rvu *rvu, struct npc_mcam *mcam,

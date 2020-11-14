@@ -24,6 +24,7 @@ int otx2_alloc_mcam_entries(struct otx2_nic *pfvf)
 	struct otx2_flow_config *flow_cfg = pfvf->flow_cfg;
 	struct npc_mcam_alloc_entry_req *req;
 	struct npc_mcam_alloc_entry_rsp *rsp;
+	int vf_vlan_max_flows;
 	int i;
 
 	mutex_lock(&pfvf->mbox.lock);
@@ -34,8 +35,9 @@ int otx2_alloc_mcam_entries(struct otx2_nic *pfvf)
 		return -ENOMEM;
 	}
 
+	vf_vlan_max_flows = pfvf->total_vfs * OTX2_PER_VF_VLAN_FLOWS;
 	req->contig = false;
-	req->count = OTX2_MCAM_COUNT;
+	req->count = OTX2_MCAM_COUNT + vf_vlan_max_flows;
 
 	/* Send message to AF */
 	if (otx2_sync_mbox_msg(&pfvf->mbox)) {
@@ -55,7 +57,9 @@ int otx2_alloc_mcam_entries(struct otx2_nic *pfvf)
 		flow_cfg->ntuple_offset = 0;
 		pfvf->flags |= OTX2_FLAG_NTUPLE_SUPPORT;
 	} else {
-		flow_cfg->ntuple_offset = 0;
+		flow_cfg->vf_vlan_offset = 0;
+		flow_cfg->ntuple_offset = flow_cfg->vf_vlan_offset +
+						vf_vlan_max_flows;
 		flow_cfg->unicast_offset = flow_cfg->ntuple_offset +
 						OTX2_MAX_NTUPLE_FLOWS;
 		flow_cfg->rx_vlan_offset = flow_cfg->unicast_offset +
@@ -63,6 +67,7 @@ int otx2_alloc_mcam_entries(struct otx2_nic *pfvf)
 		pfvf->flags |= OTX2_FLAG_NTUPLE_SUPPORT;
 		pfvf->flags |= OTX2_FLAG_UCAST_FLTR_SUPPORT;
 		pfvf->flags |= OTX2_FLAG_RX_VLAN_SUPPORT;
+		pfvf->flags |= OTX2_FLAG_VF_VLAN_SUPPORT;
 	}
 
 	for (i = 0; i < rsp->count; i++)

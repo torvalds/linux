@@ -483,6 +483,7 @@ struct rvu_npc_mcam_rule {
 	bool has_cntr;
 	u8 default_rule;
 	bool enable;
+	bool vfvlan_cfg;
 };
 
 #endif /* NPC_H */

@@ -1194,6 +1194,11 @@ int rvu_mbox_handler_nix_lf_alloc(struct rvu *rvu,
 	/* Disable NPC entries as NIXLF's contexts are not initialized yet */
 	rvu_npc_disable_default_entries(rvu, pcifunc, nixlf);
 
+	/* Configure RX VTAG Type 7 (strip) for vf vlan */
+	rvu_write64(rvu, blkaddr,
+		    NIX_AF_LFX_RX_VTAG_TYPEX(nixlf, NIX_AF_LFX_RX_VTAG_TYPE7),
+		    VTAGSIZE_T4 | VTAG_STRIP);
+
 	goto exit;
 
 free_mem:
@@ -1987,6 +1992,10 @@ static int nix_rx_vtag_cfg(struct rvu *rvu, int nixlf, int blkaddr,
 	if (req->rx.vtag_type > NIX_AF_LFX_RX_VTAG_TYPE7 ||
 	    req->vtag_size > VTAGSIZE_T8)
 		return -EINVAL;
+
+	/* RX VTAG Type 7 reserved for vf vlan */
+	if (req->rx.vtag_type == NIX_AF_LFX_RX_VTAG_TYPE7)
+		return NIX_AF_ERR_RX_VTAG_INUSE;
 
 	if (req->rx.capture_vtag)
 		regval |= BIT_ULL(5);
@@ -2931,6 +2940,7 @@ int rvu_mbox_handler_nix_set_mac_addr(struct rvu *rvu,
 				      struct nix_set_mac_addr *req,
 				      struct msg_rsp *rsp)
 {
+	bool from_vf = req->hdr.pcifunc & RVU_PFVF_FUNC_MASK;
 	u16 pcifunc = req->hdr.pcifunc;
 	int blkaddr, nixlf, err;
 	struct rvu_pfvf *pfvf;
@@ -2940,6 +2950,10 @@ int rvu_mbox_handler_nix_set_mac_addr(struct rvu *rvu,
 		return err;
 
 	pfvf = rvu_get_pfvf(rvu, pcifunc);
+
+	/* VF can't overwrite admin(PF) changes */
+	if (from_vf && pfvf->pf_set_vf_cfg)
+		return -EPERM;
 
 	ether_addr_copy(pfvf->mac_addr, req->mac_addr);
 

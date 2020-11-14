@@ -206,6 +206,9 @@ struct otx2_vf_config {
 	struct otx2_nic *pf;
 	struct delayed_work link_event_work;
 	bool intf_down; /* interface was either configured or not */
+	u8 mac[ETH_ALEN];
+	u16 vlan;
+	int tx_vtag_idx;
 };
 
 struct flr_work {
@@ -247,6 +250,10 @@ struct otx2_flow_config {
 	u32			ntuple_offset;
 	u32			unicast_offset;
 	u32			rx_vlan_offset;
+	u32			vf_vlan_offset;
+#define OTX2_PER_VF_VLAN_FLOWS	2 /* rx+tx per VF */
+#define OTX2_VF_VLAN_RX_INDEX	0
+#define OTX2_VF_VLAN_TX_INDEX	1
 	u32                     ntuple_max_flows;
 	struct list_head	flow_list;
 };
@@ -265,6 +272,8 @@ struct otx2_nic {
 #define OTX2_FLAG_NTUPLE_SUPPORT		BIT_ULL(4)
 #define OTX2_FLAG_UCAST_FLTR_SUPPORT		BIT_ULL(5)
 #define OTX2_FLAG_RX_VLAN_SUPPORT		BIT_ULL(6)
+#define OTX2_FLAG_VF_VLAN_SUPPORT		BIT_ULL(7)
+#define OTX2_FLAG_PF_SHUTDOWN			BIT_ULL(8)
 #define OTX2_FLAG_RX_PAUSE_ENABLED		BIT_ULL(9)
 #define OTX2_FLAG_TX_PAUSE_ENABLED		BIT_ULL(10)
 	u64			flags;
