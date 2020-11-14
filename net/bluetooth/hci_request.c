@@ -1044,23 +1044,23 @@ void hci_req_add_le_passive_scan(struct hci_request *req)
 			   own_addr_type, filter_policy, addr_resolv);
 }
 
-static u8 get_adv_instance_scan_rsp_len(struct hci_dev *hdev, u8 instance)
+static bool adv_instance_is_scannable(struct hci_dev *hdev, u8 instance)
 {
 	struct adv_info *adv_instance;
 
 	/* Instance 0x00 always set local name */
 	if (instance == 0x00)
-		return 1;
+		return true;
 
 	adv_instance = hci_find_adv_instance(hdev, instance);
 	if (!adv_instance)
-		return 0;
+		return false;
 
 	if (adv_instance->flags & MGMT_ADV_FLAG_APPEARANCE ||
 	    adv_instance->flags & MGMT_ADV_FLAG_LOCAL_NAME)
-		return 1;
+		return true;
 
-	return adv_instance->scan_rsp_len;
+	return adv_instance->scan_rsp_len ? true : false;
 }
 
 static void hci_req_clear_event_filter(struct hci_request *req)
@@ -1316,23 +1316,9 @@ done:
 	wake_up(&hdev->suspend_wait_q);
 }
 
-static u8 get_cur_adv_instance_scan_rsp_len(struct hci_dev *hdev)
+static bool adv_cur_instance_is_scannable(struct hci_dev *hdev)
 {
-	u8 instance = hdev->cur_adv_instance;
-	struct adv_info *adv_instance;
-
-	/* Instance 0x00 always set local name */
-	if (instance == 0x00)
-		return 1;
-
-	adv_instance = hci_find_adv_instance(hdev, instance);
-	if (!adv_instance)
-		return 0;
-
-	/* TODO: Take into account the "appearance" and "local-name" flags here.
-	 * These are currently being ignored as they are not supported.
-	 */
-	return adv_instance->scan_rsp_len;
+	return adv_instance_is_scannable(hdev, hdev->cur_adv_instance);
 }
 
 void __hci_req_disable_advertising(struct hci_request *req)
@@ -1488,7 +1474,7 @@ void __hci_req_enable_advertising(struct hci_request *req)
 		adv_min_interval = hdev->le_adv_min_interval;
 		adv_max_interval = hdev->le_adv_max_interval;
 	} else {
-		if (get_cur_adv_instance_scan_rsp_len(hdev))
+		if (adv_cur_instance_is_scannable(hdev))
 			cp.type = LE_ADV_SCAN_IND;
 		else
 			cp.type = LE_ADV_NONCONN_IND;
@@ -2030,7 +2016,7 @@ int __hci_req_setup_ext_adv_instance(struct hci_request *req, u8 instance)
 			cp.evt_properties = cpu_to_le16(LE_EXT_ADV_CONN_IND);
 		else
 			cp.evt_properties = cpu_to_le16(LE_LEGACY_ADV_IND);
-	} else if (get_adv_instance_scan_rsp_len(hdev, instance)) {
+	} else if (adv_instance_is_scannable(hdev, instance)) {
 		if (secondary_adv)
 			cp.evt_properties = cpu_to_le16(LE_EXT_ADV_SCAN_IND);
 		else
