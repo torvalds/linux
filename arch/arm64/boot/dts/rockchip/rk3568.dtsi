@@ -1964,7 +1964,8 @@
 	wdt: watchdog@fe600000 {
 		compatible = "snps,dw-wdt";
 		reg = <0x0 0xfe600000 0x0 0x100>;
-		clocks = <&cru PCLK_WDT_NS>;
+		clocks = <&cru TCLK_WDT_NS>, <&cru PCLK_WDT_NS>;
+		clock-names = "tclk", "pclk";
 		interrupts = <GIC_SPI 149 IRQ_TYPE_LEVEL_HIGH>;
 		status = "okay";
 	};
