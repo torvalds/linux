@@ -106,15 +106,20 @@ struct nfsd_readres {
 };
 
 struct nfsd_readdirres {
+	/* Components of the reply */
 	__be32			status;
 
 	int			count;
 
+	/* Used to encode the reply's entry list */
+	struct xdr_stream	xdr;
+	struct xdr_buf		dirlist;
 	struct readdir_cd	common;
 	__be32 *		buffer;
 	int			buflen;
 	__be32 *		offset;
 	struct page		*page;
+	unsigned int		cookie_offset;
 };
 
 struct nfsd_statfsres {
@@ -159,6 +164,8 @@ int nfssvc_encode_statfsres(struct svc_rqst *, __be32 *);
 int nfssvc_encode_readdirres(struct svc_rqst *, __be32 *);
 
 void nfssvc_encode_nfscookie(struct nfsd_readdirres *resp, u32 offset);
+int nfs2svc_encode_entry(void *data, const char *name, int namlen,
+			 loff_t offset, u64 ino, unsigned int d_type);
 int nfssvc_encode_entry(void *, const char *name,
 			int namlen, loff_t offset, u64 ino, unsigned int);
 
