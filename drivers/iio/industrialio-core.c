@@ -711,11 +711,13 @@ static ssize_t iio_read_channel_info(struct device *dev,
 	return iio_format_value(buf, ret, val_len, vals);
 }
 
-static ssize_t iio_format_avail_list(char *buf, const int *vals,
-				     int type, int length)
+static ssize_t iio_format_list(char *buf, const int *vals, int type, int length,
+			       const char *prefix, const char *suffix)
 {
+	ssize_t len;
 	int i;
-	ssize_t len = 0;
+
+	len = scnprintf(buf, PAGE_SIZE, prefix);
 
 	switch (type) {
 	case IIO_VAL_INT:
@@ -729,7 +731,7 @@ static ssize_t iio_format_avail_list(char *buf, const int *vals,
 						" ");
 			else
 				len += scnprintf(buf + len, PAGE_SIZE - len,
-						"\n");
+						"%s\n", suffix);
 			if (len >= PAGE_SIZE)
 				return -EFBIG;
 		}
@@ -745,7 +747,7 @@ static ssize_t iio_format_avail_list(char *buf, const int *vals,
 						" ");
 			else
 				len += scnprintf(buf + len, PAGE_SIZE - len,
-						"\n");
+						"%s\n", suffix);
 			if (len >= PAGE_SIZE)
 				return -EFBIG;
 		}
@@ -754,47 +756,16 @@ static ssize_t iio_format_avail_list(char *buf, const int *vals,
 	return len;
 }
 
+static ssize_t iio_format_avail_list(char *buf, const int *vals,
+				     int type, int length)
+{
+
+	return iio_format_list(buf, vals, type, length, "", "");
+}
+
 static ssize_t iio_format_avail_range(char *buf, const int *vals, int type)
 {
-	int i;
-	ssize_t len;
-
-	len = snprintf(buf, PAGE_SIZE, "[");
-	switch (type) {
-	case IIO_VAL_INT:
-		for (i = 0; i < 3; i++) {
-			len += __iio_format_value(buf + len, PAGE_SIZE - len,
-						  type, 1, &vals[i]);
-			if (len >= PAGE_SIZE)
-				return -EFBIG;
-			if (i < 2)
-				len += scnprintf(buf + len, PAGE_SIZE - len,
-						" ");
-			else
-				len += scnprintf(buf + len, PAGE_SIZE - len,
-						"]\n");
-			if (len >= PAGE_SIZE)
-				return -EFBIG;
-		}
-		break;
-	default:
-		for (i = 0; i < 3; i++) {
-			len += __iio_format_value(buf + len, PAGE_SIZE - len,
-						  type, 2, &vals[i * 2]);
-			if (len >= PAGE_SIZE)
-				return -EFBIG;
-			if (i < 2)
-				len += scnprintf(buf + len, PAGE_SIZE - len,
-						" ");
-			else
-				len += scnprintf(buf + len, PAGE_SIZE - len,
-						"]\n");
-			if (len >= PAGE_SIZE)
-				return -EFBIG;
-		}
-	}
-
-	return len;
+	return iio_format_list(buf, vals, type, 3, "[", "]");
 }
 
 static ssize_t iio_read_channel_info_avail(struct device *dev,
