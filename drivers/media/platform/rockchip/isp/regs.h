@@ -1617,25 +1617,41 @@
 #define CIF_ISP_CSI0_TX_IBUF_STATUS_RO	(CIF_ISP_CSI0_BASE + 0x00000078)
 #define CIF_ISP_CSI0_VERSION		(CIF_ISP_CSI0_BASE + 0x0000007c)
 
-void disable_dcrop(struct rkisp_stream *stream, bool async);
-void config_dcrop(struct rkisp_stream *stream, struct v4l2_rect *rect,
-		  bool async);
+void rkisp_disable_dcrop(struct rkisp_stream *stream, bool async);
+void rkisp_config_dcrop(struct rkisp_stream *stream, struct v4l2_rect *rect, bool async);
 
-void dump_rsz_regs(struct rkisp_stream *stream);
-void disable_rsz(struct rkisp_stream *stream, bool async);
-void config_rsz(struct rkisp_stream *stream, struct v4l2_rect *in_y,
-		struct v4l2_rect *in_c, struct v4l2_rect *out_y,
-		struct v4l2_rect *out_c, bool async);
+void rkisp_dump_rsz_regs(struct rkisp_stream *stream);
+void rkisp_disable_rsz(struct rkisp_stream *stream, bool async);
+void rkisp_config_rsz(struct rkisp_stream *stream, struct v4l2_rect *in_y,
+		      struct v4l2_rect *in_c, struct v4l2_rect *out_y,
+		      struct v4l2_rect *out_c, bool async);
 
-void config_mi_ctrl(struct rkisp_stream *stream, u32 burst);
+static inline void config_mi_ctrl(struct rkisp_stream *stream, u32 burst)
+{
+	void __iomem *base = stream->ispdev->base_addr;
+	void __iomem *addr = base + CIF_MI_CTRL;
+	u32 reg;
 
-void mp_clr_frame_end_int(void __iomem *base);
-void sp_clr_frame_end_int(void __iomem *base);
+	reg = readl(addr) & ~GENMASK(19, 16);
+	writel(reg | burst, addr);
+	reg = readl(addr);
+	writel(reg | CIF_MI_CTRL_INIT_BASE_EN, addr);
+	reg = readl(addr);
+	writel(reg | CIF_MI_CTRL_INIT_OFFSET_EN, addr);
+}
 
-bool mp_is_frame_end_int_masked(void __iomem *base);
-bool sp_is_frame_end_int_masked(void __iomem *base);
-bool mp_is_stream_stopped(void __iomem *base);
-bool sp_is_stream_stopped(void __iomem *base);
+static inline bool mp_is_stream_stopped(void __iomem *base)
+{
+	int en;
+
+	en = CIF_MI_CTRL_SHD_MP_IN_ENABLED | CIF_MI_CTRL_SHD_RAW_OUT_ENABLED;
+	return !(readl(base + CIF_MI_CTRL_SHD) & en);
+}
+
+static inline bool sp_is_stream_stopped(void __iomem *base)
+{
+	return !(readl(base + CIF_MI_CTRL_SHD) & CIF_MI_CTRL_SHD_SP_IN_ENABLED);
+}
 
 static inline void isp_set_bits(void __iomem *addr, u32 bit_mask, u32 val)
 {

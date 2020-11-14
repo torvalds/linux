@@ -103,8 +103,6 @@ static irqreturn_t mipi_irq_hdl(int irq, void *ctx)
 		err2 = readl(hw_dev->base_addr + CIF_ISP_CSI0_ERR2);
 		err3 = readl(hw_dev->base_addr + CIF_ISP_CSI0_ERR3);
 
-		if (err3 & 0xf)
-			rkisp_mipi_dmatx0_end(err3, isp);
 		if (err1 || err2 || err3)
 			rkisp_mipi_v13_isr(err1, err2, err3, isp);
 	} else if (hw_dev->isp_ver == ISP_V20) {

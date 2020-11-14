@@ -35,7 +35,7 @@
 #include <media/v4l2-common.h>
 #include "regs.h"
 
-void disable_dcrop(struct rkisp_stream *stream, bool async)
+void rkisp_disable_dcrop(struct rkisp_stream *stream, bool async)
 {
 	void __iomem *base = stream->ispdev->base_addr;
 	void __iomem *dc_ctrl_addr = base + stream->config->dual_crop.ctrl;
@@ -51,8 +51,8 @@ void disable_dcrop(struct rkisp_stream *stream, bool async)
 	writel(val, dc_ctrl_addr);
 }
 
-void config_dcrop(struct rkisp_stream *stream,
-		  struct v4l2_rect *rect, bool async)
+void rkisp_config_dcrop(struct rkisp_stream *stream,
+			struct v4l2_rect *rect, bool async)
 {
 	void __iomem *base = stream->ispdev->base_addr;
 	void __iomem *dc_ctrl_addr = base + stream->config->dual_crop.ctrl;
@@ -70,7 +70,7 @@ void config_dcrop(struct rkisp_stream *stream,
 	writel(dc_ctrl, dc_ctrl_addr);
 }
 
-void dump_rsz_regs(struct rkisp_stream *stream)
+void rkisp_dump_rsz_regs(struct rkisp_stream *stream)
 {
 	void __iomem *base = stream->ispdev->base_addr;
 
@@ -186,7 +186,7 @@ static void set_scale(struct rkisp_stream *stream, struct v4l2_rect *in_y,
 	writel(rsz_ctrl, rsz_ctrl_addr);
 }
 
-void config_rsz(struct rkisp_stream *stream, struct v4l2_rect *in_y,
+void rkisp_config_rsz(struct rkisp_stream *stream, struct v4l2_rect *in_y,
 	struct v4l2_rect *in_c, struct v4l2_rect *out_y,
 	struct v4l2_rect *out_c, bool async)
 {
@@ -209,37 +209,10 @@ void config_rsz(struct rkisp_stream *stream, struct v4l2_rect *in_y,
 	update_rsz_shadow(stream, async);
 }
 
-void disable_rsz(struct rkisp_stream *stream, bool async)
+void rkisp_disable_rsz(struct rkisp_stream *stream, bool async)
 {
 	writel(0, stream->ispdev->base_addr + stream->config->rsz.ctrl);
 
 	if (!async)
 		update_rsz_shadow(stream, async);
-}
-
-void config_mi_ctrl(struct rkisp_stream *stream, u32 burst)
-{
-	void __iomem *base = stream->ispdev->base_addr;
-	void __iomem *addr = base + CIF_MI_CTRL;
-	u32 reg;
-
-	reg = readl(addr) & ~GENMASK(19, 16);
-	writel(reg | burst, addr);
-	reg = readl(addr);
-	writel(reg | CIF_MI_CTRL_INIT_BASE_EN, addr);
-	reg = readl(addr);
-	writel(reg | CIF_MI_CTRL_INIT_OFFSET_EN, addr);
-}
-
-bool mp_is_stream_stopped(void __iomem *base)
-{
-	int en;
-
-	en = CIF_MI_CTRL_SHD_MP_IN_ENABLED | CIF_MI_CTRL_SHD_RAW_OUT_ENABLED;
-	return !(readl(base + CIF_MI_CTRL_SHD) & en);
-}
-
-bool sp_is_stream_stopped(void __iomem *base)
-{
-	return !(readl(base + CIF_MI_CTRL_SHD) & CIF_MI_CTRL_SHD_SP_IN_ENABLED);
 }

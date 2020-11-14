@@ -618,6 +618,7 @@ static int rkisp_init_vb2_queue(struct vb2_queue *q,
 	q->lock = &stream->ispdev->apilock;
 	q->dev = stream->ispdev->hw_dev->dev;
 	q->allow_cache_hints = 1;
+	q->bidirectional = 1;
 
 	return vb2_queue_init(q);
 }
@@ -649,7 +650,7 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 		pixm->quantization = V4L2_QUANTIZATION_FULL_RANGE;
 
 	/* calculate size */
-	fcc_xysubs(fmt->fourcc, &xsubs, &ysubs);
+	rkisp_fcc_xysubs(fmt->fourcc, &xsubs, &ysubs);
 	planes = fmt->cplanes ? fmt->cplanes : fmt->mplanes;
 	for (i = 0; i < planes; i++) {
 		struct v4l2_plane_pix_format *plane_fmt;

@@ -13,6 +13,8 @@ video_rkisp-objs += rkisp.o \
 			isp_params_v1x.o \
 			isp_params_v2x.o \
 			capture.o \
+			capture_v1x.o \
+			capture_v20.o \
 			dmarx.o \
 			csi.o \
 			bridge.o \

@@ -36,6 +36,8 @@
 #define _RKISP_PATH_VIDEO_H
 
 #include "common.h"
+#include "capture_v1x.h"
+#include "capture_v2x.h"
 
 #define RDBK_MAX		3
 #define RDBK_L			0
@@ -175,6 +177,7 @@ struct streams_ops {
 	void (*set_data_path)(void __iomem *base);
 	bool (*is_stream_stopped)(void __iomem *base);
 	void (*update_mi)(struct rkisp_stream *stream);
+	int (*frame_end)(struct rkisp_stream *stream);
 };
 
 /*
@@ -235,20 +238,18 @@ struct rkisp_capture_device {
 	atomic_t refcnt;
 };
 
+extern struct stream_config rkisp_mp_stream_config;
+extern struct stream_config rkisp_sp_stream_config;
+
+void rkisp_unregister_stream_vdev(struct rkisp_stream *stream);
+int rkisp_register_stream_vdev(struct rkisp_stream *stream);
 void rkisp_unregister_stream_vdevs(struct rkisp_device *dev);
 int rkisp_register_stream_vdevs(struct rkisp_device *dev);
 void rkisp_mi_isr(u32 mis_val, struct rkisp_device *dev);
 void rkisp_set_stream_def_fmt(struct rkisp_device *dev, u32 id,
-			       u32 width, u32 height, u32 pixelformat);
-void rkisp_mipi_dmatx0_end(u32 status, struct rkisp_device *dev);
-int fcc_xysubs(u32 fcc, u32 *xsubs, u32 *ysubs);
+			      u32 width, u32 height, u32 pixelformat);
+int rkisp_fcc_xysubs(u32 fcc, u32 *xsubs, u32 *ysubs);
+int rkisp_mbus_code_xysubs(u32 code, u32 *xsubs, u32 *ysubs);
 int rkisp_fh_open(struct file *filp);
 int rkisp_fop_release(struct file *file);
-
-struct rkisp_dummy_buffer *hdr_dqbuf(struct list_head *q);
-void hdr_qbuf(struct list_head *q, struct rkisp_dummy_buffer *buf);
-int hdr_config_dmatx(struct rkisp_device *dev);
-int hdr_update_dmatx_buf(struct rkisp_device *dev);
-void hdr_stop_dmatx(struct rkisp_device *dev);
-void hdr_destroy_buf(struct rkisp_device *dev);
 #endif /* _RKISP_PATH_VIDEO_H */
