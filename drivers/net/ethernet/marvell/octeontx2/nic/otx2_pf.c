@@ -1720,9 +1720,19 @@ static void otx2_do_set_rx_mode(struct work_struct *work)
 	struct otx2_nic *pf = container_of(work, struct otx2_nic, rx_mode_work);
 	struct net_device *netdev = pf->netdev;
 	struct nix_rx_mode *req;
+	bool promisc = false;
 
 	if (!(netdev->flags & IFF_UP))
 		return;
+
+	if ((netdev->flags & IFF_PROMISC) ||
+	    (netdev_uc_count(netdev) > OTX2_MAX_UNICAST_FLOWS)) {
+		promisc = true;
+	}
+
+	/* Write unicast address to mcam entries or del from mcam */
+	if (!promisc && netdev->priv_flags & IFF_UNICAST_FLT)
+		__dev_uc_sync(netdev, otx2_add_macfilter, otx2_del_macfilter);
 
 	mutex_lock(&pf->mbox.lock);
 	req = otx2_mbox_alloc_msg_nix_set_rx_mode(&pf->mbox);
@@ -1733,7 +1743,7 @@ static void otx2_do_set_rx_mode(struct work_struct *work)
 
 	req->mode = NIX_RX_MODE_UCAST;
 
-	if (netdev->flags & IFF_PROMISC)
+	if (promisc)
 		req->mode |= NIX_RX_MODE_PROMISC;
 	else if (netdev->flags & (IFF_ALLMULTI | IFF_MULTICAST))
 		req->mode |= NIX_RX_MODE_ALLMULTI;
@@ -2124,6 +2134,9 @@ static int otx2_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	if (pf->flags & OTX2_FLAG_NTUPLE_SUPPORT)
 		netdev->hw_features |= NETIF_F_NTUPLE;
+
+	if (pf->flags & OTX2_FLAG_UCAST_FLTR_SUPPORT)
+		netdev->priv_flags |= IFF_UNICAST_FLT;
 
 	netdev->gso_max_segs = OTX2_MAX_GSO_SEGS;
 	netdev->watchdog_timeo = OTX2_TX_TIMEOUT;

@@ -46,14 +46,21 @@ int otx2_alloc_mcam_entries(struct otx2_nic *pfvf)
 	rsp = (struct npc_mcam_alloc_entry_rsp *)otx2_mbox_get_rsp
 	       (&pfvf->mbox.mbox, 0, &req->hdr);
 
-	if (rsp->count != req->count)
+	if (rsp->count != req->count) {
 		netdev_info(pfvf->netdev,
 			    "Unable to allocate %d MCAM entries, got %d\n",
 			    req->count, rsp->count);
-
-	flow_cfg->ntuple_max_flows = rsp->count;
-	flow_cfg->ntuple_offset = 0;
-	pfvf->flags |= OTX2_FLAG_NTUPLE_SUPPORT;
+		/* support only ntuples here */
+		flow_cfg->ntuple_max_flows = rsp->count;
+		flow_cfg->ntuple_offset = 0;
+		pfvf->flags |= OTX2_FLAG_NTUPLE_SUPPORT;
+	} else {
+		flow_cfg->ntuple_offset = 0;
+		flow_cfg->unicast_offset = flow_cfg->ntuple_offset +
+						OTX2_MAX_NTUPLE_FLOWS;
+		pfvf->flags |= OTX2_FLAG_NTUPLE_SUPPORT;
+		pfvf->flags |= OTX2_FLAG_UCAST_FLTR_SUPPORT;
+	}
 
 	for (i = 0; i < rsp->count; i++)
 		flow_cfg->entry[i] = rsp->entry_list[i];
@@ -82,12 +89,115 @@ int otx2_mcam_flow_init(struct otx2_nic *pf)
 	if (err)
 		return err;
 
+	pf->mac_table = devm_kzalloc(pf->dev, sizeof(struct otx2_mac_table)
+					* OTX2_MAX_UNICAST_FLOWS, GFP_KERNEL);
+	if (!pf->mac_table)
+		return -ENOMEM;
+
 	return 0;
 }
 
 void otx2_mcam_flow_del(struct otx2_nic *pf)
 {
 	otx2_destroy_mcam_flows(pf);
+}
+
+/*  On success adds mcam entry
+ *  On failure enable promisous mode
+ */
+static int otx2_do_add_macfilter(struct otx2_nic *pf, const u8 *mac)
+{
+	struct otx2_flow_config *flow_cfg = pf->flow_cfg;
+	struct npc_install_flow_req *req;
+	int err, i;
+
+	if (!(pf->flags & OTX2_FLAG_UCAST_FLTR_SUPPORT))
+		return -ENOMEM;
+
+	/* dont have free mcam entries or uc list is greater than alloted */
+	if (netdev_uc_count(pf->netdev) > OTX2_MAX_UNICAST_FLOWS)
+		return -ENOMEM;
+
+	mutex_lock(&pf->mbox.lock);
+	req = otx2_mbox_alloc_msg_npc_install_flow(&pf->mbox);
+	if (!req) {
+		mutex_unlock(&pf->mbox.lock);
+		return -ENOMEM;
+	}
+
+	/* unicast offset starts with 32 0..31 for ntuple */
+	for (i = 0; i <  OTX2_MAX_UNICAST_FLOWS; i++) {
+		if (pf->mac_table[i].inuse)
+			continue;
+		ether_addr_copy(pf->mac_table[i].addr, mac);
+		pf->mac_table[i].inuse = true;
+		pf->mac_table[i].mcam_entry =
+			flow_cfg->entry[i + flow_cfg->unicast_offset];
+		req->entry =  pf->mac_table[i].mcam_entry;
+		break;
+	}
+
+	ether_addr_copy(req->packet.dmac, mac);
+	eth_broadcast_addr((u8 *)&req->mask.dmac);
+	req->features = BIT_ULL(NPC_DMAC);
+	req->channel = pf->hw.rx_chan_base;
+	req->intf = NIX_INTF_RX;
+	req->op = NIX_RX_ACTION_DEFAULT;
+	req->set_cntr = 1;
+
+	err = otx2_sync_mbox_msg(&pf->mbox);
+	mutex_unlock(&pf->mbox.lock);
+
+	return err;
+}
+
+int otx2_add_macfilter(struct net_device *netdev, const u8 *mac)
+{
+	struct otx2_nic *pf = netdev_priv(netdev);
+
+	return otx2_do_add_macfilter(pf, mac);
+}
+
+static bool otx2_get_mcamentry_for_mac(struct otx2_nic *pf, const u8 *mac,
+				       int *mcam_entry)
+{
+	int i;
+
+	for (i = 0; i < OTX2_MAX_UNICAST_FLOWS; i++) {
+		if (!pf->mac_table[i].inuse)
+			continue;
+
+		if (ether_addr_equal(pf->mac_table[i].addr, mac)) {
+			*mcam_entry = pf->mac_table[i].mcam_entry;
+			pf->mac_table[i].inuse = false;
+			return true;
+		}
+	}
+	return false;
+}
+
+int otx2_del_macfilter(struct net_device *netdev, const u8 *mac)
+{
+	struct otx2_nic *pf = netdev_priv(netdev);
+	struct npc_delete_flow_req *req;
+	int err, mcam_entry;
+
+	/* check does mcam entry exists for given mac */
+	if (!otx2_get_mcamentry_for_mac(pf, mac, &mcam_entry))
+		return 0;
+
+	mutex_lock(&pf->mbox.lock);
+	req = otx2_mbox_alloc_msg_npc_delete_flow(&pf->mbox);
+	if (!req) {
+		mutex_unlock(&pf->mbox.lock);
+		return -ENOMEM;
+	}
+	req->entry = mcam_entry;
+	/* Send message to AF */
+	err = otx2_sync_mbox_msg(&pf->mbox);
+	mutex_unlock(&pf->mbox.lock);
+
+	return err;
 }
 
 static struct otx2_flow *otx2_find_flow(struct otx2_nic *pfvf, u32 location)
