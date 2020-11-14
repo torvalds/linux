@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3568-evb.dtsi"
+#include "rk3568-android.dtsi"
+
+/ {
+	model = "Rockchip RK3568 IOTEST DDR3 V10 Board";
+	compatible = "rockchip,rk3568-iotest-ddr3-v10", "rockchip,rk3568";
+};
+
+&usb_host0_ehci {
+	status = "disabled";
+};
+
+&usb_host0_ohci {
+	status = "disabled";
+};
+
+&usb_host1_ehci {
+	status = "disabled";
+};
+
+&usb_host1_ohci {
+	status = "disabled";
+};
