@@ -204,7 +204,8 @@ M(NIX_TXSCH_ALLOC,	0x8004, nix_txsch_alloc,			\
 M(NIX_TXSCH_FREE,	0x8005, nix_txsch_free, nix_txsch_free_req, msg_rsp) \
 M(NIX_TXSCHQ_CFG,	0x8006, nix_txschq_cfg, nix_txschq_config, msg_rsp)  \
 M(NIX_STATS_RST,	0x8007, nix_stats_rst, msg_req, msg_rsp)	\
-M(NIX_VTAG_CFG,		0x8008, nix_vtag_cfg, nix_vtag_config, msg_rsp)	\
+M(NIX_VTAG_CFG,		0x8008, nix_vtag_cfg, nix_vtag_config,		\
+				 nix_vtag_config_rsp)			\
 M(NIX_RSS_FLOWKEY_CFG,  0x8009, nix_rss_flowkey_cfg,			\
 				 nix_rss_flowkey_cfg,			\
 				 nix_rss_flowkey_cfg_rsp)		\
@@ -477,6 +478,7 @@ enum nix_af_status {
 	NIX_AF_ERR_LSO_CFG_FAIL     = -418,
 	NIX_AF_INVAL_NPA_PF_FUNC    = -419,
 	NIX_AF_INVAL_SSO_PF_FUNC    = -420,
+	NIX_AF_ERR_TX_VTAG_NOSPC    = -421,
 };
 
 /* For NIX LF context alloc and init */
@@ -516,7 +518,8 @@ struct nix_lf_alloc_rsp {
 
 struct nix_lf_free_req {
 	struct mbox_msghdr hdr;
-#define NIX_LF_DISABLE_FLOWS           BIT_ULL(0)
+#define NIX_LF_DISABLE_FLOWS		BIT_ULL(0)
+#define NIX_LF_DONT_FREE_TX_VTAG	BIT_ULL(1)
 	u64 flags;
 };
 
@@ -610,14 +613,40 @@ struct nix_vtag_config {
 	union {
 		/* valid when cfg_type is '0' */
 		struct {
-			/* tx vlan0 tag(C-VLAN) */
-			u64 vlan0;
-			/* tx vlan1 tag(S-VLAN) */
-			u64 vlan1;
-			/* insert tx vlan tag */
-			u8 insert_vlan :1;
-			/* insert tx double vlan tag */
-			u8 double_vlan :1;
+			u64 vtag0;
+			u64 vtag1;
+
+			/* cfg_vtag0 & cfg_vtag1 fields are valid
+			 * when free_vtag0 & free_vtag1 are '0's.
+			 */
+			/* cfg_vtag0 = 1 to configure vtag0 */
+			u8 cfg_vtag0 :1;
+			/* cfg_vtag1 = 1 to configure vtag1 */
+			u8 cfg_vtag1 :1;
+
+			/* vtag0_idx & vtag1_idx are only valid when
+			 * both cfg_vtag0 & cfg_vtag1 are '0's,
+			 * these fields are used along with free_vtag0
+			 * & free_vtag1 to free the nix lf's tx_vlan
+			 * configuration.
+			 *
+			 * Denotes the indices of tx_vtag def registers
+			 * that needs to be cleared and freed.
+			 */
+			int vtag0_idx;
+			int vtag1_idx;
+
+			/* free_vtag0 & free_vtag1 fields are valid
+			 * when cfg_vtag0 & cfg_vtag1 are '0's.
+			 */
+			/* free_vtag0 = 1 clears vtag0 configuration
+			 * vtag0_idx denotes the index to be cleared.
+			 */
+			u8 free_vtag0 :1;
+			/* free_vtag1 = 1 clears vtag1 configuration
+			 * vtag1_idx denotes the index to be cleared.
+			 */
+			u8 free_vtag1 :1;
 		} tx;
 
 		/* valid when cfg_type is '1' */
@@ -630,6 +659,17 @@ struct nix_vtag_config {
 			u8 capture_vtag :1;
 		} rx;
 	};
+};
+
+struct nix_vtag_config_rsp {
+	struct mbox_msghdr hdr;
+	int vtag0_idx;
+	int vtag1_idx;
+	/* Indices of tx_vtag def registers used to configure
+	 * tx vtag0 & vtag1 headers, these indices are valid
+	 * when nix_vtag_config mbox requested for vtag0 and/
+	 * or vtag1 configuration.
+	 */
 };
 
 struct nix_rss_flowkey_cfg {

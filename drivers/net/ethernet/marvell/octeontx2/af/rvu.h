@@ -264,6 +264,13 @@ struct nix_lso {
 	u8 in_use;
 };
 
+struct nix_txvlan {
+#define NIX_TX_VTAG_DEF_MAX 0x400
+	struct rsrc_bmap rsrc;
+	u16 *entry2pfvf_map;
+	struct mutex rsrc_lock; /* Serialize resource alloc/free */
+};
+
 struct nix_hw {
 	int blkaddr;
 	struct rvu *rvu;
@@ -272,6 +279,7 @@ struct nix_hw {
 	struct nix_flowkey flowkey;
 	struct nix_mark_format mark_format;
 	struct nix_lso lso;
+	struct nix_txvlan txvlan;
 };
 
 /* RVU block's capabilities or functionality,
