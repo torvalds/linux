@@ -1000,8 +1000,6 @@ TRAMP_REAL_BEGIN(system_reset_idle_wake)
  * Vectors for the FWNMI option.  Share common code.
  */
 TRAMP_REAL_BEGIN(system_reset_fwnmi)
-	/* XXX: fwnmi guest could run a nested/PR guest, so why no test?  */
-	__IKVM_REAL(system_reset)=0
 	GEN_INT_ENTRY system_reset, virt=0
 
 #endif /* CONFIG_PPC_PSERIES */
