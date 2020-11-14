@@ -58,8 +58,11 @@ int otx2_alloc_mcam_entries(struct otx2_nic *pfvf)
 		flow_cfg->ntuple_offset = 0;
 		flow_cfg->unicast_offset = flow_cfg->ntuple_offset +
 						OTX2_MAX_NTUPLE_FLOWS;
+		flow_cfg->rx_vlan_offset = flow_cfg->unicast_offset +
+						OTX2_MAX_UNICAST_FLOWS;
 		pfvf->flags |= OTX2_FLAG_NTUPLE_SUPPORT;
 		pfvf->flags |= OTX2_FLAG_UCAST_FLTR_SUPPORT;
+		pfvf->flags |= OTX2_FLAG_RX_VLAN_SUPPORT;
 	}
 
 	for (i = 0; i < rsp->count; i++)
@@ -710,4 +713,103 @@ int otx2_destroy_mcam_flows(struct otx2_nic *pfvf)
 	mutex_unlock(&pfvf->mbox.lock);
 
 	return 0;
+}
+
+int otx2_install_rxvlan_offload_flow(struct otx2_nic *pfvf)
+{
+	struct otx2_flow_config *flow_cfg = pfvf->flow_cfg;
+	struct npc_install_flow_req *req;
+	int err;
+
+	mutex_lock(&pfvf->mbox.lock);
+	req = otx2_mbox_alloc_msg_npc_install_flow(&pfvf->mbox);
+	if (!req) {
+		mutex_unlock(&pfvf->mbox.lock);
+		return -ENOMEM;
+	}
+
+	req->entry = flow_cfg->entry[flow_cfg->rx_vlan_offset];
+	req->intf = NIX_INTF_RX;
+	ether_addr_copy(req->packet.dmac, pfvf->netdev->dev_addr);
+	eth_broadcast_addr((u8 *)&req->mask.dmac);
+	req->channel = pfvf->hw.rx_chan_base;
+	req->op = NIX_RX_ACTION_DEFAULT;
+	req->features = BIT_ULL(NPC_OUTER_VID) | BIT_ULL(NPC_DMAC);
+	req->vtag0_valid = true;
+	req->vtag0_type = NIX_AF_LFX_RX_VTAG_TYPE0;
+
+	/* Send message to AF */
+	err = otx2_sync_mbox_msg(&pfvf->mbox);
+	mutex_unlock(&pfvf->mbox.lock);
+	return err;
+}
+
+static int otx2_delete_rxvlan_offload_flow(struct otx2_nic *pfvf)
+{
+	struct otx2_flow_config *flow_cfg = pfvf->flow_cfg;
+	struct npc_delete_flow_req *req;
+	int err;
+
+	mutex_lock(&pfvf->mbox.lock);
+	req = otx2_mbox_alloc_msg_npc_delete_flow(&pfvf->mbox);
+	if (!req) {
+		mutex_unlock(&pfvf->mbox.lock);
+		return -ENOMEM;
+	}
+
+	req->entry = flow_cfg->entry[flow_cfg->rx_vlan_offset];
+	/* Send message to AF */
+	err = otx2_sync_mbox_msg(&pfvf->mbox);
+	mutex_unlock(&pfvf->mbox.lock);
+	return err;
+}
+
+int otx2_enable_rxvlan(struct otx2_nic *pf, bool enable)
+{
+	struct nix_vtag_config *req;
+	struct mbox_msghdr *rsp_hdr;
+	int err;
+
+	/* Dont have enough mcam entries */
+	if (!(pf->flags & OTX2_FLAG_RX_VLAN_SUPPORT))
+		return -ENOMEM;
+
+	if (enable) {
+		err = otx2_install_rxvlan_offload_flow(pf);
+		if (err)
+			return err;
+	} else {
+		err = otx2_delete_rxvlan_offload_flow(pf);
+		if (err)
+			return err;
+	}
+
+	mutex_lock(&pf->mbox.lock);
+	req = otx2_mbox_alloc_msg_nix_vtag_cfg(&pf->mbox);
+	if (!req) {
+		mutex_unlock(&pf->mbox.lock);
+		return -ENOMEM;
+	}
+
+	/* config strip, capture and size */
+	req->vtag_size = VTAGSIZE_T4;
+	req->cfg_type = 1; /* rx vlan cfg */
+	req->rx.vtag_type = NIX_AF_LFX_RX_VTAG_TYPE0;
+	req->rx.strip_vtag = enable;
+	req->rx.capture_vtag = enable;
+
+	err = otx2_sync_mbox_msg(&pf->mbox);
+	if (err) {
+		mutex_unlock(&pf->mbox.lock);
+		return err;
+	}
+
+	rsp_hdr = otx2_mbox_get_rsp(&pf->mbox.mbox, 0, &req->hdr);
+	if (IS_ERR(rsp_hdr)) {
+		mutex_unlock(&pf->mbox.lock);
+		return PTR_ERR(rsp_hdr);
+	}
+
+	mutex_unlock(&pf->mbox.lock);
+	return rsp_hdr->rc;
 }

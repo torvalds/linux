@@ -1984,7 +1984,8 @@ static int nix_rx_vtag_cfg(struct rvu *rvu, int nixlf, int blkaddr,
 {
 	u64 regval = req->vtag_size;
 
-	if (req->rx.vtag_type > 7 || req->vtag_size > VTAGSIZE_T8)
+	if (req->rx.vtag_type > NIX_AF_LFX_RX_VTAG_TYPE7 ||
+	    req->vtag_size > VTAGSIZE_T8)
 		return -EINVAL;
 
 	if (req->rx.capture_vtag)
