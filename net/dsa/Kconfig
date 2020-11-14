@@ -68,14 +68,19 @@ config NET_DSA_TAG_GSWIP
 	  Say Y or M if you want to enable support for tagging frames for the
 	  Lantiq / Intel GSWIP switches.
 
+config NET_DSA_TAG_DSA_COMMON
+	tristate
+
 config NET_DSA_TAG_DSA
 	tristate "Tag driver for Marvell switches using DSA headers"
+	select NET_DSA_TAG_DSA_COMMON
 	help
 	  Say Y or M if you want to enable support for tagging frames for the
 	  Marvell switches which use DSA headers.
 
 config NET_DSA_TAG_EDSA
 	tristate "Tag driver for Marvell switches using EtherType DSA headers"
+	select NET_DSA_TAG_DSA_COMMON
 	help
 	  Say Y or M if you want to enable support for tagging frames for the
 	  Marvell switches which use EtherType DSA headers.
