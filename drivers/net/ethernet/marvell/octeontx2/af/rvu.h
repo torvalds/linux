@@ -147,6 +147,7 @@ struct npc_mcam {
 	u16	*entry2cntr_map;
 	u16	*cntr2pfvf_map;
 	u16	*cntr_refcnt;
+	u16	*entry2target_pffunc;
 	u8	keysize;	/* MCAM keysize 112/224/448 bits */
 	u8	banks;		/* Number of MCAM banks */
 	u8	banks_per_entry;/* Number of keywords in key */
@@ -164,6 +165,7 @@ struct npc_mcam {
 	struct npc_key_field	rx_key_fields[NPC_KEY_FIELDS_MAX];
 	u64	tx_features;
 	u64	rx_features;
+	struct list_head mcam_rules;
 };
 
 /* Structure for per RVU func info ie PF/VF */
@@ -217,6 +219,8 @@ struct rvu_pfvf {
 	struct mcam_entry entry;
 	int rxvlan_index;
 	bool rxvlan;
+
+	struct rvu_npc_mcam_rule *def_ucast_rule;
 
 	bool	cgx_in_use; /* this PF/VF using CGX? */
 	int	cgx_users;  /* number of cgx users - used only by PFs */
@@ -558,6 +562,7 @@ void rvu_npc_install_bcast_match_entry(struct rvu *rvu, u16 pcifunc,
 void rvu_npc_enable_bcast_entry(struct rvu *rvu, u16 pcifunc, bool enable);
 int rvu_npc_update_rxvlan(struct rvu *rvu, u16 pcifunc, int nixlf);
 void rvu_npc_disable_mcam_entries(struct rvu *rvu, u16 pcifunc, int nixlf);
+void rvu_npc_free_mcam_entries(struct rvu *rvu, u16 pcifunc, int nixlf);
 void rvu_npc_disable_default_entries(struct rvu *rvu, u16 pcifunc, int nixlf);
 void rvu_npc_enable_default_entries(struct rvu *rvu, u16 pcifunc, int nixlf);
 void rvu_npc_update_flowkey_alg_idx(struct rvu *rvu, u16 pcifunc, int nixlf,
@@ -575,6 +580,14 @@ int rvu_npc_get_tx_nibble_cfg(struct rvu *rvu, u64 nibble_ena);
 int npc_mcam_verify_channel(struct rvu *rvu, u16 pcifunc, u8 intf, u16 channel);
 int npc_flow_steering_init(struct rvu *rvu, int blkaddr);
 const char *npc_get_field_name(u8 hdr);
+bool rvu_npc_write_default_rule(struct rvu *rvu, int blkaddr, int nixlf,
+				u16 pcifunc, u8 intf, struct mcam_entry *entry,
+				int *entry_index);
+int npc_get_bank(struct npc_mcam *mcam, int index);
+void npc_mcam_enable_flows(struct rvu *rvu, u16 target);
+void npc_mcam_disable_flows(struct rvu *rvu, u16 target);
+void npc_enable_mcam_entry(struct rvu *rvu, struct npc_mcam *mcam,
+			   int blkaddr, int index, bool enable);
 
 #ifdef CONFIG_DEBUG_FS
 void rvu_dbg_init(struct rvu *rvu);

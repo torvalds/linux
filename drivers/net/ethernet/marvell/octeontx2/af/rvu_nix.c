@@ -302,7 +302,6 @@ static void nix_interface_deinit(struct rvu *rvu, u16 pcifunc, u8 nixlf)
 
 	pfvf->maxlen = 0;
 	pfvf->minlen = 0;
-	pfvf->rxvlan = false;
 
 	/* Remove this PF_FUNC from bcast pkt replication list */
 	err = nix_update_bcast_mce_list(rvu, pcifunc, false);
@@ -1228,7 +1227,7 @@ exit:
 	return rc;
 }
 
-int rvu_mbox_handler_nix_lf_free(struct rvu *rvu, struct msg_req *req,
+int rvu_mbox_handler_nix_lf_free(struct rvu *rvu, struct nix_lf_free_req *req,
 				 struct msg_rsp *rsp)
 {
 	struct rvu_hwinfo *hw = rvu->hw;
@@ -1246,6 +1245,11 @@ int rvu_mbox_handler_nix_lf_free(struct rvu *rvu, struct msg_req *req,
 	nixlf = rvu_get_lf(rvu, block, pcifunc, 0);
 	if (nixlf < 0)
 		return NIX_AF_ERR_AF_LF_INVALID;
+
+	if (req->flags & NIX_LF_DISABLE_FLOWS)
+		rvu_npc_disable_mcam_entries(rvu, pcifunc, nixlf);
+	else
+		rvu_npc_free_mcam_entries(rvu, pcifunc, nixlf);
 
 	nix_interface_deinit(rvu, pcifunc, nixlf);
 
@@ -2762,8 +2766,6 @@ int rvu_mbox_handler_nix_set_mac_addr(struct rvu *rvu,
 	rvu_npc_install_ucast_entry(rvu, pcifunc, nixlf,
 				    pfvf->rx_chan_base, req->mac_addr);
 
-	rvu_npc_update_rxvlan(rvu, pcifunc, nixlf);
-
 	return 0;
 }
 
@@ -2810,9 +2812,6 @@ int rvu_mbox_handler_nix_set_rx_mode(struct rvu *rvu, struct nix_rx_mode *req,
 	else
 		rvu_npc_install_promisc_entry(rvu, pcifunc, nixlf,
 					      pfvf->rx_chan_base, allmulti);
-
-	rvu_npc_update_rxvlan(rvu, pcifunc, nixlf);
-
 	return 0;
 }
 
@@ -3376,6 +3375,8 @@ int rvu_mbox_handler_nix_lf_start_rx(struct rvu *rvu, struct msg_req *req,
 
 	rvu_npc_enable_default_entries(rvu, pcifunc, nixlf);
 
+	npc_mcam_enable_flows(rvu, pcifunc);
+
 	return rvu_cgx_start_stop_io(rvu, pcifunc, true);
 }
 
@@ -3391,6 +3392,8 @@ int rvu_mbox_handler_nix_lf_stop_rx(struct rvu *rvu, struct msg_req *req,
 
 	rvu_npc_disable_default_entries(rvu, pcifunc, nixlf);
 
+	npc_mcam_disable_flows(rvu, pcifunc);
+
 	return rvu_cgx_start_stop_io(rvu, pcifunc, false);
 }
 
@@ -3403,6 +3406,8 @@ void rvu_nix_lf_teardown(struct rvu *rvu, u16 pcifunc, int blkaddr, int nixlf)
 	ctx_req.hdr.pcifunc = pcifunc;
 
 	/* Cleanup NPC MCAM entries, free Tx scheduler queues being used */
+	rvu_npc_disable_mcam_entries(rvu, pcifunc, nixlf);
+	rvu_npc_free_mcam_entries(rvu, pcifunc, nixlf);
 	nix_interface_deinit(rvu, pcifunc, nixlf);
 	nix_rx_sync(rvu, blkaddr);
 	nix_txschq_free(rvu, pcifunc);

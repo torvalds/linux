@@ -162,6 +162,8 @@ enum nix_scheduler {
 #define NIX_RX_ACTIONOP_UCAST_IPSEC	(0x2ull)
 #define NIX_RX_ACTIONOP_MCAST		(0x3ull)
 #define NIX_RX_ACTIONOP_RSS		(0x4ull)
+/* Use the RX action set in the default unicast entry */
+#define NIX_RX_ACTION_DEFAULT		(0xfull)
 
 /* NIX TX action operation*/
 #define NIX_TX_ACTIONOP_DROP		(0x0ull)

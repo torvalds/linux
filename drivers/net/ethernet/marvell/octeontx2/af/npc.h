@@ -379,11 +379,41 @@ struct nix_rx_action {
 #define NPC_PARSE_NIBBLE_LH_FLAGS	GENMASK_ULL(29, 28)
 #define NPC_PARSE_NIBBLE_LH_LTYPE	BIT_ULL(30)
 
+struct nix_tx_action {
+#if defined(__BIG_ENDIAN_BITFIELD)
+	u64	rsvd_63_48	:16;
+	u64	match_id	:16;
+	u64	index		:20;
+	u64	rsvd_11_8	:8;
+	u64	op		:4;
+#else
+	u64	op		:4;
+	u64	rsvd_11_8	:8;
+	u64	index		:20;
+	u64	match_id	:16;
+	u64	rsvd_63_48	:16;
+#endif
+};
+
 /* NIX Receive Vtag Action Structure */
-#define VTAG0_VALID_BIT		BIT_ULL(15)
-#define VTAG0_TYPE_MASK		GENMASK_ULL(14, 12)
-#define VTAG0_LID_MASK		GENMASK_ULL(10, 8)
-#define VTAG0_RELPTR_MASK	GENMASK_ULL(7, 0)
+#define RX_VTAG0_VALID_BIT		BIT_ULL(15)
+#define RX_VTAG0_TYPE_MASK		GENMASK_ULL(14, 12)
+#define RX_VTAG0_LID_MASK		GENMASK_ULL(10, 8)
+#define RX_VTAG0_RELPTR_MASK		GENMASK_ULL(7, 0)
+#define RX_VTAG1_VALID_BIT		BIT_ULL(47)
+#define RX_VTAG1_TYPE_MASK		GENMASK_ULL(46, 44)
+#define RX_VTAG1_LID_MASK		GENMASK_ULL(42, 40)
+#define RX_VTAG1_RELPTR_MASK		GENMASK_ULL(39, 32)
+
+/* NIX Transmit Vtag Action Structure */
+#define TX_VTAG0_DEF_MASK		GENMASK_ULL(25, 16)
+#define TX_VTAG0_OP_MASK		GENMASK_ULL(13, 12)
+#define TX_VTAG0_LID_MASK		GENMASK_ULL(10, 8)
+#define TX_VTAG0_RELPTR_MASK		GENMASK_ULL(7, 0)
+#define TX_VTAG1_DEF_MASK		GENMASK_ULL(57, 48)
+#define TX_VTAG1_OP_MASK		GENMASK_ULL(45, 44)
+#define TX_VTAG1_LID_MASK		GENMASK_ULL(42, 40)
+#define TX_VTAG1_RELPTR_MASK		GENMASK_ULL(39, 32)
 
 struct npc_mcam_kex {
 	/* MKEX Profle Header */
@@ -434,6 +464,25 @@ struct npc_lt_def_cfg {
 	struct npc_lt_def	pck_oip4;
 	struct npc_lt_def	pck_oip6;
 	struct npc_lt_def	pck_iip4;
+};
+
+struct rvu_npc_mcam_rule {
+	struct flow_msg packet;
+	struct flow_msg mask;
+	u8 intf;
+	union {
+		struct nix_tx_action tx_action;
+		struct nix_rx_action rx_action;
+	};
+	u64 vtag_action;
+	struct list_head list;
+	u64 features;
+	u16 owner;
+	u16 entry;
+	u16 cntr;
+	bool has_cntr;
+	u8 default_rule;
+	bool enable;
 };
 
 #endif /* NPC_H */

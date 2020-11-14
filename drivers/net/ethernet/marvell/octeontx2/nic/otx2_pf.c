@@ -1278,6 +1278,7 @@ static void otx2_free_sq_res(struct otx2_nic *pf)
 
 static int otx2_init_hw_resources(struct otx2_nic *pf)
 {
+	struct nix_lf_free_req *free_req;
 	struct mbox *mbox = &pf->mbox;
 	struct otx2_hw *hw = &pf->hw;
 	struct msg_req *req;
@@ -1359,8 +1360,9 @@ err_free_rq_ptrs:
 	otx2_aura_pool_free(pf);
 err_free_nix_lf:
 	mutex_lock(&mbox->lock);
-	req = otx2_mbox_alloc_msg_nix_lf_free(mbox);
-	if (req) {
+	free_req = otx2_mbox_alloc_msg_nix_lf_free(mbox);
+	if (free_req) {
+		free_req->flags = NIX_LF_DISABLE_FLOWS;
 		if (otx2_sync_mbox_msg(mbox))
 			dev_err(pf->dev, "%s failed to free nixlf\n", __func__);
 	}
@@ -1379,6 +1381,7 @@ exit:
 static void otx2_free_hw_resources(struct otx2_nic *pf)
 {
 	struct otx2_qset *qset = &pf->qset;
+	struct nix_lf_free_req *free_req;
 	struct mbox *mbox = &pf->mbox;
 	struct otx2_cq_queue *cq;
 	struct msg_req *req;
@@ -1419,8 +1422,9 @@ static void otx2_free_hw_resources(struct otx2_nic *pf)
 
 	mutex_lock(&mbox->lock);
 	/* Reset NIX LF */
-	req = otx2_mbox_alloc_msg_nix_lf_free(mbox);
-	if (req) {
+	free_req = otx2_mbox_alloc_msg_nix_lf_free(mbox);
+	if (free_req) {
+		free_req->flags = NIX_LF_DISABLE_FLOWS;
 		if (otx2_sync_mbox_msg(mbox))
 			dev_err(pf->dev, "%s failed to free nixlf\n", __func__);
 	}
