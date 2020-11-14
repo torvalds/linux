@@ -502,74 +502,6 @@ out:
 
 /* journal flushing: */
 
-u64 bch2_journal_last_unwritten_seq(struct journal *j)
-{
-	u64 seq;
-
-	spin_lock(&j->lock);
-	seq = journal_cur_seq(j);
-	if (j->reservations.prev_buf_unwritten)
-		seq--;
-	spin_unlock(&j->lock);
-
-	return seq;
-}
-
-/**
- * bch2_journal_open_seq_async - try to open a new journal entry if @seq isn't
- * open yet, or wait if we cannot
- *
- * used by the btree interior update machinery, when it needs to write a new
- * btree root - every journal entry contains the roots of all the btrees, so it
- * doesn't need to bother with getting a journal reservation
- */
-int bch2_journal_open_seq_async(struct journal *j, u64 seq, struct closure *cl)
-{
-	struct bch_fs *c = container_of(j, struct bch_fs, journal);
-	int ret;
-
-	spin_lock(&j->lock);
-
-	/*
-	 * Can't try to open more than one sequence number ahead:
-	 */
-	BUG_ON(journal_cur_seq(j) < seq && !journal_entry_is_open(j));
-
-	if (journal_cur_seq(j) > seq ||
-	    journal_entry_is_open(j)) {
-		spin_unlock(&j->lock);
-		return 0;
-	}
-
-	if (journal_cur_seq(j) < seq &&
-	    !__journal_entry_close(j)) {
-		/* haven't finished writing out the previous one: */
-		trace_journal_entry_full(c);
-		ret = -EAGAIN;
-	} else {
-		BUG_ON(journal_cur_seq(j) != seq);
-
-		ret = journal_entry_open(j);
-	}
-
-	if ((ret == -EAGAIN || ret == -ENOSPC) &&
-	    !j->res_get_blocked_start)
-		j->res_get_blocked_start = local_clock() ?: 1;
-
-	if (ret == -EAGAIN || ret == -ENOSPC)
-		closure_wait(&j->async_wait, cl);
-
-	spin_unlock(&j->lock);
-
-	if (ret == -ENOSPC) {
-		trace_journal_full(c);
-		bch2_journal_reclaim_work(&j->reclaim_work.work);
-		ret = -EAGAIN;
-	}
-
-	return ret;
-}
-
 static int journal_seq_error(struct journal *j, u64 seq)
 {
 	union journal_res_state state = READ_ONCE(j->reservations);
@@ -599,35 +531,6 @@ journal_seq_to_buf(struct journal *j, u64 seq)
 	    j->reservations.prev_buf_unwritten)
 		return journal_prev_buf(j);
 	return NULL;
-}
-
-/**
- * bch2_journal_wait_on_seq - wait for a journal entry to be written
- *
- * does _not_ cause @seq to be written immediately - if there is no other
- * activity to cause the relevant journal entry to be filled up or flushed it
- * can wait for an arbitrary amount of time (up to @j->write_delay_ms, which is
- * configurable).
- */
-void bch2_journal_wait_on_seq(struct journal *j, u64 seq,
-			      struct closure *parent)
-{
-	struct journal_buf *buf;
-
-	spin_lock(&j->lock);
-
-	if ((buf = journal_seq_to_buf(j, seq))) {
-		if (!closure_wait(&buf->wait, parent))
-			BUG();
-
-		if (seq == journal_cur_seq(j)) {
-			smp_mb();
-			if (bch2_journal_error(j))
-				closure_wake_up(&buf->wait);
-		}
-	}
-
-	spin_unlock(&j->lock);
 }
 
 /**
@@ -677,21 +580,6 @@ int bch2_journal_flush_seq(struct journal *j, u64 seq)
 	bch2_time_stats_update(j->flush_seq_time, start_time);
 
 	return ret ?: ret2 < 0 ? ret2 : 0;
-}
-
-/**
- * bch2_journal_meta_async - force a journal entry to be written
- */
-void bch2_journal_meta_async(struct journal *j, struct closure *parent)
-{
-	struct journal_res res;
-
-	memset(&res, 0, sizeof(res));
-
-	bch2_journal_res_get(j, &res, jset_u64s(0), 0);
-	bch2_journal_res_put(j, &res);
-
-	bch2_journal_flush_seq_async(j, res.seq, parent);
 }
 
 int bch2_journal_meta(struct journal *j)

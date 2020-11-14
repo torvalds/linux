@@ -466,13 +466,8 @@ void bch2_journal_entry_res_resize(struct journal *,
 				   struct journal_entry_res *,
 				   unsigned);
 
-u64 bch2_journal_last_unwritten_seq(struct journal *);
-int bch2_journal_open_seq_async(struct journal *, u64, struct closure *);
-
-void bch2_journal_wait_on_seq(struct journal *, u64, struct closure *);
 void bch2_journal_flush_seq_async(struct journal *, u64, struct closure *);
 void bch2_journal_flush_async(struct journal *, struct closure *);
-void bch2_journal_meta_async(struct journal *, struct closure *);
 
 int bch2_journal_flush_seq(struct journal *, u64);
 int bch2_journal_flush(struct journal *);

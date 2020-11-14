@@ -458,7 +458,7 @@ STORE(bch2_fs)
 	/* Debugging: */
 
 	if (attr == &sysfs_trigger_journal_flush)
-		bch2_journal_meta_async(&c->journal, NULL);
+		bch2_journal_meta(&c->journal);
 
 	if (attr == &sysfs_trigger_btree_coalesce)
 		bch2_coalesce(c);
