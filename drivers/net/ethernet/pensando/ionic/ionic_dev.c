@@ -25,7 +25,7 @@ static void ionic_watchdog_cb(struct timer_list *t)
 	hb = ionic_heartbeat_check(ionic);
 
 	if (hb >= 0)
-		ionic_link_status_check_request(ionic->lif, false);
+		ionic_link_status_check_request(ionic->lif, CAN_NOT_SLEEP);
 }
 
 void ionic_init_devinfo(struct ionic *ionic)
