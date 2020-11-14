@@ -2013,7 +2013,7 @@ int __atomisp_streamoff(struct file *file, void *fh, enum v4l2_buf_type type)
 	}
 	if (first_streamoff) {
 		css_pipe_id = atomisp_get_css_pipe_id(asd);
-		ret = atomisp_css_stop(asd, css_pipe_id, false);
+		atomisp_css_stop(asd, css_pipe_id, false);
 	}
 	/* cancel work queue*/
 	if (asd->video_out_capture.users) {
