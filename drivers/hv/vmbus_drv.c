@@ -55,7 +55,7 @@ int vmbus_interrupt;
 /*
  * Boolean to control whether to report panic messages over Hyper-V.
  *
- * It can be set via /proc/sys/kernel/hyperv/record_panic_msg
+ * It can be set via /proc/sys/kernel/hyperv_record_panic_msg
  */
 static int sysctl_record_panic_msg = 1;
 
