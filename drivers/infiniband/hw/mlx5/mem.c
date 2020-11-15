@@ -107,6 +107,51 @@ void mlx5_ib_populate_pas(struct ib_umem *umem, size_t page_size, __be64 *pas,
 	}
 }
 
+/*
+ * Compute the page shift and page_offset for mailboxes that use a quantized
+ * page_offset. The granulatity of the page offset scales according to page
+ * size.
+ */
+unsigned long __mlx5_umem_find_best_quantized_pgoff(
+	struct ib_umem *umem, unsigned long pgsz_bitmap,
+	unsigned int page_offset_bits, u64 pgoff_bitmask, unsigned int scale,
+	unsigned int *page_offset_quantized)
+{
+	const u64 page_offset_mask = (1 << page_offset_bits) - 1;
+	unsigned long page_size;
+	u64 page_offset;
+
+	page_size = ib_umem_find_best_pgoff(umem, pgsz_bitmap, pgoff_bitmask);
+	if (!page_size)
+		return 0;
+
+	/*
+	 * page size is the largest possible page size.
+	 *
+	 * Reduce the page_size, and thus the page_offset and quanta, until the
+	 * page_offset fits into the mailbox field. Once page_size < scale this
+	 * loop is guaranteed to terminate.
+	 */
+	page_offset = ib_umem_dma_offset(umem, page_size);
+	while (page_offset & ~(u64)(page_offset_mask * (page_size / scale))) {
+		page_size /= 2;
+		page_offset = ib_umem_dma_offset(umem, page_size);
+	}
+
+	/*
+	 * The address is not aligned, or otherwise cannot be represented by the
+	 * page_offset.
+	 */
+	if (!(pgsz_bitmap & page_size))
+		return 0;
+
+	*page_offset_quantized =
+		(unsigned long)page_offset / (page_size / scale);
+	if (WARN_ON(*page_offset_quantized > page_offset_mask))
+		return 0;
+	return page_size;
+}
+
 int mlx5_ib_get_buf_offset(u64 addr, int page_shift, u32 *offset)
 {
 	u64 page_size;
