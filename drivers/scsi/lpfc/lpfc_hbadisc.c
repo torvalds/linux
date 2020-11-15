@@ -818,12 +818,13 @@ lpfc_cleanup_rpis(struct lpfc_vport *vport, int remove)
 	struct lpfc_nodelist *ndlp, *next_ndlp;
 
 	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
-
 		if (ndlp->nlp_state == NLP_STE_UNUSED_NODE)
 			continue;
+
 		if ((phba->sli3_options & LPFC_SLI3_VPORT_TEARDOWN) ||
-			((vport->port_type == LPFC_NPIV_PORT) &&
-			(ndlp->nlp_DID == NameServer_DID)))
+		    ((vport->port_type == LPFC_NPIV_PORT) &&
+		     ((ndlp->nlp_DID == NameServer_DID) ||
+		      (ndlp->nlp_DID == FDMI_DID))))
 			lpfc_unreg_rpi(vport, ndlp);
 
 		/* Leave Fabric nodes alone on link down */
@@ -1037,9 +1038,7 @@ lpfc_linkup_port(struct lpfc_vport *vport)
 	vport->fc_ns_retry = 0;
 	spin_unlock_irq(shost->host_lock);
 
-	if (vport->fc_flag & FC_LBIT)
-		lpfc_linkup_cleanup_nodes(vport);
-
+	lpfc_linkup_cleanup_nodes(vport);
 }
 
 static int

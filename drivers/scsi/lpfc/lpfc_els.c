@@ -1508,6 +1508,10 @@ lpfc_initial_fdisc(struct lpfc_vport *vport)
 		ndlp = lpfc_nlp_init(vport, Fabric_DID);
 		if (!ndlp)
 			return 0;
+
+		/* NPIV is only supported in Fabrics. */
+		ndlp->nlp_type |= NLP_FABRIC;
+
 		/* Put ndlp onto node list */
 		lpfc_enqueue_node(vport, ndlp);
 	}
