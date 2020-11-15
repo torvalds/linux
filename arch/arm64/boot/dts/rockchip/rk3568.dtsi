@@ -2073,8 +2073,10 @@
 		clocks = <&cru CLK_SPI0>, <&cru PCLK_SPI0>;
 		clock-names = "spiclk", "apb_pclk";
 		dmas = <&dmac0 20>, <&dmac0 21>;
-		pinctrl-names = "default";
+		dma-names = "tx", "rx";
+		pinctrl-names = "default", "high_speed";
 		pinctrl-0 = <&spi0clkm0 &spi0cs0m0 &spi0cs1m0 &spi0misom0 &spi0mosim0>;
+		pinctrl-1 = <&spi0clkm0_hs &spi0cs0m0 &spi0cs1m0 &spi0misom0_hs &spi0mosim0_hs>;
 		status = "disabled";
 	};
 
@@ -2087,8 +2089,10 @@
 		clocks = <&cru CLK_SPI1>, <&cru PCLK_SPI1>;
 		clock-names = "spiclk", "apb_pclk";
 		dmas = <&dmac0 22>, <&dmac0 23>;
-		pinctrl-names = "default";
+		dma-names = "tx", "rx";
+		pinctrl-names = "default", "high_speed";
 		pinctrl-0 = <&spi1clkm0 &spi1cs0m0 &spi1cs1m0 &spi1misom0 &spi1mosim0>;
+		pinctrl-1 = <&spi1clkm0_hs &spi1cs0m0 &spi1cs1m0 &spi1misom0_hs &spi1mosim0_hs>;
 		status = "disabled";
 	};
 
@@ -2101,8 +2105,10 @@
 		clocks = <&cru CLK_SPI2>, <&cru PCLK_SPI2>;
 		clock-names = "spiclk", "apb_pclk";
 		dmas = <&dmac0 24>, <&dmac0 25>;
-		pinctrl-names = "default";
+		dma-names = "tx", "rx";
+		pinctrl-names = "default", "high_speed";
 		pinctrl-0 = <&spi2clkm0 &spi2cs0m0 &spi2cs1m0 &spi2misom0 &spi2mosim0>;
+		pinctrl-1 = <&spi2clkm0_hs &spi2cs0m0 &spi2cs1m0 &spi2misom0_hs &spi2mosim0_hs>;
 		status = "disabled";
 	};
 
@@ -2115,8 +2121,10 @@
 		clocks = <&cru CLK_SPI3>, <&cru PCLK_SPI3>;
 		clock-names = "spiclk", "apb_pclk";
 		dmas = <&dmac0 26>, <&dmac0 27>;
-		pinctrl-names = "default";
+		dma-names = "tx", "rx";
+		pinctrl-names = "default", "high_speed";
 		pinctrl-0 = <&spi3clkm0 &spi3cs0m0 &spi3cs1m0 &spi3misom0 &spi3mosim0>;
+		pinctrl-1 = <&spi3clkm0_hs &spi3cs0m0 &spi3cs1m0 &spi3misom0_hs &spi3mosim0_hs>;
 		status = "disabled";
 	};
 
