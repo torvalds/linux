@@ -28,6 +28,7 @@
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
 #include <linux/regmap.h>
+#include <linux/regulator/consumer.h>
 
 #include "bmc150-accel.h"
 
@@ -184,6 +185,7 @@ enum bmc150_accel_trigger_id {
 
 struct bmc150_accel_data {
 	struct regmap *regmap;
+	struct regulator_bulk_data regulators[2];
 	int irq;
 	struct bmc150_accel_interrupt interrupts[BMC150_ACCEL_INTERRUPTS];
 	struct bmc150_accel_trigger triggers[BMC150_ACCEL_TRIGGERS];
@@ -1592,10 +1594,33 @@ int bmc150_accel_core_probe(struct device *dev, struct regmap *regmap, int irq,
 				     &data->orientation);
 	if (ret)
 		return ret;
+	/*
+	 * VDD   is the analog and digital domain voltage supply
+	 * VDDIO is the digital I/O voltage supply
+	 */
+	data->regulators[0].supply = "vdd";
+	data->regulators[1].supply = "vddio";
+	ret = devm_regulator_bulk_get(dev,
+				      ARRAY_SIZE(data->regulators),
+				      data->regulators);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to get regulators\n");
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(data->regulators),
+				    data->regulators);
+	if (ret) {
+		dev_err(dev, "failed to enable regulators: %d\n", ret);
+		return ret;
+	}
+	/*
+	 * 2ms or 3ms power-on time according to datasheets, let's better
+	 * be safe than sorry and set this delay to 5ms.
+	 */
+	msleep(5);
 
 	ret = bmc150_accel_chip_init(data);
 	if (ret < 0)
-		return ret;
+		goto err_disable_regulators;
 
 	mutex_init(&data->mutex);
 
@@ -1621,7 +1646,7 @@ int bmc150_accel_core_probe(struct device *dev, struct regmap *regmap, int irq,
 					     fifo_attrs);
 	if (ret < 0) {
 		dev_err(dev, "Failed: iio triggered buffer setup\n");
-		return ret;
+		goto err_disable_regulators;
 	}
 
 	if (data->irq > 0) {
@@ -1675,6 +1700,9 @@ err_trigger_unregister:
 	bmc150_accel_unregister_triggers(data, BMC150_ACCEL_TRIGGERS - 1);
 err_buffer_cleanup:
 	iio_triggered_buffer_cleanup(indio_dev);
+err_disable_regulators:
+	regulator_bulk_disable(ARRAY_SIZE(data->regulators),
+			       data->regulators);
 
 	return ret;
 }
@@ -1698,6 +1726,9 @@ int bmc150_accel_core_remove(struct device *dev)
 	mutex_lock(&data->mutex);
 	bmc150_accel_set_mode(data, BMC150_ACCEL_SLEEP_MODE_DEEP_SUSPEND, 0);
 	mutex_unlock(&data->mutex);
+
+	regulator_bulk_disable(ARRAY_SIZE(data->regulators),
+			       data->regulators);
 
 	return 0;
 }
