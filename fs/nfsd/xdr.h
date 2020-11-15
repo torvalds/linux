@@ -115,10 +115,6 @@ struct nfsd_readdirres {
 	struct xdr_stream	xdr;
 	struct xdr_buf		dirlist;
 	struct readdir_cd	common;
-	__be32 *		buffer;
-	int			buflen;
-	__be32 *		offset;
-	struct page		*page;
 	unsigned int		cookie_offset;
 };
 
@@ -164,10 +160,8 @@ int nfssvc_encode_statfsres(struct svc_rqst *, __be32 *);
 int nfssvc_encode_readdirres(struct svc_rqst *, __be32 *);
 
 void nfssvc_encode_nfscookie(struct nfsd_readdirres *resp, u32 offset);
-int nfs2svc_encode_entry(void *data, const char *name, int namlen,
-			 loff_t offset, u64 ino, unsigned int d_type);
-int nfssvc_encode_entry(void *, const char *name,
-			int namlen, loff_t offset, u64 ino, unsigned int);
+int nfssvc_encode_entry(void *data, const char *name, int namlen,
+			loff_t offset, u64 ino, unsigned int d_type);
 
 void nfssvc_release_attrstat(struct svc_rqst *rqstp);
 void nfssvc_release_diropres(struct svc_rqst *rqstp);

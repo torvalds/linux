@@ -602,7 +602,7 @@ nfsd_proc_readdir(struct svc_rqst *rqstp)
 	resp->cookie_offset = 0;
 	offset = argp->cookie;
 	resp->status = nfsd_readdir(rqstp, &argp->fh, &offset,
-				    &resp->common, nfs2svc_encode_entry);
+				    &resp->common, nfssvc_encode_entry);
 	nfssvc_encode_nfscookie(resp, offset);
 
 	fh_put(&argp->fh);

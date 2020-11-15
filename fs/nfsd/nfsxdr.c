@@ -663,7 +663,7 @@ svcxdr_encode_entry_common(struct nfsd_readdirres *resp, const char *name,
 }
 
 /**
- * nfs2svc_encode_entry - encode one NFSv2 READDIR entry
+ * nfssvc_encode_entry - encode one NFSv2 READDIR entry
  * @data: directory context
  * @name: name of the object to be encoded
  * @namlen: length of that name, in bytes
@@ -680,8 +680,8 @@ svcxdr_encode_entry_common(struct nfsd_readdirres *resp, const char *name,
  *   - resp->common.err
  *   - resp->cookie_offset
  */
-int nfs2svc_encode_entry(void *data, const char *name, int namlen,
-			 loff_t offset, u64 ino, unsigned int d_type)
+int nfssvc_encode_entry(void *data, const char *name, int namlen,
+			loff_t offset, u64 ino, unsigned int d_type)
 {
 	struct readdir_cd *ccd = data;
 	struct nfsd_readdirres *resp = container_of(ccd,
@@ -704,51 +704,6 @@ out_toosmall:
 	resp->common.err = nfserr_toosmall;
 	resp->dirlist.len = starting_length;
 	return -EINVAL;
-}
-
-int
-nfssvc_encode_entry(void *ccdv, const char *name,
-		    int namlen, loff_t offset, u64 ino, unsigned int d_type)
-{
-	struct readdir_cd *ccd = ccdv;
-	struct nfsd_readdirres *cd = container_of(ccd, struct nfsd_readdirres, common);
-	__be32	*p = cd->buffer;
-	int	buflen, slen;
-
-	/*
-	dprintk("nfsd: entry(%.*s off %ld ino %ld)\n",
-			namlen, name, offset, ino);
-	 */
-
-	if (offset > ~((u32) 0)) {
-		cd->common.err = nfserr_fbig;
-		return -EINVAL;
-	}
-	nfssvc_encode_nfscookie(cd, offset);
-
-	/* truncate filename */
-	namlen = min(namlen, NFS2_MAXNAMLEN);
-	slen = XDR_QUADLEN(namlen);
-
-	if ((buflen = cd->buflen - slen - 4) < 0) {
-		cd->common.err = nfserr_toosmall;
-		return -EINVAL;
-	}
-	if (ino > ~((u32) 0)) {
-		cd->common.err = nfserr_fbig;
-		return -EINVAL;
-	}
-	*p++ = xdr_one;				/* mark entry present */
-	*p++ = htonl((u32) ino);		/* file id */
-	p    = xdr_encode_array(p, name, namlen);/* name length & name */
-	cd->offset = p;			/* remember pointer */
-	*p++ = htonl(~0U);		/* offset of next entry */
-
-	cd->count += p - cd->buffer;
-	cd->buflen = buflen;
-	cd->buffer = p;
-	cd->common.err = nfs_ok;
-	return 0;
 }
 
 /*
