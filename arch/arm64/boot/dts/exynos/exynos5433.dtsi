@@ -1450,7 +1450,6 @@
 			clock-names = "adc";
 			clocks = <&cmu_peric CLK_PCLK_ADCIF>;
 			#io-channel-cells = <1>;
-			io-channel-ranges;
 			status = "disabled";
 		};
 

@@ -562,7 +562,6 @@
 			clocks = <&clock_peric0 PCLK_ADCIF>;
 			clock-names = "adc";
 			#io-channel-cells = <1>;
-			io-channel-ranges;
 			status = "disabled";
 		};
 
