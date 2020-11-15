@@ -437,6 +437,27 @@ static void update_fast_timekeeper(const struct tk_read_base *tkr,
 	memcpy(base + 1, base, sizeof(*base));
 }
 
+static __always_inline u64 __ktime_get_fast_ns(struct tk_fast *tkf)
+{
+	struct tk_read_base *tkr;
+	unsigned int seq;
+	u64 now;
+
+	do {
+		seq = raw_read_seqcount_latch(&tkf->seq);
+		tkr = tkf->base + (seq & 0x01);
+		now = ktime_to_ns(tkr->base);
+
+		now += timekeeping_delta_to_ns(tkr,
+				clocksource_delta(
+					tk_clock_read(tkr),
+					tkr->cycle_last,
+					tkr->mask));
+	} while (read_seqcount_latch_retry(&tkf->seq, seq));
+
+	return now;
+}
+
 /**
  * ktime_get_mono_fast_ns - Fast NMI safe access to clock monotonic
  *
@@ -463,39 +484,24 @@ static void update_fast_timekeeper(const struct tk_read_base *tkr,
  *
  * So reader 6 will observe time going backwards versus reader 5.
  *
- * While other CPUs are likely to be able observe that, the only way
+ * While other CPUs are likely to be able to observe that, the only way
  * for a CPU local observation is when an NMI hits in the middle of
  * the update. Timestamps taken from that NMI context might be ahead
  * of the following timestamps. Callers need to be aware of that and
  * deal with it.
  */
-static __always_inline u64 __ktime_get_fast_ns(struct tk_fast *tkf)
-{
-	struct tk_read_base *tkr;
-	unsigned int seq;
-	u64 now;
-
-	do {
-		seq = raw_read_seqcount_latch(&tkf->seq);
-		tkr = tkf->base + (seq & 0x01);
-		now = ktime_to_ns(tkr->base);
-
-		now += timekeeping_delta_to_ns(tkr,
-				clocksource_delta(
-					tk_clock_read(tkr),
-					tkr->cycle_last,
-					tkr->mask));
-	} while (read_seqcount_latch_retry(&tkf->seq, seq));
-
-	return now;
-}
-
 u64 ktime_get_mono_fast_ns(void)
 {
 	return __ktime_get_fast_ns(&tk_fast_mono);
 }
 EXPORT_SYMBOL_GPL(ktime_get_mono_fast_ns);
 
+/**
+ * ktime_get_raw_fast_ns - Fast NMI safe access to clock monotonic raw
+ *
+ * Contrary to ktime_get_mono_fast_ns() this is always correct because the
+ * conversion factor is not affected by NTP/PTP correction.
+ */
 u64 ktime_get_raw_fast_ns(void)
 {
 	return __ktime_get_fast_ns(&tk_fast_raw);
@@ -522,6 +528,9 @@ EXPORT_SYMBOL_GPL(ktime_get_raw_fast_ns);
  * (2) On 32-bit systems, the 64-bit boot offset (tk->offs_boot) may be
  * partially updated.  Since the tk->offs_boot update is a rare event, this
  * should be a rare occurrence which postprocessing should be able to handle.
+ *
+ * The caveats vs. timestamp ordering as documented for ktime_get_fast_ns()
+ * apply as well.
  */
 u64 notrace ktime_get_boot_fast_ns(void)
 {
@@ -531,9 +540,6 @@ u64 notrace ktime_get_boot_fast_ns(void)
 }
 EXPORT_SYMBOL_GPL(ktime_get_boot_fast_ns);
 
-/*
- * See comment for __ktime_get_fast_ns() vs. timestamp ordering
- */
 static __always_inline u64 __ktime_get_real_fast(struct tk_fast *tkf, u64 *mono)
 {
 	struct tk_read_base *tkr;
@@ -558,6 +564,8 @@ static __always_inline u64 __ktime_get_real_fast(struct tk_fast *tkf, u64 *mono)
 
 /**
  * ktime_get_real_fast_ns: - NMI safe and fast access to clock realtime.
+ *
+ * See ktime_get_fast_ns() for documentation of the time stamp ordering.
  */
 u64 ktime_get_real_fast_ns(void)
 {
