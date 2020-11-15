@@ -1874,6 +1874,21 @@
 				<0 RK_PB6 2 &pcfg_pull_none>;
 		};
 		/omit-if-no-ref/
+		spi0clkm0_hs: spi0clkm0-hs {
+			rockchip,pins =
+				<0 RK_PB5 2 &pcfg_pull_up_drv_level_1>;
+		};
+		/omit-if-no-ref/
+		spi0misom0_hs: spi0misom0-hs {
+			rockchip,pins =
+				<0 RK_PC5 2 &pcfg_pull_up_drv_level_1>;
+		};
+		/omit-if-no-ref/
+		spi0mosim0_hs: spi0mosim0-hs {
+			rockchip,pins =
+				<0 RK_PB6 2 &pcfg_pull_up_drv_level_1>;
+		};
+		/omit-if-no-ref/
 		spi0clkm1: spi0clkm1 {
 			rockchip,pins =
 				<2 RK_PD3 3 &pcfg_pull_none>;
@@ -1892,6 +1907,21 @@
 		spi0mosim1: spi0mosim1 {
 			rockchip,pins =
 				<2 RK_PD1 3 &pcfg_pull_none>;
+		};
+		/omit-if-no-ref/
+		spi0clkm1_hs: spi0clkm1-hs {
+			rockchip,pins =
+				<2 RK_PD3 3 &pcfg_pull_up_drv_level_1>;
+		};
+		/omit-if-no-ref/
+		spi0misom1_hs: spi0misom1-hs {
+			rockchip,pins =
+				<2 RK_PD0 3 &pcfg_pull_up_drv_level_1>;
+		};
+		/omit-if-no-ref/
+		spi0mosim1_hs: spi0mosim1-hs {
+			rockchip,pins =
+				<2 RK_PD1 3 &pcfg_pull_up_drv_level_1>;
 		};
 	};
 	spi1 {
@@ -1921,6 +1951,21 @@
 				<2 RK_PB7 4 &pcfg_pull_none>;
 		};
 		/omit-if-no-ref/
+		spi1clkm0_hs: spi1clkm0-hs {
+			rockchip,pins =
+				<2 RK_PB5 3 &pcfg_pull_up_drv_level_1>;
+		};
+		/omit-if-no-ref/
+		spi1misom0_hs: spi1misom0-hs {
+			rockchip,pins =
+				<2 RK_PB6 3 &pcfg_pull_up_drv_level_1>;
+		};
+		/omit-if-no-ref/
+		spi1mosim0_hs: spi1mosim0-hs {
+			rockchip,pins =
+				<2 RK_PB7 4 &pcfg_pull_up_drv_level_1>;
+		};
+		/omit-if-no-ref/
 		spi1clkm1: spi1clkm1 {
 			rockchip,pins =
 				<3 RK_PC3 3 &pcfg_pull_none>;
@@ -1939,6 +1984,21 @@
 		spi1mosim1: spi1mosim1 {
 			rockchip,pins =
 				<3 RK_PC1 3 &pcfg_pull_none>;
+		};
+		/omit-if-no-ref/
+		spi1clkm1_hs: spi1clkm1-hs {
+			rockchip,pins =
+				<3 RK_PC3 3 &pcfg_pull_up_drv_level_1>;
+		};
+		/omit-if-no-ref/
+		spi1misom1_hs: spi1misom1-hs {
+			rockchip,pins =
+				<3 RK_PC2 3 &pcfg_pull_up_drv_level_1>;
+		};
+		/omit-if-no-ref/
+		spi1mosim1_hs: spi1mosim1-hs {
+			rockchip,pins =
+				<3 RK_PC1 3 &pcfg_pull_up_drv_level_1>;
 		};
 	};
 	spi2 {
@@ -1968,6 +2028,21 @@
 				<2 RK_PC3 4 &pcfg_pull_none>;
 		};
 		/omit-if-no-ref/
+		spi2clkm0_hs: spi2clkm0-hs {
+			rockchip,pins =
+				<2 RK_PC1 4 &pcfg_pull_up_drv_level_1>;
+		};
+		/omit-if-no-ref/
+		spi2misom0_hs: spi2misom0-hs {
+			rockchip,pins =
+				<2 RK_PC2 4 &pcfg_pull_up_drv_level_1>;
+		};
+		/omit-if-no-ref/
+		spi2mosim0_hs: spi2mosim0-hs {
+			rockchip,pins =
+				<2 RK_PC3 4 &pcfg_pull_up_drv_level_1>;
+		};
+		/omit-if-no-ref/
 		spi2clkm1: spi2clkm1 {
 			rockchip,pins =
 				<3 RK_PA0 3 &pcfg_pull_none>;
@@ -1991,6 +2066,21 @@
 		spi2mosim1: spi2mosim1 {
 			rockchip,pins =
 				<2 RK_PD6 3 &pcfg_pull_none>;
+		};
+		/omit-if-no-ref/
+		spi2clkm1_hs: spi2clkm1-hs {
+			rockchip,pins =
+				<3 RK_PA0 3 &pcfg_pull_up_drv_level_1>;
+		};
+		/omit-if-no-ref/
+		spi2misom1_hs: spi2misom1-hs {
+			rockchip,pins =
+				<2 RK_PD7 3 &pcfg_pull_up_drv_level_1>;
+		};
+		/omit-if-no-ref/
+		spi2mosim1_hs: spi2mosim1-hs {
+			rockchip,pins =
+				<2 RK_PD6 3 &pcfg_pull_up_drv_level_1>;
 		};
 	};
 	spi3 {
@@ -2020,6 +2110,21 @@
 				<4 RK_PB2 4 &pcfg_pull_none>;
 		};
 		/omit-if-no-ref/
+		spi3clkm0_hs: spi3clkm0-hs {
+			rockchip,pins =
+				<4 RK_PB3 4 &pcfg_pull_up_drv_level_1>;
+		};
+		/omit-if-no-ref/
+		spi3misom0_hs: spi3misom0-hs {
+			rockchip,pins =
+				<4 RK_PB0 4 &pcfg_pull_up_drv_level_1>;
+		};
+		/omit-if-no-ref/
+		spi3mosim0_hs: spi3mosim0-hs {
+			rockchip,pins =
+				<4 RK_PB2 4 &pcfg_pull_up_drv_level_1>;
+		};
+		/omit-if-no-ref/
 		spi3clkm1: spi3clkm1 {
 			rockchip,pins =
 				<4 RK_PC2 2 &pcfg_pull_none>;
@@ -2043,6 +2148,21 @@
 		spi3mosim1: spi3mosim1 {
 			rockchip,pins =
 				<4 RK_PC3 2 &pcfg_pull_none>;
+		};
+		/omit-if-no-ref/
+		spi3clkm1_hs: spi3clkm1-hs {
+			rockchip,pins =
+				<4 RK_PC2 2 &pcfg_pull_up_drv_level_1>;
+		};
+		/omit-if-no-ref/
+		spi3misom1_hs: spi3misom1-hs {
+			rockchip,pins =
+				<4 RK_PC5 2 &pcfg_pull_up_drv_level_1>;
+		};
+		/omit-if-no-ref/
+		spi3mosim1_hs: spi3mosim1-hs {
+			rockchip,pins =
+				<4 RK_PC3 2 &pcfg_pull_up_drv_level_1>;
 		};
 	};
 	tsadc {
