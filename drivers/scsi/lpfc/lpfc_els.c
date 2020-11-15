@@ -1988,12 +1988,25 @@ lpfc_cmpl_els_plogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				 "2753 PLOGI failure DID:%06X Status:x%x/x%x\n",
 				 ndlp->nlp_DID, irsp->ulpStatus,
 				 irsp->un.ulpWord[4]);
-		/* Do not call DSM for lpfc_els_abort'ed ELS cmds. Just execute
-		 * the final node put to free it to the pool.
+
+		/* Do not call DSM for lpfc_els_abort'ed ELS cmds */
+		if (lpfc_error_lost_link(irsp))
+			goto check_plogi;
+		else
+			lpfc_disc_state_machine(vport, ndlp, cmdiocb,
+						NLP_EVT_CMPL_PLOGI);
+
+		/* As long as this node is not registered with the scsi or nvme
+		 * transport, it is no longer an active node.  Otherwise
+		 * devloss handles the final cleanup.
 		 */
-		if (!lpfc_error_lost_link(irsp))
+		if (!(ndlp->fc4_xpt_flags & (SCSI_XPT_REGD | NVME_XPT_REGD))) {
+			spin_lock_irq(&ndlp->lock);
+			ndlp->nlp_flag &= ~NLP_NPR_2B_DISC;
+			spin_unlock_irq(&ndlp->lock);
 			lpfc_disc_state_machine(vport, ndlp, cmdiocb,
 						NLP_EVT_DEVICE_RM);
+		}
 	} else {
 		/* Good status, call state machine */
 		prsp = list_entry(((struct lpfc_dmabuf *)
@@ -2004,6 +2017,7 @@ lpfc_cmpl_els_plogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 					NLP_EVT_CMPL_PLOGI);
 	}
 
+ check_plogi:
 	if (disc && vport->num_disc_nodes) {
 		/* Check to see if there are more PLOGIs to be sent */
 		lpfc_more_plogi(vport);
@@ -2243,6 +2257,20 @@ lpfc_cmpl_els_prli(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		else
 			lpfc_disc_state_machine(vport, ndlp, cmdiocb,
 						NLP_EVT_CMPL_PRLI);
+
+		/* As long as this node is not registered with the SCSI
+		 * or NVMe transport and no other PRLIs are outstanding,
+		 * it is no longer an active node.  Otherwise devloss
+		 * handles the final cleanup.
+		 */
+		if (!(ndlp->fc4_xpt_flags & (SCSI_XPT_REGD | NVME_XPT_REGD)) &&
+		    !ndlp->fc4_prli_sent) {
+			spin_lock_irq(&ndlp->lock);
+			ndlp->nlp_flag &= ~NLP_NPR_2B_DISC;
+			spin_unlock_irq(&ndlp->lock);
+			lpfc_disc_state_machine(vport, ndlp, cmdiocb,
+						NLP_EVT_DEVICE_RM);
+		}
 	} else {
 		/* Good status, call state machine.  However, if another
 		 * PRLI is outstanding, don't call the state machine
@@ -2655,14 +2683,29 @@ lpfc_cmpl_els_adisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				 ndlp->nlp_DID, irsp->ulpStatus,
 				 irsp->un.ulpWord[4]);
 		/* Do not call DSM for lpfc_els_abort'ed ELS cmds */
-		if (!lpfc_error_lost_link(irsp))
+		if (lpfc_error_lost_link(irsp))
+			goto check_adisc;
+		else
 			lpfc_disc_state_machine(vport, ndlp, cmdiocb,
 						NLP_EVT_CMPL_ADISC);
+
+		/* As long as this node is not registered with the SCSI or NVMe
+		 * transport, it is no longer an active node. Otherwise
+		 * devloss handles the final cleanup.
+		 */
+		if (!(ndlp->fc4_xpt_flags & (SCSI_XPT_REGD | NVME_XPT_REGD))) {
+			spin_lock_irq(&ndlp->lock);
+			ndlp->nlp_flag &= ~NLP_NPR_2B_DISC;
+			spin_unlock_irq(&ndlp->lock);
+			lpfc_disc_state_machine(vport, ndlp, cmdiocb,
+						NLP_EVT_DEVICE_RM);
+		}
 	} else
 		/* Good status, call state machine */
 		lpfc_disc_state_machine(vport, ndlp, cmdiocb,
 					NLP_EVT_CMPL_ADISC);
 
+ check_adisc:
 	/* Check to see if there are more ADISCs to be sent */
 	if (disc && vport->num_disc_nodes)
 		lpfc_more_adisc(vport);
@@ -2879,8 +2922,21 @@ out:
 				 irsp->un.ulpWord[4], irsp->ulpTimeout,
 				 vport->num_disc_nodes);
 		lpfc_disc_start(vport);
+		return;
 	}
-	return;
+
+	/* Cleanup path for failed REG_RPI handling. If REG_RPI fails, the
+	 * driver sends a LOGO to the rport to cleanup.  For fabric and
+	 * initiator ports cleanup the node as long as it the node is not
+	 * register with the transport.
+	 */
+	if (!(ndlp->fc4_xpt_flags & (SCSI_XPT_REGD | NVME_XPT_REGD))) {
+		spin_lock_irq(&ndlp->lock);
+		ndlp->nlp_flag &= ~NLP_NPR_2B_DISC;
+		spin_unlock_irq(&ndlp->lock);
+		lpfc_disc_state_machine(vport, ndlp, cmdiocb,
+					NLP_EVT_DEVICE_RM);
+	}
 }
 
 /**
