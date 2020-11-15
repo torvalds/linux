@@ -350,6 +350,7 @@ struct btree_trans {
 	pid_t			pid;
 #endif
 	unsigned long		ip;
+	int			srcu_idx;
 
 	u64			iters_linked;
 	u64			iters_live;

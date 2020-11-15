@@ -193,6 +193,7 @@
 #include <linux/rwsem.h>
 #include <linux/seqlock.h>
 #include <linux/shrinker.h>
+#include <linux/srcu.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
 #include <linux/zstd.h>
@@ -641,6 +642,8 @@ struct bch_fs {
 	struct list_head	btree_trans_list;
 	mempool_t		btree_iters_pool;
 	struct btree_iter_buf  __percpu	*btree_iters_bufs;
+
+	struct srcu_struct	btree_trans_barrier;
 
 	struct btree_key_cache	btree_key_cache;
 

@@ -2373,6 +2373,8 @@ void bch2_trans_init(struct btree_trans *trans, struct bch_fs *c,
 	if (expected_mem_bytes)
 		bch2_trans_preload_mem(trans, expected_mem_bytes);
 
+	trans->srcu_idx = srcu_read_lock(&c->btree_trans_barrier);
+
 #ifdef CONFIG_BCACHEFS_DEBUG
 	trans->pid = current->pid;
 	mutex_lock(&c->btree_trans_lock);
@@ -2392,6 +2394,8 @@ int bch2_trans_exit(struct btree_trans *trans)
 	list_del(&trans->list);
 	mutex_unlock(&trans->c->btree_trans_lock);
 #endif
+
+	srcu_read_unlock(&c->btree_trans_barrier, trans->srcu_idx);
 
 	bch2_journal_preres_put(&trans->c->journal, &trans->journal_preres);
 
@@ -2475,6 +2479,7 @@ void bch2_btree_trans_to_text(struct printbuf *out, struct bch_fs *c)
 void bch2_fs_btree_iter_exit(struct bch_fs *c)
 {
 	mempool_exit(&c->btree_iters_pool);
+	cleanup_srcu_struct(&c->btree_trans_barrier);
 }
 
 int bch2_fs_btree_iter_init(struct bch_fs *c)
@@ -2484,7 +2489,8 @@ int bch2_fs_btree_iter_init(struct bch_fs *c)
 	INIT_LIST_HEAD(&c->btree_trans_list);
 	mutex_init(&c->btree_trans_lock);
 
-	return mempool_init_kmalloc_pool(&c->btree_iters_pool, 1,
+	return  init_srcu_struct(&c->btree_trans_barrier) ?:
+		mempool_init_kmalloc_pool(&c->btree_iters_pool, 1,
 			sizeof(struct btree_iter) * nr +
 			sizeof(struct btree_insert_entry) * nr +
 			sizeof(struct btree_insert_entry) * nr);
