@@ -14120,7 +14120,7 @@ lpfc_init(void)
 		fc_release_transport(lpfc_transport_template);
 		goto unregister;
 	}
-	lpfc_nvme_cmd_template();
+	lpfc_wqe_cmd_template();
 	lpfc_nvmet_cmd_template();
 
 	/* Initialize in case vector mapping is needed */

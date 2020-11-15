@@ -90,10 +90,136 @@ static void __lpfc_sli4_consume_cqe(struct lpfc_hba *phba,
 				    struct lpfc_queue *cq,
 				    struct lpfc_cqe *cqe);
 
+union lpfc_wqe128 lpfc_iread_cmd_template;
+union lpfc_wqe128 lpfc_iwrite_cmd_template;
+union lpfc_wqe128 lpfc_icmnd_cmd_template;
+
 static IOCB_t *
 lpfc_get_iocb_from_iocbq(struct lpfc_iocbq *iocbq)
 {
 	return &iocbq->iocb;
+}
+
+/* Setup WQE templates for IOs */
+void lpfc_wqe_cmd_template(void)
+{
+	union lpfc_wqe128 *wqe;
+
+	/* IREAD template */
+	wqe = &lpfc_iread_cmd_template;
+	memset(wqe, 0, sizeof(union lpfc_wqe128));
+
+	/* Word 0, 1, 2 - BDE is variable */
+
+	/* Word 3 - cmd_buff_len, payload_offset_len is zero */
+
+	/* Word 4 - total_xfer_len is variable */
+
+	/* Word 5 - is zero */
+
+	/* Word 6 - ctxt_tag, xri_tag is variable */
+
+	/* Word 7 */
+	bf_set(wqe_cmnd, &wqe->fcp_iread.wqe_com, CMD_FCP_IREAD64_WQE);
+	bf_set(wqe_pu, &wqe->fcp_iread.wqe_com, PARM_READ_CHECK);
+	bf_set(wqe_class, &wqe->fcp_iread.wqe_com, CLASS3);
+	bf_set(wqe_ct, &wqe->fcp_iread.wqe_com, SLI4_CT_RPI);
+
+	/* Word 8 - abort_tag is variable */
+
+	/* Word 9  - reqtag is variable */
+
+	/* Word 10 - dbde, wqes is variable */
+	bf_set(wqe_qosd, &wqe->fcp_iread.wqe_com, 0);
+	bf_set(wqe_iod, &wqe->fcp_iread.wqe_com, LPFC_WQE_IOD_READ);
+	bf_set(wqe_lenloc, &wqe->fcp_iread.wqe_com, LPFC_WQE_LENLOC_WORD4);
+	bf_set(wqe_dbde, &wqe->fcp_iread.wqe_com, 0);
+	bf_set(wqe_wqes, &wqe->fcp_iread.wqe_com, 1);
+
+	/* Word 11 - pbde is variable */
+	bf_set(wqe_cmd_type, &wqe->fcp_iread.wqe_com, COMMAND_DATA_IN);
+	bf_set(wqe_cqid, &wqe->fcp_iread.wqe_com, LPFC_WQE_CQ_ID_DEFAULT);
+	bf_set(wqe_pbde, &wqe->fcp_iread.wqe_com, 0);
+
+	/* Word 12 - is zero */
+
+	/* Word 13, 14, 15 - PBDE is variable */
+
+	/* IWRITE template */
+	wqe = &lpfc_iwrite_cmd_template;
+	memset(wqe, 0, sizeof(union lpfc_wqe128));
+
+	/* Word 0, 1, 2 - BDE is variable */
+
+	/* Word 3 - cmd_buff_len, payload_offset_len is zero */
+
+	/* Word 4 - total_xfer_len is variable */
+
+	/* Word 5 - initial_xfer_len is variable */
+
+	/* Word 6 - ctxt_tag, xri_tag is variable */
+
+	/* Word 7 */
+	bf_set(wqe_cmnd, &wqe->fcp_iwrite.wqe_com, CMD_FCP_IWRITE64_WQE);
+	bf_set(wqe_pu, &wqe->fcp_iwrite.wqe_com, PARM_READ_CHECK);
+	bf_set(wqe_class, &wqe->fcp_iwrite.wqe_com, CLASS3);
+	bf_set(wqe_ct, &wqe->fcp_iwrite.wqe_com, SLI4_CT_RPI);
+
+	/* Word 8 - abort_tag is variable */
+
+	/* Word 9  - reqtag is variable */
+
+	/* Word 10 - dbde, wqes is variable */
+	bf_set(wqe_qosd, &wqe->fcp_iwrite.wqe_com, 0);
+	bf_set(wqe_iod, &wqe->fcp_iwrite.wqe_com, LPFC_WQE_IOD_WRITE);
+	bf_set(wqe_lenloc, &wqe->fcp_iwrite.wqe_com, LPFC_WQE_LENLOC_WORD4);
+	bf_set(wqe_dbde, &wqe->fcp_iwrite.wqe_com, 0);
+	bf_set(wqe_wqes, &wqe->fcp_iwrite.wqe_com, 1);
+
+	/* Word 11 - pbde is variable */
+	bf_set(wqe_cmd_type, &wqe->fcp_iwrite.wqe_com, COMMAND_DATA_OUT);
+	bf_set(wqe_cqid, &wqe->fcp_iwrite.wqe_com, LPFC_WQE_CQ_ID_DEFAULT);
+	bf_set(wqe_pbde, &wqe->fcp_iwrite.wqe_com, 0);
+
+	/* Word 12 - is zero */
+
+	/* Word 13, 14, 15 - PBDE is variable */
+
+	/* ICMND template */
+	wqe = &lpfc_icmnd_cmd_template;
+	memset(wqe, 0, sizeof(union lpfc_wqe128));
+
+	/* Word 0, 1, 2 - BDE is variable */
+
+	/* Word 3 - payload_offset_len is variable */
+
+	/* Word 4, 5 - is zero */
+
+	/* Word 6 - ctxt_tag, xri_tag is variable */
+
+	/* Word 7 */
+	bf_set(wqe_cmnd, &wqe->fcp_icmd.wqe_com, CMD_FCP_ICMND64_WQE);
+	bf_set(wqe_pu, &wqe->fcp_icmd.wqe_com, 0);
+	bf_set(wqe_class, &wqe->fcp_icmd.wqe_com, CLASS3);
+	bf_set(wqe_ct, &wqe->fcp_icmd.wqe_com, SLI4_CT_RPI);
+
+	/* Word 8 - abort_tag is variable */
+
+	/* Word 9  - reqtag is variable */
+
+	/* Word 10 - dbde, wqes is variable */
+	bf_set(wqe_qosd, &wqe->fcp_icmd.wqe_com, 1);
+	bf_set(wqe_iod, &wqe->fcp_icmd.wqe_com, LPFC_WQE_IOD_NONE);
+	bf_set(wqe_lenloc, &wqe->fcp_icmd.wqe_com, LPFC_WQE_LENLOC_NONE);
+	bf_set(wqe_dbde, &wqe->fcp_icmd.wqe_com, 0);
+	bf_set(wqe_wqes, &wqe->fcp_icmd.wqe_com, 1);
+
+	/* Word 11 */
+	bf_set(wqe_cmd_type, &wqe->fcp_icmd.wqe_com, COMMAND_DATA_IN);
+	bf_set(wqe_cqid, &wqe->fcp_icmd.wqe_com, LPFC_WQE_CQ_ID_DEFAULT);
+	bf_set(wqe_pbde, &wqe->fcp_icmd.wqe_com, 0);
+
+	/* Word 12, 13, 14, 15 - is zero */
 }
 
 #if defined(CONFIG_64BIT) && defined(__LITTLE_ENDIAN)
