@@ -156,7 +156,7 @@
 	 */
 	status = "okay";
 	phy-mode = "sgmii";
-	phy = <&phy1>;
+	phy-handle = <&phy1>;
 	phys = <&comphy5 2>;
 	sfp = <&sfp>;
 	buffer-manager = <&bm>;
@@ -387,9 +387,9 @@
 	pinctrl-0 = <&mdio_pins>;
 	status = "okay";
 
-	phy1: phy@1 {
+	phy1: ethernet-phy@1 {
 		status = "okay";
-		compatible = "ethernet-phy-id0141.0DD1", "ethernet-phy-ieee802.3-c22";
+		compatible = "ethernet-phy-ieee802.3-c22";
 		reg = <1>;
 
 		/* irq is connected to &pcawan pin 7 */
