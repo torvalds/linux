@@ -287,7 +287,6 @@ struct io_ring_ctx {
 		struct list_head	timeout_list;
 		struct list_head	cq_overflow_list;
 
-		wait_queue_head_t	inflight_wait;
 		struct io_uring_sqe	*sq_sqes;
 	} ____cacheline_aligned_in_smp;
 
@@ -1291,7 +1290,6 @@ static struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	INIT_LIST_HEAD(&ctx->iopoll_list);
 	INIT_LIST_HEAD(&ctx->defer_list);
 	INIT_LIST_HEAD(&ctx->timeout_list);
-	init_waitqueue_head(&ctx->inflight_wait);
 	spin_lock_init(&ctx->inflight_lock);
 	INIT_LIST_HEAD(&ctx->inflight_list);
 	INIT_DELAYED_WORK(&ctx->file_put_work, io_file_put_work);
@@ -6046,12 +6044,13 @@ static int io_req_defer(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 static void io_req_drop_files(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
+	struct io_uring_task *tctx = req->task->io_uring;
 	unsigned long flags;
 
 	spin_lock_irqsave(&ctx->inflight_lock, flags);
 	list_del(&req->inflight_entry);
-	if (waitqueue_active(&ctx->inflight_wait))
-		wake_up(&ctx->inflight_wait);
+	if (atomic_read(&tctx->in_idle))
+		wake_up(&tctx->wait);
 	spin_unlock_irqrestore(&ctx->inflight_lock, flags);
 	req->flags &= ~REQ_F_INFLIGHT;
 	put_files_struct(req->work.identity->files);
@@ -8693,8 +8692,8 @@ static void io_uring_cancel_files(struct io_ring_ctx *ctx,
 			break;
 		}
 		if (found)
-			prepare_to_wait(&ctx->inflight_wait, &wait,
-						TASK_UNINTERRUPTIBLE);
+			prepare_to_wait(&task->io_uring->wait, &wait,
+					TASK_UNINTERRUPTIBLE);
 		spin_unlock_irq(&ctx->inflight_lock);
 
 		/* We need to keep going until we don't find a matching req */
@@ -8707,7 +8706,7 @@ static void io_uring_cancel_files(struct io_ring_ctx *ctx,
 		/* cancellations _may_ trigger task work */
 		io_run_task_work();
 		schedule();
-		finish_wait(&ctx->inflight_wait, &wait);
+		finish_wait(&task->io_uring->wait, &wait);
 	}
 }
 
