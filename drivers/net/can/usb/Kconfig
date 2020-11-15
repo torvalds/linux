@@ -52,7 +52,9 @@ config CAN_KVASER_USB
 	    - Kvaser Leaf Light "China"
 	    - Kvaser BlackBird SemiPro
 	    - Kvaser USBcan R
+	    - Kvaser USBcan R v2
 	    - Kvaser Leaf Light v2
+	    - Kvaser Leaf Light R v2
 	    - Kvaser Mini PCI Express HS
 	    - Kvaser Mini PCI Express 2xHS
 	    - Kvaser USBcan Light 2xHS
