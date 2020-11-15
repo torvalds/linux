@@ -448,7 +448,7 @@ int bch2_fs_btree_cache_init(struct bch_fs *c)
 	bc->shrink.scan_objects		= bch2_btree_cache_scan;
 	bc->shrink.seeks		= 4;
 	bc->shrink.batch		= btree_pages(c) * 2;
-	register_shrinker(&bc->shrink, "%s/btree_cache", c->name);
+	ret = register_shrinker(&bc->shrink, "%s/btree_cache", c->name);
 out:
 	pr_verbose_init(c->opts, "ret %i", ret);
 	return ret;
