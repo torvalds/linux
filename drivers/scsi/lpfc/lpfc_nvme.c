@@ -356,39 +356,47 @@ lpfc_nvme_remoteport_delete(struct nvme_fc_remote_port *remoteport)
 	struct lpfc_nvme_rport *rport = remoteport->private;
 	struct lpfc_vport *vport;
 	struct lpfc_nodelist *ndlp;
+	u32 fc4_xpt_flags;
 
 	ndlp = rport->ndlp;
-	if (!ndlp)
+	if (!ndlp) {
+		pr_err("**** %s: NULL ndlp on rport %p remoteport %p\n",
+		       __func__, rport, remoteport);
 		goto rport_err;
+	}
 
 	vport = ndlp->vport;
-	if (!vport)
+	if (!vport) {
+		pr_err("**** %s: Null vport on ndlp %p, ste x%x rport %p\n",
+		       __func__, ndlp, ndlp->nlp_state, rport);
 		goto rport_err;
+	}
+
+	fc4_xpt_flags = NVME_XPT_REGD | SCSI_XPT_REGD;
 
 	/* Remove this rport from the lport's list - memory is owned by the
 	 * transport. Remove the ndlp reference for the NVME transport before
 	 * calling state machine to remove the node.
 	 */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_DISC,
-			"6146 remoteport delete of remoteport x%px\n",
+			"6146 remoteport delete of remoteport %p\n",
 			remoteport);
 	spin_lock_irq(&vport->phba->hbalock);
 
 	/* The register rebind might have occurred before the delete
 	 * downcall.  Guard against this race.
 	 */
-	if (ndlp->upcall_flags & NLP_WAIT_FOR_UNREG) {
-		ndlp->nrport = NULL;
-		ndlp->upcall_flags &= ~NLP_WAIT_FOR_UNREG;
-		spin_unlock_irq(&vport->phba->hbalock);
+	if (ndlp->fc4_xpt_flags & NLP_WAIT_FOR_UNREG)
+		ndlp->fc4_xpt_flags &= ~(NLP_WAIT_FOR_UNREG | NVME_XPT_REGD);
 
-		/* Remove original register reference. The host transport
-		 * won't reference this rport/remoteport any further.
-		 */
-		lpfc_nlp_put(ndlp);
-	} else {
-		spin_unlock_irq(&vport->phba->hbalock);
-	}
+	spin_unlock_irq(&vport->phba->hbalock);
+
+	/* On a devloss timeout event, one more put is executed provided the
+	 * NVME and SCSI rport unregister requests are complete.  If the vport
+	 * is unloading, this extra put is executed by lpfc_drop_node.
+	 */
+	if (!(ndlp->fc4_xpt_flags & fc4_xpt_flags))
+		lpfc_disc_state_machine(vport, ndlp, NULL, NLP_EVT_DEVICE_RM);
 
  rport_err:
 	return;
@@ -660,6 +668,7 @@ lpfc_nvme_gen_req(struct lpfc_vport *vport, struct lpfc_dmabuf *bmp,
 				 "Data: x%x x%x  rc x%x\n",
 				 ndlp->nlp_DID, genwqe->iotag,
 				 vport->port_state, rc);
+		lpfc_nlp_put(ndlp);
 		lpfc_sli_release_iocbq(phba, genwqe);
 		return 1;
 	}
@@ -1687,7 +1696,7 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 				 "IO. State x%x, Type x%x Flg x%x\n",
 				 pnvme_rport->port_id,
 				 ndlp->nlp_state, ndlp->nlp_type,
-				 ndlp->upcall_flags);
+				 ndlp->fc4_xpt_flags);
 		atomic_inc(&lport->xmt_fcp_bad_ndlp);
 		ret = -EBUSY;
 		goto out_fail;
@@ -2483,7 +2492,8 @@ lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		 * race that leaves the WAIT flag set.
 		 */
 		spin_lock_irq(&vport->phba->hbalock);
-		ndlp->upcall_flags &= ~NLP_WAIT_FOR_UNREG;
+		ndlp->fc4_xpt_flags &= ~NLP_WAIT_FOR_UNREG;
+		ndlp->fc4_xpt_flags |= NVME_XPT_REGD;
 		spin_unlock_irq(&vport->phba->hbalock);
 		rport = remote_port->private;
 		if (oldrport) {
@@ -2494,7 +2504,7 @@ lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 			 */
 			spin_lock_irq(&vport->phba->hbalock);
 			ndlp->nrport = NULL;
-			ndlp->upcall_flags &= ~NLP_WAIT_FOR_UNREG;
+			ndlp->fc4_xpt_flags &= ~NLP_WAIT_FOR_UNREG;
 			spin_unlock_irq(&vport->phba->hbalock);
 			rport->ndlp = NULL;
 			rport->remoteport = NULL;
@@ -2631,10 +2641,11 @@ lpfc_nvme_unregister_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_DISC,
 			 "6033 Unreg nvme remoteport x%px, portname x%llx, "
-			 "port_id x%06x, portstate x%x port type x%x\n",
+			 "port_id x%06x, portstate x%x port type x%x "
+			 "refcnt %d\n",
 			 remoteport, remoteport->port_name,
 			 remoteport->port_id, remoteport->port_state,
-			 ndlp->nlp_type);
+			 ndlp->nlp_type, kref_read(&ndlp->kref));
 
 	/* Sanity check ndlp type.  Only call for NVME ports. Don't
 	 * clear any rport state until the transport calls back.
@@ -2644,7 +2655,9 @@ lpfc_nvme_unregister_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		/* No concern about the role change on the nvme remoteport.
 		 * The transport will update it.
 		 */
-		ndlp->upcall_flags |= NLP_WAIT_FOR_UNREG;
+		spin_lock_irq(&vport->phba->hbalock);
+		ndlp->fc4_xpt_flags |= NLP_WAIT_FOR_UNREG;
+		spin_unlock_irq(&vport->phba->hbalock);
 
 		/* Don't let the host nvme transport keep sending keep-alives
 		 * on this remoteport. Vport is unloading, no recovery. The
@@ -2655,8 +2668,15 @@ lpfc_nvme_unregister_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 			(void)nvme_fc_set_remoteport_devloss(remoteport, 0);
 
 		ret = nvme_fc_unregister_remoteport(remoteport);
+
+		/* The driver no longer knows if the nrport memory is valid.
+		 * because the controller teardown process has begun and
+		 * is asynchronous.  Break the binding in the ndlp. Also
+		 * remove the register ndlp reference to setup node release.
+		 */
+		ndlp->nrport = NULL;
+		lpfc_nlp_put(ndlp);
 		if (ret != 0) {
-			lpfc_nlp_put(ndlp);
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 					 "6167 NVME unregister failed %d "
 					 "port_state x%x\n",

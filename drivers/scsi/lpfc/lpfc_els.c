@@ -1554,7 +1554,7 @@ lpfc_more_plogi(struct lpfc_vport *vport)
 }
 
 /**
- * lpfc_plogi_confirm_nport - Confirm pologi wwpn matches stored ndlp
+ * lpfc_plogi_confirm_nport - Confirm plogi wwpn matches stored ndlp
  * @phba: pointer to lpfc hba data structure.
  * @prsp: pointer to response IOCB payload.
  * @ndlp: pointer to a node-list data structure.
@@ -1591,8 +1591,6 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 	struct lpfc_vport *vport = ndlp->vport;
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_nodelist *new_ndlp;
-	struct lpfc_rport_data *rdata;
-	struct fc_rport *rport;
 	struct serv_parm *sp;
 	uint8_t  name[sizeof(struct lpfc_name)];
 	uint32_t rc, keepDID = 0, keep_nlp_flag = 0;
@@ -1600,7 +1598,6 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 	uint16_t keep_nlp_state;
 	u32 keep_nlp_fc4_type = 0;
 	struct lpfc_nvme_rport *keep_nrport = NULL;
-	int  put_node;
 	unsigned long *active_rrqs_xri_bitmap = NULL;
 
 	/* Fabric nodes can have the same WWPN so we don't bother searching
@@ -1730,26 +1727,6 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 			 "3179 PLOGI confirm NEW: %x %x\n",
 			 new_ndlp->nlp_DID, keepDID);
 
-		/* Fix up the rport accordingly */
-		rport =  ndlp->rport;
-		if (rport) {
-			rdata = rport->dd_data;
-			if (rdata->pnode == ndlp) {
-				/* break the link before dropping the ref */
-				ndlp->rport = NULL;
-				lpfc_nlp_put(ndlp);
-				rdata->pnode = lpfc_nlp_get(new_ndlp);
-				new_ndlp->rport = rport;
-			}
-			new_ndlp->nlp_type = ndlp->nlp_type;
-		}
-
-		/* Fix up the nvme rport */
-		if (ndlp->nrport) {
-			ndlp->nrport = NULL;
-			lpfc_nlp_put(ndlp);
-		}
-
 		/* Two ndlps cannot have the same did on the nodelist.
 		 * Note: for this case, ndlp has a NULL WWPN so setting
 		 * the nlp_fc4_type isn't required.
@@ -1789,25 +1766,7 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 		    (ndlp->nlp_state == NLP_STE_MAPPED_NODE))
 			keep_nlp_state = NLP_STE_NPR_NODE;
 		lpfc_nlp_set_state(vport, ndlp, keep_nlp_state);
-
-		/* Previous ndlp no longer active with nvme host transport.
-		 * Remove reference from earlier registration unless the
-		 * nvme host took care of it.
-		 */
-		if (ndlp->nrport)
-			lpfc_nlp_put(ndlp);
 		ndlp->nrport = keep_nrport;
-
-		/* Fix up the rport accordingly */
-		rport = ndlp->rport;
-		if (rport) {
-			rdata = rport->dd_data;
-			put_node = rdata->pnode != NULL;
-			rdata->pnode = NULL;
-			ndlp->rport = NULL;
-			if (put_node)
-				lpfc_nlp_put(ndlp);
-		}
 	}
 
 	/*
@@ -2027,10 +1986,12 @@ lpfc_cmpl_els_plogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				 "2753 PLOGI failure DID:%06X Status:x%x/x%x\n",
 				 ndlp->nlp_DID, irsp->ulpStatus,
 				 irsp->un.ulpWord[4]);
-		/* Do not call DSM for lpfc_els_abort'ed ELS cmds */
+		/* Do not call DSM for lpfc_els_abort'ed ELS cmds. Just execute
+		 * the final node put to free it to the pool.
+		 */
 		if (!lpfc_error_lost_link(irsp))
 			lpfc_disc_state_machine(vport, ndlp, cmdiocb,
-						NLP_EVT_CMPL_PLOGI);
+						NLP_EVT_DEVICE_RM);
 	} else {
 		/* Good status, call state machine */
 		prsp = list_entry(((struct lpfc_dmabuf *)
@@ -2038,7 +1999,7 @@ lpfc_cmpl_els_plogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				  struct lpfc_dmabuf, list);
 		ndlp = lpfc_plogi_confirm_nport(phba, prsp->virt, ndlp);
 		lpfc_disc_state_machine(vport, ndlp, cmdiocb,
-					     NLP_EVT_CMPL_PLOGI);
+					NLP_EVT_CMPL_PLOGI);
 	}
 
 	if (disc && vport->num_disc_nodes) {
@@ -4439,15 +4400,16 @@ lpfc_mbx_cmpl_dflt_rpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	mempool_free(pmb, phba->mbox_mem_pool);
 	if (ndlp) {
 		lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_NODE,
-				 "0006 rpi%x DID:%x flg:%x %d x%px\n",
+				 "0006 rpi x%x DID:%x flg:%x %d x%px\n",
 				 ndlp->nlp_rpi, ndlp->nlp_DID, ndlp->nlp_flag,
 				 kref_read(&ndlp->kref),
 				 ndlp);
-		lpfc_nlp_put(ndlp);
 		/* This is the end of the default RPI cleanup logic for
-		 * this ndlp. If no other discovery threads are using
-		 * this ndlp, free all resources associated with it.
+		 * this ndlp and it could get released.  Clear the nlp_flags to
+		 * prevent any further processing.
 		 */
+		ndlp->nlp_flag &= ~NLP_REG_LOGIN_SEND;
+		lpfc_nlp_put(ndlp);
 		lpfc_nlp_not_used(ndlp);
 	}
 
@@ -4652,7 +4614,6 @@ out:
 				 * the routine lpfc_els_free_iocb.
 				 */
 				cmdiocb->context1 = NULL;
-
 	}
 
 	/* Release the originating I/O reference. */
@@ -8945,6 +8906,7 @@ lsrjt:
 			lpfc_nlp_put(ndlp);
 	}
 
+	/* Release the reference on this elsiocb, not the ndlp. */
 	lpfc_nlp_put(elsiocb->context1);
 	elsiocb->context1 = NULL;
 
@@ -9261,8 +9223,9 @@ lpfc_cmpl_reg_new_vport(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 					lpfc_start_fdiscs(phba);
 				lpfc_do_scr_ns_plogi(phba, vport);
 			}
-		} else
+		} else {
 			lpfc_do_scr_ns_plogi(phba, vport);
+		}
 	}
 mbox_err_exit:
 	/* Now, we decrement the ndlp reference count held for this
@@ -9536,6 +9499,7 @@ lpfc_cmpl_els_fdisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		 * to update the MAC address.
 		 */
 		lpfc_register_new_vport(phba, vport, ndlp);
+		lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_NODE);
 		goto out;
 	}
 
@@ -9545,7 +9509,13 @@ lpfc_cmpl_els_fdisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		lpfc_register_new_vport(phba, vport, ndlp);
 	else
 		lpfc_do_scr_ns_plogi(phba, vport);
+
+	/* The FDISC completed successfully. Move the fabric ndlp to
+	 * UNMAPPED state and register with the transport.
+	 */
+	lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_NODE);
 	goto out;
+
 fdisc_failed:
 	if (vport->fc_vport &&
 	    (vport->fc_vport->vport_state != FC_VPORT_NO_FABRIC_RSCS))
@@ -9697,19 +9667,14 @@ lpfc_cmpl_els_npiv_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		"LOGO npiv cmpl:  status:x%x/x%x did:x%x",
 		irsp->ulpStatus, irsp->un.ulpWord[4], irsp->un.rcvels.remoteID);
 
-	lpfc_nlp_put(ndlp);
-	lpfc_els_free_iocb(phba, cmdiocb);
-	vport->unreg_vpi_cmpl = VPORT_ERROR;
-
-	/* Trigger the release of the ndlp after logo */
-	lpfc_nlp_put(ndlp);
-
 	/* NPIV LOGO completes to NPort <nlp_DID> */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 			 "2928 NPIV LOGO completes to NPort x%x "
-			 "Data: x%x x%x x%x x%x\n",
+			 "Data: x%x x%x x%x x%x x%x x%x x%x\n",
 			 ndlp->nlp_DID, irsp->ulpStatus, irsp->un.ulpWord[4],
-			 irsp->ulpTimeout, vport->num_disc_nodes);
+			 irsp->ulpTimeout, vport->num_disc_nodes,
+			 kref_read(&ndlp->kref), ndlp->nlp_flag,
+			 ndlp->fc4_xpt_flags);
 
 	if (irsp->ulpStatus == IOSTAT_SUCCESS) {
 		spin_lock_irq(shost->host_lock);
@@ -9718,7 +9683,11 @@ lpfc_cmpl_els_npiv_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		spin_unlock_irq(shost->host_lock);
 		lpfc_can_disctmo(vport);
 	}
+
+	/* Safe to release resources now. */
+	lpfc_els_free_iocb(phba, cmdiocb);
 	lpfc_nlp_put(ndlp);
+	vport->unreg_vpi_cmpl = VPORT_ERROR;
 }
 
 /**

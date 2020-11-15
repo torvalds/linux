@@ -593,16 +593,14 @@ lpfc_vport_disable(struct fc_vport *fc_vport, bool disable)
 		return enable_vport(fc_vport);
 }
 
-
 int
 lpfc_vport_delete(struct fc_vport *fc_vport)
 {
 	struct lpfc_nodelist *ndlp = NULL;
 	struct lpfc_vport *vport = *(struct lpfc_vport **)fc_vport->dd_data;
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
-	struct lpfc_hba   *phba = vport->phba;
+	struct lpfc_hba  *phba = vport->phba;
 	long timeout;
-	bool ns_ndlp_referenced = false;
 
 	if (vport->port_type == LPFC_PHYSICAL_PORT) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
@@ -619,9 +617,11 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 				 "static vport.\n");
 		return VPORT_ERROR;
 	}
+
 	spin_lock_irq(&phba->hbalock);
 	vport->load_flag |= FC_UNLOADING;
 	spin_unlock_irq(&phba->hbalock);
+
 	/*
 	 * If we are not unloading the driver then prevent the vport_delete
 	 * from happening until after this vport's discovery is finished.
@@ -649,52 +649,22 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 		return VPORT_INVAL;
 
 	lpfc_free_sysfs_attr(vport);
-
 	lpfc_debugfs_terminate(vport);
-
-	/*
-	 * The call to fc_remove_host might release the NameServer ndlp. Since
-	 * we might need to use the ndlp to send the DA_ID CT command,
-	 * increment the reference for the NameServer ndlp to prevent it from
-	 * being released.
-	 */
-	ndlp = lpfc_findnode_did(vport, NameServer_DID);
-	if (ndlp) {
-		lpfc_nlp_get(ndlp);
-		ns_ndlp_referenced = true;
-	}
 
 	/* Remove FC host to break driver binding. */
 	fc_remove_host(shost);
+	scsi_remove_host(shost);
 
-	ndlp = lpfc_findnode_did(phba->pport, Fabric_DID);
-
-	/* In case of driver unload, we shall not perform fabric logo as the
-	 * worker thread already stopped at this stage and, in this case, we
-	 * can safely skip the fabric logo.
-	 */
-	if (phba->pport->load_flag & FC_UNLOADING) {
-		if (ndlp && ndlp->nlp_state == NLP_STE_UNMAPPED_NODE &&
-		    phba->link_state >= LPFC_LINK_UP) {
-			/* First look for the Fabric ndlp */
-			ndlp = lpfc_findnode_did(vport, Fabric_DID);
-			if (!ndlp)
-				goto skip_logo;
-
-			/* Remove ndlp from vport npld list */
-			lpfc_dequeue_node(vport, ndlp);
-
-			/* Kick off release ndlp when it can be safely done */
-			lpfc_nlp_put(ndlp);
-		}
+	/* Send the DA_ID and Fabric LOGO to cleanup Nameserver entries. */
+	ndlp = lpfc_findnode_did(vport, Fabric_DID);
+	if (!ndlp)
 		goto skip_logo;
-	}
 
-	/* Otherwise, we will perform fabric logo as needed */
 	if (ndlp && ndlp->nlp_state == NLP_STE_UNMAPPED_NODE &&
 	    phba->link_state >= LPFC_LINK_UP &&
 	    phba->fc_topology != LPFC_TOPOLOGY_LOOP) {
 		if (vport->cfg_enable_da_id) {
+			/* Send DA_ID and wait for a completion. */
 			timeout = msecs_to_jiffies(phba->fc_ratov * 2000);
 			if (!lpfc_ns_cmd(vport, SLI_CTNS_DA_ID, 0, 0))
 				while (vport->ct_flags && timeout)
@@ -705,25 +675,19 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 						"1829 CT command failed to "
 						"delete objects on fabric\n");
 		}
-		/* First look for the Fabric ndlp */
-		ndlp = lpfc_findnode_did(vport, Fabric_DID);
-		if (!ndlp) {
-			/* Cannot find existing Fabric ndlp, allocate one */
-			ndlp = lpfc_nlp_init(vport, Fabric_DID);
-			if (!ndlp)
-				goto skip_logo;
-		}
 
 		/*
 		 * If the vpi is not registered, then a valid FDISC doesn't
 		 * exist and there is no need for a ELS LOGO.  Just cleanup
 		 * the ndlp.
 		 */
-		if (!(vport->vpi_state & LPFC_VPI_REGISTERED)) {
-			lpfc_nlp_put(ndlp);
+		if (!(vport->vpi_state & LPFC_VPI_REGISTERED))
 			goto skip_logo;
-		}
 
+		/* Issue a Fabric LOGO to cleanup fabric resources. */
+		ndlp = lpfc_findnode_did(vport, Fabric_DID);
+		if (!ndlp)
+			goto skip_logo;
 		vport->unreg_vpi_cmpl = VPORT_INVAL;
 		timeout = msecs_to_jiffies(phba->fc_ratov * 2000);
 		if (!lpfc_issue_els_npiv_logo(vport, ndlp))
@@ -736,21 +700,10 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 
 skip_logo:
 
-	/*
-	 * If the NameServer ndlp has been incremented to allow the DA_ID CT
-	 * command to be sent, decrement the ndlp now.
-	 */
-	if (ns_ndlp_referenced) {
-		ndlp = lpfc_findnode_did(vport, NameServer_DID);
-		lpfc_nlp_put(ndlp);
-	}
-
 	lpfc_cleanup(vport);
 
 	/* Remove scsi host now.  The nodes are cleaned up. */
-	scsi_remove_host(shost);
 	lpfc_sli_host_down(vport);
-
 	lpfc_stop_vport_timers(vport);
 
 	if (!(phba->pport->load_flag & FC_UNLOADING)) {

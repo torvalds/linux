@@ -2859,12 +2859,17 @@ lpfc_cleanup(struct lpfc_vport *vport)
 			continue;
 		}
 
-		if (ndlp->nlp_type & NLP_FABRIC)
+		/* Fabric Ports not in UNMAPPED state are cleaned up in the
+		 * DEVICE_RM event.
+		 */
+		if (ndlp->nlp_type & NLP_FABRIC &&
+		    ndlp->nlp_state == NLP_STE_UNMAPPED_NODE)
 			lpfc_disc_state_machine(vport, ndlp, NULL,
 					NLP_EVT_DEVICE_RECOVERY);
 
-		lpfc_disc_state_machine(vport, ndlp, NULL,
-					     NLP_EVT_DEVICE_RM);
+		if (!(ndlp->fc4_xpt_flags & (NVME_XPT_REGD|SCSI_XPT_REGD)))
+			lpfc_disc_state_machine(vport, ndlp, NULL,
+					NLP_EVT_DEVICE_RM);
 	}
 
 	/* At this point, ALL ndlp's should be gone
@@ -2879,11 +2884,13 @@ lpfc_cleanup(struct lpfc_vport *vport)
 			list_for_each_entry_safe(ndlp, next_ndlp,
 						&vport->fc_nodes, nlp_listp) {
 				lpfc_printf_vlog(ndlp->vport, KERN_ERR,
-						LOG_TRACE_EVENT,
-						"0282 did:x%x ndlp:x%px "
-						"refcnt:%d\n",
-						ndlp->nlp_DID, (void *)ndlp,
-						kref_read(&ndlp->kref));
+						 LOG_TRACE_EVENT,
+						 "0282 did:x%x ndlp:x%px "
+						 "refcnt:%d xflags x%x nflag x%x\n",
+						 ndlp->nlp_DID, (void *)ndlp,
+						 kref_read(&ndlp->kref),
+						 ndlp->fc4_xpt_flags,
+						 ndlp->nlp_flag);
 			}
 			break;
 		}
@@ -3499,10 +3506,10 @@ lpfc_offline_prep(struct lpfc_hba *phba, int mbx_action)
 				 * comes back online.
 				 */
 				if (phba->sli_rev == LPFC_SLI_REV4) {
-					lpfc_printf_vlog(ndlp->vport, KERN_INFO,
+					lpfc_printf_vlog(vports[i], KERN_INFO,
 						 LOG_NODE | LOG_DISCOVERY,
 						 "0011 Free RPI x%x on "
-						 "ndlp:x%px did x%x\n",
+						 "ndlp: %p did x%x\n",
 						 ndlp->nlp_rpi, ndlp,
 						 ndlp->nlp_DID);
 					lpfc_sli4_free_rpi(phba, ndlp->nlp_rpi);
@@ -3513,8 +3520,18 @@ lpfc_offline_prep(struct lpfc_hba *phba, int mbx_action)
 				if (ndlp->nlp_type & NLP_FABRIC) {
 					lpfc_disc_state_machine(vports[i], ndlp,
 						NULL, NLP_EVT_DEVICE_RECOVERY);
-					lpfc_disc_state_machine(vports[i], ndlp,
-						NULL, NLP_EVT_DEVICE_RM);
+
+					/* Don't remove the node unless the
+					 * has been unregistered with the
+					 * transport.  If so, let dev_loss
+					 * take care of the node.
+					 */
+					if (!(ndlp->fc4_xpt_flags &
+					      (NVME_XPT_REGD | SCSI_XPT_REGD)))
+						lpfc_disc_state_machine
+							(vports[i], ndlp,
+							 NULL,
+							 NLP_EVT_DEVICE_RM);
 				}
 			}
 		}
@@ -12501,12 +12518,10 @@ lpfc_pci_remove_one_s3(struct pci_dev *pdev)
 
 	/* Remove FC host with the physical port */
 	fc_remove_host(shost);
+	scsi_remove_host(shost);
 
 	/* Clean up all nodes, mailboxes and IOs. */
 	lpfc_cleanup(vport);
-
-	/* Remove the shost now that the devices connections are lost. */
-	scsi_remove_host(shost);
 
 	/*
 	 * Bring down the SLI Layer. This step disable all interrupts,
@@ -13359,6 +13374,7 @@ lpfc_pci_remove_one_s4(struct pci_dev *pdev)
 
 	/* Remove FC host with the physical port */
 	fc_remove_host(shost);
+	scsi_remove_host(shost);
 
 	/* Perform ndlp cleanup on the physical port.  The nvme and nvmet
 	 * localports are destroyed after to cleanup all transport memory.
@@ -13370,9 +13386,6 @@ lpfc_pci_remove_one_s4(struct pci_dev *pdev)
 	/* De-allocate multi-XRI pools */
 	if (phba->cfg_xri_rebalancing)
 		lpfc_destroy_multixri_pools(phba);
-
-	/* Remove the shost now that the devices connections are lost. */
-	scsi_remove_host(shost);
 
 	/*
 	 * Bring down the SLI Layer. This step disables all interrupts,
