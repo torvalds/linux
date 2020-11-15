@@ -381,7 +381,7 @@ lpfc_nvme_remoteport_delete(struct nvme_fc_remote_port *remoteport)
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_DISC,
 			"6146 remoteport delete of remoteport %p\n",
 			remoteport);
-	spin_lock_irq(&vport->phba->hbalock);
+	spin_lock_irq(&ndlp->lock);
 
 	/* The register rebind might have occurred before the delete
 	 * downcall.  Guard against this race.
@@ -389,7 +389,7 @@ lpfc_nvme_remoteport_delete(struct nvme_fc_remote_port *remoteport)
 	if (ndlp->fc4_xpt_flags & NLP_WAIT_FOR_UNREG)
 		ndlp->fc4_xpt_flags &= ~(NLP_WAIT_FOR_UNREG | NVME_XPT_REGD);
 
-	spin_unlock_irq(&vport->phba->hbalock);
+	spin_unlock_irq(&ndlp->lock);
 
 	/* On a devloss timeout event, one more put is executed provided the
 	 * NVME and SCSI rport unregister requests are complete.  If the vport
@@ -2468,13 +2468,13 @@ lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	else
 		rpinfo.dev_loss_tmo = vport->cfg_devloss_tmo;
 
-	spin_lock_irq(&vport->phba->hbalock);
+	spin_lock_irq(&ndlp->lock);
 	oldrport = lpfc_ndlp_get_nrport(ndlp);
 	if (oldrport) {
 		prev_ndlp = oldrport->ndlp;
-		spin_unlock_irq(&vport->phba->hbalock);
+		spin_unlock_irq(&ndlp->lock);
 	} else {
-		spin_unlock_irq(&vport->phba->hbalock);
+		spin_unlock_irq(&ndlp->lock);
 		if (!lpfc_nlp_get(ndlp)) {
 			dev_warn(&vport->phba->pcidev->dev,
 				 "Warning - No node ref - exit register\n");
@@ -2491,10 +2491,10 @@ lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		/* Guard against an unregister/reregister
 		 * race that leaves the WAIT flag set.
 		 */
-		spin_lock_irq(&vport->phba->hbalock);
+		spin_lock_irq(&ndlp->lock);
 		ndlp->fc4_xpt_flags &= ~NLP_WAIT_FOR_UNREG;
 		ndlp->fc4_xpt_flags |= NVME_XPT_REGD;
-		spin_unlock_irq(&vport->phba->hbalock);
+		spin_unlock_irq(&ndlp->lock);
 		rport = remote_port->private;
 		if (oldrport) {
 
@@ -2502,10 +2502,10 @@ lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 			 * before dropping the ndlp ref from
 			 * register.
 			 */
-			spin_lock_irq(&vport->phba->hbalock);
+			spin_lock_irq(&ndlp->lock);
 			ndlp->nrport = NULL;
 			ndlp->fc4_xpt_flags &= ~NLP_WAIT_FOR_UNREG;
-			spin_unlock_irq(&vport->phba->hbalock);
+			spin_unlock_irq(&ndlp->lock);
 			rport->ndlp = NULL;
 			rport->remoteport = NULL;
 
@@ -2523,9 +2523,9 @@ lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		rport->remoteport = remote_port;
 		rport->lport = lport;
 		rport->ndlp = ndlp;
-		spin_lock_irq(&vport->phba->hbalock);
+		spin_lock_irq(&ndlp->lock);
 		ndlp->nrport = rport;
-		spin_unlock_irq(&vport->phba->hbalock);
+		spin_unlock_irq(&ndlp->lock);
 		lpfc_printf_vlog(vport, KERN_INFO,
 				 LOG_NVME_DISC | LOG_NODE,
 				 "6022 Bind lport x%px to remoteport x%px "
@@ -2564,11 +2564,11 @@ lpfc_nvme_rescan_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	struct lpfc_nvme_rport *nrport;
 	struct nvme_fc_remote_port *remoteport = NULL;
 
-	spin_lock_irq(&vport->phba->hbalock);
+	spin_lock_irq(&ndlp->lock);
 	nrport = lpfc_ndlp_get_nrport(ndlp);
 	if (nrport)
 		remoteport = nrport->remoteport;
-	spin_unlock_irq(&vport->phba->hbalock);
+	spin_unlock_irq(&ndlp->lock);
 
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_DISC,
 			 "6170 Rescan NPort DID x%06x type x%x "
@@ -2631,11 +2631,11 @@ lpfc_nvme_unregister_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	if (!lport)
 		goto input_err;
 
-	spin_lock_irq(&vport->phba->hbalock);
+	spin_lock_irq(&ndlp->lock);
 	rport = lpfc_ndlp_get_nrport(ndlp);
 	if (rport)
 		remoteport = rport->remoteport;
-	spin_unlock_irq(&vport->phba->hbalock);
+	spin_unlock_irq(&ndlp->lock);
 	if (!remoteport)
 		goto input_err;
 

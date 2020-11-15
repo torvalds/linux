@@ -73,34 +73,69 @@ static void lpfc_unregister_fcfi_cmpl(struct lpfc_hba *, LPFC_MBOXQ_t *);
 static int lpfc_fcf_inuse(struct lpfc_hba *);
 static void lpfc_mbx_cmpl_read_sparam(struct lpfc_hba *, LPFC_MBOXQ_t *);
 
+/* The source of a terminate rport I/O is either a dev_loss_tmo
+ * event or a call to fc_remove_host.  While the rport should be
+ * valid during these downcalls, the transport can call twice
+ * in a single event.  This routine provides somoe protection
+ * as the NDLP isn't really free, just released to the pool.
+ */
+static int
+lpfc_rport_invalid(struct fc_rport *rport)
+{
+	struct lpfc_rport_data *rdata;
+	struct lpfc_nodelist *ndlp;
+	struct lpfc_vport *vport;
+
+	if (!rport) {
+		pr_err("**** %s: NULL rport, exit.\n", __func__);
+		return -EINVAL;
+	}
+
+	rdata = rport->dd_data;
+	if (!rdata) {
+		pr_err("**** %s: NULL dd_data on rport %p SID x%x\n",
+		       __func__, rport, rport->scsi_target_id);
+		return -EINVAL;
+	}
+
+	ndlp = rdata->pnode;
+	if (!rdata->pnode) {
+		pr_err("**** %s: NULL ndlp on rport %p SID x%x\n",
+		       __func__, rport, rport->scsi_target_id);
+		return -EINVAL;
+	}
+
+	vport = ndlp->vport;
+	if (!ndlp->vport) {
+		pr_err("**** %s: Null vport on ndlp %p, DID x%x rport %p "
+		       "SID x%x\n", __func__, ndlp, ndlp->nlp_DID, rport,
+		       rport->scsi_target_id);
+		return -EINVAL;
+	}
+	return 0;
+}
+
 void
 lpfc_terminate_rport_io(struct fc_rport *rport)
 {
 	struct lpfc_rport_data *rdata;
-	struct lpfc_nodelist * ndlp;
-	struct lpfc_hba *phba;
+	struct lpfc_nodelist *ndlp;
+	struct lpfc_vport *vport;
+
+	if (lpfc_rport_invalid(rport))
+		return;
 
 	rdata = rport->dd_data;
 	ndlp = rdata->pnode;
-
-	if (!ndlp) {
-		if (rport->roles & FC_RPORT_ROLE_FCP_TARGET)
-			printk(KERN_ERR "Cannot find remote node"
-			" to terminate I/O Data x%x\n",
-			rport->port_id);
-		return;
-	}
-
-	phba  = ndlp->phba;
-
-	lpfc_debugfs_disc_trc(ndlp->vport, LPFC_DISC_TRC_RPORT,
-		"rport terminate: sid:x%x did:x%x flg:x%x",
-		ndlp->nlp_sid, ndlp->nlp_DID, ndlp->nlp_flag);
+	vport = ndlp->vport;
+	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_RPORT,
+			      "rport terminate: sid:x%x did:x%x flg:x%x",
+			      ndlp->nlp_sid, ndlp->nlp_DID, ndlp->nlp_flag);
 
 	if (ndlp->nlp_sid != NLP_NO_SID) {
-		lpfc_sli_abort_iocb(ndlp->vport,
-			&phba->sli.sli3_ring[LPFC_FCP_RING],
-			ndlp->nlp_sid, 0, LPFC_CTX_TGT);
+		lpfc_sli_abort_iocb(vport,
+				    &vport->phba->sli.sli3_ring[LPFC_FCP_RING],
+				    ndlp->nlp_sid, 0, LPFC_CTX_TGT);
 	}
 }
 
@@ -110,17 +145,13 @@ lpfc_terminate_rport_io(struct fc_rport *rport)
 void
 lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 {
-	struct lpfc_rport_data *rdata;
-	struct lpfc_nodelist * ndlp;
+	struct lpfc_nodelist *ndlp;
 	struct lpfc_vport *vport;
-	struct Scsi_Host *shost;
 	struct lpfc_hba   *phba;
 	struct lpfc_work_evt *evtp;
-	int  put_node;
 	unsigned long iflags;
 
-	rdata = rport->dd_data;
-	ndlp = rdata->pnode;
+	ndlp = ((struct lpfc_rport_data *)rport->dd_data)->pnode;
 	if (!ndlp)
 		return;
 
@@ -132,19 +163,24 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 		ndlp->nlp_sid, ndlp->nlp_DID, ndlp->nlp_flag);
 
 	lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_NODE,
-			 "3181 dev_loss_callbk x%06x, rport x%px flg x%x\n",
-			 ndlp->nlp_DID, ndlp->rport, ndlp->nlp_flag);
+			 "3181 dev_loss_callbk x%06x, rport %p flg x%x "
+			 "load_flag x%x refcnt %d\n",
+			 ndlp->nlp_DID, ndlp->rport, ndlp->nlp_flag,
+			 vport->load_flag, kref_read(&ndlp->kref));
 
-	/* Don't defer this if we are in the process of deleting the vport
-	 * or unloading the driver. The unload will cleanup the node
-	 * appropriately we just need to cleanup the ndlp rport info here.
+	/* Don't schedule a worker thread event if the vport is going down.
+	 * The teardown process cleans up the node via lpfc_drop_node.
 	 */
 	if (vport->load_flag & FC_UNLOADING) {
-		put_node = rdata->pnode != NULL;
-		rdata->pnode = NULL;
+		((struct lpfc_rport_data *)rport->dd_data)->pnode = NULL;
 		ndlp->rport = NULL;
-		if (put_node)
-			lpfc_nlp_put(ndlp);
+
+		ndlp->fc4_xpt_flags &= ~SCSI_XPT_REGD;
+
+		/* Remove the node reference from remote_port_add now.
+		 * The driver will not call remote_port_delete.
+		 */
+		lpfc_nlp_put(ndlp);
 		return;
 	}
 
@@ -161,15 +197,20 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 
 	if (!list_empty(&evtp->evt_listp)) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
-				 "6790 rport name %llx dev_loss_evt pending",
+				 "6790 rport name %llx dev_loss_evt pending\n",
 				 rport->port_name);
 		return;
 	}
 
-	shost = lpfc_shost_from_vport(vport);
-	spin_lock_irqsave(shost->host_lock, iflags);
+	spin_lock_irqsave(&ndlp->lock, iflags);
 	ndlp->nlp_flag |= NLP_IN_DEV_LOSS;
-	spin_unlock_irqrestore(shost->host_lock, iflags);
+	/*
+	 * The backend does not expect any more calls assoicated with this
+	 * rport, Remove the association between rport and ndlp
+	 */
+	((struct lpfc_rport_data *)rport->dd_data)->pnode = NULL;
+	ndlp->rport = NULL;
+	spin_unlock_irqrestore(&ndlp->lock, iflags);
 
 	/* We need to hold the node by incrementing the reference
 	 * count until this queued work is done
@@ -200,68 +241,35 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 static int
 lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 {
-	struct lpfc_rport_data *rdata;
-	struct fc_rport   *rport;
 	struct lpfc_vport *vport;
 	struct lpfc_hba   *phba;
 	struct Scsi_Host  *shost;
 	uint8_t *name;
-	int  put_node;
 	int warn_on = 0;
 	int fcf_inuse = 0;
 	unsigned long iflags;
+	u32 fc4_xpt_flags;
 
-	rport = ndlp->rport;
 	vport = ndlp->vport;
 	shost = lpfc_shost_from_vport(vport);
+	name = (uint8_t *)&ndlp->nlp_portname;
+	phba = vport->phba;
 
-	spin_lock_irqsave(shost->host_lock, iflags);
+	spin_lock_irqsave(&ndlp->lock, iflags);
 	ndlp->nlp_flag &= ~NLP_IN_DEV_LOSS;
-	spin_unlock_irqrestore(shost->host_lock, iflags);
-
-	if (!rport)
-		return fcf_inuse;
-
-	name = (uint8_t *) &ndlp->nlp_portname;
-	phba  = vport->phba;
+	spin_unlock_irqrestore(&ndlp->lock, iflags);
 
 	if (phba->sli_rev == LPFC_SLI_REV4)
 		fcf_inuse = lpfc_fcf_inuse(phba);
 
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_RPORT,
-		"rport devlosstmo:did:x%x type:x%x id:x%x",
-		ndlp->nlp_DID, ndlp->nlp_type, rport->scsi_target_id);
+			      "rport devlosstmo:did:x%x type:x%x id:x%x",
+			      ndlp->nlp_DID, ndlp->nlp_type, ndlp->nlp_sid);
 
 	lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_NODE,
-			 "3182 dev_loss_tmo_handler x%06x, rport x%px flg x%x\n",
-			 ndlp->nlp_DID, ndlp->rport, ndlp->nlp_flag);
-
-	/*
-	 * lpfc_nlp_remove if reached with dangling rport drops the
-	 * reference. To make sure that does not happen clear rport
-	 * pointer in ndlp before lpfc_nlp_put.
-	 */
-	rdata = rport->dd_data;
-
-	/* Don't defer this if we are in the process of deleting the vport
-	 * or unloading the driver. The unload will cleanup the node
-	 * appropriately we just need to cleanup the ndlp rport info here.
-	 */
-	if (vport->load_flag & FC_UNLOADING) {
-		if (ndlp->nlp_sid != NLP_NO_SID) {
-			/* flush the target */
-			lpfc_sli_abort_iocb(vport,
-					    &phba->sli.sli3_ring[LPFC_FCP_RING],
-					    ndlp->nlp_sid, 0, LPFC_CTX_TGT);
-		}
-		put_node = rdata->pnode != NULL;
-		rdata->pnode = NULL;
-		ndlp->rport = NULL;
-		if (put_node)
-			lpfc_nlp_put(ndlp);
-
-		return fcf_inuse;
-	}
+			 "3182 %s x%06x, nflag x%x xflags x%x\n",
+			 __func__, ndlp->nlp_DID, ndlp->nlp_flag,
+			 ndlp->fc4_xpt_flags);
 
 	if (ndlp->nlp_state == NLP_STE_MAPPED_NODE) {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
@@ -273,12 +281,6 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 				 ndlp->nlp_DID);
 		return fcf_inuse;
 	}
-
-	put_node = rdata->pnode != NULL;
-	rdata->pnode = NULL;
-	ndlp->rport = NULL;
-	if (put_node)
-		lpfc_nlp_put(ndlp);
 
 	if (ndlp->nlp_type & NLP_FABRIC)
 		return fcf_inuse;
@@ -309,11 +311,12 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 				 ndlp->nlp_state, ndlp->nlp_rpi);
 	}
 
-	if (!(ndlp->nlp_flag & NLP_DELAY_TMO) &&
-	    !(ndlp->nlp_flag & NLP_NPR_2B_DISC) &&
-	    (ndlp->nlp_state != NLP_STE_UNMAPPED_NODE) &&
-	    (ndlp->nlp_state != NLP_STE_REG_LOGIN_ISSUE) &&
-	    (ndlp->nlp_state != NLP_STE_PRLI_ISSUE))
+	/* Should be final reference removal triggering a node free. */
+	spin_lock_irqsave(shost->host_lock, iflags);
+	fc4_xpt_flags = ndlp->fc4_xpt_flags;
+	spin_unlock_irqrestore(shost->host_lock, iflags);
+
+	if (!(fc4_xpt_flags & (NVME_XPT_REGD | SCSI_XPT_REGD)))
 		lpfc_disc_state_machine(vport, ndlp, NULL, NLP_EVT_DEVICE_RM);
 
 	return fcf_inuse;
@@ -3580,7 +3583,6 @@ lpfc_mbx_cmpl_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	struct lpfc_vport  *vport = pmb->vport;
 	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *)(pmb->ctx_buf);
 	struct lpfc_nodelist *ndlp = (struct lpfc_nodelist *)pmb->ctx_ndlp;
-	struct Scsi_Host  *shost = lpfc_shost_from_vport(vport);
 
 	pmb->ctx_buf = NULL;
 	pmb->ctx_ndlp = NULL;
@@ -3603,9 +3605,9 @@ lpfc_mbx_cmpl_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		 * there is another reg login in
 		 * process.
 		 */
-		spin_lock_irq(shost->host_lock);
+		spin_lock_irq(&ndlp->lock);
 		ndlp->nlp_flag &= ~NLP_IGNR_REG_CMPL;
-		spin_unlock_irq(shost->host_lock);
+		spin_unlock_irq(&ndlp->lock);
 
 		/*
 		 * We cannot leave the RPI registered because
@@ -4157,6 +4159,7 @@ lpfc_register_remote_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	struct lpfc_rport_data *rdata;
 	struct fc_rport_identifiers rport_ids;
 	struct lpfc_hba  *phba = vport->phba;
+	unsigned long flags;
 
 	if (vport->cfg_enable_fc4_type == LPFC_ENABLE_NVME)
 		return;
@@ -4167,32 +4170,22 @@ lpfc_register_remote_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	rport_ids.port_id = ndlp->nlp_DID;
 	rport_ids.roles = FC_RPORT_ROLE_UNKNOWN;
 
-	/*
-	 * We leave our node pointer in rport->dd_data when we unregister a
-	 * FCP target port.  But fc_remote_port_add zeros the space to which
-	 * rport->dd_data points.  So, if we're reusing a previously
-	 * registered port, drop the reference that we took the last time we
-	 * registered the port.
-	 */
-	rport = ndlp->rport;
-	if (rport) {
-		rdata = rport->dd_data;
-		/* break the link before dropping the ref */
-		ndlp->rport = NULL;
-		if (rdata) {
-			if (rdata->pnode == ndlp)
-				lpfc_nlp_put(ndlp);
-			rdata->pnode = NULL;
-		}
-	}
 
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_RPORT,
-		"rport add:       did:x%x flg:x%x type x%x",
-		ndlp->nlp_DID, ndlp->nlp_flag, ndlp->nlp_type);
+			      "rport add:       did:x%x flg:x%x type x%x",
+			      ndlp->nlp_DID, ndlp->nlp_flag, ndlp->nlp_type);
 
 	/* Don't add the remote port if unloading. */
 	if (vport->load_flag & FC_UNLOADING)
 		return;
+
+	/*
+	 * Disassociate any older association between this ndlp and rport
+	 */
+	if (ndlp->rport) {
+		rdata = ndlp->rport->dd_data;
+		rdata->pnode = NULL;
+	}
 
 	ndlp->rport = rport = fc_remote_port_add(shost, 0, &rport_ids);
 	if (!rport) {
@@ -4201,7 +4194,7 @@ lpfc_register_remote_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		return;
 	}
 
-	/* initialize static port data */
+	/* Successful port add.  Complete initializing node data */
 	rport->maxframe_size = ndlp->nlp_maxframe;
 	rport->supported_classes = ndlp->nlp_class_sup;
 	rdata = rport->dd_data;
@@ -4213,6 +4206,10 @@ lpfc_register_remote_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		ndlp->rport = NULL;
 		return;
 	}
+
+	spin_lock_irqsave(&ndlp->lock, flags);
+	ndlp->fc4_xpt_flags |= SCSI_XPT_REGD;
+	spin_unlock_irqrestore(&ndlp->lock, flags);
 
 	if (ndlp->nlp_type & NLP_FCP_TARGET)
 		rport_ids.roles |= FC_PORT_ROLE_FCP_TARGET;
@@ -4229,8 +4226,8 @@ lpfc_register_remote_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		fc_remote_port_rolechg(rport, rport_ids.roles);
 
 	lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_NODE,
-			 "3183 rport register x%06x, rport x%px role x%x\n",
-			 ndlp->nlp_DID, rport, rport_ids.roles);
+			 "3183 %s rport x%px DID x%x, role x%x\n",
+			 __func__, rport, rport->port_id, rport->roles);
 
 	if ((rport->scsi_target_id != -1) &&
 	    (rport->scsi_target_id < LPFC_MAX_TARGET)) {
@@ -4254,12 +4251,12 @@ lpfc_unregister_remote_port(struct lpfc_nodelist *ndlp)
 		ndlp->nlp_DID, ndlp->nlp_flag, ndlp->nlp_type);
 
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
-			 "3184 rport unregister x%06x, rport x%px\n",
-			 ndlp->nlp_DID, rport);
+			 "3184 rport unregister x%06x, rport x%px "
+			 "xptflg x%x\n",
+			 ndlp->nlp_DID, rport, ndlp->fc4_xpt_flags);
 
 	fc_remote_port_delete(rport);
-
-	return;
+	lpfc_nlp_put(ndlp);
 }
 
 static void
@@ -4305,8 +4302,6 @@ static void
 lpfc_nlp_state_cleanup(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		       int old_state, int new_state)
 {
-	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
-
 	if (new_state == NLP_STE_UNMAPPED_NODE) {
 		ndlp->nlp_flag &= ~NLP_NODEV_REMOVE;
 		ndlp->nlp_type |= NLP_FC_NODE;
@@ -4400,9 +4395,9 @@ lpfc_nlp_state_cleanup(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	    (!ndlp->rport ||
 	     ndlp->rport->scsi_target_id == -1 ||
 	     ndlp->rport->scsi_target_id >= LPFC_MAX_TARGET)) {
-		spin_lock_irq(shost->host_lock);
+		spin_lock_irq(&ndlp->lock);
 		ndlp->nlp_flag |= NLP_TGT_NO_SCSIID;
-		spin_unlock_irq(shost->host_lock);
+		spin_unlock_irq(&ndlp->lock);
 		lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_NODE);
 	}
 }
@@ -4821,11 +4816,9 @@ lpfc_set_unreg_login_mbx_cmpl(struct lpfc_hba *phba, struct lpfc_vport *vport,
 	} else {
 		if (vport->load_flag & FC_UNLOADING) {
 			if (phba->sli_rev == LPFC_SLI_REV4) {
-				spin_lock_irqsave(&vport->phba->ndlp_lock,
-						  iflags);
+				spin_lock_irqsave(&ndlp->lock, iflags);
 				ndlp->nlp_flag |= NLP_RELEASE_RPI;
-				spin_unlock_irqrestore(&vport->phba->ndlp_lock,
-						       iflags);
+				spin_unlock_irqrestore(&ndlp->lock, iflags);
 			}
 			lpfc_nlp_get(ndlp);
 		}
@@ -5053,7 +5046,6 @@ lpfc_unreg_default_rpis(struct lpfc_vport *vport)
 static int
 lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 {
-	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_hba  *phba = vport->phba;
 	LPFC_MBOXQ_t *mb, *nextmb;
 	struct lpfc_dmabuf *mp;
@@ -5112,9 +5104,9 @@ lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 
 	lpfc_els_abort(phba, ndlp);
 
-	spin_lock_irq(shost->host_lock);
+	spin_lock_irq(&ndlp->lock);
 	ndlp->nlp_flag &= ~NLP_DELAY_TMO;
-	spin_unlock_irq(shost->host_lock);
+	spin_unlock_irq(&ndlp->lock);
 
 	ndlp->nlp_last_elscmd = 0;
 	del_timer_sync(&ndlp->nlp_delayfunc);
@@ -5131,86 +5123,13 @@ lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		    !(ndlp->nlp_rpi == LPFC_RPI_ALLOC_ERROR)) {
 			lpfc_sli4_free_rpi(vport->phba,
 					   ndlp->nlp_rpi);
-			spin_lock_irqsave(&vport->phba->ndlp_lock,
-					  iflags);
+			spin_lock_irqsave(&ndlp->lock, iflags);
 			ndlp->nlp_flag &= ~NLP_RELEASE_RPI;
 			ndlp->nlp_rpi = LPFC_RPI_ALLOC_ERROR;
-			spin_unlock_irqrestore(&vport->phba->ndlp_lock,
-					       iflags);
+			spin_unlock_irqrestore(&ndlp->lock, iflags);
 		}
 	}
 	return 0;
-}
-
-/*
- * Check to see if we can free the nlp back to the freelist.
- * If we are in the middle of using the nlp in the discovery state
- * machine, defer the free till we reach the end of the state machine.
- */
-static void
-lpfc_nlp_remove(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
-{
-	struct lpfc_hba  *phba = vport->phba;
-	struct lpfc_rport_data *rdata;
-	struct fc_rport *rport;
-	LPFC_MBOXQ_t *mbox;
-	int rc;
-
-	lpfc_cancel_retry_delay_tmo(vport, ndlp);
-	if (!(ndlp->nlp_flag & NLP_REG_LOGIN_SEND) &&
-	    !(ndlp->nlp_flag & NLP_RPI_REGISTERED) &&
-	    phba->sli_rev != LPFC_SLI_REV4) {
-		/* For this case we need to cleanup the default rpi
-		 * allocated by the firmware.
-		 */
-		lpfc_printf_vlog(vport, KERN_INFO,
-				 LOG_NODE | LOG_DISCOVERY,
-				 "0005 Cleanup Default rpi:x%x DID:x%x flg:x%x "
-				 "ref %d ndlp x%px\n",
-				 ndlp->nlp_rpi, ndlp->nlp_DID, ndlp->nlp_flag,
-				 kref_read(&ndlp->kref),
-				 ndlp);
-		if ((mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL))
-			!= NULL) {
-			rc = lpfc_reg_rpi(phba, vport->vpi, ndlp->nlp_DID,
-			    (uint8_t *) &vport->fc_sparam, mbox, ndlp->nlp_rpi);
-			if (rc) {
-				mempool_free(mbox, phba->mbox_mem_pool);
-			}
-			else {
-				mbox->mbox_flag |= LPFC_MBX_IMED_UNREG;
-				mbox->mbox_cmpl = lpfc_mbx_cmpl_dflt_rpi;
-				mbox->vport = vport;
-				mbox->ctx_ndlp = ndlp;
-				rc =lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
-				if (rc == MBX_NOT_FINISHED) {
-					mempool_free(mbox, phba->mbox_mem_pool);
-				}
-			}
-		}
-	}
-	lpfc_cleanup_node(vport, ndlp);
-
-	/*
-	 * ndlp->rport must be set to NULL before it reaches here
-	 * i.e. break rport/node link before doing lpfc_nlp_put for
-	 * registered rport and then drop the reference of rport.
-	 */
-	if (ndlp->rport) {
-		/*
-		 * extra lpfc_nlp_put dropped the reference of ndlp
-		 * for registered rport so need to cleanup rport
-		 */
-		lpfc_printf_vlog(vport, KERN_WARNING, LOG_NODE,
-				"0940 removed node x%px DID x%x "
-				"rpi %d rport not null x%px\n",
-				 ndlp, ndlp->nlp_DID, ndlp->nlp_rpi,
-				 ndlp->rport);
-		rport = ndlp->rport;
-		rdata = rport->dd_data;
-		rdata->pnode = NULL;
-		ndlp->rport = NULL;
-	}
 }
 
 static int
@@ -5348,7 +5267,6 @@ lpfc_findnode_mapped(struct lpfc_vport *vport)
 struct lpfc_nodelist *
 lpfc_setup_disc_node(struct lpfc_vport *vport, uint32_t did)
 {
-	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_nodelist *ndlp;
 
 	ndlp = lpfc_findnode_did(vport, did);
@@ -5369,9 +5287,9 @@ lpfc_setup_disc_node(struct lpfc_vport *vport, uint32_t did)
 				 ndlp->nlp_DID, ndlp->nlp_flag,
 				 ndlp->nlp_state, vport->fc_flag);
 
-		spin_lock_irq(shost->host_lock);
+		spin_lock_irq(&ndlp->lock);
 		ndlp->nlp_flag |= NLP_NPR_2B_DISC;
-		spin_unlock_irq(shost->host_lock);
+		spin_unlock_irq(&ndlp->lock);
 		return ndlp;
 	}
 
@@ -5413,9 +5331,9 @@ lpfc_setup_disc_node(struct lpfc_vport *vport, uint32_t did)
 			ndlp->nlp_prev_state = ndlp->nlp_state;
 			lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
 
-			spin_lock_irq(shost->host_lock);
+			spin_lock_irq(&ndlp->lock);
 			ndlp->nlp_flag |= NLP_NPR_2B_DISC;
-			spin_unlock_irq(shost->host_lock);
+			spin_unlock_irq(&ndlp->lock);
 		} else {
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 					 "6456 Skip Setup RSCN Node x%x "
@@ -5449,9 +5367,9 @@ lpfc_setup_disc_node(struct lpfc_vport *vport, uint32_t did)
 		 */
 		lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
 
-		spin_lock_irq(shost->host_lock);
+		spin_lock_irq(&ndlp->lock);
 		ndlp->nlp_flag |= NLP_NPR_2B_DISC;
-		spin_unlock_irq(shost->host_lock);
+		spin_unlock_irq(&ndlp->lock);
 	}
 	return ndlp;
 }
@@ -6199,6 +6117,8 @@ lpfc_nlp_init(struct lpfc_vport *vport, uint32_t did)
 
 	memset(ndlp, 0, sizeof (struct lpfc_nodelist));
 
+	spin_lock_init(&ndlp->lock);
+
 	lpfc_initialize_node(vport, ndlp, did);
 	INIT_LIST_HEAD(&ndlp->nlp_listp);
 	if (vport->phba->sli_rev == LPFC_SLI_REV4) {
@@ -6234,18 +6154,28 @@ lpfc_nlp_release(struct kref *kref)
 {
 	struct lpfc_nodelist *ndlp = container_of(kref, struct lpfc_nodelist,
 						  kref);
+	struct lpfc_vport *vport = ndlp->vport;
 
 	lpfc_debugfs_disc_trc(ndlp->vport, LPFC_DISC_TRC_NODE,
 		"node release:    did:x%x flg:x%x type:x%x",
 		ndlp->nlp_DID, ndlp->nlp_flag, ndlp->nlp_type);
 
-	lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_NODE,
-			"0279 %s: ndlp:x%px did %x refcnt:%d rpi:%x\n",
-			__func__, (void *)ndlp, ndlp->nlp_DID,
-			kref_read(&ndlp->kref), ndlp->nlp_rpi);
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
+			"0279 %s: ndlp:%p did %x refcnt:%d rpi:%x\n",
+			 __func__, ndlp, ndlp->nlp_DID,
+			 kref_read(&ndlp->kref), ndlp->nlp_rpi);
 
 	/* remove ndlp from action. */
-	lpfc_nlp_remove(ndlp->vport, ndlp);
+	lpfc_cancel_retry_delay_tmo(vport, ndlp);
+	lpfc_cleanup_node(vport, ndlp);
+
+	/* Clear Node key fields to give other threads notice
+	 * that this node memory is not valid anymore.
+	 */
+	ndlp->vport = NULL;
+	ndlp->nlp_state = NLP_STE_FREED_NODE;
+	ndlp->nlp_flag = 0;
+	ndlp->fc4_xpt_flags = 0;
 
 	/* free ndlp memory for final ndlp release */
 	kfree(ndlp->lat_data);
@@ -6276,15 +6206,15 @@ lpfc_nlp_get(struct lpfc_nodelist *ndlp)
 		 * released.
 		 */
 		phba = ndlp->phba;
-		spin_lock_irqsave(&phba->ndlp_lock, flags);
+		spin_lock_irqsave(&ndlp->lock, flags);
 		if (!kref_get_unless_zero(&ndlp->kref)) {
-			spin_unlock_irqrestore(&phba->ndlp_lock, flags);
+			spin_unlock_irqrestore(&ndlp->lock, flags);
 			lpfc_printf_vlog(ndlp->vport, KERN_WARNING, LOG_NODE,
 				"0276 %s: ndlp:x%px refcnt:%d\n",
 				__func__, (void *)ndlp, kref_read(&ndlp->kref));
 			return NULL;
 		}
-		spin_unlock_irqrestore(&phba->ndlp_lock, flags);
+		spin_unlock_irqrestore(&ndlp->lock, flags);
 	} else {
 		WARN_ONCE(!ndlp, "**** %s, get ref on NULL ndlp!", __func__);
 	}
