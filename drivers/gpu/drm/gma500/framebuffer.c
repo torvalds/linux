@@ -144,17 +144,6 @@ static int psbfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	return 0;
 }
 
-static const struct fb_ops psbfb_ops = {
-	.owner = THIS_MODULE,
-	DRM_FB_HELPER_DEFAULT_OPS,
-	.fb_setcolreg = psbfb_setcolreg,
-	.fb_fillrect = drm_fb_helper_cfb_fillrect,
-	.fb_copyarea = psbfb_copyarea,
-	.fb_imageblit = drm_fb_helper_cfb_imageblit,
-	.fb_mmap = psbfb_mmap,
-	.fb_sync = psbfb_sync,
-};
-
 static const struct fb_ops psbfb_unaccel_ops = {
 	.owner = THIS_MODULE,
 	DRM_FB_HELPER_DEFAULT_OPS,
@@ -318,10 +307,7 @@ static int psbfb_create(struct drm_fb_helper *fb_helper,
 
 	fb_helper->fb = fb;
 
-	if (dev_priv->ops->accel_2d)	/* 2D engine */
-		info->fbops = &psbfb_ops;
-	else	/* Software */
-		info->fbops = &psbfb_unaccel_ops;
+	info->fbops = &psbfb_unaccel_ops;
 
 	info->fix.smem_start = dev->mode_config.fb_base;
 	info->fix.smem_len = size;
