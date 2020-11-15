@@ -833,7 +833,7 @@ static int create_user_rq(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 {
 	struct mlx5_ib_ucontext *ucontext = rdma_udata_to_drv_context(
 		udata, struct mlx5_ib_ucontext, ibucontext);
-	int page_shift = 0;
+	unsigned long page_size = 0;
 	u32 offset = 0;
 	int err;
 
@@ -847,24 +847,25 @@ static int create_user_rq(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		return err;
 	}
 
-	mlx5_ib_cont_pages(rwq->umem, ucmd->buf_addr, 0, &page_shift);
-	err = mlx5_ib_get_buf_offset(ucmd->buf_addr, page_shift,
-				     &rwq->rq_page_offset);
-	if (err) {
+	page_size = mlx5_umem_find_best_quantized_pgoff(
+		rwq->umem, wq, log_wq_pg_sz, MLX5_ADAPTER_PAGE_SHIFT,
+		page_offset, 64, &rwq->rq_page_offset);
+	if (!page_size) {
 		mlx5_ib_warn(dev, "bad offset\n");
+		err = -EINVAL;
 		goto err_umem;
 	}
 
-	rwq->rq_num_pas = ib_umem_num_dma_blocks(rwq->umem, 1UL << page_shift);
-	rwq->page_shift = page_shift;
-	rwq->log_page_size =  page_shift - MLX5_ADAPTER_PAGE_SHIFT;
+	rwq->rq_num_pas = ib_umem_num_dma_blocks(rwq->umem, page_size);
+	rwq->page_shift = order_base_2(page_size);
+	rwq->log_page_size =  rwq->page_shift - MLX5_ADAPTER_PAGE_SHIFT;
 	rwq->wq_sig = !!(ucmd->flags & MLX5_WQ_FLAG_SIGNATURE);
 
 	mlx5_ib_dbg(
 		dev,
-		"addr 0x%llx, size %zd, npages %zu, page_shift %d, ncont %d, offset %d\n",
+		"addr 0x%llx, size %zd, npages %zu, page_size %ld, ncont %d, offset %d\n",
 		(unsigned long long)ucmd->buf_addr, rwq->buf_size,
-		ib_umem_num_pages(rwq->umem), page_shift, rwq->rq_num_pas,
+		ib_umem_num_pages(rwq->umem), page_size, rwq->rq_num_pas,
 		offset);
 
 	err = mlx5_ib_db_map_user(ucontext, udata, ucmd->db_addr, &rwq->db);
@@ -1209,17 +1210,24 @@ static int create_raw_packet_qp_sq(struct mlx5_ib_dev *dev,
 	void *wq;
 	int inlen;
 	int err;
-	int page_shift = 0;
-	u32 offset = 0;
+	unsigned int page_offset_quantized;
+	unsigned long page_size;
 
-	err = mlx5_ib_umem_get(dev, udata, ubuffer->buf_addr, ubuffer->buf_size,
-			       &sq->ubuffer.umem, &page_shift, &offset);
-	if (err)
-		return err;
+	sq->ubuffer.umem = ib_umem_get(&dev->ib_dev, ubuffer->buf_addr,
+				       ubuffer->buf_size, 0);
+	if (IS_ERR(sq->ubuffer.umem))
+		return PTR_ERR(sq->ubuffer.umem);
+	page_size = mlx5_umem_find_best_quantized_pgoff(
+		ubuffer->umem, wq, log_wq_pg_sz, MLX5_ADAPTER_PAGE_SHIFT,
+		page_offset, 64, &page_offset_quantized);
+	if (!page_size) {
+		err = -EINVAL;
+		goto err_umem;
+	}
 
 	inlen = MLX5_ST_SZ_BYTES(create_sq_in) +
-		sizeof(u64) * ib_umem_num_dma_blocks(sq->ubuffer.umem,
-						     1UL << page_shift);
+		sizeof(u64) *
+			ib_umem_num_dma_blocks(sq->ubuffer.umem, page_size);
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in) {
 		err = -ENOMEM;
@@ -1247,11 +1255,12 @@ static int create_raw_packet_qp_sq(struct mlx5_ib_dev *dev,
 	MLX5_SET64(wq, wq, dbr_addr, MLX5_GET64(qpc, qpc, dbr_addr));
 	MLX5_SET(wq, wq, log_wq_stride, ilog2(MLX5_SEND_WQE_BB));
 	MLX5_SET(wq, wq, log_wq_sz, MLX5_GET(qpc, qpc, log_sq_size));
-	MLX5_SET(wq, wq, log_wq_pg_sz,  page_shift - MLX5_ADAPTER_PAGE_SHIFT);
-	MLX5_SET(wq, wq, page_offset, offset);
+	MLX5_SET(wq, wq, log_wq_pg_sz,
+		 order_base_2(page_size) - MLX5_ADAPTER_PAGE_SHIFT);
+	MLX5_SET(wq, wq, page_offset, page_offset_quantized);
 
 	pas = (__be64 *)MLX5_ADDR_OF(wq, wq, pas);
-	mlx5_ib_populate_pas(sq->ubuffer.umem, 1UL << page_shift, pas, 0);
+	mlx5_ib_populate_pas(sq->ubuffer.umem, page_size, pas, 0);
 
 	err = mlx5_core_create_sq_tracked(dev, in, inlen, &sq->base.mqp);
 
