@@ -2380,7 +2380,7 @@ static int vmbus_bus_suspend(struct device *dev)
 		 * We wait here until the completion of any channel
 		 * offers that are currently in progress.
 		 */
-		msleep(1);
+		usleep_range(1000, 2000);
 	}
 
 	mutex_lock(&vmbus_connection.channel_mutex);
