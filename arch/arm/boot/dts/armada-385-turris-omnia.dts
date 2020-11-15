@@ -129,6 +129,7 @@
 	status = "okay";
 	phy-mode = "sgmii";
 	phy = <&phy1>;
+	phys = <&comphy5 2>;
 	buffer-manager = <&bm>;
 	bm,pool-long = <2>;
 	bm,pool-short = <3>;
