@@ -90,6 +90,14 @@
 		clocks = <&osc_27m>;
 	};
 
+	firmware {
+		optee {
+			compatible = "linaro,optee-tz";
+			method = "smc";
+			status = "disabled";
+		};
+	};
+
 	reboot {
 		compatible ="syscon-reboot";
 		regmap = <&rst>;
