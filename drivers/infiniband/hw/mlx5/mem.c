@@ -152,27 +152,6 @@ unsigned long __mlx5_umem_find_best_quantized_pgoff(
 	return page_size;
 }
 
-int mlx5_ib_get_buf_offset(u64 addr, int page_shift, u32 *offset)
-{
-	u64 page_size;
-	u64 page_mask;
-	u64 off_size;
-	u64 off_mask;
-	u64 buf_off;
-
-	page_size = (u64)1 << page_shift;
-	page_mask = page_size - 1;
-	buf_off = addr & page_mask;
-	off_size = page_size >> 6;
-	off_mask = off_size - 1;
-
-	if (buf_off & off_mask)
-		return -EINVAL;
-
-	*offset = buf_off >> ilog2(off_size);
-	return 0;
-}
-
 #define WR_ID_BF 0xBF
 #define WR_ID_END 0xBAD
 #define TEST_WC_NUM_WQES 255
