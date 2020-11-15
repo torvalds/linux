@@ -709,7 +709,7 @@ struct nlattr *nla_find(const struct nlattr *head, int len, int attrtype)
 EXPORT_SYMBOL(nla_find);
 
 /**
- * nla_strlcpy - Copy string attribute payload into a sized buffer
+ * nla_strscpy - Copy string attribute payload into a sized buffer
  * @dst: Where to copy the string to.
  * @nla: Attribute to copy the string from.
  * @dstsize: Size of destination buffer.
@@ -722,7 +722,7 @@ EXPORT_SYMBOL(nla_find);
  * * -E2BIG - If @dstsize is 0 or greater than U16_MAX or @nla length greater
  *            than @dstsize.
  */
-ssize_t nla_strlcpy(char *dst, const struct nlattr *nla, size_t dstsize)
+ssize_t nla_strscpy(char *dst, const struct nlattr *nla, size_t dstsize)
 {
 	size_t srclen = nla_len(nla);
 	char *src = nla_data(nla);
@@ -749,7 +749,7 @@ ssize_t nla_strlcpy(char *dst, const struct nlattr *nla, size_t dstsize)
 
 	return ret;
 }
-EXPORT_SYMBOL(nla_strlcpy);
+EXPORT_SYMBOL(nla_strscpy);
 
 /**
  * nla_strdup - Copy string attribute payload into a newly allocated buffer
