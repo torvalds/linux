@@ -178,16 +178,13 @@ static int mfi_fc_probe(struct usb_device *udev)
 {
 	struct power_supply_config battery_cfg = {};
 	struct mfi_device *mfi = NULL;
-	int err;
 
 	if (!mfi_fc_match(udev))
 		return -ENODEV;
 
 	mfi = kzalloc(sizeof(struct mfi_device), GFP_KERNEL);
-	if (!mfi) {
-		err = -ENOMEM;
-		goto error;
-	}
+	if (!mfi)
+		return -ENOMEM;
 
 	battery_cfg.drv_data = mfi;
 
@@ -197,18 +194,14 @@ static int mfi_fc_probe(struct usb_device *udev)
 						&battery_cfg);
 	if (IS_ERR(mfi->battery)) {
 		dev_err(&udev->dev, "Can't register battery\n");
-		err = PTR_ERR(mfi->battery);
-		goto error;
+		kfree(mfi);
+		return PTR_ERR(mfi->battery);
 	}
 
 	mfi->udev = usb_get_dev(udev);
 	dev_set_drvdata(&udev->dev, mfi);
 
 	return 0;
-
-error:
-	kfree(mfi);
-	return err;
 }
 
 static void mfi_fc_disconnect(struct usb_device *udev)
