@@ -262,25 +262,6 @@ static struct imx_uart_data imx_uart_devdata[] = {
 	},
 };
 
-static const struct platform_device_id imx_uart_devtype[] = {
-	{
-		.name = "imx1-uart",
-		.driver_data = (kernel_ulong_t) &imx_uart_devdata[IMX1_UART],
-	}, {
-		.name = "imx21-uart",
-		.driver_data = (kernel_ulong_t) &imx_uart_devdata[IMX21_UART],
-	}, {
-		.name = "imx53-uart",
-		.driver_data = (kernel_ulong_t) &imx_uart_devdata[IMX53_UART],
-	}, {
-		.name = "imx6q-uart",
-		.driver_data = (kernel_ulong_t) &imx_uart_devdata[IMX6Q_UART],
-	}, {
-		/* sentinel */
-	}
-};
-MODULE_DEVICE_TABLE(platform, imx_uart_devtype);
-
 static const struct of_device_id imx_uart_dt_ids[] = {
 	{ .compatible = "fsl,imx6q-uart", .data = &imx_uart_devdata[IMX6Q_UART], },
 	{ .compatible = "fsl,imx53-uart", .data = &imx_uart_devdata[IMX53_UART], },
@@ -2621,7 +2602,6 @@ static struct platform_driver imx_uart_platform_driver = {
 	.probe = imx_uart_probe,
 	.remove = imx_uart_remove,
 
-	.id_table = imx_uart_devtype,
 	.driver = {
 		.name = "imx-uart",
 		.of_match_table = imx_uart_dt_ids,
