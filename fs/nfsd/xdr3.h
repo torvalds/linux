@@ -305,8 +305,6 @@ int nfs3svc_encode_entry3(void *data, const char *name, int namlen,
 int nfs3svc_encode_entryplus3(void *data, const char *name, int namlen,
 			      loff_t offset, u64 ino, unsigned int d_type);
 /* Helper functions for NFSv3 ACL code */
-__be32 *nfs3svc_encode_post_op_attr(struct svc_rqst *rqstp, __be32 *p,
-				struct svc_fh *fhp);
 bool svcxdr_decode_nfs_fh3(struct xdr_stream *xdr, struct svc_fh *fhp);
 bool svcxdr_encode_nfsstat3(struct xdr_stream *xdr, __be32 status);
 bool svcxdr_encode_post_op_attr(struct svc_rqst *rqstp, struct xdr_stream *xdr,
