@@ -5385,11 +5385,10 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
 	struct lpfc_iocbq *iocb;
-	struct lpfc_iocbq *abtsiocb;
 	struct lpfc_io_buf *lpfc_cmd;
-	IOCB_t *cmd, *icmd;
 	int ret = SUCCESS, status = 0;
 	struct lpfc_sli_ring *pring_s4 = NULL;
+	struct lpfc_sli_ring *pring = NULL;
 	int ret_val;
 	unsigned long flags;
 	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(waitq);
@@ -5466,64 +5465,22 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 		goto wait_for_cmpl;
 	}
 
-	abtsiocb = __lpfc_sli_get_iocbq(phba);
-	if (abtsiocb == NULL) {
-		ret = FAILED;
-		goto out_unlock_ring;
-	}
-
-	/* Indicate the IO is being aborted by the driver. */
-	iocb->iocb_flag |= LPFC_DRIVER_ABORTED;
-
-	/*
-	 * The scsi command can not be in txq and it is in flight because the
-	 * pCmd is still pointig at the SCSI command we have to abort. There
-	 * is no need to search the txcmplq. Just send an abort to the FW.
-	 */
-
-	cmd = &iocb->iocb;
-	icmd = &abtsiocb->iocb;
-	icmd->un.acxri.abortType = ABORT_TYPE_ABTS;
-	icmd->un.acxri.abortContextTag = cmd->ulpContext;
-	if (phba->sli_rev == LPFC_SLI_REV4)
-		icmd->un.acxri.abortIoTag = iocb->sli4_xritag;
-	else
-		icmd->un.acxri.abortIoTag = cmd->ulpIoTag;
-
-	icmd->ulpLe = 1;
-	icmd->ulpClass = cmd->ulpClass;
-
-	/* ABTS WQE must go to the same WQ as the WQE to be aborted */
-	abtsiocb->hba_wqidx = iocb->hba_wqidx;
-	abtsiocb->iocb_flag |= LPFC_USE_FCPWQIDX;
-	if (iocb->iocb_flag & LPFC_IO_FOF)
-		abtsiocb->iocb_flag |= LPFC_IO_FOF;
-
-	if (lpfc_is_link_up(phba))
-		icmd->ulpCommand = CMD_ABORT_XRI_CN;
-	else
-		icmd->ulpCommand = CMD_CLOSE_XRI_CN;
-
-	abtsiocb->iocb_cmpl = lpfc_sli_abort_fcp_cmpl;
-	abtsiocb->vport = vport;
 	lpfc_cmd->waitq = &waitq;
 	if (phba->sli_rev == LPFC_SLI_REV4) {
-		/* Note: both hbalock and ring_lock must be set here */
-		ret_val = __lpfc_sli_issue_iocb(phba, pring_s4->ringno,
-						abtsiocb, 0);
 		spin_unlock(&pring_s4->ring_lock);
+		ret_val = lpfc_sli4_issue_abort_iotag(phba, iocb,
+						      lpfc_sli4_abort_fcp_cmpl);
 	} else {
-		ret_val = __lpfc_sli_issue_iocb(phba, LPFC_FCP_RING,
-						abtsiocb, 0);
+		pring = &phba->sli.sli3_ring[LPFC_FCP_RING];
+		ret_val = lpfc_sli_issue_abort_iotag(phba, pring, iocb,
+						     lpfc_sli_abort_fcp_cmpl);
 	}
 
-	if (ret_val == IOCB_ERROR) {
+	if (ret_val != IOCB_SUCCESS) {
 		/* Indicate the IO is not being aborted by the driver. */
-		iocb->iocb_flag &= ~LPFC_DRIVER_ABORTED;
 		lpfc_cmd->waitq = NULL;
 		spin_unlock(&lpfc_cmd->buf_lock);
 		spin_unlock_irqrestore(&phba->hbalock, flags);
-		lpfc_sli_release_iocbq(phba, abtsiocb);
 		ret = FAILED;
 		goto out;
 	}
@@ -5537,7 +5494,10 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 			&phba->sli.sli3_ring[LPFC_FCP_RING], HA_R0RE_REQ);
 
 wait_for_cmpl:
-	/* Wait for abort to complete */
+	/*
+	 * iocb_flag is set to LPFC_DRIVER_ABORTED before we wait
+	 * for abort to complete.
+	 */
 	wait_event_timeout(waitq,
 			  (lpfc_cmd->pCmd != cmnd),
 			   msecs_to_jiffies(2*vport->cfg_devloss_tmo*1000));
