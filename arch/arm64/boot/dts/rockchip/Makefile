@@ -71,6 +71,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-evb1-ddr4-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-evb1-ddr4-v10-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-evb1-ddr4-v10-lvds.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-evb2-lp4x-v10.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-evb2-lp4x-v10-eink.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-evb2-lp4x-v10-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-evb2-lp4x-v10-i2s-mic-array.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3566-evb2-lp4x-v10-pdm-mic-array.dtb

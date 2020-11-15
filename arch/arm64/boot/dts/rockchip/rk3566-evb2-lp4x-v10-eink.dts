@@ -1,0 +1,344 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+#include "rk3566-evb2-lp4x-v10.dtsi"
+#include "rk3568-android.dtsi"
+
+/ {
+	model = "Rockchip RK3566 EVB2 LP4X V10 Eink Board";
+	compatible = "rockchip,rk3566-evb2-lp4x-v10-eink", "rockchip,rk3568";
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		waveform_reserved: waveform@8300000 {
+			reg = <0x0 0x08300000 0x0 0x100000>;
+		};
+
+		display_reserved: framebuffer@10000000 {
+			reg = <0x0 0x10000000 0x0 0x2000000>;
+		};
+	};
+
+	ebc_dev: ebc-dev {
+		compatible = "rockchip,ebc-dev";
+		ebc_tcon = <&ebc>;
+		eink_tcon = <&eink>;
+		memory-region = <&display_reserved>;
+		waveform-region = <&waveform_reserved>;
+		pmic = <&tps65185>;
+		status = "okay";
+
+#if 0
+		/* ED097TC2U1 */
+		panel,width = <1200>;
+		panel,height = <825>;
+		panel,sdck = <25000000>;
+		panel,lsl = <4>;
+		panel,lbl = <4>;
+		panel,ldl = <300>;
+		panel,lel = <36>;
+		panel,gdck-sta = <18>;
+		panel,lgonl = <265>;
+		panel,fsl = <2>;
+		panel,fbl = <4>;
+		panel,fdl = <825>;
+		panel,fel = <24>;
+		panel,mirror = <0>;
+		panel,panel_16bit = <0>;
+		panel,panel_color = <0>;
+		panel,width-mm = <203>;
+		panel,height-mm = <140>;
+#endif
+#if 1
+		/* ES103TC1 */
+		panel,width = <1872>;
+		panel,height = <1404>;
+		panel,sdck = <33300000>;
+		panel,lsl = <18>;
+		panel,lbl = <17>;
+		panel,ldl = <234>;
+		panel,lel = <7>;
+		panel,gdck-sta = <34>;
+		panel,lgonl = <192>;
+		panel,fsl = <1>;
+		panel,fbl = <4>;
+		panel,fdl = <1404>;
+		panel,fel = <12>;
+		panel,mirror = <0>;
+		panel,panel_16bit = <1>;
+		panel,panel_color = <0>;
+		panel,width-mm = <157>;
+		panel,height-mm = <210>;
+		panel,direct_mode = <0>;
+#endif
+#if 0
+		/* ES133TC1 */
+		panel,width = <2200>;
+		panel,height = <1650>;
+		panel,sdck = <37500000>;
+		panel,lsl = <4>;
+		panel,lbl = <8>;
+		panel,ldl = <275>;
+		panel,lel = <14>;
+		panel,gdck-sta = <34>;
+		panel,lgonl = <217>;
+		panel,fsl = <1>;
+		panel,fbl = <4>;
+		panel,fdl = <1650>;
+		panel,fel = <6>;
+		panel,mirror = <0>;
+		panel,panel_16bit = <1>;
+		panel,panel_color = <0>;
+		panel,width-mm = <157>;
+		panel,height-mm = <210>;
+		panel,direct_mode = <1>;
+#endif
+	};
+};
+
+&backlight {
+	status = "disabled";
+};
+
+&backlight1 {
+	status = "disabled";
+};
+
+&dsi0 {
+	status = "disabled";
+};
+
+&dsi0_in_vp0 {
+	status = "disabled";
+};
+
+&dsi0_panel {
+	status = "disabled";
+};
+
+&dsi1_panel {
+	status = "disabled";
+};
+
+&ebc {
+	/* clock rate 1000M/n, (n=1~32) */
+	assigned-clocks = <&cru CPLL_333M>, <&cru DCLK_EBC>;
+	//assigned-clock-rates = <340000000>, <340000000>;
+	assigned-clock-rates = <250000000>, <250000000>;
+	//assigned-clock-rates = <100000000>, <100000000>;
+	status = "okay";
+};
+
+&eink {
+	status = "okay";
+};
+
+&gmac1 {
+	status = "disabled";
+};
+
+&gpu_opp_table {
+	/delete-node/ opp-200000000;
+};
+
+&gt1x {
+	status = "disabled";
+};
+
+&hdmi {
+	status = "disabled";
+};
+
+&hdmi_in_vp0 {
+	status = "disabled";
+};
+
+&hdmi_sound{
+	status = "disabled";
+};
+
+&i2c1 {
+	status = "okay";
+
+	tsc@24 {
+		status = "okay";
+		compatible = "cy,cyttsp5_i2c_adapter";
+		reg = <0x24>;
+		cy,adapter_id = "cyttsp5_i2c_adapter";
+		//cytp-supply = <&vcc_sd>;
+		cy,core {
+			cy,name = "cyttsp5_core";
+			pinctrl-names = "default";
+			pinctrl-0 = <&tsc_gpio>;
+			cy,irq_gpio =  <&gpio0 RK_PB5 GPIO_ACTIVE_HIGH>;
+			cy,rst_gpio =  <&gpio0 RK_PB6 GPIO_ACTIVE_HIGH>;
+			cy,hid_desc_register = <1>;
+			/* CY_CORE_FLAG_RESTORE_PARAMETERS */
+			cy,flags = <6>;
+			/* CY_CORE_EWG_NONE */
+			cy,easy_wakeup_gesture = <0>;
+			cy,btn_keys = <172 /* KEY_HOMEPAGE */
+						/* previously was KEY_HOME, new Android versions use KEY_HOMEPAGE */
+						139 /* KEY_MENU */
+						158 /* KEY_BACK */
+						217 /* KEY_SEARCH */
+						114 /* KEY_VOLUMEDOWN */
+						115 /* KEY_VOLUMEUP */
+						212 /* KEY_CAMERA */
+						116>; /* KEY_POWER */
+			cy,btn_keys-tag = <0>;
+			cy,mt {
+				cy,name = "cyttsp5_mt";
+				cy,inp_dev_name = "cyttsp5_mt";
+				cy,flags = <0>;
+				cy,abs =
+					/* ABS_MT_POSITION_X, CY_ABS_MIN_X, CY_ABS_MAX_X, 0, 0 */
+					<0x35 0 1872 0 0
+					/* ABS_MT_POSITION_Y, CY_ABS_MIN_Y, CY_ABS_MAX_Y, 0, 0 */
+					0x36 0 1404 0 0
+					/* ABS_MT_PRESSURE, CY_ABS_MIN_P, CY_ABS_MAX_P, 0, 0 */
+					0x3a 0 255 0 0
+					/* CY_IGNORE_VALUE, CY_ABS_MIN_W, CY_ABS_MAX_W, 0, 0 */
+					0xffff 0 255 0 0
+					/* ABS_MT_TRACKING_ID, CY_ABS_MIN_T, CY_ABS_MAX_T, 0, 0 */
+					0x39 0 15 0 0
+					/* ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0 */
+					0x30 0 255 0 0
+					/* ABS_MT_TOUCH_MINOR, 0, 255, 0, 0 */
+					0x31 0 255 0 0
+					/* ABS_MT_ORIENTATION, -127, 127, 0, 0 */
+					0x34 0xffffff81 127 0 0
+					/* ABS_MT_TOOL_TYPE, 0, MT_TOOL_MAX, 0, 0 */
+					0x37 0 1 0 0
+					/* ABS_DISTANCE, 0, 255, 0, 0 */
+					0x19 0 255 0 0>;
+
+					cy,vkeys_x = <1872>;
+					cy,vkeys_y = <1404>;
+
+					cy,revert_x = <1>;
+					cy,revert_y = <0>;
+					cy,xy_exchange = <1>;
+
+					cy,virtual_keys = /* KeyCode CenterX CenterY Width Height */
+						/* KEY_BACK */
+						<158 1360 90 160 180
+						/* KEY_MENU */
+						139 1360 270 160 180
+						/* KEY_HOMEPAGE */
+						172 1360 450 160 180
+						/* KEY SEARCH */
+						217 1360 630 160 180>;
+			};
+
+			cy,btn {
+				cy,name = "cyttsp5_btn";
+				cy,inp_dev_name = "cyttsp5_btn";
+			};
+
+			cy,proximity {
+				cy,name = "cyttsp5_proximity";
+				cy,inp_dev_name = "cyttsp5_proximity";
+				cy,abs =
+					/* ABS_DISTANCE, CY_PROXIMITY_MIN_VAL, CY_PROXIMITY_MAX_VAL, 0, 0 */
+					<0x19 0 1 0 0>;
+			};
+		};
+	};
+
+	tps65185: tps65185@68 {
+		status = "okay";
+		compatible = "ti,tps65185";
+		reg = <0x68>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&tps65185_gpio>;
+		wakeup-gpios = <&gpio3 RK_PC3 GPIO_ACTIVE_HIGH>;
+		vcomctl-gpios = <&gpio4 RK_PB2 GPIO_ACTIVE_HIGH>;
+		powerup-gpios = <&gpio4 RK_PC5 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&i2c2 {
+	status = "disabled";
+};
+
+&i2c3 {
+	status = "okay";
+
+	wacom: wacom@09 {
+		compatible = "wacom,w9013";
+		reg = <0x09>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&wacom_gpio>;
+		gpio_detect = <&gpio4 RK_PC4 GPIO_ACTIVE_HIGH>;
+		gpio_intr = <&gpio0 RK_PC1 GPIO_ACTIVE_HIGH>;
+		gpio_rst = <&gpio4 RK_PB1 GPIO_ACTIVE_HIGH>;
+		revert_x = <1>;
+		revert_y = <0>;
+		xy_exchange = <1>;
+	};
+};
+
+&mipi_dphy0 {
+	status = "disabled";
+};
+
+&mxc6655xa {
+	status = "disabled";
+};
+
+&pinctrl {
+	tps_pmic {
+		tps65185_gpio: tps65185-gpio {
+				rockchip,pins =
+						<4 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>,
+						<4 RK_PC5 RK_FUNC_GPIO &pcfg_pull_up>,
+						<3 RK_PC3 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+	tsc {
+		tsc_gpio: tsc-gpio {
+				rockchip,pins =
+						<0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_up>,
+						<0 RK_PB6 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+	wacom {
+		wacom_gpio: wacom-gpio {
+				rockchip,pins =
+						<4 RK_PC4 RK_FUNC_GPIO &pcfg_pull_up>,
+						<0 RK_PC1 RK_FUNC_GPIO &pcfg_pull_up>,
+						<4 RK_PB1 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+};
+
+&pmu_io_domains {
+	status = "okay";
+	pmuio1-supply = <&vcc3v3_pmu>;
+	pmuio2-supply = <&vcc3v3_pmu>;
+	vccio1-supply = <&vccio_acodec>;
+	vccio3-supply = <&vccio_sd>;
+	vccio4-supply = <&vcc_1v8>;
+	vccio5-supply = <&vcc_3v3>;
+	vccio6-supply = <&vcc_3v3>;
+	vccio7-supply = <&vcc_3v3>;
+};
+
+&vcc_camera {
+	status = "disabled";
+};
+
+&wireless_bluetooth {
+	status = "disabled";
+};
+
+&wireless_wlan {
+	status = "disabled";
+};
