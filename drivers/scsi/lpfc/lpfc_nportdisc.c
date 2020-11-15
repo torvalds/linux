@@ -357,7 +357,6 @@ lpfc_defer_acc_rsp(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	 * Complete the unreg rpi mbx request, and update flags.
 	 * This will also restart any deferred events.
 	 */
-	lpfc_nlp_get(ndlp);
 	lpfc_sli4_unreg_rpi_cmpl_clr(phba, pmb);
 
 	if (!piocb) {
@@ -365,7 +364,7 @@ lpfc_defer_acc_rsp(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 				 "4578 PLOGI ACC fail\n");
 		if (mbox)
 			mempool_free(mbox, phba->mbox_mem_pool);
-		goto out;
+		return;
 	}
 
 	rc = lpfc_els_rsp_acc(vport, ELS_CMD_PLOGI, piocb, ndlp, mbox);
@@ -376,8 +375,6 @@ lpfc_defer_acc_rsp(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 			mempool_free(mbox, phba->mbox_mem_pool);
 	}
 	kfree(piocb);
-out:
-	lpfc_nlp_put(ndlp);
 }
 
 static int
@@ -588,7 +585,10 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		rpi = phba->sli4_hba.rpi_ids[ndlp->nlp_rpi];
 		lpfc_unreg_login(phba, vport->vpi, rpi, link_mbox);
 		link_mbox->vport = vport;
-		link_mbox->ctx_ndlp = ndlp;
+		link_mbox->ctx_ndlp = lpfc_nlp_get(ndlp);
+		if (!link_mbox->ctx_ndlp)
+			goto out;
+
 		link_mbox->mbox_cmpl = lpfc_defer_acc_rsp;
 
 		if (((ndlp->nlp_DID & Fabric_DID_MASK) != Fabric_DID_MASK) &&
@@ -1104,7 +1104,11 @@ lpfc_release_rpi(struct lpfc_hba *phba, struct lpfc_vport *vport,
 		lpfc_unreg_login(phba, vport->vpi, rpi, pmb);
 		pmb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 		pmb->vport = vport;
-		pmb->ctx_ndlp = ndlp;
+		pmb->ctx_ndlp = lpfc_nlp_get(ndlp);
+		if (!pmb->ctx_ndlp) {
+			mempool_free(pmb, phba->mbox_mem_pool);
+			return;
+		}
 
 		if (((ndlp->nlp_DID & Fabric_DID_MASK) != Fabric_DID_MASK) &&
 		    (!(vport->fc_flag & FC_OFFLINE_MODE)))
@@ -1342,7 +1346,6 @@ lpfc_cmpl_plogi_plogi_issue(struct lpfc_vport *vport,
 			    uint32_t evt)
 {
 	struct lpfc_hba    *phba = vport->phba;
-	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_iocbq  *cmdiocb, *rspiocb;
 	struct lpfc_dmabuf *pcmd, *prsp, *mp;
 	uint32_t *lp;
@@ -1488,7 +1491,11 @@ lpfc_cmpl_plogi_plogi_issue(struct lpfc_vport *vport,
 			ndlp->nlp_flag |= NLP_REG_LOGIN_SEND;
 			mbox->mbox_cmpl = lpfc_mbx_cmpl_reg_login;
 		}
+
 		mbox->ctx_ndlp = lpfc_nlp_get(ndlp);
+		if (!mbox->ctx_ndlp)
+			goto out;
+
 		mbox->vport = vport;
 		if (lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT)
 		    != MBX_NOT_FINISHED) {
@@ -1537,9 +1544,6 @@ out:
 
 	ndlp->nlp_prev_state = ndlp->nlp_state;
 	lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
-	spin_lock_irq(shost->host_lock);
-	ndlp->nlp_flag |= NLP_DEFER_RM;
-	spin_unlock_irq(shost->host_lock);
 	return NLP_STE_FREED_NODE;
 }
 
@@ -2797,16 +2801,12 @@ lpfc_cmpl_plogi_npr_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 {
 	struct lpfc_iocbq *cmdiocb, *rspiocb;
 	IOCB_t *irsp;
-	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 
 	cmdiocb = (struct lpfc_iocbq *) arg;
 	rspiocb = cmdiocb->context_un.rsp_iocb;
 
 	irsp = &rspiocb->iocb;
 	if (irsp->ulpStatus) {
-		spin_lock_irq(shost->host_lock);
-		ndlp->nlp_flag |= NLP_DEFER_RM;
-		spin_unlock_irq(shost->host_lock);
 		return NLP_STE_FREED_NODE;
 	}
 	return ndlp->nlp_state;

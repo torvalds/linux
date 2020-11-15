@@ -178,7 +178,7 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 	/* We need to hold the node by incrementing the reference
 	 * count until this queued work is done
 	 */
-	evtp->evt_arg1  = lpfc_nlp_get(ndlp);
+	evtp->evt_arg1 = lpfc_nlp_get(ndlp);
 
 	spin_lock_irqsave(&phba->hbalock, iflags);
 	if (evtp->evt_arg1) {
@@ -4214,6 +4214,13 @@ lpfc_register_remote_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	rport->supported_classes = ndlp->nlp_class_sup;
 	rdata = rport->dd_data;
 	rdata->pnode = lpfc_nlp_get(ndlp);
+	if (!rdata->pnode) {
+		dev_warn(&phba->pcidev->dev,
+			 "Warning - node ref failed. Unreg rport\n");
+		fc_remote_port_delete(rport);
+		ndlp->rport = NULL;
+		return;
+	}
 
 	if (ndlp->nlp_type & NLP_FCP_TARGET)
 		rport_ids.roles |= FC_PORT_ROLE_FCP_TARGET;
@@ -5157,8 +5164,7 @@ lpfc_nlp_remove(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	int rc;
 
 	lpfc_cancel_retry_delay_tmo(vport, ndlp);
-	if ((ndlp->nlp_flag & NLP_DEFER_RM) &&
-	    !(ndlp->nlp_flag & NLP_REG_LOGIN_SEND) &&
+	if (!(ndlp->nlp_flag & NLP_REG_LOGIN_SEND) &&
 	    !(ndlp->nlp_flag & NLP_RPI_REGISTERED) &&
 	    phba->sli_rev != LPFC_SLI_REV4) {
 		/* For this case we need to cleanup the default rpi

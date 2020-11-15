@@ -566,6 +566,13 @@ lpfc_nvme_gen_req(struct lpfc_vport *vport, struct lpfc_dmabuf *bmp,
 
 	/* Save for completion so we can release these resources */
 	genwqe->context1 = lpfc_nlp_get(ndlp);
+	if (!genwqe->context1) {
+		dev_warn(&phba->pcidev->dev,
+			 "Warning: Failed node ref, not sending LS_REQ\n");
+		lpfc_sli_release_iocbq(phba, genwqe);
+		return 1;
+	}
+
 	genwqe->context2 = (uint8_t *)pnvme_lsreq;
 	/* Fill in payload, bp points to frame payload */
 
@@ -2459,7 +2466,11 @@ lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		spin_unlock_irq(&vport->phba->hbalock);
 	} else {
 		spin_unlock_irq(&vport->phba->hbalock);
-		lpfc_nlp_get(ndlp);
+		if (!lpfc_nlp_get(ndlp)) {
+			dev_warn(&vport->phba->pcidev->dev,
+				 "Warning - No node ref - exit register\n");
+			return 0;
+		}
 	}
 
 	ret = nvme_fc_register_remoteport(localport, &rpinfo, &remote_port);

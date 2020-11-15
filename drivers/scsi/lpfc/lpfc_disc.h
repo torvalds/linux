@@ -166,8 +166,7 @@ struct lpfc_node_rrq {
 #define NLP_NVMET_RECOV    0x00001000   /* NVMET auditing node for recovery. */
 #define NLP_FCP_PRLI_RJT   0x00002000   /* Rport does not support FCP PRLI. */
 #define NLP_UNREG_INP      0x00008000	/* UNREG_RPI cmd is in progress */
-#define NLP_DEFER_RM       0x00010000	/* Remove this ndlp if no longer used */
-#define NLP_DROPPED        0x00000008	/* Init ref count has been dropped */
+#define NLP_DROPPED        0x00010000	/* Init ref count has been dropped */
 #define NLP_DELAY_TMO      0x00020000	/* delay timeout is running for node */
 #define NLP_NPR_2B_DISC    0x00040000	/* node is included in num_disc_nodes */
 #define NLP_RCV_PLOGI      0x00080000	/* Rcv'ed PLOGI from remote system */

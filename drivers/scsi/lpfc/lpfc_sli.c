@@ -2594,7 +2594,6 @@ lpfc_sli4_unreg_rpi_cmpl_clr(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 					 ndlp->nlp_flag,
 					 ndlp);
 				ndlp->nlp_flag &= ~NLP_LOGO_ACC;
-				lpfc_nlp_put(ndlp);
 
 				/* Check to see if there are any deferred
 				 * events to process
@@ -2617,6 +2616,8 @@ lpfc_sli4_unreg_rpi_cmpl_clr(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 				} else {
 					__lpfc_sli_rpi_release(vport, ndlp);
 				}
+
+				lpfc_nlp_put(ndlp);
 			}
 		}
 	}
@@ -11352,11 +11353,11 @@ lpfc_ignore_els_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			"x%x x%x x%x\n",
 			irsp->ulpIoTag, irsp->ulpStatus,
 			irsp->un.ulpWord[4], irsp->ulpTimeout);
+	lpfc_nlp_put((struct lpfc_nodelist *)cmdiocb->context1);
 	if (cmdiocb->iocb.ulpCommand == CMD_GEN_REQUEST64_CR)
 		lpfc_ct_free_iocb(phba, cmdiocb);
 	else
 		lpfc_els_free_iocb(phba, cmdiocb);
-	return;
 }
 
 /**
@@ -17924,6 +17925,10 @@ lpfc_sli4_seq_abort_rsp(struct lpfc_vport *vport,
 	icmd->ulpClass = CLASS3;
 	icmd->ulpContext = phba->sli4_hba.rpi_ids[ndlp->nlp_rpi];
 	ctiocb->context1 = lpfc_nlp_get(ndlp);
+	if (!ctiocb->context1) {
+		lpfc_sli_release_iocbq(phba, ctiocb);
+		return;
+	}
 
 	ctiocb->vport = phba->pport;
 	ctiocb->iocb_cmpl = lpfc_sli4_seq_abort_rsp_cmpl;

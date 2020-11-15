@@ -329,7 +329,7 @@ lpfc_bsg_send_mgmt_cmd_cmp(struct lpfc_hba *phba,
 	spin_unlock_irqrestore(&phba->hbalock, flags);
 
 	iocb = &dd_data->context_un.iocb;
-	ndlp = iocb->ndlp;
+	ndlp = iocb->cmdiocbq->context_un.ndlp;
 	rmp = iocb->rmp;
 	cmp = cmdiocbq->context2;
 	bmp = cmdiocbq->context3;
@@ -366,8 +366,8 @@ lpfc_bsg_send_mgmt_cmd_cmp(struct lpfc_hba *phba,
 	lpfc_free_bsg_buffers(phba, rmp);
 	lpfc_mbuf_free(phba, bmp->virt, bmp->phys);
 	kfree(bmp);
-	lpfc_sli_release_iocbq(phba, cmdiocbq);
 	lpfc_nlp_put(ndlp);
+	lpfc_sli_release_iocbq(phba, cmdiocbq);
 	kfree(dd_data);
 
 	/* Complete the job if the job is still active */
@@ -408,6 +408,9 @@ lpfc_bsg_send_mgmt_cmd(struct bsg_job *job)
 	/* in case no data is transferred */
 	bsg_reply->reply_payload_rcv_len = 0;
 
+	if (ndlp->nlp_flag & NLP_ELS_SND_MASK)
+		return -ENODEV;
+
 	/* allocate our bsg tracking structure */
 	dd_data = kmalloc(sizeof(struct bsg_job_data), GFP_KERNEL);
 	if (!dd_data) {
@@ -417,20 +420,10 @@ lpfc_bsg_send_mgmt_cmd(struct bsg_job *job)
 		goto no_dd_data;
 	}
 
-	if (!lpfc_nlp_get(ndlp)) {
-		rc = -ENODEV;
-		goto no_ndlp;
-	}
-
-	if (ndlp->nlp_flag & NLP_ELS_SND_MASK) {
-		rc = -ENODEV;
-		goto free_ndlp;
-	}
-
 	cmdiocbq = lpfc_sli_get_iocbq(phba);
 	if (!cmdiocbq) {
 		rc = -ENOMEM;
-		goto free_ndlp;
+		goto free_dd;
 	}
 
 	cmd = &cmdiocbq->iocb;
@@ -496,11 +489,10 @@ lpfc_bsg_send_mgmt_cmd(struct bsg_job *job)
 	cmdiocbq->context1 = dd_data;
 	cmdiocbq->context2 = cmp;
 	cmdiocbq->context3 = bmp;
-	cmdiocbq->context_un.ndlp = ndlp;
+
 	dd_data->type = TYPE_IOCB;
 	dd_data->set_job = job;
 	dd_data->context_un.iocb.cmdiocbq = cmdiocbq;
-	dd_data->context_un.iocb.ndlp = ndlp;
 	dd_data->context_un.iocb.rmp = rmp;
 	job->dd_data = dd_data;
 
@@ -514,8 +506,13 @@ lpfc_bsg_send_mgmt_cmd(struct bsg_job *job)
 		readl(phba->HCregaddr); /* flush */
 	}
 
-	iocb_stat = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, cmdiocbq, 0);
+	cmdiocbq->context_un.ndlp = lpfc_nlp_get(ndlp);
+	if (!cmdiocbq->context_un.ndlp) {
+		rc = -ENODEV;
+		goto free_rmp;
+	}
 
+	iocb_stat = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, cmdiocbq, 0);
 	if (iocb_stat == IOCB_SUCCESS) {
 		spin_lock_irqsave(&phba->hbalock, flags);
 		/* make sure the I/O had not been completed yet */
@@ -532,7 +529,7 @@ lpfc_bsg_send_mgmt_cmd(struct bsg_job *job)
 	}
 
 	/* iocb failed so cleanup */
-	job->dd_data = NULL;
+	lpfc_nlp_put(ndlp);
 
 free_rmp:
 	lpfc_free_bsg_buffers(phba, rmp);
@@ -544,9 +541,7 @@ free_bmp:
 	kfree(bmp);
 free_cmdiocbq:
 	lpfc_sli_release_iocbq(phba, cmdiocbq);
-free_ndlp:
-	lpfc_nlp_put(ndlp);
-no_ndlp:
+free_dd:
 	kfree(dd_data);
 no_dd_data:
 	/* make error code available to userspace */
@@ -640,8 +635,9 @@ lpfc_bsg_rport_els_cmp(struct lpfc_hba *phba,
 		}
 	}
 
-	lpfc_nlp_put(ndlp);
 	lpfc_els_free_iocb(phba, cmdiocbq);
+
+	lpfc_nlp_put(ndlp);
 	kfree(dd_data);
 
 	/* Complete the job if the job is still active */
@@ -718,14 +714,13 @@ lpfc_bsg_rport_els(struct bsg_job *job)
 		goto release_ndlp;
 	}
 
-	rpi = ndlp->nlp_rpi;
-
 	/* Transfer the request payload to allocated command dma buffer */
-
 	sg_copy_to_buffer(job->request_payload.sg_list,
 			  job->request_payload.sg_cnt,
 			  ((struct lpfc_dmabuf *)cmdiocbq->context2)->virt,
 			  cmdsize);
+
+	rpi = ndlp->nlp_rpi;
 
 	if (phba->sli_rev == LPFC_SLI_REV4)
 		cmdiocbq->iocb.ulpContext = phba->sli4_hba.rpi_ids[rpi];
@@ -752,8 +747,13 @@ lpfc_bsg_rport_els(struct bsg_job *job)
 		readl(phba->HCregaddr); /* flush */
 	}
 
-	rc = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, cmdiocbq, 0);
+	cmdiocbq->context1 = lpfc_nlp_get(ndlp);
+	if (!cmdiocbq->context1) {
+		rc = -EIO;
+		goto linkdown_err;
+	}
 
+	rc = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, cmdiocbq, 0);
 	if (rc == IOCB_SUCCESS) {
 		spin_lock_irqsave(&phba->hbalock, flags);
 		/* make sure the I/O had not been completed/released */
@@ -769,11 +769,9 @@ lpfc_bsg_rport_els(struct bsg_job *job)
 		rc = -EIO;
 	}
 
-	/* iocb failed so cleanup */
-	job->dd_data = NULL;
+	/* I/O issue failed.  Cleanup resources. */
 
 linkdown_err:
-	cmdiocbq->context1 = ndlp;
 	lpfc_els_free_iocb(phba, cmdiocbq);
 
 release_ndlp:
@@ -1469,6 +1467,15 @@ lpfc_issue_ct_rsp(struct lpfc_hba *phba, struct bsg_job *job, uint32_t tag,
 	unsigned long flags;
 	uint32_t creg_val;
 
+	ndlp = lpfc_findnode_did(phba->pport, phba->ct_ctx[tag].SID);
+	if (!ndlp) {
+		lpfc_printf_log(phba, KERN_WARNING, LOG_ELS,
+				"2721 ndlp null for oxid %x SID %x\n",
+				phba->ct_ctx[tag].rxid,
+				phba->ct_ctx[tag].SID);
+		return IOCB_ERROR;
+	}
+
 	/* allocate our bsg tracking structure */
 	dd_data = kmalloc(sizeof(struct bsg_job_data), GFP_KERNEL);
 	if (!dd_data) {
@@ -1559,7 +1566,11 @@ lpfc_issue_ct_rsp(struct lpfc_hba *phba, struct bsg_job *job, uint32_t tag,
 	dd_data->type = TYPE_IOCB;
 	dd_data->set_job = job;
 	dd_data->context_un.iocb.cmdiocbq = ctiocb;
-	dd_data->context_un.iocb.ndlp = ndlp;
+	dd_data->context_un.iocb.ndlp = lpfc_nlp_get(ndlp);
+	if (!dd_data->context_un.iocb.ndlp) {
+		rc = -IOCB_ERROR;
+		goto issue_ct_rsp_exit;
+	}
 	dd_data->context_un.iocb.rmp = NULL;
 	job->dd_data = dd_data;
 
@@ -1574,7 +1585,6 @@ lpfc_issue_ct_rsp(struct lpfc_hba *phba, struct bsg_job *job, uint32_t tag,
 	}
 
 	rc = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, ctiocb, 0);
-
 	if (rc == IOCB_SUCCESS) {
 		spin_lock_irqsave(&phba->hbalock, flags);
 		/* make sure the I/O had not been completed/released */
@@ -1588,6 +1598,7 @@ lpfc_issue_ct_rsp(struct lpfc_hba *phba, struct bsg_job *job, uint32_t tag,
 
 	/* iocb failed so cleanup */
 	job->dd_data = NULL;
+	lpfc_nlp_put(ndlp);
 
 issue_ct_rsp_exit:
 	lpfc_sli_release_iocbq(phba, ctiocb);
