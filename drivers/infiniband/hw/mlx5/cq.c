@@ -707,8 +707,9 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 			  int *cqe_size, int *index, int *inlen)
 {
 	struct mlx5_ib_create_cq ucmd = {};
+	unsigned long page_size;
+	unsigned int page_offset_quantized;
 	size_t ucmdlen;
-	int page_shift;
 	__be64 *pas;
 	int ncont;
 	void *cqc;
@@ -741,17 +742,24 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 		return err;
 	}
 
+	page_size = mlx5_umem_find_best_cq_quantized_pgoff(
+		cq->buf.umem, cqc, log_page_size, MLX5_ADAPTER_PAGE_SHIFT,
+		page_offset, 64, &page_offset_quantized);
+	if (!page_size) {
+		err = -EINVAL;
+		goto err_umem;
+	}
+
 	err = mlx5_ib_db_map_user(context, udata, ucmd.db_addr, &cq->db);
 	if (err)
 		goto err_umem;
 
-	mlx5_ib_cont_pages(cq->buf.umem, ucmd.buf_addr, 0, &page_shift);
-	ncont = ib_umem_num_dma_blocks(cq->buf.umem, 1UL << page_shift);
+	ncont = ib_umem_num_dma_blocks(cq->buf.umem, page_size);
 	mlx5_ib_dbg(
 		dev,
-		"addr 0x%llx, size %u, npages %zu, page_shift %d, ncont %d\n",
+		"addr 0x%llx, size %u, npages %zu, page_size %lu, ncont %d\n",
 		ucmd.buf_addr, entries * ucmd.cqe_size,
-		ib_umem_num_pages(cq->buf.umem), page_shift, ncont);
+		ib_umem_num_pages(cq->buf.umem), page_size, ncont);
 
 	*inlen = MLX5_ST_SZ_BYTES(create_cq_in) +
 		 MLX5_FLD_SZ_BYTES(create_cq_in, pas[0]) * ncont;
@@ -762,11 +770,12 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 	}
 
 	pas = (__be64 *)MLX5_ADDR_OF(create_cq_in, *cqb, pas);
-	mlx5_ib_populate_pas(cq->buf.umem, 1UL << page_shift, pas, 0);
+	mlx5_ib_populate_pas(cq->buf.umem, page_size, pas, 0);
 
 	cqc = MLX5_ADDR_OF(create_cq_in, *cqb, cq_context);
 	MLX5_SET(cqc, cqc, log_page_size,
-		 page_shift - MLX5_ADAPTER_PAGE_SHIFT);
+		 order_base_2(page_size) - MLX5_ADAPTER_PAGE_SHIFT);
+	MLX5_SET(cqc, cqc, page_offset, page_offset_quantized);
 
 	if (ucmd.flags & MLX5_IB_CREATE_CQ_FLAGS_UAR_PAGE_INDEX) {
 		*index = ucmd.uar_page_index;
@@ -1131,7 +1140,7 @@ int mlx5_ib_modify_cq(struct ib_cq *cq, u16 cq_count, u16 cq_period)
 
 static int resize_user(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq,
 		       int entries, struct ib_udata *udata,
-		       int *page_shift, int *cqe_size)
+		       int *cqe_size)
 {
 	struct mlx5_ib_resize_cq ucmd;
 	struct ib_umem *umem;
@@ -1155,8 +1164,6 @@ static int resize_user(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq,
 		err = PTR_ERR(umem);
 		return err;
 	}
-
-	mlx5_ib_cont_pages(umem, ucmd.buf_addr, 0, page_shift);
 
 	cq->resize_umem = umem;
 	*cqe_size = ucmd.cqe_size;
@@ -1250,7 +1257,8 @@ int mlx5_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 	int err;
 	int npas;
 	__be64 *pas;
-	int page_shift;
+	unsigned int page_offset_quantized = 0;
+	unsigned int page_shift;
 	int inlen;
 	int cqe_size;
 	unsigned long flags;
@@ -1277,11 +1285,22 @@ int mlx5_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 
 	mutex_lock(&cq->resize_mutex);
 	if (udata) {
-		err = resize_user(dev, cq, entries, udata, &page_shift,
-				  &cqe_size);
+		unsigned long page_size;
+
+		err = resize_user(dev, cq, entries, udata, &cqe_size);
 		if (err)
 			goto ex;
-		npas = ib_umem_num_dma_blocks(cq->resize_umem, 1UL << page_shift);
+
+		page_size = mlx5_umem_find_best_cq_quantized_pgoff(
+			cq->resize_umem, cqc, log_page_size,
+			MLX5_ADAPTER_PAGE_SHIFT, page_offset, 64,
+			&page_offset_quantized);
+		if (!page_size) {
+			err = -EINVAL;
+			goto ex_resize;
+		}
+		npas = ib_umem_num_dma_blocks(cq->resize_umem, page_size);
+		page_shift = order_base_2(page_size);
 	} else {
 		struct mlx5_frag_buf *frag_buf;
 
@@ -1320,6 +1339,7 @@ int mlx5_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 
 	MLX5_SET(cqc, cqc, log_page_size,
 		 page_shift - MLX5_ADAPTER_PAGE_SHIFT);
+	MLX5_SET(cqc, cqc, page_offset, page_offset_quantized);
 	MLX5_SET(cqc, cqc, cqe_sz,
 		 cqe_sz_to_mlx_sz(cqe_size,
 				  cq->private_flags &
