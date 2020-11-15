@@ -2891,6 +2891,150 @@ out:
 	}
 }
 
+/*
+ * This function checks for BlockGuard errors detected by
+ * the HBA.  In case of errors, the ASC/ASCQ fields in the
+ * sense buffer will be set accordingly, paired with
+ * ILLEGAL_REQUEST to signal to the kernel that the HBA
+ * detected corruption.
+ *
+ * Returns:
+ *  0 - No error found
+ *  1 - BlockGuard error found
+ * -1 - Internal error (bad profile, ...etc)
+ */
+static int
+lpfc_sli4_parse_bg_err(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_cmd,
+		       struct lpfc_wcqe_complete *wcqe)
+{
+	struct scsi_cmnd *cmd = lpfc_cmd->pCmd;
+	int ret = 0;
+	u32 status = bf_get(lpfc_wcqe_c_status, wcqe);
+	u32 bghm = 0;
+	u32 bgstat = 0;
+	u64 failing_sector = 0;
+
+	if (status == CQE_STATUS_DI_ERROR) {
+		if (bf_get(lpfc_wcqe_c_bg_ge, wcqe)) /* Guard Check failed */
+			bgstat |= BGS_GUARD_ERR_MASK;
+		if (bf_get(lpfc_wcqe_c_bg_ae, wcqe)) /* AppTag Check failed */
+			bgstat |= BGS_APPTAG_ERR_MASK;
+		if (bf_get(lpfc_wcqe_c_bg_re, wcqe)) /* RefTag Check failed */
+			bgstat |= BGS_REFTAG_ERR_MASK;
+
+		/* Check to see if there was any good data before the error */
+		if (bf_get(lpfc_wcqe_c_bg_tdpv, wcqe)) {
+			bgstat |= BGS_HI_WATER_MARK_PRESENT_MASK;
+			bghm = wcqe->total_data_placed;
+		}
+
+		/*
+		 * Set ALL the error bits to indicate we don't know what
+		 * type of error it is.
+		 */
+		if (!bgstat)
+			bgstat |= (BGS_REFTAG_ERR_MASK | BGS_APPTAG_ERR_MASK |
+				BGS_GUARD_ERR_MASK);
+	}
+
+	if (lpfc_bgs_get_guard_err(bgstat)) {
+		ret = 1;
+
+		scsi_build_sense_buffer(1, cmd->sense_buffer, ILLEGAL_REQUEST,
+					0x10, 0x1);
+		cmd->result = DRIVER_SENSE << 24 | DID_ABORT << 16 |
+			      SAM_STAT_CHECK_CONDITION;
+		phba->bg_guard_err_cnt++;
+		lpfc_printf_log(phba, KERN_WARNING, LOG_FCP | LOG_BG,
+				"9059 BLKGRD: Guard Tag error in cmd"
+				" 0x%x lba 0x%llx blk cnt 0x%x "
+				"bgstat=x%x bghm=x%x\n", cmd->cmnd[0],
+				(unsigned long long)scsi_get_lba(cmd),
+				blk_rq_sectors(cmd->request), bgstat, bghm);
+	}
+
+	if (lpfc_bgs_get_reftag_err(bgstat)) {
+		ret = 1;
+
+		scsi_build_sense_buffer(1, cmd->sense_buffer, ILLEGAL_REQUEST,
+					0x10, 0x3);
+		cmd->result = DRIVER_SENSE << 24 | DID_ABORT << 16 |
+			      SAM_STAT_CHECK_CONDITION;
+
+		phba->bg_reftag_err_cnt++;
+		lpfc_printf_log(phba, KERN_WARNING, LOG_FCP | LOG_BG,
+				"9060 BLKGRD: Ref Tag error in cmd"
+				" 0x%x lba 0x%llx blk cnt 0x%x "
+				"bgstat=x%x bghm=x%x\n", cmd->cmnd[0],
+				(unsigned long long)scsi_get_lba(cmd),
+				blk_rq_sectors(cmd->request), bgstat, bghm);
+	}
+
+	if (lpfc_bgs_get_apptag_err(bgstat)) {
+		ret = 1;
+
+		scsi_build_sense_buffer(1, cmd->sense_buffer, ILLEGAL_REQUEST,
+					0x10, 0x2);
+		cmd->result = DRIVER_SENSE << 24 | DID_ABORT << 16 |
+			      SAM_STAT_CHECK_CONDITION;
+
+		phba->bg_apptag_err_cnt++;
+		lpfc_printf_log(phba, KERN_WARNING, LOG_FCP | LOG_BG,
+				"9062 BLKGRD: App Tag error in cmd"
+				" 0x%x lba 0x%llx blk cnt 0x%x "
+				"bgstat=x%x bghm=x%x\n", cmd->cmnd[0],
+				(unsigned long long)scsi_get_lba(cmd),
+				blk_rq_sectors(cmd->request), bgstat, bghm);
+	}
+
+	if (lpfc_bgs_get_hi_water_mark_present(bgstat)) {
+		/*
+		 * setup sense data descriptor 0 per SPC-4 as an information
+		 * field, and put the failing LBA in it.
+		 * This code assumes there was also a guard/app/ref tag error
+		 * indication.
+		 */
+		cmd->sense_buffer[7] = 0xc;   /* Additional sense length */
+		cmd->sense_buffer[8] = 0;     /* Information descriptor type */
+		cmd->sense_buffer[9] = 0xa;   /* Additional descriptor length */
+		cmd->sense_buffer[10] = 0x80; /* Validity bit */
+
+		/* bghm is a "on the wire" FC frame based count */
+		switch (scsi_get_prot_op(cmd)) {
+		case SCSI_PROT_READ_INSERT:
+		case SCSI_PROT_WRITE_STRIP:
+			bghm /= cmd->device->sector_size;
+			break;
+		case SCSI_PROT_READ_STRIP:
+		case SCSI_PROT_WRITE_INSERT:
+		case SCSI_PROT_READ_PASS:
+		case SCSI_PROT_WRITE_PASS:
+			bghm /= (cmd->device->sector_size +
+				sizeof(struct scsi_dif_tuple));
+			break;
+		}
+
+		failing_sector = scsi_get_lba(cmd);
+		failing_sector += bghm;
+
+		/* Descriptor Information */
+		put_unaligned_be64(failing_sector, &cmd->sense_buffer[12]);
+	}
+
+	if (!ret) {
+		/* No error was reported - problem in FW? */
+		lpfc_printf_log(phba, KERN_WARNING, LOG_FCP | LOG_BG,
+				"9068 BLKGRD: Unknown error in cmd"
+				" 0x%x lba 0x%llx blk cnt 0x%x "
+				"bgstat=x%x bghm=x%x\n", cmd->cmnd[0],
+				(unsigned long long)scsi_get_lba(cmd),
+				blk_rq_sectors(cmd->request), bgstat, bghm);
+
+		/* Calcuate what type of error it was */
+		lpfc_calc_bg_err(phba, lpfc_cmd);
+	}
+	return ret;
+}
 
 /*
  * This function checks for BlockGuard errors detected by
@@ -3570,12 +3714,11 @@ lpfc_scsi_prep_cmnd_buf(struct lpfc_vport *vport, struct lpfc_io_buf *lpfc_cmd,
  **/
 static void
 lpfc_send_scsi_error_event(struct lpfc_hba *phba, struct lpfc_vport *vport,
-		struct lpfc_io_buf *lpfc_cmd, struct lpfc_iocbq *rsp_iocb) {
+		struct lpfc_io_buf *lpfc_cmd, uint32_t fcpi_parm) {
 	struct scsi_cmnd *cmnd = lpfc_cmd->pCmd;
 	struct fcp_rsp *fcprsp = lpfc_cmd->fcp_rsp;
 	uint32_t resp_info = fcprsp->rspStatus2;
 	uint32_t scsi_status = fcprsp->rspStatus3;
-	uint32_t fcpi_parm = rsp_iocb->iocb.un.fcpi.fcpi_parm;
 	struct lpfc_fast_path_event *fast_path_evt = NULL;
 	struct lpfc_nodelist *pnode = lpfc_cmd->rdata->pnode;
 	unsigned long flags;
@@ -3690,13 +3833,11 @@ lpfc_scsi_unprep_dma_buf(struct lpfc_hba *phba, struct lpfc_io_buf *psb)
  **/
 static void
 lpfc_handle_fcp_err(struct lpfc_vport *vport, struct lpfc_io_buf *lpfc_cmd,
-		    struct lpfc_iocbq *rsp_iocb)
+		    uint32_t fcpi_parm)
 {
-	struct lpfc_hba *phba = vport->phba;
 	struct scsi_cmnd *cmnd = lpfc_cmd->pCmd;
 	struct fcp_cmnd *fcpcmd = lpfc_cmd->fcp_cmnd;
 	struct fcp_rsp *fcprsp = lpfc_cmd->fcp_rsp;
-	uint32_t fcpi_parm = rsp_iocb->iocb.un.fcpi.fcpi_parm;
 	uint32_t resp_info = fcprsp->rspStatus2;
 	uint32_t scsi_status = fcprsp->rspStatus3;
 	uint32_t *lp;
@@ -3831,13 +3972,10 @@ lpfc_handle_fcp_err(struct lpfc_vport *vport, struct lpfc_io_buf *lpfc_cmd,
 	 */
 	} else if (fcpi_parm) {
 		lpfc_printf_vlog(vport, KERN_WARNING, LOG_FCP | LOG_FCP_ERROR,
-				 "9029 FCP %s Check Error xri x%x  Data: "
+				 "9029 FCP %s Check Error Data: "
 				 "x%x x%x x%x x%x x%x\n",
 				 ((cmnd->sc_data_direction == DMA_FROM_DEVICE) ?
 				 "Read" : "Write"),
-				 ((phba->sli_rev == LPFC_SLI_REV4) ?
-				 lpfc_cmd->cur_iocbq.sli4_xritag :
-				 rsp_iocb->iocb.ulpContext),
 				 fcpDl, be32_to_cpu(fcprsp->rspResId),
 				 fcpi_parm, cmnd->cmnd[0], scsi_status);
 
@@ -3864,7 +4002,333 @@ lpfc_handle_fcp_err(struct lpfc_vport *vport, struct lpfc_io_buf *lpfc_cmd,
 
  out:
 	cmnd->result = host_status << 16 | scsi_status;
-	lpfc_send_scsi_error_event(vport->phba, vport, lpfc_cmd, rsp_iocb);
+	lpfc_send_scsi_error_event(vport->phba, vport, lpfc_cmd, fcpi_parm);
+}
+
+/**
+ * lpfc_fcp_io_cmd_wqe_cmpl - Complete a FCP IO
+ * @phba: The hba for which this call is being executed.
+ * @pwqeIn: The command WQE for the scsi cmnd.
+ * @pwqeOut: The response WQE for the scsi cmnd.
+ *
+ * This routine assigns scsi command result by looking into response WQE
+ * status field appropriately. This routine handles QUEUE FULL condition as
+ * well by ramping down device queue depth.
+ **/
+static void
+lpfc_fcp_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
+			 struct lpfc_wcqe_complete *wcqe)
+{
+	struct lpfc_io_buf *lpfc_cmd =
+		(struct lpfc_io_buf *)pwqeIn->context1;
+	struct lpfc_vport *vport = pwqeIn->vport;
+	struct lpfc_rport_data *rdata = lpfc_cmd->rdata;
+	struct lpfc_nodelist *ndlp = rdata->pnode;
+	struct scsi_cmnd *cmd;
+	unsigned long flags;
+	struct lpfc_fast_path_event *fast_path_evt;
+	struct Scsi_Host *shost;
+	u32 logit = LOG_FCP;
+	u32 status, idx;
+	unsigned long iflags = 0;
+
+	/* Sanity check on return of outstanding command */
+	if (!lpfc_cmd) {
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
+				 "9032 Null lpfc_cmd pointer. No "
+				 "release, skip completion\n");
+		return;
+	}
+
+	if (bf_get(lpfc_wcqe_c_xb, wcqe)) {
+		/* TOREMOVE - currently this flag is checked during
+		 * the release of lpfc_iocbq. Remove once we move
+		 * to lpfc_wqe_job construct.
+		 *
+		 * This needs to be done outside buf_lock
+		 */
+		spin_lock_irqsave(&phba->hbalock, iflags);
+		lpfc_cmd->cur_iocbq.iocb_flag |= LPFC_EXCHANGE_BUSY;
+		spin_unlock_irqrestore(&phba->hbalock, iflags);
+	}
+
+	/* Guard against abort handler being called at same time */
+	spin_lock(&lpfc_cmd->buf_lock);
+
+	/* Sanity check on return of outstanding command */
+	cmd = lpfc_cmd->pCmd;
+	if (!cmd || !phba) {
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
+				 "9042 I/O completion: Not an active IO\n");
+		spin_unlock(&lpfc_cmd->buf_lock);
+		lpfc_release_scsi_buf(phba, lpfc_cmd);
+		return;
+	}
+	idx = lpfc_cmd->cur_iocbq.hba_wqidx;
+	if (phba->sli4_hba.hdwq)
+		phba->sli4_hba.hdwq[idx].scsi_cstat.io_cmpls++;
+
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	if (unlikely(phba->hdwqstat_on & LPFC_CHECK_SCSI_IO))
+		this_cpu_inc(phba->sli4_hba.c_stat->cmpl_io);
+#endif
+	shost = cmd->device->host;
+
+	status = bf_get(lpfc_wcqe_c_status, wcqe);
+	lpfc_cmd->status = (status & LPFC_IOCB_STATUS_MASK);
+	lpfc_cmd->result = (wcqe->parameter & IOERR_PARAM_MASK);
+
+	lpfc_cmd->flags &= ~LPFC_SBUF_XBUSY;
+	if (bf_get(lpfc_wcqe_c_xb, wcqe))
+		lpfc_cmd->flags |= LPFC_SBUF_XBUSY;
+
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	if (lpfc_cmd->prot_data_type) {
+		struct scsi_dif_tuple *src = NULL;
+
+		src =  (struct scsi_dif_tuple *)lpfc_cmd->prot_data_segment;
+		/*
+		 * Used to restore any changes to protection
+		 * data for error injection.
+		 */
+		switch (lpfc_cmd->prot_data_type) {
+		case LPFC_INJERR_REFTAG:
+			src->ref_tag =
+				lpfc_cmd->prot_data;
+			break;
+		case LPFC_INJERR_APPTAG:
+			src->app_tag =
+				(uint16_t)lpfc_cmd->prot_data;
+			break;
+		case LPFC_INJERR_GUARD:
+			src->guard_tag =
+				(uint16_t)lpfc_cmd->prot_data;
+			break;
+		default:
+			break;
+		}
+
+		lpfc_cmd->prot_data = 0;
+		lpfc_cmd->prot_data_type = 0;
+		lpfc_cmd->prot_data_segment = NULL;
+	}
+#endif
+	if (unlikely(lpfc_cmd->status)) {
+		if (lpfc_cmd->status == IOSTAT_LOCAL_REJECT &&
+		    (lpfc_cmd->result & IOERR_DRVR_MASK))
+			lpfc_cmd->status = IOSTAT_DRIVER_REJECT;
+		else if (lpfc_cmd->status >= IOSTAT_CNT)
+			lpfc_cmd->status = IOSTAT_DEFAULT;
+		if (lpfc_cmd->status == IOSTAT_FCP_RSP_ERROR &&
+		    !lpfc_cmd->fcp_rsp->rspStatus3 &&
+		    (lpfc_cmd->fcp_rsp->rspStatus2 & RESID_UNDER) &&
+		    !(vport->cfg_log_verbose & LOG_FCP_UNDER))
+			logit = 0;
+		else
+			logit = LOG_FCP | LOG_FCP_UNDER;
+		lpfc_printf_vlog(vport, KERN_WARNING, logit,
+				 "9034 FCP cmd x%x failed <%d/%lld> "
+				 "status: x%x result: x%x "
+				 "sid: x%x did: x%x oxid: x%x "
+				 "Data: x%x x%x x%x\n",
+				 cmd->cmnd[0],
+				 cmd->device ? cmd->device->id : 0xffff,
+				 cmd->device ? cmd->device->lun : 0xffff,
+				 lpfc_cmd->status, lpfc_cmd->result,
+				 vport->fc_myDID,
+				 (ndlp) ? ndlp->nlp_DID : 0,
+				 lpfc_cmd->cur_iocbq.sli4_xritag,
+				 wcqe->parameter, wcqe->total_data_placed,
+				 lpfc_cmd->cur_iocbq.iotag);
+	}
+
+	switch (lpfc_cmd->status) {
+	case IOSTAT_SUCCESS:
+		cmd->result = DID_OK << 16;
+		break;
+	case IOSTAT_FCP_RSP_ERROR:
+		lpfc_handle_fcp_err(vport, lpfc_cmd,
+				    pwqeIn->wqe.fcp_iread.total_xfer_len -
+				    wcqe->total_data_placed);
+		break;
+	case IOSTAT_NPORT_BSY:
+	case IOSTAT_FABRIC_BSY:
+		cmd->result = DID_TRANSPORT_DISRUPTED << 16;
+		fast_path_evt = lpfc_alloc_fast_evt(phba);
+		if (!fast_path_evt)
+			break;
+		fast_path_evt->un.fabric_evt.event_type =
+			FC_REG_FABRIC_EVENT;
+		fast_path_evt->un.fabric_evt.subcategory =
+			(lpfc_cmd->status == IOSTAT_NPORT_BSY) ?
+			LPFC_EVENT_PORT_BUSY : LPFC_EVENT_FABRIC_BUSY;
+		if (ndlp) {
+			memcpy(&fast_path_evt->un.fabric_evt.wwpn,
+			       &ndlp->nlp_portname,
+				sizeof(struct lpfc_name));
+			memcpy(&fast_path_evt->un.fabric_evt.wwnn,
+			       &ndlp->nlp_nodename,
+				sizeof(struct lpfc_name));
+		}
+		fast_path_evt->vport = vport;
+		fast_path_evt->work_evt.evt =
+			LPFC_EVT_FASTPATH_MGMT_EVT;
+		spin_lock_irqsave(&phba->hbalock, flags);
+		list_add_tail(&fast_path_evt->work_evt.evt_listp,
+			      &phba->work_list);
+		spin_unlock_irqrestore(&phba->hbalock, flags);
+		lpfc_worker_wake_up(phba);
+		lpfc_printf_vlog(vport, KERN_WARNING, logit,
+				 "9035 Fabric/Node busy FCP cmd x%x failed"
+				 " <%d/%lld> "
+				 "status: x%x result: x%x "
+				 "sid: x%x did: x%x oxid: x%x "
+				 "Data: x%x x%x x%x\n",
+				 cmd->cmnd[0],
+				 cmd->device ? cmd->device->id : 0xffff,
+				 cmd->device ? cmd->device->lun : 0xffff,
+				 lpfc_cmd->status, lpfc_cmd->result,
+				 vport->fc_myDID,
+				 (ndlp) ? ndlp->nlp_DID : 0,
+				 lpfc_cmd->cur_iocbq.sli4_xritag,
+				 wcqe->parameter,
+				 wcqe->total_data_placed,
+				 lpfc_cmd->cur_iocbq.iocb.ulpIoTag);
+		break;
+	case IOSTAT_REMOTE_STOP:
+		if (ndlp) {
+			/* This I/O was aborted by the target, we don't
+			 * know the rxid and because we did not send the
+			 * ABTS we cannot generate and RRQ.
+			 */
+			lpfc_set_rrq_active(phba, ndlp,
+					    lpfc_cmd->cur_iocbq.sli4_lxritag,
+					    0, 0);
+		}
+		fallthrough;
+	case IOSTAT_LOCAL_REJECT:
+		if (lpfc_cmd->result & IOERR_DRVR_MASK)
+			lpfc_cmd->status = IOSTAT_DRIVER_REJECT;
+		if (lpfc_cmd->result == IOERR_ELXSEC_KEY_UNWRAP_ERROR ||
+		    lpfc_cmd->result ==
+		    IOERR_ELXSEC_KEY_UNWRAP_COMPARE_ERROR ||
+		    lpfc_cmd->result == IOERR_ELXSEC_CRYPTO_ERROR ||
+		    lpfc_cmd->result ==
+		    IOERR_ELXSEC_CRYPTO_COMPARE_ERROR) {
+			cmd->result = DID_NO_CONNECT << 16;
+			break;
+		}
+		if (lpfc_cmd->result == IOERR_INVALID_RPI ||
+		    lpfc_cmd->result == IOERR_NO_RESOURCES ||
+		    lpfc_cmd->result == IOERR_ABORT_REQUESTED ||
+		    lpfc_cmd->result == IOERR_SLER_CMD_RCV_FAILURE) {
+			cmd->result = DID_REQUEUE << 16;
+			break;
+		}
+		if ((lpfc_cmd->result == IOERR_RX_DMA_FAILED ||
+		     lpfc_cmd->result == IOERR_TX_DMA_FAILED) &&
+		     status == CQE_STATUS_DI_ERROR) {
+			if (scsi_get_prot_op(cmd) !=
+			    SCSI_PROT_NORMAL) {
+				/*
+				 * This is a response for a BG enabled
+				 * cmd. Parse BG error
+				 */
+				lpfc_sli4_parse_bg_err(phba, lpfc_cmd,
+						       wcqe);
+				break;
+			}
+			lpfc_printf_vlog(vport, KERN_WARNING, LOG_BG,
+				 "9040 non-zero BGSTAT on unprotected cmd\n");
+		}
+		lpfc_printf_vlog(vport, KERN_WARNING, logit,
+				 "9036 Local Reject FCP cmd x%x failed"
+				 " <%d/%lld> "
+				 "status: x%x result: x%x "
+				 "sid: x%x did: x%x oxid: x%x "
+				 "Data: x%x x%x x%x\n",
+				 cmd->cmnd[0],
+				 cmd->device ? cmd->device->id : 0xffff,
+				 cmd->device ? cmd->device->lun : 0xffff,
+				 lpfc_cmd->status, lpfc_cmd->result,
+				 vport->fc_myDID,
+				 (ndlp) ? ndlp->nlp_DID : 0,
+				 lpfc_cmd->cur_iocbq.sli4_xritag,
+				 wcqe->parameter,
+				 wcqe->total_data_placed,
+				 lpfc_cmd->cur_iocbq.iocb.ulpIoTag);
+		fallthrough;
+	default:
+		if (lpfc_cmd->status >= IOSTAT_CNT)
+			lpfc_cmd->status = IOSTAT_DEFAULT;
+		cmd->result = DID_ERROR << 16;
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_IOERR,
+				 "9037 FCP Completion Error: xri %x "
+				 "status x%x result x%x [x%x] "
+				 "placed x%x\n",
+				 lpfc_cmd->cur_iocbq.sli4_xritag,
+				 lpfc_cmd->status, lpfc_cmd->result,
+				 wcqe->parameter,
+				 wcqe->total_data_placed);
+	}
+	if (cmd->result || lpfc_cmd->fcp_rsp->rspSnsLen) {
+		u32 *lp = (u32 *)cmd->sense_buffer;
+
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_FCP,
+				 "9039 Iodone <%d/%llu> cmd x%p, error "
+				 "x%x SNS x%x x%x Data: x%x x%x\n",
+				 cmd->device->id, cmd->device->lun, cmd,
+				 cmd->result, *lp, *(lp + 3), cmd->retries,
+				 scsi_get_resid(cmd));
+	}
+
+	lpfc_update_stats(vport, lpfc_cmd);
+
+	if (vport->cfg_max_scsicmpl_time &&
+	    time_after(jiffies, lpfc_cmd->start_time +
+	    msecs_to_jiffies(vport->cfg_max_scsicmpl_time))) {
+		spin_lock_irqsave(shost->host_lock, flags);
+		if (ndlp) {
+			if (ndlp->cmd_qdepth >
+				atomic_read(&ndlp->cmd_pending) &&
+				(atomic_read(&ndlp->cmd_pending) >
+				LPFC_MIN_TGT_QDEPTH) &&
+				(cmd->cmnd[0] == READ_10 ||
+				cmd->cmnd[0] == WRITE_10))
+				ndlp->cmd_qdepth =
+					atomic_read(&ndlp->cmd_pending);
+
+			ndlp->last_change_time = jiffies;
+		}
+		spin_unlock_irqrestore(shost->host_lock, flags);
+	}
+	lpfc_scsi_unprep_dma_buf(phba, lpfc_cmd);
+
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	if (lpfc_cmd->ts_cmd_start) {
+		lpfc_cmd->ts_isr_cmpl = lpfc_cmd->cur_iocbq.isr_timestamp;
+		lpfc_cmd->ts_data_io = ktime_get_ns();
+		phba->ktime_last_cmd = lpfc_cmd->ts_data_io;
+		lpfc_io_ktime(phba, lpfc_cmd);
+	}
+#endif
+	lpfc_cmd->pCmd = NULL;
+	spin_unlock(&lpfc_cmd->buf_lock);
+
+	/* The sdev is not guaranteed to be valid post scsi_done upcall. */
+	cmd->scsi_done(cmd);
+
+	/*
+	 * If there is an abort thread waiting for command completion
+	 * wake up the thread.
+	 */
+	spin_lock(&lpfc_cmd->buf_lock);
+	lpfc_cmd->cur_iocbq.iocb_flag &= ~LPFC_DRIVER_ABORTED;
+	if (lpfc_cmd->waitq)
+		wake_up(lpfc_cmd->waitq);
+	spin_unlock(&lpfc_cmd->buf_lock);
+
+	lpfc_release_scsi_buf(phba, lpfc_cmd);
 }
 
 /**
@@ -3987,7 +4451,8 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 		switch (lpfc_cmd->status) {
 		case IOSTAT_FCP_RSP_ERROR:
 			/* Call FCP RSP handler to determine result */
-			lpfc_handle_fcp_err(vport, lpfc_cmd, pIocbOut);
+			lpfc_handle_fcp_err(vport, lpfc_cmd,
+					    pIocbOut->iocb.un.fcpi.fcpi_parm);
 			break;
 		case IOSTAT_NPORT_BSY:
 		case IOSTAT_FABRIC_BSY:
@@ -4314,8 +4779,7 @@ static int lpfc_scsi_prep_cmnd_buf_s4(struct lpfc_vport *vport,
 	pwqeq->vport = vport;
 	pwqeq->context1 = lpfc_cmd;
 	pwqeq->hba_wqidx = lpfc_cmd->hdwq_no;
-	if (!pwqeq->iocb_cmpl)
-		pwqeq->iocb_cmpl = lpfc_scsi_cmd_iocb_cmpl;
+	pwqeq->wqe_cmpl = lpfc_fcp_io_cmd_wqe_cmpl;
 
 	return 0;
 }
