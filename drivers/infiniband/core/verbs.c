@@ -516,7 +516,7 @@ static struct ib_ah *_rdma_create_ah(struct ib_pd *pd,
 
 	might_sleep_if(flags & RDMA_CREATE_AH_SLEEPABLE);
 
-	if (!device->ops.create_ah)
+	if (!udata && !device->ops.create_ah)
 		return ERR_PTR(-EOPNOTSUPP);
 
 	ah = rdma_zalloc_drv_obj_gfp(

@@ -245,7 +245,6 @@ static const struct ib_device_ops efa_dev_ops = {
 	.alloc_hw_stats = efa_alloc_hw_stats,
 	.alloc_pd = efa_alloc_pd,
 	.alloc_ucontext = efa_alloc_ucontext,
-	.create_ah = efa_create_ah,
 	.create_cq = efa_create_cq,
 	.create_qp = efa_create_qp,
 	.create_user_ah = efa_create_ah,
