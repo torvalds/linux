@@ -34,6 +34,7 @@
 /* Forward declarations */
 static const struct kvaser_usb_dev_cfg kvaser_usb_hydra_dev_cfg_kcan;
 static const struct kvaser_usb_dev_cfg kvaser_usb_hydra_dev_cfg_flexc;
+static const struct kvaser_usb_dev_cfg kvaser_usb_hydra_dev_cfg_rt;
 
 #define KVASER_USB_HYDRA_BULK_EP_IN_ADDR	0x82
 #define KVASER_USB_HYDRA_BULK_EP_OUT_ADDR	0x02
@@ -135,6 +136,7 @@ struct kvaser_cmd_sw_detail_req {
 #define KVASER_USB_HYDRA_SW_FLAG_CANFD		BIT(10)
 #define KVASER_USB_HYDRA_SW_FLAG_NONISO		BIT(11)
 #define KVASER_USB_HYDRA_SW_FLAG_EXT_CAP	BIT(12)
+#define KVASER_USB_HYDRA_SW_FLAG_CAN_FREQ_80M	BIT(13)
 struct kvaser_cmd_sw_detail_res {
 	__le32 sw_flags;
 	__le32 sw_version;
@@ -380,6 +382,30 @@ static const struct can_bittiming_const kvaser_usb_hydra_flexc_bittiming_c = {
 	.sjw_max = 4,
 	.brp_min = 1,
 	.brp_max = 256,
+	.brp_inc = 1,
+};
+
+static const struct can_bittiming_const kvaser_usb_hydra_rt_bittiming_c = {
+	.name = "kvaser_usb_rt",
+	.tseg1_min = 2,
+	.tseg1_max = 96,
+	.tseg2_min = 2,
+	.tseg2_max = 32,
+	.sjw_max = 32,
+	.brp_min = 1,
+	.brp_max = 1024,
+	.brp_inc = 1,
+};
+
+static const struct can_bittiming_const kvaser_usb_hydra_rtd_bittiming_c = {
+	.name = "kvaser_usb_rt",
+	.tseg1_min = 2,
+	.tseg1_max = 39,
+	.tseg2_min = 2,
+	.tseg2_max = 8,
+	.sjw_max = 8,
+	.brp_min = 1,
+	.brp_max = 1024,
 	.brp_inc = 1,
 };
 
@@ -1727,6 +1753,8 @@ static int kvaser_usb_hydra_get_software_details(struct kvaser_usb *dev)
 
 	if (flags &  KVASER_USB_HYDRA_SW_FLAG_FREQ_80M)
 		dev->cfg = &kvaser_usb_hydra_dev_cfg_kcan;
+	else if (flags & KVASER_USB_HYDRA_SW_FLAG_CAN_FREQ_80M)
+		dev->cfg = &kvaser_usb_hydra_dev_cfg_rt;
 	else
 		dev->cfg = &kvaser_usb_hydra_dev_cfg_flexc;
 
@@ -2025,4 +2053,13 @@ static const struct kvaser_usb_dev_cfg kvaser_usb_hydra_dev_cfg_flexc = {
 	},
 	.timestamp_freq = 1,
 	.bittiming_const = &kvaser_usb_hydra_flexc_bittiming_c,
+};
+
+static const struct kvaser_usb_dev_cfg kvaser_usb_hydra_dev_cfg_rt = {
+	.clock = {
+		.freq = 80000000,
+	},
+	.timestamp_freq = 24,
+	.bittiming_const = &kvaser_usb_hydra_rt_bittiming_c,
+	.data_bittiming_const = &kvaser_usb_hydra_rtd_bittiming_c,
 };
