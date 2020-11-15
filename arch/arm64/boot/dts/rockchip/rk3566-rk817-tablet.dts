@@ -185,7 +185,7 @@
 
 &dsi0 {
 	status = "okay";
-	rockchip,lane-rate = <1050>;
+	rockchip,lane-rate = <1000>;
 	panel@0 {
 		compatible = "aoly,sl008pa21y1285-b00", "simple-panel-dsi";
 		reg = <0>;
