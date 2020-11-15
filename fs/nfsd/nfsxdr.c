@@ -201,64 +201,6 @@ svcxdr_decode_sattr(struct svc_rqst *rqstp, struct xdr_stream *xdr,
 	return true;
 }
 
-static __be32 *
-encode_fattr(struct svc_rqst *rqstp, __be32 *p, struct svc_fh *fhp,
-	     struct kstat *stat)
-{
-	struct user_namespace *userns = nfsd_user_namespace(rqstp);
-	struct dentry	*dentry = fhp->fh_dentry;
-	int type;
-	struct timespec64 time;
-	u32 f;
-
-	type = (stat->mode & S_IFMT);
-
-	*p++ = htonl(nfs_ftypes[type >> 12]);
-	*p++ = htonl((u32) stat->mode);
-	*p++ = htonl((u32) stat->nlink);
-	*p++ = htonl((u32) from_kuid_munged(userns, stat->uid));
-	*p++ = htonl((u32) from_kgid_munged(userns, stat->gid));
-
-	if (S_ISLNK(type) && stat->size > NFS_MAXPATHLEN) {
-		*p++ = htonl(NFS_MAXPATHLEN);
-	} else {
-		*p++ = htonl((u32) stat->size);
-	}
-	*p++ = htonl((u32) stat->blksize);
-	if (S_ISCHR(type) || S_ISBLK(type))
-		*p++ = htonl(new_encode_dev(stat->rdev));
-	else
-		*p++ = htonl(0xffffffff);
-	*p++ = htonl((u32) stat->blocks);
-	switch (fsid_source(fhp)) {
-	default:
-	case FSIDSOURCE_DEV:
-		*p++ = htonl(new_encode_dev(stat->dev));
-		break;
-	case FSIDSOURCE_FSID:
-		*p++ = htonl((u32) fhp->fh_export->ex_fsid);
-		break;
-	case FSIDSOURCE_UUID:
-		f = ((u32*)fhp->fh_export->ex_uuid)[0];
-		f ^= ((u32*)fhp->fh_export->ex_uuid)[1];
-		f ^= ((u32*)fhp->fh_export->ex_uuid)[2];
-		f ^= ((u32*)fhp->fh_export->ex_uuid)[3];
-		*p++ = htonl(f);
-		break;
-	}
-	*p++ = htonl((u32) stat->ino);
-	*p++ = htonl((u32) stat->atime.tv_sec);
-	*p++ = htonl(stat->atime.tv_nsec ? stat->atime.tv_nsec / 1000 : 0);
-	time = stat->mtime;
-	lease_get_mtime(d_inode(dentry), &time); 
-	*p++ = htonl((u32) time.tv_sec);
-	*p++ = htonl(time.tv_nsec ? time.tv_nsec / 1000 : 0); 
-	*p++ = htonl((u32) stat->ctime.tv_sec);
-	*p++ = htonl(stat->ctime.tv_nsec ? stat->ctime.tv_nsec / 1000 : 0);
-
-	return p;
-}
-
 /**
  * svcxdr_encode_fattr - Encode NFSv2 file attributes
  * @rqstp: Context of a completed RPC transaction
@@ -326,12 +268,6 @@ svcxdr_encode_fattr(struct svc_rqst *rqstp, struct xdr_stream *xdr,
 	encode_timeval(p, &stat->ctime);
 
 	return true;
-}
-
-/* Helper function for NFSv2 ACL code */
-__be32 *nfs2svc_encode_fattr(struct svc_rqst *rqstp, __be32 *p, struct svc_fh *fhp, struct kstat *stat)
-{
-	return encode_fattr(rqstp, p, fhp, stat);
 }
 
 /*
