@@ -4557,6 +4557,12 @@
 	refscale.verbose= [KNL]
 			Enable additional printk() statements.
 
+	refscale.verbose_batched= [KNL]
+			Batch the additional printk() statements.  If zero
+			(the default) or negative, print everything.  Otherwise,
+			print every Nth verbose statement, where N is the value
+			specified.
+
 	relax_domain_level=
 			[KNL, SMP] Set scheduler's default relax_domain_level.
 			See Documentation/admin-guide/cgroup-v1/cpusets.rst.
