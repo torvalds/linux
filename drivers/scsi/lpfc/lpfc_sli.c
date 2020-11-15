@@ -10251,7 +10251,7 @@ __lpfc_sli_issue_fcp_io_s3(struct lpfc_hba *phba, uint32_t ring_number,
 	int rc;
 
 	spin_lock_irqsave(&phba->hbalock, iflags);
-	rc = __lpfc_sli_issue_iocb(phba, ring_number, piocb, flag);
+	rc = __lpfc_sli_issue_iocb_s3(phba, ring_number, piocb, flag);
 	spin_unlock_irqrestore(&phba->hbalock, iflags);
 
 	return rc;
@@ -10275,22 +10275,47 @@ static int
 __lpfc_sli_issue_fcp_io_s4(struct lpfc_hba *phba, uint32_t ring_number,
 			   struct lpfc_iocbq *piocb, uint32_t flag)
 {
-	struct lpfc_sli_ring *pring;
-	struct lpfc_queue *eq;
-	unsigned long iflags;
 	int rc;
+	struct lpfc_io_buf *lpfc_cmd =
+		(struct lpfc_io_buf *)piocb->context1;
+	union lpfc_wqe128 *wqe = &piocb->wqe;
+	struct sli4_sge *sgl;
 
-	eq = phba->sli4_hba.hdwq[piocb->hba_wqidx].hba_eq;
+	/* 128 byte wqe support here */
+	sgl = (struct sli4_sge *)lpfc_cmd->dma_sgl;
 
-	pring = lpfc_sli4_calc_ring(phba, piocb);
-	if (unlikely(pring == NULL))
-		return IOCB_ERROR;
+	if (phba->fcp_embed_io) {
+		struct fcp_cmnd *fcp_cmnd;
+		u32 *ptr;
 
-	spin_lock_irqsave(&pring->ring_lock, iflags);
-	rc = __lpfc_sli_issue_iocb(phba, ring_number, piocb, flag);
-	spin_unlock_irqrestore(&pring->ring_lock, iflags);
+		fcp_cmnd = lpfc_cmd->fcp_cmnd;
 
-	lpfc_sli4_poll_eq(eq, LPFC_POLL_FASTPATH);
+		/* Word 0-2 - FCP_CMND */
+		wqe->generic.bde.tus.f.bdeFlags =
+			BUFF_TYPE_BDE_IMMED;
+		wqe->generic.bde.tus.f.bdeSize = sgl->sge_len;
+		wqe->generic.bde.addrHigh = 0;
+		wqe->generic.bde.addrLow =  88;  /* Word 22 */
+
+		bf_set(wqe_wqes, &wqe->fcp_iwrite.wqe_com, 1);
+		bf_set(wqe_dbde, &wqe->fcp_iwrite.wqe_com, 0);
+
+		/* Word 22-29  FCP CMND Payload */
+		ptr = &wqe->words[22];
+		memcpy(ptr, fcp_cmnd, sizeof(struct fcp_cmnd));
+	} else {
+		/* Word 0-2 - Inline BDE */
+		wqe->generic.bde.tus.f.bdeFlags =  BUFF_TYPE_BDE_64;
+		wqe->generic.bde.tus.f.bdeSize = sizeof(struct fcp_cmnd);
+		wqe->generic.bde.addrHigh = sgl->addr_hi;
+		wqe->generic.bde.addrLow =  sgl->addr_lo;
+
+		/* Word 10 */
+		bf_set(wqe_dbde, &wqe->generic.wqe_com, 1);
+		bf_set(wqe_wqes, &wqe->generic.wqe_com, 0);
+	}
+
+	rc = lpfc_sli4_issue_wqe(phba, lpfc_cmd->hdwq, piocb);
 	return rc;
 }
 
@@ -10360,9 +10385,10 @@ __lpfc_sli_issue_iocb_s4(struct lpfc_hba *phba, uint32_t ring_number,
 				}
 			}
 		}
-	} else if (piocb->iocb_flag &  LPFC_IO_FCP)
+	} else if (piocb->iocb_flag &  LPFC_IO_FCP) {
 		/* These IO's already have an XRI and a mapped sgl. */
 		sglq = NULL;
+	}
 	else {
 		/*
 		 * This is a continuation of a commandi,(CX) so this
@@ -20468,7 +20494,8 @@ lpfc_sli4_issue_wqe(struct lpfc_hba *phba, struct lpfc_sli4_hdw_queue *qp,
 	}
 
 	/* NVME_FCREQ and NVME_ABTS requests */
-	if (pwqe->iocb_flag & LPFC_IO_NVME) {
+	if (pwqe->iocb_flag & LPFC_IO_NVME ||
+	    pwqe->iocb_flag & LPFC_IO_FCP) {
 		/* Get the IO distribution (hba_wqidx) for WQ assignment. */
 		wq = qp->io_wq;
 		pring = wq->pring;

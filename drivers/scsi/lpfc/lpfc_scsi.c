@@ -638,7 +638,6 @@ lpfc_get_scsi_buf_s4(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 	struct lpfc_io_buf *lpfc_cmd;
 	struct lpfc_sli4_hdw_queue *qp;
 	struct sli4_sge *sgl;
-	IOCB_t *iocb;
 	dma_addr_t pdma_phys_fcp_rsp;
 	dma_addr_t pdma_phys_fcp_cmd;
 	uint32_t cpu, idx;
@@ -707,24 +706,6 @@ lpfc_get_scsi_buf_s4(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 	bf_set(lpfc_sli4_sge_last, sgl, 1);
 	sgl->word2 = cpu_to_le32(sgl->word2);
 	sgl->sge_len = cpu_to_le32(sizeof(struct fcp_rsp));
-
-	/*
-	 * Since the IOCB for the FCP I/O is built into this
-	 * lpfc_io_buf, initialize it with all known data now.
-	 */
-	iocb = &lpfc_cmd->cur_iocbq.iocb;
-	iocb->un.fcpi64.bdl.ulpIoTag32 = 0;
-	iocb->un.fcpi64.bdl.bdeFlags = BUFF_TYPE_BDE_64;
-	/* setting the BLP size to 2 * sizeof BDE may not be correct.
-	 * We are setting the bpl to point to out sgl. An sgl's
-	 * entries are 16 bytes, a bpl entries are 12 bytes.
-	 */
-	iocb->un.fcpi64.bdl.bdeSize = sizeof(struct fcp_cmnd);
-	iocb->un.fcpi64.bdl.addrLow = putPaddrLow(pdma_phys_fcp_cmd);
-	iocb->un.fcpi64.bdl.addrHigh = putPaddrHigh(pdma_phys_fcp_cmd);
-	iocb->ulpBdeCount = 1;
-	iocb->ulpLe = 1;
-	iocb->ulpClass = CLASS3;
 
 	if (lpfc_ndlp_check_qdepth(phba, ndlp)) {
 		atomic_inc(&ndlp->cmd_pending);
@@ -822,6 +803,25 @@ lpfc_release_scsi_buf(struct lpfc_hba *phba, struct lpfc_io_buf *psb)
 
 	psb->flags &= ~LPFC_SBUF_BUMP_QDEPTH;
 	phba->lpfc_release_scsi_buf(phba, psb);
+}
+
+/**
+ * lpfc_fcpcmd_to_iocb - copy the fcp_cmd data into the IOCB
+ * @data: A pointer to the immediate command data portion of the IOCB.
+ * @fcp_cmnd: The FCP Command that is provided by the SCSI layer.
+ *
+ * The routine copies the entire FCP command from @fcp_cmnd to @data while
+ * byte swapping the data to big endian format for transmission on the wire.
+ **/
+static void
+lpfc_fcpcmd_to_iocb(u8 *data, struct fcp_cmnd *fcp_cmnd)
+{
+	int i, j;
+
+	for (i = 0, j = 0; i < sizeof(struct fcp_cmnd);
+	     i += sizeof(uint32_t), j++) {
+		((uint32_t *)data)[j] = cpu_to_be32(((uint32_t *)fcp_cmnd)[j]);
+	}
 }
 
 /**
@@ -960,6 +960,7 @@ lpfc_scsi_prep_dma_buf_s3(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_cmd)
 	 * we need to set word 4 of IOCB here
 	 */
 	iocb_cmd->un.fcpi.fcpi_parm = scsi_bufflen(scsi_cmnd);
+	lpfc_fcpcmd_to_iocb(iocb_cmd->unsli3.fcp_ext.icd, fcp_cmnd);
 	return 0;
 }
 
@@ -3059,7 +3060,9 @@ lpfc_scsi_prep_dma_buf_s4(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_cmd)
 	struct fcp_cmnd *fcp_cmnd = lpfc_cmd->fcp_cmnd;
 	struct sli4_sge *sgl = (struct sli4_sge *)lpfc_cmd->dma_sgl;
 	struct sli4_sge *first_data_sgl;
-	IOCB_t *iocb_cmd = &lpfc_cmd->cur_iocbq.iocb;
+	struct lpfc_iocbq *pwqeq = &lpfc_cmd->cur_iocbq;
+	struct lpfc_vport *vport = phba->pport;
+	union lpfc_wqe128 *wqe = &pwqeq->wqe;
 	dma_addr_t physaddr;
 	uint32_t num_bde = 0;
 	uint32_t dma_len;
@@ -3200,13 +3203,16 @@ lpfc_scsi_prep_dma_buf_s4(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_cmd)
 		if ((phba->sli3_options & LPFC_SLI4_PERFH_ENABLED) ||
 		    phba->cfg_enable_pbde) {
 			bde = (struct ulp_bde64 *)
-				&(iocb_cmd->unsli3.sli3Words[5]);
+				&wqe->words[13];
 			bde->addrLow = first_data_sgl->addr_lo;
 			bde->addrHigh = first_data_sgl->addr_hi;
 			bde->tus.f.bdeSize =
 					le32_to_cpu(first_data_sgl->sge_len);
 			bde->tus.f.bdeFlags = BUFF_TYPE_BDE_64;
 			bde->tus.w = cpu_to_le32(bde->tus.w);
+
+		} else {
+			memset(&wqe->words[13], 0, (sizeof(uint32_t) * 3));
 		}
 	} else {
 		sgl += 1;
@@ -3218,10 +3224,14 @@ lpfc_scsi_prep_dma_buf_s4(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_cmd)
 		if ((phba->sli3_options & LPFC_SLI4_PERFH_ENABLED) ||
 		    phba->cfg_enable_pbde) {
 			bde = (struct ulp_bde64 *)
-				&(iocb_cmd->unsli3.sli3Words[5]);
+				&wqe->words[13];
 			memset(bde, 0, (sizeof(uint32_t) * 3));
 		}
 	}
+
+	/* Word 11 */
+	if (phba->cfg_enable_pbde)
+		bf_set(wqe_pbde, &wqe->generic.wqe_com, 1);
 
 	/*
 	 * Finish initializing those IOCB fields that are dependent on the
@@ -3230,12 +3240,23 @@ lpfc_scsi_prep_dma_buf_s4(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_cmd)
 	 * all iocb memory resources are reused.
 	 */
 	fcp_cmnd->fcpDl = cpu_to_be32(scsi_bufflen(scsi_cmnd));
+	/* Set first-burst provided it was successfully negotiated */
+	if (!(phba->hba_flag & HBA_FCOE_MODE) &&
+	    vport->cfg_first_burst_size &&
+	    scsi_cmnd->sc_data_direction == DMA_TO_DEVICE) {
+		u32 init_len, total_len;
 
-	/*
-	 * Due to difference in data length between DIF/non-DIF paths,
-	 * we need to set word 4 of IOCB here
-	 */
-	iocb_cmd->un.fcpi.fcpi_parm = scsi_bufflen(scsi_cmnd);
+		total_len = be32_to_cpu(fcp_cmnd->fcpDl);
+		init_len = min(total_len, vport->cfg_first_burst_size);
+
+		/* Word 4 & 5 */
+		wqe->fcp_iwrite.initial_xfer_len = init_len;
+		wqe->fcp_iwrite.total_xfer_len = total_len;
+	} else {
+		/* Word 4 */
+		wqe->fcp_iwrite.total_xfer_len =
+			be32_to_cpu(fcp_cmnd->fcpDl);
+	}
 
 	/*
 	 * If the OAS driver feature is enabled and the lun is enabled for
@@ -3246,6 +3267,17 @@ lpfc_scsi_prep_dma_buf_s4(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_cmd)
 		lpfc_cmd->cur_iocbq.iocb_flag |= (LPFC_IO_OAS | LPFC_IO_FOF);
 		lpfc_cmd->cur_iocbq.priority = ((struct lpfc_device_data *)
 			scsi_cmnd->device->hostdata)->priority;
+
+		/* Word 10 */
+		bf_set(wqe_oas, &wqe->generic.wqe_com, 1);
+		bf_set(wqe_ccpe, &wqe->generic.wqe_com, 1);
+
+		if (lpfc_cmd->cur_iocbq.priority)
+			bf_set(wqe_ccp, &wqe->generic.wqe_com,
+			       (lpfc_cmd->cur_iocbq.priority << 1));
+		else
+			bf_set(wqe_ccp, &wqe->generic.wqe_com,
+			       (phba->cfg_XLanePriority << 1));
 	}
 
 	return 0;
@@ -3271,7 +3303,8 @@ lpfc_bg_scsi_prep_dma_buf_s4(struct lpfc_hba *phba,
 	struct scsi_cmnd *scsi_cmnd = lpfc_cmd->pCmd;
 	struct fcp_cmnd *fcp_cmnd = lpfc_cmd->fcp_cmnd;
 	struct sli4_sge *sgl = (struct sli4_sge *)(lpfc_cmd->dma_sgl);
-	IOCB_t *iocb_cmd = &lpfc_cmd->cur_iocbq.iocb;
+	struct lpfc_iocbq *pwqeq = &lpfc_cmd->cur_iocbq;
+	union lpfc_wqe128 *wqe = &pwqeq->wqe;
 	uint32_t num_sge = 0;
 	int datasegcnt, protsegcnt, datadir = scsi_cmnd->sc_data_direction;
 	int prot_group_type = 0;
@@ -3403,27 +3436,49 @@ lpfc_bg_scsi_prep_dma_buf_s4(struct lpfc_hba *phba,
 	fcpdl = lpfc_bg_scsi_adjust_dl(phba, lpfc_cmd);
 	fcp_cmnd->fcpDl = be32_to_cpu(fcpdl);
 
-	/*
-	 * Due to difference in data length between DIF/non-DIF paths,
-	 * we need to set word 4 of IOCB here
-	 */
-	iocb_cmd->un.fcpi.fcpi_parm = fcpdl;
+	/* Set first-burst provided it was successfully negotiated */
+	if (!(phba->hba_flag & HBA_FCOE_MODE) &&
+	    vport->cfg_first_burst_size &&
+	    scsi_cmnd->sc_data_direction == DMA_TO_DEVICE) {
+		u32 init_len, total_len;
 
-	/*
-	 * For First burst, we may need to adjust the initial transfer
-	 * length for DIF
-	 */
-	if (iocb_cmd->un.fcpi.fcpi_XRdy &&
-	    (fcpdl < vport->cfg_first_burst_size))
-		iocb_cmd->un.fcpi.fcpi_XRdy = fcpdl;
+		total_len = be32_to_cpu(fcp_cmnd->fcpDl);
+		init_len = min(total_len, vport->cfg_first_burst_size);
+
+		/* Word 4 & 5 */
+		wqe->fcp_iwrite.initial_xfer_len = init_len;
+		wqe->fcp_iwrite.total_xfer_len = total_len;
+	} else {
+		/* Word 4 */
+		wqe->fcp_iwrite.total_xfer_len =
+			be32_to_cpu(fcp_cmnd->fcpDl);
+	}
 
 	/*
 	 * If the OAS driver feature is enabled and the lun is enabled for
 	 * OAS, set the oas iocb related flags.
 	 */
 	if ((phba->cfg_fof) && ((struct lpfc_device_data *)
-		scsi_cmnd->device->hostdata)->oas_enabled)
+		scsi_cmnd->device->hostdata)->oas_enabled) {
 		lpfc_cmd->cur_iocbq.iocb_flag |= (LPFC_IO_OAS | LPFC_IO_FOF);
+
+		/* Word 10 */
+		bf_set(wqe_oas, &wqe->generic.wqe_com, 1);
+		bf_set(wqe_ccpe, &wqe->generic.wqe_com, 1);
+		bf_set(wqe_ccp, &wqe->generic.wqe_com,
+		       (phba->cfg_XLanePriority << 1));
+	}
+
+	/* Word 7. DIF Flags */
+	if (lpfc_cmd->cur_iocbq.iocb_flag & LPFC_IO_DIF_PASS)
+		bf_set(wqe_dif, &wqe->generic.wqe_com, LPFC_WQE_DIF_PASSTHRU);
+	else if (lpfc_cmd->cur_iocbq.iocb_flag & LPFC_IO_DIF_STRIP)
+		bf_set(wqe_dif, &wqe->generic.wqe_com, LPFC_WQE_DIF_STRIP);
+	else if (lpfc_cmd->cur_iocbq.iocb_flag & LPFC_IO_DIF_INSERT)
+		bf_set(wqe_dif, &wqe->generic.wqe_com, LPFC_WQE_DIF_INSERT);
+
+	lpfc_cmd->cur_iocbq.iocb_flag &= ~(LPFC_IO_DIF_PASS |
+				 LPFC_IO_DIF_STRIP | LPFC_IO_DIF_INSERT);
 
 	return 0;
 err:
@@ -3481,6 +3536,26 @@ static inline int
 lpfc_bg_scsi_prep_dma_buf(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_cmd)
 {
 	return phba->lpfc_bg_scsi_prep_dma_buf(phba, lpfc_cmd);
+}
+
+/**
+ * lpfc_scsi_prep_cmnd_buf - Wrapper function for IOCB/WQE mapping of scsi
+ * buffer
+ * @phba: The Hba for which this call is being executed.
+ * @lpfc_cmd: The scsi buffer which is going to be mapped.
+ * @tmo: Timeout value for IO
+ *
+ * This routine initializes IOCB/WQE data structure from scsi command
+ *
+ * Return codes:
+ *	1 - Error
+ *	0 - Success
+ **/
+static inline int
+lpfc_scsi_prep_cmnd_buf(struct lpfc_vport *vport, struct lpfc_io_buf *lpfc_cmd,
+			uint8_t tmo)
+{
+	return vport->phba->lpfc_scsi_prep_cmnd_buf(vport, lpfc_cmd, tmo);
 }
 
 /**
@@ -4061,72 +4136,30 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 }
 
 /**
- * lpfc_fcpcmd_to_iocb - copy the fcp_cmd data into the IOCB
- * @data: A pointer to the immediate command data portion of the IOCB.
- * @fcp_cmnd: The FCP Command that is provided by the SCSI layer.
+ * lpfc_scsi_prep_cmnd_buf_s3 - SLI-3 IOCB init for the IO
+ * @phba: Pointer to vport object for which I/O is executed
+ * @lpfc_cmd: The scsi buffer which is going to be prep'ed.
+ * @tmo: timeout value for the IO
  *
- * The routine copies the entire FCP command from @fcp_cmnd to @data while
- * byte swapping the data to big endian format for transmission on the wire.
- **/
-static void
-lpfc_fcpcmd_to_iocb(uint8_t *data, struct fcp_cmnd *fcp_cmnd)
-{
-	int i, j;
-	for (i = 0, j = 0; i < sizeof(struct fcp_cmnd);
-	     i += sizeof(uint32_t), j++) {
-		((uint32_t *)data)[j] = cpu_to_be32(((uint32_t *)fcp_cmnd)[j]);
-	}
-}
-
-/**
- * lpfc_scsi_prep_cmnd - Wrapper func for convert scsi cmnd to FCP info unit
- * @vport: The virtual port for which this call is being executed.
- * @lpfc_cmd: The scsi command which needs to send.
- * @pnode: Pointer to lpfc_nodelist.
+ * Based on the data-direction of the command, initialize IOCB
+ * in the I/O buffer. Fill in the IOCB fields which are independent
+ * of the scsi buffer
  *
- * This routine initializes fcp_cmnd and iocb data structure from scsi command
- * to transfer for device with SLI3 interface spec.
+ * RETURNS 0 - SUCCESS,
  **/
-static void
-lpfc_scsi_prep_cmnd(struct lpfc_vport *vport, struct lpfc_io_buf *lpfc_cmd,
-		    struct lpfc_nodelist *pnode)
+static int lpfc_scsi_prep_cmnd_buf_s3(struct lpfc_vport *vport,
+				      struct lpfc_io_buf *lpfc_cmd,
+				      uint8_t tmo)
 {
-	struct lpfc_hba *phba = vport->phba;
+	IOCB_t *iocb_cmd = &lpfc_cmd->cur_iocbq.iocb;
+	struct lpfc_iocbq *piocbq = &lpfc_cmd->cur_iocbq;
 	struct scsi_cmnd *scsi_cmnd = lpfc_cmd->pCmd;
 	struct fcp_cmnd *fcp_cmnd = lpfc_cmd->fcp_cmnd;
-	IOCB_t *iocb_cmd = &lpfc_cmd->cur_iocbq.iocb;
-	struct lpfc_iocbq *piocbq = &(lpfc_cmd->cur_iocbq);
-	struct lpfc_sli4_hdw_queue *hdwq = NULL;
+	struct lpfc_nodelist *pnode = lpfc_cmd->ndlp;
 	int datadir = scsi_cmnd->sc_data_direction;
-	int idx;
-	uint8_t *ptr;
-	bool sli4;
-	uint32_t fcpdl;
+	u32 fcpdl;
 
-	if (!pnode)
-		return;
-
-	lpfc_cmd->fcp_rsp->rspSnsLen = 0;
-	/* clear task management bits */
-	lpfc_cmd->fcp_cmnd->fcpCntl2 = 0;
-
-	int_to_scsilun(lpfc_cmd->pCmd->device->lun,
-			&lpfc_cmd->fcp_cmnd->fcp_lun);
-
-	ptr = &fcp_cmnd->fcpCdb[0];
-	memcpy(ptr, scsi_cmnd->cmnd, scsi_cmnd->cmd_len);
-	if (scsi_cmnd->cmd_len < LPFC_FCP_CDB_LEN) {
-		ptr += scsi_cmnd->cmd_len;
-		memset(ptr, 0, (LPFC_FCP_CDB_LEN - scsi_cmnd->cmd_len));
-	}
-
-	fcp_cmnd->fcpCntl1 = SIMPLE_Q;
-
-	sli4 = (phba->sli_rev == LPFC_SLI_REV4);
 	piocbq->iocb.un.fcpi.fcpi_XRdy = 0;
-	idx = lpfc_cmd->hdwq_no;
-	if (phba->sli4_hba.hdwq)
-		hdwq = &phba->sli4_hba.hdwq[idx];
 
 	/*
 	 * There are three possibilities here - use scatter-gather segment, use
@@ -4140,42 +4173,31 @@ lpfc_scsi_prep_cmnd(struct lpfc_vport *vport, struct lpfc_io_buf *lpfc_cmd,
 			iocb_cmd->ulpPU = PARM_READ_CHECK;
 			if (vport->cfg_first_burst_size &&
 			    (pnode->nlp_flag & NLP_FIRSTBURST)) {
+				u32 xrdy_len;
+
 				fcpdl = scsi_bufflen(scsi_cmnd);
-				if (fcpdl < vport->cfg_first_burst_size)
-					piocbq->iocb.un.fcpi.fcpi_XRdy = fcpdl;
-				else
-					piocbq->iocb.un.fcpi.fcpi_XRdy =
-						vport->cfg_first_burst_size;
+				xrdy_len = min(fcpdl,
+					       vport->cfg_first_burst_size);
+				piocbq->iocb.un.fcpi.fcpi_XRdy = xrdy_len;
 			}
 			fcp_cmnd->fcpCntl3 = WRITE_DATA;
-			if (hdwq)
-				hdwq->scsi_cstat.output_requests++;
 		} else {
 			iocb_cmd->ulpCommand = CMD_FCP_IREAD64_CR;
 			iocb_cmd->ulpPU = PARM_READ_CHECK;
 			fcp_cmnd->fcpCntl3 = READ_DATA;
-			if (hdwq)
-				hdwq->scsi_cstat.input_requests++;
 		}
 	} else {
 		iocb_cmd->ulpCommand = CMD_FCP_ICMND64_CR;
 		iocb_cmd->un.fcpi.fcpi_parm = 0;
 		iocb_cmd->ulpPU = 0;
 		fcp_cmnd->fcpCntl3 = 0;
-		if (hdwq)
-			hdwq->scsi_cstat.control_requests++;
 	}
-	if (phba->sli_rev == 3 &&
-	    !(phba->sli3_options & LPFC_SLI3_BG_ENABLED))
-		lpfc_fcpcmd_to_iocb(iocb_cmd->unsli3.fcp_ext.icd, fcp_cmnd);
+
 	/*
 	 * Finish initializing those IOCB fields that are independent
 	 * of the scsi_cmnd request_buffer
 	 */
 	piocbq->iocb.ulpContext = pnode->nlp_rpi;
-	if (sli4)
-		piocbq->iocb.ulpContext =
-		  phba->sli4_hba.rpi_ids[pnode->nlp_rpi];
 	if (pnode->nlp_fcp_info & NLP_FCP_2_DEVICE)
 		piocbq->iocb.ulpFCP2Rcvy = 1;
 	else
@@ -4183,9 +4205,160 @@ lpfc_scsi_prep_cmnd(struct lpfc_vport *vport, struct lpfc_io_buf *lpfc_cmd,
 
 	piocbq->iocb.ulpClass = (pnode->nlp_fcp_info & 0x0f);
 	piocbq->context1  = lpfc_cmd;
-	piocbq->iocb_cmpl = lpfc_scsi_cmd_iocb_cmpl;
-	piocbq->iocb.ulpTimeout = lpfc_cmd->timeout;
+	if (!piocbq->iocb_cmpl)
+		piocbq->iocb_cmpl = lpfc_scsi_cmd_iocb_cmpl;
+	piocbq->iocb.ulpTimeout = tmo;
 	piocbq->vport = vport;
+	return 0;
+}
+
+/**
+ * lpfc_scsi_prep_cmnd_buf_s4 - SLI-4 WQE init for the IO
+ * @phba: Pointer to vport object for which I/O is executed
+ * @lpfc_cmd: The scsi buffer which is going to be prep'ed.
+ * @tmo: timeout value for the IO
+ *
+ * Based on the data-direction of the command copy WQE template
+ * to I/O buffer WQE. Fill in the WQE fields which are independent
+ * of the scsi buffer
+ *
+ * RETURNS 0 - SUCCESS,
+ **/
+static int lpfc_scsi_prep_cmnd_buf_s4(struct lpfc_vport *vport,
+				      struct lpfc_io_buf *lpfc_cmd,
+				      uint8_t tmo)
+{
+	struct lpfc_hba *phba = vport->phba;
+	struct scsi_cmnd *scsi_cmnd = lpfc_cmd->pCmd;
+	struct fcp_cmnd *fcp_cmnd = lpfc_cmd->fcp_cmnd;
+	struct lpfc_sli4_hdw_queue *hdwq = NULL;
+	struct lpfc_iocbq *pwqeq = &lpfc_cmd->cur_iocbq;
+	struct lpfc_nodelist *pnode = lpfc_cmd->ndlp;
+	union lpfc_wqe128 *wqe = &pwqeq->wqe;
+	u16 idx = lpfc_cmd->hdwq_no;
+	int datadir = scsi_cmnd->sc_data_direction;
+
+	hdwq = &phba->sli4_hba.hdwq[idx];
+
+	/* Initialize 64 bytes only */
+	memset(wqe, 0, sizeof(union lpfc_wqe128));
+
+	/*
+	 * There are three possibilities here - use scatter-gather segment, use
+	 * the single mapping, or neither.
+	 */
+	if (scsi_sg_count(scsi_cmnd)) {
+		if (datadir == DMA_TO_DEVICE) {
+			/* From the iwrite template, initialize words 7 -  11 */
+			memcpy(&wqe->words[7],
+			       &lpfc_iwrite_cmd_template.words[7],
+			       sizeof(uint32_t) * 5);
+
+			fcp_cmnd->fcpCntl3 = WRITE_DATA;
+			if (hdwq)
+				hdwq->scsi_cstat.output_requests++;
+		} else {
+			/* From the iread template, initialize words 7 - 11 */
+			memcpy(&wqe->words[7],
+			       &lpfc_iread_cmd_template.words[7],
+			       sizeof(uint32_t) * 5);
+
+			/* Word 7 */
+			bf_set(wqe_tmo, &wqe->fcp_iread.wqe_com, tmo);
+
+			fcp_cmnd->fcpCntl3 = READ_DATA;
+			if (hdwq)
+				hdwq->scsi_cstat.input_requests++;
+		}
+	} else {
+		/* From the icmnd template, initialize words 4 - 11 */
+		memcpy(&wqe->words[4], &lpfc_icmnd_cmd_template.words[4],
+		       sizeof(uint32_t) * 8);
+
+		/* Word 7 */
+		bf_set(wqe_tmo, &wqe->fcp_icmd.wqe_com, tmo);
+
+		fcp_cmnd->fcpCntl3 = 0;
+		if (hdwq)
+			hdwq->scsi_cstat.control_requests++;
+	}
+
+	/*
+	 * Finish initializing those WQE fields that are independent
+	 * of the request_buffer
+	 */
+
+	 /* Word 3 */
+	bf_set(payload_offset_len, &wqe->fcp_icmd,
+	       sizeof(struct fcp_cmnd) + sizeof(struct fcp_rsp));
+
+	/* Word 6 */
+	bf_set(wqe_ctxt_tag, &wqe->generic.wqe_com,
+	       phba->sli4_hba.rpi_ids[pnode->nlp_rpi]);
+	bf_set(wqe_xri_tag, &wqe->generic.wqe_com, pwqeq->sli4_xritag);
+
+	/* Word 7*/
+	if (pnode->nlp_fcp_info & NLP_FCP_2_DEVICE)
+		bf_set(wqe_erp, &wqe->generic.wqe_com, 1);
+
+	bf_set(wqe_class, &wqe->generic.wqe_com,
+	       (pnode->nlp_fcp_info & 0x0f));
+
+	 /* Word 8 */
+	wqe->generic.wqe_com.abort_tag = pwqeq->iotag;
+
+	/* Word 9 */
+	bf_set(wqe_reqtag, &wqe->generic.wqe_com, pwqeq->iotag);
+
+	pwqeq->vport = vport;
+	pwqeq->vport = vport;
+	pwqeq->context1 = lpfc_cmd;
+	pwqeq->hba_wqidx = lpfc_cmd->hdwq_no;
+	if (!pwqeq->iocb_cmpl)
+		pwqeq->iocb_cmpl = lpfc_scsi_cmd_iocb_cmpl;
+
+	return 0;
+}
+
+/**
+ * lpfc_scsi_prep_cmnd - Wrapper func for convert scsi cmnd to FCP info unit
+ * @vport: The virtual port for which this call is being executed.
+ * @lpfc_cmd: The scsi command which needs to send.
+ * @pnode: Pointer to lpfc_nodelist.
+ *
+ * This routine initializes fcp_cmnd and iocb data structure from scsi command
+ * to transfer for device with SLI3 interface spec.
+ **/
+static int
+lpfc_scsi_prep_cmnd(struct lpfc_vport *vport, struct lpfc_io_buf *lpfc_cmd,
+		    struct lpfc_nodelist *pnode)
+{
+	struct scsi_cmnd *scsi_cmnd = lpfc_cmd->pCmd;
+	struct fcp_cmnd *fcp_cmnd = lpfc_cmd->fcp_cmnd;
+	u8 *ptr;
+
+	if (!pnode)
+		return 0;
+
+	lpfc_cmd->fcp_rsp->rspSnsLen = 0;
+	/* clear task management bits */
+	lpfc_cmd->fcp_cmnd->fcpCntl2 = 0;
+
+	int_to_scsilun(lpfc_cmd->pCmd->device->lun,
+		       &lpfc_cmd->fcp_cmnd->fcp_lun);
+
+	ptr = &fcp_cmnd->fcpCdb[0];
+	memcpy(ptr, scsi_cmnd->cmnd, scsi_cmnd->cmd_len);
+	if (scsi_cmnd->cmd_len < LPFC_FCP_CDB_LEN) {
+		ptr += scsi_cmnd->cmd_len;
+		memset(ptr, 0, (LPFC_FCP_CDB_LEN - scsi_cmnd->cmd_len));
+	}
+
+	fcp_cmnd->fcpCntl1 = SIMPLE_Q;
+
+	lpfc_scsi_prep_cmnd_buf(vport, lpfc_cmd, lpfc_cmd->timeout);
+
+	return 0;
 }
 
 /**
@@ -4271,7 +4444,6 @@ lpfc_scsi_api_table_setup(struct lpfc_hba *phba, uint8_t dev_grp)
 {
 
 	phba->lpfc_scsi_unprep_dma_buf = lpfc_scsi_unprep_dma_buf;
-	phba->lpfc_scsi_prep_cmnd = lpfc_scsi_prep_cmnd;
 
 	switch (dev_grp) {
 	case LPFC_PCI_DEV_LP:
@@ -4279,12 +4451,14 @@ lpfc_scsi_api_table_setup(struct lpfc_hba *phba, uint8_t dev_grp)
 		phba->lpfc_bg_scsi_prep_dma_buf = lpfc_bg_scsi_prep_dma_buf_s3;
 		phba->lpfc_release_scsi_buf = lpfc_release_scsi_buf_s3;
 		phba->lpfc_get_scsi_buf = lpfc_get_scsi_buf_s3;
+		phba->lpfc_scsi_prep_cmnd_buf = lpfc_scsi_prep_cmnd_buf_s3;
 		break;
 	case LPFC_PCI_DEV_OC:
 		phba->lpfc_scsi_prep_dma_buf = lpfc_scsi_prep_dma_buf_s4;
 		phba->lpfc_bg_scsi_prep_dma_buf = lpfc_bg_scsi_prep_dma_buf_s4;
 		phba->lpfc_release_scsi_buf = lpfc_release_scsi_buf_s4;
 		phba->lpfc_get_scsi_buf = lpfc_get_scsi_buf_s4;
+		phba->lpfc_scsi_prep_cmnd_buf = lpfc_scsi_prep_cmnd_buf_s4;
 		break;
 	default:
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
@@ -4599,7 +4773,12 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 	lpfc_cmd->pCmd  = cmnd;
 	lpfc_cmd->rdata = rdata;
 	lpfc_cmd->ndlp = ndlp;
+	lpfc_cmd->cur_iocbq.iocb_cmpl = NULL;
 	cmnd->host_scribble = (unsigned char *)lpfc_cmd;
+
+	err = lpfc_scsi_prep_cmnd(vport, lpfc_cmd, ndlp);
+	if (err)
+		goto out_host_busy_release_buf;
 
 	if (scsi_get_prot_op(cmnd) != SCSI_PROT_NORMAL) {
 		if (vport->phba->cfg_enable_bg) {
@@ -4636,7 +4815,6 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 		goto out_host_busy_free_buf;
 	}
 
-	lpfc_scsi_prep_cmnd(vport, lpfc_cmd, ndlp);
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	if (unlikely(phba->hdwqstat_on & LPFC_CHECK_SCSI_IO))
@@ -4657,24 +4835,30 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 #endif
 	if (err) {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_FCP,
-				 "3376 FCP could not issue IOCB err %x"
-				 "FCP cmd x%x <%d/%llu> "
-				 "sid: x%x did: x%x oxid: x%x "
-				 "Data: x%x x%x x%x x%x\n",
-				 err, cmnd->cmnd[0],
-				 cmnd->device ? cmnd->device->id : 0xffff,
-				 cmnd->device ? cmnd->device->lun : (u64) -1,
-				 vport->fc_myDID, ndlp->nlp_DID,
-				 phba->sli_rev == LPFC_SLI_REV4 ?
-				 lpfc_cmd->cur_iocbq.sli4_xritag : 0xffff,
-				 lpfc_cmd->cur_iocbq.iocb.ulpContext,
-				 lpfc_cmd->cur_iocbq.iocb.ulpIoTag,
-				 lpfc_cmd->cur_iocbq.iocb.ulpTimeout,
-				 (uint32_t)
-				 (cmnd->request->timeout / 1000));
+				   "3376 FCP could not issue IOCB err %x "
+				   "FCP cmd x%x <%d/%llu> "
+				   "sid: x%x did: x%x oxid: x%x "
+				   "Data: x%x x%x x%x x%x\n",
+				   err, cmnd->cmnd[0],
+				   cmnd->device ? cmnd->device->id : 0xffff,
+				   cmnd->device ? cmnd->device->lun : (u64)-1,
+				   vport->fc_myDID, ndlp->nlp_DID,
+				   phba->sli_rev == LPFC_SLI_REV4 ?
+				   lpfc_cmd->cur_iocbq.sli4_xritag : 0xffff,
+				   phba->sli_rev == LPFC_SLI_REV4 ?
+				   phba->sli4_hba.rpi_ids[ndlp->nlp_rpi] :
+				   lpfc_cmd->cur_iocbq.iocb.ulpContext,
+				   lpfc_cmd->cur_iocbq.iotag,
+				   phba->sli_rev == LPFC_SLI_REV4 ?
+				   bf_get(wqe_tmo,
+				   &lpfc_cmd->cur_iocbq.wqe.generic.wqe_com) :
+				   lpfc_cmd->cur_iocbq.iocb.ulpTimeout,
+				   (uint32_t)
+				   (cmnd->request->timeout / 1000));
 
 		goto out_host_busy_free_buf;
 	}
+
 	if (phba->cfg_poll & ENABLE_FCP_RING_POLLING) {
 		lpfc_sli_handle_fast_ring_event(phba,
 			&phba->sli.sli3_ring[LPFC_FCP_RING], HA_R0RE_REQ);
@@ -4703,6 +4887,7 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 			phba->sli4_hba.hdwq[idx].scsi_cstat.control_requests--;
 		}
 	}
+ out_host_busy_release_buf:
 	lpfc_release_scsi_buf(phba, lpfc_cmd);
  out_host_busy:
 	return SCSI_MLQUEUE_HOST_BUSY;
