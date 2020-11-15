@@ -105,7 +105,7 @@ lpfc_nvmet_cmd_template(void)
 	/* Word 9  - reqtag, rcvoxid is variable */
 
 	/* Word 10 - wqes, xc is variable */
-	bf_set(wqe_nvme, &wqe->fcp_tsend.wqe_com, 1);
+	bf_set(wqe_xchg, &wqe->fcp_tsend.wqe_com, LPFC_NVME_XCHG);
 	bf_set(wqe_dbde, &wqe->fcp_tsend.wqe_com, 1);
 	bf_set(wqe_wqes, &wqe->fcp_tsend.wqe_com, 0);
 	bf_set(wqe_xc, &wqe->fcp_tsend.wqe_com, 1);
@@ -153,7 +153,7 @@ lpfc_nvmet_cmd_template(void)
 	/* Word 10 - xc is variable */
 	bf_set(wqe_dbde, &wqe->fcp_treceive.wqe_com, 1);
 	bf_set(wqe_wqes, &wqe->fcp_treceive.wqe_com, 0);
-	bf_set(wqe_nvme, &wqe->fcp_treceive.wqe_com, 1);
+	bf_set(wqe_xchg, &wqe->fcp_treceive.wqe_com, LPFC_NVME_XCHG);
 	bf_set(wqe_iod, &wqe->fcp_treceive.wqe_com, LPFC_WQE_IOD_READ);
 	bf_set(wqe_lenloc, &wqe->fcp_treceive.wqe_com, LPFC_WQE_LENLOC_WORD12);
 	bf_set(wqe_xc, &wqe->fcp_tsend.wqe_com, 1);
@@ -195,7 +195,7 @@ lpfc_nvmet_cmd_template(void)
 
 	/* Word 10 wqes, xc is variable */
 	bf_set(wqe_dbde, &wqe->fcp_trsp.wqe_com, 1);
-	bf_set(wqe_nvme, &wqe->fcp_trsp.wqe_com, 1);
+	bf_set(wqe_xchg, &wqe->fcp_trsp.wqe_com, LPFC_NVME_XCHG);
 	bf_set(wqe_wqes, &wqe->fcp_trsp.wqe_com, 0);
 	bf_set(wqe_xc, &wqe->fcp_trsp.wqe_com, 0);
 	bf_set(wqe_iod, &wqe->fcp_trsp.wqe_com, LPFC_WQE_IOD_NONE);

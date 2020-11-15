@@ -4386,9 +4386,11 @@ struct wqe_common {
 #define wqe_ebde_cnt_SHIFT    0
 #define wqe_ebde_cnt_MASK     0x0000000f
 #define wqe_ebde_cnt_WORD     word10
-#define wqe_nvme_SHIFT        4
-#define wqe_nvme_MASK         0x00000001
-#define wqe_nvme_WORD         word10
+#define wqe_xchg_SHIFT        4
+#define wqe_xchg_MASK         0x00000001
+#define wqe_xchg_WORD         word10
+#define LPFC_SCSI_XCHG	      0x0
+#define LPFC_NVME_XCHG	      0x1
 #define wqe_oas_SHIFT         6
 #define wqe_oas_MASK          0x00000001
 #define wqe_oas_WORD          word10
@@ -4886,6 +4888,8 @@ struct lpfc_grp_hdr {
 #define NVME_READ_CMD		0x0
 #define FCP_COMMAND_DATA_OUT	0x1
 #define NVME_WRITE_CMD		0x1
+#define COMMAND_DATA_IN		0x0
+#define COMMAND_DATA_OUT	0x1
 #define FCP_COMMAND_TRECEIVE	0x2
 #define FCP_COMMAND_TRSP	0x3
 #define FCP_COMMAND_TSEND	0x7
