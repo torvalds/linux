@@ -276,6 +276,7 @@ lpfc_sli4_wq_put(struct lpfc_queue *q, union lpfc_wqe128 *wqe)
 	/* sanity check on queue memory */
 	if (unlikely(!q))
 		return -ENOMEM;
+
 	temp_wqe = lpfc_sli4_qe(q, q->host_index);
 
 	/* If the host has not yet processed the next entry then we are done */
@@ -10229,6 +10230,71 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 }
 
 /**
+ * __lpfc_sli_issue_fcp_io_s3 - SLI3 device for sending fcp io iocb
+ * @phba: Pointer to HBA context object.
+ * @ring_number: SLI ring number to issue wqe on.
+ * @piocb: Pointer to command iocb.
+ * @flag: Flag indicating if this command can be put into txq.
+ *
+ * __lpfc_sli_issue_fcp_io_s3 is wrapper function to invoke lockless func to
+ * send  an iocb command to an HBA with SLI-4 interface spec.
+ *
+ * This function takes the hbalock before invoking the lockless version.
+ * The function will return success after it successfully submit the wqe to
+ * firmware or after adding to the txq.
+ **/
+static int
+__lpfc_sli_issue_fcp_io_s3(struct lpfc_hba *phba, uint32_t ring_number,
+			   struct lpfc_iocbq *piocb, uint32_t flag)
+{
+	unsigned long iflags;
+	int rc;
+
+	spin_lock_irqsave(&phba->hbalock, iflags);
+	rc = __lpfc_sli_issue_iocb(phba, ring_number, piocb, flag);
+	spin_unlock_irqrestore(&phba->hbalock, iflags);
+
+	return rc;
+}
+
+/**
+ * __lpfc_sli_issue_fcp_io_s4 - SLI4 device for sending fcp io wqe
+ * @phba: Pointer to HBA context object.
+ * @ring_number: SLI ring number to issue wqe on.
+ * @piocb: Pointer to command iocb.
+ * @flag: Flag indicating if this command can be put into txq.
+ *
+ * __lpfc_sli_issue_fcp_io_s4 is used by other functions in the driver to issue
+ * an wqe command to an HBA with SLI-4 interface spec.
+ *
+ * This function is a lockless version. The function will return success
+ * after it successfully submit the wqe to firmware or after adding to the
+ * txq.
+ **/
+static int
+__lpfc_sli_issue_fcp_io_s4(struct lpfc_hba *phba, uint32_t ring_number,
+			   struct lpfc_iocbq *piocb, uint32_t flag)
+{
+	struct lpfc_sli_ring *pring;
+	struct lpfc_queue *eq;
+	unsigned long iflags;
+	int rc;
+
+	eq = phba->sli4_hba.hdwq[piocb->hba_wqidx].hba_eq;
+
+	pring = lpfc_sli4_calc_ring(phba, piocb);
+	if (unlikely(pring == NULL))
+		return IOCB_ERROR;
+
+	spin_lock_irqsave(&pring->ring_lock, iflags);
+	rc = __lpfc_sli_issue_iocb(phba, ring_number, piocb, flag);
+	spin_unlock_irqrestore(&pring->ring_lock, iflags);
+
+	lpfc_sli4_poll_eq(eq, LPFC_POLL_FASTPATH);
+	return rc;
+}
+
+/**
  * __lpfc_sli_issue_iocb_s4 - SLI4 device lockless ver of lpfc_sli_issue_iocb
  * @phba: Pointer to HBA context object.
  * @ring_number: SLI ring number to issue iocb on.
@@ -10324,6 +10390,25 @@ __lpfc_sli_issue_iocb_s4(struct lpfc_hba *phba, uint32_t ring_number,
 	return 0;
 }
 
+/**
+ * lpfc_sli_issue_fcp_io - Wrapper func for issuing fcp i/o
+ *
+ * This routine wraps the actual fcp i/o function for issusing WQE for sli-4
+ * or IOCB for sli-3  function.
+ * pointer from the lpfc_hba struct.
+ *
+ * Return codes:
+ * IOCB_ERROR - Error
+ * IOCB_SUCCESS - Success
+ * IOCB_BUSY - Busy
+ **/
+int
+lpfc_sli_issue_fcp_io(struct lpfc_hba *phba, uint32_t ring_number,
+		      struct lpfc_iocbq *piocb, uint32_t flag)
+{
+	return phba->__lpfc_sli_issue_fcp_io(phba, ring_number, piocb, flag);
+}
+
 /*
  * __lpfc_sli_issue_iocb - Wrapper func of lockless version for issuing iocb
  *
@@ -10359,10 +10444,12 @@ lpfc_sli_api_table_setup(struct lpfc_hba *phba, uint8_t dev_grp)
 	case LPFC_PCI_DEV_LP:
 		phba->__lpfc_sli_issue_iocb = __lpfc_sli_issue_iocb_s3;
 		phba->__lpfc_sli_release_iocbq = __lpfc_sli_release_iocbq_s3;
+		phba->__lpfc_sli_issue_fcp_io = __lpfc_sli_issue_fcp_io_s3;
 		break;
 	case LPFC_PCI_DEV_OC:
 		phba->__lpfc_sli_issue_iocb = __lpfc_sli_issue_iocb_s4;
 		phba->__lpfc_sli_release_iocbq = __lpfc_sli_release_iocbq_s4;
+		phba->__lpfc_sli_issue_fcp_io = __lpfc_sli_issue_fcp_io_s4;
 		break;
 	default:
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
