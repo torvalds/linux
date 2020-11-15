@@ -40,8 +40,6 @@
 #define MLX5_IB_DEFAULT_UIDX 0xffffff
 #define MLX5_USER_ASSIGNED_UIDX_MASK __mlx5_mask(qpc, user_index)
 
-#define MLX5_MKEY_PAGE_SHIFT_MASK __mlx5_mask(mkc, log_page_size)
-
 static __always_inline unsigned long
 __mlx5_log_page_size_to_bitmap(unsigned int log_pgsz_bits,
 			       unsigned int pgsz_shift)
@@ -1296,9 +1294,6 @@ int mlx5_query_mad_ifc_port(struct ib_device *ibdev, u8 port,
 			    struct ib_port_attr *props);
 int mlx5_ib_query_port(struct ib_device *ibdev, u8 port,
 		       struct ib_port_attr *props);
-void mlx5_ib_cont_pages(struct ib_umem *umem, u64 addr,
-			unsigned long max_page_shift,
-			int *shift);
 void mlx5_ib_populate_pas(struct ib_umem *umem, size_t page_size, __be64 *pas,
 			  u64 access_flags);
 void mlx5_ib_copy_pas(u64 *old, u64 *new, int step, int num);

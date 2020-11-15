@@ -36,61 +36,6 @@
 #include "mlx5_ib.h"
 #include <linux/jiffies.h>
 
-/* @umem: umem object to scan
- * @addr: ib virtual address requested by the user
- * @max_page_shift: high limit for page_shift - 0 means no limit
- * @shift: page shift for the compound pages found in the region
- */
-void mlx5_ib_cont_pages(struct ib_umem *umem, u64 addr,
-			unsigned long max_page_shift, int *shift)
-{
-	unsigned long tmp;
-	unsigned long m;
-	u64 base = ~0, p = 0;
-	u64 len, pfn;
-	int i = 0;
-	struct scatterlist *sg;
-	int entry;
-
-	if (umem->is_odp) {
-		struct ib_umem_odp *odp = to_ib_umem_odp(umem);
-
-		*shift = odp->page_shift;
-		return;
-	}
-
-	addr = addr >> PAGE_SHIFT;
-	tmp = (unsigned long)addr;
-	m = find_first_bit(&tmp, BITS_PER_LONG);
-	if (max_page_shift)
-		m = min_t(unsigned long, max_page_shift - PAGE_SHIFT, m);
-
-	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
-		len = sg_dma_len(sg) >> PAGE_SHIFT;
-		pfn = sg_dma_address(sg) >> PAGE_SHIFT;
-		if (base + p != pfn) {
-			/* If either the offset or the new
-			 * base are unaligned update m
-			 */
-			tmp = (unsigned long)(pfn | p);
-			if (!IS_ALIGNED(tmp, 1 << m))
-				m = find_first_bit(&tmp, BITS_PER_LONG);
-
-			base = pfn;
-			p = 0;
-		}
-
-		p += len;
-		i += len;
-	}
-
-	if (i)
-		m = min_t(unsigned long, ilog2(roundup_pow_of_two(i)), m);
-	else
-		m  = 0;
-	*shift = PAGE_SHIFT + m;
-}
-
 /*
  * Fill in a physical address list. ib_umem_num_dma_blocks() entries will be
  * filled in the pas array.
