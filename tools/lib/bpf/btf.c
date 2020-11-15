@@ -674,12 +674,12 @@ int btf__resolve_type(const struct btf *btf, __u32 type_id)
 
 __s32 btf__find_by_name(const struct btf *btf, const char *type_name)
 {
-	__u32 i;
+	__u32 i, nr_types = btf__get_nr_types(btf);
 
 	if (!strcmp(type_name, "void"))
 		return 0;
 
-	for (i = 1; i <= btf->nr_types; i++) {
+	for (i = 1; i <= nr_types; i++) {
 		const struct btf_type *t = btf__type_by_id(btf, i);
 		const char *name = btf__name_by_offset(btf, t->name_off);
 
@@ -693,12 +693,12 @@ __s32 btf__find_by_name(const struct btf *btf, const char *type_name)
 __s32 btf__find_by_name_kind(const struct btf *btf, const char *type_name,
 			     __u32 kind)
 {
-	__u32 i;
+	__u32 i, nr_types = btf__get_nr_types(btf);
 
 	if (kind == BTF_KIND_UNKN || !strcmp(type_name, "void"))
 		return 0;
 
-	for (i = 1; i <= btf->nr_types; i++) {
+	for (i = 1; i <= nr_types; i++) {
 		const struct btf_type *t = btf__type_by_id(btf, i);
 		const char *name;
 
