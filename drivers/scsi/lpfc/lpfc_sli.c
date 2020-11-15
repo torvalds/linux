@@ -860,7 +860,7 @@ lpfc_clr_rrq_active(struct lpfc_hba *phba,
 {
 	struct lpfc_nodelist *ndlp = NULL;
 
-	if ((rrq->vport) && NLP_CHK_NODE_ACT(rrq->ndlp))
+	if (rrq->vport)
 		ndlp = lpfc_findnode_did(rrq->vport, rrq->nlp_DID);
 
 	/* The target DID could have been swapped (cable swap)
@@ -1060,12 +1060,6 @@ lpfc_set_rrq_active(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 		phba->hba_flag &= ~HBA_RRQ_ACTIVE;
 		goto out;
 	}
-
-	/*
-	 * set the active bit even if there is no mem available.
-	 */
-	if (NLP_CHK_FREE_REQ(ndlp))
-		goto out;
 
 	if (ndlp->vport && (ndlp->vport->load_flag & FC_UNLOADING))
 		goto out;
@@ -1289,6 +1283,11 @@ __lpfc_sli_release_iocbq_s4(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
 			(sglq->state != SGL_XRI_ABORTED)) {
 			spin_lock_irqsave(&phba->sli4_hba.sgl_list_lock,
 					  iflag);
+
+			/* Check if we can get a reference on ndlp */
+			if (sglq->ndlp && !lpfc_nlp_get(sglq->ndlp))
+				sglq->ndlp = NULL;
+
 			list_add(&sglq->list,
 				 &phba->sli4_hba.lpfc_abts_els_sgl_list);
 			spin_unlock_irqrestore(
@@ -2589,11 +2588,11 @@ lpfc_sli4_unreg_rpi_cmpl_clr(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 					vport, KERN_INFO, LOG_MBOX | LOG_SLI,
 					 "0010 UNREG_LOGIN vpi:%x "
 					 "rpi:%x DID:%x defer x%x flg x%x "
-					 "map:%x %px\n",
+					 "%px\n",
 					 vport->vpi, ndlp->nlp_rpi,
 					 ndlp->nlp_DID, ndlp->nlp_defer_did,
 					 ndlp->nlp_flag,
-					 ndlp->nlp_usg_map, ndlp);
+					 ndlp);
 				ndlp->nlp_flag &= ~NLP_LOGO_ACC;
 				lpfc_nlp_put(ndlp);
 
@@ -2852,7 +2851,7 @@ lpfc_nvme_unsol_ls_handler(struct lpfc_hba *phba, struct lpfc_iocbq *piocb)
 
 	/* validate the source of the LS is logged in */
 	ndlp = lpfc_findnode_did(phba->pport, sid);
-	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp) ||
+	if (!ndlp ||
 	    ((ndlp->nlp_state != NLP_STE_UNMAPPED_NODE) &&
 	     (ndlp->nlp_state != NLP_STE_MAPPED_NODE))) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_DISC,
@@ -10426,7 +10425,7 @@ lpfc_sli_abts_err_handler(struct lpfc_hba *phba,
 	if (!vport)
 		goto err_exit;
 	ndlp = lpfc_findnode_rpi(vport, rpi);
-	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp))
+	if (!ndlp)
 		goto err_exit;
 
 	if (iocbq->iocb.ulpStatus == IOSTAT_LOCAL_REJECT)
@@ -10459,7 +10458,7 @@ lpfc_sli4_abts_err_handler(struct lpfc_hba *phba,
 	struct lpfc_vport *vport;
 	uint32_t ext_status = 0;
 
-	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp)) {
+	if (!ndlp) {
 		lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
 				"3115 Node Context not found, driver "
 				"ignoring abts err event\n");
@@ -17901,15 +17900,6 @@ lpfc_sli4_seq_abort_rsp(struct lpfc_vport *vport,
 		}
 		/* Put ndlp onto pport node list */
 		lpfc_enqueue_node(vport, ndlp);
-	} else if (!NLP_CHK_NODE_ACT(ndlp)) {
-		/* re-setup ndlp without removing from node list */
-		ndlp = lpfc_enable_node(vport, ndlp, NLP_STE_UNUSED_NODE);
-		if (!ndlp) {
-			lpfc_printf_vlog(vport, KERN_WARNING, LOG_ELS,
-					 "3275 Failed to active ndlp found "
-					 "for oxid:x%x SID:x%x\n", oxid, sid);
-			return;
-		}
 	}
 
 	/* Allocate buffer for rsp iocb */

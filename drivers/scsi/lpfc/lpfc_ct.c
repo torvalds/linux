@@ -740,7 +740,7 @@ lpfc_prep_node_fc4type(struct lpfc_vport *vport, uint32_t Did, uint8_t fc4_type)
 
 		ndlp = lpfc_setup_disc_node(vport, Did);
 
-		if (ndlp && NLP_CHK_NODE_ACT(ndlp)) {
+		if (ndlp) {
 			lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
 				"Parse GID_FTrsp: did:x%x flg:x%x x%x",
 				Did, ndlp->nlp_flag, vport->fc_flag);
@@ -791,7 +791,7 @@ lpfc_prep_node_fc4type(struct lpfc_vport *vport, uint32_t Did, uint8_t fc4_type)
 			 * Don't even bother to send GFF_ID.
 			 */
 			ndlp = lpfc_findnode_did(vport, Did);
-			if (ndlp && NLP_CHK_NODE_ACT(ndlp) &&
+			if (ndlp &&
 			    (ndlp->nlp_type &
 			    (NLP_FCP_TARGET | NLP_NVME_TARGET))) {
 				if (fc4_type == FC_TYPE_FCP)
@@ -1437,7 +1437,7 @@ lpfc_cmpl_ct_cmd_gff_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 	/* This is a target port, unregistered port, or the GFF_ID failed */
 	ndlp = lpfc_setup_disc_node(vport, did);
-	if (ndlp && NLP_CHK_NODE_ACT(ndlp)) {
+	if (ndlp) {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 				 "0242 Process x%x GFF "
 				 "NameServer Rsp Data: x%x x%x x%x\n",
@@ -1872,8 +1872,7 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 	int rc = 0;
 
 	ndlp = lpfc_findnode_did(vport, NameServer_DID);
-	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp)
-	    || ndlp->nlp_state != NLP_STE_UNMAPPED_NODE) {
+	if (!ndlp || ndlp->nlp_state != NLP_STE_UNMAPPED_NODE) {
 		rc=1;
 		goto ns_cmd_exit;
 	}
@@ -2204,7 +2203,7 @@ lpfc_cmpl_ct_disc_fdmi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	lpfc_ct_free_iocb(phba, cmdiocb);
 
 	ndlp = lpfc_findnode_did(vport, FDMI_DID);
-	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp))
+	if (!ndlp)
 		return;
 
 	/* Check for a CT LS_RJT response */
@@ -2343,7 +2342,7 @@ lpfc_fdmi_change_check(struct lpfc_vport *vport)
 		return;
 
 	ndlp = lpfc_findnode_did(vport, FDMI_DID);
-	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp))
+	if (!ndlp)
 		return;
 
 	/* Check if system hostname changed */
@@ -3389,7 +3388,7 @@ lpfc_fdmi_cmd(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	void (*cmpl)(struct lpfc_hba *, struct lpfc_iocbq *,
 		     struct lpfc_iocbq *);
 
-	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp))
+	if (!ndlp)
 		return 0;
 
 	cmpl = lpfc_cmpl_ct_disc_fdmi; /* called from discovery */

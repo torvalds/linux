@@ -1520,7 +1520,7 @@ lpfc_issue_ct_rsp(struct lpfc_hba *phba, struct bsg_job *job, uint32_t tag,
 		}
 
 		/* Check if the ndlp is active */
-		if (!ndlp || !NLP_CHK_NODE_ACT(ndlp)) {
+		if (!ndlp) {
 			rc = IOCB_ERROR;
 			goto issue_ct_rsp_exit;
 		}

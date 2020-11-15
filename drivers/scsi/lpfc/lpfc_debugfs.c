@@ -895,8 +895,6 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 		if (ndlp->nlp_type & NLP_NVME_INITIATOR)
 			len += scnprintf(buf + len,
 					size - len, "NVME_INITIATOR ");
-		len += scnprintf(buf+len, size-len, "usgmap:%x ",
-			ndlp->nlp_usg_map);
 		len += scnprintf(buf+len, size-len, "refcnt:%x",
 			kref_read(&ndlp->kref));
 		if (iocnt) {

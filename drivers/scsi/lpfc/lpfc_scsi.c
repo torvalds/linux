@@ -3505,7 +3505,7 @@ lpfc_send_scsi_error_event(struct lpfc_hba *phba, struct lpfc_vport *vport,
 	struct lpfc_nodelist *pnode = lpfc_cmd->rdata->pnode;
 	unsigned long flags;
 
-	if (!pnode || !NLP_CHK_NODE_ACT(pnode))
+	if (!pnode)
 		return;
 
 	/* If there is queuefull or busy condition send a scsi event */
@@ -3925,7 +3925,7 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 			fast_path_evt->un.fabric_evt.subcategory =
 				(lpfc_cmd->status == IOSTAT_NPORT_BSY) ?
 				LPFC_EVENT_PORT_BUSY : LPFC_EVENT_FABRIC_BUSY;
-			if (pnode && NLP_CHK_NODE_ACT(pnode)) {
+			if (pnode) {
 				memcpy(&fast_path_evt->un.fabric_evt.wwpn,
 					&pnode->nlp_portname,
 					sizeof(struct lpfc_name));
@@ -3980,7 +3980,7 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 			}
 			if ((lpfc_cmd->status == IOSTAT_REMOTE_STOP)
 				&& (phba->sli_rev == LPFC_SLI_REV4)
-				&& (pnode && NLP_CHK_NODE_ACT(pnode))) {
+				&& pnode) {
 				/* This IO was aborted by the target, we don't
 				 * know the rxid and because we did not send the
 				 * ABTS we cannot generate and RRQ.
@@ -3995,8 +3995,7 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 			break;
 		}
 
-		if (!pnode || !NLP_CHK_NODE_ACT(pnode)
-		    || (pnode->nlp_state != NLP_STE_MAPPED_NODE))
+		if (!pnode || (pnode->nlp_state != NLP_STE_MAPPED_NODE))
 			cmd->result = DID_TRANSPORT_DISRUPTED << 16 |
 				      SAM_STAT_BUSY;
 	} else
@@ -4018,7 +4017,7 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	   time_after(jiffies, lpfc_cmd->start_time +
 		msecs_to_jiffies(vport->cfg_max_scsicmpl_time))) {
 		spin_lock_irqsave(shost->host_lock, flags);
-		if (pnode && NLP_CHK_NODE_ACT(pnode)) {
+		if (pnode) {
 			if (pnode->cmd_qdepth >
 				atomic_read(&pnode->cmd_pending) &&
 				(atomic_read(&pnode->cmd_pending) >
@@ -4104,7 +4103,7 @@ lpfc_scsi_prep_cmnd(struct lpfc_vport *vport, struct lpfc_io_buf *lpfc_cmd,
 	bool sli4;
 	uint32_t fcpdl;
 
-	if (!pnode || !NLP_CHK_NODE_ACT(pnode))
+	if (!pnode)
 		return;
 
 	lpfc_cmd->fcp_rsp->rspSnsLen = 0;
@@ -4215,8 +4214,7 @@ lpfc_scsi_prep_task_mgmt_cmd(struct lpfc_vport *vport,
 	struct lpfc_rport_data *rdata = lpfc_cmd->rdata;
 	struct lpfc_nodelist *ndlp = rdata->pnode;
 
-	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp) ||
-	    ndlp->nlp_state != NLP_STE_MAPPED_NODE)
+	if (!ndlp || ndlp->nlp_state != NLP_STE_MAPPED_NODE)
 		return 0;
 
 	piocbq = &(lpfc_cmd->cur_iocbq);
@@ -4551,7 +4549,7 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 	 * Catch race where our node has transitioned, but the
 	 * transport is still transitioning.
 	 */
-	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp))
+	if (!ndlp)
 		goto out_tgt_busy;
 	if (lpfc_ndlp_check_qdepth(phba, ndlp)) {
 		if (atomic_read(&ndlp->cmd_pending) >= ndlp->cmd_qdepth) {
@@ -5050,7 +5048,7 @@ lpfc_send_taskmgmt(struct lpfc_vport *vport, struct scsi_cmnd *cmnd,
 	int status;
 
 	rdata = lpfc_rport_data_from_scsi_device(cmnd->device);
-	if (!rdata || !rdata->pnode || !NLP_CHK_NODE_ACT(rdata->pnode))
+	if (!rdata || !rdata->pnode)
 		return FAILED;
 	pnode = rdata->pnode;
 
@@ -5154,7 +5152,7 @@ lpfc_chk_tgt_mapped(struct lpfc_vport *vport, struct scsi_cmnd *cmnd)
 	 */
 	later = msecs_to_jiffies(2 * vport->cfg_devloss_tmo * 1000) + jiffies;
 	while (time_after(later, jiffies)) {
-		if (!pnode || !NLP_CHK_NODE_ACT(pnode))
+		if (!pnode)
 			return FAILED;
 		if (pnode->nlp_state == NLP_STE_MAPPED_NODE)
 			return SUCCESS;
@@ -5164,8 +5162,7 @@ lpfc_chk_tgt_mapped(struct lpfc_vport *vport, struct scsi_cmnd *cmnd)
 			return FAILED;
 		pnode = rdata->pnode;
 	}
-	if (!pnode || !NLP_CHK_NODE_ACT(pnode) ||
-	    (pnode->nlp_state != NLP_STE_MAPPED_NODE))
+	if (!pnode || (pnode->nlp_state != NLP_STE_MAPPED_NODE))
 		return FAILED;
 	return SUCCESS;
 }
@@ -5409,8 +5406,7 @@ lpfc_bus_reset_handler(struct scsi_cmnd *cmnd)
 		match = 0;
 		spin_lock_irq(shost->host_lock);
 		list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
-			if (!NLP_CHK_NODE_ACT(ndlp))
-				continue;
+
 			if (vport->phba->cfg_fcp2_no_tgt_reset &&
 			    (ndlp->nlp_fcp_info & NLP_FCP_2_DEVICE))
 				continue;

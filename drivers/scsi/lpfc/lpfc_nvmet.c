@@ -1806,7 +1806,7 @@ lpfc_sli4_nvmet_xri_aborted(struct lpfc_hba *phba,
 		rrq_empty = list_empty(&phba->active_rrq_list);
 		spin_unlock_irqrestore(&phba->hbalock, iflag);
 		ndlp = lpfc_findnode_did(phba->pport, ctxp->sid);
-		if (ndlp && NLP_CHK_NODE_ACT(ndlp) &&
+		if (ndlp &&
 		    (ndlp->nlp_state == NLP_STE_UNMAPPED_NODE ||
 		     ndlp->nlp_state == NLP_STE_MAPPED_NODE)) {
 			lpfc_set_rrq_active(phba, ndlp,
@@ -2596,7 +2596,7 @@ lpfc_nvmet_prep_ls_wqe(struct lpfc_hba *phba,
 	}
 
 	ndlp = lpfc_findnode_did(phba->pport, ctxp->sid);
-	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp) ||
+	if (!ndlp ||
 	    ((ndlp->nlp_state != NLP_STE_UNMAPPED_NODE) &&
 	    (ndlp->nlp_state != NLP_STE_MAPPED_NODE))) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
@@ -2716,7 +2716,7 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 	}
 
 	ndlp = lpfc_findnode_did(phba->pport, ctxp->sid);
-	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp) ||
+	if (!ndlp ||
 	    ((ndlp->nlp_state != NLP_STE_UNMAPPED_NODE) &&
 	     (ndlp->nlp_state != NLP_STE_MAPPED_NODE))) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
@@ -3248,7 +3248,7 @@ lpfc_nvmet_unsol_issue_abort(struct lpfc_hba *phba,
 		tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
 
 	ndlp = lpfc_findnode_did(phba->pport, sid);
-	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp) ||
+	if (!ndlp ||
 	    ((ndlp->nlp_state != NLP_STE_UNMAPPED_NODE) &&
 	    (ndlp->nlp_state != NLP_STE_MAPPED_NODE))) {
 		if (tgtp)
@@ -3346,7 +3346,7 @@ lpfc_nvmet_sol_fcp_issue_abort(struct lpfc_hba *phba,
 	}
 
 	ndlp = lpfc_findnode_did(phba->pport, sid);
-	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp) ||
+	if (!ndlp ||
 	    ((ndlp->nlp_state != NLP_STE_UNMAPPED_NODE) &&
 	    (ndlp->nlp_state != NLP_STE_MAPPED_NODE))) {
 		atomic_inc(&tgtp->xmt_abort_rsp_error);

@@ -116,12 +116,6 @@ struct lpfc_nodelist {
 	u8		nlp_nvme_info;	        /* NVME NSLER Support */
 #define NLP_NVME_NSLER     0x1			/* NVME NSLER device */
 
-	uint16_t        nlp_usg_map;	/* ndlp management usage bitmap */
-#define NLP_USG_NODE_ACT_BIT	0x1	/* Indicate ndlp is actively used */
-#define NLP_USG_IACT_REQ_BIT	0x2	/* Request to inactivate ndlp */
-#define NLP_USG_FREE_REQ_BIT	0x4	/* Request to invoke ndlp memory free */
-#define NLP_USG_FREE_ACK_BIT	0x8	/* Indicate ndlp memory free invoked */
-
 	struct timer_list   nlp_delayfunc;	/* Used for delayed ELS cmds */
 	struct lpfc_hba *phba;
 	struct fc_rport *rport;		/* scsi_transport_fc port structure */
@@ -173,6 +167,7 @@ struct lpfc_node_rrq {
 #define NLP_FCP_PRLI_RJT   0x00002000   /* Rport does not support FCP PRLI. */
 #define NLP_UNREG_INP      0x00008000	/* UNREG_RPI cmd is in progress */
 #define NLP_DEFER_RM       0x00010000	/* Remove this ndlp if no longer used */
+#define NLP_DROPPED        0x00000008	/* Init ref count has been dropped */
 #define NLP_DELAY_TMO      0x00020000	/* delay timeout is running for node */
 #define NLP_NPR_2B_DISC    0x00040000	/* node is included in num_disc_nodes */
 #define NLP_RCV_PLOGI      0x00080000	/* Rcv'ed PLOGI from remote system */
@@ -190,32 +185,6 @@ struct lpfc_node_rrq {
 #define NLP_SC_REQ         0x20000000	/* Target requires authentication */
 #define NLP_FIRSTBURST     0x40000000	/* Target supports FirstBurst */
 #define NLP_RPI_REGISTERED 0x80000000	/* nlp_rpi is valid */
-
-
-/* ndlp usage management macros */
-#define NLP_CHK_NODE_ACT(ndlp)		(((ndlp)->nlp_usg_map \
-						& NLP_USG_NODE_ACT_BIT) \
-					&& \
-					!((ndlp)->nlp_usg_map \
-						& NLP_USG_FREE_ACK_BIT))
-#define NLP_SET_NODE_ACT(ndlp)		((ndlp)->nlp_usg_map \
-						|= NLP_USG_NODE_ACT_BIT)
-#define NLP_INT_NODE_ACT(ndlp)		((ndlp)->nlp_usg_map \
-						= NLP_USG_NODE_ACT_BIT)
-#define NLP_CLR_NODE_ACT(ndlp)		((ndlp)->nlp_usg_map \
-						&= ~NLP_USG_NODE_ACT_BIT)
-#define NLP_CHK_IACT_REQ(ndlp)          ((ndlp)->nlp_usg_map \
-						& NLP_USG_IACT_REQ_BIT)
-#define NLP_SET_IACT_REQ(ndlp)          ((ndlp)->nlp_usg_map \
-						|= NLP_USG_IACT_REQ_BIT)
-#define NLP_CHK_FREE_REQ(ndlp)		((ndlp)->nlp_usg_map \
-						& NLP_USG_FREE_REQ_BIT)
-#define NLP_SET_FREE_REQ(ndlp)		((ndlp)->nlp_usg_map \
-						|= NLP_USG_FREE_REQ_BIT)
-#define NLP_CHK_FREE_ACK(ndlp)		((ndlp)->nlp_usg_map \
-						& NLP_USG_FREE_ACK_BIT)
-#define NLP_SET_FREE_ACK(ndlp)		((ndlp)->nlp_usg_map \
-						|= NLP_USG_FREE_ACK_BIT)
 
 /* There are 4 different double linked lists nodelist entries can reside on.
  * The Port Login (PLOGI) list and Address Discovery (ADISC) list are used

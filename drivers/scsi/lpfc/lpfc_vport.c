@@ -462,7 +462,7 @@ lpfc_vport_create(struct fc_vport *fc_vport, bool disable)
 	 * up and ready to FDISC.
 	 */
 	ndlp = lpfc_findnode_did(phba->pport, Fabric_DID);
-	if (ndlp && NLP_CHK_NODE_ACT(ndlp) &&
+	if (ndlp &&
 	    ndlp->nlp_state == NLP_STE_UNMAPPED_NODE) {
 		if (phba->link_flag & LS_NPIV_FAB_SUPPORTED) {
 			lpfc_set_disctmo(vport);
@@ -495,8 +495,7 @@ disable_vport(struct fc_vport *fc_vport)
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 
 	ndlp = lpfc_findnode_did(vport, Fabric_DID);
-	if (ndlp && NLP_CHK_NODE_ACT(ndlp)
-	    && phba->link_state >= LPFC_LINK_UP) {
+	if (ndlp && phba->link_state >= LPFC_LINK_UP) {
 		vport->unreg_vpi_cmpl = VPORT_INVAL;
 		timeout = msecs_to_jiffies(phba->fc_ratov * 2000);
 		if (!lpfc_issue_els_npiv_logo(vport, ndlp))
@@ -510,8 +509,6 @@ disable_vport(struct fc_vport *fc_vport)
 	 * calling lpfc_cleanup_rpis(vport, 1)
 	 */
 	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
-		if (!NLP_CHK_NODE_ACT(ndlp))
-			continue;
 		if (ndlp->nlp_state == NLP_STE_UNUSED_NODE)
 			continue;
 		lpfc_disc_state_machine(vport, ndlp, NULL,
@@ -568,8 +565,7 @@ enable_vport(struct fc_vport *fc_vport)
 	 * up and ready to FDISC.
 	 */
 	ndlp = lpfc_findnode_did(phba->pport, Fabric_DID);
-	if (ndlp && NLP_CHK_NODE_ACT(ndlp)
-	    && ndlp->nlp_state == NLP_STE_UNMAPPED_NODE) {
+	if (ndlp && ndlp->nlp_state == NLP_STE_UNMAPPED_NODE) {
 		if (phba->link_flag & LS_NPIV_FAB_SUPPORTED) {
 			lpfc_set_disctmo(vport);
 			lpfc_initial_fdisc(vport);
@@ -663,7 +659,7 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 	 * being released.
 	 */
 	ndlp = lpfc_findnode_did(vport, NameServer_DID);
-	if (ndlp && NLP_CHK_NODE_ACT(ndlp)) {
+	if (ndlp) {
 		lpfc_nlp_get(ndlp);
 		ns_ndlp_referenced = true;
 	}
@@ -679,26 +675,16 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 	 * can safely skip the fabric logo.
 	 */
 	if (phba->pport->load_flag & FC_UNLOADING) {
-		if (ndlp && NLP_CHK_NODE_ACT(ndlp) &&
-		    ndlp->nlp_state == NLP_STE_UNMAPPED_NODE &&
+		if (ndlp && ndlp->nlp_state == NLP_STE_UNMAPPED_NODE &&
 		    phba->link_state >= LPFC_LINK_UP) {
 			/* First look for the Fabric ndlp */
 			ndlp = lpfc_findnode_did(vport, Fabric_DID);
 			if (!ndlp)
 				goto skip_logo;
-			else if (!NLP_CHK_NODE_ACT(ndlp)) {
-				ndlp = lpfc_enable_node(vport, ndlp,
-							NLP_STE_UNUSED_NODE);
-				if (!ndlp)
-					goto skip_logo;
-			}
+
 			/* Remove ndlp from vport npld list */
 			lpfc_dequeue_node(vport, ndlp);
 
-			/* Indicate free memory when release */
-			spin_lock_irq(&phba->ndlp_lock);
-			NLP_SET_FREE_REQ(ndlp);
-			spin_unlock_irq(&phba->ndlp_lock);
 			/* Kick off release ndlp when it can be safely done */
 			lpfc_nlp_put(ndlp);
 		}
@@ -706,8 +692,7 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 	}
 
 	/* Otherwise, we will perform fabric logo as needed */
-	if (ndlp && NLP_CHK_NODE_ACT(ndlp) &&
-	    ndlp->nlp_state == NLP_STE_UNMAPPED_NODE &&
+	if (ndlp && ndlp->nlp_state == NLP_STE_UNMAPPED_NODE &&
 	    phba->link_state >= LPFC_LINK_UP &&
 	    phba->fc_topology != LPFC_TOPOLOGY_LOOP) {
 		if (vport->cfg_enable_da_id) {
@@ -728,28 +713,6 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 			ndlp = lpfc_nlp_init(vport, Fabric_DID);
 			if (!ndlp)
 				goto skip_logo;
-			/* Indicate free memory when release */
-			NLP_SET_FREE_REQ(ndlp);
-		} else {
-			if (!NLP_CHK_NODE_ACT(ndlp)) {
-				ndlp = lpfc_enable_node(vport, ndlp,
-						NLP_STE_UNUSED_NODE);
-				if (!ndlp)
-					goto skip_logo;
-			}
-
-			/* Remove ndlp from vport list */
-			lpfc_dequeue_node(vport, ndlp);
-			spin_lock_irq(&phba->ndlp_lock);
-			if (!NLP_CHK_FREE_REQ(ndlp))
-				/* Indicate free memory when release */
-				NLP_SET_FREE_REQ(ndlp);
-			else {
-				/* Skip this if ndlp is already in free mode */
-				spin_unlock_irq(&phba->ndlp_lock);
-				goto skip_logo;
-			}
-			spin_unlock_irq(&phba->ndlp_lock);
 		}
 
 		/*
@@ -865,8 +828,6 @@ lpfc_vport_reset_stat_data(struct lpfc_vport *vport)
 	struct lpfc_nodelist *ndlp = NULL, *next_ndlp = NULL;
 
 	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
-		if (!NLP_CHK_NODE_ACT(ndlp))
-			continue;
 		if (ndlp->lat_data)
 			memset(ndlp->lat_data, 0, LPFC_MAX_BUCKET_COUNT *
 				sizeof(struct lpfc_scsicmd_bkt));
@@ -887,8 +848,6 @@ lpfc_alloc_bucket(struct lpfc_vport *vport)
 	struct lpfc_nodelist *ndlp = NULL, *next_ndlp = NULL;
 
 	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
-		if (!NLP_CHK_NODE_ACT(ndlp))
-			continue;
 
 		kfree(ndlp->lat_data);
 		ndlp->lat_data = NULL;
@@ -921,8 +880,6 @@ lpfc_free_bucket(struct lpfc_vport *vport)
 	struct lpfc_nodelist *ndlp = NULL, *next_ndlp = NULL;
 
 	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
-		if (!NLP_CHK_NODE_ACT(ndlp))
-			continue;
 
 		kfree(ndlp->lat_data);
 		ndlp->lat_data = NULL;

@@ -2844,28 +2844,6 @@ lpfc_cleanup(struct lpfc_vport *vport)
 		lpfc_port_link_failure(vport);
 
 	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
-		if (!NLP_CHK_NODE_ACT(ndlp)) {
-			ndlp = lpfc_enable_node(vport, ndlp,
-						NLP_STE_UNUSED_NODE);
-			if (!ndlp)
-				continue;
-			spin_lock_irq(&phba->ndlp_lock);
-			NLP_SET_FREE_REQ(ndlp);
-			spin_unlock_irq(&phba->ndlp_lock);
-			/* Trigger the release of the ndlp memory */
-			lpfc_nlp_put(ndlp);
-			continue;
-		}
-		spin_lock_irq(&phba->ndlp_lock);
-		if (NLP_CHK_FREE_REQ(ndlp)) {
-			/* The ndlp should not be in memory free mode already */
-			spin_unlock_irq(&phba->ndlp_lock);
-			continue;
-		} else
-			/* Indicate request for freeing ndlp memory */
-			NLP_SET_FREE_REQ(ndlp);
-		spin_unlock_irq(&phba->ndlp_lock);
-
 		if (vport->port_type != LPFC_PHYSICAL_PORT &&
 		    ndlp->nlp_DID == Fabric_DID) {
 			/* Just free up ndlp with Fabric_DID for vports */
@@ -2903,9 +2881,8 @@ lpfc_cleanup(struct lpfc_vport *vport)
 				lpfc_printf_vlog(ndlp->vport, KERN_ERR,
 						LOG_TRACE_EVENT,
 						"0282 did:x%x ndlp:x%px "
-						"usgmap:x%x refcnt:%d\n",
+						"refcnt:%d\n",
 						ndlp->nlp_DID, (void *)ndlp,
-						ndlp->nlp_usg_map,
 						kref_read(&ndlp->kref));
 			}
 			break;
@@ -3080,7 +3057,6 @@ lpfc_sli4_node_prep(struct lpfc_hba *phba)
 	struct lpfc_nodelist  *ndlp, *next_ndlp;
 	struct lpfc_vport **vports;
 	int i, rpi;
-	unsigned long flags;
 
 	if (phba->sli_rev != LPFC_SLI_REV4)
 		return;
@@ -3096,22 +3072,18 @@ lpfc_sli4_node_prep(struct lpfc_hba *phba)
 		list_for_each_entry_safe(ndlp, next_ndlp,
 					 &vports[i]->fc_nodes,
 					 nlp_listp) {
-			if (!NLP_CHK_NODE_ACT(ndlp))
-				continue;
 			rpi = lpfc_sli4_alloc_rpi(phba);
 			if (rpi == LPFC_RPI_ALLOC_ERROR) {
-				spin_lock_irqsave(&phba->ndlp_lock, flags);
-				NLP_CLR_NODE_ACT(ndlp);
-				spin_unlock_irqrestore(&phba->ndlp_lock, flags);
+				/* TODO print log? */
 				continue;
 			}
 			ndlp->nlp_rpi = rpi;
 			lpfc_printf_vlog(ndlp->vport, KERN_INFO,
 					 LOG_NODE | LOG_DISCOVERY,
 					 "0009 Assign RPI x%x to ndlp x%px "
-					 "DID:x%06x flg:x%x map:x%x\n",
+					 "DID:x%06x flg:x%x\n",
 					 ndlp->nlp_rpi, ndlp, ndlp->nlp_DID,
-					 ndlp->nlp_flag, ndlp->nlp_usg_map);
+					 ndlp->nlp_flag);
 		}
 	}
 	lpfc_destroy_vport_work_array(phba, vports);
@@ -3510,8 +3482,7 @@ lpfc_offline_prep(struct lpfc_hba *phba, int mbx_action)
 			list_for_each_entry_safe(ndlp, next_ndlp,
 						 &vports[i]->fc_nodes,
 						 nlp_listp) {
-				if ((!NLP_CHK_NODE_ACT(ndlp)) ||
-				    ndlp->nlp_state == NLP_STE_UNUSED_NODE) {
+				if (ndlp->nlp_state == NLP_STE_UNUSED_NODE) {
 					/* Driver must assume RPI is invalid for
 					 * any unused or inactive node.
 					 */
@@ -3519,12 +3490,6 @@ lpfc_offline_prep(struct lpfc_hba *phba, int mbx_action)
 					continue;
 				}
 
-				if (ndlp->nlp_type & NLP_FABRIC) {
-					lpfc_disc_state_machine(vports[i], ndlp,
-						NULL, NLP_EVT_DEVICE_RECOVERY);
-					lpfc_disc_state_machine(vports[i], ndlp,
-						NULL, NLP_EVT_DEVICE_RM);
-				}
 				spin_lock_irq(shost->host_lock);
 				ndlp->nlp_flag &= ~NLP_NPR_ADISC;
 				spin_unlock_irq(shost->host_lock);
@@ -3537,15 +3502,20 @@ lpfc_offline_prep(struct lpfc_hba *phba, int mbx_action)
 					lpfc_printf_vlog(ndlp->vport, KERN_INFO,
 						 LOG_NODE | LOG_DISCOVERY,
 						 "0011 Free RPI x%x on "
-						 "ndlp:x%px did x%x "
-						 "usgmap:x%x\n",
+						 "ndlp:x%px did x%x\n",
 						 ndlp->nlp_rpi, ndlp,
-						 ndlp->nlp_DID,
-						 ndlp->nlp_usg_map);
+						 ndlp->nlp_DID);
 					lpfc_sli4_free_rpi(phba, ndlp->nlp_rpi);
 					ndlp->nlp_rpi = LPFC_RPI_ALLOC_ERROR;
 				}
 				lpfc_unreg_rpi(vports[i], ndlp);
+
+				if (ndlp->nlp_type & NLP_FABRIC) {
+					lpfc_disc_state_machine(vports[i], ndlp,
+						NULL, NLP_EVT_DEVICE_RECOVERY);
+					lpfc_disc_state_machine(vports[i], ndlp,
+						NULL, NLP_EVT_DEVICE_RM);
+				}
 			}
 		}
 	}
@@ -5604,11 +5574,6 @@ lpfc_sli4_perform_vport_cvl(struct lpfc_vport *vport)
 		ndlp->nlp_type |= NLP_FABRIC;
 		/* Put ndlp onto node list */
 		lpfc_enqueue_node(vport, ndlp);
-	} else if (!NLP_CHK_NODE_ACT(ndlp)) {
-		/* re-setup ndlp without removing from node list */
-		ndlp = lpfc_enable_node(vport, ndlp, NLP_STE_UNUSED_NODE);
-		if (!ndlp)
-			return 0;
 	}
 	if ((phba->pport->port_state < LPFC_FLOGI) &&
 		(phba->pport->port_state != LPFC_VPORT_FAILED))

@@ -694,7 +694,7 @@ __lpfc_nvme_ls_req(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	int ret;
 	uint16_t ntype, nstate;
 
-	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp)) {
+	if (!ndlp) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "6051 NVMEx LS REQ: Bad NDLP x%px, Failing "
 				 "LS Req\n",
@@ -1131,7 +1131,7 @@ lpfc_nvme_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 	 * transport is still transitioning.
 	 */
 	ndlp = lpfc_ncmd->ndlp;
-	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp)) {
+	if (!ndlp) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "6062 Ignoring NVME cmpl.  No ndlp\n");
 		goto out_err;
@@ -1312,9 +1312,6 @@ lpfc_nvme_prep_io_cmd(struct lpfc_vport *vport,
 	struct lpfc_iocbq *pwqeq = &(lpfc_ncmd->cur_iocbq);
 	union lpfc_wqe128 *wqe = &pwqeq->wqe;
 	uint32_t req_len;
-
-	if (!NLP_CHK_NODE_ACT(pnode))
-		return -EINVAL;
 
 	/*
 	 * There are three possibilities here - use scatter-gather segment, use
@@ -1665,7 +1662,7 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
 	 * transport is still transitioning.
 	 */
 	ndlp = rport->ndlp;
-	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp)) {
+	if (!ndlp) {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE | LOG_NVME_IOERR,
 				 "6053 Busy IO, ndlp not ready: rport x%px "
 				  "ndlp x%px, DID x%06x\n",
@@ -2496,8 +2493,7 @@ lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 			 * reference would cause a premature cleanup.
 			 */
 			if (prev_ndlp && prev_ndlp != ndlp) {
-				if ((!NLP_CHK_NODE_ACT(prev_ndlp)) ||
-				    (!prev_ndlp->nrport))
+				if (!prev_ndlp->nrport)
 					lpfc_nlp_put(prev_ndlp);
 			}
 		}

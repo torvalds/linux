@@ -3634,8 +3634,6 @@ lpfc_update_rport_devloss_tmo(struct lpfc_vport *vport)
 	shost = lpfc_shost_from_vport(vport);
 	spin_lock_irq(shost->host_lock);
 	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
-		if (!NLP_CHK_NODE_ACT(ndlp))
-			continue;
 		if (ndlp->rport)
 			ndlp->rport->dev_loss_tmo = vport->cfg_devloss_tmo;
 #if (IS_ENABLED(CONFIG_NVME_FC))
@@ -4404,7 +4402,7 @@ sysfs_drvr_stat_data_read(struct file *filp, struct kobject *kobj,
 
 	spin_lock_irq(shost->host_lock);
 	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
-		if (!NLP_CHK_NODE_ACT(ndlp) || !ndlp->lat_data)
+		if (!ndlp->lat_data)
 			continue;
 
 		if (nport_index > 0) {
@@ -5472,8 +5470,6 @@ lpfc_max_scsicmpl_time_set(struct lpfc_vport *vport, int val)
 
 	spin_lock_irq(shost->host_lock);
 	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
-		if (!NLP_CHK_NODE_ACT(ndlp))
-			continue;
 		if (ndlp->nlp_state == NLP_STE_UNUSED_NODE)
 			continue;
 		ndlp->cmd_qdepth = vport->cfg_tgt_queue_depth;
@@ -6982,8 +6978,7 @@ lpfc_get_node_by_target(struct scsi_target *starget)
 	spin_lock_irq(shost->host_lock);
 	/* Search for this, mapped, target ID */
 	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
-		if (NLP_CHK_NODE_ACT(ndlp) &&
-		    ndlp->nlp_state == NLP_STE_MAPPED_NODE &&
+		if (ndlp->nlp_state == NLP_STE_MAPPED_NODE &&
 		    starget->id == ndlp->nlp_sid) {
 			spin_unlock_irq(shost->host_lock);
 			return ndlp;
@@ -7058,7 +7053,7 @@ lpfc_set_rport_loss_tmo(struct fc_rport *rport, uint32_t timeout)
 	else
 		rport->dev_loss_tmo = 1;
 
-	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp)) {
+	if (!ndlp) {
 		dev_info(&rport->dev, "Cannot find remote node to "
 				      "set rport dev loss tmo, port_id x%x\n",
 				      rport->port_id);
