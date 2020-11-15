@@ -26,6 +26,7 @@
 #define SENSOR_CALIBRATION_ID		13
 #define IMEI_ID				15
 #define LAN_RGMII_DL_ID			16
+#define EINK_VCOM_ID			17
 
 int rk_vendor_read(u32 id, void *pbuf, u32 size);
 int rk_vendor_write(u32 id, void *pbuf, u32 size);
