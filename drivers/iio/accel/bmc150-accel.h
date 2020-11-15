@@ -9,6 +9,7 @@ enum {
 	bmi055,
 	bma255,
 	bma250e,
+	bma222,
 	bma222e,
 	bma280,
 };
