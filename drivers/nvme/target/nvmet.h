@@ -164,7 +164,6 @@ static inline struct nvmet_port *ana_groups_to_port(
 
 struct nvmet_ctrl {
 	struct nvmet_subsys	*subsys;
-	struct nvmet_cq		**cqs;
 	struct nvmet_sq		**sqs;
 
 	bool			cmd_seen;
