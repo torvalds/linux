@@ -174,7 +174,6 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		reg = <0x70>;
-		status = "okay";
 
 		i2c@0 {
 			#address-cells = <1>;
@@ -388,7 +387,6 @@
 	status = "okay";
 
 	phy1: ethernet-phy@1 {
-		status = "okay";
 		compatible = "ethernet-phy-ieee802.3-c22";
 		reg = <1>;
 
