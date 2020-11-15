@@ -12,6 +12,7 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
 #include "armada-385.dtsi"
 
 / {
@@ -181,7 +182,115 @@
 			reg = <0>;
 
 			/* STM32F0 command interface at address 0x2a */
-			/* leds device (in STM32F0) at address 0x2b */
+
+			led-controller@2b {
+				compatible = "cznic,turris-omnia-leds";
+				reg = <0x2b>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				/*
+				 * LEDs are controlled by MCU (STM32F0) at
+				 * address 0x2b.
+				 *
+				 * The driver does not support HW control mode
+				 * for the LEDs yet. Disable the LEDs for now.
+				 *
+				 * Also LED functions are not stable yet:
+				 * - there are 3 LEDs connected via MCU to PCIe
+				 *   ports. One of these ports supports mSATA.
+				 *   There is no mSATA nor PCIe function.
+				 *   For now we use LED_FUNCTION_WLAN, since
+				 *   in most cases users have wifi cards in
+				 *   these slots
+				 * - there are 2 LEDs dedicated for user: A and
+				 *   B. Again there is no such function defined.
+				 *   For now we use LED_FUNCTION_INDICATOR
+				 */
+				status = "disabled";
+
+				multi-led@0 {
+					reg = <0x0>;
+					color = <LED_COLOR_ID_RGB>;
+					function = LED_FUNCTION_INDICATOR;
+					function-enumerator = <2>;
+				};
+
+				multi-led@1 {
+					reg = <0x1>;
+					color = <LED_COLOR_ID_RGB>;
+					function = LED_FUNCTION_INDICATOR;
+					function-enumerator = <1>;
+				};
+
+				multi-led@2 {
+					reg = <0x2>;
+					color = <LED_COLOR_ID_RGB>;
+					function = LED_FUNCTION_WLAN;
+					function-enumerator = <3>;
+				};
+
+				multi-led@3 {
+					reg = <0x3>;
+					color = <LED_COLOR_ID_RGB>;
+					function = LED_FUNCTION_WLAN;
+					function-enumerator = <2>;
+				};
+
+				multi-led@4 {
+					reg = <0x4>;
+					color = <LED_COLOR_ID_RGB>;
+					function = LED_FUNCTION_WLAN;
+					function-enumerator = <1>;
+				};
+
+				multi-led@5 {
+					reg = <0x5>;
+					color = <LED_COLOR_ID_RGB>;
+					function = LED_FUNCTION_WAN;
+				};
+
+				multi-led@6 {
+					reg = <0x6>;
+					color = <LED_COLOR_ID_RGB>;
+					function = LED_FUNCTION_LAN;
+					function-enumerator = <4>;
+				};
+
+				multi-led@7 {
+					reg = <0x7>;
+					color = <LED_COLOR_ID_RGB>;
+					function = LED_FUNCTION_LAN;
+					function-enumerator = <3>;
+				};
+
+				multi-led@8 {
+					reg = <0x8>;
+					color = <LED_COLOR_ID_RGB>;
+					function = LED_FUNCTION_LAN;
+					function-enumerator = <2>;
+				};
+
+				multi-led@9 {
+					reg = <0x9>;
+					color = <LED_COLOR_ID_RGB>;
+					function = LED_FUNCTION_LAN;
+					function-enumerator = <1>;
+				};
+
+				multi-led@a {
+					reg = <0xa>;
+					color = <LED_COLOR_ID_RGB>;
+					function = LED_FUNCTION_LAN;
+					function-enumerator = <0>;
+				};
+
+				multi-led@b {
+					reg = <0xb>;
+					color = <LED_COLOR_ID_RGB>;
+					function = LED_FUNCTION_POWER;
+				};
+			};
 
 			eeprom@54 {
 				compatible = "atmel,24c64";
