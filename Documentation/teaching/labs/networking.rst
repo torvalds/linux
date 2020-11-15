@@ -1152,10 +1152,11 @@ Read the `Operations on the socket structure`_ and `The struct proto_ops
 structure`_ sections.
 
 For the kernel space ``accept`` equivalent, see the system call handler for
-:c:func:`sys_accept4`. Follow the :c:func:`lnet_sock_accept` implementation, and
-how the ``sock->ops->accept`` call is used. Use ``0`` as the value for the
-second to last argument (``flags``), and ``true`` for the last argument
-(``kern``).
+:c:func:`sys_accept4`. Follow the `lnet_sock_accept
+<https://elixir.bootlin.com/linux/v4.17/source/drivers/staging/lustre/lnet/lnet/lib-socket.c#L511>`_
+implementation, and how the ``sock->ops->accept`` call is used. Use ``0`` as
+the value for the second to last argument (``flags``), and ``true`` for the
+last argument (``kern``).
 
 .. note::
 
