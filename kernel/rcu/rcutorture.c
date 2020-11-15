@@ -1429,6 +1429,7 @@ rcutorture_loop_extend(int *readstate, struct torture_random_state *trsp,
  */
 static bool rcu_torture_one_read(struct torture_random_state *trsp)
 {
+	unsigned long cookie;
 	int i;
 	unsigned long started;
 	unsigned long completed;
@@ -1444,6 +1445,8 @@ static bool rcu_torture_one_read(struct torture_random_state *trsp)
 	WARN_ON_ONCE(!rcu_is_watching());
 	newstate = rcutorture_extend_mask(readstate, trsp);
 	rcutorture_one_extend(&readstate, newstate, trsp, rtrsp++);
+	if (cur_ops->get_gp_state && cur_ops->poll_gp_state)
+		cookie = cur_ops->get_gp_state();
 	started = cur_ops->get_gp_seq();
 	ts = rcu_trace_clock_local();
 	p = rcu_dereference_check(rcu_torture_current,
@@ -1480,6 +1483,13 @@ static bool rcu_torture_one_read(struct torture_random_state *trsp)
 	}
 	__this_cpu_inc(rcu_torture_batch[completed]);
 	preempt_enable();
+	if (cur_ops->get_gp_state && cur_ops->poll_gp_state)
+		WARN_ONCE(cur_ops->poll_gp_state(cookie),
+			  "%s: Cookie check 3 failed %s(%d) %lu->%lu\n",
+			  __func__,
+			  rcu_torture_writer_state_getname(),
+			  rcu_torture_writer_state,
+			  cookie, cur_ops->get_gp_state());
 	rcutorture_one_extend(&readstate, 0, trsp, rtrsp);
 	WARN_ON_ONCE(readstate & RCUTORTURE_RDR_MASK);
 	// This next splat is expected behavior if leakpointer, especially
