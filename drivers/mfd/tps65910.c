@@ -436,12 +436,18 @@ static void tps65910_power_off(void)
 
 	tps65910 = dev_get_drvdata(&tps65910_i2c_client->dev);
 
+	/*
+	 * The PWR_OFF bit needs to be set separately, before transitioning
+	 * to the OFF state. It enables the "sequential" power-off mode on
+	 * TPS65911, it's a NO-OP on TPS65910.
+	 */
 	if (regmap_set_bits(tps65910->regmap, TPS65910_DEVCTRL,
 			    DEVCTRL_PWR_OFF_MASK) < 0)
 		return;
 
-	regmap_clear_bits(tps65910->regmap, TPS65910_DEVCTRL,
-			  DEVCTRL_DEV_ON_MASK);
+	regmap_update_bits(tps65910->regmap, TPS65910_DEVCTRL,
+			   DEVCTRL_DEV_OFF_MASK | DEVCTRL_DEV_ON_MASK,
+			   DEVCTRL_DEV_OFF_MASK);
 }
 
 static int tps65910_i2c_probe(struct i2c_client *i2c,
