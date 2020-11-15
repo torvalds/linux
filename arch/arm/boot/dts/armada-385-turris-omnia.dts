@@ -84,12 +84,23 @@
 	};
 };
 
+&bm {
+	status = "okay";
+};
+
+&bm_bppi {
+	status = "okay";
+};
+
 /* Connected to 88E6176 switch, port 6 */
 &eth0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&ge0_rgmii_pins>;
 	status = "okay";
 	phy-mode = "rgmii";
+	buffer-manager = <&bm>;
+	bm,pool-long = <0>;
+	bm,pool-short = <3>;
 
 	fixed-link {
 		speed = <1000>;
@@ -103,6 +114,9 @@
 	pinctrl-0 = <&ge1_rgmii_pins>;
 	status = "okay";
 	phy-mode = "rgmii";
+	buffer-manager = <&bm>;
+	bm,pool-long = <1>;
+	bm,pool-short = <3>;
 
 	fixed-link {
 		speed = <1000>;
@@ -115,6 +129,9 @@
 	status = "okay";
 	phy-mode = "sgmii";
 	phy = <&phy1>;
+	buffer-manager = <&bm>;
+	bm,pool-long = <2>;
+	bm,pool-short = <3>;
 };
 
 &i2c0 {
