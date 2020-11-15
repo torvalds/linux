@@ -1601,7 +1601,6 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 	u32 keep_nlp_fc4_type = 0;
 	struct lpfc_nvme_rport *keep_nrport = NULL;
 	int  put_node;
-	int  put_rport;
 	unsigned long *active_rrqs_xri_bitmap = NULL;
 
 	/* Fabric nodes can have the same WWPN so we don't bother searching
@@ -1804,13 +1803,10 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 		if (rport) {
 			rdata = rport->dd_data;
 			put_node = rdata->pnode != NULL;
-			put_rport = ndlp->rport != NULL;
 			rdata->pnode = NULL;
 			ndlp->rport = NULL;
 			if (put_node)
 				lpfc_nlp_put(ndlp);
-			if (put_rport)
-				put_device(&rport->dev);
 		}
 	}
 

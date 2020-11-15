@@ -664,9 +664,8 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 		ns_ndlp_referenced = true;
 	}
 
-	/* Remove FC host and then SCSI host with the vport */
+	/* Remove FC host to break driver binding. */
 	fc_remove_host(shost);
-	scsi_remove_host(shost);
 
 	ndlp = lpfc_findnode_did(phba->pport, Fabric_DID);
 
@@ -747,6 +746,9 @@ skip_logo:
 	}
 
 	lpfc_cleanup(vport);
+
+	/* Remove scsi host now.  The nodes are cleaned up. */
+	scsi_remove_host(shost);
 	lpfc_sli_host_down(vport);
 
 	lpfc_stop_vport_timers(vport);

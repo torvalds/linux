@@ -12499,11 +12499,14 @@ lpfc_pci_remove_one_s3(struct pci_dev *pdev)
 		}
 	lpfc_destroy_vport_work_array(phba, vports);
 
-	/* Remove FC host and then SCSI host with the physical port */
+	/* Remove FC host with the physical port */
 	fc_remove_host(shost);
-	scsi_remove_host(shost);
 
+	/* Clean up all nodes, mailboxes and IOs. */
 	lpfc_cleanup(vport);
+
+	/* Remove the shost now that the devices connections are lost. */
+	scsi_remove_host(shost);
 
 	/*
 	 * Bring down the SLI Layer. This step disable all interrupts,
@@ -13342,7 +13345,6 @@ lpfc_pci_remove_one_s4(struct pci_dev *pdev)
 	vport->load_flag |= FC_UNLOADING;
 	spin_unlock_irq(&phba->hbalock);
 
-	/* Free the HBA sysfs attributes */
 	lpfc_free_sysfs_attr(vport);
 
 	/* Release all the vports against this physical port */
@@ -13355,9 +13357,8 @@ lpfc_pci_remove_one_s4(struct pci_dev *pdev)
 		}
 	lpfc_destroy_vport_work_array(phba, vports);
 
-	/* Remove FC host and then SCSI host with the physical port */
+	/* Remove FC host with the physical port */
 	fc_remove_host(shost);
-	scsi_remove_host(shost);
 
 	/* Perform ndlp cleanup on the physical port.  The nvme and nvmet
 	 * localports are destroyed after to cleanup all transport memory.
@@ -13369,6 +13370,9 @@ lpfc_pci_remove_one_s4(struct pci_dev *pdev)
 	/* De-allocate multi-XRI pools */
 	if (phba->cfg_xri_rebalancing)
 		lpfc_destroy_multixri_pools(phba);
+
+	/* Remove the shost now that the devices connections are lost. */
+	scsi_remove_host(shost);
 
 	/*
 	 * Bring down the SLI Layer. This step disables all interrupts,
