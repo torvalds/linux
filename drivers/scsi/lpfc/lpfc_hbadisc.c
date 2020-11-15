@@ -4810,8 +4810,14 @@ lpfc_set_unreg_login_mbx_cmpl(struct lpfc_hba *phba, struct lpfc_vport *vport,
 {
 	unsigned long iflags;
 
+	/* Driver always gets a reference on the mailbox job
+	 * in support of async jobs.
+	 */
+	mbox->ctx_ndlp = lpfc_nlp_get(ndlp);
+	if (!mbox->ctx_ndlp)
+		return;
+
 	if (ndlp->nlp_flag & NLP_ISSUE_LOGO) {
-		mbox->ctx_ndlp = ndlp;
 		mbox->mbox_cmpl = lpfc_nlp_logo_unreg;
 
 	} else if (phba->sli_rev == LPFC_SLI_REV4 &&
@@ -4819,7 +4825,6 @@ lpfc_set_unreg_login_mbx_cmpl(struct lpfc_hba *phba, struct lpfc_vport *vport,
 		    (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) >=
 				      LPFC_SLI_INTF_IF_TYPE_2) &&
 		    (kref_read(&ndlp->kref) > 0)) {
-		mbox->ctx_ndlp = lpfc_nlp_get(ndlp);
 		mbox->mbox_cmpl = lpfc_sli4_unreg_rpi_cmpl_clr;
 	} else {
 		if (vport->load_flag & FC_UNLOADING) {
@@ -4828,9 +4833,7 @@ lpfc_set_unreg_login_mbx_cmpl(struct lpfc_hba *phba, struct lpfc_vport *vport,
 				ndlp->nlp_flag |= NLP_RELEASE_RPI;
 				spin_unlock_irqrestore(&ndlp->lock, iflags);
 			}
-			lpfc_nlp_get(ndlp);
 		}
-		mbox->ctx_ndlp = ndlp;
 		mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 	}
 }
@@ -4888,6 +4891,11 @@ lpfc_unreg_rpi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 			lpfc_unreg_login(phba, vport->vpi, rpi, mbox);
 			mbox->vport = vport;
 			lpfc_set_unreg_login_mbx_cmpl(phba, vport, ndlp, mbox);
+			if (!mbox->ctx_ndlp) {
+				mempool_free(mbox, phba->mbox_mem_pool);
+				return 1;
+			}
+
 			if (mbox->mbox_cmpl == lpfc_sli4_unreg_rpi_cmpl_clr)
 				/*
 				 * accept PLOGIs after unreg_rpi_cmpl
@@ -5057,7 +5065,6 @@ lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	struct lpfc_hba  *phba = vport->phba;
 	LPFC_MBOXQ_t *mb, *nextmb;
 	struct lpfc_dmabuf *mp;
-	unsigned long iflags;
 
 	/* Cleanup node for NPort <nlp_DID> */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NODE,
@@ -5125,18 +5132,6 @@ lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	lpfc_cleanup_vports_rrqs(vport, ndlp);
 	if (phba->sli_rev == LPFC_SLI_REV4)
 		ndlp->nlp_flag |= NLP_RELEASE_RPI;
-	if (!lpfc_unreg_rpi(vport, ndlp)) {
-		/* Clean up unregistered and non freed rpis */
-		if ((ndlp->nlp_flag & NLP_RELEASE_RPI) &&
-		    !(ndlp->nlp_rpi == LPFC_RPI_ALLOC_ERROR)) {
-			lpfc_sli4_free_rpi(vport->phba,
-					   ndlp->nlp_rpi);
-			spin_lock_irqsave(&ndlp->lock, iflags);
-			ndlp->nlp_flag &= ~NLP_RELEASE_RPI;
-			ndlp->nlp_rpi = LPFC_RPI_ALLOC_ERROR;
-			spin_unlock_irqrestore(&ndlp->lock, iflags);
-		}
-	}
 	return 0;
 }
 

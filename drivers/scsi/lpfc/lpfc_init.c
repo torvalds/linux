@@ -2851,10 +2851,8 @@ lpfc_cleanup(struct lpfc_vport *vport)
 			continue;
 		}
 
-		/* take care of nodes in unused state before the state
-		 * machine taking action.
-		 */
-		if (ndlp->nlp_state == NLP_STE_UNUSED_NODE) {
+		if (ndlp->nlp_DID == Fabric_Cntl_DID &&
+		    ndlp->nlp_state == NLP_STE_UNUSED_NODE) {
 			lpfc_nlp_put(ndlp);
 			continue;
 		}

@@ -2835,22 +2835,12 @@ lpfc_cmpl_els_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	/* LOGO completes to NPort <nlp_DID> */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 			 "0105 LOGO completes to NPort x%x "
-			 "Data: x%x x%x x%x x%x\n",
-			 ndlp->nlp_DID, irsp->ulpStatus, irsp->un.ulpWord[4],
+			 "refcnt %d nflags x%x Data: x%x x%x x%x x%x\n",
+			 ndlp->nlp_DID, kref_read(&ndlp->kref), ndlp->nlp_flag,
+			 irsp->ulpStatus, irsp->un.ulpWord[4],
 			 irsp->ulpTimeout, vport->num_disc_nodes);
 
 	if (lpfc_els_chk_latt(vport)) {
-		skip_recovery = 1;
-		goto out;
-	}
-
-	/* Check to see if link went down during discovery */
-	if (ndlp->nlp_flag & NLP_TARGET_REMOVE) {
-	        /* NLP_EVT_DEVICE_RM should unregister the RPI
-		 * which should abort all outstanding IOs.
-		 */
-		lpfc_disc_state_machine(vport, ndlp, cmdiocb,
-					NLP_EVT_DEVICE_RM);
 		skip_recovery = 1;
 		goto out;
 	}
@@ -2875,6 +2865,19 @@ lpfc_cmpl_els_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 	/* Call state machine. This will unregister the rpi if needed. */
 	lpfc_disc_state_machine(vport, ndlp, cmdiocb, NLP_EVT_CMPL_LOGO);
+
+	/* The driver sets this flag for an NPIV instance that doesn't want to
+	 * log into the remote port.
+	 */
+	if (ndlp->nlp_flag & NLP_TARGET_REMOVE) {
+		lpfc_disc_state_machine(vport, ndlp, cmdiocb,
+					NLP_EVT_DEVICE_RM);
+		lpfc_els_free_iocb(phba, cmdiocb);
+		lpfc_nlp_put(ndlp);
+
+		/* Presume the node was released. */
+		return;
+	}
 
 out:
 	/* Driver is done with the IO.  */
@@ -4399,10 +4402,10 @@ lpfc_cmpl_els_logo_acc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		irsp->ulpStatus, irsp->un.ulpWord[4], ndlp->nlp_DID);
 	/* ACC to LOGO completes to NPort <nlp_DID> */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
-			 "0109 ACC to LOGO completes to NPort x%x "
+			 "0109 ACC to LOGO completes to NPort x%x refcnt %d"
 			 "Data: x%x x%x x%x\n",
-			 ndlp->nlp_DID, ndlp->nlp_flag, ndlp->nlp_state,
-			 ndlp->nlp_rpi);
+			 ndlp->nlp_DID, kref_read(&ndlp->kref), ndlp->nlp_flag,
+			 ndlp->nlp_state, ndlp->nlp_rpi);
 
 	if (ndlp->nlp_state == NLP_STE_NPR_NODE) {
 		/* NPort Recovery mode or node is just allocated */
@@ -8650,9 +8653,9 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	/* ELS command <elsCmd> received from NPORT <did> */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 			 "0112 ELS command x%x received from NPORT x%x "
-			 "Data: x%x x%x x%x x%x\n",
-			cmd, did, vport->port_state, vport->fc_flag,
-			vport->fc_myDID, vport->fc_prevDID);
+			 "refcnt %d Data: x%x x%x x%x x%x\n",
+			 cmd, did, kref_read(&ndlp->kref), vport->port_state,
+			 vport->fc_flag, vport->fc_myDID, vport->fc_prevDID);
 
 	/* reject till our FLOGI completes or PLOGI assigned DID via PT2PT */
 	if ((vport->port_state < LPFC_FABRIC_CFG_LINK) &&
@@ -9144,9 +9147,9 @@ lpfc_do_scr_ns_plogi(struct lpfc_hba *phba, struct lpfc_vport *vport)
 	spin_lock_irq(shost->host_lock);
 	if (vport->fc_flag & FC_DISC_DELAYED) {
 		spin_unlock_irq(shost->host_lock);
-		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
-				"3334 Delay fc port discovery for %d seconds\n",
-				phba->fc_ratov);
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
+				 "3334 Delay fc port discovery for %d secs\n",
+				 phba->fc_ratov);
 		mod_timer(&vport->delayed_disc_tmo,
 			jiffies + msecs_to_jiffies(1000 * phba->fc_ratov));
 		return;
