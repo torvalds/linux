@@ -58,6 +58,8 @@
 #define USB_LEAF_LIGHT_HS_V2_OEM_PRODUCT_ID	290
 #define USB_USBCAN_LIGHT_2HS_PRODUCT_ID		291
 #define USB_MINI_PCIE_2HS_PRODUCT_ID		292
+#define USB_LEAF_PRODUCT_ID_END \
+	USB_MINI_PCIE_2HS_PRODUCT_ID
 
 /* Kvaser USBCan-II devices product ids */
 #define USB_USBCAN_REVB_PRODUCT_ID		2
@@ -78,13 +80,15 @@
 #define USB_ATI_USBCAN_PRO_2HS_V2_PRODUCT_ID	268
 #define USB_ATI_MEMO_PRO_2HS_V2_PRODUCT_ID	269
 #define USB_HYBRID_PRO_CANLIN_PRODUCT_ID	270
+#define USB_HYDRA_PRODUCT_ID_END \
+	USB_HYBRID_PRO_CANLIN_PRODUCT_ID
 
 static inline bool kvaser_is_leaf(const struct usb_device_id *id)
 {
 	return (id->idProduct >= USB_LEAF_DEVEL_PRODUCT_ID &&
 		id->idProduct <= USB_CAN_R_PRODUCT_ID) ||
 		(id->idProduct >= USB_LEAF_LITE_V2_PRODUCT_ID &&
-		 id->idProduct <= USB_MINI_PCIE_2HS_PRODUCT_ID);
+		 id->idProduct <= USB_LEAF_PRODUCT_ID_END);
 }
 
 static inline bool kvaser_is_usbcan(const struct usb_device_id *id)
@@ -96,7 +100,7 @@ static inline bool kvaser_is_usbcan(const struct usb_device_id *id)
 static inline bool kvaser_is_hydra(const struct usb_device_id *id)
 {
 	return id->idProduct >= USB_BLACKBIRD_V2_PRODUCT_ID &&
-	       id->idProduct <= USB_HYBRID_PRO_CANLIN_PRODUCT_ID;
+	       id->idProduct <= USB_HYDRA_PRODUCT_ID_END;
 }
 
 static const struct usb_device_id kvaser_usb_table[] = {
