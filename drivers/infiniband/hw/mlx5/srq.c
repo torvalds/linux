@@ -51,8 +51,6 @@ static int create_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq,
 		udata, struct mlx5_ib_ucontext, ibucontext);
 	size_t ucmdlen;
 	int err;
-	unsigned int page_offset_quantized;
-	unsigned int page_size;
 	u32 uidx = MLX5_IB_DEFAULT_UIDX;
 
 	ucmdlen = min(udata->inlen, sizeof(ucmd));
@@ -84,41 +82,20 @@ static int create_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq,
 		err = PTR_ERR(srq->umem);
 		return err;
 	}
-
-	page_size = mlx5_umem_find_best_quantized_pgoff(
-		srq->umem, srqc, log_page_size, MLX5_ADAPTER_PAGE_SHIFT,
-		page_offset, 64, &page_offset_quantized);
-	if (!page_size) {
-		mlx5_ib_warn(dev, "bad offset\n");
-		goto err_umem;
-	}
-
-	in->pas = kvcalloc(ib_umem_num_dma_blocks(srq->umem, page_size),
-			   sizeof(*in->pas), GFP_KERNEL);
-	if (!in->pas) {
-		err = -ENOMEM;
-		goto err_umem;
-	}
-
-	mlx5_ib_populate_pas(srq->umem, page_size, in->pas, 0);
+	in->umem = srq->umem;
 
 	err = mlx5_ib_db_map_user(ucontext, udata, ucmd.db_addr, &srq->db);
 	if (err) {
 		mlx5_ib_dbg(dev, "map doorbell failed\n");
-		goto err_in;
+		goto err_umem;
 	}
 
-	in->log_page_size = order_base_2(page_size) - MLX5_ADAPTER_PAGE_SHIFT;
-	in->page_offset = page_offset_quantized;
 	in->uid = (in->type != IB_SRQT_XRC) ?  to_mpd(pd)->uid : 0;
 	if (MLX5_CAP_GEN(dev->mdev, cqe_version) == MLX5_CQE_VERSION_V1 &&
 	    in->type != IB_SRQT_BASIC)
 		in->user_index = uidx;
 
 	return 0;
-
-err_in:
-	kvfree(in->pas);
 
 err_umem:
 	ib_umem_release(srq->umem);
