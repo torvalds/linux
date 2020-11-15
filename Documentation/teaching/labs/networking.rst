@@ -773,7 +773,7 @@ where:
 \
 
 
-  * ``net_device`` is the device (network interface) on which the capture is
+  * ``dev`` is the device (network interface) on which the capture is
     intended;
 
 
