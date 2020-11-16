@@ -54,6 +54,7 @@
 #include <asm/nmi.h>
 #include <asm/stacktrace.h>
 #include <asm/topology.h>
+#include <asm/vdso.h>
 #include "entry.h"
 
 enum {
@@ -858,6 +859,7 @@ static void smp_init_secondary(void)
 	preempt_disable();
 	init_cpu_timer();
 	vtime_init();
+	vdso_getcpu_init();
 	pfault_init();
 	notify_cpu_starting(cpu);
 	if (topology_cpu_dedicated(cpu))

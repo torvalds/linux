@@ -29,6 +29,7 @@
 #include <asm/sections.h>
 #include <asm/vdso.h>
 #include <asm/facility.h>
+#include <asm/timex.h>
 
 extern char vdso64_start, vdso64_end;
 static void *vdso64_kbase = &vdso64_start;
@@ -100,6 +101,11 @@ static union {
 } vdso_data_store __page_aligned_data;
 struct vdso_data *vdso_data = (struct vdso_data *)&vdso_data_store.data;
 
+void vdso_getcpu_init(void)
+{
+	set_tod_programmable_field(smp_processor_id());
+}
+
 /*
  * This is called from binfmt_elf, we create the special vma for the
  * vDSO and insert it into the mm struct tree
@@ -170,6 +176,7 @@ static int __init vdso_init(void)
 {
 	int i;
 
+	vdso_getcpu_init();
 	/* Calculate the size of the 64 bit vDSO */
 	vdso64_pages = ((&vdso64_end - &vdso64_start
 			 + PAGE_SIZE - 1) >> PAGE_SHIFT) + 1;

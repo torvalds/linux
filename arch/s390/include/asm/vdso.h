@@ -14,5 +14,7 @@
 
 extern struct vdso_data *vdso_data;
 
+void vdso_getcpu_init(void);
+
 #endif /* __ASSEMBLY__ */
 #endif /* __S390_VDSO_H__ */
