@@ -211,13 +211,6 @@ struct omap_hwmod am33xx_smartreflex1_hwmod = {
 	},
 };
 
-/*
- * 'control' module class
- */
-struct omap_hwmod_class am33xx_control_hwmod_class = {
-	.name		= "control",
-};
-
 static void omap_hwmod_am33xx_clkctrl(void)
 {
 	CLKCTRL(am33xx_smartreflex0_hwmod,
