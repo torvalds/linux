@@ -18,6 +18,7 @@
 #include "msm_gpu.h"
 #include "msm_mmu.h"
 
+static void update_inactive(struct msm_gem_object *msm_obj);
 
 static dma_addr_t physaddr(struct drm_gem_object *obj)
 {
@@ -677,6 +678,12 @@ int msm_gem_madvise(struct drm_gem_object *obj, unsigned madv)
 
 	madv = msm_obj->madv;
 
+	/* If the obj is inactive, we might need to move it
+	 * between inactive lists
+	 */
+	if (msm_obj->active_count == 0)
+		update_inactive(msm_obj);
+
 	msm_gem_unlock(obj);
 
 	return (madv != __MSM_MADV_PURGED);
@@ -780,17 +787,29 @@ void msm_gem_active_get(struct drm_gem_object *obj, struct msm_gpu *gpu)
 void msm_gem_active_put(struct drm_gem_object *obj)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
-	struct msm_drm_private *priv = obj->dev->dev_private;
 
 	might_sleep();
 	WARN_ON(!msm_gem_is_locked(obj));
 
 	if (--msm_obj->active_count == 0) {
-		mutex_lock(&priv->mm_lock);
-		list_del_init(&msm_obj->mm_list);
-		list_add_tail(&msm_obj->mm_list, &priv->inactive_list);
-		mutex_unlock(&priv->mm_lock);
+		update_inactive(msm_obj);
 	}
+}
+
+static void update_inactive(struct msm_gem_object *msm_obj)
+{
+	struct msm_drm_private *priv = msm_obj->base.dev->dev_private;
+
+	mutex_lock(&priv->mm_lock);
+	WARN_ON(msm_obj->active_count != 0);
+
+	list_del_init(&msm_obj->mm_list);
+	if (msm_obj->madv == MSM_MADV_WILLNEED)
+		list_add_tail(&msm_obj->mm_list, &priv->inactive_willneed);
+	else
+		list_add_tail(&msm_obj->mm_list, &priv->inactive_dontneed);
+
+	mutex_unlock(&priv->mm_lock);
 }
 
 int msm_gem_cpu_prep(struct drm_gem_object *obj, uint32_t op, ktime_t *timeout)
@@ -1098,7 +1117,8 @@ static struct drm_gem_object *_msm_gem_new(struct drm_device *dev,
 	}
 
 	mutex_lock(&priv->mm_lock);
-	list_add_tail(&msm_obj->mm_list, &priv->inactive_list);
+	/* Initially obj is idle, obj->madv == WILLNEED: */
+	list_add_tail(&msm_obj->mm_list, &priv->inactive_willneed);
 	mutex_unlock(&priv->mm_lock);
 
 	return obj;
@@ -1168,7 +1188,7 @@ struct drm_gem_object *msm_gem_import(struct drm_device *dev,
 	msm_gem_unlock(obj);
 
 	mutex_lock(&priv->mm_lock);
-	list_add_tail(&msm_obj->mm_list, &priv->inactive_list);
+	list_add_tail(&msm_obj->mm_list, &priv->inactive_willneed);
 	mutex_unlock(&priv->mm_lock);
 
 	return obj;

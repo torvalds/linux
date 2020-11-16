@@ -175,8 +175,9 @@ struct msm_drm_private {
 	struct msm_perf_state *perf;
 
 	/*
-	 * List of inactive GEM objects.  Every bo is either in the inactive_list
-	 * or gpu->active_list (for the gpu it is active on[1])
+	 * Lists of inactive GEM objects.  Every bo is either in one of the
+	 * inactive lists (depending on whether or not it is shrinkable) or
+	 * gpu->active_list (for the gpu it is active on[1])
 	 *
 	 * These lists are protected by mm_lock.  If struct_mutex is involved, it
 	 * should be aquired prior to mm_lock.  One should *not* hold mm_lock in
@@ -185,7 +186,8 @@ struct msm_drm_private {
 	 * [1] if someone ever added support for the old 2d cores, there could be
 	 *     more than one gpu object
 	 */
-	struct list_head inactive_list;
+	struct list_head inactive_willneed;  /* inactive + !shrinkable */
+	struct list_head inactive_dontneed;  /* inactive +  shrinkable */
 	struct mutex mm_lock;
 
 	struct workqueue_struct *wq;
