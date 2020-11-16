@@ -26,31 +26,29 @@
 #endif
 
 /*
- * TIF flags handled in syscall_enter_from_user_mode()
+ * SYSCALL_WORK flags handled in syscall_enter_from_user_mode()
  */
-#ifndef ARCH_SYSCALL_ENTER_WORK
-# define ARCH_SYSCALL_ENTER_WORK	(0)
+#ifndef ARCH_SYSCALL_WORK_ENTER
+# define ARCH_SYSCALL_WORK_ENTER	(0)
 #endif
-
-#define SYSCALL_ENTER_WORK ARCH_SYSCALL_ENTER_WORK
 
 /*
- * TIF flags handled in syscall_exit_to_user_mode()
+ * SYSCALL_WORK flags handled in syscall_exit_to_user_mode()
  */
-#ifndef ARCH_SYSCALL_EXIT_WORK
-# define ARCH_SYSCALL_EXIT_WORK		(0)
+#ifndef ARCH_SYSCALL_WORK_EXIT
+# define ARCH_SYSCALL_WORK_EXIT		(0)
 #endif
-
-#define SYSCALL_EXIT_WORK ARCH_SYSCALL_EXIT_WORK
 
 #define SYSCALL_WORK_ENTER	(SYSCALL_WORK_SECCOMP |			\
 				 SYSCALL_WORK_SYSCALL_TRACEPOINT |	\
 				 SYSCALL_WORK_SYSCALL_TRACE |		\
 				 SYSCALL_WORK_SYSCALL_EMU |		\
-				 SYSCALL_WORK_SYSCALL_AUDIT)
+				 SYSCALL_WORK_SYSCALL_AUDIT |		\
+				 ARCH_SYSCALL_WORK_ENTER)
 #define SYSCALL_WORK_EXIT	(SYSCALL_WORK_SYSCALL_TRACEPOINT |	\
 				 SYSCALL_WORK_SYSCALL_TRACE |		\
-				 SYSCALL_WORK_SYSCALL_AUDIT)
+				 SYSCALL_WORK_SYSCALL_AUDIT |		\
+				 ARCH_SYSCALL_WORK_EXIT)
 
 /*
  * TIF flags handled in exit_to_user_mode_loop()
@@ -136,8 +134,8 @@ void syscall_enter_from_user_mode_prepare(struct pt_regs *regs);
  *
  * It handles the following work items:
  *
- *  1) TIF flag dependent invocations of arch_syscall_enter_tracehook(),
- *     __secure_computing(), trace_sys_enter()
+ *  1) syscall_work flag dependent invocations of
+ *     arch_syscall_enter_tracehook(), __secure_computing(), trace_sys_enter()
  *  2) Invocation of audit_syscall_entry()
  */
 long syscall_enter_from_user_mode_work(struct pt_regs *regs, long syscall);
