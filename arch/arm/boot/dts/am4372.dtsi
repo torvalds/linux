@@ -155,11 +155,13 @@
 	};
 
 	ocp@44000000 {
-		compatible = "ti,am4372-l3-noc", "simple-bus";
+		compatible = "simple-pm-bus";
+		power-domains = <&prm_per>;
+		clocks = <&l3_clkctrl AM4_L3_L3_MAIN_CLKCTRL 0>;
+		clock-names = "fck";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
-		ti,hwmods = "l3_main";
 		ti,no-idle;
 
 		l3-noc@44000000 {
