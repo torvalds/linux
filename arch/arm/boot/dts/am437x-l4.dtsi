@@ -422,6 +422,7 @@
 					<SYSC_IDLE_SMART>,
 					<SYSC_IDLE_SMART_WKUP>;
 			/* Domains (P, C): rtc_pwrdm, l4_rtc_clkdm */
+			power-domains = <&prm_rtc>;
 			clocks = <&l4_rtc_clkctrl AM4_L4_RTC_RTC_CLKCTRL 0>;
 			clock-names = "fck";
 			#address-cells = <1>;
