@@ -67,12 +67,14 @@ struct ipa;
 
 #define IPA_REG_ENABLED_PIPES_OFFSET			0x00000038
 
+/* The next field is not supported for IPA v4.1 */
 #define IPA_REG_COMP_CFG_OFFSET				0x0000003c
 #define ENABLE_FMASK				GENMASK(0, 0)
 #define GSI_SNOC_BYPASS_DIS_FMASK		GENMASK(1, 1)
 #define GEN_QMB_0_SNOC_BYPASS_DIS_FMASK		GENMASK(2, 2)
 #define GEN_QMB_1_SNOC_BYPASS_DIS_FMASK		GENMASK(3, 3)
 #define IPA_DCMP_FAST_CLK_EN_FMASK		GENMASK(4, 4)
+/* The remaining fields are not present for IPA v3.5.1 */
 #define IPA_QMB_SELECT_CONS_EN_FMASK		GENMASK(5, 5)
 #define IPA_QMB_SELECT_PROD_EN_FMASK		GENMASK(6, 6)
 #define GSI_MULTI_INORDER_RD_DIS_FMASK		GENMASK(7, 7)
@@ -110,6 +112,7 @@ struct ipa;
 #define TX_0_FMASK				GENMASK(19, 19)
 #define TX_1_FMASK				GENMASK(20, 20)
 #define FNR_FMASK				GENMASK(21, 21)
+/* The remaining fields are not present for IPA v3.5.1 */
 #define QSB2AXI_CMDQ_L_FMASK			GENMASK(22, 22)
 #define AGGR_WRAPPER_FMASK			GENMASK(23, 23)
 #define RAM_SLAVEWAY_FMASK			GENMASK(24, 24)
@@ -138,10 +141,11 @@ struct ipa;
 #define IPA_REG_QSB_MAX_READS_OFFSET			0x00000078
 #define GEN_QMB_0_MAX_READS_FMASK		GENMASK(3, 0)
 #define GEN_QMB_1_MAX_READS_FMASK		GENMASK(7, 4)
-/* The next two fields are present for IPA v4.0 and above */
+/* The next two fields are not present for IPA v3.5.1 */
 #define GEN_QMB_0_MAX_READS_BEATS_FMASK		GENMASK(23, 16)
 #define GEN_QMB_1_MAX_READS_BEATS_FMASK		GENMASK(31, 24)
 
+/* ipa->available defines the valid bits in the STATE_AGGR_ACTIVE register */
 static inline u32 ipa_reg_state_aggr_active_offset(enum ipa_version version)
 {
 	if (version == IPA_VERSION_3_5_1)
@@ -149,7 +153,6 @@ static inline u32 ipa_reg_state_aggr_active_offset(enum ipa_version version)
 
 	return 0x000000b4;
 }
-/* ipa->available defines the valid bits in the STATE_AGGR_ACTIVE register */
 
 static inline u32 ipa_reg_filt_rout_hash_en_offset(enum ipa_version version)
 {
@@ -207,10 +210,11 @@ static inline u32 ipa_reg_bcr_val(enum ipa_version version)
 	return 0x00000000;
 }
 
+/* The value of the next register must be a multiple of 8 */
 #define IPA_REG_LOCAL_PKT_PROC_CNTXT_BASE_OFFSET	0x000001e8
 
-#define IPA_REG_AGGR_FORCE_CLOSE_OFFSET			0x000001ec
 /* ipa->available defines the valid bits in the AGGR_FORCE_CLOSE register */
+#define IPA_REG_AGGR_FORCE_CLOSE_OFFSET			0x000001ec
 
 /* The internal inactivity timer clock is used for the aggregation timer */
 #define TIMER_FREQUENCY	32000	/* 32 KHz inactivity timer clock */
@@ -231,14 +235,14 @@ static inline u32 ipa_aggr_granularity_val(u32 usec)
 #define TX0_PREFETCH_DISABLE_FMASK		GENMASK(0, 0)
 #define TX1_PREFETCH_DISABLE_FMASK		GENMASK(1, 1)
 #define PREFETCH_ALMOST_EMPTY_SIZE_FMASK	GENMASK(4, 2)
-/* The next fields are present for IPA v4.0 and above */
+/* The next six fields are present for IPA v4.0 and above */
 #define PREFETCH_ALMOST_EMPTY_SIZE_TX0_FMASK	GENMASK(5, 2)
 #define DMAW_SCND_OUTSD_PRED_THRESHOLD_FMASK	GENMASK(9, 6)
 #define DMAW_SCND_OUTSD_PRED_EN_FMASK		GENMASK(10, 10)
 #define DMAW_MAX_BEATS_256_DIS_FMASK		GENMASK(11, 11)
 #define PA_MASK_EN_FMASK			GENMASK(12, 12)
 #define PREFETCH_ALMOST_EMPTY_SIZE_TX1_FMASK	GENMASK(16, 13)
-/* The last two fields are present for IPA v4.2 and above */
+/* The next two fields are present for IPA v4.2 only */
 #define SSPND_PA_NO_START_STATE_FMASK		GENMASK(18, 18)
 #define SSPND_PA_NO_BQ_STATE_FMASK		GENMASK(19, 19)
 
@@ -308,13 +312,16 @@ static inline u32 ipa_resource_group_dst_count(enum ipa_version version)
 					(0x00000504 + 0x0020 * (rt))
 #define IPA_REG_DST_RSRC_GRP_45_RSRC_TYPE_N_OFFSET(rt) \
 					(0x00000508 + 0x0020 * (rt))
+/* The next four fields are used for all resource group registers */
 #define X_MIN_LIM_FMASK				GENMASK(5, 0)
 #define X_MAX_LIM_FMASK				GENMASK(13, 8)
+/* The next two fields are not always present (if resource count is odd) */
 #define Y_MIN_LIM_FMASK				GENMASK(21, 16)
 #define Y_MAX_LIM_FMASK				GENMASK(29, 24)
 
 #define IPA_REG_ENDP_INIT_CTRL_N_OFFSET(ep) \
 					(0x00000800 + 0x0070 * (ep))
+/* The next field should only used for IPA v3.5.1 */
 #define ENDP_SUSPEND_FMASK			GENMASK(0, 0)
 #define ENDP_DELAY_FMASK			GENMASK(1, 1)
 
@@ -379,7 +386,7 @@ static inline u32 ipa_resource_group_dst_count(enum ipa_version version)
 /* Valid only for RX (IPA producer) endpoints */
 #define IPA_REG_ENDP_INIT_HOL_BLOCK_TIMER_N_OFFSET(rxep) \
 					(0x00000830 +  0x0070 * (rxep))
-/* The next fields are present for IPA v4.2 only */
+/* The next two fields are present for IPA v4.2 only */
 #define BASE_VALUE_FMASK			GENMASK(4, 0)
 #define SCALE_FMASK				GENMASK(12, 8)
 
@@ -417,10 +424,10 @@ static inline u32 rsrc_grp_encoded(enum ipa_version version, u32 rsrc_grp)
 #define STATUS_EN_FMASK				GENMASK(0, 0)
 #define STATUS_ENDP_FMASK			GENMASK(5, 1)
 #define STATUS_LOCATION_FMASK			GENMASK(8, 8)
-/* The next field is present for IPA v4.0 and above */
+/* The next field is not present for IPA v3.5.1 */
 #define STATUS_PKT_SUPPRESS_FMASK		GENMASK(9, 9)
 
-/* "er" is either an endpoint ID (for filters) or a route ID (for routes) */
+/* The next register is only present for IPA versions that support hashing */
 #define IPA_REG_ENDP_FILTER_ROUTER_HSH_CFG_N_OFFSET(er) \
 					(0x0000085c + 0x0070 * (er))
 #define FILTER_HASH_MSK_SRC_ID_FMASK		GENMASK(0, 0)
@@ -461,23 +468,23 @@ static inline u32 rsrc_grp_encoded(enum ipa_version version, u32 rsrc_grp)
 #define IPA_REG_IRQ_UC_EE_N_OFFSET(ee) \
 					(0x0000301c + 0x1000 * (ee))
 
+/* ipa->available defines the valid bits in the SUSPEND_INFO register */
 #define IPA_REG_IRQ_SUSPEND_INFO_OFFSET \
 				IPA_REG_IRQ_SUSPEND_INFO_EE_N_OFFSET(GSI_EE_AP)
 #define IPA_REG_IRQ_SUSPEND_INFO_EE_N_OFFSET(ee) \
 					(0x00003030 + 0x1000 * (ee))
-/* ipa->available defines the valid bits in the SUSPEND_INFO register */
 
+/* ipa->available defines the valid bits in the IRQ_SUSPEND_EN register */
 #define IPA_REG_IRQ_SUSPEND_EN_OFFSET \
 				IPA_REG_IRQ_SUSPEND_EN_EE_N_OFFSET(GSI_EE_AP)
 #define IPA_REG_IRQ_SUSPEND_EN_EE_N_OFFSET(ee) \
 					(0x00003034 + 0x1000 * (ee))
-/* ipa->available defines the valid bits in the IRQ_SUSPEND_EN register */
 
+/* ipa->available defines the valid bits in the IRQ_SUSPEND_CLR register */
 #define IPA_REG_IRQ_SUSPEND_CLR_OFFSET \
 				IPA_REG_IRQ_SUSPEND_CLR_EE_N_OFFSET(GSI_EE_AP)
 #define IPA_REG_IRQ_SUSPEND_CLR_EE_N_OFFSET(ee) \
 					(0x00003038 + 0x1000 * (ee))
-/* ipa->available defines the valid bits in the IRQ_SUSPEND_CLR register */
 
 /** enum ipa_cs_offload_en - checksum offload field in ENDP_INIT_CFG_N */
 enum ipa_cs_offload_en {
