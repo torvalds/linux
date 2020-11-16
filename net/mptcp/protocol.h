@@ -86,11 +86,19 @@
 
 /* MPTCP socket flags */
 #define MPTCP_DATA_READY	0
-#define MPTCP_SEND_SPACE	1
+#define MPTCP_NOSPACE		1
 #define MPTCP_WORK_RTX		2
 #define MPTCP_WORK_EOF		3
 #define MPTCP_FALLBACK_DONE	4
 #define MPTCP_WORK_CLOSE_SUBFLOW 5
+#define MPTCP_WORKER_RUNNING	6
+
+static inline bool before64(__u64 seq1, __u64 seq2)
+{
+	return (__s64)(seq1 - seq2) < 0;
+}
+
+#define after64(seq2, seq1)	before64(seq1, seq2)
 
 struct mptcp_options_received {
 	u64	sndr_key;
@@ -187,9 +195,10 @@ struct mptcp_pm_data {
 struct mptcp_data_frag {
 	struct list_head list;
 	u64 data_seq;
-	int data_len;
-	int offset;
-	int overhead;
+	u16 data_len;
+	u16 offset;
+	u16 overhead;
+	u16 already_sent;
 	struct page *page;
 };
 
@@ -200,11 +209,13 @@ struct mptcp_sock {
 	u64		local_key;
 	u64		remote_key;
 	u64		write_seq;
+	u64		snd_nxt;
 	u64		ack_seq;
 	u64		rcv_data_fin_seq;
 	struct sock	*last_snd;
 	int		snd_burst;
 	atomic64_t	snd_una;
+	atomic64_t	wnd_end;
 	unsigned long	timer_ival;
 	u32		token;
 	unsigned long	flags;
@@ -219,6 +230,7 @@ struct mptcp_sock {
 	struct rb_root  out_of_order_queue;
 	struct list_head conn_list;
 	struct list_head rtx_queue;
+	struct mptcp_data_frag *first_pending;
 	struct list_head join_list;
 	struct skb_ext	*cached_ext;	/* for the next sendmsg */
 	struct socket	*subflow; /* outgoing connect/listener/!mp_capable */
@@ -240,11 +252,41 @@ static inline struct mptcp_sock *mptcp_sk(const struct sock *sk)
 	return (struct mptcp_sock *)sk;
 }
 
+static inline struct mptcp_data_frag *mptcp_send_head(const struct sock *sk)
+{
+	const struct mptcp_sock *msk = mptcp_sk(sk);
+
+	return READ_ONCE(msk->first_pending);
+}
+
+static inline struct mptcp_data_frag *mptcp_send_next(struct sock *sk)
+{
+	struct mptcp_sock *msk = mptcp_sk(sk);
+	struct mptcp_data_frag *cur;
+
+	cur = msk->first_pending;
+	return list_is_last(&cur->list, &msk->rtx_queue) ? NULL :
+						     list_next_entry(cur, list);
+}
+
+static inline struct mptcp_data_frag *mptcp_pending_tail(const struct sock *sk)
+{
+	struct mptcp_sock *msk = mptcp_sk(sk);
+
+	if (!msk->first_pending)
+		return NULL;
+
+	if (WARN_ON_ONCE(list_empty(&msk->rtx_queue)))
+		return NULL;
+
+	return list_last_entry(&msk->rtx_queue, struct mptcp_data_frag, list);
+}
+
 static inline struct mptcp_data_frag *mptcp_rtx_tail(const struct sock *sk)
 {
 	struct mptcp_sock *msk = mptcp_sk(sk);
 
-	if (list_empty(&msk->rtx_queue))
+	if (!before64(msk->snd_nxt, atomic64_read(&msk->snd_una)))
 		return NULL;
 
 	return list_last_entry(&msk->rtx_queue, struct mptcp_data_frag, list);
@@ -312,7 +354,8 @@ struct mptcp_subflow_context {
 		mpc_map : 1,
 		backup : 1,
 		rx_eof : 1,
-		can_ack : 1;	    /* only after processing the remote a key */
+		can_ack : 1,        /* only after processing the remote a key */
+		disposable : 1;	    /* ctx can be free at ulp release time */
 	enum mptcp_data_avail data_avail;
 	u32	remote_nonce;
 	u64	thmac;
@@ -369,8 +412,7 @@ bool mptcp_subflow_data_available(struct sock *sk);
 void __init mptcp_subflow_init(void);
 void mptcp_subflow_shutdown(struct sock *sk, struct sock *ssk, int how);
 void __mptcp_close_ssk(struct sock *sk, struct sock *ssk,
-		       struct mptcp_subflow_context *subflow,
-		       long timeout);
+		       struct mptcp_subflow_context *subflow);
 void mptcp_subflow_reset(struct sock *ssk);
 
 /* called with sk socket lock held */
@@ -408,9 +450,16 @@ static inline bool mptcp_is_fully_established(struct sock *sk)
 void mptcp_rcv_space_init(struct mptcp_sock *msk, const struct sock *ssk);
 void mptcp_data_ready(struct sock *sk, struct sock *ssk);
 bool mptcp_finish_join(struct sock *sk);
+bool mptcp_schedule_work(struct sock *sk);
 void mptcp_data_acked(struct sock *sk);
 void mptcp_subflow_eof(struct sock *sk);
 bool mptcp_update_rcv_data_fin(struct mptcp_sock *msk, u64 data_fin_seq, bool use_64bit);
+static inline bool mptcp_data_fin_enabled(const struct mptcp_sock *msk)
+{
+	return READ_ONCE(msk->snd_data_fin_enable) &&
+	       READ_ONCE(msk->write_seq) == READ_ONCE(msk->snd_nxt);
+}
+
 void mptcp_destroy_common(struct mptcp_sock *msk);
 
 void __init mptcp_token_init(void);
@@ -494,13 +543,6 @@ static inline struct mptcp_ext *mptcp_get_ext(struct sk_buff *skb)
 {
 	return (struct mptcp_ext *)skb_ext_find(skb, SKB_EXT_MPTCP);
 }
-
-static inline bool before64(__u64 seq1, __u64 seq2)
-{
-	return (__s64)(seq1 - seq2) < 0;
-}
-
-#define after64(seq2, seq1)	before64(seq1, seq2)
 
 void mptcp_diag_subflow_init(struct tcp_ulp_ops *ops);
 
