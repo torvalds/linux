@@ -1130,19 +1130,21 @@ static int hns3_get_coalesce(struct net_device *netdev,
 static int hns3_check_gl_coalesce_para(struct net_device *netdev,
 				       struct ethtool_coalesce *cmd)
 {
+	struct hnae3_handle *handle = hns3_get_handle(netdev);
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(handle->pdev);
 	u32 rx_gl, tx_gl;
 
-	if (cmd->rx_coalesce_usecs > HNS3_INT_GL_MAX) {
+	if (cmd->rx_coalesce_usecs > ae_dev->dev_specs.max_int_gl) {
 		netdev_err(netdev,
-			   "Invalid rx-usecs value, rx-usecs range is 0-%d\n",
-			   HNS3_INT_GL_MAX);
+			   "invalid rx-usecs value, rx-usecs range is 0-%u\n",
+			   ae_dev->dev_specs.max_int_gl);
 		return -EINVAL;
 	}
 
-	if (cmd->tx_coalesce_usecs > HNS3_INT_GL_MAX) {
+	if (cmd->tx_coalesce_usecs > ae_dev->dev_specs.max_int_gl) {
 		netdev_err(netdev,
-			   "Invalid tx-usecs value, tx-usecs range is 0-%d\n",
-			   HNS3_INT_GL_MAX);
+			   "invalid tx-usecs value, tx-usecs range is 0-%u\n",
+			   ae_dev->dev_specs.max_int_gl);
 		return -EINVAL;
 	}
 
