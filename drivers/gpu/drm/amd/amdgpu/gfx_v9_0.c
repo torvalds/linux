@@ -6977,6 +6977,12 @@ static void gfx_v9_0_set_gds_init(struct amdgpu_device *adev)
 	case CHIP_ARCTURUS:
 		adev->gds.gds_size = 0x1000;
 		break;
+	case CHIP_ALDEBARAN:
+		/* aldebaran removed all the GDS internal memory,
+		 * only support GWS opcode in kernel, like barrier
+		 * semaphore.etc */
+		adev->gds.gds_size = 0;
+		break;
 	default:
 		adev->gds.gds_size = 0x10000;
 		break;
@@ -6998,6 +7004,10 @@ static void gfx_v9_0_set_gds_init(struct amdgpu_device *adev)
 		break;
 	case CHIP_ARCTURUS:
 		adev->gds.gds_compute_max_wave_id = 0xfff;
+		break;
+	case CHIP_ALDEBARAN:
+		/* deprecated for Aldebaran, no usage at all */
+		adev->gds.gds_compute_max_wave_id = 0;
 		break;
 	default:
 		/* this really depends on the chip */
