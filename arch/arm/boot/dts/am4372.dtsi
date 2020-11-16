@@ -161,10 +161,14 @@
 		ranges;
 		ti,hwmods = "l3_main";
 		ti,no-idle;
-		reg = <0x44000000 0x400000
-		       0x44800000 0x400000>;
-		interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
+
+		l3-noc@44000000 {
+			compatible = "ti,am4372-l3-noc";
+			reg = <0x44000000 0x400000>,
+			      <0x44800000 0x400000>;
+			interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
+		};
 
 		l4_wkup: interconnect@44c00000 {
 		};
