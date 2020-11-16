@@ -278,7 +278,8 @@ __bch2_create(struct mnt_idmap *idmap,
 	if (!tmpfile)
 		mutex_lock(&dir->ei_update_lock);
 
-	bch2_trans_init(&trans, c, 8, 1024);
+	bch2_trans_init(&trans, c, 8,
+			2048 + (!tmpfile ? dentry->d_name.len : 0));
 retry:
 	bch2_trans_begin(&trans);
 

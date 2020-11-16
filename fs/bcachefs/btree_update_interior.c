@@ -523,6 +523,7 @@ static void btree_update_nodes_written(struct btree_update *as)
 {
 	struct bch_fs *c = as->c;
 	struct btree *b = as->b;
+	struct btree_trans trans;
 	u64 journal_seq = 0;
 	unsigned i;
 	int ret;
@@ -540,14 +541,16 @@ static void btree_update_nodes_written(struct btree_update *as)
 	 * journal reclaim does btree updates when flushing bkey_cached entries,
 	 * which may require allocations as well.
 	 */
-	ret = bch2_trans_do(c, &as->disk_res, &journal_seq,
-			    BTREE_INSERT_NOFAIL|
-			    BTREE_INSERT_USE_RESERVE|
-			    BTREE_INSERT_USE_ALLOC_RESERVE|
-			    BTREE_INSERT_NOCHECK_RW|
-			    BTREE_INSERT_JOURNAL_RECLAIM|
-			    BTREE_INSERT_JOURNAL_RESERVED,
-			    btree_update_nodes_written_trans(&trans, as));
+	bch2_trans_init(&trans, c, 0, 512);
+	ret = __bch2_trans_do(&trans, &as->disk_res, &journal_seq,
+			      BTREE_INSERT_NOFAIL|
+			      BTREE_INSERT_USE_RESERVE|
+			      BTREE_INSERT_USE_ALLOC_RESERVE|
+			      BTREE_INSERT_NOCHECK_RW|
+			      BTREE_INSERT_JOURNAL_RECLAIM|
+			      BTREE_INSERT_JOURNAL_RESERVED,
+			      btree_update_nodes_written_trans(&trans, as));
+	bch2_trans_exit(&trans);
 	BUG_ON(ret && !bch2_journal_error(&c->journal));
 
 	if (b) {
