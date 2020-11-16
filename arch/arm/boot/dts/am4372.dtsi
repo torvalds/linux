@@ -604,6 +604,9 @@
 &timer1_target {
 	ti,no-reset-on-init;
 	ti,no-idle;
+	clocks = <&l4_wkup_clkctrl AM4_L4_WKUP_TIMER1_CLKCTRL 0>,
+		 <&l4_wkup_clkctrl AM4_L4_WKUP_L4_WKUP_CLKCTRL 0>;
+	clock-names = "fck", "ick";
 	timer@0 {
 		assigned-clocks = <&timer1_fck>;
 		assigned-clock-parents = <&sys_clkin_ck>;
@@ -614,6 +617,9 @@
 &timer2_target {
 	ti,no-reset-on-init;
 	ti,no-idle;
+	clocks = <&l4ls_clkctrl AM4_L4LS_TIMER2_CLKCTRL 0>,
+		 <&l4ls_clkctrl AM4_L4LS_L4_LS_CLKCTRL 0>;
+	clock-names = "fck", "ick";
 	timer@0 {
 		assigned-clocks = <&timer2_fck>;
 		assigned-clock-parents = <&sys_clkin_ck>;
