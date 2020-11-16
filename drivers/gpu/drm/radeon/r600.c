@@ -39,6 +39,7 @@
 
 #include "atom.h"
 #include "avivod.h"
+#include "evergreen.h"
 #include "r600.h"
 #include "r600d.h"
 #include "rv770.h"
@@ -113,7 +114,6 @@ static void r600_gpu_init(struct radeon_device *rdev);
 void r600_fini(struct radeon_device *rdev);
 void r600_irq_disable(struct radeon_device *rdev);
 static void r600_pcie_gen2_enable(struct radeon_device *rdev);
-extern int evergreen_rlc_resume(struct radeon_device *rdev);
 
 /*
  * Indirect registers accessor
