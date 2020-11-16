@@ -122,7 +122,7 @@ sideband_msg_req_encode_decode(struct drm_dp_sideband_msg_req_body *in)
 {
 	struct drm_dp_sideband_msg_req_body *out;
 	struct drm_printer p = drm_err_printer(PREFIX_STR);
-	struct drm_dp_sideband_msg_tx txmsg;
+	struct drm_dp_sideband_msg_tx *txmsg;
 	int i, ret;
 	bool result = true;
 
@@ -130,8 +130,12 @@ sideband_msg_req_encode_decode(struct drm_dp_sideband_msg_req_body *in)
 	if (!out)
 		return false;
 
-	drm_dp_encode_sideband_req(in, &txmsg);
-	ret = drm_dp_decode_sideband_req(&txmsg, out);
+	txmsg = kzalloc(sizeof(*txmsg), GFP_KERNEL);
+	if (!txmsg)
+		return false;
+
+	drm_dp_encode_sideband_req(in, txmsg);
+	ret = drm_dp_decode_sideband_req(txmsg, out);
 	if (ret < 0) {
 		drm_printf(&p, "Failed to decode sideband request: %d\n",
 			   ret);
@@ -166,6 +170,7 @@ sideband_msg_req_encode_decode(struct drm_dp_sideband_msg_req_body *in)
 
 out:
 	kfree(out);
+	kfree(txmsg);
 	return result;
 }
 
