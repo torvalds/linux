@@ -813,7 +813,7 @@ static void update_una(struct mptcp_sock *msk,
 		       struct mptcp_options_received *mp_opt)
 {
 	u64 new_snd_una, snd_una, old_snd_una = atomic64_read(&msk->snd_una);
-	u64 write_seq = READ_ONCE(msk->write_seq);
+	u64 snd_nxt = READ_ONCE(msk->snd_nxt);
 
 	/* avoid ack expansion on update conflict, to reduce the risk of
 	 * wrongly expanding to a future ack sequence number, which is way
@@ -822,7 +822,7 @@ static void update_una(struct mptcp_sock *msk,
 	new_snd_una = expand_ack(old_snd_una, mp_opt->data_ack, mp_opt->ack64);
 
 	/* ACK for data not even sent yet? Ignore. */
-	if (after64(new_snd_una, write_seq))
+	if (after64(new_snd_una, snd_nxt))
 		new_snd_una = old_snd_una;
 
 	while (after64(new_snd_una, old_snd_una)) {
