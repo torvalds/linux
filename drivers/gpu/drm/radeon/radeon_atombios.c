@@ -35,15 +35,11 @@
 #include "atom-bits.h"
 #include "radeon_asic.h"
 #include "radeon_atombios.h"
+#include "radeon_legacy_encoders.h"
 
 extern void
 radeon_add_atom_encoder(struct drm_device *dev, uint32_t encoder_enum,
 			uint32_t supported_device, u16 caps);
-
-/* from radeon_legacy_encoder.c */
-extern void
-radeon_add_legacy_encoder(struct drm_device *dev, uint32_t encoder_enum,
-			  uint32_t supported_device);
 
 union atom_supported_devices {
 	struct _ATOM_SUPPORTED_DEVICES_INFO info;
