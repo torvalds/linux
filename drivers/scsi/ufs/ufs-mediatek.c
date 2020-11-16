@@ -514,6 +514,19 @@ static void ufs_mtk_init_host_caps(struct ufs_hba *hba)
 	dev_info(hba->dev, "caps: 0x%x", host->caps);
 }
 
+static void ufs_mtk_scale_perf(struct ufs_hba *hba, bool up)
+{
+	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
+
+	ufs_mtk_boost_crypt(hba, up);
+	ufs_mtk_setup_ref_clk(hba, up);
+
+	if (up)
+		phy_power_on(host->mphy);
+	else
+		phy_power_off(host->mphy);
+}
+
 /**
  * ufs_mtk_setup_clocks - enables/disable clocks
  * @hba: host controller instance
@@ -555,15 +568,10 @@ static int ufs_mtk_setup_clocks(struct ufs_hba *hba, bool on,
 				clk_pwr_off = true;
 		}
 
-		if (clk_pwr_off) {
-			ufs_mtk_boost_crypt(hba, on);
-			ufs_mtk_setup_ref_clk(hba, on);
-			phy_power_off(host->mphy);
-		}
+		if (clk_pwr_off)
+			ufs_mtk_scale_perf(hba, false);
 	} else if (on && status == POST_CHANGE) {
-		phy_power_on(host->mphy);
-		ufs_mtk_setup_ref_clk(hba, on);
-		ufs_mtk_boost_crypt(hba, on);
+		ufs_mtk_scale_perf(hba, true);
 	}
 
 	return ret;
