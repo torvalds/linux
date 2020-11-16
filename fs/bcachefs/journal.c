@@ -414,8 +414,17 @@ unlock:
 		goto retry;
 
 	if (ret == -ENOSPC) {
-		WARN_ONCE(!can_discard && (flags & JOURNAL_RES_GET_RESERVED),
-			  "JOURNAL_RES_GET_RESERVED set but journal full");
+		if (WARN_ONCE(!can_discard && (flags & JOURNAL_RES_GET_RESERVED),
+			      "JOURNAL_RES_GET_RESERVED set but journal full")) {
+			char *buf;
+
+			buf = kmalloc(4096, GFP_NOFS);
+			if (buf) {
+				bch2_journal_debug_to_text(&_PBUF(buf, 4096), j);
+				pr_err("\n%s", buf);
+				kfree(buf);
+			}
+		}
 
 		/*
 		 * Journal is full - can't rely on reclaim from work item due to
