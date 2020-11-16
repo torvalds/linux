@@ -34,7 +34,8 @@ static struct snd_soc_dai_driver sc7180_lpass_cpu_dai_driver[] = {
 		},
 		.capture = {
 			.stream_name = "Primary Capture",
-			.formats = SNDRV_PCM_FMTBIT_S16,
+			.formats = SNDRV_PCM_FMTBIT_S16 |
+				SNDRV_PCM_FMTBIT_S32,
 			.rates = SNDRV_PCM_RATE_48000,
 			.rate_min	= 48000,
 			.rate_max	= 48000,
