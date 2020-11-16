@@ -33,5 +33,8 @@ int radeon_gem_prime_pin(struct drm_gem_object *obj);
 void radeon_gem_prime_unpin(struct drm_gem_object *obj);
 void *radeon_gem_prime_vmap(struct drm_gem_object *obj);
 void radeon_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr);
+struct drm_gem_object *radeon_gem_prime_import_sg_table(struct drm_device *dev,
+							struct dma_buf_attachment *,
+							struct sg_table *sg);
 
 #endif				/* __RADEON_PRIME_H__ */

@@ -54,6 +54,7 @@
 #include "radeon_kms.h"
 #include "radeon_ttm.h"
 #include "radeon_device.h"
+#include "radeon_prime.h"
 
 /*
  * KMS wrapper.
@@ -130,9 +131,6 @@ int radeon_mode_dumb_mmap(struct drm_file *filp,
 int radeon_mode_dumb_create(struct drm_file *file_priv,
 			    struct drm_device *dev,
 			    struct drm_mode_create_dumb *args);
-struct drm_gem_object *radeon_gem_prime_import_sg_table(struct drm_device *dev,
-							struct dma_buf_attachment *,
-							struct sg_table *sg);
 
 /* atpx handler */
 #if defined(CONFIG_VGA_SWITCHEROO)
