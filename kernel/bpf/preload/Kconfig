@@ -6,6 +6,7 @@ config USERMODE_DRIVER
 menuconfig BPF_PRELOAD
 	bool "Preload BPF file system with kernel specific program and map iterators"
 	depends on BPF
+	depends on BPF_SYSCALL
 	# The dependency on !COMPILE_TEST prevents it from being enabled
 	# in allmodconfig or allyesconfig configurations
 	depends on !COMPILE_TEST

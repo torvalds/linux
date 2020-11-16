@@ -289,18 +289,7 @@ void ext4_superblock_csum_set(struct super_block *sb)
 	if (!ext4_has_metadata_csum(sb))
 		return;
 
-	/*
-	 * Locking the superblock prevents the scenario
-	 * where:
-	 *  1) a first thread pauses during checksum calculation.
-	 *  2) a second thread updates the superblock, recalculates
-	 *     the checksum, and updates s_checksum
-	 *  3) the first thread resumes and finishes its checksum calculation
-	 *     and updates s_checksum with a potentially stale or torn value.
-	 */
-	lock_buffer(EXT4_SB(sb)->s_sbh);
 	es->s_checksum = ext4_superblock_csum(sb, es);
-	unlock_buffer(EXT4_SB(sb)->s_sbh);
 }
 
 ext4_fsblk_t ext4_block_bitmap(struct super_block *sb,
@@ -686,7 +675,7 @@ static void ext4_handle_error(struct super_block *sb)
 	if (!test_opt(sb, ERRORS_CONT)) {
 		journal_t *journal = EXT4_SB(sb)->s_journal;
 
-		EXT4_SB(sb)->s_mount_flags |= EXT4_MF_FS_ABORTED;
+		ext4_set_mount_flag(sb, EXT4_MF_FS_ABORTED);
 		if (journal)
 			jbd2_journal_abort(journal, -EIO);
 	}
@@ -904,7 +893,7 @@ void __ext4_abort(struct super_block *sb, const char *function,
 	va_end(args);
 
 	if (sb_rdonly(sb) == 0) {
-		EXT4_SB(sb)->s_mount_flags |= EXT4_MF_FS_ABORTED;
+		ext4_set_mount_flag(sb, EXT4_MF_FS_ABORTED);
 		if (EXT4_SB(sb)->s_journal)
 			jbd2_journal_abort(EXT4_SB(sb)->s_journal, -EIO);
 
@@ -1716,11 +1705,10 @@ enum {
 	Opt_dioread_nolock, Opt_dioread_lock,
 	Opt_discard, Opt_nodiscard, Opt_init_itable, Opt_noinit_itable,
 	Opt_max_dir_size_kb, Opt_nojournal_checksum, Opt_nombcache,
-	Opt_prefetch_block_bitmaps, Opt_no_fc,
+	Opt_prefetch_block_bitmaps,
 #ifdef CONFIG_EXT4_DEBUG
-	Opt_fc_debug_max_replay,
+	Opt_fc_debug_max_replay, Opt_fc_debug_force
 #endif
-	Opt_fc_debug_force
 };
 
 static const match_table_t tokens = {
@@ -1807,9 +1795,8 @@ static const match_table_t tokens = {
 	{Opt_init_itable, "init_itable=%u"},
 	{Opt_init_itable, "init_itable"},
 	{Opt_noinit_itable, "noinit_itable"},
-	{Opt_no_fc, "no_fc"},
-	{Opt_fc_debug_force, "fc_debug_force"},
 #ifdef CONFIG_EXT4_DEBUG
+	{Opt_fc_debug_force, "fc_debug_force"},
 	{Opt_fc_debug_max_replay, "fc_debug_max_replay=%u"},
 #endif
 	{Opt_max_dir_size_kb, "max_dir_size_kb=%u"},
@@ -2027,8 +2014,8 @@ static const struct mount_opts {
 	{Opt_noquota, (EXT4_MOUNT_QUOTA | EXT4_MOUNT_USRQUOTA |
 		       EXT4_MOUNT_GRPQUOTA | EXT4_MOUNT_PRJQUOTA),
 							MOPT_CLEAR | MOPT_Q},
-	{Opt_usrjquota, 0, MOPT_Q},
-	{Opt_grpjquota, 0, MOPT_Q},
+	{Opt_usrjquota, 0, MOPT_Q | MOPT_STRING},
+	{Opt_grpjquota, 0, MOPT_Q | MOPT_STRING},
 	{Opt_offusrjquota, 0, MOPT_Q},
 	{Opt_offgrpjquota, 0, MOPT_Q},
 	{Opt_jqfmt_vfsold, QFMT_VFS_OLD, MOPT_QFMT},
@@ -2039,11 +2026,9 @@ static const struct mount_opts {
 	{Opt_nombcache, EXT4_MOUNT_NO_MBCACHE, MOPT_SET},
 	{Opt_prefetch_block_bitmaps, EXT4_MOUNT_PREFETCH_BLOCK_BITMAPS,
 	 MOPT_SET},
-	{Opt_no_fc, EXT4_MOUNT2_JOURNAL_FAST_COMMIT,
-	 MOPT_CLEAR | MOPT_2 | MOPT_EXT4_ONLY},
+#ifdef CONFIG_EXT4_DEBUG
 	{Opt_fc_debug_force, EXT4_MOUNT2_JOURNAL_FAST_COMMIT,
 	 MOPT_SET | MOPT_2 | MOPT_EXT4_ONLY},
-#ifdef CONFIG_EXT4_DEBUG
 	{Opt_fc_debug_max_replay, 0, MOPT_GTE0},
 #endif
 	{Opt_err, 0, 0}
@@ -2153,7 +2138,7 @@ static int handle_mount_opt(struct super_block *sb, char *opt, int token,
 		ext4_msg(sb, KERN_WARNING, "Ignoring removed %s option", opt);
 		return 1;
 	case Opt_abort:
-		sbi->s_mount_flags |= EXT4_MF_FS_ABORTED;
+		ext4_set_mount_flag(sb, EXT4_MF_FS_ABORTED);
 		return 1;
 	case Opt_i_version:
 		sb->s_flags |= SB_I_VERSION;
@@ -3976,7 +3961,7 @@ int ext4_calculate_overhead(struct super_block *sb)
 	 * loaded or not
 	 */
 	if (sbi->s_journal && !sbi->s_journal_bdev)
-		overhead += EXT4_NUM_B2C(sbi, sbi->s_journal->j_maxlen);
+		overhead += EXT4_NUM_B2C(sbi, sbi->s_journal->j_total_len);
 	else if (ext4_has_feature_journal(sb) && !sbi->s_journal && j_inum) {
 		/* j_inum for internal journal is non-zero */
 		j_inode = ext4_get_journal_inode(sb, j_inum);
@@ -4340,9 +4325,10 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 #endif
 
 	if (test_opt(sb, DATA_FLAGS) == EXT4_MOUNT_JOURNAL_DATA) {
-		printk_once(KERN_WARNING "EXT4-fs: Warning: mounting with data=journal disables delayed allocation, dioread_nolock, and O_DIRECT support!\n");
+		printk_once(KERN_WARNING "EXT4-fs: Warning: mounting with data=journal disables delayed allocation, dioread_nolock, O_DIRECT and fast_commit support!\n");
 		/* can't mount with both data=journal and dioread_nolock. */
 		clear_opt(sb, DIOREAD_NOLOCK);
+		clear_opt2(sb, JOURNAL_FAST_COMMIT);
 		if (test_opt2(sb, EXPLICIT_DELALLOC)) {
 			ext4_msg(sb, KERN_ERR, "can't mount with "
 				 "both data=journal and delalloc");
@@ -4777,8 +4763,8 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	INIT_LIST_HEAD(&sbi->s_fc_dentry_q[FC_Q_MAIN]);
 	INIT_LIST_HEAD(&sbi->s_fc_dentry_q[FC_Q_STAGING]);
 	sbi->s_fc_bytes = 0;
-	sbi->s_mount_flags &= ~EXT4_MF_FC_INELIGIBLE;
-	sbi->s_mount_flags &= ~EXT4_MF_FC_COMMITTING;
+	ext4_clear_mount_flag(sb, EXT4_MF_FC_INELIGIBLE);
+	ext4_clear_mount_flag(sb, EXT4_MF_FC_COMMITTING);
 	spin_lock_init(&sbi->s_fc_lock);
 	memset(&sbi->s_fc_stats, 0, sizeof(sbi->s_fc_stats));
 	sbi->s_fc_replay_state.fc_regions = NULL;
@@ -4854,6 +4840,14 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	if (!set_journal_csum_feature_set(sb)) {
 		ext4_msg(sb, KERN_ERR, "Failed to set journal checksum "
 			 "feature set");
+		goto failed_mount_wq;
+	}
+
+	if (test_opt2(sb, JOURNAL_FAST_COMMIT) &&
+		!jbd2_journal_set_features(EXT4_SB(sb)->s_journal, 0, 0,
+					  JBD2_FEATURE_INCOMPAT_FAST_COMMIT)) {
+		ext4_msg(sb, KERN_ERR,
+			"Failed to set fast commit journal feature");
 		goto failed_mount_wq;
 	}
 
@@ -5872,7 +5866,7 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 		goto restore_opts;
 	}
 
-	if (sbi->s_mount_flags & EXT4_MF_FS_ABORTED)
+	if (ext4_test_mount_flag(sb, EXT4_MF_FS_ABORTED))
 		ext4_abort(sb, EXT4_ERR_ESHUTDOWN, "Abort forced by user");
 
 	sb->s_flags = (sb->s_flags & ~SB_POSIXACL) |
@@ -5886,7 +5880,7 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 	}
 
 	if ((bool)(*flags & SB_RDONLY) != sb_rdonly(sb)) {
-		if (sbi->s_mount_flags & EXT4_MF_FS_ABORTED) {
+		if (ext4_test_mount_flag(sb, EXT4_MF_FS_ABORTED)) {
 			err = -EROFS;
 			goto restore_opts;
 		}
@@ -6560,10 +6554,6 @@ static ssize_t ext4_quota_write(struct super_block *sb, int type,
 	brelse(bh);
 out:
 	if (inode->i_size < off + len) {
-		ext4_fc_track_range(inode,
-			(inode->i_size > 0 ? inode->i_size - 1 : 0)
-				>> inode->i_sb->s_blocksize_bits,
-			(off + len) >> inode->i_sb->s_blocksize_bits);
 		i_size_write(inode, off + len);
 		EXT4_I(inode)->i_disksize = inode->i_size;
 		err2 = ext4_mark_inode_dirty(handle, inode);

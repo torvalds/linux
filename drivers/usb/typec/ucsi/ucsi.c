@@ -735,8 +735,10 @@ static void ucsi_handle_connector_change(struct work_struct *work)
 	role = !!(con->status.flags & UCSI_CONSTAT_PWR_DIR);
 
 	if (con->status.change & UCSI_CONSTAT_POWER_OPMODE_CHANGE ||
-	    con->status.change & UCSI_CONSTAT_POWER_LEVEL_CHANGE)
+	    con->status.change & UCSI_CONSTAT_POWER_LEVEL_CHANGE) {
 		ucsi_pwr_opmode_change(con);
+		ucsi_port_psy_changed(con);
+	}
 
 	if (con->status.change & UCSI_CONSTAT_POWER_DIR_CHANGE) {
 		typec_set_pwr_role(con->port, role);
@@ -766,6 +768,8 @@ static void ucsi_handle_connector_change(struct work_struct *work)
 			ucsi_register_partner(con);
 		else
 			ucsi_unregister_partner(con);
+
+		ucsi_port_psy_changed(con);
 	}
 
 	if (con->status.change & UCSI_CONSTAT_PARTNER_CHANGE)
@@ -1079,6 +1083,7 @@ static int ucsi_register_port(struct ucsi *ucsi, int index)
 				  !!(con->status.flags & UCSI_CONSTAT_PWR_DIR));
 		ucsi_pwr_opmode_change(con);
 		ucsi_register_partner(con);
+		ucsi_port_psy_changed(con);
 	}
 
 	if (con->partner) {

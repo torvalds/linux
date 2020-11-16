@@ -2527,7 +2527,7 @@ static void intel_cpufreq_trace(struct cpudata *cpu, unsigned int trace_type, in
 }
 
 static void intel_cpufreq_adjust_hwp(struct cpudata *cpu, u32 target_pstate,
-				     bool fast_switch)
+				     bool strict, bool fast_switch)
 {
 	u64 prev = READ_ONCE(cpu->hwp_req_cached), value = prev;
 
@@ -2539,7 +2539,7 @@ static void intel_cpufreq_adjust_hwp(struct cpudata *cpu, u32 target_pstate,
 	 * field in it, so opportunistically update the max too if needed.
 	 */
 	value &= ~HWP_MAX_PERF(~0L);
-	value |= HWP_MAX_PERF(cpu->max_perf_ratio);
+	value |= HWP_MAX_PERF(strict ? target_pstate : cpu->max_perf_ratio);
 
 	if (value == prev)
 		return;
@@ -2562,14 +2562,16 @@ static void intel_cpufreq_adjust_perf_ctl(struct cpudata *cpu,
 			      pstate_funcs.get_val(cpu, target_pstate));
 }
 
-static int intel_cpufreq_update_pstate(struct cpudata *cpu, int target_pstate,
-				       bool fast_switch)
+static int intel_cpufreq_update_pstate(struct cpufreq_policy *policy,
+				       int target_pstate, bool fast_switch)
 {
+	struct cpudata *cpu = all_cpu_data[policy->cpu];
 	int old_pstate = cpu->pstate.current_pstate;
 
 	target_pstate = intel_pstate_prepare_request(cpu, target_pstate);
 	if (hwp_active) {
-		intel_cpufreq_adjust_hwp(cpu, target_pstate, fast_switch);
+		intel_cpufreq_adjust_hwp(cpu, target_pstate,
+					 policy->strict_target, fast_switch);
 		cpu->pstate.current_pstate = target_pstate;
 	} else if (target_pstate != old_pstate) {
 		intel_cpufreq_adjust_perf_ctl(cpu, target_pstate, fast_switch);
@@ -2609,7 +2611,7 @@ static int intel_cpufreq_target(struct cpufreq_policy *policy,
 		break;
 	}
 
-	target_pstate = intel_cpufreq_update_pstate(cpu, target_pstate, false);
+	target_pstate = intel_cpufreq_update_pstate(policy, target_pstate, false);
 
 	freqs.new = target_pstate * cpu->pstate.scaling;
 
@@ -2628,7 +2630,7 @@ static unsigned int intel_cpufreq_fast_switch(struct cpufreq_policy *policy,
 
 	target_pstate = DIV_ROUND_UP(target_freq, cpu->pstate.scaling);
 
-	target_pstate = intel_cpufreq_update_pstate(cpu, target_pstate, true);
+	target_pstate = intel_cpufreq_update_pstate(policy, target_pstate, true);
 
 	return target_pstate * cpu->pstate.scaling;
 }

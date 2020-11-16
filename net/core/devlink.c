@@ -8254,8 +8254,6 @@ static int __devlink_port_attrs_set(struct devlink_port *devlink_port,
 {
 	struct devlink_port_attrs *attrs = &devlink_port->attrs;
 
-	if (WARN_ON(devlink_port->registered))
-		return -EEXIST;
 	devlink_port->attrs_set = true;
 	attrs->flavour = flavour;
 	if (attrs->switch_id.id_len) {
@@ -8279,6 +8277,8 @@ void devlink_port_attrs_set(struct devlink_port *devlink_port,
 {
 	int ret;
 
+	if (WARN_ON(devlink_port->registered))
+		return;
 	devlink_port->attrs = *attrs;
 	ret = __devlink_port_attrs_set(devlink_port, attrs->flavour);
 	if (ret)
@@ -8301,6 +8301,8 @@ void devlink_port_attrs_pci_pf_set(struct devlink_port *devlink_port, u32 contro
 	struct devlink_port_attrs *attrs = &devlink_port->attrs;
 	int ret;
 
+	if (WARN_ON(devlink_port->registered))
+		return;
 	ret = __devlink_port_attrs_set(devlink_port,
 				       DEVLINK_PORT_FLAVOUR_PCI_PF);
 	if (ret)
@@ -8326,6 +8328,8 @@ void devlink_port_attrs_pci_vf_set(struct devlink_port *devlink_port, u32 contro
 	struct devlink_port_attrs *attrs = &devlink_port->attrs;
 	int ret;
 
+	if (WARN_ON(devlink_port->registered))
+		return;
 	ret = __devlink_port_attrs_set(devlink_port,
 				       DEVLINK_PORT_FLAVOUR_PCI_VF);
 	if (ret)

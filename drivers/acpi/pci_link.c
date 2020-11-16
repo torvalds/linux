@@ -6,8 +6,8 @@
  *  Copyright (C) 2001, 2002 Paul Diefenbaugh <paul.s.diefenbaugh@intel.com>
  *  Copyright (C) 2002       Dominik Brodowski <devel@brodo.de>
  *
- * TBD: 
- *      1. Support more than one IRQ resource entry per link device (index).
+ * TBD:
+ *	1. Support more than one IRQ resource entry per link device (index).
  *	2. Implement start/stop mechanism and use ACPI Bus Driver facilities
  *	   for IRQ management (e.g. start()->_SRS).
  */
@@ -249,8 +249,8 @@ static int acpi_pci_link_get_current(struct acpi_pci_link *link)
 		}
 	}
 
-	/* 
-	 * Query and parse _CRS to get the current IRQ assignment. 
+	/*
+	 * Query and parse _CRS to get the current IRQ assignment.
 	 */
 
 	status = acpi_walk_resources(link->device->handle, METHOD_NAME__CRS,
@@ -396,7 +396,7 @@ static int acpi_pci_link_set(struct acpi_pci_link *link, int irq)
 /*
  * "acpi_irq_balance" (default in APIC mode) enables ACPI to use PIC Interrupt
  * Link Devices to move the PIRQs around to minimize sharing.
- * 
+ *
  * "acpi_irq_nobalance" (default in PIC mode) tells ACPI not to move any PIC IRQs
  * that the BIOS has already set to active.  This is necessary because
  * ACPI has no automatic means of knowing what ISA IRQs are used.  Note that
@@ -414,7 +414,7 @@ static int acpi_pci_link_set(struct acpi_pci_link *link, int irq)
  *
  * Note that PCI IRQ routers have a list of possible IRQs,
  * which may not include the IRQs this table says are available.
- * 
+ *
  * Since this heuristic can't tell the difference between a link
  * that no device will attach to, vs. a link which may be shared
  * by multiple active devices -- it is not optimal.
