@@ -33,6 +33,7 @@
 #include "cayman_blit_shaders.h"
 #include "clearstate_cayman.h"
 #include "evergreen.h"
+#include "ni.h"
 #include "ni_reg.h"
 #include "nid.h"
 #include "radeon.h"

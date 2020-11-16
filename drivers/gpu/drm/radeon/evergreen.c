@@ -31,6 +31,7 @@
 
 #include "atom.h"
 #include "avivod.h"
+#include "ni.h"
 #include "rv770.h"
 #include "evergreen.h"
 #include "evergreen_blit_shaders.h"
@@ -215,10 +216,6 @@ static void evergreen_gpu_init(struct radeon_device *rdev);
 void evergreen_fini(struct radeon_device *rdev);
 void evergreen_pcie_gen2_enable(struct radeon_device *rdev);
 void evergreen_program_aspm(struct radeon_device *rdev);
-extern void cayman_cp_int_cntl_setup(struct radeon_device *rdev,
-				     int ring, u32 cp_int_cntl);
-extern void cayman_vm_decode_fault(struct radeon_device *rdev,
-				   u32 status, u32 addr);
 void cik_init_cp_pg_table(struct radeon_device *rdev);
 
 extern u32 si_get_csb_size(struct radeon_device *rdev);
