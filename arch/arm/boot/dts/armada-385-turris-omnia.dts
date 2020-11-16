@@ -82,6 +82,24 @@
 			};
 		};
 	};
+
+	sfp: sfp {
+		compatible = "sff,sfp";
+		i2c-bus = <&sfp_i2c>;
+		tx-fault-gpios = <&pcawan 0 GPIO_ACTIVE_HIGH>;
+		tx-disable-gpios = <&pcawan 1 GPIO_ACTIVE_HIGH>;
+		rate-select0-gpios = <&pcawan 2 GPIO_ACTIVE_HIGH>;
+		los-gpios = <&pcawan 3 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpios = <&pcawan 4 GPIO_ACTIVE_LOW>;
+		maximum-power-milliwatt = <3000>;
+
+		/*
+		 * For now this has to be enabled at boot time by U-Boot when
+		 * a SFP module is present. Read more in the comment in the
+		 * eth2 node below.
+		 */
+		status = "disabled";
+	};
 };
 
 &bm {
@@ -126,10 +144,20 @@
 
 /* WAN port */
 &eth2 {
+	/*
+	 * eth2 is connected via a multiplexor to both the SFP cage and to
+	 * ethernet-phy@1. The multiplexor switches the signal to SFP cage when
+	 * a SFP module is present, as determined by the mode-def0 GPIO.
+	 *
+	 * Until kernel supports this configuration properly, in case SFP module
+	 * is present, U-Boot has to enable the sfp node above, remove phy
+	 * handle and add managed = "in-band-status" property.
+	 */
 	status = "okay";
 	phy-mode = "sgmii";
 	phy = <&phy1>;
 	phys = <&comphy5 2>;
+	sfp = <&sfp>;
 	buffer-manager = <&bm>;
 	bm,pool-long = <2>;
 	bm,pool-short = <3>;
@@ -195,7 +223,7 @@
 			/* routed to PCIe2 connector (CN62A) */
 		};
 
-		i2c@4 {
+		sfp_i2c: i2c@4 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <4>;
