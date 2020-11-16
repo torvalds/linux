@@ -416,7 +416,7 @@ int pm8001_bar4_shift(struct pm8001_hba_info *pm8001_ha, u32 shiftValue)
 static void mpi_set_phys_g3_with_ssc(struct pm8001_hba_info *pm8001_ha,
 				     u32 SSCbit)
 {
-	u32 value, offset, i;
+	u32 offset, i;
 	unsigned long flags;
 
 #define SAS2_SETTINGS_LOCAL_PHY_0_3_SHIFT_ADDR 0x00030000
@@ -467,7 +467,7 @@ static void mpi_set_phys_g3_with_ssc(struct pm8001_hba_info *pm8001_ha,
 	so that the written value will be 0x8090c016.
 	This will ensure only down-spreading SSC is enabled on the SPC.
 	*************************************************************/
-	value = pm8001_cr32(pm8001_ha, 2, 0xd8);
+	pm8001_cr32(pm8001_ha, 2, 0xd8);
 	pm8001_cw32(pm8001_ha, 2, 0xd8, 0x8000C016);
 
 	/*set the shifted destination address to 0x0 to avoid error operation */
