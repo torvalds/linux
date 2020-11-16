@@ -184,11 +184,13 @@
 	 * the whole bus hierarchy.
 	 */
 	ocp: ocp {
-		compatible = "simple-bus";
+		compatible = "simple-pm-bus";
+		power-domains = <&prm_per>;
+		clocks = <&l3_clkctrl AM3_L3_L3_MAIN_CLKCTRL 0>;
+		clock-names = "fck";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
-		ti,hwmods = "l3_main";
 
 		l4_wkup: interconnect@44c00000 {
 		};
