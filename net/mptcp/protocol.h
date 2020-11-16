@@ -91,6 +91,7 @@
 #define MPTCP_WORK_EOF		3
 #define MPTCP_FALLBACK_DONE	4
 #define MPTCP_WORK_CLOSE_SUBFLOW 5
+#define MPTCP_WORKER_RUNNING	6
 
 static inline bool before64(__u64 seq1, __u64 seq2)
 {
@@ -352,7 +353,8 @@ struct mptcp_subflow_context {
 		mpc_map : 1,
 		backup : 1,
 		rx_eof : 1,
-		can_ack : 1;	    /* only after processing the remote a key */
+		can_ack : 1,        /* only after processing the remote a key */
+		disposable : 1;	    /* ctx can be free at ulp release time */
 	enum mptcp_data_avail data_avail;
 	u32	remote_nonce;
 	u64	thmac;
@@ -409,8 +411,7 @@ bool mptcp_subflow_data_available(struct sock *sk);
 void __init mptcp_subflow_init(void);
 void mptcp_subflow_shutdown(struct sock *sk, struct sock *ssk, int how);
 void __mptcp_close_ssk(struct sock *sk, struct sock *ssk,
-		       struct mptcp_subflow_context *subflow,
-		       long timeout);
+		       struct mptcp_subflow_context *subflow);
 void mptcp_subflow_reset(struct sock *ssk);
 
 /* called with sk socket lock held */
@@ -452,6 +453,12 @@ bool mptcp_schedule_work(struct sock *sk);
 void mptcp_data_acked(struct sock *sk);
 void mptcp_subflow_eof(struct sock *sk);
 bool mptcp_update_rcv_data_fin(struct mptcp_sock *msk, u64 data_fin_seq, bool use_64bit);
+static inline bool mptcp_data_fin_enabled(const struct mptcp_sock *msk)
+{
+	return READ_ONCE(msk->snd_data_fin_enable) &&
+	       READ_ONCE(msk->write_seq) == READ_ONCE(msk->snd_nxt);
+}
+
 void mptcp_destroy_common(struct mptcp_sock *msk);
 
 void __init mptcp_token_init(void);
