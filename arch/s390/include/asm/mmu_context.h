@@ -79,7 +79,7 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	S390_lowcore.user_asce = next->context.asce;
 	cpumask_set_cpu(cpu, &next->context.cpu_attach_mask);
 	/* Clear previous user-ASCE from CR7 */
-	__ctl_load(S390_lowcore.kernel_asce, 7, 7);
+	__ctl_load(s390_invalid_asce, 7, 7);
 	if (prev != next)
 		cpumask_clear_cpu(cpu, &prev->context.cpu_attach_mask);
 }

@@ -23,6 +23,7 @@
 
 extern pgd_t swapper_pg_dir[];
 extern void paging_init(void);
+extern unsigned long s390_invalid_asce;
 
 enum {
 	PG_DIRECT_MAP_4K = 0,
