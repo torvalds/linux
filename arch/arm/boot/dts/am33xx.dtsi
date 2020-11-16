@@ -645,6 +645,9 @@
 
 /* Preferred always-on timer for clocksource */
 &timer1_target {
+	clocks = <&l4_wkup_clkctrl AM3_L4_WKUP_TIMER1_CLKCTRL 0>,
+		 <&l4_wkup_clkctrl AM3_L4_WKUP_L4_WKUP_CLKCTRL 0>;
+	clock-names = "fck", "ick";
 	ti,no-reset-on-init;
 	ti,no-idle;
 	timer@0 {
@@ -655,6 +658,9 @@
 
 /* Preferred timer for clockevent */
 &timer2_target {
+	clocks = <&l4ls_clkctrl AM3_L4LS_TIMER2_CLKCTRL 0>,
+		 <&l4ls_clkctrl AM3_L4LS_L4_LS_CLKCTRL 0>;
+	clock-names = "fck", "ick";
 	ti,no-reset-on-init;
 	ti,no-idle;
 	timer@0 {
