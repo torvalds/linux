@@ -153,10 +153,6 @@ static inline u32 ipa_reg_state_aggr_active_offset(enum ipa_version version)
 
 /* The next register is present for IPA v4.2 and above */
 #define IPA_REG_FILT_ROUT_HASH_EN_OFFSET		0x00000148
-#define IPV6_ROUTER_HASH_EN			GENMASK(0, 0)
-#define IPV6_FILTER_HASH_EN			GENMASK(4, 4)
-#define IPV4_ROUTER_HASH_EN			GENMASK(8, 8)
-#define IPV4_FILTER_HASH_EN			GENMASK(12, 12)
 
 static inline u32 ipa_reg_filt_rout_hash_flush_offset(enum ipa_version version)
 {
@@ -166,10 +162,11 @@ static inline u32 ipa_reg_filt_rout_hash_flush_offset(enum ipa_version version)
 	return 0x000014c;
 }
 
-#define IPV6_ROUTER_HASH_FLUSH			GENMASK(0, 0)
-#define IPV6_FILTER_HASH_FLUSH			GENMASK(4, 4)
-#define IPV4_ROUTER_HASH_FLUSH			GENMASK(8, 8)
-#define IPV4_FILTER_HASH_FLUSH			GENMASK(12, 12)
+/* The next four fields are used for the hash enable and flush registers */
+#define IPV6_ROUTER_HASH_FMASK			GENMASK(0, 0)
+#define IPV6_FILTER_HASH_FMASK			GENMASK(4, 4)
+#define IPV4_ROUTER_HASH_FMASK			GENMASK(8, 8)
+#define IPV4_FILTER_HASH_FMASK			GENMASK(12, 12)
 
 #define IPA_REG_BCR_OFFSET				0x000001d0
 #define BCR_CMDQ_L_LACK_ONE_ENTRY		BIT(0)
