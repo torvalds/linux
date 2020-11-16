@@ -3587,6 +3587,22 @@ static int ufshcd_dme_reset(struct ufs_hba *hba)
 	return ret;
 }
 
+int ufshcd_dme_configure_adapt(struct ufs_hba *hba,
+			       int agreed_gear,
+			       int adapt_val)
+{
+	int ret;
+
+	if (agreed_gear != UFS_HS_G4)
+		adapt_val = PA_INITIAL_ADAPT;
+
+	ret = ufshcd_dme_set(hba,
+			     UIC_ARG_MIB(PA_TXHSADAPTTYPE),
+			     adapt_val);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(ufshcd_dme_configure_adapt);
+
 /**
  * ufshcd_dme_enable - UIC command for DME_ENABLE
  * @hba: per adapter instance
