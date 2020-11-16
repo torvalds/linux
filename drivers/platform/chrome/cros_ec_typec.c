@@ -640,6 +640,7 @@ static int cros_typec_register_altmodes(struct cros_typec_data *typec, int port_
 	struct cros_typec_altmode_node *node;
 	struct typec_altmode_desc desc;
 	struct typec_altmode *amode;
+	int num_altmodes = 0;
 	int ret = 0;
 	int i, j;
 
@@ -666,7 +667,14 @@ static int cros_typec_register_altmodes(struct cros_typec_data *typec, int port_
 
 			node->amode = amode;
 			list_add_tail(&node->list, &port->partner_mode_list);
+			num_altmodes++;
 		}
+	}
+
+	ret = typec_partner_set_num_altmodes(port->partner, num_altmodes);
+	if (ret < 0) {
+		dev_err(typec->dev, "Unable to set partner num_altmodes for port: %d\n", port_num);
+		goto err_cleanup;
 	}
 
 	return 0;
