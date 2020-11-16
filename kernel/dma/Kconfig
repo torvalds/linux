@@ -229,3 +229,12 @@ config DMA_API_DEBUG_SG
 	  is technically out-of-spec.
 
 	  If unsure, say N.
+
+config DMA_MAP_BENCHMARK
+	bool "Enable benchmarking of streaming DMA mapping"
+	depends on DEBUG_FS
+	help
+	  Provides /sys/kernel/debug/dma_map_benchmark that helps with testing
+	  performance of dma_(un)map_page.
+
+	  See tools/testing/selftests/dma/dma_map_benchmark.c
