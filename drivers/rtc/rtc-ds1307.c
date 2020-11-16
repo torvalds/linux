@@ -8,7 +8,6 @@
  *  Copyright (C) 2012 Bertrand Achard (nvram access fixes)
  */
 
-#include <linux/acpi.h>
 #include <linux/bcd.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
@@ -1169,31 +1168,6 @@ static const struct of_device_id ds1307_of_match[] = {
 MODULE_DEVICE_TABLE(of, ds1307_of_match);
 #endif
 
-#ifdef CONFIG_ACPI
-static const struct acpi_device_id ds1307_acpi_ids[] = {
-	{ .id = "DS1307", .driver_data = ds_1307 },
-	{ .id = "DS1308", .driver_data = ds_1308 },
-	{ .id = "DS1337", .driver_data = ds_1337 },
-	{ .id = "DS1338", .driver_data = ds_1338 },
-	{ .id = "DS1339", .driver_data = ds_1339 },
-	{ .id = "DS1388", .driver_data = ds_1388 },
-	{ .id = "DS1340", .driver_data = ds_1340 },
-	{ .id = "DS1341", .driver_data = ds_1341 },
-	{ .id = "DS3231", .driver_data = ds_3231 },
-	{ .id = "M41T0", .driver_data = m41t0 },
-	{ .id = "M41T00", .driver_data = m41t00 },
-	{ .id = "M41T11", .driver_data = m41t11 },
-	{ .id = "MCP7940X", .driver_data = mcp794xx },
-	{ .id = "MCP7941X", .driver_data = mcp794xx },
-	{ .id = "PT7C4338", .driver_data = ds_1307 },
-	{ .id = "RX8025", .driver_data = rx_8025 },
-	{ .id = "ISL12057", .driver_data = ds_1337 },
-	{ .id = "RX8130", .driver_data = rx_8130 },
-	{ }
-};
-MODULE_DEVICE_TABLE(acpi, ds1307_acpi_ids);
-#endif
-
 /*
  * The ds1337 and ds1339 both have two alarms, but we only use the first
  * one (with a "seconds" field).  For ds1337 we expect nINTA is our alarm
@@ -1794,14 +1768,7 @@ static int ds1307_probe(struct i2c_client *client,
 		chip = &chips[id->driver_data];
 		ds1307->type = id->driver_data;
 	} else {
-		const struct acpi_device_id *acpi_id;
-
-		acpi_id = acpi_match_device(ACPI_PTR(ds1307_acpi_ids),
-					    ds1307->dev);
-		if (!acpi_id)
-			return -ENODEV;
-		chip = &chips[acpi_id->driver_data];
-		ds1307->type = acpi_id->driver_data;
+		return -ENODEV;
 	}
 
 	want_irq = client->irq > 0 && chip->alarm;
@@ -2065,7 +2032,6 @@ static struct i2c_driver ds1307_driver = {
 	.driver = {
 		.name	= "rtc-ds1307",
 		.of_match_table = of_match_ptr(ds1307_of_match),
-		.acpi_match_table = ACPI_PTR(ds1307_acpi_ids),
 	},
 	.probe		= ds1307_probe,
 	.id_table	= ds1307_id,
