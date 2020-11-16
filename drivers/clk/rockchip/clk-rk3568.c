@@ -288,6 +288,7 @@ PNAME(gpll100_gpll75_cpll50_xin24m_p)	= { "gpll_100m", "gpll_75m", "cpll_50m", "
 PNAME(xin24m_gpll100_cpll100_p)		= { "xin24m", "gpll_100m", "cpll_100m" };
 PNAME(gpll_cpll_usb480m_p)		= { "gpll", "cpll", "usb480m" };
 PNAME(gpll100_xin24m_cpll100_p)		= { "gpll_100m", "xin24m", "cpll_100m" };
+PNAME(gpll200_xin24m_cpll100_p)		= { "gpll_200m", "xin24m", "cpll_100m" };
 PNAME(xin24m_32k_p)			= { "xin24m", "clk_rtc_32k" };
 PNAME(cpll500_gpll400_gpll300_xin24m_p)	= { "cpll_500m", "gpll_400m", "gpll_300m", "xin24m" };
 PNAME(gpll400_gpll300_gpll200_xin24m_p)	= { "gpll_400m", "gpll_300m", "gpll_200m", "xin24m" };
@@ -1356,22 +1357,22 @@ static struct rockchip_clk_branch rk3568_clk_branches[] __initdata = {
 			RK3568_CLKGATE_CON(30), 9, GFLAGS),
 	GATE(PCLK_SPI0, "pclk_spi0", "pclk_bus", 0,
 			RK3568_CLKGATE_CON(30), 10, GFLAGS),
-	COMPOSITE_NODIV(CLK_SPI0, "clk_spi0", gpll100_xin24m_cpll100_p, 0,
+	COMPOSITE_NODIV(CLK_SPI0, "clk_spi0", gpll200_xin24m_cpll100_p, 0,
 			RK3568_CLKSEL_CON(72), 0, 1, MFLAGS,
 			RK3568_CLKGATE_CON(30), 11, GFLAGS),
 	GATE(PCLK_SPI1, "pclk_spi1", "pclk_bus", 0,
 			RK3568_CLKGATE_CON(30), 12, GFLAGS),
-	COMPOSITE_NODIV(CLK_SPI1, "clk_spi1", gpll100_xin24m_cpll100_p, 0,
+	COMPOSITE_NODIV(CLK_SPI1, "clk_spi1", gpll200_xin24m_cpll100_p, 0,
 			RK3568_CLKSEL_CON(72), 2, 1, MFLAGS,
 			RK3568_CLKGATE_CON(30), 13, GFLAGS),
 	GATE(PCLK_SPI2, "pclk_spi2", "pclk_bus", 0,
 			RK3568_CLKGATE_CON(30), 14, GFLAGS),
-	COMPOSITE_NODIV(CLK_SPI2, "clk_spi2", gpll100_xin24m_cpll100_p, 0,
+	COMPOSITE_NODIV(CLK_SPI2, "clk_spi2", gpll200_xin24m_cpll100_p, 0,
 			RK3568_CLKSEL_CON(72), 4, 1, MFLAGS,
 			RK3568_CLKGATE_CON(30), 15, GFLAGS),
 	GATE(PCLK_SPI3, "pclk_spi3", "pclk_bus", 0,
 			RK3568_CLKGATE_CON(31), 0, GFLAGS),
-	COMPOSITE_NODIV(CLK_SPI3, "clk_spi3", gpll100_xin24m_cpll100_p, 0,
+	COMPOSITE_NODIV(CLK_SPI3, "clk_spi3", gpll200_xin24m_cpll100_p, 0,
 			RK3568_CLKSEL_CON(72), 6, 1, MFLAGS, RK3568_CLKGATE_CON(31), 1, GFLAGS),
 	GATE(PCLK_PWM1, "pclk_pwm1", "pclk_bus", 0, RK3568_CLKGATE_CON(31), 10, GFLAGS),
 	COMPOSITE_NODIV(CLK_PWM1, "clk_pwm1", gpll100_xin24m_cpll100_p, 0,
