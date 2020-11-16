@@ -33,6 +33,7 @@
 #include "radeon.h"
 #include "radeon_asic.h"
 #include "radeon_ucode.h"
+#include "si_dpm.h"
 
 #define MC_CG_ARB_FREQ_F0           0x0a
 #define MC_CG_ARB_FREQ_F1           0x0b
@@ -153,11 +154,6 @@ static const struct ci_pt_config_reg didt_config_ci[] =
 extern u8 rv770_get_memory_module_index(struct radeon_device *rdev);
 extern int ni_copy_and_switch_arb_sets(struct radeon_device *rdev,
 				       u32 arb_freq_src, u32 arb_freq_dest);
-extern u8 si_get_ddr3_mclk_frequency_ratio(u32 memory_clock);
-extern u8 si_get_mclk_frequency_ratio(u32 memory_clock, bool strobe_mode);
-extern void si_trim_voltage_table_to_fit_state_table(struct radeon_device *rdev,
-						     u32 max_voltage_steps,
-						     struct atom_voltage_table *voltage_table);
 static int ci_get_std_voltage_value_sidd(struct radeon_device *rdev,
 					 struct atom_voltage_table_entry *voltage_table,
 					 u16 *std_voltage_hi_sidd, u16 *std_voltage_lo_sidd);
