@@ -64,6 +64,9 @@ int hns_roce_create_ah(struct ib_ah *ibah, struct rdma_ah_init_attr *init_attr,
 	struct hns_roce_ah *ah = to_hr_ah(ibah);
 	int ret = 0;
 
+	if (hr_dev->pci_dev->revision <= PCI_REVISION_ID_HIP08 && udata)
+		return -EOPNOTSUPP;
+
 	ah->av.port = rdma_ah_get_port_num(ah_attr);
 	ah->av.gid_index = grh->sgid_index;
 

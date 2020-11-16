@@ -998,6 +998,30 @@ void hns_roce_qp_destroy(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 	kfree(hr_qp);
 }
 
+static int check_qp_type(struct hns_roce_dev *hr_dev, enum ib_qp_type type,
+			 bool is_user)
+{
+	switch (type) {
+	case IB_QPT_UD:
+		if (hr_dev->pci_dev->revision <= PCI_REVISION_ID_HIP08 &&
+		    is_user)
+			goto out;
+		fallthrough;
+	case IB_QPT_RC:
+	case IB_QPT_GSI:
+		break;
+	default:
+		goto out;
+	}
+
+	return 0;
+
+out:
+	ibdev_err(&hr_dev->ib_dev, "not support QP type %d\n", type);
+
+	return -EOPNOTSUPP;
+}
+
 struct ib_qp *hns_roce_create_qp(struct ib_pd *pd,
 				 struct ib_qp_init_attr *init_attr,
 				 struct ib_udata *udata)
@@ -1007,15 +1031,9 @@ struct ib_qp *hns_roce_create_qp(struct ib_pd *pd,
 	struct hns_roce_qp *hr_qp;
 	int ret;
 
-	switch (init_attr->qp_type) {
-	case IB_QPT_RC:
-	case IB_QPT_GSI:
-		break;
-	default:
-		ibdev_err(ibdev, "not support QP type %d\n",
-			  init_attr->qp_type);
-		return ERR_PTR(-EOPNOTSUPP);
-	}
+	ret = check_qp_type(hr_dev, init_attr->qp_type, !!udata);
+	if (ret)
+		return ERR_PTR(ret);
 
 	hr_qp = kzalloc(sizeof(*hr_qp), GFP_KERNEL);
 	if (!hr_qp)
@@ -1030,10 +1048,11 @@ struct ib_qp *hns_roce_create_qp(struct ib_pd *pd,
 	if (ret) {
 		ibdev_err(ibdev, "Create QP type 0x%x failed(%d)\n",
 			  init_attr->qp_type, ret);
-		ibdev_err(ibdev, "Create GSI QP failed!\n");
+
 		kfree(hr_qp);
 		return ERR_PTR(ret);
 	}
+
 	return &hr_qp->ibqp;
 }
 
