@@ -551,6 +551,27 @@ static inline bool xdr_item_is_present(const __be32 *p)
 }
 
 /**
+ * xdr_stream_decode_bool - Decode a boolean
+ * @xdr: pointer to xdr_stream
+ * @ptr: pointer to a u32 in which to store the result
+ *
+ * Return values:
+ *   %0 on success
+ *   %-EBADMSG on XDR buffer overflow
+ */
+static inline ssize_t
+xdr_stream_decode_bool(struct xdr_stream *xdr, __u32 *ptr)
+{
+	const size_t count = sizeof(*ptr);
+	__be32 *p = xdr_inline_decode(xdr, count);
+
+	if (unlikely(!p))
+		return -EBADMSG;
+	*ptr = (*p != xdr_zero);
+	return 0;
+}
+
+/**
  * xdr_stream_decode_u32 - Decode a 32-bit integer
  * @xdr: pointer to xdr_stream
  * @ptr: location to store integer
