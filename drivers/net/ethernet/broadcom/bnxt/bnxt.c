@@ -7758,6 +7758,7 @@ static void bnxt_add_one_ctr(u64 hw, u64 *sw, u64 mask)
 {
 	u64 sw_tmp;
 
+	hw &= mask;
 	sw_tmp = (*sw & ~mask) | hw;
 	if (hw < (*sw & mask))
 		sw_tmp += mask + 1;
