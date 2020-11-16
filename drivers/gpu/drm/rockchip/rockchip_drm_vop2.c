@@ -258,6 +258,14 @@ struct vop2_win {
 	unsigned int max_upscale_factor;
 	unsigned int max_downscale_factor;
 	unsigned int supported_rotations;
+	/*
+	 * vertical/horizontal scale up/down filter mode
+	 */
+	uint8_t hsu_filter_mode;
+	uint8_t hsd_filter_mode;
+	uint8_t vsu_filter_mode;
+	uint8_t vsd_filter_mode;
+
 	const struct vop2_win_regs *regs;
 	const uint32_t *formats;
 	uint32_t nformats;
@@ -798,40 +806,6 @@ static inline bool rockchip_afbc(u64 modifier)
 	return modifier == ROCKCHIP_AFBC_MOD;
 }
 
-static uint16_t scl_vop2_cal_scale(enum scale_mode mode, uint32_t src,
-				   uint32_t dst, bool is_horizontal,
-				   int vsu_mode, int *vskiplines)
-{
-	uint16_t val = 1 << SCL_FT_DEFAULT_FIXPOINT_SHIFT;
-
-	if (vskiplines)
-		*vskiplines = 0;
-
-	if (is_horizontal) {
-		if (mode == SCALE_UP)
-			val = GET_SCL_FT_BIC(src, dst);
-		else if (mode == SCALE_DOWN)
-			val = GET_SCL_FT_BILI_DN(src, dst);
-	} else {
-		if (mode == SCALE_UP) {
-			if (vsu_mode == SCALE_UP_BIL)
-				val = GET_SCL_FT_BILI_UP(src, dst);
-			else
-				val = GET_SCL_FT_BIC(src, dst);
-		} else if (mode == SCALE_DOWN) {
-			if (vskiplines) {
-				*vskiplines = scl_get_vskiplines(src, dst);
-				val = scl_get_bili_dn_vskip(src, dst,
-							    *vskiplines);
-			} else {
-				val = GET_SCL_FT_BILI_DN(src, dst);
-			}
-		}
-	}
-
-	return val;
-}
-
 static int vop2_afbc_half_block_enable(struct vop2_plane_state *vpstate)
 {
 	if (vpstate->rotate_270_en || vpstate->rotate_90_en)
@@ -859,6 +833,38 @@ static int vop2_get_cluster_lb_mode(struct vop2_win *win, struct vop2_plane_stat
 		return 0;
 }
 
+/*
+ * bli_sd_factor = (src - 1) / (dst - 1) << 12;
+ * avg_sd_factor:
+ * bli_su_factor:
+ * bic_su_factor:
+ * = (src - 1) / (dst - 1) << 16;
+ *
+ * gt2 enable: dst get one line from two line of the src
+ * gt4 enable: dst get one line from four line of the src.
+ *
+ */
+#define VOP2_BILI_SCL_DN(src, dst)	(((src - 1) << 12) / (dst - 1))
+#define VOP2_COMMON_SCL(src, dst)	(((src - 1) << 16) / (dst - 1))
+
+static uint16_t vop2_scale_factor(enum scale_mode mode,
+				  int32_t filter_mode,
+				  uint32_t src, uint32_t dst)
+{
+	/*
+	 * A workaround to avoid zero div.
+	 */
+	if ((dst == 1) || (src == 1)) {
+		dst = dst + 1;
+		src = src + 1;
+	}
+
+	if ((mode == SCALE_DOWN) && (filter_mode == VOP2_SCALE_DOWN_BIL))
+		return VOP2_BILI_SCL_DN(src, dst);
+	else
+		return VOP2_COMMON_SCL(src, dst);
+}
+
 static void vop2_setup_scale(struct vop2 *vop2, const struct vop2_win *win,
 			     uint32_t src_w, uint32_t src_h, uint32_t dst_w,
 			     uint32_t dst_h, uint32_t pixel_format)
@@ -873,8 +879,11 @@ static void vop2_setup_scale(struct vop2 *vop2, const struct vop2_win *win,
 	uint16_t yrgb_hor_scl_mode, yrgb_ver_scl_mode;
 	uint16_t cbcr_hor_scl_mode, cbcr_ver_scl_mode;
 	uint16_t hscl_filter_mode, vscl_filter_mode;
+	uint8_t vscl_factor = src_h / dst_h;
+	uint8_t cbcr_vscl_factor = cbcr_src_h / dst_h;
+	uint8_t gt2 = 0;
+	uint8_t gt4 = 0;
 	uint32_t val;
-	int vskiplines;
 
 	info = drm_format_info(pixel_format);
 
@@ -894,14 +903,20 @@ static void vop2_setup_scale(struct vop2 *vop2, const struct vop2_win *win,
 	else
 		vscl_filter_mode = win_data->vsd_filter_mode;
 
-	val = scl_vop2_cal_scale(yrgb_hor_scl_mode, src_w, dst_w, true, 0, NULL);
+	if (vscl_factor > 4)
+		gt4 = 1;
+	else if (vscl_factor > 2)
+		gt2 = 1;
+
+	val = vop2_scale_factor(yrgb_hor_scl_mode, hscl_filter_mode,
+				src_w, dst_w);
 	VOP_SCL_SET(vop2, win, scale_yrgb_x, val);
-	val = scl_vop2_cal_scale(yrgb_ver_scl_mode, src_h, dst_h, false,
-				 vscl_filter_mode, &vskiplines);
+	val = vop2_scale_factor(yrgb_ver_scl_mode, vscl_filter_mode,
+				src_h, dst_h);
 	VOP_SCL_SET(vop2, win, scale_yrgb_y, val);
 
-	VOP_SCL_SET(vop2, win, vsd_yrgb_gt4, vskiplines == 4);
-	VOP_SCL_SET(vop2, win, vsd_yrgb_gt2, vskiplines == 2);
+	VOP_SCL_SET(vop2, win, vsd_yrgb_gt4, gt4);
+	VOP_SCL_SET(vop2, win, vsd_yrgb_gt2, gt2);
 
 	VOP_SCL_SET(vop2, win, yrgb_hor_scl_mode, yrgb_hor_scl_mode);
 	VOP_SCL_SET(vop2, win, yrgb_ver_scl_mode, yrgb_ver_scl_mode);
@@ -910,13 +925,21 @@ static void vop2_setup_scale(struct vop2 *vop2, const struct vop2_win *win,
 	VOP_SCL_SET(vop2, win, yrgb_vscl_filter_mode, vscl_filter_mode);
 
 	if (info->is_yuv) {
-		val = scl_vop2_cal_scale(cbcr_hor_scl_mode, cbcr_src_w, dst_w, true, 0, NULL);
+		val = vop2_scale_factor(cbcr_hor_scl_mode, hscl_filter_mode,
+					cbcr_src_w, dst_w);
 		VOP_SCL_SET(vop2, win, scale_cbcr_x, val);
-		val = scl_vop2_cal_scale(cbcr_ver_scl_mode, cbcr_src_h, dst_h, false,
-					 vscl_filter_mode, &vskiplines);
+		val = vop2_scale_factor(cbcr_ver_scl_mode, vscl_filter_mode,
+					cbcr_src_h, dst_h);
 		VOP_SCL_SET(vop2, win, scale_cbcr_y, val);
-		VOP_SCL_SET(vop2, win, vsd_cbcr_gt4, vskiplines == 4);
-		VOP_SCL_SET(vop2, win, vsd_cbcr_gt2, vskiplines == 2);
+
+		gt4 = gt2 = 0;
+
+		if (cbcr_vscl_factor > 4)
+			gt4 = 1;
+		else if (cbcr_vscl_factor > 2)
+			gt2 = 1;
+		VOP_SCL_SET(vop2, win, vsd_cbcr_gt4, gt4);
+		VOP_SCL_SET(vop2, win, vsd_cbcr_gt2, gt2);
 		VOP_SCL_SET(vop2, win, cbcr_hor_scl_mode, cbcr_hor_scl_mode);
 		VOP_SCL_SET(vop2, win, cbcr_ver_scl_mode, cbcr_ver_scl_mode);
 		VOP_SCL_SET(vop2, win, cbcr_hscl_filter_mode, hscl_filter_mode);
@@ -3853,6 +3876,10 @@ static int vop2_win_init(struct vop2 *vop2)
 		win->supported_rotations = win_data->supported_rotations;
 		win->max_upscale_factor = win_data->max_upscale_factor;
 		win->max_downscale_factor = win_data->max_downscale_factor;
+		win->hsu_filter_mode = win_data->hsu_filter_mode;
+		win->hsd_filter_mode = win_data->hsd_filter_mode;
+		win->vsu_filter_mode = win_data->vsu_filter_mode;
+		win->vsd_filter_mode = win_data->vsd_filter_mode;
 		win->feature = win_data->feature;
 		win->phys_id = win_data->phys_id;
 		win->layer_sel_id = win_data->layer_sel_id;
@@ -3880,6 +3907,11 @@ static int vop2_win_init(struct vop2 *vop2)
 			area->max_upscale_factor = win_data->max_upscale_factor;
 			area->max_downscale_factor = win_data->max_downscale_factor;
 			area->supported_rotations = win_data->supported_rotations;
+			area->hsu_filter_mode = win_data->hsu_filter_mode;
+			area->hsd_filter_mode = win_data->hsd_filter_mode;
+			area->vsu_filter_mode = win_data->vsu_filter_mode;
+			area->vsd_filter_mode = win_data->vsd_filter_mode;
+
 			area->vop2 = vop2;
 			area->win_id = i;
 			area->phys_id = win->phys_id;
