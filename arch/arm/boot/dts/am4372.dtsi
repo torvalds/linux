@@ -548,6 +548,12 @@
 #include "am43xx-clocks.dtsi"
 
 &prcm {
+	prm_mpu: prm@300 {
+		compatible = "ti,am4-prm-inst", "ti,omap-prm-inst";
+		reg = <0x300 0x100>;
+		#power-domain-cells = <0>;
+	};
+
 	prm_gfx: prm@400 {
 		compatible = "ti,am4-prm-inst", "ti,omap-prm-inst";
 		reg = <0x400 0x100>;
@@ -555,16 +561,36 @@
 		#reset-cells = <1>;
 	};
 
+	prm_rtc: prm@500 {
+		compatible = "ti,am4-prm-inst", "ti,omap-prm-inst";
+		reg = <0x500 0x100>;
+		#power-domain-cells = <0>;
+	};
+
+	prm_tamper: prm@600 {
+		compatible = "ti,am4-prm-inst", "ti,omap-prm-inst";
+		reg = <0x600 0x100>;
+		#power-domain-cells = <0>;
+	};
+
+	prm_cefuse: prm@700 {
+		compatible = "ti,am4-prm-inst", "ti,omap-prm-inst";
+		reg = <0x700 0x100>;
+		#power-domain-cells = <0>;
+	};
+
 	prm_per: prm@800 {
 		compatible = "ti,am4-prm-inst", "ti,omap-prm-inst";
 		reg = <0x800 0x100>;
 		#reset-cells = <1>;
+		#power-domain-cells = <0>;
 	};
 
 	prm_wkup: prm@2000 {
 		compatible = "ti,am4-prm-inst", "ti,omap-prm-inst";
 		reg = <0x2000 0x100>;
 		#reset-cells = <1>;
+		#power-domain-cells = <0>;
 	};
 
 	prm_device: prm@4000 {
