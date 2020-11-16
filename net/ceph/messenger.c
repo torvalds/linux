@@ -2386,7 +2386,8 @@ static int read_partial_msg_data(struct ceph_connection *con)
 /*
  * read (part of) a message.
  */
-static int ceph_con_in_msg_alloc(struct ceph_connection *con, int *skip);
+static int ceph_con_in_msg_alloc(struct ceph_connection *con,
+				 struct ceph_msg_header *hdr, int *skip);
 
 static int read_partial_message(struct ceph_connection *con)
 {
@@ -2450,7 +2451,7 @@ static int read_partial_message(struct ceph_connection *con)
 
 		dout("got hdr type %d front %d data %d\n", con->in_hdr.type,
 		     front_len, data_len);
-		ret = ceph_con_in_msg_alloc(con, &skip);
+		ret = ceph_con_in_msg_alloc(con, &con->in_hdr, &skip);
 		if (ret < 0)
 			return ret;
 
@@ -3455,9 +3456,9 @@ static int ceph_alloc_middle(struct ceph_connection *con, struct ceph_msg *msg)
  * On error (ENOMEM, EAGAIN, ...),
  *  - con->in_msg == NULL
  */
-static int ceph_con_in_msg_alloc(struct ceph_connection *con, int *skip)
+static int ceph_con_in_msg_alloc(struct ceph_connection *con,
+				 struct ceph_msg_header *hdr, int *skip)
 {
-	struct ceph_msg_header *hdr = &con->in_hdr;
 	int middle_len = le32_to_cpu(hdr->middle_len);
 	struct ceph_msg *msg;
 	int ret = 0;
@@ -3489,7 +3490,7 @@ static int ceph_con_in_msg_alloc(struct ceph_connection *con, int *skip)
 		con->error_msg = "error allocating memory for incoming message";
 		return -ENOMEM;
 	}
-	memcpy(&con->in_msg->hdr, &con->in_hdr, sizeof(con->in_hdr));
+	memcpy(&con->in_msg->hdr, hdr, sizeof(*hdr));
 
 	if (middle_len && !con->in_msg->middle) {
 		ret = ceph_alloc_middle(con, con->in_msg);
