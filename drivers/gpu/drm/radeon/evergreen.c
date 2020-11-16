@@ -31,6 +31,7 @@
 
 #include "atom.h"
 #include "avivod.h"
+#include "cik.h"
 #include "ni.h"
 #include "rv770.h"
 #include "evergreen.h"
@@ -217,10 +218,6 @@ static void evergreen_gpu_init(struct radeon_device *rdev);
 void evergreen_fini(struct radeon_device *rdev);
 void evergreen_pcie_gen2_enable(struct radeon_device *rdev);
 void evergreen_program_aspm(struct radeon_device *rdev);
-void cik_init_cp_pg_table(struct radeon_device *rdev);
-
-extern u32 cik_get_csb_size(struct radeon_device *rdev);
-extern void cik_get_csb_buffer(struct radeon_device *rdev, volatile u32 *buffer);
 
 static const u32 evergreen_golden_registers[] =
 {
