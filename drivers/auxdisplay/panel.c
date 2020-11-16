@@ -808,41 +808,7 @@ static void lcd_write_data_tilcd(struct hd44780_common *hdc, int data)
 	spin_unlock_irq(&pprt_lock);
 }
 
-static const struct charlcd_ops charlcd_serial_ops = {
-	.backlight	= lcd_backlight,
-	.print		= hd44780_common_print,
-	.gotoxy		= hd44780_common_gotoxy,
-	.home		= hd44780_common_home,
-	.clear_display	= hd44780_common_clear_display,
-	.init_display	= hd44780_common_init_display,
-	.shift_cursor	= hd44780_common_shift_cursor,
-	.shift_display	= hd44780_common_shift_display,
-	.display	= hd44780_common_display,
-	.cursor		= hd44780_common_cursor,
-	.blink		= hd44780_common_blink,
-	.fontsize	= hd44780_common_fontsize,
-	.lines		= hd44780_common_lines,
-	.redefine_char	= hd44780_common_redefine_char,
-};
-
-static const struct charlcd_ops charlcd_parallel_ops = {
-	.backlight	= lcd_backlight,
-	.print		= hd44780_common_print,
-	.gotoxy		= hd44780_common_gotoxy,
-	.home		= hd44780_common_home,
-	.clear_display	= hd44780_common_clear_display,
-	.init_display	= hd44780_common_init_display,
-	.shift_cursor	= hd44780_common_shift_cursor,
-	.shift_display	= hd44780_common_shift_display,
-	.display	= hd44780_common_display,
-	.cursor		= hd44780_common_cursor,
-	.blink		= hd44780_common_blink,
-	.fontsize	= hd44780_common_fontsize,
-	.lines		= hd44780_common_lines,
-	.redefine_char	= hd44780_common_redefine_char,
-};
-
-static const struct charlcd_ops charlcd_tilcd_ops = {
+static const struct charlcd_ops charlcd_ops = {
 	.backlight	= lcd_backlight,
 	.print		= hd44780_common_print,
 	.gotoxy		= hd44780_common_gotoxy,
@@ -984,7 +950,7 @@ static void lcd_init(void)
 		charlcd->height = DEFAULT_LCD_HEIGHT;
 
 	if (lcd.proto == LCD_PROTO_SERIAL) {	/* SERIAL */
-		charlcd->ops = &charlcd_serial_ops;
+		charlcd->ops = &charlcd_ops;
 		hdc->write_data = lcd_write_data_s;
 		hdc->write_cmd = lcd_write_cmd_s;
 
@@ -994,7 +960,7 @@ static void lcd_init(void)
 			lcd.pins.da = DEFAULT_LCD_PIN_SDA;
 
 	} else if (lcd.proto == LCD_PROTO_PARALLEL) {	/* PARALLEL */
-		charlcd->ops = &charlcd_parallel_ops;
+		charlcd->ops = &charlcd_ops;
 		hdc->write_data = lcd_write_data_p8;
 		hdc->write_cmd = lcd_write_cmd_p8;
 
@@ -1005,7 +971,7 @@ static void lcd_init(void)
 		if (lcd.pins.rw == PIN_NOT_SET)
 			lcd.pins.rw = DEFAULT_LCD_PIN_RW;
 	} else {
-		charlcd->ops = &charlcd_tilcd_ops;
+		charlcd->ops = &charlcd_ops;
 		hdc->write_data = lcd_write_data_tilcd;
 		hdc->write_cmd = lcd_write_cmd_tilcd;
 	}
