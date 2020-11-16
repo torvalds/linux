@@ -179,14 +179,24 @@
 		l4_fast: interconnect@4a000000 {
 		};
 
-		emif: emif@4c000000 {
-			compatible = "ti,emif-am4372";
-			reg = <0x4c000000 0x1000000>;
-			ti,hwmods = "emif";
-			interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
+		target-module@4c000000 {
+			compatible = "ti,sysc-omap4-simple", "ti,sysc";
+			reg = <0x4c000000 0x4>;
+			reg-names = "rev";
+			clocks = <&emif_clkctrl AM4_EMIF_EMIF_CLKCTRL 0>;
+			clock-names = "fck";
 			ti,no-idle;
-			sram = <&pm_sram_code
-				&pm_sram_data>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x4c000000 0x1000000>;
+
+			emif: emif@0 {
+				compatible = "ti,emif-am4372";
+				reg = <0 0x1000000>;
+				interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
+				sram = <&pm_sram_code
+					&pm_sram_data>;
+			};
 		};
 
 		target-module@49000000 {
