@@ -33,6 +33,7 @@ struct typec_partner {
 	struct usb_pd_identity		*identity;
 	enum typec_accessory		accessory;
 	struct ida			mode_ids;
+	int				num_altmodes;
 };
 
 struct typec_port {
@@ -532,12 +533,43 @@ static ssize_t supports_usb_power_delivery_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(supports_usb_power_delivery);
 
+static ssize_t number_of_alternate_modes_show(struct device *dev, struct device_attribute *attr,
+					      char *buf)
+{
+	struct typec_partner *p = to_typec_partner(dev);
+
+	return sysfs_emit(buf, "%d\n", p->num_altmodes);
+}
+static DEVICE_ATTR_RO(number_of_alternate_modes);
+
 static struct attribute *typec_partner_attrs[] = {
 	&dev_attr_accessory_mode.attr,
 	&dev_attr_supports_usb_power_delivery.attr,
+	&dev_attr_number_of_alternate_modes.attr,
 	NULL
 };
-ATTRIBUTE_GROUPS(typec_partner);
+
+static umode_t typec_partner_attr_is_visible(struct kobject *kobj, struct attribute *attr, int n)
+{
+	struct typec_partner *partner = to_typec_partner(kobj_to_dev(kobj));
+
+	if (attr == &dev_attr_number_of_alternate_modes.attr) {
+		if (partner->num_altmodes < 0)
+			return 0;
+	}
+
+	return attr->mode;
+}
+
+static struct attribute_group typec_partner_group = {
+	.is_visible = typec_partner_attr_is_visible,
+	.attrs = typec_partner_attrs
+};
+
+static const struct attribute_group *typec_partner_groups[] = {
+	&typec_partner_group,
+	NULL
+};
 
 static void typec_partner_release(struct device *dev)
 {
@@ -569,6 +601,37 @@ int typec_partner_set_identity(struct typec_partner *partner)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(typec_partner_set_identity);
+
+/**
+ * typec_partner_set_num_altmodes - Set the number of available partner altmodes
+ * @partner: The partner to be updated.
+ * @num_alt_modes: The number of altmodes we want to specify as available.
+ *
+ * This routine is used to report the number of alternate modes supported by the
+ * partner. This value is *not* enforced in alternate mode registration routines.
+ *
+ * @partner.num_altmodes is set to -1 on partner registration, denoting that
+ * a valid value has not been set for it yet.
+ *
+ * Returns 0 on success or negative error number on failure.
+ */
+int typec_partner_set_num_altmodes(struct typec_partner *partner, int num_altmodes)
+{
+	int ret;
+
+	if (num_altmodes < 0)
+		return -EINVAL;
+
+	partner->num_altmodes = num_altmodes;
+	ret = sysfs_update_group(&partner->dev.kobj, &typec_partner_group);
+	if (ret < 0)
+		return ret;
+
+	sysfs_notify(&partner->dev.kobj, NULL, "number_of_alternate_modes");
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(typec_partner_set_num_altmodes);
 
 /**
  * typec_partner_register_altmode - Register USB Type-C Partner Alternate Mode
@@ -612,6 +675,7 @@ struct typec_partner *typec_register_partner(struct typec_port *port,
 	ida_init(&partner->mode_ids);
 	partner->usb_pd = desc->usb_pd;
 	partner->accessory = desc->accessory;
+	partner->num_altmodes = -1;
 
 	if (desc->identity) {
 		/*
