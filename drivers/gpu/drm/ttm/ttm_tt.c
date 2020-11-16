@@ -38,7 +38,7 @@
 #include <drm/drm_cache.h>
 #include <drm/ttm/ttm_bo_driver.h>
 
-/**
+/*
  * Allocates a ttm structure for the given BO.
  */
 int ttm_tt_create(struct ttm_buffer_object *bo, bool zero_alloc)
@@ -73,7 +73,7 @@ int ttm_tt_create(struct ttm_buffer_object *bo, bool zero_alloc)
 	return 0;
 }
 
-/**
+/*
  * Allocates storage for pointers to the pages that back the ttm.
  */
 static int ttm_tt_alloc_page_directory(struct ttm_tt *ttm)
