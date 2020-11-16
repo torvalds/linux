@@ -891,11 +891,12 @@
 
 &sdhci {
 	bus-width = <8>;
-	//mmc-hs400-1_8v;
+	mmc-hs400-1_8v;
 	supports-emmc;
 	non-removable;
 	keep-power-in-suspend;
-	max-frequency = <200000000>;
+	rockchip,txclk-tapnum = <0xa>;
+	max-frequency = <100000000>;
 	mmc-hs400-enhanced-strobe;
 	status = "okay";
 };
