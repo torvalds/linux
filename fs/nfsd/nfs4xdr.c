@@ -1941,36 +1941,42 @@ nfsd4_decode_clone(struct nfsd4_compoundargs *argp, struct nfsd4_clone *clone)
 static __be32 nfsd4_decode_nl4_server(struct nfsd4_compoundargs *argp,
 				      struct nl4_server *ns)
 {
-	DECODE_HEAD;
 	struct nfs42_netaddr *naddr;
+	__be32 *p;
 
-	READ_BUF(4);
-	ns->nl4_type = be32_to_cpup(p++);
+	if (xdr_stream_decode_u32(argp->xdr, &ns->nl4_type) < 0)
+		return nfserr_bad_xdr;
 
 	/* currently support for 1 inter-server source server */
 	switch (ns->nl4_type) {
 	case NL4_NETADDR:
 		naddr = &ns->u.nl4_addr;
 
-		READ_BUF(4);
-		naddr->netid_len = be32_to_cpup(p++);
+		if (xdr_stream_decode_u32(argp->xdr, &naddr->netid_len) < 0)
+			return nfserr_bad_xdr;
 		if (naddr->netid_len > RPCBIND_MAXNETIDLEN)
-			goto xdr_error;
+			return nfserr_bad_xdr;
 
-		READ_BUF(naddr->netid_len + 4); /* 4 for uaddr len */
-		COPYMEM(naddr->netid, naddr->netid_len);
+		p = xdr_inline_decode(argp->xdr, naddr->netid_len);
+		if (!p)
+			return nfserr_bad_xdr;
+		memcpy(naddr->netid, p, naddr->netid_len);
 
-		naddr->addr_len = be32_to_cpup(p++);
+		if (xdr_stream_decode_u32(argp->xdr, &naddr->addr_len) < 0)
+			return nfserr_bad_xdr;
 		if (naddr->addr_len > RPCBIND_MAXUADDRLEN)
-			goto xdr_error;
+			return nfserr_bad_xdr;
 
-		READ_BUF(naddr->addr_len);
-		COPYMEM(naddr->addr, naddr->addr_len);
+		p = xdr_inline_decode(argp->xdr, naddr->addr_len);
+		if (!p)
+			return nfserr_bad_xdr;
+		memcpy(naddr->addr, p, naddr->addr_len);
 		break;
 	default:
-		goto xdr_error;
+		return nfserr_bad_xdr;
 	}
-	DECODE_TAIL;
+
+	return nfs_ok;
 }
 
 static __be32
