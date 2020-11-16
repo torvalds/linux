@@ -523,6 +523,43 @@ enum ipa_seq_type {
 				IPA_REG_IRQ_CLR_EE_N_OFFSET(GSI_EE_AP)
 #define IPA_REG_IRQ_CLR_EE_N_OFFSET(ee) \
 					(0x00003010 + 0x1000 * (ee))
+/**
+ * enum ipa_irq_id - Bit positions representing type of IPA IRQ
+ * @IPA_IRQ_UC_0:	Microcontroller event interrupt
+ * @IPA_IRQ_UC_1:	Microcontroller response interrupt
+ * @IPA_IRQ_TX_SUSPEND:	Data ready interrupt
+ *
+ * IRQ types not described above are not currently used.
+ */
+enum ipa_irq_id {
+	IPA_IRQ_BAD_SNOC_ACCESS			= 0x0,
+	/* Type (bit) 0x1 is not defined */
+	IPA_IRQ_UC_0				= 0x2,
+	IPA_IRQ_UC_1				= 0x3,
+	IPA_IRQ_UC_2				= 0x4,
+	IPA_IRQ_UC_3				= 0x5,
+	IPA_IRQ_UC_IN_Q_NOT_EMPTY		= 0x6,
+	IPA_IRQ_UC_RX_CMD_Q_NOT_FULL		= 0x7,
+	IPA_IRQ_PROC_UC_ACK_Q_NOT_EMPTY		= 0x8,
+	IPA_IRQ_RX_ERR				= 0x9,
+	IPA_IRQ_DEAGGR_ERR			= 0xa,
+	IPA_IRQ_TX_ERR				= 0xb,
+	IPA_IRQ_STEP_MODE			= 0xc,
+	IPA_IRQ_PROC_ERR			= 0xd,
+	IPA_IRQ_TX_SUSPEND			= 0xe,
+	IPA_IRQ_TX_HOLB_DROP			= 0xf,
+	IPA_IRQ_BAM_GSI_IDLE			= 0x10,
+	IPA_IRQ_PIPE_YELLOW_BELOW		= 0x11,
+	IPA_IRQ_PIPE_RED_BELOW			= 0x12,
+	IPA_IRQ_PIPE_YELLOW_ABOVE		= 0x13,
+	IPA_IRQ_PIPE_RED_ABOVE			= 0x14,
+	IPA_IRQ_UCP				= 0x15,
+	IPA_IRQ_DCMP				= 0x16,
+	IPA_IRQ_GSI_EE				= 0x17,
+	IPA_IRQ_GSI_IPA_IF_TLV_RCVD		= 0x18,
+	IPA_IRQ_GSI_UC				= 0x19,
+	IPA_IRQ_COUNT,				/* Last; not an id */
+};
 
 #define IPA_REG_IRQ_UC_OFFSET \
 				IPA_REG_IRQ_UC_EE_N_OFFSET(GSI_EE_AP)
