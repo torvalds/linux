@@ -973,12 +973,11 @@ static void dpu_encoder_virt_mode_set(struct drm_encoder *drm_enc,
 	struct drm_crtc *drm_crtc;
 	struct dpu_crtc_state *cstate;
 	struct dpu_global_state *global_state;
-	struct msm_display_topology topology;
 	struct dpu_hw_blk *hw_pp[MAX_CHANNELS_PER_ENC];
 	struct dpu_hw_blk *hw_ctl[MAX_CHANNELS_PER_ENC];
 	struct dpu_hw_blk *hw_lm[MAX_CHANNELS_PER_ENC];
 	struct dpu_hw_blk *hw_dspp[MAX_CHANNELS_PER_ENC] = { NULL };
-	int num_lm, num_ctl, num_pp, num_dspp;
+	int num_lm, num_ctl, num_pp;
 	int i, j;
 
 	if (!drm_enc) {
@@ -1020,8 +1019,6 @@ static void dpu_encoder_virt_mode_set(struct drm_encoder *drm_enc,
 		if (drm_crtc->state->encoder_mask & drm_encoder_mask(drm_enc))
 			break;
 
-	topology = dpu_encoder_get_topology(dpu_enc, dpu_kms, adj_mode);
-
 	/* Query resource that have been reserved in atomic check step. */
 	num_pp = dpu_rm_get_assigned_resources(&dpu_kms->rm, global_state,
 		drm_enc->base.id, DPU_HW_BLK_PINGPONG, hw_pp,
@@ -1030,7 +1027,7 @@ static void dpu_encoder_virt_mode_set(struct drm_encoder *drm_enc,
 		drm_enc->base.id, DPU_HW_BLK_CTL, hw_ctl, ARRAY_SIZE(hw_ctl));
 	num_lm = dpu_rm_get_assigned_resources(&dpu_kms->rm, global_state,
 		drm_enc->base.id, DPU_HW_BLK_LM, hw_lm, ARRAY_SIZE(hw_lm));
-	num_dspp = dpu_rm_get_assigned_resources(&dpu_kms->rm, global_state,
+	dpu_rm_get_assigned_resources(&dpu_kms->rm, global_state,
 		drm_enc->base.id, DPU_HW_BLK_DSPP, hw_dspp,
 		ARRAY_SIZE(hw_dspp));
 
@@ -1096,15 +1093,12 @@ static void dpu_encoder_virt_mode_set(struct drm_encoder *drm_enc,
 static void _dpu_encoder_virt_enable_helper(struct drm_encoder *drm_enc)
 {
 	struct dpu_encoder_virt *dpu_enc = NULL;
-	struct msm_drm_private *priv;
 	int i;
 
 	if (!drm_enc || !drm_enc->dev) {
 		DPU_ERROR("invalid parameters\n");
 		return;
 	}
-
-	priv = drm_enc->dev->dev_private;
 
 	dpu_enc = to_dpu_encoder_virt(drm_enc);
 	if (!dpu_enc || !dpu_enc->cur_master) {
@@ -1207,7 +1201,6 @@ static void dpu_encoder_virt_disable(struct drm_encoder *drm_enc)
 {
 	struct dpu_encoder_virt *dpu_enc = NULL;
 	struct msm_drm_private *priv;
-	struct dpu_kms *dpu_kms;
 	int i = 0;
 
 	if (!drm_enc) {
@@ -1225,7 +1218,6 @@ static void dpu_encoder_virt_disable(struct drm_encoder *drm_enc)
 	dpu_enc->enabled = false;
 
 	priv = drm_enc->dev->dev_private;
-	dpu_kms = to_dpu_kms(priv->kms);
 
 	trace_dpu_enc_disable(DRMID(drm_enc));
 
