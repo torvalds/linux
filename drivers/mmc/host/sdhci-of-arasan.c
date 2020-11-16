@@ -635,6 +635,9 @@ static int sdhci_zynqmp_sdcardclk_set_phase(struct clk_hw *hw, int degrees)
 	if (ret)
 		pr_err("Error setting Output Tap Delay\n");
 
+	/* Release DLL Reset */
+	zynqmp_pm_sd_dll_reset(node_id, PM_DLL_RESET_RELEASE);
+
 	return ret;
 }
 
@@ -668,6 +671,9 @@ static int sdhci_zynqmp_sampleclk_set_phase(struct clk_hw *hw, int degrees)
 	/* This is applicable for SDHCI_SPEC_300 and above */
 	if (host->version < SDHCI_SPEC_300)
 		return 0;
+
+	/* Assert DLL Reset */
+	zynqmp_pm_sd_dll_reset(node_id, PM_DLL_RESET_ASSERT);
 
 	switch (host->timing) {
 	case MMC_TIMING_MMC_HS:
