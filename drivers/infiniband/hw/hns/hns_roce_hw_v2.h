@@ -1077,8 +1077,9 @@ struct hns_roce_v2_ud_send_wqe {
 	__le32	byte_32;
 	__le32	byte_36;
 	__le32	byte_40;
-	__le32	dmac;
-	__le32	byte_48;
+	u8	dmac[ETH_ALEN];
+	u8	sgid_index;
+	u8	smac_index;
 	u8	dgid[GID_LEN_V2];
 
 };
@@ -1124,30 +1125,6 @@ struct hns_roce_v2_ud_send_wqe {
 #define V2_UD_SEND_WQE_BYTE_40_UD_VLAN_EN_S 30
 
 #define	V2_UD_SEND_WQE_BYTE_40_LBI_S 31
-
-#define	V2_UD_SEND_WQE_DMAC_0_S 0
-#define V2_UD_SEND_WQE_DMAC_0_M GENMASK(7, 0)
-
-#define	V2_UD_SEND_WQE_DMAC_1_S 8
-#define V2_UD_SEND_WQE_DMAC_1_M GENMASK(15, 8)
-
-#define	V2_UD_SEND_WQE_DMAC_2_S 16
-#define V2_UD_SEND_WQE_DMAC_2_M GENMASK(23, 16)
-
-#define	V2_UD_SEND_WQE_DMAC_3_S 24
-#define V2_UD_SEND_WQE_DMAC_3_M GENMASK(31, 24)
-
-#define	V2_UD_SEND_WQE_BYTE_48_DMAC_4_S 0
-#define V2_UD_SEND_WQE_BYTE_48_DMAC_4_M GENMASK(7, 0)
-
-#define	V2_UD_SEND_WQE_BYTE_48_DMAC_5_S 8
-#define V2_UD_SEND_WQE_BYTE_48_DMAC_5_M GENMASK(15, 8)
-
-#define	V2_UD_SEND_WQE_BYTE_48_SGID_INDX_S 16
-#define V2_UD_SEND_WQE_BYTE_48_SGID_INDX_M GENMASK(23, 16)
-
-#define	V2_UD_SEND_WQE_BYTE_48_SMAC_INDX_S 24
-#define V2_UD_SEND_WQE_BYTE_48_SMAC_INDX_M GENMASK(31, 24)
 
 struct hns_roce_v2_rc_send_wqe {
 	__le32		byte_4;
