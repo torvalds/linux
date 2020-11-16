@@ -555,14 +555,8 @@ static int cp210x_read_reg_block(struct usb_serial_port *port, u8 req,
 	int result;
 
 	dmabuf = kmalloc(bufsize, GFP_KERNEL);
-	if (!dmabuf) {
-		/*
-		 * FIXME Some callers don't bother to check for error,
-		 * at least give them consistent junk until they are fixed
-		 */
-		memset(buf, 0, bufsize);
+	if (!dmabuf)
 		return -ENOMEM;
-	}
 
 	result = usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
 			req, REQTYPE_INTERFACE_TO_HOST, 0,
@@ -576,12 +570,6 @@ static int cp210x_read_reg_block(struct usb_serial_port *port, u8 req,
 				req, bufsize, result);
 		if (result >= 0)
 			result = -EIO;
-
-		/*
-		 * FIXME Some callers don't bother to check for error,
-		 * at least give them consistent junk until they are fixed
-		 */
-		memset(buf, 0, bufsize);
 	}
 
 	kfree(dmabuf);
@@ -1095,11 +1083,55 @@ static bool cp210x_termios_change(const struct ktermios *a, const struct ktermio
 	return tty_termios_hw_change(a, b) || iflag_change;
 }
 
+static void cp210x_set_flow_control(struct tty_struct *tty,
+		struct usb_serial_port *port, struct ktermios *old_termios)
+{
+	struct cp210x_flow_ctl flow_ctl;
+	u32 flow_repl;
+	u32 ctl_hs;
+	int ret;
+
+	if (old_termios && C_CRTSCTS(tty) == (old_termios->c_cflag & CRTSCTS))
+		return;
+
+	ret = cp210x_read_reg_block(port, CP210X_GET_FLOW, &flow_ctl,
+			sizeof(flow_ctl));
+	if (ret)
+		return;
+
+	ctl_hs = le32_to_cpu(flow_ctl.ulControlHandshake);
+	flow_repl = le32_to_cpu(flow_ctl.ulFlowReplace);
+
+	ctl_hs &= ~CP210X_SERIAL_DSR_HANDSHAKE;
+	ctl_hs &= ~CP210X_SERIAL_DCD_HANDSHAKE;
+	ctl_hs &= ~CP210X_SERIAL_DSR_SENSITIVITY;
+	ctl_hs &= ~CP210X_SERIAL_DTR_MASK;
+	ctl_hs |= CP210X_SERIAL_DTR_SHIFT(CP210X_SERIAL_DTR_ACTIVE);
+
+	if (C_CRTSCTS(tty)) {
+		ctl_hs |= CP210X_SERIAL_CTS_HANDSHAKE;
+		flow_repl &= ~CP210X_SERIAL_RTS_MASK;
+		flow_repl |= CP210X_SERIAL_RTS_SHIFT(CP210X_SERIAL_RTS_FLOW_CTL);
+	} else {
+		ctl_hs &= ~CP210X_SERIAL_CTS_HANDSHAKE;
+		flow_repl &= ~CP210X_SERIAL_RTS_MASK;
+		flow_repl |= CP210X_SERIAL_RTS_SHIFT(CP210X_SERIAL_RTS_ACTIVE);
+	}
+
+	dev_dbg(&port->dev, "%s - ulControlHandshake=0x%08x, ulFlowReplace=0x%08x\n",
+			__func__, ctl_hs, flow_repl);
+
+	flow_ctl.ulControlHandshake = cpu_to_le32(ctl_hs);
+	flow_ctl.ulFlowReplace = cpu_to_le32(flow_repl);
+
+	cp210x_write_reg_block(port, CP210X_SET_FLOW, &flow_ctl,
+			sizeof(flow_ctl));
+}
+
 static void cp210x_set_termios(struct tty_struct *tty,
 		struct usb_serial_port *port, struct ktermios *old_termios)
 {
 	struct cp210x_serial_private *priv = usb_get_serial_data(port->serial);
-	struct device *dev = &port->dev;
 	u16 bits;
 	int ret;
 
@@ -1156,42 +1188,7 @@ static void cp210x_set_termios(struct tty_struct *tty,
 	if (ret)
 		dev_err(&port->dev, "failed to set line control: %d\n", ret);
 
-	if (!old_termios || C_CRTSCTS(tty) != (old_termios->c_cflag & CRTSCTS)) {
-		struct cp210x_flow_ctl flow_ctl;
-		u32 ctl_hs;
-		u32 flow_repl;
-
-		cp210x_read_reg_block(port, CP210X_GET_FLOW, &flow_ctl,
-				sizeof(flow_ctl));
-		ctl_hs = le32_to_cpu(flow_ctl.ulControlHandshake);
-		flow_repl = le32_to_cpu(flow_ctl.ulFlowReplace);
-
-		ctl_hs &= ~CP210X_SERIAL_DSR_HANDSHAKE;
-		ctl_hs &= ~CP210X_SERIAL_DCD_HANDSHAKE;
-		ctl_hs &= ~CP210X_SERIAL_DSR_SENSITIVITY;
-		ctl_hs &= ~CP210X_SERIAL_DTR_MASK;
-		ctl_hs |= CP210X_SERIAL_DTR_SHIFT(CP210X_SERIAL_DTR_ACTIVE);
-		if (C_CRTSCTS(tty)) {
-			ctl_hs |= CP210X_SERIAL_CTS_HANDSHAKE;
-
-			flow_repl &= ~CP210X_SERIAL_RTS_MASK;
-			flow_repl |= CP210X_SERIAL_RTS_SHIFT(
-					CP210X_SERIAL_RTS_FLOW_CTL);
-		} else {
-			ctl_hs &= ~CP210X_SERIAL_CTS_HANDSHAKE;
-
-			flow_repl &= ~CP210X_SERIAL_RTS_MASK;
-			flow_repl |= CP210X_SERIAL_RTS_SHIFT(
-					CP210X_SERIAL_RTS_ACTIVE);
-		}
-
-		dev_dbg(dev, "%s - ulControlHandshake=0x%08x, ulFlowReplace=0x%08x\n",
-				__func__, ctl_hs, flow_repl);
-		flow_ctl.ulControlHandshake = cpu_to_le32(ctl_hs);
-		flow_ctl.ulFlowReplace = cpu_to_le32(flow_repl);
-		cp210x_write_reg_block(port, CP210X_SET_FLOW, &flow_ctl,
-				sizeof(flow_ctl));
-	}
+	cp210x_set_flow_control(tty, port, old_termios);
 
 	/*
 	 * Enable event-insertion mode only if input parity checking is
