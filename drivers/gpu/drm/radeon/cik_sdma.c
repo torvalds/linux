@@ -27,13 +27,12 @@
 #include "radeon_ucode.h"
 #include "radeon_asic.h"
 #include "radeon_trace.h"
+#include "cik.h"
 #include "cikd.h"
 
 /* sdma */
 #define CIK_SDMA_UCODE_SIZE 1050
 #define CIK_SDMA_UCODE_VERSION 64
-
-u32 cik_gpu_check_soft_reset(struct radeon_device *rdev);
 
 /*
  * sDMA - System DMA
