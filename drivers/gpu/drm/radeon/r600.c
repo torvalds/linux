@@ -39,6 +39,7 @@
 
 #include "atom.h"
 #include "avivod.h"
+#include "r600.h"
 #include "r600d.h"
 #include "rv770.h"
 #include "radeon.h"
