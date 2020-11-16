@@ -680,19 +680,9 @@ static int ufs_mtk_pre_pwr_change(struct ufs_hba *hba,
 	u32 adapt_val;
 	int ret;
 
-	host_cap.tx_lanes = UFS_MTK_LIMIT_NUM_LANES_TX;
-	host_cap.rx_lanes = UFS_MTK_LIMIT_NUM_LANES_RX;
-	host_cap.hs_rx_gear = UFS_MTK_LIMIT_HSGEAR_RX;
-	host_cap.hs_tx_gear = UFS_MTK_LIMIT_HSGEAR_TX;
-	host_cap.pwm_rx_gear = UFS_MTK_LIMIT_PWMGEAR_RX;
-	host_cap.pwm_tx_gear = UFS_MTK_LIMIT_PWMGEAR_TX;
-	host_cap.rx_pwr_pwm = UFS_MTK_LIMIT_RX_PWR_PWM;
-	host_cap.tx_pwr_pwm = UFS_MTK_LIMIT_TX_PWR_PWM;
-	host_cap.rx_pwr_hs = UFS_MTK_LIMIT_RX_PWR_HS;
-	host_cap.tx_pwr_hs = UFS_MTK_LIMIT_TX_PWR_HS;
-	host_cap.hs_rate = UFS_MTK_LIMIT_HS_RATE;
-	host_cap.desired_working_mode =
-				UFS_MTK_LIMIT_DESIRED_MODE;
+	ufshcd_init_pwr_dev_param(&host_cap);
+	host_cap.hs_rx_gear = UFS_HS_G4;
+	host_cap.hs_tx_gear = UFS_HS_G4;
 
 	ret = ufshcd_get_pwr_dev_param(&host_cap,
 				       dev_max_params,
