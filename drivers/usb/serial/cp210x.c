@@ -1165,8 +1165,6 @@ static void cp210x_set_termios(struct tty_struct *tty,
 				sizeof(flow_ctl));
 		ctl_hs = le32_to_cpu(flow_ctl.ulControlHandshake);
 		flow_repl = le32_to_cpu(flow_ctl.ulFlowReplace);
-		dev_dbg(dev, "%s - read ulControlHandshake=0x%08x, ulFlowReplace=0x%08x\n",
-				__func__, ctl_hs, flow_repl);
 
 		ctl_hs &= ~CP210X_SERIAL_DSR_HANDSHAKE;
 		ctl_hs &= ~CP210X_SERIAL_DCD_HANDSHAKE;
@@ -1179,17 +1177,15 @@ static void cp210x_set_termios(struct tty_struct *tty,
 			flow_repl &= ~CP210X_SERIAL_RTS_MASK;
 			flow_repl |= CP210X_SERIAL_RTS_SHIFT(
 					CP210X_SERIAL_RTS_FLOW_CTL);
-			dev_dbg(dev, "%s - flow control = CRTSCTS\n", __func__);
 		} else {
 			ctl_hs &= ~CP210X_SERIAL_CTS_HANDSHAKE;
 
 			flow_repl &= ~CP210X_SERIAL_RTS_MASK;
 			flow_repl |= CP210X_SERIAL_RTS_SHIFT(
 					CP210X_SERIAL_RTS_ACTIVE);
-			dev_dbg(dev, "%s - flow control = NONE\n", __func__);
 		}
 
-		dev_dbg(dev, "%s - write ulControlHandshake=0x%08x, ulFlowReplace=0x%08x\n",
+		dev_dbg(dev, "%s - ulControlHandshake=0x%08x, ulFlowReplace=0x%08x\n",
 				__func__, ctl_hs, flow_repl);
 		flow_ctl.ulControlHandshake = cpu_to_le32(ctl_hs);
 		flow_ctl.ulFlowReplace = cpu_to_le32(flow_repl);
