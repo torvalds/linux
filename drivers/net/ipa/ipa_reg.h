@@ -454,17 +454,17 @@ static inline u32 rsrc_grp_encoded(enum ipa_version version, u32 rsrc_grp)
 					(0x00003030 + 0x1000 * (ee))
 /* ipa->available defines the valid bits in the SUSPEND_INFO register */
 
-#define IPA_REG_SUSPEND_IRQ_EN_OFFSET \
-				IPA_REG_SUSPEND_IRQ_EN_EE_N_OFFSET(GSI_EE_AP)
-#define IPA_REG_SUSPEND_IRQ_EN_EE_N_OFFSET(ee) \
+#define IPA_REG_IRQ_SUSPEND_EN_OFFSET \
+				IPA_REG_IRQ_SUSPEND_EN_EE_N_OFFSET(GSI_EE_AP)
+#define IPA_REG_IRQ_SUSPEND_EN_EE_N_OFFSET(ee) \
 					(0x00003034 + 0x1000 * (ee))
-/* ipa->available defines the valid bits in the SUSPEND_IRQ_EN register */
+/* ipa->available defines the valid bits in the IRQ_SUSPEND_EN register */
 
-#define IPA_REG_SUSPEND_IRQ_CLR_OFFSET \
-				IPA_REG_SUSPEND_IRQ_CLR_EE_N_OFFSET(GSI_EE_AP)
-#define IPA_REG_SUSPEND_IRQ_CLR_EE_N_OFFSET(ee) \
+#define IPA_REG_IRQ_SUSPEND_CLR_OFFSET \
+				IPA_REG_IRQ_SUSPEND_CLR_EE_N_OFFSET(GSI_EE_AP)
+#define IPA_REG_IRQ_SUSPEND_CLR_EE_N_OFFSET(ee) \
 					(0x00003038 + 0x1000 * (ee))
-/* ipa->available defines the valid bits in the SUSPEND_IRQ_CLR register */
+/* ipa->available defines the valid bits in the IRQ_SUSPEND_CLR register */
 
 /** enum ipa_cs_offload_en - checksum offload field in ENDP_INIT_CFG_N */
 enum ipa_cs_offload_en {
