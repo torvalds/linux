@@ -210,6 +210,15 @@ Description:
 		- type-c
 		- captive
 
+What:		/sys/class/typec/<port>-<plug>/number_of_alternate_modes
+Date:		November 2020
+Contact:	Prashant Malani <pmalani@chromium.org>
+Description:
+		Shows the number of alternate modes which are advertised by the plug
+		associated with a particular cable during Power Delivery discovery.
+		This file remains hidden until a value greater than or equal to 0
+		is set by Type C port driver.
+
 What:		/sys/class/typec/<port>-cable/identity/
 Date:		April 2017
 Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>

@@ -18,6 +18,7 @@ struct typec_plug {
 	struct device			dev;
 	enum typec_plug_index		index;
 	struct ida			mode_ids;
+	int				num_altmodes;
 };
 
 struct typec_cable {
@@ -536,9 +537,21 @@ static DEVICE_ATTR_RO(supports_usb_power_delivery);
 static ssize_t number_of_alternate_modes_show(struct device *dev, struct device_attribute *attr,
 					      char *buf)
 {
-	struct typec_partner *p = to_typec_partner(dev);
+	struct typec_partner *partner;
+	struct typec_plug *plug;
+	int num_altmodes;
 
-	return sysfs_emit(buf, "%d\n", p->num_altmodes);
+	if (is_typec_partner(dev)) {
+		partner = to_typec_partner(dev);
+		num_altmodes = partner->num_altmodes;
+	} else if (is_typec_plug(dev)) {
+		plug = to_typec_plug(dev);
+		num_altmodes = plug->num_altmodes;
+	} else {
+		return 0;
+	}
+
+	return sysfs_emit(buf, "%d\n", num_altmodes);
 }
 static DEVICE_ATTR_RO(number_of_alternate_modes);
 
@@ -726,10 +739,69 @@ static void typec_plug_release(struct device *dev)
 	kfree(plug);
 }
 
+static struct attribute *typec_plug_attrs[] = {
+	&dev_attr_number_of_alternate_modes.attr,
+	NULL
+};
+
+static umode_t typec_plug_attr_is_visible(struct kobject *kobj, struct attribute *attr, int n)
+{
+	struct typec_plug *plug = to_typec_plug(kobj_to_dev(kobj));
+
+	if (attr == &dev_attr_number_of_alternate_modes.attr) {
+		if (plug->num_altmodes < 0)
+			return 0;
+	}
+
+	return attr->mode;
+}
+
+static struct attribute_group typec_plug_group = {
+	.is_visible = typec_plug_attr_is_visible,
+	.attrs = typec_plug_attrs
+};
+
+static const struct attribute_group *typec_plug_groups[] = {
+	&typec_plug_group,
+	NULL
+};
+
 static const struct device_type typec_plug_dev_type = {
 	.name = "typec_plug",
+	.groups = typec_plug_groups,
 	.release = typec_plug_release,
 };
+
+/**
+ * typec_plug_set_num_altmodes - Set the number of available plug altmodes
+ * @plug: The plug to be updated.
+ * @num_altmodes: The number of altmodes we want to specify as available.
+ *
+ * This routine is used to report the number of alternate modes supported by the
+ * plug. This value is *not* enforced in alternate mode registration routines.
+ *
+ * @plug.num_altmodes is set to -1 on plug registration, denoting that
+ * a valid value has not been set for it yet.
+ *
+ * Returns 0 on success or negative error number on failure.
+ */
+int typec_plug_set_num_altmodes(struct typec_plug *plug, int num_altmodes)
+{
+	int ret;
+
+	if (num_altmodes < 0)
+		return -EINVAL;
+
+	plug->num_altmodes = num_altmodes;
+	ret = sysfs_update_group(&plug->dev.kobj, &typec_plug_group);
+	if (ret < 0)
+		return ret;
+
+	sysfs_notify(&plug->dev.kobj, NULL, "number_of_alternate_modes");
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(typec_plug_set_num_altmodes);
 
 /**
  * typec_plug_register_altmode - Register USB Type-C Cable Plug Alternate Mode
@@ -776,6 +848,7 @@ struct typec_plug *typec_register_plug(struct typec_cable *cable,
 	sprintf(name, "plug%d", desc->index);
 
 	ida_init(&plug->mode_ids);
+	plug->num_altmodes = -1;
 	plug->index = desc->index;
 	plug->dev.class = typec_class;
 	plug->dev.parent = &cable->dev;
