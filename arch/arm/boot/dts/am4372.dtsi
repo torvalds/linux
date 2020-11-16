@@ -503,23 +503,33 @@
 			};
 		};
 
-		ocmcram: sram@40300000 {
-			compatible = "mmio-sram";
-			reg = <0x40300000 0x40000>; /* 256k */
-			ranges = <0x0 0x40300000 0x40000>;
+		target-module@40300000 {
+			compatible = "ti,sysc-omap4-simple", "ti,sysc";
+			clocks = <&l3_clkctrl AM4_L3_OCMCRAM_CLKCTRL 0>;
+			clock-names = "fck";
+			ti,no-idle;
 			#address-cells = <1>;
 			#size-cells = <1>;
+			ranges = <0 0x40300000 0x40000>;
 
-			pm_sram_code: pm-code-sram@0 {
-				compatible = "ti,sram";
-				reg = <0x0 0x1000>;
-				protect-exec;
-			};
+			ocmcram: sram@0 {
+				compatible = "mmio-sram";
+				reg = <0 0x40000>; /* 256k */
+				ranges = <0 0 0x40000>;
+				#address-cells = <1>;
+				#size-cells = <1>;
 
-			pm_sram_data: pm-data-sram@1000 {
-				compatible = "ti,sram";
-				reg = <0x1000 0x1000>;
-				pool;
+				pm_sram_code: pm-code-sram@0 {
+					compatible = "ti,sram";
+					reg = <0x0 0x1000>;
+					protect-exec;
+				};
+
+				pm_sram_data: pm-data-sram@1000 {
+					compatible = "ti,sram";
+					reg = <0x1000 0x1000>;
+					pool;
+				};
 			};
 		};
 

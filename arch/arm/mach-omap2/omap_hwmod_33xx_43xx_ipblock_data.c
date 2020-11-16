@@ -139,24 +139,6 @@ struct omap_hwmod am33xx_prcm_hwmod = {
 	.clkdm_name	= "l4_wkup_clkdm",
 };
 
-/* ocmcram */
-static struct omap_hwmod_class am33xx_ocmcram_hwmod_class = {
-	.name = "ocmcram",
-};
-
-struct omap_hwmod am33xx_ocmcram_hwmod = {
-	.name		= "ocmcram",
-	.class		= &am33xx_ocmcram_hwmod_class,
-	.clkdm_name	= "l3_clkdm",
-	.flags		= HWMOD_INIT_NO_IDLE,
-	.main_clk	= "l3_gclk",
-	.prcm		= {
-		.omap4	= {
-			.modulemode	= MODULEMODE_SWCTRL,
-		},
-	},
-};
-
 /* 'smartreflex' class */
 static struct omap_hwmod_class am33xx_smartreflex_hwmod_class = {
 	.name		= "smartreflex",
@@ -215,7 +197,6 @@ static void omap_hwmod_am43xx_clkctrl(void)
 	CLKCTRL(am33xx_l4_wkup_hwmod, AM43XX_CM_WKUP_L4WKUP_CLKCTRL_OFFSET);
 	CLKCTRL(am33xx_l3_main_hwmod, AM43XX_CM_PER_L3_CLKCTRL_OFFSET);
 	CLKCTRL(am33xx_mpu_hwmod , AM43XX_CM_MPU_MPU_CLKCTRL_OFFSET);
-	CLKCTRL(am33xx_ocmcram_hwmod , AM43XX_CM_PER_OCMCRAM_CLKCTRL_OFFSET);
 }
 
 void omap_hwmod_am43xx_reg(void)
