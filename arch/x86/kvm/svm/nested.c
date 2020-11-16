@@ -404,24 +404,32 @@ static void nested_vmcb02_prepare_save(struct vcpu_svm *svm, struct vmcb *vmcb12
 	svm->vmcb->save.cs = vmcb12->save.cs;
 	svm->vmcb->save.ss = vmcb12->save.ss;
 	svm->vmcb->save.ds = vmcb12->save.ds;
+	svm->vmcb->save.cpl = vmcb12->save.cpl;
+	vmcb_mark_dirty(svm->vmcb, VMCB_SEG);
+
 	svm->vmcb->save.gdtr = vmcb12->save.gdtr;
 	svm->vmcb->save.idtr = vmcb12->save.idtr;
+	vmcb_mark_dirty(svm->vmcb, VMCB_DT);
+
 	kvm_set_rflags(&svm->vcpu, vmcb12->save.rflags | X86_EFLAGS_FIXED);
 	svm_set_efer(&svm->vcpu, vmcb12->save.efer);
 	svm_set_cr0(&svm->vcpu, vmcb12->save.cr0);
 	svm_set_cr4(&svm->vcpu, vmcb12->save.cr4);
-	svm->vmcb->save.cr2 = svm->vcpu.arch.cr2 = vmcb12->save.cr2;
+
+	svm->vcpu.arch.cr2 = vmcb12->save.cr2;
 	kvm_rax_write(&svm->vcpu, vmcb12->save.rax);
 	kvm_rsp_write(&svm->vcpu, vmcb12->save.rsp);
 	kvm_rip_write(&svm->vcpu, vmcb12->save.rip);
 
 	/* In case we don't even reach vcpu_run, the fields are not updated */
+	svm->vmcb->save.cr2 = svm->vcpu.arch.cr2;
 	svm->vmcb->save.rax = vmcb12->save.rax;
 	svm->vmcb->save.rsp = vmcb12->save.rsp;
 	svm->vmcb->save.rip = vmcb12->save.rip;
+
 	svm->vmcb->save.dr7 = vmcb12->save.dr7 | DR7_FIXED_1;
 	svm->vcpu.arch.dr6  = vmcb12->save.dr6 | DR6_ACTIVE_LOW;
-	svm->vmcb->save.cpl = vmcb12->save.cpl;
+	vmcb_mark_dirty(svm->vmcb, VMCB_DR);
 }
 
 static void nested_vmcb02_prepare_control(struct vcpu_svm *svm)
@@ -473,12 +481,10 @@ static void nested_vmcb02_prepare_control(struct vcpu_svm *svm)
 	enter_guest_mode(&svm->vcpu);
 
 	/*
-	 * Merge guest and host intercepts - must be called  with vcpu in
-	 * guest-mode to take affect here
+	 * Merge guest and host intercepts - must be called with vcpu in
+	 * guest-mode to take effect.
 	 */
 	recalc_intercepts(svm);
-
-	vmcb_mark_all_dirty(svm->vmcb);
 }
 
 int enter_svm_guest_mode(struct vcpu_svm *svm, u64 vmcb12_gpa,
