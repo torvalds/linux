@@ -1581,7 +1581,8 @@
 	status = "okay";
 
 	usbdrd_dwc3: dwc3@fcc00000 {
-		dr_mode = "peripheral";
+		dr_mode = "otg";
+		extcon = <&usb2phy0>;
 		maximum-speed = "high-speed";
 		status = "okay";
 	};
