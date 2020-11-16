@@ -99,7 +99,7 @@ struct mtk_scp {
 	bool ipi_id_ack[SCP_IPI_MAX];
 	wait_queue_head_t ack_wq;
 
-	void __iomem *cpu_addr;
+	void *cpu_addr;
 	dma_addr_t dma_addr;
 	size_t dram_size;
 
