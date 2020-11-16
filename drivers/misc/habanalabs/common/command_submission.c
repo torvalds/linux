@@ -418,9 +418,31 @@ static void cs_timedout(struct work_struct *work)
 
 	hdev = cs->ctx->hdev;
 
-	dev_err(hdev->dev,
-		"Command submission %llu has not finished in time!\n",
-		cs->sequence);
+	switch (cs->type) {
+	case CS_TYPE_SIGNAL:
+		dev_err(hdev->dev,
+			"Signal command submission %llu has not finished in time!\n",
+			cs->sequence);
+		break;
+
+	case CS_TYPE_WAIT:
+		dev_err(hdev->dev,
+			"Wait command submission %llu has not finished in time!\n",
+			cs->sequence);
+		break;
+
+	case CS_TYPE_COLLECTIVE_WAIT:
+		dev_err(hdev->dev,
+			"Collective Wait command submission %llu has not finished in time!\n",
+			cs->sequence);
+		break;
+
+	default:
+		dev_err(hdev->dev,
+			"Command submission %llu has not finished in time!\n",
+			cs->sequence);
+		break;
+	}
 
 	cs_put(cs);
 
