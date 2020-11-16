@@ -11,6 +11,7 @@
 #include "btree_iter.h"
 #include "btree_locking.h"
 #include "buckets.h"
+#include "error.h"
 #include "extents.h"
 #include "journal.h"
 #include "journal_reclaim.h"
@@ -1021,7 +1022,19 @@ static void bch2_insert_fixup_btree_ptr(struct btree_update *as, struct btree *b
 					struct bkey_i *insert,
 					struct btree_node_iter *node_iter)
 {
+	struct bch_fs *c = as->c;
 	struct bkey_packed *k;
+	const char *invalid;
+
+	invalid = bch2_bkey_invalid(c, bkey_i_to_s_c(insert), btree_node_type(b)) ?:
+		bch2_bkey_in_btree_node(b, bkey_i_to_s_c(insert));
+	if (invalid) {
+		char buf[160];
+
+		bch2_bkey_val_to_text(&PBUF(buf), c, bkey_i_to_s_c(insert));
+		bch2_fs_inconsistent(c, "inserting invalid bkey %s: %s", buf, invalid);
+		dump_stack();
+	}
 
 	BUG_ON(as->journal_u64s + jset_u64s(insert->k.u64s) >
 	       ARRAY_SIZE(as->journal_entries));
@@ -1037,7 +1050,7 @@ static void bch2_insert_fixup_btree_ptr(struct btree_update *as, struct btree *b
 		bch2_btree_node_iter_advance(node_iter, b);
 
 	bch2_btree_bset_insert_key(iter, b, node_iter, insert);
-	set_btree_node_dirty(as->c, b);
+	set_btree_node_dirty(c, b);
 	set_btree_node_need_write(b);
 }
 
@@ -1365,6 +1378,8 @@ void bch2_btree_insert_node(struct btree_update *as, struct btree *b,
 		bch2_btree_node_unlock_write(b, iter);
 		goto split;
 	}
+
+	btree_node_interior_verify(c, b);
 
 	bch2_btree_insert_keys_interior(as, b, iter, keys);
 
