@@ -32,6 +32,7 @@
 #include "radeon_asic.h"
 #include "ni_dpm.h"
 #include "si_dpm.h"
+#include "si.h"
 #include "sid.h"
 
 #define MC_CG_ARB_FREQ_F0           0x0a
@@ -1721,7 +1722,6 @@ static const struct si_powertune_data powertune_data_hainan =
 
 struct evergreen_power_info *evergreen_get_pi(struct radeon_device *rdev);
 
-extern int si_mc_load_microcode(struct radeon_device *rdev);
 extern void vce_v1_0_enable_mgcg(struct radeon_device *rdev, bool enable);
 
 static int si_populate_voltage_value(struct radeon_device *rdev,

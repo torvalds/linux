@@ -39,6 +39,7 @@
 #include "radeon_audio.h"
 #include "radeon_ucode.h"
 #include "si_blit_shaders.h"
+#include "si.h"
 #include "sid.h"
 
 
