@@ -64,6 +64,9 @@
 	(_TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT |			\
 	 _TIF_SYSCALL_TRACEPOINT | ARCH_SYSCALL_EXIT_WORK)
 
+#define SYSCALL_WORK_ENTER	(0)
+#define SYSCALL_WORK_EXIT	(0)
+
 /*
  * TIF flags handled in exit_to_user_mode_loop()
  */
