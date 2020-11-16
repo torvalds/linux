@@ -534,6 +534,8 @@ void catpt_stream_update_position(struct catpt_dev *cdev,
 
 	dsppos = bytes_to_frames(r, pos->stream_position);
 
+	if (!stream->prepared)
+		goto exit;
 	/* only offload is set_write_pos driven */
 	if (stream->template->type != CATPT_STRM_TYPE_RENDER)
 		goto exit;
