@@ -105,26 +105,6 @@ struct omap_hwmod am33xx_l4_wkup_hwmod = {
 };
 
 /*
- * 'mpu' class
- */
-static struct omap_hwmod_class am33xx_mpu_hwmod_class = {
-	.name	= "mpu",
-};
-
-struct omap_hwmod am33xx_mpu_hwmod = {
-	.name		= "mpu",
-	.class		= &am33xx_mpu_hwmod_class,
-	.clkdm_name	= "mpu_clkdm",
-	.flags		= HWMOD_INIT_NO_IDLE,
-	.main_clk	= "dpll_mpu_m2_ck",
-	.prcm		= {
-		.omap4	= {
-			.modulemode	= MODULEMODE_SWCTRL,
-		},
-	},
-};
-
-/*
  * 'prcm' class
  * power and reset manager (whole prcm infrastructure)
  */
@@ -196,7 +176,6 @@ static void omap_hwmod_am43xx_clkctrl(void)
 	CLKCTRL(am33xx_l4_ls_hwmod, AM43XX_CM_PER_L4LS_CLKCTRL_OFFSET);
 	CLKCTRL(am33xx_l4_wkup_hwmod, AM43XX_CM_WKUP_L4WKUP_CLKCTRL_OFFSET);
 	CLKCTRL(am33xx_l3_main_hwmod, AM43XX_CM_PER_L3_CLKCTRL_OFFSET);
-	CLKCTRL(am33xx_mpu_hwmod , AM43XX_CM_MPU_MPU_CLKCTRL_OFFSET);
 }
 
 void omap_hwmod_am43xx_reg(void)

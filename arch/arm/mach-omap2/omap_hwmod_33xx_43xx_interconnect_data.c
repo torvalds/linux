@@ -18,14 +18,6 @@
 #include "omap_hwmod.h"
 #include "omap_hwmod_33xx_43xx_common_data.h"
 
-/* mpu -> l3 main */
-struct omap_hwmod_ocp_if am33xx_mpu__l3_main = {
-	.master		= &am33xx_mpu_hwmod,
-	.slave		= &am33xx_l3_main_hwmod,
-	.clk		= "dpll_mpu_m2_ck",
-	.user		= OCP_USER_MPU,
-};
-
 /* l3 main -> l3 s */
 struct omap_hwmod_ocp_if am33xx_l3_main__l3_s = {
 	.master		= &am33xx_l3_main_hwmod,
@@ -55,14 +47,6 @@ struct omap_hwmod_ocp_if am33xx_l3_main__l3_instr = {
 	.master		= &am33xx_l3_main_hwmod,
 	.slave		= &am33xx_l3_instr_hwmod,
 	.clk		= "l3s_gclk",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-/* mpu -> prcm */
-struct omap_hwmod_ocp_if am33xx_mpu__prcm = {
-	.master		= &am33xx_mpu_hwmod,
-	.slave		= &am33xx_prcm_hwmod,
-	.clk		= "dpll_mpu_m2_ck",
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 

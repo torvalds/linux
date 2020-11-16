@@ -58,8 +58,6 @@ static struct omap_hwmod_ocp_if am43xx_l4_wkup__smartreflex1 = {
 };
 
 static struct omap_hwmod_ocp_if *am43xx_hwmod_ocp_ifs[] __initdata = {
-	&am33xx_mpu__l3_main,
-	&am33xx_mpu__prcm,
 	&am33xx_l3_s__l4_ls,
 	&am33xx_l3_s__l4_wkup,
 	&am43xx_l3_main__l4_hs,

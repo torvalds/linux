@@ -17,12 +17,10 @@
 #ifndef __ARCH_ARM_MACH_OMAP2_OMAP_HWMOD_33XX_43XX_COMMON_DATA_H
 #define __ARCH_ARM_MACH_OMAP2_OMAP_HWMOD_33XX_43XX_COMMON_DATA_H
 
-extern struct omap_hwmod_ocp_if am33xx_mpu__l3_main;
 extern struct omap_hwmod_ocp_if am33xx_l3_main__l3_s;
 extern struct omap_hwmod_ocp_if am33xx_l3_s__l4_ls;
 extern struct omap_hwmod_ocp_if am33xx_l3_s__l4_wkup;
 extern struct omap_hwmod_ocp_if am33xx_l3_main__l3_instr;
-extern struct omap_hwmod_ocp_if am33xx_mpu__prcm;
 extern struct omap_hwmod_ocp_if am33xx_l3_s__l3_main;
 extern struct omap_hwmod_ocp_if am33xx_gfx__l3_main;
 extern struct omap_hwmod_ocp_if am33xx_l3_main__gfx;
@@ -34,7 +32,6 @@ extern struct omap_hwmod am33xx_l3_s_hwmod;
 extern struct omap_hwmod am33xx_l3_instr_hwmod;
 extern struct omap_hwmod am33xx_l4_ls_hwmod;
 extern struct omap_hwmod am33xx_l4_wkup_hwmod;
-extern struct omap_hwmod am33xx_mpu_hwmod;
 extern struct omap_hwmod am33xx_gfx_hwmod;
 extern struct omap_hwmod am33xx_prcm_hwmod;
 extern struct omap_hwmod am33xx_ocmcram_hwmod;
