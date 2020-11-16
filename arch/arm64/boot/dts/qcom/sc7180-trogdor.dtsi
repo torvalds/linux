@@ -218,7 +218,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pen_pdct_l>;
 
-		pen-insert {
+		pen_insert: pen-insert {
 			label = "Pen Insert";
 
 			/* Insert = low, eject = high */
