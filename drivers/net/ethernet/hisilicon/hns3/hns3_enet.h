@@ -436,7 +436,7 @@ struct hns3_enet_coalesce {
 	u16 int_gl;
 	u16 int_ql;
 	u16 int_ql_max;
-	u8 gl_adapt_enable:1;
+	u8 adapt_enable:1;
 	u8 ql_enable:1;
 	u8 unit_1us:1;
 	enum hns3_flow_level_range flow_level;
