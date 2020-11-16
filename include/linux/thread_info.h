@@ -97,6 +97,38 @@ static inline int test_ti_thread_flag(struct thread_info *ti, int flag)
 #define test_thread_flag(flag) \
 	test_ti_thread_flag(current_thread_info(), flag)
 
+#ifdef CONFIG_GENERIC_ENTRY
+#define set_syscall_work(fl) \
+	set_bit(SYSCALL_WORK_BIT_##fl, &current_thread_info()->syscall_work)
+#define test_syscall_work(fl) \
+	test_bit(SYSCALL_WORK_BIT_##fl, &current_thread_info()->syscall_work)
+#define clear_syscall_work(fl) \
+	clear_bit(SYSCALL_WORK_BIT_##fl, &current_thread_info()->syscall_work)
+
+#define set_task_syscall_work(t, fl) \
+	set_bit(SYSCALL_WORK_BIT_##fl, &task_thread_info(t)->syscall_work)
+#define test_task_syscall_work(t, fl) \
+	test_bit(SYSCALL_WORK_BIT_##fl, &task_thread_info(t)->syscall_work)
+#define clear_task_syscall_work(t, fl) \
+	clear_bit(SYSCALL_WORK_BIT_##fl, &task_thread_info(t)->syscall_work)
+
+#else /* CONFIG_GENERIC_ENTRY */
+
+#define set_syscall_work(fl)						\
+	set_ti_thread_flag(current_thread_info(), SYSCALL_WORK_##fl)
+#define test_syscall_work(fl) \
+	test_ti_thread_flag(current_thread_info(), SYSCALL_WORK_##fl)
+#define clear_syscall_work(fl) \
+	clear_ti_thread_flag(current_thread_info(), SYSCALL_WORK_##fl)
+
+#define set_task_syscall_work(t, fl) \
+	set_ti_thread_flag(task_thread_info(t), TIF_##fl)
+#define test_task_syscall_work(t, fl) \
+	test_ti_thread_flag(task_thread_info(t), TIF_##fl)
+#define clear_task_syscall_work(t, fl) \
+	clear_ti_thread_flag(task_thread_info(t), TIF_##fl)
+#endif /* !CONFIG_GENERIC_ENTRY */
+
 #define tif_need_resched() test_thread_flag(TIF_NEED_RESCHED)
 
 #ifndef CONFIG_HAVE_ARCH_WITHIN_STACK_FRAMES
