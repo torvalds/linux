@@ -11,8 +11,8 @@
 #include <linux/bcd.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of.h>
 #include <linux/property.h>
 #include <linux/rtc/ds1307.h>
 #include <linux/rtc.h>
@@ -1091,7 +1091,6 @@ static const struct i2c_device_id ds1307_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ds1307_id);
 
-#ifdef CONFIG_OF
 static const struct of_device_id ds1307_of_match[] = {
 	{
 		.compatible = "dallas,ds1307",
@@ -1168,7 +1167,6 @@ static const struct of_device_id ds1307_of_match[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ds1307_of_match);
-#endif
 
 /*
  * The ds1337 and ds1339 both have two alarms, but we only use the first
@@ -2035,7 +2033,7 @@ exit:
 static struct i2c_driver ds1307_driver = {
 	.driver = {
 		.name	= "rtc-ds1307",
-		.of_match_table = of_match_ptr(ds1307_of_match),
+		.of_match_table = ds1307_of_match,
 	},
 	.probe		= ds1307_probe,
 	.id_table	= ds1307_id,
