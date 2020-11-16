@@ -86,7 +86,7 @@
 
 /* MPTCP socket flags */
 #define MPTCP_DATA_READY	0
-#define MPTCP_SEND_SPACE	1
+#define MPTCP_NOSPACE		1
 #define MPTCP_WORK_RTX		2
 #define MPTCP_WORK_EOF		3
 #define MPTCP_FALLBACK_DONE	4

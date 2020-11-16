@@ -997,17 +997,16 @@ static void subflow_data_ready(struct sock *sk)
 static void subflow_write_space(struct sock *sk)
 {
 	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(sk);
+	struct socket *sock = READ_ONCE(sk->sk_socket);
 	struct sock *parent = subflow->conn;
 
 	if (!sk_stream_is_writeable(sk))
 		return;
 
-	if (sk_stream_is_writeable(parent)) {
-		set_bit(MPTCP_SEND_SPACE, &mptcp_sk(parent)->flags);
-		smp_mb__after_atomic();
-		/* set SEND_SPACE before sk_stream_write_space clears NOSPACE */
-		sk_stream_write_space(parent);
-	}
+	if (sock && sk_stream_is_writeable(parent))
+		clear_bit(SOCK_NOSPACE, &sock->flags);
+
+	sk_stream_write_space(parent);
 }
 
 static struct inet_connection_sock_af_ops *
