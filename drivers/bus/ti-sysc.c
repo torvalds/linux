@@ -1379,6 +1379,8 @@ static const struct sysc_revision_quirk sysc_revision_quirks[] = {
 		   SYSC_QUIRK_CLKDM_NOAUTO),
 	SYSC_QUIRK("dwc3", 0x488c0000, 0, 0x10, -ENODEV, 0x500a0200, 0xffffffff,
 		   SYSC_QUIRK_CLKDM_NOAUTO),
+	SYSC_QUIRK("gpmc", 0, 0, 0x10, 0x14, 0x00000060, 0xffffffff,
+		   SYSC_QUIRK_GPMC_DEBUG),
 	SYSC_QUIRK("hdmi", 0, 0, 0x10, -ENODEV, 0x50030200, 0xffffffff,
 		   SYSC_QUIRK_OPT_CLKS_NEEDED),
 	SYSC_QUIRK("hdq1w", 0, 0, 0x14, 0x18, 0x00000006, 0xffffffff,
@@ -1813,6 +1815,14 @@ static void sysc_init_module_quirks(struct sysc *ddata)
 
 		return;
 	}
+
+#ifdef CONFIG_OMAP_GPMC_DEBUG
+	if (ddata->cfg.quirks & SYSC_QUIRK_GPMC_DEBUG) {
+		ddata->cfg.quirks |= SYSC_QUIRK_NO_RESET_ON_INIT;
+
+		return;
+	}
+#endif
 
 	if (ddata->cfg.quirks & SYSC_MODULE_QUIRK_I2C) {
 		ddata->pre_reset_quirk = sysc_pre_reset_quirk_i2c;
