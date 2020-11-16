@@ -51,6 +51,7 @@
 
 #include "radeon_reg.h"
 #include "radeon.h"
+#include "radeon_ttm.h"
 
 static int radeon_ttm_debugfs_init(struct radeon_device *rdev);
 static void radeon_ttm_debugfs_fini(struct radeon_device *rdev);
