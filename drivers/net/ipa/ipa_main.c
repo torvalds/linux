@@ -339,9 +339,12 @@ static void ipa_hardware_config(struct ipa *ipa)
 	val = u32_encode_bits(granularity, AGGR_GRANULARITY);
 	iowrite32(val, ipa->reg_virt + IPA_REG_COUNTER_CFG_OFFSET);
 
-	/* Disable hashed IPv4 and IPv6 routing and filtering for IPA v4.2 */
-	if (ipa->version == IPA_VERSION_4_2)
-		iowrite32(0, ipa->reg_virt + IPA_REG_FILT_ROUT_HASH_EN_OFFSET);
+	/* IPA v4.2 does not support hashed tables, so disable them */
+	if (ipa->version == IPA_VERSION_4_2) {
+		u32 offset = ipa_reg_filt_rout_hash_en_offset(ipa->version);
+
+		iowrite32(0, ipa->reg_virt + offset);
+	}
 
 	/* Enable dynamic clock division */
 	ipa_hardware_dcd_config(ipa);

@@ -151,8 +151,13 @@ static inline u32 ipa_reg_state_aggr_active_offset(enum ipa_version version)
 }
 /* ipa->available defines the valid bits in the STATE_AGGR_ACTIVE register */
 
-/* The next register is present for IPA v4.2 and above */
-#define IPA_REG_FILT_ROUT_HASH_EN_OFFSET		0x00000148
+static inline u32 ipa_reg_filt_rout_hash_en_offset(enum ipa_version version)
+{
+	if (version == IPA_VERSION_3_5_1)
+		return 0x000008c;
+
+	return 0x0000148;
+}
 
 static inline u32 ipa_reg_filt_rout_hash_flush_offset(enum ipa_version version)
 {
