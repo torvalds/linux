@@ -136,7 +136,7 @@ static void vsc85xx_ts_write_csr(struct phy_device *phydev, enum ts_blk blk,
 
 	phy_ts_base_write(phydev, MSCC_EXT_PAGE_ACCESS, MSCC_PHY_PAGE_1588);
 
-	if (!cond || (cond && upper))
+	if (!cond || upper)
 		phy_ts_base_write(phydev, MSCC_PHY_TS_CSR_DATA_MSB, upper);
 
 	phy_ts_base_write(phydev, MSCC_PHY_TS_CSR_DATA_LSB, lower);
