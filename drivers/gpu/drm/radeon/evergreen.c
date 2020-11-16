@@ -32,6 +32,7 @@
 #include "atom.h"
 #include "avivod.h"
 #include "rv770.h"
+#include "evergreen.h"
 #include "evergreen_blit_shaders.h"
 #include "evergreen_reg.h"
 #include "evergreend.h"

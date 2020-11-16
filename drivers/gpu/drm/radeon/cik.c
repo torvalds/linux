@@ -30,6 +30,7 @@
 #include <drm/drm_vblank.h>
 
 #include "atom.h"
+#include "evergreen.h"
 #include "cik_blit_shaders.h"
 #include "cikd.h"
 #include "clearstate_ci.h"
@@ -126,11 +127,6 @@ MODULE_FIRMWARE("radeon/mullins_sdma.bin");
 
 extern int r600_ih_ring_alloc(struct radeon_device *rdev);
 extern void r600_ih_ring_fini(struct radeon_device *rdev);
-extern void evergreen_mc_stop(struct radeon_device *rdev, struct evergreen_mc_save *save);
-extern void evergreen_mc_resume(struct radeon_device *rdev, struct evergreen_mc_save *save);
-extern bool evergreen_is_display_hung(struct radeon_device *rdev);
-extern void sumo_rlc_fini(struct radeon_device *rdev);
-extern int sumo_rlc_init(struct radeon_device *rdev);
 extern void si_vram_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc);
 extern void si_rlc_reset(struct radeon_device *rdev);
 extern void si_init_uvd_internal_cg(struct radeon_device *rdev);

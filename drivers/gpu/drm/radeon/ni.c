@@ -32,6 +32,7 @@
 #include "atom.h"
 #include "cayman_blit_shaders.h"
 #include "clearstate_cayman.h"
+#include "evergreen.h"
 #include "ni_reg.h"
 #include "nid.h"
 #include "radeon.h"
@@ -189,21 +190,6 @@ static const u32 tn_rlc_save_restore_register_list[] =
 	0x9830,
 	0x802c,
 };
-
-extern bool evergreen_is_display_hung(struct radeon_device *rdev);
-extern void evergreen_print_gpu_status_regs(struct radeon_device *rdev);
-extern void evergreen_mc_stop(struct radeon_device *rdev, struct evergreen_mc_save *save);
-extern void evergreen_mc_resume(struct radeon_device *rdev, struct evergreen_mc_save *save);
-extern int evergreen_mc_wait_for_idle(struct radeon_device *rdev);
-extern void evergreen_mc_program(struct radeon_device *rdev);
-extern void evergreen_irq_suspend(struct radeon_device *rdev);
-extern int evergreen_mc_init(struct radeon_device *rdev);
-extern void evergreen_fix_pci_max_read_req_size(struct radeon_device *rdev);
-extern void evergreen_pcie_gen2_enable(struct radeon_device *rdev);
-extern void evergreen_program_aspm(struct radeon_device *rdev);
-extern void sumo_rlc_fini(struct radeon_device *rdev);
-extern int sumo_rlc_init(struct radeon_device *rdev);
-extern void evergreen_gpu_pci_config_reset(struct radeon_device *rdev);
 
 /* Firmware Names */
 MODULE_FIRMWARE("radeon/BARTS_pfp.bin");
