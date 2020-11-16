@@ -1490,7 +1490,7 @@ struct net_device_ops {
 };
 
 /**
- * enum net_device_priv_flags - &struct net_device priv_flags
+ * enum netdev_priv_flags - &struct net_device priv_flags
  *
  * These are the &struct net_device, they are only set internally
  * by drivers and used in the kernel. These flags are invisible to
@@ -3602,7 +3602,7 @@ static inline void netif_stop_subqueue(struct net_device *dev, u16 queue_index)
 }
 
 /**
- *	netif_subqueue_stopped - test status of subqueue
+ *	__netif_subqueue_stopped - test status of subqueue
  *	@dev: network device
  *	@queue_index: sub queue index
  *
@@ -3616,6 +3616,13 @@ static inline bool __netif_subqueue_stopped(const struct net_device *dev,
 	return netif_tx_queue_stopped(txq);
 }
 
+/**
+ *	netif_subqueue_stopped - test status of subqueue
+ *	@dev: network device
+ *	@skb: sub queue buffer pointer
+ *
+ * Check individual transmit queue of a device with multiple transmit queues.
+ */
 static inline bool netif_subqueue_stopped(const struct net_device *dev,
 					  struct sk_buff *skb)
 {
