@@ -244,7 +244,7 @@ static int bcm2836_cpu_dying(unsigned int cpu)
 
 #define BITS_PER_MBOX	32
 
-static void bcm2836_arm_irqchip_smp_init(void)
+static void __init bcm2836_arm_irqchip_smp_init(void)
 {
 	struct irq_fwspec ipi_fwspec = {
 		.fwnode		= intc.domain->fwnode,

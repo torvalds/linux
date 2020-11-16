@@ -133,6 +133,13 @@ yield() {
     ping $LOCALHOST -c 1 || sleep .001 || usleep 1 || sleep 1
 }
 
+# The fork function in the kernel was renamed from "_do_fork" to
+# "kernel_fork". As older tests should still work with older kernels
+# as well as newer kernels, check which version of fork is used on this
+# kernel so that the tests can use the fork function for the running kernel.
+FUNCTION_FORK=`(if grep '\bkernel_clone\b' /proc/kallsyms > /dev/null; then
+                echo kernel_clone; else echo '_do_fork'; fi)`
+
 # Since probe event command may include backslash, explicitly use printf "%s"
 # to NOT interpret it.
 ftrace_errlog_check() { # err-prefix command-with-error-pos-by-^ command-file

@@ -255,11 +255,10 @@ static struct kmem_cache *x86_emulator_cache;
 
 /*
  * When called, it means the previous get/set msr reached an invalid msr.
- * Return 0 if we want to ignore/silent this failed msr access, or 1 if we want
- * to fail the caller.
+ * Return true if we want to ignore/silent this failed msr access.
  */
-static int kvm_msr_ignored_check(struct kvm_vcpu *vcpu, u32 msr,
-				 u64 data, bool write)
+static bool kvm_msr_ignored_check(struct kvm_vcpu *vcpu, u32 msr,
+				  u64 data, bool write)
 {
 	const char *op = write ? "wrmsr" : "rdmsr";
 
@@ -268,11 +267,11 @@ static int kvm_msr_ignored_check(struct kvm_vcpu *vcpu, u32 msr,
 			kvm_pr_unimpl("ignored %s: 0x%x data 0x%llx\n",
 				      op, msr, data);
 		/* Mask the error */
-		return 0;
+		return true;
 	} else {
 		kvm_debug_ratelimited("unhandled %s: 0x%x data 0x%llx\n",
 				      op, msr, data);
-		return -ENOENT;
+		return false;
 	}
 }
 
@@ -1042,7 +1041,7 @@ int kvm_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 	}
 
 	if (is_long_mode(vcpu) &&
-	    (cr3 & rsvd_bits(cpuid_maxphyaddr(vcpu), 63)))
+	    (cr3 & vcpu->arch.cr3_lm_rsvd_bits))
 		return 1;
 	else if (is_pae_paging(vcpu) &&
 		 !load_pdptrs(vcpu, vcpu->arch.walk_mmu, cr3))
@@ -1416,7 +1415,8 @@ static int do_get_msr_feature(struct kvm_vcpu *vcpu, unsigned index, u64 *data)
 	if (r == KVM_MSR_RET_INVALID) {
 		/* Unconditionally clear the output for simplicity */
 		*data = 0;
-		r = kvm_msr_ignored_check(vcpu, index, 0, false);
+		if (kvm_msr_ignored_check(vcpu, index, 0, false))
+			r = 0;
 	}
 
 	if (r)
@@ -1540,7 +1540,7 @@ static int __kvm_set_msr(struct kvm_vcpu *vcpu, u32 index, u64 data,
 	struct msr_data msr;
 
 	if (!host_initiated && !kvm_msr_allowed(vcpu, index, KVM_MSR_FILTER_WRITE))
-		return -EPERM;
+		return KVM_MSR_RET_FILTERED;
 
 	switch (index) {
 	case MSR_FS_BASE:
@@ -1581,7 +1581,8 @@ static int kvm_set_msr_ignored_check(struct kvm_vcpu *vcpu,
 	int ret = __kvm_set_msr(vcpu, index, data, host_initiated);
 
 	if (ret == KVM_MSR_RET_INVALID)
-		ret = kvm_msr_ignored_check(vcpu, index, data, true);
+		if (kvm_msr_ignored_check(vcpu, index, data, true))
+			ret = 0;
 
 	return ret;
 }
@@ -1599,7 +1600,7 @@ int __kvm_get_msr(struct kvm_vcpu *vcpu, u32 index, u64 *data,
 	int ret;
 
 	if (!host_initiated && !kvm_msr_allowed(vcpu, index, KVM_MSR_FILTER_READ))
-		return -EPERM;
+		return KVM_MSR_RET_FILTERED;
 
 	msr.index = index;
 	msr.host_initiated = host_initiated;
@@ -1618,7 +1619,8 @@ static int kvm_get_msr_ignored_check(struct kvm_vcpu *vcpu,
 	if (ret == KVM_MSR_RET_INVALID) {
 		/* Unconditionally clear *data for simplicity */
 		*data = 0;
-		ret = kvm_msr_ignored_check(vcpu, index, 0, false);
+		if (kvm_msr_ignored_check(vcpu, index, 0, false))
+			ret = 0;
 	}
 
 	return ret;
@@ -1662,9 +1664,9 @@ static int complete_emulated_wrmsr(struct kvm_vcpu *vcpu)
 static u64 kvm_msr_reason(int r)
 {
 	switch (r) {
-	case -ENOENT:
+	case KVM_MSR_RET_INVALID:
 		return KVM_MSR_EXIT_REASON_UNKNOWN;
-	case -EPERM:
+	case KVM_MSR_RET_FILTERED:
 		return KVM_MSR_EXIT_REASON_FILTER;
 	default:
 		return KVM_MSR_EXIT_REASON_INVAL;
@@ -1965,7 +1967,7 @@ static void kvm_write_system_time(struct kvm_vcpu *vcpu, gpa_t system_time,
 	struct kvm_arch *ka = &vcpu->kvm->arch;
 
 	if (vcpu->vcpu_id == 0 && !host_initiated) {
-		if (ka->boot_vcpu_runs_old_kvmclock && old_msr)
+		if (ka->boot_vcpu_runs_old_kvmclock != old_msr)
 			kvm_make_request(KVM_REQ_MASTERCLOCK_UPDATE, vcpu);
 
 		ka->boot_vcpu_runs_old_kvmclock = old_msr;
@@ -3063,9 +3065,9 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 			/* Values other than LBR and BTF are vendor-specific,
 			   thus reserved and should throw a #GP */
 			return 1;
-		}
-		vcpu_unimpl(vcpu, "%s: MSR_IA32_DEBUGCTLMSR 0x%llx, nop\n",
-			    __func__, data);
+		} else if (report_ignored_msrs)
+			vcpu_unimpl(vcpu, "%s: MSR_IA32_DEBUGCTLMSR 0x%llx, nop\n",
+				    __func__, data);
 		break;
 	case 0x200 ... 0x2ff:
 		return kvm_mtrr_set_msr(vcpu, msr, data);
@@ -3463,29 +3465,63 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		msr_info->data = vcpu->arch.efer;
 		break;
 	case MSR_KVM_WALL_CLOCK:
+		if (!guest_pv_has(vcpu, KVM_FEATURE_CLOCKSOURCE))
+			return 1;
+
+		msr_info->data = vcpu->kvm->arch.wall_clock;
+		break;
 	case MSR_KVM_WALL_CLOCK_NEW:
+		if (!guest_pv_has(vcpu, KVM_FEATURE_CLOCKSOURCE2))
+			return 1;
+
 		msr_info->data = vcpu->kvm->arch.wall_clock;
 		break;
 	case MSR_KVM_SYSTEM_TIME:
+		if (!guest_pv_has(vcpu, KVM_FEATURE_CLOCKSOURCE))
+			return 1;
+
+		msr_info->data = vcpu->arch.time;
+		break;
 	case MSR_KVM_SYSTEM_TIME_NEW:
+		if (!guest_pv_has(vcpu, KVM_FEATURE_CLOCKSOURCE2))
+			return 1;
+
 		msr_info->data = vcpu->arch.time;
 		break;
 	case MSR_KVM_ASYNC_PF_EN:
+		if (!guest_pv_has(vcpu, KVM_FEATURE_ASYNC_PF))
+			return 1;
+
 		msr_info->data = vcpu->arch.apf.msr_en_val;
 		break;
 	case MSR_KVM_ASYNC_PF_INT:
+		if (!guest_pv_has(vcpu, KVM_FEATURE_ASYNC_PF_INT))
+			return 1;
+
 		msr_info->data = vcpu->arch.apf.msr_int_val;
 		break;
 	case MSR_KVM_ASYNC_PF_ACK:
+		if (!guest_pv_has(vcpu, KVM_FEATURE_ASYNC_PF))
+			return 1;
+
 		msr_info->data = 0;
 		break;
 	case MSR_KVM_STEAL_TIME:
+		if (!guest_pv_has(vcpu, KVM_FEATURE_STEAL_TIME))
+			return 1;
+
 		msr_info->data = vcpu->arch.st.msr_val;
 		break;
 	case MSR_KVM_PV_EOI_EN:
+		if (!guest_pv_has(vcpu, KVM_FEATURE_PV_EOI))
+			return 1;
+
 		msr_info->data = vcpu->arch.pv_eoi.msr_val;
 		break;
 	case MSR_KVM_POLL_CONTROL:
+		if (!guest_pv_has(vcpu, KVM_FEATURE_POLL_CONTROL))
+			return 1;
+
 		msr_info->data = vcpu->arch.msr_kvm_poll_control;
 		break;
 	case MSR_IA32_P5_MC_ADDR:
@@ -4575,6 +4611,8 @@ static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
 
 	case KVM_CAP_ENFORCE_PV_FEATURE_CPUID:
 		vcpu->arch.pv_cpuid.enforce = cap->args[0];
+		if (vcpu->arch.pv_cpuid.enforce)
+			kvm_update_pv_runtime(vcpu);
 
 		return 0;
 

@@ -142,11 +142,10 @@ static void cb_fini(struct hl_device *hdev, struct hl_cb *cb)
 {
 	if (cb->is_internal)
 		gen_pool_free(hdev->internal_cb_pool,
-				cb->kernel_address, cb->size);
+				(uintptr_t)cb->kernel_address, cb->size);
 	else
 		hdev->asic_funcs->asic_dma_free_coherent(hdev, cb->size,
-				(void *) (uintptr_t) cb->kernel_address,
-				cb->bus_address);
+				cb->kernel_address, cb->bus_address);
 
 	kfree(cb);
 }
@@ -230,7 +229,7 @@ static struct hl_cb *hl_cb_alloc(struct hl_device *hdev, u32 cb_size,
 		return NULL;
 	}
 
-	cb->kernel_address = (u64) (uintptr_t) p;
+	cb->kernel_address = p;
 	cb->size = cb_size;
 
 	return cb;
@@ -509,7 +508,7 @@ int hl_cb_mmap(struct hl_fpriv *hpriv, struct vm_area_struct *vma)
 
 	vma->vm_private_data = cb;
 
-	rc = hdev->asic_funcs->cb_mmap(hdev, vma, (void *) cb->kernel_address,
+	rc = hdev->asic_funcs->cb_mmap(hdev, vma, cb->kernel_address,
 					cb->bus_address, cb->size);
 	if (rc) {
 		spin_lock(&cb->lock);

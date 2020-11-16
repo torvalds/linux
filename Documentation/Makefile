@@ -26,6 +26,10 @@ BUILDDIR      = $(obj)/output
 PDFLATEX      = xelatex
 LATEXOPTS     = -interaction=batchmode
 
+ifeq ($(KBUILD_VERBOSE),0)
+SPHINXOPTS    += "-q"
+endif
+
 # User-friendly check for sphinx-build
 HAVE_SPHINX := $(shell if which $(SPHINXBUILD) >/dev/null 2>&1; then echo 1; else echo 0; fi)
 

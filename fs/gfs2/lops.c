@@ -22,6 +22,7 @@
 #include "incore.h"
 #include "inode.h"
 #include "glock.h"
+#include "glops.h"
 #include "log.h"
 #include "lops.h"
 #include "meta_io.h"
@@ -817,41 +818,19 @@ static int buf_lo_scan_elements(struct gfs2_jdesc *jd, u32 start,
 	return error;
 }
 
-/**
- * gfs2_meta_sync - Sync all buffers associated with a glock
- * @gl: The glock
- *
- */
-
-void gfs2_meta_sync(struct gfs2_glock *gl)
-{
-	struct address_space *mapping = gfs2_glock2aspace(gl);
-	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
-	int error;
-
-	if (mapping == NULL)
-		mapping = &sdp->sd_aspace;
-
-	filemap_fdatawrite(mapping);
-	error = filemap_fdatawait(mapping);
-
-	if (error)
-		gfs2_io_error(gl->gl_name.ln_sbd);
-}
-
 static void buf_lo_after_scan(struct gfs2_jdesc *jd, int error, int pass)
 {
 	struct gfs2_inode *ip = GFS2_I(jd->jd_inode);
 	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
 
 	if (error) {
-		gfs2_meta_sync(ip->i_gl);
+		gfs2_inode_metasync(ip->i_gl);
 		return;
 	}
 	if (pass != 1)
 		return;
 
-	gfs2_meta_sync(ip->i_gl);
+	gfs2_inode_metasync(ip->i_gl);
 
 	fs_info(sdp, "jid=%u: Replayed %u of %u blocks\n",
 	        jd->jd_jid, jd->jd_replayed_blocks, jd->jd_found_blocks);
@@ -1060,14 +1039,14 @@ static void databuf_lo_after_scan(struct gfs2_jdesc *jd, int error, int pass)
 	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
 
 	if (error) {
-		gfs2_meta_sync(ip->i_gl);
+		gfs2_inode_metasync(ip->i_gl);
 		return;
 	}
 	if (pass != 1)
 		return;
 
 	/* data sync? */
-	gfs2_meta_sync(ip->i_gl);
+	gfs2_inode_metasync(ip->i_gl);
 
 	fs_info(sdp, "jid=%u: Replayed %u of %u data blocks\n",
 		jd->jd_jid, jd->jd_replayed_blocks, jd->jd_found_blocks);

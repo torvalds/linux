@@ -1028,9 +1028,6 @@ struct ext4_inode_info {
 					 * protected by sbi->s_fc_lock.
 					 */
 
-	/* Fast commit subtid when this inode was committed */
-	unsigned int i_fc_committed_subtid;
-
 	/* Start of lblk range that needs to be committed in this fast commit */
 	ext4_lblk_t i_fc_lblk_start;
 
@@ -1234,13 +1231,13 @@ struct ext4_inode_info {
 						      blocks */
 #define EXT4_MOUNT2_HURD_COMPAT		0x00000004 /* Support HURD-castrated
 						      file systems */
-#define EXT4_MOUNT2_DAX_NEVER		0x00000008 /* Do not allow Direct Access */
-#define EXT4_MOUNT2_DAX_INODE		0x00000010 /* For printing options only */
-
 #define EXT4_MOUNT2_EXPLICIT_JOURNAL_CHECKSUM	0x00000008 /* User explicitly
 						specified journal checksum */
 
 #define EXT4_MOUNT2_JOURNAL_FAST_COMMIT	0x00000010 /* Journal fast commit */
+#define EXT4_MOUNT2_DAX_NEVER		0x00000020 /* Do not allow Direct Access */
+#define EXT4_MOUNT2_DAX_INODE		0x00000040 /* For printing options only */
+
 
 #define clear_opt(sb, opt)		EXT4_SB(sb)->s_mount_opt &= \
 						~EXT4_MOUNT_##opt
@@ -1422,16 +1419,6 @@ struct ext4_super_block {
 
 #ifdef __KERNEL__
 
-/*
- * run-time mount flags
- */
-#define EXT4_MF_MNTDIR_SAMPLED		0x0001
-#define EXT4_MF_FS_ABORTED		0x0002	/* Fatal error detected */
-#define EXT4_MF_FC_INELIGIBLE		0x0004	/* Fast commit ineligible */
-#define EXT4_MF_FC_COMMITTING		0x0008	/* File system underoing a fast
-						 * commit.
-						 */
-
 #ifdef CONFIG_FS_ENCRYPTION
 #define DUMMY_ENCRYPTION_ENABLED(sbi) ((sbi)->s_dummy_enc_policy.policy != NULL)
 #else
@@ -1466,7 +1453,7 @@ struct ext4_sb_info {
 	struct buffer_head * __rcu *s_group_desc;
 	unsigned int s_mount_opt;
 	unsigned int s_mount_opt2;
-	unsigned int s_mount_flags;
+	unsigned long s_mount_flags;
 	unsigned int s_def_mount_opt;
 	ext4_fsblk_t s_sb_block;
 	atomic64_t s_resv_clusters;
@@ -1695,6 +1682,34 @@ static inline int ext4_valid_inum(struct super_block *sb, unsigned long ino)
 })
 
 /*
+ * run-time mount flags
+ */
+enum {
+	EXT4_MF_MNTDIR_SAMPLED,
+	EXT4_MF_FS_ABORTED,	/* Fatal error detected */
+	EXT4_MF_FC_INELIGIBLE,	/* Fast commit ineligible */
+	EXT4_MF_FC_COMMITTING	/* File system underoing a fast
+				 * commit.
+				 */
+};
+
+static inline void ext4_set_mount_flag(struct super_block *sb, int bit)
+{
+	set_bit(bit, &EXT4_SB(sb)->s_mount_flags);
+}
+
+static inline void ext4_clear_mount_flag(struct super_block *sb, int bit)
+{
+	clear_bit(bit, &EXT4_SB(sb)->s_mount_flags);
+}
+
+static inline int ext4_test_mount_flag(struct super_block *sb, int bit)
+{
+	return test_bit(bit, &EXT4_SB(sb)->s_mount_flags);
+}
+
+
+/*
  * Simulate_fail codes
  */
 #define EXT4_SIM_BBITMAP_EIO	1
@@ -1863,6 +1878,13 @@ static inline bool ext4_verity_in_progress(struct inode *inode)
 #define EXT4_FEATURE_COMPAT_RESIZE_INODE	0x0010
 #define EXT4_FEATURE_COMPAT_DIR_INDEX		0x0020
 #define EXT4_FEATURE_COMPAT_SPARSE_SUPER2	0x0200
+/*
+ * The reason why "FAST_COMMIT" is a compat feature is that, FS becomes
+ * incompatible only if fast commit blocks are present in the FS. Since we
+ * clear the journal (and thus the fast commit blocks), we don't mark FS as
+ * incompatible. We also have a JBD2 incompat feature, which gets set when
+ * there are fast commit blocks present in the journal.
+ */
 #define EXT4_FEATURE_COMPAT_FAST_COMMIT		0x0400
 #define EXT4_FEATURE_COMPAT_STABLE_INODES	0x0800
 
@@ -2731,12 +2753,16 @@ extern void ext4_end_bitmap_read(struct buffer_head *bh, int uptodate);
 int ext4_fc_info_show(struct seq_file *seq, void *v);
 void ext4_fc_init(struct super_block *sb, journal_t *journal);
 void ext4_fc_init_inode(struct inode *inode);
-void ext4_fc_track_range(struct inode *inode, ext4_lblk_t start,
+void ext4_fc_track_range(handle_t *handle, struct inode *inode, ext4_lblk_t start,
 			 ext4_lblk_t end);
-void ext4_fc_track_unlink(struct inode *inode, struct dentry *dentry);
-void ext4_fc_track_link(struct inode *inode, struct dentry *dentry);
-void ext4_fc_track_create(struct inode *inode, struct dentry *dentry);
-void ext4_fc_track_inode(struct inode *inode);
+void __ext4_fc_track_unlink(handle_t *handle, struct inode *inode,
+	struct dentry *dentry);
+void __ext4_fc_track_link(handle_t *handle, struct inode *inode,
+	struct dentry *dentry);
+void ext4_fc_track_unlink(handle_t *handle, struct dentry *dentry);
+void ext4_fc_track_link(handle_t *handle, struct dentry *dentry);
+void ext4_fc_track_create(handle_t *handle, struct dentry *dentry);
+void ext4_fc_track_inode(handle_t *handle, struct inode *inode);
 void ext4_fc_mark_ineligible(struct super_block *sb, int reason);
 void ext4_fc_start_ineligible(struct super_block *sb, int reason);
 void ext4_fc_stop_ineligible(struct super_block *sb);
@@ -3452,7 +3478,7 @@ extern int ext4_handle_dirty_dirblock(handle_t *handle, struct inode *inode,
 extern int ext4_ci_compare(const struct inode *parent,
 			   const struct qstr *fname,
 			   const struct qstr *entry, bool quick);
-extern int __ext4_unlink(struct inode *dir, const struct qstr *d_name,
+extern int __ext4_unlink(handle_t *handle, struct inode *dir, const struct qstr *d_name,
 			 struct inode *inode);
 extern int __ext4_link(struct inode *dir, struct inode *inode,
 		       struct dentry *dentry);

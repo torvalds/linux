@@ -118,6 +118,8 @@ struct kvm_arch {
 	 */
 	unsigned long *pmu_filter;
 	unsigned int pmuver;
+
+	u8 pfr0_csv2;
 };
 
 struct kvm_vcpu_fault_info {

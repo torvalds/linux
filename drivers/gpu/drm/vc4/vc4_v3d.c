@@ -168,7 +168,7 @@ static void vc4_v3d_init_hw(struct drm_device *dev)
 
 int vc4_v3d_get_bin_slot(struct vc4_dev *vc4)
 {
-	struct drm_device *dev = vc4->dev;
+	struct drm_device *dev = &vc4->base;
 	unsigned long irqflags;
 	int slot;
 	uint64_t seqno = 0;
@@ -246,7 +246,7 @@ static int bin_bo_alloc(struct vc4_dev *vc4)
 	INIT_LIST_HEAD(&list);
 
 	while (true) {
-		struct vc4_bo *bo = vc4_bo_create(vc4->dev, size, true,
+		struct vc4_bo *bo = vc4_bo_create(&vc4->base, size, true,
 						  VC4_BO_TYPE_BIN);
 
 		if (IS_ERR(bo)) {
@@ -361,7 +361,7 @@ static int vc4_v3d_runtime_suspend(struct device *dev)
 	struct vc4_v3d *v3d = dev_get_drvdata(dev);
 	struct vc4_dev *vc4 = v3d->vc4;
 
-	vc4_irq_uninstall(vc4->dev);
+	vc4_irq_uninstall(&vc4->base);
 
 	clk_disable_unprepare(v3d->clk);
 
@@ -378,11 +378,11 @@ static int vc4_v3d_runtime_resume(struct device *dev)
 	if (ret != 0)
 		return ret;
 
-	vc4_v3d_init_hw(vc4->dev);
+	vc4_v3d_init_hw(&vc4->base);
 
 	/* We disabled the IRQ as part of vc4_irq_uninstall in suspend. */
-	enable_irq(vc4->dev->irq);
-	vc4_irq_postinstall(vc4->dev);
+	enable_irq(vc4->base.irq);
+	vc4_irq_postinstall(&vc4->base);
 
 	return 0;
 }

@@ -1114,6 +1114,7 @@ nfs3svc_encode_pathconfres(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nfsd3_pathconfres *resp = rqstp->rq_resp;
 
+	*p++ = resp->status;
 	*p++ = xdr_zero;	/* no post_op_attr */
 
 	if (resp->status == 0) {

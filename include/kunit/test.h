@@ -252,13 +252,14 @@ static inline int kunit_run_all_tests(void)
 }
 #endif /* IS_BUILTIN(CONFIG_KUNIT) */
 
+#ifdef MODULE
 /**
- * kunit_test_suites() - used to register one or more &struct kunit_suite
- *			 with KUnit.
+ * kunit_test_suites_for_module() - used to register one or more
+ *			 &struct kunit_suite with KUnit.
  *
- * @suites_list...: a statically allocated list of &struct kunit_suite.
+ * @__suites: a statically allocated list of &struct kunit_suite.
  *
- * Registers @suites_list with the test framework. See &struct kunit_suite for
+ * Registers @__suites with the test framework. See &struct kunit_suite for
  * more information.
  *
  * If a test suite is built-in, module_init() gets translated into
@@ -267,7 +268,6 @@ static inline int kunit_run_all_tests(void)
  * module_{init|exit} functions for the builtin case when registering
  * suites via kunit_test_suites() below.
  */
-#ifdef MODULE
 #define kunit_test_suites_for_module(__suites)				\
 	static int __init kunit_test_suites_init(void)			\
 	{								\
@@ -294,7 +294,7 @@ static inline int kunit_run_all_tests(void)
  * kunit_test_suites() - used to register one or more &struct kunit_suite
  *			 with KUnit.
  *
- * @suites: a statically allocated list of &struct kunit_suite.
+ * @__suites: a statically allocated list of &struct kunit_suite.
  *
  * Registers @suites with the test framework. See &struct kunit_suite for
  * more information.
@@ -308,10 +308,10 @@ static inline int kunit_run_all_tests(void)
  * module.
  *
  */
-#define kunit_test_suites(...)						\
+#define kunit_test_suites(__suites...)						\
 	__kunit_test_suites(__UNIQUE_ID(array),				\
 			    __UNIQUE_ID(suites),			\
-			    __VA_ARGS__)
+			    ##__suites)
 
 #define kunit_test_suite(suite)	kunit_test_suites(&suite)
 
