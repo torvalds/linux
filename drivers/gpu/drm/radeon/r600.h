@@ -28,10 +28,14 @@
 #ifndef __R600_H__
 #define __R600_H__
 
+struct radeon_bo_list;
+struct radeon_cs_parser;
 struct radeon_device;
 
 u32 r600_gpu_check_soft_reset(struct radeon_device *rdev);
 int r600_ih_ring_alloc(struct radeon_device *rdev);
 void r600_ih_ring_fini(struct radeon_device *rdev);
 
+int r600_dma_cs_next_reloc(struct radeon_cs_parser *p,
+			   struct radeon_bo_list **cs_reloc);
 #endif				/* __R600_H__ */

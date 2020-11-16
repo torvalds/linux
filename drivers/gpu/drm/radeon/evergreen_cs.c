@@ -28,6 +28,7 @@
 
 #include "radeon.h"
 #include "radeon_asic.h"
+#include "r600.h"
 #include "evergreend.h"
 #include "evergreen_reg_safe.h"
 #include "cayman_reg_safe.h"
@@ -37,8 +38,6 @@
 
 #define REG_SAFE_BM_SIZE ARRAY_SIZE(evergreen_reg_safe_bm)
 
-int r600_dma_cs_next_reloc(struct radeon_cs_parser *p,
-			   struct radeon_bo_list **cs_reloc);
 struct evergreen_cs_track {
 	u32			group_size;
 	u32			nbanks;

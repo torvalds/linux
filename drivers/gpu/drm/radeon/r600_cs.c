@@ -29,6 +29,7 @@
 
 #include "radeon.h"
 #include "radeon_asic.h"
+#include "r600.h"
 #include "r600d.h"
 #include "r600_reg_safe.h"
 
