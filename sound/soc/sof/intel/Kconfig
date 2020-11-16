@@ -29,6 +29,7 @@ config SND_SOC_SOF_INTEL_PCI
 	select SND_SOC_SOF_TIGERLAKE   if SND_SOC_SOF_TIGERLAKE_SUPPORT
 	select SND_SOC_SOF_ELKHARTLAKE if SND_SOC_SOF_ELKHARTLAKE_SUPPORT
 	select SND_SOC_SOF_JASPERLAKE  if SND_SOC_SOF_JASPERLAKE_SUPPORT
+	select SND_SOC_SOF_ALDERLAKE   if SND_SOC_SOF_ALDERLAKE_SUPPORT
 	help
 	  This option is not user-selectable but automagically handled by
 	  'select' statements at a higher level.
@@ -268,6 +269,21 @@ config SND_SOC_SOF_JASPERLAKE
 	help
 	  This option is not user-selectable but automagically handled by
 	  'select' statements at a higher level.
+
+config SND_SOC_SOF_ALDERLAKE_SUPPORT
+	bool "SOF support for Alderlake"
+	help
+	  This adds support for Sound Open Firmware for Intel(R) platforms
+	  using the Alderlake processors.
+	  Say Y if you have such a device.
+	  If unsure select "N".
+
+config SND_SOC_SOF_ALDERLAKE
+	tristate
+	select SND_SOC_SOF_HDA_COMMON
+	help
+	  This option is not user-selectable but automagically handled by
+	  'select' statements at a higher level
 
 config SND_SOC_SOF_HDA_COMMON
 	tristate
