@@ -3471,10 +3471,10 @@ uint32_t dc_bandwidth_in_kbps_from_timing(
 		bits_per_channel = 16;
 		break;
 	default:
+		ASSERT(bits_per_channel != 0);
+		bits_per_channel = 8;
 		break;
 	}
-
-	ASSERT(bits_per_channel != 0);
 
 	kbps = timing->pix_clk_100hz / 10;
 	kbps *= bits_per_channel;
