@@ -46,7 +46,7 @@ static void cp210x_disconnect(struct usb_serial *);
 static void cp210x_release(struct usb_serial *);
 static int cp210x_port_probe(struct usb_serial_port *);
 static int cp210x_port_remove(struct usb_serial_port *);
-static void cp210x_dtr_rts(struct usb_serial_port *p, int on);
+static void cp210x_dtr_rts(struct usb_serial_port *port, int on);
 static void cp210x_process_read_urb(struct urb *urb);
 static void cp210x_enable_event_mode(struct usb_serial_port *port);
 static void cp210x_disable_event_mode(struct usb_serial_port *port);
@@ -1234,12 +1234,12 @@ static int cp210x_tiocmset_port(struct usb_serial_port *port,
 	return cp210x_write_u16_reg(port, CP210X_SET_MHS, control);
 }
 
-static void cp210x_dtr_rts(struct usb_serial_port *p, int on)
+static void cp210x_dtr_rts(struct usb_serial_port *port, int on)
 {
 	if (on)
-		cp210x_tiocmset_port(p, TIOCM_DTR|TIOCM_RTS, 0);
+		cp210x_tiocmset_port(port, TIOCM_DTR | TIOCM_RTS, 0);
 	else
-		cp210x_tiocmset_port(p, 0, TIOCM_DTR|TIOCM_RTS);
+		cp210x_tiocmset_port(port, 0, TIOCM_DTR | TIOCM_RTS);
 }
 
 static int cp210x_tiocmget(struct tty_struct *tty)
