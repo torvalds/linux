@@ -5,6 +5,7 @@
 #include "bcachefs_ioctl.h"
 #include "buckets.h"
 #include "chardev.h"
+#include "journal.h"
 #include "move.h"
 #include "replicas.h"
 #include "super.h"
@@ -563,6 +564,26 @@ static long bch2_ioctl_disk_resize(struct bch_fs *c,
 	return ret;
 }
 
+static long bch2_ioctl_disk_resize_journal(struct bch_fs *c,
+				   struct bch_ioctl_disk_resize_journal arg)
+{
+	struct bch_dev *ca;
+	int ret;
+
+	if ((arg.flags & ~BCH_BY_INDEX) ||
+	    arg.pad)
+		return -EINVAL;
+
+	ca = bch2_device_lookup(c, arg.dev, arg.flags);
+	if (IS_ERR(ca))
+		return PTR_ERR(ca);
+
+	ret = bch2_set_nr_journal_buckets(c, ca, arg.nbuckets);
+
+	percpu_ref_put(&ca->ref);
+	return ret;
+}
+
 #define BCH_IOCTL(_name, _argtype)					\
 do {									\
 	_argtype i;							\
@@ -619,6 +640,8 @@ long bch2_fs_ioctl(struct bch_fs *c, unsigned cmd, void __user *arg)
 		BCH_IOCTL(data, struct bch_ioctl_data);
 	case BCH_IOCTL_DISK_RESIZE:
 		BCH_IOCTL(disk_resize, struct bch_ioctl_disk_resize);
+	case BCH_IOCTL_DISK_RESIZE_JOURNAL:
+		BCH_IOCTL(disk_resize_journal, struct bch_ioctl_disk_resize_journal);
 
 	default:
 		return -ENOTTY;

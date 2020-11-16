@@ -684,7 +684,7 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 		goto err;
 
 	journal_buckets = bch2_sb_resize_journal(&ca->disk_sb,
-						 nr + sizeof(*journal_buckets) / sizeof(u64));
+					nr + sizeof(*journal_buckets) / sizeof(u64));
 	if (!journal_buckets)
 		goto err;
 
@@ -730,6 +730,12 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 			spin_lock(&c->journal.lock);
 		}
 
+		/*
+		 * XXX
+		 * For resize at runtime, we should be writing the new
+		 * superblock before inserting into the journal array
+		 */
+
 		pos = ja->nr ? (ja->cur_idx + 1) % ja->nr : 0;
 		__array_insert_item(ja->buckets,		ja->nr, pos);
 		__array_insert_item(ja->bucket_seq,		ja->nr, pos);
@@ -765,6 +771,8 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 
 	ret = 0;
 err:
+	bch2_sb_resize_journal(&ca->disk_sb,
+		ja->nr + sizeof(*journal_buckets) / sizeof(u64));
 	kfree(new_bucket_seq);
 	kfree(new_buckets);
 

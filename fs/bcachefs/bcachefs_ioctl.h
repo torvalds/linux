@@ -73,6 +73,7 @@ struct bch_ioctl_incremental {
 #define BCH_IOCTL_READ_SUPER	_IOW(0xbc,	12, struct bch_ioctl_read_super)
 #define BCH_IOCTL_DISK_GET_IDX	_IOW(0xbc,	13,  struct bch_ioctl_disk_get_idx)
 #define BCH_IOCTL_DISK_RESIZE	_IOW(0xbc,	14,  struct bch_ioctl_disk_resize)
+#define BCH_IOCTL_DISK_RESIZE_JOURNAL _IOW(0xbc,15,  struct bch_ioctl_disk_resize_journal)
 
 /* ioctl below act on a particular file, not the filesystem as a whole: */
 
@@ -323,6 +324,19 @@ struct bch_ioctl_disk_get_idx {
  * @nbuckets	- new number of buckets
  */
 struct bch_ioctl_disk_resize {
+	__u32			flags;
+	__u32			pad;
+	__u64			dev;
+	__u64			nbuckets;
+};
+
+/*
+ * BCH_IOCTL_DISK_RESIZE_JOURNAL: resize journal on a device
+ *
+ * @dev		- member to resize
+ * @nbuckets	- new number of buckets
+ */
+struct bch_ioctl_disk_resize_journal {
 	__u32			flags;
 	__u32			pad;
 	__u64			dev;
