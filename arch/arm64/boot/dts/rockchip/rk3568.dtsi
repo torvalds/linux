@@ -1228,6 +1228,7 @@
 		compatible = "rockchip,rk3568-vop";
 		reg = <0x0 0xfe040000 0x0 0x3000>;
 		reg-names = "regs";
+		rockchip,grf = <&grf>;
 		interrupts = <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru ACLK_VOP>, <&cru HCLK_VOP>, <&cru DCLK_VOP0>, <&cru DCLK_VOP1>, <&cru DCLK_VOP2>;
 		clock-names = "aclk_vop", "hclk_vop", "dclk_vp0", "dclk_vp1", "dclk_vp2";
