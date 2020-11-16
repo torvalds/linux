@@ -561,7 +561,7 @@ struct hns_roce_av {
 	u8 dgid[HNS_ROCE_GID_SIZE];
 	u8 mac[ETH_ALEN];
 	u16 vlan_id;
-	bool vlan_en;
+	u8 vlan_en;
 };
 
 struct hns_roce_ah {
