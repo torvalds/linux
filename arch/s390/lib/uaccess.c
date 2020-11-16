@@ -16,6 +16,22 @@
 #include <asm/mmu_context.h>
 #include <asm/facility.h>
 
+#ifdef CONFIG_DEBUG_USER_ASCE
+void debug_user_asce(void)
+{
+	unsigned long cr1, cr7;
+
+	__ctl_store(cr1, 1, 1);
+	__ctl_store(cr7, 7, 7);
+	if (cr1 == S390_lowcore.kernel_asce && cr7 == S390_lowcore.user_asce)
+		return;
+	panic("incorrect ASCE on kernel exit\n"
+	      "cr1:    %016lx cr7:  %016lx\n"
+	      "kernel: %016llx user: %016llx\n",
+	      cr1, cr7, S390_lowcore.kernel_asce, S390_lowcore.user_asce);
+}
+#endif /*CONFIG_DEBUG_USER_ASCE */
+
 #ifndef CONFIG_HAVE_MARCH_Z10_FEATURES
 static DEFINE_STATIC_KEY_FALSE(have_mvcos);
 

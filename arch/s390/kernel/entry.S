@@ -90,6 +90,12 @@ _LPP_OFFSET	= __LC_LPP
 #endif
 	.endm
 
+	.macro	DEBUG_USER_ASCE
+#ifdef CONFIG_DEBUG_USER_ASCE
+	brasl	%r14,debug_user_asce
+#endif
+	.endm
+
 	.macro	CHECK_VMAP_STACK savearea,oklabel
 #ifdef CONFIG_VMAP_STACK
 	lgr	%r14,%r15
@@ -428,6 +434,7 @@ ENTRY(system_call)
 	jnz	.Lsysc_work
 	TSTMSK	__TI_flags(%r12),_TIF_WORK
 	jnz	.Lsysc_work			# check for work
+	DEBUG_USER_ASCE
 	lctlg	%c1,%c1,__LC_USER_ASCE
 	BPEXIT	__TI_flags(%r12),_TIF_ISOLATE_BP
 	TSTMSK	__LC_CPU_FLAGS, _CIF_FPU
@@ -793,6 +800,7 @@ ENTRY(io_int_handler)
 	mvc	__LC_RETURN_PSW(16),__PT_PSW(%r11)
 	tm	__PT_PSW+1(%r11),0x01	# returning to user ?
 	jno	.Lio_exit_kernel
+	DEBUG_USER_ASCE
 	lctlg	%c1,%c1,__LC_USER_ASCE
 	BPEXIT	__TI_flags(%r12),_TIF_ISOLATE_BP
 	stpt	__LC_EXIT_TIMER
