@@ -114,21 +114,21 @@ do {									\
 
 #define __this_cpu_generic_read_nopreempt(pcp)				\
 ({									\
-	typeof(pcp) __ret;						\
+	typeof(pcp) ___ret;						\
 	preempt_disable_notrace();					\
-	__ret = READ_ONCE(*raw_cpu_ptr(&(pcp)));			\
+	___ret = READ_ONCE(*raw_cpu_ptr(&(pcp)));			\
 	preempt_enable_notrace();					\
-	__ret;								\
+	___ret;								\
 })
 
 #define __this_cpu_generic_read_noirq(pcp)				\
 ({									\
-	typeof(pcp) __ret;						\
-	unsigned long __flags;						\
-	raw_local_irq_save(__flags);					\
-	__ret = raw_cpu_generic_read(pcp);				\
-	raw_local_irq_restore(__flags);					\
-	__ret;								\
+	typeof(pcp) ___ret;						\
+	unsigned long ___flags;						\
+	raw_local_irq_save(___flags);					\
+	___ret = raw_cpu_generic_read(pcp);				\
+	raw_local_irq_restore(___flags);				\
+	___ret;								\
 })
 
 #define this_cpu_generic_read(pcp)					\

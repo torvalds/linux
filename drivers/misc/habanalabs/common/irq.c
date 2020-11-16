@@ -90,7 +90,7 @@ irqreturn_t hl_irq_handler_cq(int irq, void *arg)
 		return IRQ_HANDLED;
 	}
 
-	cq_base = (struct hl_cq_entry *) (uintptr_t) cq->kernel_address;
+	cq_base = cq->kernel_address;
 
 	while (1) {
 		bool entry_ready = ((le32_to_cpu(cq_base[cq->ci].data) &
@@ -152,7 +152,7 @@ irqreturn_t hl_irq_handler_eq(int irq, void *arg)
 	struct hl_eq_entry *eq_base;
 	struct hl_eqe_work *handle_eqe_work;
 
-	eq_base = (struct hl_eq_entry *) (uintptr_t) eq->kernel_address;
+	eq_base = eq->kernel_address;
 
 	while (1) {
 		bool entry_ready =
@@ -221,7 +221,7 @@ int hl_cq_init(struct hl_device *hdev, struct hl_cq *q, u32 hw_queue_id)
 		return -ENOMEM;
 
 	q->hdev = hdev;
-	q->kernel_address = (u64) (uintptr_t) p;
+	q->kernel_address = p;
 	q->hw_queue_id = hw_queue_id;
 	q->ci = 0;
 	q->pi = 0;
@@ -242,7 +242,8 @@ int hl_cq_init(struct hl_device *hdev, struct hl_cq *q, u32 hw_queue_id)
 void hl_cq_fini(struct hl_device *hdev, struct hl_cq *q)
 {
 	hdev->asic_funcs->asic_dma_free_coherent(hdev, HL_CQ_SIZE_IN_BYTES,
-			(void *) (uintptr_t) q->kernel_address, q->bus_address);
+						 q->kernel_address,
+						 q->bus_address);
 }
 
 void hl_cq_reset(struct hl_device *hdev, struct hl_cq *q)
@@ -259,7 +260,7 @@ void hl_cq_reset(struct hl_device *hdev, struct hl_cq *q)
 	 * when the device is operational again
 	 */
 
-	memset((void *) (uintptr_t) q->kernel_address, 0, HL_CQ_SIZE_IN_BYTES);
+	memset(q->kernel_address, 0, HL_CQ_SIZE_IN_BYTES);
 }
 
 /**
@@ -282,7 +283,7 @@ int hl_eq_init(struct hl_device *hdev, struct hl_eq *q)
 		return -ENOMEM;
 
 	q->hdev = hdev;
-	q->kernel_address = (u64) (uintptr_t) p;
+	q->kernel_address = p;
 	q->ci = 0;
 
 	return 0;
@@ -302,7 +303,7 @@ void hl_eq_fini(struct hl_device *hdev, struct hl_eq *q)
 
 	hdev->asic_funcs->cpu_accessible_dma_pool_free(hdev,
 					HL_EQ_SIZE_IN_BYTES,
-					(void *) (uintptr_t) q->kernel_address);
+					q->kernel_address);
 }
 
 void hl_eq_reset(struct hl_device *hdev, struct hl_eq *q)
@@ -316,5 +317,5 @@ void hl_eq_reset(struct hl_device *hdev, struct hl_eq *q)
 	 * when the device is operational again
 	 */
 
-	memset((void *) (uintptr_t) q->kernel_address, 0, HL_EQ_SIZE_IN_BYTES);
+	memset(q->kernel_address, 0, HL_EQ_SIZE_IN_BYTES);
 }
