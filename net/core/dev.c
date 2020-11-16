@@ -6919,7 +6919,7 @@ bool netdev_has_upper_dev(struct net_device *dev,
 EXPORT_SYMBOL(netdev_has_upper_dev);
 
 /**
- * netdev_has_upper_dev_all - Check if device is linked to an upper device
+ * netdev_has_upper_dev_all_rcu - Check if device is linked to an upper device
  * @dev: device
  * @upper_dev: upper device to check
  *
@@ -8157,7 +8157,7 @@ EXPORT_SYMBOL(netdev_lower_dev_get_private);
 
 
 /**
- * netdev_lower_change - Dispatch event about lower device state change
+ * netdev_lower_state_changed - Dispatch event about lower device state change
  * @lower_dev: device
  * @lower_state_info: state to dispatch
  *
