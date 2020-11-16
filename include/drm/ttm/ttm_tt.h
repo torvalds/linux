@@ -135,7 +135,8 @@ void ttm_tt_destroy_common(struct ttm_device *bdev, struct ttm_tt *ttm);
  * Swap in a previously swap out ttm_tt.
  */
 int ttm_tt_swapin(struct ttm_tt *ttm);
-int ttm_tt_swapout(struct ttm_device *bdev, struct ttm_tt *ttm);
+int ttm_tt_swapout(struct ttm_device *bdev, struct ttm_tt *ttm,
+		   gfp_t gfp_flags);
 
 /**
  * ttm_tt_populate - allocate pages for a ttm
@@ -154,6 +155,9 @@ int ttm_tt_populate(struct ttm_device *bdev, struct ttm_tt *ttm, struct ttm_oper
  * Calls the driver method to free all pages from a ttm
  */
 void ttm_tt_unpopulate(struct ttm_device *bdev, struct ttm_tt *ttm);
+
+int ttm_tt_mgr_init(void);
+void ttm_tt_mgr_fini(void);
 
 #if IS_ENABLED(CONFIG_AGP)
 #include <linux/agp_backend.h>

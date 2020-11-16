@@ -1219,7 +1219,7 @@ EXPORT_SYMBOL(ttm_bo_wait);
  * A buffer object shrink method that tries to swap out the first
  * buffer object on the bo_global::swap_lru list.
  */
-int ttm_bo_swapout(struct ttm_operation_ctx *ctx)
+int ttm_bo_swapout(struct ttm_operation_ctx *ctx, gfp_t gfp_flags)
 {
 	struct ttm_global *glob = &ttm_glob;
 	struct ttm_buffer_object *bo;
@@ -1302,7 +1302,7 @@ int ttm_bo_swapout(struct ttm_operation_ctx *ctx)
 	if (bo->bdev->funcs->swap_notify)
 		bo->bdev->funcs->swap_notify(bo);
 
-	ret = ttm_tt_swapout(bo->bdev, bo->ttm);
+	ret = ttm_tt_swapout(bo->bdev, bo->ttm, gfp_flags);
 out:
 
 	/**

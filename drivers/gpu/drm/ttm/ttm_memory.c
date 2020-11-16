@@ -37,6 +37,7 @@
 #include <linux/slab.h>
 #include <linux/swap.h>
 #include <drm/ttm/ttm_pool.h>
+#include <drm/ttm/ttm_tt.h>
 
 #include "ttm_module.h"
 
@@ -276,9 +277,9 @@ static void ttm_shrink(struct ttm_mem_global *glob, bool from_wq,
 
 	while (ttm_zones_above_swap_target(glob, from_wq, extra)) {
 		spin_unlock(&glob->lock);
-		ret = ttm_bo_swapout(ctx);
+		ret = ttm_bo_swapout(ctx, GFP_KERNEL);
 		spin_lock(&glob->lock);
-		if (unlikely(ret != 0))
+		if (unlikely(ret < 0))
 			break;
 	}
 
@@ -453,6 +454,7 @@ int ttm_mem_global_init(struct ttm_mem_global *glob)
 			zone->name, (unsigned long long)zone->max_mem >> 10);
 	}
 	ttm_pool_mgr_init(glob->zone_kernel->max_mem/(2*PAGE_SIZE));
+	ttm_tt_mgr_init();
 	return 0;
 out_no_zone:
 	ttm_mem_global_release(glob);
@@ -466,6 +468,7 @@ void ttm_mem_global_release(struct ttm_mem_global *glob)
 
 	/* let the page allocator first stop the shrink work. */
 	ttm_pool_mgr_fini();
+	ttm_tt_mgr_fini();
 
 	flush_workqueue(glob->swap_queue);
 	destroy_workqueue(glob->swap_queue);
