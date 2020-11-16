@@ -203,6 +203,20 @@ static inline struct nf_icmp_net *nf_icmpv6_pernet(struct net *net)
 {
 	return &net->ct.nf_ct_proto.icmpv6;
 }
+
+/* Caller must check nf_ct_protonum(ct) is IPPROTO_TCP before calling. */
+static inline void nf_ct_set_tcp_be_liberal(struct nf_conn *ct)
+{
+	ct->proto.tcp.seen[0].flags |= IP_CT_TCP_FLAG_BE_LIBERAL;
+	ct->proto.tcp.seen[1].flags |= IP_CT_TCP_FLAG_BE_LIBERAL;
+}
+
+/* Caller must check nf_ct_protonum(ct) is IPPROTO_TCP before calling. */
+static inline bool nf_conntrack_tcp_established(const struct nf_conn *ct)
+{
+	return ct->proto.tcp.state == TCP_CONNTRACK_ESTABLISHED &&
+	       test_bit(IPS_ASSURED_BIT, &ct->status);
+}
 #endif
 
 #ifdef CONFIG_NF_CT_PROTO_DCCP
