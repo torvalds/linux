@@ -512,6 +512,16 @@
 			reg = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+
+			embedded-controller@58 {
+				compatible = "acer,a500-iconia-ec", "ene,kb930";
+				reg = <0x58>;
+
+				system-power-controller;
+
+				monitored-battery = <&bat1010>;
+				power-supplies = <&mains>;
+			};
 		};
 	};
 
@@ -792,6 +802,13 @@
 		brightness-levels = <7 255>;
 		num-interpolated-steps = <248>;
 		default-brightness-level = <20>;
+	};
+
+	bat1010: battery-2s1p {
+		compatible = "simple-battery";
+		charge-full-design-microamp-hours = <3260000>;
+		energy-full-design-microwatt-hours = <24000000>;
+		operating-range-celsius = <0 40>;
 	};
 
 	/* PMIC has a built-in 32KHz oscillator which is used by PMC */
