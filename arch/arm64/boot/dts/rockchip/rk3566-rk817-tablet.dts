@@ -383,16 +383,16 @@
 	status = "okay";
 };
 
-&hdmi_sound {
-	status = "okay";
-};
-
 &hdmi_in_vp0 {
 	status = "okay";
 };
 
 &hdmi_in_vp1 {
 	status = "disabled";
+};
+
+&hdmi_sound {
+	status = "okay";
 };
 
 &i2c0 {
@@ -897,7 +897,6 @@
 	status = "okay";
 };
 
-
 &sdmmc0 {
 	max-frequency = <150000000>;
 	supports-sd;
@@ -939,34 +938,23 @@
 	pinctrl-0 = <&uart1m0_xfer &uart1ctsnm0>;
 };
 
+&u2phy0_otg {
+	status = "okay";
+};
+
 &usb2phy0 {
 	status = "okay";
+};
 
-	u2phy0_host: host-port {
-		status = "okay";
-	};
-
-	u2phy0_otg: otg-port {
-		status = "okay";
-	};
+&usbdrd_dwc3 {
+	dr_mode = "otg";
+	extcon = <&usb2phy0>;
+	maximum-speed = "high-speed";
+	status = "okay";
 };
 
 &usbdrd30 {
 	status = "okay";
-
-	usbdrd_dwc3: dwc3@fcc00000 {
-		dr_mode = "peripheral";
-		maximum-speed = "high-speed";
-		status = "okay";
-	};
-};
-
-&usbhost30 {
-	status = "okay";
-
-	usbhost_dwc3: dwc3@fd000000 {
-		status = "okay";
-	};
 };
 
 &vdpu {
