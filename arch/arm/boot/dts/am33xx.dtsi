@@ -174,12 +174,6 @@
 	 */
 	soc {
 		compatible = "ti,omap-infra";
-		mpu {
-			compatible = "ti,omap3-mpu";
-			ti,hwmods = "mpu";
-			pm-sram = <&pm_sram_code
-				   &pm_sram_data>;
-		};
 	};
 
 	/*
