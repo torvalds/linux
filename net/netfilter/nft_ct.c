@@ -990,7 +990,7 @@ static int nft_ct_helper_obj_init(const struct nft_ctx *ctx,
 	if (!priv->l4proto)
 		return -ENOENT;
 
-	nla_strlcpy(name, tb[NFTA_CT_HELPER_NAME], sizeof(name));
+	nla_strscpy(name, tb[NFTA_CT_HELPER_NAME], sizeof(name));
 
 	if (tb[NFTA_CT_HELPER_L3PROTO])
 		family = ntohs(nla_get_be16(tb[NFTA_CT_HELPER_L3PROTO]));

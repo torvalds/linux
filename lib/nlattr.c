@@ -709,35 +709,47 @@ struct nlattr *nla_find(const struct nlattr *head, int len, int attrtype)
 EXPORT_SYMBOL(nla_find);
 
 /**
- * nla_strlcpy - Copy string attribute payload into a sized buffer
- * @dst: where to copy the string to
- * @nla: attribute to copy the string from
- * @dstsize: size of destination buffer
+ * nla_strscpy - Copy string attribute payload into a sized buffer
+ * @dst: Where to copy the string to.
+ * @nla: Attribute to copy the string from.
+ * @dstsize: Size of destination buffer.
  *
  * Copies at most dstsize - 1 bytes into the destination buffer.
- * The result is always a valid NUL-terminated string. Unlike
- * strlcpy the destination buffer is always padded out.
+ * Unlike strlcpy the destination buffer is always padded out.
  *
- * Returns the length of the source buffer.
+ * Return:
+ * * srclen - Returns @nla length (not including the trailing %NUL).
+ * * -E2BIG - If @dstsize is 0 or greater than U16_MAX or @nla length greater
+ *            than @dstsize.
  */
-size_t nla_strlcpy(char *dst, const struct nlattr *nla, size_t dstsize)
+ssize_t nla_strscpy(char *dst, const struct nlattr *nla, size_t dstsize)
 {
 	size_t srclen = nla_len(nla);
 	char *src = nla_data(nla);
+	ssize_t ret;
+	size_t len;
+
+	if (dstsize == 0 || WARN_ON_ONCE(dstsize > U16_MAX))
+		return -E2BIG;
 
 	if (srclen > 0 && src[srclen - 1] == '\0')
 		srclen--;
 
-	if (dstsize > 0) {
-		size_t len = (srclen >= dstsize) ? dstsize - 1 : srclen;
-
-		memset(dst, 0, dstsize);
-		memcpy(dst, src, len);
+	if (srclen >= dstsize) {
+		len = dstsize - 1;
+		ret = -E2BIG;
+	} else {
+		len = srclen;
+		ret = len;
 	}
 
-	return srclen;
+	memcpy(dst, src, len);
+	/* Zero pad end of dst. */
+	memset(dst + len, 0, dstsize - len);
+
+	return ret;
 }
-EXPORT_SYMBOL(nla_strlcpy);
+EXPORT_SYMBOL(nla_strscpy);
 
 /**
  * nla_strdup - Copy string attribute payload into a newly allocated buffer
