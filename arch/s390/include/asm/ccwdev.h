@@ -115,7 +115,7 @@ enum uc_todo {
 };
 
 /**
- * struct ccw driver - device driver for channel attached devices
+ * struct ccw_driver - device driver for channel attached devices
  * @ids: ids supported by this driver
  * @probe: function called on probe
  * @remove: function called on remove
