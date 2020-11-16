@@ -119,7 +119,7 @@ static int my_seq_show(struct seq_file *seq, void *v)
 	/* TODO 3: Get current process' mm_struct */
 	mm = get_task_mm(current);
 
-	/* TODO 3/8: Iterate through all memory mappings and print ranges */
+	/* TODO 3/6: Iterate through all memory mappings and print ranges */
 	vma_iterator = mm->mmap;
 	while (vma_iterator != NULL) {
 		pr_info("%lx %lx\n", vma_iterator->vm_start, vma_iterator->vm_end);
