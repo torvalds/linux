@@ -1559,11 +1559,46 @@ nfsd4_decode_state_protect4_a(struct nfsd4_compoundargs *argp,
 }
 
 static __be32
+nfsd4_decode_nfs_impl_id4(struct nfsd4_compoundargs *argp,
+			  struct nfsd4_exchange_id *exid)
+{
+	__be32 status;
+	u32 count;
+
+	if (xdr_stream_decode_u32(argp->xdr, &count) < 0)
+		return nfserr_bad_xdr;
+	switch (count) {
+	case 0:
+		break;
+	case 1:
+		/* Note that RFC 8881 places no length limit on
+		 * nii_domain, but this implementation permits no
+		 * more than NFS4_OPAQUE_LIMIT bytes */
+		status = nfsd4_decode_opaque(argp, &exid->nii_domain);
+		if (status)
+			return status;
+		/* Note that RFC 8881 places no length limit on
+		 * nii_name, but this implementation permits no
+		 * more than NFS4_OPAQUE_LIMIT bytes */
+		status = nfsd4_decode_opaque(argp, &exid->nii_name);
+		if (status)
+			return status;
+		status = nfsd4_decode_nfstime4(argp, &exid->nii_time);
+		if (status)
+			return status;
+		break;
+	default:
+		return nfserr_bad_xdr;
+	}
+
+	return nfs_ok;
+}
+
+static __be32
 nfsd4_decode_exchange_id(struct nfsd4_compoundargs *argp,
 			 struct nfsd4_exchange_id *exid)
 {
-	DECODE_HEAD;
-	int dummy;
+	__be32 status;
 
 	status = nfsd4_decode_verifier4(argp, &exid->verifier);
 	if (status)
@@ -1576,29 +1611,7 @@ nfsd4_decode_exchange_id(struct nfsd4_compoundargs *argp,
 	status = nfsd4_decode_state_protect4_a(argp, exid);
 	if (status)
 		return status;
-
-	READ_BUF(4);    /* nfs_impl_id4 array length */
-	dummy = be32_to_cpup(p++);
-
-	if (dummy > 1)
-		goto xdr_error;
-
-	if (dummy == 1) {
-		status = nfsd4_decode_opaque(argp, &exid->nii_domain);
-		if (status)
-			goto xdr_error;
-
-		/* nii_name */
-		status = nfsd4_decode_opaque(argp, &exid->nii_name);
-		if (status)
-			goto xdr_error;
-
-		/* nii_date */
-		status = nfsd4_decode_time(argp, &exid->nii_time);
-		if (status)
-			goto xdr_error;
-	}
-	DECODE_TAIL;
+	return nfsd4_decode_nfs_impl_id4(argp, exid);
 }
 
 static __be32
