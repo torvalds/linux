@@ -13,10 +13,6 @@
  * Define dummy _TIF work flags if not defined by the architecture or for
  * disabled functionality.
  */
-#ifndef _TIF_SYSCALL_AUDIT
-# define _TIF_SYSCALL_AUDIT		(0)
-#endif
-
 #ifndef _TIF_PATCH_PENDING
 # define _TIF_PATCH_PENDING		(0)
 #endif
@@ -36,9 +32,7 @@
 # define ARCH_SYSCALL_ENTER_WORK	(0)
 #endif
 
-#define SYSCALL_ENTER_WORK						\
-	(_TIF_SYSCALL_AUDIT  |						\
-	 ARCH_SYSCALL_ENTER_WORK)
+#define SYSCALL_ENTER_WORK ARCH_SYSCALL_ENTER_WORK
 
 /*
  * TIF flags handled in syscall_exit_to_user_mode()
@@ -47,16 +41,16 @@
 # define ARCH_SYSCALL_EXIT_WORK		(0)
 #endif
 
-#define SYSCALL_EXIT_WORK						\
-	(_TIF_SYSCALL_AUDIT |						\
-	 ARCH_SYSCALL_EXIT_WORK)
+#define SYSCALL_EXIT_WORK ARCH_SYSCALL_EXIT_WORK
 
 #define SYSCALL_WORK_ENTER	(SYSCALL_WORK_SECCOMP |			\
 				 SYSCALL_WORK_SYSCALL_TRACEPOINT |	\
 				 SYSCALL_WORK_SYSCALL_TRACE |		\
-				 SYSCALL_WORK_SYSCALL_EMU)
+				 SYSCALL_WORK_SYSCALL_EMU |		\
+				 SYSCALL_WORK_SYSCALL_AUDIT)
 #define SYSCALL_WORK_EXIT	(SYSCALL_WORK_SYSCALL_TRACEPOINT |	\
-				 SYSCALL_WORK_SYSCALL_TRACE)
+				 SYSCALL_WORK_SYSCALL_TRACE |		\
+				 SYSCALL_WORK_SYSCALL_AUDIT)
 
 /*
  * TIF flags handled in exit_to_user_mode_loop()
