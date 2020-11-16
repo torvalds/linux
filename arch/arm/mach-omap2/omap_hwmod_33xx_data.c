@@ -27,21 +27,6 @@
  * IP blocks
  */
 
-/* emif */
-static struct omap_hwmod am33xx_emif_hwmod = {
-	.name		= "emif",
-	.class		= &am33xx_emif_hwmod_class,
-	.clkdm_name	= "l3_clkdm",
-	.flags		= HWMOD_INIT_NO_IDLE,
-	.main_clk	= "dpll_ddr_m2_div2_ck",
-	.prcm		= {
-		.omap4	= {
-			.clkctrl_offs	= AM33XX_CM_PER_EMIF_CLKCTRL_OFFSET,
-			.modulemode	= MODULEMODE_SWCTRL,
-		},
-	},
-};
-
 /* l4_hs */
 static struct omap_hwmod am33xx_l4_hs_hwmod = {
 	.name		= "l4_hs",
@@ -133,14 +118,6 @@ static struct omap_hwmod am33xx_ocpwp_hwmod = {
  * Interfaces
  */
 
-/* l3 main -> emif */
-static struct omap_hwmod_ocp_if am33xx_l3_main__emif = {
-	.master		= &am33xx_l3_main_hwmod,
-	.slave		= &am33xx_emif_hwmod,
-	.clk		= "dpll_core_m4_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* l3 main -> l4 hs */
 static struct omap_hwmod_ocp_if am33xx_l3_main__l4_hs = {
 	.master		= &am33xx_l3_main_hwmod,
@@ -166,7 +143,6 @@ static struct omap_hwmod_ocp_if am33xx_l4_wkup__smartreflex1 = {
 };
 
 static struct omap_hwmod_ocp_if *am33xx_hwmod_ocp_ifs[] __initdata = {
-	&am33xx_l3_main__emif,
 	&am33xx_mpu__l3_main,
 	&am33xx_mpu__prcm,
 	&am33xx_l3_s__l4_ls,
