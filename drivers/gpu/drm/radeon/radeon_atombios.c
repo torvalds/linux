@@ -34,6 +34,7 @@
 #include "atom.h"
 #include "atom-bits.h"
 #include "radeon_asic.h"
+#include "radeon_atombios.h"
 
 extern void
 radeon_add_atom_encoder(struct drm_device *dev, uint32_t encoder_enum,
