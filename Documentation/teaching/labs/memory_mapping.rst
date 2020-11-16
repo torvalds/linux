@@ -208,7 +208,7 @@ into the virtual space represented by :c:type:`vm_area_struct`:
 * *addr* - the virtual address space from where remapping begins; page
   tables for the virtual address space between addr and addr + size
   will be formed as needed
-* *pfn* the page frame number to which the virtual address should be
+* *pfn* - the page frame number to which the virtual address should be
   mapped
 * *size* - the size (in bytes) of the memory to be mapped
 * *prot* - protection flags for this mapping
