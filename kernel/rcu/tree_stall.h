@@ -482,6 +482,36 @@ static void rcu_check_gp_kthread_starvation(void)
 	}
 }
 
+/* Complain about missing wakeups from expired fqs wait timer */
+static void rcu_check_gp_kthread_expired_fqs_timer(void)
+{
+	struct task_struct *gpk = rcu_state.gp_kthread;
+	short gp_state;
+	unsigned long jiffies_fqs;
+	int cpu;
+
+	/*
+	 * Order reads of .gp_state and .jiffies_force_qs.
+	 * Matching smp_wmb() is present in rcu_gp_fqs_loop().
+	 */
+	gp_state = smp_load_acquire(&rcu_state.gp_state);
+	jiffies_fqs = READ_ONCE(rcu_state.jiffies_force_qs);
+
+	if (gp_state == RCU_GP_WAIT_FQS &&
+	    time_after(jiffies, jiffies_fqs + RCU_STALL_MIGHT_MIN) &&
+	    gpk && !READ_ONCE(gpk->on_rq)) {
+		cpu = task_cpu(gpk);
+		pr_err("%s kthread timer wakeup didn't happen for %ld jiffies! g%ld f%#x %s(%d) ->state=%#lx\n",
+		       rcu_state.name, (jiffies - jiffies_fqs),
+		       (long)rcu_seq_current(&rcu_state.gp_seq),
+		       data_race(rcu_state.gp_flags),
+		       gp_state_getname(RCU_GP_WAIT_FQS), RCU_GP_WAIT_FQS,
+		       gpk->state);
+		pr_err("\tPossible timer handling issue on cpu=%d timer-softirq=%u\n",
+		       cpu, kstat_softirqs_cpu(TIMER_SOFTIRQ, cpu));
+	}
+}
+
 static void print_other_cpu_stall(unsigned long gp_seq, unsigned long gps)
 {
 	int cpu;
@@ -543,6 +573,7 @@ static void print_other_cpu_stall(unsigned long gp_seq, unsigned long gps)
 		WRITE_ONCE(rcu_state.jiffies_stall,
 			   jiffies + 3 * rcu_jiffies_till_stall_check() + 3);
 
+	rcu_check_gp_kthread_expired_fqs_timer();
 	rcu_check_gp_kthread_starvation();
 
 	panic_on_rcu_stall();
@@ -578,6 +609,7 @@ static void print_cpu_stall(unsigned long gps)
 		jiffies - gps,
 		(long)rcu_seq_current(&rcu_state.gp_seq), totqlen);
 
+	rcu_check_gp_kthread_expired_fqs_timer();
 	rcu_check_gp_kthread_starvation();
 
 	rcu_dump_cpu_stacks();

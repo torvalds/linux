@@ -92,7 +92,9 @@ warnings:
 	buggy timer hardware through bugs in the interrupt or exception
 	path (whether hardware, firmware, or software) through bugs
 	in Linux's timer subsystem through bugs in the scheduler, and,
-	yes, even including bugs in RCU itself.
+	yes, even including bugs in RCU itself.  It can also result in
+	the ``rcu_.*timer wakeup didn't happen for`` console-log message,
+	which will include additional debugging information.
 
 -	A bug in the RCU implementation.
 
@@ -291,6 +293,25 @@ to the grace-period kthread, the "RCU_GP_WAIT_FQS" indicates that the
 kthread is waiting for a short timeout, the "state" precedes value of the
 task_struct ->state field, and the "cpu" indicates that the grace-period
 kthread last ran on CPU 5.
+
+If the relevant grace-period kthread does not wake from FQS wait in a
+reasonable time, then the following additional line is printed::
+
+	kthread timer wakeup didn't happen for 23804 jiffies! g7076 f0x0 RCU_GP_WAIT_FQS(5) ->state=0x402
+
+The "23804" indicates that kthread's timer expired more than 23 thousand
+jiffies ago.  The rest of the line has meaning similar to the kthread
+starvation case.
+
+Additionally, the following line is printed::
+
+	Possible timer handling issue on cpu=4 timer-softirq=11142
+
+Here "cpu" indicates that the grace-period kthread last ran on CPU 4,
+where it queued the fqs timer.  The number following the "timer-softirq"
+is the current ``TIMER_SOFTIRQ`` count on cpu 4.  If this value does not
+change on successive RCU CPU stall warnings, there is further reason to
+suspect a timer problem.
 
 
 Multiple Warnings From One Stall
