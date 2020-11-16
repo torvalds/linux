@@ -1148,6 +1148,12 @@ static int hns3_check_gl_coalesce_para(struct net_device *netdev,
 		return -EINVAL;
 	}
 
+	/* device version above V3(include V3), GL uses 1us unit,
+	 * so the round down is not needed.
+	 */
+	if (ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V3)
+		return 0;
+
 	rx_gl = hns3_gl_round_down(cmd->rx_coalesce_usecs);
 	if (rx_gl != cmd->rx_coalesce_usecs) {
 		netdev_info(netdev,

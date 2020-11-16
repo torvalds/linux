@@ -425,6 +425,8 @@ enum hns3_flow_level_range {
 #define HNS3_INT_GL_18K			0x0036
 #define HNS3_INT_GL_8K			0x007C
 
+#define HNS3_INT_GL_1US			BIT(31)
+
 #define HNS3_INT_RL_MAX			0x00EC
 #define HNS3_INT_RL_ENABLE_MASK		0x40
 
@@ -436,6 +438,7 @@ struct hns3_enet_coalesce {
 	u16 int_ql_max;
 	u8 gl_adapt_enable:1;
 	u8 ql_enable:1;
+	u8 unit_1us:1;
 	enum hns3_flow_level_range flow_level;
 };
 
