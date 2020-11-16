@@ -38,6 +38,7 @@
 
 #include "atom.h"
 #include "radeon.h"
+#include "radeon_kms.h"
 #include "radeon_reg.h"
 
 
