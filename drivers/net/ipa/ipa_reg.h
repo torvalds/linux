@@ -174,22 +174,35 @@ static inline u32 ipa_reg_filt_rout_hash_flush_offset(enum ipa_version version)
 #define IPV4_FILTER_HASH_FMASK			GENMASK(12, 12)
 
 #define IPA_REG_BCR_OFFSET				0x000001d0
-#define BCR_CMDQ_L_LACK_ONE_ENTRY		BIT(0)
-#define BCR_TX_NOT_USING_BRESP			BIT(1)
-#define BCR_SUSPEND_L2_IRQ			BIT(3)
-#define BCR_HOLB_DROP_L2_IRQ			BIT(4)
-#define BCR_DUAL_TX				BIT(5)
+/* The next two fields are not present for IPA v4.2 */
+#define BCR_CMDQ_L_LACK_ONE_ENTRY_FMASK		GENMASK(0, 0)
+#define BCR_TX_NOT_USING_BRESP_FMASK		GENMASK(1, 1)
+/* The next field is invalid for IPA v4.1 */
+#define BCR_TX_SUSPEND_IRQ_ASSERT_ONCE_FMASK	GENMASK(2, 2)
+/* The next two fields are not present for IPA v4.2 */
+#define BCR_SUSPEND_L2_IRQ_FMASK		GENMASK(3, 3)
+#define BCR_HOLB_DROP_L2_IRQ_FMASK		GENMASK(4, 4)
+#define BCR_DUAL_TX_FMASK			GENMASK(5, 5)
+#define BCR_ENABLE_FILTER_DATA_CACHE_FMASK	GENMASK(6, 6)
+#define BCR_NOTIF_PRIORITY_OVER_ZLT_FMASK	GENMASK(7, 7)
+#define BCR_FILTER_PREFETCH_EN_FMASK		GENMASK(8, 8)
+#define BCR_ROUTER_PREFETCH_EN_FMASK		GENMASK(9, 9)
 
 /* Backward compatibility register value to use for each version */
 static inline u32 ipa_reg_bcr_val(enum ipa_version version)
 {
 	if (version == IPA_VERSION_3_5_1)
-		return BCR_CMDQ_L_LACK_ONE_ENTRY | BCR_TX_NOT_USING_BRESP |
-		       BCR_SUSPEND_L2_IRQ | BCR_HOLB_DROP_L2_IRQ | BCR_DUAL_TX;
+		return BCR_CMDQ_L_LACK_ONE_ENTRY_FMASK |
+			BCR_TX_NOT_USING_BRESP_FMASK |
+			BCR_SUSPEND_L2_IRQ_FMASK |
+			BCR_HOLB_DROP_L2_IRQ_FMASK |
+			BCR_DUAL_TX_FMASK;
 
 	if (version == IPA_VERSION_4_0 || version == IPA_VERSION_4_1)
-		return BCR_CMDQ_L_LACK_ONE_ENTRY | BCR_SUSPEND_L2_IRQ |
-		       BCR_HOLB_DROP_L2_IRQ | BCR_DUAL_TX;
+		return BCR_CMDQ_L_LACK_ONE_ENTRY_FMASK |
+			BCR_SUSPEND_L2_IRQ_FMASK |
+			BCR_HOLB_DROP_L2_IRQ_FMASK |
+			BCR_DUAL_TX_FMASK;
 
 	return 0x00000000;
 }
