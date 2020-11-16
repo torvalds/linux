@@ -67,6 +67,7 @@ struct cros_typec_port {
 	bool sop_prime_disc_done;
 	struct ec_response_typec_discovery *disc_data;
 	struct list_head partner_mode_list;
+	struct list_head plug_mode_list;
 };
 
 /* Platform-specific data for the Chrome OS EC Type C controller. */
@@ -186,12 +187,15 @@ static int cros_typec_add_partner(struct cros_typec_data *typec, int port_num,
 	return ret;
 }
 
-static void cros_typec_unregister_altmodes(struct cros_typec_data *typec, int port_num)
+static void cros_typec_unregister_altmodes(struct cros_typec_data *typec, int port_num,
+					   bool is_partner)
 {
 	struct cros_typec_port *port = typec->ports[port_num];
 	struct cros_typec_altmode_node *node, *tmp;
+	struct list_head *head;
 
-	list_for_each_entry_safe(node, tmp, &port->partner_mode_list, list) {
+	head = is_partner ? &port->partner_mode_list : &port->plug_mode_list;
+	list_for_each_entry_safe(node, tmp, head, list) {
 		list_del(&node->list);
 		typec_unregister_altmode(node->amode);
 		devm_kfree(typec->dev, node);
@@ -203,7 +207,7 @@ static void cros_typec_remove_partner(struct cros_typec_data *typec,
 {
 	struct cros_typec_port *port = typec->ports[port_num];
 
-	cros_typec_unregister_altmodes(typec, port_num);
+	cros_typec_unregister_altmodes(typec, port_num, true);
 
 	port->state.alt = NULL;
 	port->state.mode = TYPEC_STATE_USB;
@@ -223,6 +227,8 @@ static void cros_typec_remove_cable(struct cros_typec_data *typec,
 				    int port_num)
 {
 	struct cros_typec_port *port = typec->ports[port_num];
+
+	cros_typec_unregister_altmodes(typec, port_num, false);
 
 	typec_unregister_plug(port->plug);
 	port->plug = NULL;
@@ -352,6 +358,7 @@ static int cros_typec_init_ports(struct cros_typec_data *typec)
 		}
 
 		INIT_LIST_HEAD(&cros_port->partner_mode_list);
+		INIT_LIST_HEAD(&cros_port->plug_mode_list);
 	}
 
 	return 0;
@@ -637,7 +644,11 @@ static int cros_typec_get_mux_info(struct cros_typec_data *typec, int port_num,
 				     sizeof(req), resp, sizeof(*resp));
 }
 
-static int cros_typec_register_altmodes(struct cros_typec_data *typec, int port_num)
+/*
+ * Helper function to register partner/plug altmodes.
+ */
+static int cros_typec_register_altmodes(struct cros_typec_data *typec, int port_num,
+					bool is_partner)
 {
 	struct cros_typec_port *port = typec->ports[port_num];
 	struct ec_response_typec_discovery *sop_disc = port->disc_data;
@@ -655,7 +666,11 @@ static int cros_typec_register_altmodes(struct cros_typec_data *typec, int port_
 			desc.mode = j;
 			desc.vdo = sop_disc->svids[i].mode_vdo[j];
 
-			amode = typec_partner_register_altmode(port->partner, &desc);
+			if (is_partner)
+				amode = typec_partner_register_altmode(port->partner, &desc);
+			else
+				amode = typec_plug_register_altmode(port->plug, &desc);
+
 			if (IS_ERR(amode)) {
 				ret = PTR_ERR(amode);
 				goto err_cleanup;
@@ -670,21 +685,30 @@ static int cros_typec_register_altmodes(struct cros_typec_data *typec, int port_
 			}
 
 			node->amode = amode;
-			list_add_tail(&node->list, &port->partner_mode_list);
+
+			if (is_partner)
+				list_add_tail(&node->list, &port->partner_mode_list);
+			else
+				list_add_tail(&node->list, &port->plug_mode_list);
 			num_altmodes++;
 		}
 	}
 
-	ret = typec_partner_set_num_altmodes(port->partner, num_altmodes);
+	if (is_partner)
+		ret = typec_partner_set_num_altmodes(port->partner, num_altmodes);
+	else
+		ret = typec_plug_set_num_altmodes(port->plug, num_altmodes);
+
 	if (ret < 0) {
-		dev_err(typec->dev, "Unable to set partner num_altmodes for port: %d\n", port_num);
+		dev_err(typec->dev, "Unable to set %s num_altmodes for port: %d\n",
+			is_partner ? "partner" : "plug", port_num);
 		goto err_cleanup;
 	}
 
 	return 0;
 
 err_cleanup:
-	cros_typec_unregister_altmodes(typec, port_num);
+	cros_typec_unregister_altmodes(typec, port_num, is_partner);
 	return ret;
 }
 
@@ -772,6 +796,12 @@ static int cros_typec_handle_sop_prime_disc(struct cros_typec_data *typec, int p
 		goto sop_prime_disc_exit;
 	}
 
+	ret = cros_typec_register_altmodes(typec, port_num, false);
+	if (ret < 0) {
+		dev_err(typec->dev, "Failed to register plug altmodes, port: %d\n", port_num);
+		goto sop_prime_disc_exit;
+	}
+
 	return 0;
 
 sop_prime_disc_exit:
@@ -813,7 +843,7 @@ static int cros_typec_handle_sop_disc(struct cros_typec_data *typec, int port_nu
 		goto disc_exit;
 	}
 
-	ret = cros_typec_register_altmodes(typec, port_num);
+	ret = cros_typec_register_altmodes(typec, port_num, true);
 	if (ret < 0) {
 		dev_err(typec->dev, "Failed to register partner altmodes, port: %d\n", port_num);
 		goto disc_exit;
