@@ -63,7 +63,12 @@ static int keembay_clk_enable(struct device *dev, struct clk *clk)
 	return devm_add_action_or_reset(dev, keembay_clk_unprepare, clk);
 }
 
-static inline void keembay_pwm_update_bits(struct keembay_pwm *priv, u32 mask,
+/*
+ * With gcc 10, CONFIG_CC_OPTIMIZE_FOR_SIZE and only "inline" instead of
+ * "__always_inline" this fails to compile because the compiler doesn't notice
+ * for all valid masks (e.g. KMB_PWM_LEADIN_MASK) that they are ok.
+ */
+static __always_inline void keembay_pwm_update_bits(struct keembay_pwm *priv, u32 mask,
 					   u32 val, u32 offset)
 {
 	u32 buff = readl(priv->base + offset);
