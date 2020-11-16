@@ -411,7 +411,7 @@ static int sk_psock_skb_ingress(struct sk_psock *psock, struct sk_buff *skb)
 	msg = kzalloc(sizeof(*msg), __GFP_NOWARN | GFP_ATOMIC);
 	if (unlikely(!msg))
 		return -EAGAIN;
-	if (!sk_rmem_schedule(sk, skb, skb->len)) {
+	if (!sk_rmem_schedule(sk, skb, skb->truesize)) {
 		kfree(msg);
 		return -EAGAIN;
 	}
