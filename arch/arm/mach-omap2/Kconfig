@@ -78,7 +78,6 @@ config SOC_AM43XX
 	select HAVE_ARM_TWD
 	select ARM_ERRATA_754322
 	select ARM_ERRATA_775420
-	select OMAP_HWMOD
 	select OMAP_INTERCONNECT
 	select ARM_CPU_SUSPEND if PM
 
