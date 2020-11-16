@@ -3428,10 +3428,10 @@ static __init int event_trace_enable(void)
  * initialize events and perhaps start any events that are on the
  * command line. Unfortunately, there are some events that will not
  * start this early, like the system call tracepoints that need
- * to set the TIF_SYSCALL_TRACEPOINT flag of pid 1. But event_trace_enable()
- * is called before pid 1 starts, and this flag is never set, making
- * the syscall tracepoint never get reached, but the event is enabled
- * regardless (and not doing anything).
+ * to set the %SYSCALL_WORK_SYSCALL_TRACEPOINT flag of pid 1. But
+ * event_trace_enable() is called before pid 1 starts, and this flag
+ * is never set, making the syscall tracepoint never get reached, but
+ * the event is enabled regardless (and not doing anything).
  */
 static __init int event_trace_enable_again(void)
 {
