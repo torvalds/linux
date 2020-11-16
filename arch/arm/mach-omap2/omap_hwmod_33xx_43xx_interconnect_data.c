@@ -74,14 +74,6 @@ struct omap_hwmod_ocp_if am33xx_l3_s__l3_main = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* l3s cfg -> gpmc */
-struct omap_hwmod_ocp_if am33xx_l3_s__gpmc = {
-	.master		= &am33xx_l3_s_hwmod,
-	.slave		= &am33xx_gpmc_hwmod,
-	.clk		= "l3s_gclk",
-	.user		= OCP_USER_MPU,
-};
-
 /* l3 main -> ocmc */
 struct omap_hwmod_ocp_if am33xx_l3_main__ocmc = {
 	.master		= &am33xx_l3_main_hwmod,
