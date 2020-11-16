@@ -398,9 +398,9 @@ Implement the mmap driver function.
 
                Loop through all virtual pages and for each:
                * determine the physical address
-               * map it with :c:func:`remap_fpn_range`
+               * map it with :c:func:`remap_pfn_range`
 
-               Make sure the that you determine the physical address
+               Make sure that you determine the physical address
                each time and that you use a range of one page for mapping.
 
 For testing, load the kernel module and run:
