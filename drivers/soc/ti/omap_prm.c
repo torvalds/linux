@@ -124,6 +124,10 @@ static const struct omap_prm_domain_map omap_prm_onoff_noauto = {
 	.statechange = 1,
 };
 
+static const struct omap_prm_domain_map omap_prm_alwon = {
+	.usable_modes = BIT(OMAP_PRMD_ON_ACTIVE),
+};
+
 static const struct omap_rst_map rst_map_0[] = {
 	{ .rst = 0, .st = 0 },
 	{ .rst = -1 },
@@ -190,13 +194,39 @@ static const struct omap_rst_map am3_wkup_rst_map[] = {
 };
 
 static const struct omap_prm_data am3_prm_data[] = {
-	{ .name = "per", .base = 0x44e00c00, .rstctrl = 0x0, .rstmap = am3_per_rst_map, .flags = OMAP_PRM_HAS_RSTCTRL, .clkdm_name = "pruss_ocp" },
-	{ .name = "wkup", .base = 0x44e00d00, .rstctrl = 0x0, .rstst = 0xc, .rstmap = am3_wkup_rst_map, .flags = OMAP_PRM_HAS_RSTCTRL | OMAP_PRM_HAS_NO_CLKDM },
-	{ .name = "device", .base = 0x44e00f00, .rstctrl = 0x0, .rstst = 0x8, .rstmap = rst_map_01, .flags = OMAP_PRM_HAS_RSTCTRL | OMAP_PRM_HAS_NO_CLKDM },
+	{
+		.name = "per", .base = 0x44e00c00,
+		.pwrstctrl = 0xc, .pwrstst = 0x8, .dmap = &omap_prm_noinact,
+		.rstctrl = 0x0, .rstmap = am3_per_rst_map,
+		.flags = OMAP_PRM_HAS_RSTCTRL, .clkdm_name = "pruss_ocp"
+	},
+	{
+		.name = "wkup", .base = 0x44e00d00,
+		.pwrstctrl = 0x4, .pwrstst = 0x4, .dmap = &omap_prm_alwon,
+		.rstctrl = 0x0, .rstst = 0xc, .rstmap = am3_wkup_rst_map,
+		.flags = OMAP_PRM_HAS_RSTCTRL | OMAP_PRM_HAS_NO_CLKDM
+	},
+	{
+		.name = "mpu", .base = 0x44e00e00,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_noinact,
+	},
+	{
+		.name = "device", .base = 0x44e00f00,
+		.rstctrl = 0x0, .rstst = 0x8, .rstmap = rst_map_01,
+		.flags = OMAP_PRM_HAS_RSTCTRL | OMAP_PRM_HAS_NO_CLKDM
+	},
+	{
+		.name = "rtc", .base = 0x44e01000,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_alwon,
+	},
 	{
 		.name = "gfx", .base = 0x44e01100,
 		.pwrstctrl = 0, .pwrstst = 0x10, .dmap = &omap_prm_noinact,
 		.rstctrl = 0x4, .rstst = 0x14, .rstmap = rst_map_0, .clkdm_name = "gfx_l3",
+	},
+	{
+		.name = "cefuse", .base = 0x44e01200,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
 	},
 	{ },
 };
