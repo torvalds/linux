@@ -66,8 +66,8 @@ struct drm_gem_vram_object {
 };
 
 /**
- * Returns the container of type &struct drm_gem_vram_object
- * for field bo.
+ * drm_gem_vram_of_bo - Returns the container of type
+ * &struct drm_gem_vram_object for field bo.
  * @bo:		the VRAM buffer object
  * Returns:	The containing GEM VRAM object
  */
@@ -78,8 +78,8 @@ static inline struct drm_gem_vram_object *drm_gem_vram_of_bo(
 }
 
 /**
- * Returns the container of type &struct drm_gem_vram_object
- * for field gem.
+ * drm_gem_vram_of_gem - Returns the container of type
+ * &struct drm_gem_vram_object for field gem.
  * @gem:	the GEM object
  * Returns:	The containing GEM VRAM object
  */

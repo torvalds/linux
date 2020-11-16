@@ -64,7 +64,7 @@ v3d_job_free(struct drm_sched_job *sched_job)
 }
 
 /**
- * Returns the fences that the job depends on, one by one.
+ * v3d_job_dependency - Returns the fences that the job depends on, one by one.
  *
  * If placed in the scheduler's .dependency method, the corresponding
  * .run_job won't be called until all of them have been signaled.

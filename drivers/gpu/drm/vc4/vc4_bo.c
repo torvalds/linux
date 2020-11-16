@@ -391,7 +391,7 @@ static const struct drm_gem_object_funcs vc4_gem_object_funcs = {
 };
 
 /**
- * vc4_gem_create_object - Implementation of driver->gem_create_object.
+ * vc4_create_object - Implementation of driver->gem_create_object.
  * @dev: DRM device
  * @size: Size in bytes of the memory the object will reference
  *

@@ -1161,7 +1161,7 @@ drm_dp_subconnector_type(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 EXPORT_SYMBOL(drm_dp_subconnector_type);
 
 /**
- * drm_mode_set_dp_subconnector_property - set subconnector for DP connector
+ * drm_dp_set_subconnector_property - set subconnector for DP connector
  * @connector: connector to set property on
  * @status: connector status
  * @dpcd: DisplayPort configuration data

@@ -617,7 +617,7 @@ static void drm_gem_vram_object_free(struct drm_gem_object *gem)
  */
 
 /**
- * drm_gem_vram_driver_create_dumb() - \
+ * drm_gem_vram_driver_dumb_create() - \
 	Implements &struct drm_driver.dumb_create
  * @file:		the DRM file
  * @dev:		the DRM device
