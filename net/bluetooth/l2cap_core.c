@@ -3633,7 +3633,7 @@ static int l2cap_parse_conf_req(struct l2cap_chan *chan, void *data, size_t data
 			if (hint)
 				break;
 			result = L2CAP_CONF_UNKNOWN;
-			*((u8 *) ptr++) = type;
+			l2cap_add_conf_opt(&ptr, (u8)type, sizeof(u8), type, endptr - ptr);
 			break;
 		}
 	}
