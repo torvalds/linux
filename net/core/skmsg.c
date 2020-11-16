@@ -399,37 +399,37 @@ out:
 }
 EXPORT_SYMBOL_GPL(sk_msg_memcopy_from_iter);
 
-static int sk_psock_skb_ingress(struct sk_psock *psock, struct sk_buff *skb)
+static struct sk_msg *sk_psock_create_ingress_msg(struct sock *sk,
+						  struct sk_buff *skb)
 {
-	struct sock *sk = psock->sk;
-	int copied = 0, num_sge;
 	struct sk_msg *msg;
 
 	if (atomic_read(&sk->sk_rmem_alloc) > sk->sk_rcvbuf)
-		return -EAGAIN;
+		return NULL;
+
+	if (!sk_rmem_schedule(sk, skb, skb->truesize))
+		return NULL;
 
 	msg = kzalloc(sizeof(*msg), __GFP_NOWARN | GFP_ATOMIC);
 	if (unlikely(!msg))
-		return -EAGAIN;
-	if (!sk_rmem_schedule(sk, skb, skb->truesize)) {
-		kfree(msg);
-		return -EAGAIN;
-	}
+		return NULL;
 
 	sk_msg_init(msg);
-	num_sge = skb_to_sgvec(skb, msg->sg.data, 0, skb->len);
+	return msg;
+}
+
+static int sk_psock_skb_ingress_enqueue(struct sk_buff *skb,
+					struct sk_psock *psock,
+					struct sock *sk,
+					struct sk_msg *msg)
+{
+	int num_sge = skb_to_sgvec(skb, msg->sg.data, 0, skb->len);
+	int copied;
+
 	if (unlikely(num_sge < 0)) {
 		kfree(msg);
 		return num_sge;
 	}
-
-	/* This will transition ownership of the data from the socket where
-	 * the BPF program was run initiating the redirect to the socket
-	 * we will eventually receive this data on. The data will be released
-	 * from skb_consume found in __tcp_bpf_recvmsg() after its been copied
-	 * into user buffers.
-	 */
-	skb_set_owner_r(skb, sk);
 
 	copied = skb->len;
 	msg->sg.start = 0;
@@ -440,6 +440,40 @@ static int sk_psock_skb_ingress(struct sk_psock *psock, struct sk_buff *skb)
 	sk_psock_queue_msg(psock, msg);
 	sk_psock_data_ready(sk, psock);
 	return copied;
+}
+
+static int sk_psock_skb_ingress(struct sk_psock *psock, struct sk_buff *skb)
+{
+	struct sock *sk = psock->sk;
+	struct sk_msg *msg;
+
+	msg = sk_psock_create_ingress_msg(sk, skb);
+	if (!msg)
+		return -EAGAIN;
+
+	/* This will transition ownership of the data from the socket where
+	 * the BPF program was run initiating the redirect to the socket
+	 * we will eventually receive this data on. The data will be released
+	 * from skb_consume found in __tcp_bpf_recvmsg() after its been copied
+	 * into user buffers.
+	 */
+	skb_set_owner_r(skb, sk);
+	return sk_psock_skb_ingress_enqueue(skb, psock, sk, msg);
+}
+
+/* Puts an skb on the ingress queue of the socket already assigned to the
+ * skb. In this case we do not need to check memory limits or skb_set_owner_r
+ * because the skb is already accounted for here.
+ */
+static int sk_psock_skb_ingress_self(struct sk_psock *psock, struct sk_buff *skb)
+{
+	struct sk_msg *msg = kzalloc(sizeof(*msg), __GFP_NOWARN | GFP_ATOMIC);
+	struct sock *sk = psock->sk;
+
+	if (unlikely(!msg))
+		return -EAGAIN;
+	sk_msg_init(msg);
+	return sk_psock_skb_ingress_enqueue(skb, psock, sk, msg);
 }
 
 static int sk_psock_handle_skb(struct sk_psock *psock, struct sk_buff *skb,
@@ -801,7 +835,7 @@ static void sk_psock_verdict_apply(struct sk_psock *psock,
 		 * retrying later from workqueue.
 		 */
 		if (skb_queue_empty(&psock->ingress_skb)) {
-			err = sk_psock_skb_ingress(psock, skb);
+			err = sk_psock_skb_ingress_self(psock, skb);
 		}
 		if (err < 0) {
 			skb_queue_tail(&psock->ingress_skb, skb);
