@@ -47,7 +47,6 @@
 #include <asm/vtimer.h>
 #include <asm/lowcore.h>
 #include <asm/sclp.h>
-#include <asm/vdso.h>
 #include <asm/debug.h>
 #include <asm/os_info.h>
 #include <asm/sigp.h>
@@ -217,14 +216,10 @@ static int pcpu_alloc_lowcore(struct pcpu *pcpu, int cpu)
 	lc->return_mcck_lpswe = gen_lpswe(__LC_RETURN_MCCK_PSW);
 	if (nmi_alloc_per_cpu(lc))
 		goto out_async;
-	if (vdso_alloc_per_cpu(lc))
-		goto out_mcesa;
 	lowcore_ptr[cpu] = lc;
 	pcpu_sigp_retry(pcpu, SIGP_SET_PREFIX, (u32)(unsigned long) lc);
 	return 0;
 
-out_mcesa:
-	nmi_free_per_cpu(lc);
 out_async:
 	stack_free(async_stack);
 out:
@@ -245,7 +240,6 @@ static void pcpu_free_lowcore(struct pcpu *pcpu)
 
 	pcpu_sigp_retry(pcpu, SIGP_SET_PREFIX, 0);
 	lowcore_ptr[pcpu - pcpu_devices] = NULL;
-	vdso_free_per_cpu(pcpu->lowcore);
 	nmi_free_per_cpu(pcpu->lowcore);
 	stack_free(async_stack);
 	if (pcpu == &pcpu_devices[0])
@@ -271,7 +265,7 @@ static void pcpu_prepare_secondary(struct pcpu *pcpu, int cpu)
 		lc->steal_timer = lc->avg_steal_timer = 0;
 	__ctl_store(lc->cregs_save_area, 0, 15);
 	lc->cregs_save_area[1] = lc->kernel_asce;
-	lc->cregs_save_area[7] = lc->vdso_asce;
+	lc->cregs_save_area[7] = lc->user_asce;
 	save_access_regs((unsigned int *) lc->access_regs_save_area);
 	memcpy(lc->stfle_fac_list, S390_lowcore.stfle_fac_list,
 	       sizeof(lc->stfle_fac_list));
@@ -859,8 +853,6 @@ static void smp_init_secondary(void)
 
 	S390_lowcore.last_update_clock = get_tod_clock();
 	restore_access_regs(S390_lowcore.access_regs_save_area);
-	set_cpu_flag(CIF_ASCE_PRIMARY);
-	set_cpu_flag(CIF_ASCE_SECONDARY);
 	cpu_init();
 	rcu_cpu_starting(cpu);
 	preempt_disable();

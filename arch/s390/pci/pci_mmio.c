@@ -93,12 +93,10 @@ static inline int __memcpy_toio_inuser(void __iomem *dst,
 {
 	int size, rc = 0;
 	u8 status = 0;
-	mm_segment_t old_fs;
 
 	if (!src)
 		return -EINVAL;
 
-	old_fs = enable_sacf_uaccess();
 	while (n > 0) {
 		size = zpci_get_max_write_size((u64 __force) dst,
 					       (u64 __force) src, n,
@@ -113,7 +111,6 @@ static inline int __memcpy_toio_inuser(void __iomem *dst,
 		dst += size;
 		n -= size;
 	}
-	disable_sacf_uaccess(old_fs);
 	if (rc)
 		zpci_err_mmio(rc, status, (__force u64) dst);
 	return rc;
@@ -246,9 +243,7 @@ static inline int __memcpy_fromio_inuser(void __user *dst,
 {
 	int size, rc = 0;
 	u8 status;
-	mm_segment_t old_fs;
 
-	old_fs = enable_sacf_uaccess();
 	while (n > 0) {
 		size = zpci_get_max_write_size((u64 __force) src,
 					       (u64 __force) dst, n,
@@ -260,7 +255,6 @@ static inline int __memcpy_fromio_inuser(void __user *dst,
 		dst += size;
 		n -= size;
 	}
-	disable_sacf_uaccess(old_fs);
 	if (rc)
 		zpci_err_mmio(rc, status, (__force u64) dst);
 	return rc;
