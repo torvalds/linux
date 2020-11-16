@@ -428,9 +428,28 @@ static void nested_vmcb02_prepare_control(struct vcpu_svm *svm)
 {
 	const u32 mask = V_INTR_MASKING_MASK | V_GIF_ENABLE_MASK | V_GIF_MASK;
 
-	/* FIXME: go through each field one by one.  */
-	svm->nested.vmcb02.ptr->control = svm->vmcb01.ptr->control;
+	/*
+	 * Filled at exit: exit_code, exit_code_hi, exit_info_1, exit_info_2,
+	 * exit_int_info, exit_int_info_err, next_rip, insn_len, insn_bytes.
+	 */
 
+	/*
+	 * Also covers avic_vapic_bar, avic_backing_page, avic_logical_id,
+	 * avic_physical_id.
+	 */
+	WARN_ON(svm->vmcb01.ptr->control.int_ctl & AVIC_ENABLE_MASK);
+
+	/* Copied from vmcb01.  msrpm_base can be overwritten later.  */
+	svm->vmcb->control.nested_ctl = svm->vmcb01.ptr->control.nested_ctl;
+	svm->vmcb->control.iopm_base_pa = svm->vmcb01.ptr->control.iopm_base_pa;
+	svm->vmcb->control.msrpm_base_pa = svm->vmcb01.ptr->control.msrpm_base_pa;
+
+	/* Done at vmrun: asid.  */
+
+	/* Also overwritten later if necessary.  */
+	svm->vmcb->control.tlb_ctl = TLB_CONTROL_DO_NOTHING;
+
+	/* nested_cr3.  */
 	if (nested_npt_enabled(svm))
 		nested_svm_init_mmu_context(&svm->vcpu);
 
