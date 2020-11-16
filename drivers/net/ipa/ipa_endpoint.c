@@ -665,8 +665,8 @@ static u32 ipa_reg_init_hol_block_timer_val(struct ipa *ipa, u32 microseconds)
 	/* ...but we still need to fit into a 32-bit register */
 	WARN_ON(ticks > U32_MAX);
 
-	/* IPA v3.5.1 just records the tick count */
-	if (ipa->version == IPA_VERSION_3_5_1)
+	/* IPA v3.5.1 through v4.1 just record the tick count */
+	if (ipa->version < IPA_VERSION_4_2)
 		return (u32)ticks;
 
 	/* For IPA v4.2, the tick count is represented by base and
