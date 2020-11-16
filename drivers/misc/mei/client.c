@@ -1306,7 +1306,7 @@ struct mei_cl_vtag *mei_cl_vtag_alloc(struct file *fp, u8 vtag)
  * mei_cl_fp_by_vtag - obtain the file pointer by vtag
  *
  * @cl: host client
- * @vtag: vm tag
+ * @vtag: virtual tag
  *
  * Return:
  * * A file pointer - on success
@@ -1317,7 +1317,9 @@ const struct file *mei_cl_fp_by_vtag(const struct mei_cl *cl, u8 vtag)
 	struct mei_cl_vtag *vtag_l;
 
 	list_for_each_entry(vtag_l, &cl->vtag_map, list)
-		if (vtag_l->vtag == vtag)
+		/* The client on bus has one fixed fp */
+		if ((cl->cldev && mei_cldev_enabled(cl->cldev)) ||
+		    vtag_l->vtag == vtag)
 			return vtag_l->fp;
 
 	return ERR_PTR(-ENOENT);
