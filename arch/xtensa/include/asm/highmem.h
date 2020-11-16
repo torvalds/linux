@@ -12,6 +12,7 @@
 #ifndef _XTENSA_HIGHMEM_H
 #define _XTENSA_HIGHMEM_H
 
+#ifdef CONFIG_HIGHMEM
 #include <linux/wait.h>
 #include <linux/pgtable.h>
 #include <asm/cacheflush.h>
@@ -58,6 +59,13 @@ static inline wait_queue_head_t *get_pkmap_wait_queue_head(unsigned int color)
 {
 	return pkmap_map_wait_arr + color;
 }
+
+enum fixed_addresses kmap_local_map_idx(int type, unsigned long pfn);
+#define arch_kmap_local_map_idx		kmap_local_map_idx
+
+enum fixed_addresses kmap_local_unmap_idx(int type, unsigned long addr);
+#define arch_kmap_local_unmap_idx	kmap_local_unmap_idx
+
 #endif
 
 extern pte_t *pkmap_page_table;
@@ -67,15 +75,10 @@ static inline void flush_cache_kmaps(void)
 	flush_cache_all();
 }
 
-enum fixed_addresses kmap_local_map_idx(int type, unsigned long pfn);
-#define arch_kmap_local_map_idx		kmap_local_map_idx
-
-enum fixed_addresses kmap_local_unmap_idx(int type, unsigned long addr);
-#define arch_kmap_local_unmap_idx	kmap_local_unmap_idx
-
 #define arch_kmap_local_post_unmap(vaddr)	\
 	local_flush_tlb_kernel_range(vaddr, vaddr + PAGE_SIZE)
 
 void kmap_init(void);
 
+#endif /* CONFIG_HIGHMEM */
 #endif

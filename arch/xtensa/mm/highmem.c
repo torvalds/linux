@@ -23,16 +23,16 @@ static void __init kmap_waitqueues_init(void)
 	for (i = 0; i < ARRAY_SIZE(pkmap_map_wait_arr); ++i)
 		init_waitqueue_head(pkmap_map_wait_arr + i);
 }
-#else
-static inline void kmap_waitqueues_init(void)
-{
-}
-#endif
 
 static inline enum fixed_addresses kmap_idx(int type, unsigned long color)
 {
-	return (type + KM_MAX_IDX * smp_processor_id()) * DCACHE_N_COLORS +
-		color;
+	int idx = (type + KM_MAX_IDX * smp_processor_id()) * DCACHE_N_COLORS;
+
+	/*
+	 * The fixmap operates top down, so the color offset needs to be
+	 * reverse as well.
+	 */
+	return idx + DCACHE_N_COLORS - 1 - color;
 }
 
 enum fixed_addresses kmap_local_map_idx(int type, unsigned long pfn)
@@ -44,6 +44,10 @@ enum fixed_addresses kmap_local_unmap_idx(int type, unsigned long addr)
 {
 	return kmap_idx(type, DCACHE_ALIAS(addr));
 }
+
+#else
+static inline void kmap_waitqueues_init(void) { }
+#endif
 
 void __init kmap_init(void)
 {
