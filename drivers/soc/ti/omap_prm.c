@@ -7,6 +7,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
@@ -14,6 +15,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/pm_clock.h>
 #include <linux/pm_domain.h>
 #include <linux/reset-controller.h>
 #include <linux/delay.h>
@@ -41,6 +43,7 @@ struct omap_prm_domain {
 	u16 pwrstst;
 	const struct omap_prm_domain_map *cap;
 	u32 pwrstctrl_saved;
+	unsigned int uses_pm_clk:1;
 };
 
 struct omap_rst_map {
@@ -325,6 +328,38 @@ static int omap_prm_domain_power_off(struct generic_pm_domain *domain)
 	return 0;
 }
 
+/*
+ * Note that ti-sysc already manages the module clocks separately so
+ * no need to manage those. Interconnect instances need clocks managed
+ * for simple-pm-bus.
+ */
+static int omap_prm_domain_attach_clock(struct device *dev,
+					struct omap_prm_domain *prmd)
+{
+	struct device_node *np = dev->of_node;
+	int error;
+
+	if (!of_device_is_compatible(np, "simple-pm-bus"))
+		return 0;
+
+	if (!of_property_read_bool(np, "clocks"))
+		return 0;
+
+	error = pm_clk_create(dev);
+	if (error)
+		return error;
+
+	error = of_pm_clk_add_clks(dev);
+	if (error < 0) {
+		pm_clk_destroy(dev);
+		return error;
+	}
+
+	prmd->uses_pm_clk = 1;
+
+	return 0;
+}
+
 static int omap_prm_domain_attach_dev(struct generic_pm_domain *domain,
 				      struct device *dev)
 {
@@ -349,6 +384,10 @@ static int omap_prm_domain_attach_dev(struct generic_pm_domain *domain,
 	genpd_data = dev_gpd_data(dev);
 	genpd_data->data = NULL;
 
+	ret = omap_prm_domain_attach_clock(dev, prmd);
+	if (ret)
+		return ret;
+
 	return 0;
 }
 
@@ -356,7 +395,11 @@ static void omap_prm_domain_detach_dev(struct generic_pm_domain *domain,
 				       struct device *dev)
 {
 	struct generic_pm_domain_data *genpd_data;
+	struct omap_prm_domain *prmd;
 
+	prmd = genpd_to_prm_domain(domain);
+	if (prmd->uses_pm_clk)
+		pm_clk_destroy(dev);
 	genpd_data = dev_gpd_data(dev);
 	genpd_data->data = NULL;
 }
@@ -393,6 +436,7 @@ static int omap_prm_domain_init(struct device *dev, struct omap_prm *prm)
 	prmd->pd.power_off = omap_prm_domain_power_off;
 	prmd->pd.attach_dev = omap_prm_domain_attach_dev;
 	prmd->pd.detach_dev = omap_prm_domain_detach_dev;
+	prmd->pd.flags = GENPD_FLAG_PM_CLK;
 
 	pm_genpd_init(&prmd->pd, NULL, true);
 	error = of_genpd_add_provider_simple(np, &prmd->pd);
