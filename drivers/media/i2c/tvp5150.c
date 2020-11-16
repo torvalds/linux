@@ -2082,6 +2082,7 @@ static int tvp5150_parse_dt(struct tvp5150 *decoder, struct device_node *np)
 
 	ep_np = of_graph_get_endpoint_by_regs(np, TVP5150_PAD_VID_OUT, 0);
 	if (!ep_np) {
+		ret = -EINVAL;
 		dev_err(dev, "Error no output endpoint available\n");
 		goto err_free;
 	}
