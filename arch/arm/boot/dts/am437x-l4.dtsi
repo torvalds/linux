@@ -32,19 +32,26 @@
 			 <0x000f0000 0x001f0000 0x010000>;	/* ap 8 */
 
 		target-module@0 {			/* 0x44d00000, ap 4 28.0 */
-			compatible = "ti,sysc";
-			status = "disabled";
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			ti,hwmods = "wkup_m3";
+			reg = <0x0 0x4>;
+			reg-names = "rev";
+			clocks = <&l4_wkup_aon_clkctrl AM4_L4_WKUP_AON_WKUP_M3_CLKCTRL 0>;
+			clock-names = "fck";
 			#address-cells = <1>;
 			#size-cells = <1>;
-			ranges = <0x0 0x0 0x4000>;
-		};
+			ranges = <0x00000000 0x00000000 0x4000>,
+				 <0x00080000 0x00080000 0x2000>;
 
-		target-module@80000 {			/* 0x44d80000, ap 6 10.0 */
-			compatible = "ti,sysc";
-			status = "disabled";
-			#address-cells = <1>;
-			#size-cells = <1>;
-			ranges = <0x0 0x80000 0x2000>;
+			wkup_m3: cpu@0 {
+				compatible = "ti,am4372-wkup-m3";
+				reg = <0x00000000 0x4000>,
+				      <0x00080000 0x2000>;
+				reg-names = "umem", "dmem";
+				resets = <&prm_wkup 3>;
+				reset-names = "rstctrl";
+				ti,pm-firmware = "am335x-pm-firmware.elf";
+			};
 		};
 
 		target-module@f0000 {			/* 0x44df0000, ap 8 58.0 */
