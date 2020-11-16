@@ -45,6 +45,8 @@ struct cros_typec_port {
 	struct typec_capability caps;
 	struct typec_partner *partner;
 	struct typec_cable *cable;
+	/* SOP' plug. */
+	struct typec_plug *plug;
 	/* Port partner PD identity info. */
 	struct usb_pd_identity p_identity;
 	/* Port cable PD identity info. */
@@ -222,6 +224,8 @@ static void cros_typec_remove_cable(struct cros_typec_data *typec,
 {
 	struct cros_typec_port *port = typec->ports[port_num];
 
+	typec_unregister_plug(port->plug);
+	port->plug = NULL;
 	typec_unregister_cable(port->cable);
 	port->cable = NULL;
 	memset(&port->c_identity, 0, sizeof(port->c_identity));
@@ -710,7 +714,8 @@ static int cros_typec_handle_sop_prime_disc(struct cros_typec_data *typec, int p
 {
 	struct cros_typec_port *port = typec->ports[port_num];
 	struct ec_response_typec_discovery *disc = port->disc_data;
-	struct typec_cable_desc desc = {};
+	struct typec_cable_desc c_desc = {};
+	struct typec_plug_desc p_desc;
 	struct ec_params_typec_discovery req = {
 		.port = port_num,
 		.partner_type = TYPEC_PARTNER_SOP_PRIME,
@@ -733,32 +738,44 @@ static int cros_typec_handle_sop_prime_disc(struct cros_typec_data *typec, int p
 		cable_plug_type = VDO_TYPEC_CABLE_TYPE(port->c_identity.vdo[0]);
 		switch (cable_plug_type) {
 		case CABLE_ATYPE:
-			desc.type = USB_PLUG_TYPE_A;
+			c_desc.type = USB_PLUG_TYPE_A;
 			break;
 		case CABLE_BTYPE:
-			desc.type = USB_PLUG_TYPE_B;
+			c_desc.type = USB_PLUG_TYPE_B;
 			break;
 		case CABLE_CTYPE:
-			desc.type = USB_PLUG_TYPE_C;
+			c_desc.type = USB_PLUG_TYPE_C;
 			break;
 		case CABLE_CAPTIVE:
-			desc.type = USB_PLUG_CAPTIVE;
+			c_desc.type = USB_PLUG_CAPTIVE;
 			break;
 		default:
-			desc.type = USB_PLUG_NONE;
+			c_desc.type = USB_PLUG_NONE;
 		}
-		desc.active = PD_IDH_PTYPE(port->c_identity.id_header) == IDH_PTYPE_ACABLE;
+		c_desc.active = PD_IDH_PTYPE(port->c_identity.id_header) == IDH_PTYPE_ACABLE;
 	}
 
-	desc.identity = &port->c_identity;
+	c_desc.identity = &port->c_identity;
 
-	port->cable = typec_register_cable(port->port, &desc);
+	port->cable = typec_register_cable(port->port, &c_desc);
 	if (IS_ERR(port->cable)) {
 		ret = PTR_ERR(port->cable);
 		port->cable = NULL;
+		goto sop_prime_disc_exit;
 	}
 
+	p_desc.index = TYPEC_PLUG_SOP_P;
+	port->plug = typec_register_plug(port->cable, &p_desc);
+	if (IS_ERR(port->plug)) {
+		ret = PTR_ERR(port->plug);
+		port->plug = NULL;
+		goto sop_prime_disc_exit;
+	}
+
+	return 0;
+
 sop_prime_disc_exit:
+	cros_typec_remove_cable(typec, port_num);
 	return ret;
 }
 
