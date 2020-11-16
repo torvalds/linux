@@ -146,17 +146,25 @@
 
 	target-module@4b000000 {
 		compatible = "ti,sysc-omap4-simple", "ti,sysc";
-		clocks = <&l3_aon_clkctrl AM3_L3_AON_DEBUGSS_CLKCTRL 0>;
+		clocks = <&l3_clkctrl AM3_L3_L3_INSTR_CLKCTRL 0>;
 		clock-names = "fck";
+		ti,no-idle;
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x0 0x4b000000 0x1000000>;
 
-		pmu@0 {
-			compatible = "arm,cortex-a8-pmu";
-			interrupts = <3>;
-			reg = <0 0x1000000>;
-			ti,hwmods = "debugss";
+		target-module@140000 {
+			compatible = "ti,sysc-omap4-simple", "ti,sysc";
+			clocks = <&l3_aon_clkctrl AM3_L3_AON_DEBUGSS_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x140000 0xec0000>;
+
+			pmu@0 {
+				compatible = "arm,cortex-a8-pmu";
+				interrupts = <3>;
+			};
 		};
 	};
 
