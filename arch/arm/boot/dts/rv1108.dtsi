@@ -299,7 +299,7 @@
 		clock-names = "timer", "pclk";
 	};
 
-	watchdog: wdt@10360000 {
+	watchdog: watchdog@10360000 {
 		compatible = "snps,dw-wdt";
 		reg = <0x10360000 0x100>;
 		interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
