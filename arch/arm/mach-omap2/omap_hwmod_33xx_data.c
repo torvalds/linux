@@ -182,21 +182,6 @@ static struct omap_hwmod am33xx_debugss_hwmod = {
 	.opt_clks_cnt	= ARRAY_SIZE(debugss_opt_clks),
 };
 
-static struct omap_hwmod am33xx_control_hwmod = {
-	.name		= "control",
-	.class		= &am33xx_control_hwmod_class,
-	.clkdm_name	= "l4_wkup_clkdm",
-	.flags		= HWMOD_INIT_NO_IDLE,
-	.main_clk	= "dpll_core_m4_div2_ck",
-	.prcm		= {
-		.omap4	= {
-			.clkctrl_offs	= AM33XX_CM_WKUP_CONTROL_CLKCTRL_OFFSET,
-			.modulemode	= MODULEMODE_SWCTRL,
-		},
-	},
-};
-
-
 /*
  * Interfaces
  */
@@ -257,14 +242,6 @@ static struct omap_hwmod_ocp_if am33xx_l4_wkup__smartreflex1 = {
 	.user		= OCP_USER_MPU,
 };
 
-/* l4 wkup -> control */
-static struct omap_hwmod_ocp_if am33xx_l4_wkup__control = {
-	.master		= &am33xx_l4_wkup_hwmod,
-	.slave		= &am33xx_control_hwmod,
-	.clk		= "dpll_core_m4_div2_ck",
-	.user		= OCP_USER_MPU,
-};
-
 static struct omap_hwmod_ocp_if *am33xx_hwmod_ocp_ifs[] __initdata = {
 	&am33xx_l3_main__emif,
 	&am33xx_mpu__l3_main,
@@ -278,7 +255,6 @@ static struct omap_hwmod_ocp_if *am33xx_hwmod_ocp_ifs[] __initdata = {
 	&am33xx_wkup_m3__l4_wkup,
 	&am33xx_l3_main__debugss,
 	&am33xx_l4_wkup__wkup_m3,
-	&am33xx_l4_wkup__control,
 	&am33xx_l4_wkup__smartreflex0,
 	&am33xx_l4_wkup__smartreflex1,
 	&am33xx_l3_s__gpmc,
