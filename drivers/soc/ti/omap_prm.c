@@ -244,13 +244,43 @@ static const struct omap_rst_map am4_device_rst_map[] = {
 
 static const struct omap_prm_data am4_prm_data[] = {
 	{
+		.name = "mpu", .base = 0x44df0300,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_noinact,
+	},
+	{
 		.name = "gfx", .base = 0x44df0400,
 		.pwrstctrl = 0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
 		.rstctrl = 0x10, .rstst = 0x14, .rstmap = rst_map_0, .clkdm_name = "gfx_l3",
 	},
-	{ .name = "per", .base = 0x44df0800, .rstctrl = 0x10, .rstst = 0x14, .rstmap = am4_per_rst_map, .clkdm_name = "pruss_ocp" },
-	{ .name = "wkup", .base = 0x44df2000, .rstctrl = 0x10, .rstst = 0x14, .rstmap = am3_wkup_rst_map, .flags = OMAP_PRM_HAS_NO_CLKDM },
-	{ .name = "device", .base = 0x44df4000, .rstctrl = 0x0, .rstst = 0x4, .rstmap = am4_device_rst_map, .flags = OMAP_PRM_HAS_RSTCTRL | OMAP_PRM_HAS_NO_CLKDM },
+	{
+		.name = "rtc", .base = 0x44df0500,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_alwon,
+	},
+	{
+		.name = "tamper", .base = 0x44df0600,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_alwon,
+	},
+	{
+		.name = "cefuse", .base = 0x44df0700,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_onoff_noauto,
+	},
+	{
+		.name = "per", .base = 0x44df0800,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_noinact,
+		.rstctrl = 0x10, .rstst = 0x14, .rstmap = am4_per_rst_map,
+		.clkdm_name = "pruss_ocp"
+	},
+	{
+		.name = "wkup", .base = 0x44df2000,
+		.pwrstctrl = 0x0, .pwrstst = 0x4, .dmap = &omap_prm_alwon,
+		.rstctrl = 0x10, .rstst = 0x14, .rstmap = am3_wkup_rst_map,
+		.flags = OMAP_PRM_HAS_NO_CLKDM
+	},
+	{
+		.name = "device", .base = 0x44df4000,
+		.rstctrl = 0x0, .rstst = 0x4, .rstmap = am4_device_rst_map,
+		.flags = OMAP_PRM_HAS_RSTCTRL | OMAP_PRM_HAS_NO_CLKDM
+	},
 	{ },
 };
 
