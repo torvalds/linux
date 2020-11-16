@@ -5242,12 +5242,131 @@ static int i40e_get_module_eeprom(struct net_device *netdev,
 
 static int i40e_get_eee(struct net_device *netdev, struct ethtool_eee *edata)
 {
-	return -EOPNOTSUPP;
+	struct i40e_netdev_priv *np = netdev_priv(netdev);
+	struct i40e_aq_get_phy_abilities_resp phy_cfg;
+	enum i40e_status_code status = 0;
+	struct i40e_vsi *vsi = np->vsi;
+	struct i40e_pf *pf = vsi->back;
+	struct i40e_hw *hw = &pf->hw;
+
+	/* Get initial PHY capabilities */
+	status = i40e_aq_get_phy_capabilities(hw, false, true, &phy_cfg, NULL);
+	if (status)
+		return -EAGAIN;
+
+	/* Check whether NIC configuration is compatible with Energy Efficient
+	 * Ethernet (EEE) mode.
+	 */
+	if (phy_cfg.eee_capability == 0)
+		return -EOPNOTSUPP;
+
+	edata->supported = SUPPORTED_Autoneg;
+	edata->lp_advertised = edata->supported;
+
+	/* Get current configuration */
+	status = i40e_aq_get_phy_capabilities(hw, false, false, &phy_cfg, NULL);
+	if (status)
+		return -EAGAIN;
+
+	edata->advertised = phy_cfg.eee_capability ? SUPPORTED_Autoneg : 0U;
+	edata->eee_enabled = !!edata->advertised;
+	edata->tx_lpi_enabled = pf->stats.tx_lpi_status;
+
+	edata->eee_active = pf->stats.tx_lpi_status && pf->stats.rx_lpi_status;
+
+	return 0;
+}
+
+static int i40e_is_eee_param_supported(struct net_device *netdev,
+				       struct ethtool_eee *edata)
+{
+	struct i40e_netdev_priv *np = netdev_priv(netdev);
+	struct i40e_vsi *vsi = np->vsi;
+	struct i40e_pf *pf = vsi->back;
+	struct i40e_ethtool_not_used {
+		u32 value;
+		const char *name;
+	} param[] = {
+		{edata->advertised & ~SUPPORTED_Autoneg, "advertise"},
+		{edata->tx_lpi_timer, "tx-timer"},
+		{edata->tx_lpi_enabled != pf->stats.tx_lpi_status, "tx-lpi"}
+	};
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(param); i++) {
+		if (param[i].value) {
+			netdev_info(netdev,
+				    "EEE setting %s not supported\n",
+				    param[i].name);
+			return -EOPNOTSUPP;
+		}
+	}
+
+	return 0;
 }
 
 static int i40e_set_eee(struct net_device *netdev, struct ethtool_eee *edata)
 {
-	return -EOPNOTSUPP;
+	struct i40e_netdev_priv *np = netdev_priv(netdev);
+	struct i40e_aq_get_phy_abilities_resp abilities;
+	enum i40e_status_code status = I40E_SUCCESS;
+	struct i40e_aq_set_phy_config config;
+	struct i40e_vsi *vsi = np->vsi;
+	struct i40e_pf *pf = vsi->back;
+	struct i40e_hw *hw = &pf->hw;
+	__le16 eee_capability;
+
+	/* Deny parameters we don't support */
+	if (i40e_is_eee_param_supported(netdev, edata))
+		return -EOPNOTSUPP;
+
+	/* Get initial PHY capabilities */
+	status = i40e_aq_get_phy_capabilities(hw, false, true, &abilities,
+					      NULL);
+	if (status)
+		return -EAGAIN;
+
+	/* Check whether NIC configuration is compatible with Energy Efficient
+	 * Ethernet (EEE) mode.
+	 */
+	if (abilities.eee_capability == 0)
+		return -EOPNOTSUPP;
+
+	/* Cache initial EEE capability */
+	eee_capability = abilities.eee_capability;
+
+	/* Get current PHY configuration */
+	status = i40e_aq_get_phy_capabilities(hw, false, false, &abilities,
+					      NULL);
+	if (status)
+		return -EAGAIN;
+
+	/* Cache current PHY configuration */
+	config.phy_type = abilities.phy_type;
+	config.phy_type_ext = abilities.phy_type_ext;
+	config.link_speed = abilities.link_speed;
+	config.abilities = abilities.abilities |
+			   I40E_AQ_PHY_ENABLE_ATOMIC_LINK;
+	config.eeer = abilities.eeer_val;
+	config.low_power_ctrl = abilities.d3_lpan;
+	config.fec_config = abilities.fec_cfg_curr_mod_ext_info &
+			    I40E_AQ_PHY_FEC_CONFIG_MASK;
+
+	/* Set desired EEE state */
+	if (edata->eee_enabled) {
+		config.eee_capability = eee_capability;
+		config.eeer |= cpu_to_le32(I40E_PRTPM_EEER_TX_LPI_EN_MASK);
+	} else {
+		config.eee_capability = 0;
+		config.eeer &= cpu_to_le32(~I40E_PRTPM_EEER_TX_LPI_EN_MASK);
+	}
+
+	/* Apply modified PHY configuration */
+	status = i40e_aq_set_phy_config(hw, &config, NULL);
+	if (status)
+		return -EAGAIN;
+
+	return 0;
 }
 
 static const struct ethtool_ops i40e_ethtool_recovery_mode_ops = {
