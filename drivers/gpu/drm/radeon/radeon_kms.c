@@ -41,6 +41,7 @@
 #include "radeon.h"
 #include "radeon_asic.h"
 #include "radeon_drv.h"
+#include "radeon_kms.h"
 
 #if defined(CONFIG_VGA_SWITCHEROO)
 bool radeon_has_atpx(void);

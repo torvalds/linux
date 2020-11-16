@@ -44,6 +44,7 @@
 
 #include "atom.h"
 #include "radeon.h"
+#include "radeon_kms.h"
 
 static void avivo_crtc_load_lut(struct drm_crtc *crtc)
 {
