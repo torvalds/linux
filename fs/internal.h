@@ -114,7 +114,9 @@ extern struct file *alloc_empty_file_noaccount(int, const struct cred *);
  */
 extern int reconfigure_super(struct fs_context *);
 extern bool trylock_super(struct super_block *sb);
+struct super_block *__get_super(struct block_device *bdev, bool excl);
 extern struct super_block *user_get_super(dev_t);
+void put_super(struct super_block *sb);
 extern bool mount_capable(struct fs_context *);
 
 /*
