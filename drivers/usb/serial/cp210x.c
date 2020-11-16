@@ -1364,9 +1364,11 @@ static bool cp210x_termios_change(const struct ktermios *a, const struct ktermio
 static void cp210x_set_termios(struct tty_struct *tty,
 		struct usb_serial_port *port, struct ktermios *old_termios)
 {
+	struct cp210x_serial_private *priv = usb_get_serial_data(port->serial);
 	struct device *dev = &port->dev;
 	unsigned int cflag, old_cflag;
 	u16 bits;
+	int ret;
 
 	if (!cp210x_termios_change(&tty->termios, old_termios))
 		return;
@@ -1377,73 +1379,52 @@ static void cp210x_set_termios(struct tty_struct *tty,
 	if (tty->termios.c_ospeed != old_termios->c_ospeed)
 		cp210x_change_speed(tty, port, old_termios);
 
-	/* If the number of data bits is to be updated */
-	if ((cflag & CSIZE) != (old_cflag & CSIZE)) {
-		cp210x_get_line_ctl(port, &bits);
-		bits &= ~BITS_DATA_MASK;
-		switch (cflag & CSIZE) {
-		case CS5:
-			bits |= BITS_DATA_5;
-			dev_dbg(dev, "%s - data bits = 5\n", __func__);
-			break;
-		case CS6:
-			bits |= BITS_DATA_6;
-			dev_dbg(dev, "%s - data bits = 6\n", __func__);
-			break;
-		case CS7:
-			bits |= BITS_DATA_7;
-			dev_dbg(dev, "%s - data bits = 7\n", __func__);
-			break;
-		case CS8:
-		default:
-			bits |= BITS_DATA_8;
-			dev_dbg(dev, "%s - data bits = 8\n", __func__);
-			break;
-		}
-		if (cp210x_write_u16_reg(port, CP210X_SET_LINE_CTL, bits))
-			dev_dbg(dev, "Number of data bits requested not supported by device\n");
+	/* CP2101 only supports CS8, 1 stop bit and non-stick parity. */
+	if (priv->partnum == CP210X_PARTNUM_CP2101) {
+		tty->termios.c_cflag &= ~(CSIZE | CSTOPB | CMSPAR);
+		tty->termios.c_cflag |= CS8;
 	}
 
-	if ((cflag     & (PARENB|PARODD|CMSPAR)) !=
-	    (old_cflag & (PARENB|PARODD|CMSPAR))) {
-		cp210x_get_line_ctl(port, &bits);
-		bits &= ~BITS_PARITY_MASK;
-		if (cflag & PARENB) {
-			if (cflag & CMSPAR) {
-				if (cflag & PARODD) {
-					bits |= BITS_PARITY_MARK;
-					dev_dbg(dev, "%s - parity = MARK\n", __func__);
-				} else {
-					bits |= BITS_PARITY_SPACE;
-					dev_dbg(dev, "%s - parity = SPACE\n", __func__);
-				}
-			} else {
-				if (cflag & PARODD) {
-					bits |= BITS_PARITY_ODD;
-					dev_dbg(dev, "%s - parity = ODD\n", __func__);
-				} else {
-					bits |= BITS_PARITY_EVEN;
-					dev_dbg(dev, "%s - parity = EVEN\n", __func__);
-				}
-			}
-		}
-		if (cp210x_write_u16_reg(port, CP210X_SET_LINE_CTL, bits))
-			dev_dbg(dev, "Parity mode not supported by device\n");
+	bits = 0;
+
+	switch (C_CSIZE(tty)) {
+	case CS5:
+		bits |= BITS_DATA_5;
+		break;
+	case CS6:
+		bits |= BITS_DATA_6;
+		break;
+	case CS7:
+		bits |= BITS_DATA_7;
+		break;
+	case CS8:
+	default:
+		bits |= BITS_DATA_8;
+		break;
 	}
 
-	if ((cflag & CSTOPB) != (old_cflag & CSTOPB)) {
-		cp210x_get_line_ctl(port, &bits);
-		bits &= ~BITS_STOP_MASK;
-		if (cflag & CSTOPB) {
-			bits |= BITS_STOP_2;
-			dev_dbg(dev, "%s - stop bits = 2\n", __func__);
+	if (C_PARENB(tty)) {
+		if (C_CMSPAR(tty)) {
+			if (C_PARODD(tty))
+				bits |= BITS_PARITY_MARK;
+			else
+				bits |= BITS_PARITY_SPACE;
 		} else {
-			bits |= BITS_STOP_1;
-			dev_dbg(dev, "%s - stop bits = 1\n", __func__);
+			if (C_PARODD(tty))
+				bits |= BITS_PARITY_ODD;
+			else
+				bits |= BITS_PARITY_EVEN;
 		}
-		if (cp210x_write_u16_reg(port, CP210X_SET_LINE_CTL, bits))
-			dev_dbg(dev, "Number of stop bits requested not supported by device\n");
 	}
+
+	if (C_CSTOPB(tty))
+		bits |= BITS_STOP_2;
+	else
+		bits |= BITS_STOP_1;
+
+	ret = cp210x_write_u16_reg(port, CP210X_SET_LINE_CTL, bits);
+	if (ret)
+		dev_err(&port->dev, "failed to set line control: %d\n", ret);
 
 	if ((cflag & CRTSCTS) != (old_cflag & CRTSCTS)) {
 		struct cp210x_flow_ctl flow_ctl;
