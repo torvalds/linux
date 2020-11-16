@@ -601,12 +601,20 @@
 		compatible = "ti,am3-prm-inst", "ti,omap-prm-inst";
 		reg = <0xc00 0x100>;
 		#reset-cells = <1>;
+		#power-domain-cells = <0>;
 	};
 
 	prm_wkup: prm@d00 {
 		compatible = "ti,am3-prm-inst", "ti,omap-prm-inst";
 		reg = <0xd00 0x100>;
 		#reset-cells = <1>;
+		#power-domain-cells = <0>;
+	};
+
+	prm_mpu: prm@e00 {
+		compatible = "ti,am3-prm-inst", "ti,omap-prm-inst";
+		reg = <0xe00 0x100>;
+		#power-domain-cells = <0>;
 	};
 
 	prm_device: prm@f00 {
@@ -615,11 +623,23 @@
 		#reset-cells = <1>;
 	};
 
+	prm_rtc: prm@1000 {
+		compatible = "ti,am3-prm-inst", "ti,omap-prm-inst";
+		reg = <0x1000 0x100>;
+		#power-domain-cells = <0>;
+	};
+
 	prm_gfx: prm@1100 {
 		compatible = "ti,am3-prm-inst", "ti,omap-prm-inst";
 		reg = <0x1100 0x100>;
 		#power-domain-cells = <0>;
 		#reset-cells = <1>;
+	};
+
+	prm_cefuse: prm@1200 {
+		compatible = "ti,am3-prm-inst", "ti,omap-prm-inst";
+		reg = <0x1200 0x100>;
+		#power-domain-cells = <0>;
 	};
 };
 
