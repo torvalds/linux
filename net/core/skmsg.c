@@ -423,9 +423,16 @@ static int sk_psock_skb_ingress_enqueue(struct sk_buff *skb,
 					struct sock *sk,
 					struct sk_msg *msg)
 {
-	int num_sge = skb_to_sgvec(skb, msg->sg.data, 0, skb->len);
-	int copied;
+	int num_sge, copied;
 
+	/* skb linearize may fail with ENOMEM, but lets simply try again
+	 * later if this happens. Under memory pressure we don't want to
+	 * drop the skb. We need to linearize the skb so that the mapping
+	 * in skb_to_sgvec can not error.
+	 */
+	if (skb_linearize(skb))
+		return -EAGAIN;
+	num_sge = skb_to_sgvec(skb, msg->sg.data, 0, skb->len);
 	if (unlikely(num_sge < 0)) {
 		kfree(msg);
 		return num_sge;
