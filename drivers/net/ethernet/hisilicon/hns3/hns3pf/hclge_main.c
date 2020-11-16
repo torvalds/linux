@@ -1379,6 +1379,7 @@ static void hclge_parse_dev_specs(struct hclge_dev *hdev,
 	ae_dev->dev_specs.max_non_tso_bd_num = req0->max_non_tso_bd_num;
 	ae_dev->dev_specs.rss_ind_tbl_size =
 		le16_to_cpu(req0->rss_ind_tbl_size);
+	ae_dev->dev_specs.int_ql_max = le16_to_cpu(req0->int_ql_max);
 	ae_dev->dev_specs.rss_key_size = le16_to_cpu(req0->rss_key_size);
 	ae_dev->dev_specs.max_tm_rate = le32_to_cpu(req0->max_tm_rate);
 }
