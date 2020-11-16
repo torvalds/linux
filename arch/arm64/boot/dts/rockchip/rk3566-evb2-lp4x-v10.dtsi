@@ -20,10 +20,51 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&hp_det>;
 	};
+
+	vcc_camera: vcc-camera-regulator {
+		compatible = "regulator-fixed";
+		gpio = <&gpio0 RK_PC1 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&camera_pwr>;
+		regulator-name = "vcc_camera";
+		enable-active-high;
+		regulator-always-on;
+		regulator-boot-on;
+	};
 };
 
 &combphy1_usq {
 	status = "okay";
+};
+
+&csi_dphy {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_in_ucam0: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&ov5695_out>;
+				data-lanes = <1 2>;
+			};
+		};
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidphy_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&isp0_in>;
+			};
+		};
+	};
 };
 
 /*
@@ -95,6 +136,73 @@
 	status = "okay";
 };
 
+&i2c2 {
+	status = "okay";
+	pinctrl-0 = <&i2c2m1_xfer>;
+
+	ov5695: ov5695@36 {
+		status = "okay";
+		compatible = "ovti,ov5695";
+		reg = <0x36>;
+		clocks = <&cru CLK_CIF_OUT>;
+		clock-names = "xvclk";
+		power-domains = <&power RK3568_PD_VI>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cif_clkout>;
+		reset-gpios = <&gpio3 RK_PA6 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio4 RK_PB2 GPIO_ACTIVE_HIGH>;
+		/*power-gpios = <&gpio0 RK_PC1 GPIO_ACTIVE_HIGH>;*/
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "TongJu";
+		rockchip,camera-module-lens-name = "CHT842-MD";
+		port {
+			ov5695_out: endpoint {
+				remote-endpoint = <&mipi_in_ucam0>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+};
+
+&i2c4 {
+	/* i2c4 sda conflict with camera pwdn */
+	status = "disabled";
+
+	/*
+	 * gc2145 needs to be disabled,
+	 * when gmac1 is enabled;
+	 * pinctrl conflicts;
+	 */
+	gc2145: gc2145@3c {
+		status = "disabled";
+		compatible = "galaxycore,gc2145";
+		reg = <0x3c>;
+		clocks = <&cru CLK_CIF_OUT>;
+		clock-names = "xvclk";
+		power-domains = <&power RK3568_PD_VI>;
+		pinctrl-names = "default";
+		/* conflict with gmac1m1_rgmii_pins & cif_clkout*/
+		pinctrl-0 = <&cif_dvp_8bit>;
+
+		/*avdd-supply = <&vcc2v8_dvp>;*/
+		/*dovdd-supply = <&vcc1v8_dvp>;*/
+		/*dvdd-supply = <&vcc1v8_dvp>;*/
+
+		/*reset-gpios = <&gpio3 RK_PB5 GPIO_ACTIVE_LOW>;*/
+		pwdn-gpios = <&gpio4 RK_PA6 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "CameraKing";
+		rockchip,camera-module-lens-name = "Largan";
+		port {
+			gc2145_out: endpoint {
+				remote-endpoint = <&dvp_in_bcam>;
+			};
+		};
+	};
+};
+
 &mdio1 {
 	rgmii_phy0: phy@0 {
 		compatible = "ethernet-phy-ieee802.3-c22";
@@ -121,6 +229,14 @@
 };
 
 &pinctrl {
+	cam {
+		camera_pwr: camera-pwr {
+			rockchip,pins =
+				/* camera power en */
+				<0 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
 	headphone {
 		hp_det: hp-det {
 			rockchip,pins = <3 RK_PA1 RK_FUNC_GPIO &pcfg_pull_down>;
@@ -154,6 +270,50 @@
 	lcd1 {
 		lcd1_rst_gpio: lcd1-rst-gpio {
 			rockchip,pins = <3 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
+
+&rkcif {
+	status = "okay";
+};
+
+&rkcif_dvp {
+	status = "okay";
+
+	port {
+		/* Parallel bus endpoint */
+		dvp_in_bcam: endpoint {
+			remote-endpoint = <&gc2145_out>;
+			bus-width = <8>;
+			vsync-active = <0>;
+			hsync-active = <1>;
+		};
+	};
+};
+
+&rkcif_mmu {
+	status = "okay";
+};
+
+&rkisp {
+	status = "okay";
+};
+
+&rkisp_mmu {
+	status = "okay";
+};
+
+&rkisp_vir0 {
+	status = "okay";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp0_in: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&csidphy_out>;
 		};
 	};
 };
