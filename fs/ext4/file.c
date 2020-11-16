@@ -36,11 +36,9 @@
 #include "acl.h"
 #include "truncate.h"
 
-static bool ext4_dio_supported(struct kiocb *iocb, struct iov_iter *iter)
+static bool ext4_dio_supported(struct inode *inode)
 {
-	struct inode *inode = file_inode(iocb->ki_filp);
-
-	if (!fscrypt_dio_supported(iocb, iter))
+	if (IS_ENABLED(CONFIG_FS_ENCRYPTION) && IS_ENCRYPTED(inode))
 		return false;
 	if (fsverity_active(inode))
 		return false;
@@ -63,7 +61,7 @@ static ssize_t ext4_dio_read_iter(struct kiocb *iocb, struct iov_iter *to)
 		inode_lock_shared(inode);
 	}
 
-	if (!ext4_dio_supported(iocb, to)) {
+	if (!ext4_dio_supported(inode)) {
 		inode_unlock_shared(inode);
 		/*
 		 * Fallback to buffered I/O if the operation being performed on
@@ -496,7 +494,7 @@ static ssize_t ext4_dio_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	}
 
 	/* Fallback to buffered I/O if the inode does not support direct I/O. */
-	if (!ext4_dio_supported(iocb, from)) {
+	if (!ext4_dio_supported(inode)) {
 		if (ilock_shared)
 			inode_unlock_shared(inode);
 		else
