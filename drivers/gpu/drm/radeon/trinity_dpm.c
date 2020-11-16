@@ -29,6 +29,7 @@
 #include "radeon_asic.h"
 #include "trinity_dpm.h"
 #include "trinityd.h"
+#include "vce.h"
 
 #define TRINITY_MAX_DEEPSLEEP_DIVIDER_ID 5
 #define TRINITY_MINIMUM_ENGINE_CLOCK 800
@@ -293,7 +294,6 @@ static const u32 trinity_override_mgpg_sequences[] =
 	0x00000204, 0x00000000,
 };
 
-extern void vce_v1_0_enable_mgcg(struct radeon_device *rdev, bool enable);
 static void trinity_program_clk_gating_hw_sequence(struct radeon_device *rdev,
 						   const u32 *seq, u32 count);
 static void trinity_override_dynamic_mg_powergating(struct radeon_device *rdev);

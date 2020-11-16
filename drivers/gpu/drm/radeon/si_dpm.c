@@ -35,6 +35,7 @@
 #include "si_dpm.h"
 #include "si.h"
 #include "sid.h"
+#include "vce.h"
 
 #define MC_CG_ARB_FREQ_F0           0x0a
 #define MC_CG_ARB_FREQ_F1           0x0b
@@ -1720,8 +1721,6 @@ static const struct si_powertune_data powertune_data_hainan =
 	},
 	true
 };
-
-extern void vce_v1_0_enable_mgcg(struct radeon_device *rdev, bool enable);
 
 static int si_populate_voltage_value(struct radeon_device *rdev,
 				     const struct atom_voltage_table *table,
