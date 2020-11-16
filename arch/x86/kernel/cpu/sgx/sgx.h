@@ -34,15 +34,24 @@ struct sgx_epc_page {
  * physical memory e.g. for memory areas of the each node. This structure is
  * used to store EPC pages for one EPC section and virtual memory area where
  * the pages have been mapped.
+ *
+ * 'lock' must be held before accessing 'page_list' or 'free_cnt'.
  */
 struct sgx_epc_section {
 	unsigned long phys_addr;
 	void *virt_addr;
-	struct list_head page_list;
-	struct list_head laundry_list;
 	struct sgx_epc_page *pages;
-	unsigned long free_cnt;
+
 	spinlock_t lock;
+	struct list_head page_list;
+	unsigned long free_cnt;
+
+	/*
+	 * Pages which need EREMOVE run on them before they can be
+	 * used.  Only safe to be accessed in ksgxd and init code.
+	 * Not protected by locks.
+	 */
+	struct list_head init_laundry_list;
 };
 
 extern struct sgx_epc_section sgx_epc_sections[SGX_MAX_EPC_SECTIONS];

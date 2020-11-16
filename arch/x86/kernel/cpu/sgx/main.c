@@ -36,13 +36,15 @@ static void sgx_sanitize_section(struct sgx_epc_section *section)
 	LIST_HEAD(dirty);
 	int ret;
 
-	while (!list_empty(&section->laundry_list)) {
+	/* init_laundry_list is thread-local, no need for a lock: */
+	while (!list_empty(&section->init_laundry_list)) {
 		if (kthread_should_stop())
 			return;
 
+		/* needed for access to ->page_list: */
 		spin_lock(&section->lock);
 
-		page = list_first_entry(&section->laundry_list,
+		page = list_first_entry(&section->init_laundry_list,
 					struct sgx_epc_page, list);
 
 		ret = __eremove(sgx_get_epc_virt_addr(page));
@@ -56,7 +58,7 @@ static void sgx_sanitize_section(struct sgx_epc_section *section)
 		cond_resched();
 	}
 
-	list_splice(&dirty, &section->laundry_list);
+	list_splice(&dirty, &section->init_laundry_list);
 }
 
 static bool sgx_reclaimer_age(struct sgx_epc_page *epc_page)
@@ -418,7 +420,7 @@ static int ksgxd(void *p)
 		sgx_sanitize_section(&sgx_epc_sections[i]);
 
 		/* Should never happen. */
-		if (!list_empty(&sgx_epc_sections[i].laundry_list))
+		if (!list_empty(&sgx_epc_sections[i].init_laundry_list))
 			WARN(1, "EPC section %d has unsanitized pages.\n", i);
 	}
 
@@ -635,13 +637,13 @@ static bool __init sgx_setup_epc_section(u64 phys_addr, u64 size,
 	section->phys_addr = phys_addr;
 	spin_lock_init(&section->lock);
 	INIT_LIST_HEAD(&section->page_list);
-	INIT_LIST_HEAD(&section->laundry_list);
+	INIT_LIST_HEAD(&section->init_laundry_list);
 
 	for (i = 0; i < nr_pages; i++) {
 		section->pages[i].section = index;
 		section->pages[i].flags = 0;
 		section->pages[i].owner = NULL;
-		list_add_tail(&section->pages[i].list, &section->laundry_list);
+		list_add_tail(&section->pages[i].list, &section->init_laundry_list);
 	}
 
 	section->free_cnt = nr_pages;
