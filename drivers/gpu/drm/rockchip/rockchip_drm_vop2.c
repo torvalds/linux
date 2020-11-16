@@ -732,6 +732,25 @@ static bool has_rb_swapped(uint32_t format)
 	}
 }
 
+static bool is_uv_swap(uint32_t bus_format, uint32_t output_mode)
+{
+	/*
+	 * FIXME:
+	 *
+	 * There is no media type for YUV444 output,
+	 * so when out_mode is AAAA or P888, assume output is YUV444 on
+	 * yuv format.
+	 *
+	 * From H/W testing, YUV444 mode need a rb swap.
+	 */
+	if ((bus_format == MEDIA_BUS_FMT_YUV8_1X24 ||
+	     bus_format == MEDIA_BUS_FMT_YUV10_1X30) &&
+	    (output_mode == ROCKCHIP_OUT_MODE_AAAA ||
+	     output_mode == ROCKCHIP_OUT_MODE_P888))
+		return true;
+	else
+		return false;
+}
 static bool is_yuv_support(uint32_t format)
 {
 	switch (format) {
@@ -1635,6 +1654,7 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 	VOP_WIN_SET(vop2, win, y2r_en, vpstate->y2r_en);
 	VOP_WIN_SET(vop2, win, r2y_en, vpstate->r2y_en);
 	VOP_WIN_SET(vop2, win, csc_mode, vpstate->csc_mode);
+
 	VOP_WIN_SET(vop2, win, enable, 1);
 	VOP_WIN_SET(vop2, win, gate, 1);
 	spin_unlock(&vop2->reg_lock);
@@ -2661,6 +2681,11 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 		out_mode = vcstate->output_mode;
 	VOP_MODULE_SET(vop2, vp, out_mode, out_mode);
 	VOP_MODULE_SET(vop2, vp, overlay_mode, is_yuv_output(vcstate->bus_format));
+
+	if (is_uv_swap(vcstate->bus_format, vcstate->output_mode))
+		VOP_MODULE_SET(vop2, vp, dsp_data_swap, DSP_RB_SWAP);
+	else
+		VOP_MODULE_SET(vop2, vp, dsp_data_swap, 0);
 
 	vop2_dither_setup(crtc);
 

@@ -504,6 +504,7 @@ struct vop2_video_port_regs {
 	struct vop_reg out_mode;
 	struct vop_reg standby;
 	struct vop_reg dsp_interlace;
+	struct vop_reg dsp_data_swap;
 	struct vop_reg pre_scan_htiming;
 	struct vop_reg htotal_pw;
 	struct vop_reg hact_st_end;
