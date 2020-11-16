@@ -30,6 +30,7 @@
 #include "rv770.h"
 #include "radeon.h"
 #include "radeon_asic.h"
+#include "ni_dpm.h"
 #include "si_dpm.h"
 #include "sid.h"
 
@@ -1719,8 +1720,6 @@ static const struct si_powertune_data powertune_data_hainan =
 };
 
 struct evergreen_power_info *evergreen_get_pi(struct radeon_device *rdev);
-struct ni_power_info *ni_get_pi(struct radeon_device *rdev);
-struct ni_ps *ni_get_ps(struct radeon_ps *rps);
 
 extern int si_mc_load_microcode(struct radeon_device *rdev);
 extern void vce_v1_0_enable_mgcg(struct radeon_device *rdev, bool enable);
