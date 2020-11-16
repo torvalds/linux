@@ -89,8 +89,6 @@ _GLOBAL(hash_page)
 #else
 	rlwimi	r8,r4,23,20,28		/* compute pte address */
 #endif
-	rlwinm	r0,r3,32-3,24,24	/* _PAGE_RW access -> _PAGE_DIRTY */
-	ori	r0,r0,_PAGE_ACCESSED|_PAGE_HASHPTE
 
 	/*
 	 * Update the linux PTE atomically.  We do the lwarx up-front
@@ -106,7 +104,18 @@ _GLOBAL(hash_page)
 #endif
 .Lretry:
 	lwarx	r6,0,r8			/* get linux-style pte, flag word */
+#ifdef CONFIG_PPC_KUAP
+	mfsrin	r5,r4
+	rlwinm	r0,r9,28,_PAGE_RW	/* MSR[PR] => _PAGE_RW */
+	rlwinm	r5,r5,12,_PAGE_RW	/* Ks => _PAGE_RW */
+	andc	r5,r5,r0		/* Ks & ~MSR[PR] */
+	andc	r5,r6,r5		/* Clear _PAGE_RW when Ks = 1 && MSR[PR] = 0 */
+	andc.	r5,r3,r5		/* check access & ~permission */
+#else
 	andc.	r5,r3,r6		/* check access & ~permission */
+#endif
+	rlwinm	r0,r3,32-3,24,24	/* _PAGE_RW access -> _PAGE_DIRTY */
+	ori	r0,r0,_PAGE_ACCESSED|_PAGE_HASHPTE
 #ifdef CONFIG_SMP
 	bne-	.Lhash_page_out		/* return if access not permitted */
 #else
