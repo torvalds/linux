@@ -65,7 +65,6 @@ struct cpufreq_policy {
 	unsigned int		max;    /* in kHz */
 	unsigned int		cur;    /* in kHz, only needed if cpufreq
 					 * governors are used */
-	unsigned int		restore_freq; /* = policy->cur before transition */
 	unsigned int		suspend_freq; /* freq to set during suspend */
 
 	unsigned int		policy; /* see above */
@@ -314,10 +313,6 @@ struct cpufreq_driver {
 	/* define one out of two */
 	int		(*setpolicy)(struct cpufreq_policy *policy);
 
-	/*
-	 * On failure, should always restore frequency to policy->restore_freq
-	 * (i.e. old freq).
-	 */
 	int		(*target)(struct cpufreq_policy *policy,
 				  unsigned int target_freq,
 				  unsigned int relation);	/* Deprecated */
