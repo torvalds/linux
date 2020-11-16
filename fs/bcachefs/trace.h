@@ -513,7 +513,7 @@ TRACE_EVENT(transaction_restart_ip,
 		__entry->ip	= ip;
 	),
 
-	TP_printk("%pF %pF", (void *) __entry->caller, (void *) __entry->ip)
+	TP_printk("%pS %pS", (void *) __entry->caller, (void *) __entry->ip)
 );
 
 DECLARE_EVENT_CLASS(transaction_restart,
@@ -568,7 +568,7 @@ TRACE_EVENT(trans_restart_would_deadlock,
 		__entry->want_iter_type		= want_iter_type;
 	),
 
-	TP_printk("%pF %pF because %u have %u:%u want %u:%u",
+	TP_printk("%pS %pS because %u have %u:%u want %u:%u",
 		  (void *) __entry->trans_ip,
 		  (void *) __entry->caller_ip,
 		  __entry->reason,
