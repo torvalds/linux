@@ -26,6 +26,7 @@
 #include <linux/seq_file.h>
 
 #include "atom.h"
+#include "evergreen.h"
 #include "r600_dpm.h"
 #include "rv770.h"
 #include "radeon.h"
@@ -1719,8 +1720,6 @@ static const struct si_powertune_data powertune_data_hainan =
 	},
 	true
 };
-
-struct evergreen_power_info *evergreen_get_pi(struct radeon_device *rdev);
 
 extern void vce_v1_0_enable_mgcg(struct radeon_device *rdev, bool enable);
 

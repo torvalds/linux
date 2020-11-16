@@ -29,6 +29,7 @@
 #include "btc_dpm.h"
 #include "btcd.h"
 #include "cypress_dpm.h"
+#include "evergreen.h"
 #include "r600_dpm.h"
 #include "rv770.h"
 #include "radeon.h"
@@ -48,8 +49,6 @@
 
 #ifndef BTC_MGCG_SEQUENCE
 #define BTC_MGCG_SEQUENCE  300
-
-struct evergreen_power_info *evergreen_get_pi(struct radeon_device *rdev);
 
 extern int ni_mc_load_microcode(struct radeon_device *rdev);
 

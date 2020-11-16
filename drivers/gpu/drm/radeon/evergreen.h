@@ -27,6 +27,7 @@
 #define __RADEON_EVERGREEN_H__
 
 struct evergreen_mc_save;
+struct evergreen_power_info;
 struct radeon_device;
 
 bool evergreen_is_display_hung(struct radeon_device *rdev);
@@ -47,5 +48,6 @@ u32 evergreen_get_number_of_dram_channels(struct radeon_device *rdev);
 void evergreen_print_gpu_status_regs(struct radeon_device *rdev);
 u32 evergreen_gpu_check_soft_reset(struct radeon_device *rdev);
 int evergreen_rlc_resume(struct radeon_device *rdev);
+struct evergreen_power_info *evergreen_get_pi(struct radeon_device *rdev);
 
 #endif				/* __RADEON_EVERGREEN_H__ */

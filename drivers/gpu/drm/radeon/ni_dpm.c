@@ -26,6 +26,7 @@
 #include <linux/seq_file.h>
 
 #include "atom.h"
+#include "evergreen.h"
 #include "ni_dpm.h"
 #include "nid.h"
 #include "r600_dpm.h"
@@ -719,8 +720,6 @@ static const u32 cayman_sysls_enable[] =
 	0x00008dfc, 0x00000000, 0xffffffff
 };
 #define CAYMAN_SYSLS_ENABLE_LENGTH sizeof(cayman_sysls_enable) / (3 * sizeof(u32))
-
-struct evergreen_power_info *evergreen_get_pi(struct radeon_device *rdev);
 
 extern int ni_mc_load_microcode(struct radeon_device *rdev);
 
