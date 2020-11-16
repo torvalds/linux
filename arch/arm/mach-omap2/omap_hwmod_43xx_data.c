@@ -48,29 +48,6 @@ static struct omap_hwmod am43xx_l4_hs_hwmod = {
 	},
 };
 
-static struct omap_hwmod_rst_info am33xx_wkup_m3_resets[] = {
-	{ .name = "wkup_m3", .rst_shift = 3, .st_shift = 5 },
-};
-
-static struct omap_hwmod am43xx_wkup_m3_hwmod = {
-	.name		= "wkup_m3",
-	.class		= &am33xx_wkup_m3_hwmod_class,
-	.clkdm_name	= "l4_wkup_aon_clkdm",
-	/* Keep hardreset asserted */
-	.flags		= HWMOD_INIT_NO_RESET | HWMOD_NO_IDLEST,
-	.main_clk	= "sys_clkin_ck",
-	.prcm		= {
-		.omap4	= {
-			.clkctrl_offs	= AM43XX_CM_WKUP_WKUP_M3_CLKCTRL_OFFSET,
-			.rstctrl_offs	= AM43XX_RM_WKUP_RSTCTRL_OFFSET,
-			.rstst_offs	= AM43XX_RM_WKUP_RSTST_OFFSET,
-			.modulemode	= MODULEMODE_SWCTRL,
-		},
-	},
-	.rst_lines	= am33xx_wkup_m3_resets,
-	.rst_lines_cnt	= ARRAY_SIZE(am33xx_wkup_m3_resets),
-};
-
 /* Interfaces */
 static struct omap_hwmod_ocp_if am43xx_l3_main__emif = {
 	.master		= &am33xx_l3_main_hwmod,
@@ -83,20 +60,6 @@ static struct omap_hwmod_ocp_if am43xx_l3_main__l4_hs = {
 	.master		= &am33xx_l3_main_hwmod,
 	.slave		= &am43xx_l4_hs_hwmod,
 	.clk		= "l3s_gclk",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-static struct omap_hwmod_ocp_if am43xx_wkup_m3__l4_wkup = {
-	.master		= &am43xx_wkup_m3_hwmod,
-	.slave		= &am33xx_l4_wkup_hwmod,
-	.clk		= "sys_clkin_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
-static struct omap_hwmod_ocp_if am43xx_l4_wkup__wkup_m3 = {
-	.master		= &am33xx_l4_wkup_hwmod,
-	.slave		= &am43xx_wkup_m3_hwmod,
-	.clk		= "sys_clkin_ck",
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -124,8 +87,6 @@ static struct omap_hwmod_ocp_if *am43xx_hwmod_ocp_ifs[] __initdata = {
 	&am33xx_l3_main__l3_instr,
 	&am33xx_l3_s__l3_main,
 	&am43xx_l3_main__emif,
-	&am43xx_wkup_m3__l4_wkup,
-	&am43xx_l4_wkup__wkup_m3,
 	&am43xx_l4_wkup__smartreflex0,
 	&am43xx_l4_wkup__smartreflex1,
 	&am33xx_l3_main__ocmc,

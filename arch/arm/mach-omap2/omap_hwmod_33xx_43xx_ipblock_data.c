@@ -125,14 +125,6 @@ struct omap_hwmod am33xx_mpu_hwmod = {
 };
 
 /*
- * 'wakeup m3' class
- * Wakeup controller sub-system under wakeup domain
- */
-struct omap_hwmod_class am33xx_wkup_m3_hwmod_class = {
-	.name		= "wkup_m3",
-};
-
-/*
  * 'prcm' class
  * power and reset manager (whole prcm infrastructure)
  */

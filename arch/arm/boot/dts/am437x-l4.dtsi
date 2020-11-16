@@ -33,7 +33,6 @@
 
 		target-module@0 {			/* 0x44d00000, ap 4 28.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "wkup_m3";
 			reg = <0x0 0x4>;
 			reg-names = "rev";
 			clocks = <&l4_wkup_aon_clkctrl AM4_L4_WKUP_AON_WKUP_M3_CLKCTRL 0>;
