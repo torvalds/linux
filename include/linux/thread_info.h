@@ -35,6 +35,12 @@ enum {
 	GOOD_STACK,
 };
 
+enum syscall_work_bit {
+	SYSCALL_WORK_BIT_SECCOMP,
+};
+
+#define SYSCALL_WORK_SECCOMP		BIT(SYSCALL_WORK_BIT_SECCOMP)
+
 #include <asm/thread_info.h>
 
 #ifdef __KERNEL__
