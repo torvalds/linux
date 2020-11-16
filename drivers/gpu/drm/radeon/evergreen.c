@@ -41,6 +41,7 @@
 #include "radeon_asic.h"
 #include "radeon_audio.h"
 #include "radeon_ucode.h"
+#include "si.h"
 
 #define DC_HPDx_CONTROL(x)        (DC_HPD1_CONTROL     + (x * 0xc))
 #define DC_HPDx_INT_CONTROL(x)    (DC_HPD1_INT_CONTROL + (x * 0xc))
@@ -218,8 +219,6 @@ void evergreen_pcie_gen2_enable(struct radeon_device *rdev);
 void evergreen_program_aspm(struct radeon_device *rdev);
 void cik_init_cp_pg_table(struct radeon_device *rdev);
 
-extern u32 si_get_csb_size(struct radeon_device *rdev);
-extern void si_get_csb_buffer(struct radeon_device *rdev, volatile u32 *buffer);
 extern u32 cik_get_csb_size(struct radeon_device *rdev);
 extern void cik_get_csb_buffer(struct radeon_device *rdev, volatile u32 *buffer);
 
