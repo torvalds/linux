@@ -341,52 +341,6 @@ static void catpt_dsp_set_regs_defaults(struct catpt_dev *cdev)
 	}
 }
 
-int lpt_dsp_power_down(struct catpt_dev *cdev)
-{
-	catpt_dsp_reset(cdev, true);
-
-	/* set 24Mhz clock for both SSPs */
-	catpt_updatel_shim(cdev, CS1, CATPT_CS_SBCS(0) | CATPT_CS_SBCS(1),
-			   CATPT_CS_SBCS(0) | CATPT_CS_SBCS(1));
-	catpt_dsp_select_lpclock(cdev, true, false);
-
-	/* DRAM power gating all */
-	catpt_dsp_set_srampge(cdev, &cdev->dram, cdev->spec->dram_mask,
-			      cdev->spec->dram_mask);
-	catpt_dsp_set_srampge(cdev, &cdev->iram, cdev->spec->iram_mask,
-			      cdev->spec->iram_mask);
-
-	catpt_updatel_pci(cdev, PMCS, PCI_PM_CTRL_STATE_MASK, PCI_D3hot);
-	/* give hw time to drop off */
-	udelay(50);
-
-	return 0;
-}
-
-int lpt_dsp_power_up(struct catpt_dev *cdev)
-{
-	/* SRAM power gating none */
-	catpt_dsp_set_srampge(cdev, &cdev->dram, cdev->spec->dram_mask, 0);
-	catpt_dsp_set_srampge(cdev, &cdev->iram, cdev->spec->iram_mask, 0);
-
-	catpt_updatel_pci(cdev, PMCS, PCI_PM_CTRL_STATE_MASK, PCI_D0);
-	/* give hw time to wake up */
-	udelay(100);
-
-	catpt_dsp_select_lpclock(cdev, false, false);
-	catpt_updatel_shim(cdev, CS1,
-			   CATPT_CS_SBCS(0) | CATPT_CS_SBCS(1),
-			   CATPT_CS_SBCS(0) | CATPT_CS_SBCS(1));
-	/* stagger DSP reset after clock selection */
-	udelay(50);
-
-	catpt_dsp_reset(cdev, false);
-	/* generate int deassert msg to fix inversed int logic */
-	catpt_updatel_shim(cdev, IMC, CATPT_IMC_IPCDB | CATPT_IMC_IPCCD, 0);
-
-	return 0;
-}
-
 int catpt_dsp_power_down(struct catpt_dev *cdev)
 {
 	u32 mask, val;
