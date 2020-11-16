@@ -145,15 +145,6 @@ struct ipa;
 #define GEN_QMB_0_MAX_READS_BEATS_FMASK		GENMASK(23, 16)
 #define GEN_QMB_1_MAX_READS_BEATS_FMASK		GENMASK(31, 24)
 
-/* ipa->available defines the valid bits in the STATE_AGGR_ACTIVE register */
-static inline u32 ipa_reg_state_aggr_active_offset(enum ipa_version version)
-{
-	if (version == IPA_VERSION_3_5_1)
-		return 0x0000010c;
-
-	return 0x000000b4;
-}
-
 static inline u32 ipa_reg_filt_rout_hash_en_offset(enum ipa_version version)
 {
 	if (version == IPA_VERSION_3_5_1)
@@ -175,6 +166,15 @@ static inline u32 ipa_reg_filt_rout_hash_flush_offset(enum ipa_version version)
 #define IPV6_FILTER_HASH_FMASK			GENMASK(4, 4)
 #define IPV4_ROUTER_HASH_FMASK			GENMASK(8, 8)
 #define IPV4_FILTER_HASH_FMASK			GENMASK(12, 12)
+
+/* ipa->available defines the valid bits in the STATE_AGGR_ACTIVE register */
+static inline u32 ipa_reg_state_aggr_active_offset(enum ipa_version version)
+{
+	if (version == IPA_VERSION_3_5_1)
+		return 0x0000010c;
+
+	return 0x000000b4;
+}
 
 #define IPA_REG_BCR_OFFSET				0x000001d0
 /* The next two fields are not present for IPA v4.2 */
@@ -216,14 +216,15 @@ static inline u32 ipa_reg_bcr_val(enum ipa_version version)
 /* ipa->available defines the valid bits in the AGGR_FORCE_CLOSE register */
 #define IPA_REG_AGGR_FORCE_CLOSE_OFFSET			0x000001ec
 
-/* The internal inactivity timer clock is used for the aggregation timer */
-#define TIMER_FREQUENCY	32000	/* 32 KHz inactivity timer clock */
-
 #define IPA_REG_COUNTER_CFG_OFFSET			0x000001f0
 #define AGGR_GRANULARITY_FMASK			GENMASK(8, 4)
+
+/* The internal inactivity timer clock is used for the aggregation timer */
+#define TIMER_FREQUENCY	32000		/* 32 KHz inactivity timer clock */
+
 /* Compute the value to use in the AGGR_GRANULARITY field representing the
  * given number of microseconds.  The value is one less than the number of
- * timer ticks in the requested period.  Zero not a valid granularity value.
+ * timer ticks in the requested period.  0 not a valid granularity value.
  */
 static inline u32 ipa_aggr_granularity_val(u32 usec)
 {
@@ -332,6 +333,14 @@ static inline u32 ipa_resource_group_dst_count(enum ipa_version version)
 #define CS_METADATA_HDR_OFFSET_FMASK		GENMASK(6, 3)
 #define CS_GEN_QMB_MASTER_SEL_FMASK		GENMASK(8, 8)
 
+/** enum ipa_cs_offload_en - checksum offload field in ENDP_INIT_CFG_N */
+enum ipa_cs_offload_en {
+	IPA_CS_OFFLOAD_NONE		= 0x0,
+	IPA_CS_OFFLOAD_UL		= 0x1,
+	IPA_CS_OFFLOAD_DL		= 0x2,
+	IPA_CS_RSVD			= 0x3,
+};
+
 #define IPA_REG_ENDP_INIT_HDR_N_OFFSET(ep) \
 					(0x00000810 + 0x0070 * (ep))
 #define HDR_LEN_FMASK				GENMASK(5, 0)
@@ -367,6 +376,14 @@ static inline u32 ipa_resource_group_dst_count(enum ipa_version version)
 #define PAD_EN_FMASK				GENMASK(29, 29)
 #define HDR_FTCH_DISABLE_FMASK			GENMASK(30, 30)
 
+/** enum ipa_mode - mode field in ENDP_INIT_MODE_N */
+enum ipa_mode {
+	IPA_BASIC			= 0x0,
+	IPA_ENABLE_FRAMING_HDLC		= 0x1,
+	IPA_ENABLE_DEFRAMING_HDLC	= 0x2,
+	IPA_DMA				= 0x3,
+};
+
 #define IPA_REG_ENDP_INIT_AGGR_N_OFFSET(ep) \
 					(0x00000824 +  0x0070 * (ep))
 #define AGGR_EN_FMASK				GENMASK(1, 0)
@@ -377,6 +394,24 @@ static inline u32 ipa_resource_group_dst_count(enum ipa_version version)
 #define AGGR_SW_EOF_ACTIVE_FMASK		GENMASK(21, 21)
 #define AGGR_FORCE_CLOSE_FMASK			GENMASK(22, 22)
 #define AGGR_HARD_BYTE_LIMIT_ENABLE_FMASK	GENMASK(24, 24)
+
+/** enum ipa_aggr_en - aggregation enable field in ENDP_INIT_AGGR_N */
+enum ipa_aggr_en {
+	IPA_BYPASS_AGGR			= 0x0,
+	IPA_ENABLE_AGGR			= 0x1,
+	IPA_ENABLE_DEAGGR		= 0x2,
+};
+
+/** enum ipa_aggr_type - aggregation type field in ENDP_INIT_AGGR_N */
+enum ipa_aggr_type {
+	IPA_MBIM_16			= 0x0,
+	IPA_HDLC			= 0x1,
+	IPA_TLP				= 0x2,
+	IPA_RNDIS			= 0x3,
+	IPA_GENERIC			= 0x4,
+	IPA_COALESCE			= 0x5,
+	IPA_QCMAP			= 0x6,
+};
 
 /* Valid only for RX (IPA producer) endpoints */
 #define IPA_REG_ENDP_INIT_HOL_BLOCK_EN_N_OFFSET(rxep) \
@@ -418,6 +453,32 @@ static inline u32 rsrc_grp_encoded(enum ipa_version version, u32 rsrc_grp)
 #define DPS_SEQ_TYPE_FMASK			GENMASK(7, 4)
 #define HPS_REP_SEQ_TYPE_FMASK			GENMASK(11, 8)
 #define DPS_REP_SEQ_TYPE_FMASK			GENMASK(15, 12)
+
+/**
+ * enum ipa_seq_type - HPS and DPS sequencer type fields in ENDP_INIT_SEQ_N
+ * @IPA_SEQ_DMA_ONLY:		only DMA is performed
+ * @IPA_SEQ_PKT_PROCESS_NO_DEC_UCP:
+ *	packet processing + no decipher + microcontroller (Ethernet Bridging)
+ * @IPA_SEQ_2ND_PKT_PROCESS_PASS_NO_DEC_UCP:
+ *	second packet processing pass + no decipher + microcontroller
+ * @IPA_SEQ_DMA_DEC:		DMA + cipher/decipher
+ * @IPA_SEQ_DMA_COMP_DECOMP:	DMA + compression/decompression
+ * @IPA_SEQ_PKT_PROCESS_NO_DEC_NO_UCP_DMAP:
+ *	packet processing + no decipher + no uCP + HPS REP DMA parser
+ * @IPA_SEQ_INVALID:		invalid sequencer type
+ *
+ * The values defined here are broken into 4-bit nibbles that are written
+ * into fields of the INIT_SEQ_N endpoint registers.
+ */
+enum ipa_seq_type {
+	IPA_SEQ_DMA_ONLY			= 0x0000,
+	IPA_SEQ_PKT_PROCESS_NO_DEC_UCP		= 0x0002,
+	IPA_SEQ_2ND_PKT_PROCESS_PASS_NO_DEC_UCP	= 0x0004,
+	IPA_SEQ_DMA_DEC				= 0x0011,
+	IPA_SEQ_DMA_COMP_DECOMP			= 0x0020,
+	IPA_SEQ_PKT_PROCESS_NO_DEC_NO_UCP_DMAP	= 0x0806,
+	IPA_SEQ_INVALID				= 0xffff,
+};
 
 #define IPA_REG_ENDP_STATUS_N_OFFSET(ep) \
 					(0x00000840 + 0x0070 * (ep))
@@ -485,66 +546,6 @@ static inline u32 rsrc_grp_encoded(enum ipa_version version, u32 rsrc_grp)
 				IPA_REG_IRQ_SUSPEND_CLR_EE_N_OFFSET(GSI_EE_AP)
 #define IPA_REG_IRQ_SUSPEND_CLR_EE_N_OFFSET(ee) \
 					(0x00003038 + 0x1000 * (ee))
-
-/** enum ipa_cs_offload_en - checksum offload field in ENDP_INIT_CFG_N */
-enum ipa_cs_offload_en {
-	IPA_CS_OFFLOAD_NONE		= 0x0,
-	IPA_CS_OFFLOAD_UL		= 0x1,
-	IPA_CS_OFFLOAD_DL		= 0x2,
-	IPA_CS_RSVD			= 0x3,
-};
-
-/** enum ipa_aggr_en - aggregation enable field in ENDP_INIT_AGGR_N */
-enum ipa_aggr_en {
-	IPA_BYPASS_AGGR			= 0x0,
-	IPA_ENABLE_AGGR			= 0x1,
-	IPA_ENABLE_DEAGGR		= 0x2,
-};
-
-/** enum ipa_aggr_type - aggregation type field in in_ENDP_INIT_AGGR_N */
-enum ipa_aggr_type {
-	IPA_MBIM_16			= 0x0,
-	IPA_HDLC			= 0x1,
-	IPA_TLP				= 0x2,
-	IPA_RNDIS			= 0x3,
-	IPA_GENERIC			= 0x4,
-	IPA_COALESCE			= 0x5,
-	IPA_QCMAP			= 0x6,
-};
-
-/** enum ipa_mode - mode field in ENDP_INIT_MODE_N */
-enum ipa_mode {
-	IPA_BASIC			= 0x0,
-	IPA_ENABLE_FRAMING_HDLC		= 0x1,
-	IPA_ENABLE_DEFRAMING_HDLC	= 0x2,
-	IPA_DMA				= 0x3,
-};
-
-/**
- * enum ipa_seq_type - HPS and DPS sequencer type fields in in ENDP_INIT_SEQ_N
- * @IPA_SEQ_DMA_ONLY:		only DMA is performed
- * @IPA_SEQ_PKT_PROCESS_NO_DEC_UCP:
- *	packet processing + no decipher + microcontroller (Ethernet Bridging)
- * @IPA_SEQ_2ND_PKT_PROCESS_PASS_NO_DEC_UCP:
- *	second packet processing pass + no decipher + microcontroller
- * @IPA_SEQ_DMA_DEC:		DMA + cipher/decipher
- * @IPA_SEQ_DMA_COMP_DECOMP:	DMA + compression/decompression
- * @IPA_SEQ_PKT_PROCESS_NO_DEC_NO_UCP_DMAP:
- *	packet processing + no decipher + no uCP + HPS REP DMA parser
- * @IPA_SEQ_INVALID:		invalid sequencer type
- *
- * The values defined here are broken into 4-bit nibbles that are written
- * into fields of the INIT_SEQ_N endpoint registers.
- */
-enum ipa_seq_type {
-	IPA_SEQ_DMA_ONLY			= 0x0000,
-	IPA_SEQ_PKT_PROCESS_NO_DEC_UCP		= 0x0002,
-	IPA_SEQ_2ND_PKT_PROCESS_PASS_NO_DEC_UCP	= 0x0004,
-	IPA_SEQ_DMA_DEC				= 0x0011,
-	IPA_SEQ_DMA_COMP_DECOMP			= 0x0020,
-	IPA_SEQ_PKT_PROCESS_NO_DEC_NO_UCP_DMAP	= 0x0806,
-	IPA_SEQ_INVALID				= 0xffff,
-};
 
 int ipa_reg_init(struct ipa *ipa);
 void ipa_reg_exit(struct ipa *ipa);
