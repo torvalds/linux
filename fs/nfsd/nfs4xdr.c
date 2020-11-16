@@ -1615,6 +1615,38 @@ nfsd4_decode_exchange_id(struct nfsd4_compoundargs *argp,
 }
 
 static __be32
+nfsd4_decode_channel_attrs4(struct nfsd4_compoundargs *argp,
+			    struct nfsd4_channel_attrs *ca)
+{
+	__be32 *p;
+
+	p = xdr_inline_decode(argp->xdr, XDR_UNIT * 7);
+	if (!p)
+		return nfserr_bad_xdr;
+
+	/* headerpadsz is ignored */
+	p++;
+	ca->maxreq_sz = be32_to_cpup(p++);
+	ca->maxresp_sz = be32_to_cpup(p++);
+	ca->maxresp_cached = be32_to_cpup(p++);
+	ca->maxops = be32_to_cpup(p++);
+	ca->maxreqs = be32_to_cpup(p++);
+	ca->nr_rdma_attrs = be32_to_cpup(p);
+	switch (ca->nr_rdma_attrs) {
+	case 0:
+		break;
+	case 1:
+		if (xdr_stream_decode_u32(argp->xdr, &ca->rdma_attrs) < 0)
+			return nfserr_bad_xdr;
+		break;
+	default:
+		return nfserr_bad_xdr;
+	}
+
+	return nfs_ok;
+}
+
+static __be32
 nfsd4_decode_create_session(struct nfsd4_compoundargs *argp,
 			    struct nfsd4_create_session *sess)
 {
@@ -1625,39 +1657,12 @@ nfsd4_decode_create_session(struct nfsd4_compoundargs *argp,
 	sess->seqid = be32_to_cpup(p++);
 	sess->flags = be32_to_cpup(p++);
 
-	/* Fore channel attrs */
-	READ_BUF(28);
-	p++; /* headerpadsz is always 0 */
-	sess->fore_channel.maxreq_sz = be32_to_cpup(p++);
-	sess->fore_channel.maxresp_sz = be32_to_cpup(p++);
-	sess->fore_channel.maxresp_cached = be32_to_cpup(p++);
-	sess->fore_channel.maxops = be32_to_cpup(p++);
-	sess->fore_channel.maxreqs = be32_to_cpup(p++);
-	sess->fore_channel.nr_rdma_attrs = be32_to_cpup(p++);
-	if (sess->fore_channel.nr_rdma_attrs == 1) {
-		READ_BUF(4);
-		sess->fore_channel.rdma_attrs = be32_to_cpup(p++);
-	} else if (sess->fore_channel.nr_rdma_attrs > 1) {
-		dprintk("Too many fore channel attr bitmaps!\n");
-		goto xdr_error;
-	}
-
-	/* Back channel attrs */
-	READ_BUF(28);
-	p++; /* headerpadsz is always 0 */
-	sess->back_channel.maxreq_sz = be32_to_cpup(p++);
-	sess->back_channel.maxresp_sz = be32_to_cpup(p++);
-	sess->back_channel.maxresp_cached = be32_to_cpup(p++);
-	sess->back_channel.maxops = be32_to_cpup(p++);
-	sess->back_channel.maxreqs = be32_to_cpup(p++);
-	sess->back_channel.nr_rdma_attrs = be32_to_cpup(p++);
-	if (sess->back_channel.nr_rdma_attrs == 1) {
-		READ_BUF(4);
-		sess->back_channel.rdma_attrs = be32_to_cpup(p++);
-	} else if (sess->back_channel.nr_rdma_attrs > 1) {
-		dprintk("Too many back channel attr bitmaps!\n");
-		goto xdr_error;
-	}
+	status = nfsd4_decode_channel_attrs4(argp, &sess->fore_channel);
+	if (status)
+		return status;
+	status = nfsd4_decode_channel_attrs4(argp, &sess->back_channel);
+	if (status)
+		return status;
 
 	READ_BUF(4);
 	sess->callback_prog = be32_to_cpup(p++);
