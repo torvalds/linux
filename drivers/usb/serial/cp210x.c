@@ -1352,12 +1352,24 @@ static void cp210x_disable_event_mode(struct usb_serial_port *port)
 	port_priv->event_mode = false;
 }
 
+static bool cp210x_termios_change(const struct ktermios *a, const struct ktermios *b)
+{
+	bool iflag_change;
+
+	iflag_change = ((a->c_iflag ^ b->c_iflag) & INPCK);
+
+	return tty_termios_hw_change(a, b) || iflag_change;
+}
+
 static void cp210x_set_termios(struct tty_struct *tty,
 		struct usb_serial_port *port, struct ktermios *old_termios)
 {
 	struct device *dev = &port->dev;
 	unsigned int cflag, old_cflag;
 	u16 bits;
+
+	if (!cp210x_termios_change(&tty->termios, old_termios))
+		return;
 
 	cflag = tty->termios.c_cflag;
 	old_cflag = old_termios->c_cflag;
