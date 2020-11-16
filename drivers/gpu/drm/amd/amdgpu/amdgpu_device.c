@@ -77,7 +77,6 @@ MODULE_FIRMWARE("amdgpu/picasso_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/raven2_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/arcturus_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/renoir_gpu_info.bin");
-MODULE_FIRMWARE("amdgpu/aldebaran_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/navi10_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/navi14_gpu_info.bin");
 MODULE_FIRMWARE("amdgpu/navi12_gpu_info.bin");
@@ -1812,6 +1811,7 @@ static int amdgpu_device_parse_gpu_info_fw(struct amdgpu_device *adev)
 	case CHIP_CARRIZO:
 	case CHIP_STONEY:
 	case CHIP_VEGA20:
+	case CHIP_ALDEBARAN:
 	case CHIP_SIENNA_CICHLID:
 	case CHIP_NAVY_FLOUNDER:
 	case CHIP_DIMGREY_CAVEFISH:
@@ -1839,9 +1839,6 @@ static int amdgpu_device_parse_gpu_info_fw(struct amdgpu_device *adev)
 			chip_name = "renoir";
 		else
 			chip_name = "green_sardine";
-		break;
-	case CHIP_ALDEBARAN:
-		chip_name = "aldebaran";
 		break;
 	case CHIP_NAVI10:
 		chip_name = "navi10";
