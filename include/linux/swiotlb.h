@@ -5,6 +5,7 @@
 #include <linux/dma-direction.h>
 #include <linux/init.h>
 #include <linux/types.h>
+#include <linux/limits.h>
 
 struct device;
 struct page;
