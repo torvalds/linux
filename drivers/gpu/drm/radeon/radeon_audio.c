@@ -25,6 +25,7 @@
 #include <linux/gcd.h>
 
 #include <drm/drm_crtc.h>
+#include "dce6_afmt.h"
 #include "evergreen_hdmi.h"
 #include "radeon.h"
 #include "atom.h"
@@ -34,25 +35,9 @@ void r600_audio_enable(struct radeon_device *rdev, struct r600_audio_pin *pin,
 		u8 enable_mask);
 void dce6_audio_enable(struct radeon_device *rdev, struct r600_audio_pin *pin,
 		u8 enable_mask);
-u32 dce6_endpoint_rreg(struct radeon_device *rdev, u32 offset, u32 reg);
-void dce6_endpoint_wreg(struct radeon_device *rdev,
-		u32 offset, u32 reg, u32 v);
-void dce6_afmt_write_sad_regs(struct drm_encoder *encoder,
-		struct cea_sad *sads, int sad_count);
-void dce6_afmt_hdmi_write_speaker_allocation(struct drm_encoder *encoder,
-		u8 *sadb, int sad_count);
-void dce6_afmt_dp_write_speaker_allocation(struct drm_encoder *encoder,
-		u8 *sadb, int sad_count);
-void dce6_afmt_write_latency_fields(struct drm_encoder *encoder,
-		struct drm_connector *connector, struct drm_display_mode *mode);
 struct r600_audio_pin* r600_audio_get_pin(struct radeon_device *rdev);
 struct r600_audio_pin* dce6_audio_get_pin(struct radeon_device *rdev);
-void dce6_afmt_select_pin(struct drm_encoder *encoder);
 void r600_hdmi_audio_set_dto(struct radeon_device *rdev,
-	struct radeon_crtc *crtc, unsigned int clock);
-void dce6_hdmi_audio_set_dto(struct radeon_device *rdev,
-	struct radeon_crtc *crtc, unsigned int clock);
-void dce6_dp_audio_set_dto(struct radeon_device *rdev,
 	struct radeon_crtc *crtc, unsigned int clock);
 void r600_set_avi_packet(struct radeon_device *rdev, u32 offset,
 	unsigned char *buffer, size_t size);
