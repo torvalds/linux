@@ -47,9 +47,9 @@ static long syscall_trace_enter(struct pt_regs *regs, long syscall,
 	long ret = 0;
 
 	/* Handle ptrace */
-	if (work & SYSCALL_WORK_SYSCALL_TRACE || ti_work & _TIF_SYSCALL_EMU) {
+	if (work & (SYSCALL_WORK_SYSCALL_TRACE | SYSCALL_WORK_SYSCALL_EMU)) {
 		ret = arch_syscall_enter_tracehook(regs);
-		if (ret || (ti_work & _TIF_SYSCALL_EMU))
+		if (ret || (work & SYSCALL_WORK_SYSCALL_EMU))
 			return -1L;
 	}
 
@@ -208,21 +208,22 @@ static void exit_to_user_mode_prepare(struct pt_regs *regs)
 }
 
 #ifndef _TIF_SINGLESTEP
-static inline bool report_single_step(unsigned long ti_work)
+static inline bool report_single_step(unsigned long work)
 {
 	return false;
 }
 #else
 /*
- * If TIF_SYSCALL_EMU is set, then the only reason to report is when
+ * If SYSCALL_EMU is set, then the only reason to report is when
  * TIF_SINGLESTEP is set (i.e. PTRACE_SYSEMU_SINGLESTEP).  This syscall
  * instruction has been already reported in syscall_enter_from_user_mode().
  */
-#define SYSEMU_STEP	(_TIF_SINGLESTEP | _TIF_SYSCALL_EMU)
-
-static inline bool report_single_step(unsigned long ti_work)
+static inline bool report_single_step(unsigned long work)
 {
-	return (ti_work & SYSEMU_STEP) == _TIF_SINGLESTEP;
+	if (!(work & SYSCALL_WORK_SYSCALL_EMU))
+		return false;
+
+	return !!(current_thread_info()->flags & _TIF_SINGLESTEP);
 }
 #endif
 
@@ -236,7 +237,7 @@ static void syscall_exit_work(struct pt_regs *regs, unsigned long ti_work,
 	if (work & SYSCALL_WORK_SYSCALL_TRACEPOINT)
 		trace_sys_exit(regs, syscall_get_return_value(current, regs));
 
-	step = report_single_step(ti_work);
+	step = report_single_step(work);
 	if (step || work & SYSCALL_WORK_SYSCALL_TRACE)
 		arch_syscall_exit_tracehook(regs, step);
 }

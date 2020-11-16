@@ -84,7 +84,7 @@ static inline int ptrace_report_syscall(struct pt_regs *regs,
  * @regs:		user register state of current task
  *
  * This will be called if %SYSCALL_WORK_SYSCALL_TRACE or
- * %TIF_SYSCALL_EMU have been set, when the current task has just
+ * %SYSCALL_WORK_SYSCALL_EMU have been set, when the current task has just
  * entered the kernel for a system call.  Full user register state is
  * available here.  Changing the values in @regs can affect the system
  * call number and arguments to be tried.  It is safe to block here,
