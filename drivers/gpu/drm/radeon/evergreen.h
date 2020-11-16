@@ -45,5 +45,6 @@ int sumo_rlc_init(struct radeon_device *rdev);
 void evergreen_gpu_pci_config_reset(struct radeon_device *rdev);
 u32 evergreen_get_number_of_dram_channels(struct radeon_device *rdev);
 void evergreen_print_gpu_status_regs(struct radeon_device *rdev);
+u32 evergreen_gpu_check_soft_reset(struct radeon_device *rdev);
 
 #endif				/* __RADEON_EVERGREEN_H__ */

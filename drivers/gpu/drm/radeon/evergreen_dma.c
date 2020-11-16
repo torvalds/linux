@@ -24,9 +24,8 @@
 
 #include "radeon.h"
 #include "radeon_asic.h"
+#include "evergreen.h"
 #include "evergreend.h"
-
-u32 evergreen_gpu_check_soft_reset(struct radeon_device *rdev);
 
 /**
  * evergreen_dma_fence_ring_emit - emit a fence on the DMA ring
