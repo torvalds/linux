@@ -203,7 +203,7 @@ static inline u32 ipa_reg_bcr_val(enum ipa_version version)
 #define TIMER_FREQUENCY	32000	/* 32 KHz inactivity timer clock */
 
 #define IPA_REG_COUNTER_CFG_OFFSET			0x000001f0
-#define AGGR_GRANULARITY			GENMASK(8, 4)
+#define AGGR_GRANULARITY_FMASK			GENMASK(8, 4)
 /* Compute the value to use in the AGGR_GRANULARITY field representing the
  * given number of microseconds.  The value is one less than the number of
  * timer ticks in the requested period.  Zero not a valid granularity value.
@@ -215,19 +215,19 @@ static inline u32 ipa_aggr_granularity_val(u32 usec)
 
 #define IPA_REG_TX_CFG_OFFSET				0x000001fc
 /* The first three fields are present for IPA v3.5.1 only */
-#define TX0_PREFETCH_DISABLE			GENMASK(0, 0)
-#define TX1_PREFETCH_DISABLE			GENMASK(1, 1)
-#define PREFETCH_ALMOST_EMPTY_SIZE		GENMASK(4, 2)
+#define TX0_PREFETCH_DISABLE_FMASK		GENMASK(0, 0)
+#define TX1_PREFETCH_DISABLE_FMASK		GENMASK(1, 1)
+#define PREFETCH_ALMOST_EMPTY_SIZE_FMASK	GENMASK(4, 2)
 /* The next fields are present for IPA v4.0 and above */
-#define PREFETCH_ALMOST_EMPTY_SIZE_TX0		GENMASK(5, 2)
-#define DMAW_SCND_OUTSD_PRED_THRESHOLD		GENMASK(9, 6)
-#define DMAW_SCND_OUTSD_PRED_EN			GENMASK(10, 10)
-#define DMAW_MAX_BEATS_256_DIS			GENMASK(11, 11)
-#define PA_MASK_EN				GENMASK(12, 12)
-#define PREFETCH_ALMOST_EMPTY_SIZE_TX1		GENMASK(16, 13)
+#define PREFETCH_ALMOST_EMPTY_SIZE_TX0_FMASK	GENMASK(5, 2)
+#define DMAW_SCND_OUTSD_PRED_THRESHOLD_FMASK	GENMASK(9, 6)
+#define DMAW_SCND_OUTSD_PRED_EN_FMASK		GENMASK(10, 10)
+#define DMAW_MAX_BEATS_256_DIS_FMASK		GENMASK(11, 11)
+#define PA_MASK_EN_FMASK			GENMASK(12, 12)
+#define PREFETCH_ALMOST_EMPTY_SIZE_TX1_FMASK	GENMASK(16, 13)
 /* The last two fields are present for IPA v4.2 and above */
-#define SSPND_PA_NO_START_STATE			GENMASK(18, 18)
-#define SSPND_PA_NO_BQ_STATE			GENMASK(19, 19)
+#define SSPND_PA_NO_START_STATE_FMASK		GENMASK(18, 18)
+#define SSPND_PA_NO_BQ_STATE_FMASK		GENMASK(19, 19)
 
 #define IPA_REG_FLAVOR_0_OFFSET				0x00000210
 #define BAM_MAX_PIPES_FMASK			GENMASK(4, 0)
