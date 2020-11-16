@@ -44,8 +44,11 @@ struct cros_typec_port {
 	/* Initial capabilities for the port. */
 	struct typec_capability caps;
 	struct typec_partner *partner;
+	struct typec_cable *cable;
 	/* Port partner PD identity info. */
 	struct usb_pd_identity p_identity;
+	/* Port cable PD identity info. */
+	struct usb_pd_identity c_identity;
 	struct typec_switch *ori_sw;
 	struct typec_mux *mux;
 	struct usb_role_switch *role_sw;
@@ -59,6 +62,7 @@ struct cros_typec_port {
 
 	/* Flag indicating that PD partner discovery data parsing is completed. */
 	bool sop_disc_done;
+	bool sop_prime_disc_done;
 	struct ec_response_typec_discovery *disc_data;
 	struct list_head partner_mode_list;
 };
@@ -213,6 +217,17 @@ static void cros_typec_remove_partner(struct cros_typec_data *typec,
 	port->sop_disc_done = false;
 }
 
+static void cros_typec_remove_cable(struct cros_typec_data *typec,
+				    int port_num)
+{
+	struct cros_typec_port *port = typec->ports[port_num];
+
+	typec_unregister_cable(port->cable);
+	port->cable = NULL;
+	memset(&port->c_identity, 0, sizeof(port->c_identity));
+	port->sop_prime_disc_done = false;
+}
+
 static void cros_unregister_ports(struct cros_typec_data *typec)
 {
 	int i;
@@ -223,6 +238,9 @@ static void cros_unregister_ports(struct cros_typec_data *typec)
 
 		if (typec->ports[i]->partner)
 			cros_typec_remove_partner(typec, i);
+
+		if (typec->ports[i]->cable)
+			cros_typec_remove_cable(typec, i);
 
 		usb_role_switch_put(typec->ports[i]->role_sw);
 		typec_switch_put(typec->ports[i]->ori_sw);
@@ -598,6 +616,9 @@ static void cros_typec_set_port_params_v1(struct cros_typec_data *typec,
 		if (!typec->ports[port_num]->partner)
 			return;
 		cros_typec_remove_partner(typec, port_num);
+
+		if (typec->ports[port_num]->cable)
+			cros_typec_remove_cable(typec, port_num);
 	}
 }
 
@@ -677,6 +698,43 @@ static void cros_typec_parse_pd_identity(struct usb_pd_identity *id,
 		id->vdo[i - 3] = disc->discovery_vdo[i];
 }
 
+static int cros_typec_handle_sop_prime_disc(struct cros_typec_data *typec, int port_num)
+{
+	struct cros_typec_port *port = typec->ports[port_num];
+	struct ec_response_typec_discovery *disc = port->disc_data;
+	struct typec_cable_desc desc = {};
+	struct ec_params_typec_discovery req = {
+		.port = port_num,
+		.partner_type = TYPEC_PARTNER_SOP_PRIME,
+	};
+	int ret = 0;
+
+	memset(disc, 0, EC_PROTO2_MAX_RESPONSE_SIZE);
+	ret = cros_typec_ec_command(typec, 0, EC_CMD_TYPEC_DISCOVERY, &req, sizeof(req),
+				    disc, EC_PROTO2_MAX_RESPONSE_SIZE);
+	if (ret < 0) {
+		dev_err(typec->dev, "Failed to get SOP' discovery data for port: %d\n", port_num);
+		goto sop_prime_disc_exit;
+	}
+
+	/* Parse the PD identity data, even if only 0s were returned. */
+	cros_typec_parse_pd_identity(&port->c_identity, disc);
+
+	if (disc->identity_count != 0)
+		desc.active = PD_IDH_PTYPE(port->c_identity.id_header) == IDH_PTYPE_ACABLE;
+
+	desc.identity = &port->c_identity;
+
+	port->cable = typec_register_cable(port->port, &desc);
+	if (IS_ERR(port->cable)) {
+		ret = PTR_ERR(port->cable);
+		port->cable = NULL;
+	}
+
+sop_prime_disc_exit:
+	return ret;
+}
+
 static int cros_typec_handle_sop_disc(struct cros_typec_data *typec, int port_num)
 {
 	struct cros_typec_port *port = typec->ports[port_num];
@@ -743,6 +801,15 @@ static void cros_typec_handle_status(struct cros_typec_data *typec, int port_num
 			dev_err(typec->dev, "Couldn't parse SOP Disc data, port: %d\n", port_num);
 		else
 			typec->ports[port_num]->sop_disc_done = true;
+	}
+
+	if (resp.events & PD_STATUS_EVENT_SOP_PRIME_DISC_DONE &&
+	    !typec->ports[port_num]->sop_prime_disc_done) {
+		ret = cros_typec_handle_sop_prime_disc(typec, port_num);
+		if (ret < 0)
+			dev_err(typec->dev, "Couldn't parse SOP' Disc data, port: %d\n", port_num);
+		else
+			typec->ports[port_num]->sop_prime_disc_done = true;
 	}
 }
 
