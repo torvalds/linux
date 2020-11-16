@@ -34,4 +34,7 @@ void cik_init_cp_pg_table(struct radeon_device *rdev);
 u32 cik_get_csb_size(struct radeon_device *rdev);
 void cik_get_csb_buffer(struct radeon_device *rdev, volatile u32 *buffer);
 
+int cik_sdma_resume(struct radeon_device *rdev);
+void cik_sdma_enable(struct radeon_device *rdev, bool enable);
+void cik_sdma_fini(struct radeon_device *rdev);
 #endif                         /* __CIK_H__ */
