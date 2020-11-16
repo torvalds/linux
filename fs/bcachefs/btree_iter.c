@@ -2343,12 +2343,15 @@ static void bch2_trans_alloc_iters(struct btree_trans *trans, struct bch_fs *c)
 	unsigned new_size = BTREE_ITER_MAX;
 	size_t iters_bytes	= sizeof(struct btree_iter) * new_size;
 	size_t updates_bytes	= sizeof(struct btree_insert_entry) * new_size;
-	void *p;
+	void *p = NULL;
 
 	BUG_ON(trans->used_mempool);
 
-	p =     this_cpu_xchg(c->btree_iters_bufs->iter, NULL) ?:
-		mempool_alloc(&trans->c->btree_iters_pool, GFP_NOFS);
+#ifdef __KERNEL__
+	p = this_cpu_xchg(c->btree_iters_bufs->iter, NULL);
+#endif
+	if (!p)
+		p = mempool_alloc(&trans->c->btree_iters_pool, GFP_NOFS);
 
 	trans->iters		= p; p += iters_bytes;
 	trans->updates		= p; p += updates_bytes;
@@ -2406,7 +2409,12 @@ int bch2_trans_exit(struct btree_trans *trans)
 	kfree(trans->fs_usage_deltas);
 	kfree(trans->mem);
 
+#ifdef __KERNEL__
+	/*
+	 * Userspace doesn't have a real percpu implementation:
+	 */
 	trans->iters = this_cpu_xchg(c->btree_iters_bufs->iter, trans->iters);
+#endif
 	if (trans->iters)
 		mempool_free(trans->iters, &trans->c->btree_iters_pool);
 
