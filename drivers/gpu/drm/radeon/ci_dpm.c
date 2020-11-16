@@ -27,6 +27,7 @@
 
 #include "atom.h"
 #include "ci_dpm.h"
+#include "cik.h"
 #include "cikd.h"
 #include "r600_dpm.h"
 #include "radeon.h"
@@ -157,12 +158,6 @@ extern u8 si_get_mclk_frequency_ratio(u32 memory_clock, bool strobe_mode);
 extern void si_trim_voltage_table_to_fit_state_table(struct radeon_device *rdev,
 						     u32 max_voltage_steps,
 						     struct atom_voltage_table *voltage_table);
-extern void cik_enter_rlc_safe_mode(struct radeon_device *rdev);
-extern void cik_exit_rlc_safe_mode(struct radeon_device *rdev);
-extern int ci_mc_load_microcode(struct radeon_device *rdev);
-extern void cik_update_cg(struct radeon_device *rdev,
-			  u32 block, bool enable);
-
 static int ci_get_std_voltage_value_sidd(struct radeon_device *rdev,
 					 struct atom_voltage_table_entry *voltage_table,
 					 u16 *std_voltage_hi_sidd, u16 *std_voltage_lo_sidd);

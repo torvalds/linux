@@ -32,6 +32,7 @@
 #include "atom.h"
 #include "evergreen.h"
 #include "cik_blit_shaders.h"
+#include "cik.h"
 #include "cikd.h"
 #include "clearstate_ci.h"
 #include "r600.h"
