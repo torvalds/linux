@@ -65,8 +65,6 @@ struct ipa;
  * of valid bits for the register.
  */
 
-#define IPA_REG_ENABLED_PIPES_OFFSET			0x00000038
-
 /* The next field is not supported for IPA v4.1 */
 #define IPA_REG_COMP_CFG_OFFSET				0x0000003c
 #define ENABLE_FMASK				GENMASK(0, 0)
@@ -248,10 +246,10 @@ static inline u32 ipa_aggr_granularity_val(u32 usec)
 #define SSPND_PA_NO_BQ_STATE_FMASK		GENMASK(19, 19)
 
 #define IPA_REG_FLAVOR_0_OFFSET				0x00000210
-#define BAM_MAX_PIPES_FMASK			GENMASK(4, 0)
-#define BAM_MAX_CONS_PIPES_FMASK		GENMASK(12, 8)
-#define BAM_MAX_PROD_PIPES_FMASK		GENMASK(20, 16)
-#define BAM_PROD_LOWEST_FMASK			GENMASK(27, 24)
+#define IPA_MAX_PIPES_FMASK			GENMASK(3, 0)
+#define IPA_MAX_CONS_PIPES_FMASK		GENMASK(12, 8)
+#define IPA_MAX_PROD_PIPES_FMASK		GENMASK(20, 16)
+#define IPA_PROD_LOWEST_FMASK			GENMASK(27, 24)
 
 static inline u32 ipa_reg_idle_indication_cfg_offset(enum ipa_version version)
 {
@@ -338,7 +336,6 @@ enum ipa_cs_offload_en {
 	IPA_CS_OFFLOAD_NONE		= 0x0,
 	IPA_CS_OFFLOAD_UL		= 0x1,
 	IPA_CS_OFFLOAD_DL		= 0x2,
-	IPA_CS_RSVD			= 0x3,
 };
 
 #define IPA_REG_ENDP_INIT_HDR_N_OFFSET(ep) \
@@ -429,8 +426,10 @@ enum ipa_aggr_type {
 #define IPA_REG_ENDP_INIT_DEAGGR_N_OFFSET(txep) \
 					(0x00000834 + 0x0070 * (txep))
 #define DEAGGR_HDR_LEN_FMASK			GENMASK(5, 0)
+#define SYSPIPE_ERR_DETECTION_FMASK		GENMASK(6, 6)
 #define PACKET_OFFSET_VALID_FMASK		GENMASK(7, 7)
 #define PACKET_OFFSET_LOCATION_FMASK		GENMASK(13, 8)
+#define IGNORE_MIN_PKT_ERR_FMASK		GENMASK(14, 14)
 #define MAX_PACKET_LEN_FMASK			GENMASK(31, 16)
 
 #define IPA_REG_ENDP_INIT_RSRC_GRP_N_OFFSET(ep) \
@@ -457,12 +456,8 @@ static inline u32 rsrc_grp_encoded(enum ipa_version version, u32 rsrc_grp)
 /**
  * enum ipa_seq_type - HPS and DPS sequencer type fields in ENDP_INIT_SEQ_N
  * @IPA_SEQ_DMA_ONLY:		only DMA is performed
- * @IPA_SEQ_PKT_PROCESS_NO_DEC_UCP:
- *	packet processing + no decipher + microcontroller (Ethernet Bridging)
  * @IPA_SEQ_2ND_PKT_PROCESS_PASS_NO_DEC_UCP:
  *	second packet processing pass + no decipher + microcontroller
- * @IPA_SEQ_DMA_DEC:		DMA + cipher/decipher
- * @IPA_SEQ_DMA_COMP_DECOMP:	DMA + compression/decompression
  * @IPA_SEQ_PKT_PROCESS_NO_DEC_NO_UCP_DMAP:
  *	packet processing + no decipher + no uCP + HPS REP DMA parser
  * @IPA_SEQ_INVALID:		invalid sequencer type
@@ -472,10 +467,7 @@ static inline u32 rsrc_grp_encoded(enum ipa_version version, u32 rsrc_grp)
  */
 enum ipa_seq_type {
 	IPA_SEQ_DMA_ONLY			= 0x0000,
-	IPA_SEQ_PKT_PROCESS_NO_DEC_UCP		= 0x0002,
 	IPA_SEQ_2ND_PKT_PROCESS_PASS_NO_DEC_UCP	= 0x0004,
-	IPA_SEQ_DMA_DEC				= 0x0011,
-	IPA_SEQ_DMA_COMP_DECOMP			= 0x0020,
 	IPA_SEQ_PKT_PROCESS_NO_DEC_NO_UCP_DMAP	= 0x0806,
 	IPA_SEQ_INVALID				= 0xffff,
 };
@@ -565,6 +557,7 @@ enum ipa_irq_id {
 				IPA_REG_IRQ_UC_EE_N_OFFSET(GSI_EE_AP)
 #define IPA_REG_IRQ_UC_EE_N_OFFSET(ee) \
 					(0x0000301c + 0x1000 * (ee))
+#define UC_INTR_FMASK				GENMASK(0, 0)
 
 /* ipa->available defines the valid bits in the SUSPEND_INFO register */
 #define IPA_REG_IRQ_SUSPEND_INFO_OFFSET \
