@@ -251,7 +251,7 @@ loop_validate_block_size(unsigned short bsize)
  */
 static void loop_set_size(struct loop_device *lo, loff_t size)
 {
-	if (!set_capacity_revalidate_and_notify(lo->lo_disk, size, true))
+	if (!set_capacity_and_notify(lo->lo_disk, size))
 		kobject_uevent(&disk_to_dev(lo->lo_disk)->kobj, KOBJ_CHANGE);
 }
 
