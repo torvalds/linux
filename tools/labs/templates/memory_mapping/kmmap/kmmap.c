@@ -136,6 +136,7 @@ static int my_seq_show(struct seq_file *seq, void *v)
 
 static int my_seq_open(struct inode *inode, struct file *file)
 {
+	/* TODO 3: Register the display function */
 	return single_open(file, my_seq_show, NULL);
 }
 
