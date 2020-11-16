@@ -116,6 +116,8 @@ called by a callback may also be traced, and call that same callback,
 recursion protection must be used. There are two helper functions that
 can help in this regard. If you start your code with:
 
+.. code-block:: c
+
 	int bit;
 
 	bit = ftrace_test_recursion_trylock(ip, parent_ip);
@@ -123,6 +125,8 @@ can help in this regard. If you start your code with:
 		return;
 
 and end it with:
+
+.. code-block:: c
 
 	ftrace_test_recursion_unlock(bit);
 
@@ -144,6 +148,8 @@ If your callback accesses any data or critical section that requires RCU
 protection, it is best to make sure that RCU is "watching", otherwise
 that data or critical section will not be protected as expected. In this
 case add:
+
+.. code-block:: c
 
 	if (!rcu_is_watching())
 		return;
