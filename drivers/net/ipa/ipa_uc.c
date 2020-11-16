@@ -86,32 +86,32 @@ struct ipa_uc_mem_area {
 
 /** enum ipa_uc_command - commands from the AP to the microcontroller */
 enum ipa_uc_command {
-	IPA_UC_COMMAND_NO_OP		= 0,
-	IPA_UC_COMMAND_UPDATE_FLAGS	= 1,
-	IPA_UC_COMMAND_DEBUG_RUN_TEST	= 2,
-	IPA_UC_COMMAND_DEBUG_GET_INFO	= 3,
-	IPA_UC_COMMAND_ERR_FATAL	= 4,
-	IPA_UC_COMMAND_CLK_GATE		= 5,
-	IPA_UC_COMMAND_CLK_UNGATE	= 6,
-	IPA_UC_COMMAND_MEMCPY		= 7,
-	IPA_UC_COMMAND_RESET_PIPE	= 8,
-	IPA_UC_COMMAND_REG_WRITE	= 9,
-	IPA_UC_COMMAND_GSI_CH_EMPTY	= 10,
+	IPA_UC_COMMAND_NO_OP		= 0x0,
+	IPA_UC_COMMAND_UPDATE_FLAGS	= 0x1,
+	IPA_UC_COMMAND_DEBUG_RUN_TEST	= 0x2,
+	IPA_UC_COMMAND_DEBUG_GET_INFO	= 0x3,
+	IPA_UC_COMMAND_ERR_FATAL	= 0x4,
+	IPA_UC_COMMAND_CLK_GATE		= 0x5,
+	IPA_UC_COMMAND_CLK_UNGATE	= 0x6,
+	IPA_UC_COMMAND_MEMCPY		= 0x7,
+	IPA_UC_COMMAND_RESET_PIPE	= 0x8,
+	IPA_UC_COMMAND_REG_WRITE	= 0x9,
+	IPA_UC_COMMAND_GSI_CH_EMPTY	= 0xa,
 };
 
 /** enum ipa_uc_response - microcontroller response codes */
 enum ipa_uc_response {
-	IPA_UC_RESPONSE_NO_OP		= 0,
-	IPA_UC_RESPONSE_INIT_COMPLETED	= 1,
-	IPA_UC_RESPONSE_CMD_COMPLETED	= 2,
-	IPA_UC_RESPONSE_DEBUG_GET_INFO	= 3,
+	IPA_UC_RESPONSE_NO_OP		= 0x0,
+	IPA_UC_RESPONSE_INIT_COMPLETED	= 0x1,
+	IPA_UC_RESPONSE_CMD_COMPLETED	= 0x2,
+	IPA_UC_RESPONSE_DEBUG_GET_INFO	= 0x3,
 };
 
 /** enum ipa_uc_event - common cpu events reported by the microcontroller */
 enum ipa_uc_event {
-	IPA_UC_EVENT_NO_OP     = 0,
-	IPA_UC_EVENT_ERROR     = 1,
-	IPA_UC_EVENT_LOG_INFO  = 2,
+	IPA_UC_EVENT_NO_OP		= 0x0,
+	IPA_UC_EVENT_ERROR		= 0x1,
+	IPA_UC_EVENT_LOG_INFO		= 0x2,
 };
 
 static struct ipa_uc_mem_area *ipa_uc_shared(struct ipa *ipa)

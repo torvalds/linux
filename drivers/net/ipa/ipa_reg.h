@@ -481,36 +481,36 @@ static inline u32 rsrc_grp_encoded(enum ipa_version version, u32 rsrc_grp)
 
 /** enum ipa_cs_offload_en - checksum offload field in ENDP_INIT_CFG_N */
 enum ipa_cs_offload_en {
-	IPA_CS_OFFLOAD_NONE	= 0,
-	IPA_CS_OFFLOAD_UL	= 1,
-	IPA_CS_OFFLOAD_DL	= 2,
-	IPA_CS_RSVD
+	IPA_CS_OFFLOAD_NONE		= 0x0,
+	IPA_CS_OFFLOAD_UL		= 0x1,
+	IPA_CS_OFFLOAD_DL		= 0x2,
+	IPA_CS_RSVD			= 0x3,
 };
 
 /** enum ipa_aggr_en - aggregation enable field in ENDP_INIT_AGGR_N */
 enum ipa_aggr_en {
-	IPA_BYPASS_AGGR		= 0,
-	IPA_ENABLE_AGGR		= 1,
-	IPA_ENABLE_DEAGGR	= 2,
+	IPA_BYPASS_AGGR			= 0x0,
+	IPA_ENABLE_AGGR			= 0x1,
+	IPA_ENABLE_DEAGGR		= 0x2,
 };
 
 /** enum ipa_aggr_type - aggregation type field in in_ENDP_INIT_AGGR_N */
 enum ipa_aggr_type {
-	IPA_MBIM_16	= 0,
-	IPA_HDLC	= 1,
-	IPA_TLP		= 2,
-	IPA_RNDIS	= 3,
-	IPA_GENERIC	= 4,
-	IPA_COALESCE	= 5,
-	IPA_QCMAP	= 6,
+	IPA_MBIM_16			= 0x0,
+	IPA_HDLC			= 0x1,
+	IPA_TLP				= 0x2,
+	IPA_RNDIS			= 0x3,
+	IPA_GENERIC			= 0x4,
+	IPA_COALESCE			= 0x5,
+	IPA_QCMAP			= 0x6,
 };
 
 /** enum ipa_mode - mode field in ENDP_INIT_MODE_N */
 enum ipa_mode {
-	IPA_BASIC			= 0,
-	IPA_ENABLE_FRAMING_HDLC		= 1,
-	IPA_ENABLE_DEFRAMING_HDLC	= 2,
-	IPA_DMA				= 3,
+	IPA_BASIC			= 0x0,
+	IPA_ENABLE_FRAMING_HDLC		= 0x1,
+	IPA_ENABLE_DEFRAMING_HDLC	= 0x2,
+	IPA_DMA				= 0x3,
 };
 
 /**

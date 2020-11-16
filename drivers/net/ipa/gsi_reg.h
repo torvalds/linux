@@ -71,6 +71,7 @@
 #define ERINDEX_FMASK			GENMASK(18, 14)
 #define CHSTATE_FMASK			GENMASK(23, 20)
 #define ELEMENT_SIZE_FMASK		GENMASK(31, 24)
+
 /** enum gsi_channel_type - CHTYPE_PROTOCOL field values in CH_C_CNTXT_0 */
 enum gsi_channel_type {
 	GSI_CHANNEL_TYPE_MHI			= 0x0,
@@ -223,6 +224,7 @@ enum gsi_channel_type {
 			(0x0001f008 + 0x4000 * (ee))
 #define CH_CHID_FMASK			GENMASK(7, 0)
 #define CH_OPCODE_FMASK			GENMASK(31, 24)
+
 /** enum gsi_ch_cmd_opcode - CH_OPCODE field values in CH_CMD */
 enum gsi_ch_cmd_opcode {
 	GSI_CH_ALLOCATE				= 0x0,
@@ -238,6 +240,7 @@ enum gsi_ch_cmd_opcode {
 			(0x0001f010 + 0x4000 * (ee))
 #define EV_CHID_FMASK			GENMASK(7, 0)
 #define EV_OPCODE_FMASK			GENMASK(31, 24)
+
 /** enum gsi_evt_cmd_opcode - EV_OPCODE field values in EV_CH_CMD */
 enum gsi_evt_cmd_opcode {
 	GSI_EVT_ALLOCATE			= 0x0,
@@ -252,6 +255,7 @@ enum gsi_evt_cmd_opcode {
 #define GENERIC_OPCODE_FMASK		GENMASK(4, 0)
 #define GENERIC_CHID_FMASK		GENMASK(9, 5)
 #define GENERIC_EE_FMASK		GENMASK(13, 10)
+
 /** enum gsi_generic_cmd_opcode - GENERIC_OPCODE field values in GENERIC_CMD */
 enum gsi_generic_cmd_opcode {
 	GSI_GENERIC_HALT_CHANNEL		= 0x1,
@@ -275,6 +279,7 @@ enum gsi_generic_cmd_opcode {
 /* Fields below are present for IPA v4.2 and above */
 #define GSI_USE_RD_WR_ENG_FMASK		GENMASK(30, 30)
 #define GSI_USE_INTER_EE_FMASK		GENMASK(31, 31)
+
 /** enum gsi_iram_size - IRAM_SIZE field values in HW_PARAM_2 */
 enum gsi_iram_size {
 	IRAM_SIZE_ONE_KB			= 0x0,
@@ -293,15 +298,16 @@ enum gsi_iram_size {
 			GSI_EE_N_CNTXT_TYPE_IRQ_MSK_OFFSET(GSI_EE_AP)
 #define GSI_EE_N_CNTXT_TYPE_IRQ_MSK_OFFSET(ee) \
 			(0x0001f088 + 0x4000 * (ee))
+
 /* Values here are bit positions in the TYPE_IRQ and TYPE_IRQ_MSK registers */
 enum gsi_irq_type_id {
-	GSI_CH_CTRL		= 0,	/* channel allocation, etc.  */
-	GSI_EV_CTRL		= 1,	/* event ring allocation, etc. */
-	GSI_GLOB_EE		= 2,	/* global/general event */
-	GSI_IEOB		= 3,	/* TRE completion */
-	GSI_INTER_EE_CH_CTRL	= 4,	/* remote-issued stop/reset (unused) */
-	GSI_INTER_EE_EV_CTRL	= 5,	/* remote-issued event reset (unused) */
-	GSI_GENERAL		= 6,	/* general-purpose event */
+	GSI_CH_CTRL		= 0x0,	/* channel allocation, etc.  */
+	GSI_EV_CTRL		= 0x1,	/* event ring allocation, etc. */
+	GSI_GLOB_EE		= 0x2,	/* global/general event */
+	GSI_IEOB		= 0x3,	/* TRE completion */
+	GSI_INTER_EE_CH_CTRL	= 0x4,	/* remote-issued stop/reset (unused) */
+	GSI_INTER_EE_EV_CTRL	= 0x5,	/* remote-issued event reset (unused) */
+	GSI_GENERAL		= 0x6,	/* general-purpose event */
 };
 
 #define GSI_CNTXT_SRC_CH_IRQ_OFFSET \
@@ -406,6 +412,7 @@ enum gsi_general_id {
 #define ERR_VIRT_IDX_FMASK		GENMASK(23, 19)
 #define ERR_TYPE_FMASK			GENMASK(27, 24)
 #define ERR_EE_FMASK			GENMASK(31, 28)
+
 /** enum gsi_err_code - ERR_CODE field values in EE_ERR_LOG */
 enum gsi_err_code {
 	GSI_INVALID_TRE				= 0x1,
@@ -417,6 +424,7 @@ enum gsi_err_code {
 	/* 7 is not assigned */
 	GSI_HWO_1				= 0x8,
 };
+
 /** enum gsi_err_type - ERR_TYPE field values in EE_ERR_LOG */
 enum gsi_err_type {
 	GSI_ERR_TYPE_GLOB			= 0x1,
@@ -435,6 +443,8 @@ enum gsi_err_type {
 			(0x0001f400 + 0x4000 * (ee))
 #define INTER_EE_RESULT_FMASK		GENMASK(2, 0)
 #define GENERIC_EE_RESULT_FMASK		GENMASK(7, 5)
+
+/** enum gsi_generic_ee_result - GENERIC_EE_RESULT field values in SCRATCH_0 */
 enum gsi_generic_ee_result {
 	GENERIC_EE_SUCCESS			= 0x1,
 	GENERIC_EE_CHANNEL_NOT_RUNNING		= 0x2,
@@ -444,6 +454,7 @@ enum gsi_generic_ee_result {
 	GENERIC_EE_RETRY			= 0x6,
 	GENERIC_EE_NO_RESOURCES			= 0x7,
 };
+
 #define USB_MAX_PACKET_FMASK		GENMASK(15, 15)	/* 0: HS; 1: SS */
 #define MHI_BASE_CHANNEL_FMASK		GENMASK(31, 24)
 

@@ -22,9 +22,9 @@ struct ipa_interrupt;
  * for an AP RX endpoint whose underlying GSI channel is suspended/stopped.
  */
 enum ipa_irq_id {
-	IPA_IRQ_UC_0		= 2,
-	IPA_IRQ_UC_1		= 3,
-	IPA_IRQ_TX_SUSPEND	= 14,
+	IPA_IRQ_UC_0		= 0x2,
+	IPA_IRQ_UC_1		= 0x3,
+	IPA_IRQ_TX_SUSPEND	= 0xe,
 	IPA_IRQ_COUNT,		/* Number of interrupt types (not an index) */
 };
 

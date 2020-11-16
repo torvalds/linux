@@ -33,10 +33,10 @@ struct ipa_gsi_endpoint_data;
 
 /* Execution environment IDs */
 enum gsi_ee_id {
-	GSI_EE_AP	= 0,
-	GSI_EE_MODEM	= 1,
-	GSI_EE_UC	= 2,
-	GSI_EE_TZ	= 3,
+	GSI_EE_AP				= 0x0,
+	GSI_EE_MODEM				= 0x1,
+	GSI_EE_UC				= 0x2,
+	GSI_EE_TZ				= 0x3,
 };
 
 struct gsi_ring {
@@ -96,12 +96,12 @@ struct gsi_trans_info {
 
 /* Hardware values signifying the state of a channel */
 enum gsi_channel_state {
-	GSI_CHANNEL_STATE_NOT_ALLOCATED	= 0x0,
-	GSI_CHANNEL_STATE_ALLOCATED	= 0x1,
-	GSI_CHANNEL_STATE_STARTED	= 0x2,
-	GSI_CHANNEL_STATE_STOPPED	= 0x3,
-	GSI_CHANNEL_STATE_STOP_IN_PROC	= 0x4,
-	GSI_CHANNEL_STATE_ERROR		= 0xf,
+	GSI_CHANNEL_STATE_NOT_ALLOCATED		= 0x0,
+	GSI_CHANNEL_STATE_ALLOCATED		= 0x1,
+	GSI_CHANNEL_STATE_STARTED		= 0x2,
+	GSI_CHANNEL_STATE_STOPPED		= 0x3,
+	GSI_CHANNEL_STATE_STOP_IN_PROC		= 0x4,
+	GSI_CHANNEL_STATE_ERROR			= 0xf,
 };
 
 /* We only care about channels between IPA and AP */
