@@ -4,7 +4,6 @@ obj-y	+= atom/
 obj-y	+= ce4100/
 obj-y	+= efi/
 obj-y	+= geode/
-obj-y	+= goldfish/
 obj-y	+= iris/
 obj-y	+= intel/
 obj-y	+= intel-mid/
