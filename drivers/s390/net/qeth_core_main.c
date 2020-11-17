@@ -4951,6 +4951,86 @@ int qeth_query_card_info(struct qeth_card *card,
 	return qeth_send_ipa_cmd(card, iob, qeth_query_card_info_cb, link_info);
 }
 
+static int qeth_init_link_info_oat_cb(struct qeth_card *card,
+				      struct qeth_reply *reply_priv,
+				      unsigned long data)
+{
+	struct qeth_ipa_cmd *cmd = (struct qeth_ipa_cmd *)data;
+	struct qeth_link_info *link_info = reply_priv->param;
+	struct qeth_query_oat_physical_if *phys_if;
+	struct qeth_query_oat_reply *reply;
+
+	if (qeth_setadpparms_inspect_rc(cmd))
+		return -EIO;
+
+	/* Multi-part reply is unexpected, don't bother: */
+	if (cmd->data.setadapterparms.hdr.used_total > 1)
+		return -EINVAL;
+
+	/* Expect the reply to start with phys_if data: */
+	reply = &cmd->data.setadapterparms.data.query_oat.reply[0];
+	if (reply->type != QETH_QOAT_REPLY_TYPE_PHYS_IF ||
+	    reply->length < sizeof(*reply))
+		return -EINVAL;
+
+	phys_if = &reply->phys_if;
+
+	switch (phys_if->speed_duplex) {
+	case QETH_QOAT_PHYS_SPEED_10M_HALF:
+		link_info->speed = SPEED_10;
+		link_info->duplex = DUPLEX_HALF;
+		break;
+	case QETH_QOAT_PHYS_SPEED_10M_FULL:
+		link_info->speed = SPEED_10;
+		link_info->duplex = DUPLEX_FULL;
+		break;
+	case QETH_QOAT_PHYS_SPEED_100M_HALF:
+		link_info->speed = SPEED_100;
+		link_info->duplex = DUPLEX_HALF;
+		break;
+	case QETH_QOAT_PHYS_SPEED_100M_FULL:
+		link_info->speed = SPEED_100;
+		link_info->duplex = DUPLEX_FULL;
+		break;
+	case QETH_QOAT_PHYS_SPEED_1000M_HALF:
+		link_info->speed = SPEED_1000;
+		link_info->duplex = DUPLEX_HALF;
+		break;
+	case QETH_QOAT_PHYS_SPEED_1000M_FULL:
+		link_info->speed = SPEED_1000;
+		link_info->duplex = DUPLEX_FULL;
+		break;
+	case QETH_QOAT_PHYS_SPEED_10G_FULL:
+		link_info->speed = SPEED_10000;
+		link_info->duplex = DUPLEX_FULL;
+		break;
+	case QETH_QOAT_PHYS_SPEED_25G_FULL:
+		link_info->speed = SPEED_25000;
+		link_info->duplex = DUPLEX_FULL;
+		break;
+	case QETH_QOAT_PHYS_SPEED_UNKNOWN:
+	default:
+		link_info->speed = SPEED_UNKNOWN;
+		link_info->duplex = DUPLEX_UNKNOWN;
+		break;
+	}
+
+	switch (phys_if->media_type) {
+	case QETH_QOAT_PHYS_MEDIA_COPPER:
+		link_info->port = PORT_TP;
+		break;
+	case QETH_QOAT_PHYS_MEDIA_FIBRE_SHORT:
+	case QETH_QOAT_PHYS_MEDIA_FIBRE_LONG:
+		link_info->port = PORT_FIBRE;
+		break;
+	default:
+		link_info->port = PORT_OTHER;
+		break;
+	}
+
+	return 0;
+}
+
 static void qeth_init_link_info(struct qeth_card *card)
 {
 	card->info.link_info.duplex = DUPLEX_FULL;
@@ -4983,6 +5063,33 @@ static void qeth_init_link_info(struct qeth_card *card)
 				 card->info.link_type);
 			card->info.link_info.speed = SPEED_UNKNOWN;
 			card->info.link_info.port = PORT_OTHER;
+		}
+	}
+
+	/* Get more accurate data via QUERY OAT: */
+	if (qeth_adp_supported(card, IPA_SETADP_QUERY_OAT)) {
+		struct qeth_link_info link_info;
+		struct qeth_cmd_buffer *iob;
+
+		iob = qeth_get_adapter_cmd(card, IPA_SETADP_QUERY_OAT,
+					   SETADP_DATA_SIZEOF(query_oat));
+		if (iob) {
+			struct qeth_ipa_cmd *cmd = __ipa_cmd(iob);
+			struct qeth_query_oat *oat_req;
+
+			oat_req = &cmd->data.setadapterparms.data.query_oat;
+			oat_req->subcmd_code = QETH_QOAT_SCOPE_INTERFACE;
+
+			if (!qeth_send_ipa_cmd(card, iob,
+					       qeth_init_link_info_oat_cb,
+					       &link_info)) {
+				if (link_info.speed != SPEED_UNKNOWN)
+					card->info.link_info.speed = link_info.speed;
+				if (link_info.duplex != DUPLEX_UNKNOWN)
+					card->info.link_info.duplex = link_info.duplex;
+				if (link_info.port != PORT_OTHER)
+					card->info.link_info.port = link_info.port;
+			}
 		}
 	}
 }
