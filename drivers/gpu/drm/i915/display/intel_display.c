@@ -13384,6 +13384,10 @@ static void intel_dump_pipe_config(const struct intel_crtc_state *pipe_config,
 		    transcoder_name(pipe_config->master_transcoder),
 		    pipe_config->sync_mode_slaves_mask);
 
+	drm_dbg_kms(&dev_priv->drm, "bigjoiner: %s\n",
+		    pipe_config->bigjoiner_slave ? "slave" :
+		    pipe_config->bigjoiner ? "master" : "no");
+
 	if (pipe_config->has_pch_encoder)
 		intel_dump_m_n_config(pipe_config, "fdi",
 				      pipe_config->fdi_lanes,
