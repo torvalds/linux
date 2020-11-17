@@ -67,9 +67,11 @@ void crypto_aegis128_encrypt_chunk_simd(struct aegis_state *state, u8 *dst,
 					const u8 *src, unsigned int size);
 void crypto_aegis128_decrypt_chunk_simd(struct aegis_state *state, u8 *dst,
 					const u8 *src, unsigned int size);
-void crypto_aegis128_final_simd(struct aegis_state *state,
-				union aegis_block *tag_xor,
-				u64 assoclen, u64 cryptlen);
+int crypto_aegis128_final_simd(struct aegis_state *state,
+			       union aegis_block *tag_xor,
+			       unsigned int assoclen,
+			       unsigned int cryptlen,
+			       unsigned int authsize);
 
 static void crypto_aegis128_update(struct aegis_state *state)
 {
@@ -411,7 +413,7 @@ static int crypto_aegis128_encrypt(struct aead_request *req)
 		crypto_aegis128_process_crypt(&state, &walk,
 					      crypto_aegis128_encrypt_chunk_simd);
 		crypto_aegis128_final_simd(&state, &tag, req->assoclen,
-					   cryptlen);
+					   cryptlen, 0);
 	} else {
 		crypto_aegis128_init(&state, &ctx->key, req->iv);
 		crypto_aegis128_process_ad(&state, req->src, req->assoclen);
@@ -445,8 +447,15 @@ static int crypto_aegis128_decrypt(struct aead_request *req)
 		crypto_aegis128_process_ad(&state, req->src, req->assoclen);
 		crypto_aegis128_process_crypt(&state, &walk,
 					      crypto_aegis128_decrypt_chunk_simd);
-		crypto_aegis128_final_simd(&state, &tag, req->assoclen,
-					   cryptlen);
+		if (unlikely(crypto_aegis128_final_simd(&state, &tag,
+							req->assoclen,
+							cryptlen, authsize))) {
+			skcipher_walk_aead_decrypt(&walk, req, false);
+			crypto_aegis128_process_crypt(NULL, req, &walk,
+						      crypto_aegis128_wipe_chunk);
+			return -EBADMSG;
+		}
+		return 0;
 	} else {
 		crypto_aegis128_init(&state, &ctx->key, req->iv);
 		crypto_aegis128_process_ad(&state, req->src, req->assoclen);

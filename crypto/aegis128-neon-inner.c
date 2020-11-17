@@ -199,6 +199,17 @@ static uint8x16_t vqtbx1q_u8(uint8x16_t v, uint8x16_t a, uint8x16_t b)
 	return vcombine_u8(vtbx2_u8(vget_low_u8(v), __a.pair, vget_low_u8(b)),
 			   vtbx2_u8(vget_high_u8(v), __a.pair, vget_high_u8(b)));
 }
+
+static int8_t vminvq_s8(int8x16_t v)
+{
+	int8x8_t s = vpmin_s8(vget_low_s8(v), vget_high_s8(v));
+
+	s = vpmin_s8(s, s);
+	s = vpmin_s8(s, s);
+	s = vpmin_s8(s, s);
+
+	return vget_lane_s8(s, 0);
+}
 #endif
 
 static const uint8_t permute[] __aligned(64) = {
@@ -302,8 +313,10 @@ void crypto_aegis128_decrypt_chunk_neon(void *state, void *dst, const void *src,
 	aegis128_save_state_neon(st, state);
 }
 
-void crypto_aegis128_final_neon(void *state, void *tag_xor, uint64_t assoclen,
-				uint64_t cryptlen)
+int crypto_aegis128_final_neon(void *state, void *tag_xor,
+			       unsigned int assoclen,
+			       unsigned int cryptlen,
+			       unsigned int authsize)
 {
 	struct aegis128_state st = aegis128_load_state_neon(state);
 	uint8x16_t v;
@@ -311,13 +324,21 @@ void crypto_aegis128_final_neon(void *state, void *tag_xor, uint64_t assoclen,
 
 	preload_sbox();
 
-	v = st.v[3] ^ (uint8x16_t)vcombine_u64(vmov_n_u64(8 * assoclen),
-					       vmov_n_u64(8 * cryptlen));
+	v = st.v[3] ^ (uint8x16_t)vcombine_u64(vmov_n_u64(8ULL * assoclen),
+					       vmov_n_u64(8ULL * cryptlen));
 
 	for (i = 0; i < 7; i++)
 		st = aegis128_update_neon(st, v);
 
-	v = vld1q_u8(tag_xor);
-	v ^= st.v[0] ^ st.v[1] ^ st.v[2] ^ st.v[3] ^ st.v[4];
+	v = st.v[0] ^ st.v[1] ^ st.v[2] ^ st.v[3] ^ st.v[4];
+
+	if (authsize > 0) {
+		v = vqtbl1q_u8(~vceqq_u8(v, vld1q_u8(tag_xor)),
+			       vld1q_u8(permute + authsize));
+
+		return vminvq_s8((int8x16_t)v);
+	}
+
 	vst1q_u8(tag_xor, v);
+	return 0;
 }
