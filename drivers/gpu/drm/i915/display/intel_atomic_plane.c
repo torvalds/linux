@@ -265,6 +265,18 @@ void intel_plane_copy_uapi_to_hw_state(struct intel_plane_state *plane_state,
 	plane_state->hw.scaling_filter = from_plane_state->uapi.scaling_filter;
 }
 
+void intel_plane_copy_hw_state(struct intel_plane_state *plane_state,
+			       const struct intel_plane_state *from_plane_state)
+{
+	intel_plane_clear_hw_state(plane_state);
+
+	memcpy(&plane_state->hw, &from_plane_state->hw,
+	       sizeof(plane_state->hw));
+
+	if (plane_state->hw.fb)
+		drm_framebuffer_get(plane_state->hw.fb);
+}
+
 void intel_plane_set_invisible(struct intel_crtc_state *crtc_state,
 			       struct intel_plane_state *plane_state)
 {
