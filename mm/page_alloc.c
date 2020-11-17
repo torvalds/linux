@@ -324,10 +324,10 @@ const char * const migratetype_names[MIGRATE_TYPES] = {
 	"Unmovable",
 	"Movable",
 	"Reclaimable",
-	"HighAtomic",
 #ifdef CONFIG_CMA
 	"CMA",
 #endif
+	"HighAtomic",
 #ifdef CONFIG_MEMORY_ISOLATION
 	"Isolate",
 #endif
@@ -2939,6 +2939,28 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
 	return alloced;
 }
 
+/*
+ * Return the pcp list that corresponds to the migrate type if that list isn't
+ * empty.
+ * If the list is empty return NULL.
+ */
+static struct list_head *get_populated_pcp_list(struct zone *zone,
+			unsigned int order, struct per_cpu_pages *pcp,
+			int migratetype, unsigned int alloc_flags)
+{
+	struct list_head *list = &pcp->lists[migratetype];
+
+	if (list_empty(list)) {
+		pcp->count += rmqueue_bulk(zone, order,
+				pcp->batch, list,
+				migratetype, alloc_flags);
+
+		if (list_empty(list))
+			list = NULL;
+	}
+	return list;
+}
+
 #ifdef CONFIG_NUMA
 /*
  * Called from the vmstat counter updater to drain pagesets of this
@@ -3389,25 +3411,28 @@ static inline void zone_statistics(struct zone *preferred_zone, struct zone *z)
 static struct page *__rmqueue_pcplist(struct zone *zone, int migratetype,
 			unsigned int alloc_flags,
 			struct per_cpu_pages *pcp,
-			struct list_head *list,
 			gfp_t gfp_flags)
 {
-	struct page *page;
+	struct page *page = NULL;
+	struct list_head *list = NULL;
 
 	do {
-		if (list_empty(list) && migratetype == MIGRATE_MOVABLE &&
+		/* First try to get CMA pages */
+		if (migratetype == MIGRATE_MOVABLE &&
 				gfp_flags & __GFP_CMA) {
-			pcp->count += rmqueue_bulk(zone, 0,
-					pcp->batch, list,
+			list = get_populated_pcp_list(zone, 0, pcp,
 					get_cma_migrate_type(), alloc_flags);
 		}
 
-		if (unlikely(list_empty(list))) {
-			pcp->count += rmqueue_bulk(zone, 0,
-					pcp->batch, list,
+		if (list == NULL) {
+			/*
+			 * Either CMA is not suitable or there are no
+			 * free CMA pages.
+			 */
+			list = get_populated_pcp_list(zone, 0, pcp,
 					migratetype, alloc_flags);
-
-			if (unlikely(list_empty(list)))
+			if (unlikely(list == NULL) ||
+					unlikely(list_empty(list)))
 				return NULL;
 		}
 
@@ -3425,14 +3450,12 @@ static struct page *rmqueue_pcplist(struct zone *preferred_zone,
 			int migratetype, unsigned int alloc_flags)
 {
 	struct per_cpu_pages *pcp;
-	struct list_head *list;
 	struct page *page;
 	unsigned long flags;
 
 	local_irq_save(flags);
 	pcp = &this_cpu_ptr(zone->pageset)->pcp;
-	list = &pcp->lists[migratetype];
-	page = __rmqueue_pcplist(zone,  migratetype, alloc_flags, pcp, list,
+	page = __rmqueue_pcplist(zone,  migratetype, alloc_flags, pcp,
 				 gfp_flags);
 	if (page) {
 		__count_zid_vm_events(PGALLOC, page_zonenum(page), 1);
@@ -3455,16 +3478,9 @@ struct page *rmqueue(struct zone *preferred_zone,
 	struct page *page;
 
 	if (likely(order == 0)) {
-		/*
-		 * MIGRATE_MOVABLE pcplist could have the pages on CMA area and
-		 * we need to skip it when CMA area isn't allowed.
-		 */
-		if (!IS_ENABLED(CONFIG_CMA) || gfp_flags & __GFP_CMA ||
-				migratetype != MIGRATE_MOVABLE) {
-			page = rmqueue_pcplist(preferred_zone, zone, gfp_flags,
-					migratetype, alloc_flags);
-			goto out;
-		}
+		page = rmqueue_pcplist(preferred_zone, zone, gfp_flags,
+				       migratetype, alloc_flags);
+		goto out;
 	}
 
 	/*
@@ -3672,6 +3688,14 @@ bool __zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
 			continue;
 
 		for (mt = 0; mt < MIGRATE_PCPTYPES; mt++) {
+#ifdef CONFIG_CMA
+			/*
+			 * Note that this check is needed only
+			 * when MIGRATE_CMA < MIGRATE_PCPTYPES.
+			 */
+			if (mt == MIGRATE_CMA)
+				continue;
+#endif
 			if (!free_area_empty(area, mt))
 				return true;
 		}
