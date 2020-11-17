@@ -17,9 +17,6 @@
  *
  * SA_ONESHOT and SA_NOMASK are the historical Linux names for the Single
  * Unix names RESETHAND and NODEFER respectively.
- *
- * The following bits are used in architecture-specific SA_* definitions and
- * should be avoided for new generic flags: 3, 4, 5, 6, 7, 8, 9, 16, 24, 25, 26.
  */
 #ifndef SA_NOCLDSTOP
 #define SA_NOCLDSTOP	0x00000001
@@ -30,6 +27,20 @@
 #ifndef SA_SIGINFO
 #define SA_SIGINFO	0x00000004
 #endif
+/* 0x00000008 used on alpha, mips, parisc */
+/* 0x00000010 used on alpha, parisc */
+/* 0x00000020 used on alpha, parisc, sparc */
+/* 0x00000040 used on alpha, parisc */
+/* 0x00000080 used on parisc */
+/* 0x00000100 used on sparc */
+/* 0x00000200 used on sparc */
+/* 0x00010000 used on mips */
+/* 0x01000000 used on x86 */
+/* 0x02000000 used on x86 */
+/*
+ * New architectures should not define the obsolete
+ *	SA_RESTORER	0x04000000
+ */
 #ifndef SA_ONSTACK
 #define SA_ONSTACK	0x08000000
 #endif
@@ -45,11 +56,6 @@
 
 #define SA_NOMASK	SA_NODEFER
 #define SA_ONESHOT	SA_RESETHAND
-
-/*
- * New architectures should not define the obsolete
- *	SA_RESTORER	0x04000000
- */
 
 #ifndef SIG_BLOCK
 #define SIG_BLOCK          0	/* for blocking signals */
