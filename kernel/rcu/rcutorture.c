@@ -1194,10 +1194,7 @@ rcu_torture_writer(void *arg)
 			case RTWS_COND_GET:
 				rcu_torture_writer_state = RTWS_COND_GET;
 				gp_snap = cur_ops->get_gp_state();
-				i = torture_random(&rand) % 16;
-				if (i != 0)
-					schedule_timeout_interruptible(i);
-				udelay(torture_random(&rand) % 1000);
+				torture_hrtimeout_jiffies(torture_random(&rand) % 16, &rand);
 				rcu_torture_writer_state = RTWS_COND_SYNC;
 				cur_ops->cond_sync(gp_snap);
 				rcu_torture_pipe_update(old_rp);
@@ -1206,12 +1203,9 @@ rcu_torture_writer(void *arg)
 				rcu_torture_writer_state = RTWS_POLL_GET;
 				gp_snap = cur_ops->start_gp_poll();
 				rcu_torture_writer_state = RTWS_POLL_WAIT;
-				while (!cur_ops->poll_gp_state(gp_snap)) {
-					i = torture_random(&rand) % 16;
-					if (i != 0)
-						schedule_timeout_interruptible(i);
-					udelay(torture_random(&rand) % 1000);
-				}
+				while (!cur_ops->poll_gp_state(gp_snap))
+					torture_hrtimeout_jiffies(torture_random(&rand) % 16,
+								  &rand);
 				rcu_torture_pipe_update(old_rp);
 				break;
 			case RTWS_SYNC:
@@ -1290,7 +1284,6 @@ static int
 rcu_torture_fakewriter(void *arg)
 {
 	unsigned long gp_snap;
-	int i;
 	DEFINE_TORTURE_RANDOM(rand);
 
 	VERBOSE_TOROUT_STRING("rcu_torture_fakewriter task started");
@@ -1311,19 +1304,14 @@ rcu_torture_fakewriter(void *arg)
 				break;
 			case RTWS_COND_GET:
 				gp_snap = cur_ops->get_gp_state();
-				i = torture_random(&rand) % 16;
-				if (i != 0)
-					schedule_timeout_interruptible(i);
-				udelay(torture_random(&rand) % 1000);
+				torture_hrtimeout_jiffies(torture_random(&rand) % 16, &rand);
 				cur_ops->cond_sync(gp_snap);
 				break;
 			case RTWS_POLL_GET:
 				gp_snap = cur_ops->start_gp_poll();
 				while (!cur_ops->poll_gp_state(gp_snap)) {
-					i = torture_random(&rand) % 16;
-					if (i != 0)
-						schedule_timeout_interruptible(i);
-					udelay(torture_random(&rand) % 1000);
+					torture_hrtimeout_jiffies(torture_random(&rand) % 16,
+								  &rand);
 				}
 				break;
 			case RTWS_SYNC:
