@@ -1183,7 +1183,7 @@ static int smu_disable_dpms(struct smu_context *smu)
 	 */
 	if (smu->uploading_custom_pp_table &&
 	    (adev->asic_type >= CHIP_NAVI10) &&
-	    (adev->asic_type <= CHIP_NAVY_FLOUNDER))
+	    (adev->asic_type <= CHIP_DIMGREY_CAVEFISH))
 		return 0;
 
 	/*
