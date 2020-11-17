@@ -14,6 +14,8 @@
 
 #include "common.h"
 
+#define HPBREG_BASE	0xfe700000
+
 #define INT2SMSKCR0	0x82288 /* 0xfe782288 */
 #define INT2SMSKCR1	0x8228c /* 0xfe78228c */
 
@@ -22,7 +24,7 @@
 
 static void __init r8a7778_init_irq_dt(void)
 {
-	void __iomem *base = ioremap(0xfe700000, 0x00100000);
+	void __iomem *base = ioremap(HPBREG_BASE, 0x00100000);
 
 	BUG_ON(!base);
 
