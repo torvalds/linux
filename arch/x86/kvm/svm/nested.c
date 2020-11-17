@@ -717,7 +717,7 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 	/*
 	 * Restore processor state that had been saved in vmcb01
 	 */
-	kvm_set_rflags(&svm->vcpu, svm->vmcb->save.rflags | X86_EFLAGS_FIXED);
+	kvm_set_rflags(&svm->vcpu, svm->vmcb->save.rflags);
 	svm_set_efer(&svm->vcpu, svm->vmcb->save.efer);
 	svm_set_cr0(&svm->vcpu, svm->vmcb->save.cr0 | X86_CR0_PE);
 	svm_set_cr4(&svm->vcpu, svm->vmcb->save.cr4);
@@ -1252,7 +1252,23 @@ static int svm_set_nested_state(struct kvm_vcpu *vcpu,
 	svm->nested.vmcb12_gpa = kvm_state->hdr.svm.vmcb_pa;
 	if (svm->current_vmcb == &svm->vmcb01)
 		svm->nested.vmcb02.ptr->save = svm->vmcb01.ptr->save;
-	svm->vmcb01.ptr->save = *save;
+
+	svm->vmcb01.ptr->save.es = save->es;
+	svm->vmcb01.ptr->save.cs = save->cs;
+	svm->vmcb01.ptr->save.ss = save->ss;
+	svm->vmcb01.ptr->save.ds = save->ds;
+	svm->vmcb01.ptr->save.gdtr = save->gdtr;
+	svm->vmcb01.ptr->save.idtr = save->idtr;
+	svm->vmcb01.ptr->save.rflags = save->rflags | X86_EFLAGS_FIXED;
+	svm->vmcb01.ptr->save.efer = save->efer;
+	svm->vmcb01.ptr->save.cr0 = save->cr0;
+	svm->vmcb01.ptr->save.cr3 = save->cr3;
+	svm->vmcb01.ptr->save.cr4 = save->cr4;
+	svm->vmcb01.ptr->save.rax = save->rax;
+	svm->vmcb01.ptr->save.rsp = save->rsp;
+	svm->vmcb01.ptr->save.rip = save->rip;
+	svm->vmcb01.ptr->save.cpl = 0;
+
 	nested_load_control_from_vmcb12(svm, ctl);
 
 	svm_switch_vmcb(svm, &svm->nested.vmcb02);
