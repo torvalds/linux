@@ -738,6 +738,7 @@ struct qeth_card_info {
 	struct qeth_card_blkt blkt;
 	__u32 diagass_support;
 	__u32 hwtrap;
+	struct qeth_link_info link_info;
 };
 
 enum qeth_discipline_id {

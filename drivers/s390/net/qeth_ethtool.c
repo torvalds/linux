@@ -410,43 +410,15 @@ static int qeth_get_link_ksettings(struct net_device *netdev,
 {
 	struct qeth_card *card = netdev->ml_priv;
 	struct qeth_link_info link_info;
-	enum qeth_link_types link_type;
 
-	if (IS_IQD(card) || IS_VM_NIC(card))
-		link_type = QETH_LINK_TYPE_10GBIT_ETH;
-	else
-		link_type = card->info.link_type;
-
-	cmd->base.duplex = DUPLEX_FULL;
+	cmd->base.speed = card->info.link_info.speed;
+	cmd->base.duplex = card->info.link_info.duplex;
+	cmd->base.port = card->info.link_info.port;
 	cmd->base.autoneg = AUTONEG_ENABLE;
 	cmd->base.phy_address = 0;
 	cmd->base.mdio_support = 0;
 	cmd->base.eth_tp_mdix = ETH_TP_MDI_INVALID;
 	cmd->base.eth_tp_mdix_ctrl = ETH_TP_MDI_INVALID;
-
-	switch (link_type) {
-	case QETH_LINK_TYPE_FAST_ETH:
-	case QETH_LINK_TYPE_LANE_ETH100:
-		cmd->base.speed = SPEED_100;
-		cmd->base.port = PORT_TP;
-		break;
-	case QETH_LINK_TYPE_GBIT_ETH:
-	case QETH_LINK_TYPE_LANE_ETH1000:
-		cmd->base.speed = SPEED_1000;
-		cmd->base.port = PORT_FIBRE;
-		break;
-	case QETH_LINK_TYPE_10GBIT_ETH:
-		cmd->base.speed = SPEED_10000;
-		cmd->base.port = PORT_FIBRE;
-		break;
-	case QETH_LINK_TYPE_25GBIT_ETH:
-		cmd->base.speed = SPEED_25000;
-		cmd->base.port = PORT_FIBRE;
-		break;
-	default:
-		cmd->base.speed = SPEED_10;
-		cmd->base.port = PORT_TP;
-	}
 
 	/* Check if we can obtain more accurate information.	 */
 	if (!qeth_query_card_info(card, &link_info)) {

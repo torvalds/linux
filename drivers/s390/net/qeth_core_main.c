@@ -4951,6 +4951,42 @@ int qeth_query_card_info(struct qeth_card *card,
 	return qeth_send_ipa_cmd(card, iob, qeth_query_card_info_cb, link_info);
 }
 
+static void qeth_init_link_info(struct qeth_card *card)
+{
+	card->info.link_info.duplex = DUPLEX_FULL;
+
+	if (IS_IQD(card) || IS_VM_NIC(card)) {
+		card->info.link_info.speed = SPEED_10000;
+		card->info.link_info.port = PORT_FIBRE;
+	} else {
+		switch (card->info.link_type) {
+		case QETH_LINK_TYPE_FAST_ETH:
+		case QETH_LINK_TYPE_LANE_ETH100:
+			card->info.link_info.speed = SPEED_100;
+			card->info.link_info.port = PORT_TP;
+			break;
+		case QETH_LINK_TYPE_GBIT_ETH:
+		case QETH_LINK_TYPE_LANE_ETH1000:
+			card->info.link_info.speed = SPEED_1000;
+			card->info.link_info.port = PORT_FIBRE;
+			break;
+		case QETH_LINK_TYPE_10GBIT_ETH:
+			card->info.link_info.speed = SPEED_10000;
+			card->info.link_info.port = PORT_FIBRE;
+			break;
+		case QETH_LINK_TYPE_25GBIT_ETH:
+			card->info.link_info.speed = SPEED_25000;
+			card->info.link_info.port = PORT_FIBRE;
+			break;
+		default:
+			dev_info(&card->gdev->dev, "Unknown link type %x\n",
+				 card->info.link_type);
+			card->info.link_info.speed = SPEED_UNKNOWN;
+			card->info.link_info.port = PORT_OTHER;
+		}
+	}
+}
+
 /**
  * qeth_vm_request_mac() - Request a hypervisor-managed MAC address
  * @card: pointer to a qeth_card
@@ -5334,6 +5370,8 @@ retriable:
 		if (rc)
 			goto out;
 	}
+
+	qeth_init_link_info(card);
 
 	rc = qeth_init_qdio_queues(card);
 	if (rc) {
