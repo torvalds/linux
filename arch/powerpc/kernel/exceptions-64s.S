@@ -1410,6 +1410,11 @@ END_FTR_SECTION_IFSET(CPU_FTR_HVMODE)
  *   If none is found, do a Linux page fault. Linux page faults can happen in
  *   kernel mode due to user copy operations of course.
  *
+ *   KVM: The KVM HDSI handler may perform a load with MSR[DR]=1 in guest
+ *   MMU context, which may cause a DSI in the host, which must go to the
+ *   KVM handler. MSR[IR] is not enabled, so the real-mode handler will
+ *   always be used regardless of AIL setting.
+ *
  * - Radix MMU
  *   The hardware loads from the Linux page table directly, so a fault goes
  *   immediately to Linux page fault.
@@ -1420,10 +1425,8 @@ INT_DEFINE_BEGIN(data_access)
 	IVEC=0x300
 	IDAR=1
 	IDSISR=1
-#ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
 	IKVM_SKIP=1
 	IKVM_REAL=1
-#endif
 INT_DEFINE_END(data_access)
 
 EXC_REAL_BEGIN(data_access, 0x300, 0x80)
@@ -1462,6 +1465,8 @@ ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_TYPE_RADIX)
  *   ppc64_bolted_size (first segment). The kernel handler must avoid stomping
  *   on user-handler data structures.
  *
+ *   KVM: Same as 0x300, DSLB must test for KVM guest.
+ *
  * A dedicated save area EXSLB is used (XXX: but it actually need not be
  * these days, we could use EXGEN).
  */
@@ -1470,10 +1475,8 @@ INT_DEFINE_BEGIN(data_access_slb)
 	IAREA=PACA_EXSLB
 	IRECONCILE=0
 	IDAR=1
-#ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
 	IKVM_SKIP=1
 	IKVM_REAL=1
-#endif
 INT_DEFINE_END(data_access_slb)
 
 EXC_REAL_BEGIN(data_access_slb, 0x380, 0x80)
