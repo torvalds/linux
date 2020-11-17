@@ -41,14 +41,24 @@ static struct device_type dsa_device_type = {
 	.release = idxd_conf_device_release,
 };
 
+static struct device_type iax_device_type = {
+	.name = "iax",
+	.release = idxd_conf_device_release,
+};
+
 static inline bool is_dsa_dev(struct device *dev)
 {
 	return dev ? dev->type == &dsa_device_type : false;
 }
 
+static inline bool is_iax_dev(struct device *dev)
+{
+	return dev ? dev->type == &iax_device_type : false;
+}
+
 static inline bool is_idxd_dev(struct device *dev)
 {
-	return is_dsa_dev(dev);
+	return is_dsa_dev(dev) || is_iax_dev(dev);
 }
 
 static inline bool is_idxd_wq_dev(struct device *dev)
@@ -359,8 +369,17 @@ struct bus_type dsa_bus_type = {
 	.shutdown = idxd_config_bus_shutdown,
 };
 
+struct bus_type iax_bus_type = {
+	.name = "iax",
+	.match = idxd_config_bus_match,
+	.probe = idxd_config_bus_probe,
+	.remove = idxd_config_bus_remove,
+	.shutdown = idxd_config_bus_shutdown,
+};
+
 static struct bus_type *idxd_bus_types[] = {
-	&dsa_bus_type
+	&dsa_bus_type,
+	&iax_bus_type
 };
 
 static struct idxd_device_driver dsa_drv = {
@@ -372,8 +391,18 @@ static struct idxd_device_driver dsa_drv = {
 	},
 };
 
+static struct idxd_device_driver iax_drv = {
+	.drv = {
+		.name = "iax",
+		.bus = &iax_bus_type,
+		.owner = THIS_MODULE,
+		.mod_name = KBUILD_MODNAME,
+	},
+};
+
 static struct idxd_device_driver *idxd_drvs[] = {
-	&dsa_drv
+	&dsa_drv,
+	&iax_drv
 };
 
 struct bus_type *idxd_get_bus_type(struct idxd_device *idxd)
@@ -385,6 +414,8 @@ static struct device_type *idxd_get_device_type(struct idxd_device *idxd)
 {
 	if (idxd->type == IDXD_TYPE_DSA)
 		return &dsa_device_type;
+	else if (idxd->type == IDXD_TYPE_IAX)
+		return &iax_device_type;
 	else
 		return NULL;
 }
@@ -525,6 +556,9 @@ static ssize_t group_tokens_reserved_store(struct device *dev,
 	if (rc < 0)
 		return -EINVAL;
 
+	if (idxd->type == IDXD_TYPE_IAX)
+		return -EOPNOTSUPP;
+
 	if (!test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags))
 		return -EPERM;
 
@@ -570,6 +604,9 @@ static ssize_t group_tokens_allowed_store(struct device *dev,
 	if (rc < 0)
 		return -EINVAL;
 
+	if (idxd->type == IDXD_TYPE_IAX)
+		return -EOPNOTSUPP;
+
 	if (!test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags))
 		return -EPERM;
 
@@ -611,6 +648,9 @@ static ssize_t group_use_token_limit_store(struct device *dev,
 	rc = kstrtoul(buf, 10, &val);
 	if (rc < 0)
 		return -EINVAL;
+
+	if (idxd->type == IDXD_TYPE_IAX)
+		return -EOPNOTSUPP;
 
 	if (!test_bit(IDXD_FLAG_CONFIGURABLE, &idxd->flags))
 		return -EPERM;

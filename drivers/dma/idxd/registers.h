@@ -5,6 +5,7 @@
 
 /* PCI Config */
 #define PCI_DEVICE_ID_INTEL_DSA_SPR0	0x0b25
+#define PCI_DEVICE_ID_INTEL_IAX_SPR0	0x0cfe
 
 #define IDXD_MMIO_BAR		0
 #define IDXD_WQ_BAR		2

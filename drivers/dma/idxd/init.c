@@ -36,12 +36,16 @@ static struct mutex idxd_idr_lock;
 static struct pci_device_id idxd_pci_tbl[] = {
 	/* DSA ver 1.0 platforms */
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_DSA_SPR0) },
+
+	/* IAX ver 1.0 platforms */
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_IAX_SPR0) },
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, idxd_pci_tbl);
 
 static char *idxd_name[] = {
 	"dsa",
+	"iax"
 };
 
 const char *idxd_get_dev_name(struct idxd_device *idxd)
@@ -377,6 +381,14 @@ static int idxd_probe(struct idxd_device *idxd)
 	return rc;
 }
 
+static void idxd_type_init(struct idxd_device *idxd)
+{
+	if (idxd->type == IDXD_TYPE_DSA)
+		idxd->compl_size = sizeof(struct dsa_completion_record);
+	else if (idxd->type == IDXD_TYPE_IAX)
+		idxd->compl_size = sizeof(struct iax_completion_record);
+}
+
 static int idxd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct device *dev = &pdev->dev;
@@ -411,6 +423,8 @@ static int idxd_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return rc;
 
 	idxd_set_type(idxd);
+
+	idxd_type_init(idxd);
 
 	dev_dbg(dev, "Set PCI master\n");
 	pci_set_master(pdev);
