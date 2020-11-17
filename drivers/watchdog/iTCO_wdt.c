@@ -651,21 +651,7 @@ static struct platform_driver iTCO_wdt_driver = {
 	},
 };
 
-static int __init iTCO_wdt_init_module(void)
-{
-	pr_info("Intel TCO WatchDog Timer Driver v%s\n", DRV_VERSION);
-
-	return platform_driver_register(&iTCO_wdt_driver);
-}
-
-static void __exit iTCO_wdt_cleanup_module(void)
-{
-	platform_driver_unregister(&iTCO_wdt_driver);
-	pr_info("Watchdog Module Unloaded\n");
-}
-
-module_init(iTCO_wdt_init_module);
-module_exit(iTCO_wdt_cleanup_module);
+module_platform_driver(iTCO_wdt_driver);
 
 MODULE_AUTHOR("Wim Van Sebroeck <wim@iguana.be>");
 MODULE_DESCRIPTION("Intel TCO WatchDog Timer Driver");
