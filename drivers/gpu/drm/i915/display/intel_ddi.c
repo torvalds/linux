@@ -5295,6 +5295,9 @@ static enum hpd_pin cnl_hpd_pin(struct drm_i915_private *dev_priv,
 	return HPD_PORT_A + port - PORT_A;
 }
 
+#define port_tc_name(port) ((port) - PORT_TC1 + '1')
+#define tc_port_name(tc_port) ((tc_port) - TC_PORT_1 + '1')
+
 void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 {
 	struct intel_digital_port *dig_port;
@@ -5350,9 +5353,9 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 				 DRM_MODE_ENCODER_TMDS,
 				 "DDI %s%c/PHY %s%c",
 				 port >= PORT_TC1 ? "TC" : "",
-				 port >= PORT_TC1 ? port_name(port) : port - PORT_TC1 + '1',
+				 port >= PORT_TC1 ? port_tc_name(port) : port_name(port),
 				 tc_port != TC_PORT_NONE ? "TC" : "",
-				 tc_port != TC_PORT_NONE ? phy_name(phy) : tc_port - TC_PORT_1 + '1');
+				 tc_port != TC_PORT_NONE ? tc_port_name(tc_port) : phy_name(phy));
 	} else if (INTEL_GEN(dev_priv) >= 11) {
 		enum tc_port tc_port = intel_port_to_tc(dev_priv, port);
 
@@ -5362,7 +5365,7 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 				 port_name(port),
 				 port >= PORT_C ? " (TC)" : "",
 				 tc_port != TC_PORT_NONE ? "TC" : "",
-				 tc_port != TC_PORT_NONE ? phy_name(phy) : tc_port - TC_PORT_1 + '1');
+				 tc_port != TC_PORT_NONE ? tc_port_name(tc_port) : phy_name(phy));
 	} else {
 		drm_encoder_init(&dev_priv->drm, &encoder->base, &intel_ddi_funcs,
 				 DRM_MODE_ENCODER_TMDS,
