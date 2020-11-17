@@ -1750,14 +1750,14 @@ out_unlock:
 }
 
 static const struct file_operations iio_buffer_fileops = {
-	.read = iio_buffer_read_outer_addr,
-	.release = iio_chrdev_release,
-	.open = iio_chrdev_open,
-	.poll = iio_buffer_poll_addr,
 	.owner = THIS_MODULE,
 	.llseek = noop_llseek,
+	.read = iio_buffer_read_outer_addr,
+	.poll = iio_buffer_poll_addr,
 	.unlocked_ioctl = iio_ioctl,
 	.compat_ioctl = compat_ptr_ioctl,
+	.open = iio_chrdev_open,
+	.release = iio_chrdev_release,
 };
 
 static int iio_check_unique_scan_index(struct iio_dev *indio_dev)
