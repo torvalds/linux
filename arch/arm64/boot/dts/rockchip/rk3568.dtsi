@@ -1104,6 +1104,7 @@
 		clock-names = "aclk", "iface";
 		power-domains = <&power RK3568_PD_VI>;
 		#iommu-cells = <0>;
+		rockchip,disable-mmu-reset;
 		status = "disabled";
 	};
 
