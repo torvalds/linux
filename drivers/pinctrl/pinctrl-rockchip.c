@@ -3421,9 +3421,6 @@ static int rockchip_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 				return rc;
 			break;
 		case PIN_CONFIG_OUTPUT:
-			if (!bank->valid)
-				return -ENOTSUPP;
-
 			rc = rockchip_get_mux(bank, pin - bank->pin_base);
 			if (rc != 0) {
 				dev_err(info->dev, "pin-%d has been mux to func%d\n", pin, rc);
@@ -3504,9 +3501,6 @@ static int rockchip_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 		arg = rc;
 		break;
 	case PIN_CONFIG_OUTPUT:
-		if (!bank->valid)
-			return -ENOTSUPP;
-
 		rc = rockchip_get_mux(bank, pin - bank->pin_base);
 		if (rc != 0) {
 			dev_err(info->dev, "pin-%d has been mux to func%d\n", pin, rc);
@@ -3747,19 +3741,6 @@ static int rockchip_pinctrl_register(struct platform_device *pdev,
 	if (IS_ERR(info->pctl_dev)) {
 		dev_err(&pdev->dev, "could not register pinctrl driver\n");
 		return PTR_ERR(info->pctl_dev);
-	}
-
-	for (bank = 0; bank < info->ctrl->nr_banks; ++bank) {
-		pin_bank = &info->ctrl->pin_banks[bank];
-		if (!pin_bank->valid)
-			continue;
-		pin_bank->grange.name = pin_bank->name;
-		pin_bank->grange.id = bank;
-		pin_bank->grange.pin_base = pin_bank->pin_base;
-		pin_bank->grange.base = pin_bank->gpio_chip.base;
-		pin_bank->grange.npins = pin_bank->gpio_chip.ngpio;
-		pin_bank->grange.gc = &pin_bank->gpio_chip;
-		pinctrl_add_gpio_range(info->pctl_dev, &pin_bank->grange);
 	}
 
 	return 0;

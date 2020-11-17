@@ -115,7 +115,6 @@ struct rockchip_drv {
  * @iomux: array describing the 4 iomux sources of the bank
  * @drv: array describing the 4 drive strength sources of the bank
  * @pull_type: array describing the 4 pull type sources of the bank
- * @valid: is all necessary information present
  * @of_node: dt node of this bank
  * @drvdata: common pinctrl basedata
  * @domain: irqdomain of the gpio bank
@@ -140,7 +139,6 @@ struct rockchip_pin_bank {
 	struct rockchip_iomux		iomux[4];
 	struct rockchip_drv		drv[4];
 	enum rockchip_pin_pull_type	pull_type[4];
-	bool				valid;
 	struct device_node		*of_node;
 	struct rockchip_pinctrl		*drvdata;
 	struct irq_domain		*domain;
