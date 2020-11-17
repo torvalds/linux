@@ -262,6 +262,7 @@ struct dw_mipi_dsi {
 	struct device_node *client;
 	struct regmap *grf;
 	struct clk *pclk;
+	struct clk *hclk;
 	struct mipi_dphy dphy;
 	struct regmap *regmap;
 	struct reset_control *rst;
@@ -1701,6 +1702,13 @@ static int dw_mipi_dsi_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	dsi->hclk = devm_clk_get_optional(dev, "hclk");
+	if (IS_ERR(dsi->hclk)) {
+		ret = PTR_ERR(dsi->hclk);
+		DRM_DEV_ERROR(dev, "Unable to get hclk: %d\n", ret);
+		return ret;
+	}
+
 	dsi->regmap = devm_regmap_init_mmio(dev, regs,
 					    &dw_mipi_dsi_regmap_config);
 	if (IS_ERR(dsi->regmap)) {
@@ -1762,6 +1770,7 @@ static int __maybe_unused dw_mipi_dsi_runtime_suspend(struct device *dev)
 	struct dw_mipi_dsi *dsi = dev_get_drvdata(dev);
 
 	clk_disable_unprepare(dsi->pclk);
+	clk_disable_unprepare(dsi->hclk);
 	clk_disable_unprepare(dsi->dphy.hs_clk);
 	clk_disable_unprepare(dsi->dphy.ref_clk);
 	clk_disable_unprepare(dsi->dphy.cfg_clk);
@@ -1776,6 +1785,7 @@ static int __maybe_unused dw_mipi_dsi_runtime_resume(struct device *dev)
 	clk_prepare_enable(dsi->dphy.cfg_clk);
 	clk_prepare_enable(dsi->dphy.ref_clk);
 	clk_prepare_enable(dsi->dphy.hs_clk);
+	clk_prepare_enable(dsi->hclk);
 	clk_prepare_enable(dsi->pclk);
 
 	return 0;
