@@ -98,7 +98,7 @@ static void init_fw_feat_flags(struct device_node *np)
 		security_ftr_clear(SEC_FTR_BNDS_CHK_SPEC_BAR);
 }
 
-static void pnv_setup_rfi_flush(void)
+static void pnv_setup_security_mitigations(void)
 {
 	struct device_node *np, *fw_features;
 	enum l1d_flush_type type;
@@ -145,6 +145,8 @@ static void pnv_setup_rfi_flush(void)
 	enable = security_ftr_enabled(SEC_FTR_FAVOUR_SECURITY) &&
 		 security_ftr_enabled(SEC_FTR_L1D_FLUSH_UACCESS);
 	setup_uaccess_flush(enable);
+
+	setup_stf_barrier();
 }
 
 static void __init pnv_check_guarded_cores(void)
@@ -173,8 +175,7 @@ static void __init pnv_setup_arch(void)
 {
 	set_arch_panic_timeout(10, ARCH_PANIC_TIMEOUT);
 
-	pnv_setup_rfi_flush();
-	setup_stf_barrier();
+	pnv_setup_security_mitigations();
 
 	/* Initialize SMP */
 	pnv_smp_init();
