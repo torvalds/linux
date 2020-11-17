@@ -1738,7 +1738,7 @@ static enum dc_status enable_link_dp_mst(
 	/* sink signal type after MST branch is MST. Multiple MST sinks
 	 * share one link. Link DP PHY is enable or training only once.
 	 */
-	if (link->cur_link_settings.lane_count != LANE_COUNT_UNKNOWN)
+	if (link->link_status.link_active)
 		return DC_OK;
 
 	/* clear payload table */

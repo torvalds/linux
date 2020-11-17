@@ -1530,6 +1530,8 @@ static void power_down_encoders(struct dc *dc)
 				dc->links[i]->link_enc, signal);
 
 		dc->links[i]->link_status.link_active = false;
+		memset(&dc->links[i]->cur_link_settings, 0,
+				sizeof(dc->links[i]->cur_link_settings));
 	}
 }
 
