@@ -20,6 +20,13 @@ properties:
               - samsung,smdk2416                # Samsung SMDK2416
           - const: samsung,s3c2416
 
+      - description: S3C6410 based boards
+        items:
+          - enum:
+              - friendlyarm,mini6410            # FriendlyARM Mini6410
+              - samsung,smdk6410                # Samsung SMDK6410
+          - const: samsung,s3c6410
+
       - description: S5PV210 based boards
         items:
           - enum:
