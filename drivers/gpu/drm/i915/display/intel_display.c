@@ -16931,9 +16931,11 @@ intel_legacy_cursor_update(struct drm_plane *_plane,
 	/*
 	 * When crtc is inactive or there is a modeset pending,
 	 * wait for it to complete in the slowpath
+	 *
+	 * FIXME bigjoiner fastpath would be good
 	 */
 	if (!crtc_state->hw.active || needs_modeset(crtc_state) ||
-	    crtc_state->update_pipe)
+	    crtc_state->update_pipe || crtc_state->bigjoiner)
 		goto slow;
 
 	/*
