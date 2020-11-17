@@ -507,17 +507,25 @@ int vmw_bo_create_kernel(struct vmw_private *dev_priv, unsigned long size,
 	acc_size = ttm_round_pot(sizeof(*bo));
 	acc_size += ttm_round_pot(npages * sizeof(void *));
 	acc_size += ttm_round_pot(sizeof(struct ttm_tt));
-	ret = ttm_bo_init_reserved(&dev_priv->bdev, bo, size,
-				   ttm_bo_type_device, placement, 0,
-				   &ctx, acc_size, NULL, NULL, NULL);
+
+	ret = ttm_mem_global_alloc(&ttm_mem_glob, acc_size, &ctx);
 	if (unlikely(ret))
 		goto error_free;
+
+	ret = ttm_bo_init_reserved(&dev_priv->bdev, bo, size,
+				   ttm_bo_type_device, placement, 0,
+				   &ctx, NULL, NULL, NULL);
+	if (unlikely(ret))
+		goto error_account;
 
 	ttm_bo_pin(bo);
 	ttm_bo_unreserve(bo);
 	*p_bo = bo;
 
 	return 0;
+
+error_account:
+	ttm_mem_global_free(&ttm_mem_glob, acc_size);
 
 error_free:
 	kfree(bo);
@@ -558,11 +566,17 @@ int vmw_bo_init(struct vmw_private *dev_priv,
 	vmw_bo->base.priority = 3;
 	vmw_bo->res_tree = RB_ROOT;
 
-	ret = ttm_bo_init_reserved(bdev, &vmw_bo->base, size,
-				   ttm_bo_type_device, placement,
-				   0, &ctx, acc_size, NULL, NULL, bo_free);
+	ret = ttm_mem_global_alloc(&ttm_mem_glob, acc_size, &ctx);
 	if (unlikely(ret))
 		return ret;
+
+	ret = ttm_bo_init_reserved(bdev, &vmw_bo->base, size,
+				   ttm_bo_type_device, placement,
+				   0, &ctx, NULL, NULL, bo_free);
+	if (unlikely(ret)) {
+		ttm_mem_global_free(&ttm_mem_glob, acc_size);
+		return ret;
+	}
 
 	if (pin)
 		ttm_bo_pin(&vmw_bo->base);

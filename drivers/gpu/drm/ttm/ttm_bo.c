@@ -425,7 +425,6 @@ static void ttm_bo_release(struct kref *kref)
 	struct ttm_buffer_object *bo =
 	    container_of(kref, struct ttm_buffer_object, kref);
 	struct ttm_device *bdev = bo->bdev;
-	size_t acc_size = bo->acc_size;
 	int ret;
 
 	if (!bo->deleted) {
@@ -485,7 +484,6 @@ static void ttm_bo_release(struct kref *kref)
 	if (!ttm_bo_uses_embedded_gem_object(bo))
 		dma_resv_fini(&bo->base._resv);
 	bo->destroy(bo);
-	ttm_mem_global_free(&ttm_mem_glob, acc_size);
 }
 
 void ttm_bo_put(struct ttm_buffer_object *bo)
@@ -1046,24 +1044,12 @@ int ttm_bo_init_reserved(struct ttm_device *bdev,
 			 struct ttm_placement *placement,
 			 uint32_t page_alignment,
 			 struct ttm_operation_ctx *ctx,
-			 size_t acc_size,
 			 struct sg_table *sg,
 			 struct dma_resv *resv,
 			 void (*destroy) (struct ttm_buffer_object *))
 {
-	struct ttm_mem_global *mem_glob = &ttm_mem_glob;
 	bool locked;
 	int ret = 0;
-
-	ret = ttm_mem_global_alloc(mem_glob, acc_size, ctx);
-	if (ret) {
-		pr_err("Out of kernel memory\n");
-		if (destroy)
-			(*destroy)(bo);
-		else
-			kfree(bo);
-		return -ENOMEM;
-	}
 
 	bo->destroy = destroy ? destroy : ttm_bo_default_destroy;
 
@@ -1081,7 +1067,6 @@ int ttm_bo_init_reserved(struct ttm_device *bdev,
 	bo->mem.bus.addr = NULL;
 	bo->moving = NULL;
 	bo->mem.placement = 0;
-	bo->acc_size = acc_size;
 	bo->pin_count = 0;
 	bo->sg = sg;
 	if (resv) {
@@ -1142,7 +1127,6 @@ int ttm_bo_init(struct ttm_device *bdev,
 		struct ttm_placement *placement,
 		uint32_t page_alignment,
 		bool interruptible,
-		size_t acc_size,
 		struct sg_table *sg,
 		struct dma_resv *resv,
 		void (*destroy) (struct ttm_buffer_object *))
@@ -1151,8 +1135,7 @@ int ttm_bo_init(struct ttm_device *bdev,
 	int ret;
 
 	ret = ttm_bo_init_reserved(bdev, bo, size, type, placement,
-				   page_alignment, &ctx, acc_size,
-				   sg, resv, destroy);
+				   page_alignment, &ctx, sg, resv, destroy);
 	if (ret)
 		return ret;
 
@@ -1162,20 +1145,6 @@ int ttm_bo_init(struct ttm_device *bdev,
 	return 0;
 }
 EXPORT_SYMBOL(ttm_bo_init);
-
-size_t ttm_bo_dma_acc_size(struct ttm_device *bdev,
-			   unsigned long bo_size,
-			   unsigned struct_size)
-{
-	unsigned npages = (PAGE_ALIGN(bo_size)) >> PAGE_SHIFT;
-	size_t size = 0;
-
-	size += ttm_round_pot(struct_size);
-	size += ttm_round_pot(npages * (2*sizeof(void *) + sizeof(dma_addr_t)));
-	size += ttm_round_pot(sizeof(struct ttm_tt));
-	return size;
-}
-EXPORT_SYMBOL(ttm_bo_dma_acc_size);
 
 /*
  * buffer object vm functions.

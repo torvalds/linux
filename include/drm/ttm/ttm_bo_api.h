@@ -88,7 +88,6 @@ struct ttm_tt;
  * @type: The bo type.
  * @destroy: Destruction function. If NULL, kfree is used.
  * @num_pages: Actual number of pages.
- * @acc_size: Accounted size for this object.
  * @kref: Reference count of this buffer object. When this refcount reaches
  * zero, the object is destroyed or put on the delayed delete list.
  * @mem: structure describing current placement.
@@ -125,7 +124,6 @@ struct ttm_buffer_object {
 	struct ttm_device *bdev;
 	enum ttm_bo_type type;
 	void (*destroy) (struct ttm_buffer_object *);
-	size_t acc_size;
 
 	/**
 	* Members not needing protection.
@@ -357,10 +355,6 @@ void ttm_bo_unlock_delayed_workqueue(struct ttm_device *bdev, int resched);
 bool ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
 			      const struct ttm_place *place);
 
-size_t ttm_bo_dma_acc_size(struct ttm_device *bdev,
-			   unsigned long bo_size,
-			   unsigned struct_size);
-
 /**
  * ttm_bo_init_reserved
  *
@@ -371,7 +365,6 @@ size_t ttm_bo_dma_acc_size(struct ttm_device *bdev,
  * @flags: Initial placement flags.
  * @page_alignment: Data alignment in pages.
  * @ctx: TTM operation context for memory allocation.
- * @acc_size: Accounted size for this object.
  * @resv: Pointer to a dma_resv, or NULL to let ttm allocate one.
  * @destroy: Destroy function. Use NULL for kfree().
  *
@@ -402,8 +395,7 @@ int ttm_bo_init_reserved(struct ttm_device *bdev,
 			 struct ttm_placement *placement,
 			 uint32_t page_alignment,
 			 struct ttm_operation_ctx *ctx,
-			 size_t acc_size, struct sg_table *sg,
-			 struct dma_resv *resv,
+			 struct sg_table *sg, struct dma_resv *resv,
 			 void (*destroy) (struct ttm_buffer_object *));
 
 /**
@@ -421,7 +413,6 @@ int ttm_bo_init_reserved(struct ttm_device *bdev,
  * holds a pointer to a persistent shmem object. Typically, this would
  * point to the shmem object backing a GEM object if TTM is used to back a
  * GEM user interface.
- * @acc_size: Accounted size for this object.
  * @resv: Pointer to a dma_resv, or NULL to let ttm allocate one.
  * @destroy: Destroy function. Use NULL for kfree().
  *
@@ -446,7 +437,7 @@ int ttm_bo_init_reserved(struct ttm_device *bdev,
 int ttm_bo_init(struct ttm_device *bdev, struct ttm_buffer_object *bo,
 		size_t size, enum ttm_bo_type type,
 		struct ttm_placement *placement,
-		uint32_t page_alignment, bool interrubtible, size_t acc_size,
+		uint32_t page_alignment, bool interrubtible,
 		struct sg_table *sg, struct dma_resv *resv,
 		void (*destroy) (struct ttm_buffer_object *));
 

@@ -138,8 +138,8 @@ int qxl_bo_create(struct qxl_device *qdev,
 	qxl_ttm_placement_from_domain(bo, domain);
 
 	r = ttm_bo_init_reserved(&qdev->mman.bdev, &bo->tbo, size, type,
-				 &bo->placement, 0, &ctx, size,
-				 NULL, NULL, &qxl_ttm_bo_destroy);
+				 &bo->placement, 0, &ctx, NULL, NULL,
+				 &qxl_ttm_bo_destroy);
 	if (unlikely(r != 0)) {
 		if (r != -ERESTARTSYS)
 			dev_err(qdev->ddev.dev,

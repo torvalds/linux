@@ -576,11 +576,31 @@ static void vmw_ttm_destroy(struct ttm_device *bdev, struct ttm_tt *ttm)
 static int vmw_ttm_populate(struct ttm_device *bdev,
 			    struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
 {
+	unsigned int i;
+	int ret;
+
 	/* TODO: maybe completely drop this ? */
 	if (ttm_tt_is_populated(ttm))
 		return 0;
 
-	return ttm_pool_alloc(&bdev->pool, ttm, ctx);
+	ret = ttm_pool_alloc(&bdev->pool, ttm, ctx);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < ttm->num_pages; ++i) {
+		ret = ttm_mem_global_alloc_page(&ttm_mem_glob, ttm->pages[i],
+						PAGE_SIZE, ctx);
+		if (ret)
+			goto error;
+	}
+	return 0;
+
+error:
+	while (i--)
+		ttm_mem_global_free_page(&ttm_mem_glob, ttm->pages[i],
+					 PAGE_SIZE);
+	ttm_pool_free(&bdev->pool, ttm);
+	return ret;
 }
 
 static void vmw_ttm_unpopulate(struct ttm_device *bdev,
@@ -588,6 +608,7 @@ static void vmw_ttm_unpopulate(struct ttm_device *bdev,
 {
 	struct vmw_ttm_tt *vmw_tt = container_of(ttm, struct vmw_ttm_tt,
 						 dma_ttm);
+	unsigned int i;
 
 	if (vmw_tt->mob) {
 		vmw_mob_destroy(vmw_tt->mob);
@@ -595,6 +616,11 @@ static void vmw_ttm_unpopulate(struct ttm_device *bdev,
 	}
 
 	vmw_ttm_unmap_dma(vmw_tt);
+
+	for (i = 0; i < ttm->num_pages; ++i)
+		ttm_mem_global_free_page(&ttm_mem_glob, ttm->pages[i],
+					 PAGE_SIZE);
+
 	ttm_pool_free(&bdev->pool, ttm);
 }
 

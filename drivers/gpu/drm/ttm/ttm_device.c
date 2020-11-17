@@ -27,9 +27,12 @@
 
 #define pr_fmt(fmt) "[TTM DEVICE] " fmt
 
+#include <linux/mm.h>
+
 #include <drm/ttm/ttm_device.h>
-#include <drm/ttm/ttm_memory.h>
+#include <drm/ttm/ttm_tt.h>
 #include <drm/ttm/ttm_placement.h>
+#include <drm/ttm/ttm_bo_api.h>
 
 #include "ttm_module.h"
 
@@ -49,7 +52,9 @@ static void ttm_global_release(void)
 	if (--ttm_glob_use_count > 0)
 		goto out;
 
-	ttm_mem_global_release(&ttm_mem_glob);
+	ttm_pool_mgr_fini();
+	ttm_tt_mgr_fini();
+
 	__free_page(glob->dummy_read_page);
 	memset(glob, 0, sizeof(*glob));
 out:
@@ -59,6 +64,8 @@ out:
 static int ttm_global_init(void)
 {
 	struct ttm_global *glob = &ttm_glob;
+	unsigned long num_pages;
+	struct sysinfo si;
 	int ret = 0;
 	unsigned i;
 
@@ -66,9 +73,14 @@ static int ttm_global_init(void)
 	if (++ttm_glob_use_count > 1)
 		goto out;
 
-	ret = ttm_mem_global_init(&ttm_mem_glob);
-	if (ret)
-		goto out;
+	si_meminfo(&si);
+
+	/* Limit the number of pages in the pool to about 50% of the total
+	 * system memory.
+	 */
+	num_pages = ((u64)si.totalram * si.mem_unit) >> PAGE_SHIFT;
+	ttm_pool_mgr_init(num_pages * 50 / 100);
+	ttm_tt_mgr_init();
 
 	spin_lock_init(&glob->lru_lock);
 	glob->dummy_read_page = alloc_page(__GFP_ZERO | GFP_DMA32);

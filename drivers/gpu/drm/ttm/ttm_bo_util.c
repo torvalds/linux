@@ -309,7 +309,6 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 
 	kref_init(&fbo->base.kref);
 	fbo->base.destroy = &ttm_transfered_destroy;
-	fbo->base.acc_size = 0;
 	fbo->base.pin_count = 0;
 	if (bo->type != ttm_bo_type_sg)
 		fbo->base.base.resv = &fbo->base.base._resv;

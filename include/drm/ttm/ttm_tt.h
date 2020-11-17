@@ -30,6 +30,7 @@
 #include <linux/types.h>
 #include <drm/ttm/ttm_caching.h>
 
+struct ttm_bo_device;
 struct ttm_tt;
 struct ttm_resource;
 struct ttm_buffer_object;

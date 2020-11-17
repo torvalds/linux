@@ -1268,6 +1268,7 @@ static void vmw_remove(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
 
+	ttm_mem_global_release(&ttm_mem_glob);
 	drm_dev_unregister(dev);
 	vmw_driver_unload(dev);
 }
@@ -1517,6 +1518,10 @@ static int vmw_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return PTR_ERR(vmw);
 
 	pci_set_drvdata(pdev, &vmw->drm);
+
+	ret = ttm_mem_global_init(&ttm_mem_glob, &pdev->dev);
+	if (ret)
+		return ret;
 
 	ret = vmw_driver_load(vmw, ent->device);
 	if (ret)

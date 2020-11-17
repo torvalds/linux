@@ -189,7 +189,6 @@ struct drm_gem_vram_object *drm_gem_vram_create(struct drm_device *dev,
 	struct drm_vram_mm *vmm = dev->vram_mm;
 	struct ttm_device *bdev;
 	int ret;
-	size_t acc_size;
 
 	if (WARN_ONCE(!vmm, "VRAM MM not initialized"))
 		return ERR_PTR(-EINVAL);
@@ -216,7 +215,6 @@ struct drm_gem_vram_object *drm_gem_vram_create(struct drm_device *dev,
 	}
 
 	bdev = &vmm->bdev;
-	acc_size = ttm_bo_dma_acc_size(bdev, size, sizeof(*gbo));
 
 	gbo->bo.bdev = bdev;
 	drm_gem_vram_placement(gbo, DRM_GEM_VRAM_PL_FLAG_SYSTEM);
@@ -226,8 +224,8 @@ struct drm_gem_vram_object *drm_gem_vram_create(struct drm_device *dev,
 	 * to release gbo->bo.base and kfree gbo.
 	 */
 	ret = ttm_bo_init(bdev, &gbo->bo, size, ttm_bo_type_device,
-			  &gbo->placement, pg_align, false, acc_size,
-			  NULL, NULL, ttm_buffer_object_destroy);
+			  &gbo->placement, pg_align, false, NULL, NULL,
+			  ttm_buffer_object_destroy);
 	if (ret)
 		return ERR_PTR(ret);
 
