@@ -1103,6 +1103,14 @@ struct hclge_dev_specs_0_cmd {
 	__le32 max_tm_rate;
 };
 
+#define HCLGE_DEF_MAX_INT_GL		0x1FE0U
+
+struct hclge_dev_specs_1_cmd {
+	__le32 rsv0;
+	__le16 max_int_gl;
+	u8 rsv1[18];
+};
+
 int hclge_cmd_init(struct hclge_dev *hdev);
 static inline void hclge_write_reg(void __iomem *base, u32 reg, u32 value)
 {

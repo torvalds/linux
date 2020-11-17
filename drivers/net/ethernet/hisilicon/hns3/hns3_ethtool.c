@@ -1105,15 +1105,18 @@ static int hns3_get_coalesce_per_queue(struct net_device *netdev, u32 queue,
 	rx_vector = priv->ring[queue_num + queue].tqp_vector;
 
 	cmd->use_adaptive_tx_coalesce =
-			tx_vector->tx_group.coal.gl_adapt_enable;
+			tx_vector->tx_group.coal.adapt_enable;
 	cmd->use_adaptive_rx_coalesce =
-			rx_vector->rx_group.coal.gl_adapt_enable;
+			rx_vector->rx_group.coal.adapt_enable;
 
 	cmd->tx_coalesce_usecs = tx_vector->tx_group.coal.int_gl;
 	cmd->rx_coalesce_usecs = rx_vector->rx_group.coal.int_gl;
 
 	cmd->tx_coalesce_usecs_high = h->kinfo.int_rl_setting;
 	cmd->rx_coalesce_usecs_high = h->kinfo.int_rl_setting;
+
+	cmd->tx_max_coalesced_frames = tx_vector->tx_group.coal.int_ql;
+	cmd->rx_max_coalesced_frames = rx_vector->rx_group.coal.int_ql;
 
 	return 0;
 }
@@ -1127,21 +1130,29 @@ static int hns3_get_coalesce(struct net_device *netdev,
 static int hns3_check_gl_coalesce_para(struct net_device *netdev,
 				       struct ethtool_coalesce *cmd)
 {
+	struct hnae3_handle *handle = hns3_get_handle(netdev);
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(handle->pdev);
 	u32 rx_gl, tx_gl;
 
-	if (cmd->rx_coalesce_usecs > HNS3_INT_GL_MAX) {
+	if (cmd->rx_coalesce_usecs > ae_dev->dev_specs.max_int_gl) {
 		netdev_err(netdev,
-			   "Invalid rx-usecs value, rx-usecs range is 0-%d\n",
-			   HNS3_INT_GL_MAX);
+			   "invalid rx-usecs value, rx-usecs range is 0-%u\n",
+			   ae_dev->dev_specs.max_int_gl);
 		return -EINVAL;
 	}
 
-	if (cmd->tx_coalesce_usecs > HNS3_INT_GL_MAX) {
+	if (cmd->tx_coalesce_usecs > ae_dev->dev_specs.max_int_gl) {
 		netdev_err(netdev,
-			   "Invalid tx-usecs value, tx-usecs range is 0-%d\n",
-			   HNS3_INT_GL_MAX);
+			   "invalid tx-usecs value, tx-usecs range is 0-%u\n",
+			   ae_dev->dev_specs.max_int_gl);
 		return -EINVAL;
 	}
+
+	/* device version above V3(include V3), GL uses 1us unit,
+	 * so the round down is not needed.
+	 */
+	if (ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V3)
+		return 0;
 
 	rx_gl = hns3_gl_round_down(cmd->rx_coalesce_usecs);
 	if (rx_gl != cmd->rx_coalesce_usecs) {
@@ -1188,6 +1199,29 @@ static int hns3_check_rl_coalesce_para(struct net_device *netdev,
 	return 0;
 }
 
+static int hns3_check_ql_coalesce_param(struct net_device *netdev,
+					struct ethtool_coalesce *cmd)
+{
+	struct hnae3_handle *handle = hns3_get_handle(netdev);
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(handle->pdev);
+
+	if ((cmd->tx_max_coalesced_frames || cmd->rx_max_coalesced_frames) &&
+	    !ae_dev->dev_specs.int_ql_max) {
+		netdev_err(netdev, "coalesced frames is not supported\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (cmd->tx_max_coalesced_frames > ae_dev->dev_specs.int_ql_max ||
+	    cmd->rx_max_coalesced_frames > ae_dev->dev_specs.int_ql_max) {
+		netdev_err(netdev,
+			   "invalid coalesced_frames value, range is 0-%u\n",
+			   ae_dev->dev_specs.int_ql_max);
+		return -ERANGE;
+	}
+
+	return 0;
+}
+
 static int hns3_check_coalesce_para(struct net_device *netdev,
 				    struct ethtool_coalesce *cmd)
 {
@@ -1206,6 +1240,10 @@ static int hns3_check_coalesce_para(struct net_device *netdev,
 			   "Check rl coalesce param fail. ret = %d\n", ret);
 		return ret;
 	}
+
+	ret = hns3_check_ql_coalesce_param(netdev, cmd);
+	if (ret)
+		return ret;
 
 	if (cmd->use_adaptive_tx_coalesce == 1 ||
 	    cmd->use_adaptive_rx_coalesce == 1) {
@@ -1230,13 +1268,16 @@ static void hns3_set_coalesce_per_queue(struct net_device *netdev,
 	tx_vector = priv->ring[queue].tqp_vector;
 	rx_vector = priv->ring[queue_num + queue].tqp_vector;
 
-	tx_vector->tx_group.coal.gl_adapt_enable =
+	tx_vector->tx_group.coal.adapt_enable =
 				cmd->use_adaptive_tx_coalesce;
-	rx_vector->rx_group.coal.gl_adapt_enable =
+	rx_vector->rx_group.coal.adapt_enable =
 				cmd->use_adaptive_rx_coalesce;
 
 	tx_vector->tx_group.coal.int_gl = cmd->tx_coalesce_usecs;
 	rx_vector->rx_group.coal.int_gl = cmd->rx_coalesce_usecs;
+
+	tx_vector->tx_group.coal.int_ql = cmd->tx_max_coalesced_frames;
+	rx_vector->rx_group.coal.int_ql = cmd->rx_max_coalesced_frames;
 
 	hns3_set_vector_coalesce_tx_gl(tx_vector,
 				       tx_vector->tx_group.coal.int_gl);
@@ -1245,6 +1286,13 @@ static void hns3_set_coalesce_per_queue(struct net_device *netdev,
 
 	hns3_set_vector_coalesce_rl(tx_vector, h->kinfo.int_rl_setting);
 	hns3_set_vector_coalesce_rl(rx_vector, h->kinfo.int_rl_setting);
+
+	if (tx_vector->tx_group.coal.ql_enable)
+		hns3_set_vector_coalesce_tx_ql(tx_vector,
+					       tx_vector->tx_group.coal.int_ql);
+	if (rx_vector->rx_group.coal.ql_enable)
+		hns3_set_vector_coalesce_rx_ql(rx_vector,
+					       rx_vector->rx_group.coal.int_ql);
 }
 
 static int hns3_set_coalesce(struct net_device *netdev,
@@ -1471,7 +1519,8 @@ static int hns3_get_module_eeprom(struct net_device *netdev,
 #define HNS3_ETHTOOL_COALESCE	(ETHTOOL_COALESCE_USECS |		\
 				 ETHTOOL_COALESCE_USE_ADAPTIVE |	\
 				 ETHTOOL_COALESCE_RX_USECS_HIGH |	\
-				 ETHTOOL_COALESCE_TX_USECS_HIGH)
+				 ETHTOOL_COALESCE_TX_USECS_HIGH |	\
+				 ETHTOOL_COALESCE_MAX_FRAMES)
 
 static const struct ethtool_ops hns3vf_ethtool_ops = {
 	.supported_coalesce_params = HNS3_ETHTOOL_COALESCE,

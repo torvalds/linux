@@ -278,6 +278,7 @@ struct hnae3_dev_specs {
 	u16 rss_ind_tbl_size;
 	u16 rss_key_size;
 	u16 int_ql_max; /* max value of interrupt coalesce based on INT_QL */
+	u16 max_int_gl; /* max value of interrupt coalesce based on INT_GL */
 	u8 max_non_tso_bd_num; /* max BD number of one non-TSO packet */
 };
 

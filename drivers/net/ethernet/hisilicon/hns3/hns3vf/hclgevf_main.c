@@ -2991,6 +2991,7 @@ static void hclgevf_set_default_dev_specs(struct hclgevf_dev *hdev)
 					HCLGEVF_MAX_NON_TSO_BD_NUM;
 	ae_dev->dev_specs.rss_ind_tbl_size = HCLGEVF_RSS_IND_TBL_SIZE;
 	ae_dev->dev_specs.rss_key_size = HCLGEVF_RSS_KEY_SIZE;
+	ae_dev->dev_specs.max_int_gl = HCLGEVF_DEF_MAX_INT_GL;
 }
 
 static void hclgevf_parse_dev_specs(struct hclgevf_dev *hdev,
@@ -2998,13 +2999,17 @@ static void hclgevf_parse_dev_specs(struct hclgevf_dev *hdev,
 {
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(hdev->pdev);
 	struct hclgevf_dev_specs_0_cmd *req0;
+	struct hclgevf_dev_specs_1_cmd *req1;
 
 	req0 = (struct hclgevf_dev_specs_0_cmd *)desc[0].data;
+	req1 = (struct hclgevf_dev_specs_1_cmd *)desc[1].data;
 
 	ae_dev->dev_specs.max_non_tso_bd_num = req0->max_non_tso_bd_num;
 	ae_dev->dev_specs.rss_ind_tbl_size =
 					le16_to_cpu(req0->rss_ind_tbl_size);
+	ae_dev->dev_specs.int_ql_max = le16_to_cpu(req0->int_ql_max);
 	ae_dev->dev_specs.rss_key_size = le16_to_cpu(req0->rss_key_size);
+	ae_dev->dev_specs.max_int_gl = le16_to_cpu(req1->max_int_gl);
 }
 
 static void hclgevf_check_dev_specs(struct hclgevf_dev *hdev)
@@ -3017,6 +3022,8 @@ static void hclgevf_check_dev_specs(struct hclgevf_dev *hdev)
 		dev_specs->rss_ind_tbl_size = HCLGEVF_RSS_IND_TBL_SIZE;
 	if (!dev_specs->rss_key_size)
 		dev_specs->rss_key_size = HCLGEVF_RSS_KEY_SIZE;
+	if (!dev_specs->max_int_gl)
+		dev_specs->max_int_gl = HCLGEVF_DEF_MAX_INT_GL;
 }
 
 static int hclgevf_query_dev_specs(struct hclgevf_dev *hdev)

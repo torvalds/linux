@@ -211,8 +211,8 @@ void hns3_set_vector_coalesce_rl(struct hns3_enet_tqp_vector *tqp_vector,
 	 * GL and RL(Rate Limiter) are 2 ways to acheive interrupt coalescing
 	 */
 
-	if (rl_reg > 0 && !tqp_vector->tx_group.coal.gl_adapt_enable &&
-	    !tqp_vector->rx_group.coal.gl_adapt_enable)
+	if (rl_reg > 0 && !tqp_vector->tx_group.coal.adapt_enable &&
+	    !tqp_vector->rx_group.coal.adapt_enable)
 		/* According to the hardware, the range of rl_reg is
 		 * 0-59 and the unit is 4.
 		 */
@@ -224,48 +224,99 @@ void hns3_set_vector_coalesce_rl(struct hns3_enet_tqp_vector *tqp_vector,
 void hns3_set_vector_coalesce_rx_gl(struct hns3_enet_tqp_vector *tqp_vector,
 				    u32 gl_value)
 {
-	u32 rx_gl_reg = hns3_gl_usec_to_reg(gl_value);
+	u32 new_val;
 
-	writel(rx_gl_reg, tqp_vector->mask_addr + HNS3_VECTOR_GL0_OFFSET);
+	if (tqp_vector->rx_group.coal.unit_1us)
+		new_val = gl_value | HNS3_INT_GL_1US;
+	else
+		new_val = hns3_gl_usec_to_reg(gl_value);
+
+	writel(new_val, tqp_vector->mask_addr + HNS3_VECTOR_GL0_OFFSET);
 }
 
 void hns3_set_vector_coalesce_tx_gl(struct hns3_enet_tqp_vector *tqp_vector,
 				    u32 gl_value)
 {
-	u32 tx_gl_reg = hns3_gl_usec_to_reg(gl_value);
+	u32 new_val;
 
-	writel(tx_gl_reg, tqp_vector->mask_addr + HNS3_VECTOR_GL1_OFFSET);
+	if (tqp_vector->tx_group.coal.unit_1us)
+		new_val = gl_value | HNS3_INT_GL_1US;
+	else
+		new_val = hns3_gl_usec_to_reg(gl_value);
+
+	writel(new_val, tqp_vector->mask_addr + HNS3_VECTOR_GL1_OFFSET);
 }
 
-static void hns3_vector_gl_rl_init(struct hns3_enet_tqp_vector *tqp_vector,
-				   struct hns3_nic_priv *priv)
+void hns3_set_vector_coalesce_tx_ql(struct hns3_enet_tqp_vector *tqp_vector,
+				    u32 ql_value)
 {
+	writel(ql_value, tqp_vector->mask_addr + HNS3_VECTOR_TX_QL_OFFSET);
+}
+
+void hns3_set_vector_coalesce_rx_ql(struct hns3_enet_tqp_vector *tqp_vector,
+				    u32 ql_value)
+{
+	writel(ql_value, tqp_vector->mask_addr + HNS3_VECTOR_RX_QL_OFFSET);
+}
+
+static void hns3_vector_coalesce_init(struct hns3_enet_tqp_vector *tqp_vector,
+				      struct hns3_nic_priv *priv)
+{
+	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(priv->ae_handle->pdev);
+	struct hns3_enet_coalesce *tx_coal = &tqp_vector->tx_group.coal;
+	struct hns3_enet_coalesce *rx_coal = &tqp_vector->rx_group.coal;
+
 	/* initialize the configuration for interrupt coalescing.
 	 * 1. GL (Interrupt Gap Limiter)
 	 * 2. RL (Interrupt Rate Limiter)
+	 * 3. QL (Interrupt Quantity Limiter)
 	 *
 	 * Default: enable interrupt coalescing self-adaptive and GL
 	 */
-	tqp_vector->tx_group.coal.gl_adapt_enable = 1;
-	tqp_vector->rx_group.coal.gl_adapt_enable = 1;
+	tx_coal->adapt_enable = 1;
+	rx_coal->adapt_enable = 1;
 
-	tqp_vector->tx_group.coal.int_gl = HNS3_INT_GL_50K;
-	tqp_vector->rx_group.coal.int_gl = HNS3_INT_GL_50K;
+	tx_coal->int_gl = HNS3_INT_GL_50K;
+	rx_coal->int_gl = HNS3_INT_GL_50K;
 
-	tqp_vector->rx_group.coal.flow_level = HNS3_FLOW_LOW;
-	tqp_vector->tx_group.coal.flow_level = HNS3_FLOW_LOW;
+	rx_coal->flow_level = HNS3_FLOW_LOW;
+	tx_coal->flow_level = HNS3_FLOW_LOW;
+
+	/* device version above V3(include V3), GL can configure 1us
+	 * unit, so uses 1us unit.
+	 */
+	if (ae_dev->dev_version >= HNAE3_DEVICE_VERSION_V3) {
+		tx_coal->unit_1us = 1;
+		rx_coal->unit_1us = 1;
+	}
+
+	if (ae_dev->dev_specs.int_ql_max) {
+		tx_coal->ql_enable = 1;
+		rx_coal->ql_enable = 1;
+		tx_coal->int_ql_max = ae_dev->dev_specs.int_ql_max;
+		rx_coal->int_ql_max = ae_dev->dev_specs.int_ql_max;
+		tx_coal->int_ql = HNS3_INT_QL_DEFAULT_CFG;
+		rx_coal->int_ql = HNS3_INT_QL_DEFAULT_CFG;
+	}
 }
 
-static void hns3_vector_gl_rl_init_hw(struct hns3_enet_tqp_vector *tqp_vector,
-				      struct hns3_nic_priv *priv)
+static void
+hns3_vector_coalesce_init_hw(struct hns3_enet_tqp_vector *tqp_vector,
+			     struct hns3_nic_priv *priv)
 {
+	struct hns3_enet_coalesce *tx_coal = &tqp_vector->tx_group.coal;
+	struct hns3_enet_coalesce *rx_coal = &tqp_vector->rx_group.coal;
 	struct hnae3_handle *h = priv->ae_handle;
 
-	hns3_set_vector_coalesce_tx_gl(tqp_vector,
-				       tqp_vector->tx_group.coal.int_gl);
-	hns3_set_vector_coalesce_rx_gl(tqp_vector,
-				       tqp_vector->rx_group.coal.int_gl);
+	hns3_set_vector_coalesce_tx_gl(tqp_vector, tx_coal->int_gl);
+	hns3_set_vector_coalesce_rx_gl(tqp_vector, rx_coal->int_gl);
 	hns3_set_vector_coalesce_rl(tqp_vector, h->kinfo.int_rl_setting);
+
+	if (tx_coal->ql_enable)
+		hns3_set_vector_coalesce_tx_ql(tqp_vector, tx_coal->int_ql);
+
+	if (rx_coal->ql_enable)
+		hns3_set_vector_coalesce_rx_ql(tqp_vector, rx_coal->int_ql);
 }
 
 static int hns3_nic_set_real_num_queue(struct net_device *netdev)
@@ -3333,14 +3384,14 @@ static void hns3_update_new_int_gl(struct hns3_enet_tqp_vector *tqp_vector)
 			tqp_vector->last_jiffies + msecs_to_jiffies(1000)))
 		return;
 
-	if (rx_group->coal.gl_adapt_enable) {
+	if (rx_group->coal.adapt_enable) {
 		rx_update = hns3_get_new_int_gl(rx_group);
 		if (rx_update)
 			hns3_set_vector_coalesce_rx_gl(tqp_vector,
 						       rx_group->coal.int_gl);
 	}
 
-	if (tx_group->coal.gl_adapt_enable) {
+	if (tx_group->coal.adapt_enable) {
 		tx_update = hns3_get_new_int_gl(tx_group);
 		if (tx_update)
 			hns3_set_vector_coalesce_tx_gl(tqp_vector,
@@ -3536,7 +3587,7 @@ static int hns3_nic_init_vector_data(struct hns3_nic_priv *priv)
 
 	for (i = 0; i < priv->vector_num; i++) {
 		tqp_vector = &priv->tqp_vector[i];
-		hns3_vector_gl_rl_init_hw(tqp_vector, priv);
+		hns3_vector_coalesce_init_hw(tqp_vector, priv);
 		tqp_vector->num_tqps = 0;
 	}
 
@@ -3632,7 +3683,7 @@ static int hns3_nic_alloc_vector_data(struct hns3_nic_priv *priv)
 		tqp_vector->idx = i;
 		tqp_vector->mask_addr = vector[i].io_addr;
 		tqp_vector->vector_irq = vector[i].vector;
-		hns3_vector_gl_rl_init(tqp_vector, priv);
+		hns3_vector_coalesce_init(tqp_vector, priv);
 	}
 
 out:

@@ -349,6 +349,7 @@ static void hns3_dbg_dev_specs(struct hnae3_handle *h)
 	dev_info(priv->dev, "Desc num per RX queue: %u\n", kinfo->num_rx_desc);
 	dev_info(priv->dev, "Total number of enabled TCs: %u\n", kinfo->num_tc);
 	dev_info(priv->dev, "MAX INT QL: %u\n", dev_specs->int_ql_max);
+	dev_info(priv->dev, "MAX INT GL: %u\n", dev_specs->max_int_gl);
 }
 
 static ssize_t hns3_dbg_cmd_read(struct file *filp, char __user *buffer,

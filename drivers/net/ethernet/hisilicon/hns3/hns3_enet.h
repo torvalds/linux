@@ -181,6 +181,8 @@ enum hns3_nic_state {
 #define HNS3_VECTOR_GL2_OFFSET			0x300
 #define HNS3_VECTOR_RL_OFFSET			0x900
 #define HNS3_VECTOR_RL_EN_B			6
+#define HNS3_VECTOR_TX_QL_OFFSET		0xe00
+#define HNS3_VECTOR_RX_QL_OFFSET		0xf00
 
 #define HNS3_RING_EN_B				0
 
@@ -418,18 +420,25 @@ enum hns3_flow_level_range {
 	HNS3_FLOW_ULTRA = 3,
 };
 
-#define HNS3_INT_GL_MAX			0x1FE0
 #define HNS3_INT_GL_50K			0x0014
 #define HNS3_INT_GL_20K			0x0032
 #define HNS3_INT_GL_18K			0x0036
 #define HNS3_INT_GL_8K			0x007C
 
+#define HNS3_INT_GL_1US			BIT(31)
+
 #define HNS3_INT_RL_MAX			0x00EC
 #define HNS3_INT_RL_ENABLE_MASK		0x40
 
+#define HNS3_INT_QL_DEFAULT_CFG		0x20
+
 struct hns3_enet_coalesce {
 	u16 int_gl;
-	u8 gl_adapt_enable;
+	u16 int_ql;
+	u16 int_ql_max;
+	u8 adapt_enable:1;
+	u8 ql_enable:1;
+	u8 unit_1us:1;
 	enum hns3_flow_level_range flow_level;
 };
 
@@ -595,6 +604,10 @@ void hns3_set_vector_coalesce_tx_gl(struct hns3_enet_tqp_vector *tqp_vector,
 				    u32 gl_value);
 void hns3_set_vector_coalesce_rl(struct hns3_enet_tqp_vector *tqp_vector,
 				 u32 rl_value);
+void hns3_set_vector_coalesce_rx_ql(struct hns3_enet_tqp_vector *tqp_vector,
+				    u32 ql_value);
+void hns3_set_vector_coalesce_tx_ql(struct hns3_enet_tqp_vector *tqp_vector,
+				    u32 ql_value);
 
 void hns3_enable_vlan_filter(struct net_device *netdev, bool enable);
 void hns3_request_update_promisc_mode(struct hnae3_handle *handle);
