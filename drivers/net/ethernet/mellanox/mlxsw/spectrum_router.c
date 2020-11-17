@@ -5423,7 +5423,7 @@ err_nexthop6_init:
 		nh = &nhgi->nexthops[i];
 		mlxsw_sp_nexthop6_fini(mlxsw_sp, nh);
 	}
-	kfree(nh_grp);
+	kfree(nhgi);
 	return err;
 }
 
