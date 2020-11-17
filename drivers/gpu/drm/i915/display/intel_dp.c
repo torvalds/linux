@@ -260,9 +260,6 @@ bool intel_dp_can_bigjoiner(struct intel_dp *intel_dp)
 	struct intel_encoder *encoder = &intel_dig_port->base;
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
-	/* FIXME remove once everything is in place */
-	return false;
-
 	return INTEL_GEN(dev_priv) >= 12 ||
 		(INTEL_GEN(dev_priv) == 11 &&
 		 encoder->port != PORT_A);
