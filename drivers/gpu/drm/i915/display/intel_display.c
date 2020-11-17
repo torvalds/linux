@@ -11689,6 +11689,8 @@ static int intel_check_cursor(struct intel_crtc_state *crtc_state,
 {
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	struct drm_i915_private *i915 = to_i915(plane_state->uapi.plane->dev);
+	const struct drm_rect src = plane_state->uapi.src;
+	const struct drm_rect dst = plane_state->uapi.dst;
 	int ret;
 
 	if (fb && fb->modifier != DRM_FORMAT_MOD_LINEAR) {
@@ -11704,8 +11706,8 @@ static int intel_check_cursor(struct intel_crtc_state *crtc_state,
 		return ret;
 
 	/* Use the unclipped src/dst rectangles, which we program to hw */
-	plane_state->uapi.src = drm_plane_state_src(&plane_state->uapi);
-	plane_state->uapi.dst = drm_plane_state_dest(&plane_state->uapi);
+	plane_state->uapi.src = src;
+	plane_state->uapi.dst = dst;
 
 	ret = intel_cursor_check_surface(plane_state);
 	if (ret)
