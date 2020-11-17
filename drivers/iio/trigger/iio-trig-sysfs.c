@@ -161,6 +161,7 @@ static int iio_sysfs_trigger_probe(int id)
 	iio_trigger_set_drvdata(t->trig, t);
 
 	init_irq_work(&t->work, iio_sysfs_trigger_work);
+	atomic_set(&t->work.flags, IRQ_WORK_HARD_IRQ);
 
 	ret = iio_trigger_register(t->trig);
 	if (ret)
