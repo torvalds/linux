@@ -556,7 +556,7 @@ MODULE_DEVICE_TABLE(of, kmb_of_match);
 static int __maybe_unused kmb_pm_suspend(struct device *dev)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
-	struct kmb_drm_private *kmb = drm ? to_kmb(drm) : NULL;
+	struct kmb_drm_private *kmb = to_kmb(drm);
 
 	drm_kms_helper_poll_disable(drm);
 
