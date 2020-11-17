@@ -53,7 +53,16 @@ svcxdr_decode_nfstime3(struct xdr_stream *xdr, struct timespec64 *timep)
 	return true;
 }
 
-static bool
+/**
+ * svcxdr_decode_nfs_fh3 - Decode an NFSv3 file handle
+ * @xdr: XDR stream positioned at an undecoded NFSv3 FH
+ * @fhp: OUT: filled-in server file handle
+ *
+ * Return values:
+ *  %false: The encoded file handle was not valid
+ *  %true: @fhp has been initialized
+ */
+bool
 svcxdr_decode_nfs_fh3(struct xdr_stream *xdr, struct svc_fh *fhp)
 {
 	__be32 *p;
