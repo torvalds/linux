@@ -23,20 +23,21 @@
 #include "panel-samsung-s6e63m0.h"
 
 /* Manufacturer Command Set */
-#define MCS_ELVSS_ON                0xb1
-#define MCS_MIECTL1                0xc0
-#define MCS_BCMODE                              0xc1
+#define MCS_ELVSS_ON		0xb1
+#define MCS_TEMP_SWIRE		0xb2
+#define MCS_MIECTL1		0xc0
+#define MCS_BCMODE		0xc1
 #define MCS_ERROR_CHECK		0xd5
 #define MCS_READ_ID1		0xda
 #define MCS_READ_ID2		0xdb
 #define MCS_READ_ID3		0xdc
 #define MCS_LEVEL_2_KEY		0xf0
 #define MCS_MTP_KEY		0xf1
-#define MCS_DISCTL   0xf2
-#define MCS_SRCCTL           0xf6
-#define MCS_IFCTL                       0xf7
-#define MCS_PANELCTL         0xF8
-#define MCS_PGAMMACTL                   0xfa
+#define MCS_DISCTL		0xf2
+#define MCS_SRCCTL		0xf6
+#define MCS_IFCTL		0xf7
+#define MCS_PANELCTL		0xf8
+#define MCS_PGAMMACTL		0xfa
 
 #define S6E63M0_LCD_ID_VALUE_M2		0xA4
 #define S6E63M0_LCD_ID_VALUE_SM2	0xB4
