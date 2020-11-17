@@ -2403,12 +2403,12 @@ static int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 						    pipe_config->lane_count,
 						    adjusted_mode->crtc_clock,
 						    adjusted_mode->crtc_hdisplay,
-						    false);
+						    pipe_config->bigjoiner);
 		dsc_dp_slice_count =
 			intel_dp_dsc_get_slice_count(intel_dp,
 						     adjusted_mode->crtc_clock,
 						     adjusted_mode->crtc_hdisplay,
-						     false);
+						     pipe_config->bigjoiner);
 		if (!dsc_max_output_bpp || !dsc_dp_slice_count) {
 			drm_dbg_kms(&dev_priv->drm,
 				    "Compressed BPP/Slice Count not supported\n");
@@ -2424,14 +2424,15 @@ static int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 	 * is greater than the maximum Cdclock and if slice count is even
 	 * then we need to use 2 VDSC instances.
 	 */
-	if (adjusted_mode->crtc_clock > dev_priv->max_cdclk_freq) {
-		if (pipe_config->dsc.slice_count > 1) {
-			pipe_config->dsc.dsc_split = true;
-		} else {
+	if (adjusted_mode->crtc_clock > dev_priv->max_cdclk_freq ||
+	    pipe_config->bigjoiner) {
+		if (pipe_config->dsc.slice_count < 2) {
 			drm_dbg_kms(&dev_priv->drm,
 				    "Cannot split stream to use 2 VDSC instances\n");
 			return -EINVAL;
 		}
+
+		pipe_config->dsc.dsc_split = true;
 	}
 
 	ret = intel_dp_dsc_compute_params(&dig_port->base, pipe_config);
@@ -2502,6 +2503,11 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 		    intel_dp->common_rates[limits.max_clock],
 		    limits.max_bpp, adjusted_mode->crtc_clock);
 
+	if ((adjusted_mode->crtc_clock > i915->max_dotclk_freq ||
+	     adjusted_mode->crtc_hdisplay > 5120) &&
+	    intel_dp_can_bigjoiner(intel_dp))
+		pipe_config->bigjoiner = true;
+
 	/*
 	 * Optimize for slow and wide. This is the place to add alternative
 	 * optimization policy.
@@ -2510,7 +2516,7 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 
 	/* enable compression if the mode doesn't fit available BW */
 	drm_dbg_kms(&i915->drm, "Force DSC en = %d\n", intel_dp->force_dsc_en);
-	if (ret || intel_dp->force_dsc_en) {
+	if (ret || intel_dp->force_dsc_en || pipe_config->bigjoiner) {
 		ret = intel_dp_dsc_compute_config(intel_dp, pipe_config,
 						  conn_state, &limits);
 		if (ret < 0)
