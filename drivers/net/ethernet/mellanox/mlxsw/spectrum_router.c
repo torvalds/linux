@@ -3971,6 +3971,7 @@ static int mlxsw_sp_nexthop4_init(struct mlxsw_sp *mlxsw_sp,
 
 	if (!dev)
 		return 0;
+	nh->ifindex = dev->ifindex;
 
 	rcu_read_lock();
 	in_dev = __in_dev_get_rcu(dev);
