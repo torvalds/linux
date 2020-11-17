@@ -1690,25 +1690,25 @@
 		sdmmc0_bus4: sdmmc0-bus4 {
 			rockchip,pins =
 				/* sdmmc0_d0 */
-				<1 RK_PD5 1 &pcfg_pull_up_drv_level_5>,
+				<1 RK_PD5 1 &pcfg_pull_up_drv_level_2>,
 				/* sdmmc0_d1 */
-				<1 RK_PD6 1 &pcfg_pull_up_drv_level_5>,
+				<1 RK_PD6 1 &pcfg_pull_up_drv_level_2>,
 				/* sdmmc0_d2 */
-				<1 RK_PD7 1 &pcfg_pull_up_drv_level_5>,
+				<1 RK_PD7 1 &pcfg_pull_up_drv_level_2>,
 				/* sdmmc0_d3 */
-				<2 RK_PA0 1 &pcfg_pull_up_drv_level_5>;
+				<2 RK_PA0 1 &pcfg_pull_up_drv_level_2>;
 		};
 		/omit-if-no-ref/
 		sdmmc0_clk: sdmmc0-clk {
 			rockchip,pins =
 				/* sdmmc0_clk */
-				<2 RK_PA2 1 &pcfg_pull_up_drv_level_5>;
+				<2 RK_PA2 1 &pcfg_pull_up_drv_level_1>;
 		};
 		/omit-if-no-ref/
 		sdmmc0_cmd: sdmmc0-cmd {
 			rockchip,pins =
 				/* sdmmc0_cmd */
-				<2 RK_PA1 1 &pcfg_pull_up_drv_level_5>;
+				<2 RK_PA1 1 &pcfg_pull_up_drv_level_2>;
 		};
 		/omit-if-no-ref/
 		sdmmc0_det: sdmmc0-det {
