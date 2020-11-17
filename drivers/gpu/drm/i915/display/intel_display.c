@@ -15461,6 +15461,27 @@ static int intel_atomic_check_async(struct intel_atomic_state *state)
 	return 0;
 }
 
+static int intel_bigjoiner_add_affected_crtcs(struct intel_atomic_state *state)
+{
+	const struct intel_crtc_state *crtc_state;
+	struct intel_crtc *crtc;
+	int i;
+
+	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
+		struct intel_crtc_state *linked_crtc_state;
+
+		if (!crtc_state->bigjoiner)
+			continue;
+
+		linked_crtc_state = intel_atomic_get_crtc_state(&state->base,
+								crtc_state->bigjoiner_linked_crtc);
+		if (IS_ERR(linked_crtc_state))
+			return PTR_ERR(linked_crtc_state);
+	}
+
+	return 0;
+}
+
 /**
  * intel_atomic_check - validate state object
  * @dev: drm device
@@ -15483,6 +15504,10 @@ static int intel_atomic_check(struct drm_device *dev,
 	}
 
 	ret = drm_atomic_helper_check_modeset(dev, &state->base);
+	if (ret)
+		goto fail;
+
+	ret = intel_bigjoiner_add_affected_crtcs(state);
 	if (ret)
 		goto fail;
 
