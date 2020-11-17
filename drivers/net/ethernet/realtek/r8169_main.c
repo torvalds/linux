@@ -4180,16 +4180,11 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 	bool stop_queue, door_bell;
 	u32 opts[2];
 
-	txd_first = tp->TxDescArray + entry;
-
 	if (unlikely(!rtl_tx_slots_avail(tp))) {
 		if (net_ratelimit())
 			netdev_err(dev, "BUG! Tx Ring full when queue awake!\n");
 		goto err_stop_0;
 	}
-
-	if (unlikely(le32_to_cpu(txd_first->opts1) & DescOwn))
-		goto err_stop_0;
 
 	opts[1] = rtl8169_tx_vlan_tag(skb);
 	opts[0] = 0;
@@ -4202,6 +4197,8 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 	if (unlikely(rtl8169_tx_map(tp, opts, skb_headlen(skb), skb->data,
 				    entry, false)))
 		goto err_dma_0;
+
+	txd_first = tp->TxDescArray + entry;
 
 	if (frags) {
 		if (rtl8169_xmit_frags(tp, skb, opts, entry))
