@@ -644,10 +644,7 @@ static int mcp251xfd_chip_softreset(const struct mcp251xfd_priv *priv)
 		return 0;
 	}
 
-	if (err)
-		return err;
-
-	return -ETIMEDOUT;
+	return err;
 }
 
 static int mcp251xfd_chip_clock_init(const struct mcp251xfd_priv *priv)
