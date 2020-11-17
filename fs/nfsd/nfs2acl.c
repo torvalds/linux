@@ -220,16 +220,6 @@ static int nfsaclsvc_decode_setaclargs(struct svc_rqst *rqstp, __be32 *p)
 	return 1;
 }
 
-static int nfsaclsvc_decode_fhandleargs(struct svc_rqst *rqstp, __be32 *p)
-{
-	struct nfsd_fhandle *argp = rqstp->rq_argp;
-
-	p = nfs2svc_decode_fh(p, &argp->fh);
-	if (!p)
-		return 0;
-	return xdr_argsize_check(rqstp, p);
-}
-
 static int nfsaclsvc_decode_accessargs(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nfsd3_accessargs *argp = rqstp->rq_argp;
@@ -392,7 +382,7 @@ static const struct svc_procedure nfsd_acl_procedures2[5] = {
 	},
 	[ACLPROC2_GETATTR] = {
 		.pc_func = nfsacld_proc_getattr,
-		.pc_decode = nfsaclsvc_decode_fhandleargs,
+		.pc_decode = nfssvc_decode_fhandleargs,
 		.pc_encode = nfsaclsvc_encode_attrstatres,
 		.pc_release = nfsaclsvc_release_attrstat,
 		.pc_argsize = sizeof(struct nfsd_fhandle),
