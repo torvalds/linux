@@ -1911,7 +1911,7 @@ static int migration_cpu_stop(void *data)
 			 * and we should be valid again. Nothing to do.
 			 */
 			if (!pending) {
-				WARN_ON_ONCE(!is_cpu_allowed(p, cpu_of(rq)));
+				WARN_ON_ONCE(!cpumask_test_cpu(task_cpu(p), &p->cpus_mask));
 				goto out;
 			}
 
@@ -1950,7 +1950,7 @@ static int migration_cpu_stop(void *data)
 		 * valid again. Nothing to do.
 		 */
 		if (!pending) {
-			WARN_ON_ONCE(!is_cpu_allowed(p, cpu_of(rq)));
+			WARN_ON_ONCE(!cpumask_test_cpu(task_cpu(p), &p->cpus_mask));
 			goto out;
 		}
 
