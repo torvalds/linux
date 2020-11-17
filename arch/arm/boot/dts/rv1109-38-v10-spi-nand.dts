@@ -109,6 +109,15 @@
 		regulator-min-microvolt = <825000>;
 		regulator-max-microvolt = <825000>;
 	};
+
+	wireless_wlan: wireless-wlan {
+		compatible = "wlan-platdata";
+		rockchip,grf = <&grf>;
+		wifi_chip_type = "rtl8188fu";
+		WIFI,poweren_gpio = <&gpio0 RK_PC0 GPIO_ACTIVE_LOW>;
+		status = "okay";
+	};
+
 };
 
 &csi_dphy0 {
@@ -301,5 +310,21 @@
 };
 
 &sfc {
+	status = "okay";
+};
+
+&u2phy_host {
+	status = "okay";
+};
+
+&u2phy1 {
+	status = "okay";
+};
+
+&usb_host0_ehci {
+	status = "okay";
+};
+
+&usb_host0_ohci {
 	status = "okay";
 };
