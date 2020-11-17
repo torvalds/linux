@@ -5508,14 +5508,14 @@ static int mlxsw_sp_nexthop6_group_get(struct mlxsw_sp *mlxsw_sp,
 			return PTR_ERR(nh_grp);
 	}
 
-	list_add_tail(&fib6_entry->common.nexthop_group_node,
-		      &nh_grp->fib_list);
-	fib6_entry->common.nh_group = nh_grp;
-
 	/* The route and the nexthop are described by the same struct, so we
 	 * need to the update the nexthop offload indication for the new route.
 	 */
 	__mlxsw_sp_nexthop6_group_offload_refresh(nh_grp, fib6_entry);
+
+	list_add_tail(&fib6_entry->common.nexthop_group_node,
+		      &nh_grp->fib_list);
+	fib6_entry->common.nh_group = nh_grp;
 
 	return 0;
 }
