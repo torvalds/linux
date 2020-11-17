@@ -2858,6 +2858,7 @@
 					       mds=off [X86]
 					       tsx_async_abort=off [X86]
 					       kvm.nx_huge_pages=off [X86]
+					       no_entry_flush [PPC]
 
 				Exceptions:
 					       This does not have any effect on
@@ -3185,6 +3186,8 @@
 	nodsp		[SH] Disable hardware DSP at boot time.
 
 	noefi		Disable EFI runtime services support.
+
+	no_entry_flush  [PPC] Don't flush the L1-D cache when entering the kernel.
 
 	noexec		[IA-64]
 
