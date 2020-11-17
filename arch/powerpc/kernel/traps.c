@@ -751,31 +751,6 @@ int machine_check_generic(struct pt_regs *regs)
 {
 	return 0;
 }
-#elif defined(CONFIG_E200)
-int machine_check_e200(struct pt_regs *regs)
-{
-	unsigned long reason = mfspr(SPRN_MCSR);
-
-	printk("Machine check in kernel mode.\n");
-	printk("Caused by (from MCSR=%lx): ", reason);
-
-	if (reason & MCSR_MCP)
-		pr_cont("Machine Check Signal\n");
-	if (reason & MCSR_CP_PERR)
-		pr_cont("Cache Push Parity Error\n");
-	if (reason & MCSR_CPERR)
-		pr_cont("Cache Parity Error\n");
-	if (reason & MCSR_EXCP_ERR)
-		pr_cont("ISI, ITLB, or Bus Error on first instruction fetch for an exception handler\n");
-	if (reason & MCSR_BUS_IRERR)
-		pr_cont("Bus - Read Bus Error on instruction fetch\n");
-	if (reason & MCSR_BUS_DRERR)
-		pr_cont("Bus - Read Bus Error on data load\n");
-	if (reason & MCSR_BUS_WRERR)
-		pr_cont("Bus - Write Bus Error on buffered store or cache line push\n");
-
-	return 0;
-}
 #elif defined(CONFIG_PPC32)
 int machine_check_generic(struct pt_regs *regs)
 {

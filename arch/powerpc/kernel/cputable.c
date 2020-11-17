@@ -36,7 +36,6 @@ const char *powerpc_base_platform;
  * and ppc64
  */
 #ifdef CONFIG_PPC32
-extern void __setup_cpu_e200(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_e500v1(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_e500v2(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_e500mc(unsigned long offset, struct cpu_spec* spec);
@@ -1902,51 +1901,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 	}
 #endif /* CONFIG_PPC_47x */
 #endif /* CONFIG_44x */
-#ifdef CONFIG_E200
-	{	/* e200z5 */
-		.pvr_mask		= 0xfff00000,
-		.pvr_value		= 0x81000000,
-		.cpu_name		= "e200z5",
-		/* xxx - galak: add CPU_FTR_MAYBE_CAN_DOZE */
-		.cpu_features		= CPU_FTRS_E200,
-		.cpu_user_features	= COMMON_USER_BOOKE |
-			PPC_FEATURE_HAS_EFP_SINGLE |
-			PPC_FEATURE_UNIFIED_CACHE,
-		.mmu_features		= MMU_FTR_TYPE_FSL_E,
-		.dcache_bsize		= 32,
-		.machine_check		= machine_check_e200,
-		.platform		= "ppc5554",
-	},
-	{	/* e200z6 */
-		.pvr_mask		= 0xfff00000,
-		.pvr_value		= 0x81100000,
-		.cpu_name		= "e200z6",
-		/* xxx - galak: add CPU_FTR_MAYBE_CAN_DOZE */
-		.cpu_features		= CPU_FTRS_E200,
-		.cpu_user_features	= COMMON_USER_BOOKE |
-			PPC_FEATURE_HAS_SPE_COMP |
-			PPC_FEATURE_HAS_EFP_SINGLE_COMP |
-			PPC_FEATURE_UNIFIED_CACHE,
-		.mmu_features		= MMU_FTR_TYPE_FSL_E,
-		.dcache_bsize		= 32,
-		.machine_check		= machine_check_e200,
-		.platform		= "ppc5554",
-	},
-	{	/* default match */
-		.pvr_mask		= 0x00000000,
-		.pvr_value		= 0x00000000,
-		.cpu_name		= "(generic E200 PPC)",
-		.cpu_features		= CPU_FTRS_E200,
-		.cpu_user_features	= COMMON_USER_BOOKE |
-			PPC_FEATURE_HAS_EFP_SINGLE |
-			PPC_FEATURE_UNIFIED_CACHE,
-		.mmu_features		= MMU_FTR_TYPE_FSL_E,
-		.dcache_bsize		= 32,
-		.cpu_setup		= __setup_cpu_e200,
-		.machine_check		= machine_check_e200,
-		.platform		= "ppc5554",
-	}
-#endif /* CONFIG_E200 */
 #endif /* CONFIG_PPC32 */
 #ifdef CONFIG_E500
 #ifdef CONFIG_PPC32

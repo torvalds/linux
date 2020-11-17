@@ -23,7 +23,7 @@ choice
 	  The most common ones are the desktop and server CPUs (603,
 	  604, 740, 750, 74xx) CPUs from Freescale and IBM, with their
 	  embedded 512x/52xx/82xx/83xx/86xx counterparts.
-	  The other embedded parts, namely 4xx, 8xx, e200 (55xx) and e500
+	  The other embedded parts, namely 4xx, 8xx and e500
 	  (85xx) each form a family of their own that is not compatible
 	  with the others.
 
@@ -65,9 +65,6 @@ config 44x
 	select 4xx_SOC
 	select HAVE_PCI
 	select PHYS_64BIT
-
-config E200
-	bool "Freescale e200"
 
 endchoice
 
@@ -258,12 +255,12 @@ config 4xx
 
 config BOOKE
 	bool
-	depends on E200 || E500 || 44x || PPC_BOOK3E
+	depends on E500 || 44x || PPC_BOOK3E
 	default y
 
 config FSL_BOOKE
 	bool
-	depends on (E200 || E500) && PPC32
+	depends on E500 && PPC32
 	default y
 
 # this is for common code between PPC32 & PPC64 FSL BOOKE
@@ -328,7 +325,7 @@ config VSX
 
 config SPE_POSSIBLE
 	def_bool y
-	depends on E200 || (E500 && !PPC_E500MC)
+	depends on E500 && !PPC_E500MC
 
 config SPE
 	bool "SPE Support"
@@ -480,7 +477,7 @@ config NR_CPUS
 
 config NOT_COHERENT_CACHE
 	bool
-	depends on 4xx || PPC_8xx || E200 || PPC_MPC512x || \
+	depends on 4xx || PPC_8xx || PPC_MPC512x || \
 		GAMECUBE_COMMON || AMIGAONE
 	select ARCH_HAS_DMA_PREP_COHERENT
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE

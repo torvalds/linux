@@ -41,7 +41,6 @@ extern int machine_check_4xx(struct pt_regs *regs);
 extern int machine_check_440A(struct pt_regs *regs);
 extern int machine_check_e500mc(struct pt_regs *regs);
 extern int machine_check_e500(struct pt_regs *regs);
-extern int machine_check_e200(struct pt_regs *regs);
 extern int machine_check_47x(struct pt_regs *regs);
 int machine_check_8xx(struct pt_regs *regs);
 int machine_check_83xx(struct pt_regs *regs);
@@ -381,10 +380,6 @@ static inline void cpu_feature_keys_init(void) { }
 #define CPU_FTRS_440x6	(CPU_FTR_NOEXECUTE | \
 	    CPU_FTR_INDEXED_DCR)
 #define CPU_FTRS_47X	(CPU_FTRS_440x6)
-#define CPU_FTRS_E200	(CPU_FTR_SPE_COMP | \
-	    CPU_FTR_COHERENT_ICACHE | \
-	    CPU_FTR_NOEXECUTE | \
-	    CPU_FTR_DEBUG_LVL_EXC)
 #define CPU_FTRS_E500	(CPU_FTR_MAYBE_CAN_DOZE | \
 	    CPU_FTR_SPE_COMP | CPU_FTR_MAYBE_CAN_NAP | \
 	    CPU_FTR_NOEXECUTE)
@@ -529,9 +524,6 @@ enum {
 #elif defined(CONFIG_44x)
 	    CPU_FTRS_44X | CPU_FTRS_440x6 |
 #endif
-#ifdef CONFIG_E200
-	    CPU_FTRS_E200 |
-#endif
 #ifdef CONFIG_E500
 	    CPU_FTRS_E500 | CPU_FTRS_E500_2 |
 #endif
@@ -600,9 +592,6 @@ enum {
 	    CPU_FTRS_47X &
 #elif defined(CONFIG_44x)
 	    CPU_FTRS_44X & CPU_FTRS_440x6 &
-#endif
-#ifdef CONFIG_E200
-	    CPU_FTRS_E200 &
 #endif
 #ifdef CONFIG_E500
 	    CPU_FTRS_E500 & CPU_FTRS_E500_2 &
