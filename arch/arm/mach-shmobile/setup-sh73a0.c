@@ -44,7 +44,7 @@ static void __init sh73a0_generic_init(void)
 {
 #ifdef CONFIG_CACHE_L2X0
 	/* Shared attribute override enable, 64K*8way */
-	l2x0_init(IOMEM(0xf0100000), 0x00400000, 0xc20f0fff);
+	l2x0_init(ioremap(0xf0100000, PAGE_SIZE), 0x00400000, 0xc20f0fff);
 #endif
 }
 
