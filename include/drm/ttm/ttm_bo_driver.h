@@ -39,7 +39,6 @@
 
 #include "ttm_bo_api.h"
 #include "ttm_memory.h"
-#include "ttm_module.h"
 #include "ttm_placement.h"
 #include "ttm_tt.h"
 #include "ttm_pool.h"
