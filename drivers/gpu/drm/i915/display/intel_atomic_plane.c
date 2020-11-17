@@ -247,11 +247,19 @@ static void intel_plane_clear_hw_state(struct intel_plane_state *plane_state)
 }
 
 void intel_plane_copy_uapi_to_hw_state(struct intel_plane_state *plane_state,
-				       const struct intel_plane_state *from_plane_state)
+				       const struct intel_plane_state *from_plane_state,
+				       struct intel_crtc *crtc)
 {
 	intel_plane_clear_hw_state(plane_state);
 
-	plane_state->hw.crtc = from_plane_state->uapi.crtc;
+	/*
+	 * For the bigjoiner slave uapi.crtc will point at
+	 * the master crtc. So we explicitly assign the right
+	 * slave crtc to hw.crtc. uapi.crtc!=NULL simply indicates
+	 * the plane is logically enabled on the uapi level.
+	 */
+	plane_state->hw.crtc = from_plane_state->uapi.crtc ? &crtc->base : NULL;
+
 	plane_state->hw.fb = from_plane_state->uapi.fb;
 	if (plane_state->hw.fb)
 		drm_framebuffer_get(plane_state->hw.fb);
@@ -331,15 +339,16 @@ int intel_plane_atomic_check_with_state(const struct intel_crtc_state *old_crtc_
 					       old_plane_state, new_plane_state);
 }
 
-static struct intel_crtc *
-get_crtc_from_states(const struct intel_plane_state *old_plane_state,
-		     const struct intel_plane_state *new_plane_state)
+static struct intel_plane *
+intel_crtc_get_plane(struct intel_crtc *crtc, enum plane_id plane_id)
 {
-	if (new_plane_state->uapi.crtc)
-		return to_intel_crtc(new_plane_state->uapi.crtc);
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	struct intel_plane *plane;
 
-	if (old_plane_state->uapi.crtc)
-		return to_intel_crtc(old_plane_state->uapi.crtc);
+	for_each_intel_plane_on_crtc(&i915->drm, crtc, plane) {
+		if (plane->id == plane_id)
+			return plane;
+	}
 
 	return NULL;
 }
@@ -347,22 +356,36 @@ get_crtc_from_states(const struct intel_plane_state *old_plane_state,
 int intel_plane_atomic_check(struct intel_atomic_state *state,
 			     struct intel_plane *plane)
 {
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	struct intel_plane_state *new_plane_state =
 		intel_atomic_get_new_plane_state(state, plane);
 	const struct intel_plane_state *old_plane_state =
 		intel_atomic_get_old_plane_state(state, plane);
-	struct intel_crtc *crtc =
-		get_crtc_from_states(old_plane_state, new_plane_state);
-	const struct intel_crtc_state *old_crtc_state;
-	struct intel_crtc_state *new_crtc_state;
+	const struct intel_plane_state *new_master_plane_state;
+	struct intel_crtc *crtc = intel_get_crtc_for_pipe(i915, plane->pipe);
+	const struct intel_crtc_state *old_crtc_state =
+		intel_atomic_get_old_crtc_state(state, crtc);
+	struct intel_crtc_state *new_crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 
-	intel_plane_copy_uapi_to_hw_state(new_plane_state, new_plane_state);
+	if (new_crtc_state && new_crtc_state->bigjoiner_slave) {
+		struct intel_plane *master_plane =
+			intel_crtc_get_plane(new_crtc_state->bigjoiner_linked_crtc,
+					     plane->id);
+
+		new_master_plane_state =
+			intel_atomic_get_new_plane_state(state, master_plane);
+	} else {
+		new_master_plane_state = new_plane_state;
+	}
+
+	intel_plane_copy_uapi_to_hw_state(new_plane_state,
+					  new_master_plane_state,
+					  crtc);
+
 	new_plane_state->uapi.visible = false;
-	if (!crtc)
+	if (!new_crtc_state)
 		return 0;
-
-	old_crtc_state = intel_atomic_get_old_crtc_state(state, crtc);
-	new_crtc_state = intel_atomic_get_new_crtc_state(state, crtc);
 
 	return intel_plane_atomic_check_with_state(old_crtc_state,
 						   new_crtc_state,
