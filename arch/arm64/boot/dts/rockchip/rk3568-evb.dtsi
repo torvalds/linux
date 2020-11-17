@@ -1002,16 +1002,16 @@
 	status = "okay";
 };
 
-&hdmi_sound {
-	status = "okay";
-};
-
 &hdmi_in_vp0 {
 	status = "okay";
 };
 
 &hdmi_in_vp1 {
 	status = "disabled";
+};
+
+&hdmi_sound {
+	status = "okay";
 };
 
 &i2c0 {
@@ -1478,19 +1478,13 @@
 	vref-supply = <&vcca_1v8>;
 };
 
-&sdmmc2 {
-	max-frequency = <150000000>;
-	supports-sdio;
-	bus-width = <4>;
-	disable-wp;
-	cap-sd-highspeed;
-	cap-sdio-irq;
-	keep-power-in-suspend;
-	mmc-pwrseq = <&sdio_pwrseq>;
+&sdhci {
+	bus-width = <8>;
+	supports-emmc;
 	non-removable;
-	pinctrl-names = "default";
-	pinctrl-0 = <&sdmmc2m0_bus4 &sdmmc2m0_cmd &sdmmc2m0_clk>;
-	sd-uhs-sdr104;
+	keep-power-in-suspend;
+	rockchip,txclk-tapnum = <0x10>;
+	max-frequency = <200000000>;
 	status = "okay";
 };
 
@@ -1509,13 +1503,19 @@
 	status = "okay";
 };
 
-&sdhci {
-	bus-width = <8>;
-	supports-emmc;
-	non-removable;
+&sdmmc2 {
+	max-frequency = <150000000>;
+	supports-sdio;
+	bus-width = <4>;
+	disable-wp;
+	cap-sd-highspeed;
+	cap-sdio-irq;
 	keep-power-in-suspend;
-	rockchip,txclk-tapnum = <0x10>;
-	max-frequency = <200000000>;
+	mmc-pwrseq = <&sdio_pwrseq>;
+	non-removable;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdmmc2m0_bus4 &sdmmc2m0_cmd &sdmmc2m0_clk>;
+	sd-uhs-sdr104;
 	status = "okay";
 };
 
@@ -1532,32 +1532,32 @@
 	status = "okay";
 };
 
+&u2phy0_host {
+	phy-supply = <&vcc5v0_host>;
+	status = "okay";
+};
+
+&u2phy0_otg {
+	vbus-supply = <&vcc5v0_otg>;
+	status = "okay";
+};
+
+&u2phy1_host {
+	phy-supply = <&vcc5v0_host>;
+	status = "okay";
+};
+
+&u2phy1_otg {
+	phy-supply = <&vcc5v0_host>;
+	status = "okay";
+};
+
 &usb2phy0 {
 	status = "okay";
-
-	u2phy0_host: host-port {
-		phy-supply = <&vcc5v0_host>;
-		status = "okay";
-	};
-
-	u2phy0_otg: otg-port {
-		vbus-supply = <&vcc5v0_otg>;
-		status = "okay";
-	};
 };
 
 &usb2phy1 {
 	status = "okay";
-
-	u2phy1_host: host-port {
-		phy-supply = <&vcc5v0_host>;
-		status = "okay";
-	};
-
-	u2phy1_otg: otg-port {
-		phy-supply = <&vcc5v0_host>;
-		status = "okay";
-	};
 };
 
 &usb_host0_ehci {
@@ -1576,23 +1576,23 @@
 	status = "okay";
 };
 
+&usbdrd_dwc3 {
+	dr_mode = "otg";
+	extcon = <&usb2phy0>;
+	maximum-speed = "high-speed";
+	status = "okay";
+};
+
 &usbdrd30 {
 	status = "okay";
+};
 
-	usbdrd_dwc3: dwc3@fcc00000 {
-		dr_mode = "otg";
-		extcon = <&usb2phy0>;
-		maximum-speed = "high-speed";
-		status = "okay";
-	};
+&usbhost_dwc3 {
+	status = "okay";
 };
 
 &usbhost30 {
 	status = "okay";
-
-	usbhost_dwc3: dwc3@fd000000 {
-		status = "okay";
-	};
 };
 
 &vad {
