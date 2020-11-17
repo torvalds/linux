@@ -225,7 +225,8 @@ static int intel_pmt_dev_register(struct intel_pmt_entry *entry,
 		return 0;
 
 fail_ioremap:
-	sysfs_remove_group(entry->kobj, ns->attr_grp);
+	if (ns->attr_grp)
+		sysfs_remove_group(entry->kobj, ns->attr_grp);
 fail_sysfs:
 	device_unregister(dev);
 fail_dev_create:
