@@ -5018,13 +5018,19 @@ static int qeth_init_link_info_oat_cb(struct qeth_card *card,
 	switch (phys_if->media_type) {
 	case QETH_QOAT_PHYS_MEDIA_COPPER:
 		link_info->port = PORT_TP;
+		link_info->link_mode = QETH_LINK_MODE_UNKNOWN;
 		break;
 	case QETH_QOAT_PHYS_MEDIA_FIBRE_SHORT:
+		link_info->port = PORT_FIBRE;
+		link_info->link_mode = QETH_LINK_MODE_FIBRE_SHORT;
+		break;
 	case QETH_QOAT_PHYS_MEDIA_FIBRE_LONG:
 		link_info->port = PORT_FIBRE;
+		link_info->link_mode = QETH_LINK_MODE_FIBRE_LONG;
 		break;
 	default:
 		link_info->port = PORT_OTHER;
+		link_info->link_mode = QETH_LINK_MODE_UNKNOWN;
 		break;
 	}
 
@@ -5038,6 +5044,7 @@ static void qeth_init_link_info(struct qeth_card *card)
 	if (IS_IQD(card) || IS_VM_NIC(card)) {
 		card->info.link_info.speed = SPEED_10000;
 		card->info.link_info.port = PORT_FIBRE;
+		card->info.link_info.link_mode = QETH_LINK_MODE_FIBRE_SHORT;
 	} else {
 		switch (card->info.link_type) {
 		case QETH_LINK_TYPE_FAST_ETH:
@@ -5064,6 +5071,8 @@ static void qeth_init_link_info(struct qeth_card *card)
 			card->info.link_info.speed = SPEED_UNKNOWN;
 			card->info.link_info.port = PORT_OTHER;
 		}
+
+		card->info.link_info.link_mode = QETH_LINK_MODE_UNKNOWN;
 	}
 
 	/* Get more accurate data via QUERY OAT: */
@@ -5089,6 +5098,8 @@ static void qeth_init_link_info(struct qeth_card *card)
 					card->info.link_info.duplex = link_info.duplex;
 				if (link_info.port != PORT_OTHER)
 					card->info.link_info.port = link_info.port;
+				if (link_info.link_mode != QETH_LINK_MODE_UNKNOWN)
+					card->info.link_info.link_mode = link_info.link_mode;
 			}
 		}
 	}

@@ -701,10 +701,17 @@ enum qeth_pnso_mode {
 	QETH_PNSO_ADDR_INFO,
 };
 
+enum qeth_link_mode {
+	QETH_LINK_MODE_UNKNOWN,
+	QETH_LINK_MODE_FIBRE_SHORT,
+	QETH_LINK_MODE_FIBRE_LONG,
+};
+
 struct qeth_link_info {
 	u32 speed;
 	u8 duplex;
 	u8 port;
+	enum qeth_link_mode link_mode;
 };
 
 #define QETH_BROADCAST_WITH_ECHO    0x01
