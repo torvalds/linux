@@ -7508,6 +7508,9 @@ static u64 get_crtc_power_domains(struct intel_crtc_state *crtc_state)
 	if (crtc_state->shared_dpll)
 		mask |= BIT_ULL(POWER_DOMAIN_DISPLAY_CORE);
 
+	if (crtc_state->dsc.compression_enable)
+		mask |= BIT_ULL(intel_dsc_power_domain(crtc_state));
+
 	return mask;
 }
 

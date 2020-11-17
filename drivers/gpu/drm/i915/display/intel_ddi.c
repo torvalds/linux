@@ -2296,13 +2296,6 @@ static void intel_ddi_get_power_domains(struct intel_encoder *encoder,
 	    intel_phy_is_tc(dev_priv, phy))
 		intel_display_power_get(dev_priv,
 					intel_ddi_main_link_aux_domain(dig_port));
-
-	/*
-	 * VDSC power is needed when DSC is enabled
-	 */
-	if (crtc_state->dsc.compression_enable)
-		intel_display_power_get(dev_priv,
-					intel_dsc_power_domain(crtc_state));
 }
 
 void intel_ddi_enable_pipe_clock(struct intel_encoder *encoder,
@@ -4577,7 +4570,7 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 	if (drm_WARN_ON(&dev_priv->drm, transcoder_is_dsi(cpu_transcoder)))
 		return;
 
-	intel_dsc_get_config(encoder, pipe_config);
+	intel_dsc_get_config(pipe_config);
 
 	temp = intel_de_read(dev_priv, TRANS_DDI_FUNC_CTL(cpu_transcoder));
 	if (temp & TRANS_DDI_PHSYNC)
