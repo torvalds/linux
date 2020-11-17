@@ -1353,21 +1353,33 @@ mlxsw_sp_ipip_entry_matches_decap(struct mlxsw_sp *mlxsw_sp,
 
 /* Given decap parameters, find the corresponding IPIP entry. */
 static struct mlxsw_sp_ipip_entry *
-mlxsw_sp_ipip_entry_find_by_decap(struct mlxsw_sp *mlxsw_sp,
-				  const struct net_device *ul_dev,
+mlxsw_sp_ipip_entry_find_by_decap(struct mlxsw_sp *mlxsw_sp, int ul_dev_ifindex,
 				  enum mlxsw_sp_l3proto ul_proto,
 				  union mlxsw_sp_l3addr ul_dip)
 {
-	struct mlxsw_sp_ipip_entry *ipip_entry;
+	struct mlxsw_sp_ipip_entry *ipip_entry = NULL;
+	struct net_device *ul_dev;
+
+	rcu_read_lock();
+
+	ul_dev = dev_get_by_index_rcu(mlxsw_sp_net(mlxsw_sp), ul_dev_ifindex);
+	if (!ul_dev)
+		goto out_unlock;
 
 	list_for_each_entry(ipip_entry, &mlxsw_sp->router->ipip_list,
 			    ipip_list_node)
 		if (mlxsw_sp_ipip_entry_matches_decap(mlxsw_sp, ul_dev,
 						      ul_proto, ul_dip,
 						      ipip_entry))
-			return ipip_entry;
+			goto out_unlock;
+
+	rcu_read_unlock();
 
 	return NULL;
+
+out_unlock:
+	rcu_read_unlock();
+	return ipip_entry;
 }
 
 static bool mlxsw_sp_netdev_ipip_type(const struct mlxsw_sp *mlxsw_sp,
@@ -4775,8 +4787,8 @@ mlxsw_sp_fib4_entry_type_set(struct mlxsw_sp *mlxsw_sp,
 
 	switch (fen_info->type) {
 	case RTN_LOCAL:
-		ipip_entry = mlxsw_sp_ipip_entry_find_by_decap(mlxsw_sp, dev,
-						 MLXSW_SP_L3_PROTO_IPV4, dip);
+		ipip_entry = mlxsw_sp_ipip_entry_find_by_decap(mlxsw_sp, dev->ifindex,
+							       MLXSW_SP_L3_PROTO_IPV4, dip);
 		if (ipip_entry && ipip_entry->ol_dev->flags & IFF_UP) {
 			fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_IPIP_DECAP;
 			return mlxsw_sp_fib_entry_decap_init(mlxsw_sp,
