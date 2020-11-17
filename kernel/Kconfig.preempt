@@ -99,3 +99,9 @@ config PREEMPT_DYNAMIC
 
 	  Interesting if you want the same pre-built kernel should be used for
 	  both Server and Desktop workloads.
+
+config SCHED_CORE
+	bool "Core Scheduling for SMT"
+	default y
+	depends on SCHED_SMT
+
