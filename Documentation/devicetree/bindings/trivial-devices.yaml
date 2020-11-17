@@ -350,10 +350,6 @@ properties:
           - st,24c256
             # Ambient Light Sensor with SMBUS/Two Wire Serial Interface
           - taos,tsl2550
-            # 8-Channels, 12-bit ADC
-          - ti,ads7828
-            # 8-Channels, 8-bit ADC
-          - ti,ads7830
             # Temperature Monitoring and Fan Control
           - ti,amc6821
             # Temperature sensor with 2-wire interface
