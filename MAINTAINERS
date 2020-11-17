@@ -10418,6 +10418,15 @@ F:	drivers/mailbox/
 F:	include/linux/mailbox_client.h
 F:	include/linux/mailbox_controller.h
 
+MAILBOX ARM MHUv2
+M:	Viresh Kumar <viresh.kumar@linaro.org>
+M:	Tushar Khandelwal <Tushar.Khandelwal@arm.com>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	drivers/mailbox/arm_mhuv2.c
+F:	include/linux/mailbox/arm_mhuv2_message.h
+F:	Documentation/devicetree/bindings/mailbox/arm,mhuv2.yaml
+
 MAN-PAGES: MANUAL PAGES FOR LINUX -- Sections 2, 3, 4, 5, and 7
 M:	Michael Kerrisk <mtk.manpages@gmail.com>
 L:	linux-man@vger.kernel.org
