@@ -89,14 +89,6 @@ struct bridge_mcast_stats {
 };
 #endif
 
-struct br_vlan_stats {
-	u64 rx_bytes;
-	u64 rx_packets;
-	u64 tx_bytes;
-	u64 tx_packets;
-	struct u64_stats_sync syncp;
-};
-
 struct br_tunnel_info {
 	__be64			tunnel_id;
 	struct metadata_dst	*tunnel_dst;
@@ -137,7 +129,7 @@ struct net_bridge_vlan {
 	u16				flags;
 	u16				priv_flags;
 	u8				state;
-	struct br_vlan_stats __percpu	*stats;
+	struct pcpu_sw_netstats __percpu *stats;
 	union {
 		struct net_bridge	*br;
 		struct net_bridge_port	*port;
@@ -1093,7 +1085,7 @@ void nbp_vlan_flush(struct net_bridge_port *port);
 int nbp_vlan_init(struct net_bridge_port *port, struct netlink_ext_ack *extack);
 int nbp_get_num_vlan_infos(struct net_bridge_port *p, u32 filter_mask);
 void br_vlan_get_stats(const struct net_bridge_vlan *v,
-		       struct br_vlan_stats *stats);
+		       struct pcpu_sw_netstats *stats);
 void br_vlan_port_event(struct net_bridge_port *p, unsigned long event);
 int br_vlan_bridge_event(struct net_device *dev, unsigned long event,
 			 void *ptr);
@@ -1289,7 +1281,7 @@ static inline struct net_bridge_vlan_group *nbp_vlan_group_rcu(
 }
 
 static inline void br_vlan_get_stats(const struct net_bridge_vlan *v,
-				     struct br_vlan_stats *stats)
+				     struct pcpu_sw_netstats *stats)
 {
 }
 
