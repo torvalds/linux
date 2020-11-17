@@ -850,6 +850,7 @@ struct intel_crtc_state {
 	 * accordingly.
 	 */
 #define PIPE_CONFIG_QUIRK_MODE_SYNC_FLAGS	(1<<0) /* unreliable sync mode.flags */
+#define PIPE_CONFIG_QUIRK_BIGJOINER_SLAVE      (1<<1) /* bigjoiner slave, partial readout */
 	unsigned long quirks;
 
 	unsigned fb_bits; /* framebuffers to flip */

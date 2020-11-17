@@ -4577,19 +4577,13 @@ static void bdw_get_trans_port_sync_config(struct intel_crtc_state *crtc_state)
 		    crtc_state->sync_mode_slaves_mask);
 }
 
-void intel_ddi_get_config(struct intel_encoder *encoder,
-			  struct intel_crtc_state *pipe_config)
+static void intel_ddi_read_func_ctl(struct intel_encoder *encoder,
+				    struct intel_crtc_state *pipe_config)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	enum transcoder cpu_transcoder = pipe_config->cpu_transcoder;
 	u32 temp, flags = 0;
-
-	/* XXX: DSI transcoder paranoia */
-	if (drm_WARN_ON(&dev_priv->drm, transcoder_is_dsi(cpu_transcoder)))
-		return;
-
-	intel_dsc_get_config(pipe_config);
 
 	temp = intel_de_read(dev_priv, TRANS_DDI_FUNC_CTL(cpu_transcoder));
 	if (temp & TRANS_DDI_PHSYNC)
@@ -4684,6 +4678,30 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 	default:
 		break;
 	}
+}
+
+void intel_ddi_get_config(struct intel_encoder *encoder,
+			  struct intel_crtc_state *pipe_config)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	enum transcoder cpu_transcoder = pipe_config->cpu_transcoder;
+
+	/* XXX: DSI transcoder paranoia */
+	if (drm_WARN_ON(&dev_priv->drm, transcoder_is_dsi(cpu_transcoder)))
+		return;
+
+	if (pipe_config->bigjoiner_slave) {
+		/* read out pipe settings from master */
+		enum transcoder save = pipe_config->cpu_transcoder;
+
+		/* Our own transcoder needs to be disabled when reading it in intel_ddi_read_func_ctl() */
+		WARN_ON(pipe_config->output_types);
+		pipe_config->cpu_transcoder = (enum transcoder)pipe_config->bigjoiner_linked_crtc->pipe;
+		intel_ddi_read_func_ctl(encoder, pipe_config);
+		pipe_config->cpu_transcoder = save;
+	} else {
+		intel_ddi_read_func_ctl(encoder, pipe_config);
+	}
 
 	pipe_config->has_audio =
 		intel_ddi_is_audio_enabled(dev_priv, cpu_transcoder);
@@ -4709,7 +4727,8 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 		dev_priv->vbt.edp.bpp = pipe_config->pipe_bpp;
 	}
 
-	intel_ddi_clock_get(encoder, pipe_config);
+	if (!pipe_config->bigjoiner_slave)
+		intel_ddi_clock_get(encoder, pipe_config);
 
 	if (IS_GEN9_LP(dev_priv))
 		pipe_config->lane_lat_optim_mask =

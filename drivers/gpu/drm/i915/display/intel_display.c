@@ -3631,6 +3631,8 @@ intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
 	struct intel_plane *intel_plane = to_intel_plane(primary);
 	struct intel_plane_state *intel_state =
 		to_intel_plane_state(plane_state);
+	 struct intel_crtc_state *crtc_state =
+		 to_intel_crtc_state(intel_crtc->base.state);
 	struct drm_framebuffer *fb;
 	struct i915_vma *vma;
 
@@ -3653,7 +3655,7 @@ intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
 		if (c == &intel_crtc->base)
 			continue;
 
-		if (!to_intel_crtc(c)->active)
+		if (!to_intel_crtc_state(c->state)->uapi.active)
 			continue;
 
 		state = to_intel_plane_state(c->primary->state);
@@ -3675,6 +3677,11 @@ intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
 	 * pretend the BIOS never had it enabled.
 	 */
 	intel_plane_disable_noatomic(intel_crtc, intel_plane);
+	if (crtc_state->bigjoiner) {
+		struct intel_crtc *slave =
+			crtc_state->bigjoiner_linked_crtc;
+		intel_plane_disable_noatomic(slave, to_intel_plane(slave->base.primary));
+	}
 
 	return;
 
@@ -8220,13 +8227,27 @@ static void intel_crtc_readout_derived_state(struct intel_crtc_state *crtc_state
 
 	drm_mode_copy(pipe_mode, adjusted_mode);
 
+	if (crtc_state->bigjoiner) {
+		/*
+		 * transcoder is programmed to the full mode,
+		 * but pipe timings are half of the transcoder mode
+		 */
+		pipe_mode->crtc_hdisplay /= 2;
+		pipe_mode->crtc_hblank_start /= 2;
+		pipe_mode->crtc_hblank_end /= 2;
+		pipe_mode->crtc_hsync_start /= 2;
+		pipe_mode->crtc_hsync_end /= 2;
+		pipe_mode->crtc_htotal /= 2;
+		pipe_mode->crtc_clock /= 2;
+	}
+
 	intel_mode_from_crtc_timings(pipe_mode, pipe_mode);
 	intel_mode_from_crtc_timings(adjusted_mode, adjusted_mode);
 
 	intel_crtc_compute_pixel_rate(crtc_state);
 
 	drm_mode_copy(mode, adjusted_mode);
-	mode->hdisplay = crtc_state->pipe_src_w;
+	mode->hdisplay = crtc_state->pipe_src_w << crtc_state->bigjoiner;
 	mode->vdisplay = crtc_state->pipe_src_h;
 }
 
@@ -10698,6 +10719,7 @@ static void
 skl_get_initial_plane_config(struct intel_crtc *crtc,
 			     struct intel_initial_plane_config *plane_config)
 {
+	struct intel_crtc_state *crtc_state = to_intel_crtc_state(crtc->base.state);
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_plane *plane = to_intel_plane(crtc->base.primary);
@@ -10713,6 +10735,12 @@ skl_get_initial_plane_config(struct intel_crtc *crtc,
 		return;
 
 	drm_WARN_ON(dev, pipe != crtc->pipe);
+
+	if (crtc_state->bigjoiner) {
+		drm_dbg_kms(&dev_priv->drm,
+			    "Unsupported bigjoiner configuration for initial FB\n");
+		return;
+	}
 
 	intel_fb = kzalloc(sizeof(*intel_fb), GFP_KERNEL);
 	if (!intel_fb) {
@@ -11365,6 +11393,8 @@ static void hsw_get_ddi_port_state(struct intel_crtc *crtc,
 	} else {
 		tmp = intel_de_read(dev_priv,
 				    TRANS_DDI_FUNC_CTL(cpu_transcoder));
+		if (!(tmp & TRANS_DDI_FUNC_ENABLE))
+			return;
 		if (INTEL_GEN(dev_priv) >= 12)
 			port = TGL_TRANS_DDI_FUNC_CTL_VAL_TO_PORT(tmp);
 		else
@@ -11433,10 +11463,19 @@ static bool hsw_get_pipe_config(struct intel_crtc *crtc,
 		active = true;
 	}
 
-	if (!active)
-		goto out;
+	intel_dsc_get_config(pipe_config);
 
-	if (!transcoder_is_dsi(pipe_config->cpu_transcoder) ||
+	if (!active) {
+		/* bigjoiner slave doesn't enable transcoder */
+		if (!pipe_config->bigjoiner_slave)
+			goto out;
+
+		active = true;
+		pipe_config->pixel_multiplier = 1;
+
+		/* we cannot read out most state, so don't bother.. */
+		pipe_config->quirks |= PIPE_CONFIG_QUIRK_BIGJOINER_SLAVE;
+	} else if (!transcoder_is_dsi(pipe_config->cpu_transcoder) ||
 	    INTEL_GEN(dev_priv) >= 11) {
 		hsw_get_ddi_port_state(crtc, pipe_config);
 		intel_get_transcoder_timings(crtc, pipe_config);
@@ -11511,7 +11550,10 @@ static bool hsw_get_pipe_config(struct intel_crtc *crtc,
 		}
 	}
 
-	if (pipe_config->cpu_transcoder != TRANSCODER_EDP &&
+	if (pipe_config->bigjoiner_slave) {
+		/* Cannot be read out as a slave, set to 0. */
+		pipe_config->pixel_multiplier = 0;
+	} else if (pipe_config->cpu_transcoder != TRANSCODER_EDP &&
 	    !transcoder_is_dsi(pipe_config->cpu_transcoder)) {
 		pipe_config->pixel_multiplier =
 			intel_de_read(dev_priv,
@@ -13555,6 +13597,9 @@ intel_crtc_copy_uapi_to_hw_state(struct intel_atomic_state *state,
 
 static void intel_crtc_copy_hw_to_uapi_state(struct intel_crtc_state *crtc_state)
 {
+	if (crtc_state->bigjoiner_slave)
+		return;
+
 	crtc_state->uapi.enable = crtc_state->hw.enable;
 	crtc_state->uapi.active = crtc_state->hw.active;
 	drm_WARN_ON(crtc_state->uapi.crtc->dev,
@@ -14196,35 +14241,53 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 
 	PIPE_CONF_CHECK_X(output_types);
 
-	PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_hdisplay);
-	PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_htotal);
-	PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_hblank_start);
-	PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_hblank_end);
-	PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_hsync_start);
-	PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_hsync_end);
+	/* FIXME do the readout properly and get rid of this quirk */
+	if (!PIPE_CONF_QUIRK(PIPE_CONFIG_QUIRK_BIGJOINER_SLAVE)) {
+		PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_hdisplay);
+		PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_htotal);
+		PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_hblank_start);
+		PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_hblank_end);
+		PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_hsync_start);
+		PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_hsync_end);
 
-	PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_vdisplay);
-	PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_vtotal);
-	PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_vblank_start);
-	PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_vblank_end);
-	PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_vsync_start);
-	PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_vsync_end);
+		PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_vdisplay);
+		PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_vtotal);
+		PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_vblank_start);
+		PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_vblank_end);
+		PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_vsync_start);
+		PIPE_CONF_CHECK_I(hw.pipe_mode.crtc_vsync_end);
 
-	PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_hdisplay);
-	PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_htotal);
-	PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_hblank_start);
-	PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_hblank_end);
-	PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_hsync_start);
-	PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_hsync_end);
+		PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_hdisplay);
+		PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_htotal);
+		PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_hblank_start);
+		PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_hblank_end);
+		PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_hsync_start);
+		PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_hsync_end);
 
-	PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_vdisplay);
-	PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_vtotal);
-	PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_vblank_start);
-	PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_vblank_end);
-	PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_vsync_start);
-	PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_vsync_end);
+		PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_vdisplay);
+		PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_vtotal);
+		PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_vblank_start);
+		PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_vblank_end);
+		PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_vsync_start);
+		PIPE_CONF_CHECK_I(hw.adjusted_mode.crtc_vsync_end);
 
-	PIPE_CONF_CHECK_I(pixel_multiplier);
+		PIPE_CONF_CHECK_I(pixel_multiplier);
+
+		PIPE_CONF_CHECK_FLAGS(hw.adjusted_mode.flags,
+				      DRM_MODE_FLAG_INTERLACE);
+
+		if (!PIPE_CONF_QUIRK(PIPE_CONFIG_QUIRK_MODE_SYNC_FLAGS)) {
+			PIPE_CONF_CHECK_FLAGS(hw.adjusted_mode.flags,
+					      DRM_MODE_FLAG_PHSYNC);
+			PIPE_CONF_CHECK_FLAGS(hw.adjusted_mode.flags,
+					      DRM_MODE_FLAG_NHSYNC);
+			PIPE_CONF_CHECK_FLAGS(hw.adjusted_mode.flags,
+					      DRM_MODE_FLAG_PVSYNC);
+			PIPE_CONF_CHECK_FLAGS(hw.adjusted_mode.flags,
+					      DRM_MODE_FLAG_NVSYNC);
+		}
+	}
+
 	PIPE_CONF_CHECK_I(output_format);
 	PIPE_CONF_CHECK_BOOL(has_hdmi_sink);
 	if ((INTEL_GEN(dev_priv) < 8 && !IS_HASWELL(dev_priv)) ||
@@ -14234,23 +14297,11 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 	PIPE_CONF_CHECK_BOOL(hdmi_scrambling);
 	PIPE_CONF_CHECK_BOOL(hdmi_high_tmds_clock_ratio);
 	PIPE_CONF_CHECK_BOOL(has_infoframe);
-	PIPE_CONF_CHECK_BOOL(fec_enable);
+	/* FIXME do the readout properly and get rid of this quirk */
+	if (!PIPE_CONF_QUIRK(PIPE_CONFIG_QUIRK_BIGJOINER_SLAVE))
+		PIPE_CONF_CHECK_BOOL(fec_enable);
 
 	PIPE_CONF_CHECK_BOOL_INCOMPLETE(has_audio);
-
-	PIPE_CONF_CHECK_FLAGS(hw.adjusted_mode.flags,
-			      DRM_MODE_FLAG_INTERLACE);
-
-	if (!PIPE_CONF_QUIRK(PIPE_CONFIG_QUIRK_MODE_SYNC_FLAGS)) {
-		PIPE_CONF_CHECK_FLAGS(hw.adjusted_mode.flags,
-				      DRM_MODE_FLAG_PHSYNC);
-		PIPE_CONF_CHECK_FLAGS(hw.adjusted_mode.flags,
-				      DRM_MODE_FLAG_NHSYNC);
-		PIPE_CONF_CHECK_FLAGS(hw.adjusted_mode.flags,
-				      DRM_MODE_FLAG_PVSYNC);
-		PIPE_CONF_CHECK_FLAGS(hw.adjusted_mode.flags,
-				      DRM_MODE_FLAG_NVSYNC);
-	}
 
 	PIPE_CONF_CHECK_X(gmch_pfit.control);
 	/* pfit ratios are autocomputed by the hw on gen4+ */
@@ -14277,7 +14328,9 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 		}
 
 		PIPE_CONF_CHECK_I(scaler_state.scaler_id);
-		PIPE_CONF_CHECK_CLOCK_FUZZY(pixel_rate);
+		/* FIXME do the readout properly and get rid of this quirk */
+		if (!PIPE_CONF_QUIRK(PIPE_CONFIG_QUIRK_BIGJOINER_SLAVE))
+			PIPE_CONF_CHECK_CLOCK_FUZZY(pixel_rate);
 
 		PIPE_CONF_CHECK_X(gamma_mode);
 		if (IS_CHERRYVIEW(dev_priv))
@@ -14298,49 +14351,53 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 	PIPE_CONF_CHECK_BOOL(double_wide);
 
 	PIPE_CONF_CHECK_P(shared_dpll);
-	PIPE_CONF_CHECK_X(dpll_hw_state.dpll);
-	PIPE_CONF_CHECK_X(dpll_hw_state.dpll_md);
-	PIPE_CONF_CHECK_X(dpll_hw_state.fp0);
-	PIPE_CONF_CHECK_X(dpll_hw_state.fp1);
-	PIPE_CONF_CHECK_X(dpll_hw_state.wrpll);
-	PIPE_CONF_CHECK_X(dpll_hw_state.spll);
-	PIPE_CONF_CHECK_X(dpll_hw_state.ctrl1);
-	PIPE_CONF_CHECK_X(dpll_hw_state.cfgcr1);
-	PIPE_CONF_CHECK_X(dpll_hw_state.cfgcr2);
-	PIPE_CONF_CHECK_X(dpll_hw_state.cfgcr0);
-	PIPE_CONF_CHECK_X(dpll_hw_state.ebb0);
-	PIPE_CONF_CHECK_X(dpll_hw_state.ebb4);
-	PIPE_CONF_CHECK_X(dpll_hw_state.pll0);
-	PIPE_CONF_CHECK_X(dpll_hw_state.pll1);
-	PIPE_CONF_CHECK_X(dpll_hw_state.pll2);
-	PIPE_CONF_CHECK_X(dpll_hw_state.pll3);
-	PIPE_CONF_CHECK_X(dpll_hw_state.pll6);
-	PIPE_CONF_CHECK_X(dpll_hw_state.pll8);
-	PIPE_CONF_CHECK_X(dpll_hw_state.pll9);
-	PIPE_CONF_CHECK_X(dpll_hw_state.pll10);
-	PIPE_CONF_CHECK_X(dpll_hw_state.pcsdw12);
-	PIPE_CONF_CHECK_X(dpll_hw_state.mg_refclkin_ctl);
-	PIPE_CONF_CHECK_X(dpll_hw_state.mg_clktop2_coreclkctl1);
-	PIPE_CONF_CHECK_X(dpll_hw_state.mg_clktop2_hsclkctl);
-	PIPE_CONF_CHECK_X(dpll_hw_state.mg_pll_div0);
-	PIPE_CONF_CHECK_X(dpll_hw_state.mg_pll_div1);
-	PIPE_CONF_CHECK_X(dpll_hw_state.mg_pll_lf);
-	PIPE_CONF_CHECK_X(dpll_hw_state.mg_pll_frac_lock);
-	PIPE_CONF_CHECK_X(dpll_hw_state.mg_pll_ssc);
-	PIPE_CONF_CHECK_X(dpll_hw_state.mg_pll_bias);
-	PIPE_CONF_CHECK_X(dpll_hw_state.mg_pll_tdc_coldst_bias);
 
-	PIPE_CONF_CHECK_X(dsi_pll.ctrl);
-	PIPE_CONF_CHECK_X(dsi_pll.div);
+	/* FIXME do the readout properly and get rid of this quirk */
+	if (!PIPE_CONF_QUIRK(PIPE_CONFIG_QUIRK_BIGJOINER_SLAVE)) {
+		PIPE_CONF_CHECK_X(dpll_hw_state.dpll);
+		PIPE_CONF_CHECK_X(dpll_hw_state.dpll_md);
+		PIPE_CONF_CHECK_X(dpll_hw_state.fp0);
+		PIPE_CONF_CHECK_X(dpll_hw_state.fp1);
+		PIPE_CONF_CHECK_X(dpll_hw_state.wrpll);
+		PIPE_CONF_CHECK_X(dpll_hw_state.spll);
+		PIPE_CONF_CHECK_X(dpll_hw_state.ctrl1);
+		PIPE_CONF_CHECK_X(dpll_hw_state.cfgcr1);
+		PIPE_CONF_CHECK_X(dpll_hw_state.cfgcr2);
+		PIPE_CONF_CHECK_X(dpll_hw_state.cfgcr0);
+		PIPE_CONF_CHECK_X(dpll_hw_state.ebb0);
+		PIPE_CONF_CHECK_X(dpll_hw_state.ebb4);
+		PIPE_CONF_CHECK_X(dpll_hw_state.pll0);
+		PIPE_CONF_CHECK_X(dpll_hw_state.pll1);
+		PIPE_CONF_CHECK_X(dpll_hw_state.pll2);
+		PIPE_CONF_CHECK_X(dpll_hw_state.pll3);
+		PIPE_CONF_CHECK_X(dpll_hw_state.pll6);
+		PIPE_CONF_CHECK_X(dpll_hw_state.pll8);
+		PIPE_CONF_CHECK_X(dpll_hw_state.pll9);
+		PIPE_CONF_CHECK_X(dpll_hw_state.pll10);
+		PIPE_CONF_CHECK_X(dpll_hw_state.pcsdw12);
+		PIPE_CONF_CHECK_X(dpll_hw_state.mg_refclkin_ctl);
+		PIPE_CONF_CHECK_X(dpll_hw_state.mg_clktop2_coreclkctl1);
+		PIPE_CONF_CHECK_X(dpll_hw_state.mg_clktop2_hsclkctl);
+		PIPE_CONF_CHECK_X(dpll_hw_state.mg_pll_div0);
+		PIPE_CONF_CHECK_X(dpll_hw_state.mg_pll_div1);
+		PIPE_CONF_CHECK_X(dpll_hw_state.mg_pll_lf);
+		PIPE_CONF_CHECK_X(dpll_hw_state.mg_pll_frac_lock);
+		PIPE_CONF_CHECK_X(dpll_hw_state.mg_pll_ssc);
+		PIPE_CONF_CHECK_X(dpll_hw_state.mg_pll_bias);
+		PIPE_CONF_CHECK_X(dpll_hw_state.mg_pll_tdc_coldst_bias);
 
-	if (IS_G4X(dev_priv) || INTEL_GEN(dev_priv) >= 5)
-		PIPE_CONF_CHECK_I(pipe_bpp);
+		PIPE_CONF_CHECK_X(dsi_pll.ctrl);
+		PIPE_CONF_CHECK_X(dsi_pll.div);
 
-	PIPE_CONF_CHECK_CLOCK_FUZZY(hw.pipe_mode.crtc_clock);
-	PIPE_CONF_CHECK_CLOCK_FUZZY(hw.adjusted_mode.crtc_clock);
-	PIPE_CONF_CHECK_CLOCK_FUZZY(port_clock);
+		if (IS_G4X(dev_priv) || INTEL_GEN(dev_priv) >= 5)
+			PIPE_CONF_CHECK_I(pipe_bpp);
 
-	PIPE_CONF_CHECK_I(min_voltage_level);
+		PIPE_CONF_CHECK_CLOCK_FUZZY(hw.pipe_mode.crtc_clock);
+		PIPE_CONF_CHECK_CLOCK_FUZZY(hw.adjusted_mode.crtc_clock);
+		PIPE_CONF_CHECK_CLOCK_FUZZY(port_clock);
+
+		PIPE_CONF_CHECK_I(min_voltage_level);
+	}
 
 	PIPE_CONF_CHECK_X(infoframes.enable);
 	PIPE_CONF_CHECK_X(infoframes.gcp);
@@ -14352,6 +14409,9 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 
 	PIPE_CONF_CHECK_X(sync_mode_slaves_mask);
 	PIPE_CONF_CHECK_I(master_transcoder);
+	PIPE_CONF_CHECK_BOOL(bigjoiner);
+	PIPE_CONF_CHECK_BOOL(bigjoiner_slave);
+	PIPE_CONF_CHECK_P(bigjoiner_linked_crtc);
 
 	PIPE_CONF_CHECK_I(dsc.compression_enable);
 	PIPE_CONF_CHECK_I(dsc.dsc_split);
@@ -14623,6 +14683,7 @@ verify_crtc_state(struct intel_crtc *crtc,
 	struct intel_encoder *encoder;
 	struct intel_crtc_state *pipe_config = old_crtc_state;
 	struct drm_atomic_state *state = old_crtc_state->uapi.state;
+	struct intel_crtc *master = crtc;
 
 	__drm_atomic_helper_crtc_destroy_state(&old_crtc_state->uapi);
 	intel_crtc_free_hw_state(old_crtc_state);
@@ -14650,7 +14711,10 @@ verify_crtc_state(struct intel_crtc *crtc,
 			"(expected %i, found %i)\n",
 			new_crtc_state->hw.active, crtc->active);
 
-	for_each_encoder_on_crtc(dev, &crtc->base, encoder) {
+	if (new_crtc_state->bigjoiner_slave)
+		master = new_crtc_state->bigjoiner_linked_crtc;
+
+	for_each_encoder_on_crtc(dev, &master->base, encoder) {
 		enum pipe pipe;
 		bool active;
 
@@ -14660,7 +14724,7 @@ verify_crtc_state(struct intel_crtc *crtc,
 				encoder->base.base.id, active,
 				new_crtc_state->hw.active);
 
-		I915_STATE_WARN(active && crtc->pipe != pipe,
+		I915_STATE_WARN(active && master->pipe != pipe,
 				"Encoder connected to wrong pipe %c\n",
 				pipe_name(pipe));
 
@@ -18566,7 +18630,7 @@ int intel_modeset_init_nogem(struct drm_i915_private *i915)
 	for_each_intel_crtc(dev, crtc) {
 		struct intel_initial_plane_config plane_config = {};
 
-		if (!crtc->active)
+		if (!to_intel_crtc_state(crtc->base.state)->uapi.active)
 			continue;
 
 		/*
@@ -18877,7 +18941,8 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc,
 
 	/* Adjust the state of the output pipe according to whether we
 	 * have active connectors/encoders. */
-	if (crtc_state->hw.active && !intel_crtc_has_encoders(crtc))
+	if (crtc_state->hw.active && !intel_crtc_has_encoders(crtc) &&
+	    !crtc_state->bigjoiner_slave)
 		intel_crtc_disable_noatomic(crtc, ctx);
 
 	if (crtc_state->hw.active || HAS_GMCH(dev_priv)) {
@@ -19092,6 +19157,16 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 			intel_encoder_get_config(encoder, crtc_state);
 			if (encoder->sync_state)
 				encoder->sync_state(encoder, crtc_state);
+
+			/* read out to slave crtc as well for bigjoiner */
+			if (crtc_state->bigjoiner) {
+				/* encoder should read be linked to bigjoiner master */
+				WARN_ON(crtc_state->bigjoiner_slave);
+
+				crtc = crtc_state->bigjoiner_linked_crtc;
+				crtc_state = to_intel_crtc_state(crtc->base.state);
+				intel_encoder_get_config(encoder, crtc_state);
+			}
 		} else {
 			encoder->base.crtc = NULL;
 		}
@@ -19146,6 +19221,9 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 			to_intel_crtc_state(crtc->base.state);
 		struct intel_plane *plane;
 		int min_cdclk = 0;
+
+		if (crtc_state->bigjoiner_slave)
+			continue;
 
 		if (crtc_state->hw.active) {
 			/*
@@ -19207,6 +19285,39 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 		intel_bw_crtc_update(bw_state, crtc_state);
 
 		intel_pipe_config_sanity_check(dev_priv, crtc_state);
+
+		/* discard our incomplete slave state, copy it from master */
+		if (crtc_state->bigjoiner && crtc_state->hw.active) {
+			struct intel_crtc *slave = crtc_state->bigjoiner_linked_crtc;
+			struct intel_crtc_state *slave_crtc_state =
+				to_intel_crtc_state(slave->base.state);
+
+			copy_bigjoiner_crtc_state(slave_crtc_state, crtc_state);
+			slave->base.mode = crtc->base.mode;
+
+			cdclk_state->min_cdclk[slave->pipe] = min_cdclk;
+			cdclk_state->min_voltage_level[slave->pipe] =
+				crtc_state->min_voltage_level;
+
+			for_each_intel_plane_on_crtc(&dev_priv->drm, slave, plane) {
+				const struct intel_plane_state *plane_state =
+					to_intel_plane_state(plane->base.state);
+
+				/*
+				 * FIXME don't have the fb yet, so can't
+				 * use intel_plane_data_rate() :(
+				 */
+				if (plane_state->uapi.visible)
+					crtc_state->data_rate[plane->id] =
+						4 * crtc_state->pixel_rate;
+				else
+					crtc_state->data_rate[plane->id] = 0;
+			}
+
+			intel_bw_crtc_update(bw_state, slave_crtc_state);
+			drm_calc_timestamping_constants(&slave->base,
+							&slave_crtc_state->hw.adjusted_mode);
+		}
 	}
 }
 
