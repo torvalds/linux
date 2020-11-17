@@ -92,7 +92,9 @@ struct nand_mega_area {
 };
 
 struct nand_info {
-	u32 id;
+	u8 id0;
+	u8 id1;
+	u8 id2;
 
 	u16 sec_per_page;
 	u16 page_per_blk;
