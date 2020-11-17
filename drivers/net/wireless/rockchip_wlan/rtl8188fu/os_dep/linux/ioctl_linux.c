@@ -13705,7 +13705,7 @@ static int _rtw_ioctl_wext_private(struct net_device *dev, union iwreq_data *wrq
 				count = 0;
 				do {
 					str = strsep(&ptr, delim);
-					if (NULL == str) break;
+					if (NULL == str || count >= 4096) break;
 					sscanf(str, "%i", &temp);
 					buffer[count++] = (u8)temp;
 				} while (1);
@@ -13723,7 +13723,7 @@ static int _rtw_ioctl_wext_private(struct net_device *dev, union iwreq_data *wrq
 				count = 0;
 				do {
 					str = strsep(&ptr, delim);
-					if (NULL == str) break;
+					if (NULL == str || count >= 1024) break;
 					sscanf(str, "%i", &temp);
 					((s32*)buffer)[count++] = (s32)temp;
 				} while (1);
