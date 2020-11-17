@@ -98,6 +98,7 @@ properties:
 
   ports:
     type: object
+    $ref: /schemas/graph.yaml#/properties/ports
 
     properties:
       port@0:
@@ -141,29 +142,11 @@ properties:
         additionalProperties: false
 
       port@1:
-        type: object
         description: |
           Output / source port node, endpoint describing modules
           connected the CSI-2 receiver.
 
-        properties:
-
-          reg:
-            const: 1
-
-          endpoint:
-            type: object
-
-            properties:
-
-              remote-endpoint: true
-
-            required:
-              - remote-endpoint
-
-            additionalProperties: false
-
-        additionalProperties: false
+    unevaluatedProperties: false
 
 required:
   - compatible

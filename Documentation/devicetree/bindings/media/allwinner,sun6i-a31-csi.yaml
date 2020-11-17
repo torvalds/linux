@@ -43,6 +43,7 @@ properties:
   # See ./video-interfaces.txt for details
   port:
     type: object
+    $ref: /schemas/graph.yaml#/properties/port
 
     properties:
       endpoint:

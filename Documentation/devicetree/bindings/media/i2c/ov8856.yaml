@@ -58,11 +58,8 @@ properties:
 
   port:
     type: object
+    $ref: /schemas/graph.yaml#/properties/port
     additionalProperties: false
-    description:
-      A node containing an output port node with an endpoint definition
-      as documented in
-      Documentation/devicetree/bindings/media/video-interfaces.txt
 
     properties:
       endpoint:
