@@ -4,15 +4,20 @@
  * Author: Quentin Perret <qperret@google.com>
  */
 
+#include <linux/io.h>
 #include <linux/kvm_host.h>
 #include <linux/memblock.h>
 #include <linux/mm.h>
 #include <linux/mutex.h>
+#include <linux/of_fdt.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/sort.h>
 
 #include <asm/kvm_pkvm.h>
 
 #include "hyp_constants.h"
+
+static struct reserved_mem *pkvm_firmware_mem;
 
 static struct memblock_region *hyp_memory = kvm_nvhe_sym(hyp_memory);
 static unsigned int *hyp_memblock_nr_ptr = &kvm_nvhe_sym(hyp_memblock_nr);
@@ -248,3 +253,59 @@ int pkvm_init_host_vm(struct kvm *host_kvm, unsigned long type)
 	host_kvm->arch.pkvm.enabled = true;
 	return 0;
 }
+
+static int __init pkvm_firmware_rmem_err(struct reserved_mem *rmem,
+					 const char *reason)
+{
+	phys_addr_t end = rmem->base + rmem->size;
+
+	kvm_err("Ignoring pkvm guest firmware memory reservation [%pa - %pa]: %s\n",
+		&rmem->base, &end, reason);
+	return -EINVAL;
+}
+
+static int __init pkvm_firmware_rmem_init(struct reserved_mem *rmem)
+{
+	unsigned long node = rmem->fdt_node;
+
+	if (pkvm_firmware_mem)
+		return pkvm_firmware_rmem_err(rmem, "duplicate reservation");
+
+	if (!of_get_flat_dt_prop(node, "no-map", NULL))
+		return pkvm_firmware_rmem_err(rmem, "missing \"no-map\" property");
+
+	if (of_get_flat_dt_prop(node, "reusable", NULL))
+		return pkvm_firmware_rmem_err(rmem, "\"reusable\" property unsupported");
+
+	if (!PAGE_ALIGNED(rmem->base))
+		return pkvm_firmware_rmem_err(rmem, "base is not page-aligned");
+
+	if (!PAGE_ALIGNED(rmem->size))
+		return pkvm_firmware_rmem_err(rmem, "size is not page-aligned");
+
+	pkvm_firmware_mem = rmem;
+	return 0;
+}
+RESERVEDMEM_OF_DECLARE(pkvm_firmware, "linux,pkvm-guest-firmware-memory",
+		       pkvm_firmware_rmem_init);
+
+static int __init pkvm_firmware_rmem_clear(void)
+{
+	void *addr;
+	phys_addr_t size;
+
+	if (likely(!pkvm_firmware_mem) || is_protected_kvm_enabled())
+		return 0;
+
+	kvm_info("Clearing unused pKVM firmware memory\n");
+	size = pkvm_firmware_mem->size;
+	addr = memremap(pkvm_firmware_mem->base, size, MEMREMAP_WB);
+	if (!addr)
+		return -EINVAL;
+
+	memset(addr, 0, size);
+	dcache_clean_poc((unsigned long)addr, (unsigned long)addr + size);
+	memunmap(addr);
+	return 0;
+}
+device_initcall_sync(pkvm_firmware_rmem_clear);
