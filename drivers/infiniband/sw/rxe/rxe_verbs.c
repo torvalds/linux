@@ -1128,6 +1128,7 @@ int rxe_register_device(struct rxe_dev *rxe, const char *ibdev_name)
 	int err;
 	struct ib_device *dev = &rxe->ib_dev;
 	struct crypto_shash *tfm;
+	u64 dma_mask;
 
 	strlcpy(dev->node_desc, "rxe", sizeof(dev->node_desc));
 
@@ -1140,7 +1141,10 @@ int rxe_register_device(struct rxe_dev *rxe, const char *ibdev_name)
 			    rxe->ndev->dev_addr);
 	dev->dev.dma_parms = &rxe->dma_parms;
 	dma_set_max_seg_size(&dev->dev, UINT_MAX);
-	dma_set_coherent_mask(&dev->dev, dma_get_required_mask(&dev->dev));
+	dma_mask = IS_ENABLED(CONFIG_64BIT) ? DMA_BIT_MASK(64) : DMA_BIT_MASK(32);
+	err = dma_coerce_mask_and_coherent(&dev->dev, dma_mask);
+	if (err)
+		return err;
 
 	dev->uverbs_cmd_mask |= BIT_ULL(IB_USER_VERBS_CMD_POST_SEND) |
 				BIT_ULL(IB_USER_VERBS_CMD_REQ_NOTIFY_CQ);

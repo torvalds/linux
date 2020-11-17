@@ -69,7 +69,7 @@ Description:
 		pin offered by the PTP hardware clock. The file name
 		is the hardware dependent pin name. Reading from this
 		file produces two numbers, the assigned function (see
-		the PTP_PF_ enumeration values in linux/ptp_clock.h)
+		the `PTP_PF_` enumeration values in linux/ptp_clock.h)
 		and the channel number. The function and channel
 		assignment may be changed by two writing numbers into
 		the file.

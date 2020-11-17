@@ -132,6 +132,7 @@ Hardware Monitoring Kernel Drivers
    mcp3021
    menf21bmc
    mlxreg-fan
+   mp2975
    nct6683
    nct6775
    nct7802

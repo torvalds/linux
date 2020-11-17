@@ -6,6 +6,7 @@ Description:	Interface for making ib_srp connect to a new target.
 		One can request ib_srp to connect to a new target by writing
 		a comma-separated list of login parameters to this sysfs
 		attribute. The supported parameters are:
+
 		* id_ext, a 16-digit hexadecimal number specifying the eight
 		  byte identifier extension in the 16-byte SRP target port
 		  identifier. The target port identifier is sent by ib_srp

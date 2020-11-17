@@ -20,4 +20,6 @@ properties:
           - brcm,ns2-xmc
       - const: brcm,ns2
 
+additionalProperties: true
+
 ...

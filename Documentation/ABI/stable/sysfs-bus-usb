@@ -50,8 +50,10 @@ Description:
 
 		Tools can use this file and the connected_duration file to
 		compute the percentage of time that a device has been active.
-		For example,
-		echo $((100 * `cat active_duration` / `cat connected_duration`))
+		For example::
+
+		  echo $((100 * `cat active_duration` / `cat connected_duration`))
+
 		will give an integer percentage.  Note that this does not
 		account for counter wrap.
 Users:

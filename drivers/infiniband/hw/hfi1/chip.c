@@ -15245,7 +15245,8 @@ int hfi1_init_dd(struct hfi1_devdata *dd)
 		    & CCE_REVISION_SW_MASK);
 
 	/* alloc netdev data */
-	if (hfi1_netdev_alloc(dd))
+	ret = hfi1_netdev_alloc(dd);
+	if (ret)
 		goto bail_cleanup;
 
 	ret = set_up_context_variables(dd);

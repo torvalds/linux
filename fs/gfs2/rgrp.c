@@ -719,9 +719,9 @@ void gfs2_clear_rgrpd(struct gfs2_sbd *sdp)
 		}
 
 		gfs2_free_clones(rgd);
+		return_all_reservations(rgd);
 		kfree(rgd->rd_bits);
 		rgd->rd_bits = NULL;
-		return_all_reservations(rgd);
 		kmem_cache_free(gfs2_rgrpd_cachep, rgd);
 	}
 }
@@ -1369,6 +1369,9 @@ int gfs2_fitrim(struct file *filp, void __user *argp)
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
+
+	if (!test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags))
+		return -EROFS;
 
 	if (!blk_queue_discard(q))
 		return -EOPNOTSUPP;

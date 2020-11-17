@@ -265,13 +265,13 @@ static int kvm_msr_ignored_check(struct kvm_vcpu *vcpu, u32 msr,
 
 	if (ignore_msrs) {
 		if (report_ignored_msrs)
-			vcpu_unimpl(vcpu, "ignored %s: 0x%x data 0x%llx\n",
-				    op, msr, data);
+			kvm_pr_unimpl("ignored %s: 0x%x data 0x%llx\n",
+				      op, msr, data);
 		/* Mask the error */
 		return 0;
 	} else {
-		vcpu_debug_ratelimited(vcpu, "unhandled %s: 0x%x data 0x%llx\n",
-				       op, msr, data);
+		kvm_debug_ratelimited("unhandled %s: 0x%x data 0x%llx\n",
+				      op, msr, data);
 		return -ENOENT;
 	}
 }

@@ -12,7 +12,8 @@
 #ifdef CONFIG_UACCESS_MEMCPY
 #include <asm/unaligned.h>
 
-static inline int __get_user_fn(size_t size, const void __user *from, void *to)
+static __always_inline int
+__get_user_fn(size_t size, const void __user *from, void *to)
 {
 	BUILD_BUG_ON(!__builtin_constant_p(size));
 
@@ -37,7 +38,8 @@ static inline int __get_user_fn(size_t size, const void __user *from, void *to)
 }
 #define __get_user_fn(sz, u, k)	__get_user_fn(sz, u, k)
 
-static inline int __put_user_fn(size_t size, void __user *to, void *from)
+static __always_inline int
+__put_user_fn(size_t size, void __user *to, void *from)
 {
 	BUILD_BUG_ON(!__builtin_constant_p(size));
 

@@ -34,3 +34,5 @@ properties:
         items:
           - const: samsung,golden
           - const: st-ericsson,u8500
+
+additionalProperties: true

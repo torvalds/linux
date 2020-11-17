@@ -330,7 +330,7 @@ static int test_pidfd_send_signal_recycled_pid_fail(void)
 		ksft_exit_fail_msg("%s test: Failed to recycle pid %d\n",
 				   test_name, PID_RECYCLE);
 	case PIDFD_SKIP:
-		ksft_print_msg("%s test: Skipping test\n", test_name);
+		ksft_test_result_skip("%s test: Skipping test\n", test_name);
 		ret = 0;
 		break;
 	case PIDFD_XFAIL:

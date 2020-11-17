@@ -7,7 +7,7 @@ Description:    Read-only. Attribute group to describe the magic bits
 
                 Each attribute under this group defines a bit range of the
                 perf_event_attr.config. All supported attributes are listed
-                below.
+                below::
 
 				chip = "config:16-31"
 				core  = "config:16-31"
@@ -16,9 +16,9 @@ Description:    Read-only. Attribute group to describe the magic bits
 				offset = "config:32-63"
 				vcpu = "config:16-31"
 
-               For example,
+                For example::
 
-		PM_PB_CYC =  "domain=1,offset=0x80,chip=?,lpar=0x0"
+		  PM_PB_CYC =  "domain=1,offset=0x80,chip=?,lpar=0x0"
 
 		In this event, '?' after chip specifies that
 		this value will be provided by user while running this event.

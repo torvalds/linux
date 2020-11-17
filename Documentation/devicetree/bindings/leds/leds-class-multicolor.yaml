@@ -16,7 +16,7 @@ description: |
   modules. This is achieved by adding multi-led nodes layer to the
   monochrome LED bindings.
   The nodes and properties defined in this document are unique to the multicolor
-  LED class.  Common LED nodes and properties are inherited from the common.txt
+  LED class.  Common LED nodes and properties are inherited from the common.yaml
   within this documentation directory.
 
 patternProperties:
@@ -25,10 +25,11 @@ patternProperties:
     description: Represents the LEDs that are to be grouped.
     properties:
       color:
-        const: 8  # LED_COLOR_ID_MULTI
         description: |
-          For multicolor LED support this property should be defined as
-          LED_COLOR_ID_MULTI which can be found in include/linux/leds/common.h.
+          For multicolor LED support this property should be defined as either
+          LED_COLOR_ID_RGB or LED_COLOR_ID_MULTI which can be found in
+          include/linux/leds/common.h.
+        enum: [ 8, 9 ]
 
     $ref: "common.yaml#"
 
