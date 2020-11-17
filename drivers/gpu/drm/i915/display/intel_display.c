@@ -15108,6 +15108,44 @@ static bool active_planes_affects_min_cdclk(struct drm_i915_private *dev_priv)
 		IS_IVYBRIDGE(dev_priv) || (INTEL_GEN(dev_priv) >= 11);
 }
 
+static int intel_crtc_add_bigjoiner_planes(struct intel_atomic_state *state,
+					   struct intel_crtc *crtc,
+					   struct intel_crtc *other)
+{
+	const struct intel_plane_state *plane_state;
+	struct intel_plane *plane;
+	u8 plane_ids = 0;
+	int i;
+
+	for_each_new_intel_plane_in_state(state, plane, plane_state, i) {
+		if (plane->pipe == crtc->pipe)
+			plane_ids |= BIT(plane->id);
+	}
+
+	return intel_crtc_add_planes_to_state(state, other, plane_ids);
+}
+
+static int intel_bigjoiner_add_affected_planes(struct intel_atomic_state *state)
+{
+	const struct intel_crtc_state *crtc_state;
+	struct intel_crtc *crtc;
+	int i;
+
+	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
+		int ret;
+
+		if (!crtc_state->bigjoiner)
+			continue;
+
+		ret = intel_crtc_add_bigjoiner_planes(state, crtc,
+						      crtc_state->bigjoiner_linked_crtc);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int intel_atomic_check_planes(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
@@ -15118,6 +15156,10 @@ static int intel_atomic_check_planes(struct intel_atomic_state *state)
 	int i, ret;
 
 	ret = icl_add_linked_planes(state);
+	if (ret)
+		return ret;
+
+	ret = intel_bigjoiner_add_affected_planes(state);
 	if (ret)
 		return ret;
 
