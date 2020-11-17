@@ -222,14 +222,15 @@ static int nfsaclsvc_decode_setaclargs(struct svc_rqst *rqstp, __be32 *p)
 
 static int nfsaclsvc_decode_accessargs(struct svc_rqst *rqstp, __be32 *p)
 {
-	struct nfsd3_accessargs *argp = rqstp->rq_argp;
+	struct xdr_stream *xdr = &rqstp->rq_arg_stream;
+	struct nfsd3_accessargs *args = rqstp->rq_argp;
 
-	p = nfs2svc_decode_fh(p, &argp->fh);
-	if (!p)
+	if (!svcxdr_decode_fhandle(xdr, &args->fh))
 		return 0;
-	argp->access = ntohl(*p++);
+	if (xdr_stream_decode_u32(xdr, &args->access) < 0)
+		return 0;
 
-	return xdr_argsize_check(rqstp, p);
+	return 1;
 }
 
 /*
