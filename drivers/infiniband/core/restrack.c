@@ -221,10 +221,13 @@ void rdma_restrack_add(struct rdma_restrack_entry *res)
 {
 	struct ib_device *dev = res_to_dev(res);
 	struct rdma_restrack_root *rt;
-	int ret;
+	int ret = 0;
 
 	if (!dev)
 		return;
+
+	if (res->no_track)
+		goto out;
 
 	rt = &dev->res[res->type];
 
@@ -253,6 +256,7 @@ void rdma_restrack_add(struct rdma_restrack_entry *res)
 				      &rt->next_id, GFP_KERNEL);
 	}
 
+out:
 	if (!ret)
 		res->valid = true;
 }
@@ -325,6 +329,9 @@ void rdma_restrack_del(struct rdma_restrack_entry *res)
 		return;
 	}
 
+	if (res->no_track)
+		goto out;
+
 	dev = res_to_dev(res);
 	if (WARN_ON(!dev))
 		return;
@@ -335,8 +342,9 @@ void rdma_restrack_del(struct rdma_restrack_entry *res)
 	if (res->type == RDMA_RESTRACK_MR || res->type == RDMA_RESTRACK_QP)
 		return;
 	WARN_ON(old != res);
-	res->valid = false;
 
+out:
+	res->valid = false;
 	rdma_restrack_put(res);
 	wait_for_completion(&res->comp);
 }

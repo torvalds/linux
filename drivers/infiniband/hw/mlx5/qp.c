@@ -2410,7 +2410,7 @@ static int create_dct(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	}
 
 	qp->state = IB_QPS_RESET;
-
+	rdma_restrack_no_track(&qp->ibqp.res);
 	return 0;
 }
 
