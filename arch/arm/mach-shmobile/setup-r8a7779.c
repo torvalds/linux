@@ -34,15 +34,15 @@ static void __init r8a7779_init_irq_dt(void)
 	irqchip_init();
 
 	/* route all interrupts to ARM */
-	__raw_writel(0xffffffff, base + INT2NTSR0);
-	__raw_writel(0x3fffffff, base + INT2NTSR1);
+	writel(0xffffffff, base + INT2NTSR0);
+	writel(0x3fffffff, base + INT2NTSR1);
 
 	/* unmask all known interrupts in INTCS2 */
-	__raw_writel(0xfffffff0, base + INT2SMSKCR0);
-	__raw_writel(0xfff7ffff, base + INT2SMSKCR1);
-	__raw_writel(0xfffbffdf, base + INT2SMSKCR2);
-	__raw_writel(0xbffffffc, base + INT2SMSKCR3);
-	__raw_writel(0x003fee3f, base + INT2SMSKCR4);
+	writel(0xfffffff0, base + INT2SMSKCR0);
+	writel(0xfff7ffff, base + INT2SMSKCR1);
+	writel(0xfffbffdf, base + INT2SMSKCR2);
+	writel(0xbffffffc, base + INT2SMSKCR3);
+	writel(0x003fee3f, base + INT2SMSKCR4);
 
 	iounmap(base);
 }

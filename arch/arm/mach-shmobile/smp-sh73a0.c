@@ -34,10 +34,10 @@ static int sh73a0_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	unsigned int lcpu = cpu_logical_map(cpu);
 	void __iomem *cpg2 = ioremap(CPG_BASE2, PAGE_SIZE);
 
-	if (((__raw_readl(cpg2 + PSTR) >> (4 * lcpu)) & 3) == 3)
-		__raw_writel(1 << lcpu, cpg2 + WUPCR);	/* wake up */
+	if (((readl(cpg2 + PSTR) >> (4 * lcpu)) & 3) == 3)
+		writel(1 << lcpu, cpg2 + WUPCR);	/* wake up */
 	else
-		__raw_writel(1 << lcpu, cpg2 + SRESCR);	/* reset */
+		writel(1 << lcpu, cpg2 + SRESCR);	/* reset */
 	iounmap(cpg2);
 	return 0;
 }
@@ -48,8 +48,8 @@ static void __init sh73a0_smp_prepare_cpus(unsigned int max_cpus)
 	void __iomem *sysc = ioremap(SYSC_BASE, PAGE_SIZE);
 
 	/* Map the reset vector (in headsmp.S) */
-	__raw_writel(0, ap + APARMBAREA);      /* 4k */
-	__raw_writel(__pa(shmobile_boot_vector), sysc + SBAR);
+	writel(0, ap + APARMBAREA);      /* 4k */
+	writel(__pa(shmobile_boot_vector), sysc + SBAR);
 	iounmap(sysc);
 	iounmap(ap);
 
