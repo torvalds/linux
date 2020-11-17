@@ -1874,6 +1874,7 @@
 		rockchip,cru = <&cru>;
 		rockchip,grf = <&grf>;
 		rockchip,playback-only;
+		#sound-dai-cells = <0>;
 		status = "disabled";
 	};
 
@@ -1889,6 +1890,7 @@
 		reset-names = "tx-m", "rx-m";
 		rockchip,cru = <&cru>;
 		rockchip,grf = <&grf>;
+		#sound-dai-cells = <0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s1sclktxm0
 			     &i2s1sclkrxm0
@@ -1916,6 +1918,7 @@
 		rockchip,cru = <&cru>;
 		rockchip,grf = <&grf>;
 		rockchip,clk-trcm = <1>;
+		#sound-dai-cells = <0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s2sclktxm0
 			     &i2s2lrcktxm0
@@ -1936,6 +1939,7 @@
 		reset-names = "tx-m", "rx-m";
 		rockchip,cru = <&cru>;
 		rockchip,grf = <&grf>;
+		#sound-dai-cells = <0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s3sclkm0
 			     &i2s3lrckm0
@@ -1951,6 +1955,7 @@
 		clock-names = "pdm_clk", "pdm_hclk";
 		dmas = <&dmac1 9>;
 		dma-names = "rx";
+		#sound-dai-cells = <0>;
 		status = "disabled";
 	};
 
@@ -1964,6 +1969,7 @@
 		rockchip,audio-src = <0>;
 		rockchip,det-channel = <0>;
 		rockchip,mode = <0>;
+		#sound-dai-cells = <0>;
 		status = "disabled";
 	};
 
@@ -1975,6 +1981,7 @@
 		dma-names = "tx";
 		clock-names = "mclk", "hclk";
 		clocks = <&cru MCLK_SPDIF_8CH>, <&cru HCLK_SPDIF_8CH>;
+		#sound-dai-cells = <0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&spdifm0_pins>;
 		status = "disabled";
@@ -1987,6 +1994,7 @@
 		clock-names = "clk", "hclk";
 		dmas = <&dmac1 8>;
 		dma-names = "tx";
+		#sound-dai-cells = <0>;
 		rockchip,sample-width-bits = <11>;
 		rockchip,interpolat-points = <1>;
 		status = "disabled";
@@ -2003,6 +2011,7 @@
 		resets = <&cru SRST_ACDCDIG>;
 		reset-names = "reset" ;
 		rockchip,grf = <&grf>;
+		#sound-dai-cells = <0>;
 		status = "disabled";
 	};
 

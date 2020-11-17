@@ -46,7 +46,6 @@
 
 &dig_acodec {
 	status = "disabled";
-	#sound-dai-cells = <0>;
 	rockchip,pwm-output-mode;
 	pinctrl-names = "default";
 	pinctrl-0 = <&audiopwmoutdiff_pins>;
@@ -147,7 +146,6 @@
 
 &i2s3_2ch {
 	status = "disabled";
-	#sound-dai-cells = <0>;
 	rockchip,clk-trcm = <2>;
 };
 
