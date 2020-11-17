@@ -1743,6 +1743,9 @@ static long iio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			break;
 	}
 
+	if (ret == IIO_IOCTL_UNHANDLED)
+		ret = -EINVAL;
+
 out_unlock:
 	mutex_unlock(&indio_dev->info_exist_lock);
 
