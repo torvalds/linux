@@ -274,8 +274,8 @@ static bool nested_vmcb_checks(struct vcpu_svm *svm, struct vmcb *vmcb12)
 	return nested_vmcb_check_controls(&vmcb12->control);
 }
 
-static void load_nested_vmcb_control(struct vcpu_svm *svm,
-				     struct vmcb_control_area *control)
+static void nested_load_control_from_vmcb12(struct vcpu_svm *svm,
+					    struct vmcb_control_area *control)
 {
 	copy_vmcb_control_area(&svm->nested.ctl, control);
 
@@ -287,9 +287,9 @@ static void load_nested_vmcb_control(struct vcpu_svm *svm,
 
 /*
  * Synchronize fields that are written by the processor, so that
- * they can be copied back into the nested_vmcb.
+ * they can be copied back into the vmcb12.
  */
-void sync_nested_vmcb_control(struct vcpu_svm *svm)
+void nested_sync_control_from_vmcb02(struct vcpu_svm *svm)
 {
 	u32 mask;
 	svm->nested.ctl.event_inj      = svm->vmcb->control.event_inj;
@@ -317,8 +317,8 @@ void sync_nested_vmcb_control(struct vcpu_svm *svm)
  * Transfer any event that L0 or L1 wanted to inject into L2 to
  * EXIT_INT_INFO.
  */
-static void nested_vmcb_save_pending_event(struct vcpu_svm *svm,
-					   struct vmcb *vmcb12)
+static void nested_save_pending_event_to_vmcb12(struct vcpu_svm *svm,
+						struct vmcb *vmcb12)
 {
 	struct kvm_vcpu *vcpu = &svm->vcpu;
 	u32 exit_int_info = 0;
@@ -395,7 +395,7 @@ void nested_vmcb02_compute_g_pat(struct vcpu_svm *svm)
 	svm->nested.vmcb02.ptr->save.g_pat = svm->vmcb01.ptr->save.g_pat;
 }
 
-static void nested_prepare_vmcb_save(struct vcpu_svm *svm, struct vmcb *vmcb12)
+static void nested_vmcb02_prepare_save(struct vcpu_svm *svm, struct vmcb *vmcb12)
 {
 	nested_vmcb02_compute_g_pat(svm);
 
@@ -424,7 +424,7 @@ static void nested_prepare_vmcb_save(struct vcpu_svm *svm, struct vmcb *vmcb12)
 	svm->vmcb->save.cpl = vmcb12->save.cpl;
 }
 
-static void nested_prepare_vmcb_control(struct vcpu_svm *svm)
+static void nested_vmcb02_prepare_control(struct vcpu_svm *svm)
 {
 	const u32 mask = V_INTR_MASKING_MASK | V_GIF_ENABLE_MASK | V_GIF_MASK;
 
@@ -486,11 +486,11 @@ int enter_svm_guest_mode(struct vcpu_svm *svm, u64 vmcb12_gpa,
 	WARN_ON(svm->vmcb == svm->nested.vmcb02.ptr);
 
 	nested_svm_vmloadsave(svm->vmcb01.ptr, svm->nested.vmcb02.ptr);
-	load_nested_vmcb_control(svm, &vmcb12->control);
+	nested_load_control_from_vmcb12(svm, &vmcb12->control);
 
 	svm_switch_vmcb(svm, &svm->nested.vmcb02);
-	nested_prepare_vmcb_control(svm);
-	nested_prepare_vmcb_save(svm, vmcb12);
+	nested_vmcb02_prepare_control(svm);
+	nested_vmcb02_prepare_save(svm, vmcb12);
 
 	ret = nested_svm_load_cr3(&svm->vcpu, vmcb12->save.cr3,
 				  nested_npt_enabled(svm));
@@ -655,7 +655,7 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 	vmcb12->control.exit_info_2       = vmcb->control.exit_info_2;
 
 	if (vmcb12->control.exit_code != SVM_EXIT_ERR)
-		nested_vmcb_save_pending_event(svm, vmcb12);
+		nested_save_pending_event_to_vmcb12(svm, vmcb12);
 
 	if (svm->nrips_enabled)
 		vmcb12->control.next_rip  = vmcb->control.next_rip;
@@ -1227,11 +1227,11 @@ static int svm_set_nested_state(struct kvm_vcpu *vcpu,
 	if (svm->current_vmcb == &svm->vmcb01)
 		svm->nested.vmcb02.ptr->save = svm->vmcb01.ptr->save;
 	svm->vmcb01.ptr->save = *save;
-	load_nested_vmcb_control(svm, ctl);
+	nested_load_control_from_vmcb12(svm, ctl);
 
 	svm_switch_vmcb(svm, &svm->nested.vmcb02);
 
-	nested_prepare_vmcb_control(svm);
+	nested_vmcb02_prepare_control(svm);
 
 	kvm_make_request(KVM_REQ_GET_NESTED_STATE_PAGES, vcpu);
 	ret = 0;

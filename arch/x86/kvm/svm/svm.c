@@ -2124,7 +2124,7 @@ static int vmmcall_interception(struct vcpu_svm *svm)
 
 static int vmload_interception(struct vcpu_svm *svm)
 {
-	struct vmcb *nested_vmcb;
+	struct vmcb *vmcb12;
 	struct kvm_host_map map;
 	int ret;
 
@@ -2138,11 +2138,11 @@ static int vmload_interception(struct vcpu_svm *svm)
 		return 1;
 	}
 
-	nested_vmcb = map.hva;
+	vmcb12 = map.hva;
 
 	ret = kvm_skip_emulated_instruction(&svm->vcpu);
 
-	nested_svm_vmloadsave(nested_vmcb, svm->vmcb);
+	nested_svm_vmloadsave(vmcb12, svm->vmcb);
 	kvm_vcpu_unmap(&svm->vcpu, &map, true);
 
 	return ret;
@@ -2150,7 +2150,7 @@ static int vmload_interception(struct vcpu_svm *svm)
 
 static int vmsave_interception(struct vcpu_svm *svm)
 {
-	struct vmcb *nested_vmcb;
+	struct vmcb *vmcb12;
 	struct kvm_host_map map;
 	int ret;
 
@@ -2164,11 +2164,11 @@ static int vmsave_interception(struct vcpu_svm *svm)
 		return 1;
 	}
 
-	nested_vmcb = map.hva;
+	vmcb12 = map.hva;
 
 	ret = kvm_skip_emulated_instruction(&svm->vcpu);
 
-	nested_svm_vmloadsave(svm->vmcb, nested_vmcb);
+	nested_svm_vmloadsave(svm->vmcb, vmcb12);
 	kvm_vcpu_unmap(&svm->vcpu, &map, true);
 
 	return ret;
@@ -3949,7 +3949,7 @@ static __no_kcsan fastpath_t svm_vcpu_run(struct kvm_vcpu *vcpu)
 
 	svm->next_rip = 0;
 	if (is_guest_mode(&svm->vcpu)) {
-		sync_nested_vmcb_control(svm);
+		nested_sync_control_from_vmcb02(svm);
 		svm->nested.nested_run_pending = 0;
 	}
 
