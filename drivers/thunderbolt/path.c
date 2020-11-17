@@ -454,7 +454,7 @@ void tb_path_deactivate(struct tb_path *path)
 		return;
 	}
 	tb_dbg(path->tb,
-	       "deactivating %s path from %llx:%x to %llx:%x\n",
+	       "deactivating %s path from %llx:%u to %llx:%u\n",
 	       path->name, tb_route(path->hops[0].in_port->sw),
 	       path->hops[0].in_port->port,
 	       tb_route(path->hops[path->path_length - 1].out_port->sw),
@@ -482,7 +482,7 @@ int tb_path_activate(struct tb_path *path)
 	}
 
 	tb_dbg(path->tb,
-	       "activating %s path from %llx:%x to %llx:%x\n",
+	       "activating %s path from %llx:%u to %llx:%u\n",
 	       path->name, tb_route(path->hops[0].in_port->sw),
 	       path->hops[0].in_port->port,
 	       tb_route(path->hops[path->path_length - 1].out_port->sw),
