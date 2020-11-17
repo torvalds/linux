@@ -295,8 +295,8 @@ nfp_net_tls_add(struct net_device *netdev, struct sock *sk,
 			ipv6 = true;
 			break;
 		}
-#endif
 		fallthrough;
+#endif
 	case AF_INET:
 		req_sz = sizeof(struct nfp_crypto_req_add_v4);
 		ipv6 = false;
