@@ -413,7 +413,6 @@ static int qeth_get_link_ksettings(struct net_device *netdev,
 	struct qeth_card *card = netdev->ml_priv;
 	enum qeth_link_types link_type;
 	struct carrier_info carrier_info;
-	int rc;
 
 	if (IS_IQD(card) || IS_VM_NIC(card))
 		link_type = QETH_LINK_TYPE_10GBIT_ETH;
@@ -455,12 +454,8 @@ static int qeth_get_link_ksettings(struct net_device *netdev,
 	/* Check if we can obtain more accurate information.	 */
 	/* If QUERY_CARD_INFO command is not supported or fails, */
 	/* just return the heuristics that was filled above.	 */
-	rc = qeth_query_card_info(card, &carrier_info);
-	if (rc == -EOPNOTSUPP) /* for old hardware, return heuristic */
+	if (qeth_query_card_info(card, &carrier_info))
 		return 0;
-	if (rc) /* report error from the hardware operation */
-		return rc;
-	/* on success, fill in the information got from the hardware */
 
 	netdev_dbg(netdev,
 	"card info: card_type=0x%02x, port_mode=0x%04x, port_speed=0x%08x\n",
