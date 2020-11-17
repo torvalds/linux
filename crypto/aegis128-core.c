@@ -154,6 +154,12 @@ static void crypto_aegis128_ad(struct aegis_state *state,
 	}
 }
 
+static void crypto_aegis128_wipe_chunk(struct aegis_state *state, u8 *dst,
+				       const u8 *src, unsigned int size)
+{
+	memzero_explicit(dst, size);
+}
+
 static void crypto_aegis128_encrypt_chunk(struct aegis_state *state, u8 *dst,
 					  const u8 *src, unsigned int size)
 {
@@ -324,7 +330,6 @@ static void crypto_aegis128_process_ad(struct aegis_state *state,
 
 static __always_inline
 int crypto_aegis128_process_crypt(struct aegis_state *state,
-				  struct aead_request *req,
 				  struct skcipher_walk *walk,
 				  void (*crypt)(struct aegis_state *state,
 					        u8 *dst, const u8 *src,
@@ -403,14 +408,14 @@ static int crypto_aegis128_encrypt(struct aead_request *req)
 	if (aegis128_do_simd()) {
 		crypto_aegis128_init_simd(&state, &ctx->key, req->iv);
 		crypto_aegis128_process_ad(&state, req->src, req->assoclen);
-		crypto_aegis128_process_crypt(&state, req, &walk,
+		crypto_aegis128_process_crypt(&state, &walk,
 					      crypto_aegis128_encrypt_chunk_simd);
 		crypto_aegis128_final_simd(&state, &tag, req->assoclen,
 					   cryptlen);
 	} else {
 		crypto_aegis128_init(&state, &ctx->key, req->iv);
 		crypto_aegis128_process_ad(&state, req->src, req->assoclen);
-		crypto_aegis128_process_crypt(&state, req, &walk,
+		crypto_aegis128_process_crypt(&state, &walk,
 					      crypto_aegis128_encrypt_chunk);
 		crypto_aegis128_final(&state, &tag, req->assoclen, cryptlen);
 	}
@@ -438,19 +443,34 @@ static int crypto_aegis128_decrypt(struct aead_request *req)
 	if (aegis128_do_simd()) {
 		crypto_aegis128_init_simd(&state, &ctx->key, req->iv);
 		crypto_aegis128_process_ad(&state, req->src, req->assoclen);
-		crypto_aegis128_process_crypt(&state, req, &walk,
+		crypto_aegis128_process_crypt(&state, &walk,
 					      crypto_aegis128_decrypt_chunk_simd);
 		crypto_aegis128_final_simd(&state, &tag, req->assoclen,
 					   cryptlen);
 	} else {
 		crypto_aegis128_init(&state, &ctx->key, req->iv);
 		crypto_aegis128_process_ad(&state, req->src, req->assoclen);
-		crypto_aegis128_process_crypt(&state, req, &walk,
+		crypto_aegis128_process_crypt(&state, &walk,
 					      crypto_aegis128_decrypt_chunk);
 		crypto_aegis128_final(&state, &tag, req->assoclen, cryptlen);
 	}
 
-	return crypto_memneq(tag.bytes, zeros, authsize) ? -EBADMSG : 0;
+	if (unlikely(crypto_memneq(tag.bytes, zeros, authsize))) {
+		/*
+		 * From Chapter 4. 'Security Analysis' of the AEGIS spec [0]
+		 *
+		 * "3. If verification fails, the decrypted plaintext and the
+		 *     wrong authentication tag should not be given as output."
+		 *
+		 * [0] https://competitions.cr.yp.to/round3/aegisv11.pdf
+		 */
+		skcipher_walk_aead_decrypt(&walk, req, false);
+		crypto_aegis128_process_crypt(NULL, &walk,
+					      crypto_aegis128_wipe_chunk);
+		memzero_explicit(&tag, sizeof(tag));
+		return -EBADMSG;
+	}
+	return 0;
 }
 
 static struct aead_alg crypto_aegis128_alg = {
