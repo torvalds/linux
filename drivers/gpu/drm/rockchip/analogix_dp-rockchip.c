@@ -72,8 +72,8 @@ struct rockchip_dp_device {
 	struct drm_encoder       encoder;
 	struct drm_display_mode  mode;
 
-	struct clk               *pclk;
-	struct clk               *grfclk;
+	int			 num_clks;
+	struct clk_bulk_data	 *clks;
 	struct regmap            *grf;
 	struct reset_control     *rst;
 	struct reset_control     *apb_reset;
@@ -227,17 +227,9 @@ static void rockchip_dp_drm_encoder_enable(struct drm_encoder *encoder)
 
 	DRM_DEV_DEBUG(dp->dev, "vop %s output to dp\n", (ret) ? "LIT" : "BIG");
 
-	ret = clk_prepare_enable(dp->grfclk);
-	if (ret < 0) {
-		DRM_DEV_ERROR(dp->dev, "failed to enable grfclk %d\n", ret);
-		return;
-	}
-
 	ret = regmap_write(dp->grf, dp->data->lcdsel_grf_reg, val);
 	if (ret != 0)
 		DRM_DEV_ERROR(dp->dev, "Could not write to GRF: %d\n", ret);
-
-	clk_disable_unprepare(dp->grfclk);
 }
 
 static void rockchip_dp_drm_encoder_nop(struct drm_encoder *encoder)
@@ -339,21 +331,13 @@ static int rockchip_dp_of_probe(struct rockchip_dp_device *dp)
 		}
 	}
 
-	dp->grfclk = devm_clk_get(dev, "grf");
-	if (PTR_ERR(dp->grfclk) == -ENOENT) {
-		dp->grfclk = NULL;
-	} else if (PTR_ERR(dp->grfclk) == -EPROBE_DEFER) {
-		return -EPROBE_DEFER;
-	} else if (IS_ERR(dp->grfclk)) {
-		DRM_DEV_ERROR(dev, "failed to get grf clock\n");
-		return PTR_ERR(dp->grfclk);
+	ret = devm_clk_bulk_get_all(dev, &dp->clks);
+	if (ret < 0) {
+		DRM_DEV_ERROR(dev, "failed to get clocks %d\n", ret);
+		return ret;
 	}
 
-	dp->pclk = devm_clk_get(dev, "pclk");
-	if (IS_ERR(dp->pclk)) {
-		DRM_DEV_ERROR(dev, "failed to get pclk property\n");
-		return PTR_ERR(dp->pclk);
-	}
+	dp->num_clks = ret;
 
 	dp->rst = devm_reset_control_get(dev, "dp");
 	if (IS_ERR(dp->rst)) {
@@ -545,7 +529,7 @@ static int rockchip_dp_runtime_suspend(struct device *dev)
 {
 	struct rockchip_dp_device *dp = dev_get_drvdata(dev);
 
-	clk_disable_unprepare(dp->pclk);
+	clk_bulk_disable_unprepare(dp->num_clks, dp->clks);
 
 	return 0;
 }
@@ -554,9 +538,7 @@ static int rockchip_dp_runtime_resume(struct device *dev)
 {
 	struct rockchip_dp_device *dp = dev_get_drvdata(dev);
 
-	clk_prepare_enable(dp->pclk);
-
-	return 0;
+	return clk_bulk_prepare_enable(dp->num_clks, dp->clks);
 }
 #endif
 
