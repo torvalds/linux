@@ -4778,16 +4778,16 @@ mlxsw_sp_fib4_entry_type_set(struct mlxsw_sp *mlxsw_sp,
 			     const struct fib_entry_notifier_info *fen_info,
 			     struct mlxsw_sp_fib_entry *fib_entry)
 {
-	struct net_device *dev = fib_info_nh(fen_info->fi, 0)->fib_nh_dev;
+	struct mlxsw_sp_nexthop_group_info *nhgi = fib_entry->nh_group->nhgi;
 	union mlxsw_sp_l3addr dip = { .addr4 = htonl(fen_info->dst) };
 	struct mlxsw_sp_router *router = mlxsw_sp->router;
 	u32 tb_id = mlxsw_sp_fix_tb_id(fen_info->tb_id);
+	int ifindex = nhgi->nexthops[0].ifindex;
 	struct mlxsw_sp_ipip_entry *ipip_entry;
-	struct fib_info *fi = fen_info->fi;
 
 	switch (fen_info->type) {
 	case RTN_LOCAL:
-		ipip_entry = mlxsw_sp_ipip_entry_find_by_decap(mlxsw_sp, dev->ifindex,
+		ipip_entry = mlxsw_sp_ipip_entry_find_by_decap(mlxsw_sp, ifindex,
 							       MLXSW_SP_L3_PROTO_IPV4, dip);
 		if (ipip_entry && ipip_entry->ol_dev->flags & IFF_UP) {
 			fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_IPIP_DECAP;
@@ -4821,7 +4821,7 @@ mlxsw_sp_fib4_entry_type_set(struct mlxsw_sp *mlxsw_sp,
 		fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_UNREACHABLE;
 		return 0;
 	case RTN_UNICAST:
-		if (mlxsw_sp_fi_is_gateway(mlxsw_sp, fi))
+		if (nhgi->gateway)
 			fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_REMOTE;
 		else
 			fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_LOCAL;
@@ -5640,7 +5640,7 @@ static void mlxsw_sp_fib6_entry_type_set(struct mlxsw_sp *mlxsw_sp,
 		fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_BLACKHOLE;
 	else if (rt->fib6_flags & RTF_REJECT)
 		fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_UNREACHABLE;
-	else if (mlxsw_sp_rt6_is_gateway(mlxsw_sp, rt))
+	else if (fib_entry->nh_group->nhgi->gateway)
 		fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_REMOTE;
 	else
 		fib_entry->type = MLXSW_SP_FIB_ENTRY_TYPE_LOCAL;
