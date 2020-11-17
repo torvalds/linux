@@ -307,14 +307,12 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 	u32 reg;
 	unsigned long rate;
 	int ret;
-	const struct of_device_id *of_id;
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
 
-	of_id = of_match_device(imx_rtc_dt_ids, &pdev->dev);
-	pdata->devtype = (enum imx_rtc_type)of_id->data;
+	pdata->devtype = (enum imx_rtc_type)of_device_get_match_data(&pdev->dev);
 
 	pdata->ioaddr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pdata->ioaddr))
