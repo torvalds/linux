@@ -128,6 +128,16 @@ static void sifive_gpio_irq_eoi(struct irq_data *d)
 	irq_chip_eoi_parent(d);
 }
 
+static int sifive_gpio_irq_set_affinity(struct irq_data *data,
+					const struct cpumask *dest,
+					bool force)
+{
+	if (data->parent_data)
+		return irq_chip_set_affinity_parent(data, dest, force);
+
+	return -EINVAL;
+}
+
 static struct irq_chip sifive_gpio_irqchip = {
 	.name		= "sifive-gpio",
 	.irq_set_type	= sifive_gpio_irq_set_type,
@@ -136,6 +146,7 @@ static struct irq_chip sifive_gpio_irqchip = {
 	.irq_enable	= sifive_gpio_irq_enable,
 	.irq_disable	= sifive_gpio_irq_disable,
 	.irq_eoi	= sifive_gpio_irq_eoi,
+	.irq_set_affinity = sifive_gpio_irq_set_affinity,
 };
 
 static int sifive_gpio_child_to_parent_hwirq(struct gpio_chip *gc,
