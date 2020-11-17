@@ -951,25 +951,29 @@ vidtv_psi_pat_program_assign(struct vidtv_psi_table_pat *pat,
 {
 	/* This function transfers ownership of p to the table */
 
-	u16 program_count = 0;
-	struct vidtv_psi_table_pat_program *program = p;
+	u16 program_count;
+	struct vidtv_psi_table_pat_program *program;
 
-	if (p == pat->program)
-		return;
+	do {
+		program_count = 0;
+		program = p;
 
-	while (program) {
-		++program_count;
-		program = program->next;
-	}
+		if (p == pat->program)
+			return;
 
-	pat->programs = program_count;
-	pat->program  = p;
+		while (program) {
+			++program_count;
+			program = program->next;
+		}
 
-	/* Recompute section length */
-	vidtv_psi_pat_table_update_sec_len(pat);
+		pat->programs = program_count;
+		pat->program  = p;
 
-	if (vidtv_psi_get_sec_len(&pat->header) > MAX_SECTION_LEN)
-		vidtv_psi_pat_program_assign(pat, NULL);
+		/* Recompute section length */
+		vidtv_psi_pat_table_update_sec_len(pat);
+
+		p = NULL;
+	} while (vidtv_psi_get_sec_len(&pat->header) > MAX_SECTION_LEN);
 
 	vidtv_psi_update_version_num(&pat->header);
 }
@@ -1124,15 +1128,16 @@ void vidtv_psi_pmt_stream_destroy(struct vidtv_psi_table_pmt_stream *s)
 void vidtv_psi_pmt_stream_assign(struct vidtv_psi_table_pmt *pmt,
 				 struct vidtv_psi_table_pmt_stream *s)
 {
-	/* This function transfers ownership of s to the table */
-	if (s == pmt->stream)
-		return;
+	do {
+		/* This function transfers ownership of s to the table */
+		if (s == pmt->stream)
+			return;
 
-	pmt->stream = s;
-	vidtv_psi_pmt_table_update_sec_len(pmt);
+		pmt->stream = s;
+		vidtv_psi_pmt_table_update_sec_len(pmt);
 
-	if (vidtv_psi_get_sec_len(&pmt->header) > MAX_SECTION_LEN)
-		vidtv_psi_pmt_stream_assign(pmt, NULL);
+		s = NULL;
+	} while (vidtv_psi_get_sec_len(&pmt->header) > MAX_SECTION_LEN);
 
 	vidtv_psi_update_version_num(&pmt->header);
 }
@@ -1500,16 +1505,17 @@ void
 vidtv_psi_sdt_service_assign(struct vidtv_psi_table_sdt *sdt,
 			     struct vidtv_psi_table_sdt_service *service)
 {
-	if (service == sdt->service)
-		return;
+	do {
+		if (service == sdt->service)
+			return;
 
-	sdt->service = service;
+		sdt->service = service;
 
-	/* recompute section length */
-	vidtv_psi_sdt_table_update_sec_len(sdt);
+		/* recompute section length */
+		vidtv_psi_sdt_table_update_sec_len(sdt);
 
-	if (vidtv_psi_get_sec_len(&sdt->header) > MAX_SECTION_LEN)
-		vidtv_psi_sdt_service_assign(sdt, NULL);
+		service = NULL;
+	} while (vidtv_psi_get_sec_len(&sdt->header) > MAX_SECTION_LEN);
 
 	vidtv_psi_update_version_num(&sdt->header);
 }
@@ -1832,14 +1838,15 @@ void vidtv_psi_eit_table_update_sec_len(struct vidtv_psi_table_eit *eit)
 void vidtv_psi_eit_event_assign(struct vidtv_psi_table_eit *eit,
 				struct vidtv_psi_table_eit_event *e)
 {
-	if (e == eit->event)
-		return;
+	do {
+		if (e == eit->event)
+			return;
 
-	eit->event = e;
-	vidtv_psi_eit_table_update_sec_len(eit);
+		eit->event = e;
+		vidtv_psi_eit_table_update_sec_len(eit);
 
-	if (vidtv_psi_get_sec_len(&eit->header) > EIT_MAX_SECTION_LEN)
-		vidtv_psi_eit_event_assign(eit, NULL);
+		e = NULL;
+	} while (vidtv_psi_get_sec_len(&eit->header) > EIT_MAX_SECTION_LEN);
 
 	vidtv_psi_update_version_num(&eit->header);
 }
