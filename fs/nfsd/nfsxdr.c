@@ -38,7 +38,16 @@ decode_fh(__be32 *p, struct svc_fh *fhp)
 	return p + (NFS_FHSIZE >> 2);
 }
 
-static bool
+/**
+ * svcxdr_decode_fhandle - Decode an NFSv2 file handle
+ * @xdr: XDR stream positioned at an encoded NFSv2 FH
+ * @fhp: OUT: filled-in server file handle
+ *
+ * Return values:
+ *  %false: The encoded file handle was not valid
+ *  %true: @fhp has been initialized
+ */
+bool
 svcxdr_decode_fhandle(struct xdr_stream *xdr, struct svc_fh *fhp)
 {
 	__be32 *p;

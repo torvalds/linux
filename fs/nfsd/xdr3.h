@@ -102,7 +102,7 @@ struct nfsd3_commitargs {
 
 struct nfsd3_getaclargs {
 	struct svc_fh		fh;
-	int			mask;
+	__u32			mask;
 };
 
 struct posix_acl;
