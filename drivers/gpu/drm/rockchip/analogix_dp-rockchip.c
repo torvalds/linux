@@ -57,6 +57,7 @@
  * @lcdsel_lit: reg value of selecting vop little for eDP
  * @chip_type: specific chip type
  * @ssc: check if SSC is supported by source
+ * @audio: check if audio is supported by source
  */
 struct rockchip_dp_chip_data {
 	u32	lcdsel_grf_reg;
@@ -64,6 +65,7 @@ struct rockchip_dp_chip_data {
 	u32	lcdsel_lit;
 	u32	chip_type;
 	bool	ssc;
+	bool	audio;
 };
 
 struct rockchip_dp_device {
@@ -80,11 +82,50 @@ struct rockchip_dp_device {
 	struct regulator         *vcc_supply;
 	struct regulator         *vccio_supply;
 
+	struct platform_device *audio_pdev;
 	const struct rockchip_dp_chip_data *data;
 
 	struct analogix_dp_device *adp;
 	struct analogix_dp_plat_data plat_data;
 	struct rockchip_drm_sub_dev sub_dev;
+};
+
+static int rockchip_dp_audio_hw_params(struct device *dev, void *data,
+				       struct hdmi_codec_daifmt *daifmt,
+				       struct hdmi_codec_params *params)
+{
+	struct rockchip_dp_device *dp = dev_get_drvdata(dev);
+
+	return analogix_dp_audio_hw_params(dp->adp, daifmt, params);
+}
+
+static void rockchip_dp_audio_shutdown(struct device *dev, void *data)
+{
+	struct rockchip_dp_device *dp = dev_get_drvdata(dev);
+
+	analogix_dp_audio_shutdown(dp->adp);
+}
+
+static int rockchip_dp_audio_startup(struct device *dev, void *data)
+{
+	struct rockchip_dp_device *dp = dev_get_drvdata(dev);
+
+	return analogix_dp_audio_startup(dp->adp);
+}
+
+static int rockchip_dp_audio_get_eld(struct device *dev, void *data,
+				     u8 *buf, size_t len)
+{
+	struct rockchip_dp_device *dp = dev_get_drvdata(dev);
+
+	return analogix_dp_audio_get_eld(dp->adp, buf, len);
+}
+
+static const struct hdmi_codec_ops rockchip_dp_audio_codec_ops = {
+	.hw_params = rockchip_dp_audio_hw_params,
+	.audio_startup = rockchip_dp_audio_startup,
+	.audio_shutdown = rockchip_dp_audio_shutdown,
+	.get_eld = rockchip_dp_audio_get_eld,
 };
 
 static int analogix_dp_psr_set(struct drm_encoder *encoder, bool enabled)
@@ -439,6 +480,25 @@ static int rockchip_dp_bind(struct device *dev, struct device *master,
 		goto err_unreg_psr;
 	}
 
+	if (dp->data->audio) {
+		struct hdmi_codec_pdata codec_data = {
+			.ops = &rockchip_dp_audio_codec_ops,
+			.spdif = 1,
+			.i2s = 1,
+			.max_i2s_channels = 2,
+		};
+
+		dp->audio_pdev =
+			platform_device_register_data(dev, HDMI_CODEC_DRV_NAME,
+						      PLATFORM_DEVID_AUTO,
+						      &codec_data,
+						      sizeof(codec_data));
+		if (IS_ERR(dp->audio_pdev)) {
+			ret = PTR_ERR(dp->audio_pdev);
+			goto err_unreg_psr;
+		}
+	}
+
 	dp->sub_dev.connector = &dp->adp->connector;
 	dp->sub_dev.of_node = dev->of_node;
 	rockchip_drm_register_sub_dev(&dp->sub_dev);
@@ -457,6 +517,8 @@ static void rockchip_dp_unbind(struct device *dev, struct device *master,
 	struct rockchip_dp_device *dp = dev_get_drvdata(dev);
 
 	rockchip_drm_unregister_sub_dev(&dp->sub_dev);
+	if (dp->audio_pdev)
+		platform_device_unregister(dp->audio_pdev);
 	analogix_dp_unbind(dp->adp);
 	rockchip_drm_psr_unregister(&dp->encoder);
 	dp->encoder.funcs->destroy(&dp->encoder);
@@ -572,6 +634,7 @@ static const struct rockchip_dp_chip_data rk3288_dp = {
 static const struct rockchip_dp_chip_data rk3568_edp = {
 	.chip_type = RK3568_EDP,
 	.ssc = true,
+	.audio = true,
 };
 
 static const struct of_device_id rockchip_dp_dt_ids[] = {

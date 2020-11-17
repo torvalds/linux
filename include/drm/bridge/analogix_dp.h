@@ -12,6 +12,7 @@
 #define _ANALOGIX_DP_H_
 
 #include <drm/drm_crtc.h>
+#include <sound/hdmi-codec.h>
 
 struct analogix_dp_device;
 
@@ -67,5 +68,13 @@ void analogix_dp_unbind(struct analogix_dp_device *dp);
 
 int analogix_dp_start_crc(struct drm_connector *connector);
 int analogix_dp_stop_crc(struct drm_connector *connector);
+
+int analogix_dp_audio_hw_params(struct analogix_dp_device *dp,
+				struct hdmi_codec_daifmt *daifmt,
+				struct hdmi_codec_params *params);
+void analogix_dp_audio_shutdown(struct analogix_dp_device *dp);
+int analogix_dp_audio_startup(struct analogix_dp_device *dp);
+int analogix_dp_audio_get_eld(struct analogix_dp_device *dp,
+			      u8 *buf, size_t len);
 
 #endif /* _ANALOGIX_DP_H_ */

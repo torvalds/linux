@@ -1499,6 +1499,48 @@ static ssize_t analogix_dpaux_transfer(struct drm_dp_aux *aux,
 	return analogix_dp_transfer(dp, msg);
 }
 
+int analogix_dp_audio_hw_params(struct analogix_dp_device *dp,
+				struct hdmi_codec_daifmt *daifmt,
+				struct hdmi_codec_params *params)
+{
+	switch (daifmt->fmt) {
+	case HDMI_SPDIF:
+		analogix_dp_audio_config_spdif(dp);
+		break;
+	case HDMI_I2S:
+		analogix_dp_audio_config_i2s(dp);
+		break;
+	default:
+		DRM_DEV_ERROR(dp->dev, "invalid daifmt %d\n", daifmt->fmt);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(analogix_dp_audio_hw_params);
+
+void analogix_dp_audio_shutdown(struct analogix_dp_device *dp)
+{
+	analogix_dp_audio_disable(dp);
+}
+EXPORT_SYMBOL_GPL(analogix_dp_audio_shutdown);
+
+int analogix_dp_audio_startup(struct analogix_dp_device *dp)
+{
+	analogix_dp_audio_enable(dp);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(analogix_dp_audio_enable);
+
+int analogix_dp_audio_get_eld(struct analogix_dp_device *dp, u8 *buf, size_t len)
+{
+	memcpy(buf, dp->connector.eld, min(sizeof(dp->connector.eld), len));
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(analogix_dp_audio_get_eld);
+
 struct analogix_dp_device *
 analogix_dp_bind(struct device *dev, struct drm_device *drm_dev,
 		 struct analogix_dp_plat_data *plat_data)

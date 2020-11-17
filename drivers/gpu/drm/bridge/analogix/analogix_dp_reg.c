@@ -1320,3 +1320,53 @@ void analogix_dp_video_bist_enable(struct analogix_dp_device *dp)
 	reg &= ~FORMAT_SEL;
 	analogix_dp_write(dp, ANALOGIX_DP_VIDEO_CTL_10, reg);
 }
+
+void analogix_dp_audio_config_i2s(struct analogix_dp_device *dp)
+{
+	u32 reg;
+
+	reg = analogix_dp_read(dp, ANALOGIX_DP_SYS_CTL_4);
+	reg &= ~FIX_M_AUD;
+	analogix_dp_write(dp, ANALOGIX_DP_SYS_CTL_4, reg);
+
+	reg = analogix_dp_read(dp, ANALOGIX_DP_I2S_CTRL);
+	reg |= I2S_EN;
+	analogix_dp_write(dp, ANALOGIX_DP_I2S_CTRL, reg);
+}
+
+void analogix_dp_audio_config_spdif(struct analogix_dp_device *dp)
+{
+	u32 reg;
+
+	reg = analogix_dp_read(dp, ANALOGIX_DP_SYS_CTL_4);
+	reg &= ~FIX_M_AUD;
+	analogix_dp_write(dp, ANALOGIX_DP_SYS_CTL_4, reg);
+
+	reg = analogix_dp_read(dp, ANALOGIX_DP_SPDIF_AUDIO_CTL_0);
+	reg |= AUD_SPDIF_EN;
+	analogix_dp_write(dp, ANALOGIX_DP_SPDIF_AUDIO_CTL_0, reg);
+}
+
+void analogix_dp_audio_enable(struct analogix_dp_device *dp)
+{
+	u32 reg;
+
+	reg = analogix_dp_read(dp, ANALOGIX_DP_FUNC_EN_1);
+	reg &= ~(AUD_FIFO_FUNC_EN_N | AUD_FUNC_EN_N);
+	analogix_dp_write(dp, ANALOGIX_DP_FUNC_EN_1, reg);
+
+	reg = analogix_dp_read(dp, ANALOGIX_DP_AUD_CTL);
+	reg |= MISC_CTRL_RESET | DP_AUDIO_EN;
+	analogix_dp_write(dp, ANALOGIX_DP_AUD_CTL, reg);
+}
+
+void analogix_dp_audio_disable(struct analogix_dp_device *dp)
+{
+	u32 reg;
+
+	analogix_dp_write(dp, ANALOGIX_DP_AUD_CTL, 0);
+
+	reg = analogix_dp_read(dp, ANALOGIX_DP_FUNC_EN_1);
+	reg |= AUD_FIFO_FUNC_EN_N | AUD_FUNC_EN_N;
+	analogix_dp_write(dp, ANALOGIX_DP_FUNC_EN_1, reg);
+}

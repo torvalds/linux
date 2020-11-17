@@ -91,7 +91,7 @@
 #define ANALOGIX_DP_SYS_CTL_2			0x604
 #define ANALOGIX_DP_SYS_CTL_3			0x608
 #define ANALOGIX_DP_SYS_CTL_4			0x60C
-
+#define ANALOGIX_DP_AUD_CTL			0x618
 #define ANALOGIX_DP_PKT_SEND_CTL		0x640
 #define ANALOGIX_DP_HDCP_CTL			0x648
 
@@ -137,8 +137,9 @@
 #define ANALOGIX_DP_BUF_DATA_0			0x7C0
 
 #define ANALOGIX_DP_SOC_GENERAL_CTL		0x800
-
+#define ANALOGIX_DP_AUD_CHANNEL_CTL		0x834
 #define ANALOGIX_DP_CRC_CON			0x890
+#define ANALOGIX_DP_I2S_CTRL			0x9C8
 
 /* ANALOGIX_DP_TX_SW_RESET */
 #define RESET_DP_TX				(0x1 << 0)
@@ -257,6 +258,9 @@
 
 /* ANALOGIX_DP_H_B_PORCH_CFG_H */
 #define H_B_PORCH_CFG_H(x)			(((x) & 0xf) << 0)
+
+/* ANALOGIX_DP_SPDIF_AUDIO_CTL_0 */
+#define AUD_SPDIF_EN				(0x1 << 7)
 
 /* ANALOGIX_DP_PLL_REG_1 */
 #define REF_CLK_24M				(0x1 << 0)
@@ -386,6 +390,10 @@
 #define FIX_M_VID				(0x1 << 2)
 #define M_VID_UPDATE_CTRL			(0x3 << 0)
 
+/* ANALOGIX_DP_AUD_CTL */
+#define MISC_CTRL_RESET				(0x1 << 4)
+#define DP_AUDIO_EN				(0x1 << 0)
+
 /* ANALOGIX_DP_TRAINING_PTN_SET */
 #define SCRAMBLER_TYPE				(0x1 << 9)
 #define HW_LINK_TRAINING_PATTERN		(0x1 << 8)
@@ -483,6 +491,11 @@
 #define VIDEO_MODE_SLAVE_MODE			(0x1 << 0)
 #define VIDEO_MODE_MASTER_MODE			(0x0 << 0)
 
+/* ANALOGIX_DP_AUD_CHANNEL_CTL */
+#define AUD_CHANNEL_COUNT_6			(0x5 << 0)
+#define AUD_CHANNEL_COUNT_4			(0x3 << 0)
+#define AUD_CHANNEL_COUNT_2			(0x1 << 0)
+
 /* ANALOGIX_DP_PKT_SEND_CTL */
 #define IF_UP					(0x1 << 4)
 #define IF_EN					(0x1 << 0)
@@ -490,5 +503,8 @@
 /* ANALOGIX_DP_CRC_CON */
 #define PSR_VID_CRC_FLUSH			(0x1 << 2)
 #define PSR_VID_CRC_ENABLE			(0x1 << 0)
+
+/* ANALOGIX_DP_I2S_CTRL */
+#define I2S_EN					(0x1 << 4)
 
 #endif /* _ANALOGIX_DP_REG_H */

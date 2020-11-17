@@ -252,5 +252,9 @@ void analogix_dp_video_bist_enable(struct analogix_dp_device *dp);
 bool analogix_dp_ssc_supported(struct analogix_dp_device *dp);
 void analogix_dp_phy_power_on(struct analogix_dp_device *dp);
 void analogix_dp_phy_power_off(struct analogix_dp_device *dp);
+void analogix_dp_audio_config_spdif(struct analogix_dp_device *dp);
+void analogix_dp_audio_config_i2s(struct analogix_dp_device *dp);
+void analogix_dp_audio_enable(struct analogix_dp_device *dp);
+void analogix_dp_audio_disable(struct analogix_dp_device *dp);
 
 #endif /* _ANALOGIX_DP_CORE_H */
