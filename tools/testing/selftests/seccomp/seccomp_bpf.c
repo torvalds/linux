@@ -1804,8 +1804,8 @@ TEST_F(TRACE_poke, getpid_runs_normally)
 #define SYSCALL_RET(_regs)	(_regs).a[(_regs).windowbase * 4 + 2]
 #elif defined(__sh__)
 # define ARCH_REGS		struct pt_regs
-# define SYSCALL_NUM(_regs)	(_regs).gpr[3]
-# define SYSCALL_RET(_regs)	(_regs).gpr[0]
+# define SYSCALL_NUM(_regs)	(_regs).regs[3]
+# define SYSCALL_RET(_regs)	(_regs).regs[0]
 #else
 # error "Do not know how to find your architecture's registers and syscalls"
 #endif
