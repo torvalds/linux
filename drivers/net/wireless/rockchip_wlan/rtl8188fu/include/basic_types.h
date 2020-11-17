@@ -1,7 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *                                        
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
  * published by the Free Software Foundation.
@@ -11,12 +12,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef __BASIC_TYPES_H__
 #define __BASIC_TYPES_H__
 
@@ -27,13 +23,13 @@
 #ifndef TRUE
 	#define _TRUE	1
 #else
-	#define _TRUE	TRUE	
+	#define _TRUE	TRUE
 #endif
-		
-#ifndef FALSE		
+
+#ifndef FALSE
 	#define _FALSE	0
 #else
-	#define _FALSE	FALSE	
+	#define _FALSE	FALSE
 #endif
 
 #ifdef PLATFORM_WINDOWS
@@ -46,7 +42,7 @@
 
 	typedef signed long s32;
 	typedef unsigned long u32;
-	
+
 	typedef unsigned int	uint;
 	typedef	signed int		sint;
 
@@ -55,7 +51,7 @@
 	typedef unsigned long long u64;
 
 	#ifdef NDIS50_MINIPORT
-	
+
 		#define NDIS_MAJOR_VERSION       5
 		#define NDIS_MINOR_VERSION       0
 
@@ -82,35 +78,26 @@
 	#include <linux/kernel.h>
 	#include <linux/init.h>
 	#include <linux/utsname.h>
-	#define IN
-	#define OUT
-	#define VOID void
-	#define NDIS_OID uint
-	#define NDIS_STATUS uint
 
 	typedef	signed int sint;
 
-	#ifndef	PVOID
-	typedef void * PVOID;
-	//#define PVOID	(void *)
-	#endif
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 19))
+typedef _Bool bool;
 
-        #define UCHAR u8
-	#define USHORT u16
-	#define UINT u32
-	#define ULONG u32	
-
-	#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 19))
-		typedef _Bool bool;
-	#endif
-
-	typedef void (*proc_t)(void*);
-
-	typedef 	__kernel_size_t	SIZE_T;	
-	typedef	__kernel_ssize_t	SSIZE_T;
-	#define FIELD_OFFSET(s,field)	((SSIZE_T)&((s*)(0))->field)
-	
+enum {
+	false	= 0,
+	true	= 1
+};
 #endif
+
+	typedef void (*proc_t)(void *);
+
+	typedef	__kernel_size_t	SIZE_T;
+	typedef	__kernel_ssize_t	SSIZE_T;
+	#define FIELD_OFFSET(s, field)	((SSIZE_T)&((s *)(0))->field)
+
+#define NDIS_OID uint
+#endif /*PLATFORM_LINUX*/
 
 
 #ifdef PLATFORM_FREEBSD
@@ -123,38 +110,25 @@
 
 	typedef signed int s32;
 	typedef unsigned int u32;
-	
+
 	typedef unsigned int	uint;
 	typedef	signed int		sint;
 	typedef long atomic_t;
 
 	typedef signed long long s64;
 	typedef unsigned long long u64;
-	#define IN
-	#define OUT
-	#define VOID void
-	#define NDIS_OID uint
-	#define NDIS_STATUS uint
-	
-	#ifndef	PVOID
-	typedef void * PVOID;
-	//#define PVOID	(void *)
-	#endif
-	typedef u32 dma_addr_t;
-    #define UCHAR u8
-	#define USHORT u16
-	#define UINT u32
-	#define ULONG u32	
 
-	typedef void (*proc_t)(void*);
-  
-  typedef unsigned int __kernel_size_t;
-  typedef int __kernel_ssize_t;
-  
-	typedef 	__kernel_size_t	SIZE_T;	
+	typedef u32 dma_addr_t;
+
+	typedef void (*proc_t)(void *);
+
+	typedef unsigned int __kernel_size_t;
+	typedef int __kernel_ssize_t;
+
+	typedef	__kernel_size_t	SIZE_T;
 	typedef	__kernel_ssize_t	SSIZE_T;
-	#define FIELD_OFFSET(s,field)	((SSIZE_T)&((s*)(0))->field)
-	
+	#define FIELD_OFFSET(s, field)	((SSIZE_T)&((s *)(0))->field)
+
 #endif
 
 #define MEM_ALIGNMENT_OFFSET	(sizeof (SIZE_T))
@@ -209,16 +183,16 @@
 /*
 * Write host byte order data to memory in LE order
 */
-#define WriteLE4Byte(_ptr, _val)	(*((u32 *)(_ptr))) = cpu_to_le32(_val)
-#define WriteLE2Byte(_ptr, _val)	(*((u16 *)(_ptr))) = cpu_to_le16(_val)
-#define WriteLE1Byte(_ptr, _val)	(*((u8 *)(_ptr))) = ((u8)(_val))
+#define WriteLE4Byte(_ptr, _val)	((*((u32 *)(_ptr))) = cpu_to_le32(_val))
+#define WriteLE2Byte(_ptr, _val)	((*((u16 *)(_ptr))) = cpu_to_le16(_val))
+#define WriteLE1Byte(_ptr, _val)	((*((u8 *)(_ptr))) = ((u8)(_val)))
 
 /*
 * Write host byte order data to memory in BE order
 */
-#define WriteBE4Byte(_ptr, _val)	(*((u32 *)(_ptr))) = cpu_to_be32(_val)
-#define WriteBE2Byte(_ptr, _val)	(*((u16 *)(_ptr))) = cpu_to_be16(_val)
-#define WriteBE1Byte(_ptr, _val)	(*((u8 *)(_ptr))) = ((u8)(_val))
+#define WriteBE4Byte(_ptr, _val)	((*((u32 *)(_ptr))) = cpu_to_be32(_val))
+#define WriteBE2Byte(_ptr, _val)	((*((u16 *)(_ptr))) = cpu_to_be16(_val))
+#define WriteBE1Byte(_ptr, _val)	((*((u8 *)(_ptr))) = ((u8)(_val)))
 
 /*
 * Return 4-byte value in host byte ordering from 4-byte pointer in litten-endian system.
@@ -370,16 +344,15 @@
 		} \
 	} while (0)
 
-// Get the N-bytes aligment offset from the current length
+/* Get the N-bytes aligment offset from the current length */
 #define N_BYTE_ALIGMENT(__Value, __Aligment) ((__Aligment == 1) ? (__Value) : (((__Value + __Aligment - 1) / __Aligment) * __Aligment))
 
-typedef unsigned char	BOOLEAN,*PBOOLEAN;
+typedef unsigned char	BOOLEAN, *PBOOLEAN, boolean;
 
-#define TEST_FLAG(__Flag,__testFlag)		(((__Flag) & (__testFlag)) != 0)
+#define TEST_FLAG(__Flag, __testFlag)		(((__Flag) & (__testFlag)) != 0)
 #define SET_FLAG(__Flag, __setFlag)			((__Flag) |= __setFlag)
 #define CLEAR_FLAG(__Flag, __clearFlag)		((__Flag) &= ~(__clearFlag))
 #define CLEAR_FLAGS(__Flag)					((__Flag) = 0)
 #define TEST_FLAGS(__Flag, __testFlags)		(((__Flag) & (__testFlags)) == (__testFlags))
 
-#endif //__BASIC_TYPES_H__
-
+#endif /* __BASIC_TYPES_H__ */

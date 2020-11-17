@@ -1,21 +1,23 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+/******************************************************************************
+ *
+ * Copyright(c) 2016 - 2017 Realtek Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ *****************************************************************************/
 #ifndef __CUSTOM_GPIO_H__
 #define __CUSTOM_GPIO_H___
 
 #include <drv_conf.h>
 #include <osdep_service.h>
-
-#ifdef PLATFORM_OS_XP
-#include <drv_types_xp.h>
-#endif
-
-#ifdef PLATFORM_OS_CE
-#include <drv_types_ce.h>
-#endif
-
-#ifdef PLATFORM_LINUX
-#include <drv_types_linux.h>
-#endif
 
 typedef enum cust_gpio_modes {
 	WLAN_PWDN_ON,

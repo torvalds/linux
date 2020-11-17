@@ -1,393 +1,385 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-//============================================================
-// Description:
-//
-// This file is for 8192E TXBF mechanism
-//
-//============================================================
+/******************************************************************************
+ *
+ * Copyright(c) 2016 - 2017 Realtek Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ *****************************************************************************/
+/*************************************************************
+ * Description:
+ *
+ * This file is for 8192E TXBF mechanism
+ *
+ ************************************************************/
 #include "mp_precomp.h"
 #include "../phydm_precomp.h"
 
-#if (BEAMFORMING_SUPPORT == 1)
+#ifdef PHYDM_BEAMFORMING_SUPPORT
 #if (RTL8192E_SUPPORT == 1)
 
-VOID
-HalTxbf8192E_setNDPArate(
-	IN PVOID			pDM_VOID,
-	IN u1Byte	BW,
-	IN u1Byte	Rate
-)
+void hal_txbf_8192e_set_ndpa_rate(
+	void *dm_void,
+	u8 BW,
+	u8 rate)
 {
-	PDM_ODM_T	pDM_Odm = (PDM_ODM_T)pDM_VOID;
-	
-	ODM_Write1Byte(pDM_Odm, REG_NDPA_OPT_CTRL_8192E,  (Rate << 2 | BW));	
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
 
+	odm_write_1byte(dm, REG_NDPA_OPT_CTRL_8192E, (rate << 2 | BW));
 }
 
-VOID
-halTxbf8192E_RfMode(
-	IN PVOID			pDM_VOID,
-	IN PRT_BEAMFORMING_INFO	pBeamInfo
-)
+void hal_txbf_8192e_rf_mode(
+	void *dm_void,
+	struct _RT_BEAMFORMING_INFO *beam_info)
 {
-	PDM_ODM_T	pDM_Odm = (PDM_ODM_T)pDM_VOID;
-	BOOLEAN				bSelfBeamformer = FALSE;
-	BOOLEAN				bSelfBeamformee = FALSE;
-	BEAMFORMING_CAP	BeamformCap = BEAMFORMING_CAP_NONE;
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
 
-	ODM_RT_TRACE(pDM_Odm, PHYDM_COMP_TXBF, ODM_DBG_LOUD, ("[%s] Start!\n", __func__));
+	PHYDM_DBG(dm, DBG_TXBF, "[%s] Start!\n", __func__);
 
-	if (pDM_Odm->RFType == ODM_1T1R)
+	if (dm->rf_type == RF_1T1R)
 		return;
 
-	ODM_SetRFReg(pDM_Odm, ODM_RF_PATH_A, RF_WE_LUT, 0x80000, 0x1); /*RF Mode table write enable*/
-	ODM_SetRFReg(pDM_Odm, ODM_RF_PATH_B, RF_WE_LUT, 0x80000, 0x1); /*RF Mode table write enable*/
-	
-	if (pBeamInfo->beamformee_su_cnt > 0) {
+	odm_set_rf_reg(dm, RF_PATH_A, RF_WE_LUT, 0x80000, 0x1); /*RF mode table write enable*/
+	odm_set_rf_reg(dm, RF_PATH_B, RF_WE_LUT, 0x80000, 0x1); /*RF mode table write enable*/
+
+	if (beam_info->beamformee_su_cnt > 0) {
 		/*Path_A*/
-		ODM_SetRFReg(pDM_Odm, ODM_RF_PATH_A, RF_ModeTableAddr, 0xfffff, 0x18000);	/*Select RX mode  0x30=0x18000*/
-		ODM_SetRFReg(pDM_Odm, ODM_RF_PATH_A, RF_ModeTableData0, 0xfffff, 0x0000f);	/*Set Table data*/
-		ODM_SetRFReg(pDM_Odm, ODM_RF_PATH_A, RF_ModeTableData1, 0xfffff, 0x77fc2);	/*Enable TXIQGEN in RX mode*/
+		odm_set_rf_reg(dm, RF_PATH_A, RF_0x30, 0xfffff, 0x18000); /*Select RX mode  0x30=0x18000*/
+		odm_set_rf_reg(dm, RF_PATH_A, RF_0x31, 0xfffff, 0x0000f); /*Set Table data*/
+		odm_set_rf_reg(dm, RF_PATH_A, RF_0x32, 0xfffff, 0x77fc2); /*@Enable TXIQGEN in RX mode*/
 		/*Path_B*/
-		ODM_SetRFReg(pDM_Odm, ODM_RF_PATH_B, RF_ModeTableAddr, 0xfffff, 0x18000);	/*Select RX mode*/
-		ODM_SetRFReg(pDM_Odm, ODM_RF_PATH_B, RF_ModeTableData0, 0xfffff, 0x0000f);	/*Set Table data*/
-		ODM_SetRFReg(pDM_Odm, ODM_RF_PATH_B, RF_ModeTableData1, 0xfffff, 0x77fc2);	/*Enable TXIQGEN in RX mode*/
+		odm_set_rf_reg(dm, RF_PATH_B, RF_0x30, 0xfffff, 0x18000); /*Select RX mode*/
+		odm_set_rf_reg(dm, RF_PATH_B, RF_0x31, 0xfffff, 0x0000f); /*Set Table data*/
+		odm_set_rf_reg(dm, RF_PATH_B, RF_0x32, 0xfffff, 0x77fc2); /*@Enable TXIQGEN in RX mode*/
 	} else {
 		/*Path_A*/
-		ODM_SetRFReg(pDM_Odm, ODM_RF_PATH_A, RF_ModeTableAddr, 0xfffff, 0x18000);	/*Select RX mode*/
-		ODM_SetRFReg(pDM_Odm, ODM_RF_PATH_A, RF_ModeTableData0, 0xfffff, 0x0000f);	/*Set Table data*/
-		ODM_SetRFReg(pDM_Odm, ODM_RF_PATH_A, RF_ModeTableData1, 0xfffff, 0x77f82);	/*Disable TXIQGEN in RX mode*/
+		odm_set_rf_reg(dm, RF_PATH_A, RF_0x30, 0xfffff, 0x18000); /*Select RX mode*/
+		odm_set_rf_reg(dm, RF_PATH_A, RF_0x31, 0xfffff, 0x0000f); /*Set Table data*/
+		odm_set_rf_reg(dm, RF_PATH_A, RF_0x32, 0xfffff, 0x77f82); /*@Disable TXIQGEN in RX mode*/
 		/*Path_B*/
-		ODM_SetRFReg(pDM_Odm, ODM_RF_PATH_B, RF_ModeTableAddr, 0xfffff, 0x18000);	/*Select RX mode*/
-		ODM_SetRFReg(pDM_Odm, ODM_RF_PATH_B, RF_ModeTableData0, 0xfffff, 0x0000f);	/*Set Table data*/
-		ODM_SetRFReg(pDM_Odm, ODM_RF_PATH_B, RF_ModeTableData1, 0xfffff, 0x77f82);	/*Disable TXIQGEN in RX mode*/
+		odm_set_rf_reg(dm, RF_PATH_B, RF_0x30, 0xfffff, 0x18000); /*Select RX mode*/
+		odm_set_rf_reg(dm, RF_PATH_B, RF_0x31, 0xfffff, 0x0000f); /*Set Table data*/
+		odm_set_rf_reg(dm, RF_PATH_B, RF_0x32, 0xfffff, 0x77f82); /*@Disable TXIQGEN in RX mode*/
 	}
 
-	ODM_SetRFReg(pDM_Odm, ODM_RF_PATH_A, RF_WE_LUT, 0x80000, 0x0);	/*RF Mode table write disable*/
-	ODM_SetRFReg(pDM_Odm, ODM_RF_PATH_B, RF_WE_LUT, 0x80000, 0x0);	/*RF Mode table write disable*/
+	odm_set_rf_reg(dm, RF_PATH_A, RF_WE_LUT, 0x80000, 0x0); /*RF mode table write disable*/
+	odm_set_rf_reg(dm, RF_PATH_B, RF_WE_LUT, 0x80000, 0x0); /*RF mode table write disable*/
 
-	if (pBeamInfo->beamformee_su_cnt > 0) {
-		ODM_SetBBReg(pDM_Odm, rFPGA1_TxInfo, bMaskDWord, 0x83321333);
-		ODM_SetBBReg(pDM_Odm, rCCK0_AFESetting, bMaskByte3, 0xc1);
+	if (beam_info->beamformee_su_cnt > 0) {
+		odm_set_bb_reg(dm, R_0x90c, MASKDWORD, 0x83321333);
+		odm_set_bb_reg(dm, R_0xa04, MASKBYTE3, 0xc1);
 	} else
-		ODM_SetBBReg(pDM_Odm, rFPGA1_TxInfo, bMaskDWord, 0x81121313);
+		odm_set_bb_reg(dm, R_0x90c, MASKDWORD, 0x81121313);
 }
 
-
-
-VOID
-halTxbf8192E_FwTxBFCmd(
-	IN PVOID			pDM_VOID
-)
+void hal_txbf_8192e_fw_txbf_cmd(
+	void *dm_void)
 {
-	PDM_ODM_T	pDM_Odm = (PDM_ODM_T)pDM_VOID;
-	u1Byte	Idx, Period0 = 0, Period1 = 0;
-	u1Byte	PageNum0 = 0xFF, PageNum1 = 0xFF;
-	u1Byte	u1TxBFParm[3] = {0};
-	PRT_BEAMFORMING_INFO	pBeamInfo = &pDM_Odm->BeamformingInfo;
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	u8 idx, period0 = 0, period1 = 0;
+	u8 PageNum0 = 0xFF, PageNum1 = 0xFF;
+	u8 u1_tx_bf_parm[3] = {0};
+	struct _RT_BEAMFORMING_INFO *beam_info = &dm->beamforming_info;
 
-	for (Idx = 0; Idx < BEAMFORMEE_ENTRY_NUM; Idx++) {
-		if (pBeamInfo->BeamformeeEntry[Idx].BeamformEntryState == BEAMFORMING_ENTRY_STATE_PROGRESSED) {
-			if (Idx == 0) {
-				if (pBeamInfo->BeamformeeEntry[Idx].bSound)
+	for (idx = 0; idx < BEAMFORMEE_ENTRY_NUM; idx++) {
+		if (beam_info->beamformee_entry[idx].beamform_entry_state == BEAMFORMING_ENTRY_STATE_PROGRESSED) {
+			if (idx == 0) {
+				if (beam_info->beamformee_entry[idx].is_sound)
 					PageNum0 = 0xFE;
 				else
-					PageNum0 = 0xFF; //stop sounding
-				Period0 = (u1Byte)(pBeamInfo->BeamformeeEntry[Idx].SoundPeriod);
-			} else if (Idx == 1) {
-				if (pBeamInfo->BeamformeeEntry[Idx].bSound)
+					PageNum0 = 0xFF; /* stop sounding */
+				period0 = (u8)(beam_info->beamformee_entry[idx].sound_period);
+			} else if (idx == 1) {
+				if (beam_info->beamformee_entry[idx].is_sound)
 					PageNum1 = 0xFE;
 				else
-					PageNum1 = 0xFF; //stop sounding
-				Period1 = (u1Byte)(pBeamInfo->BeamformeeEntry[Idx].SoundPeriod);
+					PageNum1 = 0xFF; /* stop sounding */
+				period1 = (u8)(beam_info->beamformee_entry[idx].sound_period);
 			}
 		}
 	}
 
-	u1TxBFParm[0] = PageNum0;
-	u1TxBFParm[1] = PageNum1;
-	u1TxBFParm[2] = (Period1 << 4) | Period0;
-	ODM_FillH2CCmd(pDM_Odm, PHYDM_H2C_TXBF, 3, u1TxBFParm);
+	u1_tx_bf_parm[0] = PageNum0;
+	u1_tx_bf_parm[1] = PageNum1;
+	u1_tx_bf_parm[2] = (period1 << 4) | period0;
+	odm_fill_h2c_cmd(dm, PHYDM_H2C_TXBF, 3, u1_tx_bf_parm);
 
-	ODM_RT_TRACE(pDM_Odm, PHYDM_COMP_TXBF, ODM_DBG_LOUD, 
-		("[%s] PageNum0 = %d Period0 = %d, PageNum1 = %d Period1 %d\n", __func__, PageNum0, Period0, PageNum1, Period1));
+	PHYDM_DBG(dm, DBG_TXBF,
+		  "[%s] PageNum0 = %d period0 = %d, PageNum1 = %d period1 %d\n",
+		  __func__, PageNum0, period0, PageNum1, period1);
 }
 
-
-VOID
-halTxbf8192E_DownloadNDPA(
-	IN PVOID			pDM_VOID,
-	IN	u1Byte				Idx
-)
+void hal_txbf_8192e_download_ndpa(
+	void *dm_void,
+	u8 idx)
 {
-	PDM_ODM_T	pDM_Odm = (PDM_ODM_T)pDM_VOID;
-	u1Byte			u1bTmp = 0, tmpReg422 = 0, Head_Page;
-	u1Byte			BcnValidReg = 0, count = 0, DLBcnCount = 0;
-	BOOLEAN			bSendBeacon = FALSE;
-	PADAPTER		Adapter = pDM_Odm->Adapter;
-	u1Byte			TxPageBndy = LAST_ENTRY_OF_TX_PKT_BUFFER_8812;	
-	/*default reseved 1 page for the IC type which is undefined.*/
-	PRT_BEAMFORMING_INFO	pBeamInfo = &pDM_Odm->BeamformingInfo;
-	PRT_BEAMFORMEE_ENTRY	pBeamEntry = pBeamInfo->BeamformeeEntry + Idx;
-	
-	ODM_RT_TRACE(pDM_Odm, PHYDM_COMP_TXBF, ODM_DBG_LOUD, ("[%s] Start!\n", __func__));
-#if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
-	*pDM_Odm->pbFwDwRsvdPageInProgress = TRUE;
-#endif
-	if (Idx == 0)
-		Head_Page = 0xFE;
-	else
-		Head_Page = 0xFE;
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	u8 u1b_tmp = 0, tmp_reg422 = 0, head_page;
+	u8 bcn_valid_reg = 0, count = 0, dl_bcn_count = 0;
+	boolean is_send_beacon = false;
+	u8 tx_page_bndy = LAST_ENTRY_OF_TX_PKT_BUFFER_8812;
+	/*@default reseved 1 page for the IC type which is undefined.*/
+	struct _RT_BEAMFORMING_INFO *beam_info = &dm->beamforming_info;
+	struct _RT_BEAMFORMEE_ENTRY *p_beam_entry = beam_info->beamformee_entry + idx;
 
-	Adapter->HalFunc.GetHalDefVarHandler(Adapter, HAL_DEF_TX_PAGE_BOUNDARY, (pu1Byte)&TxPageBndy);
+	PHYDM_DBG(dm, DBG_TXBF, "[%s] Start!\n", __func__);
+#if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
+	*dm->is_fw_dw_rsvd_page_in_progress = true;
+#endif
+	if (idx == 0)
+		head_page = 0xFE;
+	else
+		head_page = 0xFE;
+
+	phydm_get_hal_def_var_handler_interface(dm, HAL_DEF_TX_PAGE_BOUNDARY, (u8 *)&tx_page_bndy);
 
 	/*Set REG_CR bit 8. DMA beacon by SW.*/
-	u1bTmp = ODM_Read1Byte(pDM_Odm, REG_CR_8192E+1);
-	ODM_Write1Byte(pDM_Odm,  REG_CR_8192E+1, (u1bTmp | BIT0));
+	u1b_tmp = odm_read_1byte(dm, REG_CR_8192E + 1);
+	odm_write_1byte(dm, REG_CR_8192E + 1, (u1b_tmp | BIT(0)));
 
 	/*Set FWHW_TXQ_CTRL 0x422[6]=0 to tell Hw the packet is not a real beacon frame.*/
-	tmpReg422 = ODM_Read1Byte(pDM_Odm, REG_FWHW_TXQ_CTRL_8192E+2);
-	ODM_Write1Byte(pDM_Odm, REG_FWHW_TXQ_CTRL_8192E+2,  tmpReg422 & (~BIT6));
+	tmp_reg422 = odm_read_1byte(dm, REG_FWHW_TXQ_CTRL_8192E + 2);
+	odm_write_1byte(dm, REG_FWHW_TXQ_CTRL_8192E + 2, tmp_reg422 & (~BIT(6)));
 
-	if (tmpReg422 & BIT6) {
-		ODM_RT_TRACE(pDM_Odm, PHYDM_COMP_TXBF, ODM_DBG_WARNING, ("%s There is an Adapter is sending beacon.\n", __func__));
-		bSendBeacon = TRUE;
+	if (tmp_reg422 & BIT(6)) {
+		PHYDM_DBG(dm, DBG_TXBF,
+			  "%s There is an adapter is sending beacon.\n",
+			  __func__);
+		is_send_beacon = true;
 	}
 
 	/*TDECTRL[15:8] 0x209[7:0] = 0xFE/0xFD	NDPA Head for TXDMA*/
-	ODM_Write1Byte(pDM_Odm, REG_DWBCN0_CTRL_8192E+1, Head_Page);
+	odm_write_1byte(dm, REG_DWBCN0_CTRL_8192E + 1, head_page);
 
 	do {
-		/*Clear beacon valid check bit.*/
-		BcnValidReg = ODM_Read1Byte(pDM_Odm, REG_DWBCN0_CTRL_8192E+2);
-		ODM_Write1Byte(pDM_Odm, REG_DWBCN0_CTRL_8192E+2, (BcnValidReg | BIT0));
+		/*@Clear beacon valid check bit.*/
+		bcn_valid_reg = odm_read_1byte(dm, REG_DWBCN0_CTRL_8192E + 2);
+		odm_write_1byte(dm, REG_DWBCN0_CTRL_8192E + 2, (bcn_valid_reg | BIT(0)));
 
-		// download NDPA rsvd page.
-		Beamforming_SendHTNDPAPacket(pDM_Odm, pBeamEntry->MacAddr, pBeamEntry->SoundBW, BEACON_QUEUE);
+		/* @download NDPA rsvd page. */
+		beamforming_send_ht_ndpa_packet(dm, p_beam_entry->mac_addr, p_beam_entry->sound_bw, BEACON_QUEUE);
 
-#if(DEV_BUS_TYPE == RT_PCI_INTERFACE)
-		u1bTmp = ODM_Read1Byte(pDM_Odm, REG_MGQ_TXBD_NUM_8192E+3);
-		count = 0;
-		while ((count < 20) && (u1bTmp & BIT4)) {
-			count++;
-			ODM_delay_us(10);
-			u1bTmp = ODM_Read1Byte(pDM_Odm, REG_MGQ_TXBD_NUM_8192E+3);
+#if (DEV_BUS_TYPE == RT_PCI_INTERFACE)
+		if (dm->support_interface == ODM_ITRF_PCIE) {
+			u1b_tmp = odm_read_1byte(dm, REG_MGQ_TXBD_NUM_8192E + 3);
+			count = 0;
+			while ((count < 20) && (u1b_tmp & BIT(4))) {
+				count++;
+				ODM_delay_us(10);
+				u1b_tmp = odm_read_1byte(dm, REG_MGQ_TXBD_NUM_8192E + 3);
+			}
+			odm_write_1byte(dm, REG_MGQ_TXBD_NUM_8192E + 3, u1b_tmp | BIT(4));
 		}
-		ODM_Write1Byte(pDM_Odm, REG_MGQ_TXBD_NUM_8192E+3, u1bTmp | BIT4);
 #endif
 
-		/*check rsvd page download OK.*/
-		BcnValidReg = ODM_Read1Byte(pDM_Odm, REG_DWBCN0_CTRL_8192E+2);
+		/*@check rsvd page download OK.*/
+		bcn_valid_reg = odm_read_1byte(dm, REG_DWBCN0_CTRL_8192E + 2);
 		count = 0;
-		while (!(BcnValidReg & BIT0) && count < 20) {
+		while (!(bcn_valid_reg & BIT(0)) && count < 20) {
 			count++;
 			ODM_delay_us(10);
-			BcnValidReg = ODM_Read1Byte(pDM_Odm, REG_DWBCN0_CTRL_8192E+2);
+			bcn_valid_reg = odm_read_1byte(dm, REG_DWBCN0_CTRL_8192E + 2);
 		}
-		DLBcnCount++;
-	} while (!(BcnValidReg & BIT0) && DLBcnCount < 5);
+		dl_bcn_count++;
+	} while (!(bcn_valid_reg & BIT(0)) && dl_bcn_count < 5);
 
-	if (!(BcnValidReg & BIT0))
-		ODM_RT_TRACE(pDM_Odm, PHYDM_COMP_TXBF, ODM_DBG_WARNING, ("%s Download RSVD page failed!\n", __func__));
+	if (!(bcn_valid_reg & BIT(0)))
+		PHYDM_DBG(dm, DBG_TXBF, "%s Download RSVD page failed!\n",
+			  __func__);
 
 	/*TDECTRL[15:8] 0x209[7:0] = 0xF9	Beacon Head for TXDMA*/
-	ODM_Write1Byte(pDM_Odm, REG_DWBCN0_CTRL_8192E+1, TxPageBndy);
+	odm_write_1byte(dm, REG_DWBCN0_CTRL_8192E + 1, tx_page_bndy);
 
 	/*To make sure that if there exists an adapter which would like to send beacon.*/
-	/*If exists, the origianl value of 0x422[6] will be 1, we should check this to*/
+	/*@If exists, the origianl value of 0x422[6] will be 1, we should check this to*/
 	/*prevent from setting 0x422[6] to 0 after download reserved page, or it will cause*/
 	/*the beacon cannot be sent by HW.*/
-	/*2010.06.23. Added by tynli.*/
-	if (bSendBeacon)
-		ODM_Write1Byte(pDM_Odm, REG_FWHW_TXQ_CTRL_8192E+2, tmpReg422);
+	/*@2010.06.23. Added by tynli.*/
+	if (is_send_beacon)
+		odm_write_1byte(dm, REG_FWHW_TXQ_CTRL_8192E + 2, tmp_reg422);
 
-	/*Do not enable HW DMA BCN or it will cause Pcie interface hang by timing issue. 2011.11.24. by tynli.*/
-	/*Clear CR[8] or beacon packet will not be send to TxBuf anymore.*/
-	u1bTmp = ODM_Read1Byte(pDM_Odm, REG_CR_8192E+1);
-	ODM_Write1Byte(pDM_Odm, REG_CR_8192E+1, (u1bTmp & (~BIT0)));
+	/*@Do not enable HW DMA BCN or it will cause Pcie interface hang by timing issue. 2011.11.24. by tynli.*/
+	/*@Clear CR[8] or beacon packet will not be send to TxBuf anymore.*/
+	u1b_tmp = odm_read_1byte(dm, REG_CR_8192E + 1);
+	odm_write_1byte(dm, REG_CR_8192E + 1, (u1b_tmp & (~BIT(0))));
 
-	pBeamEntry->BeamformEntryState = BEAMFORMING_ENTRY_STATE_PROGRESSED;
+	p_beam_entry->beamform_entry_state = BEAMFORMING_ENTRY_STATE_PROGRESSED;
 #if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
-	*pDM_Odm->pbFwDwRsvdPageInProgress = FALSE;
+	*dm->is_fw_dw_rsvd_page_in_progress = false;
 #endif
 }
 
-
-VOID
-HalTxbf8192E_Enter(
-	IN PVOID			pDM_VOID,
-	IN u1Byte				BFerBFeeIdx
-)
+void hal_txbf_8192e_enter(
+	void *dm_void,
+	u8 bfer_bfee_idx)
 {
-	PDM_ODM_T	pDM_Odm = (PDM_ODM_T)pDM_VOID;
-	u1Byte					i = 0;
-	u1Byte					BFerIdx = (BFerBFeeIdx & 0xF0) >> 4;
-	u1Byte					BFeeIdx = (BFerBFeeIdx & 0xF);
-	u4Byte					CSI_Param;
-	PRT_BEAMFORMING_INFO	pBeamformingInfo = &pDM_Odm->BeamformingInfo;
-	RT_BEAMFORMEE_ENTRY	BeamformeeEntry;
-	RT_BEAMFORMER_ENTRY	BeamformerEntry;
-	u2Byte					STAid = 0;
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	u8 i = 0;
+	u8 bfer_idx = (bfer_bfee_idx & 0xF0) >> 4;
+	u8 bfee_idx = (bfer_bfee_idx & 0xF);
+	u32 csi_param;
+	struct _RT_BEAMFORMING_INFO *beamforming_info = &dm->beamforming_info;
+	struct _RT_BEAMFORMEE_ENTRY beamformee_entry;
+	struct _RT_BEAMFORMER_ENTRY beamformer_entry;
+	u16 sta_id = 0;
 
-	ODM_RT_TRACE(pDM_Odm, PHYDM_COMP_TXBF, ODM_DBG_LOUD, ("[%s] Start!\n", __func__));
+	PHYDM_DBG(dm, DBG_TXBF, "[%s] Start!\n", __func__);
 
-	halTxbf8192E_RfMode(pDM_Odm, pBeamformingInfo);
+	hal_txbf_8192e_rf_mode(dm, beamforming_info);
 
-	if (pDM_Odm->RFType == ODM_2T2R)
-		ODM_Write4Byte(pDM_Odm, 0xd80, 0x00000000);		/*Nc =2*/
+	if (dm->rf_type == RF_2T2R)
+		odm_write_4byte(dm, 0xd80, 0x00000000); /*nc =2*/
 
-	if ((pBeamformingInfo->beamformer_su_cnt > 0) && (BFerIdx < BEAMFORMER_ENTRY_NUM)) {
-		BeamformerEntry = pBeamformingInfo->BeamformerEntry[BFerIdx];
+	if (beamforming_info->beamformer_su_cnt > 0 && bfer_idx < BEAMFORMER_ENTRY_NUM) {
+		beamformer_entry = beamforming_info->beamformer_entry[bfer_idx];
 
 		/*Sounding protocol control*/
-		ODM_Write1Byte(pDM_Odm, REG_SND_PTCL_CTRL_8192E, 0xCB);
+		odm_write_1byte(dm, REG_SND_PTCL_CTRL_8192E, 0xCB);
 
-		/*MAC address/Partial AID of Beamformer*/
-		if (BFerIdx == 0) {
-			for (i = 0; i < 6 ; i++)
-				ODM_Write1Byte(pDM_Odm, (REG_ASSOCIATED_BFMER0_INFO_8192E+i), BeamformerEntry.MacAddr[i]);
+		/*@MAC address/Partial AID of Beamformer*/
+		if (bfer_idx == 0) {
+			for (i = 0; i < 6; i++)
+				odm_write_1byte(dm, (REG_ASSOCIATED_BFMER0_INFO_8192E + i), beamformer_entry.mac_addr[i]);
 		} else {
-			for (i = 0; i < 6 ; i++)
-				ODM_Write1Byte(pDM_Odm, (REG_ASSOCIATED_BFMER1_INFO_8192E+i), BeamformerEntry.MacAddr[i]);
+			for (i = 0; i < 6; i++)
+				odm_write_1byte(dm, (REG_ASSOCIATED_BFMER1_INFO_8192E + i), beamformer_entry.mac_addr[i]);
 		}
 
-		/*CSI report parameters of Beamformer Default use Nc = 2*/
-		CSI_Param = 0x03090309;
+		/*@CSI report parameters of Beamformer Default use nc = 2*/
+		csi_param = 0x03090309;
 
-		ODM_Write4Byte(pDM_Odm, REG_CSI_RPT_PARAM_BW20_8192E, CSI_Param);
-		ODM_Write4Byte(pDM_Odm, REG_CSI_RPT_PARAM_BW40_8192E, CSI_Param);
-		ODM_Write4Byte(pDM_Odm, REG_CSI_RPT_PARAM_BW80_8192E, CSI_Param);
+		odm_write_4byte(dm, REG_CSI_RPT_PARAM_BW20_8192E, csi_param);
+		odm_write_4byte(dm, REG_CSI_RPT_PARAM_BW40_8192E, csi_param);
+		odm_write_4byte(dm, REG_CSI_RPT_PARAM_BW80_8192E, csi_param);
 
 		/*Timeout value for MAC to leave NDP_RX_standby_state (60 us, Test chip) (80 us,  MP chip)*/
-		ODM_Write1Byte(pDM_Odm, REG_SND_PTCL_CTRL_8192E+3, 0x50);
-
+		odm_write_1byte(dm, REG_SND_PTCL_CTRL_8192E + 3, 0x50);
 	}
 
-	if ((pBeamformingInfo->beamformee_su_cnt > 0) && (BFeeIdx < BEAMFORMEE_ENTRY_NUM)) {
-		BeamformeeEntry = pBeamformingInfo->BeamformeeEntry[BFeeIdx];
+	if (beamforming_info->beamformee_su_cnt > 0 && bfee_idx < BEAMFORMEE_ENTRY_NUM) {
+		beamformee_entry = beamforming_info->beamformee_entry[bfee_idx];
 
-		if (phydm_actingDetermine(pDM_Odm, PhyDM_ACTING_AS_IBSS))
-			STAid = BeamformeeEntry.MacId;
+		if (phydm_acting_determine(dm, phydm_acting_as_ibss))
+			sta_id = beamformee_entry.mac_id;
 		else
-			STAid = BeamformeeEntry.P_AID;
+			sta_id = beamformee_entry.p_aid;
 
-		ODM_RT_TRACE(pDM_Odm, PHYDM_COMP_TXBF, ODM_DBG_LOUD, ("[%s], STAid=0x%X\n", __func__, STAid));
+		PHYDM_DBG(dm, DBG_TXBF, "[%s], sta_id=0x%X\n", __func__,
+			  sta_id);
 
 		/*P_AID of Beamformee & enable NDPA transmission & enable NDPA interrupt*/
-		if (BFeeIdx == 0) {
-			ODM_Write2Byte(pDM_Odm, REG_TXBF_CTRL_8192E, STAid);
-			ODM_Write1Byte(pDM_Odm, REG_TXBF_CTRL_8192E+3, ODM_Read1Byte(pDM_Odm, REG_TXBF_CTRL_8192E+3) | BIT4 | BIT6 | BIT7);
+		if (bfee_idx == 0) {
+			odm_write_2byte(dm, REG_TXBF_CTRL_8192E, sta_id);
+			odm_write_1byte(dm, REG_TXBF_CTRL_8192E + 3, odm_read_1byte(dm, REG_TXBF_CTRL_8192E + 3) | BIT(4) | BIT(6) | BIT(7));
 		} else
-			ODM_Write2Byte(pDM_Odm, REG_TXBF_CTRL_8192E+2, STAid | BIT12 | BIT14 | BIT15);
+			odm_write_2byte(dm, REG_TXBF_CTRL_8192E + 2, sta_id | BIT(12) | BIT(14) | BIT(15));
 
-		/*CSI report parameters of Beamformee*/
-		if (BFeeIdx == 0) {
-			/*Get BIT24 & BIT25*/
-			u1Byte tmp = ODM_Read1Byte(pDM_Odm, REG_ASSOCIATED_BFMEE_SEL_8192E+3) & 0x3;
-			
-			ODM_Write1Byte(pDM_Odm, REG_ASSOCIATED_BFMEE_SEL_8192E+3, tmp | 0x60);
-			ODM_Write2Byte(pDM_Odm, REG_ASSOCIATED_BFMEE_SEL_8192E, STAid | BIT9);
+		/*@CSI report parameters of Beamformee*/
+		if (bfee_idx == 0) {
+			/*@Get BIT24 & BIT25*/
+			u8 tmp = odm_read_1byte(dm, REG_ASSOCIATED_BFMEE_SEL_8192E + 3) & 0x3;
+
+			odm_write_1byte(dm, REG_ASSOCIATED_BFMEE_SEL_8192E + 3, tmp | 0x60);
+			odm_write_2byte(dm, REG_ASSOCIATED_BFMEE_SEL_8192E, sta_id | BIT(9));
 		} else {
 			/*Set BIT25*/
-			ODM_Write2Byte(pDM_Odm, REG_ASSOCIATED_BFMEE_SEL_8192E+2, STAid | 0xE200);
+			odm_write_2byte(dm, REG_ASSOCIATED_BFMEE_SEL_8192E + 2, sta_id | 0xE200);
 		}
-			phydm_Beamforming_Notify(pDM_Odm);
-
+		phydm_beamforming_notify(dm);
 	}
 }
 
-
-VOID
-HalTxbf8192E_Leave(
-	IN PVOID			pDM_VOID,
-	IN u1Byte				Idx
-)
+void hal_txbf_8192e_leave(
+	void *dm_void,
+	u8 idx)
 {
-	PDM_ODM_T	pDM_Odm = (PDM_ODM_T)pDM_VOID;
-	PRT_BEAMFORMING_INFO	pBeamInfo = &pDM_Odm->BeamformingInfo;
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	struct _RT_BEAMFORMING_INFO *beam_info = &dm->beamforming_info;
 
-	halTxbf8192E_RfMode(pDM_Odm, pBeamInfo);
+	hal_txbf_8192e_rf_mode(dm, beam_info);
 
-	/*	Clear P_AID of Beamformee
-	* 	Clear MAC addresss of Beamformer
+	/*	@Clear P_AID of Beamformee
+	*	Clear MAC addresss of Beamformer
 	*	Clear Associated Bfmee Sel
 	*/
-	if (pBeamInfo->BeamformCap == BEAMFORMING_CAP_NONE)
-		ODM_Write1Byte(pDM_Odm, REG_SND_PTCL_CTRL_8192E, 0xC8);
+	if (beam_info->beamform_cap == BEAMFORMING_CAP_NONE)
+		odm_write_1byte(dm, REG_SND_PTCL_CTRL_8192E, 0xC8);
 
-	if (Idx == 0) {
-		ODM_Write2Byte(pDM_Odm, REG_TXBF_CTRL_8192E, 0);
-		ODM_Write4Byte(pDM_Odm, REG_ASSOCIATED_BFMER0_INFO_8192E, 0);
-		ODM_Write2Byte(pDM_Odm, REG_ASSOCIATED_BFMER0_INFO_8192E+4, 0);
-		ODM_Write2Byte(pDM_Odm, REG_ASSOCIATED_BFMEE_SEL_8192E, 0);
+	if (idx == 0) {
+		odm_write_2byte(dm, REG_TXBF_CTRL_8192E, 0);
+		odm_write_4byte(dm, REG_ASSOCIATED_BFMER0_INFO_8192E, 0);
+		odm_write_2byte(dm, REG_ASSOCIATED_BFMER0_INFO_8192E + 4, 0);
+		odm_write_2byte(dm, REG_ASSOCIATED_BFMEE_SEL_8192E, 0);
 	} else {
-		ODM_Write2Byte(pDM_Odm, REG_TXBF_CTRL_8192E+2, ODM_Read1Byte(pDM_Odm, REG_TXBF_CTRL_8192E+2) & 0xF000);
-		ODM_Write4Byte(pDM_Odm, REG_ASSOCIATED_BFMER1_INFO_8192E, 0);
-		ODM_Write2Byte(pDM_Odm, REG_ASSOCIATED_BFMER1_INFO_8192E+4, 0);
-		ODM_Write2Byte(pDM_Odm, REG_ASSOCIATED_BFMEE_SEL_8192E+2, ODM_Read2Byte(pDM_Odm, REG_ASSOCIATED_BFMEE_SEL_8192E+2) & 0x60);
+		odm_write_2byte(dm, REG_TXBF_CTRL_8192E + 2, odm_read_1byte(dm, REG_TXBF_CTRL_8192E + 2) & 0xF000);
+		odm_write_4byte(dm, REG_ASSOCIATED_BFMER1_INFO_8192E, 0);
+		odm_write_2byte(dm, REG_ASSOCIATED_BFMER1_INFO_8192E + 4, 0);
+		odm_write_2byte(dm, REG_ASSOCIATED_BFMEE_SEL_8192E + 2, odm_read_2byte(dm, REG_ASSOCIATED_BFMEE_SEL_8192E + 2) & 0x60);
 	}
 
-	ODM_RT_TRACE(pDM_Odm, PHYDM_COMP_TXBF, ODM_DBG_LOUD, ("[%s] Idx %d\n", __func__, Idx));
+	PHYDM_DBG(dm, DBG_TXBF, "[%s] idx %d\n", __func__, idx);
 }
 
-
-VOID
-HalTxbf8192E_Status(
-	IN PVOID			pDM_VOID,
-	IN u1Byte				Idx
-)
+void hal_txbf_8192e_status(
+	void *dm_void,
+	u8 idx)
 {
-	PDM_ODM_T	pDM_Odm = (PDM_ODM_T)pDM_VOID;
-	u2Byte					BeamCtrlVal;
-	u4Byte					BeamCtrlReg;
-	PRT_BEAMFORMING_INFO	pBeamInfo =  &pDM_Odm->BeamformingInfo;
-	RT_BEAMFORMEE_ENTRY	BeamformEntry = pBeamInfo->BeamformeeEntry[Idx];
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	u16 beam_ctrl_val;
+	u32 beam_ctrl_reg;
+	struct _RT_BEAMFORMING_INFO *beam_info = &dm->beamforming_info;
+	struct _RT_BEAMFORMEE_ENTRY beamform_entry = beam_info->beamformee_entry[idx];
 
-	if (phydm_actingDetermine(pDM_Odm, PhyDM_ACTING_AS_IBSS))
-		BeamCtrlVal = BeamformEntry.MacId;
+	if (phydm_acting_determine(dm, phydm_acting_as_ibss))
+		beam_ctrl_val = beamform_entry.mac_id;
 	else
-		BeamCtrlVal = BeamformEntry.P_AID;
+		beam_ctrl_val = beamform_entry.p_aid;
 
-	if (Idx == 0)
-		BeamCtrlReg = REG_TXBF_CTRL_8192E;
+	if (idx == 0)
+		beam_ctrl_reg = REG_TXBF_CTRL_8192E;
 	else {
-		BeamCtrlReg = REG_TXBF_CTRL_8192E+2;
-		BeamCtrlVal |= BIT12 | BIT14 | BIT15;
+		beam_ctrl_reg = REG_TXBF_CTRL_8192E + 2;
+		beam_ctrl_val |= BIT(12) | BIT(14) | BIT(15);
 	}
 
-	if (BeamformEntry.BeamformEntryState == BEAMFORMING_ENTRY_STATE_PROGRESSED) {
-		if (BeamformEntry.SoundBW == CHANNEL_WIDTH_20)
-			BeamCtrlVal |= BIT9;
-		else if (BeamformEntry.SoundBW == CHANNEL_WIDTH_40)
-			BeamCtrlVal |= BIT10;
+	if (beamform_entry.beamform_entry_state == BEAMFORMING_ENTRY_STATE_PROGRESSED && beam_info->apply_v_matrix == true) {
+		if (beamform_entry.sound_bw == CHANNEL_WIDTH_20)
+			beam_ctrl_val |= BIT(9);
+		else if (beamform_entry.sound_bw == CHANNEL_WIDTH_40)
+			beam_ctrl_val |= BIT(10);
 	} else
-		BeamCtrlVal &= ~(BIT9 | BIT10 | BIT11);
+		beam_ctrl_val &= ~(BIT(9) | BIT(10) | BIT(11));
 
-	ODM_Write2Byte(pDM_Odm, BeamCtrlReg, BeamCtrlVal);
+	odm_write_2byte(dm, beam_ctrl_reg, beam_ctrl_val);
 
-	ODM_RT_TRACE(pDM_Odm, PHYDM_COMP_TXBF, ODM_DBG_LOUD, ("[%s] Idx %d BeamCtrlReg %x BeamCtrlVal %x\n", __func__, Idx, BeamCtrlReg, BeamCtrlVal));
+	PHYDM_DBG(dm, DBG_TXBF,
+		  "[%s] idx %d beam_ctrl_reg %x beam_ctrl_val %x\n", __func__,
+		  idx, beam_ctrl_reg, beam_ctrl_val);
 }
 
-
-VOID
-HalTxbf8192E_FwTxBF(
-	IN PVOID			pDM_VOID,
-	IN	u1Byte				Idx
-)
+void hal_txbf_8192e_fw_tx_bf(
+	void *dm_void,
+	u8 idx)
 {
-	PDM_ODM_T	pDM_Odm = (PDM_ODM_T)pDM_VOID;
-	PRT_BEAMFORMING_INFO	pBeamInfo = &pDM_Odm->BeamformingInfo;
-	PRT_BEAMFORMEE_ENTRY	pBeamEntry = pBeamInfo->BeamformeeEntry + Idx;
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	struct _RT_BEAMFORMING_INFO *beam_info = &dm->beamforming_info;
+	struct _RT_BEAMFORMEE_ENTRY *p_beam_entry = beam_info->beamformee_entry + idx;
 
-	ODM_RT_TRACE(pDM_Odm, PHYDM_COMP_TXBF, ODM_DBG_LOUD, ("[%s] Start!\n", __func__));
+	PHYDM_DBG(dm, DBG_TXBF, "[%s] Start!\n", __func__);
 
-	if (pBeamEntry->BeamformEntryState == BEAMFORMING_ENTRY_STATE_PROGRESSING)
-		halTxbf8192E_DownloadNDPA(pDM_Odm, Idx);
+	if (p_beam_entry->beamform_entry_state == BEAMFORMING_ENTRY_STATE_PROGRESSING)
+		hal_txbf_8192e_download_ndpa(dm, idx);
 
-	halTxbf8192E_FwTxBFCmd(pDM_Odm);
+	hal_txbf_8192e_fw_txbf_cmd(dm);
 }
 
-#endif	/* #if (RTL8192E_SUPPORT == 1)*/
+#endif /* @#if (RTL8192E_SUPPORT == 1)*/
 
 #endif
-

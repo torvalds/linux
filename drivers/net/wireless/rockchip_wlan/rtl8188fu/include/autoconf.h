@@ -1,6 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2014 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +12,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 /*
  * Public General Configure
  */
@@ -30,7 +26,7 @@
 #endif
 #define CONFIG_USB_HCI
 
-#define PLATFORM_LINUX 1
+#define PLATFORM_LINUX
 
 #define RTL8188F_USB_MAC_LOOPBACK 0
 
@@ -55,7 +51,6 @@
 	/* #define CONFIG_DRV_ISSUE_PROV_REQ */ /* IOT FOR S2 */
 
 	#define CONFIG_SET_SCAN_DENY_TIMER
-	/*#define SUPPLICANT_RTK_VERSION_LOWER_THAN_JB42*/ /* wpa_supplicant realtek version <= jb42 will be defined this */
 #endif
 
 #define CONFIG_AP_MODE
@@ -65,8 +60,6 @@
 		#define CONFIG_HOSTAPD_MLME
 	#endif
 	/* #define CONFIG_FIND_BEST_CHANNEL */
-	#define CONFIG_TX_MCAST2UNI /* Support IP multicast to unicast */
-
 	/* #define CONFIG_AUTO_AP_MODE */
 #endif
 
@@ -84,7 +77,7 @@
 	#define CONFIG_P2P_PS
 	#define CONFIG_P2P_OP_CHK_SOCIAL_CH
 	#define CONFIG_CFG80211_ONECHANNEL_UNDER_CONCURRENT  /* replace CONFIG_P2P_CHK_INVITE_CH_LIST flag */
-	#define CONFIG_P2P_INVITE_IOT
+	/*#define CONFIG_P2P_INVITE_IOT*/
 #endif
 
 /*
@@ -105,40 +98,32 @@
 /* #define CONFIG_CONCURRENT_MODE */	/* Set from Makefile */
 #ifdef CONFIG_CONCURRENT_MODE
 	#define CONFIG_TSF_RESET_OFFLOAD			/* For 2 PORT TSF SYNC. */
-	/* #define CONFIG_HWPORT_SWAP	*/			/* Port0->Sec , Port1 -> Pri */
 	#define CONFIG_RUNTIME_PORT_SWITCH
-	/* #define DBG_RUNTIME_PORT_SWITCH */
-	#define CONFIG_SCAN_BACKOP
 
-	/* #define CONFIG_MULTI_VIR_IFACES */ /* besides primary&secondary interfaces, extend to support more interfaces */
+	/* #define DBG_RUNTIME_PORT_SWITCH */
 #endif /* CONFIG_CONCURRENT_MODE */
 
 #define CONFIG_LAYER2_ROAMING
 #define CONFIG_LAYER2_ROAMING_RESUME
 
-#define CONFIG_80211D
-
-
 /*
  * Hareware/Firmware Related Configure
  */
-/* #define CONFIG_ANTENNA_DIVERSITY	 */ /* Set from Makefile */
+/* #define CONFIG_ANTENNA_DIVERSITY	 */
 /* #define SUPPORT_HW_RFOFF_DETECTED */
 
-#define CONFIG_LED
-#ifdef CONFIG_LED
-	#define CONFIG_SW_LED
-	#ifdef CONFIG_SW_LED
-		/* define CONFIG_LED_HANDLED_BY_CMD_THREAD */
+#define CONFIG_RTW_LED
+#ifdef CONFIG_RTW_LED
+	#define CONFIG_RTW_SW_LED
+	#ifdef CONFIG_RTW_SW_LED
+		/* define CONFIG_RTW_LED_HANDLED_BY_CMD_THREAD */
 	#endif
-#endif /* CONFIG_LED */
+#endif /* CONFIG_RTW_LED */
 
 #define CONFIG_XMIT_ACK
 #ifdef CONFIG_XMIT_ACK
 	#define CONFIG_ACTIVE_KEEP_ALIVE_CHECK
 #endif
-
-#define CONFIG_C2H_PACKET_EN
 
 #define CONFIG_RF_POWER_TRIM
 
@@ -152,7 +137,6 @@
 #define CONFIG_USB_TX_AGGREGATION
 #define CONFIG_USB_RX_AGGREGATION
 
-#define USB_INTERFERENCE_ISSUE /* this should be checked in all usb interface */
 
 #define CONFIG_GLOBAL_UI_PID
 
@@ -204,13 +188,14 @@
 /* #define CONFIG_BACKGROUND_NOISE_MONITOR */
 #endif
 
-/* #define CONFIG_CHECK_AC_LIFETIME	*/ /* Check packet lifetime of 4 ACs. */
-
 #define CONFIG_EMBEDDED_FWIMG
+
+#ifdef CONFIG_EMBEDDED_FWIMG
+	#define	LOAD_FW_HEADER_FROM_DRIVER
+#endif
 /* #define CONFIG_FILE_FWIMG */
 
 #define CONFIG_LONG_DELAY_ISSUE
-#define CONFIG_ATTEMPT_TO_FIX_AP_BEACON_ERROR
 
 
 /*
@@ -231,35 +216,31 @@
 #endif /* !CONFIG_MP_INCLUDED */
 
 #ifdef CONFIG_POWER_SAVING
-	#define CONFIG_IPS
-	#define CONFIG_LPS
+#define CONFIG_IPS
+#define CONFIG_LPS
 
-	#ifdef CONFIG_IPS
-	/* #define CONFIG_IPS_LEVEL_2	1  */ /*enable this to set default IPS mode to IPS_LEVEL_2 */
-	#endif
+#ifdef CONFIG_IPS
+/* #define CONFIG_IPS_LEVEL_2	1  */ /*enable this to set default IPS mode to IPS_LEVEL_2 */
+#endif
 
-	#if defined(CONFIG_LPS) && defined(CONFIG_SUPPORT_USB_INT)
-		/* #define CONFIG_LPS_LCLK */
-	#endif
+#if defined(CONFIG_LPS)
+	#define CONFIG_LPS_LCLK
+#endif
 
-	#ifdef CONFIG_LPS_LCLK
-		#define CONFIG_XMIT_THREAD_MODE
+#ifdef CONFIG_LPS_LCLK
+	/* #define CONFIG_XMIT_THREAD_MODE */
+	#ifndef CONFIG_SUPPORT_USB_INT
+		#define LPS_RPWM_WAIT_MS 300
+		#define CONFIG_DETECT_CPWM_BY_POLLING
 	#endif
-#endif /* CONFIG_POWER_SAVING */
+#endif
+#endif /*CONFIG_POWER_SAVING*/
 
 #ifdef CONFIG_BT_COEXIST
 	/* for ODM and outsrc BT-Coex */
-	#define BT_30_SUPPORT 1
-
 	#ifndef CONFIG_LPS
 		#define CONFIG_LPS	/* download reserved page to FW */
 	#endif
-
-	#ifndef CONFIG_C2H_PACKET_EN
-		#define CONFIG_C2H_PACKET_EN
-	#endif
-#else /* !ONFIG_BT_COEXIST */
-	#define BT_30_SUPPORT 0
 #endif /* CONFIG_BT_COEXIST */
 
 #ifdef CONFIG_WOWLAN
@@ -306,18 +287,15 @@
 /*
  * Debug Related Configure
  */
-#define CONFIG_DEBUG /* DBG_871X, etc... */
-#ifdef CONFIG_DEBUG
+#ifdef CONFIG_RTW_DEBUG
 	#define DBG	1	/* for ODM & BTCOEX debug */
 	#define DBG_PHYDM_MORE 0
-#else /* !CONFIG_DEBUG */
+#else /* !CONFIG_RTW_DEBUG */
 	#define DBG	0	/* for ODM & BTCOEX debug */
 	#define DBG_PHYDM_MORE 0
-#endif /* CONFIG_DEBUG */
+#endif /* CONFIG_RTW_DEBUG */
 
-#if DBG_PHYDM_MORE
-	#define CONFIG_DEBUG_RTL871X /* RT_TRACE, RT_PRINT_DATA, _func_enter_, _func_exit_ */
-#endif /* DBG_MORE */
+
 
 #define CONFIG_PROC_DEBUG
 
@@ -346,5 +324,6 @@
 
 #define DBG_HAL_INIT_PROFILING
 
-#define DBG_MEMORY_LEAK	1
+#define DBG_MEMORY_LEAK
 */
+#define	DBG_RX_DFRAME_RAW_DATA
