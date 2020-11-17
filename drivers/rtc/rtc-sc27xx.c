@@ -299,33 +299,6 @@ static int sprd_rtc_set_secs(struct sprd_rtc *rtc, enum sprd_rtc_reg_types type,
 			    sts_mask);
 }
 
-static int sprd_rtc_read_aux_alarm(struct device *dev, struct rtc_wkalrm *alrm)
-{
-	struct sprd_rtc *rtc = dev_get_drvdata(dev);
-	time64_t secs;
-	u32 val;
-	int ret;
-
-	ret = sprd_rtc_get_secs(rtc, SPRD_RTC_AUX_ALARM, &secs);
-	if (ret)
-		return ret;
-
-	rtc_time64_to_tm(secs, &alrm->time);
-
-	ret = regmap_read(rtc->regmap, rtc->base + SPRD_RTC_INT_EN, &val);
-	if (ret)
-		return ret;
-
-	alrm->enabled = !!(val & SPRD_RTC_AUXALM_EN);
-
-	ret = regmap_read(rtc->regmap, rtc->base + SPRD_RTC_INT_RAW_STS, &val);
-	if (ret)
-		return ret;
-
-	alrm->pending = !!(val & SPRD_RTC_AUXALM_EN);
-	return 0;
-}
-
 static int sprd_rtc_set_aux_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
 	struct sprd_rtc *rtc = dev_get_drvdata(dev);
@@ -415,16 +388,9 @@ static int sprd_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	u32 val;
 
 	/*
-	 * Before RTC device is registered, it will check to see if there is an
-	 * alarm already set in RTC hardware, and we always read the normal
-	 * alarm at this time.
-	 *
-	 * Or if aie_timer is enabled, we should get the normal alarm time.
-	 * Otherwise we should get auxiliary alarm time.
+	 * The RTC core checks to see if there is an alarm already set in RTC
+	 * hardware, and we always read the normal alarm at this time.
 	 */
-	if (rtc->rtc && rtc->rtc->registered && rtc->rtc->aie_timer.enabled == 0)
-		return sprd_rtc_read_aux_alarm(dev, alrm);
-
 	ret = sprd_rtc_get_secs(rtc, SPRD_RTC_ALARM, &secs);
 	if (ret)
 		return ret;
