@@ -1263,19 +1263,13 @@ static int gmc_v9_0_mc_init(struct amdgpu_device *adev)
 	 */
 
 	/* check whether both host-gpu and gpu-gpu xgmi links exist */
-	if (adev->gmc.xgmi.supported && adev->gmc.xgmi.connected_to_cpu &&
-	    adev->asic_type == CHIP_ALDEBARAN) {
-
-		adev->gmc.aper_base = adev->gfxhub.funcs->get_mc_fb_offset(adev) +
-			adev->gmc.xgmi.node_id *
+	if ((adev->flags & AMD_IS_APU) ||
+	    (adev->gmc.xgmi.supported &&
+	     adev->gmc.xgmi.connected_to_cpu)) {
+		adev->gmc.aper_base =
+			adev->gfxhub.funcs->get_mc_fb_offset(adev) +
+			adev->gmc.xgmi.physical_node_id *
 			adev->gmc.xgmi.node_segment_size;
-
-		adev->gmc.aper_size = adev->gmc.real_vram_size;
-
-	}
-
-	if (adev->flags & AMD_IS_APU) {
-		adev->gmc.aper_base = adev->gfxhub.funcs->get_mc_fb_offset(adev);
 		adev->gmc.aper_size = adev->gmc.real_vram_size;
 	}
 
