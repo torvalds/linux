@@ -52,7 +52,7 @@ u8 iwl_mvm_get_ctrl_pos(struct cfg80211_chan_def *chandef)
 		return PHY_VHT_CTRL_POS_4_ABOVE;
 	default:
 		WARN(1, "Invalid channel definition");
-		/* fall through */
+		fallthrough;
 	case 0:
 		/*
 		 * The FW is expected to check the control channel position only
