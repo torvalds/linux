@@ -921,4 +921,15 @@ enum nix_vtag_size {
 	VTAGSIZE_T4   = 0x0,
 	VTAGSIZE_T8   = 0x1,
 };
+
+enum nix_tx_vtag_op {
+	NOP		= 0x0,
+	VTAG_INSERT	= 0x1,
+	VTAG_REPLACE	= 0x2,
+};
+
+/* NIX RX VTAG actions */
+#define VTAG_STRIP	BIT_ULL(4)
+#define VTAG_CAPTURE	BIT_ULL(5)
+
 #endif /* RVU_STRUCT_H */

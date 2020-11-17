@@ -727,6 +727,10 @@ static void rvu_setup_pfvf_macaddress(struct rvu *rvu)
 	u64 *mac;
 
 	for (pf = 0; pf < hw->total_pfs; pf++) {
+		/* For PF0(AF), Assign MAC address to only VFs (LBKVFs) */
+		if (!pf)
+			goto lbkvf;
+
 		if (!is_pf_cgxmapped(rvu, pf))
 			continue;
 		/* Assign MAC address to PF */
@@ -740,8 +744,10 @@ static void rvu_setup_pfvf_macaddress(struct rvu *rvu)
 		} else {
 			eth_random_addr(pfvf->mac_addr);
 		}
+		ether_addr_copy(pfvf->default_mac, pfvf->mac_addr);
 
-		/* Assign MAC address to VFs */
+lbkvf:
+		/* Assign MAC address to VFs*/
 		rvu_get_pf_numvfs(rvu, pf, &numvfs, &hwvf);
 		for (vf = 0; vf < numvfs; vf++, hwvf++) {
 			pfvf = &rvu->hwvf[hwvf];
@@ -754,6 +760,7 @@ static void rvu_setup_pfvf_macaddress(struct rvu *rvu)
 			} else {
 				eth_random_addr(pfvf->mac_addr);
 			}
+			ether_addr_copy(pfvf->default_mac, pfvf->mac_addr);
 		}
 	}
 }
@@ -1175,6 +1182,9 @@ static void rvu_detach_block(struct rvu *rvu, int pcifunc, int blktype)
 	blkaddr = rvu_get_blkaddr(rvu, blktype, pcifunc);
 	if (blkaddr < 0)
 		return;
+
+	if (blktype == BLKTYPE_NIX)
+		rvu_nix_reset_mac(pfvf, pcifunc);
 
 	block = &hw->block[blkaddr];
 
@@ -2642,7 +2652,7 @@ static void rvu_enable_afvf_intr(struct rvu *rvu)
 
 #define PCI_DEVID_OCTEONTX2_LBK 0xA061
 
-static int lbk_get_num_chans(void)
+int rvu_get_num_lbk_chans(void)
 {
 	struct pci_dev *pdev;
 	void __iomem *base;
@@ -2677,7 +2687,7 @@ static int rvu_enable_sriov(struct rvu *rvu)
 		return 0;
 	}
 
-	chans = lbk_get_num_chans();
+	chans = rvu_get_num_lbk_chans();
 	if (chans < 0)
 		return chans;
 

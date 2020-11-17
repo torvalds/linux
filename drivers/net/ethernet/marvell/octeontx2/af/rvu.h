@@ -15,6 +15,7 @@
 #include "rvu_struct.h"
 #include "common.h"
 #include "mbox.h"
+#include "npc.h"
 
 /* PCI device IDs */
 #define	PCI_DEVID_OCTEONTX2_RVU_AF		0xA065
@@ -105,6 +106,36 @@ struct nix_mce_list {
 	int			max;
 };
 
+/* layer metadata to uniquely identify a packet header field */
+struct npc_layer_mdata {
+	u8 lid;
+	u8 ltype;
+	u8 hdr;
+	u8 key;
+	u8 len;
+};
+
+/* Structure to represent a field present in the
+ * generated key. A key field may present anywhere and can
+ * be of any size in the generated key. Once this structure
+ * is populated for fields of interest then field's presence
+ * and location (if present) can be known.
+ */
+struct npc_key_field {
+	/* Masks where all set bits indicate position
+	 * of a field in the key
+	 */
+	u64 kw_mask[NPC_MAX_KWS_IN_KEY];
+	/* Number of words in the key a field spans. If a field is
+	 * of 16 bytes and key offset is 4 then the field will use
+	 * 4 bytes in KW0, 8 bytes in KW1 and 4 bytes in KW2 and
+	 * nr_kws will be 3(KW0, KW1 and KW2).
+	 */
+	int nr_kws;
+	/* used by packet header fields */
+	struct npc_layer_mdata layer_mdata;
+};
+
 struct npc_mcam {
 	struct rsrc_bmap counters;
 	struct mutex	lock;	/* MCAM entries and counters update lock */
@@ -116,6 +147,7 @@ struct npc_mcam {
 	u16	*entry2cntr_map;
 	u16	*cntr2pfvf_map;
 	u16	*cntr_refcnt;
+	u16	*entry2target_pffunc;
 	u8	keysize;	/* MCAM keysize 112/224/448 bits */
 	u8	banks;		/* Number of MCAM banks */
 	u8	banks_per_entry;/* Number of keywords in key */
@@ -128,6 +160,12 @@ struct npc_mcam {
 	u16	hprio_count;
 	u16	hprio_end;
 	u16     rx_miss_act_cntr; /* Counter for RX MISS action */
+	/* fields present in the generated key */
+	struct npc_key_field	tx_key_fields[NPC_KEY_FIELDS_MAX];
+	struct npc_key_field	rx_key_fields[NPC_KEY_FIELDS_MAX];
+	u64	tx_features;
+	u64	rx_features;
+	struct list_head mcam_rules;
 };
 
 /* Structure for per RVU func info ie PF/VF */
@@ -171,16 +209,15 @@ struct rvu_pfvf {
 	u16		maxlen;
 	u16		minlen;
 
+	u8		pf_set_vf_cfg;
 	u8		mac_addr[ETH_ALEN]; /* MAC address of this PF/VF */
+	u8		default_mac[ETH_ALEN]; /* MAC address from FWdata */
 
 	/* Broadcast pkt replication info */
 	u16			bcast_mce_idx;
 	struct nix_mce_list	bcast_mce_list;
 
-	/* VLAN offload */
-	struct mcam_entry entry;
-	int rxvlan_index;
-	bool rxvlan;
+	struct rvu_npc_mcam_rule *def_ucast_rule;
 
 	bool	cgx_in_use; /* this PF/VF using CGX? */
 	int	cgx_users;  /* number of cgx users - used only by PFs */
@@ -224,6 +261,13 @@ struct nix_lso {
 	u8 in_use;
 };
 
+struct nix_txvlan {
+#define NIX_TX_VTAG_DEF_MAX 0x400
+	struct rsrc_bmap rsrc;
+	u16 *entry2pfvf_map;
+	struct mutex rsrc_lock; /* Serialize resource alloc/free */
+};
+
 struct nix_hw {
 	int blkaddr;
 	struct rvu *rvu;
@@ -232,6 +276,7 @@ struct nix_hw {
 	struct nix_flowkey flowkey;
 	struct nix_mark_format mark_format;
 	struct nix_lso lso;
+	struct nix_txvlan txvlan;
 };
 
 /* RVU block's capabilities or functionality,
@@ -445,6 +490,7 @@ int rvu_get_lf(struct rvu *rvu, struct rvu_block *block, u16 pcifunc, u16 slot);
 int rvu_lf_reset(struct rvu *rvu, struct rvu_block *block, int lf);
 int rvu_get_blkaddr(struct rvu *rvu, int blktype, u16 pcifunc);
 int rvu_poll_reg(struct rvu *rvu, u64 block, u64 offset, u64 mask, bool zero);
+int rvu_get_num_lbk_chans(void);
 
 /* RVU HW reg validation */
 enum regmap_block {
@@ -503,6 +549,7 @@ int nix_get_nixlf(struct rvu *rvu, u16 pcifunc, int *nixlf, int *nix_blkaddr);
 int nix_update_bcast_mce_list(struct rvu *rvu, u16 pcifunc, bool add);
 struct nix_hw *get_nix_hw(struct rvu_hwinfo *hw, int blkaddr);
 int rvu_get_next_nix_blkaddr(struct rvu *rvu, int blkaddr);
+void rvu_nix_reset_mac(struct rvu_pfvf *pfvf, int pcifunc);
 
 /* NPC APIs */
 int rvu_npc_init(struct rvu *rvu);
@@ -519,8 +566,8 @@ void rvu_npc_enable_promisc_entry(struct rvu *rvu, u16 pcifunc, int nixlf);
 void rvu_npc_install_bcast_match_entry(struct rvu *rvu, u16 pcifunc,
 				       int nixlf, u64 chan);
 void rvu_npc_enable_bcast_entry(struct rvu *rvu, u16 pcifunc, bool enable);
-int rvu_npc_update_rxvlan(struct rvu *rvu, u16 pcifunc, int nixlf);
 void rvu_npc_disable_mcam_entries(struct rvu *rvu, u16 pcifunc, int nixlf);
+void rvu_npc_free_mcam_entries(struct rvu *rvu, u16 pcifunc, int nixlf);
 void rvu_npc_disable_default_entries(struct rvu *rvu, u16 pcifunc, int nixlf);
 void rvu_npc_enable_default_entries(struct rvu *rvu, u16 pcifunc, int nixlf);
 void rvu_npc_update_flowkey_alg_idx(struct rvu *rvu, u16 pcifunc, int nixlf,
@@ -535,6 +582,20 @@ bool is_npc_intf_tx(u8 intf);
 bool is_npc_intf_rx(u8 intf);
 bool is_npc_interface_valid(struct rvu *rvu, u8 intf);
 int rvu_npc_get_tx_nibble_cfg(struct rvu *rvu, u64 nibble_ena);
+int npc_mcam_verify_channel(struct rvu *rvu, u16 pcifunc, u8 intf, u16 channel);
+int npc_flow_steering_init(struct rvu *rvu, int blkaddr);
+const char *npc_get_field_name(u8 hdr);
+bool rvu_npc_write_default_rule(struct rvu *rvu, int blkaddr, int nixlf,
+				u16 pcifunc, u8 intf, struct mcam_entry *entry,
+				int *entry_index);
+int npc_get_bank(struct npc_mcam *mcam, int index);
+void npc_mcam_enable_flows(struct rvu *rvu, u16 target);
+void npc_mcam_disable_flows(struct rvu *rvu, u16 target);
+void npc_enable_mcam_entry(struct rvu *rvu, struct npc_mcam *mcam,
+			   int blkaddr, int index, bool enable);
+void npc_read_mcam_entry(struct rvu *rvu, struct npc_mcam *mcam,
+			 int blkaddr, u16 src, struct mcam_entry *entry,
+			 u8 *intf, u8 *ena);
 
 #ifdef CONFIG_DEBUG_FS
 void rvu_dbg_init(struct rvu *rvu);
