@@ -7,6 +7,7 @@
 #include <linux/filter.h>
 #include <linux/bpf.h>
 #include <linux/btf.h>
+#include <linux/binfmts.h>
 #include <linux/lsm_hooks.h>
 #include <linux/bpf_lsm.h>
 #include <linux/kallsyms.h>
@@ -51,6 +52,29 @@ int bpf_lsm_verify_prog(struct bpf_verifier_log *vlog,
 	return 0;
 }
 
+/* Mask for all the currently supported BPRM option flags */
+#define BPF_F_BRPM_OPTS_MASK	BPF_F_BPRM_SECUREEXEC
+
+BPF_CALL_2(bpf_bprm_opts_set, struct linux_binprm *, bprm, u64, flags)
+{
+	if (flags & ~BPF_F_BRPM_OPTS_MASK)
+		return -EINVAL;
+
+	bprm->secureexec = (flags & BPF_F_BPRM_SECUREEXEC);
+	return 0;
+}
+
+BTF_ID_LIST_SINGLE(bpf_bprm_opts_set_btf_ids, struct, linux_binprm)
+
+const static struct bpf_func_proto bpf_bprm_opts_set_proto = {
+	.func		= bpf_bprm_opts_set,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_BTF_ID,
+	.arg1_btf_id	= &bpf_bprm_opts_set_btf_ids[0],
+	.arg2_type	= ARG_ANYTHING,
+};
+
 static const struct bpf_func_proto *
 bpf_lsm_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
@@ -71,6 +95,8 @@ bpf_lsm_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_task_storage_get_proto;
 	case BPF_FUNC_task_storage_delete:
 		return &bpf_task_storage_delete_proto;
+	case BPF_FUNC_bprm_opts_set:
+		return &bpf_bprm_opts_set_proto;
 	default:
 		return tracing_prog_func_proto(func_id, prog);
 	}
