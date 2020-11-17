@@ -4004,6 +4004,12 @@ int do_sigaction(int sig, struct k_sigaction *act, struct k_sigaction *oact)
 		*oact = *k;
 
 	/*
+	 * Make sure that we never accidentally claim to support SA_UNSUPPORTED,
+	 * e.g. by having an architecture use the bit in their uapi.
+	 */
+	BUILD_BUG_ON(UAPI_SA_FLAGS & SA_UNSUPPORTED);
+
+	/*
 	 * Clear unknown flag bits in order to allow userspace to detect missing
 	 * support for flag bits and to allow the kernel to use non-uapi bits
 	 * internally.
