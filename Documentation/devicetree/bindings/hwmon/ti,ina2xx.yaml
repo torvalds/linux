@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+
+$id: http://devicetree.org/schemas/hwmon/ti,ina2xx.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments INA209 family of power/voltage monitors
+
+maintainers:
+  - Krzysztof Kozlowski <krzk@kernel.org>
+
+description: |
+  The INA209 is a high-side current shunt and power monitor with
+  an I2C interface.
+
+  Datasheets:
+    https://www.ti.com/product/INA209
+
+properties:
+  compatible:
+    enum:
+      - ti,ina209
+      - ti,ina219
+      - ti,ina220
+      - ti,ina226
+      - ti,ina230
+      - ti,ina231
+
+  reg:
+    maxItems: 1
+
+  shunt-resistor:
+    description:
+      Shunt resistor value in micro-Ohm.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        power-sensor@44 {
+            compatible = "ti,ina220";
+            reg = <0x44>;
+            shunt-resistor = <1000>;
+        };
+    };
