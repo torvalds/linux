@@ -751,6 +751,9 @@ void
 irq_set_chained_handler_and_data(unsigned int irq, irq_flow_handler_t handle,
 				 void *data);
 
+void __irq_modify_status(unsigned int irq, unsigned long clr,
+			 unsigned long set, unsigned long mask);
+
 void irq_modify_status(unsigned int irq, unsigned long clr, unsigned long set);
 
 static inline void irq_set_status_flags(unsigned int irq, unsigned long set)

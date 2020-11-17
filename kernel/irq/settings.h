@@ -37,10 +37,16 @@ enum {
 #define IRQF_MODIFY_MASK	GOT_YOU_MORON
 
 static inline void
+__irq_settings_clr_and_set(struct irq_desc *desc, u32 clr, u32 set, u32 mask)
+{
+	desc->status_use_accessors &= ~(clr & mask);
+	desc->status_use_accessors |= (set & mask);
+}
+
+static inline void
 irq_settings_clr_and_set(struct irq_desc *desc, u32 clr, u32 set)
 {
-	desc->status_use_accessors &= ~(clr & _IRQF_MODIFY_MASK);
-	desc->status_use_accessors |= (set & _IRQF_MODIFY_MASK);
+	__irq_settings_clr_and_set(desc, clr, set, _IRQF_MODIFY_MASK);
 }
 
 static inline bool irq_settings_is_per_cpu(struct irq_desc *desc)
