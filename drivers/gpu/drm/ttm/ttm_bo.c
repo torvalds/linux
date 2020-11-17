@@ -44,8 +44,6 @@
 
 #include "ttm_module.h"
 
-static void ttm_bo_global_kobj_release(struct kobject *kobj);
-
 /*
  * ttm_global_mutex - protecting the global BO state
  */
@@ -53,11 +51,6 @@ DEFINE_MUTEX(ttm_global_mutex);
 unsigned ttm_bo_glob_use_count;
 struct ttm_bo_global ttm_bo_glob;
 EXPORT_SYMBOL(ttm_bo_glob);
-
-static struct attribute ttm_bo_count = {
-	.name = "bo_count",
-	.mode = S_IRUGO
-};
 
 /* default destructor */
 static void ttm_bo_default_destroy(struct ttm_buffer_object *bo)
@@ -83,32 +76,6 @@ static void ttm_bo_mem_space_debug(struct ttm_buffer_object *bo,
 		ttm_resource_manager_debug(man, &p);
 	}
 }
-
-static ssize_t ttm_bo_global_show(struct kobject *kobj,
-				  struct attribute *attr,
-				  char *buffer)
-{
-	struct ttm_bo_global *glob =
-		container_of(kobj, struct ttm_bo_global, kobj);
-
-	return snprintf(buffer, PAGE_SIZE, "%d\n",
-				atomic_read(&glob->bo_count));
-}
-
-static struct attribute *ttm_bo_global_attrs[] = {
-	&ttm_bo_count,
-	NULL
-};
-
-static const struct sysfs_ops ttm_bo_global_ops = {
-	.show = &ttm_bo_global_show
-};
-
-static struct kobj_type ttm_bo_glob_kobj_type  = {
-	.release = &ttm_bo_global_kobj_release,
-	.sysfs_ops = &ttm_bo_global_ops,
-	.default_attrs = ttm_bo_global_attrs
-};
 
 static void ttm_bo_del_from_lru(struct ttm_buffer_object *bo)
 {
@@ -1228,14 +1195,6 @@ size_t ttm_bo_dma_acc_size(struct ttm_bo_device *bdev,
 }
 EXPORT_SYMBOL(ttm_bo_dma_acc_size);
 
-static void ttm_bo_global_kobj_release(struct kobject *kobj)
-{
-	struct ttm_bo_global *glob =
-		container_of(kobj, struct ttm_bo_global, kobj);
-
-	__free_page(glob->dummy_read_page);
-}
-
 static void ttm_bo_global_release(void)
 {
 	struct ttm_bo_global *glob = &ttm_bo_glob;
@@ -1247,6 +1206,7 @@ static void ttm_bo_global_release(void)
 	kobject_del(&glob->kobj);
 	kobject_put(&glob->kobj);
 	ttm_mem_global_release(&ttm_mem_glob);
+	__free_page(glob->dummy_read_page);
 	memset(glob, 0, sizeof(*glob));
 out:
 	mutex_unlock(&ttm_global_mutex);
@@ -1279,10 +1239,8 @@ static int ttm_bo_global_init(void)
 	INIT_LIST_HEAD(&glob->device_list);
 	atomic_set(&glob->bo_count, 0);
 
-	ret = kobject_init_and_add(
-		&glob->kobj, &ttm_bo_glob_kobj_type, ttm_get_kobj(), "buffer_objects");
-	if (unlikely(ret != 0))
-		kobject_put(&glob->kobj);
+	debugfs_create_atomic_t("buffer_objects", 0444, ttm_debugfs_root,
+				&glob->bo_count);
 out:
 	mutex_unlock(&ttm_global_mutex);
 	return ret;
