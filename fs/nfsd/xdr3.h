@@ -108,7 +108,7 @@ struct nfsd3_getaclargs {
 struct posix_acl;
 struct nfsd3_setaclargs {
 	struct svc_fh		fh;
-	int			mask;
+	__u32			mask;
 	struct posix_acl	*acl_access;
 	struct posix_acl	*acl_default;
 };
