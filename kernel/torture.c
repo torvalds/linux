@@ -58,6 +58,81 @@ static int verbose;
 static int fullstop = FULLSTOP_RMMOD;
 static DEFINE_MUTEX(fullstop_mutex);
 
+/*
+ * Schedule a high-resolution-timer sleep in nanoseconds, with a 32-bit
+ * nanosecond random fuzz.  This function and its friends desynchronize
+ * testing from the timer wheel.
+ */
+int torture_hrtimeout_ns(ktime_t baset_ns, u32 fuzzt_ns, struct torture_random_state *trsp)
+{
+	ktime_t hto = baset_ns;
+
+	if (trsp)
+		hto += (torture_random(trsp) >> 3) % fuzzt_ns;
+	set_current_state(TASK_UNINTERRUPTIBLE);
+	return schedule_hrtimeout(&hto, HRTIMER_MODE_REL);
+}
+EXPORT_SYMBOL_GPL(torture_hrtimeout_ns);
+
+/*
+ * Schedule a high-resolution-timer sleep in microseconds, with a 32-bit
+ * nanosecond (not microsecond!) random fuzz.
+ */
+int torture_hrtimeout_us(u32 baset_us, u32 fuzzt_ns, struct torture_random_state *trsp)
+{
+	ktime_t baset_ns = baset_us * NSEC_PER_USEC;
+
+	return torture_hrtimeout_ns(baset_ns, fuzzt_ns, trsp);
+}
+EXPORT_SYMBOL_GPL(torture_hrtimeout_us);
+
+/*
+ * Schedule a high-resolution-timer sleep in milliseconds, with a 32-bit
+ * microsecond (not millisecond!) random fuzz.
+ */
+int torture_hrtimeout_ms(u32 baset_ms, u32 fuzzt_us, struct torture_random_state *trsp)
+{
+	ktime_t baset_ns = baset_ms * NSEC_PER_MSEC;
+	u32 fuzzt_ns;
+
+	if ((u32)~0U / NSEC_PER_USEC < fuzzt_us)
+		fuzzt_ns = (u32)~0U;
+	else
+		fuzzt_ns = fuzzt_us * NSEC_PER_USEC;
+	return torture_hrtimeout_ns(baset_ns, fuzzt_ns, trsp);
+}
+EXPORT_SYMBOL_GPL(torture_hrtimeout_ms);
+
+/*
+ * Schedule a high-resolution-timer sleep in jiffies, with an
+ * implied one-jiffy random fuzz.  This is intended to replace calls to
+ * schedule_timeout_interruptible() and friends.
+ */
+int torture_hrtimeout_jiffies(u32 baset_j, struct torture_random_state *trsp)
+{
+	ktime_t baset_ns = jiffies_to_nsecs(baset_j);
+
+	return torture_hrtimeout_ns(baset_ns, jiffies_to_nsecs(1), trsp);
+}
+EXPORT_SYMBOL_GPL(torture_hrtimeout_jiffies);
+
+/*
+ * Schedule a high-resolution-timer sleep in milliseconds, with a 32-bit
+ * millisecond (not second!) random fuzz.
+ */
+int torture_hrtimeout_s(u32 baset_s, u32 fuzzt_ms, struct torture_random_state *trsp)
+{
+	ktime_t baset_ns = baset_s * NSEC_PER_SEC;
+	u32 fuzzt_ns;
+
+	if ((u32)~0U / NSEC_PER_MSEC < fuzzt_ms)
+		fuzzt_ns = (u32)~0U;
+	else
+		fuzzt_ns = fuzzt_ms * NSEC_PER_MSEC;
+	return torture_hrtimeout_ns(baset_ns, fuzzt_ns, trsp);
+}
+EXPORT_SYMBOL_GPL(torture_hrtimeout_s);
+
 #ifdef CONFIG_HOTPLUG_CPU
 
 /*

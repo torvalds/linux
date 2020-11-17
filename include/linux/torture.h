@@ -61,6 +61,13 @@ static inline void torture_random_init(struct torture_random_state *trsp)
 	trsp->trs_count = 0;
 }
 
+/* Definitions for high-resolution-timer sleeps. */
+int torture_hrtimeout_ns(ktime_t baset_ns, u32 fuzzt_ns, struct torture_random_state *trsp);
+int torture_hrtimeout_us(u32 baset_us, u32 fuzzt_ns, struct torture_random_state *trsp);
+int torture_hrtimeout_ms(u32 baset_ms, u32 fuzzt_us, struct torture_random_state *trsp);
+int torture_hrtimeout_jiffies(u32 baset_j, struct torture_random_state *trsp);
+int torture_hrtimeout_s(u32 baset_s, u32 fuzzt_ms, struct torture_random_state *trsp);
+
 /* Task shuffler, which causes CPUs to occasionally go idle. */
 void torture_shuffle_task_register(struct task_struct *tp);
 int torture_shuffle_init(long shuffint);
