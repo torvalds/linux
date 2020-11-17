@@ -147,7 +147,6 @@ static void rk_pcie_prepare_dma(struct dma_trx_obj *obj,
 	struct device *dev = obj->dev;
 	phys_addr_t local, bus;
 	void *virt;
-	u32 *desc;
 	unsigned long flags;
 	struct dma_table *table = NULL;
 
@@ -207,33 +206,15 @@ static void rk_pcie_prepare_dma(struct dma_trx_obj *obj,
 		return;
 	}
 
-	if (is_rc(obj)) {
-		desc = table->descs;
-		*(desc + 0) = (u32)(local & 0xffffffff);
-		*(desc + 1) = (u32)(local >> 32);
-		*(desc + 2) = (u32)(bus & 0xffffffff);
-		*(desc + 3) = (u32)(bus >> 32);
-		*(desc + 4) = 0;
-		*(desc + 5) = 0;
-		*(desc + 6) = buf_size;
-		*(desc + 7) = 0;
-		*(desc + 8) = 0;
-		*(desc + 6) |= 1 << 24;
-	} else {
-		table->wr_enb.enb = 0x1;
-		table->ctx_reg.ctrllo.lie = 0x1;
-		table->ctx_reg.ctrllo.rie = 0x0;
-		table->ctx_reg.ctrllo.td = 0x1;
-		table->ctx_reg.ctrlhi.asdword = 0x0;
-		table->ctx_reg.xfersize = buf_size;
-		table->ctx_reg.sarptrlo = (u32)(local & 0xffffffff);
-		table->ctx_reg.sarptrhi = (u32)(local >> 32);
-		table->ctx_reg.darptrlo = (u32)(bus & 0xffffffff);
-		table->ctx_reg.darptrhi = (u32)(bus >> 32);
-		table->wr_weilo.weight0 = 0x0;
-		table->start.stop = 0x0;
-		table->start.chnl = PCIE_DMA_CHN0;
+	table->buf_size = buf_size;
+	table->bus = bus;
+	table->local = local;
+
+	if (!obj->config_dma_func) {
+		WARN_ON(1);
+		return;
 	}
+	obj->config_dma_func(table);
 
 	spin_lock_irqsave(&obj->tbl_list_lock, flags);
 	list_add_tail(&table->tbl_node, &obj->tbl_list);
@@ -256,10 +237,11 @@ static void rk_pcie_dma_trx_work(struct work_struct *work)
 			list_del_init(&table->tbl_node);
 			spin_unlock_irqrestore(&obj->tbl_list_lock, flags);
 			obj->cur = table;
-			if (is_rc(obj))
-				rk_pcie_start_dma_3399(obj);
-			else
-				rk_pcie_start_dma_1808(obj);
+			if (!obj->start_dma_func) {
+				WARN_ON(1);
+				return;
+			}
+			obj->start_dma_func(obj);
 		}
 	}
 }

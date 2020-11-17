@@ -9,6 +9,8 @@
 
 #define PCIE_DMA_TRX_TYPE_NUM		3
 
+#define PCIE_DMA_CHN0			0x0
+
 #define PCIE_DMA_DATA_SND_TABLE_OFFSET		0x0
 #define PCIE_DMA_DATA_RCV_ACK_TABLE_OFFSET	0x8
 #define PCIE_DMA_DATA_FREE_ACK_TABLE_OFFSET	0x10
@@ -145,6 +147,9 @@ struct dma_table {
 	union weight			wr_weilo;
 	union weight			wr_weihi;
 	union db			start;
+	phys_addr_t			local;
+	phys_addr_t			bus;
+	size_t				buf_size;
 };
 
 struct dma_trx_obj {
@@ -175,23 +180,9 @@ struct dma_trx_obj {
 	unsigned long			irq_num;
 	struct dentry			*pcie_root;
 	struct pcie_misc_dev		*pcie_dev;
+	void 				(*start_dma_func)(struct dma_trx_obj *obj);
+	void				(*config_dma_func)(struct dma_table *table);
 };
-
-#ifdef CONFIG_PCIE_DW_ROCKCHIP
-void rk_pcie_start_dma_1808(struct dma_trx_obj *obj);
-#else
-static inline void rk_pcie_start_dma_1808(struct dma_trx_obj *obj)
-{
-}
-#endif
-
-#ifdef CONFIG_PCIE_ROCKCHIP
-void rk_pcie_start_dma_3399(struct dma_trx_obj *obj);
-#else
-static inline void rk_pcie_start_dma_3399(struct dma_trx_obj *obj)
-{
-}
-#endif
 
 #ifdef CONFIG_ROCKCHIP_PCIE_DMA_OBJ
 struct dma_trx_obj *rk_pcie_dma_obj_probe(struct device *dev);

@@ -40,7 +40,7 @@
 #include "pcie-rockchip.h"
 #include "rockchip-pcie-dma.h"
 
-void rk_pcie_start_dma_3399(struct dma_trx_obj *obj)
+void rk_pcie_start_dma_rk3399(struct dma_trx_obj *obj)
 {
 	struct rockchip_pcie *rockchip = dev_get_drvdata(obj->dev);
 	struct dma_table *tbl = obj->cur;
@@ -53,7 +53,22 @@ void rk_pcie_start_dma_3399(struct dma_trx_obj *obj)
 	rockchip_pcie_write(rockchip, BIT(0) | (tbl->dir << 1),
 			    PCIE_APB_CORE_UDMA_BASE + 0x14 * chn + 0x00);
 }
-EXPORT_SYMBOL(rk_pcie_start_dma_3399);
+
+static void rk_pcie_config_dma_rk3399(struct dma_table *table)
+{
+	u32 *desc = table->descs;
+
+	*(desc + 0) = (u32)(table->local & 0xffffffff);
+	*(desc + 1) = (u32)(table->local >> 32);
+	*(desc + 2) = (u32)(table->bus & 0xffffffff);
+	*(desc + 3) = (u32)(table->bus >> 32);
+	*(desc + 4) = 0;
+	*(desc + 5) = 0;
+	*(desc + 6) = table->buf_size;
+	*(desc + 7) = 0;
+	*(desc + 8) = 0;
+	*(desc + 6) |= 1 << 24;
+}
 
 static void rockchip_pcie_enable_bw_int(struct rockchip_pcie *rockchip)
 {
@@ -1260,6 +1275,9 @@ static int rockchip_pcie_probe(struct platform_device *pdev)
 		err = -EINVAL;
 		goto err_probe_dma;
 	}
+
+	rockchip->dma_obj->start_dma_func = rk_pcie_start_dma_rk3399;
+	rockchip->dma_obj->config_dma_func = rk_pcie_config_dma_rk3399;
 
 	return 0;
 

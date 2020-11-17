@@ -439,6 +439,26 @@ static int rk_pcie_establish_link(struct dw_pcie *pci)
 	return -EINVAL;
 }
 
+static int rk_pcie_host_init_dma_trx(struct rk_pcie *rk_pcie)
+{
+	rk_pcie->dma_obj = rk_pcie_dma_obj_probe(rk_pcie->pci->dev);
+	if (IS_ERR(rk_pcie->dma_obj)) {
+		dev_err(rk_pcie->pci->dev, "failed to prepare dma object\n");
+		return -EINVAL;
+	}
+
+	/* Enable client write and read interrupt */
+	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_INTR_MASK, 0xc000000);
+
+	/* Enable core write interrupt */
+	dw_pcie_writel_dbi(rk_pcie->pci, PCIE_DMA_OFFSET + PCIE_DMA_WR_INT_MASK,
+			   0x0);
+	/* Enable core read interrupt */
+	dw_pcie_writel_dbi(rk_pcie->pci, PCIE_DMA_OFFSET + PCIE_DMA_RD_INT_MASK,
+			   0x0);
+	return 0;
+}
+
 static void rk_pcie_ep_setup(struct rk_pcie *rk_pcie)
 {
 	int ret;
@@ -615,6 +635,11 @@ static int rk_add_pcie_port(struct rk_pcie *rk_pcie)
 		return ret;
 	}
 
+	ret = rk_pcie_host_init_dma_trx(rk_pcie);
+	if (ret) {
+		dev_err(dev, "failed to init host dma trx\n");
+		return ret;
+	}
 	return 0;
 }
 
@@ -857,7 +882,7 @@ static int rk_pcie_reset_grant_ctrl(struct rk_pcie *rk_pcie,
 	return ret;
 }
 
-void rk_pcie_start_dma_1808(struct dma_trx_obj *obj)
+static void rk_pcie_start_dma_dwc(struct dma_trx_obj *obj)
 {
 	struct rk_pcie *rk_pcie = dev_get_drvdata(obj->dev);
 
@@ -882,7 +907,23 @@ void rk_pcie_start_dma_1808(struct dma_trx_obj *obj)
 	dw_pcie_writel_dbi(rk_pcie->pci, PCIE_DMA_OFFSET + PCIE_DMA_WR_DOORBELL,
 					   obj->cur->start.asdword);
 }
-EXPORT_SYMBOL(rk_pcie_start_dma_1808);
+
+static void rk_pcie_config_dma_dwc(struct dma_table *table)
+{
+	table->wr_enb.enb = 0x1;
+	table->ctx_reg.ctrllo.lie = 0x1;
+	table->ctx_reg.ctrllo.rie = 0x0;
+	table->ctx_reg.ctrllo.td = 0x1;
+	table->ctx_reg.ctrlhi.asdword = 0x0;
+	table->ctx_reg.xfersize = table->buf_size;
+	table->ctx_reg.sarptrlo = (u32)(table->local & 0xffffffff);
+	table->ctx_reg.sarptrhi = (u32)(table->local >> 32);
+	table->ctx_reg.darptrlo = (u32)(table->bus & 0xffffffff);
+	table->ctx_reg.darptrhi = (u32)(table->bus >> 32);
+	table->wr_weilo.weight0 = 0x0;
+	table->start.stop = 0x0;
+	table->start.chnl = PCIE_DMA_CHN0;
+}
 
 static inline void
 rk_pcie_handle_dma_interrupt(struct rk_pcie *rk_pcie)
@@ -1138,6 +1179,9 @@ static int rk_pcie_probe(struct platform_device *pdev)
 		ret = rk_pcie_add_ep(rk_pcie);
 		break;
 	}
+
+	rk_pcie->dma_obj->start_dma_func = rk_pcie_start_dma_dwc;
+	rk_pcie->dma_obj->config_dma_func = rk_pcie_config_dma_dwc;
 
 	if (ret)
 		goto deinit_clk;
