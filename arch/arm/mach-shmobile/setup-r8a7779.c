@@ -15,29 +15,6 @@
 #include "common.h"
 #include "r8a7779.h"
 
-static struct map_desc r8a7779_io_desc[] __initdata = {
-	/* 2M identity mapping for 0xf0000000 (MPCORE) */
-	{
-		.virtual	= 0xf0000000,
-		.pfn		= __phys_to_pfn(0xf0000000),
-		.length		= SZ_2M,
-		.type		= MT_DEVICE_NONSHARED
-	},
-	/* 16M identity mapping for 0xfexxxxxx (DMAC-S/HPBREG/INTC2/LRAM/DBSC) */
-	{
-		.virtual	= 0xfe000000,
-		.pfn		= __phys_to_pfn(0xfe000000),
-		.length		= SZ_16M,
-		.type		= MT_DEVICE_NONSHARED
-	},
-};
-
-static void __init r8a7779_map_io(void)
-{
-	debug_ll_io_init();
-	iotable_init(r8a7779_io_desc, ARRAY_SIZE(r8a7779_io_desc));
-}
-
 #define HPBREG_BASE	0xfe700000
 
 /* IRQ */
@@ -77,7 +54,6 @@ static const char *const r8a7779_compat_dt[] __initconst = {
 
 DT_MACHINE_START(R8A7779_DT, "Generic R8A7779 (Flattened Device Tree)")
 	.smp		= smp_ops(r8a7779_smp_ops),
-	.map_io		= r8a7779_map_io,
 	.init_irq	= r8a7779_init_irq_dt,
 	.init_late	= shmobile_init_late,
 	.dt_compat	= r8a7779_compat_dt,
