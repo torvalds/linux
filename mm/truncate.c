@@ -528,7 +528,7 @@ void truncate_inode_pages_final(struct address_space *mapping)
 }
 EXPORT_SYMBOL(truncate_inode_pages_final);
 
-unsigned long __invalidate_mapping_pages(struct address_space *mapping,
+static unsigned long __invalidate_mapping_pages(struct address_space *mapping,
 		pgoff_t start, pgoff_t end, unsigned long *nr_pagevec)
 {
 	pgoff_t indices[PAGEVEC_SIZE];

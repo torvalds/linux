@@ -145,7 +145,7 @@ TEST(clone3_cap_checkpoint_restore)
 	test_clone3_supported();
 
 	EXPECT_EQ(getuid(), 0)
-		XFAIL(return, "Skipping all tests as non-root\n");
+		SKIP(return, "Skipping all tests as non-root");
 
 	memset(&set_tid, 0, sizeof(set_tid));
 

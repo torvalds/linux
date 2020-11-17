@@ -49,7 +49,14 @@ bool is_tdp_mmu_root(struct kvm *kvm, hpa_t hpa)
 {
 	struct kvm_mmu_page *sp;
 
+	if (!kvm->arch.tdp_mmu_enabled)
+		return false;
+	if (WARN_ON(!VALID_PAGE(hpa)))
+		return false;
+
 	sp = to_shadow_page(hpa);
+	if (WARN_ON(!sp))
+		return false;
 
 	return sp->tdp_mmu_page && sp->root_count;
 }

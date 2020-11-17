@@ -13,8 +13,8 @@ Description:
 		For example the token ID "5" would be available
 		as the following attributes:
 
-		0005_location
-		0005_value
+		- 0005_location
+		- 0005_value
 
 		Tokens will vary from machine to machine, and
 		only tokens available on that machine will be

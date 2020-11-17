@@ -1910,6 +1910,15 @@ S: 660 Harvard Ave. #7
 S: Santa Clara, CA 95051
 S: USA
 
+N: Kukjin Kim
+E: kgene@kernel.org
+D: Samsung S3C, S5P and Exynos ARM architectures
+
+N: Sangbeom Kim
+E: sbkim73@samsung.com
+D: Samsung SoC Audio (ASoC) drivers
+D: Samsung PMIC (RTC, regulators, MFD) drivers
+
 N: Russell King
 E: rmk@arm.linux.org.uk
 D: Linux/arm integrator, maintainer & hacker

@@ -68,6 +68,7 @@ extern void *jbd2_alloc(size_t size, gfp_t flags);
 extern void jbd2_free(void *ptr, size_t size);
 
 #define JBD2_MIN_JOURNAL_BLOCKS 1024
+#define JBD2_MIN_FC_BLOCKS	256
 
 #ifdef __KERNEL__
 
@@ -263,7 +264,10 @@ typedef struct journal_superblock_s
 /* 0x0050 */
 	__u8	s_checksum_type;	/* checksum type */
 	__u8	s_padding2[3];
-	__u32	s_padding[42];
+/* 0x0054 */
+	__be32	s_num_fc_blks;		/* Number of fast commit blocks */
+/* 0x0058 */
+	__u32	s_padding[41];
 	__be32	s_checksum;		/* crc32c(superblock) */
 
 /* 0x0100 */
@@ -941,8 +945,9 @@ struct journal_s
 	/**
 	 * @j_fc_off:
 	 *
-	 * Number of fast commit blocks currently allocated.
-	 * [j_state_lock].
+	 * Number of fast commit blocks currently allocated. Accessed only
+	 * during fast commit. Currently only process can do fast commit, so
+	 * this field is not protected by any lock.
 	 */
 	unsigned long		j_fc_off;
 
@@ -985,9 +990,9 @@ struct journal_s
 	struct block_device	*j_fs_dev;
 
 	/**
-	 * @j_maxlen: Total maximum capacity of the journal region on disk.
+	 * @j_total_len: Total maximum capacity of the journal region on disk.
 	 */
-	unsigned int		j_maxlen;
+	unsigned int		j_total_len;
 
 	/**
 	 * @j_reserved_credits:
@@ -1105,8 +1110,9 @@ struct journal_s
 	struct buffer_head	**j_wbuf;
 
 	/**
-	 * @j_fc_wbuf: Array of fast commit bhs for
-	 * jbd2_journal_commit_transaction.
+	 * @j_fc_wbuf: Array of fast commit bhs for fast commit. Accessed only
+	 * during a fast commit. Currently only process can do fast commit, so
+	 * this field is not protected by any lock.
 	 */
 	struct buffer_head	**j_fc_wbuf;
 
@@ -1253,7 +1259,7 @@ struct journal_s
 	 */
 	void (*j_fc_cleanup_callback)(struct journal_s *journal, int);
 
-	/*
+	/**
 	 * @j_fc_replay_callback:
 	 *
 	 * File-system specific function that performs replay of a fast
@@ -1611,15 +1617,19 @@ extern void __jbd2_journal_drop_transaction(journal_t *, transaction_t *);
 extern int jbd2_cleanup_journal_tail(journal_t *);
 
 /* Fast commit related APIs */
-int jbd2_fc_init(journal_t *journal, int num_fc_blks);
 int jbd2_fc_begin_commit(journal_t *journal, tid_t tid);
 int jbd2_fc_end_commit(journal_t *journal);
-int jbd2_fc_end_commit_fallback(journal_t *journal, tid_t tid);
+int jbd2_fc_end_commit_fallback(journal_t *journal);
 int jbd2_fc_get_buf(journal_t *journal, struct buffer_head **bh_out);
 int jbd2_submit_inode_data(struct jbd2_inode *jinode);
 int jbd2_wait_inode_data(journal_t *journal, struct jbd2_inode *jinode);
 int jbd2_fc_wait_bufs(journal_t *journal, int num_blks);
 int jbd2_fc_release_bufs(journal_t *journal);
+
+static inline int jbd2_journal_get_max_txn_bufs(journal_t *journal)
+{
+	return (journal->j_total_len - journal->j_fc_wbufsize) / 4;
+}
 
 /*
  * is_journal_abort

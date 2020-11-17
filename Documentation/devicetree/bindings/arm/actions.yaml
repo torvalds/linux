@@ -49,3 +49,5 @@ properties:
           - enum:
               - ucrobotics,bubblegum-96 # uCRobotics Bubblegum-96
           - const: actions,s900
+
+additionalProperties: true

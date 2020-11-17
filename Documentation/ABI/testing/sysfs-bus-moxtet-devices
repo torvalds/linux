@@ -2,16 +2,16 @@ What:		/sys/bus/moxtet/devices/moxtet-<name>.<addr>/module_description
 Date:		March 2019
 KernelVersion:	5.3
 Contact:	Marek Behún <marek.behun@nic.cz>
-Description:	(R) Moxtet module description. Format: string
+Description:	(Read) Moxtet module description. Format: string
 
 What:		/sys/bus/moxtet/devices/moxtet-<name>.<addr>/module_id
 Date:		March 2019
 KernelVersion:	5.3
 Contact:	Marek Behún <marek.behun@nic.cz>
-Description:	(R) Moxtet module ID. Format: %x
+Description:	(Read) Moxtet module ID. Format: %x
 
 What:		/sys/bus/moxtet/devices/moxtet-<name>.<addr>/module_name
 Date:		March 2019
 KernelVersion:	5.3
 Contact:	Marek Behún <marek.behun@nic.cz>
-Description:	(R) Moxtet module name. Format: string
+Description:	(Read) Moxtet module name. Format: string

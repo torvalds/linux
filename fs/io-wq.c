@@ -482,6 +482,10 @@ static void io_impersonate_work(struct io_worker *worker,
 		current->files = work->identity->files;
 		current->nsproxy = work->identity->nsproxy;
 		task_unlock(current);
+		if (!work->identity->files) {
+			/* failed grabbing files, ensure work gets cancelled */
+			work->flags |= IO_WQ_WORK_CANCEL;
+		}
 	}
 	if ((work->flags & IO_WQ_WORK_FS) && current->fs != work->identity->fs)
 		current->fs = work->identity->fs;

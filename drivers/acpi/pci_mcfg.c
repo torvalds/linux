@@ -173,7 +173,7 @@ static int pci_mcfg_quirk_matches(struct mcfg_fixup *f, u16 segment,
 {
 	if (!memcmp(f->oem_id, mcfg_oem_id, ACPI_OEM_ID_SIZE) &&
 	    !memcmp(f->oem_table_id, mcfg_oem_table_id,
-	            ACPI_OEM_TABLE_ID_SIZE) &&
+		    ACPI_OEM_TABLE_ID_SIZE) &&
 	    f->oem_revision == mcfg_oem_revision &&
 	    f->segment == segment &&
 	    resource_contains(&f->bus_range, bus_range))

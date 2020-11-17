@@ -4080,9 +4080,17 @@ err_out:
 	return -EIO;
 }
 
-static bool rtl_test_hw_pad_bug(struct rtl8169_private *tp, struct sk_buff *skb)
+static bool rtl_test_hw_pad_bug(struct rtl8169_private *tp)
 {
-	return skb->len < ETH_ZLEN && tp->mac_version == RTL_GIGA_MAC_VER_34;
+	switch (tp->mac_version) {
+	case RTL_GIGA_MAC_VER_34:
+	case RTL_GIGA_MAC_VER_60:
+	case RTL_GIGA_MAC_VER_61:
+	case RTL_GIGA_MAC_VER_63:
+		return true;
+	default:
+		return false;
+	}
 }
 
 static void rtl8169_tso_csum_v1(struct sk_buff *skb, u32 *opts)
@@ -4154,8 +4162,9 @@ static bool rtl8169_tso_csum_v2(struct rtl8169_private *tp,
 
 		opts[1] |= transport_offset << TCPHO_SHIFT;
 	} else {
-		if (unlikely(rtl_test_hw_pad_bug(tp, skb)))
-			return !eth_skb_pad(skb);
+		if (unlikely(skb->len < ETH_ZLEN && rtl_test_hw_pad_bug(tp)))
+			/* eth_skb_pad would free the skb on error */
+			return !__skb_put_padto(skb, ETH_ZLEN, false);
 	}
 
 	return true;
@@ -4334,18 +4343,9 @@ static netdev_features_t rtl8169_features_check(struct sk_buff *skb,
 		    rtl_chip_supports_csum_v2(tp))
 			features &= ~NETIF_F_ALL_TSO;
 	} else if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		if (skb->len < ETH_ZLEN) {
-			switch (tp->mac_version) {
-			case RTL_GIGA_MAC_VER_11:
-			case RTL_GIGA_MAC_VER_12:
-			case RTL_GIGA_MAC_VER_17:
-			case RTL_GIGA_MAC_VER_34:
-				features &= ~NETIF_F_CSUM_MASK;
-				break;
-			default:
-				break;
-			}
-		}
+		/* work around hw bug on some chip versions */
+		if (skb->len < ETH_ZLEN)
+			features &= ~NETIF_F_CSUM_MASK;
 
 		if (transport_offset > TCPHO_MAX &&
 		    rtl_chip_supports_csum_v2(tp))
@@ -4573,7 +4573,7 @@ static irqreturn_t rtl8169_interrupt(int irq, void *dev_instance)
 	}
 
 	rtl_irq_disable(tp);
-	napi_schedule_irqoff(&tp->napi);
+	napi_schedule(&tp->napi);
 out:
 	rtl_ack_events(tp, status);
 
@@ -4746,7 +4746,7 @@ static int rtl_open(struct net_device *dev)
 	rtl_request_firmware(tp);
 
 	retval = request_irq(pci_irq_vector(pdev, 0), rtl8169_interrupt,
-			     IRQF_NO_THREAD | IRQF_SHARED, dev->name, tp);
+			     IRQF_SHARED, dev->name, tp);
 	if (retval < 0)
 		goto err_release_fw_2;
 

@@ -786,11 +786,20 @@ static int machine__process_ksymbol_unregister(struct machine *machine,
 					       union perf_event *event,
 					       struct perf_sample *sample __maybe_unused)
 {
+	struct symbol *sym;
 	struct map *map;
 
 	map = maps__find(&machine->kmaps, event->ksymbol.addr);
-	if (map)
+	if (!map)
+		return 0;
+
+	if (map != machine->vmlinux_map)
 		maps__remove(&machine->kmaps, map);
+	else {
+		sym = dso__find_symbol(map->dso, map->map_ip(map, map->start));
+		if (sym)
+			dso__delete_symbol(map->dso, sym);
+	}
 
 	return 0;
 }

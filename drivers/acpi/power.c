@@ -13,7 +13,7 @@
  * 1. via "Device Specific (D-State) Control"
  * 2. via "Power Resource Control".
  * The code below deals with ACPI Power Resources control.
- * 
+ *
  * An ACPI "power resource object" represents a software controllable power
  * plane, clock plane, or other resource depended on by a device.
  *
@@ -645,7 +645,7 @@ int acpi_power_wakeup_list_init(struct list_head *list, int *system_level_p)
  * -ENODEV if the execution of either _DSW or _PSW has failed
  */
 int acpi_device_sleep_wake(struct acpi_device *dev,
-                           int enable, int sleep_state, int dev_state)
+			   int enable, int sleep_state, int dev_state)
 {
 	union acpi_object in_arg[3];
 	struct acpi_object_list arg_list = { 3, in_arg };
@@ -690,7 +690,7 @@ int acpi_device_sleep_wake(struct acpi_device *dev,
 
 /*
  * Prepare a wakeup device, two steps (Ref ACPI 2.0:P229):
- * 1. Power on the power resources required for the wakeup device 
+ * 1. Power on the power resources required for the wakeup device
  * 2. Execute _DSW (Device Sleep Wake) or (deprecated in ACPI 3.0) _PSW (Power
  *    State Wake) for the device, if present
  */

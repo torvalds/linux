@@ -19,11 +19,11 @@ properties:
   compatible:
     oneOf:
       - enum:
-        - ingenic,jz4770-i2c
-        - ingenic,x1000-i2c
+          - ingenic,jz4770-i2c
+          - ingenic,x1000-i2c
       - items:
-        - const: ingenic,jz4780-i2c
-        - const: ingenic,jz4770-i2c
+          - const: ingenic,jz4780-i2c
+          - const: ingenic,jz4770-i2c
 
   reg:
     maxItems: 1

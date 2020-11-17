@@ -157,11 +157,6 @@ int zcrypt_card_register(struct zcrypt_card *zc)
 {
 	int rc;
 
-	rc = sysfs_create_group(&zc->card->ap_dev.device.kobj,
-				&zcrypt_card_attr_group);
-	if (rc)
-		return rc;
-
 	spin_lock(&zcrypt_list_lock);
 	list_add_tail(&zc->list, &zcrypt_card_list);
 	spin_unlock(&zcrypt_list_lock);
@@ -169,6 +164,14 @@ int zcrypt_card_register(struct zcrypt_card *zc)
 	zc->online = 1;
 
 	ZCRYPT_DBF(DBF_INFO, "card=%02x register online=1\n", zc->card->id);
+
+	rc = sysfs_create_group(&zc->card->ap_dev.device.kobj,
+				&zcrypt_card_attr_group);
+	if (rc) {
+		spin_lock(&zcrypt_list_lock);
+		list_del_init(&zc->list);
+		spin_unlock(&zcrypt_list_lock);
+	}
 
 	return rc;
 }

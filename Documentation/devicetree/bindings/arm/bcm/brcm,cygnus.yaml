@@ -26,4 +26,6 @@ properties:
           - brcm,bcm58305
       - const: brcm,cygnus
 
+additionalProperties: true
+
 ...

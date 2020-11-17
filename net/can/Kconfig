@@ -62,8 +62,9 @@ config CAN_ISOTP
 	  communication between CAN nodes via two defined CAN Identifiers.
 	  As CAN frames can only transport a small amount of data bytes
 	  (max. 8 bytes for 'classic' CAN and max. 64 bytes for CAN FD) this
-	  segmentation is needed to transport longer PDUs as needed e.g. for
-	  vehicle diagnosis (UDS, ISO 14229) or IP-over-CAN traffic.
+	  segmentation is needed to transport longer Protocol Data Units (PDU)
+	  as needed e.g. for vehicle diagnosis (UDS, ISO 14229) or IP-over-CAN
+	  traffic.
 	  This protocol driver implements data transfers according to
 	  ISO 15765-2:2016 for 'classic' CAN and CAN FD frame types.
 	  If you want to perform automotive vehicle diagnostic services (UDS),

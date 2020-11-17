@@ -240,6 +240,11 @@ static int prepare_elf_headers(void **addr, unsigned long *sz)
 	return ret;
 }
 
+/*
+ * Tries to add the initrd and DTB to the image. If it is not possible to find
+ * valid locations, this function will undo changes to the image and return non
+ * zero.
+ */
 int load_other_segments(struct kimage *image,
 			unsigned long kernel_load_addr,
 			unsigned long kernel_size,
@@ -248,7 +253,8 @@ int load_other_segments(struct kimage *image,
 {
 	struct kexec_buf kbuf;
 	void *headers, *dtb = NULL;
-	unsigned long headers_sz, initrd_load_addr = 0, dtb_len;
+	unsigned long headers_sz, initrd_load_addr = 0, dtb_len,
+		      orig_segments = image->nr_segments;
 	int ret = 0;
 
 	kbuf.image = image;
@@ -334,6 +340,7 @@ int load_other_segments(struct kimage *image,
 	return 0;
 
 out_err:
+	image->nr_segments = orig_segments;
 	vfree(dtb);
 	return ret;
 }

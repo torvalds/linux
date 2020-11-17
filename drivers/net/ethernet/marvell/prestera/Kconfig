@@ -6,6 +6,7 @@
 config PRESTERA
 	tristate "Marvell Prestera Switch ASICs support"
 	depends on NET_SWITCHDEV && VLAN_8021Q
+	depends on BRIDGE || BRIDGE=n
 	select NET_DEVLINK
 	help
 	  This driver supports Marvell Prestera Switch ASICs family.

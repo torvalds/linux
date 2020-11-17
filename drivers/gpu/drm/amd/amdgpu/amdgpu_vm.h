@@ -112,8 +112,8 @@ struct amdgpu_bo_list_entry;
 #define AMDGPU_MMHUB_0				1
 #define AMDGPU_MMHUB_1				2
 
-/* hardcode that limit for now */
-#define AMDGPU_VA_RESERVED_SIZE			(1ULL << 20)
+/* Reserve 2MB at top/bottom of address space for kernel use */
+#define AMDGPU_VA_RESERVED_SIZE			(2ULL << 20)
 
 /* max vmids dedicated for process */
 #define AMDGPU_VM_MAX_RESERVED_VMID	1
