@@ -962,6 +962,9 @@ static int tb_cfg_get_error(struct tb_ctl *ctl, enum tb_cfg_space space,
 
 	if (res->tb_error == TB_CFG_ERROR_LOCK)
 		return -EACCES;
+	else if (res->tb_error == TB_CFG_ERROR_PORT_NOT_CONNECTED)
+		return -ENOTCONN;
+
 	return -EIO;
 }
 
