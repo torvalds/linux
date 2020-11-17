@@ -1758,10 +1758,10 @@ TEST_F(TRACE_poke, getpid_runs_normally)
 		 * and the code is stored as a positive value.	\
 		 */						\
 		if (_result < 0) {				\
-			SYSCALL_RET(_regs) = -result;		\
+			SYSCALL_RET(_regs) = -_result;		\
 			(_regs).ccr |= 0x10000000;		\
 		} else {					\
-			SYSCALL_RET(_regs) = result;		\
+			SYSCALL_RET(_regs) = _result;		\
 			(_regs).ccr &= ~0x10000000;		\
 		}						\
 	} while (0)
