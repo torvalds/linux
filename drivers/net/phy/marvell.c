@@ -317,14 +317,41 @@ static int marvell_config_intr(struct phy_device *phydev)
 {
 	int err;
 
-	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		err = marvell_ack_interrupt(phydev);
+		if (err)
+			return err;
+
 		err = phy_write(phydev, MII_M1011_IMASK,
 				MII_M1011_IMASK_INIT);
-	else
+	} else {
 		err = phy_write(phydev, MII_M1011_IMASK,
 				MII_M1011_IMASK_CLEAR);
+		if (err)
+			return err;
+
+		err = marvell_ack_interrupt(phydev);
+	}
 
 	return err;
+}
+
+static irqreturn_t marvell_handle_interrupt(struct phy_device *phydev)
+{
+	int irq_status;
+
+	irq_status = phy_read(phydev, MII_M1011_IEVENT);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	if (!(irq_status & MII_M1011_IMASK_INIT))
+		return IRQ_NONE;
+
+	phy_trigger_machine(phydev);
+
+	return IRQ_HANDLED;
 }
 
 static int marvell_set_polarity(struct phy_device *phydev, int polarity)
@@ -1659,18 +1686,6 @@ static int marvell_aneg_done(struct phy_device *phydev)
 	return (retval < 0) ? retval : (retval & MII_M1011_PHY_STATUS_RESOLVED);
 }
 
-static int m88e1121_did_interrupt(struct phy_device *phydev)
-{
-	int imask;
-
-	imask = phy_read(phydev, MII_M1011_IEVENT);
-
-	if (imask & MII_M1011_IMASK_INIT)
-		return 1;
-
-	return 0;
-}
-
 static void m88e1318_get_wol(struct phy_device *phydev,
 			     struct ethtool_wolinfo *wol)
 {
@@ -2697,8 +2712,8 @@ static struct phy_driver marvell_drivers[] = {
 		.probe = marvell_probe,
 		.config_init = marvell_config_init,
 		.config_aneg = m88e1101_config_aneg,
-		.ack_interrupt = marvell_ack_interrupt,
 		.config_intr = marvell_config_intr,
+		.handle_interrupt = marvell_handle_interrupt,
 		.resume = genphy_resume,
 		.suspend = genphy_suspend,
 		.read_page = marvell_read_page,
@@ -2715,8 +2730,8 @@ static struct phy_driver marvell_drivers[] = {
 		.probe = marvell_probe,
 		.config_init = m88e1111_config_init,
 		.config_aneg = marvell_config_aneg,
-		.ack_interrupt = marvell_ack_interrupt,
 		.config_intr = marvell_config_intr,
+		.handle_interrupt = marvell_handle_interrupt,
 		.resume = genphy_resume,
 		.suspend = genphy_suspend,
 		.read_page = marvell_read_page,
@@ -2736,8 +2751,8 @@ static struct phy_driver marvell_drivers[] = {
 		.config_init = m88e1111_config_init,
 		.config_aneg = m88e1111_config_aneg,
 		.read_status = marvell_read_status,
-		.ack_interrupt = marvell_ack_interrupt,
 		.config_intr = marvell_config_intr,
+		.handle_interrupt = marvell_handle_interrupt,
 		.resume = genphy_resume,
 		.suspend = genphy_suspend,
 		.read_page = marvell_read_page,
@@ -2757,8 +2772,8 @@ static struct phy_driver marvell_drivers[] = {
 		.config_init = m88e1111_config_init,
 		.config_aneg = m88e1111_config_aneg,
 		.read_status = marvell_read_status,
-		.ack_interrupt = marvell_ack_interrupt,
 		.config_intr = marvell_config_intr,
+		.handle_interrupt = marvell_handle_interrupt,
 		.resume = genphy_resume,
 		.suspend = genphy_suspend,
 		.read_page = marvell_read_page,
@@ -2777,8 +2792,8 @@ static struct phy_driver marvell_drivers[] = {
 		.probe = marvell_probe,
 		.config_init = m88e1118_config_init,
 		.config_aneg = m88e1118_config_aneg,
-		.ack_interrupt = marvell_ack_interrupt,
 		.config_intr = marvell_config_intr,
+		.handle_interrupt = marvell_handle_interrupt,
 		.resume = genphy_resume,
 		.suspend = genphy_suspend,
 		.read_page = marvell_read_page,
@@ -2796,9 +2811,8 @@ static struct phy_driver marvell_drivers[] = {
 		.config_init = marvell_config_init,
 		.config_aneg = m88e1121_config_aneg,
 		.read_status = marvell_read_status,
-		.ack_interrupt = marvell_ack_interrupt,
 		.config_intr = marvell_config_intr,
-		.did_interrupt = m88e1121_did_interrupt,
+		.handle_interrupt = marvell_handle_interrupt,
 		.resume = genphy_resume,
 		.suspend = genphy_suspend,
 		.read_page = marvell_read_page,
@@ -2818,9 +2832,8 @@ static struct phy_driver marvell_drivers[] = {
 		.config_init = m88e1318_config_init,
 		.config_aneg = m88e1318_config_aneg,
 		.read_status = marvell_read_status,
-		.ack_interrupt = marvell_ack_interrupt,
 		.config_intr = marvell_config_intr,
-		.did_interrupt = m88e1121_did_interrupt,
+		.handle_interrupt = marvell_handle_interrupt,
 		.get_wol = m88e1318_get_wol,
 		.set_wol = m88e1318_set_wol,
 		.resume = genphy_resume,
@@ -2840,8 +2853,8 @@ static struct phy_driver marvell_drivers[] = {
 		.config_init = m88e1145_config_init,
 		.config_aneg = m88e1101_config_aneg,
 		.read_status = genphy_read_status,
-		.ack_interrupt = marvell_ack_interrupt,
 		.config_intr = marvell_config_intr,
+		.handle_interrupt = marvell_handle_interrupt,
 		.resume = genphy_resume,
 		.suspend = genphy_suspend,
 		.read_page = marvell_read_page,
@@ -2860,8 +2873,8 @@ static struct phy_driver marvell_drivers[] = {
 		.probe = marvell_probe,
 		.config_init = m88e1149_config_init,
 		.config_aneg = m88e1118_config_aneg,
-		.ack_interrupt = marvell_ack_interrupt,
 		.config_intr = marvell_config_intr,
+		.handle_interrupt = marvell_handle_interrupt,
 		.resume = genphy_resume,
 		.suspend = genphy_suspend,
 		.read_page = marvell_read_page,
@@ -2878,8 +2891,8 @@ static struct phy_driver marvell_drivers[] = {
 		.probe = marvell_probe,
 		.config_init = m88e1111_config_init,
 		.config_aneg = marvell_config_aneg,
-		.ack_interrupt = marvell_ack_interrupt,
 		.config_intr = marvell_config_intr,
+		.handle_interrupt = marvell_handle_interrupt,
 		.resume = genphy_resume,
 		.suspend = genphy_suspend,
 		.read_page = marvell_read_page,
@@ -2895,8 +2908,8 @@ static struct phy_driver marvell_drivers[] = {
 		/* PHY_GBIT_FEATURES */
 		.probe = marvell_probe,
 		.config_init = m88e1116r_config_init,
-		.ack_interrupt = marvell_ack_interrupt,
 		.config_intr = marvell_config_intr,
+		.handle_interrupt = marvell_handle_interrupt,
 		.resume = genphy_resume,
 		.suspend = genphy_suspend,
 		.read_page = marvell_read_page,
@@ -2917,9 +2930,8 @@ static struct phy_driver marvell_drivers[] = {
 		.config_init = m88e1510_config_init,
 		.config_aneg = m88e1510_config_aneg,
 		.read_status = marvell_read_status,
-		.ack_interrupt = marvell_ack_interrupt,
 		.config_intr = marvell_config_intr,
-		.did_interrupt = m88e1121_did_interrupt,
+		.handle_interrupt = marvell_handle_interrupt,
 		.get_wol = m88e1318_get_wol,
 		.set_wol = m88e1318_set_wol,
 		.resume = marvell_resume,
@@ -2946,9 +2958,8 @@ static struct phy_driver marvell_drivers[] = {
 		.config_init = marvell_config_init,
 		.config_aneg = m88e1510_config_aneg,
 		.read_status = marvell_read_status,
-		.ack_interrupt = marvell_ack_interrupt,
 		.config_intr = marvell_config_intr,
-		.did_interrupt = m88e1121_did_interrupt,
+		.handle_interrupt = marvell_handle_interrupt,
 		.resume = genphy_resume,
 		.suspend = genphy_suspend,
 		.read_page = marvell_read_page,
@@ -2972,9 +2983,8 @@ static struct phy_driver marvell_drivers[] = {
 		.config_init = marvell_config_init,
 		.config_aneg = m88e1510_config_aneg,
 		.read_status = marvell_read_status,
-		.ack_interrupt = marvell_ack_interrupt,
 		.config_intr = marvell_config_intr,
-		.did_interrupt = m88e1121_did_interrupt,
+		.handle_interrupt = marvell_handle_interrupt,
 		.resume = genphy_resume,
 		.suspend = genphy_suspend,
 		.read_page = marvell_read_page,
@@ -2997,9 +3007,8 @@ static struct phy_driver marvell_drivers[] = {
 		.config_init = m88e3016_config_init,
 		.aneg_done = marvell_aneg_done,
 		.read_status = marvell_read_status,
-		.ack_interrupt = marvell_ack_interrupt,
 		.config_intr = marvell_config_intr,
-		.did_interrupt = m88e1121_did_interrupt,
+		.handle_interrupt = marvell_handle_interrupt,
 		.resume = genphy_resume,
 		.suspend = genphy_suspend,
 		.read_page = marvell_read_page,
@@ -3018,9 +3027,8 @@ static struct phy_driver marvell_drivers[] = {
 		.config_init = marvell_config_init,
 		.config_aneg = m88e6390_config_aneg,
 		.read_status = marvell_read_status,
-		.ack_interrupt = marvell_ack_interrupt,
 		.config_intr = marvell_config_intr,
-		.did_interrupt = m88e1121_did_interrupt,
+		.handle_interrupt = marvell_handle_interrupt,
 		.resume = genphy_resume,
 		.suspend = genphy_suspend,
 		.read_page = marvell_read_page,
@@ -3043,9 +3051,8 @@ static struct phy_driver marvell_drivers[] = {
 		.config_init = marvell_config_init,
 		.config_aneg = m88e1510_config_aneg,
 		.read_status = marvell_read_status,
-		.ack_interrupt = marvell_ack_interrupt,
 		.config_intr = marvell_config_intr,
-		.did_interrupt = m88e1121_did_interrupt,
+		.handle_interrupt = marvell_handle_interrupt,
 		.resume = genphy_resume,
 		.suspend = genphy_suspend,
 		.read_page = marvell_read_page,
@@ -3065,9 +3072,8 @@ static struct phy_driver marvell_drivers[] = {
 		.config_init = marvell_config_init,
 		.config_aneg = m88e1510_config_aneg,
 		.read_status = marvell_read_status,
-		.ack_interrupt = marvell_ack_interrupt,
 		.config_intr = marvell_config_intr,
-		.did_interrupt = m88e1121_did_interrupt,
+		.handle_interrupt = marvell_handle_interrupt,
 		.resume = genphy_resume,
 		.suspend = genphy_suspend,
 		.read_page = marvell_read_page,

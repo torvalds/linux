@@ -471,12 +471,43 @@ static int adin_phy_ack_intr(struct phy_device *phydev)
 
 static int adin_phy_config_intr(struct phy_device *phydev)
 {
-	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
-		return phy_set_bits(phydev, ADIN1300_INT_MASK_REG,
-				    ADIN1300_INT_MASK_EN);
+	int err;
 
-	return phy_clear_bits(phydev, ADIN1300_INT_MASK_REG,
-			      ADIN1300_INT_MASK_EN);
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		err = adin_phy_ack_intr(phydev);
+		if (err)
+			return err;
+
+		err = phy_set_bits(phydev, ADIN1300_INT_MASK_REG,
+				   ADIN1300_INT_MASK_EN);
+	} else {
+		err = phy_clear_bits(phydev, ADIN1300_INT_MASK_REG,
+				     ADIN1300_INT_MASK_EN);
+		if (err)
+			return err;
+
+		err = adin_phy_ack_intr(phydev);
+	}
+
+	return err;
+}
+
+static irqreturn_t adin_phy_handle_interrupt(struct phy_device *phydev)
+{
+	int irq_status;
+
+	irq_status = phy_read(phydev, ADIN1300_INT_STATUS_REG);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	if (!(irq_status & ADIN1300_INT_LINK_STAT_CHNG_EN))
+		return IRQ_NONE;
+
+	phy_trigger_machine(phydev);
+
+	return IRQ_HANDLED;
 }
 
 static int adin_cl45_to_adin_reg(struct phy_device *phydev, int devad,
@@ -877,8 +908,8 @@ static struct phy_driver adin_driver[] = {
 		.read_status	= adin_read_status,
 		.get_tunable	= adin_get_tunable,
 		.set_tunable	= adin_set_tunable,
-		.ack_interrupt	= adin_phy_ack_intr,
 		.config_intr	= adin_phy_config_intr,
+		.handle_interrupt = adin_phy_handle_interrupt,
 		.get_sset_count	= adin_get_sset_count,
 		.get_strings	= adin_get_strings,
 		.get_stats	= adin_get_stats,
@@ -900,8 +931,8 @@ static struct phy_driver adin_driver[] = {
 		.read_status	= adin_read_status,
 		.get_tunable	= adin_get_tunable,
 		.set_tunable	= adin_set_tunable,
-		.ack_interrupt	= adin_phy_ack_intr,
 		.config_intr	= adin_phy_config_intr,
+		.handle_interrupt = adin_phy_handle_interrupt,
 		.get_sset_count	= adin_get_sset_count,
 		.get_strings	= adin_get_strings,
 		.get_stats	= adin_get_stats,

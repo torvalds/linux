@@ -189,18 +189,34 @@ static int lan87xx_phy_config_intr(struct phy_device *phydev)
 		rc = phy_write(phydev, LAN87XX_INTERRUPT_MASK, 0x7FFF);
 		rc = phy_read(phydev, LAN87XX_INTERRUPT_SOURCE);
 		val = LAN87XX_MASK_LINK_UP | LAN87XX_MASK_LINK_DOWN;
-	}
+		rc = phy_write(phydev, LAN87XX_INTERRUPT_MASK, val);
+	} else {
+		rc = phy_write(phydev, LAN87XX_INTERRUPT_MASK, val);
+		if (rc)
+			return rc;
 
-	rc = phy_write(phydev, LAN87XX_INTERRUPT_MASK, val);
+		rc = phy_read(phydev, LAN87XX_INTERRUPT_SOURCE);
+	}
 
 	return rc < 0 ? rc : 0;
 }
 
-static int lan87xx_phy_ack_interrupt(struct phy_device *phydev)
+static irqreturn_t lan87xx_handle_interrupt(struct phy_device *phydev)
 {
-	int rc = phy_read(phydev, LAN87XX_INTERRUPT_SOURCE);
+	int irq_status;
 
-	return rc < 0 ? rc : 0;
+	irq_status = phy_read(phydev, LAN87XX_INTERRUPT_SOURCE);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	if (irq_status == 0)
+		return IRQ_NONE;
+
+	phy_trigger_machine(phydev);
+
+	return IRQ_HANDLED;
 }
 
 static int lan87xx_config_init(struct phy_device *phydev)
@@ -220,8 +236,8 @@ static struct phy_driver microchip_t1_phy_driver[] = {
 
 		.config_init	= lan87xx_config_init,
 
-		.ack_interrupt  = lan87xx_phy_ack_interrupt,
 		.config_intr    = lan87xx_phy_config_intr,
+		.handle_interrupt = lan87xx_handle_interrupt,
 
 		.suspend        = genphy_suspend,
 		.resume         = genphy_resume,
