@@ -4391,7 +4391,7 @@ static void ibmvfc_npiv_login(struct ibmvfc_host *vhost)
 		ibmvfc_dbg(vhost, "Sent NPIV login\n");
 	else
 		ibmvfc_link_down(vhost, IBMVFC_LINK_DEAD);
-};
+}
 
 /**
  * ibmvfc_npiv_logout_done - Completion handler for NPIV Logout
