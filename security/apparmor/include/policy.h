@@ -77,6 +77,7 @@ enum profile_mode {
 struct aa_policydb {
 	/* Generic policy DFA specific rule types will be subsections of it */
 	struct aa_dfa *dfa;
+	struct aa_perms *perms;
 	unsigned int start[AA_CLASS_LAST + 1];
 
 };

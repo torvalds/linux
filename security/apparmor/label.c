@@ -1328,7 +1328,7 @@ next:
 		if (!state)
 			goto fail;
 	}
-	aa_compute_perms(profile->policy.dfa, state, perms);
+	*perms = *aa_lookup_perms(profile->policy.perms, state);
 	aa_apply_modes_to_perms(profile, perms);
 	if ((perms->allow & request) != request)
 		return -EACCES;
@@ -1379,7 +1379,7 @@ static int label_components_match(struct aa_profile *profile,
 	return 0;
 
 next:
-	aa_compute_perms(profile->policy.dfa, state, &tmp);
+	tmp = *aa_lookup_perms(profile->policy.perms, state);
 	aa_apply_modes_to_perms(profile, &tmp);
 	aa_perms_accum(perms, &tmp);
 	label_for_each_cont(i, label, tp) {
@@ -1388,7 +1388,7 @@ next:
 		state = match_component(profile, tp, start);
 		if (!state)
 			goto fail;
-		aa_compute_perms(profile->policy.dfa, state, &tmp);
+		tmp = *aa_lookup_perms(profile->policy.perms, state);
 		aa_apply_modes_to_perms(profile, &tmp);
 		aa_perms_accum(perms, &tmp);
 	}

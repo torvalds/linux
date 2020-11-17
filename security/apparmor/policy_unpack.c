@@ -756,7 +756,7 @@ static struct aa_perms *compute_fperms(struct aa_dfa *dfa)
 
 	state_count = dfa->tables[YYTD_ID_BASE]->td_lolen;
 	/* DFAs are restricted from having a state_count of less than 2 */
-	table = kvzalloc(state_count * 2 * sizeof(struct aa_perms), GFP_KERNEL);
+	table = kvcalloc(state_count * 2, sizeof(struct aa_perms), GFP_KERNEL);
 	if (!table)
 		return NULL;
 
@@ -787,6 +787,54 @@ static struct aa_perms *compute_xmatch_perms(struct aa_dfa *xmatch)
 		perms_table[state].allow = dfa_user_allow(xmatch, state);
 
 	return perms_table;
+}
+
+static u32 map_other(u32 x)
+{
+	return ((x & 0x3) << 8) |	/* SETATTR/GETATTR */
+		((x & 0x1c) << 18) |	/* ACCEPT/BIND/LISTEN */
+		((x & 0x60) << 19);	/* SETOPT/GETOPT */
+}
+
+static struct aa_perms compute_perms_entry(struct aa_dfa *dfa,
+					   unsigned int state)
+{
+	struct aa_perms perms = { };
+
+	perms.allow = dfa_user_allow(dfa, state);
+	perms.audit = dfa_user_audit(dfa, state);
+	perms.quiet = dfa_user_quiet(dfa, state);
+
+	/* for v5 perm mapping in the policydb, the other set is used
+	 * to extend the general perm set
+	 */
+
+	perms.allow |= map_other(dfa_other_allow(dfa, state));
+	perms.audit |= map_other(dfa_other_audit(dfa, state));
+	perms.quiet |= map_other(dfa_other_quiet(dfa, state));
+
+	return perms;
+}
+
+static struct aa_perms *compute_perms(struct aa_dfa *dfa)
+{
+	int state;
+	int state_count;
+	struct aa_perms *table;
+
+	AA_BUG(!dfa);
+
+	state_count = dfa->tables[YYTD_ID_BASE]->td_lolen;
+	/* DFAs are restricted from having a state_count of less than 2 */
+	table = kvcalloc(state_count, sizeof(struct aa_perms), GFP_KERNEL);
+	if (!table)
+		return NULL;
+
+	/* zero init so skip the trap state (state == 0) */
+	for (state = 1; state < state_count; state++)
+		table[state] = compute_perms_entry(dfa, state);
+
+	return table;
 }
 
 /**
@@ -986,6 +1034,11 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 			goto fail;
 	} else
 		profile->policy.dfa = aa_get_dfa(nulldfa);
+	profile->policy.perms = compute_perms(profile->policy.dfa);
+	if (!profile->policy.perms) {
+		info = "failed to remap policydb permission table";
+		goto fail;
+	}
 
 	/* get file rules */
 	profile->file.dfa = unpack_dfa(e);

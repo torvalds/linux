@@ -133,6 +133,17 @@ extern struct aa_perms allperms;
 	xcheck(fn_for_each((L1), (P), (FN1)), fn_for_each((L2), (P), (FN2)))
 
 
+extern struct aa_perms default_perms;
+
+static inline struct aa_perms *aa_lookup_perms(struct aa_perms *perms,
+					       unsigned int state)
+{
+	if (!(perms))
+		return &default_perms;
+
+	return &(perms[state]);
+}
+
 void aa_perm_mask_to_str(char *str, size_t str_size, const char *chrs,
 			 u32 mask);
 void aa_audit_perm_names(struct audit_buffer *ab, const char * const *names,
@@ -141,8 +152,6 @@ void aa_audit_perm_mask(struct audit_buffer *ab, u32 mask, const char *chrs,
 			u32 chrsmask, const char * const *names, u32 namesmask);
 void aa_apply_modes_to_perms(struct aa_profile *profile,
 			     struct aa_perms *perms);
-void aa_compute_perms(struct aa_dfa *dfa, unsigned int state,
-		      struct aa_perms *perms);
 void aa_perms_accum(struct aa_perms *accum, struct aa_perms *addend);
 void aa_perms_accum_raw(struct aa_perms *accum, struct aa_perms *addend);
 void aa_profile_match_label(struct aa_profile *profile, struct aa_label *label,
