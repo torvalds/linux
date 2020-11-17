@@ -464,14 +464,14 @@ void __init mark_linear_text_alias_ro(void)
 	/*
 	 * Remove the write permissions from the linear alias of .text/.rodata
 	 */
-	update_mapping_prot(__pa_symbol(_text), (unsigned long)lm_alias(_text),
-			    (unsigned long)__init_begin - (unsigned long)_text,
+	update_mapping_prot(__pa_symbol(_stext), (unsigned long)lm_alias(_stext),
+			    (unsigned long)__init_begin - (unsigned long)_stext,
 			    PAGE_KERNEL_RO);
 }
 
 static void __init map_mem(pgd_t *pgdp)
 {
-	phys_addr_t kernel_start = __pa_symbol(_text);
+	phys_addr_t kernel_start = __pa_symbol(_stext);
 	phys_addr_t kernel_end = __pa_symbol(__init_begin);
 	phys_addr_t start, end;
 	int flags = 0;
@@ -506,7 +506,7 @@ static void __init map_mem(pgd_t *pgdp)
 	}
 
 	/*
-	 * Map the linear alias of the [_text, __init_begin) interval
+	 * Map the linear alias of the [_stext, __init_begin) interval
 	 * as non-executable now, and remove the write permission in
 	 * mark_linear_text_alias_ro() below (which will be called after
 	 * alternative patching has completed). This makes the contents
@@ -665,7 +665,7 @@ static void __init map_kernel(pgd_t *pgdp)
 	 * Only rodata will be remapped with different permissions later on,
 	 * all other segments are allowed to use contiguous mappings.
 	 */
-	map_kernel_segment(pgdp, _text, _etext, text_prot, &vmlinux_text, 0,
+	map_kernel_segment(pgdp, _stext, _etext, text_prot, &vmlinux_text, 0,
 			   VM_NO_GUARD);
 	map_kernel_segment(pgdp, __start_rodata, __inittext_begin, PAGE_KERNEL,
 			   &vmlinux_rodata, NO_CONT_MAPPINGS, VM_NO_GUARD);

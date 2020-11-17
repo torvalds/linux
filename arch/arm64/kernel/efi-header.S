@@ -140,13 +140,6 @@ efi_debug_entry:
 	.set	efi_debug_entry_size, . - efi_debug_entry
 #endif
 
-	/*
-	 * EFI will load .text onwards at the 4k section alignment
-	 * described in the PE/COFF header. To ensure that instruction
-	 * sequences using an adrp and a :lo12: immediate will function
-	 * correctly at this alignment, we must ensure that .text is
-	 * placed at a 4k boundary in the Image to begin with.
-	 */
 	.balign	SEGMENT_ALIGN
 efi_header_end:
 	.endm
