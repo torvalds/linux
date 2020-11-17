@@ -2191,16 +2191,15 @@ void *hl_fw_cpu_accessible_dma_pool_alloc(struct hl_device *hdev, size_t size,
 void hl_fw_cpu_accessible_dma_pool_free(struct hl_device *hdev, size_t size,
 					void *vaddr);
 int hl_fw_send_heartbeat(struct hl_device *hdev);
-int hl_fw_cpucp_info_get(struct hl_device *hdev);
+int hl_fw_cpucp_info_get(struct hl_device *hdev,
+			u32 cpu_security_boot_status_reg);
 int hl_fw_get_eeprom_data(struct hl_device *hdev, void *data, size_t max_size);
 int hl_fw_cpucp_pci_counters_get(struct hl_device *hdev,
 		struct hl_info_pci_counters *counters);
 int hl_fw_cpucp_total_energy_get(struct hl_device *hdev,
 			u64 *total_energy);
-int hl_fw_cpucp_pll_info_get(struct hl_device *hdev,
-		enum cpucp_pll_type_attributes pll_type,
-		enum cpucp_pll_reg_attributes pll_reg,
-		u32 *pll_info);
+int hl_fw_cpucp_pll_info_get(struct hl_device *hdev, u16 pll_index,
+		u16 *pll_freq_arr);
 int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 			u32 msg_to_cpu_reg, u32 cpu_msg_status_reg,
 			u32 cpu_security_boot_status_reg, u32 boot_err0_reg,

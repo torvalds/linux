@@ -279,7 +279,8 @@ int hl_fw_send_heartbeat(struct hl_device *hdev)
 	return rc;
 }
 
-int hl_fw_cpucp_info_get(struct hl_device *hdev)
+int hl_fw_cpucp_info_get(struct hl_device *hdev,
+			u32 cpu_security_boot_status_reg)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct cpucp_packet pkt = {};
@@ -323,6 +324,11 @@ int hl_fw_cpucp_info_get(struct hl_device *hdev)
 		rc = -EFAULT;
 		goto out;
 	}
+
+	/* Read FW application security bits again */
+	if (hdev->asic_prop.fw_security_status_valid)
+		hdev->asic_prop.fw_app_security_map =
+				RREG32(cpu_security_boot_status_reg);
 
 out:
 	hdev->asic_funcs->cpu_accessible_dma_pool_free(hdev,
@@ -446,10 +452,8 @@ int hl_fw_cpucp_total_energy_get(struct hl_device *hdev, u64 *total_energy)
 	return rc;
 }
 
-int hl_fw_cpucp_pll_info_get(struct hl_device *hdev,
-		enum cpucp_pll_type_attributes pll_type,
-		enum cpucp_pll_reg_attributes pll_reg,
-		u32 *pll_info)
+int hl_fw_cpucp_pll_info_get(struct hl_device *hdev, u16 pll_index,
+		u16 *pll_freq_arr)
 {
 	struct cpucp_packet pkt;
 	u64 result;
@@ -457,17 +461,19 @@ int hl_fw_cpucp_pll_info_get(struct hl_device *hdev,
 
 	memset(&pkt, 0, sizeof(pkt));
 
-	pkt.ctl = cpu_to_le32(CPUCP_PACKET_PLL_REG_GET <<
+	pkt.ctl = cpu_to_le32(CPUCP_PACKET_PLL_INFO_GET <<
 				CPUCP_PKT_CTL_OPCODE_SHIFT);
-	pkt.pll_type = __cpu_to_le16(pll_type);
-	pkt.pll_reg = __cpu_to_le16(pll_reg);
+	pkt.pll_type = __cpu_to_le16(pll_index);
 
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
 			HL_CPUCP_INFO_TIMEOUT_USEC, &result);
 	if (rc)
 		dev_err(hdev->dev, "Failed to read PLL info, error %d\n", rc);
 
-	*pll_info = (u32) result;
+	pll_freq_arr[0] = FIELD_GET(CPUCP_PKT_RES_PLL_OUT0_MASK, result);
+	pll_freq_arr[1] = FIELD_GET(CPUCP_PKT_RES_PLL_OUT1_MASK, result);
+	pll_freq_arr[2] = FIELD_GET(CPUCP_PKT_RES_PLL_OUT2_MASK, result);
+	pll_freq_arr[3] = FIELD_GET(CPUCP_PKT_RES_PLL_OUT3_MASK, result);
 
 	return rc;
 }

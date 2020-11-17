@@ -252,10 +252,26 @@ enum pq_init_status {
  *       The packet's arguments specify the desired sensor and the field to
  *       set.
  *
- * CPUCP_PACKET_PLL_REG_GET
- *       Fetch register of PLL from the required PLL IP.
- *       The packet's arguments specify the PLL IP and the register to get.
- *       Each register is 32-bit value which is returned in result field.
+ * CPUCP_PACKET_PCIE_THROUGHPUT_GET
+ *       Get throughput of PCIe.
+ *       The packet's arguments specify the transaction direction (TX/RX).
+ *       The window measurement is 10[msec], and the return value is in KB/sec.
+ *
+ * CPUCP_PACKET_PCIE_REPLAY_CNT_GET
+ *       Replay count measures number of "replay" events, which is basicly
+ *       number of retries done by PCIe.
+ *
+ * CPUCP_PACKET_TOTAL_ENERGY_GET
+ *       Total Energy is measurement of energy from the time FW Linux
+ *       is loaded. It is calculated by multiplying the average power
+ *       by time (passed from armcp start). The units are in MilliJouls.
+ *
+ * CPUCP_PACKET_PLL_INFO_GET
+ *       Fetch frequencies of PLL from the required PLL IP.
+ *       The packet's arguments specify the device PLL type
+ *       Pll type is the PLL from device pll_index enum.
+ *       The result is composed of 4 outputs, each is 16-bit
+ *       frequency in MHz.
  *
  */
 
@@ -289,7 +305,7 @@ enum cpucp_packet_id {
 	CPUCP_PACKET_PCIE_THROUGHPUT_GET,	/* internal */
 	CPUCP_PACKET_PCIE_REPLAY_CNT_GET,	/* internal */
 	CPUCP_PACKET_TOTAL_ENERGY_GET,		/* internal */
-	CPUCP_PACKET_PLL_REG_GET,		/* internal */
+	CPUCP_PACKET_PLL_INFO_GET,		/* internal */
 };
 
 #define CPUCP_PACKET_FENCE_VAL	0xFE8CE7A5
@@ -299,6 +315,15 @@ enum cpucp_packet_id {
 
 #define CPUCP_PKT_CTL_OPCODE_SHIFT	16
 #define CPUCP_PKT_CTL_OPCODE_MASK	0x1FFF0000
+
+#define CPUCP_PKT_RES_PLL_OUT0_SHIFT	0
+#define CPUCP_PKT_RES_PLL_OUT0_MASK	0x000000000000FFFF
+#define CPUCP_PKT_RES_PLL_OUT1_SHIFT	16
+#define CPUCP_PKT_RES_PLL_OUT1_MASK	0x00000000FFFF0000
+#define CPUCP_PKT_RES_PLL_OUT2_SHIFT	32
+#define CPUCP_PKT_RES_PLL_OUT2_MASK	0x0000FFFF00000000
+#define CPUCP_PKT_RES_PLL_OUT3_SHIFT	48
+#define CPUCP_PKT_RES_PLL_OUT3_MASK	0xFFFF000000000000
 
 struct cpucp_packet {
 	union {
@@ -324,8 +349,9 @@ struct cpucp_packet {
 			__u8 pad; /* unused */
 		};
 
-		struct {/* For PLL register fetch */
+		struct {/* For PLL info fetch */
 			__le16 pll_type;
+			/* TODO pll_reg is kept temporary before removal */
 			__le16 pll_reg;
 		};
 
@@ -404,6 +430,7 @@ enum cpucp_pcie_throughput_attributes {
 	cpucp_pcie_throughput_rx
 };
 
+/* TODO temporary kept before removal */
 enum cpucp_pll_reg_attributes {
 	cpucp_pll_nr_reg,
 	cpucp_pll_nf_reg,
@@ -412,6 +439,7 @@ enum cpucp_pll_reg_attributes {
 	cpucp_pll_div_sel_reg
 };
 
+/* TODO temporary kept before removal */
 enum cpucp_pll_type_attributes {
 	cpucp_pll_cpu,
 	cpucp_pll_pci,

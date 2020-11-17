@@ -403,6 +403,25 @@ static int total_energy_consumption_info(struct hl_fpriv *hpriv,
 		min((size_t) max_size, sizeof(total_energy))) ? -EFAULT : 0;
 }
 
+static int pll_frequency_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
+{
+	struct hl_device *hdev = hpriv->hdev;
+	struct hl_pll_frequency_info freq_info = {0};
+	u32 max_size = args->return_size;
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+	int rc;
+
+	if ((!max_size) || (!out))
+		return -EINVAL;
+
+	rc = hl_fw_cpucp_pll_info_get(hdev, args->pll_index, freq_info.output);
+	if (rc)
+		return rc;
+
+	return copy_to_user(out, &freq_info,
+		min((size_t) max_size, sizeof(freq_info))) ? -EFAULT : 0;
+}
+
 static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 				struct device *dev)
 {
@@ -479,6 +498,9 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 
 	case HL_INFO_TOTAL_ENERGY:
 		return total_energy_consumption_info(hpriv, args);
+
+	case HL_INFO_PLL_FREQUENCY:
+		return pll_frequency_info(hpriv, args);
 
 	default:
 		dev_err(dev, "Invalid request %d\n", args->op);

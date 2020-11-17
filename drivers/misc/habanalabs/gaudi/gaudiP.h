@@ -14,6 +14,7 @@
 #include "../include/gaudi/gaudi_packets.h"
 #include "../include/gaudi/gaudi.h"
 #include "../include/gaudi/gaudi_async_events.h"
+#include "../include/gaudi/gaudi_fw_if.h"
 
 #define NUMBER_OF_EXT_HW_QUEUES		8
 #define NUMBER_OF_CMPLT_QUEUES		NUMBER_OF_EXT_HW_QUEUES
@@ -103,6 +104,13 @@
 
 #define MME_ACC_OFFSET		(mmMME1_ACC_BASE - mmMME0_ACC_BASE)
 #define SRAM_BANK_OFFSET	(mmSRAM_Y0_X1_RTR_BASE - mmSRAM_Y0_X0_RTR_BASE)
+
+#define PLL_NR_OFFSET		0
+#define PLL_NF_OFFSET		(mmPSOC_CPU_PLL_NF - mmPSOC_CPU_PLL_NR)
+#define PLL_OD_OFFSET		(mmPSOC_CPU_PLL_OD - mmPSOC_CPU_PLL_NR)
+#define PLL_DIV_FACTOR_0_OFFSET	(mmPSOC_CPU_PLL_DIV_FACTOR_0 - \
+				mmPSOC_CPU_PLL_NR)
+#define PLL_DIV_SEL_0_OFFSET	(mmPSOC_CPU_PLL_DIV_SEL_0 - mmPSOC_CPU_PLL_NR)
 
 #define NUM_OF_SOB_IN_BLOCK		\
 	(((mmSYNC_MNGR_E_N_SYNC_MNGR_OBJS_SOB_OBJ_2047 - \
