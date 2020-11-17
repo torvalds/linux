@@ -343,9 +343,7 @@ static void qeth_set_ethtool_link_modes(struct ethtool_link_ksettings *cmd)
 		ethtool_link_ksettings_add_link_mode(cmd, advertising, FIBRE);
 		break;
 	default:
-		ethtool_link_ksettings_add_link_mode(cmd, supported, TP);
-		ethtool_link_ksettings_add_link_mode(cmd, advertising, TP);
-		WARN_ON_ONCE(1);
+		break;
 	}
 
 	/* partially does fall through, to also select lower speeds */
@@ -393,15 +391,7 @@ static void qeth_set_ethtool_link_modes(struct ethtool_link_ksettings *cmd)
 						     10baseT_Half);
 		break;
 	default:
-		ethtool_link_ksettings_add_link_mode(cmd, supported,
-						     10baseT_Full);
-		ethtool_link_ksettings_add_link_mode(cmd, advertising,
-						     10baseT_Full);
-		ethtool_link_ksettings_add_link_mode(cmd, supported,
-						     10baseT_Half);
-		ethtool_link_ksettings_add_link_mode(cmd, advertising,
-						     10baseT_Half);
-		WARN_ON_ONCE(1);
+		break;
 	}
 }
 
