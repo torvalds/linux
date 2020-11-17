@@ -560,8 +560,6 @@ int
 nfs3svc_decode_readdirargs(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nfsd3_readdirargs *args = rqstp->rq_argp;
-	int len;
-	u32 max_blocksize = svc_max_payload(rqstp);
 
 	p = decode_fh(p, &args->fh);
 	if (!p)
@@ -570,14 +568,6 @@ nfs3svc_decode_readdirargs(struct svc_rqst *rqstp, __be32 *p)
 	args->verf   = p; p += 2;
 	args->dircount = ~0;
 	args->count  = ntohl(*p++);
-	len = args->count  = min_t(u32, args->count, max_blocksize);
-
-	while (len > 0) {
-		struct page *p = *(rqstp->rq_next_page++);
-		if (!args->buffer)
-			args->buffer = page_address(p);
-		len -= PAGE_SIZE;
-	}
 
 	return xdr_argsize_check(rqstp, p);
 }
@@ -586,8 +576,6 @@ int
 nfs3svc_decode_readdirplusargs(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nfsd3_readdirargs *args = rqstp->rq_argp;
-	int len;
-	u32 max_blocksize = svc_max_payload(rqstp);
 
 	p = decode_fh(p, &args->fh);
 	if (!p)
@@ -596,14 +584,6 @@ nfs3svc_decode_readdirplusargs(struct svc_rqst *rqstp, __be32 *p)
 	args->verf     = p; p += 2;
 	args->dircount = ntohl(*p++);
 	args->count    = ntohl(*p++);
-
-	len = args->count = min(args->count, max_blocksize);
-	while (len > 0) {
-		struct page *p = *(rqstp->rq_next_page++);
-		if (!args->buffer)
-			args->buffer = page_address(p);
-		len -= PAGE_SIZE;
-	}
 
 	return xdr_argsize_check(rqstp, p);
 }

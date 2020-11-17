@@ -435,6 +435,23 @@ nfsd3_proc_link(struct svc_rqst *rqstp)
 	return rpc_success;
 }
 
+static void nfsd3_init_dirlist_pages(struct svc_rqst *rqstp,
+				     struct nfsd3_readdirres *resp,
+				     int count)
+{
+	count = min_t(u32, count, svc_max_payload(rqstp));
+
+	/* Convert byte count to number of words (i.e. >> 2),
+	 * and reserve room for the NULL ptr & eof flag (-2 words) */
+	resp->buflen = (count >> 2) - 2;
+
+	resp->buffer = page_address(*rqstp->rq_next_page);
+	while (count > 0) {
+		rqstp->rq_next_page++;
+		count -= PAGE_SIZE;
+	}
+}
+
 /*
  * Read a portion of a directory.
  */
@@ -452,16 +469,12 @@ nfsd3_proc_readdir(struct svc_rqst *rqstp)
 				SVCFH_fmt(&argp->fh),
 				argp->count, (u32) argp->cookie);
 
-	/* Make sure we've room for the NULL ptr & eof flag, and shrink to
-	 * client read size */
-	count = (argp->count >> 2) - 2;
+	nfsd3_init_dirlist_pages(rqstp, resp, argp->count);
 
 	/* Read directory and encode entries on the fly */
 	fh_copy(&resp->fh, &argp->fh);
 
-	resp->buflen = count;
 	resp->common.err = nfs_ok;
-	resp->buffer = argp->buffer;
 	resp->rqstp = rqstp;
 	offset = argp->cookie;
 
@@ -513,16 +526,12 @@ nfsd3_proc_readdirplus(struct svc_rqst *rqstp)
 				SVCFH_fmt(&argp->fh),
 				argp->count, (u32) argp->cookie);
 
-	/* Convert byte count to number of words (i.e. >> 2),
-	 * and reserve room for the NULL ptr & eof flag (-2 words) */
-	resp->count = (argp->count >> 2) - 2;
+	nfsd3_init_dirlist_pages(rqstp, resp, argp->count);
 
 	/* Read directory and encode entries on the fly */
 	fh_copy(&resp->fh, &argp->fh);
 
 	resp->common.err = nfs_ok;
-	resp->buffer = argp->buffer;
-	resp->buflen = resp->count;
 	resp->rqstp = rqstp;
 	offset = argp->cookie;
 
