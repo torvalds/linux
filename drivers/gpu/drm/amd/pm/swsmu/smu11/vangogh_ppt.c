@@ -689,14 +689,14 @@ static int vangogh_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TAB
 
 		if (input[0] == 0) {
 			if (input[1] < smu->gfx_default_hard_min_freq) {
-				dev_warn(smu->adev->dev, "Fine grain setting minimun sclk (%ld) MHz is less than the minimum allowed (%d) MHz\n",
+				dev_warn(smu->adev->dev, "Fine grain setting minimum sclk (%ld) MHz is less than the minimum allowed (%d) MHz\n",
 					input[1], smu->gfx_default_hard_min_freq);
 				return -EINVAL;
 			}
 			smu->gfx_actual_hard_min_freq = input[1];
 		} else if (input[0] == 1) {
 			if (input[1] > smu->gfx_default_soft_max_freq) {
-				dev_warn(smu->adev->dev, "Fine grain setting maximun sclk (%ld) MHz is greater than the maximum allowed (%d) MHz\n",
+				dev_warn(smu->adev->dev, "Fine grain setting maximum sclk (%ld) MHz is greater than the maximum allowed (%d) MHz\n",
 					input[1], smu->gfx_default_soft_max_freq);
 				return -EINVAL;
 			}
