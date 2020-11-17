@@ -438,6 +438,9 @@ static const struct of_device_id at91_rtc_dt_ids[] = {
 		.compatible = "atmel,sama5d2-rtc",
 		.data = &sama5d4_config,
 	}, {
+		.compatible = "microchip,sam9x60-rtc",
+		.data = &sama5d4_config,
+	}, {
 		/* sentinel */
 	}
 };
