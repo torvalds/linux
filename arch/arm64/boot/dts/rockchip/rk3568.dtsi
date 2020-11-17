@@ -748,6 +748,7 @@
 			clock-names = "clk", "pclk";
 			resets = <&cru SRST_CORE_PVTM>, <&cru SRST_P_CORE_PVTM>;
 			reset-names = "rts", "rst-p";
+			thermal-zone = "soc-thermal";
 		};
 	};
 
@@ -811,6 +812,7 @@
 			clock-names = "clk", "pclk";
 			resets = <&cru SRST_GPU_PVTM>, <&cru SRST_P_GPU_PVTM>;
 			reset-names = "rts", "rst-p";
+			thermal-zone = "gpu-thermal";
 		};
 	};
 
@@ -826,6 +828,7 @@
 			clock-names = "clk", "pclk", "hclk";
 			resets = <&cru SRST_NPU_PVTM>, <&cru SRST_P_NPU_PVTM>;
 			reset-names = "rts", "rst-p";
+			thermal-zone = "soc-thermal";
 		};
 	};
 
