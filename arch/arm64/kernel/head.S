@@ -58,21 +58,11 @@
  * in the entry routines.
  */
 	__HEAD
-_head:
 	/*
 	 * DO NOT MODIFY. Image header expected by Linux boot-loaders.
 	 */
-#ifdef CONFIG_EFI
-	/*
-	 * This add instruction has no meaningful effect except that
-	 * its opcode forms the magic "MZ" signature required by UEFI.
-	 */
-	add	x13, x18, #0x16
-	b	primary_entry
-#else
+	efi_signature_nop			// special NOP to identity as PE/COFF executable
 	b	primary_entry			// branch to kernel start, magic
-	.long	0				// reserved
-#endif
 	.quad	0				// Image load offset from start of RAM, little-endian
 	le64sym	_kernel_size_le			// Effective size of kernel image, little-endian
 	le64sym	_kernel_flags_le		// Informative flags, little-endian
@@ -80,14 +70,9 @@ _head:
 	.quad	0				// reserved
 	.quad	0				// reserved
 	.ascii	ARM64_IMAGE_MAGIC		// Magic number
-#ifdef CONFIG_EFI
-	.long	pe_header - _head		// Offset to the PE header.
+	.long	.Lpe_header_offset		// Offset to the PE header.
 
-pe_header:
 	__EFI_PE_HEADER
-#else
-	.long	0				// reserved
-#endif
 
 	__INIT
 

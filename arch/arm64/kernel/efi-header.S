@@ -7,7 +7,27 @@
 #include <linux/pe.h>
 #include <linux/sizes.h>
 
+	.macro	efi_signature_nop
+#ifdef CONFIG_EFI
+.L_head:
+	/*
+	 * This ccmp instruction has no meaningful effect except that
+	 * its opcode forms the magic "MZ" signature required by UEFI.
+	 */
+	ccmp	x18, #0, #0xd, pl
+#else
+	/*
+	 * Bootloaders may inspect the opcode at the start of the kernel
+	 * image to decide if the kernel is capable of booting via UEFI.
+	 * So put an ordinary NOP here, not the "MZ.." pseudo-nop above.
+	 */
+	nop
+#endif
+	.endm
+
 	.macro	__EFI_PE_HEADER
+#ifdef CONFIG_EFI
+	.set	.Lpe_header_offset, . - .L_head
 	.long	PE_MAGIC
 	.short	IMAGE_FILE_MACHINE_ARM64		// Machine
 	.short	.Lsection_count				// NumberOfSections
@@ -26,8 +46,8 @@
 	.long	__initdata_begin - .Lefi_header_end	// SizeOfCode
 	.long	__pecoff_data_size			// SizeOfInitializedData
 	.long	0					// SizeOfUninitializedData
-	.long	__efistub_efi_pe_entry - _head		// AddressOfEntryPoint
-	.long	.Lefi_header_end - _head		// BaseOfCode
+	.long	__efistub_efi_pe_entry - .L_head	// AddressOfEntryPoint
+	.long	.Lefi_header_end - .L_head		// BaseOfCode
 
 	.quad	0					// ImageBase
 	.long	SEGMENT_ALIGN				// SectionAlignment
@@ -40,10 +60,10 @@
 	.short	0					// MinorSubsystemVersion
 	.long	0					// Win32VersionValue
 
-	.long	_end - _head				// SizeOfImage
+	.long	_end - .L_head				// SizeOfImage
 
 	// Everything before the kernel image is considered part of the header
-	.long	.Lefi_header_end - _head		// SizeOfHeaders
+	.long	.Lefi_header_end - .L_head		// SizeOfHeaders
 	.long	0					// CheckSum
 	.short	IMAGE_SUBSYSTEM_EFI_APPLICATION		// Subsystem
 	.short	0					// DllCharacteristics
@@ -62,7 +82,7 @@
 	.quad	0					// BaseRelocationTable
 
 #ifdef CONFIG_DEBUG_EFI
-	.long	.Lefi_debug_table - _head		// DebugTable
+	.long	.Lefi_debug_table - .L_head		// DebugTable
 	.long	.Lefi_debug_table_size
 #endif
 
@@ -70,9 +90,9 @@
 .Lsection_table:
 	.ascii	".text\0\0\0"
 	.long	__initdata_begin - .Lefi_header_end	// VirtualSize
-	.long	.Lefi_header_end - _head		// VirtualAddress
+	.long	.Lefi_header_end - .L_head		// VirtualAddress
 	.long	__initdata_begin - .Lefi_header_end	// SizeOfRawData
-	.long	.Lefi_header_end - _head		// PointerToRawData
+	.long	.Lefi_header_end - .L_head		// PointerToRawData
 
 	.long	0					// PointerToRelocations
 	.long	0					// PointerToLineNumbers
@@ -84,9 +104,9 @@
 
 	.ascii	".data\0\0\0"
 	.long	__pecoff_data_size			// VirtualSize
-	.long	__initdata_begin - _head		// VirtualAddress
+	.long	__initdata_begin - .L_head		// VirtualAddress
 	.long	__pecoff_data_rawsize			// SizeOfRawData
-	.long	__initdata_begin - _head		// PointerToRawData
+	.long	__initdata_begin - .L_head		// PointerToRawData
 
 	.long	0					// PointerToRelocations
 	.long	0					// PointerToLineNumbers
@@ -121,7 +141,7 @@
 	.long	IMAGE_DEBUG_TYPE_CODEVIEW		// Type
 	.long	.Lefi_debug_entry_size			// SizeOfData
 	.long	0					// RVA
-	.long	.Lefi_debug_entry - _head		// FileOffset
+	.long	.Lefi_debug_entry - .L_head		// FileOffset
 
 	.set	.Lefi_debug_table_size, . - .Lefi_debug_table
 	.previous
@@ -140,4 +160,7 @@
 
 	.balign	SEGMENT_ALIGN
 .Lefi_header_end:
+#else
+	.set	.Lpe_header_offset, 0x0
+#endif
 	.endm
