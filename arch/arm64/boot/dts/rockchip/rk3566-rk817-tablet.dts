@@ -700,7 +700,7 @@
 	ts@40 {
 		compatible = "gslX680-pad";
 		reg = <0x40>;
-		touch-gpio = <&gpio3 RK_PB0 IRQ_TYPE_LEVEL_LOW>;
+		touch-gpio = <&gpio3 RK_PB0 IRQ_TYPE_LEVEL_HIGH>;
 		reset-gpio = <&gpio3 RK_PB1 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&tp_gpio>;
