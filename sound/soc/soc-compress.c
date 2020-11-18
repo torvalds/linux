@@ -41,7 +41,7 @@ static int soc_compr_free(struct snd_compr_stream *cstream)
 	if (!snd_soc_dai_active(codec_dai))
 		codec_dai->rate = 0;
 
-	snd_soc_link_compr_shutdown(cstream);
+	snd_soc_link_compr_shutdown(cstream, 0);
 
 	snd_soc_component_compr_free(cstream, 0);
 
@@ -205,7 +205,7 @@ static int soc_compr_free_fe(struct snd_compr_stream *cstream)
 
 	fe->dpcm[stream].runtime = NULL;
 
-	snd_soc_link_compr_shutdown(cstream);
+	snd_soc_link_compr_shutdown(cstream, 0);
 
 	snd_soc_component_compr_free(cstream, 0);
 

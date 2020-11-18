@@ -162,17 +162,26 @@ int snd_soc_link_compr_startup(struct snd_compr_stream *cstream)
 	    rtd->dai_link->compr_ops->startup)
 		ret = rtd->dai_link->compr_ops->startup(cstream);
 
+	if (ret == 0)
+		soc_link_mark_push(rtd, cstream, compr_startup);
+
 	return soc_link_ret(rtd, ret);
 }
 EXPORT_SYMBOL_GPL(snd_soc_link_compr_startup);
 
-void snd_soc_link_compr_shutdown(struct snd_compr_stream *cstream)
+void snd_soc_link_compr_shutdown(struct snd_compr_stream *cstream,
+				 int rollback)
 {
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
+
+	if (rollback && !soc_link_mark_match(rtd, cstream, compr_startup))
+		return;
 
 	if (rtd->dai_link->compr_ops &&
 	    rtd->dai_link->compr_ops->shutdown)
 		rtd->dai_link->compr_ops->shutdown(cstream);
+
+	soc_link_mark_pop(rtd, cstream, compr_startup);
 }
 EXPORT_SYMBOL_GPL(snd_soc_link_compr_shutdown);
 

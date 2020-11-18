@@ -1163,6 +1163,7 @@ struct snd_soc_pcm_runtime {
 	/* function mark */
 	struct snd_pcm_substream *mark_startup;
 	struct snd_pcm_substream *mark_hw_params;
+	struct snd_compr_stream  *mark_compr_startup;
 
 	/* bit field */
 	unsigned int pop_wait:1;
