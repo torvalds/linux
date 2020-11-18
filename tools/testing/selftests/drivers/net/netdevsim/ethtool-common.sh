@@ -20,23 +20,6 @@ function cleanup {
 
 trap cleanup EXIT
 
-function get_netdev_name {
-    local -n old=$1
-
-    new=$(ls /sys/class/net)
-
-    for netdev in $new; do
-	for check in $old; do
-            [ $netdev == $check ] && break
-	done
-
-	if [ $netdev != $check ]; then
-	    echo $netdev
-	    break
-	fi
-    done
-}
-
 function check {
     local code=$1
     local str=$2
@@ -65,5 +48,6 @@ function make_netdev {
     fi
 
     echo $NSIM_ID > /sys/bus/netdevsim/new_device
-    echo `get_netdev_name old_netdevs`
+    # get new device name
+    ls /sys/bus/netdevsim/devices/netdevsim${NSIM_ID}/net/
 }
