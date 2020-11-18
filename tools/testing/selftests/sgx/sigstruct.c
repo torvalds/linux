@@ -135,33 +135,21 @@ static inline const BIGNUM *get_modulus(RSA *key)
 
 static RSA *gen_sign_key(void)
 {
-	BIGNUM *e;
+	unsigned long sign_key_length;
+	BIO *bio;
 	RSA *key;
-	int ret;
 
-	e = BN_new();
-	key = RSA_new();
+	sign_key_length = (unsigned long)&sign_key_end -
+			  (unsigned long)&sign_key;
 
-	if (!e || !key)
-		goto err;
+	bio = BIO_new_mem_buf(&sign_key, sign_key_length);
+	if (!bio)
+		return NULL;
 
-	ret = BN_set_word(e, RSA_3);
-	if (ret != 1)
-		goto err;
-
-	ret = RSA_generate_key_ex(key, 3072, e, NULL);
-	if (ret != 1)
-		goto err;
-
-	BN_free(e);
+	key = PEM_read_bio_RSAPrivateKey(bio, NULL, NULL, NULL);
+	BIO_free(bio);
 
 	return key;
-
-err:
-	RSA_free(key);
-	BN_free(e);
-
-	return NULL;
 }
 
 static void reverse_bytes(void *data, int length)
@@ -339,8 +327,10 @@ bool encl_measure(struct encl *encl)
 		goto err;
 
 	key = gen_sign_key();
-	if (!key)
+	if (!key) {
+		ERR_print_errors_fp(stdout);
 		goto err;
+	}
 
 	BN_bn2bin(get_modulus(key), sigstruct->modulus);
 

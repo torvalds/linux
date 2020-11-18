@@ -27,6 +27,9 @@ struct encl {
 	struct sgx_sigstruct sigstruct;
 };
 
+extern unsigned char sign_key[];
+extern unsigned char sign_key_end[];
+
 void encl_delete(struct encl *ctx);
 bool encl_load(const char *path, struct encl *encl);
 bool encl_measure(struct encl *encl);
