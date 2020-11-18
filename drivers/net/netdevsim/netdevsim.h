@@ -51,11 +51,15 @@ struct nsim_ipsec {
 	u32 ok;
 };
 
-struct nsim_ethtool {
+struct nsim_ethtool_pauseparam {
 	bool rx;
 	bool tx;
 	bool report_stats_rx;
 	bool report_stats_tx;
+};
+
+struct nsim_ethtool {
+	struct nsim_ethtool_pauseparam pauseparam;
 };
 
 struct netdevsim {
