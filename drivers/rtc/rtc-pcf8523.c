@@ -356,12 +356,13 @@ static int pcf8523_probe(struct i2c_client *client,
 	if (err < 0)
 		return err;
 
-	rtc = devm_rtc_device_register(&client->dev, DRIVER_NAME,
-				       &pcf8523_rtc_ops, THIS_MODULE);
+	rtc = devm_rtc_allocate_device(&client->dev);
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
 
-	return 0;
+	rtc->ops = &pcf8523_rtc_ops;
+
+	return devm_rtc_register_device(rtc);
 }
 
 static const struct i2c_device_id pcf8523_id[] = {
