@@ -6515,18 +6515,20 @@ lpfc_els_rcv_lcb(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	lcb_context->ndlp = lpfc_nlp_get(ndlp);
 	if (!lcb_context->ndlp) {
 		rjt_err = LSRJT_UNABLE_TPC;
-		goto rjt;
+		goto rjt_free;
 	}
 
 	if (lpfc_sli4_set_beacon(vport, lcb_context, state)) {
 		lpfc_printf_vlog(ndlp->vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "0193 failed to send mail box");
-		kfree(lcb_context);
 		lpfc_nlp_put(ndlp);
 		rjt_err = LSRJT_UNABLE_TPC;
-		goto rjt;
+		goto rjt_free;
 	}
 	return 0;
+
+rjt_free:
+	kfree(lcb_context);
 rjt:
 	memset(&stat, 0, sizeof(stat));
 	stat.un.b.lsRjtRsnCode = rjt_err;
