@@ -384,6 +384,8 @@ static int rk3568_combphy_cfg(struct rockchip_combphy_priv *priv)
 		param_write(priv->phy_grf, &cfg->usb_mode_set, true);
 		break;
 	case PHY_TYPE_SATA:
+		writel(0x41, priv->mmio + 0x38);
+		writel(0x8F, priv->mmio + 0x18);
 		param_write(priv->phy_grf, &cfg->con0_for_sata, true);
 		param_write(priv->phy_grf, &cfg->con1_for_sata, true);
 		param_write(priv->phy_grf, &cfg->con2_for_sata, true);
@@ -417,9 +419,9 @@ static const struct rockchip_combphy_grfcfg rk3568_combphy_grfcfgs = {
 	.con2_for_pcie		= { 0x0008, 15, 0, 0x00, 0x0101 },
 	.con3_for_pcie		= { 0x000c, 15, 0, 0x00, 0x0200 },
 	.con0_for_sata		= { 0x0000, 15, 0, 0x00, 0x0119 },
-	.con1_for_sata		= { 0x0004, 15, 0, 0x00, 0x0000 },
+	.con1_for_sata		= { 0x0004, 15, 0, 0x00, 0x0040 },
 	.con2_for_sata		= { 0x0008, 15, 0, 0x00, 0x80c3 },
-	.con3_for_sata		= { 0x000c, 15, 0, 0x00, 0x4402 },
+	.con3_for_sata		= { 0x000c, 15, 0, 0x00, 0x4407 },
 	.pipe_con0_for_sata	= { 0x0000, 15, 0, 0x00, 0x2220 },
 	.u3otg0_port_en		= { 0x0104, 15, 0, 0x0181, 0x1100 },
 	.u3otg1_port_en		= { 0x0144, 15, 0, 0x0181, 0x1100 },
