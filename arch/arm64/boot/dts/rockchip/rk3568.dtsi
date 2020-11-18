@@ -205,6 +205,15 @@
 		clock-output-names = "xin24m";
 	};
 
+	xin32k: xin32k {
+		compatible = "fixed-clock";
+		clock-frequency = <32768>;
+		clock-output-names = "xin32k";
+		#clock-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&clk32k_out0>;
+	};
+
 	sata0: sata@fc000000 {
 		compatible = "snps,dwc-ahci";
 		reg = <0 0xfc000000 0 0x1000>;
@@ -546,8 +555,12 @@
 		compatible = "rockchip,rk3568-pmucru";
 		reg = <0x0 0xfdd00000 0x0 0x1000>;
 		rockchip,grf = <&grf>;
+		rockchip,pmugrf = <&pmugrf>;
 		#clock-cells = <1>;
 		#reset-cells = <1>;
+
+		assigned-clocks = <&pmucru SCLK_32K_IOE>;
+		assigned-clock-parents = <&pmucru CLK_RTC_32K>;
 	};
 
 	cru: clock-controller@fdd20000 {

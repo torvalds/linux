@@ -253,13 +253,20 @@
 	};
 	clk32k {
 		/omit-if-no-ref/
-		clk32k_pins: clk32k-pins {
+		clkin_32k: clkin-32k {
 			rockchip,pins =
-				/* clk32k_in */
-				<0 RK_PB0 1 &pcfg_pull_none>,
-				/* clk32k_out0 */
-				<0 RK_PB0 2 &pcfg_pull_none>,
-				/* clk32k_out1 */
+				<0 RK_PB0 1 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		clk32k_out0: clk32k-out0 {
+			rockchip,pins =
+				<0 RK_PB0 2 &pcfg_pull_none>;
+		};
+
+		/omit-if-no-ref/
+		clk32k_out1: clk32k-out1 {
+			rockchip,pins =
 				<2 RK_PC6 1 &pcfg_pull_none>;
 		};
 	};
