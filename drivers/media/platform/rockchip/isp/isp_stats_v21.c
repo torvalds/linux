@@ -68,8 +68,8 @@ rkisp_stats_get_rawawb_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
 	}
 
 	for (i = 0; i < ISP2X_RAWAWB_RAMDATA_NUM; i++) {
-		lsb = rkisp_read(stats_vdev->dev, ISP_RAWAWB_RAM_DATA, true);
-		msb = rkisp_read(stats_vdev->dev, ISP_RAWAWB_RAM_DATA, true);
+		lsb = rkisp_read(stats_vdev->dev, ISP21_RAWAWB_RAM_DATA_BASE, true);
+		msb = rkisp_read(stats_vdev->dev, ISP21_RAWAWB_RAM_DATA_BASE, true);
 		pbuf->params.rawawb.ramdata[i].b = lsb & 0x3FFFF;
 		pbuf->params.rawawb.ramdata[i].g = ((lsb & 0xFFFC0000) >> 18) | (msb & 0xF) << 14;
 		pbuf->params.rawawb.ramdata[i].r = (msb & 0x3FFFF0) >> 4;
@@ -77,9 +77,9 @@ rkisp_stats_get_rawawb_meas_reg(struct rkisp_isp_stats_vdev *stats_vdev,
 	}
 
 out:
-	value = rkisp_read(stats_vdev->dev, ISP_RAWAWB_CTRL, true);
+	value = rkisp_read(stats_vdev->dev, ISP21_RAWAWB_CTRL, true);
 	value |= ISP2X_3A_MEAS_DONE;
-	rkisp_write(stats_vdev->dev, ISP_RAWAWB_CTRL, value, true);
+	rkisp_write(stats_vdev->dev, ISP21_RAWAWB_CTRL, value, true);
 }
 
 static void
