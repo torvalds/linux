@@ -1979,7 +1979,7 @@ static int gsi_startxfer_for_ep(struct usb_ep *ep, struct usb_gsi_request *req)
 	memset(&params, 0, sizeof(params));
 	params.param0 = GSI_TRB_ADDR_BIT_53_MASK | GSI_TRB_ADDR_BIT_55_MASK;
 	params.param0 |= upper_32_bits(dwc3_trb_dma_offset(dep,
-						&dep->trb_pool[0]) & 0xffff);
+						&dep->trb_pool[0])) & 0xffff;
 	params.param0 |= (req->ep_intr_num << 16);
 	params.param1 = lower_32_bits(dwc3_trb_dma_offset(dep,
 						&dep->trb_pool[0]));
@@ -2215,7 +2215,7 @@ static int gsi_prepare_trbs(struct usb_ep *ep, struct usb_gsi_request *req)
 
 		/* Set up the Link TRB at the end */
 		trb->bpl = lower_32_bits(trb0_dma);
-		trb->bph = upper_32_bits(trb0_dma & 0xffff);
+		trb->bph = upper_32_bits(trb0_dma) & 0xffff;
 		trb->bph |= (1 << 23) | (1 << 21) | (req->ep_intr_num << 16);
 		trb->ctrl = DWC3_TRBCTL_LINK_TRB | DWC3_TRB_CTRL_HWO;
 	} else { /* OUT direction */
@@ -2237,7 +2237,7 @@ static int gsi_prepare_trbs(struct usb_ep *ep, struct usb_gsi_request *req)
 
 		/* Set up the Link TRB at the end */
 		trb->bpl = lower_32_bits(trb0_dma);
-		trb->bph = upper_32_bits(trb0_dma & 0xffff);
+		trb->bph = upper_32_bits(trb0_dma) & 0xffff;
 		trb->bph |= (1 << 23) | (1 << 21) | (req->ep_intr_num << 16);
 		trb->ctrl = DWC3_TRBCTL_LINK_TRB | DWC3_TRB_CTRL_HWO;
 	}
