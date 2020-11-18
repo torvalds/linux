@@ -919,8 +919,6 @@ static void vop2_setup_scale(struct vop2 *vop2, const struct vop2_win *win,
 	uint16_t yrgb_hor_scl_mode, yrgb_ver_scl_mode;
 	uint16_t cbcr_hor_scl_mode, cbcr_ver_scl_mode;
 	uint16_t hscl_filter_mode, vscl_filter_mode;
-	uint8_t vscl_factor = src_h / dst_h;
-	uint8_t cbcr_vscl_factor = cbcr_src_h / dst_h;
 	uint8_t gt2 = 0;
 	uint8_t gt4 = 0;
 	uint32_t val;
@@ -943,10 +941,15 @@ static void vop2_setup_scale(struct vop2 *vop2, const struct vop2_win *win,
 	else
 		vscl_filter_mode = win_data->vsd_filter_mode;
 
-	if (vscl_factor > 4)
+	if (src_h > (4 * dst_h))
 		gt4 = 1;
-	else if (vscl_factor > 2)
+	else if (src_h > (2 * dst_h))
 		gt2 = 1;
+
+	if (gt4)
+		src_h >>= 2;
+	else if (gt2)
+		src_h >>= 1;
 
 	val = vop2_scale_factor(yrgb_hor_scl_mode, hscl_filter_mode,
 				src_w, dst_w);
@@ -965,6 +968,18 @@ static void vop2_setup_scale(struct vop2 *vop2, const struct vop2_win *win,
 	VOP_SCL_SET(vop2, win, yrgb_vscl_filter_mode, vscl_filter_mode);
 
 	if (info->is_yuv) {
+		gt4 = gt2 = 0;
+
+		if (cbcr_src_h > (4 * dst_h))
+			gt4 = 1;
+		else if (cbcr_src_h > (2 * dst_h))
+			gt2 = 1;
+
+		if (gt4)
+			cbcr_src_h >>= 2;
+		else if (gt2)
+			cbcr_src_h >>= 1;
+
 		val = vop2_scale_factor(cbcr_hor_scl_mode, hscl_filter_mode,
 					cbcr_src_w, dst_w);
 		VOP_SCL_SET(vop2, win, scale_cbcr_x, val);
@@ -972,12 +987,6 @@ static void vop2_setup_scale(struct vop2 *vop2, const struct vop2_win *win,
 					cbcr_src_h, dst_h);
 		VOP_SCL_SET(vop2, win, scale_cbcr_y, val);
 
-		gt4 = gt2 = 0;
-
-		if (cbcr_vscl_factor > 4)
-			gt4 = 1;
-		else if (cbcr_vscl_factor > 2)
-			gt2 = 1;
 		VOP_SCL_SET(vop2, win, vsd_cbcr_gt4, gt4);
 		VOP_SCL_SET(vop2, win, vsd_cbcr_gt2, gt2);
 		VOP_SCL_SET(vop2, win, cbcr_hor_scl_mode, cbcr_hor_scl_mode);
