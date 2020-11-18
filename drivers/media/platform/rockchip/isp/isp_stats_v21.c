@@ -423,7 +423,71 @@ static void
 rkisp_stats_get_rawawb_meas_ddr(struct rkisp_isp_stats_vdev *stats_vdev,
 				struct rkisp_isp21_stat_buffer *pbuf)
 {
+	struct isp21_rawawb_meas_stat *rawawb;
+	u32 value, rd_buf_idx;
+	u32 *reg_addr, *raw_addr;
+	u64 msb, lsb;
+	u32 i;
 
+	if (!pbuf)
+		goto OUT;
+
+	rawawb = &pbuf->params.rawawb;
+	pbuf->meas_type |= ISP2X_STAT_RAWAWB;
+	rd_buf_idx = stats_vdev->rd_buf_idx;
+	raw_addr = stats_vdev->stats_buf[rd_buf_idx].vaddr + 0x2000;
+	reg_addr = stats_vdev->stats_buf[rd_buf_idx].vaddr + 0x2710;
+	for (i = 0; i < ISP2X_RAWAWB_SUM_NUM; i++) {
+		rawawb->ro_rawawb_sum_rgain_nor[i] =
+			reg_addr[(0x20 * i + 0x0) / 4];
+		rawawb->ro_rawawb_sum_bgain_nor[i] =
+			reg_addr[(0x20 * i + 0x4) / 4];
+		rawawb->ro_rawawb_wp_num_nor[i] =
+			reg_addr[(0x20 * i + 0x8) / 4];
+		rawawb->ro_rawawb_sum_rgain_big[i] =
+			reg_addr[(0x20 * i + 0x10) / 4];
+		rawawb->ro_rawawb_sum_bgain_big[i] =
+			reg_addr[(0x20 * i + 0x14) / 4];
+		rawawb->ro_rawawb_wp_num_big[i] =
+			reg_addr[(0x20 * i + 0x18) / 4];
+	}
+
+	for (i = 0; i < ISP21_RAWAWB_HSTBIN_NUM / 2; i++) {
+		value = reg_addr[(0x04 * i + 0xE0) / 4];
+		rawawb->ro_yhist_bin[2 * i] = value & 0xFFFF;
+		rawawb->ro_yhist_bin[2 * i + 1] = (value & 0xFFFF0000) >> 16;
+	}
+
+	for (i = 0; i < ISP2X_RAWAWB_RAMDATA_NUM / 2; i++) {
+		lsb = raw_addr[4 * i];
+		msb = raw_addr[4 * i + 1];
+		rawawb->ramdata[2 * i].b = lsb & 0x3FFFF;
+		rawawb->ramdata[2 * i].g = ((lsb & 0xFFFC0000) >> 18) | (msb & 0xF) << 14;
+		rawawb->ramdata[2 * i].r = (msb & 0x3FFFF0) >> 4;
+		rawawb->ramdata[2 * i].wp = (msb & 0xFFC00000) >> 22;
+
+		lsb = ((raw_addr[4 * i + 2] & 0x3FFFFFF) << 6) |
+		      ((raw_addr[4 * i + 1] & 0xFC000000) >> 26);
+		msb = ((raw_addr[4 * i + 3] & 0x3FFFFFF) << 6) |
+		      ((raw_addr[4 * i + 2] & 0xFC000000) >> 26);
+		rawawb->ramdata[2 * i + 1].b = lsb & 0x3FFFF;
+		value = ((lsb & 0xFFFC0000) >> 18) | (msb & 0xF) << 14;
+		rawawb->ramdata[2 * i + 1].g = value;
+		rawawb->ramdata[2 * i + 1].r = (msb & 0x3FFFF0) >> 4;
+		rawawb->ramdata[2 * i + 1].wp = (msb & 0xFFC00000) >> 22;
+	}
+
+	lsb = raw_addr[4 * i];
+	msb = raw_addr[4 * i + 1];
+	rawawb->ramdata[2 * i].b = lsb & 0x3FFFF;
+	rawawb->ramdata[2 * i].g = ((lsb & 0xFFFC0000) >> 18) | (msb & 0xF) << 14;
+	rawawb->ramdata[2 * i].r = (msb & 0x3FFFF0) >> 4;
+	rawawb->ramdata[2 * i].wp = (msb & 0xFFC00000) >> 22;
+
+OUT:
+	value = rkisp_read(stats_vdev->dev, ISP21_RAWAWB_CTRL, true);
+	value |= ISP2X_3A_MEAS_DONE;
+	rkisp_write(stats_vdev->dev, ISP21_RAWAWB_CTRL, value, true);
 }
 
 static void

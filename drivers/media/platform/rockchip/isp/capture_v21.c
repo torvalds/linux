@@ -889,6 +889,7 @@ static int rkisp_start(struct rkisp_stream *stream)
 	 * when run at 120fps.
 	 */
 	if (is_update) {
+		rkisp_stats_first_ddr_config(&dev->stats_vdev);
 		hdr_config_dmatx(dev);
 		force_cfg_update(dev);
 		mi_frame_end(stream);
