@@ -2165,7 +2165,8 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans, u64 bytes_used,
 	cache->flags = type;
 	cache->last_byte_to_unpin = (u64)-1;
 	cache->cached = BTRFS_CACHE_FINISHED;
-	cache->needs_free_space = 1;
+	if (btrfs_fs_compat_ro(fs_info, FREE_SPACE_TREE))
+		cache->needs_free_space = 1;
 	ret = exclude_super_stripes(cache);
 	if (ret) {
 		/* We may have excluded something, so call this just in case */
