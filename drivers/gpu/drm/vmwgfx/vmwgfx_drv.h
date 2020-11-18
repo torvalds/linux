@@ -954,30 +954,29 @@ extern int vmw_fifo_init(struct vmw_private *dev_priv,
 extern void vmw_fifo_release(struct vmw_private *dev_priv,
 			     struct vmw_fifo_state *fifo);
 extern void *
-vmw_fifo_reserve_dx(struct vmw_private *dev_priv, uint32_t bytes, int ctx_id);
-extern void vmw_fifo_commit(struct vmw_private *dev_priv, uint32_t bytes);
-extern void vmw_fifo_commit_flush(struct vmw_private *dev_priv, uint32_t bytes);
-extern int vmw_fifo_send_fence(struct vmw_private *dev_priv,
-			       uint32_t *seqno);
+vmw_cmd_ctx_reserve(struct vmw_private *dev_priv, uint32_t bytes, int ctx_id);
+extern void vmw_cmd_commit(struct vmw_private *dev_priv, uint32_t bytes);
+extern void vmw_cmd_commit_flush(struct vmw_private *dev_priv, uint32_t bytes);
+extern int vmw_cmd_send_fence(struct vmw_private *dev_priv, uint32_t *seqno);
+extern bool vmw_supports_3d(struct vmw_private *dev_priv);
 extern void vmw_fifo_ping_host(struct vmw_private *dev_priv, uint32_t reason);
-extern bool vmw_fifo_have_3d(struct vmw_private *dev_priv);
 extern bool vmw_fifo_have_pitchlock(struct vmw_private *dev_priv);
-extern int vmw_fifo_emit_dummy_query(struct vmw_private *dev_priv,
-				     uint32_t cid);
-extern int vmw_fifo_flush(struct vmw_private *dev_priv,
-			  bool interruptible);
+extern int vmw_cmd_emit_dummy_query(struct vmw_private *dev_priv,
+				    uint32_t cid);
+extern int vmw_cmd_flush(struct vmw_private *dev_priv,
+			 bool interruptible);
 
-#define VMW_FIFO_RESERVE_DX(__priv, __bytes, __ctx_id)                        \
+#define VMW_CMD_CTX_RESERVE(__priv, __bytes, __ctx_id)                        \
 ({                                                                            \
-	vmw_fifo_reserve_dx(__priv, __bytes, __ctx_id) ? : ({                 \
+	vmw_cmd_ctx_reserve(__priv, __bytes, __ctx_id) ? : ({                 \
 		DRM_ERROR("FIFO reserve failed at %s for %u bytes\n",         \
 			  __func__, (unsigned int) __bytes);                  \
 		NULL;                                                         \
 	});                                                                   \
 })
 
-#define VMW_FIFO_RESERVE(__priv, __bytes)                                     \
-	VMW_FIFO_RESERVE_DX(__priv, __bytes, SVGA3D_INVALID_ID)
+#define VMW_CMD_RESERVE(__priv, __bytes)                                     \
+	VMW_CMD_CTX_RESERVE(__priv, __bytes, SVGA3D_INVALID_ID)
 
 /**
  * TTM glue - vmwgfx_ttm_glue.c
@@ -1385,8 +1384,7 @@ struct vmw_cmdbuf_header;
 
 extern struct vmw_cmdbuf_man *
 vmw_cmdbuf_man_create(struct vmw_private *dev_priv);
-extern int vmw_cmdbuf_set_pool_size(struct vmw_cmdbuf_man *man,
-				    size_t size, size_t default_size);
+extern int vmw_cmdbuf_set_pool_size(struct vmw_cmdbuf_man *man, size_t size);
 extern void vmw_cmdbuf_remove_pool(struct vmw_cmdbuf_man *man);
 extern void vmw_cmdbuf_man_destroy(struct vmw_cmdbuf_man *man);
 extern int vmw_cmdbuf_idle(struct vmw_cmdbuf_man *man, bool interruptible,

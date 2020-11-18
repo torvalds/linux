@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright 2009-2015 VMware, Inc., Palo Alto, CA., USA
+ * Copyright 2009-2020 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -36,7 +36,7 @@ struct vmw_temp_set_context {
 	SVGA3dCmdDXTempSetContext body;
 };
 
-bool vmw_fifo_have_3d(struct vmw_private *dev_priv)
+bool vmw_supports_3d(struct vmw_private *dev_priv)
 {
 	uint32_t fifo_min, hwversion;
 	const struct vmw_fifo_state *fifo = &dev_priv->fifo;
@@ -66,10 +66,10 @@ bool vmw_fifo_have_3d(struct vmw_private *dev_priv)
 		return false;
 
 	hwversion = vmw_fifo_mem_read(dev_priv,
-				  ((fifo->capabilities &
-				    SVGA_FIFO_CAP_3D_HWVERSION_REVISED) ?
-				   SVGA_FIFO_3D_HWVERSION_REVISED :
-				   SVGA_FIFO_3D_HWVERSION));
+				      ((fifo->capabilities &
+					SVGA_FIFO_CAP_3D_HWVERSION_REVISED) ?
+					       SVGA_FIFO_3D_HWVERSION_REVISED :
+					       SVGA_FIFO_3D_HWVERSION));
 
 	if (hwversion == 0)
 		return false;
@@ -126,6 +126,7 @@ int vmw_fifo_init(struct vmw_private *dev_priv, struct vmw_fifo_state *fifo)
 
 	vmw_write(dev_priv, SVGA_REG_ENABLE, SVGA_REG_ENABLE_ENABLE |
 		  SVGA_REG_ENABLE_HIDE);
+
 	vmw_write(dev_priv, SVGA_REG_TRACES, 0);
 
 	min = 4;
@@ -373,7 +374,7 @@ out_err:
 	return NULL;
 }
 
-void *vmw_fifo_reserve_dx(struct vmw_private *dev_priv, uint32_t bytes,
+void *vmw_cmd_ctx_reserve(struct vmw_private *dev_priv, uint32_t bytes,
 			  int ctx_id)
 {
 	void *ret;
@@ -484,7 +485,7 @@ static void vmw_local_fifo_commit(struct vmw_private *dev_priv, uint32_t bytes)
 	mutex_unlock(&fifo_state->fifo_mutex);
 }
 
-void vmw_fifo_commit(struct vmw_private *dev_priv, uint32_t bytes)
+void vmw_cmd_commit(struct vmw_private *dev_priv, uint32_t bytes)
 {
 	if (dev_priv->cman)
 		vmw_cmdbuf_commit(dev_priv->cman, bytes, NULL, false);
@@ -499,7 +500,7 @@ void vmw_fifo_commit(struct vmw_private *dev_priv, uint32_t bytes)
  * @dev_priv: Pointer to device private structure.
  * @bytes: Number of bytes to commit.
  */
-void vmw_fifo_commit_flush(struct vmw_private *dev_priv, uint32_t bytes)
+void vmw_cmd_commit_flush(struct vmw_private *dev_priv, uint32_t bytes)
 {
 	if (dev_priv->cman)
 		vmw_cmdbuf_commit(dev_priv->cman, bytes, NULL, true);
@@ -514,7 +515,7 @@ void vmw_fifo_commit_flush(struct vmw_private *dev_priv, uint32_t bytes)
  * @dev_priv: Pointer to device private structure.
  * @interruptible: Whether to wait interruptible if function needs to sleep.
  */
-int vmw_fifo_flush(struct vmw_private *dev_priv, bool interruptible)
+int vmw_cmd_flush(struct vmw_private *dev_priv, bool interruptible)
 {
 	might_sleep();
 
@@ -524,7 +525,7 @@ int vmw_fifo_flush(struct vmw_private *dev_priv, bool interruptible)
 		return 0;
 }
 
-int vmw_fifo_send_fence(struct vmw_private *dev_priv, uint32_t *seqno)
+int vmw_cmd_send_fence(struct vmw_private *dev_priv, uint32_t *seqno)
 {
 	struct vmw_fifo_state *fifo_state = &dev_priv->fifo;
 	struct svga_fifo_cmd_fence *cmd_fence;
@@ -532,7 +533,7 @@ int vmw_fifo_send_fence(struct vmw_private *dev_priv, uint32_t *seqno)
 	int ret = 0;
 	uint32_t bytes = sizeof(u32) + sizeof(*cmd_fence);
 
-	fm = VMW_FIFO_RESERVE(dev_priv, bytes);
+	fm = VMW_CMD_RESERVE(dev_priv, bytes);
 	if (unlikely(fm == NULL)) {
 		*seqno = atomic_read(&dev_priv->marker_seq);
 		ret = -ENOMEM;
@@ -552,14 +553,14 @@ int vmw_fifo_send_fence(struct vmw_private *dev_priv, uint32_t *seqno)
 		 * waiting code in vmwgfx_irq.c will emulate this.
 		 */
 
-		vmw_fifo_commit(dev_priv, 0);
+		vmw_cmd_commit(dev_priv, 0);
 		return 0;
 	}
 
 	*fm++ = SVGA_CMD_FENCE;
 	cmd_fence = (struct svga_fifo_cmd_fence *) fm;
 	cmd_fence->fence = *seqno;
-	vmw_fifo_commit_flush(dev_priv, bytes);
+	vmw_cmd_commit_flush(dev_priv, bytes);
 	vmw_update_seqno(dev_priv, fifo_state);
 
 out_err:
@@ -590,7 +591,7 @@ static int vmw_fifo_emit_dummy_legacy_query(struct vmw_private *dev_priv,
 		SVGA3dCmdWaitForQuery body;
 	} *cmd;
 
-	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
+	cmd = VMW_CMD_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL))
 		return -ENOMEM;
 
@@ -607,7 +608,7 @@ static int vmw_fifo_emit_dummy_legacy_query(struct vmw_private *dev_priv,
 		cmd->body.guestResult.offset = 0;
 	}
 
-	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+	vmw_cmd_commit(dev_priv, sizeof(*cmd));
 
 	return 0;
 }
@@ -636,7 +637,7 @@ static int vmw_fifo_emit_dummy_gb_query(struct vmw_private *dev_priv,
 		SVGA3dCmdWaitForGBQuery body;
 	} *cmd;
 
-	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd));
+	cmd = VMW_CMD_RESERVE(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL))
 		return -ENOMEM;
 
@@ -648,7 +649,7 @@ static int vmw_fifo_emit_dummy_gb_query(struct vmw_private *dev_priv,
 	cmd->body.mobid = bo->mem.start;
 	cmd->body.offset = 0;
 
-	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+	vmw_cmd_commit(dev_priv, sizeof(*cmd));
 
 	return 0;
 }
@@ -672,7 +673,7 @@ static int vmw_fifo_emit_dummy_gb_query(struct vmw_private *dev_priv,
  *
  * Returns -ENOMEM on failure to reserve fifo space.
  */
-int vmw_fifo_emit_dummy_query(struct vmw_private *dev_priv,
+int vmw_cmd_emit_dummy_query(struct vmw_private *dev_priv,
 			      uint32_t cid)
 {
 	if (dev_priv->has_mob)

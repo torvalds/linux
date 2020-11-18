@@ -36,9 +36,6 @@
 
 #include "vmwgfx_kms.h"
 
-/* Might need a hrtimer here? */
-#define VMWGFX_PRESENT_RATE ((HZ / 60 > 0) ? HZ / 60 : 1)
-
 void vmw_du_cleanup(struct vmw_display_unit *du)
 {
 	drm_plane_cleanup(&du->primary);
@@ -68,7 +65,7 @@ static int vmw_cursor_update_image(struct vmw_private *dev_priv,
 	if (!image)
 		return -EINVAL;
 
-	cmd = VMW_FIFO_RESERVE(dev_priv, cmd_size);
+	cmd = VMW_CMD_RESERVE(dev_priv, cmd_size);
 	if (unlikely(cmd == NULL))
 		return -ENOMEM;
 
@@ -83,7 +80,7 @@ static int vmw_cursor_update_image(struct vmw_private *dev_priv,
 	cmd->cursor.hotspotX = hotspotX;
 	cmd->cursor.hotspotY = hotspotY;
 
-	vmw_fifo_commit_flush(dev_priv, cmd_size);
+	vmw_cmd_commit_flush(dev_priv, cmd_size);
 
 	return 0;
 }
@@ -1032,7 +1029,7 @@ static int vmw_framebuffer_bo_dirty(struct drm_framebuffer *framebuffer,
 		break;
 	}
 
-	vmw_fifo_flush(dev_priv, false);
+	vmw_cmd_flush(dev_priv, false);
 	ttm_read_unlock(&dev_priv->reservation_sem);
 
 	drm_modeset_unlock_all(&dev_priv->drm);
@@ -1767,7 +1764,7 @@ int vmw_kms_present(struct vmw_private *dev_priv,
 	if (ret)
 		return ret;
 
-	vmw_fifo_flush(dev_priv, false);
+	vmw_cmd_flush(dev_priv, false);
 
 	return 0;
 }
@@ -2384,7 +2381,7 @@ int vmw_kms_helper_dirty(struct vmw_private *dev_priv,
 
 		dirty->unit = unit;
 		if (dirty->fifo_reserve_size > 0) {
-			dirty->cmd = VMW_FIFO_RESERVE(dev_priv,
+			dirty->cmd = VMW_CMD_RESERVE(dev_priv,
 						      dirty->fifo_reserve_size);
 			if (!dirty->cmd)
 				return -ENOMEM;
@@ -2518,7 +2515,7 @@ int vmw_kms_update_proxy(struct vmw_resource *res,
 	if (!clips)
 		return 0;
 
-	cmd = VMW_FIFO_RESERVE(dev_priv, sizeof(*cmd) * num_clips);
+	cmd = VMW_CMD_RESERVE(dev_priv, sizeof(*cmd) * num_clips);
 	if (!cmd)
 		return -ENOMEM;
 
@@ -2547,7 +2544,7 @@ int vmw_kms_update_proxy(struct vmw_resource *res,
 		copy_size += sizeof(*cmd);
 	}
 
-	vmw_fifo_commit(dev_priv, copy_size);
+	vmw_cmd_commit(dev_priv, copy_size);
 
 	return 0;
 }
@@ -2750,7 +2747,7 @@ int vmw_du_helper_plane_update(struct vmw_du_update_plane *update)
 		goto out_unref;
 
 	reserved_size = update->calc_fifo_size(update, num_hits);
-	cmd_start = VMW_FIFO_RESERVE(update->dev_priv, reserved_size);
+	cmd_start = VMW_CMD_RESERVE(update->dev_priv, reserved_size);
 	if (!cmd_start) {
 		ret = -ENOMEM;
 		goto out_revert;
@@ -2799,7 +2796,7 @@ int vmw_du_helper_plane_update(struct vmw_du_update_plane *update)
 	if (reserved_size < submit_size)
 		submit_size = 0;
 
-	vmw_fifo_commit(update->dev_priv, submit_size);
+	vmw_cmd_commit(update->dev_priv, submit_size);
 
 	vmw_kms_helper_validation_finish(update->dev_priv, NULL, &val_ctx,
 					 update->out_fence, NULL);

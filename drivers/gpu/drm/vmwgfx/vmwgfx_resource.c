@@ -827,7 +827,7 @@ int vmw_query_readback_all(struct vmw_buffer_object *dx_query_mob)
 	dx_query_ctx = dx_query_mob->dx_query_ctx;
 	dev_priv     = dx_query_ctx->dev_priv;
 
-	cmd = VMW_FIFO_RESERVE_DX(dev_priv, sizeof(*cmd), dx_query_ctx->id);
+	cmd = VMW_CMD_CTX_RESERVE(dev_priv, sizeof(*cmd), dx_query_ctx->id);
 	if (unlikely(cmd == NULL))
 		return -ENOMEM;
 
@@ -835,7 +835,7 @@ int vmw_query_readback_all(struct vmw_buffer_object *dx_query_mob)
 	cmd->header.size = sizeof(cmd->body);
 	cmd->body.cid    = dx_query_ctx->id;
 
-	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+	vmw_cmd_commit(dev_priv, sizeof(*cmd));
 
 	/* Triggers a rebind the next time affected context is bound */
 	dx_query_mob->dx_query_ctx = NULL;

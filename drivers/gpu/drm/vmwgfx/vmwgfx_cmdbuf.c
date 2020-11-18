@@ -610,7 +610,7 @@ static void vmw_cmdbuf_work_func(struct work_struct *work)
 
 	/* Send a new fence in case one was removed */
 	if (send_fence) {
-		vmw_fifo_send_fence(man->dev_priv, &dummy);
+		vmw_cmd_send_fence(man->dev_priv, &dummy);
 		wake_up_all(&man->idle_queue);
 	}
 
@@ -1208,18 +1208,14 @@ static int vmw_cmdbuf_startstop(struct vmw_cmdbuf_man *man, u32 context,
  *
  * @man: The command buffer manager.
  * @size: The size of the main space pool.
- * @default_size: The default size of the command buffer for small kernel
- * submissions.
  *
- * Set the size and allocate the main command buffer space pool,
- * as well as the default size of the command buffer for
- * small kernel submissions. If successful, this enables large command
- * submissions. Note that this function requires that rudimentary command
+ * Set the size and allocate the main command buffer space pool.
+ * If successful, this enables large command submissions.
+ * Note that this function requires that rudimentary command
  * submission is already available and that the MOB memory manager is alive.
  * Returns 0 on success. Negative error code on failure.
  */
-int vmw_cmdbuf_set_pool_size(struct vmw_cmdbuf_man *man,
-			     size_t size, size_t default_size)
+int vmw_cmdbuf_set_pool_size(struct vmw_cmdbuf_man *man, size_t size)
 {
 	struct vmw_private *dev_priv = man->dev_priv;
 	bool dummy;

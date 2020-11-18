@@ -423,8 +423,7 @@ static int vmw_request_device_late(struct vmw_private *dev_priv)
 	}
 
 	if (dev_priv->cman) {
-		ret = vmw_cmdbuf_set_pool_size(dev_priv->cman,
-					       256*4096, 2*4096);
+		ret = vmw_cmdbuf_set_pool_size(dev_priv->cman, 256*4096);
 		if (ret) {
 			struct vmw_cmdbuf_man *man = dev_priv->cman;
 

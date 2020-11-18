@@ -554,7 +554,7 @@ int vmw_kms_ldu_do_bo_dirty(struct vmw_private *dev_priv,
 	} *cmd;
 
 	fifo_size = sizeof(*cmd) * num_clips;
-	cmd = VMW_FIFO_RESERVE(dev_priv, fifo_size);
+	cmd = VMW_CMD_RESERVE(dev_priv, fifo_size);
 	if (unlikely(cmd == NULL))
 		return -ENOMEM;
 
@@ -567,6 +567,6 @@ int vmw_kms_ldu_do_bo_dirty(struct vmw_private *dev_priv,
 		cmd[i].body.height = clips->y2 - clips->y1;
 	}
 
-	vmw_fifo_commit(dev_priv, fifo_size);
+	vmw_cmd_commit(dev_priv, fifo_size);
 	return 0;
 }

@@ -258,7 +258,7 @@ out_unreserve:
 	if (w && h) {
 		WARN_ON_ONCE(par->set_fb->funcs->dirty(cur_fb, NULL, 0, 0,
 						       &clip, 1));
-		vmw_fifo_flush(vmw_priv, false);
+		vmw_cmd_flush(vmw_priv, false);
 	}
 out_unlock:
 	mutex_unlock(&par->bo_mutex);
