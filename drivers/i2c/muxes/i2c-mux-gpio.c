@@ -53,6 +53,7 @@ static int i2c_mux_gpio_deselect(struct i2c_mux_core *muxc, u32 chan)
 static int i2c_mux_gpio_probe_dt(struct gpiomux *mux,
 					struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct device_node *np = pdev->dev.of_node;
 	struct device_node *adapter_np, *child;
 	struct i2c_adapter *adapter;
@@ -77,11 +78,11 @@ static int i2c_mux_gpio_probe_dt(struct gpiomux *mux,
 
 	mux->data.n_values = of_get_child_count(np);
 
-	values = devm_kcalloc(&pdev->dev,
+	values = devm_kcalloc(dev,
 			      mux->data.n_values, sizeof(*mux->data.values),
 			      GFP_KERNEL);
 	if (!values) {
-		dev_err(&pdev->dev, "Cannot allocate values array");
+		dev_err(dev, "Cannot allocate values array");
 		return -ENOMEM;
 	}
 
