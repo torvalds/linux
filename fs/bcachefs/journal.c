@@ -234,7 +234,7 @@ static int journal_entry_open(struct journal *j)
 	BUG_ON(journal_entry_is_open(j));
 
 	if (j->blocked)
-		return -EAGAIN;
+		return cur_entry_blocked;
 
 	if (j->cur_entry_error)
 		return j->cur_entry_error;
@@ -250,7 +250,7 @@ static int journal_entry_open(struct journal *j)
 	u64s  = clamp_t(int, u64s, 0, JOURNAL_ENTRY_CLOSED_VAL - 1);
 
 	if (u64s <= le32_to_cpu(buf->data->u64s))
-		return -ENOSPC;
+		return cur_entry_journal_full;
 
 	/*
 	 * Must be set before marking the journal entry as open:
@@ -262,7 +262,7 @@ static int journal_entry_open(struct journal *j)
 		old.v = new.v = v;
 
 		if (old.cur_entry_offset == JOURNAL_ENTRY_ERROR_VAL)
-			return -EROFS;
+			return cur_entry_insufficient_devices;
 
 		/* Handle any already added entries */
 		new.cur_entry_offset = le32_to_cpu(buf->data->u64s);
@@ -375,7 +375,7 @@ retry:
 		 * Don't want to close current journal entry, just need to
 		 * invoke reclaim:
 		 */
-		ret = -ENOSPC;
+		ret = cur_entry_journal_full;
 		goto unlock;
 	}
 
@@ -398,14 +398,16 @@ retry:
 		 * there's still a previous one in flight:
 		 */
 		trace_journal_entry_full(c);
-		ret = -EAGAIN;
+		ret = cur_entry_blocked;
 	} else {
 		ret = journal_entry_open(j);
 	}
 unlock:
-	if ((ret == -EAGAIN || ret == -ENOSPC) &&
-	    !j->res_get_blocked_start)
+	if ((ret && ret != cur_entry_insufficient_devices) &&
+	    !j->res_get_blocked_start) {
 		j->res_get_blocked_start = local_clock() ?: 1;
+		trace_journal_full(c);
+	}
 
 	can_discard = j->can_discard;
 	spin_unlock(&j->lock);
@@ -413,41 +415,39 @@ unlock:
 	if (!ret)
 		goto retry;
 
-	if (ret == -ENOSPC) {
-		if (WARN_ONCE(!can_discard && (flags & JOURNAL_RES_GET_RESERVED),
-			      "JOURNAL_RES_GET_RESERVED set but journal full")) {
-			char *buf;
+	if (WARN_ONCE(ret == cur_entry_journal_full &&
+		      !can_discard &&
+		      (flags & JOURNAL_RES_GET_RESERVED),
+		      "JOURNAL_RES_GET_RESERVED set but journal full")) {
+		char *buf;
 
-			buf = kmalloc(4096, GFP_NOFS);
-			if (buf) {
-				bch2_journal_debug_to_text(&_PBUF(buf, 4096), j);
-				pr_err("\n%s", buf);
-				kfree(buf);
-			}
+		buf = kmalloc(4096, GFP_NOFS);
+		if (buf) {
+			bch2_journal_debug_to_text(&_PBUF(buf, 4096), j);
+			pr_err("\n%s", buf);
+			kfree(buf);
 		}
-
-		/*
-		 * Journal is full - can't rely on reclaim from work item due to
-		 * freezing:
-		 */
-		trace_journal_full(c);
-
-		if (!(flags & JOURNAL_RES_GET_NONBLOCK)) {
-			if (can_discard) {
-				bch2_journal_do_discards(j);
-				goto retry;
-			}
-
-			if (mutex_trylock(&j->reclaim_lock)) {
-				bch2_journal_reclaim(j);
-				mutex_unlock(&j->reclaim_lock);
-			}
-		}
-
-		ret = -EAGAIN;
 	}
 
-	return ret;
+	/*
+	 * Journal is full - can't rely on reclaim from work item due to
+	 * freezing:
+	 */
+	if ((ret == cur_entry_journal_full ||
+	     ret == cur_entry_journal_pin_full) &&
+	    !(flags & JOURNAL_RES_GET_NONBLOCK)) {
+		if (can_discard) {
+			bch2_journal_do_discards(j);
+			goto retry;
+		}
+
+		if (mutex_trylock(&j->reclaim_lock)) {
+			bch2_journal_reclaim(j);
+			mutex_unlock(&j->reclaim_lock);
+		}
+	}
+
+	return ret == cur_entry_insufficient_devices ? -EROFS : -EAGAIN;
 }
 
 /*
@@ -1072,6 +1072,7 @@ void bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
 	       "last_seq_ondisk:\t%llu\n"
 	       "prereserved:\t\t%u/%u\n"
 	       "current entry sectors:\t%u\n"
+	       "current entry error:\t%u\n"
 	       "current entry:\t\t",
 	       fifo_used(&j->pin),
 	       journal_cur_seq(j),
@@ -1079,7 +1080,8 @@ void bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
 	       j->last_seq_ondisk,
 	       j->prereserved.reserved,
 	       j->prereserved.remaining,
-	       j->cur_entry_sectors);
+	       j->cur_entry_sectors,
+	       j->cur_entry_error);
 
 	switch (s.cur_entry_offset) {
 	case JOURNAL_ENTRY_ERROR_VAL:

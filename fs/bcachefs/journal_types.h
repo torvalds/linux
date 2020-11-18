@@ -146,7 +146,13 @@ struct journal {
 	 * 0, or -ENOSPC if waiting on journal reclaim, or -EROFS if
 	 * insufficient devices:
 	 */
-	int			cur_entry_error;
+	enum {
+		cur_entry_ok,
+		cur_entry_blocked,
+		cur_entry_journal_full,
+		cur_entry_journal_pin_full,
+		cur_entry_insufficient_devices,
+	}			cur_entry_error;
 
 	union journal_preres_state prereserved;
 

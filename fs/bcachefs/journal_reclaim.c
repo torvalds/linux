@@ -164,12 +164,12 @@ void bch2_journal_space_available(struct journal *j)
 	j->can_discard = can_discard;
 
 	if (nr_online < c->opts.metadata_replicas_required) {
-		ret = -EROFS;
+		ret = cur_entry_insufficient_devices;
 		goto out;
 	}
 
 	if (!fifo_free(&j->pin)) {
-		ret = -ENOSPC;
+		ret = cur_entry_journal_pin_full;
 		goto out;
 	}
 
@@ -180,7 +180,7 @@ void bch2_journal_space_available(struct journal *j)
 	clean		= __journal_space_available(j, nr_devs_want, journal_space_clean);
 
 	if (!discarded.next_entry)
-		ret = -ENOSPC;
+		ret = cur_entry_journal_full;
 
 	overhead = DIV_ROUND_UP(clean.remaining, max_entry_size) *
 		journal_entry_overhead(j);
