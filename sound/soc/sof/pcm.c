@@ -478,17 +478,10 @@ static int sof_pcm_open(struct snd_soc_component *component,
 
 	caps = &spcm->pcm.caps[substream->stream];
 
-	/* set any runtime constraints based on topology */
-	snd_pcm_hw_constraint_step(substream->runtime, 0,
-				   SNDRV_PCM_HW_PARAM_BUFFER_BYTES,
-				   le32_to_cpu(caps->period_size_min));
-	snd_pcm_hw_constraint_step(substream->runtime, 0,
-				   SNDRV_PCM_HW_PARAM_PERIOD_BYTES,
-				   le32_to_cpu(caps->period_size_min));
-
 	/* set runtime config */
 	runtime->hw.info = ops->hw_info; /* platform-specific */
 
+	/* set any runtime constraints based on topology */
 	runtime->hw.formats = le64_to_cpu(caps->formats);
 	runtime->hw.period_bytes_min = le32_to_cpu(caps->period_size_min);
 	runtime->hw.period_bytes_max = le32_to_cpu(caps->period_size_max);
