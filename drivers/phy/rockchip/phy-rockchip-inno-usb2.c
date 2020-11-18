@@ -2198,6 +2198,17 @@ static int rk3399_usb2phy_tuning(struct rockchip_usb2phy *rphy)
 	return ret;
 }
 
+static int rk3568_usb2phy_tuning(struct rockchip_usb2phy *rphy)
+{
+	u32 reg;
+
+	reg = readl(rphy->phy_base + 0x30);
+	/* turn off differential reciver in suspend mode */
+	writel(reg & ~BIT(2), rphy->phy_base + 0x30);
+
+	return 0;
+}
+
 #ifdef CONFIG_PM_SLEEP
 static int rockchip_usb2phy_pm_suspend(struct device *dev)
 {
@@ -2795,6 +2806,7 @@ static const struct rockchip_usb2phy_cfg rk3568_phy_cfgs[] = {
 	{
 		.reg = 0xfe8a0000,
 		.num_ports	= 2,
+		.phy_tuning	= rk3568_usb2phy_tuning,
 		.clkout_ctl	= { 0x0008, 4, 4, 1, 0 },
 		.port_cfgs	= {
 			[USB2PHY_PORT_OTG] = {
@@ -2845,6 +2857,7 @@ static const struct rockchip_usb2phy_cfg rk3568_phy_cfgs[] = {
 	{
 		.reg = 0xfe8b0000,
 		.num_ports	= 2,
+		.phy_tuning	= rk3568_usb2phy_tuning,
 		.clkout_ctl	= { 0x0008, 4, 4, 1, 0 },
 		.port_cfgs	= {
 			[USB2PHY_PORT_OTG] = {
