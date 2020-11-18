@@ -9,6 +9,10 @@ title: Renesas R-Car Sound Driver Device Tree Bindings
 maintainers:
   - Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
 
+allOf:
+  - $ref: audio-graph.yaml#
+  - $ref: audio-graph-port.yaml#
+
 properties:
 
   compatible:
@@ -111,13 +115,7 @@ properties:
         - pattern: '^dvc\.[0-1]$'
         - pattern: '^clk_(a|b|c|i)$'
 
-  port:
-    description: OF-Graph subnode
-    $ref: "audio-graph-card.yaml#/properties/port"
-
-  ports:
-    description: multi OF-Graph subnode
-    $ref: "audio-graph-card.yaml#/properties/ports"
+  port: true
 
 # use patternProperties to avoid naming "xxx,yyy" issue
 patternProperties:
