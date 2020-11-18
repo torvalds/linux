@@ -12,7 +12,6 @@
 
 #include <linux/keyctl.h>
 #include <linux/oid_registry.h>
-#include <crypto/akcipher.h>
 
 /*
  * Cryptographic data for the public-key subtype of the asymmetric key type.
