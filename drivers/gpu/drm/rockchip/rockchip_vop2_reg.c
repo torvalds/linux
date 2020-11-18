@@ -553,6 +553,7 @@ static const struct vop2_layer_data rk3568_vop_layers[] = {
 static const struct vop_afbc rk3568_vop_afbc = {
 	.enable = VOP_REG(RK3568_CLUSTER0_CTRL, 0x1, 1),
 	.format = VOP_REG(RK3568_CLUSTER0_WIN0_AFBCD_CTRL, 0x1f, 2),
+	.auto_gating_en = VOP_REG(RK3568_CLUSTER0_WIN0_AFBCD_OUTPUT_CTRL, 0x1, 4),
 	.half_block_en = VOP_REG(RK3568_CLUSTER0_WIN0_AFBCD_CTRL, 0x1, 7),
 	.block_split_en = VOP_REG(RK3568_CLUSTER0_WIN0_AFBCD_CTRL, 0x1, 8),
 	.hdr_ptr = VOP_REG(RK3568_CLUSTER0_WIN0_AFBCD_HDR_PTR, 0xffffffff, 0),

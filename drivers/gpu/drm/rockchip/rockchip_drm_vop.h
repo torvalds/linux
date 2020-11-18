@@ -311,6 +311,7 @@ struct vop_afbc {
 	struct vop_reg enable;
 	struct vop_reg win_sel;
 	struct vop_reg format;
+	struct vop_reg auto_gating_en;
 	struct vop_reg rotate;
 	struct vop_reg block_split_en;
 	struct vop_reg pic_vir_width;

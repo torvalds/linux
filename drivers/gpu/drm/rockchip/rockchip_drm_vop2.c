@@ -1628,6 +1628,7 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 		afbc_half_block_en = vop2_afbc_half_block_enable(vpstate);
 		VOP_AFBC_SET(vop2, win, enable, 1);
 		VOP_AFBC_SET(vop2, win, format, afbc_format);
+		VOP_AFBC_SET(vop2, win, auto_gating_en, 0);
 		VOP_AFBC_SET(vop2, win, block_split_en, 0);
 		VOP_AFBC_SET(vop2, win, half_block_en, afbc_half_block_en);
 		VOP_AFBC_SET(vop2, win, hdr_ptr, vpstate->yrgb_mst);
