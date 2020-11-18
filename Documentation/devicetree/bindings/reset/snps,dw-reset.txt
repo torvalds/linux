@@ -23,7 +23,7 @@ example:
 		#reset-cells = <1>;
 	};
 
-	dw_rst_2: reset-controller@1000 {i
+	dw_rst_2: reset-controller@1000 {
 		compatible = "snps,dw-low-reset";
 		reg = <0x1000 0x8>;
 		#reset-cells = <1>;
