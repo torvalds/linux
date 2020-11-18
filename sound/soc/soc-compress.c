@@ -22,7 +22,7 @@
 #include <sound/soc-link.h>
 #include <linux/pm_runtime.h>
 
-static int soc_compr_free(struct snd_compr_stream *cstream)
+static int soc_compr_clean(struct snd_compr_stream *cstream, int rollback)
 {
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
 	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
@@ -31,7 +31,8 @@ static int soc_compr_free(struct snd_compr_stream *cstream)
 
 	mutex_lock_nested(&rtd->card->pcm_mutex, rtd->card->pcm_subclass);
 
-	snd_soc_runtime_deactivate(rtd, stream);
+	if (!rollback)
+		snd_soc_runtime_deactivate(rtd, stream);
 
 	snd_soc_dai_digital_mute(codec_dai, 1, stream);
 
@@ -41,19 +42,25 @@ static int soc_compr_free(struct snd_compr_stream *cstream)
 	if (!snd_soc_dai_active(codec_dai))
 		codec_dai->rate = 0;
 
-	snd_soc_link_compr_shutdown(cstream, 0);
+	snd_soc_link_compr_shutdown(cstream, rollback);
 
-	snd_soc_component_compr_free(cstream, 0);
+	snd_soc_component_compr_free(cstream, rollback);
 
-	snd_soc_dai_compr_shutdown(cpu_dai, cstream, 0);
+	snd_soc_dai_compr_shutdown(cpu_dai, cstream, rollback);
 
-	snd_soc_dapm_stream_stop(rtd, stream);
+	if (!rollback)
+		snd_soc_dapm_stream_stop(rtd, stream);
 
 	mutex_unlock(&rtd->card->pcm_mutex);
 
-	snd_soc_pcm_component_pm_runtime_put(rtd, cstream, 0);
+	snd_soc_pcm_component_pm_runtime_put(rtd, cstream, rollback);
 
 	return 0;
+}
+
+static int soc_compr_free(struct snd_compr_stream *cstream)
+{
+	return soc_compr_clean(cstream, 0);
 }
 
 static int soc_compr_open(struct snd_compr_stream *cstream)
@@ -65,36 +72,28 @@ static int soc_compr_open(struct snd_compr_stream *cstream)
 
 	ret = snd_soc_pcm_component_pm_runtime_get(rtd, cstream);
 	if (ret < 0)
-		goto pm_err;
+		goto err_no_lock;
 
 	mutex_lock_nested(&rtd->card->pcm_mutex, rtd->card->pcm_subclass);
 
 	ret = snd_soc_dai_compr_startup(cpu_dai, cstream);
 	if (ret < 0)
-		goto out;
+		goto err;
 
 	ret = snd_soc_component_compr_open(cstream);
 	if (ret < 0)
-		goto machine_err;
+		goto err;
 
 	ret = snd_soc_link_compr_startup(cstream);
 	if (ret < 0)
-		goto machine_err;
+		goto err;
 
 	snd_soc_runtime_activate(rtd, stream);
-
+err:
 	mutex_unlock(&rtd->card->pcm_mutex);
-
-	return 0;
-
-machine_err:
-	snd_soc_component_compr_free(cstream, 1);
-
-	snd_soc_dai_compr_shutdown(cpu_dai, cstream, 1);
-out:
-	mutex_unlock(&rtd->card->pcm_mutex);
-pm_err:
-	snd_soc_pcm_component_pm_runtime_put(rtd, cstream, 1);
+err_no_lock:
+	if (ret < 0)
+		soc_compr_clean(cstream, 1);
 
 	return ret;
 }
