@@ -14,6 +14,7 @@
 #include "clk.h"
 
 #define RK3568_GRF_SOC_STATUS0	0x580
+#define RK3568_PMU_GRF_SOC_CON0	0x100
 
 #define RK3568_FRAC_MAX_PRATE		1000000000
 #define RK3568_SPDIF_FRAC_MAX_PRATE	600000000
@@ -316,6 +317,7 @@ PNAME(clk_mac_2top_p)			= { "cpll_125m", "cpll_50m", "cpll_25m", "ppll" };
 PNAME(clk_pwm0_p)			= { "xin24m", "clk_pdpmu" };
 PNAME(aclk_rkvdec_pre_p)		= { "gpll", "dummy_cpll" };
 PNAME(clk_rkvdec_core_p)		= { "gpll", "dummy_cpll", "dummy_npll", "dummy_vpll" };
+PNAME(clk_32k_ioe_p)			= { "clk_rtc_32k", "xin32k" };
 
 static struct rockchip_pll_clock rk3568_pmu_pll_clks[] __initdata = {
 	[ppll] = PLL(pll_rk3328, PLL_PPLL, "ppll",  mux_pll_p,
@@ -1585,6 +1587,9 @@ static struct rockchip_clk_branch rk3568_clk_pmu_branches[] __initdata = {
 			RK3568_PMU_CLKGATE_CON(2), 15, GFLAGS),
 	MUX(CLK_HDMI_REF, "clk_hdmi_ref", clk_hdmi_ref_p, 0,
 			RK3568_PMU_CLKSEL_CON(8), 7, 1, MFLAGS),
+
+	MUXPMUGRF(SCLK_32K_IOE, "clk_32k_ioe", clk_32k_ioe_p,  0,
+			RK3568_PMU_GRF_SOC_CON0, 0, 1, MFLAGS)
 };
 
 static const char *const rk3568_cru_critical_clocks[] __initconst = {
