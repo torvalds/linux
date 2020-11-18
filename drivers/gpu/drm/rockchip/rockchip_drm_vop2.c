@@ -1553,6 +1553,7 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
 	struct vop2 *vop2 = win->vop2;
 	struct drm_framebuffer *fb = pstate->fb;
+	uint32_t bpp = fb->format->bpp[0];
 	uint32_t actual_w, actual_h, dsp_w, dsp_h;
 	uint32_t dsp_stx, dsp_sty;
 	uint32_t act_info, dsp_info, dsp_st;
@@ -1625,6 +1626,10 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 		/* the afbc superblock is 16 x 16 */
 		afbc_format = vop2_convert_afbc_format(fb->format->format);
 		afbc_tile_num = actual_w >> 4;
+		/* AFBC pic_vir_width is count by pixel, this is different
+		 * with WIN_VIR_STRIDE.
+		 */
+		stride = (fb->pitches[0] << 3) / bpp;
 		afbc_half_block_en = vop2_afbc_half_block_enable(vpstate);
 		VOP_AFBC_SET(vop2, win, enable, 1);
 		VOP_AFBC_SET(vop2, win, format, afbc_format);
