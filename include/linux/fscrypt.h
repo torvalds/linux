@@ -710,8 +710,7 @@ static inline int fscrypt_require_key(struct inode *inode)
  *
  * A new link can only be added to an encrypted directory if the directory's
  * encryption key is available --- since otherwise we'd have no way to encrypt
- * the filename.  Therefore, we first set up the directory's encryption key (if
- * not already done) and return an error if it's unavailable.
+ * the filename.
  *
  * We also verify that the link will not violate the constraint that all files
  * in an encrypted directory tree use the same encryption policy.

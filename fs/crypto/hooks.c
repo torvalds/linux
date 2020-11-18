@@ -54,15 +54,12 @@ EXPORT_SYMBOL_GPL(fscrypt_file_open);
 int __fscrypt_prepare_link(struct inode *inode, struct inode *dir,
 			   struct dentry *dentry)
 {
-	int err;
-
-	err = fscrypt_require_key(dir);
-	if (err)
-		return err;
-
-	/* ... in case we looked up no-key name before key was added */
 	if (fscrypt_is_nokey_name(dentry))
 		return -ENOKEY;
+	/*
+	 * We don't need to separately check that the directory inode's key is
+	 * available, as it's implied by the dentry not being a no-key name.
+	 */
 
 	if (!fscrypt_has_permitted_context(dir, inode))
 		return -EXDEV;
@@ -75,20 +72,13 @@ int __fscrypt_prepare_rename(struct inode *old_dir, struct dentry *old_dentry,
 			     struct inode *new_dir, struct dentry *new_dentry,
 			     unsigned int flags)
 {
-	int err;
-
-	err = fscrypt_require_key(old_dir);
-	if (err)
-		return err;
-
-	err = fscrypt_require_key(new_dir);
-	if (err)
-		return err;
-
-	/* ... in case we looked up no-key name(s) before key was added */
 	if (fscrypt_is_nokey_name(old_dentry) ||
 	    fscrypt_is_nokey_name(new_dentry))
 		return -ENOKEY;
+	/*
+	 * We don't need to separately check that the directory inodes' keys are
+	 * available, as it's implied by the dentries not being no-key names.
+	 */
 
 	if (old_dir != new_dir) {
 		if (IS_ENCRYPTED(new_dir) &&
