@@ -1557,22 +1557,44 @@ int mpp_task_dump_mem_region(struct mpp_dev *mpp,
 int mpp_task_dump_reg(struct mpp_dev *mpp,
 		      struct mpp_task *task)
 {
-	u32 i, s, e;
-
 	if (!task)
 		return -EIO;
 
-	mpp_err("--- dump register ---\n");
 	if (mpp_debug_unlikely(DEBUG_DUMP_ERR_REG)) {
+		mpp_err("--- dump task register ---\n");
 		if (task->reg) {
-			s = task->hw_info->reg_start;
-			e = task->hw_info->reg_end;
+			u32 i;
+			u32 s = task->hw_info->reg_start;
+			u32 e = task->hw_info->reg_end;
+
 			for (i = s; i <= e; i++) {
 				u32 reg = i * sizeof(u32);
 
 				mpp_err("reg[%03d]: %04x: 0x%08x\n",
 					i, reg, task->reg[i]);
 			}
+		}
+	}
+
+	return 0;
+}
+
+int mpp_task_dump_hw_reg(struct mpp_dev *mpp, struct mpp_task *task)
+{
+	if (!task)
+		return -EIO;
+
+	if (mpp_debug_unlikely(DEBUG_DUMP_ERR_REG)) {
+		u32 i;
+		u32 s = task->hw_info->reg_start;
+		u32 e = task->hw_info->reg_end;
+
+		mpp_err("--- dump hardware register ---\n");
+		for (i = s; i <= e; i++) {
+			u32 reg = i * sizeof(u32);
+
+			mpp_err("reg[%03d]: %04x: 0x%08x\n",
+				i, reg, readl_relaxed(mpp->reg_base + reg));
 		}
 	}
 
@@ -1593,20 +1615,7 @@ static int mpp_iommu_handle(struct iommu_domain *iommu,
 		return -EIO;
 
 	mpp_task_dump_mem_region(mpp, task);
-
-	if (mpp_debug_unlikely(DEBUG_DUMP_ERR_REG)) {
-		u32 i;
-		u32 s = task->hw_info->reg_start;
-		u32 e = task->hw_info->reg_end;
-
-		mpp_err("--- dump register ---\n");
-		for (i = s; i <= e; i++) {
-			u32 reg = i * sizeof(u32);
-
-			mpp_err("reg[%03d]: %04x: 0x%08x\n",
-				i, reg, readl_relaxed(mpp->reg_base + reg));
-		}
-	}
+	mpp_task_dump_hw_reg(mpp, task);
 
 	if (mpp->iommu_info->hdl)
 		mpp->iommu_info->hdl(iommu, iommu_dev, iova, status, arg);

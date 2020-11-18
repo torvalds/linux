@@ -500,6 +500,8 @@ int mpp_task_dump_mem_region(struct mpp_dev *mpp,
 			     struct mpp_task *task);
 int mpp_task_dump_reg(struct mpp_dev *mpp,
 		      struct mpp_task *task);
+int mpp_task_dump_hw_reg(struct mpp_dev *mpp,
+			 struct mpp_task *task);
 
 int mpp_dev_probe(struct mpp_dev *mpp,
 		  struct platform_device *pdev);

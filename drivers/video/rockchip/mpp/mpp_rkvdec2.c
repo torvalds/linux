@@ -371,8 +371,12 @@ static int rkvdec_isr(struct mpp_dev *mpp)
 		mpp_debug(DEBUG_IRQ_STATUS, "irq_status: %08x\n", task->irq_status);
 		err_mask = RKVDEC_COLMV_REF_ERR_STA | RKVDEC_BUF_EMPTY_STA |
 			   RKVDEC_TIMEOUT_STA | RKVDEC_ERROR_STA;
-		if (err_mask & task->irq_status)
+		if (err_mask & task->irq_status) {
 			atomic_inc(&mpp->reset_request);
+			mpp_debug(DEBUG_DUMP_ERR_REG, "irq_status: %08x\n",
+				  task->irq_status);
+			mpp_task_dump_hw_reg(mpp, mpp_task);
+		}
 
 		mpp_task_finish(mpp_task->session, mpp_task);
 
