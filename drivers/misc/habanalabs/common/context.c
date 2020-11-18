@@ -15,6 +15,11 @@ static void hl_ctx_fini(struct hl_ctx *ctx)
 	u64 idle_mask = 0;
 	int i;
 
+	/* Release all allocated pending cb's, those cb's were never
+	 * scheduled so it is safe to release them here
+	 */
+	hl_pending_cb_list_flush(ctx);
+
 	/*
 	 * If we arrived here, there are no jobs waiting for this context
 	 * on its queues so we can safely remove it.
@@ -142,8 +147,11 @@ int hl_ctx_init(struct hl_device *hdev, struct hl_ctx *ctx, bool is_kernel_ctx)
 	kref_init(&ctx->refcount);
 
 	ctx->cs_sequence = 1;
+	INIT_LIST_HEAD(&ctx->pending_cb_list);
+	spin_lock_init(&ctx->pending_cb_lock);
 	spin_lock_init(&ctx->cs_lock);
 	atomic_set(&ctx->thread_ctx_switch_token, 1);
+	atomic_set(&ctx->thread_pending_cb_token, 1);
 	ctx->thread_ctx_switch_wait_token = 0;
 	ctx->cs_pending = kcalloc(hdev->asic_prop.max_pending_cs,
 				sizeof(struct hl_fence *),

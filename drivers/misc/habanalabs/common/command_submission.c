@@ -585,6 +585,18 @@ void hl_cs_rollback_all(struct hl_device *hdev)
 	}
 }
 
+void hl_pending_cb_list_flush(struct hl_ctx *ctx)
+{
+	struct hl_pending_cb *pending_cb, *tmp;
+
+	list_for_each_entry_safe(pending_cb, tmp,
+			&ctx->pending_cb_list, cb_node) {
+		list_del(&pending_cb->cb_node);
+		hl_cb_put(pending_cb->cb);
+		kfree(pending_cb);
+	}
+}
+
 static void job_wq_completion(struct work_struct *work)
 {
 	struct hl_cs_job *job = container_of(work, struct hl_cs_job,
@@ -951,6 +963,129 @@ put_cs:
 free_cs_chunk_array:
 	kfree(cs_chunk_array);
 out:
+	return rc;
+}
+
+static int pending_cb_create_job(struct hl_device *hdev, struct hl_ctx *ctx,
+		struct hl_cs *cs, struct hl_cb *cb, u32 size, u32 hw_queue_id)
+{
+	struct hw_queue_properties *hw_queue_prop;
+	struct hl_cs_counters_atomic *cntr;
+	struct hl_cs_job *job;
+
+	hw_queue_prop = &hdev->asic_prop.hw_queues_props[hw_queue_id];
+	cntr = &hdev->aggregated_cs_counters;
+
+	job = hl_cs_allocate_job(hdev, hw_queue_prop->type, true);
+	if (!job) {
+		atomic64_inc(&ctx->cs_counters.out_of_mem_drop_cnt);
+		atomic64_inc(&cntr->out_of_mem_drop_cnt);
+		dev_err(hdev->dev, "Failed to allocate a new job\n");
+		return -ENOMEM;
+	}
+
+	job->id = 0;
+	job->cs = cs;
+	job->user_cb = cb;
+	atomic_inc(&job->user_cb->cs_cnt);
+	job->user_cb_size = size;
+	job->hw_queue_id = hw_queue_id;
+	job->patched_cb = job->user_cb;
+	job->job_cb_size = job->user_cb_size;
+
+	/* increment refcount as for external queues we get completion */
+	cs_get(cs);
+
+	cs->jobs_in_queue_cnt[job->hw_queue_id]++;
+
+	list_add_tail(&job->cs_node, &cs->job_list);
+
+	hl_debugfs_add_job(hdev, job);
+
+	return 0;
+}
+
+static int hl_submit_pending_cb(struct hl_fpriv *hpriv)
+{
+	struct hl_device *hdev = hpriv->hdev;
+	struct hl_ctx *ctx = hpriv->ctx;
+	struct hl_pending_cb *pending_cb, *tmp;
+	struct list_head local_cb_list;
+	struct hl_cs *cs;
+	struct hl_cb *cb;
+	u32 hw_queue_id;
+	u32 cb_size;
+	int process_list, rc = 0;
+
+	if (list_empty(&ctx->pending_cb_list))
+		return 0;
+
+	process_list = atomic_cmpxchg(&ctx->thread_pending_cb_token, 1, 0);
+
+	/* Only a single thread is allowed to process the list */
+	if (!process_list)
+		return 0;
+
+	if (list_empty(&ctx->pending_cb_list))
+		goto free_pending_cb_token;
+
+	/* move all list elements to a local list */
+	INIT_LIST_HEAD(&local_cb_list);
+	spin_lock(&ctx->pending_cb_lock);
+	list_for_each_entry_safe(pending_cb, tmp, &ctx->pending_cb_list,
+								cb_node)
+		list_move_tail(&pending_cb->cb_node, &local_cb_list);
+	spin_unlock(&ctx->pending_cb_lock);
+
+	rc = allocate_cs(hdev, ctx, CS_TYPE_DEFAULT, &cs);
+	if (rc)
+		goto add_list_elements;
+
+	hl_debugfs_add_cs(cs);
+
+	/* Iterate through pending cb list, create jobs and add to CS */
+	list_for_each_entry(pending_cb, &local_cb_list, cb_node) {
+		cb = pending_cb->cb;
+		cb_size = pending_cb->cb_size;
+		hw_queue_id = pending_cb->hw_queue_id;
+
+		rc = pending_cb_create_job(hdev, ctx, cs, cb, cb_size,
+								hw_queue_id);
+		if (rc)
+			goto free_cs_object;
+	}
+
+	rc = hl_hw_queue_schedule_cs(cs);
+	if (rc) {
+		if (rc != -EAGAIN)
+			dev_err(hdev->dev,
+				"Failed to submit CS %d.%llu (%d)\n",
+				ctx->asid, cs->sequence, rc);
+		goto free_cs_object;
+	}
+
+	/* pending cb was scheduled successfully */
+	list_for_each_entry_safe(pending_cb, tmp, &local_cb_list, cb_node) {
+		list_del(&pending_cb->cb_node);
+		kfree(pending_cb);
+	}
+
+	cs_put(cs);
+
+	goto free_pending_cb_token;
+
+free_cs_object:
+	cs_rollback(hdev, cs);
+	cs_put(cs);
+add_list_elements:
+	spin_lock(&ctx->pending_cb_lock);
+	list_for_each_entry_safe_reverse(pending_cb, tmp, &local_cb_list,
+								cb_node)
+		list_move(&pending_cb->cb_node, &ctx->pending_cb_list);
+	spin_unlock(&ctx->pending_cb_lock);
+free_pending_cb_token:
+	atomic_set(&ctx->thread_pending_cb_token, 1);
+
 	return rc;
 }
 
@@ -1350,6 +1485,10 @@ int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
 		goto out;
 
 	rc = hl_cs_ctx_switch(hpriv, args, &cs_seq);
+	if (rc)
+		goto out;
+
+	rc = hl_submit_pending_cb(hpriv);
 	if (rc)
 		goto out;
 

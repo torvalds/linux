@@ -1017,6 +1017,20 @@ struct hl_cs_counters_atomic {
 };
 
 /**
+ * struct hl_pending_cb - pending command buffer structure
+ * @cb_node: cb node in pending cb list
+ * @cb: command buffer to send in next submission
+ * @cb_size: command buffer size
+ * @hw_queue_id: destination queue id
+ */
+struct hl_pending_cb {
+	struct list_head	cb_node;
+	struct hl_cb		*cb;
+	u32			cb_size;
+	u32			hw_queue_id;
+};
+
+/**
  * struct hl_ctx - user/kernel context.
  * @mem_hash: holds mapping from virtual address to virtual memory area
  *		descriptor (hl_vm_phys_pg_list or hl_userptr).
@@ -1031,6 +1045,8 @@ struct hl_cs_counters_atomic {
  * @mmu_lock: protects the MMU page tables. Any change to the PGT, modifying the
  *            MMU hash or walking the PGT requires talking this lock.
  * @debugfs_list: node in debugfs list of contexts.
+ * pending_cb_list: list of pending command buffers waiting to be sent upon
+ *                  next user command submission context.
  * @cs_counters: context command submission counters.
  * @cb_va_pool: device VA pool for command buffers which are mapped to the
  *              device's MMU.
@@ -1039,11 +1055,17 @@ struct hl_cs_counters_atomic {
  *			index to cs_pending array.
  * @dram_default_hops: array that holds all hops addresses needed for default
  *                     DRAM mapping.
+ * @pending_cb_lock: spinlock to protect pending cb list
  * @cs_lock: spinlock to protect cs_sequence.
  * @dram_phys_mem: amount of used physical DRAM memory by this context.
  * @thread_ctx_switch_token: token to prevent multiple threads of the same
  *				context	from running the context switch phase.
  *				Only a single thread should run it.
+ * @thread_pending_cb_token: token to prevent multiple threads from processing
+ *				the pending CB list. Only a single thread should
+ *				process the list since it is protected by a
+ *				spinlock and we don't want to halt the entire
+ *				command submission sequence.
  * @thread_ctx_switch_wait_token: token to prevent the threads that didn't run
  *				the context switch phase from moving to their
  *				execution phase before the context switch phase
@@ -1062,13 +1084,16 @@ struct hl_ctx {
 	struct mutex			mem_hash_lock;
 	struct mutex			mmu_lock;
 	struct list_head		debugfs_list;
+	struct list_head		pending_cb_list;
 	struct hl_cs_counters_atomic	cs_counters;
 	struct gen_pool			*cb_va_pool;
 	u64				cs_sequence;
 	u64				*dram_default_hops;
+	spinlock_t			pending_cb_lock;
 	spinlock_t			cs_lock;
 	atomic64_t			dram_phys_mem;
 	atomic_t			thread_ctx_switch_token;
+	atomic_t			thread_pending_cb_token;
 	u32				thread_ctx_switch_wait_token;
 	u32				asid;
 	u32				handle;
@@ -2143,6 +2168,7 @@ int hl_cb_va_pool_init(struct hl_ctx *ctx);
 void hl_cb_va_pool_fini(struct hl_ctx *ctx);
 
 void hl_cs_rollback_all(struct hl_device *hdev);
+void hl_pending_cb_list_flush(struct hl_ctx *ctx);
 struct hl_cs_job *hl_cs_allocate_job(struct hl_device *hdev,
 		enum hl_queue_type queue_type, bool is_kernel_allocated_cb);
 void hl_sob_reset_error(struct kref *ref);
