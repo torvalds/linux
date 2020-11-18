@@ -166,7 +166,6 @@ int hl_mmu_unmap_page(struct hl_ctx *ctx, u64 virt_addr, u32 page_size,
 		mmu_prop = &prop->pmmu;
 
 	pgt_residency = mmu_prop->host_resident ? MMU_HR_PGT : MMU_DR_PGT;
-
 	/*
 	 * The H/W handles mapping of specific page sizes. Hence if the page
 	 * size is bigger, we break it to sub-pages and unmap them separately.
@@ -174,11 +173,21 @@ int hl_mmu_unmap_page(struct hl_ctx *ctx, u64 virt_addr, u32 page_size,
 	if ((page_size % mmu_prop->page_size) == 0) {
 		real_page_size = mmu_prop->page_size;
 	} else {
-		dev_err(hdev->dev,
-			"page size of %u is not %uKB aligned, can't unmap\n",
-			page_size, mmu_prop->page_size >> 10);
+		/*
+		 * MMU page size may differ from DRAM page size.
+		 * In such case work with the DRAM page size and let the MMU
+		 * scrambling routine to handle this mismatch when
+		 * calculating the address to remove from the MMU page table
+		 */
+		if (is_dram_addr && ((page_size % prop->dram_page_size) == 0)) {
+			real_page_size = prop->dram_page_size;
+		} else {
+			dev_err(hdev->dev,
+				"page size of %u is not %uKB aligned, can't unmap\n",
+				page_size, mmu_prop->page_size >> 10);
 
-		return -EFAULT;
+			return -EFAULT;
+		}
 	}
 
 	npages = page_size / real_page_size;
@@ -253,6 +262,17 @@ int hl_mmu_map_page(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr,
 	 */
 	if ((page_size % mmu_prop->page_size) == 0) {
 		real_page_size = mmu_prop->page_size;
+	} else if (is_dram_addr && ((page_size % prop->dram_page_size) == 0) &&
+			(prop->dram_page_size < mmu_prop->page_size)) {
+		/*
+		 * MMU page size may differ from DRAM page size.
+		 * In such case work with the DRAM page size and let the MMU
+		 * scrambling routine handle this mismatch when calculating
+		 * the address to place in the MMU page table. (in that case
+		 * also make sure that the dram_page_size smaller than the
+		 * mmu page size)
+		 */
+		real_page_size = prop->dram_page_size;
 	} else {
 		dev_err(hdev->dev,
 			"page size of %u is not %uKB aligned, can't map\n",
@@ -261,10 +281,21 @@ int hl_mmu_map_page(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr,
 		return -EFAULT;
 	}
 
-	if (phys_addr & (real_page_size - 1))
+	/*
+	 * Verify that the phys and virt addresses are aligned with the
+	 * MMU page size (in dram this means checking the address and MMU
+	 * after scrambling)
+	 */
+	if ((is_dram_addr &&
+			((hdev->asic_funcs->scramble_vaddr(hdev, phys_addr) &
+				(mmu_prop->page_size - 1)) ||
+			(hdev->asic_funcs->scramble_vaddr(hdev, virt_addr) &
+				(mmu_prop->page_size - 1)))) ||
+		(!is_dram_addr && ((phys_addr & (real_page_size - 1)) ||
+				(virt_addr & (real_page_size - 1)))))
 		dev_crit(hdev->dev,
-			"Mapping 0x%llx with page size of 0x%x is erroneous! Address must be divisible by page size",
-			phys_addr, real_page_size);
+			"Mapping address 0x%llx with virtual address 0x%llx and page size of 0x%x is erroneous! Addresses must be divisible by page size",
+			phys_addr, virt_addr, real_page_size);
 
 	npages = page_size / real_page_size;
 	real_virt_addr = virt_addr;
@@ -474,6 +505,8 @@ int hl_mmu_get_tlb_info(struct hl_ctx *ctx, u64 virt_addr,
 	if (!hdev->mmu_enable)
 		return -EOPNOTSUPP;
 
+	hops->scrambled_vaddr = virt_addr;      /* assume no scrambling */
+
 	is_dram_addr = hl_mem_area_inside_range(virt_addr, prop->dmmu.page_size,
 						prop->dmmu.start_addr,
 						prop->dmmu.end_addr);
@@ -512,4 +545,16 @@ int hl_mmu_if_set_funcs(struct hl_device *hdev)
 	}
 
 	return 0;
+}
+
+/**
+ * hl_mmu_scramble_vaddr() - The generic mmu virtual address scrambling routine.
+ * @hdev: pointer to device data.
+ * @virt_addr: The virtual address to scramble.
+ *
+ * Return: The scrambled virtual address.
+ */
+u64 hl_mmu_scramble_vaddr(struct hl_device *hdev, u64 virt_addr)
+{
+	return virt_addr;
 }

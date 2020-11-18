@@ -14,6 +14,9 @@
 
 #define HL_MMU_DEBUG	0
 
+/* use small pages for supporting non-pow2 (32M/40M/48M) DRAM phys page sizes */
+#define DRAM_POOL_PAGE_SIZE SZ_8M
+
 /*
  * The va ranges in context object contain a list with the available chunks of
  * device virtual memory.
@@ -54,15 +57,14 @@ static int alloc_device_memory(struct hl_ctx *ctx, struct hl_mem_in *args,
 	struct hl_vm *vm = &hdev->vm;
 	struct hl_vm_phys_pg_pack *phys_pg_pack;
 	u64 paddr = 0, total_size, num_pgs, i;
-	u32 num_curr_pgs, page_size, page_shift;
+	u32 num_curr_pgs, page_size;
 	int handle, rc;
 	bool contiguous;
 
 	num_curr_pgs = 0;
 	page_size = hdev->asic_prop.dram_page_size;
-	page_shift = __ffs(page_size);
-	num_pgs = (args->alloc.mem_size + (page_size - 1)) >> page_shift;
-	total_size = num_pgs << page_shift;
+	num_pgs = DIV_ROUND_UP_ULL(args->alloc.mem_size, page_size);
+	total_size = num_pgs * page_size;
 
 	if (!total_size) {
 		dev_err(hdev->dev, "Cannot allocate 0 bytes\n");
@@ -518,7 +520,8 @@ static inline int add_va_block(struct hl_device *hdev,
 }
 
 /**
- * get_va_block() - get a virtual block for the given size and alignment.
+ * get_va_block_pow2() - get a virtual block for the given size and alignment
+ *                       where alignment is a power of 2.
  * @hdev: pointer to the habanalabs device structure.
  * @va_range: pointer to the virtual addresses range.
  * @size: requested block size.
@@ -531,12 +534,13 @@ static inline int add_va_block(struct hl_device *hdev,
  * - Reserve the requested block and update the list.
  * - Return the start address of the virtual block.
  */
-static u64 get_va_block(struct hl_device *hdev, struct hl_va_range *va_range,
-			u64 size, u64 hint_addr, u32 va_block_align)
+static u64 get_va_block_pow2(struct hl_device *hdev,
+				struct hl_va_range *va_range,
+				u64 size, u64 hint_addr, u32 va_block_align)
 {
 	struct hl_vm_va_block *va_block, *new_va_block = NULL;
 	u64 valid_start, valid_size, prev_start, prev_end, align_mask,
-		res_valid_start = 0, res_valid_size = 0;
+	reserved_valid_start = 0, reserved_valid_size = 0;
 	bool add_prev = false;
 
 	align_mask = ~((u64)va_block_align - 1);
@@ -562,34 +566,34 @@ static u64 get_va_block(struct hl_device *hdev, struct hl_va_range *va_range,
 
 		valid_size = va_block->end - valid_start;
 
-		if (valid_size >= size &&
-			(!new_va_block || valid_size < res_valid_size)) {
+		if (valid_size >= size && (!new_va_block ||
+					valid_size < reserved_valid_size)) {
 			new_va_block = va_block;
-			res_valid_start = valid_start;
-			res_valid_size = valid_size;
+			reserved_valid_start = valid_start;
+			reserved_valid_size = valid_size;
 		}
 
 		if (hint_addr && hint_addr >= valid_start &&
-				((hint_addr + size) <= va_block->end)) {
+					(hint_addr + size) <= va_block->end) {
 			new_va_block = va_block;
-			res_valid_start = hint_addr;
-			res_valid_size = valid_size;
+			reserved_valid_start = hint_addr;
+			reserved_valid_size = valid_size;
 			break;
 		}
 	}
 
 	if (!new_va_block) {
 		dev_err(hdev->dev, "no available va block for size %llu\n",
-				size);
+		size);
 		goto out;
 	}
 
-	if (res_valid_start > new_va_block->start) {
+	if (reserved_valid_start > new_va_block->start) {
 		prev_start = new_va_block->start;
-		prev_end = res_valid_start - 1;
+		prev_end = reserved_valid_start - 1;
 
-		new_va_block->start = res_valid_start;
-		new_va_block->size = res_valid_size;
+		new_va_block->start = reserved_valid_start;
+		new_va_block->size = reserved_valid_size;
 
 		add_prev = true;
 	}
@@ -610,10 +614,98 @@ static u64 get_va_block(struct hl_device *hdev, struct hl_va_range *va_range,
 out:
 	mutex_unlock(&va_range->lock);
 
-	return res_valid_start;
+	return reserved_valid_start;
 }
 
 /**
+ * get_va_block_non_pow2() - get a virtual block for the given size and
+ *                           alignment where alignment is not a power of 2.
+ * @hdev: pointer to the habanalabs device structure.
+ * @va_range: pointer to the virtual addresses range.
+ * @size: requested block size.
+ * @hint_addr: hint for requested address by the user.
+ * @va_block_align: required alignment of the virtual block start address.
+ *
+ * This function does the following:
+ * - Iterate on the virtual block list to find a suitable virtual block for the
+ *   given size and alignment.
+ * - Reserve the requested block and update the list.
+ * - Return the start address of the virtual block.
+ */
+static u64 get_va_block_non_pow2(struct hl_device *hdev,
+				struct hl_va_range *va_range,
+				u64 size, u64 hint_addr, u32 va_block_align)
+{
+	struct hl_vm_va_block *va_block, *new_va_block = NULL;
+	u64 reserved_valid_start = 0;
+
+	/*
+	 * with non-power-of-2 range we work only with page granularity and the
+	 * start address is page aligned, so no need for alignment checking.
+	 */
+	size = DIV_ROUND_UP_ULL(size, va_range->page_size) *
+							va_range->page_size;
+
+	mutex_lock(&va_range->lock);
+
+	print_va_list_locked(hdev, &va_range->list);
+
+	list_for_each_entry(va_block, &va_range->list, node) {
+		if ((va_block->start + size) > va_block->end)
+			continue;
+
+		new_va_block = va_block;
+		reserved_valid_start = va_block->start;
+		break;
+	}
+
+	if (!new_va_block) {
+		dev_err(hdev->dev, "no available va block for size %llu\n",
+				size);
+		goto out;
+	}
+
+	if (new_va_block->size > size) {
+		new_va_block->start += size;
+		new_va_block->size = new_va_block->end - new_va_block->start;
+	} else {
+		list_del(&new_va_block->node);
+		kfree(new_va_block);
+	}
+
+	print_va_list_locked(hdev, &va_range->list);
+out:
+	mutex_unlock(&va_range->lock);
+
+	return reserved_valid_start;
+}
+
+/*
+ * get_va_block() - get a virtual block for the given size and alignment.
+ * @hdev: pointer to the habanalabs device structure.
+ * @va_range: pointer to the virtual addresses range.
+ * @size: requested block size.
+ * @hint_addr: hint for requested address by the user.
+ * @va_block_align: required alignment of the virtual block start address.
+ *
+ * This function does the following:
+ * - Iterate on the virtual block list to find a suitable virtual block for the
+ *   given size and alignment.
+ * - Reserve the requested block and update the list.
+ * - Return the start address of the virtual block.
+ */
+static u64 get_va_block(struct hl_device *hdev, struct hl_va_range *va_range,
+			u64 size, u64 hint_addr, u32 va_block_align)
+{
+	if (is_power_of_2(va_range->page_size))
+		return get_va_block_pow2(hdev, va_range,
+					size, hint_addr, va_block_align);
+	else
+		return get_va_block_non_pow2(hdev, va_range,
+					size, hint_addr, va_block_align);
+}
+
+/*
  * hl_reserve_va_block() - reserve a virtual block of a given size.
  * @hdev: pointer to the habanalabs device structure.
  * @ctx: current context
@@ -1024,7 +1116,7 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 
 		hint_addr = args->map_device.hint_addr;
 
-		/* DRAM VA alignment is the same as the DRAM page size */
+		/* DRAM VA alignment is the same as the MMU page size */
 		va_range = ctx->va_range[HL_VA_RANGE_TYPE_DRAM];
 		va_block_align = hdev->asic_prop.dmmu.page_size;
 	}
@@ -1129,6 +1221,7 @@ static int unmap_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 				bool ctx_free)
 {
 	struct hl_device *hdev = ctx->hdev;
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct hl_vm_phys_pg_pack *phys_pg_pack = NULL;
 	struct hl_vm_hash_node *hnode = NULL;
 	struct hl_userptr *userptr = NULL;
@@ -1192,7 +1285,13 @@ static int unmap_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 		goto mapping_cnt_err;
 	}
 
-	vaddr &= ~(((u64) phys_pg_pack->page_size) - 1);
+	if (!is_userptr && !is_power_of_2(phys_pg_pack->page_size))
+		vaddr = prop->dram_base_address +
+			DIV_ROUND_DOWN_ULL(vaddr - prop->dram_base_address,
+						phys_pg_pack->page_size) *
+							phys_pg_pack->page_size;
+	else
+		vaddr &= ~(((u64) phys_pg_pack->page_size) - 1);
 
 	mutex_lock(&ctx->mmu_lock);
 
@@ -1637,15 +1736,21 @@ static int va_range_init(struct hl_device *hdev, struct hl_va_range *va_range,
 
 	INIT_LIST_HEAD(&va_range->list);
 
-	/* PAGE_SIZE alignment */
+	/*
+	 * PAGE_SIZE alignment
+	 * it is the callers responsibility to align the addresses if the
+	 * page size is not a power of 2
+	 */
 
-	if (start & (PAGE_SIZE - 1)) {
-		start &= PAGE_MASK;
-		start += PAGE_SIZE;
+	if (is_power_of_2(page_size)) {
+		if (start & (PAGE_SIZE - 1)) {
+			start &= PAGE_MASK;
+			start += PAGE_SIZE;
+		}
+
+		if (end & (PAGE_SIZE - 1))
+			end &= PAGE_MASK;
 	}
-
-	if (end & (PAGE_SIZE - 1))
-		end &= PAGE_MASK;
 
 	if (start >= end) {
 		dev_err(hdev->dev, "too small vm range for va list\n");
@@ -1820,7 +1925,8 @@ int hl_vm_ctx_init(struct hl_ctx *ctx)
 
 	dram_range_start = prop->dmmu.start_addr;
 	dram_range_end = prop->dmmu.end_addr;
-	dram_page_size = prop->dmmu.page_size;
+	dram_page_size = prop->dram_page_size ?
+				prop->dram_page_size : prop->dmmu.page_size;
 	host_range_start = prop->pmmu.start_addr;
 	host_range_end = prop->pmmu.end_addr;
 	host_page_size = prop->pmmu.page_size;
@@ -1938,7 +2044,13 @@ int hl_vm_init(struct hl_device *hdev)
 	struct hl_vm *vm = &hdev->vm;
 	int rc;
 
-	vm->dram_pg_pool = gen_pool_create(__ffs(prop->dram_page_size), -1);
+	if (is_power_of_2(prop->dram_page_size))
+		vm->dram_pg_pool =
+			gen_pool_create(__ffs(prop->dram_page_size), -1);
+	else
+		vm->dram_pg_pool =
+			gen_pool_create(__ffs(DRAM_POOL_PAGE_SIZE), -1);
+
 	if (!vm->dram_pg_pool) {
 		dev_err(hdev->dev, "Failed to create dram page pool\n");
 		return -ENOMEM;

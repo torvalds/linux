@@ -333,8 +333,10 @@ static int mmu_show(struct seq_file *s, void *data)
 		return 0;
 	}
 
-	seq_printf(s, "asid: %u, virt_addr: 0x%llx\n",
-			dev_entry->mmu_asid, dev_entry->mmu_addr);
+	seq_printf(s,
+		"asid: %u, virt_addr: 0x%llx, scrambled virt_addr: 0x%llx\n",
+		dev_entry->mmu_asid, dev_entry->mmu_addr,
+		hops_info.scrambled_vaddr);
 
 	for (i = 0 ; i < hops_info.used_hops ; i++) {
 		seq_printf(s, "hop%d_addr: 0x%llx\n",

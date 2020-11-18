@@ -5456,7 +5456,8 @@ static const struct hl_asic_funcs goya_funcs = {
 	.set_dma_mask_from_fw = goya_set_dma_mask_from_fw,
 	.get_device_time = goya_get_device_time,
 	.collective_wait_init_cs = goya_collective_wait_init_cs,
-	.collective_wait_create_jobs = goya_collective_wait_create_jobs
+	.collective_wait_create_jobs = goya_collective_wait_create_jobs,
+	.scramble_vaddr = hl_mmu_scramble_vaddr
 };
 
 /*

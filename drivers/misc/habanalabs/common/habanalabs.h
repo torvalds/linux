@@ -848,6 +848,8 @@ enum div_select_defs {
  * @collective_wait_init_cs: Generate collective master/slave packets
  *                           and place them in the relevant cs jobs
  * @collective_wait_create_jobs: allocate collective wait cs jobs
+ * @scramble_vaddr: Routine to scramble the virtual address prior of mapping it
+ *                  in the MMU.
  */
 struct hl_asic_funcs {
 	int (*early_init)(struct hl_device *hdev);
@@ -957,6 +959,7 @@ struct hl_asic_funcs {
 	int (*collective_wait_create_jobs)(struct hl_device *hdev,
 			struct hl_ctx *ctx, struct hl_cs *cs, u32 wait_queue_id,
 			u32 collective_engine_id);
+	u64 (*scramble_vaddr)(struct hl_device *hdev, u64 virt_addr);
 };
 
 
@@ -1690,10 +1693,14 @@ struct hl_mmu_per_hop_info {
  * struct hl_mmu_hop_info - A structure describing the TLB hops and their
  * hop-entries that were created in order to translate a virtual address to a
  * physical one.
+ * @scrambled_vaddr: The value of the virtual address after scrambling. This
+ *                   address replaces the original virtual-address when mapped
+ *                   in the MMU tables.
  * @hop_info: Array holding the per-hop information used for the translation.
  * @used_hops: The number of hops used for the translation.
  */
 struct hl_mmu_hop_info {
+	u64 scrambled_vaddr;
 	struct hl_mmu_per_hop_info hop_info[MMU_ARCH_5_HOPS];
 	u32 used_hops;
 };
@@ -2184,6 +2191,7 @@ void hl_mmu_v1_set_funcs(struct hl_device *hdev, struct hl_mmu_funcs *mmu);
 int hl_mmu_va_to_pa(struct hl_ctx *ctx, u64 virt_addr, u64 *phys_addr);
 int hl_mmu_get_tlb_info(struct hl_ctx *ctx, u64 virt_addr,
 			struct hl_mmu_hop_info *hops);
+u64 hl_mmu_scramble_vaddr(struct hl_device *hdev, u64 virt_addr);
 bool hl_is_dram_va(struct hl_device *hdev, u64 virt_addr);
 
 int hl_fw_load_fw_to_device(struct hl_device *hdev, const char *fw_name,
