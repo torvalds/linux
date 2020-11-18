@@ -275,7 +275,6 @@ static int rga2_buf_size_cal(unsigned long yrgb_addr, unsigned long uv_addr, uns
             break;
         case RGA2_FORMAT_YCbCr_420_P :
         case RGA2_FORMAT_YCrCb_420_P :
-		case RGA2_FORMAT_YCbCr_400 :
             stride = (w + 3) & (~3);
             size_yrgb = stride * h;
             size_uv = ((stride >> 1) * (h >> 1));
@@ -286,14 +285,23 @@ static int rga2_buf_size_cal(unsigned long yrgb_addr, unsigned long uv_addr, uns
             end = (end + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
             pageCount = end - start;
             break;
+		case RGA2_FORMAT_YCbCr_400:
+			stride = (w + 3) & (~3);
+			size_yrgb = stride * h;
+			size_uv = 0;
+			size_v = 0;
+			start = yrgb_addr >> PAGE_SHIFT;
+			end = yrgb_addr + size_yrgb;
+			end = (end + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
+			pageCount = end - start;
+			break;
 		case RGA2_FORMAT_Y4:
 			stride = ((w + 3) & (~3) ) >> 1;
 			size_yrgb = stride * h;
 			size_uv = 0;
 			size_v = 0;
-			start = MIN(MIN(yrgb_addr, uv_addr), v_addr);
-			start >>= PAGE_SHIFT;
-			end = MAX(MAX((yrgb_addr + size_yrgb), (uv_addr + size_uv)), (v_addr + size_v));
+			start = yrgb_addr >> PAGE_SHIFT;
+			end = yrgb_addr + size_yrgb;
 			end = (end + (PAGE_SIZE - 1)) >> PAGE_SHIFT;
 			pageCount = end - start;
 			break;
@@ -477,24 +485,29 @@ static int rga2_MapUserMemory(struct page **pages, uint32_t *pageTable,
 	for (i = 0; i < pageCount; i++) {
 		vma = find_vma(current->mm, (Memory + i) << PAGE_SHIFT);
 		if (!vma) {
+			pr_err("RGA2 failed to get vma, result = %d, pageCount = %d\n",
+			       result, pageCount);
 			status = RGA2_OUT_OF_RESOURCES;
 			break;
 		}
 		pgd = pgd_offset(current->mm, (Memory + i) << PAGE_SHIFT);
 		if (pgd_none(*pgd) || unlikely(pgd_bad(*pgd))) {
-			pr_err("RGA2 failed to get pgd\n");
+			pr_err("RGA2 failed to get pgd, result = %d, pageCount = %d\n",
+			       result, pageCount);
 			status = RGA2_OUT_OF_RESOURCES;
 			break;
 		}
 		pud = pud_offset(pgd, (Memory + i) << PAGE_SHIFT);
 		if (pud_none(*pud) || unlikely(pud_bad(*pud))) {
-			pr_err("RGA2 failed to get pud\n");
+			pr_err("RGA2 failed to get pud, result = %d, pageCount = %d\n",
+			       result, pageCount);
 			status = RGA2_OUT_OF_RESOURCES;
 			break;
 		}
 		pmd = pmd_offset(pud, (Memory + i) << PAGE_SHIFT);
 		if (pmd_none(*pmd) || unlikely(pmd_bad(*pmd))) {
-			pr_err("RGA2 failed to get pmd\n");
+			pr_err("RGA2 failed to get pmd, result = %d, pageCount = %d\n",
+			       result, pageCount);
 			status = RGA2_OUT_OF_RESOURCES;
 			break;
 		}
@@ -502,7 +515,8 @@ static int rga2_MapUserMemory(struct page **pages, uint32_t *pageTable,
 					  (Memory + i) << PAGE_SHIFT,
 					  &ptl);
 		if (pte_none(*pte)) {
-			pr_err("RGA2 failed to get pte\n");
+			pr_err("RGA2 failed to get pte, result = %d, pageCount = %d\n",
+				result, pageCount);
 			pte_unmap_unlock(pte, ptl);
 			status = RGA2_OUT_OF_RESOURCES;
 			break;

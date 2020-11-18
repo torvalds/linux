@@ -303,6 +303,10 @@ static const char *rga2_get_format_name(uint32_t format)
 		return "BPP4";
 	case RGA2_FORMAT_BPP_8:
 		return "BPP8";
+	case RGA2_FORMAT_YCbCr_400:
+		return "YCbCr400";
+	case RGA2_FORMAT_Y4:
+		return "y4";
 	default:
 		return "UNF";
 	}
