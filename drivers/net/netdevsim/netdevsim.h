@@ -15,6 +15,7 @@
 
 #include <linux/debugfs.h>
 #include <linux/device.h>
+#include <linux/ethtool.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/netdevice.h>
@@ -60,6 +61,8 @@ struct nsim_ethtool_pauseparam {
 
 struct nsim_ethtool {
 	struct nsim_ethtool_pauseparam pauseparam;
+	struct ethtool_coalesce coalesce;
+	struct ethtool_ringparam ring;
 };
 
 struct netdevsim {
