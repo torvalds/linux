@@ -170,5 +170,8 @@ void nfssvc_release_readres(struct svc_rqst *rqstp);
 /* Helper functions for NFSv2 ACL code */
 __be32 *nfs2svc_encode_fattr(struct svc_rqst *rqstp, __be32 *p, struct svc_fh *fhp, struct kstat *stat);
 bool svcxdr_decode_fhandle(struct xdr_stream *xdr, struct svc_fh *fhp);
+bool svcxdr_encode_stat(struct xdr_stream *xdr, __be32 status);
+bool svcxdr_encode_fattr(struct svc_rqst *rqstp, struct xdr_stream *xdr,
+			 const struct svc_fh *fhp, const struct kstat *stat);
 
 #endif /* LINUX_NFSD_H */
