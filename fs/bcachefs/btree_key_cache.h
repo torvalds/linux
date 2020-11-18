@@ -25,4 +25,7 @@ int bch2_fs_btree_key_cache_init(struct btree_key_cache *);
 
 void bch2_btree_key_cache_to_text(struct printbuf *, struct btree_key_cache *);
 
+void bch2_btree_key_cache_exit(void);
+int __init bch2_btree_key_cache_init(void);
+
 #endif /* _BCACHEFS_BTREE_KEY_CACHE_H */

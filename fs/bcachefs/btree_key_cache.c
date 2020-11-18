@@ -12,6 +12,8 @@
 
 #include <linux/sched/mm.h>
 
+static struct kmem_cache *bch2_key_cache;
+
 static int bch2_btree_key_cache_cmp_fn(struct rhashtable_compare_arg *arg,
 				       const void *obj)
 {
@@ -104,7 +106,7 @@ bkey_cached_alloc(struct btree_key_cache *c)
 			return ck;
 		}
 
-	ck = kzalloc(sizeof(*ck), GFP_NOFS);
+	ck = kmem_cache_alloc(bch2_key_cache, GFP_NOFS|__GFP_ZERO);
 	if (!ck)
 		return NULL;
 
@@ -516,7 +518,7 @@ static unsigned long bch2_btree_key_cache_scan(struct shrinker *shrink,
 		if (poll_state_synchronize_srcu(&c->btree_trans_barrier,
 						ck->btree_trans_barrier_seq)) {
 			list_del(&ck->list);
-			kfree(ck);
+			kmem_cache_free(bch2_key_cache, ck);
 			freed++;
 		}
 
@@ -571,15 +573,18 @@ void bch2_fs_btree_key_cache_exit(struct btree_key_cache *bc)
 		bch2_journal_preres_put(&c->journal, &ck->res);
 
 		kfree(ck->k);
-		kfree(ck);
+		list_del(&ck->list);
+		kmem_cache_free(bch2_key_cache, ck);
 		bc->nr_keys--;
 	}
 
 	BUG_ON(bc->nr_dirty && !bch2_journal_error(&c->journal));
 	BUG_ON(bc->nr_keys);
 
-	list_for_each_entry_safe(ck, n, &bc->freed, list)
-		kfree(ck);
+	list_for_each_entry_safe(ck, n, &bc->freed, list) {
+		list_del(&ck->list);
+		kmem_cache_free(bch2_key_cache, ck);
+	}
 	mutex_unlock(&bc->lock);
 
 	rhashtable_destroy(&bc->table);
@@ -626,4 +631,19 @@ void bch2_btree_key_cache_to_text(struct printbuf *out, struct btree_key_cache *
 		}
 	}
 	mutex_unlock(&c->lock);
+}
+
+void bch2_btree_key_cache_exit(void)
+{
+	if (bch2_key_cache)
+		kmem_cache_destroy(bch2_key_cache);
+}
+
+int __init bch2_btree_key_cache_init(void)
+{
+	bch2_key_cache = KMEM_CACHE(bkey_cached, 0);
+	if (!bch2_key_cache)
+		return -ENOMEM;
+
+	return 0;
 }
