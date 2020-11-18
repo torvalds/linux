@@ -314,6 +314,8 @@ PNAME(clk_hdmi_ref_p)			= { "hpll", "hpll_ph0" };
 PNAME(clk_pdpmu_p)			= { "ppll", "gpll" };
 PNAME(clk_mac_2top_p)			= { "cpll_125m", "cpll_50m", "cpll_25m", "ppll" };
 PNAME(clk_pwm0_p)			= { "xin24m", "clk_pdpmu" };
+PNAME(aclk_rkvdec_pre_p)		= { "gpll", "dummy_cpll" };
+PNAME(clk_rkvdec_core_p)		= { "gpll", "dummy_cpll", "dummy_npll", "dummy_vpll" };
 
 static struct rockchip_pll_clock rk3568_pmu_pll_clks[] __initdata = {
 	[ppll] = PLL(pll_rk3328, PLL_PPLL, "ppll",  mux_pll_p,
@@ -1157,7 +1159,7 @@ static struct rockchip_clk_branch rk3568_clk_branches[] __initdata = {
 	COMPOSITE(CLK_RKVENC_CORE, "clk_rkvenc_core", gpll_cpll_npll_vpll_p, 0,
 			RK3568_CLKSEL_CON(45), 14, 2, MFLAGS, 0, 5, DFLAGS,
 			RK3568_CLKGATE_CON(24), 8, GFLAGS),
-	COMPOSITE(ACLK_RKVDEC_PRE, "aclk_rkvdec_pre", gpll_cpll_p, 0,
+	COMPOSITE(ACLK_RKVDEC_PRE, "aclk_rkvdec_pre", aclk_rkvdec_pre_p, 0,
 			RK3568_CLKSEL_CON(47), 7, 1, MFLAGS, 0, 5, DFLAGS,
 			RK3568_CLKGATE_CON(25), 0, GFLAGS),
 	COMPOSITE_NOMUX(HCLK_RKVDEC_PRE, "hclk_rkvdec_pre", "aclk_rkvdec_pre", 0,
@@ -1170,7 +1172,7 @@ static struct rockchip_clk_branch rk3568_clk_branches[] __initdata = {
 	COMPOSITE(CLK_RKVDEC_CA, "clk_rkvdec_ca", gpll_cpll_npll_vpll_p, 0,
 			RK3568_CLKSEL_CON(48), 6, 2, MFLAGS, 0, 5, DFLAGS,
 			RK3568_CLKGATE_CON(25), 6, GFLAGS),
-	COMPOSITE(CLK_RKVDEC_CORE, "clk_rkvdec_core", gpll_cpll_npll_vpll_p, 0,
+	COMPOSITE(CLK_RKVDEC_CORE, "clk_rkvdec_core", clk_rkvdec_core_p, 0,
 			RK3568_CLKSEL_CON(49), 14, 2, MFLAGS, 8, 5, DFLAGS,
 			RK3568_CLKGATE_CON(25), 7, GFLAGS),
 	COMPOSITE(CLK_RKVDEC_HEVC_CA, "clk_rkvdec_hevc_ca", gpll_cpll_npll_vpll_p, 0,
