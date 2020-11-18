@@ -89,6 +89,9 @@ struct kvm_s2_mmu {
 	struct kvm *kvm;
 };
 
+struct kvm_arch_memory_slot {
+};
+
 struct kvm_arch {
 	struct kvm_s2_mmu mmu;
 
