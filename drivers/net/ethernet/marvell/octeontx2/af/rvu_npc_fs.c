@@ -1218,11 +1218,13 @@ int rvu_mbox_handler_npc_delete_flow(struct rvu *rvu,
 	mutex_unlock(&mcam->lock);
 
 	list_for_each_entry_safe(iter, tmp, &del_list, list) {
+		u16 entry = iter->entry;
+
 		/* clear the mcam entry target pcifunc */
-		mcam->entry2target_pffunc[iter->entry] = 0x0;
+		mcam->entry2target_pffunc[entry] = 0x0;
 		if (npc_delete_flow(rvu, iter, pcifunc))
-			dev_err(rvu->dev, "rule deletion failed for entry:%d",
-				iter->entry);
+			dev_err(rvu->dev, "rule deletion failed for entry:%u",
+				entry);
 	}
 
 	return 0;
