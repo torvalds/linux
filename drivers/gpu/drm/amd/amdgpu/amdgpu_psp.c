@@ -2756,6 +2756,9 @@ int psp_init_sos_microcode(struct psp_context *psp,
 			adev->psp.spl_bin_size = le32_to_cpu(sos_hdr_v1_3->spl_size_bytes);
 			adev->psp.spl_start_addr = (uint8_t *)adev->psp.sys_start_addr +
 				le32_to_cpu(sos_hdr_v1_3->spl_offset_bytes);
+			adev->psp.rl_bin_size = le32_to_cpu(sos_hdr_v1_3->rl_size_bytes);
+			adev->psp.rl_start_addr = (uint8_t *)adev->psp.sys_start_addr +
+				le32_to_cpu(sos_hdr_v1_3->rl_offset_bytes);
 		}
 		break;
 	default:

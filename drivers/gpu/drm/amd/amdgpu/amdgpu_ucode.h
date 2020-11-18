@@ -105,6 +105,9 @@ struct psp_firmware_header_v1_3 {
 	uint32_t spl_header_version;
 	uint32_t spl_offset_bytes;
 	uint32_t spl_size_bytes;
+	uint32_t rl_header_version;
+	uint32_t rl_offset_bytes;
+	uint32_t rl_size_bytes;
 };
 
 /* version_major=1, version_minor=0 */
