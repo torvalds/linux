@@ -38,6 +38,7 @@
 
 #ifdef CONFIG_FIQ_DEBUGGER_TRUST_ZONE
 #include <linux/rockchip/rockchip_sip.h>
+#include <linux/soc/rockchip/rk_fiq_debugger.h>
 #endif
 
 #ifdef CONFIG_FIQ_GLUE
@@ -568,7 +569,8 @@ static void fiq_debugger_switch_cpu(struct fiq_debugger_state *state, int cpu)
 #ifdef CONFIG_ARCH_ROCKCHIP
 	else {
 #ifdef CONFIG_FIQ_DEBUGGER_TRUST_ZONE
-		if (sip_fiq_debugger_is_enabled()) {
+		if (sip_fiq_debugger_is_enabled() ||
+		    sdei_fiq_debugger_is_enabled()) {
 			if (state->pdata->switch_cpu) {
 				state->pdata->switch_cpu(state->pdev, cpu);
 				state->current_cpu = cpu;
@@ -1452,7 +1454,8 @@ static int fiq_debugger_probe(struct platform_device *pdev)
 	if (fiq_debugger_have_fiq(state)) {
 #ifdef CONFIG_FIQ_GLUE
 #ifdef CONFIG_FIQ_DEBUGGER_TRUST_ZONE
-		if (sip_fiq_debugger_is_enabled()) {
+		if (sip_fiq_debugger_is_enabled() ||
+		    sdei_fiq_debugger_is_enabled()) {
 		} else
 #endif
 		{
