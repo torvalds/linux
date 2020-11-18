@@ -12,18 +12,18 @@
 #define DRIVER_NAME "rtc-pcf8523"
 
 #define REG_CONTROL1 0x00
-#define REG_CONTROL1_CAP_SEL (1 << 7)
-#define REG_CONTROL1_STOP    (1 << 5)
+#define REG_CONTROL1_CAP_SEL BIT(7)
+#define REG_CONTROL1_STOP    BIT(5)
 
 #define REG_CONTROL3 0x02
-#define REG_CONTROL3_PM_BLD (1 << 7) /* battery low detection disabled */
-#define REG_CONTROL3_PM_VDD (1 << 6) /* switch-over disabled */
-#define REG_CONTROL3_PM_DSM (1 << 5) /* direct switching mode */
+#define REG_CONTROL3_PM_BLD BIT(7) /* battery low detection disabled */
+#define REG_CONTROL3_PM_VDD BIT(6) /* switch-over disabled */
+#define REG_CONTROL3_PM_DSM BIT(5) /* direct switching mode */
 #define REG_CONTROL3_PM_MASK 0xe0
-#define REG_CONTROL3_BLF (1 << 2) /* battery low bit, read-only */
+#define REG_CONTROL3_BLF BIT(2) /* battery low bit, read-only */
 
 #define REG_SECONDS  0x03
-#define REG_SECONDS_OS (1 << 7)
+#define REG_SECONDS_OS BIT(7)
 
 #define REG_MINUTES  0x04
 #define REG_HOURS    0x05
