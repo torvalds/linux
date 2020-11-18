@@ -52,7 +52,6 @@ Contents:
    eql
    fib_trie
    filter
-   framerelay
    generic-hdlc
    generic_netlink
    gen_stats
