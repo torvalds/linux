@@ -1261,11 +1261,12 @@ static void mptcp_push_pending(struct sock *sk, unsigned int flags)
 		mptcp_push_release(sk, ssk, &info);
 
 out:
-	/* start the timer, if it's not pending */
-	if (!mptcp_timer_pending(sk))
-		mptcp_reset_timer(sk);
-	if (copied)
+	if (copied) {
+		/* start the timer, if it's not pending */
+		if (!mptcp_timer_pending(sk))
+			mptcp_reset_timer(sk);
 		__mptcp_check_send_data_fin(sk);
+	}
 }
 
 static int mptcp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
