@@ -50,6 +50,7 @@ struct extent_buffer *btrfs_find_create_tree_block(
 						u64 bytenr, u64 owner_root,
 						int level);
 void btrfs_clean_tree_block(struct extent_buffer *buf);
+int btrfs_start_pre_rw_mount(struct btrfs_fs_info *fs_info);
 int __cold open_ctree(struct super_block *sb,
 	       struct btrfs_fs_devices *fs_devices,
 	       char *options);
