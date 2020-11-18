@@ -122,7 +122,8 @@ static int handle_conflicting_encoders(struct drm_atomic_state *state,
 			continue;
 
 		if (funcs->atomic_best_encoder)
-			new_encoder = funcs->atomic_best_encoder(connector, new_conn_state);
+			new_encoder = funcs->atomic_best_encoder(connector,
+								 state);
 		else if (funcs->best_encoder)
 			new_encoder = funcs->best_encoder(connector);
 		else
@@ -345,8 +346,7 @@ update_connector_routing(struct drm_atomic_state *state,
 	funcs = connector->helper_private;
 
 	if (funcs->atomic_best_encoder)
-		new_encoder = funcs->atomic_best_encoder(connector,
-							 new_connector_state);
+		new_encoder = funcs->atomic_best_encoder(connector, state);
 	else if (funcs->best_encoder)
 		new_encoder = funcs->best_encoder(connector);
 	else
@@ -1313,7 +1313,7 @@ static void drm_atomic_helper_commit_writebacks(struct drm_device *dev,
 
 		if (new_conn_state->writeback_job && new_conn_state->writeback_job->fb) {
 			WARN_ON(connector->connector_type != DRM_MODE_CONNECTOR_WRITEBACK);
-			funcs->atomic_commit(connector, new_conn_state);
+			funcs->atomic_commit(connector, old_state);
 		}
 	}
 }

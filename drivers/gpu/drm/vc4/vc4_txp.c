@@ -273,8 +273,10 @@ static int vc4_txp_connector_atomic_check(struct drm_connector *conn,
 }
 
 static void vc4_txp_connector_atomic_commit(struct drm_connector *conn,
-					struct drm_connector_state *conn_state)
+					struct drm_atomic_state *state)
 {
+	struct drm_connector_state *conn_state = drm_atomic_get_new_connector_state(state,
+										    conn);
 	struct vc4_txp *txp = connector_to_vc4_txp(conn);
 	struct drm_gem_cma_object *gem;
 	struct drm_display_mode *mode;
