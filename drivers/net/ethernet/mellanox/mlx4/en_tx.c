@@ -864,9 +864,6 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(!priv->port_up))
 		goto tx_drop;
 
-	/* fetch ring->cons far ahead before needing it to avoid stall */
-	ring_cons = READ_ONCE(ring->cons);
-
 	real_size = get_real_size(skb, shinfo, dev, &lso_header_size,
 				  &inline_ok, &fragptr);
 	if (unlikely(!real_size))
@@ -897,10 +894,6 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	netdev_txq_bql_enqueue_prefetchw(ring->tx_queue);
-
-	/* Track current inflight packets for performance analysis */
-	AVG_PERF_COUNTER(priv->pstats.inflight_avg,
-			 (u32)(ring->prod - ring_cons - 1));
 
 	/* Packet is good - grab an index and transmit it */
 	index = ring->prod & ring->size_mask;
@@ -1012,7 +1005,6 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		ring->packets++;
 	}
 	ring->bytes += tx_info->nr_bytes;
-	AVG_PERF_COUNTER(priv->pstats.tx_pktsz_avg, skb->len);
 
 	if (tx_info->inl)
 		build_inline_wqe(tx_desc, skb, shinfo, fragptr);
@@ -1141,10 +1133,6 @@ netdev_tx_t mlx4_en_xmit_frame(struct mlx4_en_rx_ring *rx_ring,
 	index = ring->prod & ring->size_mask;
 	tx_info = &ring->tx_info[index];
 
-	/* Track current inflight packets for performance analysis */
-	AVG_PERF_COUNTER(priv->pstats.inflight_avg,
-			 (u32)(ring->prod - READ_ONCE(ring->cons) - 1));
-
 	tx_desc = ring->buf + (index << LOG_TXBB_SIZE);
 	data = &tx_desc->data;
 
@@ -1169,7 +1157,6 @@ netdev_tx_t mlx4_en_xmit_frame(struct mlx4_en_rx_ring *rx_ring,
 		 cpu_to_be32(MLX4_EN_BIT_DESC_OWN) : 0);
 
 	rx_ring->xdp_tx++;
-	AVG_PERF_COUNTER(priv->pstats.tx_pktsz_avg, length);
 
 	ring->prod += MLX4_EN_XDP_TX_NRTXBB;
 
