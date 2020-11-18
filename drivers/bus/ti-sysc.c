@@ -2889,7 +2889,7 @@ static int sysc_check_active_timer(struct sysc *ddata)
 
 	if ((ddata->cfg.quirks & SYSC_QUIRK_NO_RESET_ON_INIT) &&
 	    (ddata->cfg.quirks & SYSC_QUIRK_NO_IDLE))
-		return -EBUSY;
+		return -ENXIO;
 
 	return 0;
 }
