@@ -761,7 +761,7 @@ static int vangogh_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TAB
 	return ret;
 }
 
-int vangogh_set_default_dpm_tables(struct smu_context *smu)
+static int vangogh_set_default_dpm_tables(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
 
