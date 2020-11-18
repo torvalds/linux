@@ -444,7 +444,7 @@ static long sgx_ioc_enclave_add_pages(struct sgx_encl *encl, void __user *arg)
 	for (c = 0 ; c < add_arg.length; c += PAGE_SIZE) {
 		if (signal_pending(current)) {
 			if (!c)
-				ret = -EINTR;
+				ret = -ERESTARTSYS;
 
 			break;
 		}
