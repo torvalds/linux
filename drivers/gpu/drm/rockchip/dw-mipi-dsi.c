@@ -981,7 +981,7 @@ static void dw_mipi_dsi_set_vid_mode(struct dw_mipi_dsi *dsi)
 {
 	struct drm_display_mode *mode = &dsi->mode;
 	unsigned int lanebyteclk = (dsi->lane_mbps * USEC_PER_MSEC) >> 3;
-	unsigned int dpipclk = mode->clock;
+	unsigned int dpipclk = mode->crtc_clock;
 	u32 hline, hsa, hbp, hline_time, hsa_time, hbp_time;
 	u32 vactive, vsa, vfp, vbp;
 	u32 val;
@@ -1118,7 +1118,7 @@ static unsigned long dw_mipi_dsi_get_lane_rate(struct dw_mipi_dsi *dsi)
 		bpp = 24;
 
 	lanes = dsi->slave ? dsi->lanes * 2 : dsi->lanes;
-	tmp = (u64)mode->clock * 1000 * bpp;
+	tmp = (u64)mode->crtc_clock * 1000 * bpp;
 	do_div(tmp, lanes);
 
 	/* take 1 / 0.9, since mbps must big than bandwidth of RGB */
