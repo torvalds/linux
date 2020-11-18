@@ -967,6 +967,7 @@ static const struct encoder_feature_support link_enc_feature = {
 		[id] = {\
 				LE_DCN3_REG_LIST(id), \
 				UNIPHY_DCN2_REG_LIST(phyid), \
+				DPCS_DCN2_REG_LIST(id), \
 				SRI(DP_DPHY_INTERNAL_CTRL, DP, id) \
 		}
 
