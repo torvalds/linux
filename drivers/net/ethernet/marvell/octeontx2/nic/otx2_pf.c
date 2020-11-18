@@ -2084,7 +2084,7 @@ static int otx2_do_set_vf_vlan(struct otx2_nic *pf, int vf, u16 vlan, u8 qos,
 	vtag_req->vtag_size = VTAGSIZE_T4;
 	vtag_req->cfg_type = 0; /* tx vlan cfg */
 	vtag_req->tx.cfg_vtag0 = 1;
-	vtag_req->tx.vtag0 = (ntohs(proto) << 16) | vlan;
+	vtag_req->tx.vtag0 = ((u64)ntohs(proto) << 16) | vlan;
 
 	err = otx2_sync_mbox_msg(&pf->mbox);
 	if (err)
