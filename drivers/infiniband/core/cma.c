@@ -2496,7 +2496,8 @@ static int cma_listen_handler(struct rdma_cm_id *id,
 }
 
 static int cma_listen_on_dev(struct rdma_id_private *id_priv,
-			     struct cma_device *cma_dev)
+			     struct cma_device *cma_dev,
+			     struct rdma_id_private **to_destroy)
 {
 	struct rdma_id_private *dev_id_priv;
 	struct net *net = id_priv->id.route.addr.dev_addr.net;
@@ -2504,6 +2505,7 @@ static int cma_listen_on_dev(struct rdma_id_private *id_priv,
 
 	lockdep_assert_held(&lock);
 
+	*to_destroy = NULL;
 	if (cma_family(id_priv) == AF_IB && !rdma_cap_ib_cm(cma_dev->device, 1))
 		return 0;
 
@@ -2518,7 +2520,6 @@ static int cma_listen_on_dev(struct rdma_id_private *id_priv,
 	       rdma_addr_size(cma_src_addr(id_priv)));
 
 	_cma_attach_to_dev(dev_id_priv, cma_dev);
-	list_add_tail(&dev_id_priv->listen_list, &id_priv->listen_list);
 	cma_id_get(id_priv);
 	dev_id_priv->internal_id = 1;
 	dev_id_priv->afonly = id_priv->afonly;
@@ -2528,25 +2529,31 @@ static int cma_listen_on_dev(struct rdma_id_private *id_priv,
 	ret = rdma_listen(&dev_id_priv->id, id_priv->backlog);
 	if (ret)
 		goto err_listen;
+	list_add_tail(&dev_id_priv->listen_list, &id_priv->listen_list);
 	return 0;
 err_listen:
-	list_del(&id_priv->listen_list);
+	/* Caller must destroy this after releasing lock */
+	*to_destroy = dev_id_priv;
 	dev_warn(&cma_dev->device->dev, "RDMA CMA: %s, error %d\n", __func__, ret);
-	rdma_destroy_id(&dev_id_priv->id);
 	return ret;
 }
 
 static int cma_listen_on_all(struct rdma_id_private *id_priv)
 {
+	struct rdma_id_private *to_destroy;
 	struct cma_device *cma_dev;
 	int ret;
 
 	mutex_lock(&lock);
 	list_add_tail(&id_priv->list, &listen_any_list);
 	list_for_each_entry(cma_dev, &dev_list, list) {
-		ret = cma_listen_on_dev(id_priv, cma_dev);
-		if (ret)
+		ret = cma_listen_on_dev(id_priv, cma_dev, &to_destroy);
+		if (ret) {
+			/* Prevent racing with cma_process_remove() */
+			if (to_destroy)
+				list_del_init(&to_destroy->list);
 			goto err_listen;
+		}
 	}
 	mutex_unlock(&lock);
 	return 0;
@@ -2554,6 +2561,8 @@ static int cma_listen_on_all(struct rdma_id_private *id_priv)
 err_listen:
 	list_del(&id_priv->list);
 	mutex_unlock(&lock);
+	if (to_destroy)
+		rdma_destroy_id(&to_destroy->id);
 	return ret;
 }
 
@@ -4855,6 +4864,7 @@ static void cma_process_remove(struct cma_device *cma_dev)
 
 static int cma_add_one(struct ib_device *device)
 {
+	struct rdma_id_private *to_destroy;
 	struct cma_device *cma_dev;
 	struct rdma_id_private *id_priv;
 	unsigned int i;
@@ -4902,7 +4912,7 @@ static int cma_add_one(struct ib_device *device)
 	mutex_lock(&lock);
 	list_add_tail(&cma_dev->list, &dev_list);
 	list_for_each_entry(id_priv, &listen_any_list, list) {
-		ret = cma_listen_on_dev(id_priv, cma_dev);
+		ret = cma_listen_on_dev(id_priv, cma_dev, &to_destroy);
 		if (ret)
 			goto free_listen;
 	}
@@ -4915,6 +4925,7 @@ free_listen:
 	list_del(&cma_dev->list);
 	mutex_unlock(&lock);
 
+	/* cma_process_remove() will delete to_destroy */
 	cma_process_remove(cma_dev);
 	kfree(cma_dev->default_roce_tos);
 free_gid_type:
