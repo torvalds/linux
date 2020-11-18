@@ -279,19 +279,6 @@ static int nfsaclsvc_encode_getaclres(struct svc_rqst *rqstp, __be32 *p)
 	return 1;
 }
 
-static int nfsaclsvc_encode_attrstatres(struct svc_rqst *rqstp, __be32 *p)
-{
-	struct nfsd_attrstat *resp = rqstp->rq_resp;
-
-	*p++ = resp->status;
-	if (resp->status != nfs_ok)
-		goto out;
-
-	p = nfs2svc_encode_fattr(rqstp, p, &resp->fh, &resp->stat);
-out:
-	return xdr_ressize_check(rqstp, p);
-}
-
 /* ACCESS */
 static int nfsaclsvc_encode_accessres(struct svc_rqst *rqstp, __be32 *p)
 {
@@ -317,13 +304,6 @@ static void nfsaclsvc_release_getacl(struct svc_rqst *rqstp)
 	fh_put(&resp->fh);
 	posix_acl_release(resp->acl_access);
 	posix_acl_release(resp->acl_default);
-}
-
-static void nfsaclsvc_release_attrstat(struct svc_rqst *rqstp)
-{
-	struct nfsd_attrstat *resp = rqstp->rq_resp;
-
-	fh_put(&resp->fh);
 }
 
 static void nfsaclsvc_release_access(struct svc_rqst *rqstp)
@@ -376,8 +356,8 @@ static const struct svc_procedure nfsd_acl_procedures2[5] = {
 	[ACLPROC2_GETATTR] = {
 		.pc_func = nfsacld_proc_getattr,
 		.pc_decode = nfssvc_decode_fhandleargs,
-		.pc_encode = nfsaclsvc_encode_attrstatres,
-		.pc_release = nfsaclsvc_release_attrstat,
+		.pc_encode = nfssvc_encode_attrstatres,
+		.pc_release = nfssvc_release_attrstat,
 		.pc_argsize = sizeof(struct nfsd_fhandle),
 		.pc_ressize = sizeof(struct nfsd_attrstat),
 		.pc_cachetype = RC_NOCACHE,
