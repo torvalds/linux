@@ -1532,6 +1532,11 @@ static int haptics_update_fifo_samples(struct haptics_chip *chip,
 {
 	int rc, count, i;
 
+	if (samples == NULL) {
+		dev_err(chip->dev, "no FIFO samples available\n");
+		return -EINVAL;
+	}
+
 	if (chip->ptn_revision == HAP_PTN_V1) {
 		for (i = 0; i < length; i++) {
 			rc = haptics_update_fifo_sample_v1(chip, samples[i]);
@@ -1873,6 +1878,7 @@ static int haptics_load_custom_effect(struct haptics_chip *chip,
 		return rc;
 	}
 
+	mutex_lock(&chip->play.lock);
 	fifo->period_per_s = rc;
 	/*
 	 * Before allocating samples buffer, free the old sample
@@ -1880,8 +1886,10 @@ static int haptics_load_custom_effect(struct haptics_chip *chip,
 	 */
 	kfree(fifo->samples);
 	fifo->samples = kcalloc(custom_data.length, sizeof(u8), GFP_KERNEL);
-	if (!fifo->samples)
-		return -ENOMEM;
+	if (!fifo->samples) {
+		rc = -ENOMEM;
+		goto unlock;
+	}
 
 	if (copy_from_user(fifo->samples,
 				(u8 __user *)custom_data.data,
@@ -1895,11 +1903,10 @@ static int haptics_load_custom_effect(struct haptics_chip *chip,
 	fifo->play_length_us = get_fifo_play_length_us(fifo,
 			chip->custom_effect->t_lra_us);
 
-	mutex_lock(&chip->play.lock);
 	if (chip->play.in_calibration) {
 		dev_err(chip->dev, "calibration in progress, ignore playing custom effect\n");
 		rc = -EBUSY;
-		goto unlock;
+		goto cleanup;
 	}
 
 	play->effect = chip->custom_effect;
@@ -1907,7 +1914,7 @@ static int haptics_load_custom_effect(struct haptics_chip *chip,
 	play->vmax_mv = (magnitude * chip->custom_effect->vmax_mv) / 0x7fff;
 	rc = haptics_set_vmax_mv(chip, play->vmax_mv);
 	if (rc < 0)
-		goto unlock;
+		goto cleanup;
 
 	rc = haptics_enable_autores(chip, !play->effect->auto_res_disable);
 	if (rc < 0)
@@ -1916,15 +1923,15 @@ static int haptics_load_custom_effect(struct haptics_chip *chip,
 	play->pattern_src = FIFO;
 	rc = haptics_set_fifo(chip, play->effect->fifo);
 	if (rc < 0)
-		goto unlock;
+		goto cleanup;
 
 	mutex_unlock(&chip->play.lock);
 	return 0;
-unlock:
-	mutex_unlock(&chip->play.lock);
 cleanup:
 	kfree(fifo->samples);
 	fifo->samples = NULL;
+unlock:
+	mutex_unlock(&chip->play.lock);
 	return rc;
 }
 
@@ -2179,6 +2186,7 @@ static int haptics_erase(struct input_dev *dev, int effect_id)
 	struct haptics_play_info *play = &chip->play;
 	int rc;
 
+	mutex_lock(&play->lock);
 	if ((play->pattern_src == FIFO) &&
 			atomic_read(&play->fifo_status.is_busy)) {
 		if (atomic_read(&play->fifo_status.written_done) == 0) {
@@ -2189,9 +2197,11 @@ static int haptics_erase(struct input_dev *dev, int effect_id)
 		rc = haptics_stop_fifo_play(chip);
 		if (rc < 0) {
 			dev_err(chip->dev, "stop FIFO playing failed, rc=%d\n");
+			mutex_unlock(&play->lock);
 			return rc;
 		}
 	}
+	mutex_unlock(&play->lock);
 
 	rc = haptics_enable_hpwr_vreg(chip, false);
 	if (rc < 0)
@@ -2400,6 +2410,7 @@ static irqreturn_t fifo_empty_irq_handler(int irq, void *data)
 		return IRQ_HANDLED;
 	}
 
+	mutex_lock(&chip->play.lock);
 	if (atomic_read(&chip->play.fifo_status.written_done) == 1) {
 		/*
 		 * Check the FIFO real time fill status before stopping
@@ -2411,24 +2422,29 @@ static irqreturn_t fifo_empty_irq_handler(int irq, void *data)
 		if (num != MAX_FIFO_SAMPLES(chip)) {
 			dev_dbg(chip->dev, "%d FIFO samples still in playing\n",
 					MAX_FIFO_SAMPLES(chip) - num);
-			return IRQ_HANDLED;
+			goto unlock;
 		}
 
 		rc = haptics_stop_fifo_play(chip);
 		if (rc < 0)
-			return IRQ_HANDLED;
+			goto unlock;
 
 		dev_dbg(chip->dev, "FIFO playing is done\n");
 	} else {
 		if (atomic_read(&status->cancelled) == 1) {
 			dev_dbg(chip->dev, "FIFO programming got cancelled\n");
-			return IRQ_HANDLED;
+			goto unlock;
+		}
+
+		if (!fifo || !fifo->samples) {
+			dev_err(chip->dev, "no FIFO samples available\n");
+			goto unlock;
 		}
 
 		samples_left = fifo->num_s - status->samples_written;
 		num = haptics_get_available_fifo_memory(chip);
 		if (num < 0)
-			return IRQ_HANDLED;
+			goto unlock;
 
 		/*
 		 * With HAPTICS_PATTERN module revision 2.0 and above, if use
@@ -2451,7 +2467,7 @@ static irqreturn_t fifo_empty_irq_handler(int irq, void *data)
 		if (rc < 0) {
 			dev_err(chip->dev, "Update FIFO samples failed, rc=%d\n",
 					rc);
-			return IRQ_HANDLED;
+			goto unlock;
 		}
 
 		status->samples_written += num;
@@ -2462,6 +2478,8 @@ static irqreturn_t fifo_empty_irq_handler(int irq, void *data)
 		}
 	}
 
+unlock:
+	mutex_unlock(&chip->play.lock);
 	return IRQ_HANDLED;
 }
 
@@ -4274,6 +4292,7 @@ static int haptics_suspend(struct device *dev)
 	if (chip->cfg_revision == HAP_CFG_V1)
 		return 0;
 
+	mutex_lock(&play->lock);
 	if ((play->pattern_src == FIFO) &&
 			atomic_read(&play->fifo_status.is_busy)) {
 		if (atomic_read(&play->fifo_status.written_done) == 0) {
@@ -4284,13 +4303,17 @@ static int haptics_suspend(struct device *dev)
 		rc = haptics_stop_fifo_play(chip);
 		if (rc < 0) {
 			dev_err(chip->dev, "stop FIFO playing failed, rc=%d\n");
+			mutex_unlock(&play->lock);
 			return rc;
 		}
 	} else {
 		rc = haptics_enable_play(chip, false);
-		if (rc < 0)
+		if (rc < 0) {
+			mutex_unlock(&play->lock);
 			return rc;
+		}
 	}
+	mutex_unlock(&play->lock);
 
 	rc = haptics_enable_hpwr_vreg(chip, false);
 	if (rc < 0)
