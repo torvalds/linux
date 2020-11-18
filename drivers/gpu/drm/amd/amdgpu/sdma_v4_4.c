@@ -208,8 +208,25 @@ static int sdma_v4_4_query_ras_error_count(struct amdgpu_device *adev,
 	return 0;
 };
 
+static void sdma_v4_4_reset_ras_error_count(struct amdgpu_device *adev)
+{
+	int i;
+	uint32_t reg_offset;
+
+	/* write 0 to EDC_COUNTER reg to clear sdma edc counters */
+	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__SDMA)) {
+		for (i = 0; i < adev->sdma.num_instances; i++) {
+			reg_offset = sdma_v4_4_get_reg_offset(adev, i, regSDMA0_EDC_COUNTER);
+			WREG32(reg_offset, 0);
+			reg_offset = sdma_v4_4_get_reg_offset(adev, i, regSDMA0_EDC_COUNTER2);
+			WREG32(reg_offset, 0);
+		}
+	}
+}
+
 const struct amdgpu_sdma_ras_funcs sdma_v4_4_ras_funcs = {
 	.ras_late_init = amdgpu_sdma_ras_late_init,
 	.ras_fini = amdgpu_sdma_ras_fini,
 	.query_ras_error_count = sdma_v4_4_query_ras_error_count,
+	.reset_ras_error_count = sdma_v4_4_reset_ras_error_count,
 };
