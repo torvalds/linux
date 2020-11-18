@@ -420,6 +420,30 @@ int sip_fiq_debugger_switch_cpu(u32 cpu)
 				  0, UARTDBG_CFG_OSHDL_CPUSW);
 	return res.a0;
 }
+
+int sip_fiq_debugger_sdei_switch_cpu(u32 cur_cpu, u32 target_cpu, u32 flag)
+{
+	struct arm_smccc_res res;
+
+	res = __invoke_sip_fn_smc(SIP_SDEI_FIQ_DBG_SWITCH_CPU,
+				  cur_cpu, target_cpu, flag);
+	return res.a0;
+}
+
+int sip_fiq_debugger_sdei_get_event_id(u32 *fiq, u32 *sw_cpu, u32 *flag)
+{
+	struct arm_smccc_res res;
+
+	res = __invoke_sip_fn_smc(SIP_SDEI_FIQ_DBG_GET_EVENT_ID,
+				  0, 0, 0);
+	*fiq = res.a1;
+	*sw_cpu = res.a2;
+	if (flag)
+		*flag = res.a3;
+
+	return res.a0;
+}
+
 EXPORT_SYMBOL_GPL(sip_fiq_debugger_switch_cpu);
 
 void sip_fiq_debugger_enable_debug(bool enable)

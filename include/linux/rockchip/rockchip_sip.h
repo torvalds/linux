@@ -49,6 +49,8 @@
 #define SIP_SCMI_AGENT13		0x8200001d
 #define SIP_SCMI_AGENT14		0x8200001e
 #define SIP_SCMI_AGENT15		0x8200001f
+#define SIP_SDEI_FIQ_DBG_SWITCH_CPU	0x82000020
+#define SIP_SDEI_FIQ_DBG_GET_EVENT_ID	0x82000021
 
 /* Rockchip Sip version */
 #define SIP_IMPLEMENT_V1                (1)
@@ -156,7 +158,9 @@ int sip_fiq_debugger_set_print_port(u32 port_phyaddr, u32 baudrate);
 int sip_fiq_debugger_request_share_memory(void);
 int sip_fiq_debugger_get_target_cpu(void);
 int sip_fiq_debugger_switch_cpu(u32 cpu);
+int sip_fiq_debugger_sdei_switch_cpu(u32 cur_cpu, u32 target_cpu, u32 flag);
 int sip_fiq_debugger_is_enabled(void);
+int sip_fiq_debugger_sdei_get_event_id(u32 *fiq, u32 *sw_cpu, u32 *flag);
 #else
 static inline struct arm_smccc_res sip_smc_get_atf_version(void)
 {
@@ -242,6 +246,8 @@ static inline int sip_fiq_debugger_set_print_port(u32 port_phyaddr,
 static inline int sip_fiq_debugger_request_share_memory(void) { return 0; }
 static inline int sip_fiq_debugger_get_target_cpu(void) { return 0; }
 static inline int sip_fiq_debugger_switch_cpu(u32 cpu) { return 0; }
+static inline int sip_fiq_debugger_sdei_switch_cpu(u32 cur_cpu, u32 target_cpu,
+						   u32 flag) { return 0; }
 static inline int sip_fiq_debugger_is_enabled(void) { return 0; }
 #endif
 
