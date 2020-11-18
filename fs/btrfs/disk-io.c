@@ -2888,6 +2888,7 @@ void btrfs_clear_oneshot_options(struct btrfs_fs_info *fs_info)
 int btrfs_start_pre_rw_mount(struct btrfs_fs_info *fs_info)
 {
 	int ret;
+	const bool cache_opt = btrfs_test_opt(fs_info, SPACE_CACHE);
 	bool clear_free_space_tree = false;
 
 	if (btrfs_test_opt(fs_info, CLEAR_CACHE) &&
@@ -2938,6 +2939,12 @@ int btrfs_start_pre_rw_mount(struct btrfs_fs_info *fs_info)
 				"failed to create free space tree: %d", ret);
 			goto out;
 		}
+	}
+
+	if (cache_opt != btrfs_free_space_cache_v1_active(fs_info)) {
+		ret = btrfs_set_free_space_cache_v1_active(fs_info, cache_opt);
+		if (ret)
+			goto out;
 	}
 
 	ret = btrfs_resume_balance_async(fs_info);
@@ -3410,6 +3417,7 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 			return ret;
 		}
 	}
+
 	set_bit(BTRFS_FS_OPEN, &fs_info->flags);
 
 clear_oneshot:
