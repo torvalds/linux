@@ -4022,8 +4022,8 @@ lpfc_fcp_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 	struct lpfc_io_buf *lpfc_cmd =
 		(struct lpfc_io_buf *)pwqeIn->context1;
 	struct lpfc_vport *vport = pwqeIn->vport;
-	struct lpfc_rport_data *rdata = lpfc_cmd->rdata;
-	struct lpfc_nodelist *ndlp = rdata->pnode;
+	struct lpfc_rport_data *rdata;
+	struct lpfc_nodelist *ndlp;
 	struct scsi_cmnd *cmd;
 	unsigned long flags;
 	struct lpfc_fast_path_event *fast_path_evt;
@@ -4039,6 +4039,9 @@ lpfc_fcp_io_cmd_wqe_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 				 "release, skip completion\n");
 		return;
 	}
+
+	rdata = lpfc_cmd->rdata;
+	ndlp = rdata->pnode;
 
 	if (bf_get(lpfc_wcqe_c_xb, wcqe)) {
 		/* TOREMOVE - currently this flag is checked during
