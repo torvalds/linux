@@ -2085,7 +2085,7 @@ static int nix_tx_vtag_decfg(struct rvu *rvu, int blkaddr,
 	u16 pcifunc = req->hdr.pcifunc;
 	int idx0 = req->tx.vtag0_idx;
 	int idx1 = req->tx.vtag1_idx;
-	int err;
+	int err = 0;
 
 	if (req->tx.free_vtag0 && req->tx.free_vtag1)
 		if (vlan->entry2pfvf_map[idx0] != pcifunc ||
