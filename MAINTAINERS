@@ -7422,7 +7422,7 @@ M:	Bob Peterson <rpeterso@redhat.com>
 M:	Andreas Gruenbacher <agruenba@redhat.com>
 L:	cluster-devel@redhat.com
 S:	Supported
-W:	http://sources.redhat.com/cluster/
+B:	https://bugzilla.kernel.org/enter_bug.cgi?product=File%20System&component=gfs2
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gfs2/linux-gfs2.git
 F:	Documentation/filesystems/gfs2*
 F:	fs/gfs2/
