@@ -42,7 +42,53 @@
 	power-supply = <&vcc3v3_lcd0_n>;
 	reset-gpios = <&gpio1 RK_PA5 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&lcd_rst_gpio>;
+	pinctrl-0 = <&lcd0_rst_gpio>;
+};
+
+/*
+ * mipi_dphy1 needs to be enabled
+ * when dsi1 is enabled
+ */
+&dsi1 {
+	status = "disabled";
+};
+
+&dsi1_in_vp0 {
+	status = "disabled";
+};
+
+&dsi1_in_vp1 {
+	status = "disabled";
+};
+
+&dsi1_panel {
+	power-supply = <&vcc3v3_lcd1_n>;
+	reset-gpios = <&gpio4 RK_PC6 GPIO_ACTIVE_LOW>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&lcd1_rst_gpio>;
+};
+
+&gmac1 {
+	phy-mode = "rgmii";
+	clock_in_out = "output";
+
+	snps,reset-gpio = <&gpio3 RK_PA1 GPIO_ACTIVE_LOW>;
+	snps,reset-active-low;
+	/* Reset time is 20ms, 100ms for rtl8211f */
+	snps,reset-delays-us = <0 20000 100000>;
+
+	assigned-clocks = <&cru SCLK_GMAC1_RX_TX>, <&cru SCLK_GMAC1>;
+	assigned-clock-parents = <&cru SCLK_GMAC1_RGMII_SPEED>;
+	assigned-clock-rates = <0>, <125000000>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&gmac1m1_miim_pins &gmac1m1_rgmii_pins>;
+
+	tx_delay = <0x2a>;
+	rx_delay = <0x1a>;
+
+	phy-handle = <&rgmii_phy1>;
+	status = "okay";
 };
 
 &gt1x {
@@ -62,8 +108,72 @@
 			     &i2s3sdom1>;
 };
 
+&mdio1 {
+	rgmii_phy1: phy@0 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0x0>;
+	};
+};
+
 &mipi_dphy0 {
 	status = "okay";
+};
+
+&mipi_dphy1 {
+	status = "disabled";
+};
+
+&pcie2x1 {
+	status = "disabled";
+};
+
+&pdm {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pdmclk1m1
+		     &pdmsdi1m1
+		     &pdmsdi2m1
+		     &pdmsdi3m1>;
+};
+
+&pdmics {
+	status = "disabled";
+};
+
+&pdm_mic_array {
+	status = "disabled";
+};
+
+&pinctrl {
+	headphone {
+		hp_det: hp-det {
+			rockchip,pins = <4 RK_PB3 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+	};
+
+	lcd0 {
+		lcd0_rst_gpio: lcd-rst-gpio {
+			rockchip,pins = <1 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	lcd1 {
+		lcd1_rst_gpio: lcd1-rst-gpio {
+			rockchip,pins = <4 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	wireless-wlan {
+		wifi_host_wake_irq: wifi-host-wake-irq {
+			rockchip,pins = <2 RK_PB2 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+	};
+
+	wireless-bluetooth {
+		uart1_gpios: uart1-gpios {
+			rockchip,pins = <2 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
 };
 
 &rk809_codec {
@@ -93,28 +203,24 @@
 	};
 };
 
-&pinctrl {
-	headphone {
-		hp_det: hp-det {
-			rockchip,pins = <4 RK_PB3 RK_FUNC_GPIO &pcfg_pull_down>;
-		};
-	};
-
-	lcd {
-		lcd_rst_gpio: lcd-rst-gpio {
-			rockchip,pins = <1 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
-
-	wireless-bluetooth {
-		uart1_gpios: uart1-gpios {
-			rockchip,pins = <2 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
+&sata2 {
+	status = "okay";
 };
 
-&sdmmc2 {
-	status = "disabled";
+&sdio_pwrseq {
+	compatible = "mmc-pwrseq-simple";
+	clocks = <&rk809 1>;
+	clock-names = "ext_clock";
+	pinctrl-names = "default";
+	pinctrl-0 = <&wifi_enable_h>;
+
+	/*
+	 * On the module itself this is one of these (depending
+	 * on the actual card populated):
+	 * - SDIO_RESET_L_WL_REG_ON
+	 * - PDN (power down when low)
+	 */
+	reset-gpios = <&gpio2 RK_PB1 GPIO_ACTIVE_LOW>;
 };
 
 &sdmmc1 {
@@ -133,50 +239,12 @@
 	status = "okay";
 };
 
-&sdio_pwrseq {
-	compatible = "mmc-pwrseq-simple";
-	clocks = <&pmucru CLK_RTC_32K>;
-	clock-names = "ext_clock";
-	pinctrl-names = "default";
-	pinctrl-0 = <&wifi_enable_h>;
-
-	/*
-	 * On the module itself this is one of these (depending
-	 * on the actual card populated):
-	 * - SDIO_RESET_L_WL_REG_ON
-	 * - PDN (power down when low)
-	 */
-	reset-gpios = <&gpio2 RK_PB1 GPIO_ACTIVE_LOW>;
+&sdmmc2 {
+	status = "disabled";
 };
 
-&gmac1 {
-	phy-mode = "rgmii";
-	clock_in_out = "output";
-
-	snps,reset-gpio = <&gpio3 RK_PA1 GPIO_ACTIVE_LOW>;
-	snps,reset-active-low;
-	/* Reset time is 20ms, 100ms for rtl8211f */
-	snps,reset-delays-us = <0 20000 100000>;
-
-	assigned-clocks = <&cru SCLK_GMAC1_RX_TX>, <&cru SCLK_GMAC1>;
-	assigned-clock-parents = <&cru SCLK_GMAC1_RGMII_SPEED>;
-	assigned-clock-rates = <0>, <125000000>;
-
-	pinctrl-names = "default";
-	pinctrl-0 = <&gmac1m1_miim_pins &gmac1m1_rgmii_pins>;
-
-	tx_delay = <0x2a>;
-	rx_delay = <0x1a>;
-
-	phy-handle = <&rgmii_phy1>;
-	status = "okay";
-};
-
-&mdio1 {
-	rgmii_phy1: phy@0 {
-		compatible = "ethernet-phy-ieee802.3-c22";
-		reg = <0x0>;
-	};
+&spdif_8ch {
+	status = "disabled";
 };
 
 &uart1 {
@@ -188,17 +256,9 @@
 	enable-active-high;
 };
 
-&wireless_wlan {
-	compatible = "wlan-platdata";
-	rockchip,grf = <&grf>;
-	wifi_chip_type = "ap6398s";
-	WIFI,host_wake_irq = <&gpio2 RK_PB2 GPIO_ACTIVE_HIGH>;
-	status = "okay";
-};
-
 &wireless_bluetooth {
 	compatible = "bluetooth-platdata";
-	clocks = <&pmucru CLK_RTC_32K>;
+	clocks = <&rk809 1>;
 	clock-names = "ext_clock";
 	//wifi-bt-power-toggle;
 	uart_rts_gpios = <&gpio2 RK_PB5 GPIO_ACTIVE_LOW>;
@@ -211,11 +271,12 @@
 	status = "okay";
 };
 
-&sata2 {
+&wireless_wlan {
+	compatible = "wlan-platdata";
+	rockchip,grf = <&grf>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&wifi_host_wake_irq>;
+	wifi_chip_type = "ap6398s";
+	WIFI,host_wake_irq = <&gpio2 RK_PB2 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
-
-&spdif_8ch {
-	status = "disabled";
-};
-
