@@ -474,7 +474,12 @@ void *__kmap_local_page_prot(struct page *page, pgprot_t prot)
 {
 	void *kmap;
 
-	if (!PageHighMem(page))
+	/*
+	 * To broaden the usage of the actual kmap_local() machinery always map
+	 * pages when debugging is enabled and the architecture has no problems
+	 * with alias mappings.
+	 */
+	if (!IS_ENABLED(CONFIG_DEBUG_KMAP_LOCAL_FORCE_MAP) && !PageHighMem(page))
 		return page_address(page);
 
 	/* Try kmap_high_get() if architecture has it enabled */
@@ -494,6 +499,11 @@ void kunmap_local_indexed(void *vaddr)
 
 	if (addr < __fix_to_virt(FIX_KMAP_END) ||
 	    addr > __fix_to_virt(FIX_KMAP_BEGIN)) {
+		if (IS_ENABLED(CONFIG_DEBUG_KMAP_LOCAL_FORCE_MAP)) {
+			/* This _should_ never happen! See above. */
+			WARN_ON_ONCE(1);
+			return;
+		}
 		/*
 		 * Handle mappings which were obtained by kmap_high_get()
 		 * first as the virtual address of such mappings is below
