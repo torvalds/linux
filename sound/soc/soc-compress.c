@@ -22,6 +22,40 @@
 #include <sound/soc-link.h>
 #include <linux/pm_runtime.h>
 
+static int soc_compr_free(struct snd_compr_stream *cstream)
+{
+	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
+	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
+	int stream = cstream->direction; /* SND_COMPRESS_xxx is same as SNDRV_PCM_STREAM_xxx */
+
+	mutex_lock_nested(&rtd->card->pcm_mutex, rtd->card->pcm_subclass);
+
+	snd_soc_runtime_deactivate(rtd, stream);
+
+	snd_soc_dai_digital_mute(codec_dai, 1, stream);
+
+	if (!snd_soc_dai_active(cpu_dai))
+		cpu_dai->rate = 0;
+
+	if (!snd_soc_dai_active(codec_dai))
+		codec_dai->rate = 0;
+
+	snd_soc_link_compr_shutdown(cstream);
+
+	snd_soc_component_compr_free(cstream, NULL);
+
+	snd_soc_dai_compr_shutdown(cpu_dai, cstream);
+
+	snd_soc_dapm_stream_stop(rtd, stream);
+
+	mutex_unlock(&rtd->card->pcm_mutex);
+
+	snd_soc_pcm_component_pm_runtime_put(rtd, cstream, 0);
+
+	return 0;
+}
+
 static int soc_compr_open(struct snd_compr_stream *cstream)
 {
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
@@ -138,40 +172,6 @@ be_err:
 	fe->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_NO;
 	mutex_unlock(&fe->card->mutex);
 	return ret;
-}
-
-static int soc_compr_free(struct snd_compr_stream *cstream)
-{
-	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
-	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
-	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
-	int stream = cstream->direction; /* SND_COMPRESS_xxx is same as SNDRV_PCM_STREAM_xxx */
-
-	mutex_lock_nested(&rtd->card->pcm_mutex, rtd->card->pcm_subclass);
-
-	snd_soc_runtime_deactivate(rtd, stream);
-
-	snd_soc_dai_digital_mute(codec_dai, 1, stream);
-
-	if (!snd_soc_dai_active(cpu_dai))
-		cpu_dai->rate = 0;
-
-	if (!snd_soc_dai_active(codec_dai))
-		codec_dai->rate = 0;
-
-	snd_soc_link_compr_shutdown(cstream);
-
-	snd_soc_component_compr_free(cstream, NULL);
-
-	snd_soc_dai_compr_shutdown(cpu_dai, cstream);
-
-	snd_soc_dapm_stream_stop(rtd, stream);
-
-	mutex_unlock(&rtd->card->pcm_mutex);
-
-	snd_soc_pcm_component_pm_runtime_put(rtd, cstream, 0);
-
-	return 0;
 }
 
 static int soc_compr_free_fe(struct snd_compr_stream *cstream)
