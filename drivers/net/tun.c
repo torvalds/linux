@@ -3071,10 +3071,19 @@ static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
 				   "Linktype set failed because interface is up\n");
 			ret = -EBUSY;
 		} else {
+			ret = call_netdevice_notifiers(NETDEV_PRE_TYPE_CHANGE,
+						       tun->dev);
+			ret = notifier_to_errno(ret);
+			if (ret) {
+				netif_info(tun, drv, tun->dev,
+					   "Refused to change device type\n");
+				break;
+			}
 			tun->dev->type = (int) arg;
 			netif_info(tun, drv, tun->dev, "linktype set to %d\n",
 				   tun->dev->type);
-			ret = 0;
+			call_netdevice_notifiers(NETDEV_POST_TYPE_CHANGE,
+						 tun->dev);
 		}
 		break;
 
