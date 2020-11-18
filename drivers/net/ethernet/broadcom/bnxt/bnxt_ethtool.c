@@ -2419,13 +2419,12 @@ static int bnxt_flash_firmware_from_file(struct net_device *dev,
 	return rc;
 }
 
-int bnxt_flash_package_from_file(struct net_device *dev, const char *filename,
-				 u32 install_type)
+int bnxt_flash_package_from_fw_obj(struct net_device *dev, const struct firmware *fw,
+				   u32 install_type)
 {
 	struct bnxt *bp = netdev_priv(dev);
 	struct hwrm_nvm_install_update_output *resp = bp->hwrm_cmd_resp_addr;
 	struct hwrm_nvm_install_update_input install = {0};
-	const struct firmware *fw;
 	u32 item_len;
 	int rc = 0;
 	u16 index;
@@ -2437,13 +2436,6 @@ int bnxt_flash_package_from_file(struct net_device *dev, const char *filename,
 				  &index, &item_len, NULL);
 	if (rc) {
 		netdev_err(dev, "PKG update area not created in nvram\n");
-		return rc;
-	}
-
-	rc = request_firmware(&fw, filename, &dev->dev);
-	if (rc != 0) {
-		netdev_err(dev, "PKG error %d requesting file: %s\n",
-			   rc, filename);
 		return rc;
 	}
 
@@ -2478,7 +2470,6 @@ int bnxt_flash_package_from_file(struct net_device *dev, const char *filename,
 					  dma_handle);
 		}
 	}
-	release_firmware(fw);
 	if (rc)
 		goto err_exit;
 
@@ -2514,6 +2505,26 @@ flash_pkg_exit:
 err_exit:
 	if (rc == -EACCES)
 		bnxt_print_admin_err(bp);
+	return rc;
+}
+
+static int bnxt_flash_package_from_file(struct net_device *dev, const char *filename,
+					u32 install_type)
+{
+	const struct firmware *fw;
+	int rc;
+
+	rc = request_firmware(&fw, filename, &dev->dev);
+	if (rc != 0) {
+		netdev_err(dev, "PKG error %d requesting file: %s\n",
+			   rc, filename);
+		return rc;
+	}
+
+	rc = bnxt_flash_package_from_fw_obj(dev, fw, install_type);
+
+	release_firmware(fw);
+
 	return rc;
 }
 

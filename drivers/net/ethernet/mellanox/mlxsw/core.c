@@ -1117,16 +1117,7 @@ static int mlxsw_core_fw_flash_update(struct mlxsw_core *mlxsw_core,
 				      struct devlink_flash_update_params *params,
 				      struct netlink_ext_ack *extack)
 {
-	const struct firmware *firmware;
-	int err;
-
-	err = request_firmware_direct(&firmware, params->file_name, mlxsw_core->bus_info->dev);
-	if (err)
-		return err;
-	err = mlxsw_core_fw_flash(mlxsw_core, firmware, extack);
-	release_firmware(firmware);
-
-	return err;
+	return mlxsw_core_fw_flash(mlxsw_core, params->fw, extack);
 }
 
 static int mlxsw_core_devlink_param_fw_load_policy_validate(struct devlink *devlink, u32 id,
