@@ -368,10 +368,10 @@ EXPORT_SYMBOL(kunmap_high);
 static DEFINE_PER_CPU(int, __kmap_local_idx);
 
 /*
- * With DEBUG_HIGHMEM the stack depth is doubled and every second
+ * With DEBUG_KMAP_LOCAL the stack depth is doubled and every second
  * slot is unused which acts as a guard page
  */
-#ifdef CONFIG_DEBUG_HIGHMEM
+#ifdef CONFIG_DEBUG_KMAP_LOCAL
 # define KM_INCR	2
 #else
 # define KM_INCR	1

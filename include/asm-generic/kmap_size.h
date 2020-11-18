@@ -3,7 +3,7 @@
 #define _ASM_GENERIC_KMAP_SIZE_H
 
 /* For debug this provides guard pages between the maps */
-#ifdef CONFIG_DEBUG_HIGHMEM
+#ifdef CONFIG_DEBUG_KMAP_LOCAL
 # define KM_MAX_IDX	33
 #else
 # define KM_MAX_IDX	16

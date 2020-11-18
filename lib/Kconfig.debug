@@ -849,9 +849,17 @@ config DEBUG_PER_CPU_MAPS
 
 	  Say N if unsure.
 
+config DEBUG_KMAP_LOCAL
+	bool "Debug kmap_local temporary mappings"
+	depends on DEBUG_KERNEL && KMAP_LOCAL
+	help
+	  This option enables additional error checking for the kmap_local
+	  infrastructure.  Disable for production use.
+
 config DEBUG_HIGHMEM
 	bool "Highmem debugging"
 	depends on DEBUG_KERNEL && HIGHMEM
+	select DEBUG_KMAP_LOCAL
 	help
 	  This option enables additional error checking for high memory
 	  systems.  Disable for production systems.
