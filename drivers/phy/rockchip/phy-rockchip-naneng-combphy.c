@@ -296,6 +296,7 @@ static int rk3568_combphy_cfg(struct rockchip_combphy_priv *priv)
 	struct clk *refclk = NULL;
 	unsigned long rate;
 	int i;
+	u32 val;
 
 	/* Configure PHY reference clock frequency */
 	for (i = 0; i < priv->num_clks; i++) {
@@ -337,6 +338,16 @@ static int rk3568_combphy_cfg(struct rockchip_combphy_priv *priv)
 		param_write(priv->phy_grf, &cfg->con1_for_pcie, true);
 		param_write(priv->phy_grf, &cfg->con2_for_pcie, true);
 		param_write(priv->phy_grf, &cfg->con3_for_pcie, true);
+		/* Enable controlling random jitter, aka RMJ */
+		val = readl(priv->mmio + (0xa << 2));
+		val &= ~(0x77);
+		val |= 0x3 << 4;
+		writel(val, priv->mmio + (0xa << 2));
+
+		val = readl(priv->mmio + (0x20 << 2));
+		val &= ~(0x1c);
+		val |= 0x5 << 2;
+		writel(val, priv->mmio + (0x20 << 2));
 		break;
 	case PHY_TYPE_USB3:
 		/* Set ssc downward spread spectrum */
