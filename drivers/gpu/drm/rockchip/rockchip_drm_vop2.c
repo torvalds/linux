@@ -727,7 +727,7 @@ static enum vop2_afbc_format vop2_convert_afbc_format(uint32_t format)
 	return -EINVAL;
 }
 
-static bool has_rb_swapped(uint32_t format)
+static bool vop2_win_rb_swap(uint32_t format)
 {
 	switch (format) {
 	case DRM_FORMAT_XBGR8888:
@@ -740,7 +740,46 @@ static bool has_rb_swapped(uint32_t format)
 	}
 }
 
-static bool is_uv_swap(uint32_t bus_format, uint32_t output_mode)
+static bool vop2_afbc_rb_swap(uint32_t format)
+{
+	switch (format) {
+	case DRM_FORMAT_NV24:
+	case DRM_FORMAT_NV24_10:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool vop2_afbc_uv_swap(uint32_t format)
+{
+	switch (format) {
+	case DRM_FORMAT_NV12:
+	case DRM_FORMAT_NV16:
+	case DRM_FORMAT_NV12_10:
+	case DRM_FORMAT_NV16_10:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool vop2_win_uv_swap(uint32_t format)
+{
+	switch (format) {
+	case DRM_FORMAT_NV12:
+	case DRM_FORMAT_NV16:
+	case DRM_FORMAT_NV24:
+	case DRM_FORMAT_NV12_10:
+	case DRM_FORMAT_NV16_10:
+	case DRM_FORMAT_NV24_10:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool vop2_output_uv_swap(uint32_t bus_format, uint32_t output_mode)
 {
 	/*
 	 * FIXME:
@@ -759,6 +798,7 @@ static bool is_uv_swap(uint32_t bus_format, uint32_t output_mode)
 	else
 		return false;
 }
+
 static bool is_yuv_support(uint32_t format)
 {
 	switch (format) {
@@ -1560,6 +1600,7 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 	uint32_t format;
 	uint32_t afbc_format;
 	uint32_t rb_swap;
+	uint32_t uv_swap;
 	struct drm_rect *src = &vpstate->src;
 	struct drm_rect *dest = &vpstate->dest;
 	uint32_t afbc_tile_num;
@@ -1630,9 +1671,13 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 		 * with WIN_VIR_STRIDE.
 		 */
 		stride = (fb->pitches[0] << 3) / bpp;
+		rb_swap = vop2_afbc_rb_swap(fb->format->format);
+		uv_swap = vop2_afbc_uv_swap(fb->format->format);
 		afbc_half_block_en = vop2_afbc_half_block_enable(vpstate);
 		VOP_AFBC_SET(vop2, win, enable, 1);
 		VOP_AFBC_SET(vop2, win, format, afbc_format);
+		VOP_AFBC_SET(vop2, win, rb_swap, rb_swap);
+		VOP_AFBC_SET(vop2, win, uv_swap, uv_swap);
 		VOP_AFBC_SET(vop2, win, auto_gating_en, 0);
 		VOP_AFBC_SET(vop2, win, block_split_en, 0);
 		VOP_AFBC_SET(vop2, win, half_block_en, afbc_half_block_en);
@@ -1663,8 +1708,10 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 	VOP_WIN_SET(vop2, win, yrgb_vir, stride);
 	VOP_WIN_SET(vop2, win, yrgb_mst, vpstate->yrgb_mst);
 
-	rb_swap = has_rb_swapped(fb->format->format);
+	rb_swap = vop2_win_rb_swap(fb->format->format);
+	uv_swap = vop2_win_uv_swap(fb->format->format);
 	VOP_WIN_SET(vop2, win, rb_swap, rb_swap);
+	VOP_WIN_SET(vop2, win, uv_swap, uv_swap);
 
 	if (fb->format->is_yuv) {
 		VOP_WIN_SET(vop2, win, uv_vir, DIV_ROUND_UP(fb->pitches[1], 4));
@@ -2711,7 +2758,7 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 	VOP_MODULE_SET(vop2, vp, out_mode, out_mode);
 	VOP_MODULE_SET(vop2, vp, overlay_mode, is_yuv_output(vcstate->bus_format));
 
-	if (is_uv_swap(vcstate->bus_format, vcstate->output_mode))
+	if (vop2_output_uv_swap(vcstate->bus_format, vcstate->output_mode))
 		VOP_MODULE_SET(vop2, vp, dsp_data_swap, DSP_RB_SWAP);
 	else
 		VOP_MODULE_SET(vop2, vp, dsp_data_swap, 0);
