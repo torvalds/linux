@@ -205,6 +205,21 @@ static const struct drm_display_mode default_mode_mantix = {
 	.height_mm   = 130,
 };
 
+static const struct drm_display_mode default_mode_ys = {
+	.hdisplay    = 720,
+	.hsync_start = 720 + 45,
+	.hsync_end   = 720 + 45 + 14,
+	.htotal	     = 720 + 45 + 14 + 25,
+	.vdisplay    = 1440,
+	.vsync_start = 1440 + 175,
+	.vsync_end   = 1440 + 175 + 8,
+	.vtotal	     = 1440 + 175 + 8 + 50,
+	.clock	     = 85298,
+	.flags	     = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
+	.width_mm    = 65,
+	.height_mm   = 130,
+};
+
 static int mantix_get_modes(struct drm_panel *panel,
 			    struct drm_connector *connector)
 {
@@ -326,6 +341,7 @@ static int mantix_remove(struct mipi_dsi_device *dsi)
 
 static const struct of_device_id mantix_of_match[] = {
 	{ .compatible = "mantix,mlaf057we51-x", .data = &default_mode_mantix },
+	{ .compatible = "ys,ys57pss36bh5gq", .data = &default_mode_ys },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, mantix_of_match);
