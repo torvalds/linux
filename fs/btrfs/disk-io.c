@@ -2882,6 +2882,14 @@ int btrfs_start_pre_rw_mount(struct btrfs_fs_info *fs_info)
 	if (ret)
 		goto out;
 
+	down_read(&fs_info->cleanup_work_sem);
+	if ((ret = btrfs_orphan_cleanup(fs_info->fs_root)) ||
+	    (ret = btrfs_orphan_cleanup(fs_info->tree_root))) {
+		up_read(&fs_info->cleanup_work_sem);
+		goto out;
+	}
+	up_read(&fs_info->cleanup_work_sem);
+
 	mutex_lock(&fs_info->cleaner_mutex);
 	ret = btrfs_recover_relocation(fs_info->tree_root);
 	mutex_unlock(&fs_info->cleaner_mutex);
@@ -3373,15 +3381,6 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 			return ret;
 		}
 	}
-
-	down_read(&fs_info->cleanup_work_sem);
-	if ((ret = btrfs_orphan_cleanup(fs_info->fs_root)) ||
-	    (ret = btrfs_orphan_cleanup(fs_info->tree_root))) {
-		up_read(&fs_info->cleanup_work_sem);
-		close_ctree(fs_info);
-		return ret;
-	}
-	up_read(&fs_info->cleanup_work_sem);
 
 	ret = btrfs_start_pre_rw_mount(fs_info);
 	if (ret) {
