@@ -589,7 +589,8 @@ static struct miscdevice vender_storage_dev = {
 
 static int vendor_init_thread(void *arg)
 {
-	int ret, try_count = 5;
+	int ret;
+	unsigned long timeout = jiffies + 3 * HZ;
 
 	g_vendor = kmalloc(sizeof(*g_vendor), GFP_KERNEL | GFP_DMA);
 	if (!g_vendor)
@@ -597,12 +598,11 @@ static int vendor_init_thread(void *arg)
 
 	do {
 		ret = emmc_vendor_storage_init();
-		if (!ret) {
+		if (!ret || time_after(jiffies, timeout))
 			break;
-		}
-		/* sleep 500ms wait emmc initialize completed */
-		msleep(500);
-	} while (try_count--);
+		/* sleep wait emmc initialize completed */
+		msleep(100);
+	} while (1);
 
 	if (!ret) {
 		ret = misc_register(&vender_storage_dev);
