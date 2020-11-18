@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-.. _v4l2-meta-fmt-params-rkisp1:
-.. _v4l2-meta-fmt-stat-rkisp1:
+.. _v4l2-meta-fmt-rk-isp1-params:
+.. _v4l2-meta-fmt-rk-isp1-stat-3a:
 
 *****************************************************************************
 V4L2_META_FMT_RK_ISP1_PARAMS ('rk1p'), V4L2_META_FMT_RK_ISP1_STAT_3A ('rk1s')
