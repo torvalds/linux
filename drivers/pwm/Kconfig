@@ -331,8 +331,8 @@ config PWM_LPSS
 
 config PWM_LPSS_PCI
 	tristate "Intel LPSS PWM PCI driver"
-	depends on X86 && PCI
-	depends on HAS_IOMEM
+	depends on X86 || COMPILE_TEST
+	depends on HAS_IOMEM && PCI
 	select PWM_LPSS
 	help
 	  The PCI driver for Intel Low Power Subsystem PWM controller.
@@ -342,7 +342,7 @@ config PWM_LPSS_PCI
 
 config PWM_LPSS_PLATFORM
 	tristate "Intel LPSS PWM platform driver"
-	depends on X86 && ACPI
+	depends on (X86 && ACPI) || COMPILE_TEST
 	depends on HAS_IOMEM
 	select PWM_LPSS
 	help
