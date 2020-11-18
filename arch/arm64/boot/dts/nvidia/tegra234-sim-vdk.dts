@@ -8,7 +8,7 @@
 	compatible = "nvidia,tegra234-vdk", "nvidia,tegra234";
 
 	aliases {
-		sdhci3 = "/cbb@0/sdhci@3460000";
+		mmc3 = "/bus@0/mmc@3460000";
 		serial0 = &uarta;
 	};
 
@@ -17,12 +17,12 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	cbb@0 {
+	bus@0 {
 		serial@3100000 {
 			status = "okay";
 		};
 
-		sdhci@3460000 {
+		mmc@3460000 {
 			status = "okay";
 			bus-width = <8>;
 			non-removable;
