@@ -325,7 +325,7 @@ static void ipa_hardware_config(struct ipa *ipa)
 
 		/* Disable PA mask to allow HOLB drop (hardware workaround) */
 		val = ioread32(ipa->reg_virt + IPA_REG_TX_CFG_OFFSET);
-		val &= ~PA_MASK_EN;
+		val &= ~PA_MASK_EN_FMASK;
 		iowrite32(val, ipa->reg_virt + IPA_REG_TX_CFG_OFFSET);
 	}
 
@@ -336,12 +336,15 @@ static void ipa_hardware_config(struct ipa *ipa)
 
 	/* Configure aggregation granularity */
 	granularity = ipa_aggr_granularity_val(IPA_AGGR_GRANULARITY);
-	val = u32_encode_bits(granularity, AGGR_GRANULARITY);
+	val = u32_encode_bits(granularity, AGGR_GRANULARITY_FMASK);
 	iowrite32(val, ipa->reg_virt + IPA_REG_COUNTER_CFG_OFFSET);
 
-	/* Disable hashed IPv4 and IPv6 routing and filtering for IPA v4.2 */
-	if (ipa->version == IPA_VERSION_4_2)
-		iowrite32(0, ipa->reg_virt + IPA_REG_FILT_ROUT_HASH_EN_OFFSET);
+	/* IPA v4.2 does not support hashed tables, so disable them */
+	if (ipa->version == IPA_VERSION_4_2) {
+		u32 offset = ipa_reg_filt_rout_hash_en_offset(ipa->version);
+
+		iowrite32(0, ipa->reg_virt + offset);
+	}
 
 	/* Enable dynamic clock division */
 	ipa_hardware_dcd_config(ipa);
@@ -685,7 +688,7 @@ static void ipa_validate_build(void)
 	/* Aggregation granularity value can't be 0, and must fit */
 	BUILD_BUG_ON(!ipa_aggr_granularity_val(IPA_AGGR_GRANULARITY));
 	BUILD_BUG_ON(ipa_aggr_granularity_val(IPA_AGGR_GRANULARITY) >
-			field_max(AGGR_GRANULARITY));
+			field_max(AGGR_GRANULARITY_FMASK));
 #endif /* IPA_VALIDATE */
 }
 
