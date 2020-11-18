@@ -43,7 +43,7 @@ static int soc_compr_free(struct snd_compr_stream *cstream)
 
 	snd_soc_link_compr_shutdown(cstream);
 
-	snd_soc_component_compr_free(cstream, NULL);
+	snd_soc_component_compr_free(cstream, 0);
 
 	snd_soc_dai_compr_shutdown(cpu_dai, cstream, 0);
 
@@ -59,7 +59,6 @@ static int soc_compr_free(struct snd_compr_stream *cstream)
 static int soc_compr_open(struct snd_compr_stream *cstream)
 {
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
-	struct snd_soc_component *component = NULL;
 	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
 	int stream = cstream->direction; /* SND_COMPRESS_xxx is same as SNDRV_PCM_STREAM_xxx */
 	int ret;
@@ -74,7 +73,7 @@ static int soc_compr_open(struct snd_compr_stream *cstream)
 	if (ret < 0)
 		goto out;
 
-	ret = snd_soc_component_compr_open(cstream, &component);
+	ret = snd_soc_component_compr_open(cstream);
 	if (ret < 0)
 		goto machine_err;
 
@@ -89,7 +88,7 @@ static int soc_compr_open(struct snd_compr_stream *cstream)
 	return 0;
 
 machine_err:
-	snd_soc_component_compr_free(cstream, component);
+	snd_soc_component_compr_free(cstream, 1);
 
 	snd_soc_dai_compr_shutdown(cpu_dai, cstream, 1);
 out:
@@ -105,7 +104,6 @@ static int soc_compr_open_fe(struct snd_compr_stream *cstream)
 	struct snd_soc_pcm_runtime *fe = cstream->private_data;
 	struct snd_pcm_substream *fe_substream =
 		 fe->pcm->streams[cstream->direction].substream;
-	struct snd_soc_component *component;
 	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(fe, 0);
 	struct snd_soc_dpcm *dpcm;
 	struct snd_soc_dapm_widget_list *list;
@@ -142,7 +140,7 @@ static int soc_compr_open_fe(struct snd_compr_stream *cstream)
 	if (ret < 0)
 		goto out;
 
-	ret = snd_soc_component_compr_open(cstream, &component);
+	ret = snd_soc_component_compr_open(cstream);
 	if (ret < 0)
 		goto open_err;
 
@@ -163,7 +161,7 @@ static int soc_compr_open_fe(struct snd_compr_stream *cstream)
 	return 0;
 
 machine_err:
-	snd_soc_component_compr_free(cstream, component);
+	snd_soc_component_compr_free(cstream, 1);
 open_err:
 	snd_soc_dai_compr_shutdown(cpu_dai, cstream, 1);
 out:
@@ -209,7 +207,7 @@ static int soc_compr_free_fe(struct snd_compr_stream *cstream)
 
 	snd_soc_link_compr_shutdown(cstream);
 
-	snd_soc_component_compr_free(cstream, NULL);
+	snd_soc_component_compr_free(cstream, 0);
 
 	snd_soc_dai_compr_shutdown(cpu_dai, cstream, 0);
 

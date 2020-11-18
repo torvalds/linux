@@ -221,6 +221,7 @@ struct snd_soc_component {
 	struct snd_pcm_substream *mark_module;
 	struct snd_pcm_substream *mark_open;
 	struct snd_pcm_substream *mark_hw_params;
+	struct snd_compr_stream  *mark_compr_open;
 	void *mark_pm;
 
 #ifdef CONFIG_DEBUG_FS
@@ -444,10 +445,9 @@ int snd_soc_component_of_xlate_dai_id(struct snd_soc_component *component,
 int snd_soc_component_of_xlate_dai_name(struct snd_soc_component *component,
 					struct of_phandle_args *args,
 					const char **dai_name);
-int snd_soc_component_compr_open(struct snd_compr_stream *cstream,
-				 struct snd_soc_component **last);
+int snd_soc_component_compr_open(struct snd_compr_stream *cstream);
 void snd_soc_component_compr_free(struct snd_compr_stream *cstream,
-				  struct snd_soc_component *last);
+				  int rollback);
 int snd_soc_component_compr_trigger(struct snd_compr_stream *cstream, int cmd);
 int snd_soc_component_compr_set_params(struct snd_compr_stream *cstream,
 				       struct snd_compr_params *params);
