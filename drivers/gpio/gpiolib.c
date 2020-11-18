@@ -759,9 +759,11 @@ err_free_ida:
 	ida_free(&gpio_ida, gdev->id);
 err_free_gdev:
 	/* failures here can mean systems won't boot... */
-	pr_err("%s: GPIOs %d..%d (%s) failed to register, %d\n", __func__,
-	       gdev->base, gdev->base + gdev->ngpio - 1,
-	       gc->label ? : "generic", ret);
+	if (ret != -EPROBE_DEFER) {
+		pr_err("%s: GPIOs %d..%d (%s) failed to register, %d\n", __func__,
+		       gdev->base, gdev->base + gdev->ngpio - 1,
+		       gc->label ? : "generic", ret);
+	}
 	kfree(gdev);
 	return ret;
 }
