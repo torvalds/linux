@@ -265,8 +265,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&gmac1m0_miim_pins &gmac1m0_rgmii_pins>;
 
-	tx_delay = <0x2a>;
-	rx_delay = <0x1a>;
+	tx_delay = <0x46>;
+	rx_delay = <0x2f>;
 
 	phy-handle = <&rgmii_phy1>;
 	status = "okay";
