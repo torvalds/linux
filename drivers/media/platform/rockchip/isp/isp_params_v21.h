@@ -267,10 +267,6 @@ struct rkisp_isp_params_v21_ops {
 			      const struct isp2x_hdrmge_cfg *arg, enum rkisp_params_type type);
 	void (*hdrmge_enable)(struct rkisp_isp_params_vdev *params_vdev,
 			      bool en);
-	void (*hdrtmo_config)(struct rkisp_isp_params_vdev *params_vdev,
-			      const struct isp2x_hdrtmo_cfg *arg, enum rkisp_params_type type);
-	void (*hdrtmo_enable)(struct rkisp_isp_params_vdev *params_vdev,
-			      bool en);
 	void (*gic_config)(struct rkisp_isp_params_vdev *params_vdev,
 			   const struct isp21_gic_cfg *arg);
 	void (*gic_enable)(struct rkisp_isp_params_vdev *params_vdev,

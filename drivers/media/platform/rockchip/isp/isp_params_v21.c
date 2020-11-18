@@ -3994,7 +3994,7 @@ rkisp_params_disable_isp_v2x(struct rkisp_isp_params_vdev *params_vdev)
 	ops->rawhst2_enable(params_vdev, false);
 	ops->rawhst3_enable(params_vdev, false);
 	ops->hdrmge_enable(params_vdev, false);
-	ops->hdrtmo_enable(params_vdev, false);
+	ops->hdrdrc_enable(params_vdev, false);
 	ops->gic_enable(params_vdev, false);
 	ops->dhaz_enable(params_vdev, false);
 	ops->isp3dlut_enable(params_vdev, false);
