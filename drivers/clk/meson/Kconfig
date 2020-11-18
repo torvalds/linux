@@ -58,7 +58,7 @@ config COMMON_CLK_MESON8B
 	  want peripherals and CPU frequency scaling to work.
 
 config COMMON_CLK_GXBB
-	bool "GXBB and GXL SoC clock controllers support"
+	tristate "GXBB and GXL SoC clock controllers support"
 	depends on ARM64
 	default y
 	select COMMON_CLK_MESON_REGMAP
@@ -74,7 +74,7 @@ config COMMON_CLK_GXBB
 	  Say Y if you want peripherals and CPU frequency scaling to work.
 
 config COMMON_CLK_AXG
-	bool "AXG SoC clock controllers support"
+	tristate "AXG SoC clock controllers support"
 	depends on ARM64
 	default y
 	select COMMON_CLK_MESON_REGMAP
@@ -100,7 +100,7 @@ config COMMON_CLK_AXG_AUDIO
 	  aka axg, Say Y if you want audio subsystem to work.
 
 config COMMON_CLK_G12A
-	bool "G12 and SM1 SoC clock controllers support"
+	tristate "G12 and SM1 SoC clock controllers support"
 	depends on ARM64
 	default y
 	select COMMON_CLK_MESON_REGMAP

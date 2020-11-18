@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/module.h>
 
 #include "clk-regmap.h"
 #include "clk-pll.h"
@@ -1354,6 +1355,7 @@ static const struct of_device_id clkc_match_table[] = {
 	{ .compatible = "amlogic,axg-clkc", .data = &axg_clkc_data },
 	{}
 };
+MODULE_DEVICE_TABLE(of, clkc_match_table);
 
 static struct platform_driver axg_driver = {
 	.probe		= meson_eeclkc_probe,
@@ -1363,4 +1365,5 @@ static struct platform_driver axg_driver = {
 	},
 };
 
-builtin_platform_driver(axg_driver);
+module_platform_driver(axg_driver);
+MODULE_LICENSE("GPL v2");
