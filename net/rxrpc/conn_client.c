@@ -881,7 +881,7 @@ void rxrpc_disconnect_client_call(struct rxrpc_call *call)
 			conn->cache_state = RXRPC_CONN_CLIENT_ACTIVE;
 			rxrpc_activate_channels_locked(conn);
 		}
-		/* fall through */
+		fallthrough;
 	case RXRPC_CONN_CLIENT_ACTIVE:
 		if (list_empty(&conn->waiting_calls)) {
 			rxrpc_deactivate_one_channel(conn, channel);

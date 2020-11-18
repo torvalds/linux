@@ -786,13 +786,13 @@ static const char *const nct6798_temp_label[] = {
 	"Agent1 Dimm1",
 	"BYTE_TEMP0",
 	"BYTE_TEMP1",
-	"",
-	"",
+	"PECI Agent 0 Calibration",	/* undocumented */
+	"PECI Agent 1 Calibration",	/* undocumented */
 	"",
 	"Virtual_TEMP"
 };
 
-#define NCT6798_TEMP_MASK	0x8fff0ffe
+#define NCT6798_TEMP_MASK	0xbfff0ffe
 #define NCT6798_VIRT_TEMP_MASK	0x80000c00
 
 /* NCT6102D/NCT6106D specific data */
@@ -2047,7 +2047,7 @@ store_temp_beep(struct device *dev, struct device_attribute *attr,
 static umode_t nct6775_in_is_visible(struct kobject *kobj,
 				     struct attribute *attr, int index)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct nct6775_data *data = dev_get_drvdata(dev);
 	int in = index / 5;	/* voltage index */
 
@@ -2253,7 +2253,7 @@ store_fan_pulses(struct device *dev, struct device_attribute *attr,
 static umode_t nct6775_fan_is_visible(struct kobject *kobj,
 				      struct attribute *attr, int index)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct nct6775_data *data = dev_get_drvdata(dev);
 	int fan = index / 6;	/* fan index */
 	int nr = index % 6;	/* attribute index */
@@ -2440,7 +2440,7 @@ store_temp_type(struct device *dev, struct device_attribute *attr,
 static umode_t nct6775_temp_is_visible(struct kobject *kobj,
 				       struct attribute *attr, int index)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct nct6775_data *data = dev_get_drvdata(dev);
 	int temp = index / 10;	/* temp index */
 	int nr = index % 10;	/* attribute index */
@@ -2669,7 +2669,7 @@ static void pwm_update_registers(struct nct6775_data *data, int nr)
 	case thermal_cruise:
 		nct6775_write_value(data, data->REG_TARGET[nr],
 				    data->target_temp[nr]);
-		/* fall through  */
+		fallthrough;
 	default:
 		reg = nct6775_read_value(data, data->REG_FAN_MODE[nr]);
 		reg = (reg & ~data->tolerance_mask) |
@@ -3257,7 +3257,7 @@ store_auto_temp(struct device *dev, struct device_attribute *attr,
 static umode_t nct6775_pwm_is_visible(struct kobject *kobj,
 				      struct attribute *attr, int index)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct nct6775_data *data = dev_get_drvdata(dev);
 	int pwm = index / 36;	/* pwm index */
 	int nr = index % 36;	/* attribute index */
@@ -3459,7 +3459,7 @@ static SENSOR_DEVICE_ATTR(beep_enable, S_IWUSR | S_IRUGO, show_beep,
 static umode_t nct6775_other_is_visible(struct kobject *kobj,
 					struct attribute *attr, int index)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct nct6775_data *data = dev_get_drvdata(dev);
 
 	if (index == 0 && !data->have_vid)

@@ -970,10 +970,6 @@ static const struct inet_connection_sock_af_ops dccp_ipv6_af_ops = {
 	.getsockopt	   = ipv6_getsockopt,
 	.addr2sockaddr	   = inet6_csk_addr2sockaddr,
 	.sockaddr_len	   = sizeof(struct sockaddr_in6),
-#ifdef CONFIG_COMPAT
-	.compat_setsockopt = compat_ipv6_setsockopt,
-	.compat_getsockopt = compat_ipv6_getsockopt,
-#endif
 };
 
 /*
@@ -990,10 +986,6 @@ static const struct inet_connection_sock_af_ops dccp_ipv6_mapped = {
 	.getsockopt	   = ipv6_getsockopt,
 	.addr2sockaddr	   = inet6_csk_addr2sockaddr,
 	.sockaddr_len	   = sizeof(struct sockaddr_in6),
-#ifdef CONFIG_COMPAT
-	.compat_setsockopt = compat_ipv6_setsockopt,
-	.compat_getsockopt = compat_ipv6_getsockopt,
-#endif
 };
 
 /* NOTE: A lot of things set to zero explicitly by call to
@@ -1049,10 +1041,6 @@ static struct proto dccp_v6_prot = {
 	.rsk_prot	   = &dccp6_request_sock_ops,
 	.twsk_prot	   = &dccp6_timewait_sock_ops,
 	.h.hashinfo	   = &dccp_hashinfo,
-#ifdef CONFIG_COMPAT
-	.compat_setsockopt = compat_dccp_setsockopt,
-	.compat_getsockopt = compat_dccp_getsockopt,
-#endif
 };
 
 static const struct inet6_protocol dccp_v6_protocol = {
@@ -1082,8 +1070,7 @@ static const struct proto_ops inet6_dccp_ops = {
 	.mmap		   = sock_no_mmap,
 	.sendpage	   = sock_no_sendpage,
 #ifdef CONFIG_COMPAT
-	.compat_setsockopt = compat_sock_common_setsockopt,
-	.compat_getsockopt = compat_sock_common_getsockopt,
+	.compat_ioctl	   = inet6_compat_ioctl,
 #endif
 };
 

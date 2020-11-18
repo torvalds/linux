@@ -65,15 +65,31 @@ void crypto_alg_tested(const char *name, int err);
 void crypto_remove_spawns(struct crypto_alg *alg, struct list_head *list,
 			  struct crypto_alg *nalg);
 void crypto_remove_final(struct list_head *list);
+void crypto_shoot_alg(struct crypto_alg *alg);
 struct crypto_tfm *__crypto_alloc_tfm(struct crypto_alg *alg, u32 type,
 				      u32 mask);
-void *crypto_create_tfm(struct crypto_alg *alg,
-			const struct crypto_type *frontend);
+void *crypto_create_tfm_node(struct crypto_alg *alg,
+			const struct crypto_type *frontend, int node);
+
+static inline void *crypto_create_tfm(struct crypto_alg *alg,
+			const struct crypto_type *frontend)
+{
+	return crypto_create_tfm_node(alg, frontend, NUMA_NO_NODE);
+}
+
 struct crypto_alg *crypto_find_alg(const char *alg_name,
 				   const struct crypto_type *frontend,
 				   u32 type, u32 mask);
-void *crypto_alloc_tfm(const char *alg_name,
-		       const struct crypto_type *frontend, u32 type, u32 mask);
+
+void *crypto_alloc_tfm_node(const char *alg_name,
+		       const struct crypto_type *frontend, u32 type, u32 mask,
+		       int node);
+
+static inline void *crypto_alloc_tfm(const char *alg_name,
+		       const struct crypto_type *frontend, u32 type, u32 mask)
+{
+	return crypto_alloc_tfm_node(alg_name, frontend, type, mask, NUMA_NO_NODE);
+}
 
 int crypto_probing_notify(unsigned long val, void *v);
 

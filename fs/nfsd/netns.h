@@ -139,7 +139,6 @@ struct nfsd_net {
 	 * Duplicate reply cache
 	 */
 	struct nfsd_drc_bucket   *drc_hashtbl;
-	struct kmem_cache        *drc_slab;
 
 	/* max number of entries allowed in the cache */
 	unsigned int             max_drc_entries;
@@ -172,7 +171,7 @@ struct nfsd_net {
 	unsigned int             longest_chain_cachesize;
 
 	struct shrinker		nfsd_reply_cache_shrinker;
-	/* utsname taken from the the process that starts the server */
+	/* utsname taken from the process that starts the server */
 	char			nfsd_name[UNX_MAXNODENAME+1];
 };
 

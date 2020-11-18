@@ -2410,7 +2410,7 @@ static u8 fixup_chainmask(u8 chip_chainmask, u8 eeprom_chainmask)
  * of tests. The testing requirements are going to be documented. Desired
  * test requirements are documented at:
  *
- * http://wireless.kernel.org/en/users/Drivers/ath9k/dfs
+ * https://wireless.wiki.kernel.org/en/users/Drivers/ath9k/dfs
  *
  * Once a new chipset gets properly tested an individual commit can be used
  * to document the testing for DFS for that chipset.

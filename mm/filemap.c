@@ -41,6 +41,7 @@
 #include <linux/delayacct.h>
 #include <linux/psi.h>
 #include <linux/ramfs.h>
+#include <linux/page_idle.h>
 #include "internal.h"
 
 #define CREATE_TRACE_POINTS
@@ -76,16 +77,16 @@
  *  ->i_mutex
  *    ->i_mmap_rwsem		(truncate->unmap_mapping_range)
  *
- *  ->mmap_sem
+ *  ->mmap_lock
  *    ->i_mmap_rwsem
  *      ->page_table_lock or pte_lock	(various, mainly in memory.c)
  *        ->i_pages lock	(arch-dependent flush_dcache_mmap_lock)
  *
- *  ->mmap_sem
+ *  ->mmap_lock
  *    ->lock_page		(access_process_vm)
  *
  *  ->i_mutex			(generic_perform_write)
- *    ->mmap_sem		(fault_in_pages_readable->do_page_fault)
+ *    ->mmap_lock		(fault_in_pages_readable->do_page_fault)
  *
  *  bdi->wb.list_lock
  *    sb_lock			(fs/fs-writeback.c)
@@ -197,11 +198,11 @@ static void unaccount_page_cache_page(struct address_space *mapping,
 	if (PageHuge(page))
 		return;
 
-	nr = hpage_nr_pages(page);
+	nr = thp_nr_pages(page);
 
-	__mod_node_page_state(page_pgdat(page), NR_FILE_PAGES, -nr);
+	__mod_lruvec_page_state(page, NR_FILE_PAGES, -nr);
 	if (PageSwapBacked(page)) {
-		__mod_node_page_state(page_pgdat(page), NR_SHMEM, -nr);
+		__mod_lruvec_page_state(page, NR_SHMEM, -nr);
 		if (PageTransHuge(page))
 			__dec_node_page_state(page, NR_SHMEM_THPS);
 	} else if (PageTransHuge(page)) {
@@ -802,21 +803,22 @@ int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask)
 	new->mapping = mapping;
 	new->index = offset;
 
+	mem_cgroup_migrate(old, new);
+
 	xas_lock_irqsave(&xas, flags);
 	xas_store(&xas, new);
 
 	old->mapping = NULL;
 	/* hugetlb pages do not participate in page cache accounting. */
 	if (!PageHuge(old))
-		__dec_node_page_state(new, NR_FILE_PAGES);
+		__dec_lruvec_page_state(old, NR_FILE_PAGES);
 	if (!PageHuge(new))
-		__inc_node_page_state(new, NR_FILE_PAGES);
+		__inc_lruvec_page_state(new, NR_FILE_PAGES);
 	if (PageSwapBacked(old))
-		__dec_node_page_state(new, NR_SHMEM);
+		__dec_lruvec_page_state(old, NR_SHMEM);
 	if (PageSwapBacked(new))
-		__inc_node_page_state(new, NR_SHMEM);
+		__inc_lruvec_page_state(new, NR_SHMEM);
 	xas_unlock_irqrestore(&xas, flags);
-	mem_cgroup_migrate(old, new);
 	if (freepage)
 		freepage(old);
 	put_page(old);
@@ -832,7 +834,6 @@ static int __add_to_page_cache_locked(struct page *page,
 {
 	XA_STATE(xas, &mapping->i_pages, offset);
 	int huge = PageHuge(page);
-	struct mem_cgroup *memcg;
 	int error;
 	void *old;
 
@@ -840,16 +841,15 @@ static int __add_to_page_cache_locked(struct page *page,
 	VM_BUG_ON_PAGE(PageSwapBacked(page), page);
 	mapping_set_update(&xas, mapping);
 
-	if (!huge) {
-		error = mem_cgroup_try_charge(page, current->mm,
-					      gfp_mask, &memcg, false);
-		if (error)
-			return error;
-	}
-
 	get_page(page);
 	page->mapping = mapping;
 	page->index = offset;
+
+	if (!huge) {
+		error = mem_cgroup_charge(page, current->mm, gfp_mask);
+		if (error)
+			goto error;
+	}
 
 	do {
 		xas_lock_irq(&xas);
@@ -869,25 +869,23 @@ static int __add_to_page_cache_locked(struct page *page,
 
 		/* hugetlb pages do not participate in page cache accounting */
 		if (!huge)
-			__inc_node_page_state(page, NR_FILE_PAGES);
+			__inc_lruvec_page_state(page, NR_FILE_PAGES);
 unlock:
 		xas_unlock_irq(&xas);
 	} while (xas_nomem(&xas, gfp_mask & GFP_RECLAIM_MASK));
 
-	if (xas_error(&xas))
+	if (xas_error(&xas)) {
+		error = xas_error(&xas);
 		goto error;
+	}
 
-	if (!huge)
-		mem_cgroup_commit_charge(page, memcg, false, false);
 	trace_mm_filemap_add_to_page_cache(page);
 	return 0;
 error:
 	page->mapping = NULL;
 	/* Leave page->index set: truncation relies upon it */
-	if (!huge)
-		mem_cgroup_cancel_charge(page, memcg, false);
 	put_page(page);
-	return xas_error(&xas);
+	return error;
 }
 ALLOW_ERROR_INJECTION(__add_to_page_cache_locked, ERRNO);
 
@@ -990,44 +988,89 @@ void __init pagecache_init(void)
 	page_writeback_init();
 }
 
-/* This has the same layout as wait_bit_key - see fs/cachefiles/rdwr.c */
-struct wait_page_key {
-	struct page *page;
-	int bit_nr;
-	int page_match;
-};
-
-struct wait_page_queue {
-	struct page *page;
-	int bit_nr;
-	wait_queue_entry_t wait;
-};
-
+/*
+ * The page wait code treats the "wait->flags" somewhat unusually, because
+ * we have multiple different kinds of waits, not just the usual "exclusive"
+ * one.
+ *
+ * We have:
+ *
+ *  (a) no special bits set:
+ *
+ *	We're just waiting for the bit to be released, and when a waker
+ *	calls the wakeup function, we set WQ_FLAG_WOKEN and wake it up,
+ *	and remove it from the wait queue.
+ *
+ *	Simple and straightforward.
+ *
+ *  (b) WQ_FLAG_EXCLUSIVE:
+ *
+ *	The waiter is waiting to get the lock, and only one waiter should
+ *	be woken up to avoid any thundering herd behavior. We'll set the
+ *	WQ_FLAG_WOKEN bit, wake it up, and remove it from the wait queue.
+ *
+ *	This is the traditional exclusive wait.
+ *
+ *  (c) WQ_FLAG_EXCLUSIVE | WQ_FLAG_CUSTOM:
+ *
+ *	The waiter is waiting to get the bit, and additionally wants the
+ *	lock to be transferred to it for fair lock behavior. If the lock
+ *	cannot be taken, we stop walking the wait queue without waking
+ *	the waiter.
+ *
+ *	This is the "fair lock handoff" case, and in addition to setting
+ *	WQ_FLAG_WOKEN, we set WQ_FLAG_DONE to let the waiter easily see
+ *	that it now has the lock.
+ */
 static int wake_page_function(wait_queue_entry_t *wait, unsigned mode, int sync, void *arg)
 {
+	unsigned int flags;
 	struct wait_page_key *key = arg;
 	struct wait_page_queue *wait_page
 		= container_of(wait, struct wait_page_queue, wait);
 
-	if (wait_page->page != key->page)
-	       return 0;
-	key->page_match = 1;
-
-	if (wait_page->bit_nr != key->bit_nr)
+	if (!wake_page_match(wait_page, key))
 		return 0;
 
 	/*
-	 * Stop walking if it's locked.
-	 * Is this safe if put_and_wait_on_page_locked() is in use?
-	 * Yes: the waker must hold a reference to this page, and if PG_locked
-	 * has now already been set by another task, that task must also hold
-	 * a reference to the *same usage* of this page; so there is no need
-	 * to walk on to wake even the put_and_wait_on_page_locked() callers.
+	 * If it's a lock handoff wait, we get the bit for it, and
+	 * stop walking (and do not wake it up) if we can't.
 	 */
-	if (test_bit(key->bit_nr, &key->page->flags))
-		return -1;
+	flags = wait->flags;
+	if (flags & WQ_FLAG_EXCLUSIVE) {
+		if (test_bit(key->bit_nr, &key->page->flags))
+			return -1;
+		if (flags & WQ_FLAG_CUSTOM) {
+			if (test_and_set_bit(key->bit_nr, &key->page->flags))
+				return -1;
+			flags |= WQ_FLAG_DONE;
+		}
+	}
 
-	return autoremove_wake_function(wait, mode, sync, key);
+	/*
+	 * We are holding the wait-queue lock, but the waiter that
+	 * is waiting for this will be checking the flags without
+	 * any locking.
+	 *
+	 * So update the flags atomically, and wake up the waiter
+	 * afterwards to avoid any races. This store-release pairs
+	 * with the load-acquire in wait_on_page_bit_common().
+	 */
+	smp_store_release(&wait->flags, flags | WQ_FLAG_WOKEN);
+	wake_up_state(wait->private, mode);
+
+	/*
+	 * Ok, we have successfully done what we're waiting for,
+	 * and we can unconditionally remove the wait entry.
+	 *
+	 * Note that this pairs with the "finish_wait()" in the
+	 * waiter, and has to be the absolute last thing we do.
+	 * After this list_del_init(&wait->entry) the wait entry
+	 * might be de-allocated and the process might even have
+	 * exited.
+	 */
+	list_del_init_careful(&wait->entry);
+	return (flags & WQ_FLAG_EXCLUSIVE) != 0;
 }
 
 static void wake_up_page_bit(struct page *page, int bit_nr)
@@ -1106,16 +1149,35 @@ enum behavior {
 			 */
 };
 
+/*
+ * Attempt to check (or get) the page bit, and mark us done
+ * if successful.
+ */
+static inline bool trylock_page_bit_common(struct page *page, int bit_nr,
+					struct wait_queue_entry *wait)
+{
+	if (wait->flags & WQ_FLAG_EXCLUSIVE) {
+		if (test_and_set_bit(bit_nr, &page->flags))
+			return false;
+	} else if (test_bit(bit_nr, &page->flags))
+		return false;
+
+	wait->flags |= WQ_FLAG_WOKEN | WQ_FLAG_DONE;
+	return true;
+}
+
+/* How many times do we accept lock stealing from under a waiter? */
+int sysctl_page_lock_unfairness = 5;
+
 static inline int wait_on_page_bit_common(wait_queue_head_t *q,
 	struct page *page, int bit_nr, int state, enum behavior behavior)
 {
+	int unfairness = sysctl_page_lock_unfairness;
 	struct wait_page_queue wait_page;
 	wait_queue_entry_t *wait = &wait_page.wait;
-	bool bit_is_set;
 	bool thrashing = false;
 	bool delayacct = false;
 	unsigned long pflags;
-	int ret = 0;
 
 	if (bit_nr == PG_locked &&
 	    !PageUptodate(page) && PageWorkingset(page)) {
@@ -1128,55 +1190,97 @@ static inline int wait_on_page_bit_common(wait_queue_head_t *q,
 	}
 
 	init_wait(wait);
-	wait->flags = behavior == EXCLUSIVE ? WQ_FLAG_EXCLUSIVE : 0;
 	wait->func = wake_page_function;
 	wait_page.page = page;
 	wait_page.bit_nr = bit_nr;
 
-	for (;;) {
-		spin_lock_irq(&q->lock);
+repeat:
+	wait->flags = 0;
+	if (behavior == EXCLUSIVE) {
+		wait->flags = WQ_FLAG_EXCLUSIVE;
+		if (--unfairness < 0)
+			wait->flags |= WQ_FLAG_CUSTOM;
+	}
 
-		if (likely(list_empty(&wait->entry))) {
-			__add_wait_queue_entry_tail(q, wait);
-			SetPageWaiters(page);
-		}
+	/*
+	 * Do one last check whether we can get the
+	 * page bit synchronously.
+	 *
+	 * Do the SetPageWaiters() marking before that
+	 * to let any waker we _just_ missed know they
+	 * need to wake us up (otherwise they'll never
+	 * even go to the slow case that looks at the
+	 * page queue), and add ourselves to the wait
+	 * queue if we need to sleep.
+	 *
+	 * This part needs to be done under the queue
+	 * lock to avoid races.
+	 */
+	spin_lock_irq(&q->lock);
+	SetPageWaiters(page);
+	if (!trylock_page_bit_common(page, bit_nr, wait))
+		__add_wait_queue_entry_tail(q, wait);
+	spin_unlock_irq(&q->lock);
+
+	/*
+	 * From now on, all the logic will be based on
+	 * the WQ_FLAG_WOKEN and WQ_FLAG_DONE flag, to
+	 * see whether the page bit testing has already
+	 * been done by the wake function.
+	 *
+	 * We can drop our reference to the page.
+	 */
+	if (behavior == DROP)
+		put_page(page);
+
+	/*
+	 * Note that until the "finish_wait()", or until
+	 * we see the WQ_FLAG_WOKEN flag, we need to
+	 * be very careful with the 'wait->flags', because
+	 * we may race with a waker that sets them.
+	 */
+	for (;;) {
+		unsigned int flags;
 
 		set_current_state(state);
 
-		spin_unlock_irq(&q->lock);
+		/* Loop until we've been woken or interrupted */
+		flags = smp_load_acquire(&wait->flags);
+		if (!(flags & WQ_FLAG_WOKEN)) {
+			if (signal_pending_state(state, current))
+				break;
 
-		bit_is_set = test_bit(bit_nr, &page->flags);
-		if (behavior == DROP)
-			put_page(page);
-
-		if (likely(bit_is_set))
 			io_schedule();
-
-		if (behavior == EXCLUSIVE) {
-			if (!test_and_set_bit_lock(bit_nr, &page->flags))
-				break;
-		} else if (behavior == SHARED) {
-			if (!test_bit(bit_nr, &page->flags))
-				break;
+			continue;
 		}
 
-		if (signal_pending_state(state, current)) {
-			ret = -EINTR;
+		/* If we were non-exclusive, we're done */
+		if (behavior != EXCLUSIVE)
 			break;
-		}
 
-		if (behavior == DROP) {
-			/*
-			 * We can no longer safely access page->flags:
-			 * even if CONFIG_MEMORY_HOTREMOVE is not enabled,
-			 * there is a risk of waiting forever on a page reused
-			 * for something that keeps it locked indefinitely.
-			 * But best check for -EINTR above before breaking.
-			 */
+		/* If the waker got the lock for us, we're done */
+		if (flags & WQ_FLAG_DONE)
 			break;
-		}
+
+		/*
+		 * Otherwise, if we're getting the lock, we need to
+		 * try to get it ourselves.
+		 *
+		 * And if that fails, we'll have to retry this all.
+		 */
+		if (unlikely(test_and_set_bit(bit_nr, &page->flags)))
+			goto repeat;
+
+		wait->flags |= WQ_FLAG_DONE;
+		break;
 	}
 
+	/*
+	 * If a signal happened, this 'finish_wait()' may remove the last
+	 * waiter from the wait-queues, but the PageWaiters bit will remain
+	 * set. That's ok. The next wakeup will take care of it, and trying
+	 * to do it here would be difficult and prone to races.
+	 */
 	finish_wait(q, wait);
 
 	if (thrashing) {
@@ -1186,14 +1290,22 @@ static inline int wait_on_page_bit_common(wait_queue_head_t *q,
 	}
 
 	/*
-	 * A signal could leave PageWaiters set. Clearing it here if
-	 * !waitqueue_active would be possible (by open-coding finish_wait),
-	 * but still fail to catch it in the case of wait hash collision. We
-	 * already can fail to clear wait hash collision cases, so don't
-	 * bother with signals either.
+	 * NOTE! The wait->flags weren't stable until we've done the
+	 * 'finish_wait()', and we could have exited the loop above due
+	 * to a signal, and had a wakeup event happen after the signal
+	 * test but before the 'finish_wait()'.
+	 *
+	 * So only after the finish_wait() can we reliably determine
+	 * if we got woken up or not, so we can now figure out the final
+	 * return value based on that state without races.
+	 *
+	 * Also note that WQ_FLAG_WOKEN is sufficient for a non-exclusive
+	 * waiter, but an exclusive one requires WQ_FLAG_DONE.
 	 */
+	if (behavior == EXCLUSIVE)
+		return wait->flags & WQ_FLAG_DONE ? 0 : -EINTR;
 
-	return ret;
+	return wait->flags & WQ_FLAG_WOKEN ? 0 : -EINTR;
 }
 
 void wait_on_page_bit(struct page *page, int bit_nr)
@@ -1209,6 +1321,44 @@ int wait_on_page_bit_killable(struct page *page, int bit_nr)
 	return wait_on_page_bit_common(q, page, bit_nr, TASK_KILLABLE, SHARED);
 }
 EXPORT_SYMBOL(wait_on_page_bit_killable);
+
+static int __wait_on_page_locked_async(struct page *page,
+				       struct wait_page_queue *wait, bool set)
+{
+	struct wait_queue_head *q = page_waitqueue(page);
+	int ret = 0;
+
+	wait->page = page;
+	wait->bit_nr = PG_locked;
+
+	spin_lock_irq(&q->lock);
+	__add_wait_queue_entry_tail(q, &wait->wait);
+	SetPageWaiters(page);
+	if (set)
+		ret = !trylock_page(page);
+	else
+		ret = PageLocked(page);
+	/*
+	 * If we were succesful now, we know we're still on the
+	 * waitqueue as we're still under the lock. This means it's
+	 * safe to remove and return success, we know the callback
+	 * isn't going to trigger.
+	 */
+	if (!ret)
+		__remove_wait_queue(q, &wait->wait);
+	else
+		ret = -EIOCBQUEUED;
+	spin_unlock_irq(&q->lock);
+	return ret;
+}
+
+static int wait_on_page_locked_async(struct page *page,
+				     struct wait_page_queue *wait)
+{
+	if (!PageLocked(page))
+		return 0;
+	return __wait_on_page_locked_async(compound_head(page), wait, false);
+}
 
 /**
  * put_and_wait_on_page_locked - Drop a reference and wait for it to be unlocked
@@ -1259,7 +1409,7 @@ EXPORT_SYMBOL_GPL(add_page_wait_queue);
  * instead.
  *
  * The read of PG_waiters has to be after (or concurrently with) PG_locked
- * being cleared, but a memory barrier should be unneccssary since it is
+ * being cleared, but a memory barrier should be unnecessary since it is
  * in the same byte as PG_locked.
  */
 static inline bool clear_bit_unlock_is_negative_byte(long nr, volatile void *mem)
@@ -1372,29 +1522,34 @@ int __lock_page_killable(struct page *__page)
 }
 EXPORT_SYMBOL_GPL(__lock_page_killable);
 
+int __lock_page_async(struct page *page, struct wait_page_queue *wait)
+{
+	return __wait_on_page_locked_async(page, wait, true);
+}
+
 /*
  * Return values:
- * 1 - page is locked; mmap_sem is still held.
+ * 1 - page is locked; mmap_lock is still held.
  * 0 - page is not locked.
- *     mmap_sem has been released (up_read()), unless flags had both
+ *     mmap_lock has been released (mmap_read_unlock(), unless flags had both
  *     FAULT_FLAG_ALLOW_RETRY and FAULT_FLAG_RETRY_NOWAIT set, in
- *     which case mmap_sem is still held.
+ *     which case mmap_lock is still held.
  *
  * If neither ALLOW_RETRY nor KILLABLE are set, will always return 1
- * with the page locked and the mmap_sem unperturbed.
+ * with the page locked and the mmap_lock unperturbed.
  */
 int __lock_page_or_retry(struct page *page, struct mm_struct *mm,
 			 unsigned int flags)
 {
 	if (fault_flag_allow_retry_first(flags)) {
 		/*
-		 * CAUTION! In this case, mmap_sem is not released
+		 * CAUTION! In this case, mmap_lock is not released
 		 * even though return 0.
 		 */
 		if (flags & FAULT_FLAG_RETRY_NOWAIT)
 			return 0;
 
-		up_read(&mm->mmap_sem);
+		mmap_read_unlock(mm);
 		if (flags & FAULT_FLAG_KILLABLE)
 			wait_on_page_locked_killable(page);
 		else
@@ -1406,7 +1561,7 @@ int __lock_page_or_retry(struct page *page, struct mm_struct *mm,
 
 			ret = __lock_page_killable(page);
 			if (ret) {
-				up_read(&mm->mmap_sem);
+				mmap_read_unlock(mm);
 				return 0;
 			}
 		} else
@@ -1592,6 +1747,9 @@ EXPORT_SYMBOL(find_lock_entry);
  * * %FGP_FOR_MMAP - The caller wants to do its own locking dance if the
  *   page is already in cache.  If the page was allocated, unlock it before
  *   returning so the caller can do the same dance.
+ * * %FGP_WRITE - The page will be written
+ * * %FGP_NOFS - __GFP_FS will get cleared in gfp mask
+ * * %FGP_NOWAIT - Don't get blocked by page lock
  *
  * If %FGP_LOCK or %FGP_CREAT are specified then the function may sleep even
  * if the %GFP flags specified for %FGP_CREAT are atomic.
@@ -1633,6 +1791,11 @@ repeat:
 
 	if (fgp_flags & FGP_ACCESSED)
 		mark_page_accessed(page);
+	else if (fgp_flags & FGP_WRITE) {
+		/* Clear idle flag for buffer write */
+		if (page_is_idle(page))
+			clear_page_idle(page);
+	}
 
 no_page:
 	if (!page && (fgp_flags & FGP_CREAT)) {
@@ -1991,7 +2154,7 @@ static void shrink_readahead_size_eio(struct file_ra_state *ra)
  * * total number of bytes copied, including those the were already @written
  * * negative error code if nothing was copied
  */
-static ssize_t generic_file_buffered_read(struct kiocb *iocb,
+ssize_t generic_file_buffered_read(struct kiocb *iocb,
 		struct iov_iter *iter, ssize_t written)
 {
 	struct file *filp = iocb->ki_filp;
@@ -2031,7 +2194,7 @@ find_page:
 
 		page = find_get_page(mapping, index);
 		if (!page) {
-			if (iocb->ki_flags & IOCB_NOWAIT)
+			if (iocb->ki_flags & IOCB_NOIO)
 				goto would_block;
 			page_cache_sync_readahead(mapping,
 					ra, filp,
@@ -2041,22 +2204,34 @@ find_page:
 				goto no_cached_page;
 		}
 		if (PageReadahead(page)) {
+			if (iocb->ki_flags & IOCB_NOIO) {
+				put_page(page);
+				goto out;
+			}
 			page_cache_async_readahead(mapping,
 					ra, filp, page,
 					index, last_index - index);
 		}
 		if (!PageUptodate(page)) {
-			if (iocb->ki_flags & IOCB_NOWAIT) {
-				put_page(page);
-				goto would_block;
-			}
-
 			/*
 			 * See comment in do_read_cache_page on why
 			 * wait_on_page_locked is used to avoid unnecessarily
 			 * serialisations and why it's safe.
 			 */
-			error = wait_on_page_locked_killable(page);
+			if (iocb->ki_flags & IOCB_WAITQ) {
+				if (written) {
+					put_page(page);
+					goto out;
+				}
+				error = wait_on_page_locked_async(page,
+								iocb->ki_waitq);
+			} else {
+				if (iocb->ki_flags & IOCB_NOWAIT) {
+					put_page(page);
+					goto would_block;
+				}
+				error = wait_on_page_locked_killable(page);
+			}
 			if (unlikely(error))
 				goto readpage_error;
 			if (PageUptodate(page))
@@ -2144,7 +2319,10 @@ page_ok:
 
 page_not_up_to_date:
 		/* Get exclusive access to the page ... */
-		error = lock_page_killable(page);
+		if (iocb->ki_flags & IOCB_WAITQ)
+			error = lock_page_async(page, iocb->ki_waitq);
+		else
+			error = lock_page_killable(page);
 		if (unlikely(error))
 			goto readpage_error;
 
@@ -2163,6 +2341,11 @@ page_not_up_to_date_locked:
 		}
 
 readpage:
+		if (iocb->ki_flags & (IOCB_NOIO | IOCB_NOWAIT)) {
+			unlock_page(page);
+			put_page(page);
+			goto would_block;
+		}
 		/*
 		 * A previous I/O error may have been due to temporary
 		 * failures, eg. multipath errors.
@@ -2182,7 +2365,11 @@ readpage:
 		}
 
 		if (!PageUptodate(page)) {
-			error = lock_page_killable(page);
+			if (iocb->ki_flags & IOCB_WAITQ)
+				error = lock_page_async(page, iocb->ki_waitq);
+			else
+				error = lock_page_killable(page);
+
 			if (unlikely(error))
 				goto readpage_error;
 			if (!PageUptodate(page)) {
@@ -2243,6 +2430,7 @@ out:
 	file_accessed(filp);
 	return written ? written : error;
 }
+EXPORT_SYMBOL_GPL(generic_file_buffered_read);
 
 /**
  * generic_file_read_iter - generic filesystem read routine
@@ -2251,9 +2439,19 @@ out:
  *
  * This is the "read_iter()" routine for all filesystems
  * that can use the page cache directly.
+ *
+ * The IOCB_NOWAIT flag in iocb->ki_flags indicates that -EAGAIN shall
+ * be returned when no data can be read without waiting for I/O requests
+ * to complete; it doesn't prevent readahead.
+ *
+ * The IOCB_NOIO flag in iocb->ki_flags indicates that no new I/O
+ * requests shall be made for the read or for readahead.  When no data
+ * can be read, -EAGAIN shall be returned.  When readahead would be
+ * triggered, a partial, possibly empty read shall be returned.
+ *
  * Return:
  * * number of bytes copied, even for partial reads
- * * negative error code if nothing was read
+ * * negative error code (or 0 if IOCB_NOIO) if nothing was read
  */
 ssize_t
 generic_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
@@ -2315,14 +2513,14 @@ EXPORT_SYMBOL(generic_file_read_iter);
 #ifdef CONFIG_MMU
 #define MMAP_LOTSAMISS  (100)
 /*
- * lock_page_maybe_drop_mmap - lock the page, possibly dropping the mmap_sem
+ * lock_page_maybe_drop_mmap - lock the page, possibly dropping the mmap_lock
  * @vmf - the vm_fault for this fault.
  * @page - the page to lock.
  * @fpin - the pointer to the file we may pin (or is already pinned).
  *
- * This works similar to lock_page_or_retry in that it can drop the mmap_sem.
+ * This works similar to lock_page_or_retry in that it can drop the mmap_lock.
  * It differs in that it actually returns the page locked if it returns 1 and 0
- * if it couldn't lock the page.  If we did have to drop the mmap_sem then fpin
+ * if it couldn't lock the page.  If we did have to drop the mmap_lock then fpin
  * will point to the pinned file and needs to be fput()'ed at a later point.
  */
 static int lock_page_maybe_drop_mmap(struct vm_fault *vmf, struct page *page,
@@ -2333,7 +2531,7 @@ static int lock_page_maybe_drop_mmap(struct vm_fault *vmf, struct page *page,
 
 	/*
 	 * NOTE! This will make us return with VM_FAULT_RETRY, but with
-	 * the mmap_sem still held. That's how FAULT_FLAG_RETRY_NOWAIT
+	 * the mmap_lock still held. That's how FAULT_FLAG_RETRY_NOWAIT
 	 * is supposed to work. We have way too many special cases..
 	 */
 	if (vmf->flags & FAULT_FLAG_RETRY_NOWAIT)
@@ -2343,13 +2541,13 @@ static int lock_page_maybe_drop_mmap(struct vm_fault *vmf, struct page *page,
 	if (vmf->flags & FAULT_FLAG_KILLABLE) {
 		if (__lock_page_killable(page)) {
 			/*
-			 * We didn't have the right flags to drop the mmap_sem,
+			 * We didn't have the right flags to drop the mmap_lock,
 			 * but all fault_handlers only check for fatal signals
 			 * if we return VM_FAULT_RETRY, so we need to drop the
-			 * mmap_sem here and return 0 if we don't have a fpin.
+			 * mmap_lock here and return 0 if we don't have a fpin.
 			 */
 			if (*fpin == NULL)
-				up_read(&vmf->vma->vm_mm->mmap_sem);
+				mmap_read_unlock(vmf->vma->vm_mm);
 			return 0;
 		}
 	} else
@@ -2372,6 +2570,7 @@ static struct file *do_sync_mmap_readahead(struct vm_fault *vmf)
 	struct address_space *mapping = file->f_mapping;
 	struct file *fpin = NULL;
 	pgoff_t offset = vmf->pgoff;
+	unsigned int mmap_miss;
 
 	/* If we don't want any read-ahead, don't bother */
 	if (vmf->vma->vm_flags & VM_RAND_READ)
@@ -2387,14 +2586,15 @@ static struct file *do_sync_mmap_readahead(struct vm_fault *vmf)
 	}
 
 	/* Avoid banging the cache line if not needed */
-	if (ra->mmap_miss < MMAP_LOTSAMISS * 10)
-		ra->mmap_miss++;
+	mmap_miss = READ_ONCE(ra->mmap_miss);
+	if (mmap_miss < MMAP_LOTSAMISS * 10)
+		WRITE_ONCE(ra->mmap_miss, ++mmap_miss);
 
 	/*
 	 * Do we miss much more than hit in this file? If so,
 	 * stop bothering with read-ahead. It will only hurt.
 	 */
-	if (ra->mmap_miss > MMAP_LOTSAMISS)
+	if (mmap_miss > MMAP_LOTSAMISS)
 		return fpin;
 
 	/*
@@ -2411,7 +2611,7 @@ static struct file *do_sync_mmap_readahead(struct vm_fault *vmf)
 /*
  * Asynchronous readahead happens when we find the page and PG_readahead,
  * so we want to possibly extend the readahead further.  We return the file that
- * was pinned if we have to drop the mmap_sem in order to do IO.
+ * was pinned if we have to drop the mmap_lock in order to do IO.
  */
 static struct file *do_async_mmap_readahead(struct vm_fault *vmf,
 					    struct page *page)
@@ -2420,13 +2620,15 @@ static struct file *do_async_mmap_readahead(struct vm_fault *vmf,
 	struct file_ra_state *ra = &file->f_ra;
 	struct address_space *mapping = file->f_mapping;
 	struct file *fpin = NULL;
+	unsigned int mmap_miss;
 	pgoff_t offset = vmf->pgoff;
 
 	/* If we don't want any read-ahead, don't bother */
 	if (vmf->vma->vm_flags & VM_RAND_READ || !ra->ra_pages)
 		return fpin;
-	if (ra->mmap_miss > 0)
-		ra->mmap_miss--;
+	mmap_miss = READ_ONCE(ra->mmap_miss);
+	if (mmap_miss)
+		WRITE_ONCE(ra->mmap_miss, --mmap_miss);
 	if (PageReadahead(page)) {
 		fpin = maybe_unlock_mmap_for_io(vmf, fpin);
 		page_cache_async_readahead(mapping, ra, file,
@@ -2446,12 +2648,12 @@ static struct file *do_async_mmap_readahead(struct vm_fault *vmf,
  * it in the page cache, and handles the special cases reasonably without
  * having a lot of duplicated code.
  *
- * vma->vm_mm->mmap_sem must be held on entry.
+ * vma->vm_mm->mmap_lock must be held on entry.
  *
- * If our return value has VM_FAULT_RETRY set, it's because the mmap_sem
+ * If our return value has VM_FAULT_RETRY set, it's because the mmap_lock
  * may be dropped before doing I/O or by lock_page_maybe_drop_mmap().
  *
- * If our return value does not have VM_FAULT_RETRY set, the mmap_sem
+ * If our return value does not have VM_FAULT_RETRY set, the mmap_lock
  * has not been released.
  *
  * We never return with VM_FAULT_RETRY and a bit from VM_FAULT_ERROR set.
@@ -2521,7 +2723,7 @@ retry_find:
 		goto page_not_uptodate;
 
 	/*
-	 * We've made it this far and we had to drop our mmap_sem, now is the
+	 * We've made it this far and we had to drop our mmap_lock, now is the
 	 * time to return to the upper layer and have it re-find the vma and
 	 * redo the fault.
 	 */
@@ -2566,13 +2768,12 @@ page_not_uptodate:
 	if (!error || error == AOP_TRUNCATED_PAGE)
 		goto retry_find;
 
-	/* Things didn't work out. Return zero to tell the mm layer so. */
 	shrink_readahead_size_eio(ra);
 	return VM_FAULT_SIGBUS;
 
 out_retry:
 	/*
-	 * We dropped the mmap_sem, we need to return to the fault handler to
+	 * We dropped the mmap_lock, we need to return to the fault handler to
 	 * re-find the vma and come back and find our hopefully still populated
 	 * page.
 	 */
@@ -2593,6 +2794,7 @@ void filemap_map_pages(struct vm_fault *vmf,
 	unsigned long max_idx;
 	XA_STATE(xas, &mapping->i_pages, start_pgoff);
 	struct page *page;
+	unsigned int mmap_miss = READ_ONCE(file->f_ra.mmap_miss);
 
 	rcu_read_lock();
 	xas_for_each(&xas, page, end_pgoff) {
@@ -2629,14 +2831,14 @@ void filemap_map_pages(struct vm_fault *vmf,
 		if (page->index >= max_idx)
 			goto unlock;
 
-		if (file->f_ra.mmap_miss > 0)
-			file->f_ra.mmap_miss--;
+		if (mmap_miss > 0)
+			mmap_miss--;
 
 		vmf->address += (xas.xa_index - last_pgoff) << PAGE_SHIFT;
 		if (vmf->pte)
 			vmf->pte += xas.xa_index - last_pgoff;
 		last_pgoff = xas.xa_index;
-		if (alloc_set_pte(vmf, NULL, page))
+		if (alloc_set_pte(vmf, page))
 			goto unlock;
 		unlock_page(page);
 		goto next;
@@ -2650,6 +2852,7 @@ next:
 			break;
 	}
 	rcu_read_unlock();
+	WRITE_ONCE(file->f_ra.mmap_miss, mmap_miss);
 }
 EXPORT_SYMBOL(filemap_map_pages);
 
@@ -2790,7 +2993,7 @@ filler:
 	 * Case a, the page will be up to date when the page is unlocked.
 	 *    There is no need to serialise on the page lock here as the page
 	 *    is pinned so the lock gives no additional protection. Even if the
-	 *    the page is truncated, the data is still valid if PageUptodate as
+	 *    page is truncated, the data is still valid if PageUptodate as
 	 *    it's a race vs truncate race.
 	 * Case b, the page will not be up to date
 	 * Case c, the page may be truncated but in itself, the data may still

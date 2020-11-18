@@ -27,12 +27,16 @@ SECTIONS
 
 	__init_begin = .;
 	INIT_TEXT_SECTION(PAGE_SIZE)
-	INIT_DATA_SECTION(16)
 	. = ALIGN(8);
 	__soc_early_init_table : {
 		__soc_early_init_table_start = .;
 		KEEP(*(__soc_early_init_table))
 		__soc_early_init_table_end = .;
+	}
+	__soc_builtin_dtb_table : {
+		__soc_builtin_dtb_table_start = .;
+		KEEP(*(__soc_builtin_dtb_table))
+		__soc_builtin_dtb_table_end = .;
 	}
 	/* we have to discard exit text and such at runtime, not link time */
 	.exit.text :
@@ -61,6 +65,8 @@ SECTIONS
 		*(.fixup)
 		_etext = .;
 	}
+
+	INIT_DATA_SECTION(16)
 
 	/* Start of data section */
 	_sdata = .;

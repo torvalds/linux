@@ -45,6 +45,9 @@ MODULE_AUTHOR("Paul E. McKenney <paulmck@linux.ibm.com>");
 static bool disable_onoff_at_boot;
 module_param(disable_onoff_at_boot, bool, 0444);
 
+static bool ftrace_dump_at_shutdown;
+module_param(ftrace_dump_at_shutdown, bool, 0444);
+
 static char *torture_type;
 static int verbose;
 
@@ -527,7 +530,8 @@ static int torture_shutdown(void *arg)
 		torture_shutdown_hook();
 	else
 		VERBOSE_TOROUT_STRING("No torture_shutdown_hook(), skipping.");
-	rcu_ftrace_dump(DUMP_ALL);
+	if (ftrace_dump_at_shutdown)
+		rcu_ftrace_dump(DUMP_ALL);
 	kernel_power_off();	/* Shut down the system. */
 	return 0;
 }

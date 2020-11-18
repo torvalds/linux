@@ -290,7 +290,7 @@ static int pcm3168a_reset(struct pcm3168a_priv *pcm3168a)
 			PCM3168A_MRST_MASK | PCM3168A_SRST_MASK);
 }
 
-static int pcm3168a_digital_mute(struct snd_soc_dai *dai, int mute)
+static int pcm3168a_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	struct pcm3168a_priv *pcm3168a = snd_soc_component_get_drvdata(component);
@@ -305,6 +305,13 @@ static int pcm3168a_set_dai_sysclk(struct snd_soc_dai *dai,
 {
 	struct pcm3168a_priv *pcm3168a = snd_soc_component_get_drvdata(dai->component);
 	int ret;
+
+	/*
+	 * Some sound card sets 0 Hz as reset,
+	 * but it is impossible to set. Ignore it here
+	 */
+	if (freq == 0)
+		return 0;
 
 	if (freq > PCM3168A_MAX_SYSCLK)
 		return -EINVAL;
@@ -570,8 +577,9 @@ static const struct snd_soc_dai_ops pcm3168a_dai_ops = {
 	.set_fmt	= pcm3168a_set_dai_fmt,
 	.set_sysclk	= pcm3168a_set_dai_sysclk,
 	.hw_params	= pcm3168a_hw_params,
-	.digital_mute	= pcm3168a_digital_mute,
+	.mute_stream	= pcm3168a_mute,
 	.set_tdm_slot	= pcm3168a_set_tdm_slot,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver pcm3168a_dais[] = {

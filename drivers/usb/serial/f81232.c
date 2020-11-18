@@ -424,7 +424,7 @@ static void f81232_process_read_urb(struct urb *urb)
 		lsr = data[i];
 		tty_flag = f81232_handle_lsr(port, lsr);
 
-		if (port->port.console && port->sysrq) {
+		if (port->sysrq) {
 			if (usb_serial_handle_sysrq_char(port, data[i + 1]))
 				continue;
 		}
@@ -461,7 +461,7 @@ static void f81534a_process_read_urb(struct urb *urb)
 	lsr = data[len - 1];
 	tty_flag = f81232_handle_lsr(port, lsr);
 
-	if (port->port.console && port->sysrq) {
+	if (port->sysrq) {
 		for (i = 1; i < len - 1; ++i) {
 			if (!usb_serial_handle_sysrq_char(port, data[i])) {
 				tty_insert_flip_char(&port->port, data[i],

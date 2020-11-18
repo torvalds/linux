@@ -497,7 +497,7 @@ void rtl88ee_tx_fill_desc(struct ieee80211_hw *hw,
 	dma_addr_t mapping;
 	u8 bw_40 = 0;
 	u8 short_gi = 0;
-	__le32 *pdesc = (u32 *)pdesc8;
+	__le32 *pdesc = (__le32 *)pdesc8;
 
 	if (mac->opmode == NL80211_IFTYPE_STATION) {
 		bw_40 = mac->bw_40;

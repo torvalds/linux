@@ -135,8 +135,8 @@ static const struct v4l2_to_mmal_effects_setting
 };
 
 struct v4l2_mmal_scene_config {
-	enum v4l2_scene_mode			v4l2_scene;
-	enum mmal_parameter_exposuremode	exposure_mode;
+	enum v4l2_scene_mode v4l2_scene;
+	enum mmal_parameter_exposuremode exposure_mode;
 	enum mmal_parameter_exposuremeteringmode metering_mode;
 };
 
@@ -377,11 +377,9 @@ static int ctrl_set_metering_mode(struct bm2835_mmal_dev *dev,
 		dev->metering_mode = MMAL_PARAM_EXPOSUREMETERINGMODE_SPOT;
 		break;
 
-	/* todo matrix weighting not added to Linux API till 3.9
-	 * case V4L2_EXPOSURE_METERING_MATRIX:
-	 *	dev->metering_mode = MMAL_PARAM_EXPOSUREMETERINGMODE_MATRIX;
-	 *	break;
-	 */
+	case V4L2_EXPOSURE_METERING_MATRIX:
+		dev->metering_mode = MMAL_PARAM_EXPOSUREMETERINGMODE_MATRIX;
+		break;
 	}
 
 	if (dev->scene_mode == V4L2_SCENE_MODE_NONE) {
@@ -516,42 +514,41 @@ static int ctrl_set_image_effect(struct bm2835_mmal_dev *dev,
 	struct mmal_parameter_imagefx_parameters imagefx;
 
 	for (i = 0; i < ARRAY_SIZE(v4l2_to_mmal_effects_values); i++) {
-		if (ctrl->val == v4l2_to_mmal_effects_values[i].v4l2_effect) {
-			imagefx.effect =
-				v4l2_to_mmal_effects_values[i].mmal_effect;
-			imagefx.num_effect_params =
-				v4l2_to_mmal_effects_values[i].num_effect_params;
+		if (ctrl->val != v4l2_to_mmal_effects_values[i].v4l2_effect)
+			continue;
 
-			if (imagefx.num_effect_params > MMAL_MAX_IMAGEFX_PARAMETERS)
-				imagefx.num_effect_params = MMAL_MAX_IMAGEFX_PARAMETERS;
+		imagefx.effect =
+			v4l2_to_mmal_effects_values[i].mmal_effect;
+		imagefx.num_effect_params =
+			v4l2_to_mmal_effects_values[i].num_effect_params;
 
-			for (j = 0; j < imagefx.num_effect_params; j++)
-				imagefx.effect_parameter[j] =
-					v4l2_to_mmal_effects_values[i].effect_params[j];
+		if (imagefx.num_effect_params > MMAL_MAX_IMAGEFX_PARAMETERS)
+			imagefx.num_effect_params = MMAL_MAX_IMAGEFX_PARAMETERS;
 
-			dev->colourfx.enable =
-				v4l2_to_mmal_effects_values[i].col_fx_enable;
-			if (!v4l2_to_mmal_effects_values[i].col_fx_fixed_cbcr) {
-				dev->colourfx.u =
-					v4l2_to_mmal_effects_values[i].u;
-				dev->colourfx.v =
-					v4l2_to_mmal_effects_values[i].v;
-			}
+		for (j = 0; j < imagefx.num_effect_params; j++)
+			imagefx.effect_parameter[j] =
+				v4l2_to_mmal_effects_values[i].effect_params[j];
 
-			control = &dev->component[COMP_CAMERA]->control;
-
-			ret = vchiq_mmal_port_parameter_set(
-					dev->instance, control,
-					MMAL_PARAMETER_IMAGE_EFFECT_PARAMETERS,
-					&imagefx, sizeof(imagefx));
-			if (ret)
-				goto exit;
-
-			ret = vchiq_mmal_port_parameter_set(
-					dev->instance, control,
-					MMAL_PARAMETER_COLOUR_EFFECT,
-					&dev->colourfx, sizeof(dev->colourfx));
+		dev->colourfx.enable =
+			v4l2_to_mmal_effects_values[i].col_fx_enable;
+		if (!v4l2_to_mmal_effects_values[i].col_fx_fixed_cbcr) {
+			dev->colourfx.u = v4l2_to_mmal_effects_values[i].u;
+			dev->colourfx.v = v4l2_to_mmal_effects_values[i].v;
 		}
+
+		control = &dev->component[COMP_CAMERA]->control;
+
+		ret = vchiq_mmal_port_parameter_set(
+				dev->instance, control,
+				MMAL_PARAMETER_IMAGE_EFFECT_PARAMETERS,
+				&imagefx, sizeof(imagefx));
+		if (ret)
+			goto exit;
+
+		ret = vchiq_mmal_port_parameter_set(
+				dev->instance, control,
+				MMAL_PARAMETER_COLOUR_EFFECT,
+				&dev->colourfx, sizeof(dev->colourfx));
 	}
 
 exit:
@@ -841,8 +838,7 @@ static int ctrl_set_scene_mode(struct bm2835_mmal_dev *dev,
 		enum mmal_parameter_exposuremeteringmode metering_mode;
 
 		for (i = 0; i < ARRAY_SIZE(scene_configs); i++) {
-			if (scene_configs[i].v4l2_scene ==
-				ctrl->val) {
+			if (scene_configs[i].v4l2_scene == ctrl->val) {
 				scene = &scene_configs[i];
 				break;
 			}
@@ -1045,8 +1041,8 @@ static const struct bm2835_mmal_v4l2_ctrl v4l2_ctrls[V4L2_CTRL_COUNT] = {
 	{
 		.id = V4L2_CID_EXPOSURE_METERING,
 		.type = MMAL_CONTROL_TYPE_STD_MENU,
-		.min = ~0x7,
-		.max = V4L2_EXPOSURE_METERING_SPOT,
+		.min = ~0xf,
+		.max = V4L2_EXPOSURE_METERING_MATRIX,
 		.def = V4L2_EXPOSURE_METERING_AVERAGE,
 		.step = 0,
 		.imenu = NULL,
@@ -1282,21 +1278,18 @@ int set_framerate_params(struct bm2835_mmal_dev *dev)
 	struct mmal_parameter_fps_range fps_range;
 	int ret;
 
+	fps_range.fps_high.num = dev->capture.timeperframe.denominator;
+	fps_range.fps_high.den = dev->capture.timeperframe.numerator;
+
 	if ((dev->exposure_mode_active != MMAL_PARAM_EXPOSUREMODE_OFF) &&
 	    (dev->exp_auto_priority)) {
-		/* Variable FPS. Define min FPS as 1fps.
-		 * Max as max defined FPS.
-		 */
+		/* Variable FPS. Define min FPS as 1fps. */
 		fps_range.fps_low.num = 1;
 		fps_range.fps_low.den = 1;
-		fps_range.fps_high.num = dev->capture.timeperframe.denominator;
-		fps_range.fps_high.den = dev->capture.timeperframe.numerator;
 	} else {
 		/* Fixed FPS - set min and max to be the same */
-		fps_range.fps_low.num = fps_range.fps_high.num =
-			dev->capture.timeperframe.denominator;
-		fps_range.fps_low.den = fps_range.fps_high.den =
-			dev->capture.timeperframe.numerator;
+		fps_range.fps_low.num = fps_range.fps_high.num;
+		fps_range.fps_low.den = fps_range.fps_high.den;
 	}
 
 	v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,

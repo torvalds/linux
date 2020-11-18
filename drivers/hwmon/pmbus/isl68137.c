@@ -67,6 +67,7 @@ enum variants {
 	raa_dmpvr1_2rail,
 	raa_dmpvr2_1rail,
 	raa_dmpvr2_2rail,
+	raa_dmpvr2_2rail_nontc,
 	raa_dmpvr2_3rail,
 	raa_dmpvr2_hv,
 };
@@ -241,6 +242,10 @@ static int isl68137_probe(struct i2c_client *client,
 		info->pages = 1;
 		info->read_word_data = raa_dmpvr2_read_word_data;
 		break;
+	case raa_dmpvr2_2rail_nontc:
+		info->func[0] &= ~PMBUS_HAVE_TEMP;
+		info->func[1] &= ~PMBUS_HAVE_TEMP;
+		fallthrough;
 	case raa_dmpvr2_2rail:
 		info->pages = 2;
 		info->read_word_data = raa_dmpvr2_read_word_data;
@@ -304,7 +309,7 @@ static const struct i2c_device_id raa_dmpvr_id[] = {
 	{"raa228000", raa_dmpvr2_hv},
 	{"raa228004", raa_dmpvr2_hv},
 	{"raa228006", raa_dmpvr2_hv},
-	{"raa228228", raa_dmpvr2_2rail},
+	{"raa228228", raa_dmpvr2_2rail_nontc},
 	{"raa229001", raa_dmpvr2_2rail},
 	{"raa229004", raa_dmpvr2_2rail},
 	{}

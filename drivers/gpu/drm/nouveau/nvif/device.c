@@ -39,20 +39,20 @@ nvif_device_time(struct nvif_device *device)
 }
 
 void
-nvif_device_fini(struct nvif_device *device)
+nvif_device_dtor(struct nvif_device *device)
 {
-	nvif_user_fini(device);
+	nvif_user_dtor(device);
 	kfree(device->runlist);
 	device->runlist = NULL;
-	nvif_object_fini(&device->object);
+	nvif_object_dtor(&device->object);
 }
 
 int
-nvif_device_init(struct nvif_object *parent, u32 handle, s32 oclass,
-		 void *data, u32 size, struct nvif_device *device)
+nvif_device_ctor(struct nvif_object *parent, const char *name, u32 handle,
+		 s32 oclass, void *data, u32 size, struct nvif_device *device)
 {
-	int ret = nvif_object_init(parent, handle, oclass, data, size,
-				   &device->object);
+	int ret = nvif_object_ctor(parent, name ? name : "nvifDevice", handle,
+				   oclass, data, size, &device->object);
 	device->runlist = NULL;
 	device->user.func = NULL;
 	if (ret == 0) {

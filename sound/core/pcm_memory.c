@@ -39,6 +39,7 @@ static int do_alloc_pages(struct snd_card *card, int type, struct device *dev,
 	if (max_alloc_per_card &&
 	    card->total_pcm_alloc_bytes + size > max_alloc_per_card)
 		return -ENOMEM;
+
 	err = snd_dma_alloc_pages(type, dev, size, dmab);
 	if (!err) {
 		mutex_lock(&card->memory_mutex);
@@ -460,7 +461,7 @@ int _snd_pcm_lib_alloc_vmalloc_buffer(struct snd_pcm_substream *substream,
 			return 0; /* already large enough */
 		vfree(runtime->dma_area);
 	}
-	runtime->dma_area = __vmalloc(size, gfp_flags, PAGE_KERNEL);
+	runtime->dma_area = __vmalloc(size, gfp_flags);
 	if (!runtime->dma_area)
 		return -ENOMEM;
 	runtime->dma_bytes = size;

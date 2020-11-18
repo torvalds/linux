@@ -280,6 +280,17 @@ static const char *idio_16_names[IDIO_16_NGPIO] = {
 	"IIN8", "IIN9", "IIN10", "IIN11", "IIN12", "IIN13", "IIN14", "IIN15"
 };
 
+static int idio_16_irq_init_hw(struct gpio_chip *gc)
+{
+	struct idio_16_gpio *const idio16gpio = gpiochip_get_data(gc);
+
+	/* Disable IRQ by default and clear any pending interrupt */
+	iowrite8(0, &idio16gpio->reg->irq_ctl);
+	iowrite8(0, &idio16gpio->reg->in0_7);
+
+	return 0;
+}
+
 static int idio_16_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct device *const dev = &pdev->dev;
@@ -287,6 +298,7 @@ static int idio_16_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	int err;
 	const size_t pci_bar_index = 2;
 	const char *const name = pci_name(pdev);
+	struct gpio_irq_chip *girq;
 
 	idio16gpio = devm_kzalloc(dev, sizeof(*idio16gpio), GFP_KERNEL);
 	if (!idio16gpio)
@@ -323,22 +335,21 @@ static int idio_16_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	idio16gpio->chip.set = idio_16_gpio_set;
 	idio16gpio->chip.set_multiple = idio_16_gpio_set_multiple;
 
+	girq = &idio16gpio->chip.irq;
+	girq->chip = &idio_16_irqchip;
+	/* This will let us handle the parent IRQ in the driver */
+	girq->parent_handler = NULL;
+	girq->num_parents = 0;
+	girq->parents = NULL;
+	girq->default_type = IRQ_TYPE_NONE;
+	girq->handler = handle_edge_irq;
+	girq->init_hw = idio_16_irq_init_hw;
+
 	raw_spin_lock_init(&idio16gpio->lock);
 
 	err = devm_gpiochip_add_data(dev, &idio16gpio->chip, idio16gpio);
 	if (err) {
 		dev_err(dev, "GPIO registering failed (%d)\n", err);
-		return err;
-	}
-
-	/* Disable IRQ by default and clear any pending interrupt */
-	iowrite8(0, &idio16gpio->reg->irq_ctl);
-	iowrite8(0, &idio16gpio->reg->in0_7);
-
-	err = gpiochip_irqchip_add(&idio16gpio->chip, &idio_16_irqchip, 0,
-		handle_edge_irq, IRQ_TYPE_NONE);
-	if (err) {
-		dev_err(dev, "Could not add irqchip (%d)\n", err);
 		return err;
 	}
 

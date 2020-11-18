@@ -20,13 +20,13 @@
 #include <linux/io.h>
 #include <linux/memblock.h>
 #include <linux/mem_encrypt.h>
+#include <linux/pgtable.h>
 
 #include <asm/processor.h>
 #include <asm/proto.h>
 #include <asm/smp.h>
 #include <asm/setup.h>
 #include <asm/desc.h>
-#include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 #include <asm/sections.h>
 #include <asm/kdebug.h>

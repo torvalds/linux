@@ -18,7 +18,7 @@ config NTFS_FS
 	  the Linux 2.4 kernel series is separately available as a patch
 	  from the project web site.
 
-	  For more information see <file:Documentation/filesystems/ntfs.txt>
+	  For more information see <file:Documentation/filesystems/ntfs.rst>
 	  and <http://www.linux-ntfs.org/>.
 
 	  To compile this file system support as a module, choose M here: the

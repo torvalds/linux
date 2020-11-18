@@ -100,12 +100,15 @@
 #define CLK_RGB24_MASK		0x0
 #define CLK_RGB16_MASK		0x070307
 #define CLK_RGB15_MASK		0x070707
-#define CLK_RGB8I_MASK		0xffffff
 
+#define RGB30_TO_COLORKEY(c) \
+	((((c) & 0x3fc00000) >> 6) | (((c) & 0x000ff000) >> 4) | (((c) & 0x000003fc) >> 2))
 #define RGB16_TO_COLORKEY(c) \
-	(((c & 0xF800) << 8) | ((c & 0x07E0) << 5) | ((c & 0x001F) << 3))
+	((((c) & 0xf800) << 8) | (((c) & 0x07e0) << 5) | (((c) & 0x001f) << 3))
 #define RGB15_TO_COLORKEY(c) \
-	(((c & 0x7c00) << 9) | ((c & 0x03E0) << 6) | ((c & 0x001F) << 3))
+	((((c) & 0x7c00) << 9) | (((c) & 0x03e0) << 6) | (((c) & 0x001f) << 3))
+#define RGB8I_TO_COLORKEY(c) \
+	((((c) & 0xff) << 16) | (((c) & 0xff) << 8) | (((c) & 0xff) << 0))
 
 /* overlay flip addr flag */
 #define OFC_UPDATE		0x1
@@ -281,7 +284,7 @@ static void intel_overlay_flip_prepare(struct intel_overlay *overlay,
 	enum pipe pipe = overlay->crtc->pipe;
 	struct intel_frontbuffer *from = NULL, *to = NULL;
 
-	WARN_ON(overlay->old_vma);
+	drm_WARN_ON(&overlay->i915->drm, overlay->old_vma);
 
 	if (overlay->vma)
 		from = intel_frontbuffer_get(overlay->vma->obj);
@@ -350,7 +353,7 @@ static void intel_overlay_release_old_vma(struct intel_overlay *overlay)
 	struct i915_vma *vma;
 
 	vma = fetch_and_zero(&overlay->old_vma);
-	if (WARN_ON(!vma))
+	if (drm_WARN_ON(&overlay->i915->drm, !vma))
 		return;
 
 	intel_frontbuffer_flip_complete(overlay->i915,
@@ -396,7 +399,7 @@ static int intel_overlay_off(struct intel_overlay *overlay)
 	struct i915_request *rq;
 	u32 *cs, flip_addr = overlay->flip_addr;
 
-	WARN_ON(!overlay->active);
+	drm_WARN_ON(&overlay->i915->drm, !overlay->active);
 
 	/* According to intel docs the overlay hw may hang (when switching
 	 * off) without loading the filter coeffs. It is however unclear whether
@@ -682,8 +685,8 @@ static void update_colorkey(struct intel_overlay *overlay,
 
 	switch (format) {
 	case DRM_FORMAT_C8:
-		key = 0;
-		flags |= CLK_RGB8I_MASK;
+		key = RGB8I_TO_COLORKEY(key);
+		flags |= CLK_RGB24_MASK;
 		break;
 	case DRM_FORMAT_XRGB1555:
 		key = RGB15_TO_COLORKEY(key);
@@ -692,6 +695,11 @@ static void update_colorkey(struct intel_overlay *overlay,
 	case DRM_FORMAT_RGB565:
 		key = RGB16_TO_COLORKEY(key);
 		flags |= CLK_RGB16_MASK;
+		break;
+	case DRM_FORMAT_XRGB2101010:
+	case DRM_FORMAT_XBGR2101010:
+		key = RGB30_TO_COLORKEY(key);
+		flags |= CLK_RGB24_MASK;
 		break;
 	default:
 		flags |= CLK_RGB24_MASK;
@@ -777,9 +785,15 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	i915_gem_object_flush_frontbuffer(new_bo, ORIGIN_DIRTYFB);
 
 	if (!overlay->active) {
-		u32 oconfig;
+		const struct intel_crtc_state *crtc_state =
+			overlay->crtc->config;
+		u32 oconfig = 0;
 
-		oconfig = OCONF_CC_OUT_8BIT;
+		if (crtc_state->gamma_enable &&
+		    crtc_state->gamma_mode == GAMMA_MODE_MODE_8BIT)
+			oconfig |= OCONF_CC_OUT_8BIT;
+		if (crtc_state->gamma_enable)
+			oconfig |= OCONF_GAMMA2_ENABLE;
 		if (IS_GEN(dev_priv, 4))
 			oconfig |= OCONF_CSC_MODE_BT709;
 		oconfig |= pipe == 0 ?
@@ -1342,7 +1356,7 @@ void intel_overlay_setup(struct drm_i915_private *dev_priv)
 	if (!HAS_OVERLAY(dev_priv))
 		return;
 
-	engine = dev_priv->engine[RCS0];
+	engine = dev_priv->gt.engine[RCS0];
 	if (!engine || !engine->kernel_context)
 		return;
 

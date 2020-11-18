@@ -28,7 +28,7 @@
 
 struct i2c_adapter;
 
-int smu_v11_0_i2c_eeprom_control_init(struct i2c_adapter *control);
-void smu_v11_0_i2c_eeprom_control_fini(struct i2c_adapter *control);
+int smu_v11_0_i2c_control_init(struct i2c_adapter *control);
+void smu_v11_0_i2c_control_fini(struct i2c_adapter *control);
 
 #endif

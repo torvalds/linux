@@ -484,7 +484,7 @@ static int ab8500_gpadc_read(struct ab8500_gpadc *gpadc,
 			delay_max = 10000; /* large range optimises sleepmode */
 			break;
 		}
-		/* Fall through */
+		fallthrough;
 	default:
 		ctrl1 |= AB8500_GPADC_CTRL1_BUF_ENA;
 		break;
@@ -1163,8 +1163,6 @@ static int ab8500_gpadc_probe(struct platform_device *pdev)
 
 	pm_runtime_put(dev);
 
-	indio_dev->dev.parent = dev;
-	indio_dev->dev.of_node = np;
 	indio_dev->name = "ab8500-gpadc";
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &ab8500_gpadc_info;

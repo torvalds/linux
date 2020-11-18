@@ -29,6 +29,7 @@
 #include <net/ip_fib.h>
 #include <net/nexthop.h>
 #include <net/fib_rules.h>
+#include <linux/indirect_call_wrapper.h>
 
 struct fib4_rule {
 	struct fib_rule		common;
@@ -103,8 +104,9 @@ int __fib_lookup(struct net *net, struct flowi4 *flp,
 }
 EXPORT_SYMBOL_GPL(__fib_lookup);
 
-static int fib4_rule_action(struct fib_rule *rule, struct flowi *flp,
-			    int flags, struct fib_lookup_arg *arg)
+INDIRECT_CALLABLE_SCOPE int fib4_rule_action(struct fib_rule *rule,
+					     struct flowi *flp, int flags,
+					     struct fib_lookup_arg *arg)
 {
 	int err = -EAGAIN;
 	struct fib_table *tbl;
@@ -138,7 +140,8 @@ static int fib4_rule_action(struct fib_rule *rule, struct flowi *flp,
 	return err;
 }
 
-static bool fib4_rule_suppress(struct fib_rule *rule, struct fib_lookup_arg *arg)
+INDIRECT_CALLABLE_SCOPE bool fib4_rule_suppress(struct fib_rule *rule,
+						struct fib_lookup_arg *arg)
 {
 	struct fib_result *result = (struct fib_result *) arg->result;
 	struct net_device *dev = NULL;
@@ -169,7 +172,8 @@ suppress_route:
 	return true;
 }
 
-static int fib4_rule_match(struct fib_rule *rule, struct flowi *fl, int flags)
+INDIRECT_CALLABLE_SCOPE int fib4_rule_match(struct fib_rule *rule,
+					    struct flowi *fl, int flags)
 {
 	struct fib4_rule *r = (struct fib4_rule *) rule;
 	struct flowi4 *fl4 = &fl->u.ip4;

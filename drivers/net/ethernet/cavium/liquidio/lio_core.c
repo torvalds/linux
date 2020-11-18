@@ -782,7 +782,6 @@ static int liquidio_napi_poll(struct napi_struct *napi, int budget)
 	if ((work_done < budget && tx_done) ||
 	    (iq && iq->pkt_in_done >= MAX_REG_CNT) ||
 	    (droq->pkt_count >= MAX_REG_CNT)) {
-		tx_done = 1;
 		napi_complete_done(napi, work_done);
 
 		octeon_enable_irq(droq->oct_dev, droq->q_no);

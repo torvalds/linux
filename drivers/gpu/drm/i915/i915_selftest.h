@@ -133,4 +133,6 @@ bool __igt_timeout(unsigned long timeout, const char *fmt, ...);
 #define igt_timeout(t, fmt, ...) \
 	__igt_timeout((t), KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
 
+void igt_hexdump(const void *buf, size_t len);
+
 #endif /* !__I915_SELFTEST_H__ */

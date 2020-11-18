@@ -144,8 +144,7 @@ int vdso_join_timens(struct task_struct *task, struct time_namespace *ns)
 	struct mm_struct *mm = task->mm;
 	struct vm_area_struct *vma;
 
-	if (down_write_killable(&mm->mmap_sem))
-		return -EINTR;
+	mmap_read_lock(mm);
 
 	for (vma = mm->mmap; vma; vma = vma->vm_next) {
 		unsigned long size = vma->vm_end - vma->vm_start;
@@ -154,7 +153,7 @@ int vdso_join_timens(struct task_struct *task, struct time_namespace *ns)
 			zap_page_range(vma, vma->vm_start, size);
 	}
 
-	up_write(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 	return 0;
 }
 #else
@@ -268,7 +267,7 @@ static int map_vdso(const struct vdso_image *image, unsigned long addr)
 	unsigned long text_start;
 	int ret = 0;
 
-	if (down_write_killable(&mm->mmap_sem))
+	if (mmap_write_lock_killable(mm))
 		return -EINTR;
 
 	addr = get_unmapped_area(NULL, addr,
@@ -311,7 +310,7 @@ static int map_vdso(const struct vdso_image *image, unsigned long addr)
 	}
 
 up_fail:
-	up_write(&mm->mmap_sem);
+	mmap_write_unlock(mm);
 	return ret;
 }
 
@@ -373,7 +372,7 @@ int map_vdso_once(const struct vdso_image *image, unsigned long addr)
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
 
-	down_write(&mm->mmap_sem);
+	mmap_write_lock(mm);
 	/*
 	 * Check if we have already mapped vdso blob - fail to prevent
 	 * abusing from userspace install_speciall_mapping, which may
@@ -384,11 +383,11 @@ int map_vdso_once(const struct vdso_image *image, unsigned long addr)
 	for (vma = mm->mmap; vma; vma = vma->vm_next) {
 		if (vma_is_special_mapping(vma, &vdso_mapping) ||
 				vma_is_special_mapping(vma, &vvar_mapping)) {
-			up_write(&mm->mmap_sem);
+			mmap_write_unlock(mm);
 			return -EEXIST;
 		}
 	}
-	up_write(&mm->mmap_sem);
+	mmap_write_unlock(mm);
 
 	return map_vdso(image, addr);
 }

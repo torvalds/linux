@@ -23,3 +23,18 @@
 &i2c0 {
 	status = "okay";
 };
+
+&qspi {
+	status = "okay";
+
+	w25q16dw0: flash@0 {
+		compatible = "jedec,spi-nor";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		m25p,fast-read;
+		spi-max-frequency = <50000000>;
+		reg = <0>;
+		spi-rx-bus-width = <2>;
+		spi-tx-bus-width = <2>;
+	};
+};

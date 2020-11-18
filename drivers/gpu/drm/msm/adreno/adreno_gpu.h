@@ -21,6 +21,8 @@
 #define REG_SKIP ~0
 #define REG_ADRENO_SKIP(_offset) [_offset] = REG_SKIP
 
+extern bool snapshot_debugbus;
+
 /**
  * adreno_regs: List of registers that are used in across all
  * 3D devices. Each device type has different offset value for the same
@@ -68,6 +70,13 @@ struct adreno_gpu_funcs {
 	int (*get_timestamp)(struct msm_gpu *gpu, uint64_t *value);
 };
 
+struct adreno_reglist {
+	u32 offset;
+	u32 value;
+};
+
+extern const struct adreno_reglist a630_hwcg[], a640_hwcg[], a650_hwcg[];
+
 struct adreno_info {
 	struct adreno_rev rev;
 	uint32_t revn;
@@ -78,6 +87,7 @@ struct adreno_info {
 	struct msm_gpu *(*init)(struct drm_device *dev);
 	const char *zapfw;
 	u32 inactive_period;
+	const struct adreno_reglist *hwcg;
 };
 
 const struct adreno_info *adreno_info(struct adreno_rev rev);
@@ -202,6 +212,11 @@ static inline bool adreno_is_a4xx(struct adreno_gpu *gpu)
 	return (gpu->revn >= 400) && (gpu->revn < 500);
 }
 
+static inline int adreno_is_a405(struct adreno_gpu *gpu)
+{
+	return gpu->revn == 405;
+}
+
 static inline int adreno_is_a420(struct adreno_gpu *gpu)
 {
 	return gpu->revn == 420;
@@ -235,6 +250,16 @@ static inline int adreno_is_a618(struct adreno_gpu *gpu)
 static inline int adreno_is_a630(struct adreno_gpu *gpu)
 {
        return gpu->revn == 630;
+}
+
+static inline int adreno_is_a640(struct adreno_gpu *gpu)
+{
+       return gpu->revn == 640;
+}
+
+static inline int adreno_is_a650(struct adreno_gpu *gpu)
+{
+       return gpu->revn == 650;
 }
 
 int adreno_get_param(struct msm_gpu *gpu, uint32_t param, uint64_t *value);
@@ -271,6 +296,14 @@ void adreno_gpu_state_destroy(struct msm_gpu_state *state);
 
 int adreno_gpu_state_get(struct msm_gpu *gpu, struct msm_gpu_state *state);
 int adreno_gpu_state_put(struct msm_gpu_state *state);
+
+/*
+ * Common helper function to initialize the default address space for arm-smmu
+ * attached targets
+ */
+struct msm_gem_address_space *
+adreno_iommu_create_address_space(struct msm_gpu *gpu,
+		struct platform_device *pdev);
 
 /*
  * For a5xx and a6xx targets load the zap shader that is used to pull the GPU

@@ -254,7 +254,7 @@ gss_fill_context(const void *p, const void *end, struct gss_cl_ctx *ctx, struct 
 	if (IS_ERR(p))
 		goto err;
 done:
-	trace_rpcgss_context(ctx->gc_expiry, now, timeout,
+	trace_rpcgss_context(window_size, ctx->gc_expiry, now, timeout,
 			     ctx->gc_acceptor.len, ctx->gc_acceptor.data);
 err:
 	return p;
@@ -697,10 +697,12 @@ retry:
 		}
 		schedule();
 	}
-	if (gss_msg->ctx)
+	if (gss_msg->ctx) {
+		trace_rpcgss_ctx_init(gss_cred);
 		gss_cred_set_ctx(cred, gss_msg->ctx);
-	else
+	} else {
 		err = gss_msg->msg.errno;
+	}
 	spin_unlock(&pipe->lock);
 out_intr:
 	finish_wait(&gss_msg->waitqueue, &wait);
@@ -1054,11 +1056,11 @@ gss_create_new(const struct rpc_auth_create_args *args, struct rpc_clnt *clnt)
 	auth->au_rslack = GSS_KRB5_MAX_SLACK_NEEDED >> 2;
 	auth->au_verfsize = GSS_VERF_SLACK >> 2;
 	auth->au_ralign = GSS_VERF_SLACK >> 2;
-	auth->au_flags = 0;
+	__set_bit(RPCAUTH_AUTH_UPDATE_SLACK, &auth->au_flags);
 	auth->au_ops = &authgss_ops;
 	auth->au_flavor = flavor;
 	if (gss_pseudoflavor_to_datatouch(gss_auth->mech, flavor))
-		auth->au_flags |= RPCAUTH_AUTH_DATATOUCH;
+		__set_bit(RPCAUTH_AUTH_DATATOUCH, &auth->au_flags);
 	refcount_set(&auth->au_count, 1);
 	kref_init(&gss_auth->kref);
 
@@ -1284,8 +1286,9 @@ gss_send_destroy_context(struct rpc_cred *cred)
 	if (new) {
 		ctx->gc_proc = RPC_GSS_PROC_DESTROY;
 
+		trace_rpcgss_ctx_destroy(gss_cred);
 		task = rpc_call_null(gss_auth->client, &new->gc_base,
-				RPC_TASK_ASYNC|RPC_TASK_SOFT);
+				     RPC_TASK_ASYNC);
 		if (!IS_ERR(task))
 			rpc_put_task(task);
 
@@ -1349,7 +1352,6 @@ gss_destroy_nullcred(struct rpc_cred *cred)
 static void
 gss_destroy_cred(struct rpc_cred *cred)
 {
-
 	if (test_and_clear_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags) != 0)
 		gss_send_destroy_context(cred);
 	gss_destroy_nullcred(cred);
@@ -1613,6 +1615,7 @@ static int gss_renew_cred(struct rpc_task *task)
 	new = gss_lookup_cred(auth, &acred, RPCAUTH_LOOKUP_NEW);
 	if (IS_ERR(new))
 		return PTR_ERR(new);
+
 	task->tk_rqstp->rq_cred = new;
 	put_rpccred(oldcred);
 	return 0;
@@ -1709,7 +1712,8 @@ gss_validate(struct rpc_task *task, struct xdr_stream *xdr)
 
 	/* We leave it to unwrap to calculate au_rslack. For now we just
 	 * calculate the length of the verifier: */
-	cred->cr_auth->au_verfsize = XDR_QUADLEN(len) + 2;
+	if (test_bit(RPCAUTH_AUTH_UPDATE_SLACK, &cred->cr_auth->au_flags))
+		cred->cr_auth->au_verfsize = XDR_QUADLEN(len) + 2;
 	status = 0;
 out:
 	gss_put_ctx(ctx);
@@ -1927,13 +1931,30 @@ out:
 	return status;
 }
 
-static int
-gss_unwrap_resp_auth(struct rpc_cred *cred)
+/**
+ * gss_update_rslack - Possibly update RPC receive buffer size estimates
+ * @task: rpc_task for incoming RPC Reply being unwrapped
+ * @cred: controlling rpc_cred for @task
+ * @before: XDR words needed before each RPC Reply message
+ * @after: XDR words needed following each RPC Reply message
+ *
+ */
+static void gss_update_rslack(struct rpc_task *task, struct rpc_cred *cred,
+			      unsigned int before, unsigned int after)
 {
 	struct rpc_auth *auth = cred->cr_auth;
 
-	auth->au_rslack = auth->au_verfsize;
-	auth->au_ralign = auth->au_verfsize;
+	if (test_and_clear_bit(RPCAUTH_AUTH_UPDATE_SLACK, &auth->au_flags)) {
+		auth->au_ralign = auth->au_verfsize + before;
+		auth->au_rslack = auth->au_verfsize + after;
+		trace_rpcgss_update_slack(task, auth);
+	}
+}
+
+static int
+gss_unwrap_resp_auth(struct rpc_task *task, struct rpc_cred *cred)
+{
+	gss_update_rslack(task, cred, 0, 0);
 	return 0;
 }
 
@@ -1956,7 +1977,6 @@ gss_unwrap_resp_integ(struct rpc_task *task, struct rpc_cred *cred,
 		      struct xdr_stream *xdr)
 {
 	struct xdr_buf gss_data, *rcv_buf = &rqstp->rq_rcv_buf;
-	struct rpc_auth *auth = cred->cr_auth;
 	u32 len, offset, seqno, maj_stat;
 	struct xdr_netobj mic;
 	int ret;
@@ -2005,8 +2025,7 @@ gss_unwrap_resp_integ(struct rpc_task *task, struct rpc_cred *cred,
 	if (maj_stat != GSS_S_COMPLETE)
 		goto bad_mic;
 
-	auth->au_rslack = auth->au_verfsize + 2 + 1 + XDR_QUADLEN(mic.len);
-	auth->au_ralign = auth->au_verfsize + 2;
+	gss_update_rslack(task, cred, 2, 2 + 1 + XDR_QUADLEN(mic.len));
 	ret = 0;
 
 out:
@@ -2031,7 +2050,6 @@ gss_unwrap_resp_priv(struct rpc_task *task, struct rpc_cred *cred,
 {
 	struct xdr_buf *rcv_buf = &rqstp->rq_rcv_buf;
 	struct kvec *head = rqstp->rq_rcv_buf.head;
-	struct rpc_auth *auth = cred->cr_auth;
 	u32 offset, opaque_len, maj_stat;
 	__be32 *p;
 
@@ -2058,8 +2076,8 @@ gss_unwrap_resp_priv(struct rpc_task *task, struct rpc_cred *cred,
 	 */
 	xdr_init_decode(xdr, rcv_buf, p, rqstp);
 
-	auth->au_rslack = auth->au_verfsize + 2 + ctx->gc_gss_ctx->slack;
-	auth->au_ralign = auth->au_verfsize + 2 + ctx->gc_gss_ctx->align;
+	gss_update_rslack(task, cred, 2 + ctx->gc_gss_ctx->align,
+			  2 + ctx->gc_gss_ctx->slack);
 
 	return 0;
 unwrap_failed:
@@ -2130,7 +2148,7 @@ gss_unwrap_resp(struct rpc_task *task, struct xdr_stream *xdr)
 		goto out_decode;
 	switch (gss_cred->gc_service) {
 	case RPC_GSS_SVC_NONE:
-		status = gss_unwrap_resp_auth(cred);
+		status = gss_unwrap_resp_auth(task, cred);
 		break;
 	case RPC_GSS_SVC_INTEGRITY:
 		status = gss_unwrap_resp_integ(task, cred, ctx, rqstp, xdr);

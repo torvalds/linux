@@ -35,6 +35,8 @@
 #include "en/port.h"
 #include "en/port_buffer.h"
 
+#define MLX5E_MAX_BW_ALLOC 100 /* Max percentage of BW allocation */
+
 #define MLX5E_100MB (100000)
 #define MLX5E_1GB   (1000000)
 
@@ -47,6 +49,12 @@
 enum {
 	MLX5E_VENDOR_TC_GROUP_NUM = 7,
 	MLX5E_LOWEST_PRIO_GROUP   = 0,
+};
+
+enum {
+	MLX5_DCB_CHG_RESET,
+	MLX5_DCB_NO_CHG,
+	MLX5_DCB_CHG_NO_RESET,
 };
 
 #define MLX5_DSCP_SUPPORTED(mdev) (MLX5_CAP_GEN(mdev, qcam_reg)  && \
@@ -238,7 +246,7 @@ static void mlx5e_build_tc_tx_bw(struct ieee_ets *ets, u8 *tc_tx_bw,
  *   Report both group #0 and #1 as ETS type.
  *     All the tcs in group #0 will be reported with 0% BW.
  */
-int mlx5e_dcbnl_ieee_setets_core(struct mlx5e_priv *priv, struct ieee_ets *ets)
+static int mlx5e_dcbnl_ieee_setets_core(struct mlx5e_priv *priv, struct ieee_ets *ets)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
 	u8 tc_tx_bw[IEEE_8021QAZ_MAX_TCS];
@@ -977,7 +985,7 @@ static int mlx5e_dcbnl_setbuffer(struct net_device *dev,
 	return err;
 }
 
-const struct dcbnl_rtnl_ops mlx5e_dcbnl_ops = {
+static const struct dcbnl_rtnl_ops mlx5e_dcbnl_ops = {
 	.ieee_getets	= mlx5e_dcbnl_ieee_getets,
 	.ieee_setets	= mlx5e_dcbnl_ieee_setets,
 	.ieee_getmaxrate = mlx5e_dcbnl_ieee_getmaxrate,
@@ -1008,6 +1016,24 @@ const struct dcbnl_rtnl_ops mlx5e_dcbnl_ops = {
 	.getpfcstate    = mlx5e_dcbnl_getpfcstate,
 	.setpfcstate    = mlx5e_dcbnl_setpfcstate,
 };
+
+void mlx5e_dcbnl_build_netdev(struct net_device *netdev)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+	struct mlx5_core_dev *mdev = priv->mdev;
+
+	if (MLX5_CAP_GEN(mdev, vport_group_manager) && MLX5_CAP_GEN(mdev, qos))
+		netdev->dcbnl_ops = &mlx5e_dcbnl_ops;
+}
+
+void mlx5e_dcbnl_build_rep_netdev(struct net_device *netdev)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+	struct mlx5_core_dev *mdev = priv->mdev;
+
+	if (MLX5_CAP_GEN(mdev, qos))
+		netdev->dcbnl_ops = &mlx5e_dcbnl_ops;
+}
 
 static void mlx5e_dcbnl_query_dcbx_mode(struct mlx5e_priv *priv,
 					enum mlx5_dcbx_oper_mode *mode)
@@ -1191,6 +1217,24 @@ static int mlx5e_trust_initialize(struct mlx5e_priv *priv)
 	return 0;
 }
 
+#define MLX5E_BUFFER_CELL_SHIFT 7
+
+static u16 mlx5e_query_port_buffers_cell_size(struct mlx5e_priv *priv)
+{
+	struct mlx5_core_dev *mdev = priv->mdev;
+	u32 out[MLX5_ST_SZ_DW(sbcam_reg)] = {};
+	u32 in[MLX5_ST_SZ_DW(sbcam_reg)] = {};
+
+	if (!MLX5_CAP_GEN(mdev, sbcam_reg))
+		return (1 << MLX5E_BUFFER_CELL_SHIFT);
+
+	if (mlx5_core_access_reg(mdev, in, sizeof(in), out, sizeof(out),
+				 MLX5_REG_SBCAM, 0, 0))
+		return (1 << MLX5E_BUFFER_CELL_SHIFT);
+
+	return MLX5_GET(sbcam_reg, out, cap_cell_size);
+}
+
 void mlx5e_dcbnl_initialize(struct mlx5e_priv *priv)
 {
 	struct mlx5e_dcbx *dcbx = &priv->dcbx;
@@ -1208,6 +1252,7 @@ void mlx5e_dcbnl_initialize(struct mlx5e_priv *priv)
 	if (priv->dcbx.mode == MLX5E_DCBX_PARAM_VER_OPER_HOST)
 		priv->dcbx.cap |= DCB_CAP_DCBX_HOST;
 
+	priv->dcbx.port_buff_cell_sz = mlx5e_query_port_buffers_cell_size(priv);
 	priv->dcbx.manual_buffer = false;
 	priv->dcbx.cable_len = MLX5E_DEFAULT_CABLE_LEN;
 

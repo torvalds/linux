@@ -30,6 +30,10 @@
 # Error out on error
 set -e
 
+LD="$1"
+KBUILD_LDFLAGS="$2"
+LDFLAGS_vmlinux="$3"
+
 # Nice output in kbuild format
 # Will be supressed by "make -s"
 info()
@@ -53,6 +57,29 @@ modpost_link()
 		--end-group"
 
 	${LD} ${KBUILD_LDFLAGS} -r -o ${1} ${objects}
+}
+
+objtool_link()
+{
+	local objtoolopt;
+
+	if [ -n "${CONFIG_VMLINUX_VALIDATION}" ]; then
+		objtoolopt="check"
+		if [ -z "${CONFIG_FRAME_POINTER}" ]; then
+			objtoolopt="${objtoolopt} --no-fp"
+		fi
+		if [ -n "${CONFIG_GCOV_KERNEL}" ]; then
+			objtoolopt="${objtoolopt} --no-unreachable"
+		fi
+		if [ -n "${CONFIG_RETPOLINE}" ]; then
+			objtoolopt="${objtoolopt} --retpoline"
+		fi
+		if [ -n "${CONFIG_X86_SMAP}" ]; then
+			objtoolopt="${objtoolopt} --uaccess"
+		fi
+		info OBJTOOL ${1}
+		tools/objtool/objtool ${objtoolopt} ${1}
+	fi
 }
 
 # Link of vmlinux
@@ -120,8 +147,8 @@ gen_btf()
 	fi
 
 	pahole_ver=$(${PAHOLE} --version | sed -E 's/v([0-9]+)\.([0-9]+)/\1\2/')
-	if [ "${pahole_ver}" -lt "113" ]; then
-		echo >&2 "BTF: ${1}: pahole version $(${PAHOLE} --version) is too old, need at least v1.13"
+	if [ "${pahole_ver}" -lt "116" ]; then
+		echo >&2 "BTF: ${1}: pahole version $(${PAHOLE} --version) is too old, need at least v1.16"
 		return 1
 	fi
 
@@ -218,8 +245,6 @@ on_signals()
 }
 trap on_signals HUP INT QUIT TERM
 
-#
-#
 # Use "make V=1" to debug this script
 case "${KBUILD_VERBOSE}" in
 *1*)
@@ -251,6 +276,7 @@ ${MAKE} -f "${srctree}/scripts/Makefile.build" obj=init need-builtin=1
 #link vmlinux.o
 info LD vmlinux.o
 modpost_link vmlinux.o
+objtool_link vmlinux.o
 
 # modpost vmlinux.o to check for section mismatches
 ${MAKE} -f "${srctree}/scripts/Makefile.modpost" MODPOST_VMLINUX=1
@@ -313,6 +339,12 @@ if [ -n "${CONFIG_KALLSYMS}" ]; then
 fi
 
 vmlinux_link vmlinux "${kallsymso}" ${btf_vmlinux_bin_o}
+
+# fill in BTF IDs
+if [ -n "${CONFIG_DEBUG_INFO_BTF}" ]; then
+info BTFIDS vmlinux
+${RESOLVE_BTFIDS} vmlinux
+fi
 
 if [ -n "${CONFIG_BUILDTIME_TABLE_SORT}" ]; then
 	info SORTTAB vmlinux

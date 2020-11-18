@@ -403,7 +403,7 @@ static void crypto_wait_for_test(struct crypto_larval *larval)
 	err = wait_for_completion_killable(&larval->completion);
 	WARN_ON(err);
 	if (!err)
-		crypto_probing_notify(CRYPTO_MSG_ALG_LOADED, larval);
+		crypto_notify(CRYPTO_MSG_ALG_LOADED, larval);
 
 out:
 	crypto_larval_kill(&larval->alg);
@@ -690,6 +690,8 @@ int crypto_grab_spawn(struct crypto_spawn *spawn, struct crypto_instance *inst,
 		spawn->mask = mask;
 		spawn->next = inst->spawns;
 		inst->spawns = spawn;
+		inst->alg.cra_flags |=
+			(alg->cra_flags & CRYPTO_ALG_INHERITED_FLAGS);
 		err = 0;
 	}
 	up_write(&crypto_alg_sem);
@@ -716,17 +718,27 @@ EXPORT_SYMBOL_GPL(crypto_drop_spawn);
 
 static struct crypto_alg *crypto_spawn_alg(struct crypto_spawn *spawn)
 {
-	struct crypto_alg *alg;
+	struct crypto_alg *alg = ERR_PTR(-EAGAIN);
+	struct crypto_alg *target;
+	bool shoot = false;
 
 	down_read(&crypto_alg_sem);
-	alg = spawn->alg;
-	if (!spawn->dead && !crypto_mod_get(alg)) {
-		alg->cra_flags |= CRYPTO_ALG_DYING;
-		alg = NULL;
+	if (!spawn->dead) {
+		alg = spawn->alg;
+		if (!crypto_mod_get(alg)) {
+			target = crypto_alg_get(alg);
+			shoot = true;
+			alg = ERR_PTR(-EAGAIN);
+		}
 	}
 	up_read(&crypto_alg_sem);
 
-	return alg ?: ERR_PTR(-EAGAIN);
+	if (shoot) {
+		crypto_shoot_alg(target);
+		crypto_alg_put(target);
+	}
+
+	return alg;
 }
 
 struct crypto_tfm *crypto_spawn_tfm(struct crypto_spawn *spawn, u32 type,
@@ -806,7 +818,23 @@ struct crypto_attr_type *crypto_get_attr_type(struct rtattr **tb)
 }
 EXPORT_SYMBOL_GPL(crypto_get_attr_type);
 
-int crypto_check_attr_type(struct rtattr **tb, u32 type)
+/**
+ * crypto_check_attr_type() - check algorithm type and compute inherited mask
+ * @tb: the template parameters
+ * @type: the algorithm type the template would be instantiated as
+ * @mask_ret: (output) the mask that should be passed to crypto_grab_*()
+ *	      to restrict the flags of any inner algorithms
+ *
+ * Validate that the algorithm type the user requested is compatible with the
+ * one the template would actually be instantiated as.  E.g., if the user is
+ * doing crypto_alloc_shash("cbc(aes)", ...), this would return an error because
+ * the "cbc" template creates an "skcipher" algorithm, not an "shash" algorithm.
+ *
+ * Also compute the mask to use to restrict the flags of any inner algorithms.
+ *
+ * Return: 0 on success; -errno on failure
+ */
+int crypto_check_attr_type(struct rtattr **tb, u32 type, u32 *mask_ret)
 {
 	struct crypto_attr_type *algt;
 
@@ -817,6 +845,7 @@ int crypto_check_attr_type(struct rtattr **tb, u32 type)
 	if ((algt->type ^ type) & algt->mask)
 		return -EINVAL;
 
+	*mask_ret = crypto_algt_inherited_mask(algt);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(crypto_check_attr_type);
@@ -903,6 +932,14 @@ out:
 	return err;
 }
 EXPORT_SYMBOL_GPL(crypto_enqueue_request);
+
+void crypto_enqueue_request_head(struct crypto_queue *queue,
+				 struct crypto_async_request *request)
+{
+	queue->qlen++;
+	list_add(&request->list, &queue->list);
+}
+EXPORT_SYMBOL_GPL(crypto_enqueue_request_head);
 
 struct crypto_async_request *crypto_dequeue_request(struct crypto_queue *queue)
 {

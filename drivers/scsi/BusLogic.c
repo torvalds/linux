@@ -2237,7 +2237,7 @@ static bool __init blogic_inquiry(struct blogic_adapter *adapter)
 					"INQUIRE INSTALLED DEVICES ID 0 TO 7");
 		for (tgt_id = 0; tgt_id < 8; tgt_id++)
 			adapter->tgt_flags[tgt_id].tgt_exists =
-				(installed_devs0to7[tgt_id] != 0 ? true : false);
+				installed_devs0to7[tgt_id] != 0;
 	}
 	/*
 	   Issue the Inquire Setup Information command.
@@ -2635,7 +2635,7 @@ static int blogic_resultcode(struct blogic_adapter *adapter,
 	case BLOGIC_BAD_CMD_PARAM:
 		blogic_warn("BusLogic Driver Protocol Error 0x%02X\n",
 				adapter, adapter_status);
-		/* fall through */
+		fallthrough;
 	case BLOGIC_DATA_UNDERRUN:
 	case BLOGIC_DATA_OVERRUN:
 	case BLOGIC_NOEXPECT_BUSFREE:

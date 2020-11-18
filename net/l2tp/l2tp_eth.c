@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * L2TPv3 ethernet pseudowire driver
+/* L2TPv3 ethernet pseudowire driver
  *
  * Copyright (c) 2008,2009,2010 Katalix Systems Ltd
  */
@@ -51,11 +50,11 @@ struct l2tp_eth_sess {
 	struct net_device __rcu *dev;
 };
 
-
 static int l2tp_eth_dev_init(struct net_device *dev)
 {
 	eth_hw_addr_random(dev);
 	eth_broadcast_addr(dev->broadcast);
+	netdev_lockdep_set_classes(dev);
 
 	return 0;
 }
@@ -72,7 +71,7 @@ static void l2tp_eth_dev_uninit(struct net_device *dev)
 	 */
 }
 
-static int l2tp_eth_dev_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t l2tp_eth_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct l2tp_eth *priv = netdev_priv(dev);
 	struct l2tp_session *session = priv->session;
@@ -93,13 +92,12 @@ static void l2tp_eth_get_stats64(struct net_device *dev,
 {
 	struct l2tp_eth *priv = netdev_priv(dev);
 
-	stats->tx_bytes   = (unsigned long) atomic_long_read(&priv->tx_bytes);
-	stats->tx_packets = (unsigned long) atomic_long_read(&priv->tx_packets);
-	stats->tx_dropped = (unsigned long) atomic_long_read(&priv->tx_dropped);
-	stats->rx_bytes   = (unsigned long) atomic_long_read(&priv->rx_bytes);
-	stats->rx_packets = (unsigned long) atomic_long_read(&priv->rx_packets);
-	stats->rx_errors  = (unsigned long) atomic_long_read(&priv->rx_errors);
-
+	stats->tx_bytes   = (unsigned long)atomic_long_read(&priv->tx_bytes);
+	stats->tx_packets = (unsigned long)atomic_long_read(&priv->tx_packets);
+	stats->tx_dropped = (unsigned long)atomic_long_read(&priv->tx_dropped);
+	stats->rx_bytes   = (unsigned long)atomic_long_read(&priv->rx_bytes);
+	stats->rx_packets = (unsigned long)atomic_long_read(&priv->rx_packets);
+	stats->rx_errors  = (unsigned long)atomic_long_read(&priv->rx_errors);
 }
 
 static const struct net_device_ops l2tp_eth_netdev_ops = {
@@ -347,12 +345,10 @@ err:
 	return rc;
 }
 
-
 static const struct l2tp_nl_cmd_ops l2tp_eth_nl_cmd_ops = {
 	.session_create	= l2tp_eth_create,
 	.session_delete	= l2tp_session_delete,
 };
-
 
 static int __init l2tp_eth_init(void)
 {

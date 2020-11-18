@@ -409,7 +409,7 @@ static int knav_gp_close_queue(struct knav_range_info *range,
 	return 0;
 }
 
-struct knav_range_ops knav_gp_range_ops = {
+static struct knav_range_ops knav_gp_range_ops = {
 	.set_notify	= knav_gp_set_notify,
 	.open_queue	= knav_gp_open_queue,
 	.close_queue	= knav_gp_close_queue,

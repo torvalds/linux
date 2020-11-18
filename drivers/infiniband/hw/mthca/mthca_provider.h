@@ -76,24 +76,6 @@ struct mthca_mr {
 	struct mthca_mtt *mtt;
 };
 
-struct mthca_fmr {
-	struct ib_fmr      ibmr;
-	struct ib_fmr_attr attr;
-	struct mthca_mtt  *mtt;
-	int                maps;
-	union {
-		struct {
-			struct mthca_mpt_entry __iomem *mpt;
-			u64 __iomem *mtts;
-		} tavor;
-		struct {
-			struct mthca_mpt_entry *mpt;
-			__be64 *mtts;
-			dma_addr_t dma_handle;
-		} arbel;
-	} mem;
-};
-
 struct mthca_pd {
 	struct ib_pd    ibpd;
 	u32             pd_num;
@@ -299,11 +281,6 @@ struct mthca_sqp {
 static inline struct mthca_ucontext *to_mucontext(struct ib_ucontext *ibucontext)
 {
 	return container_of(ibucontext, struct mthca_ucontext, ibucontext);
-}
-
-static inline struct mthca_fmr *to_mfmr(struct ib_fmr *ibmr)
-{
-	return container_of(ibmr, struct mthca_fmr, ibmr);
 }
 
 static inline struct mthca_mr *to_mmr(struct ib_mr *ibmr)

@@ -11,7 +11,7 @@ Description:
 		Additionally, the fields Pss_Anon, Pss_File and Pss_Shmem
 		are not present in /proc/pid/smaps.  These fields represent
 		the sum of the Pss field of each type (anon, file, shmem).
-		For more details, see Documentation/filesystems/proc.txt
+		For more details, see Documentation/filesystems/proc.rst
 		and the procfs man page.
 
 		Typical output looks like this:

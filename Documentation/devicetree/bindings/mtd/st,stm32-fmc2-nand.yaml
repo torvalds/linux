@@ -9,30 +9,17 @@ title: STMicroelectronics Flexible Memory Controller 2 (FMC2) Bindings
 maintainers:
   - Christophe Kerello <christophe.kerello@st.com>
 
-allOf:
-  - $ref: "nand-controller.yaml#"
-
 properties:
   compatible:
-    const: st,stm32mp15-fmc2
+    enum:
+      - st,stm32mp15-fmc2
+      - st,stm32mp1-fmc2-nfc
 
   reg:
-    items:
-      - description: Registers
-      - description: Chip select 0 data
-      - description: Chip select 0 command
-      - description: Chip select 0 address space
-      - description: Chip select 1 data
-      - description: Chip select 1 command
-      - description: Chip select 1 address space
+    minItems: 6
+    maxItems: 7
 
   interrupts:
-    maxItems: 1
-
-  clocks:
-    maxItems: 1
-
-  resets:
     maxItems: 1
 
   dmas:
@@ -55,13 +42,57 @@ patternProperties:
         const: 512
 
       nand-ecc-strength:
-        enum: [1, 4 ,8 ]
+        enum: [1, 4, 8]
+
+allOf:
+  - $ref: "nand-controller.yaml#"
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: st,stm32mp15-fmc2
+    then:
+      properties:
+        reg:
+          items:
+            - description: Registers
+            - description: Chip select 0 data
+            - description: Chip select 0 command
+            - description: Chip select 0 address space
+            - description: Chip select 1 data
+            - description: Chip select 1 command
+            - description: Chip select 1 address space
+
+        clocks:
+          maxItems: 1
+
+        resets:
+          maxItems: 1
+
+      required:
+        - clocks
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: st,stm32mp1-fmc2-nfc
+    then:
+      properties:
+        reg:
+          items:
+            - description: Chip select 0 data
+            - description: Chip select 0 command
+            - description: Chip select 0 address space
+            - description: Chip select 1 data
+            - description: Chip select 1 command
+            - description: Chip select 1 address space
 
 required:
   - compatible
   - reg
   - interrupts
-  - clocks
 
 examples:
   - |
@@ -77,13 +108,13 @@ examples:
             <0x81000000 0x1000>,
             <0x89010000 0x1000>,
             <0x89020000 0x1000>;
-            interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
-            dmas = <&mdma1 20 0x10 0x12000a02 0x0 0x0>,
-                   <&mdma1 20 0x10 0x12000a08 0x0 0x0>,
-                   <&mdma1 21 0x10 0x12000a0a 0x0 0x0>;
-            dma-names = "tx", "rx", "ecc";
-            clocks = <&rcc FMC_K>;
-            resets = <&rcc FMC_R>;
+      interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
+      dmas = <&mdma1 20 0x2 0x12000a02 0x0 0x0>,
+             <&mdma1 20 0x2 0x12000a08 0x0 0x0>,
+             <&mdma1 21 0x2 0x12000a0a 0x0 0x0>;
+      dma-names = "tx", "rx", "ecc";
+      clocks = <&rcc FMC_K>;
+      resets = <&rcc FMC_R>;
       #address-cells = <1>;
       #size-cells = <0>;
 

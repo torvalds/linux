@@ -51,6 +51,24 @@ to make sure their systems do not continue running in the face of
 "unreachable" conditions. (For example, see commits like `this one
 <https://git.kernel.org/linus/d4689846881d160a4d12a514e991a740bcb5d65a>`_.)
 
+uninitialized_var()
+-------------------
+For any compiler warnings about uninitialized variables, just add
+an initializer. Using the uninitialized_var() macro (or similar
+warning-silencing tricks) is dangerous as it papers over `real bugs
+<https://lore.kernel.org/lkml/20200603174714.192027-1-glider@google.com/>`_
+(or can in the future), and suppresses unrelated compiler warnings
+(e.g. "unused variable"). If the compiler thinks it is uninitialized,
+either simply initialize the variable or make compiler changes. Keep in
+mind that in most cases, if an initialization is obviously redundant,
+the compiler's dead-store elimination pass will make sure there are no
+needless variable writes.
+
+As Linus has said, this macro
+`must <https://lore.kernel.org/lkml/CA+55aFw+Vbj0i=1TGqCR5vQkCzWJ0QxK6CernOU6eedsudAixw@mail.gmail.com/>`_
+`be <https://lore.kernel.org/lkml/CA+55aFwgbgqhbp1fkxvRKEpzyR5J8n1vKT1VZdz9knmPuXhOeg@mail.gmail.com/>`_
+`removed <https://lore.kernel.org/lkml/CA+55aFz2500WfbKXAx8s67wrm9=yVJu65TpLgN_ybYNv0VEOKA@mail.gmail.com/>`_.
+
 open-coded arithmetic in allocator arguments
 --------------------------------------------
 Dynamic size calculations (especially multiplication) should not be
@@ -84,6 +102,11 @@ a trailing array of others structures, as in::
 Instead, use the helper::
 
 	header = kzalloc(struct_size(header, item, count), GFP_KERNEL);
+
+.. note:: If you are using struct_size() on a structure containing a zero-length
+        or a one-element array as a trailing array member, please refactor such
+        array usage and switch to a `flexible array member
+        <#zero-length-and-one-element-arrays>`_ instead.
 
 See array_size(), array3_size(), and struct_size(),
 for more details as well as the related check_add_overflow() and
@@ -119,7 +142,7 @@ only NUL-terminated strings. The safe replacement is strscpy().
 (Users of strscpy() still needing NUL-padding should instead
 use strscpy_pad().)
 
-If a caller is using non-NUL-terminated strings, strncpy()() can
+If a caller is using non-NUL-terminated strings, strncpy() can
 still be used, but destinations should be marked with the `__nonstring
 <https://gcc.gnu.org/onlinedocs/gcc/Common-Variable-Attributes.html>`_
 attribute to avoid future compiler warnings.
@@ -200,3 +223,116 @@ All switch/case blocks must end in one of:
 * continue;
 * goto <label>;
 * return [expression];
+
+Zero-length and one-element arrays
+----------------------------------
+There is a regular need in the kernel to provide a way to declare having
+a dynamically sized set of trailing elements in a structure. Kernel code
+should always use `"flexible array members" <https://en.wikipedia.org/wiki/Flexible_array_member>`_
+for these cases. The older style of one-element or zero-length arrays should
+no longer be used.
+
+In older C code, dynamically sized trailing elements were done by specifying
+a one-element array at the end of a structure::
+
+        struct something {
+                size_t count;
+                struct foo items[1];
+        };
+
+This led to fragile size calculations via sizeof() (which would need to
+remove the size of the single trailing element to get a correct size of
+the "header"). A `GNU C extension <https://gcc.gnu.org/onlinedocs/gcc/Zero-Length.html>`_
+was introduced to allow for zero-length arrays, to avoid these kinds of
+size problems::
+
+        struct something {
+                size_t count;
+                struct foo items[0];
+        };
+
+But this led to other problems, and didn't solve some problems shared by
+both styles, like not being able to detect when such an array is accidentally
+being used _not_ at the end of a structure (which could happen directly, or
+when such a struct was in unions, structs of structs, etc).
+
+C99 introduced "flexible array members", which lacks a numeric size for
+the array declaration entirely::
+
+        struct something {
+                size_t count;
+                struct foo items[];
+        };
+
+This is the way the kernel expects dynamically sized trailing elements
+to be declared. It allows the compiler to generate errors when the
+flexible array does not occur last in the structure, which helps to prevent
+some kind of `undefined behavior
+<https://git.kernel.org/linus/76497732932f15e7323dc805e8ea8dc11bb587cf>`_
+bugs from being inadvertently introduced to the codebase. It also allows
+the compiler to correctly analyze array sizes (via sizeof(),
+`CONFIG_FORTIFY_SOURCE`, and `CONFIG_UBSAN_BOUNDS`). For instance,
+there is no mechanism that warns us that the following application of the
+sizeof() operator to a zero-length array always results in zero::
+
+        struct something {
+                size_t count;
+                struct foo items[0];
+        };
+
+        struct something *instance;
+
+        instance = kmalloc(struct_size(instance, items, count), GFP_KERNEL);
+        instance->count = count;
+
+        size = sizeof(instance->items) * instance->count;
+        memcpy(instance->items, source, size);
+
+At the last line of code above, ``size`` turns out to be ``zero``, when one might
+have thought it represents the total size in bytes of the dynamic memory recently
+allocated for the trailing array ``items``. Here are a couple examples of this
+issue: `link 1
+<https://git.kernel.org/linus/f2cd32a443da694ac4e28fbf4ac6f9d5cc63a539>`_,
+`link 2
+<https://git.kernel.org/linus/ab91c2a89f86be2898cee208d492816ec238b2cf>`_.
+Instead, `flexible array members have incomplete type, and so the sizeof()
+operator may not be applied <https://gcc.gnu.org/onlinedocs/gcc/Zero-Length.html>`_,
+so any misuse of such operators will be immediately noticed at build time.
+
+With respect to one-element arrays, one has to be acutely aware that `such arrays
+occupy at least as much space as a single object of the type
+<https://gcc.gnu.org/onlinedocs/gcc/Zero-Length.html>`_,
+hence they contribute to the size of the enclosing structure. This is prone
+to error every time people want to calculate the total size of dynamic memory
+to allocate for a structure containing an array of this kind as a member::
+
+        struct something {
+                size_t count;
+                struct foo items[1];
+        };
+
+        struct something *instance;
+
+        instance = kmalloc(struct_size(instance, items, count - 1), GFP_KERNEL);
+        instance->count = count;
+
+        size = sizeof(instance->items) * instance->count;
+        memcpy(instance->items, source, size);
+
+In the example above, we had to remember to calculate ``count - 1`` when using
+the struct_size() helper, otherwise we would have --unintentionally-- allocated
+memory for one too many ``items`` objects. The cleanest and least error-prone way
+to implement this is through the use of a `flexible array member`::
+
+        struct something {
+                size_t count;
+                struct foo items[];
+        };
+
+        struct something *instance;
+
+        instance = kmalloc(struct_size(instance, items, count), GFP_KERNEL);
+        instance->count = count;
+
+        size = sizeof(instance->items[0]) * instance->count;
+        memcpy(instance->items, source, size);

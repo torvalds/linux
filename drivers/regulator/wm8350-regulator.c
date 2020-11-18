@@ -470,7 +470,7 @@ static int wm8350_dcdc_set_suspend_mode(struct regulator_dev *rdev,
 	return 0;
 }
 
-static const struct regulator_linear_range wm8350_ldo_ranges[] = {
+static const struct linear_range wm8350_ldo_ranges[] = {
 	REGULATOR_LINEAR_RANGE(900000, 0, 15, 50000),
 	REGULATOR_LINEAR_RANGE(1800000, 16, 31, 100000),
 };
@@ -1216,11 +1216,11 @@ EXPORT_SYMBOL_GPL(wm8350_register_regulator);
 /**
  * wm8350_register_led - Register a WM8350 LED output
  *
- * @param wm8350 The WM8350 device to configure.
- * @param lednum LED device index to create.
- * @param dcdc The DCDC to use for the LED.
- * @param isink The ISINK to use for the LED.
- * @param pdata Configuration for the LED.
+ * @wm8350: The WM8350 device to configure.
+ * @lednum: LED device index to create.
+ * @dcdc: The DCDC to use for the LED.
+ * @isink: The ISINK to use for the LED.
+ * @pdata: Configuration for the LED.
  *
  * The WM8350 supports the use of an ISINK together with a DCDC to
  * provide a power-efficient LED driver.  This function registers the

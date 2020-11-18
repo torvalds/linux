@@ -329,6 +329,52 @@ for execution also include a list of all locations within buffers that
 refer to GPU-addresses so that the kernel can edit the buffer correctly.
 This process is dubbed relocation.
 
+Locking Guidelines
+------------------
+
+.. note::
+   This is a description of how the locking should be after
+   refactoring is done. Does not necessarily reflect what the locking
+   looks like while WIP.
+
+#. All locking rules and interface contracts with cross-driver interfaces
+   (dma-buf, dma_fence) need to be followed.
+
+#. No struct_mutex anywhere in the code
+
+#. dma_resv will be the outermost lock (when needed) and ww_acquire_ctx
+   is to be hoisted at highest level and passed down within i915_gem_ctx
+   in the call chain
+
+#. While holding lru/memory manager (buddy, drm_mm, whatever) locks
+   system memory allocations are not allowed
+
+	* Enforce this by priming lockdep (with fs_reclaim). If we
+	  allocate memory while holding these looks we get a rehash
+	  of the shrinker vs. struct_mutex saga, and that would be
+	  real bad.
+
+#. Do not nest different lru/memory manager locks within each other.
+   Take them in turn to update memory allocations, relying on the object’s
+   dma_resv ww_mutex to serialize against other operations.
+
+#. The suggestion for lru/memory managers locks is that they are small
+   enough to be spinlocks.
+
+#. All features need to come with exhaustive kernel selftests and/or
+   IGT tests when appropriate
+
+#. All LMEM uAPI paths need to be fully restartable (_interruptible()
+   for all locks/waits/sleeps)
+
+	* Error handling validation through signal injection.
+	  Still the best strategy we have for validating GEM uAPI
+          corner cases.
+	  Must be excessively used in the IGT, and we need to check
+	  that we really have full path coverage of all error cases.
+
+	* -EDEADLK handling with ww_mutex
+
 GEM BO Management Implementation Details
 ----------------------------------------
 
@@ -391,19 +437,19 @@ Global GTT views
 GTT Fences and Swizzling
 ------------------------
 
-.. kernel-doc:: drivers/gpu/drm/i915/i915_gem_fence_reg.c
+.. kernel-doc:: drivers/gpu/drm/i915/gt/intel_ggtt_fencing.c
    :internal:
 
 Global GTT Fence Handling
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. kernel-doc:: drivers/gpu/drm/i915/i915_gem_fence_reg.c
+.. kernel-doc:: drivers/gpu/drm/i915/gt/intel_ggtt_fencing.c
    :doc: fence register handling
 
 Hardware Tiling and Swizzling Details
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. kernel-doc:: drivers/gpu/drm/i915/i915_gem_fence_reg.c
+.. kernel-doc:: drivers/gpu/drm/i915/gt/intel_ggtt_fencing.c
    :doc: tiling swizzling details
 
 Object Tiling IOCTLs

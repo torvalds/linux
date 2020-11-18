@@ -14,10 +14,85 @@
 #include "igt_flush_test.h"
 #include "lib_sw_fence.h"
 
+#define TEST_OA_CONFIG_UUID "12345678-1234-1234-1234-1234567890ab"
+
+static int
+alloc_empty_config(struct i915_perf *perf)
+{
+	struct i915_oa_config *oa_config;
+
+	oa_config = kzalloc(sizeof(*oa_config), GFP_KERNEL);
+	if (!oa_config)
+		return -ENOMEM;
+
+	oa_config->perf = perf;
+	kref_init(&oa_config->ref);
+
+	strlcpy(oa_config->uuid, TEST_OA_CONFIG_UUID, sizeof(oa_config->uuid));
+
+	mutex_lock(&perf->metrics_lock);
+
+	oa_config->id = idr_alloc(&perf->metrics_idr, oa_config, 2, 0, GFP_KERNEL);
+	if (oa_config->id < 0)  {
+		mutex_unlock(&perf->metrics_lock);
+		i915_oa_config_put(oa_config);
+		return -ENOMEM;
+	}
+
+	mutex_unlock(&perf->metrics_lock);
+
+	return 0;
+}
+
+static void
+destroy_empty_config(struct i915_perf *perf)
+{
+	struct i915_oa_config *oa_config = NULL, *tmp;
+	int id;
+
+	mutex_lock(&perf->metrics_lock);
+
+	idr_for_each_entry(&perf->metrics_idr, tmp, id) {
+		if (!strcmp(tmp->uuid, TEST_OA_CONFIG_UUID)) {
+			oa_config = tmp;
+			break;
+		}
+	}
+
+	if (oa_config)
+		idr_remove(&perf->metrics_idr, oa_config->id);
+
+	mutex_unlock(&perf->metrics_lock);
+
+	if (oa_config)
+		i915_oa_config_put(oa_config);
+}
+
+static struct i915_oa_config *
+get_empty_config(struct i915_perf *perf)
+{
+	struct i915_oa_config *oa_config = NULL, *tmp;
+	int id;
+
+	mutex_lock(&perf->metrics_lock);
+
+	idr_for_each_entry(&perf->metrics_idr, tmp, id) {
+		if (!strcmp(tmp->uuid, TEST_OA_CONFIG_UUID)) {
+			oa_config = i915_oa_config_get(tmp);
+			break;
+		}
+	}
+
+	mutex_unlock(&perf->metrics_lock);
+
+	return oa_config;
+}
+
 static struct i915_perf_stream *
 test_stream(struct i915_perf *perf)
 {
 	struct drm_i915_perf_open_param param = {};
+	struct i915_oa_config *oa_config = get_empty_config(perf);
 	struct perf_open_properties props = {
 		.engine = intel_engine_lookup_user(perf->i915,
 						   I915_ENGINE_CLASS_RENDER,
@@ -25,13 +100,19 @@ test_stream(struct i915_perf *perf)
 		.sample_flags = SAMPLE_OA_REPORT,
 		.oa_format = IS_GEN(perf->i915, 12) ?
 		I915_OA_FORMAT_A32u40_A4u32_B8_C8 : I915_OA_FORMAT_C4_B8,
-		.metrics_set = 1,
 	};
 	struct i915_perf_stream *stream;
 
-	stream = kzalloc(sizeof(*stream), GFP_KERNEL);
-	if (!stream)
+	if (!oa_config)
 		return NULL;
+
+	props.metrics_set = oa_config->id;
+
+	stream = kzalloc(sizeof(*stream), GFP_KERNEL);
+	if (!stream) {
+		i915_oa_config_put(oa_config);
+		return NULL;
+	}
 
 	stream->perf = perf;
 
@@ -41,6 +122,8 @@ test_stream(struct i915_perf *perf)
 		stream =  NULL;
 	}
 	mutex_unlock(&perf->lock);
+
+	i915_oa_config_put(oa_config);
 
 	return stream;
 }
@@ -79,7 +162,7 @@ static int write_timestamp(struct i915_request *rq, int slot)
 		return PTR_ERR(cs);
 
 	len = 5;
-	if (INTEL_GEN(rq->i915) >= 8)
+	if (INTEL_GEN(rq->engine->i915) >= 8)
 		len++;
 
 	*cs++ = GFX_OP_PIPE_CONTROL(len);
@@ -138,8 +221,7 @@ static int live_noa_delay(void *arg)
 		goto out;
 	}
 
-	if (rq->engine->emit_init_breadcrumb &&
-	    i915_request_timeline(rq)->has_initial_breadcrumb) {
+	if (rq->engine->emit_init_breadcrumb) {
 		err = rq->engine->emit_init_breadcrumb(rq);
 		if (err) {
 			i915_request_add(rq);
@@ -180,8 +262,7 @@ static int live_noa_delay(void *arg)
 
 	delay = intel_read_status_page(stream->engine, 0x102);
 	delay -= intel_read_status_page(stream->engine, 0x100);
-	delay = div_u64(mul_u32_u32(delay, 1000 * 1000),
-			RUNTIME_INFO(i915)->cs_timestamp_frequency_khz);
+	delay = i915_cs_timestamp_ticks_to_ns(i915, delay);
 	pr_info("GPU delay: %uns, expected %lluns\n",
 		delay, expected);
 
@@ -199,13 +280,147 @@ out:
 	return err;
 }
 
+static int live_noa_gpr(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	struct i915_perf_stream *stream;
+	struct intel_context *ce;
+	struct i915_request *rq;
+	u32 *cs, *store;
+	void *scratch;
+	u32 gpr0;
+	int err;
+	int i;
+
+	/* Check that the delay does not clobber user context state (GPR) */
+
+	stream = test_stream(&i915->perf);
+	if (!stream)
+		return -ENOMEM;
+
+	gpr0 = i915_mmio_reg_offset(GEN8_RING_CS_GPR(stream->engine->mmio_base, 0));
+
+	ce = intel_context_create(stream->engine);
+	if (IS_ERR(ce)) {
+		err = PTR_ERR(ce);
+		goto out;
+	}
+
+	/* Poison the ce->vm so we detect writes not to the GGTT gt->scratch */
+	scratch = kmap(ce->vm->scratch[0].base.page);
+	memset(scratch, POISON_FREE, PAGE_SIZE);
+
+	rq = intel_context_create_request(ce);
+	if (IS_ERR(rq)) {
+		err = PTR_ERR(rq);
+		goto out_ce;
+	}
+	i915_request_get(rq);
+
+	if (rq->engine->emit_init_breadcrumb) {
+		err = rq->engine->emit_init_breadcrumb(rq);
+		if (err) {
+			i915_request_add(rq);
+			goto out_rq;
+		}
+	}
+
+	/* Fill the 16 qword [32 dword] GPR with a known unlikely value */
+	cs = intel_ring_begin(rq, 2 * 32 + 2);
+	if (IS_ERR(cs)) {
+		err = PTR_ERR(cs);
+		i915_request_add(rq);
+		goto out_rq;
+	}
+
+	*cs++ = MI_LOAD_REGISTER_IMM(32);
+	for (i = 0; i < 32; i++) {
+		*cs++ = gpr0 + i * sizeof(u32);
+		*cs++ = STACK_MAGIC;
+	}
+	*cs++ = MI_NOOP;
+	intel_ring_advance(rq, cs);
+
+	/* Execute the GPU delay */
+	err = rq->engine->emit_bb_start(rq,
+					i915_ggtt_offset(stream->noa_wait), 0,
+					I915_DISPATCH_SECURE);
+	if (err) {
+		i915_request_add(rq);
+		goto out_rq;
+	}
+
+	/* Read the GPR back, using the pinned global HWSP for convenience */
+	store = memset32(rq->engine->status_page.addr + 512, 0, 32);
+	for (i = 0; i < 32; i++) {
+		u32 cmd;
+
+		cs = intel_ring_begin(rq, 4);
+		if (IS_ERR(cs)) {
+			err = PTR_ERR(cs);
+			i915_request_add(rq);
+			goto out_rq;
+		}
+
+		cmd = MI_STORE_REGISTER_MEM;
+		if (INTEL_GEN(i915) >= 8)
+			cmd++;
+		cmd |= MI_USE_GGTT;
+
+		*cs++ = cmd;
+		*cs++ = gpr0 + i * sizeof(u32);
+		*cs++ = i915_ggtt_offset(rq->engine->status_page.vma) +
+			offset_in_page(store) +
+			i * sizeof(u32);
+		*cs++ = 0;
+		intel_ring_advance(rq, cs);
+	}
+
+	i915_request_add(rq);
+
+	if (i915_request_wait(rq, I915_WAIT_INTERRUPTIBLE, HZ / 2) < 0) {
+		pr_err("noa_wait timed out\n");
+		intel_gt_set_wedged(stream->engine->gt);
+		err = -EIO;
+		goto out_rq;
+	}
+
+	/* Verify that the GPR contain our expected values */
+	for (i = 0; i < 32; i++) {
+		if (store[i] == STACK_MAGIC)
+			continue;
+
+		pr_err("GPR[%d] lost, found:%08x, expected:%08x!\n",
+		       i, store[i], STACK_MAGIC);
+		err = -EINVAL;
+	}
+
+	/* Verify that the user's scratch page was not used for GPR storage */
+	if (memchr_inv(scratch, POISON_FREE, PAGE_SIZE)) {
+		pr_err("Scratch page overwritten!\n");
+		igt_hexdump(scratch, 4096);
+		err = -EINVAL;
+	}
+
+out_rq:
+	i915_request_put(rq);
+out_ce:
+	kunmap(ce->vm->scratch[0].base.page);
+	intel_context_put(ce);
+out:
+	stream_destroy(stream);
+	return err;
+}
+
 int i915_perf_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(live_sanitycheck),
 		SUBTEST(live_noa_delay),
+		SUBTEST(live_noa_gpr),
 	};
 	struct i915_perf *perf = &i915->perf;
+	int err;
 
 	if (!perf->metrics_kobj || !perf->ops.enable_metric_set)
 		return 0;
@@ -213,5 +428,13 @@ int i915_perf_live_selftests(struct drm_i915_private *i915)
 	if (intel_gt_is_wedged(&i915->gt))
 		return 0;
 
-	return i915_subtests(tests, i915);
+	err = alloc_empty_config(&i915->perf);
+	if (err)
+		return err;
+
+	err = i915_subtests(tests, i915);
+
+	destroy_empty_config(&i915->perf);
+
+	return err;
 }

@@ -32,6 +32,7 @@
 #define TF_PM_MODE_LP1_NO_MC_CLK	2
 #define TF_PM_MODE_LP2			3
 #define TF_PM_MODE_LP2_NOFLUSH_L2	4
+#define TF_PM_MODE_NONE			5
 
 struct trusted_foundations_platform_data {
 	unsigned int version_major;

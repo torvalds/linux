@@ -31,6 +31,7 @@ struct a5xx_gpu {
 	struct msm_ringbuffer *next_ring;
 
 	struct drm_gem_object *preempt_bo[MSM_GPU_MAX_RINGS];
+	struct drm_gem_object *preempt_counters_bo[MSM_GPU_MAX_RINGS];
 	struct a5xx_preempt_record *preempt[MSM_GPU_MAX_RINGS];
 	uint64_t preempt_iova[MSM_GPU_MAX_RINGS];
 
@@ -41,7 +42,7 @@ struct a5xx_gpu {
 #define to_a5xx_gpu(x) container_of(x, struct a5xx_gpu, base)
 
 #ifdef CONFIG_DEBUG_FS
-int a5xx_debugfs_init(struct msm_gpu *gpu, struct drm_minor *minor);
+void a5xx_debugfs_init(struct msm_gpu *gpu, struct drm_minor *minor);
 #endif
 
 /*

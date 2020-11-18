@@ -116,9 +116,9 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/device.h>
+#include <linux/pgtable.h>
 #include <asm/dma.h>
 #include <asm/io.h>
-#include <asm/pgtable.h>
 #include <asm/byteorder.h>
 
 #include <scsi/scsi.h>
@@ -1832,7 +1832,7 @@ NCR_700_queuecommand_lck(struct scsi_cmnd *SCp, void (*done)(struct scsi_cmnd *)
 	case REQUEST_SENSE:
 		/* clear the internal sense magic */
 		SCp->cmnd[6] = 0;
-		/* fall through */
+		fallthrough;
 	default:
 		/* OK, get it from the command */
 		switch(SCp->sc_data_direction) {

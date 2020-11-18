@@ -97,7 +97,7 @@ static void line6_stop_listen(struct usb_line6 *line6)
 /*
 	Send raw message in pieces of wMaxPacketSize bytes.
 */
-static int line6_send_raw_message(struct usb_line6 *line6, const char *buffer,
+int line6_send_raw_message(struct usb_line6 *line6, const char *buffer,
 				  int size)
 {
 	int i, done = 0;
@@ -132,6 +132,7 @@ static int line6_send_raw_message(struct usb_line6 *line6, const char *buffer,
 
 	return done;
 }
+EXPORT_SYMBOL_GPL(line6_send_raw_message);
 
 /*
 	Notification of completion of asynchronous request transmission.
@@ -550,6 +551,7 @@ static int line6_hwdep_open(struct snd_hwdep *hw, struct file *file)
 	/* NOTE: hwdep layer provides atomicity here */
 
 	line6->messages.active = 1;
+	line6->messages.nonblock = file->f_flags & O_NONBLOCK ? 1 : 0;
 
 	return 0;
 }
@@ -578,6 +580,9 @@ line6_hwdep_read(struct snd_hwdep *hwdep, char __user *buf, long count,
 
 	while (kfifo_len(&line6->messages.fifo) == 0) {
 		mutex_unlock(&line6->messages.read_lock);
+
+		if (line6->messages.nonblock)
+			return -EAGAIN;
 
 		rv = wait_event_interruptible(
 			line6->messages.wait_queue,
@@ -626,11 +631,27 @@ line6_hwdep_write(struct snd_hwdep *hwdep, const char __user *data, long count,
 	return rv;
 }
 
+static __poll_t
+line6_hwdep_poll(struct snd_hwdep *hwdep, struct file *file, poll_table *wait)
+{
+	__poll_t rv;
+	struct usb_line6 *line6 = hwdep->private_data;
+
+	poll_wait(file, &line6->messages.wait_queue, wait);
+
+	mutex_lock(&line6->messages.read_lock);
+	rv = kfifo_len(&line6->messages.fifo) == 0 ? 0 : EPOLLIN | EPOLLRDNORM;
+	mutex_unlock(&line6->messages.read_lock);
+
+	return rv;
+}
+
 static const struct snd_hwdep_ops hwdep_ops = {
 	.open    = line6_hwdep_open,
 	.release = line6_hwdep_release,
 	.read    = line6_hwdep_read,
 	.write   = line6_hwdep_write,
+	.poll    = line6_hwdep_poll,
 };
 
 /* Insert into circular buffer */
@@ -820,7 +841,7 @@ void line6_disconnect(struct usb_interface *interface)
 	if (WARN_ON(usbdev != line6->usbdev))
 		return;
 
-	cancel_delayed_work(&line6->startup_work);
+	cancel_delayed_work_sync(&line6->startup_work);
 
 	if (line6->urb_listen != NULL)
 		line6_stop_listen(line6);

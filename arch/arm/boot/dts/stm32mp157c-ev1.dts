@@ -19,6 +19,7 @@
 
 	aliases {
 		serial0 = &uart4;
+		serial1 = &usart3;
 		ethernet0 = &ethernet0;
 	};
 
@@ -98,15 +99,10 @@
 };
 
 &dsi {
-	#address-cells = <1>;
-	#size-cells = <0>;
 	phy-dsi-supply = <&reg18>;
 	status = "okay";
 
 	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
 		port@0 {
 			reg = <0>;
 			dsi_in: endpoint {
@@ -141,7 +137,7 @@
 &ethernet0 {
 	status = "okay";
 	pinctrl-0 = <&ethernet0_rgmii_pins_a>;
-	pinctrl-1 = <&ethernet0_rgmii_pins_sleep_a>;
+	pinctrl-1 = <&ethernet0_rgmii_sleep_pins_a>;
 	pinctrl-names = "default", "sleep";
 	phy-mode = "rgmii-id";
 	max-speed = <1000>;
@@ -176,7 +172,7 @@
 &i2c2 {
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&i2c2_pins_a>;
-	pinctrl-1 = <&i2c2_pins_sleep_a>;
+	pinctrl-1 = <&i2c2_sleep_pins_a>;
 	i2c-scl-rising-time-ns = <185>;
 	i2c-scl-falling-time-ns = <20>;
 	status = "okay";
@@ -230,7 +226,7 @@
 &i2c5 {
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&i2c5_pins_a>;
-	pinctrl-1 = <&i2c5_pins_sleep_a>;
+	pinctrl-1 = <&i2c5_sleep_pins_a>;
 	i2c-scl-rising-time-ns = <185>;
 	i2c-scl-falling-time-ns = <20>;
 	status = "okay";
@@ -240,9 +236,6 @@
 	status = "okay";
 
 	port {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
 		ltdc_ep0_out: endpoint@0 {
 			reg = <0>;
 			remote-endpoint = <&dsi_in>;
@@ -347,6 +340,20 @@
 	timer@11 {
 		status = "okay";
 	};
+};
+
+&usart3 {
+	pinctrl-names = "default", "sleep", "idle";
+	pinctrl-0 = <&usart3_pins_b>;
+	pinctrl-1 = <&usart3_sleep_pins_b>;
+	pinctrl-2 = <&usart3_idle_pins_b>;
+	/*
+	 * HW flow control USART3_RTS is optional, and isn't default wired to
+	 * the connector. SB23 needs to be soldered in order to use it, and R77
+	 * (ETH_CLK) should be removed.
+	 */
+	uart-has-rtscts;
+	status = "disabled";
 };
 
 &usbh_ehci {

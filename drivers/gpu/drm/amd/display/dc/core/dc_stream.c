@@ -56,7 +56,7 @@ void update_stream_signal(struct dc_stream_state *stream, struct dc_sink *sink)
 	}
 }
 
-static void dc_stream_construct(struct dc_stream_state *stream,
+static bool dc_stream_construct(struct dc_stream_state *stream,
 	struct dc_sink *dc_sink_data)
 {
 	uint32_t i = 0;
@@ -118,11 +118,17 @@ static void dc_stream_construct(struct dc_stream_state *stream,
 	update_stream_signal(stream, dc_sink_data);
 
 	stream->out_transfer_func = dc_create_transfer_func();
+	if (stream->out_transfer_func == NULL) {
+		dc_sink_release(dc_sink_data);
+		return false;
+	}
 	stream->out_transfer_func->type = TF_TYPE_BYPASS;
 	stream->out_transfer_func->ctx = stream->ctx;
 
 	stream->stream_id = stream->ctx->dc_stream_id_count;
 	stream->ctx->dc_stream_id_count++;
+
+	return true;
 }
 
 static void dc_stream_destruct(struct dc_stream_state *stream)
@@ -164,13 +170,20 @@ struct dc_stream_state *dc_create_stream_for_sink(
 
 	stream = kzalloc(sizeof(struct dc_stream_state), GFP_KERNEL);
 	if (stream == NULL)
-		return NULL;
+		goto alloc_fail;
 
-	dc_stream_construct(stream, sink);
+	if (dc_stream_construct(stream, sink) == false)
+		goto construct_fail;
 
 	kref_init(&stream->refcount);
 
 	return stream;
+
+construct_fail:
+	kfree(stream);
+
+alloc_fail:
+	return NULL;
 }
 
 struct dc_stream_state *dc_copy_stream(const struct dc_stream_state *stream)
@@ -231,6 +244,23 @@ struct dc_stream_status *dc_stream_get_status(
 	return dc_stream_get_status_from_state(dc->current_state, stream);
 }
 
+#ifndef TRIM_FSFT
+/**
+ * dc_optimize_timing_for_fsft() - dc to optimize timing
+ */
+bool dc_optimize_timing_for_fsft(
+	struct dc_stream_state *pStream,
+	unsigned int max_input_rate_in_khz)
+{
+	struct dc  *dc;
+
+	dc = pStream->ctx->dc;
+
+	return (dc->hwss.optimize_timing_for_fsft &&
+		dc->hwss.optimize_timing_for_fsft(dc, &pStream->timing, max_input_rate_in_khz));
+}
+#endif
+
 
 /**
  * dc_stream_set_cursor_attributes() - Update cursor attributes and set cursor surface address
@@ -243,6 +273,9 @@ bool dc_stream_set_cursor_attributes(
 	struct dc  *dc;
 	struct resource_context *res_ctx;
 	struct pipe_ctx *pipe_to_program = NULL;
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	bool reset_idle_optimizations = false;
+#endif
 
 	if (NULL == stream) {
 		dm_error("DC: dc_stream is NULL!\n");
@@ -261,6 +294,15 @@ bool dc_stream_set_cursor_attributes(
 	dc = stream->ctx->dc;
 	res_ctx = &dc->current_state->res_ctx;
 	stream->cursor_attributes = *attributes;
+
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	/* disable idle optimizations while updating cursor */
+	if (dc->idle_optimizations_allowed) {
+		dc->hwss.apply_idle_power_optimizations(dc, false);
+		reset_idle_optimizations = true;
+	}
+
+#endif
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
@@ -281,6 +323,12 @@ bool dc_stream_set_cursor_attributes(
 	if (pipe_to_program)
 		dc->hwss.cursor_lock(dc, pipe_to_program, false);
 
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	/* re-enable idle optimizations if necessary */
+	if (reset_idle_optimizations)
+		dc->hwss.apply_idle_power_optimizations(dc, true);
+
+#endif
 	return true;
 }
 
@@ -292,6 +340,9 @@ bool dc_stream_set_cursor_position(
 	struct dc  *dc;
 	struct resource_context *res_ctx;
 	struct pipe_ctx *pipe_to_program = NULL;
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	bool reset_idle_optimizations = false;
+#endif
 
 	if (NULL == stream) {
 		dm_error("DC: dc_stream is NULL!\n");
@@ -305,6 +356,16 @@ bool dc_stream_set_cursor_position(
 
 	dc = stream->ctx->dc;
 	res_ctx = &dc->current_state->res_ctx;
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+
+	/* disable idle optimizations if enabling cursor */
+	if (dc->idle_optimizations_allowed &&
+			!stream->cursor_position.enable && position->enable) {
+		dc->hwss.apply_idle_power_optimizations(dc, false);
+		reset_idle_optimizations = true;
+	}
+
+#endif
 	stream->cursor_position = *position;
 
 	for (i = 0; i < MAX_PIPES; i++) {
@@ -328,6 +389,12 @@ bool dc_stream_set_cursor_position(
 	if (pipe_to_program)
 		dc->hwss.cursor_lock(dc, pipe_to_program, false);
 
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	/* re-enable idle optimizations if necessary */
+	if (reset_idle_optimizations)
+		dc->hwss.apply_idle_power_optimizations(dc, true);
+
+#endif
 	return true;
 }
 
@@ -603,6 +670,17 @@ bool dc_stream_set_dynamic_metadata(struct dc *dc,
 	}
 
 	return true;
+}
+
+enum dc_status dc_stream_add_dsc_to_resource(struct dc *dc,
+		struct dc_state *state,
+		struct dc_stream_state *stream)
+{
+	if (dc->res_pool->funcs->add_dsc_to_stream_resource) {
+		return dc->res_pool->funcs->add_dsc_to_stream_resource(dc, state, stream);
+	} else {
+		return DC_NO_DSC_RESOURCE;
+	}
 }
 
 void dc_stream_log(const struct dc *dc, const struct dc_stream_state *stream)

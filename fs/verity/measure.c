@@ -11,6 +11,8 @@
 
 /**
  * fsverity_ioctl_measure() - get a verity file's measurement
+ * @filp: file to get measurement of
+ * @_uarg: user pointer to fsverity_digest
  *
  * Retrieve the file measurement that the kernel is enforcing for reads from a
  * verity file.  See the "FS_IOC_MEASURE_VERITY" section of

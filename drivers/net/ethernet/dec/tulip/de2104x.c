@@ -85,7 +85,7 @@ MODULE_PARM_DESC (rx_copybreak, "de2104x Breakpoint at which Rx packets are copi
 #define DSL			CONFIG_DE2104X_DSL
 #endif
 
-#define DE_RX_RING_SIZE		64
+#define DE_RX_RING_SIZE		128
 #define DE_TX_RING_SIZE		64
 #define DE_RING_BYTES		\
 		((sizeof(struct de_desc) * DE_RX_RING_SIZE) +	\
@@ -2105,11 +2105,10 @@ static void de_remove_one(struct pci_dev *pdev)
 	free_netdev(dev);
 }
 
-#ifdef CONFIG_PM
-
-static int de_suspend (struct pci_dev *pdev, pm_message_t state)
+static int __maybe_unused de_suspend(struct device *dev_d)
 {
-	struct net_device *dev = pci_get_drvdata (pdev);
+	struct pci_dev *pdev = to_pci_dev(dev_d);
+	struct net_device *dev = pci_get_drvdata(pdev);
 	struct de_private *de = netdev_priv(dev);
 
 	rtnl_lock();
@@ -2136,7 +2135,6 @@ static int de_suspend (struct pci_dev *pdev, pm_message_t state)
 		de_clean_rings(de);
 
 		de_adapter_sleep(de);
-		pci_disable_device(pdev);
 	} else {
 		netif_device_detach(dev);
 	}
@@ -2144,21 +2142,17 @@ static int de_suspend (struct pci_dev *pdev, pm_message_t state)
 	return 0;
 }
 
-static int de_resume (struct pci_dev *pdev)
+static int __maybe_unused de_resume(struct device *dev_d)
 {
-	struct net_device *dev = pci_get_drvdata (pdev);
+	struct pci_dev *pdev = to_pci_dev(dev_d);
+	struct net_device *dev = pci_get_drvdata(pdev);
 	struct de_private *de = netdev_priv(dev);
-	int retval = 0;
 
 	rtnl_lock();
 	if (netif_device_present(dev))
 		goto out;
 	if (!netif_running(dev))
 		goto out_attach;
-	if ((retval = pci_enable_device(pdev))) {
-		netdev_err(dev, "pci_enable_device failed in resume\n");
-		goto out;
-	}
 	pci_set_master(pdev);
 	de_init_rings(de);
 	de_init_hw(de);
@@ -2169,17 +2163,14 @@ out:
 	return 0;
 }
 
-#endif /* CONFIG_PM */
+static SIMPLE_DEV_PM_OPS(de_pm_ops, de_suspend, de_resume);
 
 static struct pci_driver de_driver = {
 	.name		= DRV_NAME,
 	.id_table	= de_pci_tbl,
 	.probe		= de_init_one,
 	.remove		= de_remove_one,
-#ifdef CONFIG_PM
-	.suspend	= de_suspend,
-	.resume		= de_resume,
-#endif
+	.driver.pm	= &de_pm_ops,
 };
 
 static int __init de_init (void)

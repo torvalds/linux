@@ -44,7 +44,7 @@ static int shash_setkey_unaligned(struct crypto_shash *tfm, const u8 *key,
 	alignbuffer = (u8 *)ALIGN((unsigned long)buffer, alignmask + 1);
 	memcpy(alignbuffer, key, keylen);
 	err = shash->setkey(tfm, alignbuffer, keylen);
-	kzfree(buffer);
+	kfree_sensitive(buffer);
 	return err;
 }
 
@@ -205,6 +205,22 @@ int crypto_shash_digest(struct shash_desc *desc, const u8 *data,
 	return shash->digest(desc, data, len, out);
 }
 EXPORT_SYMBOL_GPL(crypto_shash_digest);
+
+int crypto_shash_tfm_digest(struct crypto_shash *tfm, const u8 *data,
+			    unsigned int len, u8 *out)
+{
+	SHASH_DESC_ON_STACK(desc, tfm);
+	int err;
+
+	desc->tfm = tfm;
+
+	err = crypto_shash_digest(desc, data, len, out);
+
+	shash_desc_zero(desc);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(crypto_shash_tfm_digest);
 
 static int shash_default_export(struct shash_desc *desc, void *out)
 {

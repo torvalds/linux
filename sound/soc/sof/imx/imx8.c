@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
 //
 // Copyright 2019 NXP
 //
@@ -119,7 +119,7 @@ static void imx8_dsp_handle_request(struct imx_dsp_ipc *ipc)
 	snd_sof_ipc_msgs_rx(priv->sdev);
 }
 
-struct imx_dsp_ops dsp_ops = {
+static struct imx_dsp_ops dsp_ops = {
 	.handle_reply		= imx8_dsp_handle_reply,
 	.handle_request		= imx8_dsp_handle_request,
 };
@@ -374,7 +374,26 @@ static int imx8_ipc_pcm_params(struct snd_sof_dev *sdev,
 
 static struct snd_soc_dai_driver imx8_dai[] = {
 {
-	.name = "esai-port",
+	.name = "esai0",
+	.playback = {
+		.channels_min = 1,
+		.channels_max = 8,
+	},
+	.capture = {
+		.channels_min = 1,
+		.channels_max = 8,
+	},
+},
+{
+	.name = "sai1",
+	.playback = {
+		.channels_min = 1,
+		.channels_max = 32,
+	},
+	.capture = {
+		.channels_min = 1,
+		.channels_max = 32,
+	},
 },
 };
 
@@ -407,7 +426,14 @@ struct snd_sof_dsp_ops sof_imx8_ops = {
 
 	/* DAI drivers */
 	.drv = imx8_dai,
-	.num_drv = 1, /* we have only 1 ESAI interface on i.MX8 */
+	.num_drv = ARRAY_SIZE(imx8_dai),
+
+	/* ALSA HW info flags */
+	.hw_info =	SNDRV_PCM_INFO_MMAP |
+			SNDRV_PCM_INFO_MMAP_VALID |
+			SNDRV_PCM_INFO_INTERLEAVED |
+			SNDRV_PCM_INFO_PAUSE |
+			SNDRV_PCM_INFO_NO_PERIOD_WAKEUP,
 };
 EXPORT_SYMBOL(sof_imx8_ops);
 
@@ -440,7 +466,7 @@ struct snd_sof_dsp_ops sof_imx8x_ops = {
 
 	/* DAI drivers */
 	.drv = imx8_dai,
-	.num_drv = 1, /* we have only 1 ESAI interface on i.MX8 */
+	.num_drv = ARRAY_SIZE(imx8_dai),
 
 	/* ALSA HW info flags */
 	.hw_info =	SNDRV_PCM_INFO_MMAP |

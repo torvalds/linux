@@ -229,18 +229,8 @@ static struct usb_composite_driver msg_driver = {
 	.unbind		= msg_unbind,
 };
 
+module_usb_composite_driver(msg_driver);
+
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR("Michal Nazarewicz");
 MODULE_LICENSE("GPL");
-
-static int __init msg_init(void)
-{
-	return usb_composite_probe(&msg_driver);
-}
-module_init(msg_init);
-
-static void __exit msg_cleanup(void)
-{
-	usb_composite_unregister(&msg_driver);
-}
-module_exit(msg_cleanup);

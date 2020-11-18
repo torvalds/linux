@@ -361,6 +361,7 @@ hv_uio_remove(struct hv_device *dev)
 	if (!pdata)
 		return 0;
 
+	sysfs_remove_bin_file(&dev->channel->kobj, &ring_buffer_bin_attr);
 	uio_unregister_device(&pdata->info);
 	hv_uio_cleanup(dev, pdata);
 	hv_set_drvdata(dev, NULL);

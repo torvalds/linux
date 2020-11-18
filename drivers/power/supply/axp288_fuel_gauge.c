@@ -718,6 +718,12 @@ static const struct dmi_system_id axp288_fuel_gauge_blacklist[] = {
 		},
 	},
 	{
+		/* Meegopad T02 */
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "MEEGOPAD T02"),
+		},
+	},
+	{
 		/* Meegopad T08 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Default string"),

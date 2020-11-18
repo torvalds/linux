@@ -7,7 +7,7 @@
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
 #include <asm/kvm_emulate.h>
-#include "vgic.h"
+#include "vgic/vgic.h"
 #include "sys_regs.h"
 
 static bool access_gic_ctlr(struct kvm_vcpu *vcpu, struct sys_reg_params *p,

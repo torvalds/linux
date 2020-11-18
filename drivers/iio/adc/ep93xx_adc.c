@@ -170,7 +170,6 @@ static int ep93xx_adc_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->base);
 	}
 
-	iiodev->dev.parent = &pdev->dev;
 	iiodev->name = dev_name(&pdev->dev);
 	iiodev->modes = INDIO_DIRECT_MODE;
 	iiodev->info = &ep93xx_adc_info;

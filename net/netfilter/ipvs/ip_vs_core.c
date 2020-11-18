@@ -694,16 +694,10 @@ static int sysctl_nat_icmp_send(struct netns_ipvs *ipvs)
 	return ipvs->sysctl_nat_icmp_send;
 }
 
-static int sysctl_expire_nodest_conn(struct netns_ipvs *ipvs)
-{
-	return ipvs->sysctl_expire_nodest_conn;
-}
-
 #else
 
 static int sysctl_snat_reroute(struct netns_ipvs *ipvs) { return 0; }
 static int sysctl_nat_icmp_send(struct netns_ipvs *ipvs) { return 0; }
-static int sysctl_expire_nodest_conn(struct netns_ipvs *ipvs) { return 0; }
 
 #endif
 
@@ -2066,14 +2060,14 @@ ip_vs_in(struct netns_ipvs *ipvs, unsigned int hooknum, struct sk_buff *skb, int
 
 	conn_reuse_mode = sysctl_conn_reuse_mode(ipvs);
 	if (conn_reuse_mode && !iph.fragoffs && is_new_conn(skb, &iph) && cp) {
-		bool uses_ct = false, resched = false;
+		bool old_ct = false, resched = false;
 
 		if (unlikely(sysctl_expire_nodest_conn(ipvs)) && cp->dest &&
 		    unlikely(!atomic_read(&cp->dest->weight))) {
 			resched = true;
-			uses_ct = ip_vs_conn_uses_conntrack(cp, skb);
+			old_ct = ip_vs_conn_uses_old_conntrack(cp, skb);
 		} else if (is_new_conn_expected(cp, conn_reuse_mode)) {
-			uses_ct = ip_vs_conn_uses_conntrack(cp, skb);
+			old_ct = ip_vs_conn_uses_old_conntrack(cp, skb);
 			if (!atomic_read(&cp->n_control)) {
 				resched = true;
 			} else {
@@ -2081,17 +2075,39 @@ ip_vs_in(struct netns_ipvs *ipvs, unsigned int hooknum, struct sk_buff *skb, int
 				 * that uses conntrack while it is still
 				 * referenced by controlled connection(s).
 				 */
-				resched = !uses_ct;
+				resched = !old_ct;
 			}
 		}
 
 		if (resched) {
+			if (!old_ct)
+				cp->flags &= ~IP_VS_CONN_F_NFCT;
 			if (!atomic_read(&cp->n_control))
 				ip_vs_conn_expire_now(cp);
 			__ip_vs_conn_put(cp);
-			if (uses_ct)
+			if (old_ct)
 				return NF_DROP;
 			cp = NULL;
+		}
+	}
+
+	/* Check the server status */
+	if (cp && cp->dest && !(cp->dest->flags & IP_VS_DEST_F_AVAILABLE)) {
+		/* the destination server is not available */
+		if (sysctl_expire_nodest_conn(ipvs)) {
+			bool old_ct = ip_vs_conn_uses_old_conntrack(cp, skb);
+
+			if (!old_ct)
+				cp->flags &= ~IP_VS_CONN_F_NFCT;
+
+			ip_vs_conn_expire_now(cp);
+			__ip_vs_conn_put(cp);
+			if (old_ct)
+				return NF_DROP;
+			cp = NULL;
+		} else {
+			__ip_vs_conn_put(cp);
+			return NF_DROP;
 		}
 	}
 
@@ -2103,27 +2119,6 @@ ip_vs_in(struct netns_ipvs *ipvs, unsigned int hooknum, struct sk_buff *skb, int
 	}
 
 	IP_VS_DBG_PKT(11, af, pp, skb, iph.off, "Incoming packet");
-
-	/* Check the server status */
-	if (cp->dest && !(cp->dest->flags & IP_VS_DEST_F_AVAILABLE)) {
-		/* the destination server is not available */
-
-		__u32 flags = cp->flags;
-
-		/* when timer already started, silently drop the packet.*/
-		if (timer_pending(&cp->timer))
-			__ip_vs_conn_put(cp);
-		else
-			ip_vs_conn_put(cp);
-
-		if (sysctl_expire_nodest_conn(ipvs) &&
-		    !(flags & IP_VS_CONN_F_ONE_PACKET)) {
-			/* try to expire the connection immediately */
-			ip_vs_conn_expire_now(cp);
-		}
-
-		return NF_DROP;
-	}
 
 	ip_vs_in_stats(cp, skb);
 	ip_vs_set_state(cp, IP_VS_DIR_INPUT, skb, pd);
@@ -2256,7 +2251,7 @@ ip_vs_forward_icmp_v6(void *priv, struct sk_buff *skb,
 #endif
 
 
-static const struct nf_hook_ops ip_vs_ops[] = {
+static const struct nf_hook_ops ip_vs_ops4[] = {
 	/* After packet filtering, change source only for VS/NAT */
 	{
 		.hook		= ip_vs_reply4,
@@ -2302,7 +2297,10 @@ static const struct nf_hook_ops ip_vs_ops[] = {
 		.hooknum	= NF_INET_FORWARD,
 		.priority	= 100,
 	},
+};
+
 #ifdef CONFIG_IP_VS_IPV6
+static const struct nf_hook_ops ip_vs_ops6[] = {
 	/* After packet filtering, change source only for VS/NAT */
 	{
 		.hook		= ip_vs_reply6,
@@ -2348,8 +2346,64 @@ static const struct nf_hook_ops ip_vs_ops[] = {
 		.hooknum	= NF_INET_FORWARD,
 		.priority	= 100,
 	},
-#endif
 };
+#endif
+
+int ip_vs_register_hooks(struct netns_ipvs *ipvs, unsigned int af)
+{
+	const struct nf_hook_ops *ops;
+	unsigned int count;
+	unsigned int afmask;
+	int ret = 0;
+
+	if (af == AF_INET6) {
+#ifdef CONFIG_IP_VS_IPV6
+		ops = ip_vs_ops6;
+		count = ARRAY_SIZE(ip_vs_ops6);
+		afmask = 2;
+#else
+		return -EINVAL;
+#endif
+	} else {
+		ops = ip_vs_ops4;
+		count = ARRAY_SIZE(ip_vs_ops4);
+		afmask = 1;
+	}
+
+	if (!(ipvs->hooks_afmask & afmask)) {
+		ret = nf_register_net_hooks(ipvs->net, ops, count);
+		if (ret >= 0)
+			ipvs->hooks_afmask |= afmask;
+	}
+	return ret;
+}
+
+void ip_vs_unregister_hooks(struct netns_ipvs *ipvs, unsigned int af)
+{
+	const struct nf_hook_ops *ops;
+	unsigned int count;
+	unsigned int afmask;
+
+	if (af == AF_INET6) {
+#ifdef CONFIG_IP_VS_IPV6
+		ops = ip_vs_ops6;
+		count = ARRAY_SIZE(ip_vs_ops6);
+		afmask = 2;
+#else
+		return;
+#endif
+	} else {
+		ops = ip_vs_ops4;
+		count = ARRAY_SIZE(ip_vs_ops4);
+		afmask = 1;
+	}
+
+	if (ipvs->hooks_afmask & afmask) {
+		nf_unregister_net_hooks(ipvs->net, ops, count);
+		ipvs->hooks_afmask &= ~afmask;
+	}
+}
+
 /*
  *	Initialize IP Virtual Server netns mem.
  */
@@ -2425,19 +2479,6 @@ static void __net_exit __ip_vs_cleanup_batch(struct list_head *net_list)
 	}
 }
 
-static int __net_init __ip_vs_dev_init(struct net *net)
-{
-	int ret;
-
-	ret = nf_register_net_hooks(net, ip_vs_ops, ARRAY_SIZE(ip_vs_ops));
-	if (ret < 0)
-		goto hook_fail;
-	return 0;
-
-hook_fail:
-	return ret;
-}
-
 static void __net_exit __ip_vs_dev_cleanup_batch(struct list_head *net_list)
 {
 	struct netns_ipvs *ipvs;
@@ -2446,7 +2487,8 @@ static void __net_exit __ip_vs_dev_cleanup_batch(struct list_head *net_list)
 	EnterFunction(2);
 	list_for_each_entry(net, net_list, exit_list) {
 		ipvs = net_ipvs(net);
-		nf_unregister_net_hooks(net, ip_vs_ops, ARRAY_SIZE(ip_vs_ops));
+		ip_vs_unregister_hooks(ipvs, AF_INET);
+		ip_vs_unregister_hooks(ipvs, AF_INET6);
 		ipvs->enable = 0;	/* Disable packet reception */
 		smp_wmb();
 		ip_vs_sync_net_cleanup(ipvs);
@@ -2462,7 +2504,6 @@ static struct pernet_operations ipvs_core_ops = {
 };
 
 static struct pernet_operations ipvs_core_dev_ops = {
-	.init = __ip_vs_dev_init,
 	.exit_batch = __ip_vs_dev_cleanup_batch,
 };
 

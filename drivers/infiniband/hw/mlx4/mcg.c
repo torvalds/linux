@@ -944,7 +944,7 @@ int mlx4_ib_mcg_multiplex_handler(struct ib_device *ibdev, int port,
 	switch (sa_mad->mad_hdr.method) {
 	case IB_MGMT_METHOD_SET:
 		may_create = 1;
-		/* fall through */
+		fallthrough;
 	case IB_SA_METHOD_DELETE:
 		req = kzalloc(sizeof *req, GFP_KERNEL);
 		if (!req)

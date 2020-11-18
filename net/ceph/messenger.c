@@ -412,7 +412,7 @@ static void ceph_sock_state_change(struct sock *sk)
 	switch (sk->sk_state) {
 	case TCP_CLOSE:
 		dout("%s TCP_CLOSE\n", __func__);
-		/* fall through */
+		fallthrough;
 	case TCP_CLOSE_WAIT:
 		dout("%s TCP_CLOSE_WAIT\n", __func__);
 		con_sock_state_closing(con);
@@ -490,15 +490,8 @@ static int ceph_tcp_connect(struct ceph_connection *con)
 		return ret;
 	}
 
-	if (ceph_test_opt(from_msgr(con->msgr), TCP_NODELAY)) {
-		int optval = 1;
-
-		ret = kernel_setsockopt(sock, SOL_TCP, TCP_NODELAY,
-					(char *)&optval, sizeof(optval));
-		if (ret)
-			pr_err("kernel_setsockopt(TCP_NODELAY) failed: %d",
-			       ret);
-	}
+	if (ceph_test_opt(from_msgr(con->msgr), TCP_NODELAY))
+		tcp_sock_set_nodelay(sock->sk);
 
 	con->sock = sock;
 	return 0;
@@ -582,7 +575,7 @@ static int ceph_tcp_sendpage(struct socket *sock, struct page *page,
 	 * coalescing neighboring slab objects into a single frag which
 	 * triggers one of hardened usercopy checks.
 	 */
-	if (page_count(page) >= 1 && !PageSlab(page))
+	if (sendpage_ok(page))
 		sendpage = sock->ops->sendpage;
 	else
 		sendpage = sock_no_sendpage;
@@ -2758,7 +2751,7 @@ more:
 			switch (ret) {
 			case -EBADMSG:
 				con->error_msg = "bad crc/signature";
-				/* fall through */
+				fallthrough;
 			case -EBADE:
 				ret = -EIO;
 				break;

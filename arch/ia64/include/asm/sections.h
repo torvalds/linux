@@ -35,7 +35,7 @@ static inline void *dereference_function_descriptor(void *ptr)
 	struct fdesc *desc = ptr;
 	void *p;
 
-	if (!probe_kernel_address(&desc->ip, p))
+	if (!get_kernel_nofault(p, (void *)&desc->ip))
 		ptr = p;
 	return ptr;
 }

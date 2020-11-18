@@ -54,7 +54,7 @@
 #define DPRINTK(a, b...)	\
 	printk(KERN_DEBUG "pm2fb: %s: " a, __func__ , ## b)
 #else
-#define DPRINTK(a, b...)
+#define DPRINTK(a, b...)	no_printk(a, ##b)
 #endif
 
 #define PM2_PIXMAP_SIZE	(1600 * 4)
@@ -233,10 +233,10 @@ static u32 to3264(u32 timing, int bpp, int is64)
 	switch (bpp) {
 	case 24:
 		timing *= 3;
-		/* fall through */
+		fallthrough;
 	case 8:
 		timing >>= 1;
-		/* fall through */
+		fallthrough;
 	case 16:
 		timing >>= 1;
 	case 32:

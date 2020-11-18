@@ -34,7 +34,7 @@ serverPort = int(sys.argv[1])
 # create active socket
 sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
 try:
-    sock.connect(('localhost', serverPort))
+    sock.connect(('::1', serverPort))
 except socket.error as e:
     sys.exit(1)
 

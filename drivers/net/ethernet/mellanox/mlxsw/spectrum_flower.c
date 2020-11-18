@@ -4,6 +4,7 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/netdevice.h>
+#include <linux/log2.h>
 #include <net/net_namespace.h>
 #include <net/flow_dissector.h>
 #include <net/pkt_cls.h>
@@ -15,13 +16,14 @@
 #include "core_acl_flex_keys.h"
 
 static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
-					 struct mlxsw_sp_acl_block *block,
+					 struct mlxsw_sp_flow_block *block,
 					 struct mlxsw_sp_acl_rule_info *rulei,
 					 struct flow_action *flow_action,
 					 struct netlink_ext_ack *extack)
 {
 	const struct flow_action_entry *act;
 	int mirror_act_count = 0;
+	int police_act_count = 0;
 	int err, i;
 
 	if (!flow_action_has_entries(flow_action))
@@ -30,14 +32,14 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 		return -EOPNOTSUPP;
 
 	act = flow_action_first_entry_get(flow_action);
-	if (act->hw_stats == FLOW_ACTION_HW_STATS_ANY ||
-	    act->hw_stats == FLOW_ACTION_HW_STATS_IMMEDIATE) {
+	if (act->hw_stats & FLOW_ACTION_HW_STATS_DISABLED) {
+		/* Nothing to do */
+	} else if (act->hw_stats & FLOW_ACTION_HW_STATS_IMMEDIATE) {
 		/* Count action is inserted first */
 		err = mlxsw_sp_acl_rulei_act_count(mlxsw_sp, rulei, extack);
 		if (err)
 			return err;
-	} else if (act->hw_stats != FLOW_ACTION_HW_STATS_DISABLED &&
-		   act->hw_stats != FLOW_ACTION_HW_STATS_DONT_CARE) {
+	} else {
 		NL_SET_ERR_MSG_MOD(extack, "Unsupported action HW stats type");
 		return -EOPNOTSUPP;
 	}
@@ -54,11 +56,11 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 		case FLOW_ACTION_DROP: {
 			bool ingress;
 
-			if (mlxsw_sp_acl_block_is_mixed_bound(block)) {
+			if (mlxsw_sp_flow_block_is_mixed_bound(block)) {
 				NL_SET_ERR_MSG_MOD(extack, "Drop action is not supported when block is bound to ingress and egress");
 				return -EOPNOTSUPP;
 			}
-			ingress = mlxsw_sp_acl_block_is_ingress_bound(block);
+			ingress = mlxsw_sp_flow_block_is_ingress_bound(block);
 			err = mlxsw_sp_acl_rulei_act_drop(rulei, ingress,
 							  act->cookie, extack);
 			if (err) {
@@ -107,7 +109,7 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 			struct mlxsw_sp_fid *fid;
 			u16 fid_index;
 
-			if (mlxsw_sp_acl_block_is_egress_bound(block)) {
+			if (mlxsw_sp_flow_block_is_egress_bound(block)) {
 				NL_SET_ERR_MSG_MOD(extack, "Redirect action is not supported on egress");
 				return -EOPNOTSUPP;
 			}
@@ -180,6 +182,28 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 				return err;
 			break;
 			}
+		case FLOW_ACTION_POLICE: {
+			u32 burst;
+
+			if (police_act_count++) {
+				NL_SET_ERR_MSG_MOD(extack, "Multiple police actions per rule are not supported");
+				return -EOPNOTSUPP;
+			}
+
+			/* The kernel might adjust the requested burst size so
+			 * that it is not exactly a power of two. Re-adjust it
+			 * here since the hardware only supports burst sizes
+			 * that are a power of two.
+			 */
+			burst = roundup_pow_of_two(act->police.burst);
+			err = mlxsw_sp_acl_rulei_act_police(mlxsw_sp, rulei,
+							    act->police.index,
+							    act->police.rate_bytes_ps,
+							    burst, extack);
+			if (err)
+				return err;
+			break;
+			}
 		default:
 			NL_SET_ERR_MSG_MOD(extack, "Unsupported action");
 			dev_err(mlxsw_sp->bus_info->dev, "Unsupported action\n");
@@ -191,7 +215,7 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 
 static int mlxsw_sp_flower_parse_meta(struct mlxsw_sp_acl_rule_info *rulei,
 				      struct flow_cls_offload *f,
-				      struct mlxsw_sp_acl_block *block)
+				      struct mlxsw_sp_flow_block *block)
 {
 	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
 	struct mlxsw_sp_port *mlxsw_sp_port;
@@ -372,7 +396,7 @@ static int mlxsw_sp_flower_parse_ip(struct mlxsw_sp *mlxsw_sp,
 }
 
 static int mlxsw_sp_flower_parse(struct mlxsw_sp *mlxsw_sp,
-				 struct mlxsw_sp_acl_block *block,
+				 struct mlxsw_sp_flow_block *block,
 				 struct mlxsw_sp_acl_rule_info *rulei,
 				 struct flow_cls_offload *f)
 {
@@ -461,7 +485,7 @@ static int mlxsw_sp_flower_parse(struct mlxsw_sp *mlxsw_sp,
 		struct flow_match_vlan match;
 
 		flow_rule_match_vlan(rule, &match);
-		if (mlxsw_sp_acl_block_is_egress_bound(block)) {
+		if (mlxsw_sp_flow_block_is_egress_bound(block)) {
 			NL_SET_ERR_MSG_MOD(f->common.extack, "vlan_id key is not supported on egress");
 			return -EOPNOTSUPP;
 		}
@@ -505,14 +529,46 @@ static int mlxsw_sp_flower_parse(struct mlxsw_sp *mlxsw_sp,
 					     f->common.extack);
 }
 
+static int mlxsw_sp_flower_mall_prio_check(struct mlxsw_sp_flow_block *block,
+					   struct flow_cls_offload *f)
+{
+	bool ingress = mlxsw_sp_flow_block_is_ingress_bound(block);
+	unsigned int mall_min_prio;
+	unsigned int mall_max_prio;
+	int err;
+
+	err = mlxsw_sp_mall_prio_get(block, f->common.chain_index,
+				     &mall_min_prio, &mall_max_prio);
+	if (err) {
+		if (err == -ENOENT)
+			/* No matchall filters installed on this chain. */
+			return 0;
+		NL_SET_ERR_MSG(f->common.extack, "Failed to get matchall priorities");
+		return err;
+	}
+	if (ingress && f->common.prio <= mall_min_prio) {
+		NL_SET_ERR_MSG(f->common.extack, "Failed to add in front of existing matchall rules");
+		return -EOPNOTSUPP;
+	}
+	if (!ingress && f->common.prio >= mall_max_prio) {
+		NL_SET_ERR_MSG(f->common.extack, "Failed to add behind of existing matchall rules");
+		return -EOPNOTSUPP;
+	}
+	return 0;
+}
+
 int mlxsw_sp_flower_replace(struct mlxsw_sp *mlxsw_sp,
-			    struct mlxsw_sp_acl_block *block,
+			    struct mlxsw_sp_flow_block *block,
 			    struct flow_cls_offload *f)
 {
 	struct mlxsw_sp_acl_rule_info *rulei;
 	struct mlxsw_sp_acl_ruleset *ruleset;
 	struct mlxsw_sp_acl_rule *rule;
 	int err;
+
+	err = mlxsw_sp_flower_mall_prio_check(block, f);
+	if (err)
+		return err;
 
 	ruleset = mlxsw_sp_acl_ruleset_get(mlxsw_sp, block,
 					   f->common.chain_index,
@@ -553,7 +609,7 @@ err_rule_create:
 }
 
 void mlxsw_sp_flower_destroy(struct mlxsw_sp *mlxsw_sp,
-			     struct mlxsw_sp_acl_block *block,
+			     struct mlxsw_sp_flow_block *block,
 			     struct flow_cls_offload *f)
 {
 	struct mlxsw_sp_acl_ruleset *ruleset;
@@ -575,7 +631,7 @@ void mlxsw_sp_flower_destroy(struct mlxsw_sp *mlxsw_sp,
 }
 
 int mlxsw_sp_flower_stats(struct mlxsw_sp *mlxsw_sp,
-			  struct mlxsw_sp_acl_block *block,
+			  struct mlxsw_sp_flow_block *block,
 			  struct flow_cls_offload *f)
 {
 	enum flow_action_hw_stats used_hw_stats = FLOW_ACTION_HW_STATS_DISABLED;
@@ -584,6 +640,7 @@ int mlxsw_sp_flower_stats(struct mlxsw_sp *mlxsw_sp,
 	u64 packets;
 	u64 lastuse;
 	u64 bytes;
+	u64 drops;
 	int err;
 
 	ruleset = mlxsw_sp_acl_ruleset_get(mlxsw_sp, block,
@@ -597,11 +654,12 @@ int mlxsw_sp_flower_stats(struct mlxsw_sp *mlxsw_sp,
 		return -EINVAL;
 
 	err = mlxsw_sp_acl_rule_get_stats(mlxsw_sp, rule, &packets, &bytes,
-					  &lastuse, &used_hw_stats);
+					  &drops, &lastuse, &used_hw_stats);
 	if (err)
 		goto err_rule_get_stats;
 
-	flow_stats_update(&f->stats, bytes, packets, lastuse, used_hw_stats);
+	flow_stats_update(&f->stats, bytes, packets, drops, lastuse,
+			  used_hw_stats);
 
 	mlxsw_sp_acl_ruleset_put(mlxsw_sp, ruleset);
 	return 0;
@@ -612,7 +670,7 @@ err_rule_get_stats:
 }
 
 int mlxsw_sp_flower_tmplt_create(struct mlxsw_sp *mlxsw_sp,
-				 struct mlxsw_sp_acl_block *block,
+				 struct mlxsw_sp_flow_block *block,
 				 struct flow_cls_offload *f)
 {
 	struct mlxsw_sp_acl_ruleset *ruleset;
@@ -633,7 +691,7 @@ int mlxsw_sp_flower_tmplt_create(struct mlxsw_sp *mlxsw_sp,
 }
 
 void mlxsw_sp_flower_tmplt_destroy(struct mlxsw_sp *mlxsw_sp,
-				   struct mlxsw_sp_acl_block *block,
+				   struct mlxsw_sp_flow_block *block,
 				   struct flow_cls_offload *f)
 {
 	struct mlxsw_sp_acl_ruleset *ruleset;
@@ -646,4 +704,24 @@ void mlxsw_sp_flower_tmplt_destroy(struct mlxsw_sp *mlxsw_sp,
 	/* put the reference to the ruleset kept in create */
 	mlxsw_sp_acl_ruleset_put(mlxsw_sp, ruleset);
 	mlxsw_sp_acl_ruleset_put(mlxsw_sp, ruleset);
+}
+
+int mlxsw_sp_flower_prio_get(struct mlxsw_sp *mlxsw_sp,
+			     struct mlxsw_sp_flow_block *block,
+			     u32 chain_index, unsigned int *p_min_prio,
+			     unsigned int *p_max_prio)
+{
+	struct mlxsw_sp_acl_ruleset *ruleset;
+
+	ruleset = mlxsw_sp_acl_ruleset_lookup(mlxsw_sp, block,
+					      chain_index,
+					      MLXSW_SP_ACL_PROFILE_FLOWER);
+	if (IS_ERR(ruleset))
+		/* In case there are no flower rules, the caller
+		 * receives -ENOENT to indicate there is no need
+		 * to check the priorities.
+		 */
+		return PTR_ERR(ruleset);
+	mlxsw_sp_acl_ruleset_prio_get(ruleset, p_min_prio, p_max_prio);
+	return 0;
 }

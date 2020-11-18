@@ -375,14 +375,13 @@ retry:
 			switch (sshdr.sense_key) {
 			case NO_SENSE:
 			case RECOVERED_ERROR:
-				/* fall through */
 			case NOT_READY:
 				result &= ~SAM_STAT_CHECK_CONDITION;
 				break;
 			case UNIT_ATTENTION:
 				switch (sshdr.asc) {
 				case 0x29: /* Power on Reset or Device Reset */
-					/* fall through */
+					fallthrough;
 				case 0x2A: /* Device capacity changed */
 				case 0x3F: /* Report LUNs changed */
 					/* Retry the command once more */
@@ -1791,13 +1790,12 @@ static int process_sense(struct scsi_device *sdev,
 	switch (sshdr.sense_key) {
 	case NO_SENSE:
 	case RECOVERED_ERROR:
-		/* fall through */
 	case NOT_READY:
 		break;
 	case UNIT_ATTENTION:
 		switch (sshdr.asc) {
 		case 0x29: /* Power on Reset or Device Reset */
-			/* fall through */
+			fallthrough;
 		case 0x2A: /* Device settings/capacity changed */
 			rc = read_cap16(sdev, lli);
 			if (rc) {
@@ -2157,7 +2155,7 @@ int cxlflash_ioctl(struct scsi_device *sdev, unsigned int cmd, void __user *arg)
 		if (unlikely(rc))
 			goto cxlflash_ioctl_exit;
 
-		/* fall through */
+		fallthrough;
 
 	case DK_CXLFLASH_MANAGE_LUN:
 		known_ioctl = true;
@@ -2168,7 +2166,7 @@ int cxlflash_ioctl(struct scsi_device *sdev, unsigned int cmd, void __user *arg)
 		if (likely(do_ioctl))
 			break;
 
-		/* fall through */
+		fallthrough;
 	default:
 		rc = -EINVAL;
 		goto cxlflash_ioctl_exit;

@@ -35,3 +35,4 @@ module_exit(nf_flow_ipv6_module_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Pablo Neira Ayuso <pablo@netfilter.org>");
 MODULE_ALIAS_NF_FLOWTABLE(AF_INET6);
+MODULE_DESCRIPTION("Netfilter flow table IPv6 module");

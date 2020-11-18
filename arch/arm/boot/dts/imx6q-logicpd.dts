@@ -13,7 +13,7 @@
 
 	backlight: backlight-lvds {
 		compatible = "pwm-backlight";
-		pwms = <&pwm3 0 20000>;
+		pwms = <&pwm3 0 20000 0>;
 		brightness-levels = <0 4 8 16 32 64 128 255>;
 		default-brightness-level = <6>;
 		power-supply = <&reg_lcd>;

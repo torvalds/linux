@@ -20,6 +20,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
+#include <linux/irq.h>
 
 #include <linux/of.h>
 #include <linux/of_platform.h>
@@ -44,7 +45,6 @@ static int uio_dmem_genirq_open(struct uio_info *info, struct inode *inode)
 {
 	struct uio_dmem_genirq_platdata *priv = info->priv;
 	struct uio_mem *uiomem;
-	int ret = 0;
 	int dmem_region = priv->dmem_region_start;
 
 	uiomem = &priv->uioinfo->mem[priv->dmem_region_start];
@@ -68,7 +68,7 @@ static int uio_dmem_genirq_open(struct uio_info *info, struct inode *inode)
 	mutex_unlock(&priv->alloc_lock);
 	/* Wait until the Runtime PM code has woken up the device */
 	pm_runtime_get_sync(&priv->pdev->dev);
-	return ret;
+	return 0;
 }
 
 static int uio_dmem_genirq_release(struct uio_info *info, struct inode *inode)
@@ -200,6 +200,24 @@ static int uio_dmem_genirq_probe(struct platform_device *pdev)
 			goto bad1;
 		uioinfo->irq = ret;
 	}
+
+	if (uioinfo->irq) {
+		struct irq_data *irq_data = irq_get_irq_data(uioinfo->irq);
+
+		/*
+		 * If a level interrupt, dont do lazy disable. Otherwise the
+		 * irq will fire again since clearing of the actual cause, on
+		 * device level, is done in userspace
+		 * irqd_is_level_type() isn't used since isn't valid until
+		 * irq is configured.
+		 */
+		if (irq_data &&
+		    irqd_get_trigger_type(irq_data) & IRQ_TYPE_LEVEL_MASK) {
+			dev_dbg(&pdev->dev, "disable lazy unmask\n");
+			irq_set_status_flags(uioinfo->irq, IRQ_DISABLE_UNLAZY);
+		}
+	}
+
 	uiomem = &uioinfo->mem[0];
 
 	for (i = 0; i < pdev->num_resources; ++i) {

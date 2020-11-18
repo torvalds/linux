@@ -558,7 +558,6 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 	props->max_mcast_qp_attach = dev->dev->caps.num_qp_per_mgm;
 	props->max_total_mcast_qp_attach = props->max_mcast_qp_attach *
 					   props->max_mcast_grp;
-	props->max_map_per_fmr = dev->dev->caps.max_fmr_maps;
 	props->hca_core_clock = dev->dev->caps.hca_core_clock * 1000UL;
 	props->timestamp_mask = 0xFFFFFFFFFFFFULL;
 	props->max_ah = INT_MAX;
@@ -785,7 +784,8 @@ static int eth_link_query_port(struct ib_device *ibdev, u8 port,
 	props->ip_gids = true;
 	props->gid_tbl_len	= mdev->dev->caps.gid_table_len[port];
 	props->max_msg_sz	= mdev->dev->caps.max_msg_sz;
-	props->pkey_tbl_len	= 1;
+	if (mdev->dev->caps.pkey_table_len[port])
+		props->pkey_tbl_len = 1;
 	props->max_mtu		= IB_MTU_4096;
 	props->max_vl_num	= 2;
 	props->state		= IB_PORT_DOWN;
@@ -1220,56 +1220,47 @@ static void mlx4_ib_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata)
 	mlx4_pd_free(to_mdev(pd->device)->dev, to_mpd(pd)->pdn);
 }
 
-static struct ib_xrcd *mlx4_ib_alloc_xrcd(struct ib_device *ibdev,
-					  struct ib_udata *udata)
+static int mlx4_ib_alloc_xrcd(struct ib_xrcd *ibxrcd, struct ib_udata *udata)
 {
-	struct mlx4_ib_xrcd *xrcd;
+	struct mlx4_ib_dev *dev = to_mdev(ibxrcd->device);
+	struct mlx4_ib_xrcd *xrcd = to_mxrcd(ibxrcd);
 	struct ib_cq_init_attr cq_attr = {};
 	int err;
 
-	if (!(to_mdev(ibdev)->dev->caps.flags & MLX4_DEV_CAP_FLAG_XRC))
-		return ERR_PTR(-ENOSYS);
+	if (!(dev->dev->caps.flags & MLX4_DEV_CAP_FLAG_XRC))
+		return -EOPNOTSUPP;
 
-	xrcd = kmalloc(sizeof *xrcd, GFP_KERNEL);
-	if (!xrcd)
-		return ERR_PTR(-ENOMEM);
-
-	err = mlx4_xrcd_alloc(to_mdev(ibdev)->dev, &xrcd->xrcdn);
+	err = mlx4_xrcd_alloc(dev->dev, &xrcd->xrcdn);
 	if (err)
-		goto err1;
+		return err;
 
-	xrcd->pd = ib_alloc_pd(ibdev, 0);
+	xrcd->pd = ib_alloc_pd(ibxrcd->device, 0);
 	if (IS_ERR(xrcd->pd)) {
 		err = PTR_ERR(xrcd->pd);
 		goto err2;
 	}
 
 	cq_attr.cqe = 1;
-	xrcd->cq = ib_create_cq(ibdev, NULL, NULL, xrcd, &cq_attr);
+	xrcd->cq = ib_create_cq(ibxrcd->device, NULL, NULL, xrcd, &cq_attr);
 	if (IS_ERR(xrcd->cq)) {
 		err = PTR_ERR(xrcd->cq);
 		goto err3;
 	}
 
-	return &xrcd->ibxrcd;
+	return 0;
 
 err3:
 	ib_dealloc_pd(xrcd->pd);
 err2:
-	mlx4_xrcd_free(to_mdev(ibdev)->dev, xrcd->xrcdn);
-err1:
-	kfree(xrcd);
-	return ERR_PTR(err);
+	mlx4_xrcd_free(dev->dev, xrcd->xrcdn);
+	return err;
 }
 
-static int mlx4_ib_dealloc_xrcd(struct ib_xrcd *xrcd, struct ib_udata *udata)
+static void mlx4_ib_dealloc_xrcd(struct ib_xrcd *xrcd, struct ib_udata *udata)
 {
 	ib_destroy_cq(to_mxrcd(xrcd)->cq);
 	ib_dealloc_pd(to_mxrcd(xrcd)->pd);
 	mlx4_xrcd_free(to_mdev(xrcd->device)->dev, to_mxrcd(xrcd)->xrcdn);
-	kfree(xrcd);
-
-	return 0;
 }
 
 static int add_gid_entry(struct ib_qp *ibqp, union ib_gid *gid)
@@ -2600,13 +2591,6 @@ static const struct ib_device_ops mlx4_ib_dev_wq_ops = {
 	.modify_wq = mlx4_ib_modify_wq,
 };
 
-static const struct ib_device_ops mlx4_ib_dev_fmr_ops = {
-	.alloc_fmr = mlx4_ib_fmr_alloc,
-	.dealloc_fmr = mlx4_ib_fmr_dealloc,
-	.map_phys_fmr = mlx4_ib_map_phys_fmr,
-	.unmap_fmr = mlx4_ib_unmap_fmr,
-};
-
 static const struct ib_device_ops mlx4_ib_dev_mw_ops = {
 	.alloc_mw = mlx4_ib_alloc_mw,
 	.dealloc_mw = mlx4_ib_dealloc_mw,
@@ -2615,6 +2599,8 @@ static const struct ib_device_ops mlx4_ib_dev_mw_ops = {
 static const struct ib_device_ops mlx4_ib_dev_xrc_ops = {
 	.alloc_xrcd = mlx4_ib_alloc_xrcd,
 	.dealloc_xrcd = mlx4_ib_dealloc_xrcd,
+
+	INIT_RDMA_OBJ_SIZE(ib_xrcd, mlx4_ib_xrcd, ibxrcd),
 };
 
 static const struct ib_device_ops mlx4_ib_dev_fs_ops = {
@@ -2723,9 +2709,6 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 			(1ull << IB_USER_VERBS_EX_CMD_DESTROY_RWQ_IND_TBL);
 		ib_set_device_ops(&ibdev->ib_dev, &mlx4_ib_dev_wq_ops);
 	}
-
-	if (!mlx4_is_slave(ibdev->dev))
-		ib_set_device_ops(&ibdev->ib_dev, &mlx4_ib_dev_fmr_ops);
 
 	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_MEM_WINDOW ||
 	    dev->caps.bmme_flags & MLX4_BMME_FLAG_TYPE_2_WIN) {

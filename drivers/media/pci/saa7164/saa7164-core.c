@@ -1539,9 +1539,6 @@ static struct pci_driver saa7164_pci_driver = {
 	.id_table = saa7164_pci_tbl,
 	.probe    = saa7164_initdev,
 	.remove   = saa7164_finidev,
-	/* TODO */
-	.suspend  = NULL,
-	.resume   = NULL,
 };
 
 static int __init saa7164_init(void)

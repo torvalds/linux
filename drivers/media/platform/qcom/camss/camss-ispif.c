@@ -344,8 +344,10 @@ static int ispif_set_power(struct v4l2_subdev *sd, int on)
 		}
 
 		ret = pm_runtime_get_sync(dev);
-		if (ret < 0)
+		if (ret < 0) {
+			pm_runtime_put_sync(dev);
 			goto exit;
+		}
 
 		ret = camss_enable_clocks(ispif->nclocks, ispif->clock, dev);
 		if (ret < 0) {
@@ -1323,7 +1325,7 @@ int msm_ispif_register_entities(struct ispif_device *ispif,
 		pads[MSM_ISPIF_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
 		pads[MSM_ISPIF_PAD_SRC].flags = MEDIA_PAD_FL_SOURCE;
 
-		sd->entity.function = MEDIA_ENT_F_IO_V4L;
+		sd->entity.function = MEDIA_ENT_F_PROC_VIDEO_PIXEL_FORMATTER;
 		sd->entity.ops = &ispif_media_ops;
 		ret = media_entity_pads_init(&sd->entity, MSM_ISPIF_PADS_NUM,
 					     pads);

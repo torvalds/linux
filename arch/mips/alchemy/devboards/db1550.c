@@ -225,7 +225,7 @@ static void __init pb1550_nand_setup(void)
 	case 0: case 2: case 8: case 0xC: case 0xD:
 		/* x16 NAND Flash */
 		pb1550_nand_pd.devwidth = 1;
-		/* fallthrough */
+		fallthrough;
 	case 1: case 3: case 9: case 0xE: case 0xF:
 		/* x8 NAND, already set up */
 		platform_device_register(&pb1550_nand_dev);

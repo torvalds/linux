@@ -55,7 +55,6 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/pgtable.h>
 
 #include "savagefb.h"
 
@@ -1861,7 +1860,7 @@ static int savage_init_hw(struct savagefb_par *par)
 		if ((vga_in8(0x3d5, par) & 0xC0) == (0x01 << 6))
 			RamSavage4[1] = 8;
 
-		/*FALLTHROUGH*/
+		fallthrough;
 
 	case S3_SAVAGE2000:
 		videoRam = RamSavage4[(config1 & 0xE0) >> 5] * 1024;
@@ -2158,6 +2157,8 @@ static int savage_init_fb_info(struct fb_info *info, struct pci_dev *dev,
 			info->flags |= FBINFO_HWACCEL_COPYAREA |
 				       FBINFO_HWACCEL_FILLRECT |
 				       FBINFO_HWACCEL_IMAGEBLIT;
+		else
+			kfree(info->pixmap.addr);
 	}
 #endif
 	return err;

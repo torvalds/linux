@@ -7,6 +7,7 @@
 #ifndef _SPARC64_TIMER_H
 #define _SPARC64_TIMER_H
 
+#include <uapi/asm/asi.h>
 #include <linux/types.h>
 #include <linux/init.h>
 

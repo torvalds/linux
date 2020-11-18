@@ -1858,7 +1858,7 @@ static struct ehci_qh *qh_make(struct oxu_hcd *oxu,
 	switch (urb->dev->speed) {
 	case USB_SPEED_LOW:
 		info1 |= (1 << 12);	/* EPS "low" */
-		/* FALL THROUGH */
+		fallthrough;
 
 	case USB_SPEED_FULL:
 		/* EPS 0 means "full" */
@@ -2037,16 +2037,15 @@ static struct ehci_qh *qh_append_tds(struct oxu_hcd *oxu,
 static int submit_async(struct oxu_hcd	*oxu, struct urb *urb,
 			struct list_head *qtd_list, gfp_t mem_flags)
 {
-	struct ehci_qtd	*qtd;
-	int epnum;
+	int epnum = urb->ep->desc.bEndpointAddress;
 	unsigned long flags;
 	struct ehci_qh *qh = NULL;
 	int rc = 0;
+#ifdef OXU_URB_TRACE
+	struct ehci_qtd	*qtd;
 
 	qtd = list_entry(qtd_list->next, struct ehci_qtd, qtd_list);
-	epnum = urb->ep->desc.bEndpointAddress;
 
-#ifdef OXU_URB_TRACE
 	oxu_dbg(oxu, "%s %s urb %p ep%d%s len %d, qtd %p [qh %p]\n",
 		__func__, urb->dev->devpath, urb,
 		epnum & 0x0f, (epnum & USB_DIR_IN) ? "in" : "out",
@@ -3378,7 +3377,7 @@ static int oxu_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 		switch (qh->qh_state) {
 		case QH_STATE_LINKED:
 			intr_deschedule(oxu, qh);
-			/* FALL THROUGH */
+			fallthrough;
 		case QH_STATE_IDLE:
 			qh_completions(oxu, qh);
 			break;
@@ -3450,7 +3449,7 @@ rescan:
 		if (!tmp)
 			goto nogood;
 		unlink_async(oxu, qh);
-		/* FALL THROUGH */
+		fallthrough;
 	case QH_STATE_UNLINK:		/* wait for hw to finish? */
 idle_timeout:
 		spin_unlock_irqrestore(&oxu->lock, flags);
@@ -3461,7 +3460,7 @@ idle_timeout:
 			qh_put(qh);
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 nogood:
 		/* caller was supposed to have unlinked any requests;

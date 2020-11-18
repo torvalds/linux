@@ -10,6 +10,7 @@
 #include <linux/device.h>
 #include <linux/notifier.h>
 #include <linux/pm_wakeup.h>
+#include <linux/notifier.h>
 
 #include "ipa_version.h"
 #include "gsi.h"
@@ -47,6 +48,10 @@ struct ipa_interrupt;
  * @mem_offset:		Offset from @mem_virt used for access to IPA memory
  * @mem_size:		Total size (bytes) of memory at @mem_virt
  * @mem:		Array of IPA-local memory region descriptors
+ * @imem_iova:		I/O virtual address of IPA region in IMEM
+ * @imem_size;		Size of IMEM region
+ * @smem_iova:		I/O virtual address of IPA region in SMEM
+ * @smem_size;		Size of SMEM region
  * @zero_addr:		DMA address of preallocated zero-filled memory
  * @zero_virt:		Virtual address of preallocated zero-filled memory
  * @zero_size:		Size (bytes) of preallocated zero-filled memory
@@ -69,6 +74,8 @@ struct ipa {
 	enum ipa_version version;
 	struct platform_device *pdev;
 	struct rproc *modem_rproc;
+	struct notifier_block nb;
+	void *notifier;
 	struct ipa_smp2p *smp2p;
 	struct ipa_clock *clock;
 	atomic_t suspend_ref;
@@ -87,6 +94,12 @@ struct ipa {
 	u32 mem_offset;
 	u32 mem_size;
 	const struct ipa_mem *mem;
+
+	unsigned long imem_iova;
+	size_t imem_size;
+
+	unsigned long smem_iova;
+	size_t smem_size;
 
 	dma_addr_t zero_addr;
 	void *zero_virt;

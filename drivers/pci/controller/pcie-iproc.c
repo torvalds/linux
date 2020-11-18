@@ -1470,7 +1470,6 @@ int iproc_pcie_setup(struct iproc_pcie *pcie, struct list_head *res)
 {
 	struct device *dev;
 	int ret;
-	struct pci_bus *child;
 	struct pci_host_bridge *host = pci_host_bridge_from_priv(pcie);
 
 	dev = pcie->dev;
@@ -1524,27 +1523,15 @@ int iproc_pcie_setup(struct iproc_pcie *pcie, struct list_head *res)
 		if (iproc_pcie_msi_enable(pcie))
 			dev_info(dev, "not using iProc MSI\n");
 
-	host->busnr = 0;
-	host->dev.parent = dev;
 	host->ops = &iproc_pcie_ops;
 	host->sysdata = pcie;
 	host->map_irq = pcie->map_irq;
-	host->swizzle_irq = pci_common_swizzle;
 
-	ret = pci_scan_root_bus_bridge(host);
+	ret = pci_host_probe(host);
 	if (ret < 0) {
 		dev_err(dev, "failed to scan host: %d\n", ret);
 		goto err_power_off_phy;
 	}
-
-	pci_assign_unassigned_bus_resources(host->bus);
-
-	pcie->root_bus = host->bus;
-
-	list_for_each_entry(child, &host->bus->children, node)
-		pcie_bus_configure_settings(child);
-
-	pci_bus_add_devices(host->bus);
 
 	return 0;
 
@@ -1558,8 +1545,10 @@ EXPORT_SYMBOL(iproc_pcie_setup);
 
 int iproc_pcie_remove(struct iproc_pcie *pcie)
 {
-	pci_stop_root_bus(pcie->root_bus);
-	pci_remove_root_bus(pcie->root_bus);
+	struct pci_host_bridge *host = pci_host_bridge_from_priv(pcie);
+
+	pci_stop_root_bus(host->bus);
+	pci_remove_root_bus(host->bus);
 
 	iproc_pcie_msi_disable(pcie);
 

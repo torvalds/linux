@@ -316,6 +316,39 @@ static int rx_recv_jumbo_pkt(struct hinic_rxq *rxq, struct sk_buff *head_skb,
 	return num_wqes;
 }
 
+static void hinic_copy_lp_data(struct hinic_dev *nic_dev,
+			       struct sk_buff *skb)
+{
+	struct net_device *netdev = nic_dev->netdev;
+	u8 *lb_buf = nic_dev->lb_test_rx_buf;
+	int lb_len = nic_dev->lb_pkt_len;
+	int pkt_offset, frag_len, i;
+	void *frag_data = NULL;
+
+	if (nic_dev->lb_test_rx_idx == LP_PKT_CNT) {
+		nic_dev->lb_test_rx_idx = 0;
+		netif_warn(nic_dev, drv, netdev, "Loopback test warning, receive too more test pkts\n");
+	}
+
+	if (skb->len != nic_dev->lb_pkt_len) {
+		netif_warn(nic_dev, drv, netdev, "Wrong packet length\n");
+		nic_dev->lb_test_rx_idx++;
+		return;
+	}
+
+	pkt_offset = nic_dev->lb_test_rx_idx * lb_len;
+	frag_len = (int)skb_headlen(skb);
+	memcpy(lb_buf + pkt_offset, skb->data, frag_len);
+	pkt_offset += frag_len;
+	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
+		frag_data = skb_frag_address(&skb_shinfo(skb)->frags[i]);
+		frag_len = (int)skb_frag_size(&skb_shinfo(skb)->frags[i]);
+		memcpy((lb_buf + pkt_offset), frag_data, frag_len);
+		pkt_offset += frag_len;
+	}
+	nic_dev->lb_test_rx_idx++;
+}
+
 /**
  * rxq_recv - Rx handler
  * @rxq: rx queue
@@ -330,6 +363,7 @@ static int rxq_recv(struct hinic_rxq *rxq, int budget)
 	u64 pkt_len = 0, rx_bytes = 0;
 	struct hinic_rq *rq = rxq->rq;
 	struct hinic_rq_wqe *rq_wqe;
+	struct hinic_dev *nic_dev;
 	unsigned int free_wqebbs;
 	struct hinic_rq_cqe *cqe;
 	int num_wqes, pkts = 0;
@@ -341,6 +375,8 @@ static int rxq_recv(struct hinic_rxq *rxq, int budget)
 	u16 num_wqe = 0;
 	u32 vlan_len;
 	u16 vid;
+
+	nic_dev = netdev_priv(netdev);
 
 	while (pkts < budget) {
 		num_wqes = 0;
@@ -383,6 +419,9 @@ static int rxq_recv(struct hinic_rxq *rxq, int budget)
 			vid = HINIC_GET_RX_VLAN_TAG(vlan_len);
 			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vid);
 		}
+
+		if (unlikely(nic_dev->flags & HINIC_LP_TEST))
+			hinic_copy_lp_data(nic_dev, skb);
 
 		skb_record_rx_queue(skb, qp->q_id);
 		skb->protocol = eth_type_trans(skb, rxq->netdev);
@@ -432,9 +471,11 @@ static int rx_poll(struct napi_struct *napi, int budget)
 		return budget;
 
 	napi_complete(napi);
-	hinic_hwdev_set_msix_state(nic_dev->hwdev,
-				   rq->msix_entry,
-				   HINIC_MSIX_ENABLE);
+
+	if (!HINIC_IS_VF(nic_dev->hwdev->hwif))
+		hinic_hwdev_set_msix_state(nic_dev->hwdev,
+					   rq->msix_entry,
+					   HINIC_MSIX_ENABLE);
 
 	return pkts;
 }
@@ -461,9 +502,10 @@ static irqreturn_t rx_irq(int irq, void *data)
 
 	/* Disable the interrupt until napi will be completed */
 	nic_dev = netdev_priv(rxq->netdev);
-	hinic_hwdev_set_msix_state(nic_dev->hwdev,
-				   rq->msix_entry,
-				   HINIC_MSIX_DISABLE);
+	if (!HINIC_IS_VF(nic_dev->hwdev->hwif))
+		hinic_hwdev_set_msix_state(nic_dev->hwdev,
+					   rq->msix_entry,
+					   HINIC_MSIX_DISABLE);
 
 	nic_dev = netdev_priv(rxq->netdev);
 	hinic_hwdev_msix_cnt_set(nic_dev->hwdev, rq->msix_entry);
@@ -475,10 +517,14 @@ static irqreturn_t rx_irq(int irq, void *data)
 static int rx_request_irq(struct hinic_rxq *rxq)
 {
 	struct hinic_dev *nic_dev = netdev_priv(rxq->netdev);
+	struct hinic_msix_config interrupt_info = {0};
+	struct hinic_intr_coal_info *intr_coal = NULL;
 	struct hinic_hwdev *hwdev = nic_dev->hwdev;
 	struct hinic_rq *rq = rxq->rq;
 	struct hinic_qp *qp;
 	int err;
+
+	qp = container_of(rq, struct hinic_qp, rq);
 
 	rx_add_napi(rxq);
 
@@ -487,15 +533,35 @@ static int rx_request_irq(struct hinic_rxq *rxq)
 			     RX_IRQ_NO_LLI_TIMER, RX_IRQ_NO_CREDIT,
 			     RX_IRQ_NO_RESEND_TIMER);
 
-	err = request_irq(rq->irq, rx_irq, 0, rxq->irq_name, rxq);
+	intr_coal = &nic_dev->rx_intr_coalesce[qp->q_id];
+	interrupt_info.msix_index = rq->msix_entry;
+	interrupt_info.coalesce_timer_cnt = intr_coal->coalesce_timer_cfg;
+	interrupt_info.pending_cnt = intr_coal->pending_limt;
+	interrupt_info.resend_timer_cnt = intr_coal->resend_timer_cfg;
+
+	err = hinic_set_interrupt_cfg(hwdev, &interrupt_info);
 	if (err) {
-		rx_del_napi(rxq);
-		return err;
+		netif_err(nic_dev, drv, rxq->netdev,
+			  "Failed to set RX interrupt coalescing attribute\n");
+		goto err_req_irq;
 	}
 
-	qp = container_of(rq, struct hinic_qp, rq);
+	err = request_irq(rq->irq, rx_irq, 0, rxq->irq_name, rxq);
+	if (err)
+		goto err_req_irq;
+
 	cpumask_set_cpu(qp->q_id % num_online_cpus(), &rq->affinity_mask);
-	return irq_set_affinity_hint(rq->irq, &rq->affinity_mask);
+	err = irq_set_affinity_hint(rq->irq, &rq->affinity_mask);
+	if (err)
+		goto err_irq_affinity;
+
+	return 0;
+
+err_irq_affinity:
+	free_irq(rq->irq, rxq);
+err_req_irq:
+	rx_del_napi(rxq);
+	return err;
 }
 
 static void rx_free_irq(struct hinic_rxq *rxq)

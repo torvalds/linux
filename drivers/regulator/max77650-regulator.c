@@ -49,7 +49,7 @@ static const unsigned int max77651_sbb1_volt_range_sel[] = {
 	0x0, 0x1, 0x2, 0x3
 };
 
-static const struct regulator_linear_range max77651_sbb1_volt_ranges[] = {
+static const struct linear_range max77651_sbb1_volt_ranges[] = {
 	/* range index 0 */
 	REGULATOR_LINEAR_RANGE(2400000, 0x00, 0x0f, 50000),
 	/* range index 1 */

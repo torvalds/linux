@@ -13,8 +13,8 @@
 #include <linux/perf_event.h>
 #include <linux/tboot.h>
 #include <linux/dmi.h>
+#include <linux/pgtable.h>
 
-#include <asm/pgtable.h>
 #include <asm/proto.h>
 #include <asm/mtrr.h>
 #include <asm/page.h>
@@ -193,6 +193,8 @@ static void fix_processor_context(void)
  */
 static void notrace __restore_processor_state(struct saved_context *ctxt)
 {
+	struct cpuinfo_x86 *c;
+
 	if (ctxt->misc_enable_saved)
 		wrmsrl(MSR_IA32_MISC_ENABLE, ctxt->misc_enable);
 	/*
@@ -263,6 +265,10 @@ static void notrace __restore_processor_state(struct saved_context *ctxt)
 	mtrr_bp_restore();
 	perf_restore_debug_store();
 	msr_restore_context(ctxt);
+
+	c = &cpu_data(smp_processor_id());
+	if (cpu_has(c, X86_FEATURE_MSR_IA32_FEAT_CTL))
+		init_ia32_feat_ctl(c);
 }
 
 /* Needed by apm.c */
@@ -307,7 +313,7 @@ int hibernate_resume_nonboot_cpu_disable(void)
 	if (ret)
 		return ret;
 	smp_ops.play_dead = resume_play_dead;
-	ret = disable_nonboot_cpus();
+	ret = freeze_secondary_cpus(0);
 	smp_ops.play_dead = play_dead;
 	return ret;
 }

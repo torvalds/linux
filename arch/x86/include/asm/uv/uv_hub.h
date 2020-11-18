@@ -219,76 +219,37 @@ static inline struct uv_hub_info_s *uv_cpu_hub_info(int cpu)
 	return (struct uv_hub_info_s *)uv_cpu_info_per(cpu)->p_uv_hub_info;
 }
 
-#define	UV_HUB_INFO_VERSION	0x7150
-extern int uv_hub_info_version(void);
-static inline int uv_hub_info_check(int version)
-{
-	if (uv_hub_info_version() == version)
-		return 0;
-
-	pr_crit("UV: uv_hub_info version(%x) mismatch, expecting(%x)\n",
-		uv_hub_info_version(), version);
-
-	BUG();	/* Catastrophic - cannot continue on unknown UV system */
-}
-#define	_uv_hub_info_check()	uv_hub_info_check(UV_HUB_INFO_VERSION)
-
 /*
  * HUB revision ranges for each UV HUB architecture.
  * This is a software convention - NOT the hardware revision numbers in
  * the hub chip.
  */
-#define UV1_HUB_REVISION_BASE		1
 #define UV2_HUB_REVISION_BASE		3
 #define UV3_HUB_REVISION_BASE		5
 #define UV4_HUB_REVISION_BASE		7
 #define UV4A_HUB_REVISION_BASE		8	/* UV4 (fixed) rev 2 */
 
-/* WARNING: UVx_HUB_IS_SUPPORTED defines are deprecated and will be removed */
-static inline int is_uv1_hub(void)
-{
-#ifdef	UV1_HUB_IS_SUPPORTED
-	return is_uv_hubbed(uv(1));
-#else
-	return 0;
-#endif
-}
-
 static inline int is_uv2_hub(void)
 {
-#ifdef	UV2_HUB_IS_SUPPORTED
 	return is_uv_hubbed(uv(2));
-#else
-	return 0;
-#endif
 }
 
 static inline int is_uv3_hub(void)
 {
-#ifdef	UV3_HUB_IS_SUPPORTED
 	return is_uv_hubbed(uv(3));
-#else
-	return 0;
-#endif
 }
 
 /* First test "is UV4A", then "is UV4" */
 static inline int is_uv4a_hub(void)
 {
-#ifdef	UV4A_HUB_IS_SUPPORTED
 	if (is_uv_hubbed(uv(4)))
 		return (uv_hub_info->hub_revision == UV4A_HUB_REVISION_BASE);
-#endif
 	return 0;
 }
 
 static inline int is_uv4_hub(void)
 {
-#ifdef	UV4_HUB_IS_SUPPORTED
 	return is_uv_hubbed(uv(4));
-#else
-	return 0;
-#endif
 }
 
 static inline int is_uvx_hub(void)
@@ -298,7 +259,7 @@ static inline int is_uvx_hub(void)
 
 static inline int is_uv_hub(void)
 {
-	return is_uv1_hub() || is_uvx_hub();
+	return is_uvx_hub();
 }
 
 union uvh_apicid {
@@ -325,11 +286,6 @@ union uvh_apicid {
 #define UV_PNODE_TO_GNODE(p)		((p) |uv_hub_info->gnode_extra)
 #define UV_PNODE_TO_NASID(p)		(UV_PNODE_TO_GNODE(p) << 1)
 
-#define UV1_LOCAL_MMR_BASE		0xf4000000UL
-#define UV1_GLOBAL_MMR32_BASE		0xf8000000UL
-#define UV1_LOCAL_MMR_SIZE		(64UL * 1024 * 1024)
-#define UV1_GLOBAL_MMR32_SIZE		(64UL * 1024 * 1024)
-
 #define UV2_LOCAL_MMR_BASE		0xfa000000UL
 #define UV2_GLOBAL_MMR32_BASE		0xfc000000UL
 #define UV2_LOCAL_MMR_SIZE		(32UL * 1024 * 1024)
@@ -346,25 +302,21 @@ union uvh_apicid {
 #define UV4_GLOBAL_MMR32_SIZE		(16UL * 1024 * 1024)
 
 #define UV_LOCAL_MMR_BASE		(				\
-					is_uv1_hub() ? UV1_LOCAL_MMR_BASE : \
 					is_uv2_hub() ? UV2_LOCAL_MMR_BASE : \
 					is_uv3_hub() ? UV3_LOCAL_MMR_BASE : \
 					/*is_uv4_hub*/ UV4_LOCAL_MMR_BASE)
 
 #define UV_GLOBAL_MMR32_BASE		(				\
-					is_uv1_hub() ? UV1_GLOBAL_MMR32_BASE : \
 					is_uv2_hub() ? UV2_GLOBAL_MMR32_BASE : \
 					is_uv3_hub() ? UV3_GLOBAL_MMR32_BASE : \
 					/*is_uv4_hub*/ UV4_GLOBAL_MMR32_BASE)
 
 #define UV_LOCAL_MMR_SIZE		(				\
-					is_uv1_hub() ? UV1_LOCAL_MMR_SIZE : \
 					is_uv2_hub() ? UV2_LOCAL_MMR_SIZE : \
 					is_uv3_hub() ? UV3_LOCAL_MMR_SIZE : \
 					/*is_uv4_hub*/ UV4_LOCAL_MMR_SIZE)
 
 #define UV_GLOBAL_MMR32_SIZE		(				\
-					is_uv1_hub() ? UV1_GLOBAL_MMR32_SIZE : \
 					is_uv2_hub() ? UV2_GLOBAL_MMR32_SIZE : \
 					is_uv3_hub() ? UV3_GLOBAL_MMR32_SIZE : \
 					/*is_uv4_hub*/ UV4_GLOBAL_MMR32_SIZE)
@@ -384,8 +336,6 @@ union uvh_apicid {
 
 #define UVH_APICID		0x002D0E00L
 #define UV_APIC_PNODE_SHIFT	6
-
-#define UV_APICID_HIBIT_MASK	0xffff0000
 
 /* Local Bus from cpu's perspective */
 #define LOCAL_BUS_BASE		0x1c00000
@@ -593,15 +543,6 @@ static inline int uv_apicid_to_pnode(int apicid)
 	return s2pn ? s2pn[pnode - uv_hub_info->min_socket] : pnode;
 }
 
-/* Convert an apicid to the socket number on the blade */
-static inline int uv_apicid_to_socket(int apicid)
-{
-	if (is_uv1_hub())
-		return (apicid >> (uv_hub_info->apic_pnode_shift - 1)) & 1;
-	else
-		return 0;
-}
-
 /*
  * Access global MMRs using the low memory MMR32 space. This region supports
  * faster MMR access but not all MMRs are accessible in this space.
@@ -692,9 +633,8 @@ static inline int uv_cpu_blade_processor_id(int cpu)
 {
 	return uv_cpu_info_per(cpu)->blade_cpu_id;
 }
-#define _uv_cpu_blade_processor_id 1	/* indicate function available */
 
-/* Blade number to Node number (UV1..UV4 is 1:1) */
+/* Blade number to Node number (UV2..UV4 is 1:1) */
 static inline int uv_blade_to_node(int blade)
 {
 	return blade;
@@ -708,7 +648,7 @@ static inline int uv_numa_blade_id(void)
 
 /*
  * Convert linux node number to the UV blade number.
- * .. Currently for UV1 thru UV4 the node and the blade are identical.
+ * .. Currently for UV2 thru UV4 the node and the blade are identical.
  * .. If this changes then you MUST check references to this function!
  */
 static inline int uv_node_to_blade_id(int nid)
@@ -716,7 +656,7 @@ static inline int uv_node_to_blade_id(int nid)
 	return nid;
 }
 
-/* Convert a cpu number to the the UV blade number */
+/* Convert a CPU number to the UV blade number */
 static inline int uv_cpu_to_blade_id(int cpu)
 {
 	return uv_node_to_blade_id(cpu_to_node(cpu));
@@ -853,28 +793,6 @@ static inline void uv_set_cpu_scir_bits(int cpu, unsigned char value)
 				uv_cpu_scir_info(cpu)->offset, value);
 		uv_cpu_scir_info(cpu)->state = value;
 	}
-}
-
-extern unsigned int uv_apicid_hibits;
-static unsigned long uv_hub_ipi_value(int apicid, int vector, int mode)
-{
-	apicid |= uv_apicid_hibits;
-	return (1UL << UVH_IPI_INT_SEND_SHFT) |
-			((apicid) << UVH_IPI_INT_APIC_ID_SHFT) |
-			(mode << UVH_IPI_INT_DELIVERY_MODE_SHFT) |
-			(vector << UVH_IPI_INT_VECTOR_SHFT);
-}
-
-static inline void uv_hub_send_ipi(int pnode, int apicid, int vector)
-{
-	unsigned long val;
-	unsigned long dmode = dest_Fixed;
-
-	if (vector == NMI_VECTOR)
-		dmode = dest_NMI;
-
-	val = uv_hub_ipi_value(apicid, vector, dmode);
-	uv_write_global_mmr64(pnode, UVH_IPI_INT, val);
 }
 
 /*

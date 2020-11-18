@@ -14,7 +14,6 @@
 #include <linux/sched/task.h>
 #include <linux/kmsg_dump.h>
 
-#include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
@@ -360,5 +359,21 @@ void __init check_bugs(void)
 }
 
 void apply_alternatives(struct alt_instr *start, struct alt_instr *end)
+{
+}
+
+void *text_poke(void *addr, const void *opcode, size_t len)
+{
+	/*
+	 * In UML, the only reference to this function is in
+	 * apply_relocate_add(), which shouldn't ever actually call this
+	 * because UML doesn't have live patching.
+	 */
+	WARN_ON(1);
+
+	return memcpy(addr, opcode, len);
+}
+
+void text_poke_sync(void)
 {
 }

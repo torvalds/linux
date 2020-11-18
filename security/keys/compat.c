@@ -156,6 +156,9 @@ COMPAT_SYSCALL_DEFINE5(keyctl, u32, option,
 	case KEYCTL_CAPABILITIES:
 		return keyctl_capabilities(compat_ptr(arg2), arg3);
 
+	case KEYCTL_WATCH_KEY:
+		return keyctl_watch_key(arg2, arg3, arg4);
+
 	default:
 		return -EOPNOTSUPP;
 	}

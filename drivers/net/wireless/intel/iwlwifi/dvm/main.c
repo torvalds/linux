@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2014, 2018 - 2020  Intel Corporation. All rights reserved.
  * Copyright(c) 2015 Intel Deutschland GmbH
- * Copyright (C) 2018 - 2019 Intel Corporation
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -53,7 +52,7 @@
 
 #define DRV_DESCRIPTION	"Intel(R) Wireless WiFi Link AGN driver for Linux"
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
-MODULE_AUTHOR(DRV_COPYRIGHT " " DRV_AUTHOR);
+MODULE_AUTHOR(DRV_AUTHOR);
 MODULE_LICENSE("GPL");
 
 /* Please keep this array *SORTED* by hex value.
@@ -1369,12 +1368,6 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	iwl_option_config(priv);
 
 	IWL_DEBUG_INFO(priv, "*** LOAD DRIVER ***\n");
-
-	/* is antenna coupling more than 35dB ? */
-	priv->bt_ant_couple_ok =
-		(iwlwifi_mod_params.antenna_coupling >
-			IWL_BT_ANTENNA_COUPLING_THRESHOLD) ?
-			true : false;
 
 	/* bt channel inhibition enabled*/
 	priv->bt_ch_announce = true;

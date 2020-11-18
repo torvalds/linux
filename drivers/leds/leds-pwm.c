@@ -91,15 +91,21 @@ static int led_pwm_add(struct device *dev, struct led_pwm_priv *priv,
 	pwm_init_state(led_data->pwm, &led_data->pwmstate);
 
 	ret = devm_led_classdev_register(dev, &led_data->cdev);
-	if (ret == 0) {
-		priv->num_leds++;
-		led_pwm_set(&led_data->cdev, led_data->cdev.brightness);
-	} else {
+	if (ret) {
 		dev_err(dev, "failed to register PWM led for %s: %d\n",
 			led->name, ret);
+		return ret;
 	}
 
-	return ret;
+	ret = led_pwm_set(&led_data->cdev, led_data->cdev.brightness);
+	if (ret) {
+		dev_err(dev, "failed to set led PWM value for %s: %d",
+			led->name, ret);
+		return ret;
+	}
+
+	priv->num_leds++;
+	return 0;
 }
 
 static int led_pwm_create_fwnode(struct device *dev, struct led_pwm_priv *priv)

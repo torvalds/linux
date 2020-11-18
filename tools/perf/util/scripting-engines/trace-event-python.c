@@ -741,7 +741,7 @@ static PyObject *get_perf_sample_dict(struct perf_sample *sample,
 	if (!dict_sample)
 		Py_FatalError("couldn't create Python dictionary");
 
-	pydict_set_item_string_decref(dict, "ev_name", _PyUnicode_FromString(perf_evsel__name(evsel)));
+	pydict_set_item_string_decref(dict, "ev_name", _PyUnicode_FromString(evsel__name(evsel)));
 	pydict_set_item_string_decref(dict, "attr", _PyBytes_FromStringAndSize((const char *)&evsel->core.attr, sizeof(evsel->core.attr)));
 
 	pydict_set_item_string_decref(dict_sample, "pid",
@@ -968,7 +968,7 @@ static int python_export_evsel(struct db_export *dbe, struct evsel *evsel)
 	t = tuple_new(2);
 
 	tuple_set_u64(t, 0, evsel->db_id);
-	tuple_set_string(t, 1, perf_evsel__name(evsel));
+	tuple_set_string(t, 1, evsel__name(evsel));
 
 	call_object(tables->evsel_handler, t, "evsel_table");
 
@@ -1349,7 +1349,7 @@ static void get_handler_name(char *str, size_t size,
 {
 	char *p = str;
 
-	scnprintf(str, size, "stat__%s", perf_evsel__name(evsel));
+	scnprintf(str, size, "stat__%s", evsel__name(evsel));
 
 	while ((p = strchr(p, ':'))) {
 		*p = '_';

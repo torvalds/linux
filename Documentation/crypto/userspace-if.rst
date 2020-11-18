@@ -23,7 +23,7 @@ user space, however. This includes the difference between synchronous
 and asynchronous invocations. The user space API call is fully
 synchronous.
 
-[1] http://www.chronox.de/libkcapi.html
+[1] https://www.chronox.de/libkcapi.html
 
 User Space API General Remarks
 ------------------------------
@@ -384,4 +384,4 @@ Please see [1] for libkcapi which provides an easy-to-use wrapper around
 the aforementioned Netlink kernel interface. [1] also contains a test
 application that invokes all libkcapi API calls.
 
-[1] http://www.chronox.de/libkcapi.html
+[1] https://www.chronox.de/libkcapi.html

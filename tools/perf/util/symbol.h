@@ -55,7 +55,7 @@ struct symbol {
 	u8		inlined:1;
 	u8		arch_sym;
 	bool		annotate2;
-	char		name[0];
+	char		name[];
 };
 
 void symbol__delete(struct symbol *sym);

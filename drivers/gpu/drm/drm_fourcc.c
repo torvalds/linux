@@ -274,6 +274,18 @@ const struct drm_format_info *__drm_format_info(u32 format)
 		{ .format = DRM_FORMAT_YUV420_10BIT,    .depth = 0,
 		  .num_planes = 1, .cpp = { 0, 0, 0 }, .hsub = 2, .vsub = 2,
 		  .is_yuv = true },
+		{ .format = DRM_FORMAT_NV15,		.depth = 0,
+		  .num_planes = 2, .char_per_block = { 5, 5, 0 },
+		  .block_w = { 4, 2, 0 }, .block_h = { 1, 1, 0 }, .hsub = 2,
+		  .vsub = 2, .is_yuv = true },
+		{ .format = DRM_FORMAT_Q410,		.depth = 0,
+		  .num_planes = 3, .char_per_block = { 2, 2, 2 },
+		  .block_w = { 1, 1, 1 }, .block_h = { 1, 1, 1 }, .hsub = 0,
+		  .vsub = 0, .is_yuv = true },
+		{ .format = DRM_FORMAT_Q401,		.depth = 0,
+		  .num_planes = 3, .char_per_block = { 2, 2, 2 },
+		  .block_w = { 1, 1, 1 }, .block_h = { 1, 1, 1 }, .hsub = 0,
+		  .vsub = 0, .is_yuv = true },
 	};
 
 	unsigned int i;

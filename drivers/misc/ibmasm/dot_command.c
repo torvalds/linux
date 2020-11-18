@@ -10,7 +10,7 @@
 #include "ibmasm.h"
 #include "dot_command.h"
 
-/**
+/*
  * Dispatch an incoming message to the specific handler for the message.
  * Called from interrupt context.
  */
@@ -48,7 +48,7 @@ void ibmasm_receive_message(struct service_processor *sp, void *message, int mes
 #define INIT_BUFFER_SIZE 32
 
 
-/**
+/*
  * send the 4.3.5.10 dot command (driver VPD) to the service processor
  */
 int ibmasm_send_driver_vpd(struct service_processor *sp)
@@ -99,7 +99,7 @@ struct os_state_command {
 	unsigned char			data;
 };
 
-/**
+/*
  * send the 4.3.6 dot command (os state) to the service processor
  * During driver init this function is called with os state "up".
  * This causes the service processor to start sending heartbeats the

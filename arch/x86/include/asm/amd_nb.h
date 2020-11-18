@@ -57,6 +57,7 @@ struct threshold_bank {
 
 	/* initialized to the number of CPUs on the node sharing this bank */
 	refcount_t		cpus;
+	unsigned int		shared;
 };
 
 struct amd_northbridge {

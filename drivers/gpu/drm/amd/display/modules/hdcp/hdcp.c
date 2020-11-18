@@ -328,7 +328,8 @@ enum mod_hdcp_status mod_hdcp_add_display(struct mod_hdcp *hdcp,
 	/* add display to connection */
 	hdcp->connection.link = *link;
 	*display_container = *display;
-	status = mod_hdcp_add_display_to_topology(hdcp, display->index);
+	status = mod_hdcp_add_display_to_topology(hdcp, display_container);
+
 	if (status != MOD_HDCP_STATUS_SUCCESS)
 		goto out;
 
@@ -374,7 +375,7 @@ enum mod_hdcp_status mod_hdcp_remove_display(struct mod_hdcp *hdcp,
 	status = mod_hdcp_remove_display_from_topology(hdcp, index);
 	if (status != MOD_HDCP_STATUS_SUCCESS)
 		goto out;
-	display->state = MOD_HDCP_DISPLAY_INACTIVE;
+	memset(display, 0, sizeof(struct mod_hdcp_display));
 
 	/* request authentication when connection is not reset */
 	if (current_state(hdcp) != HDCP_UNINITIALIZED)

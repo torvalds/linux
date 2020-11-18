@@ -1,0 +1,57 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/spi/socionext,uniphier-spi.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Socionext UniPhier SPI controller
+
+description: |
+  UniPhier SoCs have SCSSI which supports SPI single channel.
+
+maintainers:
+  - Kunihiko Hayashi <hayashi.kunihiko@socionext.com>
+  - Keiji Hayashibara <hayashibara.keiji@socionext.com>
+
+allOf:
+  - $ref: spi-controller.yaml#
+
+properties:
+  "#address-cells": true
+  "#size-cells": true
+
+  compatible:
+    const: socionext,uniphier-scssi
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - resets
+  - "#address-cells"
+  - "#size-cells"
+
+examples:
+  - |
+    spi0: spi@54006000 {
+        compatible = "socionext,uniphier-scssi";
+        reg = <0x54006000 0x100>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+        interrupts = <0 39 4>;
+        clocks = <&peri_clk 11>;
+        resets = <&peri_rst 11>;
+    };

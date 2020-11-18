@@ -147,7 +147,7 @@
 115	32	getgroups32		sys_getgroups
 116	common	gettimeofday		sys_gettimeofday		compat_sys_gettimeofday
 117	common	getrusage		sys_getrusage			compat_sys_getrusage
-118	common	getsockopt		sys_getsockopt			compat_sys_getsockopt
+118	common	getsockopt		sys_getsockopt			sys_getsockopt
 119	common	getcwd			sys_getcwd
 120	common	readv			sys_readv			compat_sys_readv
 121	common	writev			sys_writev			compat_sys_writev
@@ -300,7 +300,7 @@
 249	64	nanosleep		sys_nanosleep
 250	32	mremap			sys_mremap
 250	64	mremap			sys_64_mremap
-251	common	_sysctl			sys_sysctl			compat_sys_sysctl
+251	common	_sysctl			sys_ni_syscall
 252	common	getsid			sys_getsid
 253	common	fdatasync		sys_fdatasync
 254	32	nfsservctl		sys_ni_syscall			sys_nis_syscall
@@ -425,7 +425,7 @@
 352	common	userfaultfd		sys_userfaultfd
 353	common	bind			sys_bind
 354	common	listen			sys_listen
-355	common	setsockopt		sys_setsockopt			compat_sys_setsockopt
+355	common	setsockopt		sys_setsockopt			sys_setsockopt
 356	common	mlock2			sys_mlock2
 357	common	copy_file_range		sys_copy_file_range
 358	common	preadv2			sys_preadv2			compat_sys_preadv2
@@ -481,5 +481,7 @@
 433	common	fspick				sys_fspick
 434	common	pidfd_open			sys_pidfd_open
 # 435 reserved for clone3
+436	common	close_range			sys_close_range
 437	common	openat2			sys_openat2
 438	common	pidfd_getfd			sys_pidfd_getfd
+439	common	faccessat2			sys_faccessat2

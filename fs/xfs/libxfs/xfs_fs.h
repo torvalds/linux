@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: LGPL-2.1
+/* SPDX-License-Identifier: LGPL-2.1 */
 /*
  * Copyright (c) 1995-2005 Silicon Graphics, Inc.
  * All Rights Reserved.

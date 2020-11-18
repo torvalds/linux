@@ -30,6 +30,8 @@ powerpc
     syscall64-abi
     transactional_memory
     ultravisor
+    vas-api
+    vcpudispatch_stats
 
 .. only::  subproject and html
 

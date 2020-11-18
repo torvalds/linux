@@ -30,6 +30,7 @@ enum dso_binary_type {
 	DSO_BINARY_TYPE__BUILD_ID_CACHE_DEBUGINFO,
 	DSO_BINARY_TYPE__FEDORA_DEBUGINFO,
 	DSO_BINARY_TYPE__UBUNTU_DEBUGINFO,
+	DSO_BINARY_TYPE__MIXEDUP_UBUNTU_DEBUGINFO,
 	DSO_BINARY_TYPE__BUILDID_DEBUGINFO,
 	DSO_BINARY_TYPE__SYSTEM_PATH_DSO,
 	DSO_BINARY_TYPE__GUEST_KMODULE,
@@ -40,13 +41,15 @@ enum dso_binary_type {
 	DSO_BINARY_TYPE__GUEST_KCORE,
 	DSO_BINARY_TYPE__OPENEMBEDDED_DEBUGINFO,
 	DSO_BINARY_TYPE__BPF_PROG_INFO,
+	DSO_BINARY_TYPE__BPF_IMAGE,
+	DSO_BINARY_TYPE__OOL,
 	DSO_BINARY_TYPE__NOT_FOUND,
 };
 
-enum dso_kernel_type {
-	DSO_TYPE_USER = 0,
-	DSO_TYPE_KERNEL,
-	DSO_TYPE_GUEST_KERNEL
+enum dso_space_type {
+	DSO_SPACE__USER = 0,
+	DSO_SPACE__KERNEL,
+	DSO_SPACE__KERNEL_GUEST
 };
 
 enum dso_swap_type {
@@ -136,7 +139,7 @@ struct dso_cache {
 	struct rb_node	rb_node;
 	u64 offset;
 	u64 size;
-	char data[0];
+	char data[];
 };
 
 struct auxtrace_cache;
@@ -157,7 +160,7 @@ struct dso {
 	void		 *a2l;
 	char		 *symsrc_filename;
 	unsigned int	 a2l_fails;
-	enum dso_kernel_type	kernel;
+	enum dso_space_type	kernel;
 	enum dso_swap_type	needs_swap;
 	enum dso_binary_type	symtab_type;
 	enum dso_binary_type	binary_type;
@@ -208,7 +211,7 @@ struct dso {
 	struct nsinfo	*nsinfo;
 	struct dso_id	 id;
 	refcount_t	 refcnt;
-	char		 name[0];
+	char		 name[];
 };
 
 /* dso__for_each_symbol - iterate over the symbols of given type

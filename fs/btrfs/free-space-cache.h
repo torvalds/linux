@@ -136,7 +136,7 @@ void btrfs_init_free_cluster(struct btrfs_free_cluster *cluster);
 u64 btrfs_alloc_from_cluster(struct btrfs_block_group *block_group,
 			     struct btrfs_free_cluster *cluster, u64 bytes,
 			     u64 min_start, u64 *max_extent_size);
-int btrfs_return_cluster_to_free_space(
+void btrfs_return_cluster_to_free_space(
 			       struct btrfs_block_group *block_group,
 			       struct btrfs_free_cluster *cluster);
 int btrfs_trim_block_group(struct btrfs_block_group *block_group,

@@ -1,0 +1,60 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/panel/samsung,s6e63m0.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Samsung s6e63m0 AMOLED LCD panel
+
+maintainers:
+  - Jonathan Bakker <xc-racer2@live.ca>
+
+allOf:
+  - $ref: panel-common.yaml#
+
+properties:
+  compatible:
+    const: samsung,s6e63m0
+
+  reg: true
+  reset-gpios: true
+  port: true
+
+  vdd3-supply:
+    description: VDD regulator
+
+  vci-supply:
+    description: VCI regulator
+
+required:
+  - compatible
+  - reset-gpios
+  - vdd3-supply
+  - vci-supply
+  - port
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        display@0 {
+            compatible = "samsung,s6e63m0";
+            reg = <0>;
+            reset-gpios = <&mp05 5 1>;
+            vdd3-supply = <&ldo12_reg>;
+            vci-supply = <&ldo11_reg>;
+            spi-max-frequency = <1200000>;
+
+            port {
+                lcd_ep: endpoint {
+                    remote-endpoint = <&fimd_ep>;
+                };
+            };
+        };
+    };
+
+...

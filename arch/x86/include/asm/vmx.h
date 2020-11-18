@@ -527,10 +527,12 @@ struct vmx_msr_entry {
 /*
  * Exit Qualifications for entry failure during or after loading guest state
  */
-#define ENTRY_FAIL_DEFAULT		0
-#define ENTRY_FAIL_PDPTE		2
-#define ENTRY_FAIL_NMI			3
-#define ENTRY_FAIL_VMCS_LINK_PTR	4
+enum vm_entry_failure_code {
+	ENTRY_FAIL_DEFAULT		= 0,
+	ENTRY_FAIL_PDPTE		= 2,
+	ENTRY_FAIL_NMI			= 3,
+	ENTRY_FAIL_VMCS_LINK_PTR	= 4,
+};
 
 /*
  * Exit Qualifications for EPT Violations

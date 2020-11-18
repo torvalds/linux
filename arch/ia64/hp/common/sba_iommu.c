@@ -907,7 +907,7 @@ sba_mark_invalid(struct ioc *ioc, dma_addr_t iova, size_t byte_cnt)
  * @dir: dma direction
  * @attrs: optional dma attributes
  *
- * See Documentation/DMA-API-HOWTO.txt
+ * See Documentation/core-api/dma-api-howto.rst
  */
 static dma_addr_t sba_map_page(struct device *dev, struct page *page,
 			       unsigned long poff, size_t size,
@@ -1028,7 +1028,7 @@ sba_mark_clean(struct ioc *ioc, dma_addr_t iova, size_t size)
  * @dir:  R/W or both.
  * @attrs: optional dma attributes
  *
- * See Documentation/DMA-API-HOWTO.txt
+ * See Documentation/core-api/dma-api-howto.rst
  */
 static void sba_unmap_page(struct device *dev, dma_addr_t iova, size_t size,
 			   enum dma_data_direction dir, unsigned long attrs)
@@ -1105,7 +1105,7 @@ static void sba_unmap_page(struct device *dev, dma_addr_t iova, size_t size,
  * @size:  number of bytes mapped in driver buffer.
  * @dma_handle:  IOVA of new buffer.
  *
- * See Documentation/DMA-API-HOWTO.txt
+ * See Documentation/core-api/dma-api-howto.rst
  */
 static void *
 sba_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
@@ -1162,7 +1162,7 @@ sba_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
  * @vaddr:  virtual address IOVA of "consistent" buffer.
  * @dma_handler:  IO virtual address of "consistent" buffer.
  *
- * See Documentation/DMA-API-HOWTO.txt
+ * See Documentation/core-api/dma-api-howto.rst
  */
 static void sba_free_coherent(struct device *dev, size_t size, void *vaddr,
 			      dma_addr_t dma_handle, unsigned long attrs)
@@ -1425,7 +1425,7 @@ static void sba_unmap_sg_attrs(struct device *dev, struct scatterlist *sglist,
  * @dir:  R/W or both.
  * @attrs: optional dma attributes
  *
- * See Documentation/DMA-API-HOWTO.txt
+ * See Documentation/core-api/dma-api-howto.rst
  */
 static int sba_map_sg_attrs(struct device *dev, struct scatterlist *sglist,
 			    int nents, enum dma_data_direction dir,
@@ -1524,7 +1524,7 @@ static int sba_map_sg_attrs(struct device *dev, struct scatterlist *sglist,
  * @dir:  R/W or both.
  * @attrs: optional dma attributes
  *
- * See Documentation/DMA-API-HOWTO.txt
+ * See Documentation/core-api/dma-api-howto.rst
  */
 static void sba_unmap_sg_attrs(struct device *dev, struct scatterlist *sglist,
 			       int nents, enum dma_data_direction dir,

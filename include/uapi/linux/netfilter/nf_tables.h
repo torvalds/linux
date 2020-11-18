@@ -133,7 +133,7 @@ enum nf_tables_msg_types {
  * @NFTA_LIST_ELEM: list element (NLA_NESTED)
  */
 enum nft_list_attributes {
-	NFTA_LIST_UNPEC,
+	NFTA_LIST_UNSPEC,
 	NFTA_LIST_ELEM,
 	__NFTA_LIST_MAX
 };
@@ -184,6 +184,15 @@ enum nft_table_attributes {
 };
 #define NFTA_TABLE_MAX		(__NFTA_TABLE_MAX - 1)
 
+enum nft_chain_flags {
+	NFT_CHAIN_BASE		= (1 << 0),
+	NFT_CHAIN_HW_OFFLOAD	= (1 << 1),
+	NFT_CHAIN_BINDING	= (1 << 2),
+};
+#define NFT_CHAIN_FLAGS		(NFT_CHAIN_BASE		| \
+				 NFT_CHAIN_HW_OFFLOAD	| \
+				 NFT_CHAIN_BINDING)
+
 /**
  * enum nft_chain_attributes - nf_tables chain netlink attributes
  *
@@ -196,6 +205,7 @@ enum nft_table_attributes {
  * @NFTA_CHAIN_TYPE: type name of the string (NLA_NUL_STRING)
  * @NFTA_CHAIN_COUNTERS: counter specification of the chain (NLA_NESTED: nft_counter_attributes)
  * @NFTA_CHAIN_FLAGS: chain flags
+ * @NFTA_CHAIN_ID: uniquely identifies a chain in a transaction (NLA_U32)
  */
 enum nft_chain_attributes {
 	NFTA_CHAIN_UNSPEC,
@@ -209,6 +219,7 @@ enum nft_chain_attributes {
 	NFTA_CHAIN_COUNTERS,
 	NFTA_CHAIN_PAD,
 	NFTA_CHAIN_FLAGS,
+	NFTA_CHAIN_ID,
 	__NFTA_CHAIN_MAX
 };
 #define NFTA_CHAIN_MAX		(__NFTA_CHAIN_MAX - 1)
@@ -238,6 +249,7 @@ enum nft_rule_attributes {
 	NFTA_RULE_PAD,
 	NFTA_RULE_ID,
 	NFTA_RULE_POSITION_ID,
+	NFTA_RULE_CHAIN_ID,
 	__NFTA_RULE_MAX
 };
 #define NFTA_RULE_MAX		(__NFTA_RULE_MAX - 1)
@@ -468,11 +480,13 @@ enum nft_data_attributes {
  *
  * @NFTA_VERDICT_CODE: nf_tables verdict (NLA_U32: enum nft_verdicts)
  * @NFTA_VERDICT_CHAIN: jump target chain name (NLA_STRING)
+ * @NFTA_VERDICT_CHAIN_ID: jump target chain ID (NLA_U32)
  */
 enum nft_verdict_attributes {
 	NFTA_VERDICT_UNSPEC,
 	NFTA_VERDICT_CODE,
 	NFTA_VERDICT_CHAIN,
+	NFTA_VERDICT_CHAIN_ID,
 	__NFTA_VERDICT_MAX
 };
 #define NFTA_VERDICT_MAX	(__NFTA_VERDICT_MAX - 1)

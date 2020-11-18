@@ -49,7 +49,7 @@ struct sama5d2_piobu {
 	struct regmap *regmap;
 };
 
-/**
+/*
  * sama5d2_piobu_setup_pin() - prepares a pin for set_direction call
  *
  * Do not consider pin for tamper detection (normal and backup modes)
@@ -73,7 +73,7 @@ static int sama5d2_piobu_setup_pin(struct gpio_chip *chip, unsigned int pin)
 	return regmap_update_bits(piobu->regmap, PIOBU_WKPR, mask, 0);
 }
 
-/**
+/*
  * sama5d2_piobu_write_value() - writes value & mask at the pin's PIOBU register
  */
 static int sama5d2_piobu_write_value(struct gpio_chip *chip, unsigned int pin,
@@ -88,7 +88,7 @@ static int sama5d2_piobu_write_value(struct gpio_chip *chip, unsigned int pin,
 	return regmap_update_bits(piobu->regmap, reg, mask, value);
 }
 
-/**
+/*
  * sama5d2_piobu_read_value() - read the value with masking from the pin's PIOBU
  *			      register
  */
@@ -108,7 +108,7 @@ static int sama5d2_piobu_read_value(struct gpio_chip *chip, unsigned int pin,
 	return val & mask;
 }
 
-/**
+/*
  * sama5d2_piobu_get_direction() - gpiochip get_direction
  */
 static int sama5d2_piobu_get_direction(struct gpio_chip *chip,
@@ -123,7 +123,7 @@ static int sama5d2_piobu_get_direction(struct gpio_chip *chip,
 				   GPIO_LINE_DIRECTION_OUT;
 }
 
-/**
+/*
  * sama5d2_piobu_direction_input() - gpiochip direction_input
  */
 static int sama5d2_piobu_direction_input(struct gpio_chip *chip,
@@ -132,7 +132,7 @@ static int sama5d2_piobu_direction_input(struct gpio_chip *chip,
 	return sama5d2_piobu_write_value(chip, pin, PIOBU_DIRECTION, PIOBU_IN);
 }
 
-/**
+/*
  * sama5d2_piobu_direction_output() - gpiochip direction_output
  */
 static int sama5d2_piobu_direction_output(struct gpio_chip *chip,
@@ -147,7 +147,7 @@ static int sama5d2_piobu_direction_output(struct gpio_chip *chip,
 					 val);
 }
 
-/**
+/*
  * sama5d2_piobu_get() - gpiochip get
  */
 static int sama5d2_piobu_get(struct gpio_chip *chip, unsigned int pin)
@@ -166,7 +166,7 @@ static int sama5d2_piobu_get(struct gpio_chip *chip, unsigned int pin)
 	return !!ret;
 }
 
-/**
+/*
  * sama5d2_piobu_set() - gpiochip set
  */
 static void sama5d2_piobu_set(struct gpio_chip *chip, unsigned int pin,

@@ -35,7 +35,6 @@
 #include <linux/time.h>
 #include <linux/ktime.h>
 #include <linux/module.h>
-#include <linux/net_tstamp.h>
 #include <linux/pps_kernel.h>
 #include <linux/ptp_clock_kernel.h>
 #include "net_driver.h"
@@ -44,7 +43,7 @@
 #include "mcdi_pcol.h"
 #include "io.h"
 #include "farch_regs.h"
-#include "nic.h"
+#include "nic.h" /* indirectly includes ptp.h */
 
 /* Maximum number of events expected to make up a PTP event */
 #define	MAX_EVENT_FRAGS			3
@@ -352,12 +351,7 @@ static int efx_phc_enable(struct ptp_clock_info *ptp,
 
 bool efx_ptp_use_mac_tx_timestamps(struct efx_nic *efx)
 {
-	struct efx_ef10_nic_data *nic_data = efx->nic_data;
-
-	return ((efx_nic_rev(efx) >= EFX_REV_HUNT_A0) &&
-		(nic_data->datapath_caps2 &
-		 (1 << MC_CMD_GET_CAPABILITIES_V2_OUT_TX_MAC_TIMESTAMPING_LBN)
-		));
+	return efx_has_cap(efx, TX_MAC_TIMESTAMPING);
 }
 
 /* PTP 'extra' channel is still a traffic channel, but we only create TX queues
@@ -1160,17 +1154,15 @@ static void efx_ptp_drop_time_expired_events(struct efx_nic *efx)
 
 	/* Drop time-expired events */
 	spin_lock_bh(&ptp->evt_lock);
-	if (!list_empty(&ptp->evt_list)) {
-		list_for_each_safe(cursor, next, &ptp->evt_list) {
-			struct efx_ptp_event_rx *evt;
+	list_for_each_safe(cursor, next, &ptp->evt_list) {
+		struct efx_ptp_event_rx *evt;
 
-			evt = list_entry(cursor, struct efx_ptp_event_rx,
-					 link);
-			if (time_after(jiffies, evt->expiry)) {
-				list_move(&evt->link, &ptp->evt_free_list);
-				netif_warn(efx, hw, efx->net_dev,
-					   "PTP rx event dropped\n");
-			}
+		evt = list_entry(cursor, struct efx_ptp_event_rx,
+				 link);
+		if (time_after(jiffies, evt->expiry)) {
+			list_move(&evt->link, &ptp->evt_free_list);
+			netif_warn(efx, hw, efx->net_dev,
+				   "PTP rx event dropped\n");
 		}
 	}
 	spin_unlock_bh(&ptp->evt_lock);

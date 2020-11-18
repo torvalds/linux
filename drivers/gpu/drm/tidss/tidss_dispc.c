@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2016-2018 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2016-2018 Texas Instruments Incorporated - https://www.ti.com/
  * Author: Jyri Sarha <jsarha@ti.com>
  */
 
@@ -181,10 +181,6 @@ const struct dispc_features dispc_am65x_feats = {
 	.vid_name = { "vid", "vidl1" },
 	.vid_lite = { false, true, },
 	.vid_order = { 1, 0 },
-
-	.errata = {
-		.i2000 = true,
-	},
 };
 
 static const u16 tidss_j721e_common_regs[DISPC_COMMON_REG_TABLE_LEN] = {
@@ -1001,12 +997,12 @@ void dispc_vp_enable(struct dispc_device *dispc, u32 hw_videoport,
 
 	ieo = !!(tstate->bus_flags & DRM_BUS_FLAG_DE_LOW);
 
-	ipc = !!(tstate->bus_flags & DRM_BUS_FLAG_PIXDATA_NEGEDGE);
+	ipc = !!(tstate->bus_flags & DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE);
 
 	/* always use the 'rf' setting */
 	onoff = true;
 
-	rf = !!(tstate->bus_flags & DRM_BUS_FLAG_SYNC_POSEDGE);
+	rf = !!(tstate->bus_flags & DRM_BUS_FLAG_SYNC_DRIVE_POSEDGE);
 
 	/* always use aligned syncs */
 	align = true;
@@ -2674,12 +2670,9 @@ int dispc_init(struct tidss_device *tidss)
 		return -ENOMEM;
 
 	num_fourccs = 0;
-	for (i = 0; i < ARRAY_SIZE(dispc_color_formats); ++i) {
-		if (feat->errata.i2000 &&
-		    dispc_fourcc_is_yuv(dispc_color_formats[i].fourcc))
-			continue;
+	for (i = 0; i < ARRAY_SIZE(dispc_color_formats); ++i)
 		dispc->fourccs[num_fourccs++] = dispc_color_formats[i].fourcc;
-	}
+
 	dispc->num_fourccs = num_fourccs;
 	dispc->tidss = tidss;
 	dispc->dev = dev;

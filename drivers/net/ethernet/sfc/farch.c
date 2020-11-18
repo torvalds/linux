@@ -379,7 +379,7 @@ int efx_farch_tx_probe(struct efx_tx_queue *tx_queue)
 
 void efx_farch_tx_init(struct efx_tx_queue *tx_queue)
 {
-	int csum = tx_queue->queue & EFX_TXQ_TYPE_OFFLOAD;
+	int csum = tx_queue->label & EFX_TXQ_TYPE_OFFLOAD;
 	struct efx_nic *efx = tx_queue->efx;
 	efx_oword_t reg;
 
@@ -395,7 +395,7 @@ void efx_farch_tx_init(struct efx_tx_queue *tx_queue)
 			      FRF_AZ_TX_DESCQ_EVQ_ID,
 			      tx_queue->channel->channel,
 			      FRF_AZ_TX_DESCQ_OWNER_ID, 0,
-			      FRF_AZ_TX_DESCQ_LABEL, tx_queue->queue,
+			      FRF_AZ_TX_DESCQ_LABEL, tx_queue->label,
 			      FRF_AZ_TX_DESCQ_SIZE,
 			      __ffs(tx_queue->txd.entries),
 			      FRF_AZ_TX_DESCQ_TYPE, 0,
@@ -409,7 +409,7 @@ void efx_farch_tx_init(struct efx_tx_queue *tx_queue)
 
 	EFX_POPULATE_OWORD_1(reg,
 			     FRF_BZ_TX_PACE,
-			     (tx_queue->queue & EFX_TXQ_TYPE_HIGHPRI) ?
+			     (tx_queue->label & EFX_TXQ_TYPE_HIGHPRI) ?
 			     FFE_BZ_TX_PACE_OFF :
 			     FFE_BZ_TX_PACE_RESERVED);
 	efx_writeo_table(efx, &reg, FR_BZ_TX_PACE_TBL, tx_queue->queue);
@@ -1038,10 +1038,10 @@ efx_farch_handle_rx_event(struct efx_channel *channel, const efx_qword_t *event)
 		switch (rx_ev_hdr_type) {
 		case FSE_CZ_RX_EV_HDR_TYPE_IPV4V6_TCP:
 			flags |= EFX_RX_PKT_TCP;
-			/* fall through */
+			fallthrough;
 		case FSE_CZ_RX_EV_HDR_TYPE_IPV4V6_UDP:
 			flags |= EFX_RX_PKT_CSUMMED;
-			/* fall through */
+			fallthrough;
 		case FSE_CZ_RX_EV_HDR_TYPE_IPV4V6_OTHER:
 		case FSE_AZ_RX_EV_HDR_TYPE_OTHER:
 			break;
@@ -1316,7 +1316,7 @@ int efx_farch_ev_process(struct efx_channel *channel, int budget)
 			if (efx->type->handle_global_event &&
 			    efx->type->handle_global_event(channel, &event))
 				break;
-			/* else fall through */
+			fallthrough;
 		default:
 			netif_err(channel->efx, hw, channel->efx->net_dev,
 				  "channel %d unknown event type %d (data "
@@ -2043,7 +2043,7 @@ efx_farch_filter_from_gen_spec(struct efx_farch_filter_spec *spec,
 	      EFX_FILTER_MATCH_LOC_HOST | EFX_FILTER_MATCH_LOC_PORT |
 	      EFX_FILTER_MATCH_REM_HOST | EFX_FILTER_MATCH_REM_PORT):
 		is_full = true;
-		/* fall through */
+		fallthrough;
 	case (EFX_FILTER_MATCH_ETHER_TYPE | EFX_FILTER_MATCH_IP_PROTO |
 	      EFX_FILTER_MATCH_LOC_HOST | EFX_FILTER_MATCH_LOC_PORT): {
 		__be32 rhost, host1, host2;
@@ -2094,7 +2094,7 @@ efx_farch_filter_from_gen_spec(struct efx_farch_filter_spec *spec,
 
 	case EFX_FILTER_MATCH_LOC_MAC | EFX_FILTER_MATCH_OUTER_VID:
 		is_full = true;
-		/* fall through */
+		fallthrough;
 	case EFX_FILTER_MATCH_LOC_MAC:
 		spec->type = (is_full ? EFX_FARCH_FILTER_MAC_FULL :
 			      EFX_FARCH_FILTER_MAC_WILD);
@@ -2141,7 +2141,7 @@ efx_farch_filter_to_gen_spec(struct efx_filter_spec *gen_spec,
 	case EFX_FARCH_FILTER_TCP_FULL:
 	case EFX_FARCH_FILTER_UDP_FULL:
 		is_full = true;
-		/* fall through */
+		fallthrough;
 	case EFX_FARCH_FILTER_TCP_WILD:
 	case EFX_FARCH_FILTER_UDP_WILD: {
 		__be32 host1, host2;
@@ -2185,7 +2185,7 @@ efx_farch_filter_to_gen_spec(struct efx_filter_spec *gen_spec,
 
 	case EFX_FARCH_FILTER_MAC_FULL:
 		is_full = true;
-		/* fall through */
+		fallthrough;
 	case EFX_FARCH_FILTER_MAC_WILD:
 		gen_spec->match_flags = EFX_FILTER_MATCH_LOC_MAC;
 		if (is_full)

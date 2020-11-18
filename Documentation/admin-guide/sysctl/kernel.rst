@@ -102,6 +102,30 @@ See the ``type_of_loader`` and ``ext_loader_ver`` fields in
 :doc:`/x86/boot` for additional information.
 
 
+bpf_stats_enabled
+=================
+
+Controls whether the kernel should collect statistics on BPF programs
+(total time spent running, number of times run...). Enabling
+statistics causes a slight reduction in performance on each program
+run. The statistics can be seen using ``bpftool``.
+
+= ===================================
+0 Don't collect statistics (default).
+1 Collect statistics.
+= ===================================
+
+
+cad_pid
+=======
+
+This is the pid which will be signalled on reboot (notably, by
+Ctrl-Alt-Delete). Writing a value to this file which doesn't
+correspond to a running process will result in ``-ESRCH``.
+
+See also `ctrl-alt-del`_.
+
+
 cap_last_cap
 ============
 
@@ -140,7 +164,8 @@ core_pattern
 	%s		signal number
 	%t		UNIX time of dump
 	%h		hostname
-	%e		executable filename (may be shortened)
+	%e		executable filename (may be shortened, could be changed by prctl etc)
+	%f      	executable filename
 	%E		executable path
 	%c		maximum size of core file by resource limit RLIMIT_CORE
 	%<OTHER>	both are dropped
@@ -211,7 +236,7 @@ This toggle indicates whether unprivileged users are prevented
 from using ``dmesg(8)`` to view messages from the kernel's log
 buffer.
 When ``dmesg_restrict`` is set to 0 there are no restrictions.
-When ``dmesg_restrict`` is set set to 1, users must have
+When ``dmesg_restrict`` is set to 1, users must have
 ``CAP_SYSLOG`` to use ``dmesg(8)``.
 
 The kernel config option ``CONFIG_SECURITY_DMESG_RESTRICT`` sets the
@@ -239,6 +264,40 @@ domainname "frop.org", not to be confused with the NIS (Network
 Information Service) or YP (Yellow Pages) domainname. These two
 domain names are in general different. For a detailed discussion
 see the ``hostname(1)`` man page.
+
+
+firmware_config
+===============
+
+See :doc:`/driver-api/firmware/fallback-mechanisms`.
+
+The entries in this directory allow the firmware loader helper
+fallback to be controlled:
+
+* ``force_sysfs_fallback``, when set to 1, forces the use of the
+  fallback;
+* ``ignore_sysfs_fallback``, when set to 1, ignores any fallback.
+
+
+ftrace_dump_on_oops
+===================
+
+Determines whether ``ftrace_dump()`` should be called on an oops (or
+kernel panic). This will output the contents of the ftrace buffers to
+the console.  This is very useful for capturing traces that lead to
+crashes and outputting them to a serial console.
+
+= ===================================================
+0 Disabled (default).
+1 Dump buffers of all CPUs.
+2 Dump the buffer of the CPU that triggered the oops.
+= ===================================================
+
+
+ftrace_enabled, stack_tracer_enabled
+====================================
+
+See :doc:`/trace/ftrace`.
 
 
 hardlockup_all_cpu_backtrace
@@ -275,6 +334,20 @@ hotplug
 
 Path for the hotplug policy agent.
 Default value is "``/sbin/hotplug``".
+
+
+hung_task_all_cpu_backtrace
+===========================
+
+If this option is set, the kernel will send an NMI to all CPUs to dump
+their backtraces when a hung task is detected. This file shows up if
+CONFIG_DETECT_HUNG_TASK and CONFIG_SMP are enabled.
+
+0: Won't show all CPUs backtraces when a hung task is detected.
+This is the default behavior.
+
+1: Will non-maskably interrupt all CPUs and dump their backtraces when
+a hung task is detected.
 
 
 hung_task_panic
@@ -342,6 +415,25 @@ Controls whether the panic kmsg data should be reported to Hyper-V.
 0 Do not report panic kmsg data.
 1 Report the panic kmsg data. This is the default behavior.
 = =========================================================
+
+
+ignore-unaligned-usertrap
+=========================
+
+On architectures where unaligned accesses cause traps, and where this
+feature is supported (``CONFIG_SYSCTL_ARCH_UNALIGN_NO_WARN``;
+currently, ``arc`` and ``ia64``), controls whether all unaligned traps
+are logged.
+
+= =============================================================
+0 Log all unaligned accesses.
+1 Only warn the first time a process traps. This is the default
+  setting.
+= =============================================================
+
+See also `unaligned-trap`_ and `unaligned-dump-stack`_. On ``ia64``,
+this allows system administrators to override the
+``IA64_THREAD_UAC_NOPRINT`` ``prctl`` and avoid logs being flooded.
 
 
 kexec_load_disabled
@@ -459,6 +551,15 @@ Notes:
      successful IPC object allocation. If an IPC object allocation syscall
      fails, it is undefined if the value remains unmodified or is reset to -1.
 
+
+ngroups_max
+===========
+
+Maximum number of supplementary groups, _i.e._ the maximum size which
+``setgroups`` will accept. Exports ``NGROUPS_MAX`` from the kernel.
+
+
+
 nmi_watchdog
 ============
 
@@ -544,6 +645,22 @@ rate for each task.
 
 ``numa_balancing_scan_size_mb`` is how many megabytes worth of pages are
 scanned for a given scan.
+
+
+oops_all_cpu_backtrace
+======================
+
+If this option is set, the kernel will send an NMI to all CPUs to dump
+their backtraces when an oops event occurs. It should be used as a last
+resort in case a panic cannot be triggered (to protect VMs running, for
+example) or kdump can't be collected. This file shows up if CONFIG_SMP
+is enabled.
+
+0: Won't show all CPUs backtraces when an oops is detected.
+This is the default behavior.
+
+1: Will non-maskably interrupt all CPUs and dump their backtraces when
+an oops event is detected.
 
 
 osrelease, ostype & version
@@ -721,7 +838,13 @@ perf_event_paranoid
 ===================
 
 Controls use of the performance events system by unprivileged
-users (without CAP_SYS_ADMIN).  The default value is 2.
+users (without CAP_PERFMON).  The default value is 2.
+
+For backward compatibility reasons access to system performance
+monitoring and observability remains open for CAP_SYS_ADMIN
+privileged processes but CAP_SYS_ADMIN usage for secure system
+performance monitoring and observability operations is discouraged
+with respect to CAP_PERFMON use cases.
 
 ===  ==================================================================
  -1  Allow use of (almost) all events by all users.
@@ -730,13 +853,13 @@ users (without CAP_SYS_ADMIN).  The default value is 2.
      ``CAP_IPC_LOCK``.
 
 >=0  Disallow ftrace function tracepoint by users without
-     ``CAP_SYS_ADMIN``.
+     ``CAP_PERFMON``.
 
-     Disallow raw tracepoint access by users without ``CAP_SYS_ADMIN``.
+     Disallow raw tracepoint access by users without ``CAP_PERFMON``.
 
->=1  Disallow CPU event access by users without ``CAP_SYS_ADMIN``.
+>=1  Disallow CPU event access by users without ``CAP_PERFMON``.
 
->=2  Disallow kernel profiling by users without ``CAP_SYS_ADMIN``.
+>=2  Disallow kernel profiling by users without ``CAP_PERFMON``.
 ===  ==================================================================
 
 
@@ -871,7 +994,39 @@ this sysctl interface anymore.
 pty
 ===
 
-See Documentation/filesystems/devpts.txt.
+See Documentation/filesystems/devpts.rst.
+
+
+random
+======
+
+This is a directory, with the following entries:
+
+* ``boot_id``: a UUID generated the first time this is retrieved, and
+  unvarying after that;
+
+* ``entropy_avail``: the pool's entropy count, in bits;
+
+* ``poolsize``: the entropy pool size, in bits;
+
+* ``urandom_min_reseed_secs``: obsolete (used to determine the minimum
+  number of seconds between urandom pool reseeding).
+
+* ``uuid``: a UUID generated every time this is retrieved (this can
+  thus be used to generate UUIDs at will);
+
+* ``write_wakeup_threshold``: when the entropy count drops below this
+  (as a number of bits), processes waiting to write to ``/dev/random``
+  are woken up.
+
+If ``drivers/char/random.c`` is built with ``ADD_INTERRUPT_BENCH``
+defined, these additional entries are present:
+
+* ``add_interrupt_avg_cycles``: the average number of cycles between
+  interrupts used to feed the pool;
+
+* ``add_interrupt_avg_deviation``: the standard deviation seen on the
+  number of cycles between interrupts used to feed the pool.
 
 
 randomize_va_space
@@ -940,6 +1095,60 @@ Enables/disables scheduler statistics. Enabling this feature
 incurs a small amount of overhead in the scheduler but is
 useful for debugging and performance tuning.
 
+sched_util_clamp_min:
+=====================
+
+Max allowed *minimum* utilization.
+
+Default value is 1024, which is the maximum possible value.
+
+It means that any requested uclamp.min value cannot be greater than
+sched_util_clamp_min, i.e., it is restricted to the range
+[0:sched_util_clamp_min].
+
+sched_util_clamp_max:
+=====================
+
+Max allowed *maximum* utilization.
+
+Default value is 1024, which is the maximum possible value.
+
+It means that any requested uclamp.max value cannot be greater than
+sched_util_clamp_max, i.e., it is restricted to the range
+[0:sched_util_clamp_max].
+
+sched_util_clamp_min_rt_default:
+================================
+
+By default Linux is tuned for performance. Which means that RT tasks always run
+at the highest frequency and most capable (highest capacity) CPU (in
+heterogeneous systems).
+
+Uclamp achieves this by setting the requested uclamp.min of all RT tasks to
+1024 by default, which effectively boosts the tasks to run at the highest
+frequency and biases them to run on the biggest CPU.
+
+This knob allows admins to change the default behavior when uclamp is being
+used. In battery powered devices particularly, running at the maximum
+capacity and frequency will increase energy consumption and shorten the battery
+life.
+
+This knob is only effective for RT tasks which the user hasn't modified their
+requested uclamp.min value via sched_setattr() syscall.
+
+This knob will not escape the range constraint imposed by sched_util_clamp_min
+defined above.
+
+For example if
+
+	sched_util_clamp_min_rt_default = 800
+	sched_util_clamp_min = 600
+
+Then the boost will be clamped to 600 because 800 is outside of the permissible
+range of [0:600]. This could happen for instance if a powersave mode will
+restrict all boosts temporarily by modifying sched_util_clamp_min. As soon as
+this restriction is lifted, the requested sched_util_clamp_min_rt_default
+will take effect.
 
 seccomp
 =======
@@ -1147,6 +1356,13 @@ ORed together. The letters are seen in "Tainted" line of Oops reports.
 
 See :doc:`/admin-guide/tainted-kernels` for more information.
 
+Note:
+  writes to this sysctl interface will fail with ``EINVAL`` if the kernel is
+  booted with the command line option ``panic_on_taint=<bitmask>,nousertaint``
+  and any of the ORed together values being written to ``tainted`` match with
+  the bitmask declared on panic_on_taint.
+  See :doc:`/admin-guide/kernel-parameters` for more details on that particular
+  kernel command line option and its optional ``nousertaint`` switch.
 
 threads-max
 ===========
@@ -1167,6 +1383,65 @@ If a value outside of this range is written to ``threads-max`` an
 ``EINVAL`` error occurs.
 
 
+traceoff_on_warning
+===================
+
+When set, disables tracing (see :doc:`/trace/ftrace`) when a
+``WARN()`` is hit.
+
+
+tracepoint_printk
+=================
+
+When tracepoints are sent to printk() (enabled by the ``tp_printk``
+boot parameter), this entry provides runtime control::
+
+    echo 0 > /proc/sys/kernel/tracepoint_printk
+
+will stop tracepoints from being sent to printk(), and::
+
+    echo 1 > /proc/sys/kernel/tracepoint_printk
+
+will send them to printk() again.
+
+This only works if the kernel was booted with ``tp_printk`` enabled.
+
+See :doc:`/admin-guide/kernel-parameters` and
+:doc:`/trace/boottime-trace`.
+
+
+.. _unaligned-dump-stack:
+
+unaligned-dump-stack (ia64)
+===========================
+
+When logging unaligned accesses, controls whether the stack is
+dumped.
+
+= ===================================================
+0 Do not dump the stack. This is the default setting.
+1 Dump the stack.
+= ===================================================
+
+See also `ignore-unaligned-usertrap`_.
+
+
+unaligned-trap
+==============
+
+On architectures where unaligned accesses cause traps, and where this
+feature is supported (``CONFIG_SYSCTL_ARCH_UNALIGN_ALLOW``; currently,
+``arc`` and ``parisc``), controls whether unaligned traps are caught
+and emulated (instead of failing).
+
+= ========================================================
+0 Do not emulate unaligned accesses.
+1 Emulate unaligned accesses. This is the default setting.
+= ========================================================
+
+See also `ignore-unaligned-usertrap`_.
+
+
 unknown_nmi_panic
 =================
 
@@ -1176,6 +1451,16 @@ that time, kernel debugging information is displayed on console.
 
 NMI switch that most IA32 servers have fires unknown NMI up, for
 example.  If a system hangs up, try pressing the NMI switch.
+
+
+unprivileged_bpf_disabled
+=========================
+
+Writing 1 to this entry will disable unprivileged calls to ``bpf()``;
+once disabled, calling ``bpf()`` without ``CAP_SYS_ADMIN`` will return
+``-EPERM``.
+
+Once set, this can't be cleared.
 
 
 watchdog

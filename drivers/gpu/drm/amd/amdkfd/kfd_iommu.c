@@ -192,7 +192,7 @@ static int iommu_invalid_ppr_cb(struct pci_dev *pdev, int pasid,
 
 	dev_warn_ratelimited(kfd_device,
 			"Invalid PPR device %x:%x.%x pasid 0x%x address 0x%lX flags 0x%X",
-			PCI_BUS_NUM(pdev->devfn),
+			pdev->bus->number,
 			PCI_SLOT(pdev->devfn),
 			PCI_FUNC(pdev->devfn),
 			pasid,

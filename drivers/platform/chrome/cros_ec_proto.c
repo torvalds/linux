@@ -208,6 +208,12 @@ static int cros_ec_get_host_event_wake_mask(struct cros_ec_device *ec_dev,
 	msg->insize = sizeof(*r);
 
 	ret = send_command(ec_dev, msg);
+	if (ret >= 0) {
+		if (msg->result == EC_RES_INVALID_COMMAND)
+			return -EOPNOTSUPP;
+		if (msg->result != EC_RES_SUCCESS)
+			return -EPROTO;
+	}
 	if (ret > 0) {
 		r = (struct ec_response_host_event_mask *)msg->data;
 		*mask = r->mask;
@@ -469,14 +475,33 @@ int cros_ec_query_all(struct cros_ec_device *ec_dev)
 						    &ver_mask);
 	ec_dev->host_sleep_v1 = (ret >= 0 && (ver_mask & EC_VER_MASK(1)));
 
-	/*
-	 * Get host event wake mask, assume all events are wake events
-	 * if unavailable.
-	 */
+	/* Get host event wake mask. */
 	ret = cros_ec_get_host_event_wake_mask(ec_dev, proto_msg,
 					       &ec_dev->host_event_wake_mask);
-	if (ret < 0)
-		ec_dev->host_event_wake_mask = U32_MAX;
+	if (ret < 0) {
+		/*
+		 * If the EC doesn't support EC_CMD_HOST_EVENT_GET_WAKE_MASK,
+		 * use a reasonable default. Note that we ignore various
+		 * battery, AC status, and power-state events, because (a)
+		 * those can be quite common (e.g., when sitting at full
+		 * charge, on AC) and (b) these are not actionable wake events;
+		 * if anything, we'd like to continue suspending (to save
+		 * power), not wake up.
+		 */
+		ec_dev->host_event_wake_mask = U32_MAX &
+			~(BIT(EC_HOST_EVENT_AC_DISCONNECTED) |
+			  BIT(EC_HOST_EVENT_BATTERY_LOW) |
+			  BIT(EC_HOST_EVENT_BATTERY_CRITICAL) |
+			  BIT(EC_HOST_EVENT_PD_MCU) |
+			  BIT(EC_HOST_EVENT_BATTERY_STATUS));
+		/*
+		 * Old ECs may not support this command. Complain about all
+		 * other errors.
+		 */
+		if (ret != -EOPNOTSUPP)
+			dev_err(ec_dev->dev,
+				"failed to retrieve wake mask: %d\n", ret);
+	}
 
 	ret = 0;
 
@@ -496,8 +521,8 @@ EXPORT_SYMBOL(cros_ec_query_all);
  *
  * Return: 0 on success or negative error code.
  */
-int cros_ec_cmd_xfer(struct cros_ec_device *ec_dev,
-		     struct cros_ec_command *msg)
+static int cros_ec_cmd_xfer(struct cros_ec_device *ec_dev,
+			    struct cros_ec_command *msg)
 {
 	int ret;
 
@@ -541,7 +566,6 @@ int cros_ec_cmd_xfer(struct cros_ec_device *ec_dev,
 
 	return ret;
 }
-EXPORT_SYMBOL(cros_ec_cmd_xfer);
 
 /**
  * cros_ec_cmd_xfer_status() - Send a command to the ChromeOS EC.

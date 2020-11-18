@@ -314,40 +314,44 @@ TRACE_EVENT(mm_compaction_kcompactd_sleep,
 
 DECLARE_EVENT_CLASS(kcompactd_wake_template,
 
-	TP_PROTO(int nid, int order, enum zone_type classzone_idx),
+	TP_PROTO(int nid, int order, enum zone_type highest_zoneidx),
 
-	TP_ARGS(nid, order, classzone_idx),
+	TP_ARGS(nid, order, highest_zoneidx),
 
 	TP_STRUCT__entry(
 		__field(int, nid)
 		__field(int, order)
-		__field(enum zone_type, classzone_idx)
+		__field(enum zone_type, highest_zoneidx)
 	),
 
 	TP_fast_assign(
 		__entry->nid = nid;
 		__entry->order = order;
-		__entry->classzone_idx = classzone_idx;
+		__entry->highest_zoneidx = highest_zoneidx;
 	),
 
+	/*
+	 * classzone_idx is previous name of the highest_zoneidx.
+	 * Reason not to change it is the ABI requirement of the tracepoint.
+	 */
 	TP_printk("nid=%d order=%d classzone_idx=%-8s",
 		__entry->nid,
 		__entry->order,
-		__print_symbolic(__entry->classzone_idx, ZONE_TYPE))
+		__print_symbolic(__entry->highest_zoneidx, ZONE_TYPE))
 );
 
 DEFINE_EVENT(kcompactd_wake_template, mm_compaction_wakeup_kcompactd,
 
-	TP_PROTO(int nid, int order, enum zone_type classzone_idx),
+	TP_PROTO(int nid, int order, enum zone_type highest_zoneidx),
 
-	TP_ARGS(nid, order, classzone_idx)
+	TP_ARGS(nid, order, highest_zoneidx)
 );
 
 DEFINE_EVENT(kcompactd_wake_template, mm_compaction_kcompactd_wake,
 
-	TP_PROTO(int nid, int order, enum zone_type classzone_idx),
+	TP_PROTO(int nid, int order, enum zone_type highest_zoneidx),
 
-	TP_ARGS(nid, order, classzone_idx)
+	TP_ARGS(nid, order, highest_zoneidx)
 );
 #endif
 

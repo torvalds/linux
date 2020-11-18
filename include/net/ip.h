@@ -23,6 +23,7 @@
 #include <linux/in.h>
 #include <linux/skbuff.h>
 #include <linux/jhash.h>
+#include <linux/sockptr.h>
 
 #include <net/inet_sock.h>
 #include <net/route.h>
@@ -231,11 +232,7 @@ struct sk_buff *ip_make_skb(struct sock *sk, struct flowi4 *fl4,
 			    struct ipcm_cookie *ipc, struct rtable **rtp,
 			    struct inet_cork *cork, unsigned int flags);
 
-static inline int ip_queue_xmit(struct sock *sk, struct sk_buff *skb,
-				struct flowi *fl)
-{
-	return __ip_queue_xmit(sk, skb, fl, inet_sk(sk)->tos);
-}
+int ip_queue_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl);
 
 static inline struct sk_buff *ip_finish_skb(struct sock *sk, struct flowi4 *fl4)
 {
@@ -439,11 +436,17 @@ static inline unsigned int ip_dst_mtu_maybe_forward(const struct dst_entry *dst,
 						    bool forwarding)
 {
 	struct net *net = dev_net(dst->dev);
+	unsigned int mtu;
 
 	if (net->ipv4.sysctl_ip_fwd_use_pmtu ||
 	    ip_mtu_locked(dst) ||
 	    !forwarding)
 		return dst_mtu(dst);
+
+	/* 'forwarding = true' case should always honour route mtu */
+	mtu = dst_metric_raw(dst, RTAX_MTU);
+	if (mtu)
+		return mtu;
 
 	return min(READ_ONCE(dst->dev->mtu), IP_MAX_MTU);
 }
@@ -711,9 +714,7 @@ int __ip_options_compile(struct net *net, struct ip_options *opt,
 int ip_options_compile(struct net *net, struct ip_options *opt,
 		       struct sk_buff *skb);
 int ip_options_get(struct net *net, struct ip_options_rcu **optp,
-		   unsigned char *data, int optlen);
-int ip_options_get_from_user(struct net *net, struct ip_options_rcu **optp,
-			     unsigned char __user *data, int optlen);
+		   sockptr_t data, int optlen);
 void ip_options_undo(struct ip_options *opt);
 void ip_forward_options(struct sk_buff *skb);
 int ip_options_rcv_srr(struct sk_buff *skb, struct net_device *dev);
@@ -727,14 +728,10 @@ void ip_cmsg_recv_offset(struct msghdr *msg, struct sock *sk,
 			 struct sk_buff *skb, int tlen, int offset);
 int ip_cmsg_send(struct sock *sk, struct msghdr *msg,
 		 struct ipcm_cookie *ipc, bool allow_ipv6);
-int ip_setsockopt(struct sock *sk, int level, int optname, char __user *optval,
+int ip_setsockopt(struct sock *sk, int level, int optname, sockptr_t optval,
 		  unsigned int optlen);
 int ip_getsockopt(struct sock *sk, int level, int optname, char __user *optval,
 		  int __user *optlen);
-int compat_ip_setsockopt(struct sock *sk, int level, int optname,
-			 char __user *optval, unsigned int optlen);
-int compat_ip_getsockopt(struct sock *sk, int level, int optname,
-			 char __user *optval, int __user *optlen);
 int ip_ra_control(struct sock *sk, unsigned char on,
 		  void (*destructor)(struct sock *));
 
@@ -764,5 +761,11 @@ static inline bool inetdev_valid_mtu(unsigned int mtu)
 {
 	return likely(mtu >= IPV4_MIN_MTU);
 }
+
+void ip_sock_set_freebind(struct sock *sk);
+int ip_sock_set_mtu_discover(struct sock *sk, int val);
+void ip_sock_set_pktinfo(struct sock *sk);
+void ip_sock_set_recverr(struct sock *sk);
+void ip_sock_set_tos(struct sock *sk, int val);
 
 #endif	/* _IP_H */

@@ -68,7 +68,7 @@
  * tunables
  */
 
-unsigned int xprt_rdma_slot_table_entries = RPCRDMA_DEF_SLOT_TABLE;
+static unsigned int xprt_rdma_slot_table_entries = RPCRDMA_DEF_SLOT_TABLE;
 unsigned int xprt_rdma_max_inline_read = RPCRDMA_DEF_INLINE;
 unsigned int xprt_rdma_max_inline_write = RPCRDMA_DEF_INLINE;
 unsigned int xprt_rdma_memreg_strategy		= RPCRDMA_FRWR;
@@ -242,13 +242,18 @@ xprt_rdma_connect_worker(struct work_struct *work)
 
 	rc = rpcrdma_xprt_connect(r_xprt);
 	xprt_clear_connecting(xprt);
-	if (r_xprt->rx_ep && r_xprt->rx_ep->re_connect_status > 0) {
+	if (!rc) {
 		xprt->connect_cookie++;
 		xprt->stat.connect_count++;
 		xprt->stat.connect_time += (long)jiffies -
 					   xprt->stat.connect_start;
 		xprt_set_connected(xprt);
 		rc = -EAGAIN;
+	} else {
+		/* Force a call to xprt_rdma_close to clean up */
+		spin_lock(&xprt->transport_lock);
+		set_bit(XPRT_CLOSE_WAIT, &xprt->state);
+		spin_unlock(&xprt->transport_lock);
 	}
 	xprt_wake_pending_tasks(xprt, rc);
 }
@@ -280,8 +285,6 @@ static void
 xprt_rdma_destroy(struct rpc_xprt *xprt)
 {
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
-
-	trace_xprtrdma_op_destroy(r_xprt);
 
 	cancel_delayed_work_sync(&r_xprt->rx_connect_worker);
 
@@ -365,10 +368,6 @@ xprt_setup_rdma(struct xprt_create *args)
 
 	xprt->max_payload = RPCRDMA_MAX_DATA_SEGS << PAGE_SHIFT;
 
-	dprintk("RPC:       %s: %s:%s\n", __func__,
-		xprt->address_strings[RPC_DISPLAY_ADDR],
-		xprt->address_strings[RPC_DISPLAY_PORT]);
-	trace_xprtrdma_create(new_xprt);
 	return xprt;
 }
 
@@ -384,8 +383,6 @@ xprt_setup_rdma(struct xprt_create *args)
 void xprt_rdma_close(struct rpc_xprt *xprt)
 {
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
-
-	trace_xprtrdma_op_close(r_xprt);
 
 	rpcrdma_xprt_disconnect(r_xprt);
 

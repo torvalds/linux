@@ -69,11 +69,11 @@ extern const struct imx_mxc_w1_data imx31_mxc_w1_data;
 	imx_add_mxc_w1(&imx31_mxc_w1_data)
 
 extern const struct imx_spi_imx_data imx31_cspi_data[];
-#define imx31_add_cspi(id, pdata)	\
-	imx_add_spi_imx(&imx31_cspi_data[id], pdata)
-#define imx31_add_spi_imx0(pdata)	imx31_add_cspi(0, pdata)
-#define imx31_add_spi_imx1(pdata)	imx31_add_cspi(1, pdata)
-#define imx31_add_spi_imx2(pdata)	imx31_add_cspi(2, pdata)
+#define imx31_add_cspi(id, gtable) \
+	imx_add_spi_imx(&imx31_cspi_data[id], gtable)
+#define imx31_add_spi_imx0(gtable)	imx31_add_cspi(0, gtable)
+#define imx31_add_spi_imx1(gtable)	imx31_add_cspi(1, gtable)
+#define imx31_add_spi_imx2(gtable)	imx31_add_cspi(2, gtable)
 
 extern const struct imx_pata_imx_data imx31_pata_imx_data;
 #define imx31_add_pata_imx() \

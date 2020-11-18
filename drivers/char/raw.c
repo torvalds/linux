@@ -37,7 +37,7 @@ static struct raw_device_data *raw_devices;
 static DEFINE_MUTEX(raw_mutex);
 static const struct file_operations raw_ctl_fops; /* forward declaration */
 
-static int max_raw_minors = MAX_RAW_MINORS;
+static int max_raw_minors = CONFIG_MAX_RAW_DEVS;
 
 module_param(max_raw_minors, int, 0);
 MODULE_PARM_DESC(max_raw_minors, "Maximum number of raw devices (1-65536)");
@@ -317,9 +317,9 @@ static int __init raw_init(void)
 	int ret;
 
 	if (max_raw_minors < 1 || max_raw_minors > 65536) {
-		printk(KERN_WARNING "raw: invalid max_raw_minors (must be"
-			" between 1 and 65536), using %d\n", MAX_RAW_MINORS);
-		max_raw_minors = MAX_RAW_MINORS;
+		pr_warn("raw: invalid max_raw_minors (must be between 1 and 65536), using %d\n",
+			CONFIG_MAX_RAW_DEVS);
+		max_raw_minors = CONFIG_MAX_RAW_DEVS;
 	}
 
 	raw_devices = vzalloc(array_size(max_raw_minors,

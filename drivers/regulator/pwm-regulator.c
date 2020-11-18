@@ -48,7 +48,7 @@ struct pwm_voltages {
 	unsigned int dutycycle;
 };
 
-/**
+/*
  * Voltage table call-backs
  */
 static void pwm_regulator_init_state(struct regulator_dev *rdev)
@@ -279,7 +279,7 @@ static int pwm_regulator_init_table(struct platform_device *pdev,
 		return ret;
 	}
 
-	drvdata->state			= -EINVAL;
+	drvdata->state			= -ENOTRECOVERABLE;
 	drvdata->duty_cycle_table	= duty_cycle_table;
 	drvdata->desc.ops = &pwm_regulator_voltage_table_ops;
 	drvdata->desc.n_voltages	= length / sizeof(*duty_cycle_table);

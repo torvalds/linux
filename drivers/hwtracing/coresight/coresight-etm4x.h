@@ -133,7 +133,7 @@
 #define ETMv4_MAX_CTXID_CMP		8
 #define ETM_MAX_VMID_CMP		8
 #define ETM_MAX_PE_CMP			8
-#define ETM_MAX_RES_SEL			16
+#define ETM_MAX_RES_SEL			32
 #define ETM_MAX_SS_CMP			8
 
 #define ETM_ARCH_V4			0x40
@@ -325,7 +325,7 @@ struct etmv4_save_state {
 	u32	trccntctlr[ETMv4_MAX_CNTR];
 	u32	trccntvr[ETMv4_MAX_CNTR];
 
-	u32	trcrsctlr[ETM_MAX_RES_SEL * 2];
+	u32	trcrsctlr[ETM_MAX_RES_SEL];
 
 	u32	trcssccr[ETM_MAX_SS_CMP];
 	u32	trcsscsr[ETM_MAX_SS_CMP];
@@ -334,7 +334,7 @@ struct etmv4_save_state {
 	u64	trcacvr[ETM_MAX_SINGLE_ADDR_CMP];
 	u64	trcacatr[ETM_MAX_SINGLE_ADDR_CMP];
 	u64	trccidcvr[ETMv4_MAX_CTXID_CMP];
-	u32	trcvmidcvr[ETM_MAX_VMID_CMP];
+	u64	trcvmidcvr[ETM_MAX_VMID_CMP];
 	u32	trccidcctlr0;
 	u32	trccidcctlr1;
 	u32	trcvmidcctlr0;
@@ -407,6 +407,8 @@ struct etmv4_save_state {
  * @config:	structure holding configuration parameters.
  * @save_state:	State to be preserved across power loss
  * @state_needs_restore: True when there is context to restore after PM exit
+ * @skip_power_up: Indicates if an implementation can skip powering up
+ *		   the trace unit.
  */
 struct etmv4_drvdata {
 	void __iomem			*base;
@@ -454,6 +456,7 @@ struct etmv4_drvdata {
 	struct etmv4_config		config;
 	struct etmv4_save_state		*save_state;
 	bool				state_needs_restore;
+	bool				skip_power_up;
 };
 
 /* Address comparator access types */

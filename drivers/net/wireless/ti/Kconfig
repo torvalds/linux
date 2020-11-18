@@ -2,7 +2,7 @@
 config WLAN_VENDOR_TI
 	bool "Texas Instrument devices"
 	default y
-	---help---
+	help
 	  If you have a wireless card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
@@ -22,7 +22,7 @@ config WILINK_PLATFORM_DATA
 	bool "TI WiLink platform data"
 	depends on WLCORE_SDIO || WL1251_SDIO
 	default y
-	---help---
+	help
 	Small platform data bit needed to pass data to the sdio modules.
 
 

@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2010-2014 Michael Krufky (mkrufky@linuxtv.org)
  *
- * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
+ * see Documentation/driver-api/media/drivers/dvb-usb.rst for more information
  */
 
 #ifndef _DVB_USB_MXL111SF_H_

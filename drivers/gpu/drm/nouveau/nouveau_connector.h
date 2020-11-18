@@ -29,6 +29,10 @@
 
 #include <nvif/notify.h>
 
+#include <nvhw/class/cl507d.h>
+#include <nvhw/class/cl907d.h>
+#include <nvhw/drf.h>
+
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_encoder.h>
@@ -56,16 +60,23 @@ struct nouveau_conn_atom {
 		 * hw values, and the code relies on this.
 		 */
 		enum {
-			DITHERING_MODE_OFF = 0x00,
-			DITHERING_MODE_ON = 0x01,
-			DITHERING_MODE_DYNAMIC2X2 = 0x10 | DITHERING_MODE_ON,
-			DITHERING_MODE_STATIC2X2 = 0x18 | DITHERING_MODE_ON,
-			DITHERING_MODE_TEMPORAL = 0x20 | DITHERING_MODE_ON,
+			DITHERING_MODE_OFF =
+				NVDEF(NV507D, HEAD_SET_DITHER_CONTROL, ENABLE, DISABLE),
+			DITHERING_MODE_ON =
+				NVDEF(NV507D, HEAD_SET_DITHER_CONTROL, ENABLE, ENABLE),
+			DITHERING_MODE_DYNAMIC2X2 = DITHERING_MODE_ON |
+				NVDEF(NV507D, HEAD_SET_DITHER_CONTROL, MODE, DYNAMIC_2X2),
+			DITHERING_MODE_STATIC2X2 = DITHERING_MODE_ON |
+				NVDEF(NV507D, HEAD_SET_DITHER_CONTROL, MODE, STATIC_2X2),
+			DITHERING_MODE_TEMPORAL = DITHERING_MODE_ON |
+				NVDEF(NV907D, HEAD_SET_DITHER_CONTROL, MODE, TEMPORAL),
 			DITHERING_MODE_AUTO
 		} mode;
 		enum {
-			DITHERING_DEPTH_6BPC = 0x00,
-			DITHERING_DEPTH_8BPC = 0x02,
+			DITHERING_DEPTH_6BPC =
+				NVDEF(NV507D, HEAD_SET_DITHER_CONTROL, BITS, DITHER_TO_6_BITS),
+			DITHERING_DEPTH_8BPC =
+				NVDEF(NV507D, HEAD_SET_DITHER_CONTROL, BITS, DITHER_TO_8_BITS),
 			DITHERING_DEPTH_AUTO
 		} depth;
 	} dither;
@@ -195,6 +206,11 @@ int nouveau_conn_atomic_get_property(struct drm_connector *,
 				     const struct drm_connector_state *,
 				     struct drm_property *, u64 *);
 struct drm_display_mode *nouveau_conn_native_mode(struct drm_connector *);
+enum drm_mode_status
+nouveau_conn_mode_clock_valid(const struct drm_display_mode *,
+			      const unsigned min_clock,
+			      const unsigned max_clock,
+			      unsigned *clock);
 
 #ifdef CONFIG_DRM_NOUVEAU_BACKLIGHT
 extern int nouveau_backlight_init(struct drm_connector *);

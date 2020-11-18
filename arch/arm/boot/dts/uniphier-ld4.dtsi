@@ -67,6 +67,8 @@
 			compatible = "socionext,uniphier-scssi";
 			status = "disabled";
 			reg = <0x54006000 0x100>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			interrupts = <0 39 4>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_spi0>;

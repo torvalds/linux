@@ -62,8 +62,8 @@ static int of_pci_phb_probe(struct platform_device *dev)
 	/* Init pci_dn data structures */
 	pci_devs_phb_init_dynamic(phb);
 
-	/* Create EEH PEs for the PHB */
-	eeh_dev_phb_init_dynamic(phb);
+	/* Create EEH PE for the PHB */
+	eeh_phb_pe_create(phb);
 
 	/* Scan the bus */
 	pcibios_scan_phb(phb);

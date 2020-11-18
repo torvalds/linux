@@ -5,19 +5,18 @@
 #include <linux/idr.h>
 #include <linux/blk-mq.h>
 #include <linux/part_stat.h>
+#include <linux/blk-crypto.h>
 #include <xen/xen.h>
+#include "blk-crypto-internal.h"
 #include "blk-mq.h"
 #include "blk-mq-sched.h"
 
 /* Max future timer expiry for timeouts */
 #define BLK_MAX_TIMEOUT		(5 * HZ)
 
-#ifdef CONFIG_DEBUG_FS
 extern struct dentry *blk_debugfs_root;
-#endif
 
 struct blk_flush_queue {
-	unsigned int		flush_queue_delayed:1;
 	unsigned int		flush_pending_idx:1;
 	unsigned int		flush_running_idx:1;
 	blk_status_t 		rq_status;
@@ -26,11 +25,6 @@ struct blk_flush_queue {
 	struct list_head	flush_data_in_flight;
 	struct request		*flush_rq;
 
-	/*
-	 * flush_rq shares tag with this rq, both can't be active
-	 * at the same time
-	 */
-	struct request		*orig_rq;
 	struct lock_class_key	key;
 	spinlock_t		mq_flush_lock;
 };
@@ -61,17 +55,6 @@ struct blk_flush_queue *blk_alloc_flush_queue(int node, int cmd_size,
 void blk_free_flush_queue(struct blk_flush_queue *q);
 
 void blk_freeze_queue(struct request_queue *q);
-
-static inline void blk_queue_enter_live(struct request_queue *q)
-{
-	/*
-	 * Given that running in generic_make_request() context
-	 * guarantees that a live reference against q_usage_counter has
-	 * been established, further references under that same context
-	 * need not check that the queue has been frozen (marked dead).
-	 */
-	percpu_ref_get(&q->q_usage_counter);
-}
 
 static inline bool biovec_phys_mergeable(struct request_queue *q,
 		struct bio_vec *vec1, struct bio_vec *vec2)
@@ -195,8 +178,7 @@ bool bio_attempt_discard_merge(struct request_queue *q, struct request *req,
 bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
 		unsigned int nr_segs, struct request **same_queue_rq);
 
-void blk_account_io_start(struct request *req, bool new_io);
-void blk_account_io_completion(struct request *req, unsigned int bytes);
+void blk_account_io_start(struct request *req);
 void blk_account_io_done(struct request *req, u64 now);
 
 /*
@@ -234,21 +216,11 @@ ssize_t part_fail_show(struct device *dev, struct device_attribute *attr,
 		char *buf);
 ssize_t part_fail_store(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count);
-
-#ifdef CONFIG_FAIL_IO_TIMEOUT
-int blk_should_fake_timeout(struct request_queue *);
 ssize_t part_timeout_show(struct device *, struct device_attribute *, char *);
 ssize_t part_timeout_store(struct device *, struct device_attribute *,
 				const char *, size_t);
-#else
-static inline int blk_should_fake_timeout(struct request_queue *q)
-{
-	return 0;
-}
-#endif
 
-void __blk_queue_split(struct request_queue *q, struct bio **bio,
-		unsigned int *nr_segs);
+void __blk_queue_split(struct bio **bio, unsigned int *nr_segs);
 int ll_back_merge_fn(struct request *req, struct bio *bio,
 		unsigned int nr_segs);
 int ll_front_merge_fn(struct request *req,  struct bio *bio,
@@ -293,6 +265,20 @@ static inline unsigned int bio_allowed_max_sectors(struct request_queue *q)
 }
 
 /*
+ * The max bio size which is aligned to q->limits.discard_granularity. This
+ * is a hint to split large discard bio in generic block layer, then if device
+ * driver needs to split the discard bio into smaller ones, their bi_size can
+ * be very probably and easily aligned to discard_granularity of the device's
+ * queue.
+ */
+static inline unsigned int bio_aligned_discard_max_sectors(
+					struct request_queue *q)
+{
+	return round_down(UINT_MAX, q->limits.discard_granularity) >>
+			SECTOR_SHIFT;
+}
+
+/*
  * Internal io_context interface
  */
 void get_io_context(struct io_context *ioc);
@@ -303,39 +289,19 @@ void ioc_clear_queue(struct request_queue *q);
 
 int create_task_io_context(struct task_struct *task, gfp_t gfp_mask, int node);
 
-/**
- * create_io_context - try to create task->io_context
- * @gfp_mask: allocation mask
- * @node: allocation node
- *
- * If %current->io_context is %NULL, allocate a new io_context and install
- * it.  Returns the current %current->io_context which may be %NULL if
- * allocation failed.
- *
- * Note that this function can't be called with IRQ disabled because
- * task_lock which protects %current->io_context is IRQ-unsafe.
- */
-static inline struct io_context *create_io_context(gfp_t gfp_mask, int node)
-{
-	WARN_ON_ONCE(irqs_disabled());
-	if (unlikely(!current->io_context))
-		create_task_io_context(current, gfp_mask, node);
-	return current->io_context;
-}
-
 /*
  * Internal throttling interface
  */
 #ifdef CONFIG_BLK_DEV_THROTTLING
-extern void blk_throtl_drain(struct request_queue *q);
 extern int blk_throtl_init(struct request_queue *q);
 extern void blk_throtl_exit(struct request_queue *q);
 extern void blk_throtl_register_queue(struct request_queue *q);
+bool blk_throtl_bio(struct bio *bio);
 #else /* CONFIG_BLK_DEV_THROTTLING */
-static inline void blk_throtl_drain(struct request_queue *q) { }
 static inline int blk_throtl_init(struct request_queue *q) { return 0; }
 static inline void blk_throtl_exit(struct request_queue *q) { }
 static inline void blk_throtl_register_queue(struct request_queue *q) { }
+static inline bool blk_throtl_bio(struct bio *bio) { return false; }
 #endif /* CONFIG_BLK_DEV_THROTTLING */
 #ifdef CONFIG_BLK_DEV_THROTTLING_LOW
 extern ssize_t blk_throtl_sample_time_show(struct request_queue *q, char *page);
@@ -375,11 +341,6 @@ void blk_queue_free_zone_bitmaps(struct request_queue *q);
 static inline void blk_queue_free_zone_bitmaps(struct request_queue *q) {}
 #endif
 
-void part_dec_in_flight(struct request_queue *q, struct hd_struct *part,
-			int rw);
-void part_inc_in_flight(struct request_queue *q, struct hd_struct *part,
-			int rw);
-void update_io_ticks(struct hd_struct *part, unsigned long now, bool end);
 struct hd_struct *disk_map_sector_rcu(struct gendisk *disk, sector_t sector);
 
 int blk_alloc_devt(struct hd_struct *part, dev_t *devt);
@@ -389,44 +350,32 @@ char *disk_name(struct gendisk *hd, int partno, char *buf);
 #define ADDPART_FLAG_NONE	0
 #define ADDPART_FLAG_RAID	1
 #define ADDPART_FLAG_WHOLEDISK	2
-struct hd_struct *__must_check add_partition(struct gendisk *disk, int partno,
-		sector_t start, sector_t len, int flags,
-		struct partition_meta_info *info);
-void __delete_partition(struct percpu_ref *ref);
-void delete_partition(struct gendisk *disk, int partno);
+void delete_partition(struct gendisk *disk, struct hd_struct *part);
+int bdev_add_partition(struct block_device *bdev, int partno,
+		sector_t start, sector_t length);
+int bdev_del_partition(struct block_device *bdev, int partno);
+int bdev_resize_partition(struct block_device *bdev, int partno,
+		sector_t start, sector_t length);
 int disk_expand_part_tbl(struct gendisk *disk, int target);
+int hd_ref_init(struct hd_struct *part);
 
-static inline int hd_ref_init(struct hd_struct *part)
-{
-	if (percpu_ref_init(&part->ref, __delete_partition, 0,
-				GFP_KERNEL))
-		return -ENOMEM;
-	return 0;
-}
-
-static inline void hd_struct_get(struct hd_struct *part)
-{
-	percpu_ref_get(&part->ref);
-}
-
+/* no need to get/put refcount of part0 */
 static inline int hd_struct_try_get(struct hd_struct *part)
 {
-	return percpu_ref_tryget_live(&part->ref);
+	if (part->partno)
+		return percpu_ref_tryget_live(&part->ref);
+	return 1;
 }
 
 static inline void hd_struct_put(struct hd_struct *part)
 {
-	percpu_ref_put(&part->ref);
-}
-
-static inline void hd_struct_kill(struct hd_struct *part)
-{
-	percpu_ref_kill(&part->ref);
+	if (part->partno)
+		percpu_ref_put(&part->ref);
 }
 
 static inline void hd_free_part(struct hd_struct *part)
 {
-	free_part_stats(part);
+	free_percpu(part->dkstats);
 	kfree(part->info);
 	percpu_ref_exit(&part->ref);
 }
@@ -470,9 +419,11 @@ static inline sector_t part_nr_sects_read(struct hd_struct *part)
 static inline void part_nr_sects_write(struct hd_struct *part, sector_t size)
 {
 #if BITS_PER_LONG==32 && defined(CONFIG_SMP)
+	preempt_disable();
 	write_seqcount_begin(&part->nr_sects_seq);
 	part->nr_sects = size;
 	write_seqcount_end(&part->nr_sects_seq);
+	preempt_enable();
 #elif BITS_PER_LONG==32 && defined(CONFIG_PREEMPTION)
 	preempt_disable();
 	part->nr_sects = size;
@@ -482,10 +433,8 @@ static inline void part_nr_sects_write(struct hd_struct *part, sector_t size)
 #endif
 }
 
-struct request_queue *__blk_alloc_queue(int node_id);
-
-int __bio_add_pc_page(struct request_queue *q, struct bio *bio,
+int bio_add_hw_page(struct request_queue *q, struct bio *bio,
 		struct page *page, unsigned int len, unsigned int offset,
-		bool *same_page);
+		unsigned int max_sectors, bool *same_page);
 
 #endif /* BLK_INTERNAL_H */

@@ -116,7 +116,8 @@ static int uvd_v5_0_sw_init(void *handle)
 
 	ring = &adev->uvd.inst->ring;
 	sprintf(ring->name, "uvd");
-	r = amdgpu_ring_init(adev, ring, 512, &adev->uvd.inst->irq, 0);
+	r = amdgpu_ring_init(adev, ring, 512, &adev->uvd.inst->irq, 0,
+			     AMDGPU_RING_PRIO_DEFAULT);
 	if (r)
 		return r;
 
@@ -208,12 +209,9 @@ done:
 static int uvd_v5_0_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	struct amdgpu_ring *ring = &adev->uvd.inst->ring;
 
 	if (RREG32(mmUVD_STATUS) != 0)
 		uvd_v5_0_stop(adev);
-
-	ring->sched.ready = false;
 
 	return 0;
 }

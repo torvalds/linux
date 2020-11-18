@@ -90,8 +90,8 @@ static int jz4740_ecc_calculate(struct ingenic_ecc *ecc,
 	 * If the written data is completely 0xff, we also want to write 0xff as
 	 * ECC, otherwise we will get in trouble when doing subpage writes.
 	 */
-	if (memcmp(ecc_code, empty_block_ecc, ARRAY_SIZE(empty_block_ecc)) == 0)
-		memset(ecc_code, 0xff, ARRAY_SIZE(empty_block_ecc));
+	if (memcmp(ecc_code, empty_block_ecc, sizeof(empty_block_ecc)) == 0)
+		memset(ecc_code, 0xff, sizeof(empty_block_ecc));
 
 	return 0;
 }

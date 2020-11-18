@@ -172,7 +172,6 @@ struct acpi_thermal {
 	struct acpi_thermal_trips trips;
 	struct acpi_handle_list devices;
 	struct thermal_zone_device *thermal_zone;
-	int tz_enabled;
 	int kelvin_offset;	/* in millidegrees */
 	struct work_struct thermal_check_work;
 };
@@ -500,9 +499,6 @@ static void acpi_thermal_check(void *data)
 {
 	struct acpi_thermal *tz = data;
 
-	if (!tz->tz_enabled)
-		return;
-
 	thermal_zone_device_update(tz->thermal_zone,
 				   THERMAL_EVENT_UNSPECIFIED);
 }
@@ -523,50 +519,6 @@ static int thermal_get_temp(struct thermal_zone_device *thermal, int *temp)
 
 	*temp = deci_kelvin_to_millicelsius_with_offset(tz->temperature,
 							tz->kelvin_offset);
-	return 0;
-}
-
-static int thermal_get_mode(struct thermal_zone_device *thermal,
-				enum thermal_device_mode *mode)
-{
-	struct acpi_thermal *tz = thermal->devdata;
-
-	if (!tz)
-		return -EINVAL;
-
-	*mode = tz->tz_enabled ? THERMAL_DEVICE_ENABLED :
-		THERMAL_DEVICE_DISABLED;
-
-	return 0;
-}
-
-static int thermal_set_mode(struct thermal_zone_device *thermal,
-				enum thermal_device_mode mode)
-{
-	struct acpi_thermal *tz = thermal->devdata;
-	int enable;
-
-	if (!tz)
-		return -EINVAL;
-
-	/*
-	 * enable/disable thermal management from ACPI thermal driver
-	 */
-	if (mode == THERMAL_DEVICE_ENABLED)
-		enable = 1;
-	else if (mode == THERMAL_DEVICE_DISABLED) {
-		enable = 0;
-		pr_warn("thermal zone will be disabled\n");
-	} else
-		return -EINVAL;
-
-	if (enable != tz->tz_enabled) {
-		tz->tz_enabled = enable;
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			"%s kernel ACPI thermal control\n",
-			tz->tz_enabled ? "Enable" : "Disable"));
-		acpi_thermal_check(tz);
-	}
 	return 0;
 }
 
@@ -856,8 +808,6 @@ static struct thermal_zone_device_ops acpi_thermal_zone_ops = {
 	.bind = acpi_thermal_bind_cooling_device,
 	.unbind	= acpi_thermal_unbind_cooling_device,
 	.get_temp = thermal_get_temp,
-	.get_mode = thermal_get_mode,
-	.set_mode = thermal_set_mode,
 	.get_trip_type = thermal_get_trip_type,
 	.get_trip_temp = thermal_get_trip_temp,
 	.get_crit_temp = thermal_get_crit_temp,
@@ -901,23 +851,39 @@ static int acpi_thermal_register_thermal_zone(struct acpi_thermal *tz)
 	result = sysfs_create_link(&tz->device->dev.kobj,
 				   &tz->thermal_zone->device.kobj, "thermal_zone");
 	if (result)
-		return result;
+		goto unregister_tzd;
 
 	result = sysfs_create_link(&tz->thermal_zone->device.kobj,
 				   &tz->device->dev.kobj, "device");
 	if (result)
-		return result;
+		goto remove_tz_link;
 
 	status =  acpi_bus_attach_private_data(tz->device->handle,
 					       tz->thermal_zone);
-	if (ACPI_FAILURE(status))
-		return -ENODEV;
+	if (ACPI_FAILURE(status)) {
+		result = -ENODEV;
+		goto remove_dev_link;
+	}
 
-	tz->tz_enabled = 1;
+	result = thermal_zone_device_enable(tz->thermal_zone);
+	if (result)
+		goto acpi_bus_detach;
 
 	dev_info(&tz->device->dev, "registered as thermal_zone%d\n",
 		 tz->thermal_zone->id);
+
 	return 0;
+
+acpi_bus_detach:
+	acpi_bus_detach_private_data(tz->device->handle);
+remove_dev_link:
+	sysfs_remove_link(&tz->thermal_zone->device.kobj, "device");
+remove_tz_link:
+	sysfs_remove_link(&tz->device->dev.kobj, "thermal_zone");
+unregister_tzd:
+	thermal_zone_device_unregister(tz->thermal_zone);
+
+	return result;
 }
 
 static void acpi_thermal_unregister_thermal_zone(struct acpi_thermal *tz)

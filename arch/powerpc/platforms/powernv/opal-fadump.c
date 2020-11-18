@@ -671,7 +671,7 @@ void __init opal_fadump_dt_scan(struct fw_dump *fadump_conf, u64 node)
 	 * Firmware supports 32-bit field for size. Align it to PAGE_SIZE
 	 * and request firmware to copy multiple kernel boot memory regions.
 	 */
-	fadump_conf->max_copy_size = _ALIGN_DOWN(U32_MAX, PAGE_SIZE);
+	fadump_conf->max_copy_size = ALIGN_DOWN(U32_MAX, PAGE_SIZE);
 
 	/*
 	 * Check if dump has been initiated on last reboot.

@@ -46,7 +46,6 @@ static int aiu_fifo_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 				struct snd_soc_dai *dai)
 {
 	struct snd_soc_component *component = dai->component;
-	unsigned int val;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -54,7 +53,7 @@ static int aiu_fifo_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		snd_soc_component_write(component, AIU_RST_SOFT,
 					AIU_RST_SOFT_I2S_FAST);
-		snd_soc_component_read(component, AIU_I2S_SYNC, &val);
+		snd_soc_component_read(component, AIU_I2S_SYNC);
 		break;
 	}
 

@@ -1116,7 +1116,7 @@ got:
 	ei->i_block_group = group;
 	ei->i_last_alloc_group = ~0;
 
-	ext4_set_inode_flags(inode);
+	ext4_set_inode_flags(inode, true);
 	if (IS_DIRSYNC(inode))
 		ext4_handle_sync(handle);
 	if (insert_inode_locked(inode) < 0) {
@@ -1246,6 +1246,7 @@ struct inode *ext4_orphan_get(struct super_block *sb, unsigned long ino)
 		ext4_error_err(sb, -err,
 			       "couldn't read orphan inode %lu (err %d)",
 			       ino, err);
+		brelse(bitmap_bh);
 		return inode;
 	}
 
@@ -1440,7 +1441,7 @@ int ext4_init_inode_table(struct super_block *sb, ext4_group_t group,
 	if (ret < 0)
 		goto err_out;
 	if (barrier)
-		blkdev_issue_flush(sb->s_bdev, GFP_NOFS, NULL);
+		blkdev_issue_flush(sb->s_bdev, GFP_NOFS);
 
 skip_zeroout:
 	ext4_lock_group(sb, group);

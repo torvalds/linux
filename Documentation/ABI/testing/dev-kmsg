@@ -56,6 +56,17 @@ Description:	The /dev/kmsg character device node provides userspace access
 		  seek after the last record available at the time
 		  the last SYSLOG_ACTION_CLEAR was issued.
 
+		Other seek operations or offsets are not supported because of
+		the special behavior this device has. The device allows to read
+		or write only whole variable length messages (records) that are
+		stored in a ring buffer.
+
+		Because of the non-standard behavior also the error values are
+		non-standard. -ESPIPE is returned for non-zero offset. -EINVAL
+		is returned for other operations, e.g. SEEK_CUR. This behavior
+		and values are historical and could not be modified without the
+		risk of breaking userspace.
+
 		The output format consists of a prefix carrying the syslog
 		prefix including priority and facility, the 64 bit message
 		sequence number and the monotonic timestamp in microseconds,

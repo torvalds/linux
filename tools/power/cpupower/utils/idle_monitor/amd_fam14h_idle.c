@@ -117,7 +117,7 @@ static int amd_fam14h_get_pci_info(struct cstate *state,
 		break;
 	default:
 		return -1;
-	};
+	}
 	return 0;
 }
 

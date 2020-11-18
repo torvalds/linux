@@ -670,7 +670,7 @@ int snd_usb_init_sample_rate(struct snd_usb_audio *chip, int iface,
 			else
 				return 0;
 		}
-	/* fall through */
+		fallthrough;
 	case UAC_VERSION_2:
 		return set_sample_rate_v2v3(chip, iface, alts, fmt, rate);
 	}

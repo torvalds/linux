@@ -613,7 +613,7 @@ static void frontend_init(struct budget *budget)
 			break;
 		}
 	}
-	/* fall through */
+		fallthrough;
 	case 0x1018: // TT Budget-S-1401 (philips tda10086/philips tda8262)
 	{
 		struct dvb_frontend *fe;
@@ -638,7 +638,7 @@ static void frontend_init(struct budget *budget)
 			break;
 		}
 	}
-	/* fall through */
+		fallthrough;
 
 	case 0x101c: { /* TT S2-1600 */
 			const struct stv6110x_devctl *ctl;

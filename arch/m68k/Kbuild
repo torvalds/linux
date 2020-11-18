@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: GPL-2.0-only
+obj-y				+= kernel/ mm/
+obj-$(CONFIG_Q40)		+= q40/
+obj-$(CONFIG_AMIGA)		+= amiga/
+obj-$(CONFIG_ATARI)		+= atari/
+obj-$(CONFIG_MAC)		+= mac/
+obj-$(CONFIG_HP300)		+= hp300/
+obj-$(CONFIG_APOLLO)		+= apollo/
+obj-$(CONFIG_MVME147)		+= mvme147/
+obj-$(CONFIG_MVME16x)		+= mvme16x/
+obj-$(CONFIG_BVME6000)		+= bvme6000/
+obj-$(CONFIG_SUN3X)		+= sun3x/ sun3/
+obj-$(CONFIG_SUN3)		+= sun3/
+obj-$(CONFIG_NATFEAT)		+= emu/
+obj-$(CONFIG_M68040)		+= fpsp040/
+obj-$(CONFIG_M68060)		+= ifpsp060/
+obj-$(CONFIG_M68KFPU_EMU)	+= math-emu/
+obj-$(CONFIG_M68000)		+= 68000/
+obj-$(CONFIG_COLDFIRE)		+= coldfire/

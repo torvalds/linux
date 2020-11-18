@@ -9,6 +9,7 @@
 	__FILE__, __LINE__, clean_errno(), ##__VA_ARGS__)
 
 
+int cgroup_setup_and_join(const char *path);
 int create_and_get_cgroup(const char *path);
 int join_cgroup(const char *path);
 int setup_cgroup_environment(void);

@@ -675,7 +675,7 @@ static int key_extract_l3l4(struct sk_buff *skb, struct sw_flow_key *key)
 			case -EINVAL:
 				memset(&key->ip, 0, sizeof(key->ip));
 				memset(&key->ipv6.addr, 0, sizeof(key->ipv6.addr));
-				/* fall-through */
+				fallthrough;
 			case -EPROTO:
 				skb->transport_header = skb->network_header;
 				error = 0;
@@ -890,6 +890,7 @@ int ovs_flow_key_extract(const struct ip_tunnel_info *tun_info,
 	if (static_branch_unlikely(&tc_recirc_sharing_support)) {
 		tc_ext = skb_ext_find(skb, TC_SKB_EXT);
 		key->recirc_id = tc_ext ? tc_ext->chain : 0;
+		OVS_CB(skb)->mru = tc_ext ? tc_ext->mru : 0;
 	} else {
 		key->recirc_id = 0;
 	}

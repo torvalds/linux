@@ -76,6 +76,14 @@ config NOUVEAU_DEBUG_MMU
 	help
 	  Say Y here if you want to enable verbose MMU debug output.
 
+config NOUVEAU_DEBUG_PUSH
+	bool "Enable additional push buffer debugging"
+	depends on DRM_NOUVEAU
+	default n
+	help
+	  Say Y here if you want to enable verbose push buffer debug output
+	  and sanity checks.
+
 config DRM_NOUVEAU_BACKLIGHT
 	bool "Support for backlight control"
 	depends on DRM_NOUVEAU

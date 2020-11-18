@@ -137,11 +137,10 @@ static struct sk_buff *ocelot_xmit(struct sk_buff *skb,
 				   struct net_device *netdev)
 {
 	struct dsa_port *dp = dsa_slave_to_port(netdev);
-	u64 bypass, dest, src, qos_class, rew_op;
 	struct dsa_switch *ds = dp->ds;
-	int port = dp->index;
 	struct ocelot *ocelot = ds->priv;
-	struct ocelot_port *ocelot_port = ocelot->ports[port];
+	struct ocelot_port *ocelot_port;
+	u64 qos_class, rew_op;
 	u8 *injection;
 
 	if (unlikely(skb_cow_head(skb, OCELOT_TAG_LEN) < 0)) {
@@ -149,27 +148,26 @@ static struct sk_buff *ocelot_xmit(struct sk_buff *skb,
 		return NULL;
 	}
 
+	ocelot_port = ocelot->ports[dp->index];
+
 	injection = skb_push(skb, OCELOT_TAG_LEN);
 
-	memset(injection, 0, OCELOT_TAG_LEN);
-
-	/* Set the source port as the CPU port module and not the NPI port */
-	src = ocelot->num_phys_ports;
-	dest = BIT(port);
-	bypass = true;
+	memcpy(injection, ocelot_port->xmit_template, OCELOT_TAG_LEN);
+	/* Fix up the fields which are not statically determined
+	 * in the template
+	 */
 	qos_class = skb->priority;
-
-	packing(injection, &bypass,   127, 127, OCELOT_TAG_LEN, PACK, 0);
-	packing(injection, &dest,      68,  56, OCELOT_TAG_LEN, PACK, 0);
-	packing(injection, &src,       46,  43, OCELOT_TAG_LEN, PACK, 0);
 	packing(injection, &qos_class, 19,  17, OCELOT_TAG_LEN, PACK, 0);
 
 	if (ocelot->ptp && (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)) {
+		struct sk_buff *clone = DSA_SKB_CB(skb)->clone;
+
 		rew_op = ocelot_port->ptp_cmd;
-		if (ocelot_port->ptp_cmd == IFH_REW_OP_TWO_STEP_PTP) {
-			rew_op |= (ocelot_port->ts_id  % 4) << 3;
-			ocelot_port->ts_id++;
-		}
+		/* Retrieve timestamp ID populated inside skb->cb[0] of the
+		 * clone by ocelot_port_add_txtstamp_skb
+		 */
+		if (ocelot_port->ptp_cmd == IFH_REW_OP_TWO_STEP_PTP)
+			rew_op |= clone->cb[0] << 3;
 
 		packing(injection, &rew_op, 125, 117, OCELOT_TAG_LEN, PACK, 0);
 	}
@@ -228,7 +226,7 @@ static struct sk_buff *ocelot_rcv(struct sk_buff *skb,
 	return skb;
 }
 
-static struct dsa_device_ops ocelot_netdev_ops = {
+static const struct dsa_device_ops ocelot_netdev_ops = {
 	.name			= "ocelot",
 	.proto			= DSA_TAG_PROTO_OCELOT,
 	.xmit			= ocelot_xmit,

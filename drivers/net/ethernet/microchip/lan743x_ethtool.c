@@ -2,11 +2,11 @@
 /* Copyright (C) 2018 Microchip Technology Inc. */
 
 #include <linux/netdevice.h>
-#include "lan743x_main.h"
-#include "lan743x_ethtool.h"
 #include <linux/net_tstamp.h>
 #include <linux/pci.h>
 #include <linux/phy.h>
+#include "lan743x_main.h"
+#include "lan743x_ethtool.h"
 
 /* eeprom */
 #define LAN743X_EEPROM_MAGIC		    (0x74A5)
@@ -548,7 +548,7 @@ static int lan743x_ethtool_get_rxnfc(struct net_device *netdev,
 		case TCP_V4_FLOW:case UDP_V4_FLOW:
 		case TCP_V6_FLOW:case UDP_V6_FLOW:
 			rxnfc->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
-			/* fall through */
+			fallthrough;
 		case IPV4_FLOW: case IPV6_FLOW:
 			rxnfc->data |= RXH_IP_SRC | RXH_IP_DST;
 			return 0;

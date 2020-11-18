@@ -23,25 +23,30 @@ static int adis_update_scan_mode_burst(struct iio_dev *indio_dev,
 	const unsigned long *scan_mask)
 {
 	struct adis *adis = iio_device_get_drvdata(indio_dev);
-	unsigned int burst_length;
+	unsigned int burst_length, burst_max_length;
 	u8 *tx;
 
 	/* All but the timestamp channel */
 	burst_length = (indio_dev->num_channels - 1) * sizeof(u16);
-	burst_length += adis->burst->extra_len;
+	burst_length += adis->burst->extra_len + adis->burst_extra_len;
+
+	if (adis->burst->burst_max_len)
+		burst_max_length = adis->burst->burst_max_len;
+	else
+		burst_max_length = burst_length;
 
 	adis->xfer = kcalloc(2, sizeof(*adis->xfer), GFP_KERNEL);
 	if (!adis->xfer)
 		return -ENOMEM;
 
-	adis->buffer = kzalloc(burst_length + sizeof(u16), GFP_KERNEL);
+	adis->buffer = kzalloc(burst_max_length + sizeof(u16), GFP_KERNEL);
 	if (!adis->buffer) {
 		kfree(adis->xfer);
 		adis->xfer = NULL;
 		return -ENOMEM;
 	}
 
-	tx = adis->buffer + burst_length;
+	tx = adis->buffer + burst_max_length;
 	tx[0] = ADIS_READ_REG(adis->burst->reg_cmd);
 	tx[1] = 0;
 
@@ -156,6 +161,14 @@ static irqreturn_t adis_trigger_handler(int irq, void *p)
 	return IRQ_HANDLED;
 }
 
+static void adis_buffer_cleanup(void *arg)
+{
+	struct adis *adis = arg;
+
+	kfree(adis->buffer);
+	kfree(adis->xfer);
+}
+
 /**
  * adis_setup_buffer_and_trigger() - Sets up buffer and trigger for the adis device
  * @adis: The adis device.
@@ -197,6 +210,43 @@ error_buffer_cleanup:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(adis_setup_buffer_and_trigger);
+
+/**
+ * devm_adis_setup_buffer_and_trigger() - Sets up buffer and trigger for
+ *					  the managed adis device
+ * @adis: The adis device
+ * @indio_dev: The IIO device
+ * @trigger_handler: Optional trigger handler, may be NULL.
+ *
+ * Returns 0 on success, a negative error code otherwise.
+ *
+ * This function perfoms exactly the same as adis_setup_buffer_and_trigger()
+ */
+int
+devm_adis_setup_buffer_and_trigger(struct adis *adis, struct iio_dev *indio_dev,
+				   irq_handler_t trigger_handler)
+{
+	int ret;
+
+	if (!trigger_handler)
+		trigger_handler = adis_trigger_handler;
+
+	ret = devm_iio_triggered_buffer_setup(&adis->spi->dev, indio_dev,
+					      &iio_pollfunc_store_time,
+					      trigger_handler, NULL);
+	if (ret)
+		return ret;
+
+	if (adis->spi->irq) {
+		ret = devm_adis_probe_trigger(adis, indio_dev);
+		if (ret)
+			return ret;
+	}
+
+	return devm_add_action_or_reset(&adis->spi->dev, adis_buffer_cleanup,
+					adis);
+}
+EXPORT_SYMBOL_GPL(devm_adis_setup_buffer_and_trigger);
 
 /**
  * adis_cleanup_buffer_and_trigger() - Free buffer and trigger resources

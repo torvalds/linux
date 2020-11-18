@@ -3,7 +3,7 @@ config INFINIBAND_SRP
 	tristate "InfiniBand SCSI RDMA Protocol"
 	depends on SCSI && INFINIBAND_ADDR_TRANS
 	select SCSI_SRP_ATTRS
-	---help---
+	help
 	  Support for the SCSI RDMA Protocol over InfiniBand.  This
 	  allows you to access storage devices that speak SRP over
 	  InfiniBand.

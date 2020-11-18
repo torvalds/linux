@@ -85,11 +85,13 @@ static inline unsigned long compact_gap(unsigned int order)
 
 #ifdef CONFIG_COMPACTION
 extern int sysctl_compact_memory;
+extern unsigned int sysctl_compaction_proactiveness;
 extern int sysctl_compaction_handler(struct ctl_table *table, int write,
-			void __user *buffer, size_t *length, loff_t *ppos);
+			void *buffer, size_t *length, loff_t *ppos);
 extern int sysctl_extfrag_threshold;
 extern int sysctl_compact_unevictable_allowed;
 
+extern unsigned int extfrag_for_order(struct zone *zone, unsigned int order);
 extern int fragmentation_index(struct zone *zone, unsigned int order);
 extern enum compact_result try_to_compact_pages(gfp_t gfp_mask,
 		unsigned int order, unsigned int alloc_flags,
@@ -97,7 +99,7 @@ extern enum compact_result try_to_compact_pages(gfp_t gfp_mask,
 		struct page **page);
 extern void reset_isolation_suitable(pg_data_t *pgdat);
 extern enum compact_result compaction_suitable(struct zone *zone, int order,
-		unsigned int alloc_flags, int classzone_idx);
+		unsigned int alloc_flags, int highest_zoneidx);
 
 extern void defer_compaction(struct zone *zone, int order);
 extern bool compaction_deferred(struct zone *zone, int order);
@@ -182,7 +184,7 @@ bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
 
 extern int kcompactd_run(int nid);
 extern void kcompactd_stop(int nid);
-extern void wakeup_kcompactd(pg_data_t *pgdat, int order, int classzone_idx);
+extern void wakeup_kcompactd(pg_data_t *pgdat, int order, int highest_zoneidx);
 
 #else
 static inline void reset_isolation_suitable(pg_data_t *pgdat)
@@ -190,7 +192,7 @@ static inline void reset_isolation_suitable(pg_data_t *pgdat)
 }
 
 static inline enum compact_result compaction_suitable(struct zone *zone, int order,
-					int alloc_flags, int classzone_idx)
+					int alloc_flags, int highest_zoneidx)
 {
 	return COMPACT_SKIPPED;
 }
@@ -232,7 +234,8 @@ static inline void kcompactd_stop(int nid)
 {
 }
 
-static inline void wakeup_kcompactd(pg_data_t *pgdat, int order, int classzone_idx)
+static inline void wakeup_kcompactd(pg_data_t *pgdat,
+				int order, int highest_zoneidx)
 {
 }
 

@@ -1,6 +1,6 @@
 * virtio memory mapped device
 
-See http://ozlabs.org/~rusty/virtio-spec/ for more details.
+See https://ozlabs.org/~rusty/virtio-spec/ for more details.
 
 Required properties:
 

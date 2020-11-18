@@ -98,6 +98,11 @@ struct dw_dma_platform_data *dw_dma_parse_dt(struct platform_device *pdev)
 			pdata->multi_block[tmp] = 1;
 	}
 
+	if (of_property_read_u32_array(np, "snps,max-burst-len", pdata->max_burst,
+				       nr_channels)) {
+		memset32(pdata->max_burst, DW_DMA_MAX_BURST, nr_channels);
+	}
+
 	if (!of_property_read_u32(np, "snps,dma-protection-control", &tmp)) {
 		if (tmp > CHAN_PROTCTL_MASK)
 			return NULL;

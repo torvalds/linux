@@ -25,7 +25,6 @@ config PCIEAER
 	bool "PCI Express Advanced Error Reporting support"
 	depends on PCIEPORTBUS
 	select RAS
-	default y
 	help
 	  This enables PCI Express Root Port Advanced Error Reporting
 	  (AER) driver support. Error reporting messages sent to Root
@@ -44,7 +43,7 @@ config PCIEAER_INJECT
 	  error injection can fake almost all kinds of errors with the
 	  help of a user space helper tool aer-inject, which can be
 	  gotten from:
-	     http://www.kernel.org/pub/linux/utils/pci/aer-inject/
+	     https://www.kernel.org/pub/linux/utils/pci/aer-inject/
 
 #
 # PCI Express ECRC

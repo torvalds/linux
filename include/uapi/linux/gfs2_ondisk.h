@@ -171,6 +171,12 @@ struct gfs2_rindex {
 #define GFS2_RGF_NOALLOC	0x00000008
 #define GFS2_RGF_TRIMMED	0x00000010
 
+struct gfs2_inode_lvb {
+	__be32 ri_magic;
+	__be32 __pad;
+	__be64 ri_generation_deleted;
+};
+
 struct gfs2_rgrp_lvb {
 	__be32 rl_magic;
 	__be32 rl_flags;

@@ -161,8 +161,8 @@ struct hclgevf_query_res_cmd {
 
 #define HCLGEVF_GRO_EN_B               0
 struct hclgevf_cfg_gro_status_cmd {
-	__le16 gro_en;
-	u8 rsv[22];
+	u8 gro_en;
+	u8 rsv[23];
 };
 
 #define HCLGEVF_RSS_DEFAULT_OUTPORT_B	4

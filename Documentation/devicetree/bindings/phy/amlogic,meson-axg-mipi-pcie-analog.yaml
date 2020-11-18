@@ -30,6 +30,6 @@ examples:
   - |
     mpphy: phy@0 {
           compatible = "amlogic,axg-mipi-pcie-analog-phy";
-          reg = <0x0 0x0 0x0 0xc>;
+          reg = <0x0 0xc>;
           #phy-cells = <1>;
     };

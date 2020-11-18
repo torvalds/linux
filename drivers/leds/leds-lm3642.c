@@ -340,8 +340,7 @@ static int lm3642_probe(struct i2c_client *client,
 	chip->cdev_flash.brightness_set_blocking = lm3642_strobe_brightness_set;
 	chip->cdev_flash.default_trigger = "flash";
 	chip->cdev_flash.groups = lm3642_flash_groups,
-	err = led_classdev_register((struct device *)
-				    &client->dev, &chip->cdev_flash);
+	err = led_classdev_register(&client->dev, &chip->cdev_flash);
 	if (err < 0) {
 		dev_err(chip->dev, "failed to register flash\n");
 		goto err_out;
@@ -353,8 +352,7 @@ static int lm3642_probe(struct i2c_client *client,
 	chip->cdev_torch.brightness_set_blocking = lm3642_torch_brightness_set;
 	chip->cdev_torch.default_trigger = "torch";
 	chip->cdev_torch.groups = lm3642_torch_groups,
-	err = led_classdev_register((struct device *)
-				    &client->dev, &chip->cdev_torch);
+	err = led_classdev_register(&client->dev, &chip->cdev_torch);
 	if (err < 0) {
 		dev_err(chip->dev, "failed to register torch\n");
 		goto err_create_torch_file;
@@ -365,8 +363,7 @@ static int lm3642_probe(struct i2c_client *client,
 	chip->cdev_indicator.max_brightness = 8;
 	chip->cdev_indicator.brightness_set_blocking =
 						lm3642_indicator_brightness_set;
-	err = led_classdev_register((struct device *)
-				    &client->dev, &chip->cdev_indicator);
+	err = led_classdev_register(&client->dev, &chip->cdev_indicator);
 	if (err < 0) {
 		dev_err(chip->dev, "failed to register indicator\n");
 		goto err_create_indicator_file;

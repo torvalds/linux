@@ -1476,6 +1476,7 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 	FIF_OTHER_BSS |				\
 	FIF_BCN_PRBRESP_PROMISC |		\
 	FIF_PROBE_REQ |				\
+	FIF_MCAST_ACTION |			\
 	FIF_FCSFAIL)
 
 /* FIXME: sc->sc_full_reset ? */

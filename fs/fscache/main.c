@@ -51,8 +51,7 @@ static unsigned fscache_op_max_active = 2;
 static struct ctl_table_header *fscache_sysctl_header;
 
 static int fscache_max_active_sysctl(struct ctl_table *table, int write,
-				     void __user *buffer,
-				     size_t *lenp, loff_t *ppos)
+				     void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct workqueue_struct **wqp = table->extra1;
 	unsigned int *datap = table->data;

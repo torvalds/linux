@@ -598,8 +598,22 @@ int bpf_link_create(int prog_fd, int target_fd,
 	attr.link_create.prog_fd = prog_fd;
 	attr.link_create.target_fd = target_fd;
 	attr.link_create.attach_type = attach_type;
+	attr.link_create.flags = OPTS_GET(opts, flags, 0);
+	attr.link_create.iter_info =
+		ptr_to_u64(OPTS_GET(opts, iter_info, (void *)0));
+	attr.link_create.iter_info_len = OPTS_GET(opts, iter_info_len, 0);
 
 	return sys_bpf(BPF_LINK_CREATE, &attr, sizeof(attr));
+}
+
+int bpf_link_detach(int link_fd)
+{
+	union bpf_attr attr;
+
+	memset(&attr, 0, sizeof(attr));
+	attr.link_detach.link_fd = link_fd;
+
+	return sys_bpf(BPF_LINK_DETACH, &attr, sizeof(attr));
 }
 
 int bpf_link_update(int link_fd, int new_prog_fd,
@@ -617,6 +631,16 @@ int bpf_link_update(int link_fd, int new_prog_fd,
 	attr.link_update.old_prog_fd = OPTS_GET(opts, old_prog_fd, 0);
 
 	return sys_bpf(BPF_LINK_UPDATE, &attr, sizeof(attr));
+}
+
+int bpf_iter_create(int link_fd)
+{
+	union bpf_attr attr;
+
+	memset(&attr, 0, sizeof(attr));
+	attr.iter_create.link_fd = link_fd;
+
+	return sys_bpf(BPF_ITER_CREATE, &attr, sizeof(attr));
 }
 
 int bpf_prog_query(int target_fd, enum bpf_attach_type type, __u32 query_flags,
@@ -721,6 +745,11 @@ int bpf_btf_get_next_id(__u32 start_id, __u32 *next_id)
 	return bpf_obj_get_next_id(start_id, next_id, BPF_BTF_GET_NEXT_ID);
 }
 
+int bpf_link_get_next_id(__u32 start_id, __u32 *next_id)
+{
+	return bpf_obj_get_next_id(start_id, next_id, BPF_LINK_GET_NEXT_ID);
+}
+
 int bpf_prog_get_fd_by_id(__u32 id)
 {
 	union bpf_attr attr;
@@ -751,13 +780,23 @@ int bpf_btf_get_fd_by_id(__u32 id)
 	return sys_bpf(BPF_BTF_GET_FD_BY_ID, &attr, sizeof(attr));
 }
 
-int bpf_obj_get_info_by_fd(int prog_fd, void *info, __u32 *info_len)
+int bpf_link_get_fd_by_id(__u32 id)
+{
+	union bpf_attr attr;
+
+	memset(&attr, 0, sizeof(attr));
+	attr.link_id = id;
+
+	return sys_bpf(BPF_LINK_GET_FD_BY_ID, &attr, sizeof(attr));
+}
+
+int bpf_obj_get_info_by_fd(int bpf_fd, void *info, __u32 *info_len)
 {
 	union bpf_attr attr;
 	int err;
 
 	memset(&attr, 0, sizeof(attr));
-	attr.info.bpf_fd = prog_fd;
+	attr.info.bpf_fd = bpf_fd;
 	attr.info.info_len = *info_len;
 	attr.info.info = ptr_to_u64(info);
 
@@ -825,4 +864,14 @@ int bpf_task_fd_query(int pid, int fd, __u32 flags, char *buf, __u32 *buf_len,
 	*probe_addr = attr.task_fd_query.probe_addr;
 
 	return err;
+}
+
+int bpf_enable_stats(enum bpf_stats_type type)
+{
+	union bpf_attr attr;
+
+	memset(&attr, 0, sizeof(attr));
+	attr.enable_stats.type = type;
+
+	return sys_bpf(BPF_ENABLE_STATS, &attr, sizeof(attr));
 }

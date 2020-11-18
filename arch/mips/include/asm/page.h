@@ -49,7 +49,7 @@ static inline unsigned int page_size_ftlb(unsigned int mmuextdef)
 			return 6;
 		if (PAGE_SIZE > (256 << 10))
 			return 7; /* reserved */
-			/* fall through */
+		fallthrough;
 	case MIPS_CONF4_MMUEXTDEF_VTLBSIZEEXT:
 		return (PAGE_SHIFT - 10) / 2;
 	default:

@@ -133,7 +133,7 @@ static int topology_remove_dev(unsigned int cpu)
 	return 0;
 }
 
-static int topology_sysfs_init(void)
+static int __init topology_sysfs_init(void)
 {
 	return cpuhp_setup_state(CPUHP_TOPOLOGY_PREPARE,
 				 "base/topology:prepare", topology_add_dev,

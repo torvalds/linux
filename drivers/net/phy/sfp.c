@@ -552,7 +552,7 @@ static umode_t sfp_hwmon_is_visible(const void *data,
 		case hwmon_temp_crit:
 			if (!(sfp->id.ext.enhopts & SFP_ENHOPTS_ALARMWARN))
 				return 0;
-			/* fall through */
+			fallthrough;
 		case hwmon_temp_input:
 		case hwmon_temp_label:
 			return 0444;
@@ -571,7 +571,7 @@ static umode_t sfp_hwmon_is_visible(const void *data,
 		case hwmon_in_crit:
 			if (!(sfp->id.ext.enhopts & SFP_ENHOPTS_ALARMWARN))
 				return 0;
-			/* fall through */
+			fallthrough;
 		case hwmon_in_input:
 		case hwmon_in_label:
 			return 0444;
@@ -590,7 +590,7 @@ static umode_t sfp_hwmon_is_visible(const void *data,
 		case hwmon_curr_crit:
 			if (!(sfp->id.ext.enhopts & SFP_ENHOPTS_ALARMWARN))
 				return 0;
-			/* fall through */
+			fallthrough;
 		case hwmon_curr_input:
 		case hwmon_curr_label:
 			return 0444;
@@ -618,7 +618,7 @@ static umode_t sfp_hwmon_is_visible(const void *data,
 		case hwmon_power_crit:
 			if (!(sfp->id.ext.enhopts & SFP_ENHOPTS_ALARMWARN))
 				return 0;
-			/* fall through */
+			fallthrough;
 		case hwmon_power_input:
 		case hwmon_power_label:
 			return 0444;
@@ -1632,10 +1632,43 @@ static int sfp_sm_mod_hpower(struct sfp *sfp, bool enable)
 	return 0;
 }
 
+static int sfp_cotsworks_fixup_check(struct sfp *sfp, struct sfp_eeprom_id *id)
+{
+	u8 check;
+	int err;
+
+	if (id->base.phys_id != SFF8024_ID_SFF_8472 ||
+	    id->base.phys_ext_id != SFP_PHYS_EXT_ID_SFP ||
+	    id->base.connector != SFF8024_CONNECTOR_LC) {
+		dev_warn(sfp->dev, "Rewriting fiber module EEPROM with corrected values\n");
+		id->base.phys_id = SFF8024_ID_SFF_8472;
+		id->base.phys_ext_id = SFP_PHYS_EXT_ID_SFP;
+		id->base.connector = SFF8024_CONNECTOR_LC;
+		err = sfp_write(sfp, false, SFP_PHYS_ID, &id->base, 3);
+		if (err != 3) {
+			dev_err(sfp->dev, "Failed to rewrite module EEPROM: %d\n", err);
+			return err;
+		}
+
+		/* Cotsworks modules have been found to require a delay between write operations. */
+		mdelay(50);
+
+		/* Update base structure checksum */
+		check = sfp_check(&id->base, sizeof(id->base) - 1);
+		err = sfp_write(sfp, false, SFP_CC_BASE, &check, 1);
+		if (err != 1) {
+			dev_err(sfp->dev, "Failed to update base structure checksum in fiber module EEPROM: %d\n", err);
+			return err;
+		}
+	}
+	return 0;
+}
+
 static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
 {
 	/* SFP module inserted - read I2C data */
 	struct sfp_eeprom_id id;
+	bool cotsworks_sfbg;
 	bool cotsworks;
 	u8 check;
 	int ret;
@@ -1657,6 +1690,17 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
 	 * serial number and date code.
 	 */
 	cotsworks = !memcmp(id.base.vendor_name, "COTSWORKS       ", 16);
+	cotsworks_sfbg = !memcmp(id.base.vendor_pn, "SFBG", 4);
+
+	/* Cotsworks SFF module EEPROM do not always have valid phys_id,
+	 * phys_ext_id, and connector bytes.  Rewrite SFF EEPROM bytes if
+	 * Cotsworks PN matches and bytes are not correct.
+	 */
+	if (cotsworks && cotsworks_sfbg) {
+		ret = sfp_cotsworks_fixup_check(sfp, &id);
+		if (ret < 0)
+			return ret;
+	}
 
 	/* Validate the checksum over the base structure */
 	check = sfp_check(&id.base, sizeof(id.base) - 1);
@@ -1828,7 +1872,7 @@ static void sfp_sm_module(struct sfp *sfp, unsigned int event)
 			dev_warn(sfp->dev, "hwmon probe failed: %d\n", err);
 
 		sfp_sm_mod_next(sfp, SFP_MOD_WAITDEV, 0);
-		/* fall through */
+		fallthrough;
 	case SFP_MOD_WAITDEV:
 		/* Ensure that the device is attached before proceeding */
 		if (sfp->sm_dev_state < SFP_DEV_DOWN)
@@ -1846,7 +1890,7 @@ static void sfp_sm_module(struct sfp *sfp, unsigned int event)
 			goto insert;
 
 		sfp_sm_mod_next(sfp, SFP_MOD_HPOWER, 0);
-		/* fall through */
+		fallthrough;
 	case SFP_MOD_HPOWER:
 		/* Enable high power mode */
 		err = sfp_sm_mod_hpower(sfp, true);
@@ -2238,6 +2282,7 @@ static int sfp_probe(struct platform_device *pdev)
 {
 	const struct sff_data *sff;
 	struct i2c_adapter *i2c;
+	char *sfp_irq_name;
 	struct sfp *sfp;
 	int err, i;
 
@@ -2349,12 +2394,19 @@ static int sfp_probe(struct platform_device *pdev)
 			continue;
 		}
 
+		sfp_irq_name = devm_kasprintf(sfp->dev, GFP_KERNEL,
+					      "%s-%s", dev_name(sfp->dev),
+					      gpio_of_names[i]);
+
+		if (!sfp_irq_name)
+			return -ENOMEM;
+
 		err = devm_request_threaded_irq(sfp->dev, sfp->gpio_irq[i],
 						NULL, sfp_irq,
 						IRQF_ONESHOT |
 						IRQF_TRIGGER_RISING |
 						IRQF_TRIGGER_FALLING,
-						dev_name(sfp->dev), sfp);
+						sfp_irq_name, sfp);
 		if (err) {
 			sfp->gpio_irq[i] = 0;
 			sfp->need_poll = true;

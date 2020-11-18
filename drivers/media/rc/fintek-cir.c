@@ -51,13 +51,6 @@ static inline void fintek_set_reg_bit(struct fintek_dev *fintek, u8 val, u8 reg)
 	fintek_cr_write(fintek, tmp, reg);
 }
 
-/* clear config register bit without changing other bits */
-static inline void fintek_clear_reg_bit(struct fintek_dev *fintek, u8 val, u8 reg)
-{
-	u8 tmp = fintek_cr_read(fintek, reg) & ~val;
-	fintek_cr_write(fintek, tmp, reg);
-}
-
 /* enter config mode */
 static inline void fintek_config_mode_enable(struct fintek_dev *fintek)
 {

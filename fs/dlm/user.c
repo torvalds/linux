@@ -46,7 +46,7 @@ struct dlm_lock_params32 {
 	__u32 bastaddr;
 	__u32 lksb;
 	char lvb[DLM_USER_LVB_LEN];
-	char name[0];
+	char name[];
 };
 
 struct dlm_write_request32 {

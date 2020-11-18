@@ -4,7 +4,7 @@ RT-mutex subsystem with PI support
 
 RT-mutexes with priority inheritance are used to support PI-futexes,
 which enable pthread_mutex_t priority inheritance attributes
-(PTHREAD_PRIO_INHERIT). [See Documentation/pi-futex.txt for more details
+(PTHREAD_PRIO_INHERIT). [See Documentation/locking/pi-futex.rst for more details
 about PI-futexes.]
 
 This technology was developed in the -rt tree and streamlined for

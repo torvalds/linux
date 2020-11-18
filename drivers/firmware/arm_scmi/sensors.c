@@ -5,7 +5,12 @@
  * Copyright (C) 2018 ARM Ltd.
  */
 
+#define pr_fmt(fmt) "SCMI Notifications SENSOR - " fmt
+
+#include <linux/scmi_protocol.h>
+
 #include "common.h"
+#include "notify.h"
 
 enum scmi_sensor_protocol_cmd {
 	SENSOR_DESCRIPTION_GET = 0x3,
@@ -65,6 +70,12 @@ struct scmi_msg_sensor_reading_get {
 	__le32 id;
 	__le32 flags;
 #define SENSOR_READ_ASYNC	BIT(0)
+};
+
+struct scmi_sensor_trip_notify_payld {
+	__le32 agent_id;
+	__le32 sensor_id;
+	__le32 trip_point_desc;
 };
 
 struct sensors_info {
@@ -267,9 +278,55 @@ static int scmi_sensor_count_get(const struct scmi_handle *handle)
 static struct scmi_sensor_ops sensor_ops = {
 	.count_get = scmi_sensor_count_get,
 	.info_get = scmi_sensor_info_get,
-	.trip_point_notify = scmi_sensor_trip_point_notify,
 	.trip_point_config = scmi_sensor_trip_point_config,
 	.reading_get = scmi_sensor_reading_get,
+};
+
+static int scmi_sensor_set_notify_enabled(const struct scmi_handle *handle,
+					  u8 evt_id, u32 src_id, bool enable)
+{
+	int ret;
+
+	ret = scmi_sensor_trip_point_notify(handle, src_id, enable);
+	if (ret)
+		pr_debug("FAIL_ENABLED - evt[%X] dom[%d] - ret:%d\n",
+			 evt_id, src_id, ret);
+
+	return ret;
+}
+
+static void *scmi_sensor_fill_custom_report(const struct scmi_handle *handle,
+					    u8 evt_id, ktime_t timestamp,
+					    const void *payld, size_t payld_sz,
+					    void *report, u32 *src_id)
+{
+	const struct scmi_sensor_trip_notify_payld *p = payld;
+	struct scmi_sensor_trip_point_report *r = report;
+
+	if (evt_id != SCMI_EVENT_SENSOR_TRIP_POINT_EVENT ||
+	    sizeof(*p) != payld_sz)
+		return NULL;
+
+	r->timestamp = timestamp;
+	r->agent_id = le32_to_cpu(p->agent_id);
+	r->sensor_id = le32_to_cpu(p->sensor_id);
+	r->trip_point_desc = le32_to_cpu(p->trip_point_desc);
+	*src_id = r->sensor_id;
+
+	return r;
+}
+
+static const struct scmi_event sensor_events[] = {
+	{
+		.id = SCMI_EVENT_SENSOR_TRIP_POINT_EVENT,
+		.max_payld_sz = sizeof(struct scmi_sensor_trip_notify_payld),
+		.max_report_sz = sizeof(struct scmi_sensor_trip_point_report),
+	},
+};
+
+static const struct scmi_event_ops sensor_event_ops = {
+	.set_notify_enabled = scmi_sensor_set_notify_enabled,
+	.fill_custom_report = scmi_sensor_fill_custom_report,
 };
 
 static int scmi_sensors_protocol_init(struct scmi_handle *handle)
@@ -294,6 +351,12 @@ static int scmi_sensors_protocol_init(struct scmi_handle *handle)
 		return -ENOMEM;
 
 	scmi_sensor_description_get(handle, sinfo);
+
+	scmi_register_protocol_events(handle,
+				      SCMI_PROTOCOL_SENSOR, SCMI_PROTO_QUEUE_SZ,
+				      &sensor_event_ops, sensor_events,
+				      ARRAY_SIZE(sensor_events),
+				      sinfo->num_sensors);
 
 	sinfo->version = version;
 	handle->sensor_ops = &sensor_ops;

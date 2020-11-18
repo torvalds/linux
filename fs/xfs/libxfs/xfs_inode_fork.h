@@ -23,6 +23,8 @@ struct xfs_ifork {
 	} if_u1;
 	short			if_broot_bytes;	/* bytes allocated for root */
 	unsigned char		if_flags;	/* per-fork flags */
+	int8_t			if_format;	/* format of this fork */
+	xfs_extnum_t		if_nextents;	/* # of extents in this fork */
 };
 
 /*
@@ -55,43 +57,36 @@ struct xfs_ifork {
 		((w) == XFS_ATTR_FORK ? \
 			XFS_IFORK_ASIZE(ip) : \
 			0))
-#define XFS_IFORK_FORMAT(ip,w) \
-	((w) == XFS_DATA_FORK ? \
-		(ip)->i_d.di_format : \
-		((w) == XFS_ATTR_FORK ? \
-			(ip)->i_d.di_aformat : \
-			(ip)->i_cformat))
-#define XFS_IFORK_FMT_SET(ip,w,n) \
-	((w) == XFS_DATA_FORK ? \
-		((ip)->i_d.di_format = (n)) : \
-		((w) == XFS_ATTR_FORK ? \
-			((ip)->i_d.di_aformat = (n)) : \
-			((ip)->i_cformat = (n))))
-#define XFS_IFORK_NEXTENTS(ip,w) \
-	((w) == XFS_DATA_FORK ? \
-		(ip)->i_d.di_nextents : \
-		((w) == XFS_ATTR_FORK ? \
-			(ip)->i_d.di_anextents : \
-			(ip)->i_cnextents))
-#define XFS_IFORK_NEXT_SET(ip,w,n) \
-	((w) == XFS_DATA_FORK ? \
-		((ip)->i_d.di_nextents = (n)) : \
-		((w) == XFS_ATTR_FORK ? \
-			((ip)->i_d.di_anextents = (n)) : \
-			((ip)->i_cnextents = (n))))
 #define XFS_IFORK_MAXEXT(ip, w) \
 	(XFS_IFORK_SIZE(ip, w) / sizeof(xfs_bmbt_rec_t))
 
-#define xfs_ifork_has_extents(ip, w) \
-	(XFS_IFORK_FORMAT((ip), (w)) == XFS_DINODE_FMT_EXTENTS || \
-	 XFS_IFORK_FORMAT((ip), (w)) == XFS_DINODE_FMT_BTREE)
+static inline bool xfs_ifork_has_extents(struct xfs_ifork *ifp)
+{
+	return ifp->if_format == XFS_DINODE_FMT_EXTENTS ||
+		ifp->if_format == XFS_DINODE_FMT_BTREE;
+}
+
+static inline xfs_extnum_t xfs_ifork_nextents(struct xfs_ifork *ifp)
+{
+	if (!ifp)
+		return 0;
+	return ifp->if_nextents;
+}
+
+static inline int8_t xfs_ifork_format(struct xfs_ifork *ifp)
+{
+	if (!ifp)
+		return XFS_DINODE_FMT_EXTENTS;
+	return ifp->if_format;
+}
 
 struct xfs_ifork *xfs_iext_state_to_fork(struct xfs_inode *ip, int state);
 
-int		xfs_iformat_fork(struct xfs_inode *, struct xfs_dinode *);
+int		xfs_iformat_data_fork(struct xfs_inode *, struct xfs_dinode *);
+int		xfs_iformat_attr_fork(struct xfs_inode *, struct xfs_dinode *);
 void		xfs_iflush_fork(struct xfs_inode *, struct xfs_dinode *,
 				struct xfs_inode_log_item *, int);
-void		xfs_idestroy_fork(struct xfs_inode *, int);
+void		xfs_idestroy_fork(struct xfs_ifork *ifp);
 void		xfs_idata_realloc(struct xfs_inode *ip, int64_t byte_diff,
 				int whichfork);
 void		xfs_iroot_realloc(struct xfs_inode *, int, int);
@@ -175,18 +170,7 @@ extern struct kmem_zone	*xfs_ifork_zone;
 
 extern void xfs_ifork_init_cow(struct xfs_inode *ip);
 
-typedef xfs_failaddr_t (*xfs_ifork_verifier_t)(struct xfs_inode *);
-
-struct xfs_ifork_ops {
-	xfs_ifork_verifier_t	verify_symlink;
-	xfs_ifork_verifier_t	verify_dir;
-	xfs_ifork_verifier_t	verify_attr;
-};
-extern struct xfs_ifork_ops	xfs_default_ifork_ops;
-
-xfs_failaddr_t xfs_ifork_verify_data(struct xfs_inode *ip,
-		struct xfs_ifork_ops *ops);
-xfs_failaddr_t xfs_ifork_verify_attr(struct xfs_inode *ip,
-		struct xfs_ifork_ops *ops);
+int xfs_ifork_verify_local_data(struct xfs_inode *ip);
+int xfs_ifork_verify_local_attr(struct xfs_inode *ip);
 
 #endif	/* __XFS_INODE_FORK_H__ */

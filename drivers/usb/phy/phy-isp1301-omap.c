@@ -581,11 +581,11 @@ pulldown:
 		/* HNP failed for some reason (A_AIDL_BDIS timeout) */
 		notresponding(isp);
 
-		/* FALLTHROUGH */
+		fallthrough;
 	case OTG_STATE_A_VBUS_ERR:
 		isp->phy.otg->state = OTG_STATE_A_WAIT_VFALL;
 		pr_debug("  --> a_wait_vfall\n");
-		/* FALLTHROUGH */
+		fallthrough;
 	case OTG_STATE_A_WAIT_VFALL:
 		/* FIXME usbcore thinks port power is still on ... */
 		clr |= OTG1_VBUS_DRV;
@@ -595,7 +595,7 @@ pulldown:
 			isp->phy.otg->state = OTG_STATE_A_WAIT_VRISE;
 			pr_debug("  --> a_wait_vrise\n");
 		}
-		/* FALLTHROUGH */
+		fallthrough;
 	default:
 		toggle(OTG_DRV_VBUS, OTG1_VBUS_DRV);
 	}
@@ -945,10 +945,10 @@ static void isp_update_otg(struct isp1301 *isp, u8 stat)
 			switch (state) {
 			case OTG_STATE_B_IDLE:
 				a_idle(isp, "idle");
-				/* FALLTHROUGH */
+				fallthrough;
 			case OTG_STATE_A_IDLE:
 				enable_vbus_source(isp);
-				/* FALLTHROUGH */
+				fallthrough;
 			case OTG_STATE_A_WAIT_VRISE:
 				/* we skip over OTG_STATE_A_WAIT_BCON, since
 				 * the HC will transition to A_HOST (or
@@ -1032,12 +1032,12 @@ static void isp_update_otg(struct isp1301 *isp, u8 stat)
 						OTG1_DP_PULLUP);
 			dump_regs(isp, __func__);
 #endif
-			/* FALLTHROUGH */
+			fallthrough;
 		case OTG_STATE_B_SRP_INIT:
 			b_idle(isp, __func__);
 			l = omap_readl(OTG_CTRL) & OTG_XCEIV_OUTPUTS;
 			omap_writel(l, OTG_CTRL);
-			/* FALLTHROUGH */
+			fallthrough;
 		case OTG_STATE_B_IDLE:
 			if (otg->gadget && (isp_bstat & OTG_B_SESS_VLD)) {
 #ifdef	CONFIG_USB_OTG

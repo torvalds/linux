@@ -49,7 +49,7 @@ void sctp_auth_key_put(struct sctp_auth_bytes *key)
 		return;
 
 	if (refcount_dec_and_test(&key->refcnt)) {
-		kzfree(key);
+		kfree_sensitive(key);
 		SCTP_DBG_OBJCNT_DEC(keys);
 	}
 }
@@ -494,6 +494,7 @@ int sctp_auth_init_hmacs(struct sctp_endpoint *ep, gfp_t gfp)
 out_err:
 	/* Clean up any successful allocations */
 	sctp_auth_destroy_hmacs(ep->auth_hmacs);
+	ep->auth_hmacs = NULL;
 	return -ENOMEM;
 }
 
@@ -741,14 +742,8 @@ void sctp_auth_calculate_hmac(const struct sctp_association *asoc,
 	if (crypto_shash_setkey(tfm, &asoc_key->data[0], asoc_key->len))
 		goto free;
 
-	{
-		SHASH_DESC_ON_STACK(desc, tfm);
-
-		desc->tfm = tfm;
-		crypto_shash_digest(desc, (u8 *)auth,
-				    end - (unsigned char *)auth, digest);
-		shash_desc_zero(desc);
-	}
+	crypto_shash_tfm_digest(tfm, (u8 *)auth, end - (unsigned char *)auth,
+				digest);
 
 free:
 	if (free_key)

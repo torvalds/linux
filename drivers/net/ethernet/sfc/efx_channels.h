@@ -11,6 +11,9 @@
 #ifndef EFX_CHANNELS_H
 #define EFX_CHANNELS_H
 
+extern unsigned int efx_interrupt_mode;
+extern unsigned int rss_cpus;
+
 int efx_probe_interrupts(struct efx_nic *efx);
 void efx_remove_interrupts(struct efx_nic *efx);
 int efx_soft_enable_interrupts(struct efx_nic *efx);

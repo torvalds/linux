@@ -28,7 +28,6 @@
 #include <linux/tracehook.h>
 #include <asm/ucontext.h>
 #include <linux/uaccess.h>
-#include <asm/pgtable.h>
 #include <asm/cacheflush.h>
 #include <asm/syscalls.h>
 #include <asm/fpu.h>
@@ -419,7 +418,7 @@ handle_syscall_restart(unsigned long save_r0, struct pt_regs *regs,
 		case -ERESTARTSYS:
 			if (!(sa->sa_flags & SA_RESTART))
 				goto no_system_call_restart;
-		/* fallthrough */
+			fallthrough;
 		case -ERESTARTNOINTR:
 			regs->regs[0] = save_r0;
 			regs->pc -= instruction_size(__raw_readw(regs->pc - 4));

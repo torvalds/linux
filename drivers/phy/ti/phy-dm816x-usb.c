@@ -82,17 +82,16 @@ static int dm816x_usb_phy_init(struct phy *x)
 {
 	struct dm816x_usb_phy *phy = phy_get_drvdata(x);
 	unsigned int val;
-	int error;
 
 	if (clk_get_rate(phy->refclk) != 24000000)
 		dev_warn(phy->dev, "nonstandard phy refclk\n");
 
 	/* Set PLL ref clock and put phys to sleep */
-	error = regmap_update_bits(phy->syscon, phy->usb_ctrl,
-				   DM816X_USB_CTRL_PHYCLKSRC |
-				   DM816X_USB_CTRL_PHYSLEEP1 |
-				   DM816X_USB_CTRL_PHYSLEEP0,
-				   0);
+	regmap_update_bits(phy->syscon, phy->usb_ctrl,
+			   DM816X_USB_CTRL_PHYCLKSRC |
+			   DM816X_USB_CTRL_PHYSLEEP1 |
+			   DM816X_USB_CTRL_PHYSLEEP0,
+			   0);
 	regmap_read(phy->syscon, phy->usb_ctrl, &val);
 	if ((val & 3) != 0)
 		dev_info(phy->dev,

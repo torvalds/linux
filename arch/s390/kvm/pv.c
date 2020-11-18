@@ -9,7 +9,6 @@
 #include <linux/kvm_host.h>
 #include <linux/pagemap.h>
 #include <linux/sched/signal.h>
-#include <asm/pgalloc.h>
 #include <asm/gmap.h>
 #include <asm/uv.h>
 #include <asm/mman.h>

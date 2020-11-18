@@ -476,6 +476,7 @@ struct virtchnl_rss_key {
 	u16 vsi_id;
 	u16 key_len;
 	u8 key[1];         /* RSS hash key, packed bytes */
+	u8 pad[1];
 };
 
 VIRTCHNL_CHECK_STRUCT_LEN(6, virtchnl_rss_key);
@@ -484,6 +485,7 @@ struct virtchnl_rss_lut {
 	u16 vsi_id;
 	u16 lut_entries;
 	u8 lut[1];        /* RSS lookup table */
+	u8 pad[1];
 };
 
 VIRTCHNL_CHECK_STRUCT_LEN(6, virtchnl_rss_lut);
@@ -572,6 +574,7 @@ struct virtchnl_filter {
 	enum	virtchnl_action action;
 	u32	action_meta;
 	u8	field_flags;
+	u8	pad[3];
 };
 
 VIRTCHNL_CHECK_STRUCT_LEN(272, virtchnl_filter);
@@ -610,6 +613,7 @@ struct virtchnl_pf_event {
 			/* link_speed provided in Mbps */
 			u32 link_speed;
 			u8 link_status;
+			u8 pad[3];
 		} link_event_adv;
 	} event_data;
 
@@ -635,6 +639,7 @@ struct virtchnl_iwarp_qv_info {
 	u16 ceq_idx;
 	u16 aeq_idx;
 	u8 itr_idx;
+	u8 pad[3];
 };
 
 VIRTCHNL_CHECK_STRUCT_LEN(12, virtchnl_iwarp_qv_info);

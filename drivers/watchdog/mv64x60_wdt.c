@@ -222,7 +222,7 @@ static long mv64x60_wdt_ioctl(struct file *file,
 		if (get_user(timeout, (int __user *)argp))
 			return -EFAULT;
 		mv64x60_wdt_set_timeout(timeout);
-		/* Fall through */
+		fallthrough;
 
 	case WDIOC_GETTIMEOUT:
 		if (put_user(mv64x60_wdt_timeout, (int __user *)argp))

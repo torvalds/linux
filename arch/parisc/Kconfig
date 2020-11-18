@@ -14,6 +14,7 @@ config PARISC
 	select ARCH_HAS_UBSAN_SANITIZE_ALL
 	select ARCH_NO_SG_CHAIN
 	select ARCH_SUPPORTS_MEMORY_FAILURE
+	select DMA_OPS
 	select RTC_CLASS
 	select RTC_DRV_GENERIC
 	select INIT_ALL_POSSIBLE
@@ -62,13 +63,12 @@ config PARISC
 	select HAVE_FTRACE_MCOUNT_RECORD if HAVE_DYNAMIC_FTRACE
 	select HAVE_KPROBES_ON_FTRACE
 	select HAVE_DYNAMIC_FTRACE_WITH_REGS
-	select HAVE_COPY_THREAD_TLS
 
 	help
 	  The PA-RISC microprocessor is designed by Hewlett-Packard and used
 	  in many of their workstations & servers (HP9000 700 and 800 series,
 	  and later HP3000 series).  The PA-RISC Linux project home page is
-	  at <http://www.parisc-linux.org/>.
+	  at <https://parisc.wiki.kernel.org>.
 
 config CPU_BIG_ENDIAN
 	def_bool y
@@ -147,7 +147,7 @@ choice
 
 config PA7000
 	bool "PA7000/PA7100"
-	---help---
+	help
 	  This is the processor type of your CPU.  This information is
 	  used for optimizing purposes.  In order to compile a kernel
 	  that can run on all 32-bit PA CPUs (albeit not optimally fast),
@@ -275,7 +275,7 @@ config PARISC_SELF_EXTRACT
 
 config SMP
 	bool "Symmetric multi-processing support"
-	---help---
+	help
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, say N. If you have a system with more
 	  than one CPU, say Y.
@@ -285,7 +285,7 @@ config SMP
 	  On a uniprocessor machine, the kernel will run faster if you say N.
 
 	  See also <file:Documentation/admin-guide/lockup-watchdogs.rst> and the SMP-HOWTO
-	  available at <http://www.tldp.org/docs.html#howto>.
+	  available at <https://www.tldp.org/docs.html#howto>.
 
 	  If you don't know what to do here, say N.
 
@@ -382,7 +382,7 @@ source "drivers/parisc/Kconfig"
 config SECCOMP
 	def_bool y
 	prompt "Enable seccomp to safely compute untrusted bytecode"
-	---help---
+	help
 	  This kernel feature is useful for number crunching applications
 	  that may need to compute untrusted bytecode during their
 	  execution. By using pipes or other transports made available to

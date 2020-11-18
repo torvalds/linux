@@ -633,7 +633,6 @@ int fxos8700_core_probe(struct device *dev, struct regmap *regmap,
 	if (ret)
 		return ret;
 
-	indio_dev->dev.parent = dev;
 	indio_dev->channels = fxos8700_channels;
 	indio_dev->num_channels = ARRAY_SIZE(fxos8700_channels);
 	indio_dev->name = name ? name : "fxos8700";

@@ -118,6 +118,9 @@ static void otx_cpt_aead_callback(int status, void *arg1, void *arg2)
 	struct otx_cpt_req_info *cpt_req;
 	struct pci_dev *pdev;
 
+	if (!cpt_info)
+		goto complete;
+
 	cpt_req = cpt_info->req;
 	if (!status) {
 		/*
@@ -129,10 +132,10 @@ static void otx_cpt_aead_callback(int status, void *arg1, void *arg2)
 		    !cpt_req->is_enc)
 			status = validate_hmac_cipher_null(cpt_req);
 	}
-	if (cpt_info) {
-		pdev = cpt_info->pdev;
-		do_request_cleanup(pdev, cpt_info);
-	}
+	pdev = cpt_info->pdev;
+	do_request_cleanup(pdev, cpt_info);
+
+complete:
 	if (areq)
 		areq->complete(areq, status);
 }
@@ -236,7 +239,6 @@ static inline u32 create_ctx_hdr(struct skcipher_request *req, u32 enc,
 	struct otx_cpt_fc_ctx *fctx = &rctx->fctx;
 	int ivsize = crypto_skcipher_ivsize(stfm);
 	u32 start = req->cryptlen - ivsize;
-	u64 *ctrl_flags = NULL;
 	gfp_t flags;
 
 	flags = (req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP) ?
@@ -277,8 +279,7 @@ static inline u32 create_ctx_hdr(struct skcipher_request *req, u32 enc,
 
 	memcpy(fctx->enc.encr_iv, req->iv, crypto_skcipher_ivsize(stfm));
 
-	ctrl_flags = (u64 *)&fctx->enc.enc_ctrl.flags;
-	*ctrl_flags = cpu_to_be64(*ctrl_flags);
+	fctx->enc.enc_ctrl.flags = cpu_to_be64(fctx->enc.enc_ctrl.cflags);
 
 	/*
 	 * Storing  Packet Data Information in offset
@@ -689,20 +690,17 @@ static struct otx_cpt_sdesc *alloc_sdesc(struct crypto_shash *alg)
 
 static inline void swap_data32(void *buf, u32 len)
 {
-	u32 *store = (u32 *) buf;
-	int i = 0;
-
-	for (i = 0 ; i < len/sizeof(u32); i++, store++)
-		*store = cpu_to_be32(*store);
+	cpu_to_be32_array(buf, buf, len / 4);
 }
 
 static inline void swap_data64(void *buf, u32 len)
 {
-	u64 *store = (u64 *) buf;
+	__be64 *dst = buf;
+	u64 *src = buf;
 	int i = 0;
 
-	for (i = 0 ; i < len/sizeof(u64); i++, store++)
-		*store = cpu_to_be64(*store);
+	for (i = 0 ; i < len / 8; i++, src++, dst++)
+		*dst = cpu_to_be64p(src);
 }
 
 static int copy_pad(u8 mac_type, u8 *out_pad, u8 *in_pad)
@@ -1009,7 +1007,7 @@ static inline u32 create_aead_ctx_hdr(struct aead_request *req, u32 enc,
 		/* Unknown cipher type */
 		return -EINVAL;
 	}
-	rctx->ctrl_word.flags = cpu_to_be64(rctx->ctrl_word.flags);
+	rctx->ctrl_word.flags = cpu_to_be64(rctx->ctrl_word.cflags);
 
 	req_info->ctrl.s.dma_mode = OTX_CPT_DMA_GATHER_SCATTER;
 	req_info->ctrl.s.se_req = OTX_CPT_SE_CORE_REQ;
@@ -1029,7 +1027,7 @@ static inline u32 create_aead_ctx_hdr(struct aead_request *req, u32 enc,
 	fctx->enc.enc_ctrl.e.aes_key = ctx->key_type;
 	fctx->enc.enc_ctrl.e.mac_type = ctx->mac_type;
 	fctx->enc.enc_ctrl.e.mac_len = mac_len;
-	fctx->enc.enc_ctrl.flags = cpu_to_be64(fctx->enc.enc_ctrl.flags);
+	fctx->enc.enc_ctrl.flags = cpu_to_be64(fctx->enc.enc_ctrl.cflags);
 
 	/*
 	 * Storing Packet Data Information in offset
@@ -1303,7 +1301,7 @@ static int otx_cpt_aead_null_decrypt(struct aead_request *req)
 static struct skcipher_alg otx_cpt_skciphers[] = { {
 	.base.cra_name = "xts(aes)",
 	.base.cra_driver_name = "cpt_xts_aes",
-	.base.cra_flags = CRYPTO_ALG_ASYNC,
+	.base.cra_flags = CRYPTO_ALG_ASYNC | CRYPTO_ALG_ALLOCATES_MEMORY,
 	.base.cra_blocksize = AES_BLOCK_SIZE,
 	.base.cra_ctxsize = sizeof(struct otx_cpt_enc_ctx),
 	.base.cra_alignmask = 7,
@@ -1320,7 +1318,7 @@ static struct skcipher_alg otx_cpt_skciphers[] = { {
 }, {
 	.base.cra_name = "cbc(aes)",
 	.base.cra_driver_name = "cpt_cbc_aes",
-	.base.cra_flags = CRYPTO_ALG_ASYNC,
+	.base.cra_flags = CRYPTO_ALG_ASYNC | CRYPTO_ALG_ALLOCATES_MEMORY,
 	.base.cra_blocksize = AES_BLOCK_SIZE,
 	.base.cra_ctxsize = sizeof(struct otx_cpt_enc_ctx),
 	.base.cra_alignmask = 7,
@@ -1337,7 +1335,7 @@ static struct skcipher_alg otx_cpt_skciphers[] = { {
 }, {
 	.base.cra_name = "ecb(aes)",
 	.base.cra_driver_name = "cpt_ecb_aes",
-	.base.cra_flags = CRYPTO_ALG_ASYNC,
+	.base.cra_flags = CRYPTO_ALG_ASYNC | CRYPTO_ALG_ALLOCATES_MEMORY,
 	.base.cra_blocksize = AES_BLOCK_SIZE,
 	.base.cra_ctxsize = sizeof(struct otx_cpt_enc_ctx),
 	.base.cra_alignmask = 7,
@@ -1354,7 +1352,7 @@ static struct skcipher_alg otx_cpt_skciphers[] = { {
 }, {
 	.base.cra_name = "cfb(aes)",
 	.base.cra_driver_name = "cpt_cfb_aes",
-	.base.cra_flags = CRYPTO_ALG_ASYNC,
+	.base.cra_flags = CRYPTO_ALG_ASYNC | CRYPTO_ALG_ALLOCATES_MEMORY,
 	.base.cra_blocksize = AES_BLOCK_SIZE,
 	.base.cra_ctxsize = sizeof(struct otx_cpt_enc_ctx),
 	.base.cra_alignmask = 7,
@@ -1371,7 +1369,7 @@ static struct skcipher_alg otx_cpt_skciphers[] = { {
 }, {
 	.base.cra_name = "cbc(des3_ede)",
 	.base.cra_driver_name = "cpt_cbc_des3_ede",
-	.base.cra_flags = CRYPTO_ALG_ASYNC,
+	.base.cra_flags = CRYPTO_ALG_ASYNC | CRYPTO_ALG_ALLOCATES_MEMORY,
 	.base.cra_blocksize = DES3_EDE_BLOCK_SIZE,
 	.base.cra_ctxsize = sizeof(struct otx_cpt_des3_ctx),
 	.base.cra_alignmask = 7,
@@ -1388,7 +1386,7 @@ static struct skcipher_alg otx_cpt_skciphers[] = { {
 }, {
 	.base.cra_name = "ecb(des3_ede)",
 	.base.cra_driver_name = "cpt_ecb_des3_ede",
-	.base.cra_flags = CRYPTO_ALG_ASYNC,
+	.base.cra_flags = CRYPTO_ALG_ASYNC | CRYPTO_ALG_ALLOCATES_MEMORY,
 	.base.cra_blocksize = DES3_EDE_BLOCK_SIZE,
 	.base.cra_ctxsize = sizeof(struct otx_cpt_des3_ctx),
 	.base.cra_alignmask = 7,
@@ -1409,7 +1407,7 @@ static struct aead_alg otx_cpt_aeads[] = { {
 		.cra_name = "authenc(hmac(sha1),cbc(aes))",
 		.cra_driver_name = "cpt_hmac_sha1_cbc_aes",
 		.cra_blocksize = AES_BLOCK_SIZE,
-		.cra_flags = CRYPTO_ALG_ASYNC,
+		.cra_flags = CRYPTO_ALG_ASYNC | CRYPTO_ALG_ALLOCATES_MEMORY,
 		.cra_ctxsize = sizeof(struct otx_cpt_aead_ctx),
 		.cra_priority = 4001,
 		.cra_alignmask = 0,
@@ -1428,7 +1426,7 @@ static struct aead_alg otx_cpt_aeads[] = { {
 		.cra_name = "authenc(hmac(sha256),cbc(aes))",
 		.cra_driver_name = "cpt_hmac_sha256_cbc_aes",
 		.cra_blocksize = AES_BLOCK_SIZE,
-		.cra_flags = CRYPTO_ALG_ASYNC,
+		.cra_flags = CRYPTO_ALG_ASYNC | CRYPTO_ALG_ALLOCATES_MEMORY,
 		.cra_ctxsize = sizeof(struct otx_cpt_aead_ctx),
 		.cra_priority = 4001,
 		.cra_alignmask = 0,
@@ -1447,7 +1445,7 @@ static struct aead_alg otx_cpt_aeads[] = { {
 		.cra_name = "authenc(hmac(sha384),cbc(aes))",
 		.cra_driver_name = "cpt_hmac_sha384_cbc_aes",
 		.cra_blocksize = AES_BLOCK_SIZE,
-		.cra_flags = CRYPTO_ALG_ASYNC,
+		.cra_flags = CRYPTO_ALG_ASYNC | CRYPTO_ALG_ALLOCATES_MEMORY,
 		.cra_ctxsize = sizeof(struct otx_cpt_aead_ctx),
 		.cra_priority = 4001,
 		.cra_alignmask = 0,
@@ -1466,7 +1464,7 @@ static struct aead_alg otx_cpt_aeads[] = { {
 		.cra_name = "authenc(hmac(sha512),cbc(aes))",
 		.cra_driver_name = "cpt_hmac_sha512_cbc_aes",
 		.cra_blocksize = AES_BLOCK_SIZE,
-		.cra_flags = CRYPTO_ALG_ASYNC,
+		.cra_flags = CRYPTO_ALG_ASYNC | CRYPTO_ALG_ALLOCATES_MEMORY,
 		.cra_ctxsize = sizeof(struct otx_cpt_aead_ctx),
 		.cra_priority = 4001,
 		.cra_alignmask = 0,
@@ -1485,7 +1483,7 @@ static struct aead_alg otx_cpt_aeads[] = { {
 		.cra_name = "authenc(hmac(sha1),ecb(cipher_null))",
 		.cra_driver_name = "cpt_hmac_sha1_ecb_null",
 		.cra_blocksize = 1,
-		.cra_flags = CRYPTO_ALG_ASYNC,
+		.cra_flags = CRYPTO_ALG_ASYNC | CRYPTO_ALG_ALLOCATES_MEMORY,
 		.cra_ctxsize = sizeof(struct otx_cpt_aead_ctx),
 		.cra_priority = 4001,
 		.cra_alignmask = 0,
@@ -1504,7 +1502,7 @@ static struct aead_alg otx_cpt_aeads[] = { {
 		.cra_name = "authenc(hmac(sha256),ecb(cipher_null))",
 		.cra_driver_name = "cpt_hmac_sha256_ecb_null",
 		.cra_blocksize = 1,
-		.cra_flags = CRYPTO_ALG_ASYNC,
+		.cra_flags = CRYPTO_ALG_ASYNC | CRYPTO_ALG_ALLOCATES_MEMORY,
 		.cra_ctxsize = sizeof(struct otx_cpt_aead_ctx),
 		.cra_priority = 4001,
 		.cra_alignmask = 0,
@@ -1523,7 +1521,7 @@ static struct aead_alg otx_cpt_aeads[] = { {
 		.cra_name = "authenc(hmac(sha384),ecb(cipher_null))",
 		.cra_driver_name = "cpt_hmac_sha384_ecb_null",
 		.cra_blocksize = 1,
-		.cra_flags = CRYPTO_ALG_ASYNC,
+		.cra_flags = CRYPTO_ALG_ASYNC | CRYPTO_ALG_ALLOCATES_MEMORY,
 		.cra_ctxsize = sizeof(struct otx_cpt_aead_ctx),
 		.cra_priority = 4001,
 		.cra_alignmask = 0,
@@ -1542,7 +1540,7 @@ static struct aead_alg otx_cpt_aeads[] = { {
 		.cra_name = "authenc(hmac(sha512),ecb(cipher_null))",
 		.cra_driver_name = "cpt_hmac_sha512_ecb_null",
 		.cra_blocksize = 1,
-		.cra_flags = CRYPTO_ALG_ASYNC,
+		.cra_flags = CRYPTO_ALG_ASYNC | CRYPTO_ALG_ALLOCATES_MEMORY,
 		.cra_ctxsize = sizeof(struct otx_cpt_aead_ctx),
 		.cra_priority = 4001,
 		.cra_alignmask = 0,
@@ -1561,7 +1559,7 @@ static struct aead_alg otx_cpt_aeads[] = { {
 		.cra_name = "rfc4106(gcm(aes))",
 		.cra_driver_name = "cpt_rfc4106_gcm_aes",
 		.cra_blocksize = 1,
-		.cra_flags = CRYPTO_ALG_ASYNC,
+		.cra_flags = CRYPTO_ALG_ASYNC | CRYPTO_ALG_ALLOCATES_MEMORY,
 		.cra_ctxsize = sizeof(struct otx_cpt_aead_ctx),
 		.cra_priority = 4001,
 		.cra_alignmask = 0,
@@ -1660,7 +1658,7 @@ int otx_cpt_crypto_init(struct pci_dev *pdev, struct module *mod,
 	case OTX_CPT_SE_TYPES:
 		count = atomic_read(&se_devices.count);
 		if (count >= CPT_MAX_VF_NUM) {
-			dev_err(&pdev->dev, "No space to add a new device");
+			dev_err(&pdev->dev, "No space to add a new device\n");
 			ret = -ENOSPC;
 			goto err;
 		}
@@ -1687,7 +1685,7 @@ int otx_cpt_crypto_init(struct pci_dev *pdev, struct module *mod,
 	case OTX_CPT_AE_TYPES:
 		count = atomic_read(&ae_devices.count);
 		if (count >= CPT_MAX_VF_NUM) {
-			dev_err(&pdev->dev, "No space to a add new device");
+			dev_err(&pdev->dev, "No space to a add new device\n");
 			ret = -ENOSPC;
 			goto err;
 		}
@@ -1728,7 +1726,7 @@ void otx_cpt_crypto_exit(struct pci_dev *pdev, struct module *mod,
 		}
 
 	if (!dev_found) {
-		dev_err(&pdev->dev, "%s device not found", __func__);
+		dev_err(&pdev->dev, "%s device not found\n", __func__);
 		goto exit;
 	}
 

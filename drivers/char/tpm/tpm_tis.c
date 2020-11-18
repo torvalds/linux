@@ -235,6 +235,13 @@ static int tpm_tis_pnp_init(struct pnp_dev *pnp_dev,
 	return tpm_tis_init(&pnp_dev->dev, &tpm_info);
 }
 
+/*
+ * There is a known bug caused by 93e1b7d42e1e ("[PATCH] tpm: add HID module
+ * parameter"). This commit added IFX0102 device ID, which is also used by
+ * tpm_infineon but ignored to add quirks to probe which driver ought to be
+ * used.
+ */
+
 static struct pnp_device_id tpm_pnp_tbl[] = {
 	{"PNP0C31", 0},		/* TPM */
 	{"ATM1200", 0},		/* Atmel */

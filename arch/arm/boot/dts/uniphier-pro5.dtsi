@@ -160,6 +160,8 @@
 			compatible = "socionext,uniphier-scssi";
 			status = "disabled";
 			reg = <0x54006000 0x100>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			interrupts = <0 39 4>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_spi0>;
@@ -171,6 +173,8 @@
 			compatible = "socionext,uniphier-scssi";
 			status = "disabled";
 			reg = <0x54006100 0x100>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			interrupts = <0 216 4>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_spi1>;
@@ -408,6 +412,14 @@
 			};
 		};
 
+		xdmac: dma-controller@5fc10000 {
+			compatible = "socionext,uniphier-xdmac";
+			reg = <0x5fc10000 0x5300>;
+			interrupts = <0 188 4>;
+			dma-channels = <16>;
+			#dma-cells = <2>;
+		};
+
 		aidet: interrupt-controller@5fc20000 {
 			compatible = "socionext,uniphier-pro5-aidet";
 			reg = <0x5fc20000 0x200>;
@@ -599,6 +611,36 @@
 				resets = <&sys_rst 12>, <&sys_rst 15>;
 				vbus-supply = <&usb1_vbus0>;
 			};
+		};
+
+		pcie_ep: pcie-ep@66000000 {
+			compatible = "socionext,uniphier-pro5-pcie-ep",
+				     "snps,dw-pcie-ep";
+			status = "disabled";
+			reg-names = "dbi", "dbi2", "link", "addr_space";
+			reg = <0x66000000 0x1000>, <0x66001000 0x1000>,
+			      <0x66010000 0x10000>, <0x67000000 0x400000>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_pcie>;
+			clock-names = "gio", "link";
+			clocks = <&sys_clk 12>, <&sys_clk 24>;
+			reset-names = "gio", "link";
+			resets = <&sys_rst 12>, <&sys_rst 24>;
+			num-ib-windows = <16>;
+			num-ob-windows = <16>;
+			num-lanes = <4>;
+			phy-names = "pcie-phy";
+			phys = <&pcie_phy>;
+		};
+
+		pcie_phy: phy@66038000 {
+			compatible = "socionext,uniphier-pro5-pcie-phy";
+			reg = <0x66038000 0x4000>;
+			#phy-cells = <0>;
+			clock-names = "gio", "link";
+			clocks = <&sys_clk 12>, <&sys_clk 24>;
+			reset-names = "gio", "link";
+			resets = <&sys_rst 12>, <&sys_rst 24>;
 		};
 
 		nand: nand-controller@68000000 {

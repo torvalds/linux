@@ -29,9 +29,6 @@ static void dm_InitGPIOSetting(struct adapter *Adapter)
 	usb_write8(Adapter, REG_GPIO_MUXCFG, tmp1byte);
 }
 
-/*  */
-/*  functions */
-/*  */
 static void Init_ODM_ComInfo_88E(struct adapter *Adapter)
 {
 	struct hal_data_8188e *hal_data = Adapter->HalData;

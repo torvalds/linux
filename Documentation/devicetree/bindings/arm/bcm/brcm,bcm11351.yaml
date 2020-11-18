@@ -15,7 +15,7 @@ properties:
   compatible:
     items:
       - enum:
-        - brcm,bcm28155-ap
+          - brcm,bcm28155-ap
       - const: brcm,bcm11351
 
 ...

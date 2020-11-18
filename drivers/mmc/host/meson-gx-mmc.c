@@ -1004,6 +1004,8 @@ static int meson_mmc_card_busy(struct mmc_host *mmc)
 
 static int meson_mmc_voltage_switch(struct mmc_host *mmc, struct mmc_ios *ios)
 {
+	int ret;
+
 	/* vqmmc regulator is available */
 	if (!IS_ERR(mmc->supply.vqmmc)) {
 		/*
@@ -1013,7 +1015,8 @@ static int meson_mmc_voltage_switch(struct mmc_host *mmc, struct mmc_ios *ios)
 		 * to 1.8v. Please make sure the regulator framework is aware
 		 * of your own regulator constraints
 		 */
-		return mmc_regulator_set_vqmmc(mmc, ios);
+		ret = mmc_regulator_set_vqmmc(mmc, ios);
+		return ret < 0 ? ret : 0;
 	}
 
 	/* no vqmmc regulator, assume fixed regulator at 3/3.3V */
@@ -1143,9 +1146,11 @@ static int meson_mmc_probe(struct platform_device *pdev)
 
 	mmc->caps |= MMC_CAP_CMD23;
 	if (host->dram_access_quirk) {
+		/* Limit segments to 1 due to low available sram memory */
+		mmc->max_segs = 1;
 		/* Limit to the available sram memory */
-		mmc->max_segs = SD_EMMC_SRAM_DATA_BUF_LEN / mmc->max_blk_size;
-		mmc->max_blk_count = mmc->max_segs;
+		mmc->max_blk_count = SD_EMMC_SRAM_DATA_BUF_LEN /
+				     mmc->max_blk_size;
 	} else {
 		mmc->max_blk_count = CMD_CFG_LENGTH_MASK;
 		mmc->max_segs = SD_EMMC_DESC_BUF_LEN /

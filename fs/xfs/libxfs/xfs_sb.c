@@ -243,7 +243,7 @@ xfs_validate_sb_common(
 	} else if (sbp->sb_qflags & (XFS_PQUOTA_ENFD | XFS_GQUOTA_ENFD |
 				XFS_PQUOTA_CHKD | XFS_GQUOTA_CHKD)) {
 			xfs_notice(mp,
-"Superblock earlier than Version 5 has XFS_[PQ]UOTA_{ENFD|CHKD} bits.");
+"Superblock earlier than Version 5 has XFS_{P|G}QUOTA_{ENFD|CHKD} bits.");
 			return -EFSCORRUPTED;
 	}
 
@@ -600,7 +600,7 @@ xfs_sb_quota_to_disk(
 	 * disk. If neither are active, we should NULL the inode.
 	 *
 	 * In all cases, the separate pquotino must remain 0 because it
-	 * it beyond the "end" of the valid non-pquotino superblock.
+	 * is beyond the "end" of the valid non-pquotino superblock.
 	 */
 	if (from->sb_qflags & XFS_GQUOTA_ACCT)
 		to->sb_gquotino = cpu_to_be64(from->sb_gquotino);

@@ -136,28 +136,60 @@ mlxsw_sp_act_mirror_add(void *priv, u8 local_in_port,
 			const struct net_device *out_dev,
 			bool ingress, int *p_span_id)
 {
-	struct mlxsw_sp_port *in_port;
+	struct mlxsw_sp_span_agent_parms agent_parms = {};
+	struct mlxsw_sp_port *mlxsw_sp_port;
 	struct mlxsw_sp *mlxsw_sp = priv;
-	enum mlxsw_sp_span_type type;
+	int err;
 
-	type = ingress ? MLXSW_SP_SPAN_INGRESS : MLXSW_SP_SPAN_EGRESS;
-	in_port = mlxsw_sp->ports[local_in_port];
+	agent_parms.to_dev = out_dev;
+	err = mlxsw_sp_span_agent_get(mlxsw_sp, p_span_id, &agent_parms);
+	if (err)
+		return err;
 
-	return mlxsw_sp_span_mirror_add(in_port, out_dev, type,
-					false, p_span_id);
+	mlxsw_sp_port = mlxsw_sp->ports[local_in_port];
+	err = mlxsw_sp_span_analyzed_port_get(mlxsw_sp_port, ingress);
+	if (err)
+		goto err_analyzed_port_get;
+
+	return 0;
+
+err_analyzed_port_get:
+	mlxsw_sp_span_agent_put(mlxsw_sp, *p_span_id);
+	return err;
 }
 
 static void
 mlxsw_sp_act_mirror_del(void *priv, u8 local_in_port, int span_id, bool ingress)
 {
+	struct mlxsw_sp_port *mlxsw_sp_port;
 	struct mlxsw_sp *mlxsw_sp = priv;
-	struct mlxsw_sp_port *in_port;
-	enum mlxsw_sp_span_type type;
 
-	type = ingress ? MLXSW_SP_SPAN_INGRESS : MLXSW_SP_SPAN_EGRESS;
-	in_port = mlxsw_sp->ports[local_in_port];
+	mlxsw_sp_port = mlxsw_sp->ports[local_in_port];
+	mlxsw_sp_span_analyzed_port_put(mlxsw_sp_port, ingress);
+	mlxsw_sp_span_agent_put(mlxsw_sp, span_id);
+}
 
-	mlxsw_sp_span_mirror_del(in_port, span_id, type, false);
+static int mlxsw_sp_act_policer_add(void *priv, u64 rate_bytes_ps, u32 burst,
+				    u16 *p_policer_index,
+				    struct netlink_ext_ack *extack)
+{
+	struct mlxsw_sp_policer_params params;
+	struct mlxsw_sp *mlxsw_sp = priv;
+
+	params.rate = rate_bytes_ps;
+	params.burst = burst;
+	params.bytes = true;
+	return mlxsw_sp_policer_add(mlxsw_sp,
+				    MLXSW_SP_POLICER_TYPE_SINGLE_RATE,
+				    &params, extack, p_policer_index);
+}
+
+static void mlxsw_sp_act_policer_del(void *priv, u16 policer_index)
+{
+	struct mlxsw_sp *mlxsw_sp = priv;
+
+	mlxsw_sp_policer_del(mlxsw_sp, MLXSW_SP_POLICER_TYPE_SINGLE_RATE,
+			     policer_index);
 }
 
 const struct mlxsw_afa_ops mlxsw_sp1_act_afa_ops = {
@@ -170,6 +202,8 @@ const struct mlxsw_afa_ops mlxsw_sp1_act_afa_ops = {
 	.counter_index_put	= mlxsw_sp_act_counter_index_put,
 	.mirror_add		= mlxsw_sp_act_mirror_add,
 	.mirror_del		= mlxsw_sp_act_mirror_del,
+	.policer_add		= mlxsw_sp_act_policer_add,
+	.policer_del		= mlxsw_sp_act_policer_del,
 };
 
 const struct mlxsw_afa_ops mlxsw_sp2_act_afa_ops = {
@@ -182,6 +216,8 @@ const struct mlxsw_afa_ops mlxsw_sp2_act_afa_ops = {
 	.counter_index_put	= mlxsw_sp_act_counter_index_put,
 	.mirror_add		= mlxsw_sp_act_mirror_add,
 	.mirror_del		= mlxsw_sp_act_mirror_del,
+	.policer_add		= mlxsw_sp_act_policer_add,
+	.policer_del		= mlxsw_sp_act_policer_del,
 	.dummy_first_set	= true,
 };
 

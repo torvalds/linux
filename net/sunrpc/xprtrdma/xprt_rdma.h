@@ -82,6 +82,7 @@ struct rpcrdma_ep {
 	unsigned int		re_max_inline_recv;
 	int			re_async_rc;
 	int			re_connect_status;
+	atomic_t		re_force_disconnect;
 	struct ib_qp_init_attr	re_attr;
 	wait_queue_head_t       re_connect_wait;
 	struct rpc_xprt		*re_xprt;
@@ -446,7 +447,7 @@ extern unsigned int xprt_rdma_memreg_strategy;
 /*
  * Endpoint calls - xprtrdma/verbs.c
  */
-void rpcrdma_flush_disconnect(struct ib_cq *cq, struct ib_wc *wc);
+void rpcrdma_flush_disconnect(struct rpcrdma_xprt *r_xprt, struct ib_wc *wc);
 int rpcrdma_xprt_connect(struct rpcrdma_xprt *r_xprt);
 void rpcrdma_xprt_disconnect(struct rpcrdma_xprt *r_xprt);
 

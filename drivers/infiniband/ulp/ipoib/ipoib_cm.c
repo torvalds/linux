@@ -512,13 +512,13 @@ static int ipoib_cm_rx_handler(struct ib_cm_id *cm_id,
 		return ipoib_cm_req_handler(cm_id, event);
 	case IB_CM_DREQ_RECEIVED:
 		ib_send_cm_drep(cm_id, NULL, 0);
-		/* Fall through */
+		fallthrough;
 	case IB_CM_REJ_RECEIVED:
 		p = cm_id->context;
 		priv = ipoib_priv(p->dev);
 		if (ib_modify_qp(p->qp, &ipoib_cm_err_attr, IB_QP_STATE))
 			ipoib_warn(priv, "unable to move qp to error state\n");
-		/* Fall through */
+		fallthrough;
 	default:
 		return 0;
 	}

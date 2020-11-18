@@ -193,88 +193,48 @@ static int fetch_stats(struct atm_dev *dev, struct atm_dev_stats __user *arg,
 	return error ? -EFAULT : 0;
 }
 
-int atm_dev_ioctl(unsigned int cmd, void __user *arg, int compat)
+int atm_getnames(void __user *buf, int __user *iobuf_len)
 {
-	void __user *buf;
-	int error, len, number, size = 0;
+	int error, len, size = 0;
 	struct atm_dev *dev;
 	struct list_head *p;
 	int *tmp_buf, *tmp_p;
-	int __user *sioc_len;
-	int __user *iobuf_len;
 
-	switch (cmd) {
-	case ATM_GETNAMES:
-		if (IS_ENABLED(CONFIG_COMPAT) && compat) {
-#ifdef CONFIG_COMPAT
-			struct compat_atm_iobuf __user *ciobuf = arg;
-			compat_uptr_t cbuf;
-			iobuf_len = &ciobuf->length;
-			if (get_user(cbuf, &ciobuf->buffer))
-				return -EFAULT;
-			buf = compat_ptr(cbuf);
-#endif
-		} else {
-			struct atm_iobuf __user *iobuf = arg;
-			iobuf_len = &iobuf->length;
-			if (get_user(buf, &iobuf->buffer))
-				return -EFAULT;
-		}
-		if (get_user(len, iobuf_len))
-			return -EFAULT;
-		mutex_lock(&atm_dev_mutex);
-		list_for_each(p, &atm_devs)
-			size += sizeof(int);
-		if (size > len) {
-			mutex_unlock(&atm_dev_mutex);
-			return -E2BIG;
-		}
-		tmp_buf = kmalloc(size, GFP_ATOMIC);
-		if (!tmp_buf) {
-			mutex_unlock(&atm_dev_mutex);
-			return -ENOMEM;
-		}
-		tmp_p = tmp_buf;
-		list_for_each(p, &atm_devs) {
-			dev = list_entry(p, struct atm_dev, dev_list);
-			*tmp_p++ = dev->number;
-		}
+	if (get_user(len, iobuf_len))
+		return -EFAULT;
+	mutex_lock(&atm_dev_mutex);
+	list_for_each(p, &atm_devs)
+		size += sizeof(int);
+	if (size > len) {
 		mutex_unlock(&atm_dev_mutex);
-		error = ((copy_to_user(buf, tmp_buf, size)) ||
-			 put_user(size, iobuf_len))
-			? -EFAULT : 0;
-		kfree(tmp_buf);
-		return error;
-	default:
-		break;
+		return -E2BIG;
 	}
-
-	if (IS_ENABLED(CONFIG_COMPAT) && compat) {
-#ifdef CONFIG_COMPAT
-		struct compat_atmif_sioc __user *csioc = arg;
-		compat_uptr_t carg;
-
-		sioc_len = &csioc->length;
-		if (get_user(carg, &csioc->arg))
-			return -EFAULT;
-		buf = compat_ptr(carg);
-
-		if (get_user(len, &csioc->length))
-			return -EFAULT;
-		if (get_user(number, &csioc->number))
-			return -EFAULT;
-#endif
-	} else {
-		struct atmif_sioc __user *sioc = arg;
-
-		sioc_len = &sioc->length;
-		if (get_user(buf, &sioc->arg))
-			return -EFAULT;
-		if (get_user(len, &sioc->length))
-			return -EFAULT;
-		if (get_user(number, &sioc->number))
-			return -EFAULT;
+	tmp_buf = kmalloc(size, GFP_ATOMIC);
+	if (!tmp_buf) {
+		mutex_unlock(&atm_dev_mutex);
+		return -ENOMEM;
 	}
+	tmp_p = tmp_buf;
+	list_for_each(p, &atm_devs) {
+		dev = list_entry(p, struct atm_dev, dev_list);
+		*tmp_p++ = dev->number;
+	}
+	mutex_unlock(&atm_dev_mutex);
+	error = ((copy_to_user(buf, tmp_buf, size)) ||
+		 put_user(size, iobuf_len))
+		? -EFAULT : 0;
+	kfree(tmp_buf);
+	return error;
+}
+
+int atm_dev_ioctl(unsigned int cmd, void __user *buf, int __user *sioc_len,
+		  int number, int compat)
+{
+	int error, len, size = 0;
+	struct atm_dev *dev;
+
+	if (get_user(len, sioc_len))
+		return -EFAULT;
 
 	dev = try_then_request_module(atm_dev_lookup(number), "atm-device-%d",
 				      number);
@@ -306,7 +266,7 @@ int atm_dev_ioctl(unsigned int cmd, void __user *arg, int compat)
 				goto done;
 			}
 	}
-	/* fall through */
+		fallthrough;
 	case ATM_SETESIF:
 	{
 		unsigned char esi[ESI_LEN];
@@ -328,7 +288,7 @@ int atm_dev_ioctl(unsigned int cmd, void __user *arg, int compat)
 			error = -EPERM;
 			goto done;
 		}
-		/* fall through */
+		fallthrough;
 	case ATM_GETSTAT:
 		size = sizeof(struct atm_dev_stats);
 		error = fetch_stats(dev, buf, cmd == ATM_GETSTATZ);
@@ -401,7 +361,7 @@ int atm_dev_ioctl(unsigned int cmd, void __user *arg, int compat)
 			error = -EINVAL;
 			goto done;
 		}
-		/* fall through */
+		fallthrough;
 	case ATM_SETCIRANGE:
 	case SONET_GETSTATZ:
 	case SONET_SETDIAG:
@@ -411,7 +371,7 @@ int atm_dev_ioctl(unsigned int cmd, void __user *arg, int compat)
 			error = -EPERM;
 			goto done;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		if (IS_ENABLED(CONFIG_COMPAT) && compat) {
 #ifdef CONFIG_COMPAT

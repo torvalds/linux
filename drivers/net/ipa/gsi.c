@@ -238,11 +238,6 @@ static void gsi_irq_ieob_enable(struct gsi *gsi, u32 evt_ring_id)
 	iowrite32(val, gsi->virt + GSI_CNTXT_SRC_IEOB_IRQ_MSK_OFFSET);
 }
 
-static void gsi_isr_ieob_clear(struct gsi *gsi, u32 mask)
-{
-	iowrite32(mask, gsi->virt + GSI_CNTXT_SRC_IEOB_IRQ_CLR_OFFSET);
-}
-
 static void gsi_irq_ieob_disable(struct gsi *gsi, u32 evt_ring_id)
 {
 	u32 val;
@@ -341,6 +336,7 @@ static int evt_ring_command(struct gsi *gsi, u32 evt_ring_id,
 {
 	struct gsi_evt_ring *evt_ring = &gsi->evt_ring[evt_ring_id];
 	struct completion *completion = &evt_ring->completion;
+	struct device *dev = gsi->dev;
 	u32 val;
 
 	val = u32_encode_bits(evt_ring_id, EV_CHID_FMASK);
@@ -349,8 +345,8 @@ static int evt_ring_command(struct gsi *gsi, u32 evt_ring_id,
 	if (gsi_command(gsi, GSI_EV_CH_CMD_OFFSET, val, completion))
 		return 0;	/* Success! */
 
-	dev_err(gsi->dev, "GSI command %u to event ring %u timed out "
-		"(state is %u)\n", opcode, evt_ring_id, evt_ring->state);
+	dev_err(dev, "GSI command %u for event ring %u timed out, state %u\n",
+		opcode, evt_ring_id, evt_ring->state);
 
 	return -ETIMEDOUT;
 }
@@ -363,13 +359,15 @@ static int gsi_evt_ring_alloc_command(struct gsi *gsi, u32 evt_ring_id)
 
 	/* Get initial event ring state */
 	evt_ring->state = gsi_evt_ring_state(gsi, evt_ring_id);
-
-	if (evt_ring->state != GSI_EVT_RING_STATE_NOT_ALLOCATED)
+	if (evt_ring->state != GSI_EVT_RING_STATE_NOT_ALLOCATED) {
+		dev_err(gsi->dev, "bad event ring state %u before alloc\n",
+			evt_ring->state);
 		return -EINVAL;
+	}
 
 	ret = evt_ring_command(gsi, evt_ring_id, GSI_EVT_ALLOCATE);
 	if (!ret && evt_ring->state != GSI_EVT_RING_STATE_ALLOCATED) {
-		dev_err(gsi->dev, "bad event ring state (%u) after alloc\n",
+		dev_err(gsi->dev, "bad event ring state %u after alloc\n",
 			evt_ring->state);
 		ret = -EIO;
 	}
@@ -386,14 +384,14 @@ static void gsi_evt_ring_reset_command(struct gsi *gsi, u32 evt_ring_id)
 
 	if (state != GSI_EVT_RING_STATE_ALLOCATED &&
 	    state != GSI_EVT_RING_STATE_ERROR) {
-		dev_err(gsi->dev, "bad event ring state (%u) before reset\n",
+		dev_err(gsi->dev, "bad event ring state %u before reset\n",
 			evt_ring->state);
 		return;
 	}
 
 	ret = evt_ring_command(gsi, evt_ring_id, GSI_EVT_RESET);
 	if (!ret && evt_ring->state != GSI_EVT_RING_STATE_ALLOCATED)
-		dev_err(gsi->dev, "bad event ring state (%u) after reset\n",
+		dev_err(gsi->dev, "bad event ring state %u after reset\n",
 			evt_ring->state);
 }
 
@@ -404,24 +402,25 @@ static void gsi_evt_ring_de_alloc_command(struct gsi *gsi, u32 evt_ring_id)
 	int ret;
 
 	if (evt_ring->state != GSI_EVT_RING_STATE_ALLOCATED) {
-		dev_err(gsi->dev, "bad event ring state (%u) before dealloc\n",
+		dev_err(gsi->dev, "bad event ring state %u before dealloc\n",
 			evt_ring->state);
 		return;
 	}
 
 	ret = evt_ring_command(gsi, evt_ring_id, GSI_EVT_DE_ALLOC);
 	if (!ret && evt_ring->state != GSI_EVT_RING_STATE_NOT_ALLOCATED)
-		dev_err(gsi->dev, "bad event ring state (%u) after dealloc\n",
+		dev_err(gsi->dev, "bad event ring state %u after dealloc\n",
 			evt_ring->state);
 }
 
-/* Return the hardware's notion of the current state of a channel */
-static enum gsi_channel_state
-gsi_channel_state(struct gsi *gsi, u32 channel_id)
+/* Fetch the current state of a channel from hardware */
+static enum gsi_channel_state gsi_channel_state(struct gsi_channel *channel)
 {
+	u32 channel_id = gsi_channel_id(channel);
+	void *virt = channel->gsi->virt;
 	u32 val;
 
-	val = ioread32(gsi->virt + GSI_CH_C_CNTXT_0_OFFSET(channel_id));
+	val = ioread32(virt + GSI_CH_C_CNTXT_0_OFFSET(channel_id));
 
 	return u32_get_bits(val, CHSTATE_FMASK);
 }
@@ -432,16 +431,18 @@ gsi_channel_command(struct gsi_channel *channel, enum gsi_ch_cmd_opcode opcode)
 {
 	struct completion *completion = &channel->completion;
 	u32 channel_id = gsi_channel_id(channel);
+	struct gsi *gsi = channel->gsi;
+	struct device *dev = gsi->dev;
 	u32 val;
 
 	val = u32_encode_bits(channel_id, CH_CHID_FMASK);
 	val |= u32_encode_bits(opcode, CH_OPCODE_FMASK);
 
-	if (gsi_command(channel->gsi, GSI_CH_CMD_OFFSET, val, completion))
+	if (gsi_command(gsi, GSI_CH_CMD_OFFSET, val, completion))
 		return 0;	/* Success! */
 
-	dev_err(channel->gsi->dev, "GSI command %u to channel %u timed out "
-		"(state is %u)\n", opcode, channel_id, channel->state);
+	dev_err(dev, "GSI command %u for channel %u timed out, state %u\n",
+		opcode, channel_id, gsi_channel_state(channel));
 
 	return -ETIMEDOUT;
 }
@@ -450,18 +451,23 @@ gsi_channel_command(struct gsi_channel *channel, enum gsi_ch_cmd_opcode opcode)
 static int gsi_channel_alloc_command(struct gsi *gsi, u32 channel_id)
 {
 	struct gsi_channel *channel = &gsi->channel[channel_id];
+	struct device *dev = gsi->dev;
+	enum gsi_channel_state state;
 	int ret;
 
 	/* Get initial channel state */
-	channel->state = gsi_channel_state(gsi, channel_id);
-
-	if (channel->state != GSI_CHANNEL_STATE_NOT_ALLOCATED)
+	state = gsi_channel_state(channel);
+	if (state != GSI_CHANNEL_STATE_NOT_ALLOCATED) {
+		dev_err(dev, "bad channel state %u before alloc\n", state);
 		return -EINVAL;
+	}
 
 	ret = gsi_channel_command(channel, GSI_CH_ALLOCATE);
-	if (!ret && channel->state != GSI_CHANNEL_STATE_ALLOCATED) {
-		dev_err(gsi->dev, "bad channel state (%u) after alloc\n",
-			channel->state);
+
+	/* Channel state will normally have been updated */
+	state = gsi_channel_state(channel);
+	if (!ret && state != GSI_CHANNEL_STATE_ALLOCATED) {
+		dev_err(dev, "bad channel state %u after alloc\n", state);
 		ret = -EIO;
 	}
 
@@ -471,18 +477,23 @@ static int gsi_channel_alloc_command(struct gsi *gsi, u32 channel_id)
 /* Start an ALLOCATED channel */
 static int gsi_channel_start_command(struct gsi_channel *channel)
 {
-	enum gsi_channel_state state = channel->state;
+	struct device *dev = channel->gsi->dev;
+	enum gsi_channel_state state;
 	int ret;
 
+	state = gsi_channel_state(channel);
 	if (state != GSI_CHANNEL_STATE_ALLOCATED &&
-	    state != GSI_CHANNEL_STATE_STOPPED)
+	    state != GSI_CHANNEL_STATE_STOPPED) {
+		dev_err(dev, "bad channel state %u before start\n", state);
 		return -EINVAL;
+	}
 
 	ret = gsi_channel_command(channel, GSI_CH_START);
-	if (!ret && channel->state != GSI_CHANNEL_STATE_STARTED) {
-		dev_err(channel->gsi->dev,
-			"bad channel state (%u) after start\n",
-			channel->state);
+
+	/* Channel state will normally have been updated */
+	state = gsi_channel_state(channel);
+	if (!ret && state != GSI_CHANNEL_STATE_STARTED) {
+		dev_err(dev, "bad channel state %u after start\n", state);
 		ret = -EIO;
 	}
 
@@ -492,23 +503,36 @@ static int gsi_channel_start_command(struct gsi_channel *channel)
 /* Stop a GSI channel in STARTED state */
 static int gsi_channel_stop_command(struct gsi_channel *channel)
 {
-	enum gsi_channel_state state = channel->state;
+	struct device *dev = channel->gsi->dev;
+	enum gsi_channel_state state;
 	int ret;
 
+	state = gsi_channel_state(channel);
+
+	/* Channel could have entered STOPPED state since last call
+	 * if it timed out.  If so, we're done.
+	 */
+	if (state == GSI_CHANNEL_STATE_STOPPED)
+		return 0;
+
 	if (state != GSI_CHANNEL_STATE_STARTED &&
-	    state != GSI_CHANNEL_STATE_STOP_IN_PROC)
+	    state != GSI_CHANNEL_STATE_STOP_IN_PROC) {
+		dev_err(dev, "bad channel state %u before stop\n", state);
 		return -EINVAL;
+	}
 
 	ret = gsi_channel_command(channel, GSI_CH_STOP);
-	if (ret || channel->state == GSI_CHANNEL_STATE_STOPPED)
+
+	/* Channel state will normally have been updated */
+	state = gsi_channel_state(channel);
+	if (ret || state == GSI_CHANNEL_STATE_STOPPED)
 		return ret;
 
 	/* We may have to try again if stop is in progress */
-	if (channel->state == GSI_CHANNEL_STATE_STOP_IN_PROC)
+	if (state == GSI_CHANNEL_STATE_STOP_IN_PROC)
 		return -EAGAIN;
 
-	dev_err(channel->gsi->dev, "bad channel state (%u) after stop\n",
-		channel->state);
+	dev_err(dev, "bad channel state %u after stop\n", state);
 
 	return -EIO;
 }
@@ -516,41 +540,47 @@ static int gsi_channel_stop_command(struct gsi_channel *channel)
 /* Reset a GSI channel in ALLOCATED or ERROR state. */
 static void gsi_channel_reset_command(struct gsi_channel *channel)
 {
+	struct device *dev = channel->gsi->dev;
+	enum gsi_channel_state state;
 	int ret;
 
 	msleep(1);	/* A short delay is required before a RESET command */
 
-	if (channel->state != GSI_CHANNEL_STATE_STOPPED &&
-	    channel->state != GSI_CHANNEL_STATE_ERROR) {
-		dev_err(channel->gsi->dev,
-			"bad channel state (%u) before reset\n",
-			channel->state);
+	state = gsi_channel_state(channel);
+	if (state != GSI_CHANNEL_STATE_STOPPED &&
+	    state != GSI_CHANNEL_STATE_ERROR) {
+		dev_err(dev, "bad channel state %u before reset\n", state);
 		return;
 	}
 
 	ret = gsi_channel_command(channel, GSI_CH_RESET);
-	if (!ret && channel->state != GSI_CHANNEL_STATE_ALLOCATED)
-		dev_err(channel->gsi->dev,
-			"bad channel state (%u) after reset\n",
-			channel->state);
+
+	/* Channel state will normally have been updated */
+	state = gsi_channel_state(channel);
+	if (!ret && state != GSI_CHANNEL_STATE_ALLOCATED)
+		dev_err(dev, "bad channel state %u after reset\n", state);
 }
 
 /* Deallocate an ALLOCATED GSI channel */
 static void gsi_channel_de_alloc_command(struct gsi *gsi, u32 channel_id)
 {
 	struct gsi_channel *channel = &gsi->channel[channel_id];
+	struct device *dev = gsi->dev;
+	enum gsi_channel_state state;
 	int ret;
 
-	if (channel->state != GSI_CHANNEL_STATE_ALLOCATED) {
-		dev_err(gsi->dev, "bad channel state (%u) before dealloc\n",
-			channel->state);
+	state = gsi_channel_state(channel);
+	if (state != GSI_CHANNEL_STATE_ALLOCATED) {
+		dev_err(dev, "bad channel state %u before dealloc\n", state);
 		return;
 	}
 
 	ret = gsi_channel_command(channel, GSI_CH_DE_ALLOC);
-	if (!ret && channel->state != GSI_CHANNEL_STATE_NOT_ALLOCATED)
-		dev_err(gsi->dev, "bad channel state (%u) after dealloc\n",
-			channel->state);
+
+	/* Channel state will normally have been updated */
+	state = gsi_channel_state(channel);
+	if (!ret && state != GSI_CHANNEL_STATE_NOT_ALLOCATED)
+		dev_err(dev, "bad channel state %u after dealloc\n", state);
 }
 
 /* Ring an event ring doorbell, reporting the last entry processed by the AP.
@@ -756,7 +786,6 @@ static void gsi_channel_deprogram(struct gsi_channel *channel)
 int gsi_channel_start(struct gsi *gsi, u32 channel_id)
 {
 	struct gsi_channel *channel = &gsi->channel[channel_id];
-	u32 evt_ring_id = channel->evt_ring_id;
 	int ret;
 
 	mutex_lock(&gsi->mutex);
@@ -764,9 +793,6 @@ int gsi_channel_start(struct gsi *gsi, u32 channel_id)
 	ret = gsi_channel_start_command(channel);
 
 	mutex_unlock(&gsi->mutex);
-
-	/* Clear the channel's event ring interrupt in case it's pending */
-	gsi_isr_ieob_clear(gsi, BIT(evt_ring_id));
 
 	gsi_channel_thaw(channel);
 
@@ -781,13 +807,6 @@ int gsi_channel_stop(struct gsi *gsi, u32 channel_id)
 	int ret;
 
 	gsi_channel_freeze(channel);
-
-	/* Channel could have entered STOPPED state since last call if the
-	 * STOP command timed out.  We won't stop a channel if stopping it
-	 * was successful previously (so we still want the freeze above).
-	 */
-	if (channel->state == GSI_CHANNEL_STATE_STOPPED)
-		return 0;
 
 	/* RX channels might require a little time to enter STOPPED state */
 	retries = channel->toward_ipa ? 0 : GSI_CHANNEL_STOP_RX_RETRIES;
@@ -811,18 +830,18 @@ int gsi_channel_stop(struct gsi *gsi, u32 channel_id)
 }
 
 /* Reset and reconfigure a channel (possibly leaving doorbell disabled) */
-void gsi_channel_reset(struct gsi *gsi, u32 channel_id, bool db_enable)
+void gsi_channel_reset(struct gsi *gsi, u32 channel_id, bool legacy)
 {
 	struct gsi_channel *channel = &gsi->channel[channel_id];
 
 	mutex_lock(&gsi->mutex);
 
-	/* Due to a hardware quirk we need to reset RX channels twice. */
 	gsi_channel_reset_command(channel);
-	if (!channel->toward_ipa)
+	/* Due to a hardware quirk we may need to reset RX channels twice. */
+	if (legacy && !channel->toward_ipa)
 		gsi_channel_reset_command(channel);
 
-	gsi_channel_program(channel, db_enable);
+	gsi_channel_program(channel, legacy);
 	gsi_channel_trans_cancel_pending(channel);
 
 	mutex_unlock(&gsi->mutex);
@@ -940,7 +959,6 @@ static void gsi_isr_chan_ctrl(struct gsi *gsi)
 		channel_mask ^= BIT(channel_id);
 
 		channel = &gsi->channel[channel_id];
-		channel->state = gsi_channel_state(gsi, channel_id);
 
 		complete(&channel->completion);
 	}
@@ -1071,7 +1089,7 @@ static void gsi_isr_ieob(struct gsi *gsi)
 	u32 event_mask;
 
 	event_mask = ioread32(gsi->virt + GSI_CNTXT_SRC_IEOB_IRQ_OFFSET);
-	gsi_isr_ieob_clear(gsi, event_mask);
+	iowrite32(event_mask, gsi->virt + GSI_CNTXT_SRC_IEOB_IRQ_CLR_OFFSET);
 
 	while (event_mask) {
 		u32 evt_ring_id = __ffs(event_mask);
@@ -1135,8 +1153,8 @@ static irqreturn_t gsi_isr(int irq, void *dev_id)
 				break;
 			default:
 				dev_err(gsi->dev,
-					"%s: unrecognized type 0x%08x\n",
-					__func__, gsi_intr);
+					"unrecognized interrupt type 0x%08x\n",
+					gsi_intr);
 				break;
 			}
 		} while (intr_mask);
@@ -1240,7 +1258,7 @@ static int gsi_ring_alloc(struct gsi *gsi, struct gsi_ring *ring, u32 count)
 	if (ring->virt && addr % size) {
 		dma_free_coherent(dev, size, ring->virt, ring->addr);
 		dev_err(dev, "unable to alloc 0x%zx-aligned ring buffer\n",
-				size);
+			size);
 		return -EINVAL;	/* Not a good error value, but distinct */
 	} else if (!ring->virt) {
 		return -ENOMEM;
@@ -1345,7 +1363,7 @@ static void gsi_channel_update(struct gsi_channel *channel)
  * gsi_channel_poll_one() - Return a single completed transaction on a channel
  * @channel:	Channel to be polled
  *
- * @Return:	 Transaction pointer, or null if none are available
+ * Return:	Transaction pointer, or null if none are available
  *
  * This function returns the first entry on a channel's completed transaction
  * list.  If that list is empty, the hardware is consulted to determine
@@ -1375,8 +1393,8 @@ static struct gsi_trans *gsi_channel_poll_one(struct gsi_channel *channel)
  * gsi_channel_poll() - NAPI poll function for a channel
  * @napi:	NAPI structure for the channel
  * @budget:	Budget supplied by NAPI core
-
- * @Return:	 Number of items polled (<= budget)
+ *
+ * Return:	Number of items polled (<= budget)
  *
  * Single transactions completed by hardware are polled until either
  * the budget is exhausted, or there are no more.  Each transaction
@@ -1435,7 +1453,7 @@ static void gsi_evt_ring_teardown(struct gsi *gsi)
 
 /* Setup function for a single channel */
 static int gsi_channel_setup_one(struct gsi *gsi, u32 channel_id,
-				 bool db_enable)
+				 bool legacy)
 {
 	struct gsi_channel *channel = &gsi->channel[channel_id];
 	u32 evt_ring_id = channel->evt_ring_id;
@@ -1454,7 +1472,7 @@ static int gsi_channel_setup_one(struct gsi *gsi, u32 channel_id,
 	if (ret)
 		goto err_evt_ring_de_alloc;
 
-	gsi_channel_program(channel, db_enable);
+	gsi_channel_program(channel, legacy);
 
 	if (channel->toward_ipa)
 		netif_tx_napi_add(&gsi->dummy_dev, &channel->napi,
@@ -1531,7 +1549,7 @@ static void gsi_modem_channel_halt(struct gsi *gsi, u32 channel_id)
 }
 
 /* Setup function for channels */
-static int gsi_channel_setup(struct gsi *gsi, bool db_enable)
+static int gsi_channel_setup(struct gsi *gsi, bool legacy)
 {
 	u32 channel_id = 0;
 	u32 mask;
@@ -1543,7 +1561,7 @@ static int gsi_channel_setup(struct gsi *gsi, bool db_enable)
 	mutex_lock(&gsi->mutex);
 
 	do {
-		ret = gsi_channel_setup_one(gsi, channel_id, db_enable);
+		ret = gsi_channel_setup_one(gsi, channel_id, legacy);
 		if (ret)
 			goto err_unwind;
 	} while (++channel_id < gsi->channel_count);
@@ -1629,14 +1647,15 @@ static void gsi_channel_teardown(struct gsi *gsi)
 }
 
 /* Setup function for GSI.  GSI firmware must be loaded and initialized */
-int gsi_setup(struct gsi *gsi, bool db_enable)
+int gsi_setup(struct gsi *gsi, bool legacy)
 {
+	struct device *dev = gsi->dev;
 	u32 val;
 
 	/* Here is where we first touch the GSI hardware */
 	val = ioread32(gsi->virt + GSI_GSI_STATUS_OFFSET);
 	if (!(val & ENABLED_FMASK)) {
-		dev_err(gsi->dev, "GSI has not been enabled\n");
+		dev_err(dev, "GSI has not been enabled\n");
 		return -EIO;
 	}
 
@@ -1644,24 +1663,24 @@ int gsi_setup(struct gsi *gsi, bool db_enable)
 
 	gsi->channel_count = u32_get_bits(val, NUM_CH_PER_EE_FMASK);
 	if (!gsi->channel_count) {
-		dev_err(gsi->dev, "GSI reports zero channels supported\n");
+		dev_err(dev, "GSI reports zero channels supported\n");
 		return -EINVAL;
 	}
 	if (gsi->channel_count > GSI_CHANNEL_COUNT_MAX) {
-		dev_warn(gsi->dev,
-			"limiting to %u channels (hardware supports %u)\n",
+		dev_warn(dev,
+			 "limiting to %u channels; hardware supports %u\n",
 			 GSI_CHANNEL_COUNT_MAX, gsi->channel_count);
 		gsi->channel_count = GSI_CHANNEL_COUNT_MAX;
 	}
 
 	gsi->evt_ring_count = u32_get_bits(val, NUM_EV_PER_EE_FMASK);
 	if (!gsi->evt_ring_count) {
-		dev_err(gsi->dev, "GSI reports zero event rings supported\n");
+		dev_err(dev, "GSI reports zero event rings supported\n");
 		return -EINVAL;
 	}
 	if (gsi->evt_ring_count > GSI_EVT_RING_COUNT_MAX) {
-		dev_warn(gsi->dev,
-			"limiting to %u event rings (hardware supports %u)\n",
+		dev_warn(dev,
+			 "limiting to %u event rings; hardware supports %u\n",
 			 GSI_EVT_RING_COUNT_MAX, gsi->evt_ring_count);
 		gsi->evt_ring_count = GSI_EVT_RING_COUNT_MAX;
 	}
@@ -1672,7 +1691,7 @@ int gsi_setup(struct gsi *gsi, bool db_enable)
 	/* Writing 1 indicates IRQ interrupts; 0 would be MSI */
 	iowrite32(1, gsi->virt + GSI_CNTXT_INTSET_OFFSET);
 
-	return gsi_channel_setup(gsi, db_enable);
+	return gsi_channel_setup(gsi, legacy);
 }
 
 /* Inverse of gsi_setup() */
@@ -1747,19 +1766,19 @@ static bool gsi_channel_data_valid(struct gsi *gsi,
 
 	/* Make sure channel ids are in the range driver supports */
 	if (channel_id >= GSI_CHANNEL_COUNT_MAX) {
-		dev_err(dev, "bad channel id %u (must be less than %u)\n",
+		dev_err(dev, "bad channel id %u; must be less than %u\n",
 			channel_id, GSI_CHANNEL_COUNT_MAX);
 		return false;
 	}
 
 	if (data->ee_id != GSI_EE_AP && data->ee_id != GSI_EE_MODEM) {
-		dev_err(dev, "bad EE id %u (AP or modem)\n", data->ee_id);
+		dev_err(dev, "bad EE id %u; not AP or modem\n", data->ee_id);
 		return false;
 	}
 
 	if (!data->channel.tlv_count ||
 	    data->channel.tlv_count > GSI_TLV_MAX) {
-		dev_err(dev, "channel %u bad tlv_count %u (must be 1..%u)\n",
+		dev_err(dev, "channel %u bad tlv_count %u; must be 1..%u\n",
 			channel_id, data->channel.tlv_count, GSI_TLV_MAX);
 		return false;
 	}
@@ -1777,13 +1796,13 @@ static bool gsi_channel_data_valid(struct gsi *gsi,
 	}
 
 	if (!is_power_of_2(data->channel.tre_count)) {
-		dev_err(dev, "channel %u bad tre_count %u (not power of 2)\n",
+		dev_err(dev, "channel %u bad tre_count %u; not power of 2\n",
 			channel_id, data->channel.tre_count);
 		return false;
 	}
 
 	if (!is_power_of_2(data->channel.event_count)) {
-		dev_err(dev, "channel %u bad event_count %u (not power of 2)\n",
+		dev_err(dev, "channel %u bad event_count %u; not power of 2\n",
 			channel_id, data->channel.event_count);
 		return false;
 	}
@@ -1937,6 +1956,7 @@ int gsi_init(struct gsi *gsi, struct platform_device *pdev, bool prefetch,
 	     u32 count, const struct ipa_gsi_endpoint_data *data,
 	     bool modem_alloc)
 {
+	struct device *dev = &pdev->dev;
 	struct resource *res;
 	resource_size_t size;
 	unsigned int irq;
@@ -1944,7 +1964,7 @@ int gsi_init(struct gsi *gsi, struct platform_device *pdev, bool prefetch,
 
 	gsi_validate_build();
 
-	gsi->dev = &pdev->dev;
+	gsi->dev = dev;
 
 	/* The GSI layer performs NAPI on all endpoints.  NAPI requires a
 	 * network device structure, but the GSI layer does not have one,
@@ -1955,43 +1975,41 @@ int gsi_init(struct gsi *gsi, struct platform_device *pdev, bool prefetch,
 	/* Get the GSI IRQ and request for it to wake the system */
 	ret = platform_get_irq_byname(pdev, "gsi");
 	if (ret <= 0) {
-		dev_err(gsi->dev,
-			"DT error %d getting \"gsi\" IRQ property\n", ret);
+		dev_err(dev, "DT error %d getting \"gsi\" IRQ property\n", ret);
 		return ret ? : -EINVAL;
 	}
 	irq = ret;
 
 	ret = request_irq(irq, gsi_isr, 0, "gsi", gsi);
 	if (ret) {
-		dev_err(gsi->dev, "error %d requesting \"gsi\" IRQ\n", ret);
+		dev_err(dev, "error %d requesting \"gsi\" IRQ\n", ret);
 		return ret;
 	}
 	gsi->irq = irq;
 
 	ret = enable_irq_wake(gsi->irq);
 	if (ret)
-		dev_warn(gsi->dev, "error %d enabling gsi wake irq\n", ret);
+		dev_warn(dev, "error %d enabling gsi wake irq\n", ret);
 	gsi->irq_wake_enabled = !ret;
 
 	/* Get GSI memory range and map it */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "gsi");
 	if (!res) {
-		dev_err(gsi->dev,
-			"DT error getting \"gsi\" memory property\n");
+		dev_err(dev, "DT error getting \"gsi\" memory property\n");
 		ret = -ENODEV;
 		goto err_disable_irq_wake;
 	}
 
 	size = resource_size(res);
 	if (res->start > U32_MAX || size > U32_MAX - res->start) {
-		dev_err(gsi->dev, "DT memory resource \"gsi\" out of range\n");
+		dev_err(dev, "DT memory resource \"gsi\" out of range\n");
 		ret = -EINVAL;
 		goto err_disable_irq_wake;
 	}
 
 	gsi->virt = ioremap(res->start, size);
 	if (!gsi->virt) {
-		dev_err(gsi->dev, "unable to remap \"gsi\" memory\n");
+		dev_err(dev, "unable to remap \"gsi\" memory\n");
 		ret = -ENOMEM;
 		goto err_disable_irq_wake;
 	}

@@ -32,6 +32,47 @@ void opp_debug_remove_one(struct dev_pm_opp *opp)
 	debugfs_remove_recursive(opp->dentry);
 }
 
+static ssize_t bw_name_read(struct file *fp, char __user *userbuf,
+			    size_t count, loff_t *ppos)
+{
+	struct icc_path *path = fp->private_data;
+	char buf[64];
+	int i;
+
+	i = scnprintf(buf, sizeof(buf), "%.62s\n", icc_get_name(path));
+
+	return simple_read_from_buffer(userbuf, count, ppos, buf, i);
+}
+
+static const struct file_operations bw_name_fops = {
+	.open = simple_open,
+	.read = bw_name_read,
+	.llseek = default_llseek,
+};
+
+static void opp_debug_create_bw(struct dev_pm_opp *opp,
+				struct opp_table *opp_table,
+				struct dentry *pdentry)
+{
+	struct dentry *d;
+	char name[11];
+	int i;
+
+	for (i = 0; i < opp_table->path_count; i++) {
+		snprintf(name, sizeof(name), "icc-path-%.1d", i);
+
+		/* Create per-path directory */
+		d = debugfs_create_dir(name, pdentry);
+
+		debugfs_create_file("name", S_IRUGO, d, opp_table->paths[i],
+				    &bw_name_fops);
+		debugfs_create_u32("peak_bw", S_IRUGO, d,
+				   &opp->bandwidth[i].peak);
+		debugfs_create_u32("avg_bw", S_IRUGO, d,
+				   &opp->bandwidth[i].avg);
+	}
+}
+
 static void opp_debug_create_supplies(struct dev_pm_opp *opp,
 				      struct opp_table *opp_table,
 				      struct dentry *pdentry)
@@ -94,6 +135,7 @@ void opp_debug_create_one(struct dev_pm_opp *opp, struct opp_table *opp_table)
 			     &opp->clock_latency_ns);
 
 	opp_debug_create_supplies(opp, opp_table, d);
+	opp_debug_create_bw(opp, opp_table, d);
 
 	opp->dentry = d;
 }

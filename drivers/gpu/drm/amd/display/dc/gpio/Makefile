@@ -87,6 +87,16 @@ AMD_DAL_GPIO_DCN21 = $(addprefix $(AMDDALPATH)/dc/gpio/dcn21/,$(GPIO_DCN21))
 AMD_DISPLAY_FILES += $(AMD_DAL_GPIO_DCN21)
 endif
 ###############################################################################
+# DCN 3
+###############################################################################
+ifdef CONFIG_DRM_AMD_DC_DCN3_0
+GPIO_DCN30 = hw_translate_dcn30.o hw_factory_dcn30.o
+
+AMD_DAL_GPIO_DCN30 = $(addprefix $(AMDDALPATH)/dc/gpio/dcn30/,$(GPIO_DCN30))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_GPIO_DCN30)
+endif
+###############################################################################
 # Diagnostics on FPGA
 ###############################################################################
 GPIO_DIAG_FPGA = hw_translate_diag.o hw_factory_diag.o

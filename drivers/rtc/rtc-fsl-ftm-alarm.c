@@ -21,6 +21,7 @@
 #include <linux/rtc.h>
 #include <linux/time.h>
 #include <linux/acpi.h>
+#include <linux/pm_wakeirq.h>
 
 #define FTM_SC_CLK(c)		((c) << FTM_SC_CLK_MASK_SHIFT)
 
@@ -268,13 +269,11 @@ static int ftm_rtc_probe(struct platform_device *pdev)
 	}
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "can't get irq number\n");
+	if (irq < 0)
 		return irq;
-	}
 
 	ret = devm_request_irq(&pdev->dev, irq, ftm_rtc_alarm_interrupt,
-			       IRQF_NO_SUSPEND, dev_name(&pdev->dev), rtc);
+			       0, dev_name(&pdev->dev), rtc);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to request irq\n");
 		return ret;
@@ -287,6 +286,9 @@ static int ftm_rtc_probe(struct platform_device *pdev)
 	rtc->rtc_dev->ops = &ftm_rtc_ops;
 
 	device_init_wakeup(&pdev->dev, true);
+	ret = dev_pm_set_wake_irq(&pdev->dev, irq);
+	if (ret)
+		dev_err(&pdev->dev, "failed to enable irq wake\n");
 
 	ret = rtc_register_device(rtc->rtc_dev);
 	if (ret) {

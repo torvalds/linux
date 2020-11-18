@@ -455,5 +455,6 @@ _GLOBAL(__inval_enable_L1)
 	sync
 
  	blr
+_ASM_NOKPROBE_SYMBOL(__inval_enable_L1)
 
 

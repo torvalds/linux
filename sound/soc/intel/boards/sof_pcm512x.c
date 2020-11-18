@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // Copyright(c) 2018-2020 Intel Corporation.
 
 /*
@@ -96,7 +96,7 @@ static int sof_pcm512x_codec_init(struct snd_soc_pcm_runtime *rtd)
 
 static int aif1_startup(struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_component *codec = asoc_rtd_to_codec(rtd, 0)->component;
 
 	snd_soc_component_update_bits(codec, PCM512x_GPIO_CONTROL_1,
@@ -107,7 +107,7 @@ static int aif1_startup(struct snd_pcm_substream *substream)
 
 static void aif1_shutdown(struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_component *codec = asoc_rtd_to_codec(rtd, 0)->component;
 
 	snd_soc_component_update_bits(codec, PCM512x_GPIO_CONTROL_1,
@@ -126,7 +126,6 @@ static struct snd_soc_dai_link_component platform_component[] = {
 	}
 };
 
-#if IS_ENABLED(CONFIG_SND_HDA_CODEC_HDMI)
 static int sof_card_late_probe(struct snd_soc_card *card)
 {
 	struct sof_card_private *ctx = snd_soc_card_get_drvdata(card);
@@ -146,12 +145,6 @@ static int sof_card_late_probe(struct snd_soc_card *card)
 
 	return hda_dsp_hdmi_build_controls(card, pcm->codec_dai->component);
 }
-#else
-static int sof_card_late_probe(struct snd_soc_card *card)
-{
-	return 0;
-}
-#endif
 
 static const struct snd_kcontrol_new sof_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Ext Spk"),
@@ -374,14 +367,12 @@ static int sof_audio_probe(struct platform_device *pdev)
 		sof_pcm512x_quirk = SOF_PCM512X_SSP_CODEC(2);
 	} else {
 		dmic_be_num = 2;
-#if IS_ENABLED(CONFIG_SND_HDA_CODEC_HDMI)
 		if (mach->mach_params.common_hdmi_codec_drv &&
 		    (mach->mach_params.codec_mask & IDISP_CODEC_MASK))
 			ctx->idisp_codec = true;
 
 		/* links are always present in topology */
 		hdmi_num = 3;
-#endif
 	}
 
 	dmi_check_system(sof_pcm512x_quirk_table);

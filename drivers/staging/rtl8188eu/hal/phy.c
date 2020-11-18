@@ -345,8 +345,8 @@ static void dm_txpwr_track_setpwr(struct odm_dm_struct *dm_odm)
 {
 	if (dm_odm->BbSwingFlagOfdm || dm_odm->BbSwingFlagCck) {
 		ODM_RT_TRACE(dm_odm, ODM_COMP_TX_PWR_TRACK, ODM_DBG_LOUD,
-			     ("dm_txpwr_track_setpwr CH=%d\n", *(dm_odm->pChannel)));
-		phy_set_tx_power_level(dm_odm->Adapter, *(dm_odm->pChannel));
+			     ("dm_txpwr_track_setpwr CH=%d\n", *dm_odm->pChannel));
+		phy_set_tx_power_level(dm_odm->Adapter, *dm_odm->pChannel);
 		dm_odm->BbSwingFlagOfdm = false;
 		dm_odm->BbSwingFlagCck = false;
 	}
@@ -786,7 +786,7 @@ static void pathb_fill_iqk(struct adapter *adapt, bool iqkok, s32 result[][8],
 	}
 }
 
-static void save_adda_registers(struct adapter *adapt, u32 *addareg,
+static void save_adda_registers(struct adapter *adapt, const u32 *addareg,
 				u32 *backup, u32 register_num)
 {
 	u32 i;
@@ -795,7 +795,7 @@ static void save_adda_registers(struct adapter *adapt, u32 *addareg,
 		backup[i] = phy_query_bb_reg(adapt, addareg[i], bMaskDWord);
 }
 
-static void save_mac_registers(struct adapter *adapt, u32 *mac_reg,
+static void save_mac_registers(struct adapter *adapt, const u32 *mac_reg,
 			       u32 *backup)
 {
 	u32 i;
@@ -806,7 +806,7 @@ static void save_mac_registers(struct adapter *adapt, u32 *mac_reg,
 	backup[i] = usb_read32(adapt, mac_reg[i]);
 }
 
-static void reload_adda_reg(struct adapter *adapt, u32 *adda_reg,
+static void reload_adda_reg(struct adapter *adapt, const u32 *adda_reg,
 			    u32 *backup, u32 regiester_num)
 {
 	u32 i;
@@ -815,8 +815,8 @@ static void reload_adda_reg(struct adapter *adapt, u32 *adda_reg,
 		phy_set_bb_reg(adapt, adda_reg[i], bMaskDWord, backup[i]);
 }
 
-static void reload_mac_registers(struct adapter *adapt,
-				 u32 *mac_reg, u32 *backup)
+static void reload_mac_registers(struct adapter *adapt, const u32 *mac_reg,
+				 u32 *backup)
 {
 	u32 i;
 
@@ -826,7 +826,7 @@ static void reload_mac_registers(struct adapter *adapt,
 	usb_write32(adapt, mac_reg[i], backup[i]);
 }
 
-static void path_adda_on(struct adapter *adapt, u32 *adda_reg,
+static void path_adda_on(struct adapter *adapt, const u32 *adda_reg,
 			 bool is_path_a_on, bool is2t)
 {
 	u32 path_on;
@@ -844,7 +844,8 @@ static void path_adda_on(struct adapter *adapt, u32 *adda_reg,
 		phy_set_bb_reg(adapt, adda_reg[i], bMaskDWord, path_on);
 }
 
-static void mac_setting_calibration(struct adapter *adapt, u32 *mac_reg, u32 *backup)
+static void mac_setting_calibration(struct adapter *adapt, const u32 *mac_reg,
+				    u32 *backup)
 {
 	u32 i = 0;
 
@@ -952,30 +953,31 @@ static void phy_iq_calibrate(struct adapter *adapt, s32 result[][8],
 	struct odm_dm_struct *dm_odm = &adapt->HalData->odmpriv;
 	u32 i;
 	u8 path_a_ok, path_b_ok;
-	u32 adda_reg[IQK_ADDA_REG_NUM] = {
-					  rFPGA0_XCD_SwitchControl, rBlue_Tooth,
-					  rRx_Wait_CCA, rTx_CCK_RFON,
-					  rTx_CCK_BBON, rTx_OFDM_RFON,
-					  rTx_OFDM_BBON, rTx_To_Rx,
-					  rTx_To_Tx, rRx_CCK,
-					  rRx_OFDM, rRx_Wait_RIFS,
-					  rRx_TO_Rx, rStandby,
-					  rSleep, rPMPD_ANAEN};
-
-	u32 iqk_mac_reg[IQK_MAC_REG_NUM] = {
-					    REG_TXPAUSE, REG_BCN_CTRL,
-					    REG_BCN_CTRL_1, REG_GPIO_MUXCFG};
-
+	static const u32 adda_reg[IQK_ADDA_REG_NUM] = {
+		rFPGA0_XCD_SwitchControl, rBlue_Tooth,
+		rRx_Wait_CCA, rTx_CCK_RFON,
+		rTx_CCK_BBON, rTx_OFDM_RFON,
+		rTx_OFDM_BBON, rTx_To_Rx,
+		rTx_To_Tx, rRx_CCK,
+		rRx_OFDM, rRx_Wait_RIFS,
+		rRx_TO_Rx, rStandby,
+		rSleep, rPMPD_ANAEN
+	};
+	static const u32 iqk_mac_reg[IQK_MAC_REG_NUM] = {
+		REG_TXPAUSE, REG_BCN_CTRL,
+		REG_BCN_CTRL_1, REG_GPIO_MUXCFG
+	};
 	/* since 92C & 92D have the different define in IQK_BB_REG */
-	u32 iqk_bb_reg_92c[IQK_BB_REG_NUM] = {
-					      rOFDM0_TRxPathEnable, rOFDM0_TRMuxPar,
-					      rFPGA0_XCD_RFInterfaceSW, rConfig_AntA, rConfig_AntB,
-					      rFPGA0_XAB_RFInterfaceSW, rFPGA0_XA_RFInterfaceOE,
-					      rFPGA0_XB_RFInterfaceOE, rFPGA0_RFMOD};
+	static const u32 iqk_bb_reg_92c[IQK_BB_REG_NUM] = {
+		rOFDM0_TRxPathEnable, rOFDM0_TRMuxPar,
+		rFPGA0_XCD_RFInterfaceSW, rConfig_AntA, rConfig_AntB,
+		rFPGA0_XAB_RFInterfaceSW, rFPGA0_XA_RFInterfaceOE,
+		rFPGA0_XB_RFInterfaceOE, rFPGA0_RFMOD
+	};
 
 	u32 retry_count = 9;
 
-	if (*(dm_odm->mp_mode) == 1)
+	if (*dm_odm->mp_mode == 1)
 		retry_count = 9;
 	else
 		retry_count = 2;
@@ -1320,7 +1322,7 @@ void rtl88eu_phy_lc_calibrate(struct adapter *adapt)
 	if (singletone || carrier_sup)
 		return;
 
-	while (*(dm_odm->pbScanInProcess) && timecount < timeout) {
+	while (*dm_odm->pbScanInProcess && timecount < timeout) {
 		mdelay(50);
 		timecount += 50;
 	}

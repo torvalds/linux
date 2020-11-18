@@ -125,11 +125,11 @@
 
 		i2c@118100 {
 			eeprom@51 {
-				compatible = "atmel,24c256";
+				compatible = "atmel,spd";
 				reg = <0x51>;
 			};
 			eeprom@52 {
-				compatible = "atmel,24c256";
+				compatible = "atmel,spd";
 				reg = <0x52>;
 			};
 			rtc@68 {
@@ -141,6 +141,45 @@
 				compatible = "adi,adt7461";
 				reg = <0x4c>;
 			};
+		};
+
+		i2c@118000 {
+			zl2006@21 {
+				compatible = "zl2006";
+				reg = <0x21>;
+			};
+			zl2006@22 {
+				compatible = "zl2006";
+				reg = <0x22>;
+			};
+			zl2006@23 {
+				compatible = "zl2006";
+				reg = <0x23>;
+			};
+			zl2006@24 {
+				compatible = "zl2006";
+				reg = <0x24>;
+			};
+			eeprom@50 {
+				compatible = "atmel,24c64";
+				reg = <0x50>;
+			};
+			eeprom@55 {
+				compatible = "atmel,24c64";
+				reg = <0x55>;
+			};
+			eeprom@56 {
+				compatible = "atmel,24c64";
+				reg = <0x56>;
+			};
+			eeprom@57 {
+				compatible = "atmel,24c02";
+				reg = <0x57>;
+			};
+		};
+
+		i2c@119100 {
+			/* 0x6E: ICS9FG108 */
 		};
 
 		usb0: usb@210000 {

@@ -2,7 +2,7 @@
 /*
  * TI Syscon Reset definitions
  *
- * Copyright (C) 2015-2016 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2015-2016 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 #ifndef __DT_BINDINGS_RESET_TI_SYSCON_H__

@@ -602,7 +602,7 @@ static void ioat_enumerate_channels(struct ioatdma_device *ioat_dma)
 
 /**
  * ioat_free_chan_resources - release all the descriptors
- * @chan: the channel to be cleaned
+ * @c: the channel to be cleaned
  */
 static void ioat_free_chan_resources(struct dma_chan *c)
 {
@@ -651,7 +651,7 @@ static void ioat_free_chan_resources(struct dma_chan *c)
 	}
 
 	for (i = 0; i < ioat_chan->desc_chunks; i++) {
-		dma_free_coherent(to_dev(ioat_chan), SZ_2M,
+		dma_free_coherent(to_dev(ioat_chan), IOAT_CHUNK_SIZE,
 				  ioat_chan->descs[i].virt,
 				  ioat_chan->descs[i].hw);
 		ioat_chan->descs[i].virt = NULL;
@@ -1195,13 +1195,13 @@ static int ioat3_dma_probe(struct ioatdma_device *ioat_dma, int dca)
 	/* disable relaxed ordering */
 	err = pcie_capability_read_word(pdev, IOAT_DEVCTRL_OFFSET, &val16);
 	if (err)
-		return err;
+		return pcibios_err_to_errno(err);
 
 	/* clear relaxed ordering enable */
 	val16 &= ~IOAT_DEVCTRL_ROE;
 	err = pcie_capability_write_word(pdev, IOAT_DEVCTRL_OFFSET, val16);
 	if (err)
-		return err;
+		return pcibios_err_to_errno(err);
 
 	if (ioat_dma->cap & IOAT_CAP_DPS)
 		writeb(ioat_pending_level + 1,
@@ -1267,7 +1267,7 @@ static void ioat_resume(struct ioatdma_device *ioat_dma)
 #define DRV_NAME "ioatdma"
 
 static pci_ers_result_t ioat_pcie_error_detected(struct pci_dev *pdev,
-						 enum pci_channel_state error)
+						 pci_channel_state_t error)
 {
 	dev_dbg(&pdev->dev, "%s: PCIe AER error %d\n", DRV_NAME, error);
 

@@ -1238,7 +1238,7 @@ static void f81534_process_per_serial_block(struct usb_serial_port *port,
 			schedule_work(&port_priv->lsr_work);
 		}
 
-		if (port->port.console && port->sysrq) {
+		if (port->sysrq) {
 			if (usb_serial_handle_sysrq_char(port, data[i]))
 				continue;
 		}

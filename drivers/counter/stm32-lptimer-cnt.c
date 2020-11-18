@@ -648,7 +648,6 @@ static int stm32_lptim_cnt_probe(struct platform_device *pdev)
 
 	/* Initialize IIO device */
 	indio_dev->name = dev_name(&pdev->dev);
-	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->dev.of_node = pdev->dev.of_node;
 	indio_dev->info = &stm32_lptim_cnt_iio_info;
 	if (ddata->has_encoder)

@@ -241,7 +241,8 @@ static u64 vread_hvclock(void)
 }
 #endif
 
-static inline u64 __arch_get_hw_counter(s32 clock_mode)
+static inline u64 __arch_get_hw_counter(s32 clock_mode,
+					const struct vdso_data *vd)
 {
 	if (likely(clock_mode == VDSO_CLOCKMODE_TSC))
 		return (u64)rdtsc_ordered();
@@ -270,6 +271,24 @@ static __always_inline const struct vdso_data *__arch_get_vdso_data(void)
 {
 	return __vdso_data;
 }
+
+static inline bool arch_vdso_clocksource_ok(const struct vdso_data *vd)
+{
+	return true;
+}
+#define vdso_clocksource_ok arch_vdso_clocksource_ok
+
+/*
+ * Clocksource read value validation to handle PV and HyperV clocksources
+ * which can be invalidated asynchronously and indicate invalidation by
+ * returning U64_MAX, which can be effectively tested by checking for a
+ * negative value after casting it to s64.
+ */
+static inline bool arch_vdso_cycles_ok(u64 cycles)
+{
+	return (s64)cycles >= 0;
+}
+#define vdso_cycles_ok arch_vdso_cycles_ok
 
 /*
  * x86 specific delta calculation.

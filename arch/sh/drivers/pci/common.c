@@ -54,7 +54,7 @@ int __init pci_is_66mhz_capable(struct pci_channel *hose,
 	int cap66 = -1;
 	u16 stat;
 
-	printk(KERN_INFO "PCI: Checking 66MHz capabilities...\n");
+	pr_info("PCI: Checking 66MHz capabilities...\n");
 
 	for (pci_devfn = 0; pci_devfn < 0xff; pci_devfn++) {
 		if (PCI_FUNC(pci_devfn))
@@ -134,7 +134,7 @@ unsigned int pcibios_handle_status_errors(unsigned long addr,
 		pcibios_report_status(PCI_STATUS_REC_TARGET_ABORT |
 				      PCI_STATUS_SIG_TARGET_ABORT |
 				      PCI_STATUS_REC_MASTER_ABORT, 1);
-		printk("\n");
+		pr_cont("\n");
 
 		cmd |= PCI_STATUS_REC_TARGET_ABORT;
 	}
@@ -143,7 +143,7 @@ unsigned int pcibios_handle_status_errors(unsigned long addr,
 		printk(KERN_DEBUG "PCI: parity error detected: ");
 		pcibios_report_status(PCI_STATUS_PARITY |
 				      PCI_STATUS_DETECTED_PARITY, 1);
-		printk("\n");
+		pr_cont("\n");
 
 		cmd |= PCI_STATUS_PARITY | PCI_STATUS_DETECTED_PARITY;
 

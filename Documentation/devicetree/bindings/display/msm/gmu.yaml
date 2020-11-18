@@ -38,10 +38,10 @@ properties:
 
   clocks:
     items:
-     - description: GMU clock
-     - description: GPU CX clock
-     - description: GPU AXI clock
-     - description: GPU MEMNOC clock
+      - description: GMU clock
+      - description: GPU CX clock
+      - description: GPU AXI clock
+      - description: GPU MEMNOC clock
 
   clock-names:
     items:
@@ -52,8 +52,8 @@ properties:
 
   interrupts:
     items:
-     - description: GMU HFI interrupt
-     - description: GMU interrupt
+      - description: GMU HFI interrupt
+      - description: GMU interrupt
 
 
   interrupt-names:
@@ -62,14 +62,14 @@ properties:
       - const: gmu
 
   power-domains:
-     items:
-       - description: CX power domain
-       - description: GX power domain
+    items:
+      - description: CX power domain
+      - description: GX power domain
 
   power-domain-names:
-     items:
-       - const: cx
-       - const: gx
+    items:
+      - const: cx
+      - const: gx
 
   iommus:
     maxItems: 1
@@ -90,13 +90,13 @@ required:
   - operating-points-v2
 
 examples:
- - |
-   #include <dt-bindings/clock/qcom,gpucc-sdm845.h>
-   #include <dt-bindings/clock/qcom,gcc-sdm845.h>
-   #include <dt-bindings/interrupt-controller/irq.h>
-   #include <dt-bindings/interrupt-controller/arm-gic.h>
+  - |
+    #include <dt-bindings/clock/qcom,gpucc-sdm845.h>
+    #include <dt-bindings/clock/qcom,gcc-sdm845.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
 
-   gmu: gmu@506a000 {
+    gmu: gmu@506a000 {
         compatible="qcom,adreno-gmu-630.2", "qcom,adreno-gmu";
 
         reg = <0x506a000 0x30000>,
@@ -120,4 +120,4 @@ examples:
 
         iommus = <&adreno_smmu 5>;
         operating-points-v2 = <&gmu_opp_table>;
-   };
+    };

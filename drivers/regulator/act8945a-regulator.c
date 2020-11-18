@@ -73,7 +73,7 @@ struct act8945a_pmic {
 	u32 op_mode[ACT8945A_ID_MAX];
 };
 
-static const struct regulator_linear_range act8945a_voltage_ranges[] = {
+static const struct linear_range act8945a_voltage_ranges[] = {
 	REGULATOR_LINEAR_RANGE(600000, 0, 23, 25000),
 	REGULATOR_LINEAR_RANGE(1200000, 24, 47, 50000),
 	REGULATOR_LINEAR_RANGE(2400000, 48, 63, 100000),

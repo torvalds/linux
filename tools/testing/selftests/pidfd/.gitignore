@@ -5,3 +5,4 @@ pidfd_test
 pidfd_wait
 pidfd_fdinfo_test
 pidfd_getfd_test
+pidfd_setns_test

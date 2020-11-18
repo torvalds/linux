@@ -16,8 +16,7 @@ standard for interoperating between Macs and Windows and major NAS appliances.
 
 Please see
 MS-SMB2 (for detailed SMB2/SMB3/SMB3.1.1 protocol specification)
-http://protocolfreedom.org/ and
-http://samba.org/samba/PFIF/
+or https://samba.org/samba/PFIF/
 for more details.
 
 
@@ -32,7 +31,7 @@ Build instructions
 
 For Linux:
 
-1) Download the kernel (e.g. from http://www.kernel.org)
+1) Download the kernel (e.g. from https://www.kernel.org)
    and change directory into the top of the kernel directory tree
    (e.g. /usr/src/linux-2.5.73)
 2) make menuconfig (or make xconfig)
@@ -831,7 +830,7 @@ the active sessions and the shares that are mounted.
 Enabling Kerberos (extended security) works but requires version 1.2 or later
 of the helper program cifs.upcall to be present and to be configured in the
 /etc/request-key.conf file.  The cifs.upcall helper program is from the Samba
-project(http://www.samba.org). NTLM and NTLMv2 and LANMAN support do not
+project(https://www.samba.org). NTLM and NTLMv2 and LANMAN support do not
 require this helper. Note that NTLMv2 security (which does not require the
 cifs.upcall helper program), instead of using Kerberos, is sufficient for
 some use cases.

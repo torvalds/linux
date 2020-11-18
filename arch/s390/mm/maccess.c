@@ -55,19 +55,26 @@ static notrace long s390_kernel_write_odd(void *dst, const void *src, size_t siz
  */
 static DEFINE_SPINLOCK(s390_kernel_write_lock);
 
-void notrace s390_kernel_write(void *dst, const void *src, size_t size)
+notrace void *s390_kernel_write(void *dst, const void *src, size_t size)
 {
+	void *tmp = dst;
 	unsigned long flags;
 	long copied;
 
 	spin_lock_irqsave(&s390_kernel_write_lock, flags);
-	while (size) {
-		copied = s390_kernel_write_odd(dst, src, size);
-		dst += copied;
-		src += copied;
-		size -= copied;
+	if (!(flags & PSW_MASK_DAT)) {
+		memcpy(dst, src, size);
+	} else {
+		while (size) {
+			copied = s390_kernel_write_odd(tmp, src, size);
+			tmp += copied;
+			src += copied;
+			size -= copied;
+		}
 	}
 	spin_unlock_irqrestore(&s390_kernel_write_lock, flags);
+
+	return dst;
 }
 
 static int __no_sanitize_address __memcpy_real(void *dest, void *src, size_t count)

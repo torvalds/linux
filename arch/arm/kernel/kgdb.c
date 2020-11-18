@@ -236,7 +236,7 @@ int kgdb_arch_set_breakpoint(struct kgdb_bkpt *bpt)
 	/* patch_text() only supports int-sized breakpoints */
 	BUILD_BUG_ON(sizeof(int) != BREAK_INSTR_SIZE);
 
-	err = probe_kernel_read(bpt->saved_instr, (char *)bpt->bpt_addr,
+	err = copy_from_kernel_nofault(bpt->saved_instr, (char *)bpt->bpt_addr,
 				BREAK_INSTR_SIZE);
 	if (err)
 		return err;

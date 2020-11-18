@@ -274,10 +274,10 @@ int mlx5_ib_create_srq(struct ib_srq *ib_srq,
 	if (srq->wq_sig)
 		in.flags |= MLX5_SRQ_FLAG_WQ_SIG;
 
-	if (init_attr->srq_type == IB_SRQT_XRC)
+	if (init_attr->srq_type == IB_SRQT_XRC && init_attr->ext.xrc.xrcd)
 		in.xrcd = to_mxrcd(init_attr->ext.xrc.xrcd)->xrcdn;
 	else
-		in.xrcd = to_mxrcd(dev->devr.x0)->xrcdn;
+		in.xrcd = dev->devr.xrcdn0;
 
 	if (init_attr->srq_type == IB_SRQT_TM) {
 		in.tm_log_list_size =
@@ -310,12 +310,18 @@ int mlx5_ib_create_srq(struct ib_srq *ib_srq,
 	srq->msrq.event = mlx5_ib_srq_event;
 	srq->ibsrq.ext.xrc.srq_num = srq->msrq.srqn;
 
-	if (udata)
-		if (ib_copy_to_udata(udata, &srq->msrq.srqn, sizeof(__u32))) {
+	if (udata) {
+		struct mlx5_ib_create_srq_resp resp = {
+			.srqn = srq->msrq.srqn,
+		};
+
+		if (ib_copy_to_udata(udata, &resp, min(udata->outlen,
+				     sizeof(resp)))) {
 			mlx5_ib_dbg(dev, "copy to user failed\n");
 			err = -EFAULT;
 			goto err_core;
 		}
+	}
 
 	init_attr->attr.max_wr = srq->msrq.max - 1;
 

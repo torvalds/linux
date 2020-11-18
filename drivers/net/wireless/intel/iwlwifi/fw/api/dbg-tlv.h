@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright (C) 2018 - 2019 Intel Corporation
+ * Copyright (C) 2018 - 2020 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -25,7 +25,7 @@
  *
  * BSD LICENSE
  *
- * Copyright (C) 2018 - 2019 Intel Corporation
+ * Copyright (C) 2018 - 2020 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -304,6 +304,7 @@ enum iwl_fw_ini_buffer_location {
 	IWL_FW_INI_LOCATION_SRAM_PATH,
 	IWL_FW_INI_LOCATION_DRAM_PATH,
 	IWL_FW_INI_LOCATION_NPK_PATH,
+	IWL_FW_INI_LOCATION_NUM,
 }; /* FW_DEBUG_TLV_BUFFER_LOCATION_E_VER_1 */
 
 /**

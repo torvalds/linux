@@ -1,33 +1,7 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
 /* QLogic qed NIC Driver
  * Copyright (c) 2015-2017  QLogic Corporation
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and /or other materials
- *        provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Copyright (c) 2019-2020 Marvell International Ltd.
  */
 
 #include <linux/types.h>
@@ -50,6 +24,7 @@
 #include "qed.h"
 #include <linux/qed/qed_chain.h>
 #include "qed_cxt.h"
+#include "qed_dcbx.h"
 #include "qed_dev_api.h"
 #include <linux/qed/qed_eth_if.h>
 #include "qed_hsi.h"
@@ -57,6 +32,7 @@
 #include "qed_int.h"
 #include "qed_l2.h"
 #include "qed_mcp.h"
+#include "qed_ptp.h"
 #include "qed_reg_addr.h"
 #include "qed_sp.h"
 #include "qed_sriov.h"
@@ -366,10 +342,11 @@ int qed_sp_eth_vport_start(struct qed_hwfn *p_hwfn,
 			   struct qed_sp_vport_start_params *p_params)
 {
 	struct vport_start_ramrod_data *p_ramrod = NULL;
+	struct eth_vport_tpa_param *tpa_param;
 	struct qed_spq_entry *p_ent =  NULL;
 	struct qed_sp_init_data init_data;
+	u16 min_size, rx_mode = 0;
 	u8 abs_vport_id = 0;
-	u16 rx_mode = 0;
 	int rc;
 
 	rc = qed_fw_vport(p_hwfn, p_params->vport_id, &abs_vport_id);
@@ -402,21 +379,23 @@ int qed_sp_eth_vport_start(struct qed_hwfn *p_hwfn,
 	p_ramrod->rx_mode.state = cpu_to_le16(rx_mode);
 
 	/* TPA related fields */
-	memset(&p_ramrod->tpa_param, 0, sizeof(struct eth_vport_tpa_param));
+	tpa_param = &p_ramrod->tpa_param;
+	memset(tpa_param, 0, sizeof(*tpa_param));
 
-	p_ramrod->tpa_param.max_buff_num = p_params->max_buffers_per_cqe;
+	tpa_param->max_buff_num = p_params->max_buffers_per_cqe;
 
 	switch (p_params->tpa_mode) {
 	case QED_TPA_MODE_GRO:
-		p_ramrod->tpa_param.tpa_max_aggs_num = ETH_TPA_MAX_AGGS_NUM;
-		p_ramrod->tpa_param.tpa_max_size = (u16)-1;
-		p_ramrod->tpa_param.tpa_min_size_to_cont = p_params->mtu / 2;
-		p_ramrod->tpa_param.tpa_min_size_to_start = p_params->mtu / 2;
-		p_ramrod->tpa_param.tpa_ipv4_en_flg = 1;
-		p_ramrod->tpa_param.tpa_ipv6_en_flg = 1;
-		p_ramrod->tpa_param.tpa_pkt_split_flg = 1;
-		p_ramrod->tpa_param.tpa_gro_consistent_flg = 1;
-		break;
+		min_size = p_params->mtu / 2;
+
+		tpa_param->tpa_max_aggs_num = ETH_TPA_MAX_AGGS_NUM;
+		tpa_param->tpa_max_size = cpu_to_le16(U16_MAX);
+		tpa_param->tpa_min_size_to_cont = cpu_to_le16(min_size);
+		tpa_param->tpa_min_size_to_start = cpu_to_le16(min_size);
+		tpa_param->tpa_ipv4_en_flg = 1;
+		tpa_param->tpa_ipv6_en_flg = 1;
+		tpa_param->tpa_pkt_split_flg = 1;
+		tpa_param->tpa_gro_consistent_flg = 1;
 	default:
 		break;
 	}
@@ -625,33 +604,33 @@ qed_sp_update_accept_mode(struct qed_hwfn *p_hwfn,
 static void
 qed_sp_vport_update_sge_tpa(struct qed_hwfn *p_hwfn,
 			    struct vport_update_ramrod_data *p_ramrod,
-			    struct qed_sge_tpa_params *p_params)
+			    const struct qed_sge_tpa_params *param)
 {
-	struct eth_vport_tpa_param *p_tpa;
+	struct eth_vport_tpa_param *tpa;
 
-	if (!p_params) {
+	if (!param) {
 		p_ramrod->common.update_tpa_param_flg = 0;
 		p_ramrod->common.update_tpa_en_flg = 0;
 		p_ramrod->common.update_tpa_param_flg = 0;
 		return;
 	}
 
-	p_ramrod->common.update_tpa_en_flg = p_params->update_tpa_en_flg;
-	p_tpa = &p_ramrod->tpa_param;
-	p_tpa->tpa_ipv4_en_flg = p_params->tpa_ipv4_en_flg;
-	p_tpa->tpa_ipv6_en_flg = p_params->tpa_ipv6_en_flg;
-	p_tpa->tpa_ipv4_tunn_en_flg = p_params->tpa_ipv4_tunn_en_flg;
-	p_tpa->tpa_ipv6_tunn_en_flg = p_params->tpa_ipv6_tunn_en_flg;
+	p_ramrod->common.update_tpa_en_flg = param->update_tpa_en_flg;
+	tpa = &p_ramrod->tpa_param;
+	tpa->tpa_ipv4_en_flg = param->tpa_ipv4_en_flg;
+	tpa->tpa_ipv6_en_flg = param->tpa_ipv6_en_flg;
+	tpa->tpa_ipv4_tunn_en_flg = param->tpa_ipv4_tunn_en_flg;
+	tpa->tpa_ipv6_tunn_en_flg = param->tpa_ipv6_tunn_en_flg;
 
-	p_ramrod->common.update_tpa_param_flg = p_params->update_tpa_param_flg;
-	p_tpa->max_buff_num = p_params->max_buffers_per_cqe;
-	p_tpa->tpa_pkt_split_flg = p_params->tpa_pkt_split_flg;
-	p_tpa->tpa_hdr_data_split_flg = p_params->tpa_hdr_data_split_flg;
-	p_tpa->tpa_gro_consistent_flg = p_params->tpa_gro_consistent_flg;
-	p_tpa->tpa_max_aggs_num = p_params->tpa_max_aggs_num;
-	p_tpa->tpa_max_size = p_params->tpa_max_size;
-	p_tpa->tpa_min_size_to_start = p_params->tpa_min_size_to_start;
-	p_tpa->tpa_min_size_to_cont = p_params->tpa_min_size_to_cont;
+	p_ramrod->common.update_tpa_param_flg = param->update_tpa_param_flg;
+	tpa->max_buff_num = param->max_buffers_per_cqe;
+	tpa->tpa_pkt_split_flg = param->tpa_pkt_split_flg;
+	tpa->tpa_hdr_data_split_flg = param->tpa_hdr_data_split_flg;
+	tpa->tpa_gro_consistent_flg = param->tpa_gro_consistent_flg;
+	tpa->tpa_max_aggs_num = param->tpa_max_aggs_num;
+	tpa->tpa_max_size = cpu_to_le16(param->tpa_max_size);
+	tpa->tpa_min_size_to_start = cpu_to_le16(param->tpa_min_size_to_start);
+	tpa->tpa_min_size_to_cont = cpu_to_le16(param->tpa_min_size_to_cont);
 }
 
 static void
@@ -2001,6 +1980,9 @@ void qed_arfs_mode_configure(struct qed_hwfn *p_hwfn,
 			     struct qed_ptt *p_ptt,
 			     struct qed_arfs_config_params *p_cfg_params)
 {
+	if (test_bit(QED_MF_DISABLE_ARFS, &p_hwfn->cdev->mf_bits))
+		return;
+
 	if (p_cfg_params->mode != QED_FILTER_CONFIG_MODE_DISABLE) {
 		qed_gft_config(p_hwfn, p_ptt, p_hwfn->rel_pf_id,
 			       p_cfg_params->tcp,
@@ -2113,7 +2095,8 @@ int qed_get_rxq_coalesce(struct qed_hwfn *p_hwfn,
 		return rc;
 	}
 
-	timer_res = GET_FIELD(sb_entry.params, CAU_SB_ENTRY_TIMER_RES0);
+	timer_res = GET_FIELD(le32_to_cpu(sb_entry.params),
+			      CAU_SB_ENTRY_TIMER_RES0);
 
 	address = BAR0_MAP_REG_USDM_RAM +
 		  USTORM_ETH_QUEUE_ZONE_OFFSET(p_cid->abs.queue_id);
@@ -2146,7 +2129,8 @@ int qed_get_txq_coalesce(struct qed_hwfn *p_hwfn,
 		return rc;
 	}
 
-	timer_res = GET_FIELD(sb_entry.params, CAU_SB_ENTRY_TIMER_RES1);
+	timer_res = GET_FIELD(le32_to_cpu(sb_entry.params),
+			      CAU_SB_ENTRY_TIMER_RES1);
 
 	address = BAR0_MAP_REG_XSDM_RAM +
 		  XSTORM_ETH_QUEUE_ZONE_OFFSET(p_cid->abs.queue_id);
@@ -2899,16 +2883,6 @@ static int qed_req_bulletin_update_mac(struct qed_dev *cdev, u8 *mac)
 
 	return 0;
 }
-
-#ifdef CONFIG_QED_SRIOV
-extern const struct qed_iov_hv_ops qed_iov_ops_pass;
-#endif
-
-#ifdef CONFIG_DCB
-extern const struct qed_eth_dcbnl_ops qed_dcbnl_ops_pass;
-#endif
-
-extern const struct qed_eth_ptp_ops qed_ptp_ops_pass;
 
 static const struct qed_eth_ops qed_eth_ops_pass = {
 	.common = &qed_common_ops_pass,

@@ -405,7 +405,7 @@ static void fc_lport_recv_rlir_req(struct fc_lport *lport, struct fc_frame *fp)
 /**
  * fc_lport_recv_echo_req() - Handle received ECHO request
  * @lport: The local port receiving the ECHO
- * @fp:	   ECHO request frame
+ * @in_fp: ECHO request frame
  */
 static void fc_lport_recv_echo_req(struct fc_lport *lport,
 				   struct fc_frame *in_fp)
@@ -440,7 +440,7 @@ static void fc_lport_recv_echo_req(struct fc_lport *lport,
 /**
  * fc_lport_recv_rnid_req() - Handle received Request Node ID data request
  * @lport: The local port receiving the RNID
- * @fp:	   The RNID request frame
+ * @in_fp: The RNID request frame
  */
 static void fc_lport_recv_rnid_req(struct fc_lport *lport,
 				   struct fc_frame *in_fp)
@@ -1325,6 +1325,7 @@ static void fc_lport_enter_scr(struct fc_lport *lport)
 /**
  * fc_lport_enter_ns() - register some object with the name server
  * @lport: Fibre Channel local port to register
+ * @state: Local port state
  */
 static void fc_lport_enter_ns(struct fc_lport *lport, enum fc_lport_state state)
 {
@@ -1423,6 +1424,7 @@ err:
 /**
  * fc_lport_enter_ms() - management server commands
  * @lport: Fibre Channel local port to register
+ * @state: Local port state
  */
 static void fc_lport_enter_ms(struct fc_lport *lport, enum fc_lport_state state)
 {
@@ -1576,7 +1578,7 @@ static void fc_lport_timeout(struct work_struct *work)
 	case LPORT_ST_DPRT:
 		FC_LPORT_DBG(lport, "Skipping lport state %s to SCR\n",
 			     fc_lport_state(lport));
-		/* fall thru */
+		fallthrough;
 	case LPORT_ST_SCR:
 		fc_lport_enter_scr(lport);
 		break;
@@ -1932,6 +1934,7 @@ static void fc_lport_bsg_resp(struct fc_seq *sp, struct fc_frame *fp,
  * @job:   The BSG Passthrough job
  * @lport: The local port sending the request
  * @did:   The destination port id
+ * @tov:   The timeout period (in ms)
  */
 static int fc_lport_els_request(struct bsg_job *job,
 				struct fc_lport *lport,

@@ -187,7 +187,7 @@ static inline struct kpp_request *kpp_request_alloc(struct crypto_kpp *tfm,
  */
 static inline void kpp_request_free(struct kpp_request *req)
 {
-	kzfree(req);
+	kfree_sensitive(req);
 }
 
 /**

@@ -57,7 +57,7 @@ static int amdgpu_cs_user_fence_chunk(struct amdgpu_cs_parser *p,
 	/* One for TTM and one for the CS job */
 	p->uf_entry.tv.num_shared = 2;
 
-	drm_gem_object_put_unlocked(gobj);
+	drm_gem_object_put(gobj);
 
 	size = amdgpu_bo_size(bo);
 	if (size != PAGE_SIZE || (data->offset + 8) > size) {
@@ -924,7 +924,8 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 
 		ring = to_amdgpu_ring(entity->rq->sched);
 		r =  amdgpu_ib_get(adev, vm, ring->funcs->parse_cs ?
-				   chunk_ib->ib_bytes : 0, ib);
+				   chunk_ib->ib_bytes : 0,
+				   AMDGPU_IB_POOL_DELAYED, ib);
 		if (r) {
 			DRM_ERROR("Failed to get ib !\n");
 			return r;
@@ -991,7 +992,7 @@ static int amdgpu_cs_process_fence_dep(struct amdgpu_cs_parser *p,
 			dma_fence_put(old);
 		}
 
-		r = amdgpu_sync_fence(&p->job->sync, fence, true);
+		r = amdgpu_sync_fence(&p->job->sync, fence);
 		dma_fence_put(fence);
 		if (r)
 			return r;
@@ -1013,7 +1014,7 @@ static int amdgpu_syncobj_lookup_and_add_to_sync(struct amdgpu_cs_parser *p,
 		return r;
 	}
 
-	r = amdgpu_sync_fence(&p->job->sync, fence, true);
+	r = amdgpu_sync_fence(&p->job->sync, fence);
 	dma_fence_put(fence);
 
 	return r;
@@ -1207,7 +1208,6 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 {
 	struct amdgpu_fpriv *fpriv = p->filp->driver_priv;
 	struct drm_sched_entity *entity = p->entity;
-	enum drm_sched_priority priority;
 	struct amdgpu_bo_list_entry *e;
 	struct amdgpu_job *job;
 	uint64_t seq;
@@ -1257,7 +1257,6 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 
 	trace_amdgpu_cs_ioctl(job);
 	amdgpu_vm_bo_trace_cs(&fpriv->vm, &p->ticket);
-	priority = job->base.s_priority;
 	drm_sched_entity_push_job(&job->base, entity);
 
 	amdgpu_vm_move_to_lru_tail(p->adev, &fpriv->vm);

@@ -9,7 +9,7 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: http://www.ti.com/lit/gpn/tps53647
+    Datasheet: https://www.ti.com/lit/gpn/tps53647
 
   * Texas Instruments TPS53667
 
@@ -17,7 +17,7 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: http://www.ti.com/lit/gpn/TPS53667
+    Datasheet: https://www.ti.com/lit/gpn/TPS53667
 
   * Texas Instruments TPS53679
 
@@ -25,7 +25,7 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: http://www.ti.com/lit/gpn/TPS53679 (short version)
+    Datasheet: https://www.ti.com/lit/gpn/TPS53679 (short version)
 
   * Texas Instruments TPS53681
 
@@ -33,7 +33,7 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: http://www.ti.com/lit/gpn/TPS53681
+    Datasheet: https://www.ti.com/lit/gpn/TPS53681
 
   * Texas Instruments TPS53688
 

@@ -10,7 +10,6 @@
 #include <linux/regmap.h>
 #include <linux/reset.h>
 
-#include "sun8i_csc.h"
 #include "sunxi_engine.h"
 
 #define SUN8I_MIXER_SIZE(w, h)			(((h) - 1) << 16 | ((w) - 1))
@@ -144,13 +143,6 @@
 #define SUN50I_MIXER_CDC0_EN			0xd0000
 #define SUN50I_MIXER_CDC1_EN			0xd8000
 
-struct de2_fmt_info {
-	u32			drm_fmt;
-	u32			de2_fmt;
-	bool			rgb;
-	enum sun8i_csc_mode	csc;
-};
-
 /**
  * struct sun8i_mixer_cfg - mixer HW configuration
  * @vi_num: number of VI channels
@@ -210,5 +202,5 @@ sun8i_channel_base(struct sun8i_mixer *mixer, int channel)
 		return DE2_CH_BASE + channel * DE2_CH_SIZE;
 }
 
-const struct de2_fmt_info *sun8i_mixer_format_info(u32 format);
+int sun8i_mixer_drm_format_to_hw(u32 format, u32 *hw_format);
 #endif /* _SUN8I_MIXER_H_ */

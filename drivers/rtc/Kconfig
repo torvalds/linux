@@ -281,7 +281,8 @@ config RTC_DRV_DS1374
 
 config RTC_DRV_DS1374_WDT
 	bool "Dallas/Maxim DS1374 watchdog timer"
-	depends on RTC_DRV_DS1374
+	depends on RTC_DRV_DS1374 && WATCHDOG
+	select WATCHDOG_CORE
 	help
 	  If you say Y here you will get support for the
 	  watchdog timer in the Dallas Semiconductor DS1374
@@ -1516,7 +1517,7 @@ config RTC_DRV_GENERIC
 	tristate "Generic RTC support"
 	# Please consider writing a new RTC driver instead of using the generic
 	# RTC abstraction
-	depends on PARISC || M68K || PPC || SUPERH32 || COMPILE_TEST
+	depends on PARISC || M68K || PPC || SUPERH || COMPILE_TEST
 	help
 	  Say Y or M here to enable RTC support on systems using the generic
 	  RTC abstraction. If you do not know what you are doing, you should
@@ -1680,6 +1681,7 @@ config RTC_DRV_MPC5121
 config RTC_DRV_JZ4740
 	tristate "Ingenic JZ4740 SoC"
 	depends on MIPS || COMPILE_TEST
+	depends on OF
 	help
 	  If you say yes here you get support for the Ingenic JZ47xx SoCs RTC
 	  controllers.
@@ -1727,15 +1729,6 @@ config RTC_DRV_TEGRA
 
 	  This drive can also be built as a module. If so, the module
 	  will be called rtc-tegra.
-
-config RTC_DRV_PUV3
-	tristate "PKUnity v3 RTC support"
-	depends on ARCH_PUV3
-	help
-	  This enables support for the RTC in the PKUnity-v3 SoCs.
-
-	  This drive can also be built as a module. If so, the module
-	  will be called rtc-puv3.
 
 config RTC_DRV_LOONGSON1
 	tristate "loongson1 RTC support"

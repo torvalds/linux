@@ -199,7 +199,7 @@ long compat_get_bitmap(unsigned long *mask, const compat_ulong_t __user *umask,
 	bitmap_size = ALIGN(bitmap_size, BITS_PER_COMPAT_LONG);
 	nr_compat_longs = BITS_TO_COMPAT_LONGS(bitmap_size);
 
-	if (!user_access_begin(umask, bitmap_size / 8))
+	if (!user_read_access_begin(umask, bitmap_size / 8))
 		return -EFAULT;
 
 	while (nr_compat_longs > 1) {
@@ -211,11 +211,11 @@ long compat_get_bitmap(unsigned long *mask, const compat_ulong_t __user *umask,
 	}
 	if (nr_compat_longs)
 		unsafe_get_user(*mask, umask++, Efault);
-	user_access_end();
+	user_read_access_end();
 	return 0;
 
 Efault:
-	user_access_end();
+	user_read_access_end();
 	return -EFAULT;
 }
 
@@ -228,7 +228,7 @@ long compat_put_bitmap(compat_ulong_t __user *umask, unsigned long *mask,
 	bitmap_size = ALIGN(bitmap_size, BITS_PER_COMPAT_LONG);
 	nr_compat_longs = BITS_TO_COMPAT_LONGS(bitmap_size);
 
-	if (!user_access_begin(umask, bitmap_size / 8))
+	if (!user_write_access_begin(umask, bitmap_size / 8))
 		return -EFAULT;
 
 	while (nr_compat_longs > 1) {
@@ -239,10 +239,10 @@ long compat_put_bitmap(compat_ulong_t __user *umask, unsigned long *mask,
 	}
 	if (nr_compat_longs)
 		unsafe_put_user((compat_ulong_t)*mask, umask++, Efault);
-	user_access_end();
+	user_write_access_end();
 	return 0;
 Efault:
-	user_access_end();
+	user_write_access_end();
 	return -EFAULT;
 }
 
@@ -255,11 +255,11 @@ get_compat_sigset(sigset_t *set, const compat_sigset_t __user *compat)
 		return -EFAULT;
 	switch (_NSIG_WORDS) {
 	case 4: set->sig[3] = v.sig[6] | (((long)v.sig[7]) << 32 );
-		/* fall through */
+		fallthrough;
 	case 3: set->sig[2] = v.sig[4] | (((long)v.sig[5]) << 32 );
-		/* fall through */
+		fallthrough;
 	case 2: set->sig[1] = v.sig[2] | (((long)v.sig[3]) << 32 );
-		/* fall through */
+		fallthrough;
 	case 1: set->sig[0] = v.sig[0] | (((long)v.sig[1]) << 32 );
 	}
 #else

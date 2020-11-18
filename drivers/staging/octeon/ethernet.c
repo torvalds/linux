@@ -689,8 +689,6 @@ static int cvm_oct_probe(struct platform_device *pdev)
 	mtu_overhead += VLAN_HLEN;
 #endif
 
-	octeon_mdiobus_force_mod_depencency();
-
 	pip = pdev->dev.of_node;
 	if (!pip) {
 		pr_err("Error: No 'pip' in /aliases\n");
@@ -987,6 +985,7 @@ static struct platform_driver cvm_oct_driver = {
 
 module_platform_driver(cvm_oct_driver);
 
+MODULE_SOFTDEP("pre: mdio-cavium");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Cavium Networks <support@caviumnetworks.com>");
 MODULE_DESCRIPTION("Cavium Networks Octeon ethernet driver.");

@@ -6,6 +6,6 @@ config INFINIBAND_QEDR
 	select QED_LL2
 	select QED_OOO
 	select QED_RDMA
-	---help---
+	help
 	  This driver provides low-level InfiniBand over Ethernet
 	  support for QLogic QED host channel adapters (HCAs).

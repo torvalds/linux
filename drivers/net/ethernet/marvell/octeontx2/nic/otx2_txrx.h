@@ -113,11 +113,7 @@ struct otx2_cq_poll {
 struct otx2_pool {
 	struct qmem		*stack;
 	struct qmem		*fc_addr;
-	u8			rbpage_order;
 	u16			rbsize;
-	u32			page_offset;
-	u16			pageref;
-	struct page		*page;
 };
 
 struct otx2_cq_queue {

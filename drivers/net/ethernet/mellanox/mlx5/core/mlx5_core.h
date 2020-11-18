@@ -38,7 +38,6 @@
 #include <linux/sched.h>
 #include <linux/if_link.h>
 #include <linux/firmware.h>
-#include <linux/ptp_clock_kernel.h>
 #include <linux/mlx5/cq.h>
 #include <linux/mlx5/fs.h>
 #include <linux/mlx5/driver.h>
@@ -141,8 +140,6 @@ int mlx5_modify_scheduling_element_cmd(struct mlx5_core_dev *dev, u8 hierarchy,
 int mlx5_destroy_scheduling_element_cmd(struct mlx5_core_dev *dev, u8 hierarchy,
 					u32 element_id);
 int mlx5_wait_for_pages(struct mlx5_core_dev *dev, int *pages);
-u64 mlx5_read_internal_timer(struct mlx5_core_dev *dev,
-			     struct ptp_system_timestamp *sts);
 
 void mlx5_cmd_trigger_completions(struct mlx5_core_dev *dev);
 void mlx5_cmd_flush(struct mlx5_core_dev *dev);

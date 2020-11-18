@@ -386,7 +386,7 @@ static void tilcdc_crtc_set_mode(struct drm_crtc *crtc)
 		case DRM_FORMAT_XBGR8888:
 		case DRM_FORMAT_XRGB8888:
 			reg |= LCDC_V2_TFT_24BPP_UNPACK;
-			/* fallthrough */
+			fallthrough;
 		case DRM_FORMAT_BGR888:
 		case DRM_FORMAT_RGB888:
 			reg |= LCDC_V2_TFT_24BPP_MODE;
@@ -535,6 +535,18 @@ static void tilcdc_crtc_atomic_disable(struct drm_crtc *crtc,
 				       struct drm_crtc_state *old_state)
 {
 	tilcdc_crtc_disable(crtc);
+}
+
+static void tilcdc_crtc_atomic_flush(struct drm_crtc *crtc,
+				     struct drm_crtc_state *old_state)
+{
+	if (!crtc->state->event)
+		return;
+
+	spin_lock_irq(&crtc->dev->event_lock);
+	drm_crtc_send_vblank_event(crtc, crtc->state->event);
+	crtc->state->event = NULL;
+	spin_unlock_irq(&crtc->dev->event_lock);
 }
 
 void tilcdc_crtc_shutdown(struct drm_crtc *crtc)
@@ -822,6 +834,7 @@ static const struct drm_crtc_helper_funcs tilcdc_crtc_helper_funcs = {
 	.atomic_check	= tilcdc_crtc_atomic_check,
 	.atomic_enable	= tilcdc_crtc_atomic_enable,
 	.atomic_disable	= tilcdc_crtc_atomic_disable,
+	.atomic_flush	= tilcdc_crtc_atomic_flush,
 };
 
 void tilcdc_crtc_set_panel_info(struct drm_crtc *crtc,

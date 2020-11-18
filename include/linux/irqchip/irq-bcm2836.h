@@ -30,7 +30,7 @@
  */
 #define LOCAL_MAILBOX_INT_CONTROL0	0x050
 /*
- * The CPU's interrupt status register.  Bits are defined by the the
+ * The CPU's interrupt status register.  Bits are defined by the
  * LOCAL_IRQ_* bits below.
  */
 #define LOCAL_IRQ_PENDING0		0x060

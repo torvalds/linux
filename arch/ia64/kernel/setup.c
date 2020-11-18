@@ -25,6 +25,7 @@
  */
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/pgtable.h>
 
 #include <linux/acpi.h>
 #include <linux/console.h>
@@ -56,7 +57,6 @@
 #include <asm/meminit.h>
 #include <asm/page.h>
 #include <asm/patch.h>
-#include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/sal.h>
 #include <asm/sections.h>
@@ -65,6 +65,7 @@
 #include <asm/tlbflush.h>
 #include <asm/unistd.h>
 #include <asm/uv/uv.h>
+#include <asm/xtp.h>
 
 #if defined(CONFIG_SMP) && (IA64_CPU_SIZE > PAGE_SIZE)
 # error "struct cpuinfo_ia64 too big!"

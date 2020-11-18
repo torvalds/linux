@@ -716,7 +716,6 @@ static struct i2c_driver adt7411_driver = {
 
 module_i2c_driver(adt7411_driver);
 
-MODULE_AUTHOR("Sascha Hauer <s.hauer@pengutronix.de> and "
-	"Wolfram Sang <w.sang@pengutronix.de>");
+MODULE_AUTHOR("Sascha Hauer, Wolfram Sang <kernel@pengutronix.de>");
 MODULE_DESCRIPTION("ADT7411 driver");
 MODULE_LICENSE("GPL v2");

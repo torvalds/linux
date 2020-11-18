@@ -5,7 +5,6 @@
 
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
-#include "en.h"
 
 static inline bool is_metadata_hdr_valid(struct sk_buff *skb)
 {

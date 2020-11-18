@@ -155,6 +155,7 @@
 struct imx7_csi {
 	struct device *dev;
 	struct v4l2_subdev sd;
+	struct v4l2_async_notifier notifier;
 	struct imx_media_video_dev *vdev;
 	struct imx_media_dev *imxmd;
 	struct media_pad pad[IMX7_CSI_PADS_NUM];
@@ -167,8 +168,6 @@ struct imx7_csi {
 	struct v4l2_subdev *src_sd;
 
 	struct media_entity *sink;
-
-	struct v4l2_fwnode_endpoint upstream_ep;
 
 	struct v4l2_mbus_framefmt format_mbus[IMX7_CSI_PADS_NUM];
 	const struct imx_media_pixfmt *cc[IMX7_CSI_PADS_NUM];
@@ -194,6 +193,12 @@ struct imx7_csi {
 
 	struct completion last_eof_completion;
 };
+
+static struct imx7_csi *
+imx7_csi_notifier_to_dev(struct v4l2_async_notifier *n)
+{
+	return container_of(n, struct imx7_csi, notifier);
+}
 
 static u32 imx7_csi_reg_read(struct imx7_csi *csi, unsigned int offset)
 {
@@ -428,61 +433,6 @@ static void imx7_csi_deinit(struct imx7_csi *csi)
 	csi->is_init = false;
 }
 
-static int imx7_csi_get_upstream_endpoint(struct imx7_csi *csi,
-					  struct v4l2_fwnode_endpoint *ep,
-					  bool skip_mux)
-{
-	struct device_node *endpoint, *port;
-	struct media_entity *src;
-	struct v4l2_subdev *sd;
-	struct media_pad *pad;
-
-	if (!csi->src_sd)
-		return -EPIPE;
-
-	src = &csi->src_sd->entity;
-
-	/*
-	 * if the source is neither a mux or csi2 get the one directly upstream
-	 * from this csi
-	 */
-	if (src->function != MEDIA_ENT_F_VID_IF_BRIDGE &&
-	    src->function != MEDIA_ENT_F_VID_MUX)
-		src = &csi->sd.entity;
-
-skip_video_mux:
-	/* get source pad of entity directly upstream from src */
-	pad = imx_media_pipeline_pad(src, 0, 0, true);
-	if (!pad)
-		return -ENODEV;
-
-	sd = media_entity_to_v4l2_subdev(pad->entity);
-
-	/* To get bus type we may need to skip video mux */
-	if (skip_mux && src->function == MEDIA_ENT_F_VID_MUX) {
-		src = &sd->entity;
-		goto skip_video_mux;
-	}
-
-	/*
-	 * NOTE: this assumes an OF-graph port id is the same as a
-	 * media pad index.
-	 */
-	port = of_graph_get_port_by_id(sd->dev->of_node, pad->index);
-	if (!port)
-		return -ENODEV;
-
-	endpoint = of_get_next_child(port, NULL);
-	of_node_put(port);
-	if (!endpoint)
-		return -ENODEV;
-
-	v4l2_fwnode_endpoint_parse(of_fwnode_handle(endpoint), ep);
-	of_node_put(endpoint);
-
-	return 0;
-}
-
 static int imx7_csi_link_setup(struct media_entity *entity,
 			       const struct media_pad *local,
 			       const struct media_pad *remote, u32 flags)
@@ -549,23 +499,27 @@ static int imx7_csi_pad_link_validate(struct v4l2_subdev *sd,
 				      struct v4l2_subdev_format *sink_fmt)
 {
 	struct imx7_csi *csi = v4l2_get_subdevdata(sd);
-	struct v4l2_fwnode_endpoint upstream_ep = {};
+	struct media_pad *pad;
 	int ret;
 
 	ret = v4l2_subdev_link_validate_default(sd, link, source_fmt, sink_fmt);
 	if (ret)
 		return ret;
 
-	ret = imx7_csi_get_upstream_endpoint(csi, &upstream_ep, true);
-	if (ret) {
-		v4l2_err(&csi->sd, "failed to find upstream endpoint\n");
-		return ret;
-	}
+	if (!csi->src_sd)
+		return -EPIPE;
+
+	/*
+	 * find the entity that is selected by the CSI mux. This is needed
+	 * to distinguish between a parallel or CSI-2 pipeline.
+	 */
+	pad = imx_media_pipeline_pad(&csi->src_sd->entity, 0, 0, true);
+	if (!pad)
+		return -ENODEV;
 
 	mutex_lock(&csi->lock);
 
-	csi->upstream_ep = upstream_ep;
-	csi->is_csi2 = (upstream_ep.bus_type == V4L2_MBUS_CSI2_DPHY);
+	csi->is_csi2 = (pad->entity->function == MEDIA_ENT_F_VID_IF_BRIDGE);
 
 	mutex_unlock(&csi->lock);
 
@@ -958,8 +912,8 @@ static int imx7_csi_enum_mbus_code(struct v4l2_subdev *sd,
 
 	switch (code->pad) {
 	case IMX7_CSI_PAD_SINK:
-		ret = imx_media_enum_mbus_format(&code->code, code->index,
-						 CS_SEL_ANY, true);
+		ret = imx_media_enum_mbus_formats(&code->code, code->index,
+						  PIXFMT_SEL_ANY);
 		break;
 	case IMX7_CSI_PAD_SRC:
 		if (code->index != 0) {
@@ -1019,8 +973,8 @@ static int imx7_csi_try_fmt(struct imx7_csi *csi,
 
 	switch (sdformat->pad) {
 	case IMX7_CSI_PAD_SRC:
-		in_cc = imx_media_find_mbus_format(in_fmt->code, CS_SEL_ANY,
-						   true);
+		in_cc = imx_media_find_mbus_format(in_fmt->code,
+						   PIXFMT_SEL_ANY);
 
 		sdformat->format.width = in_fmt->width;
 		sdformat->format.height = in_fmt->height;
@@ -1035,11 +989,12 @@ static int imx7_csi_try_fmt(struct imx7_csi *csi,
 		break;
 	case IMX7_CSI_PAD_SINK:
 		*cc = imx_media_find_mbus_format(sdformat->format.code,
-						 CS_SEL_ANY, true);
+						 PIXFMT_SEL_ANY);
 		if (!*cc) {
-			imx_media_enum_mbus_format(&code, 0, CS_SEL_ANY, false);
-			*cc = imx_media_find_mbus_format(code, CS_SEL_ANY,
-							 false);
+			imx_media_enum_mbus_formats(&code, 0,
+						    PIXFMT_SEL_YUV_RGB);
+			*cc = imx_media_find_mbus_format(code,
+							 PIXFMT_SEL_YUV_RGB);
 			sdformat->format.code = (*cc)->codes[0];
 		}
 
@@ -1177,6 +1132,7 @@ static int imx7_csi_init_cfg(struct v4l2_subdev *sd,
 static const struct media_entity_operations imx7_csi_entity_ops = {
 	.link_setup	= imx7_csi_link_setup,
 	.link_validate	= v4l2_subdev_link_validate,
+	.get_fwnode_pad = v4l2_subdev_get_fwnode_pad_1_to_1,
 };
 
 static const struct v4l2_subdev_video_ops imx7_csi_video_ops = {
@@ -1201,11 +1157,64 @@ static const struct v4l2_subdev_internal_ops imx7_csi_internal_ops = {
 	.unregistered	= imx7_csi_unregistered,
 };
 
-static int imx7_csi_parse_endpoint(struct device *dev,
-				   struct v4l2_fwnode_endpoint *vep,
-				   struct v4l2_async_subdev *asd)
+static int imx7_csi_notify_bound(struct v4l2_async_notifier *notifier,
+				 struct v4l2_subdev *sd,
+				 struct v4l2_async_subdev *asd)
 {
-	return fwnode_device_is_available(asd->match.fwnode) ? 0 : -EINVAL;
+	struct imx7_csi *csi = imx7_csi_notifier_to_dev(notifier);
+	struct media_pad *sink = &csi->sd.entity.pads[IMX7_CSI_PAD_SINK];
+
+	/* The bound subdev must always be the CSI mux */
+	if (WARN_ON(sd->entity.function != MEDIA_ENT_F_VID_MUX))
+		return -ENXIO;
+
+	/* Mark it as such via its group id */
+	sd->grp_id = IMX_MEDIA_GRP_ID_CSI_MUX;
+
+	return v4l2_create_fwnode_links_to_pad(sd, sink);
+}
+
+static const struct v4l2_async_notifier_operations imx7_csi_notify_ops = {
+	.bound = imx7_csi_notify_bound,
+};
+
+static int imx7_csi_async_register(struct imx7_csi *csi)
+{
+	struct v4l2_async_subdev *asd = NULL;
+	struct fwnode_handle *ep;
+	int ret;
+
+	v4l2_async_notifier_init(&csi->notifier);
+
+	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(csi->dev), 0, 0,
+					     FWNODE_GRAPH_ENDPOINT_NEXT);
+	if (ep) {
+		asd = kzalloc(sizeof(*asd), GFP_KERNEL);
+		if (!asd) {
+			fwnode_handle_put(ep);
+			return -ENOMEM;
+		}
+
+		ret = v4l2_async_notifier_add_fwnode_remote_subdev(
+			&csi->notifier, ep, asd);
+
+		fwnode_handle_put(ep);
+
+		if (ret) {
+			kfree(asd);
+			/* OK if asd already exists */
+			if (ret != -EEXIST)
+				return ret;
+		}
+	}
+
+	csi->notifier.ops = &imx7_csi_notify_ops;
+
+	ret = v4l2_async_subdev_notifier_register(&csi->sd, &csi->notifier);
+	if (ret)
+		return ret;
+
+	return v4l2_async_register_subdev(&csi->sd);
 }
 
 static int imx7_csi_probe(struct platform_device *pdev)
@@ -1288,19 +1297,21 @@ static int imx7_csi_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto free;
 
-	ret = v4l2_async_register_fwnode_subdev(&csi->sd,
-						sizeof(struct v4l2_async_subdev),
-						NULL, 0,
-						imx7_csi_parse_endpoint);
+	ret = imx7_csi_async_register(csi);
 	if (ret)
-		goto free;
+		goto subdev_notifier_cleanup;
 
 	return 0;
+
+subdev_notifier_cleanup:
+	v4l2_async_notifier_unregister(&csi->notifier);
+	v4l2_async_notifier_cleanup(&csi->notifier);
 
 free:
 	v4l2_ctrl_handler_free(&csi->ctrl_hdlr);
 
 cleanup:
+	v4l2_async_notifier_unregister(&imxmd->notifier);
 	v4l2_async_notifier_cleanup(&imxmd->notifier);
 	v4l2_device_unregister(&imxmd->v4l2_dev);
 	media_device_unregister(&imxmd->md);
@@ -1325,6 +1336,8 @@ static int imx7_csi_remove(struct platform_device *pdev)
 	v4l2_device_unregister(&imxmd->v4l2_dev);
 	media_device_cleanup(&imxmd->md);
 
+	v4l2_async_notifier_unregister(&csi->notifier);
+	v4l2_async_notifier_cleanup(&csi->notifier);
 	v4l2_async_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&csi->ctrl_hdlr);
 

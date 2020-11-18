@@ -220,7 +220,7 @@ handle_restart(struct pt_regs *regs, struct k_sigaction *ka, int has_handler)
 			regs->a4 = -EINTR;
 			break;
 		}
-	/* fallthrough */
+		fallthrough;
 	case -ERESTARTNOINTR:
 do_restart:
 		regs->a4 = regs->orig_a4;
@@ -252,7 +252,7 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs,
 				break;
 			}
 
-			/* fallthrough */
+			fallthrough;
 		case -ERESTARTNOINTR:
 			regs->a4 = regs->orig_a4;
 			regs->pc -= 4;

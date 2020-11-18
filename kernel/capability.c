@@ -93,7 +93,7 @@ static int cap_validate_magic(cap_user_header_t header, unsigned *tocopy)
 		break;
 	case _LINUX_CAPABILITY_VERSION_2:
 		warn_deprecated_v2();
-		/* fall through - v3 is otherwise equivalent to v2. */
+		fallthrough;	/* v3 is otherwise equivalent to v2 */
 	case _LINUX_CAPABILITY_VERSION_3:
 		*tocopy = _LINUX_CAPABILITY_U32S_3;
 		break;

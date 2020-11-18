@@ -25,7 +25,7 @@ config IONIC
 	  This enables the support for the Pensando family of Ethernet
 	  adapters.  More specific information on this driver can be
 	  found in
-	  <file:Documentation/networking/device_drivers/pensando/ionic.rst>.
+	  <file:Documentation/networking/device_drivers/ethernet/pensando/ionic.rst>.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called ionic.

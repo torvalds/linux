@@ -1054,7 +1054,7 @@ int ib_get_cached_pkey(struct ib_device *device,
 
 	cache = device->port_data[port_num].cache.pkey;
 
-	if (index < 0 || index >= cache->table_len)
+	if (!cache || index < 0 || index >= cache->table_len)
 		ret = -EINVAL;
 	else
 		*pkey = cache->table[index];
@@ -1099,6 +1099,10 @@ int ib_find_cached_pkey(struct ib_device *device,
 	read_lock_irqsave(&device->cache_lock, flags);
 
 	cache = device->port_data[port_num].cache.pkey;
+	if (!cache) {
+		ret = -EINVAL;
+		goto err;
+	}
 
 	*index = -1;
 
@@ -1117,6 +1121,7 @@ int ib_find_cached_pkey(struct ib_device *device,
 		ret = 0;
 	}
 
+err:
 	read_unlock_irqrestore(&device->cache_lock, flags);
 
 	return ret;
@@ -1139,6 +1144,10 @@ int ib_find_exact_cached_pkey(struct ib_device *device,
 	read_lock_irqsave(&device->cache_lock, flags);
 
 	cache = device->port_data[port_num].cache.pkey;
+	if (!cache) {
+		ret = -EINVAL;
+		goto err;
+	}
 
 	*index = -1;
 
@@ -1149,6 +1158,7 @@ int ib_find_exact_cached_pkey(struct ib_device *device,
 			break;
 		}
 
+err:
 	read_unlock_irqrestore(&device->cache_lock, flags);
 
 	return ret;
@@ -1310,9 +1320,10 @@ struct net_device *rdma_read_gid_attr_ndev_rcu(const struct ib_gid_attr *attr)
 }
 EXPORT_SYMBOL(rdma_read_gid_attr_ndev_rcu);
 
-static int get_lower_dev_vlan(struct net_device *lower_dev, void *data)
+static int get_lower_dev_vlan(struct net_device *lower_dev,
+			      struct netdev_nested_priv *priv)
 {
-	u16 *vlan_id = data;
+	u16 *vlan_id = (u16 *)priv->data;
 
 	if (is_vlan_dev(lower_dev))
 		*vlan_id = vlan_dev_vlan_id(lower_dev);
@@ -1338,6 +1349,9 @@ static int get_lower_dev_vlan(struct net_device *lower_dev, void *data)
 int rdma_read_gid_l2_fields(const struct ib_gid_attr *attr,
 			    u16 *vlan_id, u8 *smac)
 {
+	struct netdev_nested_priv priv = {
+		.data = (void *)vlan_id,
+	};
 	struct net_device *ndev;
 
 	rcu_read_lock();
@@ -1358,7 +1372,7 @@ int rdma_read_gid_l2_fields(const struct ib_gid_attr *attr,
 			 * the lower vlan device for this gid entry.
 			 */
 			netdev_walk_all_lower_dev_rcu(attr->ndev,
-					get_lower_dev_vlan, vlan_id);
+					get_lower_dev_vlan, &priv);
 		}
 	}
 	rcu_read_unlock();
@@ -1425,23 +1439,26 @@ ib_cache_update(struct ib_device *device, u8 port, bool enforce_security)
 			goto err;
 	}
 
-	pkey_cache = kmalloc(struct_size(pkey_cache, table,
-					 tprops->pkey_tbl_len),
-			     GFP_KERNEL);
-	if (!pkey_cache) {
-		ret = -ENOMEM;
-		goto err;
-	}
-
-	pkey_cache->table_len = tprops->pkey_tbl_len;
-
-	for (i = 0; i < pkey_cache->table_len; ++i) {
-		ret = ib_query_pkey(device, port, i, pkey_cache->table + i);
-		if (ret) {
-			dev_warn(&device->dev,
-				 "ib_query_pkey failed (%d) for index %d\n",
-				 ret, i);
+	if (tprops->pkey_tbl_len) {
+		pkey_cache = kmalloc(struct_size(pkey_cache, table,
+						 tprops->pkey_tbl_len),
+				     GFP_KERNEL);
+		if (!pkey_cache) {
+			ret = -ENOMEM;
 			goto err;
+		}
+
+		pkey_cache->table_len = tprops->pkey_tbl_len;
+
+		for (i = 0; i < pkey_cache->table_len; ++i) {
+			ret = ib_query_pkey(device, port, i,
+					    pkey_cache->table + i);
+			if (ret) {
+				dev_warn(&device->dev,
+					 "ib_query_pkey failed (%d) for index %d\n",
+					 ret, i);
+				goto err;
+			}
 		}
 	}
 

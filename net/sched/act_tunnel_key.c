@@ -156,6 +156,7 @@ tunnel_key_copy_vxlan_opt(const struct nlattr *nla, void *dst, int dst_len,
 		struct vxlan_metadata *md = dst;
 
 		md->gbp = nla_get_u32(tb[TCA_TUNNEL_KEY_ENC_OPT_VXLAN_GBP]);
+		md->gbp &= VXLAN_GBP_MASK;
 	}
 
 	return sizeof(struct vxlan_metadata);
@@ -535,9 +536,6 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 	tunnel_key_release_params(params_new);
 	if (goto_ch)
 		tcf_chain_put_by_act(goto_ch);
-
-	if (ret == ACT_P_CREATED)
-		tcf_idr_insert(tn, *a);
 
 	return ret;
 

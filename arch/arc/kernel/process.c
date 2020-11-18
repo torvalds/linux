@@ -90,10 +90,10 @@ fault:
 	if (unlikely(ret != -EFAULT))
 		 goto fail;
 
-	down_read(&current->mm->mmap_sem);
-	ret = fixup_user_fault(current, current->mm, (unsigned long) uaddr,
+	mmap_read_lock(current->mm);
+	ret = fixup_user_fault(current->mm, (unsigned long) uaddr,
 			       FAULT_FLAG_WRITE, NULL);
-	up_read(&current->mm->mmap_sem);
+	mmap_read_unlock(current->mm);
 
 	if (likely(!ret))
 		 goto again;
@@ -173,8 +173,9 @@ asmlinkage void ret_from_fork(void);
  * |    user_r25    |
  * ------------------  <===== END of PAGE
  */
-int copy_thread_tls(unsigned long clone_flags, unsigned long usp,
-	unsigned long kthread_arg, struct task_struct *p, unsigned long tls)
+int copy_thread(unsigned long clone_flags, unsigned long usp,
+		unsigned long kthread_arg, struct task_struct *p,
+		unsigned long tls)
 {
 	struct pt_regs *c_regs;        /* child's pt_regs */
 	unsigned long *childksp;       /* to unwind out of __switch_to() */
@@ -293,11 +294,6 @@ void start_thread(struct pt_regs *regs, unsigned long pc, unsigned long usp)
  */
 void flush_thread(void)
 {
-}
-
-int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu)
-{
-	return 0;
 }
 
 int elf_check_arch(const struct elf32_hdr *x)

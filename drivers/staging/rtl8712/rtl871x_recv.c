@@ -21,6 +21,7 @@
 #include <linux/if_ether.h>
 #include <linux/kmemleak.h>
 #include <linux/etherdevice.h>
+#include <net/cfg80211.h>
 
 #include "osdep_service.h"
 #include "drv_types.h"
@@ -34,12 +35,6 @@ static const u8 SNAP_ETH_TYPE_IPX[2] = {0x81, 0x37};
 
 /* Datagram Delivery Protocol */
 static const u8 SNAP_ETH_TYPE_APPLETALK_AARP[2] = {0x80, 0xf3};
-
-/* Bridge-Tunnel header (for EtherTypes ETH_P_AARP and ETH_P_IPX) */
-static const u8 bridge_tunnel_header[] = {0xaa, 0xaa, 0x03, 0x00, 0x00, 0xf8};
-
-/* Ethernet-II snap header (RFC1042 for most EtherTypes) */
-static const u8 rfc1042_header[] = {0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00};
 
 void _r8712_init_sta_recv_priv(struct sta_recv_priv *psta_recvpriv)
 {

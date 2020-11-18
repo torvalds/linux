@@ -5,7 +5,7 @@ Boot time assembly of RAID arrays
 ---------------------------------
 
 Tools that manage md devices can be found at
-   http://www.kernel.org/pub/linux/utils/raid/
+   https://www.kernel.org/pub/linux/utils/raid/
 
 
 You can boot with your md device with the following kernel command
@@ -425,6 +425,10 @@ All md devices contain:
 
      The accepted values when writing to this file are ``ppl`` and ``resync``,
      used to enable and disable PPL.
+
+  uuid
+     This indicates the UUID of the array in the following format:
+     xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
 
 As component devices are added to an md array, they appear in the ``md``

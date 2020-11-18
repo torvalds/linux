@@ -811,7 +811,7 @@ reterr:
  * @uodata: source for zero copy write
  * @inlen: read buffer size
  * @olen: write buffer size
- * @hdrlen: reader header size, This is the size of response protocol data
+ * @in_hdrlen: reader header size, This is the size of response protocol data
  * @fmt: protocol format string (see protocol.c)
  *
  * Returns request structure (which client must free using p9_tag_remove)

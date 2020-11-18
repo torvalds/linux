@@ -24,4 +24,7 @@ extern void memtype_free_io(resource_size_t start, resource_size_t end);
 
 extern bool pat_pfn_immune_to_uc_mtrr(unsigned long pfn);
 
+bool x86_has_pat_wp(void);
+enum page_cache_mode pgprot2cachemode(pgprot_t pgprot);
+
 #endif /* _ASM_X86_MEMTYPE_H */

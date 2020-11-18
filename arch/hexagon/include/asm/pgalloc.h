@@ -11,7 +11,7 @@
 #include <asm/mem-layout.h>
 #include <asm/atomic.h>
 
-#include <asm-generic/pgalloc.h>	/* for pte_{alloc,free}_one */
+#include <asm-generic/pgalloc.h>
 
 extern unsigned long long kmap_generation;
 
@@ -39,11 +39,6 @@ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 	mm->context.ptbase = __pa(pgd);
 
 	return pgd;
-}
-
-static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
-{
-	free_page((unsigned long) pgd);
 }
 
 static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd,

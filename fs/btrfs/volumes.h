@@ -288,7 +288,7 @@ struct btrfs_fs_devices {
  */
 struct btrfs_io_bio {
 	unsigned int mirror_num;
-	unsigned int stripe_index;
+	struct btrfs_device *device;
 	u64 logical;
 	u8 *csum;
 	u8 csum_inline[BTRFS_BIO_INLINE_CSUM_SIZE];
@@ -408,7 +408,7 @@ static inline enum btrfs_map_op btrfs_op(struct bio *bio)
 		return BTRFS_MAP_WRITE;
 	default:
 		WARN_ON_ONCE(1);
-		/* fall through */
+		fallthrough;
 	case REQ_OP_READ:
 		return BTRFS_MAP_READ;
 	}
@@ -573,6 +573,9 @@ void btrfs_set_fs_info_ptr(struct btrfs_fs_info *fs_info);
 void btrfs_reset_fs_info_ptr(struct btrfs_fs_info *fs_info);
 bool btrfs_check_rw_degradable(struct btrfs_fs_info *fs_info,
 					struct btrfs_device *failing_dev);
+void btrfs_scratch_superblocks(struct btrfs_fs_info *fs_info,
+			       struct block_device *bdev,
+			       const char *device_path);
 
 int btrfs_bg_type_to_factor(u64 flags);
 const char *btrfs_bg_type_to_raid_name(u64 flags);

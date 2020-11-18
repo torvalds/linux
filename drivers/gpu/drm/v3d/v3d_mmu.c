@@ -40,7 +40,7 @@ static int v3d_mmu_flush_all(struct v3d_dev *v3d)
 	ret = wait_for(!(V3D_READ(V3D_MMU_CTL) &
 			 V3D_MMU_CTL_TLB_CLEARING), 100);
 	if (ret)
-		dev_err(v3d->dev, "TLB clear wait idle pre-wait failed\n");
+		dev_err(v3d->drm.dev, "TLB clear wait idle pre-wait failed\n");
 
 	V3D_WRITE(V3D_MMU_CTL, V3D_READ(V3D_MMU_CTL) |
 		  V3D_MMU_CTL_TLB_CLEAR);
@@ -52,14 +52,14 @@ static int v3d_mmu_flush_all(struct v3d_dev *v3d)
 	ret = wait_for(!(V3D_READ(V3D_MMU_CTL) &
 			 V3D_MMU_CTL_TLB_CLEARING), 100);
 	if (ret) {
-		dev_err(v3d->dev, "TLB clear wait idle failed\n");
+		dev_err(v3d->drm.dev, "TLB clear wait idle failed\n");
 		return ret;
 	}
 
 	ret = wait_for(!(V3D_READ(V3D_MMUC_CONTROL) &
 			 V3D_MMUC_CONTROL_FLUSHING), 100);
 	if (ret)
-		dev_err(v3d->dev, "MMUC flush wait idle failed\n");
+		dev_err(v3d->drm.dev, "MMUC flush wait idle failed\n");
 
 	return ret;
 }
@@ -109,7 +109,7 @@ void v3d_mmu_insert_ptes(struct v3d_bo *bo)
 		     shmem_obj->base.size >> V3D_MMU_PAGE_SHIFT);
 
 	if (v3d_mmu_flush_all(v3d))
-		dev_err(v3d->dev, "MMU flush timeout\n");
+		dev_err(v3d->drm.dev, "MMU flush timeout\n");
 }
 
 void v3d_mmu_remove_ptes(struct v3d_bo *bo)
@@ -122,5 +122,5 @@ void v3d_mmu_remove_ptes(struct v3d_bo *bo)
 		v3d->pt[page] = 0;
 
 	if (v3d_mmu_flush_all(v3d))
-		dev_err(v3d->dev, "MMU flush timeout\n");
+		dev_err(v3d->drm.dev, "MMU flush timeout\n");
 }

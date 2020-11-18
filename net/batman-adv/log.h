@@ -69,7 +69,7 @@ int batadv_debug_log(struct batadv_priv *bat_priv, const char *fmt, ...)
 __printf(2, 3);
 
 /**
- * _batadv_dbg() - Store debug output with(out) ratelimiting
+ * _batadv_dbg() - Store debug output with(out) rate limiting
  * @type: type of debug message
  * @bat_priv: the bat priv with all the soft interface information
  * @ratelimited: whether output should be rate limited
@@ -95,7 +95,7 @@ static inline void _batadv_dbg(int type __always_unused,
 #endif
 
 /**
- * batadv_dbg() - Store debug output without ratelimiting
+ * batadv_dbg() - Store debug output without rate limiting
  * @type: type of debug message
  * @bat_priv: the bat priv with all the soft interface information
  * @arg: format string and variable arguments
@@ -104,7 +104,7 @@ static inline void _batadv_dbg(int type __always_unused,
 	_batadv_dbg(type, bat_priv, 0, ## arg)
 
 /**
- * batadv_dbg_ratelimited() - Store debug output with ratelimiting
+ * batadv_dbg_ratelimited() - Store debug output with rate limiting
  * @type: type of debug message
  * @bat_priv: the bat priv with all the soft interface information
  * @arg: format string and variable arguments

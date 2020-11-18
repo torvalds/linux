@@ -351,7 +351,7 @@ int gma_crtc_cursor_set(struct drm_crtc *crtc,
 			gt = container_of(gma_crtc->cursor_obj,
 					  struct gtt_range, gem);
 			psb_gtt_unpin(gt);
-			drm_gem_object_put_unlocked(gma_crtc->cursor_obj);
+			drm_gem_object_put(gma_crtc->cursor_obj);
 			gma_crtc->cursor_obj = NULL;
 		}
 		return 0;
@@ -427,7 +427,7 @@ int gma_crtc_cursor_set(struct drm_crtc *crtc,
 	if (gma_crtc->cursor_obj) {
 		gt = container_of(gma_crtc->cursor_obj, struct gtt_range, gem);
 		psb_gtt_unpin(gt);
-		drm_gem_object_put_unlocked(gma_crtc->cursor_obj);
+		drm_gem_object_put(gma_crtc->cursor_obj);
 	}
 
 	gma_crtc->cursor_obj = obj;
@@ -435,7 +435,7 @@ unlock:
 	return ret;
 
 unref_cursor:
-	drm_gem_object_put_unlocked(obj);
+	drm_gem_object_put(obj);
 	return ret;
 }
 

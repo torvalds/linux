@@ -2,7 +2,7 @@
 /*
  * Device Tree Source for AM6 SoC family in Quad core configuration
  *
- * Copyright (C) 2016-2018 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2016-2018 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 #include "k3-am65.dtsi"

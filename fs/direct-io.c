@@ -500,7 +500,7 @@ static struct bio *dio_await_one(struct dio *dio)
 		spin_unlock_irqrestore(&dio->bio_lock, flags);
 		if (!(dio->iocb->ki_flags & IOCB_HIPRI) ||
 		    !blk_poll(dio->bio_disk->queue, dio->bio_cookie, true))
-			io_schedule();
+			blk_io_schedule();
 		/* wake up sets us TASK_RUNNING */
 		spin_lock_irqsave(&dio->bio_lock, flags);
 		dio->waiter = NULL;
@@ -1387,8 +1387,8 @@ ssize_t __blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 	 * Attempt to prefetch the pieces we likely need later.
 	 */
 	prefetch(&bdev->bd_disk->part_tbl);
-	prefetch(bdev->bd_queue);
-	prefetch((char *)bdev->bd_queue + SMP_CACHE_BYTES);
+	prefetch(bdev->bd_disk->queue);
+	prefetch((char *)bdev->bd_disk->queue + SMP_CACHE_BYTES);
 
 	return do_blockdev_direct_IO(iocb, inode, bdev, iter, get_block,
 				     end_io, submit_io, flags);

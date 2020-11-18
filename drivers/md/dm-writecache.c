@@ -231,13 +231,10 @@ static int persistent_memory_claim(struct dm_writecache *wc)
 	pfn_t pfn;
 	int id;
 	struct page **pages;
+	sector_t offset;
 
 	wc->memory_vmapped = false;
 
-	if (!wc->ssd_dev->dax_dev) {
-		r = -EOPNOTSUPP;
-		goto err1;
-	}
 	s = wc->memory_map_size;
 	p = s >> PAGE_SHIFT;
 	if (!p) {
@@ -249,9 +246,16 @@ static int persistent_memory_claim(struct dm_writecache *wc)
 		goto err1;
 	}
 
+	offset = get_start_sect(wc->ssd_dev->bdev);
+	if (offset & (PAGE_SIZE / 512 - 1)) {
+		r = -EINVAL;
+		goto err1;
+	}
+	offset >>= PAGE_SHIFT - 9;
+
 	id = dax_read_lock();
 
-	da = dax_direct_access(wc->ssd_dev->dax_dev, 0, p, &wc->memory_map, &pfn);
+	da = dax_direct_access(wc->ssd_dev->dax_dev, offset, p, &wc->memory_map, &pfn);
 	if (da < 0) {
 		wc->memory_map = NULL;
 		r = da;
@@ -273,7 +277,7 @@ static int persistent_memory_claim(struct dm_writecache *wc)
 		i = 0;
 		do {
 			long daa;
-			daa = dax_direct_access(wc->ssd_dev->dax_dev, i, p - i,
+			daa = dax_direct_access(wc->ssd_dev->dax_dev, offset + i, p - i,
 						NULL, &pfn);
 			if (daa <= 0) {
 				r = daa ? daa : -EINVAL;
@@ -286,6 +290,8 @@ static int persistent_memory_claim(struct dm_writecache *wc)
 			while (daa-- && i < p) {
 				pages[i++] = pfn_t_to_page(pfn);
 				pfn.val++;
+				if (!(i & 15))
+					cond_resched();
 			}
 		} while (i < p);
 		wc->memory_map = vmap(pages, p, VM_MAP, PAGE_KERNEL);
@@ -540,7 +546,7 @@ static void ssd_commit_superblock(struct dm_writecache *wc)
 static void writecache_commit_flushed(struct dm_writecache *wc, bool wait_for_ios)
 {
 	if (WC_MODE_PMEM(wc))
-		wmb();
+		pmem_wmb();
 	else
 		ssd_commit_flushed(wc, wait_for_ios);
 }
@@ -853,10 +859,14 @@ static void writecache_discard(struct dm_writecache *wc, sector_t start, sector_
 
 		if (likely(!e->write_in_progress)) {
 			if (!discarded_something) {
-				writecache_wait_for_ios(wc, READ);
-				writecache_wait_for_ios(wc, WRITE);
+				if (!WC_MODE_PMEM(wc)) {
+					writecache_wait_for_ios(wc, READ);
+					writecache_wait_for_ios(wc, WRITE);
+				}
 				discarded_something = true;
 			}
+			if (!writecache_entry_is_committed(wc, e))
+				wc->uncommitted_blocks--;
 			writecache_free_entry(wc, e);
 		}
 
@@ -1143,6 +1153,42 @@ static int writecache_message(struct dm_target *ti, unsigned argc, char **argv,
 	return r;
 }
 
+static void memcpy_flushcache_optimized(void *dest, void *source, size_t size)
+{
+	/*
+	 * clflushopt performs better with block size 1024, 2048, 4096
+	 * non-temporal stores perform better with block size 512
+	 *
+	 * block size   512             1024            2048            4096
+	 * movnti       496 MB/s        642 MB/s        725 MB/s        744 MB/s
+	 * clflushopt   373 MB/s        688 MB/s        1.1 GB/s        1.2 GB/s
+	 *
+	 * We see that movnti performs better for 512-byte blocks, and
+	 * clflushopt performs better for 1024-byte and larger blocks. So, we
+	 * prefer clflushopt for sizes >= 768.
+	 *
+	 * NOTE: this happens to be the case now (with dm-writecache's single
+	 * threaded model) but re-evaluate this once memcpy_flushcache() is
+	 * enabled to use movdir64b which might invalidate this performance
+	 * advantage seen with cache-allocating-writes plus flushing.
+	 */
+#ifdef CONFIG_X86
+	if (static_cpu_has(X86_FEATURE_CLFLUSHOPT) &&
+	    likely(boot_cpu_data.x86_clflush_size == 64) &&
+	    likely(size >= 768)) {
+		do {
+			memcpy((void *)dest, (void *)source, 64);
+			clflushopt((void *)dest);
+			dest += 64;
+			source += 64;
+			size -= 64;
+		} while (size >= 64);
+		return;
+	}
+#endif
+	memcpy_flushcache(dest, source, size);
+}
+
 static void bio_copy_block(struct dm_writecache *wc, struct bio *bio, void *data)
 {
 	void *buf;
@@ -1168,7 +1214,7 @@ static void bio_copy_block(struct dm_writecache *wc, struct bio *bio, void *data
 			}
 		} else {
 			flush_dcache_page(bio_page(bio));
-			memcpy_flushcache(data, buf, size);
+			memcpy_flushcache_optimized(data, buf, size);
 		}
 
 		bvec_kunmap_irq(buf, &flags);
@@ -1206,7 +1252,7 @@ static int writecache_flush_thread(void *data)
 					   bio_end_sector(bio));
 			wc_unlock(wc);
 			bio_set_dev(bio, wc->dev->bdev);
-			generic_make_request(bio);
+			submit_bio_noacct(bio);
 		} else {
 			writecache_flush(wc);
 			wc_unlock(wc);
@@ -1714,7 +1760,7 @@ static void writecache_writeback(struct work_struct *work)
 {
 	struct dm_writecache *wc = container_of(work, struct dm_writecache, writeback_work);
 	struct blk_plug plug;
-	struct wc_entry *f, *uninitialized_var(g), *e = NULL;
+	struct wc_entry *f, *g, *e = NULL;
 	struct rb_node *node, *next_node;
 	struct list_head skipped;
 	struct writeback_list wbl;
@@ -2228,6 +2274,12 @@ invalid_optional:
 	}
 
 	if (WC_MODE_PMEM(wc)) {
+		if (!dax_synchronous(wc->ssd_dev->dax_dev)) {
+			r = -EOPNOTSUPP;
+			ti->error = "Asynchronous persistent memory not supported as pmem cache";
+			goto bad;
+		}
+
 		r = persistent_memory_claim(wc);
 		if (r) {
 			ti->error = "Unable to map persistent memory for cache";

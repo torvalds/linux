@@ -8,50 +8,6 @@ config PID_IN_CONTEXTIDR
 	  instructions during context switch. Say Y here only if you are
 	  planning to use hardware trace tools with this kernel.
 
-config ARM64_RANDOMIZE_TEXT_OFFSET
-	bool "Randomize TEXT_OFFSET at build time"
-	help
-	  Say Y here if you want the image load offset (AKA TEXT_OFFSET)
-	  of the kernel to be randomized at build-time. When selected,
-	  this option will cause TEXT_OFFSET to be randomized upon any
-	  build of the kernel, and the offset will be reflected in the
-	  text_offset field of the resulting Image. This can be used to
-	  fuzz-test bootloaders which respect text_offset.
-
-	  This option is intended for bootloader and/or kernel testing
-	  only. Bootloaders must make no assumptions regarding the value
-	  of TEXT_OFFSET and platforms must not require a specific
-	  value.
-
-config DEBUG_WX
-	bool "Warn on W+X mappings at boot"
-	select PTDUMP_CORE
-	---help---
-	  Generate a warning if any W+X mappings are found at boot.
-
-	  This is useful for discovering cases where the kernel is leaving
-	  W+X mappings after applying NX, as such mappings are a security risk.
-	  This check also includes UXN, which should be set on all kernel
-	  mappings.
-
-	  Look for a message in dmesg output like this:
-
-	    arm64/mm: Checked W+X mappings: passed, no W+X pages found.
-
-	  or like this, if the check failed:
-
-	    arm64/mm: Checked W+X mappings: FAILED, <N> W+X pages found.
-
-	  Note that even if the check fails, your kernel is possibly
-	  still fine, as W+X mappings are not a security hole in
-	  themselves, what they do is that they make the exploitation
-	  of other unfixed kernel bugs easier.
-
-	  There is no runtime or memory usage effect of this option
-	  once the kernel has booted up - it's a one time check.
-
-	  If in doubt, say "Y".
-
 config DEBUG_EFI
 	depends on EFI && DEBUG_INFO
 	bool "UEFI debugging"

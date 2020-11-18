@@ -126,7 +126,10 @@ struct md_rdev {
 
 	struct kernfs_node *sysfs_state; /* handle for 'state'
 					   * sysfs entry */
-
+	/* handle for 'unacknowledged_bad_blocks' sysfs dentry */
+	struct kernfs_node *sysfs_unack_badblocks;
+	/* handle for 'bad_blocks' sysfs dentry */
+	struct kernfs_node *sysfs_badblocks;
 	struct badblocks badblocks;
 
 	struct {
@@ -420,6 +423,9 @@ struct mddev {
 							 * file in sysfs.
 							 */
 	struct kernfs_node		*sysfs_action;  /* handle for 'sync_action' */
+	struct kernfs_node		*sysfs_completed;	/*handle for 'sync_completed' */
+	struct kernfs_node		*sysfs_degraded;	/*handle for 'degraded' */
+	struct kernfs_node		*sysfs_level;		/*handle for 'level' */
 
 	struct work_struct del_work;	/* used for delayed sysfs removal */
 
@@ -481,6 +487,7 @@ struct mddev {
 	struct bio_set			sync_set; /* for sync operations like
 						   * metadata and bitmap writes
 						   */
+	mempool_t			md_io_pool;
 
 	/* Generic flush handling.
 	 * The last to finish preflush schedules a worker to submit
@@ -497,6 +504,7 @@ struct mddev {
 	void (*sync_super)(struct mddev *mddev, struct md_rdev *rdev);
 	struct md_cluster_info		*cluster_info;
 	unsigned int			good_device_nr;	/* good device num within cluster raid */
+	unsigned int			noio_flag; /* for memalloc scope API */
 
 	bool	has_superblocks:1;
 	bool	fail_last_dev:1;
@@ -596,9 +604,6 @@ struct md_personality
 	 * array.
 	 */
 	void *(*takeover) (struct mddev *mddev);
-	/* congested implements bdi.congested_fn().
-	 * Will not be called while array is 'suspended' */
-	int (*congested)(struct mddev *mddev, int bits);
 	/* Changes the consistency policy of an active array. */
 	int (*change_consistency_policy)(struct mddev *mddev, const char *buf);
 };
@@ -709,7 +714,6 @@ extern void md_done_sync(struct mddev *mddev, int blocks, int ok);
 extern void md_error(struct mddev *mddev, struct md_rdev *rdev);
 extern void md_finish_reshape(struct mddev *mddev);
 
-extern int mddev_congested(struct mddev *mddev, int bits);
 extern bool __must_check md_flush_request(struct mddev *mddev, struct bio *bio);
 extern void md_super_write(struct mddev *mddev, struct md_rdev *rdev,
 			   sector_t sector, int size, struct page *page);
@@ -799,4 +803,16 @@ static inline void mddev_check_write_zeroes(struct mddev *mddev, struct bio *bio
 	    !bio->bi_disk->queue->limits.max_write_zeroes_sectors)
 		mddev->queue->limits.max_write_zeroes_sectors = 0;
 }
+
+struct mdu_array_info_s;
+struct mdu_disk_info_s;
+
+extern int mdp_major;
+void md_autostart_arrays(int part);
+int md_set_array_info(struct mddev *mddev, struct mdu_array_info_s *info);
+int md_add_new_disk(struct mddev *mddev, struct mdu_disk_info_s *info);
+int do_md_run(struct mddev *mddev);
+
+extern const struct block_device_operations md_fops;
+
 #endif /* _MD_MD_H */

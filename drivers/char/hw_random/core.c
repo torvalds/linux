@@ -611,7 +611,7 @@ EXPORT_SYMBOL_GPL(devm_hwrng_unregister);
 
 static int __init hwrng_modinit(void)
 {
-	int ret = -ENOMEM;
+	int ret;
 
 	/* kmalloc makes this safe for virt_to_page() in virtio_rng.c */
 	rng_buffer = kmalloc(rng_buffer_size(), GFP_KERNEL);

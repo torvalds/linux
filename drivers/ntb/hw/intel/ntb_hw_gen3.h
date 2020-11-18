@@ -91,7 +91,7 @@
 #define GEN3_DB_TOTAL_SHIFT		33
 #define GEN3_SPAD_COUNT			16
 
-static inline u64 gen3_db_ioread(void __iomem *mmio)
+static inline u64 gen3_db_ioread(const void __iomem *mmio)
 {
 	return ioread64(mmio);
 }
@@ -104,6 +104,14 @@ static inline void gen3_db_iowrite(u64 bits, void __iomem *mmio)
 ssize_t ndev_ntb3_debugfs_read(struct file *filp, char __user *ubuf,
 				      size_t count, loff_t *offp);
 int gen3_init_dev(struct intel_ntb_dev *ndev);
+int intel_ntb3_link_enable(struct ntb_dev *ntb, enum ntb_speed max_speed,
+		enum ntb_width max_width);
+u64 intel_ntb3_db_read(struct ntb_dev *ntb);
+int intel_ntb3_db_clear(struct ntb_dev *ntb, u64 db_bits);
+int intel_ntb3_peer_db_set(struct ntb_dev *ntb, u64 db_bits);
+int intel_ntb3_peer_db_addr(struct ntb_dev *ntb, phys_addr_t *db_addr,
+				resource_size_t *db_size,
+				u64 *db_data, int db_bit);
 
 extern const struct ntb_dev_ops intel_ntb3_ops;
 

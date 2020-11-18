@@ -63,6 +63,7 @@
 
 /* Number of messages to send before rescheduling */
 #define MAX_SEND_MSG_COUNT 25
+#define DLM_SHUTDOWN_WAIT_TIMEOUT msecs_to_jiffies(10000)
 
 struct cbuf {
 	unsigned int base;
@@ -110,10 +111,12 @@ struct connection {
 #define CF_CLOSE 6
 #define CF_APP_LIMITED 7
 #define CF_CLOSING 8
+#define CF_SHUTDOWN 9
 	struct list_head writequeue;  /* List of outgoing writequeue_entries */
 	spinlock_t writequeue_lock;
 	int (*rx_action) (struct connection *);	/* What to do when active */
 	void (*connect_action) (struct connection *);	/* What to do to connect */
+	void (*shutdown_action)(struct connection *con); /* What to do to shutdown */
 	struct page *rx_page;
 	struct cbuf cb;
 	int retries;
@@ -122,6 +125,7 @@ struct connection {
 	struct connection *othercon;
 	struct work_struct rwork; /* Receive workqueue */
 	struct work_struct swork; /* Send workqueue */
+	wait_queue_head_t shutdown_wait; /* wait for graceful shutdown */
 };
 #define sock2con(x) ((struct connection *)(x)->sk_user_data)
 
@@ -218,6 +222,7 @@ static struct connection *__nodeid2con(int nodeid, gfp_t alloc)
 	spin_lock_init(&con->writequeue_lock);
 	INIT_WORK(&con->swork, process_send_sockets);
 	INIT_WORK(&con->rwork, process_recv_sockets);
+	init_waitqueue_head(&con->shutdown_wait);
 
 	/* Setup action pointers for child sockets */
 	if (con->nodeid) {
@@ -619,6 +624,54 @@ static void close_connection(struct connection *con, bool and_other,
 	clear_bit(CF_CLOSING, &con->flags);
 }
 
+static void shutdown_connection(struct connection *con)
+{
+	int ret;
+
+	if (cancel_work_sync(&con->swork)) {
+		log_print("canceled swork for node %d", con->nodeid);
+		clear_bit(CF_WRITE_PENDING, &con->flags);
+	}
+
+	mutex_lock(&con->sock_mutex);
+	/* nothing to shutdown */
+	if (!con->sock) {
+		mutex_unlock(&con->sock_mutex);
+		return;
+	}
+
+	set_bit(CF_SHUTDOWN, &con->flags);
+	ret = kernel_sock_shutdown(con->sock, SHUT_WR);
+	mutex_unlock(&con->sock_mutex);
+	if (ret) {
+		log_print("Connection %p failed to shutdown: %d will force close",
+			  con, ret);
+		goto force_close;
+	} else {
+		ret = wait_event_timeout(con->shutdown_wait,
+					 !test_bit(CF_SHUTDOWN, &con->flags),
+					 DLM_SHUTDOWN_WAIT_TIMEOUT);
+		if (ret == 0) {
+			log_print("Connection %p shutdown timed out, will force close",
+				  con);
+			goto force_close;
+		}
+	}
+
+	return;
+
+force_close:
+	clear_bit(CF_SHUTDOWN, &con->flags);
+	close_connection(con, false, true, true);
+}
+
+static void dlm_tcp_shutdown(struct connection *con)
+{
+	if (con->othercon)
+		shutdown_connection(con->othercon);
+	shutdown_connection(con);
+}
+
 /* Data received from remote end */
 static int receive_from_sock(struct connection *con)
 {
@@ -685,14 +738,14 @@ static int receive_from_sock(struct connection *con)
 					  page_address(con->rx_page),
 					  con->cb.base, con->cb.len,
 					  PAGE_SIZE);
-	if (ret == -EBADMSG) {
-		log_print("lowcomms: addr=%p, base=%u, len=%u, read=%d",
-			  page_address(con->rx_page), con->cb.base,
+	if (ret < 0) {
+		log_print("lowcomms err %d: addr=%p, base=%u, len=%u, read=%d",
+			  ret, page_address(con->rx_page), con->cb.base,
 			  con->cb.len, r);
+		cbuf_eat(&con->cb, r);
+	} else {
+		cbuf_eat(&con->cb, ret);
 	}
-	if (ret < 0)
-		goto out_close;
-	cbuf_eat(&con->cb, ret);
 
 	if (cbuf_empty(&con->cb) && !call_again_soon) {
 		__free_page(con->rx_page);
@@ -713,18 +766,23 @@ out_resched:
 out_close:
 	mutex_unlock(&con->sock_mutex);
 	if (ret != -EAGAIN) {
-		close_connection(con, true, true, false);
 		/* Reconnect when there is something to send */
+		close_connection(con, false, true, false);
+		if (ret == 0) {
+			log_print("connection %p got EOF from %d",
+				  con, con->nodeid);
+			/* handling for tcp shutdown */
+			clear_bit(CF_SHUTDOWN, &con->flags);
+			wake_up(&con->shutdown_wait);
+			/* signal to breaking receive worker */
+			ret = -1;
+		}
 	}
-	/* Don't return success if we really got EOF */
-	if (ret == 0)
-		ret = -EAGAIN;
-
 	return ret;
 }
 
 /* Listening socket is busy, accept a connection */
-static int tcp_accept_from_sock(struct connection *con)
+static int accept_from_sock(struct connection *con)
 {
 	int result;
 	struct sockaddr_storage peeraddr;
@@ -803,22 +861,18 @@ static int tcp_accept_from_sock(struct connection *con)
 			spin_lock_init(&othercon->writequeue_lock);
 			INIT_WORK(&othercon->swork, process_send_sockets);
 			INIT_WORK(&othercon->rwork, process_recv_sockets);
+			init_waitqueue_head(&othercon->shutdown_wait);
 			set_bit(CF_IS_OTHERCON, &othercon->flags);
+		} else {
+			/* close other sock con if we have something new */
+			close_connection(othercon, false, true, false);
 		}
+
 		mutex_lock_nested(&othercon->sock_mutex, 2);
-		if (!othercon->sock) {
-			newcon->othercon = othercon;
-			add_sock(newsock, othercon);
-			addcon = othercon;
-			mutex_unlock(&othercon->sock_mutex);
-		}
-		else {
-			printk("Extra connection from node %d attempted\n", nodeid);
-			result = -EAGAIN;
-			mutex_unlock(&othercon->sock_mutex);
-			mutex_unlock(&newcon->sock_mutex);
-			goto accept_err;
-		}
+		newcon->othercon = othercon;
+		add_sock(newsock, othercon);
+		addcon = othercon;
+		mutex_unlock(&othercon->sock_mutex);
 	}
 	else {
 		newcon->rx_action = receive_from_sock;
@@ -852,123 +906,6 @@ accept_err:
 	return result;
 }
 
-static int sctp_accept_from_sock(struct connection *con)
-{
-	/* Check that the new node is in the lockspace */
-	struct sctp_prim prim;
-	int nodeid;
-	int prim_len, ret;
-	int addr_len;
-	struct connection *newcon;
-	struct connection *addcon;
-	struct socket *newsock;
-
-	mutex_lock(&connections_lock);
-	if (!dlm_allow_conn) {
-		mutex_unlock(&connections_lock);
-		return -1;
-	}
-	mutex_unlock(&connections_lock);
-
-	mutex_lock_nested(&con->sock_mutex, 0);
-
-	ret = kernel_accept(con->sock, &newsock, O_NONBLOCK);
-	if (ret < 0)
-		goto accept_err;
-
-	memset(&prim, 0, sizeof(struct sctp_prim));
-	prim_len = sizeof(struct sctp_prim);
-
-	ret = kernel_getsockopt(newsock, IPPROTO_SCTP, SCTP_PRIMARY_ADDR,
-				(char *)&prim, &prim_len);
-	if (ret < 0) {
-		log_print("getsockopt/sctp_primary_addr failed: %d", ret);
-		goto accept_err;
-	}
-
-	make_sockaddr(&prim.ssp_addr, 0, &addr_len);
-	ret = addr_to_nodeid(&prim.ssp_addr, &nodeid);
-	if (ret) {
-		unsigned char *b = (unsigned char *)&prim.ssp_addr;
-
-		log_print("reject connect from unknown addr");
-		print_hex_dump_bytes("ss: ", DUMP_PREFIX_NONE,
-				     b, sizeof(struct sockaddr_storage));
-		goto accept_err;
-	}
-
-	newcon = nodeid2con(nodeid, GFP_NOFS);
-	if (!newcon) {
-		ret = -ENOMEM;
-		goto accept_err;
-	}
-
-	mutex_lock_nested(&newcon->sock_mutex, 1);
-
-	if (newcon->sock) {
-		struct connection *othercon = newcon->othercon;
-
-		if (!othercon) {
-			othercon = kmem_cache_zalloc(con_cache, GFP_NOFS);
-			if (!othercon) {
-				log_print("failed to allocate incoming socket");
-				mutex_unlock(&newcon->sock_mutex);
-				ret = -ENOMEM;
-				goto accept_err;
-			}
-			othercon->nodeid = nodeid;
-			othercon->rx_action = receive_from_sock;
-			mutex_init(&othercon->sock_mutex);
-			INIT_LIST_HEAD(&othercon->writequeue);
-			spin_lock_init(&othercon->writequeue_lock);
-			INIT_WORK(&othercon->swork, process_send_sockets);
-			INIT_WORK(&othercon->rwork, process_recv_sockets);
-			set_bit(CF_IS_OTHERCON, &othercon->flags);
-		}
-		mutex_lock_nested(&othercon->sock_mutex, 2);
-		if (!othercon->sock) {
-			newcon->othercon = othercon;
-			add_sock(newsock, othercon);
-			addcon = othercon;
-			mutex_unlock(&othercon->sock_mutex);
-		} else {
-			printk("Extra connection from node %d attempted\n", nodeid);
-			ret = -EAGAIN;
-			mutex_unlock(&othercon->sock_mutex);
-			mutex_unlock(&newcon->sock_mutex);
-			goto accept_err;
-		}
-	} else {
-		newcon->rx_action = receive_from_sock;
-		add_sock(newsock, newcon);
-		addcon = newcon;
-	}
-
-	log_print("connected to %d", nodeid);
-
-	mutex_unlock(&newcon->sock_mutex);
-
-	/*
-	 * Add it to the active queue in case we got data
-	 * between processing the accept adding the socket
-	 * to the read_sockets list
-	 */
-	if (!test_and_set_bit(CF_READ_PENDING, &addcon->flags))
-		queue_work(recv_workqueue, &addcon->rwork);
-	mutex_unlock(&con->sock_mutex);
-
-	return 0;
-
-accept_err:
-	mutex_unlock(&con->sock_mutex);
-	if (newsock)
-		sock_release(newsock);
-	if (ret != -EAGAIN)
-		log_print("error accepting connection from node: %d", ret);
-
-	return ret;
-}
-
 static void free_entry(struct writequeue_entry *e)
 {
 	__free_page(e->page);
@@ -999,6 +936,7 @@ static void writequeue_entry_complete(struct writequeue_entry *e, int completed)
 static int sctp_bind_addrs(struct connection *con, uint16_t port)
 {
 	struct sockaddr_storage localaddr;
+	struct sockaddr *addr = (struct sockaddr *)&localaddr;
 	int i, addr_len, result = 0;
 
 	for (i = 0; i < dlm_local_count; i++) {
@@ -1006,13 +944,9 @@ static int sctp_bind_addrs(struct connection *con, uint16_t port)
 		make_sockaddr(&localaddr, port, &addr_len);
 
 		if (!i)
-			result = kernel_bind(con->sock,
-					     (struct sockaddr *)&localaddr,
-					     addr_len);
+			result = kernel_bind(con->sock, addr, addr_len);
 		else
-			result = kernel_setsockopt(con->sock, SOL_SCTP,
-						   SCTP_SOCKOPT_BINDX_ADD,
-						   (char *)&localaddr, addr_len);
+			result = sock_bind_add(con->sock->sk, addr, addr_len);
 
 		if (result < 0) {
 			log_print("Can't bind to %d addr number %d, %d.\n",
@@ -1031,11 +965,10 @@ static int sctp_bind_addrs(struct connection *con, uint16_t port)
 static void sctp_connect_to_sock(struct connection *con)
 {
 	struct sockaddr_storage daddr;
-	int one = 1;
 	int result;
 	int addr_len;
 	struct socket *sock;
-	struct __kernel_sock_timeval tv = { .tv_sec = 5, .tv_usec = 0 };
+	unsigned int mark;
 
 	if (con->nodeid == 0) {
 		log_print("attempt to connect sock 0 foiled");
@@ -1066,6 +999,13 @@ static void sctp_connect_to_sock(struct connection *con)
 	if (result < 0)
 		goto socket_err;
 
+	/* set skb mark */
+	result = dlm_comm_mark(con->nodeid, &mark);
+	if (result < 0)
+		goto bind_err;
+
+	sock_set_mark(sock->sk, mark);
+
 	con->rx_action = receive_from_sock;
 	con->connect_action = sctp_connect_to_sock;
 	add_sock(sock, con);
@@ -1079,21 +1019,17 @@ static void sctp_connect_to_sock(struct connection *con)
 	log_print("connecting to %d", con->nodeid);
 
 	/* Turn off Nagle's algorithm */
-	kernel_setsockopt(sock, SOL_SCTP, SCTP_NODELAY, (char *)&one,
-			  sizeof(one));
+	sctp_sock_set_nodelay(sock->sk);
 
 	/*
 	 * Make sock->ops->connect() function return in specified time,
 	 * since O_NONBLOCK argument in connect() function does not work here,
 	 * then, we should restore the default value of this attribute.
 	 */
-	kernel_setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO_NEW, (char *)&tv,
-			  sizeof(tv));
+	sock_set_sndtimeo(sock->sk, 5);
 	result = sock->ops->connect(sock, (struct sockaddr *)&daddr, addr_len,
 				   0);
-	memset(&tv, 0, sizeof(tv));
-	kernel_setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO_NEW, (char *)&tv,
-			  sizeof(tv));
+	sock_set_sndtimeo(sock->sk, 0);
 
 	if (result == -EINPROGRESS)
 		result = 0;
@@ -1132,7 +1068,7 @@ static void tcp_connect_to_sock(struct connection *con)
 	struct sockaddr_storage saddr, src_addr;
 	int addr_len;
 	struct socket *sock = NULL;
-	int one = 1;
+	unsigned int mark;
 	int result;
 
 	if (con->nodeid == 0) {
@@ -1154,6 +1090,13 @@ static void tcp_connect_to_sock(struct connection *con)
 	if (result < 0)
 		goto out_err;
 
+	/* set skb mark */
+	result = dlm_comm_mark(con->nodeid, &mark);
+	if (result < 0)
+		goto out_err;
+
+	sock_set_mark(sock->sk, mark);
+
 	memset(&saddr, 0, sizeof(saddr));
 	result = nodeid_to_addr(con->nodeid, &saddr, NULL, false);
 	if (result < 0) {
@@ -1163,6 +1106,7 @@ static void tcp_connect_to_sock(struct connection *con)
 
 	con->rx_action = receive_from_sock;
 	con->connect_action = tcp_connect_to_sock;
+	con->shutdown_action = dlm_tcp_shutdown;
 	add_sock(sock, con);
 
 	/* Bind to our cluster-known address connecting to avoid
@@ -1181,8 +1125,7 @@ static void tcp_connect_to_sock(struct connection *con)
 	log_print("connecting to %d", con->nodeid);
 
 	/* Turn off Nagle's algorithm */
-	kernel_setsockopt(sock, SOL_TCP, TCP_NODELAY, (char *)&one,
-			  sizeof(one));
+	tcp_sock_set_nodelay(sock->sk);
 
 	result = sock->ops->connect(sock, (struct sockaddr *)&saddr, addr_len,
 				   O_NONBLOCK);
@@ -1224,7 +1167,6 @@ static struct socket *tcp_create_listen_sock(struct connection *con,
 {
 	struct socket *sock = NULL;
 	int result = 0;
-	int one = 1;
 	int addr_len;
 
 	if (dlm_local_addr[0]->ss_family == AF_INET)
@@ -1240,20 +1182,17 @@ static struct socket *tcp_create_listen_sock(struct connection *con,
 		goto create_out;
 	}
 
+	sock_set_mark(sock->sk, dlm_config.ci_mark);
+
 	/* Turn off Nagle's algorithm */
-	kernel_setsockopt(sock, SOL_TCP, TCP_NODELAY, (char *)&one,
-			  sizeof(one));
+	tcp_sock_set_nodelay(sock->sk);
 
-	result = kernel_setsockopt(sock, SOL_SOCKET, SO_REUSEADDR,
-				   (char *)&one, sizeof(one));
+	sock_set_reuseaddr(sock->sk);
 
-	if (result < 0) {
-		log_print("Failed to set SO_REUSEADDR on socket: %d", result);
-	}
 	write_lock_bh(&sock->sk->sk_callback_lock);
 	sock->sk->sk_user_data = con;
 	save_listen_callbacks(sock);
-	con->rx_action = tcp_accept_from_sock;
+	con->rx_action = accept_from_sock;
 	con->connect_action = tcp_connect_to_sock;
 	write_unlock_bh(&sock->sk->sk_callback_lock);
 
@@ -1267,11 +1206,7 @@ static struct socket *tcp_create_listen_sock(struct connection *con,
 		con->sock = NULL;
 		goto create_out;
 	}
-	result = kernel_setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE,
-				 (char *)&one, sizeof(one));
-	if (result < 0) {
-		log_print("Set keepalive failed: %d", result);
-	}
+	sock_set_keepalive(sock->sk);
 
 	result = sock->ops->listen(sock, 5);
 	if (result < 0) {
@@ -1309,8 +1244,6 @@ static int sctp_listen_for_all(void)
 	struct socket *sock = NULL;
 	int result = -EINVAL;
 	struct connection *con = nodeid2con(0, GFP_NOFS);
-	int bufsize = NEEDED_RMEM;
-	int one = 1;
 
 	if (!con)
 		return -ENOMEM;
@@ -1324,15 +1257,9 @@ static int sctp_listen_for_all(void)
 		goto out;
 	}
 
-	result = kernel_setsockopt(sock, SOL_SOCKET, SO_RCVBUFFORCE,
-				 (char *)&bufsize, sizeof(bufsize));
-	if (result)
-		log_print("Error increasing buffer space on socket %d", result);
-
-	result = kernel_setsockopt(sock, SOL_SCTP, SCTP_NODELAY, (char *)&one,
-				   sizeof(one));
-	if (result < 0)
-		log_print("Could not set SCTP NODELAY error %d\n", result);
+	sock_set_rcvbuf(sock->sk, NEEDED_RMEM);
+	sock_set_mark(sock->sk, dlm_config.ci_mark);
+	sctp_sock_set_nodelay(sock->sk);
 
 	write_lock_bh(&sock->sk->sk_callback_lock);
 	/* Init con struct */
@@ -1340,7 +1267,7 @@ static int sctp_listen_for_all(void)
 	save_listen_callbacks(sock);
 	con->sock = sock;
 	con->sock->sk->sk_data_ready = lowcomms_data_ready;
-	con->rx_action = sctp_accept_from_sock;
+	con->rx_action = accept_from_sock;
 	con->connect_action = sctp_connect_to_sock;
 
 	write_unlock_bh(&sock->sk->sk_callback_lock);
@@ -1543,7 +1470,7 @@ out:
 
 send_error:
 	mutex_unlock(&con->sock_mutex);
-	close_connection(con, true, false, true);
+	close_connection(con, false, false, true);
 	/* Requeue the send work. When the work daemon runs again, it will try
 	   a new connection, then call this function again. */
 	queue_work(send_workqueue, &con->swork);
@@ -1675,6 +1602,12 @@ static void stop_conn(struct connection *con)
 	_stop_conn(con, true);
 }
 
+static void shutdown_conn(struct connection *con)
+{
+	if (con->shutdown_action)
+		con->shutdown_action(con);
+}
+
 static void free_conn(struct connection *con)
 {
 	close_connection(con, true, true, true);
@@ -1726,6 +1659,7 @@ void dlm_lowcomms_stop(void)
 	mutex_lock(&connections_lock);
 	dlm_allow_conn = 0;
 	mutex_unlock(&connections_lock);
+	foreach_conn(shutdown_conn);
 	work_flush();
 	clean_writequeues();
 	foreach_conn(free_conn);

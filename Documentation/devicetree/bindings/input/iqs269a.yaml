@@ -40,10 +40,9 @@ properties:
       posed on channels 6 and 7 by Hall-effect sensing.
 
   azoteq,suspend-mode:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [0, 1, 2, 3]
-        default: 0
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2, 3]
+    default: 0
     description: |
       Specifies the power mode during suspend as follows:
       0: Automatic (same as normal runtime, i.e. suspend/resume disabled)
@@ -56,11 +55,10 @@ properties:
     description: Divides the device's core clock by a factor of 4.
 
   azoteq,ulp-update:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - minimum: 0
-        maximum: 7
-        default: 3
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 7
+    default: 3
     description: Specifies the ultra-low-power mode update rate.
 
   azoteq,reseed-offset:
@@ -70,34 +68,30 @@ properties:
       reseed events.
 
   azoteq,filt-str-lp-lta:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [0, 1, 2, 3]
-        default: 0
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2, 3]
+    default: 0
     description:
       Specifies the long-term average filter strength during low-power mode.
 
   azoteq,filt-str-lp-cnt:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [0, 1, 2, 3]
-        default: 0
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2, 3]
+    default: 0
     description:
       Specifies the raw count filter strength during low-power mode.
 
   azoteq,filt-str-np-lta:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [0, 1, 2, 3]
-        default: 0
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2, 3]
+    default: 0
     description:
       Specifies the long-term average filter strength during normal-power mode.
 
   azoteq,filt-str-np-cnt:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [0, 1, 2, 3]
-        default: 0
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2, 3]
+    default: 0
     description:
       Specifies the raw count filter strength during normal-power mode.
 
@@ -156,11 +150,10 @@ properties:
     description: Disables all raw count filtering.
 
   azoteq,gpio3-select:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - minimum: 0
-        maximum: 7
-        default: 0
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 7
+    default: 0
     description:
       Selects the channel for which the GPIO3 pin represents touch state.
 
@@ -172,10 +165,9 @@ properties:
       in either direction.
 
   azoteq,tx-freq:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [0, 1, 2, 3]
-        default: 0
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2, 3]
+    default: 0
     description: |
       Specifies the inductive sensing excitation frequency as follows (paren-
       thesized numbers represent the frequency if 'azoteq,clk-div' is present):
@@ -189,10 +181,9 @@ properties:
     description: Increases the global capacitance adder from 0.5 pF to 1.5 pF.
 
   azoteq,reseed-select:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [0, 1, 2, 3]
-        default: 0
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2, 3]
+    default: 0
     description: |
       Specifies the event(s) that prompt the device to reseed (i.e. reset the
       long-term average) of an associated channel as follows:
@@ -208,10 +199,9 @@ properties:
       channels.
 
   azoteq,filt-str-slider:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [0, 1, 2, 3]
-        default: 1
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2, 3]
+    default: 1
     description: Specifies the slider coordinate filter strength.
 
 patternProperties:
@@ -246,27 +236,25 @@ patternProperties:
         description: Specifies that the channel participates in slider 1.
 
       azoteq,rx-enable:
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32-array
-          - minItems: 1
-            maxItems: 8
-            items:
-              minimum: 0
-              maximum: 7
+        $ref: /schemas/types.yaml#/definitions/uint32-array
+        minItems: 1
+        maxItems: 8
+        items:
+          minimum: 0
+          maximum: 7
         description:
           Specifies the CRX pin(s) associated with the channel. By default, only
           the CRX pin corresponding to the channel's index is enabled (e.g. CRX0
           for channel 0).
 
       azoteq,tx-enable:
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32-array
-          - minItems: 1
-            maxItems: 8
-            items:
-              minimum: 0
-              maximum: 7
-            default: [0, 1, 2, 3, 4, 5, 6, 7]
+        $ref: /schemas/types.yaml#/definitions/uint32-array
+        minItems: 1
+        maxItems: 8
+        items:
+          minimum: 0
+          maximum: 7
+        default: [0, 1, 2, 3, 4, 5, 6, 7]
         description: Specifies the TX pin(s) associated with the channel.
 
       azoteq,meas-cap-decrease:
@@ -279,10 +267,9 @@ patternProperties:
         description: Floats any inactive CRX pins instead of grounding them.
 
       azoteq,local-cap-size:
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32
-          - enum: [0, 1, 2]
-            default: 0
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [0, 1, 2]
+        default: 0
         description: |
           Specifies the capacitance to be added to the channel as follows:
           0: None
@@ -296,10 +283,9 @@ patternProperties:
           deep-touch events relative to their respective thresholds.
 
       azoteq,proj-bias:
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32
-          - enum: [0, 1, 2, 3]
-            default: 2
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [0, 1, 2, 3]
+        default: 2
         description: |
           Specifies the bias current applied during projected-capacitance
           sensing as follows:
@@ -309,10 +295,9 @@ patternProperties:
           3: 20 uA
 
       azoteq,sense-mode:
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32
-          - enum: [0, 1, 9, 14, 15]
-            default: 0
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [0, 1, 9, 14, 15]
+        default: 0
         description: |
           Specifies the channel's sensing mode as follows:
           0:  Self capacitance
@@ -322,10 +307,9 @@ patternProperties:
           15: Temperature
 
       azoteq,sense-freq:
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32
-          - enum: [0, 1, 2, 3]
-            default: 1
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [0, 1, 2, 3]
+        default: 1
         description: |
           Specifies the channel's sensing frequency as follows (parenthesized
           numbers represent the frequency if 'azoteq,clk-div' is present):
@@ -339,10 +323,9 @@ patternProperties:
         description: Enables the static front-end for the channel.
 
       azoteq,ati-mode:
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32
-          - enum: [0, 1, 2, 3]
-            default: 3
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [0, 1, 2, 3]
+        default: 3
         description: |
           Specifies the channel's ATI mode as follows:
           0: Disabled
@@ -351,39 +334,35 @@ patternProperties:
           3: Full
 
       azoteq,ati-base:
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32
-          - enum: [75, 100, 150, 200]
-            default: 100
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [75, 100, 150, 200]
+        default: 100
         description: Specifies the channel's ATI base.
 
       azoteq,ati-target:
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32
-          - multipleOf: 32
-            minimum: 0
-            maximum: 2016
-            default: 512
+        $ref: /schemas/types.yaml#/definitions/uint32
+        multipleOf: 32
+        minimum: 0
+        maximum: 2016
+        default: 512
         description: Specifies the channel's ATI target.
 
       azoteq,assoc-select:
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32-array
-          - minItems: 1
-            maxItems: 8
-            items:
-              minimum: 0
-              maximum: 7
+        $ref: /schemas/types.yaml#/definitions/uint32-array
+        minItems: 1
+        maxItems: 8
+        items:
+          minimum: 0
+          maximum: 7
         description:
           Specifies the associated channels for which the channel serves as a
           reference channel. By default, no channels are selected.
 
       azoteq,assoc-weight:
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32
-          - minimum: 0
-            maximum: 255
-            default: 0
+        $ref: /schemas/types.yaml#/definitions/uint32
+        minimum: 0
+        maximum: 255
+        default: 0
         description:
           Specifies the channel's impact weight if it acts as an associated
           channel (0 = 0% impact, 255 = 200% impact).
@@ -411,11 +390,10 @@ patternProperties:
 
         properties:
           azoteq,thresh:
-            allOf:
-              - $ref: /schemas/types.yaml#/definitions/uint32
-              - minimum: 0
-                maximum: 255
-                default: 10
+            $ref: /schemas/types.yaml#/definitions/uint32
+            minimum: 0
+            maximum: 255
+            default: 10
             description: Specifies the threshold for the event.
 
           linux,code:
@@ -430,19 +408,17 @@ patternProperties:
 
         properties:
           azoteq,thresh:
-            allOf:
-              - $ref: /schemas/types.yaml#/definitions/uint32
-              - minimum: 0
-                maximum: 255
-                default: 8
+            $ref: /schemas/types.yaml#/definitions/uint32
+            minimum: 0
+            maximum: 255
+            default: 8
             description: Specifies the threshold for the event.
 
           azoteq,hyst:
-            allOf:
-              - $ref: /schemas/types.yaml#/definitions/uint32
-              - minimum: 0
-                maximum: 15
-                default: 4
+            $ref: /schemas/types.yaml#/definitions/uint32
+            minimum: 0
+            maximum: 15
+            default: 4
             description: Specifies the hysteresis for the event.
 
           linux,code:
@@ -457,19 +433,17 @@ patternProperties:
 
         properties:
           azoteq,thresh:
-            allOf:
-              - $ref: /schemas/types.yaml#/definitions/uint32
-              - minimum: 0
-                maximum: 255
-                default: 26
+            $ref: /schemas/types.yaml#/definitions/uint32
+            minimum: 0
+            maximum: 255
+            default: 26
             description: Specifies the threshold for the event.
 
           azoteq,hyst:
-            allOf:
-              - $ref: /schemas/types.yaml#/definitions/uint32
-              - minimum: 0
-                maximum: 15
-                default: 0
+            $ref: /schemas/types.yaml#/definitions/uint32
+            minimum: 0
+            maximum: 15
+            default: 0
             description: Specifies the hysteresis for the event.
 
           linux,code:

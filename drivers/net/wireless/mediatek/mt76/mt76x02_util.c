@@ -46,6 +46,8 @@ static const struct ieee80211_iface_limit mt76x02_if_limits[] = {
 #ifdef CONFIG_MAC80211_MESH
 			 BIT(NL80211_IFTYPE_MESH_POINT) |
 #endif
+			 BIT(NL80211_IFTYPE_P2P_CLIENT) |
+			 BIT(NL80211_IFTYPE_P2P_GO) |
 			 BIT(NL80211_IFTYPE_AP)
 	 },
 };
@@ -60,6 +62,8 @@ static const struct ieee80211_iface_limit mt76x02u_if_limits[] = {
 #ifdef CONFIG_MAC80211_MESH
 			 BIT(NL80211_IFTYPE_MESH_POINT) |
 #endif
+			 BIT(NL80211_IFTYPE_P2P_CLIENT) |
+			 BIT(NL80211_IFTYPE_P2P_GO) |
 			 BIT(NL80211_IFTYPE_AP)
 	},
 };
@@ -245,7 +249,7 @@ int mt76x02_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
 
 	memset(msta, 0, sizeof(*msta));
 
-	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, ARRAY_SIZE(dev->mt76.wcid));
+	idx = mt76_wcid_alloc(dev->mt76.wcid_mask, MT76x02_N_WCIDS);
 	if (idx < 0)
 		return -ENOSPC;
 
@@ -301,7 +305,7 @@ mt76x02_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	unsigned int idx = 0;
 
 	/* Allow to change address in HW if we create first interface. */
-	if (!dev->vif_mask &&
+	if (!dev->mphy.vif_mask &&
 	    (((vif->addr[0] ^ dev->mt76.macaddr[0]) & ~GENMASK(4, 1)) ||
 	     memcmp(vif->addr + 1, dev->mt76.macaddr + 1, ETH_ALEN - 1)))
 		mt76x02_mac_setaddr(dev, vif->addr);
@@ -326,11 +330,11 @@ mt76x02_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 		idx += 8;
 
 	/* vif is already set or idx is 8 for AP/Mesh/... */
-	if (dev->vif_mask & BIT(idx) ||
+	if (dev->mphy.vif_mask & BIT(idx) ||
 	    (vif->type != NL80211_IFTYPE_STATION && idx > 7))
 		return -EBUSY;
 
-	dev->vif_mask |= BIT(idx);
+	dev->mphy.vif_mask |= BIT(idx);
 
 	mt76x02_vif_init(dev, vif, idx);
 	return 0;
@@ -344,7 +348,7 @@ void mt76x02_remove_interface(struct ieee80211_hw *hw,
 	struct mt76x02_vif *mvif = (struct mt76x02_vif *)vif->drv_priv;
 
 	mt76_txq_remove(&dev->mt76, vif->txq);
-	dev->vif_mask &= ~BIT(mvif->idx);
+	dev->mphy.vif_mask &= ~BIT(mvif->idx);
 }
 EXPORT_SYMBOL_GPL(mt76x02_remove_interface);
 

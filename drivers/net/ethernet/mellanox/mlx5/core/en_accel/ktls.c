@@ -3,18 +3,8 @@
 
 #include "en.h"
 #include "en_accel/ktls.h"
-
-static int mlx5e_ktls_create_tis(struct mlx5_core_dev *mdev, u32 *tisn)
-{
-	u32 in[MLX5_ST_SZ_DW(create_tis_in)] = {};
-	void *tisc;
-
-	tisc = MLX5_ADDR_OF(create_tis_in, in, ctx);
-
-	MLX5_SET(tisc, tisc, tls_en, 1);
-
-	return mlx5e_create_tis(mdev, in, tisn);
-}
+#include "en_accel/ktls_utils.h"
+#include "en_accel/fs_tcp.h"
 
 static int mlx5e_ktls_add(struct net_device *netdev, struct sock *sk,
 			  enum tls_offload_ctx_dir direction,
@@ -22,42 +12,17 @@ static int mlx5e_ktls_add(struct net_device *netdev, struct sock *sk,
 			  u32 start_offload_tcp_sn)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
-	struct mlx5e_ktls_offload_context_tx *tx_priv;
-	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct mlx5_core_dev *mdev = priv->mdev;
 	int err;
-
-	if (WARN_ON(direction != TLS_OFFLOAD_CTX_DIR_TX))
-		return -EINVAL;
 
 	if (WARN_ON(!mlx5e_ktls_type_check(mdev, crypto_info)))
 		return -EOPNOTSUPP;
 
-	tx_priv = kvzalloc(sizeof(*tx_priv), GFP_KERNEL);
-	if (!tx_priv)
-		return -ENOMEM;
+	if (direction == TLS_OFFLOAD_CTX_DIR_TX)
+		err = mlx5e_ktls_add_tx(netdev, sk, crypto_info, start_offload_tcp_sn);
+	else
+		err = mlx5e_ktls_add_rx(netdev, sk, crypto_info, start_offload_tcp_sn);
 
-	tx_priv->expected_seq = start_offload_tcp_sn;
-	tx_priv->crypto_info  = *(struct tls12_crypto_info_aes_gcm_128 *)crypto_info;
-	mlx5e_set_ktls_tx_priv_ctx(tls_ctx, tx_priv);
-
-	/* tc and underlay_qpn values are not in use for tls tis */
-	err = mlx5e_ktls_create_tis(mdev, &tx_priv->tisn);
-	if (err)
-		goto create_tis_fail;
-
-	err = mlx5_ktls_create_key(mdev, crypto_info, &tx_priv->key_id);
-	if (err)
-		goto encryption_key_create_fail;
-
-	mlx5e_ktls_tx_offload_set_pending(tx_priv);
-
-	return 0;
-
-encryption_key_create_fail:
-	mlx5e_destroy_tis(priv->mdev, tx_priv->tisn);
-create_tis_fail:
-	kvfree(tx_priv);
 	return err;
 }
 
@@ -65,29 +30,72 @@ static void mlx5e_ktls_del(struct net_device *netdev,
 			   struct tls_context *tls_ctx,
 			   enum tls_offload_ctx_dir direction)
 {
-	struct mlx5e_priv *priv = netdev_priv(netdev);
-	struct mlx5e_ktls_offload_context_tx *tx_priv =
-		mlx5e_get_ktls_tx_priv_ctx(tls_ctx);
+	if (direction == TLS_OFFLOAD_CTX_DIR_TX)
+		mlx5e_ktls_del_tx(netdev, tls_ctx);
+	else
+		mlx5e_ktls_del_rx(netdev, tls_ctx);
+}
 
-	mlx5e_destroy_tis(priv->mdev, tx_priv->tisn);
-	mlx5_ktls_destroy_key(priv->mdev, tx_priv->key_id);
-	kvfree(tx_priv);
+static int mlx5e_ktls_resync(struct net_device *netdev,
+			     struct sock *sk, u32 seq, u8 *rcd_sn,
+			     enum tls_offload_ctx_dir direction)
+{
+	if (unlikely(direction != TLS_OFFLOAD_CTX_DIR_RX))
+		return -EOPNOTSUPP;
+
+	mlx5e_ktls_rx_resync(netdev, sk, seq, rcd_sn);
+	return 0;
 }
 
 static const struct tlsdev_ops mlx5e_ktls_ops = {
 	.tls_dev_add = mlx5e_ktls_add,
 	.tls_dev_del = mlx5e_ktls_del,
+	.tls_dev_resync = mlx5e_ktls_resync,
 };
 
 void mlx5e_ktls_build_netdev(struct mlx5e_priv *priv)
 {
 	struct net_device *netdev = priv->netdev;
+	struct mlx5_core_dev *mdev = priv->mdev;
 
-	if (!mlx5_accel_is_ktls_device(priv->mdev))
-		return;
+	if (mlx5_accel_is_ktls_tx(mdev)) {
+		netdev->hw_features |= NETIF_F_HW_TLS_TX;
+		netdev->features    |= NETIF_F_HW_TLS_TX;
+	}
 
-	netdev->hw_features |= NETIF_F_HW_TLS_TX;
-	netdev->features    |= NETIF_F_HW_TLS_TX;
+	if (mlx5_accel_is_ktls_rx(mdev))
+		netdev->hw_features |= NETIF_F_HW_TLS_RX;
 
 	netdev->tlsdev_ops = &mlx5e_ktls_ops;
+}
+
+int mlx5e_ktls_set_feature_rx(struct net_device *netdev, bool enable)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+	int err = 0;
+
+	mutex_lock(&priv->state_lock);
+	if (enable)
+		err = mlx5e_accel_fs_tcp_create(priv);
+	else
+		mlx5e_accel_fs_tcp_destroy(priv);
+	mutex_unlock(&priv->state_lock);
+
+	return err;
+}
+
+int mlx5e_ktls_init_rx(struct mlx5e_priv *priv)
+{
+	int err = 0;
+
+	if (priv->netdev->features & NETIF_F_HW_TLS_RX)
+		err = mlx5e_accel_fs_tcp_create(priv);
+
+	return err;
+}
+
+void mlx5e_ktls_cleanup_rx(struct mlx5e_priv *priv)
+{
+	if (priv->netdev->features & NETIF_F_HW_TLS_RX)
+		mlx5e_accel_fs_tcp_destroy(priv);
 }

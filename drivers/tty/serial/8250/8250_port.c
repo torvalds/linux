@@ -16,6 +16,7 @@
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/console.h>
+#include <linux/gpio/consumer.h>
 #include <linux/sysrq.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
@@ -680,6 +681,9 @@ int serial8250_em485_config(struct uart_port *port, struct serial_rs485 *rs485)
 
 	memset(rs485->padding, 0, sizeof(rs485->padding));
 	port->rs485 = *rs485;
+
+	gpiod_set_value(port->rs485_term_gpio,
+			rs485->flags & SER_RS485_TERMINATE_BUS);
 
 	/*
 	 * Both serial8250_em485_init() and serial8250_em485_destroy()
@@ -1432,7 +1436,7 @@ static void serial8250_stop_rx(struct uart_port *port)
 
 /**
  * serial8250_em485_stop_tx() - generic ->rs485_stop_tx() callback
- * @up: uart 8250 port
+ * @p: uart 8250 port
  *
  * Generic callback usable by 8250 uart drivers to stop rs485 transmission.
  */
@@ -1868,7 +1872,7 @@ static bool handle_rx_dma(struct uart_8250_port *up, unsigned int iir)
 	switch (iir & 0x3f) {
 	case UART_IIR_RX_TIMEOUT:
 		serial8250_rx_dma_flush(up);
-		/* fall-through */
+		fallthrough;
 	case UART_IIR_RLSI:
 		return true;
 	}
@@ -2271,6 +2275,10 @@ int serial8250_do_startup(struct uart_port *port)
 
 	if (port->irq && !(up->port.flags & UPF_NO_THRE_TEST)) {
 		unsigned char iir1;
+
+		if (port->irqflags & IRQF_SHARED)
+			disable_irq_nosync(port->irq);
+
 		/*
 		 * Test for UARTs that do not reassert THRE when the
 		 * transmitter is idle and the interrupt has already
@@ -2280,8 +2288,6 @@ int serial8250_do_startup(struct uart_port *port)
 		 * allow register changes to become visible.
 		 */
 		spin_lock_irqsave(&port->lock, flags);
-		if (up->port.irqflags & IRQF_SHARED)
-			disable_irq_nosync(port->irq);
 
 		wait_for_xmitr(up, UART_LSR_THRE);
 		serial_port_out_sync(port, UART_IER, UART_IER_THRI);
@@ -2293,9 +2299,10 @@ int serial8250_do_startup(struct uart_port *port)
 		iir = serial_port_in(port, UART_IIR);
 		serial_port_out(port, UART_IER, 0);
 
+		spin_unlock_irqrestore(&port->lock, flags);
+
 		if (port->irqflags & IRQF_SHARED)
 			enable_irq(port->irq);
-		spin_unlock_irqrestore(&port->lock, flags);
 
 		/*
 		 * If the interrupt is not reasserted, or we otherwise
@@ -2615,6 +2622,8 @@ static unsigned int serial8250_get_baud_rate(struct uart_port *port,
 					     struct ktermios *termios,
 					     struct ktermios *old)
 {
+	unsigned int tolerance = port->uartclk / 100;
+
 	/*
 	 * Ask the core to calculate the divisor for us.
 	 * Allow 1% tolerance at the upper limit so uart clks marginally
@@ -2623,8 +2632,48 @@ static unsigned int serial8250_get_baud_rate(struct uart_port *port,
 	 */
 	return uart_get_baud_rate(port, termios, old,
 				  port->uartclk / 16 / UART_DIV_MAX,
-				  port->uartclk);
+				  (port->uartclk + tolerance) / 16);
 }
+
+/*
+ * Note in order to avoid the tty port mutex deadlock don't use the next method
+ * within the uart port callbacks. Primarily it's supposed to be utilized to
+ * handle a sudden reference clock rate change.
+ */
+void serial8250_update_uartclk(struct uart_port *port, unsigned int uartclk)
+{
+	struct uart_8250_port *up = up_to_u8250p(port);
+	unsigned int baud, quot, frac = 0;
+	struct ktermios *termios;
+	unsigned long flags;
+
+	mutex_lock(&port->state->port.mutex);
+
+	if (port->uartclk == uartclk)
+		goto out_lock;
+
+	port->uartclk = uartclk;
+	termios = &port->state->port.tty->termios;
+
+	baud = serial8250_get_baud_rate(port, termios, NULL);
+	quot = serial8250_get_divisor(port, baud, &frac);
+
+	serial8250_rpm_get(up);
+	spin_lock_irqsave(&port->lock, flags);
+
+	uart_update_timeout(port, termios->c_cflag, baud);
+
+	serial8250_set_divisor(port, baud, quot, frac);
+	serial_port_out(port, UART_LCR, up->lcr);
+	serial8250_out_MCR(up, UART_MCR_DTR | UART_MCR_RTS);
+
+	spin_unlock_irqrestore(&port->lock, flags);
+	serial8250_rpm_put(up);
+
+out_lock:
+	mutex_unlock(&port->state->port.mutex);
+}
+EXPORT_SYMBOL_GPL(serial8250_update_uartclk);
 
 void
 serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,

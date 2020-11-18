@@ -957,10 +957,6 @@ static int check_dev_item(struct extent_buffer *leaf,
 	return 0;
 }
 
-/* Inode item error output has the same format as dir_item_err() */
-#define inode_item_err(eb, slot, fmt, ...)			\
-	dir_item_err(eb, slot, fmt, __VA_ARGS__)
-
 static int check_inode_item(struct extent_buffer *leaf,
 			    struct btrfs_key *key, int slot)
 {
@@ -988,7 +984,7 @@ static int check_inode_item(struct extent_buffer *leaf,
 	/* Note for ROOT_TREE_DIR_ITEM, mkfs could set its transid 0 */
 	if (btrfs_inode_transid(leaf, iitem) > super_gen + 1) {
 		inode_item_err(leaf, slot,
-			"invalid inode generation: has %llu expect [0, %llu]",
+			"invalid inode transid: has %llu expect [0, %llu]",
 			       btrfs_inode_transid(leaf, iitem), super_gen + 1);
 		return -EUCLEAN;
 	}

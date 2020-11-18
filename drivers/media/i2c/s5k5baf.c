@@ -281,7 +281,7 @@ struct s5k5baf_fw {
 		u16 id;
 		u16 offset;
 	} seq[0];
-	u16 data[0];
+	u16 data[];
 };
 
 struct s5k5baf {

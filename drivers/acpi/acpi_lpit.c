@@ -151,10 +151,11 @@ void acpi_init_lpit(void)
 	struct acpi_table_lpit *lpit;
 
 	status = acpi_get_table(ACPI_SIG_LPIT, 0, (struct acpi_table_header **)&lpit);
-
 	if (ACPI_FAILURE(status))
 		return;
 
 	lpit_process((u64)lpit + sizeof(*lpit),
 		     (u64)lpit + lpit->header.length);
+
+	acpi_put_table((struct acpi_table_header *)lpit);
 }

@@ -35,23 +35,21 @@ properties:
   adi,decimation-ratio:
     description: |
       This property set's the decimation ratio of PDM to PCM audio data.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [64, 32, 16]
-        default: 64
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [64, 32, 16]
+    default: 64
 
   adi,pdm-clk-map:
     description: |
       The ADAU7118 has two PDM clocks for the four Inputs. Each input must be
       assigned to one of these two clocks. This property set's the mapping
       between the clocks and the inputs.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
-      - minItems: 4
-        maxItems: 4
-        items:
-          maximum: 1
-        default: [0, 0, 1, 1]
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 4
+    maxItems: 4
+    items:
+      maximum: 1
+    default: [0, 0, 1, 1]
 
 required:
   - "#sound-dai-cells"

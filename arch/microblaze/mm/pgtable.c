@@ -32,8 +32,8 @@
 #include <linux/vmalloc.h>
 #include <linux/init.h>
 #include <linux/mm_types.h>
+#include <linux/pgtable.h>
 
-#include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <linux/io.h>
 #include <asm/mmu.h>

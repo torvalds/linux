@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/*
- * aQuantia Corporation Network Driver
- * Copyright (C) 2014-2019 aQuantia Corporation. All rights reserved
+/* Atlantic Network Driver
+ *
+ * Copyright (C) 2014-2019 aQuantia Corporation
+ * Copyright (C) 2019-2020 Marvell International Ltd.
  */
 
 /* File aq_ring.c: Definition of functions for Rx/Tx rings. */
@@ -69,24 +70,35 @@ static int aq_get_rxpages(struct aq_ring_s *self, struct aq_ring_buff_s *rxbuf,
 			rxbuf->rxdata.pg_off += AQ_CFG_RX_FRAME_MAX;
 			if (rxbuf->rxdata.pg_off + AQ_CFG_RX_FRAME_MAX <=
 				(PAGE_SIZE << order)) {
+				u64_stats_update_begin(&self->stats.rx.syncp);
 				self->stats.rx.pg_flips++;
+				u64_stats_update_end(&self->stats.rx.syncp);
 			} else {
 				/* Buffer exhausted. We have other users and
 				 * should release this page and realloc
 				 */
 				aq_free_rxpage(&rxbuf->rxdata,
 					       aq_nic_get_dev(self->aq_nic));
+				u64_stats_update_begin(&self->stats.rx.syncp);
 				self->stats.rx.pg_losts++;
+				u64_stats_update_end(&self->stats.rx.syncp);
 			}
 		} else {
 			rxbuf->rxdata.pg_off = 0;
+			u64_stats_update_begin(&self->stats.rx.syncp);
 			self->stats.rx.pg_reuses++;
+			u64_stats_update_end(&self->stats.rx.syncp);
 		}
 	}
 
 	if (!rxbuf->rxdata.page) {
 		ret = aq_get_rxpage(&rxbuf->rxdata, order,
 				    aq_nic_get_dev(self->aq_nic));
+		if (ret) {
+			u64_stats_update_begin(&self->stats.rx.syncp);
+			self->stats.rx.alloc_fails++;
+			u64_stats_update_end(&self->stats.rx.syncp);
+		}
 		return ret;
 	}
 
@@ -205,11 +217,17 @@ aq_ring_hwts_rx_alloc(struct aq_ring_s *self, struct aq_nic_s *aq_nic,
 	return self;
 }
 
-int aq_ring_init(struct aq_ring_s *self)
+int aq_ring_init(struct aq_ring_s *self, const enum atl_ring_type ring_type)
 {
 	self->hw_head = 0;
 	self->sw_head = 0;
 	self->sw_tail = 0;
+	self->ring_type = ring_type;
+
+	if (self->ring_type == ATL_RING_RX)
+		u64_stats_init(&self->stats.rx.syncp);
+	else
+		u64_stats_init(&self->stats.tx.syncp);
 
 	return 0;
 }
@@ -232,9 +250,14 @@ void aq_ring_queue_wake(struct aq_ring_s *ring)
 {
 	struct net_device *ndev = aq_nic_get_ndev(ring->aq_nic);
 
-	if (__netif_subqueue_stopped(ndev, ring->idx)) {
-		netif_wake_subqueue(ndev, ring->idx);
+	if (__netif_subqueue_stopped(ndev,
+				     AQ_NIC_RING2QMAP(ring->aq_nic,
+						      ring->idx))) {
+		netif_wake_subqueue(ndev,
+				    AQ_NIC_RING2QMAP(ring->aq_nic, ring->idx));
+		u64_stats_update_begin(&ring->stats.tx.syncp);
 		ring->stats.tx.queue_restarts++;
+		u64_stats_update_end(&ring->stats.tx.syncp);
 	}
 }
 
@@ -242,8 +265,11 @@ void aq_ring_queue_stop(struct aq_ring_s *ring)
 {
 	struct net_device *ndev = aq_nic_get_ndev(ring->aq_nic);
 
-	if (!__netif_subqueue_stopped(ndev, ring->idx))
-		netif_stop_subqueue(ndev, ring->idx);
+	if (!__netif_subqueue_stopped(ndev,
+				      AQ_NIC_RING2QMAP(ring->aq_nic,
+						       ring->idx)))
+		netif_stop_subqueue(ndev,
+				    AQ_NIC_RING2QMAP(ring->aq_nic, ring->idx));
 }
 
 bool aq_ring_tx_clean(struct aq_ring_s *self)
@@ -273,8 +299,10 @@ bool aq_ring_tx_clean(struct aq_ring_s *self)
 		}
 
 		if (unlikely(buff->is_eop)) {
-			++self->stats.rx.packets;
+			u64_stats_update_begin(&self->stats.tx.syncp);
+			++self->stats.tx.packets;
 			self->stats.tx.bytes += buff->skb->len;
+			u64_stats_update_end(&self->stats.tx.syncp);
 
 			dev_kfree_skb_any(buff->skb);
 		}
@@ -294,7 +322,9 @@ static void aq_rx_checksum(struct aq_ring_s *self,
 		return;
 
 	if (unlikely(buff->is_cso_err)) {
+		u64_stats_update_begin(&self->stats.rx.syncp);
 		++self->stats.rx.errors;
+		u64_stats_update_end(&self->stats.rx.syncp);
 		skb->ip_summed = CHECKSUM_NONE;
 		return;
 	}
@@ -364,13 +394,17 @@ int aq_ring_rx_clean(struct aq_ring_s *self,
 					buff_->is_cleaned = true;
 				} while (!buff_->is_eop);
 
+				u64_stats_update_begin(&self->stats.rx.syncp);
 				++self->stats.rx.errors;
+				u64_stats_update_end(&self->stats.rx.syncp);
 				continue;
 			}
 		}
 
 		if (buff->is_error) {
+			u64_stats_update_begin(&self->stats.rx.syncp);
 			++self->stats.rx.errors;
+			u64_stats_update_end(&self->stats.rx.syncp);
 			continue;
 		}
 
@@ -385,6 +419,9 @@ int aq_ring_rx_clean(struct aq_ring_s *self,
 			skb = build_skb(aq_buf_vaddr(&buff->rxdata),
 					AQ_CFG_RX_FRAME_MAX);
 			if (unlikely(!skb)) {
+				u64_stats_update_begin(&self->stats.rx.syncp);
+				self->stats.rx.skb_alloc_fails++;
+				u64_stats_update_end(&self->stats.rx.syncp);
 				err = -ENOMEM;
 				goto err_exit;
 			}
@@ -398,6 +435,9 @@ int aq_ring_rx_clean(struct aq_ring_s *self,
 		} else {
 			skb = napi_alloc_skb(napi, AQ_CFG_RX_HDR_SIZE);
 			if (unlikely(!skb)) {
+				u64_stats_update_begin(&self->stats.rx.syncp);
+				self->stats.rx.skb_alloc_fails++;
+				u64_stats_update_end(&self->stats.rx.syncp);
 				err = -ENOMEM;
 				goto err_exit;
 			}
@@ -466,10 +506,15 @@ int aq_ring_rx_clean(struct aq_ring_s *self,
 			     buff->is_hash_l4 ? PKT_HASH_TYPE_L4 :
 			     PKT_HASH_TYPE_NONE);
 		/* Send all PTP traffic to 0 queue */
-		skb_record_rx_queue(skb, is_ptp_ring ? 0 : self->idx);
+		skb_record_rx_queue(skb,
+				    is_ptp_ring ? 0
+						: AQ_NIC_RING2QMAP(self->aq_nic,
+								   self->idx));
 
+		u64_stats_update_begin(&self->stats.rx.syncp);
 		++self->stats.rx.packets;
 		self->stats.rx.bytes += skb->len;
+		u64_stats_update_end(&self->stats.rx.syncp);
 
 		napi_gro_receive(napi, skb);
 	}
@@ -480,6 +525,7 @@ err_exit:
 
 void aq_ring_hwts_rx_clean(struct aq_ring_s *self, struct aq_nic_s *aq_nic)
 {
+#if IS_REACHABLE(CONFIG_PTP_1588_CLOCK)
 	while (self->sw_head != self->hw_head) {
 		u64 ns;
 
@@ -491,6 +537,7 @@ void aq_ring_hwts_rx_clean(struct aq_ring_s *self, struct aq_nic_s *aq_nic)
 
 		self->sw_head = aq_ring_next_dx(self, self->sw_head);
 	}
+#endif
 }
 
 int aq_ring_rx_fill(struct aq_ring_s *self)
@@ -526,7 +573,7 @@ err_exit:
 void aq_ring_rx_deinit(struct aq_ring_s *self)
 {
 	if (!self)
-		goto err_exit;
+		return;
 
 	for (; self->sw_head != self->sw_tail;
 		self->sw_head = aq_ring_next_dx(self, self->sw_head)) {
@@ -534,14 +581,12 @@ void aq_ring_rx_deinit(struct aq_ring_s *self)
 
 		aq_free_rxpage(&buff->rxdata, aq_nic_get_dev(self->aq_nic));
 	}
-
-err_exit:;
 }
 
 void aq_ring_free(struct aq_ring_s *self)
 {
 	if (!self)
-		goto err_exit;
+		return;
 
 	kfree(self->buff_ring);
 
@@ -549,6 +594,35 @@ void aq_ring_free(struct aq_ring_s *self)
 		dma_free_coherent(aq_nic_get_dev(self->aq_nic),
 				  self->size * self->dx_size, self->dx_ring,
 				  self->dx_ring_pa);
+}
 
-err_exit:;
+unsigned int aq_ring_fill_stats_data(struct aq_ring_s *self, u64 *data)
+{
+	unsigned int count;
+	unsigned int start;
+
+	if (self->ring_type == ATL_RING_RX) {
+		/* This data should mimic aq_ethtool_queue_rx_stat_names structure */
+		do {
+			count = 0;
+			start = u64_stats_fetch_begin_irq(&self->stats.rx.syncp);
+			data[count] = self->stats.rx.packets;
+			data[++count] = self->stats.rx.jumbo_packets;
+			data[++count] = self->stats.rx.lro_packets;
+			data[++count] = self->stats.rx.errors;
+			data[++count] = self->stats.rx.alloc_fails;
+			data[++count] = self->stats.rx.skb_alloc_fails;
+			data[++count] = self->stats.rx.polls;
+		} while (u64_stats_fetch_retry_irq(&self->stats.rx.syncp, start));
+	} else {
+		/* This data should mimic aq_ethtool_queue_tx_stat_names structure */
+		do {
+			count = 0;
+			start = u64_stats_fetch_begin_irq(&self->stats.tx.syncp);
+			data[count] = self->stats.tx.packets;
+			data[++count] = self->stats.tx.queue_restarts;
+		} while (u64_stats_fetch_retry_irq(&self->stats.tx.syncp, start));
+	}
+
+	return ++count;
 }

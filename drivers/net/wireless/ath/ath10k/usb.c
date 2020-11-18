@@ -693,17 +693,6 @@ static int ath10k_usb_hif_map_service_to_pipe(struct ath10k *ar, u16 svc_id,
 	return 0;
 }
 
-/* This op is currently only used by htc_wait_target if the HTC ready
- * message times out. It is not applicable for USB since there is nothing
- * we can do if the HTC ready message does not arrive in time.
- * TODO: Make this op non mandatory by introducing a NULL check in the
- * hif op wrapper.
- */
-static void ath10k_usb_hif_send_complete_check(struct ath10k *ar,
-					       u8 pipe, int force)
-{
-}
-
 static int ath10k_usb_hif_power_up(struct ath10k *ar,
 				   enum ath10k_firmware_mode fw_mode)
 {
@@ -737,7 +726,6 @@ static const struct ath10k_hif_ops ath10k_usb_hif_ops = {
 	.stop			= ath10k_usb_hif_stop,
 	.map_service_to_pipe	= ath10k_usb_hif_map_service_to_pipe,
 	.get_default_pipe	= ath10k_usb_hif_get_default_pipe,
-	.send_complete_check	= ath10k_usb_hif_send_complete_check,
 	.get_free_queue_number	= ath10k_usb_hif_get_free_queue_number,
 	.power_up		= ath10k_usb_hif_power_up,
 	.power_down		= ath10k_usb_hif_power_down,
@@ -836,7 +824,7 @@ static int ath10k_usb_setup_pipe_resources(struct ath10k *ar,
 
 	ath10k_dbg(ar, ATH10K_DBG_USB, "usb setting up pipes using interface\n");
 
-	/* walk decriptors and setup pipes */
+	/* walk descriptors and setup pipes */
 	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
 		endpoint = &iface_desc->endpoint[i].desc;
 

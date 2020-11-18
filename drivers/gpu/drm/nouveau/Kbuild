@@ -1,8 +1,10 @@
+NOUVEAU_PATH ?= $(srctree)
+
 # SPDX-License-Identifier: MIT
-ccflags-y += -I $(srctree)/$(src)/include
-ccflags-y += -I $(srctree)/$(src)/include/nvkm
-ccflags-y += -I $(srctree)/$(src)/nvkm
-ccflags-y += -I $(srctree)/$(src)
+ccflags-y += -I $(NOUVEAU_PATH)/$(src)/include
+ccflags-y += -I $(NOUVEAU_PATH)/$(src)/include/nvkm
+ccflags-y += -I $(NOUVEAU_PATH)/$(src)/nvkm
+ccflags-y += -I $(NOUVEAU_PATH)/$(src)
 
 # NVKM - HW resource manager
 #- code also used by various userspace tools/tests
@@ -30,6 +32,13 @@ nouveau-y += nouveau_vga.o
 
 # DRM - memory management
 nouveau-y += nouveau_bo.o
+nouveau-y += nouveau_bo0039.o
+nouveau-y += nouveau_bo5039.o
+nouveau-y += nouveau_bo74c1.o
+nouveau-y += nouveau_bo85b5.o
+nouveau-y += nouveau_bo9039.o
+nouveau-y += nouveau_bo90b5.o
+nouveau-y += nouveau_boa0b5.o
 nouveau-y += nouveau_gem.o
 nouveau-$(CONFIG_DRM_NOUVEAU_SVM) += nouveau_svm.o
 nouveau-$(CONFIG_DRM_NOUVEAU_SVM) += nouveau_dmem.o

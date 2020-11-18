@@ -110,8 +110,8 @@ pinctrl@20008000 {
 
 	uart2 {
 		uart2_xfer: uart2-xfer {
-			rockchip,pins = <RK_GPIO1 8 1 &pcfg_pull_default>,
-					<RK_GPIO1 9 1 &pcfg_pull_default>;
+			rockchip,pins = <1 RK_PB0 1 &pcfg_pull_default>,
+					<1 RK_PB1 1 &pcfg_pull_default>;
 		};
 	};
 };

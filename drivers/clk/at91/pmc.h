@@ -24,6 +24,10 @@ struct pmc_data {
 	struct clk_hw **phws;
 	unsigned int ngck;
 	struct clk_hw **ghws;
+	unsigned int npck;
+	struct clk_hw **pchws;
+
+	struct clk_hw *hwtable[];
 };
 
 struct clk_range {
@@ -50,8 +54,14 @@ struct clk_master_characteristics {
 
 struct clk_pll_layout {
 	u32 pllr_mask;
-	u16 mul_mask;
+	u32 mul_mask;
+	u32 frac_mask;
+	u32 div_mask;
+	u32 endiv_mask;
 	u8 mul_shift;
+	u8 frac_shift;
+	u8 div_shift;
+	u8 endiv_shift;
 };
 
 extern const struct clk_pll_layout at91rm9200_pll_layout;
@@ -94,8 +104,8 @@ struct clk_pcr_layout {
 #define ndck(a, s) (a[s - 1].id + 1)
 #define nck(a) (a[ARRAY_SIZE(a) - 1].id + 1)
 struct pmc_data *pmc_data_allocate(unsigned int ncore, unsigned int nsystem,
-				   unsigned int nperiph, unsigned int ngck);
-void pmc_data_free(struct pmc_data *pmc_data);
+				   unsigned int nperiph, unsigned int ngck,
+				   unsigned int npck);
 
 int of_at91_get_clk_range(struct device_node *np, const char *propname,
 			  struct clk_range *range);
@@ -118,8 +128,8 @@ struct clk_hw * __init
 at91_clk_register_generated(struct regmap *regmap, spinlock_t *lock,
 			    const struct clk_pcr_layout *layout,
 			    const char *name, const char **parent_names,
-			    u8 num_parents, u8 id, bool pll_audio,
-			    const struct clk_range *range);
+			    u32 *mux_table, u8 num_parents, u8 id,
+			    const struct clk_range *range, int chg_pid);
 
 struct clk_hw * __init
 at91_clk_register_h32mx(struct regmap *regmap, const char *name,
@@ -151,13 +161,21 @@ at91_clk_register_master(struct regmap *regmap, const char *name,
 			 const struct clk_master_characteristics *characteristics);
 
 struct clk_hw * __init
+at91_clk_sama7g5_register_master(struct regmap *regmap,
+				 const char *name, int num_parents,
+				 const char **parent_names, u32 *mux_table,
+				 spinlock_t *lock, u8 id, bool critical,
+				 int chg_pid);
+
+struct clk_hw * __init
 at91_clk_register_peripheral(struct regmap *regmap, const char *name,
 			     const char *parent_name, u32 id);
 struct clk_hw * __init
 at91_clk_register_sam9x5_peripheral(struct regmap *regmap, spinlock_t *lock,
 				    const struct clk_pcr_layout *layout,
 				    const char *name, const char *parent_name,
-				    u32 id, const struct clk_range *range);
+				    u32 id, const struct clk_range *range,
+				    int chg_pid);
 
 struct clk_hw * __init
 at91_clk_register_pll(struct regmap *regmap, const char *name,
@@ -169,14 +187,23 @@ at91_clk_register_plldiv(struct regmap *regmap, const char *name,
 			 const char *parent_name);
 
 struct clk_hw * __init
-sam9x60_clk_register_pll(struct regmap *regmap, spinlock_t *lock,
-			 const char *name, const char *parent_name, u8 id,
-			 const struct clk_pll_characteristics *characteristics);
+sam9x60_clk_register_div_pll(struct regmap *regmap, spinlock_t *lock,
+			     const char *name, const char *parent_name, u8 id,
+			     const struct clk_pll_characteristics *characteristics,
+			     const struct clk_pll_layout *layout, bool critical);
+
+struct clk_hw * __init
+sam9x60_clk_register_frac_pll(struct regmap *regmap, spinlock_t *lock,
+			      const char *name, const char *parent_name,
+			      struct clk_hw *parent_hw, u8 id,
+			      const struct clk_pll_characteristics *characteristics,
+			      const struct clk_pll_layout *layout, bool critical);
 
 struct clk_hw * __init
 at91_clk_register_programmable(struct regmap *regmap, const char *name,
 			       const char **parent_names, u8 num_parents, u8 id,
-			       const struct clk_programmable_layout *layout);
+			       const struct clk_programmable_layout *layout,
+			       u32 *mux_table);
 
 struct clk_hw * __init
 at91_clk_register_sam9260_slow(struct regmap *regmap,
@@ -208,6 +235,10 @@ at91rm9200_clk_register_usb(struct regmap *regmap, const char *name,
 struct clk_hw * __init
 at91_clk_register_utmi(struct regmap *regmap_pmc, struct regmap *regmap_sfr,
 		       const char *name, const char *parent_name);
+
+struct clk_hw * __init
+at91_clk_sama7g5_register_utmi(struct regmap *regmap, const char *name,
+			       const char *parent_name);
 
 #ifdef CONFIG_PM
 void pmc_register_id(u8 id);

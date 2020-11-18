@@ -1,6 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: ftrace - function profiler with function tracing
+# requires: function_profile_enabled set_ftrace_filter function_graph:tracer
 
 # There was a bug after a rewrite of the ftrace infrastructure that
 # caused the function_profiler not to be able to run with the function
@@ -13,17 +14,6 @@
 # This test triggers those bugs on those kernels.
 #
 # We need function_graph and profiling to to run this test
-if ! grep -q function_graph available_tracers; then
-    echo "no function graph tracer configured"
-    exit_unsupported;
-fi
-
-check_filter_file set_ftrace_filter
-
-if [ ! -f function_profile_enabled ]; then
-    echo "function_profile_enabled not found, function profiling enabled?"
-    exit_unsupported
-fi
 
 fail() { # mesg
     echo $1

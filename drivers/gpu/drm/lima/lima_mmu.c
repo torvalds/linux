@@ -59,11 +59,43 @@ static irqreturn_t lima_mmu_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-int lima_mmu_init(struct lima_ip *ip)
+static int lima_mmu_hw_init(struct lima_ip *ip)
 {
 	struct lima_device *dev = ip->dev;
 	int err;
 	u32 v;
+
+	mmu_write(LIMA_MMU_COMMAND, LIMA_MMU_COMMAND_HARD_RESET);
+	err = lima_mmu_send_command(LIMA_MMU_COMMAND_HARD_RESET,
+				    LIMA_MMU_DTE_ADDR, v, v == 0);
+	if (err)
+		return err;
+
+	mmu_write(LIMA_MMU_INT_MASK,
+		  LIMA_MMU_INT_PAGE_FAULT | LIMA_MMU_INT_READ_BUS_ERROR);
+	mmu_write(LIMA_MMU_DTE_ADDR, dev->empty_vm->pd.dma);
+	return lima_mmu_send_command(LIMA_MMU_COMMAND_ENABLE_PAGING,
+				     LIMA_MMU_STATUS, v,
+				     v & LIMA_MMU_STATUS_PAGING_ENABLED);
+}
+
+int lima_mmu_resume(struct lima_ip *ip)
+{
+	if (ip->id == lima_ip_ppmmu_bcast)
+		return 0;
+
+	return lima_mmu_hw_init(ip);
+}
+
+void lima_mmu_suspend(struct lima_ip *ip)
+{
+
+}
+
+int lima_mmu_init(struct lima_ip *ip)
+{
+	struct lima_device *dev = ip->dev;
+	int err;
 
 	if (ip->id == lima_ip_ppmmu_bcast)
 		return 0;
@@ -74,12 +106,6 @@ int lima_mmu_init(struct lima_ip *ip)
 		return -EIO;
 	}
 
-	mmu_write(LIMA_MMU_COMMAND, LIMA_MMU_COMMAND_HARD_RESET);
-	err = lima_mmu_send_command(LIMA_MMU_COMMAND_HARD_RESET,
-				    LIMA_MMU_DTE_ADDR, v, v == 0);
-	if (err)
-		return err;
-
 	err = devm_request_irq(dev->dev, ip->irq, lima_mmu_irq_handler,
 			       IRQF_SHARED, lima_ip_name(ip), ip);
 	if (err) {
@@ -87,11 +113,7 @@ int lima_mmu_init(struct lima_ip *ip)
 		return err;
 	}
 
-	mmu_write(LIMA_MMU_INT_MASK, LIMA_MMU_INT_PAGE_FAULT | LIMA_MMU_INT_READ_BUS_ERROR);
-	mmu_write(LIMA_MMU_DTE_ADDR, dev->empty_vm->pd.dma);
-	return lima_mmu_send_command(LIMA_MMU_COMMAND_ENABLE_PAGING,
-				     LIMA_MMU_STATUS, v,
-				     v & LIMA_MMU_STATUS_PAGING_ENABLED);
+	return lima_mmu_hw_init(ip);
 }
 
 void lima_mmu_fini(struct lima_ip *ip)
@@ -113,8 +135,7 @@ void lima_mmu_switch_vm(struct lima_ip *ip, struct lima_vm *vm)
 			      LIMA_MMU_STATUS, v,
 			      v & LIMA_MMU_STATUS_STALL_ACTIVE);
 
-	if (vm)
-		mmu_write(LIMA_MMU_DTE_ADDR, vm->pd.dma);
+	mmu_write(LIMA_MMU_DTE_ADDR, vm->pd.dma);
 
 	/* flush the TLB */
 	mmu_write(LIMA_MMU_COMMAND, LIMA_MMU_COMMAND_ZAP_CACHE);

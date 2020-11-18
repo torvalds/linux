@@ -31,6 +31,7 @@ descriptions of data structures and algorithms.
    active_mm
    balance
    cleancache
+   free_page_reporting
    frontswap
    highmem
    hmm

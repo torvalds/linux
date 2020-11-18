@@ -29,7 +29,7 @@ static const struct snd_soc_pcm_stream codec_params = {
 static int gx_card_i2s_be_hw_params(struct snd_pcm_substream *substream,
 				    struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct meson_card *priv = snd_soc_card_get_drvdata(rtd->card);
 	struct gx_dai_link_i2s_data *be =
 		(struct gx_dai_link_i2s_data *)priv->link_data[rtd->num];
@@ -96,21 +96,21 @@ static int gx_card_add_link(struct snd_soc_card *card, struct device_node *np,
 		return ret;
 
 	if (gx_card_cpu_identify(dai_link->cpus, "FIFO"))
-		ret = meson_card_set_fe_link(card, dai_link, np, true);
-	else
-		ret = meson_card_set_be_link(card, dai_link, np);
+		return  meson_card_set_fe_link(card, dai_link, np, true);
 
+	ret = meson_card_set_be_link(card, dai_link, np);
 	if (ret)
 		return ret;
 
-	/* Check if the cpu is the i2s encoder and parse i2s data */
-	if (gx_card_cpu_identify(dai_link->cpus, "I2S Encoder"))
-		ret = gx_card_parse_i2s(card, np, index);
-
 	/* Or apply codec to codec params if necessary */
-	else if (gx_card_cpu_identify(dai_link->cpus, "CODEC CTRL")) {
+	if (gx_card_cpu_identify(dai_link->cpus, "CODEC CTRL")) {
 		dai_link->params = &codec_params;
-		dai_link->no_pcm = 0; /* link is not a DPCM BE */
+	} else {
+		dai_link->no_pcm = 1;
+		snd_soc_dai_link_set_capabilities(dai_link);
+		/* Check if the cpu is the i2s encoder and parse i2s data */
+		if (gx_card_cpu_identify(dai_link->cpus, "I2S Encoder"))
+			ret = gx_card_parse_i2s(card, np, index);
 	}
 
 	return ret;

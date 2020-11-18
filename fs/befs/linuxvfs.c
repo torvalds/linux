@@ -22,6 +22,7 @@
 #include <linux/cred.h>
 #include <linux/exportfs.h>
 #include <linux/seq_file.h>
+#include <linux/blkdev.h>
 
 #include "befs.h"
 #include "btree.h"

@@ -15,6 +15,7 @@
 #define ENETC_PCS_IF_MODE_SGMII_EN		BIT(0)
 #define ENETC_PCS_IF_MODE_USE_SGMII_AN		BIT(1)
 #define ENETC_PCS_IF_MODE_SGMII_SPEED(x)	(((x) << 2) & GENMASK(3, 2))
+#define ENETC_PCS_IF_MODE_DUPLEX_HALF		BIT(3)
 
 /* Not a mistake, the SerDes PLL needs to be set at 3.125 GHz by Reset
  * Configuration Word (RCW, outside Linux control) for 2.5G SGMII mode. The PCS

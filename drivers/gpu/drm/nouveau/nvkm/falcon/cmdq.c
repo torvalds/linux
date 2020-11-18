@@ -58,7 +58,7 @@ nvkm_falcon_cmdq_push(struct nvkm_falcon_cmdq *cmdq, void *data, u32 size)
 static void
 nvkm_falcon_cmdq_rewind(struct nvkm_falcon_cmdq *cmdq)
 {
-	struct nv_falcon_cmd cmd;
+	struct nvfw_falcon_cmd cmd;
 
 	cmd.unit_id = NV_FALCON_CMD_UNIT_ID_REWIND;
 	cmd.size = sizeof(cmd);
@@ -97,7 +97,7 @@ nvkm_falcon_cmdq_close(struct nvkm_falcon_cmdq *cmdq)
 }
 
 static int
-nvkm_falcon_cmdq_write(struct nvkm_falcon_cmdq *cmdq, struct nv_falcon_cmd *cmd)
+nvkm_falcon_cmdq_write(struct nvkm_falcon_cmdq *cmdq, struct nvfw_falcon_cmd *cmd)
 {
 	static unsigned timeout = 2000;
 	unsigned long end_jiffies = jiffies + msecs_to_jiffies(timeout);
@@ -121,7 +121,7 @@ nvkm_falcon_cmdq_write(struct nvkm_falcon_cmdq *cmdq, struct nv_falcon_cmd *cmd)
 #define CMD_FLAGS_INTR BIT(1)
 
 int
-nvkm_falcon_cmdq_send(struct nvkm_falcon_cmdq *cmdq, struct nv_falcon_cmd *cmd,
+nvkm_falcon_cmdq_send(struct nvkm_falcon_cmdq *cmdq, struct nvfw_falcon_cmd *cmd,
 		      nvkm_falcon_qmgr_callback cb, void *priv,
 		      unsigned long timeout)
 {

@@ -3,7 +3,7 @@
  * Synopsys DesignWare PCIe host controller driver
  *
  * Copyright (C) 2013 Samsung Electronics Co., Ltd.
- *		http://www.samsung.com
+ *		https://www.samsung.com
  *
  * Author: Jingoo Han <jg1.han@samsung.com>
  */
@@ -112,9 +112,10 @@
 #define PCIE_ATU_UNR_REGION_CTRL2	0x04
 #define PCIE_ATU_UNR_LOWER_BASE		0x08
 #define PCIE_ATU_UNR_UPPER_BASE		0x0C
-#define PCIE_ATU_UNR_LIMIT		0x10
+#define PCIE_ATU_UNR_LOWER_LIMIT	0x10
 #define PCIE_ATU_UNR_LOWER_TARGET	0x14
 #define PCIE_ATU_UNR_UPPER_TARGET	0x18
+#define PCIE_ATU_UNR_UPPER_LIMIT	0x20
 
 /*
  * The default address offset between dbi_base and atu_base. Root controller
@@ -172,7 +173,6 @@ struct dw_pcie_host_ops {
 };
 
 struct pcie_port {
-	u8			root_bus_nr;
 	u64			cfg0_base;
 	void __iomem		*va_cfg0_base;
 	u32			cfg0_size;

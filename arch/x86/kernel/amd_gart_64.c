@@ -6,7 +6,7 @@
  * This allows to use PCI devices that only support 32bit addresses on systems
  * with more than 4GB.
  *
- * See Documentation/DMA-API-HOWTO.txt for the interface specification.
+ * See Documentation/core-api/dma-api-howto.rst for the interface specification.
  *
  * Copyright 2002 Andi Kleen, SuSE Labs.
  */
@@ -33,7 +33,6 @@
 #include <linux/atomic.h>
 #include <linux/dma-direct.h>
 #include <asm/mtrr.h>
-#include <asm/pgtable.h>
 #include <asm/proto.h>
 #include <asm/iommu.h>
 #include <asm/gart.h>
@@ -159,7 +158,7 @@ static void dump_leak(void)
 		return;
 	dump = 1;
 
-	show_stack(NULL, NULL);
+	show_stack(NULL, NULL, KERN_ERR);
 	debug_dma_dump_mappings(NULL);
 }
 #endif

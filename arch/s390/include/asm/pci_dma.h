@@ -131,12 +131,6 @@ static inline void validate_st_entry(unsigned long *entry)
 	*entry |= ZPCI_TABLE_VALID;
 }
 
-static inline void invalidate_table_entry(unsigned long *entry)
-{
-	*entry &= ~ZPCI_TABLE_VALID_MASK;
-	*entry |= ZPCI_TABLE_INVALID;
-}
-
 static inline void invalidate_pt_entry(unsigned long *entry)
 {
 	WARN_ON_ONCE((*entry & ZPCI_PTE_VALID_MASK) == ZPCI_PTE_INVALID);
@@ -171,11 +165,6 @@ static inline int reg_entry_isvalid(unsigned long entry)
 static inline int pt_entry_isvalid(unsigned long entry)
 {
 	return (entry & ZPCI_PTE_VALID_MASK) == ZPCI_PTE_VALID;
-}
-
-static inline int entry_isprotected(unsigned long entry)
-{
-	return (entry & ZPCI_TABLE_PROT_MASK) == ZPCI_TABLE_PROTECTED;
 }
 
 static inline unsigned long *get_rt_sto(unsigned long entry)

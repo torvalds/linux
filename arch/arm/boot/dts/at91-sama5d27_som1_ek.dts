@@ -21,7 +21,7 @@
 		serial1 = &uart4;	/* mikro BUS 1 */
 		serial2 = &uart2;	/* mikro BUS 2 */
 		i2c1	= &i2c1;
-		i2c2	= &i2c2;
+		i2c2	= &i2c3;
 	};
 
 	chosen {
@@ -125,21 +125,13 @@
 				atmel,flexcom-mode = <ATMEL_FLEXCOM_MODE_TWI>;
 				status = "okay";
 
-				i2c2: i2c@600 {
-					compatible = "atmel,sama5d2-i2c";
-					reg = <0x600 0x200>;
-					interrupts = <20 IRQ_TYPE_LEVEL_HIGH 7>;
+				i2c3: i2c@600 {
 					dmas = <0>, <0>;
-					dma-names = "tx", "rx";
 					i2c-analog-filter;
 					i2c-digital-filter;
 					i2c-digital-filter-width-ns = <35>;
-					#address-cells = <1>;
-					#size-cells = <0>;
-					clocks = <&pmc PMC_TYPE_PERIPHERAL 20>;
 					pinctrl-names = "default";
 					pinctrl-0 = <&pinctrl_mikrobus_i2c>;
-					atmel,fifo-size = <16>;
 					status = "okay";
 				};
 			};
@@ -178,27 +170,17 @@
 				atmel,flexcom-mode = <ATMEL_FLEXCOM_MODE_SPI>;
 				status = "disabled";
 
-				uart7: serial@200 {
-					compatible = "atmel,at91sam9260-usart";
-					reg = <0x200 0x200>;
-					interrupts = <22 IRQ_TYPE_LEVEL_HIGH 7>;
-					clocks = <&pmc PMC_TYPE_PERIPHERAL 22>;
-					clock-names = "usart";
+				uart8: serial@200 {
+					dmas = <0>, <0>;
 					pinctrl-names = "default";
 					pinctrl-0 = <&pinctrl_flx3_default>;
-					atmel,fifo-size = <32>;
 					status = "disabled"; /* Conflict with isc. */
 				};
 
-				spi2: spi@400 {
-					compatible = "atmel,at91rm9200-spi";
-					reg = <0x400 0x200>;
-					interrupts = <22 IRQ_TYPE_LEVEL_HIGH 7>;
-					clocks = <&pmc PMC_TYPE_PERIPHERAL 22>;
-					clock-names = "spi_clk";
+				spi5: spi@400 {
+					dmas = <0>, <0>;
 					pinctrl-names = "default";
 					pinctrl-0 = <&pinctrl_flx3_default>;
-					atmel,fifo-size = <16>;
 					status = "disabled"; /* Conflict with isc. */
 				};
 			};
@@ -207,43 +189,25 @@
 				atmel,flexcom-mode = <ATMEL_FLEXCOM_MODE_SPI>;
 				status = "okay";
 
-				uart6: serial@200 {
-					compatible = "atmel,at91sam9260-usart";
-					reg = <0x200 0x200>;
-					interrupts = <23 IRQ_TYPE_LEVEL_HIGH 7>;
-					clocks = <&pmc PMC_TYPE_PERIPHERAL 23>;
-					clock-names = "usart";
+				uart9: serial@200 {
+					dmas = <0>, <0>;
 					pinctrl-names = "default";
 					pinctrl-0 = <&pinctrl_flx4_default>;
-					atmel,fifo-size = <32>;
-					status = "disabled"; /* Conflict with spi3 and i2c3. */
+					status = "disabled"; /* Conflict with spi6 and i2c6. */
 				};
 
-				spi3: spi@400 {
-					compatible = "atmel,at91rm9200-spi";
-					reg = <0x400 0x200>;
-					interrupts = <23 IRQ_TYPE_LEVEL_HIGH 7>;
-					clocks = <&pmc PMC_TYPE_PERIPHERAL 23>;
-					clock-names = "spi_clk";
+				spi6: spi@400 {
+					dmas = <0>, <0>;
 					pinctrl-names = "default";
 					pinctrl-0 = <&pinctrl_mikrobus_spi &pinctrl_mikrobus1_spi_cs &pinctrl_mikrobus2_spi_cs>;
-					atmel,fifo-size = <16>;
-					status = "okay"; /* Conflict with uart6 and i2c3. */
+					status = "okay"; /* Conflict with uart5 and i2c6. */
 				};
 
-				i2c3: i2c@600 {
-					compatible = "atmel,sama5d2-i2c";
-					reg = <0x600 0x200>;
-					interrupts = <23 IRQ_TYPE_LEVEL_HIGH 7>;
+				i2c6: i2c@600 {
 					dmas = <0>, <0>;
-					dma-names = "tx", "rx";
-					#address-cells = <1>;
-					#size-cells = <0>;
-					clocks = <&pmc PMC_TYPE_PERIPHERAL 23>;
 					pinctrl-names = "default";
 					pinctrl-0 = <&pinctrl_flx4_default>;
-					atmel,fifo-size = <16>;
-					status = "disabled"; /* Conflict with uart6 and spi3. */
+					status = "disabled"; /* Conflict with uart5 and spi6. */
 				};
 			};
 

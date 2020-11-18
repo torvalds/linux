@@ -56,9 +56,9 @@ enum RT_AMPDU_BURST {
 /*  Tx Power Limit Table Size */
 #define MAX_REGULATION_NUM			4
 #define MAX_RF_PATH_NUM_IN_POWER_LIMIT_TABLE	4
-#define MAX_2_4G_BANDWITH_NUM			4
+#define MAX_2_4G_BANDWIDTH_NUM			4
 #define MAX_RATE_SECTION_NUM			10
-#define MAX_5G_BANDWITH_NUM			4
+#define MAX_5G_BANDWIDTH_NUM			4
 
 #define MAX_BASE_NUM_IN_PHY_REG_PG_2_4G		10 /*   CCK:1, OFDM:1, HT:4, VHT:4 */
 #define MAX_BASE_NUM_IN_PHY_REG_PG_5G		9 /*  OFDM:1, HT:4, VHT:4 */
@@ -280,14 +280,14 @@ struct hal_com_data {
 
 	/*  Power Limit Table for 2.4G */
 	s8	TxPwrLimit_2_4G[MAX_REGULATION_NUM]
-						[MAX_2_4G_BANDWITH_NUM]
+						[MAX_2_4G_BANDWIDTH_NUM]
 	                                [MAX_RATE_SECTION_NUM]
 	                                [CHANNEL_MAX_NUMBER_2G]
 						[MAX_RF_PATH_NUM];
 
 	/*  Power Limit Table for 5G */
 	s8	TxPwrLimit_5G[MAX_REGULATION_NUM]
-						[MAX_5G_BANDWITH_NUM]
+						[MAX_5G_BANDWIDTH_NUM]
 						[MAX_RATE_SECTION_NUM]
 						[CHANNEL_MAX_NUMBER_5G]
 						[MAX_RF_PATH_NUM];

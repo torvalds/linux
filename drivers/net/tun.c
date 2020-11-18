@@ -62,6 +62,7 @@
 #include <net/rtnetlink.h>
 #include <net/sock.h>
 #include <net/xdp.h>
+#include <net/ip_tunnels.h>
 #include <linux/seq_file.h>
 #include <linux/uio.h>
 #include <linux/skb_array.h>
@@ -1183,26 +1184,11 @@ static int tun_xdp_set(struct net_device *dev, struct bpf_prog *prog,
 	return 0;
 }
 
-static u32 tun_xdp_query(struct net_device *dev)
-{
-	struct tun_struct *tun = netdev_priv(dev);
-	const struct bpf_prog *xdp_prog;
-
-	xdp_prog = rtnl_dereference(tun->xdp_prog);
-	if (xdp_prog)
-		return xdp_prog->aux->id;
-
-	return 0;
-}
-
 static int tun_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 {
 	switch (xdp->command) {
 	case XDP_SETUP_PROG:
 		return tun_xdp_set(dev, xdp->prog, xdp->extack);
-	case XDP_QUERY_PROG:
-		xdp->prog_id = tun_xdp_query(dev);
-		return 0;
 	default:
 		return -EINVAL;
 	}
@@ -1295,7 +1281,7 @@ resample:
 
 static int tun_xdp_tx(struct net_device *dev, struct xdp_buff *xdp)
 {
-	struct xdp_frame *frame = convert_to_xdp_frame(xdp);
+	struct xdp_frame *frame = xdp_convert_buff_to_frame(xdp);
 
 	if (unlikely(!frame))
 		return -EOVERFLOW;
@@ -1351,6 +1337,7 @@ static void tun_net_init(struct net_device *dev)
 	switch (tun->flags & TUN_TYPE_MASK) {
 	case IFF_TUN:
 		dev->netdev_ops = &tun_netdev_ops;
+		dev->header_ops = &ip_tunnel_header_ops;
 
 		/* Point-to-Point TUN Device */
 		dev->hard_header_len = 0;
@@ -1603,10 +1590,10 @@ static int tun_xdp_act(struct tun_struct *tun, struct bpf_prog *xdp_prog,
 		break;
 	default:
 		bpf_warn_invalid_xdp_action(act);
-		/* fall through */
+		fallthrough;
 	case XDP_ABORTED:
 		trace_xdp_exception(tun->dev, xdp_prog, act);
-		/* fall through */
+		fallthrough;
 	case XDP_DROP:
 		this_cpu_inc(tun->pcpu_stats->rx_dropped);
 		break;
@@ -1671,6 +1658,7 @@ static struct sk_buff *tun_build_skb(struct tun_struct *tun,
 		xdp_set_data_meta_invalid(&xdp);
 		xdp.data_end = xdp.data + len;
 		xdp.rxq = &tfile->xdp_rxq;
+		xdp.frame_sz = buflen;
 
 		act = bpf_prog_run_xdp(xdp_prog, &xdp);
 		if (act == XDP_REDIRECT || act == XDP_TX) {
@@ -1871,8 +1859,11 @@ drop:
 		skb->dev = tun->dev;
 		break;
 	case IFF_TAP:
-		if (!frags)
-			skb->protocol = eth_type_trans(skb, tun->dev);
+		if (frags && !pskb_may_pull(skb, ETH_HLEN)) {
+			err = -ENOMEM;
+			goto drop;
+		}
+		skb->protocol = eth_type_trans(skb, tun->dev);
 		break;
 	}
 
@@ -1929,9 +1920,12 @@ drop:
 	}
 
 	if (frags) {
+		u32 headlen;
+
 		/* Exercise flow dissector code path. */
-		u32 headlen = eth_get_headlen(tun->dev, skb->data,
-					      skb_headlen(skb));
+		skb_push(skb, ETH_HLEN);
+		headlen = eth_get_headlen(tun->dev, skb->data,
+					  skb_headlen(skb));
 
 		if (unlikely(headlen > skb_headlen(skb))) {
 			this_cpu_inc(tun->pcpu_stats->rx_dropped);
@@ -2411,6 +2405,7 @@ static int tun_xdp_one(struct tun_struct *tun,
 		}
 		xdp_set_data_meta_invalid(xdp);
 		xdp->rxq = &tfile->xdp_rxq;
+		xdp->frame_sz = buflen;
 
 		act = bpf_prog_run_xdp(xdp_prog, xdp);
 		err = tun_xdp_act(tun, xdp_prog, xdp, act);
@@ -2422,7 +2417,7 @@ static int tun_xdp_one(struct tun_struct *tun,
 		switch (err) {
 		case XDP_REDIRECT:
 			*flush = true;
-			/* fall through */
+			fallthrough;
 		case XDP_TX:
 			return 0;
 		case XDP_PASS:
@@ -2973,7 +2968,7 @@ unlock:
 	return ret;
 }
 
-static int tun_set_ebpf(struct tun_struct *tun, struct tun_prog **prog_p,
+static int tun_set_ebpf(struct tun_struct *tun, struct tun_prog __rcu **prog_p,
 			void __user *data)
 {
 	struct bpf_prog *prog;

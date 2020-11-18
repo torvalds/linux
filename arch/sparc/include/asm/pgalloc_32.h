@@ -4,9 +4,9 @@
 
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/pgtable.h>
 
 #include <asm/pgtsrmmu.h>
-#include <asm/pgtable.h>
 #include <asm/vaddrs.h>
 #include <asm/page.h>
 
@@ -50,23 +50,24 @@ static inline void free_pmd_fast(pmd_t * pmd)
 #define pmd_free(mm, pmd)		free_pmd_fast(pmd)
 #define __pmd_free_tlb(tlb, pmd, addr)	pmd_free((tlb)->mm, pmd)
 
-void pmd_populate(struct mm_struct *mm, pmd_t *pmdp, struct page *ptep);
-#define pmd_pgtable(pmd) pmd_page(pmd)
+#define pmd_populate(mm, pmd, pte)	pmd_set(pmd, pte)
+#define pmd_pgtable(pmd)		(pgtable_t)__pmd_page(pmd)
 
 void pmd_set(pmd_t *pmdp, pte_t *ptep);
-#define pmd_populate_kernel(MM, PMD, PTE) pmd_set(PMD, PTE)
+#define pmd_populate_kernel		pmd_populate
 
 pgtable_t pte_alloc_one(struct mm_struct *mm);
 
 static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm)
 {
-	return srmmu_get_nocache(PTE_SIZE, PTE_SIZE);
+	return srmmu_get_nocache(SRMMU_PTE_TABLE_SIZE,
+				 SRMMU_PTE_TABLE_SIZE);
 }
 
 
 static inline void free_pte_fast(pte_t *pte)
 {
-	srmmu_free_nocache(pte, PTE_SIZE);
+	srmmu_free_nocache(pte, SRMMU_PTE_TABLE_SIZE);
 }
 
 #define pte_free_kernel(mm, pte)	free_pte_fast(pte)

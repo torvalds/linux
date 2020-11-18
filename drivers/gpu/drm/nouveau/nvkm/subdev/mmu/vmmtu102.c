@@ -28,9 +28,9 @@ tu102_vmm_flush(struct nvkm_vmm *vmm, int depth)
 {
 	struct nvkm_subdev *subdev = &vmm->mmu->subdev;
 	struct nvkm_device *device = subdev->device;
-	u32 type = depth << 24; /*XXX: not confirmed */
+	u32 type = (5 /* CACHE_LEVEL_UP_TO_PDE3 */ - depth) << 24;
 
-	type = 0x00000001; /* PAGE_ALL */
+	type |= 0x00000001; /* PAGE_ALL */
 	if (atomic_read(&vmm->engref[NVKM_SUBDEV_BAR]))
 		type |= 0x00000004; /* HUB_ONLY */
 

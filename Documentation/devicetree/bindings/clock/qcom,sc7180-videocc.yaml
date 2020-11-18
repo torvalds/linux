@@ -55,7 +55,7 @@ examples:
     #include <dt-bindings/clock/qcom,rpmh.h>
     clock-controller@ab00000 {
       compatible = "qcom,sc7180-videocc";
-      reg = <0 0x0ab00000 0 0x10000>;
+      reg = <0x0ab00000 0x10000>;
       clocks = <&rpmhcc RPMH_CXO_CLK>;
       clock-names = "bi_tcxo";
       #clock-cells = <1>;

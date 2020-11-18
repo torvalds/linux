@@ -882,6 +882,47 @@ static int mocs_cmd_reg_handler(struct parser_exec_state *s,
 	return 0;
 }
 
+static int is_cmd_update_pdps(unsigned int offset,
+			      struct parser_exec_state *s)
+{
+	u32 base = s->workload->engine->mmio_base;
+	return i915_mmio_reg_equal(_MMIO(offset), GEN8_RING_PDP_UDW(base, 0));
+}
+
+static int cmd_pdp_mmio_update_handler(struct parser_exec_state *s,
+				       unsigned int offset, unsigned int index)
+{
+	struct intel_vgpu *vgpu = s->vgpu;
+	struct intel_vgpu_mm *shadow_mm = s->workload->shadow_mm;
+	struct intel_vgpu_mm *mm;
+	u64 pdps[GEN8_3LVL_PDPES];
+
+	if (shadow_mm->ppgtt_mm.root_entry_type ==
+	    GTT_TYPE_PPGTT_ROOT_L4_ENTRY) {
+		pdps[0] = (u64)cmd_val(s, 2) << 32;
+		pdps[0] |= cmd_val(s, 4);
+
+		mm = intel_vgpu_find_ppgtt_mm(vgpu, pdps);
+		if (!mm) {
+			gvt_vgpu_err("failed to get the 4-level shadow vm\n");
+			return -EINVAL;
+		}
+		intel_vgpu_mm_get(mm);
+		list_add_tail(&mm->ppgtt_mm.link,
+			      &s->workload->lri_shadow_mm);
+		*cmd_ptr(s, 2) = upper_32_bits(mm->ppgtt_mm.shadow_pdps[0]);
+		*cmd_ptr(s, 4) = lower_32_bits(mm->ppgtt_mm.shadow_pdps[0]);
+	} else {
+		/* Currently all guests use PML4 table and now can't
+		 * have a guest with 3-level table but uses LRI for
+		 * PPGTT update. So this is simply un-testable. */
+		GEM_BUG_ON(1);
+		gvt_vgpu_err("invalid shared shadow vm type\n");
+		return -EINVAL;
+	}
+	return 0;
+}
+
 static int cmd_reg_handler(struct parser_exec_state *s,
 	unsigned int offset, unsigned int index, char *cmd)
 {
@@ -919,6 +960,10 @@ static int cmd_reg_handler(struct parser_exec_state *s,
 		/* Writing to HW VGT_PVINFO_PAGE offset will be discarded */
 		patch_value(s, cmd_ptr(s, index), VGT_PVINFO_PAGE);
 	}
+
+	if (is_cmd_update_pdps(offset, s) &&
+	    cmd_pdp_mmio_update_handler(s, offset, index))
+		return -EINVAL;
 
 	/* TODO
 	 * In order to let workload with inhibit context to generate
@@ -1859,19 +1904,10 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 		goto err_free_bb;
 	}
 
-	ret = i915_gem_object_prepare_write(bb->obj, &bb->clflush);
-	if (ret)
-		goto err_free_obj;
-
 	bb->va = i915_gem_object_pin_map(bb->obj, I915_MAP_WB);
 	if (IS_ERR(bb->va)) {
 		ret = PTR_ERR(bb->va);
-		goto err_finish_shmem_access;
-	}
-
-	if (bb->clflush & CLFLUSH_BEFORE) {
-		drm_clflush_virt_range(bb->va, bb->obj->base.size);
-		bb->clflush &= ~CLFLUSH_BEFORE;
+		goto err_free_obj;
 	}
 
 	ret = copy_gma_to_hva(s->vgpu, mm,
@@ -1890,7 +1926,6 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 	INIT_LIST_HEAD(&bb->list);
 	list_add(&bb->list, &s->workload->shadow_bb);
 
-	bb->accessing = true;
 	bb->bb_start_cmd_va = s->ip_va;
 
 	if ((s->buf_type == BATCH_BUFFER_INSTRUCTION) && (!s->is_ctx_wa))
@@ -1911,8 +1946,6 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 	return 0;
 err_unmap:
 	i915_gem_object_unpin_map(bb->obj);
-err_finish_shmem_access:
-	i915_gem_object_finish_access(bb->obj);
 err_free_obj:
 	i915_gem_object_put(bb->obj);
 err_free_bb:

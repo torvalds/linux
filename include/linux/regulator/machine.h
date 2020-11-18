@@ -101,6 +101,7 @@ struct regulator_state {
  * @system_load: Load that isn't captured by any consumer requests.
  *
  * @max_spread: Max possible spread between coupled regulators
+ * @max_uV_step: Max possible step change in voltage
  * @valid_modes_mask: Mask of modes which may be configured by consumers.
  * @valid_ops_mask: Operations which may be performed by consumers.
  *

@@ -712,6 +712,16 @@ void cfg80211_bss_expire(struct cfg80211_registered_device *rdev)
 	__cfg80211_bss_expire(rdev, jiffies - IEEE80211_SCAN_RESULT_EXPIRE);
 }
 
+void cfg80211_bss_flush(struct wiphy *wiphy)
+{
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
+
+	spin_lock_bh(&rdev->bss_lock);
+	__cfg80211_bss_expire(rdev, jiffies);
+	spin_unlock_bh(&rdev->bss_lock);
+}
+EXPORT_SYMBOL(cfg80211_bss_flush);
+
 const struct element *
 cfg80211_find_elem_match(u8 eid, const u8 *ies, unsigned int len,
 			 const u8 *match, unsigned int match_len,
@@ -1322,8 +1332,8 @@ cfg80211_get_bss_channel(struct wiphy *wiphy, const u8 *ie, size_t ielen,
 		return channel;
 	}
 
-	freq = ieee80211_channel_to_frequency(channel_number, channel->band);
-	alt_channel = ieee80211_get_channel(wiphy, freq);
+	freq = ieee80211_channel_to_freq_khz(channel_number, channel->band);
+	alt_channel = ieee80211_get_channel_khz(wiphy, freq);
 	if (!alt_channel) {
 		if (channel->band == NL80211_BAND_2GHZ) {
 			/*
@@ -1423,7 +1433,7 @@ cfg80211_inform_single_bss_data(struct wiphy *wiphy,
 	switch (ftype) {
 	case CFG80211_BSS_FTYPE_BEACON:
 		ies->from_beacon = true;
-		/* fall through */
+		fallthrough;
 	case CFG80211_BSS_FTYPE_UNKNOWN:
 		rcu_assign_pointer(tmp.pub.beacon_ies, ies);
 		break;

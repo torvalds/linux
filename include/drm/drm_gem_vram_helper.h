@@ -196,7 +196,7 @@ static inline struct drm_vram_mm *drm_vram_mm_of_bdev(
 	return container_of(bdev, struct drm_vram_mm, bdev);
 }
 
-int drm_vram_mm_debugfs_init(struct drm_minor *minor);
+void drm_vram_mm_debugfs_init(struct drm_minor *minor);
 
 /*
  * Helpers for integration with struct drm_device
@@ -205,6 +205,9 @@ int drm_vram_mm_debugfs_init(struct drm_minor *minor);
 struct drm_vram_mm *drm_vram_helper_alloc_mm(
 	struct drm_device *dev, uint64_t vram_base, size_t vram_size);
 void drm_vram_helper_release_mm(struct drm_device *dev);
+
+int drmm_vram_helper_init(struct drm_device *dev, uint64_t vram_base,
+			  size_t vram_size);
 
 /*
  * Mode-config helpers

@@ -40,6 +40,10 @@
 
 #define GEN12_CSR_MAX_FW_SIZE		ICL_CSR_MAX_FW_SIZE
 
+#define RKL_CSR_PATH			"i915/rkl_dmc_ver2_01.bin"
+#define RKL_CSR_VERSION_REQUIRED	CSR_VERSION(2, 1)
+MODULE_FIRMWARE(RKL_CSR_PATH);
+
 #define TGL_CSR_PATH			"i915/tgl_dmc_ver2_06.bin"
 #define TGL_CSR_VERSION_REQUIRED	CSR_VERSION(2, 6)
 #define TGL_CSR_MAX_FW_SIZE		0x6000
@@ -682,7 +686,11 @@ void intel_csr_ucode_init(struct drm_i915_private *dev_priv)
 	 */
 	intel_csr_runtime_pm_get(dev_priv);
 
-	if (INTEL_GEN(dev_priv) >= 12) {
+	if (IS_ROCKETLAKE(dev_priv)) {
+		csr->fw_path = RKL_CSR_PATH;
+		csr->required_version = RKL_CSR_VERSION_REQUIRED;
+		csr->max_fw_size = GEN12_CSR_MAX_FW_SIZE;
+	} else if (INTEL_GEN(dev_priv) >= 12) {
 		csr->fw_path = TGL_CSR_PATH;
 		csr->required_version = TGL_CSR_VERSION_REQUIRED;
 		/* Allow to load fw via parameter using the last known size */
@@ -699,7 +707,9 @@ void intel_csr_ucode_init(struct drm_i915_private *dev_priv)
 		csr->fw_path = GLK_CSR_PATH;
 		csr->required_version = GLK_CSR_VERSION_REQUIRED;
 		csr->max_fw_size = GLK_CSR_MAX_FW_SIZE;
-	} else if (IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv)) {
+	} else if (IS_KABYLAKE(dev_priv) ||
+		   IS_COFFEELAKE(dev_priv) ||
+		   IS_COMETLAKE(dev_priv)) {
 		csr->fw_path = KBL_CSR_PATH;
 		csr->required_version = KBL_CSR_VERSION_REQUIRED;
 		csr->max_fw_size = KBL_CSR_MAX_FW_SIZE;
@@ -713,15 +723,15 @@ void intel_csr_ucode_init(struct drm_i915_private *dev_priv)
 		csr->max_fw_size = BXT_CSR_MAX_FW_SIZE;
 	}
 
-	if (i915_modparams.dmc_firmware_path) {
-		if (strlen(i915_modparams.dmc_firmware_path) == 0) {
+	if (dev_priv->params.dmc_firmware_path) {
+		if (strlen(dev_priv->params.dmc_firmware_path) == 0) {
 			csr->fw_path = NULL;
 			drm_info(&dev_priv->drm,
 				 "Disabling CSR firmware and runtime PM\n");
 			return;
 		}
 
-		csr->fw_path = i915_modparams.dmc_firmware_path;
+		csr->fw_path = dev_priv->params.dmc_firmware_path;
 		/* Bypass version check for firmware override. */
 		csr->required_version = 0;
 	}

@@ -131,7 +131,7 @@ static int hyperv_irq_remapping_activate(struct irq_domain *domain,
 	return 0;
 }
 
-static struct irq_domain_ops hyperv_ir_domain_ops = {
+static const struct irq_domain_ops hyperv_ir_domain_ops = {
 	.alloc = hyperv_irq_remapping_alloc,
 	.free = hyperv_irq_remapping_free,
 	.activate = hyperv_irq_remapping_activate,
@@ -155,7 +155,10 @@ static int __init hyperv_prepare_irq_remapping(void)
 				0, IOAPIC_REMAPPING_ENTRY, fn,
 				&hyperv_ir_domain_ops, NULL);
 
-	irq_domain_free_fwnode(fn);
+	if (!ioapic_ir_domain) {
+		irq_domain_free_fwnode(fn);
+		return -ENOMEM;
+	}
 
 	/*
 	 * Hyper-V doesn't provide irq remapping function for

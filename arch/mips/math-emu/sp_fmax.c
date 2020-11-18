@@ -93,8 +93,7 @@ union ieee754sp ieee754sp_fmax(union ieee754sp x, union ieee754sp y)
 
 	case CLPAIR(IEEE754_CLASS_DNORM, IEEE754_CLASS_DNORM):
 		SPDNORMX;
-		/* fall through */
-
+		fallthrough;
 	case CLPAIR(IEEE754_CLASS_NORM, IEEE754_CLASS_DNORM):
 		SPDNORMY;
 		break;
@@ -222,8 +221,7 @@ union ieee754sp ieee754sp_fmaxa(union ieee754sp x, union ieee754sp y)
 
 	case CLPAIR(IEEE754_CLASS_DNORM, IEEE754_CLASS_DNORM):
 		SPDNORMX;
-		/* fall through */
-
+		fallthrough;
 	case CLPAIR(IEEE754_CLASS_NORM, IEEE754_CLASS_DNORM):
 		SPDNORMY;
 		break;

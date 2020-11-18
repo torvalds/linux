@@ -7,7 +7,6 @@
 #include <linux/sched.h>
 
 #include <asm/mmu_context.h>
-#include <asm/pgtable.h>
 #include <asm/setup.h>
 
 /*

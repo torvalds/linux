@@ -64,7 +64,6 @@ config MACH_DA8XX_DT
 	default y
 	depends on ARCH_DAVINCI_DA850
 	select PINCTRL
-	select TIMER_OF
 	help
 	  Say y here to include support for TI DaVinci DA850 based using
 	  Flattened Device Tree. More information at Documentation/devicetree
@@ -202,15 +201,13 @@ config MACH_MITYOMAPL138
 	help
 	  Say Y here to select the Critical Link MityDSP-L138/MityARM-1808
 	  System on Module.  Information on this SoM may be found at
-	  http://www.mitydsp.com
+	  https://www.mitydsp.com
 
 config MACH_OMAPL138_HAWKBOARD
 	bool "TI AM1808 / OMAPL-138 Hawkboard platform"
 	depends on ARCH_DAVINCI_DA850
 	help
 	  Say Y here to select the TI AM1808 / OMAPL-138 Hawkboard platform .
-	  Information of this board may be found at
-	  http://www.hawkboard.org/
 
 config DAVINCI_MUX
 	bool "DAVINCI multiplexing support"

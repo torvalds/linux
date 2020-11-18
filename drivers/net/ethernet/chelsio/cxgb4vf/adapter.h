@@ -562,7 +562,7 @@ int t4vf_sge_alloc_eth_txq(struct adapter *, struct sge_eth_txq *,
 			   unsigned int);
 void t4vf_free_sge_resources(struct adapter *);
 
-int t4vf_eth_xmit(struct sk_buff *, struct net_device *);
+netdev_tx_t t4vf_eth_xmit(struct sk_buff *, struct net_device *);
 int t4vf_ethrx_handler(struct sge_rspq *, const __be64 *,
 		       const struct pkt_gl *);
 

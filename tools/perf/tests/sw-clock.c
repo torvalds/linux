@@ -56,7 +56,7 @@ static int __test__sw_clock_freq(enum perf_sw_ids clock_id)
 
 	evsel = evsel__new(&attr);
 	if (evsel == NULL) {
-		pr_debug("perf_evsel__new\n");
+		pr_debug("evsel__new\n");
 		goto out_delete_evlist;
 	}
 	evlist__add(evlist, evsel);

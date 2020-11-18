@@ -29,6 +29,7 @@
 #include <asm/traps.h>
 #include <asm/procinfo.h>
 #include <asm/memory.h>
+#include <asm/pgalloc.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -73,8 +74,6 @@ struct cachepolicy {
 	pmdval_t	pmd;
 	pteval_t	pte;
 };
-
-unsigned long kimage_voffset __ro_after_init;
 
 static struct cachepolicy cache_policies[] __initdata = {
 	{
@@ -356,11 +355,7 @@ static pte_t *pte_offset_late_fixmap(pmd_t *dir, unsigned long addr)
 
 static inline pmd_t * __init fixmap_pmd(unsigned long addr)
 {
-	pgd_t *pgd = pgd_offset_k(addr);
-	pud_t *pud = pud_offset(pgd, addr);
-	pmd_t *pmd = pmd_offset(pud, addr);
-
-	return pmd;
+	return pmd_off_k(addr);
 }
 
 void __init early_fixmap_init(void)
@@ -801,12 +796,12 @@ static void __init alloc_init_pmd(pud_t *pud, unsigned long addr,
 	} while (pmd++, addr = next, addr != end);
 }
 
-static void __init alloc_init_pud(pgd_t *pgd, unsigned long addr,
+static void __init alloc_init_pud(p4d_t *p4d, unsigned long addr,
 				  unsigned long end, phys_addr_t phys,
 				  const struct mem_type *type,
 				  void *(*alloc)(unsigned long sz), bool ng)
 {
-	pud_t *pud = pud_offset(pgd, addr);
+	pud_t *pud = pud_offset(p4d, addr);
 	unsigned long next;
 
 	do {
@@ -814,6 +809,21 @@ static void __init alloc_init_pud(pgd_t *pgd, unsigned long addr,
 		alloc_init_pmd(pud, addr, next, phys, type, alloc, ng);
 		phys += next - addr;
 	} while (pud++, addr = next, addr != end);
+}
+
+static void __init alloc_init_p4d(pgd_t *pgd, unsigned long addr,
+				  unsigned long end, phys_addr_t phys,
+				  const struct mem_type *type,
+				  void *(*alloc)(unsigned long sz), bool ng)
+{
+	p4d_t *p4d = p4d_offset(pgd, addr);
+	unsigned long next;
+
+	do {
+		next = p4d_addr_end(addr, end);
+		alloc_init_pud(p4d, addr, next, phys, type, alloc, ng);
+		phys += next - addr;
+	} while (p4d++, addr = next, addr != end);
 }
 
 #ifndef CONFIG_ARM_LPAE
@@ -863,7 +873,8 @@ static void __init create_36bit_mapping(struct mm_struct *mm,
 	pgd = pgd_offset(mm, addr);
 	end = addr + length;
 	do {
-		pud_t *pud = pud_offset(pgd, addr);
+		p4d_t *p4d = p4d_offset(pgd, addr);
+		pud_t *pud = pud_offset(p4d, addr);
 		pmd_t *pmd = pmd_offset(pud, addr);
 		int i;
 
@@ -914,7 +925,7 @@ static void __init __create_mapping(struct mm_struct *mm, struct map_desc *md,
 	do {
 		unsigned long next = pgd_addr_end(addr, end);
 
-		alloc_init_pud(pgd, addr, next, phys, type, alloc, ng);
+		alloc_init_p4d(pgd, addr, next, phys, type, alloc, ng);
 
 		phys += next - addr;
 		addr = next;
@@ -950,7 +961,13 @@ void __init create_mapping_late(struct mm_struct *mm, struct map_desc *md,
 				bool ng)
 {
 #ifdef CONFIG_ARM_LPAE
-	pud_t *pud = pud_alloc(mm, pgd_offset(mm, md->virtual), md->virtual);
+	p4d_t *p4d;
+	pud_t *pud;
+
+	p4d = p4d_alloc(mm, pgd_offset(mm, md->virtual), md->virtual);
+	if (WARN_ON(!p4d))
+		return;
+	pud = pud_alloc(mm, p4d, md->virtual);
 	if (WARN_ON(!pud))
 		return;
 	pmd_alloc(mm, pud, 0);
@@ -1636,9 +1653,6 @@ void __init paging_init(const struct machine_desc *mdesc)
 
 	empty_zero_page = virt_to_page(zero_page);
 	__flush_dcache_page(NULL, empty_zero_page);
-
-	/* Compute the virt/idmap offset, mostly for the sake of KVM */
-	kimage_voffset = (unsigned long)&kimage_voffset - virt_to_idmap(&kimage_voffset);
 }
 
 void __init early_mm_init(const struct machine_desc *mdesc)

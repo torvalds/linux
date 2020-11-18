@@ -42,6 +42,7 @@
  */
 
 #include <linux/cpufreq.h>
+#include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/module.h>
@@ -178,6 +179,7 @@ struct private_data {
 	struct completion done;
 	struct semaphore sem;
 	struct pmap pmap;
+	int host_irq;
 };
 
 static void __iomem *__map_region(const char *name)
@@ -195,11 +197,36 @@ static void __iomem *__map_region(const char *name)
 	return ptr;
 }
 
-static int __issue_avs_command(struct private_data *priv, int cmd, bool is_send,
+static unsigned long wait_for_avs_command(struct private_data *priv,
+					  unsigned long timeout)
+{
+	unsigned long time_left = 0;
+	u32 val;
+
+	/* Event driven, wait for the command interrupt */
+	if (priv->host_irq >= 0)
+		return wait_for_completion_timeout(&priv->done,
+						   msecs_to_jiffies(timeout));
+
+	/* Polling for command completion */
+	do {
+		time_left = timeout;
+		val = readl(priv->base + AVS_MBOX_STATUS);
+		if (val)
+			break;
+
+		usleep_range(1000, 2000);
+	} while (--timeout);
+
+	return time_left;
+}
+
+static int __issue_avs_command(struct private_data *priv, unsigned int cmd,
+			       unsigned int num_in, unsigned int num_out,
 			       u32 args[])
 {
-	unsigned long time_left = msecs_to_jiffies(AVS_TIMEOUT);
 	void __iomem *base = priv->base;
+	unsigned long time_left;
 	unsigned int i;
 	int ret;
 	u32 val;
@@ -225,11 +252,9 @@ static int __issue_avs_command(struct private_data *priv, int cmd, bool is_send,
 	/* Clear status before we begin. */
 	writel(AVS_STATUS_CLEAR, base + AVS_MBOX_STATUS);
 
-	/* We need to send arguments for this command. */
-	if (args && is_send) {
-		for (i = 0; i < AVS_MAX_CMD_ARGS; i++)
-			writel(args[i], base + AVS_MBOX_PARAM(i));
-	}
+	/* Provide input parameters */
+	for (i = 0; i < num_in; i++)
+		writel(args[i], base + AVS_MBOX_PARAM(i));
 
 	/* Protect from spurious interrupts. */
 	reinit_completion(&priv->done);
@@ -239,7 +264,7 @@ static int __issue_avs_command(struct private_data *priv, int cmd, bool is_send,
 	writel(AVS_CPU_L2_INT_MASK, priv->avs_intr_base + AVS_CPU_L2_SET0);
 
 	/* Wait for AVS co-processor to finish processing the command. */
-	time_left = wait_for_completion_timeout(&priv->done, time_left);
+	time_left = wait_for_avs_command(priv, AVS_TIMEOUT);
 
 	/*
 	 * If the AVS status is not in the expected range, it means AVS didn't
@@ -256,11 +281,9 @@ static int __issue_avs_command(struct private_data *priv, int cmd, bool is_send,
 		goto out;
 	}
 
-	/* This command returned arguments, so we read them back. */
-	if (args && !is_send) {
-		for (i = 0; i < AVS_MAX_CMD_ARGS; i++)
-			args[i] = readl(base + AVS_MBOX_PARAM(i));
-	}
+	/* Process returned values */
+	for (i = 0; i < num_out; i++)
+		args[i] = readl(base + AVS_MBOX_PARAM(i));
 
 	/* Clear status to tell AVS co-processor we are done. */
 	writel(AVS_STATUS_CLEAR, base + AVS_MBOX_STATUS);
@@ -338,7 +361,7 @@ static int brcm_avs_get_pmap(struct private_data *priv, struct pmap *pmap)
 	u32 args[AVS_MAX_CMD_ARGS];
 	int ret;
 
-	ret = __issue_avs_command(priv, AVS_CMD_GET_PMAP, false, args);
+	ret = __issue_avs_command(priv, AVS_CMD_GET_PMAP, 0, 4, args);
 	if (ret || !pmap)
 		return ret;
 
@@ -359,7 +382,7 @@ static int brcm_avs_set_pmap(struct private_data *priv, struct pmap *pmap)
 	args[2] = pmap->p2;
 	args[3] = pmap->state;
 
-	return __issue_avs_command(priv, AVS_CMD_SET_PMAP, true, args);
+	return __issue_avs_command(priv, AVS_CMD_SET_PMAP, 4, 0, args);
 }
 
 static int brcm_avs_get_pstate(struct private_data *priv, unsigned int *pstate)
@@ -367,7 +390,7 @@ static int brcm_avs_get_pstate(struct private_data *priv, unsigned int *pstate)
 	u32 args[AVS_MAX_CMD_ARGS];
 	int ret;
 
-	ret = __issue_avs_command(priv, AVS_CMD_GET_PSTATE, false, args);
+	ret = __issue_avs_command(priv, AVS_CMD_GET_PSTATE, 0, 1, args);
 	if (ret)
 		return ret;
 	*pstate = args[0];
@@ -381,7 +404,8 @@ static int brcm_avs_set_pstate(struct private_data *priv, unsigned int pstate)
 
 	args[0] = pstate;
 
-	return __issue_avs_command(priv, AVS_CMD_SET_PSTATE, true, args);
+	return __issue_avs_command(priv, AVS_CMD_SET_PSTATE, 1, 0, args);
+
 }
 
 static u32 brcm_avs_get_voltage(void __iomem *base)
@@ -482,13 +506,23 @@ static int brcm_avs_suspend(struct cpufreq_policy *policy)
 	 * AVS co-processor, not necessarily the P-state we are running at now.
 	 * So, we get the current P-state explicitly.
 	 */
-	return brcm_avs_get_pstate(priv, &priv->pmap.state);
+	ret = brcm_avs_get_pstate(priv, &priv->pmap.state);
+	if (ret)
+		return ret;
+
+	/* This is best effort. Nothing to do if it fails. */
+	(void)__issue_avs_command(priv, AVS_CMD_S2_ENTER, 0, 0, NULL);
+
+	return 0;
 }
 
 static int brcm_avs_resume(struct cpufreq_policy *policy)
 {
 	struct private_data *priv = policy->driver_data;
 	int ret;
+
+	/* This is best effort. Nothing to do if it fails. */
+	(void)__issue_avs_command(priv, AVS_CMD_S2_EXIT, 0, 0, NULL);
 
 	ret = brcm_avs_set_pmap(priv, &priv->pmap);
 	if (ret == -EEXIST) {
@@ -511,7 +545,7 @@ static int brcm_avs_prepare_init(struct platform_device *pdev)
 {
 	struct private_data *priv;
 	struct device *dev;
-	int host_irq, ret;
+	int ret;
 
 	dev = &pdev->dev;
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -538,19 +572,14 @@ static int brcm_avs_prepare_init(struct platform_device *pdev)
 		goto unmap_base;
 	}
 
-	host_irq = platform_get_irq_byname(pdev, BRCM_AVS_HOST_INTR);
-	if (host_irq < 0) {
-		dev_err(dev, "Couldn't find interrupt %s -- %d\n",
-			BRCM_AVS_HOST_INTR, host_irq);
-		ret = host_irq;
-		goto unmap_intr_base;
-	}
+	priv->host_irq = platform_get_irq_byname(pdev, BRCM_AVS_HOST_INTR);
 
-	ret = devm_request_irq(dev, host_irq, irq_handler, IRQF_TRIGGER_RISING,
+	ret = devm_request_irq(dev, priv->host_irq, irq_handler,
+			       IRQF_TRIGGER_RISING,
 			       BRCM_AVS_HOST_INTR, priv);
-	if (ret) {
+	if (ret && priv->host_irq >= 0) {
 		dev_err(dev, "IRQ request failed: %s (%d) -- %d\n",
-			BRCM_AVS_HOST_INTR, host_irq, ret);
+			BRCM_AVS_HOST_INTR, priv->host_irq, ret);
 		goto unmap_intr_base;
 	}
 
@@ -593,7 +622,7 @@ static int brcm_avs_cpufreq_init(struct cpufreq_policy *policy)
 	/* All cores share the same clock and thus the same policy. */
 	cpumask_setall(policy->cpus);
 
-	ret = __issue_avs_command(priv, AVS_CMD_ENABLE, false, NULL);
+	ret = __issue_avs_command(priv, AVS_CMD_ENABLE, 0, 0, NULL);
 	if (!ret) {
 		unsigned int pstate;
 

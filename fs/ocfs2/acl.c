@@ -256,6 +256,8 @@ static int ocfs2_set_acl(handle_t *handle,
 		ret = ocfs2_xattr_set(inode, name_index, "", value, size, 0);
 
 	kfree(value);
+	if (!ret)
+		set_cached_acl(inode, type, acl);
 
 	return ret;
 }

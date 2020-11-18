@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * soc-apci-intel-jsl-match.c - tables and support for JSL ACPI enumeration.
  *
@@ -17,6 +17,11 @@ static struct snd_soc_acpi_codecs jsl_7219_98373_codecs = {
 static struct snd_soc_acpi_codecs rt1015_spk = {
 	.num_codecs = 1,
 	.codecs = {"10EC1015"}
+};
+
+static struct snd_soc_acpi_codecs mx98360a_spk = {
+	.num_codecs = 1,
+	.codecs = {"MX98360A"}
 };
 
 /*
@@ -46,6 +51,14 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_jsl_machines[] = {
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &rt1015_spk,
 		.sof_tplg_filename = "sof-jsl-rt5682-rt1015.tplg",
+	},
+	{
+		.id = "10EC5682",
+		.drv_name = "jsl_rt5682_max98360a",
+		.sof_fw_filename = "sof-jsl.ri",
+		.machine_quirk = snd_soc_acpi_codec_list,
+		.quirk_data = &mx98360a_spk,
+		.sof_tplg_filename = "sof-jsl-rt5682-mx98360a.tplg",
 	},
 	{},
 };

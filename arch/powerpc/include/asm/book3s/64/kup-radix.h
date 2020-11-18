@@ -12,11 +12,17 @@
 
 #ifdef __ASSEMBLY__
 
-.macro kuap_restore_amr	gpr
+.macro kuap_restore_amr	gpr1, gpr2
 #ifdef CONFIG_PPC_KUAP
 	BEGIN_MMU_FTR_SECTION_NESTED(67)
-	ld	\gpr, STACK_REGS_KUAP(r1)
-	mtspr	SPRN_AMR, \gpr
+	mfspr	\gpr1, SPRN_AMR
+	ld	\gpr2, STACK_REGS_KUAP(r1)
+	cmpd	\gpr1, \gpr2
+	beq	998f
+	isync
+	mtspr	SPRN_AMR, \gpr2
+	/* No isync required, see kuap_restore_amr() */
+998:
 	END_MMU_FTR_SECTION_NESTED_IFSET(MMU_FTR_RADIX_KUAP, 67)
 #endif
 .endm
@@ -60,10 +66,28 @@
 #include <asm/mmu.h>
 #include <asm/ptrace.h>
 
-static inline void kuap_restore_amr(struct pt_regs *regs)
+static inline void kuap_restore_amr(struct pt_regs *regs, unsigned long amr)
 {
-	if (mmu_has_feature(MMU_FTR_RADIX_KUAP))
+	if (mmu_has_feature(MMU_FTR_RADIX_KUAP) && unlikely(regs->kuap != amr)) {
+		isync();
 		mtspr(SPRN_AMR, regs->kuap);
+		/*
+		 * No isync required here because we are about to RFI back to
+		 * previous context before any user accesses would be made,
+		 * which is a CSI.
+		 */
+	}
+}
+
+static inline unsigned long kuap_get_and_check_amr(void)
+{
+	if (mmu_has_feature(MMU_FTR_RADIX_KUAP)) {
+		unsigned long amr = mfspr(SPRN_AMR);
+		if (IS_ENABLED(CONFIG_PPC_KUAP_DEBUG)) /* kuap_check_amr() */
+			WARN_ON_ONCE(amr != AMR_KUAP_BLOCKED);
+		return amr;
+	}
+	return 0;
 }
 
 static inline void kuap_check_amr(void)
@@ -142,12 +166,17 @@ bad_kuap_fault(struct pt_regs *regs, unsigned long address, bool is_write)
 		    "Bug: %s fault blocked by AMR!", is_write ? "Write" : "Read");
 }
 #else /* CONFIG_PPC_KUAP */
-static inline void kuap_restore_amr(struct pt_regs *regs)
+static inline void kuap_restore_amr(struct pt_regs *regs, unsigned long amr)
 {
 }
 
 static inline void kuap_check_amr(void)
 {
+}
+
+static inline unsigned long kuap_get_and_check_amr(void)
+{
+	return 0;
 }
 #endif /* CONFIG_PPC_KUAP */
 

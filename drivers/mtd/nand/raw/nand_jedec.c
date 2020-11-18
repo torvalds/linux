@@ -16,6 +16,8 @@
 
 #include "internals.h"
 
+#define JEDEC_PARAM_PAGES 3
+
 /*
  * Check if the NAND chip is JEDEC compliant, returns 1 if it is, 0 otherwise.
  */
@@ -25,9 +27,11 @@ int nand_jedec_detect(struct nand_chip *chip)
 	struct nand_memory_organization *memorg;
 	struct nand_jedec_params *p;
 	struct jedec_ecc_info *ecc;
+	bool use_datain = false;
 	int jedec_version = 0;
 	char id[5];
 	int i, val, ret;
+	u16 crc;
 
 	memorg = nanddev_get_memorg(&chip->base);
 
@@ -41,25 +45,31 @@ int nand_jedec_detect(struct nand_chip *chip)
 	if (!p)
 		return -ENOMEM;
 
-	ret = nand_read_param_page_op(chip, 0x40, NULL, 0);
-	if (ret) {
-		ret = 0;
-		goto free_jedec_param_page;
-	}
+	if (!nand_has_exec_op(chip) ||
+	    !nand_read_data_op(chip, p, sizeof(*p), true, true))
+		use_datain = true;
 
-	for (i = 0; i < 3; i++) {
-		ret = nand_read_data_op(chip, p, sizeof(*p), true);
+	for (i = 0; i < JEDEC_PARAM_PAGES; i++) {
+		if (!i)
+			ret = nand_read_param_page_op(chip, 0x40, p,
+						      sizeof(*p));
+		else if (use_datain)
+			ret = nand_read_data_op(chip, p, sizeof(*p), true,
+						false);
+		else
+			ret = nand_change_read_column_op(chip, sizeof(*p) * i,
+							 p, sizeof(*p), true);
 		if (ret) {
 			ret = 0;
 			goto free_jedec_param_page;
 		}
 
-		if (onfi_crc16(ONFI_CRC_BASE, (uint8_t *)p, 510) ==
-				le16_to_cpu(p->crc))
+		crc = onfi_crc16(ONFI_CRC_BASE, (u8 *)p, 510);
+		if (crc == le16_to_cpu(p->crc))
 			break;
 	}
 
-	if (i == 3) {
+	if (i == JEDEC_PARAM_PAGES) {
 		pr_err("Could not find valid JEDEC parameter page; aborting\n");
 		goto free_jedec_param_page;
 	}

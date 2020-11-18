@@ -14,6 +14,10 @@
 
 #include <asm/mipsregs.h>
 
+#ifndef IO_SPACE_LIMIT
+#define IO_SPACE_LIMIT 0xffff
+#endif
+
 /*
  * This gives the physical RAM offset.
  */

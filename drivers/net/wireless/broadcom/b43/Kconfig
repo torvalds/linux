@@ -6,7 +6,7 @@ config B43
 	select SSB if B43_SSB
 	select FW_LOADER
 	select CORDIC
-	---help---
+	help
 	  b43 is a driver for the Broadcom 43xx series wireless devices.
 
 	  Check "lspci" for something like
@@ -77,7 +77,7 @@ config B43_SDIO
 	bool "Broadcom 43xx SDIO device support"
 	depends on B43 && B43_SSB && SSB_SDIOHOST_POSSIBLE
 	select SSB_SDIOHOST
-	---help---
+	help
 	  Broadcom 43xx device support for Soft-MAC SDIO devices.
 
 	  With this config option you can drive Soft-MAC b43 cards with a
@@ -108,7 +108,7 @@ config B43_PHY_G
 	bool "Support for G-PHY (802.11g) devices"
 	depends on B43 && B43_SSB
 	default y
-	---help---
+	help
 	  This PHY type can be found in the following chipsets:
 	  PCI: BCM4306, BCM4311, BCM4318
 	  SoC: BCM4712, BCM5352E
@@ -117,7 +117,7 @@ config B43_PHY_N
 	bool "Support for N-PHY (the main 802.11n series) devices"
 	depends on B43
 	default y
-	---help---
+	help
 	  This PHY type can be found in the following chipsets:
 	  PCI: BCM4321, BCM4322,
 	       BCM43222, BCM43224, BCM43225,
@@ -128,7 +128,7 @@ config B43_PHY_LP
 	bool "Support for LP-PHY (low-power 802.11g) devices"
 	depends on B43 && B43_SSB
 	default y
-	---help---
+	help
 	  The LP-PHY is a low-power PHY built into some notebooks
 	  and embedded devices. It supports 802.11a/b/g
 	  (802.11a support is optional, and currently disabled).
@@ -137,13 +137,13 @@ config B43_PHY_HT
 	bool "Support for HT-PHY (high throughput 802.11n) devices"
 	depends on B43 && B43_BCMA
 	default y
-	---help---
+	help
 	  This PHY type with 3x3:3 MIMO can be found in the BCM4331 PCI chipset.
 
 config B43_PHY_LCN
 	bool "Support for LCN-PHY devices (BROKEN)"
 	depends on B43 && BROKEN
-	---help---
+	help
 	  Support for the LCN-PHY.
 
 	  Say N, this is BROKEN and crashes driver.
@@ -151,7 +151,7 @@ config B43_PHY_LCN
 config B43_PHY_AC
 	bool "Support for AC-PHY (802.11ac) devices (BROKEN)"
 	depends on B43 && B43_BCMA && BROKEN
-	---help---
+	help
 	  This PHY type can be found in the following chipsets:
 	  PCI: BCM4352, BCM4360
 
@@ -174,7 +174,7 @@ config B43_HWRNG
 config B43_DEBUG
 	bool "Broadcom 43xx debugging"
 	depends on B43
-	---help---
+	help
 	  Broadcom 43xx debugging.
 
 	  This adds additional runtime sanity checks and statistics to the driver.

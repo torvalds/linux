@@ -29,7 +29,6 @@
 
 #include <asm/io.h>
 #include <asm/bootinfo.h>
-#include <asm/pgtable.h>
 #include <asm/setup.h>
 #include <asm/irq.h>
 #include <asm/traps.h>

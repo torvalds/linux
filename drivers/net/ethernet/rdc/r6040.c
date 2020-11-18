@@ -262,9 +262,9 @@ static void r6040_free_txbufs(struct net_device *dev)
 
 	for (i = 0; i < TX_DCNT; i++) {
 		if (lp->tx_insert_ptr->skb_ptr) {
-			pci_unmap_single(lp->pdev,
-				le32_to_cpu(lp->tx_insert_ptr->buf),
-				MAX_BUF_SIZE, PCI_DMA_TODEVICE);
+			dma_unmap_single(&lp->pdev->dev,
+					 le32_to_cpu(lp->tx_insert_ptr->buf),
+					 MAX_BUF_SIZE, DMA_TO_DEVICE);
 			dev_kfree_skb(lp->tx_insert_ptr->skb_ptr);
 			lp->tx_insert_ptr->skb_ptr = NULL;
 		}
@@ -279,9 +279,9 @@ static void r6040_free_rxbufs(struct net_device *dev)
 
 	for (i = 0; i < RX_DCNT; i++) {
 		if (lp->rx_insert_ptr->skb_ptr) {
-			pci_unmap_single(lp->pdev,
-				le32_to_cpu(lp->rx_insert_ptr->buf),
-				MAX_BUF_SIZE, PCI_DMA_FROMDEVICE);
+			dma_unmap_single(&lp->pdev->dev,
+					 le32_to_cpu(lp->rx_insert_ptr->buf),
+					 MAX_BUF_SIZE, DMA_FROM_DEVICE);
 			dev_kfree_skb(lp->rx_insert_ptr->skb_ptr);
 			lp->rx_insert_ptr->skb_ptr = NULL;
 		}
@@ -335,9 +335,10 @@ static int r6040_alloc_rxbufs(struct net_device *dev)
 			goto err_exit;
 		}
 		desc->skb_ptr = skb;
-		desc->buf = cpu_to_le32(pci_map_single(lp->pdev,
-					desc->skb_ptr->data,
-					MAX_BUF_SIZE, PCI_DMA_FROMDEVICE));
+		desc->buf = cpu_to_le32(dma_map_single(&lp->pdev->dev,
+						       desc->skb_ptr->data,
+						       MAX_BUF_SIZE,
+						       DMA_FROM_DEVICE));
 		desc->status = DSC_OWNER_MAC;
 		desc = desc->vndescp;
 	} while (desc != lp->rx_ring);
@@ -484,14 +485,14 @@ static int r6040_close(struct net_device *dev)
 
 	/* Free Descriptor memory */
 	if (lp->rx_ring) {
-		pci_free_consistent(pdev,
-				RX_DESC_SIZE, lp->rx_ring, lp->rx_ring_dma);
+		dma_free_coherent(&pdev->dev, RX_DESC_SIZE, lp->rx_ring,
+				  lp->rx_ring_dma);
 		lp->rx_ring = NULL;
 	}
 
 	if (lp->tx_ring) {
-		pci_free_consistent(pdev,
-				TX_DESC_SIZE, lp->tx_ring, lp->tx_ring_dma);
+		dma_free_coherent(&pdev->dev, TX_DESC_SIZE, lp->tx_ring,
+				  lp->tx_ring_dma);
 		lp->tx_ring = NULL;
 	}
 
@@ -544,8 +545,8 @@ static int r6040_rx(struct net_device *dev, int limit)
 
 		/* Do not count the CRC */
 		skb_put(skb_ptr, descptr->len - 4);
-		pci_unmap_single(priv->pdev, le32_to_cpu(descptr->buf),
-					MAX_BUF_SIZE, PCI_DMA_FROMDEVICE);
+		dma_unmap_single(&priv->pdev->dev, le32_to_cpu(descptr->buf),
+				 MAX_BUF_SIZE, DMA_FROM_DEVICE);
 		skb_ptr->protocol = eth_type_trans(skb_ptr, priv->dev);
 
 		/* Send to upper layer */
@@ -555,9 +556,10 @@ static int r6040_rx(struct net_device *dev, int limit)
 
 		/* put new skb into descriptor */
 		descptr->skb_ptr = new_skb;
-		descptr->buf = cpu_to_le32(pci_map_single(priv->pdev,
-						descptr->skb_ptr->data,
-					MAX_BUF_SIZE, PCI_DMA_FROMDEVICE));
+		descptr->buf = cpu_to_le32(dma_map_single(&priv->pdev->dev,
+							  descptr->skb_ptr->data,
+							  MAX_BUF_SIZE,
+							  DMA_FROM_DEVICE));
 
 next_descr:
 		/* put the descriptor back to the MAC */
@@ -597,8 +599,8 @@ static void r6040_tx(struct net_device *dev)
 		dev->stats.tx_packets++;
 		dev->stats.tx_bytes += skb_ptr->len;
 
-		pci_unmap_single(priv->pdev, le32_to_cpu(descptr->buf),
-			skb_ptr->len, PCI_DMA_TODEVICE);
+		dma_unmap_single(&priv->pdev->dev, le32_to_cpu(descptr->buf),
+				 skb_ptr->len, DMA_TO_DEVICE);
 		/* Free buffer */
 		dev_kfree_skb(skb_ptr);
 		descptr->skb_ptr = NULL;
@@ -750,14 +752,16 @@ static int r6040_open(struct net_device *dev)
 
 	/* Allocate Descriptor memory */
 	lp->rx_ring =
-		pci_alloc_consistent(lp->pdev, RX_DESC_SIZE, &lp->rx_ring_dma);
+		dma_alloc_coherent(&lp->pdev->dev, RX_DESC_SIZE,
+				   &lp->rx_ring_dma, GFP_KERNEL);
 	if (!lp->rx_ring) {
 		ret = -ENOMEM;
 		goto err_free_irq;
 	}
 
 	lp->tx_ring =
-		pci_alloc_consistent(lp->pdev, TX_DESC_SIZE, &lp->tx_ring_dma);
+		dma_alloc_coherent(&lp->pdev->dev, TX_DESC_SIZE,
+				   &lp->tx_ring_dma, GFP_KERNEL);
 	if (!lp->tx_ring) {
 		ret = -ENOMEM;
 		goto err_free_rx_ring;
@@ -773,11 +777,11 @@ static int r6040_open(struct net_device *dev)
 	return 0;
 
 err_free_tx_ring:
-	pci_free_consistent(lp->pdev, TX_DESC_SIZE, lp->tx_ring,
-			lp->tx_ring_dma);
+	dma_free_coherent(&lp->pdev->dev, TX_DESC_SIZE, lp->tx_ring,
+			  lp->tx_ring_dma);
 err_free_rx_ring:
-	pci_free_consistent(lp->pdev, RX_DESC_SIZE, lp->rx_ring,
-			lp->rx_ring_dma);
+	dma_free_coherent(&lp->pdev->dev, RX_DESC_SIZE, lp->rx_ring,
+			  lp->rx_ring_dma);
 err_free_irq:
 	free_irq(dev->irq, dev);
 out:
@@ -811,8 +815,8 @@ static netdev_tx_t r6040_start_xmit(struct sk_buff *skb,
 	descptr = lp->tx_insert_ptr;
 	descptr->len = skb->len;
 	descptr->skb_ptr = skb;
-	descptr->buf = cpu_to_le32(pci_map_single(lp->pdev,
-		skb->data, skb->len, PCI_DMA_TODEVICE));
+	descptr->buf = cpu_to_le32(dma_map_single(&lp->pdev->dev, skb->data,
+						  skb->len, DMA_TO_DEVICE));
 	descptr->status = DSC_OWNER_MAC;
 
 	skb_tx_timestamp(skb);
@@ -1029,12 +1033,12 @@ static int r6040_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out;
 
 	/* this should always be supported */
-	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+	err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
 	if (err) {
 		dev_err(&pdev->dev, "32-bit PCI DMA addresses not supported by the card\n");
 		goto err_out_disable_dev;
 	}
-	err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
+	err = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
 	if (err) {
 		dev_err(&pdev->dev, "32-bit PCI DMA addresses not supported by the card\n");
 		goto err_out_disable_dev;

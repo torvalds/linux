@@ -106,6 +106,7 @@ struct intel_vgpu_pci_bar {
 struct intel_vgpu_cfg_space {
 	unsigned char virtual_cfg_space[PCI_CFG_SPACE_EXP_SIZE];
 	struct intel_vgpu_pci_bar bar[INTEL_GVT_MAX_BAR_NUM];
+	u32 pmcsr_off;
 };
 
 #define vgpu_cfg_space(vgpu) ((vgpu)->cfg_space.virtual_cfg_space)
@@ -163,6 +164,11 @@ struct intel_vgpu_submission {
 	const struct intel_vgpu_submission_ops *ops;
 	int virtual_submission_interface;
 	bool active;
+	struct {
+		u32 lrca;
+		bool valid;
+		u64 ring_context_gpa;
+	} last_ctx[I915_NUM_ENGINES];
 };
 
 struct intel_vgpu {
@@ -193,6 +199,8 @@ struct intel_vgpu {
 	struct intel_vgpu_submission submission;
 	struct radix_tree_root page_track_tree;
 	u32 hws_pga[I915_NUM_ENGINES];
+	/* Set on PCI_D3, reset on DMLR, not reflecting the actual PM state */
+	bool d3_entered;
 
 	struct dentry *debugfs;
 

@@ -11,6 +11,7 @@
 #include <linux/if_arp.h>
 #include <linux/slab.h>
 #include <linux/sched/signal.h>
+#include <linux/sched/isolation.h>
 #include <linux/nsproxy.h>
 #include <net/sock.h>
 #include <net/net_namespace.h>
@@ -243,6 +244,18 @@ static ssize_t duplex_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(duplex);
 
+static ssize_t testing_show(struct device *dev,
+			    struct device_attribute *attr, char *buf)
+{
+	struct net_device *netdev = to_net_dev(dev);
+
+	if (netif_running(netdev))
+		return sprintf(buf, fmt_dec, !!netif_testing(netdev));
+
+	return -EINVAL;
+}
+static DEVICE_ATTR_RO(testing);
+
 static ssize_t dormant_show(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
@@ -260,7 +273,7 @@ static const char *const operstates[] = {
 	"notpresent", /* currently unused */
 	"down",
 	"lowerlayerdown",
-	"testing", /* currently unused */
+	"testing",
 	"dormant",
 	"up"
 };
@@ -355,7 +368,7 @@ NETDEVICE_SHOW_RW(tx_queue_len, fmt_dec);
 
 static int change_gro_flush_timeout(struct net_device *dev, unsigned long val)
 {
-	dev->gro_flush_timeout = val;
+	WRITE_ONCE(dev->gro_flush_timeout, val);
 	return 0;
 }
 
@@ -369,6 +382,23 @@ static ssize_t gro_flush_timeout_store(struct device *dev,
 	return netdev_store(dev, attr, buf, len, change_gro_flush_timeout);
 }
 NETDEVICE_SHOW_RW(gro_flush_timeout, fmt_ulong);
+
+static int change_napi_defer_hard_irqs(struct net_device *dev, unsigned long val)
+{
+	WRITE_ONCE(dev->napi_defer_hard_irqs, val);
+	return 0;
+}
+
+static ssize_t napi_defer_hard_irqs_store(struct device *dev,
+					  struct device_attribute *attr,
+					  const char *buf, size_t len)
+{
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
+
+	return netdev_store(dev, attr, buf, len, change_napi_defer_hard_irqs);
+}
+NETDEVICE_SHOW_RW(napi_defer_hard_irqs, fmt_dec);
 
 static ssize_t ifalias_store(struct device *dev, struct device_attribute *attr,
 			     const char *buf, size_t len)
@@ -524,6 +554,7 @@ static struct attribute *net_class_attrs[] __ro_after_init = {
 	&dev_attr_speed.attr,
 	&dev_attr_duplex.attr,
 	&dev_attr_dormant.attr,
+	&dev_attr_testing.attr,
 	&dev_attr_operstate.attr,
 	&dev_attr_carrier_changes.attr,
 	&dev_attr_ifalias.attr,
@@ -532,6 +563,7 @@ static struct attribute *net_class_attrs[] __ro_after_init = {
 	&dev_attr_flags.attr,
 	&dev_attr_tx_queue_len.attr,
 	&dev_attr_gro_flush_timeout.attr,
+	&dev_attr_napi_defer_hard_irqs.attr,
 	&dev_attr_phys_port_id.attr,
 	&dev_attr_phys_port_name.attr,
 	&dev_attr_phys_switch_id.attr,
@@ -710,7 +742,7 @@ static ssize_t store_rps_map(struct netdev_rx_queue *queue,
 {
 	struct rps_map *old_map, *map;
 	cpumask_var_t mask;
-	int err, cpu, i;
+	int err, cpu, i, hk_flags;
 	static DEFINE_MUTEX(rps_map_mutex);
 
 	if (!capable(CAP_NET_ADMIN))
@@ -723,6 +755,15 @@ static ssize_t store_rps_map(struct netdev_rx_queue *queue,
 	if (err) {
 		free_cpumask_var(mask);
 		return err;
+	}
+
+	if (!cpumask_empty(mask)) {
+		hk_flags = HK_FLAG_DOMAIN | HK_FLAG_WQ;
+		cpumask_and(mask, mask, housekeeping_cpumask(hk_flags));
+		if (cpumask_empty(mask)) {
+			free_cpumask_var(mask);
+			return -EINVAL;
+		}
 	}
 
 	map = kzalloc(max_t(unsigned int,
@@ -1077,7 +1118,7 @@ static ssize_t tx_timeout_show(struct netdev_queue *queue, char *buf)
 	trans_timeout = queue->trans_timeout;
 	spin_unlock_irq(&queue->_xmit_lock);
 
-	return sprintf(buf, "%lu", trans_timeout);
+	return sprintf(buf, fmt_ulong, trans_timeout);
 }
 
 static unsigned int get_netdev_queue_index(struct netdev_queue *queue)
@@ -1774,12 +1815,12 @@ static struct class net_class __ro_after_init = {
 #ifdef CONFIG_OF_NET
 static int of_dev_node_match(struct device *dev, const void *data)
 {
-	int ret = 0;
+	for (; dev; dev = dev->parent) {
+		if (dev->of_node == data)
+			return 1;
+	}
 
-	if (dev->parent)
-		ret = dev->parent->of_node == data;
-
-	return ret == 0 ? dev->of_node == data : ret;
+	return 0;
 }
 
 /*

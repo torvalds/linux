@@ -28,7 +28,7 @@ config COLDFIRE
 	select CPU_HAS_NO_MULDIV64
 	select GENERIC_CSUM
 	select GPIOLIB
-	select HAVE_CLK
+	select HAVE_LEGACY_CLK
 
 endchoice
 
@@ -343,7 +343,7 @@ config M68KFPU_EMU_ONLY
 config ADVANCED
 	bool "Advanced configuration options"
 	depends on MMU
-	---help---
+	help
 	  This gives you access to some advanced options for the CPU. The
 	  defaults should be fine for most users, but these options may make
 	  it possible for you to improve performance somewhat if you know what
@@ -358,7 +358,7 @@ config ADVANCED
 config RMW_INSNS
 	bool "Use read-modify-write instructions"
 	depends on ADVANCED
-	---help---
+	help
 	  This allows to use certain instructions that work with indivisible
 	  read-modify-write bus cycles. While this is faster than the
 	  workaround of disabling interrupts, it can conflict with DMA
@@ -386,7 +386,7 @@ config ARCH_DISCONTIGMEM_ENABLE
 config 060_WRITETHROUGH
 	bool "Use write-through caching for 68060 supervisor accesses"
 	depends on ADVANCED && M68060
-	---help---
+	help
 	  The 68060 generally uses copyback caching of recently accessed data.
 	  Copyback caching means that memory writes will be held in an on-chip
 	  cache and only written back to memory some time later.  Saying Y

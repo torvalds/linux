@@ -3137,33 +3137,12 @@ static void _dispc_mgr_set_lcd_timings(struct dispc_device *dispc,
 	dispc_write_reg(dispc, DISPC_TIMING_H(channel), timing_h);
 	dispc_write_reg(dispc, DISPC_TIMING_V(channel), timing_v);
 
-	if (vm->flags & DISPLAY_FLAGS_VSYNC_HIGH)
-		vs = false;
-	else
-		vs = true;
-
-	if (vm->flags & DISPLAY_FLAGS_HSYNC_HIGH)
-		hs = false;
-	else
-		hs = true;
-
-	if (vm->flags & DISPLAY_FLAGS_DE_HIGH)
-		de = false;
-	else
-		de = true;
-
-	if (vm->flags & DISPLAY_FLAGS_PIXDATA_POSEDGE)
-		ipc = false;
-	else
-		ipc = true;
-
-	/* always use the 'rf' setting */
-	onoff = true;
-
-	if (vm->flags & DISPLAY_FLAGS_SYNC_POSEDGE)
-		rf = true;
-	else
-		rf = false;
+	vs = !!(vm->flags & DISPLAY_FLAGS_VSYNC_LOW);
+	hs = !!(vm->flags & DISPLAY_FLAGS_HSYNC_LOW);
+	de = !!(vm->flags & DISPLAY_FLAGS_DE_LOW);
+	ipc = !!(vm->flags & DISPLAY_FLAGS_PIXDATA_NEGEDGE);
+	onoff = true; /* always use the 'rf' setting */
+	rf = !!(vm->flags & DISPLAY_FLAGS_SYNC_POSEDGE);
 
 	l = FLD_VAL(onoff, 17, 17) |
 		FLD_VAL(rf, 16, 16) |
@@ -4936,6 +4915,7 @@ static int dispc_runtime_resume(struct device *dev)
 static const struct dev_pm_ops dispc_pm_ops = {
 	.runtime_suspend = dispc_runtime_suspend,
 	.runtime_resume = dispc_runtime_resume,
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
 };
 
 struct platform_driver omap_dispchw_driver = {

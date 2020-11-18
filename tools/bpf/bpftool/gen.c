@@ -17,7 +17,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
-#include <unistd.h>
 #include <bpf/btf.h>
 
 #include "bpf/libbpf_internal.h"
@@ -89,7 +88,7 @@ static const char *get_map_ident(const struct bpf_map *map)
 		return NULL;
 }
 
-static void codegen_btf_dump_printf(void *ct, const char *fmt, va_list args)
+static void codegen_btf_dump_printf(void *ctx, const char *fmt, va_list args)
 {
 	vprintf(fmt, args);
 }
@@ -105,17 +104,20 @@ static int codegen_datasec_def(struct bpf_object *obj,
 	int i, err, off = 0, pad_cnt = 0, vlen = btf_vlen(sec);
 	const char *sec_ident;
 	char var_ident[256];
+	bool strip_mods = false;
 
-	if (strcmp(sec_name, ".data") == 0)
+	if (strcmp(sec_name, ".data") == 0) {
 		sec_ident = "data";
-	else if (strcmp(sec_name, ".bss") == 0)
+	} else if (strcmp(sec_name, ".bss") == 0) {
 		sec_ident = "bss";
-	else if (strcmp(sec_name, ".rodata") == 0)
+	} else if (strcmp(sec_name, ".rodata") == 0) {
 		sec_ident = "rodata";
-	else if (strcmp(sec_name, ".kconfig") == 0)
+		strip_mods = true;
+	} else if (strcmp(sec_name, ".kconfig") == 0) {
 		sec_ident = "kconfig";
-	else
+	} else {
 		return 0;
+	}
 
 	printf("	struct %s__%s {\n", obj_name, sec_ident);
 	for (i = 0; i < vlen; i++, sec_var++) {
@@ -124,16 +126,10 @@ static int codegen_datasec_def(struct bpf_object *obj,
 		DECLARE_LIBBPF_OPTS(btf_dump_emit_type_decl_opts, opts,
 			.field_name = var_ident,
 			.indent_level = 2,
+			.strip_mods = strip_mods,
 		);
 		int need_off = sec_var->offset, align_off, align;
 		__u32 var_type_id = var->type;
-		const struct btf_type *t;
-
-		t = btf__type_by_id(btf, var_type_id);
-		while (btf_is_mod(t)) {
-			var_type_id = t->type;
-			t = btf__type_by_id(btf, var_type_id);
-		}
 
 		if (off > need_off) {
 			p_err("Something is wrong for %s's variable #%d: need offset %d, already at %d.\n",
@@ -147,6 +143,20 @@ static int codegen_datasec_def(struct bpf_object *obj,
 			      var_name, align);
 			return -EINVAL;
 		}
+		/* Assume 32-bit architectures when generating data section
+		 * struct memory layout. Given bpftool can't know which target
+		 * host architecture it's emitting skeleton for, we need to be
+		 * conservative and assume 32-bit one to ensure enough padding
+		 * bytes are generated for pointer and long types. This will
+		 * still work correctly for 64-bit architectures, because in
+		 * the worst case we'll generate unnecessary padding field,
+		 * which on 64-bit architectures is not strictly necessary and
+		 * would be handled by natural 8-byte alignment. But it still
+		 * will be a correct memory layout, based on recorded offsets
+		 * in BTF.
+		 */
+		if (align > 4)
+			align = 4;
 
 		align_off = (off + align - 1) / align * align;
 		if (align_off != need_off) {
@@ -201,7 +211,7 @@ out:
 	return err;
 }
 
-static int codegen(const char *template, ...)
+static void codegen(const char *template, ...)
 {
 	const char *src, *end;
 	int skip_tabs = 0, n;
@@ -212,7 +222,7 @@ static int codegen(const char *template, ...)
 	n = strlen(template);
 	s = malloc(n + 1);
 	if (!s)
-		return -ENOMEM;
+		exit(-1);
 	src = template;
 	dst = s;
 
@@ -225,7 +235,8 @@ static int codegen(const char *template, ...)
 		} else {
 			p_err("unrecognized character at pos %td in template '%s'",
 			      src - template - 1, template);
-			return -EINVAL;
+			free(s);
+			exit(-1);
 		}
 	}
 
@@ -235,7 +246,8 @@ static int codegen(const char *template, ...)
 			if (*src != '\t') {
 				p_err("not enough tabs at pos %td in template '%s'",
 				      src - template - 1, template);
-				return -EINVAL;
+				free(s);
+				exit(-1);
 			}
 		}
 		/* trim trailing whitespace */
@@ -256,7 +268,6 @@ static int codegen(const char *template, ...)
 	va_end(args);
 
 	free(s);
-	return n;
 }
 
 static int do_skeleton(int argc, char **argv)
@@ -305,8 +316,11 @@ static int do_skeleton(int argc, char **argv)
 	opts.object_name = obj_name;
 	obj = bpf_object__open_mem(obj_data, file_sz, &opts);
 	if (IS_ERR(obj)) {
+		char err_buf[256];
+
+		libbpf_strerror(PTR_ERR(obj), err_buf, sizeof(err_buf));
+		p_err("failed to open BPF object file: %s", err_buf);
 		obj = NULL;
-		p_err("failed to open BPF object file: %ld", PTR_ERR(obj));
 		goto out;
 	}
 
@@ -397,7 +411,7 @@ static int do_skeleton(int argc, char **argv)
 		{							    \n\
 			struct %1$s *obj;				    \n\
 									    \n\
-			obj = (typeof(obj))calloc(1, sizeof(*obj));	    \n\
+			obj = (struct %1$s *)calloc(1, sizeof(*obj));	    \n\
 			if (!obj)					    \n\
 				return NULL;				    \n\
 			if (%1$s__create_skeleton(obj))			    \n\
@@ -461,7 +475,7 @@ static int do_skeleton(int argc, char **argv)
 		{							    \n\
 			struct bpf_object_skeleton *s;			    \n\
 									    \n\
-			s = (typeof(s))calloc(1, sizeof(*s));		    \n\
+			s = (struct bpf_object_skeleton *)calloc(1, sizeof(*s));\n\
 			if (!s)						    \n\
 				return -1;				    \n\
 			obj->skeleton = s;				    \n\
@@ -479,7 +493,7 @@ static int do_skeleton(int argc, char **argv)
 				/* maps */				    \n\
 				s->map_cnt = %zu;			    \n\
 				s->map_skel_sz = sizeof(*s->maps);	    \n\
-				s->maps = (typeof(s->maps))calloc(s->map_cnt, s->map_skel_sz);\n\
+				s->maps = (struct bpf_map_skeleton *)calloc(s->map_cnt, s->map_skel_sz);\n\
 				if (!s->maps)				    \n\
 					goto err;			    \n\
 			",
@@ -515,7 +529,7 @@ static int do_skeleton(int argc, char **argv)
 				/* programs */				    \n\
 				s->prog_cnt = %zu;			    \n\
 				s->prog_skel_sz = sizeof(*s->progs);	    \n\
-				s->progs = (typeof(s->progs))calloc(s->prog_cnt, s->prog_skel_sz);\n\
+				s->progs = (struct bpf_prog_skeleton *)calloc(s->prog_cnt, s->prog_skel_sz);\n\
 				if (!s->progs)				    \n\
 					goto err;			    \n\
 			",
@@ -587,12 +601,12 @@ static int do_help(int argc, char **argv)
 	}
 
 	fprintf(stderr,
-		"Usage: %1$s gen skeleton FILE\n"
-		"       %1$s gen help\n"
+		"Usage: %1$s %2$s skeleton FILE\n"
+		"       %1$s %2$s help\n"
 		"\n"
 		"       " HELP_SPEC_OPTIONS "\n"
 		"",
-		bin_name);
+		bin_name, "gen");
 
 	return 0;
 }

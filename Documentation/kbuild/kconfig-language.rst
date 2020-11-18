@@ -540,8 +540,8 @@ followed by a test macro::
 If you need to expose a compiler capability to makefiles and/or C source files,
 `CC_HAS_` is the recommended prefix for the config option::
 
-  config CC_HAS_STACKPROTECTOR_NONE
-	def_bool $(cc-option,-fno-stack-protector)
+  config CC_HAS_ASM_GOTO
+	def_bool $(success,$(srctree)/scripts/gcc-goto.sh $(CC))
 
 Build as module only
 ~~~~~~~~~~~~~~~~~~~~
@@ -681,17 +681,17 @@ translate Kconfig logic into boolean formulas and run a SAT solver on this to
 find dead code / features (always inactive), 114 dead features were found in
 Linux using this methodology [1]_ (Section 8: Threats to validity).
 
-Confirming this could prove useful as Kconfig stands as one of the the leading
+Confirming this could prove useful as Kconfig stands as one of the leading
 industrial variability modeling languages [1]_ [2]_. Its study would help
 evaluate practical uses of such languages, their use was only theoretical
 and real world requirements were not well understood. As it stands though
 only reverse engineering techniques have been used to deduce semantics from
 variability modeling languages such as Kconfig [3]_.
 
-.. [0] http://www.eng.uwaterloo.ca/~shshe/kconfig_semantics.pdf
-.. [1] http://gsd.uwaterloo.ca/sites/default/files/vm-2013-berger.pdf
-.. [2] http://gsd.uwaterloo.ca/sites/default/files/ase241-berger_0.pdf
-.. [3] http://gsd.uwaterloo.ca/sites/default/files/icse2011.pdf
+.. [0] https://www.eng.uwaterloo.ca/~shshe/kconfig_semantics.pdf
+.. [1] https://gsd.uwaterloo.ca/sites/default/files/vm-2013-berger.pdf
+.. [2] https://gsd.uwaterloo.ca/sites/default/files/ase241-berger_0.pdf
+.. [3] https://gsd.uwaterloo.ca/sites/default/files/icse2011.pdf
 
 Full SAT solver for Kconfig
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -710,10 +710,10 @@ such efforts somehow on Kconfig. There is enough interest from mentors of
 existing projects to not only help advise how to integrate this work upstream
 but also help maintain it long term. Interested developers should visit:
 
-http://kernelnewbies.org/KernelProjects/kconfig-sat
+https://kernelnewbies.org/KernelProjects/kconfig-sat
 
-.. [4] http://www.cs.cornell.edu/~sabhar/chapters/SATSolvers-KR-Handbook.pdf
-.. [5] http://gsd.uwaterloo.ca/sites/default/files/vm-2013-berger.pdf
+.. [4] https://www.cs.cornell.edu/~sabhar/chapters/SATSolvers-KR-Handbook.pdf
+.. [5] https://gsd.uwaterloo.ca/sites/default/files/vm-2013-berger.pdf
 .. [6] https://cados.cs.fau.de
 .. [7] https://vamos.cs.fau.de
 .. [8] https://undertaker.cs.fau.de

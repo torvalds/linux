@@ -14,13 +14,15 @@ struct brcmf_cfg80211_info;
  *
  * @P2PAPI_BSSCFG_PRIMARY: maps to driver's primary bsscfg.
  * @P2PAPI_BSSCFG_DEVICE: maps to driver's P2P device discovery bsscfg.
- * @P2PAPI_BSSCFG_CONNECTION: maps to driver's P2P connection bsscfg.
+ * @P2PAPI_BSSCFG_CONNECTION: maps to driver's 1st P2P connection bsscfg.
+ * @P2PAPI_BSSCFG_CONNECTION2: maps to driver's 2nd P2P connection bsscfg.
  * @P2PAPI_BSSCFG_MAX: used for range checking.
  */
 enum p2p_bss_type {
 	P2PAPI_BSSCFG_PRIMARY, /* maps to driver's primary bsscfg */
 	P2PAPI_BSSCFG_DEVICE, /* maps to driver's P2P device discovery bsscfg */
-	P2PAPI_BSSCFG_CONNECTION, /* maps to driver's P2P connection bsscfg */
+	P2PAPI_BSSCFG_CONNECTION, /* driver's 1st P2P connection bsscfg */
+	P2PAPI_BSSCFG_CONNECTION2, /* driver's 2nd P2P connection bsscfg */
 	P2PAPI_BSSCFG_MAX
 };
 
@@ -119,7 +121,8 @@ struct brcmf_p2p_info {
 	struct brcmf_cfg80211_info *cfg;
 	unsigned long status;
 	u8 dev_addr[ETH_ALEN];
-	u8 int_addr[ETH_ALEN];
+	u8 conn_int_addr[ETH_ALEN];
+	u8 conn2_int_addr[ETH_ALEN];
 	struct p2p_bss bss_idx[P2PAPI_BSSCFG_MAX];
 	struct timer_list listen_timer;
 	u8 listen_channel;

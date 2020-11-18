@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
 //
 // This file is provided under a dual BSD/GPLv2 license.  When using or
 // redistributing this file, you may do so under either license.
@@ -151,9 +151,7 @@ static const struct sof_dev_desc cfl_desc = {
 };
 #endif
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_COMETLAKE_LP) || \
-	IS_ENABLED(CONFIG_SND_SOC_SOF_COMETLAKE_H)
-
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_COMETLAKE)
 static const struct sof_dev_desc cml_desc = {
 	.machines		= snd_soc_acpi_intel_cml_machines,
 	.alt_machines		= snd_soc_acpi_intel_cml_sdw_machines,
@@ -411,8 +409,11 @@ static const struct pci_device_id sof_pci_ids[] = {
 		.driver_data = (unsigned long)&cfl_desc},
 #endif
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_ICELAKE)
-	{ PCI_DEVICE(0x8086, 0x34C8),
+	{ PCI_DEVICE(0x8086, 0x34C8), /* ICL-LP */
 		.driver_data = (unsigned long)&icl_desc},
+	{ PCI_DEVICE(0x8086, 0x3dc8), /* ICL-H */
+		.driver_data = (unsigned long)&icl_desc},
+
 #endif
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_JASPERLAKE)
 	{ PCI_DEVICE(0x8086, 0x38c8),
@@ -420,20 +421,25 @@ static const struct pci_device_id sof_pci_ids[] = {
 	{ PCI_DEVICE(0x8086, 0x4dc8),
 		.driver_data = (unsigned long)&jsl_desc},
 #endif
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_COMETLAKE_LP)
-	{ PCI_DEVICE(0x8086, 0x02c8),
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_COMETLAKE)
+	{ PCI_DEVICE(0x8086, 0x02c8), /* CML-LP */
 		.driver_data = (unsigned long)&cml_desc},
-#endif
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_COMETLAKE_H)
-	{ PCI_DEVICE(0x8086, 0x06c8),
+	{ PCI_DEVICE(0x8086, 0x06c8), /* CML-H */
+		.driver_data = (unsigned long)&cml_desc},
+	{ PCI_DEVICE(0x8086, 0xa3f0), /* CML-S */
 		.driver_data = (unsigned long)&cml_desc},
 #endif
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_TIGERLAKE)
-	{ PCI_DEVICE(0x8086, 0xa0c8),
+	{ PCI_DEVICE(0x8086, 0xa0c8), /* TGL-LP */
 		.driver_data = (unsigned long)&tgl_desc},
+	{ PCI_DEVICE(0x8086, 0x43c8), /* TGL-H */
+		.driver_data = (unsigned long)&tgl_desc},
+
 #endif
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_ELKHARTLAKE)
 	{ PCI_DEVICE(0x8086, 0x4b55),
+		.driver_data = (unsigned long)&ehl_desc},
+	{ PCI_DEVICE(0x8086, 0x4b58),
 		.driver_data = (unsigned long)&ehl_desc},
 #endif
 	{ 0, }

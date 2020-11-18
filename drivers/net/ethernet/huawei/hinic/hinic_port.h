@@ -79,6 +79,42 @@ enum hinic_speed {
 	HINIC_SPEED_UNKNOWN = 0xFF,
 };
 
+enum hinic_link_mode {
+	HINIC_10GE_BASE_KR = 0,
+	HINIC_40GE_BASE_KR4 = 1,
+	HINIC_40GE_BASE_CR4 = 2,
+	HINIC_100GE_BASE_KR4 = 3,
+	HINIC_100GE_BASE_CR4 = 4,
+	HINIC_25GE_BASE_KR_S = 5,
+	HINIC_25GE_BASE_CR_S = 6,
+	HINIC_25GE_BASE_KR = 7,
+	HINIC_25GE_BASE_CR = 8,
+	HINIC_GE_BASE_KX = 9,
+	HINIC_LINK_MODE_NUMBERS,
+
+	HINIC_SUPPORTED_UNKNOWN = 0xFFFF,
+};
+
+enum hinic_port_type {
+	HINIC_PORT_TP,		/* BASET */
+	HINIC_PORT_AUI,
+	HINIC_PORT_MII,
+	HINIC_PORT_FIBRE,	/* OPTICAL */
+	HINIC_PORT_BNC,
+	HINIC_PORT_ELEC,
+	HINIC_PORT_COPPER,	/* PORT_DA */
+	HINIC_PORT_AOC,
+	HINIC_PORT_BACKPLANE,
+	HINIC_PORT_NONE = 0xEF,
+	HINIC_PORT_OTHER = 0xFF,
+};
+
+enum hinic_valid_link_settings {
+	HILINK_LINK_SET_SPEED = 0x1,
+	HILINK_LINK_SET_AUTONEG = 0x2,
+	HILINK_LINK_SET_FEC = 0x4,
+};
+
 enum hinic_tso_state {
 	HINIC_TSO_DISABLE = 0,
 	HINIC_TSO_ENABLE  = 1,
@@ -148,9 +184,34 @@ struct hinic_port_link_status {
 	u8      version;
 	u8      rsvd0[6];
 
-	u16     rsvd1;
+	u16     func_id;
 	u8      link;
-	u8      rsvd2;
+	u8      port_id;
+};
+
+struct hinic_cable_plug_event {
+	u8	status;
+	u8	version;
+	u8	rsvd0[6];
+
+	u16	func_id;
+	u8	plugged; /* 0: unplugged, 1: plugged */
+	u8	port_id;
+};
+
+enum link_err_type {
+	LINK_ERR_MODULE_UNRECOGENIZED,
+	LINK_ERR_NUM,
+};
+
+struct hinic_link_err_event {
+	u8	status;
+	u8	version;
+	u8	rsvd0[6];
+
+	u16	func_id;
+	u8	err_type;
+	u8	port_id;
 };
 
 struct hinic_port_func_state_cmd {
@@ -177,6 +238,50 @@ struct hinic_port_cap {
 	u8      duplex;
 	u8      speed;
 	u8      rsvd2[3];
+};
+
+struct hinic_link_mode_cmd {
+	u8	status;
+	u8	version;
+	u8	rsvd0[6];
+
+	u16	func_id;
+	u16	rsvd1;
+	u16	supported;	/* 0xFFFF represents invalid value */
+	u16	advertised;
+};
+
+struct hinic_speed_cmd {
+	u8	status;
+	u8	version;
+	u8	rsvd0[6];
+
+	u16	func_id;
+	u16	speed;
+};
+
+struct hinic_set_autoneg_cmd {
+	u8	status;
+	u8	version;
+	u8	rsvd0[6];
+
+	u16	func_id;
+	u16	enable;	/* 1: enable , 0: disable */
+};
+
+struct hinic_link_ksettings_info {
+	u8	status;
+	u8	version;
+	u8	rsvd0[6];
+
+	u16	func_id;
+	u16	rsvd1;
+
+	u32	valid_bitmap;
+	u32	speed;		/* enum nic_speed_level */
+	u8	autoneg;	/* 0 - off; 1 - on */
+	u8	fec;		/* 0 - RSFEC; 1 - BASEFEC; 2 - NOFEC */
+	u8	rsvd2[18];	/* reserved for duplex, port, etc. */
 };
 
 struct hinic_tso_config {
@@ -506,6 +611,148 @@ struct hinic_cmd_vport_stats {
 	struct hinic_vport_stats stats;
 };
 
+struct hinic_tx_rate_cfg_max_min {
+	u8	status;
+	u8	version;
+	u8	rsvd0[6];
+
+	u16	func_id;
+	u16	rsvd1;
+	u32	min_rate;
+	u32	max_rate;
+	u8	rsvd2[8];
+};
+
+struct hinic_tx_rate_cfg {
+	u8	status;
+	u8	version;
+	u8	rsvd0[6];
+
+	u16	func_id;
+	u16	rsvd1;
+	u32	tx_rate;
+};
+
+enum nic_speed_level {
+	LINK_SPEED_10MB = 0,
+	LINK_SPEED_100MB,
+	LINK_SPEED_1GB,
+	LINK_SPEED_10GB,
+	LINK_SPEED_25GB,
+	LINK_SPEED_40GB,
+	LINK_SPEED_100GB,
+	LINK_SPEED_LEVELS,
+};
+
+struct hinic_spoofchk_set {
+	u8	status;
+	u8	version;
+	u8	rsvd0[6];
+
+	u8	state;
+	u8	rsvd1;
+	u16	func_id;
+};
+
+struct hinic_pause_config {
+	u8	status;
+	u8	version;
+	u8	rsvd0[6];
+
+	u16	func_id;
+	u16	rsvd1;
+	u32	auto_neg;
+	u32	rx_pause;
+	u32	tx_pause;
+};
+
+struct hinic_set_pfc {
+	u8	status;
+	u8	version;
+	u8	rsvd0[6];
+
+	u16	func_id;
+	u8	pfc_en;
+	u8	pfc_bitmap;
+	u8	rsvd1[4];
+};
+
+/* get or set loopback mode, need to modify by base API */
+#define HINIC_INTERNAL_LP_MODE			5
+#define LOOP_MODE_MIN				1
+#define LOOP_MODE_MAX				6
+
+struct hinic_port_loopback {
+	u8	status;
+	u8	version;
+	u8	rsvd[6];
+
+	u32	mode;
+	u32	en;
+};
+
+struct hinic_led_info {
+	u8	status;
+	u8	version;
+	u8	rsvd0[6];
+
+	u8	port;
+	u8	type;
+	u8	mode;
+	u8	reset;
+};
+
+#define STD_SFP_INFO_MAX_SIZE	640
+
+struct hinic_cmd_get_light_module_abs {
+	u8 status;
+	u8 version;
+	u8 rsvd0[6];
+
+	u8 port_id;
+	u8 abs_status; /* 0:present, 1:absent */
+	u8 rsv[2];
+};
+
+#define STD_SFP_INFO_MAX_SIZE	640
+
+struct hinic_cmd_get_std_sfp_info {
+	u8 status;
+	u8 version;
+	u8 rsvd0[6];
+
+	u8 port_id;
+	u8 wire_type;
+	u16 eeprom_len;
+	u32 rsvd;
+	u8 sfp_info[STD_SFP_INFO_MAX_SIZE];
+};
+
+struct hinic_cmd_update_fw {
+	u8 status;
+	u8 version;
+	u8 rsvd0[6];
+
+	struct {
+		u32 SL:1;
+		u32 SF:1;
+		u32 flag:1;
+		u32 reserved:13;
+		u32 fragment_len:16;
+	} ctl_info;
+
+	struct {
+		u32 FW_section_CRC;
+		u32 FW_section_type;
+	} section_info;
+
+	u32 total_len;
+	u32 setion_total_len;
+	u32 fw_section_version;
+	u32 section_offset;
+	u32 data[384];
+};
+
 int hinic_port_add_mac(struct hinic_dev *nic_dev, const u8 *addr,
 		       u16 vlan_id);
 
@@ -584,5 +831,57 @@ int hinic_get_vport_stats(struct hinic_dev *nic_dev,
 int hinic_set_rx_vlan_offload(struct hinic_dev *nic_dev, u8 en);
 
 int hinic_get_mgmt_version(struct hinic_dev *nic_dev, u8 *mgmt_ver);
+
+int hinic_set_link_settings(struct hinic_hwdev *hwdev,
+			    struct hinic_link_ksettings_info *info);
+
+int hinic_get_link_mode(struct hinic_hwdev *hwdev,
+			struct hinic_link_mode_cmd *link_mode);
+
+int hinic_set_autoneg(struct hinic_hwdev *hwdev, bool enable);
+
+int hinic_set_speed(struct hinic_hwdev *hwdev, enum nic_speed_level speed);
+
+int hinic_get_hw_pause_info(struct hinic_hwdev *hwdev,
+			    struct hinic_pause_config *pause_info);
+
+int hinic_set_hw_pause_info(struct hinic_hwdev *hwdev,
+			    struct hinic_pause_config *pause_info);
+
+int hinic_dcb_set_pfc(struct hinic_hwdev *hwdev, u8 pfc_en, u8 pfc_bitmap);
+
+int hinic_set_loopback_mode(struct hinic_hwdev *hwdev, u32 mode, u32 enable);
+
+enum hinic_led_mode {
+	HINIC_LED_MODE_ON,
+	HINIC_LED_MODE_OFF,
+	HINIC_LED_MODE_FORCE_1HZ,
+	HINIC_LED_MODE_FORCE_2HZ,
+	HINIC_LED_MODE_FORCE_4HZ,
+	HINIC_LED_MODE_1HZ,
+	HINIC_LED_MODE_2HZ,
+	HINIC_LED_MODE_4HZ,
+	HINIC_LED_MODE_INVALID,
+};
+
+enum hinic_led_type {
+	HINIC_LED_TYPE_LINK,
+	HINIC_LED_TYPE_LOW_SPEED,
+	HINIC_LED_TYPE_HIGH_SPEED,
+	HINIC_LED_TYPE_INVALID,
+};
+
+int hinic_reset_led_status(struct hinic_hwdev *hwdev, u8 port);
+
+int hinic_set_led_status(struct hinic_hwdev *hwdev, u8 port,
+			 enum hinic_led_type type, enum hinic_led_mode mode);
+
+int hinic_get_sfp_type(struct hinic_hwdev *hwdev, u8 *data0, u8 *data1);
+
+int hinic_get_sfp_eeprom(struct hinic_hwdev *hwdev, u8 *data, u16 *len);
+
+int hinic_open(struct net_device *netdev);
+
+int hinic_close(struct net_device *netdev);
 
 #endif

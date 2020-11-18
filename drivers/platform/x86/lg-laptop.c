@@ -67,9 +67,7 @@ static u32 inited;
 #define INIT_INPUT_WMI_0        0x01
 #define INIT_INPUT_WMI_2        0x02
 #define INIT_INPUT_ACPI         0x04
-#define INIT_TPAD_LED           0x08
-#define INIT_KBD_LED            0x10
-#define INIT_SPARSE_KEYMAP        0x80
+#define INIT_SPARSE_KEYMAP      0x80
 
 static const struct key_entry wmi_keymap[] = {
 	{KE_KEY, 0x70, {KEY_F15} },	 /* LG control panel (F1) */
@@ -626,11 +624,9 @@ static int acpi_add(struct acpi_device *device)
 	if (ret)
 		goto out_platform_device;
 
-	if (!led_classdev_register(&pf_device->dev, &kbd_backlight))
-		inited |= INIT_KBD_LED;
-
-	if (!led_classdev_register(&pf_device->dev, &tpad_led))
-		inited |= INIT_TPAD_LED;
+	/* LEDs are optional */
+	led_classdev_register(&pf_device->dev, &kbd_backlight);
+	led_classdev_register(&pf_device->dev, &tpad_led);
 
 	wmi_input_setup();
 
@@ -646,11 +642,9 @@ out_platform_registered:
 static int acpi_remove(struct acpi_device *device)
 {
 	sysfs_remove_group(&pf_device->dev.kobj, &dev_attribute_group);
-	if (inited & INIT_KBD_LED)
-		led_classdev_unregister(&kbd_backlight);
 
-	if (inited & INIT_TPAD_LED)
-		led_classdev_unregister(&tpad_led);
+	led_classdev_unregister(&tpad_led);
+	led_classdev_unregister(&kbd_backlight);
 
 	wmi_input_destroy();
 	platform_device_unregister(pf_device);

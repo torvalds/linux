@@ -29,18 +29,16 @@ static int cht_int33fe_i2c_res_filter(struct acpi_resource *ares, void *data)
 
 static int cht_int33fe_count_i2c_clients(struct device *dev)
 {
-	struct acpi_device *adev;
+	struct acpi_device *adev = ACPI_COMPANION(dev);
 	LIST_HEAD(resource_list);
 	int count = 0;
+	int ret;
 
-	adev = ACPI_COMPANION(dev);
-	if (!adev)
-		return -EINVAL;
-
-	acpi_dev_get_resources(adev, &resource_list,
-			       cht_int33fe_i2c_res_filter, &count);
-
+	ret = acpi_dev_get_resources(adev, &resource_list,
+				     cht_int33fe_i2c_res_filter, &count);
 	acpi_dev_free_resource_list(&resource_list);
+	if (ret < 0)
+		return ret;
 
 	return count;
 }

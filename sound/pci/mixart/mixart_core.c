@@ -527,7 +527,7 @@ irqreturn_t snd_mixart_threaded_irq(int irq, void *dev_id)
 				dev_err(&mgr->pci->dev,
 					"canceled notification %x !\n", msg);
 			}
-			/* fall through */
+			fallthrough;
 		case MSG_TYPE_ANSWER:
 			/* answer or notification to a message we are waiting for*/
 			mutex_lock(&mgr->msg_lock);

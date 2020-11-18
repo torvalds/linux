@@ -446,8 +446,11 @@ static struct qtnf_wmac *qtnf_core_mac_alloc(struct qtnf_bus *bus,
 	}
 
 	wiphy = qtnf_wiphy_allocate(bus, pdev);
-	if (!wiphy)
+	if (!wiphy) {
+		if (pdev)
+			platform_device_unregister(pdev);
 		return ERR_PTR(-ENOMEM);
+	}
 
 	mac = wiphy_priv(wiphy);
 
@@ -668,9 +671,10 @@ bool qtnf_netdev_is_qtn(const struct net_device *ndev)
 	return ndev->netdev_ops == &qtnf_netdev_ops;
 }
 
-static int qtnf_check_br_ports(struct net_device *dev, void *data)
+static int qtnf_check_br_ports(struct net_device *dev,
+			       struct netdev_nested_priv *priv)
 {
-	struct net_device *ndev = data;
+	struct net_device *ndev = (struct net_device *)priv->data;
 
 	if (dev != ndev && netdev_port_same_parent_id(dev, ndev))
 		return -ENOTSUPP;
@@ -683,6 +687,9 @@ static int qtnf_core_netdevice_event(struct notifier_block *nb,
 {
 	struct net_device *ndev = netdev_notifier_info_to_dev(ptr);
 	const struct netdev_notifier_changeupper_info *info;
+	struct netdev_nested_priv priv = {
+		.data = (void *)ndev,
+	};
 	struct net_device *brdev;
 	struct qtnf_vif *vif;
 	struct qtnf_bus *bus;
@@ -722,7 +729,7 @@ static int qtnf_core_netdevice_event(struct notifier_block *nb,
 		} else {
 			ret = netdev_walk_all_lower_dev(brdev,
 							qtnf_check_br_ports,
-							ndev);
+							&priv);
 		}
 
 		break;

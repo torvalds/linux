@@ -13,7 +13,8 @@
 
 /**
  * struct cec_pin_ops - low-level CEC pin operations
- * @read:	read the CEC pin. Return true if high, false if low.
+ * @read:	read the CEC pin. Returns > 0 if high, 0 if low, or an error
+ *		if negative.
  * @low:	drive the CEC pin low.
  * @high:	stop driving the CEC pin. The pull-up will drive the pin
  *		high, unless someone else is driving the pin low.
@@ -22,13 +23,10 @@
  * @free:	optional. Free any allocated resources. Called when the
  *		adapter is deleted.
  * @status:	optional, log status information.
- * @read_hpd:	read the HPD pin. Return true if high, false if low or
- *		an error if negative. If NULL or -ENOTTY is returned,
- *		then this is not supported.
- * @read_5v:	read the 5V pin. Return true if high, false if low or
- *		an error if negative. If NULL or -ENOTTY is returned,
- *		then this is not supported.
- *
+ * @read_hpd:	optional. Read the HPD pin. Returns > 0 if high, 0 if low or
+ *		an error if negative.
+ * @read_5v:	optional. Read the 5V pin. Returns > 0 if high, 0 if low or
+ *		an error if negative.
  * @received:	optional. High-level CEC message callback. Allows the driver
  *		to process CEC messages.
  *
@@ -36,7 +34,7 @@
  * cec pin framework to manipulate the CEC pin.
  */
 struct cec_pin_ops {
-	bool (*read)(struct cec_adapter *adap);
+	int  (*read)(struct cec_adapter *adap);
 	void (*low)(struct cec_adapter *adap);
 	void (*high)(struct cec_adapter *adap);
 	bool (*enable_irq)(struct cec_adapter *adap);

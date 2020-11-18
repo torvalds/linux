@@ -37,6 +37,7 @@ typedef __u16 __sum16;
 #include "bpf_util.h"
 #include <bpf/bpf_endian.h>
 #include "trace_helpers.h"
+#include "testing_helpers.h"
 #include "flow_dissector_load.h"
 
 enum verbosity {
@@ -65,6 +66,8 @@ struct test_env {
 	enum verbosity verbosity;
 
 	bool jit_enabled;
+	bool get_test_cnt;
+	bool list_test_names;
 
 	struct prog_test_def *test;
 	FILE *stdout;
@@ -77,6 +80,8 @@ struct test_env {
 	int sub_succ_cnt; /* successful sub-tests */
 	int fail_cnt; /* total failed tests + sub-tests */
 	int skip_cnt; /* skipped tests */
+
+	int saved_netns_fd;
 };
 
 extern struct test_env env;
@@ -87,23 +92,12 @@ extern void test__skip(void);
 extern void test__fail(void);
 extern int test__join_cgroup(const char *path);
 
-#define MAGIC_BYTES 123
-
-/* ipv4 test vector */
-struct ipv4_packet {
-	struct ethhdr eth;
-	struct iphdr iph;
-	struct tcphdr tcp;
-} __packed;
-extern struct ipv4_packet pkt_v4;
-
-/* ipv6 test vector */
-struct ipv6_packet {
-	struct ethhdr eth;
-	struct ipv6hdr iph;
-	struct tcphdr tcp;
-} __packed;
-extern struct ipv6_packet pkt_v6;
+#define PRINT_FAIL(format...)                                                  \
+	({                                                                     \
+		test__fail();                                                  \
+		fprintf(stdout, "%s:FAIL:%d ", __func__, __LINE__);            \
+		fprintf(stdout, ##format);                                     \
+	})
 
 #define _CHECK(condition, tag, duration, format...) ({			\
 	int __ret = !!(condition);					\
@@ -136,20 +130,20 @@ extern struct ipv6_packet pkt_v6;
 #define CHECK_ATTR(condition, tag, format...) \
 	_CHECK(condition, tag, tattr.duration, format)
 
-#define MAGIC_VAL 0x1234
-#define NUM_ITER 100000
-#define VIP_NUM 5
-
 static inline __u64 ptr_to_u64(const void *ptr)
 {
 	return (__u64) (unsigned long) ptr;
+}
+
+static inline void *u64_to_ptr(__u64 ptr)
+{
+	return (void *) (unsigned long) ptr;
 }
 
 int bpf_find_map(const char *test, struct bpf_object *obj, const char *name);
 int compare_map_keys(int map1_fd, int map2_fd);
 int compare_stack_ips(int smap_fd, int amap_fd, int stack_trace_len);
 int extract_build_id(char *build_id, size_t size);
-void *spin_lock_thread(void *arg);
 
 #ifdef __x86_64__
 #define SYS_NANOSLEEP_KPROBE_NAME "__x64_sys_nanosleep"

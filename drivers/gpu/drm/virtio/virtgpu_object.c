@@ -79,6 +79,7 @@ void virtio_gpu_cleanup_object(struct virtio_gpu_object *bo)
 			}
 
 			sg_free_table(shmem->pages);
+			kfree(shmem->pages);
 			shmem->pages = NULL;
 			drm_gem_shmem_unpin(&bo->base.base);
 		}
@@ -141,7 +142,7 @@ static int virtio_gpu_object_shmem_init(struct virtio_gpu_device *vgdev,
 					struct virtio_gpu_mem_entry **ents,
 					unsigned int *nents)
 {
-	bool use_dma_api = !virtio_has_iommu_quirk(vgdev->vdev);
+	bool use_dma_api = !virtio_has_dma_quirk(vgdev->vdev);
 	struct virtio_gpu_object_shmem *shmem = to_virtio_gpu_shmem(bo);
 	struct scatterlist *sg;
 	int si, ret;
@@ -150,6 +151,12 @@ static int virtio_gpu_object_shmem_init(struct virtio_gpu_device *vgdev,
 	if (ret < 0)
 		return -EINVAL;
 
+	/*
+	 * virtio_gpu uses drm_gem_shmem_get_sg_table instead of
+	 * drm_gem_shmem_get_pages_sgt because virtio has it's own set of
+	 * dma-ops. This is discouraged for other drivers, but should be fine
+	 * since virtio_gpu doesn't support dma-buf import from other devices.
+	 */
 	shmem->pages = drm_gem_shmem_get_sg_table(&bo->base.base);
 	if (!shmem->pages) {
 		drm_gem_shmem_unpin(&bo->base.base);
@@ -235,13 +242,8 @@ int virtio_gpu_object_create(struct virtio_gpu_device *vgdev,
 		return ret;
 	}
 
-	ret = virtio_gpu_object_attach(vgdev, bo, ents, nents);
-	if (ret != 0) {
-		virtio_gpu_free_object(&shmem_obj->base);
-		return ret;
-	}
+	virtio_gpu_object_attach(vgdev, bo, ents, nents);
 
-	virtio_gpu_notify(vgdev);
 	*bo_ptr = bo;
 	return 0;
 

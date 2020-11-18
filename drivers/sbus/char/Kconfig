@@ -53,7 +53,7 @@ config ENVCTRL
 config DISPLAY7SEG
 	tristate "7-Segment Display support"
 	depends on PCI && SPARC64
-	---help---
+	help
 	  This is the driver for the 7-segment display and LED present on
 	  Sun Microsystems CompactPCI models CP1400 and CP1500.
 

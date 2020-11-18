@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
-#include <net/xdp_sock.h>
+#include <net/xdp_sock_drv.h>
 
 #include "netlink.h"
 #include "common.h"
@@ -129,13 +129,13 @@ int ethnl_set_channels(struct sk_buff *skb, struct genl_info *info)
 {
 	struct nlattr *tb[ETHTOOL_A_CHANNELS_MAX + 1];
 	unsigned int from_channel, old_total, i;
+	bool mod = false, mod_combined = false;
 	struct ethtool_channels channels = {};
 	struct ethnl_req_info req_info = {};
 	const struct nlattr *err_attr;
 	const struct ethtool_ops *ops;
 	struct net_device *dev;
 	u32 max_rx_in_use = 0;
-	bool mod = false;
 	int ret;
 
 	ret = nlmsg_parse(info->nlhdr, GENL_HDRLEN, tb,
@@ -170,7 +170,8 @@ int ethnl_set_channels(struct sk_buff *skb, struct genl_info *info)
 	ethnl_update_u32(&channels.other_count,
 			 tb[ETHTOOL_A_CHANNELS_OTHER_COUNT], &mod);
 	ethnl_update_u32(&channels.combined_count,
-			 tb[ETHTOOL_A_CHANNELS_COMBINED_COUNT], &mod);
+			 tb[ETHTOOL_A_CHANNELS_COMBINED_COUNT], &mod_combined);
+	mod |= mod_combined;
 	ret = 0;
 	if (!mod)
 		goto out_ops;
@@ -190,6 +191,21 @@ int ethnl_set_channels(struct sk_buff *skb, struct genl_info *info)
 		ret = -EINVAL;
 		NL_SET_ERR_MSG_ATTR(info->extack, err_attr,
 				    "requested channel count exceeds maximum");
+		goto out_ops;
+	}
+
+	/* ensure there is at least one RX and one TX channel */
+	if (!channels.combined_count && !channels.rx_count)
+		err_attr = tb[ETHTOOL_A_CHANNELS_RX_COUNT];
+	else if (!channels.combined_count && !channels.tx_count)
+		err_attr = tb[ETHTOOL_A_CHANNELS_TX_COUNT];
+	else
+		err_attr = NULL;
+	if (err_attr) {
+		if (mod_combined)
+			err_attr = tb[ETHTOOL_A_CHANNELS_COMBINED_COUNT];
+		ret = -EINVAL;
+		NL_SET_ERR_MSG_ATTR(info->extack, err_attr, "requested channel counts would result in no RX or TX channel being configured");
 		goto out_ops;
 	}
 

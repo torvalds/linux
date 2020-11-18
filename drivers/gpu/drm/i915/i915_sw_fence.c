@@ -164,9 +164,13 @@ static void __i915_sw_fence_wake_up_all(struct i915_sw_fence *fence,
 
 		do {
 			list_for_each_entry_safe(pos, next, &x->head, entry) {
-				pos->func(pos,
-					  TASK_NORMAL, fence->error,
-					  &extra);
+				int wake_flags;
+
+				wake_flags = fence->error;
+				if (pos->func == autoremove_wake_function)
+					wake_flags = 0;
+
+				pos->func(pos, TASK_NORMAL, wake_flags, &extra);
 			}
 
 			if (list_empty(&extra))
@@ -421,7 +425,7 @@ static void timer_i915_sw_fence_wake(struct timer_list *t)
 	if (!fence)
 		return;
 
-	pr_notice("Asynchronous wait on fence %s:%s:%llx timed out (hint:%pS)\n",
+	pr_notice("Asynchronous wait on fence %s:%s:%llx timed out (hint:%ps)\n",
 		  cb->dma->ops->get_driver_name(cb->dma),
 		  cb->dma->ops->get_timeline_name(cb->dma),
 		  cb->dma->seqno,
@@ -546,13 +550,11 @@ int __i915_sw_fence_await_dma_fence(struct i915_sw_fence *fence,
 	cb->fence = fence;
 	i915_sw_fence_await(fence);
 
-	ret = dma_fence_add_callback(dma, &cb->base, __dma_i915_sw_fence_wake);
-	if (ret == 0) {
-		ret = 1;
-	} else {
+	ret = 1;
+	if (dma_fence_add_callback(dma, &cb->base, __dma_i915_sw_fence_wake)) {
+		/* fence already signaled */
 		__dma_i915_sw_fence_wake(dma, &cb->base);
-		if (ret == -ENOENT) /* fence already signaled */
-			ret = 0;
+		ret = 0;
 	}
 
 	return ret;

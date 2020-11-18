@@ -4,10 +4,10 @@ Reference
 This binding uses the common clock binding[1].
 
 [1] Documentation/devicetree/bindings/clock/clock-bindings.txt
-[2] http://www.ti.com/product/cdce913
-[3] http://www.ti.com/product/cdce925
-[4] http://www.ti.com/product/cdce937
-[5] http://www.ti.com/product/cdce949
+[2] https://www.ti.com/product/cdce913
+[3] https://www.ti.com/product/cdce925
+[4] https://www.ti.com/product/cdce937
+[5] https://www.ti.com/product/cdce949
 
 The driver provides clock sources for each output Y1 through Y5.
 

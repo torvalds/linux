@@ -76,5 +76,5 @@ It is advisable that one or more 64k pages are set aside for the purpose of
 these structures and not used for other purposes, this enables the guest to map
 the region using 64k pages and avoids conflicting attributes with other memory.
 
-For the user space interface see Documentation/virt/kvm/devices/vcpu.txt
+For the user space interface see Documentation/virt/kvm/devices/vcpu.rst
 section "3. GROUP: KVM_ARM_VCPU_PVTIME_CTRL".

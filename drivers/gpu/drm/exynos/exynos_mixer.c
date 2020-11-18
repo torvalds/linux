@@ -1046,7 +1046,7 @@ static int mixer_mode_valid(struct exynos_drm_crtc *crtc,
 	u32 w = mode->hdisplay, h = mode->vdisplay;
 
 	DRM_DEV_DEBUG_KMS(ctx->dev, "xres=%d, yres=%d, refresh=%d, intl=%d\n",
-			  w, h, mode->vrefresh,
+			  w, h, drm_mode_vrefresh(mode),
 			  !!(mode->flags & DRM_MODE_FLAG_INTERLACE));
 
 	if (ctx->mxr_ver == MXR_VER_128_0_0_184)
@@ -1244,9 +1244,11 @@ static int mixer_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ctx);
 
+	pm_runtime_enable(dev);
+
 	ret = component_add(&pdev->dev, &mixer_component_ops);
-	if (!ret)
-		pm_runtime_enable(dev);
+	if (ret)
+		pm_runtime_disable(dev);
 
 	return ret;
 }

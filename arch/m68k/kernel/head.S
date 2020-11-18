@@ -255,6 +255,7 @@
 
 #include <linux/linkage.h>
 #include <linux/init.h>
+#include <linux/pgtable.h>
 #include <asm/bootinfo.h>
 #include <asm/bootinfo-amiga.h>
 #include <asm/bootinfo-atari.h>
@@ -264,7 +265,6 @@
 #include <asm/bootinfo-vme.h>
 #include <asm/setup.h>
 #include <asm/entry.h>
-#include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/asm-offsets.h>
 #ifdef CONFIG_MAC

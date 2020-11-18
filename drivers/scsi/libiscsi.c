@@ -248,7 +248,7 @@ static int iscsi_check_tmf_restrictions(struct iscsi_task *task, int opcode)
 		hdr_lun = scsilun_to_int(&tmf->lun);
 		if (hdr_lun != task->sc->device->lun)
 			return 0;
-		/* fall through */
+		fallthrough;
 	case ISCSI_TM_FUNC_TARGET_WARM_RESET:
 		/*
 		 * Fail all SCSI cmd PDUs
@@ -1674,7 +1674,7 @@ int iscsi_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *sc)
 				sc->result = DID_NO_CONNECT << 16;
 				break;
 			}
-			/* fall through */
+			fallthrough;
 		case ISCSI_STATE_IN_RECOVERY:
 			reason = FAILURE_SESSION_IN_RECOVERY;
 			sc->result = DID_IMM_RETRY << 16;
@@ -2239,7 +2239,7 @@ int iscsi_eh_abort(struct scsi_cmnd *sc)
 					      "progress\n");
 			goto success;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		conn->tmf_state = TMF_INITIAL;
 		goto failed;
@@ -2627,7 +2627,9 @@ struct Scsi_Host *iscsi_host_alloc(struct scsi_host_template *sht,
 	if (xmit_can_sleep) {
 		snprintf(ihost->workq_name, sizeof(ihost->workq_name),
 			"iscsi_q_%d", shost->host_no);
-		ihost->workq = create_singlethread_workqueue(ihost->workq_name);
+		ihost->workq = alloc_workqueue("%s",
+			WQ_SYSFS | __WQ_LEGACY | WQ_MEM_RECLAIM | WQ_UNBOUND,
+			1, ihost->workq_name);
 		if (!ihost->workq)
 			goto free_host;
 	}

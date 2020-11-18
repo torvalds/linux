@@ -101,6 +101,8 @@ struct ceph_mount_options {
 struct ceph_fs_client {
 	struct super_block *sb;
 
+	struct list_head metric_wakeup;
+
 	struct ceph_mount_options *mount_options;
 	struct ceph_client *client;
 
@@ -116,8 +118,6 @@ struct ceph_fs_client {
 
 	struct ceph_mds_client *mdsc;
 
-	/* writeback */
-	mempool_t *wb_pagevec_pool;
 	atomic_long_t writeback_count;
 
 	struct workqueue_struct *inode_wq;
@@ -128,6 +128,7 @@ struct ceph_fs_client {
 	struct dentry *debugfs_congestion_kb;
 	struct dentry *debugfs_bdi;
 	struct dentry *debugfs_mdsc, *debugfs_mdsmap;
+	struct dentry *debugfs_metric;
 	struct dentry *debugfs_mds_sessions;
 #endif
 
@@ -350,7 +351,25 @@ struct ceph_inode_info {
 	struct rb_root i_caps;           /* cap list */
 	struct ceph_cap *i_auth_cap;     /* authoritative cap, if any */
 	unsigned i_dirty_caps, i_flushing_caps;     /* mask of dirtied fields */
-	struct list_head i_dirty_item, i_flushing_item;
+
+	/*
+	 * Link to the auth cap's session's s_cap_dirty list. s_cap_dirty
+	 * is protected by the mdsc->cap_dirty_lock, but each individual item
+	 * is also protected by the inode's i_ceph_lock. Walking s_cap_dirty
+	 * requires the mdsc->cap_dirty_lock. List presence for an item can
+	 * be tested under the i_ceph_lock. Changing anything requires both.
+	 */
+	struct list_head i_dirty_item;
+
+	/*
+	 * Link to session's s_cap_flushing list. Protected in a similar
+	 * fashion to i_dirty_item, but also by the s_mutex for changes. The
+	 * s_cap_flushing list can be walked while holding either the s_mutex
+	 * or msdc->cap_dirty_lock. List presence can also be checked while
+	 * holding the i_ceph_lock for this inode.
+	 */
+	struct list_head i_flushing_item;
+
 	/* we need to track cap writeback on a per-cap-bit basis, to allow
 	 * overlapping, pipelined cap flushes to the mds.  we can probably
 	 * reduce the tid to 8 bits if we're concerned about inode size. */
@@ -438,15 +457,7 @@ ceph_vino(const struct inode *inode)
 	return ceph_inode(inode)->i_vino;
 }
 
-/*
- * ino_t is <64 bits on many architectures, blech.
- *
- *               i_ino (kernel inode)   st_ino (userspace)
- * i386          32                     32
- * x86_64+ino32  64                     32
- * x86_64        64                     64
- */
-static inline u32 ceph_ino_to_ino32(__u64 vino)
+static inline u32 ceph_ino_to_ino32(u64 vino)
 {
 	u32 ino = vino & 0xffffffff;
 	ino ^= vino >> 32;
@@ -456,34 +467,17 @@ static inline u32 ceph_ino_to_ino32(__u64 vino)
 }
 
 /*
- * kernel i_ino value
+ * Inode numbers in cephfs are 64 bits, but inode->i_ino is 32-bits on
+ * some arches. We generally do not use this value inside the ceph driver, but
+ * we do want to set it to something, so that generic vfs code has an
+ * appropriate value for tracepoints and the like.
  */
-static inline ino_t ceph_vino_to_ino(struct ceph_vino vino)
+static inline ino_t ceph_vino_to_ino_t(struct ceph_vino vino)
 {
-#if BITS_PER_LONG == 32
-	return ceph_ino_to_ino32(vino.ino);
-#else
+	if (sizeof(ino_t) == sizeof(u32))
+		return ceph_ino_to_ino32(vino.ino);
 	return (ino_t)vino.ino;
-#endif
 }
-
-/*
- * user-visible ino (stat, filldir)
- */
-#if BITS_PER_LONG == 32
-static inline ino_t ceph_translate_ino(struct super_block *sb, ino_t ino)
-{
-	return ino;
-}
-#else
-static inline ino_t ceph_translate_ino(struct super_block *sb, ino_t ino)
-{
-	if (ceph_test_mount_opt(ceph_sb_to_client(sb), INO32))
-		ino = ceph_ino_to_ino32(ino);
-	return ino;
-}
-#endif
-
 
 /* for printf-style formatting */
 #define ceph_vinop(i) ceph_inode(i)->i_vino.ino, ceph_inode(i)->i_vino.snap
@@ -492,9 +486,32 @@ static inline u64 ceph_ino(struct inode *inode)
 {
 	return ceph_inode(inode)->i_vino.ino;
 }
+
 static inline u64 ceph_snap(struct inode *inode)
 {
 	return ceph_inode(inode)->i_vino.snap;
+}
+
+/**
+ * ceph_present_ino - format an inode number for presentation to userland
+ * @sb: superblock where the inode lives
+ * @ino: inode number to (possibly) convert
+ *
+ * If the user mounted with the ino32 option, then the 64-bit value needs
+ * to be converted to something that can fit inside 32 bits. Note that
+ * internal kernel code never uses this value, so this is entirely for
+ * userland consumption.
+ */
+static inline u64 ceph_present_ino(struct super_block *sb, u64 ino)
+{
+	if (unlikely(ceph_test_mount_opt(ceph_sb_to_client(sb), INO32)))
+		return ceph_ino_to_ino32(ino);
+	return ino;
+}
+
+static inline u64 ceph_present_inode(struct inode *inode)
+{
+	return ceph_present_ino(inode->i_sb, ceph_ino(inode));
 }
 
 static inline int ceph_ino_compare(struct inode *inode, void *data)
@@ -505,11 +522,16 @@ static inline int ceph_ino_compare(struct inode *inode, void *data)
 		ci->i_vino.snap == pvino->snap;
 }
 
+
 static inline struct inode *ceph_find_inode(struct super_block *sb,
 					    struct ceph_vino vino)
 {
-	ino_t t = ceph_vino_to_ino(vino);
-	return ilookup5(sb, t, ceph_ino_compare, &vino);
+	/*
+	 * NB: The hashval will be run through the fs/inode.c hash function
+	 * anyway, so there is no need to squash the inode number down to
+	 * 32-bits first. Just use low-order bits on arches with 32-bit long.
+	 */
+	return ilookup5(sb, (unsigned long)vino.ino, ceph_ino_compare, &vino);
 }
 
 
@@ -644,6 +666,8 @@ static inline bool __ceph_is_any_real_caps(struct ceph_inode_info *ci)
 
 extern int __ceph_caps_issued(struct ceph_inode_info *ci, int *implemented);
 extern int __ceph_caps_issued_mask(struct ceph_inode_info *ci, int mask, int t);
+extern int __ceph_caps_issued_mask_metric(struct ceph_inode_info *ci, int mask,
+					  int t);
 extern int __ceph_caps_issued_other(struct ceph_inode_info *ci,
 				    struct ceph_cap *cap);
 
@@ -656,12 +680,12 @@ static inline int ceph_caps_issued(struct ceph_inode_info *ci)
 	return issued;
 }
 
-static inline int ceph_caps_issued_mask(struct ceph_inode_info *ci, int mask,
-					int touch)
+static inline int ceph_caps_issued_mask_metric(struct ceph_inode_info *ci,
+					       int mask, int touch)
 {
 	int r;
 	spin_lock(&ci->i_ceph_lock);
-	r = __ceph_caps_issued_mask(ci, mask, touch);
+	r = __ceph_caps_issued_mask_metric(ci, mask, touch);
 	spin_unlock(&ci->i_ceph_lock);
 	return r;
 }
@@ -1074,6 +1098,8 @@ extern void ceph_take_cap_refs(struct ceph_inode_info *ci, int caps,
 				bool snap_rwsem_locked);
 extern void ceph_get_cap_refs(struct ceph_inode_info *ci, int caps);
 extern void ceph_put_cap_refs(struct ceph_inode_info *ci, int had);
+extern void ceph_put_cap_refs_no_check_caps(struct ceph_inode_info *ci,
+					    int had);
 extern void ceph_put_wrbuffer_cap_refs(struct ceph_inode_info *ci, int nr,
 				       struct ceph_snap_context *snapc);
 extern void ceph_flush_snaps(struct ceph_inode_info *ci,
@@ -1189,13 +1215,14 @@ extern void ceph_handle_quota(struct ceph_mds_client *mdsc,
 			      struct ceph_mds_session *session,
 			      struct ceph_msg *msg);
 extern bool ceph_quota_is_max_files_exceeded(struct inode *inode);
-extern bool ceph_quota_is_same_realm(struct inode *old, struct inode *new);
 extern bool ceph_quota_is_max_bytes_exceeded(struct inode *inode,
 					     loff_t newlen);
 extern bool ceph_quota_is_max_bytes_approaching(struct inode *inode,
 						loff_t newlen);
 extern bool ceph_quota_update_statfs(struct ceph_fs_client *fsc,
 				     struct kstatfs *buf);
+extern int ceph_quota_check_rename(struct ceph_mds_client *mdsc,
+				   struct inode *old, struct inode *new);
 extern void ceph_cleanup_quotarealms_inodes(struct ceph_mds_client *mdsc);
 
 #endif /* _FS_CEPH_SUPER_H */

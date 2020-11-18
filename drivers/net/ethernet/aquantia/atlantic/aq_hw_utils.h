@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/*
- * aQuantia Corporation Network Driver
- * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
+/* Atlantic Network Driver
+ *
+ * Copyright (C) 2014-2019 aQuantia Corporation
+ * Copyright (C) 2019-2020 Marvell International Ltd.
  */
 
 /* File aq_hw_utils.h: Declaration of helper functions used across hardware
@@ -33,6 +34,9 @@ u32 aq_hw_read_reg_bit(struct aq_hw_s *aq_hw, u32 addr, u32 msk, u32 shift);
 u32 aq_hw_read_reg(struct aq_hw_s *hw, u32 reg);
 void aq_hw_write_reg(struct aq_hw_s *hw, u32 reg, u32 value);
 u64 aq_hw_read_reg64(struct aq_hw_s *hw, u32 reg);
+void aq_hw_write_reg64(struct aq_hw_s *hw, u32 reg, u64 value);
 int aq_hw_err_from_flags(struct aq_hw_s *hw);
+int aq_hw_num_tcs(struct aq_hw_s *hw);
+int aq_hw_q_per_tc(struct aq_hw_s *hw);
 
 #endif /* AQ_HW_UTILS_H */

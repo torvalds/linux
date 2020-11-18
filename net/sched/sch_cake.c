@@ -312,8 +312,8 @@ static const u8 precedence[] = {
 };
 
 static const u8 diffserv8[] = {
-	2, 5, 1, 2, 4, 2, 2, 2,
-	0, 2, 1, 2, 1, 2, 1, 2,
+	2, 0, 1, 2, 4, 2, 2, 2,
+	1, 2, 1, 2, 1, 2, 1, 2,
 	5, 2, 4, 2, 4, 2, 4, 2,
 	3, 2, 3, 2, 3, 2, 3, 2,
 	6, 2, 3, 2, 3, 2, 3, 2,
@@ -323,7 +323,7 @@ static const u8 diffserv8[] = {
 };
 
 static const u8 diffserv4[] = {
-	0, 2, 0, 0, 2, 0, 0, 0,
+	0, 1, 0, 0, 2, 0, 0, 0,
 	1, 0, 0, 0, 0, 0, 0, 0,
 	2, 0, 2, 0, 2, 0, 2, 0,
 	2, 0, 2, 0, 2, 0, 2, 0,
@@ -334,7 +334,7 @@ static const u8 diffserv4[] = {
 };
 
 static const u8 diffserv3[] = {
-	0, 0, 0, 0, 2, 0, 0, 0,
+	0, 1, 0, 0, 2, 0, 0, 0,
 	1, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0,
@@ -584,26 +584,48 @@ static bool cobalt_should_drop(struct cobalt_vars *vars,
 	return drop;
 }
 
-static void cake_update_flowkeys(struct flow_keys *keys,
+static bool cake_update_flowkeys(struct flow_keys *keys,
 				 const struct sk_buff *skb)
 {
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
 	struct nf_conntrack_tuple tuple = {};
-	bool rev = !skb->_nfct;
+	bool rev = !skb->_nfct, upd = false;
+	__be32 ip;
 
-	if (tc_skb_protocol(skb) != htons(ETH_P_IP))
-		return;
+	if (skb_protocol(skb, true) != htons(ETH_P_IP))
+		return false;
 
 	if (!nf_ct_get_tuple_skb(&tuple, skb))
-		return;
+		return false;
 
-	keys->addrs.v4addrs.src = rev ? tuple.dst.u3.ip : tuple.src.u3.ip;
-	keys->addrs.v4addrs.dst = rev ? tuple.src.u3.ip : tuple.dst.u3.ip;
+	ip = rev ? tuple.dst.u3.ip : tuple.src.u3.ip;
+	if (ip != keys->addrs.v4addrs.src) {
+		keys->addrs.v4addrs.src = ip;
+		upd = true;
+	}
+	ip = rev ? tuple.src.u3.ip : tuple.dst.u3.ip;
+	if (ip != keys->addrs.v4addrs.dst) {
+		keys->addrs.v4addrs.dst = ip;
+		upd = true;
+	}
 
 	if (keys->ports.ports) {
-		keys->ports.src = rev ? tuple.dst.u.all : tuple.src.u.all;
-		keys->ports.dst = rev ? tuple.src.u.all : tuple.dst.u.all;
+		__be16 port;
+
+		port = rev ? tuple.dst.u.all : tuple.src.u.all;
+		if (port != keys->ports.src) {
+			keys->ports.src = port;
+			upd = true;
+		}
+		port = rev ? tuple.src.u.all : tuple.dst.u.all;
+		if (port != keys->ports.dst) {
+			port = keys->ports.dst;
+			upd = true;
+		}
 	}
+	return upd;
+#else
+	return false;
 #endif
 }
 
@@ -624,23 +646,36 @@ static bool cake_ddst(int flow_mode)
 static u32 cake_hash(struct cake_tin_data *q, const struct sk_buff *skb,
 		     int flow_mode, u16 flow_override, u16 host_override)
 {
+	bool hash_flows = (!flow_override && !!(flow_mode & CAKE_FLOW_FLOWS));
+	bool hash_hosts = (!host_override && !!(flow_mode & CAKE_FLOW_HOSTS));
+	bool nat_enabled = !!(flow_mode & CAKE_FLOW_NAT_FLAG);
 	u32 flow_hash = 0, srchost_hash = 0, dsthost_hash = 0;
 	u16 reduced_hash, srchost_idx, dsthost_idx;
 	struct flow_keys keys, host_keys;
+	bool use_skbhash = skb->l4_hash;
 
 	if (unlikely(flow_mode == CAKE_FLOW_NONE))
 		return 0;
 
-	/* If both overrides are set we can skip packet dissection entirely */
-	if ((flow_override || !(flow_mode & CAKE_FLOW_FLOWS)) &&
-	    (host_override || !(flow_mode & CAKE_FLOW_HOSTS)))
+	/* If both overrides are set, or we can use the SKB hash and nat mode is
+	 * disabled, we can skip packet dissection entirely. If nat mode is
+	 * enabled there's another check below after doing the conntrack lookup.
+	 */
+	if ((!hash_flows || (use_skbhash && !nat_enabled)) && !hash_hosts)
 		goto skip_hash;
 
 	skb_flow_dissect_flow_keys(skb, &keys,
 				   FLOW_DISSECTOR_F_STOP_AT_FLOW_LABEL);
 
-	if (flow_mode & CAKE_FLOW_NAT_FLAG)
-		cake_update_flowkeys(&keys, skb);
+	/* Don't use the SKB hash if we change the lookup keys from conntrack */
+	if (nat_enabled && cake_update_flowkeys(&keys, skb))
+		use_skbhash = false;
+
+	/* If we can still use the SKB hash and don't need the host hash, we can
+	 * skip the rest of the hashing procedure
+	 */
+	if (use_skbhash && !hash_hosts)
+		goto skip_hash;
 
 	/* flow_hash_from_keys() sorts the addresses by value, so we have
 	 * to preserve their order in a separate data structure to treat
@@ -679,12 +714,14 @@ static u32 cake_hash(struct cake_tin_data *q, const struct sk_buff *skb,
 	/* This *must* be after the above switch, since as a
 	 * side-effect it sorts the src and dst addresses.
 	 */
-	if (flow_mode & CAKE_FLOW_FLOWS)
+	if (hash_flows && !use_skbhash)
 		flow_hash = flow_hash_from_keys(&keys);
 
 skip_hash:
 	if (flow_override)
 		flow_hash = flow_override - 1;
+	else if (use_skbhash)
+		flow_hash = skb->hash;
 	if (host_override) {
 		dsthost_hash = host_override - 1;
 		srchost_hash = host_override - 1;
@@ -1514,32 +1551,51 @@ static unsigned int cake_drop(struct Qdisc *sch, struct sk_buff **to_free)
 	return idx + (tin << 16);
 }
 
-static u8 cake_handle_diffserv(struct sk_buff *skb, u16 wash)
+static u8 cake_handle_diffserv(struct sk_buff *skb, bool wash)
 {
-	int wlen = skb_network_offset(skb);
+	const int offset = skb_network_offset(skb);
+	u16 *buf, buf_;
 	u8 dscp;
 
-	switch (tc_skb_protocol(skb)) {
+	switch (skb_protocol(skb, true)) {
 	case htons(ETH_P_IP):
-		wlen += sizeof(struct iphdr);
-		if (!pskb_may_pull(skb, wlen) ||
-		    skb_try_make_writable(skb, wlen))
+		buf = skb_header_pointer(skb, offset, sizeof(buf_), &buf_);
+		if (unlikely(!buf))
 			return 0;
 
-		dscp = ipv4_get_dsfield(ip_hdr(skb)) >> 2;
-		if (wash && dscp)
+		/* ToS is in the second byte of iphdr */
+		dscp = ipv4_get_dsfield((struct iphdr *)buf) >> 2;
+
+		if (wash && dscp) {
+			const int wlen = offset + sizeof(struct iphdr);
+
+			if (!pskb_may_pull(skb, wlen) ||
+			    skb_try_make_writable(skb, wlen))
+				return 0;
+
 			ipv4_change_dsfield(ip_hdr(skb), INET_ECN_MASK, 0);
+		}
+
 		return dscp;
 
 	case htons(ETH_P_IPV6):
-		wlen += sizeof(struct ipv6hdr);
-		if (!pskb_may_pull(skb, wlen) ||
-		    skb_try_make_writable(skb, wlen))
+		buf = skb_header_pointer(skb, offset, sizeof(buf_), &buf_);
+		if (unlikely(!buf))
 			return 0;
 
-		dscp = ipv6_get_dsfield(ipv6_hdr(skb)) >> 2;
-		if (wash && dscp)
+		/* Traffic class is in the first and second bytes of ipv6hdr */
+		dscp = ipv6_get_dsfield((struct ipv6hdr *)buf) >> 2;
+
+		if (wash && dscp) {
+			const int wlen = offset + sizeof(struct ipv6hdr);
+
+			if (!pskb_may_pull(skb, wlen) ||
+			    skb_try_make_writable(skb, wlen))
+				return 0;
+
 			ipv6_change_dsfield(ipv6_hdr(skb), INET_ECN_MASK, 0);
+		}
+
 		return dscp;
 
 	case htons(ETH_P_ARP):
@@ -1556,14 +1612,17 @@ static struct cake_tin_data *cake_select_tin(struct Qdisc *sch,
 {
 	struct cake_sched_data *q = qdisc_priv(sch);
 	u32 tin, mark;
+	bool wash;
 	u8 dscp;
 
 	/* Tin selection: Default to diffserv-based selection, allow overriding
-	 * using firewall marks or skb->priority.
+	 * using firewall marks or skb->priority. Call DSCP parsing early if
+	 * wash is enabled, otherwise defer to below to skip unneeded parsing.
 	 */
-	dscp = cake_handle_diffserv(skb,
-				    q->rate_flags & CAKE_FLAG_WASH);
 	mark = (skb->mark & q->fwmark_mask) >> q->fwmark_shft;
+	wash = !!(q->rate_flags & CAKE_FLAG_WASH);
+	if (wash)
+		dscp = cake_handle_diffserv(skb, wash);
 
 	if (q->tin_mode == CAKE_DIFFSERV_BESTEFFORT)
 		tin = 0;
@@ -1577,6 +1636,8 @@ static struct cake_tin_data *cake_select_tin(struct Qdisc *sch,
 		tin = q->tin_order[TC_H_MIN(skb->priority) - 1];
 
 	else {
+		if (!wash)
+			dscp = cake_handle_diffserv(skb, wash);
 		tin = q->tin_index[dscp];
 
 		if (unlikely(tin >= q->tin_cnt))
@@ -1609,7 +1670,7 @@ static u32 cake_classify(struct Qdisc *sch, struct cake_tin_data **t,
 		case TC_ACT_QUEUED:
 		case TC_ACT_TRAP:
 			*qerr = NET_XMIT_SUCCESS | __NET_XMIT_STOLEN;
-			/* fall through */
+			fallthrough;
 		case TC_ACT_SHOT:
 			return 0;
 		}
@@ -1631,7 +1692,7 @@ static s32 cake_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 {
 	struct cake_sched_data *q = qdisc_priv(sch);
 	int len = qdisc_pkt_len(skb);
-	int uninitialized_var(ret);
+	int ret;
 	struct sk_buff *ack = NULL;
 	ktime_t now = ktime_get();
 	struct cake_tin_data *b;
@@ -2654,7 +2715,7 @@ static int cake_init(struct Qdisc *sch, struct nlattr *opt,
 	qdisc_watchdog_init(&q->watchdog, sch);
 
 	if (opt) {
-		int err = cake_change(sch, opt, extack);
+		err = cake_change(sch, opt, extack);
 
 		if (err)
 			return err;
@@ -2971,7 +3032,7 @@ static int cake_dump_class_stats(struct Qdisc *sch, unsigned long cl,
 			PUT_STAT_S32(BLUE_TIMER_US,
 				     ktime_to_us(
 					     ktime_sub(now,
-						     flow->cvars.blue_timer)));
+						       flow->cvars.blue_timer)));
 		}
 		if (flow->cvars.dropping) {
 			PUT_STAT_S32(DROP_NEXT_US,

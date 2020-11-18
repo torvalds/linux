@@ -90,7 +90,7 @@ static struct spi_test spi_tests[] = {
 	{
 		.description	= "tx/rx-transfer - crossing PAGE_SIZE",
 		.fill_option	= FILL_COUNT_8,
-		.iterate_len    = { ITERATE_MAX_LEN },
+		.iterate_len    = { ITERATE_LEN },
 		.iterate_tx_align = ITERATE_ALIGN,
 		.iterate_rx_align = ITERATE_ALIGN,
 		.transfer_count = 1,
@@ -885,10 +885,10 @@ static int spi_test_run_iter(struct spi_device *spi,
 /**
  * spi_test_execute_msg - default implementation to run a test
  *
- * spi: @spi_device on which to run the @spi_message
- * test: the test to execute, which already contains @msg
- * tx:   the tx buffer allocated for the test sequence
- * rx:   the rx buffer allocated for the test sequence
+ * @spi: @spi_device on which to run the @spi_message
+ * @test: the test to execute, which already contains @msg
+ * @tx:   the tx buffer allocated for the test sequence
+ * @rx:   the rx buffer allocated for the test sequence
  *
  * Returns: error code of spi_sync as well as basic error checking
  */
@@ -957,10 +957,10 @@ EXPORT_SYMBOL_GPL(spi_test_execute_msg);
  *                     including all the relevant iterations on:
  *                     length and buffer alignment
  *
- * spi:  the spi_device to send the messages to
- * test: the test which we need to execute
- * tx:   the tx buffer allocated for the test sequence
- * rx:   the rx buffer allocated for the test sequence
+ * @spi:  the spi_device to send the messages to
+ * @test: the test which we need to execute
+ * @tx:   the tx buffer allocated for the test sequence
+ * @rx:   the rx buffer allocated for the test sequence
  *
  * Returns: status code of spi_sync or other failures
  */

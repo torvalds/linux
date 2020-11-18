@@ -53,11 +53,9 @@ static int vmw_gmrid_man_get_node(struct ttm_mem_type_manager *man,
 		(struct vmwgfx_gmrid_man *)man->priv;
 	int id;
 
-	mem->mm_node = NULL;
-
 	id = ida_alloc_max(&gman->gmr_ida, gman->max_gmr_ids - 1, GFP_KERNEL);
 	if (id < 0)
-		return (id != -ENOMEM ? 0 : id);
+		return id;
 
 	spin_lock(&gman->lock);
 
@@ -78,7 +76,7 @@ nospace:
 	gman->used_gmr_pages -= bo->num_pages;
 	spin_unlock(&gman->lock);
 	ida_free(&gman->gmr_ida, id);
-	return 0;
+	return -ENOSPC;
 }
 
 static void vmw_gmrid_man_put_node(struct ttm_mem_type_manager *man,

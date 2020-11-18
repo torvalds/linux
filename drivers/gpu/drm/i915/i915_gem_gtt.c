@@ -31,6 +31,8 @@ int i915_gem_gtt_prepare_pages(struct drm_i915_gem_object *obj,
 		if (dma_map_sg_attrs(&obj->base.dev->pdev->dev,
 				     pages->sgl, pages->nents,
 				     PCI_DMA_BIDIRECTIONAL,
+				     DMA_ATTR_SKIP_CPU_SYNC |
+				     DMA_ATTR_NO_KERNEL_MAPPING |
 				     DMA_ATTR_NO_WARN))
 			return 0;
 

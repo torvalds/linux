@@ -7,7 +7,7 @@ config NET_VENDOR_CISCO
 	bool "Cisco devices"
 	default y
 	depends on PCI
-	---help---
+	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the

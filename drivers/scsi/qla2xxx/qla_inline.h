@@ -11,7 +11,7 @@
  * Continuation Type 1 IOCBs to allocate.
  *
  * @vha: HA context
- * @dsds: number of data segment decriptors needed
+ * @dsds: number of data segment descriptors needed
  *
  * Returns the number of IOCB entries needed to store @dsds.
  */
@@ -40,16 +40,16 @@ qla24xx_calc_iocbs(scsi_qla_host_t *vha, uint16_t dsds)
  *      register value.
  */
 static __inline__ uint16_t
-qla2x00_debounce_register(volatile uint16_t __iomem *addr)
+qla2x00_debounce_register(volatile __le16 __iomem *addr)
 {
 	volatile uint16_t first;
 	volatile uint16_t second;
 
 	do {
-		first = RD_REG_WORD(addr);
+		first = rd_reg_word(addr);
 		barrier();
 		cpu_relax();
-		second = RD_REG_WORD(addr);
+		second = rd_reg_word(addr);
 	} while (first != second);
 
 	return (first);
@@ -329,7 +329,7 @@ qla_83xx_start_iocbs(struct qla_qpair *qpair)
 	} else
 		req->ring_ptr++;
 
-	WRT_REG_DWORD(req->req_q_in, req->ring_index);
+	wrt_reg_dword(req->req_q_in, req->ring_index);
 }
 
 static inline int

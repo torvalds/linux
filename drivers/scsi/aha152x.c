@@ -2030,8 +2030,7 @@ static void datai_run(struct Scsi_Host *shpnt)
 				    fifodata, GETPORT(FIFOSTAT));
 			SETPORT(DMACNTRL0, ENDMA|_8BIT);
 			while(fifodata>0) {
-				int data;
-				data=GETPORT(DATAPORT);
+				GETPORT(DATAPORT);
 				fifodata--;
 				DATA_LEN++;
 			}

@@ -398,7 +398,6 @@
 #define RKISP1_CIF_ISP_AWB_YMAX_READ(x)			(((x) >> 2) & 1)
 #define RKISP1_CIF_ISP_AWB_MODE_RGB_EN			((1 << 31) | (0x2 << 0))
 #define RKISP1_CIF_ISP_AWB_MODE_YCBCR_EN		((0 << 31) | (0x2 << 0))
-#define RKISP1_CIF_ISP_AWB_MODE_YCBCR_EN		((0 << 31) | (0x2 << 0))
 #define RKISP1_CIF_ISP_AWB_MODE_MASK_NONE		0xFFFFFFFC
 #define RKISP1_CIF_ISP_AWB_MODE_READ(x)			((x) & 3)
 /* ISP_AWB_GAIN_RB, ISP_AWB_GAIN_G  */

@@ -121,7 +121,6 @@ static int vprbrd_adc_probe(struct platform_device *pdev)
 	adc = iio_priv(indio_dev);
 	adc->vb = vb;
 	indio_dev->name = "viperboard adc";
-	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->info = &vprbrd_adc_iio_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = vprbrd_adc_iio_channels;

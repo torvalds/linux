@@ -46,6 +46,7 @@ static const char * const fault_names[] = {
 	"---", "OCP", "fast OCP", "OVP", "Discharge"
 };
 
+__printf(3, 4)
 static int append_str(char *buf, int pos, const char *fmt, ...)
 {
 	va_list args;

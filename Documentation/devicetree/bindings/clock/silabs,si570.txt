@@ -7,9 +7,9 @@ found in the data sheets[2][3].
 
 [1] Documentation/devicetree/bindings/clock/clock-bindings.txt
 [2] Si570/571 Data Sheet
-    http://www.silabs.com/Support%20Documents/TechnicalDocs/si570.pdf
+    https://www.silabs.com/Support%20Documents/TechnicalDocs/si570.pdf
 [3] Si598/599 Data Sheet
-    http://www.silabs.com/Support%20Documents/TechnicalDocs/si598-99.pdf
+    https://www.silabs.com/Support%20Documents/TechnicalDocs/si598-99.pdf
 
 Required properties:
  - compatible: Shall be one of "silabs,si570", "silabs,si571",

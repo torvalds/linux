@@ -10,8 +10,8 @@ maintainers:
   - Georgi Djakov <georgi.djakov@linaro.org>
 
 description: |
-   The Qualcomm QCS404 interconnect providers support adjusting the
-   bandwidth requirements between the various NoC fabrics.
+  The Qualcomm QCS404 interconnect providers support adjusting the
+  bandwidth requirements between the various NoC fabrics.
 
 properties:
   reg:

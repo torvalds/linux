@@ -5,7 +5,15 @@
  * Copyright (C) 2018 ARM Ltd.
  */
 
+#define pr_fmt(fmt) "SCMI Notifications BASE - " fmt
+
+#include <linux/scmi_protocol.h>
+
 #include "common.h"
+#include "notify.h"
+
+#define SCMI_BASE_NUM_SOURCES		1
+#define SCMI_BASE_MAX_CMD_ERR_COUNT	1024
 
 enum scmi_base_protocol_cmd {
 	BASE_DISCOVER_VENDOR = 0x3,
@@ -14,12 +22,28 @@ enum scmi_base_protocol_cmd {
 	BASE_DISCOVER_LIST_PROTOCOLS = 0x6,
 	BASE_DISCOVER_AGENT = 0x7,
 	BASE_NOTIFY_ERRORS = 0x8,
+	BASE_SET_DEVICE_PERMISSIONS = 0x9,
+	BASE_SET_PROTOCOL_PERMISSIONS = 0xa,
+	BASE_RESET_AGENT_CONFIGURATION = 0xb,
 };
 
 struct scmi_msg_resp_base_attributes {
 	u8 num_protocols;
 	u8 num_agents;
 	__le16 reserved;
+};
+
+struct scmi_msg_base_error_notify {
+	__le32 event_control;
+#define BASE_TP_NOTIFY_ALL	BIT(0)
+};
+
+struct scmi_base_error_notify_payld {
+	__le32 agent_id;
+	__le32 error_status;
+#define IS_FATAL_ERROR(x)	((x) & BIT(31))
+#define ERROR_CMD_COUNT(x)	FIELD_GET(GENMASK(9, 0), (x))
+	__le64 msg_reports[SCMI_BASE_MAX_CMD_ERR_COUNT];
 };
 
 /**
@@ -215,6 +239,83 @@ static int scmi_base_discover_agent_get(const struct scmi_handle *handle,
 	return ret;
 }
 
+static int scmi_base_error_notify(const struct scmi_handle *handle, bool enable)
+{
+	int ret;
+	u32 evt_cntl = enable ? BASE_TP_NOTIFY_ALL : 0;
+	struct scmi_xfer *t;
+	struct scmi_msg_base_error_notify *cfg;
+
+	ret = scmi_xfer_get_init(handle, BASE_NOTIFY_ERRORS,
+				 SCMI_PROTOCOL_BASE, sizeof(*cfg), 0, &t);
+	if (ret)
+		return ret;
+
+	cfg = t->tx.buf;
+	cfg->event_control = cpu_to_le32(evt_cntl);
+
+	ret = scmi_do_xfer(handle, t);
+
+	scmi_xfer_put(handle, t);
+	return ret;
+}
+
+static int scmi_base_set_notify_enabled(const struct scmi_handle *handle,
+					u8 evt_id, u32 src_id, bool enable)
+{
+	int ret;
+
+	ret = scmi_base_error_notify(handle, enable);
+	if (ret)
+		pr_debug("FAIL_ENABLED - evt[%X] ret:%d\n", evt_id, ret);
+
+	return ret;
+}
+
+static void *scmi_base_fill_custom_report(const struct scmi_handle *handle,
+					  u8 evt_id, ktime_t timestamp,
+					  const void *payld, size_t payld_sz,
+					  void *report, u32 *src_id)
+{
+	int i;
+	const struct scmi_base_error_notify_payld *p = payld;
+	struct scmi_base_error_report *r = report;
+
+	/*
+	 * BaseError notification payload is variable in size but
+	 * up to a maximum length determined by the struct ponted by p.
+	 * Instead payld_sz is the effective length of this notification
+	 * payload so cannot be greater of the maximum allowed size as
+	 * pointed by p.
+	 */
+	if (evt_id != SCMI_EVENT_BASE_ERROR_EVENT || sizeof(*p) < payld_sz)
+		return NULL;
+
+	r->timestamp = timestamp;
+	r->agent_id = le32_to_cpu(p->agent_id);
+	r->fatal = IS_FATAL_ERROR(le32_to_cpu(p->error_status));
+	r->cmd_count = ERROR_CMD_COUNT(le32_to_cpu(p->error_status));
+	for (i = 0; i < r->cmd_count; i++)
+		r->reports[i] = le64_to_cpu(p->msg_reports[i]);
+	*src_id = 0;
+
+	return r;
+}
+
+static const struct scmi_event base_events[] = {
+	{
+		.id = SCMI_EVENT_BASE_ERROR_EVENT,
+		.max_payld_sz = sizeof(struct scmi_base_error_notify_payld),
+		.max_report_sz = sizeof(struct scmi_base_error_report) +
+				  SCMI_BASE_MAX_CMD_ERR_COUNT * sizeof(u64),
+	},
+};
+
+static const struct scmi_event_ops base_event_ops = {
+	.set_notify_enabled = scmi_base_set_notify_enabled,
+	.fill_custom_report = scmi_base_fill_custom_report,
+};
+
 int scmi_base_protocol_init(struct scmi_handle *h)
 {
 	int id, ret;
@@ -248,6 +349,12 @@ int scmi_base_protocol_init(struct scmi_handle *h)
 		 rev->sub_vendor_id, rev->impl_ver);
 	dev_dbg(dev, "Found %d protocol(s) %d agent(s)\n", rev->num_protocols,
 		rev->num_agents);
+
+	scmi_register_protocol_events(handle, SCMI_PROTOCOL_BASE,
+				      (4 * SCMI_PROTO_QUEUE_SZ),
+				      &base_event_ops, base_events,
+				      ARRAY_SIZE(base_events),
+				      SCMI_BASE_NUM_SOURCES);
 
 	for (id = 0; id < rev->num_agents; id++) {
 		scmi_base_discover_agent_get(handle, id, name);

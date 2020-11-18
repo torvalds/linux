@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
+#include <linux/ethtool_netlink.h>
 #include <linux/net_tstamp.h>
 #include <linux/phy.h>
+#include <linux/rtnetlink.h>
 
 #include "common.h"
 
@@ -40,9 +42,11 @@ const char netdev_features_strings[NETDEV_FEATURE_COUNT][ETH_GSTRING_LEN] = {
 	[NETIF_F_GSO_UDP_TUNNEL_BIT] =	 "tx-udp_tnl-segmentation",
 	[NETIF_F_GSO_UDP_TUNNEL_CSUM_BIT] = "tx-udp_tnl-csum-segmentation",
 	[NETIF_F_GSO_PARTIAL_BIT] =	 "tx-gso-partial",
+	[NETIF_F_GSO_TUNNEL_REMCSUM_BIT] = "tx-tunnel-remcsum-segmentation",
 	[NETIF_F_GSO_SCTP_BIT] =	 "tx-sctp-segmentation",
 	[NETIF_F_GSO_ESP_BIT] =		 "tx-esp-segmentation",
 	[NETIF_F_GSO_UDP_L4_BIT] =	 "tx-udp-segmentation",
+	[NETIF_F_GSO_FRAGLIST_BIT] =	 "tx-gso-list",
 
 	[NETIF_F_FCOE_CRC_BIT] =         "tx-checksum-fcoe-crc",
 	[NETIF_F_SCTP_CRC_BIT] =        "tx-checksum-sctp",
@@ -173,6 +177,21 @@ const char link_mode_names[][ETH_GSTRING_LEN] = {
 	__DEFINE_LINK_MODE_NAME(400000, DR8, Full),
 	__DEFINE_LINK_MODE_NAME(400000, CR8, Full),
 	__DEFINE_SPECIAL_MODE_NAME(FEC_LLRS, "LLRS"),
+	__DEFINE_LINK_MODE_NAME(100000, KR, Full),
+	__DEFINE_LINK_MODE_NAME(100000, SR, Full),
+	__DEFINE_LINK_MODE_NAME(100000, LR_ER_FR, Full),
+	__DEFINE_LINK_MODE_NAME(100000, DR, Full),
+	__DEFINE_LINK_MODE_NAME(100000, CR, Full),
+	__DEFINE_LINK_MODE_NAME(200000, KR2, Full),
+	__DEFINE_LINK_MODE_NAME(200000, SR2, Full),
+	__DEFINE_LINK_MODE_NAME(200000, LR2_ER2_FR2, Full),
+	__DEFINE_LINK_MODE_NAME(200000, DR2, Full),
+	__DEFINE_LINK_MODE_NAME(200000, CR2, Full),
+	__DEFINE_LINK_MODE_NAME(400000, KR4, Full),
+	__DEFINE_LINK_MODE_NAME(400000, SR4, Full),
+	__DEFINE_LINK_MODE_NAME(400000, LR4_ER4_FR4, Full),
+	__DEFINE_LINK_MODE_NAME(400000, DR4, Full),
+	__DEFINE_LINK_MODE_NAME(400000, CR4, Full),
 };
 static_assert(ARRAY_SIZE(link_mode_names) == __ETHTOOL_LINK_MODE_MASK_NBITS);
 
@@ -253,6 +272,14 @@ const char ts_rx_filter_names[][ETH_GSTRING_LEN] = {
 	[HWTSTAMP_FILTER_NTP_ALL]		= "ntp-all",
 };
 static_assert(ARRAY_SIZE(ts_rx_filter_names) == __HWTSTAMP_FILTER_CNT);
+
+const char udp_tunnel_type_names[][ETH_GSTRING_LEN] = {
+	[ETHTOOL_UDP_TUNNEL_TYPE_VXLAN]		= "vxlan",
+	[ETHTOOL_UDP_TUNNEL_TYPE_GENEVE]	= "geneve",
+	[ETHTOOL_UDP_TUNNEL_TYPE_VXLAN_GPE]	= "vxlan-gpe",
+};
+static_assert(ARRAY_SIZE(udp_tunnel_type_names) ==
+	      __ETHTOOL_UDP_TUNNEL_TYPE_CNT);
 
 /* return false if legacy contained non-0 deprecated fields
  * maxtxpkt/maxrxpkt. rest of ksettings always updated
@@ -371,3 +398,13 @@ int __ethtool_get_ts_info(struct net_device *dev, struct ethtool_ts_info *info)
 
 	return 0;
 }
+
+const struct ethtool_phy_ops *ethtool_phy_ops;
+
+void ethtool_set_ethtool_phy_ops(const struct ethtool_phy_ops *ops)
+{
+	rtnl_lock();
+	ethtool_phy_ops = ops;
+	rtnl_unlock();
+}
+EXPORT_SYMBOL_GPL(ethtool_set_ethtool_phy_ops);

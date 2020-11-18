@@ -126,6 +126,11 @@
 		function = "nand";
 	};
 
+	pinctrl_pcie: pcie {
+		groups = "pcie";
+		function = "pcie";
+	};
+
 	pinctrl_sd: sd {
 		groups = "sd";
 		function = "sd";

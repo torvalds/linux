@@ -265,14 +265,14 @@ static struct notifier_block pm_trace_nb = {
 	.notifier_call = pm_trace_notify,
 };
 
-static int early_resume_init(void)
+static int __init early_resume_init(void)
 {
 	hash_value_early_read = read_magic_time();
 	register_pm_notifier(&pm_trace_nb);
 	return 0;
 }
 
-static int late_resume_init(void)
+static int __init late_resume_init(void)
 {
 	unsigned int val = hash_value_early_read;
 	unsigned int user, file, dev;

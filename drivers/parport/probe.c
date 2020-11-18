@@ -38,16 +38,16 @@ static void pretty_print(struct parport *port, int device)
 {
 	struct parport_device_info *info = &port->probe_info[device + 1];
 
-	printk(KERN_INFO "%s", port->name);
+	pr_info("%s", port->name);
 
 	if (device >= 0)
-		printk (" (addr %d)", device);
+		pr_cont(" (addr %d)", device);
 
-	printk (": %s", classes[info->class].descr);
+	pr_cont(": %s", classes[info->class].descr);
 	if (info->class)
-		printk(", %s %s", info->mfr, info->model);
+		pr_cont(", %s %s", info->mfr, info->model);
 
-	printk("\n");
+	pr_cont("\n");
 }
 
 static void parse_data(struct parport *port, int device, char *str)
@@ -58,7 +58,7 @@ static void parse_data(struct parport *port, int device, char *str)
 	struct parport_device_info *info = &port->probe_info[device + 1];
 
 	if (!txt) {
-		printk(KERN_WARNING "%s probe: memory squeeze\n", port->name);
+		pr_warn("%s probe: memory squeeze\n", port->name);
 		return;
 	}
 	strcpy(txt, str);
@@ -98,7 +98,8 @@ static void parse_data(struct parport *port, int device, char *str)
 						goto rock_on;
 					}
 				}
-				printk(KERN_WARNING "%s probe: warning, class '%s' not understood.\n", port->name, sep);
+				pr_warn("%s probe: warning, class '%s' not understood\n",
+					port->name, sep);
 				info->class = PARPORT_CLASS_OTHER;
 			} else if (!strcmp(p, "CMD") ||
 				   !strcmp(p, "COMMAND SET")) {
@@ -177,9 +178,8 @@ static ssize_t parport_read_device_id (struct parport *port, char *buffer,
 		 * just return constant nibble forever. This catches
 		 * also those cases. */
 		if (idlens[0] == 0 || idlens[0] > 0xFFF) {
-			printk (KERN_DEBUG "%s: reported broken Device ID"
-				" length of %#zX bytes\n",
-				port->name, idlens[0]);
+			printk(KERN_DEBUG "%s: reported broken Device ID length of %#zX bytes\n",
+			       port->name, idlens[0]);
 			return -EIO;
 		}
 		numidlens = 2;
@@ -201,10 +201,8 @@ static ssize_t parport_read_device_id (struct parport *port, char *buffer,
 
 		if (port->physport->ieee1284.phase != IEEE1284_PH_HBUSY_DAVAIL) {
 			if (belen != len) {
-				printk (KERN_DEBUG "%s: Device ID was %zd bytes"
-					" while device told it would be %d"
-					" bytes\n",
-					port->name, len, belen);
+				printk(KERN_DEBUG "%s: Device ID was %zd bytes while device told it would be %d bytes\n",
+				       port->name, len, belen);
 			}
 			goto done;
 		}
@@ -214,11 +212,9 @@ static ssize_t parport_read_device_id (struct parport *port, char *buffer,
 		 * the first 256 bytes or so that we must have read so
 		 * far. */
 		if (buffer[len-1] == ';') {
- 			printk (KERN_DEBUG "%s: Device ID reading stopped"
-				" before device told data not available. "
-				"Current idlen %u of %u, len bytes %02X %02X\n",
-				port->name, current_idlen, numidlens,
-				length[0], length[1]);
+			printk(KERN_DEBUG "%s: Device ID reading stopped before device told data not available. Current idlen %u of %u, len bytes %02X %02X\n",
+			       port->name, current_idlen, numidlens,
+			       length[0], length[1]);
 			goto done;
 		}
 	}

@@ -8,7 +8,7 @@
 
 const char *phy_speed_to_str(int speed)
 {
-	BUILD_BUG_ON_MSG(__ETHTOOL_LINK_MODE_MASK_NBITS != 75,
+	BUILD_BUG_ON_MSG(__ETHTOOL_LINK_MODE_MASK_NBITS != 90,
 		"Enum ethtool_link_mode_bit_indices and phylib are out of sync. "
 		"If a speed or mode has been added please update phy_speed_to_str "
 		"and the PHY settings array.\n");
@@ -78,12 +78,22 @@ static const struct phy_setting settings[] = {
 	PHY_SETTING( 400000, FULL, 400000baseLR8_ER8_FR8_Full	),
 	PHY_SETTING( 400000, FULL, 400000baseDR8_Full		),
 	PHY_SETTING( 400000, FULL, 400000baseSR8_Full		),
+	PHY_SETTING( 400000, FULL, 400000baseCR4_Full		),
+	PHY_SETTING( 400000, FULL, 400000baseKR4_Full		),
+	PHY_SETTING( 400000, FULL, 400000baseLR4_ER4_FR4_Full	),
+	PHY_SETTING( 400000, FULL, 400000baseDR4_Full		),
+	PHY_SETTING( 400000, FULL, 400000baseSR4_Full		),
 	/* 200G */
 	PHY_SETTING( 200000, FULL, 200000baseCR4_Full		),
 	PHY_SETTING( 200000, FULL, 200000baseKR4_Full		),
 	PHY_SETTING( 200000, FULL, 200000baseLR4_ER4_FR4_Full	),
 	PHY_SETTING( 200000, FULL, 200000baseDR4_Full		),
 	PHY_SETTING( 200000, FULL, 200000baseSR4_Full		),
+	PHY_SETTING( 200000, FULL, 200000baseCR2_Full		),
+	PHY_SETTING( 200000, FULL, 200000baseKR2_Full		),
+	PHY_SETTING( 200000, FULL, 200000baseLR2_ER2_FR2_Full	),
+	PHY_SETTING( 200000, FULL, 200000baseDR2_Full		),
+	PHY_SETTING( 200000, FULL, 200000baseSR2_Full		),
 	/* 100G */
 	PHY_SETTING( 100000, FULL, 100000baseCR4_Full		),
 	PHY_SETTING( 100000, FULL, 100000baseKR4_Full		),
@@ -94,6 +104,11 @@ static const struct phy_setting settings[] = {
 	PHY_SETTING( 100000, FULL, 100000baseLR2_ER2_FR2_Full	),
 	PHY_SETTING( 100000, FULL, 100000baseDR2_Full		),
 	PHY_SETTING( 100000, FULL, 100000baseSR2_Full		),
+	PHY_SETTING( 100000, FULL, 100000baseCR_Full		),
+	PHY_SETTING( 100000, FULL, 100000baseKR_Full		),
+	PHY_SETTING( 100000, FULL, 100000baseLR_ER_FR_Full	),
+	PHY_SETTING( 100000, FULL, 100000baseDR_Full		),
+	PHY_SETTING( 100000, FULL, 100000baseSR_Full		),
 	/* 56G */
 	PHY_SETTING(  56000, FULL,  56000baseCR4_Full	  	),
 	PHY_SETTING(  56000, FULL,  56000baseKR4_Full	  	),
@@ -428,9 +443,8 @@ int __phy_read_mmd(struct phy_device *phydev, int devad, u32 regnum)
 	if (phydev->drv && phydev->drv->read_mmd) {
 		val = phydev->drv->read_mmd(phydev, devad, regnum);
 	} else if (phydev->is_c45) {
-		u32 addr = MII_ADDR_C45 | (devad << 16) | (regnum & 0xffff);
-
-		val = __mdiobus_read(phydev->mdio.bus, phydev->mdio.addr, addr);
+		val = __mdiobus_c45_read(phydev->mdio.bus, phydev->mdio.addr,
+					 devad, regnum);
 	} else {
 		struct mii_bus *bus = phydev->mdio.bus;
 		int phy_addr = phydev->mdio.addr;
@@ -485,10 +499,8 @@ int __phy_write_mmd(struct phy_device *phydev, int devad, u32 regnum, u16 val)
 	if (phydev->drv && phydev->drv->write_mmd) {
 		ret = phydev->drv->write_mmd(phydev, devad, regnum, val);
 	} else if (phydev->is_c45) {
-		u32 addr = MII_ADDR_C45 | (devad << 16) | (regnum & 0xffff);
-
-		ret = __mdiobus_write(phydev->mdio.bus, phydev->mdio.addr,
-				      addr, val);
+		ret = __mdiobus_c45_write(phydev->mdio.bus, phydev->mdio.addr,
+					  devad, regnum, val);
 	} else {
 		struct mii_bus *bus = phydev->mdio.bus;
 		int phy_addr = phydev->mdio.addr;

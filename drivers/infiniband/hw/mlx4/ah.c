@@ -141,10 +141,11 @@ static int create_iboe_ah(struct ib_ah *ib_ah, struct rdma_ah_attr *ah_attr)
 	return 0;
 }
 
-int mlx4_ib_create_ah(struct ib_ah *ib_ah, struct rdma_ah_attr *ah_attr,
-		      u32 flags, struct ib_udata *udata)
-
+int mlx4_ib_create_ah(struct ib_ah *ib_ah, struct rdma_ah_init_attr *init_attr,
+		      struct ib_udata *udata)
 {
+	struct rdma_ah_attr *ah_attr = init_attr->ah_attr;
+
 	if (ah_attr->type == RDMA_AH_ATTR_TYPE_ROCE) {
 		if (!(rdma_ah_get_ah_flags(ah_attr) & IB_AH_GRH))
 			return -EINVAL;
@@ -167,12 +168,14 @@ int mlx4_ib_create_ah_slave(struct ib_ah *ah, struct rdma_ah_attr *ah_attr,
 			    int slave_sgid_index, u8 *s_mac, u16 vlan_tag)
 {
 	struct rdma_ah_attr slave_attr = *ah_attr;
+	struct rdma_ah_init_attr init_attr = {};
 	struct mlx4_ib_ah *mah = to_mah(ah);
 	int ret;
 
 	slave_attr.grh.sgid_attr = NULL;
 	slave_attr.grh.sgid_index = slave_sgid_index;
-	ret = mlx4_ib_create_ah(ah, &slave_attr, 0, NULL);
+	init_attr.ah_attr = &slave_attr;
+	ret = mlx4_ib_create_ah(ah, &init_attr, NULL);
 	if (ret)
 		return ret;
 

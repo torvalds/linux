@@ -253,6 +253,40 @@ static unsigned int count_plts(Elf64_Sym *syms, Elf64_Rela *rela, int num,
 	return ret;
 }
 
+static bool branch_rela_needs_plt(Elf64_Sym *syms, Elf64_Rela *rela,
+				  Elf64_Word dstidx)
+{
+
+	Elf64_Sym *s = syms + ELF64_R_SYM(rela->r_info);
+
+	if (s->st_shndx == dstidx)
+		return false;
+
+	return ELF64_R_TYPE(rela->r_info) == R_AARCH64_JUMP26 ||
+	       ELF64_R_TYPE(rela->r_info) == R_AARCH64_CALL26;
+}
+
+/* Group branch PLT relas at the front end of the array. */
+static int partition_branch_plt_relas(Elf64_Sym *syms, Elf64_Rela *rela,
+				      int numrels, Elf64_Word dstidx)
+{
+	int i = 0, j = numrels - 1;
+
+	if (!IS_ENABLED(CONFIG_RANDOMIZE_BASE))
+		return 0;
+
+	while (i < j) {
+		if (branch_rela_needs_plt(syms, &rela[i], dstidx))
+			i++;
+		else if (branch_rela_needs_plt(syms, &rela[j], dstidx))
+			swap(rela[i], rela[j]);
+		else
+			j--;
+	}
+
+	return i;
+}
+
 int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 			      char *secstrings, struct module *mod)
 {
@@ -271,8 +305,7 @@ int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 			mod->arch.core.plt_shndx = i;
 		else if (!strcmp(secstrings + sechdrs[i].sh_name, ".init.plt"))
 			mod->arch.init.plt_shndx = i;
-		else if (IS_ENABLED(CONFIG_DYNAMIC_FTRACE) &&
-			 !strcmp(secstrings + sechdrs[i].sh_name,
+		else if (!strcmp(secstrings + sechdrs[i].sh_name,
 				 ".text.ftrace_trampoline"))
 			tramp = sechdrs + i;
 		else if (sechdrs[i].sh_type == SHT_SYMTAB)
@@ -290,7 +323,7 @@ int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 
 	for (i = 0; i < ehdr->e_shnum; i++) {
 		Elf64_Rela *rels = (void *)ehdr + sechdrs[i].sh_offset;
-		int numrels = sechdrs[i].sh_size / sizeof(Elf64_Rela);
+		int nents, numrels = sechdrs[i].sh_size / sizeof(Elf64_Rela);
 		Elf64_Shdr *dstsec = sechdrs + sechdrs[i].sh_info;
 
 		if (sechdrs[i].sh_type != SHT_RELA)
@@ -300,8 +333,14 @@ int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 		if (!(dstsec->sh_flags & SHF_EXECINSTR))
 			continue;
 
-		/* sort by type, symbol index and addend */
-		sort(rels, numrels, sizeof(Elf64_Rela), cmp_rela, NULL);
+		/*
+		 * sort branch relocations requiring a PLT by type, symbol index
+		 * and addend
+		 */
+		nents = partition_branch_plt_relas(syms, rels, numrels,
+						   sechdrs[i].sh_info);
+		if (nents)
+			sort(rels, nents, sizeof(Elf64_Rela), cmp_rela, NULL);
 
 		if (!str_has_prefix(secstrings + dstsec->sh_name, ".init"))
 			core_plts += count_plts(syms, rels, numrels,

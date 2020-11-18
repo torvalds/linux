@@ -28,11 +28,9 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
-#include <linux/of_gpio.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 
-#include <linux/gpio.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
 
@@ -126,8 +124,6 @@ struct ppc4xx_spi {
 	/* data buffers */
 	const unsigned char *tx;
 	unsigned char *rx;
-
-	int *gpios;
 
 	struct spi_ppc4xx_regs __iomem *regs; /* pointer to the registers */
 	struct spi_master *master;
@@ -260,27 +256,6 @@ static int spi_ppc4xx_setup(struct spi_device *spi)
 	return 0;
 }
 
-static void spi_ppc4xx_chipsel(struct spi_device *spi, int value)
-{
-	struct ppc4xx_spi *hw = spi_master_get_devdata(spi->master);
-	unsigned int cs = spi->chip_select;
-	unsigned int cspol;
-
-	/*
-	 * If there are no chip selects at all, or if this is the special
-	 * case of a non-existent (dummy) chip select, do nothing.
-	 */
-
-	if (!hw->master->num_chipselect || hw->gpios[cs] == -EEXIST)
-		return;
-
-	cspol = spi->mode & SPI_CS_HIGH ? 1 : 0;
-	if (value == BITBANG_CS_INACTIVE)
-		cspol = !cspol;
-
-	gpio_set_value(hw->gpios[cs], cspol);
-}
-
 static irqreturn_t spi_ppc4xx_int(int irq, void *dev_id)
 {
 	struct ppc4xx_spi *hw;
@@ -359,19 +334,6 @@ static void spi_ppc4xx_enable(struct ppc4xx_spi *hw)
 	dcri_clrset(SDR0, SDR0_PFC1, 0x80000000 >> 14, 0);
 }
 
-static void free_gpios(struct ppc4xx_spi *hw)
-{
-	if (hw->master->num_chipselect) {
-		int i;
-		for (i = 0; i < hw->master->num_chipselect; i++)
-			if (gpio_is_valid(hw->gpios[i]))
-				gpio_free(hw->gpios[i]);
-
-		kfree(hw->gpios);
-		hw->gpios = NULL;
-	}
-}
-
 /*
  * platform_device layer stuff...
  */
@@ -385,7 +347,6 @@ static int spi_ppc4xx_of_probe(struct platform_device *op)
 	struct device *dev = &op->dev;
 	struct device_node *opbnp;
 	int ret;
-	int num_gpios;
 	const unsigned int *clk;
 
 	master = spi_alloc_master(dev, sizeof *hw);
@@ -399,74 +360,32 @@ static int spi_ppc4xx_of_probe(struct platform_device *op)
 
 	init_completion(&hw->done);
 
-	/*
-	 * A count of zero implies a single SPI device without any chip-select.
-	 * Note that of_gpio_count counts all gpios assigned to this spi master.
-	 * This includes both "null" gpio's and real ones.
-	 */
-	num_gpios = of_gpio_count(np);
-	if (num_gpios > 0) {
-		int i;
-
-		hw->gpios = kcalloc(num_gpios, sizeof(*hw->gpios), GFP_KERNEL);
-		if (!hw->gpios) {
-			ret = -ENOMEM;
-			goto free_master;
-		}
-
-		for (i = 0; i < num_gpios; i++) {
-			int gpio;
-			enum of_gpio_flags flags;
-
-			gpio = of_get_gpio_flags(np, i, &flags);
-			hw->gpios[i] = gpio;
-
-			if (gpio_is_valid(gpio)) {
-				/* Real CS - set the initial state. */
-				ret = gpio_request(gpio, np->name);
-				if (ret < 0) {
-					dev_err(dev,
-						"can't request gpio #%d: %d\n",
-						i, ret);
-					goto free_gpios;
-				}
-
-				gpio_direction_output(gpio,
-						!!(flags & OF_GPIO_ACTIVE_LOW));
-			} else if (gpio == -EEXIST) {
-				; /* No CS, but that's OK. */
-			} else {
-				dev_err(dev, "invalid gpio #%d: %d\n", i, gpio);
-				ret = -EINVAL;
-				goto free_gpios;
-			}
-		}
-	}
-
 	/* Setup the state for the bitbang driver */
 	bbp = &hw->bitbang;
 	bbp->master = hw->master;
 	bbp->setup_transfer = spi_ppc4xx_setupxfer;
-	bbp->chipselect = spi_ppc4xx_chipsel;
 	bbp->txrx_bufs = spi_ppc4xx_txrx;
 	bbp->use_dma = 0;
 	bbp->master->setup = spi_ppc4xx_setup;
 	bbp->master->cleanup = spi_ppc4xx_cleanup;
 	bbp->master->bits_per_word_mask = SPI_BPW_MASK(8);
+	bbp->master->use_gpio_descriptors = true;
+	/*
+	 * The SPI core will count the number of GPIO descriptors to figure
+	 * out the number of chip selects available on the platform.
+	 */
+	bbp->master->num_chipselect = 0;
 
 	/* the spi->mode bits understood by this driver: */
 	bbp->master->mode_bits =
 		SPI_CPHA | SPI_CPOL | SPI_CS_HIGH | SPI_LSB_FIRST;
-
-	/* this many pins in all GPIO controllers */
-	bbp->master->num_chipselect = num_gpios > 0 ? num_gpios : 0;
 
 	/* Get the clock for the OPB */
 	opbnp = of_find_compatible_node(NULL, NULL, "ibm,opb");
 	if (opbnp == NULL) {
 		dev_err(dev, "OPB: cannot find node\n");
 		ret = -ENODEV;
-		goto free_gpios;
+		goto free_master;
 	}
 	/* Get the clock (Hz) for the OPB */
 	clk = of_get_property(opbnp, "clock-frequency", NULL);
@@ -474,7 +393,7 @@ static int spi_ppc4xx_of_probe(struct platform_device *op)
 		dev_err(dev, "OPB: no clock-frequency property set\n");
 		of_node_put(opbnp);
 		ret = -ENODEV;
-		goto free_gpios;
+		goto free_master;
 	}
 	hw->opb_freq = *clk;
 	hw->opb_freq >>= 2;
@@ -483,7 +402,7 @@ static int spi_ppc4xx_of_probe(struct platform_device *op)
 	ret = of_address_to_resource(np, 0, &resource);
 	if (ret) {
 		dev_err(dev, "error while parsing device node resource\n");
-		goto free_gpios;
+		goto free_master;
 	}
 	hw->mapbase = resource.start;
 	hw->mapsize = resource_size(&resource);
@@ -492,7 +411,7 @@ static int spi_ppc4xx_of_probe(struct platform_device *op)
 	if (hw->mapsize < sizeof(struct spi_ppc4xx_regs)) {
 		dev_err(dev, "too small to map registers\n");
 		ret = -EINVAL;
-		goto free_gpios;
+		goto free_master;
 	}
 
 	/* Request IRQ */
@@ -501,7 +420,7 @@ static int spi_ppc4xx_of_probe(struct platform_device *op)
 			  0, "spi_ppc4xx_of", (void *)hw);
 	if (ret) {
 		dev_err(dev, "unable to allocate interrupt\n");
-		goto free_gpios;
+		goto free_master;
 	}
 
 	if (!request_mem_region(hw->mapbase, hw->mapsize, DRIVER_NAME)) {
@@ -538,8 +457,6 @@ map_io_error:
 	release_mem_region(hw->mapbase, hw->mapsize);
 request_mem_error:
 	free_irq(hw->irqnum, hw);
-free_gpios:
-	free_gpios(hw);
 free_master:
 	spi_master_put(master);
 
@@ -556,7 +473,6 @@ static int spi_ppc4xx_of_remove(struct platform_device *op)
 	release_mem_region(hw->mapbase, hw->mapsize);
 	free_irq(hw->irqnum, hw);
 	iounmap(hw->regs);
-	free_gpios(hw);
 	spi_master_put(master);
 	return 0;
 }

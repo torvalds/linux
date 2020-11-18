@@ -11,10 +11,10 @@ Industrial I/O Devices
 ----------------------
 
 * struct :c:type:`iio_dev` - industrial I/O device
-* :c:func:`iio_device_alloc()` - allocate an :c:type:`iio_dev` from a driver
-* :c:func:`iio_device_free()` - free an :c:type:`iio_dev` from a driver
-* :c:func:`iio_device_register()` - register a device with the IIO subsystem
-* :c:func:`iio_device_unregister()` - unregister a device from the IIO
+* iio_device_alloc() - allocate an :c:type:`iio_dev` from a driver
+* iio_device_free() - free an :c:type:`iio_dev` from a driver
+* iio_device_register() - register a device with the IIO subsystem
+* iio_device_unregister() - unregister a device from the IIO
   subsystem
 
 An IIO device usually corresponds to a single hardware sensor and it
@@ -34,17 +34,17 @@ A typical IIO driver will register itself as an :doc:`I2C <../i2c>` or
 
 At probe:
 
-1. Call :c:func:`iio_device_alloc()`, which allocates memory for an IIO device.
+1. Call iio_device_alloc(), which allocates memory for an IIO device.
 2. Initialize IIO device fields with driver specific information (e.g.
    device name, device channels).
-3. Call :c:func:`iio_device_register()`, this registers the device with the
+3. Call iio_device_register(), this registers the device with the
    IIO core. After this call the device is ready to accept requests from user
    space applications.
 
 At remove, we free the resources allocated in probe in reverse order:
 
-1. :c:func:`iio_device_unregister()`, unregister the device from the IIO core.
-2. :c:func:`iio_device_free()`, free the memory allocated for the IIO device.
+1. iio_device_unregister(), unregister the device from the IIO core.
+2. iio_device_free(), free the memory allocated for the IIO device.
 
 IIO device sysfs interface
 ==========================

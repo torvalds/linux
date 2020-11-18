@@ -74,10 +74,6 @@
 # include "test-libunwind.c"
 #undef main
 
-#define main main_test_libaudit
-# include "test-libaudit.c"
-#undef main
-
 #define main main_test_libslang
 # include "test-libslang.c"
 #undef main
@@ -208,7 +204,6 @@ int main(int argc, char *argv[])
 	main_test_libelf_gelf_getnote();
 	main_test_libelf_getshdrstrndx();
 	main_test_libunwind();
-	main_test_libaudit();
 	main_test_libslang();
 	main_test_gtk2(argc, argv);
 	main_test_gtk2_infobar(argc, argv);

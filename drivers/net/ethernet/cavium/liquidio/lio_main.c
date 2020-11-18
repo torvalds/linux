@@ -405,27 +405,8 @@ static void liquidio_pcie_resume(struct pci_dev *pdev __attribute__((unused)))
 	/* Nothing to be done here. */
 }
 
-#ifdef CONFIG_PM
-/**
- * \brief called when suspending
- * @param pdev Pointer to PCI device
- * @param state state to suspend to
- */
-static int liquidio_suspend(struct pci_dev *pdev __attribute__((unused)),
-			    pm_message_t state __attribute__((unused)))
-{
-	return 0;
-}
-
-/**
- * \brief called when resuming
- * @param pdev Pointer to PCI device
- */
-static int liquidio_resume(struct pci_dev *pdev __attribute__((unused)))
-{
-	return 0;
-}
-#endif
+#define liquidio_suspend NULL
+#define liquidio_resume NULL
 
 /* For PCI-E Advanced Error Recovery (AER) Interface */
 static const struct pci_error_handlers liquidio_err_handler = {
@@ -451,17 +432,15 @@ static const struct pci_device_id liquidio_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, liquidio_pci_tbl);
 
+static SIMPLE_DEV_PM_OPS(liquidio_pm_ops, liquidio_suspend, liquidio_resume);
+
 static struct pci_driver liquidio_pci_driver = {
 	.name		= "LiquidIO",
 	.id_table	= liquidio_pci_tbl,
 	.probe		= liquidio_probe,
 	.remove		= liquidio_remove,
 	.err_handler	= &liquidio_err_handler,    /* For AER */
-
-#ifdef CONFIG_PM
-	.suspend	= liquidio_suspend,
-	.resume		= liquidio_resume,
-#endif
+	.driver.pm	= &liquidio_pm_ops,
 #ifdef CONFIG_PCI_IOV
 	.sriov_configure = liquidio_enable_sriov,
 #endif
@@ -998,15 +977,14 @@ static void octeon_destroy_resources(struct octeon_device *oct)
 
 		schedule_timeout_uninterruptible(HZ / 10);
 
-		/* fallthrough */
+		fallthrough;
 	case OCT_DEV_HOST_OK:
 
-		/* fallthrough */
 	case OCT_DEV_CONSOLE_INIT_DONE:
 		/* Remove any consoles */
 		octeon_remove_consoles(oct);
 
-		/* fallthrough */
+		fallthrough;
 	case OCT_DEV_IO_QUEUES_DONE:
 		if (lio_wait_for_instr_fetch(oct))
 			dev_err(&oct->pci_dev->dev, "IQ had pending instructions\n");
@@ -1048,7 +1026,7 @@ static void octeon_destroy_resources(struct octeon_device *oct)
 		octeon_free_sc_done_list(oct);
 		octeon_free_sc_zombie_list(oct);
 
-	/* fallthrough */
+		fallthrough;
 	case OCT_DEV_INTR_SET_DONE:
 		/* Disable interrupts  */
 		oct->fn_list.disable_interrupt(oct, OCTEON_ALL_INTR);
@@ -1083,17 +1061,17 @@ static void octeon_destroy_resources(struct octeon_device *oct)
 		kfree(oct->irq_name_storage);
 		oct->irq_name_storage = NULL;
 
-	/* fallthrough */
+		fallthrough;
 	case OCT_DEV_MSIX_ALLOC_VECTOR_DONE:
 		if (OCTEON_CN23XX_PF(oct))
 			octeon_free_ioq_vector(oct);
 
-	/* fallthrough */
+		fallthrough;
 	case OCT_DEV_MBOX_SETUP_DONE:
 		if (OCTEON_CN23XX_PF(oct))
 			oct->fn_list.free_mbox(oct);
 
-	/* fallthrough */
+		fallthrough;
 	case OCT_DEV_IN_RESET:
 	case OCT_DEV_DROQ_INIT_DONE:
 		/* Wait for any pending operations */
@@ -1116,11 +1094,11 @@ static void octeon_destroy_resources(struct octeon_device *oct)
 			}
 		}
 
-		/* fallthrough */
+		fallthrough;
 	case OCT_DEV_RESP_LIST_INIT_DONE:
 		octeon_delete_response_list(oct);
 
-		/* fallthrough */
+		fallthrough;
 	case OCT_DEV_INSTR_QUEUE_INIT_DONE:
 		for (i = 0; i < MAX_OCTEON_INSTR_QUEUES(oct); i++) {
 			if (!(oct->io_qmask.iq & BIT_ULL(i)))
@@ -1131,16 +1109,16 @@ static void octeon_destroy_resources(struct octeon_device *oct)
 		if (oct->sriov_info.sriov_enabled)
 			pci_disable_sriov(oct->pci_dev);
 #endif
-		/* fallthrough */
+		fallthrough;
 	case OCT_DEV_SC_BUFF_POOL_INIT_DONE:
 		octeon_free_sc_buffer_pool(oct);
 
-		/* fallthrough */
+		fallthrough;
 	case OCT_DEV_DISPATCH_INIT_DONE:
 		octeon_delete_dispatch_list(oct);
 		cancel_delayed_work_sync(&oct->nic_poll_work.work);
 
-		/* fallthrough */
+		fallthrough;
 	case OCT_DEV_PCI_MAP_DONE:
 		refcount = octeon_deregister_device(oct);
 
@@ -1158,13 +1136,13 @@ static void octeon_destroy_resources(struct octeon_device *oct)
 		octeon_unmap_pci_barx(oct, 0);
 		octeon_unmap_pci_barx(oct, 1);
 
-		/* fallthrough */
+		fallthrough;
 	case OCT_DEV_PCI_ENABLE_DONE:
 		pci_clear_master(oct->pci_dev);
 		/* Disable the device, releasing the PCI INT */
 		pci_disable_device(oct->pci_dev);
 
-		/* fallthrough */
+		fallthrough;
 	case OCT_DEV_BEGIN_STATE:
 		/* Nothing to be done here either */
 		break;
@@ -2189,7 +2167,7 @@ static int liquidio_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 	case SIOCSHWTSTAMP:
 		if (lio->oct_dev->ptp_enable)
 			return hwtstamp_ioctl(netdev, ifr);
-		/* fall through */
+		fallthrough;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -2691,6 +2669,35 @@ static int liquidio_vxlan_port_command(struct net_device *netdev, int command,
 	return ret;
 }
 
+static int liquidio_udp_tunnel_set_port(struct net_device *netdev,
+					unsigned int table, unsigned int entry,
+					struct udp_tunnel_info *ti)
+{
+	return liquidio_vxlan_port_command(netdev,
+					   OCTNET_CMD_VXLAN_PORT_CONFIG,
+					   htons(ti->port),
+					   OCTNET_CMD_VXLAN_PORT_ADD);
+}
+
+static int liquidio_udp_tunnel_unset_port(struct net_device *netdev,
+					  unsigned int table,
+					  unsigned int entry,
+					  struct udp_tunnel_info *ti)
+{
+	return liquidio_vxlan_port_command(netdev,
+					   OCTNET_CMD_VXLAN_PORT_CONFIG,
+					   htons(ti->port),
+					   OCTNET_CMD_VXLAN_PORT_DEL);
+}
+
+static const struct udp_tunnel_nic_info liquidio_udp_tunnels = {
+	.set_port	= liquidio_udp_tunnel_set_port,
+	.unset_port	= liquidio_udp_tunnel_unset_port,
+	.tables		= {
+		{ .n_entries = 1024, .tunnel_types = UDP_TUNNEL_TYPE_VXLAN, },
+	},
+};
+
 /** \brief Net device fix features
  * @param netdev  pointer to network device
  * @param request features requested
@@ -2777,30 +2784,6 @@ static int liquidio_set_features(struct net_device *netdev,
 				     OCTNET_CMD_VLAN_FILTER_DISABLE);
 
 	return 0;
-}
-
-static void liquidio_add_vxlan_port(struct net_device *netdev,
-				    struct udp_tunnel_info *ti)
-{
-	if (ti->type != UDP_TUNNEL_TYPE_VXLAN)
-		return;
-
-	liquidio_vxlan_port_command(netdev,
-				    OCTNET_CMD_VXLAN_PORT_CONFIG,
-				    htons(ti->port),
-				    OCTNET_CMD_VXLAN_PORT_ADD);
-}
-
-static void liquidio_del_vxlan_port(struct net_device *netdev,
-				    struct udp_tunnel_info *ti)
-{
-	if (ti->type != UDP_TUNNEL_TYPE_VXLAN)
-		return;
-
-	liquidio_vxlan_port_command(netdev,
-				    OCTNET_CMD_VXLAN_PORT_CONFIG,
-				    htons(ti->port),
-				    OCTNET_CMD_VXLAN_PORT_DEL);
 }
 
 static int __liquidio_set_vf_mac(struct net_device *netdev, int vfidx,
@@ -3229,8 +3212,8 @@ static const struct net_device_ops lionetdevops = {
 	.ndo_do_ioctl		= liquidio_ioctl,
 	.ndo_fix_features	= liquidio_fix_features,
 	.ndo_set_features	= liquidio_set_features,
-	.ndo_udp_tunnel_add	= liquidio_add_vxlan_port,
-	.ndo_udp_tunnel_del	= liquidio_del_vxlan_port,
+	.ndo_udp_tunnel_add	= udp_tunnel_nic_add_port,
+	.ndo_udp_tunnel_del	= udp_tunnel_nic_del_port,
 	.ndo_set_vf_mac		= liquidio_set_vf_mac,
 	.ndo_set_vf_vlan	= liquidio_set_vf_vlan,
 	.ndo_get_vf_config	= liquidio_get_vf_config,
@@ -3584,6 +3567,8 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 
 		netdev->hw_enc_features = (lio->enc_dev_capability &
 					   ~NETIF_F_LRO);
+
+		netdev->udp_tunnel_nic_info = &liquidio_udp_tunnels;
 
 		lio->dev_capability |= NETIF_F_GSO_UDP_TUNNEL;
 

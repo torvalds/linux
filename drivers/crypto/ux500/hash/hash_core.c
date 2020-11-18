@@ -545,7 +545,7 @@ static bool hash_dma_valid_data(struct scatterlist *sg, int datasize)
  *
  * Initialize structures.
  */
-static int hash_init(struct ahash_request *req)
+static int ux500_hash_init(struct ahash_request *req)
 {
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 	struct hash_ctx *ctx = crypto_ahash_ctx(tfm);
@@ -1359,7 +1359,7 @@ static int ahash_sha1_init(struct ahash_request *req)
 	ctx->config.oper_mode = HASH_OPER_MODE_HASH;
 	ctx->digestsize = SHA1_DIGEST_SIZE;
 
-	return hash_init(req);
+	return ux500_hash_init(req);
 }
 
 static int ahash_sha256_init(struct ahash_request *req)
@@ -1372,7 +1372,7 @@ static int ahash_sha256_init(struct ahash_request *req)
 	ctx->config.oper_mode = HASH_OPER_MODE_HASH;
 	ctx->digestsize = SHA256_DIGEST_SIZE;
 
-	return hash_init(req);
+	return ux500_hash_init(req);
 }
 
 static int ahash_sha1_digest(struct ahash_request *req)
@@ -1425,7 +1425,7 @@ static int hmac_sha1_init(struct ahash_request *req)
 	ctx->config.oper_mode	= HASH_OPER_MODE_HMAC;
 	ctx->digestsize		= SHA1_DIGEST_SIZE;
 
-	return hash_init(req);
+	return ux500_hash_init(req);
 }
 
 static int hmac_sha256_init(struct ahash_request *req)
@@ -1438,7 +1438,7 @@ static int hmac_sha256_init(struct ahash_request *req)
 	ctx->config.oper_mode	= HASH_OPER_MODE_HMAC;
 	ctx->digestsize		= SHA256_DIGEST_SIZE;
 
-	return hash_init(req);
+	return ux500_hash_init(req);
 }
 
 static int hmac_sha1_digest(struct ahash_request *req)
@@ -1515,7 +1515,7 @@ static struct hash_algo_template hash_algs[] = {
 		.conf.algorithm = HASH_ALGO_SHA1,
 		.conf.oper_mode = HASH_OPER_MODE_HASH,
 		.hash = {
-			.init = hash_init,
+			.init = ux500_hash_init,
 			.update = ahash_update,
 			.final = ahash_final,
 			.digest = ahash_sha1_digest,
@@ -1538,7 +1538,7 @@ static struct hash_algo_template hash_algs[] = {
 		.conf.algorithm	= HASH_ALGO_SHA256,
 		.conf.oper_mode	= HASH_OPER_MODE_HASH,
 		.hash = {
-			.init = hash_init,
+			.init = ux500_hash_init,
 			.update	= ahash_update,
 			.final = ahash_final,
 			.digest = ahash_sha256_digest,
@@ -1561,7 +1561,7 @@ static struct hash_algo_template hash_algs[] = {
 		.conf.algorithm = HASH_ALGO_SHA1,
 		.conf.oper_mode = HASH_OPER_MODE_HMAC,
 			.hash = {
-			.init = hash_init,
+			.init = ux500_hash_init,
 			.update = ahash_update,
 			.final = ahash_final,
 			.digest = hmac_sha1_digest,
@@ -1585,7 +1585,7 @@ static struct hash_algo_template hash_algs[] = {
 		.conf.algorithm = HASH_ALGO_SHA256,
 		.conf.oper_mode = HASH_OPER_MODE_HMAC,
 		.hash = {
-			.init = hash_init,
+			.init = ux500_hash_init,
 			.update = ahash_update,
 			.final = ahash_final,
 			.digest = hmac_sha256_digest,

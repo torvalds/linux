@@ -204,7 +204,6 @@ static int htu21_probe(struct i2c_client *client,
 
 	indio_dev->info = &htu21_info;
 	indio_dev->name = id->name;
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	if (id->driver_data == MS8607) {

@@ -23,8 +23,6 @@
 
 #include <linux/uaccess.h>
 #include <asm/ptrace.h>
-#include <asm/pgalloc.h>
-#include <asm/pgtable.h>
 #include <asm/cacheflush.h>	/* flush_sig_insns */
 #include <asm/switch_to.h>
 
@@ -442,7 +440,7 @@ static inline void syscall_restart(unsigned long orig_i0, struct pt_regs *regs,
 	case ERESTARTSYS:
 		if (!(sa->sa_flags & SA_RESTART))
 			goto no_system_call_restart;
-		/* fallthrough */
+		fallthrough;
 	case ERESTARTNOINTR:
 		regs->u_regs[UREG_I0] = orig_i0;
 		regs->pc -= 4;
@@ -508,7 +506,7 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 				regs->pc -= 4;
 				regs->npc -= 4;
 				pt_regs_clear_syscall(regs);
-				/* fall through */
+				fallthrough;
 			case ERESTART_RESTARTBLOCK:
 				regs->u_regs[UREG_G1] = __NR_restart_syscall;
 				regs->pc -= 4;

@@ -201,7 +201,19 @@
 					compatible = "stericsson,ab8500-sysctrl";
 				};
 
-				ab8500-pwm {
+				ab8500-pwm-1 {
+					compatible = "stericsson,ab8500-pwm";
+					clocks = <&ab8500_clock AB8500_SYSCLK_INT>;
+					clock-names = "intclk";
+				};
+
+				ab8500-pwm-2 {
+					compatible = "stericsson,ab8500-pwm";
+					clocks = <&ab8500_clock AB8500_SYSCLK_INT>;
+					clock-names = "intclk";
+				};
+
+				ab8500-pwm-3 {
 					compatible = "stericsson,ab8500-pwm";
 					clocks = <&ab8500_clock AB8500_SYSCLK_INT>;
 					clock-names = "intclk";

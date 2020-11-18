@@ -5,7 +5,7 @@ GSM 0710 tty multiplexor HOWTO
 This line discipline implements the GSM 07.10 multiplexing protocol
 detailed in the following 3GPP document:
 
-	http://www.3gpp.org/ftp/Specs/archive/07_series/07.10/0710-720.zip
+	https://www.3gpp.org/ftp/Specs/archive/07_series/07.10/0710-720.zip
 
 This document give some hints on how to use this driver with GPRS and 3G
 modems connected to a physical serial port.

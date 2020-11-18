@@ -4,7 +4,7 @@
  *
  * Module interface and handling of zfcp data structures.
  *
- * Copyright IBM Corp. 2002, 2018
+ * Copyright IBM Corp. 2002, 2020
  */
 
 /*
@@ -415,8 +415,7 @@ struct zfcp_adapter *zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 
 	adapter->stat_read_buf_num = FSF_STATUS_READS_RECOM;
 
-	if (!zfcp_scsi_adapter_register(adapter))
-		return adapter;
+	return adapter;
 
 failed:
 	zfcp_adapter_unregister(adapter);

@@ -124,12 +124,12 @@ static void __init at91sam9n12_pmc_setup(struct device_node *np)
 		return;
 	mainxtal_name = of_clk_get_parent_name(np, i);
 
-	regmap = syscon_node_to_regmap(np);
+	regmap = device_node_to_regmap(np);
 	if (IS_ERR(regmap))
 		return;
 
-	at91sam9n12_pmc = pmc_data_allocate(PMC_MAIN + 1,
-					   nck(at91sam9n12_systemck), 31, 0);
+	at91sam9n12_pmc = pmc_data_allocate(PMC_PLLBCK + 1,
+					   nck(at91sam9n12_systemck), 31, 0, 2);
 	if (!at91sam9n12_pmc)
 		return;
 
@@ -162,10 +162,14 @@ static void __init at91sam9n12_pmc_setup(struct device_node *np)
 	if (IS_ERR(hw))
 		goto err_free;
 
+	at91sam9n12_pmc->chws[PMC_PLLACK] = hw;
+
 	hw = at91_clk_register_pll(regmap, "pllbck", "mainck", 1,
 				   &at91rm9200_pll_layout, &pllb_characteristics);
 	if (IS_ERR(hw))
 		goto err_free;
+
+	at91sam9n12_pmc->chws[PMC_PLLBCK] = hw;
 
 	parent_names[0] = slck_name;
 	parent_names[1] = "mainck";
@@ -195,9 +199,12 @@ static void __init at91sam9n12_pmc_setup(struct device_node *np)
 
 		hw = at91_clk_register_programmable(regmap, name,
 						    parent_names, 5, i,
-						    &at91sam9x5_programmable_layout);
+						    &at91sam9x5_programmable_layout,
+						    NULL);
 		if (IS_ERR(hw))
 			goto err_free;
+
+		at91sam9n12_pmc->pchws[i] = hw;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(at91sam9n12_systemck); i++) {
@@ -216,7 +223,7 @@ static void __init at91sam9n12_pmc_setup(struct device_node *np)
 							 at91sam9n12_periphck[i].n,
 							 "masterck",
 							 at91sam9n12_periphck[i].id,
-							 &range);
+							 &range, INT_MIN);
 		if (IS_ERR(hw))
 			goto err_free;
 
@@ -228,7 +235,7 @@ static void __init at91sam9n12_pmc_setup(struct device_node *np)
 	return;
 
 err_free:
-	pmc_data_free(at91sam9n12_pmc);
+	kfree(at91sam9n12_pmc);
 }
 /*
  * The TCB is used as the clocksource so its clock is needed early. This means

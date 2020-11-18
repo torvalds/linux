@@ -151,7 +151,19 @@ BPF_CALL_0(bpf_ktime_get_ns)
 
 const struct bpf_func_proto bpf_ktime_get_ns_proto = {
 	.func		= bpf_ktime_get_ns,
-	.gpl_only	= true,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+};
+
+BPF_CALL_0(bpf_ktime_get_boot_ns)
+{
+	/* NMI safe access to clock boottime */
+	return ktime_get_boot_fast_ns();
+}
+
+const struct bpf_func_proto bpf_ktime_get_boot_ns_proto = {
+	.func		= bpf_ktime_get_boot_ns,
+	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
 };
 
@@ -562,3 +574,114 @@ const struct bpf_func_proto bpf_get_ns_current_pid_tgid_proto = {
 	.arg3_type      = ARG_PTR_TO_UNINIT_MEM,
 	.arg4_type      = ARG_CONST_SIZE,
 };
+
+static const struct bpf_func_proto bpf_get_raw_smp_processor_id_proto = {
+	.func		= bpf_get_raw_cpu_id,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+};
+
+BPF_CALL_5(bpf_event_output_data, void *, ctx, struct bpf_map *, map,
+	   u64, flags, void *, data, u64, size)
+{
+	if (unlikely(flags & ~(BPF_F_INDEX_MASK)))
+		return -EINVAL;
+
+	return bpf_event_output(map, flags, data, size, NULL, 0, NULL);
+}
+
+const struct bpf_func_proto bpf_event_output_data_proto =  {
+	.func		= bpf_event_output_data,
+	.gpl_only       = true,
+	.ret_type       = RET_INTEGER,
+	.arg1_type      = ARG_PTR_TO_CTX,
+	.arg2_type      = ARG_CONST_MAP_PTR,
+	.arg3_type      = ARG_ANYTHING,
+	.arg4_type      = ARG_PTR_TO_MEM,
+	.arg5_type      = ARG_CONST_SIZE_OR_ZERO,
+};
+
+const struct bpf_func_proto bpf_get_current_task_proto __weak;
+const struct bpf_func_proto bpf_probe_read_user_proto __weak;
+const struct bpf_func_proto bpf_probe_read_user_str_proto __weak;
+const struct bpf_func_proto bpf_probe_read_kernel_proto __weak;
+const struct bpf_func_proto bpf_probe_read_kernel_str_proto __weak;
+
+const struct bpf_func_proto *
+bpf_base_func_proto(enum bpf_func_id func_id)
+{
+	switch (func_id) {
+	case BPF_FUNC_map_lookup_elem:
+		return &bpf_map_lookup_elem_proto;
+	case BPF_FUNC_map_update_elem:
+		return &bpf_map_update_elem_proto;
+	case BPF_FUNC_map_delete_elem:
+		return &bpf_map_delete_elem_proto;
+	case BPF_FUNC_map_push_elem:
+		return &bpf_map_push_elem_proto;
+	case BPF_FUNC_map_pop_elem:
+		return &bpf_map_pop_elem_proto;
+	case BPF_FUNC_map_peek_elem:
+		return &bpf_map_peek_elem_proto;
+	case BPF_FUNC_get_prandom_u32:
+		return &bpf_get_prandom_u32_proto;
+	case BPF_FUNC_get_smp_processor_id:
+		return &bpf_get_raw_smp_processor_id_proto;
+	case BPF_FUNC_get_numa_node_id:
+		return &bpf_get_numa_node_id_proto;
+	case BPF_FUNC_tail_call:
+		return &bpf_tail_call_proto;
+	case BPF_FUNC_ktime_get_ns:
+		return &bpf_ktime_get_ns_proto;
+	case BPF_FUNC_ktime_get_boot_ns:
+		return &bpf_ktime_get_boot_ns_proto;
+	case BPF_FUNC_ringbuf_output:
+		return &bpf_ringbuf_output_proto;
+	case BPF_FUNC_ringbuf_reserve:
+		return &bpf_ringbuf_reserve_proto;
+	case BPF_FUNC_ringbuf_submit:
+		return &bpf_ringbuf_submit_proto;
+	case BPF_FUNC_ringbuf_discard:
+		return &bpf_ringbuf_discard_proto;
+	case BPF_FUNC_ringbuf_query:
+		return &bpf_ringbuf_query_proto;
+	default:
+		break;
+	}
+
+	if (!bpf_capable())
+		return NULL;
+
+	switch (func_id) {
+	case BPF_FUNC_spin_lock:
+		return &bpf_spin_lock_proto;
+	case BPF_FUNC_spin_unlock:
+		return &bpf_spin_unlock_proto;
+	case BPF_FUNC_trace_printk:
+		if (!perfmon_capable())
+			return NULL;
+		return bpf_get_trace_printk_proto();
+	case BPF_FUNC_jiffies64:
+		return &bpf_jiffies64_proto;
+	default:
+		break;
+	}
+
+	if (!perfmon_capable())
+		return NULL;
+
+	switch (func_id) {
+	case BPF_FUNC_get_current_task:
+		return &bpf_get_current_task_proto;
+	case BPF_FUNC_probe_read_user:
+		return &bpf_probe_read_user_proto;
+	case BPF_FUNC_probe_read_kernel:
+		return &bpf_probe_read_kernel_proto;
+	case BPF_FUNC_probe_read_user_str:
+		return &bpf_probe_read_user_str_proto;
+	case BPF_FUNC_probe_read_kernel_str:
+		return &bpf_probe_read_kernel_str_proto;
+	default:
+		return NULL;
+	}
+}

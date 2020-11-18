@@ -157,7 +157,7 @@ repeat the following step as needed::
 	echo 1 > activate - start timer = duration to run once
 	echo none > trigger
 
-This trigger is intended to be used for for the following example use cases:
+This trigger is intended to be used for the following example use cases:
 
  - Control of vibrate (phones, tablets etc.) hardware by user space app.
  - Use of LED by user space app as activity indicator.

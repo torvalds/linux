@@ -80,14 +80,14 @@ examples:
         ranges = <1 0x00000000 0x42000000 0x02000000>,
                  <5 0x00000000 0x46000000 0x01000000>;
 
-        ethernet@1,01f00000 {
+        ethernet@1,1f00000 {
             compatible = "smsc,lan9115";
             reg = <1 0x01f00000 0x1000>;
             interrupts = <0 48 4>;
             phy-mode = "mii";
         };
 
-        uart@5,00200000 {
+        serial@5,200000 {
             compatible = "ns16550a";
             reg = <5 0x00200000 0x20>;
             interrupts = <0 49 4>;

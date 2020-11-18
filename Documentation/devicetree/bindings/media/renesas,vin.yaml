@@ -116,10 +116,9 @@ properties:
   #The per-board settings for Gen3 and RZ/G2 platforms:
   renesas,id:
     description: VIN channel number
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - minimum: 0
-      - maximum: 15
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 15
 
   ports:
     type: object
@@ -261,13 +260,13 @@ properties:
 
         anyOf:
           - required:
-            - endpoint@0
+              - endpoint@0
           - required:
-            - endpoint@1
+              - endpoint@1
           - required:
-            - endpoint@2
+              - endpoint@2
           - required:
-            - endpoint@3
+              - endpoint@3
 
         additionalProperties: false
 
@@ -307,7 +306,7 @@ examples:
     vin1: vin@e6ef1000 {
             compatible = "renesas,vin-r8a7790",
                          "renesas,rcar-gen2-vin";
-            reg = <0 0xe6ef1000 0 0x1000>;
+            reg = <0xe6ef1000 0x1000>;
             interrupts = <GIC_SPI 189 IRQ_TYPE_LEVEL_HIGH>;
             clocks = <&cpg CPG_MOD 810>;
             power-domains = <&sysc R8A7790_PD_ALWAYS_ON>;
@@ -329,7 +328,7 @@ examples:
 
     vin0: video@e6ef0000 {
             compatible = "renesas,vin-r8a7795";
-            reg = <0 0xe6ef0000 0 0x1000>;
+            reg = <0xe6ef0000 0x1000>;
             interrupts = <GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH>;
             clocks = <&cpg CPG_MOD 811>;
             power-domains = <&sysc R8A7795_PD_ALWAYS_ON>;
@@ -366,7 +365,7 @@ examples:
 
     vin2: video@e6ef2000 {
             compatible = "renesas,vin-r8a77970";
-            reg = <0 0xe6ef2000 0 0x1000>;
+            reg = <0xe6ef2000 0x1000>;
             interrupts = <GIC_SPI 190 IRQ_TYPE_LEVEL_HIGH>;
             clocks = <&cpg CPG_MOD 809>;
             power-domains = <&sysc R8A77970_PD_ALWAYS_ON>;

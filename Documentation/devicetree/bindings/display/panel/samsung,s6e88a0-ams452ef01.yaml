@@ -18,9 +18,9 @@ properties:
   reg: true
   reset-gpios: true
   vdd3-supply:
-     description: core voltage supply
+    description: core voltage supply
   vci-supply:
-     description: voltage supply for analog circuits
+    description: voltage supply for analog circuits
 
 required:
   - compatible

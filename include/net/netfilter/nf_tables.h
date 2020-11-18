@@ -143,6 +143,8 @@ static inline u64 nft_reg_load64(const u32 *sreg)
 static inline void nft_data_copy(u32 *dst, const struct nft_data *src,
 				 unsigned int len)
 {
+	if (len % NFT_REG32_SIZE)
+		dst[len / NFT_REG32_SIZE] = 0;
 	memcpy(dst, src, len);
 }
 
@@ -243,6 +245,10 @@ struct nft_set_elem {
 		u32		buf[NFT_DATA_VALUE_MAXLEN / sizeof(u32)];
 		struct nft_data	val;
 	} key_end;
+	union {
+		u32		buf[NFT_DATA_VALUE_MAXLEN / sizeof(u32)];
+		struct nft_data val;
+	} data;
 	void			*priv;
 };
 
@@ -895,6 +901,8 @@ static inline struct nft_userdata *nft_userdata(const struct nft_rule *rule)
 	return (void *)&rule->data[rule->dlen];
 }
 
+void nf_tables_rule_release(const struct nft_ctx *ctx, struct nft_rule *rule);
+
 static inline void nft_set_elem_update_expr(const struct nft_set_ext *ext,
 					    struct nft_regs *regs,
 					    const struct nft_pktinfo *pkt)
@@ -916,11 +924,6 @@ static inline void nft_set_elem_update_expr(const struct nft_set_ext *ext,
 	for ((expr) = nft_expr_first(rule), (last) = nft_expr_last(rule); \
 	     (expr) != (last); \
 	     (expr) = nft_expr_next(expr))
-
-enum nft_chain_flags {
-	NFT_BASE_CHAIN			= 0x1,
-	NFT_CHAIN_HW_OFFLOAD		= 0x2,
-};
 
 #define NFT_CHAIN_POLICY_UNSET		U8_MAX
 
@@ -945,7 +948,8 @@ struct nft_chain {
 	struct nft_table		*table;
 	u64				handle;
 	u32				use;
-	u8				flags:6,
+	u8				flags:5,
+					bound:1,
 					genmask:2;
 	char				*name;
 
@@ -990,6 +994,14 @@ int nft_chain_validate_dependency(const struct nft_chain *chain,
 int nft_chain_validate_hooks(const struct nft_chain *chain,
                              unsigned int hook_flags);
 
+static inline bool nft_chain_is_bound(struct nft_chain *chain)
+{
+	return (chain->flags & NFT_CHAIN_BINDING) && chain->bound;
+}
+
+void nft_chain_del(struct nft_chain *chain);
+void nf_tables_chain_destroy(struct nft_ctx *ctx);
+
 struct nft_stats {
 	u64			bytes;
 	u64			pkts;
@@ -998,6 +1010,7 @@ struct nft_stats {
 
 struct nft_hook {
 	struct list_head	list;
+	bool			inactive;
 	struct nf_hook_ops	ops;
 	struct rcu_head		rcu;
 };
@@ -1031,7 +1044,7 @@ static inline struct nft_base_chain *nft_base_chain(const struct nft_chain *chai
 
 static inline bool nft_is_base_chain(const struct nft_chain *chain)
 {
-	return chain->flags & NFT_BASE_CHAIN;
+	return chain->flags & NFT_CHAIN_BASE;
 }
 
 int __nft_release_basechain(struct nft_ctx *ctx);
@@ -1428,6 +1441,7 @@ struct nft_trans_chain {
 	char				*name;
 	struct nft_stats __percpu	*stats;
 	u8				policy;
+	u32				chain_id;
 };
 
 #define nft_trans_chain_update(trans)	\
@@ -1438,6 +1452,8 @@ struct nft_trans_chain {
 	(((struct nft_trans_chain *)trans->data)->stats)
 #define nft_trans_chain_policy(trans)	\
 	(((struct nft_trans_chain *)trans->data)->policy)
+#define nft_trans_chain_id(trans)	\
+	(((struct nft_trans_chain *)trans->data)->chain_id)
 
 struct nft_trans_table {
 	bool				update;
@@ -1477,14 +1493,22 @@ struct nft_trans_obj {
 
 struct nft_trans_flowtable {
 	struct nft_flowtable		*flowtable;
+	bool				update;
+	struct list_head		hook_list;
 };
 
 #define nft_trans_flowtable(trans)	\
 	(((struct nft_trans_flowtable *)trans->data)->flowtable)
+#define nft_trans_flowtable_update(trans)	\
+	(((struct nft_trans_flowtable *)trans->data)->update)
+#define nft_trans_flowtable_hooks(trans)	\
+	(((struct nft_trans_flowtable *)trans->data)->hook_list)
 
 int __init nft_chain_filter_init(void);
 void nft_chain_filter_fini(void);
 
 void __init nft_chain_route_init(void);
 void nft_chain_route_fini(void);
+
+void nf_tables_trans_destroy_flush_work(void);
 #endif /* _NET_NF_TABLES_H */

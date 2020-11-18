@@ -14,11 +14,11 @@
 
 struct idr scif_ports;
 
-/*
+/**
  * struct scif_port - SCIF port information
  *
- * @ref_cnt - Reference count since there can be multiple endpoints
- *		created via scif_accept(..) simultaneously using a port.
+ * @ref_cnt:  Reference count since there can be multiple endpoints
+ *	      created via scif_accept(..) simultaneously using a port.
  */
 struct scif_port {
 	int ref_cnt;
@@ -27,7 +27,8 @@ struct scif_port {
 /**
  * __scif_get_port - Reserve a specified port # for SCIF and add it
  * to the global list.
- * @port : port # to be reserved.
+ * @start: lowest port # to be reserved (inclusive).
+ * @end:   highest port # to be reserved (exclusive).
  *
  * @return : Allocated SCIF port #, or -ENOSPC if port unavailable.
  *		On memory allocation failure, returns -ENOMEM.

@@ -375,8 +375,9 @@
 		239 = /dev/uhid		User-space I/O driver support for HID subsystem
 		240 = /dev/userio	Serio driver testing device
 		241 = /dev/vhost-vsock	Host kernel driver for virtio vsock
+		242 = /dev/rfkill	Turning off radio transmissions (rfkill)
 
-		242-254			Reserved for local use
+		243-254			Reserved for local use
 		255			Reserved for MISC_DYNAMIC_MINOR
 
   11 char	Raw keyboard device	(Linux/SPARC only)
@@ -1442,7 +1443,7 @@
 		    ...
 
 		The driver and documentation may be obtained from
-		http://www.winradio.com/
+		https://www.winradio.com/
 
   82 block	I2O hard disk
 		  0 = /dev/i2o/hdag	33rd I2O hard disk, whole disk
@@ -1656,12 +1657,12 @@
 		dynamically, so there is no fixed mapping from subdevice
 		pathnames to minor numbers.
 
-		See http://www.comedi.org/ for information about the Comedi
+		See https://www.comedi.org/ for information about the Comedi
 		project.
 
   98 block	User-mode virtual block device
 		  0 = /dev/ubda		First user-mode block device
-		 16 = /dev/udbb		Second user-mode block device
+		 16 = /dev/ubdb		Second user-mode block device
 		    ...
 
 		Partitions are handled in the same way as for IDE
@@ -1723,7 +1724,7 @@
 		implementations a kernel presence for caching and easy
 		mounting.  For more information about the project,
 		write to <arla-drinkers@stacken.kth.se> or see
-		http://www.stacken.kth.se/project/arla/
+		https://www.stacken.kth.se/project/arla/
 
  103 block	Audit device
 		  0 = /dev/audit	Audit device

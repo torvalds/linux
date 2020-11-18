@@ -68,8 +68,13 @@ enum {
 #define IMX_MEDIA_EOF_TIMEOUT       1000
 
 struct imx_media_pixfmt {
+	/* the in-memory FourCC pixel format */
 	u32     fourcc;
-	u32     codes[4];
+	/*
+	 * the set of equivalent media bus codes for the fourcc.
+	 * NOTE! codes pointer is NULL for in-memory-only formats.
+	 */
+	const u32 *codes;
 	int     bpp;     /* total bpp */
 	/* cycles per pixel for generic (bayer) formats for the parallel bus */
 	int	cycles;
@@ -77,6 +82,15 @@ struct imx_media_pixfmt {
 	bool    planar;  /* is a planar format */
 	bool    bayer;   /* is a raw bayer format */
 	bool    ipufmt;  /* is one of the IPU internal formats */
+};
+
+enum imx_pixfmt_sel {
+	PIXFMT_SEL_YUV   = BIT(0), /* select YUV formats */
+	PIXFMT_SEL_RGB   = BIT(1), /* select RGB formats */
+	PIXFMT_SEL_BAYER = BIT(2), /* select BAYER formats */
+	PIXFMT_SEL_IPU   = BIT(3), /* select IPU-internal formats */
+	PIXFMT_SEL_YUV_RGB = PIXFMT_SEL_YUV | PIXFMT_SEL_RGB,
+	PIXFMT_SEL_ANY = PIXFMT_SEL_YUV | PIXFMT_SEL_RGB | PIXFMT_SEL_BAYER,
 };
 
 struct imx_media_buffer {
@@ -149,24 +163,29 @@ struct imx_media_dev {
 	struct v4l2_subdev *sync_sd[2][NUM_IPU_SUBDEVS];
 };
 
-enum codespace_sel {
-	CS_SEL_YUV = 0,
-	CS_SEL_RGB,
-	CS_SEL_ANY,
-};
-
 /* imx-media-utils.c */
 const struct imx_media_pixfmt *
-imx_media_find_format(u32 fourcc, enum codespace_sel cs_sel, bool allow_bayer);
-int imx_media_enum_format(u32 *fourcc, u32 index, enum codespace_sel cs_sel);
+imx_media_find_pixel_format(u32 fourcc, enum imx_pixfmt_sel sel);
+int imx_media_enum_pixel_formats(u32 *fourcc, u32 index,
+				 enum imx_pixfmt_sel sel);
 const struct imx_media_pixfmt *
-imx_media_find_mbus_format(u32 code, enum codespace_sel cs_sel,
-			   bool allow_bayer);
-int imx_media_enum_mbus_format(u32 *code, u32 index, enum codespace_sel cs_sel,
-			       bool allow_bayer);
-const struct imx_media_pixfmt *
-imx_media_find_ipu_format(u32 code, enum codespace_sel cs_sel);
-int imx_media_enum_ipu_format(u32 *code, u32 index, enum codespace_sel cs_sel);
+imx_media_find_mbus_format(u32 code, enum imx_pixfmt_sel sel);
+int imx_media_enum_mbus_formats(u32 *code, u32 index,
+				enum imx_pixfmt_sel sel);
+
+static inline const struct imx_media_pixfmt *
+imx_media_find_ipu_format(u32 code, enum imx_pixfmt_sel fmt_sel)
+{
+	return imx_media_find_mbus_format(code, fmt_sel | PIXFMT_SEL_IPU);
+}
+
+static inline int imx_media_enum_ipu_formats(u32 *code, u32 index,
+					     enum imx_pixfmt_sel fmt_sel)
+{
+	return imx_media_enum_mbus_formats(code, index,
+					  fmt_sel | PIXFMT_SEL_IPU);
+}
+
 int imx_media_init_mbus_fmt(struct v4l2_mbus_framefmt *mbus,
 			    u32 width, u32 height, u32 code, u32 field,
 			    const struct imx_media_pixfmt **cc);
@@ -175,12 +194,12 @@ int imx_media_init_cfg(struct v4l2_subdev *sd,
 void imx_media_try_colorimetry(struct v4l2_mbus_framefmt *tryfmt,
 			       bool ic_route);
 int imx_media_mbus_fmt_to_pix_fmt(struct v4l2_pix_format *pix,
-				  struct v4l2_mbus_framefmt *mbus,
+				  const struct v4l2_mbus_framefmt *mbus,
 				  const struct imx_media_pixfmt *cc);
 int imx_media_mbus_fmt_to_ipu_image(struct ipu_image *image,
-				    struct v4l2_mbus_framefmt *mbus);
+				    const struct v4l2_mbus_framefmt *mbus);
 int imx_media_ipu_image_to_mbus_fmt(struct v4l2_mbus_framefmt *mbus,
-				    struct ipu_image *image);
+				    const struct ipu_image *image);
 void imx_media_grp_id_to_sd_name(char *sd_name, int sz,
 				 u32 grp_id, int ipu_id);
 struct v4l2_subdev *
@@ -201,6 +220,7 @@ imx_media_pipeline_subdev(struct media_entity *start_entity, u32 grp_id,
 struct video_device *
 imx_media_pipeline_video_device(struct media_entity *start_entity,
 				enum v4l2_buf_type buftype, bool upstream);
+struct fwnode_handle *imx_media_get_pad_fwnode(struct media_pad *pad);
 
 struct imx_media_dma_buf {
 	void          *virt;
@@ -243,10 +263,6 @@ void imx_media_unregister_ipu_internal_subdevs(struct imx_media_dev *imxmd);
 /* imx-media-of.c */
 int imx_media_add_of_subdevs(struct imx_media_dev *dev,
 			     struct device_node *np);
-int imx_media_create_of_links(struct imx_media_dev *imxmd,
-			      struct v4l2_subdev *sd);
-int imx_media_create_csi_of_links(struct imx_media_dev *imxmd,
-				  struct v4l2_subdev *csi);
 int imx_media_of_add_csi(struct imx_media_dev *imxmd,
 			 struct device_node *csi_np);
 
@@ -292,5 +308,6 @@ void imx_media_csc_scaler_device_unregister(struct imx_media_video_dev *vdev);
 #define IMX_MEDIA_GRP_ID_IPU_IC_PRP    BIT(13)
 #define IMX_MEDIA_GRP_ID_IPU_IC_PRPENC BIT(14)
 #define IMX_MEDIA_GRP_ID_IPU_IC_PRPVF  BIT(15)
+#define IMX_MEDIA_GRP_ID_CSI_MUX       BIT(16)
 
 #endif

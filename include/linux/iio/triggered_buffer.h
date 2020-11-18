@@ -18,7 +18,5 @@ int devm_iio_triggered_buffer_setup(struct device *dev,
 				    irqreturn_t (*h)(int irq, void *p),
 				    irqreturn_t (*thread)(int irq, void *p),
 				    const struct iio_buffer_setup_ops *ops);
-void devm_iio_triggered_buffer_cleanup(struct device *dev,
-				       struct iio_dev *indio_dev);
 
 #endif

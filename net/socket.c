@@ -500,7 +500,7 @@ static struct socket *sockfd_lookup_light(int fd, int *err, int *fput_needed)
 	if (f.file) {
 		sock = sock_from_file(f.file, err);
 		if (likely(sock)) {
-			*fput_needed = f.flags;
+			*fput_needed = f.flags & FDPUT_FPUT;
 			return sock;
 		}
 		fdput(f);
@@ -586,15 +586,6 @@ struct socket *sock_alloc(void)
 }
 EXPORT_SYMBOL(sock_alloc);
 
-/**
- *	sock_release - close a socket
- *	@sock: socket to close
- *
- *	The socket is released from the protocol stack if it has a release
- *	callback, and the inode is then released if the socket is bound to
- *	an inode not a file.
- */
-
 static void __sock_release(struct socket *sock, struct inode *inode)
 {
 	if (sock->ops) {
@@ -620,6 +611,14 @@ static void __sock_release(struct socket *sock, struct inode *inode)
 	sock->file = NULL;
 }
 
+/**
+ *	sock_release - close a socket
+ *	@sock: socket to close
+ *
+ *	The socket is released from the protocol stack if it has a release
+ *	callback, and the inode is then released if the socket is bound to
+ *	an inode not a file.
+ */
 void sock_release(struct socket *sock)
 {
 	__sock_release(sock, NULL);
@@ -924,14 +923,9 @@ EXPORT_SYMBOL(sock_recvmsg);
 int kernel_recvmsg(struct socket *sock, struct msghdr *msg,
 		   struct kvec *vec, size_t num, size_t size, int flags)
 {
-	mm_segment_t oldfs = get_fs();
-	int result;
-
+	msg->msg_control_is_user = false;
 	iov_iter_kvec(&msg->msg_iter, READ, vec, num, size);
-	set_fs(KERNEL_DS);
-	result = sock_recvmsg(sock, msg, flags);
-	set_fs(oldfs);
-	return result;
+	return sock_recvmsg(sock, msg, flags);
 }
 EXPORT_SYMBOL(kernel_recvmsg);
 
@@ -1331,7 +1325,7 @@ int sock_wake_async(struct socket_wq *wq, int how, int band)
 	case SOCK_WAKE_SPACE:
 		if (!test_and_clear_bit(SOCKWQ_ASYNC_NOSPACE, &wq->flags))
 			break;
-		/* fall through */
+		fallthrough;
 	case SOCK_WAKE_IO:
 call_kill:
 		kill_fasync(&wq->fasync_list, SIGIO, band);
@@ -1810,8 +1804,7 @@ int __sys_accept4(int fd, struct sockaddr __user *upeer_sockaddr,
 		ret = __sys_accept4_file(f.file, 0, upeer_sockaddr,
 						upeer_addrlen, flags,
 						rlimit(RLIMIT_NOFILE));
-		if (f.flags)
-			fput(f.file);
+		fdput(f);
 	}
 
 	return ret;
@@ -1874,8 +1867,7 @@ int __sys_connect(int fd, struct sockaddr __user *uservaddr, int addrlen)
 		ret = move_addr_to_kernel(uservaddr, addrlen, &address);
 		if (!ret)
 			ret = __sys_connect_file(f.file, &address, addrlen, 0);
-		if (f.flags)
-			fput(f.file);
+		fdput(f);
 	}
 
 	return ret;
@@ -2085,15 +2077,25 @@ SYSCALL_DEFINE4(recv, int, fd, void __user *, ubuf, size_t, size,
 	return __sys_recvfrom(fd, ubuf, size, flags, NULL, NULL);
 }
 
+static bool sock_use_custom_sol_socket(const struct socket *sock)
+{
+	const struct sock *sk = sock->sk;
+
+	/* Use sock->ops->setsockopt() for MPTCP */
+	return IS_ENABLED(CONFIG_MPTCP) &&
+	       sk->sk_protocol == IPPROTO_MPTCP &&
+	       sk->sk_type == SOCK_STREAM &&
+	       (sk->sk_family == AF_INET || sk->sk_family == AF_INET6);
+}
+
 /*
  *	Set a socket option. Because we don't know the option lengths we have
  *	to pass the user mode parameter for the protocols to sort out.
  */
-
-static int __sys_setsockopt(int fd, int level, int optname,
-			    char __user *optval, int optlen)
+int __sys_setsockopt(int fd, int level, int optname, char __user *user_optval,
+		int optlen)
 {
-	mm_segment_t oldfs = get_fs();
+	sockptr_t optval = USER_SOCKPTR(user_optval);
 	char *kernel_optval = NULL;
 	int err, fput_needed;
 	struct socket *sock;
@@ -2102,43 +2104,36 @@ static int __sys_setsockopt(int fd, int level, int optname,
 		return -EINVAL;
 
 	sock = sockfd_lookup_light(fd, &err, &fput_needed);
-	if (sock != NULL) {
-		err = security_socket_setsockopt(sock, level, optname);
-		if (err)
-			goto out_put;
+	if (!sock)
+		return err;
 
-		err = BPF_CGROUP_RUN_PROG_SETSOCKOPT(sock->sk, &level,
-						     &optname, optval, &optlen,
+	err = security_socket_setsockopt(sock, level, optname);
+	if (err)
+		goto out_put;
+
+	if (!in_compat_syscall())
+		err = BPF_CGROUP_RUN_PROG_SETSOCKOPT(sock->sk, &level, &optname,
+						     user_optval, &optlen,
 						     &kernel_optval);
-
-		if (err < 0) {
-			goto out_put;
-		} else if (err > 0) {
-			err = 0;
-			goto out_put;
-		}
-
-		if (kernel_optval) {
-			set_fs(KERNEL_DS);
-			optval = (char __user __force *)kernel_optval;
-		}
-
-		if (level == SOL_SOCKET)
-			err =
-			    sock_setsockopt(sock, level, optname, optval,
-					    optlen);
-		else
-			err =
-			    sock->ops->setsockopt(sock, level, optname, optval,
-						  optlen);
-
-		if (kernel_optval) {
-			set_fs(oldfs);
-			kfree(kernel_optval);
-		}
-out_put:
-		fput_light(sock->file, fput_needed);
+	if (err < 0)
+		goto out_put;
+	if (err > 0) {
+		err = 0;
+		goto out_put;
 	}
+
+	if (kernel_optval)
+		optval = KERNEL_SOCKPTR(kernel_optval);
+	if (level == SOL_SOCKET && !sock_use_custom_sol_socket(sock))
+		err = sock_setsockopt(sock, level, optname, optval, optlen);
+	else if (unlikely(!sock->ops->setsockopt))
+		err = -EOPNOTSUPP;
+	else
+		err = sock->ops->setsockopt(sock, level, optname, optval,
+					    optlen);
+	kfree(kernel_optval);
+out_put:
+	fput_light(sock->file, fput_needed);
 	return err;
 }
 
@@ -2152,37 +2147,38 @@ SYSCALL_DEFINE5(setsockopt, int, fd, int, level, int, optname,
  *	Get a socket option. Because we don't know the option lengths we have
  *	to pass a user mode parameter for the protocols to sort out.
  */
-
-static int __sys_getsockopt(int fd, int level, int optname,
-			    char __user *optval, int __user *optlen)
+int __sys_getsockopt(int fd, int level, int optname, char __user *optval,
+		int __user *optlen)
 {
 	int err, fput_needed;
 	struct socket *sock;
 	int max_optlen;
 
 	sock = sockfd_lookup_light(fd, &err, &fput_needed);
-	if (sock != NULL) {
-		err = security_socket_getsockopt(sock, level, optname);
-		if (err)
-			goto out_put;
+	if (!sock)
+		return err;
 
+	err = security_socket_getsockopt(sock, level, optname);
+	if (err)
+		goto out_put;
+
+	if (!in_compat_syscall())
 		max_optlen = BPF_CGROUP_GETSOCKOPT_MAX_OPTLEN(optlen);
 
-		if (level == SOL_SOCKET)
-			err =
-			    sock_getsockopt(sock, level, optname, optval,
+	if (level == SOL_SOCKET)
+		err = sock_getsockopt(sock, level, optname, optval, optlen);
+	else if (unlikely(!sock->ops->getsockopt))
+		err = -EOPNOTSUPP;
+	else
+		err = sock->ops->getsockopt(sock, level, optname, optval,
 					    optlen);
-		else
-			err =
-			    sock->ops->getsockopt(sock, level, optname, optval,
-						  optlen);
 
+	if (!in_compat_syscall())
 		err = BPF_CGROUP_RUN_PROG_GETSOCKOPT(sock->sk, level, optname,
-						     optval, optlen,
-						     max_optlen, err);
+						     optval, optlen, max_optlen,
+						     err);
 out_put:
-		fput_light(sock->file, fput_needed);
-	}
+	fput_light(sock->file, fput_needed);
 	return err;
 }
 
@@ -2239,7 +2235,8 @@ int __copy_msghdr_from_user(struct msghdr *kmsg,
 	if (copy_from_user(&msg, umsg, sizeof(*umsg)))
 		return -EFAULT;
 
-	kmsg->msg_control = (void __force *)msg.msg_control;
+	kmsg->msg_control_is_user = true;
+	kmsg->msg_control_user = msg.msg_control;
 	kmsg->msg_controllen = msg.msg_controllen;
 	kmsg->msg_flags = msg.msg_flags;
 
@@ -2331,16 +2328,10 @@ static int ____sys_sendmsg(struct socket *sock, struct msghdr *msg_sys,
 				goto out;
 		}
 		err = -EFAULT;
-		/*
-		 * Careful! Before this, msg_sys->msg_control contains a user pointer.
-		 * Afterwards, it will be a kernel pointer. Thus the compiler-assisted
-		 * checking falls down on this.
-		 */
-		if (copy_from_user(ctl_buf,
-				   (void __user __force *)msg_sys->msg_control,
-				   ctl_len))
+		if (copy_from_user(ctl_buf, msg_sys->msg_control_user, ctl_len))
 			goto out_freectl;
 		msg_sys->msg_control = ctl_buf;
+		msg_sys->msg_control_is_user = false;
 	}
 	msg_sys->msg_flags = flags;
 
@@ -3068,7 +3059,7 @@ static int __init sock_init(void)
 
 	err = register_filesystem(&sock_fs_type);
 	if (err)
-		goto out_fs;
+		goto out;
 	sock_mnt = kern_mount(&sock_fs_type);
 	if (IS_ERR(sock_mnt)) {
 		err = PTR_ERR(sock_mnt);
@@ -3091,7 +3082,6 @@ out:
 
 out_mount:
 	unregister_filesystem(&sock_fs_type);
-out_fs:
 	goto out;
 }
 
@@ -3164,13 +3154,13 @@ static int ethtool_ioctl(struct net *net, struct compat_ifreq __user *ifr32)
 		if (rule_cnt > KMALLOC_MAX_SIZE / sizeof(u32))
 			return -ENOMEM;
 		buf_size += rule_cnt * sizeof(u32);
-		/* fall through */
+		fallthrough;
 	case ETHTOOL_GRXRINGS:
 	case ETHTOOL_GRXCLSRLCNT:
 	case ETHTOOL_GRXCLSRULE:
 	case ETHTOOL_SRXCLSRLINS:
 		convert_out = true;
-		/* fall through */
+		fallthrough;
 	case ETHTOOL_SRXCLSRLDEL:
 		buf_size += sizeof(struct ethtool_rxnfc);
 		convert_in = true;
@@ -3376,94 +3366,6 @@ static int compat_sioc_ifmap(struct net *net, unsigned int cmd,
 	return err;
 }
 
-struct rtentry32 {
-	u32		rt_pad1;
-	struct sockaddr rt_dst;         /* target address               */
-	struct sockaddr rt_gateway;     /* gateway addr (RTF_GATEWAY)   */
-	struct sockaddr rt_genmask;     /* target network mask (IP)     */
-	unsigned short	rt_flags;
-	short		rt_pad2;
-	u32		rt_pad3;
-	unsigned char	rt_tos;
-	unsigned char	rt_class;
-	short		rt_pad4;
-	short		rt_metric;      /* +1 for binary compatibility! */
-	/* char * */ u32 rt_dev;        /* forcing the device at add    */
-	u32		rt_mtu;         /* per route MTU/Window         */
-	u32		rt_window;      /* Window clamping              */
-	unsigned short  rt_irtt;        /* Initial RTT                  */
-};
-
-struct in6_rtmsg32 {
-	struct in6_addr		rtmsg_dst;
-	struct in6_addr		rtmsg_src;
-	struct in6_addr		rtmsg_gateway;
-	u32			rtmsg_type;
-	u16			rtmsg_dst_len;
-	u16			rtmsg_src_len;
-	u32			rtmsg_metric;
-	u32			rtmsg_info;
-	u32			rtmsg_flags;
-	s32			rtmsg_ifindex;
-};
-
-static int routing_ioctl(struct net *net, struct socket *sock,
-			 unsigned int cmd, void __user *argp)
-{
-	int ret;
-	void *r = NULL;
-	struct in6_rtmsg r6;
-	struct rtentry r4;
-	char devname[16];
-	u32 rtdev;
-	mm_segment_t old_fs = get_fs();
-
-	if (sock && sock->sk && sock->sk->sk_family == AF_INET6) { /* ipv6 */
-		struct in6_rtmsg32 __user *ur6 = argp;
-		ret = copy_from_user(&r6.rtmsg_dst, &(ur6->rtmsg_dst),
-			3 * sizeof(struct in6_addr));
-		ret |= get_user(r6.rtmsg_type, &(ur6->rtmsg_type));
-		ret |= get_user(r6.rtmsg_dst_len, &(ur6->rtmsg_dst_len));
-		ret |= get_user(r6.rtmsg_src_len, &(ur6->rtmsg_src_len));
-		ret |= get_user(r6.rtmsg_metric, &(ur6->rtmsg_metric));
-		ret |= get_user(r6.rtmsg_info, &(ur6->rtmsg_info));
-		ret |= get_user(r6.rtmsg_flags, &(ur6->rtmsg_flags));
-		ret |= get_user(r6.rtmsg_ifindex, &(ur6->rtmsg_ifindex));
-
-		r = (void *) &r6;
-	} else { /* ipv4 */
-		struct rtentry32 __user *ur4 = argp;
-		ret = copy_from_user(&r4.rt_dst, &(ur4->rt_dst),
-					3 * sizeof(struct sockaddr));
-		ret |= get_user(r4.rt_flags, &(ur4->rt_flags));
-		ret |= get_user(r4.rt_metric, &(ur4->rt_metric));
-		ret |= get_user(r4.rt_mtu, &(ur4->rt_mtu));
-		ret |= get_user(r4.rt_window, &(ur4->rt_window));
-		ret |= get_user(r4.rt_irtt, &(ur4->rt_irtt));
-		ret |= get_user(rtdev, &(ur4->rt_dev));
-		if (rtdev) {
-			ret |= copy_from_user(devname, compat_ptr(rtdev), 15);
-			r4.rt_dev = (char __user __force *)devname;
-			devname[15] = 0;
-		} else
-			r4.rt_dev = NULL;
-
-		r = (void *) &r4;
-	}
-
-	if (ret) {
-		ret = -EFAULT;
-		goto out;
-	}
-
-	set_fs(KERNEL_DS);
-	ret = sock_do_ioctl(net, sock, cmd, (unsigned long) r);
-	set_fs(old_fs);
-
-out:
-	return ret;
-}
-
 /* Since old style bridge ioctl's endup using SIOCDEVPRIVATE
  * for some operations; this forces use of the newer bridge-utils that
  * use compatible ioctls
@@ -3502,9 +3404,6 @@ static int compat_sock_ioctl_trans(struct file *file, struct socket *sock,
 	case SIOCGIFMAP:
 	case SIOCSIFMAP:
 		return compat_sioc_ifmap(net, cmd, argp);
-	case SIOCADDRT:
-	case SIOCDELRT:
-		return routing_ioctl(net, sock, cmd, argp);
 	case SIOCGSTAMP_OLD:
 	case SIOCGSTAMPNS_OLD:
 		if (!sock->ops->gettstamp)
@@ -3711,7 +3610,7 @@ int kernel_getsockname(struct socket *sock, struct sockaddr *addr)
 EXPORT_SYMBOL(kernel_getsockname);
 
 /**
- *	kernel_peername - get the address which the socket is connected (kernel space)
+ *	kernel_getpeername - get the address which the socket is connected (kernel space)
  *	@sock: socket
  *	@addr: address holder
  *
@@ -3724,71 +3623,6 @@ int kernel_getpeername(struct socket *sock, struct sockaddr *addr)
 	return sock->ops->getname(sock, addr, 1);
 }
 EXPORT_SYMBOL(kernel_getpeername);
-
-/**
- *	kernel_getsockopt - get a socket option (kernel space)
- *	@sock: socket
- *	@level: API level (SOL_SOCKET, ...)
- *	@optname: option tag
- *	@optval: option value
- *	@optlen: option length
- *
- *	Assigns the option length to @optlen.
- *	Returns 0 or an error.
- */
-
-int kernel_getsockopt(struct socket *sock, int level, int optname,
-			char *optval, int *optlen)
-{
-	mm_segment_t oldfs = get_fs();
-	char __user *uoptval;
-	int __user *uoptlen;
-	int err;
-
-	uoptval = (char __user __force *) optval;
-	uoptlen = (int __user __force *) optlen;
-
-	set_fs(KERNEL_DS);
-	if (level == SOL_SOCKET)
-		err = sock_getsockopt(sock, level, optname, uoptval, uoptlen);
-	else
-		err = sock->ops->getsockopt(sock, level, optname, uoptval,
-					    uoptlen);
-	set_fs(oldfs);
-	return err;
-}
-EXPORT_SYMBOL(kernel_getsockopt);
-
-/**
- *	kernel_setsockopt - set a socket option (kernel space)
- *	@sock: socket
- *	@level: API level (SOL_SOCKET, ...)
- *	@optname: option tag
- *	@optval: option value
- *	@optlen: option length
- *
- *	Returns 0 or an error.
- */
-
-int kernel_setsockopt(struct socket *sock, int level, int optname,
-			char *optval, unsigned int optlen)
-{
-	mm_segment_t oldfs = get_fs();
-	char __user *uoptval;
-	int err;
-
-	uoptval = (char __user __force *) optval;
-
-	set_fs(KERNEL_DS);
-	if (level == SOL_SOCKET)
-		err = sock_setsockopt(sock, level, optname, uoptval, optlen);
-	else
-		err = sock->ops->setsockopt(sock, level, optname, uoptval,
-					    optlen);
-	set_fs(oldfs);
-	return err;
-}
-EXPORT_SYMBOL(kernel_setsockopt);
 
 /**
  *	kernel_sendpage - send a &page through a socket (kernel space)
@@ -3804,9 +3638,11 @@ EXPORT_SYMBOL(kernel_setsockopt);
 int kernel_sendpage(struct socket *sock, struct page *page, int offset,
 		    size_t size, int flags)
 {
-	if (sock->ops->sendpage)
+	if (sock->ops->sendpage) {
+		/* Warn in case the improper page to zero-copy send */
+		WARN_ONCE(!sendpage_ok(page), "improper page for zero-copy send");
 		return sock->ops->sendpage(sock, page, offset, size, flags);
-
+	}
 	return sock_no_sendpage(sock, page, offset, size, flags);
 }
 EXPORT_SYMBOL(kernel_sendpage);
@@ -3837,7 +3673,7 @@ int kernel_sendpage_locked(struct sock *sk, struct page *page, int offset,
 EXPORT_SYMBOL(kernel_sendpage_locked);
 
 /**
- *	kernel_shutdown - shut down part of a full-duplex connection (kernel space)
+ *	kernel_sock_shutdown - shut down part of a full-duplex connection (kernel space)
  *	@sock: socket
  *	@how: connection part
  *

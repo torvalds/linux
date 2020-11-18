@@ -5,10 +5,9 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2019        Intel Deutschland GmbH
+ * Copyright(c) 2012 - 2014, 2019 - 2020 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -28,10 +27,9 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2019        Intel Deutschland GmbH
+ * Copyright(c) 2012 - 2014, 2019 - 2020 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -67,6 +65,12 @@
 
 #define SOC_CONFIG_CMD_FLAGS_DISCRETE		BIT(0)
 #define SOC_CONFIG_CMD_FLAGS_LOW_LATENCY	BIT(1)
+
+#define SOC_FLAGS_LTR_APPLY_DELAY_MASK		0xc
+#define SOC_FLAGS_LTR_APPLY_DELAY_NONE		0
+#define SOC_FLAGS_LTR_APPLY_DELAY_200		1
+#define SOC_FLAGS_LTR_APPLY_DELAY_2500		2
+#define SOC_FLAGS_LTR_APPLY_DELAY_1820		3
 
 /**
  * struct iwl_soc_configuration_cmd - Set device stabilization latency

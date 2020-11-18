@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018, 2020 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -18,7 +18,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018, 2020 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -93,6 +93,11 @@ enum iwl_prph_scratch_mtr_format {
  * @IWL_PRPH_SCRATCH_MTR_FORMAT: a mask for the size of the tfd.
  *	There are 4 optional values: 0: 16 bit, 1: 32 bit, 2: 64 bit,
  *	3: 256 bit.
+ * @IWL_PRPH_SCRATCH_RB_SIZE_EXT_MASK: RB size full information, ignored
+ *	by older firmware versions, so set IWL_PRPH_SCRATCH_RB_SIZE_4K
+ *	appropriately; use the below values for this.
+ * @IWL_PRPH_SCRATCH_RB_SIZE_EXT_8K: 8kB RB size
+ * @IWL_PRPH_SCRATCH_RB_SIZE_EXT_12K: 12kB RB size
  */
 enum iwl_prph_scratch_flags {
 	IWL_PRPH_SCRATCH_EARLY_DEBUG_EN		= BIT(4),
@@ -103,6 +108,9 @@ enum iwl_prph_scratch_flags {
 	IWL_PRPH_SCRATCH_RB_SIZE_4K		= BIT(16),
 	IWL_PRPH_SCRATCH_MTR_MODE		= BIT(17),
 	IWL_PRPH_SCRATCH_MTR_FORMAT		= BIT(18) | BIT(19),
+	IWL_PRPH_SCRATCH_RB_SIZE_EXT_MASK	= 0xf << 20,
+	IWL_PRPH_SCRATCH_RB_SIZE_EXT_8K		= 8 << 20,
+	IWL_PRPH_SCRATCH_RB_SIZE_EXT_12K	= 9 << 20,
 };
 
 /*

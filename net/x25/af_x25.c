@@ -431,7 +431,7 @@ void x25_destroy_socket_from_timer(struct sock *sk)
  */
 
 static int x25_setsockopt(struct socket *sock, int level, int optname,
-			  char __user *optval, unsigned int optlen)
+			  sockptr_t optval, unsigned int optlen)
 {
 	int opt;
 	struct sock *sk = sock->sk;
@@ -445,7 +445,7 @@ static int x25_setsockopt(struct socket *sock, int level, int optname,
 		goto out;
 
 	rc = -EFAULT;
-	if (get_user(opt, (int __user *)optval))
+	if (copy_from_sockptr(&opt, optval, sizeof(int)))
 		goto out;
 
 	if (opt)

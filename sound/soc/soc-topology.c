@@ -246,8 +246,8 @@ static inline void soc_control_err(struct soc_tplg *tplg,
 }
 
 /* pass vendor data to component driver for processing */
-static int soc_tplg_vendor_load_(struct soc_tplg *tplg,
-	struct snd_soc_tplg_hdr *hdr)
+static int soc_tplg_vendor_load(struct soc_tplg *tplg,
+				struct snd_soc_tplg_hdr *hdr)
 {
 	int ret = 0;
 
@@ -266,16 +266,6 @@ static int soc_tplg_vendor_load_(struct soc_tplg *tplg,
 			soc_tplg_get_hdr_offset(tplg),
 			hdr->type, hdr->vendor_type);
 	return ret;
-}
-
-/* pass vendor data to component driver for processing */
-static int soc_tplg_vendor_load(struct soc_tplg *tplg,
-	struct snd_soc_tplg_hdr *hdr)
-{
-	if (tplg->pass != SOC_TPLG_PASS_VENDOR)
-		return 0;
-
-	return soc_tplg_vendor_load_(tplg, hdr);
 }
 
 /* optionally pass new dynamic widget to component driver. This is mainly for
@@ -751,7 +741,8 @@ static int soc_tplg_dbytes_create(struct soc_tplg *tplg, unsigned int count,
 	struct snd_soc_tplg_bytes_control *be;
 	struct soc_bytes_ext *sbe;
 	struct snd_kcontrol_new kc;
-	int i, err;
+	int i;
+	int err = 0;
 
 	if (soc_tplg_check_elem_count(tplg,
 		sizeof(struct snd_soc_tplg_bytes_control), count,
@@ -796,7 +787,7 @@ static int soc_tplg_dbytes_create(struct soc_tplg *tplg, unsigned int count,
 		if (err) {
 			soc_control_err(tplg, &be->hdr, be->hdr.name);
 			kfree(sbe);
-			continue;
+			break;
 		}
 
 		/* pass control to driver for optional further init */
@@ -806,7 +797,7 @@ static int soc_tplg_dbytes_create(struct soc_tplg *tplg, unsigned int count,
 			dev_err(tplg->dev, "ASoC: failed to init %s\n",
 				be->hdr.name);
 			kfree(sbe);
-			continue;
+			break;
 		}
 
 		/* register control here */
@@ -816,12 +807,12 @@ static int soc_tplg_dbytes_create(struct soc_tplg *tplg, unsigned int count,
 			dev_err(tplg->dev, "ASoC: failed to add %s\n",
 				be->hdr.name);
 			kfree(sbe);
-			continue;
+			break;
 		}
 
 		list_add(&sbe->dobj.list, &tplg->comp->dobj_list);
 	}
-	return 0;
+	return err;
 
 }
 
@@ -831,7 +822,8 @@ static int soc_tplg_dmixer_create(struct soc_tplg *tplg, unsigned int count,
 	struct snd_soc_tplg_mixer_control *mc;
 	struct soc_mixer_control *sm;
 	struct snd_kcontrol_new kc;
-	int i, err;
+	int i;
+	int err = 0;
 
 	if (soc_tplg_check_elem_count(tplg,
 		sizeof(struct snd_soc_tplg_mixer_control),
@@ -890,7 +882,7 @@ static int soc_tplg_dmixer_create(struct soc_tplg *tplg, unsigned int count,
 		if (err) {
 			soc_control_err(tplg, &mc->hdr, mc->hdr.name);
 			kfree(sm);
-			continue;
+			break;
 		}
 
 		/* create any TLV data */
@@ -899,7 +891,7 @@ static int soc_tplg_dmixer_create(struct soc_tplg *tplg, unsigned int count,
 			dev_err(tplg->dev, "ASoC: failed to create TLV %s\n",
 				mc->hdr.name);
 			kfree(sm);
-			continue;
+			break;
 		}
 
 		/* pass control to driver for optional further init */
@@ -910,7 +902,7 @@ static int soc_tplg_dmixer_create(struct soc_tplg *tplg, unsigned int count,
 				mc->hdr.name);
 			soc_tplg_free_tlv(tplg, &kc);
 			kfree(sm);
-			continue;
+			break;
 		}
 
 		/* register control here */
@@ -921,13 +913,13 @@ static int soc_tplg_dmixer_create(struct soc_tplg *tplg, unsigned int count,
 				mc->hdr.name);
 			soc_tplg_free_tlv(tplg, &kc);
 			kfree(sm);
-			continue;
+			break;
 		}
 
 		list_add(&sm->dobj.list, &tplg->comp->dobj_list);
 	}
 
-	return 0;
+	return err;
 }
 
 static int soc_tplg_denum_create_texts(struct soc_enum *se,
@@ -1007,7 +999,8 @@ static int soc_tplg_denum_create(struct soc_tplg *tplg, unsigned int count,
 	struct snd_soc_tplg_enum_control *ec;
 	struct soc_enum *se;
 	struct snd_kcontrol_new kc;
-	int i, ret, err;
+	int i;
+	int err = 0;
 
 	if (soc_tplg_check_elem_count(tplg,
 		sizeof(struct snd_soc_tplg_enum_control),
@@ -1062,10 +1055,9 @@ static int soc_tplg_denum_create(struct soc_tplg *tplg, unsigned int count,
 				dev_err(tplg->dev,
 					"ASoC: could not create values for %s\n",
 					ec->hdr.name);
-				kfree(se);
-				continue;
+				goto err_denum;
 			}
-			/* fall through */
+			fallthrough;
 		case SND_SOC_TPLG_CTL_ENUM:
 		case SND_SOC_TPLG_DAPM_CTL_ENUM_DOUBLE:
 		case SND_SOC_TPLG_DAPM_CTL_ENUM_VIRT:
@@ -1074,24 +1066,22 @@ static int soc_tplg_denum_create(struct soc_tplg *tplg, unsigned int count,
 				dev_err(tplg->dev,
 					"ASoC: could not create texts for %s\n",
 					ec->hdr.name);
-				kfree(se);
-				continue;
+				goto err_denum;
 			}
 			break;
 		default:
+			err = -EINVAL;
 			dev_err(tplg->dev,
 				"ASoC: invalid enum control type %d for %s\n",
 				ec->hdr.ops.info, ec->hdr.name);
-			kfree(se);
-			continue;
+			goto err_denum;
 		}
 
 		/* map io handlers */
 		err = soc_tplg_kcontrol_bind_io(&ec->hdr, &kc, tplg);
 		if (err) {
 			soc_control_err(tplg, &ec->hdr, ec->hdr.name);
-			kfree(se);
-			continue;
+			goto err_denum;
 		}
 
 		/* pass control to driver for optional further init */
@@ -1100,24 +1090,25 @@ static int soc_tplg_denum_create(struct soc_tplg *tplg, unsigned int count,
 		if (err < 0) {
 			dev_err(tplg->dev, "ASoC: failed to init %s\n",
 				ec->hdr.name);
-			kfree(se);
-			continue;
+			goto err_denum;
 		}
 
 		/* register control here */
-		ret = soc_tplg_add_kcontrol(tplg,
-			&kc, &se->dobj.control.kcontrol);
-		if (ret < 0) {
+		err = soc_tplg_add_kcontrol(tplg,
+					    &kc, &se->dobj.control.kcontrol);
+		if (err < 0) {
 			dev_err(tplg->dev, "ASoC: could not add kcontrol %s\n",
 				ec->hdr.name);
-			kfree(se);
-			continue;
+			goto err_denum;
 		}
 
 		list_add(&se->dobj.list, &tplg->comp->dobj_list);
 	}
-
 	return 0;
+
+err_denum:
+	kfree(se);
+	return err;
 }
 
 static int soc_tplg_kcontrol_elems_load(struct soc_tplg *tplg,
@@ -1126,12 +1117,6 @@ static int soc_tplg_kcontrol_elems_load(struct soc_tplg *tplg,
 	struct snd_soc_tplg_ctl_hdr *control_hdr;
 	int ret;
 	int i;
-
-	if (tplg->pass != SOC_TPLG_PASS_MIXER) {
-		tplg->pos += le32_to_cpu(hdr->size) +
-			le32_to_cpu(hdr->payload_size);
-		return 0;
-	}
 
 	dev_dbg(tplg->dev, "ASoC: adding %d kcontrols at 0x%lx\n", hdr->count,
 		soc_tplg_get_offset(tplg));
@@ -1203,14 +1188,6 @@ static int soc_tplg_dapm_graph_elems_load(struct soc_tplg *tplg,
 	int ret = 0;
 
 	count = le32_to_cpu(hdr->count);
-
-	if (tplg->pass != SOC_TPLG_PASS_GRAPH) {
-		tplg->pos +=
-			le32_to_cpu(hdr->size) +
-			le32_to_cpu(hdr->payload_size);
-
-		return 0;
-	}
 
 	if (soc_tplg_check_elem_count(tplg,
 		sizeof(struct snd_soc_tplg_dapm_graph_elem),
@@ -1285,17 +1262,30 @@ static int soc_tplg_dapm_graph_elems_load(struct soc_tplg *tplg,
 		list_add(&routes[i]->dobj.list, &tplg->comp->dobj_list);
 
 		ret = soc_tplg_add_route(tplg, routes[i]);
-		if (ret < 0)
+		if (ret < 0) {
+			dev_err(tplg->dev, "ASoC: topology: add_route failed: %d\n", ret);
+			/*
+			 * this route was added to the list, it will
+			 * be freed in remove_route() so increment the
+			 * counter to skip it in the error handling
+			 * below.
+			 */
+			i++;
 			break;
+		}
 
 		/* add route, but keep going if some fail */
 		snd_soc_dapm_add_routes(dapm, routes[i], 1);
 	}
 
-	/* free memory allocated for all dapm routes in case of error */
-	if (ret < 0)
-		for (i = 0; i < count ; i++)
-			kfree(routes[i]);
+	/*
+	 * free memory allocated for all dapm routes not added to the
+	 * list in case of error
+	 */
+	if (ret < 0) {
+		while (i < count)
+			kfree(routes[i++]);
+	}
 
 	/*
 	 * free pointer to array of dapm routes as this is no longer needed.
@@ -1373,8 +1363,7 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_dmixer_create(
 		if (err < 0) {
 			dev_err(tplg->dev, "ASoC: failed to create TLV %s\n",
 				mc->hdr.name);
-			kfree(sm);
-			continue;
+			goto err_sm;
 		}
 
 		/* pass control to driver for optional further init */
@@ -1383,7 +1372,6 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_dmixer_create(
 		if (err < 0) {
 			dev_err(tplg->dev, "ASoC: failed to init %s\n",
 				mc->hdr.name);
-			soc_tplg_free_tlv(tplg, &kc[i]);
 			goto err_sm;
 		}
 	}
@@ -1391,6 +1379,7 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_dmixer_create(
 
 err_sm:
 	for (; i >= 0; i--) {
+		soc_tplg_free_tlv(tplg, &kc[i]);
 		sm = (struct soc_mixer_control *)kc[i].private_value;
 		kfree(sm);
 		kfree(kc[i].name);
@@ -1456,7 +1445,7 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_denum_create(
 					ec->hdr.name);
 				goto err_se;
 			}
-			/* fall through */
+			fallthrough;
 		case SND_SOC_TPLG_CTL_ENUM:
 		case SND_SOC_TPLG_DAPM_CTL_ENUM_DOUBLE:
 		case SND_SOC_TPLG_DAPM_CTL_ENUM_VIRT:
@@ -1741,9 +1730,6 @@ static int soc_tplg_dapm_widget_elems_load(struct soc_tplg *tplg,
 
 	count = le32_to_cpu(hdr->count);
 
-	if (tplg->pass != SOC_TPLG_PASS_WIDGET)
-		return 0;
-
 	dev_dbg(tplg->dev, "ASoC: adding %d DAPM widgets\n", count);
 
 	for (i = 0; i < count; i++) {
@@ -1878,7 +1864,7 @@ static int soc_tplg_dai_create(struct soc_tplg *tplg,
 	list_add(&dai_drv->dobj.list, &tplg->comp->dobj_list);
 
 	/* register the DAI to the component */
-	dai = snd_soc_register_dai(tplg->comp, dai_drv, false);
+	dai = devm_snd_soc_register_dai(tplg->comp->dev, tplg->comp, dai_drv, false);
 	if (!dai)
 		return -ENOMEM;
 
@@ -1886,7 +1872,6 @@ static int soc_tplg_dai_create(struct soc_tplg *tplg,
 	ret = snd_soc_dapm_new_dai_widgets(dapm, dai);
 	if (ret != 0) {
 		dev_err(dai->dev, "Failed to create DAI widgets %d\n", ret);
-		snd_soc_unregister_dai(dai);
 		return ret;
 	}
 
@@ -2100,9 +2085,6 @@ static int soc_tplg_pcm_elems_load(struct soc_tplg *tplg,
 	int ret;
 
 	count = le32_to_cpu(hdr->count);
-
-	if (tplg->pass != SOC_TPLG_PASS_PCM_DAI)
-		return 0;
 
 	/* check the element size and count */
 	pcm = (struct snd_soc_tplg_pcm *)tplg->pos;
@@ -2386,12 +2368,6 @@ static int soc_tplg_link_elems_load(struct soc_tplg *tplg,
 
 	count = le32_to_cpu(hdr->count);
 
-	if (tplg->pass != SOC_TPLG_PASS_LINK) {
-		tplg->pos += le32_to_cpu(hdr->size) +
-			le32_to_cpu(hdr->payload_size);
-		return 0;
-	};
-
 	/* check the element size and count */
 	link = (struct snd_soc_tplg_link_config *)tplg->pos;
 	size = le32_to_cpu(link->size);
@@ -2528,9 +2504,6 @@ static int soc_tplg_dai_elems_load(struct soc_tplg *tplg,
 
 	count = le32_to_cpu(hdr->count);
 
-	if (tplg->pass != SOC_TPLG_PASS_BE_DAI)
-		return 0;
-
 	/* config the existing BE DAIs */
 	for (i = 0; i < count; i++) {
 		dai = (struct snd_soc_tplg_dai *)tplg->pos;
@@ -2610,9 +2583,6 @@ static int soc_tplg_manifest_load(struct soc_tplg *tplg,
 	bool abi_match;
 	int ret = 0;
 
-	if (tplg->pass != SOC_TPLG_PASS_MANIFEST)
-		return 0;
-
 	manifest = (struct snd_soc_tplg_manifest *)tplg->pos;
 
 	/* check ABI version by size, create a new manifest if abi not match */
@@ -2685,12 +2655,6 @@ static int soc_valid_header(struct soc_tplg *tplg,
 		return -EINVAL;
 	}
 
-	if (tplg->pass == le32_to_cpu(hdr->type))
-		dev_dbg(tplg->dev,
-			"ASoC: Got 0x%x bytes of type %d version %d vendor %d at pass %d\n",
-			hdr->payload_size, hdr->type, hdr->version,
-			hdr->vendor_type, tplg->pass);
-
 	return 1;
 }
 
@@ -2698,6 +2662,10 @@ static int soc_valid_header(struct soc_tplg *tplg,
 static int soc_tplg_load_header(struct soc_tplg *tplg,
 	struct snd_soc_tplg_hdr *hdr)
 {
+	int (*elem_load)(struct soc_tplg *tplg,
+			 struct snd_soc_tplg_hdr *hdr);
+	unsigned int hdr_pass;
+
 	tplg->pos = tplg->hdr_pos + sizeof(struct snd_soc_tplg_hdr);
 
 	/* check for matching ID */
@@ -2711,24 +2679,48 @@ static int soc_tplg_load_header(struct soc_tplg *tplg,
 	case SND_SOC_TPLG_TYPE_MIXER:
 	case SND_SOC_TPLG_TYPE_ENUM:
 	case SND_SOC_TPLG_TYPE_BYTES:
-		return soc_tplg_kcontrol_elems_load(tplg, hdr);
+		hdr_pass = SOC_TPLG_PASS_MIXER;
+		elem_load = soc_tplg_kcontrol_elems_load;
+		break;
 	case SND_SOC_TPLG_TYPE_DAPM_GRAPH:
-		return soc_tplg_dapm_graph_elems_load(tplg, hdr);
+		hdr_pass = SOC_TPLG_PASS_GRAPH;
+		elem_load = soc_tplg_dapm_graph_elems_load;
+		break;
 	case SND_SOC_TPLG_TYPE_DAPM_WIDGET:
-		return soc_tplg_dapm_widget_elems_load(tplg, hdr);
+		hdr_pass = SOC_TPLG_PASS_WIDGET;
+		elem_load = soc_tplg_dapm_widget_elems_load;
+		break;
 	case SND_SOC_TPLG_TYPE_PCM:
-		return soc_tplg_pcm_elems_load(tplg, hdr);
+		hdr_pass = SOC_TPLG_PASS_PCM_DAI;
+		elem_load = soc_tplg_pcm_elems_load;
+		break;
 	case SND_SOC_TPLG_TYPE_DAI:
-		return soc_tplg_dai_elems_load(tplg, hdr);
+		hdr_pass = SOC_TPLG_PASS_BE_DAI;
+		elem_load = soc_tplg_dai_elems_load;
+		break;
 	case SND_SOC_TPLG_TYPE_DAI_LINK:
 	case SND_SOC_TPLG_TYPE_BACKEND_LINK:
 		/* physical link configurations */
-		return soc_tplg_link_elems_load(tplg, hdr);
+		hdr_pass = SOC_TPLG_PASS_LINK;
+		elem_load = soc_tplg_link_elems_load;
+		break;
 	case SND_SOC_TPLG_TYPE_MANIFEST:
-		return soc_tplg_manifest_load(tplg, hdr);
+		hdr_pass = SOC_TPLG_PASS_MANIFEST;
+		elem_load = soc_tplg_manifest_load;
+		break;
 	default:
 		/* bespoke vendor data object */
-		return soc_tplg_vendor_load(tplg, hdr);
+		hdr_pass = SOC_TPLG_PASS_VENDOR;
+		elem_load = soc_tplg_vendor_load;
+		break;
+	}
+
+	if (tplg->pass == hdr_pass) {
+		dev_dbg(tplg->dev,
+			"ASoC: Got 0x%x bytes of type %d version %d vendor %d at pass %d\n",
+			hdr->payload_size, hdr->type, hdr->version,
+			hdr->vendor_type, tplg->pass);
+		return elem_load(tplg, hdr);
 	}
 
 	return 0;
@@ -2752,15 +2744,21 @@ static int soc_tplg_process_headers(struct soc_tplg *tplg)
 
 			/* make sure header is valid before loading */
 			ret = soc_valid_header(tplg, hdr);
-			if (ret < 0)
+			if (ret < 0) {
+				dev_err(tplg->dev,
+					"ASoC: topology: invalid header: %d\n", ret);
 				return ret;
-			else if (ret == 0)
+			} else if (ret == 0) {
 				break;
+			}
 
 			/* load the header object */
 			ret = soc_tplg_load_header(tplg, hdr);
-			if (ret < 0)
+			if (ret < 0) {
+				dev_err(tplg->dev,
+					"ASoC: topology: could not load header: %d\n", ret);
 				return ret;
+			}
 
 			/* goto next header */
 			tplg->hdr_pos += le32_to_cpu(hdr->payload_size) +

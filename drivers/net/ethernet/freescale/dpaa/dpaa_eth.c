@@ -945,7 +945,7 @@ static void dpaa_fq_setup(struct dpaa_priv *priv,
 			break;
 		case FQ_TYPE_TX_CONF_MQ:
 			priv->conf_fqs[conf_cnt++] = &fq->fq_base;
-			/* fall through */
+			fallthrough;
 		case FQ_TYPE_TX_CONFIRM:
 			dpaa_setup_ingress(priv, fq, &fq_cbs->tx_defq);
 			break;
@@ -2107,7 +2107,7 @@ workaround:
 
 	/* Workaround for DPAA_A050385 requires data start to be aligned */
 	start = PTR_ALIGN(new_skb->data, DPAA_A050385_ALIGN);
-	if (start - new_skb->data != 0)
+	if (start - new_skb->data)
 		skb_reserve(new_skb, start - new_skb->data);
 
 	skb_put(new_skb, skb->len);
@@ -2938,7 +2938,7 @@ static int dpaa_eth_probe(struct platform_device *pdev)
 						   DMA_BIT_MASK(40));
 	if (err) {
 		netdev_err(net_dev, "dma_coerce_mask_and_coherent() failed\n");
-		return err;
+		goto free_netdev;
 	}
 
 	/* If fsl_fm_max_frm is set to a higher value than the all-common 1500,

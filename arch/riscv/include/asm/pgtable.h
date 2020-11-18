@@ -173,16 +173,6 @@ static inline unsigned long _pgd_pfn(pgd_t pgd)
 	return pgd_val(pgd) >> _PAGE_PFN_SHIFT;
 }
 
-#define pgd_index(addr) (((addr) >> PGDIR_SHIFT) & (PTRS_PER_PGD - 1))
-
-/* Locate an entry in the page global directory */
-static inline pgd_t *pgd_offset(const struct mm_struct *mm, unsigned long addr)
-{
-	return mm->pgd + pgd_index(addr);
-}
-/* Locate an entry in the kernel page global directory */
-#define pgd_offset_k(addr)      pgd_offset(&init_mm, (addr))
-
 static inline struct page *pmd_page(pmd_t pmd)
 {
 	return pfn_to_page(pmd_val(pmd) >> _PAGE_PFN_SHIFT);
@@ -208,16 +198,6 @@ static inline pte_t pfn_pte(unsigned long pfn, pgprot_t prot)
 }
 
 #define mk_pte(page, prot)       pfn_pte(page_to_pfn(page), prot)
-
-#define pte_index(addr) (((addr) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
-
-static inline pte_t *pte_offset_kernel(pmd_t *pmd, unsigned long addr)
-{
-	return (pte_t *)pmd_page_vaddr(*pmd) + pte_index(addr);
-}
-
-#define pte_offset_map(dir, addr)	pte_offset_kernel((dir), (addr))
-#define pte_unmap(pte)			((void)(pte))
 
 static inline int pte_present(pte_t pte)
 {
@@ -473,9 +453,9 @@ static inline int ptep_clear_flush_young(struct vm_area_struct *vma,
 #define PAGE_SHARED		__pgprot(0)
 #define PAGE_KERNEL		__pgprot(0)
 #define swapper_pg_dir		NULL
+#define TASK_SIZE		0xffffffffUL
 #define VMALLOC_START		0
-
-#define TASK_SIZE 0xffffffffUL
+#define VMALLOC_END		TASK_SIZE
 
 static inline void __kernel_map_pages(struct page *page, int numpages, int enable) {}
 
@@ -495,8 +475,6 @@ void paging_init(void);
  */
 extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 #define ZERO_PAGE(vaddr) (virt_to_page(empty_zero_page))
-
-#include <asm-generic/pgtable.h>
 
 #endif /* !__ASSEMBLY__ */
 

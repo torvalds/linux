@@ -23,7 +23,7 @@ struct hal_rx_wbm_rel_info {
 
 struct hal_rx_mon_status_tlv_hdr {
 	u32 hdr;
-	u8 value[0];
+	u8 value[];
 };
 
 enum hal_rx_su_mu_coding {

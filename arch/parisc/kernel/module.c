@@ -3,9 +3,9 @@
  *
  *    The best reference for this stuff is probably the Processor-
  *    Specific ELF Supplement for PA-RISC:
- *        http://ftp.parisc-linux.org/docs/arch/elf-pa-hp.pdf
+ *        https://parisc.wiki.kernel.org/index.php/File:Elf-pa-hp.pdf
  *
- *    Linux/PA-RISC Project (http://www.parisc-linux.org/)
+ *    Linux/PA-RISC Project
  *    Copyright (C) 2003 Randolph Chung <tausq at debian . org>
  *    Copyright (C) 2008 Helge Deller <deller@gmx.de>
  *
@@ -50,7 +50,6 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 
-#include <asm/pgtable.h>
 #include <asm/unwind.h>
 #include <asm/sections.h>
 

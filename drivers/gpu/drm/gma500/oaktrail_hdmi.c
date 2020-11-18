@@ -27,6 +27,7 @@
 #include <linux/delay.h>
 
 #include <drm/drm.h>
+#include <drm/drm_simple_kms_helper.h>
 
 #include "psb_drv.h"
 #include "psb_intel_drv.h"
@@ -620,15 +621,6 @@ static const struct drm_connector_funcs oaktrail_hdmi_connector_funcs = {
 	.destroy = oaktrail_hdmi_destroy,
 };
 
-static void oaktrail_hdmi_enc_destroy(struct drm_encoder *encoder)
-{
-	drm_encoder_cleanup(encoder);
-}
-
-static const struct drm_encoder_funcs oaktrail_hdmi_enc_funcs = {
-	.destroy = oaktrail_hdmi_enc_destroy,
-};
-
 void oaktrail_hdmi_init(struct drm_device *dev,
 					struct psb_intel_mode_device *mode_dev)
 {
@@ -651,9 +643,7 @@ void oaktrail_hdmi_init(struct drm_device *dev,
 			   &oaktrail_hdmi_connector_funcs,
 			   DRM_MODE_CONNECTOR_DVID);
 
-	drm_encoder_init(dev, encoder,
-			 &oaktrail_hdmi_enc_funcs,
-			 DRM_MODE_ENCODER_TMDS, NULL);
+	drm_simple_encoder_init(dev, encoder, DRM_MODE_ENCODER_TMDS);
 
 	gma_connector_attach_encoder(gma_connector, gma_encoder);
 
@@ -672,11 +662,6 @@ void oaktrail_hdmi_init(struct drm_device *dev,
 failed_connector:
 	kfree(gma_encoder);
 }
-
-static const struct pci_device_id hdmi_ids[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x080d) },
-	{ 0 }
-};
 
 void oaktrail_hdmi_setup(struct drm_device *dev)
 {

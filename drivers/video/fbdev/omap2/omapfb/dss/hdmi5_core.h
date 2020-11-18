@@ -2,7 +2,7 @@
 /*
  * HDMI driver definition for TI OMAP5 processors.
  *
- * Copyright (C) 2011-2012 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2011-2012 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 #ifndef _HDMI5_CORE_H_

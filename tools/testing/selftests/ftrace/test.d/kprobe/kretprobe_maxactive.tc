@@ -1,9 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: Kretprobe dynamic event with maxactive
-
-[ -f kprobe_events ] || exit_unsupported # this is configurable
-grep -q 'r\[maxactive\]' README || exit_unsupported # this is older version
+# requires: kprobe_events 'r[maxactive]':README
 
 # Test if we successfully reject unknown messages
 if echo 'a:myprobeaccept inet_csk_accept' > kprobe_events; then false; else true; fi

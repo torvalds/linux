@@ -1,0 +1,92 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/imx23-clock.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Clock bindings for Freescale i.MX23
+
+maintainers:
+  - Shawn Guo <shawnguo@kernel.org>
+
+description: |
+  The clock consumer should specify the desired clock by having the clock
+  ID in its "clocks" phandle cell. The following is a full list of i.MX23
+  clocks and IDs.
+
+        Clock		ID
+        ------------------
+        ref_xtal	0
+        pll		1
+        ref_cpu		2
+        ref_emi		3
+        ref_pix		4
+        ref_io		5
+        saif_sel	6
+        lcdif_sel	7
+        gpmi_sel	8
+        ssp_sel		9
+        emi_sel		10
+        cpu		11
+        etm_sel		12
+        cpu_pll		13
+        cpu_xtal	14
+        hbus		15
+        xbus		16
+        lcdif_div	17
+        ssp_div		18
+        gpmi_div	19
+        emi_pll		20
+        emi_xtal	21
+        etm_div		22
+        saif_div	23
+        clk32k_div	24
+        rtc		25
+        adc		26
+        spdif_div	27
+        clk32k		28
+        dri		29
+        pwm		30
+        filt		31
+        uart		32
+        ssp		33
+        gpmi		34
+        spdif		35
+        emi		36
+        saif		37
+        lcdif		38
+        etm		39
+        usb		40
+        usb_phy		41
+
+properties:
+  compatible:
+    const: fsl,imx23-clkctrl
+
+  reg:
+    maxItems: 1
+
+  '#clock-cells':
+    const: 1
+
+required:
+  - compatible
+  - reg
+  - '#clock-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    clock-controller@80040000 {
+        compatible = "fsl,imx23-clkctrl";
+        reg = <0x80040000 0x2000>;
+        #clock-cells = <1>;
+    };
+
+    serial@8006c000 {
+        compatible = "fsl,imx23-auart";
+        reg = <0x8006c000 0x2000>;
+        interrupts = <24 25 23>;
+        clocks = <&clks 32>;
+    };

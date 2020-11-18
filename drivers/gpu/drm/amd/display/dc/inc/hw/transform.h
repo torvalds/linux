@@ -173,6 +173,8 @@ struct scaler_data {
 	struct scaling_taps taps;
 	struct rect viewport;
 	struct rect viewport_c;
+	struct rect viewport_unadjusted;
+	struct rect viewport_c_unadjusted;
 	struct rect recout;
 	struct scaling_ratios ratios;
 	struct scl_inits inits;

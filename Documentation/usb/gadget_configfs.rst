@@ -24,7 +24,7 @@ Linux provides a number of functions for gadgets to use.
 Creating a gadget means deciding what configurations there will be
 and which functions each configuration will provide.
 
-Configfs (please see `Documentation/filesystems/configfs/*`) lends itself nicely
+Configfs (please see `Documentation/filesystems/configfs.rst`) lends itself nicely
 for the purpose of telling the kernel about the above mentioned decision.
 This document is about how to do it.
 
@@ -354,7 +354,7 @@ the directories in general can be named at will. A group can have
 a number of its default sub-groups created automatically.
 
 For more information on configfs please see
-`Documentation/filesystems/configfs/*`.
+`Documentation/filesystems/configfs.rst`.
 
 The concepts described above translate to USB gadgets like this:
 

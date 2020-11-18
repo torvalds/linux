@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * soc-acpi-intel-cml-match.c - tables and support for CML ACPI enumeration.
  *
@@ -17,6 +17,11 @@ static struct snd_soc_acpi_codecs rt1011_spk_codecs = {
 static struct snd_soc_acpi_codecs max98357a_spk_codecs = {
 	.num_codecs = 1,
 	.codecs = {"MX98357A"}
+};
+
+static struct snd_soc_acpi_codecs max98390_spk_codecs = {
+	.num_codecs = 1,
+	.codecs = {"MX98390"}
 };
 
 /*
@@ -52,6 +57,14 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_cml_machines[] = {
 		.drv_name = "cml_da7219_max98357a",
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &max98357a_spk_codecs,
+		.sof_fw_filename = "sof-cml.ri",
+		.sof_tplg_filename = "sof-cml-da7219-max98357a.tplg",
+	},
+	{
+		.id = "DLGS7219",
+		.drv_name = "cml_da7219_max98357a",
+		.machine_quirk = snd_soc_acpi_codec_list,
+		.quirk_data = &max98390_spk_codecs,
 		.sof_fw_filename = "sof-cml.ri",
 		.sof_tplg_filename = "sof-cml-da7219-max98357a.tplg",
 	},

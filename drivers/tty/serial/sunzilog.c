@@ -306,7 +306,7 @@ static void sunzilog_kbdms_receive_chars(struct uart_sunzilog_port *up,
 		switch (ret) {
 		case 2:
 			sunzilog_change_mouse_baud(up);
-			/* fallthru */
+			fallthrough;
 		case 1:
 			break;
 
@@ -1221,7 +1221,7 @@ static int __init sunzilog_console_setup(struct console *con, char *options)
 	int baud, brg;
 
 	if (up->port.type != PORT_SUNZILOG)
-		return -1;
+		return -EINVAL;
 
 	printk(KERN_INFO "Console: ttyS%d (SunZilog zs%d)\n",
 	       (sunzilog_reg.minor - 64) + con->index, con->index);

@@ -36,7 +36,7 @@ static void vbox_do_modeset(struct drm_crtc *crtc)
 	u16 flags;
 	s32 x_offset, y_offset;
 
-	vbox = crtc->dev->dev_private;
+	vbox = to_vbox_dev(crtc->dev);
 	width = vbox_crtc->width ? vbox_crtc->width : 640;
 	height = vbox_crtc->height ? vbox_crtc->height : 480;
 	bpp = fb ? fb->format->cpp[0] * 8 : 32;
@@ -77,7 +77,7 @@ static void vbox_do_modeset(struct drm_crtc *crtc)
 static int vbox_set_view(struct drm_crtc *crtc)
 {
 	struct vbox_crtc *vbox_crtc = to_vbox_crtc(crtc);
-	struct vbox_private *vbox = crtc->dev->dev_private;
+	struct vbox_private *vbox = to_vbox_dev(crtc->dev);
 	struct vbva_infoview *p;
 
 	/*
@@ -174,7 +174,7 @@ static void vbox_crtc_set_base_and_mode(struct drm_crtc *crtc,
 					int x, int y)
 {
 	struct drm_gem_vram_object *gbo = drm_gem_vram_of_gem(fb->obj[0]);
-	struct vbox_private *vbox = crtc->dev->dev_private;
+	struct vbox_private *vbox = to_vbox_dev(crtc->dev);
 	struct vbox_crtc *vbox_crtc = to_vbox_crtc(crtc);
 	bool needs_modeset = drm_atomic_crtc_needs_modeset(crtc->state);
 
@@ -272,7 +272,7 @@ static void vbox_primary_atomic_update(struct drm_plane *plane,
 {
 	struct drm_crtc *crtc = plane->state->crtc;
 	struct drm_framebuffer *fb = plane->state->fb;
-	struct vbox_private *vbox = fb->dev->dev_private;
+	struct vbox_private *vbox = to_vbox_dev(fb->dev);
 	struct drm_mode_rect *clips;
 	uint32_t num_clips, i;
 
@@ -704,7 +704,7 @@ static int vbox_get_modes(struct drm_connector *connector)
 	int preferred_width, preferred_height;
 
 	vbox_connector = to_vbox_connector(connector);
-	vbox = connector->dev->dev_private;
+	vbox = to_vbox_dev(connector->dev);
 
 	hgsmi_report_flags_location(vbox->guest_pool, GUEST_HEAP_OFFSET(vbox) +
 				    HOST_FLAGS_OFFSET);

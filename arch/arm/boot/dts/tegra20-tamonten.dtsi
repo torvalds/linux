@@ -495,40 +495,25 @@
 		status = "okay";
 	};
 
-	sdhci@c8000600 {
+	mmc@c8000600 {
 		cd-gpios = <&gpio TEGRA_GPIO(H, 2) GPIO_ACTIVE_LOW>;
 		wp-gpios = <&gpio TEGRA_GPIO(H, 3) GPIO_ACTIVE_HIGH>;
 		bus-width = <4>;
 		status = "okay";
 	};
 
-	clocks {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		clk32k_in: clock@0 {
-			compatible = "fixed-clock";
-			reg = <0>;
-			#clock-cells = <0>;
-			clock-frequency = <32768>;
-		};
+	clk32k_in: clock@0 {
+		compatible = "fixed-clock";
+		clock-frequency = <32768>;
+		#clock-cells = <0>;
 	};
 
-	regulators {
-		compatible = "simple-bus";
-
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		pci_vdd_reg: regulator@1 {
-			compatible = "regulator-fixed";
-			reg = <1>;
-			regulator-name = "vdd_1v05";
-			regulator-min-microvolt = <1050000>;
-			regulator-max-microvolt = <1050000>;
-			gpio = <&pmic 2 0>;
-			enable-active-high;
-		};
+	pci_vdd_reg: regulator@1 {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_1v05";
+		regulator-min-microvolt = <1050000>;
+		regulator-max-microvolt = <1050000>;
+		gpio = <&pmic 2 0>;
+		enable-active-high;
 	};
 };

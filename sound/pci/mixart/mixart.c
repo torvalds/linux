@@ -169,7 +169,7 @@ static int mixart_set_clock(struct mixart_mgr *mgr,
 	case PIPE_RUNNING:
 		if(rate != 0)
 			break;
-		/* fall through */
+		fallthrough;
 	default:
 		if(rate == 0)
 			return 0; /* nothing to do */

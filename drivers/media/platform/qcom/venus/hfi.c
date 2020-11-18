@@ -382,7 +382,7 @@ int hfi_session_unload_res(struct venus_inst *inst)
 }
 EXPORT_SYMBOL_GPL(hfi_session_unload_res);
 
-int hfi_session_flush(struct venus_inst *inst, u32 type)
+int hfi_session_flush(struct venus_inst *inst, u32 type, bool block)
 {
 	const struct hfi_ops *ops = inst->core->ops;
 	int ret;
@@ -393,9 +393,11 @@ int hfi_session_flush(struct venus_inst *inst, u32 type)
 	if (ret)
 		return ret;
 
-	ret = wait_session_msg(inst);
-	if (ret)
-		return ret;
+	if (block) {
+		ret = wait_session_msg(inst);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }

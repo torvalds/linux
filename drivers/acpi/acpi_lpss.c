@@ -1041,7 +1041,7 @@ static int acpi_lpss_do_suspend_late(struct device *dev)
 {
 	int ret;
 
-	if (dev_pm_smart_suspend_and_suspended(dev))
+	if (dev_pm_skip_suspend(dev))
 		return 0;
 
 	ret = pm_generic_suspend_late(dev);
@@ -1093,6 +1093,9 @@ static int acpi_lpss_resume_early(struct device *dev)
 	if (pdata->dev_desc->resume_from_noirq)
 		return 0;
 
+	if (dev_pm_skip_resume(dev))
+		return 0;
+
 	return acpi_lpss_do_resume_early(dev);
 }
 
@@ -1102,11 +1105,8 @@ static int acpi_lpss_resume_noirq(struct device *dev)
 	int ret;
 
 	/* Follow acpi_subsys_resume_noirq(). */
-	if (dev_pm_may_skip_resume(dev))
+	if (dev_pm_skip_resume(dev))
 		return 0;
-
-	if (dev_pm_smart_suspend_and_suspended(dev))
-		pm_runtime_set_active(dev);
 
 	ret = pm_generic_resume_noirq(dev);
 	if (ret)
@@ -1169,7 +1169,7 @@ static int acpi_lpss_poweroff_late(struct device *dev)
 {
 	struct lpss_private_data *pdata = acpi_driver_data(ACPI_COMPANION(dev));
 
-	if (dev_pm_smart_suspend_and_suspended(dev))
+	if (dev_pm_skip_suspend(dev))
 		return 0;
 
 	if (pdata->dev_desc->resume_from_noirq)
@@ -1182,7 +1182,7 @@ static int acpi_lpss_poweroff_noirq(struct device *dev)
 {
 	struct lpss_private_data *pdata = acpi_driver_data(ACPI_COMPANION(dev));
 
-	if (dev_pm_smart_suspend_and_suspended(dev))
+	if (dev_pm_skip_suspend(dev))
 		return 0;
 
 	if (pdata->dev_desc->resume_from_noirq) {

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause */
 /*
- * Copyright 2018-2019 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2020 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #ifndef _EFA_COM_H_
@@ -47,6 +47,7 @@ struct efa_com_admin_sq {
 struct efa_com_stats_admin {
 	atomic64_t submitted_cmd;
 	atomic64_t completed_cmd;
+	atomic64_t cmd_err;
 	atomic64_t no_completion;
 };
 

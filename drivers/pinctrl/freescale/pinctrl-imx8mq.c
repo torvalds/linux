@@ -8,6 +8,7 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/pinctrl/pinctrl.h>
@@ -329,6 +330,7 @@ static const struct of_device_id imx8mq_pinctrl_of_match[] = {
 	{ .compatible = "fsl,imx8mq-iomuxc", .data = &imx8mq_pinctrl_info, },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, imx8mq_pinctrl_of_match);
 
 static int imx8mq_pinctrl_probe(struct platform_device *pdev)
 {
@@ -350,3 +352,7 @@ static int __init imx8mq_pinctrl_init(void)
 	return platform_driver_register(&imx8mq_pinctrl_driver);
 }
 arch_initcall(imx8mq_pinctrl_init);
+
+MODULE_AUTHOR("Lucas Stach <l.stach@pengutronix.de>");
+MODULE_DESCRIPTION("NXP i.MX8MQ pinctrl driver");
+MODULE_LICENSE("GPL v2");

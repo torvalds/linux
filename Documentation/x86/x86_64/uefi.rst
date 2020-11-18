@@ -36,7 +36,7 @@ Mechanics
 
 	elilo bootloader with x86_64 support, elilo configuration file,
 	kernel image built in first step and corresponding
-	initrd. Instructions on building elilo	and its dependencies
+	initrd. Instructions on building elilo and its dependencies
 	can be found in the elilo sourceforge project.
 
 - Boot to EFI shell and invoke elilo choosing the kernel image built

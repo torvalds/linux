@@ -69,8 +69,19 @@ void __dump_page(struct page *page, const char *reason)
 	}
 
 	if (page < head || (page >= head + MAX_ORDER_NR_PAGES)) {
-		/* Corrupt page, cannot call page_mapping */
-		mapping = page->mapping;
+		/*
+		 * Corrupt page, so we cannot call page_mapping. Instead, do a
+		 * safe subset of the steps that page_mapping() does. Caution:
+		 * this will be misleading for tail pages, PageSwapCache pages,
+		 * and potentially other situations. (See the page_mapping()
+		 * implementation for what's missing here.)
+		 */
+		unsigned long tmp = (unsigned long)page->mapping;
+
+		if (tmp & PAGE_MAPPING_ANON)
+			mapping = NULL;
+		else
+			mapping = (void *)(tmp & ~PAGE_MAPPING_FLAGS);
 		head = page;
 		compound = false;
 	} else {
@@ -84,42 +95,76 @@ void __dump_page(struct page *page, const char *reason)
 	 */
 	mapcount = PageSlab(head) ? 0 : page_mapcount(page);
 
-	if (compound)
+	pr_warn("page:%p refcount:%d mapcount:%d mapping:%p index:%#lx pfn:%#lx\n",
+			page, page_ref_count(head), mapcount, mapping,
+			page_to_pgoff(page), page_to_pfn(page));
+	if (compound) {
 		if (hpage_pincount_available(page)) {
-			pr_warn("page:%px refcount:%d mapcount:%d mapping:%p "
-				"index:%#lx head:%px order:%u "
-				"compound_mapcount:%d compound_pincount:%d\n",
-				page, page_ref_count(head), mapcount,
-				mapping, page_to_pgoff(page), head,
-				compound_order(head), compound_mapcount(page),
-				compound_pincount(page));
+			pr_warn("head:%p order:%u compound_mapcount:%d compound_pincount:%d\n",
+					head, compound_order(head),
+					head_mapcount(head),
+					head_pincount(head));
 		} else {
-			pr_warn("page:%px refcount:%d mapcount:%d mapping:%p "
-				"index:%#lx head:%px order:%u "
-				"compound_mapcount:%d\n",
-				page, page_ref_count(head), mapcount,
-				mapping, page_to_pgoff(page), head,
-				compound_order(head), compound_mapcount(page));
+			pr_warn("head:%p order:%u compound_mapcount:%d\n",
+					head, compound_order(head),
+					head_mapcount(head));
 		}
-	else
-		pr_warn("page:%px refcount:%d mapcount:%d mapping:%p index:%#lx\n",
-			page, page_ref_count(page), mapcount,
-			mapping, page_to_pgoff(page));
+	}
 	if (PageKsm(page))
 		type = "ksm ";
 	else if (PageAnon(page))
 		type = "anon ";
 	else if (mapping) {
-		if (mapping->host && mapping->host->i_dentry.first) {
-			struct dentry *dentry;
-			dentry = container_of(mapping->host->i_dentry.first, struct dentry, d_u.d_alias);
-			pr_warn("%ps name:\"%pd\"\n", mapping->a_ops, dentry);
-		} else
-			pr_warn("%ps\n", mapping->a_ops);
+		struct inode *host;
+		const struct address_space_operations *a_ops;
+		struct hlist_node *dentry_first;
+		struct dentry *dentry_ptr;
+		struct dentry dentry;
+
+		/*
+		 * mapping can be invalid pointer and we don't want to crash
+		 * accessing it, so probe everything depending on it carefully
+		 */
+		if (get_kernel_nofault(host, &mapping->host) ||
+		    get_kernel_nofault(a_ops, &mapping->a_ops)) {
+			pr_warn("failed to read mapping contents, not a valid kernel address?\n");
+			goto out_mapping;
+		}
+
+		if (!host) {
+			pr_warn("aops:%ps\n", a_ops);
+			goto out_mapping;
+		}
+
+		if (get_kernel_nofault(dentry_first, &host->i_dentry.first)) {
+			pr_warn("aops:%ps with invalid host inode %px\n",
+					a_ops, host);
+			goto out_mapping;
+		}
+
+		if (!dentry_first) {
+			pr_warn("aops:%ps ino:%lx\n", a_ops, host->i_ino);
+			goto out_mapping;
+		}
+
+		dentry_ptr = container_of(dentry_first, struct dentry, d_u.d_alias);
+		if (get_kernel_nofault(dentry, dentry_ptr)) {
+			pr_warn("aops:%ps with invalid dentry %px\n", a_ops,
+					dentry_ptr);
+		} else {
+			/*
+			 * if dentry is corrupted, the %pd handler may still
+			 * crash, but it's unlikely that we reach here with a
+			 * corrupted struct page
+			 */
+			pr_warn("aops:%ps ino:%lx dentry name:\"%pd\"\n",
+					a_ops, host->i_ino, &dentry);
+		}
 	}
+out_mapping:
 	BUILD_BUG_ON(ARRAY_SIZE(pageflag_names) != __NR_PAGEFLAGS + 1);
 
-	pr_warn("%sflags: %#lx(%pGp)%s\n", type, page->flags, &page->flags,
+	pr_warn("%sflags: %#lx(%pGp)%s\n", type, head->flags, &head->flags,
 		page_cma ? " CMA" : "");
 
 hex_only:

@@ -20,6 +20,7 @@
 #include <linux/mman.h>
 #include <linux/sched/mm.h>
 #include <linux/crc32.h>
+#include <linux/task_io_accounting_ops.h>
 
 #include "zonefs.h"
 
@@ -78,10 +79,9 @@ static int zonefs_readpage(struct file *unused, struct page *page)
 	return iomap_readpage(page, &zonefs_iomap_ops);
 }
 
-static int zonefs_readpages(struct file *unused, struct address_space *mapping,
-			    struct list_head *pages, unsigned int nr_pages)
+static void zonefs_readahead(struct readahead_control *rac)
 {
-	return iomap_readpages(mapping, pages, nr_pages, &zonefs_iomap_ops);
+	iomap_readahead(rac, &zonefs_iomap_ops);
 }
 
 /*
@@ -128,7 +128,7 @@ static int zonefs_writepages(struct address_space *mapping,
 
 static const struct address_space_operations zonefs_file_aops = {
 	.readpage		= zonefs_readpage,
-	.readpages		= zonefs_readpages,
+	.readahead		= zonefs_readahead,
 	.writepage		= zonefs_writepage,
 	.writepages		= zonefs_writepages,
 	.set_page_dirty		= iomap_set_page_dirty,
@@ -335,7 +335,7 @@ static void zonefs_io_error(struct inode *inode, bool write)
 	struct zonefs_sb_info *sbi = ZONEFS_SB(sb);
 	unsigned int noio_flag;
 	unsigned int nr_zones =
-		zi->i_max_size >> (sbi->s_zone_sectors_shift + SECTOR_SHIFT);
+		zi->i_zone_size >> (sbi->s_zone_sectors_shift + SECTOR_SHIFT);
 	struct zonefs_ioerr_data err = {
 		.inode = inode,
 		.write = write,
@@ -398,7 +398,7 @@ static int zonefs_file_truncate(struct inode *inode, loff_t isize)
 		goto unlock;
 
 	ret = blkdev_zone_mgmt(inode->i_sb->s_bdev, op, zi->i_zsector,
-			       zi->i_max_size >> SECTOR_SHIFT, GFP_NOFS);
+			       zi->i_zone_size >> SECTOR_SHIFT, GFP_NOFS);
 	if (ret) {
 		zonefs_err(inode->i_sb,
 			   "Zone management operation at %llu failed %d",
@@ -478,7 +478,7 @@ static int zonefs_file_fsync(struct file *file, loff_t start, loff_t end,
 	if (ZONEFS_I(inode)->i_ztype == ZONEFS_ZTYPE_CNV)
 		ret = file_write_and_wait_range(file, start, end);
 	if (!ret)
-		ret = blkdev_issue_flush(inode->i_sb->s_bdev, GFP_KERNEL, NULL);
+		ret = blkdev_issue_flush(inode->i_sb->s_bdev, GFP_KERNEL);
 
 	if (ret)
 		zonefs_io_error(inode, true);
@@ -596,6 +596,61 @@ static const struct iomap_dio_ops zonefs_write_dio_ops = {
 	.end_io			= zonefs_file_write_dio_end_io,
 };
 
+static ssize_t zonefs_file_dio_append(struct kiocb *iocb, struct iov_iter *from)
+{
+	struct inode *inode = file_inode(iocb->ki_filp);
+	struct zonefs_inode_info *zi = ZONEFS_I(inode);
+	struct block_device *bdev = inode->i_sb->s_bdev;
+	unsigned int max;
+	struct bio *bio;
+	ssize_t size;
+	int nr_pages;
+	ssize_t ret;
+
+	max = queue_max_zone_append_sectors(bdev_get_queue(bdev));
+	max = ALIGN_DOWN(max << SECTOR_SHIFT, inode->i_sb->s_blocksize);
+	iov_iter_truncate(from, max);
+
+	nr_pages = iov_iter_npages(from, BIO_MAX_PAGES);
+	if (!nr_pages)
+		return 0;
+
+	bio = bio_alloc_bioset(GFP_NOFS, nr_pages, &fs_bio_set);
+	if (!bio)
+		return -ENOMEM;
+
+	bio_set_dev(bio, bdev);
+	bio->bi_iter.bi_sector = zi->i_zsector;
+	bio->bi_write_hint = iocb->ki_hint;
+	bio->bi_ioprio = iocb->ki_ioprio;
+	bio->bi_opf = REQ_OP_ZONE_APPEND | REQ_SYNC | REQ_IDLE;
+	if (iocb->ki_flags & IOCB_DSYNC)
+		bio->bi_opf |= REQ_FUA;
+
+	ret = bio_iov_iter_get_pages(bio, from);
+	if (unlikely(ret)) {
+		bio_io_error(bio);
+		return ret;
+	}
+	size = bio->bi_iter.bi_size;
+	task_io_account_write(ret);
+
+	if (iocb->ki_flags & IOCB_HIPRI)
+		bio_set_polled(bio, iocb);
+
+	ret = submit_bio_wait(bio);
+
+	bio_put(bio);
+
+	zonefs_file_write_dio_end_io(iocb, size, ret, 0);
+	if (ret >= 0) {
+		iocb->ki_pos += size;
+		return size;
+	}
+
+	return ret;
+}
+
 /*
  * Handle direct writes. For sequential zone files, this is the only possible
  * write path. For these files, check that the user is issuing writes
@@ -611,6 +666,8 @@ static ssize_t zonefs_file_dio_write(struct kiocb *iocb, struct iov_iter *from)
 	struct inode *inode = file_inode(iocb->ki_filp);
 	struct zonefs_inode_info *zi = ZONEFS_I(inode);
 	struct super_block *sb = inode->i_sb;
+	bool sync = is_sync_kiocb(iocb);
+	bool append = false;
 	size_t count;
 	ssize_t ret;
 
@@ -619,7 +676,7 @@ static ssize_t zonefs_file_dio_write(struct kiocb *iocb, struct iov_iter *from)
 	 * as this can cause write reordering (e.g. the first aio gets EAGAIN
 	 * on the inode lock but the second goes through but is now unaligned).
 	 */
-	if (zi->i_ztype == ZONEFS_ZTYPE_SEQ && !is_sync_kiocb(iocb) &&
+	if (zi->i_ztype == ZONEFS_ZTYPE_SEQ && !sync &&
 	    (iocb->ki_flags & IOCB_NOWAIT))
 		return -EOPNOTSUPP;
 
@@ -643,16 +700,22 @@ static ssize_t zonefs_file_dio_write(struct kiocb *iocb, struct iov_iter *from)
 	}
 
 	/* Enforce sequential writes (append only) in sequential zones */
-	mutex_lock(&zi->i_truncate_mutex);
-	if (zi->i_ztype == ZONEFS_ZTYPE_SEQ && iocb->ki_pos != zi->i_wpoffset) {
+	if (zi->i_ztype == ZONEFS_ZTYPE_SEQ) {
+		mutex_lock(&zi->i_truncate_mutex);
+		if (iocb->ki_pos != zi->i_wpoffset) {
+			mutex_unlock(&zi->i_truncate_mutex);
+			ret = -EINVAL;
+			goto inode_unlock;
+		}
 		mutex_unlock(&zi->i_truncate_mutex);
-		ret = -EINVAL;
-		goto inode_unlock;
+		append = sync;
 	}
-	mutex_unlock(&zi->i_truncate_mutex);
 
-	ret = iomap_dio_rw(iocb, from, &zonefs_iomap_ops,
-			   &zonefs_write_dio_ops, is_sync_kiocb(iocb));
+	if (append)
+		ret = zonefs_file_dio_append(iocb, from);
+	else
+		ret = iomap_dio_rw(iocb, from, &zonefs_iomap_ops,
+				   &zonefs_write_dio_ops, sync);
 	if (zi->i_ztype == ZONEFS_ZTYPE_SEQ &&
 	    (ret > 0 || ret == -EIOCBQUEUED)) {
 		if (ret > 0)
@@ -723,8 +786,11 @@ static ssize_t zonefs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	if (iocb->ki_pos >= ZONEFS_I(inode)->i_max_size)
 		return -EFBIG;
 
-	if (iocb->ki_flags & IOCB_DIRECT)
-		return zonefs_file_dio_write(iocb, from);
+	if (iocb->ki_flags & IOCB_DIRECT) {
+		ssize_t ret = zonefs_file_dio_write(iocb, from);
+		if (ret != -ENOTBLK)
+			return ret;
+	}
 
 	return zonefs_file_buffered_write(iocb, from);
 }
@@ -987,14 +1053,16 @@ static void zonefs_init_file_inode(struct inode *inode, struct blk_zone *zone,
 
 	zi->i_ztype = type;
 	zi->i_zsector = zone->start;
+	zi->i_zone_size = zone->len << SECTOR_SHIFT;
+
 	zi->i_max_size = min_t(loff_t, MAX_LFS_FILESIZE,
-			       zone->len << SECTOR_SHIFT);
+			       zone->capacity << SECTOR_SHIFT);
 	zi->i_wpoffset = zonefs_check_zone_condition(inode, zone, true, true);
 
 	inode->i_uid = sbi->s_uid;
 	inode->i_gid = sbi->s_gid;
 	inode->i_size = zi->i_wpoffset;
-	inode->i_blocks = zone->len;
+	inode->i_blocks = zi->i_max_size >> SECTOR_SHIFT;
 
 	inode->i_op = &zonefs_file_inode_operations;
 	inode->i_fop = &zonefs_file_operations;
@@ -1056,7 +1124,7 @@ static int zonefs_create_zgroup(struct zonefs_zone_data *zd,
 	char *file_name;
 	struct dentry *dir;
 	unsigned int n = 0;
-	int ret = -ENOMEM;
+	int ret;
 
 	/* If the group is empty, there is nothing to do */
 	if (!zd->nr_zones[type])
@@ -1072,8 +1140,10 @@ static int zonefs_create_zgroup(struct zonefs_zone_data *zd,
 		zgroup_name = "seq";
 
 	dir = zonefs_create_inode(sb->s_root, zgroup_name, NULL, type);
-	if (!dir)
+	if (!dir) {
+		ret = -ENOMEM;
 		goto free;
+	}
 
 	/*
 	 * The first zone contains the super block: skip it.
@@ -1099,11 +1169,17 @@ static int zonefs_create_zgroup(struct zonefs_zone_data *zd,
 				if (zonefs_zone_type(next) != type)
 					break;
 				zone->len += next->len;
+				zone->capacity += next->capacity;
 				if (next->cond == BLK_ZONE_COND_READONLY &&
 				    zone->cond != BLK_ZONE_COND_OFFLINE)
 					zone->cond = BLK_ZONE_COND_READONLY;
 				else if (next->cond == BLK_ZONE_COND_OFFLINE)
 					zone->cond = BLK_ZONE_COND_OFFLINE;
+			}
+			if (zone->capacity != zone->len) {
+				zonefs_err(sb, "Invalid conventional zone capacity\n");
+				ret = -EINVAL;
+				goto free;
 			}
 		}
 
@@ -1111,8 +1187,10 @@ static int zonefs_create_zgroup(struct zonefs_zone_data *zd,
 		 * Use the file number within its group as file name.
 		 */
 		snprintf(file_name, ZONEFS_NAME_MAX - 1, "%u", n);
-		if (!zonefs_create_inode(dir, file_name, zone, type))
+		if (!zonefs_create_inode(dir, file_name, zone, type)) {
+			ret = -ENOMEM;
 			goto free;
+		}
 
 		n++;
 	}
@@ -1267,7 +1345,7 @@ static int zonefs_read_super(struct super_block *sb)
 		goto unmap;
 	}
 
-	uuid_copy(&sbi->s_uuid, (uuid_t *)super->s_uuid);
+	import_uuid(&sbi->s_uuid, super->s_uuid);
 	ret = 0;
 
 unmap:

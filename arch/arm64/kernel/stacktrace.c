@@ -199,12 +199,12 @@ static noinline void __save_stack_trace(struct task_struct *tsk,
 
 	put_task_stack(tsk);
 }
-EXPORT_SYMBOL_GPL(save_stack_trace_tsk);
 
 void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
 {
 	__save_stack_trace(tsk, trace, 1);
 }
+EXPORT_SYMBOL_GPL(save_stack_trace_tsk);
 
 void save_stack_trace(struct stack_trace *trace)
 {

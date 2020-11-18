@@ -1137,7 +1137,6 @@ static int metadata_get_stats(struct era_metadata *md, void *ptr)
 
 struct era {
 	struct dm_target *ti;
-	struct dm_target_callbacks callbacks;
 
 	struct dm_dev *metadata_dev;
 	struct dm_dev *origin_dev;
@@ -1265,7 +1264,7 @@ static void process_deferred_bios(struct era *era)
 			bio_io_error(bio);
 	else
 		while ((bio = bio_list_pop(&marked_bios)))
-			generic_make_request(bio);
+			submit_bio_noacct(bio);
 }
 
 static void process_rpc_calls(struct era *era)
@@ -1375,18 +1374,6 @@ static void stop_worker(struct era *era)
 /*----------------------------------------------------------------
  * Target methods
  *--------------------------------------------------------------*/
-static int dev_is_congested(struct dm_dev *dev, int bdi_bits)
-{
-	struct request_queue *q = bdev_get_queue(dev->bdev);
-	return bdi_congested(q->backing_dev_info, bdi_bits);
-}
-
-static int era_is_congested(struct dm_target_callbacks *cb, int bdi_bits)
-{
-	struct era *era = container_of(cb, struct era, callbacks);
-	return dev_is_congested(era->origin_dev, bdi_bits);
-}
-
 static void era_destroy(struct era *era)
 {
 	if (era->md)
@@ -1514,8 +1501,6 @@ static int era_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	ti->flush_supported = true;
 
 	ti->num_discard_bios = 1;
-	era->callbacks.congested_fn = era_is_congested;
-	dm_table_add_target_callbacks(ti->table, &era->callbacks);
 
 	return 0;
 }

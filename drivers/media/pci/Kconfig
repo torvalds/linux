@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
-if PCI && MEDIA_SUPPORT
+
+if PCI
 
 menuconfig MEDIA_PCI_SUPPORT
 	bool "Media PCI Adapters"
@@ -55,6 +56,17 @@ source "drivers/media/pci/netup_unidvb/Kconfig"
 endif
 
 source "drivers/media/pci/intel/ipu3/Kconfig"
+
+config VIDEO_PCI_SKELETON
+	tristate "Skeleton PCI V4L2 driver"
+	depends on SAMPLES
+	depends on MEDIA_TEST_SUPPORT
+	depends on PCI && VIDEO_V4L2
+	select VIDEOBUF2_MEMOPS
+	select VIDEOBUF2_DMA_CONTIG
+	help
+	  Enable build of the skeleton PCI driver, used as a reference
+	  when developing new drivers.
 
 endif #MEDIA_PCI_SUPPORT
 endif #PCI

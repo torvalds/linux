@@ -1169,8 +1169,10 @@ static bool update_checksum(struct kmemleak_object *object)
 	u32 old_csum = object->checksum;
 
 	kasan_disable_current();
+	kcsan_disable_current();
 	object->checksum = crc32(0, (void *)object->pointer, object->size);
 	kasan_enable_current();
+	kcsan_enable_current();
 
 	return object->checksum != old_csum;
 }

@@ -69,7 +69,7 @@
 	pinctrl-0 = <&emmc_pins>;
 	vmmc-supply = <&vmmc_reg>;
 	bus-width = <8>;
-	ti,non-removable;
+	non-removable;
 	status = "disabled";
 };
 

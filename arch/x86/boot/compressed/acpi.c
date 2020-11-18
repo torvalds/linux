@@ -280,9 +280,9 @@ acpi_physical_address get_rsdp_addr(void)
  */
 #define MAX_ADDR_LEN 19
 
-static acpi_physical_address get_cmdline_acpi_rsdp(void)
+static unsigned long get_cmdline_acpi_rsdp(void)
 {
-	acpi_physical_address addr = 0;
+	unsigned long addr = 0;
 
 #ifdef CONFIG_KEXEC
 	char val[MAX_ADDR_LEN] = { };
@@ -292,7 +292,7 @@ static acpi_physical_address get_cmdline_acpi_rsdp(void)
 	if (ret < 0)
 		return 0;
 
-	if (kstrtoull(val, 16, &addr))
+	if (boot_kstrtoul(val, 16, &addr))
 		return 0;
 #endif
 	return addr;
@@ -314,7 +314,6 @@ static unsigned long get_acpi_srat_table(void)
 	 * different ideas about whether to trust a command-line parameter.
 	 */
 	rsdp = (struct acpi_table_rsdp *)get_cmdline_acpi_rsdp();
-
 	if (!rsdp)
 		rsdp = (struct acpi_table_rsdp *)(long)
 			boot_params->acpi_rsdp_addr;

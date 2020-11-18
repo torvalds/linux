@@ -49,7 +49,7 @@ static void batadv_v_elp_start_timer(struct batadv_hard_iface *hard_iface)
 	unsigned int msecs;
 
 	msecs = atomic_read(&hard_iface->bat_v.elp_interval) - BATADV_JITTER;
-	msecs += prandom_u32() % (2 * BATADV_JITTER);
+	msecs += prandom_u32_max(2 * BATADV_JITTER);
 
 	queue_delayed_work(batadv_event_workqueue, &hard_iface->bat_v.elp_wq,
 			   msecs_to_jiffies(msecs));
@@ -60,7 +60,7 @@ static void batadv_v_elp_start_timer(struct batadv_hard_iface *hard_iface)
  * @neigh: the neighbour for which the throughput has to be obtained
  *
  * Return: The throughput towards the given neighbour in multiples of 100kpbs
- *         (a value of '1' equals to 0.1Mbps, '10' equals 1Mbps, etc).
+ *         (a value of '1' equals 0.1Mbps, '10' equals 1Mbps, etc).
  */
 static u32 batadv_v_elp_get_throughput(struct batadv_hardif_neigh_node *neigh)
 {
@@ -127,20 +127,7 @@ static u32 batadv_v_elp_get_throughput(struct batadv_hardif_neigh_node *neigh)
 	rtnl_lock();
 	ret = __ethtool_get_link_ksettings(hard_iface->net_dev, &link_settings);
 	rtnl_unlock();
-
-	/* Virtual interface drivers such as tun / tap interfaces, VLAN, etc
-	 * tend to initialize the interface throughput with some value for the
-	 * sake of having a throughput number to export via ethtool. This
-	 * exported throughput leaves batman-adv to conclude the interface
-	 * throughput is genuine (reflecting reality), thus no measurements
-	 * are necessary.
-	 *
-	 * Based on the observation that those interface types also tend to set
-	 * the link auto-negotiation to 'off', batman-adv shall check this
-	 * setting to differentiate between genuine link throughput information
-	 * and placeholders installed by virtual interfaces.
-	 */
-	if (ret == 0 && link_settings.base.autoneg == AUTONEG_ENABLE) {
+	if (ret == 0) {
 		/* link characteristics might change over time */
 		if (link_settings.base.duplex == DUPLEX_FULL)
 			hard_iface->bat_v.flags |= BATADV_FULL_DUPLEX;
@@ -196,8 +183,8 @@ void batadv_v_elp_throughput_metric_update(struct work_struct *work)
  *
  * Sends a predefined number of unicast wifi packets to a given neighbour in
  * order to trigger the throughput estimation on this link by the RC algorithm.
- * Packets are sent only if there there is not enough payload unicast traffic
- * towards this neighbour..
+ * Packets are sent only if there is not enough payload unicast traffic towards
+ * this neighbour..
  *
  * Return: True on success and false in case of error during skb preparation.
  */
@@ -257,7 +244,7 @@ batadv_v_elp_wifi_neigh_probe(struct batadv_hardif_neigh_node *neigh)
  * batadv_v_elp_periodic_work() - ELP periodic task per interface
  * @work: work queue item
  *
- * Emits broadcast ELP message in regular intervals.
+ * Emits broadcast ELP messages in regular intervals.
  */
 static void batadv_v_elp_periodic_work(struct work_struct *work)
 {
@@ -512,7 +499,7 @@ orig_free:
  * @skb: the received packet
  * @if_incoming: the interface this packet was received through
  *
- * Return: NET_RX_SUCCESS and consumes the skb if the packet was peoperly
+ * Return: NET_RX_SUCCESS and consumes the skb if the packet was properly
  * processed or NET_RX_DROP in case of failure.
  */
 int batadv_v_elp_packet_recv(struct sk_buff *skb,

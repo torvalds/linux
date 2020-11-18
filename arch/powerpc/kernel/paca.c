@@ -8,14 +8,15 @@
 #include <linux/memblock.h>
 #include <linux/sched/task.h>
 #include <linux/numa.h>
+#include <linux/pgtable.h>
 
 #include <asm/lppaca.h>
 #include <asm/paca.h>
 #include <asm/sections.h>
-#include <asm/pgtable.h>
 #include <asm/kexec.h>
 #include <asm/svm.h>
 #include <asm/ultravisor.h>
+#include <asm/rtas.h>
 
 #include "setup.h"
 
@@ -56,8 +57,8 @@ static void *__init alloc_paca_data(unsigned long size, unsigned long align,
 
 #define LPPACA_SIZE 0x400
 
-static void *__init alloc_shared_lppaca(unsigned long size, unsigned long align,
-					unsigned long limit, int cpu)
+static void *__init alloc_shared_lppaca(unsigned long size, unsigned long limit,
+					int cpu)
 {
 	size_t shared_lppaca_total_size = PAGE_ALIGN(nr_cpu_ids * LPPACA_SIZE);
 	static unsigned long shared_lppaca_size;
@@ -67,6 +68,13 @@ static void *__init alloc_shared_lppaca(unsigned long size, unsigned long align,
 	if (!shared_lppaca) {
 		memblock_set_bottom_up(true);
 
+		/*
+		 * See Documentation/powerpc/ultravisor.rst for more details.
+		 *
+		 * UV/HV data sharing is in PAGE_SIZE granularity. In order to
+		 * minimize the number of pages shared, align the allocation to
+		 * PAGE_SIZE.
+		 */
 		shared_lppaca =
 			memblock_alloc_try_nid(shared_lppaca_total_size,
 					       PAGE_SIZE, MEMBLOCK_LOW_LIMIT,
@@ -86,7 +94,7 @@ static void *__init alloc_shared_lppaca(unsigned long size, unsigned long align,
 	 * This is very early in boot, so no harm done if the kernel crashes at
 	 * this point.
 	 */
-	BUG_ON(shared_lppaca_size >= shared_lppaca_total_size);
+	BUG_ON(shared_lppaca_size > shared_lppaca_total_size);
 
 	return ptr;
 }
@@ -121,7 +129,7 @@ static struct lppaca * __init new_lppaca(int cpu, unsigned long limit)
 		return NULL;
 
 	if (is_secure_guest())
-		lp = alloc_shared_lppaca(LPPACA_SIZE, 0x400, limit, cpu);
+		lp = alloc_shared_lppaca(LPPACA_SIZE, limit, cpu);
 	else
 		lp = alloc_paca_data(LPPACA_SIZE, 0x400, limit, cpu);
 
@@ -164,6 +172,30 @@ static struct slb_shadow * __init new_slb_shadow(int cpu, unsigned long limit)
 
 #endif /* CONFIG_PPC_BOOK3S_64 */
 
+#ifdef CONFIG_PPC_PSERIES
+/**
+ * new_rtas_args() - Allocates rtas args
+ * @cpu:	CPU number
+ * @limit:	Memory limit for this allocation
+ *
+ * Allocates a struct rtas_args and return it's pointer,
+ * if not in Hypervisor mode
+ *
+ * Return:	Pointer to allocated rtas_args
+ *		NULL if CPU in Hypervisor Mode
+ */
+static struct rtas_args * __init new_rtas_args(int cpu, unsigned long limit)
+{
+	limit = min_t(unsigned long, limit, RTAS_INSTANTIATE_MAX);
+
+	if (early_cpu_has_feature(CPU_FTR_HVMODE))
+		return NULL;
+
+	return alloc_paca_data(sizeof(struct rtas_args), L1_CACHE_BYTES,
+			       limit, cpu);
+}
+#endif /* CONFIG_PPC_PSERIES */
+
 /* The Paca is an array with one entry per processor.  Each contains an
  * lppaca, which contains the information shared between the
  * hypervisor and Linux.
@@ -201,6 +233,10 @@ void __init __nostackprotector initialise_paca(struct paca_struct *new_paca, int
 #ifdef CONFIG_PPC_BOOK3E
 	/* For now -- if we have threads this will be adjusted later */
 	new_paca->tcd_ptr = &new_paca->tcd;
+#endif
+
+#ifdef CONFIG_PPC_PSERIES
+	new_paca->rtas_args_reentrant = NULL;
 #endif
 }
 
@@ -273,6 +309,9 @@ void __init allocate_paca(int cpu)
 #endif
 #ifdef CONFIG_PPC_BOOK3S_64
 	paca->slb_shadow_ptr = new_slb_shadow(cpu, limit);
+#endif
+#ifdef CONFIG_PPC_PSERIES
+	paca->rtas_args_reentrant = new_rtas_args(cpu, limit);
 #endif
 	paca_struct_size += sizeof(struct paca_struct);
 }

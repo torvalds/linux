@@ -2,7 +2,7 @@
 /**
  * Cadence GEM PCI wrapper.
  *
- * Copyright (C) 2016 Cadence Design Systems - http://www.cadence.com
+ * Copyright (C) 2016 Cadence Design Systems - https://www.cadence.com
  *
  * Authors: Rafal Ozieblo <rafalo@cadence.com>
  *	    Bartosz Folta <bfolta@cadence.com>

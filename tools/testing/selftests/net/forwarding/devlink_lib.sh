@@ -98,6 +98,11 @@ devlink_resource_size_set()
 	check_err $? "Failed setting path $path to size $size"
 }
 
+devlink_resource_occ_get()
+{
+	devlink_resource_get "$@" | jq '.["occ"]'
+}
+
 devlink_reload()
 {
 	local still_pending
@@ -365,7 +370,9 @@ devlink_trap_group_stats_idle_test()
 devlink_trap_exception_test()
 {
 	local trap_name=$1; shift
-	local group_name=$1; shift
+	local group_name
+
+	group_name=$(devlink_trap_group_get $trap_name)
 
 	devlink_trap_stats_idle_test $trap_name
 	check_fail $? "Trap stats idle when packets should have been trapped"
@@ -377,9 +384,11 @@ devlink_trap_exception_test()
 devlink_trap_drop_test()
 {
 	local trap_name=$1; shift
-	local group_name=$1; shift
 	local dev=$1; shift
 	local handle=$1; shift
+	local group_name
+
+	group_name=$(devlink_trap_group_get $trap_name)
 
 	# This is the common part of all the tests. It checks that stats are
 	# initially idle, then non-idle after changing the trap action and
@@ -389,7 +398,6 @@ devlink_trap_drop_test()
 	check_err $? "Trap stats not idle with initial drop action"
 	devlink_trap_group_stats_idle_test $group_name
 	check_err $? "Trap group stats not idle with initial drop action"
-
 
 	devlink_trap_action_set $trap_name "trap"
 	devlink_trap_stats_idle_test $trap_name
@@ -418,6 +426,29 @@ devlink_trap_drop_cleanup()
 
 	kill $mz_pid && wait $mz_pid &> /dev/null
 	tc filter del dev $dev egress protocol $proto pref $pref handle $handle flower
+}
+
+devlink_trap_stats_test()
+{
+	local test_name=$1; shift
+	local trap_name=$1; shift
+	local send_one="$@"
+	local t0_packets
+	local t1_packets
+
+	RET=0
+
+	t0_packets=$(devlink_trap_rx_packets_get $trap_name)
+
+	$send_one && sleep 1
+
+	t1_packets=$(devlink_trap_rx_packets_get $trap_name)
+
+	if [[ $t1_packets -eq $t0_packets ]]; then
+		check_err 1 "Trap stats did not increase"
+	fi
+
+	log_test "$test_name"
 }
 
 devlink_trap_policers_num_get()

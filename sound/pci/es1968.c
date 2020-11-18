@@ -2631,7 +2631,7 @@ struct ess_device_list {
 	unsigned short vendor;	/* subsystem vendor id */
 };
 
-static const struct ess_device_list pm_whitelist[] = {
+static const struct ess_device_list pm_allowlist[] = {
 	{ TYPE_MAESTRO2E, 0x0e11 },	/* Compaq Armada */
 	{ TYPE_MAESTRO2E, 0x1028 },
 	{ TYPE_MAESTRO2E, 0x103c },
@@ -2642,7 +2642,7 @@ static const struct ess_device_list pm_whitelist[] = {
 	{ TYPE_MAESTRO2, 0x125d },	/* a PCI card, e.g. SF64-PCE2 */
 };
 
-static const struct ess_device_list mpu_blacklist[] = {
+static const struct ess_device_list mpu_denylist[] = {
 	{ TYPE_MAESTRO2, 0x125d },
 };
 
@@ -2724,12 +2724,12 @@ static int snd_es1968_create(struct snd_card *card,
 	pci_set_master(pci);
 
 	if (do_pm > 1) {
-		/* disable power-management if not on the whitelist */
+		/* disable power-management if not on the allowlist */
 		unsigned short vend;
 		pci_read_config_word(chip->pci, PCI_SUBSYSTEM_VENDOR_ID, &vend);
-		for (i = 0; i < (int)ARRAY_SIZE(pm_whitelist); i++) {
-			if (chip->type == pm_whitelist[i].type &&
-			    vend == pm_whitelist[i].vendor) {
+		for (i = 0; i < (int)ARRAY_SIZE(pm_allowlist); i++) {
+			if (chip->type == pm_allowlist[i].type &&
+			    vend == pm_allowlist[i].vendor) {
 				do_pm = 1;
 				break;
 			}
@@ -2848,12 +2848,12 @@ static int snd_es1968_probe(struct pci_dev *pci,
 	}
 
 	if (enable_mpu[dev] == 2) {
-		/* check the black list */
+		/* check the deny list */
 		unsigned short vend;
 		pci_read_config_word(chip->pci, PCI_SUBSYSTEM_VENDOR_ID, &vend);
-		for (i = 0; i < ARRAY_SIZE(mpu_blacklist); i++) {
-			if (chip->type == mpu_blacklist[i].type &&
-			    vend == mpu_blacklist[i].vendor) {
+		for (i = 0; i < ARRAY_SIZE(mpu_denylist); i++) {
+			if (chip->type == mpu_denylist[i].type &&
+			    vend == mpu_denylist[i].vendor) {
 				enable_mpu[dev] = 0;
 				break;
 			}

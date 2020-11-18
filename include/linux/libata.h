@@ -22,6 +22,7 @@
 #include <linux/acpi.h>
 #include <linux/cdrom.h>
 #include <linux/sched.h>
+#include <linux/async.h>
 
 /*
  * Define if arch has non-standard setup.  This is a _PCI_ standard
@@ -420,6 +421,7 @@ enum {
 	ATA_HORKAGE_NO_DMA_LOG	= (1 << 23),	/* don't use DMA for log read */
 	ATA_HORKAGE_NOTRIM	= (1 << 24),	/* don't use TRIM */
 	ATA_HORKAGE_MAX_SEC_1024 = (1 << 25),	/* Limit max sects to 1024 */
+	ATA_HORKAGE_MAX_TRIM_128M = (1 << 26),	/* Limit max trim size to 128M */
 
 	 /* DMA mask for user DMA control: User visible values; DO NOT
 	    renumber */
@@ -609,7 +611,7 @@ struct ata_host {
 	struct task_struct	*eh_owner;
 
 	struct ata_port		*simplex_claimed;	/* channel owning the DMA */
-	struct ata_port		*ports[0];
+	struct ata_port		*ports[];
 };
 
 struct ata_queued_cmd {
@@ -872,6 +874,8 @@ struct ata_port {
 	struct timer_list	fastdrain_timer;
 	unsigned long		fastdrain_cnt;
 
+	async_cookie_t		cookie;
+
 	int			em_message_type;
 	void			*private_data;
 
@@ -1092,6 +1096,11 @@ extern int ata_scsi_ioctl(struct scsi_device *dev, unsigned int cmd,
 #define ATA_SCSI_COMPAT_IOCTL /* empty */
 #endif
 extern int ata_scsi_queuecmd(struct Scsi_Host *h, struct scsi_cmnd *cmd);
+#if IS_REACHABLE(CONFIG_ATA)
+bool ata_scsi_dma_need_drain(struct request *rq);
+#else
+#define ata_scsi_dma_need_drain NULL
+#endif
 extern int ata_sas_scsi_ioctl(struct ata_port *ap, struct scsi_device *dev,
 			    unsigned int cmd, void __user *arg);
 extern bool ata_link_online(struct ata_link *link);
@@ -1387,6 +1396,7 @@ extern struct device_attribute *ata_common_sdev_attrs[];
 	.ioctl			= ata_scsi_ioctl,		\
 	ATA_SCSI_COMPAT_IOCTL					\
 	.queuecommand		= ata_scsi_queuecmd,		\
+	.dma_need_drain		= ata_scsi_dma_need_drain,	\
 	.can_queue		= ATA_DEF_QUEUE,		\
 	.tag_alloc_policy	= BLK_TAG_ALLOC_RR,		\
 	.this_id		= ATA_SHT_THIS_ID,		\

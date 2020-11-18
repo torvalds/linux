@@ -70,40 +70,78 @@ static const struct of_device_id qcom_hwspinlock_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, qcom_hwspinlock_of_match);
 
+static struct regmap *qcom_hwspinlock_probe_syscon(struct platform_device *pdev,
+						   u32 *base, u32 *stride)
+{
+	struct device_node *syscon;
+	struct regmap *regmap;
+	int ret;
+
+	syscon = of_parse_phandle(pdev->dev.of_node, "syscon", 0);
+	if (!syscon)
+		return ERR_PTR(-ENODEV);
+
+	regmap = syscon_node_to_regmap(syscon);
+	of_node_put(syscon);
+	if (IS_ERR(regmap))
+		return regmap;
+
+	ret = of_property_read_u32_index(pdev->dev.of_node, "syscon", 1, base);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "no offset in syscon\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	ret = of_property_read_u32_index(pdev->dev.of_node, "syscon", 2, stride);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "no stride syscon\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	return regmap;
+}
+
+static const struct regmap_config tcsr_mutex_config = {
+	.reg_bits		= 32,
+	.reg_stride		= 4,
+	.val_bits		= 32,
+	.max_register		= 0x40000,
+	.fast_io		= true,
+};
+
+static struct regmap *qcom_hwspinlock_probe_mmio(struct platform_device *pdev,
+						 u32 *offset, u32 *stride)
+{
+	struct device *dev = &pdev->dev;
+	void __iomem *base;
+
+	/* All modern platform has offset 0 and stride of 4k */
+	*offset = 0;
+	*stride = 0x1000;
+
+	base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(base))
+		return ERR_CAST(base);
+
+	return devm_regmap_init_mmio(dev, base, &tcsr_mutex_config);
+}
+
 static int qcom_hwspinlock_probe(struct platform_device *pdev)
 {
 	struct hwspinlock_device *bank;
-	struct device_node *syscon;
 	struct reg_field field;
 	struct regmap *regmap;
 	size_t array_size;
 	u32 stride;
 	u32 base;
-	int ret;
 	int i;
 
-	syscon = of_parse_phandle(pdev->dev.of_node, "syscon", 0);
-	if (!syscon) {
-		dev_err(&pdev->dev, "no syscon property\n");
-		return -ENODEV;
-	}
+	regmap = qcom_hwspinlock_probe_syscon(pdev, &base, &stride);
+	if (IS_ERR(regmap) && PTR_ERR(regmap) == -ENODEV)
+		regmap = qcom_hwspinlock_probe_mmio(pdev, &base, &stride);
 
-	regmap = syscon_node_to_regmap(syscon);
-	of_node_put(syscon);
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
-
-	ret = of_property_read_u32_index(pdev->dev.of_node, "syscon", 1, &base);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "no offset in syscon\n");
-		return -EINVAL;
-	}
-
-	ret = of_property_read_u32_index(pdev->dev.of_node, "syscon", 2, &stride);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "no stride syscon\n");
-		return -EINVAL;
-	}
 
 	array_size = QCOM_MUTEX_NUM_LOCKS * sizeof(struct hwspinlock);
 	bank = devm_kzalloc(&pdev->dev, sizeof(*bank) + array_size, GFP_KERNEL);

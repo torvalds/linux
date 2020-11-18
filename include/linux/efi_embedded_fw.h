@@ -8,8 +8,8 @@
 #define EFI_EMBEDDED_FW_PREFIX_LEN		8
 
 /*
- * This struct and efi_embedded_fw_list are private to the efi-embedded fw
- * implementation they are in this header for use by lib/test_firmware.c only!
+ * This struct is private to the efi-embedded fw implementation.
+ * They are in this header for use by lib/test_firmware.c only!
  */
 struct efi_embedded_fw {
 	struct list_head list;
@@ -17,8 +17,6 @@ struct efi_embedded_fw {
 	const u8 *data;
 	size_t length;
 };
-
-extern struct list_head efi_embedded_fw_list;
 
 /**
  * struct efi_embedded_fw_desc - This struct is used by the EFI embedded-fw

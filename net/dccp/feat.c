@@ -165,6 +165,8 @@ static const struct {
 
 /**
  * dccp_feat_index  -  Hash function to map feature number into array position
+ * @feat_num: feature to hash, one of %dccp_feature_numbers
+ *
  * Returns consecutive array index or -1 if the feature is not understood.
  */
 static int dccp_feat_index(u8 feat_num)
@@ -567,6 +569,8 @@ cloning_failed:
 
 /**
  * dccp_feat_valid_nn_length  -  Enforce length constraints on NN options
+ * @feat_num: feature to return length of, one of %dccp_feature_numbers
+ *
  * Length is between 0 and %DCCP_OPTVAL_MAXLEN. Used for outgoing packets only,
  * incoming options are accepted as long as their values are valid.
  */
@@ -1403,7 +1407,8 @@ int dccp_feat_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 	 *	Negotiation during connection setup
 	 */
 	case DCCP_LISTEN:
-		server = true;			/* fall through */
+		server = true;
+		fallthrough;
 	case DCCP_REQUESTING:
 		switch (opt) {
 		case DCCPO_CHANGE_L:
@@ -1429,6 +1434,8 @@ int dccp_feat_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 
 /**
  * dccp_feat_init  -  Seed feature negotiation with host-specific defaults
+ * @sk: Socket to initialize.
+ *
  * This initialises global defaults, depending on the value of the sysctls.
  * These can later be overridden by registering changes via setsockopt calls.
  * The last link in the chain is finalise_settings, to make sure that between

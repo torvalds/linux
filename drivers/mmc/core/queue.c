@@ -190,7 +190,7 @@ static void mmc_queue_setup_discard(struct request_queue *q,
 	q->limits.discard_granularity = card->pref_erase << 9;
 	/* granularity must not be greater than max. discard */
 	if (card->pref_erase > max_discard)
-		q->limits.discard_granularity = 0;
+		q->limits.discard_granularity = SECTOR_SIZE;
 	if (mmc_can_secure_erase_trim(card))
 		blk_queue_flag_set(QUEUE_FLAG_SECERASE, q);
 }
@@ -203,7 +203,7 @@ static unsigned int mmc_get_max_segments(struct mmc_host *host)
 
 /**
  * mmc_init_request() - initialize the MMC-specific per-request data
- * @q: the request queue
+ * @mq: the request queue
  * @req: the request
  * @gfp: memory allocation policy
  */

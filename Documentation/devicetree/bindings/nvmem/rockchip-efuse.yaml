@@ -1,0 +1,70 @@
+# SPDX-License-Identifier: GPL-2.0-or-later OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/nvmem/rockchip-efuse.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Rockchip eFuse device tree bindings
+
+maintainers:
+  - Heiko Stuebner <heiko@sntech.de>
+
+allOf:
+  - $ref: "nvmem.yaml#"
+
+properties:
+  compatible:
+    enum:
+      - rockchip,rk3066a-efuse
+      - rockchip,rk3188-efuse
+      - rockchip,rk3228-efuse
+      - rockchip,rk3288-efuse
+      - rockchip,rk3328-efuse
+      - rockchip,rk3368-efuse
+      - rockchip,rk3399-efuse
+
+      # Deprecated: old compatible value for rk3066a, rk3188 and rk3288
+      - rockchip,rockchip-efuse
+
+  reg:
+    description:
+      Registers location and eFuse size.
+    maxItems: 1
+
+  clocks:
+    description:
+      eFuse clock id.
+    maxItems: 1
+
+  clock-names:
+    const: pclk_efuse
+
+  rockchip,efuse-size:
+    description:
+      eFuse size in bytes. The eFuse size in property <reg> will be invalid if
+      this property is defined.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+
+examples:
+  - |
+    #include <dt-bindings/clock/rk3288-cru.h>
+    efuse: efuse@ffb40000 {
+            compatible = "rockchip,rk3288-efuse";
+            reg = <0xffb40000 0x20>;
+            #address-cells = <1>;
+            #size-cells = <1>;
+            clocks = <&cru PCLK_EFUSE256>;
+            clock-names = "pclk_efuse";
+
+            /* Data cells */
+            cpu_leakage: cpu_leakage@17 {
+                    reg = <0x17 0x1>;
+            };
+    };
+...

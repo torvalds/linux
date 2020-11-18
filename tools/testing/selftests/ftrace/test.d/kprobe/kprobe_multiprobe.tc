@@ -1,10 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: Create/delete multiprobe on kprobe event
-
-[ -f kprobe_events ] || exit_unsupported
-
-grep -q "Create/append/" README || exit_unsupported
+# requires: kprobe_events "Create/append/":README
 
 # Choose 2 symbols for target
 SYM1=_do_fork

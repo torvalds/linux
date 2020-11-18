@@ -113,8 +113,7 @@ struct gsi_channel {
 	u16 tre_count;
 	u16 event_count;
 
-	struct completion completion;	/* signals channel state changes */
-	enum gsi_channel_state state;
+	struct completion completion;	/* signals channel command completion */
 
 	struct gsi_ring tre_ring;
 	u32 evt_ring_id;
@@ -166,14 +165,14 @@ struct gsi {
 /**
  * gsi_setup() - Set up the GSI subsystem
  * @gsi:	Address of GSI structure embedded in an IPA structure
- * @db_enable:	Whether to use the GSI doorbell engine
+ * @legacy:	Set up for legacy hardware
  *
- * @Return:	0 if successful, or a negative error code
+ * Return:	0 if successful, or a negative error code
  *
  * Performs initialization that must wait until the GSI hardware is
  * ready (including firmware loaded).
  */
-int gsi_setup(struct gsi *gsi, bool db_enable);
+int gsi_setup(struct gsi *gsi, bool legacy);
 
 /**
  * gsi_teardown() - Tear down GSI subsystem
@@ -186,7 +185,7 @@ void gsi_teardown(struct gsi *gsi);
  * @gsi:	GSI pointer
  * @channel_id:	Channel whose limit is to be returned
  *
- * @Return:	 The maximum number of TREs oustanding on the channel
+ * Return:	 The maximum number of TREs oustanding on the channel
  */
 u32 gsi_channel_tre_max(struct gsi *gsi, u32 channel_id);
 
@@ -195,7 +194,7 @@ u32 gsi_channel_tre_max(struct gsi *gsi, u32 channel_id);
  * @gsi:	GSI pointer
  * @channel_id:	Channel whose limit is to be returned
  *
- * @Return:	 The maximum TRE count per transaction on the channel
+ * Return:	 The maximum TRE count per transaction on the channel
  */
 u32 gsi_channel_trans_tre_max(struct gsi *gsi, u32 channel_id);
 
@@ -204,7 +203,7 @@ u32 gsi_channel_trans_tre_max(struct gsi *gsi, u32 channel_id);
  * @gsi:	GSI pointer
  * @channel_id:	Channel to start
  *
- * @Return:	0 if successful, or a negative error code
+ * Return:	0 if successful, or a negative error code
  */
 int gsi_channel_start(struct gsi *gsi, u32 channel_id);
 
@@ -213,7 +212,7 @@ int gsi_channel_start(struct gsi *gsi, u32 channel_id);
  * @gsi:	GSI pointer returned by gsi_setup()
  * @channel_id:	Channel to stop
  *
- * @Return:	0 if successful, or a negative error code
+ * Return:	0 if successful, or a negative error code
  */
 int gsi_channel_stop(struct gsi *gsi, u32 channel_id);
 
@@ -221,15 +220,15 @@ int gsi_channel_stop(struct gsi *gsi, u32 channel_id);
  * gsi_channel_reset() - Reset an allocated GSI channel
  * @gsi:	GSI pointer
  * @channel_id:	Channel to be reset
- * @db_enable:	Whether doorbell engine should be enabled
+ * @legacy:	Legacy behavior
  *
- * Reset a channel and reconfigure it.  The @db_enable flag indicates
- * whether the doorbell engine will be enabled following reconfiguration.
+ * Reset a channel and reconfigure it.  The @legacy flag indicates
+ * that some steps should be done differently for legacy hardware.
  *
  * GSI hardware relinquishes ownership of all pending receive buffer
  * transactions and they will complete with their cancelled flag set.
  */
-void gsi_channel_reset(struct gsi *gsi, u32 channel_id, bool db_enable);
+void gsi_channel_reset(struct gsi *gsi, u32 channel_id, bool legacy);
 
 int gsi_channel_suspend(struct gsi *gsi, u32 channel_id, bool stop);
 int gsi_channel_resume(struct gsi *gsi, u32 channel_id, bool start);
@@ -239,7 +238,7 @@ int gsi_channel_resume(struct gsi *gsi, u32 channel_id, bool start);
  * @gsi:	Address of GSI structure embedded in an IPA structure
  * @pdev:	IPA platform device
  *
- * @Return:	0 if successful, or a negative error code
+ * Return:	0 if successful, or a negative error code
  *
  * Early stage initialization of the GSI subsystem, performing tasks
  * that can be done before the GSI hardware is ready to use.

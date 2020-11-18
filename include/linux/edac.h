@@ -31,14 +31,6 @@ struct device;
 extern int edac_op_state;
 
 struct bus_type *edac_get_sysfs_subsys(void);
-int edac_get_report_status(void);
-void edac_set_report_status(int new);
-
-enum {
-	EDAC_REPORTING_ENABLED,
-	EDAC_REPORTING_DISABLED,
-	EDAC_REPORTING_FORCE
-};
 
 static inline void opstate_init(void)
 {
@@ -603,27 +595,6 @@ struct mem_ctl_info {
 		     : NULL)
 
 /**
- * edac_get_dimm_by_index - Get DIMM info at @index from a memory
- * 			    controller
- *
- * @mci:	MC descriptor struct mem_ctl_info
- * @index:	index in the memory controller's DIMM array
- *
- * Returns a struct dimm_info * or NULL on failure.
- */
-static inline struct dimm_info *
-edac_get_dimm_by_index(struct mem_ctl_info *mci, int index)
-{
-	if (index < 0 || index >= mci->tot_dimms)
-		return NULL;
-
-	if (WARN_ON_ONCE(mci->dimms[index]->idx != index))
-		return NULL;
-
-	return mci->dimms[index];
-}
-
-/**
  * edac_get_dimm - Get DIMM info from a memory controller given by
  *                 [layer0,layer1,layer2] position
  *
@@ -658,6 +629,12 @@ static inline struct dimm_info *edac_get_dimm(struct mem_ctl_info *mci,
 	if (mci->n_layers > 2)
 		index = index * mci->layers[2].size + layer2;
 
-	return edac_get_dimm_by_index(mci, index);
+	if (index < 0 || index >= mci->tot_dimms)
+		return NULL;
+
+	if (WARN_ON_ONCE(mci->dimms[index]->idx != index))
+		return NULL;
+
+	return mci->dimms[index];
 }
 #endif /* _LINUX_EDAC_H_ */

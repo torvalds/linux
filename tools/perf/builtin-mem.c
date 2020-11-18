@@ -38,26 +38,16 @@ static int parse_record_events(const struct option *opt,
 			       const char *str, int unset __maybe_unused)
 {
 	struct perf_mem *mem = *(struct perf_mem **)opt->value;
-	int j;
 
-	if (strcmp(str, "list")) {
-		if (!perf_mem_events__parse(str)) {
-			mem->operation = 0;
-			return 0;
-		}
+	if (!strcmp(str, "list")) {
+		perf_mem_events__list();
+		exit(0);
+	}
+	if (perf_mem_events__parse(str))
 		exit(-1);
-	}
 
-	for (j = 0; j < PERF_MEM_EVENTS__MAX; j++) {
-		struct perf_mem_event *e = &perf_mem_events[j];
-
-		fprintf(stderr, "%-13s%-*s%s\n",
-			e->tag,
-			verbose > 0 ? 25 : 0,
-			verbose > 0 ? perf_mem_events__name(j) : "",
-			e->supported ? ": available" : "");
-	}
-	exit(0);
+	mem->operation = 0;
+	return 0;
 }
 
 static const char * const __usage[] = {
@@ -123,7 +113,7 @@ static int __cmd_record(int argc, const char **argv, struct perf_mem *mem)
 
 		rec_argv[i++] = "-e";
 		rec_argv[i++] = perf_mem_events__name(j);
-	};
+	}
 
 	if (all_user)
 		rec_argv[i++] = "--all-user";

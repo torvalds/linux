@@ -15,34 +15,39 @@
 #include <linux/iommu.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
+#include <linux/dma-mapping.h>
 #include <soc/mediatek/smi.h>
 
+#define MTK_LARB_COM_MAX	8
+#define MTK_LARB_SUBCOM_MAX	4
+
 struct mtk_iommu_suspend_reg {
-	u32				standard_axi_mode;
+	union {
+		u32			standard_axi_mode;/* v1 */
+		u32			misc_ctrl;/* v2 */
+	};
 	u32				dcm_dis;
 	u32				ctrl_reg;
 	u32				int_control0;
 	u32				int_main_control;
 	u32				ivrp_paddr;
 	u32				vld_pa_rng;
+	u32				wr_len_ctrl;
 };
 
 enum mtk_iommu_plat {
 	M4U_MT2701,
 	M4U_MT2712,
+	M4U_MT6779,
 	M4U_MT8173,
 	M4U_MT8183,
 };
 
 struct mtk_iommu_plat_data {
 	enum mtk_iommu_plat m4u_plat;
-	bool                has_4gb_mode;
-
-	/* HW will use the EMI clock if there isn't the "bclk". */
-	bool                has_bclk;
-	bool                has_vld_pa_rng;
-	bool                reset_axi;
-	unsigned char       larbid_remap[MTK_LARB_NR_MAX];
+	u32                 flags;
+	u32                 inv_sel_reg;
+	unsigned char       larbid_remap[MTK_LARB_COM_MAX][MTK_LARB_SUBCOM_MAX];
 };
 
 struct mtk_iommu_domain;
@@ -61,6 +66,8 @@ struct mtk_iommu_data {
 
 	struct iommu_device		iommu;
 	const struct mtk_iommu_plat_data *plat_data;
+
+	struct dma_iommu_mapping	*mapping; /* For mtk_iommu_v1.c */
 
 	struct list_head		list;
 	struct mtk_smi_larb_iommu	larb_imu[MTK_LARB_NR_MAX];

@@ -41,7 +41,7 @@ static int tcf_skbedit_act(struct sk_buff *skb, const struct tc_action *a,
 	if (params->flags & SKBEDIT_F_INHERITDSFIELD) {
 		int wlen = skb_network_offset(skb);
 
-		switch (tc_skb_protocol(skb)) {
+		switch (skb_protocol(skb, true)) {
 		case htons(ETH_P_IP):
 			wlen += sizeof(struct iphdr);
 			if (!pskb_may_pull(skb, wlen))
@@ -74,12 +74,13 @@ err:
 }
 
 static void tcf_skbedit_stats_update(struct tc_action *a, u64 bytes,
-				     u32 packets, u64 lastuse, bool hw)
+				     u64 packets, u64 drops,
+				     u64 lastuse, bool hw)
 {
 	struct tcf_skbedit *d = to_skbedit(a);
 	struct tcf_t *tm = &d->tcf_tm;
 
-	tcf_action_update_stats(a, bytes, packets, false, hw);
+	tcf_action_update_stats(a, bytes, packets, drops, hw);
 	tm->lastuse = max_t(u64, tm->lastuse, lastuse);
 }
 
@@ -224,8 +225,6 @@ static int tcf_skbedit_init(struct net *net, struct nlattr *nla,
 	if (goto_ch)
 		tcf_chain_put_by_act(goto_ch);
 
-	if (ret == ACT_P_CREATED)
-		tcf_idr_insert(tn, *a);
 	return ret;
 put_chain:
 	if (goto_ch)

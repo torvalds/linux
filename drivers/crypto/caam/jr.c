@@ -339,8 +339,7 @@ EXPORT_SYMBOL(caam_jr_free);
  * caam_jr_enqueue() - Enqueue a job descriptor head. Returns -EINPROGRESS
  * if OK, -ENOSPC if the queue is full, -EIO if it cannot map the caller's
  * descriptor.
- * @dev:  device of the job ring to be used. This device should have
- *        been assigned prior by caam_jr_register().
+ * @dev:  struct device of the job ring to be used
  * @desc: points to a job descriptor that execute our request. All
  *        descriptors (and all referenced data) must be in a DMAable
  *        region, and all data references must be physical addresses

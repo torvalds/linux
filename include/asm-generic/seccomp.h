@@ -33,7 +33,7 @@ static inline const int *get_compat_mode1_syscalls(void)
 	static const int mode1_syscalls_32[] = {
 		__NR_seccomp_read_32, __NR_seccomp_write_32,
 		__NR_seccomp_exit_32, __NR_seccomp_sigreturn_32,
-		0, /* null terminated */
+		-1, /* negative terminated */
 	};
 	return mode1_syscalls_32;
 }

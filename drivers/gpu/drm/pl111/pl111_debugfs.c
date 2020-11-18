@@ -3,7 +3,6 @@
  *  Copyright © 2017 Broadcom
  */
 
-#include <linux/amba/clcd-regs.h>
 #include <linux/seq_file.h>
 
 #include <drm/drm_debugfs.h>
@@ -51,10 +50,10 @@ static const struct drm_info_list pl111_debugfs_list[] = {
 	{"regs", pl111_debugfs_regs, 0},
 };
 
-int
+void
 pl111_debugfs_init(struct drm_minor *minor)
 {
-	return drm_debugfs_create_files(pl111_debugfs_list,
-					ARRAY_SIZE(pl111_debugfs_list),
-					minor->debugfs_root, minor);
+	drm_debugfs_create_files(pl111_debugfs_list,
+				 ARRAY_SIZE(pl111_debugfs_list),
+				 minor->debugfs_root, minor);
 }

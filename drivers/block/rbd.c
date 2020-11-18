@@ -836,6 +836,7 @@ enum {
 	Opt_lock_timeout,
 	/* int args above */
 	Opt_pool_ns,
+	Opt_compression_hint,
 	/* string args above */
 	Opt_read_only,
 	Opt_read_write,
@@ -844,8 +845,23 @@ enum {
 	Opt_notrim,
 };
 
+enum {
+	Opt_compression_hint_none,
+	Opt_compression_hint_compressible,
+	Opt_compression_hint_incompressible,
+};
+
+static const struct constant_table rbd_param_compression_hint[] = {
+	{"none",		Opt_compression_hint_none},
+	{"compressible",	Opt_compression_hint_compressible},
+	{"incompressible",	Opt_compression_hint_incompressible},
+	{}
+};
+
 static const struct fs_parameter_spec rbd_parameters[] = {
 	fsparam_u32	("alloc_size",			Opt_alloc_size),
+	fsparam_enum	("compression_hint",		Opt_compression_hint,
+			 rbd_param_compression_hint),
 	fsparam_flag	("exclusive",			Opt_exclusive),
 	fsparam_flag	("lock_on_read",		Opt_lock_on_read),
 	fsparam_u32	("lock_timeout",		Opt_lock_timeout),
@@ -867,6 +883,8 @@ struct rbd_options {
 	bool	lock_on_read;
 	bool	exclusive;
 	bool	trim;
+
+	u32 alloc_hint_flags;  /* CEPH_OSD_OP_ALLOC_HINT_FLAG_* */
 };
 
 #define RBD_QUEUE_DEPTH_DEFAULT	BLKDEV_MAX_RQ
@@ -1433,8 +1451,10 @@ static void rbd_osd_req_callback(struct ceph_osd_request *osd_req)
 static void rbd_osd_format_read(struct ceph_osd_request *osd_req)
 {
 	struct rbd_obj_request *obj_request = osd_req->r_priv;
+	struct rbd_device *rbd_dev = obj_request->img_request->rbd_dev;
+	struct ceph_options *opt = rbd_dev->rbd_client->client->options;
 
-	osd_req->r_flags = CEPH_OSD_FLAG_READ;
+	osd_req->r_flags = CEPH_OSD_FLAG_READ | opt->read_from_replica;
 	osd_req->r_snapid = obj_request->img_request->snap_id;
 }
 
@@ -1973,7 +1993,7 @@ static int rbd_object_map_update_finish(struct rbd_obj_request *obj_req,
 	struct rbd_device *rbd_dev = obj_req->img_request->rbd_dev;
 	struct ceph_osd_data *osd_data;
 	u64 objno;
-	u8 state, new_state, uninitialized_var(current_state);
+	u8 state, new_state, current_state;
 	bool has_current_state;
 	void *p;
 
@@ -2253,7 +2273,8 @@ static void __rbd_osd_setup_write_ops(struct ceph_osd_request *osd_req,
 	    !(obj_req->flags & RBD_OBJ_FLAG_MAY_EXIST)) {
 		osd_req_op_alloc_hint_init(osd_req, which++,
 					   rbd_dev->layout.object_size,
-					   rbd_dev->layout.object_size);
+					   rbd_dev->layout.object_size,
+					   rbd_dev->opts->alloc_hint_flags);
 	}
 
 	if (rbd_obj_is_entire(obj_req))
@@ -3272,7 +3293,7 @@ again:
 	case __RBD_OBJ_COPYUP_OBJECT_MAPS:
 		if (!pending_result_dec(&obj_req->pending, result))
 			return false;
-		/* fall through */
+		fallthrough;
 	case RBD_OBJ_COPYUP_OBJECT_MAPS:
 		if (*result) {
 			rbd_warn(rbd_dev, "snap object map update failed: %d",
@@ -3291,7 +3312,7 @@ again:
 	case __RBD_OBJ_COPYUP_WRITE_OBJECT:
 		if (!pending_result_dec(&obj_req->pending, result))
 			return false;
-		/* fall through */
+		fallthrough;
 	case RBD_OBJ_COPYUP_WRITE_OBJECT:
 		return true;
 	default:
@@ -3378,7 +3399,7 @@ again:
 	case __RBD_OBJ_WRITE_COPYUP:
 		if (!rbd_obj_advance_copyup(obj_req, result))
 			return false;
-		/* fall through */
+		fallthrough;
 	case RBD_OBJ_WRITE_COPYUP:
 		if (*result) {
 			rbd_warn(rbd_dev, "copyup failed: %d", *result);
@@ -3571,7 +3592,7 @@ again:
 	case __RBD_IMG_OBJECT_REQUESTS:
 		if (!pending_result_dec(&img_req->pending, result))
 			return false;
-		/* fall through */
+		fallthrough;
 	case RBD_IMG_OBJECT_REQUESTS:
 		return true;
 	default:
@@ -5099,6 +5120,9 @@ static ssize_t rbd_config_info_show(struct device *dev,
 {
 	struct rbd_device *rbd_dev = dev_to_rbd_dev(dev);
 
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
 	return sprintf(buf, "%s\n", rbd_dev->config_info);
 }
 
@@ -5209,6 +5233,9 @@ static ssize_t rbd_image_refresh(struct device *dev,
 {
 	struct rbd_device *rbd_dev = dev_to_rbd_dev(dev);
 	int ret;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
 
 	ret = rbd_dev_refresh(rbd_dev);
 	if (ret)
@@ -6331,6 +6358,29 @@ static int rbd_parse_param(struct fs_parameter *param,
 		pctx->spec->pool_ns = param->string;
 		param->string = NULL;
 		break;
+	case Opt_compression_hint:
+		switch (result.uint_32) {
+		case Opt_compression_hint_none:
+			opt->alloc_hint_flags &=
+			    ~(CEPH_OSD_ALLOC_HINT_FLAG_COMPRESSIBLE |
+			      CEPH_OSD_ALLOC_HINT_FLAG_INCOMPRESSIBLE);
+			break;
+		case Opt_compression_hint_compressible:
+			opt->alloc_hint_flags |=
+			    CEPH_OSD_ALLOC_HINT_FLAG_COMPRESSIBLE;
+			opt->alloc_hint_flags &=
+			    ~CEPH_OSD_ALLOC_HINT_FLAG_INCOMPRESSIBLE;
+			break;
+		case Opt_compression_hint_incompressible:
+			opt->alloc_hint_flags |=
+			    CEPH_OSD_ALLOC_HINT_FLAG_INCOMPRESSIBLE;
+			opt->alloc_hint_flags &=
+			    ~CEPH_OSD_ALLOC_HINT_FLAG_COMPRESSIBLE;
+			break;
+		default:
+			BUG();
+		}
+		break;
 	case Opt_read_only:
 		opt->read_only = true;
 		break;
@@ -7015,6 +7065,9 @@ static ssize_t do_rbd_add(struct bus_type *bus,
 	struct rbd_client *rbdc;
 	int rc;
 
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
 	if (!try_module_get(THIS_MODULE))
 		return -ENODEV;
 
@@ -7164,6 +7217,9 @@ static ssize_t do_rbd_remove(struct bus_type *bus,
 	char opt_buf[6];
 	bool force = false;
 	int ret;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
 
 	dev_id = -1;
 	opt_buf[0] = '\0';

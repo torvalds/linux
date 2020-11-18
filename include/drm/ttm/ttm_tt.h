@@ -70,7 +70,7 @@ struct ttm_backend_func {
 	 * Unbind previously bound backend pages. This function should be
 	 * able to handle differences between aperture and system page sizes.
 	 */
-	int (*unbind) (struct ttm_tt *ttm);
+	void (*unbind) (struct ttm_tt *ttm);
 
 	/**
 	 * struct ttm_backend_func member destroy

@@ -216,6 +216,8 @@ out:
 
 /**
  * dccp_write_xmitlet  -  Workhorse for CCID packet dequeueing interface
+ * @data: Socket to act on
+ *
  * See the comments above %ccid_dequeueing_decision for supported modes.
  */
 static void dccp_write_xmitlet(unsigned long data)

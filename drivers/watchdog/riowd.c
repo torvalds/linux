@@ -134,14 +134,14 @@ static long riowd_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			return -EINVAL;
 		riowd_timeout = (new_margin + 59) / 60;
 		riowd_writereg(p, riowd_timeout, WDTO_INDEX);
-		/* Fall through */
+		fallthrough;
 
 	case WDIOC_GETTIMEOUT:
 		return put_user(riowd_timeout * 60, (int __user *)argp);
 
 	default:
 		return -EINVAL;
-	};
+	}
 
 	return 0;
 }

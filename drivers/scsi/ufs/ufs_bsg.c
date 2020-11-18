@@ -11,13 +11,12 @@ static int ufs_bsg_get_query_desc_size(struct ufs_hba *hba, int *desc_len,
 {
 	int desc_size = be16_to_cpu(qr->length);
 	int desc_id = qr->idn;
-	int ret;
 
 	if (desc_size <= 0)
 		return -EINVAL;
 
-	ret = ufshcd_map_desc_id_to_length(hba, desc_id, desc_len);
-	if (ret || !*desc_len)
+	ufshcd_map_desc_id_to_length(hba, desc_id, desc_len);
+	if (!*desc_len)
 		return -EINVAL;
 
 	*desc_len = min_t(int, *desc_len, desc_size);
@@ -106,10 +105,12 @@ static int ufs_bsg_request(struct bsg_job *job)
 		desc_op = bsg_request->upiu_req.qr.opcode;
 		ret = ufs_bsg_alloc_desc_buffer(hba, job, &desc_buff,
 						&desc_len, desc_op);
-		if (ret)
+		if (ret) {
+			pm_runtime_put_sync(hba->dev);
 			goto out;
+		}
 
-		/* fall through */
+		fallthrough;
 	case UPIU_TRANSACTION_NOP_OUT:
 	case UPIU_TRANSACTION_TASK_REQ:
 		ret = ufshcd_exec_raw_upiu_cmd(hba, &bsg_request->upiu_req,

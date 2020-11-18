@@ -1,10 +1,3 @@
-check_filter_file() { # check filter file introduced by dynamic ftrace
-    if [ ! -f "$1" ]; then
-        echo "$1 not found? Is dynamic ftrace not set?"
-        exit_unsupported
-    fi
-}
-
 clear_trace() { # reset trace output
     echo > trace
 }
@@ -113,18 +106,41 @@ initialize_ftrace() { # Reset ftrace to initial-state
     enable_tracing
 }
 
+check_requires() { # Check required files and tracers
+    for i in "$@" ; do
+        r=${i%:README}
+        t=${i%:tracer}
+        if [ $t != $i ]; then
+            if ! grep -wq $t available_tracers ; then
+                echo "Required tracer $t is not configured."
+                exit_unsupported
+            fi
+        elif [ $r != $i ]; then
+            if ! grep -Fq "$r" README ; then
+                echo "Required feature pattern \"$r\" is not in README."
+                exit_unsupported
+            fi
+        elif [ ! -e $i ]; then
+            echo "Required feature interface $i doesn't exist."
+            exit_unsupported
+        fi
+    done
+}
+
 LOCALHOST=127.0.0.1
 
 yield() {
     ping $LOCALHOST -c 1 || sleep .001 || usleep 1 || sleep 1
 }
 
+# Since probe event command may include backslash, explicitly use printf "%s"
+# to NOT interpret it.
 ftrace_errlog_check() { # err-prefix command-with-error-pos-by-^ command-file
-    pos=$(echo -n "${2%^*}" | wc -c) # error position
-    command=$(echo "$2" | tr -d ^)
+    pos=$(printf "%s" "${2%^*}" | wc -c) # error position
+    command=$(printf "%s" "$2" | tr -d ^)
     echo "Test command: $command"
     echo > error_log
-    (! echo "$command" >> "$3" ) 2> /dev/null
+    (! printf "%s" "$command" >> "$3" ) 2> /dev/null
     grep "$1: error:" -A 3 error_log
     N=$(tail -n 1 error_log | wc -c)
     # "  Command: " and "^\n" => 13

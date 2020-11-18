@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  HIDPP protocol for Logitech Unifying receivers
+ *  HIDPP protocol for Logitech receivers
  *
  *  Copyright (c) 2011 Logitech (c)
  *  Copyright (c) 2012-2013 Google (c)
@@ -3146,7 +3146,7 @@ static int hi_res_scroll_enable(struct hidpp_device *hidpp)
 		multiplier = 1;
 
 	hidpp->vertical_wheel_counter.wheel_multiplier = multiplier;
-	hid_info(hidpp->hid_dev, "multiplier = %d\n", multiplier);
+	hid_dbg(hidpp->hid_dev, "wheel multiplier = %d\n", multiplier);
 	return 0;
 }
 

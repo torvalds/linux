@@ -619,7 +619,7 @@ retry:
 	 * and BTREE_NODE_journal_flush bit cleared by btree_flush_write().
 	 */
 	if (btree_node_journal_flush(b)) {
-		pr_debug("bnode %p is flushing by journal, retry", b);
+		pr_debug("bnode %p is flushing by journal, retry\n", b);
 		mutex_unlock(&b->write_lock);
 		udelay(1);
 		goto retry;
@@ -738,7 +738,7 @@ void bch_btree_cache_free(struct cache_set *c)
 	if (c->verify_data)
 		list_move(&c->verify_data->list, &c->btree_cache);
 
-	free_pages((unsigned long) c->verify_ondisk, ilog2(bucket_pages(c)));
+	free_pages((unsigned long) c->verify_ondisk, ilog2(meta_bucket_pages(&c->sb)));
 #endif
 
 	list_splice(&c->btree_cache_freeable,
@@ -785,7 +785,15 @@ int bch_btree_cache_alloc(struct cache_set *c)
 	mutex_init(&c->verify_lock);
 
 	c->verify_ondisk = (void *)
-		__get_free_pages(GFP_KERNEL, ilog2(bucket_pages(c)));
+		__get_free_pages(GFP_KERNEL|__GFP_COMP, ilog2(meta_bucket_pages(&c->sb)));
+	if (!c->verify_ondisk) {
+		/*
+		 * Don't worry about the mca_rereserve buckets
+		 * allocated in previous for-loop, they will be
+		 * handled properly in bch_cache_set_unregister().
+		 */
+		return -ENOMEM;
+	}
 
 	c->verify_data = mca_bucket_alloc(c, &ZERO_KEY, GFP_KERNEL);
 
@@ -802,7 +810,7 @@ int bch_btree_cache_alloc(struct cache_set *c)
 	c->shrink.batch = c->btree_pages * 2;
 
 	if (register_shrinker(&c->shrink))
-		pr_warn("bcache: %s: could not register shrinker",
+		pr_warn("bcache: %s: could not register shrinker\n",
 				__func__);
 
 	return 0;
@@ -959,7 +967,7 @@ err:
  * bch_btree_node_get - find a btree node in the cache and lock it, reading it
  * in from disk if necessary.
  *
- * If IO is necessary and running under generic_make_request, returns -EAGAIN.
+ * If IO is necessary and running under submit_bio_noacct, returns -EAGAIN.
  *
  * The btree node will have either a read or a write lock held, depending on
  * level and op->lock.
@@ -1054,7 +1062,7 @@ retry:
 	 */
 	if (btree_node_journal_flush(b)) {
 		mutex_unlock(&b->write_lock);
-		pr_debug("bnode %p journal_flush set, retry", b);
+		pr_debug("bnode %p journal_flush set, retry\n", b);
 		udelay(1);
 		goto retry;
 	}
@@ -1389,7 +1397,7 @@ static int btree_gc_coalesce(struct btree *b, struct btree_op *op,
 			if (__set_blocks(n1, n1->keys + n2->keys,
 					 block_bytes(b->c)) >
 			    btree_blocks(new_nodes[i]))
-				goto out_nocoalesce;
+				goto out_unlock_nocoalesce;
 
 			keys = n2->keys;
 			/* Take the key of the node we're getting rid of */
@@ -1418,7 +1426,7 @@ static int btree_gc_coalesce(struct btree *b, struct btree_op *op,
 
 		if (__bch_keylist_realloc(&keylist,
 					  bkey_u64s(&new_nodes[i]->key)))
-			goto out_nocoalesce;
+			goto out_unlock_nocoalesce;
 
 		bch_btree_node_write(new_nodes[i], &cl);
 		bch_keylist_add(&keylist, &new_nodes[i]->key);
@@ -1463,6 +1471,10 @@ static int btree_gc_coalesce(struct btree *b, struct btree_op *op,
 
 	/* Invalidated our iterator */
 	return -EINTR;
+
+out_unlock_nocoalesce:
+	for (i = 0; i < nodes; i++)
+		mutex_unlock(&new_nodes[i]->write_lock);
 
 out_nocoalesce:
 	closure_sync(&cl);
@@ -1798,7 +1810,7 @@ static void bch_btree_gc(struct cache_set *c)
 			schedule_timeout_interruptible(msecs_to_jiffies
 						       (GC_SLEEP_MS));
 		else if (ret)
-			pr_warn("gc failed!");
+			pr_warn("gc failed!\n");
 	} while (ret && !test_bit(CACHE_SET_IO_DISABLE, &c->flags));
 
 	bch_btree_gc_finish(c);
@@ -1907,10 +1919,8 @@ static int bch_btree_check_thread(void *arg)
 	struct btree_iter iter;
 	struct bkey *k, *p;
 	int cur_idx, prev_idx, skip_nr;
-	int i, n;
 
 	k = p = NULL;
-	i = n = 0;
 	cur_idx = prev_idx = 0;
 	ret = 0;
 
@@ -2045,7 +2055,7 @@ int bch_btree_check(struct cache_set *c)
 				    &check_state->infos[i],
 				    name);
 		if (IS_ERR(check_state->infos[i].thread)) {
-			pr_err("fails to run thread bch_btrchk[%d]", i);
+			pr_err("fails to run thread bch_btrchk[%d]\n", i);
 			for (--i; i >= 0; i--)
 				kthread_stop(check_state->infos[i].thread);
 			ret = -ENOMEM;
@@ -2456,7 +2466,7 @@ int bch_btree_insert(struct cache_set *c, struct keylist *keys,
 	if (ret) {
 		struct bkey *k;
 
-		pr_err("error %i", ret);
+		pr_err("error %i\n", ret);
 
 		while ((k = bch_keylist_pop(keys)))
 			bkey_put(c, k);
@@ -2744,7 +2754,7 @@ struct keybuf_key *bch_keybuf_next_rescan(struct cache_set *c,
 			break;
 
 		if (bkey_cmp(&buf->last_scanned, end) >= 0) {
-			pr_debug("scan finished");
+			pr_debug("scan finished\n");
 			break;
 		}
 

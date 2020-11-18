@@ -107,7 +107,7 @@ static int rk3328_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	return 0;
 }
 
-static int rk3328_digital_mute(struct snd_soc_dai *dai, int mute)
+static int rk3328_mute_stream(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct rk3328_codec_priv *rk3328 =
 		snd_soc_component_get_drvdata(dai->component);
@@ -316,9 +316,10 @@ static void rk3328_pcm_shutdown(struct snd_pcm_substream *substream,
 static const struct snd_soc_dai_ops rk3328_dai_ops = {
 	.hw_params = rk3328_hw_params,
 	.set_fmt = rk3328_set_dai_fmt,
-	.digital_mute = rk3328_digital_mute,
+	.mute_stream = rk3328_mute_stream,
 	.startup = rk3328_pcm_startup,
 	.shutdown = rk3328_pcm_shutdown,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver rk3328_dai[] = {

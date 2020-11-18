@@ -9,11 +9,11 @@
 
 #include <linux/init.h>
 #include <linux/linkage.h>
+#include <linux/pgtable.h>
 #include <asm/assembler.h>
 #include <asm/asm-offsets.h>
 #include <asm/asm_pointer_auth.h>
 #include <asm/hwcap.h>
-#include <asm/pgtable.h>
 #include <asm/pgtable-hwdef.h>
 #include <asm/cpufeature.h>
 #include <asm/alternative.h>
@@ -58,6 +58,8 @@
  * cpu_do_suspend - save CPU registers context
  *
  * x0: virtual address of context pointer
+ *
+ * This must be kept in sync with struct cpu_suspend_ctx in <asm/suspend.h>.
  */
 SYM_FUNC_START(cpu_do_suspend)
 	mrs	x2, tpidr_el0
@@ -82,6 +84,11 @@ alternative_endif
 	stp	x8, x9, [x0, #48]
 	stp	x10, x11, [x0, #64]
 	stp	x12, x13, [x0, #80]
+	/*
+	 * Save x18 as it may be used as a platform register, e.g. by shadow
+	 * call stack.
+	 */
+	str	x18, [x0, #96]
 	ret
 SYM_FUNC_END(cpu_do_suspend)
 
@@ -98,6 +105,13 @@ SYM_FUNC_START(cpu_do_resume)
 	ldp	x9, x10, [x0, #48]
 	ldp	x11, x12, [x0, #64]
 	ldp	x13, x14, [x0, #80]
+	/*
+	 * Restore x18, as it may be used as a platform register, and clear
+	 * the buffer to minimize the risk of exposure when used for shadow
+	 * call stack.
+	 */
+	ldr	x18, [x0, #96]
+	str	xzr, [x0, #96]
 	msr	tpidr_el0, x2
 	msr	tpidrro_el0, x3
 	msr	contextidr_el1, x4
@@ -139,7 +153,7 @@ alternative_if ARM64_HAS_RAS_EXTN
 	msr_s	SYS_DISR_EL1, xzr
 alternative_else_nop_endif
 
-	ptrauth_keys_install_kernel x14, 0, x1, x2, x3
+	ptrauth_keys_install_kernel_nosync x14, x1, x2, x3
 	isb
 	ret
 SYM_FUNC_END(cpu_do_resume)
@@ -386,8 +400,6 @@ SYM_FUNC_END(idmap_kpti_install_ng_mappings)
  *
  *	Initialise the processor for turning the MMU on.
  *
- * Input:
- *	x0 with a flag ARM64_CPU_BOOT_PRIMARY/ARM64_CPU_BOOT_SECONDARY/ARM64_CPU_RUNTIME.
  * Output:
  *	Return in x0 the value of the SCTLR_EL1 register.
  */
@@ -446,51 +458,9 @@ SYM_FUNC_START(__cpu_setup)
 1:
 #endif	/* CONFIG_ARM64_HW_AFDBM */
 	msr	tcr_el1, x10
-	mov	x1, x0
 	/*
 	 * Prepare SCTLR
 	 */
 	mov_q	x0, SCTLR_EL1_SET
-
-#ifdef CONFIG_ARM64_PTR_AUTH
-	/* No ptrauth setup for run time cpus */
-	cmp	x1, #ARM64_CPU_RUNTIME
-	b.eq	3f
-
-	/* Check if the CPU supports ptrauth */
-	mrs	x2, id_aa64isar1_el1
-	ubfx	x2, x2, #ID_AA64ISAR1_APA_SHIFT, #8
-	cbz	x2, 3f
-
-	/*
-	 * The primary cpu keys are reset here and can be
-	 * re-initialised with some proper values later.
-	 */
-	msr_s	SYS_APIAKEYLO_EL1, xzr
-	msr_s	SYS_APIAKEYHI_EL1, xzr
-
-	/* Just enable ptrauth for primary cpu */
-	cmp	x1, #ARM64_CPU_BOOT_PRIMARY
-	b.eq	2f
-
-	/* if !system_supports_address_auth() then skip enable */
-alternative_if_not ARM64_HAS_ADDRESS_AUTH
-	b	3f
-alternative_else_nop_endif
-
-	/* Install ptrauth key for secondary cpus */
-	adr_l	x2, secondary_data
-	ldr	x3, [x2, #CPU_BOOT_TASK]	// get secondary_data.task
-	cbz	x3, 2f				// check for slow booting cpus
-	ldp	x3, x4, [x2, #CPU_BOOT_PTRAUTH_KEY]
-	msr_s	SYS_APIAKEYLO_EL1, x3
-	msr_s	SYS_APIAKEYHI_EL1, x4
-
-2:	/* Enable ptrauth instructions */
-	ldr	x2, =SCTLR_ELx_ENIA | SCTLR_ELx_ENIB | \
-		     SCTLR_ELx_ENDA | SCTLR_ELx_ENDB
-	orr	x0, x0, x2
-3:
-#endif
 	ret					// return to head.S
 SYM_FUNC_END(__cpu_setup)

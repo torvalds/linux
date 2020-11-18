@@ -11,13 +11,6 @@
 
 #include <asm/page.h>
 
-static inline int is_hugepage_only_range(struct mm_struct *mm,
-					 unsigned long addr,
-					 unsigned long len)
-{
-	return 0;
-}
-
 #define __HAVE_ARCH_PREPARE_HUGEPAGE_RANGE
 static inline int prepare_hugepage_range(struct file *file,
 					 unsigned long addr,
@@ -80,10 +73,6 @@ static inline int huge_ptep_set_access_flags(struct vm_area_struct *vma,
 		flush_tlb_range(vma, addr, addr + HPAGE_SIZE);
 	}
 	return changed;
-}
-
-static inline void arch_clear_hugepage_flags(struct page *page)
-{
 }
 
 #include <asm-generic/hugetlb.h>

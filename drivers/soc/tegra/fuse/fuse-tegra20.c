@@ -164,4 +164,5 @@ const struct tegra_fuse_soc tegra20_fuse_soc = {
 	.speedo_init = tegra20_init_speedo_data,
 	.probe = tegra20_fuse_probe,
 	.info = &tegra20_fuse_info,
+	.soc_attr_group = &tegra_soc_attr_group,
 };

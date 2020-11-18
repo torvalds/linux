@@ -315,3 +315,7 @@ int intel_ring_cacheline_align(struct i915_request *rq)
 	GEM_BUG_ON(rq->ring->emit & (CACHELINE_BYTES - 1));
 	return 0;
 }
+
+#if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+#include "selftest_ring.c"
+#endif

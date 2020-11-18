@@ -74,11 +74,12 @@ static int dpot_dac_read_raw(struct iio_dev *indio_dev,
 		case IIO_VAL_INT:
 			/*
 			 * Convert integer scale to fractional scale by
-			 * setting the denominator (val2) to one, and...
+			 * setting the denominator (val2) to one...
 			 */
 			*val2 = 1;
 			ret = IIO_VAL_FRACTIONAL;
-			/* fall through */
+			/* ...and fall through. Say it again for GCC. */
+			fallthrough;
 		case IIO_VAL_FRACTIONAL:
 			*val *= regulator_get_voltage(dac->vref) / 1000;
 			*val2 *= dac->max_ohms;
@@ -177,7 +178,6 @@ static int dpot_dac_probe(struct platform_device *pdev)
 	dac = iio_priv(indio_dev);
 
 	indio_dev->name = dev_name(dev);
-	indio_dev->dev.parent = dev;
 	indio_dev->info = &dpot_dac_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = &dpot_dac_iio_channel;

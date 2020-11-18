@@ -50,9 +50,15 @@
 		};
 	};
 
+	wlan_pwrseq: mshc1-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		reset-gpios = <&gpe0 4 GPIO_ACTIVE_LOW>;
+	};
+
 	i2c_max77836: i2c-gpio-0 {
 		compatible = "i2c-gpio";
-		gpios = <&gpd0 2 GPIO_ACTIVE_HIGH>, <&gpd0 3 GPIO_ACTIVE_HIGH>;
+		sda-gpios = <&gpd0 2 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&gpd0 3 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 
@@ -605,8 +611,6 @@
 };
 
 &mshc_0 {
-	#address-cells = <1>;
-	#size-cells = <0>;
 	broken-cd;
 	non-removable;
 	cap-mmc-highspeed;
@@ -625,10 +629,48 @@
 	status = "okay";
 };
 
+&mshc_1 {
+	status = "okay";
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	non-removable;
+	cap-sd-highspeed;
+	cap-sdio-irq;
+	keep-power-in-suspend;
+	samsung,dw-mshc-ciu-div = <1>;
+	samsung,dw-mshc-sdr-timing = <0 1>;
+	samsung,dw-mshc-ddr-timing = <1 2>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sd1_clk &sd1_cmd &sd1_bus1 &sd1_bus4>;
+	bus-width = <4>;
+
+	mmc-pwrseq = <&wlan_pwrseq>;
+
+	brcmf: wifi@1 {
+		compatible = "brcm,bcm4334-fmac";
+		reg = <1>;
+
+		interrupt-parent = <&gpx1>;
+		interrupts = <1 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "host-wake";
+	};
+};
+
 &serial_0 {
 	assigned-clocks = <&cmu CLK_SCLK_UART0>;
 	assigned-clock-rates = <100000000>;
 	status = "okay";
+
+	bluetooth {
+		compatible = "brcm,bcm4330-bt";
+		max-speed = <3000000>;
+		shutdown-gpios = <&gpe0 0 GPIO_ACTIVE_HIGH>;
+		device-wakeup-gpios = <&gpx3 1 GPIO_ACTIVE_HIGH>;
+		host-wakeup-gpios = <&gpx2 6 GPIO_ACTIVE_HIGH>;
+		clocks = <&s2mps14_osc S2MPS11_CLK_BT>;
+	};
 };
 
 &serial_1 {

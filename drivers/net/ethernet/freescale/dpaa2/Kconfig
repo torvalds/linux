@@ -9,6 +9,16 @@ config FSL_DPAA2_ETH
 	  The driver manages network objects discovered on the Freescale
 	  MC bus.
 
+if FSL_DPAA2_ETH
+config FSL_DPAA2_ETH_DCB
+	bool "Data Center Bridging (DCB) Support"
+	default n
+	depends on DCB
+	help
+	  Enable Priority-Based Flow Control (PFC) support for DPAA2 Ethernet
+	  devices.
+endif
+
 config FSL_DPAA2_PTP_CLOCK
 	tristate "Freescale DPAA2 PTP Clock"
 	depends on FSL_DPAA2_ETH && PTP_1588_CLOCK_QORIQ

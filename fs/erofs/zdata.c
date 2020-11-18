@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2018 HUAWEI, Inc.
- *             http://www.huawei.com/
+ *             https://www.huawei.com/
  * Created by Gao Xiang <gaoxiang25@huawei.com>
  */
 #include "zdata.h"
@@ -43,13 +43,13 @@ void z_erofs_exit_zip_subsystem(void)
 static inline int z_erofs_init_workqueue(void)
 {
 	const unsigned int onlinecpus = num_possible_cpus();
-	const unsigned int flags = WQ_UNBOUND | WQ_HIGHPRI | WQ_CPU_INTENSIVE;
 
 	/*
 	 * no need to spawn too many threads, limiting threads could minimum
 	 * scheduling overhead, perhaps per-CPU threads should be better?
 	 */
-	z_erofs_workqueue = alloc_workqueue("erofs_unzipd", flags,
+	z_erofs_workqueue = alloc_workqueue("erofs_unzipd",
+					    WQ_UNBOUND | WQ_HIGHPRI,
 					    onlinecpus + onlinecpus / 4);
 	return z_erofs_workqueue ? 0 : -ENOMEM;
 }
@@ -615,7 +615,7 @@ restart_now:
 		goto err_out;
 
 	/* preload all compressed pages (maybe downgrade role if necessary) */
-	if (should_alloc_managed_pages(fe, sbi->cache_strategy, map->m_la))
+	if (should_alloc_managed_pages(fe, sbi->ctx.cache_strategy, map->m_la))
 		cache_strategy = DELAYEDALLOC;
 	else
 		cache_strategy = DONTALLOC;
@@ -1161,7 +1161,7 @@ static void z_erofs_submit_queue(struct super_block *sb,
 	struct z_erofs_decompressqueue *q[NR_JOBQUEUES];
 	void *bi_private;
 	/* since bio will be NULL, no need to initialize last_index */
-	pgoff_t uninitialized_var(last_index);
+	pgoff_t last_index;
 	unsigned int nr_bios = 0;
 	struct bio *bio = NULL;
 
@@ -1302,31 +1302,26 @@ static int z_erofs_readpage(struct file *file, struct page *page)
 static bool should_decompress_synchronously(struct erofs_sb_info *sbi,
 					    unsigned int nr)
 {
-	return nr <= sbi->max_sync_decompress_pages;
+	return nr <= sbi->ctx.max_sync_decompress_pages;
 }
 
-static int z_erofs_readpages(struct file *filp, struct address_space *mapping,
-			     struct list_head *pages, unsigned int nr_pages)
+static void z_erofs_readahead(struct readahead_control *rac)
 {
-	struct inode *const inode = mapping->host;
+	struct inode *const inode = rac->mapping->host;
 	struct erofs_sb_info *const sbi = EROFS_I_SB(inode);
 
-	bool sync = should_decompress_synchronously(sbi, nr_pages);
+	bool sync = should_decompress_synchronously(sbi, readahead_count(rac));
 	struct z_erofs_decompress_frontend f = DECOMPRESS_FRONTEND_INIT(inode);
-	gfp_t gfp = mapping_gfp_constraint(mapping, GFP_KERNEL);
-	struct page *head = NULL;
+	struct page *page, *head = NULL;
 	LIST_HEAD(pagepool);
 
-	trace_erofs_readpages(mapping->host, lru_to_page(pages),
-			      nr_pages, false);
+	trace_erofs_readpages(inode, readahead_index(rac),
+			readahead_count(rac), false);
 
-	f.headoffset = (erofs_off_t)lru_to_page(pages)->index << PAGE_SHIFT;
+	f.headoffset = readahead_pos(rac);
 
-	for (; nr_pages; --nr_pages) {
-		struct page *page = lru_to_page(pages);
-
+	while ((page = readahead_page(rac))) {
 		prefetchw(&page->flags);
-		list_del(&page->lru);
 
 		/*
 		 * A pure asynchronous readahead is indicated if
@@ -1334,11 +1329,6 @@ static int z_erofs_readpages(struct file *filp, struct address_space *mapping,
 		 * Let's also do asynchronous decompression for this case.
 		 */
 		sync &= !(PageReadahead(page) && !head);
-
-		if (add_to_page_cache_lru(page, mapping, page->index, gfp)) {
-			list_add(&page->lru, &pagepool);
-			continue;
-		}
 
 		set_page_private(page, (unsigned long)head);
 		head = page;
@@ -1368,11 +1358,10 @@ static int z_erofs_readpages(struct file *filp, struct address_space *mapping,
 
 	/* clean up the remaining free pages */
 	put_pages_list(&pagepool);
-	return 0;
 }
 
 const struct address_space_operations z_erofs_aops = {
 	.readpage = z_erofs_readpage,
-	.readpages = z_erofs_readpages,
+	.readahead = z_erofs_readahead,
 };
 

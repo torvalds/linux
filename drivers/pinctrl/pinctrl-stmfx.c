@@ -288,17 +288,13 @@ static int stmfx_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 	struct pinctrl_gpio_range *range;
 	enum pin_config_param param;
 	u32 arg;
-	int dir, i, ret;
+	int i, ret;
 
 	range = pinctrl_find_gpio_range_from_pin_nolock(pctldev, pin);
 	if (!range) {
 		dev_err(pctldev->dev, "pin %d is not available\n", pin);
 		return -EINVAL;
 	}
-
-	dir = stmfx_gpio_get_direction(&pctl->gpio_chip, pin);
-	if (dir < 0)
-		return dir;
 
 	for (i = 0; i < num_configs; i++) {
 		param = pinconf_to_config_param(configs[i]);
@@ -620,6 +616,7 @@ static int stmfx_pinctrl_probe(struct platform_device *pdev)
 	struct stmfx *stmfx = dev_get_drvdata(pdev->dev.parent);
 	struct device_node *np = pdev->dev.of_node;
 	struct stmfx_pinctrl *pctl;
+	struct gpio_irq_chip *girq;
 	int irq, ret;
 
 	pctl = devm_kzalloc(stmfx->dev, sizeof(*pctl), GFP_KERNEL);
@@ -678,6 +675,25 @@ static int stmfx_pinctrl_probe(struct platform_device *pdev)
 	pctl->gpio_chip.can_sleep = true;
 	pctl->gpio_chip.of_node = np;
 
+	pctl->irq_chip.name = dev_name(pctl->dev);
+	pctl->irq_chip.irq_mask = stmfx_pinctrl_irq_mask;
+	pctl->irq_chip.irq_unmask = stmfx_pinctrl_irq_unmask;
+	pctl->irq_chip.irq_set_type = stmfx_pinctrl_irq_set_type;
+	pctl->irq_chip.irq_bus_lock = stmfx_pinctrl_irq_bus_lock;
+	pctl->irq_chip.irq_bus_sync_unlock = stmfx_pinctrl_irq_bus_sync_unlock;
+	pctl->irq_chip.irq_request_resources = stmfx_gpio_irq_request_resources;
+	pctl->irq_chip.irq_release_resources = stmfx_gpio_irq_release_resources;
+
+	girq = &pctl->gpio_chip.irq;
+	girq->chip = &pctl->irq_chip;
+	/* This will let us handle the parent IRQ in the driver */
+	girq->parent_handler = NULL;
+	girq->num_parents = 0;
+	girq->parents = NULL;
+	girq->default_type = IRQ_TYPE_NONE;
+	girq->handler = handle_bad_irq;
+	girq->threaded = true;
+
 	ret = devm_gpiochip_add_data(pctl->dev, &pctl->gpio_chip, pctl);
 	if (ret) {
 		dev_err(pctl->dev, "gpio_chip registration failed\n");
@@ -688,22 +704,6 @@ static int stmfx_pinctrl_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	pctl->irq_chip.name = dev_name(pctl->dev);
-	pctl->irq_chip.irq_mask = stmfx_pinctrl_irq_mask;
-	pctl->irq_chip.irq_unmask = stmfx_pinctrl_irq_unmask;
-	pctl->irq_chip.irq_set_type = stmfx_pinctrl_irq_set_type;
-	pctl->irq_chip.irq_bus_lock = stmfx_pinctrl_irq_bus_lock;
-	pctl->irq_chip.irq_bus_sync_unlock = stmfx_pinctrl_irq_bus_sync_unlock;
-	pctl->irq_chip.irq_request_resources = stmfx_gpio_irq_request_resources;
-	pctl->irq_chip.irq_release_resources = stmfx_gpio_irq_release_resources;
-
-	ret = gpiochip_irqchip_add_nested(&pctl->gpio_chip, &pctl->irq_chip,
-					  0, handle_bad_irq, IRQ_TYPE_NONE);
-	if (ret) {
-		dev_err(pctl->dev, "cannot add irqchip to gpiochip\n");
-		return ret;
-	}
-
 	ret = devm_request_threaded_irq(pctl->dev, irq, NULL,
 					stmfx_pinctrl_irq_thread_fn,
 					IRQF_ONESHOT,
@@ -712,8 +712,6 @@ static int stmfx_pinctrl_probe(struct platform_device *pdev)
 		dev_err(pctl->dev, "cannot request irq%d\n", irq);
 		return ret;
 	}
-
-	gpiochip_set_nested_irqchip(&pctl->gpio_chip, &pctl->irq_chip, irq);
 
 	dev_info(pctl->dev,
 		 "%ld GPIOs available\n", hweight_long(pctl->gpio_valid_mask));

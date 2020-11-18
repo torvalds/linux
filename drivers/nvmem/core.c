@@ -66,6 +66,30 @@ static LIST_HEAD(nvmem_lookup_list);
 
 static BLOCKING_NOTIFIER_HEAD(nvmem_notifier);
 
+static int nvmem_reg_read(struct nvmem_device *nvmem, unsigned int offset,
+			  void *val, size_t bytes)
+{
+	if (nvmem->reg_read)
+		return nvmem->reg_read(nvmem->priv, offset, val, bytes);
+
+	return -EINVAL;
+}
+
+static int nvmem_reg_write(struct nvmem_device *nvmem, unsigned int offset,
+			   void *val, size_t bytes)
+{
+	int ret;
+
+	if (nvmem->reg_write) {
+		gpiod_set_value_cansleep(nvmem->wp_gpio, 0);
+		ret = nvmem->reg_write(nvmem->priv, offset, val, bytes);
+		gpiod_set_value_cansleep(nvmem->wp_gpio, 1);
+		return ret;
+	}
+
+	return -EINVAL;
+}
+
 #ifdef CONFIG_NVMEM_SYSFS
 static const char * const nvmem_type_str[] = {
 	[NVMEM_TYPE_UNKNOWN] = "Unknown",
@@ -111,6 +135,9 @@ static ssize_t bin_attr_nvmem_read(struct file *filp, struct kobject *kobj,
 	if (pos >= nvmem->size)
 		return 0;
 
+	if (!IS_ALIGNED(pos, nvmem->stride))
+		return -EINVAL;
+
 	if (count < nvmem->word_size)
 		return -EINVAL;
 
@@ -122,7 +149,7 @@ static ssize_t bin_attr_nvmem_read(struct file *filp, struct kobject *kobj,
 	if (!nvmem->reg_read)
 		return -EPERM;
 
-	rc = nvmem->reg_read(nvmem->priv, pos, buf, count);
+	rc = nvmem_reg_read(nvmem, pos, buf, count);
 
 	if (rc)
 		return rc;
@@ -148,6 +175,9 @@ static ssize_t bin_attr_nvmem_write(struct file *filp, struct kobject *kobj,
 	if (pos >= nvmem->size)
 		return -EFBIG;
 
+	if (!IS_ALIGNED(pos, nvmem->stride))
+		return -EINVAL;
+
 	if (count < nvmem->word_size)
 		return -EINVAL;
 
@@ -159,7 +189,7 @@ static ssize_t bin_attr_nvmem_write(struct file *filp, struct kobject *kobj,
 	if (!nvmem->reg_write)
 		return -EPERM;
 
-	rc = nvmem->reg_write(nvmem->priv, pos, buf, count);
+	rc = nvmem_reg_write(nvmem, pos, buf, count);
 
 	if (rc)
 		return rc;
@@ -167,11 +197,8 @@ static ssize_t bin_attr_nvmem_write(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static umode_t nvmem_bin_attr_is_visible(struct kobject *kobj,
-					 struct bin_attribute *attr, int i)
+static umode_t nvmem_bin_attr_get_umode(struct nvmem_device *nvmem)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
-	struct nvmem_device *nvmem = to_nvmem_device(dev);
 	umode_t mode = 0400;
 
 	if (!nvmem->root_only)
@@ -187,6 +214,15 @@ static umode_t nvmem_bin_attr_is_visible(struct kobject *kobj,
 		mode &= ~0444;
 
 	return mode;
+}
+
+static umode_t nvmem_bin_attr_is_visible(struct kobject *kobj,
+					 struct bin_attribute *attr, int i)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct nvmem_device *nvmem = to_nvmem_device(dev);
+
+	return nvmem_bin_attr_get_umode(nvmem);
 }
 
 /* default read/write permissions */
@@ -215,32 +251,12 @@ static const struct attribute_group *nvmem_dev_groups[] = {
 	NULL,
 };
 
-/* read only permission */
-static struct bin_attribute bin_attr_ro_nvmem = {
+static struct bin_attribute bin_attr_nvmem_eeprom_compat = {
 	.attr	= {
-		.name	= "nvmem",
-		.mode	= 0444,
-	},
-	.read	= bin_attr_nvmem_read,
-};
-
-/* default read/write permissions, root only */
-static struct bin_attribute bin_attr_rw_root_nvmem = {
-	.attr	= {
-		.name	= "nvmem",
-		.mode	= 0600,
+		.name	= "eeprom",
 	},
 	.read	= bin_attr_nvmem_read,
 	.write	= bin_attr_nvmem_write,
-};
-
-/* read only permission, root only */
-static struct bin_attribute bin_attr_ro_root_nvmem = {
-	.attr	= {
-		.name	= "nvmem",
-		.mode	= 0400,
-	},
-	.read	= bin_attr_nvmem_read,
 };
 
 /*
@@ -259,18 +275,8 @@ static int nvmem_sysfs_setup_compat(struct nvmem_device *nvmem,
 	if (!config->base_dev)
 		return -EINVAL;
 
-	if (nvmem->read_only) {
-		if (config->root_only)
-			nvmem->eeprom = bin_attr_ro_root_nvmem;
-		else
-			nvmem->eeprom = bin_attr_ro_nvmem;
-	} else {
-		if (config->root_only)
-			nvmem->eeprom = bin_attr_rw_root_nvmem;
-		else
-			nvmem->eeprom = bin_attr_rw_nvmem;
-	}
-	nvmem->eeprom.attr.name = "eeprom";
+	nvmem->eeprom = bin_attr_nvmem_eeprom_compat;
+	nvmem->eeprom.attr.mode = nvmem_bin_attr_get_umode(nvmem);
 	nvmem->eeprom.size = nvmem->size;
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	nvmem->eeprom.attr.key = &eeprom_lock_key;
@@ -310,30 +316,6 @@ static void nvmem_sysfs_remove_compat(struct nvmem_device *nvmem,
 }
 
 #endif /* CONFIG_NVMEM_SYSFS */
-
-static int nvmem_reg_read(struct nvmem_device *nvmem, unsigned int offset,
-			  void *val, size_t bytes)
-{
-	if (nvmem->reg_read)
-		return nvmem->reg_read(nvmem->priv, offset, val, bytes);
-
-	return -EINVAL;
-}
-
-static int nvmem_reg_write(struct nvmem_device *nvmem, unsigned int offset,
-			   void *val, size_t bytes)
-{
-	int ret;
-
-	if (nvmem->reg_write) {
-		gpiod_set_value_cansleep(nvmem->wp_gpio, 0);
-		ret = nvmem->reg_write(nvmem->priv, offset, val, bytes);
-		gpiod_set_value_cansleep(nvmem->wp_gpio, 1);
-		return ret;
-	}
-
-	return -EINVAL;
-}
 
 static void nvmem_release(struct device *dev)
 {
@@ -591,7 +573,7 @@ static int nvmem_add_cells_from_of(struct nvmem_device *nvmem)
 
 /**
  * nvmem_register() - Register a nvmem device for given nvmem_config.
- * Also creates an binary entry in /sys/bus/nvmem/devices/dev-name/nvmem
+ * Also creates a binary entry in /sys/bus/nvmem/devices/dev-name/nvmem
  *
  * @config: nvmem device configuration with which nvmem device is created.
  *
@@ -653,12 +635,18 @@ struct nvmem_device *nvmem_register(const struct nvmem_config *config)
 	if (!config->no_of_node)
 		nvmem->dev.of_node = config->dev->of_node;
 
-	if (config->id == -1 && config->name) {
+	switch (config->id) {
+	case NVMEM_DEVID_NONE:
 		dev_set_name(&nvmem->dev, "%s", config->name);
-	} else {
+		break;
+	case NVMEM_DEVID_AUTO:
+		dev_set_name(&nvmem->dev, "%s%d", config->name, nvmem->id);
+		break;
+	default:
 		dev_set_name(&nvmem->dev, "%s%d",
 			     config->name ? : "nvmem",
 			     config->name ? config->id : nvmem->id);
+		break;
 	}
 
 	nvmem->read_only = device_property_present(config->dev, "read-only") ||
@@ -746,7 +734,7 @@ static void devm_nvmem_release(struct device *dev, void *res)
 /**
  * devm_nvmem_register() - Register a managed nvmem device for given
  * nvmem_config.
- * Also creates an binary entry in /sys/bus/nvmem/devices/dev-name/nvmem
+ * Also creates a binary entry in /sys/bus/nvmem/devices/dev-name/nvmem
  *
  * @dev: Device that uses the nvmem device.
  * @config: nvmem device configuration with which nvmem device is created.
@@ -790,7 +778,7 @@ static int devm_nvmem_match(struct device *dev, void *res, void *data)
  * @dev: Device that uses the nvmem device.
  * @nvmem: Pointer to previously registered nvmem device.
  *
- * Return: Will be an negative on error or a zero on success.
+ * Return: Will be negative on error or zero on success.
  */
 int devm_nvmem_unregister(struct device *dev, struct nvmem_device *nvmem)
 {
@@ -1393,7 +1381,22 @@ static int nvmem_cell_read_common(struct device *dev, const char *cell_id,
 }
 
 /**
- * nvmem_cell_read_u16() - Read a cell value as an u16
+ * nvmem_cell_read_u8() - Read a cell value as a u8
+ *
+ * @dev: Device that requests the nvmem cell.
+ * @cell_id: Name of nvmem cell to read.
+ * @val: pointer to output value.
+ *
+ * Return: 0 on success or negative errno.
+ */
+int nvmem_cell_read_u8(struct device *dev, const char *cell_id, u8 *val)
+{
+	return nvmem_cell_read_common(dev, cell_id, val, sizeof(*val));
+}
+EXPORT_SYMBOL_GPL(nvmem_cell_read_u8);
+
+/**
+ * nvmem_cell_read_u16() - Read a cell value as a u16
  *
  * @dev: Device that requests the nvmem cell.
  * @cell_id: Name of nvmem cell to read.
@@ -1408,7 +1411,7 @@ int nvmem_cell_read_u16(struct device *dev, const char *cell_id, u16 *val)
 EXPORT_SYMBOL_GPL(nvmem_cell_read_u16);
 
 /**
- * nvmem_cell_read_u32() - Read a cell value as an u32
+ * nvmem_cell_read_u32() - Read a cell value as a u32
  *
  * @dev: Device that requests the nvmem cell.
  * @cell_id: Name of nvmem cell to read.
@@ -1423,7 +1426,7 @@ int nvmem_cell_read_u32(struct device *dev, const char *cell_id, u32 *val)
 EXPORT_SYMBOL_GPL(nvmem_cell_read_u32);
 
 /**
- * nvmem_cell_read_u64() - Read a cell value as an u64
+ * nvmem_cell_read_u64() - Read a cell value as a u64
  *
  * @dev: Device that requests the nvmem cell.
  * @cell_id: Name of nvmem cell to read.

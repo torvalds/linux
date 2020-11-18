@@ -23,9 +23,7 @@ EXPORT_SYMBOL(__stack_chk_guard);
  */
 int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 {
-#ifdef CONFIG_SUPERH32
 	unlazy_fpu(src, task_pt_regs(src));
-#endif
 	*dst = *src;
 
 	if (src->thread.xstate) {

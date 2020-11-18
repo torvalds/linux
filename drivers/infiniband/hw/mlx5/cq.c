@@ -36,6 +36,7 @@
 #include <rdma/ib_cache.h>
 #include "mlx5_ib.h"
 #include "srq.h"
+#include "qp.h"
 
 static void mlx5_ib_cq_comp(struct mlx5_core_cq *cq, struct mlx5_eqe *eqe)
 {
@@ -120,13 +121,13 @@ static void handle_good_req(struct ib_wc *wc, struct mlx5_cqe64 *cqe,
 	switch (be32_to_cpu(cqe->sop_drop_qpn) >> 24) {
 	case MLX5_OPCODE_RDMA_WRITE_IMM:
 		wc->wc_flags |= IB_WC_WITH_IMM;
-		/* fall through */
+		fallthrough;
 	case MLX5_OPCODE_RDMA_WRITE:
 		wc->opcode    = IB_WC_RDMA_WRITE;
 		break;
 	case MLX5_OPCODE_SEND_IMM:
 		wc->wc_flags |= IB_WC_WITH_IMM;
-		/* fall through */
+		fallthrough;
 	case MLX5_OPCODE_SEND:
 	case MLX5_OPCODE_SEND_INVAL:
 		wc->opcode    = IB_WC_SEND;
@@ -201,7 +202,7 @@ static void handle_responder(struct ib_wc *wc, struct mlx5_cqe64 *cqe,
 	case MLX5_CQE_RESP_WR_IMM:
 		wc->opcode	= IB_WC_RECV_RDMA_WITH_IMM;
 		wc->wc_flags	= IB_WC_WITH_IMM;
-		wc->ex.imm_data = cqe->imm_inval_pkey;
+		wc->ex.imm_data = cqe->immediate;
 		break;
 	case MLX5_CQE_RESP_SEND:
 		wc->opcode   = IB_WC_RECV;
@@ -213,12 +214,12 @@ static void handle_responder(struct ib_wc *wc, struct mlx5_cqe64 *cqe,
 	case MLX5_CQE_RESP_SEND_IMM:
 		wc->opcode	= IB_WC_RECV;
 		wc->wc_flags	= IB_WC_WITH_IMM;
-		wc->ex.imm_data = cqe->imm_inval_pkey;
+		wc->ex.imm_data = cqe->immediate;
 		break;
 	case MLX5_CQE_RESP_SEND_INV:
 		wc->opcode	= IB_WC_RECV;
 		wc->wc_flags	= IB_WC_WITH_INVALIDATE;
-		wc->ex.invalidate_rkey = be32_to_cpu(cqe->imm_inval_pkey);
+		wc->ex.invalidate_rkey = be32_to_cpu(cqe->inval_rkey);
 		break;
 	}
 	wc->src_qp	   = be32_to_cpu(cqe->flags_rqpn) & 0xffffff;
@@ -226,7 +227,7 @@ static void handle_responder(struct ib_wc *wc, struct mlx5_cqe64 *cqe,
 	g = (be32_to_cpu(cqe->flags_rqpn) >> 28) & 3;
 	wc->wc_flags |= g ? IB_WC_GRH : 0;
 	if (unlikely(is_qp1(qp->ibqp.qp_type))) {
-		u16 pkey = be32_to_cpu(cqe->imm_inval_pkey) & 0xffff;
+		u16 pkey = be32_to_cpu(cqe->pkey) & 0xffff;
 
 		ib_find_cached_pkey(&dev->ib_dev, qp->port, pkey,
 				    &wc->pkey_index);
@@ -484,7 +485,7 @@ repoll:
 		 * because CQs will be locked while QPs are removed
 		 * from the table.
 		 */
-		mqp = __mlx5_qp_lookup(dev->mdev, qpn);
+		mqp = radix_tree_lookup(&dev->qp_table.tree, qpn);
 		*cur_qp = to_mibqp(mqp);
 	}
 
@@ -924,8 +925,8 @@ int mlx5_ib_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	struct mlx5_ib_dev *dev = to_mdev(ibdev);
 	struct mlx5_ib_cq *cq = to_mcq(ibcq);
 	u32 out[MLX5_ST_SZ_DW(create_cq_out)];
-	int uninitialized_var(index);
-	int uninitialized_var(inlen);
+	int index;
+	int inlen;
 	u32 *cqb = NULL;
 	void *cqc;
 	int cqe_size;
@@ -1245,7 +1246,7 @@ int mlx5_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 	__be64 *pas;
 	int page_shift;
 	int inlen;
-	int uninitialized_var(cqe_size);
+	int cqe_size;
 	unsigned long flags;
 
 	if (!MLX5_CAP_GEN(dev->mdev, cq_resize)) {

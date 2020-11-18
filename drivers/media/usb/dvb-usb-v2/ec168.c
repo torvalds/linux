@@ -332,22 +332,17 @@ static const struct dvb_usb_device_properties ec168_props = {
 	},
 };
 
-static const struct dvb_usb_driver_info ec168_driver_info = {
-	.name = "E3C EC168 reference design",
-	.props = &ec168_props,
-};
-
 static const struct usb_device_id ec168_id[] = {
-	{ USB_DEVICE(USB_VID_E3C, USB_PID_E3C_EC168),
-		.driver_info = (kernel_ulong_t) &ec168_driver_info },
-	{ USB_DEVICE(USB_VID_E3C, USB_PID_E3C_EC168_2),
-		.driver_info = (kernel_ulong_t) &ec168_driver_info },
-	{ USB_DEVICE(USB_VID_E3C, USB_PID_E3C_EC168_3),
-		.driver_info = (kernel_ulong_t) &ec168_driver_info },
-	{ USB_DEVICE(USB_VID_E3C, USB_PID_E3C_EC168_4),
-		.driver_info = (kernel_ulong_t) &ec168_driver_info },
-	{ USB_DEVICE(USB_VID_E3C, USB_PID_E3C_EC168_5),
-		.driver_info = (kernel_ulong_t) &ec168_driver_info },
+	{ DVB_USB_DEVICE(USB_VID_E3C, USB_PID_E3C_EC168,
+		     &ec168_props, "E3C EC168 reference design", NULL)},
+	{ DVB_USB_DEVICE(USB_VID_E3C, USB_PID_E3C_EC168_2,
+		     &ec168_props, "E3C EC168 reference design", NULL)},
+	{ DVB_USB_DEVICE(USB_VID_E3C, USB_PID_E3C_EC168_3,
+		     &ec168_props, "E3C EC168 reference design", NULL)},
+	{ DVB_USB_DEVICE(USB_VID_E3C, USB_PID_E3C_EC168_4,
+		     &ec168_props, "E3C EC168 reference design", NULL)},
+	{ DVB_USB_DEVICE(USB_VID_E3C, USB_PID_E3C_EC168_5,
+		     &ec168_props, "E3C EC168 reference design", NULL)},
 	{}
 };
 MODULE_DEVICE_TABLE(usb, ec168_id);

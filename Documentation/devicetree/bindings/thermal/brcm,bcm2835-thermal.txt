@@ -7,7 +7,7 @@ compatible: 		should be one of: "brcm,bcm2835-thermal",
 			"brcm,bcm2836-thermal" or "brcm,bcm2837-thermal"
 reg:			Address range of the thermal registers.
 clocks: 		Phandle of the clock used by the thermal sensor.
-#thermal-sensor-cells:	should be 0 (see thermal.txt)
+#thermal-sensor-cells:	should be 0 (see Documentation/devicetree/bindings/thermal/thermal-sensor.yaml)
 
 Example:
 

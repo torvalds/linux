@@ -128,14 +128,9 @@ int serial_console_init(void)
 	         dt_is_compatible(devp, "fsl,cpm2-smc-uart"))
 		rc = cpm_console_init(devp, &serial_cd);
 #endif
-#ifdef CONFIG_PPC_MPC52XX
+#ifdef CONFIG_PPC_MPC52xx
 	else if (dt_is_compatible(devp, "fsl,mpc5200-psc-uart"))
 		rc = mpc5200_psc_console_init(devp, &serial_cd);
-#endif
-#ifdef CONFIG_XILINX_VIRTEX
-	else if (dt_is_compatible(devp, "xlnx,opb-uartlite-1.00.b") ||
-		 dt_is_compatible(devp, "xlnx,xps-uartlite-1.00.a"))
-		rc = uartlite_console_init(devp, &serial_cd);
 #endif
 #ifdef CONFIG_PPC64_BOOT_WRAPPER
 	else if (dt_is_compatible(devp, "ibm,opal-console-raw"))

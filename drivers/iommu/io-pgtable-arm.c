@@ -355,7 +355,7 @@ static arm_lpae_iopte arm_lpae_install_table(arm_lpae_iopte *table,
 
 static int __arm_lpae_map(struct arm_lpae_io_pgtable *data, unsigned long iova,
 			  phys_addr_t paddr, size_t size, arm_lpae_iopte prot,
-			  int lvl, arm_lpae_iopte *ptep)
+			  int lvl, arm_lpae_iopte *ptep, gfp_t gfp)
 {
 	arm_lpae_iopte *cptep, pte;
 	size_t block_size = ARM_LPAE_BLOCK_SIZE(lvl, data);
@@ -376,7 +376,7 @@ static int __arm_lpae_map(struct arm_lpae_io_pgtable *data, unsigned long iova,
 	/* Grab a pointer to the next level */
 	pte = READ_ONCE(*ptep);
 	if (!pte) {
-		cptep = __arm_lpae_alloc_pages(tblsz, GFP_ATOMIC, cfg);
+		cptep = __arm_lpae_alloc_pages(tblsz, gfp, cfg);
 		if (!cptep)
 			return -ENOMEM;
 
@@ -396,7 +396,7 @@ static int __arm_lpae_map(struct arm_lpae_io_pgtable *data, unsigned long iova,
 	}
 
 	/* Rinse, repeat */
-	return __arm_lpae_map(data, iova, paddr, size, prot, lvl + 1, cptep);
+	return __arm_lpae_map(data, iova, paddr, size, prot, lvl + 1, cptep, gfp);
 }
 
 static arm_lpae_iopte arm_lpae_prot_to_pte(struct arm_lpae_io_pgtable *data,
@@ -438,9 +438,6 @@ static arm_lpae_iopte arm_lpae_prot_to_pte(struct arm_lpae_io_pgtable *data,
 		else if (prot & IOMMU_CACHE)
 			pte |= (ARM_LPAE_MAIR_ATTR_IDX_CACHE
 				<< ARM_LPAE_PTE_ATTRINDX_SHIFT);
-		else if (prot & IOMMU_SYS_CACHE_ONLY)
-			pte |= (ARM_LPAE_MAIR_ATTR_IDX_INC_OCACHE
-				<< ARM_LPAE_PTE_ATTRINDX_SHIFT);
 	}
 
 	if (prot & IOMMU_CACHE)
@@ -461,7 +458,7 @@ static arm_lpae_iopte arm_lpae_prot_to_pte(struct arm_lpae_io_pgtable *data,
 }
 
 static int arm_lpae_map(struct io_pgtable_ops *ops, unsigned long iova,
-			phys_addr_t paddr, size_t size, int iommu_prot)
+			phys_addr_t paddr, size_t size, int iommu_prot, gfp_t gfp)
 {
 	struct arm_lpae_io_pgtable *data = io_pgtable_ops_to_data(ops);
 	struct io_pgtable_cfg *cfg = &data->iop.cfg;
@@ -483,7 +480,7 @@ static int arm_lpae_map(struct io_pgtable_ops *ops, unsigned long iova,
 		return -ERANGE;
 
 	prot = arm_lpae_prot_to_pte(data, iommu_prot);
-	ret = __arm_lpae_map(data, iova, paddr, size, prot, lvl, ptep);
+	ret = __arm_lpae_map(data, iova, paddr, size, prot, lvl, ptep, gfp);
 	/*
 	 * Synchronise all PTE updates for the new mapping before there's
 	 * a chance for anything to kick off a table walk for the new iova.
@@ -1178,12 +1175,12 @@ static int __init arm_lpae_run_tests(struct io_pgtable_cfg *cfg)
 			if (ops->map(ops, iova, iova, size, IOMMU_READ |
 							    IOMMU_WRITE |
 							    IOMMU_NOEXEC |
-							    IOMMU_CACHE))
+							    IOMMU_CACHE, GFP_KERNEL))
 				return __FAIL(ops, i);
 
 			/* Overlapping mappings */
 			if (!ops->map(ops, iova, iova + size, size,
-				      IOMMU_READ | IOMMU_NOEXEC))
+				      IOMMU_READ | IOMMU_NOEXEC, GFP_KERNEL))
 				return __FAIL(ops, i);
 
 			if (ops->iova_to_phys(ops, iova + 42) != (iova + 42))
@@ -1198,7 +1195,7 @@ static int __init arm_lpae_run_tests(struct io_pgtable_cfg *cfg)
 			return __FAIL(ops, i);
 
 		/* Remap of partial unmap */
-		if (ops->map(ops, SZ_1G + size, size, size, IOMMU_READ))
+		if (ops->map(ops, SZ_1G + size, size, size, IOMMU_READ, GFP_KERNEL))
 			return __FAIL(ops, i);
 
 		if (ops->iova_to_phys(ops, SZ_1G + size + 42) != (size + 42))
@@ -1216,7 +1213,7 @@ static int __init arm_lpae_run_tests(struct io_pgtable_cfg *cfg)
 				return __FAIL(ops, i);
 
 			/* Remap full block */
-			if (ops->map(ops, iova, iova, size, IOMMU_WRITE))
+			if (ops->map(ops, iova, iova, size, IOMMU_WRITE, GFP_KERNEL))
 				return __FAIL(ops, i);
 
 			if (ops->iova_to_phys(ops, iova + 42) != (iova + 42))

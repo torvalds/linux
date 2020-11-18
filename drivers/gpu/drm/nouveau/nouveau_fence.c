@@ -108,7 +108,7 @@ void
 nouveau_fence_context_del(struct nouveau_fence_chan *fctx)
 {
 	nouveau_fence_context_kill(fctx, 0);
-	nvif_notify_fini(&fctx->notify);
+	nvif_notify_dtor(&fctx->notify);
 	fctx->dead = 1;
 
 	/*
@@ -195,7 +195,8 @@ nouveau_fence_context_new(struct nouveau_channel *chan, struct nouveau_fence_cha
 	if (!priv->uevent)
 		return;
 
-	ret = nvif_notify_init(&chan->user, nouveau_fence_wait_uevent_handler,
+	ret = nvif_notify_ctor(&chan->user, "fenceNonStallIntr",
+			       nouveau_fence_wait_uevent_handler,
 			       false, NV826E_V0_NTFY_NON_STALL_INTERRUPT,
 			       &(struct nvif_notify_uevent_req) { },
 			       sizeof(struct nvif_notify_uevent_req),

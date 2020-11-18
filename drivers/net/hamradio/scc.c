@@ -7,7 +7,7 @@
  *            ------------------
  *
  * You can find a subset of the documentation in 
- * Documentation/networking/z8530drv.txt.
+ * Documentation/networking/device_drivers/wan/z8530drv.rst.
  */
 
 /*

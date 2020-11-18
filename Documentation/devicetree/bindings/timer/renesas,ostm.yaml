@@ -1,0 +1,59 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/timer/renesas,ostm.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Renesas OS Timer (OSTM)
+
+maintainers:
+  - Chris Brandt <chris.brandt@renesas.com>
+  - Geert Uytterhoeven <geert+renesas@glider.be>
+
+description:
+  The OSTM is a multi-channel 32-bit timer/counter with fixed clock source that
+  can operate in either interval count down timer or free-running compare match
+  mode.
+
+  Channels are independent from each other.
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - renesas,r7s72100-ostm # RZ/A1H
+          - renesas,r7s9210-ostm  # RZ/A2M
+      - const: renesas,ostm       # Generic
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  power-domains:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - power-domains
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/r7s72100-clock.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    ostm0: timer@fcfec000 {
+            compatible = "renesas,r7s72100-ostm", "renesas,ostm";
+            reg = <0xfcfec000 0x30>;
+            interrupts = <GIC_SPI 102 IRQ_TYPE_EDGE_RISING>;
+            clocks = <&mstp5_clks R7S72100_CLK_OSTM0>;
+            power-domains = <&cpg_clocks>;
+    };

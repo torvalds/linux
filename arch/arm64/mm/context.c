@@ -45,7 +45,7 @@ static u32 get_cpu_asid_bits(void)
 	default:
 		pr_warn("CPU%d: Unknown ASID size (%d); assuming 8-bit\n",
 					smp_processor_id(),  fld);
-		/* Fallthrough */
+		fallthrough;
 	case 0:
 		asid = 8;
 		break;
@@ -91,6 +91,9 @@ static void set_reserved_asid_bits(void)
 	else
 		bitmap_clear(asid_map, 0, NUM_USER_ASIDS);
 }
+
+#define asid_gen_match(asid) \
+	(!(((asid) ^ atomic64_read(&asid_generation)) >> asid_bits))
 
 static void flush_context(void)
 {
@@ -195,9 +198,10 @@ set_asid:
 	return idx2asid(asid) | generation;
 }
 
-void check_and_switch_context(struct mm_struct *mm, unsigned int cpu)
+void check_and_switch_context(struct mm_struct *mm)
 {
 	unsigned long flags;
+	unsigned int cpu;
 	u64 asid, old_active_asid;
 
 	if (system_supports_cnp())
@@ -219,25 +223,25 @@ void check_and_switch_context(struct mm_struct *mm, unsigned int cpu)
 	 *   relaxed xchg in flush_context will treat us as reserved
 	 *   because atomic RmWs are totally ordered for a given location.
 	 */
-	old_active_asid = atomic64_read(&per_cpu(active_asids, cpu));
-	if (old_active_asid &&
-	    !((asid ^ atomic64_read(&asid_generation)) >> asid_bits) &&
-	    atomic64_cmpxchg_relaxed(&per_cpu(active_asids, cpu),
+	old_active_asid = atomic64_read(this_cpu_ptr(&active_asids));
+	if (old_active_asid && asid_gen_match(asid) &&
+	    atomic64_cmpxchg_relaxed(this_cpu_ptr(&active_asids),
 				     old_active_asid, asid))
 		goto switch_mm_fastpath;
 
 	raw_spin_lock_irqsave(&cpu_asid_lock, flags);
 	/* Check that our ASID belongs to the current generation. */
 	asid = atomic64_read(&mm->context.id);
-	if ((asid ^ atomic64_read(&asid_generation)) >> asid_bits) {
+	if (!asid_gen_match(asid)) {
 		asid = new_context(mm);
 		atomic64_set(&mm->context.id, asid);
 	}
 
+	cpu = smp_processor_id();
 	if (cpumask_test_and_clear_cpu(cpu, &tlb_flush_pending))
 		local_flush_tlb_all();
 
-	atomic64_set(&per_cpu(active_asids, cpu), asid);
+	atomic64_set(this_cpu_ptr(&active_asids), asid);
 	raw_spin_unlock_irqrestore(&cpu_asid_lock, flags);
 
 switch_mm_fastpath:

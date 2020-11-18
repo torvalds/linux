@@ -409,6 +409,7 @@ void mt76x02_mac_write_txwi(struct mt76x02_dev *dev, struct mt76x02_txwi *txwi,
 		txwi->ack_ctl |= MT_TXWI_ACK_CTL_NSEQ;
 	if ((info->flags & IEEE80211_TX_CTL_AMPDU) && sta) {
 		u8 ba_size = IEEE80211_MIN_AMPDU_BUF;
+		u8 ampdu_density = sta->ht_cap.ampdu_density;
 
 		ba_size <<= sta->ht_cap.ampdu_factor;
 		ba_size = min_t(int, 63, ba_size - 1);
@@ -416,9 +417,11 @@ void mt76x02_mac_write_txwi(struct mt76x02_dev *dev, struct mt76x02_txwi *txwi,
 			ba_size = 0;
 		txwi->ack_ctl |= FIELD_PREP(MT_TXWI_ACK_CTL_BA_WINDOW, ba_size);
 
+		if (ampdu_density < IEEE80211_HT_MPDU_DENSITY_4)
+			ampdu_density = IEEE80211_HT_MPDU_DENSITY_4;
+
 		txwi_flags |= MT_TXWI_FLAGS_AMPDU |
-			 FIELD_PREP(MT_TXWI_FLAGS_MPDU_DENSITY,
-				    sta->ht_cap.ampdu_density);
+			 FIELD_PREP(MT_TXWI_FLAGS_MPDU_DENSITY, ampdu_density);
 	}
 
 	if (ieee80211_is_probe_resp(hdr->frame_control) ||
@@ -558,7 +561,7 @@ void mt76x02_send_tx_status(struct mt76x02_dev *dev,
 
 	rcu_read_lock();
 
-	if (stat->wcid < ARRAY_SIZE(dev->mt76.wcid))
+	if (stat->wcid < MT76x02_N_WCIDS)
 		wcid = rcu_dereference(dev->mt76.wcid[stat->wcid]);
 
 	if (wcid && wcid->sta) {

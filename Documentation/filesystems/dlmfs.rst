@@ -12,7 +12,7 @@ dlmfs is built with OCFS2 as it requires most of its infrastructure.
 
 :Project web page:    http://ocfs2.wiki.kernel.org
 :Tools web page:      https://github.com/markfasheh/ocfs2-tools
-:OCFS2 mailing lists: http://oss.oracle.com/projects/ocfs2/mailman/
+:OCFS2 mailing lists: https://oss.oracle.com/projects/ocfs2/mailman/
 
 All code copyright 2005 Oracle except when otherwise noted.
 

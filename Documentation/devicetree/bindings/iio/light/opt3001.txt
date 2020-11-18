@@ -6,7 +6,7 @@ the optional generation of IIO events on rising/falling light threshold changes
 requires the use of interrupts. Without interrupts, only the simple reading
 of the current light value is supported through the IIO API.
 
-http://www.ti.com/product/opt3001
+https://www.ti.com/product/opt3001
 
 Required properties:
   - compatible: should be "ti,opt3001"

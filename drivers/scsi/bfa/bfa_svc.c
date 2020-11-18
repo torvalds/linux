@@ -2718,7 +2718,7 @@ bfa_fcport_sm_ddport(struct bfa_fcport_s *fcport,
 	case BFA_FCPORT_SM_DPORTDISABLE:
 	case BFA_FCPORT_SM_ENABLE:
 	case BFA_FCPORT_SM_START:
-		/**
+		/*
 		 * Ignore event for a port that is ddport
 		 */
 		break;
@@ -3839,7 +3839,7 @@ bfa_fcport_get_topology(struct bfa_s *bfa)
 	return fcport->topology;
 }
 
-/**
+/*
  * Get config topology.
  */
 enum bfa_port_topology
@@ -4284,7 +4284,7 @@ bfa_fcport_dportdisable(struct bfa_s *bfa)
 	bfa_port_set_dportenabled(&bfa->modules.port, BFA_FALSE);
 }
 
-void
+static void
 bfa_fcport_ddportenable(struct bfa_s *bfa)
 {
 	/*
@@ -4293,7 +4293,7 @@ bfa_fcport_ddportenable(struct bfa_s *bfa)
 	bfa_sm_send_event(BFA_FCPORT_MOD(bfa), BFA_FCPORT_SM_DDPORTENABLE);
 }
 
-void
+static void
 bfa_fcport_ddportdisable(struct bfa_s *bfa)
 {
 	/*
@@ -5517,7 +5517,6 @@ uf_recv(struct bfa_s *bfa, struct bfi_uf_frm_rcvd_s *m)
 	struct bfa_uf_s *uf = &ufm->uf_list[uf_tag];
 	struct bfa_uf_buf_s *uf_buf;
 	uint8_t *buf;
-	struct fchs_s *fchs;
 
 	uf_buf = (struct bfa_uf_buf_s *)
 			bfa_mem_get_dmabuf_kva(ufm, uf_tag, uf->pb_len);
@@ -5525,8 +5524,6 @@ uf_recv(struct bfa_s *bfa, struct bfi_uf_frm_rcvd_s *m)
 
 	m->frm_len = be16_to_cpu(m->frm_len);
 	m->xfr_len = be16_to_cpu(m->xfr_len);
-
-	fchs = (struct fchs_s *)uf_buf;
 
 	list_del(&uf->qe);	/* dequeue from posted queue */
 
@@ -6400,7 +6397,7 @@ bfa_dport_sm_starting(struct bfa_dport_s *dport, enum bfa_dport_sm_event event)
 			dport->test_state = BFA_DPORT_ST_INP;
 			bfa_dport_result_start(dport, BFA_DPORT_OPMODE_MANU);
 		}
-		/* fall thru */
+		fallthrough;
 
 	case BFA_DPORT_SM_REQFAIL:
 		bfa_sm_set_state(dport, bfa_dport_sm_enabled);

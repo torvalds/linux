@@ -237,7 +237,6 @@ static int bma220_probe(struct spi_device *spi)
 	spi_set_drvdata(spi, indio_dev);
 	mutex_init(&data->lock);
 
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->info = &bma220_info;
 	indio_dev->name = BMA220_DEVICE_NAME;
 	indio_dev->modes = INDIO_DIRECT_MODE;
@@ -309,12 +308,14 @@ static const struct spi_device_id bma220_spi_id[] = {
 	{}
 };
 
+#ifdef CONFIG_ACPI
 static const struct acpi_device_id bma220_acpi_id[] = {
 	{"BMA0220", 0},
 	{}
 };
 
 MODULE_DEVICE_TABLE(spi, bma220_spi_id);
+#endif
 
 static struct spi_driver bma220_driver = {
 	.driver = {

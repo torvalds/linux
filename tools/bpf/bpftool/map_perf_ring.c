@@ -39,7 +39,7 @@ struct event_ring_info {
 
 struct perf_event_sample {
 	struct perf_event_header header;
-	u64 time;
+	__u64 time;
 	__u32 size;
 	unsigned char data[];
 };

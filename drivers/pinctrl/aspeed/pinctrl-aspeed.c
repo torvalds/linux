@@ -76,6 +76,9 @@ static int aspeed_sig_expr_enable(struct aspeed_pinmux_data *ctx,
 {
 	int ret;
 
+	pr_debug("Enabling signal %s for %s\n", expr->signal,
+		 expr->function);
+
 	ret = aspeed_sig_expr_eval(ctx, expr, true);
 	if (ret < 0)
 		return ret;
@@ -90,6 +93,9 @@ static int aspeed_sig_expr_disable(struct aspeed_pinmux_data *ctx,
 				   const struct aspeed_sig_expr *expr)
 {
 	int ret;
+
+	pr_debug("Disabling signal %s for %s\n", expr->signal,
+		 expr->function);
 
 	ret = aspeed_sig_expr_eval(ctx, expr, true);
 	if (ret < 0)
@@ -229,7 +235,7 @@ int aspeed_pinmux_set_mux(struct pinctrl_dev *pctldev, unsigned int function,
 		const struct aspeed_sig_expr **funcs;
 		const struct aspeed_sig_expr ***prios;
 
-		pr_debug("Muxing pin %d for %s\n", pin, pfunc->name);
+		pr_debug("Muxing pin %s for %s\n", pdesc->name, pfunc->name);
 
 		if (!pdesc)
 			return -EINVAL;
@@ -269,6 +275,9 @@ int aspeed_pinmux_set_mux(struct pinctrl_dev *pctldev, unsigned int function,
 		ret = aspeed_sig_expr_enable(&pdata->pinmux, expr);
 		if (ret)
 			return ret;
+
+		pr_debug("Muxed pin %s as %s for %s\n", pdesc->name, expr->signal,
+			 expr->function);
 	}
 
 	return 0;
@@ -317,6 +326,8 @@ int aspeed_gpio_request_enable(struct pinctrl_dev *pctldev,
 	if (!prios)
 		return -ENXIO;
 
+	pr_debug("Muxing pin %s for GPIO\n", pdesc->name);
+
 	/* Disable any functions of higher priority than GPIO */
 	while ((funcs = *prios)) {
 		if (aspeed_gpio_in_exprs(funcs))
@@ -346,14 +357,22 @@ int aspeed_gpio_request_enable(struct pinctrl_dev *pctldev,
 	 * lowest-priority signal type. As such it has no associated
 	 * expression.
 	 */
-	if (!expr)
+	if (!expr) {
+		pr_debug("Muxed pin %s as GPIO\n", pdesc->name);
 		return 0;
+	}
 
 	/*
 	 * If GPIO is not the lowest priority signal type, assume there is only
 	 * one expression defined to enable the GPIO function
 	 */
-	return aspeed_sig_expr_enable(&pdata->pinmux, expr);
+	ret = aspeed_sig_expr_enable(&pdata->pinmux, expr);
+	if (ret)
+		return ret;
+
+	pr_debug("Muxed pin %s as %s\n", pdesc->name, expr->signal);
+
+	return 0;
 }
 
 int aspeed_pinctrl_probe(struct platform_device *pdev,

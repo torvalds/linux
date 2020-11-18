@@ -17,6 +17,8 @@
 
 #include <linux/util_macros.h>
 
+#include <asm/unaligned.h>
+
 #define SI1133_REG_PART_ID		0x00
 #define SI1133_REG_REV_ID		0x01
 #define SI1133_REG_MFR_ID		0x02
@@ -103,8 +105,6 @@
 #define SI1133_LUX_OUTPUT_FRACTION	12
 #define SI1133_LUX_BUFFER_SIZE		9
 #define SI1133_MEASURE_BUFFER_SIZE	3
-
-#define SI1133_SIGN_BIT_INDEX 23
 
 static const int si1133_scale_available[] = {
 	1, 2, 4, 8, 16, 32, 64, 128};
@@ -633,8 +633,7 @@ static int si1133_measure(struct si1133_data *data,
 	if (err)
 		return err;
 
-	*val = sign_extend32((buffer[0] << 16) | (buffer[1] << 8) | buffer[2],
-			     SI1133_SIGN_BIT_INDEX);
+	*val = sign_extend32(get_unaligned_be24(&buffer[0]), 23);
 
 	return err;
 }
@@ -723,16 +722,11 @@ static int si1133_get_lux(struct si1133_data *data, int *val)
 	if (err)
 		return err;
 
-	high_vis =
-		sign_extend32((buffer[0] << 16) | (buffer[1] << 8) | buffer[2],
-			      SI1133_SIGN_BIT_INDEX);
+	high_vis = sign_extend32(get_unaligned_be24(&buffer[0]), 23);
 
-	low_vis =
-		sign_extend32((buffer[3] << 16) | (buffer[4] << 8) | buffer[5],
-			      SI1133_SIGN_BIT_INDEX);
+	low_vis = sign_extend32(get_unaligned_be24(&buffer[3]), 23);
 
-	ir = sign_extend32((buffer[6] << 16) | (buffer[7] << 8) | buffer[8],
-			   SI1133_SIGN_BIT_INDEX);
+	ir = sign_extend32(get_unaligned_be24(&buffer[6]), 23);
 
 	if (high_vis > SI1133_ADC_THRESHOLD || ir > SI1133_ADC_THRESHOLD)
 		lux = si1133_calc_polynomial(high_vis, ir,
@@ -1021,7 +1015,6 @@ static int si1133_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, iio_dev);
 	data->client = client;
 
-	iio_dev->dev.parent = &client->dev;
 	iio_dev->name = id->name;
 	iio_dev->channels = si1133_channels;
 	iio_dev->num_channels = ARRAY_SIZE(si1133_channels);

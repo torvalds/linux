@@ -20,7 +20,10 @@ int mt76x02_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
 	int ret;
 	u8 seq;
 
-	skb = mt76x02_mcu_msg_alloc(data, len);
+	if (dev->mcu_timeout)
+		return -EIO;
+
+	skb = mt76_mcu_msg_alloc(mdev, data, len);
 	if (!skb)
 		return -ENOMEM;
 

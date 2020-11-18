@@ -406,14 +406,15 @@ static void debiirq(unsigned long cookie)
 	case DATA_CI_GET:
 	{
 		u8 *data = av7110->debi_virt;
+		u8 data_0 = data[0];
 
-		if ((data[0] < 2) && data[2] == 0xff) {
+		if (data_0 < 2 && data[2] == 0xff) {
 			int flags = 0;
 			if (data[5] > 0)
 				flags |= CA_CI_MODULE_PRESENT;
 			if (data[5] > 5)
 				flags |= CA_CI_MODULE_READY;
-			av7110->ci_slot[data[0]].flags = flags;
+			av7110->ci_slot[data_0].flags = flags;
 		} else
 			ci_get_data(&av7110->ci_rbuffer,
 				    av7110->debi_virt,
@@ -636,7 +637,7 @@ static void gpioirq(unsigned long cookie)
 			iwdebi(av7110, DEBINOSWAP, RX_BUFF, 0, 2);
 			break;
 		}
-		/* fall through */
+		fallthrough;
 
 	case DATA_TS_RECORD:
 	case DATA_PES_RECORD:
@@ -2175,7 +2176,7 @@ static int frontend_init(struct av7110 *av7110)
 				break;
 			}
 		}
-		/* fall-thru */
+			fallthrough;
 
 		case 0x0008: // Hauppauge/TT DVB-T
 			// Grundig 29504-401

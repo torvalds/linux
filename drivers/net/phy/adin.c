@@ -106,8 +106,8 @@
 
 /**
  * struct adin_cfg_reg_map - map a config value to aregister value
- * @cfg		value in device configuration
- * @reg		value in the register
+ * @cfg:	value in device configuration
+ * @reg:	value in the register
  */
 struct adin_cfg_reg_map {
 	int cfg;
@@ -135,9 +135,9 @@ static const struct adin_cfg_reg_map adin_rmii_fifo_depths[] = {
 
 /**
  * struct adin_clause45_mmd_map - map to convert Clause 45 regs to Clause 22
- * @devad		device address used in Clause 45 access
- * @cl45_regnum		register address defined by Clause 45
- * @adin_regnum		equivalent register address accessible via Clause 22
+ * @devad:		device address used in Clause 45 access
+ * @cl45_regnum:	register address defined by Clause 45
+ * @adin_regnum:	equivalent register address accessible via Clause 22
  */
 struct adin_clause45_mmd_map {
 	int devad;
@@ -174,7 +174,7 @@ static const struct adin_hw_stat adin_hw_stats[] = {
 
 /**
  * struct adin_priv - ADIN PHY driver private data
- * stats		statistic counters for the PHY
+ * @stats:		statistic counters for the PHY
  */
 struct adin_priv {
 	u64			stats[ARRAY_SIZE(adin_hw_stats)];
@@ -366,10 +366,10 @@ static int adin_set_edpd(struct phy_device *phydev, u16 tx_interval)
 
 	switch (tx_interval) {
 	case 1000: /* 1 second */
-		/* fallthrough */
+		fallthrough;
 	case ETHTOOL_PHY_EDPD_DFLT_TX_MSECS:
 		val |= ADIN1300_NRG_PD_TX_EN;
-		/* fallthrough */
+		fallthrough;
 	case ETHTOOL_PHY_EDPD_NO_TX:
 		break;
 	default:

@@ -37,6 +37,7 @@
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/drm_simple_kms_helper.h>
 
 #include "vc4_drv.h"
 #include "vc4_regs.h"
@@ -650,15 +651,6 @@ static const struct debugfs_reg32 dsi1_regs[] = {
 	VC4_REG32(DSI1_PHY_AFEC0),
 	VC4_REG32(DSI1_PHY_AFEC1),
 	VC4_REG32(DSI1_ID),
-};
-
-static void vc4_dsi_encoder_destroy(struct drm_encoder *encoder)
-{
-	drm_encoder_cleanup(encoder);
-}
-
-static const struct drm_encoder_funcs vc4_dsi_encoder_funcs = {
-	.destroy = vc4_dsi_encoder_destroy,
 };
 
 static void vc4_dsi_latch_ulps(struct vc4_dsi *dsi, bool latch)
@@ -1615,8 +1607,7 @@ static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 	if (dsi->port == 1)
 		vc4->dsi1 = dsi;
 
-	drm_encoder_init(drm, dsi->encoder, &vc4_dsi_encoder_funcs,
-			 DRM_MODE_ENCODER_DSI, NULL);
+	drm_simple_encoder_init(drm, dsi->encoder, DRM_MODE_ENCODER_DSI);
 	drm_encoder_helper_add(dsi->encoder, &vc4_dsi_encoder_helper_funcs);
 
 	ret = drm_bridge_attach(dsi->encoder, dsi->bridge, NULL, 0);
@@ -1656,7 +1647,7 @@ static void vc4_dsi_unbind(struct device *dev, struct device *master,
 	 * normally.
 	 */
 	list_splice_init(&dsi->bridge_chain, &dsi->encoder->bridge_chain);
-	vc4_dsi_encoder_destroy(dsi->encoder);
+	drm_encoder_cleanup(dsi->encoder);
 
 	if (dsi->port == 1)
 		vc4->dsi1 = NULL;

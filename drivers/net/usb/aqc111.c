@@ -333,13 +333,13 @@ static void aqc111_set_phy_speed(struct usbnet *dev, u8 autoneg, u16 speed)
 		switch (speed) {
 		case SPEED_5000:
 			aqc111_data->phy_cfg |= AQ_ADV_5G;
-			/* fall-through */
+			fallthrough;
 		case SPEED_2500:
 			aqc111_data->phy_cfg |= AQ_ADV_2G5;
-			/* fall-through */
+			fallthrough;
 		case SPEED_1000:
 			aqc111_data->phy_cfg |= AQ_ADV_1G;
-			/* fall-through */
+			fallthrough;
 		case SPEED_100:
 			aqc111_data->phy_cfg |= AQ_ADV_100M;
 			/* fall-through */

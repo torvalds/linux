@@ -53,6 +53,9 @@
 #define HCI_NOTIFY_CONN_ADD		1
 #define HCI_NOTIFY_CONN_DEL		2
 #define HCI_NOTIFY_VOICE_SETTING	3
+#define HCI_NOTIFY_ENABLE_SCO_CVSD	4
+#define HCI_NOTIFY_ENABLE_SCO_TRANSP	5
+#define HCI_NOTIFY_DISABLE_SCO		6
 
 /* HCI bus types */
 #define HCI_VIRTUAL	0
@@ -65,6 +68,7 @@
 #define HCI_SPI		7
 #define HCI_I2C		8
 #define HCI_SMD		9
+#define HCI_VIRTIO	10
 
 /* HCI controller types */
 #define HCI_PRIMARY	0x00
@@ -214,6 +218,26 @@ enum {
 	 * This quirk must be set before hci_register_dev is called.
 	 */
 	HCI_QUIRK_WIDEBAND_SPEECH_SUPPORTED,
+
+	/* When this quirk is set, the controller has validated that
+	 * LE states reported through the HCI_LE_READ_SUPPORTED_STATES are
+	 * valid.  This mechanism is necessary as many controllers have
+	 * been seen has having trouble initiating a connectable
+	 * advertisement despite the state combination being reported as
+	 * supported.
+	 */
+	HCI_QUIRK_VALID_LE_STATES,
+
+	/* When this quirk is set, then erroneous data reporting
+	 * is ignored. This is mainly due to the fact that the HCI
+	 * Read Default Erroneous Data Reporting command is advertised,
+	 * but not supported; these controllers often reply with unknown
+	 * command and tend to lock up randomly. Needing a hard reset.
+	 *
+	 * This quirk can be set before hci_register_dev is called or
+	 * during the hdev->setup vendor callback.
+	 */
+	HCI_QUIRK_BROKEN_ERR_DATA_REPORTING,
 };
 
 /* HCI device flags */
@@ -245,6 +269,7 @@ enum {
 	HCI_MGMT_DEV_CLASS_EVENTS,
 	HCI_MGMT_LOCAL_NAME_EVENTS,
 	HCI_MGMT_OOB_DATA_EVENTS,
+	HCI_MGMT_EXP_FEATURE_EVENTS,
 };
 
 /*
@@ -293,7 +318,9 @@ enum {
 	HCI_FORCE_BREDR_SMP,
 	HCI_FORCE_STATIC_ADDR,
 	HCI_LL_RPA_RESOLUTION,
+	HCI_ENABLE_LL_PRIVACY,
 	HCI_CMD_PENDING,
+	HCI_FORCE_NO_MITM,
 
 	__HCI_NUM_FLAGS,
 };
@@ -455,12 +482,11 @@ enum {
 #define HCI_LE_SLAVE_FEATURES		0x08
 #define HCI_LE_PING			0x10
 #define HCI_LE_DATA_LEN_EXT		0x20
-#define HCI_LE_PHY_2M			0x01
-#define HCI_LE_PHY_CODED		0x08
-#define HCI_LE_EXT_ADV			0x10
+#define HCI_LE_LL_PRIVACY		0x40
 #define HCI_LE_EXT_SCAN_POLICY		0x80
 #define HCI_LE_PHY_2M			0x01
 #define HCI_LE_PHY_CODED		0x08
+#define HCI_LE_EXT_ADV			0x10
 #define HCI_LE_CHAN_SEL_ALG2		0x40
 #define HCI_LE_CIS_MASTER		0x10
 #define HCI_LE_CIS_SLAVE		0x20
@@ -1272,6 +1298,13 @@ struct hci_rp_read_data_block_size {
 
 #define HCI_OP_READ_LOCAL_CODECS	0x100b
 
+#define HCI_OP_READ_LOCAL_PAIRING_OPTS	0x100c
+struct hci_rp_read_local_pairing_opts {
+	__u8     status;
+	__u8     pairing_opts;
+	__u8     max_key_size;
+} __packed;
+
 #define HCI_OP_READ_PAGE_SCAN_ACTIVITY	0x0c1b
 struct hci_rp_read_page_scan_activity {
 	__u8     status;
@@ -1615,6 +1648,8 @@ struct hci_rp_le_read_resolv_list_size {
 } __packed;
 
 #define HCI_OP_LE_SET_ADDR_RESOLV_ENABLE 0x202d
+
+#define HCI_OP_LE_SET_RPA_TIMEOUT	0x202e
 
 #define HCI_OP_LE_READ_MAX_DATA_LEN	0x202f
 struct hci_rp_le_read_max_data_len {
@@ -2247,8 +2282,10 @@ struct hci_ev_le_conn_complete {
 #define LE_EXT_ADV_SCAN_RSP		0x0008
 #define LE_EXT_ADV_LEGACY_PDU		0x0010
 
-#define ADDR_LE_DEV_PUBLIC	0x00
-#define ADDR_LE_DEV_RANDOM	0x01
+#define ADDR_LE_DEV_PUBLIC		0x00
+#define ADDR_LE_DEV_RANDOM		0x01
+#define ADDR_LE_DEV_PUBLIC_RESOLVED	0x02
+#define ADDR_LE_DEV_RANDOM_RESOLVED	0x03
 
 #define HCI_EV_LE_ADVERTISING_REPORT	0x02
 struct hci_ev_le_advertising_info {
@@ -2494,5 +2531,13 @@ static inline struct hci_sco_hdr *hci_sco_hdr(const struct sk_buff *skb)
 #define hci_iso_data_len_pack(h, f)	((__u16) ((h) | ((f) << 14)))
 #define hci_iso_data_len(h)		((h) & 0x3fff)
 #define hci_iso_data_flags(h)		((h) >> 14)
+
+/* le24 support */
+static inline void hci_cpu_to_le24(__u32 val, __u8 dst[3])
+{
+	dst[0] = val & 0xff;
+	dst[1] = (val & 0xff00) >> 8;
+	dst[2] = (val & 0xff0000) >> 16;
+}
 
 #endif /* __HCI_H */

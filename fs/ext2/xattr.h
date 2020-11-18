@@ -100,6 +100,7 @@ static inline void ext2_xattr_destroy_cache(struct mb_cache *cache)
 }
 
 #define ext2_xattr_handlers NULL
+#define ext2_listxattr NULL
 
 # endif  /* CONFIG_EXT2_FS_XATTR */
 

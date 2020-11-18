@@ -429,7 +429,7 @@ static netdev_tx_t p80211knetdev_hard_start_xmit(struct sk_buff *skb,
 failed:
 	/* Free up the WEP buffer if it's not the same as the skb */
 	if ((p80211_wep.data) && (p80211_wep.data != skb->data))
-		kzfree(p80211_wep.data);
+		kfree_sensitive(p80211_wep.data);
 
 	/* we always free the skb here, never in a lower level. */
 	if (!result)

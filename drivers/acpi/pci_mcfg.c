@@ -29,7 +29,7 @@ struct mcfg_fixup {
 	u32 oem_revision;
 	u16 segment;
 	struct resource bus_range;
-	struct pci_ecam_ops *ops;
+	const struct pci_ecam_ops *ops;
 	struct resource cfgres;
 };
 
@@ -165,7 +165,7 @@ static int pci_mcfg_quirk_matches(struct mcfg_fixup *f, u16 segment,
 
 static void pci_mcfg_apply_quirks(struct acpi_pci_root *root,
 				  struct resource *cfgres,
-				  struct pci_ecam_ops **ecam_ops)
+				  const struct pci_ecam_ops **ecam_ops)
 {
 #ifdef CONFIG_PCI_QUIRKS
 	u16 segment = root->segment;
@@ -191,9 +191,9 @@ static void pci_mcfg_apply_quirks(struct acpi_pci_root *root,
 static LIST_HEAD(pci_mcfg_list);
 
 int pci_mcfg_lookup(struct acpi_pci_root *root, struct resource *cfgres,
-		    struct pci_ecam_ops **ecam_ops)
+		    const struct pci_ecam_ops **ecam_ops)
 {
-	struct pci_ecam_ops *ops = &pci_generic_ecam_ops;
+	const struct pci_ecam_ops *ops = &pci_generic_ecam_ops;
 	struct resource *bus_res = &root->secondary;
 	u16 seg = root->segment;
 	struct mcfg_entry *e;

@@ -20,6 +20,7 @@
 #include <linux/stringify.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
+#include <linux/irq.h>
 
 #include <linux/of.h>
 #include <linux/of_platform.h>
@@ -159,15 +160,32 @@ static int uio_pdrv_genirq_probe(struct platform_device *pdev)
 	priv->pdev = pdev;
 
 	if (!uioinfo->irq) {
-		ret = platform_get_irq(pdev, 0);
+		ret = platform_get_irq_optional(pdev, 0);
 		uioinfo->irq = ret;
-		if (ret == -ENXIO && pdev->dev.of_node)
+		if (ret == -ENXIO)
 			uioinfo->irq = UIO_IRQ_NONE;
 		else if (ret == -EPROBE_DEFER)
 			return ret;
 		else if (ret < 0) {
 			dev_err(&pdev->dev, "failed to get IRQ\n");
 			return ret;
+		}
+	}
+
+	if (uioinfo->irq) {
+		struct irq_data *irq_data = irq_get_irq_data(uioinfo->irq);
+
+		/*
+		 * If a level interrupt, dont do lazy disable. Otherwise the
+		 * irq will fire again since clearing of the actual cause, on
+		 * device level, is done in userspace
+		 * irqd_is_level_type() isn't used since isn't valid until
+		 * irq is configured.
+		 */
+		if (irq_data &&
+		    irqd_get_trigger_type(irq_data) & IRQ_TYPE_LEVEL_MASK) {
+			dev_dbg(&pdev->dev, "disable lazy unmask\n");
+			irq_set_status_flags(uioinfo->irq, IRQ_DISABLE_UNLAZY);
 		}
 	}
 
@@ -187,8 +205,10 @@ static int uio_pdrv_genirq_probe(struct platform_device *pdev)
 		}
 
 		uiomem->memtype = UIO_MEM_PHYS;
-		uiomem->addr = r->start;
-		uiomem->size = resource_size(r);
+		uiomem->addr = r->start & PAGE_MASK;
+		uiomem->offs = r->start & ~PAGE_MASK;
+		uiomem->size = (uiomem->offs + resource_size(r)
+				+ PAGE_SIZE - 1) & PAGE_MASK;
 		uiomem->name = r->name;
 		++uiomem;
 	}

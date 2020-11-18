@@ -1169,9 +1169,10 @@ static int execute_check_pkt_len(struct datapath *dp, struct sk_buff *skb,
 				 struct sw_flow_key *key,
 				 const struct nlattr *attr, bool last)
 {
+	struct ovs_skb_cb *ovs_cb = OVS_CB(skb);
 	const struct nlattr *actions, *cpl_arg;
+	int len, max_len, rem = nla_len(attr);
 	const struct check_pkt_len_arg *arg;
-	int rem = nla_len(attr);
 	bool clone_flow_key;
 
 	/* The first netlink attribute in 'attr' is always
@@ -1180,7 +1181,11 @@ static int execute_check_pkt_len(struct datapath *dp, struct sk_buff *skb,
 	cpl_arg = nla_data(attr);
 	arg = nla_data(cpl_arg);
 
-	if (skb->len <= arg->pkt_len) {
+	len = ovs_cb->mru ? ovs_cb->mru + skb->mac_len : skb->len;
+	max_len = arg->pkt_len;
+
+	if ((skb_is_gso(skb) && skb_gso_validate_mac_len(skb, max_len)) ||
+	    len <= max_len) {
 		/* Second netlink attribute in 'attr' is always
 		 * 'OVS_CHECK_PKT_LEN_ATTR_ACTIONS_IF_LESS_EQUAL'.
 		 */

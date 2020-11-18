@@ -68,6 +68,7 @@ struct icmp6hdr {
 #define icmp6_mtu		icmp6_dataun.un_data32[0]
 #define icmp6_unused		icmp6_dataun.un_data32[0]
 #define icmp6_maxdelay		icmp6_dataun.un_data16[0]
+#define icmp6_datagram_len	icmp6_dataun.un_data8[0]
 #define icmp6_router		icmp6_dataun.u_nd_advt.router
 #define icmp6_solicited		icmp6_dataun.u_nd_advt.solicited
 #define icmp6_override		icmp6_dataun.u_nd_advt.override

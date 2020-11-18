@@ -26,7 +26,6 @@
 #include <drm/drm_mm.h>
 
 #include "gt/intel_reset.h"
-#include "i915_gem_fence_reg.h"
 #include "i915_selftest.h"
 #include "i915_vma_types.h"
 
@@ -135,6 +134,8 @@ typedef u64 gen8_pte_t;
 #define GEN8_PDE_IPS_64K BIT(11)
 #define GEN8_PDE_PS_2M   BIT(7)
 
+struct i915_fence_reg;
+
 #define for_each_sgt_daddr(__dp, __iter, __sgt) \
 	__for_each_sgt_daddr(__dp, __iter, __sgt, I915_GTT_PAGE_SIZE)
 
@@ -197,14 +198,16 @@ struct intel_gt;
 
 struct i915_vma_ops {
 	/* Map an object into an address space with the given cache flags. */
-	int (*bind_vma)(struct i915_vma *vma,
+	int (*bind_vma)(struct i915_address_space *vm,
+			struct i915_vma *vma,
 			enum i915_cache_level cache_level,
 			u32 flags);
 	/*
 	 * Unmap an object from an address space. This usually consists of
 	 * setting the valid PTE entries to a reserved scratch page.
 	 */
-	void (*unbind_vma)(struct i915_vma *vma);
+	void (*unbind_vma)(struct i915_address_space *vm,
+			   struct i915_vma *vma);
 
 	int (*set_pages)(struct i915_vma *vma);
 	void (*clear_pages)(struct i915_vma *vma);
@@ -333,7 +336,7 @@ struct i915_ggtt {
 	u32 pin_bias;
 
 	unsigned int num_fences;
-	struct i915_fence_reg fence_regs[I915_MAX_NUM_FENCES];
+	struct i915_fence_reg *fence_regs;
 	struct list_head fence_list;
 
 	/**
@@ -564,6 +567,13 @@ void gen6_ggtt_invalidate(struct i915_ggtt *ggtt);
 int ggtt_set_pages(struct i915_vma *vma);
 int ppgtt_set_pages(struct i915_vma *vma);
 void clear_pages(struct i915_vma *vma);
+
+int ppgtt_bind_vma(struct i915_address_space *vm,
+		   struct i915_vma *vma,
+		   enum i915_cache_level cache_level,
+		   u32 flags);
+void ppgtt_unbind_vma(struct i915_address_space *vm,
+		      struct i915_vma *vma);
 
 void gtt_write_workarounds(struct intel_gt *gt);
 

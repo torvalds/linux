@@ -73,7 +73,7 @@ DEFINE_PER_CPU(struct bnx2i_percpu_s, bnx2i_percpu);
 /**
  * bnx2i_identify_device - identifies NetXtreme II device type
  * @hba: 		Adapter structure pointer
- * @cnic:		Corresponding cnic device
+ * @dev:		Corresponding cnic device
  *
  * This function identifies the NX2 device type and sets appropriate
  *	queue mailbox register access method, 5709 requires driver to

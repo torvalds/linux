@@ -252,3 +252,4 @@ module_exit(nft_objref_module_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Pablo Neira Ayuso <pablo@netfilter.org>");
 MODULE_ALIAS_NFT_EXPR("objref");
+MODULE_DESCRIPTION("nftables stateful object reference module");

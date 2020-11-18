@@ -31,6 +31,10 @@
 #include "probe-file.h"
 #include "strlist.h"
 
+#ifdef HAVE_DEBUGINFOD_SUPPORT
+#include <elfutils/debuginfod.h>
+#endif
+
 #include <linux/ctype.h>
 #include <linux/zalloc.h>
 
@@ -636,6 +640,21 @@ static char *build_id_cache__find_debug(const char *sbuild_id,
 	if (realname && access(realname, R_OK))
 		zfree(&realname);
 	nsinfo__mountns_exit(&nsc);
+
+#ifdef HAVE_DEBUGINFOD_SUPPORT
+        if (realname == NULL) {
+                debuginfod_client* c = debuginfod_begin();
+                if (c != NULL) {
+                        int fd = debuginfod_find_debuginfo(c,
+                                                           (const unsigned char*)sbuild_id, 0,
+                                                           &realname);
+                        if (fd >= 0)
+                                close(fd); /* retaining reference by realname */
+                        debuginfod_end(c);
+                }
+        }
+#endif
+
 out:
 	free(debugfile);
 	return realname;

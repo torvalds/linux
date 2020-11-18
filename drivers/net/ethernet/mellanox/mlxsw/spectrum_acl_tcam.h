@@ -42,7 +42,8 @@ struct mlxsw_sp_acl_profile_ops {
 	size_t ruleset_priv_size;
 	int (*ruleset_add)(struct mlxsw_sp *mlxsw_sp,
 			   struct mlxsw_sp_acl_tcam *tcam, void *ruleset_priv,
-			   struct mlxsw_afk_element_usage *tmplt_elusage);
+			   struct mlxsw_afk_element_usage *tmplt_elusage,
+			   unsigned int *p_min_prio, unsigned int *p_max_prio);
 	void (*ruleset_del)(struct mlxsw_sp *mlxsw_sp, void *ruleset_priv);
 	int (*ruleset_bind)(struct mlxsw_sp *mlxsw_sp, void *ruleset_priv,
 			    struct mlxsw_sp_port *mlxsw_sp_port,

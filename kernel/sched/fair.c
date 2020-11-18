@@ -22,8 +22,6 @@
  */
 #include "sched.h"
 
-#include <trace/events/sched.h>
-
 /*
  * Targeted preemption latency for CPU-bound tasks:
  *
@@ -191,7 +189,7 @@ static void update_sysctl(void)
 #undef SET_SYSCTL
 }
 
-void sched_init_granularity(void)
+void __init sched_init_granularity(void)
 {
 	update_sysctl();
 }
@@ -645,8 +643,7 @@ struct sched_entity *__pick_last_entity(struct cfs_rq *cfs_rq)
  */
 
 int sched_proc_update_handler(struct ctl_table *table, int write,
-		void __user *buffer, size_t *lenp,
-		loff_t *ppos)
+		void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
 	unsigned int factor = get_update_sysctl_factor();
@@ -807,7 +804,7 @@ void post_init_entity_util_avg(struct task_struct *p)
 		}
 	}
 
-	sa->runnable_avg = cpu_scale;
+	sa->runnable_avg = sa->util_avg;
 
 	if (p->sched_class != &fair_sched_class) {
 		/*
@@ -1094,7 +1091,7 @@ struct numa_group {
 	 * more by CPU use than by memory faults.
 	 */
 	unsigned long *faults_cpu;
-	unsigned long faults[0];
+	unsigned long faults[];
 };
 
 /*
@@ -2771,7 +2768,7 @@ static void task_numa_work(struct callback_head *work)
 		return;
 
 
-	if (!down_read_trylock(&mm->mmap_sem))
+	if (!mmap_read_trylock(mm))
 		return;
 	vma = find_vma(mm, start);
 	if (!vma) {
@@ -2839,7 +2836,7 @@ out:
 		mm->numa_scan_offset = start;
 	else
 		reset_ptenuma_scan(p);
-	up_read(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 
 	/*
 	 * Make sure tasks use at least 32x as much time to run other code
@@ -3095,7 +3092,7 @@ static void reweight_entity(struct cfs_rq *cfs_rq, struct sched_entity *se,
 
 #ifdef CONFIG_SMP
 	do {
-		u32 divider = LOAD_AVG_MAX - 1024 + se->avg.period_contrib;
+		u32 divider = get_pelt_divider(&se->avg);
 
 		se->avg.load_avg = div_u64(se_weight(se) * se->avg.load_sum, divider);
 	} while (0);
@@ -3441,52 +3438,50 @@ static inline void
 update_tg_cfs_util(struct cfs_rq *cfs_rq, struct sched_entity *se, struct cfs_rq *gcfs_rq)
 {
 	long delta = gcfs_rq->avg.util_avg - se->avg.util_avg;
+	u32 divider;
 
 	/* Nothing to update */
 	if (!delta)
 		return;
 
 	/*
-	 * The relation between sum and avg is:
-	 *
-	 *   LOAD_AVG_MAX - 1024 + sa->period_contrib
-	 *
-	 * however, the PELT windows are not aligned between grq and gse.
+	 * cfs_rq->avg.period_contrib can be used for both cfs_rq and se.
+	 * See ___update_load_avg() for details.
 	 */
+	divider = get_pelt_divider(&cfs_rq->avg);
 
 	/* Set new sched_entity's utilization */
 	se->avg.util_avg = gcfs_rq->avg.util_avg;
-	se->avg.util_sum = se->avg.util_avg * LOAD_AVG_MAX;
+	se->avg.util_sum = se->avg.util_avg * divider;
 
 	/* Update parent cfs_rq utilization */
 	add_positive(&cfs_rq->avg.util_avg, delta);
-	cfs_rq->avg.util_sum = cfs_rq->avg.util_avg * LOAD_AVG_MAX;
+	cfs_rq->avg.util_sum = cfs_rq->avg.util_avg * divider;
 }
 
 static inline void
 update_tg_cfs_runnable(struct cfs_rq *cfs_rq, struct sched_entity *se, struct cfs_rq *gcfs_rq)
 {
 	long delta = gcfs_rq->avg.runnable_avg - se->avg.runnable_avg;
+	u32 divider;
 
 	/* Nothing to update */
 	if (!delta)
 		return;
 
 	/*
-	 * The relation between sum and avg is:
-	 *
-	 *   LOAD_AVG_MAX - 1024 + sa->period_contrib
-	 *
-	 * however, the PELT windows are not aligned between grq and gse.
+	 * cfs_rq->avg.period_contrib can be used for both cfs_rq and se.
+	 * See ___update_load_avg() for details.
 	 */
+	divider = get_pelt_divider(&cfs_rq->avg);
 
 	/* Set new sched_entity's runnable */
 	se->avg.runnable_avg = gcfs_rq->avg.runnable_avg;
-	se->avg.runnable_sum = se->avg.runnable_avg * LOAD_AVG_MAX;
+	se->avg.runnable_sum = se->avg.runnable_avg * divider;
 
 	/* Update parent cfs_rq runnable */
 	add_positive(&cfs_rq->avg.runnable_avg, delta);
-	cfs_rq->avg.runnable_sum = cfs_rq->avg.runnable_avg * LOAD_AVG_MAX;
+	cfs_rq->avg.runnable_sum = cfs_rq->avg.runnable_avg * divider;
 }
 
 static inline void
@@ -3496,11 +3491,18 @@ update_tg_cfs_load(struct cfs_rq *cfs_rq, struct sched_entity *se, struct cfs_rq
 	unsigned long load_avg;
 	u64 load_sum = 0;
 	s64 delta_sum;
+	u32 divider;
 
 	if (!runnable_sum)
 		return;
 
 	gcfs_rq->prop_runnable_sum = 0;
+
+	/*
+	 * cfs_rq->avg.period_contrib can be used for both cfs_rq and se.
+	 * See ___update_load_avg() for details.
+	 */
+	divider = get_pelt_divider(&cfs_rq->avg);
 
 	if (runnable_sum >= 0) {
 		/*
@@ -3508,7 +3510,7 @@ update_tg_cfs_load(struct cfs_rq *cfs_rq, struct sched_entity *se, struct cfs_rq
 		 * the CPU is saturated running == runnable.
 		 */
 		runnable_sum += se->avg.load_sum;
-		runnable_sum = min(runnable_sum, (long)LOAD_AVG_MAX);
+		runnable_sum = min_t(long, runnable_sum, divider);
 	} else {
 		/*
 		 * Estimate the new unweighted runnable_sum of the gcfs_rq by
@@ -3533,7 +3535,7 @@ update_tg_cfs_load(struct cfs_rq *cfs_rq, struct sched_entity *se, struct cfs_rq
 	runnable_sum = max(runnable_sum, running_sum);
 
 	load_sum = (s64)se_weight(se) * runnable_sum;
-	load_avg = div_s64(load_sum, LOAD_AVG_MAX);
+	load_avg = div_s64(load_sum, divider);
 
 	delta_sum = load_sum - (s64)se_weight(se) * se->avg.load_sum;
 	delta_avg = load_avg - se->avg.load_avg;
@@ -3646,7 +3648,7 @@ update_cfs_rq_load_avg(u64 now, struct cfs_rq *cfs_rq)
 
 	if (cfs_rq->removed.nr) {
 		unsigned long r;
-		u32 divider = LOAD_AVG_MAX - 1024 + sa->period_contrib;
+		u32 divider = get_pelt_divider(&cfs_rq->avg);
 
 		raw_spin_lock(&cfs_rq->removed.lock);
 		swap(cfs_rq->removed.util_avg, removed_util);
@@ -3697,7 +3699,11 @@ update_cfs_rq_load_avg(u64 now, struct cfs_rq *cfs_rq)
  */
 static void attach_entity_load_avg(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
-	u32 divider = LOAD_AVG_MAX - 1024 + cfs_rq->avg.period_contrib;
+	/*
+	 * cfs_rq->avg.period_contrib can be used for both cfs_rq and se.
+	 * See ___update_load_avg() for details.
+	 */
+	u32 divider = get_pelt_divider(&cfs_rq->avg);
 
 	/*
 	 * When we attach the @se to the @cfs_rq, we must align the decay
@@ -3873,6 +3879,8 @@ static inline unsigned long cfs_rq_load_avg(struct cfs_rq *cfs_rq)
 	return cfs_rq->avg.load_avg;
 }
 
+static int newidle_balance(struct rq *this_rq, struct rq_flags *rf);
+
 static inline unsigned long task_util(struct task_struct *p)
 {
 	return READ_ONCE(p->se.avg.util_avg);
@@ -3916,6 +3924,8 @@ static inline void util_est_enqueue(struct cfs_rq *cfs_rq,
 	enqueued  = cfs_rq->avg.util_est.enqueued;
 	enqueued += _task_util_est(p);
 	WRITE_ONCE(cfs_rq->avg.util_est.enqueued, enqueued);
+
+	trace_sched_util_est_cfs_tp(cfs_rq);
 }
 
 /*
@@ -3945,6 +3955,8 @@ util_est_dequeue(struct cfs_rq *cfs_rq, struct task_struct *p, bool task_sleep)
 	ue.enqueued  = cfs_rq->avg.util_est.enqueued;
 	ue.enqueued -= min_t(unsigned int, ue.enqueued, _task_util_est(p));
 	WRITE_ONCE(cfs_rq->avg.util_est.enqueued, ue.enqueued);
+
+	trace_sched_util_est_cfs_tp(cfs_rq);
 
 	/*
 	 * Skip update of task's estimated utilization when the task has not
@@ -4011,6 +4023,8 @@ util_est_dequeue(struct cfs_rq *cfs_rq, struct task_struct *p, bool task_sleep)
 	ue.ewma >>= UTIL_EST_WEIGHT_SHIFT;
 done:
 	WRITE_ONCE(p->se.avg.util_est, ue);
+
+	trace_sched_util_est_se_tp(&p->se);
 }
 
 static inline int task_fits_capacity(struct task_struct *p, long capacity)
@@ -4033,7 +4047,11 @@ static inline void update_misfit_status(struct task_struct *p, struct rq *rq)
 		return;
 	}
 
-	rq->misfit_task_load = task_h_load(p);
+	/*
+	 * Make sure that misfit_task_load will not be null even if
+	 * task_h_load() returns 0.
+	 */
+	rq->misfit_task_load = max_t(unsigned long, task_h_load(p), 1);
 }
 
 #else /* CONFIG_SMP */
@@ -4054,7 +4072,7 @@ attach_entity_load_avg(struct cfs_rq *cfs_rq, struct sched_entity *se) {}
 static inline void
 detach_entity_load_avg(struct cfs_rq *cfs_rq, struct sched_entity *se) {}
 
-static inline int idle_balance(struct rq *rq, struct rq_flags *rf)
+static inline int newidle_balance(struct rq *rq, struct rq_flags *rf)
 {
 	return 0;
 }
@@ -4588,16 +4606,16 @@ static inline struct cfs_bandwidth *tg_cfs_bandwidth(struct task_group *tg)
 }
 
 /* returns 0 on failure to allocate runtime */
-static int assign_cfs_rq_runtime(struct cfs_rq *cfs_rq)
+static int __assign_cfs_rq_runtime(struct cfs_bandwidth *cfs_b,
+				   struct cfs_rq *cfs_rq, u64 target_runtime)
 {
-	struct task_group *tg = cfs_rq->tg;
-	struct cfs_bandwidth *cfs_b = tg_cfs_bandwidth(tg);
-	u64 amount = 0, min_amount;
+	u64 min_amount, amount = 0;
+
+	lockdep_assert_held(&cfs_b->lock);
 
 	/* note: this is a positive sum as runtime_remaining <= 0 */
-	min_amount = sched_cfs_bandwidth_slice() - cfs_rq->runtime_remaining;
+	min_amount = target_runtime - cfs_rq->runtime_remaining;
 
-	raw_spin_lock(&cfs_b->lock);
 	if (cfs_b->quota == RUNTIME_INF)
 		amount = min_amount;
 	else {
@@ -4609,11 +4627,23 @@ static int assign_cfs_rq_runtime(struct cfs_rq *cfs_rq)
 			cfs_b->idle = 0;
 		}
 	}
-	raw_spin_unlock(&cfs_b->lock);
 
 	cfs_rq->runtime_remaining += amount;
 
 	return cfs_rq->runtime_remaining > 0;
+}
+
+/* returns 0 on failure to allocate runtime */
+static int assign_cfs_rq_runtime(struct cfs_rq *cfs_rq)
+{
+	struct cfs_bandwidth *cfs_b = tg_cfs_bandwidth(cfs_rq->tg);
+	int ret;
+
+	raw_spin_lock(&cfs_b->lock);
+	ret = __assign_cfs_rq_runtime(cfs_b, cfs_rq, sched_cfs_bandwidth_slice());
+	raw_spin_unlock(&cfs_b->lock);
+
+	return ret;
 }
 
 static void __account_cfs_rq_runtime(struct cfs_rq *cfs_rq, u64 delta_exec)
@@ -4704,13 +4734,33 @@ static int tg_throttle_down(struct task_group *tg, void *data)
 	return 0;
 }
 
-static void throttle_cfs_rq(struct cfs_rq *cfs_rq)
+static bool throttle_cfs_rq(struct cfs_rq *cfs_rq)
 {
 	struct rq *rq = rq_of(cfs_rq);
 	struct cfs_bandwidth *cfs_b = tg_cfs_bandwidth(cfs_rq->tg);
 	struct sched_entity *se;
 	long task_delta, idle_task_delta, dequeue = 1;
-	bool empty;
+
+	raw_spin_lock(&cfs_b->lock);
+	/* This will start the period timer if necessary */
+	if (__assign_cfs_rq_runtime(cfs_b, cfs_rq, 1)) {
+		/*
+		 * We have raced with bandwidth becoming available, and if we
+		 * actually throttled the timer might not unthrottle us for an
+		 * entire period. We additionally needed to make sure that any
+		 * subsequent check_cfs_rq_runtime calls agree not to throttle
+		 * us, as we may commit to do cfs put_prev+pick_next, so we ask
+		 * for 1ns of runtime rather than just check cfs_b.
+		 */
+		dequeue = 0;
+	} else {
+		list_add_tail_rcu(&cfs_rq->throttled_list,
+				  &cfs_b->throttled_cfs_rq);
+	}
+	raw_spin_unlock(&cfs_b->lock);
+
+	if (!dequeue)
+		return false;  /* Throttle no longer required. */
 
 	se = cfs_rq->tg->se[cpu_of(rq_of(cfs_rq))];
 
@@ -4744,29 +4794,13 @@ static void throttle_cfs_rq(struct cfs_rq *cfs_rq)
 	if (!se)
 		sub_nr_running(rq, task_delta);
 
+	/*
+	 * Note: distribution will already see us throttled via the
+	 * throttled-list.  rq->lock protects completion.
+	 */
 	cfs_rq->throttled = 1;
 	cfs_rq->throttled_clock = rq_clock(rq);
-	raw_spin_lock(&cfs_b->lock);
-	empty = list_empty(&cfs_b->throttled_cfs_rq);
-
-	/*
-	 * Add to the _head_ of the list, so that an already-started
-	 * distribute_cfs_runtime will not see us. If disribute_cfs_runtime is
-	 * not running add to the tail so that later runqueues don't get starved.
-	 */
-	if (cfs_b->distribute_running)
-		list_add_rcu(&cfs_rq->throttled_list, &cfs_b->throttled_cfs_rq);
-	else
-		list_add_tail_rcu(&cfs_rq->throttled_list, &cfs_b->throttled_cfs_rq);
-
-	/*
-	 * If we're the first throttled task, make sure the bandwidth
-	 * timer is running.
-	 */
-	if (empty)
-		start_cfs_bandwidth(cfs_b);
-
-	raw_spin_unlock(&cfs_b->lock);
+	return true;
 }
 
 void unthrottle_cfs_rq(struct cfs_rq *cfs_rq)
@@ -4933,14 +4967,12 @@ static int do_sched_cfs_period_timer(struct cfs_bandwidth *cfs_b, int overrun, u
 	/*
 	 * This check is repeated as we release cfs_b->lock while we unthrottle.
 	 */
-	while (throttled && cfs_b->runtime > 0 && !cfs_b->distribute_running) {
-		cfs_b->distribute_running = 1;
+	while (throttled && cfs_b->runtime > 0) {
 		raw_spin_unlock_irqrestore(&cfs_b->lock, flags);
 		/* we can't nest cfs_b->lock while distributing bandwidth */
 		distribute_cfs_runtime(cfs_b);
 		raw_spin_lock_irqsave(&cfs_b->lock, flags);
 
-		cfs_b->distribute_running = 0;
 		throttled = !list_empty(&cfs_b->throttled_cfs_rq);
 	}
 
@@ -5054,10 +5086,6 @@ static void do_sched_cfs_slack_timer(struct cfs_bandwidth *cfs_b)
 	/* confirm we're still not at a refresh boundary */
 	raw_spin_lock_irqsave(&cfs_b->lock, flags);
 	cfs_b->slack_started = false;
-	if (cfs_b->distribute_running) {
-		raw_spin_unlock_irqrestore(&cfs_b->lock, flags);
-		return;
-	}
 
 	if (runtime_refresh_within(cfs_b, min_bandwidth_expiration)) {
 		raw_spin_unlock_irqrestore(&cfs_b->lock, flags);
@@ -5067,9 +5095,6 @@ static void do_sched_cfs_slack_timer(struct cfs_bandwidth *cfs_b)
 	if (cfs_b->quota != RUNTIME_INF && cfs_b->runtime > slice)
 		runtime = cfs_b->runtime;
 
-	if (runtime)
-		cfs_b->distribute_running = 1;
-
 	raw_spin_unlock_irqrestore(&cfs_b->lock, flags);
 
 	if (!runtime)
@@ -5078,7 +5103,6 @@ static void do_sched_cfs_slack_timer(struct cfs_bandwidth *cfs_b)
 	distribute_cfs_runtime(cfs_b);
 
 	raw_spin_lock_irqsave(&cfs_b->lock, flags);
-	cfs_b->distribute_running = 0;
 	raw_spin_unlock_irqrestore(&cfs_b->lock, flags);
 }
 
@@ -5139,8 +5163,7 @@ static bool check_cfs_rq_runtime(struct cfs_rq *cfs_rq)
 	if (cfs_rq_throttled(cfs_rq))
 		return true;
 
-	throttle_cfs_rq(cfs_rq);
-	return true;
+	return throttle_cfs_rq(cfs_rq);
 }
 
 static enum hrtimer_restart sched_cfs_slack_timer(struct hrtimer *timer)
@@ -5169,6 +5192,8 @@ static enum hrtimer_restart sched_cfs_period_timer(struct hrtimer *timer)
 		overrun = hrtimer_forward_now(timer, cfs_b->period);
 		if (!overrun)
 			break;
+
+		idle = do_sched_cfs_period_timer(cfs_b, overrun, flags);
 
 		if (++count > 3) {
 			u64 new, old = ktime_to_ns(cfs_b->period);
@@ -5199,8 +5224,6 @@ static enum hrtimer_restart sched_cfs_period_timer(struct hrtimer *timer)
 			/* reset count so we don't come right back in here */
 			count = 0;
 		}
-
-		idle = do_sched_cfs_period_timer(cfs_b, overrun, flags);
 	}
 	if (idle)
 		cfs_b->period_active = 0;
@@ -5221,7 +5244,6 @@ void init_cfs_bandwidth(struct cfs_bandwidth *cfs_b)
 	cfs_b->period_timer.function = sched_cfs_period_timer;
 	hrtimer_init(&cfs_b->slack_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	cfs_b->slack_timer.function = sched_cfs_slack_timer;
-	cfs_b->distribute_running = 0;
 	cfs_b->slack_started = false;
 }
 
@@ -5506,28 +5528,27 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
                        list_add_leaf_cfs_rq(cfs_rq);
 	}
 
+	/* At this point se is NULL and we are at root level*/
+	add_nr_running(rq, 1);
+
+	/*
+	 * Since new tasks are assigned an initial util_avg equal to
+	 * half of the spare capacity of their CPU, tiny tasks have the
+	 * ability to cross the overutilized threshold, which will
+	 * result in the load balancer ruining all the task placement
+	 * done by EAS. As a way to mitigate that effect, do not account
+	 * for the first enqueue operation of new tasks during the
+	 * overutilized flag detection.
+	 *
+	 * A better way of solving this problem would be to wait for
+	 * the PELT signals of tasks to converge before taking them
+	 * into account, but that is not straightforward to implement,
+	 * and the following generally works well enough in practice.
+	 */
+	if (flags & ENQUEUE_WAKEUP)
+		update_overutilized_status(rq);
+
 enqueue_throttle:
-	if (!se) {
-		add_nr_running(rq, 1);
-		/*
-		 * Since new tasks are assigned an initial util_avg equal to
-		 * half of the spare capacity of their CPU, tiny tasks have the
-		 * ability to cross the overutilized threshold, which will
-		 * result in the load balancer ruining all the task placement
-		 * done by EAS. As a way to mitigate that effect, do not account
-		 * for the first enqueue operation of new tasks during the
-		 * overutilized flag detection.
-		 *
-		 * A better way of solving this problem would be to wait for
-		 * the PELT signals of tasks to converge before taking them
-		 * into account, but that is not straightforward to implement,
-		 * and the following generally works well enough in practice.
-		 */
-		if (flags & ENQUEUE_WAKEUP)
-			update_overutilized_status(rq);
-
-	}
-
 	if (cfs_bandwidth_used()) {
 		/*
 		 * When bandwidth control is enabled; the cfs_rq_throttled()
@@ -5605,14 +5626,14 @@ static void dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 
 	}
 
-dequeue_throttle:
-	if (!se)
-		sub_nr_running(rq, 1);
+	/* At this point se is NULL and we are at root level*/
+	sub_nr_running(rq, 1);
 
 	/* balance early to pull high priority tasks */
 	if (unlikely(!was_sched_idle && sched_idle_rq(rq)))
 		rq->next_balance = jiffies;
 
+dequeue_throttle:
 	util_est_dequeue(&rq->cfs, p, task_sleep);
 	hrtick_update(rq);
 }
@@ -5737,7 +5758,7 @@ static int wake_wide(struct task_struct *p)
 {
 	unsigned int master = current->wakee_flips;
 	unsigned int slave = p->wakee_flips;
-	int factor = this_cpu_read(sd_llc_size);
+	int factor = __this_cpu_read(sd_llc_size);
 
 	if (master < slave)
 		swap(master, slave);
@@ -5846,8 +5867,7 @@ static int wake_affine(struct sched_domain *sd, struct task_struct *p,
 }
 
 static struct sched_group *
-find_idlest_group(struct sched_domain *sd, struct task_struct *p,
-		  int this_cpu, int sd_flag);
+find_idlest_group(struct sched_domain *sd, struct task_struct *p, int this_cpu);
 
 /*
  * find_idlest_group_cpu - find the idlest CPU among the CPUs in the group.
@@ -5930,7 +5950,7 @@ static inline int find_idlest_cpu(struct sched_domain *sd, struct task_struct *p
 			continue;
 		}
 
-		group = find_idlest_group(sd, p, cpu, sd_flag);
+		group = find_idlest_group(sd, p, cpu);
 		if (!group) {
 			sd = sd->child;
 			continue;
@@ -6489,7 +6509,7 @@ compute_energy(struct task_struct *p, int dst_cpu, struct perf_domain *pd)
 		max_util = max(max_util, cpu_util);
 	}
 
-	return em_pd_energy(pd->em_pd, max_util, sum_util);
+	return em_cpu_energy(pd->em_pd, max_util, sum_util);
 }
 
 /*
@@ -6671,9 +6691,6 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int sd_flag, int wake_f
 
 	rcu_read_lock();
 	for_each_domain(cpu, tmp) {
-		if (!(tmp->flags & SD_LOAD_BALANCE))
-			break;
-
 		/*
 		 * If both 'cpu' and 'prev_cpu' are part of this domain,
 		 * cpu is a valid SD_WAKE_AFFINE target.
@@ -7152,7 +7169,7 @@ static void yield_task_fair(struct rq *rq)
 	set_skip_buddy(se);
 }
 
-static bool yield_to_task_fair(struct rq *rq, struct task_struct *p, bool preempt)
+static bool yield_to_task_fair(struct rq *rq, struct task_struct *p)
 {
 	struct sched_entity *se = &p->se;
 
@@ -7633,7 +7650,14 @@ static int detach_tasks(struct lb_env *env)
 
 		switch (env->migration_type) {
 		case migrate_load:
-			load = task_h_load(p);
+			/*
+			 * Depending of the number of CPUs and tasks and the
+			 * cgroup hierarchy, task_h_load() can return a null
+			 * value. Make sure that env->imbalance decreases
+			 * otherwise detach_tasks() will stop only after
+			 * detaching up to loop_max tasks.
+			 */
+			load = max_t(unsigned long, task_h_load(p), 1);
 
 			if (sched_feat(LB_MIN) &&
 			    load < 16 && !env->sd->nr_balance_failed)
@@ -8033,7 +8057,7 @@ static inline void init_sd_lb_stats(struct sd_lb_stats *sds)
 	};
 }
 
-static unsigned long scale_rt_capacity(struct sched_domain *sd, int cpu)
+static unsigned long scale_rt_capacity(int cpu)
 {
 	struct rq *rq = cpu_rq(cpu);
 	unsigned long max = arch_scale_cpu_capacity(cpu);
@@ -8065,7 +8089,7 @@ static unsigned long scale_rt_capacity(struct sched_domain *sd, int cpu)
 
 static void update_cpu_capacity(struct sched_domain *sd, int cpu)
 {
-	unsigned long capacity = scale_rt_capacity(sd, cpu);
+	unsigned long capacity = scale_rt_capacity(cpu);
 	struct sched_group *sdg = sd->groups;
 
 	cpu_rq(cpu)->cpu_capacity_orig = arch_scale_cpu_capacity(cpu);
@@ -8584,7 +8608,7 @@ static int idle_cpu_without(int cpu, struct task_struct *p)
 	 */
 
 #ifdef CONFIG_SMP
-	if (!llist_empty(&rq->wake_list))
+	if (rq->ttwu_pending)
 		return 0;
 #endif
 
@@ -8687,8 +8711,14 @@ static bool update_pick_idlest(struct sched_group *idlest,
 
 	case group_has_spare:
 		/* Select group with most idle CPUs */
-		if (idlest_sgs->idle_cpus >= sgs->idle_cpus)
+		if (idlest_sgs->idle_cpus > sgs->idle_cpus)
 			return false;
+
+		/* Select group with lowest group_util */
+		if (idlest_sgs->idle_cpus == sgs->idle_cpus &&
+			idlest_sgs->group_util <= sgs->group_util)
+			return false;
+
 		break;
 	}
 
@@ -8702,8 +8732,7 @@ static bool update_pick_idlest(struct sched_group *idlest,
  * Assumes p is allowed on at least one CPU in sd.
  */
 static struct sched_group *
-find_idlest_group(struct sched_domain *sd, struct task_struct *p,
-		  int this_cpu, int sd_flag)
+find_idlest_group(struct sched_domain *sd, struct task_struct *p, int this_cpu)
 {
 	struct sched_group *idlest = NULL, *local = NULL, *group = sd->groups;
 	struct sg_lb_stats local_sgs, tmp_sgs;
@@ -9434,7 +9463,7 @@ static int active_load_balance_cpu_stop(void *data);
 static int should_we_balance(struct lb_env *env)
 {
 	struct sched_group *sg = env->sd->groups;
-	int cpu, balance_cpu = -1;
+	int cpu;
 
 	/*
 	 * Ensure the balancing environment is consistent; can happen
@@ -9455,18 +9484,12 @@ static int should_we_balance(struct lb_env *env)
 		if (!idle_cpu(cpu))
 			continue;
 
-		balance_cpu = cpu;
-		break;
+		/* Are we the first idle CPU? */
+		return cpu == env->dst_cpu;
 	}
 
-	if (balance_cpu == -1)
-		balance_cpu = group_balance_cpu(sg);
-
-	/*
-	 * First idle CPU or the first CPU(busiest) in this sched group
-	 * is eligible for doing load balancing at this and above domains.
-	 */
-	return balance_cpu == env->dst_cpu;
+	/* Are we the first CPU of this group ? */
+	return group_balance_cpu(sg) == env->dst_cpu;
 }
 
 /*
@@ -9819,9 +9842,8 @@ static int active_load_balance_cpu_stop(void *data)
 	/* Search for an sd spanning us and the target CPU. */
 	rcu_read_lock();
 	for_each_domain(target_cpu, sd) {
-		if ((sd->flags & SD_LOAD_BALANCE) &&
-		    cpumask_test_cpu(busiest_cpu, sched_domain_span(sd)))
-				break;
+		if (cpumask_test_cpu(busiest_cpu, sched_domain_span(sd)))
+			break;
 	}
 
 	if (likely(sd)) {
@@ -9909,9 +9931,6 @@ static void rebalance_domains(struct rq *rq, enum cpu_idle_type idle)
 			need_decay = 1;
 		}
 		max_cost += sd->max_newidle_lb_cost;
-
-		if (!(sd->flags & SD_LOAD_BALANCE))
-			continue;
 
 		/*
 		 * Stop the load balance at this level. There is another
@@ -10022,24 +10041,32 @@ static void kick_ilb(unsigned int flags)
 {
 	int ilb_cpu;
 
-	nohz.next_balance++;
+	/*
+	 * Increase nohz.next_balance only when if full ilb is triggered but
+	 * not if we only update stats.
+	 */
+	if (flags & NOHZ_BALANCE_KICK)
+		nohz.next_balance = jiffies+1;
 
 	ilb_cpu = find_new_ilb();
 
 	if (ilb_cpu >= nr_cpu_ids)
 		return;
 
+	/*
+	 * Access to rq::nohz_csd is serialized by NOHZ_KICK_MASK; he who sets
+	 * the first flag owns it; cleared by nohz_csd_func().
+	 */
 	flags = atomic_fetch_or(flags, nohz_flags(ilb_cpu));
 	if (flags & NOHZ_KICK_MASK)
 		return;
 
 	/*
-	 * Use smp_send_reschedule() instead of resched_cpu().
-	 * This way we generate a sched IPI on the target CPU which
+	 * This way we generate an IPI on the target CPU which
 	 * is idle. And the softirq performing nohz idle load balance
 	 * will be run before returning from the IPI.
 	 */
-	smp_send_reschedule(ilb_cpu);
+	smp_call_function_single_async(ilb_cpu, &cpu_rq(ilb_cpu)->nohz_csd);
 }
 
 /*
@@ -10340,6 +10367,14 @@ static bool _nohz_idle_balance(struct rq *this_rq, unsigned int flags,
 		}
 	}
 
+	/*
+	 * next_balance will be updated only when there is a need.
+	 * When the CPU is attached to null domain for ex, it will not be
+	 * updated.
+	 */
+	if (likely(update_next_balance))
+		nohz.next_balance = next_balance;
+
 	/* Newly idle CPU doesn't need an update */
 	if (idle != CPU_NEWLY_IDLE) {
 		update_blocked_averages(this_cpu);
@@ -10360,14 +10395,6 @@ abort:
 	if (has_blocked_load)
 		WRITE_ONCE(nohz.has_blocked, 1);
 
-	/*
-	 * next_balance will be updated only when there is a need.
-	 * When the CPU is attached to null domain for ex, it will not be
-	 * updated.
-	 */
-	if (likely(update_next_balance))
-		nohz.next_balance = next_balance;
-
 	return ret;
 }
 
@@ -10377,20 +10404,14 @@ abort:
  */
 static bool nohz_idle_balance(struct rq *this_rq, enum cpu_idle_type idle)
 {
-	int this_cpu = this_rq->cpu;
-	unsigned int flags;
+	unsigned int flags = this_rq->nohz_idle_balance;
 
-	if (!(atomic_read(nohz_flags(this_cpu)) & NOHZ_KICK_MASK))
+	if (!flags)
 		return false;
 
-	if (idle != CPU_IDLE) {
-		atomic_andnot(NOHZ_KICK_MASK, nohz_flags(this_cpu));
-		return false;
-	}
+	this_rq->nohz_idle_balance = 0;
 
-	/* could be _relaxed() */
-	flags = atomic_fetch_andnot(NOHZ_KICK_MASK, nohz_flags(this_cpu));
-	if (!(flags & NOHZ_KICK_MASK))
+	if (idle != CPU_IDLE)
 		return false;
 
 	_nohz_idle_balance(this_rq, flags, idle);
@@ -10450,7 +10471,7 @@ static inline void nohz_newidle_balance(struct rq *this_rq) { }
  *     0 - failed, no new tasks
  *   > 0 - success, new (fair) tasks present
  */
-int newidle_balance(struct rq *this_rq, struct rq_flags *rf)
+static int newidle_balance(struct rq *this_rq, struct rq_flags *rf)
 {
 	unsigned long next_balance = jiffies + HZ;
 	int this_cpu = this_rq->cpu;
@@ -10500,9 +10521,6 @@ int newidle_balance(struct rq *this_rq, struct rq_flags *rf)
 	for_each_domain(this_cpu, sd) {
 		int continue_balancing = 1;
 		u64 t0, domain_cost;
-
-		if (!(sd->flags & SD_LOAD_BALANCE))
-			continue;
 
 		if (this_rq->avg_idle < curr_cost + sd->max_newidle_lb_cost) {
 			update_next_balance(sd, &next_balance);
@@ -11119,8 +11137,8 @@ static unsigned int get_rr_interval_fair(struct rq *rq, struct task_struct *task
 /*
  * All the scheduling class methods:
  */
-const struct sched_class fair_sched_class = {
-	.next			= &idle_sched_class,
+const struct sched_class fair_sched_class
+	__attribute__((section("__fair_sched_class"))) = {
 	.enqueue_task		= enqueue_task_fair,
 	.dequeue_task		= dequeue_task_fair,
 	.yield_task		= yield_task_fair,
@@ -11293,3 +11311,9 @@ const struct cpumask *sched_trace_rd_span(struct root_domain *rd)
 #endif
 }
 EXPORT_SYMBOL_GPL(sched_trace_rd_span);
+
+int sched_trace_rq_nr_running(struct rq *rq)
+{
+        return rq ? rq->nr_running : -1;
+}
+EXPORT_SYMBOL_GPL(sched_trace_rq_nr_running);

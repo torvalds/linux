@@ -117,6 +117,12 @@ static inline int register_xpt_user(struct svc_xprt *xpt, struct svc_xpt_user *u
 	return 0;
 }
 
+static inline bool svc_xprt_is_dead(const struct svc_xprt *xprt)
+{
+	return (test_bit(XPT_DEAD, &xprt->xpt_flags) != 0) ||
+		(test_bit(XPT_CLOSE, &xprt->xpt_flags) != 0);
+}
+
 int	svc_reg_xprt_class(struct svc_xprt_class *);
 void	svc_unreg_xprt_class(struct svc_xprt_class *);
 void	svc_xprt_init(struct net *, struct svc_xprt_class *, struct svc_xprt *,

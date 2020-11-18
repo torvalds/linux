@@ -32,7 +32,7 @@ menuconfig ACPI
 	  Linux support for ACPI is based on Intel Corporation's ACPI
 	  Component Architecture (ACPI CA).  For more information on the
 	  ACPI CA, see:
-	  <http://acpica.org/>
+	  <https://acpica.org/>
 
 	  ACPI is an open industry specification originally co-developed by
 	  Hewlett-Packard, Intel, Microsoft, Phoenix, and Toshiba. Currently,
@@ -40,8 +40,7 @@ menuconfig ACPI
 	  the UEFI Forum and any UEFI member can join the ASWG and contribute
 	  to the ACPI specification.
 	  The specification is available at:
-	  <http://www.acpi.info>
-	  <http://www.uefi.org/acpi/specs>
+	  <https://uefi.org/specifications>
 
 if ACPI
 
@@ -98,23 +97,6 @@ config ACPI_SLEEP
 	depends on SUSPEND || HIBERNATION
 	depends on ACPI_SYSTEM_POWER_STATES_SUPPORT
 	default y
-
-config ACPI_PROCFS_POWER
-	bool "Deprecated power /proc/acpi directories"
-	depends on X86 && PROC_FS
-	help
-	  For backwards compatibility, this option allows
-	  deprecated power /proc/acpi/ directories to exist, even when
-	  they have been replaced by functions in /sys.
-	  The deprecated directories (and their replacements) include:
-	  /proc/acpi/battery/* (/sys/class/power_supply/*) and
-	  /proc/acpi/ac_adapter/* (sys/class/power_supply/*).
-	  This option has no effect on /proc/acpi/ directories
-	  and functions which do not yet exist in /sys.
-	  This option, together with the proc directories, will be
-	  deleted in the future.
-
-	  Say N to delete power /proc/acpi/ directories that have moved to /sys.
 
 config ACPI_REV_OVERRIDE_POSSIBLE
 	bool "Allow supported ACPI revision to be overridden"

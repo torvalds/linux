@@ -590,8 +590,6 @@ static int ad7150_probe(struct i2c_client *client,
 	indio_dev->name = id->name;
 	indio_dev->channels = ad7150_channels;
 	indio_dev->num_channels = ARRAY_SIZE(ad7150_channels);
-	/* Establish that the iio_dev is a child of the i2c device */
-	indio_dev->dev.parent = &client->dev;
 
 	indio_dev->info = &ad7150_info;
 

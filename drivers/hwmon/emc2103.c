@@ -443,7 +443,7 @@ static ssize_t pwm1_enable_store(struct device *dev,
 	}
 
 	result = read_u8_from_i2c(client, REG_FAN_CONF1, &conf_reg);
-	if (result) {
+	if (result < 0) {
 		count = result;
 		goto err;
 	}

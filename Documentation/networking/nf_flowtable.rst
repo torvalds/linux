@@ -1,0 +1,117 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+====================================
+Netfilter's flowtable infrastructure
+====================================
+
+This documentation describes the software flowtable infrastructure available in
+Netfilter since Linux kernel 4.16.
+
+Overview
+--------
+
+Initial packets follow the classic forwarding path, once the flow enters the
+established state according to the conntrack semantics (ie. we have seen traffic
+in both directions), then you can decide to offload the flow to the flowtable
+from the forward chain via the 'flow offload' action available in nftables.
+
+Packets that find an entry in the flowtable (ie. flowtable hit) are sent to the
+output netdevice via neigh_xmit(), hence, they bypass the classic forwarding
+path (the visible effect is that you do not see these packets from any of the
+netfilter hooks coming after the ingress). In case of flowtable miss, the packet
+follows the classic forward path.
+
+The flowtable uses a resizable hashtable, lookups are based on the following
+7-tuple selectors: source, destination, layer 3 and layer 4 protocols, source
+and destination ports and the input interface (useful in case there are several
+conntrack zones in place).
+
+Flowtables are populated via the 'flow offload' nftables action, so the user can
+selectively specify what flows are placed into the flow table. Hence, packets
+follow the classic forwarding path unless the user explicitly instruct packets
+to use this new alternative forwarding path via nftables policy.
+
+This is represented in Fig.1, which describes the classic forwarding path
+including the Netfilter hooks and the flowtable fastpath bypass.
+
+::
+
+					 userspace process
+					  ^              |
+					  |              |
+				     _____|____     ____\/___
+				    /          \   /         \
+				    |   input   |  |  output  |
+				    \__________/   \_________/
+					 ^               |
+					 |               |
+      _________      __________      ---------     _____\/_____
+     /         \    /          \     |Routing |   /            \
+  -->  ingress  ---> prerouting ---> |decision|   | postrouting |--> neigh_xmit
+     \_________/    \__________/     ----------   \____________/          ^
+       |      ^                          |               ^                |
+   flowtable  |                     ____\/___            |                |
+       |      |                    /         \           |                |
+    __\/___   |                    | forward |------------                |
+    |-----|   |                    \_________/                            |
+    |-----|   |                 'flow offload' rule                       |
+    |-----|   |                   adds entry to                           |
+    |_____|   |                     flowtable                             |
+       |      |                                                           |
+      / \     |                                                           |
+     /hit\_no_|                                                           |
+     \ ? /                                                                |
+      \ /                                                                 |
+       |__yes_________________fastpath bypass ____________________________|
+
+	       Fig.1 Netfilter hooks and flowtable interactions
+
+The flowtable entry also stores the NAT configuration, so all packets are
+mangled according to the NAT policy that matches the initial packets that went
+through the classic forwarding path. The TTL is decremented before calling
+neigh_xmit(). Fragmented traffic is passed up to follow the classic forwarding
+path given that the transport selectors are missing, therefore flowtable lookup
+is not possible.
+
+Example configuration
+---------------------
+
+Enabling the flowtable bypass is relatively easy, you only need to create a
+flowtable and add one rule to your forward chain::
+
+	table inet x {
+		flowtable f {
+			hook ingress priority 0; devices = { eth0, eth1 };
+		}
+		chain y {
+			type filter hook forward priority 0; policy accept;
+			ip protocol tcp flow offload @f
+			counter packets 0 bytes 0
+		}
+	}
+
+This example adds the flowtable 'f' to the ingress hook of the eth0 and eth1
+netdevices. You can create as many flowtables as you want in case you need to
+perform resource partitioning. The flowtable priority defines the order in which
+hooks are run in the pipeline, this is convenient in case you already have a
+nftables ingress chain (make sure the flowtable priority is smaller than the
+nftables ingress chain hence the flowtable runs before in the pipeline).
+
+The 'flow offload' action from the forward chain 'y' adds an entry to the
+flowtable for the TCP syn-ack packet coming in the reply direction. Once the
+flow is offloaded, you will observe that the counter rule in the example above
+does not get updated for the packets that are being forwarded through the
+forwarding bypass.
+
+More reading
+------------
+
+This documentation is based on the LWN.net articles [1]_\ [2]_. Rafal Milecki
+also made a very complete and comprehensive summary called "A state of network
+acceleration" that describes how things were before this infrastructure was
+mailined [3]_ and it also makes a rough summary of this work [4]_.
+
+.. [1] https://lwn.net/Articles/738214/
+.. [2] https://lwn.net/Articles/742164/
+.. [3] http://lists.infradead.org/pipermail/lede-dev/2018-January/010830.html
+.. [4] http://lists.infradead.org/pipermail/lede-dev/2018-January/010829.html

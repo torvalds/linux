@@ -329,7 +329,7 @@ static int st33zp24_spi_request_resources(struct spi_device *dev)
 
 /*
  * st33zp24_spi_probe initialize the TPM device
- * @param: dev, the spi_device drescription (TPM SPI description).
+ * @param: dev, the spi_device description (TPM SPI description).
  * @return: 0 in case of success.
  *	 or a negative value describing the error.
  */
@@ -378,7 +378,7 @@ static int st33zp24_spi_probe(struct spi_device *dev)
 
 /*
  * st33zp24_spi_remove remove the TPM device
- * @param: client, the spi_device drescription (TPM SPI description).
+ * @param: client, the spi_device description (TPM SPI description).
  * @return: 0 in case of success.
  */
 static int st33zp24_spi_remove(struct spi_device *dev)

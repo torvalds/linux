@@ -96,15 +96,7 @@ static void ioc_release_fn(struct work_struct *work)
 {
 	struct io_context *ioc = container_of(work, struct io_context,
 					      release_work);
-	unsigned long flags;
-
-	/*
-	 * Exiting icq may call into put_io_context() through elevator
-	 * which will trigger lockdep warning.  The ioc's are guaranteed to
-	 * be different, use a different locking subclass here.  Use
-	 * irqsave variant as there's no spin_lock_irq_nested().
-	 */
-	spin_lock_irqsave_nested(&ioc->lock, flags, 1);
+	spin_lock_irq(&ioc->lock);
 
 	while (!hlist_empty(&ioc->icq_list)) {
 		struct io_cq *icq = hlist_entry(ioc->icq_list.first,
@@ -115,13 +107,27 @@ static void ioc_release_fn(struct work_struct *work)
 			ioc_destroy_icq(icq);
 			spin_unlock(&q->queue_lock);
 		} else {
-			spin_unlock_irqrestore(&ioc->lock, flags);
-			cpu_relax();
-			spin_lock_irqsave_nested(&ioc->lock, flags, 1);
+			/* Make sure q and icq cannot be freed. */
+			rcu_read_lock();
+
+			/* Re-acquire the locks in the correct order. */
+			spin_unlock(&ioc->lock);
+			spin_lock(&q->queue_lock);
+			spin_lock(&ioc->lock);
+
+			/*
+			 * The icq may have been destroyed when the ioc lock
+			 * was released.
+			 */
+			if (!(icq->flags & ICQ_DESTROYED))
+				ioc_destroy_icq(icq);
+
+			spin_unlock(&q->queue_lock);
+			rcu_read_unlock();
 		}
 	}
 
-	spin_unlock_irqrestore(&ioc->lock, flags);
+	spin_unlock_irq(&ioc->lock);
 
 	kmem_cache_free(iocontext_cachep, ioc);
 }
@@ -170,7 +176,6 @@ void put_io_context(struct io_context *ioc)
  */
 void put_io_context_active(struct io_context *ioc)
 {
-	unsigned long flags;
 	struct io_cq *icq;
 
 	if (!atomic_dec_and_test(&ioc->active_ref)) {
@@ -178,19 +183,14 @@ void put_io_context_active(struct io_context *ioc)
 		return;
 	}
 
-	/*
-	 * Need ioc lock to walk icq_list and q lock to exit icq.  Perform
-	 * reverse double locking.  Read comment in ioc_release_fn() for
-	 * explanation on the nested locking annotation.
-	 */
-	spin_lock_irqsave_nested(&ioc->lock, flags, 1);
+	spin_lock_irq(&ioc->lock);
 	hlist_for_each_entry(icq, &ioc->icq_list, ioc_node) {
 		if (icq->flags & ICQ_EXITED)
 			continue;
 
 		ioc_exit_icq(icq);
 	}
-	spin_unlock_irqrestore(&ioc->lock, flags);
+	spin_unlock_irq(&ioc->lock);
 
 	put_io_context(ioc);
 }

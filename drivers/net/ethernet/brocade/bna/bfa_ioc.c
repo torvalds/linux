@@ -321,7 +321,7 @@ bfa_ioc_sm_getattr(struct bfa_ioc *ioc, enum ioc_event event)
 	case IOC_E_PFFAILED:
 	case IOC_E_HWERROR:
 		del_timer(&ioc->ioc_timer);
-		/* fall through */
+		fallthrough;
 	case IOC_E_TIMEOUT:
 		ioc->cbfn->enable_cbfn(ioc->bfa, BFA_STATUS_IOC_FAILURE);
 		bfa_fsm_set_state(ioc, bfa_ioc_sm_fail);
@@ -780,7 +780,7 @@ bfa_iocpf_sm_enabling(struct bfa_iocpf *iocpf, enum iocpf_event event)
 
 	case IOCPF_E_INITFAIL:
 		del_timer(&ioc->iocpf_timer);
-		/* fall through */
+		fallthrough;
 
 	case IOCPF_E_TIMEOUT:
 		bfa_nw_ioc_hw_sem_release(ioc);
@@ -849,7 +849,7 @@ bfa_iocpf_sm_disabling(struct bfa_iocpf *iocpf, enum iocpf_event event)
 
 	case IOCPF_E_FAIL:
 		del_timer(&ioc->iocpf_timer);
-		/* fall through*/
+		fallthrough;
 
 	case IOCPF_E_TIMEOUT:
 		bfa_ioc_set_cur_ioc_fwstate(ioc, BFI_IOC_FAIL);
@@ -1535,7 +1535,6 @@ static int
 bfa_flash_fifo_flush(void __iomem *pci_bar)
 {
 	u32 i;
-	u32 t;
 	union bfa_flash_dev_status_reg dev_status;
 
 	dev_status.i = readl(pci_bar + FLI_DEV_STATUS_REG);
@@ -1545,7 +1544,7 @@ bfa_flash_fifo_flush(void __iomem *pci_bar)
 
 	/* fifo counter in terms of words */
 	for (i = 0; i < dev_status.r.fifo_cnt; i++)
-		t = readl(pci_bar + FLI_RDDATA_REG);
+		readl(pci_bar + FLI_RDDATA_REG);
 
 	/* Check the device status. It may take some time. */
 	for (i = 0; i < BFA_FLASH_CHECK_MAX; i++) {

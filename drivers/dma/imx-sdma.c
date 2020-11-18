@@ -335,7 +335,7 @@ struct sdma_desc {
  * @sdma:		pointer to the SDMA engine for this channel
  * @channel:		the channel number, matches dmaengine chan_id + 1
  * @direction:		transfer type. Needed for setting SDMA script
- * @slave_config	Slave configuration
+ * @slave_config:	Slave configuration
  * @peripheral_type:	Peripheral type. Needed for setting SDMA script
  * @event_id0:		aka dma request line
  * @event_id1:		for channels that use 2 events
@@ -354,8 +354,10 @@ struct sdma_desc {
  * @shp_addr:		value for gReg[6]
  * @per_addr:		value for gReg[2]
  * @status:		status of dma channel
+ * @context_loaded:	ensure context is only loaded once
  * @data:		specific sdma interface structure
  * @bd_pool:		dma_pool for bd
+ * @terminate_worker:	used to call back into terminate work function
  */
 struct sdma_channel {
 	struct virt_dma_chan		vc;
@@ -1331,8 +1333,7 @@ static void sdma_free_chan_resources(struct dma_chan *chan)
 
 	sdma_channel_synchronize(chan);
 
-	if (sdmac->event_id0 >= 0)
-		sdma_event_disable(sdmac, sdmac->event_id0);
+	sdma_event_disable(sdmac, sdmac->event_id0);
 	if (sdmac->event_id1)
 		sdma_event_disable(sdmac, sdmac->event_id1);
 
@@ -1632,11 +1633,9 @@ static int sdma_config(struct dma_chan *chan,
 	memcpy(&sdmac->slave_config, dmaengine_cfg, sizeof(*dmaengine_cfg));
 
 	/* Set ENBLn earlier to make sure dma request triggered after that */
-	if (sdmac->event_id0 >= 0) {
-		if (sdmac->event_id0 >= sdmac->sdma->drvdata->num_events)
-			return -EINVAL;
-		sdma_event_enable(sdmac, sdmac->event_id0);
-	}
+	if (sdmac->event_id0 >= sdmac->sdma->drvdata->num_events)
+		return -EINVAL;
+	sdma_event_enable(sdmac, sdmac->event_id0);
 
 	if (sdmac->event_id1) {
 		if (sdmac->event_id1 >= sdmac->sdma->drvdata->num_events)
@@ -2063,7 +2062,7 @@ static int sdma_probe(struct platform_device *pdev)
 
 	/* initially no scripts available */
 	saddr_arr = (s32 *)sdma->script_addrs;
-	for (i = 0; i < SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V1; i++)
+	for (i = 0; i < sizeof(*sdma->script_addrs) / sizeof(s32); i++)
 		saddr_arr[i] = -EINVAL;
 
 	dma_cap_set(DMA_SLAVE, sdma->dma_device.cap_mask);

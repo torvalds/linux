@@ -448,7 +448,7 @@ int qe_upload_firmware(const struct qe_firmware *firmware)
 	unsigned int i;
 	unsigned int j;
 	u32 crc;
-	size_t calc_size = sizeof(struct qe_firmware);
+	size_t calc_size;
 	size_t length;
 	const struct qe_header *hdr;
 
@@ -480,7 +480,7 @@ int qe_upload_firmware(const struct qe_firmware *firmware)
 	}
 
 	/* Validate the length and check if there's a CRC */
-	calc_size += (firmware->count - 1) * sizeof(struct qe_microcode);
+	calc_size = struct_size(firmware, microcode, firmware->count);
 
 	for (i = 0; i < firmware->count; i++)
 		/*

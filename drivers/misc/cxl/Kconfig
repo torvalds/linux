@@ -7,18 +7,10 @@ config CXL_BASE
 	bool
 	select PPC_COPRO_BASE
 
-config CXL_AFU_DRIVER_OPS
-	bool
-
-config CXL_LIB
-	bool
-
 config CXL
 	tristate "Support for IBM Coherent Accelerators (CXL)"
 	depends on PPC_POWERNV && PCI_MSI && EEH
 	select CXL_BASE
-	select CXL_AFU_DRIVER_OPS
-	select CXL_LIB
 	default m
 	help
 	  Select this option to enable driver support for IBM Coherent

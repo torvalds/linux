@@ -159,8 +159,8 @@ void test_core_extern(void)
 		exp = (uint64_t *)&t->data;
 		for (j = 0; j < n; j++) {
 			CHECK(got[j] != exp[j], "check_res",
-			      "result #%d: expected %lx, but got %lx\n",
-			       j, exp[j], got[j]);
+			      "result #%d: expected %llx, but got %llx\n",
+			       j, (__u64)exp[j], (__u64)got[j]);
 		}
 cleanup:
 		test_core_extern__destroy(skel);

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
 //
 // This file is provided under a dual BSD/GPLv2 license.  When using or
 // redistributing this file, you may do so under either license.
@@ -90,7 +90,10 @@ static int sof_resume(struct device *dev, bool runtime_resume)
 	int ret;
 
 	/* do nothing if dsp resume callbacks are not set */
-	if (!sof_ops(sdev)->resume || !sof_ops(sdev)->runtime_resume)
+	if (!runtime_resume && !sof_ops(sdev)->resume)
+		return 0;
+
+	if (runtime_resume && !sof_ops(sdev)->runtime_resume)
 		return 0;
 
 	/* DSP was never successfully started, nothing to resume */
@@ -111,8 +114,12 @@ static int sof_resume(struct device *dev, bool runtime_resume)
 		return ret;
 	}
 
-	/* Nothing further to do if resuming from a low-power D0 substate */
-	if (!runtime_resume && old_state == SOF_DSP_PM_D0)
+	/*
+	 * Nothing further to be done for platforms that support the low power
+	 * D0 substate.
+	 */
+	if (!runtime_resume && sof_ops(sdev)->set_power_state &&
+	    old_state == SOF_DSP_PM_D0)
 		return 0;
 
 	sdev->fw_state = SOF_FW_BOOT_PREPARE;
@@ -175,7 +182,10 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 	int ret;
 
 	/* do nothing if dsp suspend callback is not set */
-	if (!sof_ops(sdev)->suspend)
+	if (!runtime_suspend && !sof_ops(sdev)->suspend)
+		return 0;
+
+	if (runtime_suspend && !sof_ops(sdev)->runtime_suspend)
 		return 0;
 
 	if (sdev->fw_state != SOF_FW_BOOT_COMPLETE)
@@ -248,6 +258,15 @@ suspend:
 	sdev->fw_state = SOF_FW_BOOT_NOT_STARTED;
 
 	return ret;
+}
+
+int snd_sof_dsp_power_down_notify(struct snd_sof_dev *sdev)
+{
+	/* Notify DSP of upcoming power down */
+	if (sof_ops(sdev)->remove)
+		return sof_send_pm_ctx_ipc(sdev, SOF_IPC_PM_CTX_SAVE);
+
+	return 0;
 }
 
 int snd_sof_runtime_suspend(struct device *dev)

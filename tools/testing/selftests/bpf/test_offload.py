@@ -318,6 +318,9 @@ class DebugfsDir:
                 continue
 
             if os.path.isfile(p):
+                # We need to init trap_flow_action_cookie before read it
+                if f == "trap_flow_action_cookie":
+                    cmd('echo deadbeef > %s/%s' % (path, f))
                 _, out = cmd('cat %s/%s' % (path, f))
                 dfs[f] = out.strip()
             elif os.path.isdir(p):

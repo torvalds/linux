@@ -2851,7 +2851,7 @@ static int snd_pcm_oss_mmap(struct file *file, struct vm_area_struct *area)
 		substream = pcm_oss_file->streams[SNDRV_PCM_STREAM_PLAYBACK];
 		if (substream)
 			break;
-		/* Fall through */
+		fallthrough;
 	case VM_READ:
 		substream = pcm_oss_file->streams[SNDRV_PCM_STREAM_CAPTURE];
 		break;
@@ -2876,7 +2876,7 @@ static int snd_pcm_oss_mmap(struct file *file, struct vm_area_struct *area)
 	
 	if (runtime->oss.params) {
 		/* use mutex_trylock() for params_lock for avoiding a deadlock
-		 * between mmap_sem and params_lock taken by
+		 * between mmap_lock and params_lock taken by
 		 * copy_from/to_user() in snd_pcm_oss_write/read()
 		 */
 		err = snd_pcm_oss_change_params(substream, true);

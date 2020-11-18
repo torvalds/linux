@@ -5,8 +5,6 @@
 
 /* Compiler specific definitions for Clang compiler */
 
-#define uninitialized_var(x) x = *(&(x))
-
 /* same as gcc, this was present in clang-2.6 so we can assume it works
  * with any version that can compile the kernel
  */
@@ -16,7 +14,7 @@
 #define KASAN_ABI_VERSION 5
 
 #if __has_feature(address_sanitizer) || __has_feature(hwaddress_sanitizer)
-/* emulate gcc's __SANITIZE_ADDRESS__ flag */
+/* Emulate GCC's __SANITIZE_ADDRESS__ flag */
 #define __SANITIZE_ADDRESS__
 #define __no_sanitize_address \
 		__attribute__((no_sanitize("address", "hwaddress")))
@@ -24,8 +22,25 @@
 #define __no_sanitize_address
 #endif
 
+#if __has_feature(thread_sanitizer)
+/* emulate gcc's __SANITIZE_THREAD__ flag */
+#define __SANITIZE_THREAD__
+#define __no_sanitize_thread \
+		__attribute__((no_sanitize("thread")))
+#else
+#define __no_sanitize_thread
+#endif
+
+#if __has_feature(undefined_behavior_sanitizer)
+/* GCC does not have __SANITIZE_UNDEFINED__ */
+#define __no_sanitize_undefined \
+		__attribute__((no_sanitize("undefined")))
+#else
+#define __no_sanitize_undefined
+#endif
+
 /*
- * Not all versions of clang implement the the type-generic versions
+ * Not all versions of clang implement the type-generic versions
  * of the builtin overflow checkers. Fortunately, clang implements
  * __has_builtin allowing us to avoid awkward version
  * checks. Unfortunately, we don't know which version of gcc clang
@@ -42,3 +57,7 @@
  * compilers, like ICC.
  */
 #define barrier() __asm__ __volatile__("" : : : "memory")
+
+#if __has_feature(shadow_call_stack)
+# define __noscs	__attribute__((__no_sanitize__("shadow-call-stack")))
+#endif

@@ -493,6 +493,12 @@ static int mid_thermal_probe(struct platform_device *pdev)
 			ret = PTR_ERR(pinfo->tzd[i]);
 			goto err;
 		}
+		ret = thermal_zone_device_enable(pinfo->tzd[i]);
+		if (ret) {
+			kfree(td_info);
+			thermal_zone_device_unregister(pinfo->tzd[i]);
+			goto err;
+		}
 	}
 
 	pinfo->pdev = pdev;

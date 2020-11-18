@@ -47,7 +47,7 @@ static int journal_read_bucket(struct cache *ca, struct list_head *list,
 
 	closure_init_stack(&cl);
 
-	pr_debug("reading %u", bucket_index);
+	pr_debug("reading %u\n", bucket_index);
 
 	while (offset < ca->sb.bucket_size) {
 reread:		left = ca->sb.bucket_size - offset;
@@ -78,13 +78,13 @@ reread:		left = ca->sb.bucket_size - offset;
 			size_t blocks, bytes = set_bytes(j);
 
 			if (j->magic != jset_magic(&ca->sb)) {
-				pr_debug("%u: bad magic", bucket_index);
+				pr_debug("%u: bad magic\n", bucket_index);
 				return ret;
 			}
 
 			if (bytes > left << 9 ||
 			    bytes > PAGE_SIZE << JSET_BITS) {
-				pr_info("%u: too big, %zu bytes, offset %u",
+				pr_info("%u: too big, %zu bytes, offset %u\n",
 					bucket_index, bytes, offset);
 				return ret;
 			}
@@ -93,7 +93,7 @@ reread:		left = ca->sb.bucket_size - offset;
 				goto reread;
 
 			if (j->csum != csum_set(j)) {
-				pr_info("%u: bad csum, %zu bytes, offset %u",
+				pr_info("%u: bad csum, %zu bytes, offset %u\n",
 					bucket_index, bytes, offset);
 				return ret;
 			}
@@ -190,7 +190,7 @@ int bch_journal_read(struct cache_set *c, struct list_head *list)
 		uint64_t seq;
 
 		bitmap_zero(bitmap, SB_JOURNAL_BUCKETS);
-		pr_debug("%u journal buckets", ca->sb.njournal_buckets);
+		pr_debug("%u journal buckets\n", ca->sb.njournal_buckets);
 
 		/*
 		 * Read journal buckets ordered by golden ratio hash to quickly
@@ -215,12 +215,9 @@ int bch_journal_read(struct cache_set *c, struct list_head *list)
 		 * If that fails, check all the buckets we haven't checked
 		 * already
 		 */
-		pr_debug("falling back to linear search");
+		pr_debug("falling back to linear search\n");
 
-		for (l = find_first_zero_bit(bitmap, ca->sb.njournal_buckets);
-		     l < ca->sb.njournal_buckets;
-		     l = find_next_zero_bit(bitmap, ca->sb.njournal_buckets,
-					    l + 1))
+		for_each_clear_bit(l, bitmap, ca->sb.njournal_buckets)
 			if (read_bucket(l))
 				goto bsearch;
 
@@ -233,7 +230,7 @@ bsearch:
 		/* Binary search */
 		m = l;
 		r = find_next_bit(bitmap, ca->sb.njournal_buckets, l + 1);
-		pr_debug("starting binary search, l %u r %u", l, r);
+		pr_debug("starting binary search, l %u r %u\n", l, r);
 
 		while (l + 1 < r) {
 			seq = list_entry(list->prev, struct journal_replay,
@@ -253,7 +250,7 @@ bsearch:
 		 * Read buckets in reverse order until we stop finding more
 		 * journal entries
 		 */
-		pr_debug("finishing up: m %u njournal_buckets %u",
+		pr_debug("finishing up: m %u njournal_buckets %u\n",
 			 m, ca->sb.njournal_buckets);
 		l = m;
 
@@ -370,10 +367,10 @@ int bch_journal_replay(struct cache_set *s, struct list_head *list)
 
 		if (n != i->j.seq) {
 			if (n == start && is_discard_enabled(s))
-				pr_info("bcache: journal entries %llu-%llu may be discarded! (replaying %llu-%llu)",
+				pr_info("journal entries %llu-%llu may be discarded! (replaying %llu-%llu)\n",
 					n, i->j.seq - 1, start, end);
 			else {
-				pr_err("bcache: journal entries %llu-%llu missing! (replaying %llu-%llu)",
+				pr_err("journal entries %llu-%llu missing! (replaying %llu-%llu)\n",
 					n, i->j.seq - 1, start, end);
 				ret = -EIO;
 				goto err;
@@ -403,7 +400,7 @@ int bch_journal_replay(struct cache_set *s, struct list_head *list)
 		entries++;
 	}
 
-	pr_info("journal replay done, %i keys in %i entries, seq %llu",
+	pr_info("journal replay done, %i keys in %i entries, seq %llu\n",
 		keys, entries, end);
 err:
 	while (!list_empty(list)) {
@@ -481,7 +478,7 @@ static void btree_flush_write(struct cache_set *c)
 			break;
 
 		if (btree_node_journal_flush(b))
-			pr_err("BUG: flush_write bit should not be set here!");
+			pr_err("BUG: flush_write bit should not be set here!\n");
 
 		mutex_lock(&b->write_lock);
 
@@ -534,13 +531,13 @@ static void btree_flush_write(struct cache_set *c)
 	for (i = 0; i < nr; i++) {
 		b = btree_nodes[i];
 		if (!b) {
-			pr_err("BUG: btree_nodes[%d] is NULL", i);
+			pr_err("BUG: btree_nodes[%d] is NULL\n", i);
 			continue;
 		}
 
 		/* safe to check without holding b->write_lock */
 		if (!btree_node_journal_flush(b)) {
-			pr_err("BUG: bnode %p: journal_flush bit cleaned", b);
+			pr_err("BUG: bnode %p: journal_flush bit cleaned\n", b);
 			continue;
 		}
 
@@ -548,14 +545,14 @@ static void btree_flush_write(struct cache_set *c)
 		if (!btree_current_write(b)->journal) {
 			clear_bit(BTREE_NODE_journal_flush, &b->flags);
 			mutex_unlock(&b->write_lock);
-			pr_debug("bnode %p: written by others", b);
+			pr_debug("bnode %p: written by others\n", b);
 			continue;
 		}
 
 		if (!btree_node_dirty(b)) {
 			clear_bit(BTREE_NODE_journal_flush, &b->flags);
 			mutex_unlock(&b->write_lock);
-			pr_debug("bnode %p: dirty bit cleaned by others", b);
+			pr_debug("bnode %p: dirty bit cleaned by others\n", b);
 			continue;
 		}
 
@@ -611,7 +608,7 @@ static void do_journal_discard(struct cache *ca)
 			ca->sb.njournal_buckets;
 
 		atomic_set(&ja->discard_in_flight, DISCARD_READY);
-		/* fallthrough */
+		fallthrough;
 
 	case DISCARD_READY:
 		if (ja->discard_idx == ja->last_idx)
@@ -716,7 +713,7 @@ void bch_journal_next(struct journal *j)
 	j->cur->data->keys	= 0;
 
 	if (fifo_full(&j->pin))
-		pr_debug("journal_pin full (%zu)", fifo_used(&j->pin));
+		pr_debug("journal_pin full (%zu)\n", fifo_used(&j->pin));
 }
 
 static void journal_write_endio(struct bio *bio)
@@ -999,8 +996,8 @@ int bch_journal_alloc(struct cache_set *c)
 	j->w[1].c = c;
 
 	if (!(init_fifo(&j->pin, JOURNAL_PIN, GFP_KERNEL)) ||
-	    !(j->w[0].data = (void *) __get_free_pages(GFP_KERNEL, JSET_BITS)) ||
-	    !(j->w[1].data = (void *) __get_free_pages(GFP_KERNEL, JSET_BITS)))
+	    !(j->w[0].data = (void *) __get_free_pages(GFP_KERNEL|__GFP_COMP, JSET_BITS)) ||
+	    !(j->w[1].data = (void *) __get_free_pages(GFP_KERNEL|__GFP_COMP, JSET_BITS)))
 		return -ENOMEM;
 
 	return 0;

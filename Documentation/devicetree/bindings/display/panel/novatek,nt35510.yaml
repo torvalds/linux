@@ -25,9 +25,9 @@ properties:
   reg: true
   reset-gpios: true
   vdd-supply:
-     description: regulator that supplies the vdd voltage
+    description: regulator that supplies the vdd voltage
   vddi-supply:
-     description: regulator that supplies the vddi voltage
+    description: regulator that supplies the vddi voltage
   backlight: true
 
 required:

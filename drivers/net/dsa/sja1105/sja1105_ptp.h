@@ -4,6 +4,8 @@
 #ifndef _SJA1105_PTP_H
 #define _SJA1105_PTP_H
 
+#include <linux/timer.h>
+
 #if IS_ENABLED(CONFIG_NET_DSA_SJA1105_PTP)
 
 /* Timestamps are in units of 8 ns clock ticks (equivalent to
@@ -48,6 +50,19 @@ static inline s64 future_base_time(s64 base_time, s64 cycle_time, s64 now)
 	return base_time + n * cycle_time;
 }
 
+/* This is not a preprocessor macro because the "ns" argument may or may not be
+ * s64 at caller side. This ensures it is properly type-cast before div_s64.
+ */
+static inline s64 ns_to_sja1105_delta(s64 ns)
+{
+	return div_s64(ns, 200);
+}
+
+static inline s64 sja1105_delta_to_ns(s64 delta)
+{
+	return delta * 200;
+}
+
 struct sja1105_ptp_cmd {
 	u64 startptpcp;		/* start toggling PTP_CLK pin */
 	u64 stopptpcp;		/* stop toggling PTP_CLK pin */
@@ -59,13 +74,14 @@ struct sja1105_ptp_cmd {
 };
 
 struct sja1105_ptp_data {
-	struct delayed_work extts_work;
+	struct timer_list extts_timer;
 	struct sk_buff_head skb_rxtstamp_queue;
 	struct ptp_clock_info caps;
 	struct ptp_clock *clock;
 	struct sja1105_ptp_cmd cmd;
 	/* Serializes all operations on the PTP hardware clock */
 	struct mutex lock;
+	bool extts_enabled;
 	u64 ptpsyncts;
 };
 

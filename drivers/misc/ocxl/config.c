@@ -71,6 +71,20 @@ static int find_dvsec_afu_ctrl(struct pci_dev *dev, u8 afu_idx)
 	return 0;
 }
 
+/**
+ * get_function_0() - Find a related PCI device (function 0)
+ * @device: PCI device to match
+ *
+ * Returns a pointer to the related device, or null if not found
+ */
+static struct pci_dev *get_function_0(struct pci_dev *dev)
+{
+	unsigned int devfn = PCI_DEVFN(PCI_SLOT(dev->devfn), 0);
+
+	return pci_get_domain_bus_and_slot(pci_domain_nr(dev->bus),
+					   dev->bus->number, devfn);
+}
+
 static void read_pasid(struct pci_dev *dev, struct ocxl_fn_config *fn)
 {
 	u16 val;
@@ -159,14 +173,15 @@ static int read_dvsec_afu_info(struct pci_dev *dev, struct ocxl_fn_config *fn)
 static int read_dvsec_vendor(struct pci_dev *dev)
 {
 	int pos;
-	u32 cfg, tlx, dlx;
+	u32 cfg, tlx, dlx, reset_reload;
 
 	/*
-	 * vendor specific DVSEC is optional
+	 * vendor specific DVSEC, for IBM images only. Some older
+	 * images may not have it
 	 *
-	 * It's currently only used on function 0 to specify the
-	 * version of some logic blocks. Some older images may not
-	 * even have it so we ignore any errors
+	 * It's only used on function 0 to specify the version of some
+	 * logic blocks and to give access to special registers to
+	 * enable host-based flashing.
 	 */
 	if (PCI_FUNC(dev->devfn) != 0)
 		return 0;
@@ -178,11 +193,67 @@ static int read_dvsec_vendor(struct pci_dev *dev)
 	pci_read_config_dword(dev, pos + OCXL_DVSEC_VENDOR_CFG_VERS, &cfg);
 	pci_read_config_dword(dev, pos + OCXL_DVSEC_VENDOR_TLX_VERS, &tlx);
 	pci_read_config_dword(dev, pos + OCXL_DVSEC_VENDOR_DLX_VERS, &dlx);
+	pci_read_config_dword(dev, pos + OCXL_DVSEC_VENDOR_RESET_RELOAD,
+			      &reset_reload);
 
 	dev_dbg(&dev->dev, "Vendor specific DVSEC:\n");
 	dev_dbg(&dev->dev, "  CFG version = 0x%x\n", cfg);
 	dev_dbg(&dev->dev, "  TLX version = 0x%x\n", tlx);
 	dev_dbg(&dev->dev, "  DLX version = 0x%x\n", dlx);
+	dev_dbg(&dev->dev, "  ResetReload = 0x%x\n", reset_reload);
+	return 0;
+}
+
+static int get_dvsec_vendor0(struct pci_dev *dev, struct pci_dev **dev0,
+			     int *out_pos)
+{
+	int pos;
+
+	if (PCI_FUNC(dev->devfn) != 0) {
+		dev = get_function_0(dev);
+		if (!dev)
+			return -1;
+	}
+	pos = find_dvsec(dev, OCXL_DVSEC_VENDOR_ID);
+	if (!pos)
+		return -1;
+	*dev0 = dev;
+	*out_pos = pos;
+	return 0;
+}
+
+int ocxl_config_get_reset_reload(struct pci_dev *dev, int *val)
+{
+	struct pci_dev *dev0;
+	u32 reset_reload;
+	int pos;
+
+	if (get_dvsec_vendor0(dev, &dev0, &pos))
+		return -1;
+
+	pci_read_config_dword(dev0, pos + OCXL_DVSEC_VENDOR_RESET_RELOAD,
+			      &reset_reload);
+	*val = !!(reset_reload & BIT(0));
+	return 0;
+}
+
+int ocxl_config_set_reset_reload(struct pci_dev *dev, int val)
+{
+	struct pci_dev *dev0;
+	u32 reset_reload;
+	int pos;
+
+	if (get_dvsec_vendor0(dev, &dev0, &pos))
+		return -1;
+
+	pci_read_config_dword(dev0, pos + OCXL_DVSEC_VENDOR_RESET_RELOAD,
+			      &reset_reload);
+	if (val)
+		reset_reload |= BIT(0);
+	else
+		reset_reload &= ~BIT(0);
+	pci_write_config_dword(dev0, pos + OCXL_DVSEC_VENDOR_RESET_RELOAD,
+			       reset_reload);
 	return 0;
 }
 
@@ -273,16 +344,16 @@ static int read_afu_info(struct pci_dev *dev, struct ocxl_fn_config *fn,
 }
 
 /**
- * Read the template version from the AFU
- * dev: the device for the AFU
- * fn: the AFU offsets
- * len: outputs the template length
- * version: outputs the major<<8,minor version
+ * read_template_version() - Read the template version from the AFU
+ * @dev: the device for the AFU
+ * @fn: the AFU offsets
+ * @len: outputs the template length
+ * @version: outputs the major<<8,minor version
  *
  * Returns 0 on success, negative on failure
  */
 static int read_template_version(struct pci_dev *dev, struct ocxl_fn_config *fn,
-		u16 *len, u16 *version)
+				 u16 *len, u16 *version)
 {
 	u32 val32;
 	u8 major, minor;
@@ -476,16 +547,16 @@ static int validate_afu(struct pci_dev *dev, struct ocxl_afu_config *afu)
 }
 
 /**
- * Populate AFU metadata regarding LPC memory
- * dev: the device for the AFU
- * fn: the AFU offsets
- * afu: the AFU struct to populate the LPC metadata into
+ * read_afu_lpc_memory_info() - Populate AFU metadata regarding LPC memory
+ * @dev: the device for the AFU
+ * @fn: the AFU offsets
+ * @afu: the AFU struct to populate the LPC metadata into
  *
  * Returns 0 on success, negative on failure
  */
 static int read_afu_lpc_memory_info(struct pci_dev *dev,
-				struct ocxl_fn_config *fn,
-				struct ocxl_afu_config *afu)
+				    struct ocxl_fn_config *fn,
+				    struct ocxl_afu_config *afu)
 {
 	int rc;
 	u32 val32;

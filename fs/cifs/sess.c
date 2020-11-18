@@ -122,7 +122,7 @@ int cifs_try_adding_channels(struct cifs_ses *ses)
 
 		tries++;
 		if (tries > 3*ses->chan_max) {
-			cifs_dbg(FYI, "too many attempt at opening channels (%d channels left to open)\n",
+			cifs_dbg(FYI, "too many channel open attempts (%d channels left to open)\n",
 				 left);
 			break;
 		}
@@ -150,6 +150,22 @@ int cifs_try_adding_channels(struct cifs_ses *ses)
 	return ses->chan_count - old_chan_count;
 }
 
+/*
+ * If server is a channel of ses, return the corresponding enclosing
+ * cifs_chan otherwise return NULL.
+ */
+struct cifs_chan *
+cifs_ses_find_chan(struct cifs_ses *ses, struct TCP_Server_Info *server)
+{
+	int i;
+
+	for (i = 0; i < ses->chan_count; i++) {
+		if (ses->chans[i].server == server)
+			return &ses->chans[i];
+	}
+	return NULL;
+}
+
 int
 cifs_ses_add_channel(struct cifs_ses *ses, struct cifs_server_iface *iface)
 {
@@ -162,12 +178,14 @@ cifs_ses_add_channel(struct cifs_ses *ses, struct cifs_server_iface *iface)
 	int rc;
 	unsigned int xid = get_xid();
 
-	cifs_dbg(FYI, "adding channel to ses %p (speed:%zu bps rdma:%s ",
-		 ses, iface->speed, iface->rdma_capable ? "yes" : "no");
 	if (iface->sockaddr.ss_family == AF_INET)
-		cifs_dbg(FYI, "ip:%pI4)\n", &ipv4->sin_addr);
+		cifs_dbg(FYI, "adding channel to ses %p (speed:%zu bps rdma:%s ip:%pI4)\n",
+			 ses, iface->speed, iface->rdma_capable ? "yes" : "no",
+			 &ipv4->sin_addr);
 	else
-		cifs_dbg(FYI, "ip:%pI6)\n", &ipv6->sin6_addr);
+		cifs_dbg(FYI, "adding channel to ses %p (speed:%zu bps rdma:%s ip:%pI4)\n",
+			 ses, iface->speed, iface->rdma_capable ? "yes" : "no",
+			 &ipv6->sin6_addr);
 
 	/*
 	 * Setup a smb_vol with mostly the same info as the existing
@@ -198,7 +216,7 @@ cifs_ses_add_channel(struct cifs_ses *ses, struct cifs_server_iface *iface)
 	vol.UNC = unc;
 	vol.prepath = "";
 
-	/* Re-use same version as master connection */
+	/* Reuse same version as master connection */
 	vol.vals = ses->server->vals;
 	vol.ops = ses->server->ops;
 
@@ -229,7 +247,7 @@ cifs_ses_add_channel(struct cifs_ses *ses, struct cifs_server_iface *iface)
 
 	mutex_lock(&ses->session_mutex);
 
-	chan = &ses->chans[ses->chan_count];
+	chan = ses->binding_chan = &ses->chans[ses->chan_count];
 	chan->server = cifs_get_tcp_session(&vol);
 	if (IS_ERR(chan->server)) {
 		rc = PTR_ERR(chan->server);
@@ -261,7 +279,7 @@ cifs_ses_add_channel(struct cifs_ses *ses, struct cifs_server_iface *iface)
 		goto out;
 
 	/* success, put it on the list
-	 * XXX: sharing ses between 2 tcp server is not possible, the
+	 * XXX: sharing ses between 2 tcp servers is not possible, the
 	 * way "internal" linked lists works in linux makes element
 	 * only able to belong to one list
 	 *
@@ -274,6 +292,7 @@ cifs_ses_add_channel(struct cifs_ses *ses, struct cifs_server_iface *iface)
 	atomic_set(&ses->chan_seq, 0);
 out:
 	ses->binding = false;
+	ses->binding_chan = NULL;
 	mutex_unlock(&ses->session_mutex);
 
 	if (rc && chan->server)
@@ -569,15 +588,15 @@ int decode_ntlmssp_challenge(char *bcc_ptr, int blob_len,
 	tioffset = le32_to_cpu(pblob->TargetInfoArray.BufferOffset);
 	tilen = le16_to_cpu(pblob->TargetInfoArray.Length);
 	if (tioffset > blob_len || tioffset + tilen > blob_len) {
-		cifs_dbg(VFS, "tioffset + tilen too high %u + %u",
-			tioffset, tilen);
+		cifs_dbg(VFS, "tioffset + tilen too high %u + %u\n",
+			 tioffset, tilen);
 		return -EINVAL;
 	}
 	if (tilen) {
 		ses->auth_key.response = kmemdup(bcc_ptr + tioffset, tilen,
 						 GFP_KERNEL);
 		if (!ses->auth_key.response) {
-			cifs_dbg(VFS, "Challenge target info alloc failure");
+			cifs_dbg(VFS, "Challenge target info alloc failure\n");
 			return -ENOMEM;
 		}
 		ses->auth_key.len = tilen;
@@ -779,7 +798,7 @@ cifs_select_sectype(struct TCP_Server_Info *server, enum securityEnum requested)
 			if ((server->sec_kerberos || server->sec_mskerberos) &&
 			    (global_secflags & CIFSSEC_MAY_KRB5))
 				return Kerberos;
-			/* Fallthrough */
+			fallthrough;
 		default:
 			return Unspecified;
 		}
@@ -796,7 +815,7 @@ cifs_select_sectype(struct TCP_Server_Info *server, enum securityEnum requested)
 		default:
 			break;
 		}
-		/* Fallthrough - to attempt LANMAN authentication next */
+		fallthrough;	/* to attempt LANMAN authentication next */
 	case CIFS_NEGFLAVOR_LANMAN:
 		switch (requested) {
 		case LANMAN:
@@ -804,7 +823,7 @@ cifs_select_sectype(struct TCP_Server_Info *server, enum securityEnum requested)
 		case Unspecified:
 			if (global_secflags & CIFSSEC_MAY_LANMAN)
 				return LANMAN;
-			/* Fallthrough */
+			fallthrough;
 		default:
 			return Unspecified;
 		}
@@ -919,8 +938,7 @@ sess_sendreceive(struct sess_data *sess_data)
 	struct kvec rsp_iov = { NULL, 0 };
 
 	count = sess_data->iov[1].iov_len + sess_data->iov[2].iov_len;
-	smb_buf->smb_buf_length =
-		cpu_to_be32(be32_to_cpu(smb_buf->smb_buf_length) + count);
+	be32_add_cpu(&smb_buf->smb_buf_length, count);
 	put_bcc(count, smb_buf);
 
 	rc = SendReceive2(sess_data->xid, sess_data->ses,
@@ -970,7 +988,7 @@ sess_auth_lanman(struct sess_data *sess_data)
 
 		/* Calculate hash with password and copy into bcc_ptr.
 		 * Encryption Key (stored as in cryptkey) gets used if the
-		 * security mode bit in Negottiate Protocol response states
+		 * security mode bit in Negotiate Protocol response states
 		 * to use challenge/response method (i.e. Password bit is 1).
 		 */
 		rc = calc_lanman_hash(ses->password, ses->server->cryptkey,
@@ -1303,9 +1321,8 @@ sess_auth_kerberos(struct sess_data *sess_data)
 	 * sending us a response in an expected form
 	 */
 	if (msg->version != CIFS_SPNEGO_UPCALL_VERSION) {
-		cifs_dbg(VFS,
-		  "incorrect version of cifs.upcall (expected %d but got %d)",
-			      CIFS_SPNEGO_UPCALL_VERSION, msg->version);
+		cifs_dbg(VFS, "incorrect version of cifs.upcall (expected %d but got %d)\n",
+			 CIFS_SPNEGO_UPCALL_VERSION, msg->version);
 		rc = -EKEYREJECTED;
 		goto out_put_spnego_key;
 	}
@@ -1313,8 +1330,8 @@ sess_auth_kerberos(struct sess_data *sess_data)
 	ses->auth_key.response = kmemdup(msg->data, msg->sesskey_len,
 					 GFP_KERNEL);
 	if (!ses->auth_key.response) {
-		cifs_dbg(VFS, "Kerberos can't allocate (%u bytes) memory",
-				msg->sesskey_len);
+		cifs_dbg(VFS, "Kerberos can't allocate (%u bytes) memory\n",
+			 msg->sesskey_len);
 		rc = -ENOMEM;
 		goto out_put_spnego_key;
 	}
@@ -1657,8 +1674,7 @@ static int select_sec(struct cifs_ses *ses, struct sess_data *sess_data)
 	type = cifs_select_sectype(ses->server, ses->sectype);
 	cifs_dbg(FYI, "sess setup type %d\n", type);
 	if (type == Unspecified) {
-		cifs_dbg(VFS,
-			"Unable to select appropriate authentication method!");
+		cifs_dbg(VFS, "Unable to select appropriate authentication method!\n");
 		return -EINVAL;
 	}
 
@@ -1688,7 +1704,6 @@ static int select_sec(struct cifs_ses *ses, struct sess_data *sess_data)
 #else
 		cifs_dbg(VFS, "Kerberos negotiated but upcall support disabled!\n");
 		return -ENOSYS;
-		break;
 #endif /* CONFIG_CIFS_UPCALL */
 	case RawNTLMSSP:
 		sess_data->func = sess_auth_rawntlmssp_negotiate;

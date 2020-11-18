@@ -366,7 +366,6 @@
 		composite-in@20 {
 			compatible = "adi,adv7180";
 			reg = <0x20>;
-			remote = <&vin1>;
 
 			port {
 				adv7180: endpoint {

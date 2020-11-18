@@ -8,7 +8,6 @@
  * EC for audio function.
  */
 
-#include <crypto/hash.h>
 #include <crypto/sha.h>
 #include <linux/acpi.h>
 #include <linux/delay.h>
@@ -102,41 +101,6 @@ static int send_ec_host_command(struct cros_ec_device *ec_dev, uint32_t cmd,
 error:
 	kfree(msg);
 	return ret;
-}
-
-static int calculate_sha256(struct cros_ec_codec_priv *priv,
-			    uint8_t *buf, uint32_t size, uint8_t *digest)
-{
-	struct crypto_shash *tfm;
-
-	tfm = crypto_alloc_shash("sha256", CRYPTO_ALG_TYPE_SHASH, 0);
-	if (IS_ERR(tfm)) {
-		dev_err(priv->dev, "can't alloc shash\n");
-		return PTR_ERR(tfm);
-	}
-
-	{
-		SHASH_DESC_ON_STACK(desc, tfm);
-
-		desc->tfm = tfm;
-
-		crypto_shash_digest(desc, buf, size, digest);
-		shash_desc_zero(desc);
-	}
-
-	crypto_free_shash(tfm);
-
-#ifdef DEBUG
-	{
-		char digest_str[65];
-
-		bin2hex(digest_str, digest, 32);
-		digest_str[64] = 0;
-		dev_dbg(priv->dev, "hash=%s\n", digest_str);
-	}
-#endif
-
-	return 0;
 }
 
 static int dmic_get_gain(struct snd_kcontrol *kcontrol,
@@ -796,9 +760,8 @@ static int wov_hotword_model_put(struct snd_kcontrol *kcontrol,
 	if (IS_ERR(buf))
 		return PTR_ERR(buf);
 
-	ret = calculate_sha256(priv, buf, size, digest);
-	if (ret)
-		goto leave;
+	sha256(buf, size, digest);
+	dev_dbg(priv->dev, "hash=%*phN\n", SHA256_DIGEST_SIZE, digest);
 
 	p.cmd = EC_CODEC_WOV_GET_LANG;
 	ret = send_ec_host_command(priv->ec_device, EC_CMD_EC_CODEC_WOV,
@@ -1067,11 +1030,13 @@ static const struct of_device_id cros_ec_codec_of_match[] = {
 MODULE_DEVICE_TABLE(of, cros_ec_codec_of_match);
 #endif
 
+#ifdef CONFIG_ACPI
 static const struct acpi_device_id cros_ec_codec_acpi_id[] = {
 	{ "GOOG0013", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, cros_ec_codec_acpi_id);
+#endif
 
 static struct platform_driver cros_ec_codec_platform_driver = {
 	.driver = {

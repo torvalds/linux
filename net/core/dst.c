@@ -81,11 +81,11 @@ void *dst_alloc(struct dst_ops *ops, struct net_device *dev,
 {
 	struct dst_entry *dst;
 
-	if (ops->gc && dst_entries_get_fast(ops) > ops->gc_thresh) {
+	if (ops->gc &&
+	    !(flags & DST_NOCOUNT) &&
+	    dst_entries_get_fast(ops) > ops->gc_thresh) {
 		if (ops->gc(ops)) {
-			printk_ratelimited(KERN_NOTICE "Route cache is full: "
-					   "consider increasing sysctl "
-					   "net.ipv[4|6].route.max_size.\n");
+			pr_notice_ratelimited("Route cache is full: consider increasing sysctl net.ipv6.route.max_size.\n");
 			return NULL;
 		}
 	}
@@ -144,7 +144,7 @@ static void dst_destroy_rcu(struct rcu_head *head)
 
 /* Operations to mark dst as DEAD and clean up the net device referenced
  * by dst:
- * 1. put the dst under loopback interface and discard all tx/rx packets
+ * 1. put the dst under blackhole interface and discard all tx/rx packets
  *    on this route.
  * 2. release the net_device
  * This function should be called when removing routes from the fib tree

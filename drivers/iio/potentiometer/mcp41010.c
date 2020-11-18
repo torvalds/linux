@@ -5,7 +5,7 @@
  * Copyright (c) 2018 Chris Coffey <cmc@babblebit.net>
  * Based on: Slawomir Stepien's code from mcp4131.c
  *
- * Datasheet: http://ww1.microchip.com/downloads/en/devicedoc/11195c.pdf
+ * Datasheet: https://ww1.microchip.com/downloads/en/devicedoc/11195c.pdf
  *
  * DEVID	#Wipers	#Positions	Resistance (kOhm)
  * mcp41010	1	256		10
@@ -152,7 +152,6 @@ static int mcp41010_probe(struct spi_device *spi)
 
 	mutex_init(&data->lock);
 
-	indio_dev->dev.parent = dev;
 	indio_dev->info = &mcp41010_info;
 	indio_dev->channels = mcp41010_channels;
 	indio_dev->num_channels = data->cfg->wipers;

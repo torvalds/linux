@@ -28,8 +28,6 @@
 #include "sched.h"
 #include "pelt.h"
 
-#include <trace/events/sched.h>
-
 /*
  * Approximate:
  *   val * y^n,    where y^32 ~= 0.5 (~1 scheduling period)
@@ -82,8 +80,6 @@ static u32 __accumulate_pelt_segments(u64 periods, u32 d1, u32 d3)
 
 	return c1 + c2 + c3;
 }
-
-#define cap_scale(v, s) ((v)*(s) >> SCHED_CAPACITY_SHIFT)
 
 /*
  * Accumulate the three separate parts of the sum; d1 the remainder
@@ -237,10 +233,34 @@ ___update_load_sum(u64 now, struct sched_avg *sa,
 	return 1;
 }
 
+/*
+ * When syncing *_avg with *_sum, we must take into account the current
+ * position in the PELT segment otherwise the remaining part of the segment
+ * will be considered as idle time whereas it's not yet elapsed and this will
+ * generate unwanted oscillation in the range [1002..1024[.
+ *
+ * The max value of *_sum varies with the position in the time segment and is
+ * equals to :
+ *
+ *   LOAD_AVG_MAX*y + sa->period_contrib
+ *
+ * which can be simplified into:
+ *
+ *   LOAD_AVG_MAX - 1024 + sa->period_contrib
+ *
+ * because LOAD_AVG_MAX*y == LOAD_AVG_MAX-1024
+ *
+ * The same care must be taken when a sched entity is added, updated or
+ * removed from a cfs_rq and we need to update sched_avg. Scheduler entities
+ * and the cfs rq, to which they are attached, have the same position in the
+ * time segment because they use the same clock. This means that we can use
+ * the period_contrib of cfs_rq when updating the sched_avg of a sched_entity
+ * if it's more convenient.
+ */
 static __always_inline void
 ___update_load_avg(struct sched_avg *sa, unsigned long load)
 {
-	u32 divider = LOAD_AVG_MAX - 1024 + sa->period_contrib;
+	u32 divider = get_pelt_divider(sa);
 
 	/*
 	 * Step 2: update *_avg.

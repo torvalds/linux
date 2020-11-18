@@ -956,10 +956,8 @@ static void qup_i2c_conf_v1(struct qup_i2c_dev *qup)
 	u32 qup_config = I2C_MINI_CORE | I2C_N_VAL;
 	u32 io_mode = QUP_REPACK_EN;
 
-	blk->is_tx_blk_mode =
-		blk->total_tx_len > qup->out_fifo_sz ? true : false;
-	blk->is_rx_blk_mode =
-		blk->total_rx_len > qup->in_fifo_sz ? true : false;
+	blk->is_tx_blk_mode = blk->total_tx_len > qup->out_fifo_sz;
+	blk->is_rx_blk_mode = blk->total_rx_len > qup->in_fifo_sz;
 
 	if (blk->is_tx_blk_mode) {
 		io_mode |= QUP_OUTPUT_BLK_MODE;
@@ -1528,9 +1526,9 @@ qup_i2c_determine_mode_v2(struct qup_i2c_dev *qup,
 		qup->use_dma = true;
 	} else {
 		qup->blk.is_tx_blk_mode = max_tx_len > qup->out_fifo_sz -
-			QUP_MAX_TAGS_LEN ? true : false;
+			QUP_MAX_TAGS_LEN;
 		qup->blk.is_rx_blk_mode = max_rx_len > qup->in_fifo_sz -
-			READ_RX_TAGS_LEN ? true : false;
+			READ_RX_TAGS_LEN;
 	}
 
 	return 0;
@@ -1660,7 +1658,6 @@ static int qup_i2c_probe(struct platform_device *pdev)
 	static const int blk_sizes[] = {4, 16, 32};
 	struct qup_i2c_dev *qup;
 	unsigned long one_bit_t;
-	struct resource *res;
 	u32 io_mode, hw_ver, size;
 	int ret, fs_div, hs_div;
 	u32 src_clk_freq = DEFAULT_SRC_CLK;
@@ -1757,16 +1754,13 @@ nodma:
 		return -EINVAL;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	qup->base = devm_ioremap_resource(qup->dev, res);
+	qup->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(qup->base))
 		return PTR_ERR(qup->base);
 
 	qup->irq = platform_get_irq(pdev, 0);
-	if (qup->irq < 0) {
-		dev_err(qup->dev, "No IRQ defined\n");
+	if (qup->irq < 0)
 		return qup->irq;
-	}
 
 	if (has_acpi_companion(qup->dev)) {
 		ret = device_property_read_u32(qup->dev,

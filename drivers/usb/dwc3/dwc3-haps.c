@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/**
+/*
  * dwc3-haps.c - Synopsys HAPS PCI Specific glue layer
  *
  * Copyright (C) 2018 Synopsys, Inc.

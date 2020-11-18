@@ -22,14 +22,16 @@ static inline int sha224_base_init(struct shash_desc *desc)
 {
 	struct sha256_state *sctx = shash_desc_ctx(desc);
 
-	return sha224_init(sctx);
+	sha224_init(sctx);
+	return 0;
 }
 
 static inline int sha256_base_init(struct shash_desc *desc)
 {
 	struct sha256_state *sctx = shash_desc_ctx(desc);
 
-	return sha256_init(sctx);
+	sha256_init(sctx);
+	return 0;
 }
 
 static inline int sha256_base_do_update(struct shash_desc *desc,

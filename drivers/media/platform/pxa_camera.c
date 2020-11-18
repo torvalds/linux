@@ -1016,7 +1016,7 @@ static void pxa_camera_wakeup(struct pxa_camera_dev *pcdev,
  *  - a videobuffer is queued on the pcdev->capture list
  *
  * Please check the "DMA hot chaining timeslice issue" in
- *   Documentation/media/v4l-drivers/pxa_camera.rst
+ *   Documentation/driver-api/media/drivers/pxa_camera.rst
  *
  * Context: should only be called within the dma irq handler
  */
@@ -1438,7 +1438,7 @@ static void pxac_vb2_queue(struct vb2_buffer *vb)
 
 /*
  * Please check the DMA prepared buffer structure in :
- *   Documentation/media/v4l-drivers/pxa_camera.rst
+ *   Documentation/driver-api/media/drivers/pxa_camera.rst
  * Please check also in pxa_camera_check_link_miss() to understand why DMA chain
  * modification while DMA chain is running will work anyway.
  */
@@ -2504,17 +2504,14 @@ static int pxa_camera_probe(struct platform_device *pdev)
 	if (err)
 		goto exit_notifier_cleanup;
 
-	if (pcdev->mclk) {
-		v4l2_clk_name_i2c(clk_name, sizeof(clk_name),
-				  pcdev->asd.match.i2c.adapter_id,
-				  pcdev->asd.match.i2c.address);
+	v4l2_clk_name_i2c(clk_name, sizeof(clk_name),
+			  pcdev->asd.match.i2c.adapter_id,
+			  pcdev->asd.match.i2c.address);
 
-		pcdev->mclk_clk = v4l2_clk_register(&pxa_camera_mclk_ops,
-						    clk_name, NULL);
-		if (IS_ERR(pcdev->mclk_clk)) {
-			err = PTR_ERR(pcdev->mclk_clk);
-			goto exit_notifier_cleanup;
-		}
+	pcdev->mclk_clk = v4l2_clk_register(&pxa_camera_mclk_ops, clk_name, NULL);
+	if (IS_ERR(pcdev->mclk_clk)) {
+		err = PTR_ERR(pcdev->mclk_clk);
+		goto exit_notifier_cleanup;
 	}
 
 	err = v4l2_async_notifier_register(&pcdev->v4l2_dev, &pcdev->notifier);
@@ -2588,7 +2585,7 @@ static struct platform_driver pxa_camera_driver = {
 
 module_platform_driver(pxa_camera_driver);
 
-MODULE_DESCRIPTION("PXA27x SoC Camera Host driver");
+MODULE_DESCRIPTION("PXA27x Camera Driver");
 MODULE_AUTHOR("Guennadi Liakhovetski <kernel@pengutronix.de>");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(PXA_CAM_VERSION);

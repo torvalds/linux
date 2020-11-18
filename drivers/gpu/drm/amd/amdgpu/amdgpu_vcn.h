@@ -53,7 +53,9 @@
 #define VCN_ENC_CMD_REG_WAIT		0x0000000c
 
 #define VCN_VID_SOC_ADDRESS_2_0 	0x1fa00
+#define VCN1_VID_SOC_ADDRESS_3_0 	0x48200
 #define VCN_AON_SOC_ADDRESS_2_0 	0x1f800
+#define VCN1_AON_SOC_ADDRESS_3_0 	0x48000
 #define VCN_VID_IP_ADDRESS_2_0		0x0
 #define VCN_AON_IP_ADDRESS_2_0		0x30000
 
@@ -65,7 +67,7 @@
 /* 1 second timeout */
 #define VCN_IDLE_TIMEOUT	msecs_to_jiffies(1000)
 
-#define RREG32_SOC15_DPG_MODE(ip, inst_idx, reg, mask, sram_sel) 			\
+#define RREG32_SOC15_DPG_MODE_1_0(ip, inst_idx, reg, mask, sram_sel) 			\
 	({	WREG32_SOC15(ip, inst_idx, mmUVD_DPG_LMA_MASK, mask); 			\
 		WREG32_SOC15(ip, inst_idx, mmUVD_DPG_LMA_CTL, 				\
 			UVD_DPG_LMA_CTL__MASK_EN_MASK | 				\
@@ -75,7 +77,7 @@
 		RREG32_SOC15(ip, inst_idx, mmUVD_DPG_LMA_DATA); 			\
 	})
 
-#define WREG32_SOC15_DPG_MODE(ip, inst_idx, reg, value, mask, sram_sel) 		\
+#define WREG32_SOC15_DPG_MODE_1_0(ip, inst_idx, reg, value, mask, sram_sel) 		\
 	do { 										\
 		WREG32_SOC15(ip, inst_idx, mmUVD_DPG_LMA_DATA, value); 			\
 		WREG32_SOC15(ip, inst_idx, mmUVD_DPG_LMA_MASK, mask); 			\
@@ -86,22 +88,32 @@
 			(sram_sel << UVD_DPG_LMA_CTL__SRAM_SEL__SHIFT)); 		\
 	} while (0)
 
-#define SOC15_DPG_MODE_OFFSET_2_0(ip, inst_idx, reg) 						\
+#define SOC15_DPG_MODE_OFFSET(ip, inst_idx, reg) 						\
 	({											\
 		uint32_t internal_reg_offset, addr;						\
-		bool video_range, aon_range;							\
+		bool video_range, video1_range, aon_range, aon1_range;				\
 												\
 		addr = (adev->reg_offset[ip##_HWIP][inst_idx][reg##_BASE_IDX] + reg);		\
 		addr <<= 2; 									\
 		video_range = ((((0xFFFFF & addr) >= (VCN_VID_SOC_ADDRESS_2_0)) && 		\
 				((0xFFFFF & addr) < ((VCN_VID_SOC_ADDRESS_2_0 + 0x2600)))));	\
+		video1_range = ((((0xFFFFF & addr) >= (VCN1_VID_SOC_ADDRESS_3_0)) && 		\
+				((0xFFFFF & addr) < ((VCN1_VID_SOC_ADDRESS_3_0 + 0x2600)))));	\
 		aon_range   = ((((0xFFFFF & addr) >= (VCN_AON_SOC_ADDRESS_2_0)) && 		\
 				((0xFFFFF & addr) < ((VCN_AON_SOC_ADDRESS_2_0 + 0x600)))));	\
+		aon1_range   = ((((0xFFFFF & addr) >= (VCN1_AON_SOC_ADDRESS_3_0)) && 		\
+				((0xFFFFF & addr) < ((VCN1_AON_SOC_ADDRESS_3_0 + 0x600)))));	\
 		if (video_range) 								\
 			internal_reg_offset = ((0xFFFFF & addr) - (VCN_VID_SOC_ADDRESS_2_0) + 	\
 				(VCN_VID_IP_ADDRESS_2_0));					\
 		else if (aon_range)								\
 			internal_reg_offset = ((0xFFFFF & addr) - (VCN_AON_SOC_ADDRESS_2_0) + 	\
+				(VCN_AON_IP_ADDRESS_2_0));					\
+		else if (video1_range) 								\
+			internal_reg_offset = ((0xFFFFF & addr) - (VCN1_VID_SOC_ADDRESS_3_0) + 	\
+				(VCN_VID_IP_ADDRESS_2_0));					\
+		else if (aon1_range)								\
+			internal_reg_offset = ((0xFFFFF & addr) - (VCN1_AON_SOC_ADDRESS_3_0) + 	\
 				(VCN_AON_IP_ADDRESS_2_0));					\
 		else										\
 			internal_reg_offset = (0xFFFFF & addr);					\
@@ -109,7 +121,7 @@
 		internal_reg_offset >>= 2;							\
 	})
 
-#define RREG32_SOC15_DPG_MODE_2_0(inst_idx, offset, mask_en) 					\
+#define RREG32_SOC15_DPG_MODE(inst_idx, offset, mask_en) 					\
 	({											\
 		WREG32_SOC15(VCN, inst_idx, mmUVD_DPG_LMA_CTL, 					\
 			(0x0 << UVD_DPG_LMA_CTL__READ_WRITE__SHIFT |				\
@@ -118,7 +130,7 @@
 		RREG32_SOC15(VCN, inst_idx, mmUVD_DPG_LMA_DATA);				\
 	})
 
-#define WREG32_SOC15_DPG_MODE_2_0(inst_idx, offset, value, mask_en, indirect)			\
+#define WREG32_SOC15_DPG_MODE(inst_idx, offset, value, mask_en, indirect)			\
 	do {											\
 		if (!indirect) {								\
 			WREG32_SOC15(VCN, inst_idx, mmUVD_DPG_LMA_DATA, value);			\
@@ -132,9 +144,17 @@
 		}										\
 	} while (0)
 
+#define AMDGPU_VCN_MULTI_QUEUE_FLAG	(1 << 8)
+
+enum fw_queue_mode {
+	FW_QUEUE_RING_RESET = 1,
+	FW_QUEUE_DPG_HOLD_OFF = 2,
+};
+
 enum engine_status_constants {
 	UVD_PGFSM_STATUS__UVDM_UVDU_PWR_ON = 0x2AAAA0,
 	UVD_PGFSM_STATUS__UVDM_UVDU_PWR_ON_2_0 = 0xAAAA0,
+	UVD_PGFSM_STATUS__UVDM_UVDU_UVDLM_PWR_ON_3_0 = 0x2A2A8AA0,
 	UVD_PGFSM_CONFIG__UVDM_UVDU_PWR_ON = 0x00000002,
 	UVD_STATUS__UVD_BUSY = 0x00000004,
 	GB_ADDR_CONFIG_DEFAULT = 0x26010011,
@@ -183,6 +203,9 @@ struct amdgpu_vcn_inst {
 	void			*dpg_sram_cpu_addr;
 	uint64_t		dpg_sram_gpu_addr;
 	uint32_t		*dpg_sram_curr_addr;
+	atomic_t		dpg_enc_submission_cnt;
+	void			*fw_shared_cpu_addr;
+	uint64_t		fw_shared_gpu_addr;
 };
 
 struct amdgpu_vcn {
@@ -196,15 +219,27 @@ struct amdgpu_vcn {
 	uint8_t	num_vcn_inst;
 	struct amdgpu_vcn_inst	 inst[AMDGPU_MAX_VCN_INSTANCES];
 	struct amdgpu_vcn_reg	 internal;
-	struct drm_gpu_scheduler *vcn_enc_sched[AMDGPU_MAX_VCN_ENC_RINGS];
-	struct drm_gpu_scheduler *vcn_dec_sched[AMDGPU_MAX_VCN_INSTANCES];
-	uint32_t		 num_vcn_enc_sched;
-	uint32_t		 num_vcn_dec_sched;
+	struct mutex		 vcn_pg_lock;
+	atomic_t		 total_submission_cnt;
 
 	unsigned	harvest_config;
 	int (*pause_dpg_mode)(struct amdgpu_device *adev,
 		int inst_idx, struct dpg_pause_state *new_state);
 };
+
+struct amdgpu_fw_shared_multi_queue {
+	uint8_t decode_queue_mode;
+	uint8_t encode_generalpurpose_queue_mode;
+	uint8_t encode_lowlatency_queue_mode;
+	uint8_t encode_realtime_queue_mode;
+	uint8_t padding[4];
+};
+
+struct amdgpu_fw_shared {
+	uint32_t present_flag_0;
+	uint8_t pad[53];
+	struct amdgpu_fw_shared_multi_queue multi_queue;
+} __attribute__((__packed__));
 
 int amdgpu_vcn_sw_init(struct amdgpu_device *adev);
 int amdgpu_vcn_sw_fini(struct amdgpu_device *adev);

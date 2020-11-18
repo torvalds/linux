@@ -620,7 +620,7 @@ struct fw_request {
 	u32 request_header[4];
 	int ack;
 	u32 length;
-	u32 data[0];
+	u32 data[];
 };
 
 static void free_response_callback(struct fw_packet *packet,
@@ -1097,14 +1097,14 @@ static void handle_registers(struct fw_card *card, struct fw_request *request,
 			rcode = RCODE_ADDRESS_ERROR;
 			break;
 		}
-		/* else fall through */
+		fallthrough;
 
 	case CSR_NODE_IDS:
 		/*
 		 * per IEEE 1394-2008 8.3.22.3, not IEEE 1394.1-2004 3.2.8
 		 * and 9.6, but interoperable with IEEE 1394.1-2004 bridges
 		 */
-		/* fall through */
+		fallthrough;
 
 	case CSR_STATE_CLEAR:
 	case CSR_STATE_SET:

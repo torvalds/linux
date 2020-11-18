@@ -1,0 +1,87 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/soc/qcom/qcom,smd-rpm.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: Qualcomm Resource Power Manager (RPM) over SMD
+
+description: |
+  This driver is used to interface with the Resource Power Manager (RPM) found
+  in various Qualcomm platforms. The RPM allows each component in the system
+  to vote for state of the system resources, such as clocks, regulators and bus
+  frequencies.
+
+  The SMD information for the RPM edge should be filled out.  See qcom,smd.txt
+  for the required edge properties.  All SMD related properties will reside
+  within the RPM node itself.
+
+  The RPM exposes resources to its subnodes.  The rpm_requests node must be
+  present and this subnode may contain children that designate regulator
+  resources.
+
+  Refer to Documentation/devicetree/bindings/regulator/qcom,smd-rpm-regulator.txt
+  for information on the regulator subnodes that can exist under the
+  rpm_requests.
+
+maintainers:
+  - Kathiravan T <kathirav@codeaurora.org>
+
+properties:
+  compatible:
+    enum:
+      - qcom,rpm-apq8084
+      - qcom,rpm-ipq6018
+      - qcom,rpm-msm8916
+      - qcom,rpm-msm8974
+      - qcom,rpm-msm8976
+      - qcom,rpm-msm8996
+      - qcom,rpm-msm8998
+      - qcom,rpm-sdm660
+      - qcom,rpm-qcs404
+
+  qcom,smd-channels:
+    $ref: /schemas/types.yaml#/definitions/string-array
+    description: Channel name used for the RPM communication
+    items:
+      - const: rpm_requests
+
+if:
+  properties:
+    compatible:
+      contains:
+        enum:
+          - qcom,rpm-apq8084
+          - qcom,rpm-msm8916
+          - qcom,rpm-msm8974
+then:
+  required:
+    - qcom,smd-channels
+
+required:
+  - compatible
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    smd {
+        compatible = "qcom,smd";
+
+        rpm {
+            interrupts = <GIC_SPI 168 IRQ_TYPE_EDGE_RISING>;
+            qcom,ipc = <&apcs 8 0>;
+            qcom,smd-edge = <15>;
+
+                rpm_requests {
+                        compatible = "qcom,rpm-msm8974";
+                        qcom,smd-channels = "rpm_requests";
+
+                        /* Regulator nodes to follow */
+                };
+            };
+     };
+...

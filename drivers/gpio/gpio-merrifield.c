@@ -443,8 +443,8 @@ static int mrfld_gpio_probe(struct pci_dev *pdev, const struct pci_device_id *id
 
 	base = pcim_iomap_table(pdev)[1];
 
-	irq_base = readl(base);
-	gpio_base = readl(sizeof(u32) + base);
+	irq_base = readl(base + 0 * sizeof(u32));
+	gpio_base = readl(base + 1 * sizeof(u32));
 
 	/* Release the IO mapping, since we already get the info from BAR1 */
 	pcim_iounmap_regions(pdev, BIT(1));
@@ -473,6 +473,10 @@ static int mrfld_gpio_probe(struct pci_dev *pdev, const struct pci_device_id *id
 
 	raw_spin_lock_init(&priv->lock);
 
+	retval = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
+	if (retval < 0)
+		return retval;
+
 	girq = &priv->chip.irq;
 	girq->chip = &mrfld_irqchip;
 	girq->init_hw = mrfld_irq_init_hw;
@@ -482,7 +486,7 @@ static int mrfld_gpio_probe(struct pci_dev *pdev, const struct pci_device_id *id
 				     sizeof(*girq->parents), GFP_KERNEL);
 	if (!girq->parents)
 		return -ENOMEM;
-	girq->parents[0] = pdev->irq;
+	girq->parents[0] = pci_irq_vector(pdev, 0);
 	girq->first = irq_base;
 	girq->default_type = IRQ_TYPE_NONE;
 	girq->handler = handle_bad_irq;

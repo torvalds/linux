@@ -66,7 +66,6 @@ static int essiv_skcipher_setkey(struct crypto_skcipher *tfm,
 				 const u8 *key, unsigned int keylen)
 {
 	struct essiv_tfm_ctx *tctx = crypto_skcipher_ctx(tfm);
-	SHASH_DESC_ON_STACK(desc, tctx->hash);
 	u8 salt[HASH_MAX_DIGESTSIZE];
 	int err;
 
@@ -78,8 +77,7 @@ static int essiv_skcipher_setkey(struct crypto_skcipher *tfm,
 	if (err)
 		return err;
 
-	desc->tfm = tctx->hash;
-	err = crypto_shash_digest(desc, key, keylen, salt);
+	err = crypto_shash_tfm_digest(tctx->hash, key, keylen, salt);
 	if (err)
 		return err;
 
@@ -468,7 +466,7 @@ static int essiv_create(struct crypto_template *tmpl, struct rtattr **tb)
 		return PTR_ERR(shash_name);
 
 	type = algt->type & algt->mask;
-	mask = crypto_requires_sync(algt->type, algt->mask);
+	mask = crypto_algt_inherited_mask(algt);
 
 	switch (type) {
 	case CRYPTO_ALG_TYPE_SKCIPHER:
@@ -527,7 +525,7 @@ static int essiv_create(struct crypto_template *tmpl, struct rtattr **tb)
 	/* Synchronous hash, e.g., "sha256" */
 	_hash_alg = crypto_alg_mod_lookup(shash_name,
 					  CRYPTO_ALG_TYPE_SHASH,
-					  CRYPTO_ALG_TYPE_MASK);
+					  CRYPTO_ALG_TYPE_MASK | mask);
 	if (IS_ERR(_hash_alg)) {
 		err = PTR_ERR(_hash_alg);
 		goto out_drop_skcipher;
@@ -559,7 +557,12 @@ static int essiv_create(struct crypto_template *tmpl, struct rtattr **tb)
 		     hash_alg->base.cra_driver_name) >= CRYPTO_MAX_ALG_NAME)
 		goto out_free_hash;
 
-	base->cra_flags		= block_base->cra_flags & CRYPTO_ALG_ASYNC;
+	/*
+	 * hash_alg wasn't gotten via crypto_grab*(), so we need to inherit its
+	 * flags manually.
+	 */
+	base->cra_flags        |= (hash_alg->base.cra_flags &
+				   CRYPTO_ALG_INHERITED_FLAGS);
 	base->cra_blocksize	= block_base->cra_blocksize;
 	base->cra_ctxsize	= sizeof(struct essiv_tfm_ctx);
 	base->cra_alignmask	= block_base->cra_alignmask;

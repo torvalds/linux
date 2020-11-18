@@ -401,29 +401,29 @@ static int ak4458_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 
 static const int att_speed[] = { 4080, 2040, 510, 255 };
 
-static int ak4458_set_dai_mute(struct snd_soc_dai *dai, int mute)
+static int ak4458_set_dai_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	struct ak4458_priv *ak4458 = snd_soc_component_get_drvdata(component);
-	int nfs, ndt, ret, reg;
+	int nfs, ndt, reg;
 	int ats;
 
 	nfs = ak4458->fs;
 
-	reg = snd_soc_component_read32(component, AK4458_0B_CONTROL7);
+	reg = snd_soc_component_read(component, AK4458_0B_CONTROL7);
 	ats = (reg & AK4458_ATS_MASK) >> AK4458_ATS_SHIFT;
 
 	ndt = att_speed[ats] / (nfs / 1000);
 
 	if (mute) {
-		ret = snd_soc_component_update_bits(component, AK4458_01_CONTROL2,  0x01, 1);
+		snd_soc_component_update_bits(component, AK4458_01_CONTROL2,  0x01, 1);
 		mdelay(ndt);
 		if (ak4458->mute_gpiod)
 			gpiod_set_value_cansleep(ak4458->mute_gpiod, 1);
 	} else {
 		if (ak4458->mute_gpiod)
 			gpiod_set_value_cansleep(ak4458->mute_gpiod, 0);
-		ret = snd_soc_component_update_bits(component, AK4458_01_CONTROL2, 0x01, 0);
+		snd_soc_component_update_bits(component, AK4458_01_CONTROL2, 0x01, 0);
 		mdelay(ndt);
 	}
 
@@ -495,8 +495,9 @@ static const struct snd_soc_dai_ops ak4458_dai_ops = {
 	.startup        = ak4458_startup,
 	.hw_params	= ak4458_hw_params,
 	.set_fmt	= ak4458_set_dai_fmt,
-	.digital_mute	= ak4458_set_dai_mute,
+	.mute_stream	= ak4458_set_dai_mute,
 	.set_tdm_slot	= ak4458_set_tdm_slot,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver ak4458_dai = {

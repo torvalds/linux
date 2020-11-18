@@ -230,7 +230,7 @@ config PPC_EARLY_DEBUG_40x
 	help
 	  Select this to enable early debugging for IBM 40x chips via the
 	  inbuilt serial port. This works on chips with a 16550 compatible
-	  UART. Xilinx chips with uartlite cannot use this option.
+	  UART.
 
 config PPC_EARLY_DEBUG_CPM
 	bool "Early serial debugging for Freescale CPM-based serial ports"

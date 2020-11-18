@@ -286,6 +286,8 @@ static struct block_entry *add_block_entry(struct btrfs_fs_info *fs_info,
 			exist_re = insert_root_entry(&exist->roots, re);
 			if (exist_re)
 				kfree(re);
+		} else {
+			kfree(re);
 		}
 		kfree(be);
 		return exist;
@@ -509,7 +511,7 @@ static int process_leaf(struct btrfs_root *root,
 		switch (key.type) {
 		case BTRFS_EXTENT_ITEM_KEY:
 			*num_bytes = key.offset;
-			/* fall through */
+			fallthrough;
 		case BTRFS_METADATA_ITEM_KEY:
 			*bytenr = key.objectid;
 			ret = process_extent_item(fs_info, path, &key, i,

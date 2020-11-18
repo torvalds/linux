@@ -5,7 +5,7 @@ config ISDN_CAPI
 	  This provides CAPI (the Common ISDN Application Programming
 	  Interface) Version 2.0, a standard making it easy for programs to
 	  access ISDN hardware in a device independent way. (For details see
-	  <http://www.capi.org/>.)  CAPI supports making and accepting voice
+	  <https://www.capi.org/>.)  CAPI supports making and accepting voice
 	  and data connections, controlling call options and protocols,
 	  as well as ISDN supplementary services like call forwarding or
 	  three-party conferences (if supported by the specific hardware

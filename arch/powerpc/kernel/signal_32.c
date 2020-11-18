@@ -47,7 +47,6 @@
 #include <asm/unistd.h>
 #else
 #include <asm/ucontext.h>
-#include <asm/pgtable.h>
 #endif
 
 #include "signal.h"
@@ -103,22 +102,18 @@ static inline int save_general_regs(struct pt_regs *regs,
 		struct mcontext __user *frame)
 {
 	elf_greg_t64 *gregs = (elf_greg_t64 *)regs;
-	int i;
-	/* Force usr to alway see softe as 1 (interrupts enabled) */
-	elf_greg_t64 softe = 0x1;
+	int val, i;
 
 	WARN_ON(!FULL_REGS(regs));
 
 	for (i = 0; i <= PT_RESULT; i ++) {
-		if (i == 14 && !FULL_REGS(regs))
-			i = 32;
-		if ( i == PT_SOFTE) {
-			if(__put_user((unsigned int)softe, &frame->mc_gregs[i]))
-				return -EFAULT;
-			else
-				continue;
-		}
-		if (__put_user((unsigned int)gregs[i], &frame->mc_gregs[i]))
+		/* Force usr to alway see softe as 1 (interrupts enabled) */
+		if (i == PT_SOFTE)
+			val = 1;
+		else
+			val = gregs[i];
+
+		if (__put_user(val, &frame->mc_gregs[i]))
 			return -EFAULT;
 	}
 	return 0;
@@ -500,7 +495,7 @@ static long restore_user_regs(struct pt_regs *regs,
 	if (!sig)
 		save_r2 = (unsigned int)regs->gpr[2];
 	err = restore_general_regs(regs, sr);
-	regs->trap = 0;
+	set_trap_norestart(regs);
 	err |= __get_user(msr, &sr->mc_gregs[PT_MSR]);
 	if (!sig)
 		regs->gpr[2] = (unsigned long) save_r2;

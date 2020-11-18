@@ -746,11 +746,6 @@ static const char * const i2c3_groups[] = {
 	"i2c3_sck_x", "i2c3_sda_x", "i2c3_sck_f", "i2c3_sda_f",
 };
 
-static const char * const i2c_slave_groups[] = {
-	"i2c_slave_sda_a", "i2c_slave_sck_a",
-	"i2c_slave_sda_f", "i2c_slave_sck_f",
-};
-
 static const char * const spi_a_groups[] = {
 	"spi_a_mosi_x2", "spi_a_ss0_x3", "spi_a_sclk_x4", "spi_a_miso_x5",
 	"spi_a_mosi_x7", "spi_a_miso_x8", "spi_a_ss0_x9", "spi_a_sclk_x10",

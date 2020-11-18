@@ -130,7 +130,7 @@ static inline struct bonding *__get_bond_by_port(struct port *port)
 
 /**
  * __get_first_agg - get the first aggregator in the bond
- * @bond: the bond we're looking at
+ * @port: the port we're looking at
  *
  * Return the aggregator of the first slave in @bond, or %NULL if it can't be
  * found.
@@ -1149,7 +1149,7 @@ static void ad_rx_machine(struct lacpdu *lacpdu, struct port *port)
 			port->actor_oper_port_state &= ~LACP_STATE_EXPIRED;
 			port->sm_rx_state = AD_RX_PORT_DISABLED;
 
-			/* Fall Through */
+			fallthrough;
 		case AD_RX_PORT_DISABLED:
 			port->sm_vars &= ~AD_PORT_MATCHED;
 			break;
@@ -1588,7 +1588,7 @@ static struct aggregator *ad_agg_selection_test(struct aggregator *best,
 		if (__agg_active_ports(curr) < __agg_active_ports(best))
 			return best;
 
-		/*FALLTHROUGH*/
+		fallthrough;
 	case BOND_AD_STABLE:
 	case BOND_AD_BANDWIDTH:
 		if (__get_agg_bandwidth(curr) > __get_agg_bandwidth(best))
@@ -1626,7 +1626,7 @@ static int agg_device_up(const struct aggregator *agg)
 
 /**
  * ad_agg_selection_logic - select an aggregation group for a team
- * @aggregator: the aggregator we're looking at
+ * @agg: the aggregator we're looking at
  * @update_slave_arr: Does slave array need update?
  *
  * It is assumed that only one aggregator may be selected for a team.
@@ -1810,7 +1810,7 @@ static void ad_initialize_agg(struct aggregator *aggregator)
 
 /**
  * ad_initialize_port - initialize a given port's parameters
- * @aggregator: the aggregator we're looking at
+ * @port: the port we're looking at
  * @lacp_fast: boolean. whether fast periodic should be used
  */
 static void ad_initialize_port(struct port *port, int lacp_fast)
@@ -1967,6 +1967,7 @@ static void ad_marker_response_received(struct bond_marker *marker,
 /**
  * bond_3ad_initiate_agg_selection - initate aggregator selection
  * @bond: bonding struct
+ * @timeout: timeout value to set
  *
  * Set the aggregation selection timer, to initiate an agg selection in
  * the very near future.  Called during first initialization, and during
@@ -2259,7 +2260,7 @@ void bond_3ad_update_ad_actor_settings(struct bonding *bond)
 
 /**
  * bond_3ad_state_machine_handler - handle state machines timeout
- * @bond: bonding struct to work on
+ * @work: work context to fetch bonding struct to work on from
  *
  * The state machine handling concept in this module is to check every tick
  * which state machine should operate any function. The execution order is
@@ -2500,7 +2501,7 @@ void bond_3ad_adapter_speed_duplex_changed(struct slave *slave)
 /**
  * bond_3ad_handle_link_change - handle a slave's link status change indication
  * @slave: slave struct to work on
- * @status: whether the link is now up or down
+ * @link: whether the link is now up or down
  *
  * Handle reselection of aggregator (if needed) for this port.
  */
@@ -2551,7 +2552,7 @@ void bond_3ad_handle_link_change(struct slave *slave, char link)
 
 /**
  * bond_3ad_set_carrier - set link state for bonding master
- * @bond - bonding structure
+ * @bond: bonding structure
  *
  * if we have an active aggregator, we're up, if not, we're down.
  * Presumes that we cannot have an active aggregator if there are
@@ -2664,7 +2665,7 @@ int bond_3ad_lacpdu_recv(const struct sk_buff *skb, struct bonding *bond,
 
 /**
  * bond_3ad_update_lacp_rate - change the lacp rate
- * @bond - bonding struct
+ * @bond: bonding struct
  *
  * When modify lacp_rate parameter via sysfs,
  * update actor_oper_port_state of each port.

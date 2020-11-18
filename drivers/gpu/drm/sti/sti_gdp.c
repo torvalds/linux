@@ -343,9 +343,10 @@ static int gdp_debugfs_init(struct sti_gdp *gdp, struct drm_minor *minor)
 	for (i = 0; i < nb_files; i++)
 		gdp_debugfs_files[i].data = gdp;
 
-	return drm_debugfs_create_files(gdp_debugfs_files,
-					nb_files,
-					minor->debugfs_root, minor);
+	drm_debugfs_create_files(gdp_debugfs_files,
+				 nb_files,
+				 minor->debugfs_root, minor);
+	return 0;
 }
 
 static int sti_gdp_fourcc2format(int fourcc)

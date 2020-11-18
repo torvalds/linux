@@ -1,8 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: Kprobe dynamic event with arguments
-
-[ -f kprobe_events ] || exit_unsupported # this is configurable
+# requires: kprobe_events
 
 echo 'p:testprobe _do_fork $stack $stack0 +0($stack)' > kprobe_events
 grep testprobe kprobe_events | grep -q 'arg1=\$stack arg2=\$stack0 arg3=+0(\$stack)'

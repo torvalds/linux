@@ -52,6 +52,9 @@
 #include "dcn20/dcn20_resource.h"
 #include "dcn21/dcn21_resource.h"
 #endif
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+#include "../dcn30/dcn30_resource.h"
+#endif
 
 #define DC_LOGGER_INIT(logger)
 
@@ -107,6 +110,10 @@ enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 
 	case FAMILY_NV:
 		dc_version = DCN_VERSION_2_0;
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+		if (ASICREV_IS_SIENNA_CICHLID_P(asic_id.hw_internal_rev))
+			dc_version = DCN_VERSION_3_0;
+#endif
 		break;
 	default:
 		dc_version = DCE_VERSION_UNKNOWN;
@@ -166,6 +173,11 @@ struct resource_pool *dc_create_resource_pool(struct dc  *dc,
 		break;
 	case DCN_VERSION_2_1:
 		res_pool = dcn21_create_resource_pool(init_data, dc);
+		break;
+#endif
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	case DCN_VERSION_3_0:
+		res_pool = dcn30_create_resource_pool(init_data, dc);
 		break;
 #endif
 
@@ -282,6 +294,16 @@ bool resource_construct(
 		}
 	}
 
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	for (i = 0; i < caps->num_mpc_3dlut; i++) {
+		pool->mpc_lut[i] = dc_create_3dlut_func();
+		if (pool->mpc_lut[i] == NULL)
+			DC_ERR("DC: failed to create MPC 3dlut!\n");
+		pool->mpc_shaper[i] = dc_create_transfer_func();
+		if (pool->mpc_shaper[i] == NULL)
+			DC_ERR("DC: failed to create MPC shaper!\n");
+	}
+#endif
 	dc->caps.dynamic_audio = false;
 	if (pool->audio_count < pool->stream_enc_count) {
 		dc->caps.dynamic_audio = true;
@@ -375,6 +397,10 @@ bool resource_are_streams_timing_synchronizable(
 
 	if (stream1->timing.v_addressable
 				!= stream2->timing.v_addressable)
+		return false;
+
+	if (stream1->timing.v_front_porch
+				!= stream2->timing.v_front_porch)
 		return false;
 
 	if (stream1->timing.pix_clk_100hz
@@ -532,6 +558,24 @@ static inline void get_vp_scan_direction(
 		*flip_horz_scan_dir = !*flip_horz_scan_dir;
 }
 
+int get_num_mpc_splits(struct pipe_ctx *pipe)
+{
+	int mpc_split_count = 0;
+	struct pipe_ctx *other_pipe = pipe->bottom_pipe;
+
+	while (other_pipe && other_pipe->plane_state == pipe->plane_state) {
+		mpc_split_count++;
+		other_pipe = other_pipe->bottom_pipe;
+	}
+	other_pipe = pipe->top_pipe;
+	while (other_pipe && other_pipe->plane_state == pipe->plane_state) {
+		mpc_split_count++;
+		other_pipe = other_pipe->top_pipe;
+	}
+
+	return mpc_split_count;
+}
+
 int get_num_odm_splits(struct pipe_ctx *pipe)
 {
 	int odm_split_count = 0;
@@ -556,15 +600,10 @@ static void calculate_split_count_and_index(struct pipe_ctx *pipe_ctx, int *spli
 		/*Check for mpc split*/
 		struct pipe_ctx *split_pipe = pipe_ctx->top_pipe;
 
+		*split_count = get_num_mpc_splits(pipe_ctx);
 		while (split_pipe && split_pipe->plane_state == pipe_ctx->plane_state) {
 			(*split_idx)++;
-			(*split_count)++;
 			split_pipe = split_pipe->top_pipe;
-		}
-		split_pipe = pipe_ctx->bottom_pipe;
-		while (split_pipe && split_pipe->plane_state == pipe_ctx->plane_state) {
-			(*split_count)++;
-			split_pipe = split_pipe->bottom_pipe;
 		}
 	} else {
 		/*Get odm split index*/
@@ -692,6 +731,9 @@ static void calculate_viewport(struct pipe_ctx *pipe_ctx)
 	/* Round up, assume original video size always even dimensions */
 	data->viewport_c.width = (data->viewport.width + vpc_div - 1) / vpc_div;
 	data->viewport_c.height = (data->viewport.height + vpc_div - 1) / vpc_div;
+
+	data->viewport_unadjusted = data->viewport;
+	data->viewport_c_unadjusted = data->viewport_c;
 }
 
 static void calculate_recout(struct pipe_ctx *pipe_ctx)
@@ -1061,8 +1103,8 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 
 	calculate_viewport(pipe_ctx);
 
-	if (pipe_ctx->plane_res.scl_data.viewport.height < 16 ||
-		pipe_ctx->plane_res.scl_data.viewport.width < 16) {
+	if (pipe_ctx->plane_res.scl_data.viewport.height < 12 ||
+		pipe_ctx->plane_res.scl_data.viewport.width < 12) {
 		if (store_h_border_left) {
 			restore_border_left_from_dst(pipe_ctx,
 				store_h_border_left);
@@ -1120,19 +1162,32 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 		/* May need to re-check lb size after this in some obscure scenario */
 		calculate_inits_and_adj_vp(pipe_ctx);
 
-	DC_LOG_SCALER(
-				"%s: Viewport:\nheight:%d width:%d x:%d "
-				"y:%d\n dst_rect:\nheight:%d width:%d x:%d "
-				"y:%d\n",
-				__func__,
-				pipe_ctx->plane_res.scl_data.viewport.height,
-				pipe_ctx->plane_res.scl_data.viewport.width,
-				pipe_ctx->plane_res.scl_data.viewport.x,
-				pipe_ctx->plane_res.scl_data.viewport.y,
-				plane_state->dst_rect.height,
-				plane_state->dst_rect.width,
-				plane_state->dst_rect.x,
-				plane_state->dst_rect.y);
+	DC_LOG_SCALER("%s pipe %d:\nViewport: height:%d width:%d x:%d y:%d  Recout: height:%d width:%d x:%d y:%d  HACTIVE:%d VACTIVE:%d\n"
+			"src_rect: height:%d width:%d x:%d y:%d  dst_rect: height:%d width:%d x:%d y:%d  clip_rect: height:%d width:%d x:%d y:%d\n",
+			__func__,
+			pipe_ctx->pipe_idx,
+			pipe_ctx->plane_res.scl_data.viewport.height,
+			pipe_ctx->plane_res.scl_data.viewport.width,
+			pipe_ctx->plane_res.scl_data.viewport.x,
+			pipe_ctx->plane_res.scl_data.viewport.y,
+			pipe_ctx->plane_res.scl_data.recout.height,
+			pipe_ctx->plane_res.scl_data.recout.width,
+			pipe_ctx->plane_res.scl_data.recout.x,
+			pipe_ctx->plane_res.scl_data.recout.y,
+			pipe_ctx->plane_res.scl_data.h_active,
+			pipe_ctx->plane_res.scl_data.v_active,
+			plane_state->src_rect.height,
+			plane_state->src_rect.width,
+			plane_state->src_rect.x,
+			plane_state->src_rect.y,
+			plane_state->dst_rect.height,
+			plane_state->dst_rect.width,
+			plane_state->dst_rect.x,
+			plane_state->dst_rect.y,
+			plane_state->clip_rect.height,
+			plane_state->clip_rect.width,
+			plane_state->clip_rect.x,
+			plane_state->clip_rect.y);
 
 	if (store_h_border_left)
 		restore_border_left_from_dst(pipe_ctx, store_h_border_left);
@@ -1358,9 +1413,6 @@ bool dc_add_plane_to_context(
 	dc_plane_state_retain(plane_state);
 
 	while (head_pipe) {
-		tail_pipe = resource_get_tail_pipe(&context->res_ctx, head_pipe);
-		ASSERT(tail_pipe);
-
 		free_pipe = acquire_free_pipe_for_head(context, pool, head_pipe);
 
 	#if defined(CONFIG_DRM_AMD_DC_DCN)
@@ -1378,6 +1430,8 @@ bool dc_add_plane_to_context(
 		free_pipe->plane_state = plane_state;
 
 		if (head_pipe != free_pipe) {
+			tail_pipe = resource_get_tail_pipe(&context->res_ctx, head_pipe);
+			ASSERT(tail_pipe);
 			free_pipe->stream_res.tg = tail_pipe->stream_res.tg;
 			free_pipe->stream_res.abm = tail_pipe->stream_res.abm;
 			free_pipe->stream_res.opp = tail_pipe->stream_res.opp;
@@ -1545,35 +1599,6 @@ bool dc_add_all_planes_for_stream(
 	return add_all_planes_for_stream(dc, stream, &set, 1, context);
 }
 
-
-static bool is_hdr_static_meta_changed(struct dc_stream_state *cur_stream,
-	struct dc_stream_state *new_stream)
-{
-	if (cur_stream == NULL)
-		return true;
-
-	if (memcmp(&cur_stream->hdr_static_metadata,
-			&new_stream->hdr_static_metadata,
-			sizeof(struct dc_info_packet)) != 0)
-		return true;
-
-	return false;
-}
-
-static bool is_vsc_info_packet_changed(struct dc_stream_state *cur_stream,
-		struct dc_stream_state *new_stream)
-{
-	if (cur_stream == NULL)
-		return true;
-
-	if (memcmp(&cur_stream->vsc_infopacket,
-			&new_stream->vsc_infopacket,
-			sizeof(struct dc_info_packet)) != 0)
-		return true;
-
-	return false;
-}
-
 static bool is_timing_changed(struct dc_stream_state *cur_stream,
 		struct dc_stream_state *new_stream)
 {
@@ -1608,13 +1633,7 @@ static bool are_stream_backends_same(
 	if (is_timing_changed(stream_a, stream_b))
 		return false;
 
-	if (is_hdr_static_meta_changed(stream_a, stream_b))
-		return false;
-
 	if (stream_a->dpms_off != stream_b->dpms_off)
-		return false;
-
-	if (is_vsc_info_packet_changed(stream_a, stream_b))
 		return false;
 
 	return true;
@@ -1754,21 +1773,6 @@ static struct audio *find_first_free_audio(
 		}
 	}
 	return 0;
-}
-
-bool resource_is_stream_unchanged(
-	struct dc_state *old_context, struct dc_stream_state *stream)
-{
-	int i;
-
-	for (i = 0; i < old_context->stream_count; i++) {
-		struct dc_stream_state *old_stream = old_context->streams[i];
-
-		if (are_stream_backends_same(old_stream, stream))
-				return true;
-	}
-
-	return false;
 }
 
 /**
@@ -2025,17 +2029,6 @@ enum dc_status resource_map_pool_resources(
 	int pipe_idx = -1;
 	struct dc_bios *dcb = dc->ctx->dc_bios;
 
-	/* TODO Check if this is needed */
-	/*if (!resource_is_stream_unchanged(old_context, stream)) {
-			if (stream != NULL && old_context->streams[i] != NULL) {
-				stream->bit_depth_params =
-						old_context->streams[i]->bit_depth_params;
-				stream->clamping = old_context->streams[i]->clamping;
-				continue;
-			}
-		}
-	*/
-
 	calculate_phy_pix_clks(stream);
 
 	/* TODO: Check Linux */
@@ -2095,8 +2088,16 @@ enum dc_status resource_map_pool_resources(
 	}
 
 	/* Add ABM to the resource if on EDP */
-	if (pipe_ctx->stream && dc_is_embedded_signal(pipe_ctx->stream->signal))
+	if (pipe_ctx->stream && dc_is_embedded_signal(pipe_ctx->stream->signal)) {
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+		if (pool->abm)
+			pipe_ctx->stream_res.abm = pool->abm;
+		else
+			pipe_ctx->stream_res.abm = pool->multiple_abms[pipe_ctx->stream_res.tg->inst];
+#else
 		pipe_ctx->stream_res.abm = pool->abm;
+#endif
+	}
 
 	for (i = 0; i < context->stream_count; i++)
 		if (context->streams[i] == stream) {
@@ -2718,17 +2719,14 @@ bool pipe_need_reprogram(
 	if (is_timing_changed(pipe_ctx_old->stream, pipe_ctx->stream))
 		return true;
 
-	if (is_hdr_static_meta_changed(pipe_ctx_old->stream, pipe_ctx->stream))
-		return true;
-
 	if (pipe_ctx_old->stream->dpms_off != pipe_ctx->stream->dpms_off)
-		return true;
-
-	if (is_vsc_info_packet_changed(pipe_ctx_old->stream, pipe_ctx->stream))
 		return true;
 
 	if (false == pipe_ctx_old->stream->link->link_state_valid &&
 		false == pipe_ctx_old->stream->dpms_off)
+		return true;
+
+	if (pipe_ctx_old->stream_res.dsc != pipe_ctx->stream_res.dsc)
 		return true;
 
 	return false;
@@ -2916,6 +2914,10 @@ unsigned int resource_pixel_format_to_bpp(enum surface_pixel_format format)
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB2101010:
 	case SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010:
 	case SURFACE_PIXEL_FORMAT_GRPH_ABGR2101010_XR_BIAS:
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	case SURFACE_PIXEL_FORMAT_GRPH_RGBE:
+	case SURFACE_PIXEL_FORMAT_GRPH_RGBE_ALPHA:
+#endif
 		return 32;
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616:
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616F:

@@ -1032,7 +1032,7 @@ static int __init pcd_init(void)
 
 	for (unit = 0, cd = pcd; unit < PCD_UNITS; unit++, cd++) {
 		if (cd->present) {
-			register_cdrom(&cd->info);
+			register_cdrom(cd->disk, &cd->info);
 			cd->disk->private_data = cd;
 			add_disk(cd->disk);
 		}

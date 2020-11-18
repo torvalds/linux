@@ -21,9 +21,9 @@ properties:
     items:
       - enum:
           # Waveshare 3.5" 320x480 Color TFT LCD
-        - waveshare,rpi-lcd-35
+          - waveshare,rpi-lcd-35
           # Ozzmaker 3.5" 320x480 Color TFT LCD
-        - ozzmaker,piscreen
+          - ozzmaker,piscreen
       - const: ilitek,ili9486
 
   spi-max-frequency:

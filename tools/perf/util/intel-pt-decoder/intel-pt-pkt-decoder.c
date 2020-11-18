@@ -552,7 +552,7 @@ static int intel_pt_do_get_packet(const unsigned char *buf, size_t len,
 		break;
 	default:
 		break;
-	};
+	}
 
 	if (!(byte & BIT(0))) {
 		if (byte == 0)

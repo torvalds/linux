@@ -1455,12 +1455,12 @@ void mmc_detach_bus(struct mmc_host *host)
 void _mmc_detect_change(struct mmc_host *host, unsigned long delay, bool cd_irq)
 {
 	/*
-	 * If the device is configured as wakeup, we prevent a new sleep for
-	 * 5 s to give provision for user space to consume the event.
+	 * Prevent system sleep for 5s to allow user space to consume the
+	 * corresponding uevent. This is especially useful, when CD irq is used
+	 * as a system wakeup, but doesn't hurt in other cases.
 	 */
-	if (cd_irq && !(host->caps & MMC_CAP_NEEDS_POLL) &&
-		device_can_wakeup(mmc_dev(host)))
-		pm_wakeup_event(mmc_dev(host), 5000);
+	if (cd_irq && !(host->caps & MMC_CAP_NEEDS_POLL))
+		__pm_wakeup_event(host->ws, 5000);
 
 	host->detect_change = 1;
 	mmc_schedule_delayed_work(&host->detect, delay);
@@ -1815,8 +1815,7 @@ int mmc_erase(struct mmc_card *card, unsigned int from, unsigned int nr,
 	unsigned int rem, to = from + nr;
 	int err;
 
-	if (!(card->host->caps & MMC_CAP_ERASE) ||
-	    !(card->csd.cmdclass & CCC_ERASE))
+	if (!(card->csd.cmdclass & CCC_ERASE))
 		return -EOPNOTSUPP;
 
 	if (!card->erase_size)
@@ -1872,8 +1871,7 @@ EXPORT_SYMBOL(mmc_erase);
 
 int mmc_can_erase(struct mmc_card *card)
 {
-	if ((card->host->caps & MMC_CAP_ERASE) &&
-	    (card->csd.cmdclass & CCC_ERASE) && card->erase_size)
+	if (card->csd.cmdclass & CCC_ERASE && card->erase_size)
 		return 1;
 	return 0;
 }
@@ -2305,7 +2303,6 @@ void mmc_start_host(struct mmc_host *host)
 {
 	host->f_init = max(min(freqs[0], host->f_max), host->f_min);
 	host->rescan_disable = 0;
-	host->ios.power_mode = MMC_POWER_UNDEFINED;
 
 	if (!(host->caps2 & MMC_CAP2_NO_PRESCAN_POWERUP)) {
 		mmc_claim_host(host);

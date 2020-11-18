@@ -1163,7 +1163,7 @@ static const struct omap_dss_driver dsicm_dss_driver = {
 static int dsicm_probe_of(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
-	struct device_node *backlight;
+	struct backlight_device *backlight;
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
 	struct display_timing timing;
 	int err;
@@ -1216,17 +1216,15 @@ static int dsicm_probe_of(struct platform_device *pdev)
 		ddata->vddi = NULL;
 	}
 
-	backlight = of_parse_phandle(node, "backlight", 0);
-	if (backlight) {
-		ddata->extbldev = of_find_backlight_by_node(backlight);
-		of_node_put(backlight);
+	backlight = devm_of_find_backlight(&pdev->dev);
+	if (IS_ERR(backlight))
+		return PTR_ERR(backlight);
 
-		if (!ddata->extbldev)
-			return -EPROBE_DEFER;
-	} else {
-		/* assume native backlight support */
+	/* If no backlight device is found assume native backlight support */
+	if (backlight)
+		ddata->extbldev = backlight;
+	else
 		ddata->use_dsi_backlight = true;
-	}
 
 	/* TODO: ulps */
 

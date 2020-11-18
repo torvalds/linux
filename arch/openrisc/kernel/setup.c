@@ -35,7 +35,6 @@
 #include <linux/device.h>
 
 #include <asm/sections.h>
-#include <asm/pgtable.h>
 #include <asm/types.h>
 #include <asm/setup.h>
 #include <asm/io.h>
@@ -80,6 +79,16 @@ static void __init setup_memory(void)
 	 * RAM usable.
 	 */
 	memblock_reserve(__pa(_stext), _end - _stext);
+
+#ifdef CONFIG_BLK_DEV_INITRD
+	/* Then reserve the initrd, if any */
+	if (initrd_start && (initrd_end > initrd_start)) {
+		unsigned long aligned_start = ALIGN_DOWN(initrd_start, PAGE_SIZE);
+		unsigned long aligned_end = ALIGN(initrd_end, PAGE_SIZE);
+
+		memblock_reserve(__pa(aligned_start), aligned_end - aligned_start);
+	}
+#endif /* CONFIG_BLK_DEV_INITRD */
 
 	early_init_fdt_reserve_self();
 	early_init_fdt_scan_reserved_mem();
@@ -293,13 +302,15 @@ void __init setup_arch(char **cmdline_p)
 	init_mm.brk = (unsigned long)_end;
 
 #ifdef CONFIG_BLK_DEV_INITRD
-	initrd_start = (unsigned long)&__initrd_start;
-	initrd_end = (unsigned long)&__initrd_end;
 	if (initrd_start == initrd_end) {
+		printk(KERN_INFO "Initial ramdisk not found\n");
 		initrd_start = 0;
 		initrd_end = 0;
+	} else {
+		printk(KERN_INFO "Initial ramdisk at: 0x%p (%lu bytes)\n",
+		       (void *)(initrd_start), initrd_end - initrd_start);
+		initrd_below_start_ok = 1;
 	}
-	initrd_below_start_ok = 1;
 #endif
 
 	/* setup memblock allocator */

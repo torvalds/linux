@@ -20,11 +20,11 @@ properties:
       - const: allwinner,sun4i-a10-csi1
       - const: allwinner,sun7i-a20-csi0
       - items:
-        - const: allwinner,sun7i-a20-csi1
-        - const: allwinner,sun4i-a10-csi1
+          - const: allwinner,sun7i-a20-csi1
+          - const: allwinner,sun4i-a10-csi1
       - items:
-        - const: allwinner,sun8i-r40-csi0
-        - const: allwinner,sun7i-a20-csi0
+          - const: allwinner,sun8i-r40-csi0
+          - const: allwinner,sun7i-a20-csi0
 
   reg:
     maxItems: 1
@@ -35,24 +35,24 @@ properties:
   clocks:
     oneOf:
       - items:
-        - description: The CSI interface clock
-        - description: The CSI DRAM clock
+          - description: The CSI interface clock
+          - description: The CSI DRAM clock
 
       - items:
-        - description: The CSI interface clock
-        - description: The CSI ISP clock
-        - description: The CSI DRAM clock
+          - description: The CSI interface clock
+          - description: The CSI ISP clock
+          - description: The CSI DRAM clock
 
   clock-names:
     oneOf:
       - items:
-        - const: bus
-        - const: ram
+          - const: bus
+          - const: ram
 
       - items:
-        - const: bus
-        - const: isp
-        - const: ram
+          - const: bus
+          - const: isp
+          - const: ram
 
   resets:
     maxItems: 1

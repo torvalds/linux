@@ -29,14 +29,14 @@ properties:
   compatible:
     oneOf:
       - items:
-        - enum:
-          - amlogic,gxbb-vdec # GXBB (S905)
-          - amlogic,gxl-vdec # GXL (S905X, S905D)
-          - amlogic,gxm-vdec # GXM (S912)
-        - const: amlogic,gx-vdec
+          - enum:
+              - amlogic,gxbb-vdec # GXBB (S905)
+              - amlogic,gxl-vdec # GXL (S905X, S905D)
+              - amlogic,gxm-vdec # GXM (S912)
+          - const: amlogic,gx-vdec
       - enum:
-        - amlogic,g12a-vdec # G12A (S905X2, S905D2)
-        - amlogic,sm1-vdec # SM1 (S905X3, S905D3)
+          - amlogic,g12a-vdec # G12A (S905X2, S905D2)
+          - amlogic,sm1-vdec # SM1 (S905X3, S905D3)
 
   interrupts:
     minItems: 2
@@ -77,13 +77,11 @@ properties:
 
   amlogic,ao-sysctrl:
     description: should point to the AOBUS sysctrl node
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/phandle
+    $ref: /schemas/types.yaml#/definitions/phandle
 
   amlogic,canvas:
     description: should point to a canvas provider node
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/phandle
+    $ref: /schemas/types.yaml#/definitions/phandle
 
 allOf:
   - if:

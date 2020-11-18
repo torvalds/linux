@@ -98,22 +98,17 @@ struct rcar_pci_priv {
 	void __iomem *reg;
 	struct resource mem_res;
 	struct resource *cfg_res;
-	unsigned busnr;
 	int irq;
-	unsigned long window_size;
-	unsigned long window_addr;
-	unsigned long window_pci;
 };
 
 /* PCI configuration space operations */
 static void __iomem *rcar_pci_cfg_base(struct pci_bus *bus, unsigned int devfn,
 				       int where)
 {
-	struct pci_sys_data *sys = bus->sysdata;
-	struct rcar_pci_priv *priv = sys->private_data;
+	struct rcar_pci_priv *priv = bus->sysdata;
 	int slot, val;
 
-	if (sys->busnr != bus->number || PCI_FUNC(devfn))
+	if (!pci_is_root_bus(bus) || PCI_FUNC(devfn))
 		return NULL;
 
 	/* Only one EHCI/OHCI device built-in */
@@ -130,20 +125,6 @@ static void __iomem *rcar_pci_cfg_base(struct pci_bus *bus, unsigned int devfn,
 
 	iowrite32(val, priv->reg + RCAR_AHBPCI_WIN1_CTR_REG);
 	return priv->reg + (slot >> 1) * 0x100 + where;
-}
-
-/* PCI interrupt mapping */
-static int rcar_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
-{
-	struct pci_sys_data *sys = dev->bus->sysdata;
-	struct rcar_pci_priv *priv = sys->private_data;
-	int irq;
-
-	irq = of_irq_parse_and_map_pci(dev, slot, pin);
-	if (!irq)
-		irq = priv->irq;
-
-	return irq;
 }
 
 #ifdef CONFIG_PCI_DEBUG
@@ -189,19 +170,33 @@ static inline void rcar_pci_setup_errirq(struct rcar_pci_priv *priv) { }
 #endif
 
 /* PCI host controller setup */
-static int rcar_pci_setup(int nr, struct pci_sys_data *sys)
+static void rcar_pci_setup(struct rcar_pci_priv *priv)
 {
-	struct rcar_pci_priv *priv = sys->private_data;
+	struct pci_host_bridge *bridge = pci_host_bridge_from_priv(priv);
 	struct device *dev = priv->dev;
 	void __iomem *reg = priv->reg;
+	struct resource_entry *entry;
+	unsigned long window_size;
+	unsigned long window_addr;
+	unsigned long window_pci;
 	u32 val;
-	int ret;
+
+	entry = resource_list_first_type(&bridge->dma_ranges, IORESOURCE_MEM);
+	if (!entry) {
+		window_addr = 0x40000000;
+		window_pci = 0x40000000;
+		window_size = SZ_1G;
+	} else {
+		window_addr = entry->res->start;
+		window_pci = entry->res->start - entry->offset;
+		window_size = resource_size(entry->res);
+	}
 
 	pm_runtime_enable(dev);
 	pm_runtime_get_sync(dev);
 
 	val = ioread32(reg + RCAR_PCI_UNIT_REV_REG);
-	dev_info(dev, "PCI: bus%u revision %x\n", sys->busnr, val);
+	dev_info(dev, "PCI: revision %x\n", val);
 
 	/* Disable Direct Power Down State and assert reset */
 	val = ioread32(reg + RCAR_USBCTR_REG) & ~RCAR_USBCTR_DIRPD;
@@ -214,7 +209,7 @@ static int rcar_pci_setup(int nr, struct pci_sys_data *sys)
 		 RCAR_USBCTR_USBH_RST | RCAR_USBCTR_PLL_RST);
 
 	/* Setup PCIAHB window1 size */
-	switch (priv->window_size) {
+	switch (window_size) {
 	case SZ_2G:
 		val |= RCAR_USBCTR_PCIAHB_WIN1_2G;
 		break;
@@ -226,9 +221,9 @@ static int rcar_pci_setup(int nr, struct pci_sys_data *sys)
 		break;
 	default:
 		pr_warn("unknown window size %ld - defaulting to 256M\n",
-			priv->window_size);
-		priv->window_size = SZ_256M;
-		/* fall-through */
+			window_size);
+		window_size = SZ_256M;
+		fallthrough;
 	case SZ_256M:
 		val |= RCAR_USBCTR_PCIAHB_WIN1_256M;
 		break;
@@ -245,7 +240,7 @@ static int rcar_pci_setup(int nr, struct pci_sys_data *sys)
 	iowrite32(val, reg + RCAR_PCI_ARBITER_CTR_REG);
 
 	/* PCI-AHB mapping */
-	iowrite32(priv->window_addr | RCAR_PCIAHB_PREFETCH16,
+	iowrite32(window_addr | RCAR_PCIAHB_PREFETCH16,
 		  reg + RCAR_PCIAHB_WIN1_CTR_REG);
 
 	/* AHB-PCI mapping: OHCI/EHCI registers */
@@ -256,7 +251,7 @@ static int rcar_pci_setup(int nr, struct pci_sys_data *sys)
 	iowrite32(RCAR_AHBPCI_WIN1_HOST | RCAR_AHBPCI_WIN_CTR_CFG,
 		  reg + RCAR_AHBPCI_WIN1_CTR_REG);
 	/* Set PCI-AHB Window1 address */
-	iowrite32(priv->window_pci | PCI_BASE_ADDRESS_MEM_PREFETCH,
+	iowrite32(window_pci | PCI_BASE_ADDRESS_MEM_PREFETCH,
 		  reg + PCI_BASE_ADDRESS_1);
 	/* Set AHB-PCI bridge PCI communication area address */
 	val = priv->cfg_res->start + RCAR_AHBPCI_PCICOM_OFFSET;
@@ -271,18 +266,7 @@ static int rcar_pci_setup(int nr, struct pci_sys_data *sys)
 	iowrite32(RCAR_PCI_INT_A | RCAR_PCI_INT_B | RCAR_PCI_INT_PME,
 		  reg + RCAR_PCI_INT_ENABLE_REG);
 
-	if (priv->irq > 0)
-		rcar_pci_setup_errirq(priv);
-
-	/* Add PCI resources */
-	pci_add_resource(&sys->resources, &priv->mem_res);
-	ret = devm_request_pci_bus_resources(dev, &sys->resources);
-	if (ret < 0)
-		return ret;
-
-	/* Setup bus number based on platform device id / of bus-range */
-	sys->busnr = priv->busnr;
-	return 1;
+	rcar_pci_setup_errirq(priv);
 }
 
 static struct pci_ops rcar_pci_ops = {
@@ -291,55 +275,20 @@ static struct pci_ops rcar_pci_ops = {
 	.write	= pci_generic_config_write,
 };
 
-static int rcar_pci_parse_map_dma_ranges(struct rcar_pci_priv *pci,
-					 struct device_node *np)
-{
-	struct device *dev = pci->dev;
-	struct of_pci_range range;
-	struct of_pci_range_parser parser;
-	int index = 0;
-
-	/* Failure to parse is ok as we fall back to defaults */
-	if (of_pci_dma_range_parser_init(&parser, np))
-		return 0;
-
-	/* Get the dma-ranges from DT */
-	for_each_of_pci_range(&parser, &range) {
-		/* Hardware only allows one inbound 32-bit range */
-		if (index)
-			return -EINVAL;
-
-		pci->window_addr = (unsigned long)range.cpu_addr;
-		pci->window_pci = (unsigned long)range.pci_addr;
-		pci->window_size = (unsigned long)range.size;
-
-		/* Catch HW limitations */
-		if (!(range.flags & IORESOURCE_PREFETCH)) {
-			dev_err(dev, "window must be prefetchable\n");
-			return -EINVAL;
-		}
-		if (pci->window_addr) {
-			u32 lowaddr = 1 << (ffs(pci->window_addr) - 1);
-
-			if (lowaddr < pci->window_size) {
-				dev_err(dev, "invalid window size/addr\n");
-				return -EINVAL;
-			}
-		}
-		index++;
-	}
-
-	return 0;
-}
-
 static int rcar_pci_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct resource *cfg_res, *mem_res;
 	struct rcar_pci_priv *priv;
+	struct pci_host_bridge *bridge;
 	void __iomem *reg;
-	struct hw_pci hw;
-	void *hw_private[1];
+
+	bridge = devm_pci_alloc_host_bridge(dev, sizeof(*priv));
+	if (!bridge)
+		return -ENOMEM;
+
+	priv = pci_host_bridge_priv(bridge);
+	bridge->sysdata = priv;
 
 	cfg_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	reg = devm_ioremap_resource(dev, cfg_res);
@@ -353,10 +302,6 @@ static int rcar_pci_probe(struct platform_device *pdev)
 	if (mem_res->start & 0xFFFF)
 		return -EINVAL;
 
-	priv = devm_kzalloc(dev, sizeof(struct rcar_pci_priv), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
-
 	priv->mem_res = *mem_res;
 	priv->cfg_res = cfg_res;
 
@@ -369,44 +314,13 @@ static int rcar_pci_probe(struct platform_device *pdev)
 		return priv->irq;
 	}
 
-	/* default window addr and size if not specified in DT */
-	priv->window_addr = 0x40000000;
-	priv->window_pci = 0x40000000;
-	priv->window_size = SZ_1G;
+	bridge->ops = &rcar_pci_ops;
 
-	if (dev->of_node) {
-		struct resource busnr;
-		int ret;
+	pci_add_flags(PCI_REASSIGN_ALL_BUS);
 
-		ret = of_pci_parse_bus_range(dev->of_node, &busnr);
-		if (ret < 0) {
-			dev_err(dev, "failed to parse bus-range\n");
-			return ret;
-		}
+	rcar_pci_setup(priv);
 
-		priv->busnr = busnr.start;
-		if (busnr.end != busnr.start)
-			dev_warn(dev, "only one bus number supported\n");
-
-		ret = rcar_pci_parse_map_dma_ranges(priv, dev->of_node);
-		if (ret < 0) {
-			dev_err(dev, "failed to parse dma-range\n");
-			return ret;
-		}
-	} else {
-		priv->busnr = pdev->id;
-	}
-
-	hw_private[0] = priv;
-	memset(&hw, 0, sizeof(hw));
-	hw.nr_controllers = ARRAY_SIZE(hw_private);
-	hw.io_optional = 1;
-	hw.private_data = hw_private;
-	hw.map_irq = rcar_pci_map_irq;
-	hw.ops = &rcar_pci_ops;
-	hw.setup = rcar_pci_setup;
-	pci_common_init_dev(dev, &hw);
-	return 0;
+	return pci_host_probe(bridge);
 }
 
 static const struct of_device_id rcar_pci_of_match[] = {

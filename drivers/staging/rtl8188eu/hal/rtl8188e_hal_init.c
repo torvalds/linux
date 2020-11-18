@@ -145,7 +145,7 @@ void rtw_hal_set_odm_var(struct adapter *Adapter, enum hal_odm_variable eVariabl
 			} else {
 				DBG_88E("### Clean STA_(%d) info\n", psta->mac_id);
 				ODM_CmnInfoPtrArrayHook(podmpriv, ODM_CMNINFO_STA_STATUS, psta->mac_id, NULL);
-		       }
+			}
 		}
 		break;
 	case HAL_ODM_P2P_STATE:

@@ -1,23 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: event trigger - test histogram parser errors
-
-if [ ! -f set_event -o ! -d events/kmem ]; then
-    echo "event tracing is not supported"
-    exit_unsupported
-fi
-
-if [ ! -f events/kmem/kmalloc/trigger ]; then
-    echo "event trigger is not supported"
-    exit_unsupported
-fi
-
-if [ ! -f events/kmem/kmalloc/hist ]; then
-    echo "hist trigger is not supported"
-    exit_unsupported
-fi
-
-[ -f error_log ] || exit_unsupported
+# requires: set_event events/kmem/kmalloc/trigger events/kmem/kmalloc/hist error_log
 
 check_error() { # command-with-error-pos-by-^
     ftrace_errlog_check 'hist:kmem:kmalloc' "$1" 'events/kmem/kmalloc/trigger'

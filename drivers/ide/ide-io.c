@@ -233,10 +233,13 @@ static ide_startstop_t do_special(ide_drive_t *drive)
 void ide_map_sg(ide_drive_t *drive, struct ide_cmd *cmd)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	struct scatterlist *sg = hwif->sg_table;
+	struct scatterlist *sg = hwif->sg_table, *last_sg = NULL;
 	struct request *rq = cmd->rq;
 
-	cmd->sg_nents = blk_rq_map_sg(drive->queue, rq, sg);
+	cmd->sg_nents = __blk_rq_map_sg(drive->queue, rq, sg, &last_sg);
+	if (blk_rq_bytes(rq) && (blk_rq_bytes(rq) & rq->q->dma_pad_mask))
+		last_sg->length +=
+			(rq->q->dma_pad_mask & ~blk_rq_bytes(rq)) + 1;
 }
 EXPORT_SYMBOL_GPL(ide_map_sg);
 
@@ -619,12 +622,12 @@ static int drive_is_ready(ide_drive_t *drive)
 void ide_timer_expiry (struct timer_list *t)
 {
 	ide_hwif_t	*hwif = from_timer(hwif, t, timer);
-	ide_drive_t	*uninitialized_var(drive);
+	ide_drive_t	*drive;
 	ide_handler_t	*handler;
 	unsigned long	flags;
 	int		wait = -1;
 	int		plug_device = 0;
-	struct request	*uninitialized_var(rq_in_flight);
+	struct request	*rq_in_flight;
 
 	spin_lock_irqsave(&hwif->lock, flags);
 
@@ -777,13 +780,13 @@ irqreturn_t ide_intr (int irq, void *dev_id)
 {
 	ide_hwif_t *hwif = (ide_hwif_t *)dev_id;
 	struct ide_host *host = hwif->host;
-	ide_drive_t *uninitialized_var(drive);
+	ide_drive_t *drive;
 	ide_handler_t *handler;
 	unsigned long flags;
 	ide_startstop_t startstop;
 	irqreturn_t irq_ret = IRQ_NONE;
 	int plug_device = 0;
-	struct request *uninitialized_var(rq_in_flight);
+	struct request *rq_in_flight;
 
 	if (host->host_flags & IDE_HFLAG_SERIALIZE) {
 		if (hwif != host->cur_port)

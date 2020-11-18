@@ -8,22 +8,52 @@
 #include <linux/soundwire/sdw_registers.h>
 #include <linux/soundwire/sdw.h>
 #include "bus.h"
+#include "sysfs_local.h"
+
+static DEFINE_IDA(sdw_ida);
+
+static int sdw_get_id(struct sdw_bus *bus)
+{
+	int rc = ida_alloc(&sdw_ida, GFP_KERNEL);
+
+	if (rc < 0)
+		return rc;
+
+	bus->id = rc;
+	return 0;
+}
 
 /**
- * sdw_add_bus_master() - add a bus Master instance
+ * sdw_bus_master_add() - add a bus Master instance
  * @bus: bus instance
+ * @parent: parent device
+ * @fwnode: firmware node handle
  *
  * Initializes the bus instance, read properties and create child
  * devices.
  */
-int sdw_add_bus_master(struct sdw_bus *bus)
+int sdw_bus_master_add(struct sdw_bus *bus, struct device *parent,
+		       struct fwnode_handle *fwnode)
 {
 	struct sdw_master_prop *prop = NULL;
 	int ret;
 
-	if (!bus->dev) {
-		pr_err("SoundWire bus has no device\n");
+	if (!parent) {
+		pr_err("SoundWire parent device is not set\n");
 		return -ENODEV;
+	}
+
+	ret = sdw_get_id(bus);
+	if (ret) {
+		dev_err(parent, "Failed to get bus id\n");
+		return ret;
+	}
+
+	ret = sdw_master_device_add(bus, parent, fwnode);
+	if (ret) {
+		dev_err(parent, "Failed to add master device at link %d\n",
+			bus->link_id);
+		return ret;
 	}
 
 	if (!bus->ops) {
@@ -107,7 +137,7 @@ int sdw_add_bus_master(struct sdw_bus *bus)
 
 	return 0;
 }
-EXPORT_SYMBOL(sdw_add_bus_master);
+EXPORT_SYMBOL(sdw_bus_master_add);
 
 static int sdw_delete_slave(struct device *dev, void *data)
 {
@@ -131,18 +161,20 @@ static int sdw_delete_slave(struct device *dev, void *data)
 }
 
 /**
- * sdw_delete_bus_master() - delete the bus master instance
+ * sdw_bus_master_delete() - delete the bus master instance
  * @bus: bus to be deleted
  *
  * Remove the instance, delete the child devices.
  */
-void sdw_delete_bus_master(struct sdw_bus *bus)
+void sdw_bus_master_delete(struct sdw_bus *bus)
 {
 	device_for_each_child(bus->dev, NULL, sdw_delete_slave);
+	sdw_master_device_del(bus);
 
 	sdw_bus_debugfs_exit(bus);
+	ida_free(&sdw_ida, bus->id);
 }
-EXPORT_SYMBOL(sdw_delete_bus_master);
+EXPORT_SYMBOL(sdw_bus_master_delete);
 
 /*
  * SDW IO Calls
@@ -284,9 +316,10 @@ int sdw_fill_msg(struct sdw_msg *msg, struct sdw_slave *slave,
 	msg->flags = flags;
 	msg->buf = buf;
 
-	if (addr < SDW_REG_NO_PAGE) { /* no paging area */
+	if (addr < SDW_REG_NO_PAGE) /* no paging area */
 		return 0;
-	} else if (addr >= SDW_REG_MAX) { /* illegal addr */
+
+	if (addr >= SDW_REG_MAX) { /* illegal addr */
 		pr_err("SDW: Invalid address %x passed\n", addr);
 		return -EINVAL;
 	}
@@ -306,7 +339,9 @@ int sdw_fill_msg(struct sdw_msg *msg, struct sdw_slave *slave,
 	if (!slave) {
 		pr_err("SDW: No slave for paging addr\n");
 		return -EINVAL;
-	} else if (!slave->prop.paging_support) {
+	}
+
+	if (!slave->prop.paging_support) {
 		dev_err(&slave->dev,
 			"address %x needs paging but no support\n", addr);
 		return -EINVAL;
@@ -375,8 +410,8 @@ sdw_bread_no_pm(struct sdw_bus *bus, u16 dev_num, u32 addr)
 	ret = sdw_transfer(bus, &msg);
 	if (ret < 0)
 		return ret;
-	else
-		return buf;
+
+	return buf;
 }
 
 static int
@@ -471,8 +506,8 @@ int sdw_read(struct sdw_slave *slave, u32 addr)
 	ret = sdw_nread(slave, addr, 1, &buf);
 	if (ret < 0)
 		return ret;
-	else
-		return buf;
+
+	return buf;
 }
 EXPORT_SYMBOL(sdw_read);
 
@@ -563,9 +598,9 @@ static int sdw_assign_device_num(struct sdw_slave *slave)
 	}
 
 	if (!new_device)
-		dev_info(slave->bus->dev,
-			 "Slave already registered, reusing dev_num:%d\n",
-			 slave->dev_num);
+		dev_dbg(slave->bus->dev,
+			"Slave already registered, reusing dev_num:%d\n",
+			slave->dev_num);
 
 	/* Clear the slave->dev_num to transfer message on device 0 */
 	dev_num = slave->dev_num;
@@ -828,12 +863,12 @@ int sdw_bus_prep_clk_stop(struct sdw_bus *bus)
 		if (!slave->dev_num)
 			continue;
 
-		/* Identify if Slave(s) are available on Bus */
-		is_slave = true;
-
 		if (slave->status != SDW_SLAVE_ATTACHED &&
 		    slave->status != SDW_SLAVE_ALERT)
 			continue;
+
+		/* Identify if Slave(s) are available on Bus */
+		is_slave = true;
 
 		slave_mode = sdw_get_clk_stop_mode(slave);
 		slave->curr_clk_stop_mode = slave_mode;
@@ -864,6 +899,10 @@ int sdw_bus_prep_clk_stop(struct sdw_bus *bus)
 		if (ret < 0)
 			return ret;
 	}
+
+	/* Don't need to inform slaves if there is no slave attached */
+	if (!is_slave)
+		return ret;
 
 	/* Inform slaves that prep is done */
 	list_for_each_entry(slave, &bus->slaves, node) {
@@ -950,12 +989,12 @@ int sdw_bus_exit_clk_stop(struct sdw_bus *bus)
 		if (!slave->dev_num)
 			continue;
 
-		/* Identify if Slave(s) are available on Bus */
-		is_slave = true;
-
 		if (slave->status != SDW_SLAVE_ATTACHED &&
 		    slave->status != SDW_SLAVE_ALERT)
 			continue;
+
+		/* Identify if Slave(s) are available on Bus */
+		is_slave = true;
 
 		mode = slave->curr_clk_stop_mode;
 
@@ -980,6 +1019,13 @@ int sdw_bus_exit_clk_stop(struct sdw_bus *bus)
 
 	if (is_slave && !simple_clk_stop)
 		sdw_bus_wait_for_clk_prep_deprep(bus, SDW_BROADCAST_DEV_NUM);
+
+	/*
+	 * Don't need to call slave callback function if there is no slave
+	 * attached
+	 */
+	if (!is_slave)
+		return 0;
 
 	list_for_each_entry(slave, &bus->slaves, node) {
 		if (!slave->dev_num)
@@ -1024,11 +1070,118 @@ int sdw_configure_dpn_intr(struct sdw_slave *slave,
 	return ret;
 }
 
+static int sdw_slave_set_frequency(struct sdw_slave *slave)
+{
+	u32 mclk_freq = slave->bus->prop.mclk_freq;
+	u32 curr_freq = slave->bus->params.curr_dr_freq >> 1;
+	unsigned int scale;
+	u8 scale_index;
+	u8 base;
+	int ret;
+
+	/*
+	 * frequency base and scale registers are required for SDCA
+	 * devices. They may also be used for 1.2+/non-SDCA devices,
+	 * but we will need a DisCo property to cover this case
+	 */
+	if (!slave->id.class_id)
+		return 0;
+
+	if (!mclk_freq) {
+		dev_err(&slave->dev,
+			"no bus MCLK, cannot set SDW_SCP_BUS_CLOCK_BASE\n");
+		return -EINVAL;
+	}
+
+	/*
+	 * map base frequency using Table 89 of SoundWire 1.2 spec.
+	 * The order of the tests just follows the specification, this
+	 * is not a selection between possible values or a search for
+	 * the best value but just a mapping.  Only one case per platform
+	 * is relevant.
+	 * Some BIOS have inconsistent values for mclk_freq but a
+	 * correct root so we force the mclk_freq to avoid variations.
+	 */
+	if (!(19200000 % mclk_freq)) {
+		mclk_freq = 19200000;
+		base = SDW_SCP_BASE_CLOCK_19200000_HZ;
+	} else if (!(24000000 % mclk_freq)) {
+		mclk_freq = 24000000;
+		base = SDW_SCP_BASE_CLOCK_24000000_HZ;
+	} else if (!(24576000 % mclk_freq)) {
+		mclk_freq = 24576000;
+		base = SDW_SCP_BASE_CLOCK_24576000_HZ;
+	} else if (!(22579200 % mclk_freq)) {
+		mclk_freq = 22579200;
+		base = SDW_SCP_BASE_CLOCK_22579200_HZ;
+	} else if (!(32000000 % mclk_freq)) {
+		mclk_freq = 32000000;
+		base = SDW_SCP_BASE_CLOCK_32000000_HZ;
+	} else {
+		dev_err(&slave->dev,
+			"Unsupported clock base, mclk %d\n",
+			mclk_freq);
+		return -EINVAL;
+	}
+
+	if (mclk_freq % curr_freq) {
+		dev_err(&slave->dev,
+			"mclk %d is not multiple of bus curr_freq %d\n",
+			mclk_freq, curr_freq);
+		return -EINVAL;
+	}
+
+	scale = mclk_freq / curr_freq;
+
+	/*
+	 * map scale to Table 90 of SoundWire 1.2 spec - and check
+	 * that the scale is a power of two and maximum 64
+	 */
+	scale_index = ilog2(scale);
+
+	if (BIT(scale_index) != scale || scale_index > 6) {
+		dev_err(&slave->dev,
+			"No match found for scale %d, bus mclk %d curr_freq %d\n",
+			scale, mclk_freq, curr_freq);
+		return -EINVAL;
+	}
+	scale_index++;
+
+	ret = sdw_write(slave, SDW_SCP_BUS_CLOCK_BASE, base);
+	if (ret < 0) {
+		dev_err(&slave->dev,
+			"SDW_SCP_BUS_CLOCK_BASE write failed:%d\n", ret);
+		return ret;
+	}
+
+	/* initialize scale for both banks */
+	ret = sdw_write(slave, SDW_SCP_BUSCLOCK_SCALE_B0, scale_index);
+	if (ret < 0) {
+		dev_err(&slave->dev,
+			"SDW_SCP_BUSCLOCK_SCALE_B0 write failed:%d\n", ret);
+		return ret;
+	}
+	ret = sdw_write(slave, SDW_SCP_BUSCLOCK_SCALE_B1, scale_index);
+	if (ret < 0)
+		dev_err(&slave->dev,
+			"SDW_SCP_BUSCLOCK_SCALE_B1 write failed:%d\n", ret);
+
+	dev_dbg(&slave->dev,
+		"Configured bus base %d, scale %d, mclk %d, curr_freq %d\n",
+		base, scale_index, mclk_freq, curr_freq);
+
+	return ret;
+}
+
 static int sdw_initialize_slave(struct sdw_slave *slave)
 {
 	struct sdw_slave_prop *prop = &slave->prop;
 	int ret;
 	u8 val;
+
+	ret = sdw_slave_set_frequency(slave);
+	if (ret < 0)
+		return ret;
 
 	/*
 	 * Set bus clash, parity and SCP implementation
@@ -1219,7 +1372,7 @@ static int sdw_handle_slave_alerts(struct sdw_slave *slave)
 		return ret;
 	}
 
-	/* Read Instat 1, Instat 2 and Instat 3 registers */
+	/* Read Intstat 1, Intstat 2 and Intstat 3 registers */
 	ret = sdw_read(slave, SDW_SCP_INT1);
 	if (ret < 0) {
 		dev_err(slave->bus->dev,

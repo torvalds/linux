@@ -238,7 +238,6 @@ static int ad7303_probe(struct spi_device *spi)
 		st->config |= AD7303_CFG_EXTERNAL_VREF;
 	}
 
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = id->name;
 	indio_dev->info = &ad7303_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;

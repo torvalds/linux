@@ -57,7 +57,8 @@ static int t4_sched_class_fw_cmd(struct port_info *pi,
 				      p->u.params.ratemode,
 				      p->u.params.channel, e->idx,
 				      p->u.params.minrate, p->u.params.maxrate,
-				      p->u.params.weight, p->u.params.pktsize);
+				      p->u.params.weight, p->u.params.pktsize,
+				      p->u.params.burstsize);
 		break;
 	default:
 		err = -ENOTSUPP;
@@ -597,7 +598,7 @@ struct sched_class *cxgb4_sched_class_alloc(struct net_device *dev,
 /**
  * cxgb4_sched_class_free - free a scheduling class
  * @dev: net_device pointer
- * @e: scheduling class
+ * @classid: scheduling class id to free
  *
  * Frees a scheduling class if there are no users.
  */

@@ -51,6 +51,7 @@
 #include "link_hwss.h"
 #include "dpcd_defs.h"
 #include "dsc.h"
+#include "dce/dmub_hw_lock_mgr.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -389,6 +390,8 @@ void dcn10_log_hw_state(struct dc *dc,
 	}
 	DTN_INFO("\n");
 
+	// dcn_dsc_state struct field bytes_per_pixel was renamed to bits_per_pixel
+	// TODO: Update golden log header to reflect this name change
 	DTN_INFO("DSC: CLOCK_EN  SLICE_WIDTH  Bytes_pp\n");
 	for (i = 0; i < pool->res_cap->num_dsc; i++) {
 		struct display_stream_compressor *dsc = pool->dscs[i];
@@ -399,7 +402,7 @@ void dcn10_log_hw_state(struct dc *dc,
 		dsc->inst,
 			s.dsc_clock_en,
 			s.dsc_slice_width,
-			s.dsc_bytes_per_pixel);
+			s.dsc_bits_per_pixel);
 		DTN_INFO("\n");
 	}
 	DTN_INFO("\n");
@@ -737,7 +740,8 @@ void dcn10_bios_golden_init(struct dc *dc)
 	if (dc->res_pool->hubbub->funcs->allow_self_refresh_control)
 		if (allow_self_fresh_force_enable == false &&
 				dc->res_pool->hubbub->funcs->is_allow_self_refresh_enabled(dc->res_pool->hubbub))
-			dc->res_pool->hubbub->funcs->allow_self_refresh_control(dc->res_pool->hubbub, true);
+			dc->res_pool->hubbub->funcs->allow_self_refresh_control(dc->res_pool->hubbub,
+										!dc->res_pool->hubbub->ctx->dc->debug.disable_stutter);
 
 }
 
@@ -826,6 +830,14 @@ enum dc_status dcn10_enable_stream_timing(
 	color_space = stream->output_color_space;
 	color_space_to_black_color(dc, color_space, &black_color);
 
+	/*
+	 * The way 420 is packed, 2 channels carry Y component, 1 channel
+	 * alternate between Cb and Cr, so both channels need the pixel
+	 * value for Y
+	 */
+	if (stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR420)
+		black_color.color_r_cr = black_color.color_g_y;
+
 	if (pipe_ctx->stream_res.tg->funcs->set_blank_color)
 		pipe_ctx->stream_res.tg->funcs->set_blank_color(
 				pipe_ctx->stream_res.tg,
@@ -903,7 +915,7 @@ static void dcn10_reset_back_end_for_pipe(
 	if (pipe_ctx->top_pipe == NULL) {
 
 		if (pipe_ctx->stream_res.abm)
-			pipe_ctx->stream_res.abm->funcs->set_abm_immediate_disable(pipe_ctx->stream_res.abm);
+			dc->hwss.set_abm_immediate_disable(pipe_ctx);
 
 		pipe_ctx->stream_res.tg->funcs->disable_crtc(pipe_ctx->stream_res.tg);
 
@@ -1238,12 +1250,14 @@ void dcn10_init_pipes(struct dc *dc, struct dc_state *context)
 
 void dcn10_init_hw(struct dc *dc)
 {
-	int i;
+	int i, j;
 	struct abm *abm = dc->res_pool->abm;
 	struct dmcu *dmcu = dc->res_pool->dmcu;
 	struct dce_hwseq *hws = dc->hwseq;
 	struct dc_bios *dcb = dc->ctx->dc_bios;
 	struct resource_pool *res_pool = dc->res_pool;
+	uint32_t backlight = MAX_BACKLIGHT_LEVEL;
+	bool   is_optimized_init_done = false;
 
 	if (dc->clk_mgr && dc->clk_mgr->funcs->init_clocks)
 		dc->clk_mgr->funcs->init_clocks(dc->clk_mgr);
@@ -1278,6 +1292,7 @@ void dcn10_init_hw(struct dc *dc)
 		hws->funcs.disable_vga(dc->hwseq);
 
 	hws->funcs.bios_golden_init(dc);
+
 	if (dc->ctx->dc_bios->fw_info_valid) {
 		res_pool->ref_clocks.xtalin_clock_inKhz =
 				dc->ctx->dc_bios->fw_info.pll_info.crystal_frequency;
@@ -1310,7 +1325,8 @@ void dcn10_init_hw(struct dc *dc)
 		 */
 		struct dc_link *link = dc->links[i];
 
-		link->link_enc->funcs->hw_init(link->link_enc);
+		if (!is_optimized_init_done)
+			link->link_enc->funcs->hw_init(link->link_enc);
 
 		/* Check for enabled DIG to identify enabled display */
 		if (link->link_enc->funcs->is_dig_enabled &&
@@ -1319,9 +1335,11 @@ void dcn10_init_hw(struct dc *dc)
 	}
 
 	/* Power gate DSCs */
-	for (i = 0; i < res_pool->res_cap->num_dsc; i++)
-		if (hws->funcs.dsc_pg_control != NULL)
-			hws->funcs.dsc_pg_control(hws, res_pool->dscs[i]->inst, false);
+	if (!is_optimized_init_done) {
+		for (i = 0; i < res_pool->res_cap->num_dsc; i++)
+			if (hws->funcs.dsc_pg_control != NULL)
+				hws->funcs.dsc_pg_control(hws, res_pool->dscs[i]->inst, false);
+	}
 
 	/* we want to turn off all dp displays before doing detection */
 	if (dc->config.power_down_display_on_boot) {
@@ -1333,17 +1351,28 @@ void dcn10_init_hw(struct dc *dc)
 				continue;
 
 			/*
-			 * core_link_read_dpcd() will invoke dm_helpers_dp_read_dpcd(),
-			 * which needs to read dpcd info with the help of aconnector.
-			 * If aconnector (dc->links[i]->prev) is NULL, then dpcd status
-			 * cannot be read.
+			 * If any of the displays are lit up turn them off.
+			 * The reason is that some MST hubs cannot be turned off
+			 * completely until we tell them to do so.
+			 * If not turned off, then displays connected to MST hub
+			 * won't light up.
 			 */
-			if (dc->links[i]->priv) {
-				/* if any of the displays are lit up turn them off */
-				status = core_link_read_dpcd(dc->links[i], DP_SET_POWER,
-								&dpcd_power_state, sizeof(dpcd_power_state));
-				if (status == DC_OK && dpcd_power_state == DP_POWER_STATE_D0)
-					dp_receiver_power_ctrl(dc->links[i], false);
+			status = core_link_read_dpcd(dc->links[i], DP_SET_POWER,
+							&dpcd_power_state, sizeof(dpcd_power_state));
+			if (status == DC_OK && dpcd_power_state == DP_POWER_STATE_D0) {
+				/* blank dp stream before power off receiver*/
+				if (dc->links[i]->link_enc->funcs->get_dig_frontend) {
+					unsigned int fe = dc->links[i]->link_enc->funcs->get_dig_frontend(dc->links[i]->link_enc);
+
+					for (j = 0; j < dc->res_pool->stream_enc_count; j++) {
+						if (fe == dc->res_pool->stream_enc[j]->id) {
+							dc->res_pool->stream_enc[j]->funcs->dp_blank(
+										dc->res_pool->stream_enc[j]);
+							break;
+						}
+					}
+				}
+				dp_receiver_power_ctrl(dc->links[i], false);
 			}
 		}
 	}
@@ -1355,31 +1384,42 @@ void dcn10_init_hw(struct dc *dc)
 	 * everything down.
 	 */
 	if (dcb->funcs->is_accelerated_mode(dcb) || dc->config.power_down_display_on_boot) {
-		hws->funcs.init_pipes(dc, dc->current_state);
-		if (dc->res_pool->hubbub->funcs->allow_self_refresh_control)
-			dc->res_pool->hubbub->funcs->allow_self_refresh_control(dc->res_pool->hubbub,
-					!dc->res_pool->hubbub->ctx->dc->debug.disable_stutter);
+		if (!is_optimized_init_done) {
+			hws->funcs.init_pipes(dc, dc->current_state);
+			if (dc->res_pool->hubbub->funcs->allow_self_refresh_control)
+				dc->res_pool->hubbub->funcs->allow_self_refresh_control(dc->res_pool->hubbub,
+						!dc->res_pool->hubbub->ctx->dc->debug.disable_stutter);
+		}
 	}
 
-	for (i = 0; i < res_pool->audio_count; i++) {
-		struct audio *audio = res_pool->audios[i];
+	if (!is_optimized_init_done) {
 
-		audio->funcs->hw_init(audio);
+		for (i = 0; i < res_pool->audio_count; i++) {
+			struct audio *audio = res_pool->audios[i];
+
+			audio->funcs->hw_init(audio);
+		}
+
+		for (i = 0; i < dc->link_count; i++) {
+			struct dc_link *link = dc->links[i];
+
+			if (link->panel_cntl)
+				backlight = link->panel_cntl->funcs->hw_init(link->panel_cntl);
+		}
+
+		if (abm != NULL)
+			abm->funcs->abm_init(abm, backlight);
+
+		if (dmcu != NULL && !dmcu->auto_load_dmcu)
+			dmcu->funcs->dmcu_init(dmcu);
 	}
-
-	if (abm != NULL) {
-		abm->funcs->init_backlight(abm);
-		abm->funcs->abm_init(abm);
-	}
-
-	if (dmcu != NULL && !dmcu->auto_load_dmcu)
-		dmcu->funcs->dmcu_init(dmcu);
 
 	if (abm != NULL && dmcu != NULL)
 		abm->dmcu_is_running = dmcu->funcs->is_dmcu_initialized(dmcu);
 
 	/* power AFMT HDMI memory TODO: may move to dis/en output save power*/
-	REG_WRITE(DIO_MEM_PWR_CTRL, 0);
+	if (!is_optimized_init_done)
+		REG_WRITE(DIO_MEM_PWR_CTRL, 0);
 
 	if (!dc->debug.disable_clock_gate) {
 		/* enable all DCN clock gating */
@@ -1395,6 +1435,57 @@ void dcn10_init_hw(struct dc *dc)
 	if (dc->clk_mgr->funcs->notify_wm_ranges)
 		dc->clk_mgr->funcs->notify_wm_ranges(dc->clk_mgr);
 
+#ifdef CONFIG_DRM_AMD_DC_DCN3_0
+	if (dc->clk_mgr->funcs->set_hard_max_memclk)
+		dc->clk_mgr->funcs->set_hard_max_memclk(dc->clk_mgr);
+#endif
+
+}
+
+/* In headless boot cases, DIG may be turned
+ * on which causes HW/SW discrepancies.
+ * To avoid this, power down hardware on boot
+ * if DIG is turned on and seamless boot not enabled
+ */
+void dcn10_power_down_on_boot(struct dc *dc)
+{
+	int i = 0;
+	struct dc_link *edp_link;
+
+	if (!dc->config.power_down_display_on_boot)
+		return;
+
+	edp_link = get_edp_link(dc);
+	if (edp_link &&
+			edp_link->link_enc->funcs->is_dig_enabled &&
+			edp_link->link_enc->funcs->is_dig_enabled(edp_link->link_enc) &&
+			dc->hwseq->funcs.edp_backlight_control &&
+			dc->hwss.power_down &&
+			dc->hwss.edp_power_control) {
+		dc->hwseq->funcs.edp_backlight_control(edp_link, false);
+		dc->hwss.power_down(dc);
+		dc->hwss.edp_power_control(edp_link, false);
+	} else {
+		for (i = 0; i < dc->link_count; i++) {
+			struct dc_link *link = dc->links[i];
+
+			if (link->link_enc->funcs->is_dig_enabled &&
+					link->link_enc->funcs->is_dig_enabled(link->link_enc) &&
+					dc->hwss.power_down) {
+				dc->hwss.power_down(dc);
+				break;
+			}
+
+		}
+	}
+
+	/*
+	 * Call update_clocks with empty context
+	 * to send DISPLAY_OFF
+	 * Otherwise DISPLAY_OFF may not be asserted
+	 */
+	if (dc->clk_mgr->funcs->set_low_power_state)
+		dc->clk_mgr->funcs->set_low_power_state(dc->clk_mgr);
 }
 
 void dcn10_reset_hw_ctx_wrap(
@@ -1700,8 +1791,20 @@ void dcn10_cursor_lock(struct dc *dc, struct pipe_ctx *pipe, bool lock)
 	if (lock)
 		delay_cursor_until_vupdate(dc, pipe);
 
-	dc->res_pool->mpc->funcs->cursor_lock(dc->res_pool->mpc,
-			pipe->stream_res.opp->inst, lock);
+	if (pipe->stream && should_use_dmub_lock(pipe->stream->link)) {
+		union dmub_hw_lock_flags hw_locks = { 0 };
+		struct dmub_hw_lock_inst_flags inst_flags = { 0 };
+
+		hw_locks.bits.lock_cursor = 1;
+		inst_flags.opp_inst = pipe->stream_res.opp->inst;
+
+		dmub_hw_lock_mgr_cmd(dc->ctx->dmub_srv,
+					lock,
+					&hw_locks,
+					&inst_flags);
+	} else
+		dc->res_pool->mpc->funcs->cursor_lock(dc->res_pool->mpc,
+				pipe->stream_res.opp->inst, lock);
 }
 
 static bool wait_for_reset_trigger_to_occur(
@@ -2164,25 +2267,25 @@ void dcn10_get_surface_visual_confirm_color(
 
 	switch (pipe_ctx->plane_res.scl_data.format) {
 	case PIXEL_FORMAT_ARGB8888:
-		/* set boarder color to red */
+		/* set border color to red */
 		color->color_r_cr = color_value;
 		break;
 
 	case PIXEL_FORMAT_ARGB2101010:
-		/* set boarder color to blue */
+		/* set border color to blue */
 		color->color_b_cb = color_value;
 		break;
 	case PIXEL_FORMAT_420BPP8:
-		/* set boarder color to green */
+		/* set border color to green */
 		color->color_g_y = color_value;
 		break;
 	case PIXEL_FORMAT_420BPP10:
-		/* set boarder color to yellow */
+		/* set border color to yellow */
 		color->color_g_y = color_value;
 		color->color_r_cr = color_value;
 		break;
 	case PIXEL_FORMAT_FP16:
-		/* set boarder color to white */
+		/* set border color to white */
 		color->color_r_cr = color_value;
 		color->color_b_cb = color_value;
 		color->color_g_y = color_value;
@@ -2207,25 +2310,25 @@ void dcn10_get_hdr_visual_confirm_color(
 	switch (top_pipe_ctx->plane_res.scl_data.format) {
 	case PIXEL_FORMAT_ARGB2101010:
 		if (top_pipe_ctx->stream->out_transfer_func->tf == TRANSFER_FUNCTION_PQ) {
-			/* HDR10, ARGB2101010 - set boarder color to red */
+			/* HDR10, ARGB2101010 - set border color to red */
 			color->color_r_cr = color_value;
 		} else if (top_pipe_ctx->stream->out_transfer_func->tf == TRANSFER_FUNCTION_GAMMA22) {
-			/* FreeSync 2 ARGB2101010 - set boarder color to pink */
+			/* FreeSync 2 ARGB2101010 - set border color to pink */
 			color->color_r_cr = color_value;
 			color->color_b_cb = color_value;
 		}
 		break;
 	case PIXEL_FORMAT_FP16:
 		if (top_pipe_ctx->stream->out_transfer_func->tf == TRANSFER_FUNCTION_PQ) {
-			/* HDR10, FP16 - set boarder color to blue */
+			/* HDR10, FP16 - set border color to blue */
 			color->color_b_cb = color_value;
 		} else if (top_pipe_ctx->stream->out_transfer_func->tf == TRANSFER_FUNCTION_GAMMA22) {
-			/* FreeSync 2 HDR - set boarder color to green */
+			/* FreeSync 2 HDR - set border color to green */
 			color->color_g_y = color_value;
 		}
 		break;
 	default:
-		/* SDR - set boarder color to Gray */
+		/* SDR - set border color to Gray */
 		color->color_r_cr = color_value/2;
 		color->color_b_cb = color_value/2;
 		color->color_g_y = color_value/2;
@@ -2273,6 +2376,14 @@ void dcn10_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 				dc, pipe_ctx->stream->output_color_space,
 				&blnd_cfg.black_color);
 	}
+
+	/*
+	 * The way 420 is packed, 2 channels carry Y component, 1 channel
+	 * alternate between Cb and Cr, so both channels need the pixel
+	 * value for Y
+	 */
+	if (pipe_ctx->stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR420)
+		blnd_cfg.black_color.color_r_cr = blnd_cfg.black_color.color_g_y;
 
 	if (per_pixel_alpha)
 		blnd_cfg.alpha_mode = MPCC_ALPHA_BLEND_MODE_PER_PIXEL_ALPHA;
@@ -2359,14 +2470,46 @@ static void dcn10_update_dchubp_dpp(
 	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	struct plane_size size = plane_state->plane_size;
 	unsigned int compat_level = 0;
+	bool should_divided_by_2 = false;
 
 	/* depends on DML calculation, DPP clock value may change dynamically */
 	/* If request max dpp clk is lower than current dispclk, no need to
 	 * divided by 2
 	 */
 	if (plane_state->update_flags.bits.full_update) {
-		bool should_divided_by_2 = context->bw_ctx.bw.dcn.clk.dppclk_khz <=
-				dc->clk_mgr->clks.dispclk_khz / 2;
+
+		/* new calculated dispclk, dppclk are stored in
+		 * context->bw_ctx.bw.dcn.clk.dispclk_khz / dppclk_khz. current
+		 * dispclk, dppclk are from dc->clk_mgr->clks.dispclk_khz.
+		 * dcn_validate_bandwidth compute new dispclk, dppclk.
+		 * dispclk will put in use after optimize_bandwidth when
+		 * ramp_up_dispclk_with_dpp is called.
+		 * there are two places for dppclk be put in use. One location
+		 * is the same as the location as dispclk. Another is within
+		 * update_dchubp_dpp which happens between pre_bandwidth and
+		 * optimize_bandwidth.
+		 * dppclk updated within update_dchubp_dpp will cause new
+		 * clock values of dispclk and dppclk not be in use at the same
+		 * time. when clocks are decreased, this may cause dppclk is
+		 * lower than previous configuration and let pipe stuck.
+		 * for example, eDP + external dp,  change resolution of DP from
+		 * 1920x1080x144hz to 1280x960x60hz.
+		 * before change: dispclk = 337889 dppclk = 337889
+		 * change mode, dcn_validate_bandwidth calculate
+		 *                dispclk = 143122 dppclk = 143122
+		 * update_dchubp_dpp be executed before dispclk be updated,
+		 * dispclk = 337889, but dppclk use new value dispclk /2 =
+		 * 168944. this will cause pipe pstate warning issue.
+		 * solution: between pre_bandwidth and optimize_bandwidth, while
+		 * dispclk is going to be decreased, keep dppclk = dispclk
+		 **/
+		if (context->bw_ctx.bw.dcn.clk.dispclk_khz <
+				dc->clk_mgr->clks.dispclk_khz)
+			should_divided_by_2 = false;
+		else
+			should_divided_by_2 =
+					context->bw_ctx.bw.dcn.clk.dppclk_khz <=
+					dc->clk_mgr->clks.dispclk_khz / 2;
 
 		dpp->funcs->dpp_dppclk_control(
 				dpp,
@@ -2510,14 +2653,15 @@ void dcn10_blank_pixel_data(
 		if (stream_res->tg->funcs->set_blank)
 			stream_res->tg->funcs->set_blank(stream_res->tg, blank);
 		if (stream_res->abm) {
-			stream_res->abm->funcs->set_pipe(stream_res->abm, stream_res->tg->inst + 1);
+			dc->hwss.set_pipe(pipe_ctx);
 			stream_res->abm->funcs->set_abm_level(stream_res->abm, stream->abm_level);
 		}
 	} else if (blank) {
-		if (stream_res->abm)
-			stream_res->abm->funcs->set_abm_immediate_disable(stream_res->abm);
-		if (stream_res->tg->funcs->set_blank)
+		dc->hwss.set_abm_immediate_disable(pipe_ctx);
+		if (stream_res->tg->funcs->set_blank) {
+			stream_res->tg->funcs->wait_for_state(stream_res->tg, CRTC_STATE_VBLANK);
 			stream_res->tg->funcs->set_blank(stream_res->tg, blank);
+		}
 	}
 }
 

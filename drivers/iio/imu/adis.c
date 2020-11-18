@@ -97,11 +97,11 @@ int __adis_write_reg(struct adis *adis, unsigned int reg,
 		adis->tx[9] = (value >> 24) & 0xff;
 		adis->tx[6] = ADIS_WRITE_REG(reg + 2);
 		adis->tx[7] = (value >> 16) & 0xff;
-		/* fall through */
+		fallthrough;
 	case 2:
 		adis->tx[4] = ADIS_WRITE_REG(reg + 1);
 		adis->tx[5] = (value >> 8) & 0xff;
-		/* fall through */
+		fallthrough;
 	case 1:
 		adis->tx[2] = ADIS_WRITE_REG(reg);
 		adis->tx[3] = value & 0xff;
@@ -191,7 +191,7 @@ int __adis_read_reg(struct adis *adis, unsigned int reg,
 		adis->tx[2] = ADIS_READ_REG(reg + 2);
 		adis->tx[3] = 0;
 		spi_message_add_tail(&xfers[1], &msg);
-		/* fall through */
+		fallthrough;
 	case 2:
 		adis->tx[4] = ADIS_READ_REG(reg);
 		adis->tx[5] = 0;
@@ -223,6 +223,31 @@ int __adis_read_reg(struct adis *adis, unsigned int reg,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(__adis_read_reg);
+/**
+ * __adis_update_bits_base() - ADIS Update bits function - Unlocked version
+ * @adis: The adis device
+ * @reg: The address of the lower of the two registers
+ * @mask: Bitmask to change
+ * @val: Value to be written
+ * @size: Size of the register to update
+ *
+ * Updates the desired bits of @reg in accordance with @mask and @val.
+ */
+int __adis_update_bits_base(struct adis *adis, unsigned int reg, const u32 mask,
+			    const u32 val, u8 size)
+{
+	int ret;
+	u32 __val;
+
+	ret = __adis_read_reg(adis, reg, &__val, size);
+	if (ret)
+		return ret;
+
+	__val = (__val & ~mask) | (val & mask);
+
+	return __adis_write_reg(adis, reg, __val, size);
+}
+EXPORT_SYMBOL_GPL(__adis_update_bits_base);
 
 #ifdef CONFIG_DEBUG_FS
 
@@ -419,7 +444,7 @@ int __adis_initial_startup(struct adis *adis)
 
 	if (prod_id != adis->data->prod_id)
 		dev_warn(&adis->spi->dev,
-			 "Device ID(%u) and product ID(%u) do not match.",
+			 "Device ID(%u) and product ID(%u) do not match.\n",
 			 adis->data->prod_id, prod_id);
 
 	return 0;

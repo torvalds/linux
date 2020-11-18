@@ -15,6 +15,7 @@
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/pagemap.h>
+#include <linux/pm_wakeup.h>
 #include <linux/export.h>
 #include <linux/leds.h>
 #include <linux/slab.h>
@@ -36,6 +37,7 @@ static DEFINE_IDA(mmc_host_ida);
 static void mmc_host_classdev_release(struct device *dev)
 {
 	struct mmc_host *host = cls_dev_to_mmc_host(dev);
+	wakeup_source_unregister(host->ws);
 	ida_simple_remove(&mmc_host_ida, host->index);
 	kfree(host);
 }
@@ -189,7 +191,7 @@ int mmc_of_parse(struct mmc_host *host)
 	switch (bus_width) {
 	case 8:
 		host->caps |= MMC_CAP_8_BIT_DATA;
-		/* fall through - Hosts capable of 8-bit can also do 4 bits */
+		fallthrough;	/* Hosts capable of 8-bit can also do 4 bits */
 	case 4:
 		host->caps |= MMC_CAP_4_BIT_DATA;
 		break;
@@ -275,6 +277,8 @@ int mmc_of_parse(struct mmc_host *host)
 		host->caps |= MMC_CAP_SDIO_IRQ;
 	if (device_property_read_bool(dev, "full-pwr-cycle"))
 		host->caps2 |= MMC_CAP2_FULL_PWR_CYCLE;
+	if (device_property_read_bool(dev, "full-pwr-cycle-in-suspend"))
+		host->caps2 |= MMC_CAP2_FULL_PWR_CYCLE_IN_SUSPEND;
 	if (device_property_read_bool(dev, "keep-power-in-suspend"))
 		host->pm_caps |= MMC_PM_KEEP_POWER;
 	if (device_property_read_bool(dev, "wakeup-source") ||
@@ -400,6 +404,7 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 	host->index = err;
 
 	dev_set_name(&host->class_dev, "mmc%d", host->index);
+	host->ws = wakeup_source_register(NULL, dev_name(&host->class_dev));
 
 	host->parent = dev;
 	host->class_dev.parent = dev;
@@ -431,6 +436,7 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 
 	host->fixed_drv_type = -EINVAL;
 	host->ios.power_delay_ms = 10;
+	host->ios.power_mode = MMC_POWER_UNDEFINED;
 
 	return host;
 }

@@ -34,12 +34,17 @@ struct intel_reset {
 	 * longer use the GPU - similar to #I915_WEDGED bit. The difference in
 	 * in the way we're handling "forced" unwedged (e.g. through debugfs),
 	 * which is not allowed in case we failed to initialize.
+	 *
+	 * #I915_WEDGED_ON_FINI - Similar to #I915_WEDGED_ON_INIT, except we
+	 * use it to mark that the GPU is no longer available (and prevent
+	 * users from using it).
 	 */
 	unsigned long flags;
 #define I915_RESET_BACKOFF	0
 #define I915_RESET_MODESET	1
 #define I915_RESET_ENGINE	2
-#define I915_WEDGED_ON_INIT	(BITS_PER_LONG - 2)
+#define I915_WEDGED_ON_INIT	(BITS_PER_LONG - 3)
+#define I915_WEDGED_ON_FINI	(BITS_PER_LONG - 2)
 #define I915_WEDGED		(BITS_PER_LONG - 1)
 
 	struct mutex mutex; /* serialises wedging/unwedging */

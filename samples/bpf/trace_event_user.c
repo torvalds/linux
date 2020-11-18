@@ -16,9 +16,6 @@
 #include "perf-sys.h"
 #include "trace_helpers.h"
 
-#define __must_check
-#include <linux/err.h>
-
 #define SAMPLE_FREQ 50
 
 static int pid;
@@ -159,7 +156,7 @@ static void test_perf_event_all_cpu(struct perf_event_attr *attr)
 			goto all_cpu_err;
 		}
 		links[i] = bpf_program__attach_perf_event(prog, pmu_fd);
-		if (IS_ERR(links[i])) {
+		if (libbpf_get_error(links[i])) {
 			printf("bpf_program__attach_perf_event failed\n");
 			links[i] = NULL;
 			close(pmu_fd);
@@ -198,7 +195,7 @@ static void test_perf_event_task(struct perf_event_attr *attr)
 		goto err;
 	}
 	link = bpf_program__attach_perf_event(prog, pmu_fd);
-	if (IS_ERR(link)) {
+	if (libbpf_get_error(link)) {
 		printf("bpf_program__attach_perf_event failed\n");
 		link = NULL;
 		close(pmu_fd);
@@ -314,7 +311,7 @@ int main(int argc, char **argv)
 	}
 
 	obj = bpf_object__open_file(filename, NULL);
-	if (IS_ERR(obj)) {
+	if (libbpf_get_error(obj)) {
 		printf("opening BPF object file failed\n");
 		obj = NULL;
 		goto cleanup;

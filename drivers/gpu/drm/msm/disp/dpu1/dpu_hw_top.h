@@ -127,13 +127,6 @@ struct dpu_hw_mdp_ops {
 			struct dpu_danger_safe_status *status);
 
 	/**
-	 * reset_ubwc - reset top level UBWC configuration
-	 * @mdp: mdp top context driver
-	 * @m: pointer to mdss catalog data
-	 */
-	void (*reset_ubwc)(struct dpu_hw_mdp *mdp, struct dpu_mdss_cfg *m);
-
-	/**
 	 * intf_audio_select - select the external interface for audio
 	 * @mdp: mdp top context driver
 	 */

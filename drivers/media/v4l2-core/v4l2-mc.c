@@ -309,6 +309,101 @@ int v4l_vb2q_enable_media_source(struct vb2_queue *q)
 }
 EXPORT_SYMBOL_GPL(v4l_vb2q_enable_media_source);
 
+int v4l2_create_fwnode_links_to_pad(struct v4l2_subdev *src_sd,
+				    struct media_pad *sink)
+{
+	struct fwnode_handle *endpoint;
+	struct v4l2_subdev *sink_sd;
+
+	if (!(sink->flags & MEDIA_PAD_FL_SINK) ||
+	    !is_media_entity_v4l2_subdev(sink->entity))
+		return -EINVAL;
+
+	sink_sd = media_entity_to_v4l2_subdev(sink->entity);
+
+	fwnode_graph_for_each_endpoint(dev_fwnode(src_sd->dev), endpoint) {
+		struct fwnode_handle *remote_ep;
+		int src_idx, sink_idx, ret;
+		struct media_pad *src;
+
+		src_idx = media_entity_get_fwnode_pad(&src_sd->entity,
+						      endpoint,
+						      MEDIA_PAD_FL_SOURCE);
+		if (src_idx < 0)
+			continue;
+
+		remote_ep = fwnode_graph_get_remote_endpoint(endpoint);
+		if (!remote_ep)
+			continue;
+
+		/*
+		 * ask the sink to verify it owns the remote endpoint,
+		 * and translate to a sink pad.
+		 */
+		sink_idx = media_entity_get_fwnode_pad(&sink_sd->entity,
+						       remote_ep,
+						       MEDIA_PAD_FL_SINK);
+		fwnode_handle_put(remote_ep);
+
+		if (sink_idx < 0 || sink_idx != sink->index)
+			continue;
+
+		/*
+		 * the source endpoint corresponds to one of its source pads,
+		 * the source endpoint connects to an endpoint at the sink
+		 * entity, and the sink endpoint corresponds to the sink
+		 * pad requested, so we have found an endpoint connection
+		 * that works, create the media link for it.
+		 */
+
+		src = &src_sd->entity.pads[src_idx];
+
+		/* skip if link already exists */
+		if (media_entity_find_link(src, sink))
+			continue;
+
+		dev_dbg(sink_sd->dev, "creating link %s:%d -> %s:%d\n",
+			src_sd->entity.name, src_idx,
+			sink_sd->entity.name, sink_idx);
+
+		ret = media_create_pad_link(&src_sd->entity, src_idx,
+					    &sink_sd->entity, sink_idx, 0);
+		if (ret) {
+			dev_err(sink_sd->dev,
+				"link %s:%d -> %s:%d failed with %d\n",
+				src_sd->entity.name, src_idx,
+				sink_sd->entity.name, sink_idx, ret);
+
+			fwnode_handle_put(endpoint);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(v4l2_create_fwnode_links_to_pad);
+
+int v4l2_create_fwnode_links(struct v4l2_subdev *src_sd,
+			     struct v4l2_subdev *sink_sd)
+{
+	unsigned int i;
+
+	for (i = 0; i < sink_sd->entity.num_pads; i++) {
+		struct media_pad *pad = &sink_sd->entity.pads[i];
+		int ret;
+
+		if (!(pad->flags & MEDIA_PAD_FL_SINK))
+			continue;
+
+		ret = v4l2_create_fwnode_links_to_pad(src_sd, pad);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(v4l2_create_fwnode_links);
+
 /* -----------------------------------------------------------------------------
  * Pipeline power management
  *

@@ -89,6 +89,7 @@ static const struct {
 	{ .n = "i2s1_clk",    .id = 55, .r = { .min = 0, .max = 83000000 }, },
 	{ .n = "can0_clk",    .id = 56, .r = { .min = 0, .max = 83000000 }, },
 	{ .n = "can1_clk",    .id = 57, .r = { .min = 0, .max = 83000000 }, },
+	{ .n = "ptc_clk",     .id = 58, .r = { .min = 0, .max = 83000000 }, },
 	{ .n = "classd_clk",  .id = 59, .r = { .min = 0, .max = 83000000 }, },
 };
 
@@ -115,21 +116,20 @@ static const struct {
 	char *n;
 	u8 id;
 	struct clk_range r;
-	bool pll;
+	int chg_pid;
 } sama5d2_gck[] = {
-	{ .n = "sdmmc0_gclk", .id = 31, },
-	{ .n = "sdmmc1_gclk", .id = 32, },
-	{ .n = "tcb0_gclk",   .id = 35, .r = { .min = 0, .max = 83000000 }, },
-	{ .n = "tcb1_gclk",   .id = 36, .r = { .min = 0, .max = 83000000 }, },
-	{ .n = "pwm_gclk",    .id = 38, .r = { .min = 0, .max = 83000000 }, },
-	{ .n = "isc_gclk",    .id = 46, },
-	{ .n = "pdmic_gclk",  .id = 48, },
-	{ .n = "i2s0_gclk",   .id = 54, .pll = true },
-	{ .n = "i2s1_gclk",   .id = 55, .pll = true },
-	{ .n = "can0_gclk",   .id = 56, .r = { .min = 0, .max = 80000000 }, },
-	{ .n = "can1_gclk",   .id = 57, .r = { .min = 0, .max = 80000000 }, },
-	{ .n = "classd_gclk", .id = 59, .r = { .min = 0, .max = 100000000 },
-	  .pll = true },
+	{ .n = "sdmmc0_gclk", .id = 31, .chg_pid = INT_MIN, },
+	{ .n = "sdmmc1_gclk", .id = 32, .chg_pid = INT_MIN, },
+	{ .n = "tcb0_gclk",   .id = 35, .chg_pid = INT_MIN, .r = { .min = 0, .max = 83000000 }, },
+	{ .n = "tcb1_gclk",   .id = 36, .chg_pid = INT_MIN, .r = { .min = 0, .max = 83000000 }, },
+	{ .n = "pwm_gclk",    .id = 38, .chg_pid = INT_MIN, .r = { .min = 0, .max = 83000000 }, },
+	{ .n = "isc_gclk",    .id = 46, .chg_pid = INT_MIN, },
+	{ .n = "pdmic_gclk",  .id = 48, .chg_pid = INT_MIN, },
+	{ .n = "i2s0_gclk",   .id = 54, .chg_pid = 5, },
+	{ .n = "i2s1_gclk",   .id = 55, .chg_pid = 5, },
+	{ .n = "can0_gclk",   .id = 56, .chg_pid = INT_MIN, .r = { .min = 0, .max = 80000000 }, },
+	{ .n = "can1_gclk",   .id = 57, .chg_pid = INT_MIN, .r = { .min = 0, .max = 80000000 }, },
+	{ .n = "classd_gclk", .id = 59, .chg_pid = 5, .r = { .min = 0, .max = 100000000 }, },
 };
 
 static const struct clk_programmable_layout sama5d2_programmable_layout = {
@@ -166,10 +166,10 @@ static void __init sama5d2_pmc_setup(struct device_node *np)
 	if (IS_ERR(regmap))
 		return;
 
-	sama5d2_pmc = pmc_data_allocate(PMC_I2S1_MUX + 1,
+	sama5d2_pmc = pmc_data_allocate(PMC_AUDIOPLLCK + 1,
 					nck(sama5d2_systemck),
 					nck(sama5d2_periph32ck),
-					nck(sama5d2_gck));
+					nck(sama5d2_gck), 3);
 	if (!sama5d2_pmc)
 		return;
 
@@ -202,6 +202,8 @@ static void __init sama5d2_pmc_setup(struct device_node *np)
 	if (IS_ERR(hw))
 		goto err_free;
 
+	sama5d2_pmc->chws[PMC_PLLACK] = hw;
+
 	hw = at91_clk_register_audio_pll_frac(regmap, "audiopll_fracck",
 					      "mainck");
 	if (IS_ERR(hw))
@@ -216,6 +218,8 @@ static void __init sama5d2_pmc_setup(struct device_node *np)
 					     "audiopll_fracck");
 	if (IS_ERR(hw))
 		goto err_free;
+
+	sama5d2_pmc->chws[PMC_AUDIOPLLCK] = hw;
 
 	regmap_sfr = syscon_regmap_lookup_by_compatible("atmel,sama5d2-sfr");
 	if (IS_ERR(regmap_sfr))
@@ -264,9 +268,12 @@ static void __init sama5d2_pmc_setup(struct device_node *np)
 
 		hw = at91_clk_register_programmable(regmap, name,
 						    parent_names, 6, i,
-						    &sama5d2_programmable_layout);
+						    &sama5d2_programmable_layout,
+						    NULL);
 		if (IS_ERR(hw))
 			goto err_free;
+
+		sama5d2_pmc->pchws[i] = hw;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(sama5d2_systemck); i++) {
@@ -285,7 +292,7 @@ static void __init sama5d2_pmc_setup(struct device_node *np)
 							 sama5d2_periphck[i].n,
 							 "masterck",
 							 sama5d2_periphck[i].id,
-							 &range);
+							 &range, INT_MIN);
 		if (IS_ERR(hw))
 			goto err_free;
 
@@ -298,7 +305,8 @@ static void __init sama5d2_pmc_setup(struct device_node *np)
 							 sama5d2_periph32ck[i].n,
 							 "h32mxck",
 							 sama5d2_periph32ck[i].id,
-							 &sama5d2_periph32ck[i].r);
+							 &sama5d2_periph32ck[i].r,
+							 INT_MIN);
 		if (IS_ERR(hw))
 			goto err_free;
 
@@ -315,10 +323,10 @@ static void __init sama5d2_pmc_setup(struct device_node *np)
 		hw = at91_clk_register_generated(regmap, &pmc_pcr_lock,
 						 &sama5d2_pcr_layout,
 						 sama5d2_gck[i].n,
-						 parent_names, 6,
+						 parent_names, NULL, 6,
 						 sama5d2_gck[i].id,
-						 sama5d2_gck[i].pll,
-						 &sama5d2_gck[i].r);
+						 &sama5d2_gck[i].r,
+						 sama5d2_gck[i].chg_pid);
 		if (IS_ERR(hw))
 			goto err_free;
 
@@ -350,6 +358,6 @@ static void __init sama5d2_pmc_setup(struct device_node *np)
 	return;
 
 err_free:
-	pmc_data_free(sama5d2_pmc);
+	kfree(sama5d2_pmc);
 }
 CLK_OF_DECLARE_DRIVER(sama5d2_pmc, "atmel,sama5d2-pmc", sama5d2_pmc_setup);

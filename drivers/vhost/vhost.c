@@ -14,7 +14,6 @@
 #include <linux/vhost.h>
 #include <linux/uio.h>
 #include <linux/mm.h>
-#include <linux/mmu_context.h>
 #include <linux/miscdevice.h>
 #include <linux/mutex.h>
 #include <linux/poll.h>
@@ -166,11 +165,16 @@ static int vhost_poll_wakeup(wait_queue_entry_t *wait, unsigned mode, int sync,
 			     void *key)
 {
 	struct vhost_poll *poll = container_of(wait, struct vhost_poll, wait);
+	struct vhost_work *work = &poll->work;
 
 	if (!(key_to_poll(key) & poll->mask))
 		return 0;
 
-	vhost_poll_queue(poll);
+	if (!poll->dev->use_worker)
+		work->fn(work);
+	else
+		vhost_poll_queue(poll);
+
 	return 0;
 }
 
@@ -294,6 +298,13 @@ static void vhost_vq_meta_reset(struct vhost_dev *d)
 		__vhost_vq_meta_reset(d->vqs[i]);
 }
 
+static void vhost_vring_call_reset(struct vhost_vring_call *call_ctx)
+{
+	call_ctx->ctx = NULL;
+	memset(&call_ctx->producer, 0x0, sizeof(struct irq_bypass_producer));
+	spin_lock_init(&call_ctx->ctx_lock);
+}
+
 static void vhost_vq_reset(struct vhost_dev *dev,
 			   struct vhost_virtqueue *vq)
 {
@@ -315,13 +326,13 @@ static void vhost_vq_reset(struct vhost_dev *dev,
 	vq->log_base = NULL;
 	vq->error_ctx = NULL;
 	vq->kick = NULL;
-	vq->call_ctx = NULL;
 	vq->log_ctx = NULL;
 	vhost_reset_is_le(vq);
 	vhost_disable_cross_endian(vq);
 	vq->busyloop_timeout = 0;
 	vq->umem = NULL;
 	vq->iotlb = NULL;
+	vhost_vring_call_reset(&vq->call_ctx);
 	__vhost_vq_meta_reset(vq);
 }
 
@@ -330,10 +341,8 @@ static int vhost_worker(void *data)
 	struct vhost_dev *dev = data;
 	struct vhost_work *work, *work_next;
 	struct llist_node *node;
-	mm_segment_t oldfs = get_fs();
 
-	set_fs(USER_DS);
-	use_mm(dev->mm);
+	kthread_use_mm(dev->mm);
 
 	for (;;) {
 		/* mb paired w/ kthread_stop */
@@ -361,8 +370,7 @@ static int vhost_worker(void *data)
 				schedule();
 		}
 	}
-	unuse_mm(dev->mm);
-	set_fs(oldfs);
+	kthread_unuse_mm(dev->mm);
 	return 0;
 }
 
@@ -454,6 +462,7 @@ static size_t vhost_get_desc_size(struct vhost_virtqueue *vq,
 void vhost_dev_init(struct vhost_dev *dev,
 		    struct vhost_virtqueue **vqs, int nvqs,
 		    int iov_limit, int weight, int byte_weight,
+		    bool use_worker,
 		    int (*msg_handler)(struct vhost_dev *dev,
 				       struct vhost_iotlb_msg *msg))
 {
@@ -471,6 +480,7 @@ void vhost_dev_init(struct vhost_dev *dev,
 	dev->iov_limit = iov_limit;
 	dev->weight = weight;
 	dev->byte_weight = byte_weight;
+	dev->use_worker = use_worker;
 	dev->msg_handler = msg_handler;
 	init_llist_head(&dev->work_list);
 	init_waitqueue_head(&dev->wait);
@@ -534,6 +544,36 @@ bool vhost_dev_has_owner(struct vhost_dev *dev)
 }
 EXPORT_SYMBOL_GPL(vhost_dev_has_owner);
 
+static void vhost_attach_mm(struct vhost_dev *dev)
+{
+	/* No owner, become one */
+	if (dev->use_worker) {
+		dev->mm = get_task_mm(current);
+	} else {
+		/* vDPA device does not use worker thead, so there's
+		 * no need to hold the address space for mm. This help
+		 * to avoid deadlock in the case of mmap() which may
+		 * held the refcnt of the file and depends on release
+		 * method to remove vma.
+		 */
+		dev->mm = current->mm;
+		mmgrab(dev->mm);
+	}
+}
+
+static void vhost_detach_mm(struct vhost_dev *dev)
+{
+	if (!dev->mm)
+		return;
+
+	if (dev->use_worker)
+		mmput(dev->mm);
+	else
+		mmdrop(dev->mm);
+
+	dev->mm = NULL;
+}
+
 /* Caller should have device mutex */
 long vhost_dev_set_owner(struct vhost_dev *dev)
 {
@@ -546,21 +586,24 @@ long vhost_dev_set_owner(struct vhost_dev *dev)
 		goto err_mm;
 	}
 
-	/* No owner, become one */
-	dev->mm = get_task_mm(current);
+	vhost_attach_mm(dev);
+
 	dev->kcov_handle = kcov_common_handle();
-	worker = kthread_create(vhost_worker, dev, "vhost-%d", current->pid);
-	if (IS_ERR(worker)) {
-		err = PTR_ERR(worker);
-		goto err_worker;
+	if (dev->use_worker) {
+		worker = kthread_create(vhost_worker, dev,
+					"vhost-%d", current->pid);
+		if (IS_ERR(worker)) {
+			err = PTR_ERR(worker);
+			goto err_worker;
+		}
+
+		dev->worker = worker;
+		wake_up_process(worker); /* avoid contributing to loadavg */
+
+		err = vhost_attach_cgroups(dev);
+		if (err)
+			goto err_cgroup;
 	}
-
-	dev->worker = worker;
-	wake_up_process(worker);	/* avoid contributing to loadavg */
-
-	err = vhost_attach_cgroups(dev);
-	if (err)
-		goto err_cgroup;
 
 	err = vhost_dev_alloc_iovecs(dev);
 	if (err)
@@ -568,12 +611,12 @@ long vhost_dev_set_owner(struct vhost_dev *dev)
 
 	return 0;
 err_cgroup:
-	kthread_stop(worker);
-	dev->worker = NULL;
+	if (dev->worker) {
+		kthread_stop(dev->worker);
+		dev->worker = NULL;
+	}
 err_worker:
-	if (dev->mm)
-		mmput(dev->mm);
-	dev->mm = NULL;
+	vhost_detach_mm(dev);
 	dev->kcov_handle = 0;
 err_mm:
 	return err;
@@ -649,8 +692,8 @@ void vhost_dev_cleanup(struct vhost_dev *dev)
 			eventfd_ctx_put(dev->vqs[i]->error_ctx);
 		if (dev->vqs[i]->kick)
 			fput(dev->vqs[i]->kick);
-		if (dev->vqs[i]->call_ctx)
-			eventfd_ctx_put(dev->vqs[i]->call_ctx);
+		if (dev->vqs[i]->call_ctx.ctx)
+			eventfd_ctx_put(dev->vqs[i]->call_ctx.ctx);
 		vhost_vq_reset(dev, dev->vqs[i]);
 	}
 	vhost_dev_free_iovecs(dev);
@@ -670,9 +713,7 @@ void vhost_dev_cleanup(struct vhost_dev *dev)
 		dev->worker = NULL;
 		dev->kcov_handle = 0;
 	}
-	if (dev->mm)
-		mmput(dev->mm);
-	dev->mm = NULL;
+	vhost_detach_mm(dev);
 }
 EXPORT_SYMBOL_GPL(vhost_dev_cleanup);
 
@@ -882,7 +923,7 @@ static inline void __user *__vhost_get_user(struct vhost_virtqueue *vq,
 
 #define vhost_put_user(vq, x, ptr)		\
 ({ \
-	int ret = -EFAULT; \
+	int ret; \
 	if (!vq->iotlb) { \
 		ret = __put_user(x, ptr); \
 	} else { \
@@ -1244,11 +1285,16 @@ static int vhost_iotlb_miss(struct vhost_virtqueue *vq, u64 iova, int access)
 }
 
 static bool vq_access_ok(struct vhost_virtqueue *vq, unsigned int num,
-			 struct vring_desc __user *desc,
-			 struct vring_avail __user *avail,
-			 struct vring_used __user *used)
+			 vring_desc_t __user *desc,
+			 vring_avail_t __user *avail,
+			 vring_used_t __user *used)
 
 {
+	/* If an IOTLB device is present, the vring addresses are
+	 * GIOVAs. Access validation occurs at prefetch time. */
+	if (vq->iotlb)
+		return true;
+
 	return access_ok(desc, vhost_get_desc_size(vq, num)) &&
 	       access_ok(avail, vhost_get_avail_size(vq, num)) &&
 	       access_ok(used, vhost_get_used_size(vq, num));
@@ -1324,6 +1370,20 @@ bool vhost_log_access_ok(struct vhost_dev *dev)
 }
 EXPORT_SYMBOL_GPL(vhost_log_access_ok);
 
+static bool vq_log_used_access_ok(struct vhost_virtqueue *vq,
+				  void __user *log_base,
+				  bool log_used,
+				  u64 log_addr)
+{
+	/* If an IOTLB device is present, log_addr is a GIOVA that
+	 * will never be logged by log_used(). */
+	if (vq->iotlb)
+		return true;
+
+	return !log_used || log_access_ok(log_base, log_addr,
+					  vhost_get_used_size(vq, vq->num));
+}
+
 /* Verify access for write logging. */
 /* Caller should have vq mutex and device mutex */
 static bool vq_log_access_ok(struct vhost_virtqueue *vq,
@@ -1331,8 +1391,7 @@ static bool vq_log_access_ok(struct vhost_virtqueue *vq,
 {
 	return vq_memory_access_ok(log_base, vq->umem,
 				   vhost_has_feature(vq, VHOST_F_LOG_ALL)) &&
-		(!vq->log_used || log_access_ok(log_base, vq->log_addr,
-				  vhost_get_used_size(vq, vq->num)));
+		vq_log_used_access_ok(vq, log_base, vq->log_used, vq->log_addr);
 }
 
 /* Can we start vq? */
@@ -1341,10 +1400,6 @@ bool vhost_vq_access_ok(struct vhost_virtqueue *vq)
 {
 	if (!vq_log_access_ok(vq, vq->log_base))
 		return false;
-
-	/* Access validation occurs at prefetch time with IOTLB */
-	if (vq->iotlb)
-		return true;
 
 	return vq_access_ok(vq, vq->num, vq->desc, vq->avail, vq->used);
 }
@@ -1371,7 +1426,7 @@ static long vhost_set_memory(struct vhost_dev *d, struct vhost_memory __user *m)
 
 	memcpy(newmem, &mem, size);
 	if (copy_from_user(newmem->regions, m->regions,
-			   mem.nregions * sizeof *m->regions)) {
+			   flex_array_size(newmem, regions, mem.nregions))) {
 		kvfree(newmem);
 		return -EFAULT;
 	}
@@ -1475,10 +1530,9 @@ static long vhost_vring_set_addr(struct vhost_dev *d,
 			return -EINVAL;
 
 		/* Also validate log access for used ring if enabled. */
-		if ((a.flags & (0x1 << VHOST_VRING_F_LOG)) &&
-			!log_access_ok(vq->log_base, a.log_guest_addr,
-				sizeof *vq->used +
-				vq->num * sizeof *vq->used->ring))
+		if (!vq_log_used_access_ok(vq, vq->log_base,
+				a.flags & (0x1 << VHOST_VRING_F_LOG),
+				a.log_guest_addr))
 			return -EINVAL;
 	}
 
@@ -1574,7 +1628,7 @@ long vhost_vring_ioctl(struct vhost_dev *d, unsigned int ioctl, void __user *arg
 			r = -EFAULT;
 			break;
 		}
-		eventfp = f.fd == -1 ? NULL : eventfd_fget(f.fd);
+		eventfp = f.fd == VHOST_FILE_UNBIND ? NULL : eventfd_fget(f.fd);
 		if (IS_ERR(eventfp)) {
 			r = PTR_ERR(eventfp);
 			break;
@@ -1590,19 +1644,22 @@ long vhost_vring_ioctl(struct vhost_dev *d, unsigned int ioctl, void __user *arg
 			r = -EFAULT;
 			break;
 		}
-		ctx = f.fd == -1 ? NULL : eventfd_ctx_fdget(f.fd);
+		ctx = f.fd == VHOST_FILE_UNBIND ? NULL : eventfd_ctx_fdget(f.fd);
 		if (IS_ERR(ctx)) {
 			r = PTR_ERR(ctx);
 			break;
 		}
-		swap(ctx, vq->call_ctx);
+
+		spin_lock(&vq->call_ctx.ctx_lock);
+		swap(ctx, vq->call_ctx.ctx);
+		spin_unlock(&vq->call_ctx.ctx_lock);
 		break;
 	case VHOST_SET_VRING_ERR:
 		if (copy_from_user(&f, argp, sizeof f)) {
 			r = -EFAULT;
 			break;
 		}
-		ctx = f.fd == -1 ? NULL : eventfd_ctx_fdget(f.fd);
+		ctx = f.fd == VHOST_FILE_UNBIND ? NULL : eventfd_ctx_fdget(f.fd);
 		if (IS_ERR(ctx)) {
 			r = PTR_ERR(ctx);
 			break;
@@ -1727,7 +1784,7 @@ long vhost_dev_ioctl(struct vhost_dev *d, unsigned int ioctl, void __user *argp)
 		r = get_user(fd, (int __user *)argp);
 		if (r < 0)
 			break;
-		ctx = fd == -1 ? NULL : eventfd_ctx_fdget(fd);
+		ctx = fd == VHOST_FILE_UNBIND ? NULL : eventfd_ctx_fdget(fd);
 		if (IS_ERR(ctx)) {
 			r = PTR_ERR(ctx);
 			break;
@@ -1762,15 +1819,14 @@ static int set_bit_to_user(int nr, void __user *addr)
 	int bit = nr + (log % PAGE_SIZE) * 8;
 	int r;
 
-	r = get_user_pages_fast(log, 1, FOLL_WRITE, &page);
+	r = pin_user_pages_fast(log, 1, FOLL_WRITE, &page);
 	if (r < 0)
 		return r;
 	BUG_ON(r != 1);
 	base = kmap_atomic(page);
 	set_bit(bit, base);
 	kunmap_atomic(base);
-	set_page_dirty_lock(page);
-	put_page(page);
+	unpin_user_pages_dirty_lock(&page, 1, true);
 	return 0;
 }
 
@@ -2059,11 +2115,6 @@ static int get_indirect(struct vhost_virtqueue *vq,
 		return ret;
 	}
 	iov_iter_init(&from, READ, vq->indirect, ret, len);
-
-	/* We will use the result as an address to read from, so most
-	 * architectures only need a compiler barrier here. */
-	read_barrier_depends();
-
 	count = len / sizeof desc;
 	/* Buffers are chained via a 16 bit next field, so
 	 * we can have at most 2^16 of these. */
@@ -2301,7 +2352,7 @@ static int __vhost_add_used_n(struct vhost_virtqueue *vq,
 			    struct vring_used_elem *heads,
 			    unsigned count)
 {
-	struct vring_used_elem __user *used;
+	vring_used_elem_t __user *used;
 	u16 old, new;
 	int start;
 
@@ -2407,8 +2458,8 @@ static bool vhost_notify(struct vhost_dev *dev, struct vhost_virtqueue *vq)
 void vhost_signal(struct vhost_dev *dev, struct vhost_virtqueue *vq)
 {
 	/* Signal the Guest tell them we used something up. */
-	if (vq->call_ctx && vhost_notify(dev, vq))
-		eventfd_signal(vq->call_ctx, 1);
+	if (vq->call_ctx.ctx && vhost_notify(dev, vq))
+		eventfd_signal(vq->call_ctx.ctx, 1);
 }
 EXPORT_SYMBOL_GPL(vhost_signal);
 
@@ -2499,7 +2550,7 @@ void vhost_disable_notify(struct vhost_dev *dev, struct vhost_virtqueue *vq)
 	if (!vhost_has_feature(vq, VIRTIO_RING_F_EVENT_IDX)) {
 		r = vhost_update_used_flags(vq);
 		if (r)
-			vq_err(vq, "Failed to enable notification at %p: %d\n",
+			vq_err(vq, "Failed to disable notification at %p: %d\n",
 			       &vq->used->flags, r);
 	}
 }
@@ -2548,6 +2599,21 @@ struct vhost_msg_node *vhost_dequeue_msg(struct vhost_dev *dev,
 }
 EXPORT_SYMBOL_GPL(vhost_dequeue_msg);
 
+void vhost_set_backend_features(struct vhost_dev *dev, u64 features)
+{
+	struct vhost_virtqueue *vq;
+	int i;
+
+	mutex_lock(&dev->mutex);
+	for (i = 0; i < dev->nvqs; ++i) {
+		vq = dev->vqs[i];
+		mutex_lock(&vq->mutex);
+		vq->acked_backend_features = features;
+		mutex_unlock(&vq->mutex);
+	}
+	mutex_unlock(&dev->mutex);
+}
+EXPORT_SYMBOL_GPL(vhost_set_backend_features);
 
 static int __init vhost_init(void)
 {

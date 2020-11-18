@@ -28,15 +28,14 @@ properties:
     const: 0
 
   fsl,vco-hz:
-     description: Optional for VCO frequency of the PLL in Hertz.
-        The VCO frequency of this PLL cannot be changed during runtime
-        only at startup. Therefore, the output frequencies are very
-        limited and might not even closely match the requested frequency.
-        To work around this restriction the user may specify its own
-        desired VCO frequency for the PLL.
-     minimum: 650000000
-     maximum: 1300000000
-     default: 1188000000
+    description: Optional for VCO frequency of the PLL in Hertz. The VCO frequency
+      of this PLL cannot be changed during runtime only at startup. Therefore,
+      the output frequencies are very limited and might not even closely match
+      the requested frequency. To work around this restriction the user may specify
+      its own desired VCO frequency for the PLL.
+    minimum: 650000000
+    maximum: 1300000000
+    default: 1188000000
 
 required:
   - compatible
@@ -51,7 +50,7 @@ examples:
   - |
     dpclk: clock-display@f1f0000 {
         compatible = "fsl,ls1028a-plldig";
-        reg = <0x0 0xf1f0000 0x0 0xffff>;
+        reg = <0xf1f0000 0xffff>;
         #clock-cells = <0>;
         clocks = <&osc_27m>;
     };

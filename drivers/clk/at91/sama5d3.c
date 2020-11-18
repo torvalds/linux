@@ -121,13 +121,13 @@ static void __init sama5d3_pmc_setup(struct device_node *np)
 		return;
 	mainxtal_name = of_clk_get_parent_name(np, i);
 
-	regmap = syscon_node_to_regmap(np);
+	regmap = device_node_to_regmap(np);
 	if (IS_ERR(regmap))
 		return;
 
-	sama5d3_pmc = pmc_data_allocate(PMC_MAIN + 1,
+	sama5d3_pmc = pmc_data_allocate(PMC_PLLACK + 1,
 					nck(sama5d3_systemck),
-					nck(sama5d3_periphck), 0);
+					nck(sama5d3_periphck), 0, 3);
 	if (!sama5d3_pmc)
 		return;
 
@@ -157,6 +157,8 @@ static void __init sama5d3_pmc_setup(struct device_node *np)
 	hw = at91_clk_register_plldiv(regmap, "plladivck", "pllack");
 	if (IS_ERR(hw))
 		goto err_free;
+
+	sama5d3_pmc->chws[PMC_PLLACK] = hw;
 
 	hw = at91_clk_register_utmi(regmap, NULL, "utmick", "mainck");
 	if (IS_ERR(hw))
@@ -198,9 +200,12 @@ static void __init sama5d3_pmc_setup(struct device_node *np)
 
 		hw = at91_clk_register_programmable(regmap, name,
 						    parent_names, 5, i,
-						    &at91sam9x5_programmable_layout);
+						    &at91sam9x5_programmable_layout,
+						    NULL);
 		if (IS_ERR(hw))
 			goto err_free;
+
+		sama5d3_pmc->pchws[i] = hw;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(sama5d3_systemck); i++) {
@@ -219,7 +224,8 @@ static void __init sama5d3_pmc_setup(struct device_node *np)
 							 sama5d3_periphck[i].n,
 							 "masterck",
 							 sama5d3_periphck[i].id,
-							 &sama5d3_periphck[i].r);
+							 &sama5d3_periphck[i].r,
+							 INT_MIN);
 		if (IS_ERR(hw))
 			goto err_free;
 
@@ -231,7 +237,7 @@ static void __init sama5d3_pmc_setup(struct device_node *np)
 	return;
 
 err_free:
-	pmc_data_free(sama5d3_pmc);
+	kfree(sama5d3_pmc);
 }
 /*
  * The TCB is used as the clocksource so its clock is needed early. This means

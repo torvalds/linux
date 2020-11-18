@@ -736,4 +736,54 @@ USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
 .Lyield_out_\@ :
 	.endm
 
+/*
+ * This macro emits a program property note section identifying
+ * architecture features which require special handling, mainly for
+ * use in assembly files included in the VDSO.
+ */
+
+#define NT_GNU_PROPERTY_TYPE_0  5
+#define GNU_PROPERTY_AARCH64_FEATURE_1_AND      0xc0000000
+
+#define GNU_PROPERTY_AARCH64_FEATURE_1_BTI      (1U << 0)
+#define GNU_PROPERTY_AARCH64_FEATURE_1_PAC      (1U << 1)
+
+#ifdef CONFIG_ARM64_BTI_KERNEL
+#define GNU_PROPERTY_AARCH64_FEATURE_1_DEFAULT		\
+		((GNU_PROPERTY_AARCH64_FEATURE_1_BTI |	\
+		  GNU_PROPERTY_AARCH64_FEATURE_1_PAC))
+#endif
+
+#ifdef GNU_PROPERTY_AARCH64_FEATURE_1_DEFAULT
+.macro emit_aarch64_feature_1_and, feat=GNU_PROPERTY_AARCH64_FEATURE_1_DEFAULT
+	.pushsection .note.gnu.property, "a"
+	.align  3
+	.long   2f - 1f
+	.long   6f - 3f
+	.long   NT_GNU_PROPERTY_TYPE_0
+1:      .string "GNU"
+2:
+	.align  3
+3:      .long   GNU_PROPERTY_AARCH64_FEATURE_1_AND
+	.long   5f - 4f
+4:
+	/*
+	 * This is described with an array of char in the Linux API
+	 * spec but the text and all other usage (including binutils,
+	 * clang and GCC) treat this as a 32 bit value so no swizzling
+	 * is required for big endian.
+	 */
+	.long   \feat
+5:
+	.align  3
+6:
+	.popsection
+.endm
+
+#else
+.macro emit_aarch64_feature_1_and, feat=0
+.endm
+
+#endif /* GNU_PROPERTY_AARCH64_FEATURE_1_DEFAULT */
+
 #endif	/* __ASM_ASSEMBLER_H */

@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2017, Maxim Integrated
+/* SPDX-License-Identifier: GPL-2.0-only */
+/* Copyright (c) 2017 Maxim Integrated */
 
 #ifndef _MAX98373_H
 #define _MAX98373_H
@@ -212,5 +212,18 @@ struct max98373_priv {
 	bool interleave_mode;
 	unsigned int ch_size;
 	bool tdm_mode;
+	/* variables to support soundwire */
+	struct sdw_slave *slave;
+	bool hw_init;
+	bool pm_init_once;
+	int slot;
+	unsigned int rx_mask;
 };
+
+extern const struct snd_soc_component_driver soc_codec_dev_max98373;
+extern const struct snd_soc_component_driver soc_codec_dev_max98373_sdw;
+
+void max98373_reset(struct max98373_priv *max98373, struct device *dev);
+void max98373_slot_config(struct device *dev,
+			  struct max98373_priv *max98373);
 #endif

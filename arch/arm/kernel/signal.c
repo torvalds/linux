@@ -596,7 +596,7 @@ static int do_signal(struct pt_regs *regs, int syscall)
 		switch (retval) {
 		case -ERESTART_RESTARTBLOCK:
 			restart -= 2;
-			/* Fall through */
+			fallthrough;
 		case -ERESTARTNOHAND:
 		case -ERESTARTSYS:
 		case -ERESTARTNOINTR:
@@ -713,7 +713,9 @@ struct page *get_signal_page(void)
 /* Defer to generic check */
 asmlinkage void addr_limit_check_failed(void)
 {
+#ifdef CONFIG_MMU
 	addr_limit_user_check();
+#endif
 }
 
 #ifdef CONFIG_DEBUG_RSEQ

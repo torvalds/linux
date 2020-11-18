@@ -12,20 +12,6 @@ bool conf_get_changed(void);
 void conf_set_changed_callback(void (*fn)(void));
 void conf_set_message_callback(void (*fn)(const char *s));
 
-/* menu.c */
-extern struct menu rootmenu;
-
-bool menu_is_empty(struct menu *menu);
-bool menu_is_visible(struct menu *menu);
-bool menu_has_prompt(struct menu *menu);
-const char * menu_get_prompt(struct menu *menu);
-struct menu * menu_get_root_menu(struct menu *menu);
-struct menu * menu_get_parent_menu(struct menu *menu);
-bool menu_has_help(struct menu *menu);
-const char * menu_get_help(struct menu *menu);
-struct gstr get_relations_str(struct symbol **sym_arr, struct list_head *head);
-void menu_get_ext_help(struct menu *menu, struct gstr *help);
-
 /* symbol.c */
 extern struct symbol * symbol_hash[SYMBOL_HASHSIZE];
 

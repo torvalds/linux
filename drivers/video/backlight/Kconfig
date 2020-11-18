@@ -173,14 +173,6 @@ config BACKLIGHT_EP93XX
 	  To compile this driver as a module, choose M here: the module will
 	  be called ep93xx_bl.
 
-config BACKLIGHT_GENERIC
-	tristate "Generic (aka Sharp Corgi) Backlight Driver"
-	default y
-	help
-	  Say y to enable the generic platform backlight driver previously
-	  known as the Corgi backlight driver. If you have a Sharp Zaurus
-	  SL-C7xx, SL-Cxx00 or SL-6000x say y.
-
 config BACKLIGHT_IPAQ_MICRO
 	tristate "iPAQ microcontroller backlight driver"
 	depends on MFD_IPAQ_MICRO
@@ -385,13 +377,6 @@ config BACKLIGHT_LP8788
 	depends on MFD_LP8788 && PWM
 	help
 	  This supports TI LP8788 backlight driver.
-
-config BACKLIGHT_OT200
-	tristate "Backlight driver for ot200 visualisation device"
-	depends on CS5535_MFGPT && GPIO_CS5535
-	help
-	  To compile this driver as a module, choose M here: the module will be
-	  called ot200_bl.
 
 config BACKLIGHT_PANDORA
 	tristate "Backlight driver for Pandora console"

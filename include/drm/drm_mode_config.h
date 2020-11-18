@@ -603,22 +603,22 @@ struct drm_mode_config {
 	struct drm_property *prop_src_h;
 	/**
 	 * @prop_crtc_x: Default atomic plane property for the plane destination
-	 * position in the &drm_crtc is is being shown on.
+	 * position in the &drm_crtc is being shown on.
 	 */
 	struct drm_property *prop_crtc_x;
 	/**
 	 * @prop_crtc_y: Default atomic plane property for the plane destination
-	 * position in the &drm_crtc is is being shown on.
+	 * position in the &drm_crtc is being shown on.
 	 */
 	struct drm_property *prop_crtc_y;
 	/**
 	 * @prop_crtc_w: Default atomic plane property for the plane destination
-	 * position in the &drm_crtc is is being shown on.
+	 * position in the &drm_crtc is being shown on.
 	 */
 	struct drm_property *prop_crtc_w;
 	/**
 	 * @prop_crtc_h: Default atomic plane property for the plane destination
-	 * position in the &drm_crtc is is being shown on.
+	 * position in the &drm_crtc is being shown on.
 	 */
 	struct drm_property *prop_crtc_h;
 	/**
@@ -866,6 +866,18 @@ struct drm_mode_config {
 	bool prefer_shadow_fbdev;
 
 	/**
+	 * @fbdev_use_iomem:
+	 *
+	 * Set to true if framebuffer reside in iomem.
+	 * When set to true memcpy_toio() is used when copying the framebuffer in
+	 * drm_fb_helper.drm_fb_helper_dirty_blit_real().
+	 *
+	 * FIXME: This should be replaced with a per-mapping is_iomem
+	 * flag (like ttm does), and then used everywhere in fbdev code.
+	 */
+	bool fbdev_use_iomem;
+
+	/**
 	 * @quirk_addfb_prefer_xbgr_30bpp:
 	 *
 	 * Special hack for legacy ADDFB to keep nouveau userspace happy. Should
@@ -929,7 +941,23 @@ struct drm_mode_config {
 	const struct drm_mode_config_helper_funcs *helper_private;
 };
 
-void drm_mode_config_init(struct drm_device *dev);
+int __must_check drmm_mode_config_init(struct drm_device *dev);
+
+/**
+ * drm_mode_config_init - DRM mode_configuration structure initialization
+ * @dev: DRM device
+ *
+ * This is the unmanaged version of drmm_mode_config_init() for drivers which
+ * still explicitly call drm_mode_config_cleanup().
+ *
+ * FIXME: This function is deprecated and drivers should be converted over to
+ * drmm_mode_config_init().
+ */
+static inline int drm_mode_config_init(struct drm_device *dev)
+{
+	return drmm_mode_config_init(dev);
+}
+
 void drm_mode_config_reset(struct drm_device *dev);
 void drm_mode_config_cleanup(struct drm_device *dev);
 

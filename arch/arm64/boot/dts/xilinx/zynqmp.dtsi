@@ -13,6 +13,7 @@
  */
 
 #include <dt-bindings/power/xlnx-zynqmp-power.h>
+#include <dt-bindings/reset/xlnx-zynqmp-resets.h>
 
 / {
 	compatible = "xlnx,zynqmp";
@@ -158,6 +159,10 @@
 			zynqmp_pcap: pcap {
 				compatible = "xlnx,zynqmp-pcap-fpga";
 			};
+
+			xlnx_aes: zynqmp-aes {
+				compatible = "xlnx,zynqmp-aes";
+			};
 		};
 	};
 
@@ -185,7 +190,7 @@
 		ranges = <0 0 0 0 0xffffffff>;
 
 		gic: interrupt-controller@f9010000 {
-			compatible = "arm,gic-400", "arm,cortex-a15-gic";
+			compatible = "arm,gic-400";
 			#interrupt-cells = <3>;
 			reg = <0x0 0xf9010000 0x10000>,
 			      <0x0 0xf9020000 0x20000>,
@@ -554,6 +559,15 @@
 			};
 		};
 
+		psgtr: phy@fd400000 {
+			compatible = "xlnx,zynqmp-psgtr-v1.1";
+			status = "disabled";
+			reg = <0x0 0xfd400000 0x0 0x40000>,
+			      <0x0 0xfd3d0000 0x0 0x1000>;
+			reg-names = "serdes", "siou";
+			#phy-cells = <4>;
+		};
+
 		rtc: rtc@ffa60000 {
 			compatible = "xlnx,zynqmp-rtc";
 			status = "disabled";
@@ -597,7 +611,7 @@
 			power-domains = <&zynqmp_firmware PD_SD_1>;
 		};
 
-		smmu: smmu@fd800000 {
+		smmu: iommu@fd800000 {
 			compatible = "arm,mmu-500";
 			reg = <0x0 0xfd800000 0x0 0x20000>;
 			status = "disabled";

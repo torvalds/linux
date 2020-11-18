@@ -28,11 +28,11 @@
 #include <linux/smp.h>
 #include <linux/string.h>
 #include <linux/cache.h>
+#include <linux/pgtable.h>
 
 #include <asm/cacheflush.h>
 #include <asm/cpu-type.h>
 #include <asm/mmu_context.h>
-#include <asm/pgtable.h>
 #include <asm/war.h>
 #include <asm/uasm.h>
 #include <asm/setup.h>
@@ -576,7 +576,7 @@ void build_tlb_write_entry(u32 **p, struct uasm_label **l,
 	case CPU_R5500:
 		if (m4kc_tlbp_war())
 			uasm_i_nop(p);
-		/* fall through */
+		fallthrough;
 	case CPU_ALCHEMY:
 		tlbw(p);
 		break;

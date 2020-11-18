@@ -18,6 +18,7 @@
 #include <linux/uio.h>
 #include <linux/interrupt.h>
 #include <asm/page.h>
+#include <asm/mshyperv.h>
 
 #include "hyperv_vmbus.h"
 
@@ -128,12 +129,8 @@ static int __vmbus_open(struct vmbus_channel *newchannel,
 	send_pages = newchannel->ringbuffer_send_offset;
 	recv_pages = newchannel->ringbuffer_pagecount - send_pages;
 
-	spin_lock_irqsave(&newchannel->lock, flags);
-	if (newchannel->state != CHANNEL_OPEN_STATE) {
-		spin_unlock_irqrestore(&newchannel->lock, flags);
+	if (newchannel->state != CHANNEL_OPEN_STATE)
 		return -EINVAL;
-	}
-	spin_unlock_irqrestore(&newchannel->lock, flags);
 
 	newchannel->state = CHANNEL_OPENING_STATE;
 	newchannel->onchannel_callback = onchannelcallback;
@@ -176,7 +173,7 @@ static int __vmbus_open(struct vmbus_channel *newchannel,
 	open_msg->child_relid = newchannel->offermsg.child_relid;
 	open_msg->ringbuffer_gpadlhandle = newchannel->ringbuffer_gpadlhandle;
 	open_msg->downstream_ringbuffer_pageoffset = newchannel->ringbuffer_send_offset;
-	open_msg->target_vp = newchannel->target_vp;
+	open_msg->target_vp = hv_cpu_number_to_vp_number(newchannel->target_cpu);
 
 	if (userdatalen)
 		memcpy(open_msg->userdata, userdata, userdatalen);
@@ -288,6 +285,34 @@ int vmbus_send_tl_connect_request(const guid_t *shv_guest_servie_id,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(vmbus_send_tl_connect_request);
+
+/*
+ * Set/change the vCPU (@target_vp) the channel (@child_relid) will interrupt.
+ *
+ * CHANNELMSG_MODIFYCHANNEL messages are aynchronous.  Also, Hyper-V does not
+ * ACK such messages.  IOW we can't know when the host will stop interrupting
+ * the "old" vCPU and start interrupting the "new" vCPU for the given channel.
+ *
+ * The CHANNELMSG_MODIFYCHANNEL message type is supported since VMBus version
+ * VERSION_WIN10_V4_1.
+ */
+int vmbus_send_modifychannel(u32 child_relid, u32 target_vp)
+{
+	struct vmbus_channel_modifychannel conn_msg;
+	int ret;
+
+	memset(&conn_msg, 0, sizeof(conn_msg));
+	conn_msg.header.msgtype = CHANNELMSG_MODIFYCHANNEL;
+	conn_msg.child_relid = child_relid;
+	conn_msg.target_vp = target_vp;
+
+	ret = vmbus_post_msg(&conn_msg, sizeof(conn_msg), true);
+
+	trace_vmbus_send_modifychannel(&conn_msg, ret);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(vmbus_send_modifychannel);
 
 /*
  * create_gpadl_header - Creates a gpadl for the specified buffer
@@ -594,35 +619,31 @@ post_msg_err:
 }
 EXPORT_SYMBOL_GPL(vmbus_teardown_gpadl);
 
-static void reset_channel_cb(void *arg)
-{
-	struct vmbus_channel *channel = arg;
-
-	channel->onchannel_callback = NULL;
-}
-
 void vmbus_reset_channel_cb(struct vmbus_channel *channel)
 {
+	unsigned long flags;
+
 	/*
 	 * vmbus_on_event(), running in the per-channel tasklet, can race
 	 * with vmbus_close_internal() in the case of SMP guest, e.g., when
 	 * the former is accessing channel->inbound.ring_buffer, the latter
 	 * could be freeing the ring_buffer pages, so here we must stop it
 	 * first.
+	 *
+	 * vmbus_chan_sched() might call the netvsc driver callback function
+	 * that ends up scheduling NAPI work that accesses the ring buffer.
+	 * At this point, we have to ensure that any such work is completed
+	 * and that the channel ring buffer is no longer being accessed, cf.
+	 * the calls to napi_disable() in netvsc_device_remove().
 	 */
 	tasklet_disable(&channel->callback_event);
 
-	channel->sc_creation_callback = NULL;
+	/* See the inline comments in vmbus_chan_sched(). */
+	spin_lock_irqsave(&channel->sched_lock, flags);
+	channel->onchannel_callback = NULL;
+	spin_unlock_irqrestore(&channel->sched_lock, flags);
 
-	/* Stop the callback asap */
-	if (channel->target_cpu != get_cpu()) {
-		put_cpu();
-		smp_call_function_single(channel->target_cpu, reset_channel_cb,
-					 channel, true);
-	} else {
-		reset_channel_cb(channel);
-		put_cpu();
-	}
+	channel->sc_creation_callback = NULL;
 
 	/* Re-enable tasklet for use on re-open */
 	tasklet_enable(&channel->callback_event);

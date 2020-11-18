@@ -19,13 +19,12 @@
 #include <linux/blk_types.h>
 #include <asm/local.h>
 
-#ifdef CONFIG_BLOCK
-
 #define dev_to_disk(device)	container_of((device), struct gendisk, part0.__dev)
 #define dev_to_part(device)	container_of((device), struct hd_struct, __dev)
 #define disk_to_dev(disk)	(&(disk)->part0.__dev)
 #define part_to_dev(part)	(&((part)->__dev))
 
+extern const struct device_type disk_type;
 extern struct device_type part_type;
 extern struct class block_class;
 
@@ -38,15 +37,6 @@ extern struct class block_class;
 #include <linux/string.h>
 #include <linux/fs.h>
 #include <linux/workqueue.h>
-
-struct disk_stats {
-	u64 nsecs[NR_STAT_GROUPS];
-	unsigned long sectors[NR_STAT_GROUPS];
-	unsigned long ios[NR_STAT_GROUPS];
-	unsigned long merges[NR_STAT_GROUPS];
-	unsigned long io_ticks;
-	local_t in_flight[2];
-};
 
 #define PARTITION_META_INFO_VOLNAMELTH	64
 /*
@@ -68,7 +58,13 @@ struct hd_struct {
 	 * can be non-atomic on 32bit machines with 64bit sector_t.
 	 */
 	sector_t nr_sects;
+#if BITS_PER_LONG==32 && defined(CONFIG_SMP)
 	seqcount_t nr_sects_seq;
+#endif
+	unsigned long stamp;
+	struct disk_stats __percpu *dkstats;
+	struct percpu_ref ref;
+
 	sector_t alignment_offset;
 	unsigned int discard_alignment;
 	struct device __dev;
@@ -78,13 +74,6 @@ struct hd_struct {
 #ifdef CONFIG_FAIL_MAKE_REQUEST
 	int make_it_fail;
 #endif
-	unsigned long stamp;
-#ifdef	CONFIG_SMP
-	struct disk_stats __percpu *dkstats;
-#else
-	struct disk_stats dkstats;
-#endif
-	struct percpu_ref ref;
 	struct rcu_work rcu_work;
 };
 
@@ -169,8 +158,6 @@ struct disk_part_tbl {
 struct disk_events;
 struct badblocks;
 
-#if defined(CONFIG_BLK_DEV_INTEGRITY)
-
 struct blk_integrity {
 	const struct blk_integrity_profile	*profile;
 	unsigned char				flags;
@@ -178,8 +165,6 @@ struct blk_integrity {
 	unsigned char				interval_exp;
 	unsigned char				tag_size;
 };
-
-#endif	/* CONFIG_BLK_DEV_INTEGRITY */
 
 struct gendisk {
 	/* major, first_minor and minors are input parameters only,
@@ -217,10 +202,19 @@ struct gendisk {
 #ifdef  CONFIG_BLK_DEV_INTEGRITY
 	struct kobject integrity_kobj;
 #endif	/* CONFIG_BLK_DEV_INTEGRITY */
+#if IS_ENABLED(CONFIG_CDROM)
+	struct cdrom_device_info *cdi;
+#endif
 	int node_id;
 	struct badblocks *bb;
 	struct lockdep_map lockdep_map;
 };
+
+#if IS_REACHABLE(CONFIG_CDROM)
+#define disk_to_cdi(disk)	((disk)->cdi)
+#else
+#define disk_to_cdi(disk)	NULL
+#endif
 
 static inline struct gendisk *part_to_disk(struct hd_struct *part)
 {
@@ -263,6 +257,13 @@ static inline void disk_put_part(struct hd_struct *part)
 {
 	if (likely(part))
 		put_device(part_to_dev(part));
+}
+
+static inline void hd_sects_seq_init(struct hd_struct *p)
+{
+#if BITS_PER_LONG==32 && defined(CONFIG_SMP)
+	seqcount_init(&p->nr_sects_seq);
+#endif
 }
 
 /*
@@ -335,12 +336,9 @@ static inline void set_capacity(struct gendisk *disk, sector_t size)
 	disk->part0.nr_sects = size;
 }
 
-extern dev_t blk_lookup_devt(const char *name, int partno);
-
 int bdev_disk_changed(struct block_device *bdev, bool invalidate);
 int blk_add_partitions(struct gendisk *disk, struct block_device *bdev);
-int blk_drop_partitions(struct gendisk *disk, struct block_device *bdev);
-extern void printk_all_partitions(void);
+int blk_drop_partitions(struct block_device *bdev);
 
 extern struct gendisk *__alloc_disk_node(int minors, int node_id);
 extern struct kobject *get_disk_and_module(struct gendisk *disk);
@@ -371,10 +369,40 @@ extern void blk_unregister_region(dev_t devt, unsigned long range);
 
 #define alloc_disk(minors) alloc_disk_node(minors, NUMA_NO_NODE)
 
+int register_blkdev(unsigned int major, const char *name);
+void unregister_blkdev(unsigned int major, const char *name);
+
+int revalidate_disk(struct gendisk *disk);
+int check_disk_change(struct block_device *bdev);
+int __invalidate_device(struct block_device *bdev, bool kill_dirty);
+void bd_set_size(struct block_device *bdev, loff_t size);
+
+/* for drivers/char/raw.c: */
+int blkdev_ioctl(struct block_device *, fmode_t, unsigned, unsigned long);
+long compat_blkdev_ioctl(struct file *, unsigned, unsigned long);
+
+#ifdef CONFIG_SYSFS
+int bd_link_disk_holder(struct block_device *bdev, struct gendisk *disk);
+void bd_unlink_disk_holder(struct block_device *bdev, struct gendisk *disk);
+#else
+static inline int bd_link_disk_holder(struct block_device *bdev,
+				      struct gendisk *disk)
+{
+	return 0;
+}
+static inline void bd_unlink_disk_holder(struct block_device *bdev,
+					 struct gendisk *disk)
+{
+}
+#endif /* CONFIG_SYSFS */
+
+#ifdef CONFIG_BLOCK
+void printk_all_partitions(void);
+dev_t blk_lookup_devt(const char *name, int partno);
 #else /* CONFIG_BLOCK */
-
-static inline void printk_all_partitions(void) { }
-
+static inline void printk_all_partitions(void)
+{
+}
 static inline dev_t blk_lookup_devt(const char *name, int partno)
 {
 	dev_t devt = MKDEV(0, 0);

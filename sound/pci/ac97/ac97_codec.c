@@ -218,11 +218,11 @@ static int snd_ac97_valid_reg(struct snd_ac97 *ac97, unsigned short reg)
 	case AC97_ID_ST_AC97_ID4:
 		if (reg == 0x08)
 			return 0;
-		/* fall through */
+		fallthrough;
 	case AC97_ID_ST7597:
 		if (reg == 0x22 || reg == 0x7a)
 			return 1;
-		/* fall through */
+		fallthrough;
 	case AC97_ID_AK4540:
 	case AC97_ID_AK4542:
 		if (reg <= 0x1c || reg == 0x20 || reg == 0x26 || reg >= 0x7c)

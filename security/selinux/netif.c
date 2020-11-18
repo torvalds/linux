@@ -124,7 +124,7 @@ static void sel_netif_destroy(struct sel_netif *netif)
  * @sid: interface SID
  *
  * Description:
- * This function determines the SID of a network interface by quering the
+ * This function determines the SID of a network interface by querying the
  * security policy.  The result is added to the network interface table to
  * speedup future queries.  Returns zero on success, negative values on
  * failure.

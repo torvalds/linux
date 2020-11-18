@@ -632,7 +632,7 @@ static int vhost_vsock_dev_open(struct inode *inode, struct file *file)
 
 	vhost_dev_init(&vsock->dev, vqs, ARRAY_SIZE(vsock->vqs),
 		       UIO_MAXIOV, VHOST_VSOCK_PKT_WEIGHT,
-		       VHOST_VSOCK_WEIGHT, NULL);
+		       VHOST_VSOCK_WEIGHT, true, NULL);
 
 	file->private_data = vsock;
 	spin_lock_init(&vsock->send_pkt_list_lock);

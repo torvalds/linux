@@ -83,13 +83,13 @@ nfsd4_block_proc_layoutget(struct inode *inode, const struct svc_fh *fhp,
 			bex->soff = iomap.addr;
 			break;
 		}
-		/*FALLTHRU*/
+		fallthrough;
 	case IOMAP_HOLE:
 		if (seg->iomode == IOMODE_READ) {
 			bex->es = PNFS_BLOCK_NONE_DATA;
 			break;
 		}
-		/*FALLTHRU*/
+		fallthrough;
 	case IOMAP_DELALLOC:
 	default:
 		WARN(1, "pnfsd: filesystem returned %d extent\n", iomap.type);

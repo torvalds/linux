@@ -16,6 +16,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/pgtable.h>
 
 #include <linux/jiffies.h>
 #include <linux/errno.h>
@@ -37,7 +38,6 @@
 #include <asm/intrinsics.h>
 #include <asm/io.h>
 #include <asm/hw_irq.h>
-#include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 
 #ifdef CONFIG_PERFMON

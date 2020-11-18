@@ -15,7 +15,6 @@
 #include <linux/sysctl.h>
 
 #include <asm/mman.h>
-#include <asm/pgalloc.h>
 #include <asm/tlb.h>
 #include <asm/tlbflush.h>
 #include <asm/cacheflush.h>

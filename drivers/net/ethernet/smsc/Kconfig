@@ -9,7 +9,7 @@ config NET_VENDOR_SMSC
 	depends on ARM || ARM64 || ATARI_ETHERNAT || COLDFIRE || \
 		   ISA || MAC || MIPS || NIOS2 || PCI || \
 		   PCMCIA || SUPERH || XTENSA || H8300
-	---help---
+	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
@@ -23,12 +23,12 @@ config SMC9194
 	tristate "SMC 9194 support"
 	depends on ISA
 	select CRC32
-	---help---
+	help
 	  This is support for the SMC9xxx based Ethernet cards. Choose this
 	  option if you have a DELL laptop with the docking station, or
 	  another SMC9192/9194 based chipset.  Say Y if you want it compiled
 	  into the kernel, and read the file
-	  <file:Documentation/networking/device_drivers/smsc/smc9.txt>.
+	  <file:Documentation/networking/device_drivers/ethernet/smsc/smc9.rst>.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called smc9194.
@@ -40,11 +40,11 @@ config SMC91X
 	depends on !OF || GPIOLIB
 	depends on ARM || ARM64 || ATARI_ETHERNAT || COLDFIRE || \
 		   MIPS || NIOS2 || SUPERH || XTENSA || H8300
-	---help---
+	help
 	  This is a driver for SMC's 91x series of Ethernet chipsets,
 	  including the SMC91C94 and the SMC91C111. Say Y if you want it
 	  compiled into the kernel, and read the file
-	  <file:Documentation/networking/device_drivers/smsc/smc9.txt>.
+	  <file:Documentation/networking/device_drivers/ethernet/smsc/smc9.rst>.
 
 	  This driver is also available as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you want).
@@ -56,7 +56,7 @@ config PCMCIA_SMC91C92
 	depends on PCMCIA
 	select CRC32
 	select MII
-	---help---
+	help
 	  Say Y here if you intend to attach an SMC 91Cxx compatible PCMCIA
 	  (PC-card) Ethernet or Fast Ethernet card to your computer.
 
@@ -68,7 +68,7 @@ config EPIC100
 	depends on PCI
 	select CRC32
 	select MII
-	---help---
+	help
 	  This driver is for the SMC EtherPower II 9432 PCI Ethernet NIC,
 	  which is based on the SMC83c17x (EPIC/100).
 	  More specific information and updates are available from
@@ -79,7 +79,7 @@ config SMC911X
 	select CRC32
 	select MII
 	depends on (ARM || SUPERH)
-	---help---
+	help
 	  This is a driver for SMSC's LAN911x series of Ethernet chipsets
 	  including the new LAN9115, LAN9116, LAN9117, and LAN9118.
 	  Say Y here if you want it compiled into the kernel.
@@ -94,7 +94,7 @@ config SMSC911X
 	select CRC32
 	select MII
 	select PHYLIB
-	---help---
+	help
 	  Say Y here if you want support for SMSC LAN911x and LAN921x families
 	  of ethernet controllers.
 
@@ -104,7 +104,7 @@ config SMSC911X
 config SMSC911X_ARCH_HOOKS
 	def_bool n
 	depends on SMSC911X
-	---help---
+	help
 	  If the arch enables this, it allows the arch to implement various
 	  hooks for more comprehensive interrupt control and also to override
 	  the source of the MAC address.
@@ -115,7 +115,7 @@ config SMSC9420
 	select CRC32
 	select PHYLIB
 	select SMSC_PHY
-	---help---
+	help
 	  This is a driver for SMSC's LAN9420 PCI ethernet adapter.
 	  Say Y here if you want it compiled into the kernel.
 

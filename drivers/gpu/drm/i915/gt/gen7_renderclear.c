@@ -396,7 +396,7 @@ int gen7_setup_clear_gpr_bb(struct intel_engine_cs * const engine,
 	emit_batch(vma, memset(batch, 0, bv.max_size), &bv);
 
 	i915_gem_object_flush_map(vma->obj);
-	i915_gem_object_unpin_map(vma->obj);
+	__i915_gem_object_release_map(vma->obj);
 
 	return 0;
 }

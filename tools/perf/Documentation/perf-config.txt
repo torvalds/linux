@@ -614,8 +614,9 @@ trace.*::
 
 ftrace.*::
 	ftrace.tracer::
-		Can be used to select the default tracer. Possible values are
-		'function' and 'function_graph'.
+		Can be used to select the default tracer when neither -G nor
+		-F option is not specified. Possible values are 'function' and
+		'function_graph'.
 
 llvm.*::
 	llvm.clang-path::
@@ -667,6 +668,11 @@ convert.*::
 		Limit the size of ordered_events queue, so we could control
 		allocation size of perf data files without proper finished
 		round events.
+stat.*::
+
+	stat.big-num::
+		(boolean) Change the default for "--big-num". To make
+		"--no-big-num" the default, set "stat.big-num=false".
 
 intel-pt.*::
 

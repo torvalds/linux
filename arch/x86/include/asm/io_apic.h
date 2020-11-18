@@ -99,7 +99,6 @@ struct IR_IO_APIC_route_entry {
 struct irq_alloc_info;
 struct ioapic_domain_cfg;
 
-#define IOAPIC_AUTO			-1
 #define IOAPIC_EDGE			0
 #define IOAPIC_LEVEL			1
 

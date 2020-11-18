@@ -22,12 +22,12 @@
 /**
  * struct bm1880_pinctrl - driver data
  * @base:	Pinctrl base address
- * @pctrl:	Pinctrl device
+ * @pctrldev:	Pinctrl device
  * @groups:	Pingroups
  * @ngroups:	Number of @groups
  * @funcs:	Pinmux functions
  * @nfuncs:	Number of @funcs
- * @pconf:	Pinconf data
+ * @pinconf:	Pinconf data
  */
 struct bm1880_pinctrl {
 	void __iomem *base;
@@ -408,6 +408,7 @@ static const struct bm1880_pctrl_group bm1880_pctrl_groups[] = {
 	BM1880_PINCTRL_GRP(pwm34),
 	BM1880_PINCTRL_GRP(pwm35),
 	BM1880_PINCTRL_GRP(pwm36),
+	BM1880_PINCTRL_GRP(pwm37),
 	BM1880_PINCTRL_GRP(i2c0),
 	BM1880_PINCTRL_GRP(i2c1),
 	BM1880_PINCTRL_GRP(i2c2),

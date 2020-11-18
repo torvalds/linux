@@ -172,10 +172,11 @@ int ath11k_dp_srng_setup(struct ath11k_base *ab, struct dp_srng *ring,
 	case HAL_RXDMA_DST:
 	case HAL_RXDMA_MONITOR_DST:
 	case HAL_RXDMA_MONITOR_DESC:
-	case HAL_RXDMA_DIR_BUF:
 		params.intr_batch_cntr_thres_entries =
 					HAL_SRNG_INT_BATCH_THRESHOLD_OTHER;
 		params.intr_timer_thres_us = HAL_SRNG_INT_TIMER_THRESHOLD_OTHER;
+		break;
+	case HAL_RXDMA_DIR_BUF:
 		break;
 	default:
 		ath11k_warn(ab, "Not a valid ring type in dp :%d\n", type);
@@ -701,6 +702,7 @@ int ath11k_dp_service_srng(struct ath11k_base *ab,
 done:
 	return tot_work_done;
 }
+EXPORT_SYMBOL(ath11k_dp_service_srng);
 
 void ath11k_dp_pdev_free(struct ath11k_base *ab)
 {
@@ -880,6 +882,8 @@ int ath11k_dp_alloc(struct ath11k_base *ab)
 	INIT_LIST_HEAD(&dp->reo_cmd_cache_flush_list);
 	spin_lock_init(&dp->reo_cmd_lock);
 
+	dp->reo_cmd_cache_flush_count = 0;
+
 	ret = ath11k_wbm_idle_ring_setup(ab, &n_link_desc);
 	if (ret) {
 		ath11k_warn(ab, "failed to setup wbm_idle_ring: %d\n", ret);
@@ -909,8 +913,10 @@ int ath11k_dp_alloc(struct ath11k_base *ab)
 		dp->tx_ring[i].tx_status_head = 0;
 		dp->tx_ring[i].tx_status_tail = DP_TX_COMP_RING_SIZE - 1;
 		dp->tx_ring[i].tx_status = kmalloc(size, GFP_KERNEL);
-		if (!dp->tx_ring[i].tx_status)
+		if (!dp->tx_ring[i].tx_status) {
+			ret = -ENOMEM;
 			goto fail_cmn_srng_cleanup;
+		}
 	}
 
 	for (i = 0; i < HAL_DSCP_TID_MAP_TBL_NUM_ENTRIES_MAX; i++)

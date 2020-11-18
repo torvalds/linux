@@ -24,6 +24,7 @@
 #include <linux/syscalls.h>
 #include <linux/fcntl.h>
 #include <linux/memcontrol.h>
+#include <linux/watch_queue.h>
 
 #include <linux/uaccess.h>
 #include <asm/ioctls.h>
@@ -105,25 +106,6 @@ void pipe_double_lock(struct pipe_inode_info *pipe1,
 	}
 }
 
-/* Drop the inode semaphore and wait for a pipe event, atomically */
-void pipe_wait(struct pipe_inode_info *pipe)
-{
-	DEFINE_WAIT(rdwait);
-	DEFINE_WAIT(wrwait);
-
-	/*
-	 * Pipes are system-local resources, so sleeping on them
-	 * is considered a noninteractive wait:
-	 */
-	prepare_to_wait(&pipe->rd_wait, &rdwait, TASK_INTERRUPTIBLE);
-	prepare_to_wait(&pipe->wr_wait, &wrwait, TASK_INTERRUPTIBLE);
-	pipe_unlock(pipe);
-	schedule();
-	finish_wait(&pipe->rd_wait, &rdwait);
-	finish_wait(&pipe->wr_wait, &wrwait);
-	pipe_lock(pipe);
-}
-
 static void anon_pipe_buf_release(struct pipe_inode_info *pipe,
 				  struct pipe_buffer *buf)
 {
@@ -140,21 +122,20 @@ static void anon_pipe_buf_release(struct pipe_inode_info *pipe,
 		put_page(page);
 }
 
-static int anon_pipe_buf_steal(struct pipe_inode_info *pipe,
-			       struct pipe_buffer *buf)
+static bool anon_pipe_buf_try_steal(struct pipe_inode_info *pipe,
+		struct pipe_buffer *buf)
 {
 	struct page *page = buf->page;
 
-	if (page_count(page) == 1) {
-		memcg_kmem_uncharge_page(page, 0);
-		__SetPageLocked(page);
-		return 0;
-	}
-	return 1;
+	if (page_count(page) != 1)
+		return false;
+	memcg_kmem_uncharge_page(page, 0);
+	__SetPageLocked(page);
+	return true;
 }
 
 /**
- * generic_pipe_buf_steal - attempt to take ownership of a &pipe_buffer
+ * generic_pipe_buf_try_steal - attempt to take ownership of a &pipe_buffer
  * @pipe:	the pipe that the buffer belongs to
  * @buf:	the buffer to attempt to steal
  *
@@ -165,8 +146,8 @@ static int anon_pipe_buf_steal(struct pipe_inode_info *pipe,
  *	he wishes; the typical use is insertion into a different file
  *	page cache.
  */
-int generic_pipe_buf_steal(struct pipe_inode_info *pipe,
-			   struct pipe_buffer *buf)
+bool generic_pipe_buf_try_steal(struct pipe_inode_info *pipe,
+		struct pipe_buffer *buf)
 {
 	struct page *page = buf->page;
 
@@ -177,12 +158,11 @@ int generic_pipe_buf_steal(struct pipe_inode_info *pipe,
 	 */
 	if (page_count(page) == 1) {
 		lock_page(page);
-		return 0;
+		return true;
 	}
-
-	return 1;
+	return false;
 }
-EXPORT_SYMBOL(generic_pipe_buf_steal);
+EXPORT_SYMBOL(generic_pipe_buf_try_steal);
 
 /**
  * generic_pipe_buf_get - get a reference to a &struct pipe_buffer
@@ -201,22 +181,6 @@ bool generic_pipe_buf_get(struct pipe_inode_info *pipe, struct pipe_buffer *buf)
 EXPORT_SYMBOL(generic_pipe_buf_get);
 
 /**
- * generic_pipe_buf_confirm - verify contents of the pipe buffer
- * @info:	the pipe that the buffer belongs to
- * @buf:	the buffer to confirm
- *
- * Description:
- *	This function does nothing, because the generic pipe code uses
- *	pages that are always good when inserted into the pipe.
- */
-int generic_pipe_buf_confirm(struct pipe_inode_info *info,
-			     struct pipe_buffer *buf)
-{
-	return 0;
-}
-EXPORT_SYMBOL(generic_pipe_buf_confirm);
-
-/**
  * generic_pipe_buf_release - put a reference to a &struct pipe_buffer
  * @pipe:	the pipe that the buffer belongs to
  * @buf:	the buffer to put a reference to
@@ -231,47 +195,11 @@ void generic_pipe_buf_release(struct pipe_inode_info *pipe,
 }
 EXPORT_SYMBOL(generic_pipe_buf_release);
 
-/* New data written to a pipe may be appended to a buffer with this type. */
 static const struct pipe_buf_operations anon_pipe_buf_ops = {
-	.confirm = generic_pipe_buf_confirm,
-	.release = anon_pipe_buf_release,
-	.steal = anon_pipe_buf_steal,
-	.get = generic_pipe_buf_get,
+	.release	= anon_pipe_buf_release,
+	.try_steal	= anon_pipe_buf_try_steal,
+	.get		= generic_pipe_buf_get,
 };
-
-static const struct pipe_buf_operations anon_pipe_buf_nomerge_ops = {
-	.confirm = generic_pipe_buf_confirm,
-	.release = anon_pipe_buf_release,
-	.steal = anon_pipe_buf_steal,
-	.get = generic_pipe_buf_get,
-};
-
-static const struct pipe_buf_operations packet_pipe_buf_ops = {
-	.confirm = generic_pipe_buf_confirm,
-	.release = anon_pipe_buf_release,
-	.steal = anon_pipe_buf_steal,
-	.get = generic_pipe_buf_get,
-};
-
-/**
- * pipe_buf_mark_unmergeable - mark a &struct pipe_buffer as unmergeable
- * @buf:	the buffer to mark
- *
- * Description:
- *	This function ensures that no future writes will be merged into the
- *	given &struct pipe_buffer. This is necessary when multiple pipe buffers
- *	share the same backing page.
- */
-void pipe_buf_mark_unmergeable(struct pipe_buffer *buf)
-{
-	if (buf->ops == &anon_pipe_buf_ops)
-		buf->ops = &anon_pipe_buf_nomerge_ops;
-}
-
-static bool pipe_buf_can_merge(struct pipe_buffer *buf)
-{
-	return buf->ops == &anon_pipe_buf_ops;
-}
 
 /* Done while waiting without holding the pipe lock - thus the READ_ONCE() */
 static inline bool pipe_readable(const struct pipe_inode_info *pipe)
@@ -313,14 +241,44 @@ pipe_read(struct kiocb *iocb, struct iov_iter *to)
 		unsigned int tail = pipe->tail;
 		unsigned int mask = pipe->ring_size - 1;
 
+#ifdef CONFIG_WATCH_QUEUE
+		if (pipe->note_loss) {
+			struct watch_notification n;
+
+			if (total_len < 8) {
+				if (ret == 0)
+					ret = -ENOBUFS;
+				break;
+			}
+
+			n.type = WATCH_TYPE_META;
+			n.subtype = WATCH_META_LOSS_NOTIFICATION;
+			n.info = watch_sizeof(n);
+			if (copy_to_iter(&n, sizeof(n), to) != sizeof(n)) {
+				if (ret == 0)
+					ret = -EFAULT;
+				break;
+			}
+			ret += sizeof(n);
+			total_len -= sizeof(n);
+			pipe->note_loss = false;
+		}
+#endif
+
 		if (!pipe_empty(head, tail)) {
 			struct pipe_buffer *buf = &pipe->bufs[tail & mask];
 			size_t chars = buf->len;
 			size_t written;
 			int error;
 
-			if (chars > total_len)
+			if (chars > total_len) {
+				if (buf->flags & PIPE_BUF_FLAG_WHOLE) {
+					if (ret == 0)
+						ret = -ENOBUFS;
+					break;
+				}
 				chars = total_len;
+			}
 
 			error = pipe_buf_confirm(pipe, buf);
 			if (error) {
@@ -348,6 +306,10 @@ pipe_read(struct kiocb *iocb, struct iov_iter *to)
 			if (!buf->len) {
 				pipe_buf_release(pipe, buf);
 				spin_lock_irq(&pipe->rd_wait.lock);
+#ifdef CONFIG_WATCH_QUEUE
+				if (buf->flags & PIPE_BUF_FLAG_LOSS)
+					pipe->note_loss = true;
+#endif
 				tail++;
 				pipe->tail = tail;
 				spin_unlock_irq(&pipe->rd_wait.lock);
@@ -459,6 +421,13 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 		goto out;
 	}
 
+#ifdef CONFIG_WATCH_QUEUE
+	if (pipe->watch_queue) {
+		ret = -EXDEV;
+		goto out;
+	}
+#endif
+
 	/*
 	 * Only wake up if the pipe started out empty, since
 	 * otherwise there should be no readers waiting.
@@ -478,7 +447,8 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 		struct pipe_buffer *buf = &pipe->bufs[(head - 1) & mask];
 		int offset = buf->offset + buf->len;
 
-		if (pipe_buf_can_merge(buf) && offset + chars <= PAGE_SIZE) {
+		if ((buf->flags & PIPE_BUF_FLAG_CAN_MERGE) &&
+		    offset + chars <= PAGE_SIZE) {
 			ret = pipe_buf_confirm(pipe, buf);
 			if (ret)
 				goto out;
@@ -541,11 +511,10 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 			buf->ops = &anon_pipe_buf_ops;
 			buf->offset = 0;
 			buf->len = 0;
-			buf->flags = 0;
-			if (is_packetized(filp)) {
-				buf->ops = &packet_pipe_buf_ops;
+			if (is_packetized(filp))
 				buf->flags = PIPE_BUF_FLAG_PACKET;
-			}
+			else
+				buf->flags = PIPE_BUF_FLAG_CAN_MERGE;
 			pipe->tmp_page = NULL;
 
 			copied = copy_page_from_iter(page, 0, PAGE_SIZE, from);
@@ -628,22 +597,37 @@ static long pipe_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	int count, head, tail, mask;
 
 	switch (cmd) {
-		case FIONREAD:
-			__pipe_lock(pipe);
-			count = 0;
-			head = pipe->head;
-			tail = pipe->tail;
-			mask = pipe->ring_size - 1;
+	case FIONREAD:
+		__pipe_lock(pipe);
+		count = 0;
+		head = pipe->head;
+		tail = pipe->tail;
+		mask = pipe->ring_size - 1;
 
-			while (tail != head) {
-				count += pipe->bufs[tail & mask].len;
-				tail++;
-			}
-			__pipe_unlock(pipe);
+		while (tail != head) {
+			count += pipe->bufs[tail & mask].len;
+			tail++;
+		}
+		__pipe_unlock(pipe);
 
-			return put_user(count, (int __user *)arg);
-		default:
-			return -ENOIOCTLCMD;
+		return put_user(count, (int __user *)arg);
+
+#ifdef CONFIG_WATCH_QUEUE
+	case IOC_WATCH_QUEUE_SET_SIZE: {
+		int ret;
+		__pipe_lock(pipe);
+		ret = watch_queue_set_size(pipe, arg);
+		__pipe_unlock(pipe);
+		return ret;
+	}
+
+	case IOC_WATCH_QUEUE_SET_FILTER:
+		return watch_queue_set_filter(
+			pipe, (struct watch_notification_filter __user *)arg);
+#endif
+
+	default:
+		return -ENOIOCTLCMD;
 	}
 }
 
@@ -754,27 +738,27 @@ pipe_fasync(int fd, struct file *filp, int on)
 	return retval;
 }
 
-static unsigned long account_pipe_buffers(struct user_struct *user,
-                                 unsigned long old, unsigned long new)
+unsigned long account_pipe_buffers(struct user_struct *user,
+				   unsigned long old, unsigned long new)
 {
 	return atomic_long_add_return(new - old, &user->pipe_bufs);
 }
 
-static bool too_many_pipe_buffers_soft(unsigned long user_bufs)
+bool too_many_pipe_buffers_soft(unsigned long user_bufs)
 {
 	unsigned long soft_limit = READ_ONCE(pipe_user_pages_soft);
 
 	return soft_limit && user_bufs > soft_limit;
 }
 
-static bool too_many_pipe_buffers_hard(unsigned long user_bufs)
+bool too_many_pipe_buffers_hard(unsigned long user_bufs)
 {
 	unsigned long hard_limit = READ_ONCE(pipe_user_pages_hard);
 
 	return hard_limit && user_bufs > hard_limit;
 }
 
-static bool is_unprivileged_user(void)
+bool pipe_is_unprivileged_user(void)
 {
 	return !capable(CAP_SYS_RESOURCE) && !capable(CAP_SYS_ADMIN);
 }
@@ -796,12 +780,12 @@ struct pipe_inode_info *alloc_pipe_info(void)
 
 	user_bufs = account_pipe_buffers(user, 0, pipe_bufs);
 
-	if (too_many_pipe_buffers_soft(user_bufs) && is_unprivileged_user()) {
+	if (too_many_pipe_buffers_soft(user_bufs) && pipe_is_unprivileged_user()) {
 		user_bufs = account_pipe_buffers(user, pipe_bufs, 1);
 		pipe_bufs = 1;
 	}
 
-	if (too_many_pipe_buffers_hard(user_bufs) && is_unprivileged_user())
+	if (too_many_pipe_buffers_hard(user_bufs) && pipe_is_unprivileged_user())
 		goto out_revert_acct;
 
 	pipe->bufs = kcalloc(pipe_bufs, sizeof(struct pipe_buffer),
@@ -813,6 +797,7 @@ struct pipe_inode_info *alloc_pipe_info(void)
 		pipe->r_counter = pipe->w_counter = 1;
 		pipe->max_usage = pipe_bufs;
 		pipe->ring_size = pipe_bufs;
+		pipe->nr_accounted = pipe_bufs;
 		pipe->user = user;
 		mutex_init(&pipe->mutex);
 		return pipe;
@@ -830,7 +815,14 @@ void free_pipe_info(struct pipe_inode_info *pipe)
 {
 	int i;
 
-	(void) account_pipe_buffers(pipe->user, pipe->ring_size, 0);
+#ifdef CONFIG_WATCH_QUEUE
+	if (pipe->watch_queue) {
+		watch_queue_clear(pipe->watch_queue);
+		put_watch_queue(pipe->watch_queue);
+	}
+#endif
+
+	(void) account_pipe_buffers(pipe->user, pipe->nr_accounted, 0);
 	free_uid(pipe->user);
 	for (i = 0; i < pipe->ring_size; i++) {
 		struct pipe_buffer *buf = pipe->bufs + i;
@@ -902,9 +894,19 @@ int create_pipe_files(struct file **res, int flags)
 {
 	struct inode *inode = get_pipe_inode();
 	struct file *f;
+	int error;
 
 	if (!inode)
 		return -ENFILE;
+
+	if (flags & O_NOTIFICATION_PIPE) {
+		error = watch_queue_init(inode->i_pipe);
+		if (error) {
+			free_pipe_info(inode->i_pipe);
+			iput(inode);
+			return error;
+		}
+	}
 
 	f = alloc_file_pseudo(inode, pipe_mnt, "",
 				O_WRONLY | (flags & (O_NONBLOCK | O_DIRECT)),
@@ -936,7 +938,7 @@ static int __do_pipe_flags(int *fd, struct file **files, int flags)
 	int error;
 	int fdw, fdr;
 
-	if (flags & ~(O_CLOEXEC | O_NONBLOCK | O_DIRECT))
+	if (flags & ~(O_CLOEXEC | O_NONBLOCK | O_DIRECT | O_NOTIFICATION_PIPE))
 		return -EINVAL;
 
 	error = create_pipe_files(files, flags);
@@ -1013,12 +1015,52 @@ SYSCALL_DEFINE1(pipe, int __user *, fildes)
 	return do_pipe2(fildes, 0);
 }
 
+/*
+ * This is the stupid "wait for pipe to be readable or writable"
+ * model.
+ *
+ * See pipe_read/write() for the proper kind of exclusive wait,
+ * but that requires that we wake up any other readers/writers
+ * if we then do not end up reading everything (ie the whole
+ * "wake_next_reader/writer" logic in pipe_read/write()).
+ */
+void pipe_wait_readable(struct pipe_inode_info *pipe)
+{
+	pipe_unlock(pipe);
+	wait_event_interruptible(pipe->rd_wait, pipe_readable(pipe));
+	pipe_lock(pipe);
+}
+
+void pipe_wait_writable(struct pipe_inode_info *pipe)
+{
+	pipe_unlock(pipe);
+	wait_event_interruptible(pipe->wr_wait, pipe_writable(pipe));
+	pipe_lock(pipe);
+}
+
+/*
+ * This depends on both the wait (here) and the wakeup (wake_up_partner)
+ * holding the pipe lock, so "*cnt" is stable and we know a wakeup cannot
+ * race with the count check and waitqueue prep.
+ *
+ * Normally in order to avoid races, you'd do the prepare_to_wait() first,
+ * then check the condition you're waiting for, and only then sleep. But
+ * because of the pipe lock, we can check the condition before being on
+ * the wait queue.
+ *
+ * We use the 'rd_wait' waitqueue for pipe partner waiting.
+ */
 static int wait_for_partner(struct pipe_inode_info *pipe, unsigned int *cnt)
 {
+	DEFINE_WAIT(rdwait);
 	int cur = *cnt;
 
 	while (cur == *cnt) {
-		pipe_wait(pipe);
+		prepare_to_wait(&pipe->rd_wait, &rdwait, TASK_INTERRUPTIBLE);
+		pipe_unlock(pipe);
+		schedule();
+		finish_wait(&pipe->rd_wait, &rdwait);
+		pipe_lock(pipe);
 		if (signal_pending(current))
 			break;
 	}
@@ -1028,7 +1070,6 @@ static int wait_for_partner(struct pipe_inode_info *pipe, unsigned int *cnt)
 static void wake_up_partner(struct pipe_inode_info *pipe)
 {
 	wake_up_interruptible_all(&pipe->rd_wait);
-	wake_up_interruptible_all(&pipe->wr_wait);
 }
 
 static int fifo_open(struct inode *inode, struct file *filp)
@@ -1184,42 +1225,12 @@ unsigned int round_pipe_size(unsigned long size)
 }
 
 /*
- * Allocate a new array of pipe buffers and copy the info over. Returns the
- * pipe size if successful, or return -ERROR on error.
+ * Resize the pipe ring to a number of slots.
  */
-static long pipe_set_size(struct pipe_inode_info *pipe, unsigned long arg)
+int pipe_resize_ring(struct pipe_inode_info *pipe, unsigned int nr_slots)
 {
 	struct pipe_buffer *bufs;
-	unsigned int size, nr_slots, head, tail, mask, n;
-	unsigned long user_bufs;
-	long ret = 0;
-
-	size = round_pipe_size(arg);
-	nr_slots = size >> PAGE_SHIFT;
-
-	if (!nr_slots)
-		return -EINVAL;
-
-	/*
-	 * If trying to increase the pipe capacity, check that an
-	 * unprivileged user is not trying to exceed various limits
-	 * (soft limit check here, hard limit check just below).
-	 * Decreasing the pipe capacity is always permitted, even
-	 * if the user is currently over a limit.
-	 */
-	if (nr_slots > pipe->ring_size &&
-			size > pipe_max_size && !capable(CAP_SYS_RESOURCE))
-		return -EPERM;
-
-	user_bufs = account_pipe_buffers(pipe->user, pipe->ring_size, nr_slots);
-
-	if (nr_slots > pipe->ring_size &&
-			(too_many_pipe_buffers_hard(user_bufs) ||
-			 too_many_pipe_buffers_soft(user_bufs)) &&
-			is_unprivileged_user()) {
-		ret = -EPERM;
-		goto out_revert_acct;
-	}
+	unsigned int head, tail, mask, n;
 
 	/*
 	 * We can shrink the pipe, if arg is greater than the ring occupancy.
@@ -1231,17 +1242,13 @@ static long pipe_set_size(struct pipe_inode_info *pipe, unsigned long arg)
 	head = pipe->head;
 	tail = pipe->tail;
 	n = pipe_occupancy(pipe->head, pipe->tail);
-	if (nr_slots < n) {
-		ret = -EBUSY;
-		goto out_revert_acct;
-	}
+	if (nr_slots < n)
+		return -EBUSY;
 
 	bufs = kcalloc(nr_slots, sizeof(*bufs),
 		       GFP_KERNEL_ACCOUNT | __GFP_NOWARN);
-	if (unlikely(!bufs)) {
-		ret = -ENOMEM;
-		goto out_revert_acct;
-	}
+	if (unlikely(!bufs))
+		return -ENOMEM;
 
 	/*
 	 * The pipe array wraps around, so just start the new one at zero
@@ -1269,16 +1276,68 @@ static long pipe_set_size(struct pipe_inode_info *pipe, unsigned long arg)
 	kfree(pipe->bufs);
 	pipe->bufs = bufs;
 	pipe->ring_size = nr_slots;
-	pipe->max_usage = nr_slots;
+	if (pipe->max_usage > nr_slots)
+		pipe->max_usage = nr_slots;
 	pipe->tail = tail;
 	pipe->head = head;
 
 	/* This might have made more room for writers */
 	wake_up_interruptible(&pipe->wr_wait);
+	return 0;
+}
+
+/*
+ * Allocate a new array of pipe buffers and copy the info over. Returns the
+ * pipe size if successful, or return -ERROR on error.
+ */
+static long pipe_set_size(struct pipe_inode_info *pipe, unsigned long arg)
+{
+	unsigned long user_bufs;
+	unsigned int nr_slots, size;
+	long ret = 0;
+
+#ifdef CONFIG_WATCH_QUEUE
+	if (pipe->watch_queue)
+		return -EBUSY;
+#endif
+
+	size = round_pipe_size(arg);
+	nr_slots = size >> PAGE_SHIFT;
+
+	if (!nr_slots)
+		return -EINVAL;
+
+	/*
+	 * If trying to increase the pipe capacity, check that an
+	 * unprivileged user is not trying to exceed various limits
+	 * (soft limit check here, hard limit check just below).
+	 * Decreasing the pipe capacity is always permitted, even
+	 * if the user is currently over a limit.
+	 */
+	if (nr_slots > pipe->max_usage &&
+			size > pipe_max_size && !capable(CAP_SYS_RESOURCE))
+		return -EPERM;
+
+	user_bufs = account_pipe_buffers(pipe->user, pipe->nr_accounted, nr_slots);
+
+	if (nr_slots > pipe->max_usage &&
+			(too_many_pipe_buffers_hard(user_bufs) ||
+			 too_many_pipe_buffers_soft(user_bufs)) &&
+			pipe_is_unprivileged_user()) {
+		ret = -EPERM;
+		goto out_revert_acct;
+	}
+
+	ret = pipe_resize_ring(pipe, nr_slots);
+	if (ret < 0)
+		goto out_revert_acct;
+
+	pipe->max_usage = nr_slots;
+	pipe->nr_accounted = nr_slots;
 	return pipe->max_usage * PAGE_SIZE;
 
 out_revert_acct:
-	(void) account_pipe_buffers(pipe->user, nr_slots, pipe->ring_size);
+	(void) account_pipe_buffers(pipe->user, nr_slots, pipe->nr_accounted);
 	return ret;
 }
 
@@ -1287,9 +1346,17 @@ out_revert_acct:
  * location, so checking ->i_pipe is not enough to verify that this is a
  * pipe.
  */
-struct pipe_inode_info *get_pipe_info(struct file *file)
+struct pipe_inode_info *get_pipe_info(struct file *file, bool for_splice)
 {
-	return file->f_op == &pipefifo_fops ? file->private_data : NULL;
+	struct pipe_inode_info *pipe = file->private_data;
+
+	if (file->f_op != &pipefifo_fops || !pipe)
+		return NULL;
+#ifdef CONFIG_WATCH_QUEUE
+	if (for_splice && pipe->watch_queue)
+		return NULL;
+#endif
+	return pipe;
 }
 
 long pipe_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
@@ -1297,7 +1364,7 @@ long pipe_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
 	struct pipe_inode_info *pipe;
 	long ret;
 
-	pipe = get_pipe_info(file);
+	pipe = get_pipe_info(file, false);
 	if (!pipe)
 		return -EBADF;
 

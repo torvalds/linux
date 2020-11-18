@@ -81,30 +81,22 @@ struct kvm_svm {
 
 struct kvm_vcpu;
 
-struct nested_state {
+struct svm_nested_state {
 	struct vmcb *hsave;
 	u64 hsave_msr;
 	u64 vm_cr_msr;
 	u64 vmcb;
+	u32 host_intercept_exceptions;
 
 	/* These are the merged vectors */
 	u32 *msrpm;
 
-	/* gpa pointers to the real vectors */
-	u64 vmcb_msrpm;
-	u64 vmcb_iopm;
+	/* A VMRUN has started but has not yet been performed, so
+	 * we cannot inject a nested vmexit yet.  */
+	bool nested_run_pending;
 
-	/* A VMEXIT is required but not yet emulated */
-	bool exit_required;
-
-	/* cache for intercepts of the guest */
-	u32 intercept_cr;
-	u32 intercept_dr;
-	u32 intercept_exceptions;
-	u64 intercept;
-
-	/* Nested Paging related state */
-	u64 nested_cr3;
+	/* cache for control fields of the guest */
+	struct vmcb_control_area ctl;
 };
 
 struct vcpu_svm {
@@ -141,7 +133,7 @@ struct vcpu_svm {
 
 	ulong nmi_iret_rip;
 
-	struct nested_state nested;
+	struct svm_nested_state nested;
 
 	bool nmi_singlestep;
 	u64 nmi_singlestep_guest_rflags;
@@ -166,9 +158,6 @@ struct vcpu_svm {
 	 */
 	struct list_head ir_list;
 	spinlock_t ir_list_lock;
-
-	/* which host CPU was used for running this vcpu */
-	unsigned int last_cpu;
 };
 
 struct svm_cpu_data {
@@ -196,18 +185,18 @@ static inline struct kvm_svm *to_kvm_svm(struct kvm *kvm)
 	return container_of(kvm, struct kvm_svm, kvm);
 }
 
-static inline void mark_all_dirty(struct vmcb *vmcb)
+static inline void vmcb_mark_all_dirty(struct vmcb *vmcb)
 {
 	vmcb->control.clean = 0;
 }
 
-static inline void mark_all_clean(struct vmcb *vmcb)
+static inline void vmcb_mark_all_clean(struct vmcb *vmcb)
 {
 	vmcb->control.clean = ((1 << VMCB_DIRTY_MAX) - 1)
 			       & ~VMCB_ALWAYS_DIRTY_MASK;
 }
 
-static inline void mark_dirty(struct vmcb *vmcb, int bit)
+static inline void vmcb_mark_dirty(struct vmcb *vmcb, int bit)
 {
 	vmcb->control.clean &= ~(1 << bit);
 }
@@ -301,7 +290,7 @@ static inline void clr_exception_intercept(struct vcpu_svm *svm, int bit)
 	recalc_intercepts(svm);
 }
 
-static inline void set_intercept(struct vcpu_svm *svm, int bit)
+static inline void svm_set_intercept(struct vcpu_svm *svm, int bit)
 {
 	struct vmcb *vmcb = get_host_vmcb(svm);
 
@@ -310,7 +299,7 @@ static inline void set_intercept(struct vcpu_svm *svm, int bit)
 	recalc_intercepts(svm);
 }
 
-static inline void clr_intercept(struct vcpu_svm *svm, int bit)
+static inline void svm_clr_intercept(struct vcpu_svm *svm, int bit)
 {
 	struct vmcb *vmcb = get_host_vmcb(svm);
 
@@ -319,7 +308,7 @@ static inline void clr_intercept(struct vcpu_svm *svm, int bit)
 	recalc_intercepts(svm);
 }
 
-static inline bool is_intercept(struct vcpu_svm *svm, int bit)
+static inline bool svm_is_intercept(struct vcpu_svm *svm, int bit)
 {
 	return (svm->vmcb->control.intercept & (1ULL << bit)) != 0;
 }
@@ -354,14 +343,21 @@ static inline bool gif_set(struct vcpu_svm *svm)
 }
 
 /* svm.c */
-#define MSR_INVALID			0xffffffffU
+#define MSR_CR3_LEGACY_RESERVED_MASK		0xfe7U
+#define MSR_CR3_LEGACY_PAE_RESERVED_MASK	0x7U
+#define MSR_CR3_LONG_RESERVED_MASK		0xfff0000000000fe7U
+#define MSR_INVALID				0xffffffffU
 
 u32 svm_msrpm_offset(u32 msr);
 void svm_set_efer(struct kvm_vcpu *vcpu, u64 efer);
 void svm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0);
 int svm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4);
-void svm_flush_tlb(struct kvm_vcpu *vcpu, bool invalidate_gpa);
+void svm_flush_tlb(struct kvm_vcpu *vcpu);
 void disable_nmi_singlestep(struct vcpu_svm *svm);
+bool svm_smi_blocked(struct kvm_vcpu *vcpu);
+bool svm_nmi_blocked(struct kvm_vcpu *vcpu);
+bool svm_interrupt_blocked(struct kvm_vcpu *vcpu);
+void svm_set_gif(struct vcpu_svm *svm, bool value);
 
 /* nested.c */
 
@@ -369,28 +365,31 @@ void disable_nmi_singlestep(struct vcpu_svm *svm);
 #define NESTED_EXIT_DONE	1	/* Exit caused nested vmexit  */
 #define NESTED_EXIT_CONTINUE	2	/* Further checks needed      */
 
-/* This function returns true if it is save to enable the nmi window */
-static inline bool nested_svm_nmi(struct vcpu_svm *svm)
+static inline bool nested_svm_virtualize_tpr(struct kvm_vcpu *vcpu)
 {
-	if (!is_guest_mode(&svm->vcpu))
-		return true;
+	struct vcpu_svm *svm = to_svm(vcpu);
 
-	if (!(svm->nested.intercept & (1ULL << INTERCEPT_NMI)))
-		return true;
-
-	svm->vmcb->control.exit_code = SVM_EXIT_NMI;
-	svm->nested.exit_required = true;
-
-	return false;
+	return is_guest_mode(vcpu) && (svm->nested.ctl.int_ctl & V_INTR_MASKING_MASK);
 }
 
-static inline bool svm_nested_virtualize_tpr(struct kvm_vcpu *vcpu)
+static inline bool nested_exit_on_smi(struct vcpu_svm *svm)
 {
-	return is_guest_mode(vcpu) && (vcpu->arch.hflags & HF_VINTR_MASK);
+	return (svm->nested.ctl.intercept & (1ULL << INTERCEPT_SMI));
 }
 
-void enter_svm_guest_mode(struct vcpu_svm *svm, u64 vmcb_gpa,
-			  struct vmcb *nested_vmcb, struct kvm_host_map *map);
+static inline bool nested_exit_on_intr(struct vcpu_svm *svm)
+{
+	return (svm->nested.ctl.intercept & (1ULL << INTERCEPT_INTR));
+}
+
+static inline bool nested_exit_on_nmi(struct vcpu_svm *svm)
+{
+	return (svm->nested.ctl.intercept & (1ULL << INTERCEPT_NMI));
+}
+
+int enter_svm_guest_mode(struct vcpu_svm *svm, u64 vmcb_gpa,
+			 struct vmcb *nested_vmcb);
+void svm_leave_nested(struct vcpu_svm *svm);
 int nested_svm_vmrun(struct vcpu_svm *svm);
 void nested_svm_vmloadsave(struct vmcb *from_vmcb, struct vmcb *to_vmcb);
 int nested_svm_vmexit(struct vcpu_svm *svm);
@@ -398,8 +397,10 @@ int nested_svm_exit_handled(struct vcpu_svm *svm);
 int nested_svm_check_permissions(struct vcpu_svm *svm);
 int nested_svm_check_exception(struct vcpu_svm *svm, unsigned nr,
 			       bool has_error_code, u32 error_code);
-int svm_check_nested_events(struct kvm_vcpu *vcpu);
 int nested_svm_exit_special(struct vcpu_svm *svm);
+void sync_nested_vmcb_control(struct vcpu_svm *svm);
+
+extern struct kvm_x86_nested_ops svm_nested_ops;
 
 /* avic.c */
 
@@ -419,7 +420,7 @@ extern int avic;
 static inline void avic_update_vapic_bar(struct vcpu_svm *svm, u64 data)
 {
 	svm->vmcb->control.avic_vapic_bar = data & VMCB_AVIC_APIC_BAR_MASK;
-	mark_dirty(svm->vmcb, VMCB_AVIC);
+	vmcb_mark_dirty(svm->vmcb, VMCB_AVIC);
 }
 
 static inline bool avic_vcpu_is_running(struct kvm_vcpu *vcpu)

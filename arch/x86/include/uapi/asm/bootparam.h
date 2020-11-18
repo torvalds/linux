@@ -255,7 +255,7 @@ struct boot_params {
  * 	currently supportd through this PV boot path.
  * @X86_SUBARCH_INTEL_MID: Used for Intel MID (Mobile Internet Device) platform
  *	systems which do not have the PCI legacy interfaces.
- * @X86_SUBARCH_CE4100: Used for Intel CE media processor (CE4100) SoC for
+ * @X86_SUBARCH_CE4100: Used for Intel CE media processor (CE4100) SoC
  * 	for settop boxes and media devices, the use of a subarch for CE4100
  * 	is more of a hack...
  */

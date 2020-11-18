@@ -659,7 +659,7 @@ weren't already directly answered in other parts of this document.
       retrofit existing filesystems with new consistency mechanisms.
       Data journalling is available on ext4, but is very slow.
 
-    - Rebuilding the the Merkle tree after every write, which would be
+    - Rebuilding the Merkle tree after every write, which would be
       extremely inefficient.  Alternatively, a different authenticated
       dictionary structure such as an "authenticated skiplist" could
       be used.  However, this would be far more complex.

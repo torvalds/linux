@@ -38,8 +38,6 @@ static struct kobject *block_depr;
 static DEFINE_SPINLOCK(ext_devt_lock);
 static DEFINE_IDR(ext_devt_idr);
 
-static const struct device_type disk_type;
-
 static void disk_check_events(struct disk_events *ev,
 			      unsigned int *clearing_ptr);
 static void disk_alloc_events(struct gendisk *disk);
@@ -92,7 +90,6 @@ const char *bdevname(struct block_device *bdev, char *buf)
 }
 EXPORT_SYMBOL(bdevname);
 
-#ifdef CONFIG_SMP
 static void part_stat_read_all(struct hd_struct *part, struct disk_stats *stat)
 {
 	int cpu;
@@ -112,44 +109,13 @@ static void part_stat_read_all(struct hd_struct *part, struct disk_stats *stat)
 		stat->io_ticks += ptr->io_ticks;
 	}
 }
-#else /* CONFIG_SMP */
-static void part_stat_read_all(struct hd_struct *part, struct disk_stats *stat)
-{
-	memcpy(stat, &part->dkstats, sizeof(struct disk_stats));
-}
-#endif /* CONFIG_SMP */
-
-void part_inc_in_flight(struct request_queue *q, struct hd_struct *part, int rw)
-{
-	if (queue_is_mq(q))
-		return;
-
-	part_stat_local_inc(part, in_flight[rw]);
-	if (part->partno)
-		part_stat_local_inc(&part_to_disk(part)->part0, in_flight[rw]);
-}
-
-void part_dec_in_flight(struct request_queue *q, struct hd_struct *part, int rw)
-{
-	if (queue_is_mq(q))
-		return;
-
-	part_stat_local_dec(part, in_flight[rw]);
-	if (part->partno)
-		part_stat_local_dec(&part_to_disk(part)->part0, in_flight[rw]);
-}
 
 static unsigned int part_in_flight(struct request_queue *q,
 		struct hd_struct *part)
 {
+	unsigned int inflight = 0;
 	int cpu;
-	unsigned int inflight;
 
-	if (queue_is_mq(q)) {
-		return blk_mq_in_flight(q, part);
-	}
-
-	inflight = 0;
 	for_each_possible_cpu(cpu) {
 		inflight += part_stat_local_read_cpu(part, in_flight[0], cpu) +
 			    part_stat_local_read_cpu(part, in_flight[1], cpu);
@@ -164,11 +130,6 @@ static void part_in_flight_rw(struct request_queue *q, struct hd_struct *part,
 		unsigned int inflight[2])
 {
 	int cpu;
-
-	if (queue_is_mq(q)) {
-		blk_mq_in_flight_rw(q, part, inflight);
-		return;
-	}
 
 	inflight[0] = 0;
 	inflight[1] = 0;
@@ -344,11 +305,13 @@ static inline int sector_in_part(struct hd_struct *part, sector_t sector)
  * primarily used for stats accounting.
  *
  * CONTEXT:
- * RCU read locked.  The returned partition pointer is valid only
- * while preemption is disabled.
+ * RCU read locked.  The returned partition pointer is always valid
+ * because its refcount is grabbed except for part0, which lifetime
+ * is same with the disk.
  *
  * RETURNS:
  * Found partition on success, part0 is returned if no partition matches
+ * or the matched partition is being deleted.
  */
 struct hd_struct *disk_map_sector_rcu(struct gendisk *disk, sector_t sector)
 {
@@ -356,21 +319,33 @@ struct hd_struct *disk_map_sector_rcu(struct gendisk *disk, sector_t sector)
 	struct hd_struct *part;
 	int i;
 
+	rcu_read_lock();
 	ptbl = rcu_dereference(disk->part_tbl);
 
 	part = rcu_dereference(ptbl->last_lookup);
-	if (part && sector_in_part(part, sector))
-		return part;
+	if (part && sector_in_part(part, sector) && hd_struct_try_get(part))
+		goto out_unlock;
 
 	for (i = 1; i < ptbl->len; i++) {
 		part = rcu_dereference(ptbl->part[i]);
 
 		if (part && sector_in_part(part, sector)) {
+			/*
+			 * only live partition can be cached for lookup,
+			 * so use-after-free on cached & deleting partition
+			 * can be avoided
+			 */
+			if (!hd_struct_try_get(part))
+				break;
 			rcu_assign_pointer(ptbl->last_lookup, part);
-			return part;
+			goto out_unlock;
 		}
 	}
-	return &disk->part0;
+
+	part = &disk->part0;
+out_unlock:
+	rcu_read_unlock();
+	return part;
 }
 
 /**
@@ -840,13 +815,15 @@ static void __device_add_disk(struct device *parent, struct gendisk *disk,
 		disk->flags |= GENHD_FL_SUPPRESS_PARTITION_INFO;
 		disk->flags |= GENHD_FL_NO_PART_SCAN;
 	} else {
+		struct backing_dev_info *bdi = disk->queue->backing_dev_info;
+		struct device *dev = disk_to_dev(disk);
 		int ret;
 
 		/* Register BDI before referencing it from bdev */
-		disk_to_dev(disk)->devt = devt;
-		ret = bdi_register_owner(disk->queue->backing_dev_info,
-						disk_to_dev(disk));
+		dev->devt = devt;
+		ret = bdi_register(bdi, "%u:%u", MAJOR(devt), MINOR(devt));
 		WARN_ON(ret);
+		bdi_set_owner(bdi, dev);
 		blk_register_region(disk_devt(disk), disk->minors, NULL,
 				    exact_match, exact_lock, disk);
 	}
@@ -878,10 +855,50 @@ void device_add_disk_no_queue_reg(struct device *parent, struct gendisk *disk)
 }
 EXPORT_SYMBOL(device_add_disk_no_queue_reg);
 
+static void invalidate_partition(struct gendisk *disk, int partno)
+{
+	struct block_device *bdev;
+
+	bdev = bdget_disk(disk, partno);
+	if (!bdev)
+		return;
+
+	fsync_bdev(bdev);
+	__invalidate_device(bdev, true);
+
+	/*
+	 * Unhash the bdev inode for this device so that it gets evicted as soon
+	 * as last inode reference is dropped.
+	 */
+	remove_inode_hash(bdev->bd_inode);
+	bdput(bdev);
+}
+
+/**
+ * del_gendisk - remove the gendisk
+ * @disk: the struct gendisk to remove
+ *
+ * Removes the gendisk and all its associated resources. This deletes the
+ * partitions associated with the gendisk, and unregisters the associated
+ * request_queue.
+ *
+ * This is the counter to the respective __device_add_disk() call.
+ *
+ * The final removal of the struct gendisk happens when its refcount reaches 0
+ * with put_disk(), which should be called after del_gendisk(), if
+ * __device_add_disk() was used.
+ *
+ * Drivers exist which depend on the release of the gendisk to be synchronous,
+ * it should not be deferred.
+ *
+ * Context: can sleep
+ */
 void del_gendisk(struct gendisk *disk)
 {
 	struct disk_part_iter piter;
 	struct hd_struct *part;
+
+	might_sleep();
 
 	blk_integrity_del(disk);
 	disk_del_events(disk);
@@ -896,13 +913,11 @@ void del_gendisk(struct gendisk *disk)
 			     DISK_PITER_INCL_EMPTY | DISK_PITER_REVERSE);
 	while ((part = disk_part_iter_next(&piter))) {
 		invalidate_partition(disk, part->partno);
-		bdev_unhash_inode(part_devt(part));
-		delete_partition(disk, part->partno);
+		delete_partition(disk, part);
 	}
 	disk_part_iter_exit(&piter);
 
 	invalidate_partition(disk, 0);
-	bdev_unhash_inode(disk_devt(disk));
 	set_capacity(disk, 0);
 	disk->flags &= ~GENHD_FL_UP;
 	up_write(&disk->lookup_sem);
@@ -975,10 +990,14 @@ static ssize_t disk_badblocks_store(struct device *dev,
  *
  * This function gets the structure containing partitioning
  * information for the given device @devt.
+ *
+ * Context: can sleep
  */
 struct gendisk *get_gendisk(dev_t devt, int *partno)
 {
 	struct gendisk *disk = NULL;
+
+	might_sleep();
 
 	if (MAJOR(devt) != BLOCK_EXT_MAJOR) {
 		struct kobject *kobj;
@@ -1279,7 +1298,10 @@ ssize_t part_stat_show(struct device *dev,
 	unsigned int inflight;
 
 	part_stat_read_all(p, &stat);
-	inflight = part_in_flight(q, p);
+	if (queue_is_mq(q))
+		inflight = blk_mq_in_flight(q, p);
+	else
+		inflight = part_in_flight(q, p);
 
 	return sprintf(buf,
 		"%8lu %8lu %8llu %8u "
@@ -1318,7 +1340,11 @@ ssize_t part_inflight_show(struct device *dev, struct device_attribute *attr,
 	struct request_queue *q = part_to_disk(p)->queue;
 	unsigned int inflight[2];
 
-	part_in_flight_rw(q, p, inflight);
+	if (queue_is_mq(q))
+		blk_mq_in_flight_rw(q, p, inflight);
+	else
+		part_in_flight_rw(q, p, inflight);
+
 	return sprintf(buf, "%8u %8u\n", inflight[0], inflight[1]);
 }
 
@@ -1511,9 +1537,30 @@ int disk_expand_part_tbl(struct gendisk *disk, int partno)
 	return 0;
 }
 
+/**
+ * disk_release - releases all allocated resources of the gendisk
+ * @dev: the device representing this disk
+ *
+ * This function releases all allocated resources of the gendisk.
+ *
+ * The struct gendisk refcount is incremented with get_gendisk() or
+ * get_disk_and_module(), and its refcount is decremented with
+ * put_disk_and_module() or put_disk(). Once the refcount reaches 0 this
+ * function is called.
+ *
+ * Drivers which used __device_add_disk() have a gendisk with a request_queue
+ * assigned. Since the request_queue sits on top of the gendisk for these
+ * drivers we also call blk_put_queue() for them, and we expect the
+ * request_queue refcount to reach 0 at this point, and so the request_queue
+ * will also be freed prior to the disk.
+ *
+ * Context: can sleep
+ */
 static void disk_release(struct device *dev)
 {
 	struct gendisk *disk = dev_to_disk(dev);
+
+	might_sleep();
 
 	blk_free_devt(dev->devt);
 	disk_release_events(disk);
@@ -1538,7 +1585,7 @@ static char *block_devnode(struct device *dev, umode_t *mode,
 	return NULL;
 }
 
-static const struct device_type disk_type = {
+const struct device_type disk_type = {
 	.name		= "disk",
 	.groups		= disk_attr_groups,
 	.release	= disk_release,
@@ -1573,7 +1620,10 @@ static int diskstats_show(struct seq_file *seqf, void *v)
 	disk_part_iter_init(&piter, gp, DISK_PITER_INCL_EMPTY_PART0);
 	while ((hd = disk_part_iter_next(&piter))) {
 		part_stat_read_all(hd, &stat);
-		inflight = part_in_flight(gp->queue, hd);
+		if (queue_is_mq(gp->queue))
+			inflight = blk_mq_in_flight(gp->queue, hd);
+		else
+			inflight = part_in_flight(gp->queue, hd);
 
 		seq_printf(seqf, "%4d %7d %s "
 			   "%lu %lu %lu %u "
@@ -1680,14 +1730,15 @@ struct gendisk *__alloc_disk_node(int minors, int node_id)
 
 	disk = kzalloc_node(sizeof(struct gendisk), GFP_KERNEL, node_id);
 	if (disk) {
-		if (!init_part_stats(&disk->part0)) {
+		disk->part0.dkstats = alloc_percpu(struct disk_stats);
+		if (!disk->part0.dkstats) {
 			kfree(disk);
 			return NULL;
 		}
 		init_rwsem(&disk->lookup_sem);
 		disk->node_id = node_id;
 		if (disk_expand_part_tbl(disk, 0)) {
-			free_part_stats(&disk->part0);
+			free_percpu(disk->part0.dkstats);
 			kfree(disk);
 			return NULL;
 		}
@@ -1703,7 +1754,7 @@ struct gendisk *__alloc_disk_node(int minors, int node_id)
 		 * TODO: Ideally set_capacity() and get_capacity() should be
 		 * converted to make use of bd_mutex and sequence counters.
 		 */
-		seqcount_init(&disk->part0.nr_sects_seq);
+		hd_sects_seq_init(&disk->part0);
 		if (hd_ref_init(&disk->part0)) {
 			hd_free_part(&disk->part0);
 			kfree(disk);
@@ -1720,6 +1771,15 @@ struct gendisk *__alloc_disk_node(int minors, int node_id)
 }
 EXPORT_SYMBOL(__alloc_disk_node);
 
+/**
+ * get_disk_and_module - increments the gendisk and gendisk fops module refcount
+ * @disk: the struct gendisk to increment the refcount for
+ *
+ * This increments the refcount for the struct gendisk, and the gendisk's
+ * fops module owner.
+ *
+ * Context: Any context.
+ */
 struct kobject *get_disk_and_module(struct gendisk *disk)
 {
 	struct module *owner;
@@ -1740,6 +1800,16 @@ struct kobject *get_disk_and_module(struct gendisk *disk)
 }
 EXPORT_SYMBOL(get_disk_and_module);
 
+/**
+ * put_disk - decrements the gendisk refcount
+ * @disk: the struct gendisk to decrement the refcount for
+ *
+ * This decrements the refcount for the struct gendisk. When this reaches 0
+ * we'll have disk_release() called.
+ *
+ * Context: Any context, but the last reference must not be dropped from
+ *          atomic context.
+ */
 void put_disk(struct gendisk *disk)
 {
 	if (disk)
@@ -1747,9 +1817,15 @@ void put_disk(struct gendisk *disk)
 }
 EXPORT_SYMBOL(put_disk);
 
-/*
+/**
+ * put_disk_and_module - decrements the module and gendisk refcount
+ * @disk: the struct gendisk to decrement the refcount for
+ *
  * This is a counterpart of get_disk_and_module() and thus also of
  * get_gendisk().
+ *
+ * Context: Any context, but the last reference must not be dropped from
+ *          atomic context.
  */
 void put_disk_and_module(struct gendisk *disk)
 {
@@ -1805,20 +1881,6 @@ int bdev_read_only(struct block_device *bdev)
 }
 
 EXPORT_SYMBOL(bdev_read_only);
-
-int invalidate_partition(struct gendisk *disk, int partno)
-{
-	int res = 0;
-	struct block_device *bdev = bdget_disk(disk, partno);
-	if (bdev) {
-		fsync_bdev(bdev);
-		res = __invalidate_device(bdev, true);
-		bdput(bdev);
-	}
-	return res;
-}
-
-EXPORT_SYMBOL(invalidate_partition);
 
 /*
  * Disk events - monitor disk events like media change and eject request.
@@ -1992,18 +2054,12 @@ void disk_flush_events(struct gendisk *disk, unsigned int mask)
  */
 unsigned int disk_clear_events(struct gendisk *disk, unsigned int mask)
 {
-	const struct block_device_operations *bdops = disk->fops;
 	struct disk_events *ev = disk->ev;
 	unsigned int pending;
 	unsigned int clearing = mask;
 
-	if (!ev) {
-		/* for drivers still using the old ->media_changed method */
-		if ((mask & DISK_EVENT_MEDIA_CHANGE) &&
-		    bdops->media_changed && bdops->media_changed(disk))
-			return DISK_EVENT_MEDIA_CHANGE;
+	if (!ev)
 		return 0;
-	}
 
 	disk_block_events(disk);
 

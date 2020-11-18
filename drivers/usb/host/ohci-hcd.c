@@ -16,7 +16,7 @@
  * OHCI is the main "non-Intel/VIA" standard for USB 1.1 host controller
  * interfaces (though some non-x86 Intel chips use it).  It supports
  * smarter hardware than UHCI.  A download link for the spec available
- * through the http://www.usb.org website.
+ * through the https://www.usb.org website.
  *
  * This file is licenced under the GPL.
  */
@@ -385,7 +385,7 @@ sanitize:
 			ed_free (ohci, ed);
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		/* caller was supposed to have unlinked any requests;
 		 * that's not our job.  can't recover; must leak ed.
@@ -1051,7 +1051,7 @@ int ohci_restart(struct ohci_hcd *ohci)
 			ed->ed_next = ohci->ed_rm_list;
 			ed->ed_prev = NULL;
 			ohci->ed_rm_list = ed;
-			/* FALLTHROUGH */
+			fallthrough;
 		case ED_UNLINK:
 			break;
 		default:

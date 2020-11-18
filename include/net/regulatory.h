@@ -44,7 +44,7 @@ enum environment_cap {
  *	and potentially inform users of which devices specifically
  *	cased the conflicts.
  * @initiator: indicates who sent this request, could be any of
- *	of those set in nl80211_reg_initiator (%NL80211_REGDOM_SET_BY_*)
+ *	those set in nl80211_reg_initiator (%NL80211_REGDOM_SET_BY_*)
  * @alpha2: the ISO / IEC 3166 alpha2 country code of the requested
  *	regulatory domain. We have a few special codes:
  *	00 - World regulatory domain
@@ -230,13 +230,6 @@ struct ieee80211_regdomain {
 	enum nl80211_dfs_regions dfs_region;
 	struct ieee80211_reg_rule reg_rules[];
 };
-
-#define MHZ_TO_KHZ(freq) ((freq) * 1000)
-#define KHZ_TO_MHZ(freq) ((freq) / 1000)
-#define DBI_TO_MBI(gain) ((gain) * 100)
-#define MBI_TO_DBI(gain) ((gain) / 100)
-#define DBM_TO_MBM(gain) ((gain) * 100)
-#define MBM_TO_DBM(gain) ((gain) / 100)
 
 #define REG_RULE_EXT(start, end, bw, gain, eirp, dfs_cac, reg_flags)	\
 {									\

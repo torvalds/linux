@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * soc-apci-intel-cfl-match.c - tables and support for CFL ACPI enumeration.
  *

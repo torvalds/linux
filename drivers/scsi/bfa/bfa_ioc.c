@@ -701,7 +701,7 @@ static void
 bfa_iocpf_sm_fwcheck_entry(struct bfa_iocpf_s *iocpf)
 {
 	struct bfi_ioc_image_hdr_s	fwhdr;
-	u32	r32, fwstate, pgnum, pgoff, loff = 0;
+	u32	r32, fwstate, pgnum, loff = 0;
 	int	i;
 
 	/*
@@ -731,7 +731,6 @@ bfa_iocpf_sm_fwcheck_entry(struct bfa_iocpf_s *iocpf)
 	 * Clear fwver hdr
 	 */
 	pgnum = PSS_SMEM_PGNUM(iocpf->ioc->ioc_regs.smem_pg0, loff);
-	pgoff = PSS_SMEM_PGOFF(loff);
 	writel(pgnum, iocpf->ioc->ioc_regs.host_page_num_fn);
 
 	for (i = 0; i < sizeof(struct bfi_ioc_image_hdr_s) / sizeof(u32); i++) {
@@ -970,7 +969,7 @@ bfa_iocpf_sm_enabling(struct bfa_iocpf_s *iocpf, enum iocpf_event event)
 
 	case IOCPF_E_INITFAIL:
 		bfa_iocpf_timer_stop(ioc);
-		/* fall through */
+		fallthrough;
 
 	case IOCPF_E_TIMEOUT:
 		writel(1, ioc->ioc_regs.ioc_sem_reg);
@@ -1046,7 +1045,7 @@ bfa_iocpf_sm_disabling(struct bfa_iocpf_s *iocpf, enum iocpf_event event)
 
 	case IOCPF_E_FAIL:
 		bfa_iocpf_timer_stop(ioc);
-		/* fall through */
+		fallthrough;
 
 	case IOCPF_E_TIMEOUT:
 		bfa_ioc_set_cur_ioc_fwstate(ioc, BFI_IOC_FAIL);
@@ -1440,13 +1439,12 @@ bfa_ioc_lpu_stop(struct bfa_ioc_s *ioc)
 void
 bfa_ioc_fwver_get(struct bfa_ioc_s *ioc, struct bfi_ioc_image_hdr_s *fwhdr)
 {
-	u32	pgnum, pgoff;
+	u32	pgnum;
 	u32	loff = 0;
 	int		i;
 	u32	*fwsig = (u32 *) fwhdr;
 
 	pgnum = PSS_SMEM_PGNUM(ioc->ioc_regs.smem_pg0, loff);
-	pgoff = PSS_SMEM_PGOFF(loff);
 	writel(pgnum, ioc->ioc_regs.host_page_num_fn);
 
 	for (i = 0; i < (sizeof(struct bfi_ioc_image_hdr_s) / sizeof(u32));
@@ -1662,7 +1660,7 @@ bfa_status_t
 bfa_ioc_fwsig_invalidate(struct bfa_ioc_s *ioc)
 {
 
-	u32	pgnum, pgoff;
+	u32	pgnum;
 	u32	loff = 0;
 	enum bfi_ioc_state ioc_fwstate;
 
@@ -1671,7 +1669,6 @@ bfa_ioc_fwsig_invalidate(struct bfa_ioc_s *ioc)
 		return BFA_STATUS_ADAPTER_ENABLED;
 
 	pgnum = PSS_SMEM_PGNUM(ioc->ioc_regs.smem_pg0, loff);
-	pgoff = PSS_SMEM_PGOFF(loff);
 	writel(pgnum, ioc->ioc_regs.host_page_num_fn);
 	bfa_mem_write(ioc->ioc_regs.smem_page_start, loff, BFA_IOC_FW_INV_SIGN);
 
@@ -1863,7 +1860,7 @@ bfa_ioc_download_fw(struct bfa_ioc_s *ioc, u32 boot_type,
 		    u32 boot_env)
 {
 	u32 *fwimg;
-	u32 pgnum, pgoff;
+	u32 pgnum;
 	u32 loff = 0;
 	u32 chunkno = 0;
 	u32 i;
@@ -1892,8 +1889,6 @@ bfa_ioc_download_fw(struct bfa_ioc_s *ioc, u32 boot_type,
 
 
 	pgnum = PSS_SMEM_PGNUM(ioc->ioc_regs.smem_pg0, loff);
-	pgoff = PSS_SMEM_PGOFF(loff);
-
 	writel(pgnum, ioc->ioc_regs.host_page_num_fn);
 
 	for (i = 0; i < fwimg_size; i++) {
@@ -4763,11 +4758,9 @@ bfa_diag_memtest_done(void *cbarg)
 	struct bfa_ioc_s  *ioc = diag->ioc;
 	struct bfa_diag_memtest_result *res = diag->result;
 	u32	loff = BFI_BOOT_MEMTEST_RES_ADDR;
-	u32	pgnum, pgoff, i;
+	u32	pgnum, i;
 
 	pgnum = PSS_SMEM_PGNUM(ioc->ioc_regs.smem_pg0, loff);
-	pgoff = PSS_SMEM_PGOFF(loff);
-
 	writel(pgnum, ioc->ioc_regs.host_page_num_fn);
 
 	for (i = 0; i < (sizeof(struct bfa_diag_memtest_result) /
@@ -5026,7 +5019,7 @@ diag_portbeacon_comp(struct bfa_diag_s *diag)
 /*
  *	Diag hmbox handler
  */
-void
+static void
 bfa_diag_intr(void *diagarg, struct bfi_mbmsg_s *msg)
 {
 	struct bfa_diag_s *diag = diagarg;
@@ -5995,7 +5988,7 @@ bfa_dconf_sm_final_sync(struct bfa_dconf_mod_s *dconf,
 	case BFA_DCONF_SM_IOCDISABLE:
 	case BFA_DCONF_SM_FLASH_COMP:
 		bfa_timer_stop(&dconf->timer);
-		/* fall through */
+		fallthrough;
 	case BFA_DCONF_SM_TIMEOUT:
 		bfa_sm_set_state(dconf, bfa_dconf_sm_uninit);
 		bfa_fsm_send_event(&dconf->bfa->iocfc, IOCFC_E_DCONF_DONE);
@@ -6649,8 +6642,8 @@ enum bfa_flash_cmd {
 	BFA_FLASH_READ_STATUS	= 0x05,	/* read status */
 };
 
-/**
- * @brief hardware error definition
+/*
+ * Hardware error definition
  */
 enum bfa_flash_err {
 	BFA_FLASH_NOT_PRESENT	= -1,	/*!< flash not present */
@@ -6664,8 +6657,8 @@ enum bfa_flash_err {
 	BFA_FLASH_ERR_LEN	= -9,	/*!< invalid length */
 };
 
-/**
- * @brief flash command register data structure
+/*
+ * Flash command register data structure
  */
 union bfa_flash_cmd_reg_u {
 	struct {
@@ -6688,8 +6681,8 @@ union bfa_flash_cmd_reg_u {
 	u32	i;
 };
 
-/**
- * @brief flash device status register data structure
+/*
+ * Flash device status register data structure
  */
 union bfa_flash_dev_status_reg_u {
 	struct {
@@ -6714,8 +6707,8 @@ union bfa_flash_dev_status_reg_u {
 	u32	i;
 };
 
-/**
- * @brief flash address register data structure
+/*
+ * Flash address register data structure
  */
 union bfa_flash_addr_reg_u {
 	struct {
@@ -6730,7 +6723,7 @@ union bfa_flash_addr_reg_u {
 	u32	i;
 };
 
-/**
+/*
  * dg flash_raw_private Flash raw private functions
  */
 static void
@@ -6771,7 +6764,7 @@ bfa_flash_cmd_act_check(void __iomem *pci_bar)
 	return 0;
 }
 
-/**
+/*
  * @brief
  * Flush FLI data fifo.
  *
@@ -6784,7 +6777,6 @@ static u32
 bfa_flash_fifo_flush(void __iomem *pci_bar)
 {
 	u32 i;
-	u32 t;
 	union bfa_flash_dev_status_reg_u dev_status;
 
 	dev_status.i = readl(pci_bar + FLI_DEV_STATUS_REG);
@@ -6794,7 +6786,7 @@ bfa_flash_fifo_flush(void __iomem *pci_bar)
 
 	/* fifo counter in terms of words */
 	for (i = 0; i < dev_status.r.fifo_cnt; i++)
-		t = readl(pci_bar + FLI_RDDATA_REG);
+		readl(pci_bar + FLI_RDDATA_REG);
 
 	/*
 	 * Check the device status. It may take some time.
@@ -6811,7 +6803,7 @@ bfa_flash_fifo_flush(void __iomem *pci_bar)
 	return 0;
 }
 
-/**
+/*
  * @brief
  * Read flash status.
  *
@@ -6856,7 +6848,7 @@ bfa_flash_status_read(void __iomem *pci_bar)
 	return ret_status;
 }
 
-/**
+/*
  * @brief
  * Start flash read operation.
  *
@@ -6902,7 +6894,7 @@ bfa_flash_read_start(void __iomem *pci_bar, u32 offset, u32 len,
 	return 0;
 }
 
-/**
+/*
  * @brief
  * Check flash read operation.
  *
@@ -6918,7 +6910,8 @@ bfa_flash_read_check(void __iomem *pci_bar)
 
 	return 0;
 }
-/**
+
+/*
  * @brief
  * End flash read operation.
  *
@@ -6944,7 +6937,7 @@ bfa_flash_read_end(void __iomem *pci_bar, u32 len, char *buf)
 	bfa_flash_fifo_flush(pci_bar);
 }
 
-/**
+/*
  * @brief
  * Perform flash raw read.
  *
@@ -6970,7 +6963,7 @@ bfa_raw_sem_get(void __iomem *bar)
 
 }
 
-bfa_status_t
+static bfa_status_t
 bfa_flash_sem_get(void __iomem *bar)
 {
 	u32 n = FLASH_BLOCKING_OP_MAX;
@@ -6983,7 +6976,7 @@ bfa_flash_sem_get(void __iomem *bar)
 	return BFA_STATUS_OK;
 }
 
-void
+static void
 bfa_flash_sem_put(void __iomem *bar)
 {
 	writel(0, (bar + FLASH_SEM_LOCK_REG));

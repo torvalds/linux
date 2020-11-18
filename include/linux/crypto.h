@@ -16,9 +16,8 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/bug.h>
+#include <linux/refcount.h>
 #include <linux/slab.h>
-#include <linux/string.h>
-#include <linux/uaccess.h>
 #include <linux/completion.h>
 
 /*
@@ -61,8 +60,8 @@
 #define CRYPTO_ALG_ASYNC		0x00000080
 
 /*
- * Set this bit if and only if the algorithm requires another algorithm of
- * the same type to handle corner cases.
+ * Set if the algorithm (or an algorithm which it uses) requires another
+ * algorithm of the same type to handle corner cases.
  */
 #define CRYPTO_ALG_NEED_FALLBACK	0x00000100
 
@@ -100,6 +99,38 @@
  * Don't trigger module loading
  */
 #define CRYPTO_NOLOAD			0x00008000
+
+/*
+ * The algorithm may allocate memory during request processing, i.e. during
+ * encryption, decryption, or hashing.  Users can request an algorithm with this
+ * flag unset if they can't handle memory allocation failures.
+ *
+ * This flag is currently only implemented for algorithms of type "skcipher",
+ * "aead", "ahash", "shash", and "cipher".  Algorithms of other types might not
+ * have this flag set even if they allocate memory.
+ *
+ * In some edge cases, algorithms can allocate memory regardless of this flag.
+ * To avoid these cases, users must obey the following usage constraints:
+ *    skcipher:
+ *	- The IV buffer and all scatterlist elements must be aligned to the
+ *	  algorithm's alignmask.
+ *	- If the data were to be divided into chunks of size
+ *	  crypto_skcipher_walksize() (with any remainder going at the end), no
+ *	  chunk can cross a page boundary or a scatterlist element boundary.
+ *    aead:
+ *	- The IV buffer and all scatterlist elements must be aligned to the
+ *	  algorithm's alignmask.
+ *	- The first scatterlist element must contain all the associated data,
+ *	  and its pages must be !PageHighMem.
+ *	- If the plaintext/ciphertext were to be divided into chunks of size
+ *	  crypto_aead_walksize() (with the remainder going at the end), no chunk
+ *	  can cross a page boundary or a scatterlist element boundary.
+ *    ahash:
+ *	- The result buffer must be aligned to the algorithm's alignmask.
+ *	- crypto_ahash_finup() must not be used unless the algorithm implements
+ *	  ->finup() natively.
+ */
+#define CRYPTO_ALG_ALLOCATES_MEMORY	0x00010000
 
 /*
  * Transform masks and values (for crt_flags).
@@ -595,6 +626,8 @@ int crypto_has_alg(const char *name, u32 type, u32 mask);
 struct crypto_tfm {
 
 	u32 crt_flags;
+
+	int node;
 	
 	void (*exit)(struct crypto_tfm *tfm);
 	

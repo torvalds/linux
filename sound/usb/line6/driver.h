@@ -66,8 +66,8 @@
 
 extern const unsigned char line6_midi_id[3];
 
-static const int SYSEX_DATA_OFS = sizeof(line6_midi_id) + 3;
-static const int SYSEX_EXTRA_SIZE = sizeof(line6_midi_id) + 4;
+#define SYSEX_DATA_OFS (sizeof(line6_midi_id) + 3)
+#define SYSEX_EXTRA_SIZE (sizeof(line6_midi_id) + 4)
 
 /*
 	 Common properties of Line 6 devices.
@@ -108,6 +108,8 @@ enum {
 	LINE6_CAP_CONTROL_MIDI = 1 << 4,
 	/* device provides low-level information */
 	LINE6_CAP_CONTROL_INFO = 1 << 5,
+	/* device provides hardware monitoring volume control */
+	LINE6_CAP_HWMON_CTL =	1 << 6,
 };
 
 /*
@@ -163,6 +165,7 @@ struct usb_line6 {
 		struct mutex read_lock;
 		wait_queue_head_t wait_queue;
 		unsigned int active:1;
+		unsigned int nonblock:1;
 		STRUCT_KFIFO_REC_2(LINE6_BUFSIZE_LISTEN * LINE6_RAW_MESSAGES_MAXCOUNT)
 			fifo;
 	} messages;
@@ -184,6 +187,8 @@ extern int line6_read_data(struct usb_line6 *line6, unsigned address,
 			   void *data, unsigned datalen);
 extern int line6_read_serial_number(struct usb_line6 *line6,
 				    u32 *serial_number);
+extern int line6_send_raw_message(struct usb_line6 *line6,
+					const char *buffer, int size);
 extern int line6_send_raw_message_async(struct usb_line6 *line6,
 					const char *buffer, int size);
 extern int line6_send_sysex_message(struct usb_line6 *line6,

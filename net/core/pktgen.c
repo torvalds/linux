@@ -56,7 +56,7 @@
  * Integrated to 2.5.x 021029 --Lucio Maciel (luciomaciel@zipmail.com.br)
  *
  * 021124 Finished major redesign and rewrite for new functionality.
- * See Documentation/networking/pktgen.txt for how to use this.
+ * See Documentation/networking/pktgen.rst for how to use this.
  *
  * The new operation:
  * For each CPU one thread/process is created at start. This process checks
@@ -3430,7 +3430,7 @@ xmit_more:
 		net_info_ratelimited("%s xmit error: %d\n",
 				     pkt_dev->odevname, ret);
 		pkt_dev->errors++;
-		/* fall through */
+		fallthrough;
 	case NETDEV_TX_BUSY:
 		/* Retry it next time */
 		refcount_dec(&(pkt_dev->skb->users));
@@ -3699,7 +3699,7 @@ static int __net_init pktgen_create_thread(int cpu, struct pktgen_net *pn)
 				   cpu_to_node(cpu),
 				   "kpktgend_%d", cpu);
 	if (IS_ERR(p)) {
-		pr_err("kernel_thread() failed for cpu %d\n", t->cpu);
+		pr_err("kthread_create_on_node() failed for cpu %d\n", t->cpu);
 		list_del(&t->th_list);
 		kfree(t);
 		return PTR_ERR(p);

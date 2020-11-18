@@ -21,8 +21,7 @@ properties:
 
   intel,global-reset:
     description: Global reset register offset and bit offset.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
+    $ref: /schemas/types.yaml#/definitions/uint32-array
     items:
       - description: Register offset
       - description: Register bit offset

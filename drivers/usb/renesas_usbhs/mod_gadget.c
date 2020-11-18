@@ -509,7 +509,7 @@ static int usbhsg_irq_ctrl_stage(struct usbhs_priv *priv,
 	case READ_STATUS_STAGE:
 	case WRITE_STATUS_STAGE:
 		usbhs_dcp_control_transfer_done(pipe);
-		/* fall through */
+		fallthrough;
 	default:
 		return ret;
 	}

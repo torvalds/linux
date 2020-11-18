@@ -7,7 +7,7 @@ config NET_VENDOR_NVIDIA
 	bool "NVIDIA devices"
 	default y
 	depends on PCI
-	---help---
+	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
@@ -20,7 +20,7 @@ if NET_VENDOR_NVIDIA
 config FORCEDETH
 	tristate "nForce Ethernet support"
 	depends on PCI
-	---help---
+	help
 	  If you have a network (Ethernet) controller of this type, say Y here.
 
 	  To compile this driver as a module, choose M here. The module

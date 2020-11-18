@@ -137,6 +137,8 @@
 #define GCC_MSS_NAV_AXI_CLK					127
 #define GCC_MSS_Q6_MEMNOC_AXI_CLK				128
 #define GCC_MSS_SNOC_AXI_CLK					129
+#define GCC_SEC_CTRL_CLK_SRC					130
+#define GCC_LPASS_CFG_NOC_SWAY_CLK				131
 
 /* GCC resets */
 #define GCC_QUSB2PHY_PRIM_BCR					0

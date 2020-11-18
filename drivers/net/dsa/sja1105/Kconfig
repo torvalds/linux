@@ -34,3 +34,12 @@ config NET_DSA_SJA1105_TAS
 	  This enables support for the TTEthernet-based egress scheduling
 	  engine in the SJA1105 DSA driver, which is controlled using a
 	  hardware offload of the tc-tqprio qdisc.
+
+config NET_DSA_SJA1105_VL
+	bool "Support for Virtual Links on NXP SJA1105"
+	depends on NET_DSA_SJA1105_TAS
+	help
+	  This enables support for flow classification using capable devices
+	  (SJA1105T, SJA1105Q, SJA1105S). The following actions are supported:
+	  - redirect, trap, drop
+	  - time-based ingress policing, via the tc-gate action

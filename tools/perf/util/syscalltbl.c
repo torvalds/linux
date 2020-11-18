@@ -8,9 +8,9 @@
 #include "syscalltbl.h"
 #include <stdlib.h>
 #include <linux/compiler.h>
+#include <linux/zalloc.h>
 
 #ifdef HAVE_SYSCALL_TABLE_SUPPORT
-#include <linux/zalloc.h>
 #include <string.h>
 #include "string2.h"
 
@@ -142,7 +142,7 @@ int syscalltbl__strglobmatch_first(struct syscalltbl *tbl, const char *syscall_g
 
 struct syscalltbl *syscalltbl__new(void)
 {
-	struct syscalltbl *tbl = malloc(sizeof(*tbl));
+	struct syscalltbl *tbl = zalloc(sizeof(*tbl));
 	if (tbl)
 		tbl->audit_machine = audit_detect_machine();
 	return tbl;

@@ -11,6 +11,16 @@
 
 #include <linux/const.h>
 
+#define PMD_SHIFT		18
+#define PMD_SIZE        	(1UL << PMD_SHIFT)
+#define PMD_MASK        	(~(PMD_SIZE-1))
+#define PMD_ALIGN(__addr) 	(((__addr) + ~PMD_MASK) & PMD_MASK)
+
+#define PGDIR_SHIFT     	24
+#define PGDIR_SIZE      	(1UL << PGDIR_SHIFT)
+#define PGDIR_MASK      	(~(PGDIR_SIZE-1))
+#define PGDIR_ALIGN(__addr) 	(((__addr) + ~PGDIR_MASK) & PGDIR_MASK)
+
 #ifndef __ASSEMBLY__
 #include <asm-generic/pgtable-nopud.h>
 
@@ -34,17 +44,10 @@ unsigned long __init bootmem_init(unsigned long *pages_avail);
 #define pmd_ERROR(e)   __builtin_trap()
 #define pgd_ERROR(e)   __builtin_trap()
 
-#define PMD_SHIFT		22
-#define PMD_SIZE        	(1UL << PMD_SHIFT)
-#define PMD_MASK        	(~(PMD_SIZE-1))
-#define PMD_ALIGN(__addr) 	(((__addr) + ~PMD_MASK) & PMD_MASK)
-#define PGDIR_SHIFT     	SRMMU_PGDIR_SHIFT
-#define PGDIR_SIZE      	SRMMU_PGDIR_SIZE
-#define PGDIR_MASK      	SRMMU_PGDIR_MASK
-#define PTRS_PER_PTE    	1024
-#define PTRS_PER_PMD    	SRMMU_PTRS_PER_PMD
-#define PTRS_PER_PGD    	SRMMU_PTRS_PER_PGD
-#define USER_PTRS_PER_PGD	PAGE_OFFSET / SRMMU_PGDIR_SIZE
+#define PTRS_PER_PTE    	64
+#define PTRS_PER_PMD    	64
+#define PTRS_PER_PGD    	256
+#define USER_PTRS_PER_PGD	PAGE_OFFSET / PGDIR_SIZE
 #define FIRST_USER_ADDRESS	0UL
 #define PTE_SIZE		(PTRS_PER_PTE*4)
 
@@ -132,6 +135,23 @@ static inline struct page *pmd_page(pmd_t pmd)
 	return pfn_to_page((pmd_val(pmd) & SRMMU_PTD_PMASK) >> (PAGE_SHIFT-4));
 }
 
+static inline unsigned long __pmd_page(pmd_t pmd)
+{
+	unsigned long v;
+
+	if (srmmu_device_memory(pmd_val(pmd)))
+		BUG();
+
+	v = pmd_val(pmd) & SRMMU_PTD_PMASK;
+	return (unsigned long)__nocache_va(v << 4);
+}
+
+static inline unsigned long pmd_page_vaddr(pmd_t pmd)
+{
+	unsigned long v = pmd_val(pmd) & SRMMU_PTD_PMASK;
+	return (unsigned long)__nocache_va(v << 4);
+}
+
 static inline unsigned long pud_page_vaddr(pud_t pud)
 {
 	if (srmmu_device_memory(pud_val(pud))) {
@@ -179,9 +199,7 @@ static inline int pmd_none(pmd_t pmd)
 
 static inline void pmd_clear(pmd_t *pmdp)
 {
-	int i;
-	for (i = 0; i < PTRS_PER_PTE/SRMMU_REAL_PTRS_PER_PTE; i++)
-		set_pte((pte_t *)&pmdp->pmdv[i], __pte(0));
+	set_pte((pte_t *)&pmd_val(*pmdp), __pte(0));
 }
 
 static inline int pud_none(pud_t pud)
@@ -303,30 +321,6 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 		pgprot_val(newprot));
 }
 
-#define pgd_index(address) ((address) >> PGDIR_SHIFT)
-
-/* to find an entry in a page-table-directory */
-#define pgd_offset(mm, address) ((mm)->pgd + pgd_index(address))
-
-/* to find an entry in a kernel page-table-directory */
-#define pgd_offset_k(address) pgd_offset(&init_mm, address)
-
-/* Find an entry in the second-level page table.. */
-static inline pmd_t *pmd_offset(pud_t * dir, unsigned long address)
-{
-	return (pmd_t *) pud_page_vaddr(*dir) +
-		((address >> PMD_SHIFT) & (PTRS_PER_PMD - 1));
-}
-
-/* Find an entry in the third-level page table.. */
-pte_t *pte_offset_kernel(pmd_t * dir, unsigned long address);
-
-/*
- * This shortcut works on sun4m (and sun4d) because the nocache area is static.
- */
-#define pte_offset_map(d, a)		pte_offset_kernel(d,a)
-#define pte_unmap(pte)		do{}while(0)
-
 struct seq_file;
 void mmu_info(struct seq_file *m);
 
@@ -415,7 +409,7 @@ static inline int io_remap_pfn_range(struct vm_area_struct *vma,
 
 	return remap_pfn_range(vma, from, phys_base >> PAGE_SHIFT, size, prot);
 }
-#define io_remap_pfn_range io_remap_pfn_range 
+#define io_remap_pfn_range io_remap_pfn_range
 
 #define __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
 #define ptep_set_access_flags(__vma, __address, __ptep, __entry, __dirty) \
@@ -427,8 +421,6 @@ static inline int io_remap_pfn_range(struct vm_area_struct *vma,
 	}								  \
 	__changed;							  \
 })
-
-#include <asm-generic/pgtable.h>
 
 #endif /* !(__ASSEMBLY__) */
 

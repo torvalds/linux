@@ -4,6 +4,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/of.h>
 #include <asm/unaligned.h>
 #include "mt76x2.h"
 #include "eeprom.h"
@@ -76,6 +77,7 @@ mt76x2_apply_cal_free_data(struct mt76x02_dev *dev, u8 *efuse)
 		MT_EE_RF_5G_GRP4_5_RX_HIGH_GAIN,
 		MT_EE_RF_5G_GRP4_5_RX_HIGH_GAIN + 1,
 	};
+	struct device_node *np = dev->mt76.dev->of_node;
 	u8 *eeprom = dev->mt76.eeprom.data;
 	u8 prev_grp0[4] = {
 		eeprom[MT_EE_TX_POWER_0_START_5G],
@@ -85,6 +87,9 @@ mt76x2_apply_cal_free_data(struct mt76x02_dev *dev, u8 *efuse)
 	};
 	u16 val;
 	int i;
+
+	if (!np || !of_property_read_bool(np, "mediatek,eeprom-merge-otp"))
+		return;
 
 	if (!mt76x2_has_cal_free_data(dev, efuse))
 		return;

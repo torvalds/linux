@@ -16,7 +16,7 @@ for a list of items to check before
 submitting code.  If you are submitting a driver, also read
 :ref:`Documentation/process/submitting-drivers.rst <submittingdrivers>`;
 for device tree binding patches, read
-Documentation/devicetree/bindings/submitting-patches.txt.
+Documentation/devicetree/bindings/submitting-patches.rst.
 
 Many of these steps describe the default behavior of the ``git`` version
 control system; if you use ``git`` to prepare your patches, you'll find much
@@ -94,7 +94,7 @@ individual patches which modify things in logical stages; see
 very important if you want your patch accepted.
 
 If you're using ``git``, ``git rebase -i`` can help you with this process.  If
-you're not using ``git``, ``quilt`` <http://savannah.nongnu.org/projects/quilt>
+you're not using ``git``, ``quilt`` <https://savannah.nongnu.org/projects/quilt>
 is another popular alternative.
 
 .. _describe_changes:
@@ -195,6 +195,11 @@ outputting the above style in the ``git log`` or ``git show`` commands::
 		abbrev = 12
 	[pretty]
 		fixes = Fixes: %h (\"%s\")
+
+An example call::
+
+	$ git log -1 --pretty=fixes 54a4f0239f2e
+	Fixes: 54a4f0239f2e ("KVM: MMU: make kvm_mmu_zap_page() return the number of pages it actually freed")
 
 .. _split_changes:
 
@@ -892,7 +897,7 @@ References
 ----------
 
 Andrew Morton, "The perfect patch" (tpp).
-  <http://www.ozlabs.org/~akpm/stuff/tpp.txt>
+  <https://www.ozlabs.org/~akpm/stuff/tpp.txt>
 
 Jeff Garzik, "Linux kernel patch submission format".
   <https://web.archive.org/web/20180829112450/http://linux.yyz.us/patch-format.html>

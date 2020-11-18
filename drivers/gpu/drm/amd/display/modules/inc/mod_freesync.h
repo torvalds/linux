@@ -83,6 +83,8 @@ struct mod_freesync_config {
 	bool btr;
 	unsigned int min_refresh_in_uhz;
 	unsigned int max_refresh_in_uhz;
+	unsigned int fixed_refresh_in_uhz;
+
 };
 
 struct mod_vrr_params_btr {
@@ -112,6 +114,7 @@ struct mod_vrr_params {
 	uint32_t max_duration_in_us;
 	uint32_t max_refresh_in_uhz;
 	uint32_t min_duration_in_us;
+	uint32_t fixed_refresh_in_uhz;
 
 	struct dc_crtc_timing_adjust adjust;
 
@@ -167,12 +170,9 @@ void mod_freesync_handle_v_update(struct mod_freesync *mod_freesync,
 unsigned long long mod_freesync_calc_nominal_field_rate(
 			const struct dc_stream_state *stream);
 
-bool mod_freesync_is_valid_range(struct mod_freesync *mod_freesync,
-		const struct dc_stream_state *stream,
-		uint32_t min_refresh_cap_in_uhz,
+bool mod_freesync_is_valid_range(uint32_t min_refresh_cap_in_uhz,
 		uint32_t max_refresh_cap_in_uhz,
-		uint32_t min_refresh_request_in_uhz,
-		uint32_t max_refresh_request_in_uhz);
+		uint32_t nominal_field_rate_in_uhz);
 
 
 

@@ -21,30 +21,37 @@
  */
 #include "wndw.h"
 #include "wimm.h"
+#include "handles.h"
 
 #include <nvif/class.h>
 #include <nvif/cl0002.h>
+
+#include <nvhw/class/cl507c.h>
+#include <nvhw/class/cl507e.h>
+#include <nvhw/class/clc37e.h>
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_fourcc.h>
 
 #include "nouveau_bo.h"
+#include "nouveau_gem.h"
 
 static void
 nv50_wndw_ctxdma_del(struct nv50_wndw_ctxdma *ctxdma)
 {
-	nvif_object_fini(&ctxdma->object);
+	nvif_object_dtor(&ctxdma->object);
 	list_del(&ctxdma->head);
 	kfree(ctxdma);
 }
 
 static struct nv50_wndw_ctxdma *
-nv50_wndw_ctxdma_new(struct nv50_wndw *wndw, struct nouveau_framebuffer *fb)
+nv50_wndw_ctxdma_new(struct nv50_wndw *wndw, struct drm_framebuffer *fb)
 {
-	struct nouveau_drm *drm = nouveau_drm(fb->base.dev);
+	struct nouveau_drm *drm = nouveau_drm(fb->dev);
 	struct nv50_wndw_ctxdma *ctxdma;
-	const u8    kind = fb->nvbo->kind;
-	const u32 handle = 0xfb000000 | kind;
+	u32 handle;
+	u32 unused;
+	u8  kind;
 	struct {
 		struct nv_dma_v0 base;
 		union {
@@ -55,6 +62,9 @@ nv50_wndw_ctxdma_new(struct nv50_wndw *wndw, struct nouveau_framebuffer *fb)
 	} args = {};
 	u32 argc = sizeof(args.base);
 	int ret;
+
+	nouveau_framebuffer_get_layout(fb, &unused, &kind);
+	handle = NV50_DISP_HANDLE_WNDW_CTX(kind);
 
 	list_for_each_entry(ctxdma, &wndw->ctxdma.list, head) {
 		if (ctxdma->object.handle == handle)
@@ -88,8 +98,8 @@ nv50_wndw_ctxdma_new(struct nv50_wndw *wndw, struct nouveau_framebuffer *fb)
 		argc += sizeof(args.gf119);
 	}
 
-	ret = nvif_object_init(wndw->ctxdma.parent, handle, NV_DMA_IN_MEMORY,
-			       &args, argc, &ctxdma->object);
+	ret = nvif_object_ctor(wndw->ctxdma.parent, "kmsFbCtxDma", handle,
+			       NV_DMA_IN_MEMORY, &args, argc, &ctxdma->object);
 	if (ret) {
 		nv50_wndw_ctxdma_del(ctxdma);
 		return ERR_PTR(ret);
@@ -131,7 +141,7 @@ nv50_wndw_flush_set(struct nv50_wndw *wndw, u32 *interlock,
 		    struct nv50_wndw_atom *asyw)
 {
 	if (interlock[NV50_DISP_INTERLOCK_CORE]) {
-		asyw->image.mode = 0;
+		asyw->image.mode = NV507C_SET_PRESENT_CONTROL_BEGIN_MODE_NON_TEARING;
 		asyw->image.interval = 1;
 	}
 
@@ -187,19 +197,26 @@ nv50_wndw_atomic_check_release(struct nv50_wndw *wndw,
 	wndw->func->release(wndw, asyw, asyh);
 	asyw->ntfy.handle = 0;
 	asyw->sema.handle = 0;
+	asyw->xlut.handle = 0;
+	memset(asyw->image.handle, 0x00, sizeof(asyw->image.handle));
 }
 
 static int
 nv50_wndw_atomic_check_acquire_yuv(struct nv50_wndw_atom *asyw)
 {
 	switch (asyw->state.fb->format->format) {
-	case DRM_FORMAT_YUYV: asyw->image.format = 0x28; break;
-	case DRM_FORMAT_UYVY: asyw->image.format = 0x29; break;
+	case DRM_FORMAT_YUYV:
+		asyw->image.format = NV507E_SURFACE_SET_PARAMS_FORMAT_VE8YO8UE8YE8;
+		break;
+	case DRM_FORMAT_UYVY:
+		asyw->image.format = NV507E_SURFACE_SET_PARAMS_FORMAT_YO8VE8YE8UE8;
+		break;
 	default:
 		WARN_ON(1);
 		return -EINVAL;
 	}
-	asyw->image.colorspace = 1;
+
+	asyw->image.colorspace = NV507E_SURFACE_SET_PARAMS_COLOR_SPACE_YUV_601;
 	return 0;
 }
 
@@ -207,24 +224,41 @@ static int
 nv50_wndw_atomic_check_acquire_rgb(struct nv50_wndw_atom *asyw)
 {
 	switch (asyw->state.fb->format->format) {
-	case DRM_FORMAT_C8           : asyw->image.format = 0x1e; break;
-	case DRM_FORMAT_XRGB8888     :
-	case DRM_FORMAT_ARGB8888     : asyw->image.format = 0xcf; break;
-	case DRM_FORMAT_RGB565       : asyw->image.format = 0xe8; break;
-	case DRM_FORMAT_XRGB1555     :
-	case DRM_FORMAT_ARGB1555     : asyw->image.format = 0xe9; break;
-	case DRM_FORMAT_XBGR2101010  :
-	case DRM_FORMAT_ABGR2101010  : asyw->image.format = 0xd1; break;
-	case DRM_FORMAT_XBGR8888     :
-	case DRM_FORMAT_ABGR8888     : asyw->image.format = 0xd5; break;
-	case DRM_FORMAT_XRGB2101010  :
-	case DRM_FORMAT_ARGB2101010  : asyw->image.format = 0xdf; break;
+	case DRM_FORMAT_C8:
+		asyw->image.format = NV507C_SURFACE_SET_PARAMS_FORMAT_I8;
+		break;
+	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_ARGB8888:
+		asyw->image.format = NV507C_SURFACE_SET_PARAMS_FORMAT_A8R8G8B8;
+		break;
+	case DRM_FORMAT_RGB565:
+		asyw->image.format = NV507C_SURFACE_SET_PARAMS_FORMAT_R5G6B5;
+		break;
+	case DRM_FORMAT_XRGB1555:
+	case DRM_FORMAT_ARGB1555:
+		asyw->image.format = NV507C_SURFACE_SET_PARAMS_FORMAT_A1R5G5B5;
+		break;
+	case DRM_FORMAT_XBGR2101010:
+	case DRM_FORMAT_ABGR2101010:
+		asyw->image.format = NV507C_SURFACE_SET_PARAMS_FORMAT_A2B10G10R10;
+		break;
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_ABGR8888:
+		asyw->image.format = NV507C_SURFACE_SET_PARAMS_FORMAT_A8B8G8R8;
+		break;
+	case DRM_FORMAT_XRGB2101010:
+	case DRM_FORMAT_ARGB2101010:
+		asyw->image.format = NVC37E_SET_PARAMS_FORMAT_A2R10G10B10;
+		break;
 	case DRM_FORMAT_XBGR16161616F:
-	case DRM_FORMAT_ABGR16161616F: asyw->image.format = 0xca; break;
+	case DRM_FORMAT_ABGR16161616F:
+		asyw->image.format = NV507C_SURFACE_SET_PARAMS_FORMAT_RF16_GF16_BF16_AF16;
+		break;
 	default:
 		return -EINVAL;
 	}
-	asyw->image.colorspace = 0;
+
+	asyw->image.colorspace = NV507E_SURFACE_SET_PARAMS_COLOR_SPACE_RGB;
 	return 0;
 }
 
@@ -234,16 +268,20 @@ nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw, bool modeset,
 			       struct nv50_wndw_atom *asyw,
 			       struct nv50_head_atom *asyh)
 {
-	struct nouveau_framebuffer *fb = nouveau_framebuffer(asyw->state.fb);
+	struct drm_framebuffer *fb = asyw->state.fb;
 	struct nouveau_drm *drm = nouveau_drm(wndw->plane.dev);
+	uint8_t kind;
+	uint32_t tile_mode;
 	int ret;
 
 	NV_ATOMIC(drm, "%s acquire\n", wndw->plane.name);
 
-	if (asyw->state.fb != armw->state.fb || !armw->visible || modeset) {
-		asyw->image.w = fb->base.width;
-		asyw->image.h = fb->base.height;
-		asyw->image.kind = fb->nvbo->kind;
+	if (fb != armw->state.fb || !armw->visible || modeset) {
+		nouveau_framebuffer_get_layout(fb, &tile_mode, &kind);
+
+		asyw->image.w = fb->width;
+		asyw->image.h = fb->height;
+		asyw->image.kind = kind;
 
 		ret = nv50_wndw_atomic_check_acquire_rgb(asyw);
 		if (ret) {
@@ -253,25 +291,30 @@ nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw, bool modeset,
 		}
 
 		if (asyw->image.kind) {
-			asyw->image.layout = 0;
+			asyw->image.layout = NV507C_SURFACE_SET_STORAGE_MEMORY_LAYOUT_BLOCKLINEAR;
 			if (drm->client.device.info.chipset >= 0xc0)
-				asyw->image.blockh = fb->nvbo->mode >> 4;
+				asyw->image.blockh = tile_mode >> 4;
 			else
-				asyw->image.blockh = fb->nvbo->mode;
-			asyw->image.blocks[0] = fb->base.pitches[0] / 64;
+				asyw->image.blockh = tile_mode;
+			asyw->image.blocks[0] = fb->pitches[0] / 64;
 			asyw->image.pitch[0] = 0;
 		} else {
-			asyw->image.layout = 1;
-			asyw->image.blockh = 0;
+			asyw->image.layout = NV507C_SURFACE_SET_STORAGE_MEMORY_LAYOUT_PITCH;
+			asyw->image.blockh = NV507C_SURFACE_SET_STORAGE_BLOCK_HEIGHT_ONE_GOB;
 			asyw->image.blocks[0] = 0;
-			asyw->image.pitch[0] = fb->base.pitches[0];
+			asyw->image.pitch[0] = fb->pitches[0];
 		}
 
 		if (!asyh->state.async_flip)
 			asyw->image.interval = 1;
 		else
 			asyw->image.interval = 0;
-		asyw->image.mode = asyw->image.interval ? 0 : 1;
+
+		if (asyw->image.interval)
+			asyw->image.mode = NV507C_SET_PRESENT_CONTROL_BEGIN_MODE_NON_TEARING;
+		else
+			asyw->image.mode = NV507C_SET_PRESENT_CONTROL_BEGIN_MODE_IMMEDIATE;
+
 		asyw->set.image = wndw->func->image_set != NULL;
 	}
 
@@ -291,17 +334,17 @@ nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw, bool modeset,
 		asyw->blend.k1 = asyw->state.alpha >> 8;
 		switch (asyw->state.pixel_blend_mode) {
 		case DRM_MODE_BLEND_PREMULTI:
-			asyw->blend.src_color = 2; /* K1 */
-			asyw->blend.dst_color = 7; /* NEG_K1_TIMES_SRC */
+			asyw->blend.src_color = NVC37E_SET_COMPOSITION_FACTOR_SELECT_SRC_COLOR_FACTOR_MATCH_SELECT_K1;
+			asyw->blend.dst_color = NVC37E_SET_COMPOSITION_FACTOR_SELECT_DST_COLOR_FACTOR_MATCH_SELECT_NEG_K1_TIMES_SRC;
 			break;
 		case DRM_MODE_BLEND_COVERAGE:
-			asyw->blend.src_color = 5; /* K1_TIMES_SRC */
-			asyw->blend.dst_color = 7; /* NEG_K1_TIMES_SRC */
+			asyw->blend.src_color = NVC37E_SET_COMPOSITION_FACTOR_SELECT_SRC_COLOR_FACTOR_MATCH_SELECT_K1_TIMES_SRC;
+			asyw->blend.dst_color = NVC37E_SET_COMPOSITION_FACTOR_SELECT_DST_COLOR_FACTOR_MATCH_SELECT_NEG_K1_TIMES_SRC;
 			break;
 		case DRM_MODE_BLEND_PIXEL_NONE:
 		default:
-			asyw->blend.src_color = 2; /* K1 */
-			asyw->blend.dst_color = 4; /* NEG_K1 */
+			asyw->blend.src_color = NVC37E_SET_COMPOSITION_FACTOR_SELECT_SRC_COLOR_FACTOR_MATCH_SELECT_K1;
+			asyw->blend.dst_color = NVC37E_SET_COMPOSITION_FACTOR_SELECT_DST_COLOR_FACTOR_MATCH_SELECT_NEG_K1;
 			break;
 		}
 		if (memcmp(&armw->blend, &asyw->blend, sizeof(asyw->blend)))
@@ -471,47 +514,51 @@ nv50_wndw_atomic_check(struct drm_plane *plane, struct drm_plane_state *state)
 static void
 nv50_wndw_cleanup_fb(struct drm_plane *plane, struct drm_plane_state *old_state)
 {
-	struct nouveau_framebuffer *fb = nouveau_framebuffer(old_state->fb);
 	struct nouveau_drm *drm = nouveau_drm(plane->dev);
+	struct nouveau_bo *nvbo;
 
 	NV_ATOMIC(drm, "%s cleanup: %p\n", plane->name, old_state->fb);
 	if (!old_state->fb)
 		return;
 
-	nouveau_bo_unpin(fb->nvbo);
+	nvbo = nouveau_gem_object(old_state->fb->obj[0]);
+	nouveau_bo_unpin(nvbo);
 }
 
 static int
 nv50_wndw_prepare_fb(struct drm_plane *plane, struct drm_plane_state *state)
 {
-	struct nouveau_framebuffer *fb = nouveau_framebuffer(state->fb);
+	struct drm_framebuffer *fb = state->fb;
 	struct nouveau_drm *drm = nouveau_drm(plane->dev);
 	struct nv50_wndw *wndw = nv50_wndw(plane);
 	struct nv50_wndw_atom *asyw = nv50_wndw_atom(state);
+	struct nouveau_bo *nvbo;
 	struct nv50_head_atom *asyh;
 	struct nv50_wndw_ctxdma *ctxdma;
 	int ret;
 
-	NV_ATOMIC(drm, "%s prepare: %p\n", plane->name, state->fb);
+	NV_ATOMIC(drm, "%s prepare: %p\n", plane->name, fb);
 	if (!asyw->state.fb)
 		return 0;
 
-	ret = nouveau_bo_pin(fb->nvbo, TTM_PL_FLAG_VRAM, true);
+	nvbo = nouveau_gem_object(fb->obj[0]);
+	ret = nouveau_bo_pin(nvbo, TTM_PL_FLAG_VRAM, true);
 	if (ret)
 		return ret;
 
 	if (wndw->ctxdma.parent) {
 		ctxdma = nv50_wndw_ctxdma_new(wndw, fb);
 		if (IS_ERR(ctxdma)) {
-			nouveau_bo_unpin(fb->nvbo);
+			nouveau_bo_unpin(nvbo);
 			return PTR_ERR(ctxdma);
 		}
 
-		asyw->image.handle[0] = ctxdma->object.handle;
+		if (asyw->visible)
+			asyw->image.handle[0] = ctxdma->object.handle;
 	}
 
-	asyw->state.fence = dma_resv_get_excl_rcu(fb->nvbo->bo.base.resv);
-	asyw->image.offset[0] = fb->nvbo->bo.offset;
+	asyw->state.fence = dma_resv_get_excl_rcu(nvbo->bo.base.resv);
+	asyw->image.offset[0] = nvbo->offset;
 
 	if (wndw->func->prepare) {
 		asyh = nv50_head_atom_get(asyw->state.state, asyw->state.crtc);
@@ -593,7 +640,7 @@ nv50_wndw_destroy(struct drm_plane *plane)
 		nv50_wndw_ctxdma_del(ctxdma);
 	}
 
-	nvif_notify_fini(&wndw->notify);
+	nvif_notify_dtor(&wndw->notify);
 	nv50_dmac_destroy(&wndw->wimm);
 	nv50_dmac_destroy(&wndw->wndw);
 
@@ -601,6 +648,29 @@ nv50_wndw_destroy(struct drm_plane *plane)
 
 	drm_plane_cleanup(&wndw->plane);
 	kfree(wndw);
+}
+
+/* This function assumes the format has already been validated against the plane
+ * and the modifier was validated against the device-wides modifier list at FB
+ * creation time.
+ */
+static bool nv50_plane_format_mod_supported(struct drm_plane *plane,
+					    u32 format, u64 modifier)
+{
+	struct nouveau_drm *drm = nouveau_drm(plane->dev);
+	uint8_t i;
+
+	if (drm->client.device.info.chipset < 0xc0) {
+		const struct drm_format_info *info = drm_format_info(format);
+		const uint8_t kind = (modifier >> 12) & 0xff;
+
+		if (!format) return false;
+
+		for (i = 0; i < info->num_planes; i++)
+			if ((info->cpp[i] != 4) && kind != 0x70) return false;
+	}
+
+	return true;
 }
 
 const struct drm_plane_funcs
@@ -611,6 +681,7 @@ nv50_wndw = {
 	.reset = nv50_wndw_reset,
 	.atomic_duplicate_state = nv50_wndw_atomic_duplicate_state,
 	.atomic_destroy_state = nv50_wndw_atomic_destroy_state,
+	.format_mod_supported = nv50_plane_format_mod_supported,
 };
 
 static int
@@ -658,7 +729,8 @@ nv50_wndw_new_(const struct nv50_wndw_func *func, struct drm_device *dev,
 	for (nformat = 0; format[nformat]; nformat++);
 
 	ret = drm_universal_plane_init(dev, &wndw->plane, heads, &nv50_wndw,
-				       format, nformat, NULL,
+				       format, nformat,
+				       nouveau_display(dev)->format_modifiers,
 				       type, "%s-%d", name, index);
 	if (ret) {
 		kfree(*pwndw);

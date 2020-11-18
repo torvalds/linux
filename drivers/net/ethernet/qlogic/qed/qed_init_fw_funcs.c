@@ -1,33 +1,7 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
 /* QLogic qed NIC Driver
  * Copyright (c) 2015-2017  QLogic Corporation
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and /or other materials
- *        provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Copyright (c) 2019-2020 Marvell International Ltd.
  */
 
 #include <linux/types.h>
@@ -182,23 +156,25 @@ static u16 task_region_offsets[1][NUM_OF_CONNECTION_TYPES_E4] = {
 		  cmd ## _ ## field, \
 		  value)
 
-#define QM_INIT_TX_PQ_MAP(p_hwfn, map, chip, pq_id, vp_pq_id, rl_valid, rl_id, \
-			  ext_voq, wrr) \
-	do { \
-		typeof(map) __map; \
-		memset(&__map, 0, sizeof(__map)); \
-		SET_FIELD(__map.reg, QM_RF_PQ_MAP_ ## chip ## _PQ_VALID, 1); \
-		SET_FIELD(__map.reg, QM_RF_PQ_MAP_ ## chip ## _RL_VALID, \
-			  rl_valid ? 1 : 0);\
-		SET_FIELD(__map.reg, QM_RF_PQ_MAP_ ## chip ## _VP_PQ_ID, \
-			  vp_pq_id); \
-		SET_FIELD(__map.reg, QM_RF_PQ_MAP_ ## chip ## _RL_ID, rl_id); \
-		SET_FIELD(__map.reg, QM_RF_PQ_MAP_ ## chip ## _VOQ, ext_voq); \
-		SET_FIELD(__map.reg, \
-			  QM_RF_PQ_MAP_ ## chip ## _WRR_WEIGHT_GROUP, wrr); \
-		STORE_RT_REG(p_hwfn, QM_REG_TXPQMAP_RT_OFFSET + (pq_id), \
-			     *((u32 *)&__map)); \
-		(map) = __map; \
+#define QM_INIT_TX_PQ_MAP(p_hwfn, map, chip, pq_id, vp_pq_id, rl_valid,	      \
+			  rl_id, ext_voq, wrr)				      \
+	do {								      \
+		u32 __reg = 0;						      \
+									      \
+		BUILD_BUG_ON(sizeof((map).reg) != sizeof(__reg));	      \
+									      \
+		SET_FIELD(__reg, QM_RF_PQ_MAP_##chip##_PQ_VALID, 1);	      \
+		SET_FIELD(__reg, QM_RF_PQ_MAP_##chip##_RL_VALID,	      \
+			  !!(rl_valid));				      \
+		SET_FIELD(__reg, QM_RF_PQ_MAP_##chip##_VP_PQ_ID, (vp_pq_id)); \
+		SET_FIELD(__reg, QM_RF_PQ_MAP_##chip##_RL_ID, (rl_id));	      \
+		SET_FIELD(__reg, QM_RF_PQ_MAP_##chip##_VOQ, (ext_voq));	      \
+		SET_FIELD(__reg, QM_RF_PQ_MAP_##chip##_WRR_WEIGHT_GROUP,      \
+			  (wrr));					      \
+									      \
+		STORE_RT_REG((p_hwfn), QM_REG_TXPQMAP_RT_OFFSET + (pq_id),    \
+			     __reg);					      \
+		(map).reg = cpu_to_le32(__reg);				      \
 	} while (0)
 
 #define WRITE_PQ_INFO_TO_RAM	1
@@ -1022,20 +998,23 @@ bool qed_send_qm_stop_cmd(struct qed_hwfn *p_hwfn,
 	} while (0)
 
 /**
- * @brief qed_dmae_to_grc - is an internal function - writes from host to
- * wide-bus registers (split registers are not supported yet)
+ * qed_dmae_to_grc() - Internal function for writing from host to
+ * wide-bus registers (split registers are not supported yet).
  *
- * @param p_hwfn - HW device data
- * @param p_ptt - ptt window used for writing the registers.
- * @param p_data - pointer to source data.
- * @param addr - Destination register address.
- * @param len_in_dwords - data length in DWARDS (u32)
+ * @p_hwfn: HW device data.
+ * @p_ptt: PTT window used for writing the registers.
+ * @p_data: Pointer to source data.
+ * @addr: Destination register address.
+ * @len_in_dwords: Data length in dwords (u32).
+ *
+ * Return: Length of the written data in dwords (u32) or -1 on invalid
+ *         input.
  */
-static int qed_dmae_to_grc(struct qed_hwfn *p_hwfn,
-			   struct qed_ptt *p_ptt,
-			   u32 *p_data, u32 addr, u32 len_in_dwords)
+static int qed_dmae_to_grc(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+			   __le32 *p_data, u32 addr, u32 len_in_dwords)
 {
 	struct qed_dmae_params params = {};
+	u32 *data_cpu;
 	int rc;
 
 	if (!p_data)
@@ -1054,8 +1033,13 @@ static int qed_dmae_to_grc(struct qed_hwfn *p_hwfn,
 		DP_VERBOSE(p_hwfn,
 			   QED_MSG_DEBUG,
 			   "Failed writing to chip using DMAE, using GRC instead\n");
-		/* write to registers using GRC */
-		ARR_REG_WR(p_hwfn, p_ptt, addr, p_data, len_in_dwords);
+
+		/* Swap to CPU byteorder and write to registers using GRC */
+		data_cpu = (__force u32 *)p_data;
+		le32_to_cpu_array(data_cpu, len_in_dwords);
+
+		ARR_REG_WR(p_hwfn, p_ptt, addr, data_cpu, len_in_dwords);
+		cpu_to_le32_array(data_cpu, len_in_dwords);
 	}
 
 	return len_in_dwords;
@@ -1256,7 +1240,7 @@ void qed_gft_disable(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt, u16 pf_id)
 	qed_wr(p_hwfn, p_ptt, PRS_REG_GFT_CAM + CAM_LINE_SIZE * pf_id, 0);
 
 	/* Zero ramline */
-	qed_dmae_to_grc(p_hwfn, p_ptt, (u32 *)&ram_line,
+	qed_dmae_to_grc(p_hwfn, p_ptt, &ram_line.lo,
 			PRS_REG_GFT_PROFILE_MASK_RAM + RAM_LINE_SIZE * pf_id,
 			sizeof(ram_line) / REG_SIZE);
 }
@@ -1268,8 +1252,10 @@ void qed_gft_config(struct qed_hwfn *p_hwfn,
 		    bool udp,
 		    bool ipv4, bool ipv6, enum gft_profile_type profile_type)
 {
-	u32 reg_val, cam_line, search_non_ip_as_gft;
-	struct regpair ram_line = { };
+	struct regpair ram_line;
+	u32 search_non_ip_as_gft;
+	u32 reg_val, cam_line;
+	u32 lo = 0, hi = 0;
 
 	if (!ipv6 && !ipv4)
 		DP_NOTICE(p_hwfn,
@@ -1340,43 +1326,46 @@ void qed_gft_config(struct qed_hwfn *p_hwfn,
 	search_non_ip_as_gft = 0;
 
 	/* Tunnel type */
-	SET_FIELD(ram_line.lo, GFT_RAM_LINE_TUNNEL_DST_PORT, 1);
-	SET_FIELD(ram_line.lo, GFT_RAM_LINE_TUNNEL_OVER_IP_PROTOCOL, 1);
+	SET_FIELD(lo, GFT_RAM_LINE_TUNNEL_DST_PORT, 1);
+	SET_FIELD(lo, GFT_RAM_LINE_TUNNEL_OVER_IP_PROTOCOL, 1);
 
 	if (profile_type == GFT_PROFILE_TYPE_4_TUPLE) {
-		SET_FIELD(ram_line.hi, GFT_RAM_LINE_DST_IP, 1);
-		SET_FIELD(ram_line.hi, GFT_RAM_LINE_SRC_IP, 1);
-		SET_FIELD(ram_line.hi, GFT_RAM_LINE_OVER_IP_PROTOCOL, 1);
-		SET_FIELD(ram_line.lo, GFT_RAM_LINE_ETHERTYPE, 1);
-		SET_FIELD(ram_line.lo, GFT_RAM_LINE_SRC_PORT, 1);
-		SET_FIELD(ram_line.lo, GFT_RAM_LINE_DST_PORT, 1);
+		SET_FIELD(hi, GFT_RAM_LINE_DST_IP, 1);
+		SET_FIELD(hi, GFT_RAM_LINE_SRC_IP, 1);
+		SET_FIELD(hi, GFT_RAM_LINE_OVER_IP_PROTOCOL, 1);
+		SET_FIELD(lo, GFT_RAM_LINE_ETHERTYPE, 1);
+		SET_FIELD(lo, GFT_RAM_LINE_SRC_PORT, 1);
+		SET_FIELD(lo, GFT_RAM_LINE_DST_PORT, 1);
 	} else if (profile_type == GFT_PROFILE_TYPE_L4_DST_PORT) {
-		SET_FIELD(ram_line.hi, GFT_RAM_LINE_OVER_IP_PROTOCOL, 1);
-		SET_FIELD(ram_line.lo, GFT_RAM_LINE_ETHERTYPE, 1);
-		SET_FIELD(ram_line.lo, GFT_RAM_LINE_DST_PORT, 1);
+		SET_FIELD(hi, GFT_RAM_LINE_OVER_IP_PROTOCOL, 1);
+		SET_FIELD(lo, GFT_RAM_LINE_ETHERTYPE, 1);
+		SET_FIELD(lo, GFT_RAM_LINE_DST_PORT, 1);
 	} else if (profile_type == GFT_PROFILE_TYPE_IP_DST_ADDR) {
-		SET_FIELD(ram_line.hi, GFT_RAM_LINE_DST_IP, 1);
-		SET_FIELD(ram_line.lo, GFT_RAM_LINE_ETHERTYPE, 1);
+		SET_FIELD(hi, GFT_RAM_LINE_DST_IP, 1);
+		SET_FIELD(lo, GFT_RAM_LINE_ETHERTYPE, 1);
 	} else if (profile_type == GFT_PROFILE_TYPE_IP_SRC_ADDR) {
-		SET_FIELD(ram_line.hi, GFT_RAM_LINE_SRC_IP, 1);
-		SET_FIELD(ram_line.lo, GFT_RAM_LINE_ETHERTYPE, 1);
+		SET_FIELD(hi, GFT_RAM_LINE_SRC_IP, 1);
+		SET_FIELD(lo, GFT_RAM_LINE_ETHERTYPE, 1);
 	} else if (profile_type == GFT_PROFILE_TYPE_TUNNEL_TYPE) {
-		SET_FIELD(ram_line.lo, GFT_RAM_LINE_TUNNEL_ETHERTYPE, 1);
+		SET_FIELD(lo, GFT_RAM_LINE_TUNNEL_ETHERTYPE, 1);
 
 		/* Allow tunneled traffic without inner IP */
 		search_non_ip_as_gft = 1;
 	}
 
+	ram_line.lo = cpu_to_le32(lo);
+	ram_line.hi = cpu_to_le32(hi);
+
 	qed_wr(p_hwfn,
 	       p_ptt, PRS_REG_SEARCH_NON_IP_AS_GFT, search_non_ip_as_gft);
-	qed_dmae_to_grc(p_hwfn, p_ptt, (u32 *)&ram_line,
+	qed_dmae_to_grc(p_hwfn, p_ptt, &ram_line.lo,
 			PRS_REG_GFT_PROFILE_MASK_RAM + RAM_LINE_SIZE * pf_id,
 			sizeof(ram_line) / REG_SIZE);
 
 	/* Set default profile so that no filter match will happen */
-	ram_line.lo = 0xffffffff;
-	ram_line.hi = 0x3ff;
-	qed_dmae_to_grc(p_hwfn, p_ptt, (u32 *)&ram_line,
+	ram_line.lo = cpu_to_le32(0xffffffff);
+	ram_line.hi = cpu_to_le32(0x3ff);
+	qed_dmae_to_grc(p_hwfn, p_ptt, &ram_line.lo,
 			PRS_REG_GFT_PROFILE_MASK_RAM + RAM_LINE_SIZE *
 			PRS_GFT_CAM_LINES_NO_MATCH,
 			sizeof(ram_line) / REG_SIZE);
@@ -1394,7 +1383,7 @@ static u8 qed_calc_cdu_validation_byte(u8 conn_type, u8 region, u32 cid)
 	u8 crc, validation_byte = 0;
 	static u8 crc8_table_valid; /* automatically initialized to 0 */
 	u32 validation_string = 0;
-	u32 data_to_crc;
+	__be32 data_to_crc;
 
 	if (!crc8_table_valid) {
 		crc8_populate_msb(cdu_crc8_table, 0x07);
@@ -1416,10 +1405,9 @@ static u8 qed_calc_cdu_validation_byte(u8 conn_type, u8 region, u32 cid)
 		validation_string |= (conn_type & 0xF);
 
 	/* Convert to big-endian and calculate CRC8 */
-	data_to_crc = be32_to_cpu(validation_string);
-
-	crc = crc8(cdu_crc8_table,
-		   (u8 *)&data_to_crc, sizeof(data_to_crc), CRC8_INIT_VALUE);
+	data_to_crc = cpu_to_be32(validation_string);
+	crc = crc8(cdu_crc8_table, (u8 *)&data_to_crc, sizeof(data_to_crc),
+		   CRC8_INIT_VALUE);
 
 	/* The validation byte [7:0] is composed:
 	 * for type A validation

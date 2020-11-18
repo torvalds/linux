@@ -37,7 +37,6 @@
 #include <asm/bootparam.h>
 #include <asm/kasan.h>
 #include <asm/mmu_context.h>
-#include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/timex.h>
 #include <asm/platform.h>
@@ -725,7 +724,8 @@ c_start(struct seq_file *f, loff_t *pos)
 static void *
 c_next(struct seq_file *f, void *v, loff_t *pos)
 {
-	return NULL;
+	++*pos;
+	return c_start(f, pos);
 }
 
 static void

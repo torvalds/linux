@@ -117,3 +117,25 @@ xfs_hex_dump(const void *p, int length)
 {
 	print_hex_dump(KERN_ALERT, "", DUMP_PREFIX_OFFSET, 16, 1, p, length, 1);
 }
+
+void
+xfs_buf_alert_ratelimited(
+	struct xfs_buf		*bp,
+	const char		*rlmsg,
+	const char		*fmt,
+	...)
+{
+	struct xfs_mount	*mp = bp->b_mount;
+	struct va_format	vaf;
+	va_list			args;
+
+	/* use the more aggressive per-target rate limit for buffers */
+	if (!___ratelimit(&bp->b_target->bt_ioerror_rl, rlmsg))
+		return;
+
+	va_start(args, fmt);
+	vaf.fmt = fmt;
+	vaf.va = &args;
+	__xfs_printk(KERN_ALERT, mp, &vaf);
+	va_end(args);
+}

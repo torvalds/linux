@@ -42,6 +42,7 @@ enum {
 	MLX5_FLOW_CONTEXT_ACTION_FWD_NEXT_PRIO	= 1 << 16,
 	MLX5_FLOW_CONTEXT_ACTION_ENCRYPT	= 1 << 17,
 	MLX5_FLOW_CONTEXT_ACTION_DECRYPT	= 1 << 18,
+	MLX5_FLOW_CONTEXT_ACTION_FWD_NEXT_NS	= 1 << 19,
 };
 
 enum {
@@ -206,7 +207,10 @@ struct mlx5_flow_act {
 	u32 action;
 	struct mlx5_modify_hdr  *modify_hdr;
 	struct mlx5_pkt_reformat *pkt_reformat;
-	uintptr_t esp_id;
+	union {
+		u32 ipsec_obj_id;
+		uintptr_t esp_id;
+	};
 	u32 flags;
 	struct mlx5_fs_vlan vlan[MLX5_FS_VLAN_DEPTH];
 	struct ib_counters *counters;

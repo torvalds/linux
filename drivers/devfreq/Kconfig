@@ -91,6 +91,14 @@ config ARM_EXYNOS_BUS_DEVFREQ
 	  and adjusts the operating frequencies and voltages with OPP support.
 	  This does not yet operate with optimal voltages.
 
+config ARM_IMX_BUS_DEVFREQ
+	tristate "i.MX Generic Bus DEVFREQ Driver"
+	depends on ARCH_MXC || COMPILE_TEST
+	select DEVFREQ_GOV_USERSPACE
+	help
+	  This adds the generic DEVFREQ driver for i.MX interconnects. It
+	  allows adjusting NIC/NOC frequency.
+
 config ARM_IMX8M_DDRC_DEVFREQ
 	tristate "i.MX8M DDRC DEVFREQ Driver"
 	depends on (ARCH_MXC && HAVE_ARM_SMCCC) || \

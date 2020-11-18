@@ -40,8 +40,7 @@
 /* HW L2 Table (MPFS) management */
 static int set_l2table_entry_cmd(struct mlx5_core_dev *dev, u32 index, u8 *mac)
 {
-	u32 in[MLX5_ST_SZ_DW(set_l2_table_entry_in)]   = {0};
-	u32 out[MLX5_ST_SZ_DW(set_l2_table_entry_out)] = {0};
+	u32 in[MLX5_ST_SZ_DW(set_l2_table_entry_in)] = {};
 	u8 *in_mac_addr;
 
 	MLX5_SET(set_l2_table_entry_in, in, opcode, MLX5_CMD_OP_SET_L2_TABLE_ENTRY);
@@ -50,17 +49,16 @@ static int set_l2table_entry_cmd(struct mlx5_core_dev *dev, u32 index, u8 *mac)
 	in_mac_addr = MLX5_ADDR_OF(set_l2_table_entry_in, in, mac_address);
 	ether_addr_copy(&in_mac_addr[2], mac);
 
-	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+	return mlx5_cmd_exec_in(dev, set_l2_table_entry, in);
 }
 
 static int del_l2table_entry_cmd(struct mlx5_core_dev *dev, u32 index)
 {
-	u32 in[MLX5_ST_SZ_DW(delete_l2_table_entry_in)]   = {0};
-	u32 out[MLX5_ST_SZ_DW(delete_l2_table_entry_out)] = {0};
+	u32 in[MLX5_ST_SZ_DW(delete_l2_table_entry_in)] = {};
 
 	MLX5_SET(delete_l2_table_entry_in, in, opcode, MLX5_CMD_OP_DELETE_L2_TABLE_ENTRY);
 	MLX5_SET(delete_l2_table_entry_in, in, table_index, index);
-	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+	return mlx5_cmd_exec_in(dev, delete_l2_table_entry, in);
 }
 
 /* UC L2 table hash node */

@@ -31,6 +31,9 @@
 #include "config.h"
 #include <linux/ctype.h>
 #include <linux/err.h>
+#include <linux/time64.h>
+#include "util.h"
+#include "clockid.h"
 
 #define pr_N(n, fmt, ...) \
 	eprintf(n, debug_data_convert, fmt, ##__VA_ARGS__)
@@ -835,7 +838,7 @@ static int process_sample_event(struct perf_tool *tool,
 			return -1;
 	}
 
-	if (perf_evsel__is_bpf_output(evsel)) {
+	if (evsel__is_bpf_output(evsel)) {
 		ret = add_bpf_output_values(event_class, event, sample);
 		if (ret)
 			return -1;
@@ -1155,7 +1158,7 @@ static int add_event(struct ctf_writer *cw, struct evsel *evsel)
 {
 	struct bt_ctf_event_class *event_class;
 	struct evsel_priv *priv;
-	const char *name = perf_evsel__name(evsel);
+	const char *name = evsel__name(evsel);
 	int ret;
 
 	pr("Adding event '%s' (type %d)\n", name, evsel->core.attr.type);
@@ -1174,7 +1177,7 @@ static int add_event(struct ctf_writer *cw, struct evsel *evsel)
 			goto err;
 	}
 
-	if (perf_evsel__is_bpf_output(evsel)) {
+	if (evsel__is_bpf_output(evsel)) {
 		ret = add_bpf_output_types(cw, event_class);
 		if (ret)
 			goto err;
@@ -1381,11 +1384,26 @@ do {									\
 	return 0;
 }
 
-static int ctf_writer__setup_clock(struct ctf_writer *cw)
+static int ctf_writer__setup_clock(struct ctf_writer *cw,
+				   struct perf_session *session,
+				   bool tod)
 {
 	struct bt_ctf_clock *clock = cw->clock;
+	const char *desc = "perf clock";
+	int64_t offset = 0;
 
-	bt_ctf_clock_set_description(clock, "perf clock");
+	if (tod) {
+		struct perf_env *env = &session->header.env;
+
+		if (!env->clock.enabled) {
+			pr_err("Can't provide --tod time, missing clock data. "
+			       "Please record with -k/--clockid option.\n");
+			return -1;
+		}
+
+		desc   = clockid_name(env->clock.clockid);
+		offset = env->clock.tod_ns - env->clock.clockid_ns;
+	}
 
 #define SET(__n, __v)				\
 do {						\
@@ -1394,8 +1412,8 @@ do {						\
 } while (0)
 
 	SET(frequency,   1000000000);
-	SET(offset_s,    0);
-	SET(offset,      0);
+	SET(offset,      offset);
+	SET(description, desc);
 	SET(precision,   10);
 	SET(is_absolute, 0);
 
@@ -1481,7 +1499,8 @@ static void ctf_writer__cleanup(struct ctf_writer *cw)
 	memset(cw, 0, sizeof(*cw));
 }
 
-static int ctf_writer__init(struct ctf_writer *cw, const char *path)
+static int ctf_writer__init(struct ctf_writer *cw, const char *path,
+			    struct perf_session *session, bool tod)
 {
 	struct bt_ctf_writer		*writer;
 	struct bt_ctf_stream_class	*stream_class;
@@ -1505,7 +1524,7 @@ static int ctf_writer__init(struct ctf_writer *cw, const char *path)
 
 	cw->clock = clock;
 
-	if (ctf_writer__setup_clock(cw)) {
+	if (ctf_writer__setup_clock(cw, session, tod)) {
 		pr("Failed to setup CTF clock.\n");
 		goto err_cleanup;
 	}
@@ -1613,17 +1632,15 @@ int bt_convert__perf2ctf(const char *input, const char *path,
 	if (err)
 		return err;
 
-	/* CTF writer */
-	if (ctf_writer__init(cw, path))
-		return -1;
-
 	err = -1;
 	/* perf.data session */
 	session = perf_session__new(&data, 0, &c.tool);
-	if (IS_ERR(session)) {
-		err = PTR_ERR(session);
-		goto free_writer;
-	}
+	if (IS_ERR(session))
+		return PTR_ERR(session);
+
+	/* CTF writer */
+	if (ctf_writer__init(cw, path, session, opts->tod))
+		goto free_session;
 
 	if (c.queue_size) {
 		ordered_events__set_alloc_size(&session->ordered_events,
@@ -1632,17 +1649,17 @@ int bt_convert__perf2ctf(const char *input, const char *path,
 
 	/* CTF writer env/clock setup  */
 	if (ctf_writer__setup_env(cw, session))
-		goto free_session;
+		goto free_writer;
 
 	/* CTF events setup */
 	if (setup_events(cw, session))
-		goto free_session;
+		goto free_writer;
 
 	if (opts->all && setup_non_sample_events(cw, session))
-		goto free_session;
+		goto free_writer;
 
 	if (setup_streams(cw, session))
-		goto free_session;
+		goto free_writer;
 
 	err = perf_session__process_events(session);
 	if (!err)
@@ -1670,10 +1687,10 @@ int bt_convert__perf2ctf(const char *input, const char *path,
 
 	return err;
 
-free_session:
-	perf_session__delete(session);
 free_writer:
 	ctf_writer__cleanup(cw);
+free_session:
+	perf_session__delete(session);
 	pr_err("Error during conversion setup.\n");
 	return err;
 }

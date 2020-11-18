@@ -237,6 +237,19 @@ int vb2_streamoff(struct vb2_queue *q, enum v4l2_buf_type type);
 int __must_check vb2_queue_init(struct vb2_queue *q);
 
 /**
+ * vb2_queue_init_name() - initialize a videobuf2 queue with a name
+ * @q:		pointer to &struct vb2_queue with videobuf2 queue.
+ * @name:	the queue name
+ *
+ * This function initializes the vb2_queue exactly like vb2_queue_init(),
+ * and additionally sets the queue name. The queue name is used for logging
+ * purpose, and should uniquely identify the queue within the context of the
+ * device it belongs to. This is useful to attribute kernel log messages to the
+ * right queue for m2m devices or other devices that handle multiple queues.
+ */
+int __must_check vb2_queue_init_name(struct vb2_queue *q, const char *name);
+
+/**
  * vb2_queue_release() - stop streaming, release the queue and free memory
  * @q:		pointer to &struct vb2_queue with videobuf2 queue.
  *

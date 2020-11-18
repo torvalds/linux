@@ -43,11 +43,11 @@ struct amdgpu_jpeg {
 	uint8_t	num_jpeg_inst;
 	struct amdgpu_jpeg_inst inst[AMDGPU_MAX_JPEG_INSTANCES];
 	struct amdgpu_jpeg_reg internal;
-	struct drm_gpu_scheduler *jpeg_sched[AMDGPU_MAX_JPEG_INSTANCES];
-	uint32_t num_jpeg_sched;
 	unsigned harvest_config;
 	struct delayed_work idle_work;
 	enum amd_powergating_state cur_state;
+	struct mutex jpeg_pg_lock;
+	atomic_t total_submission_cnt;
 };
 
 int amdgpu_jpeg_sw_init(struct amdgpu_device *adev);

@@ -372,8 +372,10 @@ struct i2c_algorithm dib0700_i2c_algo = {
 	.functionality = dib0700_i2c_func,
 };
 
-int dib0700_identify_state(struct usb_device *udev, struct dvb_usb_device_properties *props,
-			struct dvb_usb_device_description **desc, int *cold)
+int dib0700_identify_state(struct usb_device *udev,
+			   const struct dvb_usb_device_properties *props,
+			   const struct dvb_usb_device_description **desc,
+			   int *cold)
 {
 	s16 ret;
 	u8 *b;

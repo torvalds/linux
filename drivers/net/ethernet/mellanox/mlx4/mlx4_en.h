@@ -599,8 +599,6 @@ struct mlx4_en_priv {
 	struct work_struct linkstate_task;
 	struct delayed_work stats_task;
 	struct delayed_work service_task;
-	struct work_struct vxlan_add_task;
-	struct work_struct vxlan_del_task;
 	struct mlx4_en_perf_stats pstats;
 	struct mlx4_en_pkt_stats pkstats;
 	struct mlx4_en_counter_stats pf_stats;
@@ -737,8 +735,8 @@ int mlx4_en_process_rx_cq(struct net_device *dev,
 			  int budget);
 int mlx4_en_poll_rx_cq(struct napi_struct *napi, int budget);
 int mlx4_en_poll_tx_cq(struct napi_struct *napi, int budget);
-bool mlx4_en_process_tx_cq(struct net_device *dev,
-			   struct mlx4_en_cq *cq, int napi_budget);
+int mlx4_en_process_tx_cq(struct net_device *dev,
+			  struct mlx4_en_cq *cq, int napi_budget);
 u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 			 struct mlx4_en_tx_ring *ring,
 			 int index, u64 timestamp,

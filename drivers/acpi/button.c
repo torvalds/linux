@@ -24,7 +24,6 @@
 #define PREFIX "ACPI: "
 
 #define ACPI_BUTTON_CLASS		"button"
-#define ACPI_BUTTON_FILE_INFO		"info"
 #define ACPI_BUTTON_FILE_STATE		"state"
 #define ACPI_BUTTON_TYPE_UNKNOWN	0x00
 #define ACPI_BUTTON_NOTIFY_STATUS	0x80
@@ -406,7 +405,7 @@ static void acpi_button_notify(struct acpi_device *device, u32 event)
 	switch (event) {
 	case ACPI_FIXED_HARDWARE_EVENT:
 		event = ACPI_BUTTON_NOTIFY_STATUS;
-		/* fall through */
+		fallthrough;
 	case ACPI_BUTTON_NOTIFY_STATUS:
 		input = button->input;
 		if (button->type == ACPI_BUTTON_TYPE_LID) {

@@ -319,7 +319,7 @@ Handling a page fault is performed as follows:
 
  - If both P bit and R/W bit of error code are set, this could possibly
    be handled as a "fast page fault" (fixed without taking the MMU lock).  See
-   the description in Documentation/virt/kvm/locking.txt.
+   the description in Documentation/virt/kvm/locking.rst.
 
  - if needed, walk the guest page tables to determine the guest translation
    (gva->gpa or ngpa->gpa)
@@ -480,4 +480,4 @@ Further reading
 ===============
 
 - NPT presentation from KVM Forum 2008
-  http://www.linux-kvm.org/images/c/c8/KvmForum2008%24kdf2008_21.pdf
+  https://www.linux-kvm.org/images/c/c8/KvmForum2008%24kdf2008_21.pdf

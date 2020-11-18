@@ -94,7 +94,7 @@ static const u32 default_msg_level = (NETIF_MSG_DRV | NETIF_MSG_PROBE |
 static int eee_timer = STMMAC_DEFAULT_LPI_TIMER;
 module_param(eee_timer, int, 0644);
 MODULE_PARM_DESC(eee_timer, "LPI tx expiration time in msec");
-#define STMMAC_LPI_T(x) (jiffies + msecs_to_jiffies(x))
+#define STMMAC_LPI_T(x) (jiffies + usecs_to_jiffies(x))
 
 /* By default the driver will use the ring mode to manage tx and rx descriptors,
  * but allow user to force to use the chain instead of the ring
@@ -370,7 +370,7 @@ static void stmmac_eee_ctrl_timer(struct timer_list *t)
 	struct stmmac_priv *priv = from_timer(priv, t, eee_ctrl_timer);
 
 	stmmac_enable_eee_mode(priv);
-	mod_timer(&priv->eee_ctrl_timer, STMMAC_LPI_T(eee_timer));
+	mod_timer(&priv->eee_ctrl_timer, STMMAC_LPI_T(priv->tx_lpi_timer));
 }
 
 /**
@@ -383,7 +383,7 @@ static void stmmac_eee_ctrl_timer(struct timer_list *t)
  */
 bool stmmac_eee_init(struct stmmac_priv *priv)
 {
-	int tx_lpi_timer = priv->tx_lpi_timer;
+	int eee_tw_timer = priv->eee_tw_timer;
 
 	/* Using PCS we cannot dial with the phy registers at this stage
 	 * so we do not support extra feature like EEE.
@@ -403,7 +403,7 @@ bool stmmac_eee_init(struct stmmac_priv *priv)
 		if (priv->eee_enabled) {
 			netdev_dbg(priv->dev, "disable EEE\n");
 			del_timer_sync(&priv->eee_ctrl_timer);
-			stmmac_set_eee_timer(priv, priv->hw, 0, tx_lpi_timer);
+			stmmac_set_eee_timer(priv, priv->hw, 0, eee_tw_timer);
 		}
 		mutex_unlock(&priv->lock);
 		return false;
@@ -411,10 +411,11 @@ bool stmmac_eee_init(struct stmmac_priv *priv)
 
 	if (priv->eee_active && !priv->eee_enabled) {
 		timer_setup(&priv->eee_ctrl_timer, stmmac_eee_ctrl_timer, 0);
-		mod_timer(&priv->eee_ctrl_timer, STMMAC_LPI_T(eee_timer));
 		stmmac_set_eee_timer(priv, priv->hw, STMMAC_DEFAULT_LIT_LS,
-				     tx_lpi_timer);
+				     eee_tw_timer);
 	}
+
+	mod_timer(&priv->eee_ctrl_timer, STMMAC_LPI_T(priv->tx_lpi_timer));
 
 	mutex_unlock(&priv->lock);
 	netdev_dbg(priv->dev, "Energy-Efficient Ethernet initialized\n");
@@ -930,6 +931,7 @@ static void stmmac_mac_link_down(struct phylink_config *config,
 
 	stmmac_mac_set(priv, priv->ioaddr, false);
 	priv->eee_active = false;
+	priv->tx_lpi_enabled = false;
 	stmmac_eee_init(priv);
 	stmmac_set_eee_pls(priv, priv->hw, false);
 }
@@ -1027,6 +1029,7 @@ static void stmmac_mac_link_up(struct phylink_config *config,
 	if (phy && priv->dma_cap.eee) {
 		priv->eee_active = phy_init_eee(phy, 1) >= 0;
 		priv->eee_enabled = stmmac_eee_init(priv);
+		priv->tx_lpi_enabled = priv->eee_enabled;
 		stmmac_set_eee_pls(priv, priv->hw, true);
 	}
 }
@@ -1075,6 +1078,7 @@ static void stmmac_check_pcs_mode(struct stmmac_priv *priv)
  */
 static int stmmac_init_phy(struct net_device *dev)
 {
+	struct ethtool_wolinfo wol = { .cmd = ETHTOOL_GWOL };
 	struct stmmac_priv *priv = netdev_priv(dev);
 	struct device_node *node;
 	int ret;
@@ -1099,6 +1103,9 @@ static int stmmac_init_phy(struct net_device *dev)
 
 		ret = phylink_connect_phy(priv->phylink, phydev);
 	}
+
+	phylink_ethtool_get_wol(priv->phylink, &wol);
+	device_set_wakeup_capable(priv->device, !!wol.supported);
 
 	return ret;
 }
@@ -2057,7 +2064,7 @@ static int stmmac_tx_clean(struct stmmac_priv *priv, int budget, u32 queue)
 
 	if ((priv->eee_enabled) && (!priv->tx_path_in_lpi_mode)) {
 		stmmac_enable_eee_mode(priv);
-		mod_timer(&priv->eee_ctrl_timer, STMMAC_LPI_T(eee_timer));
+		mod_timer(&priv->eee_ctrl_timer, STMMAC_LPI_T(priv->tx_lpi_timer));
 	}
 
 	/* We still have pending packets, let's call for a new scheduling */
@@ -2690,7 +2697,11 @@ static int stmmac_hw_setup(struct net_device *dev, bool init_ptp)
 			netdev_warn(priv->dev, "PTP init failed\n");
 	}
 
-	priv->tx_lpi_timer = STMMAC_DEFAULT_TWT_LS;
+	priv->eee_tw_timer = STMMAC_DEFAULT_TWT_LS;
+
+	/* Convert the timer from msec to usec */
+	if (!priv->tx_lpi_timer)
+		priv->tx_lpi_timer = eee_timer * 1000;
 
 	if (priv->use_riwt) {
 		if (!priv->rx_riwt)
@@ -2819,6 +2830,8 @@ static int stmmac_open(struct net_device *dev)
 	stmmac_init_coalesce(priv);
 
 	phylink_start(priv->phylink);
+	/* We may have called phylink_speed_down before */
+	phylink_speed_up(priv->phylink);
 
 	/* Request the IRQ lines */
 	ret = request_irq(dev->irq, stmmac_interrupt,
@@ -2892,6 +2905,8 @@ static int stmmac_release(struct net_device *dev)
 	if (priv->eee_enabled)
 		del_timer_sync(&priv->eee_ctrl_timer);
 
+	if (device_may_wakeup(priv->device))
+		phylink_speed_down(priv->phylink, false);
 	/* Stop and disconnect the PHY */
 	phylink_stop(priv->phylink);
 	phylink_disconnect_phy(priv->phylink);
@@ -3542,15 +3557,6 @@ static void stmmac_rx_vlan(struct net_device *dev, struct sk_buff *skb)
 		skb_pull(skb, VLAN_HLEN);
 		__vlan_hwaccel_put_tag(skb, vlan_proto, vlanid);
 	}
-}
-
-
-static inline int stmmac_rx_threshold_count(struct stmmac_rx_queue *rx_q)
-{
-	if (rx_q->rx_zeroc_thresh < STMMAC_RX_THRESH)
-		return 0;
-
-	return 1;
 }
 
 /**
@@ -5094,12 +5100,14 @@ int stmmac_suspend(struct device *dev)
 		priv->plat->serdes_powerdown(ndev, priv->plat->bsp_priv);
 
 	/* Enable Power down mode by programming the PMT regs */
-	if (device_may_wakeup(priv->device)) {
+	if (device_may_wakeup(priv->device) && priv->plat->pmt) {
 		stmmac_pmt(priv, priv->hw, priv->wolopts);
 		priv->irq_wake = 1;
 	} else {
 		mutex_unlock(&priv->lock);
 		rtnl_lock();
+		if (device_may_wakeup(priv->device))
+			phylink_speed_down(priv->phylink, false);
 		phylink_stop(priv->phylink);
 		rtnl_unlock();
 		mutex_lock(&priv->lock);
@@ -5166,7 +5174,7 @@ int stmmac_resume(struct device *dev)
 	 * this bit because it can generate problems while resuming
 	 * from another devices (e.g. serial console).
 	 */
-	if (device_may_wakeup(priv->device)) {
+	if (device_may_wakeup(priv->device) && priv->plat->pmt) {
 		mutex_lock(&priv->lock);
 		stmmac_pmt(priv, priv->hw, 0);
 		mutex_unlock(&priv->lock);
@@ -5209,9 +5217,11 @@ int stmmac_resume(struct device *dev)
 
 	mutex_unlock(&priv->lock);
 
-	if (!device_may_wakeup(priv->device)) {
+	if (!device_may_wakeup(priv->device) || !priv->plat->pmt) {
 		rtnl_lock();
 		phylink_start(priv->phylink);
+		/* We may have called phylink_speed_down before */
+		phylink_speed_up(priv->phylink);
 		rtnl_unlock();
 	}
 

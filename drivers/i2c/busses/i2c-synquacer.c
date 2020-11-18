@@ -398,8 +398,7 @@ static irqreturn_t synquacer_i2c_isr(int irq, void *dev_id)
 
 		if (i2c->state == STATE_READ)
 			goto prepare_read;
-
-		/* fall through */
+		fallthrough;
 
 	case STATE_WRITE:
 		if (bsr & SYNQUACER_I2C_BSR_LRB) {
@@ -536,7 +535,6 @@ static const struct i2c_adapter synquacer_i2c_ops = {
 static int synquacer_i2c_probe(struct platform_device *pdev)
 {
 	struct synquacer_i2c *i2c;
-	struct resource *r;
 	u32 bus_speed;
 	int ret;
 
@@ -574,16 +572,13 @@ static int synquacer_i2c_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	i2c->base = devm_ioremap_resource(&pdev->dev, r);
+	i2c->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(i2c->base))
 		return PTR_ERR(i2c->base);
 
 	i2c->irq = platform_get_irq(pdev, 0);
-	if (i2c->irq < 0) {
-		dev_err(&pdev->dev, "no IRQ resource found\n");
+	if (i2c->irq < 0)
 		return -ENODEV;
-	}
 
 	ret = devm_request_irq(&pdev->dev, i2c->irq, synquacer_i2c_isr,
 			       0, dev_name(&pdev->dev), i2c);

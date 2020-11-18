@@ -101,6 +101,13 @@ enum bp_pipe_control_action {
 	ASIC_PIPE_INIT
 };
 
+enum bp_lvtma_control_action {
+	LVTMA_CONTROL_LCD_BLOFF = 2,
+	LVTMA_CONTROL_LCD_BLON = 3,
+	LVTMA_CONTROL_POWER_ON = 12,
+	LVTMA_CONTROL_POWER_OFF = 13
+};
+
 struct bp_encoder_control {
 	enum bp_encoder_control_action action;
 	enum engine_id engine_id;

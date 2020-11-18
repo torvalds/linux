@@ -8,8 +8,6 @@
 
 #ifdef CONFIG_KASAN
 
-#include <asm/pgtable.h>
-
 #define KASAN_SHADOW_SCALE_SHIFT	3
 
 #define KASAN_SHADOW_SIZE	(UL(1) << (38 - KASAN_SHADOW_SCALE_SHIFT))

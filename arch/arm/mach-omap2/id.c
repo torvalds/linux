@@ -396,7 +396,6 @@ void __init omap3xxx_check_revision(void)
 			cpu_rev = "3.1";
 			break;
 		case 7:
-		/* FALLTHROUGH */
 		default:
 			/* Use the latest known revision as default */
 			omap_revision = OMAP3430_REV_ES3_1_2;
@@ -416,7 +415,6 @@ void __init omap3xxx_check_revision(void)
 			cpu_rev = "1.0";
 			break;
 		case 1:
-		/* FALLTHROUGH */
 		default:
 			omap_revision = AM35XX_REV_ES1_1;
 			cpu_rev = "1.1";
@@ -435,7 +433,6 @@ void __init omap3xxx_check_revision(void)
 			cpu_rev = "1.1";
 			break;
 		case 2:
-		/* FALLTHROUGH */
 		default:
 			omap_revision = OMAP3630_REV_ES1_2;
 			cpu_rev = "1.2";
@@ -456,7 +453,6 @@ void __init omap3xxx_check_revision(void)
 			cpu_rev = "2.0";
 			break;
 		case 3:
-			/* FALLTHROUGH */
 		default:
 			omap_revision = TI8168_REV_ES2_1;
 			cpu_rev = "2.1";
@@ -473,7 +469,6 @@ void __init omap3xxx_check_revision(void)
 			cpu_rev = "2.0";
 			break;
 		case 2:
-		/* FALLTHROUGH */
 		default:
 			omap_revision = AM335X_REV_ES2_1;
 			cpu_rev = "2.1";
@@ -491,7 +486,6 @@ void __init omap3xxx_check_revision(void)
 			cpu_rev = "1.1";
 			break;
 		case 2:
-		/* FALLTHROUGH */
 		default:
 			omap_revision = AM437X_REV_ES1_2;
 			cpu_rev = "1.2";
@@ -502,7 +496,6 @@ void __init omap3xxx_check_revision(void)
 	case 0xb968:
 		switch (rev) {
 		case 0:
-		/* FALLTHROUGH */
 		case 1:
 			omap_revision = TI8148_REV_ES1_0;
 			cpu_rev = "1.0";
@@ -512,7 +505,6 @@ void __init omap3xxx_check_revision(void)
 			cpu_rev = "2.0";
 			break;
 		case 3:
-		/* FALLTHROUGH */
 		default:
 			omap_revision = TI8148_REV_ES2_1;
 			cpu_rev = "2.1";
@@ -775,19 +767,23 @@ static const char * __init omap_get_family(void)
 		return kasprintf(GFP_KERNEL, "Unknown");
 }
 
-static ssize_t omap_get_type(struct device *dev,
-					struct device_attribute *attr,
-					char *buf)
+static ssize_t
+type_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%s\n", omap_types[omap_type()]);
 }
 
-static struct device_attribute omap_soc_attr =
-	__ATTR(type,  S_IRUGO, omap_get_type,  NULL);
+static DEVICE_ATTR_RO(type);
+
+static struct attribute *omap_soc_attrs[] = {
+	&dev_attr_type.attr,
+	NULL
+};
+
+ATTRIBUTE_GROUPS(omap_soc);
 
 void __init omap_soc_device_init(void)
 {
-	struct device *parent;
 	struct soc_device *soc_dev;
 	struct soc_device_attribute *soc_dev_attr;
 
@@ -798,14 +794,12 @@ void __init omap_soc_device_init(void)
 	soc_dev_attr->machine  = soc_name;
 	soc_dev_attr->family   = omap_get_family();
 	soc_dev_attr->revision = soc_rev;
+	soc_dev_attr->custom_attr_group = omap_soc_groups[0];
 
 	soc_dev = soc_device_register(soc_dev_attr);
 	if (IS_ERR(soc_dev)) {
 		kfree(soc_dev_attr);
 		return;
 	}
-
-	parent = soc_device_to_device(soc_dev);
-	device_create_file(parent, &omap_soc_attr);
 }
 #endif /* CONFIG_SOC_BUS */

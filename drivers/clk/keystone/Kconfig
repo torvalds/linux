@@ -2,7 +2,7 @@
 config COMMON_CLK_KEYSTONE
 	tristate "Clock drivers for Keystone based SOCs"
 	depends on (ARCH_KEYSTONE || COMPILE_TEST) && OF
-	---help---
+	help
 	  Supports clock drivers for Keystone based SOCs. These SOCs have local
 	  a power sleep control module that gate the clock to the IPs and PLLs.
 
@@ -11,7 +11,7 @@ config TI_SCI_CLK
 	depends on (ARCH_KEYSTONE || ARCH_K3 || COMPILE_TEST) && OF
 	depends on TI_SCI_PROTOCOL
 	default ARCH_KEYSTONE
-	---help---
+	help
 	  This adds the clock driver support over TI System Control Interface.
 	  If you wish to use clock resources from the PMMC firmware, say Y.
 	  Otherwise, say N.

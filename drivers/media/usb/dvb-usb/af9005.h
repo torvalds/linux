@@ -6,7 +6,7 @@
  *
  * Thanks to Afatech who kindly provided information.
  *
- * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
+ * see Documentation/driver-api/media/drivers/dvb-usb.rst for more information
  */
 #ifndef _DVB_USB_AF9005_H_
 #define _DVB_USB_AF9005_H_

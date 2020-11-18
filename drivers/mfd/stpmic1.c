@@ -59,7 +59,7 @@ static const struct regmap_access_table stpmic1_volatile_table = {
 	.n_yes_ranges = ARRAY_SIZE(stpmic1_volatile_ranges),
 };
 
-const struct regmap_config stpmic1_regmap_config = {
+static const struct regmap_config stpmic1_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.cache_type = REGCACHE_RBTREE,

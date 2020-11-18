@@ -21,10 +21,6 @@ include ../../lib.mk
 $(TEST_GEN_PROGS): $(PROGS)
 	cp $(PROGS) $(OUTPUT)/
 
-clean:
-	$(CLEAN)
-	rm -f $(PROGS)
-
 # Common test-unit targets to build common-layout test-cases executables
 # Needs secondary expansion to properly include the testcase c-file in pre-reqs
 .SECONDEXPANSION:

@@ -4,6 +4,6 @@ config NET_DSA_AR9331
 	depends on NET_DSA
 	select NET_DSA_TAG_AR9331
 	select REGMAP
-	---help---
+	help
 	  This enables support for the Qualcomm Atheros AR9331 built-in Ethernet
 	  switch.

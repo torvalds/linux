@@ -31,6 +31,8 @@ Optional properties:
 			  VSC8531_LINK_100_ACTIVITY (2),
 			  VSC8531_LINK_ACTIVITY (0) and
 			  VSC8531_DUPLEX_COLLISION (8).
+- load-save-gpios	: GPIO used for the load/save operation of the PTP
+			  hardware clock (PHC).
 
 
 Table: 1 - Edge rate change
@@ -67,4 +69,5 @@ Example:
                 vsc8531,edge-slowdown	= <7>;
                 vsc8531,led-0-mode	= <LINK_1000_ACTIVITY>;
                 vsc8531,led-1-mode	= <LINK_100_ACTIVITY>;
+		load-save-gpios		= <&gpio 10 GPIO_ACTIVE_HIGH>;
         };

@@ -15,7 +15,6 @@
 			clocks = <&rcc GPU>, <&rcc GPU_K>;
 			clock-names = "bus" ,"core";
 			resets = <&rcc GPU_R>;
-			status = "disabled";
 		};
 
 		dsi: dsi@5a000000 {
@@ -25,7 +24,14 @@
 			clock-names = "pclk", "ref", "px_clk";
 			resets = <&rcc DSI_R>;
 			reset-names = "apb";
+			#address-cells = <1>;
+			#size-cells = <0>;
 			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
 		};
 	};
 };

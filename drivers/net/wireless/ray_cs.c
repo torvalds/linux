@@ -2794,8 +2794,7 @@ static int __init init_ray_cs(void)
 	proc_create_data("driver/ray_cs/translate", 0200, NULL, &int_proc_ops,
 			 &translate);
 #endif
-	if (translate != 0)
-		translate = 1;
+	translate = !!translate;
 	return 0;
 } /* init_ray_cs */
 

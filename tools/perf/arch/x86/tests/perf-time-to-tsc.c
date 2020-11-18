@@ -130,13 +130,11 @@ int test__perf_time_to_tsc(struct test *test __maybe_unused, int subtest __maybe
 				goto next_event;
 
 			if (strcmp(event->comm.comm, comm1) == 0) {
-				CHECK__(perf_evsel__parse_sample(evsel, event,
-								 &sample));
+				CHECK__(evsel__parse_sample(evsel, event, &sample));
 				comm1_time = sample.time;
 			}
 			if (strcmp(event->comm.comm, comm2) == 0) {
-				CHECK__(perf_evsel__parse_sample(evsel, event,
-								 &sample));
+				CHECK__(evsel__parse_sample(evsel, event, &sample));
 				comm2_time = sample.time;
 			}
 next_event:

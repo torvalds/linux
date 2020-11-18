@@ -56,7 +56,7 @@ static int __init cifs_root_setup(char *line)
 		/* len is strlen(unc) + '\0' */
 		len = s - line + 1;
 		if (len > sizeof(root_dev)) {
-			printk(KERN_ERR "Root-CIFS: UNC path too long\n");
+			pr_err("Root-CIFS: UNC path too long\n");
 			return 1;
 		}
 		strlcpy(root_dev, line, len);
@@ -66,7 +66,7 @@ static int __init cifs_root_setup(char *line)
 					 sizeof(root_opts), "%s,%s",
 					 DEFAULT_MNT_OPTS, s + 1);
 			if (n >= sizeof(root_opts)) {
-				printk(KERN_ERR "Root-CIFS: mount options string too long\n");
+				pr_err("Root-CIFS: mount options string too long\n");
 				root_opts[sizeof(root_opts)-1] = '\0';
 				return 1;
 			}
@@ -83,7 +83,7 @@ __setup("cifsroot=", cifs_root_setup);
 int __init cifs_root_data(char **dev, char **opts)
 {
 	if (!root_dev[0] || root_server_addr == htonl(INADDR_NONE)) {
-		printk(KERN_ERR "Root-CIFS: no SMB server address\n");
+		pr_err("Root-CIFS: no SMB server address\n");
 		return -1;
 	}
 

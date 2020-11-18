@@ -9,7 +9,7 @@
  *
  * configfs Copyright (C) 2005 Oracle.  All rights reserved.
  *
- * Please see the file Documentation/filesystems/configfs/configfs.txt for
+ * Please see the file Documentation/filesystems/configfs.rst for
  * critical information about using the config_item interface.
  */
 

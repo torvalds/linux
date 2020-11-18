@@ -42,8 +42,9 @@
 
 #define AXP20X_DCDC2_V_OUT_MASK		GENMASK(5, 0)
 #define AXP20X_DCDC3_V_OUT_MASK		GENMASK(7, 0)
-#define AXP20X_LDO24_V_OUT_MASK		GENMASK(7, 4)
+#define AXP20X_LDO2_V_OUT_MASK		GENMASK(7, 4)
 #define AXP20X_LDO3_V_OUT_MASK		GENMASK(6, 0)
+#define AXP20X_LDO4_V_OUT_MASK		GENMASK(3, 0)
 #define AXP20X_LDO5_V_OUT_MASK		GENMASK(7, 4)
 
 #define AXP20X_PWR_OUT_EXTEN_MASK	BIT_MASK(0)
@@ -399,7 +400,7 @@ static int axp20x_set_ramp_delay(struct regulator_dev *rdev, int ramp)
 		if (rate_count > 0)
 			break;
 
-		/* fall through */
+		fallthrough;
 	default:
 		/* Not supported for this regulator */
 		return -ENOTSUPP;
@@ -510,7 +511,7 @@ static const struct regulator_ops axp20x_ops_sw = {
 	.is_enabled		= regulator_is_enabled_regmap,
 };
 
-static const struct regulator_linear_range axp20x_ldo4_ranges[] = {
+static const struct linear_range axp20x_ldo4_ranges[] = {
 	REGULATOR_LINEAR_RANGE(1250000,
 			       AXP20X_LDO4_V_OUT_1250mV_START,
 			       AXP20X_LDO4_V_OUT_1250mV_END,
@@ -542,14 +543,14 @@ static const struct regulator_desc axp20x_regulators[] = {
 		 AXP20X_PWR_OUT_CTRL, AXP20X_PWR_OUT_DCDC3_MASK),
 	AXP_DESC_FIXED(AXP20X, LDO1, "ldo1", "acin", 1300),
 	AXP_DESC(AXP20X, LDO2, "ldo2", "ldo24in", 1800, 3300, 100,
-		 AXP20X_LDO24_V_OUT, AXP20X_LDO24_V_OUT_MASK,
+		 AXP20X_LDO24_V_OUT, AXP20X_LDO2_V_OUT_MASK,
 		 AXP20X_PWR_OUT_CTRL, AXP20X_PWR_OUT_LDO2_MASK),
 	AXP_DESC(AXP20X, LDO3, "ldo3", "ldo3in", 700, 3500, 25,
 		 AXP20X_LDO3_V_OUT, AXP20X_LDO3_V_OUT_MASK,
 		 AXP20X_PWR_OUT_CTRL, AXP20X_PWR_OUT_LDO3_MASK),
 	AXP_DESC_RANGES(AXP20X, LDO4, "ldo4", "ldo24in",
 			axp20x_ldo4_ranges, AXP20X_LDO4_V_OUT_NUM_VOLTAGES,
-			AXP20X_LDO24_V_OUT, AXP20X_LDO24_V_OUT_MASK,
+			AXP20X_LDO24_V_OUT, AXP20X_LDO4_V_OUT_MASK,
 			AXP20X_PWR_OUT_CTRL, AXP20X_PWR_OUT_LDO4_MASK),
 	AXP_DESC_IO(AXP20X, LDO5, "ldo5", "ldo5in", 1800, 3300, 100,
 		    AXP20X_LDO5_V_OUT, AXP20X_LDO5_V_OUT_MASK,
@@ -638,7 +639,7 @@ static const struct regulator_desc axp22x_drivevbus_regulator = {
 };
 
 /* DCDC ranges shared with AXP813 */
-static const struct regulator_linear_range axp803_dcdc234_ranges[] = {
+static const struct linear_range axp803_dcdc234_ranges[] = {
 	REGULATOR_LINEAR_RANGE(500000,
 			       AXP803_DCDC234_500mV_START,
 			       AXP803_DCDC234_500mV_END,
@@ -649,7 +650,7 @@ static const struct regulator_linear_range axp803_dcdc234_ranges[] = {
 			       20000),
 };
 
-static const struct regulator_linear_range axp803_dcdc5_ranges[] = {
+static const struct linear_range axp803_dcdc5_ranges[] = {
 	REGULATOR_LINEAR_RANGE(800000,
 			       AXP803_DCDC5_800mV_START,
 			       AXP803_DCDC5_800mV_END,
@@ -660,7 +661,7 @@ static const struct regulator_linear_range axp803_dcdc5_ranges[] = {
 			       20000),
 };
 
-static const struct regulator_linear_range axp803_dcdc6_ranges[] = {
+static const struct linear_range axp803_dcdc6_ranges[] = {
 	REGULATOR_LINEAR_RANGE(600000,
 			       AXP803_DCDC6_600mV_START,
 			       AXP803_DCDC6_600mV_END,
@@ -672,7 +673,7 @@ static const struct regulator_linear_range axp803_dcdc6_ranges[] = {
 };
 
 /* AXP806's CLDO2 and AXP809's DLDO1 share the same range */
-static const struct regulator_linear_range axp803_dldo2_ranges[] = {
+static const struct linear_range axp803_dldo2_ranges[] = {
 	REGULATOR_LINEAR_RANGE(700000,
 			       AXP803_DLDO2_700mV_START,
 			       AXP803_DLDO2_700mV_END,
@@ -758,7 +759,7 @@ static const struct regulator_desc axp803_regulators[] = {
 	AXP_DESC_FIXED(AXP803, RTC_LDO, "rtc-ldo", "ips", 3000),
 };
 
-static const struct regulator_linear_range axp806_dcdca_ranges[] = {
+static const struct linear_range axp806_dcdca_ranges[] = {
 	REGULATOR_LINEAR_RANGE(600000,
 			       AXP806_DCDCA_600mV_START,
 			       AXP806_DCDCA_600mV_END,
@@ -769,7 +770,7 @@ static const struct regulator_linear_range axp806_dcdca_ranges[] = {
 			       20000),
 };
 
-static const struct regulator_linear_range axp806_dcdcd_ranges[] = {
+static const struct linear_range axp806_dcdcd_ranges[] = {
 	REGULATOR_LINEAR_RANGE(600000,
 			       AXP806_DCDCD_600mV_START,
 			       AXP806_DCDCD_600mV_END,
@@ -834,7 +835,7 @@ static const struct regulator_desc axp806_regulators[] = {
 		    AXP806_PWR_OUT_CTRL2, AXP806_PWR_OUT_SW_MASK),
 };
 
-static const struct regulator_linear_range axp809_dcdc4_ranges[] = {
+static const struct linear_range axp809_dcdc4_ranges[] = {
 	REGULATOR_LINEAR_RANGE(600000,
 			       AXP809_DCDC4_600mV_START,
 			       AXP809_DCDC4_600mV_END,
@@ -1022,7 +1023,7 @@ static int axp20x_set_dcdc_freq(struct platform_device *pdev, u32 dcdcfreq)
 		 * (See include/linux/mfd/axp20x.h)
 		 */
 		reg = AXP803_DCDC_FREQ_CTRL;
-		/* Fall through - to the check below.*/
+		fallthrough;	/* to the check below */
 	case AXP806_ID:
 		/*
 		 * AXP806 also have DCDC work frequency setting register at a
@@ -1030,7 +1031,7 @@ static int axp20x_set_dcdc_freq(struct platform_device *pdev, u32 dcdcfreq)
 		 */
 		if (axp20x->variant == AXP806_ID)
 			reg = AXP806_DCDC_FREQ_CTRL;
-		/* Fall through */
+		fallthrough;
 	case AXP221_ID:
 	case AXP223_ID:
 	case AXP809_ID:
@@ -1118,7 +1119,7 @@ static int axp20x_set_dcdc_workmode(struct regulator_dev *rdev, int id, u32 work
 		 * (See include/linux/mfd/axp20x.h)
 		 */
 		reg = AXP806_DCDC_MODE_CTRL2;
-		 /* Fall through - to the check below. */
+		fallthrough;	/* to the check below */
 	case AXP221_ID:
 	case AXP223_ID:
 	case AXP809_ID:

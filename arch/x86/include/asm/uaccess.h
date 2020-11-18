@@ -33,7 +33,7 @@ static inline void set_fs(mm_segment_t fs)
 	set_thread_flag(TIF_FSCHECK);
 }
 
-#define segment_eq(a, b)	((a).seg == (b).seg)
+#define uaccess_kernel() (get_fs().seg == KERNEL_DS.seg)
 #define user_addr_max() (current->thread.addr_limit.seg)
 
 /*
@@ -314,11 +314,14 @@ do {									\
 
 #define __get_user_size(x, ptr, size, retval)				\
 do {									\
+	unsigned char x_u8__;						\
+									\
 	retval = 0;							\
 	__chk_user_ptr(ptr);						\
 	switch (size) {							\
 	case 1:								\
-		__get_user_asm(x, ptr, retval, "b", "=q");		\
+		__get_user_asm(x_u8__, ptr, retval, "b", "=q");		\
+		(x) = x_u8__;						\
 		break;							\
 	case 2:								\
 		__get_user_asm(x, ptr, retval, "w", "=r");		\
@@ -504,12 +507,12 @@ do {										\
  * We want the unsafe accessors to always be inlined and use
  * the error labels - thus the macro games.
  */
-#define unsafe_copy_loop(dst, src, len, type, label)			\
-	while (len >= sizeof(type)) {					\
-		unsafe_put_user(*(type *)src,(type __user *)dst,label);	\
-		dst += sizeof(type);					\
-		src += sizeof(type);					\
-		len -= sizeof(type);					\
+#define unsafe_copy_loop(dst, src, len, type, label)				\
+	while (len >= sizeof(type)) {						\
+		unsafe_put_user(*(type *)(src),(type __user *)(dst),label);	\
+		dst += sizeof(type);						\
+		src += sizeof(type);						\
+		len -= sizeof(type);						\
 	}
 
 #define unsafe_copy_to_user(_dst,_src,_len,label)			\
@@ -522,6 +525,22 @@ do {									\
 	unsafe_copy_loop(__ucu_dst, __ucu_src, __ucu_len, u16, label);	\
 	unsafe_copy_loop(__ucu_dst, __ucu_src, __ucu_len, u8, label);	\
 } while (0)
+
+#define HAVE_GET_KERNEL_NOFAULT
+
+#define __get_kernel_nofault(dst, src, type, err_label)			\
+do {									\
+	int __kr_err;							\
+									\
+	__get_user_size(*((type *)(dst)), (__force type __user *)(src),	\
+			sizeof(type), __kr_err);			\
+	if (unlikely(__kr_err))						\
+		goto err_label;						\
+} while (0)
+
+#define __put_kernel_nofault(dst, src, type, err_label)			\
+	__put_user_size(*((type *)(src)), (__force type __user *)(dst),	\
+			sizeof(type), err_label)
 
 #endif /* _ASM_X86_UACCESS_H */
 

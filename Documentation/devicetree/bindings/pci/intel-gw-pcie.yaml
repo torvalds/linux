@@ -9,6 +9,14 @@ title: PCIe RC controller on Intel Gateway SoCs
 maintainers:
   - Dilip Kota <eswara.kota@linux.intel.com>
 
+select:
+  properties:
+    compatible:
+      contains:
+        const: intel,lgm-pcie
+  required:
+    - compatible
+
 properties:
   compatible:
     items:
@@ -71,10 +79,9 @@ properties:
 
   max-link-speed:
     description: Specify PCI Gen for link capability.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [ 1, 2, 3, 4 ]
-      - default: 1
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [1, 2, 3, 4]
+    default: 1
 
   bus-range:
     description: Range of bus numbers associated with this controller.

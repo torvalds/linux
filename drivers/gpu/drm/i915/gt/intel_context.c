@@ -97,8 +97,6 @@ int __intel_context_do_pin(struct intel_context *ce)
 {
 	int err;
 
-	GEM_BUG_ON(intel_context_is_closed(ce));
-
 	if (unlikely(!test_bit(CONTEXT_ALLOC_BIT, &ce->flags))) {
 		err = intel_context_alloc_state(ce);
 		if (err)
@@ -112,6 +110,11 @@ int __intel_context_do_pin(struct intel_context *ce)
 	if (mutex_lock_interruptible(&ce->pin_mutex)) {
 		err = -EINTR;
 		goto out_release;
+	}
+
+	if (unlikely(intel_context_is_closed(ce))) {
+		err = -ENOENT;
+		goto out_unlock;
 	}
 
 	if (likely(!atomic_add_unless(&ce->pin_count, 1, 0))) {
@@ -201,25 +204,25 @@ static int __ring_active(struct intel_ring *ring)
 {
 	int err;
 
-	err = i915_active_acquire(&ring->vma->active);
+	err = intel_ring_pin(ring);
 	if (err)
 		return err;
 
-	err = intel_ring_pin(ring);
+	err = i915_active_acquire(&ring->vma->active);
 	if (err)
-		goto err_active;
+		goto err_pin;
 
 	return 0;
 
-err_active:
-	i915_active_release(&ring->vma->active);
+err_pin:
+	intel_ring_unpin(ring);
 	return err;
 }
 
 static void __ring_retire(struct intel_ring *ring)
 {
-	intel_ring_unpin(ring);
 	i915_active_release(&ring->vma->active);
+	intel_ring_unpin(ring);
 }
 
 __i915_active_call

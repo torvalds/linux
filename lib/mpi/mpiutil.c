@@ -69,7 +69,7 @@ void mpi_free_limb_space(mpi_ptr_t a)
 	if (!a)
 		return;
 
-	kzfree(a);
+	kfree_sensitive(a);
 }
 
 void mpi_assign_limb_space(MPI a, mpi_ptr_t ap, unsigned nlimbs)
@@ -95,7 +95,7 @@ int mpi_resize(MPI a, unsigned nlimbs)
 		if (!p)
 			return -ENOMEM;
 		memcpy(p, a->d, a->alloced * sizeof(mpi_limb_t));
-		kzfree(a->d);
+		kfree_sensitive(a->d);
 		a->d = p;
 	} else {
 		a->d = kcalloc(nlimbs, sizeof(mpi_limb_t), GFP_KERNEL);
@@ -112,7 +112,7 @@ void mpi_free(MPI a)
 		return;
 
 	if (a->flags & 4)
-		kzfree(a->d);
+		kfree_sensitive(a->d);
 	else
 		mpi_free_limb_space(a->d);
 

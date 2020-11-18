@@ -74,9 +74,9 @@ static int rtl8723be_init_sw_vars(struct ieee80211_hw *hw)
 	rtl8723be_bt_reg_init(hw);
 	rtlpriv->btcoexist.btc_ops = rtl_btc_get_ops_pointer();
 
-	rtlpriv->dm.dm_initialgain_enable = 1;
+	rtlpriv->dm.dm_initialgain_enable = true;
 	rtlpriv->dm.dm_flag = 0;
-	rtlpriv->dm.disable_framebursting = 0;
+	rtlpriv->dm.disable_framebursting = false;
 	rtlpriv->dm.thermalvalue = 0;
 	rtlpci->transmit_config = CFENDFORM | BIT(15) | BIT(24) | BIT(25);
 

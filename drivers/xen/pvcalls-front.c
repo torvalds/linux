@@ -1263,7 +1263,7 @@ static void pvcalls_front_changed(struct xenbus_device *dev,
 		if (dev->state == XenbusStateClosed)
 			break;
 		/* Missed the backend's CLOSING state */
-		/* fall through */
+		fallthrough;
 	case XenbusStateClosing:
 		xenbus_frontend_closed(dev);
 		break;

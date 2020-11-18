@@ -230,8 +230,8 @@ static struct aac_driver_ident aac_drivers[] = {
 
 /**
  *	aac_queuecommand	-	queue a SCSI command
+ *	@shost:		Scsi host to queue command on
  *	@cmd:		SCSI command to queue
- *	@done:		Function to call on command completion
  *
  *	Queues a command for execution by the associated Host Adapter.
  *
@@ -363,9 +363,10 @@ static int aac_biosparm(struct scsi_device *sdev, struct block_device *bdev,
 
 		param->cylinders = cap_to_cyls(capacity, param->heads * param->sectors);
 		if (num < 4 && end_sec == param->sectors) {
-			if (param->cylinders != saved_cylinders)
+			if (param->cylinders != saved_cylinders) {
 				dprintk((KERN_DEBUG "Adopting geometry: heads=%d, sectors=%d from partition table %d.\n",
 					param->heads, param->sectors, num));
+			}
 		} else if (end_head > 0 || end_sec > 0) {
 			dprintk((KERN_DEBUG "Strange geometry: heads=%d, sectors=%d in partition table %d.\n",
 				end_head + 1, end_sec, num));
@@ -764,7 +765,7 @@ static int aac_eh_abort(struct scsi_cmnd* cmd)
 			    !(aac->raw_io_64) ||
 			    ((cmd->cmnd[1] & 0x1f) != SAI_READ_CAPACITY_16))
 				break;
-			/* fall through */
+			fallthrough;
 		case INQUIRY:
 		case READ_CAPACITY:
 			/*
@@ -864,7 +865,7 @@ static u8 aac_eh_tmf_hard_reset_fib(struct aac_hba_map_info *info,
        return HBA_IU_TYPE_SATA_REQ;
 }
 
-void aac_tmf_callback(void *context, struct fib *fibptr)
+static void aac_tmf_callback(void *context, struct fib *fibptr)
 {
 	struct aac_hba_resp *err =
 		&((struct aac_native_hba *)fibptr->hw_fib_va)->resp.err;
@@ -1078,7 +1079,7 @@ static int aac_eh_bus_reset(struct scsi_cmnd* cmd)
  *	@scsi_cmd:	SCSI command block causing the reset
  *
  */
-int aac_eh_host_reset(struct scsi_cmnd *cmd)
+static int aac_eh_host_reset(struct scsi_cmnd *cmd)
 {
 	struct scsi_device * dev = cmd->device;
 	struct Scsi_Host * host = dev->host;
@@ -1159,7 +1160,6 @@ static int aac_cfg_open(struct inode *inode, struct file *file)
 
 /**
  *	aac_cfg_ioctl		-	AAC configuration request
- *	@inode: inode of device
  *	@file: file handle
  *	@cmd: ioctl command code
  *	@arg: argument
@@ -1632,7 +1632,7 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct Scsi_Host *shost;
 	struct aac_dev *aac;
 	struct list_head *insert = &aac_devices;
-	int error = -ENODEV;
+	int error;
 	int unique_id = 0;
 	u64 dmamask;
 	int mask_bits = 0;
@@ -1657,7 +1657,6 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	error = pci_enable_device(pdev);
 	if (error)
 		goto out;
-	error = -ENODEV;
 
 	if (!(aac_drivers[index].quirks & AAC_QUIRK_SRC)) {
 		error = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
@@ -1689,8 +1688,10 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	pci_set_master(pdev);
 
 	shost = scsi_host_alloc(&aac_driver_template, sizeof(struct aac_dev));
-	if (!shost)
+	if (!shost) {
+		error = -ENOMEM;
 		goto out_disable_pdev;
+	}
 
 	shost->irq = pdev->irq;
 	shost->unique_id = unique_id;
@@ -1714,8 +1715,11 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	aac->fibs = kcalloc(shost->can_queue + AAC_NUM_MGT_FIB,
 			    sizeof(struct fib),
 			    GFP_KERNEL);
-	if (!aac->fibs)
+	if (!aac->fibs) {
+		error = -ENOMEM;
 		goto out_free_host;
+	}
+
 	spin_lock_init(&aac->fib_lock);
 
 	mutex_init(&aac->ioctl_mutex);
@@ -1998,7 +2002,7 @@ static void aac_remove_one(struct pci_dev *pdev)
 }
 
 static pci_ers_result_t aac_pci_error_detected(struct pci_dev *pdev,
-					enum pci_channel_state error)
+					pci_channel_state_t error)
 {
 	struct Scsi_Host *shost = pci_get_drvdata(pdev);
 	struct aac_dev *aac = shost_priv(shost);

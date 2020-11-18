@@ -220,6 +220,13 @@ memory. A lower value can prevent THPs from being
 collapsed, resulting fewer pages being collapsed into
 THPs, and lower memory access performance.
 
+``max_ptes_shared`` specifies how many pages can be shared across multiple
+processes. Exceeding the number would block the collapse::
+
+	/sys/kernel/mm/transparent_hugepage/khugepaged/max_ptes_shared
+
+A higher value may increase memory footprint for some workloads.
+
 Boot parameter
 ==============
 
@@ -298,8 +305,7 @@ monitor how successfully the system is providing huge pages for use.
 
 thp_fault_alloc
 	is incremented every time a huge page is successfully
-	allocated to handle a page fault. This applies to both the
-	first time a page is faulted and for COW faults.
+	allocated to handle a page fault.
 
 thp_collapse_alloc
 	is incremented by khugepaged when it has found

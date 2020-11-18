@@ -1109,7 +1109,7 @@ repeat:
 			err = SIGILL;
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	case beql_op:
 	case bnel_op:
 		if (delay_slot(regs)) {

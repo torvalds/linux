@@ -68,58 +68,23 @@ static void iser_event_handler(struct ib_event_handler *handler,
 static int iser_create_device_ib_res(struct iser_device *device)
 {
 	struct ib_device *ib_dev = device->ib_device;
-	int ret, i, max_cqe;
 
-	ret = iser_assign_reg_ops(device);
-	if (ret)
-		return ret;
-
-	device->comps_used = min_t(int, num_online_cpus(),
-				 ib_dev->num_comp_vectors);
-
-	device->comps = kcalloc(device->comps_used, sizeof(*device->comps),
-				GFP_KERNEL);
-	if (!device->comps)
-		goto comps_err;
-
-	max_cqe = min(ISER_MAX_CQ_LEN, ib_dev->attrs.max_cqe);
-
-	iser_info("using %d CQs, device %s supports %d vectors max_cqe %d\n",
-		  device->comps_used, dev_name(&ib_dev->dev),
-		  ib_dev->num_comp_vectors, max_cqe);
+	if (!(ib_dev->attrs.device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS)) {
+		iser_err("IB device does not support memory registrations\n");
+		return -1;
+	}
 
 	device->pd = ib_alloc_pd(ib_dev,
 		iser_always_reg ? 0 : IB_PD_UNSAFE_GLOBAL_RKEY);
 	if (IS_ERR(device->pd))
 		goto pd_err;
 
-	for (i = 0; i < device->comps_used; i++) {
-		struct iser_comp *comp = &device->comps[i];
-
-		comp->cq = ib_alloc_cq(ib_dev, comp, max_cqe, i,
-				       IB_POLL_SOFTIRQ);
-		if (IS_ERR(comp->cq)) {
-			comp->cq = NULL;
-			goto cq_err;
-		}
-	}
-
 	INIT_IB_EVENT_HANDLER(&device->event_handler, ib_dev,
 			      iser_event_handler);
 	ib_register_event_handler(&device->event_handler);
 	return 0;
 
-cq_err:
-	for (i = 0; i < device->comps_used; i++) {
-		struct iser_comp *comp = &device->comps[i];
-
-		if (comp->cq)
-			ib_free_cq(comp->cq);
-	}
-	ib_dealloc_pd(device->pd);
 pd_err:
-	kfree(device->comps);
-comps_err:
 	iser_err("failed to allocate an IB resource\n");
 	return -1;
 }
@@ -130,111 +95,10 @@ comps_err:
  */
 static void iser_free_device_ib_res(struct iser_device *device)
 {
-	int i;
-
-	for (i = 0; i < device->comps_used; i++) {
-		struct iser_comp *comp = &device->comps[i];
-
-		ib_free_cq(comp->cq);
-		comp->cq = NULL;
-	}
-
 	ib_unregister_event_handler(&device->event_handler);
 	ib_dealloc_pd(device->pd);
 
-	kfree(device->comps);
-	device->comps = NULL;
 	device->pd = NULL;
-}
-
-/**
- * iser_alloc_fmr_pool - Creates FMR pool and page_vector
- * @ib_conn: connection RDMA resources
- * @cmds_max: max number of SCSI commands for this connection
- * @size: max number of pages per map request
- *
- * Return: 0 on success, or errno code on failure
- */
-int iser_alloc_fmr_pool(struct ib_conn *ib_conn,
-			unsigned cmds_max,
-			unsigned int size)
-{
-	struct iser_device *device = ib_conn->device;
-	struct iser_fr_pool *fr_pool = &ib_conn->fr_pool;
-	struct iser_page_vec *page_vec;
-	struct iser_fr_desc *desc;
-	struct ib_fmr_pool *fmr_pool;
-	struct ib_fmr_pool_param params;
-	int ret;
-
-	INIT_LIST_HEAD(&fr_pool->list);
-	spin_lock_init(&fr_pool->lock);
-
-	desc = kzalloc(sizeof(*desc), GFP_KERNEL);
-	if (!desc)
-		return -ENOMEM;
-
-	page_vec = kmalloc(sizeof(*page_vec) + (sizeof(u64) * size),
-			   GFP_KERNEL);
-	if (!page_vec) {
-		ret = -ENOMEM;
-		goto err_frpl;
-	}
-
-	page_vec->pages = (u64 *)(page_vec + 1);
-
-	params.page_shift        = ilog2(SZ_4K);
-	params.max_pages_per_fmr = size;
-	/* make the pool size twice the max number of SCSI commands *
-	 * the ML is expected to queue, watermark for unmap at 50%  */
-	params.pool_size	 = cmds_max * 2;
-	params.dirty_watermark	 = cmds_max;
-	params.cache		 = 0;
-	params.flush_function	 = NULL;
-	params.access		 = (IB_ACCESS_LOCAL_WRITE  |
-				    IB_ACCESS_REMOTE_WRITE |
-				    IB_ACCESS_REMOTE_READ);
-
-	fmr_pool = ib_create_fmr_pool(device->pd, &params);
-	if (IS_ERR(fmr_pool)) {
-		ret = PTR_ERR(fmr_pool);
-		iser_err("FMR allocation failed, err %d\n", ret);
-		goto err_fmr;
-	}
-
-	desc->rsc.page_vec = page_vec;
-	desc->rsc.fmr_pool = fmr_pool;
-	list_add(&desc->list, &fr_pool->list);
-
-	return 0;
-
-err_fmr:
-	kfree(page_vec);
-err_frpl:
-	kfree(desc);
-
-	return ret;
-}
-
-/**
- * iser_free_fmr_pool - releases the FMR pool and page vec
- * @ib_conn: connection RDMA resources
- */
-void iser_free_fmr_pool(struct ib_conn *ib_conn)
-{
-	struct iser_fr_pool *fr_pool = &ib_conn->fr_pool;
-	struct iser_fr_desc *desc;
-
-	desc = list_first_entry(&fr_pool->list,
-				struct iser_fr_desc, list);
-	list_del(&desc->list);
-
-	iser_info("freeing conn %p fmr pool %p\n",
-		  ib_conn, desc->rsc.fmr_pool);
-
-	ib_destroy_fmr_pool(desc->rsc.fmr_pool);
-	kfree(desc->rsc.page_vec);
-	kfree(desc);
 }
 
 static struct iser_fr_desc *
@@ -376,70 +240,57 @@ static int iser_create_ib_conn_res(struct ib_conn *ib_conn)
 	struct ib_device	*ib_dev;
 	struct ib_qp_init_attr	init_attr;
 	int			ret = -ENOMEM;
-	int index, min_index = 0;
+	unsigned int max_send_wr, cq_size;
 
 	BUG_ON(ib_conn->device == NULL);
 
 	device = ib_conn->device;
 	ib_dev = device->ib_device;
 
-	memset(&init_attr, 0, sizeof init_attr);
+	if (ib_conn->pi_support)
+		max_send_wr = ISER_QP_SIG_MAX_REQ_DTOS + 1;
+	else
+		max_send_wr = ISER_QP_MAX_REQ_DTOS + 1;
+	max_send_wr = min_t(unsigned int, max_send_wr,
+			    (unsigned int)ib_dev->attrs.max_qp_wr);
 
-	mutex_lock(&ig.connlist_mutex);
-	/* select the CQ with the minimal number of usages */
-	for (index = 0; index < device->comps_used; index++) {
-		if (device->comps[index].active_qps <
-		    device->comps[min_index].active_qps)
-			min_index = index;
+	cq_size = max_send_wr + ISER_QP_MAX_RECV_DTOS;
+	ib_conn->cq = ib_cq_pool_get(ib_dev, cq_size, -1, IB_POLL_SOFTIRQ);
+	if (IS_ERR(ib_conn->cq)) {
+		ret = PTR_ERR(ib_conn->cq);
+		goto cq_err;
 	}
-	ib_conn->comp = &device->comps[min_index];
-	ib_conn->comp->active_qps++;
-	mutex_unlock(&ig.connlist_mutex);
-	iser_info("cq index %d used for ib_conn %p\n", min_index, ib_conn);
+	ib_conn->cq_size = cq_size;
+
+	memset(&init_attr, 0, sizeof(init_attr));
 
 	init_attr.event_handler = iser_qp_event_callback;
 	init_attr.qp_context	= (void *)ib_conn;
-	init_attr.send_cq	= ib_conn->comp->cq;
-	init_attr.recv_cq	= ib_conn->comp->cq;
+	init_attr.send_cq	= ib_conn->cq;
+	init_attr.recv_cq	= ib_conn->cq;
 	init_attr.cap.max_recv_wr  = ISER_QP_MAX_RECV_DTOS;
 	init_attr.cap.max_send_sge = 2;
 	init_attr.cap.max_recv_sge = 1;
 	init_attr.sq_sig_type	= IB_SIGNAL_REQ_WR;
 	init_attr.qp_type	= IB_QPT_RC;
-	if (ib_conn->pi_support) {
-		init_attr.cap.max_send_wr = ISER_QP_SIG_MAX_REQ_DTOS + 1;
+	init_attr.cap.max_send_wr = max_send_wr;
+	if (ib_conn->pi_support)
 		init_attr.create_flags |= IB_QP_CREATE_INTEGRITY_EN;
-		iser_conn->max_cmds =
-			ISER_GET_MAX_XMIT_CMDS(ISER_QP_SIG_MAX_REQ_DTOS);
-	} else {
-		if (ib_dev->attrs.max_qp_wr > ISER_QP_MAX_REQ_DTOS) {
-			init_attr.cap.max_send_wr  = ISER_QP_MAX_REQ_DTOS + 1;
-			iser_conn->max_cmds =
-				ISER_GET_MAX_XMIT_CMDS(ISER_QP_MAX_REQ_DTOS);
-		} else {
-			init_attr.cap.max_send_wr = ib_dev->attrs.max_qp_wr;
-			iser_conn->max_cmds =
-				ISER_GET_MAX_XMIT_CMDS(ib_dev->attrs.max_qp_wr);
-			iser_dbg("device %s supports max_send_wr %d\n",
-				 dev_name(&device->ib_device->dev),
-				 ib_dev->attrs.max_qp_wr);
-		}
-	}
+	iser_conn->max_cmds = ISER_GET_MAX_XMIT_CMDS(max_send_wr - 1);
 
 	ret = rdma_create_qp(ib_conn->cma_id, device->pd, &init_attr);
 	if (ret)
 		goto out_err;
 
 	ib_conn->qp = ib_conn->cma_id->qp;
-	iser_info("setting conn %p cma_id %p qp %p\n",
+	iser_info("setting conn %p cma_id %p qp %p max_send_wr %d\n",
 		  ib_conn, ib_conn->cma_id,
-		  ib_conn->cma_id->qp);
+		  ib_conn->cma_id->qp, max_send_wr);
 	return ret;
 
 out_err:
-	mutex_lock(&ig.connlist_mutex);
-	ib_conn->comp->active_qps--;
-	mutex_unlock(&ig.connlist_mutex);
+	ib_cq_pool_put(ib_conn->cq, ib_conn->cq_size);
+cq_err:
 	iser_err("unable to alloc mem or create resource, err %d\n", ret);
 
 	return ret;
@@ -551,10 +402,8 @@ static void iser_free_ib_conn_res(struct iser_conn *iser_conn,
 		  iser_conn, ib_conn->cma_id, ib_conn->qp);
 
 	if (ib_conn->qp != NULL) {
-		mutex_lock(&ig.connlist_mutex);
-		ib_conn->comp->active_qps--;
-		mutex_unlock(&ig.connlist_mutex);
 		rdma_destroy_qp(ib_conn->cma_id);
+		ib_cq_pool_put(ib_conn->cq, ib_conn->cq_size);
 		ib_conn->qp = NULL;
 	}
 
@@ -667,13 +516,12 @@ iser_calc_scsi_params(struct iser_conn *iser_conn,
 	u32 max_num_sg;
 
 	/*
-	 * FRs without SG_GAPS or FMRs can only map up to a (device) page per
-	 * entry, but if the first entry is misaligned we'll end up using two
-	 * entries (head and tail) for a single page worth data, so one
-	 * additional entry is required.
+	 * FRs without SG_GAPS can only map up to a (device) page per entry,
+	 * but if the first entry is misaligned we'll end up using two entries
+	 * (head and tail) for a single page worth data, so one additional
+	 * entry is required.
 	 */
-	if ((attr->device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS) &&
-	    (attr->device_cap_flags & IB_DEVICE_SG_GAPS_REG))
+	if (attr->device_cap_flags & IB_DEVICE_SG_GAPS_REG)
 		reserved_mr_pages = 0;
 	else
 		reserved_mr_pages = 1;
@@ -684,14 +532,8 @@ iser_calc_scsi_params(struct iser_conn *iser_conn,
 		max_num_sg = attr->max_fast_reg_page_list_len;
 
 	sg_tablesize = DIV_ROUND_UP(max_sectors * SECTOR_SIZE, SZ_4K);
-	if (attr->device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS)
-		sup_sg_tablesize =
-			min_t(
-			 uint, ISCSI_ISER_MAX_SG_TABLESIZE,
-			 max_num_sg - reserved_mr_pages);
-	else
-		sup_sg_tablesize = ISCSI_ISER_MAX_SG_TABLESIZE;
-
+	sup_sg_tablesize = min_t(uint, ISCSI_ISER_MAX_SG_TABLESIZE,
+				 max_num_sg - reserved_mr_pages);
 	iser_conn->scsi_sg_tablesize = min(sg_tablesize, sup_sg_tablesize);
 	iser_conn->pages_per_mr =
 		iser_conn->scsi_sg_tablesize + reserved_mr_pages;
@@ -755,7 +597,7 @@ static void iser_route_handler(struct rdma_cm_id *cma_id)
 	struct iser_cm_hdr req_hdr;
 	struct iser_conn *iser_conn = (struct iser_conn *)cma_id->context;
 	struct ib_conn *ib_conn = &iser_conn->ib_conn;
-	struct iser_device *device = ib_conn->device;
+	struct ib_device *ib_dev = ib_conn->device->ib_device;
 
 	if (iser_conn->state != ISER_CONN_PENDING)
 		/* bailout */
@@ -766,14 +608,14 @@ static void iser_route_handler(struct rdma_cm_id *cma_id)
 		goto failure;
 
 	memset(&conn_param, 0, sizeof conn_param);
-	conn_param.responder_resources = device->ib_device->attrs.max_qp_rd_atom;
+	conn_param.responder_resources = ib_dev->attrs.max_qp_rd_atom;
 	conn_param.initiator_depth     = 1;
 	conn_param.retry_count	       = 7;
 	conn_param.rnr_retry_count     = 6;
 
 	memset(&req_hdr, 0, sizeof(req_hdr));
 	req_hdr.flags = ISER_ZBVA_NOT_SUP;
-	if (!device->remote_inv_sup)
+	if (!iser_always_reg)
 		req_hdr.flags |= ISER_SEND_W_INV_NOT_SUP;
 	conn_param.private_data	= (void *)&req_hdr;
 	conn_param.private_data_len = sizeof(struct iser_cm_hdr);
@@ -869,7 +711,7 @@ static int iser_cma_handler(struct rdma_cm_id *cma_id, struct rdma_cm_event *eve
 	case RDMA_CM_EVENT_REJECTED:
 		iser_info("Connection rejected: %s\n",
 			 rdma_reject_msg(cma_id, event->status));
-		/* FALLTHROUGH */
+		fallthrough;
 	case RDMA_CM_EVENT_ADDR_ERROR:
 	case RDMA_CM_EVENT_ROUTE_ERROR:
 	case RDMA_CM_EVENT_CONNECT_ERROR:

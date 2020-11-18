@@ -56,7 +56,7 @@ xfs_fs_encode_fh(
 		fileid_type = FILEID_INO32_GEN_PARENT;
 
 	/*
-	 * If the the filesystem may contain 64bit inode numbers, we need
+	 * If the filesystem may contain 64bit inode numbers, we need
 	 * to use larger file handles that can represent them.
 	 *
 	 * While we only allocate inodes that do not fit into 32 bits any

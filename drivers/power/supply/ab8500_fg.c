@@ -1542,7 +1542,7 @@ static void ab8500_fg_algorithm_discharging(struct ab8500_fg *di)
 		ab8500_fg_discharge_state_to(di,
 			AB8500_FG_DISCHARGE_INITMEASURING);
 
-		/* Intentional fallthrough */
+		fallthrough;
 	case AB8500_FG_DISCHARGE_INITMEASURING:
 		/*
 		 * Discard a number of samples during startup.
@@ -1572,7 +1572,7 @@ static void ab8500_fg_algorithm_discharging(struct ab8500_fg *di)
 		ab8500_fg_discharge_state_to(di,
 			AB8500_FG_DISCHARGE_RECOVERY);
 
-		/* Intentional fallthrough */
+		fallthrough;
 
 	case AB8500_FG_DISCHARGE_RECOVERY:
 		sleep_time = di->bm->fg_params->recovery_sleep_timer;
@@ -2399,7 +2399,7 @@ static void ab8500_fg_reinit_work(struct work_struct *work)
 	struct ab8500_fg *di = container_of(work, struct ab8500_fg,
 		fg_reinit_work.work);
 
-	if (di->flags.calibrate == false) {
+	if (!di->flags.calibrate) {
 		dev_dbg(di->dev, "Resetting FG state machine to init.\n");
 		ab8500_fg_clear_cap_samples(di);
 		ab8500_fg_calc_cap_discharge_voltage(di, true);

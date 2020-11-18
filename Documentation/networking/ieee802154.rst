@@ -30,8 +30,8 @@ Socket API
 
 The address family, socket addresses etc. are defined in the
 include/net/af_ieee802154.h header or in the special header
-in the userspace package (see either http://wpan.cakelab.org/ or the
-git tree at https://github.com/linux-wpan/wpan-tools).
+in the userspace package (see either https://linux-wpan.org/wpan-tools.html
+or the git tree at https://github.com/linux-wpan/wpan-tools).
 
 6LoWPAN Linux implementation
 ============================

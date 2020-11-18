@@ -1022,6 +1022,7 @@ struct mwifiex_adapter {
 	bool ext_scan;
 	u8 fw_api_ver;
 	u8 key_api_major_ver, key_api_minor_ver;
+	u8 max_p2p_conn, max_sta_conn;
 	struct memory_type_mapping *mem_type_mapping_tbl;
 	u8 num_mem_types;
 	bool scan_chan_gap_enabled;

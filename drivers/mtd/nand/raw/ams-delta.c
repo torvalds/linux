@@ -191,8 +191,8 @@ static int gpio_nand_exec_op(struct nand_chip *this,
 	return ret;
 }
 
-static int gpio_nand_setup_data_interface(struct nand_chip *this, int csline,
-					  const struct nand_data_interface *cf)
+static int gpio_nand_setup_interface(struct nand_chip *this, int csline,
+				     const struct nand_interface_config *cf)
 {
 	struct gpio_nand *priv = nand_get_controller_data(this);
 	const struct nand_sdr_timings *sdr = nand_get_sdr_timings(cf);
@@ -217,7 +217,7 @@ static int gpio_nand_setup_data_interface(struct nand_chip *this, int csline,
 
 static const struct nand_controller_ops gpio_nand_ops = {
 	.exec_op = gpio_nand_exec_op,
-	.setup_data_interface = gpio_nand_setup_data_interface,
+	.setup_interface = gpio_nand_setup_interface,
 };
 
 /*
@@ -387,12 +387,15 @@ static int gpio_nand_remove(struct platform_device *pdev)
 {
 	struct gpio_nand *priv = platform_get_drvdata(pdev);
 	struct mtd_info *mtd = nand_to_mtd(&priv->nand_chip);
+	int ret;
 
 	/* Apply write protection */
 	gpiod_set_value(priv->gpiod_nwp, 1);
 
 	/* Unregister device */
-	nand_release(mtd_to_nand(mtd));
+	ret = mtd_device_unregister(mtd);
+	WARN_ON(ret);
+	nand_cleanup(mtd_to_nand(mtd));
 
 	return 0;
 }

@@ -147,11 +147,11 @@ static ssize_t show_overlays(struct device *dev,
 			if (ovl == fbdev->overlays[ovlnum])
 				break;
 
-		l += snprintf(buf + l, PAGE_SIZE - l, "%s%d",
+		l += scnprintf(buf + l, PAGE_SIZE - l, "%s%d",
 				t == 0 ? "" : ",", ovlnum);
 	}
 
-	l += snprintf(buf + l, PAGE_SIZE - l, "\n");
+	l += scnprintf(buf + l, PAGE_SIZE - l, "\n");
 
 	omapfb_unlock(fbdev);
 	unlock_fb_info(fbi);
@@ -328,11 +328,11 @@ static ssize_t show_overlays_rotate(struct device *dev,
 	lock_fb_info(fbi);
 
 	for (t = 0; t < ofbi->num_overlays; t++) {
-		l += snprintf(buf + l, PAGE_SIZE - l, "%s%d",
+		l += scnprintf(buf + l, PAGE_SIZE - l, "%s%d",
 				t == 0 ? "" : ",", ofbi->rotation[t]);
 	}
 
-	l += snprintf(buf + l, PAGE_SIZE - l, "\n");
+	l += scnprintf(buf + l, PAGE_SIZE - l, "\n");
 
 	unlock_fb_info(fbi);
 

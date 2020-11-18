@@ -47,20 +47,16 @@ static int compat_i915_getparam(struct file *file, unsigned int cmd,
 				unsigned long arg)
 {
 	struct drm_i915_getparam32 req32;
-	drm_i915_getparam_t __user *request;
+	struct drm_i915_getparam req;
 
 	if (copy_from_user(&req32, (void __user *)arg, sizeof(req32)))
 		return -EFAULT;
 
-	request = compat_alloc_user_space(sizeof(*request));
-	if (!access_ok(request, sizeof(*request)) ||
-	    __put_user(req32.param, &request->param) ||
-	    __put_user((void __user *)(unsigned long)req32.value,
-		       &request->value))
-		return -EFAULT;
+	req.param = req32.param;
+	req.value = compat_ptr(req32.value);
 
-	return drm_ioctl(file, DRM_IOCTL_I915_GETPARAM,
-			 (unsigned long)request);
+	return drm_ioctl_kernel(file, i915_getparam_ioctl, &req,
+				DRM_RENDER_ALLOW);
 }
 
 static drm_ioctl_compat_t *i915_compat_ioctls[] = {

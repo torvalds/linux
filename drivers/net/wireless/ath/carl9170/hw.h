@@ -851,7 +851,7 @@ struct ar9170_stream {
 	__le16 length;
 	__le16 tag;
 
-	u8 payload[0];
+	u8 payload[];
 } __packed __aligned(4);
 #define AR9170_STREAM_LEN				4
 

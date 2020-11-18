@@ -203,7 +203,7 @@ It is possible to setup an overheat interrupt by giving at least one
 critical point to any subnode of the thermal-zone node.
 
 For common binding part and usage, refer to
-Documentation/devicetree/bindings/thermal/thermal.txt
+Documentation/devicetree/bindings/thermal/thermal*.yaml
 
 Required properties:
 - compatible: must be one of:

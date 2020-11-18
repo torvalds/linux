@@ -21,13 +21,13 @@
 #include <net/calipso.h>
 #endif
 
+static int two = 2;
 static int flowlabel_reflect_max = 0x7;
 static int auto_flowlabels_min;
 static int auto_flowlabels_max = IP6_AUTO_FLOW_LABEL_MAX;
 
 static int proc_rt6_multipath_hash_policy(struct ctl_table *table, int write,
-					  void __user *buffer, size_t *lenp,
-					  loff_t *ppos)
+					  void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct net *net;
 	int ret;
@@ -151,7 +151,7 @@ static struct ctl_table ipv6_table_template[] = {
 		.mode		= 0644,
 		.proc_handler   = proc_rt6_multipath_hash_policy,
 		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE,
+		.extra2		= &two,
 	},
 	{
 		.procname	= "seg6_flowlabel",

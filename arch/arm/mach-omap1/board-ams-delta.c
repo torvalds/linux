@@ -29,8 +29,6 @@
 #include <linux/io.h>
 #include <linux/platform_data/gpio-omap.h>
 
-#include <media/soc_camera.h>
-
 #include <asm/serial.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -40,7 +38,6 @@
 #include <mach/mux.h>
 
 #include <mach/hardware.h>
-#include "camera.h"
 #include <mach/usb.h>
 
 #include "ams-delta-fiq.h"
@@ -459,12 +456,6 @@ static struct gpiod_lookup_table leds_gpio_table = {
 	},
 };
 
-static struct i2c_board_info ams_delta_camera_board_info[] = {
-	{
-		I2C_BOARD_INFO("ov6650", 0x60),
-	},
-};
-
 #ifdef CONFIG_LEDS_TRIGGERS
 DEFINE_LED_TRIGGER(ams_delta_camera_led_trigger);
 
@@ -482,27 +473,6 @@ static int ams_delta_camera_power(struct device *dev, int power)
 #else
 #define ams_delta_camera_power	NULL
 #endif
-
-static struct soc_camera_link ams_delta_iclink = {
-	.bus_id         = 0,	/* OMAP1 SoC camera bus */
-	.i2c_adapter_id = 1,
-	.board_info     = &ams_delta_camera_board_info[0],
-	.module_name    = "ov6650",
-	.power		= ams_delta_camera_power,
-};
-
-static struct platform_device ams_delta_camera_device = {
-	.name   = "soc-camera-pdrv",
-	.id     = 0,
-	.dev    = {
-		.platform_data = &ams_delta_iclink,
-	},
-};
-
-static struct omap1_cam_platform_data ams_delta_camera_platform_data = {
-	.camexclk_khz	= 12000,	/* default 12MHz clock, no extra DPLL */
-	.lclk_khz_max	= 1334,		/* results in 5fps CIF, 10fps QCIF */
-};
 
 static struct platform_device ams_delta_audio_device = {
 	.name   = "ams-delta-audio",
@@ -598,7 +568,6 @@ static struct platform_device *ams_delta_devices[] __initdata = {
 	&latch1_gpio_device,
 	&latch2_gpio_device,
 	&ams_delta_kp_device,
-	&ams_delta_camera_device,
 	&ams_delta_audio_device,
 	&ams_delta_serio_device,
 	&ams_delta_nand_device,
@@ -750,7 +719,6 @@ static void __init ams_delta_init(void)
 	omap_register_i2c_bus(1, 100, NULL, 0);
 
 	omap1_usb_init(&ams_delta_usb_config);
-	omap1_set_camera_info(&ams_delta_camera_platform_data);
 #ifdef CONFIG_LEDS_TRIGGERS
 	led_trigger_register_simple("ams_delta_camera",
 			&ams_delta_camera_led_trigger);

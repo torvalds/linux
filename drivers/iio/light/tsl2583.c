@@ -840,7 +840,6 @@ static int tsl2583_probe(struct i2c_client *clientp,
 	indio_dev->info = &tsl2583_info;
 	indio_dev->channels = tsl2583_channels;
 	indio_dev->num_channels = ARRAY_SIZE(tsl2583_channels);
-	indio_dev->dev.parent = &clientp->dev;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->name = chip->client->name;
 

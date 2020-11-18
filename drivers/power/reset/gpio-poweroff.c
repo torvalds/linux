@@ -54,7 +54,7 @@ static int gpio_poweroff_probe(struct platform_device *pdev)
 	/* If a pm_power_off function has already been added, leave it alone */
 	if (pm_power_off != NULL) {
 		dev_err(&pdev->dev,
-			"%s: pm_power_off function already registered",
+			"%s: pm_power_off function already registered\n",
 		       __func__);
 		return -EBUSY;
 	}

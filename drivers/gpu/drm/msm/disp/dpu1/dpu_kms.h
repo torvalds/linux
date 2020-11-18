@@ -100,7 +100,6 @@ struct dpu_kms {
 
 	/* io/register spaces: */
 	void __iomem *mmio, *vbif[VBIF_MAX], *reg_dma;
-	unsigned long mmio_len, vbif_len[VBIF_MAX], reg_dma_len;
 
 	struct regulator *vdd;
 	struct regulator *mmagic;
@@ -128,6 +127,10 @@ struct dpu_kms {
 
 	struct platform_device *pdev;
 	bool rpm_enabled;
+
+	struct opp_table *opp_table;
+	bool has_opp_table;
+
 	struct dss_module_power mp;
 
 	/* reference count bandwidth requests, so we know when we can
@@ -158,6 +161,7 @@ struct dpu_global_state {
 	uint32_t mixer_to_enc_id[LM_MAX - LM_0];
 	uint32_t ctl_to_enc_id[CTL_MAX - CTL_0];
 	uint32_t intf_to_enc_id[INTF_MAX - INTF_0];
+	uint32_t dspp_to_enc_id[DSPP_MAX - DSPP_0];
 };
 
 struct dpu_global_state
@@ -170,7 +174,7 @@ struct dpu_global_state
  *
  * Main debugfs documentation is located at,
  *
- * Documentation/filesystems/debugfs.txt
+ * Documentation/filesystems/debugfs.rst
  *
  * @dpu_debugfs_setup_regset32: Initialize data for dpu_debugfs_create_regset32
  * @dpu_debugfs_create_regset32: Create 32-bit register dump file

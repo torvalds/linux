@@ -117,9 +117,9 @@
 	leds: gpio-leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
-		pinctrl-0 = <&leds_gpio>;
+		pinctrl-0 = <&status_led_pin>;
 
-		status {
+		status_led: led-0 {
 			gpios = <&gpio0 RK_PB5 GPIO_ACTIVE_HIGH>;
 			label = "status_led";
 			linux,default-trigger = "heartbeat";
@@ -182,7 +182,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		rtl8211e: phy@1 {
+		rtl8211e: ethernet-phy@1 {
 			reg = <1>;
 			interrupt-parent = <&gpio3>;
 			interrupts = <RK_PB2 IRQ_TYPE_LEVEL_LOW>;
@@ -520,12 +520,12 @@
 	};
 
 	gpio-leds {
-		leds_gpio: leds-gpio {
+		status_led_pin: status-led-pin {
 			rockchip,pins = <0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
-	phy {
+	gmac {
 		phy_intb: phy-intb {
 			rockchip,pins = <3 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>;
 		};

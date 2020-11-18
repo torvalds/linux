@@ -149,7 +149,6 @@ static const struct drm_display_mode default_mode = {
 	.vsync_start = 1200 + 24,
 	.vsync_end = 1200 + 24 + 6,
 	.vtotal = 1200 + 24 + 6 + 48,
-	.vrefresh = 60,
 };
 
 static int wuxga_nt_panel_get_modes(struct drm_panel *panel,
@@ -161,7 +160,7 @@ static int wuxga_nt_panel_get_modes(struct drm_panel *panel,
 	if (!mode) {
 		dev_err(panel->dev, "failed to add mode %ux%u@%u\n",
 			default_mode.hdisplay, default_mode.vdisplay,
-			default_mode.vrefresh);
+			drm_mode_vrefresh(&default_mode));
 		return -ENOMEM;
 	}
 

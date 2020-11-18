@@ -2,7 +2,7 @@ Binding for Silicon Labs Si5351a/b/c programmable i2c clock generator.
 
 Reference
 [1] Si5351A/B/C Data Sheet
-    http://www.silabs.com/Support%20Documents/TechnicalDocs/Si5351.pdf
+    https://www.silabs.com/Support%20Documents/TechnicalDocs/Si5351.pdf
 
 The Si5351a/b/c are programmable i2c clock generators with up to 8 output
 clocks. Si5351a also has a reduced pin-count package (MSOP10) where only

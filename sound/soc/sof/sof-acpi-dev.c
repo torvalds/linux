@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
 //
 // This file is provided under a dual BSD/GPLv2 license.  When using or
 // redistributing this file, you may do so under either license.
@@ -35,7 +35,7 @@ MODULE_PARM_DESC(sof_acpi_debug, "SOF ACPI debug options (0x0 all off)");
 
 #define SOF_ACPI_DISABLE_PM_RUNTIME BIT(0)
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_BROADWELL)
+#if IS_ENABLED(CONFIG_ACPI) && IS_ENABLED(CONFIG_SND_SOC_SOF_BROADWELL)
 static const struct sof_dev_desc sof_acpi_broadwell_desc = {
 	.machines = snd_soc_acpi_intel_broadwell_machines,
 	.resindex_lpe_base = 0,
@@ -51,7 +51,7 @@ static const struct sof_dev_desc sof_acpi_broadwell_desc = {
 };
 #endif
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_BAYTRAIL)
+#if IS_ENABLED(CONFIG_ACPI) && IS_ENABLED(CONFIG_SND_SOC_SOF_BAYTRAIL)
 
 /* BYTCR uses different IRQ index */
 static const struct sof_dev_desc sof_acpi_baytrailcr_desc = {
@@ -133,7 +133,7 @@ static int sof_acpi_probe(struct platform_device *pdev)
 	if (!desc)
 		return -ENODEV;
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_BAYTRAIL)
+#if IS_ENABLED(CONFIG_ACPI) && IS_ENABLED(CONFIG_SND_SOC_SOF_BAYTRAIL)
 	if (desc == &sof_acpi_baytrail_desc && soc_intel_is_byt_cr(pdev))
 		desc = &sof_acpi_baytrailcr_desc;
 #endif
@@ -191,6 +191,7 @@ static int sof_acpi_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_ACPI
 static const struct acpi_device_id sof_acpi_match[] = {
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_BROADWELL)
 	{ "INT3438", (unsigned long)&sof_acpi_broadwell_desc },
@@ -202,6 +203,7 @@ static const struct acpi_device_id sof_acpi_match[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, sof_acpi_match);
+#endif
 
 /* acpi_driver definition */
 static struct platform_driver snd_sof_acpi_driver = {

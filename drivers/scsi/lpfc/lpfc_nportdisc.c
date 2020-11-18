@@ -32,8 +32,6 @@
 #include <scsi/scsi_transport_fc.h>
 #include <scsi/fc/fc_fs.h>
 
-#include <linux/nvme-fc-driver.h>
-
 #include "lpfc_hw4.h"
 #include "lpfc_hw.h"
 #include "lpfc_sli.h"
@@ -154,7 +152,7 @@ lpfc_check_sparm(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	memcpy(&ndlp->nlp_portname, &sp->portName, sizeof (struct lpfc_name));
 	return 1;
 bad_service_param:
-	lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+	lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 			 "0207 Device %x "
 			 "(%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x) sent "
 			 "invalid service parameters.  Ignoring device.\n",
@@ -303,7 +301,7 @@ lpfc_defer_pt2pt_acc(struct lpfc_hba *phba, LPFC_MBOXQ_t *link_mbox)
 
 	/* Check for CONFIG_LINK error */
 	if (mb->mbxStatus) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"4575 CONFIG_LINK fails pt2pt discovery: %x\n",
 				mb->mbxStatus);
 		mempool_free(login_mbox, phba->mbox_mem_pool);
@@ -318,7 +316,7 @@ lpfc_defer_pt2pt_acc(struct lpfc_hba *phba, LPFC_MBOXQ_t *link_mbox)
 	rc = lpfc_els_rsp_acc(link_mbox->vport, ELS_CMD_PLOGI,
 			      save_iocb, ndlp, login_mbox);
 	if (rc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"4576 PLOGI ACC fails pt2pt discovery: %x\n",
 				rc);
 		mempool_free(login_mbox, phba->mbox_mem_pool);
@@ -363,7 +361,7 @@ lpfc_defer_acc_rsp(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	lpfc_sli4_unreg_rpi_cmpl_clr(phba, pmb);
 
 	if (!piocb) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY | LOG_ELS,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "4578 PLOGI ACC fail\n");
 		if (mbox)
 			mempool_free(mbox, phba->mbox_mem_pool);
@@ -372,7 +370,7 @@ lpfc_defer_acc_rsp(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 
 	rc = lpfc_els_rsp_acc(vport, ELS_CMD_PLOGI, piocb, ndlp, mbox);
 	if (rc) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY | LOG_ELS,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "4579 PLOGI ACC fail %x\n", rc);
 		if (mbox)
 			mempool_free(mbox, phba->mbox_mem_pool);
@@ -407,7 +405,7 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	lp = (uint32_t *) pcmd->virt;
 	sp = (struct serv_parm *) ((uint8_t *) lp + sizeof (uint32_t));
 	if (wwn_to_u64(sp->portName.u.wwn) == 0) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "0140 PLOGI Reject: invalid nname\n");
 		stat.un.b.lsRjtRsnCode = LSRJT_UNABLE_TPC;
 		stat.un.b.lsRjtRsnCodeExp = LSEXP_INVALID_PNAME;
@@ -416,7 +414,7 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		return 0;
 	}
 	if (wwn_to_u64(sp->nodeName.u.wwn) == 0) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "0141 PLOGI Reject: invalid pname\n");
 		stat.un.b.lsRjtRsnCode = LSRJT_UNABLE_TPC;
 		stat.un.b.lsRjtRsnCodeExp = LSEXP_INVALID_NNAME;
@@ -466,7 +464,7 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	case  NLP_STE_NPR_NODE:
 		if (!(ndlp->nlp_flag & NLP_NPR_ADISC))
 			break;
-		/* fall through */
+		fallthrough;
 	case  NLP_STE_REG_LOGIN_ISSUE:
 	case  NLP_STE_PRLI_ISSUE:
 	case  NLP_STE_UNMAPPED_NODE:
@@ -483,13 +481,18 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		}
 		if (nlp_portwwn != 0 &&
 		    nlp_portwwn != wwn_to_u64(sp->portName.u.wwn))
-			lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 					 "0143 PLOGI recv'd from DID: x%x "
 					 "WWPN changed: old %llx new %llx\n",
 					 ndlp->nlp_DID,
 					 (unsigned long long)nlp_portwwn,
 					 (unsigned long long)
 					 wwn_to_u64(sp->portName.u.wwn));
+
+		/* Notify transport of connectivity loss to trigger cleanup. */
+		if (phba->nvmet_support &&
+		    ndlp->nlp_state == NLP_STE_UNMAPPED_NODE)
+			lpfc_nvmet_invalidate_host(phba, ndlp);
 
 		ndlp->nlp_prev_state = ndlp->nlp_state;
 		/* rport needs to be unregistered first */
@@ -686,7 +689,7 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	return 1;
 out:
 	if (defer_acc)
-		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
+		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"4577 discovery failure: %p %p %p\n",
 				save_iocb, link_mbox, login_mbox);
 	kfree(save_iocb);
@@ -794,11 +797,17 @@ lpfc_rcv_padisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 				ndlp, NULL);
 		}
 out:
-		/* If we are authenticated, move to the proper state */
-		if (ndlp->nlp_type & (NLP_FCP_TARGET | NLP_NVME_TARGET))
-			lpfc_nlp_set_state(vport, ndlp, NLP_STE_MAPPED_NODE);
-		else
-			lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_NODE);
+		/* If we are authenticated, move to the proper state.
+		 * It is possible an ADISC arrived and the remote nport
+		 * is already in MAPPED or UNMAPPED state.  Catch this
+		 * condition and don't set the nlp_state again because
+		 * it causes an unnecessary transport unregister/register.
+		 */
+		if (ndlp->nlp_type & (NLP_FCP_TARGET | NLP_NVME_TARGET)) {
+			if (ndlp->nlp_state != NLP_STE_MAPPED_NODE)
+				lpfc_nlp_set_state(vport, ndlp,
+						   NLP_STE_MAPPED_NODE);
+		}
 
 		return 1;
 	}
@@ -841,6 +850,12 @@ lpfc_rcv_logo(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		lpfc_els_rsp_acc(vport, ELS_CMD_PRLO, cmdiocb, ndlp, NULL);
 	else
 		lpfc_els_rsp_acc(vport, ELS_CMD_ACC, cmdiocb, ndlp, NULL);
+
+	/* Notify transport of connectivity loss to trigger cleanup. */
+	if (phba->nvmet_support &&
+	    ndlp->nlp_state == NLP_STE_UNMAPPED_NODE)
+		lpfc_nvmet_invalidate_host(phba, ndlp);
+
 	if (ndlp->nlp_DID == Fabric_DID) {
 		if (vport->port_state <= LPFC_FDISC)
 			goto out;
@@ -1053,6 +1068,7 @@ lpfc_disc_set_adisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
  * lpfc_release_rpi - Release a RPI by issuing unreg_login mailbox cmd.
  * @phba : Pointer to lpfc_hba structure.
  * @vport: Pointer to lpfc_vport structure.
+ * @ndlp: Pointer to lpfc_nodelist structure.
  * @rpi  : rpi to be release.
  *
  * This function will send a unreg_login mailbox command to the firmware
@@ -1082,8 +1098,8 @@ lpfc_release_rpi(struct lpfc_hba *phba, struct lpfc_vport *vport,
 	pmb = (LPFC_MBOXQ_t *) mempool_alloc(phba->mbox_mem_pool,
 			GFP_KERNEL);
 	if (!pmb)
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_MBOX,
-			"2796 mailbox memory allocation failed \n");
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
+				 "2796 mailbox memory allocation failed \n");
 	else {
 		lpfc_unreg_login(phba, vport->vpi, rpi, pmb);
 		pmb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
@@ -1121,7 +1137,7 @@ lpfc_disc_illegal(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		rpi = pmb->u.mb.un.varWords[0];
 		lpfc_release_rpi(phba, vport, ndlp, rpi);
 	}
-	lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+	lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 			 "0271 Illegal State Transition: node x%x "
 			 "event x%x, state x%x Data: x%x x%x\n",
 			 ndlp->nlp_DID, evt, ndlp->nlp_state, ndlp->nlp_rpi,
@@ -1139,11 +1155,11 @@ lpfc_cmpl_plogi_illegal(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	 * to stop it.
 	 */
 	if (!(ndlp->nlp_flag & NLP_RCV_PLOGI)) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
-			 "0272 Illegal State Transition: node x%x "
-			 "event x%x, state x%x Data: x%x x%x\n",
-			 ndlp->nlp_DID, evt, ndlp->nlp_state, ndlp->nlp_rpi,
-			 ndlp->nlp_flag);
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
+				 "0272 Illegal State Transition: node x%x "
+				 "event x%x, state x%x Data: x%x x%x\n",
+				  ndlp->nlp_DID, evt, ndlp->nlp_state,
+				  ndlp->nlp_rpi, ndlp->nlp_flag);
 	}
 	return ndlp->nlp_state;
 }
@@ -1363,7 +1379,7 @@ lpfc_cmpl_plogi_plogi_issue(struct lpfc_vport *vport,
 	if ((ndlp->nlp_DID != FDMI_DID) &&
 		(wwn_to_u64(sp->portName.u.wwn) == 0 ||
 		wwn_to_u64(sp->nodeName.u.wwn) == 0)) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "0142 PLOGI RSP: Invalid WWN.\n");
 		goto out;
 	}
@@ -1425,7 +1441,8 @@ lpfc_cmpl_plogi_plogi_issue(struct lpfc_vport *vport,
 		} else {
 			mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 			if (!mbox) {
-				lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+				lpfc_printf_vlog(vport, KERN_ERR,
+						 LOG_TRACE_EVENT,
 						 "0133 PLOGI: no memory "
 						 "for config_link "
 						 "Data: x%x x%x x%x x%x\n",
@@ -1450,7 +1467,7 @@ lpfc_cmpl_plogi_plogi_issue(struct lpfc_vport *vport,
 
 	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!mbox) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "0018 PLOGI: no memory for reg_login "
 				 "Data: x%x x%x x%x x%x\n",
 				 ndlp->nlp_DID, ndlp->nlp_state,
@@ -1490,7 +1507,7 @@ lpfc_cmpl_plogi_plogi_issue(struct lpfc_vport *vport,
 		kfree(mp);
 		mempool_free(mbox, phba->mbox_mem_pool);
 
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "0134 PLOGI: cannot issue reg_login "
 				 "Data: x%x x%x x%x x%x\n",
 				 ndlp->nlp_DID, ndlp->nlp_state,
@@ -1498,7 +1515,7 @@ lpfc_cmpl_plogi_plogi_issue(struct lpfc_vport *vport,
 	} else {
 		mempool_free(mbox, phba->mbox_mem_pool);
 
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "0135 PLOGI: cannot format reg_login "
 				 "Data: x%x x%x x%x x%x\n",
 				 ndlp->nlp_DID, ndlp->nlp_state,
@@ -1509,7 +1526,7 @@ lpfc_cmpl_plogi_plogi_issue(struct lpfc_vport *vport,
 out:
 	if (ndlp->nlp_DID == NameServer_DID) {
 		lpfc_vport_set_state(vport, FC_VPORT_FAILED);
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "0261 Cannot Register NameServer login\n");
 	}
 
@@ -1728,7 +1745,13 @@ lpfc_cmpl_adisc_adisc_issue(struct lpfc_vport *vport,
 		}
 	}
 
-	if (ndlp->nlp_type & NLP_FCP_TARGET) {
+	if (ndlp->nlp_type & NLP_FCP_TARGET)
+		ndlp->nlp_fc4_type |= NLP_FC4_FCP;
+
+	if (ndlp->nlp_type & NLP_NVME_TARGET)
+		ndlp->nlp_fc4_type |= NLP_FC4_NVME;
+
+	if (ndlp->nlp_type & (NLP_FCP_TARGET | NLP_NVME_TARGET)) {
 		ndlp->nlp_prev_state = NLP_STE_ADISC_ISSUE;
 		lpfc_nlp_set_state(vport, ndlp, NLP_STE_MAPPED_NODE);
 	} else {
@@ -1931,8 +1954,8 @@ lpfc_cmpl_reglogin_reglogin_issue(struct lpfc_vport *vport,
 
 	if (mb->mbxStatus) {
 		/* RegLogin failed */
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
-				"0246 RegLogin failed Data: x%x x%x x%x x%x "
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
+				 "0246 RegLogin failed Data: x%x x%x x%x x%x "
 				 "x%x\n",
 				 did, mb->mbxStatus, vport->port_state,
 				 mb->un.varRegLogin.vpi,

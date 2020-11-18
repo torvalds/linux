@@ -325,7 +325,7 @@ csum_partial_cfu_unaligned(const unsigned long __user * src,
 }
 
 __wsum
-csum_partial_copy_from_user(const void __user *src, void *dst, int len,
+csum_and_copy_from_user(const void __user *src, void *dst, int len,
 			       __wsum sum, int *errp)
 {
 	unsigned long checksum = (__force u32) sum;
@@ -369,7 +369,7 @@ csum_partial_copy_from_user(const void __user *src, void *dst, int len,
 	}
 	return (__force __wsum)checksum;
 }
-EXPORT_SYMBOL(csum_partial_copy_from_user);
+EXPORT_SYMBOL(csum_and_copy_from_user);
 
 __wsum
 csum_partial_copy_nocheck(const void *src, void *dst, int len, __wsum sum)
@@ -377,7 +377,7 @@ csum_partial_copy_nocheck(const void *src, void *dst, int len, __wsum sum)
 	__wsum checksum;
 	mm_segment_t oldfs = get_fs();
 	set_fs(KERNEL_DS);
-	checksum = csum_partial_copy_from_user((__force const void __user *)src,
+	checksum = csum_and_copy_from_user((__force const void __user *)src,
 						dst, len, sum, NULL);
 	set_fs(oldfs);
 	return checksum;

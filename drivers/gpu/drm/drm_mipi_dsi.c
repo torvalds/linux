@@ -34,6 +34,7 @@
 #include <linux/slab.h>
 
 #include <drm/drm_dsc.h>
+#include <drm/drm_print.h>
 #include <video/mipi_display.h>
 
 /**
@@ -155,19 +156,18 @@ static int mipi_dsi_device_add(struct mipi_dsi_device *dsi)
 static struct mipi_dsi_device *
 of_mipi_dsi_device_add(struct mipi_dsi_host *host, struct device_node *node)
 {
-	struct device *dev = host->dev;
 	struct mipi_dsi_device_info info = { };
 	int ret;
 	u32 reg;
 
 	if (of_modalias_node(node, info.type, sizeof(info.type)) < 0) {
-		dev_err(dev, "modalias failure on %pOF\n", node);
+		drm_err(host, "modalias failure on %pOF\n", node);
 		return ERR_PTR(-EINVAL);
 	}
 
 	ret = of_property_read_u32(node, "reg", &reg);
 	if (ret) {
-		dev_err(dev, "device node %pOF has no valid reg property: %d\n",
+		drm_err(host, "device node %pOF has no valid reg property: %d\n",
 			node, ret);
 		return ERR_PTR(-EINVAL);
 	}
@@ -202,22 +202,21 @@ mipi_dsi_device_register_full(struct mipi_dsi_host *host,
 			      const struct mipi_dsi_device_info *info)
 {
 	struct mipi_dsi_device *dsi;
-	struct device *dev = host->dev;
 	int ret;
 
 	if (!info) {
-		dev_err(dev, "invalid mipi_dsi_device_info pointer\n");
+		drm_err(host, "invalid mipi_dsi_device_info pointer\n");
 		return ERR_PTR(-EINVAL);
 	}
 
 	if (info->channel > 3) {
-		dev_err(dev, "invalid virtual channel: %u\n", info->channel);
+		drm_err(host, "invalid virtual channel: %u\n", info->channel);
 		return ERR_PTR(-EINVAL);
 	}
 
 	dsi = mipi_dsi_device_alloc(host);
 	if (IS_ERR(dsi)) {
-		dev_err(dev, "failed to allocate DSI device %ld\n",
+		drm_err(host, "failed to allocate DSI device %ld\n",
 			PTR_ERR(dsi));
 		return dsi;
 	}
@@ -228,7 +227,7 @@ mipi_dsi_device_register_full(struct mipi_dsi_host *host,
 
 	ret = mipi_dsi_device_add(dsi);
 	if (ret) {
-		dev_err(dev, "failed to add DSI device %d\n", ret);
+		drm_err(host, "failed to add DSI device %d\n", ret);
 		kfree(dsi);
 		return ERR_PTR(ret);
 	}
@@ -748,26 +747,26 @@ ssize_t mipi_dsi_dcs_write(struct mipi_dsi_device *dsi, u8 cmd,
 {
 	ssize_t err;
 	size_t size;
+	u8 stack_tx[8];
 	u8 *tx;
 
-	if (len > 0) {
-		size = 1 + len;
-
+	size = 1 + len;
+	if (len > ARRAY_SIZE(stack_tx) - 1) {
 		tx = kmalloc(size, GFP_KERNEL);
 		if (!tx)
 			return -ENOMEM;
-
-		/* concatenate the DCS command byte and the payload */
-		tx[0] = cmd;
-		memcpy(&tx[1], data, len);
 	} else {
-		tx = &cmd;
-		size = 1;
+		tx = stack_tx;
 	}
+
+	/* concatenate the DCS command byte and the payload */
+	tx[0] = cmd;
+	if (data)
+		memcpy(&tx[1], data, len);
 
 	err = mipi_dsi_dcs_write_buffer(dsi, tx, size);
 
-	if (len > 0)
+	if (tx != stack_tx)
 		kfree(tx);
 
 	return err;
@@ -1082,11 +1081,11 @@ EXPORT_SYMBOL(mipi_dsi_dcs_set_pixel_format);
  */
 int mipi_dsi_dcs_set_tear_scanline(struct mipi_dsi_device *dsi, u16 scanline)
 {
-	u8 payload[3] = { MIPI_DCS_SET_TEAR_SCANLINE, scanline >> 8,
-			  scanline & 0xff };
+	u8 payload[2] = { scanline >> 8, scanline & 0xff };
 	ssize_t err;
 
-	err = mipi_dsi_generic_write(dsi, payload, sizeof(payload));
+	err = mipi_dsi_dcs_write(dsi, MIPI_DCS_SET_TEAR_SCANLINE, payload,
+				 sizeof(payload));
 	if (err < 0)
 		return err;
 

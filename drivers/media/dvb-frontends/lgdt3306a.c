@@ -768,7 +768,7 @@ static int lgdt3306a_set_if(struct lgdt3306a_state *state,
 	default:
 		pr_warn("IF=%d KHz is not supported, 3250 assumed\n",
 			if_freq_khz);
-		/* fallthrough */
+		fallthrough;
 	case 3250: /* 3.25Mhz */
 		nco1 = 0x34;
 		nco2 = 0x00;
@@ -846,6 +846,7 @@ static int lgdt3306a_fe_sleep(struct dvb_frontend *fe)
 static int lgdt3306a_init(struct dvb_frontend *fe)
 {
 	struct lgdt3306a_state *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	u8 val;
 	int ret;
 
@@ -996,6 +997,9 @@ static int lgdt3306a_init(struct dvb_frontend *fe)
 	/* 15. Sleep (in reset) */
 	ret = lgdt3306a_sleep(state);
 	lg_chkerr(ret);
+
+	c->cnr.len = 1;
+	c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 
 fail:
 	return ret;
@@ -1597,6 +1601,7 @@ static int lgdt3306a_read_status(struct dvb_frontend *fe,
 				 enum fe_status *status)
 {
 	struct lgdt3306a_state *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	u16 strength = 0;
 	int ret = 0;
 
@@ -1636,6 +1641,15 @@ static int lgdt3306a_read_status(struct dvb_frontend *fe,
 			break;
 		default:
 			ret = -EINVAL;
+		}
+
+		if (*status & FE_HAS_SYNC) {
+			c->cnr.len = 1;
+			c->cnr.stat[0].scale = FE_SCALE_DECIBEL;
+			c->cnr.stat[0].svalue = lgdt3306a_calculate_snr_x100(state) * 10;
+		} else {
+			c->cnr.len = 1;
+			c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 		}
 	}
 	return ret;

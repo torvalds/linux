@@ -3,7 +3,7 @@ Sample and benchmark scripts for pktgen (packet generator)
 This directory contains some pktgen sample and benchmark scripts, that
 can easily be copied and adjusted for your own use-case.
 
-General doc is located in kernel: Documentation/networking/pktgen.txt
+General doc is located in kernel: Documentation/networking/pktgen.rst
 
 Helper include files
 ====================

@@ -525,7 +525,6 @@ static int mlx90614_probe(struct i2c_client *client,
 
 	mlx90614_wakeup(data);
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->name = id->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &mlx90614_info;

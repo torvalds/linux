@@ -114,18 +114,22 @@
  * 			the fast path and disables lockless freelists.
  */
 
-static inline int kmem_cache_debug(struct kmem_cache *s)
-{
 #ifdef CONFIG_SLUB_DEBUG
-	return unlikely(s->flags & SLAB_DEBUG_FLAGS);
+#ifdef CONFIG_SLUB_DEBUG_ON
+DEFINE_STATIC_KEY_TRUE(slub_debug_enabled);
 #else
-	return 0;
+DEFINE_STATIC_KEY_FALSE(slub_debug_enabled);
 #endif
+#endif
+
+static inline bool kmem_cache_debug(struct kmem_cache *s)
+{
+	return kmem_cache_debug_flags(s, SLAB_DEBUG_FLAGS);
 }
 
 void *fixup_red_left(struct kmem_cache *s, void *p)
 {
-	if (kmem_cache_debug(s) && s->flags & SLAB_RED_ZONE)
+	if (kmem_cache_debug_flags(s, SLAB_RED_ZONE))
 		p += s->red_left_pad;
 
 	return p;
@@ -214,14 +218,10 @@ enum track_item { TRACK_ALLOC, TRACK_FREE };
 #ifdef CONFIG_SYSFS
 static int sysfs_slab_add(struct kmem_cache *);
 static int sysfs_slab_alias(struct kmem_cache *, const char *);
-static void memcg_propagate_slab_attrs(struct kmem_cache *s);
-static void sysfs_slab_remove(struct kmem_cache *s);
 #else
 static inline int sysfs_slab_add(struct kmem_cache *s) { return 0; }
 static inline int sysfs_slab_alias(struct kmem_cache *s, const char *p)
 							{ return 0; }
-static inline void memcg_propagate_slab_attrs(struct kmem_cache *s) { }
-static inline void sysfs_slab_remove(struct kmem_cache *s) { }
 #endif
 
 static inline void stat(const struct kmem_cache *s, enum stat_item si)
@@ -292,7 +292,7 @@ static inline void *get_freepointer_safe(struct kmem_cache *s, void *object)
 		return get_freepointer(s, object);
 
 	freepointer_addr = (unsigned long)object + s->offset;
-	probe_kernel_read(&p, (void **)freepointer_addr, sizeof(p));
+	copy_from_kernel_nofault(&p, (void **)freepointer_addr, sizeof(p));
 	return freelist_ptr(s, p, freepointer_addr);
 }
 
@@ -312,12 +312,6 @@ static inline void set_freepointer(struct kmem_cache *s, void *object, void *fp)
 	for (__p = fixup_red_left(__s, __addr); \
 		__p < (__addr) + (__objects) * (__s)->size; \
 		__p += (__s)->size)
-
-/* Determine object index from a given position */
-static inline unsigned int slab_index(void *p, struct kmem_cache *s, void *addr)
-{
-	return (kasan_reset_tag(p) - addr) / s->size;
-}
 
 static inline unsigned int order_objects(unsigned int order, unsigned int size)
 {
@@ -461,7 +455,7 @@ static unsigned long *get_map(struct kmem_cache *s, struct page *page)
 	bitmap_zero(object_map, page->objects);
 
 	for (p = page->freelist; p; p = get_freepointer(s, p))
-		set_bit(slab_index(p, s, addr), object_map);
+		set_bit(__obj_to_index(s, addr, p), object_map);
 
 	return object_map;
 }
@@ -469,8 +463,6 @@ static unsigned long *get_map(struct kmem_cache *s, struct page *page)
 static void put_map(unsigned long *map) __releases(&object_map_lock)
 {
 	VM_BUG_ON(map != object_map);
-	lockdep_assert_held(&object_map_lock);
-
 	spin_unlock(&object_map_lock);
 }
 
@@ -499,7 +491,7 @@ static slab_flags_t slub_debug = DEBUG_DEFAULT_FLAGS;
 static slab_flags_t slub_debug;
 #endif
 
-static char *slub_debug_slabs;
+static char *slub_debug_string;
 static int disable_higher_order_debug;
 
 /*
@@ -634,7 +626,7 @@ static void print_track(const char *s, struct track *t, unsigned long pr_time)
 #endif
 }
 
-static void print_tracking(struct kmem_cache *s, void *object)
+void print_tracking(struct kmem_cache *s, void *object)
 {
 	unsigned long pr_time = jiffies;
 	if (!(s->flags & SLAB_STORE_USER))
@@ -677,6 +669,20 @@ static void slab_fix(struct kmem_cache *s, char *fmt, ...)
 	vaf.va = &args;
 	pr_err("FIX %s: %pV\n", s->name, &vaf);
 	va_end(args);
+}
+
+static bool freelist_corrupted(struct kmem_cache *s, struct page *page,
+			       void **freelist, void *nextfree)
+{
+	if ((s->flags & SLAB_CONSISTENCY_CHECKS) &&
+	    !check_valid_pointer(s, page, nextfree) && freelist) {
+		object_err(s, page, *freelist, "Freechain corrupt");
+		*freelist = NULL;
+		slab_fix(s, "Isolate corrupted freechain");
+		return true;
+	}
+
+	return false;
 }
 
 static void print_trailer(struct kmem_cache *s, struct page *page, u8 *p)
@@ -1098,7 +1104,7 @@ static inline void dec_slabs_node(struct kmem_cache *s, int node, int objects)
 static void setup_object_debug(struct kmem_cache *s, struct page *page,
 								void *object)
 {
-	if (!(s->flags & (SLAB_STORE_USER|SLAB_RED_ZONE|__OBJECT_POISON)))
+	if (!kmem_cache_debug_flags(s, SLAB_STORE_USER|SLAB_RED_ZONE|__OBJECT_POISON))
 		return;
 
 	init_object(s, object, SLUB_RED_INACTIVE);
@@ -1108,7 +1114,7 @@ static void setup_object_debug(struct kmem_cache *s, struct page *page,
 static
 void setup_page_debug(struct kmem_cache *s, struct page *page, void *addr)
 {
-	if (!(s->flags & SLAB_POISON))
+	if (!kmem_cache_debug_flags(s, SLAB_POISON))
 		return;
 
 	metadata_access_enable();
@@ -1204,7 +1210,7 @@ static noinline int free_debug_processing(
 	struct kmem_cache_node *n = get_node(s, page_to_nid(page));
 	void *object = head;
 	int cnt = 0;
-	unsigned long uninitialized_var(flags);
+	unsigned long flags;
 	int ret = 0;
 
 	spin_lock_irqsave(&n->list_lock, flags);
@@ -1248,8 +1254,102 @@ out:
 	return ret;
 }
 
+/*
+ * Parse a block of slub_debug options. Blocks are delimited by ';'
+ *
+ * @str:    start of block
+ * @flags:  returns parsed flags, or DEBUG_DEFAULT_FLAGS if none specified
+ * @slabs:  return start of list of slabs, or NULL when there's no list
+ * @init:   assume this is initial parsing and not per-kmem-create parsing
+ *
+ * returns the start of next block if there's any, or NULL
+ */
+static char *
+parse_slub_debug_flags(char *str, slab_flags_t *flags, char **slabs, bool init)
+{
+	bool higher_order_disable = false;
+
+	/* Skip any completely empty blocks */
+	while (*str && *str == ';')
+		str++;
+
+	if (*str == ',') {
+		/*
+		 * No options but restriction on slabs. This means full
+		 * debugging for slabs matching a pattern.
+		 */
+		*flags = DEBUG_DEFAULT_FLAGS;
+		goto check_slabs;
+	}
+	*flags = 0;
+
+	/* Determine which debug features should be switched on */
+	for (; *str && *str != ',' && *str != ';'; str++) {
+		switch (tolower(*str)) {
+		case '-':
+			*flags = 0;
+			break;
+		case 'f':
+			*flags |= SLAB_CONSISTENCY_CHECKS;
+			break;
+		case 'z':
+			*flags |= SLAB_RED_ZONE;
+			break;
+		case 'p':
+			*flags |= SLAB_POISON;
+			break;
+		case 'u':
+			*flags |= SLAB_STORE_USER;
+			break;
+		case 't':
+			*flags |= SLAB_TRACE;
+			break;
+		case 'a':
+			*flags |= SLAB_FAILSLAB;
+			break;
+		case 'o':
+			/*
+			 * Avoid enabling debugging on caches if its minimum
+			 * order would increase as a result.
+			 */
+			higher_order_disable = true;
+			break;
+		default:
+			if (init)
+				pr_err("slub_debug option '%c' unknown. skipped\n", *str);
+		}
+	}
+check_slabs:
+	if (*str == ',')
+		*slabs = ++str;
+	else
+		*slabs = NULL;
+
+	/* Skip over the slab list */
+	while (*str && *str != ';')
+		str++;
+
+	/* Skip any completely empty blocks */
+	while (*str && *str == ';')
+		str++;
+
+	if (init && higher_order_disable)
+		disable_higher_order_debug = 1;
+
+	if (*str)
+		return str;
+	else
+		return NULL;
+}
+
 static int __init setup_slub_debug(char *str)
 {
+	slab_flags_t flags;
+	char *saved_str;
+	char *slab_list;
+	bool global_slub_debug_changed = false;
+	bool slab_list_specified = false;
+
 	slub_debug = DEBUG_DEFAULT_FLAGS;
 	if (*str++ != '=' || !*str)
 		/*
@@ -1257,60 +1357,32 @@ static int __init setup_slub_debug(char *str)
 		 */
 		goto out;
 
-	if (*str == ',')
-		/*
-		 * No options but restriction on slabs. This means full
-		 * debugging for slabs matching a pattern.
-		 */
-		goto check_slabs;
+	saved_str = str;
+	while (str) {
+		str = parse_slub_debug_flags(str, &flags, &slab_list, true);
 
-	slub_debug = 0;
-	if (*str == '-')
-		/*
-		 * Switch off all debugging measures.
-		 */
-		goto out;
-
-	/*
-	 * Determine which debug features should be switched on
-	 */
-	for (; *str && *str != ','; str++) {
-		switch (tolower(*str)) {
-		case 'f':
-			slub_debug |= SLAB_CONSISTENCY_CHECKS;
-			break;
-		case 'z':
-			slub_debug |= SLAB_RED_ZONE;
-			break;
-		case 'p':
-			slub_debug |= SLAB_POISON;
-			break;
-		case 'u':
-			slub_debug |= SLAB_STORE_USER;
-			break;
-		case 't':
-			slub_debug |= SLAB_TRACE;
-			break;
-		case 'a':
-			slub_debug |= SLAB_FAILSLAB;
-			break;
-		case 'o':
-			/*
-			 * Avoid enabling debugging on caches if its minimum
-			 * order would increase as a result.
-			 */
-			disable_higher_order_debug = 1;
-			break;
-		default:
-			pr_err("slub_debug option '%c' unknown. skipped\n",
-			       *str);
+		if (!slab_list) {
+			slub_debug = flags;
+			global_slub_debug_changed = true;
+		} else {
+			slab_list_specified = true;
 		}
 	}
 
-check_slabs:
-	if (*str == ',')
-		slub_debug_slabs = str + 1;
+	/*
+	 * For backwards compatibility, a single list of flags with list of
+	 * slabs means debugging is only enabled for those slabs, so the global
+	 * slub_debug should be 0. We can extended that to multiple lists as
+	 * long as there is no option specifying flags without a slab list.
+	 */
+	if (slab_list_specified) {
+		if (!global_slub_debug_changed)
+			slub_debug = 0;
+		slub_debug_string = saved_str;
+	}
 out:
+	if (slub_debug != 0 || slub_debug_string)
+		static_branch_enable(&slub_debug_enabled);
 	if ((static_branch_unlikely(&init_on_alloc) ||
 	     static_branch_unlikely(&init_on_free)) &&
 	    (slub_debug & SLAB_POISON))
@@ -1338,36 +1410,43 @@ slab_flags_t kmem_cache_flags(unsigned int object_size,
 {
 	char *iter;
 	size_t len;
-
-	/* If slub_debug = 0, it folds into the if conditional. */
-	if (!slub_debug_slabs)
-		return flags | slub_debug;
+	char *next_block;
+	slab_flags_t block_flags;
 
 	len = strlen(name);
-	iter = slub_debug_slabs;
-	while (*iter) {
-		char *end, *glob;
-		size_t cmplen;
+	next_block = slub_debug_string;
+	/* Go through all blocks of debug options, see if any matches our slab's name */
+	while (next_block) {
+		next_block = parse_slub_debug_flags(next_block, &block_flags, &iter, false);
+		if (!iter)
+			continue;
+		/* Found a block that has a slab list, search it */
+		while (*iter) {
+			char *end, *glob;
+			size_t cmplen;
 
-		end = strchrnul(iter, ',');
+			end = strchrnul(iter, ',');
+			if (next_block && next_block < end)
+				end = next_block - 1;
 
-		glob = strnchr(iter, end - iter, '*');
-		if (glob)
-			cmplen = glob - iter;
-		else
-			cmplen = max_t(size_t, len, (end - iter));
+			glob = strnchr(iter, end - iter, '*');
+			if (glob)
+				cmplen = glob - iter;
+			else
+				cmplen = max_t(size_t, len, (end - iter));
 
-		if (!strncmp(name, iter, cmplen)) {
-			flags |= slub_debug;
-			break;
+			if (!strncmp(name, iter, cmplen)) {
+				flags |= block_flags;
+				return flags;
+			}
+
+			if (!*end || *end == ';')
+				break;
+			iter = end + 1;
 		}
-
-		if (!*end)
-			break;
-		iter = end + 1;
 	}
 
-	return flags;
+	return flags | slub_debug;
 }
 #else /* !CONFIG_SLUB_DEBUG */
 static inline void setup_object_debug(struct kmem_cache *s,
@@ -1410,6 +1489,11 @@ static inline void inc_slabs_node(struct kmem_cache *s, int node,
 static inline void dec_slabs_node(struct kmem_cache *s, int node,
 							int objects) {}
 
+static bool freelist_corrupted(struct kmem_cache *s, struct page *page,
+			       void **freelist, void *nextfree)
+{
+	return false;
+}
 #endif /* CONFIG_SLUB_DEBUG */
 
 /*
@@ -1450,6 +1534,11 @@ static __always_inline bool slab_free_hook(struct kmem_cache *s, void *x)
 #endif
 	if (!(s->flags & SLAB_DEBUG_OBJECTS))
 		debug_check_no_obj_freed(x, s->object_size);
+
+	/* Use KCSAN to help debug racy use-after-free. */
+	if (!(s->flags & SLAB_TYPESAFE_BY_RCU))
+		__kcsan_check_access(x, s->object_size,
+				     KCSAN_ACCESS_WRITE | KCSAN_ACCESS_ASSERT);
 
 	/* KASAN might put x into memory quarantine, delaying its reuse */
 	return kasan_slab_free(s, x, _RET_IP_);
@@ -1527,10 +1616,8 @@ static inline struct page *alloc_slab_page(struct kmem_cache *s,
 	else
 		page = __alloc_pages_node(node, flags, order);
 
-	if (page && charge_slab_page(page, flags, order, s)) {
-		__free_pages(page, order);
-		page = NULL;
-	}
+	if (page)
+		account_slab_page(page, order, s);
 
 	return page;
 }
@@ -1726,13 +1813,8 @@ out:
 
 static struct page *new_slab(struct kmem_cache *s, gfp_t flags, int node)
 {
-	if (unlikely(flags & GFP_SLAB_BUG_MASK)) {
-		gfp_t invalid_mask = flags & GFP_SLAB_BUG_MASK;
-		flags &= ~GFP_SLAB_BUG_MASK;
-		pr_warn("Unexpected gfp: %#x (%pGg). Fixing up to gfp: %#x (%pGg). Fix your code!\n",
-				invalid_mask, &invalid_mask, flags, &flags);
-		dump_stack();
-	}
+	if (unlikely(flags & GFP_SLAB_BUG_MASK))
+		flags = kmalloc_fix_flags(flags);
 
 	return allocate_slab(s,
 		flags & (GFP_RECLAIM_MASK | GFP_CONSTRAINT_MASK), node);
@@ -1743,7 +1825,7 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
 	int order = compound_order(page);
 	int pages = 1 << order;
 
-	if (s->flags & SLAB_CONSISTENCY_CHECKS) {
+	if (kmem_cache_debug_flags(s, SLAB_CONSISTENCY_CHECKS)) {
 		void *p;
 
 		slab_pad_check(s, page);
@@ -1758,7 +1840,7 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
 	page->mapping = NULL;
 	if (current->reclaim_state)
 		current->reclaim_state->reclaimed_slab += pages;
-	uncharge_slab_page(page, order, s);
+	unaccount_slab_page(page, order, s);
 	__free_pages(page, order);
 }
 
@@ -1919,7 +2001,7 @@ static void *get_any_partial(struct kmem_cache *s, gfp_t flags,
 	struct zonelist *zonelist;
 	struct zoneref *z;
 	struct zone *zone;
-	enum zone_type high_zoneidx = gfp_zone(flags);
+	enum zone_type highest_zoneidx = gfp_zone(flags);
 	void *object;
 	unsigned int cpuset_mems_cookie;
 
@@ -1948,7 +2030,7 @@ static void *get_any_partial(struct kmem_cache *s, gfp_t flags,
 	do {
 		cpuset_mems_cookie = read_mems_allowed_begin();
 		zonelist = node_zonelist(mempolicy_slab_node(), flags);
-		for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
+		for_each_zone_zonelist(zone, z, zonelist, highest_zoneidx) {
 			struct kmem_cache_node *n;
 
 			n = get_node(s, zone_to_nid(zone));
@@ -1994,7 +2076,7 @@ static void *get_partial(struct kmem_cache *s, gfp_t flags, int node,
 
 #ifdef CONFIG_PREEMPTION
 /*
- * Calculate the next globally unique transaction for disambiguiation
+ * Calculate the next globally unique transaction for disambiguation
  * during cmpxchg. The transactions start with the cpu number and are then
  * incremented by CONFIG_NR_CPUS.
  */
@@ -2092,6 +2174,14 @@ static void deactivate_slab(struct kmem_cache *s, struct page *page,
 	while (freelist && (nextfree = get_freepointer(s, freelist))) {
 		void *prior;
 		unsigned long counters;
+
+		/*
+		 * If 'nextfree' is invalid, it is possible that the object at
+		 * 'freelist' is already corrupted.  So isolate all objects
+		 * starting at 'freelist'.
+		 */
+		if (freelist_corrupted(s, page, &freelist, nextfree))
+			break;
 
 		do {
 			prior = page->freelist;
@@ -2717,8 +2807,9 @@ static __always_inline void *slab_alloc_node(struct kmem_cache *s,
 	struct kmem_cache_cpu *c;
 	struct page *page;
 	unsigned long tid;
+	struct obj_cgroup *objcg = NULL;
 
-	s = slab_pre_alloc_hook(s, gfpflags);
+	s = slab_pre_alloc_hook(s, &objcg, 1, gfpflags);
 	if (!s)
 		return NULL;
 redo:
@@ -2794,7 +2885,7 @@ redo:
 	if (unlikely(slab_want_init_on_alloc(gfpflags, s)) && object)
 		memset(object, 0, s->object_size);
 
-	slab_post_alloc_hook(s, gfpflags, 1, &object);
+	slab_post_alloc_hook(s, objcg, gfpflags, 1, &object);
 
 	return object;
 }
@@ -2874,7 +2965,7 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
 	struct page new;
 	unsigned long counters;
 	struct kmem_cache_node *n = NULL;
-	unsigned long uninitialized_var(flags);
+	unsigned long flags;
 
 	stat(s, FREE_SLOWPATH);
 
@@ -2999,6 +3090,8 @@ static __always_inline void do_slab_free(struct kmem_cache *s,
 	void *tail_obj = tail ? : head;
 	struct kmem_cache_cpu *c;
 	unsigned long tid;
+
+	memcg_slab_free_hook(s, page, head);
 redo:
 	/*
 	 * Determine the currently cpus per cpu slab.
@@ -3178,9 +3271,10 @@ int kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t size,
 {
 	struct kmem_cache_cpu *c;
 	int i;
+	struct obj_cgroup *objcg = NULL;
 
 	/* memcg and kmem_cache debug support */
-	s = slab_pre_alloc_hook(s, flags);
+	s = slab_pre_alloc_hook(s, &objcg, size, flags);
 	if (unlikely(!s))
 		return false;
 	/*
@@ -3234,11 +3328,11 @@ int kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t size,
 	}
 
 	/* memcg and kmem_cache debug support */
-	slab_post_alloc_hook(s, flags, size, p);
+	slab_post_alloc_hook(s, objcg, flags, size, p);
 	return i;
 error:
 	local_irq_enable();
-	slab_post_alloc_hook(s, flags, i, p);
+	slab_post_alloc_hook(s, objcg, flags, i, p);
 	__kmem_cache_free_bulk(s, i, p);
 	return 0;
 }
@@ -3648,6 +3742,7 @@ static int calculate_sizes(struct kmem_cache *s, int forced_order)
 	 */
 	size = ALIGN(size, s->align);
 	s->size = size;
+	s->reciprocal_size = reciprocal_value(size);
 	if (forced_order >= 0)
 		order = forced_order;
 	else
@@ -3739,12 +3834,12 @@ error:
 }
 
 static void list_slab_objects(struct kmem_cache *s, struct page *page,
-							const char *text)
+			      const char *text)
 {
 #ifdef CONFIG_SLUB_DEBUG
 	void *addr = page_address(page);
-	void *p;
 	unsigned long *map;
+	void *p;
 
 	slab_err(s, page, text, s->name);
 	slab_lock(page);
@@ -3752,13 +3847,12 @@ static void list_slab_objects(struct kmem_cache *s, struct page *page,
 	map = get_map(s, page);
 	for_each_object(p, s, addr, page->objects) {
 
-		if (!test_bit(slab_index(p, s, addr), map)) {
+		if (!test_bit(__obj_to_index(s, addr, p), map)) {
 			pr_err("INFO: Object 0x%p @offset=%tu\n", p, p - addr);
 			print_tracking(s, p);
 		}
 	}
 	put_map(map);
-
 	slab_unlock(page);
 #endif
 }
@@ -3781,7 +3875,7 @@ static void free_partial(struct kmem_cache *s, struct kmem_cache_node *n)
 			list_add(&page->slab_list, &discard);
 		} else {
 			list_slab_objects(s, page,
-			"Objects remaining in %s on __kmem_cache_shutdown()");
+			  "Objects remaining in %s on __kmem_cache_shutdown()");
 		}
 	}
 	spin_unlock_irq(&n->list_lock);
@@ -3816,7 +3910,6 @@ int __kmem_cache_shutdown(struct kmem_cache *s)
 		if (n->nr_partial || slabs_node(s, node))
 			return 1;
 	}
-	sysfs_slab_remove(s);
 	return 0;
 }
 
@@ -3886,8 +3979,8 @@ static void *kmalloc_large_node(size_t size, gfp_t flags, int node)
 	page = alloc_pages_node(node, flags, order);
 	if (page) {
 		ptr = page_address(page);
-		mod_node_page_state(page_pgdat(page), NR_SLAB_UNRECLAIMABLE,
-				    1 << order);
+		mod_node_page_state(page_pgdat(page), NR_SLAB_UNRECLAIMABLE_B,
+				    PAGE_SIZE << order);
 	}
 
 	return kmalloc_large_node_hook(ptr, size, flags);
@@ -3954,7 +4047,7 @@ void __check_heap_object(const void *ptr, unsigned long n, struct page *page,
 	offset = (ptr - page_address(page)) % s->size;
 
 	/* Adjust for redzone and reject if within the redzone. */
-	if (kmem_cache_debug(s) && s->flags & SLAB_RED_ZONE) {
+	if (kmem_cache_debug_flags(s, SLAB_RED_ZONE)) {
 		if (offset < s->red_left_pad)
 			usercopy_abort("SLUB object in left red zone",
 				       s->name, to_user, offset, n);
@@ -4018,8 +4111,8 @@ void kfree(const void *x)
 
 		BUG_ON(!PageCompound(page));
 		kfree_hook(object);
-		mod_node_page_state(page_pgdat(page), NR_SLAB_UNRECLAIMABLE,
-				    -(1 << order));
+		mod_node_page_state(page_pgdat(page), NR_SLAB_UNRECLAIMABLE_B,
+				    -(PAGE_SIZE << order));
 		__free_pages(page, order);
 		return;
 	}
@@ -4099,36 +4192,6 @@ int __kmem_cache_shrink(struct kmem_cache *s)
 
 	return ret;
 }
-
-#ifdef CONFIG_MEMCG
-void __kmemcg_cache_deactivate_after_rcu(struct kmem_cache *s)
-{
-	/*
-	 * Called with all the locks held after a sched RCU grace period.
-	 * Even if @s becomes empty after shrinking, we can't know that @s
-	 * doesn't have allocations already in-flight and thus can't
-	 * destroy @s until the associated memcg is released.
-	 *
-	 * However, let's remove the sysfs files for empty caches here.
-	 * Each cache has a lot of interface files which aren't
-	 * particularly useful for empty draining caches; otherwise, we can
-	 * easily end up with millions of unnecessary sysfs files on
-	 * systems which have a lot of memory and transient cgroups.
-	 */
-	if (!__kmem_cache_shrink(s))
-		sysfs_slab_remove(s);
-}
-
-void __kmemcg_cache_deactivate(struct kmem_cache *s)
-{
-	/*
-	 * Disable empty slabs caching. Used to avoid pinning offline
-	 * memory cgroups by kmem pages that can be freed.
-	 */
-	slub_set_cpu_partial(s, 0);
-	s->min_partial = 0;
-}
-#endif	/* CONFIG_MEMCG */
 
 static int slab_mem_going_offline_callback(void *arg)
 {
@@ -4284,9 +4347,7 @@ static struct kmem_cache * __init bootstrap(struct kmem_cache *static_cache)
 			p->slab_cache = s;
 #endif
 	}
-	slab_init_memcg_params(s);
 	list_add(&s->list, &slab_caches);
-	memcg_link_cache(s, NULL);
 	return s;
 }
 
@@ -4341,7 +4402,7 @@ struct kmem_cache *
 __kmem_cache_alias(const char *name, unsigned int size, unsigned int align,
 		   slab_flags_t flags, void (*ctor)(void *))
 {
-	struct kmem_cache *s, *c;
+	struct kmem_cache *s;
 
 	s = find_mergeable(size, align, flags, name, ctor);
 	if (s) {
@@ -4353,11 +4414,6 @@ __kmem_cache_alias(const char *name, unsigned int size, unsigned int align,
 		 */
 		s->object_size = max(s->object_size, size);
 		s->inuse = max(s->inuse, ALIGN(size, sizeof(void *)));
-
-		for_each_memcg_cache(c, s) {
-			c->object_size = s->object_size;
-			c->inuse = max(c->inuse, ALIGN(size, sizeof(void *)));
-		}
 
 		if (sysfs_slab_alias(s, name)) {
 			s->refcount--;
@@ -4380,7 +4436,6 @@ int __kmem_cache_create(struct kmem_cache *s, slab_flags_t flags)
 	if (slab_state <= UP)
 		return 0;
 
-	memcg_propagate_slab_attrs(s);
 	err = sysfs_slab_add(s);
 	if (err)
 		__kmem_cache_release(s);
@@ -4408,6 +4463,7 @@ void *__kmalloc_track_caller(size_t size, gfp_t gfpflags, unsigned long caller)
 
 	return ret;
 }
+EXPORT_SYMBOL(__kmalloc_track_caller);
 
 #ifdef CONFIG_NUMA
 void *__kmalloc_node_track_caller(size_t size, gfp_t gfpflags,
@@ -4438,6 +4494,7 @@ void *__kmalloc_node_track_caller(size_t size, gfp_t gfpflags,
 
 	return ret;
 }
+EXPORT_SYMBOL(__kmalloc_node_track_caller);
 #endif
 
 #ifdef CONFIG_SYSFS
@@ -4467,7 +4524,7 @@ static void validate_slab(struct kmem_cache *s, struct page *page)
 	/* Now we know that a valid freelist exists */
 	map = get_map(s, page);
 	for_each_object(p, s, addr, page->objects) {
-		u8 val = test_bit(slab_index(p, s, addr), map) ?
+		u8 val = test_bit(__obj_to_index(s, addr, p), map) ?
 			 SLUB_RED_INACTIVE : SLUB_RED_ACTIVE;
 
 		if (!check_object(s, page, p, val))
@@ -4658,7 +4715,7 @@ static void process_slab(struct loc_track *t, struct kmem_cache *s,
 
 	map = get_map(s, page);
 	for_each_object(p, s, addr, page->objects)
-		if (!test_bit(slab_index(p, s, addr), map))
+		if (!test_bit(__obj_to_index(s, addr, p), map))
 			add_location(t, s, get_track(s, p, alloc));
 	put_map(map);
 }
@@ -4942,20 +4999,6 @@ static ssize_t show_slab_objects(struct kmem_cache *s,
 	return x + sprintf(buf + x, "\n");
 }
 
-#ifdef CONFIG_SLUB_DEBUG
-static int any_slab_objects(struct kmem_cache *s)
-{
-	int node;
-	struct kmem_cache_node *n;
-
-	for_each_kmem_cache_node(s, node, n)
-		if (atomic_long_read(&n->total_objects))
-			return 1;
-
-	return 0;
-}
-#endif
-
 #define to_slab_attr(n) container_of(n, struct slab_attribute, attr)
 #define to_slab(n) container_of(n, struct kmem_cache, kobj)
 
@@ -4997,28 +5040,11 @@ static ssize_t objs_per_slab_show(struct kmem_cache *s, char *buf)
 }
 SLAB_ATTR_RO(objs_per_slab);
 
-static ssize_t order_store(struct kmem_cache *s,
-				const char *buf, size_t length)
-{
-	unsigned int order;
-	int err;
-
-	err = kstrtouint(buf, 10, &order);
-	if (err)
-		return err;
-
-	if (order > slub_max_order || order < slub_min_order)
-		return -EINVAL;
-
-	calculate_sizes(s, order);
-	return length;
-}
-
 static ssize_t order_show(struct kmem_cache *s, char *buf)
 {
 	return sprintf(buf, "%u\n", oo_order(s->oo));
 }
-SLAB_ATTR(order);
+SLAB_ATTR_RO(order);
 
 static ssize_t min_partial_show(struct kmem_cache *s, char *buf)
 {
@@ -5140,16 +5166,7 @@ static ssize_t reclaim_account_show(struct kmem_cache *s, char *buf)
 {
 	return sprintf(buf, "%d\n", !!(s->flags & SLAB_RECLAIM_ACCOUNT));
 }
-
-static ssize_t reclaim_account_store(struct kmem_cache *s,
-				const char *buf, size_t length)
-{
-	s->flags &= ~SLAB_RECLAIM_ACCOUNT;
-	if (buf[0] == '1')
-		s->flags |= SLAB_RECLAIM_ACCOUNT;
-	return length;
-}
-SLAB_ATTR(reclaim_account);
+SLAB_ATTR_RO(reclaim_account);
 
 static ssize_t hwcache_align_show(struct kmem_cache *s, char *buf)
 {
@@ -5194,104 +5211,34 @@ static ssize_t sanity_checks_show(struct kmem_cache *s, char *buf)
 {
 	return sprintf(buf, "%d\n", !!(s->flags & SLAB_CONSISTENCY_CHECKS));
 }
-
-static ssize_t sanity_checks_store(struct kmem_cache *s,
-				const char *buf, size_t length)
-{
-	s->flags &= ~SLAB_CONSISTENCY_CHECKS;
-	if (buf[0] == '1') {
-		s->flags &= ~__CMPXCHG_DOUBLE;
-		s->flags |= SLAB_CONSISTENCY_CHECKS;
-	}
-	return length;
-}
-SLAB_ATTR(sanity_checks);
+SLAB_ATTR_RO(sanity_checks);
 
 static ssize_t trace_show(struct kmem_cache *s, char *buf)
 {
 	return sprintf(buf, "%d\n", !!(s->flags & SLAB_TRACE));
 }
-
-static ssize_t trace_store(struct kmem_cache *s, const char *buf,
-							size_t length)
-{
-	/*
-	 * Tracing a merged cache is going to give confusing results
-	 * as well as cause other issues like converting a mergeable
-	 * cache into an umergeable one.
-	 */
-	if (s->refcount > 1)
-		return -EINVAL;
-
-	s->flags &= ~SLAB_TRACE;
-	if (buf[0] == '1') {
-		s->flags &= ~__CMPXCHG_DOUBLE;
-		s->flags |= SLAB_TRACE;
-	}
-	return length;
-}
-SLAB_ATTR(trace);
+SLAB_ATTR_RO(trace);
 
 static ssize_t red_zone_show(struct kmem_cache *s, char *buf)
 {
 	return sprintf(buf, "%d\n", !!(s->flags & SLAB_RED_ZONE));
 }
 
-static ssize_t red_zone_store(struct kmem_cache *s,
-				const char *buf, size_t length)
-{
-	if (any_slab_objects(s))
-		return -EBUSY;
-
-	s->flags &= ~SLAB_RED_ZONE;
-	if (buf[0] == '1') {
-		s->flags |= SLAB_RED_ZONE;
-	}
-	calculate_sizes(s, -1);
-	return length;
-}
-SLAB_ATTR(red_zone);
+SLAB_ATTR_RO(red_zone);
 
 static ssize_t poison_show(struct kmem_cache *s, char *buf)
 {
 	return sprintf(buf, "%d\n", !!(s->flags & SLAB_POISON));
 }
 
-static ssize_t poison_store(struct kmem_cache *s,
-				const char *buf, size_t length)
-{
-	if (any_slab_objects(s))
-		return -EBUSY;
-
-	s->flags &= ~SLAB_POISON;
-	if (buf[0] == '1') {
-		s->flags |= SLAB_POISON;
-	}
-	calculate_sizes(s, -1);
-	return length;
-}
-SLAB_ATTR(poison);
+SLAB_ATTR_RO(poison);
 
 static ssize_t store_user_show(struct kmem_cache *s, char *buf)
 {
 	return sprintf(buf, "%d\n", !!(s->flags & SLAB_STORE_USER));
 }
 
-static ssize_t store_user_store(struct kmem_cache *s,
-				const char *buf, size_t length)
-{
-	if (any_slab_objects(s))
-		return -EBUSY;
-
-	s->flags &= ~SLAB_STORE_USER;
-	if (buf[0] == '1') {
-		s->flags &= ~__CMPXCHG_DOUBLE;
-		s->flags |= SLAB_STORE_USER;
-	}
-	calculate_sizes(s, -1);
-	return length;
-}
-SLAB_ATTR(store_user);
+SLAB_ATTR_RO(store_user);
 
 static ssize_t validate_show(struct kmem_cache *s, char *buf)
 {
@@ -5334,19 +5281,7 @@ static ssize_t failslab_show(struct kmem_cache *s, char *buf)
 {
 	return sprintf(buf, "%d\n", !!(s->flags & SLAB_FAILSLAB));
 }
-
-static ssize_t failslab_store(struct kmem_cache *s, const char *buf,
-							size_t length)
-{
-	if (s->refcount > 1)
-		return -EINVAL;
-
-	s->flags &= ~SLAB_FAILSLAB;
-	if (buf[0] == '1')
-		s->flags |= SLAB_FAILSLAB;
-	return length;
-}
-SLAB_ATTR(failslab);
+SLAB_ATTR_RO(failslab);
 #endif
 
 static ssize_t shrink_show(struct kmem_cache *s, char *buf)
@@ -5358,7 +5293,7 @@ static ssize_t shrink_store(struct kmem_cache *s,
 			const char *buf, size_t length)
 {
 	if (buf[0] == '1')
-		kmem_cache_shrink_all(s);
+		kmem_cache_shrink(s);
 	else
 		return -EINVAL;
 	return length;
@@ -5582,95 +5517,7 @@ static ssize_t slab_attr_store(struct kobject *kobj,
 		return -EIO;
 
 	err = attribute->store(s, buf, len);
-#ifdef CONFIG_MEMCG
-	if (slab_state >= FULL && err >= 0 && is_root_cache(s)) {
-		struct kmem_cache *c;
-
-		mutex_lock(&slab_mutex);
-		if (s->max_attr_size < len)
-			s->max_attr_size = len;
-
-		/*
-		 * This is a best effort propagation, so this function's return
-		 * value will be determined by the parent cache only. This is
-		 * basically because not all attributes will have a well
-		 * defined semantics for rollbacks - most of the actions will
-		 * have permanent effects.
-		 *
-		 * Returning the error value of any of the children that fail
-		 * is not 100 % defined, in the sense that users seeing the
-		 * error code won't be able to know anything about the state of
-		 * the cache.
-		 *
-		 * Only returning the error code for the parent cache at least
-		 * has well defined semantics. The cache being written to
-		 * directly either failed or succeeded, in which case we loop
-		 * through the descendants with best-effort propagation.
-		 */
-		for_each_memcg_cache(c, s)
-			attribute->store(c, buf, len);
-		mutex_unlock(&slab_mutex);
-	}
-#endif
 	return err;
-}
-
-static void memcg_propagate_slab_attrs(struct kmem_cache *s)
-{
-#ifdef CONFIG_MEMCG
-	int i;
-	char *buffer = NULL;
-	struct kmem_cache *root_cache;
-
-	if (is_root_cache(s))
-		return;
-
-	root_cache = s->memcg_params.root_cache;
-
-	/*
-	 * This mean this cache had no attribute written. Therefore, no point
-	 * in copying default values around
-	 */
-	if (!root_cache->max_attr_size)
-		return;
-
-	for (i = 0; i < ARRAY_SIZE(slab_attrs); i++) {
-		char mbuf[64];
-		char *buf;
-		struct slab_attribute *attr = to_slab_attr(slab_attrs[i]);
-		ssize_t len;
-
-		if (!attr || !attr->store || !attr->show)
-			continue;
-
-		/*
-		 * It is really bad that we have to allocate here, so we will
-		 * do it only as a fallback. If we actually allocate, though,
-		 * we can just use the allocated buffer until the end.
-		 *
-		 * Most of the slub attributes will tend to be very small in
-		 * size, but sysfs allows buffers up to a page, so they can
-		 * theoretically happen.
-		 */
-		if (buffer)
-			buf = buffer;
-		else if (root_cache->max_attr_size < ARRAY_SIZE(mbuf))
-			buf = mbuf;
-		else {
-			buffer = (char *) get_zeroed_page(GFP_KERNEL);
-			if (WARN_ON(!buffer))
-				continue;
-			buf = buffer;
-		}
-
-		len = attr->show(root_cache, buf);
-		if (len > 0)
-			attr->store(s, buf, len);
-	}
-
-	if (buffer)
-		free_page((unsigned long)buffer);
-#endif	/* CONFIG_MEMCG */
 }
 
 static void kmem_cache_release(struct kobject *k)
@@ -5688,27 +5535,10 @@ static struct kobj_type slab_ktype = {
 	.release = kmem_cache_release,
 };
 
-static int uevent_filter(struct kset *kset, struct kobject *kobj)
-{
-	struct kobj_type *ktype = get_ktype(kobj);
-
-	if (ktype == &slab_ktype)
-		return 1;
-	return 0;
-}
-
-static const struct kset_uevent_ops slab_uevent_ops = {
-	.filter = uevent_filter,
-};
-
 static struct kset *slab_kset;
 
 static inline struct kset *cache_kset(struct kmem_cache *s)
 {
-#ifdef CONFIG_MEMCG
-	if (!is_root_cache(s))
-		return s->memcg_params.root_cache->memcg_kset;
-#endif
 	return slab_kset;
 }
 
@@ -5751,36 +5581,12 @@ static char *create_unique_id(struct kmem_cache *s)
 	return name;
 }
 
-static void sysfs_slab_remove_workfn(struct work_struct *work)
-{
-	struct kmem_cache *s =
-		container_of(work, struct kmem_cache, kobj_remove_work);
-
-	if (!s->kobj.state_in_sysfs)
-		/*
-		 * For a memcg cache, this may be called during
-		 * deactivation and again on shutdown.  Remove only once.
-		 * A cache is never shut down before deactivation is
-		 * complete, so no need to worry about synchronization.
-		 */
-		goto out;
-
-#ifdef CONFIG_MEMCG
-	kset_unregister(s->memcg_kset);
-#endif
-	kobject_uevent(&s->kobj, KOBJ_REMOVE);
-out:
-	kobject_put(&s->kobj);
-}
-
 static int sysfs_slab_add(struct kmem_cache *s)
 {
 	int err;
 	const char *name;
 	struct kset *kset = cache_kset(s);
 	int unmergeable = slab_unmergeable(s);
-
-	INIT_WORK(&s->kobj_remove_work, sysfs_slab_remove_workfn);
 
 	if (!kset) {
 		kobject_init(&s->kobj, &slab_ktype);
@@ -5809,24 +5615,15 @@ static int sysfs_slab_add(struct kmem_cache *s)
 
 	s->kobj.kset = kset;
 	err = kobject_init_and_add(&s->kobj, &slab_ktype, NULL, "%s", name);
-	if (err)
+	if (err) {
+		kobject_put(&s->kobj);
 		goto out;
+	}
 
 	err = sysfs_create_group(&s->kobj, &slab_attr_group);
 	if (err)
 		goto out_del_kobj;
 
-#ifdef CONFIG_MEMCG
-	if (is_root_cache(s) && memcg_sysfs_enabled) {
-		s->memcg_kset = kset_create_and_add("cgroup", NULL, &s->kobj);
-		if (!s->memcg_kset) {
-			err = -ENOMEM;
-			goto out_del_kobj;
-		}
-	}
-#endif
-
-	kobject_uevent(&s->kobj, KOBJ_ADD);
 	if (!unmergeable) {
 		/* Setup first alias */
 		sysfs_slab_alias(s, s->name);
@@ -5838,19 +5635,6 @@ out:
 out_del_kobj:
 	kobject_del(&s->kobj);
 	goto out;
-}
-
-static void sysfs_slab_remove(struct kmem_cache *s)
-{
-	if (slab_state < FULL)
-		/*
-		 * Sysfs has not been setup yet so no need to remove the
-		 * cache from sysfs.
-		 */
-		return;
-
-	kobject_get(&s->kobj);
-	schedule_work(&s->kobj_remove_work);
 }
 
 void sysfs_slab_unlink(struct kmem_cache *s)
@@ -5907,7 +5691,7 @@ static int __init slab_sysfs_init(void)
 
 	mutex_lock(&slab_mutex);
 
-	slab_kset = kset_create_and_add("slab", &slab_uevent_ops, kernel_kobj);
+	slab_kset = kset_create_and_add("slab", NULL, kernel_kobj);
 	if (!slab_kset) {
 		mutex_unlock(&slab_mutex);
 		pr_err("Cannot register slab subsystem.\n");

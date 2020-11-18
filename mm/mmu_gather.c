@@ -301,7 +301,7 @@ void tlb_finish_mmu(struct mmu_gather *tlb,
 {
 	/*
 	 * If there are parallel threads are doing PTE changes on same range
-	 * under non-exclusive lock (e.g., mmap_sem read-side) but defer TLB
+	 * under non-exclusive lock (e.g., mmap_lock read-side) but defer TLB
 	 * flush by batching, one thread may end up seeing inconsistent PTEs
 	 * and result in having stale TLB entries.  So flush TLB forcefully
 	 * if we detect parallel PTE batching threads.

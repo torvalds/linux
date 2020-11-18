@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0+
-/*
- * drivers/net/phy/realtek.c
+/* drivers/net/phy/realtek.c
  *
  * Driver for Realtek PHYs
  *
@@ -11,6 +10,7 @@
 #include <linux/bitops.h>
 #include <linux/phy.h>
 #include <linux/module.h>
+#include <linux/delay.h>
 
 #define RTL821x_PHYSR				0x11
 #define RTL821x_PHYSR_DUPLEX			BIT(13)
@@ -31,9 +31,9 @@
 #define RTL8211F_TX_DELAY			BIT(8)
 #define RTL8211F_RX_DELAY			BIT(3)
 
-#define RTL8211E_TX_DELAY			BIT(1)
-#define RTL8211E_RX_DELAY			BIT(2)
-#define RTL8211E_MODE_MII_GMII			BIT(3)
+#define RTL8211E_CTRL_DELAY			BIT(13)
+#define RTL8211E_TX_DELAY			BIT(12)
+#define RTL8211E_RX_DELAY			BIT(11)
 
 #define RTL8201F_ISR				0x1e
 #define RTL8201F_IER				0x13
@@ -245,16 +245,16 @@ static int rtl8211e_config_init(struct phy_device *phydev)
 	/* enable TX/RX delay for rgmii-* modes, and disable them for rgmii. */
 	switch (phydev->interface) {
 	case PHY_INTERFACE_MODE_RGMII:
-		val = 0;
+		val = RTL8211E_CTRL_DELAY | 0;
 		break;
 	case PHY_INTERFACE_MODE_RGMII_ID:
-		val = RTL8211E_TX_DELAY | RTL8211E_RX_DELAY;
+		val = RTL8211E_CTRL_DELAY | RTL8211E_TX_DELAY | RTL8211E_RX_DELAY;
 		break;
 	case PHY_INTERFACE_MODE_RGMII_RXID:
-		val = RTL8211E_RX_DELAY;
+		val = RTL8211E_CTRL_DELAY | RTL8211E_RX_DELAY;
 		break;
 	case PHY_INTERFACE_MODE_RGMII_TXID:
-		val = RTL8211E_TX_DELAY;
+		val = RTL8211E_CTRL_DELAY | RTL8211E_TX_DELAY;
 		break;
 	default: /* the rest of the modes imply leaving delays as is. */
 		return 0;
@@ -262,11 +262,12 @@ static int rtl8211e_config_init(struct phy_device *phydev)
 
 	/* According to a sample driver there is a 0x1c config register on the
 	 * 0xa4 extension page (0x7) layout. It can be used to disable/enable
-	 * the RX/TX delays otherwise controlled by RXDLY/TXDLY pins. It can
-	 * also be used to customize the whole configuration register:
-	 * 8:6 = PHY Address, 5:4 = Auto-Negotiation, 3 = Interface Mode Select,
-	 * 2 = RX Delay, 1 = TX Delay, 0 = SELRGV (see original PHY datasheet
-	 * for details).
+	 * the RX/TX delays otherwise controlled by RXDLY/TXDLY pins.
+	 * The configuration register definition:
+	 * 14 = reserved
+	 * 13 = Force Tx RX Delay controlled by bit12 bit11,
+	 * 12 = RX Delay, 11 = TX Delay
+	 * 10:0 = Test && debug settings reserved by realtek
 	 */
 	oldpage = phy_select_page(phydev, 0x7);
 	if (oldpage < 0)
@@ -276,7 +277,8 @@ static int rtl8211e_config_init(struct phy_device *phydev)
 	if (ret)
 		goto err_restore_page;
 
-	ret = __phy_modify(phydev, 0x1c, RTL8211E_TX_DELAY | RTL8211E_RX_DELAY,
+	ret = __phy_modify(phydev, 0x1c, RTL8211E_CTRL_DELAY
+			   | RTL8211E_TX_DELAY | RTL8211E_RX_DELAY,
 			   val);
 
 err_restore_page:
@@ -526,6 +528,16 @@ static int rtl8125_match_phy_device(struct phy_device *phydev)
 	       rtlgen_supports_2_5gbps(phydev);
 }
 
+static int rtlgen_resume(struct phy_device *phydev)
+{
+	int ret = genphy_resume(phydev);
+
+	/* Internal PHY's from RTL8168h up may not be instantly ready */
+	msleep(20);
+
+	return ret;
+}
+
 static struct phy_driver realtek_drvs[] = {
 	{
 		PHY_ID_MATCH_EXACT(0x00008201),
@@ -609,7 +621,7 @@ static struct phy_driver realtek_drvs[] = {
 		.match_phy_device = rtlgen_match_phy_device,
 		.read_status	= rtlgen_read_status,
 		.suspend	= genphy_suspend,
-		.resume		= genphy_resume,
+		.resume		= rtlgen_resume,
 		.read_page	= rtl821x_read_page,
 		.write_page	= rtl821x_write_page,
 		.read_mmd	= rtlgen_read_mmd,
@@ -621,7 +633,19 @@ static struct phy_driver realtek_drvs[] = {
 		.config_aneg	= rtl8125_config_aneg,
 		.read_status	= rtl8125_read_status,
 		.suspend	= genphy_suspend,
-		.resume		= genphy_resume,
+		.resume		= rtlgen_resume,
+		.read_page	= rtl821x_read_page,
+		.write_page	= rtl821x_write_page,
+		.read_mmd	= rtl8125_read_mmd,
+		.write_mmd	= rtl8125_write_mmd,
+	}, {
+		PHY_ID_MATCH_EXACT(0x001cc840),
+		.name		= "RTL8125B 2.5Gbps internal",
+		.get_features	= rtl8125_get_features,
+		.config_aneg	= rtl8125_config_aneg,
+		.read_status	= rtl8125_read_status,
+		.suspend	= genphy_suspend,
+		.resume		= rtlgen_resume,
 		.read_page	= rtl821x_read_page,
 		.write_page	= rtl821x_write_page,
 		.read_mmd	= rtl8125_read_mmd,

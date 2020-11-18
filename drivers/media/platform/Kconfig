@@ -5,7 +5,6 @@
 
 menuconfig V4L_PLATFORM_DRIVERS
 	bool "V4L platform devices"
-	depends on MEDIA_CAMERA_SUPPORT
 	help
 	  Say Y here to enable support for platform-specific V4L drivers.
 
@@ -15,7 +14,7 @@ source "drivers/media/platform/marvell-ccic/Kconfig"
 
 config VIDEO_VIA_CAMERA
 	tristate "VIAFB camera controller support"
-	depends on FB_VIA
+	depends on FB_VIA && VIDEO_V4L2
 	select VIDEOBUF2_DMA_SG
 	select VIDEO_OV7670
 	help
@@ -43,7 +42,6 @@ config VIDEO_ASPEED
 
 config VIDEO_SH_VOU
 	tristate "SuperH VOU video output driver"
-	depends on MEDIA_CAMERA_SUPPORT
 	depends on VIDEO_DEV && I2C
 	depends on ARCH_SHMOBILE || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
@@ -65,7 +63,9 @@ config VIDEO_VIU
 config VIDEO_MUX
 	tristate "Video Multiplexer"
 	select MULTIPLEXER
-	depends on VIDEO_V4L2 && OF && VIDEO_V4L2_SUBDEV_API && MEDIA_CONTROLLER
+	depends on VIDEO_V4L2 && OF
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	select REGMAP
 	select V4L2_FWNODE
 	help
@@ -73,10 +73,12 @@ config VIDEO_MUX
 
 config VIDEO_OMAP3
 	tristate "OMAP 3 Camera support"
-	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
+	depends on VIDEO_V4L2 && I2C
 	depends on (ARCH_OMAP3 && OMAP_IOMMU) || COMPILE_TEST
 	depends on COMMON_CLK && OF
 	select ARM_DMA_USE_IOMMU if OMAP_IOMMU
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	select VIDEOBUF2_DMA_CONTIG
 	select MFD_SYSCON
 	select V4L2_FWNODE
@@ -101,16 +103,19 @@ config VIDEO_PXA27x
 
 config VIDEO_QCOM_CAMSS
 	tristate "Qualcomm V4L2 Camera Subsystem driver"
-	depends on VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on VIDEO_V4L2
 	depends on (ARCH_QCOM && IOMMU_DMA) || COMPILE_TEST
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	select VIDEOBUF2_DMA_SG
 	select V4L2_FWNODE
 
 config VIDEO_S3C_CAMIF
 	tristate "Samsung S3C24XX/S3C64XX SoC Camera Interface driver"
-	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
-	depends on PM
+	depends on VIDEO_V4L2 && I2C && PM
 	depends on ARCH_S3C64XX || PLAT_S3C24XX || COMPILE_TEST
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	select VIDEOBUF2_DMA_CONTIG
 	help
 	  This is a v4l2 driver for s3c24xx and s3c64xx SoC series camera
@@ -121,9 +126,10 @@ config VIDEO_S3C_CAMIF
 
 config VIDEO_STM32_DCMI
 	tristate "STM32 Digital Camera Memory Interface (DCMI) support"
-	depends on VIDEO_V4L2 && OF && MEDIA_CONTROLLER
+	depends on VIDEO_V4L2 && OF
 	depends on ARCH_STM32 || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
+	select MEDIA_CONTROLLER
 	select V4L2_FWNODE
 	help
 	  This module makes the STM32 Digital Camera Memory Interface (DCMI)
@@ -150,7 +156,9 @@ source "drivers/media/platform/sunxi/Kconfig"
 
 config VIDEO_TI_CAL
 	tristate "TI CAL (Camera Adaptation Layer) driver"
-	depends on VIDEO_DEV && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on VIDEO_DEV && VIDEO_V4L2
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	depends on SOC_DRA7XX || ARCH_K3 || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
 	select V4L2_FWNODE
@@ -165,7 +173,6 @@ endif # V4L_PLATFORM_DRIVERS
 menuconfig V4L_MEM2MEM_DRIVERS
 	bool "Memory-to-memory multimedia devices"
 	depends on VIDEO_V4L2
-	depends on MEDIA_CAMERA_SUPPORT
 	help
 	  Say Y here to enable selecting drivers for V4L devices that
 	  use system memory for both source and destination buffers, as opposed
@@ -180,6 +187,7 @@ config VIDEO_CODA
 	select SRAM
 	select VIDEOBUF2_DMA_CONTIG
 	select VIDEOBUF2_VMALLOC
+	select V4L2_JPEG_HELPER
 	select V4L2_MEM2MEM_DEV
 	select GENERIC_ALLOCATOR
 	help
@@ -385,15 +393,6 @@ config VIDEO_STI_DELTA_DRIVER
 
 endif # VIDEO_STI_DELTA
 
-config VIDEO_SH_VEU
-	tristate "SuperH VEU mem2mem video processing driver"
-	depends on VIDEO_DEV && VIDEO_V4L2 && HAS_DMA
-	select VIDEOBUF2_DMA_CONTIG
-	select V4L2_MEM2MEM_DEV
-	help
-	    Support for the Video Engine Unit (VEU) on SuperH and
-	    SH-Mobile SoCs.
-
 config VIDEO_RENESAS_FDP1
 	tristate "Renesas Fine Display Processor"
 	depends on VIDEO_DEV && VIDEO_V4L2
@@ -435,9 +434,11 @@ config VIDEO_RENESAS_FCP
 
 config VIDEO_RENESAS_VSP1
 	tristate "Renesas VSP1 Video Processing Engine"
-	depends on VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on VIDEO_V4L2
 	depends on ARCH_RENESAS || COMPILE_TEST
 	depends on (!ARM64 && !VIDEO_RENESAS_FCP) || VIDEO_RENESAS_FCP
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	select VIDEOBUF2_DMA_CONTIG
 	select VIDEOBUF2_VMALLOC
 	help
@@ -532,29 +533,6 @@ config VIDEO_TI_SC
 config VIDEO_TI_CSC
 	tristate
 
-menuconfig V4L_TEST_DRIVERS
-	bool "Media test drivers"
-	depends on MEDIA_CAMERA_SUPPORT
-
-if V4L_TEST_DRIVERS
-
-source "drivers/media/platform/vimc/Kconfig"
-
-source "drivers/media/platform/vivid/Kconfig"
-
-config VIDEO_VIM2M
-	tristate "Virtual Memory-to-Memory Driver"
-	depends on VIDEO_DEV && VIDEO_V4L2
-	select VIDEOBUF2_VMALLOC
-	select V4L2_MEM2MEM_DEV
-	help
-	  This is a virtual test device for the memory-to-memory driver
-	  framework.
-
-source "drivers/media/platform/vicodec/Kconfig"
-
-endif #V4L_TEST_DRIVERS
-
 menuconfig DVB_PLATFORM_DRIVERS
 	bool "DVB platform devices"
 	depends on MEDIA_DIGITAL_TV_SUPPORT
@@ -564,131 +542,6 @@ menuconfig DVB_PLATFORM_DRIVERS
 if DVB_PLATFORM_DRIVERS
 source "drivers/media/platform/sti/c8sectpfe/Kconfig"
 endif #DVB_PLATFORM_DRIVERS
-
-menuconfig CEC_PLATFORM_DRIVERS
-	bool "CEC platform devices"
-	depends on MEDIA_CEC_SUPPORT
-
-if CEC_PLATFORM_DRIVERS
-
-config VIDEO_CROS_EC_CEC
-	tristate "ChromeOS EC CEC driver"
-	depends on CROS_EC
-	select CEC_CORE
-	select CEC_NOTIFIER
-	select CROS_EC_PROTO
-	help
-	  If you say yes here you will get support for the
-	  ChromeOS Embedded Controller's CEC.
-	  The CEC bus is present in the HDMI connector and enables communication
-	  between compatible devices.
-
-config VIDEO_MESON_AO_CEC
-	tristate "Amlogic Meson AO CEC driver"
-	depends on ARCH_MESON || COMPILE_TEST
-	select CEC_CORE
-	select CEC_NOTIFIER
-	help
-	  This is a driver for Amlogic Meson SoCs AO CEC interface. It uses the
-	  generic CEC framework interface.
-	  CEC bus is present in the HDMI connector and enables communication
-
-config VIDEO_MESON_G12A_AO_CEC
-	tristate "Amlogic Meson G12A AO CEC driver"
-	depends on ARCH_MESON || COMPILE_TEST
-	depends on COMMON_CLK && OF
-	select REGMAP
-	select REGMAP_MMIO
-	select CEC_CORE
-	select CEC_NOTIFIER
-	---help---
-	  This is a driver for Amlogic Meson G12A SoCs AO CEC interface.
-	  This driver if for the new AO-CEC module found in G12A SoCs,
-	  usually named AO_CEC_B in documentation.
-	  It uses the generic CEC framework interface.
-	  CEC bus is present in the HDMI connector and enables communication
-	  between compatible devices.
-
-config CEC_GPIO
-	tristate "Generic GPIO-based CEC driver"
-	depends on PREEMPTION || COMPILE_TEST
-	select CEC_CORE
-	select CEC_PIN
-	select CEC_NOTIFIER
-	select GPIOLIB
-	help
-	  This is a generic GPIO-based CEC driver.
-	  The CEC bus is present in the HDMI connector and enables communication
-	  between compatible devices.
-
-config VIDEO_SAMSUNG_S5P_CEC
-	tristate "Samsung S5P CEC driver"
-	depends on ARCH_EXYNOS || COMPILE_TEST
-	select CEC_CORE
-	select CEC_NOTIFIER
-	help
-	  This is a driver for Samsung S5P HDMI CEC interface. It uses the
-	  generic CEC framework interface.
-	  CEC bus is present in the HDMI connector and enables communication
-	  between compatible devices.
-
-config VIDEO_STI_HDMI_CEC
-	tristate "STMicroelectronics STiH4xx HDMI CEC driver"
-	depends on ARCH_STI || COMPILE_TEST
-	select CEC_CORE
-	select CEC_NOTIFIER
-	help
-	  This is a driver for STIH4xx HDMI CEC interface. It uses the
-	  generic CEC framework interface.
-	  CEC bus is present in the HDMI connector and enables communication
-	  between compatible devices.
-
-config VIDEO_STM32_HDMI_CEC
-	tristate "STMicroelectronics STM32 HDMI CEC driver"
-	depends on ARCH_STM32 || COMPILE_TEST
-	select REGMAP
-	select REGMAP_MMIO
-	select CEC_CORE
-	help
-	  This is a driver for STM32 interface. It uses the
-	  generic CEC framework interface.
-	  CEC bus is present in the HDMI connector and enables communication
-	  between compatible devices.
-
-config VIDEO_TEGRA_HDMI_CEC
-	tristate "Tegra HDMI CEC driver"
-	depends on ARCH_TEGRA || COMPILE_TEST
-	select CEC_CORE
-	select CEC_NOTIFIER
-	help
-	  This is a driver for the Tegra HDMI CEC interface. It uses the
-	  generic CEC framework interface.
-	  The CEC bus is present in the HDMI connector and enables communication
-	  between compatible devices.
-
-config VIDEO_SECO_CEC
-	tristate "SECO Boards HDMI CEC driver"
-	depends on (X86 || IA64) || COMPILE_TEST
-	depends on PCI && DMI
-	select CEC_CORE
-	select CEC_NOTIFIER
-	help
-	  This is a driver for SECO Boards integrated CEC interface.
-	  Selecting it will enable support for this device.
-	  CEC bus is present in the HDMI connector and enables communication
-	  between compatible devices.
-
-config VIDEO_SECO_RC
-	bool "SECO Boards IR RC5 support"
-	depends on VIDEO_SECO_CEC
-	depends on RC_CORE=y || RC_CORE = VIDEO_SECO_CEC
-	help
-	  If you say yes here you will get support for the
-	  SECO Boards Consumer-IR in seco-cec driver.
-	  The embedded controller supports RC5 protocol only, default mapping
-	  is set to rc-hauppauge.
-
-endif #CEC_PLATFORM_DRIVERS
 
 menuconfig SDR_PLATFORM_DRIVERS
 	bool "SDR platform devices"

@@ -18,6 +18,7 @@
 #include <linux/extable.h>
 #include <linux/uaccess.h>
 #include <linux/hugetlb.h>
+#include <linux/perf_event.h>
 
 #include <asm/traps.h>
 
@@ -66,7 +67,7 @@ parisc_acctyp(unsigned long code, unsigned int inst)
 	case 0x30000000: /* coproc2 */
 		if (bit22set(inst))
 			return VM_WRITE;
-		/* fall through */
+		fallthrough;
 
 	case 0x0: /* indexed/memory management */
 		if (bit22set(inst)) {
@@ -281,8 +282,9 @@ void do_page_fault(struct pt_regs *regs, unsigned long code,
 	acc_type = parisc_acctyp(code, regs->iir);
 	if (acc_type & VM_WRITE)
 		flags |= FAULT_FLAG_WRITE;
+	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
 retry:
-	down_read(&mm->mmap_sem);
+	mmap_read_lock(mm);
 	vma = find_vma_prev(mm, address, &prev_vma);
 	if (!vma || address < vma->vm_start)
 		goto check_expansion;
@@ -302,7 +304,7 @@ good_area:
 	 * fault.
 	 */
 
-	fault = handle_mm_fault(vma, address, flags);
+	fault = handle_mm_fault(vma, address, flags, regs);
 
 	if (fault_signal_pending(fault, regs))
 		return;
@@ -323,13 +325,9 @@ good_area:
 		BUG();
 	}
 	if (flags & FAULT_FLAG_ALLOW_RETRY) {
-		if (fault & VM_FAULT_MAJOR)
-			current->maj_flt++;
-		else
-			current->min_flt++;
 		if (fault & VM_FAULT_RETRY) {
 			/*
-			 * No need to up_read(&mm->mmap_sem) as we would
+			 * No need to mmap_read_unlock(mm) as we would
 			 * have already released it in __lock_page_or_retry
 			 * in mm/filemap.c.
 			 */
@@ -337,7 +335,7 @@ good_area:
 			goto retry;
 		}
 	}
-	up_read(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 	return;
 
 check_expansion:
@@ -349,7 +347,7 @@ check_expansion:
  * Something tried to access memory that isn't in our memory map..
  */
 bad_area:
-	up_read(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 
 	if (user_mode(regs)) {
 		int signo, si_code;
@@ -372,7 +370,7 @@ bad_area:
 			}
 
 			/* probably address is outside of mapped file */
-			/* fall through */
+			fallthrough;
 		case 17:	/* NA data TLB miss / page fault */
 		case 18:	/* Unaligned access - PCXS only */
 			signo = SIGBUS;
@@ -421,7 +419,7 @@ no_context:
 	parisc_terminate("Bad Address (null pointer deref?)", regs, code, address);
 
   out_of_memory:
-	up_read(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 	if (!user_mode(regs))
 		goto no_context;
 	pagefault_out_of_memory();

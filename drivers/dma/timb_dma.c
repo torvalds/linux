@@ -88,7 +88,7 @@ struct timb_dma {
 	struct dma_device	dma;
 	void __iomem		*membase;
 	struct tasklet_struct	tasklet;
-	struct timb_dma_chan	channels[0];
+	struct timb_dma_chan	channels[];
 };
 
 static struct device *chan2dev(struct dma_chan *chan)

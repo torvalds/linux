@@ -7,7 +7,7 @@ config NET_VENDOR_MELLANOX
 	bool "Mellanox devices"
 	default y
 	depends on PCI || I2C
-	---help---
+	help
 	  If you have a network (Ethernet or RDMA) device belonging to this
 	  class, say Y.
 

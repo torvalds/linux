@@ -2,6 +2,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
+ * Copyright (C) 2019 - 2020 Intel Corporation
  *
  * Contact Information:
  *  Intel Linux Wireless <linuxwifi@intel.com>
@@ -846,16 +847,6 @@ static void rs_bt_update_lq(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 	struct iwl_scale_tbl_info *tbl;
 	bool full_concurrent = priv->bt_full_concurrent;
 
-	if (priv->bt_ant_couple_ok) {
-		/*
-		 * Is there a need to switch between
-		 * full concurrency and 3-wire?
-		 */
-		if (priv->bt_ci_compliance)
-			full_concurrent = true;
-		else
-			full_concurrent = false;
-	}
 	if ((priv->bt_traffic_load != priv->last_bt_traffic_load) ||
 	    (priv->bt_full_concurrent != full_concurrent)) {
 		priv->bt_full_concurrent = full_concurrent;

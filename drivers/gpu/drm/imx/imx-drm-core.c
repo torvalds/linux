@@ -42,12 +42,6 @@ void imx_drm_connector_destroy(struct drm_connector *connector)
 }
 EXPORT_SYMBOL_GPL(imx_drm_connector_destroy);
 
-void imx_drm_encoder_destroy(struct drm_encoder *encoder)
-{
-	drm_encoder_cleanup(encoder);
-}
-EXPORT_SYMBOL_GPL(imx_drm_encoder_destroy);
-
 static int imx_drm_atomic_check(struct drm_device *dev,
 				struct drm_atomic_state *state)
 {
@@ -139,8 +133,8 @@ int imx_drm_encoder_parse_of(struct drm_device *drm,
 
 	encoder->possible_crtcs = crtc_mask;
 
-	/* FIXME: this is the mask of outputs which can clone this output. */
-	encoder->possible_clones = ~0;
+	/* FIXME: cloning support not clear, disable it all for now */
+	encoder->possible_clones = 0;
 
 	return 0;
 }
@@ -152,17 +146,7 @@ static const struct drm_ioctl_desc imx_drm_ioctls[] = {
 
 static struct drm_driver imx_drm_driver = {
 	.driver_features	= DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
-	.gem_free_object_unlocked = drm_gem_cma_free_object,
-	.gem_vm_ops		= &drm_gem_cma_vm_ops,
-	.dumb_create		= drm_gem_cma_dumb_create,
-
-	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
-	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
-	.gem_prime_get_sg_table	= drm_gem_cma_prime_get_sg_table,
-	.gem_prime_import_sg_table = drm_gem_cma_prime_import_sg_table,
-	.gem_prime_vmap		= drm_gem_cma_prime_vmap,
-	.gem_prime_vunmap	= drm_gem_cma_prime_vunmap,
-	.gem_prime_mmap		= drm_gem_cma_prime_mmap,
+	DRM_GEM_CMA_DRIVER_OPS,
 	.ioctls			= imx_drm_ioctls,
 	.num_ioctls		= ARRAY_SIZE(imx_drm_ioctls),
 	.fops			= &imx_drm_driver_fops,
@@ -281,9 +265,10 @@ static void imx_drm_unbind(struct device *dev)
 
 	drm_kms_helper_poll_fini(drm);
 
+	component_unbind_all(drm->dev, drm);
+
 	drm_mode_config_cleanup(drm);
 
-	component_unbind_all(drm->dev, drm);
 	dev_set_drvdata(dev, NULL);
 
 	drm_dev_put(drm);

@@ -525,7 +525,7 @@ static int flexcop_usb_init(struct flexcop_usb *fc_usb)
 	case USB_SPEED_HIGH:
 		info("running at HIGH speed.");
 		break;
-	case USB_SPEED_UNKNOWN: /* fall through */
+	case USB_SPEED_UNKNOWN:
 	default:
 		err("cannot handle USB speed because it is unknown.");
 		return -ENODEV;

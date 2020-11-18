@@ -192,7 +192,7 @@ Device Tree files and Device Tree bindings that apply to AT91 SoCs and boards ar
 considered as "Unstable". To be completely clear, any at91 binding can change at
 any time. So, be sure to use a Device Tree Binary and a Kernel Image generated from
 the same source tree.
-Please refer to the Documentation/devicetree/bindings/ABI.txt file for a
+Please refer to the Documentation/devicetree/bindings/ABI.rst file for a
 definition of a "Stable" binding/ABI.
 This statement will be removed by AT91 MAINTAINERS when appropriate.
 

@@ -5,6 +5,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/net_tstamp.h>
 #include <linux/wireless.h>
+#include <net/dsa.h>
 #include <net/wext.h>
 
 /*
@@ -225,6 +226,26 @@ static int net_hwtstamp_validate(struct ifreq *ifr)
 	return 0;
 }
 
+static int dev_do_ioctl(struct net_device *dev,
+			struct ifreq *ifr, unsigned int cmd)
+{
+	const struct net_device_ops *ops = dev->netdev_ops;
+	int err = -EOPNOTSUPP;
+
+	err = dsa_ndo_do_ioctl(dev, ifr, cmd);
+	if (err == 0 || err != -EOPNOTSUPP)
+		return err;
+
+	if (ops->ndo_do_ioctl) {
+		if (netif_device_present(dev))
+			err = ops->ndo_do_ioctl(dev, ifr, cmd);
+		else
+			err = -ENODEV;
+	}
+
+	return err;
+}
+
 /*
  *	Perform the SIOCxIFxxx calls, inside rtnl_lock()
  */
@@ -301,7 +322,7 @@ static int dev_ifsioc(struct net *net, struct ifreq *ifr, unsigned int cmd)
 		err = net_hwtstamp_validate(ifr);
 		if (err)
 			return err;
-		/* fall through */
+		fallthrough;
 
 	/*
 	 *	Unknown or private ioctl
@@ -323,13 +344,7 @@ static int dev_ifsioc(struct net *net, struct ifreq *ifr, unsigned int cmd)
 		    cmd == SIOCSHWTSTAMP ||
 		    cmd == SIOCGHWTSTAMP ||
 		    cmd == SIOCWANDEV) {
-			err = -EOPNOTSUPP;
-			if (ops->ndo_do_ioctl) {
-				if (netif_device_present(dev))
-					err = ops->ndo_do_ioctl(dev, ifr, cmd);
-				else
-					err = -ENODEV;
-			}
+			err = dev_do_ioctl(dev, ifr, cmd);
 		} else
 			err = -EINVAL;
 
@@ -463,7 +478,7 @@ int dev_ioctl(struct net *net, unsigned int cmd, struct ifreq *ifr, bool *need_c
 	case SIOCSIFTXQLEN:
 		if (!capable(CAP_NET_ADMIN))
 			return -EPERM;
-		/* fall through */
+		fallthrough;
 	/*
 	 *	These ioctl calls:
 	 *	- require local superuser power.
@@ -488,7 +503,7 @@ int dev_ioctl(struct net *net, unsigned int cmd, struct ifreq *ifr, bool *need_c
 	case SIOCSHWTSTAMP:
 		if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
 			return -EPERM;
-		/* fall through */
+		fallthrough;
 	case SIOCBONDSLAVEINFOQUERY:
 	case SIOCBONDINFOQUERY:
 		dev_load(net, ifr->ifr_name);

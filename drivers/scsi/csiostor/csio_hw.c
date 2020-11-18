@@ -306,7 +306,7 @@ csio_hw_get_vpd_params(struct csio_hw *hw, struct csio_vpd *p)
 	uint8_t *vpd, csum;
 	const struct t4_vpd_hdr *v;
 	/* To get around compilation warning from strstrip */
-	char *s;
+	char __always_unused *s;
 
 	if (csio_is_valid_vpd(hw))
 		return 0;
@@ -2939,7 +2939,7 @@ csio_hws_quiescing(struct csio_hw *hw, enum csio_hw_ev evt)
 		case CSIO_HWE_FW_DLOAD:
 			csio_set_state(&hw->sm, csio_hws_resetting);
 			/* Download firmware */
-			/* Fall through */
+			fallthrough;
 
 		case CSIO_HWE_HBA_RESET:
 			csio_set_state(&hw->sm, csio_hws_resetting);

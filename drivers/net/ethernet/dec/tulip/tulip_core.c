@@ -911,7 +911,7 @@ static int private_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 			data->phy_id = 1;
 		else
 			return -ENODEV;
-		/* Fall through */
+		fallthrough;
 
 	case SIOCGMIIREG:		/* Read MII PHY register. */
 		if (data->phy_id == 32 && (tp->flags & HAS_NWAY)) {
@@ -1803,13 +1803,9 @@ static void tulip_set_wolopts (struct pci_dev *pdev, u32 wolopts)
 	}
 }
 
-#ifdef CONFIG_PM
-
-
-static int tulip_suspend (struct pci_dev *pdev, pm_message_t state)
+static int __maybe_unused tulip_suspend(struct device *dev_d)
 {
-	pci_power_t pstate;
-	struct net_device *dev = pci_get_drvdata(pdev);
+	struct net_device *dev = dev_get_drvdata(dev_d);
 	struct tulip_private *tp = netdev_priv(dev);
 
 	if (!dev)
@@ -1825,44 +1821,26 @@ static int tulip_suspend (struct pci_dev *pdev, pm_message_t state)
 	free_irq(tp->pdev->irq, dev);
 
 save_state:
-	pci_save_state(pdev);
-	pci_disable_device(pdev);
-	pstate = pci_choose_state(pdev, state);
-	if (state.event == PM_EVENT_SUSPEND && pstate != PCI_D0) {
-		int rc;
-
-		tulip_set_wolopts(pdev, tp->wolinfo.wolopts);
-		rc = pci_enable_wake(pdev, pstate, tp->wolinfo.wolopts);
-		if (rc)
-			pr_err("pci_enable_wake failed (%d)\n", rc);
-	}
-	pci_set_power_state(pdev, pstate);
+	tulip_set_wolopts(to_pci_dev(dev_d), tp->wolinfo.wolopts);
+	device_set_wakeup_enable(dev_d, !!tp->wolinfo.wolopts);
 
 	return 0;
 }
 
-
-static int tulip_resume(struct pci_dev *pdev)
+static int __maybe_unused tulip_resume(struct device *dev_d)
 {
-	struct net_device *dev = pci_get_drvdata(pdev);
+	struct pci_dev *pdev = to_pci_dev(dev_d);
+	struct net_device *dev = dev_get_drvdata(dev_d);
 	struct tulip_private *tp = netdev_priv(dev);
 	void __iomem *ioaddr = tp->base_addr;
-	int retval;
 	unsigned int tmp;
+	int retval = 0;
 
 	if (!dev)
 		return -EINVAL;
 
-	pci_set_power_state(pdev, PCI_D0);
-	pci_restore_state(pdev);
-
 	if (!netif_running(dev))
 		return 0;
-
-	if ((retval = pci_enable_device(pdev))) {
-		pr_err("pci_enable_device failed in resume\n");
-		return retval;
-	}
 
 	retval = request_irq(pdev->irq, tulip_interrupt, IRQF_SHARED,
 			     dev->name, dev);
@@ -1872,8 +1850,7 @@ static int tulip_resume(struct pci_dev *pdev)
 	}
 
 	if (tp->flags & COMET_PM) {
-		pci_enable_wake(pdev, PCI_D3hot, 0);
-		pci_enable_wake(pdev, PCI_D3cold, 0);
+		device_set_wakeup_enable(dev_d, 0);
 
 		/* Clear the PMES flag */
 		tmp = ioread32(ioaddr + CSR20);
@@ -1890,9 +1867,6 @@ static int tulip_resume(struct pci_dev *pdev)
 
 	return 0;
 }
-
-#endif /* CONFIG_PM */
-
 
 static void tulip_remove_one(struct pci_dev *pdev)
 {
@@ -1937,15 +1911,14 @@ static void poll_tulip (struct net_device *dev)
 }
 #endif
 
+static SIMPLE_DEV_PM_OPS(tulip_pm_ops, tulip_suspend, tulip_resume);
+
 static struct pci_driver tulip_driver = {
 	.name		= DRV_NAME,
 	.id_table	= tulip_pci_tbl,
 	.probe		= tulip_init_one,
 	.remove		= tulip_remove_one,
-#ifdef CONFIG_PM
-	.suspend	= tulip_suspend,
-	.resume		= tulip_resume,
-#endif /* CONFIG_PM */
+	.driver.pm	= &tulip_pm_ops,
 };
 
 

@@ -11,7 +11,7 @@ Supported chips:
 
     Datasheet: Publicly available at the Analog Devices website
 
-	       http://www.analog.com/static/imported-files/data_sheets/ADT7410.pdf
+	       https://www.analog.com/static/imported-files/data_sheets/ADT7410.pdf
   * Analog Devices ADT7420
 
     Prefix: 'adt7420'
@@ -20,7 +20,7 @@ Supported chips:
 
     Datasheet: Publicly available at the Analog Devices website
 
-	       http://www.analog.com/static/imported-files/data_sheets/ADT7420.pdf
+	       https://www.analog.com/static/imported-files/data_sheets/ADT7420.pdf
 
   * Analog Devices ADT7310
 
@@ -30,7 +30,7 @@ Supported chips:
 
     Datasheet: Publicly available at the Analog Devices website
 
-	       http://www.analog.com/static/imported-files/data_sheets/ADT7310.pdf
+	       https://www.analog.com/static/imported-files/data_sheets/ADT7310.pdf
 
   * Analog Devices ADT7320
 
@@ -40,7 +40,7 @@ Supported chips:
 
     Datasheet: Publicly available at the Analog Devices website
 
-	       http://www.analog.com/static/imported-files/data_sheets/ADT7320.pdf
+	       https://www.analog.com/static/imported-files/data_sheets/ADT7320.pdf
 
 Author: Hartmut Knaack <knaack.h@gmx.de>
 

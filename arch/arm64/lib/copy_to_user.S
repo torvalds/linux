@@ -19,36 +19,36 @@
  * Returns:
  *	x0 - bytes not copied
  */
-	.macro ldrb1 ptr, regB, val
-	ldrb  \ptr, [\regB], \val
+	.macro ldrb1 reg, ptr, val
+	ldrb  \reg, [\ptr], \val
 	.endm
 
-	.macro strb1 ptr, regB, val
-	uao_user_alternative 9998f, strb, sttrb, \ptr, \regB, \val
+	.macro strb1 reg, ptr, val
+	uao_user_alternative 9998f, strb, sttrb, \reg, \ptr, \val
 	.endm
 
-	.macro ldrh1 ptr, regB, val
-	ldrh  \ptr, [\regB], \val
+	.macro ldrh1 reg, ptr, val
+	ldrh  \reg, [\ptr], \val
 	.endm
 
-	.macro strh1 ptr, regB, val
-	uao_user_alternative 9998f, strh, sttrh, \ptr, \regB, \val
+	.macro strh1 reg, ptr, val
+	uao_user_alternative 9998f, strh, sttrh, \reg, \ptr, \val
 	.endm
 
-	.macro ldr1 ptr, regB, val
-	ldr \ptr, [\regB], \val
+	.macro ldr1 reg, ptr, val
+	ldr \reg, [\ptr], \val
 	.endm
 
-	.macro str1 ptr, regB, val
-	uao_user_alternative 9998f, str, sttr, \ptr, \regB, \val
+	.macro str1 reg, ptr, val
+	uao_user_alternative 9998f, str, sttr, \reg, \ptr, \val
 	.endm
 
-	.macro ldp1 ptr, regB, regC, val
-	ldp \ptr, \regB, [\regC], \val
+	.macro ldp1 reg1, reg2, ptr, val
+	ldp \reg1, \reg2, [\ptr], \val
 	.endm
 
-	.macro stp1 ptr, regB, regC, val
-	uao_stp 9998f, \ptr, \regB, \regC, \val
+	.macro stp1 reg1, reg2, ptr, val
+	uao_stp 9998f, \reg1, \reg2, \ptr, \val
 	.endm
 
 end	.req	x5

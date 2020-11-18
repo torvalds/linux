@@ -370,28 +370,27 @@ static u16 Efuse_GetCurrentSize(struct adapter *pAdapter)
 
 	while (efuse_OneByteRead(pAdapter, efuse_addr, &efuse_data) &&
 	       AVAILABLE_EFUSE_ADDR(efuse_addr)) {
-		if (efuse_data != 0xFF) {
-			if ((efuse_data & 0x1F) == 0x0F) {		/* extended header */
-				hoffset = efuse_data;
-				efuse_addr++;
-				efuse_OneByteRead(pAdapter, efuse_addr, &efuse_data);
-				if ((efuse_data & 0x0F) == 0x0F) {
-					efuse_addr++;
-					continue;
-				} else {
-					hoffset = ((hoffset & 0xE0) >> 5) | ((efuse_data & 0xF0) >> 1);
-					hworden = efuse_data & 0x0F;
-				}
-			} else {
-				hoffset = (efuse_data >> 4) & 0x0F;
-				hworden =  efuse_data & 0x0F;
-			}
-			word_cnts = Efuse_CalculateWordCnts(hworden);
-			/* read next header */
-			efuse_addr = efuse_addr + (word_cnts * 2) + 1;
-		} else {
+		if (efuse_data == 0xFF)
 			break;
+		if ((efuse_data & 0x1F) == 0x0F) { /* extended header */
+			hoffset = efuse_data;
+			efuse_addr++;
+			efuse_OneByteRead(pAdapter, efuse_addr, &efuse_data);
+			if ((efuse_data & 0x0F) == 0x0F) {
+				efuse_addr++;
+				continue;
+			} else {
+				hoffset = ((hoffset & 0xE0) >> 5) |
+					  ((efuse_data & 0xF0) >> 1);
+				hworden = efuse_data & 0x0F;
+			}
+		} else {
+			hoffset = (efuse_data >> 4) & 0x0F;
+			hworden =  efuse_data & 0x0F;
 		}
+		word_cnts = Efuse_CalculateWordCnts(hworden);
+		/* read next header */
+		efuse_addr = efuse_addr + (word_cnts * 2) + 1;
 	}
 
 	rtw_hal_set_hwreg(pAdapter, HW_VAR_EFUSE_BYTES, (u8 *)&efuse_addr);

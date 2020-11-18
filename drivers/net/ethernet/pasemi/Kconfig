@@ -7,7 +7,7 @@ config NET_VENDOR_PASEMI
 	bool "PA Semi devices"
 	default y
 	depends on PPC_PASEMI && PCI
-	---help---
+	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
@@ -21,7 +21,7 @@ config PASEMI_MAC
 	tristate "PA Semi 1/10Gbit MAC"
 	depends on PPC_PASEMI && PCI
 	select PHYLIB
-	---help---
+	help
 	  This driver supports the on-chip 1/10Gbit Ethernet controller on
 	  PA Semi's PWRficient line of chips.
 

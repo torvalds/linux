@@ -316,6 +316,7 @@ static const struct iio_chan_spec ads1115_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(ADS1015_TIMESTAMP),
 };
 
+#ifdef CONFIG_PM
 static int ads1015_set_power_state(struct ads1015_data *data, bool on)
 {
 	int ret;
@@ -332,6 +333,15 @@ static int ads1015_set_power_state(struct ads1015_data *data, bool on)
 
 	return ret < 0 ? ret : 0;
 }
+
+#else /* !CONFIG_PM */
+
+static int ads1015_set_power_state(struct ads1015_data *data, bool on)
+{
+	return 0;
+}
+
+#endif /* !CONFIG_PM */
 
 static
 int ads1015_get_adc_result(struct ads1015_data *data, int chan, int *val)
@@ -788,8 +798,6 @@ static int ads1015_buffer_postdisable(struct iio_dev *indio_dev)
 
 static const struct iio_buffer_setup_ops ads1015_buffer_setup_ops = {
 	.preenable	= ads1015_buffer_preenable,
-	.postenable	= iio_triggered_buffer_postenable,
-	.predisable	= iio_triggered_buffer_predisable,
 	.postdisable	= ads1015_buffer_postdisable,
 	.validate_scan_mask = &iio_validate_scan_mask_onehot,
 };
@@ -939,8 +947,6 @@ static int ads1015_probe(struct i2c_client *client,
 
 	mutex_init(&data->lock);
 
-	indio_dev->dev.parent = &client->dev;
-	indio_dev->dev.of_node = client->dev.of_node;
 	indio_dev->name = ADS1015_DRV_NAME;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 

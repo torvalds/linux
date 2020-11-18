@@ -173,9 +173,14 @@ static inline u64 rd_reg64(void __iomem *reg)
 
 static inline u64 cpu_to_caam_dma64(dma_addr_t value)
 {
-	if (caam_imx)
-		return (((u64)cpu_to_caam32(lower_32_bits(value)) << 32) |
-			 (u64)cpu_to_caam32(upper_32_bits(value)));
+	if (caam_imx) {
+		u64 ret_val = (u64)cpu_to_caam32(lower_32_bits(value)) << 32;
+
+		if (IS_ENABLED(CONFIG_ARCH_DMA_ADDR_T_64BIT))
+			ret_val |= (u64)cpu_to_caam32(upper_32_bits(value));
+
+		return ret_val;
+	}
 
 	return cpu_to_caam64(value);
 }

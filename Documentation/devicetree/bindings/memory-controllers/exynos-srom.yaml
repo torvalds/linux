@@ -51,9 +51,7 @@ patternProperties:
         maxItems: 1
 
       reg-io-width:
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32
-          - enum: [1, 2]
+        enum: [1, 2]
         description:
           Data width in bytes (1 or 2). If omitted, default of 1 is used.
 
@@ -64,11 +62,10 @@ patternProperties:
         type: boolean
 
       samsung,srom-timing:
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32-array
-          - items:
-              minItems: 6
-              maxItems: 6
+        $ref: /schemas/types.yaml#/definitions/uint32-array
+        items:
+          minItems: 6
+          maxItems: 6
         description: |
           Array of 6 integers, specifying bank timings in the following order:
           Tacp, Tcah, Tcoh, Tacc, Tcos, Tacs.

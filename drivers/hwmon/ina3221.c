@@ -2,7 +2,7 @@
 /*
  * INA3221 Triple Current/Voltage Monitor
  *
- * Copyright (C) 2016 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2016 Texas Instruments Incorporated - https://www.ti.com/
  *	Andrew F. Davis <afd@ti.com>
  */
 
@@ -352,7 +352,7 @@ static int ina3221_read_curr(struct device *dev, u32 attr,
 		if (ret)
 			return ret;
 
-		/* fall through */
+		fallthrough;
 	case hwmon_curr_crit:
 	case hwmon_curr_max:
 		if (!resistance_uo)

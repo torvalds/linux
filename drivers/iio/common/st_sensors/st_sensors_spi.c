@@ -44,7 +44,7 @@ static bool st_sensors_is_spi_3_wire(struct spi_device *spi)
 	if (device_property_read_bool(dev, "spi-3wire"))
 		return true;
 
-	pdata = (struct st_sensors_platform_data *)dev->platform_data;
+	pdata = dev_get_platdata(dev);
 	if (pdata && pdata->spi_3wire)
 		return true;
 
@@ -101,14 +101,13 @@ int st_sensors_spi_configure(struct iio_dev *indio_dev,
 
 	sdata->regmap = devm_regmap_init_spi(spi, config);
 	if (IS_ERR(sdata->regmap)) {
-		dev_err(&spi->dev, "Failed to register spi regmap (%d)\n",
-			(int)PTR_ERR(sdata->regmap));
+		dev_err(&spi->dev, "Failed to register spi regmap (%ld)\n",
+			PTR_ERR(sdata->regmap));
 		return PTR_ERR(sdata->regmap);
 	}
 
 	spi_set_drvdata(spi, indio_dev);
 
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = spi->modalias;
 
 	sdata->dev = &spi->dev;

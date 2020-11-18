@@ -243,6 +243,8 @@ int flow_offload_add(struct nf_flowtable *flow_table, struct flow_offload *flow)
 		return err;
 	}
 
+	nf_ct_offload_timeout(flow->ct);
+
 	if (nf_flowtable_hw_offload(flow_table)) {
 		__set_bit(NF_FLOW_HW, &flow->flags);
 		nf_flow_offload_add(flow_table, flow);
@@ -387,51 +389,6 @@ static void nf_flow_offload_work_gc(struct work_struct *work)
 	queue_delayed_work(system_power_efficient_wq, &flow_table->gc_work, HZ);
 }
 
-int nf_flow_table_offload_add_cb(struct nf_flowtable *flow_table,
-				 flow_setup_cb_t *cb, void *cb_priv)
-{
-	struct flow_block *block = &flow_table->flow_block;
-	struct flow_block_cb *block_cb;
-	int err = 0;
-
-	down_write(&flow_table->flow_block_lock);
-	block_cb = flow_block_cb_lookup(block, cb, cb_priv);
-	if (block_cb) {
-		err = -EEXIST;
-		goto unlock;
-	}
-
-	block_cb = flow_block_cb_alloc(cb, cb_priv, cb_priv, NULL);
-	if (IS_ERR(block_cb)) {
-		err = PTR_ERR(block_cb);
-		goto unlock;
-	}
-
-	list_add_tail(&block_cb->list, &block->cb_list);
-
-unlock:
-	up_write(&flow_table->flow_block_lock);
-	return err;
-}
-EXPORT_SYMBOL_GPL(nf_flow_table_offload_add_cb);
-
-void nf_flow_table_offload_del_cb(struct nf_flowtable *flow_table,
-				  flow_setup_cb_t *cb, void *cb_priv)
-{
-	struct flow_block *block = &flow_table->flow_block;
-	struct flow_block_cb *block_cb;
-
-	down_write(&flow_table->flow_block_lock);
-	block_cb = flow_block_cb_lookup(block, cb, cb_priv);
-	if (block_cb) {
-		list_del(&block_cb->list);
-		flow_block_cb_free(block_cb);
-	} else {
-		WARN_ON(true);
-	}
-	up_write(&flow_table->flow_block_lock);
-}
-EXPORT_SYMBOL_GPL(nf_flow_table_offload_del_cb);
 
 static int nf_flow_nat_port_tcp(struct sk_buff *skb, unsigned int thoff,
 				__be16 port, __be16 new_port)
@@ -588,8 +545,8 @@ static void nf_flow_table_do_cleanup(struct flow_offload *flow, void *data)
 		flow_offload_teardown(flow);
 }
 
-static void nf_flow_table_iterate_cleanup(struct nf_flowtable *flowtable,
-					  struct net_device *dev)
+void nf_flow_table_gc_cleanup(struct nf_flowtable *flowtable,
+			      struct net_device *dev)
 {
 	nf_flow_table_iterate(flowtable, nf_flow_table_do_cleanup, dev);
 	flush_delayed_work(&flowtable->gc_work);
@@ -602,7 +559,7 @@ void nf_flow_table_cleanup(struct net_device *dev)
 
 	mutex_lock(&flowtable_lock);
 	list_for_each_entry(flowtable, &flowtables, list)
-		nf_flow_table_iterate_cleanup(flowtable, dev);
+		nf_flow_table_gc_cleanup(flowtable, dev);
 	mutex_unlock(&flowtable_lock);
 }
 EXPORT_SYMBOL_GPL(nf_flow_table_cleanup);
@@ -639,3 +596,4 @@ module_exit(nf_flow_table_module_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Pablo Neira Ayuso <pablo@netfilter.org>");
+MODULE_DESCRIPTION("Netfilter flow table module");

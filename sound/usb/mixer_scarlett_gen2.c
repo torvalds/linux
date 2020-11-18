@@ -332,7 +332,7 @@ static const struct scarlett2_device_info s18i8_gen2_info = {
 		},
 		[SCARLETT2_PORT_TYPE_SPDIF] = {
 			.id = 0x180,
-			/* S/PDIF outputs aren't available at 192KHz
+			/* S/PDIF outputs aren't available at 192kHz
 			 * but are included in the USB mux I/O
 			 * assignment message anyway
 			 */
@@ -401,7 +401,7 @@ static const struct scarlett2_device_info s18i20_gen2_info = {
 			.dst_descr = "Analogue Output %02d Playback"
 		},
 		[SCARLETT2_PORT_TYPE_SPDIF] = {
-			/* S/PDIF outputs aren't available at 192KHz
+			/* S/PDIF outputs aren't available at 192kHz
 			 * but are included in the USB mux I/O
 			 * assignment message anyway
 			 */

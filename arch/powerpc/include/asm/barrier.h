@@ -7,6 +7,10 @@
 
 #include <asm/asm-const.h>
 
+#ifndef __ASSEMBLY__
+#include <asm/ppc-opcode.h>
+#endif
+
 /*
  * Memory barrier.
  * The sync instruction guarantees that all memory accesses initiated
@@ -76,6 +80,22 @@ do {									\
 	___p1;								\
 })
 
+#ifdef CONFIG_PPC64
+#define smp_cond_load_relaxed(ptr, cond_expr) ({		\
+	typeof(ptr) __PTR = (ptr);				\
+	__unqual_scalar_typeof(*ptr) VAL;			\
+	VAL = READ_ONCE(*__PTR);				\
+	if (unlikely(!(cond_expr))) {				\
+		spin_begin();					\
+		do {						\
+			VAL = READ_ONCE(*__PTR);		\
+		} while (!(cond_expr));				\
+		spin_end();					\
+	}							\
+	(typeof(*ptr))VAL;					\
+})
+#endif
+
 #ifdef CONFIG_PPC_BOOK3S_64
 #define NOSPEC_BARRIER_SLOT   nop
 #elif defined(CONFIG_PPC_FSL_BOOK3E)
@@ -96,6 +116,15 @@ do {									\
 #define barrier_nospec_asm
 #define barrier_nospec()
 #endif /* CONFIG_PPC_BARRIER_NOSPEC */
+
+/*
+ * pmem_wmb() ensures that all stores for which the modification
+ * are written to persistent storage by preceding dcbfps/dcbstps
+ * instructions have updated persistent storage before any data
+ * access or data transfer caused by subsequent instructions is
+ * initiated.
+ */
+#define pmem_wmb() __asm__ __volatile__(PPC_PHWSYNC ::: "memory")
 
 #include <asm-generic/barrier.h>
 

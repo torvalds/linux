@@ -232,15 +232,14 @@ fail:
 
 static int efx_ef10_vadaptor_alloc_set_features(struct efx_nic *efx)
 {
-	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	u32 port_flags;
 	int rc;
 
-	rc = efx_ef10_vadaptor_alloc(efx, nic_data->vport_id);
+	rc = efx_ef10_vadaptor_alloc(efx, efx->vport_id);
 	if (rc)
 		goto fail_vadaptor_alloc;
 
-	rc = efx_ef10_vadaptor_query(efx, nic_data->vport_id,
+	rc = efx_ef10_vadaptor_query(efx, efx->vport_id,
 				     &port_flags, NULL, NULL);
 	if (rc)
 		goto fail_vadaptor_query;
@@ -281,11 +280,11 @@ int efx_ef10_vswitching_probe_pf(struct efx_nic *efx)
 
 	rc = efx_ef10_vport_alloc(efx, EVB_PORT_ID_ASSIGNED,
 				  MC_CMD_VPORT_ALLOC_IN_VPORT_TYPE_NORMAL,
-				  EFX_EF10_NO_VLAN, &nic_data->vport_id);
+				  EFX_EF10_NO_VLAN, &efx->vport_id);
 	if (rc)
 		goto fail2;
 
-	rc = efx_ef10_vport_add_mac(efx, nic_data->vport_id, net_dev->dev_addr);
+	rc = efx_ef10_vport_add_mac(efx, efx->vport_id, net_dev->dev_addr);
 	if (rc)
 		goto fail3;
 	ether_addr_copy(nic_data->vport_mac, net_dev->dev_addr);
@@ -296,11 +295,11 @@ int efx_ef10_vswitching_probe_pf(struct efx_nic *efx)
 
 	return 0;
 fail4:
-	efx_ef10_vport_del_mac(efx, nic_data->vport_id, nic_data->vport_mac);
+	efx_ef10_vport_del_mac(efx, efx->vport_id, nic_data->vport_mac);
 	eth_zero_addr(nic_data->vport_mac);
 fail3:
-	efx_ef10_vport_free(efx, nic_data->vport_id);
-	nic_data->vport_id = EVB_PORT_ID_ASSIGNED;
+	efx_ef10_vport_free(efx, efx->vport_id);
+	efx->vport_id = EVB_PORT_ID_ASSIGNED;
 fail2:
 	efx_ef10_vswitch_free(efx, EVB_PORT_ID_ASSIGNED);
 fail1:
@@ -355,22 +354,22 @@ void efx_ef10_vswitching_remove_pf(struct efx_nic *efx)
 
 	efx_ef10_sriov_free_vf_vswitching(efx);
 
-	efx_ef10_vadaptor_free(efx, nic_data->vport_id);
+	efx_ef10_vadaptor_free(efx, efx->vport_id);
 
-	if (nic_data->vport_id == EVB_PORT_ID_ASSIGNED)
+	if (efx->vport_id == EVB_PORT_ID_ASSIGNED)
 		return; /* No vswitch was ever created */
 
 	if (!is_zero_ether_addr(nic_data->vport_mac)) {
-		efx_ef10_vport_del_mac(efx, nic_data->vport_id,
+		efx_ef10_vport_del_mac(efx, efx->vport_id,
 				       efx->net_dev->dev_addr);
 		eth_zero_addr(nic_data->vport_mac);
 	}
-	efx_ef10_vport_free(efx, nic_data->vport_id);
-	nic_data->vport_id = EVB_PORT_ID_ASSIGNED;
+	efx_ef10_vport_free(efx, efx->vport_id);
+	efx->vport_id = EVB_PORT_ID_ASSIGNED;
 
 	/* Only free the vswitch if no VFs are assigned */
 	if (!pci_vfs_assigned(efx->pci_dev))
-		efx_ef10_vswitch_free(efx, nic_data->vport_id);
+		efx_ef10_vswitch_free(efx, efx->vport_id);
 }
 
 void efx_ef10_vswitching_remove_vf(struct efx_nic *efx)

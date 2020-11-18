@@ -6,8 +6,11 @@
 #include <linux/of.h>
 #include <linux/io.h>
 
+struct of_bus;
+
 struct of_pci_range_parser {
 	struct device_node *node;
+	struct of_bus *bus;
 	const __be32 *range;
 	const __be32 *end;
 	int na;
@@ -119,6 +122,7 @@ static inline void __iomem *of_iomap(struct device_node *device, int index)
 	return NULL;
 }
 #endif
+#define of_range_parser_init of_pci_range_parser_init
 
 #if defined(CONFIG_OF_ADDRESS) && defined(CONFIG_PCI)
 extern const __be32 *of_get_pci_address(struct device_node *dev, int bar_no,

@@ -129,7 +129,7 @@ static struct mempolicy preferred_node_policy[MAX_NUMNODES];
 
 /**
  * numa_map_to_online_node - Find closest online node
- * @nid: Node id to start the search
+ * @node: Node id to start the search
  *
  * Lookup the next closest node by distance if @nid is not online.
  */
@@ -224,7 +224,7 @@ static int mpol_new_bind(struct mempolicy *pol, const nodemask_t *nodes)
  * handle an empty nodemask with MPOL_PREFERRED here.
  *
  * Must be called holding task's alloc_lock to protect task's mems_allowed
- * and mempolicy.  May also be called holding the mmap_semaphore for write.
+ * and mempolicy.  May also be called holding the mmap_lock for write.
  */
 static int mpol_set_nodemask(struct mempolicy *pol,
 		     const nodemask_t *nodes, struct nodemask_scratch *nsc)
@@ -368,7 +368,7 @@ static void mpol_rebind_preferred(struct mempolicy *pol,
 /*
  * mpol_rebind_policy - Migrate a policy to a different set of nodes
  *
- * Per-vma policies are protected by mmap_sem. Allocations using per-task
+ * Per-vma policies are protected by mmap_lock. Allocations using per-task
  * policies are protected by task->mems_allowed_seq to prevent a premature
  * OOM/allocation failure due to parallel nodemask modification.
  */
@@ -398,17 +398,17 @@ void mpol_rebind_task(struct task_struct *tsk, const nodemask_t *new)
 /*
  * Rebind each vma in mm to new nodemask.
  *
- * Call holding a reference to mm.  Takes mm->mmap_sem during call.
+ * Call holding a reference to mm.  Takes mm->mmap_lock during call.
  */
 
 void mpol_rebind_mm(struct mm_struct *mm, nodemask_t *new)
 {
 	struct vm_area_struct *vma;
 
-	down_write(&mm->mmap_sem);
+	mmap_write_lock(mm);
 	for (vma = mm->mmap; vma; vma = vma->vm_next)
 		mpol_rebind_policy(vma->vm_policy, new);
-	up_write(&mm->mmap_sem);
+	mmap_write_unlock(mm);
 }
 
 static const struct mempolicy_operations mpol_ops[MPOL_MAX] = {
@@ -764,7 +764,7 @@ queue_pages_range(struct mm_struct *mm, unsigned long start, unsigned long end,
 
 /*
  * Apply policy to a single VMA
- * This must be called with the mmap_sem held for writing.
+ * This must be called with the mmap_lock held for writing.
  */
 static int vma_replace_policy(struct vm_area_struct *vma,
 						struct mempolicy *pol)
@@ -789,7 +789,7 @@ static int vma_replace_policy(struct vm_area_struct *vma,
 	}
 
 	old = vma->vm_policy;
-	vma->vm_policy = new; /* protected by mmap_sem */
+	vma->vm_policy = new; /* protected by mmap_lock */
 	mpol_put(old);
 
 	return 0;
@@ -927,15 +927,12 @@ static int lookup_node(struct mm_struct *mm, unsigned long addr)
 
 	int locked = 1;
 	err = get_user_pages_locked(addr & PAGE_MASK, 1, 0, &p, &locked);
-	if (err == 0) {
-		/* E.g. GUP interrupted by fatal signal */
-		err = -EFAULT;
-	} else if (err > 0) {
+	if (err > 0) {
 		err = page_to_nid(p);
 		put_page(p);
 	}
 	if (locked)
-		up_read(&mm->mmap_sem);
+		mmap_read_unlock(mm);
 	return err;
 }
 
@@ -968,10 +965,10 @@ static long do_get_mempolicy(int *policy, nodemask_t *nmask,
 		 * vma/shared policy at addr is NULL.  We
 		 * want to return MPOL_DEFAULT in this case.
 		 */
-		down_read(&mm->mmap_sem);
+		mmap_read_lock(mm);
 		vma = find_vma_intersection(mm, addr, addr+1);
 		if (!vma) {
-			up_read(&mm->mmap_sem);
+			mmap_read_unlock(mm);
 			return -EFAULT;
 		}
 		if (vma->vm_ops && vma->vm_ops->get_policy)
@@ -988,7 +985,7 @@ static long do_get_mempolicy(int *policy, nodemask_t *nmask,
 		if (flags & MPOL_F_ADDR) {
 			/*
 			 * Take a refcount on the mpol, lookup_node()
-			 * wil drop the mmap_sem, so after calling
+			 * wil drop the mmap_lock, so after calling
 			 * lookup_node() only "pol" remains valid, "vma"
 			 * is stale.
 			 */
@@ -1030,7 +1027,7 @@ static long do_get_mempolicy(int *policy, nodemask_t *nmask,
  out:
 	mpol_cond_put(pol);
 	if (vma)
-		up_read(&mm->mmap_sem);
+		mmap_read_unlock(mm);
 	if (pol_refcount)
 		mpol_put(pol_refcount);
 	return err;
@@ -1052,7 +1049,7 @@ static int migrate_page_add(struct page *page, struct list_head *pagelist,
 			list_add_tail(&head->lru, pagelist);
 			mod_node_page_state(page_pgdat(head),
 				NR_ISOLATED_ANON + page_is_file_lru(head),
-				hpage_nr_pages(head));
+				thp_nr_pages(head));
 		} else if (flags & MPOL_MF_STRICT) {
 			/*
 			 * Non-movable page may reach here.  And, there may be
@@ -1068,27 +1065,6 @@ static int migrate_page_add(struct page *page, struct list_head *pagelist,
 	return 0;
 }
 
-/* page allocation callback for NUMA node migration */
-struct page *alloc_new_node_page(struct page *page, unsigned long node)
-{
-	if (PageHuge(page))
-		return alloc_huge_page_node(page_hstate(compound_head(page)),
-					node);
-	else if (PageTransHuge(page)) {
-		struct page *thp;
-
-		thp = alloc_pages_node(node,
-			(GFP_TRANSHUGE | __GFP_THISNODE),
-			HPAGE_PMD_ORDER);
-		if (!thp)
-			return NULL;
-		prep_transhuge_page(thp);
-		return thp;
-	} else
-		return __alloc_pages_node(node, GFP_HIGHUSER_MOVABLE |
-						    __GFP_THISNODE, 0);
-}
-
 /*
  * Migrate pages from one node to a target node.
  * Returns error or the number of pages not migrated.
@@ -1099,6 +1075,10 @@ static int migrate_to_node(struct mm_struct *mm, int source, int dest,
 	nodemask_t nmask;
 	LIST_HEAD(pagelist);
 	int err = 0;
+	struct migration_target_control mtc = {
+		.nid = dest,
+		.gfp_mask = GFP_HIGHUSER_MOVABLE | __GFP_THISNODE,
+	};
 
 	nodes_clear(nmask);
 	node_set(source, nmask);
@@ -1113,8 +1093,8 @@ static int migrate_to_node(struct mm_struct *mm, int source, int dest,
 			flags | MPOL_MF_DISCONTIG_OK, &pagelist);
 
 	if (!list_empty(&pagelist)) {
-		err = migrate_pages(&pagelist, alloc_new_node_page, NULL, dest,
-					MIGRATE_SYNC, MR_SYSCALL);
+		err = migrate_pages(&pagelist, alloc_migration_target, NULL,
+				(unsigned long)&mtc, MIGRATE_SYNC, MR_SYSCALL);
 		if (err)
 			putback_movable_pages(&pagelist);
 	}
@@ -1139,7 +1119,7 @@ int do_migrate_pages(struct mm_struct *mm, const nodemask_t *from,
 	if (err)
 		return err;
 
-	down_read(&mm->mmap_sem);
+	mmap_read_lock(mm);
 
 	/*
 	 * Find a 'source' bit set in 'tmp' whose corresponding 'dest'
@@ -1220,7 +1200,7 @@ int do_migrate_pages(struct mm_struct *mm, const nodemask_t *from,
 		if (err < 0)
 			break;
 	}
-	up_read(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 	if (err < 0)
 		return err;
 	return busy;
@@ -1237,7 +1217,7 @@ int do_migrate_pages(struct mm_struct *mm, const nodemask_t *from,
 static struct page *new_page(struct page *page, unsigned long start)
 {
 	struct vm_area_struct *vma;
-	unsigned long uninitialized_var(address);
+	unsigned long address;
 
 	vma = find_vma(current->mm, start);
 	while (vma) {
@@ -1343,12 +1323,12 @@ static long do_mbind(unsigned long start, unsigned long len,
 	{
 		NODEMASK_SCRATCH(scratch);
 		if (scratch) {
-			down_write(&mm->mmap_sem);
+			mmap_write_lock(mm);
 			task_lock(current);
 			err = mpol_set_nodemask(new, nmask, scratch);
 			task_unlock(current);
 			if (err)
-				up_write(&mm->mmap_sem);
+				mmap_write_unlock(mm);
 		} else
 			err = -ENOMEM;
 		NODEMASK_SCRATCH_FREE(scratch);
@@ -1385,7 +1365,7 @@ up_out:
 			putback_movable_pages(&pagelist);
 	}
 
-	up_write(&mm->mmap_sem);
+	mmap_write_unlock(mm);
 mpol_out:
 	mpol_put(new);
 	return err;
@@ -1632,13 +1612,13 @@ static int kernel_get_mempolicy(int __user *policy,
 				unsigned long flags)
 {
 	int err;
-	int uninitialized_var(pval);
+	int pval;
 	nodemask_t nodes;
-
-	addr = untagged_addr(addr);
 
 	if (nmask != NULL && maxnode < nr_node_ids)
 		return -EINVAL;
+
+	addr = untagged_addr(addr);
 
 	err = do_get_mempolicy(&pval, &nodes, addr, flags);
 
@@ -1893,7 +1873,7 @@ static int apply_policy_zone(struct mempolicy *policy, enum zone_type zone)
  * Return a nodemask representing a mempolicy for filtering nodes for
  * page allocation
  */
-static nodemask_t *policy_nodemask(gfp_t gfp, struct mempolicy *policy)
+nodemask_t *policy_nodemask(gfp_t gfp, struct mempolicy *policy)
 {
 	/* Lower zones don't get a nodemask applied for MPOL_BIND */
 	if (unlikely(policy->mode == MPOL_BIND) &&
@@ -2188,7 +2168,7 @@ static struct page *alloc_page_interleave(gfp_t gfp, unsigned order,
  *
  * 	This function allocates a page from the kernel page pool and applies
  *	a NUMA policy associated with the VMA or the current process.
- *	When VMA is not NULL caller must hold down_read on the mmap_sem of the
+ *	When VMA is not NULL caller must read-lock the mmap_lock of the
  *	mm_struct of the VMA to prevent it from going away. Should be used for
  *	all allocations for pages that will be mapped into user space. Returns
  *	NULL when no page can be allocated.

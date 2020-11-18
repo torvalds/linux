@@ -13,18 +13,14 @@ static const char *__doc__ =
 #include <unistd.h>
 #include <locale.h>
 #include <sys/resource.h>
+#include <sys/sysinfo.h>
 #include <getopt.h>
 #include <net/if.h>
 #include <time.h>
 #include <linux/limits.h>
 
-#define __must_check
-#include <linux/err.h>
-
 #include <arpa/inet.h>
 #include <linux/if_link.h>
-
-#define MAX_CPUS 64 /* WARNING - sync with _kern.c */
 
 /* How many xdp_progs are defined in _kern.c */
 #define MAX_PROG 6
@@ -40,6 +36,7 @@ static char *ifname;
 static __u32 prog_id;
 
 static __u32 xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
+static int n_cpus;
 static int cpu_map_fd;
 static int rx_cnt_map_fd;
 static int redirect_err_cnt_map_fd;
@@ -73,6 +70,11 @@ static const struct option long_options[] = {
 	{"stress-mode", no_argument,		NULL, 'x' },
 	{"no-separators", no_argument,		NULL, 'z' },
 	{"force",	no_argument,		NULL, 'F' },
+	{"mprog-disable", no_argument,		NULL, 'n' },
+	{"mprog-name",	required_argument,	NULL, 'e' },
+	{"mprog-filename", required_argument,	NULL, 'f' },
+	{"redirect-device", required_argument,	NULL, 'r' },
+	{"redirect-map", required_argument,	NULL, 'm' },
 	{0, 0, NULL,  0 }
 };
 
@@ -159,6 +161,9 @@ struct datarec {
 	__u64 processed;
 	__u64 dropped;
 	__u64 issue;
+	__u64 xdp_pass;
+	__u64 xdp_drop;
+	__u64 xdp_redirect;
 };
 struct record {
 	__u64 timestamp;
@@ -170,7 +175,7 @@ struct stats_record {
 	struct record redir_err;
 	struct record kthread;
 	struct record exception;
-	struct record enq[MAX_CPUS];
+	struct record enq[];
 };
 
 static bool map_collect_percpu(int fd, __u32 key, struct record *rec)
@@ -178,6 +183,9 @@ static bool map_collect_percpu(int fd, __u32 key, struct record *rec)
 	/* For percpu maps, userspace gets a value per possible CPU */
 	unsigned int nr_cpus = bpf_num_possible_cpus();
 	struct datarec values[nr_cpus];
+	__u64 sum_xdp_redirect = 0;
+	__u64 sum_xdp_pass = 0;
+	__u64 sum_xdp_drop = 0;
 	__u64 sum_processed = 0;
 	__u64 sum_dropped = 0;
 	__u64 sum_issue = 0;
@@ -199,10 +207,19 @@ static bool map_collect_percpu(int fd, __u32 key, struct record *rec)
 		sum_dropped        += values[i].dropped;
 		rec->cpu[i].issue = values[i].issue;
 		sum_issue        += values[i].issue;
+		rec->cpu[i].xdp_pass = values[i].xdp_pass;
+		sum_xdp_pass += values[i].xdp_pass;
+		rec->cpu[i].xdp_drop = values[i].xdp_drop;
+		sum_xdp_drop += values[i].xdp_drop;
+		rec->cpu[i].xdp_redirect = values[i].xdp_redirect;
+		sum_xdp_redirect += values[i].xdp_redirect;
 	}
 	rec->total.processed = sum_processed;
 	rec->total.dropped   = sum_dropped;
 	rec->total.issue     = sum_issue;
+	rec->total.xdp_pass  = sum_xdp_pass;
+	rec->total.xdp_drop  = sum_xdp_drop;
+	rec->total.xdp_redirect = sum_xdp_redirect;
 	return true;
 }
 
@@ -210,11 +227,8 @@ static struct datarec *alloc_record_per_cpu(void)
 {
 	unsigned int nr_cpus = bpf_num_possible_cpus();
 	struct datarec *array;
-	size_t size;
 
-	size = sizeof(struct datarec) * nr_cpus;
-	array = malloc(size);
-	memset(array, 0, size);
+	array = calloc(nr_cpus, sizeof(struct datarec));
 	if (!array) {
 		fprintf(stderr, "Mem alloc error (nr_cpus:%u)\n", nr_cpus);
 		exit(EXIT_FAIL_MEM);
@@ -225,19 +239,20 @@ static struct datarec *alloc_record_per_cpu(void)
 static struct stats_record *alloc_stats_record(void)
 {
 	struct stats_record *rec;
-	int i;
+	int i, size;
 
-	rec = malloc(sizeof(*rec));
-	memset(rec, 0, sizeof(*rec));
+	size = sizeof(*rec) + n_cpus * sizeof(struct record);
+	rec = malloc(size);
 	if (!rec) {
 		fprintf(stderr, "Mem alloc error\n");
 		exit(EXIT_FAIL_MEM);
 	}
+	memset(rec, 0, size);
 	rec->rx_cnt.cpu    = alloc_record_per_cpu();
 	rec->redir_err.cpu = alloc_record_per_cpu();
 	rec->kthread.cpu   = alloc_record_per_cpu();
 	rec->exception.cpu = alloc_record_per_cpu();
-	for (i = 0; i < MAX_CPUS; i++)
+	for (i = 0; i < n_cpus; i++)
 		rec->enq[i].cpu = alloc_record_per_cpu();
 
 	return rec;
@@ -247,7 +262,7 @@ static void free_stats_record(struct stats_record *r)
 {
 	int i;
 
-	for (i = 0; i < MAX_CPUS; i++)
+	for (i = 0; i < n_cpus; i++)
 		free(r->enq[i].cpu);
 	free(r->exception.cpu);
 	free(r->kthread.cpu);
@@ -305,16 +320,32 @@ static __u64 calc_errs_pps(struct datarec *r,
 	return pps;
 }
 
+static void calc_xdp_pps(struct datarec *r, struct datarec *p,
+			 double *xdp_pass, double *xdp_drop,
+			 double *xdp_redirect, double period_)
+{
+	*xdp_pass = 0, *xdp_drop = 0, *xdp_redirect = 0;
+	if (period_ > 0) {
+		*xdp_redirect = (r->xdp_redirect - p->xdp_redirect) / period_;
+		*xdp_pass = (r->xdp_pass - p->xdp_pass) / period_;
+		*xdp_drop = (r->xdp_drop - p->xdp_drop) / period_;
+	}
+}
+
 static void stats_print(struct stats_record *stats_rec,
 			struct stats_record *stats_prev,
-			char *prog_name)
+			char *prog_name, char *mprog_name, int mprog_fd)
 {
 	unsigned int nr_cpus = bpf_num_possible_cpus();
 	double pps = 0, drop = 0, err = 0;
+	bool mprog_enabled = false;
 	struct record *rec, *prev;
 	int to_cpu;
 	double t;
 	int i;
+
+	if (mprog_fd > 0)
+		mprog_enabled = true;
 
 	/* Header */
 	printf("Running XDP/eBPF prog_name:%s\n", prog_name);
@@ -350,7 +381,7 @@ static void stats_print(struct stats_record *stats_rec,
 	}
 
 	/* cpumap enqueue stats */
-	for (to_cpu = 0; to_cpu < MAX_CPUS; to_cpu++) {
+	for (to_cpu = 0; to_cpu < n_cpus; to_cpu++) {
 		char *fmt = "%-15s %3d:%-3d %'-14.0f %'-11.0f %'-10.2f %s\n";
 		char *fm2 = "%-15s %3s:%-3d %'-14.0f %'-11.0f %'-10.2f %s\n";
 		char *errstr = "";
@@ -460,6 +491,34 @@ static void stats_print(struct stats_record *stats_rec,
 		printf(fm2_err, "xdp_exception", "total", pps, drop);
 	}
 
+	/* CPUMAP attached XDP program that runs on remote/destination CPU */
+	if (mprog_enabled) {
+		char *fmt_k = "%-15s %-7d %'-14.0f %'-11.0f %'-10.0f\n";
+		char *fm2_k = "%-15s %-7s %'-14.0f %'-11.0f %'-10.0f\n";
+		double xdp_pass, xdp_drop, xdp_redirect;
+
+		printf("\n2nd remote XDP/eBPF prog_name: %s\n", mprog_name);
+		printf("%-15s %-7s %-14s %-11s %-9s\n",
+		       "XDP-cpumap", "CPU:to", "xdp-pass", "xdp-drop", "xdp-redir");
+
+		rec  = &stats_rec->kthread;
+		prev = &stats_prev->kthread;
+		t = calc_period(rec, prev);
+		for (i = 0; i < nr_cpus; i++) {
+			struct datarec *r = &rec->cpu[i];
+			struct datarec *p = &prev->cpu[i];
+
+			calc_xdp_pps(r, p, &xdp_pass, &xdp_drop,
+				     &xdp_redirect, t);
+			if (xdp_pass > 0 || xdp_drop > 0 || xdp_redirect > 0)
+				printf(fmt_k, "xdp-in-kthread", i, xdp_pass, xdp_drop,
+				       xdp_redirect);
+		}
+		calc_xdp_pps(&rec->total, &prev->total, &xdp_pass, &xdp_drop,
+			     &xdp_redirect, t);
+		printf(fm2_k, "xdp-in-kthread", "total", xdp_pass, xdp_drop, xdp_redirect);
+	}
+
 	printf("\n");
 	fflush(stdout);
 }
@@ -475,7 +534,7 @@ static void stats_collect(struct stats_record *rec)
 	map_collect_percpu(fd, 1, &rec->redir_err);
 
 	fd = cpumap_enqueue_cnt_map_fd;
-	for (i = 0; i < MAX_CPUS; i++)
+	for (i = 0; i < n_cpus; i++)
 		map_collect_percpu(fd, i, &rec->enq[i]);
 
 	fd = cpumap_kthread_cnt_map_fd;
@@ -496,7 +555,7 @@ static inline void swap(struct stats_record **a, struct stats_record **b)
 	*b = tmp;
 }
 
-static int create_cpu_entry(__u32 cpu, __u32 queue_size,
+static int create_cpu_entry(__u32 cpu, struct bpf_cpumap_val *value,
 			    __u32 avail_idx, bool new)
 {
 	__u32 curr_cpus_count = 0;
@@ -506,7 +565,7 @@ static int create_cpu_entry(__u32 cpu, __u32 queue_size,
 	/* Add a CPU entry to cpumap, as this allocate a cpu entry in
 	 * the kernel for the cpu.
 	 */
-	ret = bpf_map_update_elem(cpu_map_fd, &cpu, &queue_size, 0);
+	ret = bpf_map_update_elem(cpu_map_fd, &cpu, value, 0);
 	if (ret) {
 		fprintf(stderr, "Create CPU entry failed (err:%d)\n", ret);
 		exit(EXIT_FAIL_BPF);
@@ -537,9 +596,9 @@ static int create_cpu_entry(__u32 cpu, __u32 queue_size,
 		}
 	}
 	/* map_fd[7] = cpus_iterator */
-	printf("%s CPU:%u as idx:%u queue_size:%d (total cpus_count:%u)\n",
+	printf("%s CPU:%u as idx:%u qsize:%d prog_fd: %d (cpus_count:%u)\n",
 	       new ? "Add-new":"Replace", cpu, avail_idx,
-	       queue_size, curr_cpus_count);
+	       value->qsize, value->bpf_prog.fd, curr_cpus_count);
 
 	return 0;
 }
@@ -549,10 +608,10 @@ static int create_cpu_entry(__u32 cpu, __u32 queue_size,
  */
 static void mark_cpus_unavailable(void)
 {
-	__u32 invalid_cpu = MAX_CPUS;
+	__u32 invalid_cpu = n_cpus;
 	int ret, i;
 
-	for (i = 0; i < MAX_CPUS; i++) {
+	for (i = 0; i < n_cpus; i++) {
 		ret = bpf_map_update_elem(cpus_available_map_fd, &i,
 					  &invalid_cpu, 0);
 		if (ret) {
@@ -563,21 +622,26 @@ static void mark_cpus_unavailable(void)
 }
 
 /* Stress cpumap management code by concurrently changing underlying cpumap */
-static void stress_cpumap(void)
+static void stress_cpumap(struct bpf_cpumap_val *value)
 {
 	/* Changing qsize will cause kernel to free and alloc a new
 	 * bpf_cpu_map_entry, with an associated/complicated tear-down
 	 * procedure.
 	 */
-	create_cpu_entry(1,  1024, 0, false);
-	create_cpu_entry(1,     8, 0, false);
-	create_cpu_entry(1, 16000, 0, false);
+	value->qsize = 1024;
+	create_cpu_entry(1, value, 0, false);
+	value->qsize = 8;
+	create_cpu_entry(1, value, 0, false);
+	value->qsize = 16000;
+	create_cpu_entry(1, value, 0, false);
 }
 
 static void stats_poll(int interval, bool use_separators, char *prog_name,
+		       char *mprog_name, struct bpf_cpumap_val *value,
 		       bool stress_mode)
 {
 	struct stats_record *record, *prev;
+	int mprog_fd;
 
 	record = alloc_stats_record();
 	prev   = alloc_stats_record();
@@ -589,11 +653,12 @@ static void stats_poll(int interval, bool use_separators, char *prog_name,
 
 	while (1) {
 		swap(&prev, &record);
+		mprog_fd = value->bpf_prog.fd;
 		stats_collect(record);
-		stats_print(record, prev, prog_name);
+		stats_print(record, prev, prog_name, mprog_name, mprog_fd);
 		sleep(interval);
 		if (stress_mode)
-			stress_cpumap();
+			stress_cpumap(value);
 	}
 
 	free_stats_record(record);
@@ -621,7 +686,7 @@ static struct bpf_link * attach_tp(struct bpf_object *obj,
 	}
 
 	link = bpf_program__attach_tracepoint(prog, tp_category, tp_name);
-	if (IS_ERR(link))
+	if (libbpf_get_error(link))
 		exit(EXIT_FAIL_BPF);
 
 	return link;
@@ -666,15 +731,66 @@ static int init_map_fds(struct bpf_object *obj)
 	return 0;
 }
 
+static int load_cpumap_prog(char *file_name, char *prog_name,
+			    char *redir_interface, char *redir_map)
+{
+	struct bpf_prog_load_attr prog_load_attr = {
+		.prog_type		= BPF_PROG_TYPE_XDP,
+		.expected_attach_type	= BPF_XDP_CPUMAP,
+		.file = file_name,
+	};
+	struct bpf_program *prog;
+	struct bpf_object *obj;
+	int fd;
+
+	if (bpf_prog_load_xattr(&prog_load_attr, &obj, &fd))
+		return -1;
+
+	if (fd < 0) {
+		fprintf(stderr, "ERR: bpf_prog_load_xattr: %s\n",
+			strerror(errno));
+		return fd;
+	}
+
+	if (redir_interface && redir_map) {
+		int err, map_fd, ifindex_out, key = 0;
+
+		map_fd = bpf_object__find_map_fd_by_name(obj, redir_map);
+		if (map_fd < 0)
+			return map_fd;
+
+		ifindex_out = if_nametoindex(redir_interface);
+		if (!ifindex_out)
+			return -1;
+
+		err = bpf_map_update_elem(map_fd, &key, &ifindex_out, 0);
+		if (err < 0)
+			return err;
+	}
+
+	prog = bpf_object__find_program_by_title(obj, prog_name);
+	if (!prog) {
+		fprintf(stderr, "bpf_object__find_program_by_title failed\n");
+		return EXIT_FAIL;
+	}
+
+	return bpf_program__fd(prog);
+}
+
 int main(int argc, char **argv)
 {
 	struct rlimit r = {10 * 1024 * 1024, RLIM_INFINITY};
 	char *prog_name = "xdp_cpu_map5_lb_hash_ip_pairs";
+	char *mprog_filename = "xdp_redirect_kern.o";
+	char *redir_interface = NULL, *redir_map = NULL;
+	char *mprog_name = "xdp_redirect_dummy";
+	bool mprog_disable = false;
 	struct bpf_prog_load_attr prog_load_attr = {
 		.prog_type	= BPF_PROG_TYPE_UNSPEC,
 	};
 	struct bpf_prog_info info = {};
 	__u32 info_len = sizeof(info);
+	struct bpf_cpumap_val value;
 	bool use_separators = true;
 	bool stress_mode = false;
 	struct bpf_program *prog;
@@ -686,7 +802,10 @@ int main(int argc, char **argv)
 	int add_cpu = -1;
 	int opt, err;
 	int prog_fd;
+	int *cpu, i;
 	__u32 qsize;
+
+	n_cpus = get_nprocs_conf();
 
 	/* Notice: choosing he queue size is very important with the
 	 * ixgbe driver, because it's driver page recycling trick is
@@ -719,8 +838,15 @@ int main(int argc, char **argv)
 	}
 	mark_cpus_unavailable();
 
+	cpu = malloc(n_cpus * sizeof(int));
+	if (!cpu) {
+		fprintf(stderr, "failed to allocate cpu array\n");
+		return EXIT_FAIL;
+	}
+	memset(cpu, 0, n_cpus * sizeof(int));
+
 	/* Parse commands line args */
-	while ((opt = getopt_long(argc, argv, "hSd:s:p:q:c:xzF",
+	while ((opt = getopt_long(argc, argv, "hSd:s:p:q:c:xzFf:e:r:m:",
 				  long_options, &longindex)) != -1) {
 		switch (opt) {
 		case 'd':
@@ -754,17 +880,31 @@ int main(int argc, char **argv)
 			/* Selecting eBPF prog to load */
 			prog_name = optarg;
 			break;
+		case 'n':
+			mprog_disable = true;
+			break;
+		case 'f':
+			mprog_filename = optarg;
+			break;
+		case 'e':
+			mprog_name = optarg;
+			break;
+		case 'r':
+			redir_interface = optarg;
+			break;
+		case 'm':
+			redir_map = optarg;
+			break;
 		case 'c':
 			/* Add multiple CPUs */
 			add_cpu = strtoul(optarg, NULL, 0);
-			if (add_cpu >= MAX_CPUS) {
+			if (add_cpu >= n_cpus) {
 				fprintf(stderr,
 				"--cpu nr too large for cpumap err(%d):%s\n",
 					errno, strerror(errno));
 				goto error;
 			}
-			create_cpu_entry(add_cpu, qsize, added_cpus, true);
-			added_cpus++;
+			cpu[added_cpus++] = add_cpu;
 			break;
 		case 'q':
 			qsize = atoi(optarg);
@@ -775,6 +915,7 @@ int main(int argc, char **argv)
 		case 'h':
 		error:
 		default:
+			free(cpu);
 			usage(argv, obj);
 			return EXIT_FAIL_OPTION;
 		}
@@ -787,15 +928,30 @@ int main(int argc, char **argv)
 	if (ifindex == -1) {
 		fprintf(stderr, "ERR: required option --dev missing\n");
 		usage(argv, obj);
-		return EXIT_FAIL_OPTION;
+		err = EXIT_FAIL_OPTION;
+		goto out;
 	}
 	/* Required option */
 	if (add_cpu == -1) {
 		fprintf(stderr, "ERR: required option --cpu missing\n");
 		fprintf(stderr, " Specify multiple --cpu option to add more\n");
 		usage(argv, obj);
-		return EXIT_FAIL_OPTION;
+		err = EXIT_FAIL_OPTION;
+		goto out;
 	}
+
+	value.bpf_prog.fd = 0;
+	if (!mprog_disable)
+		value.bpf_prog.fd = load_cpumap_prog(mprog_filename, mprog_name,
+						     redir_interface, redir_map);
+	if (value.bpf_prog.fd < 0) {
+		err = value.bpf_prog.fd;
+		goto out;
+	}
+	value.qsize = qsize;
+
+	for (i = 0; i < added_cpus; i++)
+		create_cpu_entry(cpu[i], &value, i, true);
 
 	/* Remove XDP program when program is interrupted or killed */
 	signal(SIGINT, int_exit);
@@ -804,27 +960,33 @@ int main(int argc, char **argv)
 	prog = bpf_object__find_program_by_title(obj, prog_name);
 	if (!prog) {
 		fprintf(stderr, "bpf_object__find_program_by_title failed\n");
-		return EXIT_FAIL;
+		err = EXIT_FAIL;
+		goto out;
 	}
 
 	prog_fd = bpf_program__fd(prog);
 	if (prog_fd < 0) {
 		fprintf(stderr, "bpf_program__fd failed\n");
-		return EXIT_FAIL;
+		err = EXIT_FAIL;
+		goto out;
 	}
 
 	if (bpf_set_link_xdp_fd(ifindex, prog_fd, xdp_flags) < 0) {
 		fprintf(stderr, "link set xdp fd failed\n");
-		return EXIT_FAIL_XDP;
+		err = EXIT_FAIL_XDP;
+		goto out;
 	}
 
 	err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
 	if (err) {
 		printf("can't get prog info - %s\n", strerror(errno));
-		return err;
+		goto out;
 	}
 	prog_id = info.id;
 
-	stats_poll(interval, use_separators, prog_name, stress_mode);
-	return EXIT_OK;
+	stats_poll(interval, use_separators, prog_name, mprog_name,
+		   &value, stress_mode);
+out:
+	free(cpu);
+	return err;
 }

@@ -21,6 +21,7 @@
 
 #ifndef __ASSEMBLY__
 
+#include <asm/cpufeature.h>
 #include <asm/pgtable-types.h>
 
 extern bool arm64_use_ng_mappings;
@@ -30,6 +31,16 @@ extern bool arm64_use_ng_mappings;
 
 #define PTE_MAYBE_NG		(arm64_use_ng_mappings ? PTE_NG : 0)
 #define PMD_MAYBE_NG		(arm64_use_ng_mappings ? PMD_SECT_NG : 0)
+
+/*
+ * If we have userspace only BTI we don't want to mark kernel pages
+ * guarded even if the system does support BTI.
+ */
+#ifdef CONFIG_ARM64_BTI_KERNEL
+#define PTE_MAYBE_GP		(system_supports_bti() ? PTE_GP : 0)
+#else
+#define PTE_MAYBE_GP		0
+#endif
 
 #define PROT_DEFAULT		(_PROT_DEFAULT | PTE_MAYBE_NG)
 #define PROT_SECT_DEFAULT	(_PROT_SECT_DEFAULT | PMD_MAYBE_NG)
@@ -56,7 +67,7 @@ extern bool arm64_use_ng_mappings;
 #define PAGE_HYP		__pgprot(_HYP_PAGE_DEFAULT | PTE_HYP | PTE_HYP_XN)
 #define PAGE_HYP_EXEC		__pgprot(_HYP_PAGE_DEFAULT | PTE_HYP | PTE_RDONLY)
 #define PAGE_HYP_RO		__pgprot(_HYP_PAGE_DEFAULT | PTE_HYP | PTE_RDONLY | PTE_HYP_XN)
-#define PAGE_HYP_DEVICE		__pgprot(PROT_DEVICE_nGnRE | PTE_HYP)
+#define PAGE_HYP_DEVICE		__pgprot(_PROT_DEFAULT | PTE_ATTRINDX(MT_DEVICE_nGnRE) | PTE_HYP | PTE_HYP_XN)
 
 #define PAGE_S2_MEMATTR(attr)						\
 	({								\

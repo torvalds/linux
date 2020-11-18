@@ -43,22 +43,22 @@ static int vcpu_get_tsc_scaling_frac_bits(void *data, u64 *val)
 
 DEFINE_SIMPLE_ATTRIBUTE(vcpu_tsc_scaling_frac_fops, vcpu_get_tsc_scaling_frac_bits, NULL, "%llu\n");
 
-void kvm_arch_create_vcpu_debugfs(struct kvm_vcpu *vcpu)
+void kvm_arch_create_vcpu_debugfs(struct kvm_vcpu *vcpu, struct dentry *debugfs_dentry)
 {
-	debugfs_create_file("tsc-offset", 0444, vcpu->debugfs_dentry, vcpu,
+	debugfs_create_file("tsc-offset", 0444, debugfs_dentry, vcpu,
 			    &vcpu_tsc_offset_fops);
 
 	if (lapic_in_kernel(vcpu))
 		debugfs_create_file("lapic_timer_advance_ns", 0444,
-				    vcpu->debugfs_dentry, vcpu,
+				    debugfs_dentry, vcpu,
 				    &vcpu_timer_advance_ns_fops);
 
 	if (kvm_has_tsc_control) {
 		debugfs_create_file("tsc-scaling-ratio", 0444,
-				    vcpu->debugfs_dentry, vcpu,
+				    debugfs_dentry, vcpu,
 				    &vcpu_tsc_scaling_fops);
 		debugfs_create_file("tsc-scaling-ratio-frac-bits", 0444,
-				    vcpu->debugfs_dentry, vcpu,
+				    debugfs_dentry, vcpu,
 				    &vcpu_tsc_scaling_frac_fops);
 	}
 }

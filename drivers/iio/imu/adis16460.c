@@ -87,8 +87,8 @@ static int adis16460_show_serial_number(void *arg, u64 *val)
 
 	return 0;
 }
-DEFINE_SIMPLE_ATTRIBUTE(adis16460_serial_number_fops,
-	adis16460_show_serial_number, NULL, "0x%.4llx\n");
+DEFINE_DEBUGFS_ATTRIBUTE(adis16460_serial_number_fops,
+		adis16460_show_serial_number, NULL, "0x%.4llx\n");
 
 static int adis16460_show_product_id(void *arg, u64 *val)
 {
@@ -105,8 +105,8 @@ static int adis16460_show_product_id(void *arg, u64 *val)
 
 	return 0;
 }
-DEFINE_SIMPLE_ATTRIBUTE(adis16460_product_id_fops,
-	adis16460_show_product_id, NULL, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(adis16460_product_id_fops,
+		adis16460_show_product_id, NULL, "%llu\n");
 
 static int adis16460_show_flash_count(void *arg, u64 *val)
 {
@@ -123,19 +123,20 @@ static int adis16460_show_flash_count(void *arg, u64 *val)
 
 	return 0;
 }
-DEFINE_SIMPLE_ATTRIBUTE(adis16460_flash_count_fops,
-	adis16460_show_flash_count, NULL, "%lld\n");
+DEFINE_DEBUGFS_ATTRIBUTE(adis16460_flash_count_fops,
+		adis16460_show_flash_count, NULL, "%lld\n");
 
 static int adis16460_debugfs_init(struct iio_dev *indio_dev)
 {
 	struct adis16460 *adis16460 = iio_priv(indio_dev);
+	struct dentry *d = iio_get_debugfs_dentry(indio_dev);
 
-	debugfs_create_file("serial_number", 0400, indio_dev->debugfs_dentry,
-		adis16460, &adis16460_serial_number_fops);
-	debugfs_create_file("product_id", 0400, indio_dev->debugfs_dentry,
-		adis16460, &adis16460_product_id_fops);
-	debugfs_create_file("flash_count", 0400, indio_dev->debugfs_dentry,
-		adis16460, &adis16460_flash_count_fops);
+	debugfs_create_file_unsafe("serial_number", 0400,
+			d, adis16460, &adis16460_serial_number_fops);
+	debugfs_create_file_unsafe("product_id", 0400,
+			d, adis16460, &adis16460_product_id_fops);
+	debugfs_create_file_unsafe("flash_count", 0400,
+			d, adis16460, &adis16460_flash_count_fops);
 
 	return 0;
 }
@@ -392,7 +393,6 @@ static int adis16460_probe(struct spi_device *spi)
 	st = iio_priv(indio_dev);
 
 	st->chip_info = &adis16460_chip_info;
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->channels = st->chip_info->channels;
 	indio_dev->num_channels = st->chip_info->num_channels;

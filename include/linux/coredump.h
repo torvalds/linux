@@ -22,4 +22,8 @@ extern void do_coredump(const kernel_siginfo_t *siginfo);
 static inline void do_coredump(const kernel_siginfo_t *siginfo) {}
 #endif
 
+extern int core_uses_pid;
+extern char core_pattern[];
+extern unsigned int core_pipe_limit;
+
 #endif /* _LINUX_COREDUMP_H */

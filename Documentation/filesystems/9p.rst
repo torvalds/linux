@@ -18,7 +18,7 @@ and Maya Gokhale.  Additional development by Greg Watson
 The best detailed explanation of the Linux implementation and applications of
 the 9p client is available in the form of a USENIX paper:
 
-   http://www.usenix.org/events/usenix05/tech/freenix/hensbergen.html
+   https://www.usenix.org/events/usenix05/tech/freenix/hensbergen.html
 
 Other applications are described in the following papers:
 
@@ -192,4 +192,4 @@ For more information on the Plan 9 Operating System check out
 http://plan9.bell-labs.com/plan9
 
 For information on Plan 9 from User Space (Plan 9 applications and libraries
-ported to Linux/BSD/OSX/etc) check out http://swtch.com/plan9
+ported to Linux/BSD/OSX/etc) check out https://9fans.github.io/plan9port/

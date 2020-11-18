@@ -17,7 +17,7 @@ menuconfig ATA
 	depends on BLOCK
 	select SCSI
 	select GLOB
-	---help---
+	help
 	  If you want to use an ATA hard disk, ATA tape drive, ATA CD-ROM or
 	  any other ATA device under Linux, say Y and make sure that you know
 	  the name of your ATA host adapter (the card inside your computer

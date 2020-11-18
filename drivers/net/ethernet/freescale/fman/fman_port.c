@@ -1344,10 +1344,10 @@ int fman_port_config(struct fman_port *port, struct fman_port_params *params)
 	switch (port->port_type) {
 	case FMAN_PORT_TYPE_RX:
 		set_rx_dflt_cfg(port, params);
-		/* fall through */
+		fallthrough;
 	case FMAN_PORT_TYPE_TX:
 		set_tx_dflt_cfg(port, params, &port->dts_params);
-		/* fall through */
+		fallthrough;
 	default:
 		set_dflt_cfg(port, params);
 	}
@@ -1767,6 +1767,7 @@ static int fman_port_probe(struct platform_device *of_dev)
 	struct fman_port *port;
 	struct fman *fman;
 	struct device_node *fm_node, *port_node;
+	struct platform_device *fm_pdev;
 	struct resource res;
 	struct resource *dev_res;
 	u32 val;
@@ -1791,8 +1792,14 @@ static int fman_port_probe(struct platform_device *of_dev)
 		goto return_err;
 	}
 
-	fman = dev_get_drvdata(&of_find_device_by_node(fm_node)->dev);
+	fm_pdev = of_find_device_by_node(fm_node);
 	of_node_put(fm_node);
+	if (!fm_pdev) {
+		err = -EINVAL;
+		goto return_err;
+	}
+
+	fman = dev_get_drvdata(&fm_pdev->dev);
 	if (!fman) {
 		err = -EINVAL;
 		goto return_err;

@@ -21,8 +21,8 @@
 /*
  * MegaRAID SAS Driver meta data
  */
-#define MEGASAS_VERSION				"07.713.01.00-rc1"
-#define MEGASAS_RELDATE				"Dec 27, 2019"
+#define MEGASAS_VERSION				"07.714.04.00-rc1"
+#define MEGASAS_RELDATE				"Apr 14, 2020"
 
 #define MEGASAS_MSIX_NAME_LEN			32
 
@@ -511,7 +511,7 @@ union MR_PROGRESS {
  */
 struct MR_PD_PROGRESS {
 	struct {
-#ifndef MFI_BIG_ENDIAN
+#ifndef __BIG_ENDIAN_BITFIELD
 		u32     rbld:1;
 		u32     patrol:1;
 		u32     clear:1;
@@ -537,7 +537,7 @@ struct MR_PD_PROGRESS {
 	};
 
 	struct {
-#ifndef MFI_BIG_ENDIAN
+#ifndef __BIG_ENDIAN_BITFIELD
 		u32     rbld:1;
 		u32     patrol:1;
 		u32     clear:1;
@@ -2709,4 +2709,24 @@ int megasas_adp_reset_wait_for_ready(struct megasas_instance *instance,
 				     int ocr_context);
 int megasas_irqpoll(struct irq_poll *irqpoll, int budget);
 void megasas_dump_fusion_io(struct scsi_cmnd *scmd);
+u32 megasas_readl(struct megasas_instance *instance,
+		  const volatile void __iomem *addr);
+struct megasas_cmd *megasas_get_cmd(struct megasas_instance *instance);
+void megasas_return_cmd(struct megasas_instance *instance,
+			struct megasas_cmd *cmd);
+int megasas_issue_polled(struct megasas_instance *instance,
+			 struct megasas_cmd *cmd);
+void megaraid_sas_kill_hba(struct megasas_instance *instance);
+void megasas_check_and_restore_queue_depth(struct megasas_instance *instance);
+void megasas_start_timer(struct megasas_instance *instance);
+int megasas_sriov_start_heartbeat(struct megasas_instance *instance,
+				  int initial);
+int megasas_alloc_cmds(struct megasas_instance *instance);
+void megasas_free_cmds(struct megasas_instance *instance);
+
+void megasas_init_debugfs(void);
+void megasas_exit_debugfs(void);
+void megasas_setup_debugfs(struct megasas_instance *instance);
+void megasas_destroy_debugfs(struct megasas_instance *instance);
+
 #endif				/*LSI_MEGARAID_SAS_H */

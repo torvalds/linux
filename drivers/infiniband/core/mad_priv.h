@@ -103,7 +103,7 @@ struct ib_mad_agent_private {
 	struct work_struct local_work;
 	struct list_head rmpp_list;
 
-	atomic_t refcount;
+	refcount_t refcount;
 	union {
 		struct completion comp;
 		struct rcu_head rcu;

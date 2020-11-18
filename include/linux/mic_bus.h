@@ -6,7 +6,7 @@
  *
  * Intel MIC Bus driver.
  *
- * This implementation is very similar to the the virtio bus driver
+ * This implementation is very similar to the virtio bus driver
  * implementation @ include/linux/virtio.h.
  */
 #ifndef _MIC_BUS_H_

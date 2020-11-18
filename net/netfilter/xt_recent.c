@@ -640,7 +640,7 @@ static void __net_exit recent_proc_net_exit(struct net *net)
 	struct recent_table *t;
 
 	/* recent_net_exit() is called before recent_mt_destroy(). Make sure
-	 * that the parent xt_recent proc entry is is empty before trying to
+	 * that the parent xt_recent proc entry is empty before trying to
 	 * remove it.
 	 */
 	spin_lock_bh(&recent_lock);

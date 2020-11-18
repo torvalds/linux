@@ -9,7 +9,7 @@
 
 struct mlxsw_sp2_mr_tcam {
 	struct mlxsw_sp *mlxsw_sp;
-	struct mlxsw_sp_acl_block *acl_block;
+	struct mlxsw_sp_flow_block *flow_block;
 	struct mlxsw_sp_acl_ruleset *ruleset4;
 	struct mlxsw_sp_acl_ruleset *ruleset6;
 };
@@ -61,7 +61,7 @@ static int mlxsw_sp2_mr_tcam_ipv4_init(struct mlxsw_sp2_mr_tcam *mr_tcam)
 				     mlxsw_sp2_mr_tcam_usage_ipv4,
 				     ARRAY_SIZE(mlxsw_sp2_mr_tcam_usage_ipv4));
 	mr_tcam->ruleset4 = mlxsw_sp_acl_ruleset_get(mr_tcam->mlxsw_sp,
-						     mr_tcam->acl_block,
+						     mr_tcam->flow_block,
 						     MLXSW_SP_L3_PROTO_IPV4,
 						     MLXSW_SP_ACL_PROFILE_MR,
 						     &elusage);
@@ -111,7 +111,7 @@ static int mlxsw_sp2_mr_tcam_ipv6_init(struct mlxsw_sp2_mr_tcam *mr_tcam)
 				     mlxsw_sp2_mr_tcam_usage_ipv6,
 				     ARRAY_SIZE(mlxsw_sp2_mr_tcam_usage_ipv6));
 	mr_tcam->ruleset6 = mlxsw_sp_acl_ruleset_get(mr_tcam->mlxsw_sp,
-						     mr_tcam->acl_block,
+						     mr_tcam->flow_block,
 						     MLXSW_SP_L3_PROTO_IPV6,
 						     MLXSW_SP_ACL_PROFILE_MR,
 						     &elusage);
@@ -289,8 +289,8 @@ static int mlxsw_sp2_mr_tcam_init(struct mlxsw_sp *mlxsw_sp, void *priv)
 	int err;
 
 	mr_tcam->mlxsw_sp = mlxsw_sp;
-	mr_tcam->acl_block = mlxsw_sp_acl_block_create(mlxsw_sp, NULL);
-	if (!mr_tcam->acl_block)
+	mr_tcam->flow_block = mlxsw_sp_flow_block_create(mlxsw_sp, NULL);
+	if (!mr_tcam->flow_block)
 		return -ENOMEM;
 
 	err = mlxsw_sp2_mr_tcam_ipv4_init(mr_tcam);
@@ -306,7 +306,7 @@ static int mlxsw_sp2_mr_tcam_init(struct mlxsw_sp *mlxsw_sp, void *priv)
 err_ipv6_init:
 	mlxsw_sp2_mr_tcam_ipv4_fini(mr_tcam);
 err_ipv4_init:
-	mlxsw_sp_acl_block_destroy(mr_tcam->acl_block);
+	mlxsw_sp_flow_block_destroy(mr_tcam->flow_block);
 	return err;
 }
 
@@ -316,7 +316,7 @@ static void mlxsw_sp2_mr_tcam_fini(void *priv)
 
 	mlxsw_sp2_mr_tcam_ipv6_fini(mr_tcam);
 	mlxsw_sp2_mr_tcam_ipv4_fini(mr_tcam);
-	mlxsw_sp_acl_block_destroy(mr_tcam->acl_block);
+	mlxsw_sp_flow_block_destroy(mr_tcam->flow_block);
 }
 
 const struct mlxsw_sp_mr_tcam_ops mlxsw_sp2_mr_tcam_ops = {

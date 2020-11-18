@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
 //
 // This file is provided under a dual BSD/GPLv2 license.  When using or
 // redistributing this file, you may do so under either license.
@@ -25,7 +25,7 @@ static int create_page_table(struct snd_soc_component *component,
 			     struct snd_pcm_substream *substream,
 			     unsigned char *dma_area, size_t size)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_sof_pcm *spcm;
 	struct snd_dma_buffer *dmab = snd_pcm_get_dma_buf(substream);
 	int stream = substream->stream;
@@ -71,7 +71,7 @@ void snd_sof_pcm_period_elapsed_work(struct work_struct *work)
  */
 void snd_sof_pcm_period_elapsed(struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_component *component =
 		snd_soc_rtdcom_lookup(rtd, SOF_AUDIO_PCM_DRV_NAME);
 	struct snd_sof_pcm *spcm;
@@ -120,7 +120,7 @@ static int sof_pcm_hw_params(struct snd_soc_component *component,
 			     struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
 	struct snd_sof_pcm *spcm;
@@ -237,7 +237,7 @@ static int sof_pcm_hw_params(struct snd_soc_component *component,
 static int sof_pcm_hw_free(struct snd_soc_component *component,
 			   struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
 	struct snd_sof_pcm *spcm;
 	int ret, err = 0;
@@ -273,7 +273,7 @@ static int sof_pcm_hw_free(struct snd_soc_component *component,
 static int sof_pcm_prepare(struct snd_soc_component *component,
 			   struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_sof_pcm *spcm;
 	int ret;
 
@@ -310,7 +310,7 @@ static int sof_pcm_prepare(struct snd_soc_component *component,
 static int sof_pcm_trigger(struct snd_soc_component *component,
 			   struct snd_pcm_substream *substream, int cmd)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
 	struct snd_sof_pcm *spcm;
 	struct sof_ipc_stream stream;
@@ -361,7 +361,7 @@ static int sof_pcm_trigger(struct snd_soc_component *component,
 			return ret;
 		}
 
-		/* fallthrough */
+		fallthrough;
 	case SNDRV_PCM_TRIGGER_START:
 		if (spcm->stream[substream->stream].suspend_ignored) {
 			/*
@@ -386,7 +386,7 @@ static int sof_pcm_trigger(struct snd_soc_component *component,
 			spcm->stream[substream->stream].suspend_ignored = true;
 			return 0;
 		}
-		/* fallthrough */
+		fallthrough;
 	case SNDRV_PCM_TRIGGER_STOP:
 		stream.hdr.cmd |= SOF_IPC_STREAM_TRIG_STOP;
 		ipc_first = true;
@@ -423,7 +423,7 @@ static int sof_pcm_trigger(struct snd_soc_component *component,
 static snd_pcm_uframes_t sof_pcm_pointer(struct snd_soc_component *component,
 					 struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
 	struct snd_sof_pcm *spcm;
 	snd_pcm_uframes_t host, dai;
@@ -456,7 +456,7 @@ static snd_pcm_uframes_t sof_pcm_pointer(struct snd_soc_component *component,
 static int sof_pcm_open(struct snd_soc_component *component,
 			struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
 	const struct snd_sof_dsp_ops *ops = sof_ops(sdev);
@@ -528,7 +528,7 @@ static int sof_pcm_open(struct snd_soc_component *component,
 static int sof_pcm_close(struct snd_soc_component *component,
 			 struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
 	struct snd_sof_pcm *spcm;
 	int err;
@@ -639,6 +639,7 @@ static int sof_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 		snd_soc_rtdcom_lookup(rtd, SOF_AUDIO_PCM_DRV_NAME);
 	struct snd_sof_dai *dai =
 		snd_sof_find_dai(component, (char *)rtd->dai_link->name);
+	struct snd_soc_dpcm *dpcm;
 
 	/* no topology exists for this BE, try a common configuration */
 	if (!dai) {
@@ -702,23 +703,40 @@ static int sof_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 		}
 		break;
 	case SOF_DAI_INTEL_HDA:
-		/* do nothing for HDA dai_link */
+		/*
+		 * HDaudio does not follow the default trigger
+		 * sequence due to firmware implementation
+		 */
+		for_each_dpcm_fe(rtd, SNDRV_PCM_STREAM_PLAYBACK, dpcm) {
+			struct snd_soc_pcm_runtime *fe = dpcm->fe;
+
+			fe->dai_link->trigger[SNDRV_PCM_STREAM_PLAYBACK] =
+				SND_SOC_DPCM_TRIGGER_POST;
+		}
 		break;
 	case SOF_DAI_INTEL_ALH:
 		/* do nothing for ALH dai_link */
 		break;
 	case SOF_DAI_IMX_ESAI:
+		rate->min = dai->dai_config->esai.fsync_rate;
+		rate->max = dai->dai_config->esai.fsync_rate;
 		channels->min = dai->dai_config->esai.tdm_slots;
 		channels->max = dai->dai_config->esai.tdm_slots;
 
+		dev_dbg(component->dev,
+			"rate_min: %d rate_max: %d\n", rate->min, rate->max);
 		dev_dbg(component->dev,
 			"channels_min: %d channels_max: %d\n",
 			channels->min, channels->max);
 		break;
 	case SOF_DAI_IMX_SAI:
+		rate->min = dai->dai_config->sai.fsync_rate;
+		rate->max = dai->dai_config->sai.fsync_rate;
 		channels->min = dai->dai_config->sai.tdm_slots;
 		channels->max = dai->dai_config->sai.tdm_slots;
 
+		dev_dbg(component->dev,
+			"rate_min: %d rate_max: %d\n", rate->min, rate->max);
 		dev_dbg(component->dev,
 			"channels_min: %d channels_max: %d\n",
 			channels->min, channels->max);
@@ -785,11 +803,11 @@ void snd_sof_new_platform_drv(struct snd_sof_dev *sdev)
 	pd->pointer = sof_pcm_pointer;
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_COMPRESS)
-	pd->compr_ops = &sof_compressed_ops;
+	pd->compress_ops = &sof_compressed_ops;
 #endif
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_PROBES)
 	/* override cops when probe support is enabled */
-	pd->compr_ops = &sof_probe_compressed_ops;
+	pd->compress_ops = &sof_probe_compressed_ops;
 #endif
 	pd->pcm_construct = sof_pcm_new;
 	pd->ignore_machine = drv_name;

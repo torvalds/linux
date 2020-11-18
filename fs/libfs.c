@@ -137,11 +137,11 @@ loff_t dcache_dir_lseek(struct file *file, loff_t offset, int whence)
 	switch (whence) {
 		case 1:
 			offset += file->f_pos;
-			/* fall through */
+			fallthrough;
 		case 0:
 			if (offset >= 0)
 				break;
-			/* fall through */
+			fallthrough;
 		default:
 			return -EINVAL;
 	}
@@ -1113,7 +1113,7 @@ int generic_file_fsync(struct file *file, loff_t start, loff_t end,
 	err = __generic_file_fsync(file, start, end, datasync);
 	if (err)
 		return err;
-	return blkdev_issue_flush(inode->i_sb->s_bdev, GFP_KERNEL, NULL);
+	return blkdev_issue_flush(inode->i_sb->s_bdev, GFP_KERNEL);
 }
 EXPORT_SYMBOL(generic_file_fsync);
 

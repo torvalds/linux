@@ -92,6 +92,9 @@ struct btrfs_ordered_extent {
 	/* compression algorithm */
 	int compress_type;
 
+	/* Qgroup reserved space */
+	int qgroup_rsv;
+
 	/* reference count */
 	refcount_t refs;
 
@@ -100,12 +103,6 @@ struct btrfs_ordered_extent {
 
 	/* list of checksums for insertion when the extent io is done */
 	struct list_head list;
-
-	/* If we need to wait on this to be done */
-	struct list_head log_list;
-
-	/* If the transaction needs to wait on this ordered extent */
-	struct list_head trans_list;
 
 	/* used to wait for the BTRFS_ORDERED_COMPLETE bit */
 	wait_queue_head_t wait;
@@ -150,23 +147,23 @@ void btrfs_remove_ordered_extent(struct inode *inode,
 int btrfs_dec_test_ordered_pending(struct inode *inode,
 				   struct btrfs_ordered_extent **cached,
 				   u64 file_offset, u64 io_size, int uptodate);
-int btrfs_dec_test_first_ordered_pending(struct inode *inode,
+int btrfs_dec_test_first_ordered_pending(struct btrfs_inode *inode,
 				   struct btrfs_ordered_extent **cached,
 				   u64 *file_offset, u64 io_size,
 				   int uptodate);
-int btrfs_add_ordered_extent(struct inode *inode, u64 file_offset,
+int btrfs_add_ordered_extent(struct btrfs_inode *inode, u64 file_offset,
 			     u64 disk_bytenr, u64 num_bytes, u64 disk_num_bytes,
 			     int type);
-int btrfs_add_ordered_extent_dio(struct inode *inode, u64 file_offset,
+int btrfs_add_ordered_extent_dio(struct btrfs_inode *inode, u64 file_offset,
 				 u64 disk_bytenr, u64 num_bytes,
 				 u64 disk_num_bytes, int type);
-int btrfs_add_ordered_extent_compress(struct inode *inode, u64 file_offset,
+int btrfs_add_ordered_extent_compress(struct btrfs_inode *inode, u64 file_offset,
 				      u64 disk_bytenr, u64 num_bytes,
 				      u64 disk_num_bytes, int type,
 				      int compress_type);
 void btrfs_add_ordered_sum(struct btrfs_ordered_extent *entry,
 			   struct btrfs_ordered_sum *sum);
-struct btrfs_ordered_extent *btrfs_lookup_ordered_extent(struct inode *inode,
+struct btrfs_ordered_extent *btrfs_lookup_ordered_extent(struct btrfs_inode *inode,
 							 u64 file_offset);
 void btrfs_start_ordered_extent(struct inode *inode,
 				struct btrfs_ordered_extent *entry, int wait);

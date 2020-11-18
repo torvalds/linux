@@ -416,14 +416,6 @@ static void __init cpg_mssr_register_mod_clk(const struct mssr_mod_clk *mod,
 	init.name = mod->name;
 	init.ops = &cpg_mstp_clock_ops;
 	init.flags = CLK_SET_RATE_PARENT;
-	for (i = 0; i < info->num_crit_mod_clks; i++)
-		if (id == info->crit_mod_clks[i]) {
-			dev_dbg(dev, "MSTP %s setting CLK_IS_CRITICAL\n",
-				mod->name);
-			init.flags |= CLK_IS_CRITICAL;
-			break;
-		}
-
 	parent_name = __clk_get_name(parent);
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
@@ -431,6 +423,15 @@ static void __init cpg_mssr_register_mod_clk(const struct mssr_mod_clk *mod,
 	clock->index = id - priv->num_core_clks;
 	clock->priv = priv;
 	clock->hw.init = &init;
+
+	for (i = 0; i < info->num_crit_mod_clks; i++)
+		if (id == info->crit_mod_clks[i] &&
+		    cpg_mstp_clock_is_enabled(&clock->hw)) {
+			dev_dbg(dev, "MSTP %s setting CLK_IS_CRITICAL\n",
+				mod->name);
+			init.flags |= CLK_IS_CRITICAL;
+			break;
+		}
 
 	clk = clk_register(NULL, &clock->hw);
 	if (IS_ERR(clk))
@@ -673,6 +674,12 @@ static const struct of_device_id cpg_mssr_match[] = {
 		.data = &r7s9210_cpg_mssr_info,
 	},
 #endif
+#ifdef CONFIG_CLK_R8A7742
+	{
+		.compatible = "renesas,r8a7742-cpg-mssr",
+		.data = &r8a7742_cpg_mssr_info,
+	},
+#endif
 #ifdef CONFIG_CLK_R8A7743
 	{
 		.compatible = "renesas,r8a7743-cpg-mssr",
@@ -712,6 +719,12 @@ static const struct of_device_id cpg_mssr_match[] = {
 	{
 		.compatible = "renesas,r8a774c0-cpg-mssr",
 		.data = &r8a774c0_cpg_mssr_info,
+	},
+#endif
+#ifdef CONFIG_CLK_R8A774E1
+	{
+		.compatible = "renesas,r8a774e1-cpg-mssr",
+		.data = &r8a774e1_cpg_mssr_info,
 	},
 #endif
 #ifdef CONFIG_CLK_R8A7790
@@ -812,7 +825,8 @@ static int cpg_mssr_suspend_noirq(struct device *dev)
 	/* Save module registers with bits under our control */
 	for (reg = 0; reg < ARRAY_SIZE(priv->smstpcr_saved); reg++) {
 		if (priv->smstpcr_saved[reg].mask)
-			priv->smstpcr_saved[reg].val =
+			priv->smstpcr_saved[reg].val = priv->stbyctrl ?
+				readb(priv->base + STBCR(reg)) :
 				readl(priv->base + SMSTPCR(reg));
 	}
 
@@ -872,8 +886,9 @@ static int cpg_mssr_resume_noirq(struct device *dev)
 		}
 
 		if (!i)
-			dev_warn(dev, "Failed to enable SMSTP %p[0x%x]\n",
-				 priv->base + SMSTPCR(reg), oldval & mask);
+			dev_warn(dev, "Failed to enable %s%u[0x%x]\n",
+				 priv->stbyctrl ? "STB" : "SMSTP", reg,
+				 oldval & mask);
 	}
 
 	return 0;

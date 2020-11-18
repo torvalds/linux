@@ -538,12 +538,12 @@ void trace_event_follow_fork(struct trace_array *tr, bool enable)
 	if (enable) {
 		register_trace_prio_sched_process_fork(event_filter_pid_sched_process_fork,
 						       tr, INT_MIN);
-		register_trace_prio_sched_process_exit(event_filter_pid_sched_process_exit,
+		register_trace_prio_sched_process_free(event_filter_pid_sched_process_exit,
 						       tr, INT_MAX);
 	} else {
 		unregister_trace_sched_process_fork(event_filter_pid_sched_process_fork,
 						    tr);
-		unregister_trace_sched_process_exit(event_filter_pid_sched_process_exit,
+		unregister_trace_sched_process_free(event_filter_pid_sched_process_exit,
 						    tr);
 	}
 }
@@ -2208,6 +2208,10 @@ event_create_dir(struct dentry *parent, struct trace_event_file *file)
 #ifdef CONFIG_HIST_TRIGGERS
 	trace_create_file("hist", 0444, file->dir, file,
 			  &event_hist_fops);
+#endif
+#ifdef CONFIG_HIST_TRIGGERS_DEBUG
+	trace_create_file("hist_debug", 0444, file->dir, file,
+			  &event_hist_debug_fops);
 #endif
 	trace_create_file("format", 0444, file->dir, call,
 			  &ftrace_event_format_fops);

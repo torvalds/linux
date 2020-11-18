@@ -29,6 +29,8 @@
 #include "f2fs.h"
 #include "xattr.h"
 
+#define F2FS_VERIFY_VER	(1)
+
 static inline loff_t f2fs_verity_metadata_pos(const struct inode *inode)
 {
 	return round_up(inode->i_size, 65536);
@@ -152,7 +154,7 @@ static int f2fs_end_enable_verity(struct file *filp, const void *desc,
 	struct inode *inode = file_inode(filp);
 	u64 desc_pos = f2fs_verity_metadata_pos(inode) + merkle_tree_size;
 	struct fsverity_descriptor_location dloc = {
-		.version = cpu_to_le32(1),
+		.version = cpu_to_le32(F2FS_VERIFY_VER),
 		.size = cpu_to_le32(desc_size),
 		.pos = cpu_to_le64(desc_pos),
 	};
@@ -199,7 +201,7 @@ static int f2fs_get_verity_descriptor(struct inode *inode, void *buf,
 			    F2FS_XATTR_NAME_VERITY, &dloc, sizeof(dloc), NULL);
 	if (res < 0 && res != -ERANGE)
 		return res;
-	if (res != sizeof(dloc) || dloc.version != cpu_to_le32(1)) {
+	if (res != sizeof(dloc) || dloc.version != cpu_to_le32(F2FS_VERIFY_VER)) {
 		f2fs_warn(F2FS_I_SB(inode), "unknown verity xattr format");
 		return -EINVAL;
 	}
@@ -222,37 +224,6 @@ static int f2fs_get_verity_descriptor(struct inode *inode, void *buf,
 	return size;
 }
 
-/*
- * Prefetch some pages from the file's Merkle tree.
- *
- * This is basically a stripped-down version of __do_page_cache_readahead()
- * which works on pages past i_size.
- */
-static void f2fs_merkle_tree_readahead(struct address_space *mapping,
-				       pgoff_t start_index, unsigned long count)
-{
-	LIST_HEAD(pages);
-	unsigned int nr_pages = 0;
-	struct page *page;
-	pgoff_t index;
-	struct blk_plug plug;
-
-	for (index = start_index; index < start_index + count; index++) {
-		page = xa_load(&mapping->i_pages, index);
-		if (!page || xa_is_value(page)) {
-			page = __page_cache_alloc(readahead_gfp_mask(mapping));
-			if (!page)
-				break;
-			page->index = index;
-			list_add(&page->lru, &pages);
-			nr_pages++;
-		}
-	}
-	blk_start_plug(&plug);
-	f2fs_mpage_readpages(mapping, &pages, NULL, nr_pages, true);
-	blk_finish_plug(&plug);
-}
-
 static struct page *f2fs_read_merkle_tree_page(struct inode *inode,
 					       pgoff_t index,
 					       unsigned long num_ra_pages)
@@ -266,8 +237,8 @@ static struct page *f2fs_read_merkle_tree_page(struct inode *inode,
 		if (page)
 			put_page(page);
 		else if (num_ra_pages > 1)
-			f2fs_merkle_tree_readahead(inode->i_mapping, index,
-						   num_ra_pages);
+			page_cache_readahead_unbounded(inode->i_mapping, NULL,
+					index, num_ra_pages, 0);
 		page = read_mapping_page(inode->i_mapping, index, NULL);
 	}
 	return page;

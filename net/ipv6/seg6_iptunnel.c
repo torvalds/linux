@@ -27,6 +27,23 @@
 #include <net/seg6_hmac.h>
 #endif
 
+static size_t seg6_lwt_headroom(struct seg6_iptunnel_encap *tuninfo)
+{
+	int head = 0;
+
+	switch (tuninfo->mode) {
+	case SEG6_IPTUN_MODE_INLINE:
+		break;
+	case SEG6_IPTUN_MODE_ENCAP:
+		head = sizeof(struct ipv6hdr);
+		break;
+	case SEG6_IPTUN_MODE_L2ENCAP:
+		return 0;
+	}
+
+	return ((tuninfo->srh->hdrlen + 1) << 3) + head;
+}
+
 struct seg6_lwt {
 	struct dst_cache cache;
 	struct seg6_iptunnel_encap tuninfo[];
@@ -426,7 +443,7 @@ static int seg6_build_state(struct net *net, struct nlattr *nla,
 	}
 
 	/* verify that SRH is consistent */
-	if (!seg6_validate_srh(tuninfo->srh, tuninfo_len - sizeof(*tuninfo)))
+	if (!seg6_validate_srh(tuninfo->srh, tuninfo_len - sizeof(*tuninfo), false))
 		return -EINVAL;
 
 	newts = lwtunnel_state_alloc(tuninfo_len + sizeof(*slwt));

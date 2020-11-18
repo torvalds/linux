@@ -229,8 +229,6 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 	if (p)
 		kfree_rcu(p, rcu);
 
-	if (ret == ACT_P_CREATED)
-		tcf_idr_insert(tn, *a);
 	return ret;
 put_chain:
 	if (goto_ch)
@@ -302,13 +300,13 @@ static int tcf_vlan_walker(struct net *net, struct sk_buff *skb,
 	return tcf_generic_walker(tn, skb, cb, type, ops, extack);
 }
 
-static void tcf_vlan_stats_update(struct tc_action *a, u64 bytes, u32 packets,
-				  u64 lastuse, bool hw)
+static void tcf_vlan_stats_update(struct tc_action *a, u64 bytes, u64 packets,
+				  u64 drops, u64 lastuse, bool hw)
 {
 	struct tcf_vlan *v = to_vlan(a);
 	struct tcf_t *tm = &v->tcf_tm;
 
-	tcf_action_update_stats(a, bytes, packets, false, hw);
+	tcf_action_update_stats(a, bytes, packets, drops, hw);
 	tm->lastuse = max_t(u64, tm->lastuse, lastuse);
 }
 

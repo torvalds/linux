@@ -131,6 +131,11 @@ static int spear_thermal_probe(struct platform_device *pdev)
 		ret = PTR_ERR(spear_thermal);
 		goto disable_clk;
 	}
+	ret = thermal_zone_device_enable(spear_thermal);
+	if (ret) {
+		dev_err(&pdev->dev, "Cannot enable thermal zone\n");
+		goto unregister_tzd;
+	}
 
 	platform_set_drvdata(pdev, spear_thermal);
 
@@ -139,6 +144,8 @@ static int spear_thermal_probe(struct platform_device *pdev)
 
 	return 0;
 
+unregister_tzd:
+	thermal_zone_device_unregister(spear_thermal);
 disable_clk:
 	clk_disable(stdev->clk);
 

@@ -333,7 +333,6 @@ static int s3c_adc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct adc_device *adc;
-	struct resource *regs;
 	enum s3c_cpu_type cpu = platform_get_device_id(pdev)->driver_data;
 	int ret;
 	unsigned tmp;
@@ -354,10 +353,8 @@ static int s3c_adc_probe(struct platform_device *pdev)
 	}
 
 	adc->irq = platform_get_irq(pdev, 1);
-	if (adc->irq <= 0) {
-		dev_err(dev, "failed to get adc irq\n");
+	if (adc->irq <= 0)
 		return -ENOENT;
-	}
 
 	ret = devm_request_irq(dev, adc->irq, s3c_adc_irq, 0, dev_name(dev),
 				adc);
@@ -372,8 +369,7 @@ static int s3c_adc_probe(struct platform_device *pdev)
 		return PTR_ERR(adc->clk);
 	}
 
-	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	adc->regs = devm_ioremap_resource(dev, regs);
+	adc->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(adc->regs))
 		return PTR_ERR(adc->regs);
 

@@ -132,7 +132,7 @@ struct cifs_ace {
 /*
  * The current SMB3 form of security descriptor is similar to what was used for
  * cifs (see above) but some fields are split, and fields in the struct below
- * matches names of fields to the the spec, MS-DTYP (see sections 2.4.5 and
+ * matches names of fields to the spec, MS-DTYP (see sections 2.4.5 and
  * 2.4.6). Note that "CamelCase" fields are used in this struct in order to
  * match the MS-DTYP and MS-SMB2 specs which define the wire format.
  */
@@ -176,6 +176,21 @@ struct smb3_acl {
 	__le16 Sbz2; /* MBZ */
 } __packed;
 
+/*
+ * Used to store the special 'NFS SIDs' used to persist the POSIX uid and gid
+ * See http://technet.microsoft.com/en-us/library/hh509017(v=ws.10).aspx
+ */
+struct owner_sid {
+	u8 Revision;
+	u8 NumAuth;
+	u8 Authority[6];
+	__le32 SubAuthorities[3];
+} __packed;
+
+struct owner_group_sids {
+	struct owner_sid owner;
+	struct owner_sid group;
+} __packed;
 
 /*
  * Minimum security identifier can be one for system defined Users

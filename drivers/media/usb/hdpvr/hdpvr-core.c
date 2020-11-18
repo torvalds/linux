@@ -363,9 +363,9 @@ static int hdpvr_probe(struct usb_interface *interface,
 	}
 
 	client = hdpvr_register_ir_i2c(dev);
-	if (!client) {
+	if (IS_ERR(client)) {
 		v4l2_err(&dev->v4l2_dev, "i2c IR device register failed\n");
-		retval = -ENODEV;
+		retval = PTR_ERR(client);
 		goto reg_fail;
 	}
 #endif

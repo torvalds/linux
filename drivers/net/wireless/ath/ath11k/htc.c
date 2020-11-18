@@ -5,8 +5,8 @@
 #include <linux/skbuff.h>
 #include <linux/ctype.h>
 
-#include "ahb.h"
 #include "debug.h"
+#include "hif.h"
 
 struct sk_buff *ath11k_htc_alloc_skb(struct ath11k_base *ab, int size)
 {
@@ -672,7 +672,7 @@ setup:
 	/* copy all the callbacks */
 	ep->ep_ops = conn_req->ep_ops;
 
-	status = ath11k_ahb_map_service_to_pipe(htc->ab,
+	status = ath11k_hif_map_service_to_pipe(htc->ab,
 						ep->service_id,
 						&ep->ul_pipe_id,
 						&ep->dl_pipe_id);

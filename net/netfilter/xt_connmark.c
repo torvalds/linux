@@ -2,7 +2,7 @@
 /*
  *	xt_connmark - Netfilter module to operate on connection marks
  *
- *	Copyright (C) 2002,2004 MARA Systems AB <http://www.marasystems.com>
+ *	Copyright (C) 2002,2004 MARA Systems AB <https://www.marasystems.com>
  *	by Henrik Nordstrom <hno@marasystems.com>
  *	Copyright © CC Computer Consultants GmbH, 2007 - 2008
  *	Jan Engelhardt <jengelh@medozas.de>

@@ -239,7 +239,7 @@ static int mmc35240_init(struct mmc35240_data *data)
 		return ret;
 
 	ret = regmap_bulk_read(data->regmap, MMC35240_OTP_START_ADDR,
-			       (u8 *)otp_data, sizeof(otp_data));
+			       otp_data, sizeof(otp_data));
 	if (ret < 0)
 		return ret;
 
@@ -295,13 +295,13 @@ static int mmc35240_read_measurement(struct mmc35240_data *data, __le16 buf[3])
 	if (ret < 0)
 		return ret;
 
-	return regmap_bulk_read(data->regmap, MMC35240_REG_XOUT_L, (u8 *)buf,
+	return regmap_bulk_read(data->regmap, MMC35240_REG_XOUT_L, buf,
 				3 * sizeof(__le16));
 }
 
 /**
  * mmc35240_raw_to_mgauss - convert raw readings to milli gauss. Also apply
-			    compensation for output value.
+ *			    compensation for output value.
  *
  * @data: device private data
  * @index: axis index for which we want the conversion
@@ -459,7 +459,7 @@ static bool mmc35240_is_volatile_reg(struct device *dev, unsigned int reg)
 	}
 }
 
-static struct reg_default mmc35240_reg_defaults[] = {
+static const struct reg_default mmc35240_reg_defaults[] = {
 	{ MMC35240_REG_CTRL0,  0x00 },
 	{ MMC35240_REG_CTRL1,  0x00 },
 };
@@ -507,7 +507,6 @@ static int mmc35240_probe(struct i2c_client *client,
 
 	mutex_init(&data->mutex);
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &mmc35240_info;
 	indio_dev->name = MMC35240_DRV_NAME;
 	indio_dev->channels = mmc35240_channels;

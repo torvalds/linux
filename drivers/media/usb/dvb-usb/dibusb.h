@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2004-5 Patrick Boettcher (patrick.boettcher@posteo.de)
  *
- * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
+ * see Documentation/driver-api/media/drivers/dvb-usb.rst for more information
  */
 #ifndef _DVB_USB_DIBUSB_H_
 #define _DVB_USB_DIBUSB_H_

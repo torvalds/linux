@@ -270,7 +270,6 @@ static int noa1305_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &noa1305_info;
 	indio_dev->channels = noa1305_channels;
 	indio_dev->num_channels = ARRAY_SIZE(noa1305_channels);

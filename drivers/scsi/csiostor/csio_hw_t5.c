@@ -148,12 +148,11 @@ csio_t5_mc_read(struct csio_hw *hw, int idx, uint32_t addr, __be32 *data,
 {
 	int i;
 	uint32_t mc_bist_cmd_reg, mc_bist_cmd_addr_reg, mc_bist_cmd_len_reg;
-	uint32_t mc_bist_status_rdata_reg, mc_bist_data_pattern_reg;
+	uint32_t mc_bist_data_pattern_reg;
 
 	mc_bist_cmd_reg = MC_REG(MC_P_BIST_CMD_A, idx);
 	mc_bist_cmd_addr_reg = MC_REG(MC_P_BIST_CMD_ADDR_A, idx);
 	mc_bist_cmd_len_reg = MC_REG(MC_P_BIST_CMD_LEN_A, idx);
-	mc_bist_status_rdata_reg = MC_REG(MC_P_BIST_STATUS_RDATA_A, idx);
 	mc_bist_data_pattern_reg = MC_REG(MC_P_BIST_DATA_PATTERN_A, idx);
 
 	if (csio_rd_reg32(hw, mc_bist_cmd_reg) & START_BIST_F)
@@ -196,7 +195,7 @@ csio_t5_edc_read(struct csio_hw *hw, int idx, uint32_t addr, __be32 *data,
 {
 	int i;
 	uint32_t edc_bist_cmd_reg, edc_bist_cmd_addr_reg, edc_bist_cmd_len_reg;
-	uint32_t edc_bist_cmd_data_pattern, edc_bist_status_rdata_reg;
+	uint32_t edc_bist_cmd_data_pattern;
 
 /*
  * These macro are missing in t4_regs.h file.
@@ -208,7 +207,6 @@ csio_t5_edc_read(struct csio_hw *hw, int idx, uint32_t addr, __be32 *data,
 	edc_bist_cmd_addr_reg = EDC_REG_T5(EDC_H_BIST_CMD_ADDR_A, idx);
 	edc_bist_cmd_len_reg = EDC_REG_T5(EDC_H_BIST_CMD_LEN_A, idx);
 	edc_bist_cmd_data_pattern = EDC_REG_T5(EDC_H_BIST_DATA_PATTERN_A, idx);
-	edc_bist_status_rdata_reg = EDC_REG_T5(EDC_H_BIST_STATUS_RDATA_A, idx);
 #undef EDC_REG_T5
 #undef EDC_STRIDE_T5
 

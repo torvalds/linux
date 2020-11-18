@@ -36,34 +36,6 @@
 #include "dce/dce_8_0_d.h"
 #include "dce/dce_8_0_sh_mask.h"
 
-struct dce80_hw_seq_reg_offsets {
-	uint32_t crtc;
-};
-
-static const struct dce80_hw_seq_reg_offsets reg_offsets[] = {
-{
-	.crtc = (mmCRTC0_CRTC_GSL_CONTROL - mmCRTC_GSL_CONTROL),
-},
-{
-	.crtc = (mmCRTC1_CRTC_GSL_CONTROL - mmCRTC_GSL_CONTROL),
-},
-{
-	.crtc = (mmCRTC2_CRTC_GSL_CONTROL - mmCRTC_GSL_CONTROL),
-},
-{
-	.crtc = (mmCRTC3_CRTC_GSL_CONTROL - mmCRTC_GSL_CONTROL),
-},
-{
-	.crtc = (mmCRTC4_CRTC_GSL_CONTROL - mmCRTC_GSL_CONTROL),
-},
-{
-	.crtc = (mmCRTC5_CRTC_GSL_CONTROL - mmCRTC_GSL_CONTROL),
-}
-};
-
-#define HW_REG_CRTC(reg, id)\
-	(reg + reg_offsets[id].crtc)
-
 /*******************************************************************************
  * Private definitions
  ******************************************************************************/

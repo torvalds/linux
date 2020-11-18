@@ -313,14 +313,14 @@ u8 b43legacy_radio_aci_scan(struct b43legacy_wldev *dev)
 	return ret[channel - 1];
 }
 
-/* http://bcm-specs.sipsolutions.net/NRSSILookupTable */
+/* https://bcm-specs.sipsolutions.net/NRSSILookupTable */
 void b43legacy_nrssi_hw_write(struct b43legacy_wldev *dev, u16 offset, s16 val)
 {
 	b43legacy_phy_write(dev, B43legacy_PHY_NRSSILT_CTRL, offset);
 	b43legacy_phy_write(dev, B43legacy_PHY_NRSSILT_DATA, (u16)val);
 }
 
-/* http://bcm-specs.sipsolutions.net/NRSSILookupTable */
+/* https://bcm-specs.sipsolutions.net/NRSSILookupTable */
 s16 b43legacy_nrssi_hw_read(struct b43legacy_wldev *dev, u16 offset)
 {
 	u16 val;
@@ -331,7 +331,7 @@ s16 b43legacy_nrssi_hw_read(struct b43legacy_wldev *dev, u16 offset)
 	return (s16)val;
 }
 
-/* http://bcm-specs.sipsolutions.net/NRSSILookupTable */
+/* https://bcm-specs.sipsolutions.net/NRSSILookupTable */
 void b43legacy_nrssi_hw_update(struct b43legacy_wldev *dev, u16 val)
 {
 	u16 i;
@@ -345,7 +345,7 @@ void b43legacy_nrssi_hw_update(struct b43legacy_wldev *dev, u16 val)
 	}
 }
 
-/* http://bcm-specs.sipsolutions.net/NRSSILookupTable */
+/* https://bcm-specs.sipsolutions.net/NRSSILookupTable */
 void b43legacy_nrssi_mem_update(struct b43legacy_wldev *dev)
 {
 	struct b43legacy_phy *phy = &dev->phy;

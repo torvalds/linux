@@ -23,7 +23,6 @@ const char *const rxrpc_call_states[NR__RXRPC_CALL_STATES] = {
 	[RXRPC_CALL_CLIENT_RECV_REPLY]		= "ClRcvRpl",
 	[RXRPC_CALL_SERVER_PREALLOC]		= "SvPrealc",
 	[RXRPC_CALL_SERVER_SECURING]		= "SvSecure",
-	[RXRPC_CALL_SERVER_ACCEPTING]		= "SvAccept",
 	[RXRPC_CALL_SERVER_RECV_REQUEST]	= "SvRcvReq",
 	[RXRPC_CALL_SERVER_ACK_REQUEST]		= "SvAckReq",
 	[RXRPC_CALL_SERVER_SEND_REPLY]		= "SvSndRpl",
@@ -153,6 +152,7 @@ struct rxrpc_call *rxrpc_alloc_call(struct rxrpc_sock *rx, gfp_t gfp,
 	call->cong_ssthresh = RXRPC_RXTX_BUFF_SIZE - 1;
 
 	call->rxnet = rxnet;
+	call->rtt_avail = RXRPC_CALL_RTT_AVAIL_MASK;
 	atomic_inc(&rxnet->nr_calls);
 	return call;
 
@@ -288,7 +288,7 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 	 */
 	ret = rxrpc_connect_call(rx, call, cp, srx, gfp);
 	if (ret < 0)
-		goto error;
+		goto error_attached_to_socket;
 
 	trace_rxrpc_call(call->debug_id, rxrpc_call_connected,
 			 atomic_read(&call->usage), here, NULL);
@@ -308,18 +308,29 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 error_dup_user_ID:
 	write_unlock(&rx->call_lock);
 	release_sock(&rx->sk);
-	ret = -EEXIST;
-
-error:
 	__rxrpc_set_call_completion(call, RXRPC_CALL_LOCAL_ERROR,
-				    RX_CALL_DEAD, ret);
+				    RX_CALL_DEAD, -EEXIST);
 	trace_rxrpc_call(call->debug_id, rxrpc_call_error,
-			 atomic_read(&call->usage), here, ERR_PTR(ret));
+			 atomic_read(&call->usage), here, ERR_PTR(-EEXIST));
 	rxrpc_release_call(rx, call);
 	mutex_unlock(&call->user_mutex);
 	rxrpc_put_call(call, rxrpc_call_put);
-	_leave(" = %d", ret);
-	return ERR_PTR(ret);
+	_leave(" = -EEXIST");
+	return ERR_PTR(-EEXIST);
+
+	/* We got an error, but the call is attached to the socket and is in
+	 * need of release.  However, we might now race with recvmsg() when
+	 * completing the call queues it.  Return 0 from sys_sendmsg() and
+	 * leave the error to recvmsg() to deal with.
+	 */
+error_attached_to_socket:
+	trace_rxrpc_call(call->debug_id, rxrpc_call_error,
+			 atomic_read(&call->usage), here, ERR_PTR(ret));
+	set_bit(RXRPC_CALL_DISCONNECTED, &call->flags);
+	__rxrpc_set_call_completion(call, RXRPC_CALL_LOCAL_ERROR,
+				    RX_CALL_DEAD, ret);
+	_leave(" = c=%08x [err]", call->debug_id);
+	return call;
 }
 
 /*
@@ -340,9 +351,7 @@ void rxrpc_incoming_call(struct rxrpc_sock *rx,
 	call->call_id		= sp->hdr.callNumber;
 	call->service_id	= sp->hdr.serviceId;
 	call->cid		= sp->hdr.cid;
-	call->state		= RXRPC_CALL_SERVER_ACCEPTING;
-	if (sp->hdr.securityIndex > 0)
-		call->state	= RXRPC_CALL_SERVER_SECURING;
+	call->state		= RXRPC_CALL_SERVER_SECURING;
 	call->cong_tstamp	= skb->tstamp;
 
 	/* Set the channel for this call.  We don't get channel_lock as we're

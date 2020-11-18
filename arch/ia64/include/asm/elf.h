@@ -179,8 +179,6 @@ extern void ia64_init_addr_space (void);
 #define ELF_AR_SSD_OFFSET  (56 * sizeof(elf_greg_t))
 #define ELF_AR_END_OFFSET  (57 * sizeof(elf_greg_t))
 
-typedef unsigned long elf_fpxregset_t;
-
 typedef unsigned long elf_greg_t;
 typedef elf_greg_t elf_gregset_t[ELF_NGREG];
 

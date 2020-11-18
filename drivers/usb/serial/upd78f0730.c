@@ -332,7 +332,7 @@ static void upd78f0730_set_termios(struct tty_struct *tty,
 		tty->termios.c_cflag &= ~CSIZE;
 		tty->termios.c_cflag |= CS8;
 		dev_warn(dev, "data size is not supported, using 8 bits\n");
-		/* fall through */
+		fallthrough;
 	case CS8:
 		request.params |= UPD78F0730_DATA_SIZE_8_BITS;
 		dev_dbg(dev, "%s - 8 data bits\n", __func__);

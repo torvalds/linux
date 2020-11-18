@@ -17,16 +17,16 @@
 记录的；“make htmldocs”或“make pdfdocs”可用于以HTML或PDF格式生成这些文档（
 尽管某些发行版提供的tex版本会遇到内部限制，无法正确处理文档）。
 
-不同的网站在各个细节层次上讨论内核开发。您的作者想谦虚地建议用 http://lwn.net/
+不同的网站在各个细节层次上讨论内核开发。您的作者想谦虚地建议用 https://lwn.net/
 作为来源；有关许多特定内核主题的信息可以通过以下网址的lwn内核索引找到：
 
         http://lwn.net/kernel/index/
 
 除此之外，内核开发人员的一个宝贵资源是：
 
-        http://kernelnewbies.org/
+        https://kernelnewbies.org/
 
-当然，我们不应该忘记 http://kernel.org/ 这是内核发布信息的最终位置。
+当然，我们不应该忘记 https://kernel.org/ 这是内核发布信息的最终位置。
 
 关于内核开发有很多书：
 
@@ -42,9 +42,9 @@
 
 有关git的文档，请访问：
 
-        http://www.kernel.org/pub/software/scm/git/docs/
+        https://www.kernel.org/pub/software/scm/git/docs/
 
-        http://www.kernel.org/pub/software/scm/git/docs/user-manual.html
+        https://www.kernel.org/pub/software/scm/git/docs/user-manual.html
 
 结论
 ====

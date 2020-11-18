@@ -11,6 +11,7 @@
 
 #include <linux/compiler.h>
 #include <linux/types.h>
+#include <linux/list.h>
 #include <linux/printk.h>
 #include <linux/bug.h>
 #include <errno.h>
@@ -109,8 +110,6 @@ static inline void free_page(unsigned long addr)
 	const typeof( ((type *)0)->member ) *__mptr = (ptr);	\
 	(type *)( (char *)__mptr - offsetof(type,member) );})
 
-#define uninitialized_var(x) x = x
-
 # ifndef likely
 #  define likely(x)	(__builtin_expect(!!(x), 1))
 # endif
@@ -134,11 +133,5 @@ static inline void free_page(unsigned long addr)
 	typeof(y) _min2 = (y);			\
 	(void) (&_min1 == &_min2);		\
 	_min1 < _min2 ? _min1 : _min2; })
-
-/* TODO: empty stubs for now. Broken but enough for virtio_ring.c */
-#define list_add_tail(a, b) do {} while (0)
-#define list_del(a) do {} while (0)
-#define list_for_each_entry(a, b, c) while (0)
-/* end of stubs */
 
 #endif /* KERNEL_H */

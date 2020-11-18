@@ -200,6 +200,8 @@ struct mtd_debug_info {
  *
  * @node: list node used to add an MTD partition to the parent partition list
  * @offset: offset of the partition relatively to the parent offset
+ * @size: partition size. Should be equal to mtd->size unless
+ *	  MTD_SLC_ON_MLC_EMULATION is set
  * @flags: original flags (before the mtdpart logic decided to tweak them based
  *	   on flash constraints, like eraseblock/pagesize alignment)
  *
@@ -209,6 +211,7 @@ struct mtd_debug_info {
 struct mtd_part {
 	struct list_head node;
 	u64 offset;
+	u64 size;
 	u32 flags;
 };
 
@@ -622,7 +625,9 @@ static inline uint32_t mtd_mod_by_ws(uint64_t sz, struct mtd_info *mtd)
 
 static inline int mtd_wunit_per_eb(struct mtd_info *mtd)
 {
-	return mtd->erasesize / mtd->writesize;
+	struct mtd_info *master = mtd_get_master(mtd);
+
+	return master->erasesize / mtd->writesize;
 }
 
 static inline int mtd_offset_to_wunit(struct mtd_info *mtd, loff_t offs)

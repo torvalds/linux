@@ -193,7 +193,7 @@ static inline void sched_clear_itmt_support(void)
 }
 #endif /* CONFIG_SCHED_MC_PRIO */
 
-#ifdef CONFIG_SMP
+#if defined(CONFIG_SMP) && defined(CONFIG_X86_64)
 #include <asm/cpufeature.h>
 
 DECLARE_STATIC_KEY_FALSE(arch_scale_freq_key);

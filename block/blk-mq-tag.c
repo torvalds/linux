@@ -56,43 +56,12 @@ void __blk_mq_tag_idle(struct blk_mq_hw_ctx *hctx)
 	blk_mq_tag_wakeup_all(tags, false);
 }
 
-/*
- * For shared tag users, we track the number of currently active users
- * and attempt to provide a fair share of the tag depth for each of them.
- */
-static inline bool hctx_may_queue(struct blk_mq_hw_ctx *hctx,
-				  struct sbitmap_queue *bt)
-{
-	unsigned int depth, users;
-
-	if (!hctx || !(hctx->flags & BLK_MQ_F_TAG_SHARED))
-		return true;
-	if (!test_bit(BLK_MQ_S_TAG_ACTIVE, &hctx->state))
-		return true;
-
-	/*
-	 * Don't try dividing an ant
-	 */
-	if (bt->sb.depth == 1)
-		return true;
-
-	users = atomic_read(&hctx->tags->active_queues);
-	if (!users)
-		return true;
-
-	/*
-	 * Allow at least some tags
-	 */
-	depth = max((bt->sb.depth + users - 1) / users, 4U);
-	return atomic_read(&hctx->nr_active) < depth;
-}
-
 static int __blk_mq_get_tag(struct blk_mq_alloc_data *data,
 			    struct sbitmap_queue *bt)
 {
-	if (!(data->flags & BLK_MQ_REQ_INTERNAL) &&
-	    !hctx_may_queue(data->hctx, bt))
-		return -1;
+	if (!data->q->elevator && !hctx_may_queue(data->hctx, bt))
+		return BLK_MQ_NO_TAG;
+
 	if (data->shallow_depth)
 		return __sbitmap_queue_get_shallow(bt, data->shallow_depth);
 	else
@@ -111,7 +80,7 @@ unsigned int blk_mq_get_tag(struct blk_mq_alloc_data *data)
 	if (data->flags & BLK_MQ_REQ_RESERVED) {
 		if (unlikely(!tags->nr_reserved_tags)) {
 			WARN_ON_ONCE(1);
-			return BLK_MQ_TAG_FAIL;
+			return BLK_MQ_NO_TAG;
 		}
 		bt = &tags->breserved_tags;
 		tag_offset = 0;
@@ -121,11 +90,11 @@ unsigned int blk_mq_get_tag(struct blk_mq_alloc_data *data)
 	}
 
 	tag = __blk_mq_get_tag(data, bt);
-	if (tag != -1)
+	if (tag != BLK_MQ_NO_TAG)
 		goto found_tag;
 
 	if (data->flags & BLK_MQ_REQ_NOWAIT)
-		return BLK_MQ_TAG_FAIL;
+		return BLK_MQ_NO_TAG;
 
 	ws = bt_wait_ptr(bt, data->hctx);
 	do {
@@ -143,13 +112,13 @@ unsigned int blk_mq_get_tag(struct blk_mq_alloc_data *data)
 		 * as running the queue may also have found completions.
 		 */
 		tag = __blk_mq_get_tag(data, bt);
-		if (tag != -1)
+		if (tag != BLK_MQ_NO_TAG)
 			break;
 
 		sbitmap_prepare_to_wait(bt, ws, &wait, TASK_UNINTERRUPTIBLE);
 
 		tag = __blk_mq_get_tag(data, bt);
-		if (tag != -1)
+		if (tag != BLK_MQ_NO_TAG)
 			break;
 
 		bt_prev = bt;
@@ -180,6 +149,14 @@ unsigned int blk_mq_get_tag(struct blk_mq_alloc_data *data)
 	sbitmap_finish_wait(bt, ws, &wait);
 
 found_tag:
+	/*
+	 * Give up this allocation if the hctx is inactive.  The caller will
+	 * retry on an active hctx.
+	 */
+	if (unlikely(test_bit(BLK_MQ_S_INACTIVE, &data->hctx->state))) {
+		blk_mq_put_tag(tags, data->ctx, tag + tag_offset);
+		return BLK_MQ_NO_TAG;
+	}
 	return tag + tag_offset;
 }
 
@@ -256,14 +233,18 @@ struct bt_tags_iter_data {
 	struct blk_mq_tags *tags;
 	busy_tag_iter_fn *fn;
 	void *data;
-	bool reserved;
+	unsigned int flags;
 };
+
+#define BT_TAG_ITER_RESERVED		(1 << 0)
+#define BT_TAG_ITER_STARTED		(1 << 1)
+#define BT_TAG_ITER_STATIC_RQS		(1 << 2)
 
 static bool bt_tags_iter(struct sbitmap *bitmap, unsigned int bitnr, void *data)
 {
 	struct bt_tags_iter_data *iter_data = data;
 	struct blk_mq_tags *tags = iter_data->tags;
-	bool reserved = iter_data->reserved;
+	bool reserved = iter_data->flags & BT_TAG_ITER_RESERVED;
 	struct request *rq;
 
 	if (!reserved)
@@ -271,13 +252,18 @@ static bool bt_tags_iter(struct sbitmap *bitmap, unsigned int bitnr, void *data)
 
 	/*
 	 * We can hit rq == NULL here, because the tagging functions
-	 * test and set the bit before assining ->rqs[].
+	 * test and set the bit before assigning ->rqs[].
 	 */
-	rq = tags->rqs[bitnr];
-	if (rq && blk_mq_request_started(rq))
-		return iter_data->fn(rq, iter_data->data, reserved);
-
-	return true;
+	if (iter_data->flags & BT_TAG_ITER_STATIC_RQS)
+		rq = tags->static_rqs[bitnr];
+	else
+		rq = tags->rqs[bitnr];
+	if (!rq)
+		return true;
+	if ((iter_data->flags & BT_TAG_ITER_STARTED) &&
+	    !blk_mq_request_started(rq))
+		return true;
+	return iter_data->fn(rq, iter_data->data, reserved);
 }
 
 /**
@@ -290,39 +276,49 @@ static bool bt_tags_iter(struct sbitmap *bitmap, unsigned int bitnr, void *data)
  *		@reserved) where rq is a pointer to a request. Return true
  *		to continue iterating tags, false to stop.
  * @data:	Will be passed as second argument to @fn.
- * @reserved:	Indicates whether @bt is the breserved_tags member or the
- *		bitmap_tags member of struct blk_mq_tags.
+ * @flags:	BT_TAG_ITER_*
  */
 static void bt_tags_for_each(struct blk_mq_tags *tags, struct sbitmap_queue *bt,
-			     busy_tag_iter_fn *fn, void *data, bool reserved)
+			     busy_tag_iter_fn *fn, void *data, unsigned int flags)
 {
 	struct bt_tags_iter_data iter_data = {
 		.tags = tags,
 		.fn = fn,
 		.data = data,
-		.reserved = reserved,
+		.flags = flags,
 	};
 
 	if (tags->rqs)
 		sbitmap_for_each_set(&bt->sb, bt_tags_iter, &iter_data);
 }
 
+static void __blk_mq_all_tag_iter(struct blk_mq_tags *tags,
+		busy_tag_iter_fn *fn, void *priv, unsigned int flags)
+{
+	WARN_ON_ONCE(flags & BT_TAG_ITER_RESERVED);
+
+	if (tags->nr_reserved_tags)
+		bt_tags_for_each(tags, &tags->breserved_tags, fn, priv,
+				 flags | BT_TAG_ITER_RESERVED);
+	bt_tags_for_each(tags, &tags->bitmap_tags, fn, priv, flags);
+}
+
 /**
- * blk_mq_all_tag_busy_iter - iterate over all started requests in a tag map
+ * blk_mq_all_tag_iter - iterate over all requests in a tag map
  * @tags:	Tag map to iterate over.
- * @fn:		Pointer to the function that will be called for each started
+ * @fn:		Pointer to the function that will be called for each
  *		request. @fn will be called as follows: @fn(rq, @priv,
  *		reserved) where rq is a pointer to a request. 'reserved'
  *		indicates whether or not @rq is a reserved request. Return
  *		true to continue iterating tags, false to stop.
  * @priv:	Will be passed as second argument to @fn.
+ *
+ * Caller has to pass the tag map from which requests are allocated.
  */
-static void blk_mq_all_tag_busy_iter(struct blk_mq_tags *tags,
-		busy_tag_iter_fn *fn, void *priv)
+void blk_mq_all_tag_iter(struct blk_mq_tags *tags, busy_tag_iter_fn *fn,
+		void *priv)
 {
-	if (tags->nr_reserved_tags)
-		bt_tags_for_each(tags, &tags->breserved_tags, fn, priv, true);
-	bt_tags_for_each(tags, &tags->bitmap_tags, fn, priv, false);
+	__blk_mq_all_tag_iter(tags, fn, priv, BT_TAG_ITER_STATIC_RQS);
 }
 
 /**
@@ -342,7 +338,8 @@ void blk_mq_tagset_busy_iter(struct blk_mq_tag_set *tagset,
 
 	for (i = 0; i < tagset->nr_hw_queues; i++) {
 		if (tagset->tags && tagset->tags[i])
-			blk_mq_all_tag_busy_iter(tagset->tags[i], fn, priv);
+			__blk_mq_all_tag_iter(tagset->tags[i], fn, priv,
+					      BT_TAG_ITER_STARTED);
 	}
 }
 EXPORT_SYMBOL(blk_mq_tagset_busy_iter);

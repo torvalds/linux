@@ -16,7 +16,7 @@
 #include <linux/power_supply.h>
 #include <linux/errno.h>
 #include <linux/delay.h>
-#include <linux/vermagic.h>
+#include <generated/utsrelease.h>
 
 enum test_power_id {
 	TEST_AC,
@@ -34,7 +34,7 @@ static int battery_technology		= POWER_SUPPLY_TECHNOLOGY_LION;
 static int battery_capacity		= 50;
 static int battery_voltage		= 3300;
 static int battery_charge_counter	= -1000;
-static int battery_current		= 1600;
+static int battery_current		= -1600;
 
 static bool module_initialized;
 

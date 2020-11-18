@@ -32,6 +32,8 @@
 #ifndef __MLX5_EN_XDP_H__
 #define __MLX5_EN_XDP_H__
 
+#include <linux/indirect_call_wrapper.h>
+
 #include "en.h"
 #include "en/txrx.h"
 
@@ -39,8 +41,6 @@
 #define MLX5E_XDP_TX_EMPTY_DS_COUNT \
 	(sizeof(struct mlx5e_tx_wqe) / MLX5_SEND_WQE_DS)
 #define MLX5E_XDP_TX_DS_COUNT (MLX5E_XDP_TX_EMPTY_DS_COUNT + 1 /* SG DS */)
-
-#define MLX5E_XDPSQ_STOP_ROOM (MLX5E_SQ_STOP_ROOM)
 
 #define MLX5E_XDP_INLINE_WQE_SZ_THRSD (256 - sizeof(struct mlx5_wqe_inline_seg))
 #define MLX5E_XDP_INLINE_WQE_MAX_DS_CNT \
@@ -63,7 +63,7 @@
 struct mlx5e_xsk_param;
 int mlx5e_xdp_max_mtu(struct mlx5e_params *params, struct mlx5e_xsk_param *xsk);
 bool mlx5e_xdp_handle(struct mlx5e_rq *rq, struct mlx5e_dma_info *di,
-		      void *va, u16 *rx_headroom, u32 *len, bool xsk);
+		      u32 *len, struct xdp_buff *xdp);
 void mlx5e_xdp_mpwqe_complete(struct mlx5e_xdpsq *sq);
 bool mlx5e_poll_xdpsq_cq(struct mlx5e_cq *cq);
 void mlx5e_free_xdpsq_descs(struct mlx5e_xdpsq *sq);
@@ -71,6 +71,17 @@ void mlx5e_set_xmit_fp(struct mlx5e_xdpsq *sq, bool is_mpw);
 void mlx5e_xdp_rx_poll_complete(struct mlx5e_rq *rq);
 int mlx5e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 		   u32 flags);
+
+INDIRECT_CALLABLE_DECLARE(bool mlx5e_xmit_xdp_frame_mpwqe(struct mlx5e_xdpsq *sq,
+							  struct mlx5e_xdp_xmit_data *xdptxd,
+							  struct mlx5e_xdp_info *xdpi,
+							  int check_result));
+INDIRECT_CALLABLE_DECLARE(bool mlx5e_xmit_xdp_frame(struct mlx5e_xdpsq *sq,
+						    struct mlx5e_xdp_xmit_data *xdptxd,
+						    struct mlx5e_xdp_info *xdpi,
+						    int check_result));
+INDIRECT_CALLABLE_DECLARE(int mlx5e_xmit_xdp_frame_check_mpwqe(struct mlx5e_xdpsq *sq));
+INDIRECT_CALLABLE_DECLARE(int mlx5e_xmit_xdp_frame_check(struct mlx5e_xdpsq *sq));
 
 static inline void mlx5e_xdp_tx_enable(struct mlx5e_priv *priv)
 {
@@ -137,22 +148,10 @@ mlx5e_xdp_no_room_for_inline_pkt(struct mlx5e_xdp_mpwqe *session)
 	       session->ds_count + MLX5E_XDP_INLINE_WQE_MAX_DS_CNT > MLX5E_XDP_MPW_MAX_NUM_DS;
 }
 
-static inline void
-mlx5e_fill_xdpsq_frag_edge(struct mlx5e_xdpsq *sq, struct mlx5_wq_cyc *wq,
-			   u16 pi, u16 nnops)
-{
-	struct mlx5e_xdp_wqe_info *edge_wi, *wi = &sq->db.wqe_info[pi];
-
-	edge_wi = wi + nnops;
-	/* fill sq frag edge with nops to avoid wqe wrapping two pages */
-	for (; wi < edge_wi; wi++) {
-		wi->num_wqebbs = 1;
-		wi->num_pkts   = 0;
-		mlx5e_post_nop(wq, sq->sqn, &sq->pc);
-	}
-
-	sq->stats->nops += nnops;
-}
+struct mlx5e_xdp_wqe_info {
+	u8 num_wqebbs;
+	u8 num_pkts;
+};
 
 static inline void
 mlx5e_xdp_mpwqe_add_dseg(struct mlx5e_xdpsq *sq,
@@ -184,19 +183,6 @@ mlx5e_xdp_mpwqe_add_dseg(struct mlx5e_xdpsq *sq,
 	dseg->byte_count = cpu_to_be32(dma_len);
 	dseg->lkey       = sq->mkey_be;
 	session->ds_count++;
-}
-
-static inline struct mlx5e_tx_wqe *
-mlx5e_xdpsq_fetch_wqe(struct mlx5e_xdpsq *sq, u16 *pi)
-{
-	struct mlx5_wq_cyc *wq = &sq->wq;
-	struct mlx5e_tx_wqe *wqe;
-
-	*pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
-	wqe = mlx5_wq_cyc_get_wqe(wq, *pi);
-	memset(wqe, 0, sizeof(*wqe));
-
-	return wqe;
 }
 
 static inline void

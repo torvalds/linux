@@ -301,7 +301,7 @@ static int tas571x_hw_params(struct snd_pcm_substream *substream,
 				  TAS571X_SDI_FMT_MASK, val);
 }
 
-static int tas571x_mute(struct snd_soc_dai *dai, int mute)
+static int tas571x_mute(struct snd_soc_dai *dai, int mute, int direction)
 {
 	struct snd_soc_component *component = dai->component;
 	u8 sysctl2;
@@ -354,7 +354,8 @@ static int tas571x_set_bias_level(struct snd_soc_component *component,
 static const struct snd_soc_dai_ops tas571x_dai_ops = {
 	.set_fmt	= tas571x_set_dai_fmt,
 	.hw_params	= tas571x_hw_params,
-	.digital_mute	= tas571x_mute,
+	.mute_stream	= tas571x_mute,
+	.no_capture_mute = 1,
 };
 
 

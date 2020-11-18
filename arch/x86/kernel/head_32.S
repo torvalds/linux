@@ -134,38 +134,7 @@ SYM_CODE_START(startup_32)
 	movl %eax,pa(initial_page_table+0xffc)
 #endif
 
-#ifdef CONFIG_PARAVIRT
-	/* This is can only trip for a broken bootloader... */
-	cmpw $0x207, pa(boot_params + BP_version)
-	jb .Ldefault_entry
-
-	/* Paravirt-compatible boot parameters.  Look to see what architecture
-		we're booting under. */
-	movl pa(boot_params + BP_hardware_subarch), %eax
-	cmpl $num_subarch_entries, %eax
-	jae .Lbad_subarch
-
-	movl pa(subarch_entries)(,%eax,4), %eax
-	subl $__PAGE_OFFSET, %eax
-	jmp *%eax
-
-.Lbad_subarch:
-SYM_INNER_LABEL_ALIGN(xen_entry, SYM_L_WEAK)
-	/* Unknown implementation; there's really
-	   nothing we can do at this point. */
-	ud2a
-
-	__INITDATA
-
-subarch_entries:
-	.long .Ldefault_entry		/* normal x86/PC */
-	.long xen_entry			/* Xen hypervisor */
-	.long .Ldefault_entry		/* Moorestown MID */
-num_subarch_entries = (. - subarch_entries) / 4
-.previous
-#else
 	jmp .Ldefault_entry
-#endif /* CONFIG_PARAVIRT */
 SYM_CODE_END(startup_32)
 
 #ifdef CONFIG_HOTPLUG_CPU

@@ -370,8 +370,8 @@ static int otx2_forward_vf_mbox_msgs(struct otx2_nic *pf,
 		dst_mbox = &pf->mbox;
 		dst_size = dst_mbox->mbox.tx_size -
 				ALIGN(sizeof(*mbox_hdr), MBOX_MSG_ALIGN);
-		/* Check if msgs fit into destination area */
-		if (mbox_hdr->msg_size > dst_size)
+		/* Check if msgs fit into destination area and has valid size */
+		if (mbox_hdr->msg_size > dst_size || !mbox_hdr->msg_size)
 			return -EINVAL;
 
 		dst_mdev = &dst_mbox->mbox.dev[0];
@@ -526,10 +526,10 @@ static void otx2_pfvf_mbox_up_handler(struct work_struct *work)
 
 end:
 		offset = mbox->rx_start + msg->next_msgoff;
+		if (mdev->msgs_acked == (vf_mbox->up_num_msgs - 1))
+			__otx2_mbox_reset(mbox, 0);
 		mdev->msgs_acked++;
 	}
-
-	otx2_mbox_reset(mbox, vf_idx);
 }
 
 static irqreturn_t otx2_pfvf_mbox_intr_handler(int irq, void *pf_irq)
@@ -803,10 +803,11 @@ static void otx2_pfaf_mbox_handler(struct work_struct *work)
 		msg = (struct mbox_msghdr *)(mdev->mbase + offset);
 		otx2_process_pfaf_mbox_msg(pf, msg);
 		offset = mbox->rx_start + msg->next_msgoff;
+		if (mdev->msgs_acked == (af_mbox->num_msgs - 1))
+			__otx2_mbox_reset(mbox, 0);
 		mdev->msgs_acked++;
 	}
 
-	otx2_mbox_reset(mbox, 0);
 }
 
 static void otx2_handle_link_event(struct otx2_nic *pf)
@@ -1560,10 +1561,13 @@ int otx2_open(struct net_device *netdev)
 
 	err = otx2_rxtx_enable(pf, true);
 	if (err)
-		goto err_free_cints;
+		goto err_tx_stop_queues;
 
 	return 0;
 
+err_tx_stop_queues:
+	netif_tx_stop_all_queues(netdev);
+	netif_carrier_off(netdev);
 err_free_cints:
 	otx2_free_cints(pf, qidx);
 	vec = pci_irq_vector(pf->pdev,
@@ -1730,10 +1734,12 @@ static void otx2_reset_task(struct work_struct *work)
 	if (!netif_running(pf->netdev))
 		return;
 
+	rtnl_lock();
 	otx2_stop(pf->netdev);
 	pf->reset_count++;
 	otx2_open(pf->netdev);
 	netif_trans_update(pf->netdev);
+	rtnl_unlock();
 }
 
 static const struct net_device_ops otx2_netdev_ops = {
@@ -1856,13 +1862,17 @@ static int otx2_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	num_vec = pci_msix_vec_count(pdev);
 	hw->irq_name = devm_kmalloc_array(&hw->pdev->dev, num_vec, NAME_SIZE,
 					  GFP_KERNEL);
-	if (!hw->irq_name)
+	if (!hw->irq_name) {
+		err = -ENOMEM;
 		goto err_free_netdev;
+	}
 
 	hw->affinity_mask = devm_kcalloc(&hw->pdev->dev, num_vec,
 					 sizeof(cpumask_var_t), GFP_KERNEL);
-	if (!hw->affinity_mask)
+	if (!hw->affinity_mask) {
+		err = -ENOMEM;
 		goto err_free_netdev;
+	}
 
 	/* Map CSRs */
 	pf->reg_base = pcim_iomap(pdev, PCI_CFG_REG_BAR_NUM, 0);
@@ -2107,6 +2117,7 @@ static void otx2_remove(struct pci_dev *pdev)
 
 	pf = netdev_priv(netdev);
 
+	cancel_work_sync(&pf->reset_task);
 	/* Disable link notifications */
 	otx2_cgx_config_linkevents(pf, false);
 

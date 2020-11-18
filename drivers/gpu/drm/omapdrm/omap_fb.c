@@ -326,7 +326,7 @@ struct drm_framebuffer *omap_framebuffer_create(struct drm_device *dev,
 
 error:
 	while (--i >= 0)
-		drm_gem_object_put_unlocked(bos[i]);
+		drm_gem_object_put(bos[i]);
 
 	return fb;
 }

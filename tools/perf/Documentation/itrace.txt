@@ -1,5 +1,5 @@
 		i	synthesize instructions events
-		b	synthesize branches events
+		b	synthesize branches events (branch misses for Arm SPE)
 		c	synthesize branches events (calls only)
 		r	synthesize branches events (returns only)
 		x	synthesize transactions events
@@ -9,9 +9,16 @@
 			of aux-output (refer to perf record)
 		e	synthesize error events
 		d	create a debug log
+		f	synthesize first level cache events
+		m	synthesize last level cache events
+		t	synthesize TLB events
+		a	synthesize remote access events
 		g	synthesize a call chain (use with i or x)
+		G	synthesize a call chain on existing event records
 		l	synthesize last branch entries (use with i or x)
+		L	synthesize last branch entries on existing event records
 		s       skip initial number of events
+		q	quicker (less detailed) decoding
 
 	The default is all events i.e. the same as --itrace=ibxwpe,
 	except for perf script where it is --itrace=ce
@@ -31,9 +38,26 @@
 	Also the number of last branch entries (default 64, max. 1024) for
 	instructions or transactions events can be specified.
 
+	Similar to options g and l, size may also be specified for options G and L.
+	On x86, note that G and L work poorly when data has been recorded with
+	large PEBS. Refer linkperf:perf-intel-pt[1] man page for details.
+
 	It is also possible to skip events generated (instructions, branches, transactions,
 	ptwrite, power) at the beginning. This is useful to ignore initialization code.
 
 	--itrace=i0nss1000000
 
 	skips the first million instructions.
+
+	The 'e' option may be followed by flags which affect what errors will or
+	will not be reported. Each flag must be preceded by either '+' or '-'.
+	The flags are:
+		o	overflow
+		l	trace data lost
+
+	If supported, the 'd' option may be followed by flags which affect what
+	debug messages will or will not be logged. Each flag must be preceded
+	by either '+' or '-'. The flags are:
+		a	all perf events
+
+	If supported, the 'q' option may be repeated to increase the effect.

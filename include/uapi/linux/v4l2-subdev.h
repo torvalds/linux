@@ -155,9 +155,25 @@ struct v4l2_subdev_selection {
 	__u32 reserved[8];
 };
 
+/**
+ * struct v4l2_subdev_capability - subdev capabilities
+ * @version: the driver versioning number
+ * @capabilities: the subdev capabilities, see V4L2_SUBDEV_CAP_*
+ * @reserved: for future use, set to zero for now
+ */
+struct v4l2_subdev_capability {
+	__u32 version;
+	__u32 capabilities;
+	__u32 reserved[14];
+};
+
+/* The v4l2 sub-device video device node is registered in read-only mode. */
+#define V4L2_SUBDEV_CAP_RO_SUBDEV		BIT(0)
+
 /* Backwards compatibility define --- to be removed */
 #define v4l2_subdev_edid v4l2_edid
 
+#define VIDIOC_SUBDEV_QUERYCAP			_IOR('V',  0, struct v4l2_subdev_capability)
 #define VIDIOC_SUBDEV_G_FMT			_IOWR('V',  4, struct v4l2_subdev_format)
 #define VIDIOC_SUBDEV_S_FMT			_IOWR('V',  5, struct v4l2_subdev_format)
 #define VIDIOC_SUBDEV_G_FRAME_INTERVAL		_IOWR('V', 21, struct v4l2_subdev_frame_interval)

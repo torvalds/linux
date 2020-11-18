@@ -1638,7 +1638,7 @@ int mvpp2_ethtool_rxfh_set(struct mvpp2_port *port, struct ethtool_rxnfc *info)
 			hash_opts |= MVPP22_CLS_HEK_OPT_L4SIP;
 		if (info->data & RXH_L4_B_2_3)
 			hash_opts |= MVPP22_CLS_HEK_OPT_L4DIP;
-		/* Fallthrough */
+		fallthrough;
 	case MVPP22_FLOW_IP4:
 	case MVPP22_FLOW_IP6:
 		if (info->data & RXH_L2DA)

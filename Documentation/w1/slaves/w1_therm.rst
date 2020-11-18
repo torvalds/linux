@@ -26,20 +26,31 @@ W1_THERM_DS1825		0x3B
 W1_THERM_DS28EA00	0x42
 ====================	====
 
-Support is provided through the sysfs w1_slave file.  Each open and
+Support is provided through the sysfs w1_slave file. Each open and
 read sequence will initiate a temperature conversion then provide two
-lines of ASCII output.  The first line contains the nine hex bytes
+lines of ASCII output. The first line contains the nine hex bytes
 read along with a calculated crc value and YES or NO if it matched.
-If the crc matched the returned values are retained.  The second line
+If the crc matched the returned values are retained. The second line
 displays the retained values along with a temperature in millidegrees
 Centigrade after t=.
 
-Parasite powered devices are limited to one slave performing a
-temperature conversion at a time.  If none of the devices are parasite
-powered it would be possible to convert all the devices at the same
-time and then go back to read individual sensors.  That isn't
-currently supported.  The driver also doesn't support reduced
-precision (which would also reduce the conversion time) when reading values.
+Alternatively, temperature can be read using temperature sysfs, it
+return only temperature in millidegrees Centigrade.
+
+A bulk read of all devices on the bus could be done writing 'trigger'
+in the therm_bulk_read sysfs entry at w1_bus_master level. This will
+sent the convert command on all devices on the bus, and if parasite
+powered devices are detected on the bus (and strong pullup is enable
+in the module), it will drive the line high during the longer conversion
+time required by parasited powered device on the line. Reading
+therm_bulk_read will return 0 if no bulk conversion pending,
+-1 if at least one sensor still in conversion, 1 if conversion is complete
+but at least one sensor value has not been read yet. Result temperature is
+then accessed by reading the temperature sysfs entry of each device, which
+may return empty if conversion is still in progress. Note that if a bulk
+read is sent but one sensor is not read immediately, the next access to
+temperature on this device will return the temperature measured at the
+time of issue of the bulk read command (not the current temperature).
 
 Writing a value between 9 and 12 to the sysfs w1_slave file will change the
 precision of the sensor for the next readings. This value is in (volatile)
@@ -48,6 +59,27 @@ SRAM, so it is reset when the sensor gets power-cycled.
 To store the current precision configuration into EEPROM, the value 0
 has to be written to the sysfs w1_slave file. Since the EEPROM has a limited
 amount of writes (>50k), this command should be used wisely.
+
+Alternatively, resolution can be set or read (value from 9 to 12) using the
+dedicated resolution sysfs entry on each device. This sysfs entry is not
+present for devices not supporting this feature. Driver will adjust the
+correct conversion time for each device regarding to its resolution setting.
+In particular, strong pullup will be applied if required during the conversion
+duration.
+
+The write-only sysfs entry eeprom is an alternative for EEPROM operations:
+  * 'save': will save device RAM to EEPROM
+  * 'restore': will restore EEPROM data in device RAM.
+
+ext_power syfs entry allow tho check the power status of each device.
+  * '0': device parasite powered
+  * '1': device externally powered
+
+sysfs alarms allow read or write TH and TL (Temperature High an Low) alarms.
+Values shall be space separated and in the device range (typical -55 degC
+to 125 degC). Values are integer as they are store in a 8bit register in
+the device. Lowest value is automatically put to TL.Once set, alarms could
+be search at master level.
 
 The module parameter strong_pullup can be set to 0 to disable the
 strong pullup, 1 to enable autodetection or 2 to force strong pullup.

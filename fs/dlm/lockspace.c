@@ -197,8 +197,6 @@ static struct kset *dlm_kset;
 
 static int do_uevent(struct dlm_ls *ls, int in)
 {
-	int error;
-
 	if (in)
 		kobject_uevent(&ls->ls_kobj, KOBJ_ONLINE);
 	else
@@ -209,20 +207,12 @@ static int do_uevent(struct dlm_ls *ls, int in)
 	/* dlm_controld will see the uevent, do the necessary group management
 	   and then write to sysfs to wake us */
 
-	error = wait_event_interruptible(ls->ls_uevent_wait,
-			test_and_clear_bit(LSFL_UEVENT_WAIT, &ls->ls_flags));
+	wait_event(ls->ls_uevent_wait,
+		   test_and_clear_bit(LSFL_UEVENT_WAIT, &ls->ls_flags));
 
-	log_rinfo(ls, "group event done %d %d", error, ls->ls_uevent_result);
+	log_rinfo(ls, "group event done %d", ls->ls_uevent_result);
 
-	if (error)
-		goto out;
-
-	error = ls->ls_uevent_result;
- out:
-	if (error)
-		log_error(ls, "group %s failed %d %d", in ? "join" : "leave",
-			  error, ls->ls_uevent_result);
-	return error;
+	return ls->ls_uevent_result;
 }
 
 static int dlm_uevent(struct kset *kset, struct kobject *kobj,
@@ -632,15 +622,15 @@ static int new_lockspace(const char *name, const char *cluster,
 	wait_event(ls->ls_recover_lock_wait,
 		   test_bit(LSFL_RECOVER_LOCK, &ls->ls_flags));
 
+	/* let kobject handle freeing of ls if there's an error */
+	do_unreg = 1;
+
 	ls->ls_kobj.kset = dlm_kset;
 	error = kobject_init_and_add(&ls->ls_kobj, &dlm_ktype, NULL,
 				     "%s", ls->ls_name);
 	if (error)
 		goto out_recoverd;
 	kobject_uevent(&ls->ls_kobj, KOBJ_ADD);
-
-	/* let kobject handle freeing of ls if there's an error */
-	do_unreg = 1;
 
 	/* This uevent triggers dlm_controld in userspace to add us to the
 	   group of nodes that are members of this lockspace (managed by the

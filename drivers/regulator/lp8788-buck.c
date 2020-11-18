@@ -92,7 +92,7 @@ struct lp8788_buck {
 };
 
 /* BUCK 1 ~ 4 voltage ranges */
-static const struct regulator_linear_range buck_volt_ranges[] = {
+static const struct linear_range buck_volt_ranges[] = {
 	REGULATOR_LINEAR_RANGE(500000, 0, 0, 0),
 	REGULATOR_LINEAR_RANGE(800000, 1, 25, 50000),
 };

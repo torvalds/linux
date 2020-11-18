@@ -103,7 +103,7 @@ MODULE_PARM_DESC(lock_rcu, "grab rcu_read_lock: generate rcu stalls");
 
 static bool lock_mmap_sem;
 module_param(lock_mmap_sem, bool, 0400);
-MODULE_PARM_DESC(lock_mmap_sem, "lock mm->mmap_sem: block procfs interfaces");
+MODULE_PARM_DESC(lock_mmap_sem, "lock mm->mmap_lock: block procfs interfaces");
 
 static unsigned long lock_rwsem_ptr;
 module_param_unsafe(lock_rwsem_ptr, ulong, 0400);
@@ -142,7 +142,7 @@ module_param(reallocate_pages, bool, 0400);
 MODULE_PARM_DESC(reallocate_pages, "free and allocate pages between iterations");
 
 struct file *test_file;
-struct inode *test_inode;
+static struct inode *test_inode;
 static char test_file_path[256];
 module_param_string(file_path, test_file_path, sizeof(test_file_path), 0400);
 MODULE_PARM_DESC(file_path, "file path to test");
@@ -168,7 +168,7 @@ static int master_cpu;
 
 static void test_lock(bool master, bool verbose)
 {
-	u64 uninitialized_var(wait_start);
+	u64 wait_start;
 
 	if (measure_lock_wait)
 		wait_start = local_clock();
@@ -191,11 +191,11 @@ static void test_lock(bool master, bool verbose)
 
 	if (lock_mmap_sem && master) {
 		if (verbose)
-			pr_notice("lock mmap_sem pid=%d\n", main_task->pid);
+			pr_notice("lock mmap_lock pid=%d\n", main_task->pid);
 		if (lock_read)
-			down_read(&main_task->mm->mmap_sem);
+			mmap_read_lock(main_task->mm);
 		else
-			down_write(&main_task->mm->mmap_sem);
+			mmap_write_lock(main_task->mm);
 	}
 
 	if (test_disable_irq)
@@ -276,11 +276,11 @@ static void test_unlock(bool master, bool verbose)
 
 	if (lock_mmap_sem && master) {
 		if (lock_read)
-			up_read(&main_task->mm->mmap_sem);
+			mmap_read_unlock(main_task->mm);
 		else
-			up_write(&main_task->mm->mmap_sem);
+			mmap_write_unlock(main_task->mm);
 		if (verbose)
-			pr_notice("unlock mmap_sem pid=%d\n", main_task->pid);
+			pr_notice("unlock mmap_lock pid=%d\n", main_task->pid);
 	}
 
 	if (lock_rwsem_ptr && master) {
@@ -400,7 +400,7 @@ static void test_lockup(bool master)
 	test_unlock(master, true);
 }
 
-DEFINE_PER_CPU(struct work_struct, test_works);
+static DEFINE_PER_CPU(struct work_struct, test_works);
 
 static void test_work_fn(struct work_struct *work)
 {
@@ -419,8 +419,8 @@ static bool test_kernel_ptr(unsigned long addr, int size)
 	/* should be at least readable kernel address */
 	if (access_ok(ptr, 1) ||
 	    access_ok(ptr + size - 1, 1) ||
-	    probe_kernel_address(ptr, buf) ||
-	    probe_kernel_address(ptr + size - 1, buf)) {
+	    get_kernel_nofault(buf, ptr) ||
+	    get_kernel_nofault(buf, ptr + size - 1)) {
 		pr_err("invalid kernel ptr: %#lx\n", addr);
 		return true;
 	}
@@ -437,7 +437,7 @@ static bool __maybe_unused test_magic(unsigned long addr, int offset,
 	if (!addr)
 		return false;
 
-	if (probe_kernel_address(ptr, magic) || magic != expected) {
+	if (get_kernel_nofault(magic, ptr) || magic != expected) {
 		pr_err("invalid magic at %#lx + %#x = %#x, expected %#x\n",
 		       addr, offset, magic, expected);
 		return true;
@@ -505,15 +505,15 @@ static int __init test_lockup_init(void)
 	}
 
 	if (lock_mmap_sem && !main_task->mm) {
-		pr_err("no mm to lock mmap_sem\n");
+		pr_err("no mm to lock mmap_lock\n");
 		return -EINVAL;
 	}
 
 	if (test_file_path[0]) {
 		test_file = filp_open(test_file_path, O_RDONLY, 0);
 		if (IS_ERR(test_file)) {
-			pr_err("cannot find file_path\n");
-			return -EINVAL;
+			pr_err("failed to open %s: %ld\n", test_file_path, PTR_ERR(test_file));
+			return PTR_ERR(test_file);
 		}
 		test_inode = file_inode(test_file);
 	} else if (test_lock_inode ||

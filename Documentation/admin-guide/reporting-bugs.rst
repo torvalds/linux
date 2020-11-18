@@ -75,7 +75,7 @@ Tips for reporting bugs
 
 If you haven't reported a bug before, please read:
 
-	http://www.chiark.greenend.org.uk/~sgtatham/bugs.html
+	https://www.chiark.greenend.org.uk/~sgtatham/bugs.html
 
 	http://www.catb.org/esr/faqs/smart-questions.html
 

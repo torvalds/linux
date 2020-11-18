@@ -7,15 +7,6 @@
 
 #include <linux/types.h>
 
-/*
- * Allow physical addresses to be fixed up to help peripherals located
- * outside the low 32-bit range -- generic pass-through version.
- */
-static inline phys_addr_t fixup_bigphys_addr(phys_addr_t phys_addr, phys_addr_t size)
-{
-	return phys_addr;
-}
-
 static inline void __iomem *plat_ioremap(phys_addr_t offset, unsigned long size,
 	unsigned long flags)
 {

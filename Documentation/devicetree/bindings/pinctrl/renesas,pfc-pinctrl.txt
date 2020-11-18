@@ -13,6 +13,7 @@ Required Properties:
     - "renesas,pfc-emev2": for EMEV2 (EMMA Mobile EV2) compatible pin-controller.
     - "renesas,pfc-r8a73a4": for R8A73A4 (R-Mobile APE6) compatible pin-controller.
     - "renesas,pfc-r8a7740": for R8A7740 (R-Mobile A1) compatible pin-controller.
+    - "renesas,pfc-r8a7742": for R8A7742 (RZ/G1H) compatible pin-controller.
     - "renesas,pfc-r8a7743": for R8A7743 (RZ/G1M) compatible pin-controller.
     - "renesas,pfc-r8a7744": for R8A7744 (RZ/G1N) compatible pin-controller.
     - "renesas,pfc-r8a7745": for R8A7745 (RZ/G1E) compatible pin-controller.
@@ -20,6 +21,7 @@ Required Properties:
     - "renesas,pfc-r8a774a1": for R8A774A1 (RZ/G2M) compatible pin-controller.
     - "renesas,pfc-r8a774b1": for R8A774B1 (RZ/G2N) compatible pin-controller.
     - "renesas,pfc-r8a774c0": for R8A774C0 (RZ/G2E) compatible pin-controller.
+    - "renesas,pfc-r8a774e1": for R8A774E1 (RZ/G2H) compatible pin-controller.
     - "renesas,pfc-r8a7778": for R8A7778 (R-Car M1) compatible pin-controller.
     - "renesas,pfc-r8a7779": for R8A7779 (R-Car H1) compatible pin-controller.
     - "renesas,pfc-r8a7790": for R8A7790 (R-Car H2) compatible pin-controller.
@@ -113,7 +115,7 @@ with values derived from the SoC user manual.
    [flags]>
 
 On other mach-shmobile platforms GPIO is handled by the gpio-rcar driver.
-Please refer to Documentation/devicetree/bindings/gpio/renesas,gpio-rcar.txt
+Please refer to Documentation/devicetree/bindings/gpio/renesas,rcar-gpio.yaml
 for documentation of the GPIO device tree bindings on those platforms.
 
 

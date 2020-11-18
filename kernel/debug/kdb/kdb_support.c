@@ -325,7 +325,7 @@ char *kdb_strdup(const char *str, gfp_t type)
  */
 int kdb_getarea_size(void *res, unsigned long addr, size_t size)
 {
-	int ret = probe_kernel_read((char *)res, (char *)addr, size);
+	int ret = copy_from_kernel_nofault((char *)res, (char *)addr, size);
 	if (ret) {
 		if (!KDB_STATE(SUPPRESS)) {
 			kdb_printf("kdb_getarea: Bad address 0x%lx\n", addr);
@@ -350,7 +350,7 @@ int kdb_getarea_size(void *res, unsigned long addr, size_t size)
  */
 int kdb_putarea_size(unsigned long addr, void *res, size_t size)
 {
-	int ret = probe_kernel_read((char *)addr, (char *)res, size);
+	int ret = copy_from_kernel_nofault((char *)addr, (char *)res, size);
 	if (ret) {
 		if (!KDB_STATE(SUPPRESS)) {
 			kdb_printf("kdb_putarea: Bad address 0x%lx\n", addr);
@@ -432,7 +432,7 @@ int kdb_getphysword(unsigned long *word, unsigned long addr, size_t size)
 				*word = w8;
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		diag = KDB_BADWIDTH;
 		kdb_printf("kdb_getphysword: bad width %ld\n", (long) size);
@@ -481,7 +481,7 @@ int kdb_getword(unsigned long *word, unsigned long addr, size_t size)
 				*word = w8;
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		diag = KDB_BADWIDTH;
 		kdb_printf("kdb_getword: bad width %ld\n", (long) size);
@@ -525,7 +525,7 @@ int kdb_putword(unsigned long addr, unsigned long word, size_t size)
 			diag = kdb_putarea(addr, w8);
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		diag = KDB_BADWIDTH;
 		kdb_printf("kdb_putword: bad width %ld\n", (long) size);
@@ -624,7 +624,8 @@ char kdb_task_state_char (const struct task_struct *p)
 	char state;
 	unsigned long tmp;
 
-	if (!p || probe_kernel_read(&tmp, (char *)p, sizeof(unsigned long)))
+	if (!p ||
+	    copy_from_kernel_nofault(&tmp, (char *)p, sizeof(unsigned long)))
 		return 'E';
 
 	cpu = kdb_process_cpu(p);

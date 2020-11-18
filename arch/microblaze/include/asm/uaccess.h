@@ -12,7 +12,7 @@
 
 #include <asm/mmu.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/extable.h>
 #include <linux/string.h>
 
@@ -41,7 +41,7 @@
 # define get_fs()	(current_thread_info()->addr_limit)
 # define set_fs(val)	(current_thread_info()->addr_limit = (val))
 
-# define segment_eq(a, b)	((a).seg == (b).seg)
+# define uaccess_kernel()	(get_fs().seg == KERNEL_DS.seg)
 
 #ifndef CONFIG_MMU
 

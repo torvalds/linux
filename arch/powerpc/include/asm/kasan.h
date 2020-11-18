@@ -15,17 +15,22 @@
 #ifndef __ASSEMBLY__
 
 #include <asm/page.h>
+#include <linux/sizes.h>
 
 #define KASAN_SHADOW_SCALE_SHIFT	3
 
+#if defined(CONFIG_PPC_BOOK3S_32) && defined(CONFIG_MODULES) && defined(CONFIG_STRICT_KERNEL_RWX)
+#define KASAN_KERN_START	ALIGN_DOWN(PAGE_OFFSET - SZ_256M, SZ_256M)
+#else
+#define KASAN_KERN_START	PAGE_OFFSET
+#endif
+
 #define KASAN_SHADOW_START	(KASAN_SHADOW_OFFSET + \
-				 (PAGE_OFFSET >> KASAN_SHADOW_SCALE_SHIFT))
+				 (KASAN_KERN_START >> KASAN_SHADOW_SCALE_SHIFT))
 
 #define KASAN_SHADOW_OFFSET	ASM_CONST(CONFIG_KASAN_SHADOW_OFFSET)
 
-#define KASAN_SHADOW_END	0UL
-
-#define KASAN_SHADOW_SIZE	(KASAN_SHADOW_END - KASAN_SHADOW_START)
+#define KASAN_SHADOW_END	(-(-KASAN_SHADOW_START >> KASAN_SHADOW_SCALE_SHIFT))
 
 #ifdef CONFIG_KASAN
 void kasan_early_init(void);
@@ -37,6 +42,10 @@ static inline void kasan_init(void) { }
 static inline void kasan_mmu_init(void) { }
 static inline void kasan_late_init(void) { }
 #endif
+
+void kasan_update_early_region(unsigned long k_start, unsigned long k_end, pte_t pte);
+int kasan_init_shadow_page_tables(unsigned long k_start, unsigned long k_end);
+int kasan_init_region(void *start, size_t size);
 
 #endif /* __ASSEMBLY */
 #endif

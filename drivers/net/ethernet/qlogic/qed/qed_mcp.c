@@ -1,33 +1,7 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
 /* QLogic qed NIC Driver
  * Copyright (c) 2015-2017  QLogic Corporation
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      - Redistributions of source code must retain the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer.
- *
- *      - Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and /or other materials
- *        provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * Copyright (c) 2019-2020 Marvell International Ltd.
  */
 
 #include <linux/types.h>
@@ -575,6 +549,8 @@ _qed_mcp_cmd_and_union(struct qed_hwfn *p_hwfn,
 		if (!QED_MB_FLAGS_IS_SET(p_mb_params, AVOID_BLOCK))
 			qed_mcp_cmd_set_blocking(p_hwfn, true);
 
+		qed_hw_err_notify(p_hwfn, p_ptt,
+				  QED_HW_ERR_MFW_RESP_FAIL, NULL);
 		return -EAGAIN;
 	}
 
@@ -1109,7 +1085,7 @@ int qed_mcp_unload_req(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		DP_NOTICE(p_hwfn,
 			  "Unknown WoL configuration %02x\n",
 			  p_hwfn->cdev->wol_config);
-		/* Fallthrough */
+		fallthrough;
 	case QED_OV_WOL_DEFAULT:
 		wol_param = DRV_MB_PARAM_UNLOAD_WOL_MCP;
 	}
@@ -1389,7 +1365,7 @@ static void qed_mcp_handle_link_change(struct qed_hwfn *p_hwfn,
 		break;
 	case LINK_STATUS_SPEED_AND_DUPLEX_1000THD:
 		p_link->full_duplex = false;
-	/* Fall-through */
+		fallthrough;
 	case LINK_STATUS_SPEED_AND_DUPLEX_1000TFD:
 		p_link->speed = 1000;
 		break;
@@ -1470,6 +1446,25 @@ static void qed_mcp_handle_link_change(struct qed_hwfn *p_hwfn,
 	if (p_hwfn->mcp_info->capabilities & FW_MB_PARAM_FEATURE_SUPPORT_EEE)
 		qed_mcp_read_eee_config(p_hwfn, p_ptt, p_link);
 
+	if (p_hwfn->mcp_info->capabilities &
+	    FW_MB_PARAM_FEATURE_SUPPORT_FEC_CONTROL) {
+		switch (status & LINK_STATUS_FEC_MODE_MASK) {
+		case LINK_STATUS_FEC_MODE_NONE:
+			p_link->fec_active = QED_FEC_MODE_NONE;
+			break;
+		case LINK_STATUS_FEC_MODE_FIRECODE_CL74:
+			p_link->fec_active = QED_FEC_MODE_FIRECODE;
+			break;
+		case LINK_STATUS_FEC_MODE_RS_CL91:
+			p_link->fec_active = QED_FEC_MODE_RS;
+			break;
+		default:
+			p_link->fec_active = QED_FEC_MODE_AUTO;
+		}
+	} else {
+		p_link->fec_active = QED_FEC_MODE_UNSUPPORTED;
+	}
+
 	qed_link_update(p_hwfn, p_ptt);
 out:
 	spin_unlock_bh(&p_hwfn->mcp_info->link_lock);
@@ -1480,8 +1475,9 @@ int qed_mcp_set_link(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt, bool b_up)
 	struct qed_mcp_link_params *params = &p_hwfn->mcp_info->link_input;
 	struct qed_mcp_mb_params mb_params;
 	struct eth_phy_cfg phy_cfg;
+	u32 cmd, fec_bit = 0;
+	u32 val, ext_speed;
 	int rc = 0;
-	u32 cmd;
 
 	/* Set the shmem configuration according to params */
 	memset(&phy_cfg, 0, sizeof(phy_cfg));
@@ -1513,19 +1509,91 @@ int qed_mcp_set_link(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt, bool b_up)
 				   EEE_TX_TIMER_USEC_MASK;
 	}
 
+	if (p_hwfn->mcp_info->capabilities &
+	    FW_MB_PARAM_FEATURE_SUPPORT_FEC_CONTROL) {
+		if (params->fec & QED_FEC_MODE_NONE)
+			fec_bit |= FEC_FORCE_MODE_NONE;
+		else if (params->fec & QED_FEC_MODE_FIRECODE)
+			fec_bit |= FEC_FORCE_MODE_FIRECODE;
+		else if (params->fec & QED_FEC_MODE_RS)
+			fec_bit |= FEC_FORCE_MODE_RS;
+		else if (params->fec & QED_FEC_MODE_AUTO)
+			fec_bit |= FEC_FORCE_MODE_AUTO;
+
+		SET_MFW_FIELD(phy_cfg.fec_mode, FEC_FORCE_MODE, fec_bit);
+	}
+
+	if (p_hwfn->mcp_info->capabilities &
+	    FW_MB_PARAM_FEATURE_SUPPORT_EXT_SPEED_FEC_CONTROL) {
+		ext_speed = 0;
+		if (params->ext_speed.autoneg)
+			ext_speed |= ETH_EXT_SPEED_AN;
+
+		val = params->ext_speed.forced_speed;
+		if (val & QED_EXT_SPEED_1G)
+			ext_speed |= ETH_EXT_SPEED_1G;
+		if (val & QED_EXT_SPEED_10G)
+			ext_speed |= ETH_EXT_SPEED_10G;
+		if (val & QED_EXT_SPEED_20G)
+			ext_speed |= ETH_EXT_SPEED_20G;
+		if (val & QED_EXT_SPEED_25G)
+			ext_speed |= ETH_EXT_SPEED_25G;
+		if (val & QED_EXT_SPEED_40G)
+			ext_speed |= ETH_EXT_SPEED_40G;
+		if (val & QED_EXT_SPEED_50G_R)
+			ext_speed |= ETH_EXT_SPEED_50G_BASE_R;
+		if (val & QED_EXT_SPEED_50G_R2)
+			ext_speed |= ETH_EXT_SPEED_50G_BASE_R2;
+		if (val & QED_EXT_SPEED_100G_R2)
+			ext_speed |= ETH_EXT_SPEED_100G_BASE_R2;
+		if (val & QED_EXT_SPEED_100G_R4)
+			ext_speed |= ETH_EXT_SPEED_100G_BASE_R4;
+		if (val & QED_EXT_SPEED_100G_P4)
+			ext_speed |= ETH_EXT_SPEED_100G_BASE_P4;
+
+		SET_MFW_FIELD(phy_cfg.extended_speed, ETH_EXT_SPEED,
+			      ext_speed);
+
+		ext_speed = 0;
+
+		val = params->ext_speed.advertised_speeds;
+		if (val & QED_EXT_SPEED_MASK_1G)
+			ext_speed |= ETH_EXT_ADV_SPEED_1G;
+		if (val & QED_EXT_SPEED_MASK_10G)
+			ext_speed |= ETH_EXT_ADV_SPEED_10G;
+		if (val & QED_EXT_SPEED_MASK_20G)
+			ext_speed |= ETH_EXT_ADV_SPEED_20G;
+		if (val & QED_EXT_SPEED_MASK_25G)
+			ext_speed |= ETH_EXT_ADV_SPEED_25G;
+		if (val & QED_EXT_SPEED_MASK_40G)
+			ext_speed |= ETH_EXT_ADV_SPEED_40G;
+		if (val & QED_EXT_SPEED_MASK_50G_R)
+			ext_speed |= ETH_EXT_ADV_SPEED_50G_BASE_R;
+		if (val & QED_EXT_SPEED_MASK_50G_R2)
+			ext_speed |= ETH_EXT_ADV_SPEED_50G_BASE_R2;
+		if (val & QED_EXT_SPEED_MASK_100G_R2)
+			ext_speed |= ETH_EXT_ADV_SPEED_100G_BASE_R2;
+		if (val & QED_EXT_SPEED_MASK_100G_R4)
+			ext_speed |= ETH_EXT_ADV_SPEED_100G_BASE_R4;
+		if (val & QED_EXT_SPEED_MASK_100G_P4)
+			ext_speed |= ETH_EXT_ADV_SPEED_100G_BASE_P4;
+
+		phy_cfg.extended_speed |= ext_speed;
+
+		SET_MFW_FIELD(phy_cfg.fec_mode, FEC_EXTENDED_MODE,
+			      params->ext_fec_mode);
+	}
+
 	p_hwfn->b_drv_link_init = b_up;
 
 	if (b_up) {
 		DP_VERBOSE(p_hwfn, NETIF_MSG_LINK,
-			   "Configuring Link: Speed 0x%08x, Pause 0x%08x, adv_speed 0x%08x, loopback 0x%08x, features 0x%08x\n",
-			   phy_cfg.speed,
-			   phy_cfg.pause,
-			   phy_cfg.adv_speed,
-			   phy_cfg.loopback_mode,
-			   phy_cfg.feature_config_flags);
+			   "Configuring Link: Speed 0x%08x, Pause 0x%08x, Adv. Speed 0x%08x, Loopback 0x%08x, FEC 0x%08x, Ext. Speed 0x%08x\n",
+			   phy_cfg.speed, phy_cfg.pause, phy_cfg.adv_speed,
+			   phy_cfg.loopback_mode, phy_cfg.fec_mode,
+			   phy_cfg.extended_speed);
 	} else {
-		DP_VERBOSE(p_hwfn, NETIF_MSG_LINK,
-			   "Resetting link\n");
+		DP_VERBOSE(p_hwfn, NETIF_MSG_LINK, "Resetting link\n");
 	}
 
 	memset(&mb_params, 0, sizeof(mb_params));
@@ -1704,6 +1772,127 @@ static void qed_mcp_update_stag(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		    &resp, &param);
 }
 
+static void qed_mcp_handle_fan_failure(struct qed_hwfn *p_hwfn,
+				       struct qed_ptt *p_ptt)
+{
+	/* A single notification should be sent to upper driver in CMT mode */
+	if (p_hwfn != QED_LEADING_HWFN(p_hwfn->cdev))
+		return;
+
+	qed_hw_err_notify(p_hwfn, p_ptt, QED_HW_ERR_FAN_FAIL,
+			  "Fan failure was detected on the network interface card and it's going to be shut down.\n");
+}
+
+struct qed_mdump_cmd_params {
+	u32 cmd;
+	void *p_data_src;
+	u8 data_src_size;
+	void *p_data_dst;
+	u8 data_dst_size;
+	u32 mcp_resp;
+};
+
+static int
+qed_mcp_mdump_cmd(struct qed_hwfn *p_hwfn,
+		  struct qed_ptt *p_ptt,
+		  struct qed_mdump_cmd_params *p_mdump_cmd_params)
+{
+	struct qed_mcp_mb_params mb_params;
+	int rc;
+
+	memset(&mb_params, 0, sizeof(mb_params));
+	mb_params.cmd = DRV_MSG_CODE_MDUMP_CMD;
+	mb_params.param = p_mdump_cmd_params->cmd;
+	mb_params.p_data_src = p_mdump_cmd_params->p_data_src;
+	mb_params.data_src_size = p_mdump_cmd_params->data_src_size;
+	mb_params.p_data_dst = p_mdump_cmd_params->p_data_dst;
+	mb_params.data_dst_size = p_mdump_cmd_params->data_dst_size;
+	rc = qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
+	if (rc)
+		return rc;
+
+	p_mdump_cmd_params->mcp_resp = mb_params.mcp_resp;
+
+	if (p_mdump_cmd_params->mcp_resp == FW_MSG_CODE_MDUMP_INVALID_CMD) {
+		DP_INFO(p_hwfn,
+			"The mdump sub command is unsupported by the MFW [mdump_cmd 0x%x]\n",
+			p_mdump_cmd_params->cmd);
+		rc = -EOPNOTSUPP;
+	} else if (p_mdump_cmd_params->mcp_resp == FW_MSG_CODE_UNSUPPORTED) {
+		DP_INFO(p_hwfn,
+			"The mdump command is not supported by the MFW\n");
+		rc = -EOPNOTSUPP;
+	}
+
+	return rc;
+}
+
+static int qed_mcp_mdump_ack(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
+{
+	struct qed_mdump_cmd_params mdump_cmd_params;
+
+	memset(&mdump_cmd_params, 0, sizeof(mdump_cmd_params));
+	mdump_cmd_params.cmd = DRV_MSG_CODE_MDUMP_ACK;
+
+	return qed_mcp_mdump_cmd(p_hwfn, p_ptt, &mdump_cmd_params);
+}
+
+int
+qed_mcp_mdump_get_retain(struct qed_hwfn *p_hwfn,
+			 struct qed_ptt *p_ptt,
+			 struct mdump_retain_data_stc *p_mdump_retain)
+{
+	struct qed_mdump_cmd_params mdump_cmd_params;
+	int rc;
+
+	memset(&mdump_cmd_params, 0, sizeof(mdump_cmd_params));
+	mdump_cmd_params.cmd = DRV_MSG_CODE_MDUMP_GET_RETAIN;
+	mdump_cmd_params.p_data_dst = p_mdump_retain;
+	mdump_cmd_params.data_dst_size = sizeof(*p_mdump_retain);
+
+	rc = qed_mcp_mdump_cmd(p_hwfn, p_ptt, &mdump_cmd_params);
+	if (rc)
+		return rc;
+
+	if (mdump_cmd_params.mcp_resp != FW_MSG_CODE_OK) {
+		DP_INFO(p_hwfn,
+			"Failed to get the mdump retained data [mcp_resp 0x%x]\n",
+			mdump_cmd_params.mcp_resp);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static void qed_mcp_handle_critical_error(struct qed_hwfn *p_hwfn,
+					  struct qed_ptt *p_ptt)
+{
+	struct mdump_retain_data_stc mdump_retain;
+	int rc;
+
+	/* In CMT mode - no need for more than a single acknowledgment to the
+	 * MFW, and no more than a single notification to the upper driver.
+	 */
+	if (p_hwfn != QED_LEADING_HWFN(p_hwfn->cdev))
+		return;
+
+	rc = qed_mcp_mdump_get_retain(p_hwfn, p_ptt, &mdump_retain);
+	if (rc == 0 && mdump_retain.valid)
+		DP_NOTICE(p_hwfn,
+			  "The MFW notified that a critical error occurred in the device [epoch 0x%08x, pf 0x%x, status 0x%08x]\n",
+			  mdump_retain.epoch,
+			  mdump_retain.pf, mdump_retain.status);
+	else
+		DP_NOTICE(p_hwfn,
+			  "The MFW notified that a critical error occurred in the device\n");
+
+	DP_NOTICE(p_hwfn,
+		  "Acknowledging the notification to not allow the MFW crash dump [driver debug data collection is preferable]\n");
+	qed_mcp_mdump_ack(p_hwfn, p_ptt);
+
+	qed_hw_err_notify(p_hwfn, p_ptt, QED_HW_ERR_HW_ATTN, NULL);
+}
+
 void qed_mcp_read_ufp_config(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	struct public_func shmem_info;
@@ -1849,6 +2038,12 @@ int qed_mcp_handle_events(struct qed_hwfn *p_hwfn,
 			break;
 		case MFW_DRV_MSG_S_TAG_UPDATE:
 			qed_mcp_update_stag(p_hwfn, p_ptt);
+			break;
+		case MFW_DRV_MSG_FAILURE_DETECTED:
+			qed_mcp_handle_fan_failure(p_hwfn, p_ptt);
+			break;
+		case MFW_DRV_MSG_CRITICAL_ERROR_OCCURRED:
+			qed_mcp_handle_critical_error(p_hwfn, p_ptt);
 			break;
 		case MFW_DRV_MSG_GET_TLV_REQ:
 			qed_mfw_tlv_req(p_hwfn);
@@ -2090,6 +2285,11 @@ int qed_mcp_trans_speed_mask(struct qed_hwfn *p_hwfn,
 		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G |
 		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G;
 		break;
+	case ETH_TRANSCEIVER_TYPE_MULTI_RATE_10G_25G_SR:
+	case ETH_TRANSCEIVER_TYPE_MULTI_RATE_10G_25G_LR:
+		*p_speed_mask = NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_25G |
+				NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G;
+		break;
 	case ETH_TRANSCEIVER_TYPE_40G_CR4:
 	case ETH_TRANSCEIVER_TYPE_MULTI_RATE_10G_40G_CR:
 		*p_speed_mask = NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_40G |
@@ -2120,8 +2320,10 @@ int qed_mcp_trans_speed_mask(struct qed_hwfn *p_hwfn,
 		*p_speed_mask = NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_40G;
 		break;
 	case ETH_TRANSCEIVER_TYPE_10G_BASET:
+	case ETH_TRANSCEIVER_TYPE_MULTI_RATE_1G_10G_SR:
+	case ETH_TRANSCEIVER_TYPE_MULTI_RATE_1G_10G_LR:
 		*p_speed_mask = NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_10G |
-		    NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G;
+				NVM_CFG1_PORT_DRV_SPEED_CAPABILITY_MASK_1G;
 		break;
 	default:
 		DP_INFO(p_hwfn, "Unknown transceiver type 0x%x\n",
@@ -2249,7 +2451,7 @@ qed_mcp_get_shmem_proto(struct qed_hwfn *p_hwfn,
 		break;
 	case FUNC_MF_CFG_PROTOCOL_ROCE:
 		DP_NOTICE(p_hwfn, "RoCE personality is not a valid value!\n");
-	/* Fallthrough */
+		fallthrough;
 	default:
 		rc = -EINVAL;
 	}
@@ -2316,11 +2518,10 @@ int qed_mcp_fill_shmem_func_info(struct qed_hwfn *p_hwfn,
 	}
 
 	DP_VERBOSE(p_hwfn, (QED_MSG_SP | NETIF_MSG_IFUP),
-		   "Read configuration from shmem: pause_on_host %02x protocol %02x BW [%02x - %02x] MAC %02x:%02x:%02x:%02x:%02x:%02x wwn port %llx node %llx ovlan %04x wol %02x\n",
+		   "Read configuration from shmem: pause_on_host %02x protocol %02x BW [%02x - %02x] MAC %pM wwn port %llx node %llx ovlan %04x wol %02x\n",
 		info->pause_on_host, info->protocol,
 		info->bandwidth_min, info->bandwidth_max,
-		info->mac[0], info->mac[1], info->mac[2],
-		info->mac[3], info->mac[4], info->mac[5],
+		info->mac,
 		info->wwn_port, info->wwn_node,
 		info->ovlan, (u8)p_hwfn->hw_info.b_wol_support);
 
@@ -3151,6 +3352,13 @@ err0:
 	return rc;
 }
 
+void qed_mcp_nvm_info_free(struct qed_hwfn *p_hwfn)
+{
+	kfree(p_hwfn->nvm_info.image_att);
+	p_hwfn->nvm_info.image_att = NULL;
+	p_hwfn->nvm_info.valid = false;
+}
+
 int
 qed_mcp_get_nvm_image_att(struct qed_hwfn *p_hwfn,
 			  enum qed_nvm_images image_id,
@@ -3338,7 +3546,7 @@ qed_mcp_resc_allocation_msg(struct qed_hwfn *p_hwfn,
 	switch (p_in_params->cmd) {
 	case DRV_MSG_SET_RESOURCE_VALUE_MSG:
 		mfw_resc_info.size = p_in_params->resc_max_val;
-		/* Fallthrough */
+		fallthrough;
 	case DRV_MSG_GET_RESOURCE_ALLOC_MSG:
 		break;
 	default:
@@ -3615,7 +3823,7 @@ qed_mcp_resc_unlock(struct qed_hwfn *p_hwfn,
 		DP_INFO(p_hwfn,
 			"Resource unlock request for an already released resource [%d]\n",
 			p_params->resource);
-		/* Fallthrough */
+		fallthrough;
 	case RESOURCE_OPCODE_RELEASED:
 		p_params->b_released = true;
 		break;
@@ -3688,7 +3896,12 @@ int qed_mcp_set_capabilities(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	u32 mcp_resp, mcp_param, features;
 
 	features = DRV_MB_PARAM_FEATURE_SUPPORT_PORT_EEE |
-		   DRV_MB_PARAM_FEATURE_SUPPORT_FUNC_VLINK;
+		   DRV_MB_PARAM_FEATURE_SUPPORT_FUNC_VLINK |
+		   DRV_MB_PARAM_FEATURE_SUPPORT_PORT_FEC_CONTROL;
+
+	if (QED_IS_E5(p_hwfn->cdev))
+		features |=
+		    DRV_MB_PARAM_FEATURE_SUPPORT_PORT_EXT_SPEED_FEC_CONTROL;
 
 	return qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_FEATURE_SUPPORT,
 			   features, &mcp_resp, &mcp_param);
@@ -3818,4 +4031,128 @@ int qed_mcp_nvm_set_cfg(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 	return qed_mcp_nvm_wr_cmd(p_hwfn, p_ptt,
 				  DRV_MSG_CODE_SET_NVM_CFG_OPTION,
 				  mb_param, &resp, &param, len, (u32 *)p_buf);
+}
+
+#define QED_MCP_DBG_DATA_MAX_SIZE               MCP_DRV_NVM_BUF_LEN
+#define QED_MCP_DBG_DATA_MAX_HEADER_SIZE        sizeof(u32)
+#define QED_MCP_DBG_DATA_MAX_PAYLOAD_SIZE \
+	(QED_MCP_DBG_DATA_MAX_SIZE - QED_MCP_DBG_DATA_MAX_HEADER_SIZE)
+
+static int
+__qed_mcp_send_debug_data(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt, u8 *p_buf, u8 size)
+{
+	struct qed_mcp_mb_params mb_params;
+	int rc;
+
+	if (size > QED_MCP_DBG_DATA_MAX_SIZE) {
+		DP_ERR(p_hwfn,
+		       "Debug data size is %d while it should not exceed %d\n",
+		       size, QED_MCP_DBG_DATA_MAX_SIZE);
+		return -EINVAL;
+	}
+
+	memset(&mb_params, 0, sizeof(mb_params));
+	mb_params.cmd = DRV_MSG_CODE_DEBUG_DATA_SEND;
+	SET_MFW_FIELD(mb_params.param, DRV_MSG_CODE_DEBUG_DATA_SEND_SIZE, size);
+	mb_params.p_data_src = p_buf;
+	mb_params.data_src_size = size;
+	rc = qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
+	if (rc)
+		return rc;
+
+	if (mb_params.mcp_resp == FW_MSG_CODE_UNSUPPORTED) {
+		DP_INFO(p_hwfn,
+			"The DEBUG_DATA_SEND command is unsupported by the MFW\n");
+		return -EOPNOTSUPP;
+	} else if (mb_params.mcp_resp == (u32)FW_MSG_CODE_DEBUG_NOT_ENABLED) {
+		DP_INFO(p_hwfn, "The DEBUG_DATA_SEND command is not enabled\n");
+		return -EBUSY;
+	} else if (mb_params.mcp_resp != (u32)FW_MSG_CODE_DEBUG_DATA_SEND_OK) {
+		DP_NOTICE(p_hwfn,
+			  "Failed to send debug data to the MFW [resp 0x%08x]\n",
+			  mb_params.mcp_resp);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+enum qed_mcp_dbg_data_type {
+	QED_MCP_DBG_DATA_TYPE_RAW,
+};
+
+/* Header format: [31:28] PFID, [27:20] flags, [19:12] type, [11:0] S/N */
+#define QED_MCP_DBG_DATA_HDR_SN_OFFSET  0
+#define QED_MCP_DBG_DATA_HDR_SN_MASK            0x00000fff
+#define QED_MCP_DBG_DATA_HDR_TYPE_OFFSET        12
+#define QED_MCP_DBG_DATA_HDR_TYPE_MASK  0x000ff000
+#define QED_MCP_DBG_DATA_HDR_FLAGS_OFFSET       20
+#define QED_MCP_DBG_DATA_HDR_FLAGS_MASK 0x0ff00000
+#define QED_MCP_DBG_DATA_HDR_PF_OFFSET  28
+#define QED_MCP_DBG_DATA_HDR_PF_MASK            0xf0000000
+
+#define QED_MCP_DBG_DATA_HDR_FLAGS_FIRST        0x1
+#define QED_MCP_DBG_DATA_HDR_FLAGS_LAST 0x2
+
+static int
+qed_mcp_send_debug_data(struct qed_hwfn *p_hwfn,
+			struct qed_ptt *p_ptt,
+			enum qed_mcp_dbg_data_type type, u8 *p_buf, u32 size)
+{
+	u8 raw_data[QED_MCP_DBG_DATA_MAX_SIZE], *p_tmp_buf = p_buf;
+	u32 tmp_size = size, *p_header, *p_payload;
+	u8 flags = 0;
+	u16 seq;
+	int rc;
+
+	p_header = (u32 *)raw_data;
+	p_payload = (u32 *)(raw_data + QED_MCP_DBG_DATA_MAX_HEADER_SIZE);
+
+	seq = (u16)atomic_inc_return(&p_hwfn->mcp_info->dbg_data_seq);
+
+	/* First chunk is marked as 'first' */
+	flags |= QED_MCP_DBG_DATA_HDR_FLAGS_FIRST;
+
+	*p_header = 0;
+	SET_MFW_FIELD(*p_header, QED_MCP_DBG_DATA_HDR_SN, seq);
+	SET_MFW_FIELD(*p_header, QED_MCP_DBG_DATA_HDR_TYPE, type);
+	SET_MFW_FIELD(*p_header, QED_MCP_DBG_DATA_HDR_FLAGS, flags);
+	SET_MFW_FIELD(*p_header, QED_MCP_DBG_DATA_HDR_PF, p_hwfn->abs_pf_id);
+
+	while (tmp_size > QED_MCP_DBG_DATA_MAX_PAYLOAD_SIZE) {
+		memcpy(p_payload, p_tmp_buf, QED_MCP_DBG_DATA_MAX_PAYLOAD_SIZE);
+		rc = __qed_mcp_send_debug_data(p_hwfn, p_ptt, raw_data,
+					       QED_MCP_DBG_DATA_MAX_SIZE);
+		if (rc)
+			return rc;
+
+		/* Clear the 'first' marking after sending the first chunk */
+		if (p_tmp_buf == p_buf) {
+			flags &= ~QED_MCP_DBG_DATA_HDR_FLAGS_FIRST;
+			SET_MFW_FIELD(*p_header, QED_MCP_DBG_DATA_HDR_FLAGS,
+				      flags);
+		}
+
+		p_tmp_buf += QED_MCP_DBG_DATA_MAX_PAYLOAD_SIZE;
+		tmp_size -= QED_MCP_DBG_DATA_MAX_PAYLOAD_SIZE;
+	}
+
+	/* Last chunk is marked as 'last' */
+	flags |= QED_MCP_DBG_DATA_HDR_FLAGS_LAST;
+	SET_MFW_FIELD(*p_header, QED_MCP_DBG_DATA_HDR_FLAGS, flags);
+	memcpy(p_payload, p_tmp_buf, tmp_size);
+
+	/* Casting the left size to u8 is ok since at this point it is <= 32 */
+	return __qed_mcp_send_debug_data(p_hwfn, p_ptt, raw_data,
+					 (u8)(QED_MCP_DBG_DATA_MAX_HEADER_SIZE +
+					 tmp_size));
+}
+
+int
+qed_mcp_send_raw_debug_data(struct qed_hwfn *p_hwfn,
+			    struct qed_ptt *p_ptt, u8 *p_buf, u32 size)
+{
+	return qed_mcp_send_debug_data(p_hwfn, p_ptt,
+				       QED_MCP_DBG_DATA_TYPE_RAW, p_buf, size);
 }

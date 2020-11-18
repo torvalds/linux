@@ -250,7 +250,7 @@ static int dr_controller_setup(struct fsl_udc *udc)
 		break;
 	case FSL_USB2_PHY_UTMI_WIDE:
 		portctrl |= PORTSCX_PTW_16BIT;
-		/* fall through */
+		fallthrough;
 	case FSL_USB2_PHY_UTMI:
 	case FSL_USB2_PHY_UTMI_DUAL:
 		if (udc->pdata->have_sysif_regs) {
@@ -2440,8 +2440,8 @@ static int fsl_udc_probe(struct platform_device *pdev)
 	udc_controller->max_ep = (dccparams & DCCPARAMS_DEN_MASK) * 2;
 
 	udc_controller->irq = platform_get_irq(pdev, 0);
-	if (!udc_controller->irq) {
-		ret = -ENODEV;
+	if (udc_controller->irq <= 0) {
+		ret = udc_controller->irq ? : -ENODEV;
 		goto err_iounmap;
 	}
 

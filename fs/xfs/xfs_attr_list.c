@@ -44,7 +44,7 @@ xfs_attr_shortform_compare(const void *a, const void *b)
 /*
  * Copy out entries of shortform attribute lists for attr_list().
  * Shortform attribute lists are not stored in hashval sorted order.
- * If the output buffer is not large enough to hold them all, then we
+ * If the output buffer is not large enough to hold them all, then
  * we have to calculate each entries' hashvalue and sort them before
  * we can begin returning them to the user.
  */
@@ -512,9 +512,9 @@ xfs_attr_list_ilocked(
 	 */
 	if (!xfs_inode_hasattr(dp))
 		return 0;
-	else if (dp->i_d.di_aformat == XFS_DINODE_FMT_LOCAL)
+	if (dp->i_afp->if_format == XFS_DINODE_FMT_LOCAL)
 		return xfs_attr_shortform_list(context);
-	else if (xfs_bmap_one_block(dp, XFS_ATTR_FORK))
+	if (xfs_bmap_one_block(dp, XFS_ATTR_FORK))
 		return xfs_attr_leaf_list(context);
 	return xfs_attr_node_list(context);
 }

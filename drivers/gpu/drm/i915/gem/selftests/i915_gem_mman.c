@@ -952,6 +952,129 @@ static int igt_mmap(void *arg)
 	return 0;
 }
 
+static const char *repr_mmap_type(enum i915_mmap_type type)
+{
+	switch (type) {
+	case I915_MMAP_TYPE_GTT: return "gtt";
+	case I915_MMAP_TYPE_WB: return "wb";
+	case I915_MMAP_TYPE_WC: return "wc";
+	case I915_MMAP_TYPE_UC: return "uc";
+	default: return "unknown";
+	}
+}
+
+static bool can_access(const struct drm_i915_gem_object *obj)
+{
+	unsigned int flags =
+		I915_GEM_OBJECT_HAS_STRUCT_PAGE | I915_GEM_OBJECT_HAS_IOMEM;
+
+	return i915_gem_object_type_has(obj, flags);
+}
+
+static int __igt_mmap_access(struct drm_i915_private *i915,
+			     struct drm_i915_gem_object *obj,
+			     enum i915_mmap_type type)
+{
+	struct i915_mmap_offset *mmo;
+	unsigned long __user *ptr;
+	unsigned long A, B;
+	unsigned long x, y;
+	unsigned long addr;
+	int err;
+
+	memset(&A, 0xAA, sizeof(A));
+	memset(&B, 0xBB, sizeof(B));
+
+	if (!can_mmap(obj, type) || !can_access(obj))
+		return 0;
+
+	mmo = mmap_offset_attach(obj, type, NULL);
+	if (IS_ERR(mmo))
+		return PTR_ERR(mmo);
+
+	addr = igt_mmap_node(i915, &mmo->vma_node, 0, PROT_WRITE, MAP_SHARED);
+	if (IS_ERR_VALUE(addr))
+		return addr;
+	ptr = (unsigned long __user *)addr;
+
+	err = __put_user(A, ptr);
+	if (err) {
+		pr_err("%s(%s): failed to write into user mmap\n",
+		       obj->mm.region->name, repr_mmap_type(type));
+		goto out_unmap;
+	}
+
+	intel_gt_flush_ggtt_writes(&i915->gt);
+
+	err = access_process_vm(current, addr, &x, sizeof(x), 0);
+	if (err != sizeof(x)) {
+		pr_err("%s(%s): access_process_vm() read failed\n",
+		       obj->mm.region->name, repr_mmap_type(type));
+		goto out_unmap;
+	}
+
+	err = access_process_vm(current, addr, &B, sizeof(B), FOLL_WRITE);
+	if (err != sizeof(B)) {
+		pr_err("%s(%s): access_process_vm() write failed\n",
+		       obj->mm.region->name, repr_mmap_type(type));
+		goto out_unmap;
+	}
+
+	intel_gt_flush_ggtt_writes(&i915->gt);
+
+	err = __get_user(y, ptr);
+	if (err) {
+		pr_err("%s(%s): failed to read from user mmap\n",
+		       obj->mm.region->name, repr_mmap_type(type));
+		goto out_unmap;
+	}
+
+	if (x != A || y != B) {
+		pr_err("%s(%s): failed to read/write values, found (%lx, %lx)\n",
+		       obj->mm.region->name, repr_mmap_type(type),
+		       x, y);
+		err = -EINVAL;
+		goto out_unmap;
+	}
+
+out_unmap:
+	vm_munmap(addr, obj->base.size);
+	return err;
+}
+
+static int igt_mmap_access(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	struct intel_memory_region *mr;
+	enum intel_region_id id;
+
+	for_each_memory_region(mr, i915, id) {
+		struct drm_i915_gem_object *obj;
+		int err;
+
+		obj = i915_gem_object_create_region(mr, PAGE_SIZE, 0);
+		if (obj == ERR_PTR(-ENODEV))
+			continue;
+
+		if (IS_ERR(obj))
+			return PTR_ERR(obj);
+
+		err = __igt_mmap_access(i915, obj, I915_MMAP_TYPE_GTT);
+		if (err == 0)
+			err = __igt_mmap_access(i915, obj, I915_MMAP_TYPE_WB);
+		if (err == 0)
+			err = __igt_mmap_access(i915, obj, I915_MMAP_TYPE_WC);
+		if (err == 0)
+			err = __igt_mmap_access(i915, obj, I915_MMAP_TYPE_UC);
+
+		i915_gem_object_put(obj);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 static int __igt_mmap_gpu(struct drm_i915_private *i915,
 			  struct drm_i915_gem_object *obj,
 			  enum i915_mmap_type type)
@@ -1156,9 +1279,6 @@ static int __igt_mmap_revoke(struct drm_i915_private *i915,
 	if (err)
 		goto out_unmap;
 
-	GEM_BUG_ON(mmo->mmap_type == I915_MMAP_TYPE_GTT &&
-		   !atomic_read(&obj->bind_count));
-
 	err = check_present(addr, obj->base.size);
 	if (err) {
 		pr_err("%s: was not present\n", obj->mm.region->name);
@@ -1175,7 +1295,6 @@ static int __igt_mmap_revoke(struct drm_i915_private *i915,
 		pr_err("Failed to unbind object!\n");
 		goto out_unmap;
 	}
-	GEM_BUG_ON(atomic_read(&obj->bind_count));
 
 	if (type != I915_MMAP_TYPE_GTT) {
 		__i915_gem_object_put_pages(obj);
@@ -1233,6 +1352,7 @@ int i915_gem_mman_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(igt_smoke_tiling),
 		SUBTEST(igt_mmap_offset_exhaustion),
 		SUBTEST(igt_mmap),
+		SUBTEST(igt_mmap_access),
 		SUBTEST(igt_mmap_revoke),
 		SUBTEST(igt_mmap_gpu),
 	};

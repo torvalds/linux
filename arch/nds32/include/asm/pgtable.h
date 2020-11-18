@@ -186,16 +186,10 @@ extern void paging_init(void);
 #define pte_clear(mm,addr,ptep)	set_pte_at((mm),(addr),(ptep), __pte(0))
 #define pte_page(pte)		(pfn_to_page(pte_pfn(pte)))
 
-#define pte_index(address)                   (((address) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
-#define pte_offset_kernel(dir, address)	     ((pte_t *)pmd_page_kernel(*(dir)) + pte_index(address))
-#define pte_offset_map(dir, address)	     ((pte_t *)page_address(pmd_page(*(dir))) + pte_index(address))
-#define pte_offset_map_nested(dir, address)  pte_offset_map(dir, address)
-#define pmd_page_kernel(pmd)	  	     ((unsigned long) __va(pmd_val(pmd) & PAGE_MASK))
-
-#define pte_unmap(pte)		do { } while (0)
-#define pte_unmap_nested(pte)	do { } while (0)
-
-#define pmd_off_k(address)	pmd_offset(pud_offset(p4d_offset(pgd_offset_k(address), (address)), (address)), (address))
+static unsigned long pmd_page_vaddr(pmd_t pmd)
+{
+	return ((unsigned long) __va(pmd_val(pmd) & PAGE_MASK));
+}
 
 #define set_pte_at(mm,addr,ptep,pteval) set_pte(ptep,pteval)
 /*
@@ -346,12 +340,6 @@ static inline pmd_t __mk_pmd(pte_t * ptep, unsigned long prot)
  *
 */
 
-/* to find an entry in a page-table-directory */
-#define pgd_index(address)      (((address) >> PGDIR_SHIFT) & (PTRS_PER_PGD - 1))
-#define pgd_offset(mm, address)	((mm)->pgd + pgd_index(address))
-/* to find an entry in a kernel page-table-directory */
-#define pgd_offset_k(addr)      pgd_offset(&init_mm, addr)
-
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {
 	const unsigned long mask = 0xfff;
@@ -373,8 +361,6 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 
 /* Needs to be defined here and not in linux/mm.h, as it is arch dependent */
 #define kern_addr_valid(addr)	(1)
-
-#include <asm-generic/pgtable.h>
 
 /*
  * We provide our own arch_get_unmapped_area to cope with VIPT caches.

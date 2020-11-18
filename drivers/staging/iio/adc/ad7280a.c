@@ -978,7 +978,6 @@ static int ad7280_probe(struct spi_device *spi)
 	st->readback_delay_us += 5; /* Add tWAIT */
 
 	indio_dev->name = spi_get_device_id(spi)->name;
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	ret = ad7280_channel_init(st);

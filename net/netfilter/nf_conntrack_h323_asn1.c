@@ -257,15 +257,15 @@ static unsigned int get_uint(struct bitstr *bs, int b)
 	case 4:
 		v |= *bs->cur++;
 		v <<= 8;
-		/* fall through */
+		fallthrough;
 	case 3:
 		v |= *bs->cur++;
 		v <<= 8;
-		/* fall through */
+		fallthrough;
 	case 2:
 		v |= *bs->cur++;
 		v <<= 8;
-		/* fall through */
+		fallthrough;
 	case 1:
 		v |= *bs->cur++;
 		break;

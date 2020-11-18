@@ -2565,9 +2565,9 @@ done:
 }
 
 int ip_mc_gsfget(struct sock *sk, struct group_filter *gsf,
-	struct group_filter __user *optval, int __user *optlen)
+	struct sockaddr_storage __user *p)
 {
-	int err, i, count, copycount;
+	int i, count, copycount;
 	struct sockaddr_in *psin;
 	__be32 addr;
 	struct ip_mc_socklist *pmc;
@@ -2583,37 +2583,29 @@ int ip_mc_gsfget(struct sock *sk, struct group_filter *gsf,
 	if (!ipv4_is_multicast(addr))
 		return -EINVAL;
 
-	err = -EADDRNOTAVAIL;
-
 	for_each_pmc_rtnl(inet, pmc) {
 		if (pmc->multi.imr_multiaddr.s_addr == addr &&
 		    pmc->multi.imr_ifindex == gsf->gf_interface)
 			break;
 	}
 	if (!pmc)		/* must have a prior join */
-		goto done;
+		return -EADDRNOTAVAIL;
 	gsf->gf_fmode = pmc->sfmode;
 	psl = rtnl_dereference(pmc->sflist);
 	count = psl ? psl->sl_count : 0;
 	copycount = count < gsf->gf_numsrc ? count : gsf->gf_numsrc;
 	gsf->gf_numsrc = count;
-	if (put_user(GROUP_FILTER_SIZE(copycount), optlen) ||
-	    copy_to_user(optval, gsf, GROUP_FILTER_SIZE(0))) {
-		return -EFAULT;
-	}
-	for (i = 0; i < copycount; i++) {
+	for (i = 0; i < copycount; i++, p++) {
 		struct sockaddr_storage ss;
 
 		psin = (struct sockaddr_in *)&ss;
 		memset(&ss, 0, sizeof(ss));
 		psin->sin_family = AF_INET;
 		psin->sin_addr.s_addr = psl->sl_addr[i];
-		if (copy_to_user(&optval->gf_slist[i], &ss, sizeof(ss)))
+		if (copy_to_user(p, &ss, sizeof(ss)))
 			return -EFAULT;
 	}
 	return 0;
-done:
-	return err;
 }
 
 /*

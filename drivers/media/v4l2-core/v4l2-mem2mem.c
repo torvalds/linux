@@ -504,12 +504,21 @@ void v4l2_m2m_buf_done_and_job_finish(struct v4l2_m2m_dev *m2m_dev,
 
 	if (WARN_ON(!src_buf || !dst_buf))
 		goto unlock;
-	v4l2_m2m_buf_done(src_buf, state);
 	dst_buf->is_held = src_buf->flags & V4L2_BUF_FLAG_M2M_HOLD_CAPTURE_BUF;
 	if (!dst_buf->is_held) {
 		v4l2_m2m_dst_buf_remove(m2m_ctx);
 		v4l2_m2m_buf_done(dst_buf, state);
 	}
+	/*
+	 * If the request API is being used, returning the OUTPUT
+	 * (src) buffer will wake-up any process waiting on the
+	 * request file descriptor.
+	 *
+	 * Therefore, return the CAPTURE (dst) buffer first,
+	 * to avoid signalling the request file descriptor
+	 * before the CAPTURE buffer is done.
+	 */
+	v4l2_m2m_buf_done(src_buf, state);
 	schedule_next = _v4l2_m2m_job_finish(m2m_dev, m2m_ctx);
 unlock:
 	spin_unlock_irqrestore(&m2m_dev->job_spinlock, flags);
@@ -547,7 +556,7 @@ int v4l2_m2m_querybuf(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 	ret = vb2_querybuf(vq, buf);
 
 	/* Adjust MMAP memory offsets for the CAPTURE queue */
-	if (buf->memory == V4L2_MEMORY_MMAP && !V4L2_TYPE_IS_OUTPUT(vq->type)) {
+	if (buf->memory == V4L2_MEMORY_MMAP && V4L2_TYPE_IS_CAPTURE(vq->type)) {
 		if (V4L2_TYPE_IS_MULTIPLANAR(vq->type)) {
 			for (i = 0; i < buf->length; ++i)
 				buf->m.planes[i].m.mem_offset
@@ -703,7 +712,7 @@ int v4l2_m2m_qbuf(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 	int ret;
 
 	vq = v4l2_m2m_get_vq(m2m_ctx, buf->type);
-	if (!V4L2_TYPE_IS_OUTPUT(vq->type) &&
+	if (V4L2_TYPE_IS_CAPTURE(vq->type) &&
 	    (buf->flags & V4L2_BUF_FLAG_REQUEST_FD)) {
 		dprintk("%s: requests cannot be used with capture buffers\n",
 			__func__);
@@ -720,7 +729,7 @@ int v4l2_m2m_qbuf(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 	 * buffer as DONE with LAST flag since it won't be queued on the
 	 * device.
 	 */
-	if (!V4L2_TYPE_IS_OUTPUT(vq->type) &&
+	if (V4L2_TYPE_IS_CAPTURE(vq->type) &&
 	    vb2_is_streaming(vq) && !vb2_start_streaming_called(vq) &&
 	   (v4l2_m2m_has_stopped(m2m_ctx) || v4l2_m2m_dst_buf_is_last(m2m_ctx)))
 		v4l2_m2m_force_last_buf_done(m2m_ctx, vq);

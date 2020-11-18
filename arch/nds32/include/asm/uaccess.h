@@ -44,7 +44,7 @@ static inline void set_fs(mm_segment_t fs)
 	current_thread_info()->addr_limit = fs;
 }
 
-#define segment_eq(a, b)	((a) == (b))
+#define uaccess_kernel()	(get_fs() == KERNEL_DS)
 
 #define __range_ok(addr, size) (size <= get_fs() && addr <= (get_fs() -size))
 

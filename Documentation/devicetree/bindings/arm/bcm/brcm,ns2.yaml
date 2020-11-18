@@ -16,8 +16,8 @@ properties:
   compatible:
     items:
       - enum:
-        - brcm,ns2-svk
-        - brcm,ns2-xmc
+          - brcm,ns2-svk
+          - brcm,ns2-xmc
       - const: brcm,ns2
 
 ...

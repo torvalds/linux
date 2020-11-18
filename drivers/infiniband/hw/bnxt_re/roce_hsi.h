@@ -210,6 +210,20 @@ struct sq_send {
 	__le32 data[24];
 };
 
+/* sq_send_hdr (size:256b/32B) */
+struct sq_send_hdr {
+	u8	wqe_type;
+	u8	flags;
+	u8	wqe_size;
+	u8	reserved8_1;
+	__le32	inv_key_or_imm_data;
+	__le32	length;
+	__le32	q_key;
+	__le32	dst_qp;
+	__le32	avid;
+	__le64	reserved64;
+};
+
 /* Send Raw Ethernet and QP1 SQ WQE (40 bytes) */
 struct sq_send_raweth_qp1 {
 	u8 wqe_type;
@@ -265,6 +279,21 @@ struct sq_send_raweth_qp1 {
 	__le32 data[24];
 };
 
+/* sq_send_raweth_qp1_hdr (size:256b/32B) */
+struct sq_send_raweth_qp1_hdr {
+	u8	wqe_type;
+	u8	flags;
+	u8	wqe_size;
+	u8	reserved8;
+	__le16	lflags;
+	__le16	cfa_action;
+	__le32	length;
+	__le32	reserved32_1;
+	__le32	cfa_meta;
+	__le32	reserved32_2;
+	__le64	reserved64;
+};
+
 /* RDMA SQ WQE (40 bytes) */
 struct sq_rdma {
 	u8 wqe_type;
@@ -288,6 +317,20 @@ struct sq_rdma {
 	__le32 data[24];
 };
 
+/* sq_rdma_hdr (size:256b/32B) */
+struct sq_rdma_hdr {
+	u8	wqe_type;
+	u8	flags;
+	u8	wqe_size;
+	u8	reserved8;
+	__le32	imm_data;
+	__le32	length;
+	__le32	reserved32_1;
+	__le64	remote_va;
+	__le32	remote_key;
+	__le32	reserved32_2;
+};
+
 /* Atomic SQ WQE (40 bytes) */
 struct sq_atomic {
 	u8 wqe_type;
@@ -307,6 +350,17 @@ struct sq_atomic {
 	__le32 data[24];
 };
 
+/* sq_atomic_hdr (size:256b/32B) */
+struct sq_atomic_hdr {
+	u8	wqe_type;
+	u8	flags;
+	__le16	reserved16;
+	__le32	remote_key;
+	__le64	remote_va;
+	__le64	swap_data;
+	__le64	cmp_data;
+};
+
 /* Local Invalidate SQ WQE (40 bytes) */
 struct sq_localinvalidate {
 	u8 wqe_type;
@@ -322,6 +376,16 @@ struct sq_localinvalidate {
 	__le64 reserved64;
 	__le32 reserved128[4];
 	__le32 data[24];
+};
+
+/* sq_localinvalidate_hdr (size:256b/32B) */
+struct sq_localinvalidate_hdr {
+	u8	wqe_type;
+	u8	flags;
+	__le16	reserved16;
+	__le32	inv_l_key;
+	__le64	reserved64;
+	u8	reserved128[16];
 };
 
 /* FR-PMR SQ WQE (40 bytes) */
@@ -380,6 +444,21 @@ struct sq_fr_pmr {
 	__le32 data[24];
 };
 
+/* sq_fr_pmr_hdr (size:256b/32B) */
+struct sq_fr_pmr_hdr {
+	u8	wqe_type;
+	u8	flags;
+	u8	access_cntl;
+	u8	zero_based_page_size_log;
+	__le32	l_key;
+	u8	length[5];
+	u8	reserved8_1;
+	u8	reserved8_2;
+	u8	numlevels_pbl_page_size_log;
+	__le64	pblptr;
+	__le64	va;
+};
+
 /* Bind SQ WQE (40 bytes) */
 struct sq_bind {
 	u8 wqe_type;
@@ -417,6 +496,22 @@ struct sq_bind {
 	#define SQ_BIND_DATA_SFT				    0
 };
 
+/* sq_bind_hdr (size:256b/32B) */
+struct sq_bind_hdr {
+	u8	wqe_type;
+	u8	flags;
+	u8	access_cntl;
+	u8	reserved8_1;
+	u8	mw_type_zero_based;
+	u8	reserved8_2;
+	__le16	reserved16;
+	__le32	parent_l_key;
+	__le32	l_key;
+	__le64	va;
+	u8	length[5];
+	u8	reserved24[3];
+};
+
 /* RQ/SRQ WQE Structures */
 /* RQ/SRQ WQE (40 bytes) */
 struct rq_wqe {
@@ -433,6 +528,17 @@ struct rq_wqe {
 	#define RQ_WQE_RESERVED44_SFT				    20
 	__le32 reserved128[4];
 	__le32 data[24];
+};
+
+/* rq_wqe_hdr (size:256b/32B) */
+struct rq_wqe_hdr {
+	u8	wqe_type;
+	u8	flags;
+	u8	wqe_size;
+	u8	reserved8;
+	__le32	reserved32;
+	__le32	wr_id[2];
+	u8	reserved128[16];
 };
 
 /* CQ CQE Structures */
@@ -1020,6 +1126,7 @@ struct cmdq_create_qp {
 	#define CMDQ_CREATE_QP_QP_FLAGS_FORCE_COMPLETION	   0x2UL
 	#define CMDQ_CREATE_QP_QP_FLAGS_RESERVED_LKEY_ENABLE      0x4UL
 	#define CMDQ_CREATE_QP_QP_FLAGS_FR_PMR_ENABLED		   0x8UL
+	#define CMDQ_CREATE_QP_QP_FLAGS_VARIABLE_SIZED_WQE_ENABLED 0x10UL
 	u8 type;
 	#define CMDQ_CREATE_QP_TYPE_RC				   0x2UL
 	#define CMDQ_CREATE_QP_TYPE_UD				   0x4UL

@@ -21,6 +21,7 @@
 union perf_event;
 struct perf_session;
 struct evlist;
+struct evsel;
 struct perf_tool;
 struct mmap;
 struct perf_sample;
@@ -54,6 +55,11 @@ enum itrace_period_type {
 	PERF_ITRACE_PERIOD_NANOSECS,
 };
 
+#define AUXTRACE_ERR_FLG_OVERFLOW	(1 << ('o' - 'a'))
+#define AUXTRACE_ERR_FLG_DATA_LOST	(1 << ('l' - 'a'))
+
+#define AUXTRACE_LOG_FLG_ALL_PERF_EVTS	(1 << ('a' - 'a'))
+
 /**
  * struct itrace_synth_opts - AUX area tracing synthesis options.
  * @set: indicates whether or not options have been set
@@ -62,6 +68,7 @@ enum itrace_period_type {
  *          because 'perf inject' will write it out
  * @instructions: whether to synthesize 'instructions' events
  * @branches: whether to synthesize 'branches' events
+ *            (branch misses only for Arm SPE)
  * @transactions: whether to synthesize events for transactions
  * @ptwrites: whether to synthesize events for ptwrites
  * @pwr_events: whether to synthesize power events
@@ -73,8 +80,14 @@ enum itrace_period_type {
  * @calls: limit branch samples to calls (can be combined with @returns)
  * @returns: limit branch samples to returns (can be combined with @calls)
  * @callchain: add callchain to 'instructions' events
+ * @add_callchain: add callchain to existing event records
  * @thread_stack: feed branches to the thread_stack
  * @last_branch: add branch context to 'instruction' events
+ * @add_last_branch: add branch context to existing event records
+ * @flc: whether to synthesize first level cache events
+ * @llc: whether to synthesize last level cache events
+ * @tlb: whether to synthesize TLB events
+ * @remote_access: whether to synthesize remote access events
  * @callchain_sz: maximum callchain size
  * @last_branch_sz: branch context size
  * @period: 'instructions' events period
@@ -83,6 +96,11 @@ enum itrace_period_type {
  * @cpu_bitmap: CPUs for which to synthesize events, or NULL for all
  * @ptime_range: time intervals to trace or NULL
  * @range_num: number of time intervals to trace
+ * @error_plus_flags: flags to affect what errors are reported
+ * @error_minus_flags: flags to affect what errors are reported
+ * @log_plus_flags: flags to affect what is logged
+ * @log_minus_flags: flags to affect what is logged
+ * @quick: quicker (less detailed) decoding
  */
 struct itrace_synth_opts {
 	bool			set;
@@ -100,8 +118,14 @@ struct itrace_synth_opts {
 	bool			calls;
 	bool			returns;
 	bool			callchain;
+	bool			add_callchain;
 	bool			thread_stack;
 	bool			last_branch;
+	bool			add_last_branch;
+	bool			flc;
+	bool			llc;
+	bool			tlb;
+	bool			remote_access;
 	unsigned int		callchain_sz;
 	unsigned int		last_branch_sz;
 	unsigned long long	period;
@@ -110,6 +134,11 @@ struct itrace_synth_opts {
 	unsigned long		*cpu_bitmap;
 	struct perf_time_interval *ptime_range;
 	int			range_num;
+	unsigned int		error_plus_flags;
+	unsigned int		error_minus_flags;
+	unsigned int		log_plus_flags;
+	unsigned int		log_minus_flags;
+	unsigned int		quick;
 };
 
 /**
@@ -166,6 +195,8 @@ struct auxtrace {
 			    struct perf_tool *tool);
 	void (*free_events)(struct perf_session *session);
 	void (*free)(struct perf_session *session);
+	bool (*evsel_is_auxtrace)(struct perf_session *session,
+				  struct evsel *evsel);
 };
 
 /**
@@ -584,20 +615,36 @@ void auxtrace__dump_auxtrace_sample(struct perf_session *session,
 int auxtrace__flush_events(struct perf_session *session, struct perf_tool *tool);
 void auxtrace__free_events(struct perf_session *session);
 void auxtrace__free(struct perf_session *session);
+bool auxtrace__evsel_is_auxtrace(struct perf_session *session,
+				 struct evsel *evsel);
 
 #define ITRACE_HELP \
-"				i:	    		synthesize instructions events\n"		\
-"				b:	    		synthesize branches events\n"		\
+"				i[period]:    		synthesize instructions events\n" \
+"				b:	    		synthesize branches events (branch misses for Arm SPE)\n" \
 "				c:	    		synthesize branches events (calls only)\n"	\
 "				r:	    		synthesize branches events (returns only)\n" \
 "				x:	    		synthesize transactions events\n"		\
 "				w:	    		synthesize ptwrite events\n"		\
 "				p:	    		synthesize power events\n"			\
-"				e:	    		synthesize error events\n"			\
-"				d:	    		create a debug log\n"			\
+"				o:			synthesize other events recorded due to the use\n" \
+"							of aux-output (refer to perf record)\n"	\
+"				e[flags]:		synthesize error events\n" \
+"							each flag must be preceded by + or -\n" \
+"							error flags are: o (overflow)\n" \
+"									 l (data lost)\n" \
+"				d[flags]:		create a debug log\n" \
+"							each flag must be preceded by + or -\n" \
+"							log flags are: a (all perf events)\n" \
+"				f:	    		synthesize first level cache events\n" \
+"				m:	    		synthesize last level cache events\n" \
+"				t:	    		synthesize TLB events\n" \
+"				a:	    		synthesize remote access events\n" \
 "				g[len]:     		synthesize a call chain (use with i or x)\n" \
+"				G[len]:			synthesize a call chain on existing event records\n" \
 "				l[len]:     		synthesize last branch entries (use with i or x)\n" \
+"				L[len]:			synthesize last branch entries on existing event records\n" \
 "				sNUMBER:    		skip initial number of events\n"		\
+"				q:			quicker (less detailed) decoding\n" \
 "				PERIOD[ns|us|ms|i|t]:   specify period to sample stream\n" \
 "				concatenate multiple options. Default is ibxwpe or cewp\n"
 
@@ -747,6 +794,13 @@ int auxtrace_index__process(int fd __maybe_unused,
 static inline
 void auxtrace_index__free(struct list_head *head __maybe_unused)
 {
+}
+
+static inline
+bool auxtrace__evsel_is_auxtrace(struct perf_session *session __maybe_unused,
+				 struct evsel *evsel __maybe_unused)
+{
+	return false;
 }
 
 static inline

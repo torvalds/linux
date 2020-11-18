@@ -1032,7 +1032,7 @@ static __poll_t vsock_poll(struct file *file, struct socket *sock,
 		}
 
 		/* Connected sockets that can produce data can be written. */
-		if (sk->sk_state == TCP_ESTABLISHED) {
+		if (transport && sk->sk_state == TCP_ESTABLISHED) {
 			if (!(sk->sk_shutdown & SEND_SHUTDOWN)) {
 				bool space_avail_now = false;
 				int ret = transport->notify_poll_out(
@@ -1202,8 +1202,6 @@ static const struct proto_ops vsock_dgram_ops = {
 	.ioctl = sock_no_ioctl,
 	.listen = sock_no_listen,
 	.shutdown = vsock_shutdown,
-	.setsockopt = sock_no_setsockopt,
-	.getsockopt = sock_no_getsockopt,
 	.sendmsg = vsock_dgram_sendmsg,
 	.recvmsg = vsock_dgram_recvmsg,
 	.mmap = sock_no_mmap,
@@ -1519,7 +1517,7 @@ static void vsock_update_buffer_size(struct vsock_sock *vsk,
 static int vsock_stream_setsockopt(struct socket *sock,
 				   int level,
 				   int optname,
-				   char __user *optval,
+				   sockptr_t optval,
 				   unsigned int optlen)
 {
 	int err;
@@ -1537,7 +1535,7 @@ static int vsock_stream_setsockopt(struct socket *sock,
 			err = -EINVAL;			  \
 			goto exit;			  \
 		}					  \
-		if (copy_from_user(&_v, optval, sizeof(_v)) != 0) {	\
+		if (copy_from_sockptr(&_v, optval, sizeof(_v)) != 0) {	\
 			err = -EFAULT;					\
 			goto exit;					\
 		}							\

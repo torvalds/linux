@@ -32,7 +32,7 @@
  *                      to disk for all backgrounded commits that have been
  *                      around too long.
  *		     -- Note, if you call this as an immediate flush from
- *		        from within kupdate, it will ignore the immediate flag
+ *		        within kupdate, it will ignore the immediate flag
  */
 
 #include <linux/time.h>

@@ -281,7 +281,7 @@ static void radeon_unpin_work_func(struct work_struct *__work)
 	} else
 		DRM_ERROR("failed to reserve buffer after flip\n");
 
-	drm_gem_object_put_unlocked(&work->old_rbo->tbo.base);
+	drm_gem_object_put(&work->old_rbo->tbo.base);
 	kfree(work);
 }
 
@@ -613,7 +613,7 @@ pflip_cleanup:
 	radeon_bo_unreserve(new_rbo);
 
 cleanup:
-	drm_gem_object_put_unlocked(&work->old_rbo->tbo.base);
+	drm_gem_object_put(&work->old_rbo->tbo.base);
 	dma_fence_put(work->fence);
 	kfree(work);
 	return r;
@@ -635,8 +635,10 @@ radeon_crtc_set_config(struct drm_mode_set *set,
 	dev = set->crtc->dev;
 
 	ret = pm_runtime_get_sync(dev->dev);
-	if (ret < 0)
+	if (ret < 0) {
+		pm_runtime_put_autosuspend(dev->dev);
 		return ret;
+	}
 
 	ret = drm_crtc_helper_set_config(set, ctx);
 
@@ -1337,14 +1339,14 @@ radeon_user_framebuffer_create(struct drm_device *dev,
 
 	fb = kzalloc(sizeof(*fb), GFP_KERNEL);
 	if (fb == NULL) {
-		drm_gem_object_put_unlocked(obj);
+		drm_gem_object_put(obj);
 		return ERR_PTR(-ENOMEM);
 	}
 
 	ret = radeon_framebuffer_init(dev, fb, mode_cmd, obj);
 	if (ret) {
 		kfree(fb);
-		drm_gem_object_put_unlocked(obj);
+		drm_gem_object_put(obj);
 		return ERR_PTR(ret);
 	}
 

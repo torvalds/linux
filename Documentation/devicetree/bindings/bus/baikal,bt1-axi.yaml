@@ -1,0 +1,107 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright (C) 2020 BAIKAL ELECTRONICS, JSC
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/bus/baikal,bt1-axi.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Baikal-T1 AXI-bus
+
+maintainers:
+  - Serge Semin <fancer.lancer@gmail.com>
+
+description: |
+  AXI3-bus is the main communication bus of Baikal-T1 SoC connecting all
+  high-speed peripheral IP-cores with RAM controller and with MIPS P5600
+  cores. Traffic arbitration is done by means of DW AXI Interconnect (so
+  called AXI Main Interconnect) routing IO requests from one block to
+  another: from CPU to SoC peripherals and between some SoC peripherals
+  (mostly between peripheral devices and RAM, but also between DMA and
+  some peripherals). In case of any protocol error, device not responding
+  an IRQ is raised and a faulty situation is reported to the AXI EHB
+  (Errors Handler Block) embedded on top of the DW AXI Interconnect and
+  accessible by means of the Baikal-T1 System Controller.
+
+allOf:
+  - $ref: /schemas/simple-bus.yaml#
+
+properties:
+  compatible:
+    contains:
+      const: baikal,bt1-axi
+
+  reg:
+    minItems: 1
+    items:
+      - description: Synopsys DesignWare AXI Interconnect QoS registers
+      - description: AXI EHB MMIO system controller registers
+
+  reg-names:
+    minItems: 1
+    items:
+      - const: qos
+      - const: ehb
+
+  '#interconnect-cells':
+    const: 1
+
+  syscon:
+    $ref: /schemas/types.yaml#definitions/phandle
+    description: Phandle to the Baikal-T1 System Controller DT node
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: Main Interconnect uplink reference clock
+
+  clock-names:
+    items:
+      - const: aclk
+
+  resets:
+    items:
+      - description: Main Interconnect reset line
+
+  reset-names:
+    items:
+      - const: arst
+
+unevaluatedProperties: false
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - syscon
+  - interrupts
+  - clocks
+  - clock-names
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/mips-gic.h>
+
+    bus@1f05a000 {
+      compatible = "baikal,bt1-axi", "simple-bus";
+      reg = <0x1f05a000 0x1000>,
+            <0x1f04d110 0x8>;
+      reg-names = "qos", "ehb";
+      #address-cells = <1>;
+      #size-cells = <1>;
+      #interconnect-cells = <1>;
+
+      syscon = <&syscon>;
+
+      ranges;
+
+      interrupts = <GIC_SHARED 127 IRQ_TYPE_LEVEL_HIGH>;
+
+      clocks = <&ccu_axi 0>;
+      clock-names = "aclk";
+
+      resets = <&ccu_axi 0>;
+      reset-names = "arst";
+    };
+...

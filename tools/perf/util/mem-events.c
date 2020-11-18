@@ -103,6 +103,21 @@ int perf_mem_events__init(void)
 	return found ? 0 : -ENOENT;
 }
 
+void perf_mem_events__list(void)
+{
+	int j;
+
+	for (j = 0; j < PERF_MEM_EVENTS__MAX; j++) {
+		struct perf_mem_event *e = &perf_mem_events[j];
+
+		fprintf(stderr, "%-13s%-*s%s\n",
+			e->tag,
+			verbose > 0 ? 25 : 0,
+			verbose > 0 ? perf_mem_events__name(j) : "",
+			e->supported ? ": available" : "");
+	}
+}
+
 static const char * const tlb_access[] = {
 	"N/A",
 	"HIT",

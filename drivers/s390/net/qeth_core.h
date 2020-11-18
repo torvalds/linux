@@ -11,6 +11,7 @@
 #define __QETH_CORE_H__
 
 #include <linux/completion.h>
+#include <linux/debugfs.h>
 #include <linux/if.h>
 #include <linux/if_arp.h>
 #include <linux/etherdevice.h>
@@ -21,8 +22,10 @@
 #include <linux/seq_file.h>
 #include <linux/hashtable.h>
 #include <linux/ip.h>
+#include <linux/rcupdate.h>
 #include <linux/refcount.h>
 #include <linux/timer.h>
+#include <linux/types.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
 
@@ -31,6 +34,7 @@
 #include <net/ipv6.h>
 #include <net/if_inet6.h>
 #include <net/addrconf.h>
+#include <net/route.h>
 #include <net/sch_generic.h>
 #include <net/tcp.h>
 
@@ -231,11 +235,7 @@ struct qeth_hdr_layer3 {
 	__u16 frame_offset;
 	union {
 		/* TX: */
-		struct in6_addr ipv6_addr;
-		struct ipv4 {
-			u8 res[12];
-			u32 addr;
-		} ipv4;
+		struct in6_addr addr;
 		/* RX: */
 		struct rx {
 			u8 res1[2];
@@ -352,9 +352,14 @@ static inline bool qeth_l3_same_next_hop(struct qeth_hdr_layer3 *h1,
 					 struct qeth_hdr_layer3 *h2)
 {
 	return !((h1->flags ^ h2->flags) & QETH_HDR_IPV6) &&
-	       ipv6_addr_equal(&h1->next_hop.ipv6_addr,
-			       &h2->next_hop.ipv6_addr);
+	       ipv6_addr_equal(&h1->next_hop.addr, &h2->next_hop.addr);
 }
+
+struct qeth_local_addr {
+	struct hlist_node hnode;
+	struct rcu_head rcu;
+	struct in6_addr addr;
+};
 
 enum qeth_qdio_info_states {
 	QETH_QDIO_UNINITIALIZED,
@@ -688,6 +693,9 @@ struct qeth_card_info {
 	u8 promisc_mode:1;
 	u8 use_v1_blkt:1;
 	u8 is_vm_nic:1;
+	/* no bitfield, we take a pointer on these two: */
+	u8 has_lp2lp_cso_v6;
+	u8 has_lp2lp_cso_v4;
 	enum qeth_card_types type;
 	enum qeth_link_types link_type;
 	int broadcast_capable;
@@ -713,7 +721,6 @@ struct qeth_card_options {
 	struct qeth_vnicc_info vnicc; /* VNICC options */
 	enum qeth_discipline_id layer;
 	enum qeth_ipa_isolation_modes isolation;
-	enum qeth_ipa_isolation_modes prev_isolation;
 	int sniffer;
 	enum qeth_cq cq;
 	char hsuid[9];
@@ -757,6 +764,7 @@ struct qeth_rx {
 	u8 buf_element;
 	int e_offset;
 	int qdio_err;
+	u8 bufs_refill;
 };
 
 struct carrier_info {
@@ -786,6 +794,7 @@ struct qeth_card {
 	struct qeth_channel data;
 
 	struct net_device *dev;
+	struct dentry *debugfs;
 	struct qeth_card_stats stats;
 	struct qeth_card_info info;
 	struct qeth_token token;
@@ -795,10 +804,13 @@ struct qeth_card {
 	struct workqueue_struct *event_wq;
 	struct workqueue_struct *cmd_wq;
 	wait_queue_head_t wait_q;
-	DECLARE_HASHTABLE(mac_htable, 4);
 	DECLARE_HASHTABLE(ip_htable, 4);
+	DECLARE_HASHTABLE(local_addrs4, 4);
+	DECLARE_HASHTABLE(local_addrs6, 4);
+	spinlock_t local_addrs4_lock;
+	spinlock_t local_addrs6_lock;
 	struct mutex ip_lock;
-	DECLARE_HASHTABLE(ip_mc_htable, 4);
+	DECLARE_HASHTABLE(rx_mode_addrs, 4);
 	struct work_struct rx_mode_work;
 	struct work_struct kernel_thread_starter;
 	spinlock_t thread_mask_lock;
@@ -822,7 +834,6 @@ struct qeth_card {
 	struct napi_struct napi;
 	struct qeth_rx rx;
 	struct delayed_work buffer_reclaim_work;
-	int reclaim_index;
 	struct work_struct close_dev_work;
 };
 
@@ -928,6 +939,25 @@ static inline struct dst_entry *qeth_dst_check_rcu(struct sk_buff *skb, int ipv)
 	return dst;
 }
 
+static inline __be32 qeth_next_hop_v4_rcu(struct sk_buff *skb,
+					  struct dst_entry *dst)
+{
+	struct rtable *rt = (struct rtable *) dst;
+
+	return (rt) ? rt_nexthop(rt, ip_hdr(skb)->daddr) : ip_hdr(skb)->daddr;
+}
+
+static inline struct in6_addr *qeth_next_hop_v6_rcu(struct sk_buff *skb,
+						    struct dst_entry *dst)
+{
+	struct rt6_info *rt = (struct rt6_info *) dst;
+
+	if (rt && !ipv6_addr_any(&rt->rt6i_gateway))
+		return &rt->rt6i_gateway;
+	else
+		return &ipv6_hdr(skb)->daddr;
+}
+
 static inline void qeth_tx_csum(struct sk_buff *skb, u8 *flags, int ipv)
 {
 	*flags |= QETH_HDR_EXT_CSUM_TRANSP_REQ;
@@ -1021,7 +1051,8 @@ struct qeth_cmd_buffer *qeth_get_diag_cmd(struct qeth_card *card,
 void qeth_notify_cmd(struct qeth_cmd_buffer *iob, int reason);
 void qeth_put_cmd(struct qeth_cmd_buffer *iob);
 
-void qeth_schedule_recovery(struct qeth_card *);
+int qeth_schedule_recovery(struct qeth_card *card);
+void qeth_flush_local_addrs(struct qeth_card *card);
 int qeth_poll(struct napi_struct *napi, int budget);
 void qeth_clear_ipacmd_list(struct qeth_card *);
 int qeth_qdio_clear_card(struct qeth_card *, int);
@@ -1038,6 +1069,9 @@ int qeth_query_switch_attributes(struct qeth_card *card,
 				  struct qeth_switch_info *sw_info);
 int qeth_query_card_info(struct qeth_card *card,
 			 struct carrier_info *carrier_info);
+int qeth_setadpparms_set_access_ctrl(struct qeth_card *card,
+				     enum qeth_ipa_isolation_modes mode);
+
 unsigned int qeth_count_elements(struct sk_buff *skb, unsigned int data_offset);
 int qeth_do_send_packet(struct qeth_card *card, struct qeth_qdio_out_q *queue,
 			struct sk_buff *skb, struct qeth_hdr *hdr,
@@ -1045,7 +1079,6 @@ int qeth_do_send_packet(struct qeth_card *card, struct qeth_qdio_out_q *queue,
 			int elements_needed);
 int qeth_do_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 void qeth_dbf_longtext(debug_info_t *id, int level, char *text, ...);
-int qeth_set_access_ctrl_online(struct qeth_card *card, int fallback);
 int qeth_configure_cq(struct qeth_card *, enum qeth_cq);
 int qeth_hw_trap(struct qeth_card *, enum qeth_diags_trap_action);
 void qeth_trace_features(struct qeth_card *);

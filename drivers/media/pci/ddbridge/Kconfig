@@ -15,7 +15,6 @@ config DVB_DDBRIDGE
 	select MEDIA_TUNER_TDA18212 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_MXL5XX if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_CXD2099 if MEDIA_SUBDRV_AUTOSELECT
-	select DVB_DUMMY_FE if MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Support for cards with the Digital Devices PCI express bridge:
 	  - Octopus PCIe Bridge

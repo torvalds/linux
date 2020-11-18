@@ -302,12 +302,14 @@ void intel_frontbuffer_track(struct intel_frontbuffer *old,
 		     BITS_PER_TYPE(atomic_t));
 
 	if (old) {
-		WARN_ON(!(atomic_read(&old->bits) & frontbuffer_bits));
+		drm_WARN_ON(old->obj->base.dev,
+			    !(atomic_read(&old->bits) & frontbuffer_bits));
 		atomic_andnot(frontbuffer_bits, &old->bits);
 	}
 
 	if (new) {
-		WARN_ON(atomic_read(&new->bits) & frontbuffer_bits);
+		drm_WARN_ON(new->obj->base.dev,
+			    atomic_read(&new->bits) & frontbuffer_bits);
 		atomic_or(frontbuffer_bits, &new->bits);
 	}
 }

@@ -285,7 +285,7 @@ static void rx_complete(struct usb_ep *ep, struct usb_request *req)
 
 	/* data overrun */
 	case -EOVERFLOW:
-		/* FALLTHROUGH */
+		fallthrough;
 
 	default:
 		DBG(dev, "rx status %d\n", status);
@@ -304,7 +304,7 @@ static void tx_complete(struct usb_ep *ep, struct usb_request *req)
 	switch (req->status) {
 	default:
 		VDBG(dev, "tx err %d\n", req->status);
-		/* FALLTHROUGH */
+		fallthrough;
 	case -ECONNRESET:		/* unlink */
 	case -ESHUTDOWN:		/* disconnect etc */
 		break;
@@ -337,6 +337,11 @@ printer_open(struct inode *inode, struct file *fd)
 	dev = container_of(inode->i_cdev, struct printer_dev, printer_cdev);
 
 	spin_lock_irqsave(&dev->lock, flags);
+
+	if (dev->interface < 0) {
+		spin_unlock_irqrestore(&dev->lock, flags);
+		return -ENODEV;
+	}
 
 	if (!dev->printer_cdev_open) {
 		dev->printer_cdev_open = 1;
@@ -429,6 +434,12 @@ printer_read(struct file *fd, char __user *buf, size_t len, loff_t *ptr)
 
 	mutex_lock(&dev->lock_printer_io);
 	spin_lock_irqsave(&dev->lock, flags);
+
+	if (dev->interface < 0) {
+		spin_unlock_irqrestore(&dev->lock, flags);
+		mutex_unlock(&dev->lock_printer_io);
+		return -ENODEV;
+	}
 
 	/* We will use this flag later to check if a printer reset happened
 	 * after we turn interrupts back on.
@@ -561,6 +572,12 @@ printer_write(struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 	mutex_lock(&dev->lock_printer_io);
 	spin_lock_irqsave(&dev->lock, flags);
 
+	if (dev->interface < 0) {
+		spin_unlock_irqrestore(&dev->lock, flags);
+		mutex_unlock(&dev->lock_printer_io);
+		return -ENODEV;
+	}
+
 	/* Check if a printer reset happens while we have interrupts on */
 	dev->reset_printer = 0;
 
@@ -667,6 +684,13 @@ printer_fsync(struct file *fd, loff_t start, loff_t end, int datasync)
 
 	inode_lock(inode);
 	spin_lock_irqsave(&dev->lock, flags);
+
+	if (dev->interface < 0) {
+		spin_unlock_irqrestore(&dev->lock, flags);
+		inode_unlock(inode);
+		return -ENODEV;
+	}
+
 	tx_list_empty = (likely(list_empty(&dev->tx_reqs)));
 	spin_unlock_irqrestore(&dev->lock, flags);
 
@@ -689,6 +713,13 @@ printer_poll(struct file *fd, poll_table *wait)
 
 	mutex_lock(&dev->lock_printer_io);
 	spin_lock_irqsave(&dev->lock, flags);
+
+	if (dev->interface < 0) {
+		spin_unlock_irqrestore(&dev->lock, flags);
+		mutex_unlock(&dev->lock_printer_io);
+		return EPOLLERR | EPOLLHUP;
+	}
+
 	setup_rx_reqs(dev);
 	spin_unlock_irqrestore(&dev->lock, flags);
 	mutex_unlock(&dev->lock_printer_io);
@@ -721,6 +752,11 @@ printer_ioctl(struct file *fd, unsigned int code, unsigned long arg)
 	/* handle ioctls */
 
 	spin_lock_irqsave(&dev->lock, flags);
+
+	if (dev->interface < 0) {
+		spin_unlock_irqrestore(&dev->lock, flags);
+		return -ENODEV;
+	}
 
 	switch (code) {
 	case GADGET_GET_PRINTER_STATUS:
@@ -919,7 +955,7 @@ static bool gprinter_req_match(struct usb_function *f,
 		if (!w_value && !w_length &&
 		   !(USB_DIR_IN & ctrl->bRequestType))
 			break;
-		/* fall through */
+		fallthrough;
 	default:
 		return false;
 	}

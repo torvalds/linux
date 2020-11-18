@@ -103,7 +103,7 @@ static irqreturn_t fmn_message_handler(int irq, void *data)
 				mflags = nlm_cop2_enable_irqsave();
 			}
 		}
-	};
+	}
 	/* Enable message ring intr, to any thread in core */
 	nlm_fmn_setup_intr(irq, (1 << nlm_threads_per_core) - 1);
 	nlm_cop2_disable_irqrestore(mflags);

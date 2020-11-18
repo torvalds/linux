@@ -86,9 +86,11 @@
  * - 3.35.0 - Add drm_amdgpu_info_device::tcc_disabled_mask
  * - 3.36.0 - Allow reading more status registers on si/cik
  * - 3.37.0 - L2 is invalidated before SDMA IBs, needed for correctness
+ * - 3.38.0 - Add AMDGPU_IB_FLAG_EMIT_MEM_SYNC
+ * - 3.39.0 - DMABUF implicit sync does a full pipeline sync
  */
 #define KMS_DRIVER_MAJOR	3
-#define KMS_DRIVER_MINOR	37
+#define KMS_DRIVER_MINOR	39
 #define KMS_DRIVER_PATCHLEVEL	0
 
 int amdgpu_vram_limit = 0;
@@ -139,12 +141,15 @@ int amdgpu_emu_mode = 0;
 uint amdgpu_smu_memory_pool_size = 0;
 /* FBC (bit 0) disabled by default*/
 uint amdgpu_dc_feature_mask = 0;
+uint amdgpu_dc_debug_mask = 0;
 int amdgpu_async_gfx_ring = 1;
 int amdgpu_mcbp = 0;
 int amdgpu_discovery = -1;
 int amdgpu_mes = 0;
 int amdgpu_noretry;
 int amdgpu_force_asic_type = -1;
+int amdgpu_tmz = 0;
+int amdgpu_reset_method = -1; /* auto */
 
 struct amdgpu_mgpu_info mgpu_info = {
 	.mutex = __MUTEX_INITIALIZER(mgpu_info.mutex),
@@ -688,13 +693,12 @@ MODULE_PARM_DESC(halt_if_hws_hang, "Halt if HWS hang is detected (0 = off (defau
 
 /**
  * DOC: hws_gws_support(bool)
- * Whether HWS support gws barriers. Default value: false (not supported)
- * This will be replaced with a MEC firmware version check once firmware
- * is ready
+ * Assume that HWS supports GWS barriers regardless of what firmware version
+ * check says. Default value: false (rely on MEC2 firmware version check).
  */
 bool hws_gws_support;
 module_param(hws_gws_support, bool, 0444);
-MODULE_PARM_DESC(hws_gws_support, "MEC FW support gws barriers (false = not supported (Default), true = supported)");
+MODULE_PARM_DESC(hws_gws_support, "Assume MEC2 FW supports GWS barriers (false = rely on FW version check (Default), true = force supported)");
 
 /**
   * DOC: queue_preemption_timeout_ms (int)
@@ -703,6 +707,14 @@ MODULE_PARM_DESC(hws_gws_support, "MEC FW support gws barriers (false = not supp
 int queue_preemption_timeout_ms = 9000;
 module_param(queue_preemption_timeout_ms, int, 0644);
 MODULE_PARM_DESC(queue_preemption_timeout_ms, "queue preemption timeout in ms (1 = Minimum, 9000 = default)");
+
+/**
+ * DOC: debug_evictions(bool)
+ * Enable extra debug messages to help determine the cause of evictions
+ */
+bool debug_evictions;
+module_param(debug_evictions, bool, 0644);
+MODULE_PARM_DESC(debug_evictions, "enable eviction debug messages (false = default)");
 #endif
 
 /**
@@ -712,6 +724,13 @@ MODULE_PARM_DESC(queue_preemption_timeout_ms, "queue preemption timeout in ms (1
  */
 MODULE_PARM_DESC(dcfeaturemask, "all stable DC features enabled (default))");
 module_param_named(dcfeaturemask, amdgpu_dc_feature_mask, uint, 0444);
+
+/**
+ * DOC: dcdebugmask (uint)
+ * Override display features enabled. See enum DC_DEBUG_MASK in drivers/gpu/drm/amd/include/amd_shared.h.
+ */
+MODULE_PARM_DESC(dcdebugmask, "all debug options disabled (default))");
+module_param_named(dcdebugmask, amdgpu_dc_debug_mask, uint, 0444);
 
 /**
  * DOC: abmlevel (uint)
@@ -728,6 +747,23 @@ module_param_named(dcfeaturemask, amdgpu_dc_feature_mask, uint, 0444);
 uint amdgpu_dm_abm_level = 0;
 MODULE_PARM_DESC(abmlevel, "ABM level (0 = off (default), 1-4 = backlight reduction level) ");
 module_param_named(abmlevel, amdgpu_dm_abm_level, uint, 0444);
+
+/**
+ * DOC: tmz (int)
+ * Trusted Memory Zone (TMZ) is a method to protect data being written
+ * to or read from memory.
+ *
+ * The default value: 0 (off).  TODO: change to auto till it is completed.
+ */
+MODULE_PARM_DESC(tmz, "Enable TMZ feature (-1 = auto, 0 = off (default), 1 = on)");
+module_param_named(tmz, amdgpu_tmz, int, 0444);
+
+/**
+ * DOC: reset_method (int)
+ * GPU reset method (-1 = auto (default), 0 = legacy, 1 = mode0, 2 = mode1, 3 = mode2, 4 = baco)
+ */
+MODULE_PARM_DESC(reset_method, "GPU reset method (-1 = auto (default), 0 = legacy, 1 = mode0, 2 = mode1, 3 = mode2, 4 = baco)");
+module_param_named(reset_method, amdgpu_reset_method, int, 0444);
 
 static const struct pci_device_id pciidlist[] = {
 #ifdef  CONFIG_DRM_AMDGPU_SI
@@ -1008,8 +1044,16 @@ static const struct pci_device_id pciidlist[] = {
 	{0x1002, 0x1636, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_RENOIR|AMD_IS_APU},
 
 	/* Navi12 */
-	{0x1002, 0x7360, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_NAVI12|AMD_EXP_HW_SUPPORT},
-	{0x1002, 0x7362, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_NAVI12|AMD_EXP_HW_SUPPORT},
+	{0x1002, 0x7360, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_NAVI12},
+	{0x1002, 0x7362, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_NAVI12},
+
+	/* Sienna_Cichlid */
+	{0x1002, 0x73A0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_SIENNA_CICHLID},
+	{0x1002, 0x73A2, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_SIENNA_CICHLID},
+	{0x1002, 0x73A3, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_SIENNA_CICHLID},
+	{0x1002, 0x73AB, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_SIENNA_CICHLID},
+	{0x1002, 0x73AE, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_SIENNA_CICHLID},
+	{0x1002, 0x73BF, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_SIENNA_CICHLID},
 
 	{0, 0, 0}
 };
@@ -1092,7 +1136,9 @@ static int amdgpu_pci_probe(struct pci_dev *pdev,
 
 	pci_set_drvdata(pdev, dev);
 
-	amdgpu_driver_load_kms(dev, ent->driver_data);
+	ret = amdgpu_driver_load_kms(dev, ent->driver_data);
+	if (ret)
+		goto err_pci;
 
 retry_init:
 	ret = drm_dev_register(dev, ent->driver_data);
@@ -1148,7 +1194,8 @@ amdgpu_pci_shutdown(struct pci_dev *pdev)
 	 * unfortunately we can't detect certain
 	 * hypervisors so just do this all the time.
 	 */
-	adev->mp1_state = PP_MP1_STATE_UNLOAD;
+	if (!amdgpu_passthrough(adev))
+		adev->mp1_state = PP_MP1_STATE_UNLOAD;
 	amdgpu_device_ip_suspend(adev);
 	adev->mp1_state = PP_MP1_STATE_NONE;
 }
@@ -1163,14 +1210,6 @@ static int amdgpu_pmops_suspend(struct device *dev)
 static int amdgpu_pmops_resume(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
-
-	/* GPU comes up enabled by the bios on resume */
-	if (amdgpu_device_supports_boco(drm_dev) ||
-	    amdgpu_device_supports_baco(drm_dev)) {
-		pm_runtime_disable(dev);
-		pm_runtime_set_active(dev);
-		pm_runtime_enable(dev);
-	}
 
 	return amdgpu_device_resume(drm_dev, true);
 }
@@ -1362,11 +1401,12 @@ long amdgpu_drm_ioctl(struct file *filp,
 	dev = file_priv->minor->dev;
 	ret = pm_runtime_get_sync(dev->dev);
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	ret = drm_ioctl(filp, cmd, arg);
 
 	pm_runtime_mark_last_busy(dev->dev);
+out:
 	pm_runtime_put_autosuspend(dev->dev);
 	return ret;
 }

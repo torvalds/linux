@@ -372,6 +372,11 @@ int kvm_pmu_rdpmc(struct kvm_vcpu *vcpu, unsigned idx, u64 *data)
 	if (!pmc)
 		return 1;
 
+	if (!(kvm_read_cr4(vcpu) & X86_CR4_PCE) &&
+	    (kvm_x86_ops.get_cpl(vcpu) != 0) &&
+	    (kvm_read_cr0(vcpu) & X86_CR0_PE))
+		return 1;
+
 	*data = pmc_read_counter(pmc) & mask;
 	return 0;
 }
@@ -397,9 +402,9 @@ static void kvm_pmu_mark_pmc_in_use(struct kvm_vcpu *vcpu, u32 msr)
 		__set_bit(pmc->idx, pmu->pmc_in_use);
 }
 
-int kvm_pmu_get_msr(struct kvm_vcpu *vcpu, u32 msr, u64 *data)
+int kvm_pmu_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 {
-	return kvm_x86_ops.pmu_ops->get_msr(vcpu, msr, data);
+	return kvm_x86_ops.pmu_ops->get_msr(vcpu, msr_info);
 }
 
 int kvm_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)

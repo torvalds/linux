@@ -13,6 +13,7 @@
 
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/irq.h>
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
@@ -20,8 +21,6 @@
 #include <linux/mfd/mc13783.h>
 #include <linux/spi/spi.h>
 #include <linux/regulator/machine.h>
-#include <linux/spi/l4f00242t03.h>
-
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -304,18 +303,34 @@ static struct imx_ssi_platform_data mx27_3ds_ssi_pdata = {
 };
 
 /* SPI */
-static int spi1_chipselect[] = {SPI1_SS0};
-
-static const struct spi_imx_master spi1_pdata __initconst = {
-	.chipselect	= spi1_chipselect,
-	.num_chipselect	= ARRAY_SIZE(spi1_chipselect),
+static struct gpiod_lookup_table mx27_spi1_gpiod_table = {
+	.dev_id = "imx27-cspi.0", /* Actual device name for spi1 */
+	.table = {
+		/*
+		 * The i.MX27 has the i.MX21 GPIO controller, the SPI1 CS GPIO
+		 * SPI1_SS0 is numbered IMX_GPIO_NR(4, 28).
+		 *
+		 * This is in "bank 4" which is subtracted by one in the macro
+		 * so this is actually bank 3 on "imx21-gpio.3".
+		 */
+		GPIO_LOOKUP_IDX("imx21-gpio.3", 28, "cs", 0, GPIO_ACTIVE_LOW),
+		{ },
+	},
 };
 
-static int spi2_chipselect[] = {SPI2_SS0};
-
-static const struct spi_imx_master spi2_pdata __initconst = {
-	.chipselect	= spi2_chipselect,
-	.num_chipselect	= ARRAY_SIZE(spi2_chipselect),
+static struct gpiod_lookup_table mx27_spi2_gpiod_table = {
+	.dev_id = "imx27-cspi.1", /* Actual device name for spi2 */
+	.table = {
+		/*
+		 * The i.MX27 has the i.MX21 GPIO controller, the SPI2 CS GPIO
+		 * SPI2_SS0 is numbered IMX_GPIO_NR(4, 21).
+		 *
+		 * This is in "bank 4" which is subtracted by one in the macro
+		 * so this is actually bank 3 on "imx21-gpio.3".
+		 */
+		GPIO_LOOKUP_IDX("imx21-gpio.3", 21, "cs", 0, GPIO_ACTIVE_LOW),
+		{ },
+	},
 };
 
 static struct imx_fb_videomode mx27_3ds_modes[] = {
@@ -351,9 +366,19 @@ static const struct imx_fb_platform_data mx27_3ds_fb_data __initconst = {
 };
 
 /* LCD */
-static struct l4f00242t03_pdata mx27_3ds_lcd_pdata = {
-	.reset_gpio		= LCD_RESET,
-	.data_enable_gpio	= LCD_ENABLE,
+static struct gpiod_lookup_table mx27_3ds_lcd_gpiod_table = {
+	.dev_id = "spi0.0", /* Bus 0 chipselect 0 */
+	.table = {
+		/*
+		 * The i.MX27 has the i.MX21 GPIO controller, the GPIOs
+		 * numbered IMX_GPIO_NR(1, 3) and IMX_GPIO_NR(1, 31)
+		 * are in "bank 1" which is subtracted by one in the macro
+		 * so these are actually bank 0 on "imx21-gpio.0".
+		 */
+		GPIO_LOOKUP("imx21-gpio.0", 3, "reset", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("imx21-gpio.0", 31, "enable", GPIO_ACTIVE_HIGH),
+		{ },
+	},
 };
 
 static struct spi_board_info mx27_3ds_spi_devs[] __initdata = {
@@ -370,7 +395,6 @@ static struct spi_board_info mx27_3ds_spi_devs[] __initdata = {
 		.max_speed_hz	= 5000000,
 		.bus_num	= 0,
 		.chip_select	= 0, /* SS0 */
-		.platform_data	= &mx27_3ds_lcd_pdata,
 	},
 };
 
@@ -389,8 +413,8 @@ static void __init mx27pdk_init(void)
 	imx27_add_imx_keypad(&mx27_3ds_keymap_data);
 	imx27_add_imx2_wdt();
 
-	imx27_add_spi_imx1(&spi2_pdata);
-	imx27_add_spi_imx0(&spi1_pdata);
+	imx27_add_spi_imx1(&mx27_spi2_gpiod_table);
+	imx27_add_spi_imx0(&mx27_spi1_gpiod_table);
 
 	imx27_add_imx_i2c(0, &mx27_3ds_i2c0_data);
 	imx27_add_imx_fb(&mx27_3ds_fb_data);
@@ -416,6 +440,7 @@ static void __init mx27pdk_late_init(void)
 	if (!otg_mode_host)
 		imx27_add_fsl_usb2_udc(&otg_device_pdata);
 
+	gpiod_add_lookup_table(&mx27_3ds_lcd_gpiod_table);
 	mx27_3ds_spi_devs[0].irq = gpio_to_irq(PMIC_INT);
 	spi_register_board_info(mx27_3ds_spi_devs,
 				ARRAY_SIZE(mx27_3ds_spi_devs));

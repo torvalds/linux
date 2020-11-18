@@ -32,10 +32,6 @@ struct compat_elf_prstatus
 	struct old_timeval32		pr_cutime;
 	struct old_timeval32		pr_cstime;
 	compat_elf_gregset_t		pr_reg;
-#ifdef CONFIG_BINFMT_ELF_FDPIC
-	compat_ulong_t			pr_exec_fdpic_loadmap;
-	compat_ulong_t			pr_interp_fdpic_loadmap;
-#endif
 	compat_int_t			pr_fpvalid;
 };
 

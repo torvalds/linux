@@ -16,6 +16,7 @@ struct vbg_dev;
 __printf(1, 2) void vbg_info(const char *fmt, ...);
 __printf(1, 2) void vbg_warn(const char *fmt, ...);
 __printf(1, 2) void vbg_err(const char *fmt, ...);
+__printf(1, 2) void vbg_err_ratelimited(const char *fmt, ...);
 
 /* Only use backdoor logging for non-dynamic debug builds */
 #if defined(DEBUG) && !defined(CONFIG_DYNAMIC_DEBUG)

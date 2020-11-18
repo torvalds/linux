@@ -49,6 +49,8 @@ struct mtk_afe_i2s_priv {
 	int mclk_id;
 	int mclk_rate;
 	int mclk_apll;
+
+	int use_eiaj;
 };
 
 static unsigned int get_i2s_wlen(snd_pcm_format_t format)
@@ -711,7 +713,7 @@ static int mtk_dai_i2s_config(struct mtk_base_afe *afe,
 	unsigned int rate_reg = mt8183_rate_transform(afe->dev,
 						      rate, i2s_id);
 	snd_pcm_format_t format = params_format(params);
-	unsigned int i2s_con = 0;
+	unsigned int i2s_con = 0, fmt_con = I2S_FMT_I2S << I2S_FMT_SFT;
 	int ret = 0;
 
 	dev_info(afe->dev, "%s(), id %d, rate %d, format %d\n",
@@ -719,17 +721,21 @@ static int mtk_dai_i2s_config(struct mtk_base_afe *afe,
 		 i2s_id,
 		 rate, format);
 
-	if (i2s_priv)
+	if (i2s_priv) {
 		i2s_priv->rate = rate;
-	else
+
+		if (i2s_priv->use_eiaj)
+			fmt_con = I2S_FMT_EIAJ << I2S_FMT_SFT;
+	} else {
 		dev_warn(afe->dev, "%s(), i2s_priv == NULL", __func__);
+	}
 
 	switch (i2s_id) {
 	case MT8183_DAI_I2S_0:
 		regmap_update_bits(afe->regmap, AFE_DAC_CON1,
 				   I2S_MODE_MASK_SFT, rate_reg << I2S_MODE_SFT);
 		i2s_con = I2S_IN_PAD_IO_MUX << I2SIN_PAD_SEL_SFT;
-		i2s_con |= I2S_FMT_I2S << I2S_FMT_SFT;
+		i2s_con |= fmt_con;
 		i2s_con |= get_i2s_wlen(format) << I2S_WLEN_SFT;
 		regmap_update_bits(afe->regmap, AFE_I2S_CON,
 				   0xffffeffe, i2s_con);
@@ -737,7 +743,7 @@ static int mtk_dai_i2s_config(struct mtk_base_afe *afe,
 	case MT8183_DAI_I2S_1:
 		i2s_con = I2S1_SEL_O28_O29 << I2S2_SEL_O03_O04_SFT;
 		i2s_con |= rate_reg << I2S2_OUT_MODE_SFT;
-		i2s_con |= I2S_FMT_I2S << I2S2_FMT_SFT;
+		i2s_con |= fmt_con;
 		i2s_con |= get_i2s_wlen(format) << I2S2_WLEN_SFT;
 		regmap_update_bits(afe->regmap, AFE_I2S_CON1,
 				   0xffffeffe, i2s_con);
@@ -745,21 +751,21 @@ static int mtk_dai_i2s_config(struct mtk_base_afe *afe,
 	case MT8183_DAI_I2S_2:
 		i2s_con = 8 << I2S3_UPDATE_WORD_SFT;
 		i2s_con |= rate_reg << I2S3_OUT_MODE_SFT;
-		i2s_con |= I2S_FMT_I2S << I2S3_FMT_SFT;
+		i2s_con |= fmt_con;
 		i2s_con |= get_i2s_wlen(format) << I2S3_WLEN_SFT;
 		regmap_update_bits(afe->regmap, AFE_I2S_CON2,
 				   0xffffeffe, i2s_con);
 		break;
 	case MT8183_DAI_I2S_3:
 		i2s_con = rate_reg << I2S4_OUT_MODE_SFT;
-		i2s_con |= I2S_FMT_I2S << I2S4_FMT_SFT;
+		i2s_con |= fmt_con;
 		i2s_con |= get_i2s_wlen(format) << I2S4_WLEN_SFT;
 		regmap_update_bits(afe->regmap, AFE_I2S_CON3,
 				   0xffffeffe, i2s_con);
 		break;
 	case MT8183_DAI_I2S_5:
 		i2s_con = rate_reg << I2S5_OUT_MODE_SFT;
-		i2s_con |= I2S_FMT_I2S << I2S5_FMT_SFT;
+		i2s_con |= fmt_con;
 		i2s_con |= get_i2s_wlen(format) << I2S5_WLEN_SFT;
 		regmap_update_bits(afe->regmap, AFE_I2S_CON4,
 				   0xffffeffe, i2s_con);
@@ -841,9 +847,46 @@ static int mtk_dai_i2s_set_sysclk(struct snd_soc_dai *dai,
 	return 0;
 }
 
+static int mtk_dai_i2s_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
+{
+	struct mtk_base_afe *afe = snd_soc_dai_get_drvdata(dai);
+	struct mt8183_afe_private *afe_priv = afe->platform_priv;
+	struct mtk_afe_i2s_priv *i2s_priv;
+
+	switch (dai->id) {
+	case MT8183_DAI_I2S_0:
+	case MT8183_DAI_I2S_1:
+	case MT8183_DAI_I2S_2:
+	case MT8183_DAI_I2S_3:
+	case MT8183_DAI_I2S_5:
+		break;
+	default:
+		dev_warn(afe->dev, "%s(), id %d not support\n",
+			 __func__, dai->id);
+		return -EINVAL;
+	}
+	i2s_priv = afe_priv->dai_priv[dai->id];
+
+	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
+	case SND_SOC_DAIFMT_LEFT_J:
+		i2s_priv->use_eiaj = 1;
+		break;
+	case SND_SOC_DAIFMT_I2S:
+		i2s_priv->use_eiaj = 0;
+		break;
+	default:
+		dev_warn(afe->dev, "%s(), DAI format %d not support\n",
+			 __func__, fmt & SND_SOC_DAIFMT_FORMAT_MASK);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static const struct snd_soc_dai_ops mtk_dai_i2s_ops = {
 	.hw_params = mtk_dai_i2s_hw_params,
 	.set_sysclk = mtk_dai_i2s_set_sysclk,
+	.set_fmt = mtk_dai_i2s_set_fmt,
 };
 
 /* dai driver */

@@ -77,24 +77,21 @@ patternProperties:
         description:
           Specifies the type of PHY for which the group of PHY lanes is used.
           Refer include/dt-bindings/phy/phy.h. Constants from the header should be used.
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32
-          - enum: [1, 2, 3, 4, 5, 6]
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [1, 2, 3, 4, 5, 6]
 
       cdns,num-lanes:
         description:
           Number of DisplayPort lanes.
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32
-          - enum: [1, 2, 4]
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [1, 2, 4]
         default: 4
 
       cdns,max-bit-rate:
         description:
           Maximum DisplayPort link bit rate to use, in Mbps
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32
-          - enum: [2160, 2430, 2700, 3240, 4320, 5400, 8100]
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [2160, 2430, 2700, 3240, 4320, 5400, 8100]
         default: 8100
 
     required:
@@ -120,24 +117,30 @@ additionalProperties: false
 examples:
   - |
     #include <dt-bindings/phy/phy.h>
-    torrent_phy: torrent-phy@f0fb500000 {
-          compatible = "cdns,torrent-phy";
-          reg = <0xf0 0xfb500000 0x0 0x00100000>,
-                <0xf0 0xfb030a00 0x0 0x00000040>;
-          reg-names = "torrent_phy", "dptx_phy";
-          resets = <&phyrst 0>;
-          clocks = <&ref_clk>;
-          clock-names = "refclk";
-          #address-cells = <1>;
-          #size-cells = <0>;
-          torrent_phy_dp: phy@0 {
-                    reg = <0>;
-                    resets = <&phyrst 1>, <&phyrst 2>,
-                             <&phyrst 3>, <&phyrst 4>;
-                    #phy-cells = <0>;
-                    cdns,phy-type = <PHY_TYPE_DP>;
-                    cdns,num-lanes = <4>;
-                    cdns,max-bit-rate = <8100>;
-          };
+
+    bus {
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        torrent-phy@f0fb500000 {
+            compatible = "cdns,torrent-phy";
+            reg = <0xf0 0xfb500000 0x0 0x00100000>,
+                  <0xf0 0xfb030a00 0x0 0x00000040>;
+            reg-names = "torrent_phy", "dptx_phy";
+            resets = <&phyrst 0>;
+            clocks = <&ref_clk>;
+            clock-names = "refclk";
+            #address-cells = <1>;
+            #size-cells = <0>;
+            phy@0 {
+                      reg = <0>;
+                      resets = <&phyrst 1>, <&phyrst 2>,
+                               <&phyrst 3>, <&phyrst 4>;
+                      #phy-cells = <0>;
+                      cdns,phy-type = <PHY_TYPE_DP>;
+                      cdns,num-lanes = <4>;
+                      cdns,max-bit-rate = <8100>;
+            };
+        };
     };
 ...

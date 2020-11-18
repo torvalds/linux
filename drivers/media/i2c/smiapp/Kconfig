@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_SMIAPP
 	tristate "SMIA++/SMIA sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API && HAVE_CLK
-	depends on MEDIA_CAMERA_SUPPORT
+	depends on I2C && VIDEO_V4L2 && HAVE_CLK
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	select VIDEO_SMIAPP_PLL
 	select V4L2_FWNODE
 	help

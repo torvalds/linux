@@ -17,7 +17,6 @@
 
 #else
 
-#define __ARCH_USE_5LEVEL_HACK
 #include <asm-generic/pgtable-nopud.h>
 #include <asm/memory.h>
 #include <asm/pgtable-hwdef.h>
@@ -167,14 +166,6 @@ extern struct page *empty_zero_page;
 
 extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 
-/* to find an entry in a page-table-directory */
-#define pgd_index(addr)		((addr) >> PGDIR_SHIFT)
-
-#define pgd_offset(mm, addr)	((mm)->pgd + pgd_index(addr))
-
-/* to find an entry in a kernel page-table-directory */
-#define pgd_offset_k(addr)	pgd_offset(&init_mm, addr)
-
 #define pmd_none(pmd)		(!pmd_val(pmd))
 
 static inline pte_t *pmd_page_vaddr(pmd_t pmd)
@@ -183,21 +174,6 @@ static inline pte_t *pmd_page_vaddr(pmd_t pmd)
 }
 
 #define pmd_page(pmd)		pfn_to_page(__phys_to_pfn(pmd_val(pmd) & PHYS_MASK))
-
-#ifndef CONFIG_HIGHPTE
-#define __pte_map(pmd)		pmd_page_vaddr(*(pmd))
-#define __pte_unmap(pte)	do { } while (0)
-#else
-#define __pte_map(pmd)		(pte_t *)kmap_atomic(pmd_page(*(pmd)))
-#define __pte_unmap(pte)	kunmap_atomic(pte)
-#endif
-
-#define pte_index(addr)		(((addr) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
-
-#define pte_offset_kernel(pmd,addr)	(pmd_page_vaddr(*(pmd)) + pte_index(addr))
-
-#define pte_offset_map(pmd,addr)	(__pte_map(pmd) + pte_index(addr))
-#define pte_unmap(pte)			__pte_unmap(pte)
 
 #define pte_pfn(pte)		((pte_val(pte) & PHYS_MASK) >> PAGE_SHIFT)
 #define pfn_pte(pfn,prot)	__pte(__pfn_to_phys(pfn) | pgprot_val(prot))
@@ -339,8 +315,6 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 /* Needs to be defined here and not in linux/mm.h, as it is arch dependent */
 /* FIXME: this is not correct */
 #define kern_addr_valid(addr)	(1)
-
-#include <asm-generic/pgtable.h>
 
 /*
  * We provide our own arch_get_unmapped_area to cope with VIPT caches.

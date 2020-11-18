@@ -754,7 +754,7 @@ skip_cqe:
 static int __c4iw_poll_cq_one(struct c4iw_cq *chp, struct c4iw_qp *qhp,
 			      struct ib_wc *wc, struct c4iw_srq *srq)
 {
-	struct t4_cqe uninitialized_var(cqe);
+	struct t4_cqe cqe;
 	struct t4_wq *wq = qhp ? &qhp->wq : NULL;
 	u32 credit = 0;
 	u8 cqe_flushed;

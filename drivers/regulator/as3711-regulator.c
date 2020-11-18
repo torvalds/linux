@@ -103,18 +103,18 @@ static const struct regulator_ops as3711_dldo_ops = {
 	.map_voltage		= regulator_map_voltage_linear_range,
 };
 
-static const struct regulator_linear_range as3711_sd_ranges[] = {
+static const struct linear_range as3711_sd_ranges[] = {
 	REGULATOR_LINEAR_RANGE(612500, 0x1, 0x40, 12500),
 	REGULATOR_LINEAR_RANGE(1425000, 0x41, 0x70, 25000),
 	REGULATOR_LINEAR_RANGE(2650000, 0x71, 0x7f, 50000),
 };
 
-static const struct regulator_linear_range as3711_aldo_ranges[] = {
+static const struct linear_range as3711_aldo_ranges[] = {
 	REGULATOR_LINEAR_RANGE(1200000, 0, 0xf, 50000),
 	REGULATOR_LINEAR_RANGE(1800000, 0x10, 0x1f, 100000),
 };
 
-static const struct regulator_linear_range as3711_dldo_ranges[] = {
+static const struct linear_range as3711_dldo_ranges[] = {
 	REGULATOR_LINEAR_RANGE(900000, 0, 0x10, 50000),
 	REGULATOR_LINEAR_RANGE(1750000, 0x20, 0x3f, 50000),
 };

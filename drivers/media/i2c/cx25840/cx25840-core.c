@@ -997,14 +997,14 @@ static void cx23885_initialize(struct i2c_client *client)
 	 */
 	cx25840_write4(client, 0x404, 0x0010253e);
 
-	/* CC on  - Undocumented Register */
+	/* CC on  - VBI_LINE_CTRL3, FLD_VBI_MD_LINE12 */
 	cx25840_write(client, state->vbi_regs_offset + 0x42f, 0x66);
 
 	/* HVR-1250 / HVR1850 DIF related */
 	/* Power everything up */
 	cx25840_write4(client, 0x130, 0x0);
 
-	/* Undocumented */
+	/* SRC_COMB_CFG */
 	if (is_cx23888(state))
 		cx25840_write4(client, 0x454, 0x6628021F);
 	else
@@ -1486,24 +1486,24 @@ static int set_input(struct i2c_client *client,
 			cx25840_write4(client, 0x410, 0xffff0dbf);
 			cx25840_write4(client, 0x414, 0x00137d03);
 
-			cx25840_write4(client, state->vbi_regs_offset + 0x42c,
-				       0x42600000);
-			cx25840_write4(client, state->vbi_regs_offset + 0x430,
-				       0x0000039b);
-			cx25840_write4(client, state->vbi_regs_offset + 0x438,
-				       0x00000000);
-
-			cx25840_write4(client, state->vbi_regs_offset + 0x440,
-				       0xF8E3E824);
-			cx25840_write4(client, state->vbi_regs_offset + 0x444,
-				       0x401040dc);
-			cx25840_write4(client, state->vbi_regs_offset + 0x448,
-				       0xcd3f02a0);
-			cx25840_write4(client, state->vbi_regs_offset + 0x44c,
-				       0x161f1000);
-			cx25840_write4(client, state->vbi_regs_offset + 0x450,
-				       0x00000802);
-
+			if (is_cx23888(state)) {
+				/* 888 MISC_TIM_CTRL */
+				cx25840_write4(client, 0x42c, 0x42600000);
+				/* 888 FIELD_COUNT */
+				cx25840_write4(client, 0x430, 0x0000039b);
+				/* 888 VSCALE_CTRL */
+				cx25840_write4(client, 0x438, 0x00000000);
+				/* 888 DFE_CTRL1 */
+				cx25840_write4(client, 0x440, 0xF8E3E824);
+				/* 888 DFE_CTRL2 */
+				cx25840_write4(client, 0x444, 0x401040dc);
+				/* 888 DFE_CTRL3 */
+				cx25840_write4(client, 0x448, 0xcd3f02a0);
+				/* 888 PLL_CTRL */
+				cx25840_write4(client, 0x44c, 0x161f1000);
+				/* 888 HTL_CTRL */
+				cx25840_write4(client, 0x450, 0x00000802);
+			}
 			cx25840_write4(client, 0x91c, 0x01000000);
 			cx25840_write4(client, 0x8e0, 0x03063870);
 			cx25840_write4(client, 0x8d4, 0x7FFF0024);

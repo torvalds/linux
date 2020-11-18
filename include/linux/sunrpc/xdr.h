@@ -475,6 +475,32 @@ xdr_stream_encode_uint32_array(struct xdr_stream *xdr,
 }
 
 /**
+ * xdr_item_is_absent - symbolically handle XDR discriminators
+ * @p: pointer to undecoded discriminator
+ *
+ * Return values:
+ *   %true if the following XDR item is absent
+ *   %false if the following XDR item is present
+ */
+static inline bool xdr_item_is_absent(const __be32 *p)
+{
+	return *p == xdr_zero;
+}
+
+/**
+ * xdr_item_is_present - symbolically handle XDR discriminators
+ * @p: pointer to undecoded discriminator
+ *
+ * Return values:
+ *   %true if the following XDR item is present
+ *   %false if the following XDR item is absent
+ */
+static inline bool xdr_item_is_present(const __be32 *p)
+{
+	return *p != xdr_zero;
+}
+
+/**
  * xdr_stream_decode_u32 - Decode a 32-bit integer
  * @xdr: pointer to xdr_stream
  * @ptr: location to store integer

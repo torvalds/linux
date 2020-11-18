@@ -340,7 +340,7 @@ static int generic_NCR5380_init_one(struct scsi_host_template *tpnt,
 			break;
 		case BOARD_DTC3181E:
 			hostdata->io_width = 2;	/* 16-bit PDMA */
-			/* fall through */
+			fallthrough;
 		case BOARD_NCR53C400A:
 		case BOARD_HP_C2502:
 			hostdata->c400_ctl_status = 9;

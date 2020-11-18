@@ -415,7 +415,7 @@ static void mt76x02_reset_state(struct mt76x02_dev *dev)
 	ieee80211_iter_keys_rcu(dev->mt76.hw, NULL, mt76x02_key_sync, NULL);
 	rcu_read_unlock();
 
-	for (i = 0; i < ARRAY_SIZE(dev->mt76.wcid); i++) {
+	for (i = 0; i < MT76x02_N_WCIDS; i++) {
 		struct ieee80211_sta *sta;
 		struct ieee80211_vif *vif;
 		struct mt76x02_sta *msta;
@@ -439,7 +439,7 @@ static void mt76x02_reset_state(struct mt76x02_dev *dev)
 		memset(msta, 0, sizeof(*msta));
 	}
 
-	dev->vif_mask = 0;
+	dev->mphy.vif_mask = 0;
 	dev->mt76.beacon_mask = 0;
 }
 
@@ -456,8 +456,9 @@ static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
 	tasklet_disable(&dev->mt76.tx_tasklet);
 	napi_disable(&dev->mt76.tx_napi);
 
-	for (i = 0; i < ARRAY_SIZE(dev->mt76.napi); i++)
+	mt76_for_each_q_rx(&dev->mt76, i) {
 		napi_disable(&dev->mt76.napi[i]);
+	}
 
 	mutex_lock(&dev->mt76.mutex);
 
@@ -489,8 +490,9 @@ static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
 	for (i = 0; i < __MT_TXQ_MAX; i++)
 		mt76_queue_tx_cleanup(dev, i, true);
 
-	for (i = 0; i < ARRAY_SIZE(dev->mt76.q_rx); i++)
+	mt76_for_each_q_rx(&dev->mt76, i) {
 		mt76_queue_rx_reset(dev, i);
+	}
 
 	mt76x02_mac_start(dev);
 
@@ -514,12 +516,13 @@ static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
 
 	tasklet_enable(&dev->mt76.pre_tbtt_tasklet);
 
-	for (i = 0; i < ARRAY_SIZE(dev->mt76.napi); i++) {
+	mt76_for_each_q_rx(&dev->mt76, i) {
 		napi_enable(&dev->mt76.napi[i]);
 		napi_schedule(&dev->mt76.napi[i]);
 	}
 
 	if (restart) {
+		set_bit(MT76_RESTART, &dev->mphy.state);
 		mt76x02_mcu_function_select(dev, Q_SELECT, 1);
 		ieee80211_restart_hw(dev->mt76.hw);
 	} else {
@@ -528,8 +531,23 @@ static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
 	}
 }
 
+void mt76x02_reconfig_complete(struct ieee80211_hw *hw,
+			       enum ieee80211_reconfig_type reconfig_type)
+{
+	struct mt76x02_dev *dev = hw->priv;
+
+	if (reconfig_type != IEEE80211_RECONFIG_TYPE_RESTART)
+		return;
+
+	clear_bit(MT76_RESTART, &dev->mphy.state);
+}
+EXPORT_SYMBOL_GPL(mt76x02_reconfig_complete);
+
 static void mt76x02_check_tx_hang(struct mt76x02_dev *dev)
 {
+	if (test_bit(MT76_RESTART, &dev->mphy.state))
+		return;
+
 	if (mt76x02_tx_hang(dev)) {
 		if (++dev->tx_hang_check >= MT_TX_HANG_TH)
 			goto restart;

@@ -38,20 +38,18 @@ properties:
       the accumulated values, this entry can also have two items which sets
       energy1/charge1 and energy2/charger2 respectively. Check table 12 of the
       datasheet for more information on the supported options.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
-      - minItems: 2
-        maxItems: 2
-        items:
-          enum: [0, 1, 2, 3]
-          default: 0
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 2
+    maxItems: 2
+    items:
+      enum: [0, 1, 2, 3]
+      default: 0
 
   adi,accumulation-deadband-microamp:
     description:
       This property controls the Accumulation Dead band which allows to set the
       level of current below which no accumulation takes place.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     maximum: 255
     default: 0
 
@@ -61,8 +59,7 @@ properties:
       active high, setting it to zero makets it active low. When this property
       is present, the GPIO is automatically configured as output and set to
       control a fan as a function of measured temperature.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     enum: [0, 1]
     default: 0
 
@@ -74,13 +71,12 @@ properties:
       registers. Check table 13 of the datasheet for more information on the
       supported options. This property cannot be used together with
       adi,gpio-out-pol.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
-      - minItems: 2
-        maxItems: 2
-        items:
-          enum: [0, 1, 2]
-          default: 0
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 2
+    maxItems: 2
+    items:
+      enum: [0, 1, 2]
+      default: 0
 
 required:
   - compatible

@@ -24,9 +24,8 @@ properties:
 
   clock-div:
     description: Fixed divider
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - minimum: 1
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 1
 
   clock-mult:
     description: Fixed multiplier

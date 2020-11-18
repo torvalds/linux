@@ -430,6 +430,19 @@ static inline void psock_set_prog(struct bpf_prog **pprog,
 		bpf_prog_put(prog);
 }
 
+static inline int psock_replace_prog(struct bpf_prog **pprog,
+				     struct bpf_prog *prog,
+				     struct bpf_prog *old)
+{
+	if (cmpxchg(pprog, old, prog) != old)
+		return -ENOENT;
+
+	if (old)
+		bpf_prog_put(old);
+
+	return 0;
+}
+
 static inline void psock_progs_drop(struct sk_psock_progs *progs)
 {
 	psock_set_prog(&progs->msg_parser, NULL);
@@ -437,4 +450,12 @@ static inline void psock_progs_drop(struct sk_psock_progs *progs)
 	psock_set_prog(&progs->skb_verdict, NULL);
 }
 
+int sk_psock_tls_strp_read(struct sk_psock *psock, struct sk_buff *skb);
+
+static inline bool sk_psock_strp_enabled(struct sk_psock *psock)
+{
+	if (!psock)
+		return false;
+	return psock->parser.enabled;
+}
 #endif /* _LINUX_SKMSG_H */

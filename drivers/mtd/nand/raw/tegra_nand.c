@@ -467,7 +467,9 @@ static int tegra_nand_exec_op(struct nand_chip *chip,
 			      const struct nand_operation *op,
 			      bool check_only)
 {
-	tegra_nand_select_target(chip, op->cs);
+	if (!check_only)
+		tegra_nand_select_target(chip, op->cs);
+
 	return nand_op_parser_exec_op(chip, &tegra_nand_op_parser, op,
 				      check_only);
 }
@@ -811,8 +813,8 @@ static void tegra_nand_setup_timing(struct tegra_nand_controller *ctrl,
 	writel_relaxed(reg, ctrl->regs + TIMING_2);
 }
 
-static int tegra_nand_setup_data_interface(struct nand_chip *chip, int csline,
-					const struct nand_data_interface *conf)
+static int tegra_nand_setup_interface(struct nand_chip *chip, int csline,
+				      const struct nand_interface_config *conf)
 {
 	struct tegra_nand_controller *ctrl = to_tegra_ctrl(chip->controller);
 	const struct nand_sdr_timings *timings;
@@ -1051,7 +1053,7 @@ static int tegra_nand_attach_chip(struct nand_chip *chip)
 static const struct nand_controller_ops tegra_nand_controller_ops = {
 	.attach_chip = &tegra_nand_attach_chip,
 	.exec_op = tegra_nand_exec_op,
-	.setup_data_interface = tegra_nand_setup_data_interface,
+	.setup_interface = tegra_nand_setup_interface,
 };
 
 static int tegra_nand_chips_init(struct device *dev,
@@ -1113,7 +1115,7 @@ static int tegra_nand_chips_init(struct device *dev,
 	if (!mtd->name)
 		mtd->name = "tegra_nand";
 
-	chip->options = NAND_NO_SUBPAGE_WRITE | NAND_USE_BOUNCE_BUFFER;
+	chip->options = NAND_NO_SUBPAGE_WRITE | NAND_USES_DMA;
 
 	ret = nand_scan(chip, 1);
 	if (ret)

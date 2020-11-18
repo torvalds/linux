@@ -499,7 +499,7 @@ camera: &i2c7 {
 };
 
 /* there is no external pull up, so need to set this pin pull up */
-&sdmmc_cd_gpio {
+&sdmmc_cd_pin {
 	rockchip,pins = <1 RK_PB3 RK_FUNC_GPIO &pcfg_pull_up>;
 };
 

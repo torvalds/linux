@@ -23,7 +23,7 @@
  * rb_insert_augmented() and rb_erase_augmented() are intended to be public.
  * The rest are implementation details you are not expected to depend on.
  *
- * See Documentation/rbtree.txt for documentation and samples.
+ * See Documentation/core-api/rbtree.rst for documentation and samples.
  */
 
 struct rb_augment_callbacks {

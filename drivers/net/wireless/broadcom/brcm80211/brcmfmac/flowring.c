@@ -26,10 +26,10 @@
 #define BRCMF_FLOWRING_HASH_STA(fifo, ifidx) (fifo + ifidx * 16)
 
 static const u8 brcmf_flowring_prio2fifo[] = {
-	1,
-	0,
 	0,
 	1,
+	1,
+	0,
 	2,
 	2,
 	3,

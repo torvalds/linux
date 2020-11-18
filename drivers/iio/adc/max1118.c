@@ -18,6 +18,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/spi/spi.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
@@ -35,6 +36,11 @@ struct max1118 {
 	struct spi_device *spi;
 	struct mutex lock;
 	struct regulator *reg;
+	/* Ensure natural alignment of buffer elements */
+	struct {
+		u8 channels[2];
+		s64 ts __aligned(8);
+	} scan;
 
 	u8 data ____cacheline_aligned;
 };
@@ -165,7 +171,6 @@ static irqreturn_t max1118_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct max1118 *adc = iio_priv(indio_dev);
-	u8 data[16] = { }; /* 2x 8-bit ADC data + padding + 8 bytes timestamp */
 	int scan_index;
 	int i = 0;
 
@@ -183,10 +188,10 @@ static irqreturn_t max1118_trigger_handler(int irq, void *p)
 			goto out;
 		}
 
-		data[i] = ret;
+		adc->scan.channels[i] = ret;
 		i++;
 	}
-	iio_push_to_buffers_with_timestamp(indio_dev, data,
+	iio_push_to_buffers_with_timestamp(indio_dev, &adc->scan,
 					   iio_get_time_ns(indio_dev));
 out:
 	mutex_unlock(&adc->lock);
@@ -225,7 +230,6 @@ static int max1118_probe(struct spi_device *spi)
 	spi_set_drvdata(spi, indio_dev);
 
 	indio_dev->name = spi_get_device_id(spi)->name;
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->info = &max1118_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = max1118_channels;
@@ -281,8 +285,6 @@ static const struct spi_device_id max1118_id[] = {
 };
 MODULE_DEVICE_TABLE(spi, max1118_id);
 
-#ifdef CONFIG_OF
-
 static const struct of_device_id max1118_dt_ids[] = {
 	{ .compatible = "maxim,max1117" },
 	{ .compatible = "maxim,max1118" },
@@ -291,12 +293,10 @@ static const struct of_device_id max1118_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, max1118_dt_ids);
 
-#endif
-
 static struct spi_driver max1118_spi_driver = {
 	.driver = {
 		.name = "max1118",
-		.of_match_table = of_match_ptr(max1118_dt_ids),
+		.of_match_table = max1118_dt_ids,
 	},
 	.probe = max1118_probe,
 	.remove = max1118_remove,

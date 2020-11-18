@@ -258,7 +258,7 @@ static void guc_submit(struct intel_engine_cs *engine,
 
 static inline int rq_prio(const struct i915_request *rq)
 {
-	return rq->sched.attr.priority | __NO_PREEMPTION;
+	return rq->sched.attr.priority;
 }
 
 static struct i915_request *schedule_in(struct i915_request *rq, int idx)
@@ -660,10 +660,12 @@ void intel_guc_submission_disable(struct intel_guc *guc)
 
 static bool __guc_submission_selected(struct intel_guc *guc)
 {
+	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
+
 	if (!intel_guc_submission_is_supported(guc))
 		return false;
 
-	return i915_modparams.enable_guc & ENABLE_GUC_SUBMISSION;
+	return i915->params.enable_guc & ENABLE_GUC_SUBMISSION;
 }
 
 void intel_guc_submission_init_early(struct intel_guc *guc)

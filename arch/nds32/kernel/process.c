@@ -121,7 +121,7 @@ void show_regs(struct pt_regs *regs)
 		regs->uregs[3], regs->uregs[2], regs->uregs[1], regs->uregs[0]);
 	pr_info("  IRQs o%s  Segment %s\n",
 		interrupts_enabled(regs) ? "n" : "ff",
-		segment_eq(get_fs(), KERNEL_DS)? "kernel" : "user");
+		uaccess_kernel() ? "kernel" : "user");
 }
 
 EXPORT_SYMBOL(show_regs);
@@ -150,7 +150,7 @@ DEFINE_PER_CPU(struct task_struct *, __entry_task);
 
 asmlinkage void ret_from_fork(void) __asm__("ret_from_fork");
 int copy_thread(unsigned long clone_flags, unsigned long stack_start,
-		unsigned long stk_sz, struct task_struct *p)
+		unsigned long stk_sz, struct task_struct *p, unsigned long tls)
 {
 	struct pt_regs *childregs = task_pt_regs(p);
 
@@ -170,7 +170,7 @@ int copy_thread(unsigned long clone_flags, unsigned long stack_start,
 		childregs->uregs[0] = 0;
 		childregs->osp = 0;
 		if (clone_flags & CLONE_SETTLS)
-			childregs->uregs[25] = childregs->uregs[3];
+			childregs->uregs[25] = tls;
 	}
 	/* cpu context switching  */
 	p->thread.cpu_context.pc = (unsigned long)ret_from_fork;

@@ -796,9 +796,7 @@ static struct tc_u_knode *u32_init_knode(struct net *net, struct tcf_proto *tp,
 	struct tc_u32_sel *s = &n->sel;
 	struct tc_u_knode *new;
 
-	new = kzalloc(sizeof(*n) + s->nkeys*sizeof(struct tc_u32_key),
-		      GFP_KERNEL);
-
+	new = kzalloc(struct_size(new, sel.keys, s->nkeys), GFP_KERNEL);
 	if (!new)
 		return NULL;
 
@@ -854,9 +852,6 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 	u32 htid, flags = 0;
 	size_t sel_size;
 	int err;
-#ifdef CONFIG_CLS_U32_PERF
-	size_t size;
-#endif
 
 	if (!opt) {
 		if (handle) {
@@ -1024,15 +1019,15 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 		goto erridr;
 	}
 
-	n = kzalloc(offsetof(typeof(*n), sel) + sel_size, GFP_KERNEL);
+	n = kzalloc(struct_size(n, sel.keys, s->nkeys), GFP_KERNEL);
 	if (n == NULL) {
 		err = -ENOBUFS;
 		goto erridr;
 	}
 
 #ifdef CONFIG_CLS_U32_PERF
-	size = sizeof(struct tc_u32_pcnt) + s->nkeys * sizeof(u64);
-	n->pf = __alloc_percpu(size, __alignof__(struct tc_u32_pcnt));
+	n->pf = __alloc_percpu(struct_size(n->pf, kcnts, s->nkeys),
+			       __alignof__(struct tc_u32_pcnt));
 	if (!n->pf) {
 		err = -ENOBUFS;
 		goto errfree;
@@ -1296,8 +1291,7 @@ static int u32_dump(struct net *net, struct tcf_proto *tp, void *fh,
 		int cpu;
 #endif
 
-		if (nla_put(skb, TCA_U32_SEL,
-			    sizeof(n->sel) + n->sel.nkeys*sizeof(struct tc_u32_key),
+		if (nla_put(skb, TCA_U32_SEL, struct_size(&n->sel, keys, n->sel.nkeys),
 			    &n->sel))
 			goto nla_put_failure;
 
@@ -1347,9 +1341,7 @@ static int u32_dump(struct net *net, struct tcf_proto *tp, void *fh,
 				goto nla_put_failure;
 		}
 #ifdef CONFIG_CLS_U32_PERF
-		gpf = kzalloc(sizeof(struct tc_u32_pcnt) +
-			      n->sel.nkeys * sizeof(u64),
-			      GFP_KERNEL);
+		gpf = kzalloc(struct_size(gpf, kcnts, n->sel.nkeys), GFP_KERNEL);
 		if (!gpf)
 			goto nla_put_failure;
 
@@ -1363,9 +1355,7 @@ static int u32_dump(struct net *net, struct tcf_proto *tp, void *fh,
 				gpf->kcnts[i] += pf->kcnts[i];
 		}
 
-		if (nla_put_64bit(skb, TCA_U32_PCNT,
-				  sizeof(struct tc_u32_pcnt) +
-				  n->sel.nkeys * sizeof(u64),
+		if (nla_put_64bit(skb, TCA_U32_PCNT, struct_size(gpf, kcnts, n->sel.nkeys),
 				  gpf, TCA_U32_PAD)) {
 			kfree(gpf);
 			goto nla_put_failure;

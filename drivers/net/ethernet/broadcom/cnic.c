@@ -1918,7 +1918,6 @@ static int cnic_bnx2x_iscsi_ofld1(struct cnic_dev *dev, struct kwqe *wqes[],
 	ret = cnic_alloc_bnx2x_conn_resc(dev, l5_cid);
 	if (ret) {
 		atomic_dec(&cp->iscsi_conn);
-		ret = 0;
 		goto done;
 	}
 	ret = cnic_setup_bnx2x_ctx(dev, wqes, num);
@@ -3312,7 +3311,7 @@ static int cnic_ctl(void *data, struct cnic_ctl_info *info)
 	}
 	case CNIC_CTL_FCOE_STATS_GET_CMD:
 		ulp_type = CNIC_ULP_FCOE;
-		/* fall through */
+		fallthrough;
 	case CNIC_CTL_ISCSI_STATS_GET_CMD:
 		cnic_hold(dev);
 		cnic_copy_ulp_stats(dev, ulp_type);
@@ -4045,7 +4044,7 @@ static void cnic_cm_process_kcqe(struct cnic_dev *dev, struct kcqe *kcqe)
 			    l4kcqe->status, l5kcqe->completion_status);
 		opcode = L4_KCQE_OPCODE_VALUE_CLOSE_COMP;
 	}
-		/* Fall through */
+		fallthrough;
 	case L4_KCQE_OPCODE_VALUE_RESET_RECEIVED:
 	case L4_KCQE_OPCODE_VALUE_CLOSE_COMP:
 	case L4_KCQE_OPCODE_VALUE_RESET_COMP:

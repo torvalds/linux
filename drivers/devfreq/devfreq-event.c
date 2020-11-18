@@ -293,7 +293,7 @@ static void devfreq_event_release_edev(struct device *dev)
 /**
  * devfreq_event_add_edev() - Add new devfreq-event device.
  * @dev		: the device owning the devfreq-event device being created
- * @desc	: the devfreq-event device's decriptor which include essential
+ * @desc	: the devfreq-event device's descriptor which include essential
  *		  data for devfreq-event device.
  *
  * Note that this function add new devfreq-event device to devfreq-event class
@@ -385,7 +385,7 @@ static void devm_devfreq_event_release(struct device *dev, void *res)
 /**
  * devm_devfreq_event_add_edev() - Resource-managed devfreq_event_add_edev()
  * @dev		: the device owning the devfreq-event device being created
- * @desc	: the devfreq-event device's decriptor which include essential
+ * @desc	: the devfreq-event device's descriptor which include essential
  *		  data for devfreq-event device.
  *
  * Note that this function manages automatically the memory of devfreq-event

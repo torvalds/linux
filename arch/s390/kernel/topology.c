@@ -356,9 +356,9 @@ static atomic_t topology_poll = ATOMIC_INIT(0);
 static void set_topology_timer(void)
 {
 	if (atomic_add_unless(&topology_poll, -1, 0))
-		mod_timer(&topology_timer, jiffies + HZ / 10);
+		mod_timer(&topology_timer, jiffies + msecs_to_jiffies(100));
 	else
-		mod_timer(&topology_timer, jiffies + HZ * 60);
+		mod_timer(&topology_timer, jiffies + msecs_to_jiffies(60 * MSEC_PER_SEC));
 }
 
 void topology_expect_change(void)
@@ -594,7 +594,7 @@ static int __init topology_setup(char *str)
 early_param("topology", topology_setup);
 
 static int topology_ctl_handler(struct ctl_table *ctl, int write,
-				void __user *buffer, size_t *lenp, loff_t *ppos)
+				void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int enabled = topology_is_enabled();
 	int new_mode;

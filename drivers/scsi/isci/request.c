@@ -894,7 +894,7 @@ sci_io_request_terminate(struct isci_request *ireq)
 		 * and don't wait for the task response.
 		 */
 		sci_change_state(&ireq->sm, SCI_REQ_ABORTING);
-		/* Fall through - and handle like ABORTING... */
+		fallthrough;	/* and handle like ABORTING */
 	case SCI_REQ_ABORTING:
 		if (!isci_remote_device_is_safe_to_abort(ireq->target_device))
 			set_bit(IREQ_PENDING_ABORT, &ireq->flags);
@@ -3444,7 +3444,7 @@ struct isci_request *isci_tmf_request_from_tag(struct isci_host *ihost,
 int isci_request_execute(struct isci_host *ihost, struct isci_remote_device *idev,
 			 struct sas_task *task, u16 tag)
 {
-	enum sci_status status = SCI_FAILURE_UNSUPPORTED_PROTOCOL;
+	enum sci_status status;
 	struct isci_request *ireq;
 	unsigned long flags;
 	int ret = 0;

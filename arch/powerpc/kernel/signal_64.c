@@ -21,11 +21,11 @@
 #include <linux/ptrace.h>
 #include <linux/ratelimit.h>
 #include <linux/syscalls.h>
+#include <linux/pagemap.h>
 
 #include <asm/sigcontext.h>
 #include <asm/ucontext.h>
 #include <linux/uaccess.h>
-#include <asm/pgtable.h>
 #include <asm/unistd.h>
 #include <asm/cacheflush.h>
 #include <asm/syscalls.h>
@@ -40,8 +40,8 @@
 #define GP_REGS_SIZE	min(sizeof(elf_gregset_t), sizeof(struct pt_regs))
 #define FP_REGS_SIZE	sizeof(elf_fpregset_t)
 
-#define TRAMP_TRACEBACK	3
-#define TRAMP_SIZE	6
+#define TRAMP_TRACEBACK	4
+#define TRAMP_SIZE	7
 
 /*
  * When we have signals to deliver, we set up on the user stack,
@@ -350,8 +350,8 @@ static long restore_sigcontext(struct task_struct *tsk, sigset_t *set, int sig,
 	err |= __get_user(regs->link, &sc->gp_regs[PT_LNK]);
 	err |= __get_user(regs->xer, &sc->gp_regs[PT_XER]);
 	err |= __get_user(regs->ccr, &sc->gp_regs[PT_CCR]);
-	/* skip SOFTE */
-	regs->trap = 0;
+	/* Don't allow userspace to set SOFTE */
+	set_trap_norestart(regs);
 	err |= __get_user(regs->dar, &sc->gp_regs[PT_DAR]);
 	err |= __get_user(regs->dsisr, &sc->gp_regs[PT_DSISR]);
 	err |= __get_user(regs->result, &sc->gp_regs[PT_RESULT]);
@@ -472,10 +472,8 @@ static long restore_tm_sigcontexts(struct task_struct *tsk,
 			  &sc->gp_regs[PT_XER]);
 	err |= __get_user(tsk->thread.ckpt_regs.ccr,
 			  &sc->gp_regs[PT_CCR]);
-
-	/* Don't allow userspace to set the trap value */
-	regs->trap = 0;
-
+	/* Don't allow userspace to set SOFTE */
+	set_trap_norestart(regs);
 	/* These regs are not checkpointed; they can go in 'regs'. */
 	err |= __get_user(regs->dar, &sc->gp_regs[PT_DAR]);
 	err |= __get_user(regs->dsisr, &sc->gp_regs[PT_DSISR]);
@@ -603,13 +601,15 @@ static long setup_trampoline(unsigned int syscall, unsigned int __user *tramp)
 	int i;
 	long err = 0;
 
+	/* bctrl # call the handler */
+	err |= __put_user(PPC_INST_BCTRL, &tramp[0]);
 	/* addi r1, r1, __SIGNAL_FRAMESIZE  # Pop the dummy stackframe */
 	err |= __put_user(PPC_INST_ADDI | __PPC_RT(R1) | __PPC_RA(R1) |
-			  (__SIGNAL_FRAMESIZE & 0xffff), &tramp[0]);
+			  (__SIGNAL_FRAMESIZE & 0xffff), &tramp[1]);
 	/* li r0, __NR_[rt_]sigreturn| */
-	err |= __put_user(PPC_INST_ADDI | (syscall & 0xffff), &tramp[1]);
+	err |= __put_user(PPC_INST_ADDI | (syscall & 0xffff), &tramp[2]);
 	/* sc */
-	err |= __put_user(PPC_INST_SC, &tramp[2]);
+	err |= __put_user(PPC_INST_SC, &tramp[3]);
 
 	/* Minimal traceback info */
 	for (i=TRAMP_TRACEBACK; i < TRAMP_SIZE ;i++)
@@ -635,7 +635,6 @@ static long setup_trampoline(unsigned int syscall, unsigned int __user *tramp)
 SYSCALL_DEFINE3(swapcontext, struct ucontext __user *, old_ctx,
 		struct ucontext __user *, new_ctx, long, ctx_size)
 {
-	unsigned char tmp;
 	sigset_t set;
 	unsigned long new_msr = 0;
 	int ctx_has_vsx_region = 0;
@@ -670,9 +669,8 @@ SYSCALL_DEFINE3(swapcontext, struct ucontext __user *, old_ctx,
 	}
 	if (new_ctx == NULL)
 		return 0;
-	if (!access_ok(new_ctx, ctx_size)
-	    || __get_user(tmp, (u8 __user *) new_ctx)
-	    || __get_user(tmp, (u8 __user *) new_ctx + ctx_size - 1))
+	if (!access_ok(new_ctx, ctx_size) ||
+	    fault_in_pages_readable((u8 __user *)new_ctx, ctx_size))
 		return -EFAULT;
 
 	/*
@@ -867,12 +865,12 @@ int handle_rt_signal64(struct ksignal *ksig, sigset_t *set,
 
 	/* Set up to return from userspace. */
 	if (vdso64_rt_sigtramp && tsk->mm->context.vdso_base) {
-		regs->link = tsk->mm->context.vdso_base + vdso64_rt_sigtramp;
+		regs->nip = tsk->mm->context.vdso_base + vdso64_rt_sigtramp;
 	} else {
 		err |= setup_trampoline(__NR_rt_sigreturn, &frame->tramp[0]);
 		if (err)
 			goto badframe;
-		regs->link = (unsigned long) &frame->tramp[0];
+		regs->nip = (unsigned long) &frame->tramp[0];
 	}
 
 	/* Allocate a dummy caller frame for the signal handler. */
@@ -881,8 +879,8 @@ int handle_rt_signal64(struct ksignal *ksig, sigset_t *set,
 
 	/* Set up "regs" so we "return" to the signal handler. */
 	if (is_elf2_task()) {
-		regs->nip = (unsigned long) ksig->ka.sa.sa_handler;
-		regs->gpr[12] = regs->nip;
+		regs->ctr = (unsigned long) ksig->ka.sa.sa_handler;
+		regs->gpr[12] = regs->ctr;
 	} else {
 		/* Handler is *really* a pointer to the function descriptor for
 		 * the signal routine.  The first entry in the function
@@ -892,7 +890,7 @@ int handle_rt_signal64(struct ksignal *ksig, sigset_t *set,
 		func_descr_t __user *funct_desc_ptr =
 			(func_descr_t __user *) ksig->ka.sa.sa_handler;
 
-		err |= get_user(regs->nip, &funct_desc_ptr->entry);
+		err |= get_user(regs->ctr, &funct_desc_ptr->entry);
 		err |= get_user(regs->gpr[2], &funct_desc_ptr->toc);
 	}
 

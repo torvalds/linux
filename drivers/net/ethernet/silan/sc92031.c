@@ -1499,15 +1499,13 @@ static void sc92031_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-static int sc92031_suspend(struct pci_dev *pdev, pm_message_t state)
+static int __maybe_unused sc92031_suspend(struct device *dev_d)
 {
-	struct net_device *dev = pci_get_drvdata(pdev);
+	struct net_device *dev = dev_get_drvdata(dev_d);
 	struct sc92031_priv *priv = netdev_priv(dev);
 
-	pci_save_state(pdev);
-
 	if (!netif_running(dev))
-		goto out;
+		return 0;
 
 	netif_device_detach(dev);
 
@@ -1521,22 +1519,16 @@ static int sc92031_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	spin_unlock_bh(&priv->lock);
 
-out:
-	pci_set_power_state(pdev, pci_choose_state(pdev, state));
-
 	return 0;
 }
 
-static int sc92031_resume(struct pci_dev *pdev)
+static int __maybe_unused sc92031_resume(struct device *dev_d)
 {
-	struct net_device *dev = pci_get_drvdata(pdev);
+	struct net_device *dev = dev_get_drvdata(dev_d);
 	struct sc92031_priv *priv = netdev_priv(dev);
 
-	pci_restore_state(pdev);
-	pci_set_power_state(pdev, PCI_D0);
-
 	if (!netif_running(dev))
-		goto out;
+		return 0;
 
 	/* Interrupts already disabled by sc92031_suspend */
 	spin_lock_bh(&priv->lock);
@@ -1553,7 +1545,6 @@ static int sc92031_resume(struct pci_dev *pdev)
 	else
 		netif_tx_disable(dev);
 
-out:
 	return 0;
 }
 
@@ -1565,13 +1556,14 @@ static const struct pci_device_id sc92031_pci_device_id_table[] = {
 };
 MODULE_DEVICE_TABLE(pci, sc92031_pci_device_id_table);
 
+static SIMPLE_DEV_PM_OPS(sc92031_pm_ops, sc92031_suspend, sc92031_resume);
+
 static struct pci_driver sc92031_pci_driver = {
 	.name		= SC92031_NAME,
 	.id_table	= sc92031_pci_device_id_table,
 	.probe		= sc92031_probe,
 	.remove		= sc92031_remove,
-	.suspend	= sc92031_suspend,
-	.resume		= sc92031_resume,
+	.driver.pm	= &sc92031_pm_ops,
 };
 
 module_pci_driver(sc92031_pci_driver);

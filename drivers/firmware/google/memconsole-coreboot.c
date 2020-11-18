@@ -21,7 +21,7 @@
 struct cbmem_cons {
 	u32 size_dont_access_after_boot;
 	u32 cursor;
-	u8  body[0];
+	u8  body[];
 } __packed;
 
 #define CURSOR_MASK ((1 << 28) - 1)

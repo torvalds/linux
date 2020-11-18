@@ -83,8 +83,7 @@ Usage
 4) Analyze information from page owner::
 
 	cat /sys/kernel/debug/page_owner > page_owner_full.txt
-	grep -v ^PFN page_owner_full.txt > page_owner.txt
-	./page_owner_sort page_owner.txt sorted_page_owner.txt
+	./page_owner_sort page_owner_full.txt sorted_page_owner.txt
 
    See the result about who allocated each page
    in the ``sorted_page_owner.txt``.

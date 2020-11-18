@@ -21,16 +21,22 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 
+#include <asm/unaligned.h>
+
 #define MODE_PWRDWN_1k		0x1
 #define MODE_PWRDWN_100k	0x2
 #define MODE_PWRDWN_TRISTATE	0x3
 
 /**
  * struct ad5446_state - driver instance specific data
- * @spi:		spi_device
+ * @dev:		this device
  * @chip_info:		chip model specific constants, available modes etc
  * @reg:		supply regulator
  * @vref_mv:		actual reference voltage used
+ * @cached_val:		store/retrieve values during power down
+ * @pwr_down_mode:	power down mode (1k, 100k or tristate)
+ * @pwr_down:		true if the device is in power down
+ * @lock:		lock to protect the data buffer during write ops
  */
 
 struct ad5446_state {
@@ -41,6 +47,7 @@ struct ad5446_state {
 	unsigned			cached_val;
 	unsigned			pwr_down_mode;
 	unsigned			pwr_down;
+	struct mutex			lock;
 };
 
 /**
@@ -110,7 +117,7 @@ static ssize_t ad5446_write_dac_powerdown(struct iio_dev *indio_dev,
 	if (ret)
 		return ret;
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&st->lock);
 	st->pwr_down = powerdown;
 
 	if (st->pwr_down) {
@@ -121,7 +128,7 @@ static ssize_t ad5446_write_dac_powerdown(struct iio_dev *indio_dev,
 	}
 
 	ret = st->chip_info->write(st, val);
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&st->lock);
 
 	return ret ? ret : len;
 }
@@ -195,11 +202,11 @@ static int ad5446_write_raw(struct iio_dev *indio_dev,
 			return -EINVAL;
 
 		val <<= chan->scan_type.shift;
-		mutex_lock(&indio_dev->mlock);
+		mutex_lock(&st->lock);
 		st->cached_val = val;
 		if (!st->pwr_down)
 			ret = st->chip_info->write(st, val);
-		mutex_unlock(&indio_dev->mlock);
+		mutex_unlock(&st->lock);
 		break;
 	default:
 		ret = -EINVAL;
@@ -246,13 +253,13 @@ static int ad5446_probe(struct device *dev, const char *name,
 	st->reg = reg;
 	st->dev = dev;
 
-	/* Establish that the iio_dev is a child of the device */
-	indio_dev->dev.parent = dev;
 	indio_dev->name = name;
 	indio_dev->info = &ad5446_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = &st->chip_info->channel;
 	indio_dev->num_channels = 1;
+
+	mutex_init(&st->lock);
 
 	st->pwr_down_mode = MODE_PWRDWN_1k;
 
@@ -302,14 +309,12 @@ static int ad5660_write(struct ad5446_state *st, unsigned val)
 	struct spi_device *spi = to_spi_device(st->dev);
 	uint8_t data[3];
 
-	data[0] = (val >> 16) & 0xFF;
-	data[1] = (val >> 8) & 0xFF;
-	data[2] = val & 0xFF;
+	put_unaligned_be24(val, &data[0]);
 
 	return spi_write(spi, data, sizeof(data));
 }
 
-/**
+/*
  * ad5446_supported_spi_device_ids:
  * The AD5620/40/60 parts are available in different fixed internal reference
  * voltage options. The actual part numbers may look differently
@@ -531,7 +536,7 @@ static int ad5622_write(struct ad5446_state *st, unsigned val)
 	return i2c_master_send(client, (char *)&data, sizeof(data));
 }
 
-/**
+/*
  * ad5446_supported_i2c_device_ids:
  * The AD5620/40/60 parts are available in different fixed internal reference
  * voltage options. The actual part numbers may look differently

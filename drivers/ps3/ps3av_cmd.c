@@ -693,11 +693,11 @@ void ps3av_cmd_set_audio_mode(struct ps3av_pkt_audio_mode *audio, u32 avport,
 	switch (ch) {
 	case PS3AV_CMD_AUDIO_NUM_OF_CH_8:
 		audio->audio_enable[3] = 1;
-		/* fall through */
+		fallthrough;
 	case PS3AV_CMD_AUDIO_NUM_OF_CH_6:
 		audio->audio_enable[2] = 1;
 		audio->audio_enable[1] = 1;
-		/* fall through */
+		fallthrough;
 	case PS3AV_CMD_AUDIO_NUM_OF_CH_2:
 	default:
 		audio->audio_enable[0] = 1;

@@ -5,10 +5,9 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 - 2019 Intel Corporation
+ * Copyright(c) 2007 - 2014, 2018 - 2020 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -28,10 +27,9 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 - 2019 Intel Corporation
+ * Copyright(c) 2005 - 2014, 2018 - 2020 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -218,6 +216,8 @@ struct iwl_shared_mem_lmac_cfg {
  * @page_buff_size: size of %page_buff_addr
  * @lmac_num: number of LMACs (1 or 2)
  * @lmac_smem: per - LMAC smem data
+ * @rxfifo2_control_addr: start addr of RXF2C
+ * @rxfifo2_control_size: size of RXF2C
  */
 struct iwl_shared_mem_cfg {
 	__le32 shared_mem_addr;
@@ -229,8 +229,10 @@ struct iwl_shared_mem_cfg {
 	__le32 page_buff_addr;
 	__le32 page_buff_size;
 	__le32 lmac_num;
-	struct iwl_shared_mem_lmac_cfg lmac_smem[2];
-} __packed; /* SHARED_MEM_ALLOC_API_S_VER_3 */
+	struct iwl_shared_mem_lmac_cfg lmac_smem[3];
+	__le32 rxfifo2_control_addr;
+	__le32 rxfifo2_control_size;
+} __packed; /* SHARED_MEM_ALLOC_API_S_VER_4 */
 
 /**
  * struct iwl_mfuart_load_notif - mfuart image version & status

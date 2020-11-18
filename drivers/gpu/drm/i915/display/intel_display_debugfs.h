@@ -10,10 +10,10 @@ struct drm_connector;
 struct drm_i915_private;
 
 #ifdef CONFIG_DEBUG_FS
-int intel_display_debugfs_register(struct drm_i915_private *i915);
+void intel_display_debugfs_register(struct drm_i915_private *i915);
 int intel_connector_debugfs_add(struct drm_connector *connector);
 #else
-static inline int intel_display_debugfs_register(struct drm_i915_private *i915) { return 0; }
+static inline void intel_display_debugfs_register(struct drm_i915_private *i915) {}
 static inline int intel_connector_debugfs_add(struct drm_connector *connector) { return 0; }
 #endif
 

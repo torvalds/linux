@@ -138,7 +138,6 @@ static int mxc6255_probe(struct i2c_client *client,
 	data->regmap = regmap;
 
 	indio_dev->name = MXC6255_DRV_NAME;
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->channels = mxc6255_channels;
 	indio_dev->num_channels = ARRAY_SIZE(mxc6255_channels);
 	indio_dev->modes = INDIO_DIRECT_MODE;

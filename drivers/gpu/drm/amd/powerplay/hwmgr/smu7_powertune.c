@@ -887,7 +887,10 @@ static int smu7_enable_didt(struct pp_hwmgr *hwmgr, const bool enable)
 	didt_block |= block_en << TCP_Enable_SHIFT;
 
 	if (enable)
-		result = smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_Didt_Block_Function, didt_block);
+		result = smum_send_msg_to_smc_with_parameter(hwmgr,
+						PPSMC_MSG_Didt_Block_Function,
+						didt_block,
+						NULL);
 
 	return result;
 }
@@ -1009,7 +1012,8 @@ int smu7_enable_didt_config(struct pp_hwmgr *hwmgr)
 
 		if (hwmgr->chip_id == CHIP_POLARIS11) {
 			result = smum_send_msg_to_smc(hwmgr,
-						(uint16_t)(PPSMC_MSG_EnableDpmDidt));
+						(uint16_t)(PPSMC_MSG_EnableDpmDidt),
+						NULL);
 			PP_ASSERT_WITH_CODE((0 == result),
 					"Failed to enable DPM DIDT.", goto error);
 		}
@@ -1042,7 +1046,8 @@ int smu7_disable_didt_config(struct pp_hwmgr *hwmgr)
 				goto error);
 		if (hwmgr->chip_id == CHIP_POLARIS11) {
 			result = smum_send_msg_to_smc(hwmgr,
-						(uint16_t)(PPSMC_MSG_DisableDpmDidt));
+						(uint16_t)(PPSMC_MSG_DisableDpmDidt),
+						NULL);
 			PP_ASSERT_WITH_CODE((0 == result),
 					"Failed to disable DPM DIDT.", goto error);
 		}
@@ -1063,7 +1068,8 @@ int smu7_enable_smc_cac(struct pp_hwmgr *hwmgr)
 	if (PP_CAP(PHM_PlatformCaps_CAC)) {
 		int smc_result;
 		smc_result = smum_send_msg_to_smc(hwmgr,
-				(uint16_t)(PPSMC_MSG_EnableCac));
+				(uint16_t)(PPSMC_MSG_EnableCac),
+				NULL);
 		PP_ASSERT_WITH_CODE((0 == smc_result),
 				"Failed to enable CAC in SMC.", result = -1);
 
@@ -1079,7 +1085,8 @@ int smu7_disable_smc_cac(struct pp_hwmgr *hwmgr)
 
 	if (PP_CAP(PHM_PlatformCaps_CAC) && data->cac_enabled) {
 		int smc_result = smum_send_msg_to_smc(hwmgr,
-				(uint16_t)(PPSMC_MSG_DisableCac));
+				(uint16_t)(PPSMC_MSG_DisableCac),
+				NULL);
 		PP_ASSERT_WITH_CODE((smc_result == 0),
 				"Failed to disable CAC in SMC.", result = -1);
 
@@ -1095,7 +1102,9 @@ int smu7_set_power_limit(struct pp_hwmgr *hwmgr, uint32_t n)
 	if (data->power_containment_features &
 			POWERCONTAINMENT_FEATURE_PkgPwrLimit)
 		return smum_send_msg_to_smc_with_parameter(hwmgr,
-				PPSMC_MSG_PkgPwrSetLimit, n<<8);
+				PPSMC_MSG_PkgPwrSetLimit,
+				n<<8,
+				NULL);
 	return 0;
 }
 
@@ -1103,7 +1112,9 @@ static int smu7_set_overdriver_target_tdp(struct pp_hwmgr *hwmgr,
 						uint32_t target_tdp)
 {
 	return smum_send_msg_to_smc_with_parameter(hwmgr,
-			PPSMC_MSG_OverDriveSetTargetTdp, target_tdp);
+			PPSMC_MSG_OverDriveSetTargetTdp,
+			target_tdp,
+			NULL);
 }
 
 int smu7_enable_power_containment(struct pp_hwmgr *hwmgr)
@@ -1124,7 +1135,8 @@ int smu7_enable_power_containment(struct pp_hwmgr *hwmgr)
 	if (PP_CAP(PHM_PlatformCaps_PowerContainment)) {
 		if (data->enable_tdc_limit_feature) {
 			smc_result = smum_send_msg_to_smc(hwmgr,
-					(uint16_t)(PPSMC_MSG_TDCLimitEnable));
+					(uint16_t)(PPSMC_MSG_TDCLimitEnable),
+					NULL);
 			PP_ASSERT_WITH_CODE((0 == smc_result),
 					"Failed to enable TDCLimit in SMC.", result = -1;);
 			if (0 == smc_result)
@@ -1134,7 +1146,8 @@ int smu7_enable_power_containment(struct pp_hwmgr *hwmgr)
 
 		if (data->enable_pkg_pwr_tracking_feature) {
 			smc_result = smum_send_msg_to_smc(hwmgr,
-					(uint16_t)(PPSMC_MSG_PkgPwrLimitEnable));
+					(uint16_t)(PPSMC_MSG_PkgPwrLimitEnable),
+					NULL);
 			PP_ASSERT_WITH_CODE((0 == smc_result),
 					"Failed to enable PkgPwrTracking in SMC.", result = -1;);
 			if (0 == smc_result) {
@@ -1163,7 +1176,8 @@ int smu7_disable_power_containment(struct pp_hwmgr *hwmgr)
 		if (data->power_containment_features &
 				POWERCONTAINMENT_FEATURE_TDCLimit) {
 			smc_result = smum_send_msg_to_smc(hwmgr,
-					(uint16_t)(PPSMC_MSG_TDCLimitDisable));
+					(uint16_t)(PPSMC_MSG_TDCLimitDisable),
+					NULL);
 			PP_ASSERT_WITH_CODE((smc_result == 0),
 					"Failed to disable TDCLimit in SMC.",
 					result = smc_result);
@@ -1172,7 +1186,8 @@ int smu7_disable_power_containment(struct pp_hwmgr *hwmgr)
 		if (data->power_containment_features &
 				POWERCONTAINMENT_FEATURE_DTE) {
 			smc_result = smum_send_msg_to_smc(hwmgr,
-					(uint16_t)(PPSMC_MSG_DisableDTE));
+					(uint16_t)(PPSMC_MSG_DisableDTE),
+					NULL);
 			PP_ASSERT_WITH_CODE((smc_result == 0),
 					"Failed to disable DTE in SMC.",
 					result = smc_result);
@@ -1181,7 +1196,8 @@ int smu7_disable_power_containment(struct pp_hwmgr *hwmgr)
 		if (data->power_containment_features &
 				POWERCONTAINMENT_FEATURE_PkgPwrLimit) {
 			smc_result = smum_send_msg_to_smc(hwmgr,
-					(uint16_t)(PPSMC_MSG_PkgPwrLimitDisable));
+					(uint16_t)(PPSMC_MSG_PkgPwrLimitDisable),
+					NULL);
 			PP_ASSERT_WITH_CODE((smc_result == 0),
 					"Failed to disable PkgPwrTracking in SMC.",
 					result = smc_result);

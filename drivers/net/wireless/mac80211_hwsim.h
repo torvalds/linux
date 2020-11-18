@@ -75,6 +75,12 @@ enum hwsim_tx_control_flags {
  * @HWSIM_CMD_DEL_RADIO: destroy a radio, reply is multicasted
  * @HWSIM_CMD_GET_RADIO: fetch information about existing radios, uses:
  *	%HWSIM_ATTR_RADIO_ID
+ * @HWSIM_CMD_ADD_MAC_ADDR: add a receive MAC address (given in the
+ *	%HWSIM_ATTR_ADDR_RECEIVER attribute) to a device identified by
+ *	%HWSIM_ATTR_ADDR_TRANSMITTER. This lets wmediumd forward frames
+ *	to this receiver address for a given station.
+ * @HWSIM_CMD_DEL_MAC_ADDR: remove the MAC address again, the attributes
+ *	are the same as to @HWSIM_CMD_ADD_MAC_ADDR.
  * @__HWSIM_CMD_MAX: enum limit
  */
 enum {
@@ -85,6 +91,8 @@ enum {
 	HWSIM_CMD_NEW_RADIO,
 	HWSIM_CMD_DEL_RADIO,
 	HWSIM_CMD_GET_RADIO,
+	HWSIM_CMD_ADD_MAC_ADDR,
+	HWSIM_CMD_DEL_MAC_ADDR,
 	__HWSIM_CMD_MAX,
 };
 #define HWSIM_CMD_MAX (_HWSIM_CMD_MAX - 1)

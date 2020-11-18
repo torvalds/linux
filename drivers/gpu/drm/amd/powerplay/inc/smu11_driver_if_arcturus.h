@@ -82,8 +82,8 @@
 // Other
 #define FEATURE_OUT_OF_BAND_MONITOR_BIT 24
 #define FEATURE_TEMP_DEPENDENT_VMIN_BIT 25
+#define FEATURE_PER_PART_VMIN_BIT       26
 
-#define FEATURE_SPARE_26_BIT            26
 #define FEATURE_SPARE_27_BIT            27
 #define FEATURE_SPARE_28_BIT            28
 #define FEATURE_SPARE_29_BIT            29
@@ -154,6 +154,7 @@
 
 #define FEATURE_OUT_OF_BAND_MONITOR_MASK  (1 << FEATURE_OUT_OF_BAND_MONITOR_BIT   )
 #define FEATURE_TEMP_DEPENDENT_VMIN_MASK  (1 << FEATURE_TEMP_DEPENDENT_VMIN_BIT )
+#define FEATURE_PER_PART_VMIN_MASK        (1 << FEATURE_PER_PART_VMIN_BIT        )
 
 
 //FIXME need updating
@@ -199,6 +200,8 @@
 #define THROTTLER_PPM_BIT          13
 #define THROTTLER_FIT_BIT          14
 #define THROTTLER_APCC_BIT         15
+#define THROTTLER_VRHOT0_BIT       16
+#define THROTTLER_VRHOT1_BIT       17
 
 // Table transfer status
 #define TABLE_TRANSFER_OK         0x0
@@ -628,8 +631,14 @@ typedef struct {
   uint16_t BasePerformanceFrequencyCap;   //In Mhz
   uint16_t MaxPerformanceFrequencyCap;    //In Mhz
 
+  // Per-Part Vmin
+  uint16_t VDDGFX_VminLow;        // mv Q2
+  uint16_t VDDGFX_TVminLow;       //Celcius
+  uint16_t VDDGFX_VminLow_HiTemp; // mv Q2
+  uint16_t VDDGFX_VminLow_LoTemp; // mv Q2
+
   // SECTION: Reserved
-  uint32_t     Reserved[9];
+  uint32_t     Reserved[7];
 
   // SECTION: BOARD PARAMETERS
 
@@ -735,6 +744,9 @@ typedef struct {
 
   uint16_t     SocketPowerLpfTau;
 
+  uint16_t     VcnClkAverageLpfTau;
+  uint16_t     padding16;
+
   // Padding - ignore
   uint32_t     MmHubPadding[8]; // SMU internal use
 } DriverSmuConfig_t;
@@ -760,9 +772,12 @@ typedef struct {
   uint32_t ThrottlerStatus       ;
 
   uint16_t CurrFanSpeed          ;
-  uint16_t Padding16;
+  uint16_t AverageVclkFrequency  ;
+  uint16_t AverageDclkFrequency  ;
+  uint16_t VcnActivityPercentage ;
+  uint32_t EnergyAccumulator     ;
 
-  uint32_t Padding[4];
+  uint32_t Padding[2];
 
   // Padding - ignore
   uint32_t     MmHubPadding[8]; // SMU internal use
@@ -868,6 +883,10 @@ typedef struct {
   uint8_t   Mem_UpHystLimit;
   uint8_t   Mem_DownHystLimit;
   uint16_t  Mem_Fps;
+
+  uint32_t  BusyThreshold;                  // Q16
+  uint32_t  BusyHyst;
+  uint32_t  IdleHyst;
 
   uint32_t  MmHubPadding[8]; // SMU internal use
 } DpmActivityMonitorCoeffInt_t;

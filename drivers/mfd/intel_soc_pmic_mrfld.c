@@ -74,10 +74,11 @@ static const struct mfd_cell bcove_dev[] = {
 static int bcove_ipc_byte_reg_read(void *context, unsigned int reg,
 				    unsigned int *val)
 {
+	struct intel_soc_pmic *pmic = context;
 	u8 ipc_out;
 	int ret;
 
-	ret = intel_scu_ipc_ioread8(reg, &ipc_out);
+	ret = intel_scu_ipc_dev_ioread8(pmic->scu, reg, &ipc_out);
 	if (ret)
 		return ret;
 
@@ -88,14 +89,10 @@ static int bcove_ipc_byte_reg_read(void *context, unsigned int reg,
 static int bcove_ipc_byte_reg_write(void *context, unsigned int reg,
 				     unsigned int val)
 {
+	struct intel_soc_pmic *pmic = context;
 	u8 ipc_in = val;
-	int ret;
 
-	ret = intel_scu_ipc_iowrite8(reg, ipc_in);
-	if (ret)
-		return ret;
-
-	return 0;
+	return intel_scu_ipc_dev_iowrite8(pmic->scu, reg, ipc_in);
 }
 
 static const struct regmap_config bcove_regmap_config = {
@@ -115,6 +112,10 @@ static int bcove_probe(struct platform_device *pdev)
 
 	pmic = devm_kzalloc(dev, sizeof(*pmic), GFP_KERNEL);
 	if (!pmic)
+		return -ENOMEM;
+
+	pmic->scu = devm_intel_scu_ipc_dev_get(dev);
+	if (!pmic->scu)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, pmic);

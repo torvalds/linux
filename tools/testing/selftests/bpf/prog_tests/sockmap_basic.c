@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2020 Cloudflare
+#include <error.h>
 
 #include "test_progs.h"
+#include "test_skmsg_load_helpers.skel.h"
 
 #define TCP_REPAIR		19	/* TCP sock is under repair right now */
 
@@ -70,10 +72,43 @@ out:
 	close(s);
 }
 
+static void test_skmsg_helpers(enum bpf_map_type map_type)
+{
+	struct test_skmsg_load_helpers *skel;
+	int err, map, verdict;
+
+	skel = test_skmsg_load_helpers__open_and_load();
+	if (CHECK_FAIL(!skel)) {
+		perror("test_skmsg_load_helpers__open_and_load");
+		return;
+	}
+
+	verdict = bpf_program__fd(skel->progs.prog_msg_verdict);
+	map = bpf_map__fd(skel->maps.sock_map);
+
+	err = bpf_prog_attach(verdict, map, BPF_SK_MSG_VERDICT, 0);
+	if (CHECK_FAIL(err)) {
+		perror("bpf_prog_attach");
+		goto out;
+	}
+
+	err = bpf_prog_detach2(verdict, map, BPF_SK_MSG_VERDICT);
+	if (CHECK_FAIL(err)) {
+		perror("bpf_prog_detach2");
+		goto out;
+	}
+out:
+	test_skmsg_load_helpers__destroy(skel);
+}
+
 void test_sockmap_basic(void)
 {
 	if (test__start_subtest("sockmap create_update_free"))
 		test_sockmap_create_update_free(BPF_MAP_TYPE_SOCKMAP);
 	if (test__start_subtest("sockhash create_update_free"))
 		test_sockmap_create_update_free(BPF_MAP_TYPE_SOCKHASH);
+	if (test__start_subtest("sockmap sk_msg load helpers"))
+		test_skmsg_helpers(BPF_MAP_TYPE_SOCKMAP);
+	if (test__start_subtest("sockhash sk_msg load helpers"))
+		test_skmsg_helpers(BPF_MAP_TYPE_SOCKHASH);
 }

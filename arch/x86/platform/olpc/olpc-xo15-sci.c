@@ -75,7 +75,7 @@ static struct kobj_attribute lid_wake_on_close_attr =
 
 static void battery_status_changed(void)
 {
-	struct power_supply *psy = power_supply_get_by_name("olpc-battery");
+	struct power_supply *psy = power_supply_get_by_name("olpc_battery");
 
 	if (psy) {
 		power_supply_changed(psy);
@@ -85,7 +85,7 @@ static void battery_status_changed(void)
 
 static void ac_status_changed(void)
 {
-	struct power_supply *psy = power_supply_get_by_name("olpc-ac");
+	struct power_supply *psy = power_supply_get_by_name("olpc_ac");
 
 	if (psy) {
 		power_supply_changed(psy);

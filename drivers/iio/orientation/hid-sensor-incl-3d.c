@@ -15,8 +15,6 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/buffer.h>
-#include <linux/iio/trigger_consumer.h>
-#include <linux/iio/triggered_buffer.h>
 #include "../common/hid-sensors/hid-sensor-trigger.h"
 
 enum incl_3d_channel {
@@ -341,23 +339,17 @@ static int hid_incl_3d_probe(struct platform_device *pdev)
 	}
 
 	indio_dev->num_channels = ARRAY_SIZE(incl_3d_channels);
-	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->info = &incl_3d_info;
 	indio_dev->name = name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
-	ret = iio_triggered_buffer_setup(indio_dev, &iio_pollfunc_store_time,
-		NULL, NULL);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to initialize trigger buffer\n");
-		goto error_free_dev_mem;
-	}
 	atomic_set(&incl_state->common_attributes.data_ready, 0);
+
 	ret = hid_sensor_setup_trigger(indio_dev, name,
 					&incl_state->common_attributes);
 	if (ret) {
 		dev_err(&pdev->dev, "trigger setup failed\n");
-		goto error_unreg_buffer_funcs;
+		goto error_free_dev_mem;
 	}
 
 	ret = iio_device_register(indio_dev);
@@ -382,9 +374,7 @@ static int hid_incl_3d_probe(struct platform_device *pdev)
 error_iio_unreg:
 	iio_device_unregister(indio_dev);
 error_remove_trigger:
-	hid_sensor_remove_trigger(&incl_state->common_attributes);
-error_unreg_buffer_funcs:
-	iio_triggered_buffer_cleanup(indio_dev);
+	hid_sensor_remove_trigger(indio_dev, &incl_state->common_attributes);
 error_free_dev_mem:
 	kfree(indio_dev->channels);
 	return ret;
@@ -399,8 +389,7 @@ static int hid_incl_3d_remove(struct platform_device *pdev)
 
 	sensor_hub_remove_callback(hsdev, HID_USAGE_SENSOR_INCLINOMETER_3D);
 	iio_device_unregister(indio_dev);
-	hid_sensor_remove_trigger(&incl_state->common_attributes);
-	iio_triggered_buffer_cleanup(indio_dev);
+	hid_sensor_remove_trigger(indio_dev, &incl_state->common_attributes);
 	kfree(indio_dev->channels);
 
 	return 0;

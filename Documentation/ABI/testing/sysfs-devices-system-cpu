@@ -106,10 +106,10 @@ Description:	CPU topology files that describe a logical CPU's relationship
 		See Documentation/admin-guide/cputopology.rst for more information.
 
 
-What:		/sys/devices/system/cpu/cpuidle/current_driver
-		/sys/devices/system/cpu/cpuidle/current_governer_ro
-		/sys/devices/system/cpu/cpuidle/available_governors
+What:		/sys/devices/system/cpu/cpuidle/available_governors
+		/sys/devices/system/cpu/cpuidle/current_driver
 		/sys/devices/system/cpu/cpuidle/current_governor
+		/sys/devices/system/cpu/cpuidle/current_governer_ro
 Date:		September 2007
 Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
 Description:	Discover cpuidle policy and mechanism
@@ -119,23 +119,17 @@ Description:	Discover cpuidle policy and mechanism
 		consumption during idle.
 
 		Idle policy (governor) is differentiated from idle mechanism
-		(driver)
-
-		current_driver: (RO) displays current idle mechanism
-
-		current_governor_ro: (RO) displays current idle policy
-
-		With the cpuidle_sysfs_switch boot option enabled (meant for
-		developer testing), the following three attributes are visible
-		instead:
-
-		current_driver: same as described above
+		(driver).
 
 		available_governors: (RO) displays a space separated list of
-		available governors
+		available governors.
+
+		current_driver: (RO) displays current idle mechanism.
 
 		current_governor: (RW) displays current idle policy. Users can
 		switch the governor at runtime by writing to this file.
+
+		current_governor_ro: (RO) displays current idle policy.
 
 		See Documentation/admin-guide/pm/cpuidle.rst and
 		Documentation/driver-api/pm/cpuidle.rst for more information.
@@ -492,6 +486,7 @@ What:		/sys/devices/system/cpu/vulnerabilities
 		/sys/devices/system/cpu/vulnerabilities/spec_store_bypass
 		/sys/devices/system/cpu/vulnerabilities/l1tf
 		/sys/devices/system/cpu/vulnerabilities/mds
+		/sys/devices/system/cpu/vulnerabilities/srbds
 		/sys/devices/system/cpu/vulnerabilities/tsx_async_abort
 		/sys/devices/system/cpu/vulnerabilities/itlb_multihit
 Date:		January 2018
@@ -580,3 +575,42 @@ Description:	Secure Virtual Machine
 		If 1, it means the system is using the Protected Execution
 		Facility in POWER9 and newer processors. i.e., it is a Secure
 		Virtual Machine.
+
+What: 		/sys/devices/system/cpu/cpuX/purr
+Date:		Apr 2005
+Contact:	Linux for PowerPC mailing list <linuxppc-dev@ozlabs.org>
+Description:	PURR ticks for this CPU since the system boot.
+
+		The Processor Utilization Resources Register (PURR) is
+		a 64-bit counter which provides an estimate of the
+		resources used by the CPU thread. The contents of this
+		register increases monotonically. This sysfs interface
+		exposes the number of PURR ticks for cpuX.
+
+What: 		/sys/devices/system/cpu/cpuX/spurr
+Date:		Dec 2006
+Contact:	Linux for PowerPC mailing list <linuxppc-dev@ozlabs.org>
+Description:	SPURR ticks for this CPU since the system boot.
+
+		The Scaled Processor Utilization Resources Register
+		(SPURR) is a 64-bit counter that provides a frequency
+		invariant estimate of the resources used by the CPU
+		thread. The contents of this register increases
+		monotonically. This sysfs interface exposes the number
+		of SPURR ticks for cpuX.
+
+What: 		/sys/devices/system/cpu/cpuX/idle_purr
+Date:		Apr 2020
+Contact:	Linux for PowerPC mailing list <linuxppc-dev@ozlabs.org>
+Description:	PURR ticks for cpuX when it was idle.
+
+		This sysfs interface exposes the number of PURR ticks
+		for cpuX when it was idle.
+
+What: 		/sys/devices/system/cpu/cpuX/idle_spurr
+Date:		Apr 2020
+Contact:	Linux for PowerPC mailing list <linuxppc-dev@ozlabs.org>
+Description:	SPURR ticks for cpuX when it was idle.
+
+		This sysfs interface exposes the number of SPURR ticks
+		for cpuX when it was idle.

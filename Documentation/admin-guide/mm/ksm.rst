@@ -9,7 +9,7 @@ Overview
 
 KSM is a memory-saving de-duplication feature, enabled by CONFIG_KSM=y,
 added to the Linux kernel in 2.6.32.  See ``mm/ksm.c`` for its implementation,
-and http://lwn.net/Articles/306704/ and http://lwn.net/Articles/330589/
+and http://lwn.net/Articles/306704/ and https://lwn.net/Articles/330589/
 
 KSM was originally developed for use with KVM (where it was known as
 Kernel Shared Memory), to fit more virtual machines into physical memory,
@@ -52,7 +52,7 @@ with EAGAIN, but more probably arousing the Out-Of-Memory killer.
 If KSM is not configured into the running kernel, madvise MADV_MERGEABLE
 and MADV_UNMERGEABLE simply fail with EINVAL.  If the running kernel was
 built with CONFIG_KSM=y, those calls will normally succeed: even if the
-the KSM daemon is not currently running, MADV_MERGEABLE still registers
+KSM daemon is not currently running, MADV_MERGEABLE still registers
 the range for whenever the KSM daemon is started; even if the range
 cannot contain any pages which KSM could actually merge; even if
 MADV_UNMERGEABLE is applied to a range which was never MADV_MERGEABLE.

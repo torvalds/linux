@@ -5,7 +5,7 @@ found in the product guide[2].
 
 [1] Documentation/devicetree/bindings/clock/clock-bindings.txt
 [2] Clocking Wizard Product Guide
-http://www.xilinx.com/support/documentation/ip_documentation/clk_wiz/v5_1/pg065-clk-wiz.pdf
+https://www.xilinx.com/support/documentation/ip_documentation/clk_wiz/v5_1/pg065-clk-wiz.pdf
 
 Required properties:
  - compatible: Must be 'xlnx,clocking-wizard'

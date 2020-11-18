@@ -327,41 +327,29 @@ static bool ipip_tunnel_ioctl_verify_protocol(u8 ipproto)
 }
 
 static int
-ipip_tunnel_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+ipip_tunnel_ctl(struct net_device *dev, struct ip_tunnel_parm *p, int cmd)
 {
-	int err = 0;
-	struct ip_tunnel_parm p;
-
-	if (copy_from_user(&p, ifr->ifr_ifru.ifru_data, sizeof(p)))
-		return -EFAULT;
-
 	if (cmd == SIOCADDTUNNEL || cmd == SIOCCHGTUNNEL) {
-		if (p.iph.version != 4 ||
-		    !ipip_tunnel_ioctl_verify_protocol(p.iph.protocol) ||
-		    p.iph.ihl != 5 || (p.iph.frag_off&htons(~IP_DF)))
+		if (p->iph.version != 4 ||
+		    !ipip_tunnel_ioctl_verify_protocol(p->iph.protocol) ||
+		    p->iph.ihl != 5 || (p->iph.frag_off & htons(~IP_DF)))
 			return -EINVAL;
 	}
 
-	p.i_key = p.o_key = 0;
-	p.i_flags = p.o_flags = 0;
-	err = ip_tunnel_ioctl(dev, &p, cmd);
-	if (err)
-		return err;
-
-	if (copy_to_user(ifr->ifr_ifru.ifru_data, &p, sizeof(p)))
-		return -EFAULT;
-
-	return 0;
+	p->i_key = p->o_key = 0;
+	p->i_flags = p->o_flags = 0;
+	return ip_tunnel_ctl(dev, p, cmd);
 }
 
 static const struct net_device_ops ipip_netdev_ops = {
 	.ndo_init       = ipip_tunnel_init,
 	.ndo_uninit     = ip_tunnel_uninit,
 	.ndo_start_xmit	= ipip_tunnel_xmit,
-	.ndo_do_ioctl	= ipip_tunnel_ioctl,
+	.ndo_do_ioctl	= ip_tunnel_ioctl,
 	.ndo_change_mtu = ip_tunnel_change_mtu,
 	.ndo_get_stats64 = ip_tunnel_get_stats64,
 	.ndo_get_iflink = ip_tunnel_get_iflink,
+	.ndo_tunnel_ctl	= ipip_tunnel_ctl,
 };
 
 #define IPIP_FEATURES (NETIF_F_SG |		\
@@ -373,6 +361,7 @@ static const struct net_device_ops ipip_netdev_ops = {
 static void ipip_tunnel_setup(struct net_device *dev)
 {
 	dev->netdev_ops		= &ipip_netdev_ops;
+	dev->header_ops		= &ip_tunnel_header_ops;
 
 	dev->type		= ARPHRD_TUNNEL;
 	dev->flags		= IFF_NOARP;

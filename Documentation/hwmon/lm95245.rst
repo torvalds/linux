@@ -9,7 +9,7 @@ Supported chips:
 
     Datasheet: Publicly available at the TI website
 
-	       http://www.ti.com/lit/ds/symlink/lm95235.pdf
+	       https://www.ti.com/lit/ds/symlink/lm95235.pdf
 
   * TI / National Semiconductor LM95245
 
@@ -17,7 +17,7 @@ Supported chips:
 
     Datasheet: Publicly available at the TI website
 
-	       http://www.ti.com/lit/ds/symlink/lm95245.pdf
+	       https://www.ti.com/lit/ds/symlink/lm95245.pdf
 
 Author: Alexander Stein <alexander.stein@systec-electronic.com>
 

@@ -2,6 +2,9 @@
 #define __NV50_KMS_ATOM_H__
 #define nv50_atom(p) container_of((p), struct nv50_atom, state)
 #include <drm/drm_atomic.h>
+#include "crc.h"
+
+struct nouveau_encoder;
 
 struct nv50_atom {
 	struct drm_atomic_state state;
@@ -18,6 +21,7 @@ struct nv50_head_atom {
 
 	struct {
 		u32 mask;
+		u32 owned;
 		u32 olut;
 	} wndw;
 
@@ -114,8 +118,11 @@ struct nv50_head_atom {
 		u8 nhsync:1;
 		u8 nvsync:1;
 		u8 depth:4;
+		u8 crc_raster:2;
 		u8 bpc;
 	} or;
+
+	struct nv50_crc_atom crc;
 
 	/* Currently only used for MST */
 	struct {
@@ -134,6 +141,7 @@ struct nv50_head_atom {
 			bool ovly:1;
 			bool dither:1;
 			bool procamp:1;
+			bool crc:1;
 			bool or:1;
 		};
 		u16 mask;
@@ -147,6 +155,19 @@ nv50_head_atom_get(struct drm_atomic_state *state, struct drm_crtc *crtc)
 	if (IS_ERR(statec))
 		return (void *)statec;
 	return nv50_head_atom(statec);
+}
+
+static inline struct drm_encoder *
+nv50_head_atom_get_encoder(struct nv50_head_atom *atom)
+{
+	struct drm_encoder *encoder = NULL;
+
+	/* We only ever have a single encoder */
+	drm_for_each_encoder_mask(encoder, atom->state.crtc->dev,
+				  atom->state.encoder_mask)
+		break;
+
+	return encoder;
 }
 
 #define nv50_wndw_atom(p) container_of((p), struct nv50_wndw_atom, state)

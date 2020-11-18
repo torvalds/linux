@@ -226,19 +226,31 @@ static int preempt_init_ring(struct a5xx_gpu *a5xx_gpu,
 	struct adreno_gpu *adreno_gpu = &a5xx_gpu->base;
 	struct msm_gpu *gpu = &adreno_gpu->base;
 	struct a5xx_preempt_record *ptr;
-	struct drm_gem_object *bo = NULL;
-	u64 iova = 0;
+	void *counters;
+	struct drm_gem_object *bo = NULL, *counters_bo = NULL;
+	u64 iova = 0, counters_iova = 0;
 
 	ptr = msm_gem_kernel_new(gpu->dev,
 		A5XX_PREEMPT_RECORD_SIZE + A5XX_PREEMPT_COUNTER_SIZE,
-		MSM_BO_UNCACHED, gpu->aspace, &bo, &iova);
+		MSM_BO_UNCACHED | MSM_BO_MAP_PRIV, gpu->aspace, &bo, &iova);
 
 	if (IS_ERR(ptr))
 		return PTR_ERR(ptr);
 
+	/* The buffer to store counters needs to be unprivileged */
+	counters = msm_gem_kernel_new(gpu->dev,
+		A5XX_PREEMPT_COUNTER_SIZE,
+		MSM_BO_UNCACHED, gpu->aspace, &counters_bo, &counters_iova);
+	if (IS_ERR(counters)) {
+		msm_gem_kernel_put(bo, gpu->aspace, true);
+		return PTR_ERR(counters);
+	}
+
 	msm_gem_object_set_name(bo, "preempt");
+	msm_gem_object_set_name(counters_bo, "preempt_counters");
 
 	a5xx_gpu->preempt_bo[ring->id] = bo;
+	a5xx_gpu->preempt_counters_bo[ring->id] = counters_bo;
 	a5xx_gpu->preempt_iova[ring->id] = iova;
 	a5xx_gpu->preempt[ring->id] = ptr;
 
@@ -249,7 +261,7 @@ static int preempt_init_ring(struct a5xx_gpu *a5xx_gpu,
 	ptr->data = 0;
 	ptr->cntl = MSM_GPU_RB_CNTL_DEFAULT;
 	ptr->rptr_addr = rbmemptr(ring, rptr);
-	ptr->counter = iova + A5XX_PREEMPT_RECORD_SIZE;
+	ptr->counter = counters_iova;
 
 	return 0;
 }
@@ -260,8 +272,11 @@ void a5xx_preempt_fini(struct msm_gpu *gpu)
 	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreno_gpu);
 	int i;
 
-	for (i = 0; i < gpu->nr_rings; i++)
+	for (i = 0; i < gpu->nr_rings; i++) {
 		msm_gem_kernel_put(a5xx_gpu->preempt_bo[i], gpu->aspace, true);
+		msm_gem_kernel_put(a5xx_gpu->preempt_counters_bo[i],
+			gpu->aspace, true);
+	}
 }
 
 void a5xx_preempt_init(struct msm_gpu *gpu)

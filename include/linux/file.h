@@ -9,6 +9,7 @@
 #include <linux/compiler.h>
 #include <linux/types.h>
 #include <linux/posix_types.h>
+#include <linux/errno.h>
 
 struct file;
 
@@ -91,7 +92,27 @@ extern void put_unused_fd(unsigned int fd);
 
 extern void fd_install(unsigned int fd, struct file *file);
 
+extern int __receive_fd(int fd, struct file *file, int __user *ufd,
+			unsigned int o_flags);
+static inline int receive_fd_user(struct file *file, int __user *ufd,
+				  unsigned int o_flags)
+{
+	if (ufd == NULL)
+		return -EFAULT;
+	return __receive_fd(-1, file, ufd, o_flags);
+}
+static inline int receive_fd(struct file *file, unsigned int o_flags)
+{
+	return __receive_fd(-1, file, NULL, o_flags);
+}
+static inline int receive_fd_replace(int fd, struct file *file, unsigned int o_flags)
+{
+	return __receive_fd(fd, file, NULL, o_flags);
+}
+
 extern void flush_delayed_fput(void);
 extern void __fput_sync(struct file *);
+
+extern unsigned int sysctl_nr_open_min, sysctl_nr_open_max;
 
 #endif /* __LINUX_FILE_H */

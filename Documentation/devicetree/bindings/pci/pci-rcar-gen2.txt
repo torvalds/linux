@@ -6,7 +6,8 @@ AHB. There is one bridge instance per USB port connected to the internal
 OHCI and EHCI controllers.
 
 Required properties:
-- compatible: "renesas,pci-r8a7743" for the R8A7743 SoC;
+- compatible: "renesas,pci-r8a7742" for the R8A7742 SoC;
+	      "renesas,pci-r8a7743" for the R8A7743 SoC;
 	      "renesas,pci-r8a7744" for the R8A7744 SoC;
 	      "renesas,pci-r8a7745" for the R8A7745 SoC;
 	      "renesas,pci-r8a7790" for the R8A7790 SoC;

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2000-2001,2005 Silicon Graphics, Inc.
  * Copyright (c) 2013 Red Hat, Inc.

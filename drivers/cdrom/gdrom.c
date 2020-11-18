@@ -770,7 +770,7 @@ static int probe_gdrom(struct platform_device *devptr)
 		goto probe_fail_no_disk;
 	}
 	probe_gdrom_setupdisk();
-	if (register_cdrom(gd.cd_info)) {
+	if (register_cdrom(gd.disk, gd.cd_info)) {
 		err = -ENODEV;
 		goto probe_fail_cdrom_register;
 	}

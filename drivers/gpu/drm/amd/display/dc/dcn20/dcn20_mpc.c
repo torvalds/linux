@@ -452,7 +452,7 @@ void mpc2_set_output_gamma(
 		next_mode = LUT_RAM_A;
 
 	mpc20_power_on_ogam_lut(mpc, mpcc_id, true);
-	mpc20_configure_ogam_lut(mpc, mpcc_id, next_mode == LUT_RAM_A ? true:false);
+	mpc20_configure_ogam_lut(mpc, mpcc_id, next_mode == LUT_RAM_A);
 
 	if (next_mode == LUT_RAM_A)
 		mpc2_program_luta(mpc, mpcc_id, params);

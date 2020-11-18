@@ -15,6 +15,8 @@ Required properties:
 Optional properties:
 - enable-gpios: platform gpio for control of BUCKA/BUCKB.
 - Any optional property defined in regulator.txt
+  - regulator-initial-mode and regulator-allowed-modes may be specified using
+    mode values from dt-bindings/regulator/dlg,da9211-regulator.h
 
 Example 1) DA9211
 	pmic: da9211@68 {
@@ -30,6 +32,8 @@ Example 1) DA9211
 				regulator-min-microamp 	= <2000000>;
 				regulator-max-microamp 	= <5000000>;
 				enable-gpios = <&gpio 27 0>;
+				regulator-allowed-modes = <DA9211_BUCK_MODE_SYNC
+							   DA9211_BUCK_MODE_AUTO>;
 			};
 		};
 	};

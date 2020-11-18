@@ -699,7 +699,7 @@ static void hns_nic_rx_up_pro(struct hns_nic_ring_data *ring_data,
 	struct net_device *ndev = ring_data->napi.dev;
 
 	skb->protocol = eth_type_trans(skb, ndev);
-	(void)napi_gro_receive(&ring_data->napi, skb);
+	napi_gro_receive(&ring_data->napi, skb);
 }
 
 static int hns_desc_unused(struct hnae_ring *ring)
@@ -2282,8 +2282,10 @@ static int hns_nic_dev_probe(struct platform_device *pdev)
 			priv->enet_ver = AE_VERSION_1;
 		else if (acpi_dev_found(hns_enet_acpi_match[1].id))
 			priv->enet_ver = AE_VERSION_2;
-		else
-			return -ENXIO;
+		else {
+			ret = -ENXIO;
+			goto out_read_prop_fail;
+		}
 
 		/* try to find port-idx-in-ae first */
 		ret = acpi_node_get_property_reference(dev->fwnode,
@@ -2299,7 +2301,8 @@ static int hns_nic_dev_probe(struct platform_device *pdev)
 		priv->fwnode = args.fwnode;
 	} else {
 		dev_err(dev, "cannot read cfg data from OF or acpi\n");
-		return -ENXIO;
+		ret = -ENXIO;
+		goto out_read_prop_fail;
 	}
 
 	ret = device_property_read_u32(dev, "port-idx-in-ae", &port_id);

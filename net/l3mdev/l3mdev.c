@@ -9,6 +9,99 @@
 #include <net/fib_rules.h>
 #include <net/l3mdev.h>
 
+static DEFINE_SPINLOCK(l3mdev_lock);
+
+struct l3mdev_handler {
+	lookup_by_table_id_t dev_lookup;
+};
+
+static struct l3mdev_handler l3mdev_handlers[L3MDEV_TYPE_MAX + 1];
+
+static int l3mdev_check_type(enum l3mdev_type l3type)
+{
+	if (l3type <= L3MDEV_TYPE_UNSPEC || l3type > L3MDEV_TYPE_MAX)
+		return -EINVAL;
+
+	return 0;
+}
+
+int l3mdev_table_lookup_register(enum l3mdev_type l3type,
+				 lookup_by_table_id_t fn)
+{
+	struct l3mdev_handler *hdlr;
+	int res;
+
+	res = l3mdev_check_type(l3type);
+	if (res)
+		return res;
+
+	hdlr = &l3mdev_handlers[l3type];
+
+	spin_lock(&l3mdev_lock);
+
+	if (hdlr->dev_lookup) {
+		res = -EBUSY;
+		goto unlock;
+	}
+
+	hdlr->dev_lookup = fn;
+	res = 0;
+
+unlock:
+	spin_unlock(&l3mdev_lock);
+
+	return res;
+}
+EXPORT_SYMBOL_GPL(l3mdev_table_lookup_register);
+
+void l3mdev_table_lookup_unregister(enum l3mdev_type l3type,
+				    lookup_by_table_id_t fn)
+{
+	struct l3mdev_handler *hdlr;
+
+	if (l3mdev_check_type(l3type))
+		return;
+
+	hdlr = &l3mdev_handlers[l3type];
+
+	spin_lock(&l3mdev_lock);
+
+	if (hdlr->dev_lookup == fn)
+		hdlr->dev_lookup = NULL;
+
+	spin_unlock(&l3mdev_lock);
+}
+EXPORT_SYMBOL_GPL(l3mdev_table_lookup_unregister);
+
+int l3mdev_ifindex_lookup_by_table_id(enum l3mdev_type l3type,
+				      struct net *net, u32 table_id)
+{
+	lookup_by_table_id_t lookup;
+	struct l3mdev_handler *hdlr;
+	int ifindex = -EINVAL;
+	int res;
+
+	res = l3mdev_check_type(l3type);
+	if (res)
+		return res;
+
+	hdlr = &l3mdev_handlers[l3type];
+
+	spin_lock(&l3mdev_lock);
+
+	lookup = hdlr->dev_lookup;
+	if (!lookup)
+		goto unlock;
+
+	ifindex = lookup(net, table_id);
+
+unlock:
+	spin_unlock(&l3mdev_lock);
+
+	return ifindex;
+}
+EXPORT_SYMBOL_GPL(l3mdev_ifindex_lookup_by_table_id);
+
 /**
  *	l3mdev_master_ifindex - get index of L3 master device
  *	@dev: targeted interface
@@ -61,7 +154,7 @@ int l3mdev_master_upper_ifindex_by_index_rcu(struct net *net, int ifindex)
 EXPORT_SYMBOL_GPL(l3mdev_master_upper_ifindex_by_index_rcu);
 
 /**
- *	l3mdev_fib_table - get FIB table id associated with an L3
+ *	l3mdev_fib_table_rcu - get FIB table id associated with an L3
  *                             master interface
  *	@dev: targeted interface
  */

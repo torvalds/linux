@@ -27,6 +27,9 @@ enum nvmem_type {
 	NVMEM_TYPE_BATTERY_BACKED,
 };
 
+#define NVMEM_DEVID_NONE	(-1)
+#define NVMEM_DEVID_AUTO	(-2)
+
 /**
  * struct nvmem_config - NVMEM device configuration
  *

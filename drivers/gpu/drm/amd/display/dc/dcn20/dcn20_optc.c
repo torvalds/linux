@@ -409,6 +409,18 @@ void optc2_program_manual_trigger(struct timing_generator *optc)
 			OTG_TRIGA_MANUAL_TRIG, 1);
 }
 
+bool optc2_configure_crc(struct timing_generator *optc,
+			  const struct crc_params *params)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+
+	REG_SET_2(OTG_CRC_CNTL2, 0,
+			OTG_CRC_DSC_MODE, params->dsc_mode,
+			OTG_CRC_DATA_STREAM_COMBINE_MODE, params->odm_mode);
+
+	return optc1_configure_crc(optc, params);
+}
+
 static struct timing_generator_funcs dcn20_tg_funcs = {
 		.validate_timing = optc1_validate_timing,
 		.program_timing = optc1_program_timing,
@@ -452,7 +464,7 @@ static struct timing_generator_funcs dcn20_tg_funcs = {
 		.clear_optc_underflow = optc1_clear_optc_underflow,
 		.setup_global_swap_lock = NULL,
 		.get_crc = optc1_get_crc,
-		.configure_crc = optc1_configure_crc,
+		.configure_crc = optc2_configure_crc,
 		.set_dsc_config = optc2_set_dsc_config,
 		.set_dwb_source = optc2_set_dwb_source,
 		.set_odm_bypass = optc2_set_odm_bypass,

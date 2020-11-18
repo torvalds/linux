@@ -98,7 +98,7 @@ EXPORT_SYMBOL_GPL(meson_codec_glue_input_set_fmt);
 int meson_codec_glue_output_startup(struct snd_pcm_substream *substream,
 				    struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct meson_codec_glue_input *in_data =
 		meson_codec_glue_output_get_input_data(dai->capture_widget);
 

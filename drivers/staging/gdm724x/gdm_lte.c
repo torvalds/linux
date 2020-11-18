@@ -172,7 +172,7 @@ static int gdm_lte_emulate_arp(struct sk_buff *skb_in, u32 nic_type)
 
 static __sum16 icmp6_checksum(struct ipv6hdr *ipv6, u16 *ptr, int len)
 {
-	unsigned short *w = ptr;
+	unsigned short *w;
 	__wsum sum = 0;
 	int i;
 	u16 pa;
@@ -784,7 +784,7 @@ static int gdm_lte_receive_pkt(struct phy_dev *phy_dev, char *buf, int len)
 			return index;
 		dev = phy_dev->dev[index];
 		gdm_lte_pdn_table(dev, buf, len);
-		/* Fall through */
+		fallthrough;
 	default:
 		ret = gdm_lte_event_send(dev, buf, len);
 		break;

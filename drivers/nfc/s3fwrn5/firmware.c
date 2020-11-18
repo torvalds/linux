@@ -434,15 +434,7 @@ int s3fwrn5_fw_download(struct s3fwrn5_fw_info *fw_info)
 		goto out;
 	}
 
-	{
-		SHASH_DESC_ON_STACK(desc, tfm);
-
-		desc->tfm = tfm;
-
-		ret = crypto_shash_digest(desc, fw->image, image_size,
-					  hash_data);
-		shash_desc_zero(desc);
-	}
+	ret = crypto_shash_tfm_digest(tfm, fw->image, image_size, hash_data);
 
 	crypto_free_shash(tfm);
 	if (ret) {

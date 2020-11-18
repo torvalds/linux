@@ -127,7 +127,7 @@ void platform_init(void)
 	ps3_repository_read_rm_size(&rm_size);
 	dt_fixup_memory(0, rm_size);
 
-	if (_initrd_end > _initrd_start) {
+	if (&_initrd_end > &_initrd_start) {
 		setprop_val(chosen, "linux,initrd-start", (u32)(_initrd_start));
 		setprop_val(chosen, "linux,initrd-end", (u32)(_initrd_end));
 	}

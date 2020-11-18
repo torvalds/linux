@@ -241,6 +241,7 @@ static int gab_probe(struct platform_device *pdev)
 	struct power_supply_desc *psy_desc;
 	struct power_supply_config psy_cfg = {};
 	struct gab_platform_data *pdata = pdev->dev.platform_data;
+	enum power_supply_property *properties;
 	int ret = 0;
 	int chan;
 	int index = ARRAY_SIZE(gab_props);
@@ -268,16 +269,16 @@ static int gab_probe(struct platform_device *pdev)
 	 * copying the static properties and allocating extra memory for holding
 	 * the extra configurable properties received from platform data.
 	 */
-	psy_desc->properties = kcalloc(ARRAY_SIZE(gab_props) +
-					ARRAY_SIZE(gab_chan_name),
-					sizeof(*psy_desc->properties),
-					GFP_KERNEL);
-	if (!psy_desc->properties) {
+	properties = kcalloc(ARRAY_SIZE(gab_props) +
+			     ARRAY_SIZE(gab_chan_name),
+			     sizeof(*properties),
+			     GFP_KERNEL);
+	if (!properties) {
 		ret = -ENOMEM;
 		goto first_mem_fail;
 	}
 
-	memcpy(psy_desc->properties, gab_props, sizeof(gab_props));
+	memcpy(properties, gab_props, sizeof(gab_props));
 
 	/*
 	 * getting channel from iio and copying the battery properties
@@ -294,13 +295,11 @@ static int gab_probe(struct platform_device *pdev)
 			int index2;
 
 			for (index2 = 0; index2 < index; index2++) {
-				if (psy_desc->properties[index2] ==
-				    gab_dyn_props[chan])
+				if (properties[index2] == gab_dyn_props[chan])
 					break;	/* already known */
 			}
 			if (index2 == index)	/* really new */
-				psy_desc->properties[index++] =
-					gab_dyn_props[chan];
+				properties[index++] = gab_dyn_props[chan];
 			any = true;
 		}
 	}
@@ -317,6 +316,7 @@ static int gab_probe(struct platform_device *pdev)
 	 * as come channels may be not be supported by the device.So
 	 * we need to take care of that.
 	 */
+	psy_desc->properties = properties;
 	psy_desc->num_properties = index;
 
 	adc_bat->psy = power_supply_register(&pdev->dev, psy_desc, &psy_cfg);
@@ -358,7 +358,7 @@ err_reg_fail:
 			iio_channel_release(adc_bat->channel[chan]);
 	}
 second_mem_fail:
-	kfree(psy_desc->properties);
+	kfree(properties);
 first_mem_fail:
 	return ret;
 }

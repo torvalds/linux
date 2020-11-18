@@ -361,7 +361,7 @@ matrix device.
     assign_domain / unassign_domain:
       Write-only attributes for assigning/unassigning an AP usage domain to/from
       the mediated matrix device. To assign/unassign a domain, the domain
-      number of the the usage domain is echoed to the respective attribute
+      number of the usage domain is echoed to the respective attribute
       file.
     matrix:
       A read-only file for displaying the APQNs derived from the cross product
@@ -484,7 +484,7 @@ CARD.DOMAIN TYPE  MODE
 05.00ff     CEX5A Accelerator
 =========== ===== ============
 
-Guest2
+Guest3
 ------
 =========== ===== ============
 CARD.DOMAIN TYPE  MODE

@@ -65,7 +65,8 @@ void menu_add_entry(struct symbol *sym)
 struct menu *menu_add_menu(void)
 {
 	last_entry_ptr = &current_entry->list;
-	return current_menu = current_entry;
+	current_menu = current_entry;
+	return current_menu;
 }
 
 void menu_end_menu(void)

@@ -162,6 +162,8 @@ struct wiimote_data {
 	struct work_struct init_worker;
 };
 
+extern bool wiimote_dpad_as_analog;
+
 /* wiimote modules */
 
 enum wiimod_module {

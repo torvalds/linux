@@ -5,7 +5,7 @@
 
 menuconfig VIRT_DRIVERS
 	bool "Virtualization drivers"
-	---help---
+	help
 	  Say Y here to get to see options for device drivers that support
 	  virtualization environments.
 

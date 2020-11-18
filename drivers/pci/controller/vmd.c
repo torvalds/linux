@@ -40,13 +40,19 @@ enum vmd_features {
 	 * membars, in order to allow proper address translation during
 	 * resource assignment to enable guest virtualization
 	 */
-	VMD_FEAT_HAS_MEMBAR_SHADOW	= (1 << 0),
+	VMD_FEAT_HAS_MEMBAR_SHADOW		= (1 << 0),
 
 	/*
 	 * Device may provide root port configuration information which limits
 	 * bus numbering
 	 */
-	VMD_FEAT_HAS_BUS_RESTRICTIONS	= (1 << 1),
+	VMD_FEAT_HAS_BUS_RESTRICTIONS		= (1 << 1),
+
+	/*
+	 * Device contains physical location shadow registers in
+	 * vendor-specific capability space
+	 */
+	VMD_FEAT_HAS_MEMBAR_SHADOW_VSCAP	= (1 << 2),
 };
 
 /*
@@ -445,10 +451,34 @@ static int vmd_enable_domain(struct vmd_dev *vmd, unsigned long features)
 			if (!membar2)
 				return -ENOMEM;
 			offset[0] = vmd->dev->resource[VMD_MEMBAR1].start -
-					readq(membar2 + MB2_SHADOW_OFFSET);
+					(readq(membar2 + MB2_SHADOW_OFFSET) &
+					 PCI_BASE_ADDRESS_MEM_MASK);
 			offset[1] = vmd->dev->resource[VMD_MEMBAR2].start -
-					readq(membar2 + MB2_SHADOW_OFFSET + 8);
+					(readq(membar2 + MB2_SHADOW_OFFSET + 8) &
+					 PCI_BASE_ADDRESS_MEM_MASK);
 			pci_iounmap(vmd->dev, membar2);
+		}
+	}
+
+	if (features & VMD_FEAT_HAS_MEMBAR_SHADOW_VSCAP) {
+		int pos = pci_find_capability(vmd->dev, PCI_CAP_ID_VNDR);
+		u32 reg, regu;
+
+		pci_read_config_dword(vmd->dev, pos + 4, &reg);
+
+		/* "SHDW" */
+		if (pos && reg == 0x53484457) {
+			pci_read_config_dword(vmd->dev, pos + 8, &reg);
+			pci_read_config_dword(vmd->dev, pos + 12, &regu);
+			offset[0] = vmd->dev->resource[VMD_MEMBAR1].start -
+					(((u64) regu << 32 | reg) &
+					 PCI_BASE_ADDRESS_MEM_MASK);
+
+			pci_read_config_dword(vmd->dev, pos + 16, &reg);
+			pci_read_config_dword(vmd->dev, pos + 20, &regu);
+			offset[1] = vmd->dev->resource[VMD_MEMBAR2].start -
+					(((u64) regu << 32 | reg) &
+					 PCI_BASE_ADDRESS_MEM_MASK);
 		}
 	}
 
@@ -544,9 +574,10 @@ static int vmd_enable_domain(struct vmd_dev *vmd, unsigned long features)
 
 	vmd->irq_domain = pci_msi_create_irq_domain(fn, &vmd_msi_domain_info,
 						    x86_vector_domain);
-	irq_domain_free_fwnode(fn);
-	if (!vmd->irq_domain)
+	if (!vmd->irq_domain) {
+		irq_domain_free_fwnode(fn);
 		return -ENODEV;
+	}
 
 	pci_add_resource(&resources, &vmd->resources[0]);
 	pci_add_resource_offset(&resources, &vmd->resources[1], offset[0]);
@@ -557,6 +588,7 @@ static int vmd_enable_domain(struct vmd_dev *vmd, unsigned long features)
 	if (!vmd->bus) {
 		pci_free_resource_list(&resources);
 		irq_domain_remove(vmd->irq_domain);
+		irq_domain_free_fwnode(fn);
 		return -ENODEV;
 	}
 
@@ -670,6 +702,7 @@ static void vmd_cleanup_srcu(struct vmd_dev *vmd)
 static void vmd_remove(struct pci_dev *dev)
 {
 	struct vmd_dev *vmd = pci_get_drvdata(dev);
+	struct fwnode_handle *fn = vmd->irq_domain->fwnode;
 
 	sysfs_remove_link(&vmd->dev->dev.kobj, "domain");
 	pci_stop_root_bus(vmd->bus);
@@ -677,6 +710,7 @@ static void vmd_remove(struct pci_dev *dev)
 	vmd_cleanup_srcu(vmd);
 	vmd_detach_resources(vmd);
 	irq_domain_remove(vmd->irq_domain);
+	irq_domain_free_fwnode(fn);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -714,16 +748,20 @@ static int vmd_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(vmd_dev_pm_ops, vmd_suspend, vmd_resume);
 
 static const struct pci_device_id vmd_ids[] = {
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_VMD_201D),},
+	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_VMD_201D),
+		.driver_data = VMD_FEAT_HAS_MEMBAR_SHADOW_VSCAP,},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_VMD_28C0),
 		.driver_data = VMD_FEAT_HAS_MEMBAR_SHADOW |
 				VMD_FEAT_HAS_BUS_RESTRICTIONS,},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x467f),
-		.driver_data = VMD_FEAT_HAS_BUS_RESTRICTIONS,},
+		.driver_data = VMD_FEAT_HAS_MEMBAR_SHADOW_VSCAP |
+				VMD_FEAT_HAS_BUS_RESTRICTIONS,},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x4c3d),
-		.driver_data = VMD_FEAT_HAS_BUS_RESTRICTIONS,},
+		.driver_data = VMD_FEAT_HAS_MEMBAR_SHADOW_VSCAP |
+				VMD_FEAT_HAS_BUS_RESTRICTIONS,},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_VMD_9A0B),
-		.driver_data = VMD_FEAT_HAS_BUS_RESTRICTIONS,},
+		.driver_data = VMD_FEAT_HAS_MEMBAR_SHADOW_VSCAP |
+				VMD_FEAT_HAS_BUS_RESTRICTIONS,},
 	{0,}
 };
 MODULE_DEVICE_TABLE(pci, vmd_ids);

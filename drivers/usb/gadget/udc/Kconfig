@@ -474,7 +474,7 @@ config USB_DUMMY_HCD
 	help
 	  This host controller driver emulates USB, looping all data transfer
 	  requests back to a USB "gadget driver" in the same host.  The host
-	  side is the master; the gadget side is the slave.  Gadget drivers
+	  side is the controller; the gadget side is the device.  Gadget drivers
 	  can be high, full, or low speed; and they have access to endpoints
 	  like those from NET2280, PXA2xx, or SA1100 hardware.
 

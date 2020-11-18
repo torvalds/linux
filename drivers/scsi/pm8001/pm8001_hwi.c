@@ -333,6 +333,7 @@ static void update_main_config_table(struct pm8001_hba_info *pm8001_ha)
 /**
  * update_inbnd_queue_table - update the inbound queue table to the HBA.
  * @pm8001_ha: our hba card information
+ * @number: entry in the queue
  */
 static void update_inbnd_queue_table(struct pm8001_hba_info *pm8001_ha,
 				     int number)
@@ -354,6 +355,7 @@ static void update_inbnd_queue_table(struct pm8001_hba_info *pm8001_ha,
 /**
  * update_outbnd_queue_table - update the outbound queue table to the HBA.
  * @pm8001_ha: our hba card information
+ * @number: entry in the queue
  */
 static void update_outbnd_queue_table(struct pm8001_hba_info *pm8001_ha,
 				      int number)
@@ -473,7 +475,7 @@ static void mpi_set_phys_g3_with_ssc(struct pm8001_hba_info *pm8001_ha,
 /**
  * mpi_set_open_retry_interval_reg
  * @pm8001_ha: our hba card information
- * @interval - interval time for each OPEN_REJECT (RETRY). The units are in 1us.
+ * @interval: interval time for each OPEN_REJECT (RETRY). The units are in 1us.
  */
 static void mpi_set_open_retry_interval_reg(struct pm8001_hba_info *pm8001_ha,
 					    u32 interval)
@@ -1231,6 +1233,7 @@ pm8001_chip_intx_interrupt_disable(struct pm8001_hba_info *pm8001_ha)
 /**
  * pm8001_chip_msix_interrupt_enable - enable PM8001 chip interrupt
  * @pm8001_ha: our hba card information
+ * @int_vec_idx: interrupt number to enable
  */
 static void
 pm8001_chip_msix_interrupt_enable(struct pm8001_hba_info *pm8001_ha,
@@ -1249,6 +1252,7 @@ pm8001_chip_msix_interrupt_enable(struct pm8001_hba_info *pm8001_ha,
 /**
  * pm8001_chip_msix_interrupt_disable - disable PM8001 chip interrupt
  * @pm8001_ha: our hba card information
+ * @int_vec_idx: interrupt number to disable
  */
 static void
 pm8001_chip_msix_interrupt_disable(struct pm8001_hba_info *pm8001_ha,
@@ -1264,6 +1268,7 @@ pm8001_chip_msix_interrupt_disable(struct pm8001_hba_info *pm8001_ha,
 /**
  * pm8001_chip_interrupt_enable - enable PM8001 chip interrupt
  * @pm8001_ha: our hba card information
+ * @vec: unused
  */
 static void
 pm8001_chip_interrupt_enable(struct pm8001_hba_info *pm8001_ha, u8 vec)
@@ -1278,6 +1283,7 @@ pm8001_chip_interrupt_enable(struct pm8001_hba_info *pm8001_ha, u8 vec)
 /**
  * pm8001_chip_intx_interrupt_disable- disable PM8001 chip interrupt
  * @pm8001_ha: our hba card information
+ * @vec: unused
  */
 static void
 pm8001_chip_interrupt_disable(struct pm8001_hba_info *pm8001_ha, u8 vec)
@@ -4202,7 +4208,7 @@ static int process_oq(struct pm8001_hba_info *pm8001_ha, u8 vec)
 {
 	struct outbound_queue_table *circularQ;
 	void *pMsg1 = NULL;
-	u8 uninitialized_var(bc);
+	u8 bc;
 	u32 ret = MPI_IO_STATUS_FAIL;
 	unsigned long flags;
 
@@ -4500,7 +4506,6 @@ static int pm8001_chip_sata_req(struct pm8001_hba_info *pm8001_ha,
 /**
  * pm8001_chip_phy_start_req - start phy via PHY_START COMMAND
  * @pm8001_ha: our hba card information.
- * @num: the inbound queue number
  * @phy_id: the phy id which we wanted to start up.
  */
 static int
@@ -4536,7 +4541,6 @@ pm8001_chip_phy_start_req(struct pm8001_hba_info *pm8001_ha, u8 phy_id)
 /**
  * pm8001_chip_phy_stop_req - start phy via PHY_STOP COMMAND
  * @pm8001_ha: our hba card information.
- * @num: the inbound queue number
  * @phy_id: the phy id which we wanted to start up.
  */
 static int pm8001_chip_phy_stop_req(struct pm8001_hba_info *pm8001_ha,
@@ -4556,7 +4560,7 @@ static int pm8001_chip_phy_stop_req(struct pm8001_hba_info *pm8001_ha,
 	return ret;
 }
 
-/**
+/*
  * see comments on pm8001_mpi_reg_resp.
  */
 static int pm8001_chip_reg_dev_req(struct pm8001_hba_info *pm8001_ha,
@@ -4616,7 +4620,7 @@ static int pm8001_chip_reg_dev_req(struct pm8001_hba_info *pm8001_ha,
 	return rc;
 }
 
-/**
+/*
  * see comments on pm8001_mpi_reg_resp.
  */
 int pm8001_chip_dereg_dev_req(struct pm8001_hba_info *pm8001_ha,
@@ -4641,9 +4645,8 @@ int pm8001_chip_dereg_dev_req(struct pm8001_hba_info *pm8001_ha,
 /**
  * pm8001_chip_phy_ctl_req - support the local phy operation
  * @pm8001_ha: our hba card information.
- * @num: the inbound queue number
- * @phy_id: the phy id which we wanted to operate
- * @phy_op:
+ * @phyId: the phy id which we wanted to operate
+ * @phy_op: the phy operation to request
  */
 static int pm8001_chip_phy_ctl_req(struct pm8001_hba_info *pm8001_ha,
 	u32 phyId, u32 phy_op)
@@ -4679,8 +4682,7 @@ static u32 pm8001_chip_is_our_interrupt(struct pm8001_hba_info *pm8001_ha)
 /**
  * pm8001_chip_isr - PM8001 isr handler.
  * @pm8001_ha: our hba card information.
- * @irq: irq number.
- * @stat: stat.
+ * @vec: IRQ number
  */
 static irqreturn_t
 pm8001_chip_isr(struct pm8001_hba_info *pm8001_ha, u8 vec)
@@ -4717,10 +4719,8 @@ static int send_task_abort(struct pm8001_hba_info *pm8001_ha, u32 opc,
 	return ret;
 }
 
-/**
+/*
  * pm8001_chip_abort_task - SAS abort task when error or exception happened.
- * @task: the task we wanted to aborted.
- * @flag: the abort flag.
  */
 int pm8001_chip_abort_task(struct pm8001_hba_info *pm8001_ha,
 	struct pm8001_device *pm8001_dev, u8 flag, u32 task_tag, u32 cmd_tag)
@@ -4959,6 +4959,7 @@ int pm8001_chip_set_nvmd_req(struct pm8001_hba_info *pm8001_ha,
  * pm8001_chip_fw_flash_update_build - support the firmware update operation
  * @pm8001_ha: our hba card information.
  * @fw_flash_updata_info: firmware flash update param
+ * @tag: Tag to apply to the payload
  */
 int
 pm8001_chip_fw_flash_update_build(struct pm8001_hba_info *pm8001_ha,

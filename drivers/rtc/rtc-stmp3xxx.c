@@ -331,7 +331,7 @@ static int stmp3xxx_rtc_probe(struct platform_device *pdev)
 	default:
 		dev_warn(&pdev->dev,
 			 "invalid crystal-freq specified in device-tree. Assuming no crystal\n");
-		/* fall-through */
+		fallthrough;
 	case 0:
 		/* keep XTAL on in low-power mode */
 		pers0_set = STMP3XXX_RTC_PERSISTENT0_XTAL24MHZ_PWRUP;
@@ -416,5 +416,5 @@ module_platform_driver(stmp3xxx_rtcdrv);
 
 MODULE_DESCRIPTION("STMP3xxx RTC Driver");
 MODULE_AUTHOR("dmitry pervushin <dpervushin@embeddedalley.com> and "
-		"Wolfram Sang <w.sang@pengutronix.de>");
+		"Wolfram Sang <kernel@pengutronix.de>");
 MODULE_LICENSE("GPL");

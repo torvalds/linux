@@ -66,7 +66,6 @@
 
 #include <linux/uaccess.h>
 #include <asm/unistd.h>
-#include <asm/pgtable.h>
 #include <asm/mmu_context.h>
 
 static void __unhash_process(struct task_struct *p, bool group_dead)
@@ -94,7 +93,7 @@ static void __exit_signal(struct task_struct *tsk)
 	struct signal_struct *sig = tsk->signal;
 	bool group_dead = thread_group_leader(tsk);
 	struct sighand_struct *sighand;
-	struct tty_struct *uninitialized_var(tty);
+	struct tty_struct *tty;
 	u64 utime, stime;
 
 	sighand = rcu_dereference_check(tsk->sighand,
@@ -218,6 +217,7 @@ repeat:
 	}
 
 	write_unlock_irq(&tasklist_lock);
+	seccomp_filter_release(p);
 	proc_flush_pid(thread_pid);
 	put_pid(thread_pid);
 	release_thread(p);
@@ -228,8 +228,9 @@ repeat:
 		goto repeat;
 }
 
-void rcuwait_wake_up(struct rcuwait *w)
+int rcuwait_wake_up(struct rcuwait *w)
 {
+	int ret = 0;
 	struct task_struct *task;
 
 	rcu_read_lock();
@@ -237,7 +238,7 @@ void rcuwait_wake_up(struct rcuwait *w)
 	/*
 	 * Order condition vs @task, such that everything prior to the load
 	 * of @task is visible. This is the condition as to why the user called
-	 * rcuwait_trywake() in the first place. Pairs with set_current_state()
+	 * rcuwait_wake() in the first place. Pairs with set_current_state()
 	 * barrier (A) in rcuwait_wait_event().
 	 *
 	 *    WAIT                WAKE
@@ -249,8 +250,10 @@ void rcuwait_wake_up(struct rcuwait *w)
 
 	task = rcu_dereference(w->task);
 	if (task)
-		wake_up_process(task);
+		ret = wake_up_process(task);
 	rcu_read_unlock();
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(rcuwait_wake_up);
 
@@ -438,17 +441,17 @@ static void exit_mm(void)
 	sync_mm_rss(mm);
 	/*
 	 * Serialize with any possible pending coredump.
-	 * We must hold mmap_sem around checking core_state
+	 * We must hold mmap_lock around checking core_state
 	 * and clearing tsk->mm.  The core-inducing thread
 	 * will increment ->nr_threads for each thread in the
 	 * group with ->mm != NULL.
 	 */
-	down_read(&mm->mmap_sem);
+	mmap_read_lock(mm);
 	core_state = mm->core_state;
 	if (core_state) {
 		struct core_thread self;
 
-		up_read(&mm->mmap_sem);
+		mmap_read_unlock(mm);
 
 		self.task = current;
 		self.next = xchg(&core_state->dumper.next, &self);
@@ -466,14 +469,14 @@ static void exit_mm(void)
 			freezable_schedule();
 		}
 		__set_current_state(TASK_RUNNING);
-		down_read(&mm->mmap_sem);
+		mmap_read_lock(mm);
 	}
 	mmgrab(mm);
 	BUG_ON(mm != current->active_mm);
 	/* more a memory barrier than a real lock */
 	task_lock(current);
 	current->mm = NULL;
-	up_read(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 	enter_lazy_tlb(mm, current);
 	task_unlock(current);
 	mm_update_next_owner(mm);
@@ -708,8 +711,12 @@ void __noreturn do_exit(long code)
 	struct task_struct *tsk = current;
 	int group_dead;
 
-	profile_task_exit(tsk);
-	kcov_task_exit(tsk);
+	/*
+	 * We can get here from a kernel oops, sometimes with preemption off.
+	 * Start by checking for critical errors.
+	 * Then fix up important state like USER_DS and preemption.
+	 * Then do everything else.
+	 */
 
 	WARN_ON(blk_needs_flush_plug(tsk));
 
@@ -725,7 +732,17 @@ void __noreturn do_exit(long code)
 	 * mm_release()->clear_child_tid() from writing to a user-controlled
 	 * kernel address.
 	 */
-	set_fs(USER_DS);
+	force_uaccess_begin();
+
+	if (unlikely(in_atomic())) {
+		pr_info("note: %s[%d] exited with preempt_count %d\n",
+			current->comm, task_pid_nr(current),
+			preempt_count());
+		preempt_count_set(PREEMPT_ENABLED);
+	}
+
+	profile_task_exit(tsk);
+	kcov_task_exit(tsk);
 
 	ptrace_event(PTRACE_EVENT_EXIT, code);
 
@@ -743,13 +760,6 @@ void __noreturn do_exit(long code)
 	}
 
 	exit_signals(tsk);  /* sets PF_EXITING */
-
-	if (unlikely(in_atomic())) {
-		pr_info("note: %s[%d] exited with preempt_count %d\n",
-			current->comm, task_pid_nr(current),
-			preempt_count());
-		preempt_count_set(PREEMPT_ENABLED);
-	}
 
 	/* sync mm's RSS info before statistics gathering */
 	if (tsk->mm)
@@ -795,7 +805,6 @@ void __noreturn do_exit(long code)
 	exit_task_namespaces(tsk);
 	exit_task_work(tsk);
 	exit_thread(tsk);
-	exit_umh(tsk);
 
 	/*
 	 * Flush inherited counters to the parent - before the parent
@@ -1558,7 +1567,7 @@ SYSCALL_DEFINE5(waitid, int, which, pid_t, upid, struct siginfo __user *,
 	if (!infop)
 		return err;
 
-	if (!user_access_begin(infop, sizeof(*infop)))
+	if (!user_write_access_begin(infop, sizeof(*infop)))
 		return -EFAULT;
 
 	unsafe_put_user(signo, &infop->si_signo, Efault);
@@ -1567,10 +1576,10 @@ SYSCALL_DEFINE5(waitid, int, which, pid_t, upid, struct siginfo __user *,
 	unsafe_put_user(info.pid, &infop->si_pid, Efault);
 	unsafe_put_user(info.uid, &infop->si_uid, Efault);
 	unsafe_put_user(info.status, &infop->si_status, Efault);
-	user_access_end();
+	user_write_access_end();
 	return err;
 Efault:
-	user_access_end();
+	user_write_access_end();
 	return -EFAULT;
 }
 
@@ -1614,6 +1623,22 @@ long kernel_wait4(pid_t upid, int __user *stat_addr, int options,
 	if (ret > 0 && stat_addr && put_user(wo.wo_stat, stat_addr))
 		ret = -EFAULT;
 
+	return ret;
+}
+
+int kernel_wait(pid_t pid, int *stat)
+{
+	struct wait_opts wo = {
+		.wo_type	= PIDTYPE_PID,
+		.wo_pid		= find_get_pid(pid),
+		.wo_flags	= WEXITED,
+	};
+	int ret;
+
+	ret = do_wait(&wo);
+	if (ret > 0 && wo.wo_stat)
+		*stat = wo.wo_stat;
+	put_pid(wo.wo_pid);
 	return ret;
 }
 
@@ -1685,7 +1710,7 @@ COMPAT_SYSCALL_DEFINE5(waitid,
 	if (!infop)
 		return err;
 
-	if (!user_access_begin(infop, sizeof(*infop)))
+	if (!user_write_access_begin(infop, sizeof(*infop)))
 		return -EFAULT;
 
 	unsafe_put_user(signo, &infop->si_signo, Efault);
@@ -1694,13 +1719,37 @@ COMPAT_SYSCALL_DEFINE5(waitid,
 	unsafe_put_user(info.pid, &infop->si_pid, Efault);
 	unsafe_put_user(info.uid, &infop->si_uid, Efault);
 	unsafe_put_user(info.status, &infop->si_status, Efault);
-	user_access_end();
+	user_write_access_end();
 	return err;
 Efault:
-	user_access_end();
+	user_write_access_end();
 	return -EFAULT;
 }
 #endif
+
+/**
+ * thread_group_exited - check that a thread group has exited
+ * @pid: tgid of thread group to be checked.
+ *
+ * Test if the thread group represented by tgid has exited (all
+ * threads are zombies, dead or completely gone).
+ *
+ * Return: true if the thread group has exited. false otherwise.
+ */
+bool thread_group_exited(struct pid *pid)
+{
+	struct task_struct *task;
+	bool exited;
+
+	rcu_read_lock();
+	task = pid_task(pid, PIDTYPE_PID);
+	exited = !task ||
+		(READ_ONCE(task->exit_state) && thread_group_empty(task));
+	rcu_read_unlock();
+
+	return exited;
+}
+EXPORT_SYMBOL(thread_group_exited);
 
 __weak void abort(void)
 {

@@ -6,7 +6,7 @@
  *
  *              DECnet Routing Message Grabulator
  *
- *              (C) 2000 ChyGwyn Limited  -  http://www.chygwyn.com/
+ *              (C) 2000 ChyGwyn Limited  -  https://www.chygwyn.com/
  *
  * Author:      Steven Whitehouse <steve@chygwyn.com>
  */

@@ -20,6 +20,7 @@
 #define CONNECT_PORT 4321
 #define TEST_DADDR (0xC0A80203)
 #define NS_SELF "/proc/self/ns/net"
+#define SERVER_MAP_PATH "/sys/fs/bpf/tc/globals/server_map"
 
 static const struct timeval timeo_sec = { .tv_sec = 3 };
 static const size_t timeo_optlen = sizeof(timeo_sec);
@@ -265,6 +266,7 @@ void test_sk_assign(void)
 		TEST("ipv6 udp addr redir", AF_INET6, SOCK_DGRAM, true),
 	};
 	int server = -1;
+	int server_map;
 	int self_net;
 
 	self_net = open(NS_SELF, O_RDONLY);
@@ -278,9 +280,17 @@ void test_sk_assign(void)
 		goto cleanup;
 	}
 
+	server_map = bpf_obj_get(SERVER_MAP_PATH);
+	if (CHECK_FAIL(server_map < 0)) {
+		perror("Unable to open " SERVER_MAP_PATH);
+		goto cleanup;
+	}
+
 	for (int i = 0; i < ARRAY_SIZE(tests) && !READ_ONCE(stop); i++) {
 		struct test_sk_cfg *test = &tests[i];
 		const struct sockaddr *addr;
+		const int zero = 0;
+		int err;
 
 		if (!test__start_subtest(test->name))
 			continue;
@@ -288,7 +298,13 @@ void test_sk_assign(void)
 		addr = (const struct sockaddr *)test->addr;
 		server = start_server(addr, test->len, test->type);
 		if (server == -1)
-			goto cleanup;
+			goto close;
+
+		err = bpf_map_update_elem(server_map, &zero, &server, BPF_ANY);
+		if (CHECK_FAIL(err)) {
+			perror("Unable to update server_map");
+			goto close;
+		}
 
 		/* connect to unbound ports */
 		prepare_addr(test->addr, test->family, CONNECT_PORT,
@@ -302,7 +318,10 @@ void test_sk_assign(void)
 
 close:
 	close(server);
+	close(server_map);
 cleanup:
+	if (CHECK_FAIL(unlink(SERVER_MAP_PATH)))
+		perror("Unable to unlink " SERVER_MAP_PATH);
 	if (CHECK_FAIL(setns(self_net, CLONE_NEWNET)))
 		perror("Failed to setns("NS_SELF")");
 	close(self_net);

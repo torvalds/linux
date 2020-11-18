@@ -1,0 +1,148 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+# Copyright 2019 BayLibre, SAS
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/net/stm32-dwmac.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: STMicroelectronics STM32 / MCU DWMAC glue layer controller
+
+maintainers:
+  - Alexandre Torgue <alexandre.torgue@st.com>
+  - Christophe Roullier <christophe.roullier@st.com>
+
+description:
+  This file documents platform glue layer for stmmac.
+
+# We need a select here so we don't match all nodes with 'snps,dwmac'
+select:
+  properties:
+    compatible:
+      contains:
+        enum:
+          - st,stm32-dwmac
+          - st,stm32mp1-dwmac
+  required:
+    - compatible
+
+allOf:
+  - $ref: "snps,dwmac.yaml#"
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - st,stm32mp1-dwmac
+          - const: snps,dwmac-4.20a
+      - items:
+          - enum:
+              - st,stm32-dwmac
+          - const: snps,dwmac-4.10a
+      - items:
+          - enum:
+              - st,stm32-dwmac
+          - const: snps,dwmac-3.50a
+
+  clocks:
+    minItems: 3
+    maxItems: 5
+    items:
+      - description: GMAC main clock
+      - description: MAC TX clock
+      - description: MAC RX clock
+      - description: For MPU family, used for power mode
+      - description: For MPU family, used for PHY without quartz
+
+  clock-names:
+    minItems: 3
+    maxItems: 5
+    contains:
+      enum:
+        - stmmaceth
+        - mac-clk-tx
+        - mac-clk-rx
+        - ethstp
+        - eth-ck
+
+  st,syscon:
+    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    description:
+      Should be phandle/offset pair. The phandle to the syscon node which
+      encompases the glue register, and the offset of the control register
+
+  st,eth-clk-sel:
+    description:
+      set this property in RGMII PHY when you want to select RCC clock instead of ETH_CLK125.
+    type: boolean
+
+  st,eth-ref-clk-sel:
+    description:
+      set this property in RMII mode when you have PHY without crystal 50MHz and want to
+      select RCC clock instead of ETH_REF_CLK.
+    type: boolean
+
+required:
+  - compatible
+  - clocks
+  - clock-names
+  - st,syscon
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/clock/stm32mp1-clks.h>
+    #include <dt-bindings/reset/stm32mp1-resets.h>
+    #include <dt-bindings/mfd/stm32h7-rcc.h>
+    //Example 1
+     ethernet0: ethernet@5800a000 {
+           compatible = "st,stm32mp1-dwmac", "snps,dwmac-4.20a";
+           reg = <0x5800a000 0x2000>;
+           reg-names = "stmmaceth";
+           interrupts = <&intc GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
+           interrupt-names = "macirq";
+           clock-names = "stmmaceth",
+                     "mac-clk-tx",
+                     "mac-clk-rx",
+                     "ethstp",
+                     "eth-ck";
+           clocks = <&rcc ETHMAC>,
+                <&rcc ETHTX>,
+                <&rcc ETHRX>,
+                <&rcc ETHSTP>,
+                <&rcc ETHCK_K>;
+           st,syscon = <&syscfg 0x4>;
+           snps,pbl = <2>;
+           snps,axi-config = <&stmmac_axi_config_0>;
+           snps,tso;
+           phy-mode = "rgmii";
+       };
+
+    //Example 2 (MCU example)
+     ethernet1: ethernet@40028000 {
+           compatible = "st,stm32-dwmac", "snps,dwmac-3.50a";
+           reg = <0x40028000 0x8000>;
+           reg-names = "stmmaceth";
+           interrupts = <0 61 0>, <0 62 0>;
+           interrupt-names = "macirq", "eth_wake_irq";
+           clock-names = "stmmaceth", "mac-clk-tx", "mac-clk-rx";
+           clocks = <&rcc 0 25>, <&rcc 0 26>, <&rcc 0 27>;
+           st,syscon = <&syscfg 0x4>;
+           snps,pbl = <8>;
+           snps,mixed-burst;
+           phy-mode = "mii";
+       };
+
+    //Example 3
+     ethernet2: ethernet@40027000 {
+           compatible = "st,stm32-dwmac", "snps,dwmac-4.10a";
+           reg = <0x40028000 0x8000>;
+           reg-names = "stmmaceth";
+           interrupts = <61>;
+           interrupt-names = "macirq";
+           clock-names = "stmmaceth", "mac-clk-tx", "mac-clk-rx";
+           clocks = <&rcc 62>, <&rcc 61>, <&rcc 60>;
+           st,syscon = <&syscfg 0x4>;
+           snps,pbl = <8>;
+           phy-mode = "mii";
+       };

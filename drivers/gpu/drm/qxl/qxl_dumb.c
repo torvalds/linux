@@ -32,7 +32,7 @@ int qxl_mode_dumb_create(struct drm_file *file_priv,
 			    struct drm_device *dev,
 			    struct drm_mode_create_dumb *args)
 {
-	struct qxl_device *qdev = dev->dev_private;
+	struct qxl_device *qdev = to_qxl(dev);
 	struct qxl_bo *qobj;
 	uint32_t handle;
 	int r;
@@ -83,6 +83,6 @@ int qxl_mode_dumb_mmap(struct drm_file *file_priv,
 		return -ENOENT;
 	qobj = gem_to_qxl_bo(gobj);
 	*offset_p = qxl_bo_mmap_offset(qobj);
-	drm_gem_object_put_unlocked(gobj);
+	drm_gem_object_put(gobj);
 	return 0;
 }

@@ -72,7 +72,7 @@ static int get_alt_entry(struct elf *elf, struct special_entry *entry,
 			 struct section *sec, int idx,
 			 struct special_alt *alt)
 {
-	struct rela *orig_rela, *new_rela;
+	struct reloc *orig_reloc, *new_reloc;
 	unsigned long offset;
 
 	offset = idx * entry->size;
@@ -118,30 +118,30 @@ static int get_alt_entry(struct elf *elf, struct special_entry *entry,
 		}
 	}
 
-	orig_rela = find_rela_by_dest(elf, sec, offset + entry->orig);
-	if (!orig_rela) {
-		WARN_FUNC("can't find orig rela", sec, offset + entry->orig);
+	orig_reloc = find_reloc_by_dest(elf, sec, offset + entry->orig);
+	if (!orig_reloc) {
+		WARN_FUNC("can't find orig reloc", sec, offset + entry->orig);
 		return -1;
 	}
-	if (orig_rela->sym->type != STT_SECTION) {
-		WARN_FUNC("don't know how to handle non-section rela symbol %s",
-			   sec, offset + entry->orig, orig_rela->sym->name);
+	if (orig_reloc->sym->type != STT_SECTION) {
+		WARN_FUNC("don't know how to handle non-section reloc symbol %s",
+			   sec, offset + entry->orig, orig_reloc->sym->name);
 		return -1;
 	}
 
-	alt->orig_sec = orig_rela->sym->sec;
-	alt->orig_off = orig_rela->addend;
+	alt->orig_sec = orig_reloc->sym->sec;
+	alt->orig_off = orig_reloc->addend;
 
 	if (!entry->group || alt->new_len) {
-		new_rela = find_rela_by_dest(elf, sec, offset + entry->new);
-		if (!new_rela) {
-			WARN_FUNC("can't find new rela",
+		new_reloc = find_reloc_by_dest(elf, sec, offset + entry->new);
+		if (!new_reloc) {
+			WARN_FUNC("can't find new reloc",
 				  sec, offset + entry->new);
 			return -1;
 		}
 
-		alt->new_sec = new_rela->sym->sec;
-		alt->new_off = (unsigned int)new_rela->addend;
+		alt->new_sec = new_reloc->sym->sec;
+		alt->new_off = (unsigned int)new_reloc->addend;
 
 		/* _ASM_EXTABLE_EX hack */
 		if (alt->new_off >= 0x7ffffff0)

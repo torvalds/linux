@@ -50,16 +50,16 @@ if:
         const: allwinner,sun50i-h6-crypto
 then:
   properties:
-      clocks:
-        minItems: 3
-      clock-names:
-        minItems: 3
+    clocks:
+      minItems: 3
+    clock-names:
+      minItems: 3
 else:
   properties:
-      clocks:
-        maxItems: 2
-      clock-names:
-        maxItems: 2
+    clocks:
+      maxItems: 2
+    clock-names:
+      maxItems: 2
 
 required:
   - compatible

@@ -5,8 +5,6 @@
  *
  ******************************************************************************/
 
-/*  include files */
-
 #include "odm_precomp.h"
 #include "phy.h"
 
@@ -193,7 +191,7 @@ void ODM_DMWatchdog(struct odm_dm_struct *pDM_Odm)
 	odm_DIG(pDM_Odm);
 	odm_CCKPacketDetectionThresh(pDM_Odm);
 
-	if (*(pDM_Odm->pbPowerSaving))
+	if (*pDM_Odm->pbPowerSaving)
 		return;
 
 	odm_RefreshRateAdaptiveMask(pDM_Odm);
@@ -229,13 +227,13 @@ void odm_CommonInfoSelfUpdate(struct odm_dm_struct *pDM_Odm)
 	u8 i;
 	struct sta_info *pEntry;
 
-	if (*(pDM_Odm->pBandWidth) == ODM_BW40M) {
-		if (*(pDM_Odm->pSecChOffset) == 1)
-			pDM_Odm->ControlChannel = *(pDM_Odm->pChannel) - 2;
-		else if (*(pDM_Odm->pSecChOffset) == 2)
-			pDM_Odm->ControlChannel = *(pDM_Odm->pChannel) + 2;
+	if (*pDM_Odm->pBandWidth == ODM_BW40M) {
+		if (*pDM_Odm->pSecChOffset == 1)
+			pDM_Odm->ControlChannel = *pDM_Odm->pChannel - 2;
+		else if (*pDM_Odm->pSecChOffset == 2)
+			pDM_Odm->ControlChannel = *pDM_Odm->pChannel + 2;
 	} else {
-		pDM_Odm->ControlChannel = *(pDM_Odm->pChannel);
+		pDM_Odm->ControlChannel = *pDM_Odm->pChannel;
 	}
 
 	for (i = 0; i < ODM_ASSOCIATE_ENTRY_NUM; i++) {
@@ -270,16 +268,16 @@ void odm_CmnInfoInit_Debug(struct odm_dm_struct *pDM_Odm)
 void odm_CmnInfoHook_Debug(struct odm_dm_struct *pDM_Odm)
 {
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("odm_CmnInfoHook_Debug==>\n"));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pNumTxBytesUnicast=%llu\n", *(pDM_Odm->pNumTxBytesUnicast)));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pNumRxBytesUnicast=%llu\n", *(pDM_Odm->pNumRxBytesUnicast)));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pWirelessMode=0x%x\n", *(pDM_Odm->pWirelessMode)));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pSecChOffset=%d\n", *(pDM_Odm->pSecChOffset)));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pSecurity=%d\n", *(pDM_Odm->pSecurity)));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pBandWidth=%d\n", *(pDM_Odm->pBandWidth)));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pChannel=%d\n", *(pDM_Odm->pChannel)));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pNumTxBytesUnicast=%llu\n", *pDM_Odm->pNumTxBytesUnicast));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pNumRxBytesUnicast=%llu\n", *pDM_Odm->pNumRxBytesUnicast));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pWirelessMode=0x%x\n", *pDM_Odm->pWirelessMode));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pSecChOffset=%d\n", *pDM_Odm->pSecChOffset));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pSecurity=%d\n", *pDM_Odm->pSecurity));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pBandWidth=%d\n", *pDM_Odm->pBandWidth));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pChannel=%d\n", *pDM_Odm->pChannel));
 
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pbScanInProcess=%d\n", *(pDM_Odm->pbScanInProcess)));
-	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pbPowerSaving=%d\n", *(pDM_Odm->pbPowerSaving)));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pbScanInProcess=%d\n", *pDM_Odm->pbScanInProcess));
+	ODM_RT_TRACE(pDM_Odm, ODM_COMP_COMMON, ODM_DBG_LOUD, ("pbPowerSaving=%d\n", *pDM_Odm->pbPowerSaving));
 }
 
 void odm_CmnInfoUpdate_Debug(struct odm_dm_struct *pDM_Odm)
@@ -348,7 +346,7 @@ void odm_DIG(struct odm_dm_struct *pDM_Odm)
 		return;
 	}
 
-	if (*(pDM_Odm->pbScanInProcess)) {
+	if (*pDM_Odm->pbScanInProcess) {
 		ODM_RT_TRACE(pDM_Odm, ODM_COMP_DIG, ODM_DBG_LOUD, ("odm_DIG() Return: In Scan Progress\n"));
 		return;
 	}
@@ -508,7 +506,7 @@ void odm_FalseAlarmCounterStatistics(struct odm_dm_struct *pDM_Odm)
 {
 	struct adapter *adapter = pDM_Odm->Adapter;
 	u32 ret_value;
-	struct false_alarm_stats *FalseAlmCnt = &(pDM_Odm->FalseAlmCnt);
+	struct false_alarm_stats *FalseAlmCnt = &pDM_Odm->FalseAlmCnt;
 
 	if (!(pDM_Odm->SupportAbility & ODM_BB_FA_CNT))
 		return;
@@ -581,7 +579,7 @@ void odm_FalseAlarmCounterStatistics(struct odm_dm_struct *pDM_Odm)
 void odm_CCKPacketDetectionThresh(struct odm_dm_struct *pDM_Odm)
 {
 	u8 CurCCK_CCAThres;
-	struct false_alarm_stats *FalseAlmCnt = &(pDM_Odm->FalseAlmCnt);
+	struct false_alarm_stats *FalseAlmCnt = &pDM_Odm->FalseAlmCnt;
 
 	if (!(pDM_Odm->SupportAbility & (ODM_BB_CCK_PD | ODM_BB_FA_CNT)))
 		return;
@@ -739,7 +737,7 @@ u32 ODM_Get_Rate_Bitmap(struct odm_dm_struct *pDM_Odm, u32 macid, u32 ra_mask, u
 		} else if (rssi_level == DM_RATR_STA_MIDDLE) {
 			rate_bitmap = 0x000ff000;
 		} else {
-			if (*(pDM_Odm->pBandWidth) == ODM_BW40M)
+			if (*pDM_Odm->pBandWidth == ODM_BW40M)
 				rate_bitmap = 0x000ff015;
 			else
 				rate_bitmap = 0x000ff005;
@@ -945,7 +943,7 @@ void odm_TXPowerTrackingInit(struct odm_dm_struct *pDM_Odm)
 {
 	pDM_Odm->RFCalibrateInfo.bTXPowerTracking = true;
 	pDM_Odm->RFCalibrateInfo.TXPowercount = 0;
-	if (*(pDM_Odm->mp_mode) != 1)
+	if (*pDM_Odm->mp_mode != 1)
 		pDM_Odm->RFCalibrateInfo.TxPowerTrackControl = true;
 	MSG_88E("pDM_Odm TxPowerTrackControl = %d\n", pDM_Odm->RFCalibrateInfo.TxPowerTrackControl);
 
@@ -1035,11 +1033,11 @@ void odm_EdcaTurboCheckCE(struct odm_dm_struct *pDM_Odm)
 	u64	cur_tx_bytes = 0;
 	u64	cur_rx_bytes = 0;
 	u8	bbtchange = false;
-	struct xmit_priv		*pxmitpriv = &(Adapter->xmitpriv);
-	struct recv_priv		*precvpriv = &(Adapter->recvpriv);
+	struct xmit_priv		*pxmitpriv = &Adapter->xmitpriv;
+	struct recv_priv		*precvpriv = &Adapter->recvpriv;
 	struct registry_priv	*pregpriv = &Adapter->registrypriv;
-	struct mlme_ext_priv	*pmlmeext = &(Adapter->mlmeextpriv);
-	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
+	struct mlme_ext_priv	*pmlmeext = &Adapter->mlmeextpriv;
+	struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
 
 	if (pregpriv->wifi_spec == 1) /*  (pmlmeinfo->HT_enable == 0)) */
 		goto dm_CheckEdcaTurbo_EXIT;

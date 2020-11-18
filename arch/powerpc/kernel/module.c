@@ -86,3 +86,14 @@ int module_finalize(const Elf_Ehdr *hdr,
 
 	return 0;
 }
+
+#ifdef MODULES_VADDR
+void *module_alloc(unsigned long size)
+{
+	BUILD_BUG_ON(TASK_SIZE > MODULES_VADDR);
+
+	return __vmalloc_node_range(size, 1, MODULES_VADDR, MODULES_END, GFP_KERNEL,
+				    PAGE_KERNEL_EXEC, VM_FLUSH_RESET_PERMS, NUMA_NO_NODE,
+				    __builtin_return_address(0));
+}
+#endif

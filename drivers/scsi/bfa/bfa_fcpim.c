@@ -436,7 +436,7 @@ bfa_fcpim_port_iostats(struct bfa_s *bfa,
 	return BFA_STATUS_OK;
 }
 
-void
+static void
 bfa_ioim_profile_comp(struct bfa_ioim_s *ioim)
 {
 	struct bfa_itnim_latency_s *io_lat =
@@ -453,7 +453,7 @@ bfa_ioim_profile_comp(struct bfa_ioim_s *ioim)
 	io_lat->avg[idx] += val;
 }
 
-void
+static void
 bfa_ioim_profile_start(struct bfa_ioim_s *ioim)
 {
 	ioim->start_time = jiffies;
@@ -2335,9 +2335,7 @@ bfa_fcpim_lunmask_delete(struct bfa_s *bfa, u16 vf_id, wwn_t *pwwn,
 			 wwn_t rpwwn, struct scsi_lun lun)
 {
 	struct bfa_lun_mask_s	*lunm_list;
-	struct bfa_rport_s	*rp = NULL;
 	struct bfa_fcs_lport_s *port = NULL;
-	struct bfa_fcs_rport_s *rp_fcs;
 	int	i;
 
 	/* in min cfg lunm_list could be NULL but  no commands should run. */
@@ -2353,12 +2351,8 @@ bfa_fcpim_lunmask_delete(struct bfa_s *bfa, u16 vf_id, wwn_t *pwwn,
 		port = bfa_fcs_lookup_port(
 				&((struct bfad_s *)bfa->bfad)->bfa_fcs,
 				vf_id, *pwwn);
-		if (port) {
+		if (port)
 			*pwwn = port->port_cfg.pwwn;
-			rp_fcs = bfa_fcs_lport_get_rport_by_pwwn(port, rpwwn);
-			if (rp_fcs)
-				rp = rp_fcs->bfa_rport;
-		}
 	}
 
 	lunm_list = bfa_get_lun_mask_list(bfa);
@@ -2578,7 +2572,7 @@ bfa_ioim_send_ioreq(struct bfa_ioim_s *ioim)
 	case FCP_IODIR_RW:
 		bfa_stats(itnim, input_reqs);
 		bfa_stats(itnim, output_reqs);
-		/* fall through */
+		fallthrough;
 	default:
 		bfi_h2i_set(m->mh, BFI_MC_IOIM_IO, 0, bfa_fn_lpu(ioim->bfa));
 	}
@@ -2813,7 +2807,7 @@ bfa_ioim_isr(struct bfa_s *bfa, struct bfi_msg_s *m)
 
 	case BFI_IOIM_STS_TIMEDOUT:
 		bfa_stats(ioim->itnim, iocomp_timedout);
-		/* fall through */
+		fallthrough;
 	case BFI_IOIM_STS_ABORTED:
 		rsp->io_status = BFI_IOIM_STS_ABORTED;
 		bfa_stats(ioim->itnim, iocomp_aborted);
@@ -3209,7 +3203,7 @@ bfa_tskim_sm_cleanup_qfull(struct bfa_tskim_s *tskim,
 	switch (event) {
 	case BFA_TSKIM_SM_DONE:
 		bfa_reqq_wcancel(&tskim->reqq_wait);
-		/* fall through */
+		fallthrough;
 	case BFA_TSKIM_SM_QRESUME:
 		bfa_sm_set_state(tskim, bfa_tskim_sm_cleanup);
 		bfa_tskim_send_abort(tskim);
@@ -3818,7 +3812,7 @@ bfa_iotag_attach(struct bfa_fcp_mod_s *fcp)
 }
 
 
-/**
+/*
  * To send config req, first try to use throttle value from flash
  * If 0, then use driver parameter
  * We need to use min(flash_val, drv_val) because

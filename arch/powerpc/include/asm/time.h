@@ -39,7 +39,6 @@ struct div_result {
 };
 
 /* Accessor functions for the timebase (RTC on 601) registers. */
-/* If one day CONFIG_POWER is added just define __USE_RTC as 1 */
 #define __USE_RTC()	(IS_ENABLED(CONFIG_PPC_BOOK3S_601))
 
 #ifdef CONFIG_PPC64
@@ -51,24 +50,12 @@ struct div_result {
 
 static inline unsigned long get_tbl(void)
 {
-#if defined(CONFIG_403GCX)
-	unsigned long tbl;
-	asm volatile("mfspr %0, 0x3dd" : "=r" (tbl));
-	return tbl;
-#else
 	return mftbl();
-#endif
 }
 
 static inline unsigned int get_tbu(void)
 {
-#ifdef CONFIG_403GCX
-	unsigned int tbu;
-	asm volatile("mfspr %0, 0x3dc" : "=r" (tbu));
-	return tbu;
-#else
 	return mftbu();
-#endif
 }
 #endif /* !CONFIG_PPC64 */
 

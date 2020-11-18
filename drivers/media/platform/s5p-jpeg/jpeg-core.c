@@ -24,6 +24,7 @@
 #include <media/v4l2-event.h>
 #include <media/v4l2-mem2mem.h>
 #include <media/v4l2-ioctl.h>
+#include <media/v4l2-rect.h>
 #include <media/videobuf2-v4l2.h>
 #include <media/videobuf2-dma-contig.h>
 
@@ -1735,19 +1736,6 @@ static int exynos3250_jpeg_try_downscale(struct s5p_jpeg_ctx *ctx,
 	return 0;
 }
 
-/* Return 1 if rectangle a is enclosed in rectangle b, or 0 otherwise. */
-static int enclosed_rectangle(struct v4l2_rect *a, struct v4l2_rect *b)
-{
-	if (a->left < b->left || a->top < b->top)
-		return 0;
-	if (a->left + a->width > b->left + b->width)
-		return 0;
-	if (a->top + a->height > b->top + b->height)
-		return 0;
-
-	return 1;
-}
-
 static int exynos3250_jpeg_try_crop(struct s5p_jpeg_ctx *ctx,
 				   struct v4l2_rect *r)
 {
@@ -1780,7 +1768,7 @@ static int exynos3250_jpeg_try_crop(struct s5p_jpeg_ctx *ctx,
 	r->left = round_down(r->left, 2);
 	r->top = round_down(r->top, 2);
 
-	if (!enclosed_rectangle(r, &base_rect))
+	if (!v4l2_rect_enclosed(r, &base_rect))
 		return -EINVAL;
 
 	ctx->crop_rect.left = r->left;

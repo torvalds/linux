@@ -22,7 +22,6 @@
 #include <linux/hugetlb.h>
 #include <linux/vmalloc.h>
 #include <linux/uaccess.h>
-#include <asm/pgtable.h>
 #include <asm/tlb.h>
 #include <asm/div64.h>
 #include "internal.h"

@@ -131,6 +131,11 @@ static noinline void key_gc_unused_keys(struct list_head *keys)
 		kdebug("- %u", key->serial);
 		key_check(key);
 
+#ifdef CONFIG_KEY_NOTIFICATIONS
+		remove_watch_list(key->watchers, key->serial);
+		key->watchers = NULL;
+#endif
+
 		/* Throw away the key data if the key is instantiated */
 		if (state == KEY_IS_POSITIVE && key->type->destroy)
 			key->type->destroy(key);

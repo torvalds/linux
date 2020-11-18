@@ -150,6 +150,22 @@ These options do not have any effect on remount. You can change these
 parameters with chmod(1), chown(1) and chgrp(1) on a mounted filesystem.
 
 
+tmpfs has a mount option to select whether it will wrap at 32- or 64-bit inode
+numbers:
+
+=======   ========================
+inode64   Use 64-bit inode numbers
+inode32   Use 32-bit inode numbers
+=======   ========================
+
+On a 32-bit kernel, inode32 is implicit, and inode64 is refused at mount time.
+On a 64-bit kernel, CONFIG_TMPFS_INODE64 sets the default.  inode64 avoids the
+possibility of multiple files with the same inode number on a single device;
+but risks glibc failing with EOVERFLOW once 33-bit inode numbers are reached -
+if a long-lived tmpfs is accessed by 32-bit applications so ancient that
+opening a file larger than 2GiB fails with EINVAL.
+
+
 So 'mount -t tmpfs -o size=10G,nr_inodes=10k,mode=700 tmpfs /mytmpfs'
 will give you tmpfs instance on /mytmpfs which can allocate 10GB
 RAM/SWAP in 10240 inodes and it is only accessible by root.
@@ -161,3 +177,5 @@ RAM/SWAP in 10240 inodes and it is only accessible by root.
    Hugh Dickins, 4 June 2007
 :Updated:
    KOSAKI Motohiro, 16 Mar 2010
+:Updated:
+   Chris Down, 13 July 2020

@@ -395,6 +395,13 @@ When mounting an ext4 filesystem, the following option are accepted:
         Documentation/filesystems/dax.txt.  Note that this option is
         incompatible with data=journal.
 
+  inlinecrypt
+        When possible, encrypt/decrypt the contents of encrypted files using the
+        blk-crypto framework rather than filesystem-layer encryption. This
+        allows the use of inline encryption hardware. The on-disk format is
+        unaffected. For more details, see
+        Documentation/block/inline-encryption.rst.
+
 Data Mode
 =========
 There are 3 different data modes:
@@ -482,6 +489,9 @@ Files in /sys/fs/ext4/<devname>:
         multiple of this tuning parameter if the stripe size is not set in the
         ext4 superblock
 
+  mb_max_inode_prealloc
+        The maximum length of per-inode ext4_prealloc_space list.
+
   mb_max_to_scan
         The maximum number of extents the multiblock allocator will search to
         find the best extent.
@@ -522,21 +532,21 @@ Files in /sys/fs/ext4/<devname>:
 Ioctls
 ======
 
-There is some Ext4 specific functionality which can be accessed by applications
-through the system call interfaces. The list of all Ext4 specific ioctls are
-shown in the table below.
+Ext4 implements various ioctls which can be used by applications to access
+ext4-specific functionality. An incomplete list of these ioctls is shown in the
+table below. This list includes truly ext4-specific ioctls (``EXT4_IOC_*``) as
+well as ioctls that may have been ext4-specific originally but are now supported
+by some other filesystem(s) too (``FS_IOC_*``).
 
-Table of Ext4 specific ioctls
+Table of Ext4 ioctls
 
-  EXT4_IOC_GETFLAGS
+  FS_IOC_GETFLAGS
         Get additional attributes associated with inode.  The ioctl argument is
-        an integer bitfield, with bit values described in ext4.h. This ioctl is
-        an alias for FS_IOC_GETFLAGS.
+        an integer bitfield, with bit values described in ext4.h.
 
-  EXT4_IOC_SETFLAGS
+  FS_IOC_SETFLAGS
         Set additional attributes associated with inode.  The ioctl argument is
-        an integer bitfield, with bit values described in ext4.h. This ioctl is
-        an alias for FS_IOC_SETFLAGS.
+        an integer bitfield, with bit values described in ext4.h.
 
   EXT4_IOC_GETVERSION, EXT4_IOC_GETVERSION_OLD
         Get the inode i_generation number stored for each inode. The
@@ -611,7 +621,7 @@ kernel source:	<file:fs/ext4/>
 
 programs:	http://e2fsprogs.sourceforge.net/
 
-useful links:	http://fedoraproject.org/wiki/ext3-devel
+useful links:	https://fedoraproject.org/wiki/ext3-devel
 		http://www.bullopensource.org/ext4/
 		http://ext4.wiki.kernel.org/index.php/Main_Page
-		http://fedoraproject.org/wiki/Features/Ext4
+		https://fedoraproject.org/wiki/Features/Ext4

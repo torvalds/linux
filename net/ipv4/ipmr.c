@@ -421,37 +421,6 @@ static void ipmr_free_table(struct mr_table *mrt)
 
 /* Service routines creating virtual interfaces: DVMRP tunnels and PIMREG */
 
-static void ipmr_del_tunnel(struct net_device *dev, struct vifctl *v)
-{
-	struct net *net = dev_net(dev);
-
-	dev_close(dev);
-
-	dev = __dev_get_by_name(net, "tunl0");
-	if (dev) {
-		const struct net_device_ops *ops = dev->netdev_ops;
-		struct ifreq ifr;
-		struct ip_tunnel_parm p;
-
-		memset(&p, 0, sizeof(p));
-		p.iph.daddr = v->vifc_rmt_addr.s_addr;
-		p.iph.saddr = v->vifc_lcl_addr.s_addr;
-		p.iph.version = 4;
-		p.iph.ihl = 5;
-		p.iph.protocol = IPPROTO_IPIP;
-		sprintf(p.name, "dvmrp%d", v->vifc_vifi);
-		ifr.ifr_ifru.ifru_data = (__force void __user *)&p;
-
-		if (ops->ndo_do_ioctl) {
-			mm_segment_t oldfs = get_fs();
-
-			set_fs(KERNEL_DS);
-			ops->ndo_do_ioctl(dev, &ifr, SIOCDELTUNNEL);
-			set_fs(oldfs);
-		}
-	}
-}
-
 /* Initialize ipmr pimreg/tunnel in_device */
 static bool ipmr_init_vif_indev(const struct net_device *dev)
 {
@@ -471,51 +440,52 @@ static bool ipmr_init_vif_indev(const struct net_device *dev)
 
 static struct net_device *ipmr_new_tunnel(struct net *net, struct vifctl *v)
 {
-	struct net_device  *dev;
+	struct net_device *tunnel_dev, *new_dev;
+	struct ip_tunnel_parm p = { };
+	int err;
 
-	dev = __dev_get_by_name(net, "tunl0");
+	tunnel_dev = __dev_get_by_name(net, "tunl0");
+	if (!tunnel_dev)
+		goto out;
 
-	if (dev) {
-		const struct net_device_ops *ops = dev->netdev_ops;
-		int err;
-		struct ifreq ifr;
-		struct ip_tunnel_parm p;
+	p.iph.daddr = v->vifc_rmt_addr.s_addr;
+	p.iph.saddr = v->vifc_lcl_addr.s_addr;
+	p.iph.version = 4;
+	p.iph.ihl = 5;
+	p.iph.protocol = IPPROTO_IPIP;
+	sprintf(p.name, "dvmrp%d", v->vifc_vifi);
 
-		memset(&p, 0, sizeof(p));
-		p.iph.daddr = v->vifc_rmt_addr.s_addr;
-		p.iph.saddr = v->vifc_lcl_addr.s_addr;
-		p.iph.version = 4;
-		p.iph.ihl = 5;
-		p.iph.protocol = IPPROTO_IPIP;
-		sprintf(p.name, "dvmrp%d", v->vifc_vifi);
-		ifr.ifr_ifru.ifru_data = (__force void __user *)&p;
+	if (!tunnel_dev->netdev_ops->ndo_tunnel_ctl)
+		goto out;
+	err = tunnel_dev->netdev_ops->ndo_tunnel_ctl(tunnel_dev, &p,
+			SIOCADDTUNNEL);
+	if (err)
+		goto out;
 
-		if (ops->ndo_do_ioctl) {
-			mm_segment_t oldfs = get_fs();
+	new_dev = __dev_get_by_name(net, p.name);
+	if (!new_dev)
+		goto out;
 
-			set_fs(KERNEL_DS);
-			err = ops->ndo_do_ioctl(dev, &ifr, SIOCADDTUNNEL);
-			set_fs(oldfs);
-		} else {
-			err = -EOPNOTSUPP;
-		}
-		dev = NULL;
-
-		if (err == 0 &&
-		    (dev = __dev_get_by_name(net, p.name)) != NULL) {
-			dev->flags |= IFF_MULTICAST;
-			if (!ipmr_init_vif_indev(dev))
-				goto failure;
-			if (dev_open(dev, NULL))
-				goto failure;
-			dev_hold(dev);
-		}
+	new_dev->flags |= IFF_MULTICAST;
+	if (!ipmr_init_vif_indev(new_dev))
+		goto out_unregister;
+	if (dev_open(new_dev, NULL))
+		goto out_unregister;
+	dev_hold(new_dev);
+	err = dev_set_allmulti(new_dev, 1);
+	if (err) {
+		dev_close(new_dev);
+		tunnel_dev->netdev_ops->ndo_tunnel_ctl(tunnel_dev, &p,
+				SIOCDELTUNNEL);
+		dev_put(new_dev);
+		new_dev = ERR_PTR(err);
 	}
-	return dev;
+	return new_dev;
 
-failure:
-	unregister_netdevice(dev);
-	return NULL;
+out_unregister:
+	unregister_netdevice(new_dev);
+out:
+	return ERR_PTR(-ENOBUFS);
 }
 
 #if defined(CONFIG_IP_PIMSM_V1) || defined(CONFIG_IP_PIMSM_V2)
@@ -666,7 +636,10 @@ static int call_ipmr_mfc_entry_notifiers(struct net *net,
 
 /**
  *	vif_delete - Delete a VIF entry
+ *	@mrt: Table to delete from
+ *	@vifi: VIF identifier to delete
  *	@notify: Set to 1, if the caller is a notifier_call
+ *	@head: if unregistering the VIF, place it on this queue
  */
 static int vif_delete(struct mr_table *mrt, int vifi, int notify,
 		      struct list_head *head)
@@ -867,14 +840,8 @@ static int vif_add(struct net *net, struct mr_table *mrt,
 		break;
 	case VIFF_TUNNEL:
 		dev = ipmr_new_tunnel(net, vifc);
-		if (!dev)
-			return -ENOBUFS;
-		err = dev_set_allmulti(dev, 1);
-		if (err) {
-			ipmr_del_tunnel(dev, vifc);
-			dev_put(dev);
-			return err;
-		}
+		if (IS_ERR(dev))
+			return PTR_ERR(dev);
 		break;
 	case VIFF_USE_IFINDEX:
 	case 0:
@@ -1374,7 +1341,7 @@ static void mrtsock_destruct(struct sock *sk)
  * MOSPF/PIM router set up we can clean this up.
  */
 
-int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval,
+int ip_mroute_setsockopt(struct sock *sk, int optname, sockptr_t optval,
 			 unsigned int optlen)
 {
 	struct net *net = sock_net(sk);
@@ -1446,7 +1413,7 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval,
 			ret = -EINVAL;
 			break;
 		}
-		if (copy_from_user(&vif, optval, sizeof(vif))) {
+		if (copy_from_sockptr(&vif, optval, sizeof(vif))) {
 			ret = -EFAULT;
 			break;
 		}
@@ -1474,7 +1441,7 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval,
 			ret = -EINVAL;
 			break;
 		}
-		if (copy_from_user(&mfc, optval, sizeof(mfc))) {
+		if (copy_from_sockptr(&mfc, optval, sizeof(mfc))) {
 			ret = -EFAULT;
 			break;
 		}
@@ -1492,7 +1459,7 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval,
 			ret = -EINVAL;
 			break;
 		}
-		if (get_user(val, (int __user *)optval)) {
+		if (copy_from_sockptr(&val, optval, sizeof(val))) {
 			ret = -EFAULT;
 			break;
 		}
@@ -1504,7 +1471,7 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval,
 			ret = -EINVAL;
 			break;
 		}
-		if (get_user(val, (int __user *)optval)) {
+		if (copy_from_sockptr(&val, optval, sizeof(val))) {
 			ret = -EFAULT;
 			break;
 		}
@@ -1519,7 +1486,7 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval,
 			ret = -EINVAL;
 			break;
 		}
-		if (get_user(val, (int __user *)optval)) {
+		if (copy_from_sockptr(&val, optval, sizeof(val))) {
 			ret = -EFAULT;
 			break;
 		}
@@ -1541,7 +1508,7 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval,
 			ret = -EINVAL;
 			break;
 		}
-		if (get_user(uval, (u32 __user *)optval)) {
+		if (copy_from_sockptr(&uval, optval, sizeof(uval))) {
 			ret = -EFAULT;
 			break;
 		}

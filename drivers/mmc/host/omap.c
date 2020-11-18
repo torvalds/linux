@@ -1244,7 +1244,7 @@ static int mmc_omap_new_slot(struct mmc_omap_host *host, int id)
 
 	mmc->caps = 0;
 	if (host->pdata->slots[id].wires >= 4)
-		mmc->caps |= MMC_CAP_4_BIT_DATA | MMC_CAP_ERASE;
+		mmc->caps |= MMC_CAP_4_BIT_DATA;
 
 	mmc->ops = &mmc_omap_ops;
 	mmc->f_min = 400000;

@@ -541,7 +541,7 @@ static void i40e_set_hw_flags(struct i40e_hw *hw)
 		    (aq->api_maj_ver == 1 &&
 		     aq->api_min_ver >= I40E_MINOR_VER_GET_LINK_INFO_X722))
 			hw->flags |= I40E_HW_FLAG_AQ_PHY_ACCESS_CAPABLE;
-		/* fall through */
+		fallthrough;
 	default:
 		break;
 	}
@@ -694,10 +694,8 @@ init_adminq_exit:
  *  i40e_shutdown_adminq - shutdown routine for the Admin Queue
  *  @hw: pointer to the hardware structure
  **/
-i40e_status i40e_shutdown_adminq(struct i40e_hw *hw)
+void i40e_shutdown_adminq(struct i40e_hw *hw)
 {
-	i40e_status ret_code = 0;
-
 	if (i40e_check_asq_alive(hw))
 		i40e_aq_queue_shutdown(hw, true);
 
@@ -706,8 +704,6 @@ i40e_status i40e_shutdown_adminq(struct i40e_hw *hw)
 
 	if (hw->nvm_buff.va)
 		i40e_free_virt_mem(hw, &hw->nvm_buff);
-
-	return ret_code;
 }
 
 /**

@@ -26,6 +26,7 @@
 #include "soc15.h"
 #include "soc15d.h"
 #include "vcn_v1_0.h"
+#include "jpeg_v1_0.h"
 
 #include "vcn/vcn_1_0_offset.h"
 #include "vcn/vcn_1_0_sh_mask.h"
@@ -376,7 +377,7 @@ static void jpeg_v1_0_decode_ring_emit_vm_flush(struct amdgpu_ring *ring,
 	pd_addr = amdgpu_gmc_emit_flush_gpu_tlb(ring, vmid, pd_addr);
 
 	/* wait for register write */
-	data0 = hub->ctx0_ptb_addr_lo32 + vmid * 2;
+	data0 = hub->ctx0_ptb_addr_lo32 + vmid * hub->ctx_addr_distance;
 	data1 = lower_32_bits(pd_addr);
 	mask = 0xffffffff;
 	jpeg_v1_0_decode_ring_emit_reg_wait(ring, data0, data1, mask);
@@ -480,7 +481,8 @@ int jpeg_v1_0_sw_init(void *handle)
 
 	ring = &adev->jpeg.inst->ring_dec;
 	sprintf(ring->name, "jpeg_dec");
-	r = amdgpu_ring_init(adev, ring, 512, &adev->jpeg.inst->irq, 0);
+	r = amdgpu_ring_init(adev, ring, 512, &adev->jpeg.inst->irq,
+			     0, AMDGPU_RING_PRIO_DEFAULT);
 	if (r)
 		return r;
 

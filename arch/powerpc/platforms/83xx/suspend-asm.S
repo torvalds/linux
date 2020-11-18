@@ -548,3 +548,4 @@ mpc83xx_deep_resume:
 	mtdec	r0
 
 	rfi
+_ASM_NOKPROBE_SYMBOL(mpc83xx_deep_resume)

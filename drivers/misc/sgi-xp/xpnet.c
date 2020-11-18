@@ -96,7 +96,7 @@ struct xpnet_pending_msg {
 	atomic_t use_count;
 };
 
-struct net_device *xpnet_device;
+static struct net_device *xpnet_device;
 
 /*
  * When we are notified of other partitions activating, we add them to
@@ -131,16 +131,16 @@ static DEFINE_SPINLOCK(xpnet_broadcast_lock);
 
 /* Define the XPNET debug device structures to be used with dev_dbg() et al */
 
-struct device_driver xpnet_dbg_name = {
+static struct device_driver xpnet_dbg_name = {
 	.name = "xpnet"
 };
 
-struct device xpnet_dbg_subname = {
+static struct device xpnet_dbg_subname = {
 	.init_name = "",	/* set to "" */
 	.driver = &xpnet_dbg_name
 };
 
-struct device *xpnet = &xpnet_dbg_subname;
+static struct device *xpnet = &xpnet_dbg_subname;
 
 /*
  * Packet was recevied by XPC and forwarded to us.

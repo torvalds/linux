@@ -48,9 +48,7 @@
 	};
 
 	tcu: timer@10002000 {
-		compatible = "ingenic,x1000-tcu",
-				 "ingenic,jz4770-tcu",
-				 "simple-mfd";
+		compatible = "ingenic,x1000-tcu", "simple-mfd";
 		reg = <0x10002000 0x1000>;
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -58,9 +56,9 @@
 
 		#clock-cells = <1>;
 
-		clocks = <&cgu X1000_CLK_RTCLK
-			  &cgu X1000_CLK_EXCLK
-			  &cgu X1000_CLK_PCLK>;
+		clocks = <&cgu X1000_CLK_RTCLK>,
+			 <&cgu X1000_CLK_EXCLK>,
+			 <&cgu X1000_CLK_PCLK>;
 		clock-names = "rtc", "ext", "pclk";
 
 		interrupt-controller;
@@ -156,6 +154,45 @@
 		};
 	};
 
+	uart0: serial@10030000 {
+		compatible = "ingenic,x1000-uart";
+		reg = <0x10030000 0x100>;
+
+		interrupt-parent = <&intc>;
+		interrupts = <51>;
+
+		clocks = <&exclk>, <&cgu X1000_CLK_UART0>;
+		clock-names = "baud", "module";
+
+		status = "disabled";
+	};
+
+	uart1: serial@10031000 {
+		compatible = "ingenic,x1000-uart";
+		reg = <0x10031000 0x100>;
+
+		interrupt-parent = <&intc>;
+		interrupts = <50>;
+
+		clocks = <&exclk>, <&cgu X1000_CLK_UART1>;
+		clock-names = "baud", "module";
+
+		status = "disabled";
+	};
+
+	uart2: serial@10032000 {
+		compatible = "ingenic,x1000-uart";
+		reg = <0x10032000 0x100>;
+
+		interrupt-parent = <&intc>;
+		interrupts = <49>;
+
+		clocks = <&exclk>, <&cgu X1000_CLK_UART2>;
+		clock-names = "baud", "module";
+
+		status = "disabled";
+	};
+
 	i2c0: i2c-controller@10050000 {
 		compatible = "ingenic,x1000-i2c";
 		reg = <0x10050000 0x1000>;
@@ -198,77 +235,15 @@
 		status = "disabled";
 	};
 
-	uart0: serial@10030000 {
-		compatible = "ingenic,x1000-uart";
-		reg = <0x10030000 0x100>;
-
-		interrupt-parent = <&intc>;
-		interrupts = <51>;
-
-		clocks = <&exclk>, <&cgu X1000_CLK_UART0>;
-		clock-names = "baud", "module";
-
-		status = "disabled";
-	};
-
-	uart1: serial@10031000 {
-		compatible = "ingenic,x1000-uart";
-		reg = <0x10031000 0x100>;
-
-		interrupt-parent = <&intc>;
-		interrupts = <50>;
-
-		clocks = <&exclk>, <&cgu X1000_CLK_UART1>;
-		clock-names = "baud", "module";
-
-		status = "disabled";
-	};
-
-	uart2: serial@10032000 {
-		compatible = "ingenic,x1000-uart";
-		reg = <0x10032000 0x100>;
-
-		interrupt-parent = <&intc>;
-		interrupts = <49>;
-
-		clocks = <&exclk>, <&cgu X1000_CLK_UART2>;
-		clock-names = "baud", "module";
-
-		status = "disabled";
-	};
-
 	pdma: dma-controller@13420000 {
 		compatible = "ingenic,x1000-dma";
-		reg = <0x13420000 0x400
-			   0x13421000 0x40>;
+		reg = <0x13420000 0x400>, <0x13421000 0x40>;
 		#dma-cells = <2>;
 
 		interrupt-parent = <&intc>;
 		interrupts = <10>;
 
 		clocks = <&cgu X1000_CLK_PDMA>;
-	};
-
-	mac: ethernet@134b0000 {
-		compatible = "ingenic,x1000-mac", "snps,dwmac";
-		reg = <0x134b0000 0x2000>;
-
-		interrupt-parent = <&intc>;
-		interrupts = <55>;
-		interrupt-names = "macirq";
-
-		clocks = <&cgu X1000_CLK_MAC>;
-		clock-names = "stmmaceth";
-
-		status = "disabled";
-
-		mdio: mdio {
-			compatible = "snps,dwmac-mdio";
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			status = "disabled";
-		};
 	};
 
 	msc0: mmc@13450000 {
@@ -311,5 +286,27 @@
 		dma-names = "rx", "tx";
 
 		status = "disabled";
+	};
+
+	mac: ethernet@134b0000 {
+		compatible = "ingenic,x1000-mac", "snps,dwmac";
+		reg = <0x134b0000 0x2000>;
+
+		interrupt-parent = <&intc>;
+		interrupts = <55>;
+		interrupt-names = "macirq";
+
+		clocks = <&cgu X1000_CLK_MAC>;
+		clock-names = "stmmaceth";
+
+		status = "disabled";
+
+		mdio: mdio {
+			compatible = "snps,dwmac-mdio";
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			status = "disabled";
+		};
 	};
 };

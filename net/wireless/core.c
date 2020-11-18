@@ -5,7 +5,7 @@
  * Copyright 2006-2010		Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright 2015-2017	Intel Deutschland GmbH
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -480,9 +480,6 @@ use_default_name:
 	INIT_LIST_HEAD(&rdev->bss_list);
 	INIT_LIST_HEAD(&rdev->sched_scan_req_list);
 	INIT_WORK(&rdev->scan_done_wk, __cfg80211_scan_done);
-	INIT_LIST_HEAD(&rdev->mlme_unreg);
-	spin_lock_init(&rdev->mlme_unreg_lock);
-	INIT_WORK(&rdev->mlme_unreg_wk, cfg80211_mlme_unreg_wk);
 	INIT_DELAYED_WORK(&rdev->dfs_update_channels_wk,
 			  cfg80211_dfs_channels_update_work);
 #ifdef CONFIG_CFG80211_WEXT
@@ -500,6 +497,8 @@ use_default_name:
 	INIT_WORK(&rdev->propagate_radar_detect_wk,
 		  cfg80211_propagate_radar_detect_wk);
 	INIT_WORK(&rdev->propagate_cac_done_wk, cfg80211_propagate_cac_done_wk);
+	INIT_WORK(&rdev->mgmt_registrations_update_wk,
+		  cfg80211_mgmt_registrations_update_wk);
 
 #ifdef CONFIG_CFG80211_DEFAULT_PS
 	rdev->wiphy.flags |= WIPHY_FLAG_PS_ON_BY_DEFAULT;
@@ -794,6 +793,7 @@ int wiphy_register(struct wiphy *wiphy)
 	/* sanity check supported bands/channels */
 	for (band = 0; band < NUM_NL80211_BANDS; band++) {
 		u16 types = 0;
+		bool have_he = false;
 
 		sband = wiphy->bands[band];
 		if (!sband)
@@ -803,11 +803,17 @@ int wiphy_register(struct wiphy *wiphy)
 		if (WARN_ON(!sband->n_channels))
 			return -EINVAL;
 		/*
-		 * on 60GHz band, there are no legacy rates, so
+		 * on 60GHz or sub-1Ghz band, there are no legacy rates, so
 		 * n_bitrates is 0
 		 */
-		if (WARN_ON(band != NL80211_BAND_60GHZ &&
+		if (WARN_ON((band != NL80211_BAND_60GHZ &&
+			     band != NL80211_BAND_S1GHZ) &&
 			    !sband->n_bitrates))
+			return -EINVAL;
+
+		if (WARN_ON(band == NL80211_BAND_6GHZ &&
+			    (sband->ht_cap.ht_supported ||
+			     sband->vht_cap.vht_supported)))
 			return -EINVAL;
 
 		/*
@@ -837,6 +843,9 @@ int wiphy_register(struct wiphy *wiphy)
 			sband->channels[i].orig_mpwr =
 				sband->channels[i].max_power;
 			sband->channels[i].band = band;
+
+			if (WARN_ON(sband->channels[i].freq_offset >= 1000))
+				return -EINVAL;
 		}
 
 		for (i = 0; i < sband->n_iftype_data; i++) {
@@ -854,7 +863,16 @@ int wiphy_register(struct wiphy *wiphy)
 				return -EINVAL;
 
 			types |= iftd->types_mask;
+
+			if (i == 0)
+				have_he = iftd->he_cap.has_he;
+			else
+				have_he = have_he &&
+					  iftd->he_cap.has_he;
 		}
+
+		if (WARN_ON(!have_he && band == NL80211_BAND_6GHZ))
+			return -EINVAL;
 
 		have_band = true;
 	}
@@ -1030,9 +1048,9 @@ void wiphy_unregister(struct wiphy *wiphy)
 	cancel_delayed_work_sync(&rdev->dfs_update_channels_wk);
 	flush_work(&rdev->destroy_work);
 	flush_work(&rdev->sched_scan_stop_wk);
-	flush_work(&rdev->mlme_unreg_wk);
 	flush_work(&rdev->propagate_radar_detect_wk);
 	flush_work(&rdev->propagate_cac_done_wk);
+	flush_work(&rdev->mgmt_registrations_update_wk);
 
 #ifdef CONFIG_PM
 	if (rdev->wiphy.wowlan_config && rdev->ops->set_wakeup)
@@ -1107,7 +1125,7 @@ static void __cfg80211_unregister_wdev(struct wireless_dev *wdev, bool sync)
 	}
 
 #ifdef CONFIG_CFG80211_WEXT
-	kzfree(wdev->wext.keys);
+	kfree_sensitive(wdev->wext.keys);
 	wdev->wext.keys = NULL;
 #endif
 	/* only initialized if we have a netdev */

@@ -19,6 +19,7 @@
 #include <net/netlink.h>
 #include <net/inetpeer.h>
 #include <net/fib_notifier.h>
+#include <linux/indirect_call_wrapper.h>
 
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
 #define FIB6_TABLE_HASHSZ 256
@@ -65,6 +66,7 @@ struct fib6_config {
 	struct nl_info	fc_nlinfo;
 	struct nlattr	*fc_encap;
 	u16		fc_encap_type;
+	bool		fc_is_fdb;
 };
 
 struct fib6_node {
@@ -164,7 +166,7 @@ struct fib6_info {
 	struct fib6_node __rcu		*fib6_node;
 
 	/* Multipath routes:
-	 * siblings is a list of fib6_info that have the the same metric/weight,
+	 * siblings is a list of fib6_info that have the same metric/weight,
 	 * destination, but not the same gateway. nsiblings is just a cache
 	 * to speed up lookup.
 	 */
@@ -542,6 +544,48 @@ void fib6_metric_set(struct fib6_info *f6i, int metric, u32 val);
 static inline bool fib6_metric_locked(struct fib6_info *f6i, int metric)
 {
 	return !!(f6i->fib6_metrics->metrics[RTAX_LOCK - 1] & (1 << metric));
+}
+
+#if IS_BUILTIN(CONFIG_IPV6) && defined(CONFIG_BPF_SYSCALL)
+struct bpf_iter__ipv6_route {
+	__bpf_md_ptr(struct bpf_iter_meta *, meta);
+	__bpf_md_ptr(struct fib6_info *, rt);
+};
+#endif
+
+INDIRECT_CALLABLE_DECLARE(struct rt6_info *ip6_pol_route_output(struct net *net,
+					     struct fib6_table *table,
+					     struct flowi6 *fl6,
+					     const struct sk_buff *skb,
+					     int flags));
+INDIRECT_CALLABLE_DECLARE(struct rt6_info *ip6_pol_route_input(struct net *net,
+					     struct fib6_table *table,
+					     struct flowi6 *fl6,
+					     const struct sk_buff *skb,
+					     int flags));
+INDIRECT_CALLABLE_DECLARE(struct rt6_info *__ip6_route_redirect(struct net *net,
+					     struct fib6_table *table,
+					     struct flowi6 *fl6,
+					     const struct sk_buff *skb,
+					     int flags));
+INDIRECT_CALLABLE_DECLARE(struct rt6_info *ip6_pol_route_lookup(struct net *net,
+					     struct fib6_table *table,
+					     struct flowi6 *fl6,
+					     const struct sk_buff *skb,
+					     int flags));
+static inline struct rt6_info *pol_lookup_func(pol_lookup_t lookup,
+						struct net *net,
+						struct fib6_table *table,
+						struct flowi6 *fl6,
+						const struct sk_buff *skb,
+						int flags)
+{
+	return INDIRECT_CALL_4(lookup,
+			       ip6_pol_route_output,
+			       ip6_pol_route_input,
+			       ip6_pol_route_lookup,
+			       __ip6_route_redirect,
+			       net, table, fl6, skb, flags);
 }
 
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES

@@ -85,7 +85,7 @@ struct p_log {
  * Superblock creation fills in ->root whereas reconfiguration begins with this
  * already set.
  *
- * See Documentation/filesystems/mount_api.txt
+ * See Documentation/filesystems/mount_api.rst
  */
 struct fs_context {
 	const struct fs_context_operations *ops;
@@ -109,6 +109,7 @@ struct fs_context {
 	enum fs_context_phase	phase:8;	/* The phase the context is in */
 	bool			need_free:1;	/* Need to call ops->free() */
 	bool			global:1;	/* Goes into &init_user_ns */
+	bool			oldapi:1;	/* Coming from mount(2) */
 };
 
 struct fs_context_operations {

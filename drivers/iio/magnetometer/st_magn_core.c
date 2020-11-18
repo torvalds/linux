@@ -506,8 +506,7 @@ int st_magn_common_probe(struct iio_dev *indio_dev)
 	indio_dev->channels = mdata->sensor_settings->ch;
 	indio_dev->num_channels = ST_SENSORS_NUMBER_ALL_CHANNELS;
 
-	mdata->current_fullscale = (struct st_sensor_fullscale_avl *)
-					&mdata->sensor_settings->fs.fs_avl[0];
+	mdata->current_fullscale = &mdata->sensor_settings->fs.fs_avl[0];
 	mdata->odr = mdata->sensor_settings->odr.odr_avl[0].hz;
 
 	err = st_sensors_init_sensor(indio_dev, NULL);

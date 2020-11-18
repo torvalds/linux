@@ -106,7 +106,7 @@ static int broadwell_ssp0_fixup(struct snd_soc_pcm_runtime *rtd,
 static int bdw_rt5650_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
 	int ret;
 
@@ -161,6 +161,34 @@ static int bdw_rt5650_rtd_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 #endif
+
+static const unsigned int channels[] = {
+	2, 4,
+};
+
+static const struct snd_pcm_hw_constraint_list constraints_channels = {
+	.count = ARRAY_SIZE(channels),
+	.list = channels,
+	.mask = 0,
+};
+
+static int bdw_rt5650_fe_startup(struct snd_pcm_substream *substream)
+{
+	struct snd_pcm_runtime *runtime = substream->runtime;
+
+	/* Board supports stereo and quad configurations for capture */
+	if (substream->stream != SNDRV_PCM_STREAM_CAPTURE)
+		return 0;
+
+	runtime->hw.channels_max = 4;
+	return snd_pcm_hw_constraint_list(runtime, 0,
+					  SNDRV_PCM_HW_PARAM_CHANNELS,
+					  &constraints_channels);
+}
+
+static const struct snd_soc_ops bdw_rt5650_fe_ops = {
+	.startup = bdw_rt5650_fe_startup,
+};
 
 static int bdw_rt5650_init(struct snd_soc_pcm_runtime *rtd)
 {
@@ -234,6 +262,7 @@ static struct snd_soc_dai_link bdw_rt5650_dais[] = {
 		.name = "System PCM",
 		.stream_name = "System Playback",
 		.dynamic = 1,
+		.ops = &bdw_rt5650_fe_ops,
 #if !IS_ENABLED(CONFIG_SND_SOC_SOF_BROADWELL)
 		.init = bdw_rt5650_rtd_init,
 #endif
@@ -268,9 +297,19 @@ static struct snd_soc_dai_link bdw_rt5650_dais[] = {
 	},
 };
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_BROADWELL)
+/* use space before codec name to simplify card ID, and simplify driver name */
+#define CARD_NAME "bdw rt5650" /* card name will be 'sof-bdw rt5650' */
+#define DRIVER_NAME "SOF"
+#else
+#define CARD_NAME "bdw-rt5650"
+#define DRIVER_NAME NULL /* card name will be used for driver name */
+#endif
+
 /* ASoC machine driver for Broadwell DSP + RT5650 */
 static struct snd_soc_card bdw_rt5650_card = {
-	.name = "bdw-rt5650",
+	.name = CARD_NAME,
+	.driver_name = DRIVER_NAME,
 	.owner = THIS_MODULE,
 	.dai_link = bdw_rt5650_dais,
 	.num_links = ARRAY_SIZE(bdw_rt5650_dais),

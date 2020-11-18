@@ -435,7 +435,7 @@ static int rpaphp_drc_add_slot(struct device_node *dn)
  */
 int rpaphp_add_slot(struct device_node *dn)
 {
-	if (!dn->name || strcmp(dn->name, "pci"))
+	if (!of_node_name_eq(dn, "pci"))
 		return 0;
 
 	if (of_find_property(dn, "ibm,drc-info", NULL))

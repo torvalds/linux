@@ -157,7 +157,7 @@ static enum typec_cc_status tcpci_to_typec_cc(unsigned int cc, bool sink)
 	case 0x3:
 		if (sink)
 			return TYPEC_CC_RP_3_0;
-		/* fall through */
+		fallthrough;
 	case 0x0:
 	default:
 		return TYPEC_CC_OPEN;
@@ -225,6 +225,14 @@ static int tcpci_set_vconn(struct tcpc_dev *tcpc, bool enable)
 	return regmap_update_bits(tcpci->regmap, TCPC_POWER_CTRL,
 				TCPC_POWER_CTRL_VCONN_ENABLE,
 				enable ? TCPC_POWER_CTRL_VCONN_ENABLE : 0);
+}
+
+static int tcpci_set_bist_data(struct tcpc_dev *tcpc, bool enable)
+{
+	struct tcpci *tcpci = tcpc_to_tcpci(tcpc);
+
+	return regmap_update_bits(tcpci->regmap, TCPC_TCPC_CTRL, TCPC_TCPC_CTRL_BIST_TM,
+				 enable ? TCPC_TCPC_CTRL_BIST_TM : 0);
 }
 
 static int tcpci_set_roles(struct tcpc_dev *tcpc, bool attached,
@@ -530,6 +538,7 @@ struct tcpci *tcpci_register_port(struct device *dev, struct tcpci_data *data)
 	tcpci->tcpc.set_pd_rx = tcpci_set_pd_rx;
 	tcpci->tcpc.set_roles = tcpci_set_roles;
 	tcpci->tcpc.pd_transmit = tcpci_pd_transmit;
+	tcpci->tcpc.set_bist_data = tcpci_set_bist_data;
 
 	err = tcpci_parse_config(tcpci);
 	if (err < 0)

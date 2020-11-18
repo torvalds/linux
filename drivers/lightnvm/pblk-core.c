@@ -301,7 +301,7 @@ void pblk_free_rqd(struct pblk *pblk, struct nvm_rq *rqd, int type)
 	switch (type) {
 	case PBLK_WRITE:
 		kfree(((struct pblk_c_ctx *)nvm_rq_to_pdu(rqd))->lun_bitmap);
-		/* fall through */
+		fallthrough;
 	case PBLK_WRITE_INT:
 		pool = &pblk->w_rq_pool;
 		break;

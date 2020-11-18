@@ -15,9 +15,7 @@
 #include <linux/iio/triggered_event.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
-#include <linux/of_gpio.h>
+#include <linux/mod_devicetable.h>
 #include <linux/spi/spi.h>
 #include <linux/gpio/consumer.h>
 
@@ -488,8 +486,6 @@ static int hi8435_probe(struct spi_device *spi)
 	spi_set_drvdata(spi, idev);
 	mutex_init(&priv->lock);
 
-	idev->dev.parent	= &spi->dev;
-	idev->dev.of_node	= spi->dev.of_node;
 	idev->name		= spi_get_device_id(spi)->name;
 	idev->modes		= INDIO_DIRECT_MODE;
 	idev->info		= &hi8435_info;
@@ -542,7 +538,7 @@ MODULE_DEVICE_TABLE(spi, hi8435_id);
 static struct spi_driver hi8435_driver = {
 	.driver	= {
 		.name		= DRV_NAME,
-		.of_match_table	= of_match_ptr(hi8435_dt_ids),
+		.of_match_table	= hi8435_dt_ids,
 	},
 	.probe		= hi8435_probe,
 	.id_table	= hi8435_id,

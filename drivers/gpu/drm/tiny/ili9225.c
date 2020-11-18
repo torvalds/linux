@@ -24,6 +24,7 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_managed.h>
 #include <drm/drm_mipi_dbi.h>
 #include <drm/drm_rect.h>
 
@@ -87,9 +88,6 @@ static void ili9225_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
 	int idx, ret = 0;
 	bool full;
 	void *tr;
-
-	if (!dbidev->enabled)
-		return;
 
 	if (!drm_dev_enter(fb->dev, &idx))
 		return;
@@ -165,6 +163,9 @@ static void ili9225_pipe_update(struct drm_simple_display_pipe *pipe,
 {
 	struct drm_plane_state *state = pipe->plane.state;
 	struct drm_rect rect;
+
+	if (!pipe->crtc.state->active)
+		return;
 
 	if (drm_atomic_helper_damage_merged(old_state, state, &rect))
 		ili9225_fb_dirty(state->fb, &rect);
@@ -274,7 +275,6 @@ static void ili9225_pipe_enable(struct drm_simple_display_pipe *pipe,
 
 	ili9225_command(dbi, ILI9225_DISPLAY_CONTROL_1, 0x1017);
 
-	dbidev->enabled = true;
 	ili9225_fb_dirty(fb, &rect);
 out_exit:
 	drm_dev_exit(idx);
@@ -294,16 +294,11 @@ static void ili9225_pipe_disable(struct drm_simple_display_pipe *pipe)
 	 * unplug.
 	 */
 
-	if (!dbidev->enabled)
-		return;
-
 	ili9225_command(dbi, ILI9225_DISPLAY_CONTROL_1, 0x0000);
 	msleep(50);
 	ili9225_command(dbi, ILI9225_POWER_CONTROL_2, 0x0007);
 	msleep(50);
 	ili9225_command(dbi, ILI9225_POWER_CONTROL_1, 0x0a02);
-
-	dbidev->enabled = false;
 }
 
 static int ili9225_dbi_command(struct mipi_dbi *dbi, u8 *cmd, u8 *par,
@@ -345,8 +340,7 @@ DEFINE_DRM_GEM_CMA_FOPS(ili9225_fops);
 static struct drm_driver ili9225_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.fops			= &ili9225_fops,
-	.release		= mipi_dbi_release,
-	DRM_GEM_CMA_VMAP_DRIVER_OPS,
+	DRM_GEM_CMA_DRIVER_OPS_VMAP,
 	.name			= "ili9225",
 	.desc			= "Ilitek ILI9225",
 	.date			= "20171106",
@@ -376,19 +370,13 @@ static int ili9225_probe(struct spi_device *spi)
 	u32 rotation = 0;
 	int ret;
 
-	dbidev = kzalloc(sizeof(*dbidev), GFP_KERNEL);
-	if (!dbidev)
-		return -ENOMEM;
+	dbidev = devm_drm_dev_alloc(dev, &ili9225_driver,
+				    struct mipi_dbi_dev, drm);
+	if (IS_ERR(dbidev))
+		return PTR_ERR(dbidev);
 
 	dbi = &dbidev->dbi;
 	drm = &dbidev->drm;
-	ret = devm_drm_dev_init(dev, drm, &ili9225_driver);
-	if (ret) {
-		kfree(dbidev);
-		return ret;
-	}
-
-	drm_mode_config_init(drm);
 
 	dbi->reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(dbi->reset)) {

@@ -9,7 +9,7 @@ Supported chips:
 
     Addresses scanned: -
 
-    Datasheet: http://pdfserv.maximintegrated.com/en/ds/MAX31790.pdf
+    Datasheet: https://pdfserv.maximintegrated.com/en/ds/MAX31790.pdf
 
 Author: Il Han <corone.il.han@gmail.com>
 

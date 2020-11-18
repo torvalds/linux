@@ -326,7 +326,7 @@ bitmap_ip_create(struct net *net, struct ip_set *set, struct nlattr *tb[],
 	set->variant = &bitmap_ip;
 	if (!init_map_ip(set, map, first_ip, last_ip,
 			 elements, hosts, netmask)) {
-		kfree(map);
+		ip_set_free(map);
 		return -ENOMEM;
 	}
 	if (tb[IPSET_ATTR_TIMEOUT]) {

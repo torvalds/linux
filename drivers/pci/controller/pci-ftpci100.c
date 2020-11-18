@@ -422,7 +422,6 @@ static int faraday_pci_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	const struct faraday_pci_variant *variant =
 		of_device_get_match_data(dev);
-	struct resource *regs;
 	struct resource_entry *win;
 	struct faraday_pci *p;
 	struct resource *io;
@@ -437,12 +436,7 @@ static int faraday_pci_probe(struct platform_device *pdev)
 	if (!host)
 		return -ENOMEM;
 
-	host->dev.parent = dev;
 	host->ops = &faraday_pci_ops;
-	host->busnr = 0;
-	host->msi = NULL;
-	host->map_irq = of_irq_parse_and_map_pci;
-	host->swizzle_irq = pci_common_swizzle;
 	p = pci_host_bridge_priv(host);
 	host->sysdata = p;
 	p->dev = dev;
@@ -465,15 +459,9 @@ static int faraday_pci_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	p->base = devm_ioremap_resource(dev, regs);
+	p->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(p->base))
 		return PTR_ERR(p->base);
-
-	ret = pci_parse_request_of_pci_ranges(dev, &host->windows,
-					      &host->dma_ranges, NULL);
-	if (ret)
-		return ret;
 
 	win = resource_list_first_type(&host->windows, IORESOURCE_IO);
 	if (win) {

@@ -59,7 +59,7 @@ static irqreturn_t wm831x_ldo_uv_irq(int irq, void *data)
  * General purpose LDOs
  */
 
-static const struct regulator_linear_range wm831x_gp_ldo_ranges[] = {
+static const struct linear_range wm831x_gp_ldo_ranges[] = {
 	REGULATOR_LINEAR_RANGE(900000, 0, 14, 50000),
 	REGULATOR_LINEAR_RANGE(1700000, 15, 31, 100000),
 };
@@ -312,7 +312,7 @@ static struct platform_driver wm831x_gp_ldo_driver = {
  * Analogue LDOs
  */
 
-static const struct regulator_linear_range wm831x_aldo_ranges[] = {
+static const struct linear_range wm831x_aldo_ranges[] = {
 	REGULATOR_LINEAR_RANGE(1000000, 0, 12, 50000),
 	REGULATOR_LINEAR_RANGE(1700000, 13, 31, 100000),
 };

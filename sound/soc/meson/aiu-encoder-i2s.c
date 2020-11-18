@@ -72,11 +72,10 @@ static int aiu_encoder_i2s_setup_desc(struct snd_soc_component *component,
 {
 	/* Always operate in split (classic interleaved) mode */
 	unsigned int desc = AIU_I2S_SOURCE_DESC_MODE_SPLIT;
-	unsigned int val;
 
 	/* Reset required to update the pipeline */
 	snd_soc_component_write(component, AIU_RST_SOFT, AIU_RST_SOFT_I2S_FAST);
-	snd_soc_component_read(component, AIU_I2S_SYNC, &val);
+	snd_soc_component_read(component, AIU_I2S_SYNC);
 
 	switch (params_physical_width(params)) {
 	case 16: /* Nothing to do */

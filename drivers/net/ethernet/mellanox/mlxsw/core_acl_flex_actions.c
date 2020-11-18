@@ -67,7 +67,9 @@ struct mlxsw_afa {
 	struct rhashtable set_ht;
 	struct rhashtable fwd_entry_ht;
 	struct rhashtable cookie_ht;
+	struct rhashtable policer_ht;
 	struct idr cookie_idr;
+	struct list_head policer_list;
 };
 
 #define MLXSW_AFA_SET_LEN 0xA8
@@ -88,9 +90,11 @@ struct mlxsw_afa_set {
 	struct rhash_head ht_node;
 	struct mlxsw_afa_set_ht_key ht_key;
 	u32 kvdl_index;
-	bool shared; /* Inserted in hashtable (doesn't mean that
+	u8 shared:1, /* Inserted in hashtable (doesn't mean that
 		      * kvdl_index is valid).
 		      */
+	   has_trap:1,
+	   has_police:1;
 	unsigned int ref_count;
 	struct mlxsw_afa_set *next; /* Pointer to the next set. */
 	struct mlxsw_afa_set *prev; /* Pointer to the previous set,
@@ -175,6 +179,21 @@ static const struct rhashtable_params mlxsw_afa_cookie_ht_params = {
 	.automatic_shrinking = true,
 };
 
+struct mlxsw_afa_policer {
+	struct rhash_head ht_node;
+	struct list_head list; /* Member of policer_list */
+	refcount_t ref_count;
+	u32 fa_index;
+	u16 policer_index;
+};
+
+static const struct rhashtable_params mlxsw_afa_policer_ht_params = {
+	.key_len = sizeof(u32),
+	.key_offset = offsetof(struct mlxsw_afa_policer, fa_index),
+	.head_offset = offsetof(struct mlxsw_afa_policer, ht_node),
+	.automatic_shrinking = true,
+};
+
 struct mlxsw_afa *mlxsw_afa_create(unsigned int max_acts_per_set,
 				   const struct mlxsw_afa_ops *ops,
 				   void *ops_priv)
@@ -196,12 +215,19 @@ struct mlxsw_afa *mlxsw_afa_create(unsigned int max_acts_per_set,
 			      &mlxsw_afa_cookie_ht_params);
 	if (err)
 		goto err_cookie_rhashtable_init;
+	err = rhashtable_init(&mlxsw_afa->policer_ht,
+			      &mlxsw_afa_policer_ht_params);
+	if (err)
+		goto err_policer_rhashtable_init;
 	idr_init(&mlxsw_afa->cookie_idr);
+	INIT_LIST_HEAD(&mlxsw_afa->policer_list);
 	mlxsw_afa->max_acts_per_set = max_acts_per_set;
 	mlxsw_afa->ops = ops;
 	mlxsw_afa->ops_priv = ops_priv;
 	return mlxsw_afa;
 
+err_policer_rhashtable_init:
+	rhashtable_destroy(&mlxsw_afa->cookie_ht);
 err_cookie_rhashtable_init:
 	rhashtable_destroy(&mlxsw_afa->fwd_entry_ht);
 err_fwd_entry_rhashtable_init:
@@ -214,8 +240,10 @@ EXPORT_SYMBOL(mlxsw_afa_create);
 
 void mlxsw_afa_destroy(struct mlxsw_afa *mlxsw_afa)
 {
+	WARN_ON(!list_empty(&mlxsw_afa->policer_list));
 	WARN_ON(!idr_is_empty(&mlxsw_afa->cookie_idr));
 	idr_destroy(&mlxsw_afa->cookie_idr);
+	rhashtable_destroy(&mlxsw_afa->policer_ht);
 	rhashtable_destroy(&mlxsw_afa->cookie_ht);
 	rhashtable_destroy(&mlxsw_afa->fwd_entry_ht);
 	rhashtable_destroy(&mlxsw_afa->set_ht);
@@ -836,19 +864,172 @@ err_cookie_get:
 	return ERR_PTR(err);
 }
 
+static struct mlxsw_afa_policer *
+mlxsw_afa_policer_create(struct mlxsw_afa *mlxsw_afa, u32 fa_index,
+			 u64 rate_bytes_ps, u32 burst,
+			 struct netlink_ext_ack *extack)
+{
+	struct mlxsw_afa_policer *policer;
+	int err;
+
+	policer = kzalloc(sizeof(*policer), GFP_KERNEL);
+	if (!policer)
+		return ERR_PTR(-ENOMEM);
+
+	err = mlxsw_afa->ops->policer_add(mlxsw_afa->ops_priv, rate_bytes_ps,
+					  burst, &policer->policer_index,
+					  extack);
+	if (err)
+		goto err_policer_add;
+
+	refcount_set(&policer->ref_count, 1);
+	policer->fa_index = fa_index;
+
+	err = rhashtable_insert_fast(&mlxsw_afa->policer_ht, &policer->ht_node,
+				     mlxsw_afa_policer_ht_params);
+	if (err)
+		goto err_rhashtable_insert;
+
+	list_add_tail(&policer->list, &mlxsw_afa->policer_list);
+
+	return policer;
+
+err_rhashtable_insert:
+	mlxsw_afa->ops->policer_del(mlxsw_afa->ops_priv,
+				    policer->policer_index);
+err_policer_add:
+	kfree(policer);
+	return ERR_PTR(err);
+}
+
+static void mlxsw_afa_policer_destroy(struct mlxsw_afa *mlxsw_afa,
+				      struct mlxsw_afa_policer *policer)
+{
+	list_del(&policer->list);
+	rhashtable_remove_fast(&mlxsw_afa->policer_ht, &policer->ht_node,
+			       mlxsw_afa_policer_ht_params);
+	mlxsw_afa->ops->policer_del(mlxsw_afa->ops_priv,
+				    policer->policer_index);
+	kfree(policer);
+}
+
+static struct mlxsw_afa_policer *
+mlxsw_afa_policer_get(struct mlxsw_afa *mlxsw_afa, u32 fa_index,
+		      u64 rate_bytes_ps, u32 burst,
+		      struct netlink_ext_ack *extack)
+{
+	struct mlxsw_afa_policer *policer;
+
+	policer = rhashtable_lookup_fast(&mlxsw_afa->policer_ht, &fa_index,
+					 mlxsw_afa_policer_ht_params);
+	if (policer) {
+		refcount_inc(&policer->ref_count);
+		return policer;
+	}
+
+	return mlxsw_afa_policer_create(mlxsw_afa, fa_index, rate_bytes_ps,
+					burst, extack);
+}
+
+static void mlxsw_afa_policer_put(struct mlxsw_afa *mlxsw_afa,
+				  struct mlxsw_afa_policer *policer)
+{
+	if (!refcount_dec_and_test(&policer->ref_count))
+		return;
+	mlxsw_afa_policer_destroy(mlxsw_afa, policer);
+}
+
+struct mlxsw_afa_policer_ref {
+	struct mlxsw_afa_resource resource;
+	struct mlxsw_afa_policer *policer;
+};
+
+static void
+mlxsw_afa_policer_ref_destroy(struct mlxsw_afa_block *block,
+			      struct mlxsw_afa_policer_ref *policer_ref)
+{
+	mlxsw_afa_resource_del(&policer_ref->resource);
+	mlxsw_afa_policer_put(block->afa, policer_ref->policer);
+	kfree(policer_ref);
+}
+
+static void
+mlxsw_afa_policer_ref_destructor(struct mlxsw_afa_block *block,
+				 struct mlxsw_afa_resource *resource)
+{
+	struct mlxsw_afa_policer_ref *policer_ref;
+
+	policer_ref = container_of(resource, struct mlxsw_afa_policer_ref,
+				   resource);
+	mlxsw_afa_policer_ref_destroy(block, policer_ref);
+}
+
+static struct mlxsw_afa_policer_ref *
+mlxsw_afa_policer_ref_create(struct mlxsw_afa_block *block, u32 fa_index,
+			     u64 rate_bytes_ps, u32 burst,
+			     struct netlink_ext_ack *extack)
+{
+	struct mlxsw_afa_policer_ref *policer_ref;
+	struct mlxsw_afa_policer *policer;
+	int err;
+
+	policer_ref = kzalloc(sizeof(*policer_ref), GFP_KERNEL);
+	if (!policer_ref)
+		return ERR_PTR(-ENOMEM);
+
+	policer = mlxsw_afa_policer_get(block->afa, fa_index, rate_bytes_ps,
+					burst, extack);
+	if (IS_ERR(policer)) {
+		err = PTR_ERR(policer);
+		goto err_policer_get;
+	}
+
+	policer_ref->policer = policer;
+	policer_ref->resource.destructor = mlxsw_afa_policer_ref_destructor;
+	mlxsw_afa_resource_add(block, &policer_ref->resource);
+
+	return policer_ref;
+
+err_policer_get:
+	kfree(policer_ref);
+	return ERR_PTR(err);
+}
+
 #define MLXSW_AFA_ONE_ACTION_LEN 32
 #define MLXSW_AFA_PAYLOAD_OFFSET 4
 
-static char *mlxsw_afa_block_append_action(struct mlxsw_afa_block *block,
-					   u8 action_code, u8 action_size)
+enum mlxsw_afa_action_type {
+	MLXSW_AFA_ACTION_TYPE_TRAP,
+	MLXSW_AFA_ACTION_TYPE_POLICE,
+	MLXSW_AFA_ACTION_TYPE_OTHER,
+};
+
+static bool
+mlxsw_afa_block_need_split(const struct mlxsw_afa_block *block,
+			   enum mlxsw_afa_action_type type)
+{
+	struct mlxsw_afa_set *cur_set = block->cur_set;
+
+	/* Due to a hardware limitation, police action cannot be in the same
+	 * action set with MLXSW_AFA_TRAP_CODE or MLXSW_AFA_TRAPWU_CODE
+	 * actions. Work around this limitation by creating a new action set
+	 * and place the new action there.
+	 */
+	return (cur_set->has_trap && type == MLXSW_AFA_ACTION_TYPE_POLICE) ||
+	       (cur_set->has_police && type == MLXSW_AFA_ACTION_TYPE_TRAP);
+}
+
+static char *mlxsw_afa_block_append_action_ext(struct mlxsw_afa_block *block,
+					       u8 action_code, u8 action_size,
+					       enum mlxsw_afa_action_type type)
 {
 	char *oneact;
 	char *actions;
 
 	if (block->finished)
 		return ERR_PTR(-EINVAL);
-	if (block->cur_act_index + action_size >
-	    block->afa->max_acts_per_set) {
+	if (block->cur_act_index + action_size > block->afa->max_acts_per_set ||
+	    mlxsw_afa_block_need_split(block, type)) {
 		struct mlxsw_afa_set *set;
 
 		/* The appended action won't fit into the current action set,
@@ -863,11 +1044,30 @@ static char *mlxsw_afa_block_append_action(struct mlxsw_afa_block *block,
 		block->cur_set = set;
 	}
 
+	switch (type) {
+	case MLXSW_AFA_ACTION_TYPE_TRAP:
+		block->cur_set->has_trap = true;
+		break;
+	case MLXSW_AFA_ACTION_TYPE_POLICE:
+		block->cur_set->has_police = true;
+		break;
+	default:
+		break;
+	}
+
 	actions = block->cur_set->ht_key.enc_actions;
 	oneact = actions + block->cur_act_index * MLXSW_AFA_ONE_ACTION_LEN;
 	block->cur_act_index += action_size;
 	mlxsw_afa_all_action_type_set(oneact, action_code);
 	return oneact + MLXSW_AFA_PAYLOAD_OFFSET;
+}
+
+static char *mlxsw_afa_block_append_action(struct mlxsw_afa_block *block,
+					   u8 action_code, u8 action_size)
+{
+	return mlxsw_afa_block_append_action_ext(block, action_code,
+						 action_size,
+						 MLXSW_AFA_ACTION_TYPE_OTHER);
 }
 
 /* VLAN Action
@@ -1048,11 +1248,20 @@ mlxsw_afa_trap_mirror_pack(char *payload, bool mirror_enable,
 	mlxsw_afa_trap_mirror_agent_set(payload, mirror_agent);
 }
 
+static char *mlxsw_afa_block_append_action_trap(struct mlxsw_afa_block *block,
+						u8 action_code, u8 action_size)
+{
+	return mlxsw_afa_block_append_action_ext(block, action_code,
+						 action_size,
+						 MLXSW_AFA_ACTION_TYPE_TRAP);
+}
+
 static int mlxsw_afa_block_append_drop_plain(struct mlxsw_afa_block *block,
 					     bool ingress)
 {
-	char *act = mlxsw_afa_block_append_action(block, MLXSW_AFA_TRAP_CODE,
-						  MLXSW_AFA_TRAP_SIZE);
+	char *act = mlxsw_afa_block_append_action_trap(block,
+						       MLXSW_AFA_TRAP_CODE,
+						       MLXSW_AFA_TRAP_SIZE);
 
 	if (IS_ERR(act))
 		return PTR_ERR(act);
@@ -1081,8 +1290,8 @@ mlxsw_afa_block_append_drop_with_cookie(struct mlxsw_afa_block *block,
 	}
 	cookie_index = cookie_ref->cookie->cookie_index;
 
-	act = mlxsw_afa_block_append_action(block, MLXSW_AFA_TRAPWU_CODE,
-					    MLXSW_AFA_TRAPWU_SIZE);
+	act = mlxsw_afa_block_append_action_trap(block, MLXSW_AFA_TRAPWU_CODE,
+						 MLXSW_AFA_TRAPWU_SIZE);
 	if (IS_ERR(act)) {
 		NL_SET_ERR_MSG_MOD(extack, "Cannot append drop with cookie action");
 		err = PTR_ERR(act);
@@ -1113,8 +1322,9 @@ EXPORT_SYMBOL(mlxsw_afa_block_append_drop);
 
 int mlxsw_afa_block_append_trap(struct mlxsw_afa_block *block, u16 trap_id)
 {
-	char *act = mlxsw_afa_block_append_action(block, MLXSW_AFA_TRAP_CODE,
-						  MLXSW_AFA_TRAP_SIZE);
+	char *act = mlxsw_afa_block_append_action_trap(block,
+						       MLXSW_AFA_TRAP_CODE,
+						       MLXSW_AFA_TRAP_SIZE);
 
 	if (IS_ERR(act))
 		return PTR_ERR(act);
@@ -1127,8 +1337,9 @@ EXPORT_SYMBOL(mlxsw_afa_block_append_trap);
 int mlxsw_afa_block_append_trap_and_forward(struct mlxsw_afa_block *block,
 					    u16 trap_id)
 {
-	char *act = mlxsw_afa_block_append_action(block, MLXSW_AFA_TRAP_CODE,
-						  MLXSW_AFA_TRAP_SIZE);
+	char *act = mlxsw_afa_block_append_action_trap(block,
+						       MLXSW_AFA_TRAP_CODE,
+						       MLXSW_AFA_TRAP_SIZE);
 
 	if (IS_ERR(act))
 		return PTR_ERR(act);
@@ -1199,9 +1410,10 @@ static int
 mlxsw_afa_block_append_allocated_mirror(struct mlxsw_afa_block *block,
 					u8 mirror_agent)
 {
-	char *act = mlxsw_afa_block_append_action(block,
-						  MLXSW_AFA_TRAP_CODE,
-						  MLXSW_AFA_TRAP_SIZE);
+	char *act = mlxsw_afa_block_append_action_trap(block,
+						       MLXSW_AFA_TRAP_CODE,
+						       MLXSW_AFA_TRAP_SIZE);
+
 	if (IS_ERR(act))
 		return PTR_ERR(act);
 	mlxsw_afa_trap_pack(act, MLXSW_AFA_TRAP_TRAP_ACTION_NOP,
@@ -1496,6 +1708,19 @@ EXPORT_SYMBOL(mlxsw_afa_block_append_fwd);
 #define MLXSW_AFA_POLCNT_CODE 0x08
 #define MLXSW_AFA_POLCNT_SIZE 1
 
+enum {
+	MLXSW_AFA_POLCNT_COUNTER,
+	MLXSW_AFA_POLCNT_POLICER,
+};
+
+/* afa_polcnt_c_p
+ * Counter or policer.
+ * Indicates whether the action binds a policer or a counter to the flow.
+ * 0: Counter
+ * 1: Policer
+ */
+MLXSW_ITEM32(afa, polcnt, c_p, 0x00, 31, 1);
+
 enum mlxsw_afa_polcnt_counter_set_type {
 	/* No count */
 	MLXSW_AFA_POLCNT_COUNTER_SET_TYPE_NO_COUNT = 0x00,
@@ -1515,13 +1740,26 @@ MLXSW_ITEM32(afa, polcnt, counter_set_type, 0x04, 24, 8);
  */
 MLXSW_ITEM32(afa, polcnt, counter_index, 0x04, 0, 24);
 
+/* afa_polcnt_pid
+ * Policer ID.
+ * Reserved when c_p = 0
+ */
+MLXSW_ITEM32(afa, polcnt, pid, 0x08, 0, 14);
+
 static inline void
 mlxsw_afa_polcnt_pack(char *payload,
 		      enum mlxsw_afa_polcnt_counter_set_type set_type,
 		      u32 counter_index)
 {
+	mlxsw_afa_polcnt_c_p_set(payload, MLXSW_AFA_POLCNT_COUNTER);
 	mlxsw_afa_polcnt_counter_set_type_set(payload, set_type);
 	mlxsw_afa_polcnt_counter_index_set(payload, counter_index);
+}
+
+static void mlxsw_afa_polcnt_policer_pack(char *payload, u16 policer_index)
+{
+	mlxsw_afa_polcnt_c_p_set(payload, MLXSW_AFA_POLCNT_POLICER);
+	mlxsw_afa_polcnt_pid_set(payload, policer_index);
 }
 
 int mlxsw_afa_block_append_allocated_counter(struct mlxsw_afa_block *block,
@@ -1566,6 +1804,40 @@ err_append_allocated_counter:
 	return err;
 }
 EXPORT_SYMBOL(mlxsw_afa_block_append_counter);
+
+int mlxsw_afa_block_append_police(struct mlxsw_afa_block *block,
+				  u32 fa_index, u64 rate_bytes_ps, u32 burst,
+				  u16 *p_policer_index,
+				  struct netlink_ext_ack *extack)
+{
+	struct mlxsw_afa_policer_ref *policer_ref;
+	char *act;
+	int err;
+
+	policer_ref = mlxsw_afa_policer_ref_create(block, fa_index,
+						   rate_bytes_ps,
+						   burst, extack);
+	if (IS_ERR(policer_ref))
+		return PTR_ERR(policer_ref);
+	*p_policer_index = policer_ref->policer->policer_index;
+
+	act = mlxsw_afa_block_append_action_ext(block, MLXSW_AFA_POLCNT_CODE,
+						MLXSW_AFA_POLCNT_SIZE,
+						MLXSW_AFA_ACTION_TYPE_POLICE);
+	if (IS_ERR(act)) {
+		NL_SET_ERR_MSG_MOD(extack, "Cannot append police action");
+		err = PTR_ERR(act);
+		goto err_append_action;
+	}
+	mlxsw_afa_polcnt_policer_pack(act, *p_policer_index);
+
+	return 0;
+
+err_append_action:
+	mlxsw_afa_policer_ref_destroy(block, policer_ref);
+	return err;
+}
+EXPORT_SYMBOL(mlxsw_afa_block_append_police);
 
 /* Virtual Router and Forwarding Domain Action
  * -------------------------------------------
@@ -1684,3 +1956,54 @@ int mlxsw_afa_block_append_mcrouter(struct mlxsw_afa_block *block,
 	return 0;
 }
 EXPORT_SYMBOL(mlxsw_afa_block_append_mcrouter);
+
+/* L4 Port Action
+ * --------------
+ * The L4_PORT_ACTION is used for modifying the sport and dport fields of the packet, e.g. for NAT.
+ * If (the L4 is TCP) or if (the L4 is UDP and checksum field!=0) then the L4 checksum is updated.
+ */
+
+#define MLXSW_AFA_L4PORT_CODE 0x12
+#define MLXSW_AFA_L4PORT_SIZE 1
+
+enum mlxsw_afa_l4port_s_d {
+	/* configure src_l4_port */
+	MLXSW_AFA_L4PORT_S_D_SRC,
+	/* configure dst_l4_port */
+	MLXSW_AFA_L4PORT_S_D_DST,
+};
+
+/* afa_l4port_s_d
+ * Source or destination.
+ */
+MLXSW_ITEM32(afa, l4port, s_d, 0x00, 31, 1);
+
+/* afa_l4port_l4_port
+ * Number of port to change to.
+ */
+MLXSW_ITEM32(afa, l4port, l4_port, 0x08, 0, 16);
+
+static void mlxsw_afa_l4port_pack(char *payload, enum mlxsw_afa_l4port_s_d s_d, u16 l4_port)
+{
+	mlxsw_afa_l4port_s_d_set(payload, s_d);
+	mlxsw_afa_l4port_l4_port_set(payload, l4_port);
+}
+
+int mlxsw_afa_block_append_l4port(struct mlxsw_afa_block *block, bool is_dport, u16 l4_port,
+				  struct netlink_ext_ack *extack)
+{
+	enum mlxsw_afa_l4port_s_d s_d = is_dport ? MLXSW_AFA_L4PORT_S_D_DST :
+						   MLXSW_AFA_L4PORT_S_D_SRC;
+	char *act = mlxsw_afa_block_append_action(block,
+						  MLXSW_AFA_L4PORT_CODE,
+						  MLXSW_AFA_L4PORT_SIZE);
+
+	if (IS_ERR(act)) {
+		NL_SET_ERR_MSG_MOD(extack, "Cannot append L4_PORT action");
+		return PTR_ERR(act);
+	}
+
+	mlxsw_afa_l4port_pack(act, s_d, l4_port);
+	return 0;
+}
+EXPORT_SYMBOL(mlxsw_afa_block_append_l4port);

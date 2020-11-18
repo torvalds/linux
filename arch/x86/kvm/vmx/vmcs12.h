@@ -80,10 +80,7 @@ struct __packed vmcs12 {
 	natural_width cr4_guest_host_mask;
 	natural_width cr0_read_shadow;
 	natural_width cr4_read_shadow;
-	natural_width cr3_target_value0;
-	natural_width cr3_target_value1;
-	natural_width cr3_target_value2;
-	natural_width cr3_target_value3;
+	natural_width dead_space[4]; /* Last remnants of cr3_target_value[0-3]. */
 	natural_width exit_qualification;
 	natural_width guest_linear_address;
 	natural_width guest_cr0;
@@ -263,10 +260,7 @@ static inline void vmx_check_vmcs12_offsets(void)
 	CHECK_OFFSET(cr4_guest_host_mask, 352);
 	CHECK_OFFSET(cr0_read_shadow, 360);
 	CHECK_OFFSET(cr4_read_shadow, 368);
-	CHECK_OFFSET(cr3_target_value0, 376);
-	CHECK_OFFSET(cr3_target_value1, 384);
-	CHECK_OFFSET(cr3_target_value2, 392);
-	CHECK_OFFSET(cr3_target_value3, 400);
+	CHECK_OFFSET(dead_space, 376);
 	CHECK_OFFSET(exit_qualification, 408);
 	CHECK_OFFSET(guest_linear_address, 416);
 	CHECK_OFFSET(guest_cr0, 424);

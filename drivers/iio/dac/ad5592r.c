@@ -98,7 +98,7 @@ static int ad5592r_reg_read(struct ad5592r_state *st, u8 reg, u16 *value)
 	return 0;
 }
 
-static int ad5593r_gpio_read(struct ad5592r_state *st, u8 *value)
+static int ad5592r_gpio_read(struct ad5592r_state *st, u8 *value)
 {
 	int ret;
 
@@ -121,7 +121,7 @@ static const struct ad5592r_rw_ops ad5592r_rw_ops = {
 	.read_adc = ad5592r_read_adc,
 	.reg_write = ad5592r_reg_write,
 	.reg_read = ad5592r_reg_read,
-	.gpio_read = ad5593r_gpio_read,
+	.gpio_read = ad5592r_gpio_read,
 };
 
 static int ad5592r_spi_probe(struct spi_device *spi)

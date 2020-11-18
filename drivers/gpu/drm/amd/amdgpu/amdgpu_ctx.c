@@ -26,6 +26,7 @@
 #include "amdgpu.h"
 #include "amdgpu_sched.h"
 #include "amdgpu_ras.h"
+#include <linux/nospec.h>
 
 #define to_amdgpu_ctx_entity(e)	\
 	container_of((e), struct amdgpu_ctx_entity, entity)
@@ -72,13 +73,30 @@ static enum gfx_pipe_priority amdgpu_ctx_sched_prio_to_compute_prio(enum drm_sch
 	}
 }
 
-static int amdgpu_ctx_init_entity(struct amdgpu_ctx *ctx, const u32 hw_ip, const u32 ring)
+static unsigned int amdgpu_ctx_prio_sched_to_hw(struct amdgpu_device *adev,
+						 enum drm_sched_priority prio,
+						 u32 hw_ip)
+{
+	unsigned int hw_prio;
+
+	hw_prio = (hw_ip == AMDGPU_HW_IP_COMPUTE) ?
+			amdgpu_ctx_sched_prio_to_compute_prio(prio) :
+			AMDGPU_RING_PRIO_DEFAULT;
+	hw_ip = array_index_nospec(hw_ip, AMDGPU_HW_IP_NUM);
+	if (adev->gpu_sched[hw_ip][hw_prio].num_scheds == 0)
+		hw_prio = AMDGPU_RING_PRIO_DEFAULT;
+
+	return hw_prio;
+}
+
+static int amdgpu_ctx_init_entity(struct amdgpu_ctx *ctx, u32 hw_ip,
+				   const u32 ring)
 {
 	struct amdgpu_device *adev = ctx->adev;
 	struct amdgpu_ctx_entity *entity;
 	struct drm_gpu_scheduler **scheds = NULL, *sched = NULL;
 	unsigned num_scheds = 0;
-	enum gfx_pipe_priority hw_prio;
+	unsigned int hw_prio;
 	enum drm_sched_priority priority;
 	int r;
 
@@ -90,52 +108,16 @@ static int amdgpu_ctx_init_entity(struct amdgpu_ctx *ctx, const u32 hw_ip, const
 	entity->sequence = 1;
 	priority = (ctx->override_priority == DRM_SCHED_PRIORITY_UNSET) ?
 				ctx->init_priority : ctx->override_priority;
-	switch (hw_ip) {
-	case AMDGPU_HW_IP_GFX:
-		sched = &adev->gfx.gfx_ring[0].sched;
+	hw_prio = amdgpu_ctx_prio_sched_to_hw(adev, priority, hw_ip);
+
+	hw_ip = array_index_nospec(hw_ip, AMDGPU_HW_IP_NUM);
+	scheds = adev->gpu_sched[hw_ip][hw_prio].sched;
+	num_scheds = adev->gpu_sched[hw_ip][hw_prio].num_scheds;
+
+	if (hw_ip == AMDGPU_HW_IP_VCN_ENC || hw_ip == AMDGPU_HW_IP_VCN_DEC) {
+		sched = drm_sched_pick_best(scheds, num_scheds);
 		scheds = &sched;
 		num_scheds = 1;
-		break;
-	case AMDGPU_HW_IP_COMPUTE:
-		hw_prio = amdgpu_ctx_sched_prio_to_compute_prio(priority);
-		scheds = adev->gfx.compute_prio_sched[hw_prio];
-		num_scheds = adev->gfx.num_compute_sched[hw_prio];
-		break;
-	case AMDGPU_HW_IP_DMA:
-		scheds = adev->sdma.sdma_sched;
-		num_scheds = adev->sdma.num_sdma_sched;
-		break;
-	case AMDGPU_HW_IP_UVD:
-		sched = &adev->uvd.inst[0].ring.sched;
-		scheds = &sched;
-		num_scheds = 1;
-		break;
-	case AMDGPU_HW_IP_VCE:
-		sched = &adev->vce.ring[0].sched;
-		scheds = &sched;
-		num_scheds = 1;
-		break;
-	case AMDGPU_HW_IP_UVD_ENC:
-		sched = &adev->uvd.inst[0].ring_enc[0].sched;
-		scheds = &sched;
-		num_scheds = 1;
-		break;
-	case AMDGPU_HW_IP_VCN_DEC:
-		sched = drm_sched_pick_best(adev->vcn.vcn_dec_sched,
-					    adev->vcn.num_vcn_dec_sched);
-		scheds = &sched;
-		num_scheds = 1;
-		break;
-	case AMDGPU_HW_IP_VCN_ENC:
-		sched = drm_sched_pick_best(adev->vcn.vcn_enc_sched,
-					    adev->vcn.num_vcn_enc_sched);
-		scheds = &sched;
-		num_scheds = 1;
-		break;
-	case AMDGPU_HW_IP_VCN_JPEG:
-		scheds = adev->jpeg.jpeg_sched;
-		num_scheds =  adev->jpeg.num_jpeg_sched;
-		break;
 	}
 
 	r = drm_sched_entity_init(&entity->entity, priority, scheds, num_scheds,
@@ -178,7 +160,6 @@ static int amdgpu_ctx_init(struct amdgpu_device *adev,
 	ctx->override_priority = DRM_SCHED_PRIORITY_UNSET;
 
 	return 0;
-
 }
 
 static void amdgpu_ctx_fini_entity(struct amdgpu_ctx_entity *entity)
@@ -525,7 +506,7 @@ static void amdgpu_ctx_set_entity_priority(struct amdgpu_ctx *ctx,
 					    enum drm_sched_priority priority)
 {
 	struct amdgpu_device *adev = ctx->adev;
-	enum gfx_pipe_priority hw_prio;
+	unsigned int hw_prio;
 	struct drm_gpu_scheduler **scheds = NULL;
 	unsigned num_scheds;
 
@@ -534,9 +515,11 @@ static void amdgpu_ctx_set_entity_priority(struct amdgpu_ctx *ctx,
 
 	/* set hw priority */
 	if (hw_ip == AMDGPU_HW_IP_COMPUTE) {
-		hw_prio = amdgpu_ctx_sched_prio_to_compute_prio(priority);
-		scheds = adev->gfx.compute_prio_sched[hw_prio];
-		num_scheds = adev->gfx.num_compute_sched[hw_prio];
+		hw_prio = amdgpu_ctx_prio_sched_to_hw(adev, priority,
+						      AMDGPU_HW_IP_COMPUTE);
+		hw_prio = array_index_nospec(hw_prio, AMDGPU_RING_PRIO_MAX);
+		scheds = adev->gpu_sched[hw_ip][hw_prio].sched;
+		num_scheds = adev->gpu_sched[hw_ip][hw_prio].num_scheds;
 		drm_sched_entity_modify_sched(&aentity->entity, scheds,
 					      num_scheds);
 	}
@@ -664,79 +647,4 @@ void amdgpu_ctx_mgr_fini(struct amdgpu_ctx_mgr *mgr)
 
 	idr_destroy(&mgr->ctx_handles);
 	mutex_destroy(&mgr->lock);
-}
-
-
-static void amdgpu_ctx_init_compute_sched(struct amdgpu_device *adev)
-{
-	int num_compute_sched_normal = 0;
-	int num_compute_sched_high = AMDGPU_MAX_COMPUTE_RINGS - 1;
-	int i;
-
-	/* use one drm sched array, gfx.compute_sched to store both high and
-	 * normal priority drm compute schedulers */
-	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
-		if (!adev->gfx.compute_ring[i].has_high_prio)
-			adev->gfx.compute_sched[num_compute_sched_normal++] =
-				&adev->gfx.compute_ring[i].sched;
-		else
-			adev->gfx.compute_sched[num_compute_sched_high--] =
-				&adev->gfx.compute_ring[i].sched;
-	}
-
-	/* compute ring only has two priority for now */
-	i = AMDGPU_GFX_PIPE_PRIO_NORMAL;
-	adev->gfx.compute_prio_sched[i] = &adev->gfx.compute_sched[0];
-	adev->gfx.num_compute_sched[i] = num_compute_sched_normal;
-
-	i = AMDGPU_GFX_PIPE_PRIO_HIGH;
-	if (num_compute_sched_high == (AMDGPU_MAX_COMPUTE_RINGS - 1)) {
-		/* When compute has no high priority rings then use */
-		/* normal priority sched array */
-		adev->gfx.compute_prio_sched[i] = &adev->gfx.compute_sched[0];
-		adev->gfx.num_compute_sched[i] = num_compute_sched_normal;
-	} else {
-		adev->gfx.compute_prio_sched[i] =
-			&adev->gfx.compute_sched[num_compute_sched_high - 1];
-		adev->gfx.num_compute_sched[i] =
-			adev->gfx.num_compute_rings - num_compute_sched_normal;
-	}
-}
-
-void amdgpu_ctx_init_sched(struct amdgpu_device *adev)
-{
-	int i, j;
-
-	amdgpu_ctx_init_compute_sched(adev);
-	for (i = 0; i < adev->gfx.num_gfx_rings; i++) {
-		adev->gfx.gfx_sched[i] = &adev->gfx.gfx_ring[i].sched;
-		adev->gfx.num_gfx_sched++;
-	}
-
-	for (i = 0; i < adev->sdma.num_instances; i++) {
-		adev->sdma.sdma_sched[i] = &adev->sdma.instance[i].ring.sched;
-		adev->sdma.num_sdma_sched++;
-	}
-
-	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
-		if (adev->vcn.harvest_config & (1 << i))
-			continue;
-		adev->vcn.vcn_dec_sched[adev->vcn.num_vcn_dec_sched++] =
-			&adev->vcn.inst[i].ring_dec.sched;
-	}
-
-	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
-		if (adev->vcn.harvest_config & (1 << i))
-			continue;
-		for (j = 0; j < adev->vcn.num_enc_rings; ++j)
-			adev->vcn.vcn_enc_sched[adev->vcn.num_vcn_enc_sched++] =
-				&adev->vcn.inst[i].ring_enc[j].sched;
-	}
-
-	for (i = 0; i < adev->jpeg.num_jpeg_inst; ++i) {
-		if (adev->jpeg.harvest_config & (1 << i))
-			continue;
-		adev->jpeg.jpeg_sched[adev->jpeg.num_jpeg_sched++] =
-			&adev->jpeg.inst[i].ring_dec.sched;
-	}
 }

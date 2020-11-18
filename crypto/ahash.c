@@ -183,7 +183,7 @@ static int ahash_setkey_unaligned(struct crypto_ahash *tfm, const u8 *key,
 	alignbuffer = (u8 *)ALIGN((unsigned long)buffer, alignmask + 1);
 	memcpy(alignbuffer, key, keylen);
 	ret = tfm->setkey(tfm, alignbuffer, keylen);
-	kzfree(buffer);
+	kfree_sensitive(buffer);
 	return ret;
 }
 
@@ -302,7 +302,7 @@ static void ahash_restore_req(struct ahash_request *req, int err)
 	req->priv = NULL;
 
 	/* Free the req->priv.priv from the ADJUSTED request. */
-	kzfree(priv);
+	kfree_sensitive(priv);
 }
 
 static void ahash_notify_einprogress(struct ahash_request *req)

@@ -5,7 +5,6 @@
 #include <linux/list.h>
 #include <linux/netlink.h>
 #include <net/flow_dissector.h>
-#include <linux/rhashtable.h>
 
 struct flow_match {
 	struct flow_dissector	*dissector;
@@ -147,6 +146,7 @@ enum flow_action_id {
 	FLOW_ACTION_MPLS_PUSH,
 	FLOW_ACTION_MPLS_POP,
 	FLOW_ACTION_MPLS_MANGLE,
+	FLOW_ACTION_GATE,
 	NUM_FLOW_ACTIONS,
 };
 
@@ -167,10 +167,11 @@ enum flow_action_hw_stats_bit {
 	FLOW_ACTION_HW_STATS_IMMEDIATE_BIT,
 	FLOW_ACTION_HW_STATS_DELAYED_BIT,
 	FLOW_ACTION_HW_STATS_DISABLED_BIT,
+
+	FLOW_ACTION_HW_STATS_NUM_BITS
 };
 
 enum flow_action_hw_stats {
-	FLOW_ACTION_HW_STATS_DONT_CARE = 0,
 	FLOW_ACTION_HW_STATS_IMMEDIATE =
 		BIT(FLOW_ACTION_HW_STATS_IMMEDIATE_BIT),
 	FLOW_ACTION_HW_STATS_DELAYED = BIT(FLOW_ACTION_HW_STATS_DELAYED_BIT),
@@ -178,6 +179,7 @@ enum flow_action_hw_stats {
 				   FLOW_ACTION_HW_STATS_DELAYED,
 	FLOW_ACTION_HW_STATS_DISABLED =
 		BIT(FLOW_ACTION_HW_STATS_DISABLED_BIT),
+	FLOW_ACTION_HW_STATS_DONT_CARE = BIT(FLOW_ACTION_HW_STATS_NUM_BITS) - 1,
 };
 
 typedef void (*action_destr)(void *priv);
@@ -229,8 +231,10 @@ struct flow_action_entry {
 			bool			truncate;
 		} sample;
 		struct {				/* FLOW_ACTION_POLICE */
-			s64			burst;
+			u32			index;
+			u32			burst;
 			u64			rate_bytes_ps;
+			u32			mtu;
 		} police;
 		struct {				/* FLOW_ACTION_CT */
 			int action;
@@ -258,6 +262,15 @@ struct flow_action_entry {
 			u8		bos;
 			u8		ttl;
 		} mpls_mangle;
+		struct {
+			u32		index;
+			s32		prio;
+			u64		basetime;
+			u64		cycletime;
+			u64		cycletimeext;
+			u32		num_entries;
+			struct action_gate_entry *entries;
+		} gate;
 	};
 	struct flow_action_cookie *cookie; /* user defined action cookie */
 };
@@ -293,7 +306,7 @@ flow_action_mixed_hw_stats_check(const struct flow_action *action,
 				 struct netlink_ext_ack *extack)
 {
 	const struct flow_action_entry *action_entry;
-	u8 uninitialized_var(last_hw_stats);
+	u8 last_hw_stats;
 	int i;
 
 	if (flow_offload_has_one_action(action))
@@ -330,11 +343,12 @@ __flow_action_hw_stats_check(const struct flow_action *action,
 		return false;
 
 	action_entry = flow_action_first_entry_get(action);
-	if (action_entry->hw_stats == FLOW_ACTION_HW_STATS_DONT_CARE)
-		return true;
+
+	/* Zero is not a legal value for hw_stats, catch anyone passing it */
+	WARN_ON_ONCE(!action_entry->hw_stats);
 
 	if (!check_allow_bit &&
-	    action_entry->hw_stats != FLOW_ACTION_HW_STATS_ANY) {
+	    ~action_entry->hw_stats & FLOW_ACTION_HW_STATS_ANY) {
 		NL_SET_ERR_MSG_MOD(extack, "Driver supports only default HW stats type \"any\"");
 		return false;
 	} else if (check_allow_bit &&
@@ -376,17 +390,20 @@ static inline bool flow_rule_match_key(const struct flow_rule *rule,
 struct flow_stats {
 	u64	pkts;
 	u64	bytes;
+	u64	drops;
 	u64	lastused;
 	enum flow_action_hw_stats used_hw_stats;
 	bool used_hw_stats_valid;
 };
 
 static inline void flow_stats_update(struct flow_stats *flow_stats,
-				     u64 bytes, u64 pkts, u64 lastused,
+				     u64 bytes, u64 pkts,
+				     u64 drops, u64 lastused,
 				     enum flow_action_hw_stats used_hw_stats)
 {
 	flow_stats->pkts	+= pkts;
 	flow_stats->bytes	+= bytes;
+	flow_stats->drops	+= drops;
 	flow_stats->lastused	= max_t(u64, flow_stats->lastused, lastused);
 
 	/* The driver should pass value with a maximum of one bit set.
@@ -406,6 +423,8 @@ enum flow_block_binder_type {
 	FLOW_BLOCK_BINDER_TYPE_UNSPEC,
 	FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS,
 	FLOW_BLOCK_BINDER_TYPE_CLSACT_EGRESS,
+	FLOW_BLOCK_BINDER_TYPE_RED_EARLY_DROP,
+	FLOW_BLOCK_BINDER_TYPE_RED_MARK,
 };
 
 struct flow_block {
@@ -424,11 +443,24 @@ struct flow_block_offload {
 	struct list_head cb_list;
 	struct list_head *driver_block_list;
 	struct netlink_ext_ack *extack;
+	struct Qdisc *sch;
 };
 
 enum tc_setup_type;
 typedef int flow_setup_cb_t(enum tc_setup_type type, void *type_data,
 			    void *cb_priv);
+
+struct flow_block_cb;
+
+struct flow_block_indr {
+	struct list_head		list;
+	struct net_device		*dev;
+	struct Qdisc			*sch;
+	enum flow_block_binder_type	binder_type;
+	void				*data;
+	void				*cb_priv;
+	void				(*cleanup)(struct flow_block_cb *block_cb);
+};
 
 struct flow_block_cb {
 	struct list_head	driver_list;
@@ -437,12 +469,21 @@ struct flow_block_cb {
 	void			*cb_ident;
 	void			*cb_priv;
 	void			(*release)(void *cb_priv);
+	struct flow_block_indr	indr;
 	unsigned int		refcnt;
 };
 
 struct flow_block_cb *flow_block_cb_alloc(flow_setup_cb_t *cb,
 					  void *cb_ident, void *cb_priv,
 					  void (*release)(void *cb_priv));
+struct flow_block_cb *flow_indr_block_cb_alloc(flow_setup_cb_t *cb,
+					       void *cb_ident, void *cb_priv,
+					       void (*release)(void *cb_priv),
+					       struct flow_block_offload *bo,
+					       struct net_device *dev,
+					       struct Qdisc *sch, void *data,
+					       void *indr_cb_priv,
+					       void (*cleanup)(struct flow_block_cb *block_cb));
 void flow_block_cb_free(struct flow_block_cb *block_cb);
 
 struct flow_block_cb *flow_block_cb_lookup(struct flow_block *block,
@@ -461,6 +502,13 @@ static inline void flow_block_cb_add(struct flow_block_cb *block_cb,
 static inline void flow_block_cb_remove(struct flow_block_cb *block_cb,
 					struct flow_block_offload *offload)
 {
+	list_move(&block_cb->list, &offload->cb_list);
+}
+
+static inline void flow_indr_block_cb_remove(struct flow_block_cb *block_cb,
+					     struct flow_block_offload *offload)
+{
+	list_del(&block_cb->indr.list);
 	list_move(&block_cb->list, &offload->cb_list);
 }
 
@@ -507,40 +555,17 @@ static inline void flow_block_init(struct flow_block *flow_block)
 	INIT_LIST_HEAD(&flow_block->cb_list);
 }
 
-typedef int flow_indr_block_bind_cb_t(struct net_device *dev, void *cb_priv,
-				      enum tc_setup_type type, void *type_data);
+typedef int flow_indr_block_bind_cb_t(struct net_device *dev, struct Qdisc *sch, void *cb_priv,
+				      enum tc_setup_type type, void *type_data,
+				      void *data,
+				      void (*cleanup)(struct flow_block_cb *block_cb));
 
-typedef void flow_indr_block_cmd_t(struct net_device *dev,
-				   flow_indr_block_bind_cb_t *cb, void *cb_priv,
-				   enum flow_block_command command);
-
-struct flow_indr_block_entry {
-	flow_indr_block_cmd_t *cb;
-	struct list_head	list;
-};
-
-void flow_indr_add_block_cb(struct flow_indr_block_entry *entry);
-
-void flow_indr_del_block_cb(struct flow_indr_block_entry *entry);
-
-int __flow_indr_block_cb_register(struct net_device *dev, void *cb_priv,
-				  flow_indr_block_bind_cb_t *cb,
-				  void *cb_ident);
-
-void __flow_indr_block_cb_unregister(struct net_device *dev,
-				     flow_indr_block_bind_cb_t *cb,
-				     void *cb_ident);
-
-int flow_indr_block_cb_register(struct net_device *dev, void *cb_priv,
-				flow_indr_block_bind_cb_t *cb, void *cb_ident);
-
-void flow_indr_block_cb_unregister(struct net_device *dev,
-				   flow_indr_block_bind_cb_t *cb,
-				   void *cb_ident);
-
-void flow_indr_block_call(struct net_device *dev,
-			  struct flow_block_offload *bo,
-			  enum flow_block_command command,
-			  enum tc_setup_type type);
+int flow_indr_dev_register(flow_indr_block_bind_cb_t *cb, void *cb_priv);
+void flow_indr_dev_unregister(flow_indr_block_bind_cb_t *cb, void *cb_priv,
+			      void (*release)(void *cb_priv));
+int flow_indr_dev_setup_offload(struct net_device *dev, struct Qdisc *sch,
+				enum tc_setup_type type, void *data,
+				struct flow_block_offload *bo,
+				void (*cleanup)(struct flow_block_cb *block_cb));
 
 #endif /* _NET_FLOW_OFFLOAD_H */

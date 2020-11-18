@@ -280,7 +280,7 @@ void __kprobes kprobe_handler(struct pt_regs *regs)
 				/* A nested probe was hit in FIQ, it is a BUG */
 				pr_warn("Unrecoverable kprobe detected.\n");
 				dump_kprobe(p);
-				/* fall through */
+				fallthrough;
 			default:
 				/* impossible cases */
 				BUG();

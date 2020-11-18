@@ -518,6 +518,15 @@ static int setup_fmt_after_resume_quirk(struct snd_usb_audio *chip,
 	return 1;	/* Continue with creating streams and mixer */
 }
 
+static int setup_disable_autosuspend(struct snd_usb_audio *chip,
+				       struct usb_interface *iface,
+				       struct usb_driver *driver,
+				       const struct snd_usb_audio_quirk *quirk)
+{
+	driver->supports_autosuspend = 0;
+	return 1;	/* Continue with creating streams and mixer */
+}
+
 /*
  * audio-interface quirks
  *
@@ -557,6 +566,7 @@ int snd_usb_create_quirk(struct snd_usb_audio *chip,
 		[QUIRK_AUDIO_ALIGN_TRANSFER] = create_align_transfer_quirk,
 		[QUIRK_AUDIO_STANDARD_MIXER] = create_standard_mixer_quirk,
 		[QUIRK_SETUP_FMT_AFTER_RESUME] = setup_fmt_after_resume_quirk,
+		[QUIRK_SETUP_DISABLE_AUTOSUSPEND] = setup_disable_autosuspend,
 	};
 
 	if (quirk->type < QUIRK_TYPE_COUNT) {
@@ -1144,14 +1154,14 @@ static int snd_usb_motu_m_series_boot_quirk(struct usb_device *dev)
 #define MAUDIO_SET		0x01 /* parse device_setup */
 #define MAUDIO_SET_COMPATIBLE	0x80 /* use only "win-compatible" interfaces */
 #define MAUDIO_SET_DTS		0x02 /* enable DTS Digital Output */
-#define MAUDIO_SET_96K		0x04 /* 48-96KHz rate if set, 8-48KHz otherwise */
+#define MAUDIO_SET_96K		0x04 /* 48-96kHz rate if set, 8-48kHz otherwise */
 #define MAUDIO_SET_24B		0x08 /* 24bits sample if set, 16bits otherwise */
 #define MAUDIO_SET_DI		0x10 /* enable Digital Input */
 #define MAUDIO_SET_MASK		0x1f /* bit mask for setup value */
-#define MAUDIO_SET_24B_48K_DI	 0x19 /* 24bits+48KHz+Digital Input */
-#define MAUDIO_SET_24B_48K_NOTDI 0x09 /* 24bits+48KHz+No Digital Input */
-#define MAUDIO_SET_16B_48K_DI	 0x11 /* 16bits+48KHz+Digital Input */
-#define MAUDIO_SET_16B_48K_NOTDI 0x01 /* 16bits+48KHz+No Digital Input */
+#define MAUDIO_SET_24B_48K_DI	 0x19 /* 24bits+48kHz+Digital Input */
+#define MAUDIO_SET_24B_48K_NOTDI 0x09 /* 24bits+48kHz+No Digital Input */
+#define MAUDIO_SET_16B_48K_DI	 0x11 /* 16bits+48kHz+Digital Input */
+#define MAUDIO_SET_16B_48K_NOTDI 0x01 /* 16bits+48kHz+No Digital Input */
 
 static int quattro_skip_setting_quirk(struct snd_usb_audio *chip,
 				      int iface, int altno)
@@ -1458,6 +1468,30 @@ static void set_format_emu_quirk(struct snd_usb_substream *subs,
 	subs->pkt_offset_adj = (emu_samplerate_id >= EMU_QUIRK_SR_176400HZ) ? 4 : 0;
 }
 
+
+/*
+ * Pioneer DJ DJM-900NXS2
+ * Device needs to know the sample rate each time substream is started
+ */
+static int pioneer_djm_set_format_quirk(struct snd_usb_substream *subs)
+{
+
+	/* Convert sample rate value to little endian */
+	u8 sr[3];
+
+	sr[0] = subs->cur_rate & 0xff;
+	sr[1] = (subs->cur_rate >> 8) & 0xff;
+	sr[2] = (subs->cur_rate >> 16) & 0xff;
+
+	/* Configure device */
+	usb_set_interface(subs->dev, 0, 1);
+	snd_usb_ctl_msg(subs->stream->chip->dev,
+		usb_rcvctrlpipe(subs->stream->chip->dev, 0),
+		0x01, 0x22, 0x0100, 0x0082, &sr, 0x0003);
+
+	return 0;
+}
+
 void snd_usb_set_format_quirk(struct snd_usb_substream *subs,
 			      struct audioformat *fmt)
 {
@@ -1467,6 +1501,13 @@ void snd_usb_set_format_quirk(struct snd_usb_substream *subs,
 	case USB_ID(0x041e, 0x3f0a): /* E-Mu Tracker Pre */
 	case USB_ID(0x041e, 0x3f19): /* E-Mu 0204 USB */
 		set_format_emu_quirk(subs, fmt);
+		break;
+	case USB_ID(0x2b73, 0x000a): /* Pioneer DJ DJM-900NXS2 */
+	case USB_ID(0x2b73, 0x0017): /* Pioneer DJ DJM-250MK2 */
+		pioneer_djm_set_format_quirk(subs);
+		break;
+	case USB_ID(0x534d, 0x2109): /* MacroSilicon MS2109 */
+		subs->stream_offset_adj = 2;
 		break;
 	}
 }
@@ -1505,6 +1546,7 @@ bool snd_usb_get_sample_rate_quirk(struct snd_usb_audio *chip)
 static bool is_itf_usb_dsd_dac(unsigned int id)
 {
 	switch (id) {
+	case USB_ID(0x154e, 0x1002): /* Denon DCD-1500RE */
 	case USB_ID(0x154e, 0x1003): /* Denon DA-300USB */
 	case USB_ID(0x154e, 0x3005): /* Marantz HD-DAC1 */
 	case USB_ID(0x154e, 0x3006): /* Marantz SA-14S1 */
@@ -1569,7 +1611,7 @@ void snd_usb_endpoint_start_quirk(struct snd_usb_endpoint *ep)
 
 	/*
 	 * M-Audio Fast Track C400/C600 - when packets are not skipped, real
-	 * world latency varies by approx. +/- 50 frames (at 96KHz) each time
+	 * world latency varies by approx. +/- 50 frames (at 96kHz) each time
 	 * the stream is (re)started. When skipping packets 16 at endpoint
 	 * start up, the real world latency is stable within +/- 1 frame (also
 	 * across power cycles).
@@ -1636,16 +1678,25 @@ void snd_usb_ctl_msg_quirk(struct usb_device *dev, unsigned int pipe,
 	    && (requesttype & USB_TYPE_MASK) == USB_TYPE_CLASS)
 		msleep(20);
 
-	/* Zoom R16/24, Logitech H650e, Jabra 550a, Kingston HyperX needs a tiny
-	 * delay here, otherwise requests like get/set frequency return as
-	 * failed despite actually succeeding.
+	/* Zoom R16/24, Logitech H650e/H570e, Jabra 550a, Kingston HyperX
+	 *  needs a tiny delay here, otherwise requests like get/set
+	 *  frequency return as failed despite actually succeeding.
 	 */
 	if ((chip->usb_id == USB_ID(0x1686, 0x00dd) ||
 	     chip->usb_id == USB_ID(0x046d, 0x0a46) ||
+	     chip->usb_id == USB_ID(0x046d, 0x0a56) ||
 	     chip->usb_id == USB_ID(0x0b0e, 0x0349) ||
 	     chip->usb_id == USB_ID(0x0951, 0x16ad)) &&
 	    (requesttype & USB_TYPE_MASK) == USB_TYPE_CLASS)
 		usleep_range(1000, 2000);
+
+	/*
+	 * Samsung USBC Headset (AKG) need a tiny delay after each
+	 * class compliant request. (Model number: AAM625R or AAM627R)
+	 */
+	if (chip->usb_id == USB_ID(0x04e8, 0xa051) &&
+	    (requesttype & USB_TYPE_MASK) == USB_TYPE_CLASS)
+		usleep_range(5000, 6000);
 }
 
 /*
@@ -1803,23 +1854,9 @@ void snd_usb_audioformat_attributes_quirk(struct snd_usb_audio *chip,
 		/*
 		 * MaxPacketsOnly attribute is erroneously set in endpoint
 		 * descriptors. As a result this card produces noise with
-		 * all sample rates other than 96 KHz.
+		 * all sample rates other than 96 kHz.
 		 */
 		fp->attributes &= ~UAC_EP_CS_ATTR_FILL_MAX;
-		break;
-	case USB_ID(0x1235, 0x8200):  /* Focusrite Scarlett 2i4 2nd gen */
-	case USB_ID(0x1235, 0x8202):  /* Focusrite Scarlett 2i2 2nd gen */
-	case USB_ID(0x1235, 0x8205):  /* Focusrite Scarlett Solo 2nd gen */
-		/*
-		 * Reports that playback should use Synch: Synchronous
-		 * while still providing a feedback endpoint.
-		 * Synchronous causes snapping on some sample rates.
-		 * Force it to use Synch: Asynchronous.
-		 */
-		if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
-			fp->ep_attr &= ~USB_ENDPOINT_SYNCTYPE;
-			fp->ep_attr |= USB_ENDPOINT_SYNC_ASYNC;
-		}
 		break;
 	}
 }
@@ -1843,6 +1880,7 @@ struct registration_quirk {
 static const struct registration_quirk registration_quirks[] = {
 	REG_QUIRK_ENTRY(0x0951, 0x16d8, 2),	/* Kingston HyperX AMP */
 	REG_QUIRK_ENTRY(0x0951, 0x16ed, 2),	/* Kingston HyperX Cloud Alpha S */
+	REG_QUIRK_ENTRY(0x0951, 0x16ea, 2),	/* Kingston HyperX Cloud Flight S */
 	{ 0 }					/* terminator */
 };
 

@@ -27,7 +27,7 @@
 // *** IMPORTANT ***
 // SMU TEAM: Always increment the interface version if 
 // any structure is changed in this file
-#define SMU12_DRIVER_IF_VERSION 11
+#define SMU12_DRIVER_IF_VERSION 14
 
 typedef struct {
   int32_t value;
@@ -154,15 +154,19 @@ typedef enum {
 } CLOCK_IDs_e;
 
 // Throttler Status Bitmask
-#define THROTTLER_STATUS_BIT_SPL        0
-#define THROTTLER_STATUS_BIT_FPPT       1
-#define THROTTLER_STATUS_BIT_SPPT       2
-#define THROTTLER_STATUS_BIT_SPPT_APU   3
-#define THROTTLER_STATUS_BIT_THM_CORE   4
-#define THROTTLER_STATUS_BIT_THM_GFX    5
-#define THROTTLER_STATUS_BIT_THM_SOC    6
-#define THROTTLER_STATUS_BIT_TDC_VDD    7
-#define THROTTLER_STATUS_BIT_TDC_SOC    8
+#define THROTTLER_STATUS_BIT_SPL            0
+#define THROTTLER_STATUS_BIT_FPPT           1
+#define THROTTLER_STATUS_BIT_SPPT           2
+#define THROTTLER_STATUS_BIT_SPPT_APU       3
+#define THROTTLER_STATUS_BIT_THM_CORE       4
+#define THROTTLER_STATUS_BIT_THM_GFX        5
+#define THROTTLER_STATUS_BIT_THM_SOC        6
+#define THROTTLER_STATUS_BIT_TDC_VDD        7
+#define THROTTLER_STATUS_BIT_TDC_SOC        8
+#define THROTTLER_STATUS_BIT_PROCHOT_CPU    9
+#define THROTTLER_STATUS_BIT_PROCHOT_GFX   10
+#define THROTTLER_STATUS_BIT_EDC_CPU       11
+#define THROTTLER_STATUS_BIT_EDC_GFX       12
 
 typedef struct {
   uint16_t ClockFrequency[CLOCK_COUNT]; //[MHz]
@@ -180,7 +184,7 @@ typedef struct {
   uint16_t Power[2];                    //[mW] indices: VDDCR_VDD, VDDCR_SOC
 
   uint16_t FanPwm;                      //[milli]
-  uint16_t CurrentSocketPower;          //[mW]
+  uint16_t CurrentSocketPower;          //[W]
 
   uint16_t CoreFrequency[8];            //[MHz]
   uint16_t CorePower[8];                //[mW]
@@ -193,10 +197,16 @@ typedef struct {
   uint16_t ThrottlerStatus;
   uint16_t spare;
 
-  uint16_t StapmOriginalLimit;          //[mW]
-  uint16_t StapmCurrentLimit;           //[mW]
-  uint16_t ApuPower;              //[mW]
-  uint16_t dGpuPower;               //[mW]
+  uint16_t StapmOriginalLimit;          //[W]
+  uint16_t StapmCurrentLimit;           //[W]
+  uint16_t ApuPower;                    //[W]
+  uint16_t dGpuPower;                   //[W]
+
+  uint16_t VddTdcValue;                 //[mA]
+  uint16_t SocTdcValue;                 //[mA]
+  uint16_t VddEdcValue;                 //[mA]
+  uint16_t SocEdcValue;                 //[mA]
+  uint16_t reserve[2];
 } SmuMetrics_t;
 
 

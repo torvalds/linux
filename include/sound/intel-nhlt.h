@@ -50,7 +50,7 @@ enum nhlt_device_type {
 
 struct nhlt_specific_cfg {
 	u32 size;
-	u8 caps[0];
+	u8 caps[];
 } __packed;
 
 struct nhlt_fmt_cfg {
@@ -60,7 +60,7 @@ struct nhlt_fmt_cfg {
 
 struct nhlt_fmt {
 	u8 fmt_count;
-	struct nhlt_fmt_cfg fmt_config[0];
+	struct nhlt_fmt_cfg fmt_config[];
 } __packed;
 
 struct nhlt_endpoint {
@@ -80,7 +80,7 @@ struct nhlt_endpoint {
 struct nhlt_acpi_table {
 	struct acpi_table_header header;
 	u8 endpoint_count;
-	struct nhlt_endpoint desc[0];
+	struct nhlt_endpoint desc[];
 } __packed;
 
 struct nhlt_resource_desc  {

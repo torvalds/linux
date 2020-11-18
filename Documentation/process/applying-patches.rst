@@ -229,7 +229,7 @@ Although interdiff may save you a step or two you are generally advised to
 do the additional steps since interdiff can get things wrong in some cases.
 
 Another alternative is ``ketchup``, which is a python script for automatic
-downloading and applying of patches (http://www.selenic.com/ketchup/).
+downloading and applying of patches (https://www.selenic.com/ketchup/).
 
 Other nice tools are diffstat, which shows a summary of changes made by a
 patch; lsdiff, which displays a short listing of affected files in a patch
@@ -241,7 +241,7 @@ the patch contains a given regular expression.
 Where can I download the patches?
 =================================
 
-The patches are available at http://kernel.org/
+The patches are available at https://kernel.org/
 Most recent patches are linked from the front page, but they also have
 specific homes.
 

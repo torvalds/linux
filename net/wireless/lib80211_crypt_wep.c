@@ -56,7 +56,7 @@ static void *lib80211_wep_init(int keyidx)
 
 static void lib80211_wep_deinit(void *priv)
 {
-	kzfree(priv);
+	kfree_sensitive(priv);
 }
 
 /* Add WEP IV/key info to a frame that has at least 4 bytes of headroom */

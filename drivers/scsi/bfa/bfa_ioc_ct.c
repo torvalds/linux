@@ -364,7 +364,7 @@ bfa_ioc_ct_isr_mode_set(struct bfa_ioc_s *ioc, bfa_boolean_t msix)
 	writel(r32, rb + FNC_PERS_REG);
 }
 
-bfa_boolean_t
+static bfa_boolean_t
 bfa_ioc_ct2_lpu_read_stat(struct bfa_ioc_s *ioc)
 {
 	u32	r32;
@@ -496,7 +496,7 @@ bfa_ioc_ct_sync_complete(struct bfa_ioc_s *ioc)
 	return BFA_FALSE;
 }
 
-/**
+/*
  * Called from bfa_ioc_attach() to map asic specific calls.
  */
 static void
@@ -517,7 +517,7 @@ bfa_ioc_set_ctx_hwif(struct bfa_ioc_s *ioc, struct bfa_ioc_hwif_s *hwif)
 	hwif->ioc_get_alt_fwstate = bfa_ioc_ct_get_alt_ioc_fwstate;
 }
 
-/**
+/*
  * Called from bfa_ioc_attach() to map asic specific calls.
  */
 void
@@ -532,7 +532,7 @@ bfa_ioc_set_ct_hwif(struct bfa_ioc_s *ioc)
 	ioc->ioc_hwif = &hwif_ct;
 }
 
-/**
+/*
  * Called from bfa_ioc_attach() to map asic specific calls.
  */
 void
@@ -744,7 +744,7 @@ bfa_ioc_ct2_mem_init(void __iomem *rb)
 	writel(0, (rb + CT2_MBIST_CTL_REG));
 }
 
-void
+static void
 bfa_ioc_ct2_mac_reset(void __iomem *rb)
 {
 	/* put port0, port1 MAC & AHB in reset */

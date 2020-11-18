@@ -575,6 +575,7 @@ static int drm_atomic_plane_check(const struct drm_plane_state *old_plane_state,
 					   fb->modifier);
 	if (ret) {
 		struct drm_format_name_buf format_name;
+
 		DRM_DEBUG_ATOMIC("[PLANE:%d:%s] invalid pixel format %s, modifier 0x%llx\n",
 				 plane->base.id, plane->name,
 				 drm_get_format_name(fb->format->format,
@@ -1641,10 +1642,10 @@ static const struct drm_info_list drm_atomic_debugfs_list[] = {
 	{"state", drm_state_info, 0},
 };
 
-int drm_atomic_debugfs_init(struct drm_minor *minor)
+void drm_atomic_debugfs_init(struct drm_minor *minor)
 {
-	return drm_debugfs_create_files(drm_atomic_debugfs_list,
-			ARRAY_SIZE(drm_atomic_debugfs_list),
-			minor->debugfs_root, minor);
+	drm_debugfs_create_files(drm_atomic_debugfs_list,
+				 ARRAY_SIZE(drm_atomic_debugfs_list),
+				 minor->debugfs_root, minor);
 }
 #endif

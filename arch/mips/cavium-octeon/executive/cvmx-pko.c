@@ -489,7 +489,7 @@ cvmx_pko_status_t cvmx_pko_config_port(uint64_t port, uint64_t base_queue,
 				config.s.qos_mask = 0xff;
 				break;
 			}
-			/* fall through - to the error case, when Pass 1 */
+			fallthrough;	/* to the error case, when Pass 1 */
 		default:
 			cvmx_dprintf("ERROR: cvmx_pko_config_port: Invalid "
 				     "priority %llu\n",

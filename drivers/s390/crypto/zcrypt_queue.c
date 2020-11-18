@@ -107,10 +107,10 @@ struct zcrypt_queue *zcrypt_queue_alloc(size_t max_response_size)
 	zq = kzalloc(sizeof(struct zcrypt_queue), GFP_KERNEL);
 	if (!zq)
 		return NULL;
-	zq->reply.message = kmalloc(max_response_size, GFP_KERNEL);
-	if (!zq->reply.message)
+	zq->reply.msg = kmalloc(max_response_size, GFP_KERNEL);
+	if (!zq->reply.msg)
 		goto out_free;
-	zq->reply.length = max_response_size;
+	zq->reply.len = max_response_size;
 	INIT_LIST_HEAD(&zq->list);
 	kref_init(&zq->refcount);
 	return zq;
@@ -123,7 +123,7 @@ EXPORT_SYMBOL(zcrypt_queue_alloc);
 
 void zcrypt_queue_free(struct zcrypt_queue *zq)
 {
-	kfree(zq->reply.message);
+	kfree(zq->reply.msg);
 	kfree(zq);
 }
 EXPORT_SYMBOL(zcrypt_queue_free);

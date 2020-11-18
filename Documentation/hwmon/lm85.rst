@@ -17,7 +17,7 @@ Supported chips:
 
     Addresses scanned: I2C 0x2c, 0x2d, 0x2e
 
-    Datasheet: http://www.ti.com/lit/ds/symlink/lm96000.pdf
+    Datasheet: https://www.ti.com/lit/ds/symlink/lm96000.pdf
 
   * Analog Devices ADM1027
 
@@ -25,7 +25,7 @@ Supported chips:
 
     Addresses scanned: I2C 0x2c, 0x2d, 0x2e
 
-    Datasheet: http://www.onsemi.com/PowerSolutions/product.do?id=ADM1027
+    Datasheet: https://www.onsemi.com/PowerSolutions/product.do?id=ADM1027
 
   * Analog Devices ADT7463
 
@@ -33,7 +33,7 @@ Supported chips:
 
     Addresses scanned: I2C 0x2c, 0x2d, 0x2e
 
-    Datasheet: http://www.onsemi.com/PowerSolutions/product.do?id=ADT7463
+    Datasheet: https://www.onsemi.com/PowerSolutions/product.do?id=ADT7463
 
   * Analog Devices ADT7468
 
@@ -41,7 +41,7 @@ Supported chips:
 
     Addresses scanned: I2C 0x2c, 0x2d, 0x2e
 
-    Datasheet: http://www.onsemi.com/PowerSolutions/product.do?id=ADT7468
+    Datasheet: https://www.onsemi.com/PowerSolutions/product.do?id=ADT7468
 
   * SMSC EMC6D100, SMSC EMC6D101
 

@@ -9,6 +9,7 @@
 
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/devcoredump.h>
 #include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
@@ -22,18 +23,21 @@
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/remoteproc.h>
-#include "linux/remoteproc/qcom_q6v5_ipa_notify.h"
 #include <linux/reset.h>
 #include <linux/soc/qcom/mdt_loader.h>
 #include <linux/iopoll.h>
+#include <linux/slab.h>
 
 #include "remoteproc_internal.h"
 #include "qcom_common.h"
+#include "qcom_pil_info.h"
 #include "qcom_q6v5.h"
 
 #include <linux/qcom_scm.h>
 
 #define MPSS_CRASH_REASON_SMEM		421
+
+#define MBA_LOG_SIZE			SZ_4K
 
 /* RMB Status Register Values */
 #define RMB_PBL_SUCCESS			0x1
@@ -69,13 +73,9 @@
 #define AXI_HALTREQ_REG			0x0
 #define AXI_HALTACK_REG			0x4
 #define AXI_IDLE_REG			0x8
-#define NAV_AXI_HALTREQ_BIT		BIT(0)
-#define NAV_AXI_HALTACK_BIT		BIT(1)
-#define NAV_AXI_IDLE_BIT		BIT(2)
 #define AXI_GATING_VALID_OVERRIDE	BIT(0)
 
 #define HALT_ACK_TIMEOUT_US		100000
-#define NAV_HALT_ACK_TIMEOUT_US		200
 
 /* QDSP6SS_RESET */
 #define Q6SS_STOP_CORE			BIT(0)
@@ -115,8 +115,6 @@
 #define QDSP6SS_SLEEP                   0x3C
 #define QDSP6SS_BOOT_CORE_START         0x400
 #define QDSP6SS_BOOT_CMD                0x404
-#define QDSP6SS_BOOT_STATUS		0x408
-#define BOOT_STATUS_TIMEOUT_US		200
 #define BOOT_FSM_TIMEOUT                10000
 
 struct reg_info {
@@ -143,7 +141,8 @@ struct rproc_hexagon_res {
 	int version;
 	bool need_mem_protection;
 	bool has_alt_reset;
-	bool has_halt_nav;
+	bool has_mba_logs;
+	bool has_spare_reg;
 };
 
 struct q6v5 {
@@ -154,13 +153,11 @@ struct q6v5 {
 	void __iomem *rmb_base;
 
 	struct regmap *halt_map;
-	struct regmap *halt_nav_map;
 	struct regmap *conn_map;
 
 	u32 halt_q6;
 	u32 halt_modem;
 	u32 halt_nc;
-	u32 halt_nav;
 	u32 conn_box;
 
 	struct reset_control *mss_restart;
@@ -184,29 +181,27 @@ struct q6v5 {
 	int active_reg_count;
 	int proxy_reg_count;
 
-	bool running;
-
 	bool dump_mba_loaded;
-	unsigned long dump_segment_mask;
-	unsigned long dump_complete_mask;
+	size_t current_dump_size;
+	size_t total_dump_size;
 
 	phys_addr_t mba_phys;
 	void *mba_region;
 	size_t mba_size;
+	size_t dp_size;
 
 	phys_addr_t mpss_phys;
 	phys_addr_t mpss_reloc;
-	void *mpss_region;
 	size_t mpss_size;
 
 	struct qcom_rproc_glink glink_subdev;
 	struct qcom_rproc_subdev smd_subdev;
 	struct qcom_rproc_ssr ssr_subdev;
-	struct qcom_rproc_ipa_notify ipa_notify_subdev;
 	struct qcom_sysmon *sysmon;
 	bool need_mem_protection;
 	bool has_alt_reset;
-	bool has_halt_nav;
+	bool has_mba_logs;
+	bool has_spare_reg;
 	int mpss_perm;
 	int mba_perm;
 	const char *hexagon_mdt_image;
@@ -410,11 +405,33 @@ static int q6v5_xfer_mem_ownership(struct q6v5 *qproc, int *current_perm,
 				   current_perm, next, perms);
 }
 
+static void q6v5_debug_policy_load(struct q6v5 *qproc)
+{
+	const struct firmware *dp_fw;
+
+	if (request_firmware_direct(&dp_fw, "msadp", qproc->dev))
+		return;
+
+	if (SZ_1M + dp_fw->size <= qproc->mba_size) {
+		memcpy(qproc->mba_region + SZ_1M, dp_fw->data, dp_fw->size);
+		qproc->dp_size = dp_fw->size;
+	}
+
+	release_firmware(dp_fw);
+}
+
 static int q6v5_load(struct rproc *rproc, const struct firmware *fw)
 {
 	struct q6v5 *qproc = rproc->priv;
 
+	/* MBA is restricted to a maximum size of 1M */
+	if (fw->size > qproc->mba_size || fw->size > SZ_1M) {
+		dev_err(qproc->dev, "MBA firmware load failed\n");
+		return -EINVAL;
+	}
+
 	memcpy(qproc->mba_region, fw->data, fw->size);
+	q6v5_debug_policy_load(qproc);
 
 	return 0;
 }
@@ -427,21 +444,19 @@ static int q6v5_reset_assert(struct q6v5 *qproc)
 		reset_control_assert(qproc->pdc_reset);
 		ret = reset_control_reset(qproc->mss_restart);
 		reset_control_deassert(qproc->pdc_reset);
-	} else if (qproc->has_halt_nav) {
+	} else if (qproc->has_spare_reg) {
 		/*
 		 * When the AXI pipeline is being reset with the Q6 modem partly
 		 * operational there is possibility of AXI valid signal to
 		 * glitch, leading to spurious transactions and Q6 hangs. A work
 		 * around is employed by asserting the AXI_GATING_VALID_OVERRIDE
-		 * BIT before triggering Q6 MSS reset. Both the HALTREQ and
-		 * AXI_GATING_VALID_OVERRIDE are withdrawn post MSS assert
-		 * followed by a MSS deassert, while holding the PDC reset.
+		 * BIT before triggering Q6 MSS reset. AXI_GATING_VALID_OVERRIDE
+		 * is withdrawn post MSS assert followed by a MSS deassert,
+		 * while holding the PDC reset.
 		 */
 		reset_control_assert(qproc->pdc_reset);
 		regmap_update_bits(qproc->conn_map, qproc->conn_box,
 				   AXI_GATING_VALID_OVERRIDE, 1);
-		regmap_update_bits(qproc->halt_nav_map, qproc->halt_nav,
-				   NAV_AXI_HALTREQ_BIT, 0);
 		reset_control_assert(qproc->mss_restart);
 		reset_control_deassert(qproc->pdc_reset);
 		regmap_update_bits(qproc->conn_map, qproc->conn_box,
@@ -464,7 +479,7 @@ static int q6v5_reset_deassert(struct q6v5 *qproc)
 		ret = reset_control_reset(qproc->mss_restart);
 		writel(0, qproc->rmb_base + RMB_MBA_ALT_RESET);
 		reset_control_deassert(qproc->pdc_reset);
-	} else if (qproc->has_halt_nav) {
+	} else if (qproc->has_spare_reg) {
 		ret = reset_control_reset(qproc->mss_restart);
 	} else {
 		ret = reset_control_deassert(qproc->mss_restart);
@@ -517,6 +532,26 @@ static int q6v5_rmb_mba_wait(struct q6v5 *qproc, u32 status, int ms)
 	}
 
 	return val;
+}
+
+static void q6v5_dump_mba_logs(struct q6v5 *qproc)
+{
+	struct rproc *rproc = qproc->rproc;
+	void *data;
+
+	if (!qproc->has_mba_logs)
+		return;
+
+	if (q6v5_xfer_mem_ownership(qproc, &qproc->mba_perm, true, false, qproc->mba_phys,
+				    qproc->mba_size))
+		return;
+
+	data = vmalloc(MBA_LOG_SIZE);
+	if (!data)
+		return;
+
+	memcpy(data, qproc->mba_region, MBA_LOG_SIZE);
+	dev_coredumpv(&rproc->dev, data, MBA_LOG_SIZE, GFP_KERNEL);
 }
 
 static int q6v5proc_reset(struct q6v5 *qproc)
@@ -587,13 +622,15 @@ static int q6v5proc_reset(struct q6v5 *qproc)
 		/* De-assert the Q6 stop core signal */
 		writel(1, qproc->reg_base + QDSP6SS_BOOT_CORE_START);
 
+		/* Wait for 10 us for any staggering logic to settle */
+		usleep_range(10, 20);
+
 		/* Trigger the boot FSM to start the Q6 out-of-reset sequence */
 		writel(1, qproc->reg_base + QDSP6SS_BOOT_CMD);
 
-		/* Poll the QDSP6SS_BOOT_STATUS for FSM completion */
-		ret = readl_poll_timeout(qproc->reg_base + QDSP6SS_BOOT_STATUS,
-					 val, (val & BIT(0)) != 0, 1,
-					 BOOT_STATUS_TIMEOUT_US);
+		/* Poll the MSS_STATUS for FSM completion */
+		ret = readl_poll_timeout(qproc->rmb_base + RMB_MBA_MSS_STATUS,
+					 val, (val & BIT(0)) != 0, 10, BOOT_FSM_TIMEOUT);
 		if (ret) {
 			dev_err(qproc->dev, "Boot FSM failed to complete.\n");
 			/* Reset the modem so that boot FSM is in reset state */
@@ -761,32 +798,6 @@ static void q6v5proc_halt_axi_port(struct q6v5 *qproc,
 	regmap_write(halt_map, offset + AXI_HALTREQ_REG, 0);
 }
 
-static void q6v5proc_halt_nav_axi_port(struct q6v5 *qproc,
-				       struct regmap *halt_map,
-				       u32 offset)
-{
-	unsigned int val;
-	int ret;
-
-	/* Check if we're already idle */
-	ret = regmap_read(halt_map, offset, &val);
-	if (!ret && (val & NAV_AXI_IDLE_BIT))
-		return;
-
-	/* Assert halt request */
-	regmap_update_bits(halt_map, offset, NAV_AXI_HALTREQ_BIT,
-			   NAV_AXI_HALTREQ_BIT);
-
-	/* Wait for halt ack*/
-	regmap_read_poll_timeout(halt_map, offset, val,
-				 (val & NAV_AXI_HALTACK_BIT),
-				 5, NAV_HALT_ACK_TIMEOUT_US);
-
-	ret = regmap_read(halt_map, offset, &val);
-	if (ret || !(val & NAV_AXI_IDLE_BIT))
-		dev_err(qproc->dev, "port failed halt\n");
-}
-
 static int q6v5_mpss_init_image(struct q6v5 *qproc, const struct firmware *fw)
 {
 	unsigned long dma_attrs = DMA_ATTR_FORCE_CONTIGUOUS;
@@ -863,6 +874,7 @@ static int q6v5_mba_load(struct q6v5 *qproc)
 {
 	int ret;
 	int xfermemop_ret;
+	bool mba_load_err = false;
 
 	qcom_q6v5_prepare(&qproc->q6v5);
 
@@ -929,6 +941,10 @@ static int q6v5_mba_load(struct q6v5 *qproc)
 	}
 
 	writel(qproc->mba_phys, qproc->rmb_base + RMB_MBA_IMAGE_REG);
+	if (qproc->dp_size) {
+		writel(qproc->mba_phys + SZ_1M, qproc->rmb_base + RMB_PMI_CODE_START_REG);
+		writel(qproc->dp_size, qproc->rmb_base + RMB_PMI_CODE_LENGTH_REG);
+	}
 
 	ret = q6v5proc_reset(qproc);
 	if (ret)
@@ -951,11 +967,8 @@ static int q6v5_mba_load(struct q6v5 *qproc)
 halt_axi_ports:
 	q6v5proc_halt_axi_port(qproc, qproc->halt_map, qproc->halt_q6);
 	q6v5proc_halt_axi_port(qproc, qproc->halt_map, qproc->halt_modem);
-	if (qproc->has_halt_nav)
-		q6v5proc_halt_nav_axi_port(qproc, qproc->halt_nav_map,
-					   qproc->halt_nav);
 	q6v5proc_halt_axi_port(qproc, qproc->halt_map, qproc->halt_nc);
-
+	mba_load_err = true;
 reclaim_mba:
 	xfermemop_ret = q6v5_xfer_mem_ownership(qproc, &qproc->mba_perm, true,
 						false, qproc->mba_phys,
@@ -963,6 +976,8 @@ reclaim_mba:
 	if (xfermemop_ret) {
 		dev_err(qproc->dev,
 			"Failed to reclaim mba buffer, system may become unstable\n");
+	} else if (mba_load_err) {
+		q6v5_dump_mba_logs(qproc);
 	}
 
 disable_active_clks:
@@ -998,12 +1013,10 @@ static void q6v5_mba_reclaim(struct q6v5 *qproc)
 	u32 val;
 
 	qproc->dump_mba_loaded = false;
+	qproc->dp_size = 0;
 
 	q6v5proc_halt_axi_port(qproc, qproc->halt_map, qproc->halt_q6);
 	q6v5proc_halt_axi_port(qproc, qproc->halt_map, qproc->halt_modem);
-	if (qproc->has_halt_nav)
-		q6v5proc_halt_nav_axi_port(qproc, qproc->halt_nav_map,
-					   qproc->halt_nav);
 	q6v5proc_halt_axi_port(qproc, qproc->halt_map, qproc->halt_nc);
 	if (qproc->version == MSS_MSM8996) {
 		/*
@@ -1156,7 +1169,13 @@ static int q6v5_mpss_load(struct q6v5 *qproc)
 			goto release_firmware;
 		}
 
-		ptr = qproc->mpss_region + offset;
+		ptr = ioremap_wc(qproc->mpss_phys + offset, phdr->p_memsz);
+		if (!ptr) {
+			dev_err(qproc->dev,
+				"unable to map memory region: %pa+%zx-%x\n",
+				&qproc->mpss_phys, offset, phdr->p_memsz);
+			goto release_firmware;
+		}
 
 		if (phdr->p_filesz && phdr->p_offset < fw->size) {
 			/* Firmware is large enough to be non-split */
@@ -1165,6 +1184,7 @@ static int q6v5_mpss_load(struct q6v5 *qproc)
 					"failed to load segment %d from truncated file %s\n",
 					i, fw_name);
 				ret = -EINVAL;
+				iounmap(ptr);
 				goto release_firmware;
 			}
 
@@ -1172,13 +1192,13 @@ static int q6v5_mpss_load(struct q6v5 *qproc)
 		} else if (phdr->p_filesz) {
 			/* Replace "xxx.xxx" with "xxx.bxx" */
 			sprintf(fw_name + fw_name_len - 3, "b%02d", i);
-			ret = request_firmware(&seg_fw, fw_name, qproc->dev);
+			ret = request_firmware_into_buf(&seg_fw, fw_name, qproc->dev,
+							ptr, phdr->p_filesz);
 			if (ret) {
 				dev_err(qproc->dev, "failed to load %s\n", fw_name);
+				iounmap(ptr);
 				goto release_firmware;
 			}
-
-			memcpy(ptr, seg_fw->data, seg_fw->size);
 
 			release_firmware(seg_fw);
 		}
@@ -1187,6 +1207,7 @@ static int q6v5_mpss_load(struct q6v5 *qproc)
 			memset(ptr + phdr->p_filesz, 0,
 			       phdr->p_memsz - phdr->p_filesz);
 		}
+		iounmap(ptr);
 		size += phdr->p_memsz;
 
 		code_length = readl(qproc->rmb_base + RMB_PMI_CODE_LENGTH_REG);
@@ -1221,6 +1242,8 @@ static int q6v5_mpss_load(struct q6v5 *qproc)
 	else if (ret < 0)
 		dev_err(qproc->dev, "MPSS authentication failed: %d\n", ret);
 
+	qcom_pil_info_store("modem", qproc->mpss_phys, qproc->mpss_size);
+
 release_firmware:
 	release_firmware(fw);
 out:
@@ -1231,12 +1254,12 @@ out:
 
 static void qcom_q6v5_dump_segment(struct rproc *rproc,
 				   struct rproc_dump_segment *segment,
-				   void *dest)
+				   void *dest, size_t cp_offset, size_t size)
 {
 	int ret = 0;
 	struct q6v5 *qproc = rproc->priv;
-	unsigned long mask = BIT((unsigned long)segment->priv);
-	void *ptr = rproc_da_to_va(rproc, segment->da, segment->size);
+	int offset = segment->da - qproc->mpss_reloc;
+	void *ptr = NULL;
 
 	/* Unlock mba before copying segments */
 	if (!qproc->dump_mba_loaded) {
@@ -1250,15 +1273,20 @@ static void qcom_q6v5_dump_segment(struct rproc *rproc,
 		}
 	}
 
-	if (!ptr || ret)
-		memset(dest, 0xff, segment->size);
-	else
-		memcpy(dest, ptr, segment->size);
+	if (!ret)
+		ptr = ioremap_wc(qproc->mpss_phys + offset + cp_offset, size);
 
-	qproc->dump_segment_mask |= mask;
+	if (ptr) {
+		memcpy(dest, ptr, size);
+		iounmap(ptr);
+	} else {
+		memset(dest, 0xff, size);
+	}
+
+	qproc->current_dump_size += size;
 
 	/* Reclaim mba after copying segments */
-	if (qproc->dump_segment_mask == qproc->dump_complete_mask) {
+	if (qproc->current_dump_size == qproc->total_dump_size) {
 		if (qproc->dump_mba_loaded) {
 			/* Try to reset ownership back to Q6 */
 			q6v5_xfer_mem_ownership(qproc, &qproc->mpss_perm,
@@ -1280,7 +1308,8 @@ static int q6v5_start(struct rproc *rproc)
 	if (ret)
 		return ret;
 
-	dev_info(qproc->dev, "MBA booted, loading mpss\n");
+	dev_info(qproc->dev, "MBA booted with%s debug policy, loading mpss\n",
+		 qproc->dp_size ? "" : "out");
 
 	ret = q6v5_mpss_load(qproc);
 	if (ret)
@@ -1300,13 +1329,13 @@ static int q6v5_start(struct rproc *rproc)
 			"Failed to reclaim mba buffer system may become unstable\n");
 
 	/* Reset Dump Segment Mask */
-	qproc->dump_segment_mask = 0;
-	qproc->running = true;
+	qproc->current_dump_size = 0;
 
 	return 0;
 
 reclaim_mpss:
 	q6v5_mba_reclaim(qproc);
+	q6v5_dump_mba_logs(qproc);
 
 	return ret;
 }
@@ -1316,8 +1345,6 @@ static int q6v5_stop(struct rproc *rproc)
 	struct q6v5 *qproc = (struct q6v5 *)rproc->priv;
 	int ret;
 
-	qproc->running = false;
-
 	ret = qcom_q6v5_request_stop(&qproc->q6v5);
 	if (ret == -ETIMEDOUT)
 		dev_err(qproc->dev, "timed out on wait\n");
@@ -1325,18 +1352,6 @@ static int q6v5_stop(struct rproc *rproc)
 	q6v5_mba_reclaim(qproc);
 
 	return 0;
-}
-
-static void *q6v5_da_to_va(struct rproc *rproc, u64 da, size_t len)
-{
-	struct q6v5 *qproc = rproc->priv;
-	int offset;
-
-	offset = da - qproc->mpss_reloc;
-	if (offset < 0 || offset + len > qproc->mpss_size)
-		return NULL;
-
-	return qproc->mpss_region + offset;
 }
 
 static int qcom_q6v5_register_dump_segments(struct rproc *rproc,
@@ -1357,9 +1372,11 @@ static int qcom_q6v5_register_dump_segments(struct rproc *rproc,
 		return ret;
 	}
 
+	rproc_coredump_set_elf_info(rproc, ELFCLASS32, EM_NONE);
+
 	ehdr = (struct elf32_hdr *)fw->data;
 	phdrs = (struct elf32_phdr *)(ehdr + 1);
-	qproc->dump_complete_mask = 0;
+	qproc->total_dump_size = 0;
 
 	for (i = 0; i < ehdr->e_phnum; i++) {
 		phdr = &phdrs[i];
@@ -1370,11 +1387,11 @@ static int qcom_q6v5_register_dump_segments(struct rproc *rproc,
 		ret = rproc_coredump_add_custom_segment(rproc, phdr->p_paddr,
 							phdr->p_memsz,
 							qcom_q6v5_dump_segment,
-							(void *)i);
+							NULL);
 		if (ret)
 			break;
 
-		qproc->dump_complete_mask |= BIT(i);
+		qproc->total_dump_size += phdr->p_memsz;
 	}
 
 	release_firmware(fw);
@@ -1384,7 +1401,6 @@ static int qcom_q6v5_register_dump_segments(struct rproc *rproc,
 static const struct rproc_ops q6v5_ops = {
 	.start = q6v5_start,
 	.stop = q6v5_stop,
-	.da_to_va = q6v5_da_to_va,
 	.parse_fw = qcom_q6v5_register_dump_segments,
 	.load = q6v5_load,
 };
@@ -1432,36 +1448,12 @@ static int q6v5_init_mem(struct q6v5 *qproc, struct platform_device *pdev)
 	qproc->halt_modem = args.args[1];
 	qproc->halt_nc = args.args[2];
 
-	if (qproc->has_halt_nav) {
-		struct platform_device *nav_pdev;
-
+	if (qproc->has_spare_reg) {
 		ret = of_parse_phandle_with_fixed_args(pdev->dev.of_node,
-						       "qcom,halt-nav-regs",
+						       "qcom,spare-regs",
 						       1, 0, &args);
 		if (ret < 0) {
-			dev_err(&pdev->dev, "failed to parse halt-nav-regs\n");
-			return -EINVAL;
-		}
-
-		nav_pdev = of_find_device_by_node(args.np);
-		of_node_put(args.np);
-		if (!nav_pdev) {
-			dev_err(&pdev->dev, "failed to get mss clock device\n");
-			return -EPROBE_DEFER;
-		}
-
-		qproc->halt_nav_map = dev_get_regmap(&nav_pdev->dev, NULL);
-		if (!qproc->halt_nav_map) {
-			dev_err(&pdev->dev, "failed to get map from device\n");
-			return -EINVAL;
-		}
-		qproc->halt_nav = args.args[0];
-
-		ret = of_parse_phandle_with_fixed_args(pdev->dev.of_node,
-						       "qcom,halt-nav-regs",
-						       1, 1, &args);
-		if (ret < 0) {
-			dev_err(&pdev->dev, "failed to parse halt-nav-regs\n");
+			dev_err(&pdev->dev, "failed to parse spare-regs\n");
 			return -EINVAL;
 		}
 
@@ -1547,7 +1539,7 @@ static int q6v5_init_reset(struct q6v5 *qproc)
 		return PTR_ERR(qproc->mss_restart);
 	}
 
-	if (qproc->has_alt_reset || qproc->has_halt_nav) {
+	if (qproc->has_alt_reset || qproc->has_spare_reg) {
 		qproc->pdc_reset = devm_reset_control_get_exclusive(qproc->dev,
 								    "pdc_reset");
 		if (IS_ERR(qproc->pdc_reset)) {
@@ -1566,8 +1558,17 @@ static int q6v5_alloc_memory_region(struct q6v5 *qproc)
 	struct resource r;
 	int ret;
 
+	/*
+	 * In the absence of mba/mpss sub-child, extract the mba and mpss
+	 * reserved memory regions from device's memory-region property.
+	 */
 	child = of_get_child_by_name(qproc->dev->of_node, "mba");
-	node = of_parse_phandle(child, "memory-region", 0);
+	if (!child)
+		node = of_parse_phandle(qproc->dev->of_node,
+					"memory-region", 0);
+	else
+		node = of_parse_phandle(child, "memory-region", 0);
+
 	ret = of_address_to_resource(node, 0, &r);
 	if (ret) {
 		dev_err(qproc->dev, "unable to resolve mba region\n");
@@ -1584,8 +1585,14 @@ static int q6v5_alloc_memory_region(struct q6v5 *qproc)
 		return -EBUSY;
 	}
 
-	child = of_get_child_by_name(qproc->dev->of_node, "mpss");
-	node = of_parse_phandle(child, "memory-region", 0);
+	if (!child) {
+		node = of_parse_phandle(qproc->dev->of_node,
+					"memory-region", 1);
+	} else {
+		child = of_get_child_by_name(qproc->dev->of_node, "mpss");
+		node = of_parse_phandle(child, "memory-region", 0);
+	}
+
 	ret = of_address_to_resource(node, 0, &r);
 	if (ret) {
 		dev_err(qproc->dev, "unable to resolve mpss region\n");
@@ -1595,48 +1602,9 @@ static int q6v5_alloc_memory_region(struct q6v5 *qproc)
 
 	qproc->mpss_phys = qproc->mpss_reloc = r.start;
 	qproc->mpss_size = resource_size(&r);
-	qproc->mpss_region = devm_ioremap_wc(qproc->dev, qproc->mpss_phys, qproc->mpss_size);
-	if (!qproc->mpss_region) {
-		dev_err(qproc->dev, "unable to map memory region: %pa+%zx\n",
-			&r.start, qproc->mpss_size);
-		return -EBUSY;
-	}
 
 	return 0;
 }
-
-#if IS_ENABLED(CONFIG_QCOM_Q6V5_IPA_NOTIFY)
-
-/* Register IPA notification function */
-int qcom_register_ipa_notify(struct rproc *rproc, qcom_ipa_notify_t notify,
-			     void *data)
-{
-	struct qcom_rproc_ipa_notify *ipa_notify;
-	struct q6v5 *qproc = rproc->priv;
-
-	if (!notify)
-		return -EINVAL;
-
-	ipa_notify = &qproc->ipa_notify_subdev;
-	if (ipa_notify->notify)
-		return -EBUSY;
-
-	ipa_notify->notify = notify;
-	ipa_notify->data = data;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(qcom_register_ipa_notify);
-
-/* Deregister IPA notification function */
-void qcom_deregister_ipa_notify(struct rproc *rproc)
-{
-	struct q6v5 *qproc = rproc->priv;
-
-	qproc->ipa_notify_subdev.notify = NULL;
-}
-EXPORT_SYMBOL_GPL(qcom_deregister_ipa_notify);
-#endif /* !IS_ENABLED(CONFIG_QCOM_Q6V5_IPA_NOTIFY) */
 
 static int q6v5_probe(struct platform_device *pdev)
 {
@@ -1667,6 +1635,7 @@ static int q6v5_probe(struct platform_device *pdev)
 	}
 
 	rproc->auto_boot = false;
+	rproc_coredump_set_elf_info(rproc, ELFCLASS32, EM_NONE);
 
 	qproc = (struct q6v5 *)rproc->priv;
 	qproc->dev = &pdev->dev;
@@ -1679,7 +1648,7 @@ static int q6v5_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, qproc);
 
-	qproc->has_halt_nav = desc->has_halt_nav;
+	qproc->has_spare_reg = desc->has_spare_reg;
 	ret = q6v5_init_mem(qproc, pdev);
 	if (ret)
 		goto free_rproc;
@@ -1751,6 +1720,7 @@ static int q6v5_probe(struct platform_device *pdev)
 
 	qproc->version = desc->version;
 	qproc->need_mem_protection = desc->need_mem_protection;
+	qproc->has_mba_logs = desc->has_mba_logs;
 
 	ret = qcom_q6v5_init(&qproc->q6v5, pdev, rproc, MPSS_CRASH_REASON_SMEM,
 			     qcom_msa_handover);
@@ -1759,10 +1729,9 @@ static int q6v5_probe(struct platform_device *pdev)
 
 	qproc->mpss_perm = BIT(QCOM_SCM_VMID_HLOS);
 	qproc->mba_perm = BIT(QCOM_SCM_VMID_HLOS);
-	qcom_add_glink_subdev(rproc, &qproc->glink_subdev);
+	qcom_add_glink_subdev(rproc, &qproc->glink_subdev, "mpss");
 	qcom_add_smd_subdev(rproc, &qproc->smd_subdev);
 	qcom_add_ssr_subdev(rproc, &qproc->ssr_subdev, "mpss");
-	qcom_add_ipa_notify_subdev(rproc, &qproc->ipa_notify_subdev);
 	qproc->sysmon = qcom_add_sysmon_subdev(rproc, "modem", 0x12);
 	if (IS_ERR(qproc->sysmon)) {
 		ret = PTR_ERR(qproc->sysmon);
@@ -1778,7 +1747,6 @@ static int q6v5_probe(struct platform_device *pdev)
 remove_sysmon_subdev:
 	qcom_remove_sysmon_subdev(qproc->sysmon);
 remove_subdevs:
-	qcom_remove_ipa_notify_subdev(qproc->rproc, &qproc->ipa_notify_subdev);
 	qcom_remove_ssr_subdev(rproc, &qproc->ssr_subdev);
 	qcom_remove_smd_subdev(rproc, &qproc->smd_subdev);
 	qcom_remove_glink_subdev(rproc, &qproc->glink_subdev);
@@ -1800,7 +1768,6 @@ static int q6v5_remove(struct platform_device *pdev)
 	rproc_del(rproc);
 
 	qcom_remove_sysmon_subdev(qproc->sysmon);
-	qcom_remove_ipa_notify_subdev(rproc, &qproc->ipa_notify_subdev);
 	qcom_remove_ssr_subdev(rproc, &qproc->ssr_subdev);
 	qcom_remove_smd_subdev(rproc, &qproc->smd_subdev);
 	qcom_remove_glink_subdev(rproc, &qproc->glink_subdev);
@@ -1828,8 +1795,6 @@ static const struct rproc_hexagon_res sc7180_mss = {
 	.active_clk_names = (char*[]){
 		"mnoc_axi",
 		"nav",
-		"mss_nav",
-		"mss_crypto",
 		NULL
 	},
 	.active_pd_names = (char*[]){
@@ -1844,7 +1809,8 @@ static const struct rproc_hexagon_res sc7180_mss = {
 	},
 	.need_mem_protection = true,
 	.has_alt_reset = false,
-	.has_halt_nav = true,
+	.has_mba_logs = true,
+	.has_spare_reg = true,
 	.version = MSS_SC7180,
 };
 
@@ -1879,7 +1845,8 @@ static const struct rproc_hexagon_res sdm845_mss = {
 	},
 	.need_mem_protection = true,
 	.has_alt_reset = true,
-	.has_halt_nav = false,
+	.has_mba_logs = false,
+	.has_spare_reg = false,
 	.version = MSS_SDM845,
 };
 
@@ -1906,7 +1873,8 @@ static const struct rproc_hexagon_res msm8998_mss = {
 	},
 	.need_mem_protection = true,
 	.has_alt_reset = false,
-	.has_halt_nav = false,
+	.has_mba_logs = false,
+	.has_spare_reg = false,
 	.version = MSS_MSM8998,
 };
 
@@ -1936,7 +1904,8 @@ static const struct rproc_hexagon_res msm8996_mss = {
 	},
 	.need_mem_protection = true,
 	.has_alt_reset = false,
-	.has_halt_nav = false,
+	.has_mba_logs = false,
+	.has_spare_reg = false,
 	.version = MSS_MSM8996,
 };
 
@@ -1969,7 +1938,8 @@ static const struct rproc_hexagon_res msm8916_mss = {
 	},
 	.need_mem_protection = false,
 	.has_alt_reset = false,
-	.has_halt_nav = false,
+	.has_mba_logs = false,
+	.has_spare_reg = false,
 	.version = MSS_MSM8916,
 };
 
@@ -2010,7 +1980,8 @@ static const struct rproc_hexagon_res msm8974_mss = {
 	},
 	.need_mem_protection = false,
 	.has_alt_reset = false,
-	.has_halt_nav = false,
+	.has_mba_logs = false,
+	.has_spare_reg = false,
 	.version = MSS_MSM8974,
 };
 

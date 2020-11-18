@@ -468,7 +468,7 @@ xchk_da_btree(
 	int				error;
 
 	/* Skip short format data structures; no btree to scan. */
-	if (!xfs_ifork_has_extents(sc->ip, whichfork))
+	if (!xfs_ifork_has_extents(XFS_IFORK_PTR(sc->ip, whichfork)))
 		return 0;
 
 	/* Set up initial da state. */
@@ -476,9 +476,7 @@ xchk_da_btree(
 	ds.dargs.whichfork = whichfork;
 	ds.dargs.trans = sc->tp;
 	ds.dargs.op_flags = XFS_DA_OP_OKNOENT;
-	ds.state = xfs_da_state_alloc();
-	ds.state->args = &ds.dargs;
-	ds.state->mp = mp;
+	ds.state = xfs_da_state_alloc(&ds.dargs);
 	ds.sc = sc;
 	ds.private = private;
 	if (whichfork == XFS_ATTR_FORK) {

@@ -188,11 +188,9 @@ static struct fsnotify_mark *alloc_mark(void)
 static struct audit_chunk *alloc_chunk(int count)
 {
 	struct audit_chunk *chunk;
-	size_t size;
 	int i;
 
-	size = offsetof(struct audit_chunk, owners) + count * sizeof(struct node);
-	chunk = kzalloc(size, GFP_KERNEL);
+	chunk = kzalloc(struct_size(chunk, owners, count), GFP_KERNEL);
 	if (!chunk)
 		return NULL;
 
@@ -1037,11 +1035,9 @@ static void evict_chunk(struct audit_chunk *chunk)
 		audit_schedule_prune();
 }
 
-static int audit_tree_handle_event(struct fsnotify_group *group,
-				   struct inode *to_tell,
-				   u32 mask, const void *data, int data_type,
-				   const struct qstr *file_name, u32 cookie,
-				   struct fsnotify_iter_info *iter_info)
+static int audit_tree_handle_event(struct fsnotify_mark *mark, u32 mask,
+				   struct inode *inode, struct inode *dir,
+				   const struct qstr *file_name)
 {
 	return 0;
 }
@@ -1070,7 +1066,7 @@ static void audit_tree_freeing_mark(struct fsnotify_mark *mark,
 }
 
 static const struct fsnotify_ops audit_tree_ops = {
-	.handle_event = audit_tree_handle_event,
+	.handle_inode_event = audit_tree_handle_event,
 	.freeing_mark = audit_tree_freeing_mark,
 	.free_mark = audit_tree_destroy_watch,
 };

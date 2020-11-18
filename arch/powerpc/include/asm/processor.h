@@ -180,14 +180,14 @@ struct thread_struct {
 	int		fpexc_mode;	/* floating-point exception mode */
 	unsigned int	align_ctl;	/* alignment handling control */
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
-	struct perf_event *ptrace_bps[HBP_NUM];
+	struct perf_event *ptrace_bps[HBP_NUM_MAX];
 	/*
 	 * Helps identify source of single-step exception and subsequent
 	 * hw-breakpoint enablement
 	 */
-	struct perf_event *last_hit_ubp;
+	struct perf_event *last_hit_ubp[HBP_NUM_MAX];
 #endif /* CONFIG_HAVE_HW_BREAKPOINT */
-	struct arch_hw_breakpoint hw_brk; /* info on the hardware breakpoint */
+	struct arch_hw_breakpoint hw_brk[HBP_NUM_MAX]; /* hardware breakpoint info */
 	unsigned long	trap_nr;	/* last trap # on this thread */
 	u8 load_slb;			/* Ages out SLB preload cache entries */
 	u8 load_fp;
@@ -237,7 +237,6 @@ struct thread_struct {
 #ifdef CONFIG_PPC_MEM_KEYS
 	unsigned long	amr;
 	unsigned long	iamr;
-	unsigned long	uamor;
 #endif
 #ifdef CONFIG_KVM_BOOK3S_32_HANDLER
 	void*		kvm_shadow_vcpu; /* KVM internal data */
@@ -272,7 +271,10 @@ struct thread_struct {
 	unsigned 	mmcr0;
 
 	unsigned 	used_ebb;
-	unsigned int	used_vas;
+	unsigned long   mmcr3;
+	unsigned long   sier2;
+	unsigned long   sier3;
+
 #endif
 };
 
@@ -301,14 +303,12 @@ struct thread_struct {
 #else
 #define INIT_THREAD  { \
 	.ksp = INIT_SP, \
-	.regs = (struct pt_regs *)INIT_SP - 1, /* XXX bogus, I think */ \
 	.addr_limit = KERNEL_DS, \
 	.fpexc_mode = 0, \
-	.fscr = FSCR_TAR | FSCR_EBB \
 }
 #endif
 
-#define task_pt_regs(tsk)	((struct pt_regs *)(tsk)->thread.regs)
+#define task_pt_regs(tsk)	((tsk)->thread.regs)
 
 unsigned long get_wchan(struct task_struct *p);
 

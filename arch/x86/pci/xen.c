@@ -26,6 +26,7 @@
 #include <asm/xen/pci.h>
 #include <asm/xen/cpuid.h>
 #include <asm/apic.h>
+#include <asm/acpi.h>
 #include <asm/i8259.h>
 
 static int xen_pcifront_enable_irq(struct pci_dev *dev)
@@ -60,10 +61,9 @@ static int xen_pcifront_enable_irq(struct pci_dev *dev)
 }
 
 #ifdef CONFIG_ACPI
-static int xen_register_pirq(u32 gsi, int gsi_override, int triggering,
-			     bool set_pirq)
+static int xen_register_pirq(u32 gsi, int triggering, bool set_pirq)
 {
-	int rc, pirq = -1, irq = -1;
+	int rc, pirq = -1, irq;
 	struct physdev_map_pirq map_irq;
 	int shareable = 0;
 	char *name;
@@ -94,9 +94,6 @@ static int xen_register_pirq(u32 gsi, int gsi_override, int triggering,
 		name = "ioapic-level";
 	}
 
-	if (gsi_override >= 0)
-		gsi = gsi_override;
-
 	irq = xen_bind_pirq_gsi_to_irq(gsi, map_irq.pirq, shareable, name);
 	if (irq < 0)
 		goto out;
@@ -112,12 +109,12 @@ static int acpi_register_gsi_xen_hvm(struct device *dev, u32 gsi,
 	if (!xen_hvm_domain())
 		return -1;
 
-	return xen_register_pirq(gsi, -1 /* no GSI override */, trigger,
+	return xen_register_pirq(gsi, trigger,
 				 false /* no mapping of GSI to PIRQ */);
 }
 
 #ifdef CONFIG_XEN_DOM0
-static int xen_register_gsi(u32 gsi, int gsi_override, int triggering, int polarity)
+static int xen_register_gsi(u32 gsi, int triggering, int polarity)
 {
 	int rc, irq;
 	struct physdev_setup_gsi setup_gsi;
@@ -128,7 +125,7 @@ static int xen_register_gsi(u32 gsi, int gsi_override, int triggering, int polar
 	printk(KERN_DEBUG "xen: registering gsi %u triggering %d polarity %d\n",
 			gsi, triggering, polarity);
 
-	irq = xen_register_pirq(gsi, gsi_override, triggering, true);
+	irq = xen_register_pirq(gsi, triggering, true);
 
 	setup_gsi.gsi = gsi;
 	setup_gsi.triggering = (triggering == ACPI_EDGE_SENSITIVE ? 0 : 1);
@@ -148,7 +145,7 @@ static int xen_register_gsi(u32 gsi, int gsi_override, int triggering, int polar
 static int acpi_register_gsi_xen(struct device *dev, u32 gsi,
 				 int trigger, int polarity)
 {
-	return xen_register_gsi(gsi, -1 /* no GSI override */, trigger, polarity);
+	return xen_register_gsi(gsi, trigger, polarity);
 }
 #endif
 #endif
@@ -491,7 +488,7 @@ int __init pci_xen_initial_domain(void)
 		if (acpi_get_override_irq(irq, &trigger, &polarity) == -1)
 			continue;
 
-		xen_register_pirq(irq, -1 /* no GSI override */,
+		xen_register_pirq(irq,
 			trigger ? ACPI_LEVEL_SENSITIVE : ACPI_EDGE_SENSITIVE,
 			true /* Map GSI to PIRQ */);
 	}

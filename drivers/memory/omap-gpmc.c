@@ -29,6 +29,7 @@
 #include <linux/of_platform.h>
 #include <linux/omap-gpmc.h>
 #include <linux/pm_runtime.h>
+#include <linux/sizes.h>
 
 #include <linux/platform_data/mtd-nand-omap2.h>
 
@@ -108,8 +109,8 @@
 #define ENABLE_PREFETCH		(0x1 << 7)
 #define DMA_MPU_MODE		2
 
-#define	GPMC_REVISION_MAJOR(l)		((l >> 4) & 0xf)
-#define	GPMC_REVISION_MINOR(l)		(l & 0xf)
+#define	GPMC_REVISION_MAJOR(l)		(((l) >> 4) & 0xf)
+#define	GPMC_REVISION_MINOR(l)		((l) & 0xf)
 
 #define	GPMC_HAS_WR_ACCESS		0x1
 #define	GPMC_HAS_WR_DATA_MUX_BUS	0x2
@@ -140,27 +141,27 @@
 #define GPMC_CONFIG1_WRITEMULTIPLE_SUPP (1 << 28)
 #define GPMC_CONFIG1_WRITETYPE_ASYNC    (0 << 27)
 #define GPMC_CONFIG1_WRITETYPE_SYNC     (1 << 27)
-#define GPMC_CONFIG1_CLKACTIVATIONTIME(val) ((val & 3) << 25)
+#define GPMC_CONFIG1_CLKACTIVATIONTIME(val) (((val) & 3) << 25)
 /** CLKACTIVATIONTIME Max Ticks */
 #define GPMC_CONFIG1_CLKACTIVATIONTIME_MAX 2
-#define GPMC_CONFIG1_PAGE_LEN(val)      ((val & 3) << 23)
+#define GPMC_CONFIG1_PAGE_LEN(val)      (((val) & 3) << 23)
 /** ATTACHEDDEVICEPAGELENGTH Max Value */
 #define GPMC_CONFIG1_ATTACHEDDEVICEPAGELENGTH_MAX 2
 #define GPMC_CONFIG1_WAIT_READ_MON      (1 << 22)
 #define GPMC_CONFIG1_WAIT_WRITE_MON     (1 << 21)
-#define GPMC_CONFIG1_WAIT_MON_TIME(val) ((val & 3) << 18)
+#define GPMC_CONFIG1_WAIT_MON_TIME(val) (((val) & 3) << 18)
 /** WAITMONITORINGTIME Max Ticks */
 #define GPMC_CONFIG1_WAITMONITORINGTIME_MAX  2
-#define GPMC_CONFIG1_WAIT_PIN_SEL(val)  ((val & 3) << 16)
-#define GPMC_CONFIG1_DEVICESIZE(val)    ((val & 3) << 12)
+#define GPMC_CONFIG1_WAIT_PIN_SEL(val)  (((val) & 3) << 16)
+#define GPMC_CONFIG1_DEVICESIZE(val)    (((val) & 3) << 12)
 #define GPMC_CONFIG1_DEVICESIZE_16      GPMC_CONFIG1_DEVICESIZE(1)
 /** DEVICESIZE Max Value */
 #define GPMC_CONFIG1_DEVICESIZE_MAX     1
-#define GPMC_CONFIG1_DEVICETYPE(val)    ((val & 3) << 10)
+#define GPMC_CONFIG1_DEVICETYPE(val)    (((val) & 3) << 10)
 #define GPMC_CONFIG1_DEVICETYPE_NOR     GPMC_CONFIG1_DEVICETYPE(0)
-#define GPMC_CONFIG1_MUXTYPE(val)       ((val & 3) << 8)
+#define GPMC_CONFIG1_MUXTYPE(val)       (((val) & 3) << 8)
 #define GPMC_CONFIG1_TIME_PARA_GRAN     (1 << 4)
-#define GPMC_CONFIG1_FCLK_DIV(val)      (val & 3)
+#define GPMC_CONFIG1_FCLK_DIV(val)      ((val) & 3)
 #define GPMC_CONFIG1_FCLK_DIV2          (GPMC_CONFIG1_FCLK_DIV(1))
 #define GPMC_CONFIG1_FCLK_DIV3          (GPMC_CONFIG1_FCLK_DIV(2))
 #define GPMC_CONFIG1_FCLK_DIV4          (GPMC_CONFIG1_FCLK_DIV(3))
@@ -245,7 +246,7 @@ static DEFINE_SPINLOCK(gpmc_mem_lock);
 static unsigned int gpmc_cs_num = GPMC_CS_NUM;
 static unsigned int gpmc_nr_waitpins;
 static resource_size_t phys_base, mem_size;
-static unsigned gpmc_capability;
+static unsigned int gpmc_capability;
 static void __iomem *gpmc_base;
 
 static struct clk *gpmc_l3_clk;
@@ -291,15 +292,14 @@ static unsigned long gpmc_get_fclk_period(void)
 
 /**
  * gpmc_get_clk_period - get period of selected clock domain in ps
- * @cs Chip Select Region.
- * @cd Clock Domain.
+ * @cs: Chip Select Region.
+ * @cd: Clock Domain.
  *
  * GPMC_CS_CONFIG1 GPMCFCLKDIVIDER for cs has to be setup
  * prior to calling this function with GPMC_CD_CLK.
  */
 static unsigned long gpmc_get_clk_period(int cs, enum gpmc_clk_domain cd)
 {
-
 	unsigned long tick_ps = gpmc_get_fclk_period();
 	u32 l;
 	int div;
@@ -313,13 +313,11 @@ static unsigned long gpmc_get_clk_period(int cs, enum gpmc_clk_domain cd)
 		tick_ps *= div;
 		break;
 	case GPMC_CD_FCLK:
-		/* FALL-THROUGH */
 	default:
 		break;
 	}
 
 	return tick_ps;
-
 }
 
 static unsigned int gpmc_ns_to_clk_ticks(unsigned int time_ns, int cs,
@@ -411,7 +409,7 @@ static void gpmc_cs_bool_timings(int cs, const struct gpmc_bool_timings *p)
  * @reg:     GPMC_CS_CONFIGn register offset.
  * @st_bit:  Start Bit
  * @end_bit: End Bit. Must be >= @st_bit.
- * @ma:x     Maximum parameter value (before optional @shift).
+ * @max:     Maximum parameter value (before optional @shift).
  *           If 0, maximum is as high as @st_bit and @end_bit allow.
  * @name:    DTS node name, w/o "gpmc,"
  * @cd:      Clock Domain of timing parameter.
@@ -511,7 +509,7 @@ static void gpmc_cs_show_timings(int cs, const char *desc)
 	GPMC_GET_RAW_BOOL(GPMC_CS_CONFIG1,  4,  4, "time-para-granularity");
 	GPMC_GET_RAW(GPMC_CS_CONFIG1,  8,  9, "mux-add-data");
 	GPMC_GET_RAW_SHIFT_MAX(GPMC_CS_CONFIG1, 12, 13, 1,
-			 GPMC_CONFIG1_DEVICESIZE_MAX, "device-width");
+			       GPMC_CONFIG1_DEVICESIZE_MAX, "device-width");
 	GPMC_GET_RAW(GPMC_CS_CONFIG1, 16, 17, "wait-pin");
 	GPMC_GET_RAW_BOOL(GPMC_CS_CONFIG1, 21, 21, "wait-on-write");
 	GPMC_GET_RAW_BOOL(GPMC_CS_CONFIG1, 22, 22, "wait-on-read");
@@ -625,9 +623,8 @@ static int set_gpmc_timing_reg(int cs, int reg, int st_bit, int end_bit, int max
 
 	l = gpmc_cs_read_reg(cs, reg);
 #ifdef CONFIG_OMAP_GPMC_DEBUG
-	pr_info(
-		"GPMC CS%d: %-17s: %3d ticks, %3lu ns (was %3i ticks) %3d ns\n",
-	       cs, name, ticks, gpmc_get_clk_period(cs, cd) * ticks / 1000,
+	pr_info("GPMC CS%d: %-17s: %3d ticks, %3lu ns (was %3i ticks) %3d ns\n",
+		cs, name, ticks, gpmc_get_clk_period(cs, cd) * ticks / 1000,
 			(l >> st_bit) & mask, time);
 #endif
 	l &= ~(mask << st_bit);
@@ -662,7 +659,6 @@ static int set_gpmc_timing_reg(int cs, int reg, int st_bit, int end_bit, int max
  */
 static int gpmc_calc_waitmonitoring_divider(unsigned int wait_monitoring)
 {
-
 	int div = gpmc_ns_to_ticks(wait_monitoring);
 
 	div += GPMC_CONFIG1_WAITMONITORINGTIME_MAX - 1;
@@ -674,7 +670,6 @@ static int gpmc_calc_waitmonitoring_divider(unsigned int wait_monitoring)
 		div = 1;
 
 	return div;
-
 }
 
 /**
@@ -728,7 +723,6 @@ int gpmc_cs_set_timings(int cs, const struct gpmc_timings *t,
 	if (!s->sync_read && !s->sync_write &&
 	    (s->wait_on_read || s->wait_on_write)
 	   ) {
-
 		div = gpmc_calc_waitmonitoring_divider(t->wait_monitoring);
 		if (div < 0) {
 			pr_err("%s: waitmonitoringtime %3d ns too large for greatest gpmcfclkdivider.\n",
@@ -958,7 +952,7 @@ static int gpmc_cs_remap(int cs, u32 base)
 	 * Make sure we ignore any device offsets from the GPMC partition
 	 * allocated for the chip select and that the new base confirms
 	 * to the GPMC 16MB minimum granularity.
-	 */ 
+	 */
 	base &= ~(SZ_16M - 1);
 
 	gpmc_cs_get_memconf(cs, &old_base, &size);
@@ -1087,7 +1081,7 @@ static struct gpmc_nand_ops nand_ops = {
 
 /**
  * gpmc_omap_get_nand_ops - Get the GPMC NAND interface
- * @regs: the GPMC NAND register map exclusive for NAND use.
+ * @reg: the GPMC NAND register map exclusive for NAND use.
  * @cs: GPMC chip select number on which the NAND sits. The
  *      register map returned will be specific to this chip select.
  *
@@ -1242,7 +1236,7 @@ int gpmc_omap_onenand_set_timings(struct device *dev, int cs, int freq,
 }
 EXPORT_SYMBOL_GPL(gpmc_omap_onenand_set_timings);
 
-int gpmc_get_client_irq(unsigned irq_config)
+int gpmc_get_client_irq(unsigned int irq_config)
 {
 	if (!gpmc_irq_domain) {
 		pr_warn("%s called before GPMC IRQ domain available\n",
@@ -1465,7 +1459,6 @@ static void gpmc_mem_exit(void)
 			continue;
 		gpmc_cs_delete_mem(cs);
 	}
-
 }
 
 static void gpmc_mem_init(void)
@@ -1634,17 +1627,14 @@ static int gpmc_calc_async_read_timings(struct gpmc_timings *gpmc_t,
 	/* oe_on */
 	temp = dev_t->t_oeasu;
 	if (mux)
-		temp = max_t(u32, temp,
-			gpmc_t->adv_rd_off + dev_t->t_aavdh);
+		temp = max_t(u32, temp, gpmc_t->adv_rd_off + dev_t->t_aavdh);
 	gpmc_t->oe_on = gpmc_round_ps_to_ticks(temp);
 
 	/* access */
 	temp = max_t(u32, dev_t->t_iaa, /* XXX: remove t_iaa in async ? */
-				gpmc_t->oe_on + dev_t->t_oe);
-	temp = max_t(u32, temp,
-				gpmc_t->cs_on + dev_t->t_ce);
-	temp = max_t(u32, temp,
-				gpmc_t->adv_on + dev_t->t_aa);
+		     gpmc_t->oe_on + dev_t->t_oe);
+	temp = max_t(u32, temp, gpmc_t->cs_on + dev_t->t_ce);
+	temp = max_t(u32, temp, gpmc_t->adv_on + dev_t->t_aa);
 	gpmc_t->access = gpmc_round_ps_to_ticks(temp);
 
 	gpmc_t->oe_off = gpmc_t->access + gpmc_ticks_to_ps(1);
@@ -1753,10 +1743,11 @@ static int gpmc_calc_common_timings(struct gpmc_timings *gpmc_t,
 	return 0;
 }
 
-/* TODO: remove this function once all peripherals are confirmed to
+/*
+ * TODO: remove this function once all peripherals are confirmed to
  * work with generic timing. Simultaneously gpmc_cs_set_timings()
  * has to be modified to handle timings in ps instead of ns
-*/
+ */
 static void gpmc_convert_ps_to_ns(struct gpmc_timings *t)
 {
 	t->cs_on /= 1000;
@@ -2089,7 +2080,7 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 	gpmc_cs_disable_mem(cs);
 
 	/*
-	 * FIXME: gpmc_cs_request() will map the CS to an arbitary
+	 * FIXME: gpmc_cs_request() will map the CS to an arbitrary
 	 * location in the gpmc address space. When booting with
 	 * device-tree we want the NOR flash to be mapped to the
 	 * location specified in the device-tree blob. So remap the

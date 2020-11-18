@@ -11,21 +11,54 @@
 #include <linux/of.h>
 #include <linux/platform_data/cros_ec_commands.h>
 #include <linux/platform_data/cros_ec_proto.h>
+#include <linux/platform_data/cros_usbpd_notify.h>
 #include <linux/platform_device.h>
 #include <linux/usb/typec.h>
+#include <linux/usb/typec_altmode.h>
+#include <linux/usb/typec_dp.h>
+#include <linux/usb/typec_mux.h>
+#include <linux/usb/typec_tbt.h>
+#include <linux/usb/role.h>
 
 #define DRV_NAME "cros-ec-typec"
+
+/* Supported alt modes. */
+enum {
+	CROS_EC_ALTMODE_DP = 0,
+	CROS_EC_ALTMODE_TBT,
+	CROS_EC_ALTMODE_MAX,
+};
+
+/* Per port data. */
+struct cros_typec_port {
+	struct typec_port *port;
+	/* Initial capabilities for the port. */
+	struct typec_capability caps;
+	struct typec_partner *partner;
+	/* Port partner PD identity info. */
+	struct usb_pd_identity p_identity;
+	struct typec_switch *ori_sw;
+	struct typec_mux *mux;
+	struct usb_role_switch *role_sw;
+
+	/* Variables keeping track of switch state. */
+	struct typec_mux_state state;
+	uint8_t mux_flags;
+
+	/* Port alt modes. */
+	struct typec_altmode p_altmode[CROS_EC_ALTMODE_MAX];
+};
 
 /* Platform-specific data for the Chrome OS EC Type C controller. */
 struct cros_typec_data {
 	struct device *dev;
 	struct cros_ec_device *ec;
 	int num_ports;
-	unsigned int cmd_ver;
+	unsigned int pd_ctrl_ver;
 	/* Array of ports, indexed by port number. */
-	struct typec_port *ports[EC_USB_PD_MAX_PORTS];
-	/* Initial capabilities for each port. */
-	struct typec_capability *caps[EC_USB_PD_MAX_PORTS];
+	struct cros_typec_port *ports[EC_USB_PD_MAX_PORTS];
+	struct notifier_block nb;
+	struct work_struct port_work;
 };
 
 static int cros_typec_parse_port_props(struct typec_capability *cap,
@@ -74,14 +107,130 @@ static int cros_typec_parse_port_props(struct typec_capability *cap,
 	return 0;
 }
 
+static int cros_typec_get_switch_handles(struct cros_typec_port *port,
+					 struct fwnode_handle *fwnode,
+					 struct device *dev)
+{
+	port->mux = fwnode_typec_mux_get(fwnode, NULL);
+	if (IS_ERR(port->mux)) {
+		dev_dbg(dev, "Mux handle not found.\n");
+		goto mux_err;
+	}
+
+	port->ori_sw = fwnode_typec_switch_get(fwnode);
+	if (IS_ERR(port->ori_sw)) {
+		dev_dbg(dev, "Orientation switch handle not found.\n");
+		goto ori_sw_err;
+	}
+
+	port->role_sw = fwnode_usb_role_switch_get(fwnode);
+	if (IS_ERR(port->role_sw)) {
+		dev_dbg(dev, "USB role switch handle not found.\n");
+		goto role_sw_err;
+	}
+
+	return 0;
+
+role_sw_err:
+	usb_role_switch_put(port->role_sw);
+ori_sw_err:
+	typec_switch_put(port->ori_sw);
+mux_err:
+	typec_mux_put(port->mux);
+
+	return -ENODEV;
+}
+
+static int cros_typec_add_partner(struct cros_typec_data *typec, int port_num,
+				  bool pd_en)
+{
+	struct cros_typec_port *port = typec->ports[port_num];
+	struct typec_partner_desc p_desc = {
+		.usb_pd = pd_en,
+	};
+	int ret = 0;
+
+	/*
+	 * Fill an initial PD identity, which will then be updated with info
+	 * from the EC.
+	 */
+	p_desc.identity = &port->p_identity;
+
+	port->partner = typec_register_partner(port->port, &p_desc);
+	if (IS_ERR(port->partner)) {
+		ret = PTR_ERR(port->partner);
+		port->partner = NULL;
+	}
+
+	return ret;
+}
+
+static void cros_typec_remove_partner(struct cros_typec_data *typec,
+				     int port_num)
+{
+	struct cros_typec_port *port = typec->ports[port_num];
+
+	port->state.alt = NULL;
+	port->state.mode = TYPEC_STATE_USB;
+	port->state.data = NULL;
+
+	usb_role_switch_set_role(port->role_sw, USB_ROLE_NONE);
+	typec_switch_set(port->ori_sw, TYPEC_ORIENTATION_NONE);
+	typec_mux_set(port->mux, &port->state);
+
+	typec_unregister_partner(port->partner);
+	port->partner = NULL;
+}
+
+static void cros_unregister_ports(struct cros_typec_data *typec)
+{
+	int i;
+
+	for (i = 0; i < typec->num_ports; i++) {
+		if (!typec->ports[i])
+			continue;
+		cros_typec_remove_partner(typec, i);
+		usb_role_switch_put(typec->ports[i]->role_sw);
+		typec_switch_put(typec->ports[i]->ori_sw);
+		typec_mux_put(typec->ports[i]->mux);
+		typec_unregister_port(typec->ports[i]->port);
+	}
+}
+
+/*
+ * Fake the alt mode structs until we actually start registering Type C port
+ * and partner alt modes.
+ */
+static void cros_typec_register_port_altmodes(struct cros_typec_data *typec,
+					      int port_num)
+{
+	struct cros_typec_port *port = typec->ports[port_num];
+
+	/* All PD capable CrOS devices are assumed to support DP altmode. */
+	port->p_altmode[CROS_EC_ALTMODE_DP].svid = USB_TYPEC_DP_SID;
+	port->p_altmode[CROS_EC_ALTMODE_DP].mode = USB_TYPEC_DP_MODE;
+
+	/*
+	 * Register TBT compatibility alt mode. The EC will not enter the mode
+	 * if it doesn't support it, so it's safe to register it unconditionally
+	 * here for now.
+	 */
+	port->p_altmode[CROS_EC_ALTMODE_TBT].svid = USB_TYPEC_TBT_SID;
+	port->p_altmode[CROS_EC_ALTMODE_TBT].mode = TYPEC_ANY_MODE;
+
+	port->state.alt = NULL;
+	port->state.mode = TYPEC_STATE_USB;
+	port->state.data = NULL;
+}
+
 static int cros_typec_init_ports(struct cros_typec_data *typec)
 {
 	struct device *dev = typec->dev;
 	struct typec_capability *cap;
 	struct fwnode_handle *fwnode;
+	struct cros_typec_port *cros_port;
 	const char *port_prop;
 	int ret;
-	int i;
 	int nports;
 	u32 port_num = 0;
 
@@ -113,31 +262,38 @@ static int cros_typec_init_ports(struct cros_typec_data *typec)
 
 		dev_dbg(dev, "Registering port %d\n", port_num);
 
-		cap = devm_kzalloc(dev, sizeof(*cap), GFP_KERNEL);
-		if (!cap) {
+		cros_port = devm_kzalloc(dev, sizeof(*cros_port), GFP_KERNEL);
+		if (!cros_port) {
 			ret = -ENOMEM;
 			goto unregister_ports;
 		}
 
-		typec->caps[port_num] = cap;
+		typec->ports[port_num] = cros_port;
+		cap = &cros_port->caps;
 
 		ret = cros_typec_parse_port_props(cap, fwnode, dev);
 		if (ret < 0)
 			goto unregister_ports;
 
-		typec->ports[port_num] = typec_register_port(dev, cap);
-		if (IS_ERR(typec->ports[port_num])) {
+		cros_port->port = typec_register_port(dev, cap);
+		if (IS_ERR(cros_port->port)) {
 			dev_err(dev, "Failed to register port %d\n", port_num);
-			ret = PTR_ERR(typec->ports[port_num]);
+			ret = PTR_ERR(cros_port->port);
 			goto unregister_ports;
 		}
+
+		ret = cros_typec_get_switch_handles(cros_port, fwnode, dev);
+		if (ret)
+			dev_dbg(dev, "No switch control for port %d\n",
+				port_num);
+
+		cros_typec_register_port_altmodes(typec, port_num);
 	}
 
 	return 0;
 
 unregister_ports:
-	for (i = 0; i < typec->num_ports; i++)
-		typec_unregister_port(typec->ports[i]);
+	cros_unregister_ports(typec);
 	return ret;
 }
 
@@ -175,7 +331,7 @@ static int cros_typec_ec_command(struct cros_typec_data *typec,
 static void cros_typec_set_port_params_v0(struct cros_typec_data *typec,
 		int port_num, struct ec_response_usb_pd_control *resp)
 {
-	struct typec_port *port = typec->ports[port_num];
+	struct typec_port *port = typec->ports[port_num]->port;
 	enum typec_orientation polarity;
 
 	if (!resp->enabled)
@@ -192,8 +348,10 @@ static void cros_typec_set_port_params_v0(struct cros_typec_data *typec,
 static void cros_typec_set_port_params_v1(struct cros_typec_data *typec,
 		int port_num, struct ec_response_usb_pd_control_v1 *resp)
 {
-	struct typec_port *port = typec->ports[port_num];
+	struct typec_port *port = typec->ports[port_num]->port;
 	enum typec_orientation polarity;
+	bool pd_en;
+	int ret;
 
 	if (!(resp->enabled & PD_CTRL_RESP_ENABLED_CONNECTED))
 		polarity = TYPEC_ORIENTATION_NONE;
@@ -208,12 +366,181 @@ static void cros_typec_set_port_params_v1(struct cros_typec_data *typec,
 			TYPEC_SOURCE : TYPEC_SINK);
 	typec_set_vconn_role(port, resp->role & PD_CTRL_RESP_ROLE_VCONN ?
 			TYPEC_SOURCE : TYPEC_SINK);
+
+	/* Register/remove partners when a connect/disconnect occurs. */
+	if (resp->enabled & PD_CTRL_RESP_ENABLED_CONNECTED) {
+		if (typec->ports[port_num]->partner)
+			return;
+
+		pd_en = resp->enabled & PD_CTRL_RESP_ENABLED_PD_CAPABLE;
+		ret = cros_typec_add_partner(typec, port_num, pd_en);
+		if (ret)
+			dev_warn(typec->dev,
+				 "Failed to register partner on port: %d\n",
+				 port_num);
+	} else {
+		if (!typec->ports[port_num]->partner)
+			return;
+		cros_typec_remove_partner(typec, port_num);
+	}
+}
+
+static int cros_typec_get_mux_info(struct cros_typec_data *typec, int port_num,
+				   struct ec_response_usb_pd_mux_info *resp)
+{
+	struct ec_params_usb_pd_mux_info req = {
+		.port = port_num,
+	};
+
+	return cros_typec_ec_command(typec, 0, EC_CMD_USB_PD_MUX_INFO, &req,
+				     sizeof(req), resp, sizeof(*resp));
+}
+
+static int cros_typec_usb_safe_state(struct cros_typec_port *port)
+{
+	port->state.mode = TYPEC_STATE_SAFE;
+
+	return typec_mux_set(port->mux, &port->state);
+}
+
+/*
+ * Spoof the VDOs that were likely communicated by the partner for TBT alt
+ * mode.
+ */
+static int cros_typec_enable_tbt(struct cros_typec_data *typec,
+				 int port_num,
+				 struct ec_response_usb_pd_control_v2 *pd_ctrl)
+{
+	struct cros_typec_port *port = typec->ports[port_num];
+	struct typec_thunderbolt_data data;
+	int ret;
+
+	if (typec->pd_ctrl_ver < 2) {
+		dev_err(typec->dev,
+			"PD_CTRL version too old: %d\n", typec->pd_ctrl_ver);
+		return -ENOTSUPP;
+	}
+
+	/* Device Discover Mode VDO */
+	data.device_mode = TBT_MODE;
+
+	if (pd_ctrl->control_flags & USB_PD_CTRL_TBT_LEGACY_ADAPTER)
+		data.device_mode = TBT_SET_ADAPTER(TBT_ADAPTER_TBT3);
+
+	/* Cable Discover Mode VDO */
+	data.cable_mode = TBT_MODE;
+	data.cable_mode |= TBT_SET_CABLE_SPEED(pd_ctrl->cable_speed);
+
+	if (pd_ctrl->control_flags & USB_PD_CTRL_OPTICAL_CABLE)
+		data.cable_mode |= TBT_CABLE_OPTICAL;
+
+	if (pd_ctrl->control_flags & USB_PD_CTRL_ACTIVE_LINK_UNIDIR)
+		data.cable_mode |= TBT_CABLE_LINK_TRAINING;
+
+	if (pd_ctrl->cable_gen)
+		data.cable_mode |= TBT_CABLE_ROUNDED;
+
+	/* Enter Mode VDO */
+	data.enter_vdo = TBT_SET_CABLE_SPEED(pd_ctrl->cable_speed);
+
+	if (pd_ctrl->control_flags & USB_PD_CTRL_ACTIVE_CABLE)
+		data.enter_vdo |= TBT_ENTER_MODE_ACTIVE_CABLE;
+
+	if (!port->state.alt) {
+		port->state.alt = &port->p_altmode[CROS_EC_ALTMODE_TBT];
+		ret = cros_typec_usb_safe_state(port);
+		if (ret)
+			return ret;
+	}
+
+	port->state.data = &data;
+	port->state.mode = TYPEC_TBT_MODE;
+
+	return typec_mux_set(port->mux, &port->state);
+}
+
+/* Spoof the VDOs that were likely communicated by the partner. */
+static int cros_typec_enable_dp(struct cros_typec_data *typec,
+				int port_num,
+				struct ec_response_usb_pd_control_v2 *pd_ctrl)
+{
+	struct cros_typec_port *port = typec->ports[port_num];
+	struct typec_displayport_data dp_data;
+	int ret;
+
+	if (typec->pd_ctrl_ver < 2) {
+		dev_err(typec->dev,
+			"PD_CTRL version too old: %d\n", typec->pd_ctrl_ver);
+		return -ENOTSUPP;
+	}
+
+	/* Status VDO. */
+	dp_data.status = DP_STATUS_ENABLED;
+	if (port->mux_flags & USB_PD_MUX_HPD_IRQ)
+		dp_data.status |= DP_STATUS_IRQ_HPD;
+	if (port->mux_flags & USB_PD_MUX_HPD_LVL)
+		dp_data.status |= DP_STATUS_HPD_STATE;
+
+	/* Configuration VDO. */
+	dp_data.conf = DP_CONF_SET_PIN_ASSIGN(pd_ctrl->dp_mode);
+	if (!port->state.alt) {
+		port->state.alt = &port->p_altmode[CROS_EC_ALTMODE_DP];
+		ret = cros_typec_usb_safe_state(port);
+		if (ret)
+			return ret;
+	}
+
+	port->state.data = &dp_data;
+	port->state.mode = TYPEC_MODAL_STATE(ffs(pd_ctrl->dp_mode));
+
+	return typec_mux_set(port->mux, &port->state);
+}
+
+static int cros_typec_configure_mux(struct cros_typec_data *typec, int port_num,
+				uint8_t mux_flags,
+				struct ec_response_usb_pd_control_v2 *pd_ctrl)
+{
+	struct cros_typec_port *port = typec->ports[port_num];
+	enum typec_orientation orientation;
+	int ret;
+
+	if (!port->partner)
+		return 0;
+
+	if (mux_flags & USB_PD_MUX_POLARITY_INVERTED)
+		orientation = TYPEC_ORIENTATION_REVERSE;
+	else
+		orientation = TYPEC_ORIENTATION_NORMAL;
+
+	ret = typec_switch_set(port->ori_sw, orientation);
+	if (ret)
+		return ret;
+
+	if (mux_flags & USB_PD_MUX_TBT_COMPAT_ENABLED) {
+		ret = cros_typec_enable_tbt(typec, port_num, pd_ctrl);
+	} else if (mux_flags & USB_PD_MUX_DP_ENABLED) {
+		ret = cros_typec_enable_dp(typec, port_num, pd_ctrl);
+	} else if (mux_flags & USB_PD_MUX_SAFE_MODE) {
+		ret = cros_typec_usb_safe_state(port);
+	} else if (mux_flags & USB_PD_MUX_USB_ENABLED) {
+		port->state.alt = NULL;
+		port->state.mode = TYPEC_STATE_USB;
+		ret = typec_mux_set(port->mux, &port->state);
+	} else {
+		dev_info(typec->dev,
+			 "Unsupported mode requested, mux flags: %x\n",
+			 mux_flags);
+		ret = -ENOTSUPP;
+	}
+
+	return ret;
 }
 
 static int cros_typec_port_update(struct cros_typec_data *typec, int port_num)
 {
 	struct ec_params_usb_pd_control req;
-	struct ec_response_usb_pd_control_v1 resp;
+	struct ec_response_usb_pd_control_v2 resp;
+	struct ec_response_usb_pd_mux_info mux_resp;
 	int ret;
 
 	if (port_num < 0 || port_num >= typec->num_ports) {
@@ -227,7 +554,7 @@ static int cros_typec_port_update(struct cros_typec_data *typec, int port_num)
 	req.mux = USB_PD_CTRL_MUX_NO_CHANGE;
 	req.swap = USB_PD_CTRL_SWAP_NONE;
 
-	ret = cros_typec_ec_command(typec, typec->cmd_ver,
+	ret = cros_typec_ec_command(typec, typec->pd_ctrl_ver,
 				    EC_CMD_USB_PD_CONTROL, &req, sizeof(req),
 				    &resp, sizeof(resp));
 	if (ret < 0)
@@ -238,13 +565,33 @@ static int cros_typec_port_update(struct cros_typec_data *typec, int port_num)
 	dev_dbg(typec->dev, "Polarity %d: 0x%hhx\n", port_num, resp.polarity);
 	dev_dbg(typec->dev, "State %d: %s\n", port_num, resp.state);
 
-	if (typec->cmd_ver == 1)
-		cros_typec_set_port_params_v1(typec, port_num, &resp);
+	if (typec->pd_ctrl_ver != 0)
+		cros_typec_set_port_params_v1(typec, port_num,
+			(struct ec_response_usb_pd_control_v1 *)&resp);
 	else
 		cros_typec_set_port_params_v0(typec, port_num,
 			(struct ec_response_usb_pd_control *) &resp);
 
-	return 0;
+	/* Update the switches if they exist, according to requested state */
+	ret = cros_typec_get_mux_info(typec, port_num, &mux_resp);
+	if (ret < 0) {
+		dev_warn(typec->dev,
+			 "Failed to get mux info for port: %d, err = %d\n",
+			 port_num, ret);
+		return 0;
+	}
+
+	/* No change needs to be made, let's exit early. */
+	if (typec->ports[port_num]->mux_flags == mux_resp.flags)
+		return 0;
+
+	typec->ports[port_num]->mux_flags = mux_resp.flags;
+	ret = cros_typec_configure_mux(typec, port_num, mux_resp.flags, &resp);
+	if (ret)
+		dev_warn(typec->dev, "Configure muxes failed, err = %d\n", ret);
+
+	return usb_role_switch_set_role(typec->ports[port_num]->role_sw,
+					!!(resp.role & PD_CTRL_RESP_ROLE_DATA));
 }
 
 static int cros_typec_get_cmd_version(struct cros_typec_data *typec)
@@ -261,15 +608,39 @@ static int cros_typec_get_cmd_version(struct cros_typec_data *typec)
 	if (ret < 0)
 		return ret;
 
-	if (resp.version_mask & EC_VER_MASK(1))
-		typec->cmd_ver = 1;
+	if (resp.version_mask & EC_VER_MASK(2))
+		typec->pd_ctrl_ver = 2;
+	else if (resp.version_mask & EC_VER_MASK(1))
+		typec->pd_ctrl_ver = 1;
 	else
-		typec->cmd_ver = 0;
+		typec->pd_ctrl_ver = 0;
 
 	dev_dbg(typec->dev, "PD Control has version mask 0x%hhx\n",
-		typec->cmd_ver);
+		typec->pd_ctrl_ver);
 
 	return 0;
+}
+
+static void cros_typec_port_work(struct work_struct *work)
+{
+	struct cros_typec_data *typec = container_of(work, struct cros_typec_data, port_work);
+	int ret, i;
+
+	for (i = 0; i < typec->num_ports; i++) {
+		ret = cros_typec_port_update(typec, i);
+		if (ret < 0)
+			dev_warn(typec->dev, "Update failed for port: %d\n", i);
+	}
+}
+
+static int cros_ec_typec_event(struct notifier_block *nb,
+			       unsigned long host_event, void *_notify)
+{
+	struct cros_typec_data *typec = container_of(nb, struct cros_typec_data, nb);
+
+	schedule_work(&typec->port_work);
+
+	return NOTIFY_OK;
 }
 
 #ifdef CONFIG_ACPI
@@ -326,26 +697,59 @@ static int cros_typec_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
+	INIT_WORK(&typec->port_work, cros_typec_port_work);
+
+	/*
+	 * Safe to call port update here, since we haven't registered the
+	 * PD notifier yet.
+	 */
 	for (i = 0; i < typec->num_ports; i++) {
 		ret = cros_typec_port_update(typec, i);
 		if (ret < 0)
 			goto unregister_ports;
 	}
 
+	typec->nb.notifier_call = cros_ec_typec_event;
+	ret = cros_usbpd_register_notify(&typec->nb);
+	if (ret < 0)
+		goto unregister_ports;
+
 	return 0;
 
 unregister_ports:
-	for (i = 0; i < typec->num_ports; i++)
-		if (typec->ports[i])
-			typec_unregister_port(typec->ports[i]);
+	cros_unregister_ports(typec);
 	return ret;
 }
+
+static int __maybe_unused cros_typec_suspend(struct device *dev)
+{
+	struct cros_typec_data *typec = dev_get_drvdata(dev);
+
+	cancel_work_sync(&typec->port_work);
+
+	return 0;
+}
+
+static int __maybe_unused cros_typec_resume(struct device *dev)
+{
+	struct cros_typec_data *typec = dev_get_drvdata(dev);
+
+	/* Refresh port state. */
+	schedule_work(&typec->port_work);
+
+	return 0;
+}
+
+static const struct dev_pm_ops cros_typec_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(cros_typec_suspend, cros_typec_resume)
+};
 
 static struct platform_driver cros_typec_driver = {
 	.driver	= {
 		.name = DRV_NAME,
 		.acpi_match_table = ACPI_PTR(cros_typec_acpi_id),
 		.of_match_table = of_match_ptr(cros_typec_of_match),
+		.pm = &cros_typec_pm_ops,
 	},
 	.probe = cros_typec_probe,
 };

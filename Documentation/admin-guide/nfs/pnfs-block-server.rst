@@ -8,7 +8,7 @@ to handling all the metadata access to the NFS export also hands out layouts
 to the clients to directly access the underlying block devices that are
 shared with the client.
 
-To use pNFS block layouts with with the Linux NFS server the exported file
+To use pNFS block layouts with the Linux NFS server the exported file
 system needs to support the pNFS block layouts (currently just XFS), and the
 file system must sit on shared storage (typically iSCSI) that is accessible
 to the clients in addition to the MDS.  As of now the file system needs to
