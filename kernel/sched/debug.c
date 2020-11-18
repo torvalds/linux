@@ -81,6 +81,7 @@ static int sched_feat_show(struct seq_file *m, void *v)
 struct static_key sched_feat_keys[__SCHED_FEAT_NR] = {
 #include "features.h"
 };
+EXPORT_SYMBOL_GPL(sched_feat_keys);
 
 #undef SCHED_FEAT
 
