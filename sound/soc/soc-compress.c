@@ -45,7 +45,7 @@ static int soc_compr_free(struct snd_compr_stream *cstream)
 
 	snd_soc_component_compr_free(cstream, NULL);
 
-	snd_soc_dai_compr_shutdown(cpu_dai, cstream);
+	snd_soc_dai_compr_shutdown(cpu_dai, cstream, 0);
 
 	snd_soc_dapm_stream_stop(rtd, stream);
 
@@ -91,7 +91,7 @@ static int soc_compr_open(struct snd_compr_stream *cstream)
 machine_err:
 	snd_soc_component_compr_free(cstream, component);
 
-	snd_soc_dai_compr_shutdown(cpu_dai, cstream);
+	snd_soc_dai_compr_shutdown(cpu_dai, cstream, 1);
 out:
 	mutex_unlock(&rtd->card->pcm_mutex);
 pm_err:
@@ -165,7 +165,7 @@ static int soc_compr_open_fe(struct snd_compr_stream *cstream)
 machine_err:
 	snd_soc_component_compr_free(cstream, component);
 open_err:
-	snd_soc_dai_compr_shutdown(cpu_dai, cstream);
+	snd_soc_dai_compr_shutdown(cpu_dai, cstream, 1);
 out:
 	dpcm_path_put(&list);
 be_err:
@@ -211,7 +211,7 @@ static int soc_compr_free_fe(struct snd_compr_stream *cstream)
 
 	snd_soc_component_compr_free(cstream, NULL);
 
-	snd_soc_dai_compr_shutdown(cpu_dai, cstream);
+	snd_soc_dai_compr_shutdown(cpu_dai, cstream, 0);
 
 	mutex_unlock(&fe->card->mutex);
 	return 0;
