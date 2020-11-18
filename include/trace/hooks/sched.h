@@ -43,8 +43,8 @@ DECLARE_RESTRICTED_HOOK(android_rvh_can_migrate_task,
 
 DECLARE_RESTRICTED_HOOK(android_rvh_find_lowest_rq,
 	TP_PROTO(struct task_struct *p, struct cpumask *local_cpu_mask,
-			int *lowest_cpu),
-	TP_ARGS(p, local_cpu_mask, lowest_cpu), 1);
+			int ret, int *lowest_cpu),
+	TP_ARGS(p, local_cpu_mask, ret, lowest_cpu), 1);
 
 DECLARE_RESTRICTED_HOOK(android_rvh_prepare_prio_fork,
 	TP_PROTO(struct task_struct *p),
@@ -87,7 +87,7 @@ DECLARE_HOOK(android_vh_jiffies_update,
 #define trace_android_rvh_enqueue_task(rq, p)
 #define trace_android_rvh_dequeue_task(rq, p)
 #define trace_android_rvh_can_migrate_task(p, dst_cpu, can_migrate)
-#define trace_android_rvh_find_lowest_rq(p, local_cpu_mask, lowest_cpu)
+#define trace_android_rvh_find_lowest_rq(p, local_cpu_mask, ret, lowest_cpu)
 #define trace_android_rvh_prepare_prio_fork(p)
 #define trace_android_rvh_finish_prio_fork(p)
 #define trace_android_rvh_rtmutex_prepare_setprio(p, pi_task)
