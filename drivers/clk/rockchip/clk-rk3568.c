@@ -938,11 +938,11 @@ static struct rockchip_clk_branch rk3568_clk_branches[] __initdata = {
 	FACTOR(0, "clk_gmac0_rx_div2", "clk_gmac0", 0, 1, 2),
 	FACTOR(0, "clk_gmac0_rx_div20", "clk_gmac0", 0, 1, 20),
 	MUX(SCLK_GMAC0_RGMII_SPEED, "clk_gmac0_rgmii_speed", mux_gmac0_rgmii_speed_p,  CLK_SET_RATE_PARENT,
-			RK1808_CLKSEL_CON(31), 4, 2, MFLAGS),
+			RK3568_CLKSEL_CON(31), 4, 2, MFLAGS),
 	MUX(SCLK_GMAC0_RMII_SPEED, "clk_gmac0_rmii_speed", mux_gmac0_rmii_speed_p,  CLK_SET_RATE_PARENT,
-			RK1808_CLKSEL_CON(31), 3, 1, MFLAGS),
+			RK3568_CLKSEL_CON(31), 3, 1, MFLAGS),
 	MUX(SCLK_GMAC0_RX_TX, "clk_gmac0_rx_tx", mux_gmac0_rx_tx_p,  CLK_SET_RATE_PARENT,
-			RK1808_CLKSEL_CON(31), 0, 2, MFLAGS),
+			RK3568_CLKSEL_CON(31), 0, 2, MFLAGS),
 
 	/* PD_USB */
 	COMPOSITE_NODIV(ACLK_USB, "aclk_usb", gpll300_gpll200_gpll100_xin24m_p, 0,
@@ -992,11 +992,11 @@ static struct rockchip_clk_branch rk3568_clk_branches[] __initdata = {
 	FACTOR(0, "clk_gmac1_rx_div2", "clk_gmac1", 0, 1, 2),
 	FACTOR(0, "clk_gmac1_rx_div20", "clk_gmac1", 0, 1, 20),
 	MUX(SCLK_GMAC1_RGMII_SPEED, "clk_gmac1_rgmii_speed", mux_gmac1_rgmii_speed_p,  CLK_SET_RATE_PARENT,
-			RK1808_CLKSEL_CON(33), 4, 2, MFLAGS),
+			RK3568_CLKSEL_CON(33), 4, 2, MFLAGS),
 	MUX(SCLK_GMAC1_RMII_SPEED, "clk_gmac1_rmii_speed", mux_gmac1_rmii_speed_p,  CLK_SET_RATE_PARENT,
-			RK1808_CLKSEL_CON(32), 3, 1, MFLAGS),
+			RK3568_CLKSEL_CON(33), 3, 1, MFLAGS),
 	MUX(SCLK_GMAC1_RX_TX, "clk_gmac1_rx_tx", mux_gmac1_rx_tx_p,  CLK_SET_RATE_PARENT,
-			RK1808_CLKSEL_CON(33), 0, 2, MFLAGS),
+			RK3568_CLKSEL_CON(33), 0, 2, MFLAGS),
 
 	/* PD_PERI */
 	COMPOSITE_NODIV(ACLK_PERIMID, "aclk_perimid", gpll300_gpll200_gpll100_xin24m_p, CLK_IGNORE_UNUSED,
