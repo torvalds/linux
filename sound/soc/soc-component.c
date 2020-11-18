@@ -421,6 +421,261 @@ EXPORT_SYMBOL_GPL(snd_soc_component_exit_regmap);
 
 #endif
 
+int snd_soc_component_compr_open(struct snd_compr_stream *cstream,
+				 struct snd_soc_component **last)
+{
+	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
+	struct snd_soc_component *component;
+	int i, ret;
+
+	for_each_rtd_components(rtd, i, component) {
+		if (component->driver->compress_ops &&
+		    component->driver->compress_ops->open) {
+			ret = component->driver->compress_ops->open(component, cstream);
+			if (ret < 0) {
+				*last = component;
+				return soc_component_ret(component, ret);
+			}
+		}
+	}
+
+	*last = NULL;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_compr_open);
+
+void snd_soc_component_compr_free(struct snd_compr_stream *cstream,
+				  struct snd_soc_component *last)
+{
+	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
+	struct snd_soc_component *component;
+	int i;
+
+	for_each_rtd_components(rtd, i, component) {
+		if (component == last)
+			break;
+
+		if (component->driver->compress_ops &&
+		    component->driver->compress_ops->free)
+			component->driver->compress_ops->free(component, cstream);
+	}
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_compr_free);
+
+int snd_soc_component_compr_trigger(struct snd_compr_stream *cstream, int cmd)
+{
+	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
+	struct snd_soc_component *component;
+	int i, ret;
+
+	for_each_rtd_components(rtd, i, component) {
+		if (component->driver->compress_ops &&
+		    component->driver->compress_ops->trigger) {
+			ret = component->driver->compress_ops->trigger(
+				component, cstream, cmd);
+			if (ret < 0)
+				return soc_component_ret(component, ret);
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_compr_trigger);
+
+int snd_soc_component_compr_set_params(struct snd_compr_stream *cstream,
+				       struct snd_compr_params *params)
+{
+	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
+	struct snd_soc_component *component;
+	int i, ret;
+
+	for_each_rtd_components(rtd, i, component) {
+		if (component->driver->compress_ops &&
+		    component->driver->compress_ops->set_params) {
+			ret = component->driver->compress_ops->set_params(
+				component, cstream, params);
+			if (ret < 0)
+				return soc_component_ret(component, ret);
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_compr_set_params);
+
+int snd_soc_component_compr_get_params(struct snd_compr_stream *cstream,
+				       struct snd_codec *params)
+{
+	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
+	struct snd_soc_component *component;
+	int i, ret;
+
+	for_each_rtd_components(rtd, i, component) {
+		if (component->driver->compress_ops &&
+		    component->driver->compress_ops->get_params) {
+			ret = component->driver->compress_ops->get_params(
+				component, cstream, params);
+			return soc_component_ret(component, ret);
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_compr_get_params);
+
+int snd_soc_component_compr_get_caps(struct snd_compr_stream *cstream,
+				     struct snd_compr_caps *caps)
+{
+	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
+	struct snd_soc_component *component;
+	int i, ret = 0;
+
+	mutex_lock_nested(&rtd->card->pcm_mutex, rtd->card->pcm_subclass);
+
+	for_each_rtd_components(rtd, i, component) {
+		if (component->driver->compress_ops &&
+		    component->driver->compress_ops->get_caps) {
+			ret = component->driver->compress_ops->get_caps(
+				component, cstream, caps);
+			break;
+		}
+	}
+
+	mutex_unlock(&rtd->card->pcm_mutex);
+
+	return soc_component_ret(component, ret);
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_compr_get_caps);
+
+int snd_soc_component_compr_get_codec_caps(struct snd_compr_stream *cstream,
+					   struct snd_compr_codec_caps *codec)
+{
+	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
+	struct snd_soc_component *component;
+	int i, ret = 0;
+
+	mutex_lock_nested(&rtd->card->pcm_mutex, rtd->card->pcm_subclass);
+
+	for_each_rtd_components(rtd, i, component) {
+		if (component->driver->compress_ops &&
+		    component->driver->compress_ops->get_codec_caps) {
+			ret = component->driver->compress_ops->get_codec_caps(
+				component, cstream, codec);
+			break;
+		}
+	}
+
+	mutex_unlock(&rtd->card->pcm_mutex);
+
+	return soc_component_ret(component, ret);
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_compr_get_codec_caps);
+
+int snd_soc_component_compr_ack(struct snd_compr_stream *cstream, size_t bytes)
+{
+	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
+	struct snd_soc_component *component;
+	int i, ret;
+
+	for_each_rtd_components(rtd, i, component) {
+		if (component->driver->compress_ops &&
+		    component->driver->compress_ops->ack) {
+			ret = component->driver->compress_ops->ack(
+				component, cstream, bytes);
+			if (ret < 0)
+				return soc_component_ret(component, ret);
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_compr_ack);
+
+int snd_soc_component_compr_pointer(struct snd_compr_stream *cstream,
+				    struct snd_compr_tstamp *tstamp)
+{
+	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
+	struct snd_soc_component *component;
+	int i, ret;
+
+	for_each_rtd_components(rtd, i, component) {
+		if (component->driver->compress_ops &&
+		    component->driver->compress_ops->pointer) {
+			ret = component->driver->compress_ops->pointer(
+				component, cstream, tstamp);
+			return soc_component_ret(component, ret);
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_compr_pointer);
+
+int snd_soc_component_compr_copy(struct snd_compr_stream *cstream,
+				 char __user *buf, size_t count)
+{
+	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
+	struct snd_soc_component *component;
+	int i, ret = 0;
+
+	mutex_lock_nested(&rtd->card->pcm_mutex, rtd->card->pcm_subclass);
+
+	for_each_rtd_components(rtd, i, component) {
+		if (component->driver->compress_ops &&
+		    component->driver->compress_ops->copy) {
+			ret = component->driver->compress_ops->copy(
+				component, cstream, buf, count);
+			break;
+		}
+	}
+
+	mutex_unlock(&rtd->card->pcm_mutex);
+
+	return soc_component_ret(component, ret);
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_compr_copy);
+
+int snd_soc_component_compr_set_metadata(struct snd_compr_stream *cstream,
+					 struct snd_compr_metadata *metadata)
+{
+	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
+	struct snd_soc_component *component;
+	int i, ret;
+
+	for_each_rtd_components(rtd, i, component) {
+		if (component->driver->compress_ops &&
+		    component->driver->compress_ops->set_metadata) {
+			ret = component->driver->compress_ops->set_metadata(
+				component, cstream, metadata);
+			if (ret < 0)
+				return soc_component_ret(component, ret);
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_compr_set_metadata);
+
+int snd_soc_component_compr_get_metadata(struct snd_compr_stream *cstream,
+					 struct snd_compr_metadata *metadata)
+{
+	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
+	struct snd_soc_component *component;
+	int i, ret;
+
+	for_each_rtd_components(rtd, i, component) {
+		if (component->driver->compress_ops &&
+		    component->driver->compress_ops->get_metadata) {
+			ret = component->driver->compress_ops->get_metadata(
+				component, cstream, metadata);
+			return soc_component_ret(component, ret);
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_compr_get_metadata);
+
 static unsigned int soc_component_read_no_lock(
 	struct snd_soc_component *component,
 	unsigned int reg)
