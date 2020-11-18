@@ -510,16 +510,16 @@ err:
 }
 
 static int amdgpu_vcn_dec_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
-			      struct dma_fence **fence)
+					 struct amdgpu_bo **bo)
 {
 	struct amdgpu_device *adev = ring->adev;
-	struct amdgpu_bo *bo = NULL;
 	uint32_t *msg;
 	int r, i;
 
+	*bo = NULL;
 	r = amdgpu_bo_create_reserved(adev, 1024, PAGE_SIZE,
 				      AMDGPU_GEM_DOMAIN_VRAM,
-				      &bo, NULL, (void **)&msg);
+				      bo, NULL, (void **)&msg);
 	if (r)
 		return r;
 
@@ -540,20 +540,20 @@ static int amdgpu_vcn_dec_get_create_msg(struct amdgpu_ring *ring, uint32_t hand
 	for (i = 14; i < 1024; ++i)
 		msg[i] = cpu_to_le32(0x0);
 
-	return amdgpu_vcn_dec_send_msg(ring, bo, fence);
+	return 0;
 }
 
 static int amdgpu_vcn_dec_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
-			       struct dma_fence **fence)
+					  struct amdgpu_bo **bo)
 {
 	struct amdgpu_device *adev = ring->adev;
-	struct amdgpu_bo *bo = NULL;
 	uint32_t *msg;
 	int r, i;
 
+	*bo = NULL;
 	r = amdgpu_bo_create_reserved(adev, 1024, PAGE_SIZE,
 				      AMDGPU_GEM_DOMAIN_VRAM,
-				      &bo, NULL, (void **)&msg);
+				      bo, NULL, (void **)&msg);
 	if (r)
 		return r;
 
@@ -566,19 +566,27 @@ static int amdgpu_vcn_dec_get_destroy_msg(struct amdgpu_ring *ring, uint32_t han
 	for (i = 6; i < 1024; ++i)
 		msg[i] = cpu_to_le32(0x0);
 
-	return amdgpu_vcn_dec_send_msg(ring, bo, fence);
+	return 0;
 }
 
 int amdgpu_vcn_dec_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 {
-	struct dma_fence *fence;
+	struct dma_fence *fence = NULL;
+	struct amdgpu_bo *bo;
 	long r;
 
-	r = amdgpu_vcn_dec_get_create_msg(ring, 1, NULL);
+	r = amdgpu_vcn_dec_get_create_msg(ring, 1, &bo);
 	if (r)
 		goto error;
 
-	r = amdgpu_vcn_dec_get_destroy_msg(ring, 1, &fence);
+	r = amdgpu_vcn_dec_send_msg(ring, bo, NULL);
+	if (r)
+		goto error;
+	r = amdgpu_vcn_dec_get_destroy_msg(ring, 1, &bo);
+	if (r)
+		goto error;
+
+	r = amdgpu_vcn_dec_send_msg(ring, bo, &fence);
 	if (r)
 		goto error;
 
