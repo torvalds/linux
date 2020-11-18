@@ -576,6 +576,8 @@ static const struct vop2_scl_regs rk3568_cluster_win_scl = {
 	.yrgb_ver_scl_mode = VOP_REG(RK3568_CLUSTER0_WIN0_CTRL1, 0x3, 14),
 	.yrgb_hor_scl_mode = VOP_REG(RK3568_CLUSTER0_WIN0_CTRL1, 0x3, 12),
 	.bic_coe_sel = VOP_REG(RK3568_CLUSTER0_WIN0_CTRL1, 0x3, 2),
+	.vsd_yrgb_gt2 = VOP_REG(RK3568_CLUSTER0_WIN0_CTRL1, 0x1, 28),
+	.vsd_yrgb_gt4 = VOP_REG(RK3568_CLUSTER0_WIN0_CTRL1, 0x1, 29),
 };
 
 static const struct vop2_scl_regs rk3568_esmart_win_scl = {
