@@ -1649,6 +1649,15 @@ next_slot:
 				goto out_check;
 			if (extent_type == BTRFS_FILE_EXTENT_REG && !force)
 				goto out_check;
+
+			/*
+			 * The following checks can be expensive, as they need to
+			 * take other locks and do btree or rbtree searches, so
+			 * release the path to avoid blocking other tasks for too
+			 * long.
+			 */
+			btrfs_release_path(path);
+
 			/* If extent is RO, we must COW it */
 			if (btrfs_extent_readonly(fs_info, disk_bytenr))
 				goto out_check;
@@ -1724,11 +1733,11 @@ out_check:
 			cur_offset = extent_end;
 			if (cur_offset > end)
 				break;
+			if (!path->nodes[0])
+				continue;
 			path->slots[0]++;
 			goto next_slot;
 		}
-
-		btrfs_release_path(path);
 
 		/*
 		 * COW range from cow_start to found_key.offset - 1. As the key
