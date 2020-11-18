@@ -2552,9 +2552,14 @@ isp_hdrdrc_enable(struct rkisp_isp_params_vdev *params_vdev,
 		  bool en)
 {
 	u32 value;
+	bool real_en;
 
 	value = rkisp_ioread32(params_vdev, ISP21_DRC_CTRL0);
-	if (en && !(value & ISP_DRC_EN)) {
+	real_en = !!(value & ISP_DRC_EN);
+	if ((en && real_en) || (!en && !real_en))
+		return;
+
+	if (en) {
 		value |= ISP_DRC_EN;
 		rkisp_set_bits(params_vdev->dev, ISP_CTRL1,
 			       ISP2X_SYS_ADRC_FST, ISP2X_SYS_ADRC_FST, false);
@@ -2706,9 +2711,14 @@ isp_dhaz_enable(struct rkisp_isp_params_vdev *params_vdev,
 		bool en)
 {
 	u32 value;
+	bool real_en;
 
 	value = rkisp_ioread32(params_vdev, ISP21_DHAZ_CTRL);
-	if (en && !(value & ISP_DHAZ_ENMUX)) {
+	real_en = !!(value & ISP_DHAZ_ENMUX);
+	if ((en && real_en) || (!en && !real_en))
+		return;
+
+	if (en) {
 		value |= ISP_DHAZ_ENMUX;
 		rkisp_set_bits(params_vdev->dev, ISP_CTRL1,
 			       ISP2X_SYS_DHAZ_FST, ISP2X_SYS_DHAZ_FST, false);
@@ -2949,6 +2959,7 @@ isp_ynr_enable(struct rkisp_isp_params_vdev *params_vdev,
 	       bool en, const struct isp21_ynr_cfg *arg)
 {
 	u32 ynr_ctrl, value = 0;
+	bool real_en;
 
 	if (arg) {
 		value = (arg->sw_ynr_thumb_mix_cur_en & 0x1) << 24 |
@@ -2963,7 +2974,11 @@ isp_ynr_enable(struct rkisp_isp_params_vdev *params_vdev,
 	}
 
 	ynr_ctrl = rkisp_ioread32(params_vdev, ISP21_YNR_GLOBAL_CTRL);
-	if (en && !(ynr_ctrl & ISP21_YNR_EN)) {
+	real_en = !!(ynr_ctrl & ISP21_YNR_EN);
+	if ((en && real_en) || (!en && !real_en))
+		return;
+
+	if (en) {
 		value |= ISP21_YNR_EN;
 		rkisp_set_bits(params_vdev->dev, ISP_CTRL1,
 			       ISP2X_SYS_YNR_FST, ISP2X_SYS_YNR_FST, false);
@@ -3023,6 +3038,7 @@ isp_cnr_enable(struct rkisp_isp_params_vdev *params_vdev,
 	       bool en, const struct isp21_cnr_cfg *arg)
 {
 	u32 cnr_ctrl, value = 0;
+	bool real_en;
 
 	if (arg) {
 		value = (arg->sw_cnr_thumb_mix_cur_en & 0x1) << 4 |
@@ -3031,8 +3047,12 @@ isp_cnr_enable(struct rkisp_isp_params_vdev *params_vdev,
 			(arg->sw_cnr_exgain_bypass & 0x1) << 1;
 	}
 
-	cnr_ctrl = rkisp_ioread32(params_vdev, ISP21_YNR_GLOBAL_CTRL);
-	if (en && !(cnr_ctrl & ISP21_YNR_EN)) {
+	cnr_ctrl = rkisp_ioread32(params_vdev, ISP21_CNR_CTRL);
+	real_en = !!(cnr_ctrl & ISP21_CNR_EN);
+	if ((en && real_en) || (!en && !real_en))
+		return;
+
+	if (en) {
 		value |= ISP21_CNR_EN;
 		rkisp_set_bits(params_vdev->dev, ISP_CTRL1,
 			       ISP2X_SYS_CNR_FST, ISP2X_SYS_CNR_FST, false);
@@ -3253,10 +3273,8 @@ isp_bay3d_enable(struct rkisp_isp_params_vdev *params_vdev,
 		 bool en)
 {
 	struct rkisp_device *ispdev = params_vdev->dev;
-	struct rkisp_isp_subdev *isp_sdev = &ispdev->isp_sdev;
 	struct rkisp_isp_params_val_v21 *priv_val;
 	u32 value, bay3d_ctrl;
-	int ret;
 
 	priv_val = (struct rkisp_isp_params_val_v21 *)params_vdev->priv_val;
 	bay3d_ctrl = rkisp_ioread32(params_vdev, ISP21_BAY3D_CTRL);
@@ -3265,19 +3283,13 @@ isp_bay3d_enable(struct rkisp_isp_params_vdev *params_vdev,
 		return;
 
 	if (en) {
-		u32 w = isp_sdev->in_crop.width;
-		u32 h = isp_sdev->in_crop.height;
-		u32 size = 2 * ALIGN((ALIGN(w, 16) + (w + 15) / 8) * h, 16);
-
-		rkisp_free_buffer(ispdev, &priv_val->buf_3dnr);
-		priv_val->buf_3dnr.size = size;
-		ret = rkisp_alloc_buffer(ispdev, &priv_val->buf_3dnr);
-		if (ret) {
-			dev_err(ispdev->dev, "can not alloc buffer\n");
+		if (!priv_val->buf_3dnr.size) {
+			dev_err(ispdev->dev, "no bay3d buffer available\n");
 			return;
 		}
 
-		rkisp_iowrite32(params_vdev, size, ISP21_MI_BAY3D_WR_SIZE);
+		value = priv_val->buf_3dnr.size;
+		rkisp_iowrite32(params_vdev, value, ISP21_MI_BAY3D_WR_SIZE);
 		value = priv_val->buf_3dnr.dma_addr;
 		rkisp_iowrite32(params_vdev, value, ISP21_MI_BAY3D_WR_BASE);
 		rkisp_iowrite32(params_vdev, value, ISP21_MI_BAY3D_RD_BASE);
@@ -3820,6 +3832,34 @@ void rkisp_params_cfgsram_v2x(struct rkisp_isp_params_vdev *params_vdev)
 				&params_vdev->cur_lsccfg, true);
 }
 
+static void
+rkisp_alloc_bay3d_buf(struct rkisp_isp_params_vdev *params_vdev,
+		      const struct isp21_isp_params_cfg *new_params)
+{
+	struct rkisp_device *ispdev = params_vdev->dev;
+	struct rkisp_isp_subdev *isp_sdev = &ispdev->isp_sdev;
+	struct rkisp_isp_params_val_v21 *priv_val;
+	u64 module_en_update, module_ens;
+	u32 w, h, size;
+	int ret;
+
+	module_en_update = new_params->module_en_update;
+	module_ens = new_params->module_ens;
+
+	if ((module_en_update & ISP2X_MODULE_BAY3D) &&
+	    (module_ens & ISP2X_MODULE_BAY3D)) {
+		w = isp_sdev->in_crop.width;
+		h = isp_sdev->in_crop.height;
+		size = 2 * ALIGN((ALIGN(w, 16) + (w + 15) / 8) * h, 16);
+		priv_val = (struct rkisp_isp_params_val_v21 *)params_vdev->priv_val;
+		rkisp_free_buffer(ispdev, &priv_val->buf_3dnr);
+		priv_val->buf_3dnr.size = size;
+		ret = rkisp_alloc_buffer(ispdev, &priv_val->buf_3dnr);
+		if (ret)
+			dev_err(ispdev->dev, "can not alloc bay3d buffer\n");
+	}
+}
+
 /* Not called when the camera active, thus not isr protection. */
 static void
 rkisp_params_first_cfg_v2x(struct rkisp_isp_params_vdev *params_vdev)
@@ -3847,6 +3887,7 @@ rkisp_params_first_cfg_v2x(struct rkisp_isp_params_vdev *params_vdev)
 	priv_val->tmo_en = 0;
 	priv_val->lsc_en = 0;
 	priv_val->mge_en = 0;
+	rkisp_alloc_bay3d_buf(params_vdev, params_vdev->isp21_params);
 	__isp_isr_other_config(params_vdev, params_vdev->isp21_params, RKISP_PARAMS_ALL);
 	__isp_isr_meas_config(params_vdev, params_vdev->isp21_params, RKISP_PARAMS_ALL);
 	__preisp_isr_update_hdrae_para(params_vdev, params_vdev->isp21_params);
@@ -3964,6 +4005,16 @@ rkisp_params_set_ldchbuf_size_v2x(struct rkisp_isp_params_vdev *params_vdev,
 {
 	rkisp_deinit_ldch_buf(params_vdev);
 	rkisp_init_ldch_buf(params_vdev, ldchsize);
+}
+
+static void
+rkisp_params_stream_stop_v2x(struct rkisp_isp_params_vdev *params_vdev)
+{
+	struct rkisp_device *ispdev = params_vdev->dev;
+	struct rkisp_isp_params_val_v21 *priv_val;
+
+	priv_val = (struct rkisp_isp_params_val_v21 *)params_vdev->priv_val;
+	rkisp_free_buffer(ispdev, &priv_val->buf_3dnr);
 }
 
 /* Not called when the camera active, thus not isr protection. */
@@ -4126,6 +4177,7 @@ static struct rkisp_isp_params_ops rkisp_isp_params_ops_tbl = {
 	.param_cfgsram = rkisp_params_cfgsram_v2x,
 	.get_ldchbuf_inf = rkisp_params_get_ldchbuf_inf_v2x,
 	.set_ldchbuf_size = rkisp_params_set_ldchbuf_size_v2x,
+	.stream_stop = rkisp_params_stream_stop_v2x,
 };
 
 int rkisp_init_params_vdev_v21(struct rkisp_isp_params_vdev *params_vdev)

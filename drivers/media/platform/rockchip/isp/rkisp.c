@@ -961,6 +961,8 @@ end:
 	if (dev->hdr.sensor)
 		dev->hdr.sensor = NULL;
 
+	rkisp_params_stream_stop(&dev->params_vdev);
+
 	return 0;
 }
 
