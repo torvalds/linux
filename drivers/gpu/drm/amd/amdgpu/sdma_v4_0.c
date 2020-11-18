@@ -56,6 +56,7 @@
 #include "ivsrcid/sdma1/irqsrcs_sdma1_4_0.h"
 
 #include "amdgpu_ras.h"
+#include "sdma_v4_4.h"
 
 MODULE_FIRMWARE("amdgpu/vega10_sdma.bin");
 MODULE_FIRMWARE("amdgpu/vega10_sdma1.bin");
@@ -2788,6 +2789,9 @@ static void sdma_v4_0_set_ras_funcs(struct amdgpu_device *adev)
 	case CHIP_VEGA20:
 	case CHIP_ARCTURUS:
 		adev->sdma.funcs = &sdma_v4_0_ras_funcs;
+		break;
+	case CHIP_ALDEBARAN:
+		adev->sdma.funcs = &sdma_v4_4_ras_funcs;
 		break;
 	default:
 		break;
