@@ -766,7 +766,6 @@ static int nsim_dev_flash_update(struct devlink *devlink,
 		return -EOPNOTSUPP;
 
 	if (nsim_dev->fw_update_status) {
-		devlink_flash_update_begin_notify(devlink);
 		devlink_flash_update_status_notify(devlink,
 						   "Preparing to flash",
 						   params->component, 0, 0);
@@ -790,7 +789,6 @@ static int nsim_dev_flash_update(struct devlink *devlink,
 						    params->component, 81);
 		devlink_flash_update_status_notify(devlink, "Flashing done",
 						   params->component, 0, 0);
-		devlink_flash_update_end_notify(devlink);
 	}
 
 	return 0;

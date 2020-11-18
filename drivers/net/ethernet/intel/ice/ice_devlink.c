@@ -275,12 +275,9 @@ ice_devlink_flash_update(struct devlink *devlink,
 	if (err)
 		return err;
 
-	devlink_flash_update_begin_notify(devlink);
 	devlink_flash_update_status_notify(devlink, "Preparing to flash", NULL, 0, 0);
-	err = ice_flash_pldm_image(pf, params->fw, preservation, extack);
-	devlink_flash_update_end_notify(devlink);
 
-	return err;
+	return ice_flash_pldm_image(pf, params->fw, preservation, extack);
 }
 
 static const struct devlink_ops ice_devlink_ops = {

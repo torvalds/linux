@@ -107,7 +107,6 @@ int ionic_firmware_update(struct ionic_lif *lif, const struct firmware *fw,
 	netdev_info(netdev, "Installing firmware\n");
 
 	dl = priv_to_devlink(ionic);
-	devlink_flash_update_begin_notify(dl);
 	devlink_flash_update_status_notify(dl, "Preparing to flash", NULL, 0, 0);
 
 	buf_sz = sizeof(idev->dev_cmd_regs->data);
@@ -193,6 +192,5 @@ err_out:
 		devlink_flash_update_status_notify(dl, "Flash failed", NULL, 0, 0);
 	else
 		devlink_flash_update_status_notify(dl, "Flash done", NULL, 0, 0);
-	devlink_flash_update_end_notify(dl);
 	return err;
 }
