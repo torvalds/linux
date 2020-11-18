@@ -547,6 +547,28 @@ int psp_get_fw_attestation_records_addr(struct psp_context *psp,
 	return ret;
 }
 
+static int psp_rl_load(struct amdgpu_device *adev)
+{
+	struct psp_context *psp = &adev->psp;
+	struct psp_gfx_cmd_resp *cmd = psp->cmd;
+
+	if (psp->rl_bin_size == 0)
+		return 0;
+
+	memset(psp->fw_pri_buf, 0, PSP_1_MEG);
+	memcpy(psp->fw_pri_buf, psp->rl_start_addr, psp->rl_bin_size);
+
+	memset(cmd, 0, sizeof(struct psp_gfx_cmd_resp));
+
+	cmd->cmd_id = GFX_CMD_ID_LOAD_IP_FW;
+	cmd->cmd.cmd_load_ip_fw.fw_phy_addr_lo = lower_32_bits(psp->fw_pri_mc_addr);
+	cmd->cmd.cmd_load_ip_fw.fw_phy_addr_hi = upper_32_bits(psp->fw_pri_mc_addr);
+	cmd->cmd.cmd_load_ip_fw.fw_size = psp->rl_bin_size;
+	cmd->cmd.cmd_load_ip_fw.fw_type = GFX_FW_TYPE_REG_LIST;
+
+	return psp_cmd_submit_buf(psp, NULL, cmd, psp->fence_buf_mc_addr);
+}
+
 static void psp_prep_asd_load_cmd_buf(struct psp_gfx_cmd_resp *cmd,
 				uint64_t asd_mc, uint32_t size)
 {
@@ -2278,6 +2300,12 @@ skip_memalloc:
 	ret = psp_asd_load(psp);
 	if (ret) {
 		DRM_ERROR("PSP load asd failed!\n");
+		return ret;
+	}
+
+	ret = psp_rl_load(adev);
+	if (ret) {
+		DRM_ERROR("PSP load RL failed!\n");
 		return ret;
 	}
 
