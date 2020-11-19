@@ -21,14 +21,14 @@
 #include <linux/can/error.h>
 
 /* Device specific constants */
-#define USB_GSUSB_1_VENDOR_ID      0x1d50
-#define USB_GSUSB_1_PRODUCT_ID     0x606f
+#define USB_GSUSB_1_VENDOR_ID 0x1d50
+#define USB_GSUSB_1_PRODUCT_ID 0x606f
 
-#define USB_CANDLELIGHT_VENDOR_ID  0x1209
+#define USB_CANDLELIGHT_VENDOR_ID 0x1209
 #define USB_CANDLELIGHT_PRODUCT_ID 0x2323
 
-#define GSUSB_ENDPOINT_IN          1
-#define GSUSB_ENDPOINT_OUT         2
+#define GSUSB_ENDPOINT_IN 1
+#define GSUSB_ENDPOINT_OUT 2
 
 /* Device specific constants */
 enum gs_usb_breq {
@@ -87,11 +87,11 @@ struct gs_device_config {
 	__le32 hw_version;
 } __packed;
 
-#define GS_CAN_MODE_NORMAL               0
-#define GS_CAN_MODE_LISTEN_ONLY          BIT(0)
-#define GS_CAN_MODE_LOOP_BACK            BIT(1)
-#define GS_CAN_MODE_TRIPLE_SAMPLE        BIT(2)
-#define GS_CAN_MODE_ONE_SHOT             BIT(3)
+#define GS_CAN_MODE_NORMAL 0
+#define GS_CAN_MODE_LISTEN_ONLY BIT(0)
+#define GS_CAN_MODE_LOOP_BACK BIT(1)
+#define GS_CAN_MODE_TRIPLE_SAMPLE BIT(2)
+#define GS_CAN_MODE_ONE_SHOT BIT(3)
 
 struct gs_device_mode {
 	__le32 mode;
@@ -116,12 +116,12 @@ struct gs_identify_mode {
 	__le32 mode;
 } __packed;
 
-#define GS_CAN_FEATURE_LISTEN_ONLY      BIT(0)
-#define GS_CAN_FEATURE_LOOP_BACK        BIT(1)
-#define GS_CAN_FEATURE_TRIPLE_SAMPLE    BIT(2)
-#define GS_CAN_FEATURE_ONE_SHOT         BIT(3)
-#define GS_CAN_FEATURE_HW_TIMESTAMP     BIT(4)
-#define GS_CAN_FEATURE_IDENTIFY         BIT(5)
+#define GS_CAN_FEATURE_LISTEN_ONLY BIT(0)
+#define GS_CAN_FEATURE_LOOP_BACK BIT(1)
+#define GS_CAN_FEATURE_TRIPLE_SAMPLE BIT(2)
+#define GS_CAN_FEATURE_ONE_SHOT BIT(3)
+#define GS_CAN_FEATURE_HW_TIMESTAMP BIT(4)
+#define GS_CAN_FEATURE_IDENTIFY BIT(5)
 
 struct gs_device_bt_const {
 	__le32 feature;
@@ -1043,10 +1043,10 @@ static const struct usb_device_id gs_usb_table[] = {
 MODULE_DEVICE_TABLE(usb, gs_usb_table);
 
 static struct usb_driver gs_usb_driver = {
-	.name       = "gs_usb",
-	.probe      = gs_usb_probe,
+	.name = "gs_usb",
+	.probe = gs_usb_probe,
 	.disconnect = gs_usb_disconnect,
-	.id_table   = gs_usb_table,
+	.id_table = gs_usb_table,
 };
 
 module_usb_driver(gs_usb_driver);
