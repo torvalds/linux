@@ -246,6 +246,70 @@ nfsd4_decode_bitmap(struct nfsd4_compoundargs *argp, u32 *bmval)
 }
 
 static __be32
+nfsd4_decode_nfsace4(struct nfsd4_compoundargs *argp, struct nfs4_ace *ace)
+{
+	__be32 *p, status;
+	u32 length;
+
+	if (xdr_stream_decode_u32(argp->xdr, &ace->type) < 0)
+		return nfserr_bad_xdr;
+	if (xdr_stream_decode_u32(argp->xdr, &ace->flag) < 0)
+		return nfserr_bad_xdr;
+	if (xdr_stream_decode_u32(argp->xdr, &ace->access_mask) < 0)
+		return nfserr_bad_xdr;
+
+	if (xdr_stream_decode_u32(argp->xdr, &length) < 0)
+		return nfserr_bad_xdr;
+	p = xdr_inline_decode(argp->xdr, length);
+	if (!p)
+		return nfserr_bad_xdr;
+	ace->whotype = nfs4_acl_get_whotype((char *)p, length);
+	if (ace->whotype != NFS4_ACL_WHO_NAMED)
+		status = nfs_ok;
+	else if (ace->flag & NFS4_ACE_IDENTIFIER_GROUP)
+		status = nfsd_map_name_to_gid(argp->rqstp,
+				(char *)p, length, &ace->who_gid);
+	else
+		status = nfsd_map_name_to_uid(argp->rqstp,
+				(char *)p, length, &ace->who_uid);
+
+	return status;
+}
+
+/* A counted array of nfsace4's */
+static noinline __be32
+nfsd4_decode_acl(struct nfsd4_compoundargs *argp, struct nfs4_acl **acl)
+{
+	struct nfs4_ace *ace;
+	__be32 status;
+	u32 count;
+
+	if (xdr_stream_decode_u32(argp->xdr, &count) < 0)
+		return nfserr_bad_xdr;
+
+	if (count > xdr_stream_remaining(argp->xdr) / 20)
+		/*
+		 * Even with 4-byte names there wouldn't be
+		 * space for that many aces; something fishy is
+		 * going on:
+		 */
+		return nfserr_fbig;
+
+	*acl = svcxdr_tmpalloc(argp, nfs4_acl_bytes(count));
+	if (*acl == NULL)
+		return nfserr_jukebox;
+
+	(*acl)->naces = count;
+	for (ace = (*acl)->aces; ace < (*acl)->aces + count; ace++) {
+		status = nfsd4_decode_nfsace4(argp, ace);
+		if (status)
+			return status;
+	}
+
+	return nfs_ok;
+}
+
+static __be32
 nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval,
 		   struct iattr *iattr, struct nfs4_acl **acl,
 		   struct xdr_netobj *label, int *umask)
@@ -281,46 +345,9 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval,
 		iattr->ia_valid |= ATTR_SIZE;
 	}
 	if (bmval[0] & FATTR4_WORD0_ACL) {
-		u32 nace;
-		struct nfs4_ace *ace;
-
-		READ_BUF(4);
-		nace = be32_to_cpup(p++);
-
-		if (nace > xdr_stream_remaining(argp->xdr) / sizeof(struct nfs4_ace))
-			/*
-			 * Even with 4-byte names there wouldn't be
-			 * space for that many aces; something fishy is
-			 * going on:
-			 */
-			return nfserr_fbig;
-
-		*acl = svcxdr_tmpalloc(argp, nfs4_acl_bytes(nace));
-		if (*acl == NULL)
-			return nfserr_jukebox;
-
-		(*acl)->naces = nace;
-		for (ace = (*acl)->aces; ace < (*acl)->aces + nace; ace++) {
-			READ_BUF(16);
-			ace->type = be32_to_cpup(p++);
-			ace->flag = be32_to_cpup(p++);
-			ace->access_mask = be32_to_cpup(p++);
-			dummy32 = be32_to_cpup(p++);
-			READ_BUF(dummy32);
-			READMEM(buf, dummy32);
-			ace->whotype = nfs4_acl_get_whotype(buf, dummy32);
-			status = nfs_ok;
-			if (ace->whotype != NFS4_ACL_WHO_NAMED)
-				;
-			else if (ace->flag & NFS4_ACE_IDENTIFIER_GROUP)
-				status = nfsd_map_name_to_gid(argp->rqstp,
-						buf, dummy32, &ace->who_gid);
-			else
-				status = nfsd_map_name_to_uid(argp->rqstp,
-						buf, dummy32, &ace->who_uid);
-			if (status)
-				return status;
-		}
+		status = nfsd4_decode_acl(argp, acl);
+		if (status)
+			return status;
 	} else
 		*acl = NULL;
 	if (bmval[1] & FATTR4_WORD1_MODE) {
