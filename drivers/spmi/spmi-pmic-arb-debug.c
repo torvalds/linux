@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved. */
+/* Copyright (c) 2012-2018, 2020, The Linux Foundation. All rights reserved. */
 
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -248,13 +248,21 @@ static int spmi_pmic_arb_debug_probe(struct platform_device *pdev)
 	int rc;
 	u32 fuse_val, fuse_bit;
 	void __iomem *fuse_addr;
+	bool is_disable_fuse = true;
 
-	/* Check if the debug bus is disabled by a fuse. */
+	/* Check if the debug bus is enabled or disabled by a fuse. */
 	rc = of_property_read_u32(pdev->dev.of_node, "qcom,fuse-disable-bit",
 				  &fuse_bit);
+	if (rc) {
+		is_disable_fuse = false;
+		rc = of_property_read_u32(pdev->dev.of_node,
+					  "qcom,fuse-enable-bit",
+					  &fuse_bit);
+	}
 	if (!rc) {
 		if (fuse_bit > 31) {
-			dev_err(&pdev->dev, "qcom,fuse-disable-bit supports values 0 to 31, but %u specified\n",
+			dev_err(&pdev->dev, "qcom,fuse-%s-bit supports values 0 to 31, but %u specified\n",
+				is_disable_fuse ? "disable" : "enable",
 				fuse_bit);
 			return -EINVAL;
 		}
@@ -273,7 +281,7 @@ static int spmi_pmic_arb_debug_probe(struct platform_device *pdev)
 		fuse_val = readl_relaxed(fuse_addr);
 		iounmap(fuse_addr);
 
-		if (fuse_val & BIT(fuse_bit)) {
+		if (!!(fuse_val & BIT(fuse_bit)) == is_disable_fuse) {
 			dev_err(&pdev->dev, "SPMI PMIC arbiter debug bus disabled by fuse\n");
 			return -ENODEV;
 		}
