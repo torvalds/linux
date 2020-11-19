@@ -1102,7 +1102,7 @@ allow:
  * @state: SELinux state
  * @ssid: source security identifier
  * @tsid: target security identifier
- * @tclass: target security class
+ * @orig_tclass: target security class
  * @avd: access vector decisions
  * @xperms: extended permissions
  *
@@ -1626,6 +1626,7 @@ int security_context_str_to_sid(struct selinux_state *state,
  * @scontext_len: length in bytes
  * @sid: security identifier, SID
  * @def_sid: default SID to assign on error
+ * @gfp_flags: the allocator get-free-page (GFP) flags
  *
  * Obtains a SID associated with the security context that
  * has the string representation specified by @scontext.
@@ -1919,6 +1920,7 @@ out:
  * @ssid: source security identifier
  * @tsid: target security identifier
  * @tclass: target security class
+ * @qstr: object name
  * @out_sid: security identifier for new subject/object
  *
  * Compute a SID to use for labeling a new subject or object in the
@@ -1947,6 +1949,7 @@ int security_transition_sid_user(struct selinux_state *state,
 
 /**
  * security_member_sid - Compute the SID for member selection.
+ * @state: SELinux state
  * @ssid: source security identifier
  * @tsid: target security identifier
  * @tclass: target security class
@@ -2273,6 +2276,7 @@ void selinux_policy_commit(struct selinux_state *state,
  * @state: SELinux state
  * @data: binary policy data
  * @len: length of data in bytes
+ * @load_state: policy load state
  *
  * Load a new set of security policy configuration data,
  * validate it and convert the SID table as necessary.
@@ -2525,7 +2529,7 @@ out:
  * security_ib_endport_sid - Obtain the SID for a subnet management interface.
  * @state: SELinux state
  * @dev_name: device name
- * @port: port number
+ * @port_num: port number
  * @out_sid: security identifier
  */
 int security_ib_endport_sid(struct selinux_state *state,
@@ -2856,9 +2860,10 @@ out_unlock:
 
 /**
  * __security_genfs_sid - Helper to obtain a SID for a file in a filesystem
+ * @policy: policy
  * @fstype: filesystem type
  * @path: path from root of mount
- * @sclass: file security class
+ * @orig_sclass: file security class
  * @sid: SID for path
  *
  * Obtain a SID to use for a file in a filesystem that
@@ -2915,7 +2920,7 @@ static inline int __security_genfs_sid(struct selinux_policy *policy,
  * @state: SELinux state
  * @fstype: filesystem type
  * @path: path from root of mount
- * @sclass: file security class
+ * @orig_sclass: file security class
  * @sid: SID for path
  *
  * Acquire policy_rwlock before calling __security_genfs_sid() and release
@@ -3297,6 +3302,7 @@ out_unlock:
  * @nlbl_sid: NetLabel SID
  * @nlbl_type: NetLabel labeling protocol type
  * @xfrm_sid: XFRM SID
+ * @peer_sid: network peer sid
  *
  * Description:
  * Compare the @nlbl_sid and @xfrm_sid values and if the two SIDs can be
