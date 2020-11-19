@@ -408,13 +408,20 @@ static int spi_probe(struct device *dev)
 static int spi_remove(struct device *dev)
 {
 	const struct spi_driver		*sdrv = to_spi_driver(dev->driver);
-	int ret = 0;
 
-	if (sdrv->remove)
+	if (sdrv->remove) {
+		int ret;
+
 		ret = sdrv->remove(to_spi_device(dev));
+		if (ret)
+			dev_warn(dev,
+				 "Failed to unbind driver (%pe), ignoring\n",
+				 ERR_PTR(ret));
+	}
+
 	dev_pm_domain_detach(dev, true);
 
-	return ret;
+	return 0;
 }
 
 static void spi_shutdown(struct device *dev)
