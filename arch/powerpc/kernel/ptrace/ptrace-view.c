@@ -217,6 +217,7 @@ int ptrace_put_reg(struct task_struct *task, int regno, unsigned long data)
 static int gpr_get(struct task_struct *target, const struct user_regset *regset,
 		   struct membuf to)
 {
+	struct membuf to_msr = membuf_at(&to, offsetof(struct pt_regs, msr));
 	int i;
 
 	if (target->thread.regs == NULL)
@@ -228,15 +229,10 @@ static int gpr_get(struct task_struct *target, const struct user_regset *regset,
 			target->thread.regs->gpr[i] = NV_REG_POISON;
 	}
 
-	membuf_write(&to, target->thread.regs, offsetof(struct pt_regs, msr));
-	membuf_store(&to, get_user_msr(target));
+	membuf_write(&to, target->thread.regs, sizeof(struct user_pt_regs));
 
-	BUILD_BUG_ON(offsetof(struct pt_regs, orig_gpr3) !=
-		     offsetof(struct pt_regs, msr) + sizeof(long));
+	membuf_store(&to_msr, get_user_msr(target));
 
-	membuf_write(&to, &target->thread.regs->orig_gpr3,
-			sizeof(struct user_pt_regs) -
-			offsetof(struct pt_regs, orig_gpr3));
 	return membuf_zero(&to, ELF_NGREG * sizeof(unsigned long) -
 				 sizeof(struct user_pt_regs));
 }
