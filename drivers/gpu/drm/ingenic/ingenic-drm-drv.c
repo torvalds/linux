@@ -191,15 +191,15 @@ static void ingenic_drm_crtc_update_timings(struct ingenic_drm *priv,
 {
 	unsigned int vpe, vds, vde, vt, hpe, hds, hde, ht;
 
-	vpe = mode->vsync_end - mode->vsync_start;
-	vds = mode->vtotal - mode->vsync_start;
-	vde = vds + mode->vdisplay;
-	vt = vde + mode->vsync_start - mode->vdisplay;
+	vpe = mode->crtc_vsync_end - mode->crtc_vsync_start;
+	vds = mode->crtc_vtotal - mode->crtc_vsync_start;
+	vde = vds + mode->crtc_vdisplay;
+	vt = vde + mode->crtc_vsync_start - mode->crtc_vdisplay;
 
-	hpe = mode->hsync_end - mode->hsync_start;
-	hds = mode->htotal - mode->hsync_start;
-	hde = hds + mode->hdisplay;
-	ht = hde + mode->hsync_start - mode->hdisplay;
+	hpe = mode->crtc_hsync_end - mode->crtc_hsync_start;
+	hds = mode->crtc_htotal - mode->crtc_hsync_start;
+	hde = hds + mode->crtc_hdisplay;
+	ht = hde + mode->crtc_hsync_start - mode->crtc_hdisplay;
 
 	regmap_write(priv->map, JZ_REG_LCD_VSYNC,
 		     0 << JZ_LCD_VSYNC_VPS_OFFSET |
@@ -334,7 +334,7 @@ static void ingenic_drm_crtc_atomic_flush(struct drm_crtc *crtc,
 	struct drm_pending_vblank_event *event = crtc_state->event;
 
 	if (drm_atomic_crtc_needs_modeset(crtc_state)) {
-		ingenic_drm_crtc_update_timings(priv, &crtc_state->mode);
+		ingenic_drm_crtc_update_timings(priv, &crtc_state->adjusted_mode);
 		priv->update_clk_rate = true;
 	}
 
