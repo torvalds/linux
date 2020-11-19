@@ -365,15 +365,15 @@ static int gsi_evt_ring_alloc_command(struct gsi *gsi, u32 evt_ring_id)
 	/* Get initial event ring state */
 	evt_ring->state = gsi_evt_ring_state(gsi, evt_ring_id);
 	if (evt_ring->state != GSI_EVT_RING_STATE_NOT_ALLOCATED) {
-		dev_err(gsi->dev, "bad event ring state %u before alloc\n",
-			evt_ring->state);
+		dev_err(gsi->dev, "event ring %u bad state %u before alloc\n",
+			evt_ring_id, evt_ring->state);
 		return -EINVAL;
 	}
 
 	ret = evt_ring_command(gsi, evt_ring_id, GSI_EVT_ALLOCATE);
 	if (!ret && evt_ring->state != GSI_EVT_RING_STATE_ALLOCATED) {
-		dev_err(gsi->dev, "bad event ring state %u after alloc\n",
-			evt_ring->state);
+		dev_err(gsi->dev, "event ring %u bad state %u after alloc\n",
+			evt_ring_id, evt_ring->state);
 		ret = -EIO;
 	}
 
@@ -389,15 +389,15 @@ static void gsi_evt_ring_reset_command(struct gsi *gsi, u32 evt_ring_id)
 
 	if (state != GSI_EVT_RING_STATE_ALLOCATED &&
 	    state != GSI_EVT_RING_STATE_ERROR) {
-		dev_err(gsi->dev, "bad event ring state %u before reset\n",
-			evt_ring->state);
+		dev_err(gsi->dev, "event ring %u bad state %u before reset\n",
+			evt_ring_id, evt_ring->state);
 		return;
 	}
 
 	ret = evt_ring_command(gsi, evt_ring_id, GSI_EVT_RESET);
 	if (!ret && evt_ring->state != GSI_EVT_RING_STATE_ALLOCATED)
-		dev_err(gsi->dev, "bad event ring state %u after reset\n",
-			evt_ring->state);
+		dev_err(gsi->dev, "event ring %u bad state %u after reset\n",
+			evt_ring_id, evt_ring->state);
 }
 
 /* Issue a hardware de-allocation request for an allocated event ring */
@@ -407,15 +407,15 @@ static void gsi_evt_ring_de_alloc_command(struct gsi *gsi, u32 evt_ring_id)
 	int ret;
 
 	if (evt_ring->state != GSI_EVT_RING_STATE_ALLOCATED) {
-		dev_err(gsi->dev, "bad event ring state %u before dealloc\n",
-			evt_ring->state);
+		dev_err(gsi->dev, "event ring %u state %u before dealloc\n",
+			evt_ring_id, evt_ring->state);
 		return;
 	}
 
 	ret = evt_ring_command(gsi, evt_ring_id, GSI_EVT_DE_ALLOC);
 	if (!ret && evt_ring->state != GSI_EVT_RING_STATE_NOT_ALLOCATED)
-		dev_err(gsi->dev, "bad event ring state %u after dealloc\n",
-			evt_ring->state);
+		dev_err(gsi->dev, "event ring %u bad state %u after dealloc\n",
+			evt_ring_id, evt_ring->state);
 }
 
 /* Fetch the current state of a channel from hardware */
@@ -479,7 +479,8 @@ static int gsi_channel_alloc_command(struct gsi *gsi, u32 channel_id)
 	/* Get initial channel state */
 	state = gsi_channel_state(channel);
 	if (state != GSI_CHANNEL_STATE_NOT_ALLOCATED) {
-		dev_err(dev, "bad channel state %u before alloc\n", state);
+		dev_err(dev, "channel %u bad state %u before alloc\n",
+			channel_id, state);
 		return -EINVAL;
 	}
 
@@ -488,7 +489,8 @@ static int gsi_channel_alloc_command(struct gsi *gsi, u32 channel_id)
 	/* Channel state will normally have been updated */
 	state = gsi_channel_state(channel);
 	if (!ret && state != GSI_CHANNEL_STATE_ALLOCATED) {
-		dev_err(dev, "bad channel state %u after alloc\n", state);
+		dev_err(dev, "channel %u bad state %u after alloc\n",
+			channel_id, state);
 		ret = -EIO;
 	}
 
@@ -505,7 +507,8 @@ static int gsi_channel_start_command(struct gsi_channel *channel)
 	state = gsi_channel_state(channel);
 	if (state != GSI_CHANNEL_STATE_ALLOCATED &&
 	    state != GSI_CHANNEL_STATE_STOPPED) {
-		dev_err(dev, "bad channel state %u before start\n", state);
+		dev_err(dev, "channel %u bad state %u before start\n",
+			gsi_channel_id(channel), state);
 		return -EINVAL;
 	}
 
@@ -514,7 +517,8 @@ static int gsi_channel_start_command(struct gsi_channel *channel)
 	/* Channel state will normally have been updated */
 	state = gsi_channel_state(channel);
 	if (!ret && state != GSI_CHANNEL_STATE_STARTED) {
-		dev_err(dev, "bad channel state %u after start\n", state);
+		dev_err(dev, "channel %u bad state %u after start\n",
+			gsi_channel_id(channel), state);
 		ret = -EIO;
 	}
 
@@ -538,7 +542,8 @@ static int gsi_channel_stop_command(struct gsi_channel *channel)
 
 	if (state != GSI_CHANNEL_STATE_STARTED &&
 	    state != GSI_CHANNEL_STATE_STOP_IN_PROC) {
-		dev_err(dev, "bad channel state %u before stop\n", state);
+		dev_err(dev, "channel %u bad state %u before stop\n",
+			gsi_channel_id(channel), state);
 		return -EINVAL;
 	}
 
@@ -553,7 +558,8 @@ static int gsi_channel_stop_command(struct gsi_channel *channel)
 	if (state == GSI_CHANNEL_STATE_STOP_IN_PROC)
 		return -EAGAIN;
 
-	dev_err(dev, "bad channel state %u after stop\n", state);
+	dev_err(dev, "channel %u bad state %u after stop\n",
+		gsi_channel_id(channel), state);
 
 	return -EIO;
 }
@@ -570,7 +576,8 @@ static void gsi_channel_reset_command(struct gsi_channel *channel)
 	state = gsi_channel_state(channel);
 	if (state != GSI_CHANNEL_STATE_STOPPED &&
 	    state != GSI_CHANNEL_STATE_ERROR) {
-		dev_err(dev, "bad channel state %u before reset\n", state);
+		dev_err(dev, "channel %u bad state %u before reset\n",
+			gsi_channel_id(channel), state);
 		return;
 	}
 
@@ -579,7 +586,8 @@ static void gsi_channel_reset_command(struct gsi_channel *channel)
 	/* Channel state will normally have been updated */
 	state = gsi_channel_state(channel);
 	if (!ret && state != GSI_CHANNEL_STATE_ALLOCATED)
-		dev_err(dev, "bad channel state %u after reset\n", state);
+		dev_err(dev, "channel %u bad state %u after reset\n",
+			gsi_channel_id(channel), state);
 }
 
 /* Deallocate an ALLOCATED GSI channel */
@@ -592,7 +600,8 @@ static void gsi_channel_de_alloc_command(struct gsi *gsi, u32 channel_id)
 
 	state = gsi_channel_state(channel);
 	if (state != GSI_CHANNEL_STATE_ALLOCATED) {
-		dev_err(dev, "bad channel state %u before dealloc\n", state);
+		dev_err(dev, "channel %u bad state %u before dealloc\n",
+			channel_id, state);
 		return;
 	}
 
@@ -601,7 +610,8 @@ static void gsi_channel_de_alloc_command(struct gsi *gsi, u32 channel_id)
 	/* Channel state will normally have been updated */
 	state = gsi_channel_state(channel);
 	if (!ret && state != GSI_CHANNEL_STATE_NOT_ALLOCATED)
-		dev_err(dev, "bad channel state %u after dealloc\n", state);
+		dev_err(dev, "channel %u bad state %u after dealloc\n",
+			channel_id, state);
 }
 
 /* Ring an event ring doorbell, reporting the last entry processed by the AP.
