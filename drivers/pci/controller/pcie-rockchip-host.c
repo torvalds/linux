@@ -40,7 +40,7 @@
 #include "pcie-rockchip.h"
 #include "rockchip-pcie-dma.h"
 
-void rk_pcie_start_dma_rk3399(struct dma_trx_obj *obj)
+static void rk_pcie_start_dma_rk3399(struct dma_trx_obj *obj)
 {
 	struct rockchip_pcie *rockchip = dev_get_drvdata(obj->dev);
 	struct dma_table *tbl = obj->cur;
