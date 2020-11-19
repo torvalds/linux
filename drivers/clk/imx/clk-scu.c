@@ -153,7 +153,6 @@ static inline struct clk_scu *to_clk_scu(struct clk_hw *hw)
 
 int imx_clk_scu_init(struct device_node *np)
 {
-	struct platform_device *pd_dev;
 	u32 clk_cells;
 	int ret, i;
 
@@ -166,17 +165,11 @@ int imx_clk_scu_init(struct device_node *np)
 	if (clk_cells == 2) {
 		for (i = 0; i < IMX_SC_R_LAST; i++)
 			INIT_LIST_HEAD(&imx_scu_clks[i]);
-		/*
-		 * Note: SCU clock driver depends on SCU power domain to be ready
-		 * first. As there're no power domains under scu clock node in dts,
-		 * we can't use PROBE_DEFER automatically.
-		 */
+
+		/* pd_np will be used to attach power domains later */
 		pd_np = of_find_compatible_node(NULL, NULL, "fsl,scu-pd");
-		pd_dev = of_find_device_by_node(pd_np);
-		if (!pd_dev || !device_is_bound(&pd_dev->dev)) {
-			of_node_put(pd_np);
-			return -EPROBE_DEFER;
-		}
+		if (!pd_np)
+			return -EINVAL;
 	}
 
 	return platform_driver_register(&imx_clk_scu_driver);
