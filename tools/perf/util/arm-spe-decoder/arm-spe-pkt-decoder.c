@@ -288,10 +288,46 @@ static int arm_spe_pkt_out_string(int *err, char **buf_p, size_t *blen,
 	return ret;
 }
 
+static int arm_spe_pkt_desc_addr(const struct arm_spe_pkt *packet,
+				 char *buf, size_t buf_len)
+{
+	int ns, el, idx = packet->index;
+	u64 payload = packet->payload;
+	int err = 0;
+
+	switch (idx) {
+	case 0:
+	case 1:
+		ns = !!(packet->payload & NS_FLAG);
+		el = (packet->payload & EL_FLAG) >> 61;
+		payload &= ~(0xffULL << 56);
+		arm_spe_pkt_out_string(&err, &buf, &buf_len,
+				"%s 0x%llx el%d ns=%d",
+				(idx == 1) ? "TGT" : "PC", payload, el, ns);
+		break;
+	case 2:
+		arm_spe_pkt_out_string(&err, &buf, &buf_len,
+				       "VA 0x%llx", payload);
+		break;
+	case 3:
+		ns = !!(packet->payload & NS_FLAG);
+		payload &= ~(0xffULL << 56);
+		arm_spe_pkt_out_string(&err, &buf, &buf_len,
+				       "PA 0x%llx ns=%d", payload, ns);
+		break;
+	default:
+		/* Unknown index */
+		err = -1;
+		break;
+	}
+
+	return err;
+}
+
 int arm_spe_pkt_desc(const struct arm_spe_pkt *packet, char *buf,
 		     size_t buf_len)
 {
-	int ns, el, idx = packet->index;
+	int idx = packet->index;
 	unsigned long long payload = packet->payload;
 	const char *name = arm_spe_pkt_name(packet->type);
 	char *buf_orig = buf;
@@ -373,31 +409,7 @@ int arm_spe_pkt_desc(const struct arm_spe_pkt *packet, char *buf,
 		arm_spe_pkt_out_string(&err, &buf, &blen, "%s %lld", name, payload);
 		break;
 	case ARM_SPE_ADDRESS:
-		switch (idx) {
-		case 0:
-		case 1:
-			ns = !!(packet->payload & NS_FLAG);
-			el = (packet->payload & EL_FLAG) >> 61;
-			payload &= ~(0xffULL << 56);
-			arm_spe_pkt_out_string(&err, &buf, &blen,
-					"%s 0x%llx el%d ns=%d",
-				        (idx == 1) ? "TGT" : "PC", payload, el, ns);
-			break;
-		case 2:
-			arm_spe_pkt_out_string(&err, &buf, &blen,
-					       "VA 0x%llx", payload);
-			break;
-		case 3:
-			ns = !!(packet->payload & NS_FLAG);
-			payload &= ~(0xffULL << 56);
-			arm_spe_pkt_out_string(&err, &buf, &blen,
-					       "PA 0x%llx ns=%d", payload, ns);
-			break;
-		default:
-			/* Unknown index */
-			err = -1;
-			break;
-		}
+		err = arm_spe_pkt_desc_addr(packet, buf, buf_len);
 		break;
 	case ARM_SPE_CONTEXT:
 		arm_spe_pkt_out_string(&err, &buf, &blen, "%s 0x%lx el%d",
