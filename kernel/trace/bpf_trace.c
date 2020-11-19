@@ -181,6 +181,16 @@ bpf_probe_read_user_str_common(void *dst, u32 size,
 {
 	int ret;
 
+	/*
+	 * NB: We rely on strncpy_from_user() not copying junk past the NUL
+	 * terminator into `dst`.
+	 *
+	 * strncpy_from_user() does long-sized strides in the fast path. If the
+	 * strncpy does not mask out the bytes after the NUL in `unsafe_ptr`,
+	 * then there could be junk after the NUL in `dst`. If user takes `dst`
+	 * and keys a hash map with it, then semantically identical strings can
+	 * occupy multiple entries in the map.
+	 */
 	ret = strncpy_from_user_nofault(dst, unsafe_ptr, size);
 	if (unlikely(ret < 0))
 		memset(dst, 0, size);
