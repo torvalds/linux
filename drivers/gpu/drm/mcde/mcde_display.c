@@ -569,7 +569,7 @@ static void mcde_configure_channel(struct mcde *mcde, enum mcde_channel ch,
 	default:
 		dev_err(mcde->dev, "unknown flow mode %d\n",
 			mcde->flow_mode);
-		break;
+		return;
 	}
 
 	writel(val, mcde->regs + sync);
