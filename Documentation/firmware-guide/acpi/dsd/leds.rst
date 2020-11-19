@@ -90,10 +90,10 @@ where
 References
 ==========
 
-[1] Device tree. <URL:https://www.devicetree.org>, referenced 2019-02-21.
+[1] Device tree. https://www.devicetree.org, referenced 2019-02-21.
 
 [2] Advanced Configuration and Power Interface Specification.
-    <URL:https://uefi.org/sites/default/files/resources/ACPI_6_3_final_Jan30.pdf>,
+    https://uefi.org/sites/default/files/resources/ACPI_6_3_final_Jan30.pdf,
     referenced 2019-02-21.
 
 [3] Documentation/devicetree/bindings/leds/common.txt
@@ -101,11 +101,11 @@ References
 [4] Documentation/devicetree/bindings/media/video-interfaces.txt
 
 [5] Device Properties UUID For _DSD.
-    <URL:https://www.uefi.org/sites/default/files/resources/_DSD-device-properties-UUID.pdf>,
+    https://www.uefi.org/sites/default/files/resources/_DSD-device-properties-UUID.pdf,
     referenced 2019-02-21.
 
 [6] Hierarchical Data Extension UUID For _DSD.
-    <URL:https://www.uefi.org/sites/default/files/resources/_DSD-hierarchical-data-extension-UUID-v1.1.pdf>,
+    https://www.uefi.org/sites/default/files/resources/_DSD-hierarchical-data-extension-UUID-v1.1.pdf,
     referenced 2019-02-21.
 
 [7] Documentation/firmware-guide/acpi/dsd/data-node-references.rst
