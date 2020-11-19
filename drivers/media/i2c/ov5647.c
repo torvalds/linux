@@ -1021,13 +1021,71 @@ static int ov5647_enum_frame_size(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int ov5647_set_get_fmt(struct v4l2_subdev *sd,
+static int ov5647_get_pad_fmt(struct v4l2_subdev *sd,
 			      struct v4l2_subdev_pad_config *cfg,
 			      struct v4l2_subdev_format *format)
 {
 	struct v4l2_mbus_framefmt *fmt = &format->format;
+	const struct v4l2_mbus_framefmt *sensor_format;
+	struct ov5647 *sensor = to_sensor(sd);
 
-	*fmt = OV5647_DEFAULT_FORMAT;
+	mutex_lock(&sensor->lock);
+	switch (format->which) {
+	case V4L2_SUBDEV_FORMAT_TRY:
+		sensor_format = v4l2_subdev_get_try_format(sd, cfg, format->pad);
+		break;
+	default:
+		sensor_format = &sensor->mode->format;
+		break;
+	}
+
+	*fmt = *sensor_format;
+	mutex_unlock(&sensor->lock);
+
+	return 0;
+}
+
+static int ov5647_set_pad_fmt(struct v4l2_subdev *sd,
+			      struct v4l2_subdev_pad_config *cfg,
+			      struct v4l2_subdev_format *format)
+{
+	struct v4l2_mbus_framefmt *fmt = &format->format;
+	const struct ov5647_mode *ov5647_mode_list;
+	struct ov5647 *sensor = to_sensor(sd);
+	const struct ov5647_mode *mode;
+	unsigned int num_modes;
+	unsigned int i;
+
+	for (i = 0; i < OV5647_NUM_FORMATS; ++i) {
+		if (ov5647_formats[i].mbus_code != fmt->code)
+			continue;
+
+		ov5647_mode_list = ov5647_formats[i].modes;
+		num_modes = ov5647_formats[i].num_modes;
+		break;
+	}
+
+	/*
+	 * Default mbus code MEDIA_BUS_FMT_SBGGR10_1X10 if the requested one is
+	 * not supported.
+	 */
+	if (i == OV5647_NUM_FORMATS) {
+		ov5647_mode_list = ov5647_10bpp_modes;
+		num_modes = ARRAY_SIZE(ov5647_10bpp_modes);
+	}
+
+	mode = v4l2_find_nearest_size(ov5647_mode_list, num_modes,
+				      format.width, format.height,
+				      fmt->width, fmt->height);
+
+	/* Update the sensor mode and apply at it at streamon time. */
+	mutex_lock(&sensor->lock);
+	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
+		*v4l2_subdev_get_try_format(sd, cfg, format->pad) = mode->format;
+	else
+		sensor->mode = mode;
+	*fmt = mode->format;
+	mutex_unlock(&sensor->lock);
 
 	return 0;
 }
@@ -1072,8 +1130,8 @@ static int ov5647_get_selection(struct v4l2_subdev *sd,
 static const struct v4l2_subdev_pad_ops ov5647_subdev_pad_ops = {
 	.enum_mbus_code		= ov5647_enum_mbus_code,
 	.enum_frame_size	= ov5647_enum_frame_size,
-	.set_fmt		= ov5647_set_get_fmt,
-	.get_fmt		= ov5647_set_get_fmt,
+	.set_fmt		= ov5647_set_pad_fmt,
+	.get_fmt		= ov5647_get_pad_fmt,
 	.get_selection		= ov5647_get_selection,
 };
 
