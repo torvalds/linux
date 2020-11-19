@@ -7902,7 +7902,7 @@ static int gaudi_ctx_init(struct hl_ctx *ctx)
 	return gaudi_internal_cb_pool_init(ctx->hdev, ctx);
 }
 
-void gaudi_ctx_fini(struct hl_ctx *ctx)
+static void gaudi_ctx_fini(struct hl_ctx *ctx)
 {
 	struct hl_device *hdev = ctx->hdev;
 
