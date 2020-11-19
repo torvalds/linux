@@ -114,6 +114,7 @@ struct ov5647 {
 	struct v4l2_ctrl		*hblank;
 	struct v4l2_ctrl		*vblank;
 	struct v4l2_ctrl		*exposure;
+	bool				streaming;
 };
 
 static inline struct ov5647 *to_sensor(struct v4l2_subdev *sd)
@@ -1001,14 +1002,42 @@ __ov5647_get_pad_crop(struct ov5647 *ov5647, struct v4l2_subdev_pad_config *cfg,
 
 static int ov5647_s_stream(struct v4l2_subdev *sd, int enable)
 {
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ov5647 *sensor = to_sensor(sd);
 	int ret;
 
 	mutex_lock(&sensor->lock);
-	if (enable)
+	if (sensor->streaming == enable) {
+		mutex_unlock(&sensor->lock);
+		return 0;
+	}
+
+	if (enable) {
+		ret = pm_runtime_get_sync(&client->dev);
+		if (ret < 0)
+			goto error_unlock;
+
 		ret = ov5647_stream_on(sd);
-	else
+		if (ret < 0) {
+			dev_err(&client->dev, "stream start failed: %d\n", ret);
+			goto error_unlock;
+		}
+	} else {
 		ret = ov5647_stream_off(sd);
+		if (ret < 0) {
+			dev_err(&client->dev, "stream stop failed: %d\n", ret);
+			goto error_unlock;
+		}
+		pm_runtime_put(&client->dev);
+	}
+
+	sensor->streaming = enable;
+	mutex_unlock(&sensor->lock);
+
+	return 0;
+
+error_unlock:
+	pm_runtime_put(&client->dev);
 	mutex_unlock(&sensor->lock);
 
 	return ret;
