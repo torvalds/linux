@@ -104,7 +104,6 @@ struct ov5647 {
 	struct v4l2_subdev		sd;
 	struct media_pad		pad;
 	struct mutex			lock;
-	int				power_count;
 	struct clk			*xclk;
 	struct gpio_desc		*pwdn;
 	bool				clock_ncont;
@@ -1354,6 +1353,8 @@ static int ov5647_s_ctrl(struct v4l2_ctrl *ctrl)
 					    struct ov5647, ctrls);
 	struct v4l2_subdev *sd = &sensor->sd;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	int ret = 0;
+
 
 	/* v4l2_ctrl_lock() locks our own mutex */
 
@@ -1370,33 +1371,40 @@ static int ov5647_s_ctrl(struct v4l2_ctrl *ctrl)
 	}
 
 	/*
-	 * If the device is not powered up by the host driver do
-	 * not apply any controls to H/W at this time. Instead
-	 * the controls will be restored at s_stream(1) time.
+	 * If the device is not powered up do not apply any controls
+	 * to H/W at this time. Instead the controls will be restored
+	 * at s_stream(1) time.
 	 */
-	if (!sensor->power_count)
+	if (pm_runtime_get_if_in_use(&client->dev) == 0)
 		return 0;
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUTO_WHITE_BALANCE:
-		return ov5647_s_auto_white_balance(sd, ctrl->val);
+		ret = ov5647_s_auto_white_balance(sd, ctrl->val);
+		break;
 	case V4L2_CID_AUTOGAIN:
-		return ov5647_s_autogain(sd, ctrl->val);
+		ret = ov5647_s_autogain(sd, ctrl->val);
+		break;
 	case V4L2_CID_EXPOSURE_AUTO:
-		return ov5647_s_exposure_auto(sd, ctrl->val);
+		ret = ov5647_s_exposure_auto(sd, ctrl->val);
+		break;
 	case V4L2_CID_ANALOGUE_GAIN:
-		return  ov5647_s_analogue_gain(sd, ctrl->val);
+		ret =  ov5647_s_analogue_gain(sd, ctrl->val);
+		break;
 	case V4L2_CID_EXPOSURE:
-		return ov5647_s_exposure(sd, ctrl->val);
+		ret = ov5647_s_exposure(sd, ctrl->val);
+		break;
+	case V4L2_CID_VBLANK:
+		ret = ov5647_write16(sd, OV5647_REG_VTS_HI,
+				     sensor->mode->format.height + ctrl->val);
+		break;
+
+	/* Read-only, but we adjust it based on mode. */
 	case V4L2_CID_PIXEL_RATE:
-		/* Read-only, but we adjust it based on mode. */
-		return 0;
 	case V4L2_CID_HBLANK:
 		/* Read-only, but we adjust it based on mode. */
-		return 0;
-	case V4L2_CID_VBLANK:
-		return ov5647_write16(sd, OV5647_REG_VTS_HI,
-				      sensor->mode->format.height + ctrl->val);
+		break;
+
 	default:
 		dev_info(&client->dev,
 			 "Control (id:0x%x, val:0x%x) not supported\n",
@@ -1404,7 +1412,9 @@ static int ov5647_s_ctrl(struct v4l2_ctrl *ctrl)
 		return -EINVAL;
 	}
 
-	return 0;
+	pm_runtime_put(&client->dev);
+
+	return ret;
 }
 
 static const struct v4l2_ctrl_ops ov5647_ctrl_ops = {
