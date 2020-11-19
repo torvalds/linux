@@ -161,6 +161,7 @@ struct gsi {
 	u32 type_enabled_bitmap;	/* GSI IRQ types enabled */
 	u32 ieob_enabled_bitmap;	/* IEOB IRQ enabled (event rings) */
 	struct completion completion;	/* for global EE commands */
+	int result;			/* Negative errno (generic commands) */
 	struct mutex mutex;		/* protects commands, programming */
 };
 

@@ -92,6 +92,7 @@
 #define GSI_CMD_TIMEOUT			5	/* seconds */
 
 #define GSI_CHANNEL_STOP_RX_RETRIES	10
+#define GSI_CHANNEL_MODEM_HALT_RETRIES	10
 
 #define GSI_MHI_EVENT_ID_START		10	/* 1st reserved event id */
 #define GSI_MHI_EVENT_ID_END		16	/* Last reserved event id */
@@ -1107,10 +1108,16 @@ static void gsi_isr_gp_int1(struct gsi *gsi)
 	switch (result) {
 	case GENERIC_EE_SUCCESS:
 	case GENERIC_EE_CHANNEL_NOT_RUNNING:
+		gsi->result = 0;
+		break;
+
+	case GENERIC_EE_RETRY:
+		gsi->result = -EAGAIN;
 		break;
 
 	default:
 		dev_err(gsi->dev, "global INT1 generic result %u\n", result);
+		gsi->result = -EIO;
 		break;
 	}
 
@@ -1624,7 +1631,7 @@ static int gsi_generic_command(struct gsi *gsi, u32 channel_id,
 	iowrite32(BIT(ERROR_INT), gsi->virt + GSI_CNTXT_GLOB_IRQ_EN_OFFSET);
 
 	if (success)
-		return 0;
+		return gsi->result;
 
 	dev_err(gsi->dev, "GSI generic command %u to channel %u timed out\n",
 		opcode, channel_id);
@@ -1640,7 +1647,17 @@ static int gsi_modem_channel_alloc(struct gsi *gsi, u32 channel_id)
 
 static void gsi_modem_channel_halt(struct gsi *gsi, u32 channel_id)
 {
-	(void)gsi_generic_command(gsi, channel_id, GSI_GENERIC_HALT_CHANNEL);
+	u32 retries = GSI_CHANNEL_MODEM_HALT_RETRIES;
+	int ret;
+
+	do
+		ret = gsi_generic_command(gsi, channel_id,
+					  GSI_GENERIC_HALT_CHANNEL);
+	while (ret == -EAGAIN && retries--);
+
+	if (ret)
+		dev_err(gsi->dev, "error %d halting modem channel %u\n",
+			ret, channel_id);
 }
 
 /* Setup function for channels */
