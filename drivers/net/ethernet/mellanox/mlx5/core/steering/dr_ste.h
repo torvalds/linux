@@ -111,4 +111,6 @@ struct mlx5dr_ste_ctx {
 	void DR_STE_CTX_BUILDER(src_gvmi_qpn);
 };
 
+extern struct mlx5dr_ste_ctx ste_ctx_v0;
+
 #endif  /* _DR_STE_ */
