@@ -548,6 +548,7 @@ acpi_gpio_to_gpiod_flags(const struct acpi_resource_gpio *agpio)
 		default:
 			break;
 		}
+		break;
 	default:
 		break;
 	}
