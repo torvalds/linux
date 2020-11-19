@@ -1294,45 +1294,6 @@ bool intel_engine_can_store_dword(struct intel_engine_cs *engine)
 	}
 }
 
-static int print_sched_attr(const struct i915_sched_attr *attr,
-			    char *buf, int x, int len)
-{
-	if (attr->priority == I915_PRIORITY_INVALID)
-		return x;
-
-	x += snprintf(buf + x, len - x,
-		      " prio=%d", attr->priority);
-
-	return x;
-}
-
-static void print_request(struct drm_printer *m,
-			  struct i915_request *rq,
-			  const char *prefix)
-{
-	const char *name = rq->fence.ops->get_timeline_name(&rq->fence);
-	char buf[80] = "";
-	int x = 0;
-
-	x = print_sched_attr(&rq->sched.attr, buf, x, sizeof(buf));
-
-	drm_printf(m, "%s %llx:%llx%s%s %s @ %dms: %s\n",
-		   prefix,
-		   rq->fence.context, rq->fence.seqno,
-		   i915_request_completed(rq) ? "!" :
-		   i915_request_started(rq) ? "*" :
-		   !i915_sw_fence_signaled(&rq->semaphore) ? "&" :
-		   "",
-		   test_bit(DMA_FENCE_FLAG_SIGNALED_BIT,
-			    &rq->fence.flags) ? "+" :
-		   test_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
-			    &rq->fence.flags) ? "-" :
-		   "",
-		   buf,
-		   jiffies_to_msecs(jiffies - rq->emitted_jiffies),
-		   name);
-}
-
 static struct intel_timeline *get_timeline(struct i915_request *rq)
 {
 	struct intel_timeline *tl;
@@ -1530,7 +1491,7 @@ static void intel_engine_print_registers(struct intel_engine_cs *engine,
 					intel_context_is_banned(rq->context) ? "*" : "");
 			len += print_ring(hdr + len, sizeof(hdr) - len, rq);
 			scnprintf(hdr + len, sizeof(hdr) - len, "rq: ");
-			print_request(m, rq, hdr);
+			i915_request_show(m, rq, hdr);
 		}
 		for (port = execlists->pending; (rq = *port); port++) {
 			char hdr[160];
@@ -1544,7 +1505,7 @@ static void intel_engine_print_registers(struct intel_engine_cs *engine,
 					intel_context_is_banned(rq->context) ? "*" : "");
 			len += print_ring(hdr + len, sizeof(hdr) - len, rq);
 			scnprintf(hdr + len, sizeof(hdr) - len, "rq: ");
-			print_request(m, rq, hdr);
+			i915_request_show(m, rq, hdr);
 		}
 		rcu_read_unlock();
 		execlists_active_unlock_bh(execlists);
@@ -1688,7 +1649,7 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 	if (rq) {
 		struct intel_timeline *tl = get_timeline(rq);
 
-		print_request(m, rq, "\t\tactive ");
+		i915_request_show(m, rq, "\t\tactive ");
 
 		drm_printf(m, "\t\tring->start:  0x%08x\n",
 			   i915_ggtt_offset(rq->ring->vma));
@@ -1726,7 +1687,7 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 		drm_printf(m, "\tDevice is asleep; skipping register dump\n");
 	}
 
-	intel_execlists_show_requests(engine, m, print_request, 8);
+	intel_execlists_show_requests(engine, m, i915_request_show, 8);
 
 	drm_printf(m, "HWSP:\n");
 	hexdump(m, engine->status_page.addr, PAGE_SIZE);

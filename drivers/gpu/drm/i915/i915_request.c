@@ -1855,6 +1855,45 @@ out:
 	return timeout;
 }
 
+static int print_sched_attr(const struct i915_sched_attr *attr,
+			    char *buf, int x, int len)
+{
+	if (attr->priority == I915_PRIORITY_INVALID)
+		return x;
+
+	x += snprintf(buf + x, len - x,
+		      " prio=%d", attr->priority);
+
+	return x;
+}
+
+void i915_request_show(struct drm_printer *m,
+		       const struct i915_request *rq,
+		       const char *prefix)
+{
+	const char *name = rq->fence.ops->get_timeline_name((struct dma_fence *)&rq->fence);
+	char buf[80] = "";
+	int x = 0;
+
+	x = print_sched_attr(&rq->sched.attr, buf, x, sizeof(buf));
+
+	drm_printf(m, "%s %llx:%lld%s%s %s @ %dms: %s\n",
+		   prefix,
+		   rq->fence.context, rq->fence.seqno,
+		   i915_request_completed(rq) ? "!" :
+		   i915_request_started(rq) ? "*" :
+		   !i915_sw_fence_signaled(&rq->semaphore) ? "&" :
+		   "",
+		   test_bit(DMA_FENCE_FLAG_SIGNALED_BIT,
+			    &rq->fence.flags) ? "+" :
+		   test_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
+			    &rq->fence.flags) ? "-" :
+		   "",
+		   buf,
+		   jiffies_to_msecs(jiffies - rq->emitted_jiffies),
+		   name);
+}
+
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
 #include "selftests/mock_request.c"
 #include "selftests/i915_request.c"
