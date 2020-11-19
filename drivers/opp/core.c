@@ -1252,9 +1252,14 @@ void _opp_free(struct dev_pm_opp *opp)
 	kfree(opp);
 }
 
-static void _opp_kref_release(struct dev_pm_opp *opp,
-			      struct opp_table *opp_table)
+static void _opp_kref_release(struct kref *kref)
 {
+	struct dev_pm_opp *opp = container_of(kref, struct dev_pm_opp, kref);
+	struct opp_table *opp_table = opp->opp_table;
+
+	list_del(&opp->node);
+	mutex_unlock(&opp_table->lock);
+
 	/*
 	 * Notify the changes in the availability of the operable
 	 * frequency/voltage list.
@@ -1262,25 +1267,7 @@ static void _opp_kref_release(struct dev_pm_opp *opp,
 	blocking_notifier_call_chain(&opp_table->head, OPP_EVENT_REMOVE, opp);
 	_of_opp_free_required_opps(opp_table, opp);
 	opp_debug_remove_one(opp);
-	list_del(&opp->node);
 	kfree(opp);
-}
-
-static void _opp_kref_release_unlocked(struct kref *kref)
-{
-	struct dev_pm_opp *opp = container_of(kref, struct dev_pm_opp, kref);
-	struct opp_table *opp_table = opp->opp_table;
-
-	_opp_kref_release(opp, opp_table);
-}
-
-static void _opp_kref_release_locked(struct kref *kref)
-{
-	struct dev_pm_opp *opp = container_of(kref, struct dev_pm_opp, kref);
-	struct opp_table *opp_table = opp->opp_table;
-
-	_opp_kref_release(opp, opp_table);
-	mutex_unlock(&opp_table->lock);
 }
 
 void dev_pm_opp_get(struct dev_pm_opp *opp)
@@ -1290,15 +1277,9 @@ void dev_pm_opp_get(struct dev_pm_opp *opp)
 
 void dev_pm_opp_put(struct dev_pm_opp *opp)
 {
-	kref_put_mutex(&opp->kref, _opp_kref_release_locked,
-		       &opp->opp_table->lock);
+	kref_put_mutex(&opp->kref, _opp_kref_release, &opp->opp_table->lock);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_put);
-
-static void dev_pm_opp_put_unlocked(struct dev_pm_opp *opp)
-{
-	kref_put(&opp->kref, _opp_kref_release_unlocked);
-}
 
 /**
  * dev_pm_opp_remove()  - Remove an OPP from OPP table
@@ -1343,30 +1324,49 @@ void dev_pm_opp_remove(struct device *dev, unsigned long freq)
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_remove);
 
+static struct dev_pm_opp *_opp_get_next(struct opp_table *opp_table,
+					bool dynamic)
+{
+	struct dev_pm_opp *opp = NULL, *temp;
+
+	mutex_lock(&opp_table->lock);
+	list_for_each_entry(temp, &opp_table->opp_list, node) {
+		if (dynamic == temp->dynamic) {
+			opp = temp;
+			break;
+		}
+	}
+
+	mutex_unlock(&opp_table->lock);
+	return opp;
+}
+
 bool _opp_remove_all_static(struct opp_table *opp_table)
 {
-	struct dev_pm_opp *opp, *tmp;
-	bool ret = true;
+	struct dev_pm_opp *opp;
 
 	mutex_lock(&opp_table->lock);
 
 	if (!opp_table->parsed_static_opps) {
-		ret = false;
-		goto unlock;
+		mutex_unlock(&opp_table->lock);
+		return false;
 	}
 
-	if (--opp_table->parsed_static_opps)
-		goto unlock;
-
-	list_for_each_entry_safe(opp, tmp, &opp_table->opp_list, node) {
-		if (!opp->dynamic)
-			dev_pm_opp_put_unlocked(opp);
+	if (--opp_table->parsed_static_opps) {
+		mutex_unlock(&opp_table->lock);
+		return true;
 	}
 
-unlock:
 	mutex_unlock(&opp_table->lock);
 
-	return ret;
+	/*
+	 * Can't remove the OPP from under the lock, debugfs removal needs to
+	 * happen lock less to avoid circular dependency issues.
+	 */
+	while ((opp = _opp_get_next(opp_table, false)))
+		dev_pm_opp_put(opp);
+
+	return true;
 }
 
 /**
@@ -1378,21 +1378,21 @@ unlock:
 void dev_pm_opp_remove_all_dynamic(struct device *dev)
 {
 	struct opp_table *opp_table;
-	struct dev_pm_opp *opp, *temp;
+	struct dev_pm_opp *opp;
 	int count = 0;
 
 	opp_table = _find_opp_table(dev);
 	if (IS_ERR(opp_table))
 		return;
 
-	mutex_lock(&opp_table->lock);
-	list_for_each_entry_safe(opp, temp, &opp_table->opp_list, node) {
-		if (opp->dynamic) {
-			dev_pm_opp_put_unlocked(opp);
-			count++;
-		}
+	/*
+	 * Can't remove the OPP from under the lock, debugfs removal needs to
+	 * happen lock less to avoid circular dependency issues.
+	 */
+	while ((opp = _opp_get_next(opp_table, true))) {
+		dev_pm_opp_put(opp);
+		count++;
 	}
-	mutex_unlock(&opp_table->lock);
 
 	/* Drop the references taken by dev_pm_opp_add() */
 	while (count--)
