@@ -7211,12 +7211,10 @@ static void hsw_crtc_enable(struct intel_atomic_state *state,
 	if (INTEL_GEN(dev_priv) >= 9 || IS_BROADWELL(dev_priv))
 		bdw_set_pipemisc(new_crtc_state);
 
-	if (!new_crtc_state->bigjoiner_slave || !transcoder_is_dsi(cpu_transcoder)) {
-		if (!transcoder_is_dsi(cpu_transcoder))
-			intel_set_transcoder_timings(new_crtc_state);
+	if (!new_crtc_state->bigjoiner_slave && !transcoder_is_dsi(cpu_transcoder)) {
+		intel_set_transcoder_timings(new_crtc_state);
 
-		if (cpu_transcoder != TRANSCODER_EDP &&
-		    !transcoder_is_dsi(cpu_transcoder))
+		if (cpu_transcoder != TRANSCODER_EDP)
 			intel_de_write(dev_priv, PIPE_MULT(cpu_transcoder),
 				       new_crtc_state->pixel_multiplier - 1);
 
