@@ -16,11 +16,15 @@ int mptcp_pm_announce_addr(struct mptcp_sock *msk,
 			   const struct mptcp_addr_info *addr,
 			   bool echo)
 {
+	u8 add_addr = READ_ONCE(msk->pm.add_addr_signal);
+
 	pr_debug("msk=%p, local_id=%d", msk, addr->id);
 
 	msk->pm.local = *addr;
-	WRITE_ONCE(msk->pm.add_addr_echo, echo);
-	WRITE_ONCE(msk->pm.add_addr_signal, true);
+	add_addr |= BIT(MPTCP_ADD_ADDR_SIGNAL);
+	if (echo)
+		add_addr |= BIT(MPTCP_ADD_ADDR_ECHO);
+	WRITE_ONCE(msk->pm.add_addr_signal, add_addr);
 	return 0;
 }
 
@@ -182,13 +186,13 @@ bool mptcp_pm_add_addr_signal(struct mptcp_sock *msk, unsigned int remaining,
 	if (!mptcp_pm_should_add_signal(msk))
 		goto out_unlock;
 
-	*echo = READ_ONCE(msk->pm.add_addr_echo);
+	*echo = mptcp_pm_should_add_signal_echo(msk);
 
 	if (remaining < mptcp_add_addr_len(msk->pm.local.family, *echo))
 		goto out_unlock;
 
 	*saddr = msk->pm.local;
-	WRITE_ONCE(msk->pm.add_addr_signal, false);
+	WRITE_ONCE(msk->pm.add_addr_signal, 0);
 	ret = true;
 
 out_unlock:
@@ -232,11 +236,10 @@ void mptcp_pm_data_init(struct mptcp_sock *msk)
 	msk->pm.subflows = 0;
 	msk->pm.rm_id = 0;
 	WRITE_ONCE(msk->pm.work_pending, false);
-	WRITE_ONCE(msk->pm.add_addr_signal, false);
+	WRITE_ONCE(msk->pm.add_addr_signal, 0);
 	WRITE_ONCE(msk->pm.rm_addr_signal, false);
 	WRITE_ONCE(msk->pm.accept_addr, false);
 	WRITE_ONCE(msk->pm.accept_subflow, false);
-	WRITE_ONCE(msk->pm.add_addr_echo, false);
 	msk->pm.status = 0;
 
 	spin_lock_init(&msk->pm.lock);
