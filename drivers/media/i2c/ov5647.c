@@ -115,7 +115,7 @@ static struct regval_list sensor_oe_enable_regs[] = {
 	{0x3002, 0xe4},
 };
 
-static const struct regval_list ov5647_640x480[] = {
+static const struct regval_list ov5647_640x480_8bpp[] = {
 	{0x0100, 0x00},
 	{0x0103, 0x01},
 	{0x3034, 0x08},
@@ -205,7 +205,8 @@ static const struct regval_list ov5647_640x480[] = {
 	{0x0100, 0x01},
 };
 
-static const struct ov5647_mode ov5647_8bit_modes[] = {
+static const struct ov5647_mode ov5647_8bpp_modes[] = {
+	/* 8-bit VGA mode: Uncentred crop 2x2 binned 1296x972 image. */
 	{
 		.format	= {
 			.code		= MEDIA_BUS_FMT_SBGGR8_1X8,
@@ -220,16 +221,16 @@ static const struct ov5647_mode ov5647_8bit_modes[] = {
 			.width		= 1280,
 			.height		= 960,
 		},
-		.reg_list	= ov5647_640x480,
-		.num_regs	= ARRAY_SIZE(ov5647_640x480)
+		.reg_list	= ov5647_640x480_8bpp,
+		.num_regs	= ARRAY_SIZE(ov5647_640x480_8bpp)
 	},
 };
 
 static const struct ov5647_format_list ov5647_formats[] = {
 	{
 		.mbus_code	= MEDIA_BUS_FMT_SBGGR8_1X8,
-		.modes		= ov5647_8bit_modes,
-		.num_modes	= ARRAY_SIZE(ov5647_8bit_modes),
+		.modes		= ov5647_8bpp_modes,
+		.num_modes	= ARRAY_SIZE(ov5647_8bpp_modes),
 	},
 };
 
