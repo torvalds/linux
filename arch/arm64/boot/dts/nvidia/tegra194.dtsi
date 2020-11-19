@@ -801,6 +801,7 @@
 			reg = <0x03520000 0x1000>,
 			      <0x03540000 0x1000>;
 			reg-names = "padctl", "ao";
+			interrupts = <GIC_SPI 167 IRQ_TYPE_LEVEL_HIGH>;
 
 			resets = <&bpmp TEGRA194_RESET_XUSB_PADCTL>;
 			reset-names = "padctl";

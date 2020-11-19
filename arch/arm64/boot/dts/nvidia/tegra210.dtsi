@@ -1040,6 +1040,7 @@
 	padctl: padctl@7009f000 {
 		compatible = "nvidia,tegra210-xusb-padctl";
 		reg = <0x0 0x7009f000 0x0 0x1000>;
+		interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
 		resets = <&tegra_car 142>;
 		reset-names = "padctl";
 
