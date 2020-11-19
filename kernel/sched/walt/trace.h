@@ -1088,6 +1088,23 @@ TRACE_EVENT(sched_enq_deq_task,
 			__entry->cpus_allowed, __entry->demand,
 			__entry->pred_demand)
 );
+
+TRACE_EVENT(walt_window_rollover,
+
+	TP_PROTO(u64 window_start),
+
+	TP_ARGS(window_start),
+
+	TP_STRUCT__entry(
+		__field(u64, window_start)
+	),
+
+	TP_fast_assign(
+		__entry->window_start = window_start;
+	),
+
+	TP_printk("window_start=%llu", __entry->window_start)
+);
 #endif /* _TRACE_WALT_H */
 
 #undef TRACE_INCLUDE_PATH
