@@ -498,7 +498,7 @@ static int reset_rx_pools(struct ibmvnic_adapter *adapter)
 
 		if (rx_pool->buff_size != buff_size) {
 			free_long_term_buff(adapter, &rx_pool->long_term_buff);
-			rx_pool->buff_size = buff_size;
+			rx_pool->buff_size = ALIGN(buff_size, L1_CACHE_BYTES);
 			rc = alloc_long_term_buff(adapter,
 						  &rx_pool->long_term_buff,
 						  rx_pool->size *
@@ -592,7 +592,7 @@ static int init_rx_pools(struct net_device *netdev)
 
 		rx_pool->size = adapter->req_rx_add_entries_per_subcrq;
 		rx_pool->index = i;
-		rx_pool->buff_size = buff_size;
+		rx_pool->buff_size = ALIGN(buff_size, L1_CACHE_BYTES);
 		rx_pool->active = 1;
 
 		rx_pool->free_map = kcalloc(rx_pool->size, sizeof(int),
@@ -745,6 +745,7 @@ static int init_tx_pools(struct net_device *netdev)
 {
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
 	int tx_subcrqs;
+	u64 buff_size;
 	int i, rc;
 
 	tx_subcrqs = adapter->num_active_tx_scrqs;
@@ -761,9 +762,11 @@ static int init_tx_pools(struct net_device *netdev)
 	adapter->num_active_tx_pools = tx_subcrqs;
 
 	for (i = 0; i < tx_subcrqs; i++) {
+		buff_size = adapter->req_mtu + VLAN_HLEN;
+		buff_size = ALIGN(buff_size, L1_CACHE_BYTES);
 		rc = init_one_tx_pool(netdev, &adapter->tx_pool[i],
 				      adapter->req_tx_entries_per_subcrq,
-				      adapter->req_mtu + VLAN_HLEN);
+				      buff_size);
 		if (rc) {
 			release_tx_pools(adapter);
 			return rc;
