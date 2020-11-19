@@ -31,6 +31,8 @@
 #include "i915_syncmap.h"
 #include "intel_timeline_types.h"
 
+struct drm_printer;
+
 struct intel_timeline *
 __intel_timeline_create(struct intel_gt *gt,
 			struct i915_vma *global_hwsp,
@@ -105,5 +107,12 @@ int intel_timeline_read_hwsp(struct i915_request *from,
 
 void intel_gt_init_timelines(struct intel_gt *gt);
 void intel_gt_fini_timelines(struct intel_gt *gt);
+
+void intel_gt_show_timelines(struct intel_gt *gt,
+			     struct drm_printer *m,
+			     void (*show_request)(struct drm_printer *m,
+						  const struct i915_request *rq,
+						  const char *prefix,
+						  int indent));
 
 #endif

@@ -1306,24 +1306,26 @@ static int i915_runtime_pm_status(struct seq_file *m, void *unused)
 
 static int i915_engine_info(struct seq_file *m, void *unused)
 {
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
+	struct drm_i915_private *i915 = node_to_i915(m->private);
 	struct intel_engine_cs *engine;
 	intel_wakeref_t wakeref;
 	struct drm_printer p;
 
-	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
+	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
 	seq_printf(m, "GT awake? %s [%d]\n",
-		   yesno(dev_priv->gt.awake),
-		   atomic_read(&dev_priv->gt.wakeref.count));
+		   yesno(i915->gt.awake),
+		   atomic_read(&i915->gt.wakeref.count));
 	seq_printf(m, "CS timestamp frequency: %u Hz\n",
-		   RUNTIME_INFO(dev_priv)->cs_timestamp_frequency_hz);
+		   RUNTIME_INFO(i915)->cs_timestamp_frequency_hz);
 
 	p = drm_seq_file_printer(m);
-	for_each_uabi_engine(engine, dev_priv)
+	for_each_uabi_engine(engine, i915)
 		intel_engine_dump(engine, &p, "%s\n", engine->name);
 
-	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
+	intel_gt_show_timelines(&i915->gt, &p, NULL);
+
+	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 
 	return 0;
 }
