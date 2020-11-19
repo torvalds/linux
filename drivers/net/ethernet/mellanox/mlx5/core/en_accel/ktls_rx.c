@@ -476,19 +476,22 @@ static void resync_update_sn(struct mlx5e_rq *rq, struct sk_buff *skb)
 
 	depth += sizeof(struct tcphdr);
 
-	if (unlikely(!sk || sk->sk_state == TCP_TIME_WAIT))
+	if (unlikely(!sk))
 		return;
+
+	if (unlikely(sk->sk_state == TCP_TIME_WAIT))
+		goto unref;
 
 	if (unlikely(!resync_queue_get_psv(sk)))
-		return;
-
-	skb->sk = sk;
-	skb->destructor = sock_edemux;
+		goto unref;
 
 	seq = th->seq;
 	datalen = skb->len - depth;
 	tls_offload_rx_resync_async_request_start(sk, seq, datalen);
 	rq->stats->tls_resync_req_start++;
+
+unref:
+	sock_gen_put(sk);
 }
 
 void mlx5e_ktls_rx_resync(struct net_device *netdev, struct sock *sk,
