@@ -721,6 +721,7 @@ enum scmi_notification_events {
 	SCMI_EVENT_PERFORMANCE_LIMITS_CHANGED = 0x0,
 	SCMI_EVENT_PERFORMANCE_LEVEL_CHANGED = 0x1,
 	SCMI_EVENT_SENSOR_TRIP_POINT_EVENT = 0x0,
+	SCMI_EVENT_SENSOR_UPDATE = 0x1,
 	SCMI_EVENT_RESET_ISSUED = 0x0,
 	SCMI_EVENT_BASE_ERROR_EVENT = 0x0,
 	SCMI_EVENT_SYSTEM_POWER_STATE_NOTIFIER = 0x0,
@@ -760,6 +761,14 @@ struct scmi_sensor_trip_point_report {
 	unsigned int	agent_id;
 	unsigned int	sensor_id;
 	unsigned int	trip_point_desc;
+};
+
+struct scmi_sensor_update_report {
+	ktime_t				timestamp;
+	unsigned int			agent_id;
+	unsigned int			sensor_id;
+	unsigned int			readings_count;
+	struct scmi_sensor_reading	readings[];
 };
 
 struct scmi_reset_issued_report {
