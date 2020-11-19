@@ -372,7 +372,8 @@ long i915_request_wait(struct i915_request *rq,
 
 void i915_request_show(struct drm_printer *m,
 		       const struct i915_request *rq,
-		       const char *prefix);
+		       const char *prefix,
+		       int indent);
 
 static inline bool i915_request_signaled(const struct i915_request *rq)
 {

@@ -107,7 +107,8 @@ void intel_execlists_show_requests(struct intel_engine_cs *engine,
 				   struct drm_printer *m,
 				   void (*show_request)(struct drm_printer *m,
 							const struct i915_request *rq,
-							const char *prefix),
+							const char *prefix,
+							int indent),
 				   unsigned int max);
 
 struct intel_context *
