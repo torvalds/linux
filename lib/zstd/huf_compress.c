@@ -560,6 +560,7 @@ size_t HUF_compress1X_usingCTable(void *dst, size_t dstSize, const void *src, si
 	case 2: HUF_encodeSymbol(&bitC, ip[n + 1], CTable); HUF_FLUSHBITS_1(&bitC);
 		fallthrough;
 	case 1: HUF_encodeSymbol(&bitC, ip[n + 0], CTable); HUF_FLUSHBITS(&bitC);
+		fallthrough;
 	case 0:
 	default:;
 	}
