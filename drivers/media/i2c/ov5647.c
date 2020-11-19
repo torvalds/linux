@@ -677,8 +677,9 @@ static const struct ov5647_format_list ov5647_formats[] = {
 
 #define OV5647_NUM_FORMATS	(ARRAY_SIZE(ov5647_formats))
 
-#define OV5647_DEFAULT_MODE	(&ov5647_formats[0].modes[0])
-#define OV5647_DEFAULT_FORMAT	(ov5647_formats[0].modes[0].format)
+/* Default sensor mode is 2x2 binned 640x480 SBGGR10_1X10. */
+#define OV5647_DEFAULT_MODE	(&ov5647_formats[1].modes[3])
+#define OV5647_DEFAULT_FORMAT	(ov5647_formats[1].modes[3].format)
 
 static int ov5647_write(struct v4l2_subdev *sd, u16 reg, u8 val)
 {
@@ -1026,7 +1027,6 @@ static int ov5647_set_get_fmt(struct v4l2_subdev *sd,
 {
 	struct v4l2_mbus_framefmt *fmt = &format->format;
 
-	/* Only one format is supported, so return that. */
 	*fmt = OV5647_DEFAULT_FORMAT;
 
 	return 0;
