@@ -565,7 +565,7 @@ static void rkisp1_sp_set_data_path(struct rkisp1_capture *cap)
 	rkisp1_write(cap->rkisp1, dpcl, RKISP1_CIF_VI_DPCL);
 }
 
-static struct rkisp1_capture_ops rkisp1_capture_ops_mp = {
+static const struct rkisp1_capture_ops rkisp1_capture_ops_mp = {
 	.config = rkisp1_mp_config,
 	.enable = rkisp1_mp_enable,
 	.disable = rkisp1_mp_disable,
@@ -574,7 +574,7 @@ static struct rkisp1_capture_ops rkisp1_capture_ops_mp = {
 	.is_stopped = rkisp1_mp_is_stopped,
 };
 
-static struct rkisp1_capture_ops rkisp1_capture_ops_sp = {
+static const struct rkisp1_capture_ops rkisp1_capture_ops_sp = {
 	.config = rkisp1_sp_config,
 	.enable = rkisp1_sp_enable,
 	.disable = rkisp1_sp_disable,
@@ -1038,7 +1038,7 @@ err_ret_buffers:
 	return ret;
 }
 
-static struct vb2_ops rkisp1_vb2_ops = {
+static const struct vb2_ops rkisp1_vb2_ops = {
 	.queue_setup = rkisp1_vb2_queue_setup,
 	.buf_queue = rkisp1_vb2_buf_queue,
 	.buf_prepare = rkisp1_vb2_buf_prepare,

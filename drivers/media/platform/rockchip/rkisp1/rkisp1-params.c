@@ -1469,7 +1469,7 @@ static void rkisp1_params_vb2_stop_streaming(struct vb2_queue *vq)
 		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 }
 
-static struct vb2_ops rkisp1_params_vb2_ops = {
+static const struct vb2_ops rkisp1_params_vb2_ops = {
 	.queue_setup = rkisp1_params_vb2_queue_setup,
 	.wait_prepare = vb2_ops_wait_prepare,
 	.wait_finish = vb2_ops_wait_finish,
@@ -1479,7 +1479,7 @@ static struct vb2_ops rkisp1_params_vb2_ops = {
 
 };
 
-static struct v4l2_file_operations rkisp1_params_fops = {
+static const struct v4l2_file_operations rkisp1_params_fops = {
 	.mmap = vb2_fop_mmap,
 	.unlocked_ioctl = video_ioctl2,
 	.poll = vb2_fop_poll,

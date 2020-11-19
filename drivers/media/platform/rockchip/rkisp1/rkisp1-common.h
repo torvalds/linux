@@ -214,7 +214,7 @@ struct rkisp1_capture {
 	struct rkisp1_vdev_node vnode;
 	struct rkisp1_device *rkisp1;
 	enum rkisp1_stream_id id;
-	struct rkisp1_capture_ops *ops;
+	const struct rkisp1_capture_ops *ops;
 	const struct rkisp1_capture_config *config;
 	bool is_streaming;
 	bool is_stopping;
