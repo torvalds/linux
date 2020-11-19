@@ -1655,7 +1655,7 @@ static int qca_setup(struct hci_uart *hu)
 	enum qca_btsoc_type soc_type = qca_soc_type(hu);
 	const char *firmware_name = qca_get_firmware_name(hu);
 	int ret;
-	int soc_ver = 0;
+	struct qca_btsoc_version ver;
 
 	ret = qca_check_speeds(hu);
 	if (ret)
@@ -1684,7 +1684,7 @@ retry:
 	if (qca_is_wcn399x(soc_type)) {
 		set_bit(HCI_QUIRK_USE_BDADDR_PROPERTY, &hdev->quirks);
 
-		ret = qca_read_soc_version(hdev, &soc_ver, soc_type);
+		ret = qca_read_soc_version(hdev, &ver, soc_type);
 		if (ret)
 			goto out;
 	} else {
@@ -1703,14 +1703,13 @@ retry:
 
 	if (!qca_is_wcn399x(soc_type)) {
 		/* Get QCA version information */
-		ret = qca_read_soc_version(hdev, &soc_ver, soc_type);
+		ret = qca_read_soc_version(hdev, &ver, soc_type);
 		if (ret)
 			goto out;
 	}
 
-	bt_dev_info(hdev, "QCA controller version 0x%08x", soc_ver);
 	/* Setup patch / NVM configurations */
-	ret = qca_uart_setup(hdev, qca_baudrate, soc_type, soc_ver,
+	ret = qca_uart_setup(hdev, qca_baudrate, soc_type, ver,
 			firmware_name);
 	if (!ret) {
 		clear_bit(QCA_IBS_DISABLED, &qca->flags);
