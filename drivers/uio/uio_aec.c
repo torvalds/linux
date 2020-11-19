@@ -71,12 +71,12 @@ static int probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct uio_info *info;
 	int ret;
 
-	info = kzalloc(sizeof(struct uio_info), GFP_KERNEL);
+	info = devm_kzalloc(&pdev->dev, sizeof(struct uio_info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
 	if (pci_enable_device(pdev))
-		goto out_free;
+		return -ENODEV;
 
 	if (pci_request_regions(pdev, "aectc"))
 		goto out_disable;
@@ -117,8 +117,6 @@ out_release:
 	pci_release_regions(pdev);
 out_disable:
 	pci_disable_device(pdev);
-out_free:
-	kfree(info);
 	return -ENODEV;
 }
 
@@ -136,8 +134,6 @@ static void remove(struct pci_dev *pdev)
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 	iounmap(info->priv);
-
-	kfree(info);
 }
 
 static struct pci_driver pci_driver = {
