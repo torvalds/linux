@@ -48,7 +48,7 @@ static bool virtio_fence_signaled(struct dma_fence *f)
 		/* leaked fence outside driver before completing
 		 * initialization with virtio_gpu_fence_emit */
 		return false;
-	if (atomic64_read(&fence->drv->last_seq) >= fence->f.seqno)
+	if (atomic64_read(&fence->drv->last_fence_id) >= fence->f.seqno)
 		return true;
 	return false;
 }
@@ -62,7 +62,8 @@ static void virtio_timeline_value_str(struct dma_fence *f, char *str, int size)
 {
 	struct virtio_gpu_fence *fence = to_virtio_fence(f);
 
-	snprintf(str, size, "%llu", (u64)atomic64_read(&fence->drv->last_seq));
+	snprintf(str, size, "%llu",
+		 (u64)atomic64_read(&fence->drv->last_fence_id));
 }
 
 static const struct dma_fence_ops virtio_fence_ops = {
@@ -100,7 +101,7 @@ void virtio_gpu_fence_emit(struct virtio_gpu_device *vgdev,
 	unsigned long irq_flags;
 
 	spin_lock_irqsave(&drv->lock, irq_flags);
-	fence->f.seqno = ++drv->sync_seq;
+	fence->f.seqno = ++drv->current_fence_id;
 	dma_fence_get(&fence->f);
 	list_add_tail(&fence->node, &drv->fences);
 	spin_unlock_irqrestore(&drv->lock, irq_flags);
@@ -119,7 +120,7 @@ void virtio_gpu_fence_event_process(struct virtio_gpu_device *vgdev,
 	unsigned long irq_flags;
 
 	spin_lock_irqsave(&drv->lock, irq_flags);
-	atomic64_set(&vgdev->fence_drv.last_seq, fence_id);
+	atomic64_set(&vgdev->fence_drv.last_fence_id, fence_id);
 	list_for_each_entry_safe(fence, tmp, &drv->fences, node) {
 		if (fence_id < fence->f.seqno)
 			continue;
