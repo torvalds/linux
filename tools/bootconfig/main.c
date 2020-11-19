@@ -337,6 +337,7 @@ static int delete_xbc(const char *path)
 
 static int apply_xbc(const char *path, const char *xbc_path)
 {
+	struct stat stat;
 	u32 size, csum;
 	char *buf, *data;
 	int ret, fd;
@@ -394,16 +395,26 @@ static int apply_xbc(const char *path, const char *xbc_path)
 		return ret;
 	}
 	/* TODO: Ensure the @path is initramfs/initrd image */
-	ret = write(fd, data, size + 8);
-	if (ret < 0) {
-		pr_err("Failed to apply a boot config: %d\n", ret);
+	if (fstat(fd, &stat) < 0) {
+		pr_err("Failed to get the size of %s\n", path);
 		goto out;
+	}
+	ret = write(fd, data, size + 8);
+	if (ret < size + 8) {
+		if (ret < 0)
+			ret = -errno;
+		pr_err("Failed to apply a boot config: %d\n", ret);
+		if (ret < 0)
+			goto out;
+		goto out_rollback;
 	}
 	/* Write a magic word of the bootconfig */
 	ret = write(fd, BOOTCONFIG_MAGIC, BOOTCONFIG_MAGIC_LEN);
-	if (ret < 0) {
+	if (ret < BOOTCONFIG_MAGIC_LEN) {
+		if (ret < 0)
+			ret = -errno;
 		pr_err("Failed to apply a boot config magic: %d\n", ret);
-		goto out;
+		goto out_rollback;
 	}
 	ret = 0;
 out:
@@ -411,6 +422,17 @@ out:
 	free(data);
 
 	return ret;
+
+out_rollback:
+	/* Map the partial write to -ENOSPC */
+	if (ret >= 0)
+		ret = -ENOSPC;
+	if (ftruncate(fd, stat.st_size) < 0) {
+		ret = -errno;
+		pr_err("Failed to rollback the write error: %d\n", ret);
+		pr_err("The initrd %s may be corrupted. Recommend to rebuild.\n", path);
+	}
+	goto out;
 }
 
 static int usage(void)
