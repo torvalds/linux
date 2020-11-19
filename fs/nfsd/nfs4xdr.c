@@ -250,7 +250,8 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval,
 		   struct iattr *iattr, struct nfs4_acl **acl,
 		   struct xdr_netobj *label, int *umask)
 {
-	int expected_len, len = 0;
+	unsigned int starting_pos;
+	u32 attrlist4_count;
 	u32 dummy32;
 	char *buf;
 
@@ -267,12 +268,12 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval,
 		return nfserr_attrnotsupp;
 	}
 
-	READ_BUF(4);
-	expected_len = be32_to_cpup(p++);
+	if (xdr_stream_decode_u32(argp->xdr, &attrlist4_count) < 0)
+		return nfserr_bad_xdr;
+	starting_pos = xdr_stream_pos(argp->xdr);
 
 	if (bmval[0] & FATTR4_WORD0_SIZE) {
 		READ_BUF(8);
-		len += 8;
 		p = xdr_decode_hyper(p, &iattr->ia_size);
 		iattr->ia_valid |= ATTR_SIZE;
 	}
@@ -280,7 +281,7 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval,
 		u32 nace;
 		struct nfs4_ace *ace;
 
-		READ_BUF(4); len += 4;
+		READ_BUF(4);
 		nace = be32_to_cpup(p++);
 
 		if (nace > xdr_stream_remaining(argp->xdr) / sizeof(struct nfs4_ace))
@@ -297,13 +298,12 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval,
 
 		(*acl)->naces = nace;
 		for (ace = (*acl)->aces; ace < (*acl)->aces + nace; ace++) {
-			READ_BUF(16); len += 16;
+			READ_BUF(16);
 			ace->type = be32_to_cpup(p++);
 			ace->flag = be32_to_cpup(p++);
 			ace->access_mask = be32_to_cpup(p++);
 			dummy32 = be32_to_cpup(p++);
 			READ_BUF(dummy32);
-			len += XDR_QUADLEN(dummy32) << 2;
 			READMEM(buf, dummy32);
 			ace->whotype = nfs4_acl_get_whotype(buf, dummy32);
 			status = nfs_ok;
@@ -322,17 +322,14 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval,
 		*acl = NULL;
 	if (bmval[1] & FATTR4_WORD1_MODE) {
 		READ_BUF(4);
-		len += 4;
 		iattr->ia_mode = be32_to_cpup(p++);
 		iattr->ia_mode &= (S_IFMT | S_IALLUGO);
 		iattr->ia_valid |= ATTR_MODE;
 	}
 	if (bmval[1] & FATTR4_WORD1_OWNER) {
 		READ_BUF(4);
-		len += 4;
 		dummy32 = be32_to_cpup(p++);
 		READ_BUF(dummy32);
-		len += (XDR_QUADLEN(dummy32) << 2);
 		READMEM(buf, dummy32);
 		if ((status = nfsd_map_name_to_uid(argp->rqstp, buf, dummy32, &iattr->ia_uid)))
 			return status;
@@ -340,10 +337,8 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval,
 	}
 	if (bmval[1] & FATTR4_WORD1_OWNER_GROUP) {
 		READ_BUF(4);
-		len += 4;
 		dummy32 = be32_to_cpup(p++);
 		READ_BUF(dummy32);
-		len += (XDR_QUADLEN(dummy32) << 2);
 		READMEM(buf, dummy32);
 		if ((status = nfsd_map_name_to_gid(argp->rqstp, buf, dummy32, &iattr->ia_gid)))
 			return status;
@@ -351,11 +346,9 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval,
 	}
 	if (bmval[1] & FATTR4_WORD1_TIME_ACCESS_SET) {
 		READ_BUF(4);
-		len += 4;
 		dummy32 = be32_to_cpup(p++);
 		switch (dummy32) {
 		case NFS4_SET_TO_CLIENT_TIME:
-			len += 12;
 			status = nfsd4_decode_time(argp, &iattr->ia_atime);
 			if (status)
 				return status;
@@ -370,11 +363,9 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval,
 	}
 	if (bmval[1] & FATTR4_WORD1_TIME_MODIFY_SET) {
 		READ_BUF(4);
-		len += 4;
 		dummy32 = be32_to_cpup(p++);
 		switch (dummy32) {
 		case NFS4_SET_TO_CLIENT_TIME:
-			len += 12;
 			status = nfsd4_decode_time(argp, &iattr->ia_mtime);
 			if (status)
 				return status;
@@ -392,18 +383,14 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval,
 	if (IS_ENABLED(CONFIG_NFSD_V4_SECURITY_LABEL) &&
 	    bmval[2] & FATTR4_WORD2_SECURITY_LABEL) {
 		READ_BUF(4);
-		len += 4;
 		dummy32 = be32_to_cpup(p++); /* lfs: we don't use it */
 		READ_BUF(4);
-		len += 4;
 		dummy32 = be32_to_cpup(p++); /* pi: we don't use it either */
 		READ_BUF(4);
-		len += 4;
 		dummy32 = be32_to_cpup(p++);
 		READ_BUF(dummy32);
 		if (dummy32 > NFS4_MAXLABELLEN)
 			return nfserr_badlabel;
-		len += (XDR_QUADLEN(dummy32) << 2);
 		READMEM(buf, dummy32);
 		label->len = dummy32;
 		label->data = svcxdr_dupstr(argp, buf, dummy32);
@@ -414,15 +401,16 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval,
 		if (!umask)
 			goto xdr_error;
 		READ_BUF(8);
-		len += 8;
 		dummy32 = be32_to_cpup(p++);
 		iattr->ia_mode = dummy32 & (S_IFMT | S_IALLUGO);
 		dummy32 = be32_to_cpup(p++);
 		*umask = dummy32 & S_IRWXUGO;
 		iattr->ia_valid |= ATTR_MODE;
 	}
-	if (len != expected_len)
-		goto xdr_error;
+
+	/* request sanity: did attrlist4 contain the expected number of words? */
+	if (attrlist4_count != xdr_stream_pos(argp->xdr) - starting_pos)
+		return nfserr_bad_xdr;
 
 	DECODE_TAIL;
 }
