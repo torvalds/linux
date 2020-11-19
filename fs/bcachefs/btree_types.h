@@ -298,6 +298,7 @@ struct btree_key_cache {
 	struct list_head	dirty;
 	struct shrinker		shrink;
 
+	size_t			nr_freed;
 	size_t			nr_keys;
 	size_t			nr_dirty;
 };
@@ -307,7 +308,8 @@ struct bkey_cached_key {
 	struct bpos		pos;
 } __attribute__((packed, aligned(4)));
 
-#define BKEY_CACHED_DIRTY		0
+#define BKEY_CACHED_ACCESSED		0
+#define BKEY_CACHED_DIRTY		1
 
 struct bkey_cached {
 	struct btree_bkey_cached_common c;
