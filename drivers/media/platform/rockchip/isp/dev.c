@@ -390,10 +390,10 @@ static int _set_pipeline_default_fmt(struct rkisp_device *dev)
 
 	/* change fmt&size of MP/SP */
 	rkisp_set_stream_def_fmt(dev, RKISP_STREAM_MP,
-				 width, height, V4L2_PIX_FMT_YUYV);
+				 width, height, V4L2_PIX_FMT_NV12);
 	if (dev->isp_ver != ISP_V10_1)
 		rkisp_set_stream_def_fmt(dev, RKISP_STREAM_SP,
-					 width, height, V4L2_PIX_FMT_YUYV);
+					 width, height, V4L2_PIX_FMT_NV12);
 	if ((dev->isp_ver == ISP_V20 || dev->isp_ver == ISP_V21) &&
 	    dev->active_sensor->mbus.type == V4L2_MBUS_CSI2) {
 		width = dev->active_sensor->fmt[1].format.width;

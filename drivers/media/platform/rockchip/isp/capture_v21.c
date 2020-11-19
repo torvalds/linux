@@ -728,13 +728,14 @@ static int mi_frame_end(struct rkisp_stream *stream)
 			vb2_set_plane_payload(vb2_buf, i, payload_size);
 		}
 		if (stream->id == RKISP_STREAM_MP ||
-		    stream->id == RKISP_STREAM_SP)
-			rkisp_dmarx_get_frame(dev,
-					      &stream->curr_buf->vb.sequence,
-					      &ns, false);
-		else
+		    stream->id == RKISP_STREAM_SP) {
+			rkisp_dmarx_get_frame(dev, &i, &ns, true);
+			atomic_set(&stream->sequence, i);
+			stream->curr_buf->vb.sequence = i;
+		} else {
 			stream->curr_buf->vb.sequence =
 				atomic_read(&stream->sequence) - 1;
+		}
 		if (!ns)
 			ns = ktime_get_ns();
 		vb2_buf->timestamp = ns;
@@ -1474,7 +1475,7 @@ void rkisp_mipi_v21_isr(unsigned int phy, unsigned int packet,
 {
 	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
 	struct rkisp_stream *stream;
-	int i;
+	int i, id;
 
 	v4l2_dbg(3, rkisp_debug, &dev->v4l2_dev,
 		 "csi state:0x%x\n", state);
@@ -1495,11 +1496,10 @@ void rkisp_mipi_v21_isr(unsigned int phy, unsigned int packet,
 			if (!((RAW0_Y_STATE << i) & state) ||
 			    dev->csi_dev.tx_first[i])
 				continue;
-			if (i)
-				i++;
 			dev->csi_dev.tx_first[i] = true;
-			rkisp_csi_sof(dev, i);
-			stream = &dev->cap_dev.stream[i + RKISP_STREAM_DMATX0];
+			id = i ? 2 : 0;
+			rkisp_csi_sof(dev, id);
+			stream = &dev->cap_dev.stream[id + RKISP_STREAM_DMATX0];
 			atomic_inc(&stream->sequence);
 		}
 	}
@@ -1507,10 +1507,9 @@ void rkisp_mipi_v21_isr(unsigned int phy, unsigned int packet,
 		for (i = 0; i < HDR_DMA_MAX - 1; i++) {
 			if (!((RAW0_WR_FRAME << i) & state))
 				continue;
-			if (i)
-				i++;
 			if (!dev->csi_dev.tx_first[i]) {
-				stream = &dev->cap_dev.stream[i + RKISP_STREAM_DMATX0];
+				id = i ? RKISP_STREAM_DMATX2 : RKISP_STREAM_DMATX0;
+				stream = &dev->cap_dev.stream[id];
 				atomic_inc(&stream->sequence);
 			}
 			dev->csi_dev.tx_first[i] = false;
