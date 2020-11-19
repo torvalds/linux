@@ -126,13 +126,7 @@ int __ceph_auth_get_authorizer(struct ceph_auth_client *ac,
 			       struct ceph_auth_handshake *auth,
 			       int peer_type, bool force_new,
 			       int *proto, int *pref_mode, int *fallb_mode);
-extern int ceph_auth_create_authorizer(struct ceph_auth_client *ac,
-				       int peer_type,
-				       struct ceph_auth_handshake *auth);
 void ceph_auth_destroy_authorizer(struct ceph_authorizer *a);
-extern int ceph_auth_update_authorizer(struct ceph_auth_client *ac,
-				       int peer_type,
-				       struct ceph_auth_handshake *a);
 int ceph_auth_add_authorizer_challenge(struct ceph_auth_client *ac,
 				       struct ceph_authorizer *a,
 				       void *challenge_buf,
