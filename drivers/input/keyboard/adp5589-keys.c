@@ -238,7 +238,6 @@ struct adp5589_kpad {
 	bool support_row5;
 #ifdef CONFIG_GPIOLIB
 	unsigned char gpiomap[ADP5589_MAXGPIO];
-	bool export_gpio;
 	struct gpio_chip gc;
 	struct mutex gpio_lock;	/* Protect cached dir, dat_out */
 	u8 dat_out[3];
@@ -512,8 +511,6 @@ static int adp5589_gpio_add(struct adp5589_kpad *kpad)
 		return 0;
 	}
 
-	kpad->export_gpio = true;
-
 	kpad->gc.direction_input = adp5589_gpio_direction_input;
 	kpad->gc.direction_output = adp5589_gpio_direction_output;
 	kpad->gc.get = adp5589_gpio_get_value;
@@ -526,11 +523,9 @@ static int adp5589_gpio_add(struct adp5589_kpad *kpad)
 
 	mutex_init(&kpad->gpio_lock);
 
-	error = gpiochip_add_data(&kpad->gc, kpad);
-	if (error) {
-		dev_err(dev, "gpiochip_add_data() failed, err: %d\n", error);
+	error = devm_gpiochip_add_data(dev, &kpad->gc, kpad);
+	if (error)
 		return error;
-	}
 
 	for (i = 0; i <= kpad->var->bank(kpad->var->maxgpio); i++) {
 		kpad->dat_out[i] = adp5589_read(kpad->client, kpad->var->reg(
@@ -541,22 +536,10 @@ static int adp5589_gpio_add(struct adp5589_kpad *kpad)
 
 	return 0;
 }
-
-static void adp5589_gpio_remove(struct adp5589_kpad *kpad)
-{
-	if (!kpad->export_gpio)
-		return;
-
-	gpiochip_remove(&kpad->gc);
-}
 #else
 static inline int adp5589_gpio_add(struct adp5589_kpad *kpad)
 {
 	return 0;
-}
-
-static inline void adp5589_gpio_remove(struct adp5589_kpad *kpad)
-{
 }
 #endif
 
@@ -1025,7 +1008,6 @@ static int adp5589_remove(struct i2c_client *client)
 	struct adp5589_kpad *kpad = i2c_get_clientdata(client);
 
 	adp5589_write(client, kpad->var->reg(ADP5589_GENERAL_CFG), 0);
-	adp5589_gpio_remove(kpad);
 
 	return 0;
 }
