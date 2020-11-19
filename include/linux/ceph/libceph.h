@@ -53,6 +53,7 @@ struct ceph_options {
 	unsigned long osd_keepalive_timeout;	/* jiffies */
 	unsigned long osd_request_timeout;	/* jiffies */
 	u32 read_from_replica;  /* CEPH_OSD_FLAG_BALANCE/LOCALIZE_READS */
+	int con_modes[2];  /* CEPH_CON_MODE_* */
 
 	/*
 	 * any type that can't be simply compared or doesn't need

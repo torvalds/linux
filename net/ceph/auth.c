@@ -39,12 +39,12 @@ static int init_protocol(struct ceph_auth_client *ac, int proto)
 /*
  * setup, teardown.
  */
-struct ceph_auth_client *ceph_auth_init(const char *name, const struct ceph_crypto_key *key)
+struct ceph_auth_client *ceph_auth_init(const char *name,
+					const struct ceph_crypto_key *key,
+					const int *con_modes)
 {
 	struct ceph_auth_client *ac;
 	int ret;
-
-	dout("auth_init name '%s'\n", name);
 
 	ret = -ENOMEM;
 	ac = kzalloc(sizeof(*ac), GFP_NOFS);
@@ -57,8 +57,12 @@ struct ceph_auth_client *ceph_auth_init(const char *name, const struct ceph_cryp
 		ac->name = name;
 	else
 		ac->name = CEPH_AUTH_NAME_DEFAULT;
-	dout("auth_init name %s\n", ac->name);
 	ac->key = key;
+	ac->preferred_mode = con_modes[0];
+	ac->fallback_mode = con_modes[1];
+
+	dout("%s name '%s' preferred_mode %d fallback_mode %d\n", __func__,
+	     ac->name, ac->preferred_mode, ac->fallback_mode);
 	return ac;
 
 out:

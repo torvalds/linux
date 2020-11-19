@@ -1156,8 +1156,8 @@ int ceph_monc_init(struct ceph_mon_client *monc, struct ceph_client *cl)
 
 	/* connection */
 	/* authentication */
-	monc->auth = ceph_auth_init(cl->options->name,
-				    cl->options->key);
+	monc->auth = ceph_auth_init(cl->options->name, cl->options->key,
+				    cl->options->con_modes);
 	if (IS_ERR(monc->auth)) {
 		err = PTR_ERR(monc->auth);
 		goto out_monmap;

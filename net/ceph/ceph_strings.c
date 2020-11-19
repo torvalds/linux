@@ -32,6 +32,20 @@ const char *ceph_auth_proto_name(int proto)
 	}
 }
 
+const char *ceph_con_mode_name(int mode)
+{
+	switch (mode) {
+	case CEPH_CON_MODE_UNKNOWN:
+		return "unknown";
+	case CEPH_CON_MODE_CRC:
+		return "crc";
+	case CEPH_CON_MODE_SECURE:
+		return "secure";
+	default:
+		return "???";
+	}
+}
+
 const char *ceph_osd_op_name(int op)
 {
 	switch (op) {

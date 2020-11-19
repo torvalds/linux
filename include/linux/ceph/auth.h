@@ -98,11 +98,15 @@ struct ceph_auth_client {
 	const struct ceph_crypto_key *key;     /* our secret key */
 	unsigned want_keys;     /* which services we want */
 
+	int preferred_mode;	/* CEPH_CON_MODE_* */
+	int fallback_mode;	/* ditto */
+
 	struct mutex mutex;
 };
 
-extern struct ceph_auth_client *ceph_auth_init(const char *name,
-					       const struct ceph_crypto_key *key);
+struct ceph_auth_client *ceph_auth_init(const char *name,
+					const struct ceph_crypto_key *key,
+					const int *con_modes);
 extern void ceph_auth_destroy(struct ceph_auth_client *ac);
 
 extern void ceph_auth_reset(struct ceph_auth_client *ac);
