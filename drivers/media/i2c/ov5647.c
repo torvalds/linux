@@ -98,7 +98,7 @@ struct ov5647 {
 	struct v4l2_ctrl_handler	ctrls;
 };
 
-static inline struct ov5647 *to_state(struct v4l2_subdev *sd)
+static inline struct ov5647 *to_sensor(struct v4l2_subdev *sd)
 {
 	return container_of(sd, struct ov5647, sd);
 }
@@ -311,7 +311,7 @@ static int ov5647_set_mode(struct v4l2_subdev *sd)
 static int ov5647_stream_on(struct v4l2_subdev *sd)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct ov5647 *ov5647 = to_state(sd);
+	struct ov5647 *sensor = to_sensor(sd);
 	u8 val = MIPI_CTRL00_BUS_IDLE;
 	int ret;
 
@@ -326,7 +326,7 @@ static int ov5647_stream_on(struct v4l2_subdev *sd)
 	if (ret)
 		return ret;
 
-	if (ov5647->clock_ncont)
+	if (sensor->clock_ncont)
 		val |= MIPI_CTRL00_CLOCK_LANE_GATE |
 		       MIPI_CTRL00_LINE_SYNC_ENABLE;
 
@@ -378,20 +378,20 @@ static int set_sw_standby(struct v4l2_subdev *sd, bool standby)
 static int ov5647_sensor_power(struct v4l2_subdev *sd, int on)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct ov5647 *ov5647 = to_state(sd);
+	struct ov5647 *sensor = to_sensor(sd);
 	int ret = 0;
 
-	mutex_lock(&ov5647->lock);
+	mutex_lock(&sensor->lock);
 
-	if (on && !ov5647->power_count)	{
+	if (on && !sensor->power_count)	{
 		dev_dbg(&client->dev, "OV5647 power on\n");
 
-		if (ov5647->pwdn) {
-			gpiod_set_value_cansleep(ov5647->pwdn, 0);
+		if (sensor->pwdn) {
+			gpiod_set_value_cansleep(sensor->pwdn, 0);
 			msleep(PWDN_ACTIVE_DELAY_MS);
 		}
 
-		ret = clk_prepare_enable(ov5647->xclk);
+		ret = clk_prepare_enable(sensor->xclk);
 		if (ret < 0) {
 			dev_err(&client->dev, "clk prepare enable failed\n");
 			goto out;
@@ -400,7 +400,7 @@ static int ov5647_sensor_power(struct v4l2_subdev *sd, int on)
 		ret = ov5647_write_array(sd, sensor_oe_enable_regs,
 					 ARRAY_SIZE(sensor_oe_enable_regs));
 		if (ret < 0) {
-			clk_disable_unprepare(ov5647->xclk);
+			clk_disable_unprepare(sensor->xclk);
 			dev_err(&client->dev,
 				"write sensor_oe_enable_regs error\n");
 			goto out;
@@ -409,12 +409,12 @@ static int ov5647_sensor_power(struct v4l2_subdev *sd, int on)
 		/* Stream off to coax lanes into LP-11 state. */
 		ret = ov5647_stream_off(sd);
 		if (ret < 0) {
-			clk_disable_unprepare(ov5647->xclk);
+			clk_disable_unprepare(sensor->xclk);
 			dev_err(&client->dev,
 				"Camera not available, check Power\n");
 			goto out;
 		}
-	} else if (!on && ov5647->power_count == 1) {
+	} else if (!on && sensor->power_count == 1) {
 		dev_dbg(&client->dev, "OV5647 power off\n");
 
 		ret = ov5647_write_array(sd, sensor_oe_disable_regs,
@@ -426,16 +426,16 @@ static int ov5647_sensor_power(struct v4l2_subdev *sd, int on)
 		if (ret < 0)
 			dev_dbg(&client->dev, "soft stby failed\n");
 
-		clk_disable_unprepare(ov5647->xclk);
-		gpiod_set_value_cansleep(ov5647->pwdn, 1);
+		clk_disable_unprepare(sensor->xclk);
+		gpiod_set_value_cansleep(sensor->pwdn, 1);
 	}
 
 	/* Update the power count. */
-	ov5647->power_count += on ? 1 : -1;
-	WARN_ON(ov5647->power_count < 0);
+	sensor->power_count += on ? 1 : -1;
+	WARN_ON(sensor->power_count < 0);
 
 out:
-	mutex_unlock(&ov5647->lock);
+	mutex_unlock(&sensor->lock);
 
 	return ret;
 }
@@ -475,7 +475,7 @@ static const struct v4l2_subdev_core_ops ov5647_subdev_core_ops = {
 
 static int ov5647_s_stream(struct v4l2_subdev *sd, int enable)
 {
-	struct ov5647 *sensor = to_state(sd);
+	struct ov5647 *sensor = to_sensor(sd);
 	int ret;
 
 	mutex_lock(&sensor->lock);
@@ -868,13 +868,13 @@ mutex_destroy:
 static int ov5647_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct ov5647 *ov5647 = to_state(sd);
+	struct ov5647 *sensor = to_sensor(sd);
 
-	v4l2_async_unregister_subdev(&ov5647->sd);
-	media_entity_cleanup(&ov5647->sd.entity);
-	v4l2_ctrl_handler_free(&ov5647->ctrls);
+	v4l2_async_unregister_subdev(&sensor->sd);
+	media_entity_cleanup(&sensor->sd.entity);
+	v4l2_ctrl_handler_free(&sensor->ctrls);
 	v4l2_device_unregister_subdev(sd);
-	mutex_destroy(&ov5647->lock);
+	mutex_destroy(&sensor->lock);
 
 	return 0;
 }
