@@ -32,6 +32,7 @@
 	} while (0)
 
 static DEFINE_SPINLOCK(pmc_pll_lock);
+static DEFINE_SPINLOCK(pmc_mck0_lock);
 static DEFINE_SPINLOCK(pmc_mckX_lock);
 
 /**
@@ -984,8 +985,16 @@ static void __init sama7g5_pmc_setup(struct device_node *np)
 	parent_names[1] = "mainck";
 	parent_names[2] = "cpupll_divpmcck";
 	parent_names[3] = "syspll_divpmcck";
-	hw = at91_clk_register_master(regmap, "mck0", 4, parent_names,
-				      &mck0_layout, &mck0_characteristics);
+	hw = at91_clk_register_master_pres(regmap, "mck0_pres", 4, parent_names,
+					   &mck0_layout, &mck0_characteristics,
+					   &pmc_mck0_lock,
+					   CLK_SET_RATE_PARENT, 0);
+	if (IS_ERR(hw))
+		goto err_free;
+
+	hw = at91_clk_register_master_div(regmap, "mck0_div", "mck0_pres",
+					  &mck0_layout, &mck0_characteristics,
+					  &pmc_mck0_lock, 0);
 	if (IS_ERR(hw))
 		goto err_free;
 

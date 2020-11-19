@@ -155,10 +155,18 @@ at91_clk_register_sam9x5_main(struct regmap *regmap, const char *name,
 			      const char **parent_names, int num_parents);
 
 struct clk_hw * __init
-at91_clk_register_master(struct regmap *regmap, const char *name,
-			 int num_parents, const char **parent_names,
-			 const struct clk_master_layout *layout,
-			 const struct clk_master_characteristics *characteristics);
+at91_clk_register_master_pres(struct regmap *regmap, const char *name,
+			      int num_parents, const char **parent_names,
+			      const struct clk_master_layout *layout,
+			      const struct clk_master_characteristics *characteristics,
+			      spinlock_t *lock, u32 flags, int chg_pid);
+
+struct clk_hw * __init
+at91_clk_register_master_div(struct regmap *regmap, const char *name,
+			     const char *parent_names,
+			     const struct clk_master_layout *layout,
+			     const struct clk_master_characteristics *characteristics,
+			     spinlock_t *lock, u32 flags);
 
 struct clk_hw * __init
 at91_clk_sama7g5_register_master(struct regmap *regmap,
