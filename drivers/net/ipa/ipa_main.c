@@ -863,6 +863,11 @@ static int ipa_remove(struct platform_device *pdev)
 
 	if (ipa->setup_complete) {
 		ret = ipa_modem_stop(ipa);
+		/* If starting or stopping is in progress, try once more */
+		if (ret == -EBUSY) {
+			usleep_range(USEC_PER_MSEC, 2 * USEC_PER_MSEC);
+			ret = ipa_modem_stop(ipa);
+		}
 		if (ret)
 			return ret;
 
