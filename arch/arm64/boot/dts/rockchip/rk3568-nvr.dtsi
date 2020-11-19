@@ -172,6 +172,23 @@
 	status = "okay";
 };
 
+&edp {
+	hpd-gpios = <&gpio4 RK_PC4 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+&edp_in_vp0 {
+	status = "disabled";
+};
+
+&edp_in_vp1 {
+	status = "okay";
+};
+
+&edp_phy {
+	status = "okay";
+};
+
 &gpu {
 	mali-supply = <&vdd_logic>;
 	status = "okay";
