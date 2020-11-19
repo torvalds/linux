@@ -82,6 +82,8 @@
 	(_misc)->outer_first_mpls_over_udp_s_bos || \
 	(_misc)->outer_first_mpls_over_udp_ttl)
 
+u16 mlx5dr_ste_conv_bit_to_byte_mask(u8 *bit_mask);
+
 #define DR_STE_CTX_BUILDER(fname) \
 	((*build_##fname##_init)(struct mlx5dr_ste_build *sb, \
 				 struct mlx5dr_match_param *mask))

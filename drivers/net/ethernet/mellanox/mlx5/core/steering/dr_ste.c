@@ -68,7 +68,7 @@ u32 mlx5dr_ste_calc_hash_index(u8 *hw_ste_p, struct mlx5dr_ste_htbl *htbl)
 	return index;
 }
 
-static u16 dr_ste_conv_bit_to_byte_mask(u8 *bit_mask)
+u16 mlx5dr_ste_conv_bit_to_byte_mask(u8 *bit_mask)
 {
 	u16 byte_mask = 0;
 	int i;
@@ -699,37 +699,6 @@ int mlx5dr_ste_build_ste_arr(struct mlx5dr_matcher *matcher,
 	return 0;
 }
 
-static void dr_ste_build_eth_l2_src_des_bit_mask(struct mlx5dr_match_param *value,
-						 bool inner, u8 *bit_mask)
-{
-	struct mlx5dr_match_spec *mask = inner ? &value->inner : &value->outer;
-
-	DR_STE_SET_MASK_V(eth_l2_src_dst, bit_mask, dmac_47_16, mask, dmac_47_16);
-	DR_STE_SET_MASK_V(eth_l2_src_dst, bit_mask, dmac_15_0, mask, dmac_15_0);
-
-	if (mask->smac_47_16 || mask->smac_15_0) {
-		MLX5_SET(ste_eth_l2_src_dst, bit_mask, smac_47_32,
-			 mask->smac_47_16 >> 16);
-		MLX5_SET(ste_eth_l2_src_dst, bit_mask, smac_31_0,
-			 mask->smac_47_16 << 16 | mask->smac_15_0);
-		mask->smac_47_16 = 0;
-		mask->smac_15_0 = 0;
-	}
-
-	DR_STE_SET_MASK_V(eth_l2_src_dst, bit_mask, first_vlan_id, mask, first_vid);
-	DR_STE_SET_MASK_V(eth_l2_src_dst, bit_mask, first_cfi, mask, first_cfi);
-	DR_STE_SET_MASK_V(eth_l2_src_dst, bit_mask, first_priority, mask, first_prio);
-	DR_STE_SET_MASK(eth_l2_src_dst, bit_mask, l3_type, mask, ip_version);
-
-	if (mask->cvlan_tag) {
-		MLX5_SET(ste_eth_l2_src_dst, bit_mask, first_vlan_qualifier, -1);
-		mask->cvlan_tag = 0;
-	} else if (mask->svlan_tag) {
-		MLX5_SET(ste_eth_l2_src_dst, bit_mask, first_vlan_qualifier, -1);
-		mask->svlan_tag = 0;
-	}
-}
-
 static void dr_ste_copy_mask_misc(char *mask, struct mlx5dr_match_misc *spec)
 {
 	spec->gre_c_present = MLX5_GET(fte_match_set_misc, mask, gre_c_present);
@@ -971,9 +940,42 @@ void mlx5dr_ste_copy_param(u8 match_criteria,
 	}
 }
 
-static int dr_ste_build_eth_l2_src_des_tag(struct mlx5dr_match_param *value,
-					   struct mlx5dr_ste_build *sb,
-					   u8 *tag)
+static void
+dr_ste_v0_build_eth_l2_src_dst_bit_mask(struct mlx5dr_match_param *value,
+					bool inner, u8 *bit_mask)
+{
+	struct mlx5dr_match_spec *mask = inner ? &value->inner : &value->outer;
+
+	DR_STE_SET_MASK_V(eth_l2_src_dst, bit_mask, dmac_47_16, mask, dmac_47_16);
+	DR_STE_SET_MASK_V(eth_l2_src_dst, bit_mask, dmac_15_0, mask, dmac_15_0);
+
+	if (mask->smac_47_16 || mask->smac_15_0) {
+		MLX5_SET(ste_eth_l2_src_dst, bit_mask, smac_47_32,
+			 mask->smac_47_16 >> 16);
+		MLX5_SET(ste_eth_l2_src_dst, bit_mask, smac_31_0,
+			 mask->smac_47_16 << 16 | mask->smac_15_0);
+		mask->smac_47_16 = 0;
+		mask->smac_15_0 = 0;
+	}
+
+	DR_STE_SET_MASK_V(eth_l2_src_dst, bit_mask, first_vlan_id, mask, first_vid);
+	DR_STE_SET_MASK_V(eth_l2_src_dst, bit_mask, first_cfi, mask, first_cfi);
+	DR_STE_SET_MASK_V(eth_l2_src_dst, bit_mask, first_priority, mask, first_prio);
+	DR_STE_SET_MASK(eth_l2_src_dst, bit_mask, l3_type, mask, ip_version);
+
+	if (mask->cvlan_tag) {
+		MLX5_SET(ste_eth_l2_src_dst, bit_mask, first_vlan_qualifier, -1);
+		mask->cvlan_tag = 0;
+	} else if (mask->svlan_tag) {
+		MLX5_SET(ste_eth_l2_src_dst, bit_mask, first_vlan_qualifier, -1);
+		mask->svlan_tag = 0;
+	}
+}
+
+static int
+dr_ste_v0_build_eth_l2_src_dst_tag(struct mlx5dr_match_param *value,
+				   struct mlx5dr_ste_build *sb,
+				   u8 *tag)
 {
 	struct mlx5dr_match_spec *spec = sb->inner ? &value->inner : &value->outer;
 
@@ -1016,21 +1018,30 @@ static int dr_ste_build_eth_l2_src_des_tag(struct mlx5dr_match_param *value,
 	return 0;
 }
 
-void mlx5dr_ste_build_eth_l2_src_dst(struct mlx5dr_ste_build *sb,
+static void
+dr_ste_v0_build_eth_l2_src_dst_init(struct mlx5dr_ste_build *sb,
+				    struct mlx5dr_match_param *mask)
+{
+	dr_ste_v0_build_eth_l2_src_dst_bit_mask(mask, sb->inner, sb->bit_mask);
+
+	sb->lu_type = DR_STE_CALC_LU_TYPE(ETHL2_SRC_DST, sb->rx, sb->inner);
+	sb->byte_mask = mlx5dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
+	sb->ste_build_tag_func = &dr_ste_v0_build_eth_l2_src_dst_tag;
+}
+
+void mlx5dr_ste_build_eth_l2_src_dst(struct mlx5dr_ste_ctx *ste_ctx,
+				     struct mlx5dr_ste_build *sb,
 				     struct mlx5dr_match_param *mask,
 				     bool inner, bool rx)
 {
-	dr_ste_build_eth_l2_src_des_bit_mask(mask, inner, sb->bit_mask);
-
 	sb->rx = rx;
 	sb->inner = inner;
-	sb->lu_type = DR_STE_CALC_LU_TYPE(ETHL2_SRC_DST, rx, inner);
-	sb->byte_mask = dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
-	sb->ste_build_tag_func = &dr_ste_build_eth_l2_src_des_tag;
+	ste_ctx->build_eth_l2_src_dst_init(sb, mask);
 }
 
-static void dr_ste_build_eth_l3_ipv6_dst_bit_mask(struct mlx5dr_match_param *value,
-						  bool inner, u8 *bit_mask)
+static void
+dr_ste_v0_build_eth_l3_ipv6_dst_bit_mask(struct mlx5dr_match_param *value,
+					 bool inner, u8 *bit_mask)
 {
 	struct mlx5dr_match_spec *mask = inner ? &value->inner : &value->outer;
 
@@ -1040,9 +1051,10 @@ static void dr_ste_build_eth_l3_ipv6_dst_bit_mask(struct mlx5dr_match_param *val
 	DR_STE_SET_MASK_V(eth_l3_ipv6_dst, bit_mask, dst_ip_31_0, mask, dst_ip_31_0);
 }
 
-static int dr_ste_build_eth_l3_ipv6_dst_tag(struct mlx5dr_match_param *value,
-					    struct mlx5dr_ste_build *sb,
-					    u8 *tag)
+static int
+dr_ste_v0_build_eth_l3_ipv6_dst_tag(struct mlx5dr_match_param *value,
+				    struct mlx5dr_ste_build *sb,
+				    u8 *tag)
 {
 	struct mlx5dr_match_spec *spec = sb->inner ? &value->inner : &value->outer;
 
@@ -1054,21 +1066,30 @@ static int dr_ste_build_eth_l3_ipv6_dst_tag(struct mlx5dr_match_param *value,
 	return 0;
 }
 
-void mlx5dr_ste_build_eth_l3_ipv6_dst(struct mlx5dr_ste_build *sb,
+static void
+dr_ste_v0_build_eth_l3_ipv6_dst_init(struct mlx5dr_ste_build *sb,
+				     struct mlx5dr_match_param *mask)
+{
+	dr_ste_v0_build_eth_l3_ipv6_dst_bit_mask(mask, sb->inner, sb->bit_mask);
+
+	sb->lu_type = DR_STE_CALC_LU_TYPE(ETHL3_IPV6_DST, sb->rx, sb->inner);
+	sb->byte_mask = mlx5dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
+	sb->ste_build_tag_func = &dr_ste_v0_build_eth_l3_ipv6_dst_tag;
+}
+
+void mlx5dr_ste_build_eth_l3_ipv6_dst(struct mlx5dr_ste_ctx *ste_ctx,
+				      struct mlx5dr_ste_build *sb,
 				      struct mlx5dr_match_param *mask,
 				      bool inner, bool rx)
 {
-	dr_ste_build_eth_l3_ipv6_dst_bit_mask(mask, inner, sb->bit_mask);
-
 	sb->rx = rx;
 	sb->inner = inner;
-	sb->lu_type = DR_STE_CALC_LU_TYPE(ETHL3_IPV6_DST, rx, inner);
-	sb->byte_mask = dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
-	sb->ste_build_tag_func = &dr_ste_build_eth_l3_ipv6_dst_tag;
+	ste_ctx->build_eth_l3_ipv6_dst_init(sb, mask);
 }
 
-static void dr_ste_build_eth_l3_ipv6_src_bit_mask(struct mlx5dr_match_param *value,
-						  bool inner, u8 *bit_mask)
+static void
+dr_ste_v0_build_eth_l3_ipv6_src_bit_mask(struct mlx5dr_match_param *value,
+					 bool inner, u8 *bit_mask)
 {
 	struct mlx5dr_match_spec *mask = inner ? &value->inner : &value->outer;
 
@@ -1078,9 +1099,10 @@ static void dr_ste_build_eth_l3_ipv6_src_bit_mask(struct mlx5dr_match_param *val
 	DR_STE_SET_MASK_V(eth_l3_ipv6_src, bit_mask, src_ip_31_0, mask, src_ip_31_0);
 }
 
-static int dr_ste_build_eth_l3_ipv6_src_tag(struct mlx5dr_match_param *value,
-					    struct mlx5dr_ste_build *sb,
-					    u8 *tag)
+static int
+dr_ste_v0_build_eth_l3_ipv6_src_tag(struct mlx5dr_match_param *value,
+				    struct mlx5dr_ste_build *sb,
+				    u8 *tag)
 {
 	struct mlx5dr_match_spec *spec = sb->inner ? &value->inner : &value->outer;
 
@@ -1092,22 +1114,31 @@ static int dr_ste_build_eth_l3_ipv6_src_tag(struct mlx5dr_match_param *value,
 	return 0;
 }
 
-void mlx5dr_ste_build_eth_l3_ipv6_src(struct mlx5dr_ste_build *sb,
+static void
+dr_ste_v0_build_eth_l3_ipv6_src_init(struct mlx5dr_ste_build *sb,
+				     struct mlx5dr_match_param *mask)
+{
+	dr_ste_v0_build_eth_l3_ipv6_src_bit_mask(mask, sb->inner, sb->bit_mask);
+
+	sb->lu_type = DR_STE_CALC_LU_TYPE(ETHL3_IPV6_SRC, sb->rx, sb->inner);
+	sb->byte_mask = mlx5dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
+	sb->ste_build_tag_func = &dr_ste_v0_build_eth_l3_ipv6_src_tag;
+}
+
+void mlx5dr_ste_build_eth_l3_ipv6_src(struct mlx5dr_ste_ctx *ste_ctx,
+				      struct mlx5dr_ste_build *sb,
 				      struct mlx5dr_match_param *mask,
 				      bool inner, bool rx)
 {
-	dr_ste_build_eth_l3_ipv6_src_bit_mask(mask, inner, sb->bit_mask);
-
 	sb->rx = rx;
 	sb->inner = inner;
-	sb->lu_type = DR_STE_CALC_LU_TYPE(ETHL3_IPV6_SRC, rx, inner);
-	sb->byte_mask = dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
-	sb->ste_build_tag_func = &dr_ste_build_eth_l3_ipv6_src_tag;
+	ste_ctx->build_eth_l3_ipv6_src_init(sb, mask);
 }
 
-static void dr_ste_build_eth_l3_ipv4_5_tuple_bit_mask(struct mlx5dr_match_param *value,
-						      bool inner,
-						      u8 *bit_mask)
+static void
+dr_ste_v0_build_eth_l3_ipv4_5_tuple_bit_mask(struct mlx5dr_match_param *value,
+					     bool inner,
+					     u8 *bit_mask)
 {
 	struct mlx5dr_match_spec *mask = inner ? &value->inner : &value->outer;
 
@@ -1138,9 +1169,10 @@ static void dr_ste_build_eth_l3_ipv4_5_tuple_bit_mask(struct mlx5dr_match_param 
 	}
 }
 
-static int dr_ste_build_eth_l3_ipv4_5_tuple_tag(struct mlx5dr_match_param *value,
-						struct mlx5dr_ste_build *sb,
-						u8 *tag)
+static int
+dr_ste_v0_build_eth_l3_ipv4_5_tuple_tag(struct mlx5dr_match_param *value,
+					struct mlx5dr_ste_build *sb,
+					u8 *tag)
 {
 	struct mlx5dr_match_spec *spec = sb->inner ? &value->inner : &value->outer;
 
@@ -1163,22 +1195,30 @@ static int dr_ste_build_eth_l3_ipv4_5_tuple_tag(struct mlx5dr_match_param *value
 	return 0;
 }
 
-void mlx5dr_ste_build_eth_l3_ipv4_5_tuple(struct mlx5dr_ste_build *sb,
+static void
+dr_ste_v0_build_eth_l3_ipv4_5_tuple_init(struct mlx5dr_ste_build *sb,
+					 struct mlx5dr_match_param *mask)
+{
+	dr_ste_v0_build_eth_l3_ipv4_5_tuple_bit_mask(mask, sb->inner, sb->bit_mask);
+
+	sb->lu_type = DR_STE_CALC_LU_TYPE(ETHL3_IPV4_5_TUPLE, sb->rx, sb->inner);
+	sb->byte_mask = mlx5dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
+	sb->ste_build_tag_func = &dr_ste_v0_build_eth_l3_ipv4_5_tuple_tag;
+}
+
+void mlx5dr_ste_build_eth_l3_ipv4_5_tuple(struct mlx5dr_ste_ctx *ste_ctx,
+					  struct mlx5dr_ste_build *sb,
 					  struct mlx5dr_match_param *mask,
 					  bool inner, bool rx)
 {
-	dr_ste_build_eth_l3_ipv4_5_tuple_bit_mask(mask, inner, sb->bit_mask);
-
 	sb->rx = rx;
 	sb->inner = inner;
-	sb->lu_type = DR_STE_CALC_LU_TYPE(ETHL3_IPV4_5_TUPLE, rx, inner);
-	sb->byte_mask = dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
-	sb->ste_build_tag_func = &dr_ste_build_eth_l3_ipv4_5_tuple_tag;
+	ste_ctx->build_eth_l3_ipv4_5_tuple_init(sb, mask);
 }
 
 static void
-dr_ste_build_eth_l2_src_or_dst_bit_mask(struct mlx5dr_match_param *value,
-					bool inner, u8 *bit_mask)
+dr_ste_v0_build_eth_l2_src_or_dst_bit_mask(struct mlx5dr_match_param *value,
+					   bool inner, u8 *bit_mask)
 {
 	struct mlx5dr_match_spec *mask = inner ? &value->inner : &value->outer;
 	struct mlx5dr_match_misc *misc_mask = &value->misc;
@@ -1227,8 +1267,9 @@ dr_ste_build_eth_l2_src_or_dst_bit_mask(struct mlx5dr_match_param *value,
 	}
 }
 
-static int dr_ste_build_eth_l2_src_or_dst_tag(struct mlx5dr_match_param *value,
-					      bool inner, u8 *tag)
+static int
+dr_ste_v0_build_eth_l2_src_or_dst_tag(struct mlx5dr_match_param *value,
+				      bool inner, u8 *tag)
 {
 	struct mlx5dr_match_spec *spec = inner ? &value->inner : &value->outer;
 	struct mlx5dr_match_misc *misc_spec = &value->misc;
@@ -1288,79 +1329,100 @@ static int dr_ste_build_eth_l2_src_or_dst_tag(struct mlx5dr_match_param *value,
 	return 0;
 }
 
-static void dr_ste_build_eth_l2_src_bit_mask(struct mlx5dr_match_param *value,
-					     bool inner, u8 *bit_mask)
+static void
+dr_ste_v0_build_eth_l2_src_bit_mask(struct mlx5dr_match_param *value,
+				    bool inner, u8 *bit_mask)
 {
 	struct mlx5dr_match_spec *mask = inner ? &value->inner : &value->outer;
 
 	DR_STE_SET_MASK_V(eth_l2_src, bit_mask, smac_47_16, mask, smac_47_16);
 	DR_STE_SET_MASK_V(eth_l2_src, bit_mask, smac_15_0, mask, smac_15_0);
 
-	dr_ste_build_eth_l2_src_or_dst_bit_mask(value, inner, bit_mask);
+	dr_ste_v0_build_eth_l2_src_or_dst_bit_mask(value, inner, bit_mask);
 }
 
-static int dr_ste_build_eth_l2_src_tag(struct mlx5dr_match_param *value,
-				       struct mlx5dr_ste_build *sb,
-				       u8 *tag)
+static int
+dr_ste_v0_build_eth_l2_src_tag(struct mlx5dr_match_param *value,
+			       struct mlx5dr_ste_build *sb,
+			       u8 *tag)
 {
 	struct mlx5dr_match_spec *spec = sb->inner ? &value->inner : &value->outer;
 
 	DR_STE_SET_TAG(eth_l2_src, tag, smac_47_16, spec, smac_47_16);
 	DR_STE_SET_TAG(eth_l2_src, tag, smac_15_0, spec, smac_15_0);
 
-	return dr_ste_build_eth_l2_src_or_dst_tag(value, sb->inner, tag);
+	return dr_ste_v0_build_eth_l2_src_or_dst_tag(value, sb->inner, tag);
 }
 
-void mlx5dr_ste_build_eth_l2_src(struct mlx5dr_ste_build *sb,
+static void
+dr_ste_v0_build_eth_l2_src_init(struct mlx5dr_ste_build *sb,
+				struct mlx5dr_match_param *mask)
+{
+	dr_ste_v0_build_eth_l2_src_bit_mask(mask, sb->inner, sb->bit_mask);
+	sb->lu_type = DR_STE_CALC_LU_TYPE(ETHL2_SRC, sb->rx, sb->inner);
+	sb->byte_mask = mlx5dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
+	sb->ste_build_tag_func = &dr_ste_v0_build_eth_l2_src_tag;
+}
+
+void mlx5dr_ste_build_eth_l2_src(struct mlx5dr_ste_ctx *ste_ctx,
+				 struct mlx5dr_ste_build *sb,
 				 struct mlx5dr_match_param *mask,
 				 bool inner, bool rx)
 {
-	dr_ste_build_eth_l2_src_bit_mask(mask, inner, sb->bit_mask);
 	sb->rx = rx;
 	sb->inner = inner;
-	sb->lu_type = DR_STE_CALC_LU_TYPE(ETHL2_SRC, rx, inner);
-	sb->byte_mask = dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
-	sb->ste_build_tag_func = &dr_ste_build_eth_l2_src_tag;
+	ste_ctx->build_eth_l2_src_init(sb, mask);
 }
 
-static void dr_ste_build_eth_l2_dst_bit_mask(struct mlx5dr_match_param *value,
-					     bool inner, u8 *bit_mask)
+static void
+dr_ste_v0_build_eth_l2_dst_bit_mask(struct mlx5dr_match_param *value,
+				    bool inner, u8 *bit_mask)
 {
 	struct mlx5dr_match_spec *mask = inner ? &value->inner : &value->outer;
 
 	DR_STE_SET_MASK_V(eth_l2_dst, bit_mask, dmac_47_16, mask, dmac_47_16);
 	DR_STE_SET_MASK_V(eth_l2_dst, bit_mask, dmac_15_0, mask, dmac_15_0);
 
-	dr_ste_build_eth_l2_src_or_dst_bit_mask(value, inner, bit_mask);
+	dr_ste_v0_build_eth_l2_src_or_dst_bit_mask(value, inner, bit_mask);
 }
 
-static int dr_ste_build_eth_l2_dst_tag(struct mlx5dr_match_param *value,
-				       struct mlx5dr_ste_build *sb,
-				       u8 *tag)
+static int
+dr_ste_v0_build_eth_l2_dst_tag(struct mlx5dr_match_param *value,
+			       struct mlx5dr_ste_build *sb,
+			       u8 *tag)
 {
 	struct mlx5dr_match_spec *spec = sb->inner ? &value->inner : &value->outer;
 
 	DR_STE_SET_TAG(eth_l2_dst, tag, dmac_47_16, spec, dmac_47_16);
 	DR_STE_SET_TAG(eth_l2_dst, tag, dmac_15_0, spec, dmac_15_0);
 
-	return dr_ste_build_eth_l2_src_or_dst_tag(value, sb->inner, tag);
+	return dr_ste_v0_build_eth_l2_src_or_dst_tag(value, sb->inner, tag);
 }
 
-void mlx5dr_ste_build_eth_l2_dst(struct mlx5dr_ste_build *sb,
+static void
+dr_ste_v0_build_eth_l2_dst_init(struct mlx5dr_ste_build *sb,
+				struct mlx5dr_match_param *mask)
+{
+	dr_ste_v0_build_eth_l2_dst_bit_mask(mask, sb->inner, sb->bit_mask);
+
+	sb->lu_type = DR_STE_CALC_LU_TYPE(ETHL2_DST, sb->rx, sb->inner);
+	sb->byte_mask = mlx5dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
+	sb->ste_build_tag_func = &dr_ste_v0_build_eth_l2_dst_tag;
+}
+
+void mlx5dr_ste_build_eth_l2_dst(struct mlx5dr_ste_ctx *ste_ctx,
+				 struct mlx5dr_ste_build *sb,
 				 struct mlx5dr_match_param *mask,
 				 bool inner, bool rx)
 {
-	dr_ste_build_eth_l2_dst_bit_mask(mask, inner, sb->bit_mask);
-
 	sb->rx = rx;
 	sb->inner = inner;
-	sb->lu_type = DR_STE_CALC_LU_TYPE(ETHL2_DST, rx, inner);
-	sb->byte_mask = dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
-	sb->ste_build_tag_func = &dr_ste_build_eth_l2_dst_tag;
+	ste_ctx->build_eth_l2_dst_init(sb, mask);
 }
 
-static void dr_ste_build_eth_l2_tnl_bit_mask(struct mlx5dr_match_param *value,
-					     bool inner, u8 *bit_mask)
+static void
+dr_ste_v0_build_eth_l2_tnl_bit_mask(struct mlx5dr_match_param *value,
+				    bool inner, u8 *bit_mask)
 {
 	struct mlx5dr_match_spec *mask = inner ? &value->inner : &value->outer;
 	struct mlx5dr_match_misc *misc = &value->misc;
@@ -1387,9 +1449,10 @@ static void dr_ste_build_eth_l2_tnl_bit_mask(struct mlx5dr_match_param *value,
 	}
 }
 
-static int dr_ste_build_eth_l2_tnl_tag(struct mlx5dr_match_param *value,
-				       struct mlx5dr_ste_build *sb,
-				       u8 *tag)
+static int
+dr_ste_v0_build_eth_l2_tnl_tag(struct mlx5dr_match_param *value,
+			       struct mlx5dr_ste_build *sb,
+			       u8 *tag)
 {
 	struct mlx5dr_match_spec *spec = sb->inner ? &value->inner : &value->outer;
 	struct mlx5dr_match_misc *misc = &value->misc;
@@ -1431,29 +1494,39 @@ static int dr_ste_build_eth_l2_tnl_tag(struct mlx5dr_match_param *value,
 	return 0;
 }
 
-void mlx5dr_ste_build_eth_l2_tnl(struct mlx5dr_ste_build *sb,
-				 struct mlx5dr_match_param *mask, bool inner, bool rx)
+static void
+dr_ste_v0_build_eth_l2_tnl_init(struct mlx5dr_ste_build *sb,
+				struct mlx5dr_match_param *mask)
 {
-	dr_ste_build_eth_l2_tnl_bit_mask(mask, inner, sb->bit_mask);
+	dr_ste_v0_build_eth_l2_tnl_bit_mask(mask, sb->inner, sb->bit_mask);
 
-	sb->rx = rx;
-	sb->inner = inner;
 	sb->lu_type = MLX5DR_STE_LU_TYPE_ETHL2_TUNNELING_I;
-	sb->byte_mask = dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
-	sb->ste_build_tag_func = &dr_ste_build_eth_l2_tnl_tag;
+	sb->byte_mask = mlx5dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
+	sb->ste_build_tag_func = &dr_ste_v0_build_eth_l2_tnl_tag;
 }
 
-static void dr_ste_build_eth_l3_ipv4_misc_bit_mask(struct mlx5dr_match_param *value,
-						   bool inner, u8 *bit_mask)
+void mlx5dr_ste_build_eth_l2_tnl(struct mlx5dr_ste_ctx *ste_ctx,
+				 struct mlx5dr_ste_build *sb,
+				 struct mlx5dr_match_param *mask, bool inner, bool rx)
+{
+	sb->rx = rx;
+	sb->inner = inner;
+	ste_ctx->build_eth_l2_tnl_init(sb, mask);
+}
+
+static void
+dr_ste_v0_build_eth_l3_ipv4_misc_bit_mask(struct mlx5dr_match_param *value,
+					  bool inner, u8 *bit_mask)
 {
 	struct mlx5dr_match_spec *mask = inner ? &value->inner : &value->outer;
 
 	DR_STE_SET_MASK_V(eth_l3_ipv4_misc, bit_mask, time_to_live, mask, ttl_hoplimit);
 }
 
-static int dr_ste_build_eth_l3_ipv4_misc_tag(struct mlx5dr_match_param *value,
-					     struct mlx5dr_ste_build *sb,
-					     u8 *tag)
+static int
+dr_ste_v0_build_eth_l3_ipv4_misc_tag(struct mlx5dr_match_param *value,
+				     struct mlx5dr_ste_build *sb,
+				     u8 *tag)
 {
 	struct mlx5dr_match_spec *spec = sb->inner ? &value->inner : &value->outer;
 
@@ -1462,21 +1535,30 @@ static int dr_ste_build_eth_l3_ipv4_misc_tag(struct mlx5dr_match_param *value,
 	return 0;
 }
 
-void mlx5dr_ste_build_eth_l3_ipv4_misc(struct mlx5dr_ste_build *sb,
+static void
+dr_ste_v0_build_eth_l3_ipv4_misc_init(struct mlx5dr_ste_build *sb,
+				      struct mlx5dr_match_param *mask)
+{
+	dr_ste_v0_build_eth_l3_ipv4_misc_bit_mask(mask, sb->inner, sb->bit_mask);
+
+	sb->lu_type = DR_STE_CALC_LU_TYPE(ETHL3_IPV4_MISC, sb->rx, sb->inner);
+	sb->byte_mask = mlx5dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
+	sb->ste_build_tag_func = &dr_ste_v0_build_eth_l3_ipv4_misc_tag;
+}
+
+void mlx5dr_ste_build_eth_l3_ipv4_misc(struct mlx5dr_ste_ctx *ste_ctx,
+				       struct mlx5dr_ste_build *sb,
 				       struct mlx5dr_match_param *mask,
 				       bool inner, bool rx)
 {
-	dr_ste_build_eth_l3_ipv4_misc_bit_mask(mask, inner, sb->bit_mask);
-
 	sb->rx = rx;
 	sb->inner = inner;
-	sb->lu_type = DR_STE_CALC_LU_TYPE(ETHL3_IPV4_MISC, rx, inner);
-	sb->byte_mask = dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
-	sb->ste_build_tag_func = &dr_ste_build_eth_l3_ipv4_misc_tag;
+	ste_ctx->build_eth_l3_ipv4_misc_init(sb, mask);
 }
 
-static void dr_ste_build_ipv6_l3_l4_bit_mask(struct mlx5dr_match_param *value,
-					     bool inner, u8 *bit_mask)
+static void
+dr_ste_v0_build_eth_ipv6_l3_l4_bit_mask(struct mlx5dr_match_param *value,
+					bool inner, u8 *bit_mask)
 {
 	struct mlx5dr_match_spec *mask = inner ? &value->inner : &value->outer;
 
@@ -1496,9 +1578,10 @@ static void dr_ste_build_ipv6_l3_l4_bit_mask(struct mlx5dr_match_param *value,
 	}
 }
 
-static int dr_ste_build_ipv6_l3_l4_tag(struct mlx5dr_match_param *value,
-				       struct mlx5dr_ste_build *sb,
-				       u8 *tag)
+static int
+dr_ste_v0_build_eth_ipv6_l3_l4_tag(struct mlx5dr_match_param *value,
+				   struct mlx5dr_ste_build *sb,
+				   u8 *tag)
 {
 	struct mlx5dr_match_spec *spec = sb->inner ? &value->inner : &value->outer;
 
@@ -1520,17 +1603,25 @@ static int dr_ste_build_ipv6_l3_l4_tag(struct mlx5dr_match_param *value,
 	return 0;
 }
 
-void mlx5dr_ste_build_eth_ipv6_l3_l4(struct mlx5dr_ste_build *sb,
+static void
+dr_ste_v0_build_eth_ipv6_l3_l4_init(struct mlx5dr_ste_build *sb,
+				    struct mlx5dr_match_param *mask)
+{
+	dr_ste_v0_build_eth_ipv6_l3_l4_bit_mask(mask, sb->inner, sb->bit_mask);
+
+	sb->lu_type = DR_STE_CALC_LU_TYPE(ETHL4, sb->rx, sb->inner);
+	sb->byte_mask = mlx5dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
+	sb->ste_build_tag_func = &dr_ste_v0_build_eth_ipv6_l3_l4_tag;
+}
+
+void mlx5dr_ste_build_eth_ipv6_l3_l4(struct mlx5dr_ste_ctx *ste_ctx,
+				     struct mlx5dr_ste_build *sb,
 				     struct mlx5dr_match_param *mask,
 				     bool inner, bool rx)
 {
-	dr_ste_build_ipv6_l3_l4_bit_mask(mask, inner, sb->bit_mask);
-
 	sb->rx = rx;
 	sb->inner = inner;
-	sb->lu_type = DR_STE_CALC_LU_TYPE(ETHL4, rx, inner);
-	sb->byte_mask = dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
-	sb->ste_build_tag_func = &dr_ste_build_ipv6_l3_l4_tag;
+	ste_ctx->build_eth_ipv6_l3_l4_init(sb, mask);
 }
 
 static int dr_ste_build_empty_always_hit_tag(struct mlx5dr_match_param *value,
@@ -1548,8 +1639,9 @@ void mlx5dr_ste_build_empty_always_hit(struct mlx5dr_ste_build *sb, bool rx)
 	sb->ste_build_tag_func = &dr_ste_build_empty_always_hit_tag;
 }
 
-static void dr_ste_build_mpls_bit_mask(struct mlx5dr_match_param *value,
-				       bool inner, u8 *bit_mask)
+static void
+dr_ste_v0_build_mpls_bit_mask(struct mlx5dr_match_param *value,
+			      bool inner, u8 *bit_mask)
 {
 	struct mlx5dr_match_misc2 *misc2_mask = &value->misc2;
 
@@ -1559,9 +1651,10 @@ static void dr_ste_build_mpls_bit_mask(struct mlx5dr_match_param *value,
 		DR_STE_SET_MPLS_MASK(mpls, misc2_mask, outer, bit_mask);
 }
 
-static int dr_ste_build_mpls_tag(struct mlx5dr_match_param *value,
-				 struct mlx5dr_ste_build *sb,
-				 u8 *tag)
+static int
+dr_ste_v0_build_mpls_tag(struct mlx5dr_match_param *value,
+			 struct mlx5dr_ste_build *sb,
+			 u8 *tag)
 {
 	struct mlx5dr_match_misc2 *misc2_mask = &value->misc2;
 
@@ -1573,21 +1666,30 @@ static int dr_ste_build_mpls_tag(struct mlx5dr_match_param *value,
 	return 0;
 }
 
-void mlx5dr_ste_build_mpls(struct mlx5dr_ste_build *sb,
+static void
+dr_ste_v0_build_mpls_init(struct mlx5dr_ste_build *sb,
+			  struct mlx5dr_match_param *mask)
+{
+	dr_ste_v0_build_mpls_bit_mask(mask, sb->inner, sb->bit_mask);
+
+	sb->lu_type = DR_STE_CALC_LU_TYPE(MPLS_FIRST, sb->rx, sb->inner);
+	sb->byte_mask = mlx5dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
+	sb->ste_build_tag_func = &dr_ste_v0_build_mpls_tag;
+}
+
+void mlx5dr_ste_build_mpls(struct mlx5dr_ste_ctx *ste_ctx,
+			   struct mlx5dr_ste_build *sb,
 			   struct mlx5dr_match_param *mask,
 			   bool inner, bool rx)
 {
-	dr_ste_build_mpls_bit_mask(mask, inner, sb->bit_mask);
-
 	sb->rx = rx;
 	sb->inner = inner;
-	sb->lu_type = DR_STE_CALC_LU_TYPE(MPLS_FIRST, rx, inner);
-	sb->byte_mask = dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
-	sb->ste_build_tag_func = &dr_ste_build_mpls_tag;
+	ste_ctx->build_mpls_init(sb, mask);
 }
 
-static void dr_ste_build_gre_bit_mask(struct mlx5dr_match_param *value,
-				      bool inner, u8 *bit_mask)
+static void
+dr_ste_v0_build_tnl_gre_bit_mask(struct mlx5dr_match_param *value,
+				 bool inner, u8 *bit_mask)
 {
 	struct mlx5dr_match_misc *misc_mask = &value->misc;
 
@@ -1600,9 +1702,10 @@ static void dr_ste_build_gre_bit_mask(struct mlx5dr_match_param *value,
 	DR_STE_SET_MASK_V(gre, bit_mask, gre_s_present, misc_mask, gre_s_present);
 }
 
-static int dr_ste_build_gre_tag(struct mlx5dr_match_param *value,
-				struct mlx5dr_ste_build *sb,
-				u8 *tag)
+static int
+dr_ste_v0_build_tnl_gre_tag(struct mlx5dr_match_param *value,
+			    struct mlx5dr_ste_build *sb,
+			    u8 *tag)
 {
 	struct  mlx5dr_match_misc *misc = &value->misc;
 
@@ -1619,20 +1722,30 @@ static int dr_ste_build_gre_tag(struct mlx5dr_match_param *value,
 	return 0;
 }
 
-void mlx5dr_ste_build_tnl_gre(struct mlx5dr_ste_build *sb,
-			      struct mlx5dr_match_param *mask, bool inner, bool rx)
+static void
+dr_ste_v0_build_tnl_gre_init(struct mlx5dr_ste_build *sb,
+			     struct mlx5dr_match_param *mask)
 {
-	dr_ste_build_gre_bit_mask(mask, inner, sb->bit_mask);
+	dr_ste_v0_build_tnl_gre_bit_mask(mask, sb->inner, sb->bit_mask);
 
-	sb->rx = rx;
-	sb->inner = inner;
 	sb->lu_type = MLX5DR_STE_LU_TYPE_GRE;
-	sb->byte_mask = dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
-	sb->ste_build_tag_func = &dr_ste_build_gre_tag;
+	sb->byte_mask = mlx5dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
+	sb->ste_build_tag_func = &dr_ste_v0_build_tnl_gre_tag;
 }
 
-static void dr_ste_build_flex_parser_0_bit_mask(struct mlx5dr_match_param *value,
-						bool inner, u8 *bit_mask)
+void mlx5dr_ste_build_tnl_gre(struct mlx5dr_ste_ctx *ste_ctx,
+			      struct mlx5dr_ste_build *sb,
+			      struct mlx5dr_match_param *mask,
+			      bool inner, bool rx)
+{
+	sb->rx = rx;
+	sb->inner = inner;
+	ste_ctx->build_tnl_gre_init(sb, mask);
+}
+
+static void
+dr_ste_v0_build_tnl_mpls_bit_mask(struct mlx5dr_match_param *value,
+				  bool inner, u8 *bit_mask)
 {
 	struct mlx5dr_match_misc2 *misc_2_mask = &value->misc2;
 
@@ -1663,9 +1776,10 @@ static void dr_ste_build_flex_parser_0_bit_mask(struct mlx5dr_match_param *value
 	}
 }
 
-static int dr_ste_build_flex_parser_0_tag(struct mlx5dr_match_param *value,
-					  struct mlx5dr_ste_build *sb,
-					  u8 *tag)
+static int
+dr_ste_v0_build_tnl_mpls_tag(struct mlx5dr_match_param *value,
+			     struct mlx5dr_ste_build *sb,
+			     u8 *tag)
 {
 	struct mlx5dr_match_misc2 *misc_2_mask = &value->misc2;
 
@@ -1697,29 +1811,38 @@ static int dr_ste_build_flex_parser_0_tag(struct mlx5dr_match_param *value,
 	return 0;
 }
 
-void mlx5dr_ste_build_tnl_mpls(struct mlx5dr_ste_build *sb,
+static void
+dr_ste_v0_build_tnl_mpls_init(struct mlx5dr_ste_build *sb,
+			      struct mlx5dr_match_param *mask)
+{
+	dr_ste_v0_build_tnl_mpls_bit_mask(mask, sb->inner, sb->bit_mask);
+
+	sb->lu_type = MLX5DR_STE_LU_TYPE_FLEX_PARSER_0;
+	sb->byte_mask = mlx5dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
+	sb->ste_build_tag_func = &dr_ste_v0_build_tnl_mpls_tag;
+}
+
+void mlx5dr_ste_build_tnl_mpls(struct mlx5dr_ste_ctx *ste_ctx,
+			       struct mlx5dr_ste_build *sb,
 			       struct mlx5dr_match_param *mask,
 			       bool inner, bool rx)
 {
-	dr_ste_build_flex_parser_0_bit_mask(mask, inner, sb->bit_mask);
-
 	sb->rx = rx;
 	sb->inner = inner;
-	sb->lu_type = MLX5DR_STE_LU_TYPE_FLEX_PARSER_0;
-	sb->byte_mask = dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
-	sb->ste_build_tag_func = &dr_ste_build_flex_parser_0_tag;
+	ste_ctx->build_tnl_mpls_init(sb, mask);
 }
 
 #define ICMP_TYPE_OFFSET_FIRST_DW		24
 #define ICMP_CODE_OFFSET_FIRST_DW		16
 #define ICMP_HEADER_DATA_OFFSET_SECOND_DW	0
 
-static int dr_ste_build_flex_parser_1_bit_mask(struct mlx5dr_match_param *mask,
-					       struct mlx5dr_cmd_caps *caps,
-					       u8 *bit_mask)
+static int
+dr_ste_v0_build_icmp_bit_mask(struct mlx5dr_match_param *mask,
+			      struct mlx5dr_cmd_caps *caps,
+			      u8 *bit_mask)
 {
-	bool is_ipv4_mask = DR_MASK_IS_ICMPV4_SET(&mask->misc3);
 	struct mlx5dr_match_misc3 *misc_3_mask = &mask->misc3;
+	bool is_ipv4_mask = DR_MASK_IS_ICMPV4_SET(misc_3_mask);
 	u32 icmp_header_data_mask;
 	u32 icmp_type_mask;
 	u32 icmp_code_mask;
@@ -1783,9 +1906,10 @@ static int dr_ste_build_flex_parser_1_bit_mask(struct mlx5dr_match_param *mask,
 	return 0;
 }
 
-static int dr_ste_build_flex_parser_1_tag(struct mlx5dr_match_param *value,
-					  struct mlx5dr_ste_build *sb,
-					  u8 *tag)
+static int
+dr_ste_v0_build_icmp_tag(struct mlx5dr_match_param *value,
+			 struct mlx5dr_ste_build *sb,
+			 u8 *tag)
 {
 	struct mlx5dr_match_misc3 *misc_3 = &value->misc3;
 	u32 icmp_header_data;
@@ -1854,29 +1978,38 @@ static int dr_ste_build_flex_parser_1_tag(struct mlx5dr_match_param *value,
 	return 0;
 }
 
-int mlx5dr_ste_build_icmp(struct mlx5dr_ste_build *sb,
-			  struct mlx5dr_match_param *mask,
-			  struct mlx5dr_cmd_caps *caps,
-			  bool inner, bool rx)
+static int
+dr_ste_v0_build_icmp_init(struct mlx5dr_ste_build *sb,
+			  struct mlx5dr_match_param *mask)
 {
 	int ret;
 
-	ret = dr_ste_build_flex_parser_1_bit_mask(mask, caps, sb->bit_mask);
+	ret = dr_ste_v0_build_icmp_bit_mask(mask, sb->caps, sb->bit_mask);
 	if (ret)
 		return ret;
 
-	sb->rx = rx;
-	sb->inner = inner;
-	sb->caps = caps;
 	sb->lu_type = MLX5DR_STE_LU_TYPE_FLEX_PARSER_1;
-	sb->byte_mask = dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
-	sb->ste_build_tag_func = &dr_ste_build_flex_parser_1_tag;
+	sb->byte_mask = mlx5dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
+	sb->ste_build_tag_func = &dr_ste_v0_build_icmp_tag;
 
 	return 0;
 }
 
-static void dr_ste_build_general_purpose_bit_mask(struct mlx5dr_match_param *value,
-						  bool inner, u8 *bit_mask)
+int mlx5dr_ste_build_icmp(struct mlx5dr_ste_ctx *ste_ctx,
+			  struct mlx5dr_ste_build *sb,
+			  struct mlx5dr_match_param *mask,
+			  struct mlx5dr_cmd_caps *caps,
+			  bool inner, bool rx)
+{
+	sb->rx = rx;
+	sb->inner = inner;
+	sb->caps = caps;
+	return ste_ctx->build_icmp_init(sb, mask);
+}
+
+static void
+dr_ste_v0_build_general_purpose_bit_mask(struct mlx5dr_match_param *value,
+					 bool inner, u8 *bit_mask)
 {
 	struct mlx5dr_match_misc2 *misc_2_mask = &value->misc2;
 
@@ -1885,9 +2018,10 @@ static void dr_ste_build_general_purpose_bit_mask(struct mlx5dr_match_param *val
 			  metadata_reg_a);
 }
 
-static int dr_ste_build_general_purpose_tag(struct mlx5dr_match_param *value,
-					    struct mlx5dr_ste_build *sb,
-					    u8 *tag)
+static int
+dr_ste_v0_build_general_purpose_tag(struct mlx5dr_match_param *value,
+				    struct mlx5dr_ste_build *sb,
+				    u8 *tag)
 {
 	struct mlx5dr_match_misc2 *misc_2_mask = &value->misc2;
 
@@ -1897,21 +2031,30 @@ static int dr_ste_build_general_purpose_tag(struct mlx5dr_match_param *value,
 	return 0;
 }
 
-void mlx5dr_ste_build_general_purpose(struct mlx5dr_ste_build *sb,
+static void
+dr_ste_v0_build_general_purpose_init(struct mlx5dr_ste_build *sb,
+				     struct mlx5dr_match_param *mask)
+{
+	dr_ste_v0_build_general_purpose_bit_mask(mask, sb->inner, sb->bit_mask);
+
+	sb->lu_type = MLX5DR_STE_LU_TYPE_GENERAL_PURPOSE;
+	sb->byte_mask = mlx5dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
+	sb->ste_build_tag_func = &dr_ste_v0_build_general_purpose_tag;
+}
+
+void mlx5dr_ste_build_general_purpose(struct mlx5dr_ste_ctx *ste_ctx,
+				      struct mlx5dr_ste_build *sb,
 				      struct mlx5dr_match_param *mask,
 				      bool inner, bool rx)
 {
-	dr_ste_build_general_purpose_bit_mask(mask, inner, sb->bit_mask);
-
 	sb->rx = rx;
 	sb->inner = inner;
-	sb->lu_type = MLX5DR_STE_LU_TYPE_GENERAL_PURPOSE;
-	sb->byte_mask = dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
-	sb->ste_build_tag_func = &dr_ste_build_general_purpose_tag;
+	ste_ctx->build_general_purpose_init(sb, mask);
 }
 
-static void dr_ste_build_eth_l4_misc_bit_mask(struct mlx5dr_match_param *value,
-					      bool inner, u8 *bit_mask)
+static void
+dr_ste_v0_build_eth_l4_misc_bit_mask(struct mlx5dr_match_param *value,
+				     bool inner, u8 *bit_mask)
 {
 	struct mlx5dr_match_misc3 *misc_3_mask = &value->misc3;
 
@@ -1928,9 +2071,10 @@ static void dr_ste_build_eth_l4_misc_bit_mask(struct mlx5dr_match_param *value,
 	}
 }
 
-static int dr_ste_build_eth_l4_misc_tag(struct mlx5dr_match_param *value,
-					struct mlx5dr_ste_build *sb,
-					u8 *tag)
+static int
+dr_ste_v0_build_eth_l4_misc_tag(struct mlx5dr_match_param *value,
+				struct mlx5dr_ste_build *sb,
+				u8 *tag)
 {
 	struct mlx5dr_match_misc3 *misc3 = &value->misc3;
 
@@ -1945,22 +2089,30 @@ static int dr_ste_build_eth_l4_misc_tag(struct mlx5dr_match_param *value,
 	return 0;
 }
 
-void mlx5dr_ste_build_eth_l4_misc(struct mlx5dr_ste_build *sb,
+static void
+dr_ste_v0_build_eth_l4_misc_init(struct mlx5dr_ste_build *sb,
+				 struct mlx5dr_match_param *mask)
+{
+	dr_ste_v0_build_eth_l4_misc_bit_mask(mask, sb->inner, sb->bit_mask);
+
+	sb->lu_type = DR_STE_CALC_LU_TYPE(ETHL4_MISC, sb->rx, sb->inner);
+	sb->byte_mask = mlx5dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
+	sb->ste_build_tag_func = &dr_ste_v0_build_eth_l4_misc_tag;
+}
+
+void mlx5dr_ste_build_eth_l4_misc(struct mlx5dr_ste_ctx *ste_ctx,
+				  struct mlx5dr_ste_build *sb,
 				  struct mlx5dr_match_param *mask,
 				  bool inner, bool rx)
 {
-	dr_ste_build_eth_l4_misc_bit_mask(mask, inner, sb->bit_mask);
-
 	sb->rx = rx;
 	sb->inner = inner;
-	sb->lu_type = DR_STE_CALC_LU_TYPE(ETHL4_MISC, rx, inner);
-	sb->byte_mask = dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
-	sb->ste_build_tag_func = &dr_ste_build_eth_l4_misc_tag;
+	ste_ctx->build_eth_l4_misc_init(sb, mask);
 }
 
 static void
-dr_ste_build_flex_parser_tnl_vxlan_gpe_bit_mask(struct mlx5dr_match_param *value,
-						bool inner, u8 *bit_mask)
+dr_ste_v0_build_flex_parser_tnl_vxlan_gpe_bit_mask(struct mlx5dr_match_param *value,
+						   bool inner, u8 *bit_mask)
 {
 	struct mlx5dr_match_misc3 *misc_3_mask = &value->misc3;
 
@@ -1976,9 +2128,9 @@ dr_ste_build_flex_parser_tnl_vxlan_gpe_bit_mask(struct mlx5dr_match_param *value
 }
 
 static int
-dr_ste_build_flex_parser_tnl_vxlan_gpe_tag(struct mlx5dr_match_param *value,
-					   struct mlx5dr_ste_build *sb,
-					   u8 *tag)
+dr_ste_v0_build_flex_parser_tnl_vxlan_gpe_tag(struct mlx5dr_match_param *value,
+					      struct mlx5dr_ste_build *sb,
+					      u8 *tag)
 {
 	struct mlx5dr_match_misc3 *misc3 = &value->misc3;
 
@@ -1995,23 +2147,30 @@ dr_ste_build_flex_parser_tnl_vxlan_gpe_tag(struct mlx5dr_match_param *value,
 	return 0;
 }
 
-void mlx5dr_ste_build_tnl_vxlan_gpe(struct mlx5dr_ste_build *sb,
+static void
+dr_ste_v0_build_flex_parser_tnl_vxlan_gpe_init(struct mlx5dr_ste_build *sb,
+					       struct mlx5dr_match_param *mask)
+{
+	dr_ste_v0_build_flex_parser_tnl_vxlan_gpe_bit_mask(mask, sb->inner,
+							   sb->bit_mask);
+	sb->lu_type = MLX5DR_STE_LU_TYPE_FLEX_PARSER_TNL_HEADER;
+	sb->byte_mask = mlx5dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
+	sb->ste_build_tag_func = &dr_ste_v0_build_flex_parser_tnl_vxlan_gpe_tag;
+}
+
+void mlx5dr_ste_build_tnl_vxlan_gpe(struct mlx5dr_ste_ctx *ste_ctx,
+				    struct mlx5dr_ste_build *sb,
 				    struct mlx5dr_match_param *mask,
 				    bool inner, bool rx)
 {
-	dr_ste_build_flex_parser_tnl_vxlan_gpe_bit_mask(mask, inner,
-							sb->bit_mask);
-
 	sb->rx = rx;
 	sb->inner = inner;
-	sb->lu_type = MLX5DR_STE_LU_TYPE_FLEX_PARSER_TNL_HEADER;
-	sb->byte_mask = dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
-	sb->ste_build_tag_func = &dr_ste_build_flex_parser_tnl_vxlan_gpe_tag;
+	ste_ctx->build_tnl_vxlan_gpe_init(sb, mask);
 }
 
 static void
-dr_ste_build_flex_parser_tnl_geneve_bit_mask(struct mlx5dr_match_param *value,
-					     u8 *bit_mask)
+dr_ste_v0_build_flex_parser_tnl_geneve_bit_mask(struct mlx5dr_match_param *value,
+						u8 *bit_mask)
 {
 	struct mlx5dr_match_misc *misc_mask = &value->misc;
 
@@ -2030,9 +2189,9 @@ dr_ste_build_flex_parser_tnl_geneve_bit_mask(struct mlx5dr_match_param *value,
 }
 
 static int
-dr_ste_build_flex_parser_tnl_geneve_tag(struct mlx5dr_match_param *value,
-					struct mlx5dr_ste_build *sb,
-					u8 *tag)
+dr_ste_v0_build_flex_parser_tnl_geneve_tag(struct mlx5dr_match_param *value,
+					   struct mlx5dr_ste_build *sb,
+					   u8 *tag)
 {
 	struct mlx5dr_match_misc *misc = &value->misc;
 
@@ -2048,20 +2207,29 @@ dr_ste_build_flex_parser_tnl_geneve_tag(struct mlx5dr_match_param *value,
 	return 0;
 }
 
-void mlx5dr_ste_build_tnl_geneve(struct mlx5dr_ste_build *sb,
+static void
+dr_ste_v0_build_flex_parser_tnl_geneve_init(struct mlx5dr_ste_build *sb,
+					    struct mlx5dr_match_param *mask)
+{
+	dr_ste_v0_build_flex_parser_tnl_geneve_bit_mask(mask, sb->bit_mask);
+	sb->lu_type = MLX5DR_STE_LU_TYPE_FLEX_PARSER_TNL_HEADER;
+	sb->byte_mask = mlx5dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
+	sb->ste_build_tag_func = &dr_ste_v0_build_flex_parser_tnl_geneve_tag;
+}
+
+void mlx5dr_ste_build_tnl_geneve(struct mlx5dr_ste_ctx *ste_ctx,
+				 struct mlx5dr_ste_build *sb,
 				 struct mlx5dr_match_param *mask,
 				 bool inner, bool rx)
 {
-	dr_ste_build_flex_parser_tnl_geneve_bit_mask(mask, sb->bit_mask);
 	sb->rx = rx;
 	sb->inner = inner;
-	sb->lu_type = MLX5DR_STE_LU_TYPE_FLEX_PARSER_TNL_HEADER;
-	sb->byte_mask = dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
-	sb->ste_build_tag_func = &dr_ste_build_flex_parser_tnl_geneve_tag;
+	ste_ctx->build_tnl_geneve_init(sb, mask);
 }
 
-static void dr_ste_build_register_0_bit_mask(struct mlx5dr_match_param *value,
-					     u8 *bit_mask)
+static void
+dr_ste_v0_build_register_0_bit_mask(struct mlx5dr_match_param *value,
+				    u8 *bit_mask)
 {
 	struct mlx5dr_match_misc2 *misc_2_mask = &value->misc2;
 
@@ -2075,9 +2243,10 @@ static void dr_ste_build_register_0_bit_mask(struct mlx5dr_match_param *value,
 			  misc_2_mask, metadata_reg_c_3);
 }
 
-static int dr_ste_build_register_0_tag(struct mlx5dr_match_param *value,
-				       struct mlx5dr_ste_build *sb,
-				       u8 *tag)
+static int
+dr_ste_v0_build_register_0_tag(struct mlx5dr_match_param *value,
+			       struct mlx5dr_ste_build *sb,
+			       u8 *tag)
 {
 	struct mlx5dr_match_misc2 *misc2 = &value->misc2;
 
@@ -2089,21 +2258,30 @@ static int dr_ste_build_register_0_tag(struct mlx5dr_match_param *value,
 	return 0;
 }
 
-void mlx5dr_ste_build_register_0(struct mlx5dr_ste_build *sb,
+static void
+dr_ste_v0_build_register_0_init(struct mlx5dr_ste_build *sb,
+				struct mlx5dr_match_param *mask)
+{
+	dr_ste_v0_build_register_0_bit_mask(mask, sb->bit_mask);
+
+	sb->lu_type = MLX5DR_STE_LU_TYPE_STEERING_REGISTERS_0;
+	sb->byte_mask = mlx5dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
+	sb->ste_build_tag_func = &dr_ste_v0_build_register_0_tag;
+}
+
+void mlx5dr_ste_build_register_0(struct mlx5dr_ste_ctx *ste_ctx,
+				 struct mlx5dr_ste_build *sb,
 				 struct mlx5dr_match_param *mask,
 				 bool inner, bool rx)
 {
-	dr_ste_build_register_0_bit_mask(mask, sb->bit_mask);
-
 	sb->rx = rx;
 	sb->inner = inner;
-	sb->lu_type = MLX5DR_STE_LU_TYPE_STEERING_REGISTERS_0;
-	sb->byte_mask = dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
-	sb->ste_build_tag_func = &dr_ste_build_register_0_tag;
+	ste_ctx->build_register_0_init(sb, mask);
 }
 
-static void dr_ste_build_register_1_bit_mask(struct mlx5dr_match_param *value,
-					     u8 *bit_mask)
+static void
+dr_ste_v0_build_register_1_bit_mask(struct mlx5dr_match_param *value,
+				    u8 *bit_mask)
 {
 	struct mlx5dr_match_misc2 *misc_2_mask = &value->misc2;
 
@@ -2117,9 +2295,10 @@ static void dr_ste_build_register_1_bit_mask(struct mlx5dr_match_param *value,
 			  misc_2_mask, metadata_reg_c_7);
 }
 
-static int dr_ste_build_register_1_tag(struct mlx5dr_match_param *value,
-				       struct mlx5dr_ste_build *sb,
-				       u8 *tag)
+static int
+dr_ste_v0_build_register_1_tag(struct mlx5dr_match_param *value,
+			       struct mlx5dr_ste_build *sb,
+			       u8 *tag)
 {
 	struct mlx5dr_match_misc2 *misc2 = &value->misc2;
 
@@ -2131,21 +2310,30 @@ static int dr_ste_build_register_1_tag(struct mlx5dr_match_param *value,
 	return 0;
 }
 
-void mlx5dr_ste_build_register_1(struct mlx5dr_ste_build *sb,
+static void
+dr_ste_v0_build_register_1_init(struct mlx5dr_ste_build *sb,
+				struct mlx5dr_match_param *mask)
+{
+	dr_ste_v0_build_register_1_bit_mask(mask, sb->bit_mask);
+
+	sb->lu_type = MLX5DR_STE_LU_TYPE_STEERING_REGISTERS_1;
+	sb->byte_mask = mlx5dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
+	sb->ste_build_tag_func = &dr_ste_v0_build_register_1_tag;
+}
+
+void mlx5dr_ste_build_register_1(struct mlx5dr_ste_ctx *ste_ctx,
+				 struct mlx5dr_ste_build *sb,
 				 struct mlx5dr_match_param *mask,
 				 bool inner, bool rx)
 {
-	dr_ste_build_register_1_bit_mask(mask, sb->bit_mask);
-
 	sb->rx = rx;
 	sb->inner = inner;
-	sb->lu_type = MLX5DR_STE_LU_TYPE_STEERING_REGISTERS_1;
-	sb->byte_mask = dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
-	sb->ste_build_tag_func = &dr_ste_build_register_1_tag;
+	ste_ctx->build_register_1_init(sb, mask);
 }
 
-static void dr_ste_build_src_gvmi_qpn_bit_mask(struct mlx5dr_match_param *value,
-					       u8 *bit_mask)
+static void
+dr_ste_v0_build_src_gvmi_qpn_bit_mask(struct mlx5dr_match_param *value,
+				      u8 *bit_mask)
 {
 	struct mlx5dr_match_misc *misc_mask = &value->misc;
 
@@ -2154,9 +2342,10 @@ static void dr_ste_build_src_gvmi_qpn_bit_mask(struct mlx5dr_match_param *value,
 	misc_mask->source_eswitch_owner_vhca_id = 0;
 }
 
-static int dr_ste_build_src_gvmi_qpn_tag(struct mlx5dr_match_param *value,
-					 struct mlx5dr_ste_build *sb,
-					 u8 *tag)
+static int
+dr_ste_v0_build_src_gvmi_qpn_tag(struct mlx5dr_match_param *value,
+				 struct mlx5dr_ste_build *sb,
+				 u8 *tag)
 {
 	struct mlx5dr_match_misc *misc = &value->misc;
 	struct mlx5dr_cmd_vport_cap *vport_cap;
@@ -2181,8 +2370,11 @@ static int dr_ste_build_src_gvmi_qpn_tag(struct mlx5dr_match_param *value,
 	}
 
 	vport_cap = mlx5dr_get_vport_cap(caps, misc->source_port);
-	if (!vport_cap)
+	if (!vport_cap) {
+		mlx5dr_err(dmn, "Vport 0x%x is invalid\n",
+			   misc->source_port);
 		return -EINVAL;
+	}
 
 	source_gvmi_set = MLX5_GET(ste_src_gvmi_qp, bit_mask, source_gvmi);
 	if (vport_cap->vport_gvmi && source_gvmi_set)
@@ -2194,7 +2386,19 @@ static int dr_ste_build_src_gvmi_qpn_tag(struct mlx5dr_match_param *value,
 	return 0;
 }
 
-void mlx5dr_ste_build_src_gvmi_qpn(struct mlx5dr_ste_build *sb,
+static void
+dr_ste_v0_build_src_gvmi_qpn_init(struct mlx5dr_ste_build *sb,
+				  struct mlx5dr_match_param *mask)
+{
+	dr_ste_v0_build_src_gvmi_qpn_bit_mask(mask, sb->bit_mask);
+
+	sb->lu_type = MLX5DR_STE_LU_TYPE_SRC_GVMI_AND_QP;
+	sb->byte_mask = mlx5dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
+	sb->ste_build_tag_func = &dr_ste_v0_build_src_gvmi_qpn_tag;
+}
+
+void mlx5dr_ste_build_src_gvmi_qpn(struct mlx5dr_ste_ctx *ste_ctx,
+				   struct mlx5dr_ste_build *sb,
 				   struct mlx5dr_match_param *mask,
 				   struct mlx5dr_domain *dmn,
 				   bool inner, bool rx)
@@ -2202,12 +2406,44 @@ void mlx5dr_ste_build_src_gvmi_qpn(struct mlx5dr_ste_build *sb,
 	/* Set vhca_id_valid before we reset source_eswitch_owner_vhca_id */
 	sb->vhca_id_valid = mask->misc.source_eswitch_owner_vhca_id;
 
-	dr_ste_build_src_gvmi_qpn_bit_mask(mask, sb->bit_mask);
-
 	sb->rx = rx;
 	sb->dmn = dmn;
 	sb->inner = inner;
-	sb->lu_type = MLX5DR_STE_LU_TYPE_SRC_GVMI_AND_QP;
-	sb->byte_mask = dr_ste_conv_bit_to_byte_mask(sb->bit_mask);
-	sb->ste_build_tag_func = &dr_ste_build_src_gvmi_qpn_tag;
+	ste_ctx->build_src_gvmi_qpn_init(sb, mask);
+}
+
+static struct mlx5dr_ste_ctx ste_ctx_v0 = {
+	.build_eth_l2_src_dst_init	= &dr_ste_v0_build_eth_l2_src_dst_init,
+	.build_eth_l3_ipv6_src_init	= &dr_ste_v0_build_eth_l3_ipv6_src_init,
+	.build_eth_l3_ipv6_dst_init	= &dr_ste_v0_build_eth_l3_ipv6_dst_init,
+	.build_eth_l3_ipv4_5_tuple_init	= &dr_ste_v0_build_eth_l3_ipv4_5_tuple_init,
+	.build_eth_l2_src_init		= &dr_ste_v0_build_eth_l2_src_init,
+	.build_eth_l2_dst_init		= &dr_ste_v0_build_eth_l2_dst_init,
+	.build_eth_l2_tnl_init		= &dr_ste_v0_build_eth_l2_tnl_init,
+	.build_eth_l3_ipv4_misc_init	= &dr_ste_v0_build_eth_l3_ipv4_misc_init,
+	.build_eth_ipv6_l3_l4_init	= &dr_ste_v0_build_eth_ipv6_l3_l4_init,
+	.build_mpls_init		= &dr_ste_v0_build_mpls_init,
+	.build_tnl_gre_init		= &dr_ste_v0_build_tnl_gre_init,
+	.build_tnl_mpls_init		= &dr_ste_v0_build_tnl_mpls_init,
+	.build_icmp_init		= &dr_ste_v0_build_icmp_init,
+	.build_general_purpose_init	= &dr_ste_v0_build_general_purpose_init,
+	.build_eth_l4_misc_init		= &dr_ste_v0_build_eth_l4_misc_init,
+	.build_tnl_vxlan_gpe_init	= &dr_ste_v0_build_flex_parser_tnl_vxlan_gpe_init,
+	.build_tnl_geneve_init		= &dr_ste_v0_build_flex_parser_tnl_geneve_init,
+	.build_register_0_init		= &dr_ste_v0_build_register_0_init,
+	.build_register_1_init		= &dr_ste_v0_build_register_1_init,
+	.build_src_gvmi_qpn_init	= &dr_ste_v0_build_src_gvmi_qpn_init,
+};
+
+static struct mlx5dr_ste_ctx *mlx5dr_ste_ctx_arr[] = {
+	[MLX5_STEERING_FORMAT_CONNECTX_5] = &ste_ctx_v0,
+	[MLX5_STEERING_FORMAT_CONNECTX_6DX] = NULL,
+};
+
+struct mlx5dr_ste_ctx *mlx5dr_ste_get_ctx(u8 version)
+{
+	if (version > MLX5_STEERING_FORMAT_CONNECTX_6DX)
+		return NULL;
+
+	return mlx5dr_ste_ctx_arr[version];
 }

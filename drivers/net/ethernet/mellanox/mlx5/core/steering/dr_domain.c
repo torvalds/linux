@@ -57,6 +57,12 @@ static int dr_domain_init_resources(struct mlx5dr_domain *dmn)
 {
 	int ret;
 
+	dmn->ste_ctx = mlx5dr_ste_get_ctx(dmn->info.caps.sw_format_ver);
+	if (!dmn->ste_ctx) {
+		mlx5dr_err(dmn, "SW Steering on this device is unsupported\n");
+		return -EOPNOTSUPP;
+	}
+
 	ret = mlx5_core_alloc_pd(dmn->mdev, &dmn->pdn);
 	if (ret) {
 		mlx5dr_err(dmn, "Couldn't allocate PD, ret: %d", ret);
