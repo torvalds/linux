@@ -4,6 +4,7 @@
  */
 #include <linux/cpufreq_times.h>
 #include "sched.h"
+#include <trace/hooks/sched.h>
 
 #ifdef CONFIG_IRQ_TIME_ACCOUNTING
 
@@ -72,6 +73,8 @@ void irqtime_account_irq(struct task_struct *curr)
 		irqtime_account_delta(irqtime, delta, CPUTIME_IRQ);
 	else if (in_serving_softirq() && curr != this_cpu_ksoftirqd())
 		irqtime_account_delta(irqtime, delta, CPUTIME_SOFTIRQ);
+
+	trace_android_rvh_account_irq(curr, cpu, delta);
 }
 EXPORT_SYMBOL_GPL(irqtime_account_irq);
 

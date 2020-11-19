@@ -124,6 +124,67 @@ DECLARE_RESTRICTED_HOOK(android_rvh_update_cpus_allowed,
 	TP_PROTO(struct task_struct *p, cpumask_var_t cpus_requested,
 		 const struct cpumask *new_mask, int *ret),
 	TP_ARGS(p, cpus_requested, new_mask, ret), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_set_task_cpu,
+	TP_PROTO(struct task_struct *p, unsigned int new_cpu),
+	TP_ARGS(p, new_cpu), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_try_to_wake_up,
+	TP_PROTO(struct task_struct *p),
+	TP_ARGS(p), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_try_to_wake_up_success,
+	TP_PROTO(struct task_struct *p),
+	TP_ARGS(p), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_sched_fork,
+	TP_PROTO(struct task_struct *p),
+	TP_ARGS(p), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_wake_up_new_task,
+	TP_PROTO(struct task_struct *p),
+	TP_ARGS(p), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_new_task_stats,
+	TP_PROTO(struct task_struct *p),
+	TP_ARGS(p), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_flush_task,
+	TP_PROTO(struct task_struct *prev),
+	TP_ARGS(prev), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_tick_entry,
+	TP_PROTO(struct rq *rq),
+	TP_ARGS(rq), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_schedule,
+	TP_PROTO(struct task_struct *prev, struct task_struct *next, struct rq *rq),
+	TP_ARGS(prev, next, rq), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_sched_cpu_starting,
+	TP_PROTO(int cpu),
+	TP_ARGS(cpu), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_sched_cpu_dying,
+	TP_PROTO(int cpu),
+	TP_ARGS(cpu), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_account_irq,
+	TP_PROTO(struct task_struct *curr, int cpu, s64 delta),
+	TP_ARGS(curr, cpu, delta), 1);
+
+struct sched_entity;
+DECLARE_RESTRICTED_HOOK(android_rvh_place_entity,
+	TP_PROTO(struct sched_entity *se, u64 vruntime),
+	TP_ARGS(se, vruntime), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_update_cpu_capacity,
+	TP_PROTO(int cpu, unsigned long *capacity),
+	TP_ARGS(cpu, capacity), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_update_misfit_status,
+	TP_PROTO(struct task_struct *p, struct rq *rq, bool *need_update),
+	TP_ARGS(p, rq, need_update), 1);
 #else
 #define trace_android_rvh_select_task_rq_fair(p, prev_cpu, sd_flag, wake_flags, new_cpu)
 #define trace_android_rvh_select_task_rq_rt(p, prev_cpu, sd_flag, wake_flags, new_cpu)
@@ -151,6 +212,21 @@ DECLARE_RESTRICTED_HOOK(android_rvh_update_cpus_allowed,
 #define trace_android_rvh_set_sugov_update(sg_policy, next_freq, should_update)
 #define trace_android_rvh_sched_setaffinity(p, in_mask, retval)
 #define trace_android_rvh_update_cpus_allowed(p, cpus_requested, new_mask, ret)
+#define trace_android_rvh_set_task_cpu(p, new_cpu)
+#define trace_android_rvh_try_to_wake_up(p)
+#define trace_android_rvh_try_to_wake_up_success(p)
+#define trace_android_rvh_sched_fork(p)
+#define trace_android_rvh_wake_up_new_task(p)
+#define trace_android_rvh_new_task_stats(p)
+#define trace_android_rvh_flush_task(prev)
+#define trace_android_rvh_tick_entry(rq)
+#define trace_android_rvh_schedule(prev, next, rq)
+#define trace_android_rvh_sched_cpu_starting(cpu)
+#define trace_android_rvh_sched_cpu_dying(cpu)
+#define trace_android_rvh_account_irq(curr, cpu, delta)
+#define trace_android_rvh_place_entity(se, vruntime)
+#define trace_android_rvh_update_cpu_capacity(cpu, capacity)
+#define trace_android_rvh_update_misfit_status(p, rq, need_update)
 #endif
 #endif /* _TRACE_HOOK_SCHED_H */
 /* This part must be outside protection */
