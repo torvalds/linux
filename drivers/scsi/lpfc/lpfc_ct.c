@@ -3295,7 +3295,7 @@ lpfc_fdmi_smart_attr_security(struct lpfc_vport *vport,
 	return size;
 }
 
-int
+static int
 lpfc_fdmi_vendor_attr_mi(struct lpfc_vport *vport,
 			  struct lpfc_fdmi_attr_def *ad)
 {
