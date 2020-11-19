@@ -120,6 +120,29 @@ struct mlx5dr_ste_ctx {
 			       u8 *hw_ste_arr,
 			       struct mlx5dr_ste_actions_attr *attr,
 			       u32 *added_stes);
+	u32 modify_field_arr_sz;
+	const struct mlx5dr_ste_action_modify_field *modify_field_arr;
+	void (*set_action_set)(u8 *hw_action,
+			       u8 hw_field,
+			       u8 shifter,
+			       u8 length,
+			       u32 data);
+	void (*set_action_add)(u8 *hw_action,
+			       u8 hw_field,
+			       u8 shifter,
+			       u8 length,
+			       u32 data);
+	void (*set_action_copy)(u8 *hw_action,
+				u8 dst_hw_field,
+				u8 dst_shifter,
+				u8 dst_len,
+				u8 src_hw_field,
+				u8 src_shifter);
+	int (*set_action_decap_l3_list)(void *data,
+					u32 data_sz,
+					u8 *hw_action,
+					u32 hw_action_sz,
+					u16 *used_hw_action_num);
 };
 
 extern struct mlx5dr_ste_ctx ste_ctx_v0;
