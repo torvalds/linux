@@ -19,6 +19,7 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of_graph.h>
+#include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-ctrls.h>
@@ -881,86 +882,75 @@ static int ov5647_stream_off(struct v4l2_subdev *sd)
 	return ov5647_write(sd, OV5640_REG_PAD_OUT, 0x01);
 }
 
-static int set_sw_standby(struct v4l2_subdev *sd, bool standby)
+static int ov5647_power_on(struct device *dev)
 {
+	struct ov5647 *sensor = dev_get_drvdata(dev);
 	int ret;
-	u8 rdval;
 
-	ret = ov5647_read(sd, OV5647_SW_STANDBY, &rdval);
-	if (ret < 0)
-		return ret;
+	dev_dbg(dev, "OV5647 power on\n");
 
-	if (standby)
-		rdval &= ~0x01;
-	else
-		rdval |= 0x01;
-
-	return ov5647_write(sd, OV5647_SW_STANDBY, rdval);
-}
-
-static int ov5647_sensor_power(struct v4l2_subdev *sd, int on)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct ov5647 *sensor = to_sensor(sd);
-	int ret = 0;
-
-	mutex_lock(&sensor->lock);
-
-	if (on && !sensor->power_count)	{
-		dev_dbg(&client->dev, "OV5647 power on\n");
-
-		if (sensor->pwdn) {
-			gpiod_set_value_cansleep(sensor->pwdn, 0);
-			msleep(PWDN_ACTIVE_DELAY_MS);
-		}
-
-		ret = clk_prepare_enable(sensor->xclk);
-		if (ret < 0) {
-			dev_err(&client->dev, "clk prepare enable failed\n");
-			goto out;
-		}
-
-		ret = ov5647_write_array(sd, sensor_oe_enable_regs,
-					 ARRAY_SIZE(sensor_oe_enable_regs));
-		if (ret < 0) {
-			clk_disable_unprepare(sensor->xclk);
-			dev_err(&client->dev,
-				"write sensor_oe_enable_regs error\n");
-			goto out;
-		}
-
-		/* Stream off to coax lanes into LP-11 state. */
-		ret = ov5647_stream_off(sd);
-		if (ret < 0) {
-			clk_disable_unprepare(sensor->xclk);
-			dev_err(&client->dev,
-				"Camera not available, check Power\n");
-			goto out;
-		}
-	} else if (!on && sensor->power_count == 1) {
-		dev_dbg(&client->dev, "OV5647 power off\n");
-
-		ret = ov5647_write_array(sd, sensor_oe_disable_regs,
-					 ARRAY_SIZE(sensor_oe_disable_regs));
-		if (ret < 0)
-			dev_dbg(&client->dev, "disable oe failed\n");
-
-		ret = set_sw_standby(sd, true);
-		if (ret < 0)
-			dev_dbg(&client->dev, "soft stby failed\n");
-
-		clk_disable_unprepare(sensor->xclk);
-		gpiod_set_value_cansleep(sensor->pwdn, 1);
+	if (sensor->pwdn) {
+		gpiod_set_value_cansleep(sensor->pwdn, 0);
+		msleep(PWDN_ACTIVE_DELAY_MS);
 	}
 
-	/* Update the power count. */
-	sensor->power_count += on ? 1 : -1;
-	WARN_ON(sensor->power_count < 0);
+	ret = clk_prepare_enable(sensor->xclk);
+	if (ret < 0) {
+		dev_err(dev, "clk prepare enable failed\n");
+		goto error_pwdn;
+	}
 
-out:
-	mutex_unlock(&sensor->lock);
+	ret = ov5647_write_array(&sensor->sd, sensor_oe_enable_regs,
+				 ARRAY_SIZE(sensor_oe_enable_regs));
+	if (ret < 0) {
+		dev_err(dev, "write sensor_oe_enable_regs error\n");
+		goto error_clk_disable;
+	}
+
+	/* Stream off to coax lanes into LP-11 state. */
+	ret = ov5647_stream_off(&sensor->sd);
+	if (ret < 0) {
+		dev_err(dev, "camera not available, check power\n");
+		goto error_clk_disable;
+	}
+
+	return 0;
+
+error_clk_disable:
+	clk_disable_unprepare(sensor->xclk);
+error_pwdn:
+	gpiod_set_value_cansleep(sensor->pwdn, 1);
 
 	return ret;
+}
+
+static int ov5647_power_off(struct device *dev)
+{
+	struct ov5647 *sensor = dev_get_drvdata(dev);
+	u8 rdval;
+	int ret;
+
+	dev_dbg(dev, "OV5647 power off\n");
+
+	ret = ov5647_write_array(&sensor->sd, sensor_oe_disable_regs,
+				 ARRAY_SIZE(sensor_oe_disable_regs));
+	if (ret < 0)
+		dev_dbg(dev, "disable oe failed\n");
+
+	/* Enter software standby */
+	ret = ov5647_read(&sensor->sd, OV5647_SW_STANDBY, &rdval);
+	if (ret < 0)
+		dev_dbg(dev, "software standby failed\n");
+
+	rdval &= ~0x01;
+	ret = ov5647_write(&sensor->sd, OV5647_SW_STANDBY, rdval);
+	if (ret < 0)
+		dev_dbg(dev, "software standby failed\n");
+
+	clk_disable_unprepare(sensor->xclk);
+	gpiod_set_value_cansleep(sensor->pwdn, 1);
+
+	return 0;
 }
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
@@ -989,7 +979,6 @@ static int ov5647_sensor_set_register(struct v4l2_subdev *sd,
 
 /* Subdev core operations registration */
 static const struct v4l2_subdev_core_ops ov5647_subdev_core_ops = {
-	.s_power		= ov5647_sensor_power,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register		= ov5647_sensor_get_register,
 	.s_register		= ov5647_sensor_set_register,
@@ -1543,24 +1532,29 @@ static int ov5647_probe(struct i2c_client *client)
 	if (ret < 0)
 		goto ctrl_handler_free;
 
-	if (sensor->pwdn) {
-		gpiod_set_value_cansleep(sensor->pwdn, 0);
-		msleep(PWDN_ACTIVE_DELAY_MS);
-	}
+	ret = ov5647_power_on(dev);
+	if (ret)
+		goto entity_cleanup;
 
 	ret = ov5647_detect(sd);
-	gpiod_set_value_cansleep(sensor->pwdn, 1);
 	if (ret < 0)
-		goto entity_cleanup;
+		goto power_off;
 
 	ret = v4l2_async_register_subdev(sd);
 	if (ret < 0)
-		goto entity_cleanup;
+		goto power_off;
+
+	/* Enable runtime PM and turn off the device */
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+	pm_runtime_idle(dev);
 
 	dev_dbg(dev, "OmniVision OV5647 camera driver probed\n");
 
 	return 0;
 
+power_off:
+	ov5647_power_off(dev);
 entity_cleanup:
 	media_entity_cleanup(&sd->entity);
 ctrl_handler_free:
@@ -1580,10 +1574,15 @@ static int ov5647_remove(struct i2c_client *client)
 	media_entity_cleanup(&sensor->sd.entity);
 	v4l2_ctrl_handler_free(&sensor->ctrls);
 	v4l2_device_unregister_subdev(sd);
+	pm_runtime_disable(&client->dev);
 	mutex_destroy(&sensor->lock);
 
 	return 0;
 }
+
+static const struct dev_pm_ops ov5647_pm_ops = {
+	SET_RUNTIME_PM_OPS(ov5647_power_off, ov5647_power_on, NULL)
+};
 
 static const struct i2c_device_id ov5647_id[] = {
 	{ "ov5647", 0 },
@@ -1603,6 +1602,7 @@ static struct i2c_driver ov5647_driver = {
 	.driver = {
 		.of_match_table = of_match_ptr(ov5647_of_match),
 		.name	= "ov5647",
+		.pm	= &ov5647_pm_ops,
 	},
 	.probe_new	= ov5647_probe,
 	.remove		= ov5647_remove,
