@@ -22,6 +22,10 @@
 	};
 };
 
+&combphy1_usq {
+	status = "okay";
+};
+
 /*
  * mipi_dphy0 needs to be enabled
  * when dsi0 is enabled
@@ -248,6 +252,19 @@
 };
 
 &uart1 {
+	status = "okay";
+};
+
+&usbdrd_dwc3 {
+	dr_mode = "otg";
+	phys = <&u2phy0_otg>;
+	phy-names = "usb2-phy";
+	extcon = <&usb2phy0>;
+	maximum-speed = "high-speed";
+	status = "okay";
+};
+
+&usbdrd30 {
 	status = "okay";
 };
 

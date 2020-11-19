@@ -378,6 +378,8 @@
 
 &usbdrd_dwc3 {
 	dr_mode = "peripheral";
+	phys = <&u2phy0_otg>;
+	phy-names = "usb2-phy";
 	maximum-speed = "high-speed";
 	status = "okay";
 };
@@ -387,6 +389,8 @@
 };
 
 &usbhost_dwc3 {
+	phys = <&u2phy0_host>;
+	phy-names = "usb2-phy";
 	status = "okay";
 };
 

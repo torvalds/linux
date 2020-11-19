@@ -62,6 +62,10 @@
 	};
 };
 
+&combphy0_us {
+	status = "okay";
+};
+
 &combphy2_psq {
 	status = "disabled";
 };
@@ -210,6 +214,12 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart1m0_xfer &uart1ctsnm0>;
+};
+
+&usbhost_dwc3 {
+	phys = <&u2phy0_host>;
+	phy-names = "usb2-phy";
+	status = "okay";
 };
 
 &vcc3v3_lcd0_n {

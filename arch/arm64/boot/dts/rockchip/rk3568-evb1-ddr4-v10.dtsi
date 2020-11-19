@@ -74,6 +74,14 @@
 	};
 };
 
+&combphy0_us {
+	status = "okay";
+};
+
+&combphy1_usq {
+	status = "okay";
+};
+
 &combphy2_psq {
 	status = "okay";
 };
