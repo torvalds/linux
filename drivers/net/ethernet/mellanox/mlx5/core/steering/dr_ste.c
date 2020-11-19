@@ -3,7 +3,7 @@
 
 #include <linux/types.h>
 #include <linux/crc32.h>
-#include "dr_types.h"
+#include "dr_ste.h"
 
 #define DR_STE_CRC_POLY 0xEDB88320L
 #define STE_IPV4 0x1
