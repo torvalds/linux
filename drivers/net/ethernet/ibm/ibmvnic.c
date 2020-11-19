@@ -1496,17 +1496,18 @@ static int create_hdr_descs(u8 hdr_field, u8 *hdr_data, int len, int *hdr_len,
  * L2/L3/L4 packet header descriptors to be sent by send_subcrq_indirect.
  */
 
-static void build_hdr_descs_arr(struct ibmvnic_tx_buff *txbuff,
+static void build_hdr_descs_arr(struct sk_buff *skb,
+				union sub_crq *indir_arr,
 				int *num_entries, u8 hdr_field)
 {
 	int hdr_len[3] = {0, 0, 0};
+	u8 hdr_data[140] = {0};
 	int tot_len;
-	u8 *hdr_data = txbuff->hdr_data;
 
-	tot_len = build_hdr_data(hdr_field, txbuff->skb, hdr_len,
-				 txbuff->hdr_data);
+	tot_len = build_hdr_data(hdr_field, skb, hdr_len,
+				 hdr_data);
 	*num_entries += create_hdr_descs(hdr_field, hdr_data, tot_len, hdr_len,
-			 txbuff->indir_arr + 1);
+					 indir_arr + 1);
 }
 
 static int ibmvnic_xmit_workarounds(struct sk_buff *skb,
@@ -1612,6 +1613,7 @@ static netdev_tx_t ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 	unsigned int tx_send_failed = 0;
 	netdev_tx_t ret = NETDEV_TX_OK;
 	unsigned int tx_map_failed = 0;
+	union sub_crq indir_arr[16];
 	unsigned int tx_dropped = 0;
 	unsigned int tx_packets = 0;
 	unsigned int tx_bytes = 0;
@@ -1696,11 +1698,8 @@ static netdev_tx_t ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	tx_buff = &tx_pool->tx_buff[index];
 	tx_buff->skb = skb;
-	tx_buff->data_dma[0] = data_dma_addr;
-	tx_buff->data_len[0] = skb->len;
 	tx_buff->index = index;
 	tx_buff->pool_index = queue_num;
-	tx_buff->last_frag = true;
 
 	memset(&tx_crq, 0, sizeof(tx_crq));
 	tx_crq.v1.first = IBMVNIC_CRQ_CMD;
@@ -1747,7 +1746,7 @@ static netdev_tx_t ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 	}
 
 	if ((*hdrs >> 7) & 1)
-		build_hdr_descs_arr(tx_buff, &num_entries, *hdrs);
+		build_hdr_descs_arr(skb, indir_arr, &num_entries, *hdrs);
 
 	tx_crq.v1.n_crq_elem = num_entries;
 	tx_buff->num_entries = num_entries;
@@ -1758,8 +1757,8 @@ static netdev_tx_t ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 			goto tx_flush_err;
 	}
 
-	tx_buff->indir_arr[0] = tx_crq;
-	memcpy(&ind_bufp->indir_arr[ind_bufp->index], tx_buff->indir_arr,
+	indir_arr[0] = tx_crq;
+	memcpy(&ind_bufp->indir_arr[ind_bufp->index], &indir_arr[0],
 	       num_entries * sizeof(struct ibmvnic_generic_scrq));
 	ind_bufp->index += num_entries;
 	if (__netdev_tx_sent_queue(txq, skb->len,
@@ -3185,7 +3184,7 @@ static int ibmvnic_complete_tx(struct ibmvnic_adapter *adapter,
 	struct netdev_queue *txq;
 	union sub_crq *next;
 	int index;
-	int i, j;
+	int i;
 
 restart_loop:
 	while (pending_scrq(adapter, scrq)) {
@@ -3210,14 +3209,6 @@ restart_loop:
 			}
 
 			txbuff = &tx_pool->tx_buff[index];
-
-			for (j = 0; j < IBMVNIC_MAX_FRAGS_PER_CRQ; j++) {
-				if (!txbuff->data_dma[j])
-					continue;
-
-				txbuff->data_dma[j] = 0;
-			}
-
 			num_packets++;
 			num_entries += txbuff->num_entries;
 			if (txbuff->skb) {

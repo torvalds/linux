@@ -226,8 +226,6 @@ struct ibmvnic_tx_comp_desc {
 #define IBMVNIC_TCP_CHKSUM		0x20
 #define IBMVNIC_UDP_CHKSUM		0x08
 
-#define IBMVNIC_MAX_FRAGS_PER_CRQ 3
-
 struct ibmvnic_tx_desc {
 	u8 first;
 	u8 type;
@@ -896,14 +894,8 @@ struct ibmvnic_long_term_buff {
 
 struct ibmvnic_tx_buff {
 	struct sk_buff *skb;
-	dma_addr_t data_dma[IBMVNIC_MAX_FRAGS_PER_CRQ];
-	unsigned int data_len[IBMVNIC_MAX_FRAGS_PER_CRQ];
 	int index;
 	int pool_index;
-	bool last_frag;
-	union sub_crq indir_arr[6];
-	u8 hdr_data[140];
-	dma_addr_t indir_dma;
 	int num_entries;
 };
 
