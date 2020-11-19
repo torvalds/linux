@@ -1703,7 +1703,6 @@
 &usbdrd_dwc3 {
 	dr_mode = "otg";
 	extcon = <&usb2phy0>;
-	maximum-speed = "high-speed";
 	status = "okay";
 };
 
