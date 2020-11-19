@@ -5340,7 +5340,7 @@ static void goya_reset_sob(struct hl_device *hdev, void *data)
 
 }
 
-void goya_reset_sob_group(struct hl_device *hdev, u16 sob_group)
+static void goya_reset_sob_group(struct hl_device *hdev, u16 sob_group)
 {
 
 }
@@ -5366,12 +5366,12 @@ u64 goya_get_device_time(struct hl_device *hdev)
 	return device_time | RREG32(mmPSOC_TIMESTAMP_CNTCVL);
 }
 
-void goya_collective_wait_init_cs(struct hl_cs *cs)
+static void goya_collective_wait_init_cs(struct hl_cs *cs)
 {
 
 }
 
-int goya_collective_wait_create_jobs(struct hl_device *hdev,
+static int goya_collective_wait_create_jobs(struct hl_device *hdev,
 		struct hl_ctx *ctx, struct hl_cs *cs, u32 wait_queue_id,
 		u32 collective_engine_id)
 {
