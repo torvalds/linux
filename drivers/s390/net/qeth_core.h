@@ -701,6 +701,19 @@ enum qeth_pnso_mode {
 	QETH_PNSO_ADDR_INFO,
 };
 
+enum qeth_link_mode {
+	QETH_LINK_MODE_UNKNOWN,
+	QETH_LINK_MODE_FIBRE_SHORT,
+	QETH_LINK_MODE_FIBRE_LONG,
+};
+
+struct qeth_link_info {
+	u32 speed;
+	u8 duplex;
+	u8 port;
+	enum qeth_link_mode link_mode;
+};
+
 #define QETH_BROADCAST_WITH_ECHO    0x01
 #define QETH_BROADCAST_WITHOUT_ECHO 0x02
 struct qeth_card_info {
@@ -732,6 +745,7 @@ struct qeth_card_info {
 	struct qeth_card_blkt blkt;
 	__u32 diagass_support;
 	__u32 hwtrap;
+	struct qeth_link_info link_info;
 };
 
 enum qeth_discipline_id {
@@ -794,12 +808,6 @@ struct qeth_rx {
 	int e_offset;
 	int qdio_err;
 	u8 bufs_refill;
-};
-
-struct carrier_info {
-	__u8  card_type;
-	__u16 port_mode;
-	__u32 port_speed;
 };
 
 struct qeth_switch_info {
@@ -1108,7 +1116,7 @@ void qeth_prepare_ipa_cmd(struct qeth_card *card, struct qeth_cmd_buffer *iob,
 int qeth_query_switch_attributes(struct qeth_card *card,
 				  struct qeth_switch_info *sw_info);
 int qeth_query_card_info(struct qeth_card *card,
-			 struct carrier_info *carrier_info);
+			 struct qeth_link_info *link_info);
 int qeth_setadpparms_set_access_ctrl(struct qeth_card *card,
 				     enum qeth_ipa_isolation_modes mode);
 

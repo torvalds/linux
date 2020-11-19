@@ -4868,8 +4868,8 @@ out_free:
 static int qeth_query_card_info_cb(struct qeth_card *card,
 				   struct qeth_reply *reply, unsigned long data)
 {
-	struct carrier_info *carrier_info = (struct carrier_info *)reply->param;
 	struct qeth_ipa_cmd *cmd = (struct qeth_ipa_cmd *)data;
+	struct qeth_link_info *link_info = reply->param;
 	struct qeth_query_card_info *card_info;
 
 	QETH_CARD_TEXT(card, 2, "qcrdincb");
@@ -4877,14 +4877,67 @@ static int qeth_query_card_info_cb(struct qeth_card *card,
 		return -EIO;
 
 	card_info = &cmd->data.setadapterparms.data.card_info;
-	carrier_info->card_type = card_info->card_type;
-	carrier_info->port_mode = card_info->port_mode;
-	carrier_info->port_speed = card_info->port_speed;
+	netdev_dbg(card->dev,
+		   "card info: card_type=0x%02x, port_mode=0x%04x, port_speed=0x%08x\n",
+		   card_info->card_type, card_info->port_mode,
+		   card_info->port_speed);
+
+	switch (card_info->port_mode) {
+	case CARD_INFO_PORTM_FULLDUPLEX:
+		link_info->duplex = DUPLEX_FULL;
+		break;
+	case CARD_INFO_PORTM_HALFDUPLEX:
+		link_info->duplex = DUPLEX_HALF;
+		break;
+	default:
+		link_info->duplex = DUPLEX_UNKNOWN;
+	}
+
+	switch (card_info->card_type) {
+	case CARD_INFO_TYPE_1G_COPPER_A:
+	case CARD_INFO_TYPE_1G_COPPER_B:
+		link_info->speed = SPEED_1000;
+		link_info->port = PORT_TP;
+		break;
+	case CARD_INFO_TYPE_1G_FIBRE_A:
+	case CARD_INFO_TYPE_1G_FIBRE_B:
+		link_info->speed = SPEED_1000;
+		link_info->port = PORT_FIBRE;
+		break;
+	case CARD_INFO_TYPE_10G_FIBRE_A:
+	case CARD_INFO_TYPE_10G_FIBRE_B:
+		link_info->speed = SPEED_10000;
+		link_info->port = PORT_FIBRE;
+		break;
+	default:
+		switch (card_info->port_speed) {
+		case CARD_INFO_PORTS_10M:
+			link_info->speed = SPEED_10;
+			break;
+		case CARD_INFO_PORTS_100M:
+			link_info->speed = SPEED_100;
+			break;
+		case CARD_INFO_PORTS_1G:
+			link_info->speed = SPEED_1000;
+			break;
+		case CARD_INFO_PORTS_10G:
+			link_info->speed = SPEED_10000;
+			break;
+		case CARD_INFO_PORTS_25G:
+			link_info->speed = SPEED_25000;
+			break;
+		default:
+			link_info->speed = SPEED_UNKNOWN;
+		}
+
+		link_info->port = PORT_OTHER;
+	}
+
 	return 0;
 }
 
 int qeth_query_card_info(struct qeth_card *card,
-			 struct carrier_info *carrier_info)
+			 struct qeth_link_info *link_info)
 {
 	struct qeth_cmd_buffer *iob;
 
@@ -4894,8 +4947,162 @@ int qeth_query_card_info(struct qeth_card *card,
 	iob = qeth_get_adapter_cmd(card, IPA_SETADP_QUERY_CARD_INFO, 0);
 	if (!iob)
 		return -ENOMEM;
-	return qeth_send_ipa_cmd(card, iob, qeth_query_card_info_cb,
-					(void *)carrier_info);
+
+	return qeth_send_ipa_cmd(card, iob, qeth_query_card_info_cb, link_info);
+}
+
+static int qeth_init_link_info_oat_cb(struct qeth_card *card,
+				      struct qeth_reply *reply_priv,
+				      unsigned long data)
+{
+	struct qeth_ipa_cmd *cmd = (struct qeth_ipa_cmd *)data;
+	struct qeth_link_info *link_info = reply_priv->param;
+	struct qeth_query_oat_physical_if *phys_if;
+	struct qeth_query_oat_reply *reply;
+
+	if (qeth_setadpparms_inspect_rc(cmd))
+		return -EIO;
+
+	/* Multi-part reply is unexpected, don't bother: */
+	if (cmd->data.setadapterparms.hdr.used_total > 1)
+		return -EINVAL;
+
+	/* Expect the reply to start with phys_if data: */
+	reply = &cmd->data.setadapterparms.data.query_oat.reply[0];
+	if (reply->type != QETH_QOAT_REPLY_TYPE_PHYS_IF ||
+	    reply->length < sizeof(*reply))
+		return -EINVAL;
+
+	phys_if = &reply->phys_if;
+
+	switch (phys_if->speed_duplex) {
+	case QETH_QOAT_PHYS_SPEED_10M_HALF:
+		link_info->speed = SPEED_10;
+		link_info->duplex = DUPLEX_HALF;
+		break;
+	case QETH_QOAT_PHYS_SPEED_10M_FULL:
+		link_info->speed = SPEED_10;
+		link_info->duplex = DUPLEX_FULL;
+		break;
+	case QETH_QOAT_PHYS_SPEED_100M_HALF:
+		link_info->speed = SPEED_100;
+		link_info->duplex = DUPLEX_HALF;
+		break;
+	case QETH_QOAT_PHYS_SPEED_100M_FULL:
+		link_info->speed = SPEED_100;
+		link_info->duplex = DUPLEX_FULL;
+		break;
+	case QETH_QOAT_PHYS_SPEED_1000M_HALF:
+		link_info->speed = SPEED_1000;
+		link_info->duplex = DUPLEX_HALF;
+		break;
+	case QETH_QOAT_PHYS_SPEED_1000M_FULL:
+		link_info->speed = SPEED_1000;
+		link_info->duplex = DUPLEX_FULL;
+		break;
+	case QETH_QOAT_PHYS_SPEED_10G_FULL:
+		link_info->speed = SPEED_10000;
+		link_info->duplex = DUPLEX_FULL;
+		break;
+	case QETH_QOAT_PHYS_SPEED_25G_FULL:
+		link_info->speed = SPEED_25000;
+		link_info->duplex = DUPLEX_FULL;
+		break;
+	case QETH_QOAT_PHYS_SPEED_UNKNOWN:
+	default:
+		link_info->speed = SPEED_UNKNOWN;
+		link_info->duplex = DUPLEX_UNKNOWN;
+		break;
+	}
+
+	switch (phys_if->media_type) {
+	case QETH_QOAT_PHYS_MEDIA_COPPER:
+		link_info->port = PORT_TP;
+		link_info->link_mode = QETH_LINK_MODE_UNKNOWN;
+		break;
+	case QETH_QOAT_PHYS_MEDIA_FIBRE_SHORT:
+		link_info->port = PORT_FIBRE;
+		link_info->link_mode = QETH_LINK_MODE_FIBRE_SHORT;
+		break;
+	case QETH_QOAT_PHYS_MEDIA_FIBRE_LONG:
+		link_info->port = PORT_FIBRE;
+		link_info->link_mode = QETH_LINK_MODE_FIBRE_LONG;
+		break;
+	default:
+		link_info->port = PORT_OTHER;
+		link_info->link_mode = QETH_LINK_MODE_UNKNOWN;
+		break;
+	}
+
+	return 0;
+}
+
+static void qeth_init_link_info(struct qeth_card *card)
+{
+	card->info.link_info.duplex = DUPLEX_FULL;
+
+	if (IS_IQD(card) || IS_VM_NIC(card)) {
+		card->info.link_info.speed = SPEED_10000;
+		card->info.link_info.port = PORT_FIBRE;
+		card->info.link_info.link_mode = QETH_LINK_MODE_FIBRE_SHORT;
+	} else {
+		switch (card->info.link_type) {
+		case QETH_LINK_TYPE_FAST_ETH:
+		case QETH_LINK_TYPE_LANE_ETH100:
+			card->info.link_info.speed = SPEED_100;
+			card->info.link_info.port = PORT_TP;
+			break;
+		case QETH_LINK_TYPE_GBIT_ETH:
+		case QETH_LINK_TYPE_LANE_ETH1000:
+			card->info.link_info.speed = SPEED_1000;
+			card->info.link_info.port = PORT_FIBRE;
+			break;
+		case QETH_LINK_TYPE_10GBIT_ETH:
+			card->info.link_info.speed = SPEED_10000;
+			card->info.link_info.port = PORT_FIBRE;
+			break;
+		case QETH_LINK_TYPE_25GBIT_ETH:
+			card->info.link_info.speed = SPEED_25000;
+			card->info.link_info.port = PORT_FIBRE;
+			break;
+		default:
+			dev_info(&card->gdev->dev, "Unknown link type %x\n",
+				 card->info.link_type);
+			card->info.link_info.speed = SPEED_UNKNOWN;
+			card->info.link_info.port = PORT_OTHER;
+		}
+
+		card->info.link_info.link_mode = QETH_LINK_MODE_UNKNOWN;
+	}
+
+	/* Get more accurate data via QUERY OAT: */
+	if (qeth_adp_supported(card, IPA_SETADP_QUERY_OAT)) {
+		struct qeth_link_info link_info;
+		struct qeth_cmd_buffer *iob;
+
+		iob = qeth_get_adapter_cmd(card, IPA_SETADP_QUERY_OAT,
+					   SETADP_DATA_SIZEOF(query_oat));
+		if (iob) {
+			struct qeth_ipa_cmd *cmd = __ipa_cmd(iob);
+			struct qeth_query_oat *oat_req;
+
+			oat_req = &cmd->data.setadapterparms.data.query_oat;
+			oat_req->subcmd_code = QETH_QOAT_SCOPE_INTERFACE;
+
+			if (!qeth_send_ipa_cmd(card, iob,
+					       qeth_init_link_info_oat_cb,
+					       &link_info)) {
+				if (link_info.speed != SPEED_UNKNOWN)
+					card->info.link_info.speed = link_info.speed;
+				if (link_info.duplex != DUPLEX_UNKNOWN)
+					card->info.link_info.duplex = link_info.duplex;
+				if (link_info.port != PORT_OTHER)
+					card->info.link_info.port = link_info.port;
+				if (link_info.link_mode != QETH_LINK_MODE_UNKNOWN)
+					card->info.link_info.link_mode = link_info.link_mode;
+			}
+		}
+	}
 }
 
 /**
@@ -5281,6 +5488,8 @@ retriable:
 		if (rc)
 			goto out;
 	}
+
+	qeth_init_link_info(card);
 
 	rc = qeth_init_qdio_queues(card);
 	if (rc) {
