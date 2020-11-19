@@ -2,7 +2,7 @@
 /*
  * System Control and Management Interface (SCMI) Sensor Protocol
  *
- * Copyright (C) 2018 ARM Ltd.
+ * Copyright (C) 2018-2020 ARM Ltd.
  */
 
 #define pr_fmt(fmt) "SCMI Notifications SENSOR - " fmt
@@ -334,6 +334,7 @@ static const struct scmi_event_ops sensor_event_ops = {
 static int scmi_sensors_protocol_init(struct scmi_handle *handle)
 {
 	u32 version;
+	int ret;
 	struct sensors_info *sinfo;
 
 	scmi_version_get(handle, SCMI_PROTOCOL_SENSOR, &version);
@@ -344,15 +345,19 @@ static int scmi_sensors_protocol_init(struct scmi_handle *handle)
 	sinfo = devm_kzalloc(handle->dev, sizeof(*sinfo), GFP_KERNEL);
 	if (!sinfo)
 		return -ENOMEM;
+	sinfo->version = version;
 
-	scmi_sensor_attributes_get(handle, sinfo);
-
+	ret = scmi_sensor_attributes_get(handle, sinfo);
+	if (ret)
+		return ret;
 	sinfo->sensors = devm_kcalloc(handle->dev, sinfo->num_sensors,
 				      sizeof(*sinfo->sensors), GFP_KERNEL);
 	if (!sinfo->sensors)
 		return -ENOMEM;
 
-	scmi_sensor_description_get(handle, sinfo);
+	ret = scmi_sensor_description_get(handle, sinfo);
+	if (ret)
+		return ret;
 
 	scmi_register_protocol_events(handle,
 				      SCMI_PROTOCOL_SENSOR, SCMI_PROTO_QUEUE_SZ,
@@ -360,9 +365,8 @@ static int scmi_sensors_protocol_init(struct scmi_handle *handle)
 				      ARRAY_SIZE(sensor_events),
 				      sinfo->num_sensors);
 
-	sinfo->version = version;
-	handle->sensor_ops = &sensor_ops;
 	handle->sensor_priv = sinfo;
+	handle->sensor_ops = &sensor_ops;
 
 	return 0;
 }
