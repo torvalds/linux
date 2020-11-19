@@ -112,16 +112,16 @@ void virtio_gpu_fence_emit(struct virtio_gpu_device *vgdev,
 }
 
 void virtio_gpu_fence_event_process(struct virtio_gpu_device *vgdev,
-				    u64 last_seq)
+				    u64 fence_id)
 {
 	struct virtio_gpu_fence_driver *drv = &vgdev->fence_drv;
 	struct virtio_gpu_fence *fence, *tmp;
 	unsigned long irq_flags;
 
 	spin_lock_irqsave(&drv->lock, irq_flags);
-	atomic64_set(&vgdev->fence_drv.last_seq, last_seq);
+	atomic64_set(&vgdev->fence_drv.last_seq, fence_id);
 	list_for_each_entry_safe(fence, tmp, &drv->fences, node) {
-		if (last_seq < fence->f.seqno)
+		if (fence_id < fence->f.seqno)
 			continue;
 		dma_fence_signal_locked(&fence->f);
 		list_del(&fence->node);
