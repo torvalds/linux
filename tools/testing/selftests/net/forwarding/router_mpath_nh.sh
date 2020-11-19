@@ -312,7 +312,6 @@ setup_prepare()
 
 	router1_create
 	router2_create
-	routing_nh_obj
 
 	forwarding_enable
 }
