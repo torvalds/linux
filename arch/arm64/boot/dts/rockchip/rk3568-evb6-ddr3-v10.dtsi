@@ -60,16 +60,6 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&hp_det>;
 	};
-
-	vcc5v0_usb: vcc5v0-usb {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc5v0_usb";
-		regulator-always-on;
-		regulator-boot-on;
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		vin-supply = <&dc_12v>;
-	};
 };
 
 &combphy2_psq {

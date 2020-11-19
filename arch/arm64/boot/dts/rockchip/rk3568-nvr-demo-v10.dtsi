@@ -29,16 +29,6 @@
 		};
 	};
 
-	vcc5v0_usb: vcc5v0-usb {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc5v0_usb";
-		regulator-always-on;
-		regulator-boot-on;
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		vin-supply = <&dc_12v>;
-	};
-
 	vcc2v5_sys: vcc2v5-ddr {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc2v5-sys";
