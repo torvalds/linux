@@ -35,17 +35,32 @@ static inline long do_strncpy_from_user(char *dst, const char __user *src,
 		goto byte_at_a_time;
 
 	while (max >= sizeof(unsigned long)) {
-		unsigned long c, data;
+		unsigned long c, data, mask;
 
 		/* Fall back to byte-at-a-time if we get a page fault */
 		unsafe_get_user(c, (unsigned long __user *)(src+res), byte_at_a_time);
 
-		*(unsigned long *)(dst+res) = c;
+		/*
+		 * Note that we mask out the bytes following the NUL. This is
+		 * important to do because string oblivious code may read past
+		 * the NUL. For those routines, we don't want to give them
+		 * potentially random bytes after the NUL in `src`.
+		 *
+		 * One example of such code is BPF map keys. BPF treats map keys
+		 * as an opaque set of bytes. Without the post-NUL mask, any BPF
+		 * maps keyed by strings returned from strncpy_from_user() may
+		 * have multiple entries for semantically identical strings.
+		 */
 		if (has_zero(c, &data, &constants)) {
 			data = prep_zero_mask(c, data, &constants);
 			data = create_zero_mask(data);
+			mask = zero_bytemask(data);
+			*(unsigned long *)(dst+res) = c & mask;
 			return res + find_zero(data);
 		}
+
+		*(unsigned long *)(dst+res) = c;
+
 		res += sizeof(unsigned long);
 		max -= sizeof(unsigned long);
 	}
