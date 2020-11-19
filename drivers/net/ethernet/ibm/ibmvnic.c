@@ -2858,6 +2858,7 @@ static int reset_one_sub_crq_queue(struct ibmvnic_adapter *adapter,
 	memset(scrq->msgs, 0, 4 * PAGE_SIZE);
 	atomic_set(&scrq->used, 0);
 	scrq->cur = 0;
+	scrq->ind_buf.index = 0;
 
 	rc = h_reg_sub_crq(adapter->vdev->unit_address, scrq->msg_token,
 			   4 * PAGE_SIZE, &scrq->crq_num, &scrq->hw_irq);
@@ -2909,6 +2910,11 @@ static void release_sub_crq_queue(struct ibmvnic_adapter *adapter,
 		}
 	}
 
+	dma_free_coherent(dev,
+			  IBMVNIC_IND_ARR_SZ,
+			  scrq->ind_buf.indir_arr,
+			  scrq->ind_buf.indir_dma);
+
 	dma_unmap_single(dev, scrq->msg_token, 4 * PAGE_SIZE,
 			 DMA_BIDIRECTIONAL);
 	free_pages((unsigned long)scrq->msgs, 2);
@@ -2955,6 +2961,17 @@ static struct ibmvnic_sub_crq_queue *init_sub_crq_queue(struct ibmvnic_adapter
 
 	scrq->adapter = adapter;
 	scrq->size = 4 * PAGE_SIZE / sizeof(*scrq->msgs);
+	scrq->ind_buf.index = 0;
+
+	scrq->ind_buf.indir_arr =
+		dma_alloc_coherent(dev,
+				   IBMVNIC_IND_ARR_SZ,
+				   &scrq->ind_buf.indir_dma,
+				   GFP_KERNEL);
+
+	if (!scrq->ind_buf.indir_arr)
+		goto indir_failed;
+
 	spin_lock_init(&scrq->lock);
 
 	netdev_dbg(adapter->netdev,
@@ -2963,6 +2980,12 @@ static struct ibmvnic_sub_crq_queue *init_sub_crq_queue(struct ibmvnic_adapter
 
 	return scrq;
 
+indir_failed:
+	do {
+		rc = plpar_hcall_norets(H_FREE_SUB_CRQ,
+					adapter->vdev->unit_address,
+					scrq->crq_num);
+	} while (rc == H_BUSY || rc == H_IS_LONG_BUSY(rc));
 reg_failed:
 	dma_unmap_single(dev, scrq->msg_token, 4 * PAGE_SIZE,
 			 DMA_BIDIRECTIONAL);
