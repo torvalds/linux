@@ -437,31 +437,38 @@ int btintel_read_version_tlv(struct hci_dev *hdev, struct intel_version_tlv *ver
 		tlv = (struct intel_tlv *)skb->data;
 		switch (tlv->type) {
 		case INTEL_TLV_CNVI_TOP:
-			version->cnvi_top = get_unaligned_le32(tlv->val);
+			version->cnvi_top =
+				__le32_to_cpu(get_unaligned_le32(tlv->val));
 			break;
 		case INTEL_TLV_CNVR_TOP:
-			version->cnvr_top = get_unaligned_le32(tlv->val);
+			version->cnvr_top =
+				__le32_to_cpu(get_unaligned_le32(tlv->val));
 			break;
 		case INTEL_TLV_CNVI_BT:
-			version->cnvi_bt = get_unaligned_le32(tlv->val);
+			version->cnvi_bt =
+				__le32_to_cpu(get_unaligned_le32(tlv->val));
 			break;
 		case INTEL_TLV_CNVR_BT:
-			version->cnvr_bt = get_unaligned_le32(tlv->val);
+			version->cnvr_bt =
+				__le32_to_cpu(get_unaligned_le32(tlv->val));
 			break;
 		case INTEL_TLV_DEV_REV_ID:
-			version->dev_rev_id = get_unaligned_le16(tlv->val);
+			version->dev_rev_id =
+				__le16_to_cpu(get_unaligned_le16(tlv->val));
 			break;
 		case INTEL_TLV_IMAGE_TYPE:
 			version->img_type = tlv->val[0];
 			break;
 		case INTEL_TLV_TIME_STAMP:
-			version->timestamp = get_unaligned_le16(tlv->val);
+			version->timestamp =
+				__le16_to_cpu(get_unaligned_le16(tlv->val));
 			break;
 		case INTEL_TLV_BUILD_TYPE:
 			version->build_type = tlv->val[0];
 			break;
 		case INTEL_TLV_BUILD_NUM:
-			version->build_num = get_unaligned_le32(tlv->val);
+			version->build_num =
+				__le32_to_cpu(get_unaligned_le32(tlv->val));
 			break;
 		case INTEL_TLV_SECURE_BOOT:
 			version->secure_boot = tlv->val[0];
