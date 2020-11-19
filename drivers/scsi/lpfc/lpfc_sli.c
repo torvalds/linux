@@ -10700,7 +10700,6 @@ lpfc_sli4_abts_err_handler(struct lpfc_hba *phba,
 			   struct lpfc_nodelist *ndlp,
 			   struct sli4_wcqe_xri_aborted *axri)
 {
-	struct lpfc_vport *vport;
 	uint32_t ext_status = 0;
 
 	if (!ndlp) {
@@ -10710,7 +10709,6 @@ lpfc_sli4_abts_err_handler(struct lpfc_hba *phba,
 		return;
 	}
 
-	vport = ndlp->vport;
 	lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
 			"3116 Port generated FCP XRI ABORT event on "
 			"vpi %d rpi %d xri x%x status 0x%x parameter x%x\n",
