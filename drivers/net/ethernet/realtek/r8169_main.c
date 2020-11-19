@@ -4356,18 +4356,19 @@ static void rtl_tx(struct net_device *dev, struct rtl8169_private *tp,
 		   int budget)
 {
 	unsigned int dirty_tx, bytes_compl = 0, pkts_compl = 0;
+	struct sk_buff *skb;
 
 	dirty_tx = tp->dirty_tx;
 
 	while (READ_ONCE(tp->cur_tx) != dirty_tx) {
 		unsigned int entry = dirty_tx % NUM_TX_DESC;
-		struct sk_buff *skb = tp->tx_skb[entry].skb;
 		u32 status;
 
 		status = le32_to_cpu(tp->TxDescArray[entry].opts1);
 		if (status & DescOwn)
 			break;
 
+		skb = tp->tx_skb[entry].skb;
 		rtl8169_unmap_tx_skb(tp, entry);
 
 		if (skb) {
@@ -4397,8 +4398,10 @@ static void rtl_tx(struct net_device *dev, struct rtl8169_private *tp,
 		 * too close. Let's kick an extra TxPoll request when a burst
 		 * of start_xmit activity is detected (if it is not detected,
 		 * it is slow enough). -- FR
+		 * If skb is NULL then we come here again once a tx irq is
+		 * triggered after the last fragment is marked transmitted.
 		 */
-		if (tp->cur_tx != dirty_tx)
+		if (tp->cur_tx != dirty_tx && skb)
 			rtl8169_doorbell(tp);
 	}
 }
