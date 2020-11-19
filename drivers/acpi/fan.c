@@ -352,6 +352,7 @@ static int acpi_fan_get_fps(struct acpi_device *device)
 		struct acpi_fan_fps *fps = &fan->fps[i];
 
 		snprintf(fps->name, ACPI_FPS_NAME_LEN, "state%d", i);
+		sysfs_attr_init(&fps->dev_attr.attr);
 		fps->dev_attr.show = show_state;
 		fps->dev_attr.store = NULL;
 		fps->dev_attr.attr.name = fps->name;
