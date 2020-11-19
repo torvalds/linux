@@ -78,8 +78,9 @@ struct tone_duration {
 	int duration;
 };
 
-#define COMPASS 120		/* beats per minute (Allegro) */
+#define COMPASS 100 /* beats per minute */
 static const struct tone_duration beethoven_fur_elise[] = {
+	{ NOTE_SILENT, 512},
 	{ NOTE_E_6, 128},  { NOTE_DS_6, 128}, { NOTE_E_6, 128},
 	{ NOTE_DS_6, 128}, { NOTE_E_6, 128},  { NOTE_B_5, 128},
 	{ NOTE_D_6, 128},  { NOTE_C_6, 128},  { NOTE_A_3, 128},
@@ -120,26 +121,27 @@ static const struct tone_duration beethoven_fur_elise[] = {
 	{ NOTE_E_5, 128},  { NOTE_D_5, 128},  { NOTE_A_3, 128},
 	{ NOTE_E_4, 128},  { NOTE_A_4, 128},  { NOTE_E_4, 128},
 	{ NOTE_D_5, 128},  { NOTE_C_5, 128},  { NOTE_E_3, 128},
-	{ NOTE_E_4, 128},  { NOTE_E_5, 255},  { NOTE_E_6, 128},
-	{ NOTE_E_5, 128},  { NOTE_E_6, 128},  { NOTE_E_5, 255},
+	{ NOTE_E_4, 128},  { NOTE_E_5, 128},  { NOTE_E_5, 128},
+	{ NOTE_E_6, 128},  { NOTE_E_5, 128},  { NOTE_E_6, 128},
+	{ NOTE_E_5, 128},  { NOTE_E_5, 128},  { NOTE_DS_5, 128},
+	{ NOTE_E_5, 128},  { NOTE_DS_6, 128}, { NOTE_E_6, 128},
 	{ NOTE_DS_5, 128}, { NOTE_E_5, 128},  { NOTE_DS_6, 128},
-	{ NOTE_E_6, 128},  { NOTE_DS_5, 128}, { NOTE_E_5, 128},
-	{ NOTE_DS_6, 128}, { NOTE_E_6, 128},  { NOTE_DS_6, 128},
 	{ NOTE_E_6, 128},  { NOTE_DS_6, 128}, { NOTE_E_6, 128},
-	{ NOTE_B_5, 128},  { NOTE_D_6, 128},  { NOTE_C_6, 128},
-	{ NOTE_A_3, 128},  { NOTE_E_4, 128},  { NOTE_A_4, 128},
-	{ NOTE_C_5, 128},  { NOTE_E_5, 128},  { NOTE_A_5, 128},
-	{ NOTE_E_3, 128},  { NOTE_E_4, 128},  { NOTE_GS_4, 128},
-	{ NOTE_E_5, 128},  { NOTE_GS_5, 128}, { NOTE_B_5, 128},
-	{ NOTE_A_3, 128},  { NOTE_E_4, 128},  { NOTE_A_4, 128},
-	{ NOTE_E_5, 128},  { NOTE_E_6, 128},  { NOTE_DS_6, 128},
+	{ NOTE_DS_6, 128}, { NOTE_E_6, 128},  { NOTE_B_5, 128},
+	{ NOTE_D_6, 128},  { NOTE_C_6, 128},  { NOTE_A_3, 128},
+	{ NOTE_E_4, 128},  { NOTE_A_4, 128},  { NOTE_C_5, 128},
+	{ NOTE_E_5, 128},  { NOTE_A_5, 128},  { NOTE_E_3, 128},
+	{ NOTE_E_4, 128},  { NOTE_GS_4, 128}, { NOTE_E_5, 128},
+	{ NOTE_GS_5, 128}, { NOTE_B_5, 128},  { NOTE_A_3, 128},
+	{ NOTE_E_4, 128},  { NOTE_A_4, 128},  { NOTE_E_5, 128},
 	{ NOTE_E_6, 128},  { NOTE_DS_6, 128}, { NOTE_E_6, 128},
-	{ NOTE_B_5, 128},  { NOTE_D_6, 128},  { NOTE_C_6, 128},
-	{ NOTE_A_3, 128},  { NOTE_E_4, 128},  { NOTE_A_4, 128},
-	{ NOTE_C_5, 128},  { NOTE_E_5, 128},  { NOTE_A_5, 128},
-	{ NOTE_E_3, 128},  { NOTE_E_4, 128},  { NOTE_GS_4, 128},
-	{ NOTE_E_5, 128},  { NOTE_C_6, 128},  { NOTE_B_5, 128},
-	{ NOTE_C_5, 255},  { NOTE_C_5, 255},  { NOTE_SILENT, 512},
+	{ NOTE_DS_6, 128}, { NOTE_E_6, 128},  { NOTE_B_5, 128},
+	{ NOTE_D_6, 128},  { NOTE_C_6, 128},  { NOTE_A_3, 128},
+	{ NOTE_E_4, 128},  { NOTE_A_4, 128},  { NOTE_C_5, 128},
+	{ NOTE_E_5, 128},  { NOTE_A_5, 128},  { NOTE_E_3, 128},
+	{ NOTE_E_4, 128},  { NOTE_GS_4, 128}, { NOTE_E_5, 128},
+	{ NOTE_C_6, 128},  { NOTE_B_5, 128},  { NOTE_A_5, 512},
+	{ NOTE_SILENT, 256},
 };
 
 static struct vidtv_access_unit *vidtv_s302m_access_unit_init(struct vidtv_access_unit *head)
