@@ -244,14 +244,12 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 {
 	struct lpfc_vport *vport;
 	struct lpfc_hba   *phba;
-	struct Scsi_Host  *shost;
 	uint8_t *name;
 	int warn_on = 0;
 	int fcf_inuse = 0;
 	unsigned long iflags;
 
 	vport = ndlp->vport;
-	shost = lpfc_shost_from_vport(vport);
 	name = (uint8_t *)&ndlp->nlp_portname;
 	phba = vport->phba;
 
