@@ -522,10 +522,10 @@ static void dsa_skb_tx_timestamp(struct dsa_slave_priv *p,
 	if (!clone)
 		return;
 
-	DSA_SKB_CB(skb)->clone = clone;
-
-	if (ds->ops->port_txtstamp(ds, p->dp->index, clone, type))
+	if (ds->ops->port_txtstamp(ds, p->dp->index, clone, type)) {
+		DSA_SKB_CB(skb)->clone = clone;
 		return;
+	}
 
 	kfree_skb(clone);
 }
