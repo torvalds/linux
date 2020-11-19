@@ -101,5 +101,14 @@ struct krb5_enctype {
  * krb5_api.c
  */
 const struct krb5_enctype *crypto_krb5_find_enctype(u32 enctype);
+size_t crypto_krb5_how_much_buffer(const struct krb5_enctype *krb5,
+				   enum krb5_crypto_mode mode,
+				   size_t data_size, size_t *_offset);
+size_t crypto_krb5_how_much_data(const struct krb5_enctype *krb5,
+				 enum krb5_crypto_mode mode,
+				 size_t *_buffer_size, size_t *_offset);
+void crypto_krb5_where_is_the_data(const struct krb5_enctype *krb5,
+				   enum krb5_crypto_mode mode,
+				   size_t *_offset, size_t *_len);
 
 #endif /* _CRYPTO_KRB5_H */
