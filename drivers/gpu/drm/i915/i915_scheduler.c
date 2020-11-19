@@ -504,6 +504,34 @@ void i915_sched_node_fini(struct i915_sched_node *node)
 	spin_unlock_irq(&schedule_lock);
 }
 
+void i915_request_show_with_schedule(struct drm_printer *m,
+				     const struct i915_request *rq,
+				     const char *prefix,
+				     int indent)
+{
+	struct i915_dependency *dep;
+
+	i915_request_show(m, rq, prefix, indent);
+	if (i915_request_completed(rq))
+		return;
+
+	rcu_read_lock();
+	for_each_signaler(dep, rq) {
+		const struct i915_request *signaler =
+			node_to_request(dep->signaler);
+
+		/* Dependencies along the same timeline are expected. */
+		if (signaler->timeline == rq->timeline)
+			continue;
+
+		if (i915_request_completed(signaler))
+			continue;
+
+		i915_request_show(m, signaler, prefix, indent + 2);
+	}
+	rcu_read_unlock();
+}
+
 static void i915_global_scheduler_shrink(void)
 {
 	kmem_cache_shrink(global.slab_dependencies);

@@ -45,6 +45,7 @@
 #include "i915_debugfs.h"
 #include "i915_debugfs_params.h"
 #include "i915_irq.h"
+#include "i915_scheduler.h"
 #include "i915_trace.h"
 #include "intel_pm.h"
 #include "intel_sideband.h"
@@ -1323,7 +1324,7 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 	for_each_uabi_engine(engine, i915)
 		intel_engine_dump(engine, &p, "%s\n", engine->name);
 
-	intel_gt_show_timelines(&i915->gt, &p, NULL);
+	intel_gt_show_timelines(&i915->gt, &p, i915_request_show_with_schedule);
 
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 
