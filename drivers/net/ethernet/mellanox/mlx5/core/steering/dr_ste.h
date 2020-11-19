@@ -76,6 +76,7 @@ u16 mlx5dr_ste_conv_bit_to_byte_mask(u8 *bit_mask);
 				 struct mlx5dr_match_param *mask))
 
 struct mlx5dr_ste_ctx {
+	/* Builders */
 	void DR_STE_CTX_BUILDER(eth_l2_src_dst);
 	void DR_STE_CTX_BUILDER(eth_l3_ipv6_src);
 	void DR_STE_CTX_BUILDER(eth_l3_ipv6_dst);
@@ -96,6 +97,17 @@ struct mlx5dr_ste_ctx {
 	void DR_STE_CTX_BUILDER(register_0);
 	void DR_STE_CTX_BUILDER(register_1);
 	void DR_STE_CTX_BUILDER(src_gvmi_qpn);
+
+	/* Getters and Setters */
+	void (*ste_init)(u8 *hw_ste_p, u16 lu_type,
+			 u8 entry_type, u16 gvmi);
+	void (*set_next_lu_type)(u8 *hw_ste_p, u16 lu_type);
+	u16  (*get_next_lu_type)(u8 *hw_ste_p);
+	void (*set_miss_addr)(u8 *hw_ste_p, u64 miss_addr);
+	u64  (*get_miss_addr)(u8 *hw_ste_p);
+	void (*set_hit_addr)(u8 *hw_ste_p, u64 icm_addr, u32 ht_size);
+	void (*set_byte_mask)(u8 *hw_ste_p, u16 byte_mask);
+	u16  (*get_byte_mask)(u8 *hw_ste_p);
 };
 
 extern struct mlx5dr_ste_ctx ste_ctx_v0;
