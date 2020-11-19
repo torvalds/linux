@@ -3336,7 +3336,7 @@ lpfc_nvmet_unsol_issue_abort(struct lpfc_hba *phba,
  *
  * This function is called with hbalock held.
  **/
-void
+static void
 lpfc_nvmet_prep_abort_wqe(struct lpfc_iocbq *pwqeq, u16 xritag, u8 opt)
 {
 	union lpfc_wqe128 *wqe = &pwqeq->wqe;
