@@ -107,11 +107,6 @@
 			ti,hwmods = "mpu";
 			sram = <&ocmcram>;
 		};
-
-		iva {
-			compatible = "ti,ivahd";
-			ti,hwmods = "iva";
-		};
 	};
 
 	/*
@@ -649,6 +644,32 @@
 						dma-names = "audio_tx";
 					};
 				};
+			};
+		};
+
+		iva_hd_target: target-module@5a000000 {
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0x5a05a400 0x4>,
+			      <0x5a05a410 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-midle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			power-domains = <&prm_ivahd>;
+			resets = <&prm_ivahd 2>;
+			reset-names = "rstctrl";
+			clocks = <&ivahd_clkctrl OMAP4_IVA_CLKCTRL 0>;
+			clock-names = "fck";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x5a000000 0x5a000000 0x1000000>,
+				 <0x5b000000 0x5b000000 0x1000000>;
+
+			iva {
+				compatible = "ti,ivahd";
 			};
 		};
 	};
