@@ -108,6 +108,18 @@ struct mlx5dr_ste_ctx {
 	void (*set_hit_addr)(u8 *hw_ste_p, u64 icm_addr, u32 ht_size);
 	void (*set_byte_mask)(u8 *hw_ste_p, u16 byte_mask);
 	u16  (*get_byte_mask)(u8 *hw_ste_p);
+
+	/* Actions */
+	void (*set_actions_rx)(struct mlx5dr_domain *dmn,
+			       u8 *action_type_set,
+			       u8 *hw_ste_arr,
+			       struct mlx5dr_ste_actions_attr *attr,
+			       u32 *added_stes);
+	void (*set_actions_tx)(struct mlx5dr_domain *dmn,
+			       u8 *action_type_set,
+			       u8 *hw_ste_arr,
+			       struct mlx5dr_ste_actions_attr *attr,
+			       u32 *added_stes);
 };
 
 extern struct mlx5dr_ste_ctx ste_ctx_v0;
