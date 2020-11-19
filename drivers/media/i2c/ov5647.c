@@ -265,11 +265,53 @@ static int ov5647_set_virtual_channel(struct v4l2_subdev *sd, int channel)
 			    channel_id | (channel << 6));
 }
 
+static int ov5647_set_mode(struct v4l2_subdev *sd)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	u8 resetval, rdval;
+	int ret;
+
+	ret = ov5647_read(sd, OV5647_SW_STANDBY, &rdval);
+	if (ret < 0)
+		return ret;
+
+	ret = ov5647_write_array(sd, ov5647_640x480,
+				 ARRAY_SIZE(ov5647_640x480));
+	if (ret < 0) {
+		dev_err(&client->dev, "write sensor default regs error\n");
+		return ret;
+	}
+
+	ret = ov5647_set_virtual_channel(sd, 0);
+	if (ret < 0)
+		return ret;
+
+	ret = ov5647_read(sd, OV5647_SW_STANDBY, &resetval);
+	if (ret < 0)
+		return ret;
+
+	if (!(resetval & 0x01)) {
+		dev_err(&client->dev, "Device was in SW standby");
+		ret = ov5647_write(sd, OV5647_SW_STANDBY, 0x01);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int ov5647_stream_on(struct v4l2_subdev *sd)
 {
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ov5647 *ov5647 = to_state(sd);
 	u8 val = MIPI_CTRL00_BUS_IDLE;
 	int ret;
+
+	ret = ov5647_set_mode(sd);
+	if (ret) {
+		dev_err(&client->dev, "Failed to program sensor mode: %d\n", ret);
+		return ret;
+	}
 
 	if (ov5647->clock_ncont)
 		val |= MIPI_CTRL00_CLOCK_LANE_GATE |
@@ -320,42 +362,6 @@ static int set_sw_standby(struct v4l2_subdev *sd, bool standby)
 	return ov5647_write(sd, OV5647_SW_STANDBY, rdval);
 }
 
-static int __sensor_init(struct v4l2_subdev *sd)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	u8 resetval, rdval;
-	int ret;
-
-	ret = ov5647_read(sd, OV5647_SW_STANDBY, &rdval);
-	if (ret < 0)
-		return ret;
-
-	ret = ov5647_write_array(sd, ov5647_640x480,
-				 ARRAY_SIZE(ov5647_640x480));
-	if (ret < 0) {
-		dev_err(&client->dev, "write sensor default regs error\n");
-		return ret;
-	}
-
-	ret = ov5647_set_virtual_channel(sd, 0);
-	if (ret < 0)
-		return ret;
-
-	ret = ov5647_read(sd, OV5647_SW_STANDBY, &resetval);
-	if (ret < 0)
-		return ret;
-
-	if (!(resetval & 0x01)) {
-		dev_err(&client->dev, "Device was in SW standby");
-		ret = ov5647_write(sd, OV5647_SW_STANDBY, 0x01);
-		if (ret < 0)
-			return ret;
-	}
-
-	/* Stream off to make the clock lane into LP-11 state. */
-	return ov5647_stream_off(sd);
-}
-
 static int ov5647_sensor_power(struct v4l2_subdev *sd, int on)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -387,7 +393,8 @@ static int ov5647_sensor_power(struct v4l2_subdev *sd, int on)
 			goto out;
 		}
 
-		ret = __sensor_init(sd);
+		/* Stream off to coax lanes into LP-11 state. */
+		ret = ov5647_stream_off(sd);
 		if (ret < 0) {
 			clk_disable_unprepare(ov5647->xclk);
 			dev_err(&client->dev,
