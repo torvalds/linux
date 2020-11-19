@@ -730,7 +730,8 @@ static ssize_t amdgpu_set_pp_table(struct device *dev,
  *
  * - minimum and maximum engine clock labeled OD_SCLK
  *
- * - maximum memory clock labeled OD_MCLK
+ * - minimum(not available for Vega20 and Navi1x) and maximum memory
+ *   clock labeled OD_MCLK
  *
  * - three <frequency, voltage> points labeled OD_VDDC_CURVE.
  *   They can be used to calibrate the sclk voltage curve.
