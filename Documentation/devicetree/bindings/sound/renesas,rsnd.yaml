@@ -9,10 +9,6 @@ title: Renesas R-Car Sound Driver Device Tree Bindings
 maintainers:
   - Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
 
-allOf:
-  - $ref: audio-graph.yaml#
-  - $ref: audio-graph-port.yaml#
-
 properties:
 
   compatible:
@@ -260,6 +256,8 @@ required:
   - "#sound-dai-cells"
 
 allOf:
+  - $ref: audio-graph.yaml#
+  - $ref: audio-graph-port.yaml#
   - if:
       properties:
         compatible:
