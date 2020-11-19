@@ -393,8 +393,6 @@ void __init arm64_memblock_init(void)
 	else
 		arm64_dma32_phys_limit = PHYS_MASK + 1;
 
-	reserve_crashkernel();
-
 	reserve_elfcorehdr();
 
 	high_memory = __va(memblock_end_of_DRAM() - 1) + 1;
@@ -433,6 +431,12 @@ void __init bootmem_init(void)
 	 */
 	sparse_init();
 	zone_sizes_init(min, max);
+
+	/*
+	 * request_standard_resources() depends on crashkernel's memory being
+	 * reserved, so do it here.
+	 */
+	reserve_crashkernel();
 
 	memblock_dump_all();
 }
