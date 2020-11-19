@@ -1271,10 +1271,8 @@ static int tegra_emc_probe(struct platform_device *pdev)
 	int err;
 
 	emc = devm_kzalloc(&pdev->dev, sizeof(*emc), GFP_KERNEL);
-	if (!emc) {
-		of_node_put(np);
+	if (!emc)
 		return -ENOMEM;
-	}
 
 	emc->mc = devm_tegra_memory_controller_get(&pdev->dev);
 	if (IS_ERR(emc->mc))
