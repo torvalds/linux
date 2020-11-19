@@ -1321,6 +1321,7 @@ static void print_request(struct drm_printer *m,
 		   rq->fence.context, rq->fence.seqno,
 		   i915_request_completed(rq) ? "!" :
 		   i915_request_started(rq) ? "*" :
+		   !i915_sw_fence_signaled(&rq->semaphore) ? "&" :
 		   "",
 		   test_bit(DMA_FENCE_FLAG_SIGNALED_BIT,
 			    &rq->fence.flags) ? "+" :
