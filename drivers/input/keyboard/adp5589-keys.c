@@ -1007,7 +1007,7 @@ static int adp5589_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	kpad = kzalloc(sizeof(*kpad), GFP_KERNEL);
+	kpad = devm_kzalloc(&client->dev, sizeof(*kpad), GFP_KERNEL);
 	if (!kpad)
 		return -ENOMEM;
 
@@ -1028,17 +1028,15 @@ static int adp5589_probe(struct i2c_client *client,
 	}
 
 	ret = adp5589_read(client, ADP5589_5_ID);
-	if (ret < 0) {
-		error = ret;
-		goto err_free_mem;
-	}
+	if (ret < 0)
+		return ret;
 
 	revid = (u8) ret & ADP5589_5_DEVICE_ID_MASK;
 
 	if (pdata->keymapsize) {
 		error = adp5589_keypad_add(kpad, revid);
 		if (error)
-			goto err_free_mem;
+			return error;
 	}
 
 	error = adp5589_setup(kpad);
@@ -1059,8 +1057,6 @@ static int adp5589_probe(struct i2c_client *client,
 
 err_keypad_remove:
 	adp5589_keypad_remove(kpad);
-err_free_mem:
-	kfree(kpad);
 
 	return error;
 }
@@ -1072,7 +1068,6 @@ static int adp5589_remove(struct i2c_client *client)
 	adp5589_write(client, kpad->var->reg(ADP5589_GENERAL_CFG), 0);
 	adp5589_keypad_remove(kpad);
 	adp5589_gpio_remove(kpad);
-	kfree(kpad);
 
 	return 0;
 }
