@@ -578,6 +578,10 @@ create_child:
 			 */
 			inet_sk_state_store((void *)new_msk, TCP_ESTABLISHED);
 
+			/* link the newly created socket to the msk */
+			mptcp_add_pending_subflow(mptcp_sk(new_msk), ctx);
+			WRITE_ONCE(mptcp_sk(new_msk)->first, child);
+
 			/* new mpc subflow takes ownership of the newly
 			 * created mptcp socket
 			 */
@@ -1124,11 +1128,7 @@ int __mptcp_subflow_connect(struct sock *sk, const struct mptcp_addr_info *loc,
 	if (err && err != -EINPROGRESS)
 		goto failed;
 
-	sock_hold(ssk);
-	spin_lock_bh(&msk->join_list_lock);
-	list_add_tail(&subflow->node, &msk->join_list);
-	spin_unlock_bh(&msk->join_list_lock);
-
+	mptcp_add_pending_subflow(msk, subflow);
 	return err;
 
 failed:

@@ -2343,7 +2343,6 @@ static struct sock *mptcp_accept(struct sock *sk, int flags, int *err,
 	if (sk_is_mptcp(newsk)) {
 		struct mptcp_subflow_context *subflow;
 		struct sock *new_mptcp_sock;
-		struct sock *ssk = newsk;
 
 		subflow = mptcp_subflow_ctx(newsk);
 		new_mptcp_sock = subflow->conn;
@@ -2358,22 +2357,8 @@ static struct sock *mptcp_accept(struct sock *sk, int flags, int *err,
 
 		/* acquire the 2nd reference for the owning socket */
 		sock_hold(new_mptcp_sock);
-
-		local_bh_disable();
-		bh_lock_sock(new_mptcp_sock);
-		msk = mptcp_sk(new_mptcp_sock);
-		msk->first = newsk;
-
 		newsk = new_mptcp_sock;
-		mptcp_copy_inaddrs(newsk, ssk);
-		list_add(&subflow->node, &msk->conn_list);
-		sock_hold(ssk);
-
-		mptcp_rcv_space_init(msk, ssk);
-		bh_unlock_sock(new_mptcp_sock);
-
-		__MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_MPCAPABLEPASSIVEACK);
-		local_bh_enable();
+		MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_MPCAPABLEPASSIVEACK);
 	} else {
 		MPTCP_INC_STATS(sock_net(sk),
 				MPTCP_MIB_MPCAPABLEPASSIVEFALLBACK);
@@ -2824,6 +2809,12 @@ static int mptcp_stream_accept(struct socket *sock, struct socket *newsock,
 	if (err == 0 && !mptcp_is_tcpsk(newsock->sk)) {
 		struct mptcp_sock *msk = mptcp_sk(newsock->sk);
 		struct mptcp_subflow_context *subflow;
+		struct sock *newsk = newsock->sk;
+		bool slowpath;
+
+		slowpath = lock_sock_fast(newsk);
+		mptcp_copy_inaddrs(newsk, msk->first);
+		mptcp_rcv_space_init(msk, msk->first);
 
 		/* set ssk->sk_socket of accept()ed flows to mptcp socket.
 		 * This is needed so NOSPACE flag can be set from tcp stack.
@@ -2835,6 +2826,7 @@ static int mptcp_stream_accept(struct socket *sock, struct socket *newsock,
 			if (!ssk->sk_socket)
 				mptcp_sock_graft(ssk, newsock);
 		}
+		unlock_sock_fast(newsk, slowpath);
 	}
 
 	if (inet_csk_listen_poll(ssock->sk))
