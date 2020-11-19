@@ -297,8 +297,8 @@
 			reg = <0x0 0xfcc00000 0x0 0x400000>;
 			interrupts = <GIC_SPI 169 IRQ_TYPE_LEVEL_HIGH>;
 			dr_mode = "otg";
-			phys = <&u2phy0_otg>;
-			phy-names = "usb2-phy";
+			phys = <&u2phy0_otg>, <&combphy0_us PHY_TYPE_USB3>;
+			phy-names = "usb2-phy", "usb3-phy";
 			phy_type = "utmi_wide";
 			power-domains = <&power RK3568_PD_PIPE>;
 			resets = <&cru SRST_USB3OTG0>;
@@ -329,8 +329,8 @@
 			reg = <0x0 0xfd000000 0x0 0x400000>;
 			interrupts = <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>;
 			dr_mode = "host";
-			phys = <&u2phy0_host>;
-			phy-names = "usb2-phy";
+			phys = <&u2phy0_host>, <&combphy1_usq PHY_TYPE_USB3>;
+			phy-names = "usb2-phy", "usb3-phy";
 			phy_type = "utmi_wide";
 			power-domains = <&power RK3568_PD_PIPE>;
 			resets = <&cru SRST_USB3OTG1>;
