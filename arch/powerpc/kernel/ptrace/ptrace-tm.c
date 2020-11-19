@@ -87,6 +87,9 @@ int tm_cgpr_get(struct task_struct *target, const struct user_regset *regset,
 		struct membuf to)
 {
 	struct membuf to_msr = membuf_at(&to, offsetof(struct pt_regs, msr));
+#ifdef CONFIG_PPC64
+	struct membuf to_softe = membuf_at(&to, offsetof(struct pt_regs, softe));
+#endif
 
 	if (!cpu_has_feature(CPU_FTR_TM))
 		return -ENODEV;
@@ -101,7 +104,9 @@ int tm_cgpr_get(struct task_struct *target, const struct user_regset *regset,
 	membuf_write(&to, &target->thread.ckpt_regs, sizeof(struct user_pt_regs));
 
 	membuf_store(&to_msr, get_user_ckpt_msr(target));
-
+#ifdef CONFIG_PPC64
+	membuf_store(&to_softe, 0x1ul);
+#endif
 	return membuf_zero(&to, ELF_NGREG * sizeof(unsigned long) -
 			sizeof(struct user_pt_regs));
 }
