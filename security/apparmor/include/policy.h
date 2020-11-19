@@ -75,12 +75,20 @@ enum profile_mode {
  * start: set of start states for the different classes of data
  */
 struct aa_policydb {
-	/* Generic policy DFA specific rule types will be subsections of it */
 	struct aa_dfa *dfa;
 	struct aa_perms *perms;
+	struct aa_domain trans;
 	unsigned int start[AA_CLASS_LAST + 1];
-
 };
+
+static inline void aa_destroy_policydb(struct aa_policydb *policy)
+{
+	aa_put_dfa(policy->dfa);
+	if (policy->perms)
+		kvfree(policy->perms);
+	aa_free_domain_entries(&policy->trans);
+
+}
 
 /* struct aa_data - generic data structure
  * key: name for retrieving this data
@@ -151,7 +159,7 @@ struct aa_profile {
 	int size;
 
 	struct aa_policydb policy;
-	struct aa_file_rules file;
+	struct aa_policydb file;
 	struct aa_caps caps;
 
 	int xattr_count;

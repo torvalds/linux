@@ -17,6 +17,7 @@
 #include "match.h"
 #include "perms.h"
 
+struct aa_policydb;
 struct aa_profile;
 struct path;
 
@@ -164,29 +165,9 @@ int aa_audit_file(struct aa_profile *profile, struct aa_perms *perms,
 		  const char *target, struct aa_label *tlabel, kuid_t ouid,
 		  const char *info, int error);
 
-/**
- * struct aa_file_rules - components used for file rule permissions
- * @dfa: dfa to match path names and conditionals against
- * @perms: permission table indexed by the matched state accept entry of @dfa
- * @trans: transition table for indexed by named x transitions
- *
- * File permission are determined by matching a path against @dfa and
- * then using the value of the accept entry for the matching state as
- * an index into @perms.  If a named exec transition is required it is
- * looked up in the transition table.
- */
-struct aa_file_rules {
-	unsigned int start;
-	struct aa_dfa *dfa;
-	/* struct perms perms; */
-	struct aa_domain trans;
-	/* TODO: add delegate table */
-	struct aa_perms *fperms_table;
-};
-
-struct aa_perms *aa_lookup_fperms(struct aa_file_rules *file_rules,
-				 unsigned int state, struct path_cond *cond);
-unsigned int aa_str_perms(struct aa_file_rules *file_rules, unsigned int start,
+struct aa_perms *aa_lookup_fperms(struct aa_policydb *file_rules,
+				  unsigned int state, struct path_cond *cond);
+unsigned int aa_str_perms(struct aa_policydb *file_rules, unsigned int start,
 			  const char *name, struct path_cond *cond,
 			  struct aa_perms *perms);
 
@@ -205,18 +186,6 @@ int aa_file_perm(const char *op, struct aa_label *label, struct file *file,
 
 void aa_inherit_files(const struct cred *cred, struct files_struct *files);
 
-static inline void aa_free_fperms_table(struct aa_perms *fperms_table)
-{
-	if (fperms_table)
-		kvfree(fperms_table);
-}
-
-static inline void aa_free_file_rules(struct aa_file_rules *rules)
-{
-	aa_put_dfa(rules->dfa);
-	aa_free_domain_entries(&rules->trans);
-	aa_free_fperms_table(rules->fperms_table);
-}
 
 /**
  * aa_map_file_perms - map file flags to AppArmor permissions

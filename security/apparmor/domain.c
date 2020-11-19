@@ -627,7 +627,7 @@ static struct aa_label *profile_transition(struct aa_profile *profile,
 {
 	struct aa_label *new = NULL;
 	const char *info = NULL, *name = NULL, *target = NULL;
-	unsigned int state = profile->file.start;
+	unsigned int state = profile->file.start[AA_CLASS_FILE];
 	struct aa_perms perms = {};
 	bool nonewprivs = false;
 	int error = 0;
@@ -723,7 +723,7 @@ static int profile_onexec(struct aa_profile *profile, struct aa_label *onexec,
 			  char *buffer, struct path_cond *cond,
 			  bool *secure_exec)
 {
-	unsigned int state = profile->file.start;
+	unsigned int state = profile->file.start[AA_CLASS_FILE];
 	struct aa_perms perms = {};
 	const char *xname = NULL, *info = "change_profile onexec";
 	int error = -EACCES;
@@ -1267,7 +1267,8 @@ static int change_profile_perms_wrapper(const char *op, const char *name,
 
 	if (!error)
 		error = change_profile_perms(profile, target, stack, request,
-					     profile->file.start, perms);
+					     profile->file.start[AA_CLASS_FILE],
+					     perms);
 	if (error)
 		error = aa_audit_file(profile, perms, op, request, name,
 				      NULL, target, GLOBAL_ROOT_UID, info,

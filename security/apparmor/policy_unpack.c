@@ -1048,18 +1048,19 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 		info = "failed to unpack profile file rules";
 		goto fail;
 	} else if (profile->file.dfa) {
-		if (!unpack_u32(e, &profile->file.start, "dfa_start"))
+		if (!unpack_u32(e, &profile->file.start[AA_CLASS_FILE],
+				"dfa_start"))
 			/* default start state */
-			profile->file.start = DFA_START;
+			profile->file.start[AA_CLASS_FILE] = DFA_START;
 	} else if (profile->policy.dfa &&
 		   profile->policy.start[AA_CLASS_FILE]) {
 		profile->file.dfa = aa_get_dfa(profile->policy.dfa);
-		profile->file.start = profile->policy.start[AA_CLASS_FILE];
+		profile->file.start[AA_CLASS_FILE] = profile->policy.start[AA_CLASS_FILE];
 	} else
 		profile->file.dfa = aa_get_dfa(nulldfa);
 
-	profile->file.fperms_table = compute_fperms(profile->file.dfa);
-	if (!profile->file.fperms_table) {
+	profile->file.perms = compute_fperms(profile->file.dfa);
+	if (!profile->file.perms) {
 		info = "failed to remap file permission table";
 		goto fail;
 	}

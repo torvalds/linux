@@ -619,7 +619,8 @@ static void profile_query_cb(struct aa_profile *profile, struct aa_perms *perms,
 		return;
 	if (profile->file.dfa && *match_str == AA_CLASS_FILE) {
 		dfa = profile->file.dfa;
-		state = aa_dfa_match_len(dfa, profile->file.start,
+		state = aa_dfa_match_len(dfa,
+					 profile->file.start[AA_CLASS_FILE],
 					 match_str + 1, match_len - 1);
 		if (state) {
 			struct path_cond cond = { };

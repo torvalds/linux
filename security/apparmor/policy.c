@@ -219,7 +219,7 @@ void aa_free_profile(struct aa_profile *profile)
 	aa_put_ns(profile->ns);
 	kfree_sensitive(profile->rename);
 
-	aa_free_file_rules(&profile->file);
+	aa_destroy_policydb(&profile->file);
 	aa_free_cap_rules(&profile->caps);
 	aa_free_rlimit_rules(&profile->rlimits);
 
@@ -232,8 +232,7 @@ void aa_free_profile(struct aa_profile *profile)
 	kfree_sensitive(profile->dirname);
 	aa_put_dfa(profile->xmatch);
 	kvfree(profile->xmatch_perms);
-	aa_put_dfa(profile->policy.dfa);
-	kvfree(profile->policy.perms);
+	aa_destroy_policydb(&profile->policy);
 	if (profile->data) {
 		rht = profile->data;
 		profile->data = NULL;

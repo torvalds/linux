@@ -185,16 +185,16 @@ static int path_name(const char *op, struct aa_label *label,
  * Returns: a pointer to a file permission set
  */
 struct aa_perms default_perms = {};
-struct aa_perms *aa_lookup_fperms(struct aa_file_rules *file_rules,
+struct aa_perms *aa_lookup_fperms(struct aa_policydb *file_rules,
 				 unsigned int state, struct path_cond *cond)
 {
-	if (!(file_rules->fperms_table))
+	if (!(file_rules->perms))
 		return &default_perms;
 
 	if (uid_eq(current_fsuid(), cond->uid))
-		return &(file_rules->fperms_table[state * 2]);
+		return &(file_rules->perms[state * 2]);
 
-	return &(file_rules->fperms_table[state * 2 + 1]);
+	return &(file_rules->perms[state * 2 + 1]);
 }
 
 /**
@@ -207,7 +207,7 @@ struct aa_perms *aa_lookup_fperms(struct aa_file_rules *file_rules,
  *
  * Returns: the final state in @dfa when beginning @start and walking @name
  */
-unsigned int aa_str_perms(struct aa_file_rules *file_rules, unsigned int start,
+unsigned int aa_str_perms(struct aa_policydb *file_rules, unsigned int start,
 			  const char *name, struct path_cond *cond,
 			  struct aa_perms *perms)
 {
@@ -226,7 +226,8 @@ int __aa_path_perm(const char *op, struct aa_profile *profile, const char *name,
 
 	if (profile_unconfined(profile))
 		return 0;
-	aa_str_perms(&(profile->file), profile->file.start, name, cond, perms);
+	aa_str_perms(&(profile->file), profile->file.start[AA_CLASS_FILE],
+		     name, cond, perms);
 	if (request & ~perms->allow)
 		e = -EACCES;
 	return aa_audit_file(profile, perms, op, request, name, NULL, NULL,
@@ -333,7 +334,8 @@ static int profile_path_link(struct aa_profile *profile,
 
 	error = -EACCES;
 	/* aa_str_perms - handles the case of the dfa being NULL */
-	state = aa_str_perms(&(profile->file), profile->file.start, lname,
+	state = aa_str_perms(&(profile->file),
+			     profile->file.start[AA_CLASS_FILE], lname,
 			     cond, &lperms);
 
 	if (!(lperms.allow & AA_MAY_LINK))
@@ -363,8 +365,8 @@ static int profile_path_link(struct aa_profile *profile,
 	/* Do link perm subset test requiring allowed permission on link are
 	 * a subset of the allowed permissions on target.
 	 */
-	aa_str_perms(&(profile->file), profile->file.start, tname, cond,
-		     &perms);
+	aa_str_perms(&(profile->file), profile->file.start[AA_CLASS_FILE],
+		     tname, cond, &perms);
 
 	/* AA_MAY_LINK is not considered in the subset test */
 	request = lperms.allow & ~AA_MAY_LINK;
