@@ -63,7 +63,7 @@
 #define OV8858_GAIN_H_SHIFT		8
 #define OV8858_GAIN_L_MASK		0xff
 #define OV8858_GAIN_MIN			0x80
-#define OV8858_GAIN_MAX			0x400
+#define OV8858_GAIN_MAX			0x7ff
 #define OV8858_GAIN_STEP		1
 #define OV8858_GAIN_DEFAULT		0x80
 
@@ -184,6 +184,7 @@ struct ov8858 {
 	unsigned int		lane_num;
 	unsigned int		cfg_num;
 	unsigned int		pixel_rate;
+	bool			power_on;
 
 	struct ov8858_otp_info_r1a *otp_r1a;
 	struct ov8858_otp_info_r2a *otp_r2a;
@@ -1335,7 +1336,7 @@ static const struct ov8858_mode supported_modes_2lane[] = {
 			.denominator = 150000,
 		},
 		.exp_def = 0x09a0,
-		.hts_def = 0x0794,
+		.hts_def = 0x0794 * 2,
 		.vts_def = 0x09aa,
 		.reg_list = ov8858_3264x2448_regs_2lane,
 	},
@@ -1362,7 +1363,7 @@ static const struct ov8858_mode supported_modes_4lane[] = {
 			.denominator = 300000,
 		},
 		.exp_def = 0x09a0,
-		.hts_def = 0x0794,
+		.hts_def = 0x0794 * 2,
 		.vts_def = 0x09aa,
 		.reg_list = ov8858_3264x2448_regs_4lane,
 	},
@@ -2078,10 +2079,6 @@ static int __ov8858_start_stream(struct ov8858 *ov8858)
 {
 	int ret;
 
-	ret = ov8858_write_array(ov8858->client, ov8858_global_regs);
-	if (ret)
-		return ret;
-
 	ret = ov8858_write_array(ov8858->client, ov8858->cur_mode->reg_list);
 	if (ret)
 		return ret;
@@ -2141,6 +2138,44 @@ static int ov8858_s_stream(struct v4l2_subdev *sd, int on)
 	}
 
 	ov8858->streaming = on;
+
+unlock_and_return:
+	mutex_unlock(&ov8858->mutex);
+
+	return ret;
+}
+
+static int ov8858_s_power(struct v4l2_subdev *sd, int on)
+{
+	struct ov8858 *ov8858 = to_ov8858(sd);
+	struct i2c_client *client = ov8858->client;
+	int ret = 0;
+
+	mutex_lock(&ov8858->mutex);
+
+	/* If the power state is not modified - no work to do. */
+	if (ov8858->power_on == !!on)
+		goto unlock_and_return;
+
+	if (on) {
+		ret = pm_runtime_get_sync(&client->dev);
+		if (ret < 0) {
+			pm_runtime_put_noidle(&client->dev);
+			goto unlock_and_return;
+		}
+
+		ret = ov8858_write_array(ov8858->client, ov8858_global_regs);
+		if (ret) {
+			v4l2_err(sd, "could not set init registers\n");
+			pm_runtime_put_noidle(&client->dev);
+			goto unlock_and_return;
+		}
+
+		ov8858->power_on = true;
+	} else {
+		pm_runtime_put(&client->dev);
+		ov8858->power_on = false;
+	}
 
 unlock_and_return:
 	mutex_unlock(&ov8858->mutex);
@@ -2306,6 +2341,7 @@ static const struct v4l2_subdev_internal_ops ov8858_internal_ops = {
 #endif
 
 static const struct v4l2_subdev_core_ops ov8858_core_ops = {
+	.s_power = ov8858_s_power,
 	.ioctl = ov8858_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl32 = ov8858_compat_ioctl32,
@@ -2357,12 +2393,14 @@ static int ov8858_set_ctrl(struct v4l2_ctrl *ctrl)
 	switch (ctrl->id) {
 	case V4L2_CID_EXPOSURE:
 		/* 4 least significant bits of expsoure are fractional part */
+		dev_dbg(&client->dev, "set exposure value 0x%x\n", ctrl->val);
 		ret = ov8858_write_reg(ov8858->client,
 					OV8858_REG_EXPOSURE,
 					OV8858_REG_VALUE_24BIT,
 					ctrl->val << 4);
 		break;
 	case V4L2_CID_ANALOGUE_GAIN:
+		dev_dbg(&client->dev, "set analog gain value 0x%x\n", ctrl->val);
 		ret = ov8858_write_reg(ov8858->client,
 					OV8858_REG_GAIN_H,
 					OV8858_REG_VALUE_08BIT,
@@ -2374,6 +2412,7 @@ static int ov8858_set_ctrl(struct v4l2_ctrl *ctrl)
 					ctrl->val & OV8858_GAIN_L_MASK);
 		break;
 	case V4L2_CID_VBLANK:
+		dev_dbg(&client->dev, "set vb value 0x%x\n", ctrl->val);
 		ret = ov8858_write_reg(ov8858->client,
 					OV8858_REG_VTS,
 					OV8858_REG_VALUE_16BIT,
