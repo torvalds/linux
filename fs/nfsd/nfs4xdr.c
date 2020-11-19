@@ -324,6 +324,33 @@ nfsd4_decode_acl(struct nfsd4_compoundargs *argp, struct nfs4_acl **acl)
 	return nfs_ok;
 }
 
+static noinline __be32
+nfsd4_decode_security_label(struct nfsd4_compoundargs *argp,
+			    struct xdr_netobj *label)
+{
+	u32 lfs, pi, length;
+	__be32 *p;
+
+	if (xdr_stream_decode_u32(argp->xdr, &lfs) < 0)
+		return nfserr_bad_xdr;
+	if (xdr_stream_decode_u32(argp->xdr, &pi) < 0)
+		return nfserr_bad_xdr;
+
+	if (xdr_stream_decode_u32(argp->xdr, &length) < 0)
+		return nfserr_bad_xdr;
+	if (length > NFS4_MAXLABELLEN)
+		return nfserr_badlabel;
+	p = xdr_inline_decode(argp->xdr, length);
+	if (!p)
+		return nfserr_bad_xdr;
+	label->len = length;
+	label->data = svcxdr_dupstr(argp, p, length);
+	if (!label->data)
+		return nfserr_jukebox;
+
+	return nfs_ok;
+}
+
 static __be32
 nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval,
 		   struct iattr *iattr, struct nfs4_acl **acl,
@@ -332,7 +359,6 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval,
 	unsigned int starting_pos;
 	u32 attrlist4_count;
 	u32 dummy32;
-	char *buf;
 
 	DECODE_HEAD;
 	iattr->ia_valid = 0;
@@ -440,24 +466,12 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval,
 			return nfserr_bad_xdr;
 		}
 	}
-
 	label->len = 0;
 	if (IS_ENABLED(CONFIG_NFSD_V4_SECURITY_LABEL) &&
 	    bmval[2] & FATTR4_WORD2_SECURITY_LABEL) {
-		READ_BUF(4);
-		dummy32 = be32_to_cpup(p++); /* lfs: we don't use it */
-		READ_BUF(4);
-		dummy32 = be32_to_cpup(p++); /* pi: we don't use it either */
-		READ_BUF(4);
-		dummy32 = be32_to_cpup(p++);
-		READ_BUF(dummy32);
-		if (dummy32 > NFS4_MAXLABELLEN)
-			return nfserr_badlabel;
-		READMEM(buf, dummy32);
-		label->len = dummy32;
-		label->data = svcxdr_dupstr(argp, buf, dummy32);
-		if (!label->data)
-			return nfserr_jukebox;
+		status = nfsd4_decode_security_label(argp, label);
+		if (status)
+			return status;
 	}
 	if (bmval[2] & FATTR4_WORD2_MODE_UMASK) {
 		if (!umask)
