@@ -539,34 +539,13 @@ static int adp5589_gpio_add(struct adp5589_kpad *kpad)
 					    ADP5589_GPIO_DIRECTION_A) + i);
 	}
 
-	if (gpio_data->setup) {
-		error = gpio_data->setup(kpad->client,
-					 kpad->gc.base, kpad->gc.ngpio,
-					 gpio_data->context);
-		if (error)
-			dev_warn(dev, "setup failed, %d\n", error);
-	}
-
 	return 0;
 }
 
 static void adp5589_gpio_remove(struct adp5589_kpad *kpad)
 {
-	struct device *dev = &kpad->client->dev;
-	const struct adp5589_kpad_platform_data *pdata = dev_get_platdata(dev);
-	const struct adp5589_gpio_platform_data *gpio_data = pdata->gpio_data;
-	int error;
-
 	if (!kpad->export_gpio)
 		return;
-
-	if (gpio_data->teardown) {
-		error = gpio_data->teardown(kpad->client,
-					    kpad->gc.base, kpad->gc.ngpio,
-					    gpio_data->context);
-		if (error)
-			dev_warn(dev, "teardown failed %d\n", error);
-	}
 
 	gpiochip_remove(&kpad->gc);
 }
