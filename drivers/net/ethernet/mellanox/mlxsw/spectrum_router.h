@@ -58,6 +58,7 @@ struct mlxsw_sp_router {
 	struct list_head nexthop_neighs_list;
 	struct list_head ipip_list;
 	bool aborted;
+	struct notifier_block nexthop_nb;
 	struct notifier_block fib_nb;
 	struct notifier_block netevent_nb;
 	struct notifier_block inetaddr_nb;
