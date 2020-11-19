@@ -850,8 +850,6 @@ static void mptcp_subflow_discard_data(struct sock *ssk, struct sk_buff *skb,
 		sk_eat_skb(ssk, skb);
 	if (mptcp_subflow_get_map_offset(subflow) >= subflow->map_data_len)
 		subflow->map_valid = 0;
-	if (incr)
-		tcp_cleanup_rbuf(ssk, incr);
 }
 
 static bool subflow_check_data_avail(struct sock *ssk)
@@ -973,7 +971,7 @@ void mptcp_space(const struct sock *ssk, int *space, int *full_space)
 	const struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(ssk);
 	const struct sock *sk = subflow->conn;
 
-	*space = tcp_space(sk);
+	*space = __mptcp_space(sk);
 	*full_space = tcp_full_space(sk);
 }
 
