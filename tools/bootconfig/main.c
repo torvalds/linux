@@ -337,12 +337,13 @@ static int delete_xbc(const char *path)
 
 static int apply_xbc(const char *path, const char *xbc_path)
 {
+	char *buf, *data, *p;
+	size_t total_size;
 	struct stat stat;
-	u32 size, csum;
-	char *buf, *data;
-	int ret, fd;
 	const char *msg;
-	int pos;
+	u32 size, csum;
+	int pos, pad;
+	int ret, fd;
 
 	ret = load_xbc_file(xbc_path, &buf);
 	if (ret < 0) {
@@ -352,13 +353,12 @@ static int apply_xbc(const char *path, const char *xbc_path)
 	size = strlen(buf) + 1;
 	csum = checksum((unsigned char *)buf, size);
 
-	/* Prepare xbc_path data */
-	data = malloc(size + 8);
+	/* Backup the bootconfig data */
+	data = calloc(size + BOOTCONFIG_ALIGN +
+		      sizeof(u32) + sizeof(u32) + BOOTCONFIG_MAGIC_LEN, 1);
 	if (!data)
 		return -ENOMEM;
-	strcpy(data, buf);
-	*(u32 *)(data + size) = size;
-	*(u32 *)(data + size + 4) = csum;
+	memcpy(data, buf, size);
 
 	/* Check the data format */
 	ret = xbc_init(buf, &msg, &pos);
@@ -399,24 +399,35 @@ static int apply_xbc(const char *path, const char *xbc_path)
 		pr_err("Failed to get the size of %s\n", path);
 		goto out;
 	}
-	ret = write(fd, data, size + 8);
-	if (ret < size + 8) {
+
+	/* To align up the total size to BOOTCONFIG_ALIGN, get padding size */
+	total_size = stat.st_size + size + sizeof(u32) * 2 + BOOTCONFIG_MAGIC_LEN;
+	pad = ((total_size + BOOTCONFIG_ALIGN - 1) & (~BOOTCONFIG_ALIGN_MASK)) - total_size;
+	size += pad;
+
+	/* Add a footer */
+	p = data + size;
+	*(u32 *)p = size;
+	p += sizeof(u32);
+
+	*(u32 *)p = csum;
+	p += sizeof(u32);
+
+	memcpy(p, BOOTCONFIG_MAGIC, BOOTCONFIG_MAGIC_LEN);
+	p += BOOTCONFIG_MAGIC_LEN;
+
+	total_size = p - data;
+
+	ret = write(fd, data, total_size);
+	if (ret < total_size) {
 		if (ret < 0)
 			ret = -errno;
 		pr_err("Failed to apply a boot config: %d\n", ret);
-		if (ret < 0)
-			goto out;
-		goto out_rollback;
-	}
-	/* Write a magic word of the bootconfig */
-	ret = write(fd, BOOTCONFIG_MAGIC, BOOTCONFIG_MAGIC_LEN);
-	if (ret < BOOTCONFIG_MAGIC_LEN) {
-		if (ret < 0)
-			ret = -errno;
-		pr_err("Failed to apply a boot config magic: %d\n", ret);
-		goto out_rollback;
-	}
-	ret = 0;
+		if (ret >= 0)
+			goto out_rollback;
+	} else
+		ret = 0;
+
 out:
 	close(fd);
 	free(data);
