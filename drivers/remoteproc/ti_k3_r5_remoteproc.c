@@ -38,6 +38,8 @@
 #define PROC_BOOT_CFG_FLAG_R5_TCM_RSTBASE		0x00000800
 #define PROC_BOOT_CFG_FLAG_R5_BTCM_EN			0x00001000
 #define PROC_BOOT_CFG_FLAG_R5_ATCM_EN			0x00002000
+/* Available from J7200 SoCs onwards */
+#define PROC_BOOT_CFG_FLAG_R5_MEM_INIT_DIS		0x00004000
 
 /* R5 TI-SCI Processor Control Flags */
 #define PROC_BOOT_CTRL_FLAG_R5_CORE_HALT		0x00000001
@@ -68,15 +70,25 @@ enum cluster_mode {
 };
 
 /**
+ * struct k3_r5_soc_data - match data to handle SoC variations
+ * @tcm_ecc_autoinit: flag to denote the auto-initialization of TCMs for ECC
+ */
+struct k3_r5_soc_data {
+	bool tcm_ecc_autoinit;
+};
+
+/**
  * struct k3_r5_cluster - K3 R5F Cluster structure
  * @dev: cached device pointer
  * @mode: Mode to configure the Cluster - Split or LockStep
  * @cores: list of R5 cores within the cluster
+ * @soc_data: SoC-specific feature data for a R5FSS
  */
 struct k3_r5_cluster {
 	struct device *dev;
 	enum cluster_mode mode;
 	struct list_head cores;
+	const struct k3_r5_soc_data *soc_data;
 };
 
 /**
@@ -362,7 +374,15 @@ static int k3_r5_rproc_prepare(struct rproc *rproc)
 	struct k3_r5_cluster *cluster = kproc->cluster;
 	struct k3_r5_core *core = kproc->core;
 	struct device *dev = kproc->dev;
+	u32 ctrl = 0, cfg = 0, stat = 0;
+	u64 boot_vec = 0;
+	bool mem_init_dis;
 	int ret;
+
+	ret = ti_sci_proc_get_status(core->tsp, &boot_vec, &cfg, &ctrl, &stat);
+	if (ret < 0)
+		return ret;
+	mem_init_dis = !!(cfg & PROC_BOOT_CFG_FLAG_R5_MEM_INIT_DIS);
 
 	ret = (cluster->mode == CLUSTER_MODE_LOCKSTEP) ?
 		k3_r5_lockstep_release(cluster) : k3_r5_split_release(core);
@@ -370,6 +390,17 @@ static int k3_r5_rproc_prepare(struct rproc *rproc)
 		dev_err(dev, "unable to enable cores for TCM loading, ret = %d\n",
 			ret);
 		return ret;
+	}
+
+	/*
+	 * Newer IP revisions like on J7200 SoCs support h/w auto-initialization
+	 * of TCMs, so there is no need to perform the s/w memzero. This bit is
+	 * configurable through System Firmware, the default value does perform
+	 * auto-init, but account for it in case it is disabled
+	 */
+	if (cluster->soc_data->tcm_ecc_autoinit && !mem_init_dis) {
+		dev_dbg(dev, "leveraging h/w init for TCM memories\n");
+		return 0;
 	}
 
 	/*
@@ -1309,8 +1340,15 @@ static int k3_r5_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev_of_node(dev);
 	struct k3_r5_cluster *cluster;
+	const struct k3_r5_soc_data *data;
 	int ret;
 	int num_cores;
+
+	data = of_device_get_match_data(&pdev->dev);
+	if (!data) {
+		dev_err(dev, "SoC-specific data is not defined\n");
+		return -ENODEV;
+	}
 
 	cluster = devm_kzalloc(dev, sizeof(*cluster), GFP_KERNEL);
 	if (!cluster)
@@ -1318,6 +1356,7 @@ static int k3_r5_probe(struct platform_device *pdev)
 
 	cluster->dev = dev;
 	cluster->mode = CLUSTER_MODE_LOCKSTEP;
+	cluster->soc_data = data;
 	INIT_LIST_HEAD(&cluster->cores);
 
 	ret = of_property_read_u32(np, "ti,cluster-mode", &cluster->mode);
@@ -1367,9 +1406,18 @@ static int k3_r5_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct k3_r5_soc_data am65_j721e_soc_data = {
+	.tcm_ecc_autoinit = false,
+};
+
+static const struct k3_r5_soc_data j7200_soc_data = {
+	.tcm_ecc_autoinit = true,
+};
+
 static const struct of_device_id k3_r5_of_match[] = {
-	{ .compatible = "ti,am654-r5fss", },
-	{ .compatible = "ti,j721e-r5fss", },
+	{ .compatible = "ti,am654-r5fss", .data = &am65_j721e_soc_data, },
+	{ .compatible = "ti,j721e-r5fss", .data = &am65_j721e_soc_data, },
+	{ .compatible = "ti,j7200-r5fss", .data = &j7200_soc_data, },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, k3_r5_of_match);
