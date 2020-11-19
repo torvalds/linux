@@ -5165,8 +5165,8 @@ static int rtl_get_ether_clk(struct rtl8169_private *tp)
 		if (rc == -ENOENT)
 			/* clk-core allows NULL (for suspend / resume) */
 			rc = 0;
-		else if (rc != -EPROBE_DEFER)
-			dev_err(d, "failed to get clk: %d\n", rc);
+		else
+			dev_err_probe(d, rc, "failed to get clk\n");
 	} else {
 		tp->clk = clk;
 		rc = clk_prepare_enable(clk);
