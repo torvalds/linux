@@ -86,6 +86,7 @@
 #define dpsw_get_bit(var, bit) \
 	(((var)  >> (bit)) & GENMASK(0, 0))
 
+#pragma pack(push, 1)
 struct dpsw_cmd_open {
 	__le32 dpsw_id;
 };
@@ -385,4 +386,5 @@ struct dpsw_cmd_if_set_mac_addr {
 	u8 mac_addr[6];
 };
 
+#pragma pack(pop)
 #endif /* __FSL_DPSW_CMD_H */
