@@ -617,6 +617,7 @@ static int rkcif_create_links(struct rkcif_device *dev)
 
 static int _set_pipeline_default_fmt(struct rkcif_device *dev)
 {
+	rkcif_set_default_fmt(dev);
 	return 0;
 }
 

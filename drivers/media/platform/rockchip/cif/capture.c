@@ -259,18 +259,39 @@ static const struct cif_output_fmt out_fmts[] = {
 		.mplanes = 1,
 		.bpp = { 16 },
 		.raw_bpp = 16,
+		.csi_fmt_val = CSI_WRDDR_TYPE_RAW8,
 		.fmt_type = CIF_FMT_TYPE_RAW,
 	}, {
 		.fourcc = V4L2_PIX_FMT_Y16,
 		.cplanes = 1,
 		.mplanes = 1,
 		.bpp = { 16 },
+		.raw_bpp = 16,
+		.csi_fmt_val	= CSI_WRDDR_TYPE_RAW8,
 		.fmt_type = CIF_FMT_TYPE_RAW,
 	}, {
 		.fourcc = V4L2_PIX_FMT_GREY,
 		.cplanes = 1,
 		.mplanes = 1,
 		.bpp = {8},
+		.raw_bpp = 8,
+		.csi_fmt_val	= CSI_WRDDR_TYPE_RAW8,
+		.fmt_type = CIF_FMT_TYPE_RAW,
+	}, {
+		.fourcc = V4l2_PIX_FMT_EBD8,
+		.cplanes = 1,
+		.mplanes = 1,
+		.bpp = {8},
+		.raw_bpp = 8,
+		.csi_fmt_val	= CSI_WRDDR_TYPE_RAW8,
+		.fmt_type = CIF_FMT_TYPE_RAW,
+	}, {
+		.fourcc = V4l2_PIX_FMT_SPD16,
+		.cplanes = 1,
+		.mplanes = 1,
+		.bpp = {16},
+		.raw_bpp = 16,
+		.csi_fmt_val	= CSI_WRDDR_TYPE_RAW8,
 		.fmt_type = CIF_FMT_TYPE_RAW,
 	}
 
@@ -428,6 +449,18 @@ static const struct cif_input_fmt in_fmts[] = {
 		.csi_fmt_val	= CSI_WRDDR_TYPE_RAW12,
 		.fmt_type	= CIF_FMT_TYPE_RAW,
 		.field		= V4L2_FIELD_NONE,
+	}, {
+		.mbus_code	= MEDIA_BUS_FMT_EBD_1X8,
+		.dvp_fmt_val	= INPUT_MODE_RAW | RAW_DATA_WIDTH_8,
+		.csi_fmt_val	= CSI_WRDDR_TYPE_RAW8,
+		.fmt_type	= CIF_FMT_TYPE_RAW,
+		.field		= V4L2_FIELD_NONE,
+	}, {
+		.mbus_code	= MEDIA_BUS_FMT_SPD_2X8,
+		.dvp_fmt_val	= INPUT_MODE_RAW | RAW_DATA_WIDTH_12,
+		.csi_fmt_val	= CSI_WRDDR_TYPE_RAW12,
+		.fmt_type	= CIF_FMT_TYPE_RAW,
+		.field		= V4L2_FIELD_NONE,
 	}
 };
 
@@ -545,6 +578,10 @@ static unsigned char get_data_type(u32 pixelformat, u8 cmd_mode_en)
 		else /* dsi video mode */
 			return 0x3e;
 	}
+	case MEDIA_BUS_FMT_EBD_1X8:
+		return 0x12;
+	case MEDIA_BUS_FMT_SPD_2X8:
+		return 0x2f;
 
 	default:
 		return 0x2b;
@@ -569,7 +606,7 @@ static int get_csi_crop_align(const struct cif_input_fmt *fmt_in)
 
 static const struct
 cif_input_fmt *get_input_fmt(struct v4l2_subdev *sd, struct v4l2_rect *rect,
-			     u32 pad)
+			     u32 pad, int *vc)
 {
 	struct v4l2_subdev_format fmt;
 	int ret;
@@ -577,11 +614,32 @@ cif_input_fmt *get_input_fmt(struct v4l2_subdev *sd, struct v4l2_rect *rect,
 
 	fmt.pad = pad;
 	fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+	fmt.reserved[0] = 0;
 	ret = v4l2_subdev_call(sd, pad, get_fmt, NULL, &fmt);
 	if (ret < 0) {
 		v4l2_warn(sd->v4l2_dev,
 			  "sensor fmt invalid, set to default size\n");
 		goto set_default;
+	}
+
+	/* v4l2_subdev_format reserved[0]
+	 * using as mipi virtual channel
+	 */
+	switch (fmt.reserved[0]) {
+	case V4L2_MBUS_CSI2_CHANNEL_3:
+		*vc = 3;
+		break;
+	case V4L2_MBUS_CSI2_CHANNEL_2:
+		*vc = 2;
+		break;
+	case V4L2_MBUS_CSI2_CHANNEL_1:
+		*vc = 1;
+		break;
+	case V4L2_MBUS_CSI2_CHANNEL_0:
+		*vc = 0;
+		break;
+	default:
+		*vc = -1;
 	}
 
 	v4l2_dbg(1, rkcif_debug, sd->v4l2_dev,
@@ -1572,7 +1630,7 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 	if (fmt->fmt_type == CIF_FMT_TYPE_RAW && stream->is_compact) {
 		channel->virtual_width = ALIGN(channel->width * fmt->raw_bpp / 8, 256);
 	} else {
-		if (fmt->fmt_type == CIF_FMT_TYPE_RAW)
+		if (fmt->fmt_type == CIF_FMT_TYPE_RAW && fmt->csi_fmt_val != CSI_WRDDR_TYPE_RAW8)
 			channel->virtual_width = ALIGN(channel->width * 2, 8);
 		else
 			channel->virtual_width = ALIGN(channel->width * fmt->bpp[0] / 8, 8);
@@ -1596,6 +1654,11 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 
 	channel->data_type = get_data_type(stream->cif_fmt_in->mbus_code,
 					   channel->cmd_mode_en);
+
+	if (stream->vc >= 0)
+		channel->vc = stream->vc;
+	else
+		channel->vc = channel->id;
 
 	return 0;
 }
@@ -1689,10 +1752,10 @@ static int rkcif_csi_channel_set(struct rkcif_stream *stream,
 					 channel->id);
 
 	if (mbus_type  == V4L2_MBUS_CSI2) {
+		//need always enable crop
 		val = CSI_ENABLE_CAPTURE | channel->fmt_val |
 		      channel->cmd_mode_en << 4 | CSI_ENABLE_CROP |
-		      channel->id << 8 | channel->data_type << 10;
-
+		      channel->vc << 8 | channel->data_type << 10;
 		if (stream->is_compact)
 			val |= CSI_ENABLE_MIPI_COMPACT;
 		else
@@ -2202,10 +2265,11 @@ static inline u32 rkcif_scl_ctl(struct rkcif_stream *stream)
  * rkcif_align_bits_per_pixel() - return the bit width of per pixel for stored
  * In raw or jpeg mode, data is stored by 16-bits,so need to align it.
  */
-static u32 rkcif_align_bits_per_pixel(const struct cif_output_fmt *fmt,
+static u32 rkcif_align_bits_per_pixel(struct rkcif_stream *stream,
+				      const struct cif_output_fmt *fmt,
 				      int plane_index)
 {
-	u32 bpp = 0, i;
+	u32 bpp = 0, i, cal = 0;
 
 	if (fmt) {
 		switch (fmt->fourcc) {
@@ -2237,10 +2301,18 @@ static u32 rkcif_align_bits_per_pixel(const struct cif_output_fmt *fmt,
 		case V4L2_PIX_FMT_SGBRG12:
 		case V4L2_PIX_FMT_SBGGR12:
 		case V4L2_PIX_FMT_SBGGR16:
-			bpp = max(fmt->bpp[plane_index], (u8)CIF_RAW_STORED_BIT_WIDTH);
+		case V4l2_PIX_FMT_SPD16:
+		case V4l2_PIX_FMT_EBD8:
+			if (stream->cifdev->chip_id < CHIP_RV1126_CIF) {
+				bpp = max(fmt->bpp[plane_index], (u8)CIF_RAW_STORED_BIT_WIDTH);
+				cal = CIF_RAW_STORED_BIT_WIDTH;
+			} else {
+				bpp = max(fmt->bpp[plane_index], (u8)CIF_RAW_STORED_BIT_WIDTH_RV1126);
+				cal = CIF_RAW_STORED_BIT_WIDTH_RV1126;
+			}
 			for (i = 1; i < 5; i++) {
-				if (i * CIF_RAW_STORED_BIT_WIDTH >= bpp) {
-					bpp = i * CIF_RAW_STORED_BIT_WIDTH;
+				if (i * cal >= bpp) {
+					bpp = i * cal;
 					break;
 				}
 			}
@@ -2259,12 +2331,13 @@ static u32 rkcif_align_bits_per_pixel(const struct cif_output_fmt *fmt,
  * In raw or jpeg mode, data is stored by 16-bits,
  * so need to align virtual line width.
  */
-static u32 rkcif_cal_raw_vir_line_ratio(const struct cif_output_fmt *fmt)
+static u32 rkcif_cal_raw_vir_line_ratio(struct rkcif_stream *stream,
+					const struct cif_output_fmt *fmt)
 {
 	u32 ratio = 0, bpp = 0;
 
 	if (fmt) {
-		bpp = rkcif_align_bits_per_pixel(fmt, 0);
+		bpp = rkcif_align_bits_per_pixel(stream, fmt, 0);
 		ratio = bpp / CIF_YUV_STORED_BIT_WIDTH;
 	}
 
@@ -2324,12 +2397,20 @@ static int rkcif_sanity_check_fmt(struct rkcif_stream *stream,
 	struct rkcif_device *dev = stream->cifdev;
 	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
 	struct v4l2_rect input, *crop;
+	int vc;
 
-	stream->cif_fmt_in = get_input_fmt(dev->active_sensor->sd,
-					   &input, stream->id + 1);
+	stream->cif_fmt_in = get_input_fmt(dev->terminal_sensor.sd,
+					   &input, stream->id, &vc);
 	if (!stream->cif_fmt_in) {
 		v4l2_err(v4l2_dev, "Input fmt is invalid\n");
 		return -EINVAL;
+	}
+
+	stream->vc = vc;
+	if (stream->cif_fmt_in->mbus_code == MEDIA_BUS_FMT_EBD_1X8 ||
+		stream->cif_fmt_in->mbus_code == MEDIA_BUS_FMT_SPD_2X8) {
+		stream->crop_enable = false;
+		return 0;
 	}
 
 	if (s_crop)
@@ -2559,7 +2640,7 @@ static int rkcif_stream_start(struct rkcif_stream *stream)
 	val = stream->pixm.width;
 	if (stream->cif_fmt_in->fmt_type == CIF_FMT_TYPE_RAW) {
 		fmt = find_output_fmt(stream, stream->pixm.pixelformat);
-		val = stream->pixm.width * rkcif_cal_raw_vir_line_ratio(fmt);
+		val = stream->pixm.width * rkcif_cal_raw_vir_line_ratio(stream, fmt);
 	}
 	rkcif_write_register(dev, CIF_REG_DVP_VIR_LINE_WIDTH, val);
 	rkcif_write_register(dev, CIF_REG_DVP_SET_SIZE,
@@ -2845,7 +2926,7 @@ static void rkcif_set_fmt(struct rkcif_stream *stream,
 	u32 xsubs = 1, ysubs = 1, i;
 	struct rkmodule_hdr_cfg hdr_cfg;
 	struct rkcif_extend_info *extend_line = &stream->extend_line;
-	int ret;
+	int ret, vc;
 
 	fmt = find_output_fmt(stream, pixm->pixelformat);
 	if (!fmt)
@@ -2855,8 +2936,8 @@ static void rkcif_set_fmt(struct rkcif_stream *stream,
 	input_rect.height = RKCIF_DEFAULT_HEIGHT;
 
 	if (dev->active_sensor && dev->active_sensor->sd) {
-		cif_fmt_in = get_input_fmt(dev->active_sensor->sd,
-			      &input_rect, stream->id + 1);
+		cif_fmt_in = get_input_fmt(dev->terminal_sensor.sd,
+			      &input_rect, stream->id, &vc);
 		stream->cif_fmt_in = cif_fmt_in;
 	}
 
@@ -2918,12 +2999,18 @@ static void rkcif_set_fmt(struct rkcif_stream *stream,
 		 * align 8 to bring into correspondence with virtual width.
 		 * to optimize reading and writing of ddr, aliged with 256.
 		 */
+		if (fmt->fmt_type == CIF_FMT_TYPE_RAW &&
+			(stream->cif_fmt_in->mbus_code == MEDIA_BUS_FMT_EBD_1X8 ||
+			stream->cif_fmt_in->mbus_code == MEDIA_BUS_FMT_SPD_2X8)) {
+			stream->is_compact = false;
+		}
+
 		if (fmt->fmt_type == CIF_FMT_TYPE_RAW && stream->is_compact &&
 		    (dev->active_sensor->mbus.type == V4L2_MBUS_CSI2 ||
 		     dev->active_sensor->mbus.type == V4L2_MBUS_CCP2)) {
 			bpl = ALIGN(width * fmt->raw_bpp / 8, 256);
 		} else {
-			bpp = rkcif_align_bits_per_pixel(fmt, i);
+			bpp = rkcif_align_bits_per_pixel(stream, fmt, i);
 			bpl = width * bpp / CIF_YUV_STORED_BIT_WIDTH;
 		}
 		size = bpl * height;
@@ -3139,6 +3226,7 @@ static int rkcif_enum_framesizes(struct file *file, void *prov,
 	struct rkcif_stream *stream = video_drvdata(file);
 	struct rkcif_device *dev = stream->cifdev;
 	struct v4l2_rect input_rect;
+	int vc;
 
 	if (fsize->index != 0)
 		return -EINVAL;
@@ -3149,9 +3237,9 @@ static int rkcif_enum_framesizes(struct file *file, void *prov,
 	input_rect.width = RKCIF_DEFAULT_WIDTH;
 	input_rect.height = RKCIF_DEFAULT_HEIGHT;
 
-	if (dev->active_sensor && dev->active_sensor->sd)
-		get_input_fmt(dev->active_sensor->sd,
-			      &input_rect, stream->id + 1);
+	if (dev->terminal_sensor.sd)
+		get_input_fmt(dev->terminal_sensor.sd,
+			      &input_rect, stream->id, &vc);
 
 	fsize->type = V4L2_FRMSIZE_TYPE_STEPWISE;
 	s->min_width = CIF_MIN_WIDTH;
@@ -4423,7 +4511,7 @@ static void rkcif_dynamic_crop(struct rkcif_stream *stream)
 
 		if (stream->cif_fmt_in->fmt_type == CIF_FMT_TYPE_RAW) {
 			fmt = find_output_fmt(stream, stream->pixm.pixelformat);
-			crop_vwidth = raw_width * rkcif_cal_raw_vir_line_ratio(fmt);
+			crop_vwidth = raw_width * rkcif_cal_raw_vir_line_ratio(stream, fmt);
 		}
 		rkcif_write_register(cif_dev, CIF_REG_DVP_VIR_LINE_WIDTH, crop_vwidth);
 
@@ -5347,6 +5435,114 @@ static void rkcif_detect_wake_up_mode_change(struct rkcif_stream *stream)
 	} else if (cif_dev->hdr.mode == HDR_X3 && stream->id == RKCIF_STREAM_MIPI_ID2) {
 		if (cif_dev->wait_line != cif_dev->wait_line_cache)
 			cif_dev->wait_line = cif_dev->wait_line_cache;
+	}
+}
+
+static u32 rkisp_mbus_pixelcode_to_v4l2(u32 pixelcode)
+{
+	u32 pixelformat;
+
+	switch (pixelcode) {
+	case MEDIA_BUS_FMT_Y8_1X8:
+		pixelformat = V4L2_PIX_FMT_GREY;
+		break;
+	case MEDIA_BUS_FMT_SBGGR8_1X8:
+		pixelformat = V4L2_PIX_FMT_SBGGR8;
+		break;
+	case MEDIA_BUS_FMT_SGBRG8_1X8:
+		pixelformat = V4L2_PIX_FMT_SGBRG8;
+		break;
+	case MEDIA_BUS_FMT_SGRBG8_1X8:
+		pixelformat = V4L2_PIX_FMT_SGRBG8;
+		break;
+	case MEDIA_BUS_FMT_SRGGB8_1X8:
+		pixelformat = V4L2_PIX_FMT_SRGGB8;
+		break;
+	case MEDIA_BUS_FMT_Y10_1X10:
+		pixelformat = V4L2_PIX_FMT_Y10;
+		break;
+	case MEDIA_BUS_FMT_SBGGR10_1X10:
+		pixelformat = V4L2_PIX_FMT_SBGGR10;
+		break;
+	case MEDIA_BUS_FMT_SGBRG10_1X10:
+		pixelformat = V4L2_PIX_FMT_SGBRG10;
+		break;
+	case MEDIA_BUS_FMT_SGRBG10_1X10:
+		pixelformat = V4L2_PIX_FMT_SGRBG10;
+		break;
+	case MEDIA_BUS_FMT_SRGGB10_1X10:
+		pixelformat = V4L2_PIX_FMT_SRGGB10;
+		break;
+	case MEDIA_BUS_FMT_Y12_1X12:
+		pixelformat = V4L2_PIX_FMT_Y12;
+		break;
+	case MEDIA_BUS_FMT_SBGGR12_1X12:
+		pixelformat = V4L2_PIX_FMT_SBGGR12;
+		break;
+	case MEDIA_BUS_FMT_SGBRG12_1X12:
+		pixelformat = V4L2_PIX_FMT_SGBRG12;
+		break;
+	case MEDIA_BUS_FMT_SGRBG12_1X12:
+		pixelformat = V4L2_PIX_FMT_SGRBG12;
+		break;
+	case MEDIA_BUS_FMT_SRGGB12_1X12:
+		pixelformat = V4L2_PIX_FMT_SRGGB12;
+		break;
+	case MEDIA_BUS_FMT_SPD_2X8:
+		pixelformat = V4l2_PIX_FMT_SPD16;
+		break;
+	case MEDIA_BUS_FMT_EBD_1X8:
+		pixelformat = V4l2_PIX_FMT_EBD8;
+		break;
+	default:
+		pixelformat = V4L2_PIX_FMT_SRGGB10;
+	}
+
+	return pixelformat;
+}
+
+void rkcif_set_default_fmt(struct rkcif_device *cif_dev)
+{
+	struct v4l2_subdev_selection input_sel;
+	struct v4l2_pix_format_mplane pixm;
+	struct v4l2_subdev_format fmt;
+	int stream_num = 0;
+	int ret, i;
+
+	if (cif_dev->chip_id < CHIP_RV1126_CIF)
+		return;
+
+	stream_num = RKCIF_MAX_STREAM_MIPI;
+
+	if (!cif_dev->terminal_sensor.sd)
+		rkcif_update_sensor_info(&cif_dev->stream[0]);
+
+	if (cif_dev->terminal_sensor.sd) {
+		for (i = 0; i < stream_num; i++) {
+			if (i == RKCIF_STREAM_MIPI_ID3)
+				cif_dev->stream[i].is_compact = false;
+			memset(&fmt, 0, sizeof(fmt));
+			fmt.pad = i;
+			fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+			v4l2_subdev_call(cif_dev->terminal_sensor.sd, pad, get_fmt, NULL, &fmt);
+
+			memset(&pixm, 0, sizeof(pixm));
+			pixm.pixelformat = rkisp_mbus_pixelcode_to_v4l2(fmt.format.code);
+			pixm.width = fmt.format.width;
+			pixm.height = fmt.format.height;
+
+			memset(&input_sel, 0, sizeof(input_sel));
+			input_sel.pad = i;
+			input_sel.target = V4L2_SEL_TGT_CROP_BOUNDS;
+			ret = v4l2_subdev_call(cif_dev->terminal_sensor.sd,
+					       pad, get_selection, NULL,
+					       &input_sel);
+			if (!ret) {
+				pixm.width = input_sel.r.width;
+				pixm.height = input_sel.r.height;
+			}
+			rkcif_set_fmt(&cif_dev->stream[i], &pixm, false);
+		}
 	}
 }
 

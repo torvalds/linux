@@ -429,6 +429,7 @@ struct rkcif_stream {
 	struct rkcif_readout_stats	readout;
 	unsigned int			fs_cnt_in_single_frame;
 	u64				line_int_cnt;
+	int				vc;
 	bool				stopping;
 	bool				crop_enable;
 	bool				crop_dyn_en;
@@ -565,6 +566,7 @@ int rkcif_register_stream_vdevs(struct rkcif_device *dev,
 				int stream_num,
 				bool is_multi_input);
 void rkcif_stream_init(struct rkcif_device *dev, u32 id);
+void rkcif_set_default_fmt(struct rkcif_device *cif_dev);
 void rkcif_irq_oneframe(struct rkcif_device *cif_dev);
 void rkcif_irq_pingpong(struct rkcif_device *cif_dev);
 void rkcif_soft_reset(struct rkcif_device *cif_dev,

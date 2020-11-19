@@ -297,7 +297,7 @@ static void csi2_enable(struct csi2_dev *csi2,
 		write_csihost_reg(base, CSIHOST_CONTROL,
 				  SW_CPHY_EN(0) | SW_DSI_EN(0));
 		write_csihost_reg(base, CSIHOST_MSK1, 0);
-		write_csihost_reg(base, CSIHOST_MSK2, 0);
+		write_csihost_reg(base, CSIHOST_MSK2, 0xf000);
 	}
 
 	write_csihost_reg(base, CSIHOST_RESETN, 1);

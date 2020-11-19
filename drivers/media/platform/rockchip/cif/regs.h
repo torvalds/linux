@@ -209,6 +209,7 @@ enum cif_reg_index {
 /* Check if swap y and c in bt1120 mode */
 #define CIF_FETCH_IS_Y_FIRST(val)	((val >> 5) & 0x3)
 #define CIF_RAW_STORED_BIT_WIDTH	(16U)
+#define CIF_RAW_STORED_BIT_WIDTH_RV1126	(8U)
 #define CIF_YUV_STORED_BIT_WIDTH	(8U)
 
 /* RK1808 & RV1126 CIF CSI & LVDS Registers Offset */
