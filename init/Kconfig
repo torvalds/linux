@@ -1348,6 +1348,11 @@ config LD_DEAD_CODE_DATA_ELIMINATION
 	  present. This option is not well tested yet, so use at your
 	  own risk.
 
+config LD_ORPHAN_WARN
+	def_bool y
+	depends on ARCH_WANT_LD_ORPHAN_WARN
+	depends on $(ld-option,--orphan-handling=warn)
+
 config SYSCTL
 	bool
 
