@@ -484,6 +484,24 @@ static int ov5647_enum_mbus_code(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int ov5647_enum_frame_size(struct v4l2_subdev *sd,
+				  struct v4l2_subdev_pad_config *cfg,
+				  struct v4l2_subdev_frame_size_enum *fse)
+{
+	if (fse->index)
+		return -EINVAL;
+
+	if (fse->code != MEDIA_BUS_FMT_SBGGR8_1X8)
+		return -EINVAL;
+
+	fse->min_width = 640;
+	fse->max_width = 640;
+	fse->min_height = 480;
+	fse->max_height = 480;
+
+	return 0;
+}
+
 static int ov5647_set_get_fmt(struct v4l2_subdev *sd,
 			      struct v4l2_subdev_pad_config *cfg,
 			      struct v4l2_subdev_format *format)
@@ -502,9 +520,10 @@ static int ov5647_set_get_fmt(struct v4l2_subdev *sd,
 }
 
 static const struct v4l2_subdev_pad_ops ov5647_subdev_pad_ops = {
-	.enum_mbus_code = ov5647_enum_mbus_code,
-	.set_fmt =	  ov5647_set_get_fmt,
-	.get_fmt =	  ov5647_set_get_fmt,
+	.enum_mbus_code		= ov5647_enum_mbus_code,
+	.enum_frame_size	= ov5647_enum_frame_size,
+	.set_fmt		= ov5647_set_get_fmt,
+	.get_fmt		= ov5647_set_get_fmt,
 };
 
 static const struct v4l2_subdev_ops ov5647_subdev_ops = {
