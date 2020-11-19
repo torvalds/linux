@@ -459,7 +459,7 @@ int nf_ct_frag6_gather(struct net *net, struct sk_buff *skb, u32 user)
 	/* Discard the first fragment if it does not include all headers
 	 * RFC 8200, Section 4.5
 	 */
-	if (ipv6_frag_thdr_truncated(skb, fhoff, &nexthdr)) {
+	if (ipv6frag_thdr_truncated(skb, fhoff, &nexthdr)) {
 		pr_debug("Drop incomplete fragment\n");
 		return 0;
 	}

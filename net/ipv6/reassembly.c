@@ -318,35 +318,6 @@ out_fail:
 	return -1;
 }
 
-/* Check if the upper layer header is truncated in the first fragment. */
-bool ipv6_frag_thdr_truncated(struct sk_buff *skb, int start, u8 *nexthdrp)
-{
-	u8 nexthdr = *nexthdrp;
-	__be16 frag_off;
-	int offset;
-
-	offset = ipv6_skip_exthdr(skb, start, &nexthdr, &frag_off);
-	if (offset < 0 || (frag_off & htons(IP6_OFFSET)))
-		return false;
-	switch (nexthdr) {
-	case NEXTHDR_TCP:
-		offset += sizeof(struct tcphdr);
-		break;
-	case NEXTHDR_UDP:
-		offset += sizeof(struct udphdr);
-		break;
-	case NEXTHDR_ICMP:
-		offset += sizeof(struct icmp6hdr);
-		break;
-	default:
-		offset += 1;
-	}
-	if (offset > skb->len)
-		return true;
-	return false;
-}
-EXPORT_SYMBOL(ipv6_frag_thdr_truncated);
-
 static int ipv6_frag_rcv(struct sk_buff *skb)
 {
 	struct frag_hdr *fhdr;
@@ -390,7 +361,7 @@ static int ipv6_frag_rcv(struct sk_buff *skb)
 	 * the source of the fragment, with the Pointer field set to zero.
 	 */
 	nexthdr = hdr->nexthdr;
-	if (ipv6_frag_thdr_truncated(skb, skb_transport_offset(skb), &nexthdr)) {
+	if (ipv6frag_thdr_truncated(skb, skb_transport_offset(skb), &nexthdr)) {
 		__IP6_INC_STATS(net, __in6_dev_get_safely(skb->dev),
 				IPSTATS_MIB_INHDRERRORS);
 		icmpv6_param_prob(skb, ICMPV6_HDR_INCOMP, 0);
