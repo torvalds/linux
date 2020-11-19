@@ -1016,8 +1016,7 @@ static int adp5589_probe(struct i2c_client *client,
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int adp5589_suspend(struct device *dev)
+static int __maybe_unused adp5589_suspend(struct device *dev)
 {
 	struct adp5589_kpad *kpad = dev_get_drvdata(dev);
 	struct i2c_client *client = kpad->client;
@@ -1033,7 +1032,7 @@ static int adp5589_suspend(struct device *dev)
 	return 0;
 }
 
-static int adp5589_resume(struct device *dev)
+static int __maybe_unused adp5589_resume(struct device *dev)
 {
 	struct adp5589_kpad *kpad = dev_get_drvdata(dev);
 	struct i2c_client *client = kpad->client;
@@ -1048,7 +1047,6 @@ static int adp5589_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static SIMPLE_DEV_PM_OPS(adp5589_dev_pm_ops, adp5589_suspend, adp5589_resume);
 
