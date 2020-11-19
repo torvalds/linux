@@ -195,8 +195,11 @@ EXPORT_SYMBOL(ceph_pr_addr);
 
 void ceph_encode_my_addr(struct ceph_messenger *msgr)
 {
-	memcpy(&msgr->my_enc_addr, &msgr->inst.addr, sizeof(msgr->my_enc_addr));
-	ceph_encode_banner_addr(&msgr->my_enc_addr);
+	if (!ceph_msgr2(from_msgr(msgr))) {
+		memcpy(&msgr->my_enc_addr, &msgr->inst.addr,
+		       sizeof(msgr->my_enc_addr));
+		ceph_encode_banner_addr(&msgr->my_enc_addr);
+	}
 }
 
 /*
@@ -513,7 +516,10 @@ static void ceph_con_reset_protocol(struct ceph_connection *con)
 		con->out_msg = NULL;
 	}
 
-	ceph_con_v1_reset_protocol(con);
+	if (ceph_msgr2(from_msgr(con->msgr)))
+		ceph_con_v2_reset_protocol(con);
+	else
+		ceph_con_v1_reset_protocol(con);
 }
 
 /*
@@ -526,6 +532,7 @@ static void ceph_msg_remove(struct ceph_msg *msg)
 
 	ceph_msg_put(msg);
 }
+
 static void ceph_msg_remove_list(struct list_head *head)
 {
 	while (!list_empty(head)) {
@@ -547,7 +554,10 @@ void ceph_con_reset_session(struct ceph_connection *con)
 	con->in_seq = 0;
 	con->in_seq_acked = 0;
 
-	ceph_con_v1_reset_session(con);
+	if (ceph_msgr2(from_msgr(con->msgr)))
+		ceph_con_v2_reset_session(con);
+	else
+		ceph_con_v1_reset_session(con);
 }
 
 /*
@@ -600,6 +610,9 @@ EXPORT_SYMBOL(ceph_con_open);
  */
 bool ceph_con_opened(struct ceph_connection *con)
 {
+	if (ceph_msgr2(from_msgr(con->msgr)))
+		return ceph_con_v2_opened(con);
+
 	return ceph_con_v1_opened(con);
 }
 
@@ -1302,7 +1315,16 @@ int ceph_parse_ips(const char *c, const char *end,
 		}
 
 		ceph_addr_set_port(&addr[i], port);
+		/*
+		 * We want the type to be set according to ms_mode
+		 * option, but options are normally parsed after mon
+		 * addresses.  Rather than complicating parsing, set
+		 * to LEGACY and override in build_initial_monmap()
+		 * for mon addresses and ceph_messenger_init() for
+		 * ip option.
+		 */
 		addr[i].type = CEPH_ENTITY_ADDR_TYPE_LEGACY;
+		addr[i].nonce = 0;
 
 		dout("parse_ips got %s\n", ceph_pr_addr(&addr[i]));
 
@@ -1410,6 +1432,13 @@ static bool con_sock_closed(struct ceph_connection *con)
 	CASE(PREOPEN);
 	CASE(V1_BANNER);
 	CASE(V1_CONNECT_MSG);
+	CASE(V2_BANNER_PREFIX);
+	CASE(V2_BANNER_PAYLOAD);
+	CASE(V2_HELLO);
+	CASE(V2_AUTH);
+	CASE(V2_AUTH_SIGNATURE);
+	CASE(V2_SESSION_CONNECT);
+	CASE(V2_SESSION_RECONNECT);
 	CASE(OPEN);
 	CASE(STANDBY);
 	default:
@@ -1494,7 +1523,10 @@ static void ceph_con_workfn(struct work_struct *work)
 			BUG_ON(con->sock);
 		}
 
-		ret = ceph_con_v1_try_read(con);
+		if (ceph_msgr2(from_msgr(con->msgr)))
+			ret = ceph_con_v2_try_read(con);
+		else
+			ret = ceph_con_v1_try_read(con);
 		if (ret < 0) {
 			if (ret == -EAGAIN)
 				continue;
@@ -1504,7 +1536,10 @@ static void ceph_con_workfn(struct work_struct *work)
 			break;
 		}
 
-		ret = ceph_con_v1_try_write(con);
+		if (ceph_msgr2(from_msgr(con->msgr)))
+			ret = ceph_con_v2_try_write(con);
+		else
+			ret = ceph_con_v1_try_write(con);
 		if (ret < 0) {
 			if (ret == -EAGAIN)
 				continue;
@@ -1538,9 +1573,8 @@ static void con_fault(struct ceph_connection *con)
 		ceph_pr_addr(&con->peer_addr), con->error_msg);
 	con->error_msg = NULL;
 
-	WARN_ON(con->state != CEPH_CON_S_V1_BANNER &&
-	       con->state != CEPH_CON_S_V1_CONNECT_MSG &&
-	       con->state != CEPH_CON_S_OPEN);
+	WARN_ON(con->state == CEPH_CON_S_STANDBY ||
+		con->state == CEPH_CON_S_CLOSED);
 
 	ceph_con_reset_protocol(con);
 
@@ -1596,7 +1630,11 @@ void ceph_messenger_init(struct ceph_messenger *msgr,
 		ceph_addr_set_port(&msgr->inst.addr, 0);
 	}
 
-	msgr->inst.addr.type = 0;
+	/*
+	 * Since nautilus, clients are identified using type ANY.
+	 * For msgr1, ceph_encode_banner_addr() munges it to NONE.
+	 */
+	msgr->inst.addr.type = CEPH_ENTITY_ADDR_TYPE_ANY;
 
 	/* generate a random non-zero nonce */
 	do {
@@ -1706,7 +1744,10 @@ void ceph_msg_revoke(struct ceph_msg *msg)
 	if (con->out_msg == msg) {
 		WARN_ON(con->state != CEPH_CON_S_OPEN);
 		dout("%s con %p msg %p was sending\n", __func__, con, msg);
-		ceph_con_v1_revoke(con);
+		if (ceph_msgr2(from_msgr(con->msgr)))
+			ceph_con_v2_revoke(con);
+		else
+			ceph_con_v1_revoke(con);
 		ceph_msg_put(con->out_msg);
 		con->out_msg = NULL;
 	} else {
@@ -1732,7 +1773,10 @@ void ceph_msg_revoke_incoming(struct ceph_msg *msg)
 	if (con->in_msg == msg) {
 		WARN_ON(con->state != CEPH_CON_S_OPEN);
 		dout("%s con %p msg %p was recving\n", __func__, con, msg);
-		ceph_con_v1_revoke_incoming(con);
+		if (ceph_msgr2(from_msgr(con->msgr)))
+			ceph_con_v2_revoke_incoming(con);
+		else
+			ceph_con_v1_revoke_incoming(con);
 		ceph_msg_put(con->in_msg);
 		con->in_msg = NULL;
 	} else {

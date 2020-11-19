@@ -120,8 +120,12 @@ int ceph_auth_entity_name_encode(const char *name, void **p, void *end);
 
 extern int ceph_build_auth(struct ceph_auth_client *ac,
 		    void *msg_buf, size_t msg_len);
-
 extern int ceph_auth_is_authenticated(struct ceph_auth_client *ac);
+
+int __ceph_auth_get_authorizer(struct ceph_auth_client *ac,
+			       struct ceph_auth_handshake *auth,
+			       int peer_type, bool force_new,
+			       int *proto, int *pref_mode, int *fallb_mode);
 extern int ceph_auth_create_authorizer(struct ceph_auth_client *ac,
 				       int peer_type,
 				       struct ceph_auth_handshake *auth);
@@ -157,4 +161,34 @@ int ceph_auth_check_message_signature(struct ceph_auth_handshake *auth,
 		return auth->check_message_signature(auth, msg);
 	return 0;
 }
+
+int ceph_auth_get_request(struct ceph_auth_client *ac, void *buf, int buf_len);
+int ceph_auth_handle_reply_more(struct ceph_auth_client *ac, void *reply,
+				int reply_len, void *buf, int buf_len);
+int ceph_auth_handle_reply_done(struct ceph_auth_client *ac,
+				u64 global_id, void *reply, int reply_len,
+				u8 *session_key, int *session_key_len,
+				u8 *con_secret, int *con_secret_len);
+bool ceph_auth_handle_bad_method(struct ceph_auth_client *ac,
+				 int used_proto, int result,
+				 const int *allowed_protos, int proto_cnt,
+				 const int *allowed_modes, int mode_cnt);
+
+int ceph_auth_get_authorizer(struct ceph_auth_client *ac,
+			     struct ceph_auth_handshake *auth,
+			     int peer_type, void *buf, int *buf_len);
+int ceph_auth_handle_svc_reply_more(struct ceph_auth_client *ac,
+				    struct ceph_auth_handshake *auth,
+				    void *reply, int reply_len,
+				    void *buf, int *buf_len);
+int ceph_auth_handle_svc_reply_done(struct ceph_auth_client *ac,
+				    struct ceph_auth_handshake *auth,
+				    void *reply, int reply_len,
+				    u8 *session_key, int *session_key_len,
+				    u8 *con_secret, int *con_secret_len);
+bool ceph_auth_handle_bad_authorizer(struct ceph_auth_client *ac,
+				     int peer_type, int used_proto, int result,
+				     const int *allowed_protos, int proto_cnt,
+				     const int *allowed_modes, int mode_cnt);
+
 #endif

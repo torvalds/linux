@@ -293,6 +293,39 @@ int ceph_auth_is_authenticated(struct ceph_auth_client *ac)
 }
 EXPORT_SYMBOL(ceph_auth_is_authenticated);
 
+int __ceph_auth_get_authorizer(struct ceph_auth_client *ac,
+			       struct ceph_auth_handshake *auth,
+			       int peer_type, bool force_new,
+			       int *proto, int *pref_mode, int *fallb_mode)
+{
+	int ret;
+
+	mutex_lock(&ac->mutex);
+	if (force_new && auth->authorizer) {
+		ceph_auth_destroy_authorizer(auth->authorizer);
+		auth->authorizer = NULL;
+	}
+	if (!auth->authorizer)
+		ret = ac->ops->create_authorizer(ac, peer_type, auth);
+	else if (ac->ops->update_authorizer)
+		ret = ac->ops->update_authorizer(ac, peer_type, auth);
+	else
+		ret = 0;
+	if (ret)
+		goto out;
+
+	*proto = ac->protocol;
+	if (pref_mode && fallb_mode) {
+		*pref_mode = ac->preferred_mode;
+		*fallb_mode = ac->fallback_mode;
+	}
+
+out:
+	mutex_unlock(&ac->mutex);
+	return ret;
+}
+EXPORT_SYMBOL(__ceph_auth_get_authorizer);
+
 int ceph_auth_create_authorizer(struct ceph_auth_client *ac,
 				int peer_type,
 				struct ceph_auth_handshake *auth)
@@ -369,3 +402,279 @@ void ceph_auth_invalidate_authorizer(struct ceph_auth_client *ac, int peer_type)
 	mutex_unlock(&ac->mutex);
 }
 EXPORT_SYMBOL(ceph_auth_invalidate_authorizer);
+
+/*
+ * msgr2 authentication
+ */
+
+static bool contains(const int *arr, int cnt, int val)
+{
+	int i;
+
+	for (i = 0; i < cnt; i++) {
+		if (arr[i] == val)
+			return true;
+	}
+
+	return false;
+}
+
+static int encode_con_modes(void **p, void *end, int pref_mode, int fallb_mode)
+{
+	WARN_ON(pref_mode == CEPH_CON_MODE_UNKNOWN);
+	if (fallb_mode != CEPH_CON_MODE_UNKNOWN) {
+		ceph_encode_32_safe(p, end, 2, e_range);
+		ceph_encode_32_safe(p, end, pref_mode, e_range);
+		ceph_encode_32_safe(p, end, fallb_mode, e_range);
+	} else {
+		ceph_encode_32_safe(p, end, 1, e_range);
+		ceph_encode_32_safe(p, end, pref_mode, e_range);
+	}
+
+	return 0;
+
+e_range:
+	return -ERANGE;
+}
+
+/*
+ * Similar to ceph_auth_build_hello().
+ */
+int ceph_auth_get_request(struct ceph_auth_client *ac, void *buf, int buf_len)
+{
+	int proto = ac->key ? CEPH_AUTH_CEPHX : CEPH_AUTH_NONE;
+	void *end = buf + buf_len;
+	void *lenp;
+	void *p;
+	int ret;
+
+	mutex_lock(&ac->mutex);
+	if (ac->protocol == CEPH_AUTH_UNKNOWN) {
+		ret = init_protocol(ac, proto);
+		if (ret) {
+			pr_err("auth protocol '%s' init failed: %d\n",
+			       ceph_auth_proto_name(proto), ret);
+			goto out;
+		}
+	} else {
+		WARN_ON(ac->protocol != proto);
+		ac->ops->reset(ac);
+	}
+
+	p = buf;
+	ceph_encode_32_safe(&p, end, ac->protocol, e_range);
+	ret = encode_con_modes(&p, end, ac->preferred_mode, ac->fallback_mode);
+	if (ret)
+		goto out;
+
+	lenp = p;
+	p += 4;  /* space for len */
+
+	ceph_encode_8_safe(&p, end, CEPH_AUTH_MODE_MON, e_range);
+	ret = ceph_auth_entity_name_encode(ac->name, &p, end);
+	if (ret)
+		goto out;
+
+	ceph_encode_64_safe(&p, end, ac->global_id, e_range);
+	ceph_encode_32(&lenp, p - lenp - 4);
+	ret = p - buf;
+
+out:
+	mutex_unlock(&ac->mutex);
+	return ret;
+
+e_range:
+	ret = -ERANGE;
+	goto out;
+}
+
+int ceph_auth_handle_reply_more(struct ceph_auth_client *ac, void *reply,
+				int reply_len, void *buf, int buf_len)
+{
+	int ret;
+
+	mutex_lock(&ac->mutex);
+	ret = ac->ops->handle_reply(ac, 0, reply, reply + reply_len,
+				    NULL, NULL, NULL, NULL);
+	if (ret == -EAGAIN)
+		ret = build_request(ac, false, buf, buf_len);
+	else
+		WARN_ON(ret >= 0);
+	mutex_unlock(&ac->mutex);
+	return ret;
+}
+
+int ceph_auth_handle_reply_done(struct ceph_auth_client *ac,
+				u64 global_id, void *reply, int reply_len,
+				u8 *session_key, int *session_key_len,
+				u8 *con_secret, int *con_secret_len)
+{
+	int ret;
+
+	mutex_lock(&ac->mutex);
+	if (global_id && ac->global_id != global_id) {
+		dout("%s global_id %llu -> %llu\n", __func__, ac->global_id,
+		     global_id);
+		ac->global_id = global_id;
+	}
+
+	ret = ac->ops->handle_reply(ac, 0, reply, reply + reply_len,
+				    session_key, session_key_len,
+				    con_secret, con_secret_len);
+	mutex_unlock(&ac->mutex);
+	return ret;
+}
+
+bool ceph_auth_handle_bad_method(struct ceph_auth_client *ac,
+				 int used_proto, int result,
+				 const int *allowed_protos, int proto_cnt,
+				 const int *allowed_modes, int mode_cnt)
+{
+	mutex_lock(&ac->mutex);
+	WARN_ON(used_proto != ac->protocol);
+
+	if (result == -EOPNOTSUPP) {
+		if (!contains(allowed_protos, proto_cnt, ac->protocol)) {
+			pr_err("auth protocol '%s' not allowed\n",
+			       ceph_auth_proto_name(ac->protocol));
+			goto not_allowed;
+		}
+		if (!contains(allowed_modes, mode_cnt, ac->preferred_mode) &&
+		    (ac->fallback_mode == CEPH_CON_MODE_UNKNOWN ||
+		     !contains(allowed_modes, mode_cnt, ac->fallback_mode))) {
+			pr_err("preferred mode '%s' not allowed\n",
+			       ceph_con_mode_name(ac->preferred_mode));
+			if (ac->fallback_mode == CEPH_CON_MODE_UNKNOWN)
+				pr_err("no fallback mode\n");
+			else
+				pr_err("fallback mode '%s' not allowed\n",
+				       ceph_con_mode_name(ac->fallback_mode));
+			goto not_allowed;
+		}
+	}
+
+	WARN_ON(result == -EOPNOTSUPP || result >= 0);
+	pr_err("auth protocol '%s' msgr authentication failed: %d\n",
+	       ceph_auth_proto_name(ac->protocol), result);
+
+	mutex_unlock(&ac->mutex);
+	return true;
+
+not_allowed:
+	mutex_unlock(&ac->mutex);
+	return false;
+}
+
+int ceph_auth_get_authorizer(struct ceph_auth_client *ac,
+			     struct ceph_auth_handshake *auth,
+			     int peer_type, void *buf, int *buf_len)
+{
+	void *end = buf + *buf_len;
+	int pref_mode, fallb_mode;
+	int proto;
+	void *p;
+	int ret;
+
+	ret = __ceph_auth_get_authorizer(ac, auth, peer_type, true, &proto,
+					 &pref_mode, &fallb_mode);
+	if (ret)
+		return ret;
+
+	p = buf;
+	ceph_encode_32_safe(&p, end, proto, e_range);
+	ret = encode_con_modes(&p, end, pref_mode, fallb_mode);
+	if (ret)
+		return ret;
+
+	ceph_encode_32_safe(&p, end, auth->authorizer_buf_len, e_range);
+	*buf_len = p - buf;
+	return 0;
+
+e_range:
+	return -ERANGE;
+}
+EXPORT_SYMBOL(ceph_auth_get_authorizer);
+
+int ceph_auth_handle_svc_reply_more(struct ceph_auth_client *ac,
+				    struct ceph_auth_handshake *auth,
+				    void *reply, int reply_len,
+				    void *buf, int *buf_len)
+{
+	void *end = buf + *buf_len;
+	void *p;
+	int ret;
+
+	ret = ceph_auth_add_authorizer_challenge(ac, auth->authorizer,
+						 reply, reply_len);
+	if (ret)
+		return ret;
+
+	p = buf;
+	ceph_encode_32_safe(&p, end, auth->authorizer_buf_len, e_range);
+	*buf_len = p - buf;
+	return 0;
+
+e_range:
+	return -ERANGE;
+}
+EXPORT_SYMBOL(ceph_auth_handle_svc_reply_more);
+
+int ceph_auth_handle_svc_reply_done(struct ceph_auth_client *ac,
+				    struct ceph_auth_handshake *auth,
+				    void *reply, int reply_len,
+				    u8 *session_key, int *session_key_len,
+				    u8 *con_secret, int *con_secret_len)
+{
+	return ceph_auth_verify_authorizer_reply(ac, auth->authorizer,
+		reply, reply_len, session_key, session_key_len,
+		con_secret, con_secret_len);
+}
+EXPORT_SYMBOL(ceph_auth_handle_svc_reply_done);
+
+bool ceph_auth_handle_bad_authorizer(struct ceph_auth_client *ac,
+				     int peer_type, int used_proto, int result,
+				     const int *allowed_protos, int proto_cnt,
+				     const int *allowed_modes, int mode_cnt)
+{
+	mutex_lock(&ac->mutex);
+	WARN_ON(used_proto != ac->protocol);
+
+	if (result == -EOPNOTSUPP) {
+		if (!contains(allowed_protos, proto_cnt, ac->protocol)) {
+			pr_err("auth protocol '%s' not allowed by %s\n",
+			       ceph_auth_proto_name(ac->protocol),
+			       ceph_entity_type_name(peer_type));
+			goto not_allowed;
+		}
+		if (!contains(allowed_modes, mode_cnt, ac->preferred_mode) &&
+		    (ac->fallback_mode == CEPH_CON_MODE_UNKNOWN ||
+		     !contains(allowed_modes, mode_cnt, ac->fallback_mode))) {
+			pr_err("preferred mode '%s' not allowed by %s\n",
+			       ceph_con_mode_name(ac->preferred_mode),
+			       ceph_entity_type_name(peer_type));
+			if (ac->fallback_mode == CEPH_CON_MODE_UNKNOWN)
+				pr_err("no fallback mode\n");
+			else
+				pr_err("fallback mode '%s' not allowed by %s\n",
+				       ceph_con_mode_name(ac->fallback_mode),
+				       ceph_entity_type_name(peer_type));
+			goto not_allowed;
+		}
+	}
+
+	WARN_ON(result == -EOPNOTSUPP || result >= 0);
+	pr_err("auth protocol '%s' authorization to %s failed: %d\n",
+	       ceph_auth_proto_name(ac->protocol),
+	       ceph_entity_type_name(peer_type), result);
+
+	if (ac->ops->invalidate_authorizer)
+		ac->ops->invalidate_authorizer(ac, peer_type);
+
+	mutex_unlock(&ac->mutex);
+	return true;
+
+not_allowed:
+	mutex_unlock(&ac->mutex);
+	return false;
+}
+EXPORT_SYMBOL(ceph_auth_handle_bad_authorizer);

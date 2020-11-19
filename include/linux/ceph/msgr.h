@@ -14,7 +14,37 @@
  * constant.
  */
 #define CEPH_BANNER "ceph v027"
+#define CEPH_BANNER_LEN 9
 #define CEPH_BANNER_MAX_LEN 30
+
+
+/*
+ * messenger V2 connection banner prefix.
+ * The full banner string should have the form: "ceph v2\n<le16>"
+ * the 2 bytes are the length of the remaining banner.
+ */
+#define CEPH_BANNER_V2 "ceph v2\n"
+#define CEPH_BANNER_V2_LEN 8
+#define CEPH_BANNER_V2_PREFIX_LEN (CEPH_BANNER_V2_LEN + sizeof(__le16))
+
+/*
+ * messenger V2 features
+ */
+#define CEPH_MSGR2_INCARNATION_1 (0ull)
+
+#define DEFINE_MSGR2_FEATURE(bit, incarnation, name)               \
+	static const uint64_t CEPH_MSGR2_FEATURE_##name = (1ULL << bit); \
+	static const uint64_t CEPH_MSGR2_FEATUREMASK_##name =            \
+			(1ULL << bit | CEPH_MSGR2_INCARNATION_##incarnation);
+
+#define HAVE_MSGR2_FEATURE(x, name) \
+	(((x) & (CEPH_MSGR2_FEATUREMASK_##name)) == (CEPH_MSGR2_FEATUREMASK_##name))
+
+DEFINE_MSGR2_FEATURE( 0, 1, REVISION_1)   // msgr2.1
+
+#define CEPH_MSGR2_SUPPORTED_FEATURES (CEPH_MSGR2_FEATURE_REVISION_1)
+
+#define CEPH_MSGR2_REQUIRED_FEATURES  (CEPH_MSGR2_FEATURE_REVISION_1)
 
 
 /*
@@ -156,6 +186,24 @@ struct ceph_msg_header {
 	__le16 compat_version;
 	__le16 reserved;
 	__le32 crc;       /* header crc32c */
+} __attribute__ ((packed));
+
+struct ceph_msg_header2 {
+	__le64 seq;       /* message seq# for this session */
+	__le64 tid;       /* transaction id */
+	__le16 type;      /* message type */
+	__le16 priority;  /* priority.  higher value == higher priority */
+	__le16 version;   /* version of message encoding */
+
+	__le32 data_pre_padding_len;
+	__le16 data_off;  /* sender: include full offset;
+			     receiver: mask against ~PAGE_MASK */
+
+	__le64 ack_seq;
+	__u8 flags;
+	/* oldest code we think can decode this.  unknown if zero. */
+	__le16 compat_version;
+	__le16 reserved;
 } __attribute__ ((packed));
 
 #define CEPH_MSG_PRIO_LOW     64

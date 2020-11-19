@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/ceph/ceph_debug.h>
 
+#include <linux/inet.h>
+
 #include <linux/ceph/decode.h>
 
 static int
@@ -138,3 +140,46 @@ e_inval:
 	return -EINVAL;
 }
 EXPORT_SYMBOL(ceph_decode_entity_addrvec);
+
+static int get_sockaddr_encoding_len(sa_family_t family)
+{
+	union {
+		struct sockaddr sa;
+		struct sockaddr_in sin;
+		struct sockaddr_in6 sin6;
+	} u;
+
+	switch (family) {
+	case AF_INET:
+		return sizeof(u.sin);
+	case AF_INET6:
+		return sizeof(u.sin6);
+	default:
+		return sizeof(u);
+	}
+}
+
+int ceph_entity_addr_encoding_len(const struct ceph_entity_addr *addr)
+{
+	sa_family_t family = get_unaligned(&addr->in_addr.ss_family);
+	int addr_len = get_sockaddr_encoding_len(family);
+
+	return 1 + CEPH_ENCODING_START_BLK_LEN + 4 + 4 + 4 + addr_len;
+}
+
+void ceph_encode_entity_addr(void **p, const struct ceph_entity_addr *addr)
+{
+	sa_family_t family = get_unaligned(&addr->in_addr.ss_family);
+	int addr_len = get_sockaddr_encoding_len(family);
+
+	ceph_encode_8(p, 1);  /* marker */
+	ceph_start_encoding(p, 1, 1, sizeof(addr->type) +
+				     sizeof(addr->nonce) +
+				     sizeof(u32) + addr_len);
+	ceph_encode_copy(p, &addr->type, sizeof(addr->type));
+	ceph_encode_copy(p, &addr->nonce, sizeof(addr->nonce));
+
+	ceph_encode_32(p, addr_len);
+	ceph_encode_16(p, family);
+	ceph_encode_copy(p, addr->in_addr.__data, addr_len - sizeof(family));
+}

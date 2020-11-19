@@ -257,10 +257,16 @@ static void __open_session(struct ceph_mon_client *monc)
 		      &monc->monmap->mon_inst[monc->cur_mon].addr);
 
 	/*
-	 * send an initial keepalive to ensure our timestamp is valid
-	 * by the time we are in an OPENED state
+	 * Queue a keepalive to ensure that in case of an early fault
+	 * the messenger doesn't put us into STANDBY state and instead
+	 * retries.  This also ensures that our timestamp is valid by
+	 * the time we finish hunting and delayed_work() checks it.
 	 */
 	ceph_con_keepalive(&monc->con);
+	if (ceph_msgr2(monc->client)) {
+		monc->pending_auth = 1;
+		return;
+	}
 
 	/* initiate authentication handshake */
 	ret = ceph_auth_build_hello(monc->auth,
@@ -543,7 +549,7 @@ static void ceph_monc_handle_map(struct ceph_mon_client *monc,
 	p = msg->front.iov_base;
 	end = p + msg->front.iov_len;
 
-	monmap = ceph_monmap_decode(&p, end, false);
+	monmap = ceph_monmap_decode(&p, end, ceph_msgr2(client));
 	if (IS_ERR(monmap)) {
 		pr_err("problem decoding monmap, %d\n",
 		       (int)PTR_ERR(monmap));
@@ -1119,8 +1125,9 @@ static void delayed_work(struct work_struct *work)
  */
 static int build_initial_monmap(struct ceph_mon_client *monc)
 {
+	__le32 my_type = ceph_msgr2(monc->client) ?
+		CEPH_ENTITY_ADDR_TYPE_MSGR2 : CEPH_ENTITY_ADDR_TYPE_LEGACY;
 	struct ceph_options *opt = monc->client->options;
-	struct ceph_entity_addr *mon_addr = opt->mon_addr;
 	int num_mon = opt->num_mon;
 	int i;
 
@@ -1129,12 +1136,16 @@ static int build_initial_monmap(struct ceph_mon_client *monc)
 			       GFP_KERNEL);
 	if (!monc->monmap)
 		return -ENOMEM;
+
 	for (i = 0; i < num_mon; i++) {
-		monc->monmap->mon_inst[i].addr = mon_addr[i];
-		monc->monmap->mon_inst[i].addr.nonce = 0;
-		monc->monmap->mon_inst[i].name.type =
-			CEPH_ENTITY_TYPE_MON;
-		monc->monmap->mon_inst[i].name.num = cpu_to_le64(i);
+		struct ceph_entity_inst *inst = &monc->monmap->mon_inst[i];
+
+		memcpy(&inst->addr.in_addr, &opt->mon_addr[i].in_addr,
+		       sizeof(inst->addr.in_addr));
+		inst->addr.type = my_type;
+		inst->addr.nonce = 0;
+		inst->name.type = CEPH_ENTITY_TYPE_MON;
+		inst->name.num = cpu_to_le64(i);
 	}
 	monc->monmap->num_mon = num_mon;
 	return 0;
@@ -1337,6 +1348,88 @@ int ceph_monc_validate_auth(struct ceph_mon_client *monc)
 }
 EXPORT_SYMBOL(ceph_monc_validate_auth);
 
+static int mon_get_auth_request(struct ceph_connection *con,
+				void *buf, int *buf_len,
+				void **authorizer, int *authorizer_len)
+{
+	struct ceph_mon_client *monc = con->private;
+	int ret;
+
+	mutex_lock(&monc->mutex);
+	ret = ceph_auth_get_request(monc->auth, buf, *buf_len);
+	mutex_unlock(&monc->mutex);
+	if (ret < 0)
+		return ret;
+
+	*buf_len = ret;
+	*authorizer = NULL;
+	*authorizer_len = 0;
+	return 0;
+}
+
+static int mon_handle_auth_reply_more(struct ceph_connection *con,
+				      void *reply, int reply_len,
+				      void *buf, int *buf_len,
+				      void **authorizer, int *authorizer_len)
+{
+	struct ceph_mon_client *monc = con->private;
+	int ret;
+
+	mutex_lock(&monc->mutex);
+	ret = ceph_auth_handle_reply_more(monc->auth, reply, reply_len,
+					  buf, *buf_len);
+	mutex_unlock(&monc->mutex);
+	if (ret < 0)
+		return ret;
+
+	*buf_len = ret;
+	*authorizer = NULL;
+	*authorizer_len = 0;
+	return 0;
+}
+
+static int mon_handle_auth_done(struct ceph_connection *con,
+				u64 global_id, void *reply, int reply_len,
+				u8 *session_key, int *session_key_len,
+				u8 *con_secret, int *con_secret_len)
+{
+	struct ceph_mon_client *monc = con->private;
+	bool was_authed;
+	int ret;
+
+	mutex_lock(&monc->mutex);
+	WARN_ON(!monc->hunting);
+	was_authed = ceph_auth_is_authenticated(monc->auth);
+	ret = ceph_auth_handle_reply_done(monc->auth, global_id,
+					  reply, reply_len,
+					  session_key, session_key_len,
+					  con_secret, con_secret_len);
+	finish_auth(monc, ret, was_authed);
+	if (!ret)
+		finish_hunting(monc);
+	mutex_unlock(&monc->mutex);
+	return 0;
+}
+
+static int mon_handle_auth_bad_method(struct ceph_connection *con,
+				      int used_proto, int result,
+				      const int *allowed_protos, int proto_cnt,
+				      const int *allowed_modes, int mode_cnt)
+{
+	struct ceph_mon_client *monc = con->private;
+	bool was_authed;
+
+	mutex_lock(&monc->mutex);
+	WARN_ON(!monc->hunting);
+	was_authed = ceph_auth_is_authenticated(monc->auth);
+	ceph_auth_handle_bad_method(monc->auth, used_proto, result,
+				    allowed_protos, proto_cnt,
+				    allowed_modes, mode_cnt);
+	finish_auth(monc, -EACCES, was_authed);
+	mutex_unlock(&monc->mutex);
+	return 0;
+}
+
 /*
  * handle incoming message
  */
@@ -1487,4 +1580,8 @@ static const struct ceph_connection_operations mon_con_ops = {
 	.dispatch = dispatch,
 	.fault = mon_fault,
 	.alloc_msg = mon_alloc_msg,
+	.get_auth_request = mon_get_auth_request,
+	.handle_auth_reply_more = mon_handle_auth_reply_more,
+	.handle_auth_done = mon_handle_auth_done,
+	.handle_auth_bad_method = mon_handle_auth_bad_method,
 };

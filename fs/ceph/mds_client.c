@@ -5014,7 +5014,7 @@ void ceph_mdsc_handle_mdsmap(struct ceph_mds_client *mdsc, struct ceph_msg *msg)
 		return;
 	}
 
-	newmap = ceph_mdsmap_decode(&p, end, false);
+	newmap = ceph_mdsmap_decode(&p, end, ceph_msgr2(mdsc->fsc->client));
 	if (IS_ERR(newmap)) {
 		err = PTR_ERR(newmap);
 		goto bad_unlock;
@@ -5196,6 +5196,80 @@ static int invalidate_authorizer(struct ceph_connection *con)
 	return ceph_monc_validate_auth(&mdsc->fsc->client->monc);
 }
 
+static int mds_get_auth_request(struct ceph_connection *con,
+				void *buf, int *buf_len,
+				void **authorizer, int *authorizer_len)
+{
+	struct ceph_mds_session *s = con->private;
+	struct ceph_auth_client *ac = s->s_mdsc->fsc->client->monc.auth;
+	struct ceph_auth_handshake *auth = &s->s_auth;
+	int ret;
+
+	ret = ceph_auth_get_authorizer(ac, auth, CEPH_ENTITY_TYPE_MDS,
+				       buf, buf_len);
+	if (ret)
+		return ret;
+
+	*authorizer = auth->authorizer_buf;
+	*authorizer_len = auth->authorizer_buf_len;
+	return 0;
+}
+
+static int mds_handle_auth_reply_more(struct ceph_connection *con,
+				      void *reply, int reply_len,
+				      void *buf, int *buf_len,
+				      void **authorizer, int *authorizer_len)
+{
+	struct ceph_mds_session *s = con->private;
+	struct ceph_auth_client *ac = s->s_mdsc->fsc->client->monc.auth;
+	struct ceph_auth_handshake *auth = &s->s_auth;
+	int ret;
+
+	ret = ceph_auth_handle_svc_reply_more(ac, auth, reply, reply_len,
+					      buf, buf_len);
+	if (ret)
+		return ret;
+
+	*authorizer = auth->authorizer_buf;
+	*authorizer_len = auth->authorizer_buf_len;
+	return 0;
+}
+
+static int mds_handle_auth_done(struct ceph_connection *con,
+				u64 global_id, void *reply, int reply_len,
+				u8 *session_key, int *session_key_len,
+				u8 *con_secret, int *con_secret_len)
+{
+	struct ceph_mds_session *s = con->private;
+	struct ceph_auth_client *ac = s->s_mdsc->fsc->client->monc.auth;
+	struct ceph_auth_handshake *auth = &s->s_auth;
+
+	return ceph_auth_handle_svc_reply_done(ac, auth, reply, reply_len,
+					       session_key, session_key_len,
+					       con_secret, con_secret_len);
+}
+
+static int mds_handle_auth_bad_method(struct ceph_connection *con,
+				      int used_proto, int result,
+				      const int *allowed_protos, int proto_cnt,
+				      const int *allowed_modes, int mode_cnt)
+{
+	struct ceph_mds_session *s = con->private;
+	struct ceph_mon_client *monc = &s->s_mdsc->fsc->client->monc;
+	int ret;
+
+	if (ceph_auth_handle_bad_authorizer(monc->auth, CEPH_ENTITY_TYPE_MDS,
+					    used_proto, result,
+					    allowed_protos, proto_cnt,
+					    allowed_modes, mode_cnt)) {
+		ret = ceph_monc_validate_auth(monc);
+		if (ret)
+			return ret;
+	}
+
+	return -EACCES;
+}
+
 static struct ceph_msg *mds_alloc_msg(struct ceph_connection *con,
 				struct ceph_msg_header *hdr, int *skip)
 {
@@ -5245,6 +5319,10 @@ static const struct ceph_connection_operations mds_con_ops = {
 	.alloc_msg = mds_alloc_msg,
 	.sign_message = mds_sign_message,
 	.check_message_signature = mds_check_message_signature,
+	.get_auth_request = mds_get_auth_request,
+	.handle_auth_reply_more = mds_handle_auth_reply_more,
+	.handle_auth_done = mds_handle_auth_done,
+	.handle_auth_bad_method = mds_handle_auth_bad_method,
 };
 
 /* eof */

@@ -93,6 +93,10 @@ struct ceph_dir_layout {
 #define CEPH_AUTH_NONE	 	0x1
 #define CEPH_AUTH_CEPHX	 	0x2
 
+#define CEPH_AUTH_MODE_NONE		0
+#define CEPH_AUTH_MODE_AUTHORIZER	1
+#define CEPH_AUTH_MODE_MON		10
+
 /* msgr2 protocol modes */
 #define CEPH_CON_MODE_UNKNOWN	0x0
 #define CEPH_CON_MODE_CRC	0x1

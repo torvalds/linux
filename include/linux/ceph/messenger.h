@@ -3,6 +3,7 @@
 #define __FS_CEPH_MESSENGER_H
 
 #include <linux/bvec.h>
+#include <linux/crypto.h>
 #include <linux/kref.h>
 #include <linux/mutex.h>
 #include <linux/net.h>
@@ -52,6 +53,23 @@ struct ceph_connection_operations {
 
 	int (*sign_message) (struct ceph_msg *msg);
 	int (*check_message_signature) (struct ceph_msg *msg);
+
+	/* msgr2 authentication exchange */
+	int (*get_auth_request)(struct ceph_connection *con,
+				void *buf, int *buf_len,
+				void **authorizer, int *authorizer_len);
+	int (*handle_auth_reply_more)(struct ceph_connection *con,
+				      void *reply, int reply_len,
+				      void *buf, int *buf_len,
+				      void **authorizer, int *authorizer_len);
+	int (*handle_auth_done)(struct ceph_connection *con,
+				u64 global_id, void *reply, int reply_len,
+				u8 *session_key, int *session_key_len,
+				u8 *con_secret, int *con_secret_len);
+	int (*handle_auth_bad_method)(struct ceph_connection *con,
+				      int used_proto, int result,
+				      const int *allowed_protos, int proto_cnt,
+				      const int *allowed_modes, int mode_cnt);
 };
 
 /* use format string %s%lld */
@@ -246,8 +264,15 @@ struct ceph_msg {
 #define CEPH_CON_S_PREOPEN		2
 #define CEPH_CON_S_V1_BANNER		3
 #define CEPH_CON_S_V1_CONNECT_MSG	4
-#define CEPH_CON_S_OPEN			5
-#define CEPH_CON_S_STANDBY		6
+#define CEPH_CON_S_V2_BANNER_PREFIX	5
+#define CEPH_CON_S_V2_BANNER_PAYLOAD	6
+#define CEPH_CON_S_V2_HELLO		7
+#define CEPH_CON_S_V2_AUTH		8
+#define CEPH_CON_S_V2_AUTH_SIGNATURE	9
+#define CEPH_CON_S_V2_SESSION_CONNECT	10
+#define CEPH_CON_S_V2_SESSION_RECONNECT	11
+#define CEPH_CON_S_OPEN			12
+#define CEPH_CON_S_STANDBY		13
 
 /*
  * ceph_connection flag bits
@@ -301,6 +326,99 @@ struct ceph_connection_v1_info {
 	u32 peer_global_seq;  /* peer's global seq for this connection */
 };
 
+#define CEPH_CRC_LEN			4
+#define CEPH_GCM_KEY_LEN		16
+#define CEPH_GCM_IV_LEN			sizeof(struct ceph_gcm_nonce)
+#define CEPH_GCM_BLOCK_LEN		16
+#define CEPH_GCM_TAG_LEN		16
+
+#define CEPH_PREAMBLE_LEN		32
+#define CEPH_PREAMBLE_INLINE_LEN	48
+#define CEPH_PREAMBLE_PLAIN_LEN		CEPH_PREAMBLE_LEN
+#define CEPH_PREAMBLE_SECURE_LEN	(CEPH_PREAMBLE_LEN +		\
+					 CEPH_PREAMBLE_INLINE_LEN +	\
+					 CEPH_GCM_TAG_LEN)
+#define CEPH_EPILOGUE_PLAIN_LEN		(1 + 3 * CEPH_CRC_LEN)
+#define CEPH_EPILOGUE_SECURE_LEN	(CEPH_GCM_BLOCK_LEN + CEPH_GCM_TAG_LEN)
+
+#define CEPH_FRAME_MAX_SEGMENT_COUNT	4
+
+struct ceph_frame_desc {
+	int fd_tag;  /* FRAME_TAG_* */
+	int fd_seg_cnt;
+	int fd_lens[CEPH_FRAME_MAX_SEGMENT_COUNT];  /* logical */
+	int fd_aligns[CEPH_FRAME_MAX_SEGMENT_COUNT];
+};
+
+struct ceph_gcm_nonce {
+	__le32 fixed;
+	__le64 counter __packed;
+};
+
+struct ceph_connection_v2_info {
+	struct iov_iter in_iter;
+	struct kvec in_kvecs[5];  /* recvmsg */
+	struct bio_vec in_bvec;  /* recvmsg (in_cursor) */
+	int in_kvec_cnt;
+	int in_state;  /* IN_S_* */
+
+	struct iov_iter out_iter;
+	struct kvec out_kvecs[8];  /* sendmsg */
+	struct bio_vec out_bvec;  /* sendpage (out_cursor, out_zero),
+				     sendmsg (out_enc_pages) */
+	int out_kvec_cnt;
+	int out_state;  /* OUT_S_* */
+
+	int out_zero;  /* # of zero bytes to send */
+	bool out_iter_sendpage;  /* use sendpage if possible */
+
+	struct ceph_frame_desc in_desc;
+	struct ceph_msg_data_cursor in_cursor;
+	struct ceph_msg_data_cursor out_cursor;
+
+	struct crypto_shash *hmac_tfm;  /* post-auth signature */
+	struct crypto_aead *gcm_tfm;  /* on-wire encryption */
+	struct aead_request *gcm_req;
+	struct crypto_wait gcm_wait;
+	struct ceph_gcm_nonce in_gcm_nonce;
+	struct ceph_gcm_nonce out_gcm_nonce;
+
+	struct page **out_enc_pages;
+	int out_enc_page_cnt;
+	int out_enc_resid;
+	int out_enc_i;
+
+	int con_mode;  /* CEPH_CON_MODE_* */
+
+	void *conn_bufs[16];
+	int conn_buf_cnt;
+
+	struct kvec in_sign_kvecs[8];
+	struct kvec out_sign_kvecs[8];
+	int in_sign_kvec_cnt;
+	int out_sign_kvec_cnt;
+
+	u64 client_cookie;
+	u64 server_cookie;
+	u64 global_seq;
+	u64 connect_seq;
+	u64 peer_global_seq;
+
+	u8 in_buf[CEPH_PREAMBLE_SECURE_LEN];
+	u8 out_buf[CEPH_PREAMBLE_SECURE_LEN];
+	struct {
+		u8 late_status;  /* FRAME_LATE_STATUS_* */
+		union {
+			struct {
+				u32 front_crc;
+				u32 middle_crc;
+				u32 data_crc;
+			} __packed;
+			u8 pad[CEPH_GCM_BLOCK_LEN - 1];
+		};
+	} out_epil;
+};
+
 /*
  * A single connection with another host.
  *
@@ -346,7 +464,10 @@ struct ceph_connection {
 	struct delayed_work work;	    /* send|recv work */
 	unsigned long       delay;          /* current delay interval */
 
-	struct ceph_connection_v1_info v1;
+	union {
+		struct ceph_connection_v1_info v1;
+		struct ceph_connection_v2_info v2;
+	};
 };
 
 extern struct page *ceph_zero_page;
@@ -396,6 +517,15 @@ void ceph_con_v1_revoke_incoming(struct ceph_connection *con);
 bool ceph_con_v1_opened(struct ceph_connection *con);
 void ceph_con_v1_reset_session(struct ceph_connection *con);
 void ceph_con_v1_reset_protocol(struct ceph_connection *con);
+
+/* messenger_v2.c */
+int ceph_con_v2_try_read(struct ceph_connection *con);
+int ceph_con_v2_try_write(struct ceph_connection *con);
+void ceph_con_v2_revoke(struct ceph_connection *con);
+void ceph_con_v2_revoke_incoming(struct ceph_connection *con);
+bool ceph_con_v2_opened(struct ceph_connection *con);
+void ceph_con_v2_reset_session(struct ceph_connection *con);
+void ceph_con_v2_reset_protocol(struct ceph_connection *con);
 
 
 extern const char *ceph_pr_addr(const struct ceph_entity_addr *addr);

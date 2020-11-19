@@ -15,4 +15,4 @@ libceph-y := ceph_common.o messenger.o msgpool.o buffer.o pagelist.o \
 	auth_x.o \
 	ceph_strings.o ceph_hash.o \
 	pagevec.o snapshot.o string_table.o \
-	messenger_v1.o
+	messenger_v1.o messenger_v2.o
