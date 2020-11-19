@@ -445,6 +445,7 @@
 			      <0x58000014 4>;
 			reg-names = "rev", "syss";
 			ti,syss-mask = <1>;
+			power-domains = <&prm_dss>;
 			clocks = <&l3_dss_clkctrl OMAP4_DSS_CORE_CLKCTRL 0>,
 				 <&l3_dss_clkctrl OMAP4_DSS_CORE_CLKCTRL 9>,
 				 <&l3_dss_clkctrl OMAP4_DSS_CORE_CLKCTRL 10>,
@@ -742,6 +743,12 @@
 	prm_emu: prm@1900 {
 		compatible = "ti,omap4-prm-inst", "ti,omap-prm-inst";
 		reg = <0x1900 0x100>;
+		#power-domain-cells = <0>;
+	};
+
+	prm_dss: prm@1100 {
+		compatible = "ti,omap4-prm-inst", "ti,omap-prm-inst";
+		reg = <0x1100 0x40>;
 		#power-domain-cells = <0>;
 	};
 
