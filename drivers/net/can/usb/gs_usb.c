@@ -136,7 +136,7 @@ struct gs_device_bt_const {
 	__le32 brp_inc;
 } __packed;
 
-#define GS_CAN_FLAG_OVERFLOW 1
+#define GS_CAN_FLAG_OVERFLOW BIT(0)
 
 struct gs_host_frame {
 	u32 echo_id;
