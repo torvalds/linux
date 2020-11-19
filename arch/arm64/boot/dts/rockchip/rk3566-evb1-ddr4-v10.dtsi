@@ -146,7 +146,6 @@
 
 &i2s3_2ch {
 	status = "disabled";
-	rockchip,clk-trcm = <2>;
 };
 
 &mdio0 {
