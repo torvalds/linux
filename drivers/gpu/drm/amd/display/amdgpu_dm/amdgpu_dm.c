@@ -9320,6 +9320,9 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 		ret = drm_atomic_add_affected_planes(state, crtc);
 		if (ret)
 			goto fail;
+
+		if (dm_old_crtc_state->dsc_force_changed && new_crtc_state)
+			new_crtc_state->mode_changed = true;
 	}
 
 	/*
