@@ -6,10 +6,14 @@
 
 #include <asm/pgtable.h>
 
+#ifdef CONFIG_PPC_BOOK3S_64
+#include <asm/book3s/64/kup-radix.h>
+#else
 static inline void allow_user_access(void __user *to, const void __user *from,
 				     unsigned long size) { }
 static inline void prevent_user_access(void __user *to, const void __user *from,
 				       unsigned long size) { }
+#endif /* CONFIG_PPC_BOOK3S_64 */
 
 static inline void allow_read_from_user(const void __user *from, unsigned long size)
 {
