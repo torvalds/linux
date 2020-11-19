@@ -110,7 +110,6 @@ static void pruss_cleanup(struct device *dev, struct uio_pruss_dev *gdev)
 			      gdev->sram_vaddr,
 			      sram_pool_sz);
 	clk_disable(gdev->pruss_clk);
-	clk_put(gdev->pruss_clk);
 }
 
 static int pruss_probe(struct platform_device *pdev)
@@ -131,7 +130,7 @@ static int pruss_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	/* Power on PRU in case its not done as part of boot-loader */
-	gdev->pruss_clk = clk_get(dev, "pruss");
+	gdev->pruss_clk = devm_clk_get(dev, "pruss");
 	if (IS_ERR(gdev->pruss_clk)) {
 		dev_err(dev, "Failed to get clock\n");
 		return PTR_ERR(gdev->pruss_clk);
@@ -140,7 +139,7 @@ static int pruss_probe(struct platform_device *pdev)
 	ret = clk_enable(gdev->pruss_clk);
 	if (ret) {
 		dev_err(dev, "Failed to enable clock\n");
-		goto err_clk_put;
+		return ret;
 	}
 
 	regs_prussio = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -229,8 +228,6 @@ err_free_sram:
 		gen_pool_free(gdev->sram_pool, gdev->sram_vaddr, sram_pool_sz);
 err_clk_disable:
 	clk_disable(gdev->pruss_clk);
-err_clk_put:
-	clk_put(gdev->pruss_clk);
 
 	return ret;
 }
