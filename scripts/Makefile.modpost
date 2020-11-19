@@ -66,6 +66,7 @@ ifeq ($(KBUILD_EXTMOD),)
 
 input-symdump := vmlinux.symvers
 output-symdump := Module.symvers
+module_srcpath := $(srctree)
 
 else
 
@@ -82,7 +83,20 @@ MODPOST += -e
 
 input-symdump := Module.symvers $(KBUILD_EXTRA_SYMBOLS)
 output-symdump := $(KBUILD_EXTMOD)/Module.symvers
+module_srcpath := $(KBUILD_EXTMOD)
 
+endif
+
+ifeq ($(CONFIG_MODULE_SCMVERSION),y)
+# Get the SCM version of the module. Sed verifies setlocalversion returns
+# a proper revision based on the SCM type, e.g. git, mercurial, or svn.
+# Note: relative M= paths are not supported when building the kernel out of the
+# srctree since setlocalversion won't be able to find the module srctree.
+module_scmversion := $(shell $(srctree)/scripts/setlocalversion $(module_srcpath) | \
+	sed -n 's/.*-\(\(g\|hg\)[a-fA-F0-9]\+\(-dirty\)\?\|svn[0-9]\+\).*/\1/p')
+ifneq ($(module_scmversion),)
+MODPOST += -v $(module_scmversion)
+endif
 endif
 
 # modpost options for modules (both in-kernel and external)
