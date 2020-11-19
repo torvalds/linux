@@ -116,7 +116,7 @@ static struct rockchip_pll_rate_table rk3568_pll_rates[] = {
 	.reg = RK3568_CLKSEL_CON(2),				\
 	.val = HIWORD_UPDATE(_sclk_core, RK3568_MUX_SCLK_CORE_NPLL_MASK, \
 			RK3568_MUX_SCLK_CORE_NPLL_SHIFT) |		\
-	       HIWORD_UPDATE(0, RK3568_MUX_SCLK_CORE_MASK, \
+	       HIWORD_UPDATE(_sclk_core, RK3568_MUX_SCLK_CORE_MASK, \
 			RK3568_MUX_SCLK_CORE_SHIFT) |		\
 		HIWORD_UPDATE(1, RK3568_DIV_SCLK_CORE_MASK, \
 			RK3568_DIV_SCLK_CORE_SHIFT),		\
@@ -147,15 +147,28 @@ static struct rockchip_pll_rate_table rk3568_pll_rates[] = {
 			RK3568_DIV_PERIPHCLK_CORE_SHIFT),		\
 }
 
+#define RK3568_CLKSEL5(_sclk_core_src)					\
+{								\
+	.reg = RK3568_CLKSEL_CON(2),				\
+	.val = HIWORD_UPDATE(_sclk_core_src, RK3568_MUX_SCLK_CORE_MASK, \
+			RK3568_MUX_SCLK_CORE_SHIFT),		\
+}
+
 #define RK3568_CPUCLK_RATE(_prate, _apllcore, _sclk, _acore, _atcore, _gicclk, _pclk, _periph) \
 {								\
 	.prate = _prate##U,					\
 	.divs = {						\
-		RK3568_CLKSEL0(_apllcore),			\
-		RK3568_CLKSEL1(_sclk),				\
 		RK3568_CLKSEL2(_acore),				\
 		RK3568_CLKSEL3(_atcore, _gicclk),		\
 		RK3568_CLKSEL4(_pclk, _periph),			\
+	},							\
+	.pre_muxs = {						\
+		RK3568_CLKSEL0(0),				\
+		RK3568_CLKSEL5(1),				\
+	},							\
+	.post_muxs = {						\
+		RK3568_CLKSEL0(_apllcore),			\
+		RK3568_CLKSEL1(_sclk),				\
 	},							\
 }
 
