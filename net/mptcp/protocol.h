@@ -91,7 +91,6 @@
 #define MPTCP_WORK_EOF		3
 #define MPTCP_FALLBACK_DONE	4
 #define MPTCP_WORK_CLOSE_SUBFLOW 5
-#define MPTCP_WORKER_RUNNING	6
 
 static inline bool before64(__u64 seq1, __u64 seq2)
 {

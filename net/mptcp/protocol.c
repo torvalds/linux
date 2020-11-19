@@ -1862,7 +1862,6 @@ static void mptcp_worker(struct work_struct *work)
 	int state, ret;
 
 	lock_sock(sk);
-	set_bit(MPTCP_WORKER_RUNNING, &msk->flags);
 	state = sk->sk_state;
 	if (unlikely(state == TCP_CLOSE))
 		goto unlock;
@@ -1940,7 +1939,6 @@ reset_unlock:
 		mptcp_reset_timer(sk);
 
 unlock:
-	clear_bit(MPTCP_WORKER_RUNNING, &msk->flags);
 	release_sock(sk);
 	sock_put(sk);
 }
@@ -2011,11 +2009,7 @@ static void mptcp_cancel_work(struct sock *sk)
 {
 	struct mptcp_sock *msk = mptcp_sk(sk);
 
-	/* if called by the work itself, do not try to cancel the work, or
-	 * we will hang.
-	 */
-	if (!test_bit(MPTCP_WORKER_RUNNING, &msk->flags) &&
-	    cancel_work_sync(&msk->work))
+	if (cancel_work_sync(&msk->work))
 		__sock_put(sk);
 }
 
