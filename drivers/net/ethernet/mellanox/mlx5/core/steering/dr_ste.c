@@ -5,8 +5,6 @@
 #include <linux/crc32.h>
 #include "dr_ste.h"
 
-#define DR_STE_CRC_POLY 0xEDB88320L
-
 #define DR_STE_ENABLE_FLOW_TAG BIT(31)
 
 enum dr_ste_tunl_action {
