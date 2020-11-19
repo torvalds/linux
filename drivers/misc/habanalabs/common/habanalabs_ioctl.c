@@ -406,7 +406,7 @@ static int total_energy_consumption_info(struct hl_fpriv *hpriv,
 static int pll_frequency_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
 {
 	struct hl_device *hdev = hpriv->hdev;
-	struct hl_pll_frequency_info freq_info = {};
+	struct hl_pll_frequency_info freq_info = { {0} };
 	u32 max_size = args->return_size;
 	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
 	int rc;

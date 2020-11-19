@@ -151,19 +151,6 @@ static const u16 gaudi_packet_sizes[MAX_PACKET_ID] = {
 	[PACKET_LOAD_AND_EXE]	= sizeof(struct packet_load_and_exe)
 };
 
-static const u32 gaudi_pll_base_addresses[GAUDI_PLL_MAX] = {
-	[CPU_PLL] = mmPSOC_CPU_PLL_NR,
-	[PCI_PLL] = mmPSOC_PCI_PLL_NR,
-	[SRAM_PLL] = mmSRAM_W_PLL_NR,
-	[HBM_PLL] = mmPSOC_HBM_PLL_NR,
-	[NIC_PLL] = mmNIC0_PLL_NR,
-	[DMA_PLL] = mmDMA_W_PLL_NR,
-	[MESH_PLL] = mmMESH_W_PLL_NR,
-	[MME_PLL] = mmPSOC_MME_PLL_NR,
-	[TPC_PLL] = mmPSOC_TPC_PLL_NR,
-	[IF_PLL] = mmIF_W_PLL_NR
-};
-
 static inline bool validate_packet_id(enum packet_id id)
 {
 	switch (id) {
@@ -703,73 +690,6 @@ static int gaudi_early_fini(struct hl_device *hdev)
 }
 
 /**
- * gaudi_fetch_pll_frequency - Fetch PLL frequency values
- *
- * @hdev: pointer to hl_device structure
- * @pll_index: index of the pll to fetch frequency from
- * @pll_freq: pointer to store the pll frequency in MHz in each of the available
- *            outputs. if a certain output is not available a 0 will be set
- *
- */
-static int gaudi_fetch_pll_frequency(struct hl_device *hdev,
-				enum gaudi_pll_index pll_index,
-				u16 *pll_freq_arr)
-{
-	u32 nr = 0, nf = 0, od = 0, pll_clk = 0, div_fctr, div_sel,
-			pll_base_addr = gaudi_pll_base_addresses[pll_index];
-	u16 freq = 0;
-	int i, rc;
-
-	if (hdev->asic_prop.fw_security_status_valid &&
-			(hdev->asic_prop.fw_app_security_map &
-					CPU_BOOT_DEV_STS0_PLL_INFO_EN)) {
-		rc = hl_fw_cpucp_pll_info_get(hdev, pll_index, pll_freq_arr);
-
-		if (rc)
-			return rc;
-	} else if (hdev->asic_prop.fw_security_disabled) {
-		/* Backward compatibility */
-		nr = RREG32(pll_base_addr + PLL_NR_OFFSET);
-		nf = RREG32(pll_base_addr + PLL_NF_OFFSET);
-		od = RREG32(pll_base_addr + PLL_OD_OFFSET);
-
-		for (i = 0; i < HL_PLL_NUM_OUTPUTS; i++) {
-			div_fctr = RREG32(pll_base_addr +
-					PLL_DIV_FACTOR_0_OFFSET + i * 4);
-			div_sel = RREG32(pll_base_addr +
-					PLL_DIV_SEL_0_OFFSET + i * 4);
-
-			if (div_sel == DIV_SEL_REF_CLK ||
-				div_sel == DIV_SEL_DIVIDED_REF) {
-				if (div_sel == DIV_SEL_REF_CLK)
-					freq = PLL_REF_CLK;
-				else
-					freq = PLL_REF_CLK / (div_fctr + 1);
-			} else if (div_sel == DIV_SEL_PLL_CLK ||
-					div_sel == DIV_SEL_DIVIDED_PLL) {
-				pll_clk = PLL_REF_CLK * (nf + 1) /
-						((nr + 1) * (od + 1));
-				if (div_sel == DIV_SEL_PLL_CLK)
-					freq = pll_clk;
-				else
-					freq = pll_clk / (div_fctr + 1);
-			} else {
-				dev_warn(hdev->dev,
-					"Received invalid div select value: %d",
-					div_sel);
-			}
-
-			pll_freq_arr[i] = freq;
-		}
-	} else {
-		dev_err(hdev->dev, "Failed to fetch PLL frequency values\n");
-		return -EIO;
-	}
-
-	return 0;
-}
-
-/**
  * gaudi_fetch_psoc_frequency - Fetch PSOC frequency values
  *
  * @hdev: pointer to hl_device structure
@@ -778,18 +698,52 @@ static int gaudi_fetch_pll_frequency(struct hl_device *hdev,
 static int gaudi_fetch_psoc_frequency(struct hl_device *hdev)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
-	u16 pll_freq[HL_PLL_NUM_OUTPUTS];
+	u32 nr = 0, nf = 0, od = 0, div_fctr = 0, pll_clk, div_sel;
+	u16 pll_freq_arr[HL_PLL_NUM_OUTPUTS], freq;
 	int rc;
 
-	rc = gaudi_fetch_pll_frequency(hdev, CPU_PLL, pll_freq);
-	if (rc)
-		return rc;
+	if (hdev->asic_prop.fw_security_disabled) {
+		/* Backward compatibility */
+		div_fctr = RREG32(mmPSOC_CPU_PLL_DIV_FACTOR_2);
+		div_sel = RREG32(mmPSOC_CPU_PLL_DIV_SEL_2);
+		nr = RREG32(mmPSOC_CPU_PLL_NR);
+		nf = RREG32(mmPSOC_CPU_PLL_NF);
+		od = RREG32(mmPSOC_CPU_PLL_OD);
 
-	prop->psoc_timestamp_frequency = pll_freq[2];
-	prop->psoc_pci_pll_nr = 0;
-	prop->psoc_pci_pll_nf = 0;
-	prop->psoc_pci_pll_od = 0;
-	prop->psoc_pci_pll_div_factor = 0;
+		if (div_sel == DIV_SEL_REF_CLK ||
+				div_sel == DIV_SEL_DIVIDED_REF) {
+			if (div_sel == DIV_SEL_REF_CLK)
+				freq = PLL_REF_CLK;
+			else
+				freq = PLL_REF_CLK / (div_fctr + 1);
+		} else if (div_sel == DIV_SEL_PLL_CLK ||
+			div_sel == DIV_SEL_DIVIDED_PLL) {
+			pll_clk = PLL_REF_CLK * (nf + 1) /
+					((nr + 1) * (od + 1));
+			if (div_sel == DIV_SEL_PLL_CLK)
+				freq = pll_clk;
+			else
+				freq = pll_clk / (div_fctr + 1);
+		} else {
+			dev_warn(hdev->dev,
+				"Received invalid div select value: %d",
+				div_sel);
+			freq = 0;
+		}
+	} else {
+		rc = hl_fw_cpucp_pll_info_get(hdev, CPU_PLL, pll_freq_arr);
+
+		if (rc)
+			return rc;
+
+		freq = pll_freq_arr[2];
+	}
+
+	prop->psoc_timestamp_frequency = freq;
+	prop->psoc_pci_pll_nr = nr;
+	prop->psoc_pci_pll_nf = nf;
+	prop->psoc_pci_pll_od = od;
+	prop->psoc_pci_pll_div_factor = div_fctr;
 
 	return 0;
 }
