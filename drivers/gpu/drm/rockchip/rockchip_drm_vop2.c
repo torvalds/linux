@@ -1367,6 +1367,18 @@ static void vop2_disable(struct drm_crtc *crtc)
 	if (--vop2->enable_count > 0)
 		return;
 
+	vop2->is_enabled = false;
+	if (vop2->is_iommu_enabled) {
+		/*
+		 * vop2 standby complete, so iommu detach is safe.
+		 */
+		VOP_CTRL_SET(vop2, dma_stop, 1);
+		rockchip_drm_dma_detach_device(vop2->drm_dev, vop2->dev);
+		vop2->is_iommu_enabled = false;
+	}
+
+	pm_runtime_put_sync(vop2->dev);
+
 	clk_disable_unprepare(vop2->aclk);
 	clk_disable_unprepare(vop2->hclk);
 }
@@ -1404,17 +1416,6 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 
 	vop2_dsp_hold_valid_irq_disable(crtc);
 
-	vop2->is_enabled = false;
-	if (vop2->is_iommu_enabled) {
-		/*
-		 * vop2 standby complete, so iommu detach is safe.
-		 */
-		VOP_CTRL_SET(vop2, dma_stop, 1);
-		rockchip_drm_dma_detach_device(vop2->drm_dev, vop2->dev);
-		vop2->is_iommu_enabled = false;
-	}
-
-	pm_runtime_put_sync(vop2->dev);
 	vop2_disable(crtc);
 	vop2_unlock(vop2);
 
@@ -3158,7 +3159,7 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_crtc_state 
 		vop2_zpos[nr_wins].win_phys_id = win->phys_id;
 		vop2_zpos[nr_wins].zpos = vpstate->zpos;
 		nr_wins++;
-		DRM_DEV_DEBUG(vop2->dev, "%s active zpos:%d\n", win->name, vpstate->zpos);
+		DRM_DEV_DEBUG(vop2->dev, "%s active zpos:%d for vp%d\n", win->name, vpstate->zpos, vp->id);
 	}
 
 	if (nr_wins) {
