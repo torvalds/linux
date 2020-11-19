@@ -630,8 +630,7 @@ static int gs_can_open(struct net_device *netdev)
 					netif_device_detach(dev->netdev);
 
 				netdev_err(netdev,
-					   "usb_submit failed (err=%d)\n",
-					   rc);
+					   "usb_submit failed (err=%d)\n", rc);
 
 				usb_unanchor_urb(urb);
 				usb_free_urb(urb);
@@ -941,8 +940,7 @@ static int gs_usb_probe(struct usb_interface *intf,
 	kfree(hconf);
 
 	if (rc < 0) {
-		dev_err(&intf->dev, "Couldn't send data format (err=%d)\n",
-			rc);
+		dev_err(&intf->dev, "Couldn't send data format (err=%d)\n", rc);
 		return rc;
 	}
 
