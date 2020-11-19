@@ -576,8 +576,10 @@ static void gsi_channel_reset_command(struct gsi_channel *channel)
 	state = gsi_channel_state(channel);
 	if (state != GSI_CHANNEL_STATE_STOPPED &&
 	    state != GSI_CHANNEL_STATE_ERROR) {
-		dev_err(dev, "channel %u bad state %u before reset\n",
-			gsi_channel_id(channel), state);
+		/* No need to reset a channel already in ALLOCATED state */
+		if (state != GSI_CHANNEL_STATE_ALLOCATED)
+			dev_err(dev, "channel %u bad state %u before reset\n",
+				gsi_channel_id(channel), state);
 		return;
 	}
 
