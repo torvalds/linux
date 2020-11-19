@@ -3631,8 +3631,8 @@ intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
 	struct intel_plane *intel_plane = to_intel_plane(primary);
 	struct intel_plane_state *intel_state =
 		to_intel_plane_state(plane_state);
-	 struct intel_crtc_state *crtc_state =
-		 to_intel_crtc_state(intel_crtc->base.state);
+	struct intel_crtc_state *crtc_state =
+		to_intel_crtc_state(intel_crtc->base.state);
 	struct drm_framebuffer *fb;
 	struct i915_vma *vma;
 
@@ -15361,17 +15361,17 @@ static int kill_bigjoiner_slave(struct intel_atomic_state *state,
 				struct intel_crtc_state *master_crtc_state)
 {
 	struct intel_crtc_state *slave_crtc_state =
-			intel_atomic_get_crtc_state(&state->base,
-						    master_crtc_state->bigjoiner_linked_crtc);
+		intel_atomic_get_crtc_state(&state->base,
+					    master_crtc_state->bigjoiner_linked_crtc);
 
-		if (IS_ERR(slave_crtc_state))
-			return PTR_ERR(slave_crtc_state);
+	if (IS_ERR(slave_crtc_state))
+		return PTR_ERR(slave_crtc_state);
 
-		slave_crtc_state->bigjoiner = master_crtc_state->bigjoiner = false;
-		slave_crtc_state->bigjoiner_slave = master_crtc_state->bigjoiner_slave = false;
-		slave_crtc_state->bigjoiner_linked_crtc = master_crtc_state->bigjoiner_linked_crtc = NULL;
-		intel_crtc_copy_uapi_to_hw_state(state, slave_crtc_state);
-		return 0;
+	slave_crtc_state->bigjoiner = master_crtc_state->bigjoiner = false;
+	slave_crtc_state->bigjoiner_slave = master_crtc_state->bigjoiner_slave = false;
+	slave_crtc_state->bigjoiner_linked_crtc = master_crtc_state->bigjoiner_linked_crtc = NULL;
+	intel_crtc_copy_uapi_to_hw_state(state, slave_crtc_state);
+	return 0;
 }
 
 /**
@@ -15948,7 +15948,6 @@ static void intel_update_crtc(struct intel_atomic_state *state,
 	    old_crtc_state->inherited)
 		intel_crtc_arm_fifo_underrun(crtc, new_crtc_state);
 }
-
 
 static void intel_old_crtc_state_disables(struct intel_atomic_state *state,
 					  struct intel_crtc_state *old_crtc_state,
