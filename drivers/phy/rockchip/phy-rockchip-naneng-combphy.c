@@ -317,8 +317,15 @@ static int rk3568_combphy_cfg(struct rockchip_combphy_priv *priv)
 	case 24000000:
 		if (priv->mode == PHY_TYPE_USB3) {
 			/* Set ssc_cnt[9:0]=0101111101 & 31.5KHz */
-			writel(0x40, priv->mmio + 0x38);
-			writel(0x5f, priv->mmio + 0x3c);
+			val = readl(priv->mmio + (0x0e << 2));
+			val &= ~GENMASK(7, 6);
+			val |= 0x01 << 6;
+			writel(val, priv->mmio + (0x0e << 2));
+
+			val = readl(priv->mmio + (0x0f << 2));
+			val &= ~GENMASK(7, 0);
+			val |= 0x5f;
+			writel(val, priv->mmio + (0x0f << 2));
 		}
 		break;
 	case 25000000:
@@ -350,8 +357,18 @@ static int rk3568_combphy_cfg(struct rockchip_combphy_priv *priv)
 		writel(val, priv->mmio + (0x20 << 2));
 		break;
 	case PHY_TYPE_USB3:
-		/* Set ssc downward spread spectrum */
-		writel(0x10, priv->mmio + 0x7c);
+		/* Set SSC downward spread spectrum */
+		val = readl(priv->mmio + (0x1f << 2));
+		val &= ~GENMASK(5, 4);
+		val |= 0x01 << 4;
+		writel(val, priv->mmio + 0x7c);
+
+		/* Enable adaptive CTLE for USB3.0 Rx */
+		val = readl(priv->mmio + (0x0e << 2));
+		val &= ~GENMASK(0, 0);
+		val |= 0x01;
+		writel(val, priv->mmio + (0x0e << 2));
+
 		param_write(priv->phy_grf, &cfg->pipe_sel_usb, true);
 		param_write(priv->phy_grf, &cfg->pipe_txcomp_sel, false);
 		param_write(priv->phy_grf, &cfg->pipe_txelec_sel, false);
