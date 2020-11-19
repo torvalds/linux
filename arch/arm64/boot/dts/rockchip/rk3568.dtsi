@@ -213,6 +213,13 @@
 		#clock-cells = <0>;
 	};
 
+	mpll: mpll {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <800000000>;
+		clock-output-names = "mpll";
+	};
+
 	xin24m: xin24m {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
