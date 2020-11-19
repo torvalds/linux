@@ -25,6 +25,7 @@ enum scmi_sensor_protocol_cmd {
 	SENSOR_LIST_UPDATE_INTERVALS = 0x8,
 	SENSOR_CONFIG_GET = 0x9,
 	SENSOR_CONFIG_SET = 0xA,
+	SENSOR_CONTINUOUS_UPDATE_NOTIFY = 0xB,
 };
 
 struct scmi_msg_resp_sensor_attributes {
@@ -132,10 +133,10 @@ struct scmi_msg_resp_sensor_list_update_intervals {
 	__le32 intervals[];
 };
 
-struct scmi_msg_sensor_trip_point_notify {
+struct scmi_msg_sensor_request_notify {
 	__le32 id;
 	__le32 event_control;
-#define SENSOR_TP_NOTIFY_ALL	BIT(0)
+#define SENSOR_NOTIFY_ALL	BIT(0)
 };
 
 struct scmi_msg_set_sensor_trip_point {
@@ -183,6 +184,12 @@ struct scmi_sensor_trip_notify_payld {
 	__le32 agent_id;
 	__le32 sensor_id;
 	__le32 trip_point_desc;
+};
+
+struct scmi_sensor_update_notify_payld {
+	__le32 agent_id;
+	__le32 sensor_id;
+	struct scmi_sensor_reading_le readings[];
 };
 
 struct sensors_info {
@@ -550,15 +557,16 @@ out:
 	return ret;
 }
 
-static int scmi_sensor_trip_point_notify(const struct scmi_handle *handle,
-					 u32 sensor_id, bool enable)
+static inline int
+scmi_sensor_request_notify(const struct scmi_handle *handle, u32 sensor_id,
+			   u8 message_id, bool enable)
 {
 	int ret;
-	u32 evt_cntl = enable ? SENSOR_TP_NOTIFY_ALL : 0;
+	u32 evt_cntl = enable ? SENSOR_NOTIFY_ALL : 0;
 	struct scmi_xfer *t;
-	struct scmi_msg_sensor_trip_point_notify *cfg;
+	struct scmi_msg_sensor_request_notify *cfg;
 
-	ret = scmi_xfer_get_init(handle, SENSOR_TRIP_POINT_NOTIFY,
+	ret = scmi_xfer_get_init(handle, message_id,
 				 SCMI_PROTOCOL_SENSOR, sizeof(*cfg), 0, &t);
 	if (ret)
 		return ret;
@@ -571,6 +579,23 @@ static int scmi_sensor_trip_point_notify(const struct scmi_handle *handle,
 
 	scmi_xfer_put(handle, t);
 	return ret;
+}
+
+static int scmi_sensor_trip_point_notify(const struct scmi_handle *handle,
+					 u32 sensor_id, bool enable)
+{
+	return scmi_sensor_request_notify(handle, sensor_id,
+					  SENSOR_TRIP_POINT_NOTIFY,
+					  enable);
+}
+
+static int
+scmi_sensor_continuous_update_notify(const struct scmi_handle *handle,
+				     u32 sensor_id, bool enable)
+{
+	return scmi_sensor_request_notify(handle, sensor_id,
+					  SENSOR_CONTINUOUS_UPDATE_NOTIFY,
+					  enable);
 }
 
 static int
@@ -815,7 +840,19 @@ static int scmi_sensor_set_notify_enabled(const struct scmi_handle *handle,
 {
 	int ret;
 
-	ret = scmi_sensor_trip_point_notify(handle, src_id, enable);
+	switch (evt_id) {
+	case SCMI_EVENT_SENSOR_TRIP_POINT_EVENT:
+		ret = scmi_sensor_trip_point_notify(handle, src_id, enable);
+		break;
+	case SCMI_EVENT_SENSOR_UPDATE:
+		ret = scmi_sensor_continuous_update_notify(handle, src_id,
+							   enable);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
 	if (ret)
 		pr_debug("FAIL_ENABLED - evt[%X] dom[%d] - ret:%d\n",
 			 evt_id, src_id, ret);
@@ -828,20 +865,59 @@ static void *scmi_sensor_fill_custom_report(const struct scmi_handle *handle,
 					    const void *payld, size_t payld_sz,
 					    void *report, u32 *src_id)
 {
-	const struct scmi_sensor_trip_notify_payld *p = payld;
-	struct scmi_sensor_trip_point_report *r = report;
+	void *rep = NULL;
 
-	if (evt_id != SCMI_EVENT_SENSOR_TRIP_POINT_EVENT ||
-	    sizeof(*p) != payld_sz)
-		return NULL;
+	switch (evt_id) {
+	case SCMI_EVENT_SENSOR_TRIP_POINT_EVENT:
+	{
+		const struct scmi_sensor_trip_notify_payld *p = payld;
+		struct scmi_sensor_trip_point_report *r = report;
 
-	r->timestamp = timestamp;
-	r->agent_id = le32_to_cpu(p->agent_id);
-	r->sensor_id = le32_to_cpu(p->sensor_id);
-	r->trip_point_desc = le32_to_cpu(p->trip_point_desc);
-	*src_id = r->sensor_id;
+		if (sizeof(*p) != payld_sz)
+			break;
 
-	return r;
+		r->timestamp = timestamp;
+		r->agent_id = le32_to_cpu(p->agent_id);
+		r->sensor_id = le32_to_cpu(p->sensor_id);
+		r->trip_point_desc = le32_to_cpu(p->trip_point_desc);
+		*src_id = r->sensor_id;
+		rep = r;
+		break;
+	}
+	case SCMI_EVENT_SENSOR_UPDATE:
+	{
+		int i;
+		struct scmi_sensor_info *s;
+		const struct scmi_sensor_update_notify_payld *p = payld;
+		struct scmi_sensor_update_report *r = report;
+		struct sensors_info *sinfo = handle->sensor_priv;
+
+		/* payld_sz is variable for this event */
+		r->sensor_id = le32_to_cpu(p->sensor_id);
+		if (r->sensor_id >= sinfo->num_sensors)
+			break;
+		r->timestamp = timestamp;
+		r->agent_id = le32_to_cpu(p->agent_id);
+		s = &sinfo->sensors[r->sensor_id];
+		/*
+		 * The generated report r (@struct scmi_sensor_update_report)
+		 * was pre-allocated to contain up to SCMI_MAX_NUM_SENSOR_AXIS
+		 * readings: here it is filled with the effective @num_axis
+		 * readings defined for this sensor or 1 for scalar sensors.
+		 */
+		r->readings_count = s->num_axis ?: 1;
+		for (i = 0; i < r->readings_count; i++)
+			scmi_parse_sensor_readings(&r->readings[i],
+						   &p->readings[i]);
+		*src_id = r->sensor_id;
+		rep = r;
+		break;
+	}
+	default:
+		break;
+	}
+
+	return rep;
 }
 
 static const struct scmi_event sensor_events[] = {
@@ -849,6 +925,16 @@ static const struct scmi_event sensor_events[] = {
 		.id = SCMI_EVENT_SENSOR_TRIP_POINT_EVENT,
 		.max_payld_sz = sizeof(struct scmi_sensor_trip_notify_payld),
 		.max_report_sz = sizeof(struct scmi_sensor_trip_point_report),
+	},
+	{
+		.id = SCMI_EVENT_SENSOR_UPDATE,
+		.max_payld_sz =
+			sizeof(struct scmi_sensor_update_notify_payld) +
+			 SCMI_MAX_NUM_SENSOR_AXIS *
+			 sizeof(struct scmi_sensor_reading_le),
+		.max_report_sz = sizeof(struct scmi_sensor_update_report) +
+				  SCMI_MAX_NUM_SENSOR_AXIS *
+				  sizeof(struct scmi_sensor_reading),
 	},
 };
 
