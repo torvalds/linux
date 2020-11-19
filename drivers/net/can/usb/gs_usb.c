@@ -1015,8 +1015,9 @@ static int gs_usb_probe(struct usb_interface *intf,
 
 static void gs_usb_disconnect(struct usb_interface *intf)
 {
-	unsigned i;
 	struct gs_usb *dev = usb_get_intfdata(intf);
+	unsigned int i;
+
 	usb_set_intfdata(intf, NULL);
 
 	if (!dev) {
