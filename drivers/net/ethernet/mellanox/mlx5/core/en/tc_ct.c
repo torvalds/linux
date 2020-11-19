@@ -1539,6 +1539,14 @@ mlx5_tc_ct_free_pre_ct_tables(struct mlx5_ct_ft *ft)
 	mlx5_tc_ct_free_pre_ct(ft, &ft->pre_ct);
 }
 
+/* To avoid false lock dependency warning set the ct_entries_ht lock
+ * class different than the lock class of the ht being used when deleting
+ * last flow from a group and then deleting a group, we get into del_sw_flow_group()
+ * which call rhashtable_destroy on fg->ftes_hash which will take ht->mutex but
+ * it's different than the ht->mutex here.
+ */
+static struct lock_class_key ct_entries_ht_lock_key;
+
 static struct mlx5_ct_ft *
 mlx5_tc_ct_add_ft_cb(struct mlx5_tc_ct_priv *ct_priv, u16 zone,
 		     struct nf_flowtable *nf_ft)
@@ -1572,6 +1580,8 @@ mlx5_tc_ct_add_ft_cb(struct mlx5_tc_ct_priv *ct_priv, u16 zone,
 	err = rhashtable_init(&ft->ct_entries_ht, &cts_ht_params);
 	if (err)
 		goto err_init;
+
+	lockdep_set_class(&ft->ct_entries_ht.mutex, &ct_entries_ht_lock_key);
 
 	err = rhashtable_insert_fast(&ct_priv->zone_ht, &ft->node,
 				     zone_params);
