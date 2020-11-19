@@ -268,6 +268,35 @@ void mlx5dr_ste_set_actions_tx(struct mlx5dr_ste_ctx *ste_ctx,
 			       struct mlx5dr_ste_actions_attr *attr,
 			       u32 *added_stes);
 
+void mlx5dr_ste_set_action_set(struct mlx5dr_ste_ctx *ste_ctx,
+			       __be64 *hw_action,
+			       u8 hw_field,
+			       u8 shifter,
+			       u8 length,
+			       u32 data);
+void mlx5dr_ste_set_action_add(struct mlx5dr_ste_ctx *ste_ctx,
+			       __be64 *hw_action,
+			       u8 hw_field,
+			       u8 shifter,
+			       u8 length,
+			       u32 data);
+void mlx5dr_ste_set_action_copy(struct mlx5dr_ste_ctx *ste_ctx,
+				__be64 *hw_action,
+				u8 dst_hw_field,
+				u8 dst_shifter,
+				u8 dst_len,
+				u8 src_hw_field,
+				u8 src_shifter);
+int mlx5dr_ste_set_action_decap_l3_list(struct mlx5dr_ste_ctx *ste_ctx,
+					void *data,
+					u32 data_sz,
+					u8 *hw_action,
+					u32 hw_action_sz,
+					u16 *used_hw_action_num);
+
+const struct mlx5dr_ste_action_modify_field *
+mlx5dr_ste_conv_modify_hdr_sw_field(struct mlx5dr_ste_ctx *ste_ctx, u16 sw_field);
+
 struct mlx5dr_ste_ctx *mlx5dr_ste_get_ctx(u8 version);
 void mlx5dr_ste_free(struct mlx5dr_ste *ste,
 		     struct mlx5dr_matcher *matcher,
@@ -763,6 +792,14 @@ struct mlx5dr_rule_member {
 	struct list_head list;
 	/* attached to mlx5dr_ste via this */
 	struct list_head use_ste_list;
+};
+
+struct mlx5dr_ste_action_modify_field {
+	u16 hw_field;
+	u8 start;
+	u8 end;
+	u8 l3_type;
+	u8 l4_type;
 };
 
 struct mlx5dr_action {

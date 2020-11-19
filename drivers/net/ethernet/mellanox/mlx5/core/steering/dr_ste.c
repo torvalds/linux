@@ -534,6 +534,70 @@ void mlx5dr_ste_set_actions_rx(struct mlx5dr_ste_ctx *ste_ctx,
 				attr, added_stes);
 }
 
+const struct mlx5dr_ste_action_modify_field *
+mlx5dr_ste_conv_modify_hdr_sw_field(struct mlx5dr_ste_ctx *ste_ctx, u16 sw_field)
+{
+	const struct mlx5dr_ste_action_modify_field *hw_field;
+
+	if (sw_field >= ste_ctx->modify_field_arr_sz)
+		return NULL;
+
+	hw_field = &ste_ctx->modify_field_arr[sw_field];
+	if (!hw_field->end && !hw_field->start)
+		return NULL;
+
+	return hw_field;
+}
+
+void mlx5dr_ste_set_action_set(struct mlx5dr_ste_ctx *ste_ctx,
+			       __be64 *hw_action,
+			       u8 hw_field,
+			       u8 shifter,
+			       u8 length,
+			       u32 data)
+{
+	ste_ctx->set_action_set((u8 *)hw_action,
+				hw_field, shifter, length, data);
+}
+
+void mlx5dr_ste_set_action_add(struct mlx5dr_ste_ctx *ste_ctx,
+			       __be64 *hw_action,
+			       u8 hw_field,
+			       u8 shifter,
+			       u8 length,
+			       u32 data)
+{
+	ste_ctx->set_action_add((u8 *)hw_action,
+				hw_field, shifter, length, data);
+}
+
+void mlx5dr_ste_set_action_copy(struct mlx5dr_ste_ctx *ste_ctx,
+				__be64 *hw_action,
+				u8 dst_hw_field,
+				u8 dst_shifter,
+				u8 dst_len,
+				u8 src_hw_field,
+				u8 src_shifter)
+{
+	ste_ctx->set_action_copy((u8 *)hw_action,
+				 dst_hw_field, dst_shifter, dst_len,
+				 src_hw_field, src_shifter);
+}
+
+int mlx5dr_ste_set_action_decap_l3_list(struct mlx5dr_ste_ctx *ste_ctx,
+					void *data, u32 data_sz,
+					u8 *hw_action, u32 hw_action_sz,
+					u16 *used_hw_action_num)
+{
+	/* Only Ethernet frame is supported, with VLAN (18) or without (14) */
+	if (data_sz != HDR_LEN_L2 && data_sz != HDR_LEN_L2_W_VLAN)
+		return -EINVAL;
+
+	return ste_ctx->set_action_decap_l3_list(data, data_sz,
+						 hw_action, hw_action_sz,
+						 used_hw_action_num);
+}
+
 int mlx5dr_ste_build_pre_check(struct mlx5dr_domain *dmn,
 			       u8 match_criteria,
 			       struct mlx5dr_match_param *mask,

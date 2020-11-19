@@ -15,6 +15,11 @@
 #define IP_VERSION_IPV6 0x6
 #define STE_SVLAN 0x1
 #define STE_CVLAN 0x2
+#define HDR_LEN_L2_MACS   0xC
+#define HDR_LEN_L2_VLAN   0x4
+#define HDR_LEN_L2_ETHER  0x2
+#define HDR_LEN_L2        (HDR_LEN_L2_MACS + HDR_LEN_L2_ETHER)
+#define HDR_LEN_L2_W_VLAN (HDR_LEN_L2 + HDR_LEN_L2_VLAN)
 
 /* Set to STE a specific value using DR_STE_SET */
 #define DR_STE_SET_VAL(lookup_type, tag, t_fname, spec, s_fname, value) do { \
@@ -68,6 +73,18 @@
 	(_misc)->outer_first_mpls_over_udp_exp || \
 	(_misc)->outer_first_mpls_over_udp_s_bos || \
 	(_misc)->outer_first_mpls_over_udp_ttl)
+
+enum dr_ste_action_modify_type_l3 {
+	DR_STE_ACTION_MDFY_TYPE_L3_NONE	= 0x0,
+	DR_STE_ACTION_MDFY_TYPE_L3_IPV4	= 0x1,
+	DR_STE_ACTION_MDFY_TYPE_L3_IPV6	= 0x2,
+};
+
+enum dr_ste_action_modify_type_l4 {
+	DR_STE_ACTION_MDFY_TYPE_L4_NONE	= 0x0,
+	DR_STE_ACTION_MDFY_TYPE_L4_TCP	= 0x1,
+	DR_STE_ACTION_MDFY_TYPE_L4_UDP	= 0x2,
+};
 
 u16 mlx5dr_ste_conv_bit_to_byte_mask(u8 *bit_mask);
 
