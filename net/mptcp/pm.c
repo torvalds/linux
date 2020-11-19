@@ -24,6 +24,8 @@ int mptcp_pm_announce_addr(struct mptcp_sock *msk,
 	add_addr |= BIT(MPTCP_ADD_ADDR_SIGNAL);
 	if (echo)
 		add_addr |= BIT(MPTCP_ADD_ADDR_ECHO);
+	if (addr->family == AF_INET6)
+		add_addr |= BIT(MPTCP_ADD_ADDR_IPV6);
 	WRITE_ONCE(msk->pm.add_addr_signal, add_addr);
 	return 0;
 }
@@ -153,12 +155,22 @@ void mptcp_pm_add_addr_received(struct mptcp_sock *msk,
 
 	spin_lock_bh(&pm->lock);
 
-	if (!READ_ONCE(pm->accept_addr))
+	if (!READ_ONCE(pm->accept_addr)) {
 		mptcp_pm_announce_addr(msk, addr, true);
-	else if (mptcp_pm_schedule_work(msk, MPTCP_PM_ADD_ADDR_RECEIVED))
+		mptcp_pm_add_addr_send_ack(msk);
+	} else if (mptcp_pm_schedule_work(msk, MPTCP_PM_ADD_ADDR_RECEIVED)) {
 		pm->remote = *addr;
+	}
 
 	spin_unlock_bh(&pm->lock);
+}
+
+void mptcp_pm_add_addr_send_ack(struct mptcp_sock *msk)
+{
+	if (!mptcp_pm_should_add_signal_ipv6(msk))
+		return;
+
+	mptcp_pm_schedule_work(msk, MPTCP_PM_ADD_ADDR_SEND_ACK);
 }
 
 void mptcp_pm_rm_addr_received(struct mptcp_sock *msk, u8 rm_id)

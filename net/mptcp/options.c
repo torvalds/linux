@@ -242,7 +242,9 @@ static void mptcp_parse_option(const struct sk_buff *skb,
 
 		mp_opt->add_addr = 1;
 		mp_opt->addr_id = *ptr++;
-		pr_debug("ADD_ADDR: id=%d, echo=%d", mp_opt->addr_id, mp_opt->echo);
+		pr_debug("ADD_ADDR%s: id=%d, echo=%d",
+			 (mp_opt->family == MPTCP_ADDR_IPVERSION_6) ? "6" : "",
+			 mp_opt->addr_id, mp_opt->echo);
 		if (mp_opt->family == MPTCP_ADDR_IPVERSION_4) {
 			memcpy((u8 *)&mp_opt->addr.s_addr, (u8 *)ptr, 4);
 			ptr += 4;
@@ -573,16 +575,26 @@ static u64 add_addr6_generate_hmac(u64 key1, u64 key2, u8 addr_id,
 }
 #endif
 
-static bool mptcp_established_options_add_addr(struct sock *sk,
+static bool mptcp_established_options_add_addr(struct sock *sk, struct sk_buff *skb,
 					       unsigned int *size,
 					       unsigned int remaining,
 					       struct mptcp_out_options *opts)
 {
 	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(sk);
 	struct mptcp_sock *msk = mptcp_sk(subflow->conn);
+	bool drop_other_suboptions = false;
+	unsigned int opt_size = *size;
 	struct mptcp_addr_info saddr;
 	bool echo;
 	int len;
+
+	if (mptcp_pm_should_add_signal_ipv6(msk) &&
+	    skb && skb_is_tcp_pure_ack(skb)) {
+		pr_debug("drop other suboptions");
+		opts->suboptions = 0;
+		remaining += opt_size;
+		drop_other_suboptions = true;
+	}
 
 	if (!mptcp_pm_should_add_signal(msk) ||
 	    !(mptcp_pm_add_addr_signal(msk, remaining, &saddr, &echo)))
@@ -593,6 +605,8 @@ static bool mptcp_established_options_add_addr(struct sock *sk,
 		return false;
 
 	*size = len;
+	if (drop_other_suboptions)
+		*size -= opt_size;
 	opts->addr_id = saddr.id;
 	if (saddr.family == AF_INET) {
 		opts->suboptions |= OPTION_MPTCP_ADD_ADDR;
@@ -678,7 +692,7 @@ bool mptcp_established_options(struct sock *sk, struct sk_buff *skb,
 
 	*size += opt_size;
 	remaining -= opt_size;
-	if (mptcp_established_options_add_addr(sk, &opt_size, remaining, opts)) {
+	if (mptcp_established_options_add_addr(sk, skb, &opt_size, remaining, opts)) {
 		*size += opt_size;
 		remaining -= opt_size;
 		ret = true;
@@ -757,6 +771,11 @@ static bool check_fully_established(struct mptcp_sock *msk, struct sock *ssk,
 		subflow->fully_established = 1;
 		WRITE_ONCE(msk->fully_established, true);
 		goto fully_established;
+	}
+
+	if (mp_opt->add_addr) {
+		WRITE_ONCE(msk->fully_established, true);
+		return true;
 	}
 
 	/* If the first established packet does not contain MP_CAPABLE + data

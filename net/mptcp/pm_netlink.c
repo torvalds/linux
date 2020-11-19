@@ -228,6 +228,7 @@ static void mptcp_pm_add_timer(struct timer_list *timer)
 	if (!mptcp_pm_should_add_signal(msk)) {
 		pr_debug("retransmit ADD_ADDR id=%d", entry->addr.id);
 		mptcp_pm_announce_addr(msk, &entry->addr, false);
+		mptcp_pm_add_addr_send_ack(msk);
 		entry->retrans_times++;
 	}
 
@@ -328,6 +329,7 @@ static void mptcp_pm_create_subflow_or_signal_addr(struct mptcp_sock *msk)
 			if (mptcp_pm_alloc_anno_list(msk, local)) {
 				msk->pm.add_addr_signaled++;
 				mptcp_pm_announce_addr(msk, &local->addr, false);
+				mptcp_pm_nl_add_addr_send_ack(msk);
 			}
 		} else {
 			/* pick failed, avoid fourther attempts later */
@@ -398,6 +400,33 @@ void mptcp_pm_nl_add_addr_received(struct mptcp_sock *msk)
 	spin_lock_bh(&msk->pm.lock);
 
 	mptcp_pm_announce_addr(msk, &remote, true);
+	mptcp_pm_nl_add_addr_send_ack(msk);
+}
+
+void mptcp_pm_nl_add_addr_send_ack(struct mptcp_sock *msk)
+{
+	struct mptcp_subflow_context *subflow;
+
+	if (!mptcp_pm_should_add_signal_ipv6(msk))
+		return;
+
+	__mptcp_flush_join_list(msk);
+	subflow = list_first_entry_or_null(&msk->conn_list, typeof(*subflow), node);
+	if (subflow) {
+		struct sock *ssk = mptcp_subflow_tcp_sock(subflow);
+		u8 add_addr;
+
+		spin_unlock_bh(&msk->pm.lock);
+		pr_debug("send ack for add_addr6");
+		lock_sock(ssk);
+		tcp_send_ack(ssk);
+		release_sock(ssk);
+		spin_lock_bh(&msk->pm.lock);
+
+		add_addr = READ_ONCE(msk->pm.add_addr_signal);
+		add_addr &= ~BIT(MPTCP_ADD_ADDR_IPV6);
+		WRITE_ONCE(msk->pm.add_addr_signal, add_addr);
+	}
 }
 
 void mptcp_pm_nl_rm_addr_received(struct mptcp_sock *msk)
