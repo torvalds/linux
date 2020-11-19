@@ -66,13 +66,163 @@ static const char * const dac_hpf_cutoff_text[] = {
 static SOC_ENUM_SINGLE_DECL(dac_hpf_cutoff_enum, DACHPF, 4,
 			    dac_hpf_cutoff_text);
 
+static int rk_codec_digital_adc_vol_get(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	unsigned int val = snd_soc_component_read32(component, mc->reg);
+	unsigned int sign = snd_soc_component_read32(component, ADCVOGP);
+	unsigned int mask = (1 << fls(mc->max)) - 1;
+	unsigned int shift = mc->shift;
+	int mid = mc->max / 2;
+	int uv;
+
+	switch (mc->reg) {
+	case ADCVOLL0:
+		sign &= ACDCDIG_ADCVOGP_VOLGPL0_MASK;
+		break;
+	case ADCVOLL1:
+		sign &= ACDCDIG_ADCVOGP_VOLGPL1_MASK;
+		break;
+	case ADCVOLR0:
+		sign &= ACDCDIG_ADCVOGP_VOLGPR0_MASK;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	uv = (val >> shift) & mask;
+	if (sign)
+		uv = mid + uv;
+	else
+		uv = mid - uv;
+
+	ucontrol->value.integer.value[0] = uv;
+
+	return 0;
+}
+
+static int rk_codec_digital_adc_vol_put(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	unsigned int reg = mc->reg;
+	unsigned int shift = mc->shift;
+	unsigned int mask = (1 << fls(mc->max)) - 1;
+	unsigned int val, val_mask, sign, sign_mask;
+	int uv = ucontrol->value.integer.value[0];
+	int min = mc->min;
+	int mid = mc->max / 2;
+	bool pos = (uv > mid);
+
+	switch (mc->reg) {
+	case ADCVOLL0:
+		sign_mask = ACDCDIG_ADCVOGP_VOLGPL0_MASK;
+		sign = pos ? ACDCDIG_ADCVOGP_VOLGPL0_POS : ACDCDIG_ADCVOGP_VOLGPL0_NEG;
+		break;
+	case ADCVOLL1:
+		sign_mask = ACDCDIG_ADCVOGP_VOLGPL1_MASK;
+		sign = pos ? ACDCDIG_ADCVOGP_VOLGPL1_POS : ACDCDIG_ADCVOGP_VOLGPL1_NEG;
+		break;
+	case ADCVOLR0:
+		sign_mask = ACDCDIG_ADCVOGP_VOLGPR0_MASK;
+		sign = pos ? ACDCDIG_ADCVOGP_VOLGPR0_POS : ACDCDIG_ADCVOGP_VOLGPR0_NEG;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	uv = pos ? (uv - mid) : (mid - uv);
+
+	val = ((uv + min) & mask);
+	val_mask = mask << shift;
+	val = val << shift;
+
+	snd_soc_component_update_bits(component, reg, val_mask, val);
+	snd_soc_component_update_bits(component, ADCVOGP, sign_mask, sign);
+
+	return 0;
+}
+
+static int rk_codec_digital_dac_vol_get(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	unsigned int val = snd_soc_component_read32(component, mc->reg);
+	unsigned int sign = snd_soc_component_read32(component, DACVOGP);
+	unsigned int mask = (1 << fls(mc->max)) - 1;
+	unsigned int shift = mc->shift;
+	int mid = mc->max / 2;
+	int uv;
+
+	uv = (val >> shift) & mask;
+	if (sign)
+		uv = mid + uv;
+	else
+		uv = mid - uv;
+
+	ucontrol->value.integer.value[0] = uv;
+	ucontrol->value.integer.value[1] = uv;
+
+	return 0;
+}
+
+static int rk_codec_digital_dac_vol_put(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	unsigned int reg = mc->reg;
+	unsigned int rreg = mc->rreg;
+	unsigned int shift = mc->shift;
+	unsigned int mask = (1 << fls(mc->max)) - 1;
+	unsigned int val, val_mask, sign;
+	int uv = ucontrol->value.integer.value[0];
+	int min = mc->min;
+	int mid = mc->max / 2;
+
+	if (uv > mid) {
+		sign = ACDCDIG_DACVOGP_VOLGPL0_POS | ACDCDIG_DACVOGP_VOLGPR0_POS;
+		uv = uv - mid;
+	} else {
+		sign = ACDCDIG_DACVOGP_VOLGPL0_NEG | ACDCDIG_DACVOGP_VOLGPR0_NEG;
+		uv = mid - uv;
+	}
+
+	val = ((uv + min) & mask);
+	val_mask = mask << shift;
+	val = val << shift;
+
+	snd_soc_component_update_bits(component, reg, val_mask, val);
+	snd_soc_component_update_bits(component, rreg, val_mask, val);
+	snd_soc_component_write(component, DACVOGP, sign);
+
+	return 0;
+}
+
 static const struct snd_kcontrol_new rk_codec_digital_snd_controls[] = {
-	SOC_SINGLE_TLV("ADCL0 Digital Volume",
-		       ADCVOLL0, 0, 0Xff, 1, adc_tlv),
-	SOC_SINGLE_TLV("ADCL1 Digital Volume",
-		       ADCVOLL1, 0, 0xff, 1, adc_tlv),
-	SOC_SINGLE_TLV("ADCR0 Digital Volume",
-		       ADCVOLR0, 0, 0xff, 1, adc_tlv),
+	SOC_SINGLE_EXT_TLV("ADCL0 Digital Volume",
+			   ADCVOLL0, 0, 0X1fe, 0,
+			   rk_codec_digital_adc_vol_get,
+			   rk_codec_digital_adc_vol_put,
+			   adc_tlv),
+	SOC_SINGLE_EXT_TLV("ADCL1 Digital Volume",
+			   ADCVOLL1, 0, 0x1fe, 0,
+			   rk_codec_digital_adc_vol_get,
+			   rk_codec_digital_adc_vol_put,
+			   adc_tlv),
+	SOC_SINGLE_EXT_TLV("ADCR0 Digital Volume",
+			   ADCVOLR0, 0, 0x1fe, 0,
+			   rk_codec_digital_adc_vol_get,
+			   rk_codec_digital_adc_vol_put,
+			   adc_tlv),
 
 	SOC_SINGLE_TLV("ADCL0 PGA Gain",
 		       ADCPGL0, 0, 0Xf, 0, pga_tlv),
@@ -81,10 +231,11 @@ static const struct snd_kcontrol_new rk_codec_digital_snd_controls[] = {
 	SOC_SINGLE_TLV("ADCR0 PGA Gain",
 		       ADCPGR0, 0, 0xf, 0, pga_tlv),
 
-	SOC_SINGLE_TLV("DACL Digital Volume",
-		       DACVOLL0, 0, 0xff, 1, dac_tlv),
-	SOC_SINGLE_TLV("DACR Digital Volume",
-		       DACVOLR0, 0, 0xff, 1, dac_tlv),
+	SOC_DOUBLE_R_EXT_TLV("DAC Digital Volume",
+			     DACVOLL0, DACVOLR0, 0, 0x1fe, 0,
+			     rk_codec_digital_dac_vol_get,
+			     rk_codec_digital_dac_vol_put,
+			     dac_tlv),
 
 	SOC_ENUM("ADC HPF Cutoff", adc_hpf_cutoff_enum),
 	SOC_SINGLE("ADC L0 HPF Switch", ADCHPFEN, 0, 1, 0),
