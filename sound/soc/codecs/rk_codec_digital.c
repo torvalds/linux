@@ -38,6 +38,7 @@ struct rk_codec_digital_priv {
 	struct clk *clk_i2c;
 	struct clk *pclk;
 	bool pwmout;
+	bool sync;
 	struct reset_control *rc;
 	const struct rk_codec_digital_soc_data *data;
 };
@@ -111,9 +112,9 @@ static void rk_codec_digital_reset(struct rk_codec_digital_priv *rcd)
  * 32.768MHz 32.768MHz 4.096MHz 8/16/32/64/128kHz
  *
  */
-static void rk_codec_digital_get_sync_clk(unsigned int samplerate,
-					  unsigned int *mclk,
-					  unsigned int *sclk)
+static void rk_codec_digital_get_clk(unsigned int samplerate,
+				     unsigned int *mclk,
+				     unsigned int *sclk)
 {
 	switch (samplerate) {
 	case 12000:
@@ -179,15 +180,15 @@ static void rk_codec_digital_enable_clk_dac(struct rk_codec_digital_priv *rcd)
 			   ACDCDIG_DACCLKCTRL_DAC_MODE_ATTENU_EN);
 }
 
-static int rk_codec_digital_set_clk(struct rk_codec_digital_priv *rcd,
-				    int stream, unsigned int samplerate)
+static int rk_codec_digital_set_clk_sync(struct rk_codec_digital_priv *rcd,
+					 unsigned int mclk,
+					 unsigned int sclk,
+					 unsigned int bclk)
 {
-	unsigned int mclk, sclk, div_sync;
-	unsigned int bclk, div_bclk;
+	unsigned int div_sync, div_bclk;
 
-	rk_codec_digital_get_sync_clk(samplerate, &mclk, &sclk);
-	if (!mclk || !sclk)
-		return -EINVAL;
+	div_bclk = DIV_ROUND_CLOSEST(mclk, bclk);
+	div_sync = DIV_ROUND_CLOSEST(mclk, sclk);
 
 	clk_set_rate(rcd->clk_adc, mclk);
 	clk_set_rate(rcd->clk_dac, mclk);
@@ -199,8 +200,6 @@ static int rk_codec_digital_set_clk(struct rk_codec_digital_priv *rcd,
 			   ACDCDIG_SYSCTRL0_SYNC_MODE_SYNC |
 			   ACDCDIG_SYSCTRL0_CLK_COM_SEL_ADC);
 
-	div_sync = DIV_ROUND_CLOSEST(mclk, sclk);
-
 	regmap_update_bits(rcd->regmap, ADCINT_DIV,
 			   ACDCDIG_ADCINT_DIV_INT_DIV_CON_MASK,
 			   ACDCDIG_ADCINT_DIV_INT_DIV_CON(div_sync));
@@ -210,9 +209,6 @@ static int rk_codec_digital_set_clk(struct rk_codec_digital_priv *rcd,
 
 	rk_codec_digital_enable_clk_adc(rcd);
 	rk_codec_digital_enable_clk_dac(rcd);
-
-	bclk = 64 * samplerate;
-	div_bclk = DIV_ROUND_CLOSEST(mclk, bclk);
 
 	regmap_update_bits(rcd->regmap, DACSCLKRXINT_DIV,
 			   ACDCDIG_DACSCLKRXINT_DIV_SCKRXDIV_MASK,
@@ -226,6 +222,58 @@ static int rk_codec_digital_set_clk(struct rk_codec_digital_priv *rcd,
 	regmap_update_bits(rcd->regmap, I2S_CKR0,
 			   ACDCDIG_I2S_CKR0_TSD_MASK,
 			   ACDCDIG_I2S_CKR0_TSD(64));
+
+	return 0;
+}
+
+static int rk_codec_digital_set_clk(struct rk_codec_digital_priv *rcd,
+				    struct snd_pcm_substream *substream,
+				    unsigned int samplerate)
+{
+	unsigned int mclk, sclk, bclk;
+	unsigned int div_sync, div_bclk;
+
+	rk_codec_digital_get_clk(samplerate, &mclk, &sclk);
+	if (!mclk || !sclk)
+		return -EINVAL;
+
+	bclk = 64 * samplerate;
+	div_bclk = DIV_ROUND_CLOSEST(mclk, bclk);
+	div_sync = DIV_ROUND_CLOSEST(mclk, sclk);
+
+	if (rcd->sync)
+		return rk_codec_digital_set_clk_sync(rcd, mclk, sclk, bclk);
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		clk_set_rate(rcd->clk_dac, mclk);
+
+		regmap_update_bits(rcd->regmap, DACINT_DIV,
+				   ACDCDIG_DACINT_DIV_INT_DIV_CON_MASK,
+				   ACDCDIG_DACINT_DIV_INT_DIV_CON(div_sync));
+
+		rk_codec_digital_enable_clk_dac(rcd);
+
+		regmap_update_bits(rcd->regmap, DACSCLKRXINT_DIV,
+				   ACDCDIG_DACSCLKRXINT_DIV_SCKRXDIV_MASK,
+				   ACDCDIG_DACSCLKRXINT_DIV_SCKRXDIV(div_bclk));
+		regmap_update_bits(rcd->regmap, I2S_CKR0,
+				   ACDCDIG_I2S_CKR0_RSD_MASK,
+				   ACDCDIG_I2S_CKR0_RSD(64));
+	} else {
+		clk_set_rate(rcd->clk_adc, mclk);
+
+		regmap_update_bits(rcd->regmap, ADCINT_DIV,
+				   ACDCDIG_ADCINT_DIV_INT_DIV_CON_MASK,
+				   ACDCDIG_ADCINT_DIV_INT_DIV_CON(div_sync));
+
+		rk_codec_digital_enable_clk_adc(rcd);
+		regmap_update_bits(rcd->regmap, ADCSCLKTXINT_DIV,
+				   ACDCDIG_ADCSCLKTXINT_DIV_SCKTXDIV_MASK,
+				   ACDCDIG_ADCSCLKTXINT_DIV_SCKTXDIV(div_bclk));
+		regmap_update_bits(rcd->regmap, I2S_CKR0,
+				   ACDCDIG_I2S_CKR0_TSD_MASK,
+				   ACDCDIG_I2S_CKR0_TSD(64));
+	}
 
 	return 0;
 }
@@ -276,6 +324,70 @@ static int rk_codec_digital_set_dai_fmt(struct snd_soc_dai *dai,
 	return 0;
 }
 
+static int rk_codec_digital_enable_sync(struct rk_codec_digital_priv *rcd)
+{
+	regmap_update_bits(rcd->regmap, I2S_XFER,
+			   ACDCDIG_I2S_XFER_RXS_MASK |
+			   ACDCDIG_I2S_XFER_TXS_MASK,
+			   ACDCDIG_I2S_XFER_RXS_START |
+			   ACDCDIG_I2S_XFER_TXS_START);
+
+	regmap_update_bits(rcd->regmap, SYSCTRL0,
+			   ACDCDIG_SYSCTRL0_GLB_CKE_MASK,
+			   ACDCDIG_SYSCTRL0_GLB_CKE_EN);
+
+	regmap_update_bits(rcd->regmap, ADCDIGEN,
+			   ACDCDIG_ADCDIGEN_ADC_GLBEN_MASK |
+			   ACDCDIG_ADCDIGEN_ADCEN_L2_MASK |
+			   ACDCDIG_ADCDIGEN_ADCEN_L0R1_MASK,
+			   ACDCDIG_ADCDIGEN_ADC_GLBEN_EN |
+			   ACDCDIG_ADCDIGEN_ADCEN_L2_EN |
+			   ACDCDIG_ADCDIGEN_ADCEN_L0R1_EN);
+
+	regmap_update_bits(rcd->regmap, DACDIGEN,
+			   ACDCDIG_DACDIGEN_DAC_GLBEN_MASK |
+			   ACDCDIG_DACDIGEN_DACEN_L0R1_MASK,
+			   ACDCDIG_DACDIGEN_DAC_GLBEN_EN |
+			   ACDCDIG_DACDIGEN_DACEN_L0R1_EN);
+
+	return 0;
+}
+
+static int rk_codec_digital_disable_sync(struct rk_codec_digital_priv *rcd)
+{
+	regmap_update_bits(rcd->regmap, I2S_XFER,
+			   ACDCDIG_I2S_XFER_RXS_MASK |
+			   ACDCDIG_I2S_XFER_TXS_MASK,
+			   ACDCDIG_I2S_XFER_RXS_STOP |
+			   ACDCDIG_I2S_XFER_TXS_STOP);
+
+	regmap_update_bits(rcd->regmap, I2S_CLR,
+			   ACDCDIG_I2S_CLR_RXC_MASK |
+			   ACDCDIG_I2S_CLR_TXC_MASK,
+			   ACDCDIG_I2S_CLR_RXC_CLR |
+			   ACDCDIG_I2S_CLR_TXC_CLR);
+
+	regmap_update_bits(rcd->regmap, SYSCTRL0,
+			   ACDCDIG_SYSCTRL0_GLB_CKE_MASK,
+			   ACDCDIG_SYSCTRL0_GLB_CKE_DIS);
+
+	regmap_update_bits(rcd->regmap, ADCDIGEN,
+			   ACDCDIG_ADCDIGEN_ADC_GLBEN_MASK |
+			   ACDCDIG_ADCDIGEN_ADCEN_L2_MASK |
+			   ACDCDIG_ADCDIGEN_ADCEN_L0R1_MASK,
+			   ACDCDIG_ADCDIGEN_ADC_GLBEN_DIS |
+			   ACDCDIG_ADCDIGEN_ADCEN_L2_DIS |
+			   ACDCDIG_ADCDIGEN_ADCEN_L0R1_DIS);
+
+	regmap_update_bits(rcd->regmap, DACDIGEN,
+			   ACDCDIG_DACDIGEN_DAC_GLBEN_MASK |
+			   ACDCDIG_DACDIGEN_DACEN_L0R1_MASK,
+			   ACDCDIG_DACDIGEN_DAC_GLBEN_DIS |
+			   ACDCDIG_DACDIGEN_DACEN_L0R1_DIS);
+
+	return 0;
+}
+
 static int rk_codec_digital_hw_params(struct snd_pcm_substream *substream,
 				      struct snd_pcm_hw_params *params,
 				      struct snd_soc_dai *dai)
@@ -284,8 +396,7 @@ static int rk_codec_digital_hw_params(struct snd_pcm_substream *substream,
 		snd_soc_component_get_drvdata(dai->component);
 	unsigned int srt = 0, val = 0;
 
-	rk_codec_digital_set_clk(rcd, substream->stream, params_rate(params));
-	rk_codec_digital_reset(rcd);
+	rk_codec_digital_set_clk(rcd, substream, params_rate(params));
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		switch (params_rate(params)) {
@@ -411,32 +522,30 @@ static int rk_codec_digital_hw_params(struct snd_pcm_substream *substream,
 				   ACDCDIG_I2S_TXCR1_TCSR_MASK, val);
 	}
 
-	regmap_write(rcd->regmap, I2S_CLR,
-		     ACDCDIG_I2S_CLR_RXC_CLR | ACDCDIG_I2S_CLR_TXC_CLR);
+	if (rcd->sync)
+		return rk_codec_digital_enable_sync(rcd);
 
-	regmap_update_bits(rcd->regmap, I2S_XFER,
-			   ACDCDIG_I2S_XFER_RXS_MASK |
-			   ACDCDIG_I2S_XFER_TXS_MASK,
-			   ACDCDIG_I2S_XFER_RXS_START |
-			   ACDCDIG_I2S_XFER_TXS_START);
-
-	regmap_update_bits(rcd->regmap, SYSCTRL0,
-			   ACDCDIG_SYSCTRL0_GLB_CKE_MASK,
-			   ACDCDIG_SYSCTRL0_GLB_CKE_EN);
-
-	regmap_update_bits(rcd->regmap, ADCDIGEN,
-			   ACDCDIG_ADCDIGEN_ADC_GLBEN_MASK |
-			   ACDCDIG_ADCDIGEN_ADCEN_L2_MASK |
-			   ACDCDIG_ADCDIGEN_ADCEN_L0R1_MASK,
-			   ACDCDIG_ADCDIGEN_ADC_GLBEN_EN |
-			   ACDCDIG_ADCDIGEN_ADCEN_L2_EN |
-			   ACDCDIG_ADCDIGEN_ADCEN_L0R1_EN);
-
-	regmap_update_bits(rcd->regmap, DACDIGEN,
-			   ACDCDIG_DACDIGEN_DAC_GLBEN_MASK |
-			   ACDCDIG_DACDIGEN_DACEN_L0R1_MASK,
-			   ACDCDIG_DACDIGEN_DAC_GLBEN_EN |
-			   ACDCDIG_DACDIGEN_DACEN_L0R1_EN);
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		regmap_update_bits(rcd->regmap, I2S_XFER,
+				   ACDCDIG_I2S_XFER_RXS_MASK,
+				   ACDCDIG_I2S_XFER_RXS_START);
+		regmap_update_bits(rcd->regmap, DACDIGEN,
+				   ACDCDIG_DACDIGEN_DAC_GLBEN_MASK |
+				   ACDCDIG_DACDIGEN_DACEN_L0R1_MASK,
+				   ACDCDIG_DACDIGEN_DAC_GLBEN_EN |
+				   ACDCDIG_DACDIGEN_DACEN_L0R1_EN);
+	} else {
+		regmap_update_bits(rcd->regmap, I2S_XFER,
+				   ACDCDIG_I2S_XFER_TXS_MASK,
+				   ACDCDIG_I2S_XFER_TXS_START);
+		regmap_update_bits(rcd->regmap, ADCDIGEN,
+				   ACDCDIG_ADCDIGEN_ADC_GLBEN_MASK |
+				   ACDCDIG_ADCDIGEN_ADCEN_L2_MASK |
+				   ACDCDIG_ADCDIGEN_ADCEN_L0R1_MASK,
+				   ACDCDIG_ADCDIGEN_ADC_GLBEN_EN |
+				   ACDCDIG_ADCDIGEN_ADCEN_L2_EN |
+				   ACDCDIG_ADCDIGEN_ADCEN_L0R1_EN);
+	}
 
 	return 0;
 }
@@ -446,6 +555,15 @@ static void rk_codec_digital_pcm_shutdown(struct snd_pcm_substream *substream,
 {
 	struct rk_codec_digital_priv *rcd =
 		snd_soc_component_get_drvdata(dai->component);
+
+	if (rcd->sync) {
+		if (!snd_soc_component_is_active(dai->component)) {
+			rk_codec_digital_disable_sync(rcd);
+			rk_codec_digital_reset(rcd);
+		}
+
+		return;
+	}
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		if (rcd->pwmout)
@@ -661,6 +779,7 @@ static int rk_codec_digital_platform_probe(struct platform_device *pdev)
 
 	rcd->grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
 	rcd->pwmout = of_property_read_bool(np, "rockchip,pwm-output-mode");
+	rcd->sync = of_property_read_bool(np, "rockchip,clk-sync-mode");
 
 	rcd->rc = devm_reset_control_get(&pdev->dev, "reset");
 
