@@ -1253,6 +1253,7 @@ static ssize_t aldebaran_get_gpu_metrics(struct smu_context *smu,
 
 static bool aldebaran_is_mode1_reset_supported(struct smu_context *smu)
 {
+#if 0
 	struct amdgpu_device *adev = smu->adev;
 	u32 smu_version;
 	uint32_t val;
@@ -1269,6 +1270,8 @@ static bool aldebaran_is_mode1_reset_supported(struct smu_context *smu)
 	val = RREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_81);
 
 	return val != 0x0;
+#endif
+	return true;
 }
 
 static bool aldebaran_is_mode2_reset_supported(struct smu_context *smu)
