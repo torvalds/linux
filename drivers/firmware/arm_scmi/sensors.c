@@ -23,6 +23,8 @@ enum scmi_sensor_protocol_cmd {
 	SENSOR_READING_GET = 0x6,
 	SENSOR_AXIS_DESCRIPTION_GET = 0x7,
 	SENSOR_LIST_UPDATE_INTERVALS = 0x8,
+	SENSOR_CONFIG_GET = 0x9,
+	SENSOR_CONFIG_SET = 0xA,
 };
 
 struct scmi_msg_resp_sensor_attributes {
@@ -147,6 +149,11 @@ struct scmi_msg_set_sensor_trip_point {
 #define SENSOR_TP_ID(x)		(((x) & 0xff) << 4)
 	__le32 value_low;
 	__le32 value_high;
+};
+
+struct scmi_msg_sensor_config_set {
+	__le32 id;
+	__le32 sensor_config;
 };
 
 struct scmi_msg_sensor_reading_get {
@@ -592,6 +599,60 @@ scmi_sensor_trip_point_config(const struct scmi_handle *handle, u32 sensor_id,
 	return ret;
 }
 
+static int scmi_sensor_config_get(const struct scmi_handle *handle,
+				  u32 sensor_id, u32 *sensor_config)
+{
+	int ret;
+	struct scmi_xfer *t;
+
+	ret = scmi_xfer_get_init(handle, SENSOR_CONFIG_GET,
+				 SCMI_PROTOCOL_SENSOR, sizeof(__le32),
+				 sizeof(__le32), &t);
+	if (ret)
+		return ret;
+
+	put_unaligned_le32(cpu_to_le32(sensor_id), t->tx.buf);
+	ret = scmi_do_xfer(handle, t);
+	if (!ret) {
+		struct sensors_info *si = handle->sensor_priv;
+		struct scmi_sensor_info *s = si->sensors + sensor_id;
+
+		*sensor_config = get_unaligned_le64(t->rx.buf);
+		s->sensor_config = *sensor_config;
+	}
+
+	scmi_xfer_put(handle, t);
+	return ret;
+}
+
+static int scmi_sensor_config_set(const struct scmi_handle *handle,
+				  u32 sensor_id, u32 sensor_config)
+{
+	int ret;
+	struct scmi_xfer *t;
+	struct scmi_msg_sensor_config_set *msg;
+
+	ret = scmi_xfer_get_init(handle, SENSOR_CONFIG_SET,
+				 SCMI_PROTOCOL_SENSOR, sizeof(*msg), 0, &t);
+	if (ret)
+		return ret;
+
+	msg = t->tx.buf;
+	msg->id = cpu_to_le32(sensor_id);
+	msg->sensor_config = cpu_to_le32(sensor_config);
+
+	ret = scmi_do_xfer(handle, t);
+	if (!ret) {
+		struct sensors_info *si = handle->sensor_priv;
+		struct scmi_sensor_info *s = si->sensors + sensor_id;
+
+		s->sensor_config = sensor_config;
+	}
+
+	scmi_xfer_put(handle, t);
+	return ret;
+}
+
 /**
  * scmi_sensor_reading_get  - Read scalar sensor value
  * @handle: Platform handle
@@ -745,6 +806,8 @@ static const struct scmi_sensor_ops sensor_ops = {
 	.trip_point_config = scmi_sensor_trip_point_config,
 	.reading_get = scmi_sensor_reading_get,
 	.reading_get_timestamped = scmi_sensor_reading_get_timestamped,
+	.config_get = scmi_sensor_config_get,
+	.config_set = scmi_sensor_config_set,
 };
 
 static int scmi_sensor_set_notify_enabled(const struct scmi_handle *handle,
