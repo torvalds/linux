@@ -36,7 +36,7 @@
 // Message Definitions:
 #define PPSMC_MSG_TestMessage                    0x1
 #define PPSMC_MSG_GetSmuVersion                  0x2
-#define PPSMC_MSG_Mode1Reset                     0x3
+#define PPSMC_MSG_GfxDriverReset                 0x3
 #define PPSMC_MSG_GetDriverIfVersion             0x4
 #define PPSMC_MSG_spare1                         0x5
 #define PPSMC_MSG_spare2                         0x6
@@ -70,8 +70,8 @@
 #define PPSMC_MSG_SetPptLimit                    0x22
 #define PPSMC_MSG_GetPptLimit                    0x23
 #define PPSMC_MSG_PrepareMp1ForUnload            0x24
-#define PPSMC_MSG_PrepareMp1ForReset             0x25
-#define PPSMC_MSG_SoftReset                      0x26
+#define PPSMC_MSG_PrepareMp1ForReset             0x25 //retired in 68.07
+#define PPSMC_MSG_SoftReset                      0x26 //retired in 68.07
 #define PPSMC_MSG_RunDcBtc                       0x27
 #define PPSMC_MSG_DramLogSetDramAddrHigh         0x28
 #define PPSMC_MSG_DramLogSetDramAddrLow          0x29
@@ -92,7 +92,24 @@
 #define PPSMC_MSG_DisableDeterminism             0x3A
 #define PPSMC_MSG_SetUclkDpmMode                 0x3B
 
-#define PPSMC_Message_Count                      0x3C
+//STB to dram log
+#define PPSMC_MSG_DumpSTBtoDram                     0x3C
+#define PPSMC_MSG_STBtoDramLogSetDramAddrHigh       0x3D
+#define PPSMC_MSG_STBtoDramLogSetDramAddrLow        0x3E
+#define PPSMC_MSG_STBtoDramLogSetDramSize           0x3F
+#define PPSMC_MSG_SetSystemVirtualSTBtoDramAddrHigh 0x40
+#define PPSMC_MSG_SetSystemVirtualSTBtoDramAddrLow  0x41
+
+#define PPSMC_Message_Count                      0x42
+
+//PPSMC Reset Types
+#define PPSMC_RESET_TYPE_WARM_RESET              0x00
+#define PPSMC_RESET_TYPE_DRIVER_MODE_1_RESET     0x01 //driver msg argument should be 1 for mode-1
+#define PPSMC_RESET_TYPE_DRIVER_MODE_2_RESET     0x02 //and 2 for mode-2
+#define PPSMC_RESET_TYPE_PCIE_LINK_RESET         0x03
+#define PPSMC_RESET_TYPE_BIF_LINK_RESET          0x04
+#define PPSMC_RESET_TYPE_PF0_FLR_RESET           0x05
+
 
 typedef enum {
   GFXOFF_ERROR_NO_ERROR,

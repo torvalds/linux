@@ -220,6 +220,7 @@ int smu_v13_0_baco_enter(struct smu_context *smu);
 int smu_v13_0_baco_exit(struct smu_context *smu);
 
 int smu_v13_0_mode1_reset(struct smu_context *smu);
+int smu_v13_0_mode2_reset(struct smu_context *smu);
 
 int smu_v13_0_get_dpm_ultimate_freq(struct smu_context *smu, enum smu_clk_type clk_type,
 				    uint32_t *min, uint32_t *max);

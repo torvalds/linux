@@ -45,6 +45,7 @@
 #include <linux/pci.h>
 #include "amdgpu_ras.h"
 #include "smu_cmn.h"
+#include "mp/mp_13_0_2_offset.h"
 
 /*
  * DO NOT use these for err/warn/info/debug messages.
@@ -108,7 +109,7 @@ static const struct cmn2asic_msg_mapping aldebaran_message_map[SMU_MSG_MAX_COUNT
 	MSG_MAP(GetPptLimit,			     PPSMC_MSG_GetPptLimit,			1),
 	MSG_MAP(PrepareMp1ForUnload,		     PPSMC_MSG_PrepareMp1ForUnload,		0),
 	MSG_MAP(PrepareMp1ForReset,		     PPSMC_MSG_PrepareMp1ForReset,		0),
-	MSG_MAP(Mode1Reset,			     PPSMC_MSG_Mode1Reset,			0),
+	MSG_MAP(GfxDriverReset,			     PPSMC_MSG_GfxDriverReset,			0),
 	MSG_MAP(SoftReset,			     PPSMC_MSG_SoftReset,			0),
 	MSG_MAP(RunDcBtc,			     PPSMC_MSG_RunDcBtc,			0),
 	MSG_MAP(DramLogSetDramAddrHigh,		     PPSMC_MSG_DramLogSetDramAddrHigh,		0),
@@ -1250,6 +1251,31 @@ static ssize_t aldebaran_get_gpu_metrics(struct smu_context *smu,
 	return sizeof(struct gpu_metrics_v1_0);
 }
 
+static bool aldebaran_is_mode1_reset_supported(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	u32 smu_version;
+	uint32_t val;
+	/**
+	 * PM FW version support mode1 reset from 68.07
+	 */
+	smu_cmn_get_smc_version(smu, NULL, &smu_version);
+	if ((smu_version < 0x00440700))
+		return false;
+	/**
+	 * mode1 reset relies on PSP, so we should check if
+	 * PSP is alive.
+	 */
+	val = RREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_81);
+
+	return val != 0x0;
+}
+
+static bool aldebaran_is_mode2_reset_supported(struct smu_context *smu)
+{
+	return true;
+}
+
 static const struct pptable_funcs aldebaran_ppt_funcs = {
 	/* init dpm */
 	.get_allowed_feature_mask = aldebaran_get_allowed_feature_mask,
@@ -1305,6 +1331,10 @@ static const struct pptable_funcs aldebaran_ppt_funcs = {
 	.get_pp_feature_mask = smu_cmn_get_pp_feature_mask,
 	.set_pp_feature_mask = smu_cmn_set_pp_feature_mask,
 	.get_gpu_metrics = aldebaran_get_gpu_metrics,
+	.mode1_reset_is_support = aldebaran_is_mode1_reset_supported,
+	.mode2_reset_is_support = aldebaran_is_mode2_reset_supported,
+	.mode1_reset = smu_v13_0_mode1_reset,
+	.mode2_reset = smu_v13_0_mode2_reset,
 };
 
 void aldebaran_set_ppt_funcs(struct smu_context *smu)

@@ -1349,12 +1349,36 @@ int smu_v13_0_set_azalia_d3_pme(struct smu_context *smu)
 
 int smu_v13_0_mode1_reset(struct smu_context *smu)
 {
+	u32 smu_version;
 	int ret = 0;
+	/*
+	* PM FW support SMU_MSG_GfxDeviceDriverReset from 68.07
+	*/
+	smu_cmn_get_smc_version(smu, NULL, &smu_version);
+	if (smu_version < 0x00440700)
+		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_Mode1Reset, NULL);
+	else
+		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_GfxDeviceDriverReset, SMU_RESET_MODE_1, NULL);
 
-	ret = smu_cmn_send_smc_msg(smu, SMU_MSG_Mode1Reset, NULL);
 	if (!ret)
 		msleep(SMU13_MODE1_RESET_WAIT_TIME_IN_MS);
 
+	return ret;
+}
+
+int smu_v13_0_mode2_reset(struct smu_context *smu)
+{
+	u32 smu_version;
+	int ret = 0;
+	struct amdgpu_device *adev = smu->adev;
+	smu_cmn_get_smc_version(smu, NULL, &smu_version);
+	if (smu_version >= 0x00440700)
+		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_GfxDeviceDriverReset, SMU_RESET_MODE_2, NULL);
+	else
+		dev_err(adev->dev, "smu fw 0x%x does not support MSG_GfxDeviceDriverReset MSG\n", smu_version);
+	/*TODO: mode2 reset wait time should be shorter, will modify it later*/
+	if (!ret)
+		msleep(SMU13_MODE1_RESET_WAIT_TIME_IN_MS);
 	return ret;
 }
 

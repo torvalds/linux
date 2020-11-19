@@ -1917,6 +1917,9 @@ int smu_set_mp1_state(void *handle,
 		msg = SMU_MSG_PrepareMp1ForUnload;
 		break;
 	case PP_MP1_STATE_RESET:
+	/*TODO: since the SMU_MSG_PrepareMp1ForReset is retired in Aldebaran
+	* Add handling here forAldebaran.
+	*/
 		msg = SMU_MSG_PrepareMp1ForReset;
 		break;
 	case PP_MP1_STATE_NONE:
@@ -2782,6 +2785,23 @@ bool smu_mode1_reset_is_support(struct smu_context *smu)
 
 	if (smu->ppt_funcs && smu->ppt_funcs->mode1_reset_is_support)
 		ret = smu->ppt_funcs->mode1_reset_is_support(smu);
+
+	mutex_unlock(&smu->mutex);
+
+	return ret;
+}
+
+bool smu_mode2_reset_is_support(struct smu_context *smu)
+{
+	bool ret = false;
+
+	if (!smu->pm_enabled)
+		return false;
+
+	mutex_lock(&smu->mutex);
+
+	if (smu->ppt_funcs && smu->ppt_funcs->mode2_reset_is_support)
+		ret = smu->ppt_funcs->mode2_reset_is_support(smu);
 
 	mutex_unlock(&smu->mutex);
 

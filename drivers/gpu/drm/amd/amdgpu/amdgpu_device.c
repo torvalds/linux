@@ -4248,6 +4248,45 @@ disabled:
 		return false;
 }
 
+int amdgpu_device_mode1_reset(struct amdgpu_device *adev)
+{
+        u32 i;
+        int ret = 0;
+
+        amdgpu_atombios_scratch_regs_engine_hung(adev, true);
+
+        dev_info(adev->dev, "GPU mode1 reset\n");
+
+        /* disable BM */
+        pci_clear_master(adev->pdev);
+
+        amdgpu_device_cache_pci_state(adev->pdev);
+
+        if (amdgpu_dpm_is_mode1_reset_supported(adev)) {
+                dev_info(adev->dev, "GPU smu mode1 reset\n");
+                ret = amdgpu_dpm_mode1_reset(adev);
+        } else {
+                dev_info(adev->dev, "GPU psp mode1 reset\n");
+                ret = psp_gpu_reset(adev);
+        }
+
+        if (ret)
+                dev_err(adev->dev, "GPU mode1 reset failed\n");
+
+        amdgpu_device_load_pci_state(adev->pdev);
+
+        /* wait for asic to come out of reset */
+        for (i = 0; i < adev->usec_timeout; i++) {
+                u32 memsize = adev->nbio.funcs->get_memsize(adev);
+
+                if (memsize != 0xffffffff)
+                        break;
+                udelay(1);
+        }
+
+        amdgpu_atombios_scratch_regs_engine_hung(adev, false);
+        return ret;
+}
 
 static int amdgpu_device_pre_asic_reset(struct amdgpu_device *adev,
 					struct amdgpu_job *job,

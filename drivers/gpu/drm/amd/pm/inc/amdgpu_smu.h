@@ -1044,6 +1044,10 @@ struct pptable_funcs {
 	 * @mode1_reset_is_support: Check if GPU supports mode1 reset.
 	 */
 	bool (*mode1_reset_is_support)(struct smu_context *smu);
+	/**
+	 * @mode2_reset_is_support: Check if GPU supports mode2 reset.
+	 */
+	bool (*mode2_reset_is_support)(struct smu_context *smu);
 
 	/**
 	 * @mode1_reset: Perform mode1 reset.
@@ -1279,6 +1283,7 @@ int smu_baco_set_state(void *handle, int state);
 
 
 bool smu_mode1_reset_is_support(struct smu_context *smu);
+bool smu_mode2_reset_is_support(struct smu_context *smu);
 int smu_mode1_reset(struct smu_context *smu);
 int smu_mode2_reset(void *handle);
 

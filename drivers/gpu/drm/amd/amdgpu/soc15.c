@@ -650,40 +650,6 @@ void soc15_program_register_sequence(struct amdgpu_device *adev,
 
 }
 
-static int soc15_asic_mode1_reset(struct amdgpu_device *adev)
-{
-	u32 i;
-	int ret = 0;
-
-	amdgpu_atombios_scratch_regs_engine_hung(adev, true);
-
-	dev_info(adev->dev, "GPU mode1 reset\n");
-
-	/* disable BM */
-	pci_clear_master(adev->pdev);
-
-	amdgpu_device_cache_pci_state(adev->pdev);
-
-	ret = psp_gpu_reset(adev);
-	if (ret)
-		dev_err(adev->dev, "GPU mode1 reset failed\n");
-
-	amdgpu_device_load_pci_state(adev->pdev);
-
-	/* wait for asic to come out of reset */
-	for (i = 0; i < adev->usec_timeout; i++) {
-		u32 memsize = adev->nbio.funcs->get_memsize(adev);
-
-		if (memsize != 0xffffffff)
-			break;
-		udelay(1);
-	}
-
-	amdgpu_atombios_scratch_regs_engine_hung(adev, false);
-
-	return ret;
-}
-
 static int soc15_asic_baco_reset(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
@@ -708,13 +674,21 @@ static enum amd_reset_method
 soc15_asic_reset_method(struct amdgpu_device *adev)
 {
 	bool baco_reset = false;
+	bool connected_to_cpu = false;
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
+
+        if (adev->gmc.xgmi.supported && adev->gmc.xgmi.connected_to_cpu)
+                connected_to_cpu = true;
 
 	if (amdgpu_reset_method == AMD_RESET_METHOD_MODE1 ||
 	    amdgpu_reset_method == AMD_RESET_METHOD_MODE2 ||
 	    amdgpu_reset_method == AMD_RESET_METHOD_BACO ||
-	    amdgpu_reset_method == AMD_RESET_METHOD_PCI)
-		return amdgpu_reset_method;
+	    amdgpu_reset_method == AMD_RESET_METHOD_PCI) {
+		/* If connected to cpu, driver only support mode2 */
+                if (connected_to_cpu)
+                        return AMD_RESET_METHOD_MODE2;
+                return amdgpu_reset_method;
+        }
 
 	if (amdgpu_reset_method != -1)
 		dev_warn(adev->dev, "Specified reset method:%d isn't supported, using AUTO instead.\n",
@@ -739,6 +713,14 @@ soc15_asic_reset_method(struct amdgpu_device *adev)
 		 */
 		if ((ras && ras->supported) && adev->pm.fw_version <= 0x283400)
 			baco_reset = false;
+		break;
+	case CHIP_ALDEBARAN:
+		 /*
+		 * 1.connected to cpu: driver issue mode2 reset
+		 * 2.discret gpu: driver issue mode1 reset
+		 */
+		if (connected_to_cpu)
+			return AMD_RESET_METHOD_MODE2;
 		break;
 	default:
 		break;
@@ -769,7 +751,7 @@ static int soc15_asic_reset(struct amdgpu_device *adev)
 		return amdgpu_dpm_mode2_reset(adev);
 	default:
 		dev_info(adev->dev, "MODE1 reset\n");
-		return soc15_asic_mode1_reset(adev);
+		return amdgpu_device_mode1_reset(adev);
 	}
 }
 
