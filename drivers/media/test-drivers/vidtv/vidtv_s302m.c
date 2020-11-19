@@ -79,7 +79,7 @@ struct tone_duration {
 };
 
 #define COMPASS 120		/* beats per minute (Allegro) */
-static const struct tone_duration beethoven_5th_symphony[] = {
+static const struct tone_duration beethoven_fur_elise[] = {
 	{ NOTE_E_6, 128},  { NOTE_DS_6, 128}, { NOTE_E_6, 128},
 	{ NOTE_DS_6, 128}, { NOTE_E_6, 128},  { NOTE_B_5, 128},
 	{ NOTE_D_6, 128},  { NOTE_C_6, 128},  { NOTE_A_3, 128},
@@ -238,14 +238,14 @@ static u16 vidtv_s302m_get_sample(struct vidtv_encoder *e)
 	if (!e->src_buf) {
 		/*
 		 * Simple tone generator: play the tones at the
-		 * beethoven_5th_symphony array.
+		 * beethoven_fur_elise array.
 		 */
 		if (ctx->last_duration <= 0) {
-			if (e->src_buf_offset >= ARRAY_SIZE(beethoven_5th_symphony))
+			if (e->src_buf_offset >= ARRAY_SIZE(beethoven_fur_elise))
 				e->src_buf_offset = 0;
 
-			ctx->last_tone = beethoven_5th_symphony[e->src_buf_offset].note;
-			ctx->last_duration = beethoven_5th_symphony[e->src_buf_offset].duration *
+			ctx->last_tone = beethoven_fur_elise[e->src_buf_offset].note;
+			ctx->last_duration = beethoven_fur_elise[e->src_buf_offset].duration *
 					     S302M_SAMPLING_RATE_HZ / COMPASS / 5;
 			e->src_buf_offset++;
 			ctx->note_offset = 0;

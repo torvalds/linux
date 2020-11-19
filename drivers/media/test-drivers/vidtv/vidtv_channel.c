@@ -61,7 +61,7 @@ struct vidtv_channel
 	char *provider = ENCODING_ISO8859_15 "LinuxTV.org";
 	char *iso_language_code = ENCODING_ISO8859_15 "eng";
 	char *event_name = ENCODING_ISO8859_15 "Beethoven Music";
-	char *event_text = ENCODING_ISO8859_15 "Beethoven's 5th Symphony";
+	char *event_text = ENCODING_ISO8859_15 "Beethoven's Für Elise";
 	const u16 s302m_beethoven_event_id  = 1;
 	struct vidtv_channel *s302m;
 	struct vidtv_s302m_encoder_init_args encoder_args = {};
