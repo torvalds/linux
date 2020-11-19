@@ -103,8 +103,69 @@
  *
  * Replay code should thus check for all the valid tails in the FC area.
  *
+ * Fast Commit Replay Idempotence
+ * ------------------------------
+ *
+ * Fast commits tags are idempotent in nature provided the recovery code follows
+ * certain rules. The guiding principle that the commit path follows while
+ * committing is that it stores the result of a particular operation instead of
+ * storing the procedure.
+ *
+ * Let's consider this rename operation: 'mv /a /b'. Let's assume dirent '/a'
+ * was associated with inode 10. During fast commit, instead of storing this
+ * operation as a procedure "rename a to b", we store the resulting file system
+ * state as a "series" of outcomes:
+ *
+ * - Link dirent b to inode 10
+ * - Unlink dirent a
+ * - Inode <10> with valid refcount
+ *
+ * Now when recovery code runs, it needs "enforce" this state on the file
+ * system. This is what guarantees idempotence of fast commit replay.
+ *
+ * Let's take an example of a procedure that is not idempotent and see how fast
+ * commits make it idempotent. Consider following sequence of operations:
+ *
+ *     rm A;    mv B A;    read A
+ *  (x)     (y)        (z)
+ *
+ * (x), (y) and (z) are the points at which we can crash. If we store this
+ * sequence of operations as is then the replay is not idempotent. Let's say
+ * while in replay, we crash at (z). During the second replay, file A (which was
+ * actually created as a result of "mv B A" operation) would get deleted. Thus,
+ * file named A would be absent when we try to read A. So, this sequence of
+ * operations is not idempotent. However, as mentioned above, instead of storing
+ * the procedure fast commits store the outcome of each procedure. Thus the fast
+ * commit log for above procedure would be as follows:
+ *
+ * (Let's assume dirent A was linked to inode 10 and dirent B was linked to
+ * inode 11 before the replay)
+ *
+ *    [Unlink A]   [Link A to inode 11]   [Unlink B]   [Inode 11]
+ * (w)          (x)                    (y)          (z)
+ *
+ * If we crash at (z), we will have file A linked to inode 11. During the second
+ * replay, we will remove file A (inode 11). But we will create it back and make
+ * it point to inode 11. We won't find B, so we'll just skip that step. At this
+ * point, the refcount for inode 11 is not reliable, but that gets fixed by the
+ * replay of last inode 11 tag. Crashes at points (w), (x) and (y) get handled
+ * similarly. Thus, by converting a non-idempotent procedure into a series of
+ * idempotent outcomes, fast commits ensured idempotence during the replay.
+ *
  * TODOs
  * -----
+ *
+ * 0) Fast commit replay path hardening: Fast commit replay code should use
+ *    journal handles to make sure all the updates it does during the replay
+ *    path are atomic. With that if we crash during fast commit replay, after
+ *    trying to do recovery again, we will find a file system where fast commit
+ *    area is invalid (because new full commit would be found). In order to deal
+ *    with that, fast commit replay code should ensure that the "FC_REPLAY"
+ *    superblock state is persisted before starting the replay, so that after
+ *    the crash, fast commit recovery code can look at that flag and perform
+ *    fast commit recovery even if that area is invalidated by later full
+ *    commits.
+ *
  * 1) Make fast commit atomic updates more fine grained. Today, a fast commit
  *    eligible update must be protected within ext4_fc_start_update() and
  *    ext4_fc_stop_update(). These routines are called at much higher
