@@ -743,11 +743,24 @@ err:
 }
 EXPORT_SYMBOL_GPL(platform_device_register_full);
 
+static int platform_probe_fail(struct platform_device *pdev);
+
 static int platform_drv_probe(struct device *_dev)
 {
 	struct platform_driver *drv = to_platform_driver(_dev->driver);
 	struct platform_device *dev = to_platform_device(_dev);
 	int ret;
+
+	/*
+	 * A driver registered using platform_driver_probe() cannot be bound
+	 * again later because the probe function usually lives in __init code
+	 * and so is gone. For these drivers .probe is set to
+	 * platform_probe_fail in __platform_driver_probe(). Don't even
+	 * prepare clocks and PM domains for these to match the traditional
+	 * behaviour.
+	 */
+	if (unlikely(drv->probe == platform_probe_fail))
+		return -ENXIO;
 
 	ret = of_clk_set_defaults(_dev->of_node, false);
 	if (ret < 0)
@@ -822,7 +835,7 @@ void platform_driver_unregister(struct platform_driver *drv)
 }
 EXPORT_SYMBOL_GPL(platform_driver_unregister);
 
-static int platform_drv_probe_fail(struct device *_dev)
+static int platform_probe_fail(struct platform_device *pdev)
 {
 	return -ENXIO;
 }
@@ -887,10 +900,9 @@ int __init_or_module __platform_driver_probe(struct platform_driver *drv,
 	 * new devices fail.
 	 */
 	spin_lock(&drv->driver.bus->p->klist_drivers.k_lock);
-	drv->probe = NULL;
+	drv->probe = platform_probe_fail;
 	if (code == 0 && list_empty(&drv->driver.p->klist_devices.k_list))
 		retval = -ENODEV;
-	drv->driver.probe = platform_drv_probe_fail;
 	spin_unlock(&drv->driver.bus->p->klist_drivers.k_lock);
 
 	if (code != retval)
