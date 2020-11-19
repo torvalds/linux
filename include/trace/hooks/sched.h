@@ -79,6 +79,27 @@ DECLARE_HOOK(android_vh_dump_throttled_rt_tasks,
 DECLARE_HOOK(android_vh_jiffies_update,
 	TP_PROTO(void *unused),
 	TP_ARGS(unused));
+
+struct rq_flags;
+DECLARE_RESTRICTED_HOOK(android_rvh_sched_newidle_balance,
+	TP_PROTO(struct rq *this_rq, struct rq_flags *rf,
+		 int *pulled_task, int *done),
+	TP_ARGS(this_rq, rf, pulled_task, done), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_sched_nohz_balancer_kick,
+	TP_PROTO(struct rq *rq, unsigned int *flags, int *done),
+	TP_ARGS(rq, flags, done), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_find_busiest_queue,
+	TP_PROTO(int dst_cpu, struct sched_group *group,
+		 struct rq **busiest, int *done),
+	TP_ARGS(dst_cpu, group, busiest, done), 1);
+
+DECLARE_RESTRICTED_HOOK(android_rvh_migrate_queued_task,
+	TP_PROTO(struct rq *rq, struct rq_flags *rf,
+		 struct task_struct *p, int new_cpu,
+		 int *detached),
+	TP_ARGS(rq, rf, p, new_cpu, detached), 1);
 #else
 #define trace_android_rvh_select_task_rq_fair(p, prev_cpu, sd_flag, wake_flags, new_cpu)
 #define trace_android_rvh_select_task_rq_rt(p, prev_cpu, sd_flag, wake_flags, new_cpu)
@@ -96,6 +117,10 @@ DECLARE_HOOK(android_vh_jiffies_update,
 #define trace_android_rvh_find_busiest_group(busiest, dst_rq, out_balance)
 #define trace_android_vh_dump_throttled_rt_tasks(cpu, clock, rt_period, rt_runtime, rt_period_timer_expires)
 #define trace_android_vh_jiffies_update(unused)
+#define trace_android_rvh_sched_newidle_balance(this_rq, rf, pulled_task, done)
+#define trace_android_rvh_sched_nohz_balancer_kick(rq, flags, done)
+#define trace_android_rvh_find_busiest_queue(dst_cpu, group, busiest, done)
+#define trace_android_rvh_migrate_queued_task(rq, rf, p, new_cpu, detached)
 #endif
 #endif /* _TRACE_HOOK_SCHED_H */
 /* This part must be outside protection */
