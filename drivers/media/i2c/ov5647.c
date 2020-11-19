@@ -462,10 +462,17 @@ static const struct v4l2_subdev_core_ops ov5647_subdev_core_ops = {
 
 static int ov5647_s_stream(struct v4l2_subdev *sd, int enable)
 {
+	struct ov5647 *sensor = to_state(sd);
+	int ret;
+
+	mutex_lock(&sensor->lock);
 	if (enable)
-		return ov5647_stream_on(sd);
+		ret = ov5647_stream_on(sd);
 	else
-		return ov5647_stream_off(sd);
+		ret = ov5647_stream_off(sd);
+	mutex_unlock(&sensor->lock);
+
+	return ret;
 }
 
 static const struct v4l2_subdev_video_ops ov5647_subdev_video_ops = {
