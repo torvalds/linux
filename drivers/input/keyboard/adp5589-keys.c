@@ -934,6 +934,14 @@ static int adp5589_keypad_add(struct adp5589_kpad *kpad, unsigned int revid)
 	return 0;
 }
 
+static void adp5589_clear_config(void *data)
+{
+	struct i2c_client *client = data;
+	struct adp5589_kpad *kpad = i2c_get_clientdata(client);
+
+	adp5589_write(client, kpad->var->reg(ADP5589_GENERAL_CFG), 0);
+}
+
 static int adp5589_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
@@ -974,6 +982,11 @@ static int adp5589_probe(struct i2c_client *client,
 		break;
 	}
 
+	error = devm_add_action_or_reset(&client->dev, adp5589_clear_config,
+					 client);
+	if (error)
+		return error;
+
 	ret = adp5589_read(client, ADP5589_5_ID);
 	if (ret < 0)
 		return ret;
@@ -1000,15 +1013,6 @@ static int adp5589_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, kpad);
 
 	dev_info(&client->dev, "Rev.%d keypad, irq %d\n", revid, client->irq);
-	return 0;
-}
-
-static int adp5589_remove(struct i2c_client *client)
-{
-	struct adp5589_kpad *kpad = i2c_get_clientdata(client);
-
-	adp5589_write(client, kpad->var->reg(ADP5589_GENERAL_CFG), 0);
-
 	return 0;
 }
 
@@ -1063,7 +1067,6 @@ static struct i2c_driver adp5589_driver = {
 		.pm = &adp5589_dev_pm_ops,
 	},
 	.probe = adp5589_probe,
-	.remove = adp5589_remove,
 	.id_table = adp5589_id,
 };
 
