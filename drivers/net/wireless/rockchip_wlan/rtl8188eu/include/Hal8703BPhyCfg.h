@@ -1,6 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +12,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef __INC_HAL8703BPHYCFG_H__
 #define __INC_HAL8703BPHYCFG_H__
 
@@ -44,34 +40,34 @@
 /*--------------------------Exported Function prototype---------------------*/
 u32
 PHY_QueryBBReg_8703B(
-	IN	PADAPTER	Adapter,
-	IN	u32		RegAddr,
-	IN	u32		BitMask
+		PADAPTER	Adapter,
+		u32		RegAddr,
+		u32		BitMask
 );
 
-VOID
+void
 PHY_SetBBReg_8703B(
-	IN	PADAPTER	Adapter,
-	IN	u32		RegAddr,
-	IN	u32		BitMask,
-	IN	u32		Data
+		PADAPTER	Adapter,
+		u32		RegAddr,
+		u32		BitMask,
+		u32		Data
 );
 
 u32
 PHY_QueryRFReg_8703B(
-	IN	PADAPTER			Adapter,
-	IN	u8				eRFPath,
-	IN	u32				RegAddr,
-	IN	u32				BitMask
+		PADAPTER		Adapter,
+		enum rf_path		eRFPath,
+		u32				RegAddr,
+		u32				BitMask
 );
 
-VOID
+void
 PHY_SetRFReg_8703B(
-	IN	PADAPTER			Adapter,
-	IN	u8				eRFPath,
-	IN	u32				RegAddr,
-	IN	u32				BitMask,
-	IN	u32				Data
+		PADAPTER		Adapter,
+		enum rf_path		eRFPath,
+		u32				RegAddr,
+		u32				BitMask,
+		u32				Data
 );
 
 /* MAC/BB/RF HAL config */
@@ -83,53 +79,47 @@ s32 PHY_MACConfig8703B(PADAPTER padapter);
 
 int
 PHY_ConfigRFWithParaFile_8703B(
-	IN	PADAPTER			Adapter,
-	IN	u8				*pFileName,
-	RF_PATH				eRFPath
+		PADAPTER			Adapter,
+		u8					*pFileName,
+	enum rf_path				eRFPath
 );
 
-VOID
+void
 PHY_SetTxPowerIndex_8703B(
-	IN	PADAPTER			Adapter,
-	IN	u32					PowerIndex,
-	IN	u8					RFPath,
-	IN	u8					Rate
+		PADAPTER			Adapter,
+		u32					PowerIndex,
+		enum rf_path			RFPath,
+		u8					Rate
 );
 
 u8
 PHY_GetTxPowerIndex_8703B(
-	IN	PADAPTER			pAdapter,
-	IN	u8					RFPath,
-	IN	u8					Rate,
-	IN	u8					BandWidth,
-	IN	u8					Channel,
+		PADAPTER			pAdapter,
+		enum rf_path			RFPath,
+		u8					Rate,
+		u8					BandWidth,
+		u8					Channel,
 	struct txpwr_idx_comp *tic
 );
 
-VOID
-PHY_GetTxPowerLevel8703B(
-	IN	PADAPTER		Adapter,
-	OUT s32				*powerlevel
-);
-
-VOID
+void
 PHY_SetTxPowerLevel8703B(
-	IN	PADAPTER		Adapter,
-	IN	u8			channel
+		PADAPTER		Adapter,
+		u8			channel
 );
 
-VOID
+void
 PHY_SetSwChnlBWMode8703B(
-	IN	PADAPTER			Adapter,
-	IN	u8					channel,
-	IN	CHANNEL_WIDTH		Bandwidth,
-	IN	u8					Offset40,
-	IN	u8					Offset80
+		PADAPTER			Adapter,
+		u8					channel,
+		enum channel_width	Bandwidth,
+		u8					Offset40,
+		u8					Offset80
 );
 
-VOID phy_set_rf_path_switch_8703b(
-	IN	PADAPTER	pAdapter,
-	IN	bool		bMain
+void phy_set_rf_path_switch_8703b(
+		struct dm_struct		*phydm,
+		bool		bMain
 );
 
 /*--------------------------Exported Function prototype End---------------------*/

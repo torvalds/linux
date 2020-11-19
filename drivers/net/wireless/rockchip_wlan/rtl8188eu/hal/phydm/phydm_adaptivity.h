@@ -1,7 +1,7 @@
-
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017  Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -9,211 +9,117 @@
  *
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
+ * The full GNU General Public License is included in this distribution in the
+ * file called LICENSE.
  *
+ * Contact Information:
+ * wlanfae <wlanfae@realtek.com>
+ * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
+ * Hsinchu 300, Taiwan.
  *
- ******************************************************************************/
+ * Larry Finger <Larry.Finger@lwfinger.net>
+ *
+ *****************************************************************************/
 
-#ifndef	__PHYDMADAPTIVITY_H__
-#define    __PHYDMADAPTIVITY_H__
+#ifndef __PHYDMADAPTIVITY_H__
+#define __PHYDMADAPTIVITY_H__
 
-#define ADAPTIVITY_VERSION	"9.3.5"	/*20160902 changed by Kevin, refine method for searching pwdb lower bound*/
+#define ADAPTIVITY_VERSION "9.6.07" /*@20181107 changed by Kevin,
+				     *remove pwdB mode with non-adaptivity case
+				     */
 
-#define pwdb_upper_bound	7
-#define dfir_loss	5
+#define PWDB_UPPER_BOUND 7
+#define DFIR_LOSS 7
+#define ADC_BACKOFF 12
+#define EDCCA_TH_L2H_LB 0x30
+#define TH_L2H_DIFF_IGI 8
+#define EDCCA_HL_DIFF_NORMAL 8
 
+#define ODM_IC_PWDB_EDCCA (ODM_RTL8188E | ODM_RTL8723B | ODM_RTL8192E |\
+			   ODM_RTL8881A | ODM_RTL8821 | ODM_RTL8812)
+
+#if (DM_ODM_SUPPORT_TYPE & (ODM_CE | ODM_AP))
+	#define ADAPT_DC_BACKOFF 2
+#elif (DM_ODM_SUPPORT_TYPE & ODM_WIN)
+	#define ADAPT_DC_BACKOFF 4
+#elif (DM_ODM_SUPPORT_TYPE & ODM_IOT)
+	#define ADAPT_DC_BACKOFF 0
+#endif
 #if (DM_ODM_SUPPORT_TYPE & (ODM_WIN))
 enum phydm_regulation_type {
-	REGULATION_FCC = 0,
-	REGULATION_MKK = 1,
-	REGULATION_ETSI = 2,
-	REGULATION_WW = 3,
-
-	MAX_REGULATION_NUM = 4
+	REGULATION_FCC		= 0,
+	REGULATION_MKK		= 1,
+	REGULATION_ETSI		= 2,
+	REGULATION_WW		= 3,
+	MAX_REGULATION_NUM	= 4
 };
 #endif
 
-enum phydm_adapinfo_e {
+enum phydm_adapinfo {
 	PHYDM_ADAPINFO_CARRIER_SENSE_ENABLE = 0,
-	PHYDM_ADAPINFO_DCBACKOFF,
-	PHYDM_ADAPINFO_DYNAMICLINKADAPTIVITY,
 	PHYDM_ADAPINFO_TH_L2H_INI,
 	PHYDM_ADAPINFO_TH_EDCCA_HL_DIFF,
-	PHYDM_ADAPINFO_AP_NUM_TH
-
-};
-
-
-
-enum phydm_set_lna {
-	phydm_disable_lna		= 0,
-	phydm_enable_lna		= 1,
-};
-
-
-enum phydm_trx_mux_type {
-	phydm_shutdown			= 0,
-	phydm_standby_mode		= 1,
-	phydm_tx_mode			= 2,
-	phydm_rx_mode			= 3
+	PHYDM_ADAPINFO_AP_NUM_TH,
+	PHYDM_ADAPINFO_DOMAIN_CODE_2G,
+	PHYDM_ADAPINFO_DOMAIN_CODE_5G
 };
 
 enum phydm_mac_edcca_type {
-	phydm_ignore_edcca			= 0,
-	phydm_dont_ignore_edcca	= 1
+	PHYDM_IGNORE_EDCCA		= 0,
+	PHYDM_DONT_IGNORE_EDCCA		= 1
 };
 
-struct _ADAPTIVITY_STATISTICS {
+enum phydm_adaptivity_mode {
+	PHYDM_ADAPT_MSG			= 0,
+	PHYDM_ADAPT_DEBUG		= 1,
+	PHYDM_ADAPT_RESUME		= 2,
+	PHYDM_EDCCA_TH_PAUSE		= 3,
+	PHYDM_EDCCA_TH_RESUME		= 4
+};
+
+struct phydm_adaptivity_struct {
 	s8			th_l2h_ini_backup;
 	s8			th_edcca_hl_diff_backup;
 	s8			igi_base;
-	u8			igi_target;
-	u8			nhm_wait;
 	s8			h2l_lb;
 	s8			l2h_lb;
-	bool			is_first_link;
-	bool			is_check;
-	bool			dynamic_link_adaptivity;
 	u8			ap_num_th;
-	u8			adajust_igi_level;
-	bool			acs_for_adaptivity;
-	s8			backup_l2h;
-	s8			backup_h2l;
-	bool			is_stop_edcca;
-#if (DM_ODM_SUPPORT_TYPE & ODM_WIN)
-	RT_WORK_ITEM	phydm_pause_edcca_work_item;
-	RT_WORK_ITEM	phydm_resume_edcca_work_item;
-#endif
+	u8			adjust_l2h;
+	u32			adaptivity_dbg_port; /*N:0x208, AC:0x209*/
+	u8			debug_mode;
+	u16			igi_up_bound_lmt_cnt;	/*@When igi_up_bound_lmt_cnt !=0, limit IGI upper bound to "adapt_igi_up"*/
+	u16			igi_up_bound_lmt_val;	/*@max value of igi_up_bound_lmt_cnt*/
+	boolean			igi_lmt_en;
+	u8			adapt_igi_up;
+	u32			rvrt_val[2];
+	s8			th_l2h;
+	s8			th_h2l;
+	u8			regulation_2g;
+	u8			regulation_5g;
+	boolean			is_adapt_en;
+	boolean			edcca_en;
 };
 
-void
-phydm_pause_edcca(
-	void	*p_dm_void,
-	bool	is_pasue_edcca
-);
+#ifdef PHYDM_SUPPORT_ADAPTIVITY
+void phydm_adaptivity_debug(void *dm_void, char input[][16], u32 *_used,
+			    char *output, u32 *_out_len);
 
-void
-phydm_check_adaptivity(
-	void			*p_dm_void
-);
-
-void
-phydm_check_environment(
-	void					*p_dm_void
-);
-
-void
-phydm_nhm_counter_statistics_init(
-	void					*p_dm_void
-);
-
-void
-phydm_nhm_counter_statistics(
-	void					*p_dm_void
-);
-
-void
-phydm_nhm_counter_statistics_reset(
-	void			*p_dm_void
-);
-
-void
-phydm_get_nhm_counter_statistics(
-	void			*p_dm_void
-);
-
-void
-phydm_mac_edcca_state(
-	void					*p_dm_void,
-	enum phydm_mac_edcca_type		state
-);
-
-void
-phydm_set_edcca_threshold(
-	void		*p_dm_void,
-	s8		H2L,
-	s8		L2H
-);
-
-void
-phydm_set_trx_mux(
-	void			*p_dm_void,
-	enum phydm_trx_mux_type			tx_mode,
-	enum phydm_trx_mux_type			rx_mode
-);
-
-bool
-phydm_cal_nhm_cnt(
-	void		*p_dm_void
-);
-
-void
-phydm_search_pwdb_lower_bound(
-	void					*p_dm_void
-);
-
-void
-phydm_adaptivity_info_init(
-	void			*p_dm_void,
-	enum phydm_adapinfo_e	cmn_info,
-	u32				value
-);
-
-void
-phydm_adaptivity_init(
-	void					*p_dm_void
-);
-
-void
-phydm_adaptivity(
-	void			*p_dm_void
-);
-
-void
-phydm_set_edcca_threshold_api(
-	void	*p_dm_void,
-	u8	IGI
-);
-
-#if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
-void
-phydm_disable_edcca(
-	void					*p_dm_void
-);
-
-void
-phydm_dynamic_edcca(
-	void					*p_dm_void
-);
-
-void
-phydm_adaptivity_bsod(
-	void					*p_dm_void
-);
-
+void phydm_set_edcca_val(void *dm_void, u32 *val_buf, u8 val_len);
 #endif
 
-void
-phydm_pause_edcca_work_item_callback(
-#if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
-	struct _ADAPTER		*adapter
-#else
-	void			*p_dm_void
-#endif
-);
+void phydm_set_edcca_threshold_api(void *dm_void, u8 IGI);
 
-void
-phydm_resume_edcca_work_item_callback(
-#if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
-	struct _ADAPTER		*adapter
-#else
-	void			*p_dm_void
-#endif
-);
+void phydm_adaptivity_info_init(void *dm_void, enum phydm_adapinfo cmn_info,
+				u32 value);
+
+void phydm_adaptivity_info_update(void *dm_void, enum phydm_adapinfo cmn_info,
+				  u32 value);
+
+void phydm_adaptivity_init(void *dm_void);
+
+void phydm_adaptivity(void *dm_void);
 
 #endif

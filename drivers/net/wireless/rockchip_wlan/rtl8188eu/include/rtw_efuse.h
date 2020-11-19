@@ -1,6 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +12,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef __RTW_EFUSE_H__
 #define __RTW_EFUSE_H__
 
@@ -52,8 +48,10 @@ enum _EFUSE_DEF_TYPE {
 
 #define		EFUSE_MAX_HW_SIZE		1024
 #define		EFUSE_MAX_SECTION_BASE	16
+#define		EFUSE_MAX_SECTION_NUM	128
+#define		EFUSE_MAX_BANK_SIZE		512
 
-/*RTL8822B 8821C BT EFUSE Define 1 BANK 128 size logical map 1024*/ 
+/*RTL8822B 8821C BT EFUSE Define 1 BANK 128 size logical map 1024*/
 #ifdef RTW_HALMAC
 #define BANK_NUM		1
 #define EFUSE_BT_REAL_BANK_CONTENT_LEN	128
@@ -178,6 +176,12 @@ extern u8 fakeBTEfuseContent[EFUSE_MAX_BT_BANK][EFUSE_MAX_HW_SIZE];
 extern u8 fakeBTEfuseInitMap[];
 extern u8 fakeBTEfuseModifiedMap[];
 /*------------------------Export global variable----------------------------*/
+#define		MAX_SEGMENT_SIZE			200
+#define		MAX_SEGMENT_NUM			200
+#define		MAX_BUF_SIZE				(MAX_SEGMENT_SIZE*MAX_SEGMENT_NUM)
+#define		TMP_BUF_SIZE				100
+#define		rtprintf					dcmd_Store_Return_Buf
+
 u8	efuse_bt_GetCurrentSize(PADAPTER padapter, u16 *size);
 u16	efuse_bt_GetMaxSize(PADAPTER padapter);
 u16 efuse_GetavailableSize(PADAPTER adapter);
@@ -198,6 +202,8 @@ u8	Efuse_CalculateWordCnts(u8 word_en);
 void	ReadEFuseByte(PADAPTER Adapter, u16 _offset, u8 *pbuf, BOOLEAN bPseudoTest) ;
 void	EFUSE_GetEfuseDefinition(PADAPTER pAdapter, u8 efuseType, u8 type, void *pOut, BOOLEAN bPseudoTest);
 u8	efuse_OneByteRead(PADAPTER pAdapter, u16 addr, u8 *data, BOOLEAN	 bPseudoTest);
+#define efuse_onebyte_read(adapter, addr, data, pseudo_test) efuse_OneByteRead((adapter), (addr), (data), (pseudo_test))
+
 u8	efuse_OneByteWrite(PADAPTER pAdapter, u16 addr, u8 data, BOOLEAN	 bPseudoTest);
 
 void	BTEfuse_PowerSwitch(PADAPTER pAdapter, u8	bWrite, u8	 PwrState);
@@ -208,8 +214,12 @@ void	efuse_WordEnableDataRead(u8 word_en, u8 *sourdata, u8 *targetdata);
 u8	Efuse_WordEnableDataWrite(PADAPTER pAdapter, u16 efuse_addr, u8 word_en, u8 *data, BOOLEAN bPseudoTest);
 void	EFUSE_ShadowMapUpdate(PADAPTER pAdapter, u8 efuseType, BOOLEAN bPseudoTest);
 void	EFUSE_ShadowRead(PADAPTER pAdapter, u8 Type, u16 Offset, u32 *Value);
+#define efuse_logical_map_read(adapter, type, offset, value) EFUSE_ShadowRead((adapter), (type), (offset), (value))
 
-VOID	hal_ReadEFuse_BT_logic_map(
+BOOLEAN rtw_file_efuse_IsMasked(PADAPTER pAdapter, u16 Offset);
+BOOLEAN efuse_IsMasked(PADAPTER pAdapter, u16 Offset);
+
+void	hal_ReadEFuse_BT_logic_map(
 	PADAPTER	padapter,
 	u16			_offset,
 	u16			_size_byte,
@@ -223,6 +233,7 @@ u8	EfusePgPacketWrite_BT(
 	u8			bPseudoTest);
 u16 rtw_get_efuse_mask_arraylen(PADAPTER pAdapter);
 void rtw_efuse_mask_array(PADAPTER pAdapter, u8 *pArray);
+void rtw_efuse_analyze(PADAPTER	padapter, u8 Type, u8 Fake);
 
 #define MAC_HIDDEN_MAX_BW_NUM 8
 extern const u8 _mac_hidden_max_bw_to_hal_bw_cap[];

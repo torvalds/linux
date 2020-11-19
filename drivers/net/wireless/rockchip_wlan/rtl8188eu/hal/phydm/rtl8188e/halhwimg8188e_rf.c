@@ -1,72 +1,78 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
-*
-* Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
-*
-* This program is free software; you can redistribute it and/or modify it
-* under the terms of version 2 of the GNU General Public License as
-* published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT
-* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-* FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
-* more details.
-*
-* You should have received a copy of the GNU General Public License along with
-* this program; if not, write to the Free Software Foundation, Inc.,
-* 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
-*
-*
-******************************************************************************/
+ *
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ *****************************************************************************/
 
-/*Image2HeaderVersion: 2.18*/
+/*Image2HeaderVersion: 3.5.2*/
 #include "mp_precomp.h"
 #include "../phydm_precomp.h"
 
 #if (RTL8188E_SUPPORT == 1)
-static bool
+static boolean
 check_positive(
-	struct PHY_DM_STRUCT     *p_dm_odm,
-	const u32  condition1,
-	const u32  condition2,
-	const u32  condition3,
-	const u32  condition4
+	struct dm_struct *dm,
+	const u32	condition1,
+	const u32	condition2,
+	const u32	condition3,
+	const u32	condition4
 )
 {
-	u8    _board_type = ((p_dm_odm->board_type & BIT(4)) >> 4) << 0 | /* _GLNA*/
-		    ((p_dm_odm->board_type & BIT(3)) >> 3) << 1 | /* _GPA*/
-		    ((p_dm_odm->board_type & BIT(7)) >> 7) << 2 | /* _ALNA*/
-		    ((p_dm_odm->board_type & BIT(6)) >> 6) << 3 | /* _APA */
-		    ((p_dm_odm->board_type & BIT(2)) >> 2) << 4;  /* _BT*/
+	u8	_board_type = ((dm->board_type & BIT(4)) >> 4) << 0 | /* _GLNA*/
+			((dm->board_type & BIT(3)) >> 3) << 1 | /* _GPA*/
+			((dm->board_type & BIT(7)) >> 7) << 2 | /* _ALNA*/
+			((dm->board_type & BIT(6)) >> 6) << 3 | /* _APA */
+			((dm->board_type & BIT(2)) >> 2) << 4 | /* _BT*/
+			((dm->board_type & BIT(1)) >> 1) << 5 | /* _NGFF*/
+			((dm->board_type & BIT(5)) >> 5) << 6;  /* _TRSWT*/
 
-	u32	cond1   = condition1, cond2 = condition2, cond3 = condition3, cond4 = condition4;
-	u32    driver1 = p_dm_odm->cut_version       << 24 |
-			 (p_dm_odm->support_interface & 0xF0) << 16 |
-			 p_dm_odm->support_platform  << 16 |
-			 p_dm_odm->package_type      << 12 |
-			 (p_dm_odm->support_interface & 0x0F) << 8  |
-			 _board_type;
+	u32	cond1 = condition1, cond2 = condition2, cond3 = condition3, cond4 = condition4;
 
-	u32    driver2 = (p_dm_odm->type_glna & 0xFF) <<  0 |
-			 (p_dm_odm->type_gpa & 0xFF)  <<  8 |
-			 (p_dm_odm->type_alna & 0xFF) << 16 |
-			 (p_dm_odm->type_apa & 0xFF)  << 24;
+	u8	cut_version_for_para = (dm->cut_version ==  ODM_CUT_A) ? 15 : dm->cut_version;
+	u8	pkg_type_for_para = (dm->package_type == 0) ? 15 : dm->package_type;
 
-	u32    driver3 = 0;
+	u32	driver1 = cut_version_for_para << 24 |
+			(dm->support_interface & 0xF0) << 16 |
+			dm->support_platform << 16 |
+			pkg_type_for_para << 12 |
+			(dm->support_interface & 0x0F) << 8  |
+			_board_type;
 
-	u32    driver4 = (p_dm_odm->type_glna & 0xFF00) >>  8 |
-			 (p_dm_odm->type_gpa & 0xFF00) |
-			 (p_dm_odm->type_alna & 0xFF00) << 8 |
-			 (p_dm_odm->type_apa & 0xFF00)  << 16;
+	u32	driver2 = (dm->type_glna & 0xFF) <<  0 |
+			(dm->type_gpa & 0xFF)  <<  8 |
+			(dm->type_alna & 0xFF) << 16 |
+			(dm->type_apa & 0xFF)  << 24;
 
-	ODM_RT_TRACE(p_dm_odm, ODM_COMP_INIT, ODM_DBG_TRACE,
-		("===> check_positive (cond1, cond2, cond3, cond4) = (0x%X 0x%X 0x%X 0x%X)\n", cond1, cond2, cond3, cond4));
-	ODM_RT_TRACE(p_dm_odm, ODM_COMP_INIT, ODM_DBG_TRACE,
-		("===> check_positive (driver1, driver2, driver3, driver4) = (0x%X 0x%X 0x%X 0x%X)\n", driver1, driver2, driver3, driver4));
+	u32	driver3 = 0;
 
-	ODM_RT_TRACE(p_dm_odm, ODM_COMP_INIT, ODM_DBG_TRACE,
-		("	(Platform, Interface) = (0x%X, 0x%X)\n", p_dm_odm->support_platform, p_dm_odm->support_interface));
-	ODM_RT_TRACE(p_dm_odm, ODM_COMP_INIT, ODM_DBG_TRACE,
-		("	(Board, Package) = (0x%X, 0x%X)\n", p_dm_odm->board_type, p_dm_odm->package_type));
+	u32	driver4 = (dm->type_glna & 0xFF00) >>  8 |
+			(dm->type_gpa & 0xFF00) |
+			(dm->type_alna & 0xFF00) << 8 |
+			(dm->type_apa & 0xFF00)  << 16;
+
+	PHYDM_DBG(dm, ODM_COMP_INIT,
+		  "===> %s (cond1, cond2, cond3, cond4) = (0x%X 0x%X 0x%X 0x%X)\n",
+		  __func__, cond1, cond2, cond3, cond4);
+	PHYDM_DBG(dm, ODM_COMP_INIT,
+		  "===> %s (driver1, driver2, driver3, driver4) = (0x%X 0x%X 0x%X 0x%X)\n",
+		  __func__, driver1, driver2, driver3, driver4);
+
+	PHYDM_DBG(dm, ODM_COMP_INIT,
+		  "	(Platform, Interface) = (0x%X, 0x%X)\n",
+		  dm->support_platform, dm->support_interface);
+	PHYDM_DBG(dm, ODM_COMP_INIT,
+		  "	(Board, Package) = (0x%X, 0x%X)\n", dm->board_type,
+		  dm->package_type);
 
 
 	/*============== value Defined Check ===============*/
@@ -80,11 +86,11 @@ check_positive(
 	/*=============== Bit Defined Check ================*/
 	/* We don't care [31:28] */
 
-	cond1   &= 0x00FF0FFF;
+	cond1 &= 0x00FF0FFF;
 	driver1 &= 0x00FF0FFF;
 
 	if ((cond1 & driver1) == cond1) {
-		u32 bit_mask = 0;
+		u32	bit_mask = 0;
 
 		if ((cond1 & 0x0F) == 0) /* board_type is DONTCARE*/
 			return true;
@@ -105,600 +111,628 @@ check_positive(
 	} else
 		return false;
 }
-static bool
-check_negative(
-	struct PHY_DM_STRUCT     *p_dm_odm,
-	const u32  condition1,
-	const u32  condition2
-)
-{
-	return true;
-}
 
 /******************************************************************************
-*                           RadioA.TXT
+*                           radioa.TXT
 ******************************************************************************/
 
 u32 array_mp_8188e_radioa[] = {
-	0x000, 0x00030000,
-	0x008, 0x00084000,
-	0x018, 0x00000407,
-	0x019, 0x00000012,
+		0x000, 0x00030000,
+		0x008, 0x00084000,
+		0x018, 0x00000407,
+		0x019, 0x00000012,
 	0x88000003,	0x00000000,	0x40000000,	0x00000000,
-	0x01B, 0x00000084,
+		0x01B, 0x00000084,
 	0x98000003,	0x00000001,	0x40000000,	0x00000000,
-	0x01B, 0x00000084,
+		0x01B, 0x00000084,
 	0x98000003,	0x00000002,	0x40000000,	0x00000000,
-	0x01B, 0x00000084,
+		0x01B, 0x00000084,
 	0x90000003,	0x00000002,	0x40000000,	0x00000000,
 	0x98000001,	0x00000000,	0x40000000,	0x00000000,
-	0x01B, 0x00000084,
+		0x01B, 0x00000084,
 	0x98000001,	0x00000001,	0x40000000,	0x00000000,
-	0x01B, 0x00000084,
+		0x01B, 0x00000084,
 	0x98000001,	0x00000002,	0x40000000,	0x00000000,
-	0x01B, 0x00000084,
+		0x01B, 0x00000084,
 	0x98000400,	0x00000000,	0x40000000,	0x00000000,
-	0x01B, 0x00000084,
+		0x01B, 0x00000084,
+	0x98000002,	0x00000000,	0x40000000,	0x00000000,
+		0x01B, 0x00000084,
 	0x90000002,	0x00000000,	0x40000000,	0x00000000,
 	0x90000001,	0x00000000,	0x40000000,	0x00000000,
 	0x90000001,	0x00000001,	0x40000000,	0x00000000,
 	0x90000001,	0x00000002,	0x40000000,	0x00000000,
 	0x98000000,	0x00000000,	0x40000000,	0x00000000,
-	0x01B, 0x00000084,
+		0x01B, 0x00000084,
 	0x90000400,	0x00000000,	0x40000000,	0x00000000,
 	0xA0000000,	0x00000000,
 	0xB0000000,	0x00000000,
-	0x01E, 0x00080009,
-	0x01F, 0x00000880,
-	0x02F, 0x0001A060,
+		0x01E, 0x00080009,
+		0x01F, 0x00000880,
+		0x02F, 0x0001A060,
 	0x88000003,	0x00000000,	0x40000000,	0x00000000,
-	0x03F, 0x000C0000,
+		0x03F, 0x000C0000,
 	0x98000003,	0x00000001,	0x40000000,	0x00000000,
-	0x03F, 0x000C0000,
+		0x03F, 0x000C0000,
 	0x98000003,	0x00000002,	0x40000000,	0x00000000,
-	0x03F, 0x000C0000,
+		0x03F, 0x000C0000,
 	0x90000003,	0x00000002,	0x40000000,	0x00000000,
-	0x03F, 0x00000000,
+		0x03F, 0x00000000,
 	0x98000001,	0x00000000,	0x40000000,	0x00000000,
-	0x03F, 0x000C0000,
+		0x03F, 0x000C0000,
 	0x98000001,	0x00000001,	0x40000000,	0x00000000,
-	0x03F, 0x000C0000,
+		0x03F, 0x000C0000,
 	0x98000001,	0x00000002,	0x40000000,	0x00000000,
-	0x03F, 0x000C0000,
+		0x03F, 0x000C0000,
 	0x98000400,	0x00000000,	0x40000000,	0x00000000,
-	0x03F, 0x000C0000,
+		0x03F, 0x000C0000,
+	0x98000002,	0x00000000,	0x40000000,	0x00000000,
+		0x03F, 0x000C0000,
 	0x90000002,	0x00000000,	0x40000000,	0x00000000,
-	0x03F, 0x00000000,
+		0x03F, 0x00000000,
 	0x90000001,	0x00000000,	0x40000000,	0x00000000,
-	0x03F, 0x00000000,
+		0x03F, 0x00000000,
 	0x90000001,	0x00000001,	0x40000000,	0x00000000,
-	0x03F, 0x00000000,
+		0x03F, 0x00000000,
 	0x90000001,	0x00000002,	0x40000000,	0x00000000,
-	0x03F, 0x00000000,
+		0x03F, 0x00000000,
 	0x98000000,	0x00000000,	0x40000000,	0x00000000,
-	0x03F, 0x000C0000,
+		0x03F, 0x000C0000,
 	0x90000400,	0x00000000,	0x40000000,	0x00000000,
-	0x03F, 0x00000000,
+		0x03F, 0x00000000,
 	0xA0000000,	0x00000000,
-	0x03F, 0x00000000,
+		0x03F, 0x00000000,
 	0xB0000000,	0x00000000,
-	0x042, 0x000060C0,
-	0x057, 0x000D0000,
-	0x058, 0x000BE180,
-	0x067, 0x00001552,
-	0x083, 0x00000000,
-	0x0B0, 0x000FF8FC,
-	0x0B1, 0x00054400,
-	0x0B2, 0x000CCC19,
-	0x0B4, 0x00043003,
-	0x0B6, 0x0004953E,
-	0x0B7, 0x0001C718,
-	0x0B8, 0x000060FF,
-	0x0B9, 0x00080001,
-	0x0BA, 0x00040000,
-	0x0BB, 0x00000400,
-	0x0BF, 0x000C0000,
-	0x0C2, 0x00002400,
-	0x0C3, 0x00000009,
-	0x0C4, 0x00040C91,
-	0x0C5, 0x00099999,
-	0x0C6, 0x000000A3,
-	0x0C7, 0x00088820,
-	0x0C8, 0x00076C06,
-	0x0C9, 0x00000000,
-	0x0CA, 0x00080000,
-	0x0DF, 0x00000180,
-	0x0EF, 0x000001A0,
-	0x051, 0x0006B27D,
+		0x042, 0x000060C0,
+		0x057, 0x000D0000,
+		0x058, 0x000BE180,
+		0x067, 0x00001552,
+		0x083, 0x00000000,
+		0x0B0, 0x000FF8FC,
+		0x0B1, 0x00054400,
+		0x0B2, 0x000CCC19,
+		0x0B4, 0x00043003,
+		0x0B6, 0x0004953E,
+		0x0B7, 0x0001C718,
+		0x0B8, 0x000060FF,
+		0x0B9, 0x00080001,
+		0x0BA, 0x00040000,
+		0x0BB, 0x00000400,
+		0x0BF, 0x000C0000,
+		0x0C2, 0x00002400,
+		0x0C3, 0x00000009,
+		0x0C4, 0x00040C91,
+		0x0C5, 0x00099999,
+		0x0C6, 0x000000A3,
+		0x0C7, 0x00088820,
+		0x0C8, 0x00076C06,
+		0x0C9, 0x00000000,
+		0x0CA, 0x00080000,
+		0x0DF, 0x00000180,
+		0x0EF, 0x000001A0,
+		0x051, 0x0006B27D,
 	0x88000003,	0x00000000,	0x40000000,	0x00000000,
-	0x052, 0x0007E49D,
+		0x052, 0x0007E49D,
 	0x98000003,	0x00000001,	0x40000000,	0x00000000,
-	0x052, 0x0007E49D,
+		0x052, 0x0007E49D,
 	0x98000003,	0x00000002,	0x40000000,	0x00000000,
-	0x052, 0x0007E49D,
+		0x052, 0x0007E49D,
 	0x90000003,	0x00000002,	0x40000000,	0x00000000,
-	0x052, 0x0007E49D,
+		0x052, 0x0007E49D,
 	0x98000001,	0x00000000,	0x40000000,	0x00000000,
-	0x052, 0x0007E49D,
+		0x052, 0x0007E49D,
 	0x98000001,	0x00000001,	0x40000000,	0x00000000,
-	0x052, 0x0007E49D,
+		0x052, 0x0007E49D,
 	0x98000001,	0x00000002,	0x40000000,	0x00000000,
-	0x052, 0x0007E49D,
+		0x052, 0x0007E49D,
 	0x98000400,	0x00000000,	0x40000000,	0x00000000,
-	0x052, 0x0007E4DD,
+		0x052, 0x0007E4DD,
+	0x98000002,	0x00000000,	0x40000000,	0x00000000,
+		0x052, 0x0007E49D,
 	0x90000002,	0x00000000,	0x40000000,	0x00000000,
-	0x052, 0x0007E49D,
+		0x052, 0x0007E49D,
 	0x90000001,	0x00000000,	0x40000000,	0x00000000,
-	0x052, 0x0007E49D,
+		0x052, 0x0007E49D,
 	0x90000001,	0x00000001,	0x40000000,	0x00000000,
-	0x052, 0x0007E49D,
+		0x052, 0x0007E49D,
 	0x90000001,	0x00000002,	0x40000000,	0x00000000,
-	0x052, 0x0007E49D,
+		0x052, 0x0007E49D,
 	0x98000000,	0x00000000,	0x40000000,	0x00000000,
-	0x052, 0x0007E49D,
+		0x052, 0x0007E49D,
 	0x90000400,	0x00000000,	0x40000000,	0x00000000,
-	0x052, 0x0007E4DD,
+		0x052, 0x0007E4DD,
 	0xA0000000,	0x00000000,
-	0x052, 0x0007E49D,
+		0x052, 0x0007E49D,
 	0xB0000000,	0x00000000,
-	0x053, 0x00000073,
-	0x056, 0x00051FF3,
-	0x035, 0x00000086,
-	0x035, 0x00000186,
-	0x035, 0x00000286,
-	0x036, 0x00001C25,
-	0x036, 0x00009C25,
-	0x036, 0x00011C25,
-	0x036, 0x00019C25,
-	0x0B6, 0x00048538,
-	0x018, 0x00000C07,
-	0x05A, 0x0004BD00,
-	0x019, 0x000739D0,
+		0x053, 0x00000073,
+		0x056, 0x00051FF3,
+		0x035, 0x00000086,
+		0x035, 0x00000186,
+		0x035, 0x00000286,
+		0x036, 0x00001C25,
+		0x036, 0x00009C25,
+		0x036, 0x00011C25,
+		0x036, 0x00019C25,
+		0x0B6, 0x00048538,
+		0x018, 0x00000C07,
+		0x05A, 0x0004BD00,
+		0x019, 0x000739D0,
 	0x88000003,	0x00000000,	0x40000000,	0x00000000,
-	0x034, 0x0000A095,
-	0x034, 0x00009092,
-	0x034, 0x0000808E,
-	0x034, 0x0000704F,
-	0x034, 0x0000604C,
-	0x034, 0x00005049,
-	0x034, 0x0000400C,
-	0x034, 0x00003009,
-	0x034, 0x00002006,
-	0x034, 0x00001003,
-	0x034, 0x00000000,
+		0x034, 0x0000A095,
+		0x034, 0x00009092,
+		0x034, 0x0000808E,
+		0x034, 0x0000704F,
+		0x034, 0x0000604C,
+		0x034, 0x00005049,
+		0x034, 0x0000400C,
+		0x034, 0x00003009,
+		0x034, 0x00002006,
+		0x034, 0x00001003,
+		0x034, 0x00000000,
 	0x98000003,	0x00000001,	0x40000000,	0x00000000,
-	0x034, 0x0000A095,
-	0x034, 0x00009092,
-	0x034, 0x0000808E,
-	0x034, 0x0000704F,
-	0x034, 0x0000604C,
-	0x034, 0x00005049,
-	0x034, 0x0000400C,
-	0x034, 0x00003009,
-	0x034, 0x00002006,
-	0x034, 0x00001003,
-	0x034, 0x00000000,
+		0x034, 0x0000A095,
+		0x034, 0x00009092,
+		0x034, 0x0000808E,
+		0x034, 0x0000704F,
+		0x034, 0x0000604C,
+		0x034, 0x00005049,
+		0x034, 0x0000400C,
+		0x034, 0x00003009,
+		0x034, 0x00002006,
+		0x034, 0x00001003,
+		0x034, 0x00000000,
 	0x98000003,	0x00000002,	0x40000000,	0x00000000,
-	0x034, 0x0000A095,
-	0x034, 0x00009092,
-	0x034, 0x0000808E,
-	0x034, 0x0000704F,
-	0x034, 0x0000604C,
-	0x034, 0x00005049,
-	0x034, 0x0000400C,
-	0x034, 0x00003009,
-	0x034, 0x00002006,
-	0x034, 0x00001003,
-	0x034, 0x00000000,
+		0x034, 0x0000A095,
+		0x034, 0x00009092,
+		0x034, 0x0000808E,
+		0x034, 0x0000704F,
+		0x034, 0x0000604C,
+		0x034, 0x00005049,
+		0x034, 0x0000400C,
+		0x034, 0x00003009,
+		0x034, 0x00002006,
+		0x034, 0x00001003,
+		0x034, 0x00000000,
 	0x90000003,	0x00000002,	0x40000000,	0x00000000,
-	0x034, 0x0000A095,
-	0x034, 0x00009092,
-	0x034, 0x0000808E,
-	0x034, 0x0000704F,
-	0x034, 0x0000604C,
-	0x034, 0x00005049,
-	0x034, 0x0000400C,
-	0x034, 0x00003009,
-	0x034, 0x00002006,
-	0x034, 0x00001003,
-	0x034, 0x00000000,
+		0x034, 0x0000A095,
+		0x034, 0x00009092,
+		0x034, 0x0000808E,
+		0x034, 0x0000704F,
+		0x034, 0x0000604C,
+		0x034, 0x00005049,
+		0x034, 0x0000400C,
+		0x034, 0x00003009,
+		0x034, 0x00002006,
+		0x034, 0x00001003,
+		0x034, 0x00000000,
+	0x98000002,	0x00000000,	0x40000000,	0x00000000,
+		0x034, 0x0000A095,
+		0x034, 0x00009092,
+		0x034, 0x0000808E,
+		0x034, 0x0000704F,
+		0x034, 0x0000604C,
+		0x034, 0x00005049,
+		0x034, 0x0000400C,
+		0x034, 0x00003009,
+		0x034, 0x00002006,
+		0x034, 0x00001003,
+		0x034, 0x00000000,
 	0x90000002,	0x00000000,	0x40000000,	0x00000000,
-	0x034, 0x0000A095,
-	0x034, 0x00009092,
-	0x034, 0x0000808E,
-	0x034, 0x0000704F,
-	0x034, 0x0000604C,
-	0x034, 0x00005049,
-	0x034, 0x0000400C,
-	0x034, 0x00003009,
-	0x034, 0x00002006,
-	0x034, 0x00001003,
-	0x034, 0x00000000,
+		0x034, 0x0000A095,
+		0x034, 0x00009092,
+		0x034, 0x0000808E,
+		0x034, 0x0000704F,
+		0x034, 0x0000604C,
+		0x034, 0x00005049,
+		0x034, 0x0000400C,
+		0x034, 0x00003009,
+		0x034, 0x00002006,
+		0x034, 0x00001003,
+		0x034, 0x00000000,
 	0xA0000000,	0x00000000,
-	0x034, 0x0000ADF3,
-	0x034, 0x00009DF0,
-	0x034, 0x00008DED,
-	0x034, 0x00007DEA,
-	0x034, 0x00006DE7,
-	0x034, 0x000054EE,
-	0x034, 0x000044EB,
-	0x034, 0x000034E8,
-	0x034, 0x0000246B,
-	0x034, 0x00001468,
-	0x034, 0x0000006D,
+		0x034, 0x0000ADF3,
+		0x034, 0x00009DF0,
+		0x034, 0x00008DED,
+		0x034, 0x00007DEA,
+		0x034, 0x00006DE7,
+		0x034, 0x000054EE,
+		0x034, 0x000044EB,
+		0x034, 0x000034E8,
+		0x034, 0x0000246B,
+		0x034, 0x00001468,
+		0x034, 0x0000006D,
 	0xB0000000,	0x00000000,
-	0x000, 0x00030159,
-	0x084, 0x00068200,
+		0x000, 0x00030159,
+		0x084, 0x00068200,
 	0x88000003,	0x00000000,	0x40000000,	0x00000000,
-	0x086, 0x000000CE,
-	0x087, 0x00048A00,
+		0x086, 0x000000CE,
+		0x087, 0x00048A00,
 	0x98000003,	0x00000001,	0x40000000,	0x00000000,
-	0x086, 0x000000CE,
-	0x087, 0x00048A00,
+		0x086, 0x000000CE,
+		0x087, 0x00048A00,
 	0x98000003,	0x00000002,	0x40000000,	0x00000000,
-	0x086, 0x000000CE,
-	0x087, 0x00048A00,
+		0x086, 0x000000CE,
+		0x087, 0x00048A00,
 	0x90000003,	0x00000002,	0x40000000,	0x00000000,
-	0x086, 0x000000CE,
-	0x087, 0x00079F80,
+		0x086, 0x000000CE,
+		0x087, 0x00079F80,
 	0x98000001,	0x00000000,	0x40000000,	0x00000000,
-	0x086, 0x000000CE,
-	0x087, 0x00048A00,
+		0x086, 0x000000CE,
+		0x087, 0x00048A00,
 	0x98000001,	0x00000001,	0x40000000,	0x00000000,
-	0x086, 0x000000CE,
-	0x087, 0x00048A00,
+		0x086, 0x000000CE,
+		0x087, 0x00048A00,
 	0x98000001,	0x00000002,	0x40000000,	0x00000000,
-	0x086, 0x000000CE,
-	0x087, 0x00048A00,
+		0x086, 0x000000CE,
+		0x087, 0x00048A00,
 	0x98000400,	0x00000000,	0x40000000,	0x00000000,
-	0x086, 0x000000CE,
-	0x087, 0x00048A00,
+		0x086, 0x000000CE,
+		0x087, 0x00048A00,
+	0x98000002,	0x00000000,	0x40000000,	0x00000000,
+		0x086, 0x000000CE,
+		0x087, 0x00048A00,
 	0x90000002,	0x00000000,	0x40000000,	0x00000000,
-	0x086, 0x000000CE,
-	0x087, 0x00048A00,
+		0x086, 0x000000CE,
+		0x087, 0x00048A00,
 	0x90000001,	0x00000000,	0x40000000,	0x00000000,
-	0x086, 0x000000CE,
-	0x087, 0x00048A00,
+		0x086, 0x000000CE,
+		0x087, 0x00048A00,
 	0x90000001,	0x00000001,	0x40000000,	0x00000000,
-	0x086, 0x000000CE,
-	0x087, 0x00048A00,
+		0x086, 0x000000CE,
+		0x087, 0x00048A00,
 	0x90000001,	0x00000002,	0x40000000,	0x00000000,
-	0x086, 0x000000CE,
-	0x087, 0x00079F80,
+		0x086, 0x000000CE,
+		0x087, 0x00079F80,
 	0x98000000,	0x00000000,	0x40000000,	0x00000000,
-	0x086, 0x0008014E,
-	0x087, 0x0004DF80,
+		0x086, 0x0008014E,
+		0x087, 0x0004DF80,
 	0x90000400,	0x00000000,	0x40000000,	0x00000000,
-	0x086, 0x000000CE,
-	0x087, 0x00048A00,
+		0x086, 0x000000CE,
+		0x087, 0x00048A00,
 	0xA0000000,	0x00000000,
-	0x086, 0x000000CE,
-	0x087, 0x00048A00,
+		0x086, 0x000000CE,
+		0x087, 0x00048A00,
 	0xB0000000,	0x00000000,
-	0x08E, 0x00065540,
-	0x08F, 0x00088000,
-	0x0EF, 0x000020A0,
+		0x08E, 0x00065540,
+		0x08F, 0x00088000,
+		0x0EF, 0x000020A0,
 	0x88000003,	0x00000000,	0x40000000,	0x00000000,
-	0x03B, 0x000F02B0,
-	0x03B, 0x000EF7B0,
-	0x03B, 0x000D4FB0,
-	0x03B, 0x000CF060,
-	0x03B, 0x000B0090,
-	0x03B, 0x000A0080,
-	0x03B, 0x00090080,
-	0x03B, 0x0008F780,
-	0x03B, 0x000722B0,
-	0x03B, 0x0006F7B0,
-	0x03B, 0x00054FB0,
-	0x03B, 0x0004F060,
-	0x03B, 0x00030090,
-	0x03B, 0x00020080,
-	0x03B, 0x00010080,
-	0x03B, 0x0000F780,
-	0x0EF, 0x000000A0,
+		0x03B, 0x000F02B0,
+		0x03B, 0x000EF7B0,
+		0x03B, 0x000D4FB0,
+		0x03B, 0x000CF060,
+		0x03B, 0x000B0090,
+		0x03B, 0x000A0080,
+		0x03B, 0x00090080,
+		0x03B, 0x0008F780,
+		0x03B, 0x000722B0,
+		0x03B, 0x0006F7B0,
+		0x03B, 0x00054FB0,
+		0x03B, 0x0004F060,
+		0x03B, 0x00030090,
+		0x03B, 0x00020080,
+		0x03B, 0x00010080,
+		0x03B, 0x0000F780,
+		0x0EF, 0x000000A0,
 	0x98000003,	0x00000001,	0x40000000,	0x00000000,
-	0x03B, 0x000F02B0,
-	0x03B, 0x000EF7B0,
-	0x03B, 0x000D4FB0,
-	0x03B, 0x000CF060,
-	0x03B, 0x000B0090,
-	0x03B, 0x000A0080,
-	0x03B, 0x00090080,
-	0x03B, 0x0008F780,
-	0x03B, 0x000722B0,
-	0x03B, 0x0006F7B0,
-	0x03B, 0x00054FB0,
-	0x03B, 0x0004F060,
-	0x03B, 0x00030090,
-	0x03B, 0x00020080,
-	0x03B, 0x00010080,
-	0x03B, 0x0000F780,
-	0x0EF, 0x000000A0,
+		0x03B, 0x000F02B0,
+		0x03B, 0x000EF7B0,
+		0x03B, 0x000D4FB0,
+		0x03B, 0x000CF060,
+		0x03B, 0x000B0090,
+		0x03B, 0x000A0080,
+		0x03B, 0x00090080,
+		0x03B, 0x0008F780,
+		0x03B, 0x000722B0,
+		0x03B, 0x0006F7B0,
+		0x03B, 0x00054FB0,
+		0x03B, 0x0004F060,
+		0x03B, 0x00030090,
+		0x03B, 0x00020080,
+		0x03B, 0x00010080,
+		0x03B, 0x0000F780,
+		0x0EF, 0x000000A0,
 	0x98000003,	0x00000002,	0x40000000,	0x00000000,
-	0x03B, 0x000F02B0,
-	0x03B, 0x000EF7B0,
-	0x03B, 0x000D4FB0,
-	0x03B, 0x000CF060,
-	0x03B, 0x000B0090,
-	0x03B, 0x000A0080,
-	0x03B, 0x00090080,
-	0x03B, 0x0008F780,
-	0x03B, 0x000722B0,
-	0x03B, 0x0006F7B0,
-	0x03B, 0x00054FB0,
-	0x03B, 0x0004F060,
-	0x03B, 0x00030090,
-	0x03B, 0x00020080,
-	0x03B, 0x00010080,
-	0x03B, 0x0000F780,
-	0x0EF, 0x000000A0,
+		0x03B, 0x000F02B0,
+		0x03B, 0x000EF7B0,
+		0x03B, 0x000D4FB0,
+		0x03B, 0x000CF060,
+		0x03B, 0x000B0090,
+		0x03B, 0x000A0080,
+		0x03B, 0x00090080,
+		0x03B, 0x0008F780,
+		0x03B, 0x000722B0,
+		0x03B, 0x0006F7B0,
+		0x03B, 0x00054FB0,
+		0x03B, 0x0004F060,
+		0x03B, 0x00030090,
+		0x03B, 0x00020080,
+		0x03B, 0x00010080,
+		0x03B, 0x0000F780,
+		0x0EF, 0x000000A0,
 	0x90000003,	0x00000002,	0x40000000,	0x00000000,
-	0x03B, 0x000F07B0,
-	0x03B, 0x000EF7B0,
-	0x03B, 0x000D0020,
-	0x03B, 0x000CF060,
-	0x03B, 0x000B07E0,
-	0x03B, 0x000A0010,
-	0x03B, 0x00090000,
-	0x03B, 0x0008F780,
-	0x03B, 0x000727B0,
-	0x03B, 0x0006F7B0,
-	0x03B, 0x00054FB0,
-	0x03B, 0x0004F060,
-	0x03B, 0x00030090,
-	0x03B, 0x00020080,
-	0x03B, 0x00010080,
-	0x03B, 0x0000F780,
-	0x0EF, 0x000000A0,
+		0x03B, 0x000F07B0,
+		0x03B, 0x000EF7B0,
+		0x03B, 0x000D0020,
+		0x03B, 0x000CF060,
+		0x03B, 0x000B07E0,
+		0x03B, 0x000A0010,
+		0x03B, 0x00090000,
+		0x03B, 0x0008F780,
+		0x03B, 0x000727B0,
+		0x03B, 0x0006F7B0,
+		0x03B, 0x00054FB0,
+		0x03B, 0x0004F060,
+		0x03B, 0x00030090,
+		0x03B, 0x00020080,
+		0x03B, 0x00010080,
+		0x03B, 0x0000F780,
+		0x0EF, 0x000000A0,
 	0x98000001,	0x00000000,	0x40000000,	0x00000000,
-	0x03B, 0x000F02B0,
-	0x03B, 0x000EF7B0,
-	0x03B, 0x000D4FB0,
-	0x03B, 0x000CF060,
-	0x03B, 0x000B0090,
-	0x03B, 0x000A0080,
-	0x03B, 0x00090080,
-	0x03B, 0x0008F780,
-	0x03B, 0x000722B0,
-	0x03B, 0x0006F7B0,
-	0x03B, 0x00054FB0,
-	0x03B, 0x0004F060,
-	0x03B, 0x00030090,
-	0x03B, 0x00020080,
-	0x03B, 0x00010080,
-	0x03B, 0x0000F780,
-	0x0EF, 0x000000A0,
+		0x03B, 0x000F02B0,
+		0x03B, 0x000EF7B0,
+		0x03B, 0x000D4FB0,
+		0x03B, 0x000CF060,
+		0x03B, 0x000B0090,
+		0x03B, 0x000A0080,
+		0x03B, 0x00090080,
+		0x03B, 0x0008F780,
+		0x03B, 0x000722B0,
+		0x03B, 0x0006F7B0,
+		0x03B, 0x00054FB0,
+		0x03B, 0x0004F060,
+		0x03B, 0x00030090,
+		0x03B, 0x00020080,
+		0x03B, 0x00010080,
+		0x03B, 0x0000F780,
+		0x0EF, 0x000000A0,
 	0x98000001,	0x00000001,	0x40000000,	0x00000000,
-	0x03B, 0x000F02B0,
-	0x03B, 0x000EF7B0,
-	0x03B, 0x000D4FB0,
-	0x03B, 0x000CF060,
-	0x03B, 0x000B0090,
-	0x03B, 0x000A0080,
-	0x03B, 0x00090080,
-	0x03B, 0x0008F780,
-	0x03B, 0x000722B0,
-	0x03B, 0x0006F7B0,
-	0x03B, 0x00054FB0,
-	0x03B, 0x0004F060,
-	0x03B, 0x00030090,
-	0x03B, 0x00020080,
-	0x03B, 0x00010080,
-	0x03B, 0x0000F780,
-	0x0EF, 0x000000A0,
+		0x03B, 0x000F02B0,
+		0x03B, 0x000EF7B0,
+		0x03B, 0x000D4FB0,
+		0x03B, 0x000CF060,
+		0x03B, 0x000B0090,
+		0x03B, 0x000A0080,
+		0x03B, 0x00090080,
+		0x03B, 0x0008F780,
+		0x03B, 0x000722B0,
+		0x03B, 0x0006F7B0,
+		0x03B, 0x00054FB0,
+		0x03B, 0x0004F060,
+		0x03B, 0x00030090,
+		0x03B, 0x00020080,
+		0x03B, 0x00010080,
+		0x03B, 0x0000F780,
+		0x0EF, 0x000000A0,
 	0x98000001,	0x00000002,	0x40000000,	0x00000000,
-	0x03B, 0x000F02B0,
-	0x03B, 0x000EF7B0,
-	0x03B, 0x000D4FB0,
-	0x03B, 0x000CF060,
-	0x03B, 0x000B0090,
-	0x03B, 0x000A0080,
-	0x03B, 0x00090080,
-	0x03B, 0x0008F780,
-	0x03B, 0x000722B0,
-	0x03B, 0x0006F7B0,
-	0x03B, 0x00054FB0,
-	0x03B, 0x0004F060,
-	0x03B, 0x00030090,
-	0x03B, 0x00020080,
-	0x03B, 0x00010080,
-	0x03B, 0x0000F780,
-	0x0EF, 0x000000A0,
+		0x03B, 0x000F02B0,
+		0x03B, 0x000EF7B0,
+		0x03B, 0x000D4FB0,
+		0x03B, 0x000CF060,
+		0x03B, 0x000B0090,
+		0x03B, 0x000A0080,
+		0x03B, 0x00090080,
+		0x03B, 0x0008F780,
+		0x03B, 0x000722B0,
+		0x03B, 0x0006F7B0,
+		0x03B, 0x00054FB0,
+		0x03B, 0x0004F060,
+		0x03B, 0x00030090,
+		0x03B, 0x00020080,
+		0x03B, 0x00010080,
+		0x03B, 0x0000F780,
+		0x0EF, 0x000000A0,
 	0x98000400,	0x00000000,	0x40000000,	0x00000000,
-	0x03B, 0x000F02B0,
-	0x03B, 0x000EF7B0,
-	0x03B, 0x000D4FB0,
-	0x03B, 0x000CF060,
-	0x03B, 0x000B0090,
-	0x03B, 0x000A0080,
-	0x03B, 0x00090080,
-	0x03B, 0x0008F780,
-	0x03B, 0x000722B0,
-	0x03B, 0x0006F7B0,
-	0x03B, 0x00054FB0,
-	0x03B, 0x0004F060,
-	0x03B, 0x00030090,
-	0x03B, 0x00020080,
-	0x03B, 0x00010080,
-	0x03B, 0x0000F780,
-	0x0EF, 0x000000A0,
+		0x03B, 0x000F02B0,
+		0x03B, 0x000EF7B0,
+		0x03B, 0x000D4FB0,
+		0x03B, 0x000CF060,
+		0x03B, 0x000B0090,
+		0x03B, 0x000A0080,
+		0x03B, 0x00090080,
+		0x03B, 0x0008F780,
+		0x03B, 0x000722B0,
+		0x03B, 0x0006F7B0,
+		0x03B, 0x00054FB0,
+		0x03B, 0x0004F060,
+		0x03B, 0x00030090,
+		0x03B, 0x00020080,
+		0x03B, 0x00010080,
+		0x03B, 0x0000F780,
+		0x0EF, 0x000000A0,
+	0x98000002,	0x00000000,	0x40000000,	0x00000000,
+		0x03B, 0x000F02B0,
+		0x03B, 0x000EF7B0,
+		0x03B, 0x000D4FB0,
+		0x03B, 0x000CF060,
+		0x03B, 0x000B0090,
+		0x03B, 0x000A0080,
+		0x03B, 0x00090080,
+		0x03B, 0x0008F780,
+		0x03B, 0x000722B0,
+		0x03B, 0x0006F7B0,
+		0x03B, 0x00054FB0,
+		0x03B, 0x0004F060,
+		0x03B, 0x00030090,
+		0x03B, 0x00020080,
+		0x03B, 0x00010080,
+		0x03B, 0x0000F780,
+		0x0EF, 0x000000A0,
 	0x90000002,	0x00000000,	0x40000000,	0x00000000,
-	0x03B, 0x000F02B0,
-	0x03B, 0x000EF7B0,
-	0x03B, 0x000D4FB0,
-	0x03B, 0x000CF060,
-	0x03B, 0x000B0090,
-	0x03B, 0x000A0080,
-	0x03B, 0x00090080,
-	0x03B, 0x0008F780,
-	0x03B, 0x000722B0,
-	0x03B, 0x0006F7B0,
-	0x03B, 0x00054FB0,
-	0x03B, 0x0004F060,
-	0x03B, 0x00030090,
-	0x03B, 0x00020080,
-	0x03B, 0x00010080,
-	0x03B, 0x0000F780,
-	0x0EF, 0x000000A0,
+		0x03B, 0x000F02B0,
+		0x03B, 0x000EF7B0,
+		0x03B, 0x000D4FB0,
+		0x03B, 0x000CF060,
+		0x03B, 0x000B0090,
+		0x03B, 0x000A0080,
+		0x03B, 0x00090080,
+		0x03B, 0x0008F780,
+		0x03B, 0x000722B0,
+		0x03B, 0x0006F7B0,
+		0x03B, 0x00054FB0,
+		0x03B, 0x0004F060,
+		0x03B, 0x00030090,
+		0x03B, 0x00020080,
+		0x03B, 0x00010080,
+		0x03B, 0x0000F780,
+		0x0EF, 0x000000A0,
 	0x90000001,	0x00000000,	0x40000000,	0x00000000,
-	0x03B, 0x000F02B0,
-	0x03B, 0x000EF7B0,
-	0x03B, 0x000D4FB0,
-	0x03B, 0x000CF060,
-	0x03B, 0x000B0090,
-	0x03B, 0x000A0080,
-	0x03B, 0x00090080,
-	0x03B, 0x0008F780,
-	0x03B, 0x000722B0,
-	0x03B, 0x0006F7B0,
-	0x03B, 0x00054FB0,
-	0x03B, 0x0004F060,
-	0x03B, 0x00030090,
-	0x03B, 0x00020080,
-	0x03B, 0x00010080,
-	0x03B, 0x0000F780,
-	0x0EF, 0x000000A0,
+		0x03B, 0x000F02B0,
+		0x03B, 0x000EF7B0,
+		0x03B, 0x000D4FB0,
+		0x03B, 0x000CF060,
+		0x03B, 0x000B0090,
+		0x03B, 0x000A0080,
+		0x03B, 0x00090080,
+		0x03B, 0x0008F780,
+		0x03B, 0x000722B0,
+		0x03B, 0x0006F7B0,
+		0x03B, 0x00054FB0,
+		0x03B, 0x0004F060,
+		0x03B, 0x00030090,
+		0x03B, 0x00020080,
+		0x03B, 0x00010080,
+		0x03B, 0x0000F780,
+		0x0EF, 0x000000A0,
 	0x90000001,	0x00000001,	0x40000000,	0x00000000,
-	0x03B, 0x000F02B0,
-	0x03B, 0x000EF7B0,
-	0x03B, 0x000D4FB0,
-	0x03B, 0x000CF060,
-	0x03B, 0x000B0090,
-	0x03B, 0x000A0080,
-	0x03B, 0x00090080,
-	0x03B, 0x0008F780,
-	0x03B, 0x000722B0,
-	0x03B, 0x0006F7B0,
-	0x03B, 0x00054FB0,
-	0x03B, 0x0004F060,
-	0x03B, 0x00030090,
-	0x03B, 0x00020080,
-	0x03B, 0x00010080,
-	0x03B, 0x0000F780,
-	0x0EF, 0x000000A0,
+		0x03B, 0x000F02B0,
+		0x03B, 0x000EF7B0,
+		0x03B, 0x000D4FB0,
+		0x03B, 0x000CF060,
+		0x03B, 0x000B0090,
+		0x03B, 0x000A0080,
+		0x03B, 0x00090080,
+		0x03B, 0x0008F780,
+		0x03B, 0x000722B0,
+		0x03B, 0x0006F7B0,
+		0x03B, 0x00054FB0,
+		0x03B, 0x0004F060,
+		0x03B, 0x00030090,
+		0x03B, 0x00020080,
+		0x03B, 0x00010080,
+		0x03B, 0x0000F780,
+		0x0EF, 0x000000A0,
 	0x90000001,	0x00000002,	0x40000000,	0x00000000,
-	0x03B, 0x000F07B0,
-	0x03B, 0x000EF7B0,
-	0x03B, 0x000D0020,
-	0x03B, 0x000CF060,
-	0x03B, 0x000B07E0,
-	0x03B, 0x000A0010,
-	0x03B, 0x00090000,
-	0x03B, 0x0008F780,
-	0x03B, 0x000727B0,
-	0x03B, 0x0006F7B0,
-	0x03B, 0x00054FB0,
-	0x03B, 0x0004F060,
-	0x03B, 0x00030090,
-	0x03B, 0x00020080,
-	0x03B, 0x00010080,
-	0x03B, 0x0000F780,
-	0x0EF, 0x000000A0,
+		0x03B, 0x000F07B0,
+		0x03B, 0x000EF7B0,
+		0x03B, 0x000D0020,
+		0x03B, 0x000CF060,
+		0x03B, 0x000B07E0,
+		0x03B, 0x000A0010,
+		0x03B, 0x00090000,
+		0x03B, 0x0008F780,
+		0x03B, 0x000727B0,
+		0x03B, 0x0006F7B0,
+		0x03B, 0x00054FB0,
+		0x03B, 0x0004F060,
+		0x03B, 0x00030090,
+		0x03B, 0x00020080,
+		0x03B, 0x00010080,
+		0x03B, 0x0000F780,
+		0x0EF, 0x000000A0,
 	0x98000000,	0x00000000,	0x40000000,	0x00000000,
-	0x03B, 0x000F6030,
-	0x03B, 0x000E6030,
-	0x03B, 0x000D6030,
-	0x03B, 0x000C6030,
-	0x03B, 0x000BF030,
-	0x03B, 0x000A0020,
-	0x03B, 0x00090090,
-	0x03B, 0x0008F080,
-	0x03B, 0x0007A730,
-	0x03B, 0x000607B0,
-	0x03B, 0x0005F770,
-	0x03B, 0x00040060,
-	0x03B, 0x00030090,
-	0x03B, 0x00020780,
-	0x03B, 0x000107A0,
-	0x03B, 0x0000F760,
-	0x0EF, 0x000000A0,
+		0x03B, 0x000F6030,
+		0x03B, 0x000E6030,
+		0x03B, 0x000D6030,
+		0x03B, 0x000C6030,
+		0x03B, 0x000BF030,
+		0x03B, 0x000A0020,
+		0x03B, 0x00090090,
+		0x03B, 0x0008F080,
+		0x03B, 0x0007A730,
+		0x03B, 0x000607B0,
+		0x03B, 0x0005F770,
+		0x03B, 0x00040060,
+		0x03B, 0x00030090,
+		0x03B, 0x00020780,
+		0x03B, 0x000107A0,
+		0x03B, 0x0000F760,
+		0x0EF, 0x000000A0,
 	0x90000400,	0x00000000,	0x40000000,	0x00000000,
-	0x03B, 0x000F02B0,
-	0x03B, 0x000EF7B0,
-	0x03B, 0x000D4FB0,
-	0x03B, 0x000CF060,
-	0x03B, 0x000B0090,
-	0x03B, 0x000A0080,
-	0x03B, 0x00090080,
-	0x03B, 0x0008F780,
-	0x03B, 0x000722B0,
-	0x03B, 0x0006F7B0,
-	0x03B, 0x00054FB0,
-	0x03B, 0x0004F060,
-	0x03B, 0x00030090,
-	0x03B, 0x00020080,
-	0x03B, 0x00010080,
-	0x03B, 0x0000F780,
-	0x0EF, 0x000000A0,
+		0x03B, 0x000F02B0,
+		0x03B, 0x000EF7B0,
+		0x03B, 0x000D4FB0,
+		0x03B, 0x000CF060,
+		0x03B, 0x000B0090,
+		0x03B, 0x000A0080,
+		0x03B, 0x00090080,
+		0x03B, 0x0008F780,
+		0x03B, 0x000722B0,
+		0x03B, 0x0006F7B0,
+		0x03B, 0x00054FB0,
+		0x03B, 0x0004F060,
+		0x03B, 0x00030090,
+		0x03B, 0x00020080,
+		0x03B, 0x00010080,
+		0x03B, 0x0000F780,
+		0x0EF, 0x000000A0,
 	0xA0000000,	0x00000000,
-	0x03B, 0x000F02B0,
-	0x03B, 0x000EF7B0,
-	0x03B, 0x000D4FB0,
-	0x03B, 0x000CF060,
-	0x03B, 0x000B0090,
-	0x03B, 0x000A0080,
-	0x03B, 0x00090080,
-	0x03B, 0x0008F780,
-	0x03B, 0x000722B0,
-	0x03B, 0x0006F7B0,
-	0x03B, 0x00054FB0,
-	0x03B, 0x0004F060,
-	0x03B, 0x00030090,
-	0x03B, 0x00020080,
-	0x03B, 0x00010080,
-	0x03B, 0x0000F780,
-	0x0EF, 0x000000A0,
+		0x03B, 0x000F02B0,
+		0x03B, 0x000EF7B0,
+		0x03B, 0x000D4FB0,
+		0x03B, 0x000CF060,
+		0x03B, 0x000B0090,
+		0x03B, 0x000A0080,
+		0x03B, 0x00090080,
+		0x03B, 0x0008F780,
+		0x03B, 0x000722B0,
+		0x03B, 0x0006F7B0,
+		0x03B, 0x00054FB0,
+		0x03B, 0x0004F060,
+		0x03B, 0x00030090,
+		0x03B, 0x00020080,
+		0x03B, 0x00010080,
+		0x03B, 0x0000F780,
+		0x0EF, 0x000000A0,
 	0xB0000000,	0x00000000,
-	0x000, 0x00010159,
-	0x018, 0x0000F407,
-	0xFFE, 0x00000000,
-	0xFFE, 0x00000000,
-	0x01F, 0x00080003,
-	0xFFE, 0x00000000,
-	0xFFE, 0x00000000,
-	0x01E, 0x00000001,
-	0x01F, 0x00080000,
-	0x000, 0x00033E60,
+		0x000, 0x00010159,
+		0x018, 0x0000F407,
+		0xFFE, 0x00000000,
+		0xFFE, 0x00000000,
+		0x01F, 0x00080003,
+		0xFFE, 0x00000000,
+		0xFFE, 0x00000000,
+		0x01E, 0x00000001,
+		0x01F, 0x00080000,
+		0x000, 0x00033E60,
 
 };
 
 void
-odm_read_and_config_mp_8188e_radioa(
-	struct PHY_DM_STRUCT  *p_dm_odm
-)
+odm_read_and_config_mp_8188e_radioa(struct dm_struct *dm)
 {
-	u32     i         = 0;
-	u8     c_cond;
-	bool is_matched = true, is_skipped = false;
-	u32     array_len    = sizeof(array_mp_8188e_radioa) / sizeof(u32);
-	u32    *array       = array_mp_8188e_radioa;
+	u32	i = 0;
+	u8	c_cond;
+	boolean	is_matched = true, is_skipped = false;
+	u32	array_len = sizeof(array_mp_8188e_radioa) / sizeof(u32);
+	u32	*array = array_mp_8188e_radioa;
 
 	u32	v1 = 0, v2 = 0, pre_v1 = 0, pre_v2 = 0;
 
-	ODM_RT_TRACE(p_dm_odm, ODM_COMP_INIT, ODM_DBG_LOUD, ("===> odm_read_and_config_mp_8188e_radioa\n"));
+	PHYDM_DBG(dm, ODM_COMP_INIT, "===> %s\n", __func__);
 
 	while ((i + 1) < array_len) {
 		v1 = array[i];
 		v2 = array[i + 1];
 
-		if (v1 & (BIT(31) | BIT30)) {/*positive & negative condition*/
+		if (v1 & (BIT(31) | BIT(30))) {/*positive & negative condition*/
 			if (v1 & BIT(31)) {/* positive condition*/
 				c_cond  = (u8)((v1 & (BIT(29) | BIT(28))) >> 28);
 				if (c_cond == COND_ENDIF) {/*end*/
 					is_matched = true;
 					is_skipped = false;
-					ODM_RT_TRACE(p_dm_odm, ODM_COMP_INIT, ODM_DBG_LOUD, ("ENDIF\n"));
+					PHYDM_DBG(dm, ODM_COMP_INIT, "ENDIF\n");
 				} else if (c_cond == COND_ELSE) { /*else*/
 					is_matched = is_skipped ? false : true;
-					ODM_RT_TRACE(p_dm_odm, ODM_COMP_INIT, ODM_DBG_LOUD, ("ELSE\n"));
+					PHYDM_DBG(dm, ODM_COMP_INIT, "ELSE\n");
 				} else {/*if , else if*/
 					pre_v1 = v1;
 					pre_v2 = v2;
-					ODM_RT_TRACE(p_dm_odm, ODM_COMP_INIT, ODM_DBG_LOUD, ("IF or ELSE IF\n"));
+					PHYDM_DBG(dm, ODM_COMP_INIT, "IF or ELSE IF\n");
 				}
 			} else if (v1 & BIT(30)) { /*negative condition*/
 				if (is_skipped == false) {
-					if (check_positive(p_dm_odm, pre_v1, pre_v2, v1, v2)) {
+					if (check_positive(dm, pre_v1, pre_v2, v1, v2)) {
 						is_matched = true;
 						is_skipped = true;
 					} else {
@@ -710,7 +744,7 @@ odm_read_and_config_mp_8188e_radioa(
 			}
 		} else {
 			if (is_matched)
-				odm_config_rf_radio_a_8188e(p_dm_odm, v1, v2);
+				odm_config_rf_radio_a_8188e(dm, v1, v2);
 		}
 		i = i + 2;
 	}
@@ -719,11 +753,11 @@ odm_read_and_config_mp_8188e_radioa(
 u32
 odm_get_version_mp_8188e_radioa(void)
 {
-	return 70;
+		return 71;
 }
 
 /******************************************************************************
-*                           TxPowerTrack_AP.TXT
+*                           txpowertrack_ap.TXT
 ******************************************************************************/
 
 #if (DM_ODM_SUPPORT_TYPE & (ODM_AP))
@@ -758,35 +792,33 @@ u8 g_delta_swing_table_idx_mp_2g_cck_a_p_txpowertrack_ap_8188e[] = {0, 0, 1, 1, 
 #endif
 
 void
-odm_read_and_config_mp_8188e_txpowertrack_ap(
-	struct PHY_DM_STRUCT  *p_dm_odm
-)
+odm_read_and_config_mp_8188e_txpowertrack_ap(struct dm_struct *dm)
 {
 #if (DM_ODM_SUPPORT_TYPE & (ODM_AP))
-	struct odm_rf_calibration_structure  *p_rf_calibrate_info = &(p_dm_odm->rf_calibrate_info);
+	struct dm_rf_calibration_struct  *cali_info = &(dm->rf_calibrate_info);
 
-	ODM_RT_TRACE(p_dm_odm, ODM_COMP_INIT, ODM_DBG_LOUD, ("===> ODM_ReadAndConfig_MP_MP_8188E\n"));
+	PHYDM_DBG(dm, ODM_COMP_INIT, "===> ODM_ReadAndConfig_MP_mp_8188e\n");
 
 
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2ga_p, g_delta_swing_table_idx_mp_2ga_p_txpowertrack_ap_8188e, DELTA_SWINGIDX_SIZE);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2ga_n, g_delta_swing_table_idx_mp_2ga_n_txpowertrack_ap_8188e, DELTA_SWINGIDX_SIZE);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2gb_p, g_delta_swing_table_idx_mp_2gb_p_txpowertrack_ap_8188e, DELTA_SWINGIDX_SIZE);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2gb_n, g_delta_swing_table_idx_mp_2gb_n_txpowertrack_ap_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2ga_p, g_delta_swing_table_idx_mp_2ga_p_txpowertrack_ap_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2ga_n, g_delta_swing_table_idx_mp_2ga_n_txpowertrack_ap_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2gb_p, g_delta_swing_table_idx_mp_2gb_p_txpowertrack_ap_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2gb_n, g_delta_swing_table_idx_mp_2gb_n_txpowertrack_ap_8188e, DELTA_SWINGIDX_SIZE);
 
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2g_cck_a_p, g_delta_swing_table_idx_mp_2g_cck_a_p_txpowertrack_ap_8188e, DELTA_SWINGIDX_SIZE);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2g_cck_a_n, g_delta_swing_table_idx_mp_2g_cck_a_n_txpowertrack_ap_8188e, DELTA_SWINGIDX_SIZE);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2g_cck_b_p, g_delta_swing_table_idx_mp_2g_cck_b_p_txpowertrack_ap_8188e, DELTA_SWINGIDX_SIZE);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2g_cck_b_n, g_delta_swing_table_idx_mp_2g_cck_b_n_txpowertrack_ap_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2g_cck_a_p, g_delta_swing_table_idx_mp_2g_cck_a_p_txpowertrack_ap_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2g_cck_a_n, g_delta_swing_table_idx_mp_2g_cck_a_n_txpowertrack_ap_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2g_cck_b_p, g_delta_swing_table_idx_mp_2g_cck_b_p_txpowertrack_ap_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2g_cck_b_n, g_delta_swing_table_idx_mp_2g_cck_b_n_txpowertrack_ap_8188e, DELTA_SWINGIDX_SIZE);
 
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_5ga_p, g_delta_swing_table_idx_mp_5ga_p_txpowertrack_ap_8188e, DELTA_SWINGIDX_SIZE * 3);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_5ga_n, g_delta_swing_table_idx_mp_5ga_n_txpowertrack_ap_8188e, DELTA_SWINGIDX_SIZE * 3);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_5gb_p, g_delta_swing_table_idx_mp_5gb_p_txpowertrack_ap_8188e, DELTA_SWINGIDX_SIZE * 3);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_5gb_n, g_delta_swing_table_idx_mp_5gb_n_txpowertrack_ap_8188e, DELTA_SWINGIDX_SIZE * 3);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_5ga_p, g_delta_swing_table_idx_mp_5ga_p_txpowertrack_ap_8188e, DELTA_SWINGIDX_SIZE * 3);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_5ga_n, g_delta_swing_table_idx_mp_5ga_n_txpowertrack_ap_8188e, DELTA_SWINGIDX_SIZE * 3);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_5gb_p, g_delta_swing_table_idx_mp_5gb_p_txpowertrack_ap_8188e, DELTA_SWINGIDX_SIZE * 3);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_5gb_n, g_delta_swing_table_idx_mp_5gb_n_txpowertrack_ap_8188e, DELTA_SWINGIDX_SIZE * 3);
 #endif
 }
 
 /******************************************************************************
-*                           TxPowerTrack_PCIE.TXT
+*                           txpowertrack_pcie.TXT
 ******************************************************************************/
 
 #if DEV_BUS_TYPE == RT_PCI_INTERFACE
@@ -821,35 +853,33 @@ u8 g_delta_swing_table_idx_mp_2g_cck_a_p_txpowertrack_pcie_8188e[] = {0, 0, 0, 0
 #endif
 
 void
-odm_read_and_config_mp_8188e_txpowertrack_pcie(
-	struct PHY_DM_STRUCT  *p_dm_odm
-)
+odm_read_and_config_mp_8188e_txpowertrack_pcie(struct dm_struct *dm)
 {
 #if DEV_BUS_TYPE == RT_PCI_INTERFACE
-	struct odm_rf_calibration_structure  *p_rf_calibrate_info = &(p_dm_odm->rf_calibrate_info);
+	struct dm_rf_calibration_struct  *cali_info = &(dm->rf_calibrate_info);
 
-	ODM_RT_TRACE(p_dm_odm, ODM_COMP_INIT, ODM_DBG_LOUD, ("===> ODM_ReadAndConfig_MP_MP_8188E\n"));
+	PHYDM_DBG(dm, ODM_COMP_INIT, "===> ODM_ReadAndConfig_MP_mp_8188e\n");
 
 
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2ga_p, g_delta_swing_table_idx_mp_2ga_p_txpowertrack_pcie_8188e, DELTA_SWINGIDX_SIZE);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2ga_n, g_delta_swing_table_idx_mp_2ga_n_txpowertrack_pcie_8188e, DELTA_SWINGIDX_SIZE);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2gb_p, g_delta_swing_table_idx_mp_2gb_p_txpowertrack_pcie_8188e, DELTA_SWINGIDX_SIZE);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2gb_n, g_delta_swing_table_idx_mp_2gb_n_txpowertrack_pcie_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2ga_p, g_delta_swing_table_idx_mp_2ga_p_txpowertrack_pcie_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2ga_n, g_delta_swing_table_idx_mp_2ga_n_txpowertrack_pcie_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2gb_p, g_delta_swing_table_idx_mp_2gb_p_txpowertrack_pcie_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2gb_n, g_delta_swing_table_idx_mp_2gb_n_txpowertrack_pcie_8188e, DELTA_SWINGIDX_SIZE);
 
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2g_cck_a_p, g_delta_swing_table_idx_mp_2g_cck_a_p_txpowertrack_pcie_8188e, DELTA_SWINGIDX_SIZE);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2g_cck_a_n, g_delta_swing_table_idx_mp_2g_cck_a_n_txpowertrack_pcie_8188e, DELTA_SWINGIDX_SIZE);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2g_cck_b_p, g_delta_swing_table_idx_mp_2g_cck_b_p_txpowertrack_pcie_8188e, DELTA_SWINGIDX_SIZE);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2g_cck_b_n, g_delta_swing_table_idx_mp_2g_cck_b_n_txpowertrack_pcie_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2g_cck_a_p, g_delta_swing_table_idx_mp_2g_cck_a_p_txpowertrack_pcie_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2g_cck_a_n, g_delta_swing_table_idx_mp_2g_cck_a_n_txpowertrack_pcie_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2g_cck_b_p, g_delta_swing_table_idx_mp_2g_cck_b_p_txpowertrack_pcie_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2g_cck_b_n, g_delta_swing_table_idx_mp_2g_cck_b_n_txpowertrack_pcie_8188e, DELTA_SWINGIDX_SIZE);
 
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_5ga_p, g_delta_swing_table_idx_mp_5ga_p_txpowertrack_pcie_8188e, DELTA_SWINGIDX_SIZE * 3);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_5ga_n, g_delta_swing_table_idx_mp_5ga_n_txpowertrack_pcie_8188e, DELTA_SWINGIDX_SIZE * 3);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_5gb_p, g_delta_swing_table_idx_mp_5gb_p_txpowertrack_pcie_8188e, DELTA_SWINGIDX_SIZE * 3);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_5gb_n, g_delta_swing_table_idx_mp_5gb_n_txpowertrack_pcie_8188e, DELTA_SWINGIDX_SIZE * 3);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_5ga_p, g_delta_swing_table_idx_mp_5ga_p_txpowertrack_pcie_8188e, DELTA_SWINGIDX_SIZE * 3);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_5ga_n, g_delta_swing_table_idx_mp_5ga_n_txpowertrack_pcie_8188e, DELTA_SWINGIDX_SIZE * 3);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_5gb_p, g_delta_swing_table_idx_mp_5gb_p_txpowertrack_pcie_8188e, DELTA_SWINGIDX_SIZE * 3);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_5gb_n, g_delta_swing_table_idx_mp_5gb_n_txpowertrack_pcie_8188e, DELTA_SWINGIDX_SIZE * 3);
 #endif
 }
 
 /******************************************************************************
-*                           TxPowerTrack_PCIE_ICUT.TXT
+*                           txpowertrack_pcie_icut.TXT
 ******************************************************************************/
 
 u8 g_delta_swing_table_idx_mp_5gb_n_txpowertrack_pcie_icut_8188e[][DELTA_SWINGIDX_SIZE] = {
@@ -882,33 +912,31 @@ u8 g_delta_swing_table_idx_mp_2g_cck_a_n_txpowertrack_pcie_icut_8188e[] = {0, 1,
 u8 g_delta_swing_table_idx_mp_2g_cck_a_p_txpowertrack_pcie_icut_8188e[] = {0, 0, 0, 1, 1, 1, 2, 3, 3, 3, 4, 4, 5, 5, 6, 6, 6, 7, 8, 8, 8, 9, 9, 10, 10, 11, 12, 12, 12, 12};
 
 void
-odm_read_and_config_mp_8188e_txpowertrack_pcie_icut(
-	struct PHY_DM_STRUCT  *p_dm_odm
-)
+odm_read_and_config_mp_8188e_txpowertrack_pcie_icut(struct dm_struct *dm)
 {
-	struct odm_rf_calibration_structure  *p_rf_calibrate_info = &(p_dm_odm->rf_calibrate_info);
+	struct dm_rf_calibration_struct  *cali_info = &(dm->rf_calibrate_info);
 
-	ODM_RT_TRACE(p_dm_odm, ODM_COMP_INIT, ODM_DBG_LOUD, ("===> ODM_ReadAndConfig_MP_MP_8188E\n"));
+	PHYDM_DBG(dm, ODM_COMP_INIT, "===> ODM_ReadAndConfig_MP_mp_8188e\n");
 
 
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2ga_p, g_delta_swing_table_idx_mp_2ga_p_txpowertrack_pcie_icut_8188e, DELTA_SWINGIDX_SIZE);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2ga_n, g_delta_swing_table_idx_mp_2ga_n_txpowertrack_pcie_icut_8188e, DELTA_SWINGIDX_SIZE);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2gb_p, g_delta_swing_table_idx_mp_2gb_p_txpowertrack_pcie_icut_8188e, DELTA_SWINGIDX_SIZE);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2gb_n, g_delta_swing_table_idx_mp_2gb_n_txpowertrack_pcie_icut_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2ga_p, g_delta_swing_table_idx_mp_2ga_p_txpowertrack_pcie_icut_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2ga_n, g_delta_swing_table_idx_mp_2ga_n_txpowertrack_pcie_icut_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2gb_p, g_delta_swing_table_idx_mp_2gb_p_txpowertrack_pcie_icut_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2gb_n, g_delta_swing_table_idx_mp_2gb_n_txpowertrack_pcie_icut_8188e, DELTA_SWINGIDX_SIZE);
 
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2g_cck_a_p, g_delta_swing_table_idx_mp_2g_cck_a_p_txpowertrack_pcie_icut_8188e, DELTA_SWINGIDX_SIZE);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2g_cck_a_n, g_delta_swing_table_idx_mp_2g_cck_a_n_txpowertrack_pcie_icut_8188e, DELTA_SWINGIDX_SIZE);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2g_cck_b_p, g_delta_swing_table_idx_mp_2g_cck_b_p_txpowertrack_pcie_icut_8188e, DELTA_SWINGIDX_SIZE);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2g_cck_b_n, g_delta_swing_table_idx_mp_2g_cck_b_n_txpowertrack_pcie_icut_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2g_cck_a_p, g_delta_swing_table_idx_mp_2g_cck_a_p_txpowertrack_pcie_icut_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2g_cck_a_n, g_delta_swing_table_idx_mp_2g_cck_a_n_txpowertrack_pcie_icut_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2g_cck_b_p, g_delta_swing_table_idx_mp_2g_cck_b_p_txpowertrack_pcie_icut_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2g_cck_b_n, g_delta_swing_table_idx_mp_2g_cck_b_n_txpowertrack_pcie_icut_8188e, DELTA_SWINGIDX_SIZE);
 
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_5ga_p, g_delta_swing_table_idx_mp_5ga_p_txpowertrack_pcie_icut_8188e, DELTA_SWINGIDX_SIZE * 3);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_5ga_n, g_delta_swing_table_idx_mp_5ga_n_txpowertrack_pcie_icut_8188e, DELTA_SWINGIDX_SIZE * 3);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_5gb_p, g_delta_swing_table_idx_mp_5gb_p_txpowertrack_pcie_icut_8188e, DELTA_SWINGIDX_SIZE * 3);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_5gb_n, g_delta_swing_table_idx_mp_5gb_n_txpowertrack_pcie_icut_8188e, DELTA_SWINGIDX_SIZE * 3);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_5ga_p, g_delta_swing_table_idx_mp_5ga_p_txpowertrack_pcie_icut_8188e, DELTA_SWINGIDX_SIZE * 3);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_5ga_n, g_delta_swing_table_idx_mp_5ga_n_txpowertrack_pcie_icut_8188e, DELTA_SWINGIDX_SIZE * 3);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_5gb_p, g_delta_swing_table_idx_mp_5gb_p_txpowertrack_pcie_icut_8188e, DELTA_SWINGIDX_SIZE * 3);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_5gb_n, g_delta_swing_table_idx_mp_5gb_n_txpowertrack_pcie_icut_8188e, DELTA_SWINGIDX_SIZE * 3);
 }
 
 /******************************************************************************
-*                           TxPowerTrack_SDIO.TXT
+*                           txpowertrack_sdio.TXT
 ******************************************************************************/
 
 #if DEV_BUS_TYPE == RT_SDIO_INTERFACE
@@ -943,35 +971,33 @@ u8 g_delta_swing_table_idx_mp_2g_cck_a_p_txpowertrack_sdio_8188e[] = {0, 0, 0, 0
 #endif
 
 void
-odm_read_and_config_mp_8188e_txpowertrack_sdio(
-	struct PHY_DM_STRUCT  *p_dm_odm
-)
+odm_read_and_config_mp_8188e_txpowertrack_sdio(struct dm_struct *dm)
 {
 #if DEV_BUS_TYPE == RT_SDIO_INTERFACE
-	struct odm_rf_calibration_structure  *p_rf_calibrate_info = &(p_dm_odm->rf_calibrate_info);
+	struct dm_rf_calibration_struct  *cali_info = &(dm->rf_calibrate_info);
 
-	ODM_RT_TRACE(p_dm_odm, ODM_COMP_INIT, ODM_DBG_LOUD, ("===> ODM_ReadAndConfig_MP_MP_8188E\n"));
+	PHYDM_DBG(dm, ODM_COMP_INIT, "===> ODM_ReadAndConfig_MP_mp_8188e\n");
 
 
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2ga_p, g_delta_swing_table_idx_mp_2ga_p_txpowertrack_sdio_8188e, DELTA_SWINGIDX_SIZE);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2ga_n, g_delta_swing_table_idx_mp_2ga_n_txpowertrack_sdio_8188e, DELTA_SWINGIDX_SIZE);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2gb_p, g_delta_swing_table_idx_mp_2gb_p_txpowertrack_sdio_8188e, DELTA_SWINGIDX_SIZE);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2gb_n, g_delta_swing_table_idx_mp_2gb_n_txpowertrack_sdio_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2ga_p, g_delta_swing_table_idx_mp_2ga_p_txpowertrack_sdio_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2ga_n, g_delta_swing_table_idx_mp_2ga_n_txpowertrack_sdio_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2gb_p, g_delta_swing_table_idx_mp_2gb_p_txpowertrack_sdio_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2gb_n, g_delta_swing_table_idx_mp_2gb_n_txpowertrack_sdio_8188e, DELTA_SWINGIDX_SIZE);
 
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2g_cck_a_p, g_delta_swing_table_idx_mp_2g_cck_a_p_txpowertrack_sdio_8188e, DELTA_SWINGIDX_SIZE);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2g_cck_a_n, g_delta_swing_table_idx_mp_2g_cck_a_n_txpowertrack_sdio_8188e, DELTA_SWINGIDX_SIZE);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2g_cck_b_p, g_delta_swing_table_idx_mp_2g_cck_b_p_txpowertrack_sdio_8188e, DELTA_SWINGIDX_SIZE);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2g_cck_b_n, g_delta_swing_table_idx_mp_2g_cck_b_n_txpowertrack_sdio_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2g_cck_a_p, g_delta_swing_table_idx_mp_2g_cck_a_p_txpowertrack_sdio_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2g_cck_a_n, g_delta_swing_table_idx_mp_2g_cck_a_n_txpowertrack_sdio_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2g_cck_b_p, g_delta_swing_table_idx_mp_2g_cck_b_p_txpowertrack_sdio_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2g_cck_b_n, g_delta_swing_table_idx_mp_2g_cck_b_n_txpowertrack_sdio_8188e, DELTA_SWINGIDX_SIZE);
 
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_5ga_p, g_delta_swing_table_idx_mp_5ga_p_txpowertrack_sdio_8188e, DELTA_SWINGIDX_SIZE * 3);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_5ga_n, g_delta_swing_table_idx_mp_5ga_n_txpowertrack_sdio_8188e, DELTA_SWINGIDX_SIZE * 3);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_5gb_p, g_delta_swing_table_idx_mp_5gb_p_txpowertrack_sdio_8188e, DELTA_SWINGIDX_SIZE * 3);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_5gb_n, g_delta_swing_table_idx_mp_5gb_n_txpowertrack_sdio_8188e, DELTA_SWINGIDX_SIZE * 3);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_5ga_p, g_delta_swing_table_idx_mp_5ga_p_txpowertrack_sdio_8188e, DELTA_SWINGIDX_SIZE * 3);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_5ga_n, g_delta_swing_table_idx_mp_5ga_n_txpowertrack_sdio_8188e, DELTA_SWINGIDX_SIZE * 3);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_5gb_p, g_delta_swing_table_idx_mp_5gb_p_txpowertrack_sdio_8188e, DELTA_SWINGIDX_SIZE * 3);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_5gb_n, g_delta_swing_table_idx_mp_5gb_n_txpowertrack_sdio_8188e, DELTA_SWINGIDX_SIZE * 3);
 #endif
 }
 
 /******************************************************************************
-*                           TxPowerTrack_SDIO_ICUT.TXT
+*                           txpowertrack_sdio_icut.TXT
 ******************************************************************************/
 
 u8 g_delta_swing_table_idx_mp_5gb_n_txpowertrack_sdio_icut_8188e[][DELTA_SWINGIDX_SIZE] = {
@@ -1004,33 +1030,31 @@ u8 g_delta_swing_table_idx_mp_2g_cck_a_n_txpowertrack_sdio_icut_8188e[] = {0, 1,
 u8 g_delta_swing_table_idx_mp_2g_cck_a_p_txpowertrack_sdio_icut_8188e[] = {0, 0, 0, 1, 1, 1, 2, 3, 3, 3, 4, 4, 5, 5, 6, 6, 6, 7, 8, 8, 8, 9, 9, 10, 10, 11, 12, 12, 12, 12};
 
 void
-odm_read_and_config_mp_8188e_txpowertrack_sdio_icut(
-	struct PHY_DM_STRUCT  *p_dm_odm
-)
+odm_read_and_config_mp_8188e_txpowertrack_sdio_icut(struct dm_struct *dm)
 {
-	struct odm_rf_calibration_structure  *p_rf_calibrate_info = &(p_dm_odm->rf_calibrate_info);
+	struct dm_rf_calibration_struct  *cali_info = &(dm->rf_calibrate_info);
 
-	ODM_RT_TRACE(p_dm_odm, ODM_COMP_INIT, ODM_DBG_LOUD, ("===> ODM_ReadAndConfig_MP_MP_8188E\n"));
+	PHYDM_DBG(dm, ODM_COMP_INIT, "===> ODM_ReadAndConfig_MP_mp_8188e\n");
 
 
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2ga_p, g_delta_swing_table_idx_mp_2ga_p_txpowertrack_sdio_icut_8188e, DELTA_SWINGIDX_SIZE);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2ga_n, g_delta_swing_table_idx_mp_2ga_n_txpowertrack_sdio_icut_8188e, DELTA_SWINGIDX_SIZE);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2gb_p, g_delta_swing_table_idx_mp_2gb_p_txpowertrack_sdio_icut_8188e, DELTA_SWINGIDX_SIZE);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2gb_n, g_delta_swing_table_idx_mp_2gb_n_txpowertrack_sdio_icut_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2ga_p, g_delta_swing_table_idx_mp_2ga_p_txpowertrack_sdio_icut_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2ga_n, g_delta_swing_table_idx_mp_2ga_n_txpowertrack_sdio_icut_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2gb_p, g_delta_swing_table_idx_mp_2gb_p_txpowertrack_sdio_icut_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2gb_n, g_delta_swing_table_idx_mp_2gb_n_txpowertrack_sdio_icut_8188e, DELTA_SWINGIDX_SIZE);
 
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2g_cck_a_p, g_delta_swing_table_idx_mp_2g_cck_a_p_txpowertrack_sdio_icut_8188e, DELTA_SWINGIDX_SIZE);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2g_cck_a_n, g_delta_swing_table_idx_mp_2g_cck_a_n_txpowertrack_sdio_icut_8188e, DELTA_SWINGIDX_SIZE);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2g_cck_b_p, g_delta_swing_table_idx_mp_2g_cck_b_p_txpowertrack_sdio_icut_8188e, DELTA_SWINGIDX_SIZE);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2g_cck_b_n, g_delta_swing_table_idx_mp_2g_cck_b_n_txpowertrack_sdio_icut_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2g_cck_a_p, g_delta_swing_table_idx_mp_2g_cck_a_p_txpowertrack_sdio_icut_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2g_cck_a_n, g_delta_swing_table_idx_mp_2g_cck_a_n_txpowertrack_sdio_icut_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2g_cck_b_p, g_delta_swing_table_idx_mp_2g_cck_b_p_txpowertrack_sdio_icut_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2g_cck_b_n, g_delta_swing_table_idx_mp_2g_cck_b_n_txpowertrack_sdio_icut_8188e, DELTA_SWINGIDX_SIZE);
 
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_5ga_p, g_delta_swing_table_idx_mp_5ga_p_txpowertrack_sdio_icut_8188e, DELTA_SWINGIDX_SIZE * 3);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_5ga_n, g_delta_swing_table_idx_mp_5ga_n_txpowertrack_sdio_icut_8188e, DELTA_SWINGIDX_SIZE * 3);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_5gb_p, g_delta_swing_table_idx_mp_5gb_p_txpowertrack_sdio_icut_8188e, DELTA_SWINGIDX_SIZE * 3);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_5gb_n, g_delta_swing_table_idx_mp_5gb_n_txpowertrack_sdio_icut_8188e, DELTA_SWINGIDX_SIZE * 3);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_5ga_p, g_delta_swing_table_idx_mp_5ga_p_txpowertrack_sdio_icut_8188e, DELTA_SWINGIDX_SIZE * 3);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_5ga_n, g_delta_swing_table_idx_mp_5ga_n_txpowertrack_sdio_icut_8188e, DELTA_SWINGIDX_SIZE * 3);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_5gb_p, g_delta_swing_table_idx_mp_5gb_p_txpowertrack_sdio_icut_8188e, DELTA_SWINGIDX_SIZE * 3);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_5gb_n, g_delta_swing_table_idx_mp_5gb_n_txpowertrack_sdio_icut_8188e, DELTA_SWINGIDX_SIZE * 3);
 }
 
 /******************************************************************************
-*                           TxPowerTrack_USB.TXT
+*                           txpowertrack_usb.TXT
 ******************************************************************************/
 
 #if DEV_BUS_TYPE == RT_USB_INTERFACE
@@ -1065,35 +1089,33 @@ u8 g_delta_swing_table_idx_mp_2g_cck_a_p_txpowertrack_usb_8188e[] = {0, 0, 0, 0,
 #endif
 
 void
-odm_read_and_config_mp_8188e_txpowertrack_usb(
-	struct PHY_DM_STRUCT  *p_dm_odm
-)
+odm_read_and_config_mp_8188e_txpowertrack_usb(struct dm_struct *dm)
 {
 #if DEV_BUS_TYPE == RT_USB_INTERFACE
-	struct odm_rf_calibration_structure  *p_rf_calibrate_info = &(p_dm_odm->rf_calibrate_info);
+	struct dm_rf_calibration_struct  *cali_info = &(dm->rf_calibrate_info);
 
-	ODM_RT_TRACE(p_dm_odm, ODM_COMP_INIT, ODM_DBG_LOUD, ("===> ODM_ReadAndConfig_MP_MP_8188E\n"));
+	PHYDM_DBG(dm, ODM_COMP_INIT, "===> ODM_ReadAndConfig_MP_mp_8188e\n");
 
 
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2ga_p, g_delta_swing_table_idx_mp_2ga_p_txpowertrack_usb_8188e, DELTA_SWINGIDX_SIZE);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2ga_n, g_delta_swing_table_idx_mp_2ga_n_txpowertrack_usb_8188e, DELTA_SWINGIDX_SIZE);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2gb_p, g_delta_swing_table_idx_mp_2gb_p_txpowertrack_usb_8188e, DELTA_SWINGIDX_SIZE);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2gb_n, g_delta_swing_table_idx_mp_2gb_n_txpowertrack_usb_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2ga_p, g_delta_swing_table_idx_mp_2ga_p_txpowertrack_usb_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2ga_n, g_delta_swing_table_idx_mp_2ga_n_txpowertrack_usb_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2gb_p, g_delta_swing_table_idx_mp_2gb_p_txpowertrack_usb_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2gb_n, g_delta_swing_table_idx_mp_2gb_n_txpowertrack_usb_8188e, DELTA_SWINGIDX_SIZE);
 
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2g_cck_a_p, g_delta_swing_table_idx_mp_2g_cck_a_p_txpowertrack_usb_8188e, DELTA_SWINGIDX_SIZE);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2g_cck_a_n, g_delta_swing_table_idx_mp_2g_cck_a_n_txpowertrack_usb_8188e, DELTA_SWINGIDX_SIZE);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2g_cck_b_p, g_delta_swing_table_idx_mp_2g_cck_b_p_txpowertrack_usb_8188e, DELTA_SWINGIDX_SIZE);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2g_cck_b_n, g_delta_swing_table_idx_mp_2g_cck_b_n_txpowertrack_usb_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2g_cck_a_p, g_delta_swing_table_idx_mp_2g_cck_a_p_txpowertrack_usb_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2g_cck_a_n, g_delta_swing_table_idx_mp_2g_cck_a_n_txpowertrack_usb_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2g_cck_b_p, g_delta_swing_table_idx_mp_2g_cck_b_p_txpowertrack_usb_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2g_cck_b_n, g_delta_swing_table_idx_mp_2g_cck_b_n_txpowertrack_usb_8188e, DELTA_SWINGIDX_SIZE);
 
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_5ga_p, g_delta_swing_table_idx_mp_5ga_p_txpowertrack_usb_8188e, DELTA_SWINGIDX_SIZE * 3);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_5ga_n, g_delta_swing_table_idx_mp_5ga_n_txpowertrack_usb_8188e, DELTA_SWINGIDX_SIZE * 3);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_5gb_p, g_delta_swing_table_idx_mp_5gb_p_txpowertrack_usb_8188e, DELTA_SWINGIDX_SIZE * 3);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_5gb_n, g_delta_swing_table_idx_mp_5gb_n_txpowertrack_usb_8188e, DELTA_SWINGIDX_SIZE * 3);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_5ga_p, g_delta_swing_table_idx_mp_5ga_p_txpowertrack_usb_8188e, DELTA_SWINGIDX_SIZE * 3);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_5ga_n, g_delta_swing_table_idx_mp_5ga_n_txpowertrack_usb_8188e, DELTA_SWINGIDX_SIZE * 3);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_5gb_p, g_delta_swing_table_idx_mp_5gb_p_txpowertrack_usb_8188e, DELTA_SWINGIDX_SIZE * 3);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_5gb_n, g_delta_swing_table_idx_mp_5gb_n_txpowertrack_usb_8188e, DELTA_SWINGIDX_SIZE * 3);
 #endif
 }
 
 /******************************************************************************
-*                           TxPowerTrack_USB_ICUT.TXT
+*                           txpowertrack_usb_icut.TXT
 ******************************************************************************/
 
 u8 g_delta_swing_table_idx_mp_5gb_n_txpowertrack_usb_icut_8188e[][DELTA_SWINGIDX_SIZE] = {
@@ -1126,33 +1148,31 @@ u8 g_delta_swing_table_idx_mp_2g_cck_a_n_txpowertrack_usb_icut_8188e[] = {0, 1, 
 u8 g_delta_swing_table_idx_mp_2g_cck_a_p_txpowertrack_usb_icut_8188e[] = {0, 0, 0, 1, 1, 1, 2, 3, 3, 3, 4, 4, 5, 5, 6, 6, 6, 7, 8, 8, 8, 9, 9, 10, 10, 11, 12, 12, 12, 12};
 
 void
-odm_read_and_config_mp_8188e_txpowertrack_usb_icut(
-	struct PHY_DM_STRUCT  *p_dm_odm
-)
+odm_read_and_config_mp_8188e_txpowertrack_usb_icut(struct dm_struct *dm)
 {
-	struct odm_rf_calibration_structure  *p_rf_calibrate_info = &(p_dm_odm->rf_calibrate_info);
+	struct dm_rf_calibration_struct  *cali_info = &(dm->rf_calibrate_info);
 
-	ODM_RT_TRACE(p_dm_odm, ODM_COMP_INIT, ODM_DBG_LOUD, ("===> ODM_ReadAndConfig_MP_MP_8188E\n"));
+	PHYDM_DBG(dm, ODM_COMP_INIT, "===> ODM_ReadAndConfig_MP_mp_8188e\n");
 
 
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2ga_p, g_delta_swing_table_idx_mp_2ga_p_txpowertrack_usb_icut_8188e, DELTA_SWINGIDX_SIZE);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2ga_n, g_delta_swing_table_idx_mp_2ga_n_txpowertrack_usb_icut_8188e, DELTA_SWINGIDX_SIZE);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2gb_p, g_delta_swing_table_idx_mp_2gb_p_txpowertrack_usb_icut_8188e, DELTA_SWINGIDX_SIZE);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2gb_n, g_delta_swing_table_idx_mp_2gb_n_txpowertrack_usb_icut_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2ga_p, g_delta_swing_table_idx_mp_2ga_p_txpowertrack_usb_icut_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2ga_n, g_delta_swing_table_idx_mp_2ga_n_txpowertrack_usb_icut_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2gb_p, g_delta_swing_table_idx_mp_2gb_p_txpowertrack_usb_icut_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2gb_n, g_delta_swing_table_idx_mp_2gb_n_txpowertrack_usb_icut_8188e, DELTA_SWINGIDX_SIZE);
 
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2g_cck_a_p, g_delta_swing_table_idx_mp_2g_cck_a_p_txpowertrack_usb_icut_8188e, DELTA_SWINGIDX_SIZE);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2g_cck_a_n, g_delta_swing_table_idx_mp_2g_cck_a_n_txpowertrack_usb_icut_8188e, DELTA_SWINGIDX_SIZE);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2g_cck_b_p, g_delta_swing_table_idx_mp_2g_cck_b_p_txpowertrack_usb_icut_8188e, DELTA_SWINGIDX_SIZE);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_2g_cck_b_n, g_delta_swing_table_idx_mp_2g_cck_b_n_txpowertrack_usb_icut_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2g_cck_a_p, g_delta_swing_table_idx_mp_2g_cck_a_p_txpowertrack_usb_icut_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2g_cck_a_n, g_delta_swing_table_idx_mp_2g_cck_a_n_txpowertrack_usb_icut_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2g_cck_b_p, g_delta_swing_table_idx_mp_2g_cck_b_p_txpowertrack_usb_icut_8188e, DELTA_SWINGIDX_SIZE);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_2g_cck_b_n, g_delta_swing_table_idx_mp_2g_cck_b_n_txpowertrack_usb_icut_8188e, DELTA_SWINGIDX_SIZE);
 
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_5ga_p, g_delta_swing_table_idx_mp_5ga_p_txpowertrack_usb_icut_8188e, DELTA_SWINGIDX_SIZE * 3);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_5ga_n, g_delta_swing_table_idx_mp_5ga_n_txpowertrack_usb_icut_8188e, DELTA_SWINGIDX_SIZE * 3);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_5gb_p, g_delta_swing_table_idx_mp_5gb_p_txpowertrack_usb_icut_8188e, DELTA_SWINGIDX_SIZE * 3);
-	odm_move_memory(p_dm_odm, p_rf_calibrate_info->delta_swing_table_idx_5gb_n, g_delta_swing_table_idx_mp_5gb_n_txpowertrack_usb_icut_8188e, DELTA_SWINGIDX_SIZE * 3);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_5ga_p, g_delta_swing_table_idx_mp_5ga_p_txpowertrack_usb_icut_8188e, DELTA_SWINGIDX_SIZE * 3);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_5ga_n, g_delta_swing_table_idx_mp_5ga_n_txpowertrack_usb_icut_8188e, DELTA_SWINGIDX_SIZE * 3);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_5gb_p, g_delta_swing_table_idx_mp_5gb_p_txpowertrack_usb_icut_8188e, DELTA_SWINGIDX_SIZE * 3);
+	odm_move_memory(dm, cali_info->delta_swing_table_idx_5gb_n, g_delta_swing_table_idx_mp_5gb_n_txpowertrack_usb_icut_8188e, DELTA_SWINGIDX_SIZE * 3);
 }
 
 /******************************************************************************
-*                           TXPWR_LMT.TXT
+*                           txpwr_lmt.TXT
 ******************************************************************************/
 
 const char *array_mp_8188e_txpwr_lmt[] = {
@@ -1723,44 +1743,56 @@ const char *array_mp_8188e_txpwr_lmt[] = {
 };
 
 void
-odm_read_and_config_mp_8188e_txpwr_lmt(
-	struct PHY_DM_STRUCT  *p_dm_odm
-)
+odm_read_and_config_mp_8188e_txpwr_lmt(struct dm_struct *dm)
 {
-	u32     i           = 0;
-	u32     array_len    = sizeof(array_mp_8188e_txpwr_lmt) / sizeof(u8 *);
-	u8 **array      = (u8 **)array_mp_8188e_txpwr_lmt;
-
-#if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
-	struct _ADAPTER		*adapter = p_dm_odm->adapter;
-	HAL_DATA_TYPE	*p_hal_data = GET_HAL_DATA(adapter);
-
-	PlatformZeroMemory(p_hal_data->BufOfLinesPwrLmt, MAX_LINES_HWCONFIG_TXT * MAX_BYTES_LINE_HWCONFIG_TXT);
-	p_hal_data->nLinesReadPwrLmt = array_len / 7;
+	u32	i = 0;
+#if (DM_ODM_SUPPORT_TYPE == ODM_IOT)
+	u32	array_len = sizeof(array_mp_8188e_txpwr_lmt) / sizeof(u8);
+	u8	*array = (u8 *)array_mp_8188e_txpwr_lmt;
+#else
+	u32	array_len = sizeof(array_mp_8188e_txpwr_lmt) / sizeof(u8 *);
+	u8	**array = (u8 **)array_mp_8188e_txpwr_lmt;
 #endif
 
-	ODM_RT_TRACE(p_dm_odm, ODM_COMP_INIT, ODM_DBG_LOUD, ("===> odm_read_and_config_mp_8188e_txpwr_lmt\n"));
+#if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
+	void	*adapter = dm->adapter;
+	HAL_DATA_TYPE	*hal_data = GET_HAL_DATA(((PADAPTER)adapter));
+
+	PlatformZeroMemory(hal_data->BufOfLinesPwrLmt, MAX_LINES_HWCONFIG_TXT * MAX_BYTES_LINE_HWCONFIG_TXT);
+	hal_data->nLinesReadPwrLmt = array_len / 7;
+#endif
+
+	PHYDM_DBG(dm, ODM_COMP_INIT, "===> %s\n", __func__);
 
 	for (i = 0; i < array_len; i += 7) {
-		u8 *regulation = array[i];
-		u8 *band = array[i + 1];
-		u8 *bandwidth = array[i + 2];
-		u8 *rate = array[i + 3];
-		u8 *rf_path = array[i + 4];
-		u8 *chnl = array[i + 5];
-		u8 *val = array[i + 6];
+#if (DM_ODM_SUPPORT_TYPE == ODM_IOT)
+		u8	regulation = array[i];
+		u8	band = array[i + 1];
+		u8	bandwidth = array[i + 2];
+		u8	rate = array[i + 3];
+		u8	rf_path = array[i + 4];
+		u8	chnl = array[i + 5];
+		u8	val = array[i + 6];
+#else
+		u8	*regulation = array[i];
+		u8	*band = array[i + 1];
+		u8	*bandwidth = array[i + 2];
+		u8	*rate = array[i + 3];
+		u8	*rf_path = array[i + 4];
+		u8	*chnl = array[i + 5];
+		u8	*val = array[i + 6];
+#endif
 
-		odm_config_bb_txpwr_lmt_8188e(p_dm_odm, regulation, band, bandwidth, rate, rf_path, chnl, val);
+		odm_config_bb_txpwr_lmt_8188e(dm, regulation, band, bandwidth, rate, rf_path, chnl, val);
 #if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
-		rsprintf((char *)p_hal_data->BufOfLinesPwrLmt[i / 7], 100, "\"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\",",
-			 regulation, band, bandwidth, rate, rf_path, chnl, val);
+		rsprintf((char *)hal_data->BufOfLinesPwrLmt[i / 7], 100, "\"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\",",
+		regulation, band, bandwidth, rate, rf_path, chnl, val);
 #endif
 	}
-
 }
 
 /******************************************************************************
-*                           TXPWR_LMT_88EE_M2_for_MSI.TXT
+*                           txpwr_lmt_88ee_m2_for_msi.TXT
 ******************************************************************************/
 
 const char *array_mp_8188e_txpwr_lmt_88ee_m2_for_msi[] = {
@@ -2331,40 +2363,53 @@ const char *array_mp_8188e_txpwr_lmt_88ee_m2_for_msi[] = {
 };
 
 void
-odm_read_and_config_mp_8188e_txpwr_lmt_88e_e_m2_for_msi(
-	struct PHY_DM_STRUCT  *p_dm_odm
-)
+odm_read_and_config_mp_8188e_txpwr_lmt_88ee_m2_for_msi(struct dm_struct *dm)
 {
-	u32     i           = 0;
-	u32     array_len    = sizeof(array_mp_8188e_txpwr_lmt_88ee_m2_for_msi) / sizeof(u8 *);
-	u8 **array      = (u8 **)array_mp_8188e_txpwr_lmt_88ee_m2_for_msi;
-
-#if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
-	struct _ADAPTER		*adapter = p_dm_odm->adapter;
-	HAL_DATA_TYPE	*p_hal_data = GET_HAL_DATA(adapter);
-
-	PlatformZeroMemory(p_hal_data->BufOfLinesPwrLmt, MAX_LINES_HWCONFIG_TXT * MAX_BYTES_LINE_HWCONFIG_TXT);
-	p_hal_data->nLinesReadPwrLmt = array_len / 7;
+	u32	i = 0;
+#if (DM_ODM_SUPPORT_TYPE == ODM_IOT)
+	u32	array_len = sizeof(array_mp_8188e_txpwr_lmt_88ee_m2_for_msi) / sizeof(u8);
+	u8	*array = (u8 *)array_mp_8188e_txpwr_lmt_88ee_m2_for_msi;
+#else
+	u32	array_len = sizeof(array_mp_8188e_txpwr_lmt_88ee_m2_for_msi) / sizeof(u8 *);
+	u8	**array = (u8 **)array_mp_8188e_txpwr_lmt_88ee_m2_for_msi;
 #endif
 
-	ODM_RT_TRACE(p_dm_odm, ODM_COMP_INIT, ODM_DBG_LOUD, ("===> odm_read_and_config_mp_8188e_txpwr_lmt_88e_e_m2_for_msi\n"));
+#if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
+	void	*adapter = dm->adapter;
+	HAL_DATA_TYPE	*hal_data = GET_HAL_DATA(((PADAPTER)adapter));
+
+	PlatformZeroMemory(hal_data->BufOfLinesPwrLmt, MAX_LINES_HWCONFIG_TXT * MAX_BYTES_LINE_HWCONFIG_TXT);
+	hal_data->nLinesReadPwrLmt = array_len / 7;
+#endif
+
+	PHYDM_DBG(dm, ODM_COMP_INIT, "===> %s\n", __func__);
 
 	for (i = 0; i < array_len; i += 7) {
-		u8 *regulation = array[i];
-		u8 *band = array[i + 1];
-		u8 *bandwidth = array[i + 2];
-		u8 *rate = array[i + 3];
-		u8 *rf_path = array[i + 4];
-		u8 *chnl = array[i + 5];
-		u8 *val = array[i + 6];
+#if (DM_ODM_SUPPORT_TYPE == ODM_IOT)
+		u8	regulation = array[i];
+		u8	band = array[i + 1];
+		u8	bandwidth = array[i + 2];
+		u8	rate = array[i + 3];
+		u8	rf_path = array[i + 4];
+		u8	chnl = array[i + 5];
+		u8	val = array[i + 6];
+#else
+		u8	*regulation = array[i];
+		u8	*band = array[i + 1];
+		u8	*bandwidth = array[i + 2];
+		u8	*rate = array[i + 3];
+		u8	*rf_path = array[i + 4];
+		u8	*chnl = array[i + 5];
+		u8	*val = array[i + 6];
+#endif
 
-		odm_config_bb_txpwr_lmt_8188e(p_dm_odm, regulation, band, bandwidth, rate, rf_path, chnl, val);
+		odm_config_bb_txpwr_lmt_8188e(dm, regulation, band, bandwidth, rate, rf_path, chnl, val);
 #if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
-		rsprintf((char *)p_hal_data->BufOfLinesPwrLmt[i / 7], 100, "\"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\",",
-			 regulation, band, bandwidth, rate, rf_path, chnl, val);
+		rsprintf((char *)hal_data->BufOfLinesPwrLmt[i / 7], 100, "\"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\", \"%s\",",
+		regulation, band, bandwidth, rate, rf_path, chnl, val);
 #endif
 	}
-
 }
 
 #endif /* end of HWIMG_SUPPORT*/
+

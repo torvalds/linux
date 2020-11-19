@@ -1,6 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +12,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef __BASIC_TYPES_H__
 #define __BASIC_TYPES_H__
 
@@ -82,27 +78,17 @@
 	#include <linux/kernel.h>
 	#include <linux/init.h>
 	#include <linux/utsname.h>
-	#define IN
-	#define OUT
-	#define VOID void
-	#define NDIS_OID uint
-	#define NDIS_STATUS uint
 
 	typedef	signed int sint;
 
-	#ifndef	PVOID
-		typedef void *PVOID;
-		/* #define PVOID	(void *) */
-	#endif
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 19))
+typedef _Bool bool;
 
-	#define UCHAR u8
-	#define USHORT u16
-	#define UINT u32
-	#define ULONG u32
-
-	#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 19))
-		typedef _Bool bool;
-	#endif
+enum {
+	false	= 0,
+	true	= 1
+};
+#endif
 
 	typedef void (*proc_t)(void *);
 
@@ -110,7 +96,8 @@
 	typedef	__kernel_ssize_t	SSIZE_T;
 	#define FIELD_OFFSET(s, field)	((SSIZE_T)&((s *)(0))->field)
 
-#endif
+#define NDIS_OID uint
+#endif /*PLATFORM_LINUX*/
 
 
 #ifdef PLATFORM_FREEBSD
@@ -130,21 +117,8 @@
 
 	typedef signed long long s64;
 	typedef unsigned long long u64;
-	#define IN
-	#define OUT
-	#define VOID void
-	#define NDIS_OID uint
-	#define NDIS_STATUS uint
 
-	#ifndef	PVOID
-		typedef void *PVOID;
-		/* #define PVOID	(void *) */
-	#endif
 	typedef u32 dma_addr_t;
-	#define UCHAR u8
-	#define USHORT u16
-	#define UINT u32
-	#define ULONG u32
 
 	typedef void (*proc_t)(void *);
 

@@ -1,6 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +12,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef __DRV_TYPES_SDIO_H__
 #define __DRV_TYPES_SDIO_H__
 
@@ -24,11 +20,8 @@
 #ifdef PLATFORM_LINUX
 	#include <linux/mmc/sdio_func.h>
 	#include <linux/mmc/sdio_ids.h>
-
-	#if defined(CONFIG_WOWLAN) || defined(CONFIG_AP_WOWLAN) || defined(CONFIG_PLATFORM_SPRD)
-		#include <linux/mmc/host.h>
-		#include <linux/mmc/card.h>
-	#endif
+	#include <linux/mmc/host.h>
+	#include <linux/mmc/card.h>
 
 	#ifdef CONFIG_PLATFORM_SPRD
 		#include <linux/gpio.h>
@@ -36,15 +29,10 @@
 	#endif /* CONFIG_PLATFORM_SPRD */
 #endif
 
-#ifdef PLATFORM_OS_XP
-	#include <wdm.h>
-	#include <ntddsd.h>
-#endif
-
-#ifdef PLATFORM_OS_CE
-	#include <sdcardddk.h>
-#endif
-
+#define RTW_SDIO_CLK_33M	33000000
+#define RTW_SDIO_CLK_40M	40000000
+#define RTW_SDIO_CLK_80M	80000000
+#define RTW_SDIO_CLK_160M	160000000
 
 typedef struct sdio_data {
 	u8  func_number;
@@ -54,25 +42,12 @@ typedef struct sdio_data {
 	u32 block_transfer_len;
 
 #ifdef PLATFORM_LINUX
+	struct mmc_card *card;
 	struct sdio_func	*func;
 	_thread_hdl_ sys_sdio_irq_thd;
-#endif
-
-#ifdef PLATFORM_OS_XP
-	PDEVICE_OBJECT				pphysdevobj;
-	PDEVICE_OBJECT				pfuncdevobj;
-	PDEVICE_OBJECT				pnextdevobj;
-	SDBUS_INTERFACE_STANDARD	sdbusinft;
-	u8							nextdevstacksz;
-#endif
-
-#ifdef PLATFORM_OS_CE
-	SD_DEVICE_HANDLE			hDevice;
-	SD_CARD_RCA					sd_rca;
-	SD_CARD_INTERFACE			card_intf;
-	BOOLEAN						enableIsarWithStatus;
-	WCHAR						active_path[MAX_ACTIVE_REG_PATH];
-	SD_HOST_BLOCK_CAPABILITY	sd_host_blk_cap;
+	unsigned int clock;
+	unsigned int timing;
+	u8	sd3_bus_mode;
 #endif
 } SDIO_DATA, *PSDIO_DATA;
 

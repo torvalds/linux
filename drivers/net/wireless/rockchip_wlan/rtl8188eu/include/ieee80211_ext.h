@@ -1,6 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +12,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef __IEEE80211_EXT_H
 #define __IEEE80211_EXT_H
 
@@ -102,27 +98,6 @@ struct wme_parameter_element {
 	struct wme_ac_parameter ac[4];
 
 } __attribute__((packed));
-
-#endif
-
-#ifdef PLATFORM_WINDOWS
-
-#pragma pack(1)
-
-struct wpa_ie_hdr {
-	u8 elem_id;
-	u8 len;
-	u8 oui[4]; /* 24-bit OUI followed by 8-bit OUI type */
-	u8 version[2]; /* little endian */
-};
-
-struct rsn_ie_hdr {
-	u8 elem_id; /* WLAN_EID_RSN */
-	u8 len;
-	u8 version[2]; /* little endian */
-};
-
-#pragma pack()
 
 #endif
 
@@ -327,144 +302,6 @@ struct ieee80211_mgmt {
 		}  __attribute__((packed)) action;
 	} __attribute__((packed)) u;
 } __attribute__((packed));
-
-#endif
-
-
-#ifdef PLATFORM_WINDOWS
-
-#pragma pack(1)
-
-struct ieee80211_mgmt {
-	u16 frame_control;
-	u16 duration;
-	u8 da[6];
-	u8 sa[6];
-	u8 bssid[6];
-	u16 seq_ctrl;
-	union {
-		struct {
-			u16 auth_alg;
-			u16 auth_transaction;
-			u16 status_code;
-			/* possibly followed by Challenge text */
-			u8 variable[0];
-		}  auth;
-		struct {
-			u16 reason_code;
-		}  deauth;
-		struct {
-			u16 capab_info;
-			u16 listen_interval;
-			/* followed by SSID and Supported rates */
-			u8 variable[0];
-		}  assoc_req;
-		struct {
-			u16 capab_info;
-			u16 status_code;
-			u16 aid;
-			/* followed by Supported rates */
-			u8 variable[0];
-		}  assoc_resp, reassoc_resp;
-		struct {
-			u16 capab_info;
-			u16 listen_interval;
-			u8 current_ap[6];
-			/* followed by SSID and Supported rates */
-			u8 variable[0];
-		}  reassoc_req;
-		struct {
-			u16 reason_code;
-		}  disassoc;
-#if 0
-		struct {
-			__le64 timestamp;
-			u16 beacon_int;
-			u16 capab_info;
-			/* followed by some of SSID, Supported rates,
-			 * FH Params, DS Params, CF Params, IBSS Params, TIM */
-			u8 variable[0];
-		}  beacon;
-		struct {
-			/* only variable items: SSID, Supported rates */
-			u8 variable[0];
-		}  probe_req;
-
-		struct {
-			__le64 timestamp;
-			u16 beacon_int;
-			u16 capab_info;
-			/* followed by some of SSID, Supported rates,
-			 * FH Params, DS Params, CF Params, IBSS Params */
-			u8 variable[0];
-		}  probe_resp;
-#endif
-		struct {
-			u8 category;
-			union {
-				struct {
-					u8 action_code;
-					u8 dialog_token;
-					u8 status_code;
-					u8 variable[0];
-				}  wme_action;
-				#if 0
-				struct{
-					u8 action_code;
-					u8 element_id;
-					u8 length;
-					struct ieee80211_channel_sw_ie sw_elem;
-				}  chan_switch;
-				struct{
-					u8 action_code;
-					u8 dialog_token;
-					u8 element_id;
-					u8 length;
-					struct ieee80211_msrment_ie msr_elem;
-				}  measurement;
-				#endif
-				struct {
-					u8 action_code;
-					u8 dialog_token;
-					u16 capab;
-					u16 timeout;
-					u16 start_seq_num;
-				}  addba_req;
-				struct {
-					u8 action_code;
-					u8 dialog_token;
-					u16 status;
-					u16 capab;
-					u16 timeout;
-				}  addba_resp;
-				struct {
-					u8 action_code;
-					u16 params;
-					u16 reason_code;
-				}  delba;
-				struct {
-					u8 action_code;
-					/* capab_info for open and confirm,
-					 * reason for close
-					 */
-					u16 aux;
-					/* Followed in plink_confirm by status
-					 * code, AID and supported rates,
-					 * and directly by supported rates in
-					 * plink_open and plink_close
-					 */
-					u8 variable[0];
-				}  plink_action;
-				struct {
-					u8 action_code;
-					u8 variable[0];
-				}  mesh_action;
-			} u;
-		}  action;
-	} u;
-} ;
-
-#pragma pack()
 
 #endif
 

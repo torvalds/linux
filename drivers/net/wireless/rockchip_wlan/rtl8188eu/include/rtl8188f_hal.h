@@ -1,6 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +12,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef __RTL8188F_HAL_H__
 #define __RTL8188F_HAL_H__
 
@@ -109,23 +105,17 @@ typedef struct _RT_8188F_FIRMWARE_HDR {
 /* Note: We will divide number of page equally for each queue other than public queue! */
 
 /* For General Reserved Page Number(Beacon Queue is reserved page)
- * Beacon:2, PS-Poll:1, Null Data:1,Qos Null Data:1,BT Qos Null Data:1 */
-#define BCNQ_PAGE_NUM_8188F		0x08
-#ifdef CONFIG_CONCURRENT_MODE
-	#define BCNQ1_PAGE_NUM_8188F		0x08 /* 0x04 */
-#else
-	#define BCNQ1_PAGE_NUM_8188F		0x00
-#endif
+ * BCN rsvd_page_num = MAX_BEACON_LEN / PAGE_SIZE_TX_8188F,
+ * PS-Poll:1, Null Data:1,Qos Null Data:1,BT Qos Null Data:1, CTS-2-SELF / LTE QoS Null */
 
-#ifdef CONFIG_PNO_SUPPORT
-#undef BCNQ1_PAGE_NUM_8188F
-#define BCNQ1_PAGE_NUM_8188F		0x00 /* 0x04 */
-#endif
+#define BCNQ_PAGE_NUM_8188F		(MAX_BEACON_LEN / PAGE_SIZE_TX_8188F + 6) /*0x08*/
 
 /* For WoWLan , more reserved page
- * ARP Rsp:1, RWC:1, GTK Info:1,GTK RSP:2,GTK EXT MEM:2, AOAC rpt:1 ,PNO: 6 */
+ * ARP Rsp:1, RWC:1, GTK Info:1,GTK RSP:2,GTK EXT MEM:2, AOAC rpt:1 ,PNO: 6
+ * NS offload:2 NDP info: 1
+ */
 #ifdef CONFIG_WOWLAN
-	#define WOWLAN_PAGE_NUM_8188F	0x08
+	#define WOWLAN_PAGE_NUM_8188F	0x0b
 #else
 	#define WOWLAN_PAGE_NUM_8188F	0x00
 #endif
@@ -139,7 +129,7 @@ typedef struct _RT_8188F_FIRMWARE_HDR {
 #define AP_WOWLAN_PAGE_NUM_8188F	0x02
 #endif
 
-#define TX_TOTAL_PAGE_NUMBER_8188F	(0xFF - BCNQ_PAGE_NUM_8188F - BCNQ1_PAGE_NUM_8188F - WOWLAN_PAGE_NUM_8188F)
+#define TX_TOTAL_PAGE_NUMBER_8188F	(0xFF - BCNQ_PAGE_NUM_8188F - WOWLAN_PAGE_NUM_8188F)
 #define TX_PAGE_BOUNDARY_8188F		(TX_TOTAL_PAGE_NUMBER_8188F + 1)
 
 #define WMM_NORMAL_TX_TOTAL_PAGE_NUMBER_8188F	TX_TOTAL_PAGE_NUMBER_8188F
@@ -219,14 +209,14 @@ void Hal_EfuseParseThermalMeter_8188F(PADAPTER padapter, u8 *hwinfo, u8 AutoLoad
 void Hal_EfuseParseKFreeData_8188F(PADAPTER pAdapter, u8 *hwinfo, BOOLEAN AutoLoadFail);
 
 #if 0 /* Do not need for rtl8188f */
-VOID Hal_EfuseParseVoltage_8188F(PADAPTER pAdapter, u8 *hwinfo, BOOLEAN	AutoLoadFail);
+void Hal_EfuseParseVoltage_8188F(PADAPTER pAdapter, u8 *hwinfo, BOOLEAN	AutoLoadFail);
 #endif
 
 void rtl8188f_set_pll_ref_clk_sel(_adapter *adapter, u8 sel);
 
 void rtl8188f_set_hal_ops(struct hal_ops *pHalFunc);
 void init_hal_spec_8188f(_adapter *adapter);
-void SetHwReg8188F(PADAPTER padapter, u8 variable, u8 *val);
+u8 SetHwReg8188F(PADAPTER padapter, u8 variable, u8 *val);
 void GetHwReg8188F(PADAPTER padapter, u8 variable, u8 *val);
 u8 SetHalDefVar8188F(PADAPTER padapter, HAL_DEF_VARIABLE variable, void *pval);
 u8 GetHalDefVar8188F(PADAPTER padapter, HAL_DEF_VARIABLE variable, void *pval);
@@ -255,7 +245,7 @@ void HalSetOutPutGPIO(PADAPTER padapter, u8 index, u8 OutPutValue);
 #endif
 
 #ifdef CONFIG_MP_INCLUDED
-int FirmwareDownloadBT(IN PADAPTER Adapter, PRT_MP_FIRMWARE pFirmware);
+int FirmwareDownloadBT(PADAPTER Adapter, PRT_MP_FIRMWARE pFirmware);
 #endif
 
 void CCX_FwC2HTxRpt_8188f(PADAPTER padapter, u8 *pdata, u8 len);
@@ -265,7 +255,7 @@ u8 HwRateToMRate8188F(u8	 rate);
 
 #ifdef CONFIG_PCI_HCI
 BOOLEAN	InterruptRecognized8188FE(PADAPTER Adapter);
-VOID	UpdateInterruptMask8188FE(PADAPTER Adapter, u32 AddMSR, u32 AddMSR1, u32 RemoveMSR, u32 RemoveMSR1);
+void	UpdateInterruptMask8188FE(PADAPTER Adapter, u32 AddMSR, u32 AddMSR1, u32 RemoveMSR, u32 RemoveMSR1);
 #endif
 
 #endif

@@ -1,6 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +12,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef __RTL8188F_CMD_H__
 #define __RTL8188F_CMD_H__
 
@@ -118,7 +114,6 @@ enum h2c_cmd_8188F {
 #define SET_8188F_H2CCMD_PWRMODE_PARM_ALL_QUEUE_UAPSD(__pH2CCmd, __Value)	SET_BITS_TO_LE_1BYTE((__pH2CCmd)+3, 0, 8, __Value)
 #define SET_8188F_H2CCMD_PWRMODE_PARM_BCN_EARLY_C2H_RPT(__pH2CCmd, __Value)	SET_BITS_TO_LE_1BYTE((__pH2CCmd)+3, 2, 1, __Value)
 #define SET_8188F_H2CCMD_PWRMODE_PARM_PWR_STATE(__pH2CCmd, __Value)			SET_BITS_TO_LE_1BYTE((__pH2CCmd)+4, 0, 8, __Value)
-#define SET_8188F_H2CCMD_PWRMODE_PARM_BYTE5(__pH2CCmd, __Value)				SET_BITS_TO_LE_1BYTE((__pH2CCmd)+5, 0, 8, __Value)
 
 #define GET_8188F_H2CCMD_PWRMODE_PARM_MODE(__pH2CCmd)					LE_BITS_TO_1BYTE(__pH2CCmd, 0, 8)
 
@@ -164,7 +159,7 @@ enum h2c_cmd_8188F {
 #define SET_8188F_H2CCMD_BT_MPOPER_PARAM3(__pH2CCmd, __Value)							SET_BITS_TO_LE_1BYTE(__pH2CCmd+4, 0, 8, __Value)
 
 /* _BT_FW_PATCH_0x6A */
-#define SET_8188F_H2CCMD_BT_FW_PATCH_SIZE(__pH2CCmd, __Value)					SET_BITS_TO_LE_2BYTE((pu1Byte)(__pH2CCmd), 0, 16, __Value)
+#define SET_8188F_H2CCMD_BT_FW_PATCH_SIZE(__pH2CCmd, __Value)					SET_BITS_TO_LE_2BYTE((u8 *)(__pH2CCmd), 0, 16, __Value)
 #define SET_8188F_H2CCMD_BT_FW_PATCH_ADDR0(__pH2CCmd, __Value)					SET_BITS_TO_LE_1BYTE((__pH2CCmd)+2, 0, 8, __Value)
 #define SET_8188F_H2CCMD_BT_FW_PATCH_ADDR1(__pH2CCmd, __Value)					SET_BITS_TO_LE_1BYTE((__pH2CCmd)+3, 0, 8, __Value)
 #define SET_8188F_H2CCMD_BT_FW_PATCH_ADDR2(__pH2CCmd, __Value)					SET_BITS_TO_LE_1BYTE((__pH2CCmd)+4, 0, 8, __Value)
@@ -183,11 +178,9 @@ enum h2c_cmd_8188F {
 /* host message to firmware cmd */
 void rtl8188f_set_FwPwrMode_cmd(PADAPTER padapter, u8 Mode);
 void rtl8188f_set_FwJoinBssRpt_cmd(PADAPTER padapter, u8 mstatus);
-void rtl8188f_set_rssi_cmd(PADAPTER padapter, u8 *param);
 void rtl8188f_fw_try_ap_cmd(PADAPTER padapter, u32 need_ack);
 /* s32 rtl8188f_set_lowpwr_lps_cmd(PADAPTER padapter, u8 enable); */
 void rtl8188f_set_FwPsTuneParam_cmd(PADAPTER padapter);
-void rtl8188f_set_FwMacIdConfig_cmd(_adapter *padapter, u8 mac_id, u8 raid, u8 bw, u8 sgi, u32 mask, u8 ignore_bw);
 void rtl8188f_set_FwBtMpOper_cmd(PADAPTER padapter, u8 idx, u8 ver, u8 reqnum, u8 *param);
 void rtl8188f_download_rsvd_page(PADAPTER padapter, u8 mstatus);
 #ifdef CONFIG_BT_COEXIST
@@ -196,8 +189,6 @@ void rtl8188f_download_rsvd_page(PADAPTER padapter, u8 mstatus);
 #ifdef CONFIG_P2P
 void rtl8188f_set_p2p_ps_offload_cmd(PADAPTER padapter, u8 p2p_ps_state);
 #endif /* CONFIG_P2P */
-
-void CheckFwRsvdPageContent(PADAPTER padapter);
 
 #ifdef CONFIG_TDLS
 #ifdef CONFIG_TDLS_CH_SW
@@ -211,9 +202,6 @@ void rtl8188f_set_p2p_wowlan_offload_cmd(PADAPTER padapter);
 
 void rtl8188f_set_FwPwrModeInIPS_cmd(PADAPTER padapter, u8 cmd_param);
 
-#ifdef CONFIG_TSF_RESET_OFFLOAD
-u8 rtl8188f_reset_tsf(_adapter *padapter, u8 reset_port);
-#endif /* CONFIG_TSF_RESET_OFFLOAD */
 s32 FillH2CCmd8188F(PADAPTER padapter, u8 ElementID, u32 CmdLen, u8 *pCmdBuffer);
 u8 GetTxBufferRsvdPageNum8188F(_adapter *padapter, bool wowlan);
 #endif

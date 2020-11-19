@@ -1,6 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +12,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #define _HAL_USB_C_
 
 #include <drv_types.h>
@@ -218,7 +214,7 @@ void usb_free_recv_priv(_adapter *padapter, u16 ini_in_buf_sz)
 		IF_DEQUEUE(&precvpriv->rx_indicate_queue, m);
 		if (m == NULL)
 			break;
-		m_freem(m);
+		rtw_os_pkt_free(m);
 	}
 	mtx_destroy(&precvpriv->rx_indicate_queue.ifq_mtx);
 #endif /* CONFIG_RX_INDICATE_QUEUE */
@@ -338,6 +334,13 @@ u8 usb_read8(struct intf_hdl *pintfhdl, u32 addr)
 
 	wvalue = (u16)(addr & 0x0000ffff);
 	len = 1;
+	
+/* WLANON PAGE0_REG needs to add an offset 0x8000 */
+#if defined(CONFIG_RTL8710B)
+	if(wvalue >= 0x0000 && wvalue < 0x0100)
+		wvalue |= 0x8000;
+#endif
+
 	usbctrl_vendorreq(pintfhdl, request, wvalue, index,
 			  &data, len, requesttype);
 
@@ -361,6 +364,13 @@ u16 usb_read16(struct intf_hdl *pintfhdl, u32 addr)
 
 	wvalue = (u16)(addr & 0x0000ffff);
 	len = 2;
+	
+/* WLANON PAGE0_REG needs to add an offset 0x8000 */
+#if defined(CONFIG_RTL8710B)
+	if(wvalue >= 0x0000 && wvalue < 0x0100)
+		wvalue |= 0x8000;
+#endif
+
 	usbctrl_vendorreq(pintfhdl, request, wvalue, index,
 			  &data, len, requesttype);
 
@@ -385,6 +395,13 @@ u32 usb_read32(struct intf_hdl *pintfhdl, u32 addr)
 
 	wvalue = (u16)(addr & 0x0000ffff);
 	len = 4;
+	
+/* WLANON PAGE0_REG needs to add an offset 0x8000 */
+#if defined(CONFIG_RTL8710B)
+	if(wvalue >= 0x0000 && wvalue < 0x0100)
+		wvalue |= 0x8000;
+#endif
+
 	usbctrl_vendorreq(pintfhdl, request, wvalue, index,
 			  &data, len, requesttype);
 
@@ -409,8 +426,14 @@ int usb_write8(struct intf_hdl *pintfhdl, u32 addr, u8 val)
 
 	wvalue = (u16)(addr & 0x0000ffff);
 	len = 1;
-
 	data = val;
+	
+/* WLANON PAGE0_REG needs to add an offset 0x8000 */
+#if defined(CONFIG_RTL8710B)
+	if(wvalue >= 0x0000 && wvalue < 0x0100)
+		wvalue |= 0x8000;
+#endif
+
 	ret = usbctrl_vendorreq(pintfhdl, request, wvalue, index,
 				&data, len, requesttype);
 
@@ -435,8 +458,14 @@ int usb_write16(struct intf_hdl *pintfhdl, u32 addr, u16 val)
 
 	wvalue = (u16)(addr & 0x0000ffff);
 	len = 2;
-
 	data = val;
+
+/* WLANON PAGE0_REG needs to add an offset 0x8000 */
+#if defined(CONFIG_RTL8710B)
+	if(wvalue >= 0x0000 && wvalue < 0x0100)
+		wvalue |= 0x8000;
+#endif
+
 	ret = usbctrl_vendorreq(pintfhdl, request, wvalue, index,
 				&data, len, requesttype);
 
@@ -463,6 +492,13 @@ int usb_write32(struct intf_hdl *pintfhdl, u32 addr, u32 val)
 	wvalue = (u16)(addr & 0x0000ffff);
 	len = 4;
 	data = val;
+
+/* WLANON PAGE0_REG needs to add an offset 0x8000 */
+#if defined(CONFIG_RTL8710B)
+	if(wvalue >= 0x0000 && wvalue < 0x0100)
+		wvalue |= 0x8000;
+#endif
+
 	ret = usbctrl_vendorreq(pintfhdl, request, wvalue, index,
 				&data, len, requesttype);
 

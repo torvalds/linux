@@ -1,6 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +12,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef __RTW_PWRCTRL_H_
 #define __RTW_PWRCTRL_H_
 
@@ -45,17 +41,13 @@
 #endif /* CONFIG_BT_COEXIST */
 
 #ifdef CONFIG_WOWLAN
-#ifdef CONFIG_DEFAULT_PATTERNS_EN
 	#ifdef CONFIG_PLATFORM_ANDROID_INTEL_X86
 		/* TCP/ICMP/UDP multicast with specific IP addr */
-		#define DEFAULT_PATTERN_NUM 3
+		#define DEFAULT_PATTERN_NUM 4
 	#else
 		/* TCP/ICMP */
-		#define DEFAULT_PATTERN_NUM 2
+		#define DEFAULT_PATTERN_NUM 3
 	#endif
-#else
-	#define DEFAULT_PATTERN_NUM 0
-#endif /*CONFIG_DEFAULT_PATTERNS_EN*/
 
 #ifdef CONFIG_WOW_PATTERN_HW_CAM	/* Frame Mask Cam number for pattern match */
 #define MAX_WKFM_CAM_NUM	12
@@ -96,6 +88,13 @@ enum Power_Mgnt {
 	PM_Radio_Off			,
 	PM_Card_Disable		,
 	PS_MODE_NUM,
+};
+
+enum lps_level {
+	LPS_NORMAL = 0,
+	LPS_LCLK,
+	LPS_PG,
+	LPS_LEVEL_MAX,
 };
 
 #ifdef CONFIG_PNO_SUPPORT
@@ -173,7 +172,7 @@ __inline static void _exit_pwrlock(_pwrlock *plock)
 	_rtw_up_sema(plock);
 }
 
-#define LPS_DELAY_TIME	1*HZ /* 1 sec */
+#define LPS_DELAY_MS	1000 /* 1 sec */
 
 #define EXE_PWR_NONE	0x01
 #define EXE_PWR_IPS		0x02
@@ -305,7 +304,16 @@ struct aoac_report {
 	u8 group_key[32];
 	u8 key_index;
 	u8 security_type;
+	u8 wow_pattern_idx;
+	u8 version_info;
+	u8 rekey_ok:1;
+	u8 dummy:7;
+	u8 reserved[3];
+	u8 rxptk_iv[8];
+	u8 rxgtk_iv[4][8];
 };
+
+struct rsvd_page_cache_t;
 
 struct pwrctrl_priv {
 	_pwrlock	lock;
@@ -314,11 +322,27 @@ struct pwrctrl_priv {
 	volatile u8 cpwm; /* fw current power state. updated when 1. read from HCPWM 2. driver lowers power level */
 	volatile u8 tog; /* toggling */
 	volatile u8 cpwm_tog; /* toggling */
+	u8 rpwm_retry;
 
 	u8	pwr_mode;
 	u8	smart_ps;
 	u8	bcn_ant_mode;
 	u8	dtim;
+#ifdef CONFIG_LPS_CHK_BY_TP
+	u8	lps_chk_by_tp;
+	u16	lps_tx_tp_th;/*Mbps*/
+	u16	lps_rx_tp_th;/*Mbps*/
+	u16	lps_bi_tp_th;/*Mbps*//*TRX TP*/
+	int	lps_chk_cnt_th;
+	int	lps_chk_cnt;
+	u32	lps_tx_pkts;
+	u32	lps_rx_pkts;
+
+#endif
+
+#ifdef CONFIG_WMMPS_STA
+	u8 wmm_smart_ps;
+#endif /* CONFIG_WMMPS_STA */	
 
 	u32	alives;
 	_workitem cpwm_event;
@@ -348,7 +372,7 @@ struct pwrctrl_priv {
 	u8	ips_org_mode;
 	u8	ips_mode_req; /* used to accept the mode setting request, will update to ipsmode later */
 	uint bips_processing;
-	u32 ips_deny_time; /* will deny IPS when system time is smaller than this */
+	systime ips_deny_time; /* will deny IPS when system time is smaller than this */
 	u8 pre_ips_type;/* 0: default flow, 1: carddisbale flow */
 
 	/* ps_deny: if 0, power save is free to go; otherwise deny all kinds of power save. */
@@ -365,12 +389,14 @@ struct pwrctrl_priv {
 	u8	power_mgnt;
 	u8	org_power_mgnt;
 	u8	bFwCurrentInPSMode;
-	u32	DelayLPSLastTimeStamp;
+	systime	DelayLPSLastTimeStamp;
 	s32		pnp_current_pwr_state;
 	u8		pnp_bstop_trx;
 
-
+	#ifdef CONFIG_AUTOSUSPEND
+	int		ps_flag; /* used by autosuspend */
 	u8		bInternalAutoSuspend;
+	#endif
 	u8		bInSuspend;
 #ifdef CONFIG_BT_COEXIST
 	u8		bAutoResume;
@@ -383,13 +409,19 @@ struct pwrctrl_priv {
 	u8		wowlan_mode;
 	u8		wowlan_p2p_mode;
 	u8		wowlan_pno_enable;
+	u8		wowlan_in_resume;
+
 #ifdef CONFIG_GPIO_WAKEUP
 	u8		is_high_active;
 #endif /* CONFIG_GPIO_WAKEUP */
+	u8		hst2dev_high_active;
 #ifdef CONFIG_WOWLAN
+	bool		default_patterns_en;
+#ifdef CONFIG_IPV6
+	u8		wowlan_ns_offload_en;
+#endif /*CONFIG_IPV6*/
 	u8		wowlan_txpause_status;
 	u8		wowlan_pattern_idx;
-	u8		wowlan_in_resume;
 	u64		wowlan_fw_iv;
 	struct rtl_priv_pattern	patterns[MAX_WKFM_CAM_NUM];
 #ifdef CONFIG_PNO_SUPPORT
@@ -403,12 +435,13 @@ struct pwrctrl_priv {
 #endif
 	u8		wowlan_aoac_rpt_loc;
 	struct aoac_report wowlan_aoac_rpt;
+	u8		wowlan_power_mgmt;
+	u8		wowlan_lps_level;
 #endif /* CONFIG_WOWLAN */
 	_timer	pwr_state_check_timer;
 	int		pwr_state_check_interval;
 	u8		pwr_state_check_cnts;
 
-	int		ps_flag; /* used by autosuspend */
 
 	rt_rf_power_state	rf_pwrstate;/* cur power state, only for IPS */
 	/* rt_rf_power_state	current_rfpwrstate; */
@@ -435,19 +468,29 @@ struct pwrctrl_priv {
 	u8 do_late_resume;
 #endif
 
-#ifdef CONFIG_INTEL_PROXIM
-	u8	stored_power_mgnt;
-#endif
-
 #ifdef CONFIG_LPS_POFF
 	lps_poff_info_t	*plps_poff_info;
 #endif
-
+	u8 lps_level_bk;
+	u8 lps_level; /*LPS_NORMAL,LPA_CG,LPS_PG*/
 #ifdef CONFIG_LPS_PG
-	u8 lpspg_rsvd_page_locate;
-	u8 blpspg_info_up;
+	struct rsvd_page_cache_t lpspg_info;
+#ifdef CONFIG_RTL8822C
+	struct rsvd_page_cache_t lpspg_dpk_info;
+	struct rsvd_page_cache_t lpspg_iqk_info;
+#endif
 #endif
 	u8 current_lps_hw_port_id;
+
+#ifdef CONFIG_RTW_CFGVEDNOR_LLSTATS
+	systime radio_on_start_time;
+	systime pwr_saving_start_time;
+	u32 pwr_saving_time;
+	u32 on_time;
+	u32 tx_time;
+	u32 rx_time;
+#endif /* CONFIG_RTW_CFGVEDNOR_LLSTATS */
+
 };
 
 #define rtw_get_ips_mode_req(pwrctl) \
@@ -500,20 +543,27 @@ void rtw_ps_processor(_adapter *padapter);
 int autoresume_enter(_adapter *padapter);
 #endif
 #ifdef SUPPORT_HW_RFOFF_DETECTED
-rt_rf_power_state RfOnOffDetect(IN	PADAPTER pAdapter);
+rt_rf_power_state RfOnOffDetect(PADAPTER pAdapter);
 #endif
 
 
+#ifdef DBG_CHECK_FW_PS_STATE
 int rtw_fw_ps_state(PADAPTER padapter);
+#endif
 
 #ifdef CONFIG_LPS
-s32 LPS_RF_ON_check(PADAPTER padapter, u32 delay_ms);
 void LPS_Enter(PADAPTER padapter, const char *msg);
 void LPS_Leave(PADAPTER padapter, const char *msg);
+#ifdef CONFIG_CHECK_LEAVE_LPS
+#ifdef CONFIG_LPS_CHK_BY_TP
+void traffic_check_for_leave_lps_by_tp(PADAPTER padapter, u8 tx, struct sta_info *sta);
+#endif
 void traffic_check_for_leave_lps(PADAPTER padapter, u8 tx, u32 tx_packets);
+#endif /*CONFIG_CHECK_LEAVE_LPS*/
 void rtw_set_ps_mode(PADAPTER padapter, u8 ps_mode, u8 smart_ps, u8 bcn_ant_mode, const char *msg);
 void rtw_set_fw_in_ips_mode(PADAPTER padapter, u8 enable);
-void rtw_set_rpwm(_adapter *padapter, u8 val8);
+u8 rtw_set_rpwm(_adapter *padapter, u8 val8);
+void rtw_wow_lps_level_decide(_adapter *adapter, u8 wow_en);
 #endif
 
 #ifdef CONFIG_RESUME_IN_WORKQUEUE
@@ -541,6 +591,11 @@ int _rtw_pwr_wakeup(_adapter *padapter, u32 ips_deffer_ms, const char *caller);
 #define rtw_pwr_wakeup_ex(adapter, ips_deffer_ms) _rtw_pwr_wakeup(adapter, ips_deffer_ms, __FUNCTION__)
 int rtw_pm_set_ips(_adapter *padapter, u8 mode);
 int rtw_pm_set_lps(_adapter *padapter, u8 mode);
+int rtw_pm_set_lps_level(_adapter *padapter, u8 level);
+#ifdef CONFIG_WOWLAN
+int rtw_pm_set_wow_lps(_adapter *padapter, u8 mode);
+int rtw_pm_set_wow_lps_level(_adapter *padapter, u8 level);
+#endif /* CONFIG_WOWLAN */
 
 void rtw_ps_deny(PADAPTER padapter, PS_DENY_REASON reason);
 void rtw_ps_deny_cancel(PADAPTER padapter, PS_DENY_REASON reason);
@@ -556,4 +611,6 @@ void rtw_wow_pattern_sw_reset(_adapter *adapter);
 u8 rtw_set_default_pattern(_adapter *adapter);
 void rtw_wow_pattern_sw_dump(_adapter *adapter);
 #endif /* CONFIG_WOWLAN */
+void rtw_ssmps_enter(_adapter *adapter, struct sta_info *sta);
+void rtw_ssmps_leave(_adapter *adapter, struct sta_info *sta);
 #endif /* __RTL871X_PWRCTRL_H_ */

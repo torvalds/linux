@@ -1,6 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,16 +12,14 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef __HAL_COMMON_LED_H_
 #define __HAL_COMMON_LED_H_
 
+#define NO_LED 0
+#define HW_LED 1
 
+#ifdef CONFIG_RTW_LED
 #define MSECS(t)        (HZ * ((t) / 1000) + (HZ * ((t) % 1000)) / 1000)
 
 /* ********************************************************************************
@@ -103,17 +102,21 @@ typedef enum _LED_CTL_MODE {
 	LED_CTL_POWER_ON = 1,
 	LED_CTL_LINK = 2,
 	LED_CTL_NO_LINK = 3,
-	LED_CTL_TX = 4,
-	LED_CTL_RX = 5,
-	LED_CTL_SITE_SURVEY = 6,
-	LED_CTL_POWER_OFF = 7,
-	LED_CTL_START_TO_LINK = 8,
-	LED_CTL_START_WPS = 9,
-	LED_CTL_STOP_WPS = 10,
-	LED_CTL_START_WPS_BOTTON = 11, /* added for runtop */
-	LED_CTL_STOP_WPS_FAIL = 12, /* added for ALPHA	 */
-	LED_CTL_STOP_WPS_FAIL_OVERLAP = 13, /* added for BELKIN */
-	LED_CTL_CONNECTION_NO_TRANSFER = 14,
+	LED_CTL_TX = 4, /* unspecific data TX, including single & group addressed */
+	LED_CTL_RX = 5, /* unspecific data RX, including single & group addressed */
+	LED_CTL_UC_TX = 6, /* single addressed data TX */
+	LED_CTL_UC_RX = 7, /* single addressed data RX */
+	LED_CTL_BMC_TX = 8, /* group addressed data TX */
+	LED_CTL_BMC_RX = 9, /* group addressed data RX */
+	LED_CTL_SITE_SURVEY = 10,
+	LED_CTL_POWER_OFF = 11,
+	LED_CTL_START_TO_LINK = 12,
+	LED_CTL_START_WPS = 13,
+	LED_CTL_STOP_WPS = 14,
+	LED_CTL_START_WPS_BOTTON = 15, /* added for runtop */
+	LED_CTL_STOP_WPS_FAIL = 16, /* added for ALPHA	 */
+	LED_CTL_STOP_WPS_FAIL_OVERLAP = 17, /* added for BELKIN */
+	LED_CTL_CONNECTION_NO_TRANSFER = 18,
 } LED_CTL_MODE;
 
 typedef	enum _LED_STATE {
@@ -159,6 +162,8 @@ typedef enum _LED_PIN {
  * ******************************************************************************** */
 #ifdef CONFIG_PCI_HCI
 typedef	enum _LED_STRATEGY_PCIE {
+	/* start from 2 */
+	SW_LED_MODE_UC_TRX_ONLY = 2,
 	SW_LED_MODE0, /* SW control 1 LED via GPIO0. It is default option. */
 	SW_LED_MODE1, /* SW control for PCI Express */
 	SW_LED_MODE2, /* SW control for Cameo. */
@@ -172,7 +177,6 @@ typedef	enum _LED_STRATEGY_PCIE {
 	SW_LED_MODE10, /* added by chiyokolin, for Edimax-ASUS */
 	SW_LED_MODE11,	/* added by hpfan, for Xavi */
 	SW_LED_MODE12,	/* added by chiyokolin, for Azurewave */
-	HW_LED, /* HW control 2 LEDs, LED0 and LED1 (there are 4 different control modes) */
 } LED_STRATEGY_PCIE, *PLED_STRATEGY_PCIE;
 
 typedef struct _LED_PCIE {
@@ -196,15 +200,15 @@ typedef struct _LED_PCIE {
 typedef struct _LED_PCIE	LED_DATA, *PLED_DATA;
 typedef enum _LED_STRATEGY_PCIE	LED_STRATEGY, *PLED_STRATEGY;
 
-VOID
+void
 LedControlPCIE(
-	IN	PADAPTER		Adapter,
-	IN	LED_CTL_MODE		LedAction
+		PADAPTER		Adapter,
+		LED_CTL_MODE		LedAction
 );
 
-VOID
+void
 gen_RefreshLedState(
-	IN	PADAPTER		Adapter);
+		PADAPTER		Adapter);
 
 /* ********************************************************************************
  * USB  LED Definition.
@@ -220,6 +224,8 @@ gen_RefreshLedState(
 
 
 typedef	enum _LED_STRATEGY_USB {
+	/* start from 2 */
+	SW_LED_MODE_UC_TRX_ONLY = 2,
 	SW_LED_MODE0, /* SW control 1 LED via GPIO0. It is default option. */
 	SW_LED_MODE1, /* 2 LEDs, through LED0 and LED1. For ALPHA. */
 	SW_LED_MODE2, /* SW control 1 LED via GPIO0, customized for AzWave 8187 minicard. */
@@ -236,7 +242,6 @@ typedef	enum _LED_STRATEGY_USB {
 	SW_LED_MODE13, /* for Netgear A6100, 8811Au */
 	SW_LED_MODE14, /* for Buffalo, DNI, 8811Au */
 	SW_LED_MODE15, /* for DLINK,  8811Au/8812AU	 */
-	HW_LED, /* HW control 2 LEDs, LED0 and LED1 (there are 4 different control modes, see MAC.CONFIG1 for details.) */
 } LED_STRATEGY_USB, *PLED_STRATEGY_USB;
 
 
@@ -269,12 +274,13 @@ typedef struct _LED_USB {
 
 typedef struct _LED_USB	LED_DATA, *PLED_DATA;
 typedef enum _LED_STRATEGY_USB	LED_STRATEGY, *PLED_STRATEGY;
-
-VOID
+#ifdef CONFIG_RTW_SW_LED
+void
 LedControlUSB(
-	IN	PADAPTER		Adapter,
-	IN	LED_CTL_MODE		LedAction
+		PADAPTER		Adapter,
+		LED_CTL_MODE		LedAction
 );
+#endif
 
 
 /* ********************************************************************************
@@ -291,6 +297,8 @@ LedControlUSB(
 
 
 typedef	enum _LED_STRATEGY_SDIO {
+	/* start from 2 */
+	SW_LED_MODE_UC_TRX_ONLY = 2,
 	SW_LED_MODE0, /* SW control 1 LED via GPIO0. It is default option. */
 	SW_LED_MODE1, /* 2 LEDs, through LED0 and LED1. For ALPHA. */
 	SW_LED_MODE2, /* SW control 1 LED via GPIO0, customized for AzWave 8187 minicard. */
@@ -298,7 +306,6 @@ typedef	enum _LED_STRATEGY_SDIO {
 	SW_LED_MODE4, /* for Edimax / Belkin */
 	SW_LED_MODE5, /* for Sercomm / Belkin	 */
 	SW_LED_MODE6,	/* for 88CU minicard, porting from ce SW_LED_MODE7 */
-	HW_LED, /* HW control 2 LEDs, LED0 and LED1 (there are 4 different control modes, see MAC.CONFIG1 for details.) */
 } LED_STRATEGY_SDIO, *PLED_STRATEGY_SDIO;
 
 typedef struct _LED_SDIO {
@@ -330,47 +337,39 @@ typedef struct _LED_SDIO {
 typedef struct _LED_SDIO	LED_DATA, *PLED_DATA;
 typedef enum _LED_STRATEGY_SDIO	LED_STRATEGY, *PLED_STRATEGY;
 
-VOID
+void
 LedControlSDIO(
-	IN	PADAPTER		Adapter,
-	IN	LED_CTL_MODE		LedAction
+		PADAPTER		Adapter,
+		LED_CTL_MODE		LedAction
 );
 
 #endif
 
 struct led_priv {
-	/* add for led controll */
+	LED_STRATEGY		LedStrategy;
+#ifdef CONFIG_RTW_SW_LED
 	LED_DATA			SwLed0;
 	LED_DATA			SwLed1;
 	LED_DATA			SwLed2;
-	LED_STRATEGY		LedStrategy;
 	u8					bRegUseLed;
+	u8 iface_en_mask;
+	u32 ctl_en_mask[CONFIG_IFACE_NUMBER];
 	void (*LedControlHandler)(_adapter *padapter, LED_CTL_MODE LedAction);
 	void (*SwLedOn)(_adapter *padapter, PLED_DATA pLed);
 	void (*SwLedOff)(_adapter *padapter, PLED_DATA pLed);
-	/* add for led controll */
+#endif
 };
-
-#ifdef CONFIG_SW_LED
-#define rtw_led_control(adapter, LedAction) \
-	do { \
-		if ((adapter)->ledpriv.LedControlHandler) \
-			(adapter)->ledpriv.LedControlHandler((adapter), (LedAction)); \
-	} while (0)
-#else /* CONFIG_SW_LED */
-#define rtw_led_control(adapter, LedAction)
-#endif /* CONFIG_SW_LED */
 
 #define SwLedOn(adapter, pLed) \
 	do { \
-		if ((adapter)->ledpriv.SwLedOn) \
-			(adapter)->ledpriv.SwLedOn((adapter), (pLed)); \
+		if (adapter_to_led(adapter)->SwLedOn) \
+			adapter_to_led(adapter)->SwLedOn((adapter), (pLed)); \
 	} while (0)
 
 #define SwLedOff(adapter, pLed) \
 	do { \
-		if ((adapter)->ledpriv.SwLedOff) \
-			(adapter)->ledpriv.SwLedOff((adapter), (pLed)); \
+		if (adapter_to_led(adapter)->SwLedOff) \
+			adapter_to_led(adapter)->SwLedOff((adapter), (pLed)); \
 	} while (0)
 
 void BlinkTimerCallback(void *data);
@@ -392,5 +391,48 @@ DeInitLed(
 
 /* hal... */
 extern void BlinkHandler(PLED_DATA	pLed);
+void dump_led_config(void *sel, _adapter *adapter);
+void rtw_led_set_strategy(_adapter *adapter, u8 strategy);
+#endif /* CONFIG_RTW_LED */
 
-#endif /* __RTW_LED_H_ */
+#if defined(CONFIG_RTW_LED)
+#define rtw_led_get_strategy(adapter) (adapter_to_led(adapter)->LedStrategy)
+#else
+#define rtw_led_get_strategy(adapter) NO_LED
+#endif
+
+#define IS_NO_LED_STRATEGY(s) ((s) == NO_LED)
+#define IS_HW_LED_STRATEGY(s) ((s) == HW_LED)
+#define IS_SW_LED_STRATEGY(s) ((s) != NO_LED && (s) != HW_LED)
+
+#if defined(CONFIG_RTW_LED) && defined(CONFIG_RTW_SW_LED)
+
+#ifndef CONFIG_RTW_SW_LED_TRX_DA_CLASSIFY
+#define CONFIG_RTW_SW_LED_TRX_DA_CLASSIFY 0
+#endif
+
+#if CONFIG_RTW_SW_LED_TRX_DA_CLASSIFY
+void rtw_sw_led_blink_uc_trx_only(LED_DATA *led);
+void rtw_sw_led_ctl_mode_uc_trx_only(_adapter *adapter, LED_CTL_MODE ctl);
+#endif
+void rtw_led_control(_adapter *adapter, LED_CTL_MODE ctl);
+void rtw_led_tx_control(_adapter *adapter, const u8 *da);
+void rtw_led_rx_control(_adapter *adapter, const u8 *da);
+void rtw_led_set_iface_en(_adapter *adapter, u8 en);
+void rtw_led_set_iface_en_mask(_adapter *adapter, u8 mask);
+void rtw_led_set_ctl_en_mask(_adapter *adapter, u32 ctl_mask);
+void rtw_led_set_ctl_en_mask_primary(_adapter *adapter);
+void rtw_led_set_ctl_en_mask_virtual(_adapter *adapter);
+#else
+#define rtw_led_control(adapter, ctl) do {} while (0)
+#define rtw_led_tx_control(adapter, da) do {} while (0)
+#define rtw_led_rx_control(adapter, da) do {} while (0)
+#define rtw_led_set_iface_en(adapter, en) do {} while (0)
+#define rtw_led_set_iface_en_mask(adapter, mask) do {} while (0)
+#define rtw_led_set_ctl_en_mask(adapter, ctl_mask) do {} while (0)
+#define rtw_led_set_ctl_en_mask_primary(adapter) do {} while (0)
+#define rtw_led_set_ctl_en_mask_virtual(adapter) do {} while (0)
+#endif /* defined(CONFIG_RTW_LED) && defined(CONFIG_RTW_SW_LED) */
+
+#endif /*__HAL_COMMON_LED_H_*/
+

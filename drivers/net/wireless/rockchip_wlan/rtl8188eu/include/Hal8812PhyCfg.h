@@ -1,6 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +12,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef __INC_HAL8812PHYCFG_H__
 #define __INC_HAL8812PHYCFG_H__
 
@@ -58,90 +54,88 @@
 /*
  * BB and RF register read/write
  *   */
-u32	PHY_QueryBBReg8812(IN	PADAPTER	Adapter,
-			   IN	u32			RegAddr,
-			   IN	u32			BitMask);
-void	PHY_SetBBReg8812(IN	PADAPTER		Adapter,
-			 IN	u32			RegAddr,
-			 IN	u32			BitMask,
-			 IN	u32			Data);
-u32	PHY_QueryRFReg8812(IN	PADAPTER	Adapter,
-			   IN	u8			eRFPath,
-			   IN	u32			RegAddr,
-			   IN	u32			BitMask);
-void	PHY_SetRFReg8812(IN	PADAPTER		Adapter,
-			 IN	u8			eRFPath,
-			 IN	u32			RegAddr,
-			 IN	u32			BitMask,
-			 IN	u32			Data);
+u32	PHY_QueryBBReg8812(PADAPTER	Adapter,
+				u32			RegAddr,
+				u32			BitMask);
+void	PHY_SetBBReg8812(PADAPTER		Adapter,
+				u32			RegAddr,
+				u32			BitMask,
+				u32			Data);
+u32	PHY_QueryRFReg8812(PADAPTER	Adapter,
+				enum rf_path	eRFPath,
+				u32			RegAddr,
+				u32			BitMask);
+void	PHY_SetRFReg8812(PADAPTER		Adapter,
+				enum rf_path	eRFPath,
+				u32			RegAddr,
+				u32			BitMask,
+				u32			Data);
 
 /*
  * Initialization related function
  *
  * MAC/BB/RF HAL config */
-int	PHY_MACConfig8812(IN PADAPTER	Adapter);
-int	PHY_BBConfig8812(IN PADAPTER	Adapter);
-void	PHY_BB8812_Config_1T(IN PADAPTER	Adapter);
-int	PHY_RFConfig8812(IN PADAPTER	Adapter);
+int	PHY_MACConfig8812(PADAPTER	Adapter);
+int	PHY_BBConfig8812(PADAPTER	Adapter);
+void	PHY_BB8812_Config_1T(PADAPTER	Adapter);
+int	PHY_RFConfig8812(PADAPTER	Adapter);
 
 /* RF config */
 
 s32
 PHY_SwitchWirelessBand8812(
-	IN PADAPTER		Adapter,
-	IN u8			Band
+		PADAPTER		Adapter,
+		u8			Band
 );
 
 /*
  * BB TX Power R/W
  *   */
-void	PHY_GetTxPowerLevel8812(IN PADAPTER	Adapter, OUT s32	*powerlevel);
-void	PHY_SetTxPowerLevel8812(IN PADAPTER	Adapter, IN u8	Channel);
+void	PHY_SetTxPowerLevel8812(PADAPTER	Adapter, u8	Channel);
 
-BOOLEAN	PHY_UpdateTxPowerDbm8812(IN PADAPTER	Adapter, IN int	powerInDbm);
 u8 PHY_GetTxPowerIndex_8812A(
-	IN	PADAPTER			pAdapter,
-	IN	u8					RFPath,
-	IN	u8					Rate,
-	IN	u8					BandWidth,
-	IN	u8					Channel,
+		PADAPTER			pAdapter,
+		enum rf_path			RFPath,
+		u8					Rate,
+		u8					BandWidth,
+		u8					Channel,
 	struct txpwr_idx_comp *tic
 );
 
 u32 phy_get_tx_bb_swing_8812a(
-	IN	PADAPTER	Adapter,
-	IN	BAND_TYPE	Band,
-	IN	u8			RFPath
+		PADAPTER	Adapter,
+		BAND_TYPE	Band,
+		enum rf_path	RFPath
 );
 
-VOID
+void
 PHY_SetTxPowerIndex_8812A(
-	IN	PADAPTER			Adapter,
-	IN	u4Byte				PowerIndex,
-	IN	u1Byte				RFPath,
-	IN	u1Byte				Rate
+		PADAPTER		Adapter,
+		u32				PowerIndex,
+		enum rf_path		RFPath,
+		u8				Rate
 );
 
 /*
  * channel switch related funciton
  *   */
-VOID
+void
 PHY_SetSwChnlBWMode8812(
-	IN	PADAPTER			Adapter,
-	IN	u8					channel,
-	IN	CHANNEL_WIDTH		Bandwidth,
-	IN	u8					Offset40,
-	IN	u8					Offset80
+		PADAPTER			Adapter,
+		u8					channel,
+		enum channel_width	Bandwidth,
+		u8					Offset40,
+		u8					Offset80
 );
 
 /*
  * BB/MAC/RF other monitor API
  *   */
 
-VOID
+void
 phy_set_rf_path_switch_8812a(
-	IN	PADAPTER	pAdapter,
-	IN	bool		bMain
+		struct dm_struct		*phydm,
+		bool		bMain
 );
 
 /*--------------------------Exported Function prototype---------------------*/

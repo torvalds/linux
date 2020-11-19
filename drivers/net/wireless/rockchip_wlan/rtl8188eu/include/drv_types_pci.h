@@ -1,6 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +12,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef __DRV_TYPES_PCI_H__
 #define __DRV_TYPES_PCI_H__
 
@@ -124,70 +120,70 @@ typedef struct _PCI_COMMON_CONFIG {
 		} type0;
 #if 0
 		struct _PCI_HEADER_TYPE_1 {
-			ULONG BaseAddresses[PCI_TYPE1_ADDRESSES];
-			UCHAR PrimaryBusNumber;
-			UCHAR SecondaryBusNumber;
-			UCHAR SubordinateBusNumber;
-			UCHAR SecondaryLatencyTimer;
-			UCHAR IOBase;
-			UCHAR IOLimit;
-			USHORT SecondaryStatus;
-			USHORT MemoryBase;
-			USHORT MemoryLimit;
-			USHORT PrefetchableMemoryBase;
-			USHORT PrefetchableMemoryLimit;
-			ULONG PrefetchableMemoryBaseUpper32;
-			ULONG PrefetchableMemoryLimitUpper32;
-			USHORT IOBaseUpper;
-			USHORT IOLimitUpper;
-			ULONG Reserved2;
-			ULONG ExpansionROMBase;
-			UCHAR InterruptLine;
-			UCHAR InterruptPin;
-			USHORT BridgeControl;
+			u32 BaseAddresses[PCI_TYPE1_ADDRESSES];
+			u8 PrimaryBusNumber;
+			u8 SecondaryBusNumber;
+			u8 SubordinateBusNumber;
+			u8 SecondaryLatencyTimer;
+			u8 IOBase;
+			u8 IOLimit;
+			u16 SecondaryStatus;
+			u16 MemoryBase;
+			u16 MemoryLimit;
+			u16 PrefetchableMemoryBase;
+			u16 PrefetchableMemoryLimit;
+			u32 PrefetchableMemoryBaseUpper32;
+			u32 PrefetchableMemoryLimitUpper32;
+			u16 IOBaseUpper;
+			u16 IOLimitUpper;
+			u32 Reserved2;
+			u32 ExpansionROMBase;
+			u8 InterruptLine;
+			u8 InterruptPin;
+			u16 BridgeControl;
 		} type1;
 
 		struct _PCI_HEADER_TYPE_2 {
-			ULONG BaseAddress;
-			UCHAR CapabilitiesPtr;
-			UCHAR Reserved2;
-			USHORT SecondaryStatus;
-			UCHAR PrimaryBusNumber;
-			UCHAR CardbusBusNumber;
-			UCHAR SubordinateBusNumber;
-			UCHAR CardbusLatencyTimer;
-			ULONG MemoryBase0;
-			ULONG MemoryLimit0;
-			ULONG MemoryBase1;
-			ULONG MemoryLimit1;
-			USHORT IOBase0_LO;
-			USHORT IOBase0_HI;
-			USHORT IOLimit0_LO;
-			USHORT IOLimit0_HI;
-			USHORT IOBase1_LO;
-			USHORT IOBase1_HI;
-			USHORT IOLimit1_LO;
-			USHORT IOLimit1_HI;
-			UCHAR InterruptLine;
-			UCHAR InterruptPin;
-			USHORT BridgeControl;
-			USHORT SubVendorID;
-			USHORT SubSystemID;
-			ULONG LegacyBaseAddress;
-			UCHAR Reserved3[56];
-			ULONG SystemControl;
-			UCHAR MultiMediaControl;
-			UCHAR GeneralStatus;
-			UCHAR Reserved4[2];
-			UCHAR GPIO0Control;
-			UCHAR GPIO1Control;
-			UCHAR GPIO2Control;
-			UCHAR GPIO3Control;
-			ULONG IRQMuxRouting;
-			UCHAR RetryStatus;
-			UCHAR CardControl;
-			UCHAR DeviceControl;
-			UCHAR Diagnostic;
+			u32 BaseAddress;
+			u8 CapabilitiesPtr;
+			u8 Reserved2;
+			u16 SecondaryStatus;
+			u8 PrimaryBusNumber;
+			u8 CardbusBusNumber;
+			u8 SubordinateBusNumber;
+			u8 CardbusLatencyTimer;
+			u32 MemoryBase0;
+			u32 MemoryLimit0;
+			u32 MemoryBase1;
+			u32 MemoryLimit1;
+			u16 IOBase0_LO;
+			u16 IOBase0_HI;
+			u16 IOLimit0_LO;
+			u16 IOLimit0_HI;
+			u16 IOBase1_LO;
+			u16 IOBase1_HI;
+			u16 IOLimit1_LO;
+			u16 IOLimit1_HI;
+			u8 InterruptLine;
+			u8 InterruptPin;
+			u16 BridgeControl;
+			u16 SubVendorID;
+			u16 SubSystemID;
+			u32 LegacyBaseAddress;
+			u8 Reserved3[56];
+			u32 SystemControl;
+			u8 MultiMediaControl;
+			u8 GeneralStatus;
+			u8 Reserved4[2];
+			u8 GPIO0Control;
+			u8 GPIO1Control;
+			u8 GPIO2Control;
+			u8 GPIO3Control;
+			u32 IRQMuxRouting;
+			u8 RetryStatus;
+			u8 CardControl;
+			u8 DeviceControl;
+			u8 Diagnostic;
 		} type2;
 #endif
 	} u;

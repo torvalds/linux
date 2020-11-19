@@ -41,6 +41,8 @@ menuconfig RTL_WIRELESS_SOLUTION
 	default y
 
 if RTL_WIRELESS_SOLUTION
+source "drivers/net/wireless/rockchip_wlan/rtl8188eu/Kconfig"
+source "drivers/net/wireless/rockchip_wlan/rtl8188fu/Kconfig"
 source "drivers/net/wireless/rockchip_wlan/rtl8189fs/Kconfig"
 source "drivers/net/wireless/rockchip_wlan/rtl8723cs/Kconfig"
 source "drivers/net/wireless/rockchip_wlan/rtl8723ds/Kconfig"

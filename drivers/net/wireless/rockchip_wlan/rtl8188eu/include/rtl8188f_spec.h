@@ -1,6 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,11 +12,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *******************************************************************************/
+ *****************************************************************************/
 #ifndef __RTL8188F_SPEC_H__
 #define __RTL8188F_SPEC_H__
 
@@ -153,18 +150,6 @@
 #define SDIO_REG_NOAC_OQT_FREEPG_8188F	0x002B
 
 #define SDIO_REG_HCPWM1_8188F			0x0038
-
-/* indirect access */
-#define SDIO_REG_INDIRECT_REG_CFG_8188F		0x40
-#define SET_INDIRECT_REG_ADDR(_cmd, _addr)	SET_BITS_TO_LE_2BYTE(((u8 *)(_cmd)) + 0, 0, 16, (_addr))
-#define SET_INDIRECT_REG_SIZE_1BYTE(_cmd)	SET_BITS_TO_LE_1BYTE(((u8 *)(_cmd)) + 2, 0, 2, 0)
-#define SET_INDIRECT_REG_SIZE_2BYTE(_cmd)	SET_BITS_TO_LE_1BYTE(((u8 *)(_cmd)) + 2, 0, 2, 1)
-#define SET_INDIRECT_REG_SIZE_4BYTE(_cmd)	SET_BITS_TO_LE_1BYTE(((u8 *)(_cmd)) + 2, 0, 2, 2)
-#define SET_INDIRECT_REG_WRITE(_cmd)		SET_BITS_TO_LE_1BYTE(((u8 *)(_cmd)) + 2, 2, 1, 1)
-#define SET_INDIRECT_REG_READ(_cmd)			SET_BITS_TO_LE_1BYTE(((u8 *)(_cmd)) + 2, 3, 1, 1)
-#define GET_INDIRECT_REG_RDY(_cmd)			LE_BITS_TO_1BYTE(((u8 *)(_cmd)) + 2, 4, 1)
-
-#define SDIO_REG_INDIRECT_REG_DATA_8188F	0x44
 
 /* ****************************************************************************
  *	8188 Regsiter Bit and Content definition

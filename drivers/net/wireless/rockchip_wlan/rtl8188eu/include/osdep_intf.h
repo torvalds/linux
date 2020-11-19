@@ -1,6 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +12,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 
 #ifndef __OSDEP_INTF_H_
 #define __OSDEP_INTF_H_
@@ -62,33 +58,7 @@ struct intf_priv {
 #endif
 #endif
 
-#ifdef PLATFORM_OS_XP
-#ifdef CONFIG_SDIO_HCI
-	/* below is for io_rwmem... */
-	PMDL pmdl;
-	PSDBUS_REQUEST_PACKET  sdrp;
-	PSDBUS_REQUEST_PACKET  recv_sdrp;
-	PSDBUS_REQUEST_PACKET  xmit_sdrp;
-
-	PIRP		piorw_irp;
-
-#endif
-#ifdef CONFIG_USB_HCI
-	PURB	piorw_urb;
-	PIRP		piorw_irp;
-	u8 io_irp_cnt;
-	u8 bio_irp_pending;
-	_sema io_retevt;
-#endif
-#endif
-
 };
-
-
-#ifdef CONFIG_R871X_TEST
-	int rtw_start_pseudo_adhoc(_adapter *padapter);
-	int rtw_stop_pseudo_adhoc(_adapter *padapter);
-#endif
 
 struct dvobj_priv *devobj_init(void);
 void devobj_deinit(struct dvobj_priv *pdvobj);
@@ -127,6 +97,8 @@ u16 rtw_recv_select_queue(struct sk_buff *skb);
 
 int rtw_ndev_notifier_register(void);
 void rtw_ndev_notifier_unregister(void);
+void rtw_inetaddr_notifier_register(void);
+void rtw_inetaddr_notifier_unregister(void);
 
 #include "../os_dep/linux/rtw_proc.h"
 
@@ -160,9 +132,8 @@ void rtw_drv_free_vir_ifaces(struct dvobj_priv *dvobj);
 #endif
 
 void rtw_ndev_destructor(_nic_hdl ndev);
-
 #ifdef CONFIG_ARP_KEEP_ALIVE
-int	rtw_gw_addr_query(_adapter *padapter);
+int rtw_gw_addr_query(_adapter *padapter);
 #endif
 
 int rtw_suspend_common(_adapter *padapter);

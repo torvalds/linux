@@ -1,6 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2013 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +12,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef __RTL8192E_HAL_H__
 #define __RTL8192E_HAL_H__
 
@@ -126,14 +122,21 @@ typedef struct _RT_FIRMWARE_8192E {
 #endif
 #define MAX_RX_DMA_BUFFER_SIZE_8192E		(RX_DMA_SIZE_8192E-RX_DMA_RESERVED_SIZE_8192E)	/*RX 16K*/
 
+
+#define PAGE_SIZE_TX_92E	PAGE_SIZE_256
+
 /* For General Reserved Page Number(Beacon Queue is reserved page)
  * if (CONFIG_2BCN_EN) Beacon:4, PS-Poll:1, Null Data:1,Prob Rsp:1,Qos Null Data:1
- * Beacon:2, PS-Poll:1, Null Data:1,Prob Rsp:1,Qos Null Data:1 */
-#define RSVD_PAGE_NUM_8192E		0x08
+ * Beacon: MAX_BEACON_LEN / PAGE_SIZE_TX_92E
+ * PS-Poll:1, Null Data:1,Prob Rsp:1,Qos Null Data:1,CTS-2-SELF / LTE QoS Null*/
+
+#define RSVD_PAGE_NUM_8192E		(MAX_BEACON_LEN / PAGE_SIZE_TX_92E + 6) /*0x08*/
 /* For WoWLan , more reserved page
- * ARP Rsp:1, RWC:1, GTK Info:1,GTK RSP:2,GTK EXT MEM:2, AOAC rpt: 1,PNO: 6 */
+ * ARP Rsp:1, RWC:1, GTK Info:1,GTK RSP:2,GTK EXT MEM:2, AOAC rpt: 1,PNO: 6
+ * NS offload: 2 NDP info: 1
+ */
 #ifdef CONFIG_WOWLAN
-	#define WOWLAN_PAGE_NUM_8192E	0x08
+	#define WOWLAN_PAGE_NUM_8192E	0x0b
 #else
 	#define WOWLAN_PAGE_NUM_8192E	0x00
 #endif
@@ -157,7 +160,6 @@ Total page numbers : 256(0x100)
 #define	TX_PAGE_BOUNDARY_8192E	(TX_TOTAL_PAGE_NUMBER_8192E) /* beacon header start address */
 
 
-#define PAGE_SIZE_TX_92E	PAGE_SIZE_256
 #define RSVD_PKT_LEN_92E	(TOTAL_RSVD_PAGE_NUMBER_8192E * PAGE_SIZE_TX_92E)
 
 #define TX_PAGE_LOAD_FW_BOUNDARY_8192E		0x47 /* 0xA5 */
@@ -265,58 +267,55 @@ BOOLEAN HalDetectPwrDownMode8192E(PADAPTER Adapter);
 
 /***********************************************************/
 /* RTL8192E-MAC Setting */
-VOID _InitQueueReservedPage_8192E(IN  PADAPTER Adapter);
-VOID _InitQueuePriority_8192E(IN	PADAPTER Adapter);
-VOID _InitTxBufferBoundary_8192E(IN PADAPTER Adapter, IN u8 txpktbuf_bndy);
-VOID _InitPageBoundary_8192E(IN PADAPTER Adapter);
-/* VOID _InitTransferPageSize_8192E(IN PADAPTER Adapter); */
-VOID _InitDriverInfoSize_8192E(IN PADAPTER Adapter, IN u8 drvInfoSize);
-VOID _InitRDGSetting_8192E(PADAPTER Adapter);
-void _InitID_8192E(IN  PADAPTER Adapter);
-VOID _InitNetworkType_8192E(IN  PADAPTER Adapter);
-VOID _InitWMACSetting_8192E(IN PADAPTER Adapter);
-VOID _InitAdaptiveCtrl_8192E(IN  PADAPTER Adapter);
-VOID _InitRateFallback_8192E(IN  PADAPTER Adapter);
-VOID _InitEDCA_8192E(IN  PADAPTER Adapter);
-VOID _InitRetryFunction_8192E(IN  PADAPTER Adapter);
-VOID _BBTurnOnBlock_8192E(IN	PADAPTER Adapter);
-VOID _InitBeaconParameters_8192E(IN  PADAPTER Adapter);
-VOID _InitBeaconMaxError_8192E(
-	IN  PADAPTER	Adapter,
-	IN	BOOLEAN		InfraMode
+void _InitQueueReservedPage_8192E(PADAPTER Adapter);
+void _InitQueuePriority_8192E(PADAPTER Adapter);
+void _InitTxBufferBoundary_8192E(PADAPTER Adapter, u8 txpktbuf_bndy);
+void _InitPageBoundary_8192E(PADAPTER Adapter);
+/* void _InitTransferPageSize_8192E(PADAPTER Adapter); */
+void _InitDriverInfoSize_8192E(PADAPTER Adapter, u8 drvInfoSize);
+void _InitRDGSetting_8192E(PADAPTER Adapter);
+void _InitID_8192E(PADAPTER Adapter);
+void _InitNetworkType_8192E(PADAPTER Adapter);
+void _InitWMACSetting_8192E(PADAPTER Adapter);
+void _InitAdaptiveCtrl_8192E(PADAPTER Adapter);
+void _InitEDCA_8192E(PADAPTER Adapter);
+void _InitRetryFunction_8192E(PADAPTER Adapter);
+void _BBTurnOnBlock_8192E(PADAPTER Adapter);
+void _InitBeaconParameters_8192E(PADAPTER Adapter);
+void _InitBeaconMaxError_8192E(
+		PADAPTER	Adapter,
+		BOOLEAN		InfraMode
 );
 void SetBeaconRelatedRegisters8192E(PADAPTER padapter);
-VOID hal_ReadRFType_8192E(PADAPTER	Adapter);
+void hal_ReadRFType_8192E(PADAPTER	Adapter);
 /* RTL8192E-MAC Setting
  ***********************************************************/
 
-void SetHwReg8192E(PADAPTER Adapter, u8 variable, u8 *val);
+u8 SetHwReg8192E(PADAPTER Adapter, u8 variable, u8 *val);
 void GetHwReg8192E(PADAPTER Adapter, u8 variable, u8 *val);
 u8
 SetHalDefVar8192E(
-	IN	PADAPTER				Adapter,
-	IN	HAL_DEF_VARIABLE		eVariable,
-	IN	PVOID					pValue
+		PADAPTER				Adapter,
+		HAL_DEF_VARIABLE		eVariable,
+		void						*pValue
 );
 u8
 GetHalDefVar8192E(
-	IN	PADAPTER				Adapter,
-	IN	HAL_DEF_VARIABLE		eVariable,
-	IN	PVOID					pValue
+		PADAPTER				Adapter,
+		HAL_DEF_VARIABLE		eVariable,
+		void						*pValue
 );
 
 void rtl8192e_set_hal_ops(struct hal_ops *pHalFunc);
 void init_hal_spec_8192e(_adapter *adapter);
 void rtl8192e_init_default_value(_adapter *padapter);
-/* register */
-void SetBcnCtrlReg(PADAPTER padapter, u8 SetBits, u8 ClearBits);
 
 void rtl8192e_start_thread(_adapter *padapter);
 void rtl8192e_stop_thread(_adapter *padapter);
 
 #ifdef CONFIG_PCI_HCI
 	BOOLEAN	InterruptRecognized8192EE(PADAPTER Adapter);
-	u16	get_txdesc_buf_addr(u16 ff_hwaddr);
+	u16	get_txbd_rw_reg(u16 ff_hwaddr);
 #endif
 
 #ifdef CONFIG_SDIO_HCI

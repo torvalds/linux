@@ -1,6 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,21 +12,14 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef _WIFI_H_
 #define _WIFI_H_
 
 
-#ifdef BIT
-/* #error	"BIT define occurred earlier elsewhere!\n" */
-#undef BIT
-#endif
+#ifndef BIT
 #define BIT(x)	(1 << (x))
+#endif
 
 
 #define WLAN_ETHHDR_LEN		14
@@ -49,6 +43,7 @@
 #define WLAN_MAX_ETHFRM_LEN	1514
 #define WLAN_ETHHDR_LEN		14
 #define WLAN_WMM_LEN		24
+#define VENDOR_NAME_LEN		20
 
 #ifdef CONFIG_APPEND_VENDOR_IE_ENABLE
 #define WLAN_MAX_VENDOR_IE_LEN 255
@@ -58,6 +53,13 @@
 #define WIFI_PROBERESP_VENDOR_IE_BIT BIT(2)
 #define WIFI_ASSOCREQ_VENDOR_IE_BIT BIT(3)
 #define WIFI_ASSOCRESP_VENDOR_IE_BIT BIT(4)
+#ifdef CONFIG_P2P
+#define WIFI_P2P_PROBEREQ_VENDOR_IE_BIT BIT(5)
+#define WIFI_P2P_PROBERESP_VENDOR_IE_BIT BIT(6)
+#define WLAN_MAX_VENDOR_IE_MASK_MAX 7
+#else
+#define WLAN_MAX_VENDOR_IE_MASK_MAX 5
+#endif
 #endif
 
 #define P80211CAPTURE_VERSION	0x80211001
@@ -97,6 +99,7 @@ enum WIFI_FRAME_SUBTYPE {
 	/* below is for control frame */
 	WIFI_BF_REPORT_POLL = (BIT(6) | WIFI_CTRL_TYPE),
 	WIFI_NDPA         = (BIT(6) | BIT(4) | WIFI_CTRL_TYPE),
+	WIFI_BAR            = (BIT(7) | WIFI_CTRL_TYPE),
 	WIFI_PSPOLL         = (BIT(7) | BIT(5) | WIFI_CTRL_TYPE),
 	WIFI_RTS            = (BIT(7) | BIT(5) | BIT(4) | WIFI_CTRL_TYPE),
 	WIFI_CTS            = (BIT(7) | BIT(6) | WIFI_CTRL_TYPE),
@@ -405,31 +408,26 @@ enum WIFI_REG_DOMAIN {
 	} while (0)
 
 
-#define SetPriority(pbuf, tid)	\
-	do	{	\
-		*(unsigned short *)(pbuf) |= cpu_to_le16(tid & 0xf); \
-	} while (0)
+/* QoS control field */
+#define SetPriority(qc, tid)	SET_BITS_TO_LE_2BYTE(((u8 *)(qc)), 0, 4, tid)
+#define SetEOSP(qc, eosp)		SET_BITS_TO_LE_2BYTE(((u8 *)(qc)), 4, 1, eosp)
+#define SetAckpolicy(qc, ack)	SET_BITS_TO_LE_2BYTE(((u8 *)(qc)), 5, 2, ack)
+#define SetAMsdu(qc, amsdu)		SET_BITS_TO_LE_2BYTE(((u8 *)(qc)), 7, 1, amsdu)
 
-#define GetPriority(pbuf)	((le16_to_cpu(*(unsigned short *)(pbuf))) & 0xf)
+#define GetPriority(qc)		LE_BITS_TO_2BYTE(((u8 *)(qc)), 0, 4)
+#define GetEOSP(qc)			LE_BITS_TO_2BYTE(((u8 *)(qc)), 4, 1)
+#define GetAckpolicy(qc)	LE_BITS_TO_2BYTE(((u8 *)(qc)), 5, 2)
+#define GetAMsdu(qc)		LE_BITS_TO_2BYTE(((u8 *)(qc)), 7, 1)
 
-#define SetEOSP(pbuf, eosp)	\
-	do	{	\
-		*(unsigned short *)(pbuf) |= cpu_to_le16((eosp & 1) << 4); \
-	} while (0)
+/* QoS control field (MSTA only) */
+#define set_mctrl_present(qc, p)	SET_BITS_TO_LE_2BYTE(((u8 *)(qc)), 8, 1, p)
+#define set_mps_lv(qc, lv)			SET_BITS_TO_LE_2BYTE(((u8 *)(qc)), 9, 1, lv)
+#define set_rspi(qc, rspi)			SET_BITS_TO_LE_2BYTE(((u8 *)(qc)), 10, 1, rspi)
 
-#define SetAckpolicy(pbuf, ack)	\
-	do	{	\
-		*(unsigned short *)(pbuf) |= cpu_to_le16((ack & 3) << 5); \
-	} while (0)
+#define get_mctrl_present(qc)	LE_BITS_TO_2BYTE(((u8 *)(qc)), 8, 1)
+#define get_mps_lv(qc)			LE_BITS_TO_2BYTE(((u8 *)(qc)), 9, 1)
+#define get_rspi(qc)			LE_BITS_TO_2BYTE(((u8 *)(qc)), 10, 1)
 
-#define GetAckpolicy(pbuf) (((le16_to_cpu(*(unsigned short *)pbuf)) >> 5) & 0x3)
-
-#define GetAMsdu(pbuf) (((le16_to_cpu(*(unsigned short *)pbuf)) >> 7) & 0x1)
-
-#define SetAMsdu(pbuf, amsdu)	\
-	do	{	\
-		*(unsigned short *)(pbuf) |= cpu_to_le16((amsdu & 1) << 7); \
-	} while (0)
 
 #define GetAid(pbuf)	(cpu_to_le16(*(unsigned short *)((SIZE_PTR)(pbuf) + 2)) & 0x3fff)
 
@@ -451,7 +449,7 @@ enum WIFI_REG_DOMAIN {
 	  (addr[4] == 0xff) && (addr[5] == 0xff)) ? _TRUE : _FALSE \
 	)
 
-__inline static int IS_MCAST(unsigned char *da)
+__inline static int IS_MCAST(const u8 *da)
 {
 	if ((*da) & 0x01)
 		return _TRUE;
@@ -472,6 +470,7 @@ __inline static unsigned char *get_ta(unsigned char *pframe)
 	return ta;
 }
 
+/* can't apply to mesh mode */
 __inline static unsigned char *get_da(unsigned char *pframe)
 {
 	unsigned char	*da;
@@ -495,7 +494,7 @@ __inline static unsigned char *get_da(unsigned char *pframe)
 	return da;
 }
 
-
+/* can't apply to mesh mode */
 __inline static unsigned char *get_sa(unsigned char *pframe)
 {
 	unsigned char	*sa;
@@ -519,6 +518,7 @@ __inline static unsigned char *get_sa(unsigned char *pframe)
 	return sa;
 }
 
+/* can't apply to mesh mode */
 __inline static unsigned char *get_hdr_bssid(unsigned char *pframe)
 {
 	unsigned char	*sa = NULL;
@@ -550,6 +550,22 @@ __inline static int IsFrameTypeCtrl(unsigned char *pframe)
 	else
 		return _FALSE;
 }
+static inline int IsFrameTypeMgnt(unsigned char *pframe)
+{
+	if (GetFrameType(pframe) == WIFI_MGT_TYPE)
+		return _TRUE;
+	else
+		return _FALSE;
+}
+static inline int IsFrameTypeData(unsigned char *pframe)
+{
+	if (GetFrameType(pframe) == WIFI_DATA_TYPE)
+		return _TRUE;
+	else
+		return _FALSE;
+}
+
+
 /*-----------------------------------------------------------------------------
 			Below is for the security related definition
 ------------------------------------------------------------------------------*/
@@ -587,19 +603,22 @@ __inline static int IsFrameTypeCtrl(unsigned char *pframe)
 #define _CHLGETXT_IE_			16
 #define _SUPPORTED_CH_IE_		36
 #define _CH_SWTICH_ANNOUNCE_	37	/* Secondary Channel Offset */
+#define	_MEAS_REQ_IE_		38
+#define	_MEAS_RSP_IE_		39
 #define _RSN_IE_2_				48
 #define _SSN_IE_1_					221
 #define _ERPINFO_IE_			42
 #define _EXT_SUPPORTEDRATES_IE_	50
 
 #define _HT_CAPABILITY_IE_			45
-#define _MDIE_						54
-#define _FTIE_						55
+#define _MDIE_					54
+#define _FTIE_					55
 #define _TIMEOUT_ITVL_IE_			56
 #define _SRC_IE_				59
 #define _HT_EXTRA_INFO_IE_			61
 #define _HT_ADD_INFO_IE_			61 /* _HT_EXTRA_INFO_IE_ */
-#define _WAPI_IE_					68
+#define _WAPI_IE_				68
+#define _EID_RRM_EN_CAP_IE_			70
 
 
 /* #define EID_BSSCoexistence			72 */ /* 20/40 BSS Coexistence
@@ -742,14 +761,12 @@ typedef	enum _ELEMENT_ID {
 #define _WEP_WPA_MIXED_PRIVACY_ 6	/*  WEP + WPA */
 #endif
 
-#ifdef CONFIG_IEEE80211W
 #define _MME_IE_LENGTH_  18
-#endif /* CONFIG_IEEE80211W */
+
 /*-----------------------------------------------------------------------------
 				Below is the definition for WMM
 ------------------------------------------------------------------------------*/
 #define _WMM_IE_Length_				7  /* for WMM STA */
-#define _WMM_Para_Element_Length_		24
 
 
 /*-----------------------------------------------------------------------------
@@ -775,7 +792,7 @@ typedef	enum _ELEMENT_ID {
  * This structure refers to "HT BlockAckReq" as
  * described in 802.11n draft section 7.2.1.7.1
  */
-#if defined(PLATFORM_LINUX) || defined(CONFIG_RTL8712FW)
+#if defined(PLATFORM_LINUX)
 struct rtw_ieee80211_bar {
 	unsigned short frame_control;
 	unsigned short duration;
@@ -791,7 +808,7 @@ struct rtw_ieee80211_bar {
 #define IEEE80211_BAR_CTRL_CBMTID_COMPRESSED_BA  0x0004
 
 
-#if defined(PLATFORM_LINUX) || defined(CONFIG_RTL8712FW) || defined(PLATFORM_FREEBSD)
+#if defined(PLATFORM_LINUX) || defined(PLATFORM_FREEBSD)
 
 
 
@@ -817,6 +834,7 @@ struct rtw_ieee80211_ht_cap {
  * This structure refers to "HT information element" as
  * described in 802.11n draft section 7.3.2.53
  */
+#ifndef CONFIG_IEEE80211_HT_ADDT_INFO
 struct ieee80211_ht_addt_info {
 	unsigned char	control_chan;
 	unsigned char		ht_param;
@@ -824,7 +842,7 @@ struct ieee80211_ht_addt_info {
 	unsigned short	stbc_param;
 	unsigned char		basic_set[16];
 } __attribute__((packed));
-
+#endif
 
 struct HT_caps_element {
 	union {
@@ -870,78 +888,19 @@ struct ADDBA_request {
 #endif
 
 
-#ifdef PLATFORM_WINDOWS
-
-#pragma pack(1)
-
-struct rtw_ieee80211_ht_cap {
-	unsigned short	cap_info;
-	unsigned char	ampdu_params_info;
-	unsigned char	supp_mcs_set[16];
-	unsigned short	extended_ht_cap_info;
-	unsigned int		tx_BF_cap_info;
-	unsigned char	       antenna_selection_info;
-};
-
-
-struct ieee80211_ht_addt_info {
-	unsigned char	control_chan;
-	unsigned char		ht_param;
-	unsigned short	operation_mode;
-	unsigned short	stbc_param;
-	unsigned char		basic_set[16];
-};
-
-struct HT_caps_element {
-	union {
-		struct {
-			unsigned short	HT_caps_info;
-			unsigned char	AMPDU_para;
-			unsigned char	MCS_rate[16];
-			unsigned short	HT_ext_caps;
-			unsigned int	Beamforming_caps;
-			unsigned char	ASEL_caps;
-		} HT_cap_element;
-		unsigned char HT_cap[26];
-	};
-};
-
-struct HT_info_element {
-	unsigned char	primary_channel;
-	unsigned char	infos[5];
-	unsigned char	MCS_rate[16];
-};
-
-struct AC_param {
-	unsigned char		ACI_AIFSN;
-	unsigned char		CW;
-	unsigned short	TXOP_limit;
-};
-
-struct WMM_para_element {
-	unsigned char		QoS_info;
-	unsigned char		reserved;
-	struct AC_param	ac_param[4];
-};
-
-struct ADDBA_request {
-	unsigned char		dialog_token;
-	unsigned short	BA_para_set;
-	unsigned short	BA_timeout_value;
-	unsigned short	BA_starting_seqctrl;
-};
-
-
-#pragma pack()
-
-#endif
-
 typedef enum _HT_CAP_AMPDU_FACTOR {
 	MAX_AMPDU_FACTOR_8K		= 0,
 	MAX_AMPDU_FACTOR_16K	= 1,
 	MAX_AMPDU_FACTOR_32K	= 2,
 	MAX_AMPDU_FACTOR_64K	= 3,
 } HT_CAP_AMPDU_FACTOR;
+
+typedef enum _VHT_CAP_AMPDU_FACTOR {
+	MAX_AMPDU_FACTOR_128K = 4,
+	MAX_AMPDU_FACTOR_256K = 5,
+	MAX_AMPDU_FACTOR_512K = 6,
+	MAX_AMPDU_FACTOR_1M = 7,
+} VHT_CAP_AMPDU_FACTOR;
 
 
 typedef enum _HT_CAP_AMPDU_DENSITY {
@@ -1009,7 +968,7 @@ typedef enum _HT_CAP_AMPDU_DENSITY {
  * According to IEEE802.11n spec size varies from 8K to 64K (in powers of 2)
  */
 #define IEEE80211_MIN_AMPDU_BUF 0x8
-#define IEEE80211_MAX_AMPDU_BUF 0x40
+#define IEEE80211_MAX_AMPDU_BUF_HT 0x40
 
 
 /* Spatial Multiplexing Power Save Modes */
@@ -1354,10 +1313,8 @@ enum P2P_PS_MODE {
 #define	WFD_DEVINFO_PC_TDLS					0x0080
 #define	WFD_DEVINFO_HDCP_SUPPORT			0x0100
 
-#ifdef CONFIG_TX_MCAST2UNI
 #define IP_MCAST_MAC(mac)		((mac[0] == 0x01) && (mac[1] == 0x00) && (mac[2] == 0x5e))
 #define ICMPV6_MCAST_MAC(mac)	((mac[0] == 0x33) && (mac[1] == 0x33) && (mac[2] != 0xff))
-#endif /* CONFIG_TX_MCAST2UNI */
 
 #ifdef CONFIG_IOCTL_CFG80211
 /* Regulatroy Domain */

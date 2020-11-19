@@ -1,6 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
- * Copyright(c) 2013 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,18 +12,11 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
-#ifdef CONFIG_BT_COEXIST
-
+ *****************************************************************************/
 #include <drv_types.h>
-#include <hal_btcoex.h>
 #include <hal_data.h>
-
+#ifdef CONFIG_BT_COEXIST
+#include <hal_btcoex.h>
 
 void rtw_btcoex_Initialize(PADAPTER padapter)
 {
@@ -32,6 +26,16 @@ void rtw_btcoex_Initialize(PADAPTER padapter)
 void rtw_btcoex_PowerOnSetting(PADAPTER padapter)
 {
 	hal_btcoex_PowerOnSetting(padapter);
+}
+
+void rtw_btcoex_AntInfoSetting(PADAPTER padapter)
+{
+	hal_btcoex_AntInfoSetting(padapter);
+}
+
+void rtw_btcoex_PowerOffSetting(PADAPTER padapter)
+{
+	hal_btcoex_PowerOffSetting(padapter);
 }
 
 void rtw_btcoex_PreLoadFirmware(PADAPTER padapter)
@@ -240,6 +244,16 @@ void rtw_btcoex_switchband_notify(u8 under_scan, u8 band_type)
 	hal_btcoex_switchband_notify(under_scan, band_type);
 }
 
+void rtw_btcoex_WlFwDbgInfoNotify(PADAPTER padapter, u8* tmpBuf, u8 length)
+{
+	hal_btcoex_WlFwDbgInfoNotify(padapter, tmpBuf, length);
+}
+
+void rtw_btcoex_rx_rate_change_notify(PADAPTER padapter, u8 is_data_frame, u8 rate_id)
+{
+	hal_btcoex_rx_rate_change_notify(padapter, is_data_frame, rate_id);
+}
+
 void rtw_btcoex_SwitchBtTRxMask(PADAPTER padapter)
 {
 	hal_btcoex_SwitchBtTRxMask(padapter);
@@ -332,6 +346,21 @@ u32 rtw_btcoex_GetRaMask(PADAPTER padapter)
 	return hal_btcoex_GetRaMask(padapter);
 }
 
+u8 rtw_btcoex_query_reduced_wl_pwr_lvl(PADAPTER padapter)
+{
+	return hal_btcoex_query_reduced_wl_pwr_lvl(padapter);
+}
+
+void rtw_btcoex_set_reduced_wl_pwr_lvl(PADAPTER padapter, u8 val)
+{
+	hal_btcoex_set_reduced_wl_pwr_lvl(padapter, val);
+}
+
+void rtw_btcoex_do_reduce_wl_pwr_lvl(PADAPTER padapter)
+{
+	hal_btcoex_do_reduce_wl_pwr_lvl(padapter);
+}
+
 void rtw_btcoex_RecordPwrMode(PADAPTER padapter, u8 *pCmdBuf, u8 cmdLen)
 {
 	hal_btcoex_RecordPwrMode(padapter, pCmdBuf, cmdLen);
@@ -382,6 +411,18 @@ void rtw_btcoex_pta_off_on_notify(PADAPTER padapter, u8 bBTON)
 	hal_btcoex_pta_off_on_notify(padapter, bBTON);
 }
 
+#ifdef CONFIG_RF4CE_COEXIST
+void rtw_btcoex_SetRf4ceLinkState(PADAPTER padapter, u8 state)
+{
+	hal_btcoex_set_rf4ce_link_state(state);
+}
+
+u8 rtw_btcoex_GetRf4ceLinkState(PADAPTER padapter)
+{
+	return hal_btcoex_get_rf4ce_link_state();
+}
+#endif
+
 /* ==================================================
  * Below Functions are called by BT-Coex
  * ================================================== */
@@ -403,7 +444,7 @@ void rtw_btcoex_LPS_Enter(PADAPTER padapter)
 	rtw_set_ps_mode(padapter, PS_MODE_MIN, 0, lpsVal, "BTCOEX");
 }
 
-void rtw_btcoex_LPS_Leave(PADAPTER padapter)
+u8 rtw_btcoex_LPS_Leave(PADAPTER padapter)
 {
 	struct pwrctrl_priv *pwrpriv;
 
@@ -412,9 +453,10 @@ void rtw_btcoex_LPS_Leave(PADAPTER padapter)
 
 	if (pwrpriv->pwr_mode != PS_MODE_ACTIVE) {
 		rtw_set_ps_mode(padapter, PS_MODE_ACTIVE, 0, 0, "BTCOEX");
-		LPS_RF_ON_check(padapter, 100);
 		pwrpriv->bpower_saving = _FALSE;
 	}
+
+	return _TRUE;
 }
 
 u16 rtw_btcoex_btreg_read(PADAPTER padapter, u8 type, u16 addr, u32 *data)
@@ -425,6 +467,16 @@ u16 rtw_btcoex_btreg_read(PADAPTER padapter, u8 type, u16 addr, u32 *data)
 u16 rtw_btcoex_btreg_write(PADAPTER padapter, u8 type, u16 addr, u16 val)
 {
 	return hal_btcoex_btreg_write(padapter, type, addr, val);
+}
+
+u16 rtw_btcoex_btset_testmode(PADAPTER padapter, u8 type)
+{
+	return hal_btcoex_btset_testode(padapter, type);
+}
+
+u8 rtw_btcoex_get_reduce_wl_txpwr(PADAPTER padapter)
+{
+	return rtw_btcoex_query_reduced_wl_pwr_lvl(padapter);
 }
 
 u8 rtw_btcoex_get_bt_coexist(PADAPTER padapter)
@@ -839,7 +891,7 @@ u8 rtw_btcoex_parse_HCI_link_status_notify_cmd(_adapter *padapter, u8 *pcmd, u16
 			RTW_INFO("Connection_Handle=0x%x, BTProfile=%d, BTSpec=%d\n", conHandle, btProfile, btCoreSpec);
 			pTriple += 4;
 		} else if (pBtMgnt->ExtConfig.HCIExtensionVer >= 1) {
-			conHandle = *((pu2Byte)&pTriple[0]);
+			conHandle = *((u16 *)&pTriple[0]);
 			btProfile = pTriple[2];
 			btCoreSpec = pTriple[3];
 			linkRole = pTriple[4];
@@ -1600,7 +1652,7 @@ void rtw_btcoex_SendEventExtBtCoexControl(PADAPTER padapter, u8 bNeedDbgRsp, u8 
 	u8 			localBuf[32] = "";
 	u8			*pRetPar;
 	u8			opCode = 0;
-	u8			*pInBuf = (pu1Byte)pData;
+	u8			*pInBuf = (u8 *)pData;
 	u8			*pOpCodeContent;
 	rtw_HCI_event *pEvent;
 
@@ -1715,3 +1767,22 @@ void rtw_btcoex_SendScanNotify(PADAPTER padapter, u8 scanType)
 }
 #endif /* CONFIG_BT_COEXIST_SOCKET_TRX */
 #endif /* CONFIG_BT_COEXIST */
+
+void rtw_btcoex_set_ant_info(PADAPTER padapter)
+{
+#ifdef CONFIG_BT_COEXIST
+	PHAL_DATA_TYPE hal = GET_HAL_DATA(padapter);
+
+	if (hal->EEPROMBluetoothCoexist == _TRUE) {
+		u8 bMacPwrCtrlOn = _FALSE;
+
+		rtw_btcoex_AntInfoSetting(padapter);
+		rtw_hal_get_hwreg(padapter, HW_VAR_APFM_ON_MAC, &bMacPwrCtrlOn);
+		if (bMacPwrCtrlOn == _TRUE)
+			rtw_btcoex_PowerOnSetting(padapter);
+	}
+	else
+#endif
+		rtw_btcoex_wifionly_AntInfoSetting(padapter);
+}
+

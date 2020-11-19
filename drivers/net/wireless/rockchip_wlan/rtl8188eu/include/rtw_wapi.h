@@ -1,4 +1,18 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+/******************************************************************************
+ *
+ * Copyright(c) 2016 - 2017 Realtek Corporation.
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+ * more details.
+ *
+ *****************************************************************************/
 #ifndef __INC_WAPI_H
 #define __INC_WAPI_H
 
@@ -180,7 +194,7 @@ u8 rtw_wapi_is_wai_packet(_adapter *padapter, u8 *pkt_data);
 
 void rtw_wapi_update_info(_adapter *padapter, union recv_frame *precv_frame);
 
-u8 rtw_wapi_check_for_drop(_adapter *padapter, union recv_frame *precv_frame);
+u8 rtw_wapi_check_for_drop(_adapter *padapter, union recv_frame *precv_frame, u8 *ehdr_ops);
 
 void rtw_build_probe_resp_wapi_ie(_adapter *padapter, unsigned char *pframe, struct pkt_attrib *pattrib);
 
@@ -211,5 +225,7 @@ void rtw_wapi_get_iv(_adapter *padapter, u8 *pRA, u8 *IV);
 u8 WapiIncreasePN(u8 *PN, u8 AddCount);
 
 bool rtw_wapi_drop_for_key_absent(_adapter *padapter, u8 *pRA);
+
+void rtw_wapi_set_set_encryption(_adapter *padapter, struct ieee_param *param);
 
 #endif

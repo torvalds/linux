@@ -1,6 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,11 +12,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *******************************************************************************/
+ *****************************************************************************/
 #ifndef __RTL8812A_SPEC_H__
 #define __RTL8812A_SPEC_H__
 
@@ -102,14 +99,17 @@
 *	0x0300h ~ 0x03FFh	PCIe
 *
 * ----------------------------------------------------- */
-#define	REG_PCIE_CTRL_REG_8812A		0x0300
+#define	REG_PCIE_CTRL_REG_8812A			0x0300
 #define	REG_DBI_WDATA_8812			0x0348	/* DBI Write Data */
 #define	REG_DBI_RDATA_8812			0x034C	/* DBI Read Data */
-#define	REG_DBI_ADDR_8812				0x0350	/* DBI Address */
-#define	REG_DBI_FLAG_8812				0x0352	/* DBI Read/Write Flag */
+#define	REG_DBI_ADDR_8812			0x0350	/* DBI Address */
+#define	REG_DBI_FLAG_8812			0x0352	/* DBI Read/Write Flag */
 #define	REG_MDIO_WDATA_8812			0x0354	/* MDIO for Write PCIE PHY */
 #define	REG_MDIO_RDATA_8812			0x0356	/* MDIO for Reads PCIE PHY */
-#define	REG_MDIO_CTL_8812				0x0358	/* MDIO for Control */
+#define	REG_MDIO_CTL_8812			0x0358	/* MDIO for Control */
+#define REG_PCIE_HRPWM_8812A			0x0361  /* PCIe RPWM */
+#define REG_PCIE_HCPWM_8812A			0x0363  /* PCIe CPWM */
+
 #define	REG_PCIE_MULTIFET_CTRL_8812	0x036A	/* PCIE Multi-Fethc Control */
 
 /* -----------------------------------------------------

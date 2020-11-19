@@ -1,6 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
- * Copyright(c) 2013 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +12,9 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
+#ifdef CONFIG_BT_COEXIST
+
 #ifndef __RTW_BTCOEX_H__
 #define __RTW_BTCOEX_H__
 
@@ -93,35 +91,35 @@ typedef enum _BTCOEX_SUSPEND_STATE {
 #define BT_INFO_LEN 8
 
 typedef struct _HCI_LINK_INFO {
-	u2Byte					ConnectHandle;
-	u1Byte					IncomingTrafficMode;
-	u1Byte					OutgoingTrafficMode;
-	u1Byte					BTProfile;
-	u1Byte					BTCoreSpec;
-	s1Byte					BT_RSSI;
-	u1Byte					TrafficProfile;
-	u1Byte					linkRole;
+	u16					ConnectHandle;
+	u8					IncomingTrafficMode;
+	u8					OutgoingTrafficMode;
+	u8					BTProfile;
+	u8					BTCoreSpec;
+	s8					BT_RSSI;
+	u8					TrafficProfile;
+	u8					linkRole;
 } HCI_LINK_INFO, *PHCI_LINK_INFO;
 
 #define	MAX_BT_ACL_LINK_NUM				8
 
 typedef struct _HCI_EXT_CONFIG {
 	HCI_LINK_INFO				aclLink[MAX_BT_ACL_LINK_NUM];
-	u1Byte					btOperationCode;
-	u2Byte					CurrentConnectHandle;
-	u1Byte					CurrentIncomingTrafficMode;
-	u1Byte					CurrentOutgoingTrafficMode;
+	u8					btOperationCode;
+	u16					CurrentConnectHandle;
+	u8					CurrentIncomingTrafficMode;
+	u8					CurrentOutgoingTrafficMode;
 
-	u1Byte					NumberOfACL;
-	u1Byte					NumberOfSCO;
-	u1Byte					CurrentBTStatus;
-	u2Byte					HCIExtensionVer;
+	u8					NumberOfACL;
+	u8					NumberOfSCO;
+	u8					CurrentBTStatus;
+	u16					HCIExtensionVer;
 
 	BOOLEAN					bEnableWifiScanNotify;
 } HCI_EXT_CONFIG, *PHCI_EXT_CONFIG;
 
 typedef struct _HCI_PHY_LINK_BSS_INFO {
-	u2Byte						bdCap;			/* capability information */
+	u16						bdCap;			/* capability information */
 
 	/* Qos related. Added by Annie, 2005-11-01. */
 	/* BSS_QOS						BssQos;		 */
@@ -318,15 +316,15 @@ typedef struct _BT_MGNT {
 	BOOLEAN				bLogLinkInProgress;
 	BOOLEAN				bPhyLinkInProgress;
 	BOOLEAN				bPhyLinkInProgressStartLL;
-	u1Byte				BtCurrentPhyLinkhandle;
-	u2Byte				BtCurrentLogLinkhandle;
-	u1Byte				CurrentConnectEntryNum;
-	u1Byte				DisconnectEntryNum;
-	u1Byte				CurrentBTConnectionCnt;
+	u8				BtCurrentPhyLinkhandle;
+	u16				BtCurrentLogLinkhandle;
+	u8				CurrentConnectEntryNum;
+	u8				DisconnectEntryNum;
+	u8				CurrentBTConnectionCnt;
 	BT_CONNECT_TYPE		BTCurrentConnectType;
 	BT_CONNECT_TYPE		BTReceiveConnectPkt;
-	u1Byte				BTAuthCount;
-	u1Byte				BTAsocCount;
+	u8				BTAuthCount;
+	u8				BTAsocCount;
 	BOOLEAN				bStartSendSupervisionPkt;
 	BOOLEAN				BtOperationOn;
 	BOOLEAN				BTNeedAMPStatusChg;
@@ -336,7 +334,7 @@ typedef struct _BT_MGNT {
 	BOOLEAN				bNeedNotifyAMPNoCap;
 	BOOLEAN				bCreateSpportQos;
 	BOOLEAN				bSupportProfile;
-	u1Byte				BTChannel;
+	u8				BTChannel;
 	BOOLEAN				CheckChnlIsSuit;
 	BOOLEAN				bBtScan;
 	BOOLEAN				btLogoTest;
@@ -369,6 +367,8 @@ struct bt_coex_info {
 
 void rtw_btcoex_Initialize(PADAPTER);
 void rtw_btcoex_PowerOnSetting(PADAPTER padapter);
+void rtw_btcoex_AntInfoSetting(PADAPTER padapter);
+void rtw_btcoex_PowerOffSetting(PADAPTER padapter);
 void rtw_btcoex_PreLoadFirmware(PADAPTER padapter);
 void rtw_btcoex_HAL_Initialize(PADAPTER padapter, u8 bWifiOnly);
 void rtw_btcoex_IpsNotify(PADAPTER, u8 type);
@@ -383,6 +383,8 @@ void rtw_btcoex_BtMpRptNotify(PADAPTER, u8 length, u8 *tmpBuf);
 void rtw_btcoex_SuspendNotify(PADAPTER, u8 state);
 void rtw_btcoex_HaltNotify(PADAPTER);
 void rtw_btcoex_switchband_notify(u8 under_scan, u8 band_type);
+void rtw_btcoex_WlFwDbgInfoNotify(PADAPTER padapter, u8* tmpBuf, u8 length);
+void rtw_btcoex_rx_rate_change_notify(PADAPTER padapter, u8 is_data_frame, u8 rate_id);
 void rtw_btcoex_SwitchBtTRxMask(PADAPTER);
 void rtw_btcoex_Switch(PADAPTER, u8 enable);
 u8 rtw_btcoex_IsBtDisabled(PADAPTER);
@@ -397,6 +399,9 @@ u8 rtw_btcoex_IsLpsOn(PADAPTER);
 u8 rtw_btcoex_RpwmVal(PADAPTER);
 u8 rtw_btcoex_LpsVal(PADAPTER);
 u32 rtw_btcoex_GetRaMask(PADAPTER);
+u8 rtw_btcoex_query_reduced_wl_pwr_lvl(PADAPTER padapter);
+void rtw_btcoex_set_reduced_wl_pwr_lvl(PADAPTER padapter, u8 val);
+void rtw_btcoex_do_reduce_wl_pwr_lvl(PADAPTER padapter);
 void rtw_btcoex_RecordPwrMode(PADAPTER, u8 *pCmdBuf, u8 cmdLen);
 void rtw_btcoex_DisplayBtCoexInfo(PADAPTER, u8 *pbuf, u32 bufsize);
 void rtw_btcoex_SetDBG(PADAPTER, u32 *pDbgModule);
@@ -404,6 +409,12 @@ u32 rtw_btcoex_GetDBG(PADAPTER, u8 *pStrBuf, u32 bufSize);
 u8 rtw_btcoex_IncreaseScanDeviceNum(PADAPTER);
 u8 rtw_btcoex_IsBtLinkExist(PADAPTER);
 void rtw_btcoex_pta_off_on_notify(PADAPTER padapter, u8 bBTON);
+
+#ifdef CONFIG_RF4CE_COEXIST
+void rtw_btcoex_SetRf4ceLinkState(PADAPTER padapter, u8 state);
+u8 rtw_btcoex_GetRf4ceLinkState(PADAPTER padapter);
+#endif
+
 #ifdef CONFIG_BT_COEXIST_SOCKET_TRX
 void rtw_btcoex_SetBtPatchVersion(PADAPTER padapter, u16 btHciVer, u16 btPatchVer);
 void rtw_btcoex_SetHciVersion(PADAPTER  padapter, u16 hciVersion);
@@ -426,6 +437,7 @@ void rtw_btcoex_SendScanNotify(PADAPTER padapter, u8 scanType);
 #endif /* CONFIG_BT_COEXIST_SOCKET_TRX */
 u16 rtw_btcoex_btreg_read(PADAPTER padapter, u8 type, u16 addr, u32 *data);
 u16 rtw_btcoex_btreg_write(PADAPTER padapter, u8 type, u16 addr, u16 val);
+u8 rtw_btcoex_get_reduce_wl_txpwr(PADAPTER padapter);
 u8 rtw_btcoex_get_bt_coexist(PADAPTER padapter);
 u8 rtw_btcoex_get_chip_type(PADAPTER padapter);
 u8 rtw_btcoex_get_pg_ant_num(PADAPTER padapter);
@@ -433,12 +445,17 @@ u8 rtw_btcoex_get_pg_single_ant_path(PADAPTER padapter);
 u8 rtw_btcoex_get_pg_rfe_type(PADAPTER padapter);
 u8 rtw_btcoex_is_tfbga_package_type(PADAPTER padapter);
 u8 rtw_btcoex_get_ant_div_cfg(PADAPTER padapter);
+u16 rtw_btcoex_btset_testmode(PADAPTER padapter, u8 type);
 
 /* ==================================================
  * Below Functions are called by BT-Coex
  * ================================================== */
-void rtw_btcoex_rx_ampdu_apply(PADAPTER);
-void rtw_btcoex_LPS_Enter(PADAPTER);
-void rtw_btcoex_LPS_Leave(PADAPTER);
+void rtw_btcoex_rx_ampdu_apply(PADAPTER padapter);
+void rtw_btcoex_LPS_Enter(PADAPTER padapter);
+u8 rtw_btcoex_LPS_Leave(PADAPTER padapter);
 
 #endif /* __RTW_BTCOEX_H__ */
+#endif /* CONFIG_BT_COEXIST */
+
+void rtw_btcoex_set_ant_info(PADAPTER padapter);
+

@@ -1,6 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,11 +12,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *******************************************************************************/
+ *****************************************************************************/
 #ifndef __RTL8814A_SPEC_H__
 #define __RTL8814A_SPEC_H__
 
@@ -450,6 +447,8 @@
 #define REG_SND_PTCL_CTRL_8814A			0x0718
 #define REG_IQ_DUMP_8814A					0x07C0
 
+#define REG_CPU_DMEM_CON_8814A			0x1080
+
 /**** page 19 ****/
 /* TX BeamForming */
 #define	REG_BB_TXBF_ANT_SET_BF1				0x19ac
@@ -480,6 +479,18 @@
 #define REG_DDMA_CHSTATUS              0x12E8
 #define REG_DDMA_CHKSUM                 0x12F0
 #define REG_DDMA_MONITER                0x12FC
+
+#define REG_Q0_Q1_INFO_8814A		0x1400
+#define REG_Q2_Q3_INFO_8814A		0x1404
+#define REG_Q4_Q5_INFO_8814A		0x1408
+#define REG_Q6_Q7_INFO_8814A		0x140C
+#define REG_MGQ_HIQ_INFO_8814A	0x1410
+#define REG_CMDQ_BCNQ_INFO_8814A	0x1414
+
+#define REG_MACID_DROP0_8814A 0x1450
+#define REG_MACID_DROP1_8814A 0x1454
+#define REG_MACID_DROP2_8814A 0x1458
+#define REG_MACID_DROP3_8814A 0x145C
 
 #define DDMA_LEN_MASK		0x0001FFFF
 #define FW_CHKSUM_DUMMY_SZ		8
@@ -550,7 +561,7 @@
 /*
  * 9. Security Control Registers	(Offset: )
  *   */
-#define	RWCAM_8814A						REG_CAMCMD_8814A		/* IN 8190 Data Sheet is called CAMcmd */
+#define	RWCAM_8814A						REG_CAMCMD_8814A		/*  8190 Data Sheet is called CAMcmd */
 #define	WCAMI_8814A						REG_CAMWRITE_8814A		/* Software write CAM input content */
 #define	RCAMO_8814A						REG_CAMREAD_8814A		/* Software read/write CAM config */
 #define	CAMDBG_8814A						REG_CAMDBG_8814A

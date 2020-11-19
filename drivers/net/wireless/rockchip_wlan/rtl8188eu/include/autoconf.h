@@ -1,6 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +12,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 /* ***** temporarily flag ******* */
 #define CONFIG_SINGLE_IMG
 
@@ -50,7 +46,6 @@
 	/* #define CONFIG_DEBUG_CFG80211 */
 	/* #define CONFIG_DRV_ISSUE_PROV_REQ */ /* IOT FOR S2 */
 	#define CONFIG_SET_SCAN_DENY_TIMER
-	/*#define SUPPLICANT_RTK_VERSION_LOWER_THAN_JB42*/ /* wpa_supplicant realtek version <= jb42 will be defined this */
 #endif
 
 /*
@@ -75,16 +70,12 @@
 
 #define CONFIG_RECV_REORDERING_CTRL
 
-/* #define CONFIG_TCP_CSUM_OFFLOAD_RX */
-
-/* #define CONFIG_DRVEXT_MODULE */
-
  #define CONFIG_SUPPORT_USB_INT
  #ifdef CONFIG_SUPPORT_USB_INT
 /* #define CONFIG_USB_INTERRUPT_IN_PIPE */
 #endif
 
-/* #ifndef CONFIG_MP_INCLUDED */
+#ifdef CONFIG_POWER_SAVING
 	#define CONFIG_IPS
 	#ifdef CONFIG_IPS
 	/* #define CONFIG_IPS_LEVEL_2 */	 /* enable this to set default IPS mode to IPS_LEVEL_2 */
@@ -99,8 +90,9 @@
 	#endif
 
 	#ifdef CONFIG_LPS_LCLK
-	#define CONFIG_XMIT_THREAD_MODE
+	/* #define CONFIG_XMIT_THREAD_MODE */
 	#endif
+#endif /* CONFIG_POWER_SAVING */
 
 	/*#define CONFIG_ANTENNA_DIVERSITY*/
 
@@ -110,7 +102,6 @@
 	#ifdef CONFIG_CONCURRENT_MODE
 		#define CONFIG_RUNTIME_PORT_SWITCH
 
-		#define CONFIG_SCAN_BACKOP
 		#define CONFIG_TSF_RESET_OFFLOAD			/* For 2 PORT TSF SYNC. */
 	#endif
 
@@ -150,7 +141,7 @@
 	#define CONFIG_P2P_PS
 	#define CONFIG_P2P_OP_CHK_SOCIAL_CH
 	#define CONFIG_CFG80211_ONECHANNEL_UNDER_CONCURRENT  /* replace CONFIG_P2P_CHK_INVITE_CH_LIST flag */
-	#define CONFIG_P2P_INVITE_IOT
+	/*#define CONFIG_P2P_INVITE_IOT*/
 #endif
 
 /* Added by Kurt 20110511 */
@@ -167,13 +158,13 @@
 
 #define CONFIG_SKB_COPY	/* for amsdu */
 
-/* #define CONFIG_LED */
-#ifdef CONFIG_LED
-	#define CONFIG_SW_LED
-	#ifdef CONFIG_SW_LED
-		/* #define CONFIG_LED_HANDLED_BY_CMD_THREAD */
+/* #define CONFIG_RTW_LED */
+#ifdef CONFIG_RTW_LED
+	#define CONFIG_RTW_SW_LED
+	#ifdef CONFIG_RTW_SW_LED
+		/* #define CONFIG_RTW_LED_HANDLED_BY_CMD_THREAD */
 	#endif
-#endif /* CONFIG_LED */
+#endif /* CONFIG_RTW_LED */
 
 #ifdef CONFIG_IOL
 	#define CONFIG_IOL_NEW_GENERATION
@@ -200,9 +191,6 @@
 /* #define CONFIG_BACKGROUND_NOISE_MONITOR */
 #endif
 #define RTW_NOTCH_FILTER 0 /* 0:Disable, 1:Enable, */
-
-#define CONFIG_TX_MCAST2UNI		/* Support IP multicast->unicast */
-/* #define CONFIG_CHECK_AC_LIFETIME */	/* Check packet lifetime of 4 ACs. */
 
 /*
  * Interface  Related Config
@@ -276,17 +264,6 @@
 /*
  * Platform  Related Config
  */
-#ifdef CONFIG_PLATFORM_MN10300
-	#define CONFIG_SPECIAL_SETTING_FOR_FUNAI_TV
-	#define CONFIG_USE_USB_BUFFER_ALLOC_RX
-
-	#if	defined(CONFIG_POWER_SAVING)
-		#undef CONFIG_POWER_SAVING
-	#endif
-
-#endif/* CONFIG_PLATFORM_MN10300 */
-
-
 #if defined(CONFIG_PLATFORM_ACTIONS_ATM702X)
 	#ifdef CONFIG_USB_TX_AGGREGATION
 		#undef CONFIG_USB_TX_AGGREGATION
@@ -309,15 +286,12 @@
 #endif
 
 /*#define CONFIG_RF_POWER_TRIM */
-#define CONFIG_80211D
 
 #ifdef CONFIG_GPIO_WAKEUP
 	#ifndef WAKEUP_GPIO_IDX
 		#define WAKEUP_GPIO_IDX 7
 	#endif
 #endif
-
-#define CONFIG_ATTEMPT_TO_FIX_AP_BEACON_ERROR
 
 /*
  * Debug Related Config

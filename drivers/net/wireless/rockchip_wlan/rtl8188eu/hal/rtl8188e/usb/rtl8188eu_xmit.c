@@ -1,6 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +12,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #define _RTL8188E_XMIT_C_
 
 #include <drv_types.h>
@@ -310,8 +306,6 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz , u8 ba
 
 		qsel = (uint)(pattrib->qsel & 0x0000001f);
 		/* RTW_INFO("==> macid(%d) qsel:0x%02x\n",pattrib->mac_id,qsel); */
-		if (pattrib->ether_type == 0x888e)
-			RTW_INFO("==> macid(%d) qsel:0x%02x, pattrib->qsel = %x\n", pattrib->mac_id, qsel, pattrib->qsel);
 		ptxdesc->txdw1 |= cpu_to_le32((qsel << QSEL_SHT) & 0x00001f00);
 
 		ptxdesc->txdw1 |= cpu_to_le32((pattrib->raid << RATE_ID_SHT) & 0x000F0000);
@@ -389,7 +383,12 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz , u8 ba
 				if (pattrib->ht_en)
 					sgi = 1;
 
-				data_rate = 0x13; /* default rate: MCS7 */
+				data_rate = DESC_RATEMCS7; /* default rate: MCS7 */
+			}
+			if (bmcst) {
+				data_rate = MRateToHwRate(pattrib->rate);
+				ptxdesc->txdw4 |= cpu_to_le32(USERATE);
+				ptxdesc->txdw4 |= cpu_to_le32(DISDATAFB);
 			}
 
 			if (padapter->fix_rate != 0xFF) {
@@ -415,19 +414,18 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz , u8 ba
 
 			if (pmlmeinfo->preamble_mode == PREAMBLE_SHORT)
 				ptxdesc->txdw4 |= cpu_to_le32(BIT(24));/* DATA_SHORT */
-
-			ptxdesc->txdw5 |= cpu_to_le32(MRateToHwRate(pmlmeext->tx_rate));
+#ifdef CONFIG_IP_R_MONITOR
+			if((pattrib->ether_type == ETH_P_ARP) &&
+				(IsSupportedTxOFDM(padapter->registrypriv.wireless_mode))) {
+				ptxdesc->txdw5 |= cpu_to_le32(MRateToHwRate(IEEE80211_OFDM_RATE_6MB));
+				#ifdef DBG_IP_R_MONITOR
+				RTW_INFO(FUNC_ADPT_FMT ": SP Packet(0x%04X) rate=0x%x SeqNum = %d\n",
+					FUNC_ADPT_ARG(padapter), pattrib->ether_type, MRateToHwRate(pmlmeext->tx_rate), pattrib->seqnum);
+				#endif/*DBG_IP_R_MONITOR*/
+			} else
+#endif/*CONFIG_IP_R_MONITOR*/
+				ptxdesc->txdw5 |= cpu_to_le32(MRateToHwRate(pmlmeext->tx_rate));
 		}
-
-#ifdef CONFIG_TCP_CSUM_OFFLOAD_TX
-		/* offset 24 */
-		if (pattrib->hw_tcp_csum == 1) {
-			/* ptxdesc->txdw6 = 0; */ /* clear TCP_CHECKSUM and IP_CHECKSUM. It's zero already!! */
-			u8 ip_hdr_offset = 32 + pattrib->hdrlen + pattrib->iv_len + 8;
-			ptxdesc->txdw7 = (1 << 31) | (ip_hdr_offset << 16);
-			RTW_INFO("ptxdesc->txdw7 = %08x\n", ptxdesc->txdw7);
-		}
-#endif
 
 #ifdef CONFIG_TDLS
 #ifdef CONFIG_XMIT_ACK
@@ -527,7 +525,8 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz , u8 ba
 	}
 
 #ifdef CONFIG_ANTENNA_DIVERSITY
-	odm_set_tx_ant_by_tx_info(&pHalData->odmpriv, pmem, pattrib->mac_id);
+	if (!bmcst && pattrib->psta)
+		odm_set_tx_ant_by_tx_info(adapter_to_phydm(padapter), pmem, pattrib->psta->cmn.mac_id);
 #endif
 
 	rtl8188eu_cal_txdesc_chksum(ptxdesc);
@@ -551,6 +550,7 @@ s32 rtl8188eu_xmit_buf_handler(PADAPTER padapter)
 	/* PHAL_DATA_TYPE phal; */
 	struct xmit_priv *pxmitpriv;
 	struct xmit_buf *pxmitbuf;
+	struct xmit_frame *pxmitframe;
 	s32 ret;
 
 
@@ -562,6 +562,10 @@ s32 rtl8188eu_xmit_buf_handler(PADAPTER padapter)
 		return _FAIL;
 	}
 	if (RTW_CANNOT_RUN(padapter)) {
+		RTW_DBG(FUNC_ADPT_FMT "- bDriverStopped(%s) bSurpriseRemoved(%s)\n",
+			FUNC_ADPT_ARG(padapter),
+			rtw_is_drv_stopped(padapter) ? "True" : "False",
+			rtw_is_surprise_removed(padapter) ? "True" : "False");
 			 return _FAIL;
 	}
 
@@ -579,8 +583,9 @@ s32 rtl8188eu_xmit_buf_handler(PADAPTER padapter)
 		pxmitbuf = dequeue_pending_xmitbuf(pxmitpriv);
 		if (pxmitbuf == NULL)
 			break;
-
+		pxmitframe = (struct xmit_frame *) pxmitbuf->priv_data;
 		rtw_write_port(padapter, pxmitbuf->ff_hwaddr, pxmitbuf->len, (unsigned char *)pxmitbuf);
+		rtw_free_xmitframe(pxmitpriv, pxmitframe);
 
 	} while (1);
 
@@ -648,7 +653,12 @@ static s32 rtw_dump_xframe(_adapter *padapter, struct xmit_frame *pxmitframe)
 #ifdef CONFIG_XMIT_THREAD_MODE
 		pxmitbuf->len = w_sz;
 		pxmitbuf->ff_hwaddr = ff_hwaddr;
-		enqueue_pending_xmitbuf(pxmitpriv, pxmitbuf);
+
+		if (pxmitframe->attrib.qsel == QSLT_BEACON)
+			/* download rsvd page*/
+			rtw_write_port(padapter, ff_hwaddr, w_sz, (u8 *)pxmitbuf);
+		else
+			enqueue_pending_xmitbuf(pxmitpriv, pxmitbuf);
 #else
 		/*	RTW_INFO("%s:  rtw_write_port size =%d\n", __func__,w_sz); */
 		inner_ret = rtw_write_port(padapter, ff_hwaddr, w_sz, (unsigned char *)pxmitbuf);
@@ -664,6 +674,9 @@ static s32 rtw_dump_xframe(_adapter *padapter, struct xmit_frame *pxmitframe)
 
 	}
 
+#ifdef CONFIG_XMIT_THREAD_MODE
+	if (pxmitframe->attrib.qsel == QSLT_BEACON)
+#endif
 	rtw_free_xmitframe(pxmitpriv, pxmitframe);
 
 	if (ret != _SUCCESS)
@@ -673,24 +686,6 @@ static s32 rtw_dump_xframe(_adapter *padapter, struct xmit_frame *pxmitframe)
 }
 
 #ifdef CONFIG_USB_TX_AGGREGATION
-static u32 xmitframe_need_length(struct xmit_frame *pxmitframe)
-{
-	struct pkt_attrib *pattrib = &pxmitframe->attrib;
-
-	u32	len = 0;
-
-	/* no consider fragement */
-	len = pattrib->hdrlen + pattrib->iv_len +
-	      SNAP_SIZE + sizeof(u16) +
-	      pattrib->pktlen +
-	      ((pattrib->bswenc) ? pattrib->icv_len : 0);
-
-	if (pattrib->encrypt == _TKIP_)
-		len += 8;
-
-	return len;
-}
-
 #define IDEA_CONDITION 1	/* check all packets before enqueue */
 s32 rtl8188eu_xmitframe_complete(_adapter *padapter, struct xmit_priv *pxmitpriv, struct xmit_buf *pxmitbuf)
 {
@@ -786,7 +781,7 @@ s32 rtl8188eu_xmitframe_complete(_adapter *padapter, struct xmit_priv *pxmitpriv
 
 	/* 3 2. aggregate same priority and same DA(AP or STA) frames */
 	pfirstframe = pxmitframe;
-	len = xmitframe_need_length(pfirstframe) + TXDESC_SIZE + (pfirstframe->pkt_offset * PACKET_OFFSET_SZ);
+	len = rtw_wlan_pkt_size(pfirstframe) + TXDESC_SIZE + (pfirstframe->pkt_offset * PACKET_OFFSET_SZ);
 	pbuf_tail = len;
 	pbuf = _RND8(pbuf_tail);
 
@@ -864,11 +859,9 @@ s32 rtl8188eu_xmitframe_complete(_adapter *padapter, struct xmit_priv *pxmitpriv
 		pxmitframe->pkt_offset = 0; /* not first frame of aggregation, no need to reserve offset */
 #endif
 
-		len = xmitframe_need_length(pxmitframe) + TXDESC_SIZE + (pxmitframe->pkt_offset * PACKET_OFFSET_SZ);
+		len = rtw_wlan_pkt_size(pxmitframe) + TXDESC_SIZE + (pxmitframe->pkt_offset * PACKET_OFFSET_SZ);
 
-		if (_RND8(pbuf + len) > MAX_XMITBUF_SZ)
-			/* if (_RND8(pbuf + len) > (MAX_XMITBUF_SZ/2))//to do : for TX TP finial tune , Georgia 2012-0323 */
-		{
+		if (_RND8(pbuf + len) > MAX_XMITBUF_SZ) {
 			/* RTW_INFO("%s....len> MAX_XMITBUF_SZ\n",__FUNCTION__); */
 			pxmitframe->agg_num = 1;
 			pxmitframe->pkt_offset = 1;
@@ -978,7 +971,19 @@ agg_end:
 	ff_hwaddr = rtw_get_ff_hwaddr(pfirstframe);
 	/* RTW_INFO("%s ===================================== write port,buf_size(%d)\n",__FUNCTION__,pbuf_tail); */
 	/* xmit address == ((xmit_frame*)pxmitbuf->priv_data)->buf_addr */
+
+#ifdef CONFIG_XMIT_THREAD_MODE
+	pxmitbuf->len = pbuf_tail;
+	pxmitbuf->ff_hwaddr = ff_hwaddr;
+
+	if (pfirstframe->attrib.qsel == QSLT_BEACON)
+		/* download rsvd page*/
+		rtw_write_port(padapter, ff_hwaddr, pbuf_tail, (u8 *)pxmitbuf);
+	else
+		enqueue_pending_xmitbuf(pxmitpriv, pxmitbuf);
+#else
 	rtw_write_port(padapter, ff_hwaddr, pbuf_tail, (u8 *)pxmitbuf);
+#endif
 
 
 	/* 3 5. update statisitc */
@@ -988,6 +993,9 @@ agg_end:
 
 	rtw_count_tx_stats(padapter, pfirstframe, pbuf_tail);
 
+#ifdef CONFIG_XMIT_THREAD_MODE
+	if (pfirstframe->attrib.qsel == QSLT_BEACON)
+#endif
 	rtw_free_xmitframe(pxmitpriv, pfirstframe);
 
 	return _TRUE;

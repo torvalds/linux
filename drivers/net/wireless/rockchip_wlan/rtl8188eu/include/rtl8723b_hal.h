@@ -1,6 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +12,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef __RTL8723B_HAL_H__
 #define __RTL8723B_HAL_H__
 
@@ -111,23 +107,17 @@ typedef struct _RT_8723B_FIRMWARE_HDR {
 /* Note: We will divide number of page equally for each queue other than public queue! */
 
 /* For General Reserved Page Number(Beacon Queue is reserved page)
- * Beacon:2, PS-Poll:1, Null Data:1,Qos Null Data:1,BT Qos Null Data:1 */
-#define BCNQ_PAGE_NUM_8723B		0x08
-#ifdef CONFIG_CONCURRENT_MODE
-	#define BCNQ1_PAGE_NUM_8723B		0x08 /* 0x04 */
-#else
-	#define BCNQ1_PAGE_NUM_8723B		0x00
-#endif
+ * Beacon:MAX_BEACON_LEN/PAGE_SIZE_TX_8723B
+ * PS-Poll:1, Null Data:1,Qos Null Data:1,BT Qos Null Data:1,CTS-2-SELF,LTE QoS Null*/
+#define BCNQ_PAGE_NUM_8723B		(MAX_BEACON_LEN / PAGE_SIZE_TX_8723B + 6) /*0x08*/
 
-#ifdef CONFIG_PNO_SUPPORT
-	#undef BCNQ1_PAGE_NUM_8723B
-	#define BCNQ1_PAGE_NUM_8723B		0x00 /* 0x04 */
-#endif
 
 /* For WoWLan , more reserved page
- * ARP Rsp:1, RWC:1, GTK Info:1,GTK RSP:2,GTK EXT MEM:2, AOAC rpt: 1,PNO: 6 */
+ * ARP Rsp:1, RWC:1, GTK Info:1,GTK RSP:2,GTK EXT MEM:2, AOAC rpt: 1,PNO: 6
+ * NS offload: 2 NDP info: 1
+ */
 #ifdef CONFIG_WOWLAN
-	#define WOWLAN_PAGE_NUM_8723B	0x08
+	#define WOWLAN_PAGE_NUM_8723B	0x0b
 #else
 	#define WOWLAN_PAGE_NUM_8723B	0x00
 #endif
@@ -141,7 +131,7 @@ typedef struct _RT_8723B_FIRMWARE_HDR {
 	#define AP_WOWLAN_PAGE_NUM_8723B	0x02
 #endif
 
-#define TX_TOTAL_PAGE_NUMBER_8723B	(0xFF - BCNQ_PAGE_NUM_8723B - BCNQ1_PAGE_NUM_8723B - WOWLAN_PAGE_NUM_8723B)
+#define TX_TOTAL_PAGE_NUMBER_8723B	(0xFF - BCNQ_PAGE_NUM_8723B - WOWLAN_PAGE_NUM_8723B)
 #define TX_PAGE_BOUNDARY_8723B		(TX_TOTAL_PAGE_NUMBER_8723B + 1)
 
 #define WMM_NORMAL_TX_TOTAL_PAGE_NUMBER_8723B	TX_TOTAL_PAGE_NUMBER_8723B
@@ -152,11 +142,13 @@ typedef struct _RT_8723B_FIRMWARE_HDR {
 #define NORMAL_PAGE_NUM_HPQ_8723B		0x0C
 #define NORMAL_PAGE_NUM_LPQ_8723B		0x02
 #define NORMAL_PAGE_NUM_NPQ_8723B		0x02
+#define NORMAL_PAGE_NUM_EPQ_8723B		0x04
 
 /* Note: For Normal Chip Setting, modify later */
 #define WMM_NORMAL_PAGE_NUM_HPQ_8723B		0x30
 #define WMM_NORMAL_PAGE_NUM_LPQ_8723B		0x20
 #define WMM_NORMAL_PAGE_NUM_NPQ_8723B		0x20
+#define WMM_NORMAL_PAGE_NUM_EPQ_8723B		0x00
 
 
 #include "HalVerDef.h"
@@ -225,13 +217,13 @@ void Hal_EfuseParseCustomerID_8723B(PADAPTER padapter, u8 *hwinfo, BOOLEAN AutoL
 void Hal_EfuseParseAntennaDiversity_8723B(PADAPTER padapter, u8 *hwinfo, BOOLEAN AutoLoadFail);
 void Hal_EfuseParseXtal_8723B(PADAPTER pAdapter, u8 *hwinfo, u8 AutoLoadFail);
 void Hal_EfuseParseThermalMeter_8723B(PADAPTER padapter, u8 *hwinfo, u8 AutoLoadFail);
-VOID Hal_EfuseParsePackageType_8723B(PADAPTER pAdapter, u8 *hwinfo, BOOLEAN AutoLoadFail);
-VOID Hal_EfuseParseVoltage_8723B(PADAPTER pAdapter, u8 *hwinfo, BOOLEAN	AutoLoadFail);
-VOID Hal_EfuseParseBoardType_8723B(PADAPTER Adapter,	u8	*PROMContent, BOOLEAN AutoloadFail);
+void Hal_EfuseParsePackageType_8723B(PADAPTER pAdapter, u8 *hwinfo, BOOLEAN AutoLoadFail);
+void Hal_EfuseParseVoltage_8723B(PADAPTER pAdapter, u8 *hwinfo, BOOLEAN	AutoLoadFail);
+void Hal_EfuseParseBoardType_8723B(PADAPTER Adapter,	u8	*PROMContent, BOOLEAN AutoloadFail);
 
 void rtl8723b_set_hal_ops(struct hal_ops *pHalFunc);
 void init_hal_spec_8723b(_adapter *adapter);
-void SetHwReg8723B(PADAPTER padapter, u8 variable, u8 *val);
+u8 SetHwReg8723B(PADAPTER padapter, u8 variable, u8 *val);
 void GetHwReg8723B(PADAPTER padapter, u8 variable, u8 *val);
 u8 SetHalDefVar8723B(PADAPTER padapter, HAL_DEF_VARIABLE variable, void *pval);
 u8 GetHalDefVar8723B(PADAPTER padapter, HAL_DEF_VARIABLE variable, void *pval);
@@ -259,7 +251,7 @@ void rtl8723b_stop_thread(_adapter *padapter);
 	void HalSetOutPutGPIO(PADAPTER padapter, u8 index, u8 OutPutValue);
 #endif
 #ifdef CONFIG_MP_INCLUDED
-int FirmwareDownloadBT(IN PADAPTER Adapter, PRT_MP_FIRMWARE pFirmware);
+int FirmwareDownloadBT(PADAPTER Adapter, PRT_MP_FIRMWARE pFirmware);
 #endif
 void CCX_FwC2HTxRpt_8723b(PADAPTER padapter, u8 *pdata, u8 len);
 
@@ -272,12 +264,12 @@ u8 HwRateToMRate8723B(u8	 rate);
 
 #ifdef CONFIG_PCI_HCI
 	BOOLEAN	InterruptRecognized8723BE(PADAPTER Adapter);
-	VOID	UpdateInterruptMask8723BE(PADAPTER Adapter, u32 AddMSR, u32 AddMSR1, u32 RemoveMSR, u32 RemoveMSR1);
+	void	UpdateInterruptMask8723BE(PADAPTER Adapter, u32 AddMSR, u32 AddMSR1, u32 RemoveMSR, u32 RemoveMSR1);
 #endif
 
 #ifdef CONFIG_GPIO_API
 int rtl8723b_GpioFuncCheck(PADAPTER adapter, u8 gpio_num);
-VOID rtl8723b_GpioMultiFuncReset(PADAPTER adapter, u8 gpio_num);
+void rtl8723b_GpioMultiFuncReset(PADAPTER adapter, u8 gpio_num);
 #endif
 
 #endif

@@ -1,6 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +12,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef __INC_HAL8188EPHYCFG_H__
 #define __INC_HAL8188EPHYCFG_H__
 
@@ -60,129 +56,125 @@
 /*
  * BB and RF register read/write
  *   */
-u32	PHY_QueryBBReg8188E(IN	PADAPTER	Adapter,
-			    IN	u32		RegAddr,
-			    IN	u32		BitMask);
-void	PHY_SetBBReg8188E(IN	PADAPTER	Adapter,
-			  IN	u32		RegAddr,
-			  IN	u32		BitMask,
-			  IN	u32		Data);
-u32	PHY_QueryRFReg8188E(IN	PADAPTER	Adapter,
-			    IN	u8				eRFPath,
-			    IN	u32				RegAddr,
-			    IN	u32				BitMask);
-void	PHY_SetRFReg8188E(IN	PADAPTER		Adapter,
-			  IN	u8				eRFPath,
-			  IN	u32				RegAddr,
-			  IN	u32				BitMask,
-			  IN	u32				Data);
+u32	PHY_QueryBBReg8188E(PADAPTER	Adapter,
+				u32		RegAddr,
+				u32		BitMask);
+void	PHY_SetBBReg8188E(PADAPTER	Adapter,
+				u32		RegAddr,
+				u32		BitMask,
+				u32		Data);
+u32	PHY_QueryRFReg8188E(PADAPTER	Adapter,
+				enum rf_path		eRFPath,
+				u32				RegAddr,
+				u32				BitMask);
+void	PHY_SetRFReg8188E(PADAPTER		Adapter,
+				enum rf_path		eRFPath,
+				u32				RegAddr,
+				u32				BitMask,
+				u32				Data);
 
 /*
  * Initialization related function
  */
 /* MAC/BB/RF HAL config */
-int	PHY_MACConfig8188E(IN	PADAPTER	Adapter);
-int	PHY_BBConfig8188E(IN	PADAPTER	Adapter);
-int	PHY_RFConfig8188E(IN	PADAPTER	Adapter);
+int	PHY_MACConfig8188E(PADAPTER	Adapter);
+int	PHY_BBConfig8188E(PADAPTER	Adapter);
+int	PHY_RFConfig8188E(PADAPTER	Adapter);
 
 /* RF config */
-int	rtl8188e_PHY_ConfigRFWithParaFile(IN PADAPTER Adapter, IN u8 *pFileName, u8 eRFPath);
+int	rtl8188e_PHY_ConfigRFWithParaFile( PADAPTER Adapter, u8 *pFileName, enum rf_path eRFPath);
 
 /*
  * RF Power setting
  */
-/* extern	BOOLEAN	PHY_SetRFPowerState(IN	PADAPTER			Adapter,
- *									IN	RT_RF_POWER_STATE	eRFPowerState); */
+/* extern	BOOLEAN	PHY_SetRFPowerState(PADAPTER			Adapter,
+ *										RT_RF_POWER_STATE	eRFPowerState); */
 
 /*
  * BB TX Power R/W
  *   */
-void	PHY_GetTxPowerLevel8188E(IN	PADAPTER		Adapter,
-				 OUT s32		*powerlevel);
-void	PHY_SetTxPowerLevel8188E(IN	PADAPTER		Adapter,
-				 IN	u8			channel);
-BOOLEAN	PHY_UpdateTxPowerDbm8188E(IN	PADAPTER	Adapter,
-				  IN	int		powerInDbm);
+void	PHY_SetTxPowerLevel8188E(PADAPTER		Adapter,
+					u8			channel);
 
-VOID
+void
 PHY_SetTxPowerIndex_8188E(
-	IN	PADAPTER			Adapter,
-	IN	u32					PowerIndex,
-	IN	u8					RFPath,
-	IN	u8					Rate
+		PADAPTER			Adapter,
+		u32					PowerIndex,
+		enum rf_path			RFPath,
+		u8					Rate
 );
 
 u8
 PHY_GetTxPowerIndex_8188E(
-	IN	PADAPTER		pAdapter,
-	IN	u8				RFPath,
-	IN	u8				Rate,
-	IN	u8				BandWidth,
-	IN	u8				Channel,
+		PADAPTER		pAdapter,
+		enum rf_path		RFPath,
+		u8				Rate,
+		u8				BandWidth,
+		u8				Channel,
 	struct txpwr_idx_comp *tic
 );
 
 /*
  * Switch bandwidth for 8192S
  */
-/* extern	void	PHY_SetBWModeCallback8192C(	IN	PRT_TIMER		pTimer	); */
-void	PHY_SetBWMode8188E(IN	PADAPTER			pAdapter,
-			   IN	CHANNEL_WIDTH	ChnlWidth,
-			   IN	unsigned char	Offset);
+/* extern	void	PHY_SetBWModeCallback8192C(PRT_TIMER		pTimer	); */
+void	PHY_SetBWMode8188E(PADAPTER			pAdapter,
+				enum channel_width	ChnlWidth,
+				unsigned char	Offset);
 
 /*
  * Set FW CMD IO for 8192S.
  */
-/* extern	BOOLEAN HalSetIO8192C(	IN	PADAPTER			Adapter,
- *									IN	IO_TYPE				IOType); */
+/* extern	BOOLEAN HalSetIO8192C(PADAPTER			Adapter,
+ *								IO_TYPE				IOType); */
 
 /*
  * Set A2 entry to fw for 8192S
  *   */
-extern	void FillA2Entry8192C(IN	PADAPTER			Adapter,
-			      IN	u8				index,
-			      IN	u8				*val);
+extern	void FillA2Entry8192C(PADAPTER			Adapter,
+				u8				index,
+				u8				*val);
 
 
 /*
  * channel switch related funciton
  */
-/* extern	void	PHY_SwChnlCallback8192C(	IN	PRT_TIMER		pTimer	); */
-void	PHY_SwChnl8188E(IN	PADAPTER		pAdapter,
-			IN	u8			channel);
+/* extern	void	PHY_SwChnlCallback8192C(PRT_TIMER		pTimer	); */
+void	PHY_SwChnl8188E(PADAPTER		pAdapter,
+				u8			channel);
 
-VOID
+void
 PHY_SetSwChnlBWMode8188E(
-	IN	PADAPTER			Adapter,
-	IN	u8					channel,
-	IN	CHANNEL_WIDTH	Bandwidth,
-	IN	u8					Offset40,
-	IN	u8					Offset80
+		PADAPTER			Adapter,
+		u8					channel,
+		enum channel_width	Bandwidth,
+		u8					Offset40,
+		u8					Offset80
 );
 
-VOID
+void
 PHY_SetRFEReg_8188E(
-	IN PADAPTER		Adapter
+		PADAPTER		Adapter
 );
 /*
  * BB/MAC/RF other monitor API
  *   */
-VOID phy_set_rf_path_switch_8188e(IN	PADAPTER	pAdapter, IN	bool		bMain);
+void phy_set_rf_path_switch_8188e(struct dm_struct	*phydm, bool		bMain);
 
-extern	VOID
+extern	void
 PHY_SwitchEphyParameter(
-	IN	PADAPTER			Adapter
+		PADAPTER			Adapter
 );
 
-extern	VOID
+extern	void
 PHY_EnableHostClkReq(
-	IN	PADAPTER			Adapter
+		PADAPTER			Adapter
 );
 
 BOOLEAN
 SetAntennaConfig92C(
-	IN	PADAPTER	Adapter,
-	IN	u8		DefaultAnt
+		PADAPTER	Adapter,
+		u8		DefaultAnt
 );
 
 /*--------------------------Exported Function prototype---------------------*/
@@ -258,7 +250,7 @@ SetAntennaConfig92C(
 #endif
 
 #if (SIC_ENABLE == 1)
-	VOID SIC_Init(IN PADAPTER Adapter);
+	void SIC_Init( PADAPTER Adapter);
 #endif
 
 

@@ -1,6 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2017 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -11,12 +12,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
- ******************************************************************************/
+ *****************************************************************************/
 #ifndef __HAL_PHY_H__
 #define __HAL_PHY_H__
 
@@ -56,20 +52,15 @@
 
 
 /*--------------------------Define Parameters-------------------------------*/
-typedef	enum _RF_TYPE {
-	RF_TYPE_MIN = 0,	/* 0 */
+typedef	enum _RF_CHIP {
+	RF_CHIP_MIN = 0,	/* 0 */
 	RF_8225 = 1,			/* 1 11b/g RF for verification only */
 	RF_8256 = 2,			/* 2 11b/g/n */
 	RF_8258 = 3,			/* 3 11a/b/g/n RF */
 	RF_6052 = 4,			/* 4 11b/g/n RF */
 	RF_PSEUDO_11N = 5,	/* 5, It is a temporality RF. */
-	RF_TYPE_MAX
-} RF_TYPE_E, *PRF_TYPE_E;
-
-#define	TX_1S			0
-#define	TX_2S			1
-#define	TX_3S			2
-#define	TX_4S			3
+	RF_CHIP_MAX
+} RF_CHIP_E, *PRF_CHIP_E;
 
 typedef enum _ANTENNA_PATH {
 	ANTENNA_NONE	= 0,
@@ -161,6 +152,14 @@ typedef struct _R_ANTENNA_SELECT_CCK {
 	u8			r_ccktx_enable:4;
 } R_ANTENNA_SELECT_CCK;
 
+
+/*--------------------------Exported Function prototype---------------------*/
+u32
+PHY_CalculateBitShift(
+	u32 BitMask
+);
+
+#ifdef CONFIG_RF_SHADOW_RW
 typedef struct RF_Shadow_Compare_Map {
 	/* Shadow register value */
 	u32		Value;
@@ -174,70 +173,63 @@ typedef struct RF_Shadow_Compare_Map {
 	u8		Driver_Write;
 } RF_SHADOW_T;
 
-/*--------------------------Exported Function prototype---------------------*/
-
-u32
-PHY_CalculateBitShift(
-	u32 BitMask
-);
-
 u32
 PHY_RFShadowRead(
-	IN	PADAPTER		Adapter,
-	IN	u8				eRFPath,
-	IN	u32				Offset);
+		PADAPTER		Adapter,
+		enum rf_path		eRFPath,
+		u32				Offset);
 
-VOID
+void
 PHY_RFShadowWrite(
-	IN	PADAPTER		Adapter,
-	IN	u8				eRFPath,
-	IN	u32				Offset,
-	IN	u32				Data);
+		PADAPTER		Adapter,
+		enum rf_path		eRFPath,
+		u32				Offset,
+		u32				Data);
 
 BOOLEAN
 PHY_RFShadowCompare(
-	IN	PADAPTER		Adapter,
-	IN	u8				eRFPath,
-	IN	u32				Offset);
+		PADAPTER		Adapter,
+		enum rf_path		eRFPath,
+		u32				Offset);
 
-VOID
+void
 PHY_RFShadowRecorver(
-	IN	PADAPTER		Adapter,
-	IN	u8				eRFPath,
-	IN	u32				Offset);
+		PADAPTER		Adapter,
+		enum rf_path		eRFPath,
+		u32				Offset);
 
-VOID
+void
 PHY_RFShadowCompareAll(
-	IN	PADAPTER		Adapter);
+		PADAPTER		Adapter);
 
-VOID
+void
 PHY_RFShadowRecorverAll(
-	IN	PADAPTER		Adapter);
+		PADAPTER		Adapter);
 
-VOID
+void
 PHY_RFShadowCompareFlagSet(
-	IN	PADAPTER		Adapter,
-	IN	u8				eRFPath,
-	IN	u32				Offset,
-	IN	u8				Type);
+		PADAPTER		Adapter,
+		enum rf_path		eRFPath,
+		u32				Offset,
+		u8				Type);
 
-VOID
+void
 PHY_RFShadowRecorverFlagSet(
-	IN	PADAPTER		Adapter,
-	IN	u8				eRFPath,
-	IN	u32				Offset,
-	IN	u8				Type);
+		PADAPTER		Adapter,
+		enum rf_path		eRFPath,
+		u32				Offset,
+		u8				Type);
 
-VOID
+void
 PHY_RFShadowCompareFlagSetAll(
-	IN	PADAPTER		Adapter);
+		PADAPTER		Adapter);
 
-VOID
+void
 PHY_RFShadowRecorverFlagSetAll(
-	IN	PADAPTER		Adapter);
+		PADAPTER		Adapter);
 
-VOID
+void
 PHY_RFShadowRefresh(
-	IN	PADAPTER		Adapter);
-
+		PADAPTER		Adapter);
+#endif /*#CONFIG_RF_SHADOW_RW*/
 #endif /* __HAL_COMMON_H__ */
