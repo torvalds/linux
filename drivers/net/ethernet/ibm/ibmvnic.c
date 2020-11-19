@@ -306,9 +306,11 @@ static void replenish_rx_pool(struct ibmvnic_adapter *adapter,
 	int count = pool->size - atomic_read(&pool->available);
 	u64 handle = adapter->rx_scrq[pool->index]->handle;
 	struct device *dev = &adapter->vdev->dev;
+	struct ibmvnic_ind_xmit_queue *ind_bufp;
+	struct ibmvnic_sub_crq_queue *rx_scrq;
+	union sub_crq *sub_crq;
 	int buffers_added = 0;
 	unsigned long lpar_rc;
-	union sub_crq sub_crq;
 	struct sk_buff *skb;
 	unsigned int offset;
 	dma_addr_t dma_addr;
@@ -320,6 +322,8 @@ static void replenish_rx_pool(struct ibmvnic_adapter *adapter,
 	if (!pool->active)
 		return;
 
+	rx_scrq = adapter->rx_scrq[pool->index];
+	ind_bufp = &rx_scrq->ind_buf;
 	for (i = 0; i < count; ++i) {
 		skb = alloc_skb(pool->buff_size, GFP_ATOMIC);
 		if (!skb) {
@@ -346,12 +350,13 @@ static void replenish_rx_pool(struct ibmvnic_adapter *adapter,
 		pool->rx_buff[index].pool_index = pool->index;
 		pool->rx_buff[index].size = pool->buff_size;
 
-		memset(&sub_crq, 0, sizeof(sub_crq));
-		sub_crq.rx_add.first = IBMVNIC_CRQ_CMD;
-		sub_crq.rx_add.correlator =
+		sub_crq = &ind_bufp->indir_arr[ind_bufp->index++];
+		memset(sub_crq, 0, sizeof(*sub_crq));
+		sub_crq->rx_add.first = IBMVNIC_CRQ_CMD;
+		sub_crq->rx_add.correlator =
 		    cpu_to_be64((u64)&pool->rx_buff[index]);
-		sub_crq.rx_add.ioba = cpu_to_be32(dma_addr);
-		sub_crq.rx_add.map_id = pool->long_term_buff.map_id;
+		sub_crq->rx_add.ioba = cpu_to_be32(dma_addr);
+		sub_crq->rx_add.map_id = pool->long_term_buff.map_id;
 
 		/* The length field of the sCRQ is defined to be 24 bits so the
 		 * buffer size needs to be left shifted by a byte before it is
@@ -361,15 +366,20 @@ static void replenish_rx_pool(struct ibmvnic_adapter *adapter,
 #ifdef __LITTLE_ENDIAN__
 		shift = 8;
 #endif
-		sub_crq.rx_add.len = cpu_to_be32(pool->buff_size << shift);
-
-		lpar_rc = send_subcrq(adapter, handle, &sub_crq);
-		if (lpar_rc != H_SUCCESS)
-			goto failure;
-
-		buffers_added++;
-		adapter->replenish_add_buff_success++;
+		sub_crq->rx_add.len = cpu_to_be32(pool->buff_size << shift);
 		pool->next_free = (pool->next_free + 1) % pool->size;
+		if (ind_bufp->index == IBMVNIC_MAX_IND_DESCS ||
+		    i == count - 1) {
+			lpar_rc =
+				send_subcrq_indirect(adapter, handle,
+						     (u64)ind_bufp->indir_dma,
+						     (u64)ind_bufp->index);
+			if (lpar_rc != H_SUCCESS)
+				goto failure;
+			buffers_added += ind_bufp->index;
+			adapter->replenish_add_buff_success += ind_bufp->index;
+			ind_bufp->index = 0;
+		}
 	}
 	atomic_add(buffers_added, &pool->available);
 	return;
@@ -377,13 +387,20 @@ static void replenish_rx_pool(struct ibmvnic_adapter *adapter,
 failure:
 	if (lpar_rc != H_PARAMETER && lpar_rc != H_CLOSED)
 		dev_err_ratelimited(dev, "rx: replenish packet buffer failed\n");
-	pool->free_map[pool->next_free] = index;
-	pool->rx_buff[index].skb = NULL;
+	for (i = ind_bufp->index - 1; i >= 0; --i) {
+		struct ibmvnic_rx_buff *rx_buff;
 
-	dev_kfree_skb_any(skb);
-	adapter->replenish_add_buff_failure++;
-	atomic_add(buffers_added, &pool->available);
-
+		pool->next_free = pool->next_free == 0 ?
+				  pool->size - 1 : pool->next_free - 1;
+		sub_crq = &ind_bufp->indir_arr[i];
+		rx_buff = (struct ibmvnic_rx_buff *)
+				be64_to_cpu(sub_crq->rx_add.correlator);
+		index = (int)(rx_buff - pool->rx_buff);
+		pool->free_map[pool->next_free] = index;
+		dev_kfree_skb_any(pool->rx_buff[index].skb);
+		pool->rx_buff[index].skb = NULL;
+	}
+	ind_bufp->index = 0;
 	if (lpar_rc == H_CLOSED || adapter->failover_pending) {
 		/* Disable buffer pool replenishment and report carrier off if
 		 * queue is closed or pending failover.
