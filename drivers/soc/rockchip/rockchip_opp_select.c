@@ -638,6 +638,7 @@ void rockchip_of_get_lkg_sel(struct device *dev, struct device_node *np,
 		if (ret)
 			return;
 		dev_info(dev, "leakage=%d\n", leakage);
+		break;
 	case LEAKAGE_V2:
 		ret = rockchip_get_leakage_v2(dev, np, lkg_name, &leakage);
 		if (ret)
