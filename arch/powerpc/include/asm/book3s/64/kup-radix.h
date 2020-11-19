@@ -27,6 +27,7 @@
 #endif
 .endm
 
+#ifdef CONFIG_PPC_KUAP
 .macro kuap_check_amr gpr1, gpr2
 #ifdef CONFIG_PPC_KUAP_DEBUG
 	BEGIN_MMU_FTR_SECTION_NESTED(67)
@@ -38,6 +39,7 @@
 	END_MMU_FTR_SECTION_NESTED_IFSET(MMU_FTR_RADIX_KUAP, 67)
 #endif
 .endm
+#endif
 
 .macro kuap_save_amr_and_lock gpr1, gpr2, use_cr, msr_pr_cr
 #ifdef CONFIG_PPC_KUAP
@@ -147,8 +149,6 @@ static inline unsigned long kuap_get_and_check_amr(void)
 {
 	return 0UL;
 }
-
-static inline void kuap_check_amr(void) { }
 
 static inline unsigned long get_kuap(void)
 {
