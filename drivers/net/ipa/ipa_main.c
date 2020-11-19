@@ -728,6 +728,14 @@ static int ipa_probe(struct platform_device *pdev)
 
 	ipa_validate_build();
 
+	/* Get configuration data early; needed for clock initialization */
+	data = of_device_get_match_data(dev);
+	if (!data) {
+		/* This is really IPA_VALIDATE (should never happen) */
+		dev_err(dev, "matched hardware not supported\n");
+		return -ENODEV;
+	}
+
 	/* If we need Trust Zone, make sure it's available */
 	modem_init = of_property_read_bool(dev->of_node, "modem-init");
 	if (!modem_init)
@@ -748,22 +756,13 @@ static int ipa_probe(struct platform_device *pdev)
 	/* The clock and interconnects might not be ready when we're
 	 * probed, so might return -EPROBE_DEFER.
 	 */
-	clock = ipa_clock_init(dev);
+	clock = ipa_clock_init(dev, data->clock_data);
 	if (IS_ERR(clock)) {
 		ret = PTR_ERR(clock);
 		goto err_rproc_put;
 	}
 
-	/* No more EPROBE_DEFER.  Get our configuration data */
-	data = of_device_get_match_data(dev);
-	if (!data) {
-		/* This is really IPA_VALIDATE (should never happen) */
-		dev_err(dev, "matched hardware not supported\n");
-		ret = -ENOTSUPP;
-		goto err_clock_exit;
-	}
-
-	/* Allocate and initialize the IPA structure */
+	/* No more EPROBE_DEFER.  Allocate and initialize the IPA structure */
 	ipa = kzalloc(sizeof(*ipa), GFP_KERNEL);
 	if (!ipa) {
 		ret = -ENOMEM;

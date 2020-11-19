@@ -241,7 +241,7 @@ struct ipa_resource_data {
 };
 
 /**
- * struct ipa_mem - description of IPA memory regions
+ * struct ipa_mem_data - description of IPA memory regions
  * @local_count:	number of regions defined in the local[] array
  * @local:		array of IPA-local memory region descriptors
  * @imem_addr:		physical address of IPA region within IMEM
@@ -256,6 +256,34 @@ struct ipa_mem_data {
 	u32 imem_size;
 	u32 smem_id;
 	u32 smem_size;
+};
+
+/** enum ipa_interconnect_id - IPA interconnect identifier */
+enum ipa_interconnect_id {
+	IPA_INTERCONNECT_MEMORY,
+	IPA_INTERCONNECT_IMEM,
+	IPA_INTERCONNECT_CONFIG,
+	IPA_INTERCONNECT_COUNT,		/* Last; not an interconnect */
+};
+
+/**
+ * struct ipa_interconnect_data - description of IPA interconnect rates
+ * @peak_rate:		Peak interconnect bandwidth (in 1000 byte/sec units)
+ * @average_rate:	Average interconnect bandwidth (in 1000 byte/sec units)
+ */
+struct ipa_interconnect_data {
+	u32 peak_rate;
+	u32 average_rate;
+};
+
+/**
+ * struct ipa_clock_data - description of IPA clock and interconnect rates
+ * @core_clock_rate:	Core clock rate (Hz)
+ * @interconnect:	Array of interconnect bandwidth parameters
+ */
+struct ipa_clock_data {
+	u32 core_clock_rate;
+	struct ipa_interconnect_data interconnect[IPA_INTERCONNECT_COUNT];
 };
 
 /**
@@ -273,6 +301,7 @@ struct ipa_data {
 	const struct ipa_gsi_endpoint_data *endpoint_data;
 	const struct ipa_resource_data *resource_data;
 	const struct ipa_mem_data *mem_data;
+	const struct ipa_clock_data *clock_data;
 };
 
 extern const struct ipa_data ipa_data_sdm845;

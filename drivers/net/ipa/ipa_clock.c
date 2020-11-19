@@ -13,6 +13,7 @@
 #include "ipa.h"
 #include "ipa_clock.h"
 #include "ipa_modem.h"
+#include "ipa_data.h"
 
 /**
  * DOC: IPA Clocking
@@ -49,6 +50,7 @@
  * @memory_path:	Memory interconnect
  * @imem_path:		Internal memory interconnect
  * @config_path:	Configuration space interconnect
+ * @interconnect_data:	Interconnect configuration data
  */
 struct ipa_clock {
 	refcount_t count;
@@ -57,6 +59,7 @@ struct ipa_clock {
 	struct icc_path *memory_path;
 	struct icc_path *imem_path;
 	struct icc_path *config_path;
+	const struct ipa_interconnect_data *interconnect_data;
 };
 
 static struct icc_path *
@@ -257,7 +260,8 @@ u32 ipa_clock_rate(struct ipa *ipa)
 }
 
 /* Initialize IPA clocking */
-struct ipa_clock *ipa_clock_init(struct device *dev)
+struct ipa_clock *
+ipa_clock_init(struct device *dev, const struct ipa_clock_data *data)
 {
 	struct ipa_clock *clock;
 	struct clk *clk;
@@ -282,6 +286,7 @@ struct ipa_clock *ipa_clock_init(struct device *dev)
 		goto err_clk_put;
 	}
 	clock->core = clk;
+	clock->interconnect_data = data->interconnect;
 
 	ret = ipa_interconnect_init(clock, dev);
 	if (ret)
