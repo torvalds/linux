@@ -634,6 +634,7 @@ extern int xpc_setup_rsvd_page(void);
 extern void xpc_teardown_rsvd_page(void);
 extern int xpc_identify_activate_IRQ_sender(void);
 extern int xpc_partition_disengaged(struct xpc_partition *);
+extern int xpc_partition_disengaged_from_timer(struct xpc_partition *part);
 extern enum xp_retval xpc_mark_partition_active(struct xpc_partition *);
 extern void xpc_mark_partition_inactive(struct xpc_partition *);
 extern void xpc_discovery(void);
