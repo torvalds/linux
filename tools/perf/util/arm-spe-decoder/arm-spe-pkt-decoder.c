@@ -317,6 +317,12 @@ static int arm_spe_pkt_desc_event(const struct arm_spe_pkt *packet,
 		arm_spe_pkt_out_string(&err, &buf, &buf_len, " LLC-REFILL");
 	if (payload & BIT(EV_REMOTE_ACCESS))
 		arm_spe_pkt_out_string(&err, &buf, &buf_len, " REMOTE-ACCESS");
+	if (payload & BIT(EV_ALIGNMENT))
+		arm_spe_pkt_out_string(&err, &buf, &buf_len, " ALIGNMENT");
+	if (payload & BIT(EV_PARTIAL_PREDICATE))
+		arm_spe_pkt_out_string(&err, &buf, &buf_len, " SVE-PARTIAL-PRED");
+	if (payload & BIT(EV_EMPTY_PREDICATE))
+		arm_spe_pkt_out_string(&err, &buf, &buf_len, " SVE-EMPTY-PRED");
 
 	return err;
 }
@@ -329,8 +335,23 @@ static int arm_spe_pkt_desc_op_type(const struct arm_spe_pkt *packet,
 
 	switch (packet->index) {
 	case SPE_OP_PKT_HDR_CLASS_OTHER:
-		arm_spe_pkt_out_string(&err, &buf, &buf_len,
-			payload & SPE_OP_PKT_COND ? "COND-SELECT" : "INSN-OTHER");
+		if (SPE_OP_PKT_IS_OTHER_SVE_OP(payload)) {
+			arm_spe_pkt_out_string(&err, &buf, &buf_len, "SVE-OTHER");
+
+			/* SVE effective vector length */
+			arm_spe_pkt_out_string(&err, &buf, &buf_len, " EVLEN %d",
+					       SPE_OP_PKG_SVE_EVL(payload));
+
+			if (payload & SPE_OP_PKT_SVE_FP)
+				arm_spe_pkt_out_string(&err, &buf, &buf_len, " FP");
+			if (payload & SPE_OP_PKT_SVE_PRED)
+				arm_spe_pkt_out_string(&err, &buf, &buf_len, " PRED");
+		} else {
+			arm_spe_pkt_out_string(&err, &buf, &buf_len, "OTHER");
+			arm_spe_pkt_out_string(&err, &buf, &buf_len, " %s",
+					       payload & SPE_OP_PKT_COND ?
+					       "COND-SELECT" : "INSN-OTHER");
+		}
 		break;
 	case SPE_OP_PKT_HDR_CLASS_LD_ST_ATOMIC:
 		arm_spe_pkt_out_string(&err, &buf, &buf_len,
@@ -360,6 +381,17 @@ static int arm_spe_pkt_desc_op_type(const struct arm_spe_pkt *packet,
 			break;
 		default:
 			break;
+		}
+
+		if (SPE_OP_PKT_IS_LDST_SVE(payload)) {
+			/* SVE effective vector length */
+			arm_spe_pkt_out_string(&err, &buf, &buf_len, " EVLEN %d",
+					       SPE_OP_PKG_SVE_EVL(payload));
+
+			if (payload & SPE_OP_PKT_SVE_PRED)
+				arm_spe_pkt_out_string(&err, &buf, &buf_len, " PRED");
+			if (payload & SPE_OP_PKT_SVE_SG)
+				arm_spe_pkt_out_string(&err, &buf, &buf_len, " SG");
 		}
 		break;
 	case SPE_OP_PKT_HDR_CLASS_BR_ERET:
