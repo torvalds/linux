@@ -39,7 +39,7 @@ struct vidtv_s302m_ctx {
 	u32 frame_index;
 	u32 au_count;
 	int last_duration;
-	int note_offset;
+	unsigned int note_offset;
 	enum musical_notes last_tone;
 };
 

@@ -253,18 +253,12 @@ static u16 vidtv_s302m_get_sample(struct vidtv_encoder *e)
 			ctx->last_duration--;
 		}
 
-		/* Handle silent */
-		if (!ctx->last_tone) {
-			e->src_buf_offset = 0;
+		/* Handle pause notes */
+		if (!ctx->last_tone)
 			return 0x8000;
-		}
 
-		pos = (2 * PI * ctx->note_offset * ctx->last_tone / S302M_SAMPLING_RATE_HZ);
-
-		if (pos == 360)
-			ctx->note_offset = 0;
-		else
-			ctx->note_offset++;
+		pos = (2 * PI * ctx->note_offset * ctx->last_tone) / S302M_SAMPLING_RATE_HZ;
+		ctx->note_offset++;
 
 		return (fixp_sin32(pos % (2 * PI)) >> 16) + 0x8000;
 	}
