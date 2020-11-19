@@ -23,6 +23,8 @@
 		serial2 = &lpuart1;
 		spi0 = &fspi;
 		spi1 = &dspi2;
+		mmc0 = &esdhc1;
+		mmc1 = &esdhc;
 	};
 
 	buttons0 {
