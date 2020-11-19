@@ -909,7 +909,7 @@ static int adp5589_keypad_add(struct adp5589_kpad *kpad, unsigned int revid)
 		return -EINVAL;
 	}
 
-	input = input_allocate_device();
+	input = devm_input_allocate_device(&client->dev);
 	if (!input)
 		return -ENOMEM;
 
@@ -955,36 +955,21 @@ static int adp5589_keypad_add(struct adp5589_kpad *kpad, unsigned int revid)
 	error = input_register_device(input);
 	if (error) {
 		dev_err(&client->dev, "unable to register input device\n");
-		goto err_free_input;
+		return error;
 	}
 
-	error = request_threaded_irq(client->irq, NULL, adp5589_irq,
-				     IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-				     client->dev.driver->name, kpad);
+	error = devm_request_threaded_irq(&client->dev, client->irq,
+					  NULL, adp5589_irq,
+					  IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+					  client->dev.driver->name, kpad);
 	if (error) {
-		dev_err(&client->dev, "irq %d busy?\n", client->irq);
-		goto err_unreg_dev;
+		dev_err(&client->dev, "unable to request irq %d\n", client->irq);
+		return error;
 	}
 
 	device_init_wakeup(&client->dev, 1);
 
 	return 0;
-
-err_unreg_dev:
-	input_unregister_device(input);
-	input = NULL;
-err_free_input:
-	input_free_device(input);
-
-	return error;
-}
-
-static void adp5589_keypad_remove(struct adp5589_kpad *kpad)
-{
-	if (kpad->input) {
-		free_irq(kpad->client->irq, kpad);
-		input_unregister_device(kpad->input);
-	}
 }
 
 static int adp5589_probe(struct i2c_client *client,
@@ -1041,24 +1026,19 @@ static int adp5589_probe(struct i2c_client *client,
 
 	error = adp5589_setup(kpad);
 	if (error)
-		goto err_keypad_remove;
+		return error;
 
 	if (kpad->gpimapsize)
 		adp5589_report_switch_state(kpad);
 
 	error = adp5589_gpio_add(kpad);
 	if (error)
-		goto err_keypad_remove;
+		return error;
 
 	i2c_set_clientdata(client, kpad);
 
 	dev_info(&client->dev, "Rev.%d keypad, irq %d\n", revid, client->irq);
 	return 0;
-
-err_keypad_remove:
-	adp5589_keypad_remove(kpad);
-
-	return error;
 }
 
 static int adp5589_remove(struct i2c_client *client)
@@ -1066,7 +1046,6 @@ static int adp5589_remove(struct i2c_client *client)
 	struct adp5589_kpad *kpad = i2c_get_clientdata(client);
 
 	adp5589_write(client, kpad->var->reg(ADP5589_GENERAL_CFG), 0);
-	adp5589_keypad_remove(kpad);
 	adp5589_gpio_remove(kpad);
 
 	return 0;
