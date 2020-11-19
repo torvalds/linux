@@ -946,6 +946,7 @@ static int sienna_cichlid_print_clk_levels(struct smu_context *smu,
 	uint32_t mark_index = 0;
 	uint32_t gen_speed, lane_width;
 	uint32_t min_value, max_value;
+	uint32_t smu_version;
 
 	switch (clk_type) {
 	case SMU_GFXCLK:
@@ -1041,6 +1042,23 @@ static int sienna_cichlid_print_clk_levels(struct smu_context *smu,
 
 		size += sprintf(buf + size, "OD_MCLK:\n");
 		size += sprintf(buf + size, "0: %uMhz\n1: %uMHz\n", od_table->UclkFmin, od_table->UclkFmax);
+		break;
+
+	case SMU_OD_VDDGFX_OFFSET:
+		if (!smu->od_enabled || !od_table || !od_settings)
+			break;
+
+		/*
+		 * OD GFX Voltage Offset functionality is supported only by 58.41.0
+		 * and onwards SMU firmwares.
+		 */
+		smu_cmn_get_smc_version(smu, NULL, &smu_version);
+		if ((adev->asic_type == CHIP_SIENNA_CICHLID) &&
+		     (smu_version < 0x003a2900))
+			break;
+
+		size += sprintf(buf + size, "OD_VDDGFX_OFFSET:\n");
+		size += sprintf(buf + size, "%dmV\n", od_table->VddGfxOffset);
 		break;
 
 	case SMU_OD_RANGE:
@@ -1770,10 +1788,18 @@ static int sienna_cichlid_get_dpm_ultimate_freq(struct smu_context *smu,
 static void sienna_cichlid_dump_od_table(struct smu_context *smu,
 					 OverDriveTable_t *od_table)
 {
+	struct amdgpu_device *adev = smu->adev;
+	uint32_t smu_version;
+
 	dev_dbg(smu->adev->dev, "OD: Gfxclk: (%d, %d)\n", od_table->GfxclkFmin,
 							  od_table->GfxclkFmax);
 	dev_dbg(smu->adev->dev, "OD: Uclk: (%d, %d)\n", od_table->UclkFmin,
 							od_table->UclkFmax);
+
+	smu_cmn_get_smc_version(smu, NULL, &smu_version);
+	if (!((adev->asic_type == CHIP_SIENNA_CICHLID) &&
+	       (smu_version < 0x003a2900)))
+		dev_dbg(smu->adev->dev, "OD: VddGfxOffset: %d\n", od_table->VddGfxOffset);
 }
 
 static int sienna_cichlid_set_default_od_settings(struct smu_context *smu)
@@ -1826,9 +1852,11 @@ static int sienna_cichlid_od_edit_dpm_table(struct smu_context *smu,
 		(OverDriveTable_t *)table_context->overdrive_table;
 	struct smu_11_0_7_overdrive_table *od_settings =
 		(struct smu_11_0_7_overdrive_table *)smu->od_settings;
+	struct amdgpu_device *adev = smu->adev;
 	enum SMU_11_0_7_ODSETTING_ID freq_setting;
 	uint16_t *freq_ptr;
 	int i, ret = 0;
+	uint32_t smu_version;
 
 	if (!smu->od_enabled) {
 		dev_warn(smu->adev->dev, "OverDrive is not enabled!\n");
@@ -1962,6 +1990,29 @@ static int sienna_cichlid_od_edit_dpm_table(struct smu_context *smu,
 			dev_err(smu->adev->dev, "Failed to import overdrive table!\n");
 			return ret;
 		}
+		break;
+
+	case PP_OD_EDIT_VDDGFX_OFFSET:
+		if (size != 1) {
+			dev_info(smu->adev->dev, "invalid number of parameters: %d\n", size);
+			return -EINVAL;
+		}
+
+		/*
+		 * OD GFX Voltage Offset functionality is supported only by 58.41.0
+		 * and onwards SMU firmwares.
+		 */
+		smu_cmn_get_smc_version(smu, NULL, &smu_version);
+		if ((adev->asic_type == CHIP_SIENNA_CICHLID) &&
+		     (smu_version < 0x003a2900)) {
+			dev_err(smu->adev->dev, "OD GFX Voltage offset functionality is supported "
+						"only by 58.41.0 and onwards SMU firmwares!\n");
+			return -EOPNOTSUPP;
+		}
+
+		od_table->VddGfxOffset = (int16_t)input[0];
+
+		sienna_cichlid_dump_od_table(smu, od_table);
 		break;
 
 	default:

@@ -736,6 +736,12 @@ static ssize_t amdgpu_set_pp_table(struct device *dev,
  * - three <frequency, voltage> points labeled OD_VDDC_CURVE.
  *   They can be used to calibrate the sclk voltage curve.
  *
+ * - voltage offset(in mV) applied on target voltage calculation.
+ *   This is available for Sienna Cichlid, Navy Flounder and Dimgrey
+ *   Cavefish. For these ASICs, the target voltage calculation can be
+ *   illustrated by "voltage = voltage calculated from v/f curve +
+ *   overdrive vddgfx offset"
+ *
  * - a list of valid ranges for sclk, mclk, and voltage curve points
  *   labeled OD_RANGE
  *
@@ -755,6 +761,11 @@ static ssize_t amdgpu_set_pp_table(struct device *dev,
  *   update point1 with clock set as 300Mhz and voltage as
  *   600mV. "vc 2 1000 1000" will update point3 with clock set
  *   as 1000Mhz and voltage 1000mV.
+ *
+ *   To update the voltage offset applied for gfxclk/voltage calculation,
+ *   enter the new value by writing a string that contains "vo offset".
+ *   This is supported by Sienna Cichlid, Navy Flounder and Dimgrey Cavefish.
+ *   And the offset can be a positive or negative value.
  *
  * - When you have edited all of the states as needed, write "c" (commit)
  *   to the file to commit your changes
@@ -796,6 +807,8 @@ static ssize_t amdgpu_set_pp_od_clk_voltage(struct device *dev,
 		type = PP_OD_COMMIT_DPM_TABLE;
 	else if (!strncmp(buf, "vc", 2))
 		type = PP_OD_EDIT_VDDC_CURVE;
+	else if (!strncmp(buf, "vo", 2))
+		type = PP_OD_EDIT_VDDGFX_OFFSET;
 	else
 		return -EINVAL;
 
@@ -803,7 +816,8 @@ static ssize_t amdgpu_set_pp_od_clk_voltage(struct device *dev,
 
 	tmp_str = buf_cpy;
 
-	if (type == PP_OD_EDIT_VDDC_CURVE)
+	if ((type == PP_OD_EDIT_VDDC_CURVE) ||
+	     (type == PP_OD_EDIT_VDDGFX_OFFSET))
 		tmp_str++;
 	while (isspace(*++tmp_str));
 
@@ -899,6 +913,7 @@ static ssize_t amdgpu_get_pp_od_clk_voltage(struct device *dev,
 		size = smu_print_clk_levels(&adev->smu, SMU_OD_SCLK, buf);
 		size += smu_print_clk_levels(&adev->smu, SMU_OD_MCLK, buf+size);
 		size += smu_print_clk_levels(&adev->smu, SMU_OD_VDDC_CURVE, buf+size);
+		size += smu_print_clk_levels(&adev->smu, SMU_OD_VDDGFX_OFFSET, buf+size);
 		size += smu_print_clk_levels(&adev->smu, SMU_OD_RANGE, buf+size);
 	} else if (adev->powerplay.pp_funcs->print_clock_levels) {
 		size = amdgpu_dpm_print_clock_levels(adev, OD_SCLK, buf);

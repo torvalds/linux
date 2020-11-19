@@ -241,6 +241,7 @@ enum smu_clk_type {
 	SMU_OD_MCLK,
 	SMU_OD_VDDC_CURVE,
 	SMU_OD_RANGE,
+	SMU_OD_VDDGFX_OFFSET,
 	SMU_CLK_COUNT,
 };
 
