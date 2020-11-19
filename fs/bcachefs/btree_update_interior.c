@@ -49,12 +49,27 @@ static void btree_node_interior_verify(struct bch_fs *c, struct btree *b)
 			break;
 		bp = bkey_s_c_to_btree_ptr_v2(k);
 
-		BUG_ON(bkey_cmp(next_node, bp.v->min_key));
+		if (bkey_cmp(next_node, bp.v->min_key)) {
+			bch2_dump_btree_node(c, b);
+			panic("expected next min_key %llu:%llu got %llu:%llu\n",
+			      next_node.inode,
+			      next_node.offset,
+			      bp.v->min_key.inode,
+			      bp.v->min_key.offset);
+		}
 
 		bch2_btree_node_iter_advance(&iter, b);
 
 		if (bch2_btree_node_iter_end(&iter)) {
-			BUG_ON(bkey_cmp(k.k->p, b->key.k.p));
+
+			if (bkey_cmp(k.k->p, b->key.k.p)) {
+				bch2_dump_btree_node(c, b);
+				panic("expected end %llu:%llu got %llu:%llu\n",
+				      b->key.k.p.inode,
+				      b->key.k.p.offset,
+				      k.k->p.inode,
+				      k.k->p.offset);
+			}
 			break;
 		}
 
