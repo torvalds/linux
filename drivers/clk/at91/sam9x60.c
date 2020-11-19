@@ -228,13 +228,24 @@ static void __init sam9x60_pmc_setup(struct device_node *np)
 	hw = sam9x60_clk_register_frac_pll(regmap, &pmc_pll_lock, "pllack_fracck",
 					   "mainck", sam9x60_pmc->chws[PMC_MAIN],
 					   0, &plla_characteristics,
-					   &pll_frac_layout, true);
+					   &pll_frac_layout,
+					   /*
+					    * This feeds pllack_divck which
+					    * feeds CPU. It should not be
+					    * disabled.
+					    */
+					   CLK_IS_CRITICAL | CLK_SET_RATE_GATE);
 	if (IS_ERR(hw))
 		goto err_free;
 
 	hw = sam9x60_clk_register_div_pll(regmap, &pmc_pll_lock, "pllack_divck",
 					  "pllack_fracck", 0, &plla_characteristics,
-					  &pll_div_layout, true);
+					  &pll_div_layout,
+					   /*
+					    * This feeds CPU. It should not
+					    * be disabled.
+					    */
+					  CLK_IS_CRITICAL | CLK_SET_RATE_GATE);
 	if (IS_ERR(hw))
 		goto err_free;
 
@@ -243,13 +254,16 @@ static void __init sam9x60_pmc_setup(struct device_node *np)
 	hw = sam9x60_clk_register_frac_pll(regmap, &pmc_pll_lock, "upllck_fracck",
 					   "main_osc", main_osc_hw, 1,
 					   &upll_characteristics,
-					   &pll_frac_layout, false);
+					   &pll_frac_layout, CLK_SET_RATE_GATE);
 	if (IS_ERR(hw))
 		goto err_free;
 
 	hw = sam9x60_clk_register_div_pll(regmap, &pmc_pll_lock, "upllck_divck",
 					  "upllck_fracck", 1, &upll_characteristics,
-					  &pll_div_layout, false);
+					  &pll_div_layout,
+					  CLK_SET_RATE_GATE |
+					  CLK_SET_PARENT_GATE |
+					  CLK_SET_RATE_PARENT);
 	if (IS_ERR(hw))
 		goto err_free;
 

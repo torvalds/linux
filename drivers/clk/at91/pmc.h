@@ -190,14 +190,14 @@ struct clk_hw * __init
 sam9x60_clk_register_div_pll(struct regmap *regmap, spinlock_t *lock,
 			     const char *name, const char *parent_name, u8 id,
 			     const struct clk_pll_characteristics *characteristics,
-			     const struct clk_pll_layout *layout, bool critical);
+			     const struct clk_pll_layout *layout, u32 flags);
 
 struct clk_hw * __init
 sam9x60_clk_register_frac_pll(struct regmap *regmap, spinlock_t *lock,
 			      const char *name, const char *parent_name,
 			      struct clk_hw *parent_hw, u8 id,
 			      const struct clk_pll_characteristics *characteristics,
-			      const struct clk_pll_layout *layout, bool critical);
+			      const struct clk_pll_layout *layout, u32 flags);
 
 struct clk_hw * __init
 at91_clk_register_programmable(struct regmap *regmap, const char *name,

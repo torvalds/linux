@@ -95,15 +95,15 @@ static const struct clk_pll_layout pll_layout_divio = {
  * @p:		clock parent
  * @l:		clock layout
  * @t:		clock type
- * @f:		true if clock is critical and cannot be disabled
+ * @f:		clock flags
  * @eid:	export index in sama7g5->chws[] array
  */
 static const struct {
 	const char *n;
 	const char *p;
 	const struct clk_pll_layout *l;
+	unsigned long f;
 	u8 t;
-	u8 c;
 	u8 eid;
 } sama7g5_plls[][PLL_ID_MAX] = {
 	[PLL_ID_CPU] = {
@@ -111,13 +111,18 @@ static const struct {
 		  .p = "mainck",
 		  .l = &pll_layout_frac,
 		  .t = PLL_TYPE_FRAC,
-		  .c = 1, },
+		   /*
+		    * This feeds cpupll_divpmcck which feeds CPU. It should
+		    * not be disabled.
+		    */
+		  .f = CLK_IS_CRITICAL, },
 
 		{ .n = "cpupll_divpmcck",
 		  .p = "cpupll_fracck",
 		  .l = &pll_layout_divpmc,
 		  .t = PLL_TYPE_DIV,
-		  .c = 1,
+		   /* This feeds CPU. It should not be disabled. */
+		  .f = CLK_IS_CRITICAL | CLK_SET_RATE_PARENT,
 		  .eid = PMC_CPUPLL, },
 	},
 
@@ -126,13 +131,22 @@ static const struct {
 		  .p = "mainck",
 		  .l = &pll_layout_frac,
 		  .t = PLL_TYPE_FRAC,
-		  .c = 1, },
+		   /*
+		    * This feeds syspll_divpmcck which may feed critial parts
+		    * of the systems like timers. Therefore it should not be
+		    * disabled.
+		    */
+		  .f = CLK_IS_CRITICAL | CLK_SET_RATE_GATE, },
 
 		{ .n = "syspll_divpmcck",
 		  .p = "syspll_fracck",
 		  .l = &pll_layout_divpmc,
 		  .t = PLL_TYPE_DIV,
-		  .c = 1,
+		   /*
+		    * This may feed critial parts of the systems like timers.
+		    * Therefore it should not be disabled.
+		    */
+		  .f = CLK_IS_CRITICAL | CLK_SET_RATE_GATE,
 		  .eid = PMC_SYSPLL, },
 	},
 
@@ -141,55 +155,71 @@ static const struct {
 		  .p = "mainck",
 		  .l = &pll_layout_frac,
 		  .t = PLL_TYPE_FRAC,
-		  .c = 1, },
+		   /*
+		    * This feeds ddrpll_divpmcck which feeds DDR. It should not
+		    * be disabled.
+		    */
+		  .f = CLK_IS_CRITICAL | CLK_SET_RATE_GATE, },
 
 		{ .n = "ddrpll_divpmcck",
 		  .p = "ddrpll_fracck",
 		  .l = &pll_layout_divpmc,
 		  .t = PLL_TYPE_DIV,
-		  .c = 1, },
+		   /* This feeds DDR. It should not be disabled. */
+		  .f = CLK_IS_CRITICAL | CLK_SET_RATE_GATE, },
 	},
 
 	[PLL_ID_IMG] = {
 		{ .n = "imgpll_fracck",
 		  .p = "mainck",
 		  .l = &pll_layout_frac,
-		  .t = PLL_TYPE_FRAC, },
+		  .t = PLL_TYPE_FRAC,
+		  .f = CLK_SET_RATE_GATE, },
 
 		{ .n = "imgpll_divpmcck",
 		  .p = "imgpll_fracck",
 		  .l = &pll_layout_divpmc,
-		  .t = PLL_TYPE_DIV, },
+		  .t = PLL_TYPE_DIV,
+		  .f = CLK_SET_RATE_GATE | CLK_SET_PARENT_GATE |
+		       CLK_SET_RATE_PARENT, },
 	},
 
 	[PLL_ID_BAUD] = {
 		{ .n = "baudpll_fracck",
 		  .p = "mainck",
 		  .l = &pll_layout_frac,
-		  .t = PLL_TYPE_FRAC, },
+		  .t = PLL_TYPE_FRAC,
+		  .f = CLK_SET_RATE_GATE, },
 
 		{ .n = "baudpll_divpmcck",
 		  .p = "baudpll_fracck",
 		  .l = &pll_layout_divpmc,
-		  .t = PLL_TYPE_DIV, },
+		  .t = PLL_TYPE_DIV,
+		  .f = CLK_SET_RATE_GATE | CLK_SET_PARENT_GATE |
+		       CLK_SET_RATE_PARENT, },
 	},
 
 	[PLL_ID_AUDIO] = {
 		{ .n = "audiopll_fracck",
 		  .p = "main_xtal",
 		  .l = &pll_layout_frac,
-		  .t = PLL_TYPE_FRAC, },
+		  .t = PLL_TYPE_FRAC,
+		  .f = CLK_SET_RATE_GATE, },
 
 		{ .n = "audiopll_divpmcck",
 		  .p = "audiopll_fracck",
 		  .l = &pll_layout_divpmc,
 		  .t = PLL_TYPE_DIV,
+		  .f = CLK_SET_RATE_GATE | CLK_SET_PARENT_GATE |
+		       CLK_SET_RATE_PARENT,
 		  .eid = PMC_AUDIOPMCPLL, },
 
 		{ .n = "audiopll_diviock",
 		  .p = "audiopll_fracck",
 		  .l = &pll_layout_divio,
 		  .t = PLL_TYPE_DIV,
+		  .f = CLK_SET_RATE_GATE | CLK_SET_PARENT_GATE |
+		       CLK_SET_RATE_PARENT,
 		  .eid = PMC_AUDIOIOPLL, },
 	},
 
@@ -197,12 +227,15 @@ static const struct {
 		{ .n = "ethpll_fracck",
 		  .p = "main_xtal",
 		  .l = &pll_layout_frac,
-		  .t = PLL_TYPE_FRAC, },
+		  .t = PLL_TYPE_FRAC,
+		  .f = CLK_SET_RATE_GATE, },
 
 		{ .n = "ethpll_divpmcck",
 		  .p = "ethpll_fracck",
 		  .l = &pll_layout_divpmc,
-		  .t = PLL_TYPE_DIV, },
+		  .t = PLL_TYPE_DIV,
+		  .f = CLK_SET_RATE_GATE | CLK_SET_PARENT_GATE |
+		       CLK_SET_RATE_PARENT, },
 	},
 };
 
@@ -890,7 +923,7 @@ static void __init sama7g5_pmc_setup(struct device_node *np)
 					sama7g5_plls[i][j].p, parent_hw, i,
 					&pll_characteristics,
 					sama7g5_plls[i][j].l,
-					sama7g5_plls[i][j].c);
+					sama7g5_plls[i][j].f);
 				break;
 
 			case PLL_TYPE_DIV:
@@ -899,7 +932,7 @@ static void __init sama7g5_pmc_setup(struct device_node *np)
 					sama7g5_plls[i][j].p, i,
 					&pll_characteristics,
 					sama7g5_plls[i][j].l,
-					sama7g5_plls[i][j].c);
+					sama7g5_plls[i][j].f);
 				break;
 
 			default:
