@@ -314,6 +314,12 @@ static int sienna_cichlid_check_powerplay_table(struct smu_context *smu)
 	table_context->thermal_controller_type =
 		powerplay_table->thermal_controller_type;
 
+	/*
+	 * Instead of having its own buffer space and get overdrive_table copied,
+	 * smu->od_settings just points to the actual overdrive_table
+	 */
+	smu->od_settings = &powerplay_table->overdrive_table;
+
 	return 0;
 }
 
@@ -1694,6 +1700,37 @@ static int sienna_cichlid_get_dpm_ultimate_freq(struct smu_context *smu,
 	return ret;
 }
 
+static void sienna_cichlid_dump_od_table(struct smu_context *smu,
+					 OverDriveTable_t *od_table)
+{
+	dev_dbg(smu->adev->dev, "OD: Gfxclk: (%d, %d)\n", od_table->GfxclkFmin,
+							  od_table->GfxclkFmax);
+	dev_dbg(smu->adev->dev, "OD: Uclk: (%d, %d)\n", od_table->UclkFmin,
+							od_table->UclkFmax);
+}
+
+static int sienna_cichlid_set_default_od_settings(struct smu_context *smu)
+{
+	OverDriveTable_t *od_table =
+		(OverDriveTable_t *)smu->smu_table.overdrive_table;
+	OverDriveTable_t *boot_od_table =
+		(OverDriveTable_t *)smu->smu_table.boot_overdrive_table;
+	int ret = 0;
+
+	ret = smu_cmn_update_table(smu, SMU_TABLE_OVERDRIVE,
+				   0, (void *)od_table, false);
+	if (ret) {
+		dev_err(smu->adev->dev, "Failed to get overdrive table!\n");
+		return ret;
+	}
+
+	memcpy(boot_od_table, od_table, sizeof(OverDriveTable_t));
+
+	sienna_cichlid_dump_od_table(smu, od_table);
+
+	return 0;
+}
+
 static int sienna_cichlid_run_btc(struct smu_context *smu)
 {
 	return smu_cmn_send_smc_msg(smu, SMU_MSG_RunDcBtc, NULL);
@@ -2817,6 +2854,7 @@ static const struct pptable_funcs sienna_cichlid_ppt_funcs = {
 	.mode1_reset = smu_v11_0_mode1_reset,
 	.get_dpm_ultimate_freq = sienna_cichlid_get_dpm_ultimate_freq,
 	.set_soft_freq_limited_range = smu_v11_0_set_soft_freq_limited_range,
+	.set_default_od_settings = sienna_cichlid_set_default_od_settings,
 	.run_btc = sienna_cichlid_run_btc,
 	.set_power_source = smu_v11_0_set_power_source,
 	.get_pp_feature_mask = smu_cmn_get_pp_feature_mask,
