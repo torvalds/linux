@@ -410,6 +410,7 @@
 			      <0x58000014 4>;
 			reg-names = "rev", "syss";
 			ti,syss-mask = <1>;
+			power-domains = <&prm_dss>;
 			clocks = <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 0>,
 				 <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 9>,
 				 <&dss_clkctrl OMAP5_DSS_CORE_CLKCTRL 10>,
