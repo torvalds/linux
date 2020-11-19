@@ -155,6 +155,23 @@ struct scmi_msg_sensor_reading_get {
 #define SENSOR_READ_ASYNC	BIT(0)
 };
 
+struct scmi_resp_sensor_reading_complete {
+	__le32 id;
+	__le64 readings;
+};
+
+struct scmi_sensor_reading_le {
+	__le32 sensor_value_low;
+	__le32 sensor_value_high;
+	__le32 timestamp_low;
+	__le32 timestamp_high;
+};
+
+struct scmi_resp_sensor_reading_complete_v3 {
+	__le32 id;
+	struct scmi_sensor_reading_le readings[];
+};
+
 struct scmi_sensor_trip_notify_payld {
 	__le32 agent_id;
 	__le32 sensor_id;
@@ -575,6 +592,21 @@ scmi_sensor_trip_point_config(const struct scmi_handle *handle, u32 sensor_id,
 	return ret;
 }
 
+/**
+ * scmi_sensor_reading_get  - Read scalar sensor value
+ * @handle: Platform handle
+ * @sensor_id: Sensor ID
+ * @value: The 64bit value sensor reading
+ *
+ * This function returns a single 64 bit reading value representing the sensor
+ * value; if the platform SCMI Protocol implementation and the sensor support
+ * multiple axis and timestamped-reads, this just returns the first axis while
+ * dropping the timestamp value.
+ * Use instead the @scmi_sensor_reading_get_timestamped to retrieve the array of
+ * timestamped multi-axis values.
+ *
+ * Return: 0 on Success
+ */
 static int scmi_sensor_reading_get(const struct scmi_handle *handle,
 				   u32 sensor_id, u64 *value)
 {
@@ -585,25 +617,107 @@ static int scmi_sensor_reading_get(const struct scmi_handle *handle,
 	struct scmi_sensor_info *s = si->sensors + sensor_id;
 
 	ret = scmi_xfer_get_init(handle, SENSOR_READING_GET,
-				 SCMI_PROTOCOL_SENSOR, sizeof(*sensor),
-				 sizeof(u64), &t);
+				 SCMI_PROTOCOL_SENSOR, sizeof(*sensor), 0, &t);
 	if (ret)
 		return ret;
 
 	sensor = t->tx.buf;
 	sensor->id = cpu_to_le32(sensor_id);
-
 	if (s->async) {
 		sensor->flags = cpu_to_le32(SENSOR_READ_ASYNC);
 		ret = scmi_do_xfer_with_response(handle, t);
-		if (!ret)
-			*value = get_unaligned_le64((void *)
-						    ((__le32 *)t->rx.buf + 1));
+		if (!ret) {
+			struct scmi_resp_sensor_reading_complete *resp;
+
+			resp = t->rx.buf;
+			if (le32_to_cpu(resp->id) == sensor_id)
+				*value = get_unaligned_le64(&resp->readings);
+			else
+				ret = -EPROTO;
+		}
 	} else {
 		sensor->flags = cpu_to_le32(0);
 		ret = scmi_do_xfer(handle, t);
 		if (!ret)
 			*value = get_unaligned_le64(t->rx.buf);
+	}
+
+	scmi_xfer_put(handle, t);
+	return ret;
+}
+
+static inline void
+scmi_parse_sensor_readings(struct scmi_sensor_reading *out,
+			   const struct scmi_sensor_reading_le *in)
+{
+	out->value = get_unaligned_le64((void *)&in->sensor_value_low);
+	out->timestamp = get_unaligned_le64((void *)&in->timestamp_low);
+}
+
+/**
+ * scmi_sensor_reading_get_timestamped  - Read multiple-axis timestamped values
+ * @handle: Platform handle
+ * @sensor_id: Sensor ID
+ * @count: The length of the provided @readings array
+ * @readings: An array of elements each representing a timestamped per-axis
+ *	      reading of type @struct scmi_sensor_reading.
+ *	      Returned readings are ordered as the @axis descriptors array
+ *	      included in @struct scmi_sensor_info and the max number of
+ *	      returned elements is min(@count, @num_axis); ideally the provided
+ *	      array should be of length @count equal to @num_axis.
+ *
+ * Return: 0 on Success
+ */
+static int
+scmi_sensor_reading_get_timestamped(const struct scmi_handle *handle,
+				    u32 sensor_id, u8 count,
+				    struct scmi_sensor_reading *readings)
+{
+	int ret;
+	struct scmi_xfer *t;
+	struct scmi_msg_sensor_reading_get *sensor;
+	struct sensors_info *si = handle->sensor_priv;
+	struct scmi_sensor_info *s = si->sensors + sensor_id;
+
+	if (!count || !readings ||
+	    (!s->num_axis && count > 1) || (s->num_axis && count > s->num_axis))
+		return -EINVAL;
+
+	ret = scmi_xfer_get_init(handle, SENSOR_READING_GET,
+				 SCMI_PROTOCOL_SENSOR, sizeof(*sensor), 0, &t);
+	if (ret)
+		return ret;
+
+	sensor = t->tx.buf;
+	sensor->id = cpu_to_le32(sensor_id);
+	if (s->async) {
+		sensor->flags = cpu_to_le32(SENSOR_READ_ASYNC);
+		ret = scmi_do_xfer_with_response(handle, t);
+		if (!ret) {
+			int i;
+			struct scmi_resp_sensor_reading_complete_v3 *resp;
+
+			resp = t->rx.buf;
+			/* Retrieve only the number of requested axis anyway */
+			if (le32_to_cpu(resp->id) == sensor_id)
+				for (i = 0; i < count; i++)
+					scmi_parse_sensor_readings(&readings[i],
+								   &resp->readings[i]);
+			else
+				ret = -EPROTO;
+		}
+	} else {
+		sensor->flags = cpu_to_le32(0);
+		ret = scmi_do_xfer(handle, t);
+		if (!ret) {
+			int i;
+			struct scmi_sensor_reading_le *resp_readings;
+
+			resp_readings = t->rx.buf;
+			for (i = 0; i < count; i++)
+				scmi_parse_sensor_readings(&readings[i],
+							   &resp_readings[i]);
+		}
 	}
 
 	scmi_xfer_put(handle, t);
@@ -630,6 +744,7 @@ static const struct scmi_sensor_ops sensor_ops = {
 	.info_get = scmi_sensor_info_get,
 	.trip_point_config = scmi_sensor_trip_point_config,
 	.reading_get = scmi_sensor_reading_get,
+	.reading_get_timestamped = scmi_sensor_reading_get_timestamped,
 };
 
 static int scmi_sensor_set_notify_enabled(const struct scmi_handle *handle,
