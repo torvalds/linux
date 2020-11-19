@@ -220,8 +220,13 @@ static inline void mlx5dr_htbl_get(struct mlx5dr_ste_htbl *htbl)
 
 /* STE utils */
 u32 mlx5dr_ste_calc_hash_index(u8 *hw_ste_p, struct mlx5dr_ste_htbl *htbl);
-void mlx5dr_ste_set_miss_addr(u8 *hw_ste, u64 miss_addr);
-void mlx5dr_ste_set_hit_addr(u8 *hw_ste, u64 icm_addr, u32 ht_size);
+void mlx5dr_ste_set_miss_addr(struct mlx5dr_ste_ctx *ste_ctx,
+			      u8 *hw_ste, u64 miss_addr);
+void mlx5dr_ste_set_hit_addr(struct mlx5dr_ste_ctx *ste_ctx,
+			     u8 *hw_ste, u64 icm_addr, u32 ht_size);
+void mlx5dr_ste_set_hit_addr_by_next_htbl(struct mlx5dr_ste_ctx *ste_ctx,
+					  u8 *hw_ste,
+					  struct mlx5dr_ste_htbl *next_htbl);
 void mlx5dr_ste_set_bit_mask(u8 *hw_ste_p, u8 *bit_mask);
 bool mlx5dr_ste_is_last_in_rule(struct mlx5dr_matcher_rx_tx *nic_matcher,
 				u8 ste_location);
@@ -250,12 +255,14 @@ struct mlx5dr_ste_actions_attr {
 	} vlans;
 };
 
-void mlx5dr_ste_set_actions_rx(struct mlx5dr_domain *dmn,
+void mlx5dr_ste_set_actions_rx(struct mlx5dr_ste_ctx *ste_ctx,
+			       struct mlx5dr_domain *dmn,
 			       u8 *action_type_set,
 			       u8 *last_ste,
 			       struct mlx5dr_ste_actions_attr *attr,
 			       u32 *added_stes);
-void mlx5dr_ste_set_actions_tx(struct mlx5dr_domain *dmn,
+void mlx5dr_ste_set_actions_tx(struct mlx5dr_ste_ctx *ste_ctx,
+			       struct mlx5dr_domain *dmn,
 			       u8 *action_type_set,
 			       u8 *last_ste,
 			       struct mlx5dr_ste_actions_attr *attr,
@@ -285,8 +292,6 @@ static inline bool mlx5dr_ste_is_not_used(struct mlx5dr_ste *ste)
 	return !ste->refcount;
 }
 
-void mlx5dr_ste_set_hit_addr_by_next_htbl(u8 *hw_ste,
-					  struct mlx5dr_ste_htbl *next_htbl);
 bool mlx5dr_ste_equal_tag(void *src, void *dst);
 int mlx5dr_ste_create_next_htbl(struct mlx5dr_matcher *matcher,
 				struct mlx5dr_matcher_rx_tx *nic_matcher,
@@ -1035,7 +1040,8 @@ int mlx5dr_ste_htbl_init_and_postsend(struct mlx5dr_domain *dmn,
 				      struct mlx5dr_ste_htbl *htbl,
 				      struct mlx5dr_htbl_connect_info *connect_info,
 				      bool update_hw_ste);
-void mlx5dr_ste_set_formatted_ste(u16 gvmi,
+void mlx5dr_ste_set_formatted_ste(struct mlx5dr_ste_ctx *ste_ctx,
+				  u16 gvmi,
 				  struct mlx5dr_domain_rx_tx *nic_dmn,
 				  struct mlx5dr_ste_htbl *htbl,
 				  u8 *formatted_ste,

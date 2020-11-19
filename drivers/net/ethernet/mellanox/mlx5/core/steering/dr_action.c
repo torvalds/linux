@@ -383,13 +383,14 @@ static void dr_actions_apply(struct mlx5dr_domain *dmn,
 			     struct mlx5dr_ste_actions_attr *attr,
 			     u32 *new_num_stes)
 {
+	struct mlx5dr_ste_ctx *ste_ctx = dmn->ste_ctx;
 	u32 added_stes = 0;
 
 	if (ste_type == MLX5DR_STE_TYPE_RX)
-		mlx5dr_ste_set_actions_rx(dmn, action_type_set,
+		mlx5dr_ste_set_actions_rx(ste_ctx, dmn, action_type_set,
 					  last_ste, attr, &added_stes);
 	else
-		mlx5dr_ste_set_actions_tx(dmn, action_type_set,
+		mlx5dr_ste_set_actions_tx(ste_ctx, dmn, action_type_set,
 					  last_ste, attr, &added_stes);
 
 	*new_num_stes += added_stes;

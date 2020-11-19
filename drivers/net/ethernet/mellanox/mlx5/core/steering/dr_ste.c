@@ -172,21 +172,6 @@ static void dr_ste_set_hit_gvmi(u8 *hw_ste_p, u16 gvmi)
 	MLX5_SET(ste_general, hw_ste_p, next_table_base_63_48, gvmi);
 }
 
-static void dr_ste_init(u8 *hw_ste_p, u16 lu_type, u8 entry_type,
-			u16 gvmi)
-{
-	MLX5_SET(ste_general, hw_ste_p, entry_type, entry_type);
-	MLX5_SET(ste_general, hw_ste_p, entry_sub_type, lu_type);
-	MLX5_SET(ste_general, hw_ste_p, next_lu_type, MLX5DR_STE_LU_TYPE_DONT_CARE);
-
-	/* Set GVMI once, this is the same for RX/TX
-	 * bits 63_48 of next table base / miss address encode the next GVMI
-	 */
-	MLX5_SET(ste_rx_steering_mult, hw_ste_p, gvmi, gvmi);
-	MLX5_SET(ste_rx_steering_mult, hw_ste_p, next_table_base_63_48, gvmi);
-	MLX5_SET(ste_rx_steering_mult, hw_ste_p, miss_address_63_48, gvmi);
-}
-
 static void dr_ste_set_always_hit(struct dr_hw_ste_format *hw_ste)
 {
 	memset(&hw_ste->tag, 0, sizeof(hw_ste->tag));
@@ -199,40 +184,26 @@ static void dr_ste_set_always_miss(struct dr_hw_ste_format *hw_ste)
 	hw_ste->mask[0] = 0;
 }
 
-void mlx5dr_ste_set_miss_addr(u8 *hw_ste_p, u64 miss_addr)
+void mlx5dr_ste_set_miss_addr(struct mlx5dr_ste_ctx *ste_ctx,
+			      u8 *hw_ste_p, u64 miss_addr)
 {
-	u64 index = miss_addr >> 6;
-
-	/* Miss address for TX and RX STEs located in the same offsets */
-	MLX5_SET(ste_rx_steering_mult, hw_ste_p, miss_address_39_32, index >> 26);
-	MLX5_SET(ste_rx_steering_mult, hw_ste_p, miss_address_31_6, index);
+	ste_ctx->set_miss_addr(hw_ste_p, miss_addr);
 }
 
-static u64 dr_ste_get_miss_addr(u8 *hw_ste)
-{
-	u64 index =
-		(MLX5_GET(ste_rx_steering_mult, hw_ste, miss_address_31_6) |
-		 MLX5_GET(ste_rx_steering_mult, hw_ste, miss_address_39_32) << 26);
-
-	return index << 6;
-}
-
-static void dr_ste_always_miss_addr(struct mlx5dr_ste *ste, u64 miss_addr)
+static void dr_ste_always_miss_addr(struct mlx5dr_ste_ctx *ste_ctx,
+				    struct mlx5dr_ste *ste, u64 miss_addr)
 {
 	u8 *hw_ste_p = ste->hw_ste;
 
-	MLX5_SET(ste_rx_steering_mult, hw_ste_p, next_lu_type,
-		 MLX5DR_STE_LU_TYPE_DONT_CARE);
-	mlx5dr_ste_set_miss_addr(hw_ste_p, miss_addr);
+	ste_ctx->set_next_lu_type(hw_ste_p, MLX5DR_STE_LU_TYPE_DONT_CARE);
+	ste_ctx->set_miss_addr(hw_ste_p, miss_addr);
 	dr_ste_set_always_miss((struct dr_hw_ste_format *)ste->hw_ste);
 }
 
-void mlx5dr_ste_set_hit_addr(u8 *hw_ste, u64 icm_addr, u32 ht_size)
+void mlx5dr_ste_set_hit_addr(struct mlx5dr_ste_ctx *ste_ctx,
+			     u8 *hw_ste, u64 icm_addr, u32 ht_size)
 {
-	u64 index = (icm_addr >> 5) | ht_size;
-
-	MLX5_SET(ste_general, hw_ste, next_table_base_39_32_size, index >> 27);
-	MLX5_SET(ste_general, hw_ste, next_table_base_31_5_size, index);
+	ste_ctx->set_hit_addr(hw_ste, icm_addr, ht_size);
 }
 
 u64 mlx5dr_ste_get_icm_addr(struct mlx5dr_ste *ste)
@@ -256,15 +227,16 @@ struct list_head *mlx5dr_ste_get_miss_list(struct mlx5dr_ste *ste)
 	return &ste->htbl->miss_list[index];
 }
 
-static void dr_ste_always_hit_htbl(struct mlx5dr_ste *ste,
+static void dr_ste_always_hit_htbl(struct mlx5dr_ste_ctx *ste_ctx,
+				   struct mlx5dr_ste *ste,
 				   struct mlx5dr_ste_htbl *next_htbl)
 {
 	struct mlx5dr_icm_chunk *chunk = next_htbl->chunk;
 	u8 *hw_ste = ste->hw_ste;
 
-	MLX5_SET(ste_general, hw_ste, byte_mask, next_htbl->byte_mask);
-	MLX5_SET(ste_general, hw_ste, next_lu_type, next_htbl->lu_type);
-	mlx5dr_ste_set_hit_addr(hw_ste, chunk->icm_addr, chunk->num_of_entries);
+	ste_ctx->set_byte_mask(hw_ste, next_htbl->byte_mask);
+	ste_ctx->set_next_lu_type(hw_ste, next_htbl->lu_type);
+	ste_ctx->set_hit_addr(hw_ste, chunk->icm_addr, chunk->num_of_entries);
 
 	dr_ste_set_always_hit((struct dr_hw_ste_format *)ste->hw_ste);
 }
@@ -302,7 +274,8 @@ static void dr_ste_replace(struct mlx5dr_ste *dst, struct mlx5dr_ste *src)
 
 /* Free ste which is the head and the only one in miss_list */
 static void
-dr_ste_remove_head_ste(struct mlx5dr_ste *ste,
+dr_ste_remove_head_ste(struct mlx5dr_ste_ctx *ste_ctx,
+		       struct mlx5dr_ste *ste,
 		       struct mlx5dr_matcher_rx_tx *nic_matcher,
 		       struct mlx5dr_ste_send_info *ste_info_head,
 		       struct list_head *send_ste_list,
@@ -319,7 +292,7 @@ dr_ste_remove_head_ste(struct mlx5dr_ste *ste,
 	 */
 	memcpy(tmp_ste.hw_ste, ste->hw_ste, DR_STE_SIZE_REDUCED);
 	miss_addr = nic_matcher->e_anchor->chunk->icm_addr;
-	dr_ste_always_miss_addr(&tmp_ste, miss_addr);
+	dr_ste_always_miss_addr(ste_ctx, &tmp_ste, miss_addr);
 	memcpy(ste->hw_ste, tmp_ste.hw_ste, DR_STE_SIZE_REDUCED);
 
 	list_del_init(&ste->miss_list_node);
@@ -375,7 +348,8 @@ dr_ste_replace_head_ste(struct mlx5dr_ste *ste, struct mlx5dr_ste *next_ste,
 /* Free ste that is located in the middle of the miss list:
  * |__| -->|_prev_ste_|->|_ste_|-->|_next_ste_|
  */
-static void dr_ste_remove_middle_ste(struct mlx5dr_ste *ste,
+static void dr_ste_remove_middle_ste(struct mlx5dr_ste_ctx *ste_ctx,
+				     struct mlx5dr_ste *ste,
 				     struct mlx5dr_ste_send_info *ste_info,
 				     struct list_head *send_ste_list,
 				     struct mlx5dr_ste_htbl *stats_tbl)
@@ -387,8 +361,8 @@ static void dr_ste_remove_middle_ste(struct mlx5dr_ste *ste,
 	if (WARN_ON(!prev_ste))
 		return;
 
-	miss_addr = dr_ste_get_miss_addr(ste->hw_ste);
-	mlx5dr_ste_set_miss_addr(prev_ste->hw_ste, miss_addr);
+	miss_addr = ste_ctx->get_miss_addr(ste->hw_ste);
+	ste_ctx->set_miss_addr(prev_ste->hw_ste, miss_addr);
 
 	mlx5dr_send_fill_and_append_ste_send_info(prev_ste, DR_STE_SIZE_REDUCED, 0,
 						  prev_ste->hw_ste, ste_info,
@@ -406,6 +380,7 @@ void mlx5dr_ste_free(struct mlx5dr_ste *ste,
 {
 	struct mlx5dr_ste_send_info *cur_ste_info, *tmp_ste_info;
 	struct mlx5dr_domain *dmn = matcher->tbl->dmn;
+	struct mlx5dr_ste_ctx *ste_ctx = dmn->ste_ctx;
 	struct mlx5dr_ste_send_info ste_info_head;
 	struct mlx5dr_ste *next_ste, *first_ste;
 	bool put_on_origin_table = true;
@@ -434,7 +409,8 @@ void mlx5dr_ste_free(struct mlx5dr_ste *ste,
 
 		if (!next_ste) {
 			/* One and only entry in the list */
-			dr_ste_remove_head_ste(ste, nic_matcher,
+			dr_ste_remove_head_ste(ste_ctx, ste,
+					       nic_matcher,
 					       &ste_info_head,
 					       &send_ste_list,
 					       stats_tbl);
@@ -445,7 +421,9 @@ void mlx5dr_ste_free(struct mlx5dr_ste *ste,
 			put_on_origin_table = false;
 		}
 	} else { /* Ste in the middle of the list */
-		dr_ste_remove_middle_ste(ste, &ste_info_head, &send_ste_list, stats_tbl);
+		dr_ste_remove_middle_ste(ste_ctx, ste,
+					 &ste_info_head, &send_ste_list,
+					 stats_tbl);
 	}
 
 	/* Update HW */
@@ -469,16 +447,18 @@ bool mlx5dr_ste_equal_tag(void *src, void *dst)
 	return !memcmp(s_hw_ste->tag, d_hw_ste->tag, DR_STE_SIZE_TAG);
 }
 
-void mlx5dr_ste_set_hit_addr_by_next_htbl(u8 *hw_ste,
+void mlx5dr_ste_set_hit_addr_by_next_htbl(struct mlx5dr_ste_ctx *ste_ctx,
+					  u8 *hw_ste,
 					  struct mlx5dr_ste_htbl *next_htbl)
 {
 	struct mlx5dr_icm_chunk *chunk = next_htbl->chunk;
 
-	mlx5dr_ste_set_hit_addr(hw_ste, chunk->icm_addr, chunk->num_of_entries);
+	ste_ctx->set_hit_addr(hw_ste, chunk->icm_addr, chunk->num_of_entries);
 }
 
 /* Init one ste as a pattern for ste data array */
-void mlx5dr_ste_set_formatted_ste(u16 gvmi,
+void mlx5dr_ste_set_formatted_ste(struct mlx5dr_ste_ctx *ste_ctx,
+				  u16 gvmi,
 				  struct mlx5dr_domain_rx_tx *nic_dmn,
 				  struct mlx5dr_ste_htbl *htbl,
 				  u8 *formatted_ste,
@@ -486,13 +466,13 @@ void mlx5dr_ste_set_formatted_ste(u16 gvmi,
 {
 	struct mlx5dr_ste ste = {};
 
-	dr_ste_init(formatted_ste, htbl->lu_type, nic_dmn->ste_type, gvmi);
+	ste_ctx->ste_init(formatted_ste, htbl->lu_type, nic_dmn->ste_type, gvmi);
 	ste.hw_ste = formatted_ste;
 
 	if (connect_info->type == CONNECT_HIT)
-		dr_ste_always_hit_htbl(&ste, connect_info->hit_next_htbl);
+		dr_ste_always_hit_htbl(ste_ctx, &ste, connect_info->hit_next_htbl);
 	else
-		dr_ste_always_miss_addr(&ste, connect_info->miss_icm_addr);
+		dr_ste_always_miss_addr(ste_ctx, &ste, connect_info->miss_icm_addr);
 }
 
 int mlx5dr_ste_htbl_init_and_postsend(struct mlx5dr_domain *dmn,
@@ -503,7 +483,8 @@ int mlx5dr_ste_htbl_init_and_postsend(struct mlx5dr_domain *dmn,
 {
 	u8 formatted_ste[DR_STE_SIZE] = {};
 
-	mlx5dr_ste_set_formatted_ste(dmn->info.caps.gvmi,
+	mlx5dr_ste_set_formatted_ste(dmn->ste_ctx,
+				     dmn->info.caps.gvmi,
 				     nic_dmn,
 				     htbl,
 				     formatted_ste,
@@ -518,9 +499,9 @@ int mlx5dr_ste_create_next_htbl(struct mlx5dr_matcher *matcher,
 				u8 *cur_hw_ste,
 				enum mlx5dr_icm_chunk_size log_table_size)
 {
-	struct dr_hw_ste_format *hw_ste = (struct dr_hw_ste_format *)cur_hw_ste;
 	struct mlx5dr_domain_rx_tx *nic_dmn = nic_matcher->nic_tbl->nic_dmn;
 	struct mlx5dr_domain *dmn = matcher->tbl->dmn;
+	struct mlx5dr_ste_ctx *ste_ctx = dmn->ste_ctx;
 	struct mlx5dr_htbl_connect_info info;
 	struct mlx5dr_ste_htbl *next_htbl;
 
@@ -528,8 +509,8 @@ int mlx5dr_ste_create_next_htbl(struct mlx5dr_matcher *matcher,
 		u16 next_lu_type;
 		u16 byte_mask;
 
-		next_lu_type = MLX5_GET(ste_general, hw_ste, next_lu_type);
-		byte_mask = MLX5_GET(ste_general, hw_ste, byte_mask);
+		next_lu_type = ste_ctx->get_next_lu_type(cur_hw_ste);
+		byte_mask = ste_ctx->get_byte_mask(cur_hw_ste);
 
 		next_htbl = mlx5dr_ste_htbl_alloc(dmn->ste_icm_pool,
 						  log_table_size,
@@ -549,7 +530,8 @@ int mlx5dr_ste_create_next_htbl(struct mlx5dr_matcher *matcher,
 			goto free_table;
 		}
 
-		mlx5dr_ste_set_hit_addr_by_next_htbl(cur_hw_ste, next_htbl);
+		mlx5dr_ste_set_hit_addr_by_next_htbl(ste_ctx,
+						     cur_hw_ste, next_htbl);
 		ste->next_htbl = next_htbl;
 		next_htbl->pointing_ste = ste;
 	}
@@ -630,17 +612,19 @@ int mlx5dr_ste_htbl_free(struct mlx5dr_ste_htbl *htbl)
 	return 0;
 }
 
-static void dr_ste_arr_init_next_ste(u8 **last_ste,
+static void dr_ste_arr_init_next_ste(struct mlx5dr_ste_ctx *ste_ctx,
+				     u8 **last_ste,
 				     u32 *added_stes,
 				     enum mlx5dr_ste_entry_type entry_type,
 				     u16 gvmi)
 {
 	(*added_stes)++;
 	*last_ste += DR_STE_SIZE;
-	dr_ste_init(*last_ste, MLX5DR_STE_LU_TYPE_DONT_CARE, entry_type, gvmi);
+	ste_ctx->ste_init(*last_ste, MLX5DR_STE_LU_TYPE_DONT_CARE, entry_type, gvmi);
 }
 
-void mlx5dr_ste_set_actions_tx(struct mlx5dr_domain *dmn,
+void mlx5dr_ste_set_actions_tx(struct mlx5dr_ste_ctx *ste_ctx,
+			       struct mlx5dr_domain *dmn,
 			       u8 *action_type_set,
 			       u8 *last_ste,
 			       struct mlx5dr_ste_actions_attr *attr,
@@ -665,7 +649,8 @@ void mlx5dr_ste_set_actions_tx(struct mlx5dr_domain *dmn,
 
 		for (i = 0; i < attr->vlans.count; i++) {
 			if (i || action_type_set[DR_ACTION_TYP_MODIFY_HDR])
-				dr_ste_arr_init_next_ste(&last_ste,
+				dr_ste_arr_init_next_ste(ste_ctx,
+							 &last_ste,
 							 added_stes,
 							 MLX5DR_STE_TYPE_TX,
 							 attr->gvmi);
@@ -683,7 +668,8 @@ void mlx5dr_ste_set_actions_tx(struct mlx5dr_domain *dmn,
 		 */
 		if (action_type_set[DR_ACTION_TYP_MODIFY_HDR] ||
 		    action_type_set[DR_ACTION_TYP_PUSH_VLAN])
-			dr_ste_arr_init_next_ste(&last_ste,
+			dr_ste_arr_init_next_ste(ste_ctx,
+						 &last_ste,
 						 added_stes,
 						 MLX5DR_STE_TYPE_TX,
 						 attr->gvmi);
@@ -705,10 +691,11 @@ void mlx5dr_ste_set_actions_tx(struct mlx5dr_domain *dmn,
 		dr_ste_set_counter_id(last_ste, attr->ctr_id);
 
 	dr_ste_set_hit_gvmi(last_ste, attr->hit_gvmi);
-	mlx5dr_ste_set_hit_addr(last_ste, attr->final_icm_addr, 1);
+	mlx5dr_ste_set_hit_addr(ste_ctx, last_ste, attr->final_icm_addr, 1);
 }
 
-void mlx5dr_ste_set_actions_rx(struct mlx5dr_domain *dmn,
+void mlx5dr_ste_set_actions_rx(struct mlx5dr_ste_ctx *ste_ctx,
+			       struct mlx5dr_domain *dmn,
 			       u8 *action_type_set,
 			       u8 *last_ste,
 			       struct mlx5dr_ste_actions_attr *attr,
@@ -735,7 +722,8 @@ void mlx5dr_ste_set_actions_rx(struct mlx5dr_domain *dmn,
 			if (i ||
 			    action_type_set[DR_ACTION_TYP_TNL_L2_TO_L2] ||
 			    action_type_set[DR_ACTION_TYP_TNL_L3_TO_L2])
-				dr_ste_arr_init_next_ste(&last_ste,
+				dr_ste_arr_init_next_ste(ste_ctx,
+							 &last_ste,
 							 added_stes,
 							 MLX5DR_STE_TYPE_RX,
 							 attr->gvmi);
@@ -746,7 +734,8 @@ void mlx5dr_ste_set_actions_rx(struct mlx5dr_domain *dmn,
 
 	if (action_type_set[DR_ACTION_TYP_MODIFY_HDR]) {
 		if (dr_ste_get_entry_type(last_ste) == MLX5DR_STE_TYPE_MODIFY_PKT)
-			dr_ste_arr_init_next_ste(&last_ste,
+			dr_ste_arr_init_next_ste(ste_ctx,
+						 &last_ste,
 						 added_stes,
 						 MLX5DR_STE_TYPE_MODIFY_PKT,
 						 attr->gvmi);
@@ -760,7 +749,8 @@ void mlx5dr_ste_set_actions_rx(struct mlx5dr_domain *dmn,
 
 	if (action_type_set[DR_ACTION_TYP_TAG]) {
 		if (dr_ste_get_entry_type(last_ste) == MLX5DR_STE_TYPE_MODIFY_PKT)
-			dr_ste_arr_init_next_ste(&last_ste,
+			dr_ste_arr_init_next_ste(ste_ctx,
+						 &last_ste,
 						 added_stes,
 						 MLX5DR_STE_TYPE_RX,
 						 attr->gvmi);
@@ -769,7 +759,7 @@ void mlx5dr_ste_set_actions_rx(struct mlx5dr_domain *dmn,
 	}
 
 	dr_ste_set_hit_gvmi(last_ste, attr->hit_gvmi);
-	mlx5dr_ste_set_hit_addr(last_ste, attr->final_icm_addr, 1);
+	mlx5dr_ste_set_hit_addr(ste_ctx, last_ste, attr->final_icm_addr, 1);
 }
 
 int mlx5dr_ste_build_pre_check(struct mlx5dr_domain *dmn,
@@ -801,6 +791,7 @@ int mlx5dr_ste_build_ste_arr(struct mlx5dr_matcher *matcher,
 {
 	struct mlx5dr_domain_rx_tx *nic_dmn = nic_matcher->nic_tbl->nic_dmn;
 	struct mlx5dr_domain *dmn = matcher->tbl->dmn;
+	struct mlx5dr_ste_ctx *ste_ctx = dmn->ste_ctx;
 	struct mlx5dr_ste_build *sb;
 	int ret, i;
 
@@ -811,10 +802,10 @@ int mlx5dr_ste_build_ste_arr(struct mlx5dr_matcher *matcher,
 
 	sb = nic_matcher->ste_builder;
 	for (i = 0; i < nic_matcher->num_of_builders; i++) {
-		dr_ste_init(ste_arr,
-			    sb->lu_type,
-			    nic_dmn->ste_type,
-			    dmn->info.caps.gvmi);
+		ste_ctx->ste_init(ste_arr,
+				  sb->lu_type,
+				  nic_dmn->ste_type,
+				  dmn->info.caps.gvmi);
 
 		mlx5dr_ste_set_bit_mask(ste_arr, sb->bit_mask);
 
@@ -828,8 +819,8 @@ int mlx5dr_ste_build_ste_arr(struct mlx5dr_matcher *matcher,
 			 * not relevant for the last ste in the chain.
 			 */
 			sb++;
-			MLX5_SET(ste_general, ste_arr, next_lu_type, sb->lu_type);
-			MLX5_SET(ste_general, ste_arr, byte_mask, sb->byte_mask);
+			ste_ctx->set_next_lu_type(ste_arr, sb->lu_type);
+			ste_ctx->set_byte_mask(ste_arr, sb->byte_mask);
 		}
 		ste_arr += DR_STE_SIZE;
 	}

@@ -54,6 +54,72 @@ enum {
 	DR_STE_V0_LU_TYPE_DONT_CARE			= MLX5DR_STE_LU_TYPE_DONT_CARE,
 };
 
+static void dr_ste_v0_set_miss_addr(u8 *hw_ste_p, u64 miss_addr)
+{
+	u64 index = miss_addr >> 6;
+
+	/* Miss address for TX and RX STEs located in the same offsets */
+	MLX5_SET(ste_rx_steering_mult, hw_ste_p, miss_address_39_32, index >> 26);
+	MLX5_SET(ste_rx_steering_mult, hw_ste_p, miss_address_31_6, index);
+}
+
+static u64 dr_ste_v0_get_miss_addr(u8 *hw_ste_p)
+{
+	u64 index =
+		(MLX5_GET(ste_rx_steering_mult, hw_ste_p, miss_address_31_6) |
+		 MLX5_GET(ste_rx_steering_mult, hw_ste_p, miss_address_39_32) << 26);
+
+	return index << 6;
+}
+
+static void dr_ste_v0_set_byte_mask(u8 *hw_ste_p, u16 byte_mask)
+{
+	MLX5_SET(ste_general, hw_ste_p, byte_mask, byte_mask);
+}
+
+static u16 dr_ste_v0_get_byte_mask(u8 *hw_ste_p)
+{
+	return MLX5_GET(ste_general, hw_ste_p, byte_mask);
+}
+
+static void dr_ste_v0_set_lu_type(u8 *hw_ste_p, u16 lu_type)
+{
+	MLX5_SET(ste_general, hw_ste_p, entry_sub_type, lu_type);
+}
+
+static void dr_ste_v0_set_next_lu_type(u8 *hw_ste_p, u16 lu_type)
+{
+	MLX5_SET(ste_general, hw_ste_p, next_lu_type, lu_type);
+}
+
+static u16 dr_ste_v0_get_next_lu_type(u8 *hw_ste_p)
+{
+	return MLX5_GET(ste_general, hw_ste_p, next_lu_type);
+}
+
+static void dr_ste_v0_set_hit_addr(u8 *hw_ste_p, u64 icm_addr, u32 ht_size)
+{
+	u64 index = (icm_addr >> 5) | ht_size;
+
+	MLX5_SET(ste_general, hw_ste_p, next_table_base_39_32_size, index >> 27);
+	MLX5_SET(ste_general, hw_ste_p, next_table_base_31_5_size, index);
+}
+
+static void dr_ste_v0_init(u8 *hw_ste_p, u16 lu_type,
+			   u8 entry_type, u16 gvmi)
+{
+	MLX5_SET(ste_general, hw_ste_p, entry_type, entry_type);
+	dr_ste_v0_set_lu_type(hw_ste_p, lu_type);
+	dr_ste_v0_set_next_lu_type(hw_ste_p, MLX5DR_STE_LU_TYPE_DONT_CARE);
+
+	/* Set GVMI once, this is the same for RX/TX
+	 * bits 63_48 of next table base / miss address encode the next GVMI
+	 */
+	MLX5_SET(ste_rx_steering_mult, hw_ste_p, gvmi, gvmi);
+	MLX5_SET(ste_rx_steering_mult, hw_ste_p, next_table_base_63_48, gvmi);
+	MLX5_SET(ste_rx_steering_mult, hw_ste_p, miss_address_63_48, gvmi);
+}
+
 static void
 dr_ste_v0_build_eth_l2_src_dst_bit_mask(struct mlx5dr_match_param *value,
 					bool inner, u8 *bit_mask)
@@ -970,6 +1036,7 @@ dr_ste_v0_build_src_gvmi_qpn_init(struct mlx5dr_ste_build *sb,
 }
 
 struct mlx5dr_ste_ctx ste_ctx_v0 = {
+	/* Builders */
 	.build_eth_l2_src_dst_init	= &dr_ste_v0_build_eth_l2_src_dst_init,
 	.build_eth_l3_ipv6_src_init	= &dr_ste_v0_build_eth_l3_ipv6_src_init,
 	.build_eth_l3_ipv6_dst_init	= &dr_ste_v0_build_eth_l3_ipv6_dst_init,
@@ -990,4 +1057,14 @@ struct mlx5dr_ste_ctx ste_ctx_v0 = {
 	.build_register_0_init		= &dr_ste_v0_build_register_0_init,
 	.build_register_1_init		= &dr_ste_v0_build_register_1_init,
 	.build_src_gvmi_qpn_init	= &dr_ste_v0_build_src_gvmi_qpn_init,
+
+	/* Getters and Setters */
+	.ste_init			= &dr_ste_v0_init,
+	.set_next_lu_type		= &dr_ste_v0_set_next_lu_type,
+	.get_next_lu_type		= &dr_ste_v0_get_next_lu_type,
+	.set_miss_addr			= &dr_ste_v0_set_miss_addr,
+	.get_miss_addr			= &dr_ste_v0_get_miss_addr,
+	.set_hit_addr			= &dr_ste_v0_set_hit_addr,
+	.set_byte_mask			= &dr_ste_v0_set_byte_mask,
+	.get_byte_mask			= &dr_ste_v0_get_byte_mask,
 };
