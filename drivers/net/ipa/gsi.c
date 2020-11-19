@@ -1087,10 +1087,32 @@ static void gsi_isr_gp_int1(struct gsi *gsi)
 	u32 result;
 	u32 val;
 
+	/* This interrupt is used to handle completions of the two GENERIC
+	 * GSI commands.  We use these to allocate and halt channels on
+	 * the modem's behalf due to a hardware quirk on IPA v4.2.  Once
+	 * allocated, the modem "owns" these channels, and as a result we
+	 * have no way of knowing the channel's state at any given time.
+	 *
+	 * It is recommended that we halt the modem channels we allocated
+	 * when shutting down, but it's possible the channel isn't running
+	 * at the time we issue the HALT command.  We'll get an error in
+	 * that case, but it's harmless (the channel is already halted).
+	 *
+	 * For this reason, we silently ignore a CHANNEL_NOT_RUNNING error
+	 * if we receive it.
+	 */
 	val = ioread32(gsi->virt + GSI_CNTXT_SCRATCH_0_OFFSET);
 	result = u32_get_bits(val, GENERIC_EE_RESULT_FMASK);
-	if (result != GENERIC_EE_SUCCESS)
+
+	switch (result) {
+	case GENERIC_EE_SUCCESS:
+	case GENERIC_EE_CHANNEL_NOT_RUNNING:
+		break;
+
+	default:
 		dev_err(gsi->dev, "global INT1 generic result %u\n", result);
+		break;
+	}
 
 	complete(&gsi->completion);
 }
