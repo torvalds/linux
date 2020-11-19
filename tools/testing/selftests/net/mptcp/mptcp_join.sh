@@ -195,6 +195,12 @@ link_failure()
 	ip -net "$ns" link set "$veth" down
 }
 
+# $1: IP address
+is_v6()
+{
+	[ -z "${1##*:*}" ]
+}
+
 do_transfer()
 {
 	listener_ns="$1"
@@ -236,7 +242,15 @@ do_transfer()
 		mptcp_connect="./mptcp_connect -r"
 	fi
 
-	ip netns exec ${listener_ns} $mptcp_connect -t $timeout -l -p $port -s ${srv_proto} 0.0.0.0 < "$sin" > "$sout" &
+	local local_addr
+	if is_v6 "${connect_addr}"; then
+		local_addr="::"
+	else
+		local_addr="0.0.0.0"
+	fi
+
+	ip netns exec ${listener_ns} $mptcp_connect -t $timeout -l -p $port \
+		-s ${srv_proto} ${local_addr} < "$sin" > "$sout" &
 	spid=$!
 
 	sleep 1
@@ -648,6 +662,60 @@ run_tests $ns1 $ns2 10.0.1.1 0 1 2 slow
 chk_join_nr "remove subflows and signal" 3 3 3
 chk_add_nr 1 1
 chk_rm_nr 2 2
+
+# subflow IPv6
+reset
+ip netns exec $ns1 ./pm_nl_ctl limits 0 1
+ip netns exec $ns2 ./pm_nl_ctl limits 0 1
+ip netns exec $ns2 ./pm_nl_ctl add dead:beef:3::2 flags subflow
+run_tests $ns1 $ns2 dead:beef:1::1 0 0 0 slow
+chk_join_nr "single subflow IPv6" 1 1 1
+
+# add_address, unused IPv6
+reset
+ip netns exec $ns1 ./pm_nl_ctl add dead:beef:2::1 flags signal
+run_tests $ns1 $ns2 dead:beef:1::1 0 0 0 slow
+chk_join_nr "unused signal address IPv6" 0 0 0
+chk_add_nr 1 1
+
+# signal address IPv6
+reset
+ip netns exec $ns1 ./pm_nl_ctl limits 0 1
+ip netns exec $ns1 ./pm_nl_ctl add dead:beef:2::1 flags signal
+ip netns exec $ns2 ./pm_nl_ctl limits 1 1
+run_tests $ns1 $ns2 dead:beef:1::1 0 0 0 slow
+chk_join_nr "single address IPv6" 1 1 1
+chk_add_nr 1 1
+
+# add_addr timeout IPv6
+reset_with_add_addr_timeout 6
+ip netns exec $ns1 ./pm_nl_ctl limits 0 1
+ip netns exec $ns2 ./pm_nl_ctl limits 1 1
+ip netns exec $ns1 ./pm_nl_ctl add dead:beef:2::1 flags signal
+run_tests $ns1 $ns2 dead:beef:1::1 0 0 0 slow
+chk_join_nr "signal address, ADD_ADDR6 timeout" 1 1 1
+chk_add_nr 4 0
+
+# single address IPv6, remove
+reset
+ip netns exec $ns1 ./pm_nl_ctl limits 0 1
+ip netns exec $ns1 ./pm_nl_ctl add dead:beef:2::1 flags signal
+ip netns exec $ns2 ./pm_nl_ctl limits 1 1
+run_tests $ns1 $ns2 dead:beef:1::1 0 1 0 slow
+chk_join_nr "remove single address IPv6" 1 1 1
+chk_add_nr 1 1
+chk_rm_nr 0 0
+
+# subflow and signal IPv6, remove
+reset
+ip netns exec $ns1 ./pm_nl_ctl limits 0 2
+ip netns exec $ns1 ./pm_nl_ctl add dead:beef:2::1 flags signal
+ip netns exec $ns2 ./pm_nl_ctl limits 1 2
+ip netns exec $ns2 ./pm_nl_ctl add dead:beef:3::2 flags subflow
+run_tests $ns1 $ns2 dead:beef:1::1 0 1 1 slow
+chk_join_nr "remove subflow and signal IPv6" 2 2 2
+chk_add_nr 1 1
+chk_rm_nr 1 1
 
 # single subflow, syncookies
 reset_with_cookies
