@@ -532,6 +532,9 @@ struct vc4_crtc_state {
 		unsigned int top;
 		unsigned int bottom;
 	} margins;
+
+	/* Transitional state below, only valid during atomic commits */
+	bool update_muxing;
 };
 
 #define VC4_HVS_CHANNEL_DISABLED ((unsigned int)-1)
