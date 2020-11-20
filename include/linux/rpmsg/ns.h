@@ -4,6 +4,7 @@
 #define _LINUX_RPMSG_NS_H
 
 #include <linux/mod_devicetable.h>
+#include <linux/rpmsg.h>
 #include <linux/rpmsg/byteorder.h>
 #include <linux/types.h>
 
@@ -38,5 +39,7 @@ enum rpmsg_ns_flags {
 
 /* Address 53 is reserved for advertising remote services */
 #define RPMSG_NS_ADDR			(53)
+
+int rpmsg_ns_register_device(struct rpmsg_device *rpdev);
 
 #endif
