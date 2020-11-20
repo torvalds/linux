@@ -336,6 +336,7 @@ static void lme2510_int_response(struct urb *lme_urb)
 				st->signal_level = ibuf[5];
 				st->signal_sn = ibuf[4];
 				st->time_key = ibuf[7];
+				break;
 			default:
 				break;
 			}
