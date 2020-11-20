@@ -1147,17 +1147,11 @@ struct mlx5_flow_table *mlx5_create_flow_table(struct mlx5_flow_namespace *ns,
 }
 EXPORT_SYMBOL(mlx5_create_flow_table);
 
-struct mlx5_flow_table *mlx5_create_vport_flow_table(struct mlx5_flow_namespace *ns,
-						     int prio, int max_fte,
-						     u32 level, u16 vport)
+struct mlx5_flow_table *
+mlx5_create_vport_flow_table(struct mlx5_flow_namespace *ns,
+			     struct mlx5_flow_table_attr *ft_attr, u16 vport)
 {
-	struct mlx5_flow_table_attr ft_attr = {};
-
-	ft_attr.max_fte = max_fte;
-	ft_attr.level   = level;
-	ft_attr.prio    = prio;
-
-	return __mlx5_create_flow_table(ns, &ft_attr, FS_FT_OP_MOD_NORMAL, vport);
+	return __mlx5_create_flow_table(ns, ft_attr, FS_FT_OP_MOD_NORMAL, vport);
 }
 
 struct mlx5_flow_table*
