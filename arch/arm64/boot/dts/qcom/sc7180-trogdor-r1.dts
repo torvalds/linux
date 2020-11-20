@@ -34,11 +34,6 @@ ap_h1_spi: &spi0 {};
 	};
 };
 
-&ap_sar_sensor_i2c {
-	/* Not hooked up */
-	status = "disabled";
-};
-
 ap_ts_pen_1v8: &i2c4 {
 	status = "okay";
 	clock-frequency = <400000>;

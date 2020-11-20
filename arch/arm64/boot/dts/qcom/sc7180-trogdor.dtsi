@@ -654,7 +654,6 @@ edp_brij_i2c: &i2c2 {
 };
 
 ap_sar_sensor_i2c: &i2c5 {
-	status = "okay";
 	clock-frequency = <400000>;
 
 	ap_sar_sensor: proximity@28 {
