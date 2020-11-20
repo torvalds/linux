@@ -511,7 +511,7 @@ MODULE_DEVICE_TABLE(of, da9150_of_match);
 static struct i2c_driver da9150_driver = {
 	.driver	= {
 		.name	= "da9150",
-		.of_match_table = of_match_ptr(da9150_of_match),
+		.of_match_table = da9150_of_match,
 	},
 	.probe		= da9150_probe,
 	.remove		= da9150_remove,
