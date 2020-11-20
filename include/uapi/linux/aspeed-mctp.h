@@ -34,6 +34,9 @@
  * @ASPEED_MCTP_IOCTL_GET_MEDIUM_ID: read MCTP physical medium identifier
  * related to PCIe revision
  * @ASPEED_MCTP_IOCTL_GET_MTU: read max transmission unit (in bytes)
+ * @ASPEED_MCTP_IOCTL_REGISTER_DEFAULT_HANDLER Register client as default
+ * handler that receives all MCTP messages that were not dispatched to other
+ * clients
  */
 
 struct aspeed_mctp_filter_eid {
@@ -63,5 +66,7 @@ struct aspeed_mctp_get_mtu {
 	_IOR(ASPEED_MCTP_IOCTL_BASE, 2, struct aspeed_mctp_get_medium_id)
 #define ASPEED_MCTP_IOCTL_GET_MTU \
 	_IOR(ASPEED_MCTP_IOCTL_BASE, 3, struct aspeed_mctp_get_mtu)
+#define ASPEED_MCTP_IOCTL_REGISTER_DEFAULT_HANDLER \
+	_IO(ASPEED_MCTP_IOCTL_BASE, 4)
 
 #endif /* _UAPI_LINUX_ASPEED_MCTP_H */
