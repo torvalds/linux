@@ -134,6 +134,12 @@ static void dwcmshc_rk_set_clock(struct sdhci_host *host, unsigned int clock)
 	int err;
 
 	host->mmc->actual_clock = 0;
+
+	/* DO NOT TOUCH THIS SETTING */
+	extra = DWCMSHC_EMMC_DLL_DLYENA |
+		DLL_RXCLK_NO_INVERTER << DWCMSHC_EMMC_DLL_RXCLK_SRCSEL;
+	sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_RXCLK);
+
 	if (clock == 0)
 		return;
 
@@ -215,7 +221,6 @@ static const struct sdhci_pltfm_data sdhci_dwcmshc_rk_pdata = {
 static int rockchip_pltf_init(struct sdhci_host *host, struct dwcmshc_priv *priv)
 {
 	int err;
-	u32 extra;
 
 	priv->rockchip_clks[0].id = "axi";
 	priv->rockchip_clks[1].id = "block";
@@ -237,9 +242,6 @@ static int rockchip_pltf_init(struct sdhci_host *host, struct dwcmshc_priv *priv
 				 &priv->txclk_tapnum))
 		priv->txclk_tapnum = DLL_TXCLK_TAPNUM_DEFAULT;
 
-	extra = DWCMSHC_EMMC_DLL_DLYENA |
-		DLL_RXCLK_NO_INVERTER << DWCMSHC_EMMC_DLL_RXCLK_SRCSEL;
-	sdhci_writel(host, extra, DWCMSHC_EMMC_DLL_RXCLK);
 	return 0;
 }
 
