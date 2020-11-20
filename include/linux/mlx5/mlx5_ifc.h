@@ -1249,7 +1249,8 @@ enum mlx5_fc_bulk_alloc_bitmask {
 #define MLX5_FC_BULK_NUM_FCS(fc_enum) (MLX5_FC_BULK_SIZE_FACTOR * (fc_enum))
 
 struct mlx5_ifc_cmd_hca_cap_bits {
-	u8         reserved_at_0[0x20];
+	u8         reserved_at_0[0x1f];
+	u8         vhca_resource_manager[0x1];
 
 	u8         reserved_at_20[0x3];
 	u8         event_on_vhca_state_teardown_request[0x1];
@@ -4247,7 +4248,11 @@ struct mlx5_ifc_set_hca_cap_in_bits {
 	u8         reserved_at_20[0x10];
 	u8         op_mod[0x10];
 
-	u8         reserved_at_40[0x40];
+	u8         other_function[0x1];
+	u8         reserved_at_41[0xf];
+	u8         function_id[0x10];
+
+	u8         reserved_at_60[0x20];
 
 	union mlx5_ifc_hca_cap_union_bits capability;
 };
