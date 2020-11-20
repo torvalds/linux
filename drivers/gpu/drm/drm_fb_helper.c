@@ -1988,14 +1988,19 @@ static void drm_fbdev_cleanup(struct drm_fb_helper *fb_helper)
 	if (!fb_helper->dev)
 		return;
 
-	if (fbi && fbi->fbdefio) {
-		fb_deferred_io_cleanup(fbi);
-		shadow = fbi->screen_buffer;
+	if (fbi) {
+		if (fbi->fbdefio)
+			fb_deferred_io_cleanup(fbi);
+		if (drm_fbdev_use_shadow_fb(fb_helper))
+			shadow = fbi->screen_buffer;
 	}
 
 	drm_fb_helper_fini(fb_helper);
 
-	vfree(shadow);
+	if (shadow)
+		vfree(shadow);
+	else
+		drm_client_buffer_vunmap(fb_helper->buffer);
 
 	drm_client_framebuffer_delete(fb_helper->buffer);
 }
