@@ -618,7 +618,7 @@ EXPORT_SYMBOL_GPL(typec_partner_set_identity);
 /**
  * typec_partner_set_num_altmodes - Set the number of available partner altmodes
  * @partner: The partner to be updated.
- * @num_alt_modes: The number of altmodes we want to specify as available.
+ * @num_altmodes: The number of altmodes we want to specify as available.
  *
  * This routine is used to report the number of alternate modes supported by the
  * partner. This value is *not* enforced in alternate mode registration routines.
