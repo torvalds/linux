@@ -766,6 +766,7 @@ static void qedr_affiliated_event(void *context, u8 e_code, void *fw_handle)
 		}
 		xa_unlock_irqrestore(&dev->srqs, flags);
 		DP_NOTICE(dev, "SRQ event %d on handle %p\n", e_code, srq);
+		break;
 	default:
 		break;
 	}
