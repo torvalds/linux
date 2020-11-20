@@ -1159,7 +1159,7 @@ static int goodix_configure_dev(struct goodix_ts_data *ts)
  * goodix_config_cb - Callback to finish device init
  *
  * @cfg: firmware config
- * @ts: our goodix_ts_data pointer
+ * @ctx: our goodix_ts_data pointer
  *
  * request_firmware_wait callback that finishes
  * initialization of the device.
