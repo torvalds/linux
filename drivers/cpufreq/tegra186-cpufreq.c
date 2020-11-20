@@ -42,6 +42,8 @@ static const struct tegra186_cpufreq_cluster_info tegra186_clusters[] = {
 struct tegra186_cpufreq_cluster {
 	const struct tegra186_cpufreq_cluster_info *info;
 	struct cpufreq_frequency_table *table;
+	u32 ref_clk_khz;
+	u32 div;
 };
 
 struct tegra186_cpufreq_data {
@@ -94,7 +96,7 @@ static int tegra186_cpufreq_set_target(struct cpufreq_policy *policy,
 
 static unsigned int tegra186_cpufreq_get(unsigned int cpu)
 {
-	struct cpufreq_frequency_table *tbl;
+	struct tegra186_cpufreq_data *data = cpufreq_get_driver_data();
 	struct cpufreq_policy *policy;
 	void __iomem *edvd_reg;
 	unsigned int i, freq = 0;
@@ -104,17 +106,23 @@ static unsigned int tegra186_cpufreq_get(unsigned int cpu)
 	if (!policy)
 		return 0;
 
-	tbl = policy->freq_table;
 	edvd_reg = policy->driver_data;
 	ndiv = readl(edvd_reg) & EDVD_CORE_VOLT_FREQ_F_MASK;
 
-	for (i = 0; tbl[i].frequency != CPUFREQ_TABLE_END; i++) {
-		if ((tbl[i].driver_data & EDVD_CORE_VOLT_FREQ_F_MASK) == ndiv) {
-			freq = tbl[i].frequency;
-			break;
+	for (i = 0; i < data->num_clusters; i++) {
+		struct tegra186_cpufreq_cluster *cluster = &data->clusters[i];
+		int core;
+
+		for (core = 0; core < ARRAY_SIZE(cluster->info->cpus); core++) {
+			if (cluster->info->cpus[core] != policy->cpu)
+				continue;
+
+			freq = (cluster->ref_clk_khz * ndiv) / cluster->div;
+			goto out;
 		}
 	}
 
+out:
 	cpufreq_cpu_put(policy);
 
 	return freq;
@@ -133,7 +141,7 @@ static struct cpufreq_driver tegra186_cpufreq_driver = {
 
 static struct cpufreq_frequency_table *init_vhint_table(
 	struct platform_device *pdev, struct tegra_bpmp *bpmp,
-	unsigned int cluster_id)
+	struct tegra186_cpufreq_cluster *cluster)
 {
 	struct cpufreq_frequency_table *table;
 	struct mrq_cpu_vhint_request req;
@@ -152,7 +160,7 @@ static struct cpufreq_frequency_table *init_vhint_table(
 
 	memset(&req, 0, sizeof(req));
 	req.addr = phys;
-	req.cluster_id = cluster_id;
+	req.cluster_id = cluster->info->bpmp_cluster_id;
 
 	memset(&msg, 0, sizeof(msg));
 	msg.mrq = MRQ_CPU_VHINT;
@@ -185,6 +193,9 @@ static struct cpufreq_frequency_table *init_vhint_table(
 		goto free;
 	}
 
+	cluster->ref_clk_khz = data->ref_clk_hz / 1000;
+	cluster->div = data->pdiv * data->mdiv;
+
 	for (i = data->vfloor, j = 0; i <= data->vceil; i++) {
 		struct cpufreq_frequency_table *point;
 		u16 ndiv = data->ndiv[i];
@@ -202,8 +213,7 @@ static struct cpufreq_frequency_table *init_vhint_table(
 
 		point = &table[j++];
 		point->driver_data = edvd_val;
-		point->frequency = data->ref_clk_hz * ndiv / data->pdiv /
-			data->mdiv / 1000;
+		point->frequency = (cluster->ref_clk_khz * ndiv) / cluster->div;
 	}
 
 	table[j].frequency = CPUFREQ_TABLE_END;
@@ -245,8 +255,7 @@ static int tegra186_cpufreq_probe(struct platform_device *pdev)
 		struct tegra186_cpufreq_cluster *cluster = &data->clusters[i];
 
 		cluster->info = &tegra186_clusters[i];
-		cluster->table = init_vhint_table(
-			pdev, bpmp, cluster->info->bpmp_cluster_id);
+		cluster->table = init_vhint_table(pdev, bpmp, cluster);
 		if (IS_ERR(cluster->table)) {
 			err = PTR_ERR(cluster->table);
 			goto put_bpmp;

@@ -694,19 +694,32 @@ static void tls_device_resync_rx(struct tls_context *tls_ctx,
 
 static bool
 tls_device_rx_resync_async(struct tls_offload_resync_async *resync_async,
-			   s64 resync_req, u32 *seq)
+			   s64 resync_req, u32 *seq, u16 *rcd_delta)
 {
 	u32 is_async = resync_req & RESYNC_REQ_ASYNC;
 	u32 req_seq = resync_req >> 32;
 	u32 req_end = req_seq + ((resync_req >> 16) & 0xffff);
+	u16 i;
+
+	*rcd_delta = 0;
 
 	if (is_async) {
+		/* shouldn't get to wraparound:
+		 * too long in async stage, something bad happened
+		 */
+		if (WARN_ON_ONCE(resync_async->rcd_delta == USHRT_MAX))
+			return false;
+
 		/* asynchronous stage: log all headers seq such that
 		 * req_seq <= seq <= end_seq, and wait for real resync request
 		 */
-		if (between(*seq, req_seq, req_end) &&
+		if (before(*seq, req_seq))
+			return false;
+		if (!after(*seq, req_end) &&
 		    resync_async->loglen < TLS_DEVICE_RESYNC_ASYNC_LOGMAX)
 			resync_async->log[resync_async->loglen++] = *seq;
+
+		resync_async->rcd_delta++;
 
 		return false;
 	}
@@ -714,16 +727,18 @@ tls_device_rx_resync_async(struct tls_offload_resync_async *resync_async,
 	/* synchronous stage: check against the logged entries and
 	 * proceed to check the next entries if no match was found
 	 */
-	while (resync_async->loglen) {
-		if (req_seq == resync_async->log[resync_async->loglen - 1] &&
-		    atomic64_try_cmpxchg(&resync_async->req,
-					 &resync_req, 0)) {
-			resync_async->loglen = 0;
+	for (i = 0; i < resync_async->loglen; i++)
+		if (req_seq == resync_async->log[i] &&
+		    atomic64_try_cmpxchg(&resync_async->req, &resync_req, 0)) {
+			*rcd_delta = resync_async->rcd_delta - i;
 			*seq = req_seq;
+			resync_async->loglen = 0;
+			resync_async->rcd_delta = 0;
 			return true;
 		}
-		resync_async->loglen--;
-	}
+
+	resync_async->loglen = 0;
+	resync_async->rcd_delta = 0;
 
 	if (req_seq == *seq &&
 	    atomic64_try_cmpxchg(&resync_async->req,
@@ -741,6 +756,7 @@ void tls_device_rx_resync_new_rec(struct sock *sk, u32 rcd_len, u32 seq)
 	u32 sock_data, is_req_pending;
 	struct tls_prot_info *prot;
 	s64 resync_req;
+	u16 rcd_delta;
 	u32 req_seq;
 
 	if (tls_ctx->rx_conf != TLS_HW)
@@ -786,8 +802,9 @@ void tls_device_rx_resync_new_rec(struct sock *sk, u32 rcd_len, u32 seq)
 			return;
 
 		if (!tls_device_rx_resync_async(rx_ctx->resync_async,
-						resync_req, &seq))
+						resync_req, &seq, &rcd_delta))
 			return;
+		tls_bigint_subtract(rcd_sn, rcd_delta);
 		break;
 	}
 
