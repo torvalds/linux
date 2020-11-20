@@ -8982,6 +8982,28 @@ static int dm_update_plane_state(struct dc *dc,
 			return -EINVAL;
 		}
 
+		if (new_plane_state->fb) {
+			if (new_plane_state->fb->width > new_acrtc->max_cursor_width ||
+			    new_plane_state->fb->height > new_acrtc->max_cursor_height) {
+				DRM_DEBUG_ATOMIC("Bad cursor FB size %dx%d\n",
+						 new_plane_state->fb->width,
+						 new_plane_state->fb->height);
+				return -EINVAL;
+			}
+
+			switch (new_plane_state->fb->width) {
+			case 64:
+			case 128:
+			case 256:
+				/* FB width is supported by cursor plane */
+				break;
+			default:
+				DRM_DEBUG_ATOMIC("Bad cursor FB width %d\n",
+						 new_plane_state->fb->width);
+				return -EINVAL;
+			}
+		}
+
 		return 0;
 	}
 
