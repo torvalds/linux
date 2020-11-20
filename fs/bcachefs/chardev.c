@@ -341,7 +341,8 @@ static long bch2_ioctl_data(struct bch_fs *c,
 	ctx->c = c;
 	ctx->arg = arg;
 
-	ctx->thread = kthread_create(bch2_data_thread, ctx, "[bcachefs]");
+	ctx->thread = kthread_create(bch2_data_thread, ctx,
+				     "bch-data/%s", c->name);
 	if (IS_ERR(ctx->thread)) {
 		ret = PTR_ERR(ctx->thread);
 		goto err;

@@ -314,7 +314,7 @@ int bch2_rebalance_start(struct bch_fs *c)
 	if (c->opts.nochanges)
 		return 0;
 
-	p = kthread_create(bch2_rebalance_thread, c, "bch_rebalance");
+	p = kthread_create(bch2_rebalance_thread, c, "bch-rebalance/%s", c->name);
 	if (IS_ERR(p))
 		return PTR_ERR(p);
 

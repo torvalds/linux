@@ -1427,7 +1427,7 @@ int bch2_gc_thread_start(struct bch_fs *c)
 
 	BUG_ON(c->gc_thread);
 
-	p = kthread_create(bch2_gc_thread, c, "bch_gc");
+	p = kthread_create(bch2_gc_thread, c, "bch-gc/%s", c->name);
 	if (IS_ERR(p))
 		return PTR_ERR(p);
 

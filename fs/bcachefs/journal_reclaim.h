@@ -10,6 +10,17 @@ enum journal_space_from {
 	journal_space_clean,
 };
 
+static inline void journal_reclaim_kick(struct journal *j)
+{
+	struct task_struct *p = READ_ONCE(j->reclaim_thread);
+
+	if (p && !j->reclaim_kicked) {
+		j->reclaim_kicked = true;
+		if (p)
+			wake_up_process(p);
+	}
+}
+
 unsigned bch2_journal_dev_buckets_available(struct journal *,
 					    struct journal_device *,
 					    enum journal_space_from);
@@ -55,7 +66,9 @@ void bch2_journal_pin_flush(struct journal *, struct journal_entry_pin *);
 
 void bch2_journal_do_discards(struct journal *);
 void bch2_journal_reclaim(struct journal *);
-void bch2_journal_reclaim_work(struct work_struct *);
+
+void bch2_journal_reclaim_stop(struct journal *);
+int bch2_journal_reclaim_start(struct journal *);
 
 bool bch2_journal_flush_pins(struct journal *, u64);
 

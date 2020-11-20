@@ -9,6 +9,7 @@
 #include "super.h"
 #include "trace.h"
 
+#include <linux/kthread.h>
 #include <linux/sched/mm.h>
 
 /* Free space calculations: */
@@ -534,9 +535,10 @@ static u64 journal_seq_to_flush(struct journal *j)
  * 512 journal entries or 25% of all journal buckets, then
  * journal_next_bucket() should not stall.
  */
-void bch2_journal_reclaim(struct journal *j)
+static void __bch2_journal_reclaim(struct journal *j, bool direct)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
+	bool kthread = (current->flags & PF_KTHREAD) != 0;
 	u64 seq_to_flush, nr_flushed = 0;
 	size_t min_nr;
 	unsigned flags;
@@ -551,6 +553,9 @@ void bch2_journal_reclaim(struct journal *j)
 	flags = memalloc_noreclaim_save();
 
 	do {
+		if (kthread && kthread_should_stop())
+			break;
+
 		bch2_journal_do_discards(j);
 
 		seq_to_flush = journal_seq_to_flush(j);
@@ -582,26 +587,83 @@ void bch2_journal_reclaim(struct journal *j)
 				c->btree_key_cache.nr_dirty,
 				c->btree_key_cache.nr_keys);
 
-		nr_flushed += journal_flush_pins(j, seq_to_flush, min_nr);
+		nr_flushed = journal_flush_pins(j, seq_to_flush, min_nr);
+
+		if (direct)
+			j->nr_direct_reclaim += nr_flushed;
+		else
+			j->nr_background_reclaim += nr_flushed;
+		trace_journal_reclaim_finish(c, nr_flushed);
 	} while (min_nr);
 
 	memalloc_noreclaim_restore(flags);
-
-	trace_journal_reclaim_finish(c, nr_flushed);
-
-	if (!bch2_journal_error(j))
-		queue_delayed_work(c->journal_reclaim_wq, &j->reclaim_work,
-				   msecs_to_jiffies(j->reclaim_delay_ms));
 }
 
-void bch2_journal_reclaim_work(struct work_struct *work)
+void bch2_journal_reclaim(struct journal *j)
 {
-	struct journal *j = container_of(to_delayed_work(work),
-				struct journal, reclaim_work);
+	__bch2_journal_reclaim(j, true);
+}
 
-	mutex_lock(&j->reclaim_lock);
-	bch2_journal_reclaim(j);
-	mutex_unlock(&j->reclaim_lock);
+static int bch2_journal_reclaim_thread(void *arg)
+{
+	struct journal *j = arg;
+	unsigned long next;
+
+	while (!kthread_should_stop()) {
+		j->reclaim_kicked = false;
+
+		mutex_lock(&j->reclaim_lock);
+		__bch2_journal_reclaim(j, false);
+		mutex_unlock(&j->reclaim_lock);
+
+		next = j->last_flushed + msecs_to_jiffies(j->reclaim_delay_ms);
+
+		while (1) {
+			set_current_state(TASK_INTERRUPTIBLE);
+			if (kthread_should_stop())
+				break;
+			if (j->reclaim_kicked)
+				break;
+			if (time_after_eq(jiffies, next))
+				break;
+			schedule_timeout(next - jiffies);
+
+		}
+		__set_current_state(TASK_RUNNING);
+	}
+
+	return 0;
+}
+
+void bch2_journal_reclaim_stop(struct journal *j)
+{
+	struct task_struct *p = j->reclaim_thread;
+
+	j->reclaim_thread = NULL;
+
+	if (p) {
+		kthread_stop(p);
+		put_task_struct(p);
+	}
+}
+
+int bch2_journal_reclaim_start(struct journal *j)
+{
+	struct bch_fs *c = container_of(j, struct bch_fs, journal);
+	struct task_struct *p;
+
+	if (j->reclaim_thread)
+		return 0;
+
+	p = kthread_create(bch2_journal_reclaim_thread, j,
+			   "bch-reclaim/%s", c->name);
+	if (IS_ERR(p))
+		return PTR_ERR(p);
+
+	get_task_struct(p);
+	j->reclaim_thread = p;
+	wake_up_process(p);
+	return 0;
 }
 
 static int journal_flush_done(struct journal *j, u64 seq_to_flush,

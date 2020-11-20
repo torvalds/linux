@@ -225,10 +225,13 @@ static bool journal_entry_close(struct journal *j)
  */
 static int journal_entry_open(struct journal *j)
 {
+	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	struct journal_buf *buf = journal_cur_buf(j);
 	union journal_res_state old, new;
 	int u64s;
 	u64 v;
+
+	BUG_ON(BCH_SB_CLEAN(c->disk_sb.sb));
 
 	lockdep_assert_held(&j->lock);
 	BUG_ON(journal_entry_is_open(j));
@@ -480,8 +483,10 @@ static bool journal_preres_available(struct journal *j,
 {
 	bool ret = bch2_journal_preres_get_fast(j, res, new_u64s, flags);
 
-	if (!ret)
-		bch2_journal_reclaim_work(&j->reclaim_work.work);
+	if (!ret && mutex_trylock(&j->reclaim_lock)) {
+		bch2_journal_reclaim(j);
+		mutex_unlock(&j->reclaim_lock);
+	}
 
 	return ret;
 }
@@ -888,7 +893,7 @@ void bch2_fs_journal_stop(struct journal *j)
 		j->last_empty_seq + 1 != journal_cur_seq(j)));
 
 	cancel_delayed_work_sync(&j->write_work);
-	cancel_delayed_work_sync(&j->reclaim_work);
+	bch2_journal_reclaim_stop(j);
 }
 
 int bch2_fs_journal_start(struct journal *j, u64 cur_seq,
@@ -1019,7 +1024,6 @@ int bch2_fs_journal_init(struct journal *j)
 	spin_lock_init(&j->err_lock);
 	init_waitqueue_head(&j->wait);
 	INIT_DELAYED_WORK(&j->write_work, journal_write_work);
-	INIT_DELAYED_WORK(&j->reclaim_work, bch2_journal_reclaim_work);
 	init_waitqueue_head(&j->pin_flush_wait);
 	mutex_init(&j->reclaim_lock);
 	mutex_init(&j->discard_lock);
@@ -1071,6 +1075,8 @@ void bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
 	       "last_seq:\t\t%llu\n"
 	       "last_seq_ondisk:\t%llu\n"
 	       "prereserved:\t\t%u/%u\n"
+	       "nr direct reclaim:\t%llu\n"
+	       "nr background reclaim:\t%llu\n"
 	       "current entry sectors:\t%u\n"
 	       "current entry error:\t%u\n"
 	       "current entry:\t\t",
@@ -1080,6 +1086,8 @@ void bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
 	       j->last_seq_ondisk,
 	       j->prereserved.reserved,
 	       j->prereserved.remaining,
+	       j->nr_direct_reclaim,
+	       j->nr_background_reclaim,
 	       j->cur_entry_sectors,
 	       j->cur_entry_error);
 

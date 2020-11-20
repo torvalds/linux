@@ -650,7 +650,6 @@ struct bch_fs {
 	struct workqueue_struct	*wq;
 	/* copygc needs its own workqueue for index updates.. */
 	struct workqueue_struct	*copygc_wq;
-	struct workqueue_struct	*journal_reclaim_wq;
 
 	/* ALLOCATION */
 	struct delayed_work	pd_controllers_update;

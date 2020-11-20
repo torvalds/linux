@@ -216,8 +216,12 @@ struct journal {
 	struct write_point	wp;
 	spinlock_t		err_lock;
 
-	struct delayed_work	reclaim_work;
 	struct mutex		reclaim_lock;
+	struct task_struct	*reclaim_thread;
+	bool			reclaim_kicked;
+	u64			nr_direct_reclaim;
+	u64			nr_background_reclaim;
+
 	unsigned long		last_flushed;
 	struct journal_entry_pin *flush_in_progress;
 	wait_queue_head_t	pin_flush_wait;

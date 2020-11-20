@@ -497,7 +497,7 @@ bool bch2_btree_insert_key_cached(struct btree_trans *trans,
 				&ck->journal, btree_key_cache_journal_flush);
 
 	if (kick_reclaim)
-		mod_delayed_work(c->journal_reclaim_wq, &c->journal.reclaim_work, 0);
+		journal_reclaim_kick(&c->journal);
 	return true;
 }
 

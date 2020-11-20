@@ -1409,7 +1409,7 @@ int bch2_dev_allocator_start(struct bch_dev *ca)
 		return 0;
 
 	p = kthread_create(bch2_allocator_thread, ca,
-			   "bch_alloc[%s]", ca->name);
+			   "bch-alloc/%s", ca->name);
 	if (IS_ERR(p))
 		return PTR_ERR(p);
 

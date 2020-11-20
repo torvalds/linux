@@ -993,7 +993,7 @@ static void journal_write_done(struct closure *cl)
 	 * Must come before signaling write completion, for
 	 * bch2_fs_journal_stop():
 	 */
-	mod_delayed_work(c->journal_reclaim_wq, &j->reclaim_work, 0);
+	journal_reclaim_kick(&c->journal);
 
 	/* also must come before signalling write completion: */
 	closure_debug_destroy(cl);
@@ -1043,6 +1043,8 @@ void bch2_journal_write(struct closure *cl)
 	bool validate_before_checksum = false;
 	unsigned i, sectors, bytes, u64s;
 	int ret;
+
+	BUG_ON(BCH_SB_CLEAN(c->disk_sb.sb));
 
 	bch2_journal_pin_put(j, le64_to_cpu(w->data->seq));
 

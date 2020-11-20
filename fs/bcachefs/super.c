@@ -49,7 +49,6 @@
 #include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/idr.h>
-#include <linux/kthread.h>
 #include <linux/module.h>
 #include <linux/percpu.h>
 #include <linux/random.h>
@@ -266,7 +265,7 @@ static void bch2_writes_disabled(struct percpu_ref *writes)
 void bch2_fs_read_only(struct bch_fs *c)
 {
 	if (!test_bit(BCH_FS_RW, &c->flags)) {
-		cancel_delayed_work_sync(&c->journal.reclaim_work);
+		BUG_ON(c->journal.reclaim_thread);
 		return;
 	}
 
@@ -424,6 +423,12 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 
 	set_bit(BCH_FS_ALLOCATOR_RUNNING, &c->flags);
 
+	ret = bch2_journal_reclaim_start(&c->journal);
+	if (ret) {
+		bch_err(c, "error starting journal reclaim: %i", ret);
+		return ret;
+	}
+
 	if (!early) {
 		ret = bch2_fs_read_write_late(c);
 		if (ret)
@@ -432,9 +437,6 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 
 	percpu_ref_reinit(&c->writes);
 	set_bit(BCH_FS_RW, &c->flags);
-
-	queue_delayed_work(c->journal_reclaim_wq,
-			   &c->journal.reclaim_work, 0);
 	return 0;
 err:
 	__bch2_fs_read_only(c);
@@ -503,8 +505,6 @@ static void __bch2_fs_free(struct bch_fs *c)
 	kfree(c->unused_inode_hints);
 	free_heap(&c->copygc_heap);
 
-	if (c->journal_reclaim_wq)
-		destroy_workqueue(c->journal_reclaim_wq);
 	if (c->copygc_wq)
 		destroy_workqueue(c->copygc_wq);
 	if (c->wq)
@@ -758,8 +758,6 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 				WQ_FREEZABLE|WQ_MEM_RECLAIM, 1)) ||
 	    !(c->copygc_wq = alloc_workqueue("bcachefs_copygc",
 				WQ_FREEZABLE|WQ_MEM_RECLAIM|WQ_CPU_INTENSIVE, 1)) ||
-	    !(c->journal_reclaim_wq = alloc_workqueue("bcachefs_journal_reclaim",
-				WQ_FREEZABLE|WQ_MEM_RECLAIM|WQ_HIGHPRI, 1)) ||
 	    percpu_ref_init(&c->writes, bch2_writes_disabled,
 			    PERCPU_REF_INIT_DEAD, GFP_KERNEL) ||
 	    mempool_init_kmalloc_pool(&c->fill_iter, 1, iter_size) ||

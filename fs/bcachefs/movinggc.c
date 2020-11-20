@@ -345,7 +345,7 @@ int bch2_copygc_start(struct bch_fs *c)
 	if (bch2_fs_init_fault("copygc_start"))
 		return -ENOMEM;
 
-	t = kthread_create(bch2_copygc_thread, c, "bch_copygc");
+	t = kthread_create(bch2_copygc_thread, c, "bch-copygc/%s", c->name);
 	if (IS_ERR(t))
 		return PTR_ERR(t);
 
