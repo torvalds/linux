@@ -218,6 +218,27 @@ extern "C" {
 #define DRM_MODE_CONTENT_PROTECTION_DESIRED     1
 #define DRM_MODE_CONTENT_PROTECTION_ENABLED     2
 
+/**
+ * struct drm_mode_modeinfo - Display mode information.
+ * @clock: pixel clock in kHz
+ * @hdisplay: horizontal display size
+ * @hsync_start: horizontal sync start
+ * @hsync_end: horizontal sync end
+ * @htotal: horizontal total size
+ * @hskew: horizontal skew
+ * @vdisplay: vertical display size
+ * @vsync_start: vertical sync start
+ * @vsync_end: vertical sync end
+ * @vtotal: vertical total size
+ * @vscan: vertical scan
+ * @vrefresh: approximate vertical refresh rate in Hz
+ * @flags: bitmask of misc. flags, see DRM_MODE_FLAG_* defines
+ * @type: bitmask of type flags, see DRM_MODE_TYPE_* defines
+ * @name: string describing the mode resolution
+ *
+ * This is the user-space API display mode information structure. For the
+ * kernel version see struct drm_display_mode.
+ */
 struct drm_mode_modeinfo {
 	__u32 clock;
 	__u16 hdisplay;
