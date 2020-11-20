@@ -339,8 +339,11 @@ static blk_status_t null_zone_write(struct nullb_cmd *cmd, sector_t sector,
 
 	trace_nullb_zone_op(cmd, zno, zone->cond);
 
-	if (zone->type == BLK_ZONE_TYPE_CONVENTIONAL)
+	if (zone->type == BLK_ZONE_TYPE_CONVENTIONAL) {
+		if (append)
+			return BLK_STS_IOERR;
 		return null_process_cmd(cmd, REQ_OP_WRITE, sector, nr_sectors);
+	}
 
 	null_lock_zone(dev, zno);
 
