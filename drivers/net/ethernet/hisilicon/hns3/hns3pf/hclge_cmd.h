@@ -339,7 +339,9 @@ enum hclge_int_type {
 };
 
 struct hclge_ctrl_vector_chain_cmd {
-	u8 int_vector_id;
+#define HCLGE_VECTOR_ID_L_S	0
+#define HCLGE_VECTOR_ID_L_M	GENMASK(7, 0)
+	u8 int_vector_id_l;
 	u8 int_cause_num;
 #define HCLGE_INT_TYPE_S	0
 #define HCLGE_INT_TYPE_M	GENMASK(1, 0)
@@ -349,7 +351,9 @@ struct hclge_ctrl_vector_chain_cmd {
 #define HCLGE_INT_GL_IDX_M	GENMASK(14, 13)
 	__le16 tqp_type_and_id[HCLGE_VECTOR_ELEMENTS_PER_CMD];
 	u8 vfid;
-	u8 rsv;
+#define HCLGE_VECTOR_ID_H_S	8
+#define HCLGE_VECTOR_ID_H_M	GENMASK(15, 8)
+	u8 int_vector_id_h;
 };
 
 #define HCLGE_MAX_TC_NUM		8
@@ -473,12 +477,8 @@ struct hclge_pf_res_cmd {
 	__le16 tqp_num;
 	__le16 buf_size;
 	__le16 msixcap_localid_ba_nic;
-	__le16 msixcap_localid_ba_rocee;
-#define HCLGE_MSIX_OFT_ROCEE_S		0
-#define HCLGE_MSIX_OFT_ROCEE_M		GENMASK(15, 0)
-#define HCLGE_PF_VEC_NUM_S		0
-#define HCLGE_PF_VEC_NUM_M		GENMASK(7, 0)
-	__le16 pf_intr_vector_number;
+	__le16 msixcap_localid_number_nic;
+	__le16 pf_intr_vector_number_roce;
 	__le16 pf_own_fun_number;
 	__le16 tx_buf_size;
 	__le16 dv_buf_size;

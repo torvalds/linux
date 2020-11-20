@@ -906,35 +906,24 @@ static int hclge_query_pf_resource(struct hclge_dev *hdev)
 
 	hdev->dv_buf_size = roundup(hdev->dv_buf_size, HCLGE_BUF_SIZE_UNIT);
 
-	if (hnae3_dev_roce_supported(hdev)) {
-		hdev->roce_base_msix_offset =
-		hnae3_get_field(le16_to_cpu(req->msixcap_localid_ba_rocee),
-				HCLGE_MSIX_OFT_ROCEE_M, HCLGE_MSIX_OFT_ROCEE_S);
-		hdev->num_roce_msi =
-		hnae3_get_field(le16_to_cpu(req->pf_intr_vector_number),
-				HCLGE_PF_VEC_NUM_M, HCLGE_PF_VEC_NUM_S);
+	hdev->num_nic_msi = le16_to_cpu(req->msixcap_localid_number_nic);
+	if (hdev->num_nic_msi < HNAE3_MIN_VECTOR_NUM) {
+		dev_err(&hdev->pdev->dev,
+			"only %u msi resources available, not enough for pf(min:2).\n",
+			hdev->num_nic_msi);
+		return -EINVAL;
+	}
 
-		/* nic's msix numbers is always equals to the roce's. */
-		hdev->num_nic_msi = hdev->num_roce_msi;
+	if (hnae3_dev_roce_supported(hdev)) {
+		hdev->num_roce_msi =
+			le16_to_cpu(req->pf_intr_vector_number_roce);
 
 		/* PF should have NIC vectors and Roce vectors,
 		 * NIC vectors are queued before Roce vectors.
 		 */
-		hdev->num_msi = hdev->num_roce_msi +
-				hdev->roce_base_msix_offset;
+		hdev->num_msi = hdev->num_nic_msi + hdev->num_roce_msi;
 	} else {
-		hdev->num_msi =
-		hnae3_get_field(le16_to_cpu(req->pf_intr_vector_number),
-				HCLGE_PF_VEC_NUM_M, HCLGE_PF_VEC_NUM_S);
-
-		hdev->num_nic_msi = hdev->num_msi;
-	}
-
-	if (hdev->num_nic_msi < HNAE3_MIN_VECTOR_NUM) {
-		dev_err(&hdev->pdev->dev,
-			"Just %u msi resources, not enough for pf(min:2).\n",
-			hdev->num_nic_msi);
-		return -EINVAL;
+		hdev->num_msi = hdev->num_nic_msi;
 	}
 
 	return 0;
@@ -2425,18 +2414,18 @@ static int hclge_init_roce_base_info(struct hclge_vport *vport)
 {
 	struct hnae3_handle *roce = &vport->roce;
 	struct hnae3_handle *nic = &vport->nic;
+	struct hclge_dev *hdev = vport->back;
 
 	roce->rinfo.num_vectors = vport->back->num_roce_msi;
 
-	if (vport->back->num_msi_left < vport->roce.rinfo.num_vectors ||
-	    vport->back->num_msi_left == 0)
+	if (hdev->num_msi < hdev->num_nic_msi + hdev->num_roce_msi)
 		return -EINVAL;
 
-	roce->rinfo.base_vector = vport->back->roce_base_vector;
+	roce->rinfo.base_vector = hdev->roce_base_vector;
 
 	roce->rinfo.netdev = nic->kinfo.netdev;
-	roce->rinfo.roce_io_base = vport->back->hw.io_base;
-	roce->rinfo.roce_mem_base = vport->back->hw.mem_base;
+	roce->rinfo.roce_io_base = hdev->hw.io_base;
+	roce->rinfo.roce_mem_base = hdev->hw.mem_base;
 
 	roce->pdev = nic->pdev;
 	roce->ae_algo = nic->ae_algo;
@@ -2470,7 +2459,7 @@ static int hclge_init_msi(struct hclge_dev *hdev)
 
 	hdev->base_msi_vector = pdev->irq;
 	hdev->roce_base_vector = hdev->base_msi_vector +
-				hdev->roce_base_msix_offset;
+				hdev->num_nic_msi;
 
 	hdev->vector_status = devm_kcalloc(&pdev->dev, hdev->num_msi,
 					   sizeof(u16), GFP_KERNEL);
@@ -4143,6 +4132,30 @@ struct hclge_vport *hclge_get_vport(struct hnae3_handle *handle)
 		return container_of(handle, struct hclge_vport, nic);
 }
 
+static void hclge_get_vector_info(struct hclge_dev *hdev, u16 idx,
+				  struct hnae3_vector_info *vector_info)
+{
+#define HCLGE_PF_MAX_VECTOR_NUM_DEV_V2	64
+
+	vector_info->vector = pci_irq_vector(hdev->pdev, idx);
+
+	/* need an extend offset to config vector >= 64 */
+	if (idx - 1 < HCLGE_PF_MAX_VECTOR_NUM_DEV_V2)
+		vector_info->io_addr = hdev->hw.io_base +
+				HCLGE_VECTOR_REG_BASE +
+				(idx - 1) * HCLGE_VECTOR_REG_OFFSET;
+	else
+		vector_info->io_addr = hdev->hw.io_base +
+				HCLGE_VECTOR_EXT_REG_BASE +
+				(idx - 1) / HCLGE_PF_MAX_VECTOR_NUM_DEV_V2 *
+				HCLGE_VECTOR_REG_OFFSET_H +
+				(idx - 1) % HCLGE_PF_MAX_VECTOR_NUM_DEV_V2 *
+				HCLGE_VECTOR_REG_OFFSET;
+
+	hdev->vector_status[idx] = hdev->vport[0].vport_id;
+	hdev->vector_irq[idx] = vector_info->vector;
+}
+
 static int hclge_get_vector(struct hnae3_handle *handle, u16 vector_num,
 			    struct hnae3_vector_info *vector_info)
 {
@@ -4150,23 +4163,16 @@ static int hclge_get_vector(struct hnae3_handle *handle, u16 vector_num,
 	struct hnae3_vector_info *vector = vector_info;
 	struct hclge_dev *hdev = vport->back;
 	int alloc = 0;
-	int i, j;
+	u16 i = 0;
+	u16 j;
 
 	vector_num = min_t(u16, hdev->num_nic_msi - 1, vector_num);
 	vector_num = min(hdev->num_msi_left, vector_num);
 
 	for (j = 0; j < vector_num; j++) {
-		for (i = 1; i < hdev->num_msi; i++) {
+		while (++i < hdev->num_nic_msi) {
 			if (hdev->vector_status[i] == HCLGE_INVALID_VPORT) {
-				vector->vector = pci_irq_vector(hdev->pdev, i);
-				vector->io_addr = hdev->hw.io_base +
-					HCLGE_VECTOR_REG_BASE +
-					(i - 1) * HCLGE_VECTOR_REG_OFFSET +
-					vport->vport_id *
-					HCLGE_VECTOR_VF_OFFSET;
-				hdev->vector_status[i] = vport->vport_id;
-				hdev->vector_irq[i] = vector->vector;
-
+				hclge_get_vector_info(hdev, i, vector);
 				vector++;
 				alloc++;
 
@@ -4715,7 +4721,12 @@ int hclge_bind_ring_with_vector(struct hclge_vport *vport,
 
 	op = en ? HCLGE_OPC_ADD_RING_TO_VECTOR : HCLGE_OPC_DEL_RING_TO_VECTOR;
 	hclge_cmd_setup_basic_desc(&desc, op, false);
-	req->int_vector_id = vector_id;
+	req->int_vector_id_l = hnae3_get_field(vector_id,
+					       HCLGE_VECTOR_ID_L_M,
+					       HCLGE_VECTOR_ID_L_S);
+	req->int_vector_id_h = hnae3_get_field(vector_id,
+					       HCLGE_VECTOR_ID_H_M,
+					       HCLGE_VECTOR_ID_H_S);
 
 	i = 0;
 	for (node = ring_chain; node; node = node->next) {
@@ -4747,7 +4758,14 @@ int hclge_bind_ring_with_vector(struct hclge_vport *vport,
 			hclge_cmd_setup_basic_desc(&desc,
 						   op,
 						   false);
-			req->int_vector_id = vector_id;
+			req->int_vector_id_l =
+				hnae3_get_field(vector_id,
+						HCLGE_VECTOR_ID_L_M,
+						HCLGE_VECTOR_ID_L_S);
+			req->int_vector_id_h =
+				hnae3_get_field(vector_id,
+						HCLGE_VECTOR_ID_H_M,
+						HCLGE_VECTOR_ID_H_S);
 		}
 	}
 
