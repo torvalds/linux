@@ -1332,7 +1332,8 @@ ap_spi_fp: &spi10 {
 
 		pinconf {
 			pins = "gpio24";
-			bias-pull-up;
+			/* Has external pullup */
+			bias-disable;
 		};
 	};
 
