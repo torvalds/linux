@@ -38,12 +38,11 @@
 #define		HHI_MIPI_CNTL2_CH_EN		GENMASK(15, 11)
 #define		HHI_MIPI_CNTL2_CH0_LP_CTL	GENMASK(10, 1)
 
-#define DSI_LANE_0              (1 << 4)
-#define DSI_LANE_1              (1 << 3)
-#define DSI_LANE_CLK            (1 << 2)
-#define DSI_LANE_2              (1 << 1)
-#define DSI_LANE_3              (1 << 0)
-#define DSI_LANE_MASK		(0x1F)
+#define DSI_LANE_0              BIT(4)
+#define DSI_LANE_1              BIT(3)
+#define DSI_LANE_CLK            BIT(2)
+#define DSI_LANE_2              BIT(1)
+#define DSI_LANE_3              BIT(0)
 
 struct phy_axg_mipi_pcie_analog_priv {
 	struct phy *phy;
