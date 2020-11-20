@@ -9,6 +9,8 @@
 #include "super.h"
 #include "trace.h"
 
+#include <linux/sched/mm.h>
+
 /* Free space calculations: */
 
 static unsigned journal_space_from(struct journal_device *ja,
@@ -537,8 +539,16 @@ void bch2_journal_reclaim(struct journal *j)
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	u64 seq_to_flush, nr_flushed = 0;
 	size_t min_nr;
+	unsigned flags;
 
+	/*
+	 * We can't invoke memory reclaim while holding the reclaim_lock -
+	 * journal reclaim is required to make progress for memory reclaim
+	 * (cleaning the caches), so we can't get stuck in memory reclaim while
+	 * we're holding the reclaim lock:
+	 */
 	lockdep_assert_held(&j->reclaim_lock);
+	flags = memalloc_noreclaim_save();
 
 	do {
 		bch2_journal_do_discards(j);
@@ -574,6 +584,8 @@ void bch2_journal_reclaim(struct journal *j)
 
 		nr_flushed += journal_flush_pins(j, seq_to_flush, min_nr);
 	} while (min_nr);
+
+	memalloc_noreclaim_restore(flags);
 
 	trace_journal_reclaim_finish(c, nr_flushed);
 
