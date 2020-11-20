@@ -299,6 +299,8 @@ enum {
 	MLX5_CMD_OP_CREATE_UMEM                   = 0xa08,
 	MLX5_CMD_OP_DESTROY_UMEM                  = 0xa0a,
 	MLX5_CMD_OP_SYNC_STEERING                 = 0xb00,
+	MLX5_CMD_OP_QUERY_VHCA_STATE              = 0xb0d,
+	MLX5_CMD_OP_MODIFY_VHCA_STATE             = 0xb0e,
 	MLX5_CMD_OP_MAX
 };
 
@@ -1244,7 +1246,15 @@ enum mlx5_fc_bulk_alloc_bitmask {
 #define MLX5_FC_BULK_NUM_FCS(fc_enum) (MLX5_FC_BULK_SIZE_FACTOR * (fc_enum))
 
 struct mlx5_ifc_cmd_hca_cap_bits {
-	u8         reserved_at_0[0x30];
+	u8         reserved_at_0[0x20];
+
+	u8         reserved_at_20[0x3];
+	u8         event_on_vhca_state_teardown_request[0x1];
+	u8         event_on_vhca_state_in_use[0x1];
+	u8         event_on_vhca_state_active[0x1];
+	u8         event_on_vhca_state_allocated[0x1];
+	u8         event_on_vhca_state_invalid[0x1];
+	u8         reserved_at_28[0x8];
 	u8         vhca_id[0x10];
 
 	u8         reserved_at_40[0x40];
@@ -1534,7 +1544,8 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         disable_local_lb_uc[0x1];
 	u8         disable_local_lb_mc[0x1];
 	u8         log_min_hairpin_wq_data_sz[0x5];
-	u8         reserved_at_3e8[0x3];
+	u8         reserved_at_3e8[0x2];
+	u8         vhca_state[0x1];
 	u8         log_max_vlan_list[0x5];
 	u8         reserved_at_3f0[0x3];
 	u8         log_max_current_mc_list[0x5];
@@ -1602,7 +1613,7 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         max_num_of_monitor_counters[0x10];
 	u8         num_ppcnt_monitor_counters[0x10];
 
-	u8         reserved_at_640[0x10];
+	u8         max_num_sf[0x10];
 	u8         num_q_monitor_counters[0x10];
 
 	u8         reserved_at_660[0x20];
