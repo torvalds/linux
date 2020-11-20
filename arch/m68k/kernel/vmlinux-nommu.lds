@@ -86,7 +86,7 @@ SECTIONS {
 	_end = .;
 
 	STABS_DEBUG
-	.comment 0 : { *(.comment) }
+	ELF_DETAILS
 
 	/* Sections to be discarded */
 	DISCARDS

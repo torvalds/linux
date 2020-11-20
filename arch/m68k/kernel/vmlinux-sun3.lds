@@ -52,6 +52,7 @@ __init_begin = .;
   _end = . ;
 
   STABS_DEBUG
+  ELF_DETAILS
 
   /* Sections to be discarded */
   DISCARDS
