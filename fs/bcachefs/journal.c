@@ -682,16 +682,19 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 	if (nr <= ja->nr)
 		return 0;
 
-	ret = -ENOMEM;
 	new_buckets	= kzalloc(nr * sizeof(u64), GFP_KERNEL);
 	new_bucket_seq	= kzalloc(nr * sizeof(u64), GFP_KERNEL);
-	if (!new_buckets || !new_bucket_seq)
+	if (!new_buckets || !new_bucket_seq) {
+		ret = -ENOMEM;
 		goto err;
+	}
 
 	journal_buckets = bch2_sb_resize_journal(&ca->disk_sb,
 					nr + sizeof(*journal_buckets) / sizeof(u64));
-	if (!journal_buckets)
+	if (!journal_buckets) {
+		ret = -ENOSPC;
 		goto err;
+	}
 
 	/*
 	 * We may be called from the device add path, before the new device has
@@ -720,8 +723,10 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 				goto err;
 			}
 		} else {
+			rcu_read_lock();
 			ob = bch2_bucket_alloc(c, ca, RESERVE_ALLOC,
 					       false, cl);
+			rcu_read_unlock();
 			if (IS_ERR(ob)) {
 				ret = cl ? -EAGAIN : -ENOSPC;
 				goto err;
@@ -773,8 +778,6 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 		if (!new_fs)
 			bch2_open_bucket_put(c, ob);
 	}
-
-	ret = 0;
 err:
 	bch2_sb_resize_journal(&ca->disk_sb,
 		ja->nr + sizeof(*journal_buckets) / sizeof(u64));
