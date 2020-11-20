@@ -56,6 +56,20 @@
  * CPU_BOOT_ERR0_EFUSE_FAIL		Reading from eFuse failed.
  *					The PCI device ID might be wrong.
  *
+ * CPU_BOOT_ERR0_PRI_IMG_VER_FAIL	Verification of primary image failed.
+ *					It mean that ppboot checksum
+ *					verification for the preboot primary
+ *					image has failed to match expected
+ *					checksum. Trying to program image again
+ *					might solve this.
+ *
+ * CPU_BOOT_ERR0_SEC_IMG_VER_FAIL	Verification of secondary image failed.
+ *					It mean that ppboot checksum
+ *					verification for the preboot secondary
+ *					image has failed to match expected
+ *					checksum. Trying to program image again
+ *					might solve this.
+ *
  * CPU_BOOT_ERR0_ENABLED		Error registers enabled.
  *					This is a main indication that the
  *					running FW populates the error
@@ -72,6 +86,8 @@
 #define CPU_BOOT_ERR0_SECURITY_NOT_RDY		(1 << 7)
 #define CPU_BOOT_ERR0_SECURITY_FAIL		(1 << 8)
 #define CPU_BOOT_ERR0_EFUSE_FAIL		(1 << 9)
+#define CPU_BOOT_ERR0_PRI_IMG_VER_FAIL		(1 << 10)
+#define CPU_BOOT_ERR0_SEC_IMG_VER_FAIL		(1 << 11)
 #define CPU_BOOT_ERR0_ENABLED			(1 << 31)
 
 /*
@@ -141,6 +157,7 @@
  *					bits are not garbage, but actual
  *					statuses.
  *					Initialized in: preboot
+ *
  */
 #define CPU_BOOT_DEV_STS0_SECURITY_EN			(1 << 0)
 #define CPU_BOOT_DEV_STS0_DEBUG_EN			(1 << 1)

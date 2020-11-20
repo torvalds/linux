@@ -30,7 +30,8 @@ enum gaudi_pll_index {
 	MESH_PLL,
 	MME_PLL,
 	TPC_PLL,
-	IF_PLL
+	IF_PLL,
+	PLL_MAX
 };
 
 enum gaudi_nic_axi_error {
