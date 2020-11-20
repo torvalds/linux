@@ -25,6 +25,7 @@
 static struct adb_request *current_req;
 static struct adb_request *last_req;
 static unsigned int autopoll_devs;
+static u8 autopoll_addr;
 
 static enum adb_iop_state {
 	idle,
@@ -40,6 +41,11 @@ static int adb_iop_write(struct adb_request *);
 static int adb_iop_autopoll(int);
 static void adb_iop_poll(void);
 static int adb_iop_reset_bus(void);
+
+/* ADB command byte structure */
+#define ADDR_MASK       0xF0
+#define OP_MASK         0x0C
+#define TALK            0x0C
 
 struct adb_driver adb_iop_driver = {
 	.name         = "ISM IOP",
@@ -94,17 +100,24 @@ static void adb_iop_complete(struct iop_msg *msg)
 static void adb_iop_listen(struct iop_msg *msg)
 {
 	struct adb_iopmsg *amsg = (struct adb_iopmsg *)msg->message;
+	u8 addr = (amsg->cmd & ADDR_MASK) >> 4;
+	u8 op = amsg->cmd & OP_MASK;
 	unsigned long flags;
 	bool req_done = false;
 
 	local_irq_save(flags);
 
-	/* Handle a timeout. Timeout packets seem to occur even after
-	 * we've gotten a valid reply to a TALK, presumably because of
-	 * autopolling.
+	/* Responses to Talk commands may be unsolicited as they are
+	 * produced when the IOP polls devices. They are mostly timeouts.
 	 */
+	if (op == TALK && ((1 << addr) & autopoll_devs))
+		autopoll_addr = addr;
 
-	if (amsg->flags & ADB_IOP_EXPLICIT) {
+	switch (amsg->flags & (ADB_IOP_EXPLICIT |
+			       ADB_IOP_AUTOPOLL |
+			       ADB_IOP_TIMEOUT)) {
+	case ADB_IOP_EXPLICIT:
+	case ADB_IOP_EXPLICIT | ADB_IOP_TIMEOUT:
 		if (adb_iop_state == awaiting_reply) {
 			struct adb_request *req = current_req;
 
@@ -115,12 +128,16 @@ static void adb_iop_listen(struct iop_msg *msg)
 
 			req_done = true;
 		}
-	} else if (!(amsg->flags & ADB_IOP_TIMEOUT)) {
-		adb_input(&amsg->cmd, amsg->count + 1,
-			  amsg->flags & ADB_IOP_AUTOPOLL);
+		break;
+	case ADB_IOP_AUTOPOLL:
+		if (((1 << addr) & autopoll_devs) &&
+		    amsg->cmd == ADB_READREG(addr, 0))
+			adb_input(&amsg->cmd, amsg->count + 1, 1);
+		break;
 	}
-
-	msg->reply[0] = autopoll_devs ? ADB_IOP_AUTOPOLL : 0;
+	msg->reply[0] = autopoll_addr ? ADB_IOP_AUTOPOLL : 0;
+	msg->reply[1] = 0;
+	msg->reply[2] = autopoll_addr ? ADB_READREG(autopoll_addr, 0) : 0;
 	iop_complete_message(msg);
 
 	if (req_done)
@@ -233,6 +250,9 @@ static void adb_iop_set_ap_complete(struct iop_msg *msg)
 	struct adb_iopmsg *amsg = (struct adb_iopmsg *)msg->message;
 
 	autopoll_devs = (amsg->data[1] << 8) | amsg->data[0];
+	if (autopoll_devs & (1 << autopoll_addr))
+		return;
+	autopoll_addr = autopoll_devs ? (ffs(autopoll_devs) - 1) : 0;
 }
 
 static int adb_iop_autopoll(int devs)
