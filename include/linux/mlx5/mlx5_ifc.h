@@ -10657,11 +10657,13 @@ struct mlx5_ifc_affiliated_event_header_bits {
 enum {
 	MLX5_HCA_CAP_GENERAL_OBJECT_TYPES_ENCRYPTION_KEY = BIT(0xc),
 	MLX5_HCA_CAP_GENERAL_OBJECT_TYPES_IPSEC = BIT(0x13),
+	MLX5_HCA_CAP_GENERAL_OBJECT_TYPES_SAMPLER = BIT(0x20),
 };
 
 enum {
 	MLX5_GENERAL_OBJECT_TYPES_ENCRYPTION_KEY = 0xc,
 	MLX5_GENERAL_OBJECT_TYPES_IPSEC = 0x13,
+	MLX5_GENERAL_OBJECT_TYPES_SAMPLER = 0x20,
 };
 
 enum {
@@ -10734,6 +10736,33 @@ struct mlx5_ifc_encryption_key_obj_bits {
 struct mlx5_ifc_create_encryption_key_in_bits {
 	struct mlx5_ifc_general_obj_in_cmd_hdr_bits general_obj_in_cmd_hdr;
 	struct mlx5_ifc_encryption_key_obj_bits encryption_key_object;
+};
+
+struct mlx5_ifc_sampler_obj_bits {
+	u8         modify_field_select[0x40];
+
+	u8         table_type[0x8];
+	u8         level[0x8];
+	u8         reserved_at_50[0xf];
+	u8         ignore_flow_level[0x1];
+
+	u8         sample_ratio[0x20];
+
+	u8         reserved_at_80[0x8];
+	u8         sample_table_id[0x18];
+
+	u8         reserved_at_a0[0x8];
+	u8         default_table_id[0x18];
+
+	u8         sw_steering_icm_address_rx[0x40];
+	u8         sw_steering_icm_address_tx[0x40];
+
+	u8         reserved_at_140[0xa0];
+};
+
+struct mlx5_ifc_create_sampler_obj_in_bits {
+	struct mlx5_ifc_general_obj_in_cmd_hdr_bits general_obj_in_cmd_hdr;
+	struct mlx5_ifc_sampler_obj_bits sampler_object;
 };
 
 enum {
