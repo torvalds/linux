@@ -30,14 +30,12 @@ bnxt_dl_flash_update(struct devlink *dl,
 		return -EPERM;
 	}
 
-	devlink_flash_update_begin_notify(dl);
 	devlink_flash_update_status_notify(dl, "Preparing to flash", NULL, 0, 0);
-	rc = bnxt_flash_package_from_file(bp->dev, params->file_name, 0);
+	rc = bnxt_flash_package_from_fw_obj(bp->dev, params->fw, 0);
 	if (!rc)
 		devlink_flash_update_status_notify(dl, "Flashing done", NULL, 0, 0);
 	else
 		devlink_flash_update_status_notify(dl, "Flashing failed", NULL, 0, 0);
-	devlink_flash_update_end_notify(dl);
 	return rc;
 }
 

@@ -301,11 +301,10 @@ static int nfp_pcie_sriov_configure(struct pci_dev *pdev, int num_vfs)
 		return nfp_pcie_sriov_enable(pdev, num_vfs);
 }
 
-int nfp_flash_update_common(struct nfp_pf *pf, const char *path,
+int nfp_flash_update_common(struct nfp_pf *pf, const struct firmware *fw,
 			    struct netlink_ext_ack *extack)
 {
 	struct device *dev = &pf->pdev->dev;
-	const struct firmware *fw;
 	struct nfp_nsp *nsp;
 	int err;
 
@@ -319,24 +318,12 @@ int nfp_flash_update_common(struct nfp_pf *pf, const char *path,
 		return err;
 	}
 
-	err = request_firmware_direct(&fw, path, dev);
-	if (err) {
-		NL_SET_ERR_MSG_MOD(extack,
-				   "unable to read flash file from disk");
-		goto exit_close_nsp;
-	}
-
-	dev_info(dev, "Please be patient while writing flash image: %s\n",
-		 path);
-
 	err = nfp_nsp_write_flash(nsp, fw);
 	if (err < 0)
-		goto exit_release_fw;
+		goto exit_close_nsp;
 	dev_info(dev, "Finished writing flash image\n");
 	err = 0;
 
-exit_release_fw:
-	release_firmware(fw);
 exit_close_nsp:
 	nfp_nsp_close(nsp);
 	return err;
