@@ -1382,6 +1382,7 @@ static void ql_categorize_rx_err(struct ql_adapter *qdev, u8 rx_err,
 		break;
 	case IB_MAC_IOCB_RSP_ERR_CRC:
 		stats->rx_crc_err++;
+		break;
 	default:
 		break;
 	}
