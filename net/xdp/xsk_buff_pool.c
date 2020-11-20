@@ -242,7 +242,7 @@ static void xp_release_deferred(struct work_struct *work)
 		pool->cq = NULL;
 	}
 
-	xdp_put_umem(pool->umem);
+	xdp_put_umem(pool->umem, false);
 	xp_destroy(pool);
 }
 
