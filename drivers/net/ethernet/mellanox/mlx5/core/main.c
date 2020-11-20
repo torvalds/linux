@@ -1126,23 +1126,23 @@ static int mlx5_load(struct mlx5_core_dev *dev)
 		goto err_sriov;
 	}
 
-	err = mlx5_sriov_attach(dev);
-	if (err) {
-		mlx5_core_err(dev, "sriov init failed %d\n", err);
-		goto err_sriov;
-	}
-
 	err = mlx5_ec_init(dev);
 	if (err) {
 		mlx5_core_err(dev, "Failed to init embedded CPU\n");
 		goto err_ec;
 	}
 
+	err = mlx5_sriov_attach(dev);
+	if (err) {
+		mlx5_core_err(dev, "sriov init failed %d\n", err);
+		goto err_sriov;
+	}
+
 	return 0;
 
-err_ec:
-	mlx5_sriov_detach(dev);
 err_sriov:
+	mlx5_ec_cleanup(dev);
+err_ec:
 	mlx5_cleanup_fs(dev);
 err_fs:
 	mlx5_accel_tls_cleanup(dev);
@@ -1168,8 +1168,8 @@ err_irq_table:
 
 static void mlx5_unload(struct mlx5_core_dev *dev)
 {
-	mlx5_ec_cleanup(dev);
 	mlx5_sriov_detach(dev);
+	mlx5_ec_cleanup(dev);
 	mlx5_cleanup_fs(dev);
 	mlx5_accel_ipsec_cleanup(dev);
 	mlx5_accel_tls_cleanup(dev);
