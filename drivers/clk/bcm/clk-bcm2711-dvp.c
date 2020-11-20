@@ -25,7 +25,6 @@ static const struct clk_parent_data clk_dvp_parent = {
 static int clk_dvp_probe(struct platform_device *pdev)
 {
 	struct clk_hw_onecell_data *data;
-	struct resource *res;
 	struct clk_dvp *dvp;
 	void __iomem *base;
 	int ret;
@@ -42,7 +41,7 @@ static int clk_dvp_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	data = dvp->data;
 
-	base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
