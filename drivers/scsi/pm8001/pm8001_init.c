@@ -1187,7 +1187,7 @@ pm8001_init_ccb_tag(struct pm8001_hba_info *pm8001_ha, struct Scsi_Host *shost,
 		goto err_out;
 
 	/* Memory region for ccb_info*/
-	pm8001_ha->ccb_info = (struct pm8001_ccb_info *)
+	pm8001_ha->ccb_info =
 		kcalloc(ccb_count, sizeof(struct pm8001_ccb_info), GFP_KERNEL);
 	if (!pm8001_ha->ccb_info) {
 		PM8001_FAIL_DBG(pm8001_ha, pm8001_printk
