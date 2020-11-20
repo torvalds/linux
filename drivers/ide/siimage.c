@@ -493,6 +493,7 @@ static int init_chipset_siimage(struct pci_dev *dev)
 	case 0x30:
 		/* Clocking is disabled, attempt to force 133MHz clocking. */
 		sil_iowrite8(dev, tmp & ~0x20, scsc_addr);
+		break;
 	case 0x10:
 		/* On 133Mhz clocking. */
 		break;
