@@ -1076,8 +1076,8 @@ static void nullb_fill_pattern(struct nullb *nullb, struct page *page,
 	kunmap_atomic(dst);
 }
 
-static blk_status_t null_handle_discard(struct nullb_device *dev,
-					sector_t sector, sector_t nr_sectors)
+blk_status_t null_handle_discard(struct nullb_device *dev,
+				 sector_t sector, sector_t nr_sectors)
 {
 	struct nullb *nullb = dev->nullb;
 	size_t n = nr_sectors << SECTOR_SHIFT;

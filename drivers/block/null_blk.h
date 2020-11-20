@@ -116,6 +116,8 @@ struct nullb {
 	char disk_name[DISK_NAME_LEN];
 };
 
+blk_status_t null_handle_discard(struct nullb_device *dev, sector_t sector,
+				 sector_t nr_sectors);
 blk_status_t null_process_cmd(struct nullb_cmd *cmd,
 			      enum req_opf op, sector_t sector,
 			      unsigned int nr_sectors);

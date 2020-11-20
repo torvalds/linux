@@ -588,6 +588,9 @@ static blk_status_t null_reset_zone(struct nullb_device *dev,
 
 	null_unlock_zone_res(dev);
 
+	if (dev->memory_backed)
+		return null_handle_discard(dev, zone->start, zone->len);
+
 	return BLK_STS_OK;
 }
 
