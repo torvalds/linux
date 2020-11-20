@@ -398,16 +398,32 @@ static int drm_fb_helper_damage_blit(struct drm_fb_helper *fb_helper,
 	struct dma_buf_map map, dst;
 	int ret;
 
+	/*
+	 * We have to pin the client buffer to its current location while
+	 * flushing the shadow buffer. In the general case, concurrent
+	 * modesetting operations could try to move the buffer and would
+	 * fail. The modeset has to be serialized by acquiring the reservation
+	 * object of the underlying BO here.
+	 *
+	 * For fbdev emulation, we only have to protect against fbdev modeset
+	 * operations. Nothing else will involve the client buffer's BO. So it
+	 * is sufficient to acquire struct drm_fb_helper.lock here.
+	 */
+	mutex_lock(&fb_helper->lock);
+
 	ret = drm_client_buffer_vmap(buffer, &map);
 	if (ret)
-		return ret;
+		goto out;
 
 	dst = map;
 	drm_fb_helper_damage_blit_real(fb_helper, clip, &dst);
 
 	drm_client_buffer_vunmap(buffer);
 
-	return 0;
+out:
+	mutex_unlock(&fb_helper->lock);
+
+	return ret;
 }
 
 static void drm_fb_helper_damage_work(struct work_struct *work)
