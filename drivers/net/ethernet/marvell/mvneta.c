@@ -2278,9 +2278,9 @@ mvneta_swbm_add_rx_fragment(struct mvneta_port *pp,
 			    struct mvneta_rx_desc *rx_desc,
 			    struct mvneta_rx_queue *rxq,
 			    struct xdp_buff *xdp, int *size,
+			    struct skb_shared_info *xdp_sinfo,
 			    struct page *page)
 {
-	struct skb_shared_info *sinfo = xdp_get_shared_info_from_buff(xdp);
 	struct net_device *dev = pp->dev;
 	enum dma_data_direction dma_dir;
 	int data_len, len;
@@ -2298,13 +2298,22 @@ mvneta_swbm_add_rx_fragment(struct mvneta_port *pp,
 				len, dma_dir);
 	rx_desc->buf_phys_addr = 0;
 
-	if (data_len > 0 && sinfo->nr_frags < MAX_SKB_FRAGS) {
-		skb_frag_t *frag = &sinfo->frags[sinfo->nr_frags];
+	if (data_len > 0 && xdp_sinfo->nr_frags < MAX_SKB_FRAGS) {
+		skb_frag_t *frag = &xdp_sinfo->frags[xdp_sinfo->nr_frags++];
 
 		skb_frag_off_set(frag, pp->rx_offset_correction);
 		skb_frag_size_set(frag, data_len);
 		__skb_frag_set_page(frag, page);
-		sinfo->nr_frags++;
+
+		/* last fragment */
+		if (len == *size) {
+			struct skb_shared_info *sinfo;
+
+			sinfo = xdp_get_shared_info_from_buff(xdp);
+			sinfo->nr_frags = xdp_sinfo->nr_frags;
+			memcpy(sinfo->frags, xdp_sinfo->frags,
+			       sinfo->nr_frags * sizeof(skb_frag_t));
+		}
 	} else {
 		page_pool_put_full_page(rxq->page_pool, page, true);
 	}
@@ -2348,6 +2357,7 @@ static int mvneta_rx_swbm(struct napi_struct *napi,
 {
 	int rx_proc = 0, rx_todo, refill, size = 0;
 	struct net_device *dev = pp->dev;
+	struct skb_shared_info sinfo;
 	struct mvneta_stats ps = {};
 	struct bpf_prog *xdp_prog;
 	u32 desc_status, frame_sz;
@@ -2356,6 +2366,8 @@ static int mvneta_rx_swbm(struct napi_struct *napi,
 	xdp_buf.data_hard_start = NULL;
 	xdp_buf.frame_sz = PAGE_SIZE;
 	xdp_buf.rxq = &rxq->xdp_rxq;
+
+	sinfo.nr_frags = 0;
 
 	/* Get number of received packets */
 	rx_todo = mvneta_rxq_busy_desc_num_get(pp, rxq);
@@ -2395,11 +2407,11 @@ static int mvneta_rx_swbm(struct napi_struct *napi,
 				rx_desc->buf_phys_addr = 0;
 				page_pool_put_full_page(rxq->page_pool, page,
 							true);
-				continue;
+				goto next;
 			}
 
 			mvneta_swbm_add_rx_fragment(pp, rx_desc, rxq, &xdp_buf,
-						    &size, page);
+						    &size, &sinfo, page);
 		} /* Middle or Last descriptor */
 
 		if (!(rx_status & MVNETA_RXD_LAST_DESC))
@@ -2407,10 +2419,7 @@ static int mvneta_rx_swbm(struct napi_struct *napi,
 			continue;
 
 		if (size) {
-			struct skb_shared_info *sinfo;
-
-			sinfo = xdp_get_shared_info_from_buff(&xdp_buf);
-			mvneta_xdp_put_buff(pp, rxq, &xdp_buf, sinfo, -1);
+			mvneta_xdp_put_buff(pp, rxq, &xdp_buf, &sinfo, -1);
 			goto next;
 		}
 
@@ -2421,10 +2430,8 @@ static int mvneta_rx_swbm(struct napi_struct *napi,
 		skb = mvneta_swbm_build_skb(pp, rxq, &xdp_buf, desc_status);
 		if (IS_ERR(skb)) {
 			struct mvneta_pcpu_stats *stats = this_cpu_ptr(pp->stats);
-			struct skb_shared_info *sinfo;
 
-			sinfo = xdp_get_shared_info_from_buff(&xdp_buf);
-			mvneta_xdp_put_buff(pp, rxq, &xdp_buf, sinfo, -1);
+			mvneta_xdp_put_buff(pp, rxq, &xdp_buf, &sinfo, -1);
 
 			u64_stats_update_begin(&stats->syncp);
 			stats->es.skb_alloc_error++;
@@ -2441,15 +2448,12 @@ static int mvneta_rx_swbm(struct napi_struct *napi,
 		napi_gro_receive(napi, skb);
 next:
 		xdp_buf.data_hard_start = NULL;
+		sinfo.nr_frags = 0;
 	}
 	rcu_read_unlock();
 
-	if (xdp_buf.data_hard_start) {
-		struct skb_shared_info *sinfo;
-
-		sinfo = xdp_get_shared_info_from_buff(&xdp_buf);
-		mvneta_xdp_put_buff(pp, rxq, &xdp_buf, sinfo, -1);
-	}
+	if (xdp_buf.data_hard_start)
+		mvneta_xdp_put_buff(pp, rxq, &xdp_buf, &sinfo, -1);
 
 	if (ps.xdp_redirect)
 		xdp_do_flush_map();
