@@ -307,6 +307,9 @@ enum hclge_opcode_type {
 #define HCLGE_TQP_REG_OFFSET		0x80000
 #define HCLGE_TQP_REG_SIZE		0x200
 
+#define HCLGE_TQP_MAX_SIZE_DEV_V2	1024
+#define HCLGE_TQP_EXT_REG_OFFSET	0x100
+
 #define HCLGE_RCB_INIT_QUERY_TIMEOUT	10
 #define HCLGE_RCB_INIT_FLAG_EN_B	0
 #define HCLGE_RCB_INIT_FLAG_FINI_B	8
@@ -479,7 +482,8 @@ struct hclge_pf_res_cmd {
 	__le16 pf_own_fun_number;
 	__le16 tx_buf_size;
 	__le16 dv_buf_size;
-	__le32 rsv[2];
+	__le16 ext_tqp_num;
+	u8 rsv[6];
 };
 
 #define HCLGE_CFG_OFFSET_S	0
@@ -643,7 +647,6 @@ struct hclge_config_mac_speed_dup_cmd {
 	u8 rsv[22];
 };
 
-#define HCLGE_RING_ID_MASK		GENMASK(9, 0)
 #define HCLGE_TQP_ENABLE_B		0
 
 #define HCLGE_MAC_CFG_AN_EN_B		0

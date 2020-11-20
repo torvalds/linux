@@ -556,7 +556,7 @@ static int hclge_tqps_update_stats(struct hnae3_handle *handle)
 		hclge_cmd_setup_basic_desc(&desc[0], HCLGE_OPC_QUERY_RX_STATS,
 					   true);
 
-		desc[0].data[0] = cpu_to_le32((tqp->index & 0x1ff));
+		desc[0].data[0] = cpu_to_le32(tqp->index);
 		ret = hclge_cmd_send(&hdev->hw, desc, 1);
 		if (ret) {
 			dev_err(&hdev->pdev->dev,
@@ -576,7 +576,7 @@ static int hclge_tqps_update_stats(struct hnae3_handle *handle)
 					   HCLGE_OPC_QUERY_TX_STATS,
 					   true);
 
-		desc[0].data[0] = cpu_to_le32((tqp->index & 0x1ff));
+		desc[0].data[0] = cpu_to_le32(tqp->index);
 		ret = hclge_cmd_send(&hdev->hw, desc, 1);
 		if (ret) {
 			dev_err(&hdev->pdev->dev,
@@ -886,7 +886,8 @@ static int hclge_query_pf_resource(struct hclge_dev *hdev)
 	}
 
 	req = (struct hclge_pf_res_cmd *)desc.data;
-	hdev->num_tqps = le16_to_cpu(req->tqp_num);
+	hdev->num_tqps = le16_to_cpu(req->tqp_num) +
+			 le16_to_cpu(req->ext_tqp_num);
 	hdev->pkt_buf_size = le16_to_cpu(req->buf_size) << HCLGE_BUF_UNIT_S;
 
 	if (req->tx_buf_size)
@@ -1598,8 +1599,20 @@ static int hclge_alloc_tqps(struct hclge_dev *hdev)
 		tqp->q.buf_size = hdev->rx_buf_len;
 		tqp->q.tx_desc_num = hdev->num_tx_desc;
 		tqp->q.rx_desc_num = hdev->num_rx_desc;
-		tqp->q.io_base = hdev->hw.io_base + HCLGE_TQP_REG_OFFSET +
-			i * HCLGE_TQP_REG_SIZE;
+
+		/* need an extended offset to configure queues >=
+		 * HCLGE_TQP_MAX_SIZE_DEV_V2
+		 */
+		if (i < HCLGE_TQP_MAX_SIZE_DEV_V2)
+			tqp->q.io_base = hdev->hw.io_base +
+					 HCLGE_TQP_REG_OFFSET +
+					 i * HCLGE_TQP_REG_SIZE;
+		else
+			tqp->q.io_base = hdev->hw.io_base +
+					 HCLGE_TQP_REG_OFFSET +
+					 HCLGE_TQP_EXT_REG_OFFSET +
+					 (i - HCLGE_TQP_MAX_SIZE_DEV_V2) *
+					 HCLGE_TQP_REG_SIZE;
 
 		tqp++;
 	}
@@ -6852,7 +6865,7 @@ static int hclge_tqp_enable(struct hclge_dev *hdev, unsigned int tqp_id,
 	int ret;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CFG_COM_TQP_QUEUE, false);
-	req->tqp_id = cpu_to_le16(tqp_id & HCLGE_RING_ID_MASK);
+	req->tqp_id = cpu_to_le16(tqp_id);
 	req->stream_id = cpu_to_le16(stream_id);
 	if (enable)
 		req->enable |= 1U << HCLGE_TQP_ENABLE_B;
@@ -9314,7 +9327,7 @@ static int hclge_send_reset_tqp_cmd(struct hclge_dev *hdev, u16 queue_id,
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_RESET_TQP_QUEUE, false);
 
 	req = (struct hclge_reset_tqp_queue_cmd *)desc.data;
-	req->tqp_id = cpu_to_le16(queue_id & HCLGE_RING_ID_MASK);
+	req->tqp_id = cpu_to_le16(queue_id);
 	if (enable)
 		hnae3_set_bit(req->reset_req, HCLGE_TQP_RESET_B, 1U);
 
@@ -9337,7 +9350,7 @@ static int hclge_get_reset_status(struct hclge_dev *hdev, u16 queue_id)
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_RESET_TQP_QUEUE, true);
 
 	req = (struct hclge_reset_tqp_queue_cmd *)desc.data;
-	req->tqp_id = cpu_to_le16(queue_id & HCLGE_RING_ID_MASK);
+	req->tqp_id = cpu_to_le16(queue_id);
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret) {

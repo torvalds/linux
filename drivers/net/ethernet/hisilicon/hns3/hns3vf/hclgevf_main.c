@@ -403,8 +403,20 @@ static int hclgevf_alloc_tqps(struct hclgevf_dev *hdev)
 		tqp->q.buf_size = hdev->rx_buf_len;
 		tqp->q.tx_desc_num = hdev->num_tx_desc;
 		tqp->q.rx_desc_num = hdev->num_rx_desc;
-		tqp->q.io_base = hdev->hw.io_base + HCLGEVF_TQP_REG_OFFSET +
-			i * HCLGEVF_TQP_REG_SIZE;
+
+		/* need an extended offset to configure queues >=
+		 * HCLGEVF_TQP_MAX_SIZE_DEV_V2.
+		 */
+		if (i < HCLGEVF_TQP_MAX_SIZE_DEV_V2)
+			tqp->q.io_base = hdev->hw.io_base +
+					 HCLGEVF_TQP_REG_OFFSET +
+					 i * HCLGEVF_TQP_REG_SIZE;
+		else
+			tqp->q.io_base = hdev->hw.io_base +
+					 HCLGEVF_TQP_REG_OFFSET +
+					 HCLGEVF_TQP_EXT_REG_OFFSET +
+					 (i - HCLGEVF_TQP_MAX_SIZE_DEV_V2) *
+					 HCLGEVF_TQP_REG_SIZE;
 
 		tqp++;
 	}
