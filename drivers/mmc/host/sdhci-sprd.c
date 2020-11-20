@@ -788,7 +788,7 @@ static struct platform_driver sdhci_sprd_driver = {
 	.driver = {
 		.name = "sdhci_sprd_r11",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
-		.of_match_table = of_match_ptr(sdhci_sprd_of_match),
+		.of_match_table = sdhci_sprd_of_match,
 		.pm = &sdhci_sprd_pm_ops,
 	},
 };
