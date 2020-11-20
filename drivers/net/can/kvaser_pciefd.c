@@ -1299,7 +1299,7 @@ static int kvaser_pciefd_rx_error_frame(struct kvaser_pciefd_can *can,
 	cf->data[7] = bec.rxerr;
 
 	stats->rx_packets++;
-	stats->rx_bytes += cf->can_dlc;
+	stats->rx_bytes += cf->len;
 
 	netif_rx(skb);
 	return 0;
@@ -1498,7 +1498,7 @@ static void kvaser_pciefd_handle_nack_packet(struct kvaser_pciefd_can *can,
 
 	if (skb) {
 		cf->can_id |= CAN_ERR_BUSERROR;
-		stats->rx_bytes += cf->can_dlc;
+		stats->rx_bytes += cf->len;
 		stats->rx_packets++;
 		netif_rx(skb);
 	} else {

@@ -207,7 +207,7 @@ static void canframecpy(struct canfd_frame *dst, struct can_frame *src)
 	 */
 
 	dst->can_id = src->can_id;
-	dst->len = src->can_dlc;
+	dst->len = src->len;
 	*(u64 *)dst->data = *(u64 *)src->data;
 }
 

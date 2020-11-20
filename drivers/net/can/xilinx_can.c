@@ -759,7 +759,7 @@ static int xcan_rx(struct net_device *ndev, int frame_base)
 				   XCAN_DLCR_DLC_SHIFT;
 
 	/* Change Xilinx CAN data length format to socketCAN data format */
-	cf->can_dlc = can_cc_dlc2len(dlc);
+	cf->len = can_cc_dlc2len(dlc);
 
 	/* Change Xilinx CAN ID format to socketCAN ID format */
 	if (id_xcan & XCAN_IDR_IDE_MASK) {
@@ -784,13 +784,13 @@ static int xcan_rx(struct net_device *ndev, int frame_base)
 
 	if (!(cf->can_id & CAN_RTR_FLAG)) {
 		/* Change Xilinx CAN data format to socketCAN data format */
-		if (cf->can_dlc > 0)
+		if (cf->len > 0)
 			*(__be32 *)(cf->data) = cpu_to_be32(data[0]);
-		if (cf->can_dlc > 4)
+		if (cf->len > 4)
 			*(__be32 *)(cf->data + 4) = cpu_to_be32(data[1]);
 	}
 
-	stats->rx_bytes += cf->can_dlc;
+	stats->rx_bytes += cf->len;
 	stats->rx_packets++;
 	netif_receive_skb(skb);
 
@@ -970,7 +970,7 @@ static void xcan_update_error_state_after_rxtx(struct net_device *ndev)
 			struct net_device_stats *stats = &ndev->stats;
 
 			stats->rx_packets++;
-			stats->rx_bytes += cf->can_dlc;
+			stats->rx_bytes += cf->len;
 			netif_rx(skb);
 		}
 	}

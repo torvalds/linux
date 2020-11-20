@@ -596,7 +596,7 @@ static int m_can_handle_lec_err(struct net_device *dev,
 	}
 
 	stats->rx_packets++;
-	stats->rx_bytes += cf->can_dlc;
+	stats->rx_bytes += cf->len;
 	netif_receive_skb(skb);
 
 	return 1;
@@ -723,7 +723,7 @@ static int m_can_handle_state_change(struct net_device *dev,
 	}
 
 	stats->rx_packets++;
-	stats->rx_bytes += cf->can_dlc;
+	stats->rx_bytes += cf->len;
 	netif_receive_skb(skb);
 
 	return 1;

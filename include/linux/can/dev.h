@@ -185,8 +185,8 @@ static inline void can_set_static_ctrlmode(struct net_device *dev,
 		dev->mtu = CANFD_MTU;
 }
 
-/* get data length from can_dlc with sanitized can_dlc */
-u8 can_dlc2len(u8 can_dlc);
+/* get data length from raw data length code (DLC) */
+u8 can_dlc2len(u8 dlc);
 
 /* map the sanitized data length to an appropriate data length code */
 u8 can_len2dlc(u8 len);

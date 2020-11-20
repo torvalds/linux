@@ -30,10 +30,10 @@ MODULE_AUTHOR("Wolfgang Grandegger <wg@grandegger.com>");
 static const u8 dlc2len[] = {0, 1, 2, 3, 4, 5, 6, 7,
 			     8, 12, 16, 20, 24, 32, 48, 64};
 
-/* get data length from can_dlc with sanitized can_dlc */
-u8 can_dlc2len(u8 can_dlc)
+/* get data length from raw data length code (DLC) */
+u8 can_dlc2len(u8 dlc)
 {
-	return dlc2len[can_dlc & 0x0F];
+	return dlc2len[dlc & 0x0F];
 }
 EXPORT_SYMBOL_GPL(can_dlc2len);
 
@@ -595,7 +595,7 @@ static void can_restart(struct net_device *dev)
 	netif_rx_ni(skb);
 
 	stats->rx_packets++;
-	stats->rx_bytes += cf->can_dlc;
+	stats->rx_bytes += cf->len;
 
 restart:
 	netdev_dbg(dev, "restarted\n");
@@ -737,7 +737,7 @@ struct sk_buff *alloc_can_err_skb(struct net_device *dev, struct can_frame **cf)
 		return NULL;
 
 	(*cf)->can_id = CAN_ERR_FLAG;
-	(*cf)->can_dlc = CAN_ERR_DLC;
+	(*cf)->len = CAN_ERR_DLC;
 
 	return skb;
 }

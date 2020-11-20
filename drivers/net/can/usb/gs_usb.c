@@ -331,7 +331,7 @@ static void gs_usb_receive_bulk_callback(struct urb *urb)
 
 		cf->can_id = hf->can_id;
 
-		cf->can_dlc = can_cc_dlc2len(hf->can_dlc);
+		cf->len = can_cc_dlc2len(hf->can_dlc);
 		memcpy(cf->data, hf->data, 8);
 
 		/* ERROR frames tell us information about the controller */
@@ -378,7 +378,7 @@ static void gs_usb_receive_bulk_callback(struct urb *urb)
 			goto resubmit_urb;
 
 		cf->can_id |= CAN_ERR_CRTL;
-		cf->can_dlc = CAN_ERR_DLC;
+		cf->len = CAN_ERR_DLC;
 		cf->data[1] = CAN_ERR_CRTL_RX_OVERFLOW;
 		stats->rx_over_errors++;
 		stats->rx_errors++;
@@ -504,8 +504,8 @@ static netdev_tx_t gs_can_start_xmit(struct sk_buff *skb,
 	cf = (struct can_frame *)skb->data;
 
 	hf->can_id = cf->can_id;
-	hf->can_dlc = cf->can_dlc;
-	memcpy(hf->data, cf->data, cf->can_dlc);
+	hf->can_dlc = cf->len;
+	memcpy(hf->data, cf->data, cf->len);
 
 	usb_fill_bulk_urb(urb, dev->udev,
 			  usb_sndbulkpipe(dev->udev, GSUSB_ENDPOINT_OUT),

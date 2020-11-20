@@ -295,7 +295,7 @@ static netdev_tx_t sja1000_start_xmit(struct sk_buff *skb,
 
 	netif_stop_queue(dev);
 
-	fi = dlc = cf->can_dlc;
+	fi = dlc = cf->len;
 	id = cf->can_id;
 
 	if (id & CAN_RTR_FLAG)
@@ -367,11 +367,11 @@ static void sja1000_rx(struct net_device *dev)
 		    | (priv->read_reg(priv, SJA1000_ID2) >> 5);
 	}
 
-	cf->can_dlc = can_cc_dlc2len(fi & 0x0F);
+	cf->len = can_cc_dlc2len(fi & 0x0F);
 	if (fi & SJA1000_FI_RTR) {
 		id |= CAN_RTR_FLAG;
 	} else {
-		for (i = 0; i < cf->can_dlc; i++)
+		for (i = 0; i < cf->len; i++)
 			cf->data[i] = priv->read_reg(priv, dreg++);
 	}
 
@@ -381,7 +381,7 @@ static void sja1000_rx(struct net_device *dev)
 	sja1000_write_cmdreg(priv, CMD_RRB);
 
 	stats->rx_packets++;
-	stats->rx_bytes += cf->can_dlc;
+	stats->rx_bytes += cf->len;
 	netif_rx(skb);
 
 	can_led_event(dev, CAN_LED_EVENT_RX);
@@ -490,7 +490,7 @@ static int sja1000_err(struct net_device *dev, uint8_t isrc, uint8_t status)
 	}
 
 	stats->rx_packets++;
-	stats->rx_bytes += cf->can_dlc;
+	stats->rx_bytes += cf->len;
 	netif_rx(skb);
 
 	return 0;
