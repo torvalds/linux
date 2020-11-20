@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Broadcom USB remote download definitions
  *

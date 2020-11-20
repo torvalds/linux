@@ -1112,15 +1112,85 @@ typedef struct wl_auth_event {
 
 #define WL_AUTH_EVENT_FIXED_LEN_V1	OFFSETOF(wl_auth_event_t, xtlvs)
 
-typedef struct _pmkid {
-	struct ether_addr	BSSID;
-	uint8			PMKID[WPA2_PMKID_LEN];
-} pmkid_t;
+#define WL_PMKSA_EVENT_DATA_V1	1u
 
-typedef struct _pmkid_list {
+/* tlv ids for PMKSA event */
+#define WL_PMK_TLV_ID		1u
+#define WL_PMKID_TLV_ID		2u
+#define WL_PEER_ADDR_TLV_ID	3u
+
+/* PMKSA event data structure */
+typedef struct wl_pmksa_event {
+	uint16 version;
+	uint16 length;
+	uint8 xtlvs[];
+} wl_pmksa_event_t;
+
+#define WL_PMKSA_EVENT_FIXED_LEN_V1	OFFSETOF(wl_pmksa_event_t, xtlvs)
+
+#define FILS_CACHE_ID_LEN	2u
+#define PMK_LEN_MAX		48u
+
+typedef struct _pmkid_v1 {
+	struct ether_addr	BSSID;
+	uint8				PMKID[WPA2_PMKID_LEN];
+} pmkid_v1_t;
+
+#define PMKID_ELEM_V2_LENGTH (sizeof(struct ether_addr) + WPA2_PMKID_LEN + PMK_LEN_MAX + \
+	sizeof(ssid_info_t) + FILS_CACHE_ID_LEN)
+
+typedef struct _pmkid_v2 {
+	uint16				length; /* Should match PMKID_ELEM_VX_LENGTH */
+	struct ether_addr	BSSID;
+	uint8				PMKID[WPA2_PMKID_LEN];
+	uint8				pmk[PMK_LEN_MAX]; /* for FILS key deriviation */
+	uint16				pmk_len;
+	ssid_info_t			ssid;
+	uint8				fils_cache_id[FILS_CACHE_ID_LEN];
+} pmkid_v2_t;
+
+#define PMKID_LIST_VER_2	2
+
+typedef struct _pmkid_v3 {
+	struct ether_addr	bssid;
+	uint8			pmkid[WPA2_PMKID_LEN];
+	uint8			pmkid_len;
+	uint8			pmk[PMK_LEN_MAX];
+	uint8			pmk_len;
+	uint16			fils_cache_id; /* 2-byte length */
+	uint8			pad;
+	uint8			ssid_len;
+	uint8			ssid[DOT11_MAX_SSID_LEN]; /* For FILS, to save ESSID */
+							  /* one pmkid used in whole ESS */
+	uint32			time_left; /* remaining time until expirary in sec. */
+					   /* 0 means expired, all 0xFF means never expire */
+} pmkid_v3_t;
+
+#define PMKID_LIST_VER_3	3
+typedef struct _pmkid_list_v1 {
 	uint32	npmkid;
-	pmkid_t	pmkid[1];
-} pmkid_list_t;
+	pmkid_v1_t	pmkid[1];
+} pmkid_list_v1_t;
+
+typedef struct _pmkid_list_v2 {
+	uint16  version;
+	uint16	length;
+	pmkid_v2_t	pmkid[1];
+} pmkid_list_v2_t;
+
+typedef struct _pmkid_list_v3 {
+	uint16		version;
+	uint16		length;
+	uint16		count;
+	uint16          pad;
+	pmkid_v3_t	pmkid[];
+} pmkid_list_v3_t;
+
+#ifndef PMKID_VERSION_ENABLED
+/* pmkid structure before versioning. legacy. DONOT update anymore here */
+typedef pmkid_v1_t pmkid_t;
+typedef pmkid_list_v1_t pmkid_list_t;
+#endif /* PMKID_VERSION_ENABLED */
 
 typedef struct _pmkid_cand {
 	struct ether_addr	BSSID;
@@ -13825,5 +13895,12 @@ typedef struct csa_event_data {
 	dot11_wide_bw_chan_switch_ie_t wbcs;
 	uint8 PAD;
 } csa_event_data_t;
+
+typedef struct wl_ext_auth_evt {
+	wlc_ssid_t ssid;
+	struct ether_addr bssid;
+	unsigned int key_mgmt_suite;
+	int status;
+} wl_ext_auth_evt_t;
 
 #endif /* _wlioctl_h_ */

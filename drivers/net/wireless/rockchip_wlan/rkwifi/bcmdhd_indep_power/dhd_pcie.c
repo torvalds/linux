@@ -1680,7 +1680,7 @@ dhdpcie_download_firmware(struct dhd_bus *bus, osl_t *osh)
 
 	DHD_OS_WAKE_LOCK(bus->dhd);
 
-	dhd_conf_set_path_params(bus->dhd, NULL, bus->fw_path, bus->nv_path);
+	dhd_conf_set_path_params(bus->dhd, bus->fw_path, bus->nv_path);
 	dhd_set_bus_params(bus);
 
 	ret = _dhdpcie_download_firmware(bus);

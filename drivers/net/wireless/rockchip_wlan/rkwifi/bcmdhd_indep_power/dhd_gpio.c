@@ -68,7 +68,7 @@ dhd_wlan_set_power(int on
 #endif /* BCMPCIE */
 #endif /* BUS_POWER_RESTORE */
 		/* Lets customer power to get stable */
-		mdelay(100);
+//		mdelay(100);
 	} else {
 #if defined(BUS_POWER_RESTORE)
 #if defined(BCMSDIO) && (LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 0))

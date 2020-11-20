@@ -861,7 +861,8 @@
 #define WLC_GET_RSSI_QDB			321 /* qdB portion of the RSSI */
 #define WLC_DUMP_RATESET			322
 #define WLC_ECHO				323
-#define WLC_LAST				324
+#define WLC_SCB_AUTHENTICATE	325
+#define WLC_LAST				326
 #define WLC_SPEC_FLAG			0x80000000 /* For some special IOCTL */
 #ifndef EPICTRL_COOKIE
 #define EPICTRL_COOKIE		0xABADCEDE
@@ -924,6 +925,7 @@
 #define WL_AUTH_OPEN_SYSTEM		0	/* d11 open authentication */
 #define WL_AUTH_SHARED_KEY		1	/* d11 shared authentication */
 #define WL_AUTH_OPEN_SHARED		2	/* try open, then shared if open failed w/rc 13 */
+#define WL_AUTH_SAE_KEY			3	/* d11 sae authentication */
 
 /* a large TX Power as an init value to factor out of MIN() calculations,
  * keep low enough to fit in an int8, units are .25 dBm

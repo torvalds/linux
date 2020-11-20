@@ -285,6 +285,7 @@ typedef volatile struct {
 #define SDPCM_SHARED_PENDING_BRPT  0x2000
 #define SDPCM_SHARED_FATAL_LOGBUF_VALID	0x100000
 #define SDPCM_SHARED_RXLIM_POST    0x4000
+#define SDPCM_SHARED_TXSEQ_SYNC    0x4000
 
 typedef struct {
 	uint32	flags;
@@ -296,6 +297,9 @@ typedef struct {
 	uint32  msgtrace_addr;
 	uint32  fwid;
 	uint32  device_fatal_logbuf_start;
+#ifdef BCMSDIO_TXSEQ_SYNC
+	uint32	txseq_sync_addr;
+#endif /* TXSEQ_SYNC */
 } sdpcm_shared_t;
 
 extern sdpcm_shared_t sdpcm_shared;

@@ -218,6 +218,10 @@ int wifi_platform_set_power(wifi_adapter_info_t *adapter, bool on, unsigned long
 	}
 	plat_data = adapter->wifi_plat_data;
 
+#ifdef DHD_LOAD_CHIPALIVE
+	if (dhd_chip_alive)
+		msec = 0;
+#endif
 	DHD_PRINT("%s = %d, delay: %lu msec\n", __FUNCTION__, on, msec);
 	if (plat_data->set_power) {
 #ifdef ENABLE_4335BT_WAR
@@ -855,6 +859,9 @@ static int dhd_wifi_platform_load_sdio(void)
 				break;
 			}
 
+#ifdef DHD_LOAD_CHIPALIVE
+			dhd_chip_alive = 0;
+#endif
 			DHD_ERROR(("failed to power up %s, %d retry left\n", adapter->name, retry));
 			dhd_bus_unreg_sdio_notify();
 			wifi_platform_set_power(adapter, FALSE, WIFI_TURNOFF_DELAY);

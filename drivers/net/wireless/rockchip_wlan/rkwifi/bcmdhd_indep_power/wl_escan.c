@@ -897,7 +897,7 @@ wl_escan_set_scan(struct net_device *dev, dhd_pub_t *dhdp,
 
 	if (unlikely(err)) {
 		/* Don't print Error incase of Scan suppress */
-		if ((err == BCME_EPERM))
+		if (err == BCME_EPERM)
 			ESCAN_TRACE(dev->name, "Escan failed: Scan Suppressed\n");
 		else {
 			cnt++;
@@ -1197,14 +1197,18 @@ wl_escan_rsn_ie(u8 *parse, u32 len)
 	return FALSE;
 }
 
-void
-wl_escan_mesh_info_ie(u8 *parse, u32 len, struct wl_mesh_params *mesh_info)
+bool
+wl_escan_mesh_info_ie(struct net_device *dev, u8 *parse, u32 len,
+	struct wl_mesh_params *mesh_info)
 {
 	bcm_tlv_t *ie;
 	uchar mesh_oui[]={0x00, 0x22, 0xf4};
 	int totl_len;
 	uint8 *pie;
+	uint max_len;
+	bool found = FALSE;
 
+	memset(mesh_info, 0, sizeof(struct wl_mesh_params));
 	if((ie = bcm_parse_tlvs(parse, (int)len, DOT11_MNG_VS_ID)) != NULL) {
 		totl_len = ie->len;
 		if (!memcmp(ie->data, &mesh_oui, sizeof(mesh_oui))) {
@@ -1216,10 +1220,12 @@ wl_escan_mesh_info_ie(u8 *parse, u32 len, struct wl_mesh_params *mesh_info)
 					memcpy(&mesh_info->master_bssid, ie->data, ETHER_ADDR_LEN);
 				} else if (ie->id == MESH_INFO_MASTER_CHANNEL) {
 					mesh_info->master_channel = ie->data[0];
+					found = TRUE;
 				} else if (ie->id == MESH_INFO_HOP_CNT) {
 					mesh_info->hop_cnt = ie->data[0];
 				} else if (ie->id == MESH_INFO_PEER_BSSID) {
-					memcpy(&mesh_info->peer_bssid, ie->data, ETHER_ADDR_LEN);
+					max_len = min(MAX_HOP_LIST*ETHER_ADDR_LEN, (int)ie->len);
+					memcpy(mesh_info->peer_bssid, ie->data, max_len);
 				}
 				totl_len -= (ie->len + 2);
 				pie = ie->data + ie->len;
@@ -1227,19 +1233,20 @@ wl_escan_mesh_info_ie(u8 *parse, u32 len, struct wl_mesh_params *mesh_info)
 			}
 		}
 	}
+
+	return found;
 }
 
-int
+bool
 wl_escan_mesh_info(struct net_device *dev, struct wl_escan_info *escan, 
 	struct ether_addr *peer_bssid, struct wl_mesh_params *mesh_info)
 {
-	s32 err = BCME_OK;
 	int i = 0;
 	wl_bss_info_t *bi = NULL;
 	struct wl_scan_results *bss_list;
 	int16 bi_rssi, bi_chan;
 	wlc_ssid_t bi_meshid;
-	bool is_mesh_peer = FALSE;
+	bool is_mesh_peer = FALSE, found = FALSE;
 	struct wl_mesh_params peer_mesh_info;
 
 	mutex_lock(&escan->usr_sync);
@@ -1247,17 +1254,14 @@ wl_escan_mesh_info(struct net_device *dev, struct wl_escan_info *escan,
 	/* Check for scan in progress */
 	if (escan->escan_state == ESCAN_STATE_SCANING) {
 		ESCAN_ERROR(dev->name, "SIOCGIWSCAN GET still scanning\n");
-		err = -EAGAIN;
 		goto exit;
 	}
 	if (!escan->bss_list) {
 		ESCAN_ERROR(dev->name, "scan not ready\n");
-		err = -EAGAIN;
 		goto exit;
 	}
 	if (dev != escan->dev) {
 		ESCAN_ERROR(dev->name, "not my scan from %s\n", escan->dev->name);
-		err = -EINVAL;
 		goto exit;
 	}
 
@@ -1274,27 +1278,26 @@ wl_escan_mesh_info(struct net_device *dev, struct wl_escan_info *escan,
 		is_mesh_peer = wl_escan_meshid_ie(((u8*)bi)+bi->ie_offset,
 			bi->ie_length, &bi_meshid);
 		if (!(bi->capability & (DOT11_CAP_ESS|DOT11_CAP_IBSS)) && is_mesh_peer) {
-			bool bi_sae = FALSE, bss_found = FALSE;
+			bool bi_sae = FALSE, bss_found = FALSE, prefer = FALSE;
 			if (!memcmp(peer_bssid, &bi->BSSID, ETHER_ADDR_LEN)) {
 				bi_sae = wl_escan_rsn_ie(((u8*)bi)+bi->ie_offset, bi->ie_length);
-				memset(&peer_mesh_info, 0, sizeof(peer_mesh_info));
-				wl_escan_mesh_info_ie(((u8*)bi)+bi->ie_offset, bi->ie_length,
-					&peer_mesh_info);
-				if (peer_mesh_info.hop_cnt) {
+				bss_found = wl_escan_mesh_info_ie(dev, ((u8*)bi)+bi->ie_offset,
+					bi->ie_length, &peer_mesh_info);
+				if (bss_found) {
 					memcpy(&mesh_info->master_bssid, &peer_mesh_info.master_bssid,
 						ETHER_ADDR_LEN);
 					mesh_info->master_channel = peer_mesh_info.master_channel;
 					mesh_info->hop_cnt = peer_mesh_info.hop_cnt;
-					memcpy(&mesh_info->peer_bssid, &peer_mesh_info.peer_bssid,
-						ETHER_ADDR_LEN);
-					mesh_info->channel = bi_chan;
-					bss_found = TRUE;
+					memcpy(mesh_info->peer_bssid, peer_mesh_info.peer_bssid,
+						sizeof(peer_mesh_info.peer_bssid));
+					prefer = TRUE;
+					found = TRUE;
 				}
 			}
 			ESCAN_SCAN(dev->name,
 				"%s[Mesh] BSSID=%pM, channel=%d, RSSI=%d, sec=%s, "
 				"mbssid=%pM, mchannel=%d, hop=%d, pbssid=%pM, MeshID=\"%s\"\n",
-				bss_found?"*":" ", &bi->BSSID, bi_chan, bi_rssi, bi_sae?"SAE":"OPEN",
+				prefer?"*":" ", &bi->BSSID, bi_chan, bi_rssi, bi_sae?"SAE":"OPEN",
 				&peer_mesh_info.master_bssid, peer_mesh_info.master_channel,
 				peer_mesh_info.hop_cnt, &peer_mesh_info.peer_bssid, bi_meshid.SSID);
 		}
@@ -1302,22 +1305,21 @@ wl_escan_mesh_info(struct net_device *dev, struct wl_escan_info *escan,
 
 exit:
 	mutex_unlock(&escan->usr_sync);
-	return err;
+	return found;
 }
 
-int
+bool
 wl_escan_mesh_peer(struct net_device *dev, struct wl_escan_info *escan, 
 	wlc_ssid_t *cur_ssid, uint16 cur_chan, bool sae,
 	struct wl_mesh_params *mesh_info)
 {
-	s32 err = BCME_OK;
 	int i = 0;
 	wl_bss_info_t *bi = NULL;
 	struct wl_scan_results *bss_list;
 	int16 bi_rssi, bi_chan, max_rssi = -100;
 	uint min_hop_cnt = 255;
 	wlc_ssid_t bi_meshid;
-	bool is_mesh_peer = FALSE, chan_matched = FALSE;
+	bool is_mesh_peer = FALSE, chan_matched = FALSE, found = FALSE;
 	struct wl_mesh_params peer_mesh_info;
 
 	mutex_lock(&escan->usr_sync);
@@ -1325,17 +1327,14 @@ wl_escan_mesh_peer(struct net_device *dev, struct wl_escan_info *escan,
 	/* Check for scan in progress */
 	if (escan->escan_state == ESCAN_STATE_SCANING) {
 		ESCAN_ERROR(dev->name, "SIOCGIWSCAN GET still scanning\n");
-		err = -EAGAIN;
 		goto exit;
 	}
 	if (!escan->bss_list) {
 		ESCAN_ERROR(dev->name, "scan not ready\n");
-		err = -EAGAIN;
 		goto exit;
 	}
 	if (dev != escan->dev) {
 		ESCAN_ERROR(dev->name, "not my scan from %s\n", escan->dev->name);
-		err = -EINVAL;
 		goto exit;
 	}
 
@@ -1353,7 +1352,7 @@ wl_escan_mesh_peer(struct net_device *dev, struct wl_escan_info *escan,
 			bi->ie_length, &bi_meshid);
 		if (!(bi->capability & (DOT11_CAP_ESS|DOT11_CAP_IBSS)) && is_mesh_peer) {
 			bool meshid_matched = FALSE, sec_matched = FALSE, bi_sae = FALSE,
-				bss_found = FALSE;
+				bss_found = FALSE, prefer = FALSE;
 
 			if (cur_ssid->SSID_len && cur_ssid->SSID_len == bi_meshid.SSID_len &&
 					!memcmp(cur_ssid->SSID, bi_meshid.SSID, bi_meshid.SSID_len))
@@ -1363,43 +1362,42 @@ wl_escan_mesh_peer(struct net_device *dev, struct wl_escan_info *escan,
 			if (bi_sae == sae)
 				sec_matched = TRUE;
 
-			memset(&peer_mesh_info, 0, sizeof(peer_mesh_info));
-			wl_escan_mesh_info_ie(((u8*)bi)+bi->ie_offset, bi->ie_length,
+			bss_found = wl_escan_mesh_info_ie(dev, ((u8*)bi)+bi->ie_offset, bi->ie_length,
 				&peer_mesh_info);
-
-			if (meshid_matched && sec_matched && peer_mesh_info.hop_cnt &&
+			if (meshid_matched && sec_matched && bss_found &&
 					(cur_chan == bi_chan)) {
 				if (peer_mesh_info.hop_cnt < min_hop_cnt) {
 					memcpy(&mesh_info->master_bssid, &peer_mesh_info.master_bssid,
 						ETHER_ADDR_LEN);
 					mesh_info->master_channel = peer_mesh_info.master_channel;
 					mesh_info->hop_cnt = peer_mesh_info.hop_cnt;
-					memcpy(&mesh_info->peer_bssid, &peer_mesh_info.peer_bssid,
-						ETHER_ADDR_LEN);
-					mesh_info->channel = bi_chan;
+					memcpy(mesh_info->peer_bssid, peer_mesh_info.peer_bssid,
+						sizeof(peer_mesh_info.peer_bssid));
 					min_hop_cnt = peer_mesh_info.hop_cnt;
-					bss_found = TRUE;
+					prefer = TRUE;
 					chan_matched = TRUE;
+					found = TRUE;
 				}
-			} else if (meshid_matched && sec_matched && peer_mesh_info.hop_cnt &&
+			}
+			else if (meshid_matched && sec_matched && bss_found &&
 					(cur_chan != bi_chan) && !chan_matched) {
 				if (bi_rssi > max_rssi) {
 					memcpy(&mesh_info->master_bssid, &peer_mesh_info.master_bssid,
 						ETHER_ADDR_LEN);
 					mesh_info->master_channel = peer_mesh_info.master_channel;
 					mesh_info->hop_cnt = peer_mesh_info.hop_cnt;
-					memcpy(&mesh_info->peer_bssid, &peer_mesh_info.peer_bssid,
-						ETHER_ADDR_LEN);
-					mesh_info->channel = bi_chan;
+					memcpy(mesh_info->peer_bssid, peer_mesh_info.peer_bssid,
+						sizeof(peer_mesh_info.peer_bssid));
 					max_rssi = bi_rssi;
-					bss_found = TRUE;
+					prefer = TRUE;
+					found = TRUE;
 				}
 			}
 
 			ESCAN_SCAN(dev->name,
 				"%s[Mesh] BSSID=%pM, channel=%d, RSSI=%d, sec=%s, "
 				"mbssid=%pM, mchannel=%d, hop=%d, pbssid=%pM, MeshID=\"%s\"\n",
-				bss_found?"*":" ", &bi->BSSID, bi_chan, bi_rssi, bi_sae?"SAE":"OPEN",
+				prefer?"*":" ", &bi->BSSID, bi_chan, bi_rssi, bi_sae?"SAE":"OPEN",
 				&peer_mesh_info.master_bssid, peer_mesh_info.master_channel,
 				peer_mesh_info.hop_cnt, &peer_mesh_info.peer_bssid, bi_meshid.SSID);
 		} else {
@@ -1411,7 +1409,7 @@ wl_escan_mesh_peer(struct net_device *dev, struct wl_escan_info *escan,
 
 exit:
 	mutex_unlock(&escan->usr_sync);
-	return err;
+	return found;
 }
 #endif /* WLMESH */
 

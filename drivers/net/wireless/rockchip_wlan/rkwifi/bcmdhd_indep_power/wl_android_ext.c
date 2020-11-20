@@ -1,5 +1,4 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <net/netlink.h>
@@ -96,10 +95,11 @@
 #define CMD_ISAM_ENABLE			"ISAM_ENABLE"
 #define CMD_ISAM_DISABLE		"ISAM_DISABLE"
 #define CMD_ISAM_STATUS			"ISAM_STATUS"
+#define CMD_ISAM_PEER_PATH		"ISAM_PEER_PATH"
 #define CMD_ISAM_PARAM			"ISAM_PARAM"
 #ifdef PROP_TXSTATUS
-#ifdef PROP_TXSTATUS_VSDB
 #include <dhd_wlfc.h>
+#ifdef PROP_TXSTATUS_VSDB
 extern int disable_proptx;
 #endif /* PROP_TXSTATUS_VSDB */
 #endif /* PROP_TXSTATUS */
@@ -192,6 +192,12 @@ typedef struct wl_if_info {
 	struct wl_escan_info *escan;
 	timer_list_compat_t delay_scan;
 #endif /* WLMESH && WL_ESCAN */
+	struct delayed_work pm_enable_work;
+	struct mutex pm_sync;
+#ifdef PROPTX_MAXCOUNT
+	int transit_maxcount;
+#endif /* PROPTX_MAXCOUNT */
+	uint eapol_status;
 } wl_if_info_t;
 
 #define CSA_FW_BIT		(1<<0)
@@ -214,6 +220,14 @@ typedef struct wl_apsta_params {
 	int macs;
 	struct wl_mesh_params mesh_info;
 #endif /* WLMESH && WL_ESCAN */
+	struct mutex in4way_sync;
+	uint sta_handshaking;
+	int sta_btc_mode;
+	struct osl_timespec sta_disc_ts;
+	bool ap_recon_sta;
+	wait_queue_head_t ap_recon_sta_event;
+	struct ether_addr ap_disc_sta_bssid;
+	struct osl_timespec ap_disc_sta_ts;
 } wl_apsta_params_t;
 
 #define MAX_AP_LINK_WAIT_TIME   3000
@@ -241,6 +255,7 @@ static int wl_ext_disable_iface(struct net_device *dev, char *ifname);
 #if defined(WLMESH) && defined(WL_ESCAN)
 static int wl_mesh_escan_attach(dhd_pub_t *dhd, struct wl_if_info *cur_if);
 #endif /* WLMESH && WL_ESCAN */
+void wl_ext_add_remove_pm_enable_work(struct net_device *dev, bool add);
 #endif /* WL_EXT_IAPSTA */
 
 #ifdef IDHCP
@@ -574,6 +589,10 @@ wl_ext_event_complete(struct dhd_pub *dhd, int ifidx)
 #ifdef WL_ESCAN
 	struct wl_escan_info *escan = dhd->escan;
 #endif /* WL_ESCAN */
+#ifdef WL_EXT_IAPSTA
+	struct wl_apsta_params *apsta_params = dhd->iapsta_params;
+	struct wl_if_info *cur_if = NULL;
+#endif /* WL_EXT_IAPSTA */
 	bool complete = TRUE;
 
 #ifdef WL_CFG80211
@@ -596,11 +615,17 @@ wl_ext_event_complete(struct dhd_pub *dhd, int ifidx)
 		complete = FALSE;
 	}
 #endif /* WL_ESCAN */
-	if (dhd->conf->eapol_status >= EAPOL_STATUS_4WAY_START &&
-			dhd->conf->eapol_status < EAPOL_STATUS_4WAY_DONE) {
+#ifdef WL_EXT_IAPSTA
+	if (ifidx < MAX_IF_NUM) {
+		cur_if = &apsta_params->if_info[ifidx];
+	}
+	if (cur_if && cur_if->ifmode == ISTA_MODE &&
+			cur_if->eapol_status >= EAPOL_STATUS_4WAY_START &&
+			cur_if->eapol_status < EAPOL_STATUS_4WAY_DONE) {
 		AEXT_INFO(dev->name, "4-WAY handshaking\n");
 		complete = FALSE;
 	}
+#endif /* WL_EXT_IAPSTA */
 
 	return complete;
 }
@@ -626,6 +651,40 @@ wl_ext_get_ioctl_ver(struct net_device *dev, int *ioctl_ver)
 	*ioctl_ver = val;
 
 	return ret;
+}
+
+void
+wl_ext_bss_iovar_war(struct net_device *ndev, s32 *val)
+{
+	dhd_pub_t *dhd = dhd_get_pub(ndev);
+	uint chip;
+	bool need_war = false;
+
+	chip = dhd_conf_get_chip(dhd);
+
+	if (chip == BCM43362_CHIP_ID || chip == BCM4330_CHIP_ID ||
+		chip == BCM43430_CHIP_ID || chip == BCM43012_CHIP_ID ||
+		chip == BCM4345_CHIP_ID || chip == BCM4356_CHIP_ID ||
+		chip == BCM4359_CHIP_ID ||
+		chip == BCM43143_CHIP_ID || chip == BCM43242_CHIP_ID ||
+		chip == BCM43569_CHIP_ID) {
+		need_war = true;
+	}
+
+	if (need_war) {
+		/* Few firmware branches have issues in bss iovar handling and
+		 * that can't be changed since they are in production.
+		 */
+		if (*val == WLC_AP_IOV_OP_MANUAL_AP_BSSCFG_CREATE) {
+			*val = WLC_AP_IOV_OP_MANUAL_STA_BSSCFG_CREATE;
+		} else if (*val == WLC_AP_IOV_OP_MANUAL_STA_BSSCFG_CREATE) {
+			*val = WLC_AP_IOV_OP_MANUAL_AP_BSSCFG_CREATE;
+		} else {
+			/* Ignore for other bss enums */
+			return;
+		}
+		AEXT_TRACE(ndev->name, "wl bss %d\n", *val);
+	}
 }
 
 static int
@@ -1011,6 +1070,10 @@ set_ssid:
 	err = wl_ext_ioctl(dev, WLC_SET_SSID, &join_params, join_params_size, 1);
 
 exit:
+#ifdef WL_EXT_IAPSTA
+	if (!err)
+		wl_ext_add_remove_pm_enable_work(dev, TRUE);
+#endif /* WL_EXT_IAPSTA */
 	if (iovar_buf)
 		kfree(iovar_buf);
 	if (ext_join_params)
@@ -1052,7 +1115,11 @@ wl_ext_get_sec(struct net_device *dev, int ifmode, char *sec, int total_len)
 			bytes_written += snprintf(sec+bytes_written, total_len, "wpapsk");
 		} else if (auth == WL_AUTH_OPEN_SYSTEM && wpa_auth == WPA2_AUTH_PSK) {
 			bytes_written += snprintf(sec+bytes_written, total_len, "wpa2psk");
-		} else if (auth == WL_AUTH_OPEN_SHARED && wpa_auth == WPA3_AUTH_SAE_PSK) {
+		} else if ((auth == WL_AUTH_OPEN_SYSTEM || auth == WL_AUTH_SAE_KEY) &&
+				wpa_auth == WPA3_AUTH_SAE_PSK) {
+			bytes_written += snprintf(sec+bytes_written, total_len, "wpa3");
+		} else if ((auth == WL_AUTH_OPEN_SYSTEM || auth == WL_AUTH_SAE_KEY) &&
+				wpa_auth == 0x20) {
 			bytes_written += snprintf(sec+bytes_written, total_len, "wpa3");
 		} else {
 			bytes_written += snprintf(sec+bytes_written, total_len, "%d/0x%x",
@@ -1204,6 +1271,111 @@ exit:
 #endif /* SENDPROB || (WLMESH && WL_ESCAN) */
 
 #ifdef WL_EXT_IAPSTA
+#define WL_PM_ENABLE_TIMEOUT 10000
+#if defined(STRICT_GCC_WARNINGS) && defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == \
+	4 && __GNUC_MINOR__ >= 6))
+#define BCM_SET_CONTAINER_OF(entry, ptr, type, member) \
+_Pragma("GCC diagnostic push") \
+_Pragma("GCC diagnostic ignored \"-Wcast-qual\"") \
+entry = container_of((ptr), type, member); \
+_Pragma("GCC diagnostic pop")
+#else
+#define BCM_SET_CONTAINER_OF(entry, ptr, type, member) \
+entry = container_of((ptr), type, member);
+#endif /* STRICT_GCC_WARNINGS */
+
+static void
+wl_ext_pm_work_handler(struct work_struct *work)
+{
+	struct wl_if_info *cur_if;
+	s32 pm = PM_FAST;
+	dhd_pub_t *dhd;
+
+	BCM_SET_CONTAINER_OF(cur_if, work, struct wl_if_info, pm_enable_work.work);
+
+	AEXT_TRACE("wlan", "%s: Enter\n", __FUNCTION__);
+
+	if (cur_if->dev == NULL)
+		return;
+
+#if defined(STRICT_GCC_WARNINGS) && defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == \
+	4 && __GNUC_MINOR__ >= 6))
+_Pragma("GCC diagnostic push")
+_Pragma("GCC diagnostic ignored \"-Wcast-qual\"")
+#endif
+
+	dhd = dhd_get_pub(cur_if->dev);
+
+	if (!dhd || !dhd->up) {
+		AEXT_TRACE(cur_if->ifname, "dhd is null or not up\n");
+		return;
+	}
+	if (dhd_conf_get_pm(dhd) >= 0)
+		pm = dhd_conf_get_pm(dhd);
+	wl_ext_ioctl(cur_if->dev, WLC_SET_PM, &pm, sizeof(pm), 1);
+#if defined(STRICT_GCC_WARNINGS) && defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == \
+	4 && __GNUC_MINOR__ >= 6))
+_Pragma("GCC diagnostic pop")
+#endif
+	DHD_PM_WAKE_UNLOCK(dhd);
+
+}
+
+void
+wl_ext_add_remove_pm_enable_work(struct net_device *dev, bool add)
+{
+	dhd_pub_t *dhd = dhd_get_pub(dev);
+	struct wl_apsta_params *apsta_params = dhd->iapsta_params;
+	struct wl_if_info *cur_if = NULL, *tmp_if = NULL;
+	u16 wq_duration = 0;
+	s32 pm = PM_OFF;
+	int i;
+
+	for (i=0; i<MAX_IF_NUM; i++) {
+		tmp_if = &apsta_params->if_info[i];
+		if (tmp_if->dev && tmp_if->dev == dev) {
+			cur_if = tmp_if;
+			break;
+		}
+	}
+
+	if (!cur_if)
+		return;
+
+	mutex_lock(&cur_if->pm_sync);
+	/*
+	 * Make cancel and schedule work part mutually exclusive
+	 * so that while cancelling, we are sure that there is no
+	 * work getting scheduled.
+	 */
+
+	if (delayed_work_pending(&cur_if->pm_enable_work)) {
+		cancel_delayed_work_sync(&cur_if->pm_enable_work);
+		DHD_PM_WAKE_UNLOCK(dhd);
+	}
+
+	if (add) {
+		wq_duration = (WL_PM_ENABLE_TIMEOUT);
+	}
+
+	/* It should schedule work item only if driver is up */
+	if (dhd->up) {
+		if (dhd_conf_get_pm(dhd) >= 0)
+			pm = dhd_conf_get_pm(dhd);
+		wl_ext_ioctl(cur_if->dev, WLC_SET_PM, &pm, sizeof(pm), 1);
+		if (wq_duration) {
+			if (schedule_delayed_work(&cur_if->pm_enable_work,
+					msecs_to_jiffies((const unsigned int)wq_duration))) {
+				DHD_PM_WAKE_LOCK_TIMEOUT(dhd, wq_duration);
+			} else {
+				AEXT_ERROR(cur_if->ifname, "Can't schedule pm work handler\n");
+			}
+		}
+	}
+	mutex_unlock(&cur_if->pm_sync);
+
+}
+
 static int
 wl_ext_parse_wep(char *key, struct wl_wsec_key *wsec_key)
 {
@@ -1581,6 +1753,152 @@ wl_ext_radar_detect(struct net_device *dev)
 	return radar;
 }
 
+#if defined(WL_CFG80211) || (defined(WLMESH) && defined(WL_ESCAN))
+static struct wl_if_info *
+wl_ext_if_enabled(struct wl_apsta_params *apsta_params, ifmode_t ifmode)
+{
+	struct wl_if_info *tmp_if, *target_if = NULL;
+	int i;
+
+	for (i=0; i<MAX_IF_NUM; i++) {
+		tmp_if = &apsta_params->if_info[i];
+		if (tmp_if && tmp_if->ifmode == ifmode &&
+				wl_get_isam_status(tmp_if, IF_READY)) {
+			if (wl_ext_get_chan(apsta_params, tmp_if->dev)) {
+				target_if = tmp_if;
+				break;
+			}
+		}
+	}
+
+	return target_if;
+}
+#endif
+
+s32
+wl_ext_add_del_bss(struct net_device *ndev, s32 bsscfg_idx,
+	int iftype, s32 del, u8 *addr)
+{
+	s32 ret = BCME_OK;
+	s32 val = 0;
+	u8 ioctl_buf[WLC_IOCTL_SMLEN];
+	struct {
+		s32 cfg;
+		s32 val;
+		struct ether_addr ea;
+	} bss_setbuf;
+
+	AEXT_TRACE(ndev->name, "wl_iftype:%d del:%d \n", iftype, del);
+
+	bzero(&bss_setbuf, sizeof(bss_setbuf));
+
+	/* AP=2, STA=3, up=1, down=0, val=-1 */
+	if (del) {
+		val = WLC_AP_IOV_OP_DELETE;
+	} else if (iftype == WL_INTERFACE_CREATE_AP) {
+		/* Add/role change to AP Interface */
+		AEXT_TRACE(ndev->name, "Adding AP Interface\n");
+		val = WLC_AP_IOV_OP_MANUAL_AP_BSSCFG_CREATE;
+	} else if (iftype == WL_INTERFACE_CREATE_STA) {
+		/* Add/role change to STA Interface */
+		AEXT_TRACE(ndev->name, "Adding STA Interface\n");
+		val = WLC_AP_IOV_OP_MANUAL_STA_BSSCFG_CREATE;
+	} else {
+		AEXT_ERROR(ndev->name, "add_del_bss NOT supported for IFACE type:0x%x", iftype);
+		return -EINVAL;
+	}
+
+	if (!del) {
+		wl_ext_bss_iovar_war(ndev, &val);
+	}
+
+	bss_setbuf.cfg = htod32(bsscfg_idx);
+	bss_setbuf.val = htod32(val);
+
+	if (addr) {
+		memcpy(&bss_setbuf.ea.octet, addr, ETH_ALEN);
+	}
+
+	AEXT_INFO(ndev->name, "wl bss %d bssidx:%d\n", val, bsscfg_idx);
+	ret = wl_ext_iovar_setbuf(ndev, "bss", &bss_setbuf, sizeof(bss_setbuf),
+		ioctl_buf, WLC_IOCTL_SMLEN, NULL);
+	if (ret != 0)
+		AEXT_ERROR(ndev->name, "'bss %d' failed with %d\n", val, ret);
+
+	return ret;
+}
+
+static int
+wl_ext_interface_ops(struct net_device *dev,
+	struct wl_apsta_params *apsta_params, int iftype, u8 *addr)
+{
+	s32 ret;
+	struct wl_interface_create_v2 iface;
+	wl_interface_create_v3_t iface_v3;
+	struct wl_interface_info_v1 *info;
+	wl_interface_info_v2_t *info_v2;
+	uint32 ifflags = 0;
+	bool use_iface_info_v2 = false;
+	u8 ioctl_buf[WLC_IOCTL_SMLEN];
+	wl_wlc_version_t wlc_ver;
+
+	/* Interface create */
+	bzero(&iface, sizeof(iface));
+
+	if (addr) {
+		ifflags |= WL_INTERFACE_MAC_USE;
+	}
+
+	ret = wldev_iovar_getbuf(dev, "wlc_ver", NULL, 0,
+		&wlc_ver, sizeof(wl_wlc_version_t), NULL);
+	if ((ret == BCME_OK) && (wlc_ver.wlc_ver_major >= 5)) {
+		ret = wldev_iovar_getbuf(dev, "interface_create",
+			&iface, sizeof(struct wl_interface_create_v2),
+			ioctl_buf, sizeof(ioctl_buf), NULL);
+		if ((ret == BCME_OK) && (*((uint32 *)ioctl_buf) == WL_INTERFACE_CREATE_VER_3)) {
+			use_iface_info_v2 = true;
+			bzero(&iface_v3, sizeof(wl_interface_create_v3_t));
+			iface_v3.ver = WL_INTERFACE_CREATE_VER_3;
+			iface_v3.iftype = iftype;
+			iface_v3.flags = ifflags;
+			if (addr) {
+				memcpy(&iface_v3.mac_addr.octet, addr, ETH_ALEN);
+			}
+			ret = wl_ext_iovar_getbuf(dev, "interface_create",
+				&iface_v3, sizeof(wl_interface_create_v3_t),
+				ioctl_buf, sizeof(ioctl_buf), NULL);
+			if (unlikely(ret)) {
+				AEXT_ERROR(dev->name, "Interface v3 create failed!! ret %d\n", ret);
+				return ret;
+			}
+		}
+	}
+
+	/* success case */
+	if (use_iface_info_v2 == true) {
+		info_v2 = (wl_interface_info_v2_t *)ioctl_buf;
+		ret = info_v2->bsscfgidx;
+	} else {
+		/* Use v1 struct */
+		iface.ver = WL_INTERFACE_CREATE_VER_2;
+		iface.iftype = iftype;
+		iface.flags = ifflags;
+		if (addr) {
+			memcpy(&iface.mac_addr.octet, addr, ETH_ALEN);
+		}
+		ret = wldev_iovar_getbuf(dev, "interface_create",
+			&iface, sizeof(struct wl_interface_create_v2),
+			ioctl_buf, sizeof(ioctl_buf), NULL);
+		if (ret == BCME_OK) {
+			info = (struct wl_interface_info_v1 *)ioctl_buf;
+			ret = info->bsscfgidx;
+		}
+	}
+
+	AEXT_INFO(dev->name, "wl interface create success!! bssidx:%d \n", ret);
+	return ret;
+}
+
 static void
 wl_ext_wait_netif_change(struct wl_apsta_params *apsta_params,
 	struct wl_if_info *cur_if)
@@ -1596,21 +1914,13 @@ static void
 wl_ext_interface_create(struct net_device *dev, struct wl_apsta_params *apsta_params,
 	struct wl_if_info *cur_if, int iftype, u8 *addr)
 {
-	wl_interface_create_t iface;
-	u8 iovar_buf[WLC_IOCTL_SMLEN];
+	s32 ret;
 
-	bzero(&iface, sizeof(iface));
-	if (addr) {
-		iftype |= WL_INTERFACE_MAC_USE;
-	}
-	iface.ver = WL_INTERFACE_CREATE_VER;
-	iface.flags = iftype;
-	if (addr) {
-		memcpy(&iface.mac_addr.octet, addr, ETH_ALEN);
-	}
 	wl_set_isam_status(cur_if, IF_ADDING);
-	wl_ext_iovar_getbuf(dev, "interface_create", &iface, sizeof(iface),
-		iovar_buf, WLC_IOCTL_SMLEN, NULL);
+	ret = wl_ext_interface_ops(dev, apsta_params, iftype, addr);
+	if (ret == BCME_UNSUPPORTED) {
+		wl_ext_add_del_bss(dev, 1, iftype, 0, addr);
+	}
 	wl_ext_wait_netif_change(apsta_params, cur_if);
 }
 
@@ -1620,7 +1930,6 @@ wl_ext_iapsta_intf_add(struct net_device *dev, struct wl_apsta_params *apsta_par
 	struct dhd_pub *dhd;
 	apstamode_t apstamode = apsta_params->apstamode;
 	struct wl_if_info *cur_if;
-	wlc_ssid_t ssid = { 0, {0} };
 	s8 iovar_buf[WLC_IOCTL_SMLEN];
 	wl_p2p_if_t ifreq;
 	struct ether_addr mac_addr;
@@ -1630,14 +1939,7 @@ wl_ext_iapsta_intf_add(struct net_device *dev, struct wl_apsta_params *apsta_par
 
 	if (apstamode == ISTAAP_MODE) {
 		cur_if = &apsta_params->if_info[IF_VIF];
-		if (FW_SUPPORTED(dhd, rsdb)) {
-			wl_ext_interface_create(dev, apsta_params, cur_if, WL_INTERFACE_CREATE_AP, NULL);
-		} else {
-			wl_set_isam_status(cur_if, IF_ADDING);
-			wl_ext_iovar_setbuf_bsscfg(dev, "ssid", &ssid, sizeof(ssid),
-				iovar_buf, WLC_IOCTL_SMLEN, 1, NULL);
-			wl_ext_wait_netif_change(apsta_params, cur_if);
-		}
+		wl_ext_interface_create(dev, apsta_params, cur_if, WL_INTERFACE_CREATE_AP, NULL);
 	}
 	else if (apstamode == ISTAGO_MODE) {
 		bzero(&ifreq, sizeof(wl_p2p_if_t));
@@ -2442,26 +2744,6 @@ wl_mesh_set_timer(struct wl_if_info *mesh_if, uint timeout)
 	}
 }
 
-static struct wl_if_info *
-wl_ext_if_enabled(struct wl_apsta_params *apsta_params, ifmode_t ifmode)
-{
-	struct wl_if_info *tmp_if, *target_if = NULL;
-	int i;
-
-	for (i=0; i<MAX_IF_NUM; i++) {
-		tmp_if = &apsta_params->if_info[i];
-		if (tmp_if && tmp_if->ifmode == ifmode &&
-				wl_get_isam_status(tmp_if, IF_READY)) {
-			if (wl_ext_get_chan(apsta_params, tmp_if->dev)) {
-				target_if = tmp_if;
-				break;
-			}
-		}
-	}
-
-	return target_if;
-}
-
 static int
 wl_mesh_clear_vndr_ie(struct net_device *dev, uchar *oui)
 {
@@ -2554,42 +2836,59 @@ wl_mesh_update_vndr_ie(struct wl_apsta_params *apsta_params,
 	struct wl_if_info *mesh_if)
 {
 	struct wl_mesh_params *mesh_info = &apsta_params->mesh_info;
-	char vndr_ie[64];
+	char *vndr_ie;
 	uchar mesh_oui[]={0x00, 0x22, 0xf4};
 	int bytes_written = 0;
-	int ret;
+	int ret = 0, i, vndr_ie_len;
+	uint8 *peer_bssid;
 
 	wl_mesh_clear_vndr_ie(mesh_if->dev, mesh_oui);
 
-	bytes_written += snprintf(vndr_ie+bytes_written, sizeof(vndr_ie),
+	vndr_ie_len = WLC_IOCTL_MEDLEN;
+	vndr_ie = kmalloc(vndr_ie_len, GFP_KERNEL);
+	if (vndr_ie == NULL) {
+		AEXT_ERROR(mesh_if->dev->name, "Failed to allocate buffer of %d bytes\n",
+			WLC_IOCTL_MEDLEN); 
+		ret = -1;
+		goto exit;
+	}
+
+	bytes_written += snprintf(vndr_ie+bytes_written, vndr_ie_len,
 		"0x%02x%02x%02x", mesh_oui[0], mesh_oui[1], mesh_oui[2]);
 
-	bytes_written += snprintf(vndr_ie+bytes_written, sizeof(vndr_ie),
-		"%02d%02d%02x%02x%02x%02x%02x%02x", MESH_INFO_MASTER_BSSID, ETHER_ADDR_LEN,
+	bytes_written += snprintf(vndr_ie+bytes_written, vndr_ie_len,
+		"%02x%02x%02x%02x%02x%02x%02x%02x", MESH_INFO_MASTER_BSSID, ETHER_ADDR_LEN,
 		((u8 *)(&mesh_info->master_bssid))[0], ((u8 *)(&mesh_info->master_bssid))[1],
 		((u8 *)(&mesh_info->master_bssid))[2], ((u8 *)(&mesh_info->master_bssid))[3],
 		((u8 *)(&mesh_info->master_bssid))[4], ((u8 *)(&mesh_info->master_bssid))[5]);
 
-	bytes_written += snprintf(vndr_ie+bytes_written, sizeof(vndr_ie),
+	bytes_written += snprintf(vndr_ie+bytes_written, vndr_ie_len,
 		"%02x%02x%02x", MESH_INFO_MASTER_CHANNEL, 1, mesh_info->master_channel);
 
-	bytes_written += snprintf(vndr_ie+bytes_written, sizeof(vndr_ie),
+	bytes_written += snprintf(vndr_ie+bytes_written, vndr_ie_len,
 		"%02x%02x%02x", MESH_INFO_HOP_CNT, 1, mesh_info->hop_cnt);
 
-	bytes_written += snprintf(vndr_ie+bytes_written, sizeof(vndr_ie),
-		"%02d%02d%02x%02x%02x%02x%02x%02x", MESH_INFO_PEER_BSSID, ETHER_ADDR_LEN,
-		((u8 *)(&mesh_info->peer_bssid))[0], ((u8 *)(&mesh_info->peer_bssid))[1],
-		((u8 *)(&mesh_info->peer_bssid))[2], ((u8 *)(&mesh_info->peer_bssid))[3],
-		((u8 *)(&mesh_info->peer_bssid))[4], ((u8 *)(&mesh_info->peer_bssid))[5]);
+	bytes_written += snprintf(vndr_ie+bytes_written, vndr_ie_len,
+		"%02x%02x", MESH_INFO_PEER_BSSID, mesh_info->hop_cnt*ETHER_ADDR_LEN);
+	for (i=0; i<mesh_info->hop_cnt && i<MAX_HOP_LIST; i++) {
+		peer_bssid = (uint8 *)&mesh_info->peer_bssid[i];
+		bytes_written += snprintf(vndr_ie+bytes_written, vndr_ie_len,
+			"%02x%02x%02x%02x%02x%02x",
+ 			peer_bssid[0], peer_bssid[1], peer_bssid[2],
+			peer_bssid[3], peer_bssid[4], peer_bssid[5]);
+	}
 
 	ret = wl_ext_add_del_ie(mesh_if->dev, VNDR_IE_BEACON_FLAG|VNDR_IE_PRBRSP_FLAG,
 		vndr_ie, "add");
 	if (!ret) {
 		AEXT_INFO(mesh_if->dev->name, "mbssid=%pM, mchannel=%d, hop=%d, pbssid=%pM\n",
 			&mesh_info->master_bssid, mesh_info->master_channel, mesh_info->hop_cnt,
-			&mesh_info->peer_bssid); 
+			mesh_info->peer_bssid); 
 	}
 
+exit:
+	if (vndr_ie)
+		kfree(vndr_ie);
 	return ret;
 }
 
@@ -2606,16 +2905,16 @@ wl_mesh_update_master_info(struct wl_apsta_params *apsta_params,
 		wldev_ioctl(mesh_if->dev, WLC_GET_BSSID, &mesh_info->master_bssid,
 			ETHER_ADDR_LEN, 0);
 		mesh_info->master_channel = wl_ext_get_chan(apsta_params, mesh_if->dev);
-		mesh_info->hop_cnt = 1;
-		memcpy(&mesh_info->peer_bssid, &mesh_info->master_bssid, ETHER_ADDR_LEN);
-		wl_mesh_update_vndr_ie(apsta_params, mesh_if);
-		updated = TRUE;
+		mesh_info->hop_cnt = 0;
+		memset(mesh_info->peer_bssid, 0, MAX_HOP_LIST*ETHER_ADDR_LEN);
+		if (!wl_mesh_update_vndr_ie(apsta_params, mesh_if))
+			updated = TRUE;
 	}
 
 	return updated;
 }
 
-static uint
+static bool
 wl_mesh_update_mesh_info(struct wl_apsta_params *apsta_params,
 	struct wl_if_info *mesh_if)
 {
@@ -2625,7 +2924,7 @@ wl_mesh_update_mesh_info(struct wl_apsta_params *apsta_params,
 	mesh_peer_info_dump_t *peer_results;
 	mesh_peer_info_ext_t *mpi_ext;
 	struct ether_addr bssid;
-	bool updated = FALSE;
+	bool updated = FALSE, bss_found = FALSE;
 	uint16 cur_chan;
 
 	dump_buf = kmalloc(WLC_IOCTL_MAXLEN, GFP_KERNEL);
@@ -2636,35 +2935,43 @@ wl_mesh_update_mesh_info(struct wl_apsta_params *apsta_params,
 	}
 	count = wl_mesh_get_peer_results(mesh_if->dev, dump_buf, WLC_IOCTL_MAXLEN);
 	if (count > 0) {
-		memset(&bssid, 0 , ETHER_ADDR_LEN);
+		memset(&bssid, 0, ETHER_ADDR_LEN);
 		wldev_ioctl(mesh_if->dev, WLC_GET_BSSID, &bssid, ETHER_ADDR_LEN, 0);
 		peer_results = (mesh_peer_info_dump_t *)dump_buf;
 		mpi_ext = (mesh_peer_info_ext_t *)peer_results->mpi_ext;
 		for (count = 0; count < peer_results->count; count++) {
 			if (mpi_ext->entry_state != MESH_SELF_PEER_ENTRY_STATE_TIMEDOUT &&
 					mpi_ext->peer_info.state == MESH_PEERING_ESTAB) {
-				memset(&peer_mesh_info, 0 , sizeof(struct wl_mesh_params));
-				wl_escan_mesh_info(mesh_if->dev, mesh_if->escan,
+				memset(&peer_mesh_info, 0, sizeof(struct wl_mesh_params));
+				bss_found = wl_escan_mesh_info(mesh_if->dev, mesh_if->escan,
 					&mpi_ext->ea, &peer_mesh_info);
-				if ((memcmp(&peer_mesh_info.peer_bssid, &bssid, ETHER_ADDR_LEN)) &&
-						peer_mesh_info.hop_cnt && (mesh_info->hop_cnt == 0 ||
-						peer_mesh_info.hop_cnt <= mesh_info->hop_cnt)) {
+				if (bss_found && (mesh_info->master_channel == 0 ||
+						peer_mesh_info.hop_cnt <= mesh_info->hop_cnt) &&
+						memcmp(&peer_mesh_info.peer_bssid, &bssid, ETHER_ADDR_LEN)) {
 					memcpy(&mesh_info->master_bssid, &peer_mesh_info.master_bssid,
 						ETHER_ADDR_LEN);
 					mesh_info->master_channel = peer_mesh_info.master_channel;
 					mesh_info->hop_cnt = peer_mesh_info.hop_cnt+1;
+					memset(mesh_info->peer_bssid, 0, MAX_HOP_LIST*ETHER_ADDR_LEN);
 					memcpy(&mesh_info->peer_bssid, &mpi_ext->ea, ETHER_ADDR_LEN);
-					mesh_info->channel = peer_mesh_info.channel;
+					memcpy(&mesh_info->peer_bssid[1], peer_mesh_info.peer_bssid,
+						(MAX_HOP_LIST-1)*ETHER_ADDR_LEN);
 					updated = TRUE;
 				}
 			}
 			mpi_ext++;
 		}
-		if (updated)
-			wl_mesh_update_vndr_ie(apsta_params, mesh_if);
+		if (updated) {
+			if (wl_mesh_update_vndr_ie(apsta_params, mesh_if)) {
+				AEXT_ERROR(mesh_if->dev->name, "update failed\n");
+				mesh_info->master_channel = 0;
+				updated = FALSE;
+				goto exit;
+			}
+		}
 	}
 
-	if (!mesh_info->hop_cnt) {
+	if (!mesh_info->master_channel) {
 		wlc_ssid_t cur_ssid;
 		char sec[32];
 		bool sae = FALSE;
@@ -2674,22 +2981,23 @@ wl_mesh_update_mesh_info(struct wl_apsta_params *apsta_params,
 		if (strnicmp(sec, "sae/sae", strlen("sae/sae")) == 0)
 			sae = TRUE;
 		cur_chan = wl_ext_get_chan(apsta_params, mesh_if->dev);
-		wl_escan_mesh_peer(mesh_if->dev, mesh_if->escan, &cur_ssid, cur_chan,
+		bss_found = wl_escan_mesh_peer(mesh_if->dev, mesh_if->escan, &cur_ssid, cur_chan,
 			sae, &peer_mesh_info);
 
-		if (peer_mesh_info.hop_cnt && peer_mesh_info.channel &&
-				(cur_chan != peer_mesh_info.channel)) {
+		if (bss_found && peer_mesh_info.master_channel&&
+				(cur_chan != peer_mesh_info.master_channel)) {
 			WL_MSG(mesh_if->ifname, "moving channel %d -> %d\n",
-				cur_chan, peer_mesh_info.channel);
+				cur_chan, peer_mesh_info.master_channel);
 			wl_ext_disable_iface(mesh_if->dev, mesh_if->ifname);
-			mesh_if->channel = peer_mesh_info.channel;
+			mesh_if->channel = peer_mesh_info.master_channel;
 			wl_ext_enable_iface(mesh_if->dev, mesh_if->ifname, 500);
 		}
 	}
 
+exit:
 	if (dump_buf)
 		kfree(dump_buf);
-	return mesh_info->hop_cnt;
+	return updated;
 }
 
 static void
@@ -2774,6 +3082,107 @@ wl_mesh_escan_attach(dhd_pub_t *dhd, struct wl_if_info *mesh_if)
 	init_timer_compat(&mesh_if->delay_scan, wl_mesh_timer, mesh_if);
 
 	return 0;
+}
+
+static uint
+wl_mesh_update_peer_path(struct wl_if_info *mesh_if, char *command,
+	int total_len)
+{
+	struct wl_mesh_params peer_mesh_info;
+	uint32 count = 0;
+	char *dump_buf = NULL;
+	mesh_peer_info_dump_t *peer_results;
+	mesh_peer_info_ext_t *mpi_ext;
+	int bytes_written = 0, j, k;
+	bool bss_found = FALSE;
+
+	dump_buf = kmalloc(WLC_IOCTL_MAXLEN, GFP_KERNEL);
+	if (dump_buf == NULL) {
+		AEXT_ERROR(mesh_if->dev->name, "Failed to allocate buffer of %d bytes\n",
+			WLC_IOCTL_MAXLEN); 
+		return FALSE;
+	}
+	count = wl_mesh_get_peer_results(mesh_if->dev, dump_buf, WLC_IOCTL_MAXLEN);
+	if (count > 0) {
+		peer_results = (mesh_peer_info_dump_t *)dump_buf;
+		mpi_ext = (mesh_peer_info_ext_t *)peer_results->mpi_ext;
+		for (count = 0; count < peer_results->count; count++) {
+			if (mpi_ext->entry_state != MESH_SELF_PEER_ENTRY_STATE_TIMEDOUT &&
+					mpi_ext->peer_info.state == MESH_PEERING_ESTAB) {
+				memset(&peer_mesh_info, 0, sizeof(struct wl_mesh_params));
+				bss_found = wl_escan_mesh_info(mesh_if->dev, mesh_if->escan,
+					&mpi_ext->ea, &peer_mesh_info);
+				if (bss_found) {
+					bytes_written += snprintf(command+bytes_written, total_len,
+						"\npeer=%pM, hop=%d",
+						&mpi_ext->ea, peer_mesh_info.hop_cnt);
+					for (j=1; j<peer_mesh_info.hop_cnt; j++) {
+						bytes_written += snprintf(command+bytes_written,
+							total_len, "\n");
+						for (k=0; k<j; k++) {
+							bytes_written += snprintf(command+bytes_written,
+								total_len, " ");
+						}
+						bytes_written += snprintf(command+bytes_written, total_len,
+							"%pM", &peer_mesh_info.peer_bssid[j]);
+					}
+				}
+			}
+			mpi_ext++;
+		}
+	}
+
+	if (dump_buf)
+		kfree(dump_buf);
+	return bytes_written;
+}
+
+static int
+wl_ext_isam_peer_path(struct net_device *dev, char *command, int total_len)
+{
+	struct dhd_pub *dhd = dhd_get_pub(dev);
+	struct wl_apsta_params *apsta_params = dhd->iapsta_params;
+	struct wl_mesh_params *mesh_info = &apsta_params->mesh_info;
+	struct wl_if_info *tmp_if;
+	uint16 chan = 0;
+	char *dump_buf = NULL;
+	int dump_len = WLC_IOCTL_MEDLEN;
+	int dump_written = 0;
+	int i;
+
+	if (command || android_msg_level & ANDROID_INFO_LEVEL) {
+		if (command) {
+			dump_buf = command;
+			dump_len = total_len;
+		} else {
+			dump_buf = kmalloc(dump_len, GFP_KERNEL);
+			if (dump_buf == NULL) {
+				AEXT_ERROR(dev->name, "Failed to allocate buffer of %d bytes\n",
+					dump_len); 
+				return -1;
+			}
+		}
+		for (i=0; i<MAX_IF_NUM; i++) {
+			tmp_if = &apsta_params->if_info[i];
+			if (tmp_if->dev && tmp_if->ifmode == IMESH_MODE && apsta_params->macs) {
+				chan = wl_ext_get_chan(apsta_params, tmp_if->dev);
+				if (chan) {
+					dump_written += snprintf(dump_buf+dump_written, dump_len,
+						"[dhd-%s-%c] mbssid=%pM, mchan=%d, hop=%d, pbssid=%pM",
+						tmp_if->ifname, tmp_if->prefix, &mesh_info->master_bssid,
+						mesh_info->master_channel, mesh_info->hop_cnt,
+						&mesh_info->peer_bssid);
+					dump_written += wl_mesh_update_peer_path(tmp_if,
+						dump_buf+dump_written, dump_len-dump_written);
+				}
+			}
+		}
+		AEXT_INFO(dev->name, "%s\n", dump_buf);
+	}
+
+	if (!command && dump_buf)
+		kfree(dump_buf);
+	return dump_written;
 }
 #endif /* WL_ESCAN */
 #endif /* WLMESH */
@@ -2997,6 +3406,7 @@ wl_ext_disable_iface(struct net_device *dev, char *ifname)
 
 	if (cur_if->ifmode == ISTA_MODE) {
 		wl_ext_ioctl(cur_if->dev, WLC_DISASSOC, NULL, 0, 1);
+		wl_ext_add_remove_pm_enable_work(dev, FALSE);
 	} else if (cur_if->ifmode == IAP_MODE || cur_if->ifmode == IMESH_MODE) {
 		// deauthenticate all STA first
 		memcpy(scbval.ea.octet, &ether_bcast, ETHER_ADDR_LEN);
@@ -3775,6 +4185,84 @@ wl_ext_iapsta_enable(struct net_device *dev, char *command, int total_len)
 	return ret;
 }
 
+#ifdef PROPTX_MAXCOUNT
+int
+wl_ext_get_wlfc_maxcount(struct dhd_pub *dhd, int ifidx)
+{
+	struct wl_apsta_params *apsta_params = dhd->iapsta_params;
+	struct wl_if_info *tmp_if, *cur_if = NULL;
+	int i, maxcount = WL_TXSTATUS_FREERUNCTR_MASK;
+
+	if (!apsta_params->rsdb)
+		return maxcount;
+
+	for (i=0; i<MAX_IF_NUM; i++) {
+		tmp_if = &apsta_params->if_info[i];
+		if (tmp_if->dev && tmp_if->ifidx == ifidx) {
+			cur_if = tmp_if;
+			maxcount = cur_if->transit_maxcount;
+		}
+	}
+
+	if (cur_if)
+		AEXT_INFO(cur_if->ifname, "update maxcount %d\n", maxcount);
+	else
+		AEXT_INFO("wlan", "update maxcount %d for ifidx %d\n", maxcount, ifidx);
+	return maxcount;
+}
+
+#define CH_MIN_2G_CHANNEL 1
+void
+wl_ext_update_wlfc_maxcount(struct dhd_pub *dhd)
+{
+	struct wl_apsta_params *apsta_params = dhd->iapsta_params;
+	struct wl_if_info *tmp_if;
+	bool band_5g = FALSE;
+	uint16 chan = 0;
+	int i, ret;
+
+	if (!apsta_params->rsdb)
+		return;
+
+	for (i=0; i<MAX_IF_NUM; i++) {
+		tmp_if = &apsta_params->if_info[i];
+		if (tmp_if->dev) {
+			chan = wl_ext_get_chan(apsta_params, tmp_if->dev);
+			if (chan > CH_MAX_2G_CHANNEL) {
+				tmp_if->transit_maxcount = dhd->conf->proptx_maxcnt_5g;
+				ret = dhd_wlfc_update_maxcount(dhd, tmp_if->ifidx,
+					tmp_if->transit_maxcount);
+				if (ret == 0)
+					AEXT_INFO(tmp_if->ifname, "updated maxcount %d\n",
+						tmp_if->transit_maxcount);
+				band_5g = TRUE;
+			}
+		}
+	}
+
+	for (i=0; i<MAX_IF_NUM; i++) {
+		tmp_if = &apsta_params->if_info[i];
+		if (tmp_if->dev) {
+			chan = wl_ext_get_chan(apsta_params, tmp_if->dev);
+			if ((chan == 0) || (chan <= CH_MAX_2G_CHANNEL && chan >= CH_MIN_2G_CHANNEL)) {
+				if (chan == 0) {
+					tmp_if->transit_maxcount = WL_TXSTATUS_FREERUNCTR_MASK;
+				} else if (band_5g) {
+					tmp_if->transit_maxcount = dhd->conf->proptx_maxcnt_2g;
+				} else {
+					tmp_if->transit_maxcount = dhd->conf->proptx_maxcnt_5g;
+				}
+				ret = dhd_wlfc_update_maxcount(dhd, tmp_if->ifidx,
+					tmp_if->transit_maxcount);
+				if (ret == 0)
+					AEXT_INFO(tmp_if->ifname, "updated maxcount %d\n",
+						tmp_if->transit_maxcount);
+			}
+		}
+	}
+}
+#endif /* PROPTX_MAXCOUNT */
+
 static int
 wl_ext_iapsta_event(struct net_device *dev,
 	struct wl_apsta_params *apsta_params, wl_event_msg_t *e, void* data)
@@ -3810,7 +4298,7 @@ wl_ext_iapsta_event(struct net_device *dev,
 		return -1;
 	}
 
-	if (cur_if->ifmode == ISTA_MODE) {
+	if (cur_if->ifmode == ISTA_MODE || cur_if->ifmode == IGC_MODE) {
 		if (event_type == WLC_E_LINK) {
 			if (!(flags & WLC_EVENT_MSG_LINK)) {
 				WL_MSG(cur_if->ifname,
@@ -3833,8 +4321,10 @@ wl_ext_iapsta_event(struct net_device *dev,
 			}
 			wl_clr_isam_status(cur_if, STA_CONNECTING);
 			wake_up_interruptible(&apsta_params->netif_change_event);
-		}
-		else if (event_type == WLC_E_SET_SSID && status != WLC_E_STATUS_SUCCESS) {
+#ifdef PROPTX_MAXCOUNT
+			wl_ext_update_wlfc_maxcount(apsta_params->dhd);
+#endif /* PROPTX_MAXCOUNT */
+		} else if (event_type == WLC_E_SET_SSID && status != WLC_E_STATUS_SUCCESS) {
 			WL_MSG(cur_if->ifname,
 				"connect failed event=%d, reason=%d, status=%d\n",
 				event_type, reason, status);
@@ -3844,8 +4334,10 @@ wl_ext_iapsta_event(struct net_device *dev,
 			if (mesh_if && apsta_params->macs)
 				wl_mesh_clear_mesh_info(apsta_params, mesh_if, TRUE);
 #endif /* WLMESH && WL_ESCAN */
-		}
-		else if (event_type == WLC_E_DEAUTH || event_type == WLC_E_DEAUTH_IND ||
+#ifdef PROPTX_MAXCOUNT
+			wl_ext_update_wlfc_maxcount(apsta_params->dhd);
+#endif /* PROPTX_MAXCOUNT */
+		} else if (event_type == WLC_E_DEAUTH || event_type == WLC_E_DEAUTH_IND ||
 				event_type == WLC_E_DISASSOC || event_type == WLC_E_DISASSOC_IND) {
 			WL_MSG(cur_if->ifname, "[%c] Link down with %pM, %s(%d), reason %d\n",
 				cur_if->prefix, &e->addr, bcmevent_get_name(event_type),
@@ -3870,6 +4362,9 @@ wl_ext_iapsta_event(struct net_device *dev,
 				WL_MSG(cur_if->ifname, "[%c] Link up w/o creating? (etype=%d)\n",
 					cur_if->prefix, event_type);
 			}
+#ifdef PROPTX_MAXCOUNT
+			wl_ext_update_wlfc_maxcount(apsta_params->dhd);
+#endif /* PROPTX_MAXCOUNT */
 		}
 		else if ((event_type == WLC_E_LINK && reason == WLC_E_LINK_BSSCFG_DIS) ||
 				(event_type == WLC_E_LINK && status == WLC_E_STATUS_SUCCESS &&
@@ -3877,6 +4372,9 @@ wl_ext_iapsta_event(struct net_device *dev,
 			wl_clr_isam_status(cur_if, AP_CREATED);
 			WL_MSG(cur_if->ifname, "[%c] Link down, reason=%d\n",
 				cur_if->prefix, reason);
+#ifdef PROPTX_MAXCOUNT
+			wl_ext_update_wlfc_maxcount(apsta_params->dhd);
+#endif /* PROPTX_MAXCOUNT */
 		}
 		else if ((event_type == WLC_E_ASSOC_IND || event_type == WLC_E_REASSOC_IND) &&
 				reason == DOT11_SC_SUCCESS) {
@@ -3937,6 +4435,29 @@ wl_ext_iapsta_update_channel(dhd_pub_t *dhd, struct net_device *dev,
 	return channel;
 }
 
+static int
+wl_ext_iftype_to_ifmode(struct net_device *net, int wl_iftype, ifmode_t *ifmode)
+{	
+	switch (wl_iftype) {
+		case WLC_E_IF_ROLE_STA:
+			*ifmode = ISTA_MODE;
+			break;
+		case WLC_E_IF_ROLE_AP:
+			*ifmode = IAP_MODE;
+			break;
+		case WLC_E_IF_ROLE_P2P_GO:
+			*ifmode = IGO_MODE;
+			break;
+		case WLC_E_IF_ROLE_P2P_CLIENT:
+			*ifmode = IGC_MODE;
+			break;
+		default:
+			AEXT_ERROR(net->name, "Unknown interface wl_iftype:0x%x\n", wl_iftype);
+			return BCME_ERROR;
+	}
+	return BCME_OK;
+}
+
 void
 wl_ext_iapsta_update_iftype(struct net_device *net, int ifidx, int wl_iftype)
 {
@@ -3989,6 +4510,22 @@ wl_ext_iapsta_ifadding(struct net_device *net, int ifidx)
 }
 
 bool
+wl_ext_iapsta_iftype_enabled(struct net_device *net, int wl_iftype)
+{
+	struct dhd_pub *dhd = dhd_get_pub(net);
+	struct wl_apsta_params *apsta_params = dhd->iapsta_params;
+	struct wl_if_info *cur_if = NULL;
+	ifmode_t ifmode = 0;
+
+	wl_ext_iftype_to_ifmode(net, wl_iftype, &ifmode);
+	cur_if = wl_ext_if_enabled(apsta_params, ifmode);
+	if (cur_if)
+		return TRUE;
+
+	return FALSE;
+}
+
+bool
 wl_ext_iapsta_mesh_creating(struct net_device *net)
 {
 	struct dhd_pub *dhd = dhd_get_pub(net);
@@ -4006,6 +4543,358 @@ wl_ext_iapsta_mesh_creating(struct net_device *net)
 	return FALSE;
 }
 #endif /* WL_CFG80211 */
+
+int
+wl_ext_in4way_sync_sta(dhd_pub_t *dhd, struct wl_if_info *cur_if,
+	uint action, enum wl_ext_status status, void *context)
+{
+	struct wl_apsta_params *apsta_params = dhd->iapsta_params;
+	struct net_device *dev = cur_if->dev;
+	struct osl_timespec cur_ts, *sta_disc_ts = &apsta_params->sta_disc_ts;
+	int ret = 0, err, cur_eapol_status;
+	int max_wait_time, max_wait_cnt;
+	int suppressed = 0, wpa_auth = 0;
+
+	action = action & dhd->conf->in4way;
+	cur_eapol_status = cur_if->eapol_status;
+	AEXT_TRACE(dev->name, "status=%d, action=0x%x, in4way=0x%x\n",
+		status, action, dhd->conf->in4way);
+
+	switch (status) {
+		case WL_EXT_STATUS_SCAN:
+			wldev_ioctl(dev, WLC_GET_SCANSUPPRESS, &suppressed, sizeof(int), false);
+			if (suppressed) {
+				AEXT_ERROR(dev->name, "scan suppressed\n");
+				ret = -EBUSY;
+				break;
+			}
+			if (action & STA_NO_SCAN_IN4WAY) {
+				if (apsta_params->sta_handshaking > 0 && apsta_params->sta_handshaking <= 3) {
+					AEXT_ERROR(dev->name, "return -EBUSY cnt %d\n",
+						apsta_params->sta_handshaking);
+					apsta_params->sta_handshaking++;
+					ret = -EBUSY;
+					break;
+				}
+			}
+			break;
+ 		case WL_EXT_STATUS_DISCONNECTING:
+			if (cur_eapol_status >= EAPOL_STATUS_4WAY_START &&
+					cur_eapol_status < EAPOL_STATUS_4WAY_DONE) {
+				AEXT_ERROR(dev->name, "WPA failed at %d\n", cur_eapol_status);
+				cur_if->eapol_status = EAPOL_STATUS_NONE;
+			} else if (cur_eapol_status >= EAPOL_STATUS_WSC_START &&
+					cur_eapol_status < EAPOL_STATUS_WSC_DONE) {
+				AEXT_ERROR(dev->name, "WPS failed at %d\n", cur_eapol_status);
+				cur_if->eapol_status = EAPOL_STATUS_NONE;
+			}
+			if (action & (STA_NO_SCAN_IN4WAY|STA_NO_BTC_IN4WAY)) {
+				if (apsta_params->sta_handshaking) {
+					if ((action & STA_NO_BTC_IN4WAY) && apsta_params->sta_btc_mode) {
+						AEXT_INFO(dev->name, "status=%d, restore sta_btc_mode %d\n",
+							status, apsta_params->sta_btc_mode);
+						wldev_iovar_setint(dev, "sta_btc_mode", apsta_params->sta_btc_mode);
+					}
+					apsta_params->sta_handshaking = 0;
+				}
+			}
+			if (action & STA_WAIT_DISCONNECTED) {
+				uint32 diff_ms;
+				max_wait_time = 200;
+				max_wait_cnt = 20;
+				osl_do_gettimeofday(sta_disc_ts);
+				osl_do_gettimeofday(&cur_ts);
+				diff_ms = osl_do_gettimediff(&cur_ts, sta_disc_ts)/1000;
+				while (diff_ms < max_wait_time && max_wait_cnt) {
+					AEXT_INFO(dev->name, "status=%d, max_wait_cnt=%d waiting...\n",
+						status, max_wait_cnt);
+					mutex_unlock(&apsta_params->in4way_sync);
+					OSL_SLEEP(50);
+					mutex_lock(&apsta_params->in4way_sync);
+					max_wait_cnt--;
+					osl_do_gettimeofday(&cur_ts);
+					diff_ms = osl_do_gettimediff(&cur_ts, sta_disc_ts)/1000;
+				}
+				wake_up_interruptible(&dhd->conf->event_complete);
+			}
+			break;
+		case WL_EXT_STATUS_CONNECTING:
+			wl_ext_iovar_getint(dev, "wpa_auth", &wpa_auth);
+			if (wpa_auth >= 2)
+				cur_if->eapol_status = EAPOL_STATUS_4WAY_START;
+			else
+				cur_if->eapol_status = EAPOL_STATUS_NONE;
+			if (action & (STA_NO_SCAN_IN4WAY|STA_NO_BTC_IN4WAY)) {
+				if (wpa_auth >= 2 && cur_if->bssidx == 0) {
+					apsta_params->sta_handshaking = 1;
+					if (action & STA_NO_BTC_IN4WAY) {
+						err = wldev_iovar_getint(dev, "sta_btc_mode", &apsta_params->sta_btc_mode);
+						if (!err && apsta_params->sta_btc_mode) {
+							AEXT_INFO(dev->name, "status=%d, disable current sta_btc_mode %d\n",
+								status, apsta_params->sta_btc_mode);
+							wldev_iovar_setint(dev, "sta_btc_mode", 0);
+						}
+					}
+				}
+			}
+			if (action & STA_WAIT_DISCONNECTED) {
+				uint32 diff_ms;
+				max_wait_time = 200;
+				max_wait_cnt = 10;
+				osl_do_gettimeofday(&cur_ts);
+				diff_ms = osl_do_gettimediff(&cur_ts, sta_disc_ts)/1000;
+				while (diff_ms < max_wait_time && max_wait_cnt) {
+					AEXT_INFO(dev->name, "status=%d, max_wait_cnt=%d waiting...\n",
+						status, max_wait_cnt);
+					mutex_unlock(&apsta_params->in4way_sync);
+					OSL_SLEEP(50);
+					mutex_lock(&apsta_params->in4way_sync);
+					max_wait_cnt--;
+					osl_do_gettimeofday(&cur_ts);
+					diff_ms = osl_do_gettimediff(&cur_ts, sta_disc_ts)/1000;
+				}
+				wake_up_interruptible(&dhd->conf->event_complete);
+			}
+			break;
+		case WL_EXT_STATUS_CONNECTED:
+			if (cur_if->ifmode == ISTA_MODE) {
+				dhd_conf_set_wme(dhd, cur_if->ifidx, 0);
+				wake_up_interruptible(&dhd->conf->event_complete);
+			}
+			else if (cur_if->ifmode == IGC_MODE) {
+				dhd_conf_set_mchan_bw(dhd, WL_P2P_IF_CLIENT, -1);
+			}
+			break;
+		case WL_EXT_STATUS_DISCONNECTED:
+			if (cur_eapol_status >= EAPOL_STATUS_4WAY_START &&
+					cur_eapol_status < EAPOL_STATUS_4WAY_DONE) {
+				AEXT_ERROR(dev->name, "WPA failed at %d\n", cur_eapol_status);
+				cur_if->eapol_status = EAPOL_STATUS_NONE;
+			} else if (cur_eapol_status >= EAPOL_STATUS_WSC_START &&
+					cur_eapol_status < EAPOL_STATUS_WSC_DONE) {
+				AEXT_ERROR(dev->name, "WPS failed at %d\n", cur_eapol_status);
+				cur_if->eapol_status = EAPOL_STATUS_NONE;
+			}
+			if (action & (STA_NO_SCAN_IN4WAY|STA_NO_BTC_IN4WAY)) {
+				if (apsta_params->sta_handshaking) {
+					if ((action & STA_NO_BTC_IN4WAY) && apsta_params->sta_btc_mode) {
+						AEXT_INFO(dev->name, "status=%d, restore sta_btc_mode %d\n",
+							status, apsta_params->sta_btc_mode);
+						wldev_iovar_setint(dev, "sta_btc_mode", apsta_params->sta_btc_mode);
+					}
+					apsta_params->sta_handshaking = 0;
+				}
+			}
+			if (action & STA_WAIT_DISCONNECTED) {
+				osl_do_gettimeofday(sta_disc_ts);
+			}
+			wake_up_interruptible(&dhd->conf->event_complete);
+			break;
+		case WL_EXT_STATUS_ADD_KEY:
+			cur_if->eapol_status = EAPOL_STATUS_4WAY_DONE;
+			if (action & (STA_NO_SCAN_IN4WAY|STA_NO_BTC_IN4WAY)) {
+				if (apsta_params->sta_handshaking) {
+					if ((action & STA_NO_BTC_IN4WAY) && apsta_params->sta_btc_mode) {
+						AEXT_INFO(dev->name, "status=%d, restore sta_btc_mode %d\n",
+							status, apsta_params->sta_btc_mode);
+						wldev_iovar_setint(dev, "sta_btc_mode", apsta_params->sta_btc_mode);
+					}
+					apsta_params->sta_handshaking = 0;
+				}
+			}
+			wake_up_interruptible(&dhd->conf->event_complete);
+			break;
+		default:
+			AEXT_INFO(dev->name, "Unknown action=0x%x, status=%d\n", action, status);
+	}
+
+	return ret;
+}
+
+int
+wl_ext_in4way_sync_ap(dhd_pub_t *dhd, struct wl_if_info *cur_if,
+	uint action, enum wl_ext_status status, void *context)
+{
+	struct wl_apsta_params *apsta_params = dhd->iapsta_params;
+	struct net_device *dev = cur_if->dev;
+	struct osl_timespec cur_ts, *ap_disc_sta_ts = &apsta_params->ap_disc_sta_ts;
+	u8 *ap_disc_sta_bssid = (u8*)&apsta_params->ap_disc_sta_bssid;
+	uint32 diff_ms, timeout, max_wait_time = 300;
+	int ret = 0, suppressed = 0;
+	u8* mac_addr = context;
+	bool wait = FALSE;
+
+	action = action & dhd->conf->in4way;
+	AEXT_TRACE(dev->name, "status=%d, action=0x%x, in4way=0x%x\n",
+		status, action, dhd->conf->in4way);
+
+	switch (status) {
+		case WL_EXT_STATUS_SCAN:
+			wldev_ioctl(dev, WLC_GET_SCANSUPPRESS, &suppressed, sizeof(int), false);
+			if (suppressed) {
+				AEXT_ERROR(dev->name, "scan suppressed\n");
+				ret = -EBUSY;
+				break;
+			}
+			break;
+		case WL_EXT_STATUS_AP_ENABLED:
+			if (cur_if->ifmode == IAP_MODE)
+				dhd_conf_set_wme(dhd, cur_if->ifidx, 1);
+			else if (cur_if->ifmode == IGO_MODE)
+				dhd_conf_set_mchan_bw(dhd, WL_P2P_IF_GO, -1);
+			break;
+		case WL_EXT_STATUS_DELETE_STA:
+			if (action & AP_WAIT_STA_RECONNECT) {
+				osl_do_gettimeofday(&cur_ts);
+				diff_ms = osl_do_gettimediff(&cur_ts, ap_disc_sta_ts)/1000;
+				if (mac_addr && diff_ms < max_wait_time) {
+					if (cur_if->ifmode == IAP_MODE &&
+							!memcmp(ap_disc_sta_bssid, mac_addr, ETHER_ADDR_LEN)) {
+						wait = TRUE;
+					} else if (cur_if->ifmode == IGO_MODE &&
+							cur_if->eapol_status == EAPOL_STATUS_WSC_DONE &&
+							memcmp(&ether_bcast, mac_addr, ETHER_ADDR_LEN)) {
+						wait = TRUE;
+					}
+				}
+				if (wait) {
+					AEXT_INFO(dev->name, "status=%d, ap_recon_sta=%d, waiting %dms ...\n",
+						status, apsta_params->ap_recon_sta, max_wait_time);
+					mutex_unlock(&apsta_params->in4way_sync);
+					timeout = wait_event_interruptible_timeout(apsta_params->ap_recon_sta_event,
+						apsta_params->ap_recon_sta, msecs_to_jiffies(max_wait_time));
+					mutex_lock(&apsta_params->in4way_sync);
+					AEXT_INFO(dev->name, "status=%d, ap_recon_sta=%d, timeout=%d\n",
+						status, apsta_params->ap_recon_sta, timeout);
+					if (timeout > 0) {
+						AEXT_INFO(dev->name, "skip delete STA %pM\n", mac_addr);
+						ret = -1;
+						break;
+					}
+				} else {
+					AEXT_INFO(dev->name, "status=%d, ap_recon_sta=%d => 0\n",
+						status, apsta_params->ap_recon_sta);
+					apsta_params->ap_recon_sta = FALSE;
+					if (cur_if->ifmode == IGO_MODE)
+						cur_if->eapol_status = EAPOL_STATUS_NONE;
+				}
+			}
+			break;
+		case WL_EXT_STATUS_STA_DISCONNECTED:
+			if (action & AP_WAIT_STA_RECONNECT) {
+				AEXT_INFO(dev->name, "latest disc STA %pM ap_recon_sta=%d\n",
+					ap_disc_sta_bssid, apsta_params->ap_recon_sta);
+				osl_do_gettimeofday(ap_disc_sta_ts);
+				memcpy(ap_disc_sta_bssid, mac_addr, ETHER_ADDR_LEN);
+				apsta_params->ap_recon_sta = FALSE;
+			}
+			break;
+		case WL_EXT_STATUS_STA_CONNECTED:
+			if (action & AP_WAIT_STA_RECONNECT) {
+				osl_do_gettimeofday(&cur_ts);
+				diff_ms = osl_do_gettimediff(&cur_ts, ap_disc_sta_ts)/1000;
+				if (diff_ms < max_wait_time &&
+						!memcmp(ap_disc_sta_bssid, mac_addr, ETHER_ADDR_LEN)) {
+					AEXT_INFO(dev->name, "status=%d, ap_recon_sta=%d => 1\n",
+						status, apsta_params->ap_recon_sta);
+					apsta_params->ap_recon_sta = TRUE;
+					wake_up_interruptible(&apsta_params->ap_recon_sta_event);
+				} else {
+					apsta_params->ap_recon_sta = FALSE;
+				}
+			}
+			break;
+		default:
+			AEXT_INFO(dev->name, "Unknown action=0x%x, status=%d\n", action, status);
+	}
+
+	return ret;
+}
+
+#ifdef WL_CFG80211
+int
+wl_ext_in4way_sync(struct net_device *dev, uint action,
+	enum wl_ext_status status, void *context)
+{
+	dhd_pub_t *dhd = dhd_get_pub(dev);
+	struct wl_apsta_params *apsta_params = dhd->iapsta_params;
+	struct wl_if_info *cur_if = NULL, *tmp_if = NULL;
+	int ret = 0, i;
+
+	mutex_lock(&apsta_params->in4way_sync);
+	for (i=0; i<MAX_IF_NUM; i++) {
+		tmp_if = &apsta_params->if_info[i];
+		if (tmp_if->dev && tmp_if->dev == dev) {
+			cur_if = tmp_if;
+			break;
+		}
+	}
+
+	if (cur_if) {
+		if (cur_if->ifmode == ISTA_MODE || cur_if->ifmode == IGC_MODE)
+			ret = wl_ext_in4way_sync_sta(dhd, cur_if, action, status, context);
+		else if (cur_if->ifmode == IAP_MODE || cur_if->ifmode == IGO_MODE)
+			ret = wl_ext_in4way_sync_ap(dhd, cur_if, action, status, context);
+		else
+			AEXT_INFO(dev->name, "Unknown mode %d\n", cur_if->ifmode);
+	}
+	mutex_unlock(&apsta_params->in4way_sync);
+
+	return ret;
+}
+#endif /* WL_CFG80211 */
+
+#ifdef WL_WIRELESS_EXT
+int
+wl_ext_in4way_sync_wext(struct net_device *dev, uint action,
+	enum wl_ext_status status, void *context)
+{
+	int ret = 0;
+#ifndef WL_CFG80211
+	dhd_pub_t *dhd = dhd_get_pub(dev);
+	struct wl_apsta_params *apsta_params;
+	struct wl_if_info *cur_if = NULL, *tmp_if = NULL;
+	int i;
+
+	if (!dhd)
+		return 0;
+
+	apsta_params = dhd->iapsta_params;
+
+	mutex_lock(&apsta_params->in4way_sync);
+	for (i=0; i<MAX_IF_NUM; i++) {
+		tmp_if = &apsta_params->if_info[i];
+		if (tmp_if->dev && tmp_if->dev == dev) {
+			cur_if = tmp_if;
+			break;
+		}
+	}
+
+	if (cur_if && cur_if->ifmode == ISTA_MODE) {
+		if (status == WL_EXT_STATUS_DISCONNECTING) {
+			wl_ext_add_remove_pm_enable_work(dev, FALSE);
+		} else if (status == WL_EXT_STATUS_CONNECTING) {
+			wl_ext_add_remove_pm_enable_work(dev, TRUE);
+		}
+		ret = wl_ext_in4way_sync_sta(dhd, cur_if, 0, status, NULL);
+	}
+	mutex_unlock(&apsta_params->in4way_sync);
+#endif
+	return ret;
+}
+#endif /* WL_WIRELESS_EXT */
+
+void
+wl_ext_update_eapol_status(dhd_pub_t *dhd, int ifidx, uint eapol_status)
+{
+	struct wl_apsta_params *apsta_params = dhd->iapsta_params;
+	struct wl_if_info *cur_if = NULL;
+
+	if (ifidx < MAX_IF_NUM) {
+		cur_if = &apsta_params->if_info[ifidx];
+		cur_if->eapol_status = eapol_status;
+	}
+}
 
 int
 wl_ext_iapsta_alive_preinit(struct net_device *dev)
@@ -4145,6 +5034,9 @@ wl_ext_iapsta_postinit(struct net_device *net, struct wl_if_info *cur_if)
 		}
 #endif /* WLMESH */
 	}
+#ifdef PROPTX_MAXCOUNT
+	wl_ext_update_wlfc_maxcount(dhd);
+#endif /* PROPTX_MAXCOUNT */
 
 }
 
@@ -4232,7 +5124,11 @@ wl_ext_iapsta_attach_netdev(struct net_device *net, int ifidx, uint8 bssidx)
 			apsta_params, PRIO_EVENT_IAPSTA);
 		strcpy(cur_if->ifname, net->name);
 		init_waitqueue_head(&apsta_params->netif_change_event);
+		init_waitqueue_head(&apsta_params->ap_recon_sta_event);
 		mutex_init(&apsta_params->usr_sync);
+		mutex_init(&cur_if->pm_sync);
+		mutex_init(&apsta_params->in4way_sync);
+		INIT_DELAYED_WORK(&cur_if->pm_enable_work, wl_ext_pm_work_handler);
 	} else if (cur_if && wl_get_isam_status(cur_if, IF_ADDING)) {
 		primary_if = &apsta_params->if_info[IF_PIF];
 		cur_if->dev = net;
@@ -4245,6 +5141,8 @@ wl_ext_iapsta_attach_netdev(struct net_device *net, int ifidx, uint8 bssidx)
 			wl_mesh_escan_attach(dhd, cur_if);
 		}
 #endif /* WLMESH && WL_ESCAN */
+		mutex_init(&cur_if->pm_sync);
+		INIT_DELAYED_WORK(&cur_if->pm_enable_work, wl_ext_pm_work_handler);
 	}
 
 	return 0;
@@ -4266,6 +5164,7 @@ wl_ext_iapsta_dettach_netdev(struct net_device *net, int ifidx)
 	}
 
 	if (ifidx == 0) {
+		wl_ext_add_remove_pm_enable_work(net, FALSE);
 		wl_ext_event_deregister(net, dhd, WLC_E_LAST, wl_ext_iapsta_event);
 #if defined(WLMESH) && defined(WL_ESCAN)
 		if (cur_if->ifmode == IMESH_MODE && apsta_params->macs) {
@@ -4275,6 +5174,7 @@ wl_ext_iapsta_dettach_netdev(struct net_device *net, int ifidx)
 		memset(apsta_params, 0, sizeof(struct wl_apsta_params));
 	} else if (cur_if && (wl_get_isam_status(cur_if, IF_READY) ||
 			wl_get_isam_status(cur_if, IF_ADDING))) {
+		wl_ext_add_remove_pm_enable_work(net, FALSE);
 		wl_ext_event_deregister(net, dhd, WLC_E_LAST, wl_ext_iapsta_event);
 #if defined(WLMESH) && defined(WL_ESCAN)
 		if (cur_if->ifmode == IMESH_MODE && apsta_params->macs) {
@@ -5446,6 +6346,121 @@ exit:
 }
 #endif /* WL_GPIO_NOTIFY */
 
+#ifdef CSI_SUPPORT
+typedef struct csi_config {
+	/* Peer device mac address. */
+	struct ether_addr addr;
+	/* BW to be used in the measurements. This needs to be supported both by the */
+	/* device itself and the peer. */
+	uint32 bw;
+	/* Time interval between measurements (units: 1 ms). */
+	uint32 period;
+	/* CSI method */
+	uint32 method;
+} csi_config_t;
+
+typedef struct csi_list {
+	uint32 cnt;
+	csi_config_t configs[1];
+} csi_list_t;
+
+static int
+wl_ether_atoe(const char *a, struct ether_addr *n)
+{
+	char *c = NULL;
+	int i = 0;
+
+	memset(n, 0, ETHER_ADDR_LEN);
+	for (;;) {
+		n->octet[i++] = (uint8)strtoul(a, &c, 16);
+		if (!*c++ || i == ETHER_ADDR_LEN)
+			break;
+		a = c;
+	}
+	return (i == ETHER_ADDR_LEN);
+}
+
+static int
+wl_ext_csi(struct net_device *dev, char *data, char *command, int total_len)
+{
+	csi_config_t csi, *csip;
+	csi_list_t *csi_list;
+	int ret = -1, period=-1, i;
+	char mac[32], *buf = NULL;
+	struct ether_addr ea;
+	int bytes_written = 0;
+
+	buf = kmalloc(WLC_IOCTL_SMLEN, GFP_KERNEL);
+	if (buf == NULL) {
+		AEXT_ERROR(dev->name, "Failed to allocate buffer of %d bytes\n", WLC_IOCTL_SMLEN);
+		goto exit;
+	}
+	memset(buf, 0, WLC_IOCTL_SMLEN);
+
+	if (data) {
+		sscanf(data, "%s %d", mac, &period);
+		ret = wl_ether_atoe(mac, &ea);
+		if (!ret) {
+			AEXT_ERROR(dev->name, "rejecting mac=%s, ret=%d\n", mac, ret);
+			goto exit;
+		}
+		AEXT_TRACE(dev->name, "mac=%pM, period=%d", &ea, period);
+		if (period > 0) {
+			memset(&csi, 0, sizeof(csi_config_t));
+			bcopy(&ea, &csi.addr, ETHER_ADDR_LEN);
+			csi.period = period;
+			ret = wl_ext_iovar_setbuf(dev, "csi", (char *)&csi, sizeof(csi),
+				buf, WLC_IOCTL_SMLEN, NULL);
+		} else if (period == 0) {
+			memset(&csi, 0, sizeof(csi_config_t));
+			bcopy(&ea, &csi.addr, ETHER_ADDR_LEN);
+			ret = wl_ext_iovar_setbuf(dev, "csi_del", (char *)&csi, sizeof(csi),
+				buf, WLC_IOCTL_SMLEN, NULL);
+		} else {
+			ret = wl_ext_iovar_getbuf(dev, "csi", &ea, ETHER_ADDR_LEN, buf,
+				WLC_IOCTL_SMLEN, NULL);
+			if (!ret) {
+				csip = (csi_config_t *) buf;
+					/* Dump all lists */
+				bytes_written += snprintf(command+bytes_written, total_len,
+					"Mac    :%pM\n"
+					"Period :%d\n"
+					"BW     :%d\n"
+					"Method :%d\n",
+					&csip->addr, csip->period, csip->bw, csip->method);
+				AEXT_TRACE(dev->name, "command result is %s\n", command);
+				ret = bytes_written;
+			}
+		}
+	}
+	else {
+		ret = wl_ext_iovar_getbuf(dev, "csi_list", NULL, 0, buf, WLC_IOCTL_SMLEN, NULL);
+		if (!ret) {
+			csi_list = (csi_list_t *)buf;
+			bytes_written += snprintf(command+bytes_written, total_len,
+				"Total number :%d\n", csi_list->cnt);
+			for (i=0; i<csi_list->cnt; i++) {
+				csip = &csi_list->configs[i];
+				bytes_written += snprintf(command+bytes_written, total_len,
+					"Idx    :%d\n"
+					"Mac    :%pM\n"
+					"Period :%d\n"
+					"BW     :%d\n"
+					"Method :%d\n\n",
+					i+1, &csip->addr, csip->period, csip->bw, csip->method);
+			}
+			AEXT_TRACE(dev->name, "command result is %s\n", command);
+			ret = bytes_written;
+		}
+	}
+
+exit:
+	if (buf)
+		kfree(buf);
+	return ret;
+}
+#endif /* CSI_SUPPORT */
+
 typedef int (wl_ext_tpl_parse_t)(struct net_device *dev, char *data, char *command,
 	int total_len);
 
@@ -5492,6 +6507,9 @@ const wl_ext_iovar_tpl_t wl_ext_iovar_tpl_list[] = {
 #ifdef WL_GPIO_NOTIFY
 	{WLC_GET_VAR,	WLC_SET_VAR,	"bcol_gpio_noti",	wl_ext_gpio_notify},
 #endif /* WL_GPIO_NOTIFY */
+#ifdef CSI_SUPPORT
+	{WLC_GET_VAR,	WLC_SET_VAR,	"csi",				wl_ext_csi},
+#endif /* CSI_SUPPORT */
 };
 
 /*
@@ -5624,6 +6642,11 @@ wl_android_ext_priv_cmd(struct net_device *net, char *command,
 	else if (strnicmp(command, CMD_ISAM_PARAM, strlen(CMD_ISAM_PARAM)) == 0) {
 		*bytes_written = wl_ext_isam_param(net, command, total_len);
 	}
+#if defined(WLMESH) && defined(WL_ESCAN)
+	else if (strnicmp(command, CMD_ISAM_PEER_PATH, strlen(CMD_ISAM_PEER_PATH)) == 0) {
+		*bytes_written = wl_ext_isam_peer_path(net, command, total_len);
+	}
+#endif /* WLMESH && WL_ESCAN */
 #endif /* WL_EXT_IAPSTA */
 #ifdef WL_CFG80211
 	else if (strnicmp(command, CMD_AUTOCHANNEL, strlen(CMD_AUTOCHANNEL)) == 0) {

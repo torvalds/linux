@@ -116,6 +116,11 @@ extern void dhd_bus_dump(dhd_pub_t *dhdp, struct bcmstrbuf *strbuf);
 /* Clear any bus counters */
 extern void dhd_bus_clearcounts(dhd_pub_t *dhdp);
 
+#if defined(BCMSDIO) && defined(PKT_STATICS)
+extern void dhd_bus_dump_txpktstatics(struct dhd_bus *bus);
+extern void dhd_bus_clear_txpktstatics(struct dhd_bus *bus);
+#endif
+
 /* return the dongle chipid */
 extern uint dhd_bus_chip(struct dhd_bus *bus);
 

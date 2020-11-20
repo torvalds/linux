@@ -1174,5 +1174,5 @@ typedef struct osl_timespec {
 } osl_timespec_t;
 extern void osl_do_gettimeofday(struct osl_timespec *ts);
 extern void osl_get_monotonic_boottime(struct osl_timespec *ts);
-
+extern uint32 osl_do_gettimediff(struct osl_timespec *cur_ts, struct osl_timespec *old_ts);
 #endif	/* _linux_osl_h_ */

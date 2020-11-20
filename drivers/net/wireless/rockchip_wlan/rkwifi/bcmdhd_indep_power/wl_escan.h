@@ -19,14 +19,14 @@ enum escan_state {
 typedef struct wl_escan_info {
 	struct net_device *dev;
 	dhd_pub_t *pub;
-	timer_list_compat_t scan_timeout;   /* Timer for catch scan event timeout */
+	timer_list_compat_t scan_timeout; /* Timer for catch scan event timeout */
 	int escan_state;
 	int ioctl_ver;
 	u8 escan_buf[ESCAN_BUF_SIZE];
 	struct wl_scan_results *bss_list;
 	struct ether_addr disconnected_bssid;
 	u8 *escan_ioctl_buf;
-	struct mutex usr_sync;	/* maily for up/down synchronization */
+	struct mutex usr_sync; /* maily for up/down synchronization */
 	int autochannel;
 	int best_2g_ch;
 	int best_5g_ch;
@@ -40,7 +40,6 @@ typedef struct wl_escan_info {
 } wl_escan_info_t;
 
 #if defined(WLMESH)
-/* donlge escan state */
 enum mesh_info_id {
 	MESH_INFO_MASTER_BSSID = 1,
 	MESH_INFO_MASTER_CHANNEL,
@@ -48,18 +47,18 @@ enum mesh_info_id {
 	MESH_INFO_PEER_BSSID
 };
 
+#define MAX_HOP_LIST 10
 typedef struct wl_mesh_params {
 	struct ether_addr master_bssid;
 	uint16 master_channel;
 	uint hop_cnt;
-	struct ether_addr peer_bssid;
-	uint16 channel;
+	struct ether_addr peer_bssid[MAX_HOP_LIST];
 	uint16 scan_channel;
 } wl_mesh_params_t;
-int wl_escan_mesh_info(struct net_device *dev,
+bool wl_escan_mesh_info(struct net_device *dev,
 	struct wl_escan_info *escan, struct ether_addr *peer_bssid,
 	struct wl_mesh_params *mesh_info);
-int wl_escan_mesh_peer(struct net_device *dev,
+bool wl_escan_mesh_peer(struct net_device *dev,
 	struct wl_escan_info *escan, wlc_ssid_t *cur_ssid, uint16 cur_chan, bool sae,
 	struct wl_mesh_params *mesh_info);
 #endif /* WLMESH */

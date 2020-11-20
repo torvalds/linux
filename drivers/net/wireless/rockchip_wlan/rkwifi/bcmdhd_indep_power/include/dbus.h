@@ -288,7 +288,7 @@ typedef struct dbus_pub {
 	int ntxq, nrxq, rxsize;
 	void *bus;
 	struct shared_info *sh;
-    void *dev_info;
+	void *dev_info;
 } dbus_pub_t;
 
 #define BUS_INFO(bus, type) (((type *) bus)->pub->bus)

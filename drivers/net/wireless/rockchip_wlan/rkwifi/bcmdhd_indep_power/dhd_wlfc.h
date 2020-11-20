@@ -169,6 +169,10 @@ typedef struct wlfc_mac_descriptor {
 	uint32 opened_ct;
 	uint32 closed_ct;
 #endif
+#ifdef PROPTX_MAXCOUNT
+	/** Max Number of packets at dongle for this entry. */
+	int transit_maxcount;
+#endif /* PROPTX_MAXCOUNT */
 	struct wlfc_mac_descriptor* prev;
 	struct wlfc_mac_descriptor* next;
 } wlfc_mac_descriptor_t;
@@ -559,5 +563,8 @@ int dhd_wlfc_set_txstatus_ignore(dhd_pub_t *dhd, int val);
 
 int dhd_wlfc_get_rxpkt_chk(dhd_pub_t *dhd, int *val);
 int dhd_wlfc_set_rxpkt_chk(dhd_pub_t *dhd, int val);
+#ifdef PROPTX_MAXCOUNT
+int dhd_wlfc_update_maxcount(dhd_pub_t *dhdp, uint8 ifid, int maxcount);
+#endif /* PROPTX_MAXCOUNT */
 
 #endif /* __wlfc_host_driver_definitions_h__ */

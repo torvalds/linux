@@ -173,6 +173,9 @@ extern bool bcmsdh_get_sdmmc_sleep(void *sdh);
 extern void bcmsdh_set_sdmmc_sleep(void *sdh, bool sleep);
 #endif
 extern bool bcmsdh_glom_enabled(void);
+#ifdef PKT_STATICS
+extern uint32 bcmsdh_get_spend_time(void *sdh) ;
+#endif
 /* Flags bits */
 #define SDIO_REQ_4BYTE	0x1	/* Four-byte target (backplane) width (vs. two-byte) */
 #define SDIO_REQ_FIXED	0x2	/* Fixed address (FIFO) (vs. incrementing address) */

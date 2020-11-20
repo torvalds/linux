@@ -847,6 +847,15 @@ bcmsdh_set_mode(void *sdh, uint mode)
 	return (sdioh_set_mode(bcmsdh->sdioh, mode));
 }
 
+#ifdef PKT_STATICS
+uint32
+bcmsdh_get_spend_time(void *sdh) 
+{
+	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *)sdh;
+	return (sdioh_get_spend_time(bcmsdh->sdioh));
+}
+#endif
+
 #ifdef DHD_LOAD_CHIPALIVE
 bool
 bcmsdh_get_sdmmc_sleep(void *sdh)

@@ -14,6 +14,7 @@
 #define FW_TYPE_MESH    3
 #define FW_TYPE_ES      4
 #define FW_TYPE_MFG     5
+#define FW_TYPE_MINIME  6
 #define FW_TYPE_G       0
 #define FW_TYPE_AG      1
 
@@ -103,10 +104,10 @@ typedef struct mchan_params {
 } mchan_params_t;
 
 enum in4way_flags {
-	NO_SCAN_IN4WAY	= (1 << (0)),
-	NO_BTC_IN4WAY	= (1 << (1)),
-	DONT_DELETE_GC_AFTER_WPS	= (1 << (2)),
-	WAIT_DISCONNECTED	= (1 << (3)),
+	STA_NO_SCAN_IN4WAY	= (1 << (0)),
+	STA_NO_BTC_IN4WAY	= (1 << (1)),
+	STA_WAIT_DISCONNECTED	= (1 << (2)),
+	AP_WAIT_STA_RECONNECT	= (1 << (3)),
 };
 
 enum in_suspend_flags {
@@ -124,6 +125,14 @@ enum in_suspend_mode {
 	EARLY_SUSPEND = 0,
 	PM_NOTIFIER = 1
 };
+
+#ifdef HOST_TPUT_TEST
+enum data_drop_mode {
+	NO_DATA_DROP = 0,
+	TXPKT_DROP = 1,
+	XMIT_DROP = 2
+};
+#endif
 
 enum eapol_status {
 	EAPOL_STATUS_NONE = 0,
@@ -212,11 +221,17 @@ typedef struct dhd_conf {
 	int txinrx_thres;
 	int dhd_txminmax; // -1=DATABUFCNT(bus)
 	bool oob_enabled_later;
+#ifdef MINIME
+	uint32 ramsize;
+#endif
 #if defined(SDIO_ISR_THREAD)
 	bool intr_extn;
 #endif
 #ifdef BCMSDIO_RXLIM_POST
 	bool rxlim_en;
+#endif
+#ifdef BCMSDIO_TXSEQ_SYNC
+	bool txseq_sync;
 #endif
 #endif
 #ifdef BCMPCIE
@@ -261,7 +276,6 @@ typedef struct dhd_conf {
 	char *wl_resume;
 	int tsq;
 	int orphan_move;
-	uint eapol_status;
 	uint in4way;
 #ifdef WL_EXT_WOWL
 	uint wowl;
@@ -270,6 +284,13 @@ typedef struct dhd_conf {
 	char hw_ether[62];
 #endif
 	wait_queue_head_t event_complete;
+#ifdef PROPTX_MAXCOUNT
+	int proptx_maxcnt_2g;
+	int proptx_maxcnt_5g;
+#endif /* DYNAMIC_PROPTX_MAXCOUNT */
+#ifdef HOST_TPUT_TEST
+	int data_drop_mode;
+#endif
 } dhd_conf_t;
 
 #ifdef BCMSDIO
@@ -278,7 +299,6 @@ void dhd_conf_get_otp(dhd_pub_t *dhd, bcmsdh_info_t *sdh);
 void dhd_conf_set_hw_oob_intr(bcmsdh_info_t *sdh, uint chip);
 #endif
 void dhd_conf_set_txglom_params(dhd_pub_t *dhd, bool enable);
-int dhd_conf_set_blksize(bcmsdh_info_t *sdh);
 #endif
 void dhd_conf_set_path_params(dhd_pub_t *dhd, char *fw_path, char *nv_path);
 int dhd_conf_set_intiovar(dhd_pub_t *dhd, uint cmd, char *name, int val,

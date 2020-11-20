@@ -122,6 +122,10 @@ int wl_ext_iapsta_attach_netdev(struct net_device *net, int ifidx, uint8 bssidx)
 int wl_ext_iapsta_attach_name(struct net_device *net, int ifidx);
 int wl_ext_iapsta_dettach_netdev(struct net_device *net, int ifidx);
 int wl_ext_iapsta_update_net_device(struct net_device *net, int ifidx);
+#ifdef PROPTX_MAXCOUNT
+void wl_ext_update_wlfc_maxcount(struct dhd_pub *dhd);
+int wl_ext_get_wlfc_maxcount(struct dhd_pub *dhd, int ifidx);
+#endif /* PROPTX_MAXCOUNT */
 int wl_ext_iapsta_alive_preinit(struct net_device *dev);
 int wl_ext_iapsta_alive_postinit(struct net_device *dev);
 int wl_ext_iapsta_attach(dhd_pub_t *pub);
@@ -129,6 +133,7 @@ void wl_ext_iapsta_dettach(dhd_pub_t *pub);
 #ifdef WL_CFG80211
 u32 wl_ext_iapsta_update_channel(dhd_pub_t *dhd, struct net_device *dev, u32 channel);
 void wl_ext_iapsta_update_iftype(struct net_device *net, int ifidx, int wl_iftype);
+bool wl_ext_iapsta_iftype_enabled(struct net_device *net, int wl_iftype);
 void wl_ext_iapsta_ifadding(struct net_device *net, int ifidx);
 bool wl_ext_iapsta_mesh_creating(struct net_device *net);
 #endif
@@ -167,6 +172,9 @@ bool wl_ext_check_scan(struct net_device *dev, dhd_pub_t *dhdp);
 void wl_ext_user_sync(struct dhd_pub *dhd, int ifidx, bool lock);
 bool wl_ext_event_complete(struct dhd_pub *dhd, int ifidx);
 #endif
+#if defined(WL_CFG80211)
+void wl_ext_bss_iovar_war(struct net_device *dev, s32 *val);
+#endif
 enum wl_ext_status {
 	WL_EXT_STATUS_DISCONNECTING = 0,
 	WL_EXT_STATUS_DISCONNECTED,
@@ -180,6 +188,22 @@ enum wl_ext_status {
 	WL_EXT_STATUS_STA_CONNECTED,
 	WL_EXT_STATUS_AP_DISABLED
 };
+#if defined(WL_EXT_IAPSTA) && defined(WL_CFG80211)
+int wl_ext_in4way_sync(struct net_device *dev, uint action,
+	enum wl_ext_status status, void *context);
+#endif /* WL_EXT_IAPSTA && WL_CFG80211 */
+#if defined(WL_EXT_IAPSTA) && defined(WL_WIRELESS_EXT)
+int wl_ext_in4way_sync_wext(struct net_device *dev, uint action,
+	enum wl_ext_status status, void *context);
+#endif /* WL_EXT_IAPSTA && WL_WIRELESS_EXT */
+#if defined(WL_EXT_IAPSTA)
+void wl_ext_update_eapol_status(dhd_pub_t *dhd, int ifidx,
+	uint eapol_status);
+#else
+static INLINE void wl_ext_update_eapol_status(dhd_pub_t *dhd, int ifidx,
+	uint eapol_status) { }
+#endif /* WL_EXT_IAPSTA */
+
 typedef struct wl_conn_info {
 	uint8 bssidx;
 	wlc_ssid_t ssid;

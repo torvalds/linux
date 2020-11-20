@@ -138,6 +138,10 @@ int dhd_msg_level = DHD_ERROR_VAL | DHD_MSGTRACE_VAL | DHD_FWLOG_VAL;
 #include <sdiovar.h>
 #endif /* DHD_DEBUG */
 
+#ifdef CSI_SUPPORT
+#include <dhd_csi.h>
+#endif /* CSI_SUPPORT */
+
 #ifdef SOFTAP
 char fw_path2[MOD_PARAM_PATHLEN];
 extern bool softap_enabled;
@@ -1183,11 +1187,6 @@ dhd_mw_list_delete(dhd_pub_t *dhd, dll_t *list_head)
 }
 #endif /* DHD_DEBUG */
 
-#ifdef PKT_STATICS
-extern pkt_statics_t tx_statics;
-extern void dhdsdio_txpktstatics(void);
-#endif
-
 static int
 dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, uint32 actionid, const char *name,
             void *params, int plen, void *arg, int len, int val_size)
@@ -1215,8 +1214,8 @@ dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, uint32 actionid, const ch
 		if (bus_api_rev_len)
 			bcm_strncat_s((char*)arg + dhd_ver_len, bus_api_rev_len, bus_api_revision,
 				bus_api_rev_len);
-#ifdef PKT_STATICS
-		memset((uint8*) &tx_statics, 0, sizeof(pkt_statics_t));
+#if defined(BCMSDIO) && defined(PKT_STATICS)
+		dhd_bus_clear_txpktstatics(dhd_pub->bus);
 #endif
 		break;
 
@@ -1260,8 +1259,8 @@ dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, uint32 actionid, const ch
 	case IOV_GVAL(IOV_MSGLEVEL):
 		int_val = (int32)dhd_msg_level;
 		bcopy(&int_val, arg, val_size);
-#ifdef PKT_STATICS
-		dhdsdio_txpktstatics();
+#if defined(BCMSDIO) && defined(PKT_STATICS)
+		dhd_bus_dump_txpktstatics(dhd_pub->bus);
 #endif
 		break;
 
@@ -1281,8 +1280,23 @@ dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, uint32 actionid, const ch
 
 #ifndef BCMDBUS
 	case IOV_GVAL(IOV_WDTICK):
+#ifdef HOST_TPUT_TEST
+		if (dhd_pub->net_ts.tv_sec == 0 && dhd_pub->net_ts.tv_nsec == 0) {
+			osl_do_gettimeofday(&dhd_pub->net_ts);
+		} else {
+			struct osl_timespec cur_ts;
+			uint32 diff_ms;
+			osl_do_gettimeofday(&cur_ts);
+			diff_ms = osl_do_gettimediff(&cur_ts, &dhd_pub->net_ts)/1000;
+			int_val = (int32)((dhd_pub->net_len/1024/1024)*8)*1000/diff_ms;
+			dhd_pub->net_len = 0;
+			memcpy(&dhd_pub->net_ts, &cur_ts, sizeof(struct osl_timespec));
+			bcopy(&int_val, arg, sizeof(int_val));
+		}
+#else
 		int_val = (int32)dhd_watchdog_ms;
 		bcopy(&int_val, arg, val_size);
+#endif
 		break;
 #endif /* !BCMDBUS */
 
@@ -1349,8 +1363,23 @@ dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, uint32 actionid, const ch
 
 
 	case IOV_GVAL(IOV_IOCTLTIMEOUT): {
+#ifdef HOST_TPUT_TEST
+		if (dhd_pub->bus_ts.tv_sec == 0 && dhd_pub->bus_ts.tv_nsec == 0) {
+			osl_do_gettimeofday(&dhd_pub->bus_ts);
+		} else {
+			struct osl_timespec cur_ts;
+			uint32 diff_ms;
+			osl_do_gettimeofday(&cur_ts);
+			diff_ms = osl_do_gettimediff(&cur_ts, &dhd_pub->bus_ts)/1000;
+			int_val = (int32)((dhd_pub->dstats.tx_bytes/1024/1024)*8)*1000/diff_ms;
+			dhd_pub->dstats.tx_bytes = 0;
+			memcpy(&dhd_pub->bus_ts, &cur_ts, sizeof(struct osl_timespec));
+			bcopy(&int_val, arg, sizeof(int_val));
+		}
+#else
 		int_val = (int32)dhd_os_get_ioctl_resp_timeout();
 		bcopy(&int_val, arg, sizeof(int_val));
+#endif
 		break;
 	}
 
@@ -3156,6 +3185,11 @@ wl_process_host_event(dhd_pub_t *dhd_pub, int *ifidx, void *pktdata, uint pktlen
 			(void *)(event->addr.octet), (void*) event_data);
 		break;
 #endif
+#if defined(CSI_SUPPORT)
+	case WLC_E_CSI:
+		dhd_csi_event_handler(dhd_pub, event, (void *)event_data);
+		break;
+#endif /* CSI_SUPPORT */
 	case WLC_E_LINK:
 #ifdef PCIE_FULL_DONGLE
 		DHD_EVENT(("%s: Link event %d, flags %x, status %x\n",
@@ -5022,58 +5056,61 @@ void dhd_free_download_buffer(dhd_pub_t	*dhd, void *buffer, int length)
 #endif /* DHD_8021X_DUMP */
 /* Parse EAPOL 4 way handshake messages */
 void
-dhd_dump_eapol_4way_message(dhd_pub_t *dhd, char *ifname,
+dhd_dump_eapol_4way_message(dhd_pub_t *dhd, int ifidx,
 	char *dump_data, bool tx)
 {
 	unsigned char type;
 	int pair, ack, mic, kerr, req, sec, install;
 	unsigned short us_tmp, key_len;
+	char *ifname;
 	char seabuf[ETHER_ADDR_STR_LEN]="";
 	char deabuf[ETHER_ADDR_STR_LEN]="";
 
 	bcm_ether_ntoa((struct ether_addr *)dump_data, deabuf);
 	bcm_ether_ntoa((struct ether_addr *)(dump_data+6), seabuf);
 
+	ifname = dhd_ifname(dhd, ifidx);
+
 	type = dump_data[15];
 	if (type == 0) {
 		if ((dump_data[22] == 1) && (dump_data[18] == 1)) {
-			dhd->conf->eapol_status = EAPOL_STATUS_REQID;
+			wl_ext_update_eapol_status(dhd, ifidx, EAPOL_STATUS_REQID);
 			EAP_PRINT("Request, Identity");
 		} else if ((dump_data[22] == 1) && (dump_data[18] == 2)) {
-			dhd->conf->eapol_status = EAPOL_STATUS_RSPID;
+			wl_ext_update_eapol_status(dhd, ifidx, EAPOL_STATUS_RSPID);
 			EAP_PRINT("Response, Identity");
 		} else if (dump_data[22] == 254) {
 			if (dump_data[30] == 1) {
-				dhd->conf->eapol_status = EAPOL_STATUS_WSC_START;
+				wl_ext_update_eapol_status(dhd, ifidx, EAPOL_STATUS_WSC_START);
 				EAP_PRINT("WSC Start");
 			} else if (dump_data[30] == 4) {
 				if (dump_data[41] == 4) {
-					dhd->conf->eapol_status = EAPOL_STATUS_WPS_M1;
+					wl_ext_update_eapol_status(dhd, ifidx, EAPOL_STATUS_WPS_M1);
 					EAP_PRINT("WPS M1");
 				} else if (dump_data[41] == 5) {
-					dhd->conf->eapol_status = EAPOL_STATUS_WPS_M2;
+					wl_ext_update_eapol_status(dhd, ifidx, EAPOL_STATUS_WPS_M2);
 					EAP_PRINT("WPS M2");
 				} else if (dump_data[41] == 7) {
-					dhd->conf->eapol_status = EAPOL_STATUS_WPS_M3;
+					wl_ext_update_eapol_status(dhd, ifidx, EAPOL_STATUS_WPS_M3);
 					EAP_PRINT("WPS M3");
 				} else if (dump_data[41] == 8) {
-					dhd->conf->eapol_status = EAPOL_STATUS_WPS_M4;
+					wl_ext_update_eapol_status(dhd, ifidx, EAPOL_STATUS_WPS_M4);
 					EAP_PRINT("WPS M4");
 				} else if (dump_data[41] == 9) {
-					dhd->conf->eapol_status = EAPOL_STATUS_WPS_M5;
+					wl_ext_update_eapol_status(dhd, ifidx, EAPOL_STATUS_WPS_M5);
 					EAP_PRINT("WPS M5");
 				} else if (dump_data[41] == 10) {
-					dhd->conf->eapol_status = EAPOL_STATUS_WPS_M6;
+					wl_ext_update_eapol_status(dhd, ifidx, EAPOL_STATUS_WPS_M6);
 					EAP_PRINT("WPS M6");
 				} else if (dump_data[41] == 11) {
-					dhd->conf->eapol_status = EAPOL_STATUS_WPS_M7;
+					wl_ext_update_eapol_status(dhd, ifidx, EAPOL_STATUS_WPS_M7);
 					EAP_PRINT("WPS M7");
 				} else if (dump_data[41] == 12) {
-					dhd->conf->eapol_status = EAPOL_STATUS_WPS_M8;
+					wl_ext_update_eapol_status(dhd, ifidx, EAPOL_STATUS_WPS_M8);
 					EAP_PRINT("WPS M8");
 				}
 			} else if (dump_data[30] == 5) {
-				dhd->conf->eapol_status = EAPOL_STATUS_WSC_DONE;
+				wl_ext_update_eapol_status(dhd, ifidx, EAPOL_STATUS_WSC_DONE);
 				EAP_PRINT("WSC Done");
 			}
 		} else {
@@ -5092,16 +5129,16 @@ dhd_dump_eapol_4way_message(dhd_pub_t *dhd, char *ifname,
 		install  = 0 != (us_tmp & 0x40);
 
 		if (!req && !kerr && !sec && !mic && ack && !install && pair) {
-			dhd->conf->eapol_status = EAPOL_STATUS_4WAY_M1;
+			wl_ext_update_eapol_status(dhd, ifidx, EAPOL_STATUS_4WAY_M1);
 			EAP_PRINT("WPA2 4-way M1(0x%04x)", us_tmp);
 		} else if (!req && !kerr && !sec && mic && !ack && !install && pair) {
-			dhd->conf->eapol_status = EAPOL_STATUS_4WAY_M2;
+			wl_ext_update_eapol_status(dhd, ifidx, EAPOL_STATUS_4WAY_M2);
 			EAP_PRINT("WPA2 4-way M2(0x%04x)", us_tmp);
 		} else if (!req && !kerr && sec && mic && ack && pair) {
-			dhd->conf->eapol_status = EAPOL_STATUS_4WAY_M3;
+			wl_ext_update_eapol_status(dhd, ifidx, EAPOL_STATUS_4WAY_M3);
 			EAP_PRINT("WPA2 4-way M3(0x%04x)", us_tmp);
 		} else if (!req && !kerr && sec && mic && !ack && !install && pair) {
-			dhd->conf->eapol_status = EAPOL_STATUS_4WAY_M4;
+			wl_ext_update_eapol_status(dhd, ifidx, EAPOL_STATUS_4WAY_M4);
 			EAP_PRINT("WPA2 4-way M4(0x%04x)", us_tmp);
 		} else {
 			EAP_PRINT("ver %d, type %d, key_info 0x%x, replay %d",
@@ -5120,22 +5157,22 @@ dhd_dump_eapol_4way_message(dhd_pub_t *dhd, char *ifname,
 		key_len = (dump_data[111] << 8) | dump_data[112];
 
 		if (!req && !kerr && !sec && !mic && ack && !install && pair) {
-			dhd->conf->eapol_status = EAPOL_STATUS_4WAY_M1;
+			wl_ext_update_eapol_status(dhd, ifidx, EAPOL_STATUS_4WAY_M1);
 			EAP_PRINT("WPA 4-way M1(0x%04x)", us_tmp);
 		} else if (!req && !kerr && !sec && mic && !ack && !install && pair && key_len) {
-			dhd->conf->eapol_status = EAPOL_STATUS_4WAY_M2;
+			wl_ext_update_eapol_status(dhd, ifidx, EAPOL_STATUS_4WAY_M2);
 			EAP_PRINT("WPA 4-way M2(0x%04x)", us_tmp);
 		} else if (!req && !kerr && !sec && mic && ack && install && pair) {
-			dhd->conf->eapol_status = EAPOL_STATUS_4WAY_M3;
+			wl_ext_update_eapol_status(dhd, ifidx, EAPOL_STATUS_4WAY_M3);
 			EAP_PRINT("WPA 4-way M3(0x%04x)", us_tmp);
 		} else if (!req && !kerr && !sec && mic && !ack && !install && pair) {
-			dhd->conf->eapol_status = EAPOL_STATUS_4WAY_M4;
+			wl_ext_update_eapol_status(dhd, ifidx, EAPOL_STATUS_4WAY_M4);
 			EAP_PRINT("WPA 4-way M4(0x%04x)", us_tmp);
 		} else if (!req && !kerr && sec && mic && ack && !install && !pair) {
-			dhd->conf->eapol_status = EAPOL_STATUS_GROUPKEY_M1;
+			wl_ext_update_eapol_status(dhd, ifidx, EAPOL_STATUS_GROUPKEY_M1);
 			EAP_PRINT("GROUP Key M1(0x%04x)", us_tmp);
 		} else if (!req && !kerr && sec && mic && !ack && !install && !pair) {
-			dhd->conf->eapol_status = EAPOL_STATUS_GROUPKEY_M2;
+			wl_ext_update_eapol_status(dhd, ifidx, EAPOL_STATUS_GROUPKEY_M2);
 			EAP_PRINT("GROUP Key M2(0x%04x)", us_tmp);
 		} else {
 			EAP_PRINT("ver %d, type %d, key_type %d, key_info 0x%x, replay %d",

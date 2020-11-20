@@ -25,7 +25,7 @@
 #define CONFIG_TRACE_LEVEL	(1 << 1)
 #define CONFIG_MSG_LEVEL	(1 << 0)
 
-uint config_msg_level = 0xffff; //CONFIG_ERROR_LEVEL | CONFIG_MSG_LEVEL;
+uint config_msg_level = CONFIG_ERROR_LEVEL | CONFIG_MSG_LEVEL | CONFIG_TRACE_LEVEL | CONFIG_CHIPALIVE_LEVEL;
 uint dump_msg_level = 0;
 
 #define CONFIG_MSG(x, args...) \
@@ -59,11 +59,9 @@ uint dump_msg_level = 0;
 #define dtohchanspec(i) i
 #endif
 
-#if defined(SUSPEND_EVENT) && defined(PROP_TXSTATUS)
-#if defined(BCMSDIO) || defined(BCMDBUS)
+#if defined(PROP_TXSTATUS)
 #include <dhd_wlfc.h>
-#endif /* BCMSDIO || BCMDBUS */
-#endif /* SUSPEND_EVENT && PROP_TXSTATUS */
+#endif /* PROP_TXSTATUS */
 
 #define MAX_EVENT_BUF_NUM 16
 typedef struct eventmsg_buf {
@@ -180,48 +178,6 @@ dhd_conf_set_hw_oob_intr(bcmsdh_info_t *sdh, uint chip)
 #endif
 
 #define SBSDIO_CIS_SIZE_LIMIT		0x200
-#define F0_BLOCK_SIZE 32
-int
-dhd_conf_set_blksize(bcmsdh_info_t *sdh)
-{
-	int err = 0;
-	uint fn, numfn;
-	int32 blksize = 0, cur_blksize = 0;
-	uint8 cisd;
-
-	numfn = bcmsdh_query_iofnum(sdh);
-
-	for (fn = 0; fn <= numfn; fn++) {
-		if (!fn)
-			blksize = F0_BLOCK_SIZE;
-		else {
-			bcmsdh_cisaddr_read(sdh, fn, &cisd, 24);
-			blksize = cisd;
-			bcmsdh_cisaddr_read(sdh, fn, &cisd, 25);
-			blksize |= cisd << 8;
-		}
-#ifdef CUSTOM_SDIO_F2_BLKSIZE
-		if (fn == 2 && blksize > CUSTOM_SDIO_F2_BLKSIZE) {
-			blksize = CUSTOM_SDIO_F2_BLKSIZE;
-		}
-#endif
-		bcmsdh_iovar_op(sdh, "sd_blocksize", &fn, sizeof(int32),
-			&cur_blksize, sizeof(int32), FALSE);
-		if (cur_blksize != blksize) {
-			CONFIG_MSG("fn=%d, blksize=%d, cur_blksize=%d\n",
-				fn, blksize, cur_blksize);
-			blksize |= (fn<<16);
-			if (bcmsdh_iovar_op(sdh, "sd_blocksize", NULL, 0, &blksize,
-				sizeof(blksize), TRUE) != BCME_OK) {
-				CONFIG_ERROR("fail on get sd_blocksize");
-				err = -1;
-			}
-		}
-	}
-
-	return err;
-}
-
 void
 dhd_conf_get_otp(dhd_pub_t *dhd, bcmsdh_info_t *sdh)
 {
@@ -504,6 +460,8 @@ dhd_conf_set_fw_name_by_chip(dhd_pub_t *dhd, char *fw_path)
 		fw_type = FW_TYPE_ES;
 	else if (strstr(name_ptr, "_mfg"))
 		fw_type = FW_TYPE_MFG;
+	else if (strstr(name_ptr, "_minime"))
+		fw_type = FW_TYPE_MINIME;
 	else
 		fw_type = FW_TYPE_STA;
 
@@ -526,12 +484,19 @@ dhd_conf_set_fw_name_by_chip(dhd_pub_t *dhd, char *fw_path)
 				strcat(fw_path, "_es.bin");
 			else if (fw_type == FW_TYPE_MFG)
 				strcat(fw_path, "_mfg.bin");
+			else if (fw_type == FW_TYPE_MINIME)
+				strcat(fw_path, "_minime.bin");
 			else
 				strcat(fw_path, ".bin");
 		}
 	}
 
 	dhd->conf->fw_type = fw_type;
+
+#ifndef MINIME
+	if (fw_type == FW_TYPE_MINIME)
+		CONFIG_ERROR("***** Please enable MINIME in Makefile *****\n");
+#endif
 
 	CONFIG_TRACE("firmware_path=%s\n", fw_path);
 	return ag_type;
@@ -1483,6 +1448,24 @@ dhd_conf_check_hostsleep(dhd_pub_t *dhd, int cmd, void *buf, int len,
 			goto exit;
 		}
 	}
+#ifdef NO_POWER_SAVE
+	if (cmd == WLC_SET_PM) {
+		if (*(const u32*)buf != 0) {
+			CONFIG_TRACE("skip PM\n");
+			*ret = BCME_OK;
+			goto exit;
+		}
+	} else if (cmd == WLC_SET_VAR) {
+		int cmd_len = strlen("mpc");
+		if (!strncmp(buf, "mpc", cmd_len)) {
+			if (*((u32 *)((u8*)buf+cmd_len+1)) != 0) {
+				CONFIG_TRACE("skip mpc\n");
+				*ret = BCME_OK;
+				goto exit;
+			}
+		}
+	}
+#endif
 
 	return 0;
 exit:
@@ -1764,11 +1747,15 @@ dhd_conf_set_garp(dhd_pub_t *dhd, int ifidx, uint32 ipa, bool enable)
 		for (i=0; i<ETHER_ADDR_LEN; i++)
 			len += snprintf(packet+len, total_len, "%02x", iovar_buf[i]);
 		len += snprintf(packet+len, total_len, "08060001080006040001");
+		 // Sender Hardware Addr.
 		for (i=0; i<ETHER_ADDR_LEN; i++)
 			len += snprintf(packet+len, total_len, "%02x", iovar_buf[i]);
+		 // Sender IP Addr.
 		len += snprintf(packet+len, total_len, "%02x%02x%02x%02x",
 			ipa&0xff, (ipa>>8)&0xff, (ipa>>16)&0xff, (ipa>>24)&0xff);
+		 // Target Hardware Addr.
 		len += snprintf(packet+len, total_len, "ffffffffffff");
+		 // Target IP Addr.
 		len += snprintf(packet+len, total_len, "%02x%02x%02x%02x",
 			ipa&0xff, (ipa>>8)&0xff, (ipa>>16)&0xff, (ipa>>24)&0xff);
 		len += snprintf(packet+len, total_len, "000000000000000000000000000000000000");
@@ -2010,7 +1997,7 @@ dhd_conf_set_suspend_resume(dhd_pub_t *dhd, int suspend)
 #ifdef WL_EXT_WOWL
 		if (insuspend & WOWL_IN_SUSPEND) {
 			dhd_conf_wowl_wakeind(dhd, FALSE);
-			dhd_conf_set_intiovar(dhd, WLC_SET_VAR, "wowl_activate", 0, 0, FALSE);
+// 			dhd_conf_set_intiovar(dhd, WLC_SET_VAR, "wowl_activate", 0, 0, FALSE); // To avoid clear wowl_wakeind wakeup reason
 			dhd_conf_set_intiovar(dhd, WLC_SET_VAR, "wowl", 0, 0, FALSE);
 			dhd_conf_wowl_pattern(dhd, FALSE, "clr");
 		}
@@ -2978,6 +2965,21 @@ dhd_conf_read_sdio_params(dhd_pub_t *dhd, char *full_param, uint len_param)
 		CONFIG_MSG("rxlim_en = %d\n", conf->rxlim_en);
 	}
 #endif
+#ifdef BCMSDIO_TXSEQ_SYNC
+	else if (!strncmp("txseq_sync=", full_param, len_param)) {
+		if (!strncmp(data, "0", 1))
+			conf->txseq_sync = FALSE;
+		else
+			conf->txseq_sync = TRUE;
+		CONFIG_MSG("txseq_sync = %d\n", conf->txseq_sync);
+	}
+#endif
+#endif
+#ifdef MINIME
+	else if (!strncmp("ramsize=", full_param, len_param)) {
+		conf->ramsize = (uint32)simple_strtol(data, NULL, 0);
+		CONFIG_MSG("ramsize = %d\n", conf->ramsize);
+	}
 #endif
 	else
 		return false;
@@ -3283,6 +3285,22 @@ dhd_conf_read_others(dhd_pub_t *dhd, char *full_param, uint len_param)
 		}
 	}
 #endif
+#ifdef PROPTX_MAXCOUNT
+	else if (!strncmp("proptx_maxcnt_2g=", full_param, len_param)) {
+		conf->proptx_maxcnt_2g = (int)simple_strtol(data, NULL, 0);
+		CONFIG_MSG("proptx_maxcnt_2g = 0x%x\n", conf->proptx_maxcnt_2g);
+	}
+	else if (!strncmp("proptx_maxcnt_5g=", full_param, len_param)) {
+		conf->proptx_maxcnt_5g = (int)simple_strtol(data, NULL, 0);
+		CONFIG_MSG("proptx_maxcnt_5g = 0x%x\n", conf->proptx_maxcnt_5g);
+	}
+#endif
+#ifdef HOST_TPUT_TEST
+	else if (!strncmp("data_drop_mode=", full_param, len_param)) {
+		conf->data_drop_mode = (int)simple_strtol(data, NULL, 0);
+		CONFIG_MSG("data_drop_mode = 0x%x\n", conf->data_drop_mode);
+	}
+#endif
 	else
 		return false;
 
@@ -3492,6 +3510,10 @@ dhd_conf_postinit_ioctls(dhd_pub_t *dhd)
 {
 	struct dhd_conf *conf = dhd->conf;
 	char wl_preinit[] = "assoc_retry_max=20";
+#ifdef NO_POWER_SAVE
+	char wl_no_power_save[] = "mpc=0, 86=0";
+	dhd_conf_set_wl_cmd(dhd, wl_no_power_save, FALSE);
+#endif
 
 	dhd_conf_set_intiovar(dhd, WLC_UP, "WLC_UP", 0, 0, FALSE);
 	dhd_conf_map_country_list(dhd, &conf->cspec);
@@ -3636,11 +3658,21 @@ dhd_conf_preinit(dhd_pub_t *dhd)
 	conf->deferred_tx_len = 0;
 	conf->dhd_txminmax = 1;
 	conf->txinrx_thres = -1;
+#ifdef MINIME
+	conf->ramsize = 0x80000;
+#endif
 #if defined(SDIO_ISR_THREAD)
 	conf->intr_extn = FALSE;
 #endif
 #ifdef BCMSDIO_RXLIM_POST
-	conf->rxlim_en = TRUE;
+	conf->rxlim_en = FALSE;
+#endif
+#ifdef BCMSDIO_TXSEQ_SYNC
+#ifdef DHD_LOAD_CHIPALIVE
+	conf->txseq_sync = TRUE;
+#else
+	conf->txseq_sync = FALSE;
+#endif
 #endif
 #if defined(HW_OOB)
 	conf->oob_enabled_later = FALSE;
@@ -3696,7 +3728,14 @@ dhd_conf_preinit(dhd_pub_t *dhd)
 #endif
 	conf->pktprio8021x = -1;
 	conf->ctrl_resched = 2;
-	conf->in4way = NO_SCAN_IN4WAY | DONT_DELETE_GC_AFTER_WPS | WAIT_DISCONNECTED;
+	conf->in4way = STA_NO_SCAN_IN4WAY | STA_WAIT_DISCONNECTED | AP_WAIT_STA_RECONNECT;
+#ifdef PROPTX_MAXCOUNT
+	conf->proptx_maxcnt_2g = 46;
+	conf->proptx_maxcnt_5g = WL_TXSTATUS_FREERUNCTR_MASK;
+#endif /* DYNAMIC_PROPTX_MAXCOUNT */
+#ifdef HOST_TPUT_TEST
+	conf->data_drop_mode = 0;
+#endif
 #ifdef ISAM_PREINIT
 	memset(conf->isam_init, 0, sizeof(conf->isam_init));
 	memset(conf->isam_config, 0, sizeof(conf->isam_config));

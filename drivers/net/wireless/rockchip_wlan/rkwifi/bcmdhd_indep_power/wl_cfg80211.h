@@ -53,9 +53,24 @@ struct bcm_cfg80211;
 struct wl_security;
 struct wl_ibss;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0)
-#undef WL_SAE
-#endif // endif
+#if !defined(WL_CLIENT_SAE) && (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 17, 0))
+#define WL_CLIENT_SAE
+#endif
+#if defined(WL_SAE) && (LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0))
+#error "Can not support WL_SAE befor kernel 3.14"
+#endif
+#if defined(WL_CLIENT_SAE) && (LINUX_VERSION_CODE < KERNEL_VERSION(4, 9, 0))
+#error "Can not support WL_CLIENT_SAE before kernel 4.9"
+#endif
+#if defined(WL_CLIENT_SAE) && defined(WL_SAE)
+#error "WL_SAE is for dongle-offload and WL_CLIENT_SAE is for wpa_supplicant. Please choose one."
+#endif
+
+#if defined(WL_CLIENT_SAE)
+#ifndef WL_ASSOC_MGR_CMD_SEND_AUTH
+#define WL_ASSOC_MGR_CMD_SEND_AUTH 3
+#endif /* WL_ASSOC_MGR_CMD_SEND_AUTH */
+#endif
 
 #define htod32(i) (i)
 #define htod16(i) (i)
@@ -295,6 +310,8 @@ do {									\
 #ifndef WLAN_AKM_SUITE_FT_PSK
 #define WLAN_AKM_SUITE_FT_PSK		0x000FAC04
 #endif /* WLAN_AKM_SUITE_FT_PSK */
+
+#define WLAN_AKM_SUITE_SAE_SHA256	0x000FAC08
 
 /*
  * BRCM local.
@@ -565,11 +582,22 @@ struct wl_assoc_ielen {
 	u32 resp_len;
 };
 
+#define MIN_PMKID_LIST_V3_FW_MAJOR 13
+#define MIN_PMKID_LIST_V3_FW_MINOR 0
+
+#define MIN_PMKID_LIST_V2_FW_MAJOR 12
+#define MIN_PMKID_LIST_V2_FW_MINOR 0
+
+#define MIN_ESCAN_PARAM_V2_FW_MAJOR 14
+#define MIN_ESCAN_PARAM_V2_FW_MINOR 0
+
 /* wpa2 pmk list */
 struct wl_pmk_list {
-	pmkid_list_t pmkids;
-	pmkid_t foo[MAXPMKID - 1];
+	pmkid_list_v3_t pmkids;
+	pmkid_v3_t foo[MAXPMKID - 1];
 };
+
+#define KEY_PERM_PMK 0xFFFFFFFF
 
 #ifdef DHD_MAX_IFS
 #define WL_MAX_IFS DHD_MAX_IFS
@@ -876,6 +904,7 @@ struct bcm_cfg80211 {
 #ifdef SUPPORT_AP_RADIO_PWRSAVE
 	ap_rps_info_t ap_rps_info;
 #endif /* SUPPORT_AP_RADIO_PWRSAVE */
+	osl_t *osh;
 #ifdef WBTEXT
 	struct list_head wbtext_bssid_list;
 #endif /* WBTEXT */
@@ -884,6 +913,8 @@ struct bcm_cfg80211 {
 #ifdef STAT_REPORT
 	void *stat_report_info;
 #endif
+	wl_wlc_version_t wlc_ver;
+	bool scan_params_v2;
 #ifdef WLMESH_CFG80211
 	char sae_password[SAE_MAX_PASSWD_LEN];
 	uint sae_password_len;

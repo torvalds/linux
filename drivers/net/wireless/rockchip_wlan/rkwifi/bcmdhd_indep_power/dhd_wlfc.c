@@ -43,6 +43,7 @@
 
 #include <dhd_dbg.h>
 #include <dhd_config.h>
+#include <wl_android.h>
 
 #ifdef PROP_TXSTATUS /* a form of flow control between host and dongle */
 #include <wlfc_proto.h>
@@ -1322,6 +1323,9 @@ _dhd_wlfc_deque_delayedq(athost_wl_status_info_t* ctx, int prec,
 		ASSERT(entry);
 
 		if (entry->occupied && _dhd_wlfc_is_destination_open(ctx, entry, prec) &&
+#ifdef PROPTX_MAXCOUNT
+			(entry->transit_count < entry->transit_maxcount) &&
+#endif /* PROPTX_MAXCOUNT */
 			(entry->transit_count < WL_TXSTATUS_FREERUNCTR_MASK) &&
 			(!entry->suppressed)) {
 			*ac_credit_spent = credit_spent;
@@ -1823,6 +1827,9 @@ _dhd_wlfc_mac_entry_update(athost_wl_status_info_t* ctx, wlfc_mac_descriptor_t* 
 		if (action == eWLFC_MAC_ENTRY_ACTION_ADD) {
 			entry->suppressed = FALSE;
 			entry->transit_count = 0;
+#ifdef PROPTX_MAXCOUNT
+			entry->transit_maxcount = wl_ext_get_wlfc_maxcount(ctx->dhdp, ifid);
+#endif /* PROPTX_MAXCOUNT */
 			entry->suppr_transit_count = 0;
 			entry->onbus_pkts_count = 0;
 		}
@@ -4628,5 +4635,37 @@ int dhd_wlfc_set_rxpkt_chk(dhd_pub_t *dhd, int val)
 
 	return BCME_OK;
 }
+
+#ifdef PROPTX_MAXCOUNT
+int dhd_wlfc_update_maxcount(dhd_pub_t *dhdp, uint8 ifid, int maxcount)
+{
+	athost_wl_status_info_t* ctx;
+	int rc = 0;
+
+	if (dhdp == NULL) {
+		DHD_ERROR(("%s: dhdp is NULL\n", __FUNCTION__));
+		return BCME_BADARG;
+	}
+
+	dhd_os_wlfc_block(dhdp);
+
+	if (!dhdp->wlfc_state || (dhdp->proptxstatus_mode == WLFC_FCMODE_NONE)) {
+		rc = WLFC_UNSUPPORTED;
+		goto exit;
+	}
+
+	if (ifid >= WLFC_MAX_IFNUM) {
+		DHD_ERROR(("%s: bad ifid\n", __FUNCTION__));
+		rc = BCME_BADARG;
+		goto exit;
+	}
+
+	ctx = (athost_wl_status_info_t*)dhdp->wlfc_state;
+	ctx->destination_entries.interfaces[ifid].transit_maxcount = maxcount;
+exit:
+	dhd_os_wlfc_unblock(dhdp);
+	return rc;
+}
+#endif /* PROPTX_MAXCOUNT */
 
 #endif /* PROP_TXSTATUS */

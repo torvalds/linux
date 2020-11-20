@@ -194,10 +194,11 @@ static int bcmsdh_sdmmc_probe(struct sdio_func *func,
 	/* 4318 doesn't have function 2 */
 	if ((func->num == 2) || (func->num == 1 && func->device == 0x4)) {
 #ifdef DHD_LOAD_CHIPALIVE
-		if (!dhd_chip_alive)
-			dhd_chip_alive = func->card_alive;
+		dhd_chip_alive = func->card_alive;
 		printf("%s dhd_chip_alive=%d, id->alive=%d, func->num=%d\n", __FUNCTION__,
 			dhd_chip_alive, func->card_alive, func->num);
+		if (dhd_chip_alive)
+			dhd_download_fw_on_driverload = TRUE;
 #endif
 		ret = sdioh_probe(func);
 	}

@@ -176,7 +176,11 @@ typedef union bcm_event_msg_u {
 #define WLC_E_ACTION_FRAME_COMPLETE	60	/* Action frame Tx complete */
 #define WLC_E_PRE_ASSOC_IND	61	/* assoc request received */
 #define WLC_E_PRE_REASSOC_IND	62	/* re-assoc request received */
+#ifdef CSI_SUPPORT
+#define WLC_E_CSI		63
+#else
 #define WLC_E_CHANNEL_ADOPTED	63
+#endif /* CSI_SUPPORT */
 #define WLC_E_AP_STARTED	64	/* AP started */
 #define WLC_E_DFS_AP_STOP	65	/* AP stopped due to DFS */
 #define WLC_E_DFS_AP_RESUME	66	/* AP resumed due to DFS */

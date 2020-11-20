@@ -1055,6 +1055,11 @@ static int wl_cfgvendor_set_rssi_monitor(struct wiphy *wiphy,
 	int8 max_rssi = 0, min_rssi = 0;
 	const struct nlattr *iter;
 
+	if (!wl_get_drv_status(cfg, CONNECTED, wdev_to_ndev(wdev))) {
+		WL_ERR(("STA is not connected to an AP, rssi monitoring is not allowed\n"));
+		return -EINVAL;
+	}
+
 	nla_for_each_attr(iter, data, len, tmp) {
 		type = nla_type(iter);
 		switch (type) {

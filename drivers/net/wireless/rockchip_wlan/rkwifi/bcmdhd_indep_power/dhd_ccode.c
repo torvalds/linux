@@ -48,7 +48,7 @@ const char ccode_43455c0[] = \
 "Q2/993 "\
 "RE/2 RO/4 RS/2 RU/13 "\
 "SE/4 SI/4 SK/4 SV/25 "\
-"TH/5 TN/1 TR/7 TT/3 TW/1 "\
+"TH/5 TN/1 TR/7 TT/3 TW/65 "\
 "UA/8 US/988 "\
 "VA/2 VE/3 VG/2 VN/4 "\
 "XZ/11 "\

@@ -1038,6 +1038,10 @@ typedef struct dhd_pub {
 #if defined(STAT_REPORT)
 	void *stat_report_info;
 #endif
+#ifdef CSI_SUPPORT
+	struct list_head csi_list;
+	int csi_count;
+#endif /* CSI_SUPPORT */
 	char *clm_path;		/* module_param: path to clm vars file */
 	char *conf_path;		/* module_param: path to config vars file */
 	struct dhd_conf *conf;	/* Bus module handle */
@@ -1058,6 +1062,11 @@ typedef struct dhd_pub {
 	int hostsleep;
 #ifdef SENDPROB
 	bool recv_probereq;
+#endif
+#ifdef HOST_TPUT_TEST
+	struct osl_timespec bus_ts;
+	struct osl_timespec net_ts;
+	uint32 net_len;
 #endif
 } dhd_pub_t;
 

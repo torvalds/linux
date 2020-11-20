@@ -32,7 +32,7 @@ DHDCFLAGS = -Wall -Wstrict-prototypes -Dlinux -DBCMDRIVER                 \
 
 DHDOFILES = aiutils.o siutils.o sbutils.o bcmutils.o bcmwifi_channels.o   \
 	dhd_linux.o dhd_linux_platdev.o dhd_linux_sched.o dhd_pno.o           \
-	dhd_common.o dhd_ip.o dhd_linux_wq.o dhd_custom_gpio.o                \
+	dhd_common.o dhd_ip.o dhd_linux_wq.o dhd_custom_gpio.o bcmstdlib_s.o  \
 	bcmevent.o hndpmu.o linux_osl.o wldev_common.o wl_android.o bcmxtlv.o \
 	dhd_debug_linux.o dhd_debug.o dhd_mschdbg.o hnd_pktq.o hnd_pktpool.o  \
 	dhd_config.o dhd_ccode.o wl_event.o wl_android_ext.o wl_escan.o
@@ -54,6 +54,7 @@ ifneq ($(CONFIG_CFG80211),)
 	DHDCFLAGS += -DWLTDLS -DMIRACAST_AMPDU_SIZE=8
 	DHDCFLAGS += -DWL_VIRTUAL_APSTA
 	DHDCFLAGS += -DPNO_SUPPORT -DEXPLICIT_DISCIF_CLEANUP
+#	DHDCFLAGS += -DWL_CLIENT_SAE
 #	DHDCFLAGS += -DWL_SAE
 endif
 
@@ -63,7 +64,7 @@ DHDCFLAGS += -DBCMSDIO -DMMC_SDIO_ABORT -DBCMLXSDMMC -DUSE_SDIOFIFO_IOVAR \
 	-DSDTEST -DBDC -DDHD_USE_IDLECOUNT -DCUSTOM_SDIO_F2_BLKSIZE=256       \
 	-DBCMSDIOH_TXGLOM -DBCMSDIOH_TXGLOM_EXT -DRXFRAME_THREAD              \
 	-DDHDENABLE_TAILPAD -DSUPPORT_P2P_GO_PS                               \
-	-DBCMSDIO_RXLIM_POST -DCONSOLE_DPC
+	-DBCMSDIO_RXLIM_POST -DBCMSDIO_TXSEQ_SYNC -DCONSOLE_DPC
 ifeq ($(CONFIG_BCMDHD_OOB),y)
 	DHDCFLAGS += -DOOB_INTR_ONLY -DCUSTOMER_OOB -DHW_OOB
 ifeq ($(CONFIG_BCMDHD_DISABLE_WOWLAN),y)
@@ -110,7 +111,7 @@ ifneq ($(CONFIG_BCMDHD_USB),)
 	DHDCFLAGS += -DPROP_TXSTATUS
 endif
 ifneq ($(CONFIG_BCMDHD_SDIO),)
-	DHDCFLAGS += -DPROP_TXSTATUS
+	DHDCFLAGS += -DPROP_TXSTATUS -DPROPTX_MAXCOUNT
 endif
 ifneq ($(CONFIG_CFG80211),)
 	DHDCFLAGS += -DPROP_TXSTATUS_VSDB
@@ -140,6 +141,12 @@ endif
 	DHDCFLAGS += -DDHD_UPDATE_INTF_MAC
 	DHDCFLAGS :=$(filter-out -DDHD_FW_COREDUMP,$(DHDCFLAGS))
 	DHDCFLAGS :=$(filter-out -DSET_RANDOM_MAC_SOFTAP,$(DHDCFLAGS))
+endif
+
+#CSI_SUPPORT
+ifneq ($(CONFIG_CSI_SUPPORT),)
+	DHDCFLAGS += -DCSI_SUPPORT
+	DHDOFILES += dhd_csi.o
 endif
 
 ifeq ($(CONFIG_LOAD_CHIPALIVE),y)

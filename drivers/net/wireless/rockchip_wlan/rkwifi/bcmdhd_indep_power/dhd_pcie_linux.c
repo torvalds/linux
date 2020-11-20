@@ -1971,7 +1971,7 @@ int dhdpcie_oob_intr_register(dhd_bus_t *bus)
 
 	dhdpcie_osinfo->oob_irq_registered = TRUE;
 
-	return err;
+	return 0;
 }
 
 void dhdpcie_oob_intr_unregister(dhd_bus_t *bus)
