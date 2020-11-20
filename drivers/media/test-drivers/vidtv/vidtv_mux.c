@@ -129,11 +129,32 @@ static void vidtv_mux_update_clk(struct vidtv_mux *m)
 
 static u32 vidtv_mux_push_si(struct vidtv_mux *m)
 {
-	struct vidtv_psi_pat_write_args pat_args = {};
-	struct vidtv_psi_pmt_write_args pmt_args = {};
-	struct vidtv_psi_sdt_write_args sdt_args = {};
-	struct vidtv_psi_nit_write_args nit_args = {};
-	struct vidtv_psi_eit_write_args eit_args = {};
+	struct vidtv_psi_pat_write_args pat_args = {
+		.buf                = m->mux_buf,
+		.buf_sz             = m->mux_buf_sz,
+		.pat                = m->si.pat,
+	};
+	struct vidtv_psi_pmt_write_args pmt_args = {
+		.buf                = m->mux_buf,
+		.buf_sz             = m->mux_buf_sz,
+		.pcr_pid            = m->pcr_pid,
+	};
+	struct vidtv_psi_sdt_write_args sdt_args = {
+		.buf                = m->mux_buf,
+		.buf_sz             = m->mux_buf_sz,
+		.sdt                = m->si.sdt,
+	};
+	struct vidtv_psi_nit_write_args nit_args = {
+		.buf                = m->mux_buf,
+		.buf_sz             = m->mux_buf_sz,
+		.nit                = m->si.nit,
+
+	};
+	struct vidtv_psi_eit_write_args eit_args = {
+		.buf                = m->mux_buf,
+		.buf_sz             = m->mux_buf_sz,
+		.eit                = m->si.eit,
+	};
 	u32 initial_offset = m->mux_buf_offset;
 	struct vidtv_mux_pid_ctx *pat_ctx;
 	struct vidtv_mux_pid_ctx *pmt_ctx;
@@ -149,10 +170,7 @@ static u32 vidtv_mux_push_si(struct vidtv_mux *m)
 	nit_ctx = vidtv_mux_get_pid_ctx(m, VIDTV_NIT_PID);
 	eit_ctx = vidtv_mux_get_pid_ctx(m, VIDTV_EIT_PID);
 
-	pat_args.buf                = m->mux_buf;
 	pat_args.offset             = m->mux_buf_offset;
-	pat_args.pat                = m->si.pat;
-	pat_args.buf_sz             = m->mux_buf_sz;
 	pat_args.continuity_counter = &pat_ctx->cc;
 
 	m->mux_buf_offset += vidtv_psi_pat_write_into(pat_args);
@@ -169,38 +187,26 @@ static u32 vidtv_mux_push_si(struct vidtv_mux *m)
 
 		pmt_ctx = vidtv_mux_get_pid_ctx(m, pmt_pid);
 
-		pmt_args.buf                = m->mux_buf;
 		pmt_args.offset             = m->mux_buf_offset;
 		pmt_args.pmt                = m->si.pmt_secs[i];
 		pmt_args.pid                = pmt_pid;
-		pmt_args.buf_sz             = m->mux_buf_sz;
 		pmt_args.continuity_counter = &pmt_ctx->cc;
-		pmt_args.pcr_pid            = m->pcr_pid;
 
 		/* write each section into buffer */
 		m->mux_buf_offset += vidtv_psi_pmt_write_into(pmt_args);
 	}
 
-	sdt_args.buf                = m->mux_buf;
 	sdt_args.offset             = m->mux_buf_offset;
-	sdt_args.sdt                = m->si.sdt;
-	sdt_args.buf_sz             = m->mux_buf_sz;
 	sdt_args.continuity_counter = &sdt_ctx->cc;
 
 	m->mux_buf_offset += vidtv_psi_sdt_write_into(sdt_args);
 
-	nit_args.buf                = m->mux_buf;
 	nit_args.offset             = m->mux_buf_offset;
-	nit_args.nit                = m->si.nit;
-	nit_args.buf_sz             = m->mux_buf_sz;
 	nit_args.continuity_counter = &nit_ctx->cc;
 
 	m->mux_buf_offset += vidtv_psi_nit_write_into(nit_args);
 
-	eit_args.buf                = m->mux_buf;
 	eit_args.offset             = m->mux_buf_offset;
-	eit_args.eit                = m->si.eit;
-	eit_args.buf_sz             = m->mux_buf_sz;
 	eit_args.continuity_counter = &eit_ctx->cc;
 
 	m->mux_buf_offset += vidtv_psi_eit_write_into(eit_args);
