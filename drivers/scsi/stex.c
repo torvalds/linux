@@ -685,6 +685,7 @@ stex_queuecommand_lck(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 			done(cmd);
 			return 0;
 		}
+		break;
 	default:
 		break;
 	}
