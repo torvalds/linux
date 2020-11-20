@@ -1125,6 +1125,7 @@ static void nfs_increment_seqid(int status, struct nfs_seqid *seqid)
 					" sequence-id error on an"
 					" unconfirmed sequence %p!\n",
 					seqid->sequence);
+			return;
 		case -NFS4ERR_STALE_CLIENTID:
 		case -NFS4ERR_STALE_STATEID:
 		case -NFS4ERR_BAD_STATEID:

@@ -2227,6 +2227,7 @@ static int nfs4_handle_delegation_recall_error(struct nfs_server *server, struct
 		default:
 			printk(KERN_ERR "NFS: %s: unhandled error "
 					"%d.\n", __func__, err);
+			fallthrough;
 		case 0:
 		case -ENOENT:
 		case -EAGAIN:
@@ -9701,6 +9702,7 @@ nfs4_layoutcommit_done(struct rpc_task *task, void *calldata)
 	case -NFS4ERR_BADLAYOUT:     /* no layout */
 	case -NFS4ERR_GRACE:	    /* loca_recalim always false */
 		task->tk_status = 0;
+		break;
 	case 0:
 		break;
 	default:
