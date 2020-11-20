@@ -68,7 +68,7 @@ extern void *jbd2_alloc(size_t size, gfp_t flags);
 extern void jbd2_free(void *ptr, size_t size);
 
 #define JBD2_MIN_JOURNAL_BLOCKS 1024
-#define JBD2_MIN_FC_BLOCKS	256
+#define JBD2_DEFAULT_FAST_COMMIT_BLOCKS 256
 
 #ifdef __KERNEL__
 
@@ -1690,6 +1690,13 @@ static inline int jbd2_journal_has_csum_v2or3(journal_t *journal)
 		     journal->j_chksum_driver == NULL);
 
 	return journal->j_chksum_driver != NULL;
+}
+
+static inline int jbd2_journal_get_num_fc_blks(journal_superblock_t *jsb)
+{
+	int num_fc_blocks = be32_to_cpu(jsb->s_num_fc_blks);
+
+	return num_fc_blocks ? num_fc_blocks : JBD2_DEFAULT_FAST_COMMIT_BLOCKS;
 }
 
 /*
