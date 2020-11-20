@@ -1524,7 +1524,7 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 		break;
 	default:
 		WARN(1, "Invalid fw type %d\n", fw->type);
-		/* fall through */
+		fallthrough;
 	case IWL_FW_MVM:
 		op = &iwlwifi_opmode_table[MVM_OP_MODE];
 		break;
