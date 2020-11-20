@@ -1076,13 +1076,16 @@ static void nullb_fill_pattern(struct nullb *nullb, struct page *page,
 	kunmap_atomic(dst);
 }
 
-static void null_handle_discard(struct nullb *nullb, sector_t sector, size_t n)
+static blk_status_t null_handle_discard(struct nullb_device *dev,
+					sector_t sector, sector_t nr_sectors)
 {
+	struct nullb *nullb = dev->nullb;
+	size_t n = nr_sectors << SECTOR_SHIFT;
 	size_t temp;
 
 	spin_lock_irq(&nullb->lock);
 	while (n > 0) {
-		temp = min_t(size_t, n, nullb->dev->blocksize);
+		temp = min_t(size_t, n, dev->blocksize);
 		null_free_sector(nullb, sector, false);
 		if (null_cache_active(nullb))
 			null_free_sector(nullb, sector, true);
@@ -1090,6 +1093,8 @@ static void null_handle_discard(struct nullb *nullb, sector_t sector, size_t n)
 		n -= temp;
 	}
 	spin_unlock_irq(&nullb->lock);
+
+	return BLK_STS_OK;
 }
 
 static int null_handle_flush(struct nullb *nullb)
@@ -1149,16 +1154,9 @@ static int null_handle_rq(struct nullb_cmd *cmd)
 	struct nullb *nullb = cmd->nq->dev->nullb;
 	int err;
 	unsigned int len;
-	sector_t sector;
+	sector_t sector = blk_rq_pos(rq);
 	struct req_iterator iter;
 	struct bio_vec bvec;
-
-	sector = blk_rq_pos(rq);
-
-	if (req_op(rq) == REQ_OP_DISCARD) {
-		null_handle_discard(nullb, sector, blk_rq_bytes(rq));
-		return 0;
-	}
 
 	spin_lock_irq(&nullb->lock);
 	rq_for_each_segment(bvec, rq, iter) {
@@ -1183,17 +1181,9 @@ static int null_handle_bio(struct nullb_cmd *cmd)
 	struct nullb *nullb = cmd->nq->dev->nullb;
 	int err;
 	unsigned int len;
-	sector_t sector;
+	sector_t sector = bio->bi_iter.bi_sector;
 	struct bio_vec bvec;
 	struct bvec_iter iter;
-
-	sector = bio->bi_iter.bi_sector;
-
-	if (bio_op(bio) == REQ_OP_DISCARD) {
-		null_handle_discard(nullb, sector,
-			bio_sectors(bio) << SECTOR_SHIFT);
-		return 0;
-	}
 
 	spin_lock_irq(&nullb->lock);
 	bio_for_each_segment(bvec, bio, iter) {
@@ -1263,10 +1253,15 @@ static inline blk_status_t null_handle_badblocks(struct nullb_cmd *cmd,
 }
 
 static inline blk_status_t null_handle_memory_backed(struct nullb_cmd *cmd,
-						     enum req_opf op)
+						     enum req_opf op,
+						     sector_t sector,
+						     sector_t nr_sectors)
 {
 	struct nullb_device *dev = cmd->nq->dev;
 	int err;
+
+	if (op == REQ_OP_DISCARD)
+		return null_handle_discard(dev, sector, nr_sectors);
 
 	if (dev->queue_mode == NULL_Q_BIO)
 		err = null_handle_bio(cmd);
@@ -1343,7 +1338,7 @@ blk_status_t null_process_cmd(struct nullb_cmd *cmd,
 	}
 
 	if (dev->memory_backed)
-		return null_handle_memory_backed(cmd, op);
+		return null_handle_memory_backed(cmd, op, sector, nr_sectors);
 
 	return BLK_STS_OK;
 }
@@ -1588,6 +1583,12 @@ static void null_config_discard(struct nullb *nullb)
 {
 	if (nullb->dev->discard == false)
 		return;
+
+	if (!nullb->dev->memory_backed) {
+		nullb->dev->discard = false;
+		pr_info("discard option is ignored without memory backing\n");
+		return;
+	}
 
 	if (nullb->dev->zoned) {
 		nullb->dev->discard = false;
