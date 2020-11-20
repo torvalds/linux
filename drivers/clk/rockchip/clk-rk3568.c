@@ -317,11 +317,11 @@ PNAME(clk_pciephy0_ref_p)		= { "clk_pciephy0_osc0", "clk_pciephy0_div" };
 PNAME(clk_pciephy1_ref_p)		= { "clk_pciephy1_osc0", "clk_pciephy1_div" };
 PNAME(clk_pciephy2_ref_p)		= { "clk_pciephy2_osc0", "clk_pciephy2_div" };
 PNAME(mux_gmac0_p)			= { "clk_mac0_2top", "gmac0_clkin" };
-PNAME(mux_gmac0_rgmii_speed_p)		= { "clk_gmac0", "clk_gmac0", "clk_gmac0_tx0_div50", "clk_gmac0_tx0_div5" };
+PNAME(mux_gmac0_rgmii_speed_p)		= { "clk_gmac0", "clk_gmac0", "clk_gmac0_tx_div50", "clk_gmac0_tx_div5" };
 PNAME(mux_gmac0_rmii_speed_p)		= { "clk_gmac0_rx_div20", "clk_gmac0_rx_div2" };
 PNAME(mux_gmac0_rx_tx_p)		= { "clk_gmac0_rgmii_speed", "clk_gmac0_rmii_speed", "clk_xpcs_mii" };
 PNAME(mux_gmac1_p)			= { "clk_mac1_2top", "gmac1_clkin" };
-PNAME(mux_gmac1_rgmii_speed_p)		= { "clk_gmac1", "clk_gmac1", "clk_gmac1_tx0_div50", "clk_gmac1_tx0_div5" };
+PNAME(mux_gmac1_rgmii_speed_p)		= { "clk_gmac1", "clk_gmac1", "clk_gmac1_tx_div50", "clk_gmac1_tx_div5" };
 PNAME(mux_gmac1_rmii_speed_p)		= { "clk_gmac1_rx_div20", "clk_gmac1_rx_div2" };
 PNAME(mux_gmac1_rx_tx_p)		= { "clk_gmac1_rgmii_speed", "clk_gmac1_rmii_speed" };
 PNAME(clk_hdmi_ref_p)			= { "hpll", "hpll_ph0" };
@@ -950,9 +950,9 @@ static struct rockchip_clk_branch rk3568_clk_branches[] __initdata = {
 	FACTOR(0, "clk_gmac0_tx_div50", "clk_gmac0", 0, 1, 50),
 	FACTOR(0, "clk_gmac0_rx_div2", "clk_gmac0", 0, 1, 2),
 	FACTOR(0, "clk_gmac0_rx_div20", "clk_gmac0", 0, 1, 20),
-	MUX(SCLK_GMAC0_RGMII_SPEED, "clk_gmac0_rgmii_speed", mux_gmac0_rgmii_speed_p,  CLK_SET_RATE_PARENT,
+	MUX(SCLK_GMAC0_RGMII_SPEED, "clk_gmac0_rgmii_speed", mux_gmac0_rgmii_speed_p, 0,
 			RK3568_CLKSEL_CON(31), 4, 2, MFLAGS),
-	MUX(SCLK_GMAC0_RMII_SPEED, "clk_gmac0_rmii_speed", mux_gmac0_rmii_speed_p,  CLK_SET_RATE_PARENT,
+	MUX(SCLK_GMAC0_RMII_SPEED, "clk_gmac0_rmii_speed", mux_gmac0_rmii_speed_p, 0,
 			RK3568_CLKSEL_CON(31), 3, 1, MFLAGS),
 	MUX(SCLK_GMAC0_RX_TX, "clk_gmac0_rx_tx", mux_gmac0_rx_tx_p,  CLK_SET_RATE_PARENT,
 			RK3568_CLKSEL_CON(31), 0, 2, MFLAGS),
@@ -1004,9 +1004,9 @@ static struct rockchip_clk_branch rk3568_clk_branches[] __initdata = {
 	FACTOR(0, "clk_gmac1_tx_div50", "clk_gmac1", 0, 1, 50),
 	FACTOR(0, "clk_gmac1_rx_div2", "clk_gmac1", 0, 1, 2),
 	FACTOR(0, "clk_gmac1_rx_div20", "clk_gmac1", 0, 1, 20),
-	MUX(SCLK_GMAC1_RGMII_SPEED, "clk_gmac1_rgmii_speed", mux_gmac1_rgmii_speed_p,  CLK_SET_RATE_PARENT,
+	MUX(SCLK_GMAC1_RGMII_SPEED, "clk_gmac1_rgmii_speed", mux_gmac1_rgmii_speed_p, 0,
 			RK3568_CLKSEL_CON(33), 4, 2, MFLAGS),
-	MUX(SCLK_GMAC1_RMII_SPEED, "clk_gmac1_rmii_speed", mux_gmac1_rmii_speed_p,  CLK_SET_RATE_PARENT,
+	MUX(SCLK_GMAC1_RMII_SPEED, "clk_gmac1_rmii_speed", mux_gmac1_rmii_speed_p, 0,
 			RK3568_CLKSEL_CON(33), 3, 1, MFLAGS),
 	MUX(SCLK_GMAC1_RX_TX, "clk_gmac1_rx_tx", mux_gmac1_rx_tx_p,  CLK_SET_RATE_PARENT,
 			RK3568_CLKSEL_CON(33), 0, 2, MFLAGS),
