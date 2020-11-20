@@ -1514,6 +1514,7 @@ unsigned int is_ap_in_tkip(struct adapter *padapter)
 			case _RSN_IE_2_:
 				if (!memcmp((pIE->data + 8), RSN_TKIP_CIPHER, 4))
 					return true;
+				break;
 
 			default:
 				break;
