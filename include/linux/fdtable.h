@@ -91,6 +91,13 @@ static inline struct file *files_lookup_fd_raw(struct files_struct *files, unsig
 	return NULL;
 }
 
+static inline struct file *files_lookup_fd_locked(struct files_struct *files, unsigned int fd)
+{
+	RCU_LOCKDEP_WARN(!lockdep_is_held(&files->file_lock),
+			   "suspicious rcu_dereference_check() usage");
+	return files_lookup_fd_raw(files, fd);
+}
+
 static inline struct file *fcheck_files(struct files_struct *files, unsigned int fd)
 {
 	RCU_LOCKDEP_WARN(!rcu_read_lock_held() &&
