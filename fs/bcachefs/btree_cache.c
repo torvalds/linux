@@ -1065,3 +1065,9 @@ void bch2_btree_node_to_text(struct printbuf *out, struct bch_fs *c,
 	       stats.floats,
 	       stats.failed);
 }
+
+void bch2_btree_cache_to_text(struct printbuf *out, struct bch_fs *c)
+{
+	pr_buf(out, "nr nodes:\t%u\n", c->btree_cache.used);
+	pr_buf(out, "nr dirty:\t%u\n", atomic_read(&c->btree_cache.dirty));
+}

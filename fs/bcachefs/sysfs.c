@@ -165,6 +165,7 @@ read_attribute(journal_debug);
 read_attribute(journal_pins);
 read_attribute(btree_updates);
 read_attribute(dirty_btree_nodes);
+read_attribute(btree_cache);
 read_attribute(btree_key_cache);
 read_attribute(btree_transactions);
 read_attribute(stripes_heap);
@@ -374,6 +375,11 @@ SHOW(bch2_fs)
 		return out.pos - buf;
 	}
 
+	if (attr == &sysfs_btree_cache) {
+		bch2_btree_cache_to_text(&out, c);
+		return out.pos - buf;
+	}
+
 	if (attr == &sysfs_btree_key_cache) {
 		bch2_btree_key_cache_to_text(&out, &c->btree_key_cache);
 		return out.pos - buf;
@@ -550,6 +556,7 @@ struct attribute *bch2_fs_internal_files[] = {
 	&sysfs_journal_pins,
 	&sysfs_btree_updates,
 	&sysfs_dirty_btree_nodes,
+	&sysfs_btree_cache,
 	&sysfs_btree_key_cache,
 	&sysfs_btree_transactions,
 	&sysfs_stripes_heap,
