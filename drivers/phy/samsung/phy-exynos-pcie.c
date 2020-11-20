@@ -69,7 +69,7 @@ static int exynos5433_pcie_phy_init(struct phy *phy)
 	exynos_pcie_phy_writel(ep->base, 0, PCIE_PHY_OFFSET(0x20));
 	exynos_pcie_phy_writel(ep->base, 0, PCIE_PHY_OFFSET(0x4b));
 
-	/* jitter tunning */
+	/* jitter tuning */
 	exynos_pcie_phy_writel(ep->base, 0x34, PCIE_PHY_OFFSET(0x4));
 	exynos_pcie_phy_writel(ep->base, 0x02, PCIE_PHY_OFFSET(0x7));
 	exynos_pcie_phy_writel(ep->base, 0x41, PCIE_PHY_OFFSET(0x21));
