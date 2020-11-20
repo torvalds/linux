@@ -16,6 +16,8 @@ Required properties:
 - rockchip,grf: the phandle of the syscon node for GRF register.
 
 Optional properties:
+- rockchip,clk-sync-mode: This is a boolean property, if present, using clk
+  sync mode.
 - rockchip,pwm-output-mode: This is a boolean property, if present, output pwm
   to drive spk.
 
