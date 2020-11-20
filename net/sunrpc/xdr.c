@@ -1219,44 +1219,33 @@ static unsigned int xdr_align_pages(struct xdr_stream *xdr, unsigned int len)
 }
 
 /**
- * xdr_read_pages - Ensure page-based XDR data to decode is aligned at current pointer position
+ * xdr_read_pages - align page-based XDR data to current pointer position
  * @xdr: pointer to xdr_stream struct
  * @len: number of bytes of page data
  *
  * Moves data beyond the current pointer position from the XDR head[] buffer
- * into the page list. Any data that lies beyond current position + "len"
- * bytes is moved into the XDR tail[].
+ * into the page list. Any data that lies beyond current position + @len
+ * bytes is moved into the XDR tail[]. The xdr_stream current position is
+ * then advanced past that data to align to the next XDR object in the tail.
  *
  * Returns the number of XDR encoded bytes now contained in the pages
  */
 unsigned int xdr_read_pages(struct xdr_stream *xdr, unsigned int len)
 {
-	struct xdr_buf *buf = xdr->buf;
-	struct kvec *iov;
-	unsigned int nwords;
-	unsigned int end;
-	unsigned int padding;
+	unsigned int nwords = XDR_QUADLEN(len);
+	unsigned int base, end, pglen;
 
-	len = xdr_align_pages(xdr, len);
-	if (len == 0)
+	pglen = xdr_align_pages(xdr, nwords << 2);
+	if (pglen == 0)
 		return 0;
-	nwords = XDR_QUADLEN(len);
-	padding = (nwords << 2) - len;
-	xdr->iov = iov = buf->tail;
-	/* Compute remaining message length.  */
-	end = ((xdr->nwords - nwords) << 2) + padding;
-	if (end > iov->iov_len)
-		end = iov->iov_len;
 
-	/*
-	 * Position current pointer at beginning of tail, and
-	 * set remaining message length.
-	 */
-	xdr->p = (__be32 *)((char *)iov->iov_base + padding);
-	xdr->end = (__be32 *)((char *)iov->iov_base + end);
-	xdr->page_ptr = NULL;
-	xdr->nwords = XDR_QUADLEN(end - padding);
-	return len;
+	xdr->nwords -= nwords;
+	base = (nwords << 2) - pglen;
+	end = xdr_stream_remaining(xdr) - pglen;
+
+	if (xdr_set_iov(xdr, xdr->buf->tail, base, end) == 0)
+		xdr->nwords = 0;
+	return len <= pglen ? len : pglen;
 }
 EXPORT_SYMBOL_GPL(xdr_read_pages);
 
