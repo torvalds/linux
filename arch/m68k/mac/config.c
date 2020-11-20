@@ -55,7 +55,6 @@ struct mac_booter_data mac_bi_data;
 static unsigned long mac_orig_videoaddr;
 
 extern int mac_hwclk(int, struct rtc_time *);
-extern void iop_preinit(void);
 extern void iop_init(void);
 extern void via_init(void);
 extern void via_init_clock(irq_handler_t func);
@@ -833,13 +832,6 @@ static void __init mac_identify(void)
 		}
 		break;
 	}
-
-	/*
-	 * We need to pre-init the IOPs, if any. Otherwise
-	 * the serial console won't work if the user had
-	 * the serial ports set to "Faster" mode in MacOS.
-	 */
-	iop_preinit();
 
 	pr_info("Detected Macintosh model: %d\n", model);
 
