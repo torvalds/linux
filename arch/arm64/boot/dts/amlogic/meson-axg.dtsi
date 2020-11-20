@@ -1201,6 +1201,12 @@
 							       <250000000>,
 							       <0>; /* Do Nothing */
 				};
+
+				mipi_pcie_analog_dphy: phy {
+					compatible = "amlogic,axg-mipi-pcie-analog-phy";
+					#phy-cells = <0>;
+					status = "disabled";
+				};
 			};
 		};
 
@@ -1211,6 +1217,19 @@
 				     <GIC_SPI 209 IRQ_TYPE_EDGE_RISING>,
 				     <GIC_SPI 210 IRQ_TYPE_EDGE_RISING>;
 			#mbox-cells = <1>;
+		};
+
+		mipi_dphy: phy@ff640000 {
+			compatible = "amlogic,axg-mipi-dphy";
+			reg = <0x0 0xff640000 0x0 0x100>;
+			clocks = <&clkc CLKID_MIPI_DSI_PHY>;
+			clock-names = "pclk";
+			resets = <&reset RESET_MIPI_PHY>;
+			reset-names = "phy";
+			phys = <&mipi_pcie_analog_dphy>;
+			phy-names = "analog";
+			#phy-cells = <0>;
+			status = "disabled";
 		};
 
 		audio: bus@ff642000 {
