@@ -315,6 +315,7 @@ Again:
 		break;
 	case SAS_PROTOCOL_SSP:
 		asd_unbuild_ssp_ascb(ascb);
+		break;
 	default:
 		break;
 	}
@@ -609,6 +610,7 @@ out_err_unmap:
 				break;
 			case SAS_PROTOCOL_SSP:
 				asd_unbuild_ssp_ascb(a);
+				break;
 			default:
 				break;
 			}
