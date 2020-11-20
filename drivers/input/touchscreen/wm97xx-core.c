@@ -194,7 +194,7 @@ EXPORT_SYMBOL_GPL(wm97xx_get_gpio);
  * wm97xx_set_gpio - Set the status of a codec GPIO.
  * @wm: wm97xx device.
  * @gpio: gpio
- *
+ * @status: status
  *
  * Set the status of a codec GPIO pin
  */
