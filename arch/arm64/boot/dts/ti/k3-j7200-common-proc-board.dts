@@ -154,16 +154,26 @@
 	};
 };
 
+/*
+ * The j7200 CPB board is identical to the CPB used for J721E, the SOMs can be
+ * swapped on the CPB.
+ *
+ * main_i2c1 of J7200 is connected to the CPB i2c bus labeled as i2c3.
+ * The i2c1 of the CPB (as it is labeled) is not connected to j7200.
+ */
 &main_i2c1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_i2c1_pins_default>;
 	clock-frequency = <400000>;
 
-	exp4: gpio@20 {
+	exp3: gpio@20 {
 		compatible = "ti,tca6408";
 		reg = <0x20>;
 		gpio-controller;
 		#gpio-cells = <2>;
+		gpio-line-names = "CODEC_RSTz", "CODEC_SPARE1", "UB926_RESETn",
+				  "UB926_LOCK", "UB926_PWR_SW_CNTRL",
+				  "UB926_TUNER_RESET", "UB926_GPIO_SPARE", "";
 	};
 };
 
