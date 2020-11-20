@@ -1537,6 +1537,7 @@ max3421_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 				__func__, urb->interval);
 			return -EINVAL;
 		}
+		break;
 	default:
 		break;
 	}
