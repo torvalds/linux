@@ -4878,6 +4878,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 			       "requested data journaling mode");
 			goto failed_mount_wq;
 		}
+		break;
 	default:
 		break;
 	}
