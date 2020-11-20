@@ -1281,18 +1281,6 @@ static void ext4_fc_cleanup(journal_t *journal, int full)
 
 /* Ext4 Replay Path Routines */
 
-/* Get length of a particular tlv */
-static inline int ext4_fc_tag_len(struct ext4_fc_tl *tl)
-{
-	return le16_to_cpu(tl->fc_len);
-}
-
-/* Get a pointer to "value" of a tlv */
-static inline u8 *ext4_fc_tag_val(struct ext4_fc_tl *tl)
-{
-	return (u8 *)tl + sizeof(*tl);
-}
-
 /* Helper struct for dentry replay routines */
 struct dentry_info_args {
 	int parent_ino, dname_len, ino, inode_len;
@@ -1829,32 +1817,6 @@ ext4_fc_replay_del_range(struct super_block *sb, struct ext4_fc_tl *tl)
 	iput(inode);
 
 	return 0;
-}
-
-static inline const char *tag2str(u16 tag)
-{
-	switch (tag) {
-	case EXT4_FC_TAG_LINK:
-		return "TAG_ADD_ENTRY";
-	case EXT4_FC_TAG_UNLINK:
-		return "TAG_DEL_ENTRY";
-	case EXT4_FC_TAG_ADD_RANGE:
-		return "TAG_ADD_RANGE";
-	case EXT4_FC_TAG_CREAT:
-		return "TAG_CREAT_DENTRY";
-	case EXT4_FC_TAG_DEL_RANGE:
-		return "TAG_DEL_RANGE";
-	case EXT4_FC_TAG_INODE:
-		return "TAG_INODE";
-	case EXT4_FC_TAG_PAD:
-		return "TAG_PAD";
-	case EXT4_FC_TAG_TAIL:
-		return "TAG_TAIL";
-	case EXT4_FC_TAG_HEAD:
-		return "TAG_HEAD";
-	default:
-		return "TAG_ERROR";
-	}
 }
 
 static void ext4_fc_set_bitmaps_and_counters(struct super_block *sb)
