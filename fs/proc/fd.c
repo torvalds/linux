@@ -83,18 +83,13 @@ static const struct file_operations proc_fdinfo_file_operations = {
 
 static bool tid_fd_mode(struct task_struct *task, unsigned fd, fmode_t *mode)
 {
-	struct files_struct *files = get_files_struct(task);
 	struct file *file;
 
-	if (!files)
-		return false;
-
 	rcu_read_lock();
-	file = files_lookup_fd_rcu(files, fd);
+	file = task_lookup_fd_rcu(task, fd);
 	if (file)
 		*mode = file->f_mode;
 	rcu_read_unlock();
-	put_files_struct(files);
 	return !!file;
 }
 
