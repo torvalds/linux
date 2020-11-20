@@ -648,6 +648,7 @@ static u8 jpu_parse_hdr(void *buffer, unsigned long size, unsigned int *width,
 			if (get_word_be(&jpeg_buffer, &word))
 				return 0;
 			skip(&jpeg_buffer, (long)word - 2);
+			break;
 		case 0:
 			break;
 		default:
