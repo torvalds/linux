@@ -132,6 +132,7 @@ struct mlx5_flow_destination {
 			struct mlx5_pkt_reformat *pkt_reformat;
 			u8		flags;
 		} vport;
+		u32			sampler_id;
 	};
 };
 
