@@ -64,7 +64,12 @@ config PHY_EXYNOS4X12_USB2
 config PHY_EXYNOS5250_USB2
 	bool
 	depends on PHY_SAMSUNG_USB2
-	default SOC_EXYNOS5250 || SOC_EXYNOS5420
+	default SOC_EXYNOS5250
+
+config PHY_EXYNOS5420_USB2
+	bool
+	depends on PHY_SAMSUNG_USB2
+	default SOC_EXYNOS5420
 
 config PHY_S5PV210_USB2
 	bool "Support for S5PV210"
