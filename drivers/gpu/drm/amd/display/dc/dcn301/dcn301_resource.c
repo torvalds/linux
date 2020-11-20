@@ -73,6 +73,9 @@
 
 #include "nbio/nbio_7_2_0_offset.h"
 
+#include "dcn/dpcs_3_0_0_offset.h"
+#include "dcn/dpcs_3_0_0_sh_mask.h"
+
 #include "reg_helper.h"
 #include "dce/dmub_abm.h"
 #include "dce/dce_aux.h"
@@ -517,10 +520,12 @@ static const struct dcn10_link_enc_hpd_registers link_enc_hpd_regs[] = {
 		hpd_regs(3),
 };
 
+
 #define link_regs(id, phyid)\
 [id] = {\
 	LE_DCN301_REG_LIST(id), \
 	UNIPHY_DCN2_REG_LIST(phyid), \
+	DPCS_DCN2_REG_LIST(id), \
 	SRI(DP_DPHY_INTERNAL_CTRL, DP, id) \
 }
 
@@ -540,11 +545,13 @@ static const struct dcn10_link_enc_registers link_enc_regs[] = {
 };
 
 static const struct dcn10_link_enc_shift le_shift = {
-	LINK_ENCODER_MASK_SH_LIST_DCN301(__SHIFT)
+	LINK_ENCODER_MASK_SH_LIST_DCN301(__SHIFT),\
+	DPCS_DCN2_MASK_SH_LIST(__SHIFT)
 };
 
 static const struct dcn10_link_enc_mask le_mask = {
-	LINK_ENCODER_MASK_SH_LIST_DCN301(_MASK)
+	LINK_ENCODER_MASK_SH_LIST_DCN301(_MASK),\
+	DPCS_DCN2_MASK_SH_LIST(_MASK)
 };
 
 #define panel_cntl_regs(id)\
