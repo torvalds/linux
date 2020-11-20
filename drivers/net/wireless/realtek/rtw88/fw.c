@@ -1477,7 +1477,7 @@ static bool rtw_fw_dump_check_size(struct rtw_dev *rtwdev,
 	case RTW_FW_FIFO_SEL_RX:
 		if ((start_addr + size) > rtwdev->chip->fw_fifo_addr[sel])
 			return false;
-		/*fall through*/
+		fallthrough;
 	default:
 		return true;
 	}
