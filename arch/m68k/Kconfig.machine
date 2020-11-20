@@ -30,11 +30,9 @@ config MAC
 	select HAVE_ARCH_NVRAM_OPS
 	help
 	  This option enables support for the Apple Macintosh series of
-	  computers (yes, there is experimental support now, at least for part
-	  of the series).
-
-	  Say N unless you're willing to code the remaining necessary support.
-	  ;)
+	  computers. If you plan to use this kernel on a Mac, say Y here and
+	  browse the documentation available at <http://www.mac.linux-m68k.org/>;
+	  otherwise say N.
 
 config APOLLO
 	bool "Apollo support"
