@@ -61,16 +61,11 @@ static int kcmp_ptr(void *v1, void *v2, enum kcmp_type type)
 static struct file *
 get_file_raw_ptr(struct task_struct *task, unsigned int idx)
 {
-	struct file *file = NULL;
+	struct file *file;
 
-	task_lock(task);
 	rcu_read_lock();
-
-	if (task->files)
-		file = files_lookup_fd_rcu(task->files, idx);
-
+	file = task_lookup_fd_rcu(task, idx);
 	rcu_read_unlock();
-	task_unlock(task);
 
 	return file;
 }
