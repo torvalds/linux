@@ -2189,6 +2189,9 @@ static ssize_t drm_fbdev_fb_write(struct fb_info *info, const char __user *buf,
 	if (ret > 0)
 		*ppos += ret;
 
+	if (ret > 0)
+		drm_fb_helper_dirty(info, 0, 0, info->var.xres_virtual, info->var.yres_virtual);
+
 	return ret ? ret : err;
 }
 
