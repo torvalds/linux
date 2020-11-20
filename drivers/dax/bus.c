@@ -1114,15 +1114,8 @@ static ssize_t align_show(struct device *dev,
 
 static ssize_t dev_dax_validate_align(struct dev_dax *dev_dax)
 {
-	resource_size_t dev_size = dev_dax_size(dev_dax);
 	struct device *dev = &dev_dax->dev;
 	int i;
-
-	if (dev_size > 0 && !alloc_is_aligned(dev_dax, dev_size)) {
-		dev_dbg(dev, "%s: align %u invalid for size %pa\n",
-			__func__, dev_dax->align, &dev_size);
-		return -EINVAL;
-	}
 
 	for (i = 0; i < dev_dax->nr_range; i++) {
 		size_t len = range_len(&dev_dax->ranges[i].range);
