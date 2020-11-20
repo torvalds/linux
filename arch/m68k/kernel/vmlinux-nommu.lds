@@ -65,7 +65,6 @@ SECTIONS {
 	_edata = .;
 
 	EXCEPTION_TABLE(16)
-	NOTES
 
 	. = ALIGN(PAGE_SIZE);
 	__init_begin = .;

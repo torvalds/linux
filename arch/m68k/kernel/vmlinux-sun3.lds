@@ -33,7 +33,6 @@ SECTIONS
   RW_DATA(16, PAGE_SIZE, THREAD_SIZE) :data
   /* End of data goes *here* so that freeing init code works properly. */
   _edata = .;
-  NOTES
 
   /* will be freed after init */
   . = ALIGN(PAGE_SIZE);	/* Init code and data */
