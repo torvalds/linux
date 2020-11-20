@@ -686,7 +686,7 @@ static void dpaa2_eth_enable_tx_tstamp(struct dpaa2_eth_priv *priv,
 	if (skb->cb[0] == TX_TSTAMP_ONESTEP_SYNC) {
 		if (dpaa2_eth_ptp_parse(skb, &msgtype, &twostep, &udp,
 					&offset1, &offset2) ||
-		    msgtype != 0 || twostep) {
+		    msgtype != PTP_MSGTYPE_SYNC || twostep) {
 			WARN_ONCE(1, "Bad packet for one-step timestamping\n");
 			return;
 		}
@@ -1212,7 +1212,7 @@ static netdev_tx_t dpaa2_eth_tx(struct sk_buff *skb, struct net_device *net_dev)
 	if (skb->cb[0] == TX_TSTAMP_ONESTEP_SYNC) {
 		if (!dpaa2_eth_ptp_parse(skb, &msgtype, &twostep, &udp,
 					 &offset1, &offset2))
-			if (msgtype == 0 && twostep == 0) {
+			if (msgtype == PTP_MSGTYPE_SYNC && twostep == 0) {
 				skb_queue_tail(&priv->tx_skbs, skb);
 				queue_work(priv->dpaa2_ptp_wq,
 					   &priv->tx_onestep_tstamp);
