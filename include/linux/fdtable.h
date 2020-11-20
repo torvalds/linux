@@ -105,10 +105,10 @@ static inline struct file *files_lookup_fd_rcu(struct files_struct *files, unsig
 	return files_lookup_fd_raw(files, fd);
 }
 
-/*
- * Check whether the specified fd has an open file.
- */
-#define fcheck(fd)	files_lookup_fd_rcu(current->files, fd)
+static inline struct file *lookup_fd_rcu(unsigned int fd)
+{
+	return files_lookup_fd_rcu(current->files, fd);
+}
 
 struct task_struct;
 
