@@ -286,6 +286,15 @@ struct command_protocol_bl {
  *		structure (after re-assembly in case of being split over
  *		multiple spi-packets), minus the trailing crc. The total size
  *		of the message struct is therefore @length + 10.
+ *
+ * @keyboard:		Keyboard message
+ * @touchpad:		Touchpad message
+ * @tp_info:		Touchpad info (response)
+ * @tp_info_command:	Touchpad info (CRC)
+ * @init_mt_command:	Initialise Multitouch
+ * @capsl_command:	Toggle caps-lock LED
+ * @bl_command:		Keyboard brightness
+ * @data:		Buffer data
  */
 struct message {
 	__le16		type;
