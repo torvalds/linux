@@ -3139,6 +3139,7 @@ nfsd4_exchange_id(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 			goto out_nolock;
 		}
 		new->cl_mach_cred = true;
+		break;
 	case SP4_NONE:
 		break;
 	default:				/* checked by xdr code */
