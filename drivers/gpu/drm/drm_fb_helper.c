@@ -395,14 +395,15 @@ static int drm_fb_helper_damage_blit(struct drm_fb_helper *fb_helper,
 				     struct drm_clip_rect *clip)
 {
 	struct drm_client_buffer *buffer = fb_helper->buffer;
-	struct dma_buf_map map;
+	struct dma_buf_map map, dst;
 	int ret;
 
 	ret = drm_client_buffer_vmap(buffer, &map);
 	if (ret)
 		return ret;
 
-	drm_fb_helper_damage_blit_real(fb_helper, clip, &map);
+	dst = map;
+	drm_fb_helper_damage_blit_real(fb_helper, clip, &dst);
 
 	drm_client_buffer_vunmap(buffer);
 
