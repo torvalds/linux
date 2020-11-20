@@ -716,11 +716,6 @@ DEFINE_EVENT(transaction_restart,	trans_restart_traverse,
 	TP_ARGS(ip)
 );
 
-DEFINE_EVENT(transaction_restart,	trans_restart_atomic,
-	TP_PROTO(unsigned long ip),
-	TP_ARGS(ip)
-);
-
 DECLARE_EVENT_CLASS(node_lock_fail,
 	TP_PROTO(unsigned level, u32 iter_seq, unsigned node, u32 node_seq),
 	TP_ARGS(level, iter_seq, node, node_seq),

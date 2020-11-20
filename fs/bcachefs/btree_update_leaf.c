@@ -657,17 +657,6 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 		break;
 	}
 
-	if (ret == -EINTR) {
-		int ret2 = bch2_btree_iter_traverse_all(trans);
-
-		if (ret2) {
-			trace_trans_restart_traverse(trans->ip);
-			return ret2;
-		}
-
-		trace_trans_restart_atomic(trans->ip);
-	}
-
 	return ret;
 }
 
