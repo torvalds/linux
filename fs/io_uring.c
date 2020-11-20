@@ -762,7 +762,7 @@ struct io_submit_state {
 	 */
 	struct file		*file;
 	unsigned int		fd;
-	unsigned int		has_refs;
+	unsigned int		file_refs;
 	unsigned int		ios_left;
 };
 
@@ -2756,16 +2756,15 @@ static void io_iopoll_req_issued(struct io_kiocb *req, bool in_async)
 		wake_up(&ctx->sq_data->wait);
 }
 
-static void __io_state_file_put(struct io_submit_state *state)
+static inline void __io_state_file_put(struct io_submit_state *state)
 {
-	if (state->has_refs)
-		fput_many(state->file, state->has_refs);
-	state->file = NULL;
+	fput_many(state->file, state->file_refs);
+	state->file_refs = 0;
 }
 
 static inline void io_state_file_put(struct io_submit_state *state)
 {
-	if (state->file)
+	if (state->file_refs)
 		__io_state_file_put(state);
 }
 
@@ -2779,19 +2778,19 @@ static struct file *__io_file_get(struct io_submit_state *state, int fd)
 	if (!state)
 		return fget(fd);
 
-	if (state->file) {
+	if (state->file_refs) {
 		if (state->fd == fd) {
-			state->has_refs--;
+			state->file_refs--;
 			return state->file;
 		}
 		__io_state_file_put(state);
 	}
 	state->file = fget_many(fd, state->ios_left);
-	if (!state->file)
+	if (unlikely(!state->file))
 		return NULL;
 
 	state->fd = fd;
-	state->has_refs = state->ios_left - 1;
+	state->file_refs = state->ios_left - 1;
 	return state->file;
 }
 
@@ -6601,7 +6600,7 @@ static void io_submit_state_start(struct io_submit_state *state,
 	INIT_LIST_HEAD(&state->comp.list);
 	state->comp.ctx = ctx;
 	state->free_reqs = 0;
-	state->file = NULL;
+	state->file_refs = 0;
 	state->ios_left = max_ios;
 }
 
