@@ -288,8 +288,8 @@ static void * __init get_boot_config_from_initrd(u32 *_size, u32 *_csum)
 
 found:
 	hdr = (u32 *)(data - 8);
-	size = hdr[0];
-	csum = hdr[1];
+	size = le32_to_cpu(hdr[0]);
+	csum = le32_to_cpu(hdr[1]);
 
 	data = ((void *)hdr) - size;
 	if ((unsigned long)data < initrd_start) {
