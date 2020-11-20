@@ -746,6 +746,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				field->flags |= HID_MAIN_ITEM_RELATIVE;
 				break;
 			}
+			goto unknown;
 
 		default: goto unknown;
 		}
