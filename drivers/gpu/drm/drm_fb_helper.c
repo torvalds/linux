@@ -407,24 +407,23 @@ static void drm_fb_helper_damage_work(struct work_struct *work)
 	clip->x2 = clip->y2 = 0;
 	spin_unlock_irqrestore(&helper->damage_lock, flags);
 
-	/* call dirty callback only when it has been really touched */
-	if (clip_copy.x1 < clip_copy.x2 && clip_copy.y1 < clip_copy.y2) {
+	/* Call damage handlers only if necessary */
+	if (!(clip_copy.x1 < clip_copy.x2 && clip_copy.y1 < clip_copy.y2))
+		return;
 
-		/* Generic fbdev uses a shadow buffer */
-		if (helper->buffer) {
-			ret = drm_client_buffer_vmap(helper->buffer, &map);
-			if (ret)
-				return;
-			drm_fb_helper_damage_blit_real(helper, &clip_copy, &map);
-		}
-
-		if (helper->fb->funcs->dirty)
-			helper->fb->funcs->dirty(helper->fb, NULL, 0, 0,
-						 &clip_copy, 1);
-
-		if (helper->buffer)
-			drm_client_buffer_vunmap(helper->buffer);
+	/* Generic fbdev uses a shadow buffer */
+	if (helper->buffer) {
+		ret = drm_client_buffer_vmap(helper->buffer, &map);
+		if (ret)
+			return;
+		drm_fb_helper_damage_blit_real(helper, &clip_copy, &map);
 	}
+
+	if (helper->fb->funcs->dirty)
+		helper->fb->funcs->dirty(helper->fb, NULL, 0, 0, &clip_copy, 1);
+
+	if (helper->buffer)
+		drm_client_buffer_vunmap(helper->buffer);
 }
 
 /**
