@@ -337,6 +337,7 @@ static int core_scsi3_pr_seq_non_holder(struct se_cmd *cmd, u32 pr_reg_type,
 	switch (pr_reg_type) {
 	case PR_TYPE_WRITE_EXCLUSIVE:
 		we = 1;
+		fallthrough;
 	case PR_TYPE_EXCLUSIVE_ACCESS:
 		/*
 		 * Some commands are only allowed for the persistent reservation
