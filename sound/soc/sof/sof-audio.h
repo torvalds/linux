@@ -214,6 +214,9 @@ int snd_sof_ipc_set_get_comp_data(struct snd_sof_control *scontrol,
 				  enum sof_ipc_ctrl_cmd ctrl_cmd,
 				  bool send);
 
+/* DAI link fixup */
+int sof_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd, struct snd_pcm_hw_params *params);
+
 /* PM */
 int sof_restore_pipelines(struct device *dev);
 int sof_set_hw_params_upon_resume(struct device *dev);
