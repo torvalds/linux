@@ -201,6 +201,7 @@ static int cs47l92_outclk_ev(struct snd_soc_dapm_widget *w,
 		default:
 			break;
 		}
+		break;
 	default:
 		break;
 	}

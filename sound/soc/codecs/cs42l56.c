@@ -1008,6 +1008,7 @@ static int cs42l56_beep_event(struct input_dev *dev, unsigned int type,
 	case SND_BELL:
 		if (hz)
 			hz = 261;
+		break;
 	case SND_TONE:
 		break;
 	default:
