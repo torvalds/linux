@@ -78,10 +78,7 @@ static void adb_iop_complete(struct iop_msg *msg)
 
 	local_irq_save(flags);
 
-	if (current_req->reply_expected)
-		adb_iop_state = awaiting_reply;
-	else
-		adb_iop_done();
+	adb_iop_state = awaiting_reply;
 
 	local_irq_restore(flags);
 }
@@ -89,8 +86,9 @@ static void adb_iop_complete(struct iop_msg *msg)
 /*
  * Listen for ADB messages from the IOP.
  *
- * This will be called when unsolicited messages (usually replies to TALK
- * commands or autopoll packets) are received.
+ * This will be called when unsolicited IOP messages are received.
+ * These IOP messages can carry ADB autopoll responses and also occur
+ * after explicit ADB commands.
  */
 
 static void adb_iop_listen(struct iop_msg *msg)
@@ -110,8 +108,10 @@ static void adb_iop_listen(struct iop_msg *msg)
 		if (adb_iop_state == awaiting_reply) {
 			struct adb_request *req = current_req;
 
-			req->reply_len = amsg->count + 1;
-			memcpy(req->reply, &amsg->cmd, req->reply_len);
+			if (req->reply_expected) {
+				req->reply_len = amsg->count + 1;
+				memcpy(req->reply, &amsg->cmd, req->reply_len);
+			}
 
 			req_done = true;
 		}
