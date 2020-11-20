@@ -220,6 +220,7 @@ struct vhost_scsi_tmf {
 	struct list_head queue_entry;
 
 	struct se_cmd se_cmd;
+	u8 scsi_resp;
 	struct vhost_scsi_inflight *inflight;
 	struct iovec resp_iov;
 	int in_iovs;
@@ -426,6 +427,7 @@ static void vhost_scsi_queue_tm_rsp(struct se_cmd *se_cmd)
 	struct vhost_scsi_tmf *tmf = container_of(se_cmd, struct vhost_scsi_tmf,
 						  se_cmd);
 
+	tmf->scsi_resp = se_cmd->se_tmr_req->response;
 	transport_generic_free_cmd(&tmf->se_cmd, 0);
 }
 
@@ -1183,7 +1185,7 @@ static void vhost_scsi_tmf_resp_work(struct vhost_work *work)
 						  vwork);
 	int resp_code;
 
-	if (tmf->se_cmd.se_tmr_req->response == TMR_FUNCTION_COMPLETE)
+	if (tmf->scsi_resp == TMR_FUNCTION_COMPLETE)
 		resp_code = VIRTIO_SCSI_S_FUNCTION_SUCCEEDED;
 	else
 		resp_code = VIRTIO_SCSI_S_FUNCTION_REJECTED;
