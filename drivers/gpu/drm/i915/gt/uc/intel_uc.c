@@ -203,7 +203,8 @@ static void guc_disable_interrupts(struct intel_guc *guc)
 
 static int guc_enable_communication(struct intel_guc *guc)
 {
-	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
+	struct intel_gt *gt = guc_to_gt(guc);
+	struct drm_i915_private *i915 = gt->i915;
 	int ret;
 
 	GEM_BUG_ON(guc_communication_enabled(guc));
@@ -223,9 +224,9 @@ static int guc_enable_communication(struct intel_guc *guc)
 	guc_enable_interrupts(guc);
 
 	/* check for CT messages received before we enabled interrupts */
-	spin_lock_irq(&i915->irq_lock);
+	spin_lock_irq(&gt->irq_lock);
 	intel_guc_ct_event_handler(&guc->ct);
-	spin_unlock_irq(&i915->irq_lock);
+	spin_unlock_irq(&gt->irq_lock);
 
 	drm_dbg(&i915->drm, "GuC communication enabled\n");
 
