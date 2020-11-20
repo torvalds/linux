@@ -78,6 +78,15 @@
 		default-brightness-level = <200>;
 	};
 
+	charge-animation {
+		compatible = "rockchip,uboot-charge";
+		rockchip,uboot-charge-on = <1>;
+		rockchip,android-charge-on = <0>;
+		rockchip,uboot-low-power-voltage = <3350>;
+		rockchip,screen-on-voltage = <3400>;
+		status = "okay";
+	};
+
 	flash_rgb13h: flash-rgb13h {
 		status = "okay";
 		compatible = "led,rgb13h";
