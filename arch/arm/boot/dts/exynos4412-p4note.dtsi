@@ -307,7 +307,7 @@
 		pinctrl-names = "default";
 		interrupt-parent = <&gpm2>;
 		interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
-		reset-gpios = <&gpm0 4 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpm0 4 GPIO_ACTIVE_LOW>;
 	};
 };
 
