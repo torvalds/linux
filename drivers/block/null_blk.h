@@ -12,6 +12,8 @@
 #include <linux/configfs.h>
 #include <linux/badblocks.h>
 #include <linux/fault-inject.h>
+#include <linux/spinlock.h>
+#include <linux/mutex.h>
 
 struct nullb_cmd {
 	struct request *rq;
@@ -32,6 +34,26 @@ struct nullb_queue {
 	struct nullb_cmd *cmds;
 };
 
+struct nullb_zone {
+	/*
+	 * Zone lock to prevent concurrent modification of a zone write
+	 * pointer position and condition: with memory backing, a write
+	 * command execution may sleep on memory allocation. For this case,
+	 * use mutex as the zone lock. Otherwise, use the spinlock for
+	 * locking the zone.
+	 */
+	union {
+		spinlock_t spinlock;
+		struct mutex mutex;
+	};
+	enum blk_zone_type type;
+	enum blk_zone_cond cond;
+	sector_t start;
+	sector_t wp;
+	unsigned int len;
+	unsigned int capacity;
+};
+
 struct nullb_device {
 	struct nullb *nullb;
 	struct config_item item;
@@ -45,10 +67,10 @@ struct nullb_device {
 	unsigned int nr_zones_imp_open;
 	unsigned int nr_zones_exp_open;
 	unsigned int nr_zones_closed;
-	struct blk_zone *zones;
+	struct nullb_zone *zones;
 	sector_t zone_size_sects;
-	spinlock_t zone_lock;
-	unsigned long *zone_locks;
+	bool need_zone_res_mgmt;
+	spinlock_t zone_res_lock;
 
 	unsigned long size; /* device size in MB */
 	unsigned long completion_nsec; /* time in ns to complete a request */
