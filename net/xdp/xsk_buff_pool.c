@@ -185,8 +185,10 @@ err_unreg_xsk:
 err_unreg_pool:
 	if (!force_zc)
 		err = 0; /* fallback to copy mode */
-	if (err)
+	if (err) {
 		xsk_clear_pool_at_qid(netdev, queue_id);
+		dev_put(netdev);
+	}
 	return err;
 }
 
