@@ -4478,6 +4478,7 @@ ahc_free(struct ahc_softc *ahc)
 		fallthrough;
 	case 2:
 		ahc_dma_tag_destroy(ahc, ahc->shared_data_dmat);
+		fallthrough;
 	case 1:
 		break;
 	case 0:
@@ -5865,9 +5866,8 @@ ahc_search_qinfifo(struct ahc_softc *ahc, int target, char channel,
 				if ((scb->flags & SCB_ACTIVE) == 0)
 					printk("Inactive SCB in qinfifo\n");
 				ahc_done(ahc, scb);
-
-				/* FALLTHROUGH */
 			}
+				fallthrough;
 			case SEARCH_REMOVE:
 				break;
 			case SEARCH_COUNT:

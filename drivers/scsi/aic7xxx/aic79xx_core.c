@@ -6130,6 +6130,7 @@ ahd_free(struct ahd_softc *ahd)
 		fallthrough;
 	case 2:
 		ahd_dma_tag_destroy(ahd, ahd->shared_data_dmat);
+		break;
 	case 1:
 		break;
 	case 0:
@@ -6542,8 +6543,8 @@ ahd_fini_scbdata(struct ahd_softc *ahd)
 			kfree(hscb_map);
 		}
 		ahd_dma_tag_destroy(ahd, scb_data->hscb_dmat);
-		/* FALLTHROUGH */
 	}
+		fallthrough;
 	case 4:
 	case 3:
 	case 2:
@@ -8907,6 +8908,7 @@ ahd_handle_scsi_status(struct ahd_softc *ahd, struct scb *scb)
 					break;
 				case SIU_PFC_ILLEGAL_REQUEST:
 					printk("Illegal request\n");
+					break;
 				default:
 					break;
 				}
