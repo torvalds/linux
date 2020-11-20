@@ -6327,15 +6327,6 @@ static struct file *io_file_get(struct io_submit_state *state,
 	return file;
 }
 
-static int io_req_set_file(struct io_submit_state *state, struct io_kiocb *req,
-			   int fd)
-{
-	req->file = io_file_get(state, req, fd, req->flags & REQ_F_FIXED_FILE);
-	if (req->file || io_op_defs[req->opcode].needs_file_no_error)
-		return 0;
-	return -EBADF;
-}
-
 static enum hrtimer_restart io_link_timeout_fn(struct hrtimer *timer)
 {
 	struct io_timeout_data *data = container_of(timer,
@@ -6748,10 +6739,16 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 		state->plug_started = true;
 	}
 
-	if (!io_op_defs[req->opcode].needs_file)
-		return 0;
+	ret = 0;
+	if (io_op_defs[req->opcode].needs_file) {
+		bool fixed = req->flags & REQ_F_FIXED_FILE;
 
-	ret = io_req_set_file(state, req, READ_ONCE(sqe->fd));
+		req->file = io_file_get(state, req, READ_ONCE(sqe->fd), fixed);
+		if (unlikely(!req->file &&
+		    !io_op_defs[req->opcode].needs_file_no_error))
+			ret = -EBADF;
+	}
+
 	state->ios_left--;
 	return ret;
 }
