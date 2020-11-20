@@ -395,7 +395,7 @@ static u32 hclge_tm_get_shapping_para(u8 ir_b, u8 ir_u, u8 ir_s,
 
 static int hclge_tm_pg_shapping_cfg(struct hclge_dev *hdev,
 				    enum hclge_shap_bucket bucket, u8 pg_id,
-				    u32 shapping_para)
+				    u32 shapping_para, u32 rate)
 {
 	struct hclge_pg_shapping_cmd *shap_cfg_cmd;
 	enum hclge_opcode_type opcode;
@@ -410,6 +410,10 @@ static int hclge_tm_pg_shapping_cfg(struct hclge_dev *hdev,
 	shap_cfg_cmd->pg_id = pg_id;
 
 	shap_cfg_cmd->pg_shapping_para = cpu_to_le32(shapping_para);
+
+	hnae3_set_bit(shap_cfg_cmd->flag, HCLGE_TM_RATE_VLD, 1);
+
+	shap_cfg_cmd->pg_rate = cpu_to_le32(rate);
 
 	return hclge_cmd_send(&hdev->hw, &desc, 1);
 }
@@ -438,12 +442,16 @@ static int hclge_tm_port_shaper_cfg(struct hclge_dev *hdev)
 
 	shap_cfg_cmd->port_shapping_para = cpu_to_le32(shapping_para);
 
+	hnae3_set_bit(shap_cfg_cmd->flag, HCLGE_TM_RATE_VLD, 1);
+
+	shap_cfg_cmd->port_rate = cpu_to_le32(hdev->hw.mac.speed);
+
 	return hclge_cmd_send(&hdev->hw, &desc, 1);
 }
 
 static int hclge_tm_pri_shapping_cfg(struct hclge_dev *hdev,
 				     enum hclge_shap_bucket bucket, u8 pri_id,
-				     u32 shapping_para)
+				     u32 shapping_para, u32 rate)
 {
 	struct hclge_pri_shapping_cmd *shap_cfg_cmd;
 	enum hclge_opcode_type opcode;
@@ -459,6 +467,10 @@ static int hclge_tm_pri_shapping_cfg(struct hclge_dev *hdev,
 	shap_cfg_cmd->pri_id = pri_id;
 
 	shap_cfg_cmd->pri_shapping_para = cpu_to_le32(shapping_para);
+
+	hnae3_set_bit(shap_cfg_cmd->flag, HCLGE_TM_RATE_VLD, 1);
+
+	shap_cfg_cmd->pri_rate = cpu_to_le32(rate);
 
 	return hclge_cmd_send(&hdev->hw, &desc, 1);
 }
@@ -560,6 +572,9 @@ int hclge_tm_qs_shaper_cfg(struct hclge_vport *vport, int max_tx_rate)
 		shap_cfg_cmd = (struct hclge_qs_shapping_cmd *)desc.data;
 		shap_cfg_cmd->qs_id = cpu_to_le16(vport->qs_offset + i);
 		shap_cfg_cmd->qs_shapping_para = cpu_to_le32(shaper_para);
+
+		hnae3_set_bit(shap_cfg_cmd->flag, HCLGE_TM_RATE_VLD, 1);
+		shap_cfg_cmd->qs_rate = cpu_to_le32(max_tx_rate);
 
 		ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 		if (ret) {
@@ -762,9 +777,10 @@ static int hclge_tm_pg_shaper_cfg(struct hclge_dev *hdev)
 
 	/* Pg to pri */
 	for (i = 0; i < hdev->tm_info.num_pg; i++) {
+		u32 rate = hdev->tm_info.pg_info[i].bw_limit;
+
 		/* Calc shaper para */
-		ret = hclge_shaper_para_calc(hdev->tm_info.pg_info[i].bw_limit,
-					     HCLGE_SHAPER_LVL_PG,
+		ret = hclge_shaper_para_calc(rate, HCLGE_SHAPER_LVL_PG,
 					     &ir_para, max_tm_rate);
 		if (ret)
 			return ret;
@@ -774,7 +790,7 @@ static int hclge_tm_pg_shaper_cfg(struct hclge_dev *hdev)
 							 HCLGE_SHAPER_BS_S_DEF);
 		ret = hclge_tm_pg_shapping_cfg(hdev,
 					       HCLGE_TM_SHAP_C_BUCKET, i,
-					       shaper_para);
+					       shaper_para, rate);
 		if (ret)
 			return ret;
 
@@ -785,7 +801,7 @@ static int hclge_tm_pg_shaper_cfg(struct hclge_dev *hdev)
 							 HCLGE_SHAPER_BS_S_DEF);
 		ret = hclge_tm_pg_shapping_cfg(hdev,
 					       HCLGE_TM_SHAP_P_BUCKET, i,
-					       shaper_para);
+					       shaper_para, rate);
 		if (ret)
 			return ret;
 	}
@@ -891,8 +907,9 @@ static int hclge_tm_pri_tc_base_shaper_cfg(struct hclge_dev *hdev)
 	u32 i;
 
 	for (i = 0; i < hdev->tm_info.num_tc; i++) {
-		ret = hclge_shaper_para_calc(hdev->tm_info.tc_info[i].bw_limit,
-					     HCLGE_SHAPER_LVL_PRI,
+		u32 rate = hdev->tm_info.tc_info[i].bw_limit;
+
+		ret = hclge_shaper_para_calc(rate, HCLGE_SHAPER_LVL_PRI,
 					     &ir_para, max_tm_rate);
 		if (ret)
 			return ret;
@@ -901,7 +918,7 @@ static int hclge_tm_pri_tc_base_shaper_cfg(struct hclge_dev *hdev)
 							 HCLGE_SHAPER_BS_U_DEF,
 							 HCLGE_SHAPER_BS_S_DEF);
 		ret = hclge_tm_pri_shapping_cfg(hdev, HCLGE_TM_SHAP_C_BUCKET, i,
-						shaper_para);
+						shaper_para, rate);
 		if (ret)
 			return ret;
 
@@ -911,7 +928,7 @@ static int hclge_tm_pri_tc_base_shaper_cfg(struct hclge_dev *hdev)
 							 HCLGE_SHAPER_BS_U_DEF,
 							 HCLGE_SHAPER_BS_S_DEF);
 		ret = hclge_tm_pri_shapping_cfg(hdev, HCLGE_TM_SHAP_P_BUCKET, i,
-						shaper_para);
+						shaper_para, rate);
 		if (ret)
 			return ret;
 	}
@@ -936,7 +953,8 @@ static int hclge_tm_pri_vnet_base_shaper_pri_cfg(struct hclge_vport *vport)
 						 HCLGE_SHAPER_BS_U_DEF,
 						 HCLGE_SHAPER_BS_S_DEF);
 	ret = hclge_tm_pri_shapping_cfg(hdev, HCLGE_TM_SHAP_C_BUCKET,
-					vport->vport_id, shaper_para);
+					vport->vport_id, shaper_para,
+					vport->bw_limit);
 	if (ret)
 		return ret;
 
@@ -945,7 +963,8 @@ static int hclge_tm_pri_vnet_base_shaper_pri_cfg(struct hclge_vport *vport)
 						 HCLGE_SHAPER_BS_U_DEF,
 						 HCLGE_SHAPER_BS_S_DEF);
 	ret = hclge_tm_pri_shapping_cfg(hdev, HCLGE_TM_SHAP_P_BUCKET,
-					vport->vport_id, shaper_para);
+					vport->vport_id, shaper_para,
+					vport->bw_limit);
 	if (ret)
 		return ret;
 

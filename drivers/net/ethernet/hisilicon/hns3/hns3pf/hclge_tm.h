@@ -92,22 +92,34 @@ enum hclge_shap_bucket {
 	HCLGE_TM_SHAP_P_BUCKET,
 };
 
+/* set bit HCLGE_TM_RATE_VLD to 1 means use 'rate' to config shaping */
+#define HCLGE_TM_RATE_VLD	0
+
 struct hclge_pri_shapping_cmd {
 	u8 pri_id;
 	u8 rsvd[3];
 	__le32 pri_shapping_para;
+	u8 flag;
+	u8 rsvd1[3];
+	__le32 pri_rate;
 };
 
 struct hclge_pg_shapping_cmd {
 	u8 pg_id;
 	u8 rsvd[3];
 	__le32 pg_shapping_para;
+	u8 flag;
+	u8 rsvd1[3];
+	__le32 pg_rate;
 };
 
 struct hclge_qs_shapping_cmd {
 	__le16 qs_id;
 	u8 rsvd[2];
 	__le32 qs_shapping_para;
+	u8 flag;
+	u8 rsvd1[3];
+	__le32 qs_rate;
 };
 
 #define HCLGE_BP_GRP_NUM		32
@@ -150,6 +162,9 @@ struct hclge_pfc_stats_cmd {
 
 struct hclge_port_shapping_cmd {
 	__le32 port_shapping_para;
+	u8 flag;
+	u8 rsvd[3];
+	__le32 port_rate;
 };
 
 struct hclge_shaper_ir_para {
