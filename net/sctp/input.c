@@ -633,7 +633,7 @@ int sctp_v4_err(struct sk_buff *skb, __u32 info)
 		break;
 	case ICMP_REDIRECT:
 		sctp_icmp_redirect(sk, transport, skb);
-		/* Fall through to out_unlock. */
+		goto out_unlock;
 	default:
 		goto out_unlock;
 	}
@@ -1236,6 +1236,7 @@ static struct sctp_association *__sctp_rcv_walk_lookup(struct net *net,
 						net, ch, laddr,
 						sctp_hdr(skb)->source,
 						transportp);
+			break;
 		default:
 			break;
 		}
