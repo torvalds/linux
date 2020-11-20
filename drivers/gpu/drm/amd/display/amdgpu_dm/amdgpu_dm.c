@@ -8982,12 +8982,22 @@ static int dm_update_plane_state(struct dc *dc,
 			return -EINVAL;
 		}
 
+		if (new_plane_state->src_x != 0 || new_plane_state->src_y != 0) {
+			DRM_DEBUG_ATOMIC("Cropping not supported for cursor plane\n");
+			return -EINVAL;
+		}
+
 		if (new_plane_state->fb) {
 			if (new_plane_state->fb->width > new_acrtc->max_cursor_width ||
 			    new_plane_state->fb->height > new_acrtc->max_cursor_height) {
 				DRM_DEBUG_ATOMIC("Bad cursor FB size %dx%d\n",
 						 new_plane_state->fb->width,
 						 new_plane_state->fb->height);
+				return -EINVAL;
+			}
+			if (new_plane_state->src_w != new_plane_state->fb->width << 16 ||
+			    new_plane_state->src_h != new_plane_state->fb->height << 16) {
+				DRM_DEBUG_ATOMIC("Cropping not supported for cursor plane\n");
 				return -EINVAL;
 			}
 
