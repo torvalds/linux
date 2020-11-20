@@ -489,13 +489,6 @@ static int aspeed_mctp_open(struct inode *inode, struct file *file)
 		return -ENOMEM;
 
 	file->private_data = client;
-	/*
-	 * XXX Temporary hack: use first user space client as default client
-	 * that receives all packets - remove this code once the mctpd
-	 * service registers itself as default client.
-	 */
-	if (!priv->default_client)
-		priv->default_client = client;
 
 	return 0;
 }
@@ -615,6 +608,23 @@ out:
 	return ret;
 }
 
+static int aspeed_mctp_register_default_handler(struct mctp_client *client)
+{
+	struct aspeed_mctp *priv = client->priv;
+	int ret = 0;
+
+	spin_lock_bh(&priv->clients_lock);
+
+	if (!priv->default_client)
+		priv->default_client = client;
+	else if (priv->default_client != client)
+		ret = -EBUSY;
+
+	spin_unlock_bh(&priv->clients_lock);
+
+	return ret;
+}
+
 static int
 aspeed_mctp_filter_eid(struct aspeed_mctp *priv, void __user *userbuf)
 {
@@ -696,9 +706,13 @@ aspeed_mctp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		ret = aspeed_mctp_get_mtu(priv, userbuf);
 	break;
 
+	case ASPEED_MCTP_IOCTL_REGISTER_DEFAULT_HANDLER:
+		ret = aspeed_mctp_register_default_handler(client);
+	break;
+
 	default:
 		dev_err(priv->dev, "Command not found\n");
-		ret = -EINVAL;
+		ret = -ENOTTY;
 	}
 
 	return ret;
