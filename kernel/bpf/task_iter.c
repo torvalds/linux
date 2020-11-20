@@ -183,7 +183,7 @@ again:
 	for (; curr_fd < max_fds; curr_fd++) {
 		struct file *f;
 
-		f = fcheck_files(curr_files, curr_fd);
+		f = files_lookup_fd_rcu(curr_files, curr_fd);
 		if (!f)
 			continue;
 		if (!get_file_rcu(f))

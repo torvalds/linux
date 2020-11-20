@@ -98,10 +98,9 @@ static inline struct file *files_lookup_fd_locked(struct files_struct *files, un
 	return files_lookup_fd_raw(files, fd);
 }
 
-static inline struct file *fcheck_files(struct files_struct *files, unsigned int fd)
+static inline struct file *files_lookup_fd_rcu(struct files_struct *files, unsigned int fd)
 {
-	RCU_LOCKDEP_WARN(!rcu_read_lock_held() &&
-			   !lockdep_is_held(&files->file_lock),
+	RCU_LOCKDEP_WARN(!rcu_read_lock_held(),
 			   "suspicious rcu_dereference_check() usage");
 	return files_lookup_fd_raw(files, fd);
 }
@@ -109,7 +108,7 @@ static inline struct file *fcheck_files(struct files_struct *files, unsigned int
 /*
  * Check whether the specified fd has an open file.
  */
-#define fcheck(fd)	fcheck_files(current->files, fd)
+#define fcheck(fd)	files_lookup_fd_rcu(current->files, fd)
 
 struct task_struct;
 

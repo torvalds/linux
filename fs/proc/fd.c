@@ -90,7 +90,7 @@ static bool tid_fd_mode(struct task_struct *task, unsigned fd, fmode_t *mode)
 		return false;
 
 	rcu_read_lock();
-	file = fcheck_files(files, fd);
+	file = files_lookup_fd_rcu(files, fd);
 	if (file)
 		*mode = file->f_mode;
 	rcu_read_unlock();
@@ -243,7 +243,7 @@ static int proc_readfd_common(struct file *file, struct dir_context *ctx,
 		char name[10 + 1];
 		unsigned int len;
 
-		f = fcheck_files(files, fd);
+		f = files_lookup_fd_rcu(files, fd);
 		if (!f)
 			continue;
 		data.mode = f->f_mode;

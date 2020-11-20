@@ -67,7 +67,7 @@ get_file_raw_ptr(struct task_struct *task, unsigned int idx)
 	rcu_read_lock();
 
 	if (task->files)
-		file = fcheck_files(task->files, idx);
+		file = files_lookup_fd_rcu(task->files, idx);
 
 	rcu_read_unlock();
 	task_unlock(task);
