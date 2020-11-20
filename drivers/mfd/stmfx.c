@@ -548,7 +548,7 @@ MODULE_DEVICE_TABLE(of, stmfx_of_match);
 static struct i2c_driver stmfx_driver = {
 	.driver = {
 		.name = "stmfx-core",
-		.of_match_table = of_match_ptr(stmfx_of_match),
+		.of_match_table = stmfx_of_match,
 		.pm = &stmfx_dev_pm_ops,
 	},
 	.probe = stmfx_probe,
