@@ -8762,6 +8762,16 @@ static bool update_pick_idlest(struct sched_group *idlest,
 }
 
 /*
+ * Allow a NUMA imbalance if busy CPUs is less than 25% of the domain.
+ * This is an approximation as the number of running tasks may not be
+ * related to the number of busy CPUs due to sched_setaffinity.
+ */
+static inline bool allow_numa_imbalance(int dst_running, int dst_weight)
+{
+	return (dst_running < (dst_weight >> 2));
+}
+
+/*
  * find_idlest_group() finds and returns the least busy CPU group within the
  * domain.
  *
@@ -8893,7 +8903,7 @@ find_idlest_group(struct sched_domain *sd, struct task_struct *p, int this_cpu)
 			 * a real need of migration, periodic load balance will
 			 * take care of it.
 			 */
-			if (local_sgs.idle_cpus)
+			if (allow_numa_imbalance(local_sgs.sum_nr_running, sd->span_weight))
 				return NULL;
 		}
 
@@ -9000,11 +9010,14 @@ next_group:
 static inline long adjust_numa_imbalance(int imbalance,
 				int dst_running, int dst_weight)
 {
+	if (!allow_numa_imbalance(dst_running, dst_weight))
+		return imbalance;
+
 	/*
 	 * Allow a small imbalance based on a simple pair of communicating
 	 * tasks that remain local when the destination is lightly loaded.
 	 */
-	if (dst_running < (dst_weight >> 2) && imbalance <= NUMA_IMBALANCE_MIN)
+	if (imbalance <= NUMA_IMBALANCE_MIN)
 		return 0;
 
 	return imbalance;
