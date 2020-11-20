@@ -508,6 +508,7 @@ struct vop2_video_port_regs {
 	struct vop_reg out_mode;
 	struct vop_reg standby;
 	struct vop_reg dsp_interlace;
+	struct vop_reg dsp_filed_pol;
 	struct vop_reg dsp_data_swap;
 	struct vop_reg pre_scan_htiming;
 	struct vop_reg htotal_pw;
@@ -648,6 +649,8 @@ struct vop2_layer_data {
 
 struct vop_grf_ctrl {
 	struct vop_reg grf_dclk_inv;
+	struct vop_reg grf_bt1120_clk_inv;
+	struct vop_reg grf_bt656_clk_inv;
 };
 
 struct vop_data {
@@ -734,6 +737,9 @@ struct vop2_ctrl {
 	struct vop_reg dst_alpha_ctrl;
 
 	struct vop_reg bt1120_yc_swap;
+	struct vop_reg bt1120_uv_swap;
+	struct vop_reg bt656_yc_swap;
+	struct vop_reg bt656_uv_swap;
 
 	struct vop_reg reg_done_frm;
 	struct vop_reg cfg_done;

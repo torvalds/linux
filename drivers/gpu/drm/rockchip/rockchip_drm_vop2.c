@@ -790,13 +790,30 @@ static bool vop2_output_uv_swap(uint32_t bus_format, uint32_t output_mode)
 	 *
 	 * From H/W testing, YUV444 mode need a rb swap.
 	 */
-	if ((bus_format == MEDIA_BUS_FMT_YUV8_1X24 ||
-	     bus_format == MEDIA_BUS_FMT_YUV10_1X30) &&
-	    (output_mode == ROCKCHIP_OUT_MODE_AAAA ||
-	     output_mode == ROCKCHIP_OUT_MODE_P888))
+	if (bus_format == MEDIA_BUS_FMT_YVYU8_1X16 ||
+	    bus_format == MEDIA_BUS_FMT_VYUY8_1X16 ||
+	    bus_format == MEDIA_BUS_FMT_YVYU8_2X8 ||
+	    bus_format == MEDIA_BUS_FMT_VYUY8_2X8 ||
+	    ((bus_format == MEDIA_BUS_FMT_YUV8_1X24 ||
+	      bus_format == MEDIA_BUS_FMT_YUV10_1X30) &&
+	     (output_mode == ROCKCHIP_OUT_MODE_AAAA ||
+	      output_mode == ROCKCHIP_OUT_MODE_P888)))
 		return true;
 	else
 		return false;
+}
+
+static bool vop2_output_yc_swap(uint32_t bus_format)
+{
+	switch (bus_format) {
+	case MEDIA_BUS_FMT_YUYV8_1X16:
+	case MEDIA_BUS_FMT_YVYU8_1X16:
+	case MEDIA_BUS_FMT_YUYV8_2X8:
+	case MEDIA_BUS_FMT_YVYU8_2X8:
+		return true;
+	default:
+		return false;
+	}
 }
 
 static bool is_yuv_support(uint32_t format)
@@ -823,7 +840,13 @@ static bool is_yuv_output(uint32_t bus_format)
 	case MEDIA_BUS_FMT_UYYVYY8_0_5X24:
 	case MEDIA_BUS_FMT_UYYVYY10_0_5X30:
 	case MEDIA_BUS_FMT_YUYV8_2X8:
+	case MEDIA_BUS_FMT_YVYU8_2X8:
+	case MEDIA_BUS_FMT_UYVY8_2X8:
+	case MEDIA_BUS_FMT_VYUY8_2X8:
 	case MEDIA_BUS_FMT_YUYV8_1X16:
+	case MEDIA_BUS_FMT_YVYU8_1X16:
+	case MEDIA_BUS_FMT_UYVY8_1X16:
+	case MEDIA_BUS_FMT_VYUY8_1X16:
 		return true;
 	default:
 		return false;
@@ -2635,7 +2658,7 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 	int sys_status = SYS_STATUS_LCDC0;
 	uint8_t out_mode;
 	int for_ddr_freq = 0;
-	bool dclk_inv;
+	bool dclk_inv, yc_swap = false, uv_swap = false;
 	int act_end;
 	uint32_t val;
 
@@ -2666,13 +2689,24 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 	}
 
 	if (vcstate->output_if & VOP_OUTPUT_IF_BT1120) {
+		VOP_CTRL_SET(vop2, rgb_en, 1);
 		VOP_CTRL_SET(vop2, bt1120_en, 1);
 		VOP_CTRL_SET(vop2, rgb_mux, vp_data->id);
+		VOP_GRF_SET(vop2, grf_bt1120_clk_inv, !dclk_inv);
+		yc_swap = vop2_output_yc_swap(vcstate->bus_format);
+		uv_swap = vop2_output_uv_swap(vcstate->bus_format, vcstate->output_mode);
+		VOP_CTRL_SET(vop2, bt1120_yc_swap, yc_swap);
+		VOP_CTRL_SET(vop2, bt1120_uv_swap, uv_swap);
 	}
 
 	if (vcstate->output_if & VOP_OUTPUT_IF_BT656) {
 		VOP_CTRL_SET(vop2, bt656_en, 1);
 		VOP_CTRL_SET(vop2, rgb_mux, vp_data->id);
+		VOP_GRF_SET(vop2, grf_bt656_clk_inv, !dclk_inv);
+		yc_swap = vop2_output_yc_swap(vcstate->bus_format);
+		uv_swap = vop2_output_uv_swap(vcstate->bus_format, vcstate->output_mode);
+		VOP_CTRL_SET(vop2, bt656_yc_swap, yc_swap);
+		VOP_CTRL_SET(vop2, bt656_uv_swap, uv_swap);
 	}
 
 	if (vcstate->output_if & VOP_OUTPUT_IF_LVDS0) {
@@ -2802,11 +2836,13 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 		val = vtotal << 16 | (vtotal + vsync_len);
 		VOP_MODULE_SET(vop2, vp, vs_st_end_f1, val);
 		VOP_MODULE_SET(vop2, vp, dsp_interlace, 1);
+		VOP_MODULE_SET(vop2, vp, dsp_filed_pol, 1);
 		VOP_MODULE_SET(vop2, vp, p2i_en, 1);
 		vtotal += vtotal + 1;
 		act_end = vact_end_f1;
 	} else {
 		VOP_MODULE_SET(vop2, vp, dsp_interlace, 0);
+		VOP_MODULE_SET(vop2, vp, dsp_filed_pol, 0);
 		VOP_MODULE_SET(vop2, vp, p2i_en, 0);
 		act_end = vact_end;
 	}

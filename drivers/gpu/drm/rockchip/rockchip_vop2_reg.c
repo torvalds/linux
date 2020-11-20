@@ -355,6 +355,7 @@ static const struct vop2_video_port_regs rk3568_vop_vp0_regs = {
 	.standby = VOP_REG(RK3568_VP0_DSP_CTRL, 0x1, 31),
 	.core_dclk_div = VOP_REG(RK3568_VP0_DSP_CTRL, 0x1, 4),
 	.p2i_en = VOP_REG(RK3568_VP0_DSP_CTRL, 0x1, 5),
+	.dsp_filed_pol = VOP_REG(RK3568_VP0_DSP_CTRL, 0x1, 6),
 	.dsp_interlace = VOP_REG(RK3568_VP0_DSP_CTRL, 0x1, 7),
 	.dsp_data_swap = VOP_REG(RK3568_VP0_DSP_CTRL, 0x1f, 8),
 	.pre_scan_htiming = VOP_REG(RK3568_VP0_PRE_SCAN_HTIMING, 0x1fff1fff, 0),
@@ -411,6 +412,7 @@ static const struct vop2_video_port_regs rk3568_vop_vp1_regs = {
 	.standby = VOP_REG(RK3568_VP1_DSP_CTRL, 0x1, 31),
 	.core_dclk_div = VOP_REG(RK3568_VP1_DSP_CTRL, 0x1, 4),
 	.p2i_en = VOP_REG(RK3568_VP1_DSP_CTRL, 0x1, 5),
+	.dsp_filed_pol = VOP_REG(RK3568_VP1_DSP_CTRL, 0x1, 6),
 	.dsp_interlace = VOP_REG(RK3568_VP1_DSP_CTRL, 0x1, 7),
 	.dsp_data_swap = VOP_REG(RK3568_VP1_DSP_CTRL, 0x1f, 8),
 	.pre_scan_htiming = VOP_REG(RK3568_VP1_PRE_SCAN_HTIMING, 0x1fff1fff, 0),
@@ -442,6 +444,7 @@ static const struct vop2_video_port_regs rk3568_vop_vp2_regs = {
 	.standby = VOP_REG(RK3568_VP2_DSP_CTRL, 0x1, 31),
 	.core_dclk_div = VOP_REG(RK3568_VP2_DSP_CTRL, 0x1, 4),
 	.p2i_en = VOP_REG(RK3568_VP2_DSP_CTRL, 0x1, 5),
+	.dsp_filed_pol = VOP_REG(RK3568_VP2_DSP_CTRL, 0x1, 6),
 	.dsp_interlace = VOP_REG(RK3568_VP2_DSP_CTRL, 0x1, 7),
 	.dsp_data_swap = VOP_REG(RK3568_VP2_DSP_CTRL, 0x1f, 8),
 	.pre_scan_htiming = VOP_REG(RK3568_VP2_PRE_SCAN_HTIMING, 0x1fff1fff, 0),
@@ -928,6 +931,8 @@ static const struct vop2_win_data rk3568_vop_win_data[] = {
 };
 
 static const struct vop_grf_ctrl rk3568_grf_ctrl = {
+	.grf_bt656_clk_inv = VOP_REG(RK3568_GRF_VO_CON1, 0x1, 1),
+	.grf_bt1120_clk_inv = VOP_REG(RK3568_GRF_VO_CON1, 0x1, 2),
 	.grf_dclk_inv = VOP_REG(RK3568_GRF_VO_CON1, 0x1, 3),
 };
 
@@ -964,6 +969,10 @@ static const struct vop2_ctrl rk3568_vop_ctrl = {
 	.lvds_dual_en = VOP_REG(RK3568_DSP_IF_CTRL, 0x1, 0),
 	.lvds_dual_mode = VOP_REG(RK3568_DSP_IF_CTRL, 0x1, 1),
 	.lvds_dual_channel_swap = VOP_REG(RK3568_DSP_IF_CTRL, 0x1, 2),
+	.bt656_uv_swap = VOP_REG(RK3568_DSP_IF_CTRL, 0x1, 4),
+	.bt656_yc_swap = VOP_REG(RK3568_DSP_IF_CTRL, 0x1, 5),
+	.bt1120_uv_swap = VOP_REG(RK3568_DSP_IF_CTRL, 0x1, 8),
+	.bt1120_yc_swap = VOP_REG(RK3568_DSP_IF_CTRL, 0x1, 9),
 	.lvds_pin_pol = VOP_REG(RK3568_DSP_IF_POL, 0x7, 0),
 	.lvds_dclk_pol = VOP_REG(RK3568_DSP_IF_POL, 0x1, 3),
 	.hdmi_pin_pol = VOP_REG(RK3568_DSP_IF_POL, 0x7, 4),
