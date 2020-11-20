@@ -3020,6 +3020,11 @@ static int rockchip_set_pull(struct rockchip_pin_bank *bank,
 			}
 		}
 
+		if (ctrl->type == RK3568 && bank->bank_num == 0 && pin_num >= 27 && pin_num <= 30) {
+			if (ret == 1)
+				ret = 3;
+		}
+
 		if (ret < 0) {
 			dev_err(info->dev, "unsupported pull setting %d\n",
 				pull);
