@@ -1487,6 +1487,7 @@ static const struct of_device_id va_macro_dt_match[] = {
 	{ .compatible = "qcom,sm8250-lpass-va-macro" },
 	{}
 };
+MODULE_DEVICE_TABLE(of, va_macro_dt_match);
 
 static struct platform_driver va_macro_driver = {
 	.driver = {
