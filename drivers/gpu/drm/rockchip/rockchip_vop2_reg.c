@@ -941,7 +941,7 @@ static const struct vop_grf_ctrl rk3568_grf_ctrl = {
 
 static const struct vop2_ctrl rk3568_vop_ctrl = {
 	.cfg_done_en = VOP_REG(RK3568_REG_CFG_DONE, 0x1, 15),
-	.ovl_cfg_done_port = VOP_REG(RK3568_OVL_LAYER_SEL, 0x3, 30),
+	.ovl_cfg_done_port = VOP_REG(RK3568_OVL_CTRL, 0x3, 30),
 	.ovl_port_mux_cfg_done_imd = VOP_REG(RK3568_OVL_CTRL, 0x1, 28),
 	.if_ctrl_cfg_done_imd = VOP_REG(RK3568_DSP_IF_POL, 0x1, 28),
 	.version = VOP_REG(RK3568_VERSION_INFO, 0xffff, 16),
