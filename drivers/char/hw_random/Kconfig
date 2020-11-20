@@ -348,19 +348,6 @@ config HW_RANDOM_HISI
 
 	  If unsure, say Y.
 
-config HW_RANDOM_HISI_V2
-	tristate "HiSilicon True Random Number Generator V2 support"
-	depends on HW_RANDOM && ARM64 && ACPI
-	default HW_RANDOM
-	help
-	  This driver provides kernel-side support for the True Random Number
-	  Generator V2 hardware found on HiSilicon Hi1620 SoC.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called hisi-trng-v2.
-
-	  If unsure, say Y.
-
 config HW_RANDOM_ST
 	tristate "ST Microelectronics HW Random Number Generator support"
 	depends on HW_RANDOM && ARCH_STI
