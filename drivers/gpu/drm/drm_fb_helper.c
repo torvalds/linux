@@ -391,14 +391,32 @@ static void drm_fb_helper_damage_blit_real(struct drm_fb_helper *fb_helper,
 	}
 }
 
+static int drm_fb_helper_damage_blit(struct drm_fb_helper *fb_helper,
+				     struct drm_clip_rect *clip)
+{
+	struct drm_client_buffer *buffer = fb_helper->buffer;
+	struct dma_buf_map map;
+	int ret;
+
+	ret = drm_client_buffer_vmap(buffer, &map);
+	if (ret)
+		return ret;
+
+	drm_fb_helper_damage_blit_real(fb_helper, clip, &map);
+
+	drm_client_buffer_vunmap(buffer);
+
+	return 0;
+}
+
 static void drm_fb_helper_damage_work(struct work_struct *work)
 {
 	struct drm_fb_helper *helper = container_of(work, struct drm_fb_helper,
 						    damage_work);
+	struct drm_device *dev = helper->dev;
 	struct drm_clip_rect *clip = &helper->damage_clip;
 	struct drm_clip_rect clip_copy;
 	unsigned long flags;
-	struct dma_buf_map map;
 	int ret;
 
 	spin_lock_irqsave(&helper->damage_lock, flags);
@@ -411,13 +429,10 @@ static void drm_fb_helper_damage_work(struct work_struct *work)
 	if (!(clip_copy.x1 < clip_copy.x2 && clip_copy.y1 < clip_copy.y2))
 		return;
 
-	/* Generic fbdev uses a shadow buffer */
 	if (helper->buffer) {
-		ret = drm_client_buffer_vmap(helper->buffer, &map);
-		if (ret)
+		ret = drm_fb_helper_damage_blit(helper, &clip_copy);
+		if (drm_WARN_ONCE(dev, ret, "Damage blitter failed: ret=%d\n", ret))
 			return;
-		drm_fb_helper_damage_blit_real(helper, &clip_copy, &map);
-		drm_client_buffer_vunmap(helper->buffer);
 	}
 
 	if (helper->fb->funcs->dirty)
