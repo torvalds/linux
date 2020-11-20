@@ -417,13 +417,11 @@ static void drm_fb_helper_damage_work(struct work_struct *work)
 		if (ret)
 			return;
 		drm_fb_helper_damage_blit_real(helper, &clip_copy, &map);
+		drm_client_buffer_vunmap(helper->buffer);
 	}
 
 	if (helper->fb->funcs->dirty)
 		helper->fb->funcs->dirty(helper->fb, NULL, 0, 0, &clip_copy, 1);
-
-	if (helper->buffer)
-		drm_client_buffer_vunmap(helper->buffer);
 }
 
 /**
