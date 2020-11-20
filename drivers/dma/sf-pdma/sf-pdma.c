@@ -582,7 +582,7 @@ static struct platform_driver sf_pdma_driver = {
 	.remove		= sf_pdma_remove,
 	.driver		= {
 		.name	= "sf-pdma",
-		.of_match_table = of_match_ptr(sf_pdma_dt_ids),
+		.of_match_table = sf_pdma_dt_ids,
 	},
 };
 
