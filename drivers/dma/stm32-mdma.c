@@ -1345,7 +1345,7 @@ static irqreturn_t stm32_mdma_irq_handler(int irq, void *devid)
 {
 	struct stm32_mdma_device *dmadev = devid;
 	struct stm32_mdma_chan *chan = devid;
-	u32 reg, id, ien, status, flag;
+	u32 reg, id, ccr, ien, status;
 
 	/* Find out which channel generates the interrupt */
 	status = readl_relaxed(dmadev->base + STM32_MDMA_GISR0);
@@ -1357,67 +1357,71 @@ static irqreturn_t stm32_mdma_irq_handler(int irq, void *devid)
 
 	chan = &dmadev->chan[id];
 	if (!chan) {
-		dev_dbg(mdma2dev(dmadev), "MDMA channel not initialized\n");
-		goto exit;
+		dev_warn(mdma2dev(dmadev), "MDMA channel not initialized\n");
+		return IRQ_NONE;
 	}
 
 	/* Handle interrupt for the channel */
 	spin_lock(&chan->vchan.lock);
-	status = stm32_mdma_read(dmadev, STM32_MDMA_CISR(chan->id));
-	ien = stm32_mdma_read(dmadev, STM32_MDMA_CCR(chan->id));
-	ien &= STM32_MDMA_CCR_IRQ_MASK;
-	ien >>= 1;
+	status = stm32_mdma_read(dmadev, STM32_MDMA_CISR(id));
+	/* Mask Channel ReQuest Active bit which can be set in case of MEM2MEM */
+	status &= ~STM32_MDMA_CISR_CRQA;
+	ccr = stm32_mdma_read(dmadev, STM32_MDMA_CCR(id));
+	ien = (ccr & STM32_MDMA_CCR_IRQ_MASK) >> 1;
 
 	if (!(status & ien)) {
 		spin_unlock(&chan->vchan.lock);
-		dev_dbg(chan2dev(chan),
-			"spurious it (status=0x%04x, ien=0x%04x)\n",
-			status, ien);
+		dev_warn(chan2dev(chan),
+			 "spurious it (status=0x%04x, ien=0x%04x)\n",
+			 status, ien);
 		return IRQ_NONE;
 	}
 
-	flag = __ffs(status & ien);
-	reg = STM32_MDMA_CIFCR(chan->id);
+	reg = STM32_MDMA_CIFCR(id);
 
-	switch (1 << flag) {
-	case STM32_MDMA_CISR_TEIF:
-		id = chan->id;
-		status = readl_relaxed(dmadev->base + STM32_MDMA_CESR(id));
-		dev_err(chan2dev(chan), "Transfer Err: stat=0x%08x\n", status);
+	if (status & STM32_MDMA_CISR_TEIF) {
+		dev_err(chan2dev(chan), "Transfer Err: stat=0x%08x\n",
+			readl_relaxed(dmadev->base + STM32_MDMA_CESR(id)));
 		stm32_mdma_set_bits(dmadev, reg, STM32_MDMA_CIFCR_CTEIF);
-		break;
+		status &= ~STM32_MDMA_CISR_TEIF;
+	}
 
-	case STM32_MDMA_CISR_CTCIF:
+	if (status & STM32_MDMA_CISR_CTCIF) {
 		stm32_mdma_set_bits(dmadev, reg, STM32_MDMA_CIFCR_CCTCIF);
+		status &= ~STM32_MDMA_CISR_CTCIF;
 		stm32_mdma_xfer_end(chan);
-		break;
+	}
 
-	case STM32_MDMA_CISR_BRTIF:
+	if (status & STM32_MDMA_CISR_BRTIF) {
 		stm32_mdma_set_bits(dmadev, reg, STM32_MDMA_CIFCR_CBRTIF);
-		break;
+		status &= ~STM32_MDMA_CISR_BRTIF;
+	}
 
-	case STM32_MDMA_CISR_BTIF:
+	if (status & STM32_MDMA_CISR_BTIF) {
 		stm32_mdma_set_bits(dmadev, reg, STM32_MDMA_CIFCR_CBTIF);
+		status &= ~STM32_MDMA_CISR_BTIF;
 		chan->curr_hwdesc++;
 		if (chan->desc && chan->desc->cyclic) {
 			if (chan->curr_hwdesc == chan->desc->count)
 				chan->curr_hwdesc = 0;
 			vchan_cyclic_callback(&chan->desc->vdesc);
 		}
-		break;
+	}
 
-	case STM32_MDMA_CISR_TCIF:
+	if (status & STM32_MDMA_CISR_TCIF) {
 		stm32_mdma_set_bits(dmadev, reg, STM32_MDMA_CIFCR_CLTCIF);
-		break;
+		status &= ~STM32_MDMA_CISR_TCIF;
+	}
 
-	default:
-		dev_err(chan2dev(chan), "it %d unhandled (status=0x%04x)\n",
-			1 << flag, status);
+	if (status) {
+		stm32_mdma_set_bits(dmadev, reg, status);
+		dev_err(chan2dev(chan), "DMA error: status=0x%08x\n", status);
+		if (!(ccr & STM32_MDMA_CCR_EN))
+			dev_err(chan2dev(chan), "chan disabled by HW\n");
 	}
 
 	spin_unlock(&chan->vchan.lock);
 
-exit:
 	return IRQ_HANDLED;
 }
 
