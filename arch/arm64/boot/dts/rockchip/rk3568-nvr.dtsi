@@ -316,7 +316,6 @@
 	bus-width = <8>;
 	supports-emmc;
 	non-removable;
-	keep-power-in-suspend;
 	status = "okay";
 };
 
