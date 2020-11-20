@@ -3066,7 +3066,7 @@ err_free_tv:
  */
 static void __exit tcrypt_mod_fini(void) { }
 
-subsys_initcall(tcrypt_mod_init);
+late_initcall(tcrypt_mod_init);
 module_exit(tcrypt_mod_fini);
 
 module_param(alg, charp, 0);
