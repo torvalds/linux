@@ -471,6 +471,7 @@ static int rxrpc_connect(struct socket *sock, struct sockaddr *addr,
 	switch (rx->sk.sk_state) {
 	case RXRPC_UNBOUND:
 		rx->sk.sk_state = RXRPC_CLIENT_UNBOUND;
+		break;
 	case RXRPC_CLIENT_UNBOUND:
 	case RXRPC_CLIENT_BOUND:
 		break;
