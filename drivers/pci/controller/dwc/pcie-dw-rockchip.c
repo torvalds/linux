@@ -1180,11 +1180,13 @@ static int rk_pcie_probe(struct platform_device *pdev)
 		break;
 	}
 
-	rk_pcie->dma_obj->start_dma_func = rk_pcie_start_dma_dwc;
-	rk_pcie->dma_obj->config_dma_func = rk_pcie_config_dma_dwc;
-
 	if (ret)
 		goto deinit_clk;
+
+	if (rk_pcie->dma_obj) {
+		rk_pcie->dma_obj->start_dma_func = rk_pcie_start_dma_dwc;
+		rk_pcie->dma_obj->config_dma_func = rk_pcie_config_dma_dwc;
+	}
 
 	if (rk_pcie->is_rk1808) {
 		/* hold link reset grant after link-up */

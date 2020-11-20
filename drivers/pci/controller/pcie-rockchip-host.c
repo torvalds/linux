@@ -1276,8 +1276,10 @@ static int rockchip_pcie_probe(struct platform_device *pdev)
 		goto err_probe_dma;
 	}
 
-	rockchip->dma_obj->start_dma_func = rk_pcie_start_dma_rk3399;
-	rockchip->dma_obj->config_dma_func = rk_pcie_config_dma_rk3399;
+	if (rockchip->dma_obj) {
+		rockchip->dma_obj->start_dma_func = rk_pcie_start_dma_rk3399;
+		rockchip->dma_obj->config_dma_func = rk_pcie_config_dma_rk3399;
+	}
 
 	return 0;
 
