@@ -4206,7 +4206,7 @@ static int io_close(struct io_kiocb *req, bool force_nonblock,
 
 	/* might be already done during nonblock submission */
 	if (!close->put_file) {
-		ret = __close_fd_get_file(close->fd, &close->put_file);
+		ret = close_fd_get_file(close->fd, &close->put_file);
 		if (ret < 0)
 			return (ret == -ENOENT) ? -EBADF : ret;
 	}
