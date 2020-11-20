@@ -9,6 +9,7 @@
  * Many thanks to all socketcan devs!
  */
 
+#include <linux/ethtool.h>
 #include <linux/init.h>
 #include <linux/signal.h>
 #include <linux/module.h>

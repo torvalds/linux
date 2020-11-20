@@ -11,6 +11,7 @@
 #ifndef OTX2_COMMON_H
 #define OTX2_COMMON_H
 
+#include <linux/ethtool.h>
 #include <linux/pci.h>
 #include <linux/iommu.h>
 #include <linux/net_tstamp.h>

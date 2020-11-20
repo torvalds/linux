@@ -34,7 +34,6 @@
 #include <linux/workqueue.h>
 #include <linux/dynamic_queue_limits.h>
 
-#include <linux/ethtool.h>
 #include <net/net_namespace.h>
 #ifdef CONFIG_DCB
 #include <net/dcbnl.h>
@@ -51,6 +50,7 @@
 
 struct netpoll_info;
 struct device;
+struct ethtool_ops;
 struct phy_device;
 struct dsa_port;
 struct ip_tunnel_parm;

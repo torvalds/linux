@@ -51,6 +51,7 @@
 #include "i2400m-usb.h"
 #include "linux-wimax-i2400m.h"
 #include <linux/debugfs.h>
+#include <linux/ethtool.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 

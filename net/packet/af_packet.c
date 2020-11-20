@@ -46,6 +46,7 @@
  *					Copyright (C) 2011, <lokec@ccs.neu.edu>
  */
 
+#include <linux/ethtool.h>
 #include <linux/types.h>
 #include <linux/mm.h>
 #include <linux/capability.h>

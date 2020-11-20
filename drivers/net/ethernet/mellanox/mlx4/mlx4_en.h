@@ -36,6 +36,7 @@
 
 #include <linux/bitops.h>
 #include <linux/compiler.h>
+#include <linux/ethtool.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/netdevice.h>

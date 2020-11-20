@@ -2,6 +2,8 @@
 /* Copyright (c) 2014 Mahesh Bandewar <maheshb@google.com>
  */
 
+#include <linux/ethtool.h>
+
 #include "ipvlan.h"
 
 static int ipvlan_set_port_mode(struct ipvl_port *port, u16 nval,

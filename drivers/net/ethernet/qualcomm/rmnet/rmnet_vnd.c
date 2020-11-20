@@ -5,6 +5,7 @@
  */
 
 #include <linux/etherdevice.h>
+#include <linux/ethtool.h>
 #include <linux/if_arp.h>
 #include <net/pkt_sched.h>
 #include "rmnet_config.h"

@@ -16,6 +16,8 @@
 
 #include "bnx2fc.h"
 
+#include <linux/ethtool.h>
+
 static struct list_head adapter_list;
 static struct list_head if_list;
 static u32 adapter_count;

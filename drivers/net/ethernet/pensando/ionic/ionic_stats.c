@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright(c) 2017 - 2019 Pensando Systems, Inc */
 
+#include <linux/ethtool.h>
 #include <linux/kernel.h>
 #include <linux/mutex.h>
 #include <linux/netdevice.h>

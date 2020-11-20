@@ -52,6 +52,7 @@
  *	Based upon Swansea University Computer Society NET3.039
  */
 
+#include <linux/ethtool.h>
 #include <linux/mm.h>
 #include <linux/socket.h>
 #include <linux/file.h>
