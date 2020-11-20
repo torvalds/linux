@@ -280,6 +280,17 @@ multipath_test()
 	multipath4_test "Weighted MP 2:1" 2 1
 	multipath4_test "Weighted MP 11:45" 11 45
 
+	log_info "Running IPv4 multipath tests with IPv6 link-local nexthops"
+	ip nexthop replace id 101 via fe80:2::22 dev $rp12
+	ip nexthop replace id 102 via fe80:3::23 dev $rp13
+
+	multipath4_test "ECMP" 1 1
+	multipath4_test "Weighted MP 2:1" 2 1
+	multipath4_test "Weighted MP 11:45" 11 45
+
+	ip nexthop replace id 102 via 169.254.3.23 dev $rp13
+	ip nexthop replace id 101 via 169.254.2.22 dev $rp12
+
 	log_info "Running IPv6 multipath tests"
 	multipath6_test "ECMP" 1 1
 	multipath6_test "Weighted MP 2:1" 2 1
@@ -312,7 +323,6 @@ setup_prepare()
 
 	router1_create
 	router2_create
-	routing_nh_obj
 
 	forwarding_enable
 }
