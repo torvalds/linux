@@ -348,7 +348,11 @@ static u32 vidtv_mux_poll_encoders(struct vidtv_mux *m)
 
 static u32 vidtv_mux_pad_with_nulls(struct vidtv_mux *m, u32 npkts)
 {
-	struct null_packet_write_args args = {};
+	struct null_packet_write_args args = {
+		.dest_buf           = m->mux_buf,
+		.buf_sz             = m->mux_buf_sz,
+		.dest_offset        = m->mux_buf_offset,
+	};
 	u32 initial_offset = m->mux_buf_offset;
 	struct vidtv_mux_pid_ctx *ctx;
 	u32 nbytes;
@@ -356,10 +360,7 @@ static u32 vidtv_mux_pad_with_nulls(struct vidtv_mux *m, u32 npkts)
 
 	ctx = vidtv_mux_get_pid_ctx(m, TS_NULL_PACKET_PID);
 
-	args.dest_buf           = m->mux_buf;
-	args.buf_sz             = m->mux_buf_sz;
 	args.continuity_counter = &ctx->cc;
-	args.dest_offset        = m->mux_buf_offset;
 
 	for (i = 0; i < npkts; ++i) {
 		m->mux_buf_offset += vidtv_ts_null_write_into(args);
