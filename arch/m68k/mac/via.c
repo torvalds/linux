@@ -169,8 +169,6 @@ void __init via_init(void)
 
 	via1[vIER] = 0x7F;
 	via1[vIFR] = 0x7F;
-	via1[vT1LL] = 0;
-	via1[vT1LH] = 0;
 	via1[vT1CL] = 0;
 	via1[vT1CH] = 0;
 	via1[vT2CL] = 0;
@@ -225,8 +223,6 @@ void __init via_init(void)
 	via2[gIER] = 0x7F;
 	via2[gIFR] = 0x7F | rbv_clear;
 	if (!rbv_present) {
-		via2[vT1LL] = 0;
-		via2[vT1LH] = 0;
 		via2[vT1CL] = 0;
 		via2[vT1CH] = 0;
 		via2[vT2CL] = 0;
@@ -604,8 +600,6 @@ void __init via_init_clock(irq_handler_t timer_routine)
 		return;
 	}
 
-	via1[vT1LL] = VIA_TC_LOW;
-	via1[vT1LH] = VIA_TC_HIGH;
 	via1[vT1CL] = VIA_TC_LOW;
 	via1[vT1CH] = VIA_TC_HIGH;
 	via1[vACR] |= 0x40;
