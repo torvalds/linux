@@ -59,6 +59,12 @@ struct rockchip_saradc {
 	struct reset_control	*reset;
 	const struct rockchip_saradc_data *data;
 	u16			last_val;
+#ifdef CONFIG_ROCKCHIP_SARADC_TEST_CHN
+	struct timer_list	timer;
+	bool			test;
+	u32			chn;
+	spinlock_t		lock;
+#endif
 };
 
 static int rockchip_saradc_read_raw(struct iio_dev *indio_dev,
@@ -67,6 +73,10 @@ static int rockchip_saradc_read_raw(struct iio_dev *indio_dev,
 {
 	struct rockchip_saradc *info = iio_priv(indio_dev);
 
+#ifdef CONFIG_ROCKCHIP_SARADC_TEST_CHN
+	if (info->test)
+		return 0;
+#endif
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
 		mutex_lock(&indio_dev->mlock);
@@ -108,6 +118,9 @@ static int rockchip_saradc_read_raw(struct iio_dev *indio_dev,
 static irqreturn_t rockchip_saradc_isr(int irq, void *dev_id)
 {
 	struct rockchip_saradc *info = dev_id;
+#ifdef CONFIG_ROCKCHIP_SARADC_TEST_CHN
+	unsigned long flags;
+#endif
 
 	/* Read value */
 	info->last_val = readl_relaxed(info->regs + SARADC_DATA);
@@ -117,7 +130,14 @@ static irqreturn_t rockchip_saradc_isr(int irq, void *dev_id)
 	writel_relaxed(0, info->regs + SARADC_CTRL);
 
 	complete(&info->completion);
-
+#ifdef CONFIG_ROCKCHIP_SARADC_TEST_CHN
+	spin_lock_irqsave(&info->lock, flags);
+	if (info->test) {
+		pr_info("chn[%d] val = %d\n", info->chn, info->last_val);
+		mod_timer(&info->timer, jiffies + HZ/1000);
+	}
+	spin_unlock_irqrestore(&info->lock, flags);
+#endif
 	return IRQ_HANDLED;
 }
 
@@ -241,6 +261,72 @@ static void rockchip_saradc_regulator_disable(void *data)
 
 	regulator_disable(info->vref);
 }
+
+#ifdef CONFIG_ROCKCHIP_SARADC_TEST_CHN
+static void rockchip_saradc_timer(struct timer_list *t)
+{
+	struct rockchip_saradc *info = from_timer(info, t, timer);
+
+	/* 8 clock periods as delay between power up and start cmd */
+	writel_relaxed(8, info->regs + SARADC_DLY_PU_SOC);
+
+	/* Select the channel to be used and trigger conversion */
+	writel(SARADC_CTRL_POWER_CTRL | (info->chn & SARADC_CTRL_CHN_MASK) |
+	       SARADC_CTRL_IRQ_ENABLE, info->regs + SARADC_CTRL);
+}
+
+static ssize_t saradc_test_chn_store(struct device *dev,
+			struct device_attribute *attr,
+			const char *buf, size_t size)
+{
+	u32 val = 0;
+	int err;
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct rockchip_saradc *info = iio_priv(indio_dev);
+	unsigned long flags;
+
+	err = kstrtou32(buf, 10, &val);
+	if (err)
+		return err;
+
+	spin_lock_irqsave(&info->lock, flags);
+
+	if (val > SARADC_CTRL_CHN_MASK && info->test) {
+		info->test = false;
+		del_timer_sync(&info->timer);
+		spin_unlock_irqrestore(&info->lock, flags);
+		return size;
+	}
+
+	if (!info->test && val < SARADC_CTRL_CHN_MASK) {
+		info->test = true;
+		info->chn = val;
+		mod_timer(&info->timer, jiffies + HZ/1000);
+	}
+
+	spin_unlock_irqrestore(&info->lock, flags);
+
+	return size;
+}
+
+static DEVICE_ATTR_WO(saradc_test_chn);
+
+static struct attribute *saradc_attrs[] = {
+	&dev_attr_saradc_test_chn.attr,
+	NULL
+};
+
+static const struct attribute_group rockchip_saradc_attr_group = {
+	.attrs = saradc_attrs,
+};
+
+static void rockchip_saradc_remove_sysgroup(void *data)
+{
+	struct platform_device *pdev = data;
+
+	sysfs_remove_group(&pdev->dev.kobj, &rockchip_saradc_attr_group);
+}
+#endif
 
 static int rockchip_saradc_probe(struct platform_device *pdev)
 {
@@ -389,6 +475,21 @@ static int rockchip_saradc_probe(struct platform_device *pdev)
 	indio_dev->channels = info->data->channels;
 	indio_dev->num_channels = info->data->num_channels;
 
+#ifdef CONFIG_ROCKCHIP_SARADC_TEST_CHN
+	spin_lock_init(&info->lock);
+	timer_setup(&info->timer, rockchip_saradc_timer, 0);
+	ret = sysfs_create_group(&pdev->dev.kobj, &rockchip_saradc_attr_group);
+	if (ret)
+		return ret;
+
+	ret = devm_add_action_or_reset(&pdev->dev,
+				       rockchip_saradc_remove_sysgroup, pdev);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to register devm action, %d\n",
+			ret);
+		return ret;
+	}
+#endif
 	return devm_iio_device_register(&pdev->dev, indio_dev);
 }
 
