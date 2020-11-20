@@ -371,9 +371,9 @@ static void drm_fb_helper_resume_worker(struct work_struct *work)
 	console_unlock();
 }
 
-static void drm_fb_helper_dirty_blit_real(struct drm_fb_helper *fb_helper,
-					  struct drm_clip_rect *clip,
-					  struct dma_buf_map *dst)
+static void drm_fb_helper_damage_blit_real(struct drm_fb_helper *fb_helper,
+					   struct drm_clip_rect *clip,
+					   struct dma_buf_map *dst)
 {
 	struct drm_framebuffer *fb = fb_helper->fb;
 	unsigned int cpp = fb->format->cpp[0];
@@ -391,21 +391,21 @@ static void drm_fb_helper_dirty_blit_real(struct drm_fb_helper *fb_helper,
 	}
 }
 
-static void drm_fb_helper_dirty_work(struct work_struct *work)
+static void drm_fb_helper_damage_work(struct work_struct *work)
 {
 	struct drm_fb_helper *helper = container_of(work, struct drm_fb_helper,
-						    dirty_work);
-	struct drm_clip_rect *clip = &helper->dirty_clip;
+						    damage_work);
+	struct drm_clip_rect *clip = &helper->damage_clip;
 	struct drm_clip_rect clip_copy;
 	unsigned long flags;
 	struct dma_buf_map map;
 	int ret;
 
-	spin_lock_irqsave(&helper->dirty_lock, flags);
+	spin_lock_irqsave(&helper->damage_lock, flags);
 	clip_copy = *clip;
 	clip->x1 = clip->y1 = ~0;
 	clip->x2 = clip->y2 = 0;
-	spin_unlock_irqrestore(&helper->dirty_lock, flags);
+	spin_unlock_irqrestore(&helper->damage_lock, flags);
 
 	/* call dirty callback only when it has been really touched */
 	if (clip_copy.x1 < clip_copy.x2 && clip_copy.y1 < clip_copy.y2) {
@@ -415,7 +415,7 @@ static void drm_fb_helper_dirty_work(struct work_struct *work)
 			ret = drm_client_buffer_vmap(helper->buffer, &map);
 			if (ret)
 				return;
-			drm_fb_helper_dirty_blit_real(helper, &clip_copy, &map);
+			drm_fb_helper_damage_blit_real(helper, &clip_copy, &map);
 		}
 
 		if (helper->fb->funcs->dirty)
@@ -440,10 +440,10 @@ void drm_fb_helper_prepare(struct drm_device *dev, struct drm_fb_helper *helper,
 			   const struct drm_fb_helper_funcs *funcs)
 {
 	INIT_LIST_HEAD(&helper->kernel_fb_list);
-	spin_lock_init(&helper->dirty_lock);
+	spin_lock_init(&helper->damage_lock);
 	INIT_WORK(&helper->resume_work, drm_fb_helper_resume_worker);
-	INIT_WORK(&helper->dirty_work, drm_fb_helper_dirty_work);
-	helper->dirty_clip.x1 = helper->dirty_clip.y1 = ~0;
+	INIT_WORK(&helper->damage_work, drm_fb_helper_damage_work);
+	helper->damage_clip.x1 = helper->damage_clip.y1 = ~0;
 	mutex_init(&helper->lock);
 	helper->funcs = funcs;
 	helper->dev = dev;
@@ -579,7 +579,7 @@ void drm_fb_helper_fini(struct drm_fb_helper *fb_helper)
 		return;
 
 	cancel_work_sync(&fb_helper->resume_work);
-	cancel_work_sync(&fb_helper->dirty_work);
+	cancel_work_sync(&fb_helper->damage_work);
 
 	info = fb_helper->fbdev;
 	if (info) {
@@ -614,30 +614,30 @@ static bool drm_fbdev_use_shadow_fb(struct drm_fb_helper *fb_helper)
 	       fb->funcs->dirty;
 }
 
-static void drm_fb_helper_dirty(struct fb_info *info, u32 x, u32 y,
-				u32 width, u32 height)
+static void drm_fb_helper_damage(struct fb_info *info, u32 x, u32 y,
+				 u32 width, u32 height)
 {
 	struct drm_fb_helper *helper = info->par;
-	struct drm_clip_rect *clip = &helper->dirty_clip;
+	struct drm_clip_rect *clip = &helper->damage_clip;
 	unsigned long flags;
 
 	if (!drm_fbdev_use_shadow_fb(helper))
 		return;
 
-	spin_lock_irqsave(&helper->dirty_lock, flags);
+	spin_lock_irqsave(&helper->damage_lock, flags);
 	clip->x1 = min_t(u32, clip->x1, x);
 	clip->y1 = min_t(u32, clip->y1, y);
 	clip->x2 = max_t(u32, clip->x2, x + width);
 	clip->y2 = max_t(u32, clip->y2, y + height);
-	spin_unlock_irqrestore(&helper->dirty_lock, flags);
+	spin_unlock_irqrestore(&helper->damage_lock, flags);
 
-	schedule_work(&helper->dirty_work);
+	schedule_work(&helper->damage_work);
 }
 
 /**
  * drm_fb_helper_deferred_io() - fbdev deferred_io callback function
  * @info: fb_info struct pointer
- * @pagelist: list of dirty mmap framebuffer pages
+ * @pagelist: list of mmap framebuffer pages that have to be flushed
  *
  * This function is used as the &fb_deferred_io.deferred_io
  * callback function for flushing the fbdev mmap writes.
@@ -662,7 +662,7 @@ void drm_fb_helper_deferred_io(struct fb_info *info,
 		y1 = min / info->fix.line_length;
 		y2 = min_t(u32, DIV_ROUND_UP(max, info->fix.line_length),
 			   info->var.yres);
-		drm_fb_helper_dirty(info, 0, y1, info->var.xres, y2 - y1);
+		drm_fb_helper_damage(info, 0, y1, info->var.xres, y2 - y1);
 	}
 }
 EXPORT_SYMBOL(drm_fb_helper_deferred_io);
@@ -699,8 +699,7 @@ ssize_t drm_fb_helper_sys_write(struct fb_info *info, const char __user *buf,
 
 	ret = fb_sys_write(info, buf, count, ppos);
 	if (ret > 0)
-		drm_fb_helper_dirty(info, 0, 0, info->var.xres,
-				    info->var.yres);
+		drm_fb_helper_damage(info, 0, 0, info->var.xres, info->var.yres);
 
 	return ret;
 }
@@ -717,8 +716,7 @@ void drm_fb_helper_sys_fillrect(struct fb_info *info,
 				const struct fb_fillrect *rect)
 {
 	sys_fillrect(info, rect);
-	drm_fb_helper_dirty(info, rect->dx, rect->dy,
-			    rect->width, rect->height);
+	drm_fb_helper_damage(info, rect->dx, rect->dy, rect->width, rect->height);
 }
 EXPORT_SYMBOL(drm_fb_helper_sys_fillrect);
 
@@ -733,8 +731,7 @@ void drm_fb_helper_sys_copyarea(struct fb_info *info,
 				const struct fb_copyarea *area)
 {
 	sys_copyarea(info, area);
-	drm_fb_helper_dirty(info, area->dx, area->dy,
-			    area->width, area->height);
+	drm_fb_helper_damage(info, area->dx, area->dy, area->width, area->height);
 }
 EXPORT_SYMBOL(drm_fb_helper_sys_copyarea);
 
@@ -749,8 +746,7 @@ void drm_fb_helper_sys_imageblit(struct fb_info *info,
 				 const struct fb_image *image)
 {
 	sys_imageblit(info, image);
-	drm_fb_helper_dirty(info, image->dx, image->dy,
-			    image->width, image->height);
+	drm_fb_helper_damage(info, image->dx, image->dy, image->width, image->height);
 }
 EXPORT_SYMBOL(drm_fb_helper_sys_imageblit);
 
@@ -765,8 +761,7 @@ void drm_fb_helper_cfb_fillrect(struct fb_info *info,
 				const struct fb_fillrect *rect)
 {
 	cfb_fillrect(info, rect);
-	drm_fb_helper_dirty(info, rect->dx, rect->dy,
-			    rect->width, rect->height);
+	drm_fb_helper_damage(info, rect->dx, rect->dy, rect->width, rect->height);
 }
 EXPORT_SYMBOL(drm_fb_helper_cfb_fillrect);
 
@@ -781,8 +776,7 @@ void drm_fb_helper_cfb_copyarea(struct fb_info *info,
 				const struct fb_copyarea *area)
 {
 	cfb_copyarea(info, area);
-	drm_fb_helper_dirty(info, area->dx, area->dy,
-			    area->width, area->height);
+	drm_fb_helper_damage(info, area->dx, area->dy, area->width, area->height);
 }
 EXPORT_SYMBOL(drm_fb_helper_cfb_copyarea);
 
@@ -797,8 +791,7 @@ void drm_fb_helper_cfb_imageblit(struct fb_info *info,
 				 const struct fb_image *image)
 {
 	cfb_imageblit(info, image);
-	drm_fb_helper_dirty(info, image->dx, image->dy,
-			    image->width, image->height);
+	drm_fb_helper_damage(info, image->dx, image->dy, image->width, image->height);
 }
 EXPORT_SYMBOL(drm_fb_helper_cfb_imageblit);
 
@@ -2195,7 +2188,7 @@ static ssize_t drm_fbdev_fb_write(struct fb_info *info, const char __user *buf,
 		*ppos += ret;
 
 	if (ret > 0)
-		drm_fb_helper_dirty(info, 0, 0, info->var.xres_virtual, info->var.yres_virtual);
+		drm_fb_helper_damage(info, 0, 0, info->var.xres_virtual, info->var.yres_virtual);
 
 	return ret ? ret : err;
 }
