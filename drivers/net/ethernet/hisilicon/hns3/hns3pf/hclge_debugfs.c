@@ -498,6 +498,9 @@ static void hclge_dbg_dump_tm_pg(struct hclge_dev *hdev)
 	dev_info(&hdev->pdev->dev, "PG_P pg_id: %u\n", pg_shap_cfg_cmd->pg_id);
 	dev_info(&hdev->pdev->dev, "PG_P pg_shapping: 0x%x\n",
 		 le32_to_cpu(pg_shap_cfg_cmd->pg_shapping_para));
+	dev_info(&hdev->pdev->dev, "PG_P flag: %#x\n", pg_shap_cfg_cmd->flag);
+	dev_info(&hdev->pdev->dev, "PG_P pg_rate: %u(Mbps)\n",
+		 le32_to_cpu(pg_shap_cfg_cmd->pg_rate));
 
 	cmd = HCLGE_OPC_TM_PORT_SHAPPING;
 	hclge_cmd_setup_basic_desc(&desc, cmd, true);
@@ -508,6 +511,9 @@ static void hclge_dbg_dump_tm_pg(struct hclge_dev *hdev)
 	port_shap_cfg_cmd = (struct hclge_port_shapping_cmd *)desc.data;
 	dev_info(&hdev->pdev->dev, "PORT port_shapping: 0x%x\n",
 		 le32_to_cpu(port_shap_cfg_cmd->port_shapping_para));
+	dev_info(&hdev->pdev->dev, "PORT flag: %#x\n", port_shap_cfg_cmd->flag);
+	dev_info(&hdev->pdev->dev, "PORT port_rate: %u(Mbps)\n",
+		 le32_to_cpu(port_shap_cfg_cmd->port_rate));
 
 	cmd = HCLGE_OPC_TM_PG_SCH_MODE_CFG;
 	hclge_cmd_setup_basic_desc(&desc, cmd, true);
@@ -655,6 +661,9 @@ static void hclge_dbg_dump_tm(struct hclge_dev *hdev)
 	dev_info(&hdev->pdev->dev, "PRI_C pri_id: %u\n", shap_cfg_cmd->pri_id);
 	dev_info(&hdev->pdev->dev, "PRI_C pri_shapping: 0x%x\n",
 		 le32_to_cpu(shap_cfg_cmd->pri_shapping_para));
+	dev_info(&hdev->pdev->dev, "PRI_C flag: %#x\n", shap_cfg_cmd->flag);
+	dev_info(&hdev->pdev->dev, "PRI_C pri_rate: %u(Mbps)\n",
+		 le32_to_cpu(shap_cfg_cmd->pri_rate));
 
 	cmd = HCLGE_OPC_TM_PRI_P_SHAPPING;
 	hclge_cmd_setup_basic_desc(&desc, cmd, true);
@@ -666,6 +675,9 @@ static void hclge_dbg_dump_tm(struct hclge_dev *hdev)
 	dev_info(&hdev->pdev->dev, "PRI_P pri_id: %u\n", shap_cfg_cmd->pri_id);
 	dev_info(&hdev->pdev->dev, "PRI_P pri_shapping: 0x%x\n",
 		 le32_to_cpu(shap_cfg_cmd->pri_shapping_para));
+	dev_info(&hdev->pdev->dev, "PRI_P flag: %#x\n", shap_cfg_cmd->flag);
+	dev_info(&hdev->pdev->dev, "PRI_P pri_rate: %u(Mbps)\n",
+		 le32_to_cpu(shap_cfg_cmd->pri_rate));
 
 	hclge_dbg_dump_tm_pg(hdev);
 
@@ -1401,6 +1413,7 @@ static void hclge_dbg_dump_qs_shaper_single(struct hclge_dev *hdev, u16 qsid)
 	u8 ir_u, ir_b, ir_s, bs_b, bs_s;
 	struct hclge_desc desc;
 	u32 shapping_para;
+	u32 rate;
 	int ret;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_QCN_SHAPPING_CFG, true);
@@ -1422,10 +1435,11 @@ static void hclge_dbg_dump_qs_shaper_single(struct hclge_dev *hdev, u16 qsid)
 	ir_s = hclge_tm_get_field(shapping_para, IR_S);
 	bs_b = hclge_tm_get_field(shapping_para, BS_B);
 	bs_s = hclge_tm_get_field(shapping_para, BS_S);
+	rate = le32_to_cpu(shap_cfg_cmd->qs_rate);
 
 	dev_info(&hdev->pdev->dev,
-		 "qs%u ir_b:%u, ir_u:%u, ir_s:%u, bs_b:%u, bs_s:%u\n",
-		 qsid, ir_b, ir_u, ir_s, bs_b, bs_s);
+		 "qs%u ir_b:%u, ir_u:%u, ir_s:%u, bs_b:%u, bs_s:%u, flag:%#x, rate:%u(Mbps)\n",
+		 qsid, ir_b, ir_u, ir_s, bs_b, bs_s, shap_cfg_cmd->flag, rate);
 }
 
 static void hclge_dbg_dump_qs_shaper_all(struct hclge_dev *hdev)
