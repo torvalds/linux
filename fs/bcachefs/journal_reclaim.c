@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include "bcachefs.h"
+#include "btree_key_cache.h"
 #include "journal.h"
 #include "journal_io.h"
 #include "journal_reclaim.h"
 #include "replicas.h"
 #include "super.h"
+#include "trace.h"
 
 /* Free space calculations: */
 
@@ -432,7 +434,6 @@ journal_get_next_pin(struct journal *j, u64 max_seq, u64 *seq)
 		list_move(&ret->list, &pin_list->flushed);
 		BUG_ON(j->flush_in_progress);
 		j->flush_in_progress = ret;
-		j->last_flushed = jiffies;
 	}
 
 	spin_unlock(&j->lock);
@@ -441,17 +442,24 @@ journal_get_next_pin(struct journal *j, u64 max_seq, u64 *seq)
 }
 
 /* returns true if we did work */
-static bool journal_flush_pins(struct journal *j, u64 seq_to_flush,
-			       unsigned min_nr)
+static u64 journal_flush_pins(struct journal *j, u64 seq_to_flush,
+			      unsigned min_nr)
 {
 	struct journal_entry_pin *pin;
-	bool ret = false;
-	u64 seq;
+	u64 seq, ret = 0;
 
 	lockdep_assert_held(&j->reclaim_lock);
 
-	while ((pin = journal_get_next_pin(j, min_nr
-				? U64_MAX : seq_to_flush, &seq))) {
+	while (1) {
+		cond_resched();
+
+		j->last_flushed = jiffies;
+
+		pin = journal_get_next_pin(j, min_nr
+				? U64_MAX : seq_to_flush, &seq);
+		if (!pin)
+			break;
+
 		if (min_nr)
 			min_nr--;
 
@@ -460,7 +468,7 @@ static bool journal_flush_pins(struct journal *j, u64 seq_to_flush,
 		BUG_ON(j->flush_in_progress != pin);
 		j->flush_in_progress = NULL;
 		wake_up(&j->pin_flush_wait);
-		ret = true;
+		ret++;
 	}
 
 	return ret;
@@ -527,8 +535,8 @@ static u64 journal_seq_to_flush(struct journal *j)
 void bch2_journal_reclaim(struct journal *j)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
-	unsigned min_nr = 0;
-	u64 seq_to_flush = 0;
+	u64 seq_to_flush, nr_flushed = 0;
+	size_t min_nr;
 
 	lockdep_assert_held(&j->reclaim_lock);
 
@@ -549,12 +557,25 @@ void bch2_journal_reclaim(struct journal *j)
 		if (j->prereserved.reserved * 2 > j->prereserved.remaining)
 			min_nr = 1;
 
-		if ((atomic_read(&c->btree_cache.dirty) * 4 >
-		     c->btree_cache.used  * 3) ||
-		    (c->btree_key_cache.nr_dirty * 4 >
-		     c->btree_key_cache.nr_keys))
+		if (atomic_read(&c->btree_cache.dirty) * 4 >
+		    c->btree_cache.used  * 3)
 			min_nr = 1;
-	} while (journal_flush_pins(j, seq_to_flush, min_nr));
+
+		min_nr = max(min_nr, bch2_nr_btree_keys_need_flush(c));
+
+		trace_journal_reclaim_start(c,
+				min_nr,
+				j->prereserved.reserved,
+				j->prereserved.remaining,
+				atomic_read(&c->btree_cache.dirty),
+				c->btree_cache.used,
+				c->btree_key_cache.nr_dirty,
+				c->btree_key_cache.nr_keys);
+
+		nr_flushed += journal_flush_pins(j, seq_to_flush, min_nr);
+	} while (min_nr);
+
+	trace_journal_reclaim_finish(c, nr_flushed);
 
 	if (!bch2_journal_error(j))
 		queue_delayed_work(c->journal_reclaim_wq, &j->reclaim_work,
@@ -582,7 +603,7 @@ static int journal_flush_done(struct journal *j, u64 seq_to_flush,
 
 	mutex_lock(&j->reclaim_lock);
 
-	*did_work = journal_flush_pins(j, seq_to_flush, 0);
+	*did_work = journal_flush_pins(j, seq_to_flush, 0) != 0;
 
 	spin_lock(&j->lock);
 	/*

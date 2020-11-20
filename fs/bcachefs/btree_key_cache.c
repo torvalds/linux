@@ -461,6 +461,7 @@ bool bch2_btree_insert_key_cached(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	struct bkey_cached *ck = (void *) iter->l[0].b;
+	bool kick_reclaim = false;
 
 	BUG_ON(insert->u64s > ck->u64s);
 
@@ -485,11 +486,18 @@ bool bch2_btree_insert_key_cached(struct btree_trans *trans,
 
 		set_bit(BKEY_CACHED_DIRTY, &ck->flags);
 		c->btree_key_cache.nr_dirty++;
+
+		if (bch2_nr_btree_keys_need_flush(c))
+			kick_reclaim = true;
+
 		mutex_unlock(&c->btree_key_cache.lock);
 	}
 
 	bch2_journal_pin_update(&c->journal, trans->journal_res.seq,
 				&ck->journal, btree_key_cache_journal_flush);
+
+	if (kick_reclaim)
+		mod_delayed_work(c->journal_reclaim_wq, &c->journal.reclaim_work, 0);
 	return true;
 }
 

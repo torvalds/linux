@@ -121,6 +121,65 @@ DEFINE_EVENT(bio, journal_write,
 	TP_ARGS(bio)
 );
 
+TRACE_EVENT(journal_reclaim_start,
+	TP_PROTO(struct bch_fs *c, u64 min_nr,
+		 u64 prereserved, u64 prereserved_total,
+		 u64 btree_cache_dirty, u64 btree_cache_total,
+		 u64 btree_key_cache_dirty, u64 btree_key_cache_total),
+	TP_ARGS(c, min_nr, prereserved, prereserved_total,
+		btree_cache_dirty, btree_cache_total,
+		btree_key_cache_dirty, btree_key_cache_total),
+
+	TP_STRUCT__entry(
+		__array(char,		uuid,	16		)
+		__field(u64,		min_nr			)
+		__field(u64,		prereserved		)
+		__field(u64,		prereserved_total	)
+		__field(u64,		btree_cache_dirty	)
+		__field(u64,		btree_cache_total	)
+		__field(u64,		btree_key_cache_dirty	)
+		__field(u64,		btree_key_cache_total	)
+	),
+
+	TP_fast_assign(
+		memcpy(__entry->uuid, c->sb.user_uuid.b, 16);
+		__entry->min_nr			= min_nr;
+		__entry->prereserved		= prereserved;
+		__entry->prereserved_total	= prereserved_total;
+		__entry->btree_cache_dirty	= btree_cache_dirty;
+		__entry->btree_cache_total	= btree_cache_total;
+		__entry->btree_key_cache_dirty	= btree_key_cache_dirty;
+		__entry->btree_key_cache_total	= btree_key_cache_total;
+	),
+
+	TP_printk("%pU min %llu prereserved %llu/%llu btree cache %llu/%llu key cache %llu/%llu",
+		  __entry->uuid,
+		  __entry->min_nr,
+		  __entry->prereserved,
+		  __entry->prereserved_total,
+		  __entry->btree_cache_dirty,
+		  __entry->btree_cache_total,
+		  __entry->btree_key_cache_dirty,
+		  __entry->btree_key_cache_total)
+);
+
+TRACE_EVENT(journal_reclaim_finish,
+	TP_PROTO(struct bch_fs *c, u64 nr_flushed),
+	TP_ARGS(c, nr_flushed),
+
+	TP_STRUCT__entry(
+		__array(char,		uuid,	16 )
+		__field(u64,		nr_flushed )
+	),
+
+	TP_fast_assign(
+		memcpy(__entry->uuid, c->sb.user_uuid.b, 16);
+		__entry->nr_flushed = nr_flushed;
+	),
+
+	TP_printk("%pU flushed %llu", __entry->uuid, __entry->nr_flushed)
+);
+
 /* bset.c: */
 
 DEFINE_EVENT(bpos, bkey_pack_pos_fail,
