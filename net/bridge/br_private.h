@@ -377,7 +377,6 @@ struct net_bridge {
 	spinlock_t			hash_lock;
 	struct hlist_head		frame_type_list;
 	struct net_device		*dev;
-	struct pcpu_sw_netstats		__percpu *stats;
 	unsigned long			options;
 	/* These fields are accessed on each packet */
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
