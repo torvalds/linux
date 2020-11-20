@@ -689,6 +689,7 @@ struct hnae3_knic_private_info {
 struct hnae3_roce_private_info {
 	struct net_device *netdev;
 	void __iomem *roce_io_base;
+	void __iomem *roce_mem_base;
 	int base_vector;
 	int num_vectors;
 
