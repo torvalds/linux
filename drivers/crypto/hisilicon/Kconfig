@@ -76,5 +76,6 @@ config CRYPTO_DEV_HISI_TRNG
 	tristate "Support for HISI TRNG Driver"
 	depends on ARM64 && ACPI
 	select HW_RANDOM
+	select CRYPTO_RNG
 	help
 	  Support for HiSilicon TRNG Driver.
