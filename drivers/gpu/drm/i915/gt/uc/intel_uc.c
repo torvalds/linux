@@ -175,19 +175,15 @@ static void guc_get_mmio_msg(struct intel_guc *guc)
 
 static void guc_handle_mmio_msg(struct intel_guc *guc)
 {
-	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
-
 	/* we need communication to be enabled to reply to GuC */
 	GEM_BUG_ON(!guc_communication_enabled(guc));
 
-	if (!guc->mmio_msg)
-		return;
-
-	spin_lock_irq(&i915->irq_lock);
-	intel_guc_to_host_process_recv_msg(guc, &guc->mmio_msg, 1);
-	spin_unlock_irq(&i915->irq_lock);
-
-	guc->mmio_msg = 0;
+	spin_lock_irq(&guc->irq_lock);
+	if (guc->mmio_msg) {
+		intel_guc_to_host_process_recv_msg(guc, &guc->mmio_msg, 1);
+		guc->mmio_msg = 0;
+	}
+	spin_unlock_irq(&guc->irq_lock);
 }
 
 static void guc_reset_interrupts(struct intel_guc *guc)
