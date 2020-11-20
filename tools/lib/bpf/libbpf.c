@@ -560,8 +560,6 @@ bpf_object__init_prog(struct bpf_object *obj, struct bpf_program *prog,
 		      const char *name, size_t sec_idx, const char *sec_name,
 		      size_t sec_off, void *insn_data, size_t insn_data_sz)
 {
-	int i;
-
 	if (insn_data_sz == 0 || insn_data_sz % BPF_INSN_SZ || sec_off % BPF_INSN_SZ) {
 		pr_warn("sec '%s': corrupted program '%s', offset %zu, size %zu\n",
 			sec_name, name, sec_off, insn_data_sz);
@@ -599,13 +597,6 @@ bpf_object__init_prog(struct bpf_object *obj, struct bpf_program *prog,
 	if (!prog->insns)
 		goto errout;
 	memcpy(prog->insns, insn_data, insn_data_sz);
-
-	for (i = 0; i < prog->insns_cnt; i++) {
-		if (insn_is_subprog_call(&prog->insns[i])) {
-			obj->has_subcalls = true;
-			break;
-		}
-	}
 
 	return 0;
 errout:
@@ -3280,7 +3271,19 @@ bpf_object__find_program_by_title(const struct bpf_object *obj,
 static bool prog_is_subprog(const struct bpf_object *obj,
 			    const struct bpf_program *prog)
 {
-	return prog->sec_idx == obj->efile.text_shndx && obj->has_subcalls;
+	/* For legacy reasons, libbpf supports an entry-point BPF programs
+	 * without SEC() attribute, i.e., those in the .text section. But if
+	 * there are 2 or more such programs in the .text section, they all
+	 * must be subprograms called from entry-point BPF programs in
+	 * designated SEC()'tions, otherwise there is no way to distinguish
+	 * which of those programs should be loaded vs which are a subprogram.
+	 * Similarly, if there is a function/program in .text and at least one
+	 * other BPF program with custom SEC() attribute, then we just assume
+	 * .text programs are subprograms (even if they are not called from
+	 * other programs), because libbpf never explicitly supported mixing
+	 * SEC()-designated BPF programs and .text entry-point BPF programs.
+	 */
+	return prog->sec_idx == obj->efile.text_shndx && obj->nr_programs > 1;
 }
 
 struct bpf_program *

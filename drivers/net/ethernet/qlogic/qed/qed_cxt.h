@@ -326,9 +326,6 @@ struct qed_cxt_mngr {
 
 	/* SRC T2 */
 	struct qed_src_t2 src_t2;
-	u32 t2_num_pages;
-	u64 first_free;
-	u64 last_free;
 
 	/* total number of SRQ's for this hwfn */
 	u32 srq_count;

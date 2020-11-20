@@ -1708,6 +1708,8 @@ static int _ns_send(struct atm_vcc *vcc, struct sk_buff *skb, bool may_sleep)
 
 	if (push_scqe(card, vc, scq, &scqe, skb, may_sleep) != 0) {
 		atomic_inc(&vcc->stats->tx_err);
+		dma_unmap_single(&card->pcidev->dev, NS_PRV_DMA(skb), skb->len,
+				 DMA_TO_DEVICE);
 		dev_kfree_skb_any(skb);
 		return -EIO;
 	}
