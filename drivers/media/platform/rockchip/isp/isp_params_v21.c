@@ -2719,7 +2719,7 @@ isp_dhaz_enable(struct rkisp_isp_params_vdev *params_vdev,
 		return;
 
 	if (en) {
-		value |= ISP_DHAZ_ENMUX;
+		value |= ISP21_SELF_FORCE_UPD | ISP_DHAZ_ENMUX;
 		rkisp_set_bits(params_vdev->dev, ISP_CTRL1,
 			       ISP2X_SYS_DHAZ_FST, ISP2X_SYS_DHAZ_FST, false);
 	} else {

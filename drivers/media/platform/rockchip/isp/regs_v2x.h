@@ -2547,6 +2547,9 @@
 
 #define ISP21_RAW_FORCE_UPD		BIT(31)
 
+/* ISP21 DHAZ/DRC/BAY3D */
+#define ISP21_SELF_FORCE_UPD		BIT(31)
+
 static inline bool dmatx0_is_stream_stopped(void __iomem *base)
 {
 	u32 ret = readl(base + CSI2RX_RAW0_WR_CTRL);
