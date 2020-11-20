@@ -54,6 +54,7 @@ static int pcspkr_input_event(struct input_dev *dev, unsigned int type,
 		case SND_BELL:
 			if (value)
 				value = 1000;
+			break;
 		case SND_TONE:
 			break;
 		default:
