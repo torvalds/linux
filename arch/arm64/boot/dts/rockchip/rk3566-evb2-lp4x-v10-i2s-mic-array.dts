@@ -1,0 +1,101 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+#include "rk3566-evb2-lp4x-v10.dtsi"
+#include "rk3568-android.dtsi"
+
+/ {
+	model = "Rockchip RK3566 EVB2 LP4X V10 Board I2S Mic Array";
+	compatible = "rockchip,rk3566-evb2-lp4x-v10", "rockchip,rk3568";
+
+	rk809_sound_micarray: rk809-sound-micarray {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,name = "rockchip,rk809-codec";
+		simple-audio-card,mclk-fs = <256>;
+
+		simple-audio-card,dai-link@0 {
+			format = "i2s";
+			cpu {
+				sound-dai = <&i2s1_8ch>;
+			};
+			codec {
+				sound-dai = <&rk809_codec 0>;
+			};
+		};
+		simple-audio-card,dai-link@1 {
+			format = "i2s";
+			cpu {
+				sound-dai = <&i2s1_8ch>;
+			};
+			codec {
+				sound-dai = <&es7243e>;
+			};
+		};
+	};
+};
+
+&i2c3 {
+	status = "okay";
+
+	es7243e: es7243e@10 {
+		status = "okay";
+		#sound-dai-cells = <0>;
+		compatible = "ES7243E_MicArray_0";
+		reg = <0x10>;
+	};
+
+	es7243e_11: es7243e@11 {
+		status = "okay";
+		#sound-dai-cells = <0>;
+		compatible = "ES7243E_MicArray_1";
+		reg = <0x11>;
+	};
+
+	es7243e_12: es7243e@12 {
+		status = "okay";
+		#sound-dai-cells = <0>;
+		compatible = "ES7243E_MicArray_2";
+		reg = <0x12>;
+	};
+};
+
+&i2s1_8ch {
+	status = "okay";
+	#sound-dai-cells = <0>;
+	rockchip,clk-trcm = <0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2s1m0_sclktx
+		     &i2s1m0_lrcktx
+		     &i2s1m0_sclkrx
+		     &i2s1m0_lrckrx
+		     &i2s1m0_sdo0
+		     &i2s1m0_sdi0
+		     &i2s1m0_sdi1
+		     &i2s1m0_sdi2
+		     &i2s1m0_sdi3>;
+};
+
+&rk809_codec {
+	#sound-dai-cells = <1>;
+	compatible = "rockchip,rk809-codec", "rockchip,rk817-codec";
+	clocks = <&cru I2S1_MCLKOUT_TX>;
+	clock-names = "mclk";
+	assigned-clocks = <&cru I2S1_MCLKOUT_TX>;
+	assigned-clock-parents = <&cru CLK_I2S1_8CH_TX>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2s1m0_mclk>;
+	pdmdata-out-enable;
+	adc-for-loopback;
+	hp-volume = <20>;
+	spk-volume = <3>;
+	mic-in-differential;
+	status = "okay";
+};
+
+&rk809_sound {
+	status = "disabled";
+};
