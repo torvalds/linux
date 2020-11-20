@@ -5,9 +5,18 @@ static inline size_t bch2_nr_btree_keys_need_flush(struct bch_fs *c)
 {
 	size_t nr_dirty = READ_ONCE(c->btree_key_cache.nr_dirty);
 	size_t nr_keys = READ_ONCE(c->btree_key_cache.nr_dirty);
-	size_t max_dirty = 1024 + (nr_keys * 3) / 4;
+	size_t max_dirty = 4096 + nr_keys  / 2;
 
 	return max_t(ssize_t, 0, nr_dirty - max_dirty);
+}
+
+static inline bool bch2_btree_key_cache_must_wait(struct bch_fs *c)
+{
+	size_t nr_dirty = READ_ONCE(c->btree_key_cache.nr_dirty);
+	size_t nr_keys = READ_ONCE(c->btree_key_cache.nr_dirty);
+	size_t max_dirty = 4096 + (nr_keys * 3) / 4;
+
+	return nr_dirty > max_dirty;
 }
 
 struct bkey_cached *

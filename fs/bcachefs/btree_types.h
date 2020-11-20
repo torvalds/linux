@@ -649,6 +649,7 @@ enum btree_insert_ret {
 	BTREE_INSERT_ENOSPC,
 	BTREE_INSERT_NEED_MARK_REPLICAS,
 	BTREE_INSERT_NEED_JOURNAL_RES,
+	BTREE_INSERT_NEED_JOURNAL_RECLAIM,
 };
 
 enum btree_gc_coalesce_fail_reason {

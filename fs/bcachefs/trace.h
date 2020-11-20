@@ -681,6 +681,11 @@ DEFINE_EVENT(transaction_restart,	trans_restart_journal_preres_get,
 	TP_ARGS(ip)
 );
 
+DEFINE_EVENT(transaction_restart,	trans_restart_journal_reclaim,
+	TP_PROTO(unsigned long ip),
+	TP_ARGS(ip)
+);
+
 DEFINE_EVENT(transaction_restart,	trans_restart_mark_replicas,
 	TP_PROTO(unsigned long ip),
 	TP_ARGS(ip)

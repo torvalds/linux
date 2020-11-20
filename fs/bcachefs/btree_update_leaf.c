@@ -286,6 +286,10 @@ btree_key_can_insert_cached(struct btree_trans *trans,
 
 	BUG_ON(iter->level);
 
+	if (!test_bit(BKEY_CACHED_DIRTY, &ck->flags) &&
+	    bch2_btree_key_cache_must_wait(trans->c))
+		return BTREE_INSERT_NEED_JOURNAL_RECLAIM;
+
 	if (u64s <= ck->u64s)
 		return BTREE_INSERT_OK;
 
@@ -650,6 +654,21 @@ int bch2_trans_commit_error(struct btree_trans *trans,
 			return 0;
 
 		trace_trans_restart_journal_res_get(trans->ip);
+		ret = -EINTR;
+		break;
+	case BTREE_INSERT_NEED_JOURNAL_RECLAIM:
+		bch2_trans_unlock(trans);
+
+		while (bch2_btree_key_cache_must_wait(c)) {
+			mutex_lock(&c->journal.reclaim_lock);
+			bch2_journal_reclaim(&c->journal);
+			mutex_unlock(&c->journal.reclaim_lock);
+		}
+
+		if (bch2_trans_relock(trans))
+			return 0;
+
+		trace_trans_restart_journal_reclaim(trans->ip);
 		ret = -EINTR;
 		break;
 	default:
