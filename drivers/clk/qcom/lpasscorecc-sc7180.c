@@ -370,7 +370,10 @@ static int lpass_create_pm_clks(struct platform_device *pdev)
 {
 	int ret;
 
+	pm_runtime_use_autosuspend(&pdev->dev);
+	pm_runtime_set_autosuspend_delay(&pdev->dev, 500);
 	pm_runtime_enable(&pdev->dev);
+
 	ret = devm_add_action_or_reset(&pdev->dev, lpass_pm_runtime_disable, &pdev->dev);
 	if (ret)
 		return ret;
@@ -423,7 +426,12 @@ static int lpass_core_cc_sc7180_probe(struct platform_device *pdev)
 	clk_fabia_pll_configure(&lpass_lpaaudio_dig_pll, regmap,
 				&lpass_lpaaudio_dig_pll_config);
 
-	return qcom_cc_really_probe(pdev, &lpass_core_cc_sc7180_desc, regmap);
+	ret = qcom_cc_really_probe(pdev, &lpass_core_cc_sc7180_desc, regmap);
+
+	pm_runtime_mark_last_busy(&pdev->dev);
+	pm_runtime_put_autosuspend(&pdev->dev);
+
+	return ret;
 }
 
 static int lpass_hm_core_probe(struct platform_device *pdev)
