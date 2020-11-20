@@ -2626,6 +2626,13 @@ static int set_flowkey_fields(struct nix_rx_flowkey_alg *alg, u32 flow_cfg)
 			/* This should be set to 1, when SEL_CHAN is set */
 			field->bytesm1 = 1;
 			break;
+		case NIX_FLOW_KEY_TYPE_IPV4_PROTO:
+			field->lid = NPC_LID_LC;
+			field->hdr_offset = 9; /* offset */
+			field->bytesm1 = 0; /* 1 byte */
+			field->ltype_match = NPC_LT_LC_IP;
+			field->ltype_mask = 0xF;
+			break;
 		case NIX_FLOW_KEY_TYPE_IPV4:
 		case NIX_FLOW_KEY_TYPE_INNR_IPV4:
 			field->lid = NPC_LID_LC;
