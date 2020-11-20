@@ -2833,7 +2833,8 @@ static const struct rockchip_usb2phy_cfg rk3568_phy_cfgs[] = {
 				.utmi_ls	= { 0x00c0, 5, 4, 0, 1 },
 			},
 			[USB2PHY_PORT_HOST] = {
-				.phy_sus	= { 0x0004, 8, 0, 0x1d2, 0x1d1 },
+				/* Select suspend control from controller */
+				.phy_sus	= { 0x0004, 8, 0, 0x1d2, 0x1d2 },
 				.ls_det_en	= { 0x0080, 1, 1, 0, 1 },
 				.ls_det_st	= { 0x0084, 1, 1, 0, 1 },
 				.ls_det_clr	= { 0x0088, 1, 1, 0, 1 },
