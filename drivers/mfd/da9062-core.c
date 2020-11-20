@@ -736,7 +736,7 @@ MODULE_DEVICE_TABLE(i2c, da9062_i2c_id);
 static struct i2c_driver da9062_i2c_driver = {
 	.driver = {
 		.name = "da9062",
-		.of_match_table = of_match_ptr(da9062_dt_ids),
+		.of_match_table = da9062_dt_ids,
 	},
 	.probe    = da9062_i2c_probe,
 	.remove   = da9062_i2c_remove,
