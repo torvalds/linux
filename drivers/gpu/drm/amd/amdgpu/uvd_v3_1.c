@@ -555,13 +555,6 @@ static int uvd_v3_1_sw_init(void *handle)
 	if (r)
 		return r;
 
-	/* Retrieval firmware validate key */
-	ptr = adev->uvd.inst[0].cpu_addr;
-	ptr += 192 + 16;
-	memcpy(&ucode_len, ptr, 4);
-	ptr += ucode_len;
-	memcpy(&adev->uvd.keyselect, ptr, 4);
-
 	ring = &adev->uvd.inst->ring;
 	sprintf(ring->name, "uvd");
 	r = amdgpu_ring_init(adev, ring, 512, &adev->uvd.inst->irq, 0,
@@ -572,6 +565,13 @@ static int uvd_v3_1_sw_init(void *handle)
 	r = amdgpu_uvd_resume(adev);
 	if (r)
 		return r;
+
+	/* Retrieval firmware validate key */
+	ptr = adev->uvd.inst[0].cpu_addr;
+	ptr += 192 + 16;
+	memcpy(&ucode_len, ptr, 4);
+	ptr += ucode_len;
+	memcpy(&adev->uvd.keyselect, ptr, 4);
 
 	r = amdgpu_uvd_entity_init(adev);
 
