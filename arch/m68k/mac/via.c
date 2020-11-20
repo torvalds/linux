@@ -305,21 +305,6 @@ void via_l2_flush(int writeback)
 }
 
 /*
- * Return the status of the L2 cache on a IIci
- */
-
-int via_get_cache_disable(void)
-{
-	/* Safeguard against being called accidentally */
-	if (!via2) {
-		printk(KERN_ERR "via_get_cache_disable called on a non-VIA machine!\n");
-		return 1;
-	}
-
-	return (int) via2[gBufB] & VIA2B_vCDis;
-}
-
-/*
  * Initialize VIA2 for Nubus access
  */
 
