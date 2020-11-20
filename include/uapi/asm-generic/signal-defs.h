@@ -20,6 +20,8 @@
  * so this bit allows flag bit support to be detected from userspace while
  * allowing an old kernel to be distinguished from a kernel that supports every
  * flag bit.
+ * SA_EXPOSE_TAGBITS exposes an architecture-defined set of tag bits in
+ * siginfo.si_addr.
  *
  * SA_ONESHOT and SA_NOMASK are the historical Linux names for the Single
  * Unix names RESETHAND and NODEFER respectively.
@@ -41,6 +43,7 @@
 /* 0x00000100 used on sparc */
 /* 0x00000200 used on sparc */
 #define SA_UNSUPPORTED	0x00000400
+#define SA_EXPOSE_TAGBITS	0x00000800
 /* 0x00010000 used on mips */
 /* 0x01000000 used on x86 */
 /* 0x02000000 used on x86 */
