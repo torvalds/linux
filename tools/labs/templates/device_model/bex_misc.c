@@ -88,7 +88,7 @@ int bex_misc_probe(struct bex_device *dev)
 		return -ENODEV;
 	}
 
-	bmd = kzalloc(sizeof(struct miscdevice), GFP_KERNEL);
+	bmd = kzalloc(sizeof(*bmd), GFP_KERNEL);
 	if (!bmd)
 		return -ENOMEM;
 
