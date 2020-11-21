@@ -240,7 +240,6 @@ enum ice_rx_dtype {
 #define ICE_DFLT_INTRL	0
 #define ICE_MAX_INTRL	236
 
-#define ICE_WB_ON_ITR_USECS	2
 #define ICE_IN_WB_ON_ITR_MODE	255
 /* Sets WB_ON_ITR and assumes INTENA bit is already cleared, which allows
  * setting the MSK_M bit to tell hardware to ignore the INTENA_M bit. Also,
