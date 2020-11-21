@@ -67,7 +67,7 @@ contains the following subdirectories:
   * firmware - information from system firmware (ACPI)
   * fs - information about mounted file systems
   * kernel - kernel status information (logged-in users, hotplug)
-  * modules - the list of modules currently loaded
+  * module - the list of modules currently loaded
   * power - information related to the power management subsystem
 
 As you can see, there is a correlation between the kernel data structures
@@ -348,7 +348,7 @@ has the role of adding environment variables.
 
 Other possible operations on a bus are iterating over the drivers or devices
 attached to it.
-Although we can not directly access them (lists of drives and devices
+Although we can not directly access them (lists of drivers and devices
 being stored in the private data of the driver, the ``subsys_private *p`` field),
 these can be iterated using the :c:macro:`bus_for_each_dev` and
 :c:macro:`bus_for_each_drv` macros.
@@ -849,14 +849,14 @@ protocols are available:
 
 The kernel contains a bus, called ``pnp_bus``, that is used for connecting by
 many drivers.
-The implementation and working with the bus follow the model Linux Device Model
-and is very similar to what we discussed above.
+The implementation and working with the bus follow the Linux Device Model and
+is very similar to what we discussed above.
 
 The main functions and structures exported by the bus, which can be used by
 drivers, are:
 
     * :c:type:`struct pnp_driver` - driver type associated to the bus
-    * :c:func:`pnp_register_driver` - function used to record a PNP driver in the system
+    * :c:func:`pnp_register_driver` - function used to register a PNP driver in the system
     * :c:func:`pnp_unregister_driver` - function used to unregister a PNP driver from the system
 
 As noted in previous sections, the bus has a function called ``match`` used to
