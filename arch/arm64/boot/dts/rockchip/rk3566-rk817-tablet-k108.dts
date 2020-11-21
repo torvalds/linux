@@ -87,6 +87,20 @@
 		status = "okay";
 	};
 
+	flash_rgb13h: flash-rgb13h {
+		status = "okay";
+		compatible = "led,rgb13h";
+		label = "gpio-flash";
+		pinctrl-names = "default";
+		pinctrl-0 = <&flash_led_gpios>;
+		led-max-microamp = <20000>;
+		flash-max-microamp = <20000>;
+		flash-max-timeout-us = <1000000>;
+		enable-gpio = <&gpio4 RK_PB7 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+	};
+
 	hall_sensor: hall-mh248 {
 		compatible = "hall-mh248";
 		irq-gpio = <&gpio3 RK_PA6 IRQ_TYPE_EDGE_BOTH>;
@@ -116,6 +130,17 @@
 		regulator-boot-on;
 		regulator-min-microvolt = <3800000>;
 		regulator-max-microvolt = <3800000>;
+	};
+
+	vcc_camera: vcc-camera-regulator {
+		compatible = "regulator-fixed";
+		gpio = <&gpio4 RK_PB1 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&camera_rst>;
+		regulator-name = "vcc_camera";
+		enable-active-high;
+		regulator-always-on;
+		regulator-boot-on;
 	};
 
 	rk817-sound {
@@ -198,6 +223,41 @@
 
 &cpu0 {
 	cpu-supply = <&vdd_cpu>;
+};
+
+&csi_dphy {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_in_ucam0: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&gc2385_out>;
+				data-lanes = <1>;
+			};
+			mipi_in_ucam1: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&ov8858_out>;
+				data-lanes = <1 2>;
+			};
+		};
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidphy0_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&isp0_in>;
+			};
+		};
+	};
 };
 
 &dsi0 {
@@ -770,6 +830,63 @@
 	};
 };
 
+&i2c2 {
+	status = "okay";
+	pinctrl-0 = <&i2c2m1_xfer>;
+
+	gc2385: gc2385@37 {
+		compatible = "galaxycore,gc2385";
+		status = "okay";
+		reg = <0x37>;
+		clocks = <&cru CLK_CIF_OUT>;
+		clock-names = "xvclk";
+		power-domains = <&power RK3568_PD_VI>;
+		pinctrl-names = "rockchip,camera_default";
+		pinctrl-0 = <&cif_clkout>;
+
+		//reset pin control by hardware,used this pin switch to mipi input
+		//1->2LANE(LANE 0&1) FRONT camera, 0->4LANE REAR camera
+		reset-gpios = <&gpio4 17 GPIO_ACTIVE_LOW>;
+		pwdn-gpios = <&gpio4 10 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "front";
+		rockchip,camera-module-name = "HS5885-BNSM1018-V01";
+		rockchip,camera-module-lens-name = "default";
+		port {
+			gc2385_out: endpoint {
+				remote-endpoint = <&mipi_in_ucam0>;
+				data-lanes = <1>;
+			};
+		};
+	};
+
+	ov8858: ov8858@36 {
+		status = "okay";
+		compatible = "ovti,ov8858";
+		reg = <0x36>;
+		clocks = <&cru CLK_CAM0_OUT>;
+		clock-names = "xvclk";
+		power-domains = <&power RK3568_PD_VI>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_clkout0>;
+		//reset pin control by hardware,used this pin switch to mipi input
+		//1->2LANE(LANE 0&1) FRONT camera, 0->4LANE REAR camera
+		reset-gpios = <&gpio4 17 GPIO_ACTIVE_LOW>;
+		pwdn-gpios = <&gpio4 11 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "HS5885-BNSM1018-V01";
+		rockchip,camera-module-lens-name = "default";
+		flash-leds = <&flash_rgb13h>;
+		port {
+			ov8858_out: endpoint {
+				remote-endpoint = <&mipi_in_ucam1>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+};
+
 &i2c3 {
 	status = "okay";
 	pinctrl-names = "default";
@@ -843,6 +960,36 @@
 };
 
 &pinctrl {
+	cam {
+		cam_clkout0: cam-clkout0 {
+			rockchip,pins =
+				/* cam_clkout0 */
+				<4 RK_PA7 RK_FUNC_1 &pcfg_pull_none>;
+		};
+
+		camera_rst: camera-rst {
+			rockchip,pins =
+				/* front camera reset */
+				<4 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>,
+				/* back camra reset */
+				<4 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		flash_led_gpios: flash-led {
+			rockchip,pins =
+				/* flash led enable */
+				<4 RK_PB7 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	cif {
+		cif_clkout: cif-clkout {
+			rockchip,pins =
+				/* cif_clkout */
+				<4 RK_PC0 RK_FUNC_1 &pcfg_pull_none>;
+		};
+	};
+
 	gt9xx {
 		gt9xx_gpio: gt9xx-gpio {
 			rockchip,pins = <3 RK_PB0 RK_FUNC_GPIO &pcfg_pull_up>,
@@ -941,6 +1088,28 @@
 
 &rk_rga {
 	status = "okay";
+};
+
+&rkisp {
+	status = "okay";
+};
+
+&rkisp_mmu {
+	status = "okay";
+};
+
+&rkisp_vir0 {
+	status = "okay";
+
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp0_in: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&csidphy0_out>;
+		};
+	};
 };
 
 &rkvdec {
