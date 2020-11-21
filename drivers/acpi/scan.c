@@ -719,6 +719,28 @@ int acpi_device_add(struct acpi_device *device,
 /* --------------------------------------------------------------------------
                                  Device Enumeration
    -------------------------------------------------------------------------- */
+static bool acpi_info_matches_hids(struct acpi_device_info *info,
+				   const char * const hids[])
+{
+	int i;
+
+	if (!(info->valid & ACPI_VALID_HID))
+		return false;
+
+	for (i = 0; hids[i]; i++) {
+		if (!strcmp(info->hardware_id.string, hids[i]))
+			return true;
+	}
+
+	return false;
+}
+
+/* List of HIDs for which we ignore matching ACPI devices, when checking _DEP lists. */
+static const char * const acpi_ignore_dep_hids[] = {
+	"INT3396", /* Windows System Power Management Controller */
+	NULL
+};
+
 static struct acpi_device *acpi_bus_get_parent(acpi_handle handle)
 {
 	struct acpi_device *device = NULL;
@@ -1833,13 +1855,7 @@ static void acpi_device_dep_initialize(struct acpi_device *adev)
 			continue;
 		}
 
-		/*
-		 * Skip the dependency of Windows System Power
-		 * Management Controller
-		 */
-		skip = info->valid & ACPI_VALID_HID &&
-			!strcmp(info->hardware_id.string, "INT3396");
-
+		skip = acpi_info_matches_hids(info, acpi_ignore_dep_hids);
 		kfree(info);
 
 		if (skip)
