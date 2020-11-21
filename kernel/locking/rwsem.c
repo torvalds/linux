@@ -976,6 +976,12 @@ static inline bool rwsem_reader_phase_trylock(struct rw_semaphore *sem,
 	}
 	return false;
 }
+
+static inline bool rwsem_no_spinners(struct rw_semaphore *sem)
+{
+	return !osq_is_locked(&sem->osq);
+}
+
 #else
 static inline bool rwsem_can_spin_on_owner(struct rw_semaphore *sem,
 					   unsigned long nonspinnable)
@@ -992,6 +998,11 @@ static inline void clear_wr_nonspinnable(struct rw_semaphore *sem) { }
 
 static inline bool rwsem_reader_phase_trylock(struct rw_semaphore *sem,
 					      unsigned long last_rowner)
+{
+	return false;
+}
+
+static inline bool rwsem_no_spinners(sem)
 {
 	return false;
 }
@@ -1027,6 +1038,22 @@ rwsem_down_read_slowpath(struct rw_semaphore *sem, long count, int state)
 		goto queue;
 
 	/*
+	 * Reader optimistic lock stealing
+	 *
+	 * We can take the read lock directly without doing
+	 * rwsem_optimistic_spin() if the conditions are right.
+	 * Also wake up other readers if it is the first reader.
+	 */
+	if (!(count & (RWSEM_WRITER_LOCKED | RWSEM_FLAG_HANDOFF)) &&
+	    rwsem_no_spinners(sem)) {
+		rwsem_set_reader_owned(sem);
+		lockevent_inc(rwsem_rlock_steal);
+		if (rcnt == 1)
+			goto wake_readers;
+		return sem;
+	}
+
+	/*
 	 * Save the current read-owner of rwsem, if available, and the
 	 * reader nonspinnable bit.
 	 */
@@ -1048,6 +1075,7 @@ rwsem_down_read_slowpath(struct rw_semaphore *sem, long count, int state)
 		 * Wake up other readers in the wait list if the front
 		 * waiter is a reader.
 		 */
+wake_readers:
 		if ((atomic_long_read(&sem->count) & RWSEM_FLAG_WAITERS)) {
 			raw_spin_lock_irq(&sem->wait_lock);
 			if (!list_empty(&sem->wait_list))
