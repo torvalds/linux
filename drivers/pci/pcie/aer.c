@@ -1039,6 +1039,7 @@ EXPORT_SYMBOL_GPL(aer_recover_queue);
  */
 int aer_get_device_error_info(struct pci_dev *dev, struct aer_err_info *info)
 {
+	int type = pci_pcie_type(dev);
 	int aer = dev->aer_cap;
 	int temp;
 
@@ -1057,8 +1058,8 @@ int aer_get_device_error_info(struct pci_dev *dev, struct aer_err_info *info)
 			&info->mask);
 		if (!(info->status & ~info->mask))
 			return 0;
-	} else if (pci_pcie_type(dev) == PCI_EXP_TYPE_ROOT_PORT ||
-	           pci_pcie_type(dev) == PCI_EXP_TYPE_DOWNSTREAM ||
+	} else if (type == PCI_EXP_TYPE_ROOT_PORT ||
+		   type == PCI_EXP_TYPE_DOWNSTREAM ||
 		   info->severity == AER_NONFATAL) {
 
 		/* Link is still healthy for IO reads */
