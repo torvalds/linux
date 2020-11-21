@@ -1359,8 +1359,8 @@ static int aer_probe(struct pcie_device *dev)
 }
 
 /**
- * aer_root_reset - reset Root Port hierarchy or RCEC
- * @dev: pointer to Root Port or RCEC
+ * aer_root_reset - reset Root Port hierarchy, RCEC, or RCiEP
+ * @dev: pointer to Root Port, RCEC, or RCiEP
  *
  * Invoked by Port Bus driver when performing reset.
  */
@@ -1373,8 +1373,22 @@ static pci_ers_result_t aer_root_reset(struct pci_dev *dev)
 	u32 reg32;
 	int rc;
 
-	root = dev;	/* device with Root Error registers */
-	aer = root->aer_cap;
+	/*
+	 * Only Root Ports and RCECs have AER Root Command and Root Status
+	 * registers.  If "dev" is an RCiEP, the relevant registers are in
+	 * the RCEC.
+	 */
+	if (type == PCI_EXP_TYPE_RC_END)
+		root = dev->rcec;
+	else
+		root = dev;
+
+	/*
+	 * If the platform retained control of AER, an RCiEP may not have
+	 * an RCEC visible to us, so dev->rcec ("root") may be NULL.  In
+	 * that case, firmware is responsible for these registers.
+	 */
+	aer = root ? root->aer_cap : 0;
 
 	if ((host->native_aer || pcie_ports_native) && aer) {
 		/* Disable Root's interrupt in response to error messages */
@@ -1383,7 +1397,7 @@ static pci_ers_result_t aer_root_reset(struct pci_dev *dev)
 		pci_write_config_dword(root, aer + PCI_ERR_ROOT_COMMAND, reg32);
 	}
 
-	if (type == PCI_EXP_TYPE_RC_EC) {
+	if (type == PCI_EXP_TYPE_RC_EC || type == PCI_EXP_TYPE_RC_END) {
 		if (pcie_has_flr(dev)) {
 			rc = pcie_flr(dev);
 			pci_info(dev, "has been reset (%d)\n", rc);
