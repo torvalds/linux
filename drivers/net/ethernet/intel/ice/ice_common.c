@@ -110,7 +110,7 @@ ice_aq_manage_mac_read(struct ice_hw *hw, void *buf, u16 buf_size,
 	if (status)
 		return status;
 
-	resp = (struct ice_aqc_manage_mac_read_resp *)buf;
+	resp = buf;
 	flags = le16_to_cpu(cmd->flags) & ICE_AQC_MAN_MAC_READ_M;
 
 	if (!(flags & ICE_AQC_MAN_MAC_LAN_ADDR_VALID)) {
@@ -1980,7 +1980,7 @@ ice_parse_func_caps(struct ice_hw *hw, struct ice_hw_func_caps *func_p,
 	struct ice_aqc_list_caps_elem *cap_resp;
 	u32 i;
 
-	cap_resp = (struct ice_aqc_list_caps_elem *)buf;
+	cap_resp = buf;
 
 	memset(func_p, 0, sizeof(*func_p));
 
@@ -2110,7 +2110,7 @@ ice_parse_dev_caps(struct ice_hw *hw, struct ice_hw_dev_caps *dev_p,
 	struct ice_aqc_list_caps_elem *cap_resp;
 	u32 i;
 
-	cap_resp = (struct ice_aqc_list_caps_elem *)buf;
+	cap_resp = buf;
 
 	memset(dev_p, 0, sizeof(*dev_p));
 
