@@ -2074,8 +2074,11 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 	for (i = 0; i < adapter->req_rx_queues; i++)
 		napi_schedule(&adapter->napi[i]);
 
-	if (adapter->reset_reason != VNIC_RESET_FAILOVER)
+	if (adapter->reset_reason == VNIC_RESET_FAILOVER ||
+	    adapter->reset_reason == VNIC_RESET_MOBILITY) {
 		call_netdevice_notifiers(NETDEV_NOTIFY_PEERS, netdev);
+		call_netdevice_notifiers(NETDEV_RESEND_IGMP, netdev);
+	}
 
 	rc = 0;
 
@@ -2144,6 +2147,9 @@ static int do_hard_reset(struct ibmvnic_adapter *adapter,
 	rc = __ibmvnic_open(netdev);
 	if (rc)
 		return IBMVNIC_OPEN_FAILED;
+
+	call_netdevice_notifiers(NETDEV_NOTIFY_PEERS, netdev);
+	call_netdevice_notifiers(NETDEV_RESEND_IGMP, netdev);
 
 	return 0;
 }
@@ -2349,6 +2355,12 @@ err:
 static void ibmvnic_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct ibmvnic_adapter *adapter = netdev_priv(dev);
+
+	if (test_bit(0, &adapter->resetting)) {
+		netdev_err(adapter->netdev,
+			   "Adapter is resetting, skip timeout reset\n");
+		return;
+	}
 
 	ibmvnic_reset(adapter, VNIC_RESET_TIMEOUT);
 }
