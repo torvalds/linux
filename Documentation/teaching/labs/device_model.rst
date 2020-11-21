@@ -331,7 +331,7 @@ The functions that will normally be initialized within a bus_type structure are
     // match devices to drivers; just do a simple name test
     static int my_match(struct device *dev, struct device_driver *driver)
     {
-      return strncmp(dev_name(dev), driver->name, strlen(driver->name));
+      return !strncmp(dev_name(dev), driver->name, strlen(driver->name));
     }
 
     // respond to hotplug user events; add environment variable DEV_NAME
