@@ -906,6 +906,26 @@ void mt7915_mac_write_txwi(struct mt7915_dev *dev, __le32 *txwi,
 		mt7915_mac_write_txwi_tm(dev, mphy, txwi, skb);
 }
 
+static void
+mt7915_set_tx_blocked(struct mt7915_dev *dev, bool blocked)
+{
+	struct mt76_phy *mphy = &dev->mphy, *mphy2 = dev->mt76.phy2;
+	struct mt76_queue *q, *q2 = NULL;
+
+	q = mphy->q_tx[0];
+	if (blocked == q->blocked)
+		return;
+
+	q->blocked = blocked;
+	if (mphy2) {
+		q2 = mphy2->q_tx[0];
+		q2->blocked = blocked;
+	}
+
+	if (!blocked)
+		mt76_worker_schedule(&dev->mt76.tx_worker);
+}
+
 int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 			  enum mt76_txq_id qid, struct mt76_wcid *wcid,
 			  struct ieee80211_sta *sta,
@@ -962,7 +982,13 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 
 	spin_lock_bh(&dev->token_lock);
 	id = idr_alloc(&dev->token, t, 0, MT7915_TOKEN_SIZE, GFP_ATOMIC);
+	if (id >= 0)
+		dev->token_count++;
+
+	if (dev->token_count >= MT7915_TOKEN_SIZE - MT7915_TOKEN_FREE_THR)
+		mt7915_set_tx_blocked(dev, true);
 	spin_unlock_bh(&dev->token_lock);
+
 	if (id < 0)
 		return id;
 
@@ -1071,6 +1097,7 @@ void mt7915_mac_tx_free(struct mt7915_dev *dev, struct sk_buff *skb)
 	LIST_HEAD(free_list);
 	struct sk_buff *tmp;
 	u8 i, count;
+	bool wake = false;
 
 	/* clean DMA queues and unmap buffers first */
 	mt76_queue_tx_cleanup(dev, dev->mphy.q_tx[MT_TXQ_PSD], false);
@@ -1123,6 +1150,11 @@ void mt7915_mac_tx_free(struct mt7915_dev *dev, struct sk_buff *skb)
 
 		spin_lock_bh(&dev->token_lock);
 		txwi = idr_remove(&dev->token, msdu);
+		if (txwi)
+			dev->token_count--;
+		if (dev->token_count < MT7915_TOKEN_SIZE - MT7915_TOKEN_FREE_THR &&
+		    dev->mphy.q_tx[0]->blocked)
+			wake = true;
 		spin_unlock_bh(&dev->token_lock);
 
 		if (!txwi)
@@ -1153,6 +1185,13 @@ void mt7915_mac_tx_free(struct mt7915_dev *dev, struct sk_buff *skb)
 	}
 
 	mt7915_mac_sta_poll(dev);
+
+	if (wake) {
+		spin_lock_bh(&dev->token_lock);
+		mt7915_set_tx_blocked(dev, false);
+		spin_unlock_bh(&dev->token_lock);
+	}
+
 	mt76_worker_schedule(&dev->mt76.tx_worker);
 
 	napi_consume_skb(skb, 1);

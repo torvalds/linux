@@ -32,6 +32,7 @@
 
 #define MT7915_EEPROM_SIZE		3584
 #define MT7915_TOKEN_SIZE		8192
+#define MT7915_TOKEN_FREE_THR		64
 
 #define MT7915_CFEND_RATE_DEFAULT	0x49	/* OFDM 24M */
 #define MT7915_CFEND_RATE_11B		0x03	/* 11B LP, 11M */
@@ -161,6 +162,7 @@ struct mt7915_dev {
 	u32 hw_pattern;
 
 	spinlock_t token_lock;
+	int token_count;
 	struct idr token;
 
 	s8 **rate_power; /* TODO: use mt76_rate_power */
