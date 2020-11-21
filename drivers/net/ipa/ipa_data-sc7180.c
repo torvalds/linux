@@ -309,6 +309,26 @@ static struct ipa_mem_data ipa_mem_data = {
 	.smem_size	= 0x00002000,
 };
 
+static struct ipa_clock_data ipa_clock_data = {
+	.core_clock_rate	= 100 * 1000 * 1000,	/* Hz */
+	/* Interconnect rates are in 1000 byte/second units */
+	.interconnect = {
+		[IPA_INTERCONNECT_MEMORY] = {
+			.peak_rate	= 465000,	/* 465 MBps */
+			.average_rate	= 80000,	/* 80 MBps */
+		},
+		/* Average rate is unused for the next two interconnects */
+		[IPA_INTERCONNECT_IMEM] = {
+			.peak_rate	= 68570,	/* 68.570 MBps */
+			.average_rate	= 0,		/* unused */
+		},
+		[IPA_INTERCONNECT_CONFIG] = {
+			.peak_rate	= 30000,	/* 30 MBps */
+			.average_rate	= 0,		/* unused */
+		},
+	},
+};
+
 /* Configuration data for the SC7180 SoC. */
 const struct ipa_data ipa_data_sc7180 = {
 	.version	= IPA_VERSION_4_2,
@@ -316,4 +336,5 @@ const struct ipa_data ipa_data_sc7180 = {
 	.endpoint_data	= ipa_gsi_endpoint_data,
 	.resource_data	= &ipa_resource_data,
 	.mem_data	= &ipa_mem_data,
+	.clock_data	= &ipa_clock_data,
 };
