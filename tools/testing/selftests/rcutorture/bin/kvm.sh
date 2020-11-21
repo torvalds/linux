@@ -85,7 +85,7 @@ do
 		;;
 	--bootargs|--bootarg)
 		checkarg --bootargs "(list of kernel boot arguments)" "$#" "$2" '.*' '^--'
-		TORTURE_BOOTARGS="$2"
+		TORTURE_BOOTARGS="$TORTURE_BOOTARGS $2"
 		shift
 		;;
 	--bootimage)
@@ -97,8 +97,8 @@ do
 		TORTURE_BUILDONLY=1
 		;;
 	--configs|--config)
-		checkarg --configs "(list of config files)" "$#" "$2" '^[^/]*$' '^--'
-		configs="$2"
+		checkarg --configs "(list of config files)" "$#" "$2" '^[^/]\+$' '^--'
+		configs="$configs $2"
 		shift
 		;;
 	--cpus)
@@ -162,7 +162,7 @@ do
 		;;
 	--kconfig|--kconfigs)
 		checkarg --kconfig "(Kconfig options)" $# "$2" '^CONFIG_[A-Z0-9_]\+=\([ynm]\|[0-9]\+\)\( CONFIG_[A-Z0-9_]\+=\([ynm]\|[0-9]\+\)\)*$' '^error$'
-		TORTURE_KCONFIG_ARG="$2"
+		TORTURE_KCONFIG_ARG="`echo "$TORTURE_KCONFIG_ARG $2" | sed -e 's/^ *//' -e 's/ *$//'`"
 		shift
 		;;
 	--kasan)
@@ -173,7 +173,7 @@ do
 		;;
 	--kmake-arg|--kmake-args)
 		checkarg --kmake-arg "(kernel make arguments)" $# "$2" '.*' '^error$'
-		TORTURE_KMAKE_ARG="$2"
+		TORTURE_KMAKE_ARG="`echo "$TORTURE_KMAKE_ARG $2" | sed -e 's/^ *//' -e 's/ *$//'`"
 		shift
 		;;
 	--mac)
@@ -191,7 +191,7 @@ do
 		;;
 	--qemu-args|--qemu-arg)
 		checkarg --qemu-args "(qemu arguments)" $# "$2" '^-' '^error'
-		TORTURE_QEMU_ARG="$2"
+		TORTURE_QEMU_ARG="`echo "$TORTURE_QEMU_ARG $2" | sed -e 's/^ *//' -e 's/ *$//'`"
 		shift
 		;;
 	--qemu-cmd)
