@@ -50,7 +50,6 @@ static int test_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	if (expires > U32_MAX)
 		expires = U32_MAX;
 
-	pr_err("ABE: %s +%d %s\n", __FILE__, __LINE__, __func__);
 	rtd->alarm.expires = expires;
 
 	if (alrm->enabled)
