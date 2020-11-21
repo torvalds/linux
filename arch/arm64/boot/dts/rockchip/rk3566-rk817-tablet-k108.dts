@@ -78,6 +78,15 @@
 		default-brightness-level = <200>;
 	};
 
+	charge-animation {
+		compatible = "rockchip,uboot-charge";
+		rockchip,uboot-charge-on = <1>;
+		rockchip,android-charge-on = <0>;
+		rockchip,uboot-low-power-voltage = <3350>;
+		rockchip,screen-on-voltage = <3400>;
+		status = "okay";
+	};
+
 	hall_sensor: hall-mh248 {
 		compatible = "hall-mh248";
 		irq-gpio = <&gpio3 RK_PA6 IRQ_TYPE_EDGE_BOTH>;
@@ -775,8 +784,8 @@
 		touch-gpio = <&gpio3 RK_PB0 IRQ_TYPE_LEVEL_LOW>;
 		reset-gpio = <&gpio3 RK_PB1 GPIO_ACTIVE_HIGH>;
 		max-x = <1200>;
-		max-y = <1900>;
-		tp-size = <911>;
+		max-y = <1920>;
+		tp-size = <9110>;
 		tp-supply = <&vcc_3v3>;
 	};
 };
