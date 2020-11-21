@@ -547,12 +547,20 @@ out:
  * necessary
  */
 int bch2_journal_flush_seq_async(struct journal *j, u64 seq,
-				  struct closure *parent)
+				 struct closure *parent)
 {
 	struct journal_buf *buf;
 	int ret = 0;
 
+	if (seq <= j->err_seq)
+		return -EIO;
+
+	if (seq <= j->seq_ondisk)
+		return 1;
+
 	spin_lock(&j->lock);
+
+	/* Recheck under lock: */
 	if (seq <= j->err_seq) {
 		ret = -EIO;
 		goto out;
