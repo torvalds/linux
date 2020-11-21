@@ -799,8 +799,8 @@ in the ``/dev/`` directories can be automatically created for devices, and using
 ``udev`` drivers can be automatically loaded for a device.
 
 Rules for ``udev`` are located ``/etc/udev/rules.d``.
-Any file that ends with ``.conf`` in this directory will be parsed when an event
-occurs. For more details on how to write rules in these files see
+Any file that ends with ``.rules`` in this directory will be parsed when an
+event occurs. For more details on how to write rules in these files see
 `Writing udev rules <http://www.reactivated.net/writing_udev_rules.html>`_.
 For testing, there are utilities such as ``udevmonitor``, ``udevinfo`` and
 ``udevtest``.
