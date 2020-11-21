@@ -1735,15 +1735,14 @@ void fnic_terminate_rport_io(struct fc_rport *rport)
 			continue;
 		}
 
-		cmd_rport = starget_to_rport(scsi_target(sc->device));
-		if (rport != cmd_rport) {
+		io_req = (struct fnic_io_req *)CMD_SP(sc);
+		if (!io_req) {
 			spin_unlock_irqrestore(io_lock, flags);
 			continue;
 		}
 
-		io_req = (struct fnic_io_req *)CMD_SP(sc);
-
-		if (!io_req || rport != cmd_rport) {
+		cmd_rport = starget_to_rport(scsi_target(sc->device));
+		if (rport != cmd_rport) {
 			spin_unlock_irqrestore(io_lock, flags);
 			continue;
 		}
