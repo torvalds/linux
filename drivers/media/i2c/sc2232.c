@@ -863,7 +863,7 @@ static long sc2232_compat_ioctl32(struct v4l2_subdev *sd,
 	case RKMODULE_SET_QUICK_STREAM:
 		ret = copy_from_user(&stream, up, sizeof(u32));
 		if (!ret)
-			ret = sc2310_ioctl(sd, cmd, &stream);
+			ret = sc2232_ioctl(sd, cmd, &stream);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -1166,7 +1166,7 @@ static int sc2232_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	}
 
-	if (pm_runtime_get(&client->dev) <= 0)
+	if (!pm_runtime_get_if_in_use(&client->dev))
 		return 0;
 
 	switch (ctrl->id) {

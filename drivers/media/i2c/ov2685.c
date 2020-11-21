@@ -691,7 +691,8 @@ static int ov2685_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	}
 
-	pm_runtime_get_sync(&client->dev);
+	if (!pm_runtime_get_if_in_use(&client->dev))
+		return 0;
 	switch (ctrl->id) {
 	case V4L2_CID_EXPOSURE:
 		ov2685_set_exposure(ov2685, ctrl->val);

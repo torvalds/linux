@@ -898,7 +898,7 @@ static int ov2735_set_ctrl(struct v4l2_ctrl *ctrl)
 					 ov2735->exposure->default_value);
 		break;
 	}
-	if (pm_runtime_get(&client->dev) <= 0)
+	if (!pm_runtime_get_if_in_use(&client->dev))
 		return 0;
 
 	ret = ov2735_write_reg(client, PAGE_SELECT_REG, PAGE_ONE);

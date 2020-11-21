@@ -547,7 +547,7 @@ static int gc2093_set_ctrl(struct v4l2_ctrl *ctrl)
 					 gc2093->exposure->default_value);
 		break;
 	}
-	if (pm_runtime_get(gc2093->dev) <= 0)
+	if (!pm_runtime_get_if_in_use(gc2093->dev))
 		return 0;
 
 	switch (ctrl->id) {

@@ -376,7 +376,7 @@ static int sc210iot_set_ctrl(struct v4l2_ctrl *ctrl)
 					 sc210iot->exposure->default_value);
 		break;
 	}
-	if (pm_runtime_get(sc210iot->dev) <= 0)
+	if (!pm_runtime_get_if_in_use(sc210iot->dev))
 		return 0;
 	switch (ctrl->id) {
 	case V4L2_CID_EXPOSURE:

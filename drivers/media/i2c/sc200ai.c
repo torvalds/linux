@@ -1178,8 +1178,6 @@ static long sc200ai_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	case PREISP_CMD_SET_HDRAE_EXP:
 		sc200ai_set_hdrae(sc200ai, arg);
 		break;
-	case RKMODULE_GET_NR_SWITCH_THRESHOLD:
-		break;
 	case RKMODULE_SET_QUICK_STREAM:
 
 		stream = *((u32 *)arg);
@@ -1271,18 +1269,6 @@ static long sc200ai_compat_ioctl32(struct v4l2_subdev *sd,
 		if (!ret)
 			ret = sc200ai_ioctl(sd, cmd, hdrae);
 		kfree(hdrae);
-		break;
-	case RKMODULE_GET_NR_SWITCH_THRESHOLD:
-		nr_switch = kzalloc(sizeof(*nr_switch), GFP_KERNEL);
-		if (!nr_switch) {
-			ret = -ENOMEM;
-			return ret;
-		}
-
-		ret = sc200ai_ioctl(sd, cmd, nr_switch);
-		if (!ret)
-			ret = copy_to_user(up, nr_switch, sizeof(*nr_switch));
-		kfree(nr_switch);
 		break;
 	case RKMODULE_SET_QUICK_STREAM:
 		ret = copy_from_user(&stream, up, sizeof(u32));
@@ -1606,7 +1592,7 @@ static int sc200ai_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	}
 
-	if (pm_runtime_get(&client->dev) <= 0)
+	if (!pm_runtime_get_if_in_use(&client->dev))
 		return 0;
 
 	switch (ctrl->id) {

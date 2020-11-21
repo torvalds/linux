@@ -1415,7 +1415,7 @@ static int ar0230_set_ctrl(struct v4l2_ctrl *ctrl)
 	struct i2c_client *client = ar0230->client;
 	int ret = 0;
 
-	if (pm_runtime_get(&client->dev) <= 0)
+	if (!pm_runtime_get_if_in_use(&client->dev))
 		return 0;
 
 	switch (ctrl->id) {
