@@ -6177,7 +6177,7 @@ static int ice_change_mtu(struct net_device *netdev, int new_mtu)
 
 		err = ice_down(vsi);
 		if (err) {
-			netdev_err(netdev, "change MTU if_up err %d\n", err);
+			netdev_err(netdev, "change MTU if_down err %d\n", err);
 			return err;
 		}
 
