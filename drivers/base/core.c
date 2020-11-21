@@ -1472,7 +1472,7 @@ static void fw_devlink_parse_fwnode(struct fwnode_handle *fwnode)
 	if (fwnode->flags & FWNODE_FLAG_LINKS_ADDED)
 		return;
 
-	fwnode_call_int_op(fwnode, add_links, NULL);
+	fwnode_call_int_op(fwnode, add_links);
 	fwnode->flags |= FWNODE_FLAG_LINKS_ADDED;
 }
 

@@ -127,8 +127,7 @@ struct fwnode_operations {
 	(*graph_get_port_parent)(struct fwnode_handle *fwnode);
 	int (*graph_parse_endpoint)(const struct fwnode_handle *fwnode,
 				    struct fwnode_endpoint *endpoint);
-	int (*add_links)(struct fwnode_handle *fwnode,
-			 struct device *dev);
+	int (*add_links)(struct fwnode_handle *fwnode);
 };
 
 #define fwnode_has_op(fwnode, op)				\
