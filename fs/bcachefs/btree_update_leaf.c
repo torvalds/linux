@@ -1094,13 +1094,32 @@ int bch2_btree_insert(struct bch_fs *c, enum btree_id id,
 			     __bch2_btree_insert(&trans, id, k));
 }
 
-int bch2_btree_delete_at_range(struct btree_trans *trans,
-			       struct btree_iter *iter,
-			       struct bpos end,
-			       u64 *journal_seq)
+int bch2_btree_delete_at(struct btree_trans *trans,
+			 struct btree_iter *iter, unsigned flags)
 {
+	struct bkey_i k;
+
+	bkey_init(&k.k);
+	k.k.p = iter->pos;
+
+	bch2_trans_update(trans, iter, &k, 0);
+	return bch2_trans_commit(trans, NULL, NULL,
+				 BTREE_INSERT_NOFAIL|
+				 BTREE_INSERT_USE_RESERVE|flags);
+}
+
+int bch2_btree_delete_range_trans(struct btree_trans *trans, enum btree_id id,
+				  struct bpos start, struct bpos end,
+				  u64 *journal_seq)
+{
+	struct btree_iter *iter;
 	struct bkey_s_c k;
 	int ret = 0;
+
+	iter = bch2_trans_get_iter(trans, id, start, BTREE_ITER_INTENT);
+	ret = PTR_ERR_OR_ZERO(iter);
+	if (ret)
+		return ret;
 retry:
 	while ((k = bch2_btree_iter_peek(iter)).k &&
 	       !(ret = bkey_err(k)) &&
@@ -1110,6 +1129,10 @@ retry:
 		bch2_trans_begin(trans);
 
 		bkey_init(&delete.k);
+
+		/*
+		 * This could probably be more efficient for extents:
+		 */
 
 		/*
 		 * For extents, iter.pos won't necessarily be the same as
@@ -1150,22 +1173,8 @@ retry:
 		goto retry;
 	}
 
+	bch2_trans_iter_put(trans, iter);
 	return ret;
-
-}
-
-int bch2_btree_delete_at(struct btree_trans *trans,
-			 struct btree_iter *iter, unsigned flags)
-{
-	struct bkey_i k;
-
-	bkey_init(&k.k);
-	k.k.p = iter->pos;
-
-	bch2_trans_update(trans, iter, &k, 0);
-	return bch2_trans_commit(trans, NULL, NULL,
-				 BTREE_INSERT_NOFAIL|
-				 BTREE_INSERT_USE_RESERVE|flags);
 }
 
 /*
@@ -1177,21 +1186,6 @@ int bch2_btree_delete_range(struct bch_fs *c, enum btree_id id,
 			    struct bpos start, struct bpos end,
 			    u64 *journal_seq)
 {
-	struct btree_trans trans;
-	struct btree_iter *iter;
-	int ret = 0;
-
-	/*
-	 * XXX: whether we need mem/more iters depends on whether this btree id
-	 * has triggers
-	 */
-	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 512);
-
-	iter = bch2_trans_get_iter(&trans, id, start, BTREE_ITER_INTENT);
-
-	ret = bch2_btree_delete_at_range(&trans, iter, end, journal_seq);
-	ret = bch2_trans_exit(&trans) ?: ret;
-
-	BUG_ON(ret == -EINTR);
-	return ret;
+	return bch2_trans_do(c, NULL, journal_seq, 0,
+			     bch2_btree_delete_range_trans(&trans, id, start, end, journal_seq));
 }

@@ -553,6 +553,8 @@ int bch2_inode_rm(struct bch_fs *c, u64 inode_nr, bool cached)
 	u64 bi_generation;
 	int ret;
 
+	bch2_trans_init(&trans, c, 0, 0);
+
 	/*
 	 * If this was a directory, there shouldn't be any real dirents left -
 	 * but there could be whiteouts (from hash collisions) that we should
@@ -561,16 +563,14 @@ int bch2_inode_rm(struct bch_fs *c, u64 inode_nr, bool cached)
 	 * XXX: the dirent could ideally would delete whiteouts when they're no
 	 * longer needed
 	 */
-	ret   = bch2_btree_delete_range(c, BTREE_ID_EXTENTS,
-					start, end, NULL) ?:
-		bch2_btree_delete_range(c, BTREE_ID_XATTRS,
-					start, end, NULL) ?:
-		bch2_btree_delete_range(c, BTREE_ID_DIRENTS,
-					start, end, NULL);
+	ret   = bch2_btree_delete_range_trans(&trans, BTREE_ID_EXTENTS,
+					      start, end, NULL) ?:
+		bch2_btree_delete_range_trans(&trans, BTREE_ID_XATTRS,
+					      start, end, NULL) ?:
+		bch2_btree_delete_range_trans(&trans, BTREE_ID_DIRENTS,
+					      start, end, NULL);
 	if (ret)
-		return ret;
-
-	bch2_trans_init(&trans, c, 0, 0);
+		goto err;
 retry:
 	bch2_trans_begin(&trans);
 
@@ -590,7 +590,7 @@ retry:
 	if (ret)
 		goto err;
 
-	bch2_fs_inconsistent_on(k.k->type != KEY_TYPE_inode, c,
+	bch2_fs_inconsistent_on(k.k->type != KEY_TYPE_inode, trans.c,
 				"inode %llu not found when deleting",
 				inode_nr);
 
