@@ -2349,6 +2349,8 @@ unroll_vsi_init:
 unroll_get_qs:
 	ice_vsi_put_qs(vsi);
 unroll_vsi_alloc:
+	if (vsi_type == ICE_VSI_VF)
+		ice_enable_lag(pf->lag);
 	ice_vsi_clear(vsi);
 
 	return NULL;

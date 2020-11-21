@@ -56,6 +56,7 @@
 #include "ice_fdir.h"
 #include "ice_xsk.h"
 #include "ice_arfs.h"
+#include "ice_lag.h"
 
 #define ICE_BAR0		0
 #define ICE_REQ_DESC_MULTIPLE	32
@@ -453,6 +454,7 @@ struct ice_pf {
 	__le64 nvm_phy_type_lo; /* NVM PHY type low */
 	__le64 nvm_phy_type_hi; /* NVM PHY type high */
 	struct ice_link_default_override_tlv link_dflt_override;
+	struct ice_lag *lag; /* Link Aggregation information */
 };
 
 struct ice_netdev_priv {
@@ -553,11 +555,31 @@ static inline struct ice_vsi *ice_get_ctrl_vsi(struct ice_pf *pf)
 	return pf->vsi[pf->ctrl_vsi_idx];
 }
 
+/**
+ * ice_set_sriov_cap - enable SRIOV in PF flags
+ * @pf: PF struct
+ */
+static inline void ice_set_sriov_cap(struct ice_pf *pf)
+{
+	if (pf->hw.func_caps.common_cap.sr_iov_1_1)
+		set_bit(ICE_FLAG_SRIOV_CAPABLE, pf->flags);
+}
+
+/**
+ * ice_clear_sriov_cap - disable SRIOV in PF flags
+ * @pf: PF struct
+ */
+static inline void ice_clear_sriov_cap(struct ice_pf *pf)
+{
+	clear_bit(ICE_FLAG_SRIOV_CAPABLE, pf->flags);
+}
+
 #define ICE_FD_STAT_CTR_BLOCK_COUNT	256
 #define ICE_FD_STAT_PF_IDX(base_idx) \
 			((base_idx) * ICE_FD_STAT_CTR_BLOCK_COUNT)
 #define ICE_FD_SB_STAT_IDX(base_idx) ICE_FD_STAT_PF_IDX(base_idx)
 
+bool netif_is_ice(struct net_device *dev);
 int ice_vsi_setup_tx_rings(struct ice_vsi *vsi);
 int ice_vsi_setup_rx_rings(struct ice_vsi *vsi);
 int ice_vsi_open_ctrl(struct ice_vsi *vsi);
