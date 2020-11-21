@@ -321,7 +321,7 @@ static int aa_xattrs_match(const struct linux_binprm *bprm,
 	might_sleep();
 
 	/* transition from exec match to xattr set */
-	state = aa_dfa_outofband_transition(profile->xmatch, state);
+	state = aa_dfa_outofband_transition(profile->xmatch.dfa, state);
 	d = bprm->file->f_path.dentry;
 
 	for (i = 0; i < profile->xattr_count; i++) {
@@ -335,18 +335,19 @@ static int aa_xattrs_match(const struct linux_binprm *bprm,
 			 * that not present xattr can be distinguished from a 0
 			 * length value or rule that matches any value
 			 */
-			state = aa_dfa_null_transition(profile->xmatch, state);
+			state = aa_dfa_null_transition(profile->xmatch.dfa,
+						       state);
 			/* Check xattr value */
-			state = aa_dfa_match_len(profile->xmatch, state, value,
-						 size);
-			perm = profile->xmatch_perms[state].allow;
+			state = aa_dfa_match_len(profile->xmatch.dfa, state,
+						 value, size);
+			perm = profile->xmatch.perms[state].allow;
 			if (!(perm & MAY_EXEC)) {
 				ret = -EINVAL;
 				goto out;
 			}
 		}
 		/* transition to next element */
-		state = aa_dfa_outofband_transition(profile->xmatch, state);
+		state = aa_dfa_outofband_transition(profile->xmatch.dfa, state);
 		if (size < 0) {
 			/*
 			 * No xattr match, so verify if transition to
@@ -413,13 +414,14 @@ restart:
 		 * as another profile, signal a conflict and refuse to
 		 * match.
 		 */
-		if (profile->xmatch) {
+		if (profile->xmatch.dfa) {
 			unsigned int state, count;
 			u32 perm;
 
-			state = aa_dfa_leftmatch(profile->xmatch, DFA_START,
-						 name, &count);
-			perm = profile->xmatch_perms[state].allow;
+			state = aa_dfa_leftmatch(profile->xmatch.dfa,
+					profile->xmatch.start[AA_CLASS_XMATCH],
+					name, &count);
+			perm = profile->xmatch.perms[state].allow;
 			/* any accepting state means a valid match. */
 			if (perm & MAY_EXEC) {
 				int ret = 0;

@@ -771,7 +771,7 @@ static struct aa_perms *compute_fperms(struct aa_dfa *dfa)
 
 static struct aa_perms *compute_xmatch_perms(struct aa_dfa *xmatch)
 {
-	struct aa_perms *perms_table;
+	struct aa_perms *perms;
 	int state;
 	int state_count;
 
@@ -779,14 +779,13 @@ static struct aa_perms *compute_xmatch_perms(struct aa_dfa *xmatch)
 
 	state_count = xmatch->tables[YYTD_ID_BASE]->td_lolen;
 	/* DFAs are restricted from having a state_count of less than 2 */
-	  perms_table = kvcalloc(state_count, sizeof(struct aa_perms),
-			       GFP_KERNEL);
+	perms = kvcalloc(state_count, sizeof(struct aa_perms), GFP_KERNEL);
 
 	/* zero init so skip the trap state (state == 0) */
 	for (state = 1; state < state_count; state++)
-		perms_table[state].allow = dfa_user_allow(xmatch, state);
+		perms[state].allow = dfa_user_allow(xmatch, state);
 
-	return perms_table;
+	return perms;
 }
 
 static u32 map_other(u32 x)
@@ -888,23 +887,23 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 	(void) unpack_str(e, &profile->attach, "attach");
 
 	/* xmatch is optional and may be NULL */
-	profile->xmatch = unpack_dfa(e);
-	if (IS_ERR(profile->xmatch)) {
-		error = PTR_ERR(profile->xmatch);
-		profile->xmatch = NULL;
+	profile->xmatch.dfa = unpack_dfa(e);
+	if (IS_ERR(profile->xmatch.dfa)) {
+		error = PTR_ERR(profile->xmatch.dfa);
+		profile->xmatch.dfa = NULL;
 		info = "bad xmatch";
 		goto fail;
 	}
 	/* neither xmatch_len not xmatch_perms are optional if xmatch is set */
-	if (profile->xmatch) {
+	if (profile->xmatch.dfa) {
 		if (!unpack_u32(e, &tmp, NULL)) {
 			info = "missing xmatch len";
 			goto fail;
 		}
 		profile->xmatch_len = tmp;
-
-		profile->xmatch_perms = compute_xmatch_perms(profile->xmatch);
-		if (!profile->xmatch_perms) {
+		profile->xmatch.start[AA_CLASS_XMATCH] = DFA_START;
+		profile->xmatch.perms = compute_xmatch_perms(profile->xmatch.dfa);
+		if (!profile->xmatch.perms) {
 			info = "failed to convert xmatch permission table";
 			goto fail;
 		}

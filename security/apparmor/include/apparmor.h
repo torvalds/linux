@@ -26,6 +26,7 @@
 #define AA_CLASS_MOUNT		7
 #define AA_CLASS_PTRACE		9
 #define AA_CLASS_SIGNAL		10
+#define AA_CLASS_XMATCH		11
 #define AA_CLASS_NET		14
 #define AA_CLASS_LABEL		16
 #define AA_CLASS_POSIX_MQUEUE	17

@@ -230,8 +230,7 @@ void aa_free_profile(struct aa_profile *profile)
 		kfree_sensitive(profile->secmark[i].label);
 	kfree_sensitive(profile->secmark);
 	kfree_sensitive(profile->dirname);
-	aa_put_dfa(profile->xmatch);
-	kvfree(profile->xmatch_perms);
+	aa_destroy_policydb(&profile->xmatch);
 	aa_destroy_policydb(&profile->policy);
 	if (profile->data) {
 		rht = profile->data;

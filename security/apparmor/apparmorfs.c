@@ -1095,7 +1095,7 @@ static int seq_profile_attach_show(struct seq_file *seq, void *v)
 	struct aa_profile *profile = labels_profile(label);
 	if (profile->attach)
 		seq_printf(seq, "%s\n", profile->attach);
-	else if (profile->xmatch)
+	else if (profile->xmatch.dfa)
 		seq_puts(seq, "<unknown>\n");
 	else
 		seq_printf(seq, "%s\n", profile->base.name);
