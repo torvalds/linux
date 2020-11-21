@@ -783,17 +783,19 @@
 
 &i2c5 {
 	status = "okay";
+	clock-frequency = <400000>;
 
-	sensor@18 {
-		compatible = "gs_sc7a20";
-		reg = <0x18>;
+	sensor@4c {
+		compatible = "gs_mc3230";
+		reg = <0x4c>;
 		type = <SENSOR_TYPE_ACCEL>;
 		irq_enable = <0>;
+		poll_delay_ms = <30>;
+		layout = <9>;
+		reprobe_en = <1>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&sensor_gpio>;
-		irq-gpio = <&gpio3 RK_PA2 IRQ_TYPE_EDGE_RISING>;
-		poll_delay_ms = <10>;
-		layout = <1>;
+		irq-gpio = <&gpio3 RK_PA2 IRQ_TYPE_LEVEL_LOW>;
 	};
 };
 
