@@ -75,7 +75,7 @@ void fnic_handle_link(struct work_struct *work)
 	atomic64_set(&fnic->fnic_stats.misc_stats.current_port_speed,
 			new_port_speed);
 	if (old_port_speed != new_port_speed)
-		shost_printk(KERN_INFO, fnic->lport->host,
+		FNIC_MAIN_DBG(KERN_INFO, fnic->lport->host,
 				"Current vnic speed set to :  %llu\n",
 				new_port_speed);
 
