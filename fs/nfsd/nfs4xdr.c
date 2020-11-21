@@ -766,7 +766,7 @@ nfsd4_decode_create(struct nfsd4_compoundargs *argp, struct nfsd4_create *create
 static inline __be32
 nfsd4_decode_delegreturn(struct nfsd4_compoundargs *argp, struct nfsd4_delegreturn *dr)
 {
-	return nfsd4_decode_stateid(argp, &dr->dr_stateid);
+	return nfsd4_decode_stateid4(argp, &dr->dr_stateid);
 }
 
 static inline __be32
