@@ -307,6 +307,9 @@ enum hclge_opcode_type {
 #define HCLGE_TQP_REG_OFFSET		0x80000
 #define HCLGE_TQP_REG_SIZE		0x200
 
+#define HCLGE_TQP_MAX_SIZE_DEV_V2	1024
+#define HCLGE_TQP_EXT_REG_OFFSET	0x100
+
 #define HCLGE_RCB_INIT_QUERY_TIMEOUT	10
 #define HCLGE_RCB_INIT_FLAG_EN_B	0
 #define HCLGE_RCB_INIT_FLAG_FINI_B	8
@@ -336,7 +339,9 @@ enum hclge_int_type {
 };
 
 struct hclge_ctrl_vector_chain_cmd {
-	u8 int_vector_id;
+#define HCLGE_VECTOR_ID_L_S	0
+#define HCLGE_VECTOR_ID_L_M	GENMASK(7, 0)
+	u8 int_vector_id_l;
 	u8 int_cause_num;
 #define HCLGE_INT_TYPE_S	0
 #define HCLGE_INT_TYPE_M	GENMASK(1, 0)
@@ -346,7 +351,9 @@ struct hclge_ctrl_vector_chain_cmd {
 #define HCLGE_INT_GL_IDX_M	GENMASK(14, 13)
 	__le16 tqp_type_and_id[HCLGE_VECTOR_ELEMENTS_PER_CMD];
 	u8 vfid;
-	u8 rsv;
+#define HCLGE_VECTOR_ID_H_S	8
+#define HCLGE_VECTOR_ID_H_M	GENMASK(15, 8)
+	u8 int_vector_id_h;
 };
 
 #define HCLGE_MAX_TC_NUM		8
@@ -470,16 +477,13 @@ struct hclge_pf_res_cmd {
 	__le16 tqp_num;
 	__le16 buf_size;
 	__le16 msixcap_localid_ba_nic;
-	__le16 msixcap_localid_ba_rocee;
-#define HCLGE_MSIX_OFT_ROCEE_S		0
-#define HCLGE_MSIX_OFT_ROCEE_M		GENMASK(15, 0)
-#define HCLGE_PF_VEC_NUM_S		0
-#define HCLGE_PF_VEC_NUM_M		GENMASK(7, 0)
-	__le16 pf_intr_vector_number;
+	__le16 msixcap_localid_number_nic;
+	__le16 pf_intr_vector_number_roce;
 	__le16 pf_own_fun_number;
 	__le16 tx_buf_size;
 	__le16 dv_buf_size;
-	__le32 rsv[2];
+	__le16 ext_tqp_num;
+	u8 rsv[6];
 };
 
 #define HCLGE_CFG_OFFSET_S	0
@@ -643,7 +647,6 @@ struct hclge_config_mac_speed_dup_cmd {
 	u8 rsv[22];
 };
 
-#define HCLGE_RING_ID_MASK		GENMASK(9, 0)
 #define HCLGE_TQP_ENABLE_B		0
 
 #define HCLGE_MAC_CFG_AN_EN_B		0

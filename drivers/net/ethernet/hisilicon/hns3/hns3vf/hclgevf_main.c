@@ -403,8 +403,20 @@ static int hclgevf_alloc_tqps(struct hclgevf_dev *hdev)
 		tqp->q.buf_size = hdev->rx_buf_len;
 		tqp->q.tx_desc_num = hdev->num_tx_desc;
 		tqp->q.rx_desc_num = hdev->num_rx_desc;
-		tqp->q.io_base = hdev->hw.io_base + HCLGEVF_TQP_REG_OFFSET +
-			i * HCLGEVF_TQP_REG_SIZE;
+
+		/* need an extended offset to configure queues >=
+		 * HCLGEVF_TQP_MAX_SIZE_DEV_V2.
+		 */
+		if (i < HCLGEVF_TQP_MAX_SIZE_DEV_V2)
+			tqp->q.io_base = hdev->hw.io_base +
+					 HCLGEVF_TQP_REG_OFFSET +
+					 i * HCLGEVF_TQP_REG_SIZE;
+		else
+			tqp->q.io_base = hdev->hw.io_base +
+					 HCLGEVF_TQP_REG_OFFSET +
+					 HCLGEVF_TQP_EXT_REG_OFFSET +
+					 (i - HCLGEVF_TQP_MAX_SIZE_DEV_V2) *
+					 HCLGEVF_TQP_REG_SIZE;
 
 		tqp++;
 	}
@@ -2430,6 +2442,7 @@ static int hclgevf_init_roce_base_info(struct hclgevf_dev *hdev)
 
 	roce->rinfo.netdev = nic->kinfo.netdev;
 	roce->rinfo.roce_io_base = hdev->hw.io_base;
+	roce->rinfo.roce_mem_base = hdev->hw.mem_base;
 
 	roce->pdev = nic->pdev;
 	roce->ae_algo = nic->ae_algo;
@@ -2875,6 +2888,29 @@ static void hclgevf_uninit_client_instance(struct hnae3_client *client,
 	}
 }
 
+static int hclgevf_dev_mem_map(struct hclgevf_dev *hdev)
+{
+#define HCLGEVF_MEM_BAR		4
+
+	struct pci_dev *pdev = hdev->pdev;
+	struct hclgevf_hw *hw = &hdev->hw;
+
+	/* for device does not have device memory, return directly */
+	if (!(pci_select_bars(pdev, IORESOURCE_MEM) & BIT(HCLGEVF_MEM_BAR)))
+		return 0;
+
+	hw->mem_base = devm_ioremap_wc(&pdev->dev,
+				       pci_resource_start(pdev,
+							  HCLGEVF_MEM_BAR),
+				       pci_resource_len(pdev, HCLGEVF_MEM_BAR));
+	if (!hw->mem_base) {
+		dev_err(&pdev->dev, "failed to map device memroy\n");
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
 static int hclgevf_pci_init(struct hclgevf_dev *hdev)
 {
 	struct pci_dev *pdev = hdev->pdev;
@@ -2909,8 +2945,14 @@ static int hclgevf_pci_init(struct hclgevf_dev *hdev)
 		goto err_clr_master;
 	}
 
+	ret = hclgevf_dev_mem_map(hdev);
+	if (ret)
+		goto err_unmap_io_base;
+
 	return 0;
 
+err_unmap_io_base:
+	pci_iounmap(pdev, hdev->hw.io_base);
 err_clr_master:
 	pci_clear_master(pdev);
 	pci_release_regions(pdev);
@@ -2923,6 +2965,9 @@ err_disable_device:
 static void hclgevf_pci_uninit(struct hclgevf_dev *hdev)
 {
 	struct pci_dev *pdev = hdev->pdev;
+
+	if (hdev->hw.mem_base)
+		devm_iounmap(&pdev->dev, hdev->hw.mem_base);
 
 	pci_iounmap(pdev, hdev->hw.io_base);
 	pci_clear_master(pdev);

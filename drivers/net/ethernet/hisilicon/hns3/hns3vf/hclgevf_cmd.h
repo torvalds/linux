@@ -111,6 +111,9 @@ enum hclgevf_opcode_type {
 #define HCLGEVF_TQP_REG_OFFSET		0x80000
 #define HCLGEVF_TQP_REG_SIZE		0x200
 
+#define HCLGEVF_TQP_MAX_SIZE_DEV_V2	1024
+#define HCLGEVF_TQP_EXT_REG_OFFSET	0x100
+
 struct hclgevf_tqp_map {
 	__le16 tqp_id;	/* Absolute tqp id for in this pf */
 	u8 tqp_vf; /* VF id */

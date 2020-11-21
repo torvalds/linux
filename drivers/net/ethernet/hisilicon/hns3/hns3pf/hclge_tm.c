@@ -302,12 +302,30 @@ static int hclge_tm_q_to_qs_map_cfg(struct hclge_dev *hdev,
 {
 	struct hclge_nq_to_qs_link_cmd *map;
 	struct hclge_desc desc;
+	u16 qs_id_l;
+	u16 qs_id_h;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_TM_NQ_TO_QS_LINK, false);
 
 	map = (struct hclge_nq_to_qs_link_cmd *)desc.data;
 
 	map->nq_id = cpu_to_le16(q_id);
+
+	/* convert qs_id to the following format to support qset_id >= 1024
+	 * qs_id: | 15 | 14 ~ 10 |  9 ~ 0   |
+	 *            /         / \         \
+	 *           /         /   \         \
+	 * qset_id: | 15 ~ 11 |  10 |  9 ~ 0  |
+	 *          | qs_id_h | vld | qs_id_l |
+	 */
+	qs_id_l = hnae3_get_field(qs_id, HCLGE_TM_QS_ID_L_MSK,
+				  HCLGE_TM_QS_ID_L_S);
+	qs_id_h = hnae3_get_field(qs_id, HCLGE_TM_QS_ID_H_MSK,
+				  HCLGE_TM_QS_ID_H_S);
+	hnae3_set_field(qs_id, HCLGE_TM_QS_ID_L_MSK, HCLGE_TM_QS_ID_L_S,
+			qs_id_l);
+	hnae3_set_field(qs_id, HCLGE_TM_QS_ID_H_EXT_MSK, HCLGE_TM_QS_ID_H_EXT_S,
+			qs_id_h);
 	map->qset_id = cpu_to_le16(qs_id | HCLGE_TM_Q_QS_LINK_VLD_MSK);
 
 	return hclge_cmd_send(&hdev->hw, &desc, 1);
@@ -377,7 +395,7 @@ static u32 hclge_tm_get_shapping_para(u8 ir_b, u8 ir_u, u8 ir_s,
 
 static int hclge_tm_pg_shapping_cfg(struct hclge_dev *hdev,
 				    enum hclge_shap_bucket bucket, u8 pg_id,
-				    u32 shapping_para)
+				    u32 shapping_para, u32 rate)
 {
 	struct hclge_pg_shapping_cmd *shap_cfg_cmd;
 	enum hclge_opcode_type opcode;
@@ -392,6 +410,10 @@ static int hclge_tm_pg_shapping_cfg(struct hclge_dev *hdev,
 	shap_cfg_cmd->pg_id = pg_id;
 
 	shap_cfg_cmd->pg_shapping_para = cpu_to_le32(shapping_para);
+
+	hnae3_set_bit(shap_cfg_cmd->flag, HCLGE_TM_RATE_VLD, 1);
+
+	shap_cfg_cmd->pg_rate = cpu_to_le32(rate);
 
 	return hclge_cmd_send(&hdev->hw, &desc, 1);
 }
@@ -420,12 +442,16 @@ static int hclge_tm_port_shaper_cfg(struct hclge_dev *hdev)
 
 	shap_cfg_cmd->port_shapping_para = cpu_to_le32(shapping_para);
 
+	hnae3_set_bit(shap_cfg_cmd->flag, HCLGE_TM_RATE_VLD, 1);
+
+	shap_cfg_cmd->port_rate = cpu_to_le32(hdev->hw.mac.speed);
+
 	return hclge_cmd_send(&hdev->hw, &desc, 1);
 }
 
 static int hclge_tm_pri_shapping_cfg(struct hclge_dev *hdev,
 				     enum hclge_shap_bucket bucket, u8 pri_id,
-				     u32 shapping_para)
+				     u32 shapping_para, u32 rate)
 {
 	struct hclge_pri_shapping_cmd *shap_cfg_cmd;
 	enum hclge_opcode_type opcode;
@@ -441,6 +467,10 @@ static int hclge_tm_pri_shapping_cfg(struct hclge_dev *hdev,
 	shap_cfg_cmd->pri_id = pri_id;
 
 	shap_cfg_cmd->pri_shapping_para = cpu_to_le32(shapping_para);
+
+	hnae3_set_bit(shap_cfg_cmd->flag, HCLGE_TM_RATE_VLD, 1);
+
+	shap_cfg_cmd->pri_rate = cpu_to_le32(rate);
 
 	return hclge_cmd_send(&hdev->hw, &desc, 1);
 }
@@ -542,6 +572,9 @@ int hclge_tm_qs_shaper_cfg(struct hclge_vport *vport, int max_tx_rate)
 		shap_cfg_cmd = (struct hclge_qs_shapping_cmd *)desc.data;
 		shap_cfg_cmd->qs_id = cpu_to_le16(vport->qs_offset + i);
 		shap_cfg_cmd->qs_shapping_para = cpu_to_le32(shaper_para);
+
+		hnae3_set_bit(shap_cfg_cmd->flag, HCLGE_TM_RATE_VLD, 1);
+		shap_cfg_cmd->qs_rate = cpu_to_le32(max_tx_rate);
 
 		ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 		if (ret) {
@@ -744,9 +777,10 @@ static int hclge_tm_pg_shaper_cfg(struct hclge_dev *hdev)
 
 	/* Pg to pri */
 	for (i = 0; i < hdev->tm_info.num_pg; i++) {
+		u32 rate = hdev->tm_info.pg_info[i].bw_limit;
+
 		/* Calc shaper para */
-		ret = hclge_shaper_para_calc(hdev->tm_info.pg_info[i].bw_limit,
-					     HCLGE_SHAPER_LVL_PG,
+		ret = hclge_shaper_para_calc(rate, HCLGE_SHAPER_LVL_PG,
 					     &ir_para, max_tm_rate);
 		if (ret)
 			return ret;
@@ -756,7 +790,7 @@ static int hclge_tm_pg_shaper_cfg(struct hclge_dev *hdev)
 							 HCLGE_SHAPER_BS_S_DEF);
 		ret = hclge_tm_pg_shapping_cfg(hdev,
 					       HCLGE_TM_SHAP_C_BUCKET, i,
-					       shaper_para);
+					       shaper_para, rate);
 		if (ret)
 			return ret;
 
@@ -767,7 +801,7 @@ static int hclge_tm_pg_shaper_cfg(struct hclge_dev *hdev)
 							 HCLGE_SHAPER_BS_S_DEF);
 		ret = hclge_tm_pg_shapping_cfg(hdev,
 					       HCLGE_TM_SHAP_P_BUCKET, i,
-					       shaper_para);
+					       shaper_para, rate);
 		if (ret)
 			return ret;
 	}
@@ -873,8 +907,9 @@ static int hclge_tm_pri_tc_base_shaper_cfg(struct hclge_dev *hdev)
 	u32 i;
 
 	for (i = 0; i < hdev->tm_info.num_tc; i++) {
-		ret = hclge_shaper_para_calc(hdev->tm_info.tc_info[i].bw_limit,
-					     HCLGE_SHAPER_LVL_PRI,
+		u32 rate = hdev->tm_info.tc_info[i].bw_limit;
+
+		ret = hclge_shaper_para_calc(rate, HCLGE_SHAPER_LVL_PRI,
 					     &ir_para, max_tm_rate);
 		if (ret)
 			return ret;
@@ -883,7 +918,7 @@ static int hclge_tm_pri_tc_base_shaper_cfg(struct hclge_dev *hdev)
 							 HCLGE_SHAPER_BS_U_DEF,
 							 HCLGE_SHAPER_BS_S_DEF);
 		ret = hclge_tm_pri_shapping_cfg(hdev, HCLGE_TM_SHAP_C_BUCKET, i,
-						shaper_para);
+						shaper_para, rate);
 		if (ret)
 			return ret;
 
@@ -893,7 +928,7 @@ static int hclge_tm_pri_tc_base_shaper_cfg(struct hclge_dev *hdev)
 							 HCLGE_SHAPER_BS_U_DEF,
 							 HCLGE_SHAPER_BS_S_DEF);
 		ret = hclge_tm_pri_shapping_cfg(hdev, HCLGE_TM_SHAP_P_BUCKET, i,
-						shaper_para);
+						shaper_para, rate);
 		if (ret)
 			return ret;
 	}
@@ -918,7 +953,8 @@ static int hclge_tm_pri_vnet_base_shaper_pri_cfg(struct hclge_vport *vport)
 						 HCLGE_SHAPER_BS_U_DEF,
 						 HCLGE_SHAPER_BS_S_DEF);
 	ret = hclge_tm_pri_shapping_cfg(hdev, HCLGE_TM_SHAP_C_BUCKET,
-					vport->vport_id, shaper_para);
+					vport->vport_id, shaper_para,
+					vport->bw_limit);
 	if (ret)
 		return ret;
 
@@ -927,7 +963,8 @@ static int hclge_tm_pri_vnet_base_shaper_pri_cfg(struct hclge_vport *vport)
 						 HCLGE_SHAPER_BS_U_DEF,
 						 HCLGE_SHAPER_BS_S_DEF);
 	ret = hclge_tm_pri_shapping_cfg(hdev, HCLGE_TM_SHAP_P_BUCKET,
-					vport->vport_id, shaper_para);
+					vport->vport_id, shaper_para,
+					vport->bw_limit);
 	if (ret)
 		return ret;
 
@@ -1296,15 +1333,23 @@ static int hclge_pfc_setup_hw(struct hclge_dev *hdev)
 				      hdev->tm_info.pfc_en);
 }
 
-/* Each Tc has a 1024 queue sets to backpress, it divides to
- * 32 group, each group contains 32 queue sets, which can be
- * represented by u32 bitmap.
+/* for the queues that use for backpress, divides to several groups,
+ * each group contains 32 queue sets, which can be represented by u32 bitmap.
  */
 static int hclge_bp_setup_hw(struct hclge_dev *hdev, u8 tc)
 {
+	u16 grp_id_shift = HCLGE_BP_GRP_ID_S;
+	u16 grp_id_mask = HCLGE_BP_GRP_ID_M;
+	u8 grp_num = HCLGE_BP_GRP_NUM;
 	int i;
 
-	for (i = 0; i < HCLGE_BP_GRP_NUM; i++) {
+	if (hdev->num_tqps > HCLGE_TQP_MAX_SIZE_DEV_V2) {
+		grp_num = HCLGE_BP_EXT_GRP_NUM;
+		grp_id_mask = HCLGE_BP_EXT_GRP_ID_M;
+		grp_id_shift = HCLGE_BP_EXT_GRP_ID_S;
+	}
+
+	for (i = 0; i < grp_num; i++) {
 		u32 qs_bitmap = 0;
 		int k, ret;
 
@@ -1313,8 +1358,7 @@ static int hclge_bp_setup_hw(struct hclge_dev *hdev, u8 tc)
 			u16 qs_id = vport->qs_offset + tc;
 			u8 grp, sub_grp;
 
-			grp = hnae3_get_field(qs_id, HCLGE_BP_GRP_ID_M,
-					      HCLGE_BP_GRP_ID_S);
+			grp = hnae3_get_field(qs_id, grp_id_mask, grp_id_shift);
 			sub_grp = hnae3_get_field(qs_id, HCLGE_BP_SUB_GRP_ID_M,
 						  HCLGE_BP_SUB_GRP_ID_S);
 			if (i == grp)
