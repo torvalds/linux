@@ -3137,6 +3137,11 @@ static inline bool dev_validate_header(const struct net_device *dev,
 	return false;
 }
 
+static inline bool dev_has_header(const struct net_device *dev)
+{
+	return dev->header_ops && dev->header_ops->create;
+}
+
 typedef int gifconf_func_t(struct net_device * dev, char __user * bufptr,
 			   int len, int size);
 int register_gifconf(unsigned int family, gifconf_func_t *gifconf);
