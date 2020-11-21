@@ -1277,7 +1277,7 @@ Use the ``udevadm monitor`` command and observe what happens when:
 
 * the ``bex.ko`` and ``bex_misc.ko`` modules are inserted
 
-* a new device with the type "test" is created
+* a new device with the type "type" is created
 
 * a new device with the type "misc" and version 2 is created
 
