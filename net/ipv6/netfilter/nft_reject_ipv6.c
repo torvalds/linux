@@ -28,7 +28,8 @@ static void nft_reject_ipv6_eval(const struct nft_expr *expr,
 				 nft_hook(pkt));
 		break;
 	case NFT_REJECT_TCP_RST:
-		nf_send_reset6(nft_net(pkt), pkt->skb, nft_hook(pkt));
+		nf_send_reset6(nft_net(pkt), pkt->xt.state->sk, pkt->skb,
+			       nft_hook(pkt));
 		break;
 	default:
 		break;
