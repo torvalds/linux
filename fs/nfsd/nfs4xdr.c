@@ -2033,22 +2033,22 @@ nfsd4_decode_copy(struct nfsd4_compoundargs *argp, struct nfsd4_copy *copy)
 }
 
 static __be32
-nfsd4_decode_offload_status(struct nfsd4_compoundargs *argp,
-			    struct nfsd4_offload_status *os)
-{
-	return nfsd4_decode_stateid(argp, &os->stateid);
-}
-
-static __be32
 nfsd4_decode_copy_notify(struct nfsd4_compoundargs *argp,
 			 struct nfsd4_copy_notify *cn)
 {
 	__be32 status;
 
-	status = nfsd4_decode_stateid(argp, &cn->cpn_src_stateid);
+	status = nfsd4_decode_stateid4(argp, &cn->cpn_src_stateid);
 	if (status)
 		return status;
 	return nfsd4_decode_nl4_server(argp, &cn->cpn_dst);
+}
+
+static __be32
+nfsd4_decode_offload_status(struct nfsd4_compoundargs *argp,
+			    struct nfsd4_offload_status *os)
+{
+	return nfsd4_decode_stateid(argp, &os->stateid);
 }
 
 static __be32
