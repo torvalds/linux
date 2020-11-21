@@ -53,6 +53,18 @@ static int link_rcec_helper(struct pci_dev *dev, void *data)
 	return 0;
 }
 
+static int walk_rcec_helper(struct pci_dev *dev, void *data)
+{
+	struct walk_rcec_data *rcec_data = data;
+	struct pci_dev *rcec = rcec_data->rcec;
+
+	if ((pci_pcie_type(dev) == PCI_EXP_TYPE_RC_END) &&
+	    rcec_assoc_rciep(rcec, dev))
+		rcec_data->user_callback(dev, rcec_data->user_data);
+
+	return 0;
+}
+
 static void walk_rcec(int (*cb)(struct pci_dev *dev, void *data),
 		      void *userdata)
 {
@@ -107,6 +119,31 @@ void pcie_link_rcec(struct pci_dev *rcec)
 	rcec_data.user_data = NULL;
 
 	walk_rcec(link_rcec_helper, &rcec_data);
+}
+
+/**
+ * pcie_walk_rcec - Walk RCiEP devices associating with RCEC and call callback.
+ * @rcec:	RCEC whose RCiEP devices should be walked
+ * @cb:		Callback to be called for each RCiEP device found
+ * @userdata:	Arbitrary pointer to be passed to callback
+ *
+ * Walk the given RCEC. Call the callback on each RCiEP found.
+ *
+ * If @cb returns anything other than 0, break out.
+ */
+void pcie_walk_rcec(struct pci_dev *rcec, int (*cb)(struct pci_dev *, void *),
+		    void *userdata)
+{
+	struct walk_rcec_data rcec_data;
+
+	if (!rcec->rcec_ea)
+		return;
+
+	rcec_data.rcec = rcec;
+	rcec_data.user_callback = cb;
+	rcec_data.user_data = userdata;
+
+	walk_rcec(walk_rcec_helper, &rcec_data);
 }
 
 void pci_rcec_init(struct pci_dev *dev)
