@@ -527,11 +527,16 @@ static int tcp_v6_send_synack(const struct sock *sk, struct dst_entry *dst,
 		if (np->repflow && ireq->pktopts)
 			fl6->flowlabel = ip6_flowlabel(ipv6_hdr(ireq->pktopts));
 
-		rcu_read_lock();
-		opt = ireq->ipv6_opt;
 		tclass = sock_net(sk)->ipv4.sysctl_tcp_reflect_tos ?
 				tcp_rsk(req)->syn_tos & ~INET_ECN_MASK :
 				np->tclass;
+
+		if (!INET_ECN_is_capable(tclass) &&
+		    tcp_bpf_ca_needs_ecn((struct sock *)req))
+			tclass |= INET_ECN_ECT_0;
+
+		rcu_read_lock();
+		opt = ireq->ipv6_opt;
 		if (!opt)
 			opt = rcu_dereference(np->opt);
 		err = ip6_xmit(sk, skb, fl6, sk->sk_mark, opt,
