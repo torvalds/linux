@@ -5098,7 +5098,7 @@ void i40iw_vsi_stats_free(struct i40iw_sc_vsi *vsi)
 	i40iw_hw_stats_stop_timer(vsi);
 }
 
-static struct i40iw_cqp_ops iw_cqp_ops = {
+static const struct i40iw_cqp_ops iw_cqp_ops = {
 	.cqp_init = i40iw_sc_cqp_init,
 	.cqp_create = i40iw_sc_cqp_create,
 	.cqp_post_sq = i40iw_sc_cqp_post_sq,
@@ -5107,7 +5107,7 @@ static struct i40iw_cqp_ops iw_cqp_ops = {
 	.poll_for_cqp_op_done = i40iw_sc_poll_for_cqp_op_done
 };
 
-static struct i40iw_ccq_ops iw_ccq_ops = {
+static const struct i40iw_ccq_ops iw_ccq_ops = {
 	.ccq_init = i40iw_sc_ccq_init,
 	.ccq_create = i40iw_sc_ccq_create,
 	.ccq_destroy = i40iw_sc_ccq_destroy,
@@ -5116,7 +5116,7 @@ static struct i40iw_ccq_ops iw_ccq_ops = {
 	.ccq_arm = i40iw_sc_ccq_arm
 };
 
-static struct i40iw_ceq_ops iw_ceq_ops = {
+static const struct i40iw_ceq_ops iw_ceq_ops = {
 	.ceq_init = i40iw_sc_ceq_init,
 	.ceq_create = i40iw_sc_ceq_create,
 	.cceq_create_done = i40iw_sc_cceq_create_done,
@@ -5126,7 +5126,7 @@ static struct i40iw_ceq_ops iw_ceq_ops = {
 	.process_ceq = i40iw_sc_process_ceq
 };
 
-static struct i40iw_aeq_ops iw_aeq_ops = {
+static const struct i40iw_aeq_ops iw_aeq_ops = {
 	.aeq_init = i40iw_sc_aeq_init,
 	.aeq_create = i40iw_sc_aeq_create,
 	.aeq_destroy = i40iw_sc_aeq_destroy,
@@ -5137,11 +5137,11 @@ static struct i40iw_aeq_ops iw_aeq_ops = {
 };
 
 /* iwarp pd ops */
-static struct i40iw_pd_ops iw_pd_ops = {
+static const struct i40iw_pd_ops iw_pd_ops = {
 	.pd_init = i40iw_sc_pd_init,
 };
 
-static struct i40iw_priv_qp_ops iw_priv_qp_ops = {
+static const struct i40iw_priv_qp_ops iw_priv_qp_ops = {
 	.qp_init = i40iw_sc_qp_init,
 	.qp_create = i40iw_sc_qp_create,
 	.qp_modify = i40iw_sc_qp_modify,
@@ -5156,14 +5156,14 @@ static struct i40iw_priv_qp_ops iw_priv_qp_ops = {
 	.iw_mr_fast_register = i40iw_sc_mr_fast_register
 };
 
-static struct i40iw_priv_cq_ops iw_priv_cq_ops = {
+static const struct i40iw_priv_cq_ops iw_priv_cq_ops = {
 	.cq_init = i40iw_sc_cq_init,
 	.cq_create = i40iw_sc_cq_create,
 	.cq_destroy = i40iw_sc_cq_destroy,
 	.cq_modify = i40iw_sc_cq_modify,
 };
 
-static struct i40iw_mr_ops iw_mr_ops = {
+static const struct i40iw_mr_ops iw_mr_ops = {
 	.alloc_stag = i40iw_sc_alloc_stag,
 	.mr_reg_non_shared = i40iw_sc_mr_reg_non_shared,
 	.mr_reg_shared = i40iw_sc_mr_reg_shared,
@@ -5172,7 +5172,7 @@ static struct i40iw_mr_ops iw_mr_ops = {
 	.mw_alloc = i40iw_sc_mw_alloc
 };
 
-static struct i40iw_cqp_misc_ops iw_cqp_misc_ops = {
+static const struct i40iw_cqp_misc_ops iw_cqp_misc_ops = {
 	.manage_push_page = i40iw_sc_manage_push_page,
 	.manage_hmc_pm_func_table = i40iw_sc_manage_hmc_pm_func_table,
 	.set_hmc_resource_profile = i40iw_sc_set_hmc_resource_profile,
@@ -5195,7 +5195,7 @@ static struct i40iw_cqp_misc_ops iw_cqp_misc_ops = {
 	.update_resume_qp = i40iw_sc_resume_qp
 };
 
-static struct i40iw_hmc_ops iw_hmc_ops = {
+static const struct i40iw_hmc_ops iw_hmc_ops = {
 	.init_iw_hmc = i40iw_sc_init_iw_hmc,
 	.parse_fpm_query_buf = i40iw_sc_parse_fpm_query_buf,
 	.configure_iw_fpm = i40iw_sc_configure_iw_fpm,

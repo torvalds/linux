@@ -493,16 +493,16 @@ struct i40iw_sc_dev {
 	struct i40iw_sc_aeq *aeq;
 	struct i40iw_sc_ceq *ceq[I40IW_CEQ_MAX_COUNT];
 	struct i40iw_sc_cq *ccq;
-	struct i40iw_cqp_ops *cqp_ops;
-	struct i40iw_ccq_ops *ccq_ops;
-	struct i40iw_ceq_ops *ceq_ops;
-	struct i40iw_aeq_ops *aeq_ops;
-	struct i40iw_pd_ops *iw_pd_ops;
-	struct i40iw_priv_qp_ops *iw_priv_qp_ops;
-	struct i40iw_priv_cq_ops *iw_priv_cq_ops;
-	struct i40iw_mr_ops *mr_ops;
-	struct i40iw_cqp_misc_ops *cqp_misc_ops;
-	struct i40iw_hmc_ops *hmc_ops;
+	const struct i40iw_cqp_ops *cqp_ops;
+	const struct i40iw_ccq_ops *ccq_ops;
+	const struct i40iw_ceq_ops *ceq_ops;
+	const struct i40iw_aeq_ops *aeq_ops;
+	const struct i40iw_pd_ops *iw_pd_ops;
+	const struct i40iw_priv_qp_ops *iw_priv_qp_ops;
+	const struct i40iw_priv_cq_ops *iw_priv_cq_ops;
+	const struct i40iw_mr_ops *mr_ops;
+	const struct i40iw_cqp_misc_ops *cqp_misc_ops;
+	const struct i40iw_hmc_ops *hmc_ops;
 	struct i40iw_vchnl_if vchnl_if;
 	const struct i40iw_vf_cqp_ops *iw_vf_cqp_ops;
 
