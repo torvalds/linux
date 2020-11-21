@@ -1266,7 +1266,7 @@ static int hellcreek_probe(struct platform_device *pdev)
 
 	ret = dsa_register_switch(hellcreek->ds);
 	if (ret) {
-		dev_err(dev, "Unable to register switch\n");
+		dev_err_probe(dev, ret, "Unable to register switch\n");
 		return ret;
 	}
 
