@@ -81,8 +81,8 @@ struct lowcore {
 	psw_t	return_mcck_psw;		/* 0x02a0 */
 
 	/* CPU accounting and timing values. */
-	__u64	sync_enter_timer;		/* 0x02b0 */
-	__u64	async_enter_timer;		/* 0x02b8 */
+	__u64	sys_enter_timer;		/* 0x02b0 */
+	__u8	pad_0x02b8[0x02c0-0x02b8];	/* 0x02b8 */
 	__u64	mcck_enter_timer;		/* 0x02c0 */
 	__u64	exit_timer;			/* 0x02c8 */
 	__u64	user_timer;			/* 0x02d0 */

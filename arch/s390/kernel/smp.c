@@ -499,7 +499,7 @@ static void smp_handle_ext_call(void)
 	if (test_bit(ec_call_function_single, &bits))
 		generic_smp_call_function_single_interrupt();
 	if (test_bit(ec_mcck_pending, &bits))
-		s390_handle_mcck();
+		__s390_handle_mcck();
 }
 
 static void do_ext_call_interrupt(struct ext_code ext_code,

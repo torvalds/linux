@@ -11,13 +11,13 @@
 #include <uapi/asm/ptrace.h>
 
 #define PIF_SYSCALL		0	/* inside a system call */
-#define PIF_PER_TRAP		1	/* deliver sigtrap on return to user */
-#define PIF_SYSCALL_RESTART	2	/* restart the current system call */
+#define PIF_SYSCALL_RESTART	1	/* restart the current system call */
+#define PIF_SYSCALL_RET_SET	2	/* return value was set via ptrace */
 #define PIF_GUEST_FAULT		3	/* indicates program check in sie64a */
 
 #define _PIF_SYSCALL		BIT(PIF_SYSCALL)
-#define _PIF_PER_TRAP		BIT(PIF_PER_TRAP)
 #define _PIF_SYSCALL_RESTART	BIT(PIF_SYSCALL_RESTART)
+#define _PIF_SYSCALL_RET_SET	BIT(PIF_SYSCALL_RET_SET)
 #define _PIF_GUEST_FAULT	BIT(PIF_GUEST_FAULT)
 
 #ifndef __ASSEMBLY__
@@ -67,6 +67,9 @@ enum {
 	typecheck(psw_t, __psw);		\
 	&(*(struct psw_bits *)(&(__psw)));	\
 }))
+
+#define PGM_INT_CODE_MASK	0x7f
+#define PGM_INT_CODE_PER	0x80
 
 /*
  * The pt_regs struct defines the way the registers are stored on
