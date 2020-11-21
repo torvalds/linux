@@ -2048,7 +2048,7 @@ static __be32
 nfsd4_decode_offload_status(struct nfsd4_compoundargs *argp,
 			    struct nfsd4_offload_status *os)
 {
-	return nfsd4_decode_stateid(argp, &os->stateid);
+	return nfsd4_decode_stateid4(argp, &os->stateid);
 }
 
 static __be32
