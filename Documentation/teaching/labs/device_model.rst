@@ -561,9 +561,9 @@ device.
 
 In sysfs, driver information has no single subdirectory associated; They can be
 found in the directory structure in different places: the loaded module is in
-``/sys/module``, in ``devices`` you can find the driver associated with
-each device, in ``classes`` the drivers belonging to a class, in ``/sys/bus``
-the drivers associated to each bus.
+``/sys/module``, in ``/sys/devices`` you can find the driver associated with
+each device, in ``/sys/class`` the drivers belonging to a class, in
+``/sys/bus`` the drivers associated to each bus.
 
 A device driver is identified by the structure :c:type:`struct device_driver`:
 
