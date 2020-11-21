@@ -695,6 +695,18 @@ struct ice_aqc_sched_elem_cmd {
 	__le32 addr_low;
 };
 
+struct ice_aqc_txsched_move_grp_info_hdr {
+	__le32 src_parent_teid;
+	__le32 dest_parent_teid;
+	__le16 num_elems;
+	__le16 reserved;
+};
+
+struct ice_aqc_move_elem {
+	struct ice_aqc_txsched_move_grp_info_hdr hdr;
+	__le32 teid[];
+};
+
 struct ice_aqc_elem_info_bw {
 	__le16 bw_profile_idx;
 	__le16 bw_alloc;
@@ -1961,6 +1973,7 @@ enum ice_adminq_opc {
 	ice_aqc_opc_add_sched_elems			= 0x0401,
 	ice_aqc_opc_cfg_sched_elems			= 0x0403,
 	ice_aqc_opc_get_sched_elems			= 0x0404,
+	ice_aqc_opc_move_sched_elems			= 0x0408,
 	ice_aqc_opc_suspend_sched_elems			= 0x0409,
 	ice_aqc_opc_resume_sched_elems			= 0x040A,
 	ice_aqc_opc_query_port_ets			= 0x040E,

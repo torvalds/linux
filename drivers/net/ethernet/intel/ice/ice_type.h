@@ -403,7 +403,11 @@ struct ice_link_default_override_tlv {
 #define ice_for_each_traffic_class(_i)	\
 	for ((_i) = 0; (_i) < ICE_MAX_TRAFFIC_CLASS; (_i)++)
 
+/* ICE_DFLT_AGG_ID means that all new VM(s)/VSI node connects
+ * to driver defined policy for default aggregator
+ */
 #define ICE_INVAL_TEID 0xFFFFFFFF
+#define ICE_DFLT_AGG_ID 0
 
 struct ice_sched_node {
 	struct ice_sched_node *parent;

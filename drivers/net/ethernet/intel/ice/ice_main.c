@@ -435,11 +435,19 @@ static void ice_sync_fltr_subtask(struct ice_pf *pf)
  */
 static void ice_pf_dis_all_vsi(struct ice_pf *pf, bool locked)
 {
+	int node;
 	int v;
 
 	ice_for_each_vsi(pf, v)
 		if (pf->vsi[v])
 			ice_dis_vsi(pf->vsi[v], locked);
+
+	for (node = 0; node < ICE_MAX_PF_AGG_NODES; node++)
+		pf->pf_agg_node[node].num_vsis = 0;
+
+	for (node = 0; node < ICE_MAX_VF_AGG_NODES; node++)
+		pf->vf_agg_node[node].num_vsis = 0;
+
 }
 
 /**

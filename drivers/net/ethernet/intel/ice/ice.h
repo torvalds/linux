@@ -328,6 +328,11 @@ struct ice_vsi {
 	struct ice_ring **xdp_rings;	 /* XDP ring array */
 	u16 num_xdp_txq;		 /* Used XDP queues */
 	u8 xdp_mapping_mode;		 /* ICE_MAP_MODE_[CONTIG|SCATTER] */
+
+	/* setup back reference, to which aggregator node this VSI
+	 * corresponds to
+	 */
+	struct ice_agg_node *agg_node;
 } ____cacheline_internodealigned_in_smp;
 
 /* struct that defines an interrupt vector */
@@ -374,6 +379,13 @@ enum ice_pf_flags {
 	ICE_FLAG_MDD_AUTO_RESET_VF,
 	ICE_FLAG_LINK_LENIENT_MODE_ENA,
 	ICE_PF_FLAGS_NBITS		/* must be last */
+};
+
+struct ice_agg_node {
+	u32 agg_id;
+#define ICE_MAX_VSIS_IN_AGG_NODE	64
+	u32 num_vsis;
+	u8 valid;
 };
 
 struct ice_pf {
@@ -455,6 +467,14 @@ struct ice_pf {
 	__le64 nvm_phy_type_hi; /* NVM PHY type high */
 	struct ice_link_default_override_tlv link_dflt_override;
 	struct ice_lag *lag; /* Link Aggregation information */
+
+#define ICE_INVALID_AGG_NODE_ID		0
+#define ICE_PF_AGG_NODE_ID_START	1
+#define ICE_MAX_PF_AGG_NODES		32
+	struct ice_agg_node pf_agg_node[ICE_MAX_PF_AGG_NODES];
+#define ICE_VF_AGG_NODE_ID_START	65
+#define ICE_MAX_VF_AGG_NODES		32
+	struct ice_agg_node vf_agg_node[ICE_MAX_VF_AGG_NODES];
 };
 
 struct ice_netdev_priv {
