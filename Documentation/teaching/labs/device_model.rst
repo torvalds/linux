@@ -1259,10 +1259,10 @@ defined misc device in ``bex_misc_probe`` and deregister it in
 
 Create a new device with the name "test", type "misc" and version 2
 and observe that the probe fails. Create a new device with the name
-"test", type "misc" and version 1 and observe that the probe is
+"test2", type "misc" and version 1 and observe that the probe is
 successful.
 
-Inspect ``/sys/bus/bex/devices/test`` and observe that we have a new
+Inspect ``/sys/bus/bex/devices/test2`` and observe that we have a new
 entry. Identify the major and minor for the misc device, create a
 character device file and try to read and write from the misc device
 buffer.
