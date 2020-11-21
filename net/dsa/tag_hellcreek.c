@@ -8,9 +8,7 @@
  * Based on tag_ksz.c.
  */
 
-#include <linux/etherdevice.h>
-#include <linux/list.h>
-#include <linux/slab.h>
+#include <linux/skbuff.h>
 #include <net/dsa.h>
 
 #include "dsa_priv.h"
