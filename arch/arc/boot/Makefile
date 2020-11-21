@@ -1,5 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0
-targets := vmlinux.bin vmlinux.bin.gz
 
 # uImage build relies on mkimage being availble on your host for ARC target
 # You will need to build u-boot for ARC, rename mkimage to arc-elf32-mkimage
@@ -13,12 +12,12 @@ LINUX_START_TEXT = $$(readelf -h vmlinux | \
 UIMAGE_LOADADDR    = $(CONFIG_LINUX_LINK_BASE)
 UIMAGE_ENTRYADDR   = $(LINUX_START_TEXT)
 
+targets += vmlinux.bin
+targets += vmlinux.bin.gz
+targets += vmlinux.bin.lzma
 targets += uImage.bin
 targets += uImage.gz
 targets += uImage.lzma
-extra-y += vmlinux.bin
-extra-y += vmlinux.bin.gz
-extra-y += vmlinux.bin.lzma
 
 $(obj)/vmlinux.bin: vmlinux FORCE
 	$(call if_changed,objcopy)
