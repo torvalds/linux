@@ -126,6 +126,7 @@ struct mt76_queue {
 	struct mt76_queue_regs __iomem *regs;
 
 	spinlock_t lock;
+	spinlock_t cleanup_lock;
 	struct mt76_queue_entry *entry;
 	struct mt76_desc *desc;
 
