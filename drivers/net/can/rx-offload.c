@@ -55,7 +55,7 @@ static int can_rx_offload_napi_poll(struct napi_struct *napi, int quota)
 
 		work_done++;
 		stats->rx_packets++;
-		stats->rx_bytes += cf->can_dlc;
+		stats->rx_bytes += cf->len;
 		netif_receive_skb(skb);
 	}
 

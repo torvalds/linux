@@ -740,7 +740,7 @@ static int kvaser_pciefd_prepare_tx_packet(struct kvaser_pciefd_tx_packet *p,
 		p->header[0] |= KVASER_PCIEFD_RPACKET_IDE;
 
 	p->header[0] |= cf->can_id & CAN_EFF_MASK;
-	p->header[1] |= can_len2dlc(cf->len) << KVASER_PCIEFD_RPACKET_DLC_SHIFT;
+	p->header[1] |= can_fd_len2dlc(cf->len) << KVASER_PCIEFD_RPACKET_DLC_SHIFT;
 	p->header[1] |= KVASER_PCIEFD_TPACKET_AREQ;
 
 	if (can_is_canfd_skb(skb)) {
@@ -1174,7 +1174,7 @@ static int kvaser_pciefd_handle_data_packet(struct kvaser_pciefd *pcie,
 	if (p->header[0] & KVASER_PCIEFD_RPACKET_IDE)
 		cf->can_id |= CAN_EFF_FLAG;
 
-	cf->len = can_dlc2len(p->header[1] >> KVASER_PCIEFD_RPACKET_DLC_SHIFT);
+	cf->len = can_fd_dlc2len(p->header[1] >> KVASER_PCIEFD_RPACKET_DLC_SHIFT);
 
 	if (p->header[0] & KVASER_PCIEFD_RPACKET_RTR)
 		cf->can_id |= CAN_RTR_FLAG;
@@ -1299,7 +1299,7 @@ static int kvaser_pciefd_rx_error_frame(struct kvaser_pciefd_can *can,
 	cf->data[7] = bec.rxerr;
 
 	stats->rx_packets++;
-	stats->rx_bytes += cf->can_dlc;
+	stats->rx_bytes += cf->len;
 
 	netif_rx(skb);
 	return 0;
@@ -1498,7 +1498,7 @@ static void kvaser_pciefd_handle_nack_packet(struct kvaser_pciefd_can *can,
 
 	if (skb) {
 		cf->can_id |= CAN_ERR_BUSERROR;
-		stats->rx_bytes += cf->can_dlc;
+		stats->rx_bytes += cf->len;
 		stats->rx_packets++;
 		netif_rx(skb);
 	} else {
@@ -1600,7 +1600,7 @@ static int kvaser_pciefd_read_packet(struct kvaser_pciefd *pcie, int *start_pos,
 		if (!(p->header[0] & KVASER_PCIEFD_RPACKET_RTR)) {
 			u8 data_len;
 
-			data_len = can_dlc2len(p->header[1] >>
+			data_len = can_fd_dlc2len(p->header[1] >>
 					       KVASER_PCIEFD_RPACKET_DLC_SHIFT);
 			pos += DIV_ROUND_UP(data_len, 4);
 		}
