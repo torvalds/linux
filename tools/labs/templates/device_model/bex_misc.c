@@ -20,8 +20,6 @@ struct bex_misc_device {
 	char buf[BUF_SIZE];
 };
 
-#define to_bex_misc_dev(dev) container_of(dev, struct bex_misc_device, dev)
-
 static int my_open(struct inode *inode, struct file *file)
 {
 	return 0;
