@@ -400,7 +400,7 @@ static unsigned int gen5_invert_freq(struct intel_rps *rps,
 	return val;
 }
 
-static bool gen5_rps_set(struct intel_rps *rps, u8 val)
+static int __gen5_rps_set(struct intel_rps *rps, u8 val)
 {
 	struct intel_uncore *uncore = rps_to_uncore(rps);
 	u16 rgvswctl;
@@ -410,7 +410,7 @@ static bool gen5_rps_set(struct intel_rps *rps, u8 val)
 	rgvswctl = intel_uncore_read16(uncore, MEMSWCTL);
 	if (rgvswctl & MEMCTL_CMD_STS) {
 		DRM_DEBUG("gpu busy, RCS change rejected\n");
-		return false; /* still busy with another command */
+		return -EBUSY; /* still busy with another command */
 	}
 
 	/* Invert the frequency bin into an ips delay */
@@ -426,7 +426,18 @@ static bool gen5_rps_set(struct intel_rps *rps, u8 val)
 	rgvswctl |= MEMCTL_CMD_STS;
 	intel_uncore_write16(uncore, MEMSWCTL, rgvswctl);
 
-	return true;
+	return 0;
+}
+
+static int gen5_rps_set(struct intel_rps *rps, u8 val)
+{
+	int err;
+
+	spin_lock_irq(&mchdev_lock);
+	err = __gen5_rps_set(rps, val);
+	spin_unlock_irq(&mchdev_lock);
+
+	return err;
 }
 
 static unsigned long intel_pxfreq(u32 vidfreq)
@@ -557,7 +568,7 @@ static bool gen5_rps_enable(struct intel_rps *rps)
 			"stuck trying to change perf mode\n");
 	mdelay(1);
 
-	gen5_rps_set(rps, rps->cur_freq);
+	__gen5_rps_set(rps, rps->cur_freq);
 
 	rps->ips.last_count1 = intel_uncore_read(uncore, DMIEC);
 	rps->ips.last_count1 += intel_uncore_read(uncore, DDREC);
@@ -599,7 +610,7 @@ static void gen5_rps_disable(struct intel_rps *rps)
 	intel_uncore_write(uncore, MEMINTRSTS, MEMINT_EVAL_CHG);
 
 	/* Go back to the starting frequency */
-	gen5_rps_set(rps, rps->idle_freq);
+	__gen5_rps_set(rps, rps->idle_freq);
 	mdelay(1);
 	rgvswctl |= MEMCTL_CMD_STS;
 	intel_uncore_write(uncore, MEMSWCTL, rgvswctl);
@@ -797,20 +808,19 @@ static int rps_set(struct intel_rps *rps, u8 val, bool update)
 	struct drm_i915_private *i915 = rps_to_i915(rps);
 	int err;
 
-	if (INTEL_GEN(i915) < 6)
-		return 0;
-
 	if (val == rps->last_freq)
 		return 0;
 
 	if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915))
 		err = vlv_rps_set(rps, val);
-	else
+	else if (INTEL_GEN(i915) >= 6)
 		err = gen6_rps_set(rps, val);
+	else
+		err = gen5_rps_set(rps, val);
 	if (err)
 		return err;
 
-	if (update)
+	if (update && INTEL_GEN(i915) >= 6)
 		gen6_rps_set_thresholds(rps, val);
 	rps->last_freq = val;
 
@@ -1794,7 +1804,7 @@ void gen5_rps_irq_handler(struct intel_rps *rps)
 			 rps->min_freq_softlimit,
 			 rps->max_freq_softlimit);
 
-	if (new_freq != rps->cur_freq && gen5_rps_set(rps, new_freq))
+	if (new_freq != rps->cur_freq && !__gen5_rps_set(rps, new_freq))
 		rps->cur_freq = new_freq;
 
 	spin_unlock(&mchdev_lock);
@@ -2105,7 +2115,7 @@ bool i915_gpu_turbo_disable(void)
 
 	spin_lock_irq(&mchdev_lock);
 	rps->max_freq_softlimit = rps->min_freq;
-	ret = gen5_rps_set(&i915->gt.rps, rps->min_freq);
+	ret = !__gen5_rps_set(&i915->gt.rps, rps->min_freq);
 	spin_unlock_irq(&mchdev_lock);
 
 	drm_dev_put(&i915->drm);
