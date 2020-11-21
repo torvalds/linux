@@ -1384,9 +1384,6 @@ void bch2_btree_insert_node(struct btree_update *as, struct btree *b,
 	BUG_ON(!as || as->b);
 	bch2_verify_keylist_sorted(keys);
 
-	if (as->must_rewrite)
-		goto split;
-
 	bch2_btree_node_lock_for_insert(c, b, iter);
 
 	if (!bch2_btree_node_insert_fits(c, b, bch2_keylist_u64s(keys))) {

@@ -47,7 +47,6 @@ struct btree_update {
 		BTREE_INTERIOR_UPDATING_AS,
 	} mode;
 
-	unsigned			must_rewrite:1;
 	unsigned			nodes_written:1;
 
 	enum btree_id			btree_id;
