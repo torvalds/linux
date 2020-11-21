@@ -170,6 +170,12 @@ struct fwnode_operations {
 	} while (false)
 #define get_dev_from_fwnode(fwnode)	get_device((fwnode)->dev)
 
+static inline void fwnode_init(struct fwnode_handle *fwnode,
+			       const struct fwnode_operations *ops)
+{
+	fwnode->ops = ops;
+}
+
 extern u32 fw_devlink_get_flags(void);
 
 #endif

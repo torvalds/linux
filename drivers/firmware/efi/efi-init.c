@@ -359,9 +359,7 @@ static const struct fwnode_operations efifb_fwnode_ops = {
 	.add_links = efifb_add_links,
 };
 
-static struct fwnode_handle efifb_fwnode = {
-	.ops = &efifb_fwnode_ops,
-};
+static struct fwnode_handle efifb_fwnode;
 
 static int __init register_gop_device(void)
 {
@@ -375,8 +373,10 @@ static int __init register_gop_device(void)
 	if (!pd)
 		return -ENOMEM;
 
-	if (IS_ENABLED(CONFIG_PCI))
+	if (IS_ENABLED(CONFIG_PCI)) {
+		fwnode_init(&efifb_fwnode, &efifb_fwnode_ops);
 		pd->dev.fwnode = &efifb_fwnode;
+	}
 
 	err = platform_device_add_data(pd, &screen_info, sizeof(screen_info));
 	if (err)
