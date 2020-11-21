@@ -24,6 +24,11 @@ u8 gtp_dat_gt11[] = {
 	#include "WGJ89006B_GT911_Config_20140625_085816_0X43.cfg"
 };
 
+u8 gtp_dat_gt9110[] = {
+	/* <1200, 1920>*/
+	#include "GT9110P(2020)V71_Config_20201028_170326.cfg"
+};
+
 u8 gtp_dat_8_9[] = {
 	/* TODO:Puts your update firmware data here! */
 	/* <1920, 1200> 8.9 */

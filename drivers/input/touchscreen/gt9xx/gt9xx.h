@@ -95,6 +95,7 @@ typedef enum
 {
     CHIP_TYPE_GT9  = 0,
     CHIP_TYPE_GT9F = 1,
+    CHIP_TYPE_GT9110 = 2,
 } CHIP_TYPE_T;
 #endif
 

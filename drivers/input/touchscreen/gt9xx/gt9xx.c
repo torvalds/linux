@@ -58,6 +58,7 @@
 
 static u8 m89or101 = TRUE;
 static u8 bgt911 = FALSE;
+static u8 bgt9110 = FALSE;
 static u8 bgt970 = FALSE;
 static u8 bgt910 = FALSE;
 static u8 gtp_change_x2y = TRUE;
@@ -1443,6 +1444,10 @@ static s32 gtp_init_panel(struct goodix_ts_data *ts)
 		cfg_info_len[0] =  CFG_GROUP_LEN(gtp_dat_gt11);
     }
 
+    if (bgt9110) {
+	    send_cfg_buf[0] = gtp_dat_gt9110;
+	    cfg_info_len[0] =  CFG_GROUP_LEN(gtp_dat_gt9110);
+    }
 	if (bgt970) {
 		send_cfg_buf[0] = gtp_dat_9_7;
 		cfg_info_len[0] = CFG_GROUP_LEN(gtp_dat_9_7);
@@ -2563,6 +2568,12 @@ void gtp_get_chip_type(struct goodix_ts_data *ts)
     {
         ts->chip_type = CHIP_TYPE_GT9;
     }
+    else if (bgt9110)
+    {
+	  ts->chip_type = CHIP_TYPE_GT9110;
+	  GTP_INFO("Chip Type: GOODIX_GT9110");
+	  return;
+    }
     else // GT9XXF
     {
         ts->chip_type = CHIP_TYPE_GT9F;
@@ -2642,6 +2653,12 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 		gtp_change_x2y = TRUE;
 		gtp_x_reverse = FALSE;
 		gtp_y_reverse = TRUE;
+	} else if (val == 9110) {
+		m89or101 = FALSE;
+		bgt9110 = TRUE;
+		gtp_change_x2y = TRUE;
+		gtp_x_reverse = TRUE;
+		gtp_y_reverse = FALSE;
 	} else if (val == 970) {
 		m89or101 = FALSE;
 		bgt911 = FALSE;
