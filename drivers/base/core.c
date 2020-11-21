@@ -50,6 +50,104 @@ static LIST_HEAD(wait_for_suppliers);
 static DEFINE_MUTEX(wfs_lock);
 static LIST_HEAD(deferred_sync);
 static unsigned int defer_sync_state_count = 1;
+static DEFINE_MUTEX(fwnode_link_lock);
+
+/**
+ * fwnode_link_add - Create a link between two fwnode_handles.
+ * @con: Consumer end of the link.
+ * @sup: Supplier end of the link.
+ *
+ * Create a fwnode link between fwnode handles @con and @sup. The fwnode link
+ * represents the detail that the firmware lists @sup fwnode as supplying a
+ * resource to @con.
+ *
+ * The driver core will use the fwnode link to create a device link between the
+ * two device objects corresponding to @con and @sup when they are created. The
+ * driver core will automatically delete the fwnode link between @con and @sup
+ * after doing that.
+ *
+ * Attempts to create duplicate links between the same pair of fwnode handles
+ * are ignored and there is no reference counting.
+ */
+int fwnode_link_add(struct fwnode_handle *con, struct fwnode_handle *sup)
+{
+	struct fwnode_link *link;
+	int ret = 0;
+
+	mutex_lock(&fwnode_link_lock);
+
+	list_for_each_entry(link, &sup->consumers, s_hook)
+		if (link->consumer == con)
+			goto out;
+
+	link = kzalloc(sizeof(*link), GFP_KERNEL);
+	if (!link) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	link->supplier = sup;
+	INIT_LIST_HEAD(&link->s_hook);
+	link->consumer = con;
+	INIT_LIST_HEAD(&link->c_hook);
+
+	list_add(&link->s_hook, &sup->consumers);
+	list_add(&link->c_hook, &con->suppliers);
+out:
+	mutex_unlock(&fwnode_link_lock);
+
+	return ret;
+}
+
+/**
+ * fwnode_links_purge_suppliers - Delete all supplier links of fwnode_handle.
+ * @fwnode: fwnode whose supplier links need to be deleted
+ *
+ * Deletes all supplier links connecting directly to @fwnode.
+ */
+static void fwnode_links_purge_suppliers(struct fwnode_handle *fwnode)
+{
+	struct fwnode_link *link, *tmp;
+
+	mutex_lock(&fwnode_link_lock);
+	list_for_each_entry_safe(link, tmp, &fwnode->suppliers, c_hook) {
+		list_del(&link->s_hook);
+		list_del(&link->c_hook);
+		kfree(link);
+	}
+	mutex_unlock(&fwnode_link_lock);
+}
+
+/**
+ * fwnode_links_purge_consumers - Delete all consumer links of fwnode_handle.
+ * @fwnode: fwnode whose consumer links need to be deleted
+ *
+ * Deletes all consumer links connecting directly to @fwnode.
+ */
+static void fwnode_links_purge_consumers(struct fwnode_handle *fwnode)
+{
+	struct fwnode_link *link, *tmp;
+
+	mutex_lock(&fwnode_link_lock);
+	list_for_each_entry_safe(link, tmp, &fwnode->consumers, s_hook) {
+		list_del(&link->s_hook);
+		list_del(&link->c_hook);
+		kfree(link);
+	}
+	mutex_unlock(&fwnode_link_lock);
+}
+
+/**
+ * fwnode_links_purge - Delete all links connected to a fwnode_handle.
+ * @fwnode: fwnode whose links needs to be deleted
+ *
+ * Deletes all links connecting directly to a fwnode.
+ */
+void fwnode_links_purge(struct fwnode_handle *fwnode)
+{
+	fwnode_links_purge_suppliers(fwnode);
+	fwnode_links_purge_consumers(fwnode);
+}
 
 #ifdef CONFIG_SRCU
 static DEFINE_MUTEX(device_links_lock);
