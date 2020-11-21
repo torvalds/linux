@@ -1254,7 +1254,7 @@ static int check_inode(struct btree_trans *trans,
 
 		bch2_fs_lazy_rw(c);
 
-		ret = bch2_inode_rm(c, u.bi_inum);
+		ret = bch2_inode_rm(c, u.bi_inum, false);
 		if (ret)
 			bch_err(c, "error in fsck: error %i while deleting inode", ret);
 		return ret;

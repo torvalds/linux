@@ -542,7 +542,7 @@ found_slot:
 	return ret;
 }
 
-int bch2_inode_rm(struct bch_fs *c, u64 inode_nr)
+int bch2_inode_rm(struct bch_fs *c, u64 inode_nr, bool cached)
 {
 	struct btree_trans trans;
 	struct btree_iter *iter;
@@ -576,9 +576,15 @@ retry:
 
 	bi_generation = 0;
 
-	iter = bch2_trans_get_iter(&trans, BTREE_ID_INODES, POS(0, inode_nr),
-				   BTREE_ITER_CACHED|BTREE_ITER_INTENT);
-	k = bch2_btree_iter_peek_cached(iter);
+	if (cached) {
+		iter = bch2_trans_get_iter(&trans, BTREE_ID_INODES, POS(0, inode_nr),
+					   BTREE_ITER_CACHED|BTREE_ITER_INTENT);
+		k = bch2_btree_iter_peek_cached(iter);
+	} else {
+		iter = bch2_trans_get_iter(&trans, BTREE_ID_INODES, POS(0, inode_nr),
+					   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
+		k = bch2_btree_iter_peek_slot(iter);
+	}
 
 	ret = bkey_err(k);
 	if (ret)

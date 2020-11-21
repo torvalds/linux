@@ -1262,7 +1262,7 @@ static void bch2_evict_inode(struct inode *vinode)
 				KEY_TYPE_QUOTA_WARN);
 		bch2_quota_acct(c, inode->ei_qid, Q_INO, -1,
 				KEY_TYPE_QUOTA_WARN);
-		bch2_inode_rm(c, inode->v.i_ino);
+		bch2_inode_rm(c, inode->v.i_ino, true);
 	}
 }
 
