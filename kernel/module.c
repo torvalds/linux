@@ -3709,6 +3709,11 @@ static noinline int do_init_module(struct module *mod)
 	mod->init_layout.ro_size = 0;
 	mod->init_layout.ro_after_init_size = 0;
 	mod->init_layout.text_size = 0;
+#ifdef CONFIG_DEBUG_INFO_BTF_MODULES
+	/* .BTF is not SHF_ALLOC and will get removed, so sanitize pointer */
+	mod->btf_data = NULL;
+	mod->btf_data_size = 0;
+#endif
 	/*
 	 * We want to free module_init, but be aware that kallsyms may be
 	 * walking this with preempt disabled.  In all the failure paths, we
