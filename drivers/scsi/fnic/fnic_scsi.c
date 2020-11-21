@@ -2673,7 +2673,8 @@ void fnic_scsi_abort_io(struct fc_lport *lp)
 	/* Issue firmware reset for fnic, wait for reset to complete */
 retry_fw_reset:
 	spin_lock_irqsave(&fnic->fnic_lock, flags);
-	if (unlikely(fnic->state == FNIC_IN_FC_TRANS_ETH_MODE)) {
+	if (unlikely(fnic->state == FNIC_IN_FC_TRANS_ETH_MODE) &&
+		     fnic->link_events) {
 		/* fw reset is in progress, poll for its completion */
 		spin_unlock_irqrestore(&fnic->fnic_lock, flags);
 		schedule_timeout(msecs_to_jiffies(100));

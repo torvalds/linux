@@ -580,6 +580,8 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	fnic->lport = lp;
 	fnic->ctlr.lp = lp;
 
+	fnic->link_events = 0;
+
 	snprintf(fnic->name, sizeof(fnic->name) - 1, "%s%d", DRV_NAME,
 		 host->host_no);
 

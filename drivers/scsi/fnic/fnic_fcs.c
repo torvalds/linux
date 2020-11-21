@@ -56,6 +56,8 @@ void fnic_handle_link(struct work_struct *work)
 
 	spin_lock_irqsave(&fnic->fnic_lock, flags);
 
+	fnic->link_events = 1;      /* less work to just set everytime*/
+
 	if (fnic->stop_rx_link_events) {
 		spin_unlock_irqrestore(&fnic->fnic_lock, flags);
 		return;
