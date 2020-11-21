@@ -970,19 +970,22 @@ void xdr_write_pages(struct xdr_stream *xdr, struct page **pages, unsigned int b
 }
 EXPORT_SYMBOL_GPL(xdr_write_pages);
 
-static void xdr_set_iov(struct xdr_stream *xdr, struct kvec *iov,
-		unsigned int len)
+static unsigned int xdr_set_iov(struct xdr_stream *xdr, struct kvec *iov,
+				unsigned int base, unsigned int len)
 {
 	if (len > iov->iov_len)
 		len = iov->iov_len;
-	xdr->p = (__be32*)iov->iov_base;
+	if (unlikely(base > len))
+		base = len;
+	xdr->p = (__be32*)(iov->iov_base + base);
 	xdr->end = (__be32*)(iov->iov_base + len);
 	xdr->iov = iov;
 	xdr->page_ptr = NULL;
+	return len - base;
 }
 
-static int xdr_set_page_base(struct xdr_stream *xdr,
-		unsigned int base, unsigned int len)
+static unsigned int xdr_set_page_base(struct xdr_stream *xdr,
+				      unsigned int base, unsigned int len)
 {
 	unsigned int pgnr;
 	unsigned int maxlen;
@@ -991,9 +994,11 @@ static int xdr_set_page_base(struct xdr_stream *xdr,
 	void *kaddr;
 
 	maxlen = xdr->buf->page_len;
-	if (base >= maxlen)
-		return -EINVAL;
-	maxlen -= base;
+	if (base >= maxlen) {
+		base = maxlen;
+		maxlen = 0;
+	} else
+		maxlen -= base;
 	if (len > maxlen)
 		len = maxlen;
 
@@ -1011,14 +1016,14 @@ static int xdr_set_page_base(struct xdr_stream *xdr,
 		pgend = PAGE_SIZE;
 	xdr->end = (__be32*)(kaddr + pgend);
 	xdr->iov = NULL;
-	return 0;
+	return len;
 }
 
 static void xdr_set_page(struct xdr_stream *xdr, unsigned int base,
 			 unsigned int len)
 {
-	if (xdr_set_page_base(xdr, base, len) < 0)
-		xdr_set_iov(xdr, xdr->buf->tail, xdr->nwords << 2);
+	if (xdr_set_page_base(xdr, base, len) == 0)
+		xdr_set_iov(xdr, xdr->buf->tail, 0, xdr_stream_remaining(xdr));
 }
 
 static void xdr_set_next_page(struct xdr_stream *xdr)
@@ -1055,12 +1060,9 @@ void xdr_init_decode(struct xdr_stream *xdr, struct xdr_buf *buf, __be32 *p,
 	xdr->scratch.iov_base = NULL;
 	xdr->scratch.iov_len = 0;
 	xdr->nwords = XDR_QUADLEN(buf->len);
-	if (buf->head[0].iov_len != 0)
-		xdr_set_iov(xdr, buf->head, buf->len);
-	else if (buf->page_len != 0)
-		xdr_set_page_base(xdr, 0, buf->len);
-	else
-		xdr_set_iov(xdr, buf->tail, buf->len);
+	if (xdr_set_iov(xdr, buf->head, 0, buf->len) == 0 &&
+	    xdr_set_page_base(xdr, 0, buf->len) == 0)
+		xdr_set_iov(xdr, buf->tail, 0, buf->len);
 	if (p != NULL && p > xdr->p && xdr->end >= p) {
 		xdr->nwords -= p - xdr->p;
 		xdr->p = p;
