@@ -252,6 +252,11 @@ struct vop2_win {
 	 */
 	uint8_t layer_id;
 	int layer_sel_id;
+	/**
+	 * @vp_mask: Bitmask of video_port0/1/2 this win attached to,
+	 * one win can only attach to one vp at the one time.
+	 */
+	uint8_t vp_mask;
 	uint8_t zpos;
 	uint32_t offset;
 	enum drm_plane_type type;
@@ -330,7 +335,7 @@ struct vop2_video_port {
 	int hdr_en;
 
 	/**
-	 * @win_mask: Bitmask of active wins attached to the video port;
+	 * @win_mask: Bitmask of wins attached to the video port;
 	 */
 	uint32_t win_mask;
 	/**
@@ -3106,6 +3111,7 @@ static void vop2_setup_alpha(struct vop2_video_port *vp, const struct vop2_zpos 
 static void vop2_setup_layer_mixer_for_vp(struct vop2_video_port *vp,
 					  const struct vop2_zpos *vop2_zpos)
 {
+	struct vop2_video_port *prev_vp;
 	struct vop2 *vop2 = vp->vop2;
 	u8 port_id = vp->id;
 	const struct vop2_data *vop2_data = vop2->data;
@@ -3117,8 +3123,23 @@ static void vop2_setup_layer_mixer_for_vp(struct vop2_video_port *vp,
 	u8 layer_id, win_phys_id;
 	int i;
 
-	for (i = 0; i < port_id; i++)
-		used_layers += vop2->vps[i].nr_wins;
+	for (i = 0; i < port_id; i++) {
+		used_layers += hweight32(vop2->vps[i].win_mask);
+		/*
+		 * when a window move from vp0 to vp1, or vp0 to vp2,
+		 * it should flow these steps:
+		 * (1) first commit, disable this windows on VP0,
+		 *     keep the win_mask of VP0.
+		 * (2) second commit, set this window to VP1, clear
+		 *     the corresponding win_mask on VP0, and set the
+		 *     corresponding win_mask on VP1.
+		 *  This means we only know the decrease of the windows
+		 *  number of VP0 until VP1 take it, so the port_mux of
+		 *  VP0 should change at VP1's commit.
+		 */
+		prev_vp = &vop2->vps[i];
+		VOP_MODULE_SET(vop2, prev_vp, port_mux, (used_layers - 1));
+	}
 
 	/*
 	 * Win and layer must map one by one, if a win is selected
@@ -3144,7 +3165,7 @@ static void vop2_setup_layer_mixer_for_vp(struct vop2_video_port *vp,
 		layer->win_phys_id = win_phys_id;
 	}
 
-	used_layers += nr_wins;
+	used_layers += hweight32(vp->win_mask);
 
 	if (used_layers > vop2_data->nr_layers) {
 		DRM_DEV_ERROR(vop2->dev, "out of layers: %d\n", used_layers);
@@ -3205,6 +3226,8 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_crtc_state 
 
 	drm_atomic_crtc_for_each_plane(plane, crtc) {
 		struct vop2_win *win = to_vop2_win(plane);
+		struct vop2_video_port *old_vp;
+		uint8_t old_vp_id;
 
 		/*
 		 * Sub win of a cluster will be handled by pre overlay module automatically
@@ -3212,14 +3235,22 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_crtc_state 
 		 */
 		if ((win->feature & WIN_FEATURE_CLUSTER_SUB) || win->parent)
 			continue;
-		vp->win_mask |=  1 << win->phys_id;
+		old_vp_id = ffs(win->vp_mask);
+		old_vp_id = (old_vp_id == 0) ? 0 : old_vp_id - 1;
+		old_vp = &vop2->vps[old_vp_id];
+		old_vp->win_mask &= ~BIT(win->phys_id);
+		vp->win_mask |=  BIT(win->phys_id);
+		win->vp_mask = BIT(vp->id);
 		vpstate = to_vop2_plane_state(plane->state);
 		vop2_zpos[nr_wins].win_phys_id = win->phys_id;
 		vop2_zpos[nr_wins].zpos = vpstate->zpos;
 		nr_wins++;
-		DRM_DEV_DEBUG(vop2->dev, "%s active zpos:%d for vp%d\n", win->name, vpstate->zpos, vp->id);
+		DRM_DEV_DEBUG(vop2->dev, "%s active zpos:%d for vp%d from vp%d\n",
+			     win->name, vpstate->zpos, vp->id, old_vp->id);
 	}
 
+	DRM_DEV_DEBUG(vop2->dev, "vp%d: %d windows, active %d\n",
+		      vp->id, hweight32(vp->win_mask), nr_wins);
 	if (nr_wins) {
 		vp->nr_wins = nr_wins;
 
