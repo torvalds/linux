@@ -198,7 +198,7 @@ static int adv748x_initialise_clients(struct adv748x_state *state)
 			return ret;
 	}
 
-	return adv748x_set_slave_addresses(state);
+	return 0;
 }
 
 /**
