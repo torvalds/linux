@@ -1443,6 +1443,7 @@ config MFD_TI_LMU
 config MFD_OMAP_USB_HOST
 	bool "TI OMAP USBHS core and TLL driver"
 	depends on USB_EHCI_HCD_OMAP || USB_OHCI_HCD_OMAP3
+	depends on COMMON_CLK
 	default y
 	help
 	  This is the core driver for the OAMP EHCI and OHCI drivers.
