@@ -15,13 +15,9 @@
 static inline bool sbitmap_deferred_clear(struct sbitmap_word *map)
 {
 	unsigned long mask, val;
-	bool ret = false;
-	unsigned long flags;
 
-	spin_lock_irqsave(&map->swap_lock, flags);
-
-	if (!map->cleared)
-		goto out_unlock;
+	if (!READ_ONCE(map->cleared))
+		return false;
 
 	/*
 	 * First get a stable cleared mask, setting the old mask to 0.
@@ -35,10 +31,7 @@ static inline bool sbitmap_deferred_clear(struct sbitmap_word *map)
 		val = map->word;
 	} while (cmpxchg(&map->word, val, val & ~mask) != val);
 
-	ret = true;
-out_unlock:
-	spin_unlock_irqrestore(&map->swap_lock, flags);
-	return ret;
+	return true;
 }
 
 int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
@@ -80,7 +73,6 @@ int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 	for (i = 0; i < sb->map_nr; i++) {
 		sb->map[i].depth = min(depth, bits_per_word);
 		depth -= sb->map[i].depth;
-		spin_lock_init(&sb->map[i].swap_lock);
 	}
 	return 0;
 }
