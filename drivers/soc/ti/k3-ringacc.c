@@ -137,6 +137,7 @@ struct k3_ring_state {
  * @elm_size: Size of the ring element
  * @mode: Ring mode
  * @flags: flags
+ * @state: Ring state
  * @ring_id: Ring Id
  * @parent: Pointer on struct @k3_ringacc
  * @use_count: Use count for shared rings
