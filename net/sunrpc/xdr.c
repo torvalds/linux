@@ -1261,7 +1261,7 @@ uint64_t xdr_align_data(struct xdr_stream *xdr, uint64_t offset, uint32_t length
 
 	xdr_realign_pages(xdr);
 	from = xdr_page_pos(xdr);
-	bytes = xdr->nwords << 2;
+	bytes = xdr_stream_remaining(xdr);
 	if (length < bytes)
 		bytes = length;
 
@@ -1298,7 +1298,7 @@ uint64_t xdr_expand_hole(struct xdr_stream *xdr, uint64_t offset, uint64_t lengt
 
 	xdr_realign_pages(xdr);
 	from = xdr_page_pos(xdr);
-	bytes = xdr->nwords << 2;
+	bytes = xdr_stream_remaining(xdr);
 
 	if (offset + length + bytes > buf->page_len) {
 		unsigned int shift = (offset + length + bytes) - buf->page_len;
