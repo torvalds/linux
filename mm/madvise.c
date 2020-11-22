@@ -226,7 +226,7 @@ static void force_shm_swapin_readahead(struct vm_area_struct *vma,
 		struct address_space *mapping)
 {
 	XA_STATE(xas, &mapping->i_pages, linear_page_index(vma, start));
-	pgoff_t end_index = end / PAGE_SIZE;
+	pgoff_t end_index = linear_page_index(vma, end + PAGE_SIZE - 1);
 	struct page *page;
 
 	rcu_read_lock();
