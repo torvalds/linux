@@ -26,6 +26,8 @@ properties:
       The interrupt/data ready line will be configured as open drain, which
       is useful if several sensors share the same interrupt line.
 
+  vdd-supply: true
+
   interrupts:
     maxItems: 1
 
