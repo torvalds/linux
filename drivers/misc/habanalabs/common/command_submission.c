@@ -11,6 +11,9 @@
 #include <linux/uaccess.h>
 #include <linux/slab.h>
 
+#define HL_CS_FLAGS_TYPE_MASK	(HL_CS_FLAGS_SIGNAL | HL_CS_FLAGS_WAIT | \
+				HL_CS_FLAGS_COLLECTIVE_WAIT)
+
 /**
  * enum hl_cs_wait_status - cs wait status
  * @CS_WAIT_STATUS_BUSY: cs was not completed yet
@@ -737,8 +740,7 @@ static int hl_cs_sanity_checks(struct hl_fpriv *hpriv, union hl_cs_args *args)
 		return -EBUSY;
 	}
 
-	cs_type_flags = args->in.cs_flags &
-			~(HL_CS_FLAGS_FORCE_RESTORE | HL_CS_FLAGS_TIMESTAMP);
+	cs_type_flags = args->in.cs_flags & HL_CS_FLAGS_TYPE_MASK;
 
 	if (unlikely(cs_type_flags && !is_power_of_2(cs_type_flags))) {
 		dev_err(hdev->dev,
