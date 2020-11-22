@@ -566,6 +566,18 @@ static int adv748x_identify_chip(struct adv748x_state *state)
 }
 
 /* -----------------------------------------------------------------------------
+ * Suspend / Resume
+ */
+
+static int __maybe_unused adv748x_resume_early(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct adv748x_state *state = i2c_get_clientdata(client);
+
+	return adv748x_reset(state);
+}
+
+/* -----------------------------------------------------------------------------
  * i2c driver
  */
 
@@ -827,10 +839,15 @@ static const struct of_device_id adv748x_of_table[] = {
 };
 MODULE_DEVICE_TABLE(of, adv748x_of_table);
 
+static const struct dev_pm_ops adv748x_pm_ops = {
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(NULL, adv748x_resume_early)
+};
+
 static struct i2c_driver adv748x_driver = {
 	.driver = {
 		.name = "adv748x",
 		.of_match_table = adv748x_of_table,
+		.pm = &adv748x_pm_ops,
 	},
 	.probe_new = adv748x_probe,
 	.remove = adv748x_remove,
