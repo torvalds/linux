@@ -1194,6 +1194,19 @@ static void vop2_dsp_hold_valid_irq_disable(struct drm_crtc *crtc)
 	spin_unlock_irqrestore(&vop2->irq_lock, flags);
 }
 
+static void vop2_debug_irq_enable(struct drm_crtc *crtc)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+	const struct vop2_data *vop2_data = vop2->data;
+	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
+	const struct vop_intr *intr = vp_data->intr;
+	uint32_t irqs = POST_BUF_EMPTY_INTR;
+
+	VOP_INTR_SET_TYPE(vop2, intr, clear, irqs, 1);
+	VOP_INTR_SET_TYPE(vop2, intr, enable, irqs, 1);
+}
+
 /*
  * (1) each frame starts at the start of the Vsync pulse which is signaled by
  *     the "FRAME_SYNC" interrupt.
@@ -1371,6 +1384,8 @@ static void vop2_initial(struct drm_crtc *crtc)
 
 		vop2->is_enabled = true;
 	}
+
+	vop2_debug_irq_enable(crtc);
 
 	vop2->enable_count++;
 
