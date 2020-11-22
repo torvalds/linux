@@ -516,6 +516,10 @@ static int adv748x_reset(struct adv748x_state *state)
 	if (ret)
 		return ret;
 
+	adv748x_afe_s_input(&state->afe, state->afe.input);
+
+	adv_dbg(state, "AFE Default input set to %d\n", state->afe.input);
+
 	/* Reset TXA and TXB */
 	adv748x_tx_power(&state->txa, 1);
 	adv748x_tx_power(&state->txa, 0);
