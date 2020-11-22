@@ -35,7 +35,7 @@
 #include <linux/wakelock.h>
 //#define GSL_DEBUG
 #define REPORT_DATA_ANDROID_4_0
-#define SLEEP_CLEAR_POINT
+//#define SLEEP_CLEAR_POINT
 //#define FILTER_POINT
 #ifdef FILTER_POINT
 #define FILTER_MAX	9
@@ -901,8 +901,10 @@ error_alloc_dev:
 static int gsl_ts_suspend(struct device *dev)
 {
     struct gsl_ts *ts = dev_get_drvdata(dev);
+#ifdef SLEEP_CLEAR_POINT
 #ifdef REPORT_DATA_ANDROID_4_0
     int i;
+#endif
 #endif
 
     disable_irq_nosync(ts->irq);
@@ -932,8 +934,10 @@ static int gsl_ts_suspend(struct device *dev)
 static int gsl_ts_resume(struct device *dev)
 {
     struct gsl_ts *ts = dev_get_drvdata(dev);
+#ifdef SLEEP_CLEAR_POINT
 #ifdef REPORT_DATA_ANDROID_4_0
     int i;
+#endif
 #endif
     gslX680_shutdown_high();
     msleep(20);
