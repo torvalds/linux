@@ -530,10 +530,14 @@ static int adv748x_reset(struct adv748x_state *state)
 	io_write(state, ADV748X_IO_PD, ADV748X_IO_PD_RX_EN);
 
 	/* Conditionally enable TXa and TXb. */
-	if (is_tx_enabled(&state->txa))
+	if (is_tx_enabled(&state->txa)) {
 		regval |= ADV748X_IO_10_CSI4_EN;
-	if (is_tx_enabled(&state->txb))
+		adv748x_csi2_set_virtual_channel(&state->txa, 0);
+	}
+	if (is_tx_enabled(&state->txb)) {
 		regval |= ADV748X_IO_10_CSI1_EN;
+		adv748x_csi2_set_virtual_channel(&state->txb, 0);
+	}
 	io_write(state, ADV748X_IO_10, regval);
 
 	/* Use vid_std and v_freq as freerun resolution for CP */
