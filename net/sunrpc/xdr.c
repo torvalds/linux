@@ -193,9 +193,6 @@ xdr_inline_pages(struct xdr_buf *xdr, unsigned int offset,
 
 	tail->iov_base = buf + offset;
 	tail->iov_len = buflen - offset;
-	if ((xdr->page_len & 3) == 0)
-		tail->iov_len -= sizeof(__be32);
-
 	xdr->buflen += len;
 }
 EXPORT_SYMBOL_GPL(xdr_inline_pages);
