@@ -1307,12 +1307,11 @@ static int knav_setup_queue_pools(struct knav_device *kdev,
 				   struct device_node *queue_pools)
 {
 	struct device_node *type, *range;
-	int ret;
 
 	for_each_child_of_node(queue_pools, type) {
 		for_each_child_of_node(type, range) {
-			ret = knav_setup_queue_range(kdev, range);
 			/* return value ignored, we init the rest... */
+			knav_setup_queue_range(kdev, range);
 		}
 	}
 
