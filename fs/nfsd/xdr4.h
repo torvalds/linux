@@ -615,7 +615,7 @@ struct nfsd4_copy_notify {
 };
 
 struct nfsd4_op {
-	int					opnum;
+	u32					opnum;
 	const struct nfsd4_operation *		opdesc;
 	__be32					status;
 	union nfsd4_op_u {
