@@ -2,7 +2,10 @@
 BPF Selftest Notes
 ==================
 General instructions on running selftests can be found in
-`Documentation/bpf/bpf_devel_QA.rst`_.
+`Documentation/bpf/bpf_devel_QA.rst`__.
+
+__ /Documentation/bpf/bpf_devel_QA.rst#q-how-to-run-bpf-selftests
+
 
 Additional information about selftest failures are
 documented here.
