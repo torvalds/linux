@@ -46,5 +46,10 @@ u64 memory_hotplug_max(void);
 #define __HAVE_ARCH_RESERVED_KERNEL_PAGES
 #endif
 
+#ifdef CONFIG_MEMORY_HOTPLUG
+extern int create_section_mapping(unsigned long start, unsigned long end,
+				  int nid, pgprot_t prot);
+#endif
+
 #endif /* __KERNEL__ */
 #endif /* _ASM_MMZONE_H_ */
