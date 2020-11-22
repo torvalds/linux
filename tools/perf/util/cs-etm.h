@@ -53,6 +53,9 @@ enum {
 	CS_ETMV4_PRIV_MAX,
 };
 
+/* RB tree for quick conversion between traceID and CPUs */
+struct intlist *traceid_list;
+
 #define KiB(x) ((x) * 1024)
 #define MiB(x) ((x) * 1024 * 1024)
 
