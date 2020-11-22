@@ -97,8 +97,10 @@ EXPORT_SYMBOL_GPL(sbitmap_resize);
 static int __sbitmap_get_word(unsigned long *word, unsigned long depth,
 			      unsigned int hint, bool wrap)
 {
-	unsigned int orig_hint = hint;
 	int nr;
+
+	/* don't wrap if starting from 0 */
+	wrap = wrap && hint;
 
 	while (1) {
 		nr = find_next_zero_bit(word, depth, hint);
@@ -108,8 +110,8 @@ static int __sbitmap_get_word(unsigned long *word, unsigned long depth,
 			 * offset to 0 in a failure case, so start from 0 to
 			 * exhaust the map.
 			 */
-			if (orig_hint && hint && wrap) {
-				hint = orig_hint = 0;
+			if (hint && wrap) {
+				hint = 0;
 				continue;
 			}
 			return -1;
