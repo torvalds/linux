@@ -716,8 +716,28 @@ static inline void vop2_cfg_done(struct drm_crtc *crtc)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 	struct vop2 *vop2 = vp->vop2;
+	uint32_t done;
+	uint32_t val;
 
-	VOP_MODULE_SET(vop2, vp, cfg_done, 1);
+	/*
+	 * This is a workaround, the config done bits of VP0,
+	 * VP1, VP2 on RK3568 stands on the first three bits
+	 * on REG_CFG_DONE register without mask bit.
+	 * If two or three config done events happens one after
+	 * another in a very shot time, the flowing config done
+	 * write may override the previous config done bit before
+	 * it take effect:
+	 * 1: config done 0x8001 for VP0
+	 * 2: config done 0x8002 for VP1
+	 *
+	 * 0x8002 may override 0x8001 before it take effect.
+	 *
+	 * So we do a read | write here.
+	 *
+	 */
+	done = vop2_readl(vop2, 0) & 0x7;
+	val = RK3568_VOP2_GLB_CFG_DONE_EN | BIT(vp->id) | done;
+	vop2_writel(vop2, 0, val);
 }
 
 static inline void vop2_wb_cfg_done(struct vop2 *vop2)
