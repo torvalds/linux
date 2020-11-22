@@ -47,18 +47,25 @@
 /* Max request size is determined by sector mask - 32K */
 #define UBD_MAX_REQUEST (8 * sizeof(long))
 
+struct io_desc {
+	char *buffer;
+	unsigned long length;
+	unsigned long sector_mask;
+	unsigned long long cow_offset;
+	unsigned long bitmap_words[2];
+};
+
 struct io_thread_req {
 	struct request *req;
 	int fds[2];
 	unsigned long offsets[2];
 	unsigned long long offset;
-	unsigned long length;
-	char *buffer;
 	int sectorsize;
-	unsigned long sector_mask;
-	unsigned long long cow_offset;
-	unsigned long bitmap_words[2];
 	int error;
+
+	int desc_cnt;
+	/* io_desc has to be the last element of the struct */
+	struct io_desc io_desc[];
 };
 
 
@@ -525,12 +532,7 @@ static void ubd_handler(void)
 				blk_queue_max_write_zeroes_sectors(io_req->req->q, 0);
 				blk_queue_flag_clear(QUEUE_FLAG_DISCARD, io_req->req->q);
 			}
-			if ((io_req->error) || (io_req->buffer == NULL))
-				blk_mq_end_request(io_req->req, io_req->error);
-			else {
-				if (!blk_update_request(io_req->req, io_req->error, io_req->length))
-					__blk_mq_end_request(io_req->req, io_req->error);
-			}
+			blk_mq_end_request(io_req->req, io_req->error);
 			kfree(io_req);
 		}
 	}
@@ -946,6 +948,7 @@ static int ubd_add(int n, char **error_out)
 	blk_queue_write_cache(ubd_dev->queue, true, false);
 
 	blk_queue_max_segments(ubd_dev->queue, MAX_SG);
+	blk_queue_segment_boundary(ubd_dev->queue, PAGE_SIZE - 1);
 	err = ubd_disk_register(UBD_MAJOR, ubd_dev->size, n, &ubd_gendisk[n]);
 	if(err){
 		*error_out = "Failed to register device";
@@ -1289,37 +1292,74 @@ static void cowify_bitmap(__u64 io_offset, int length, unsigned long *cow_mask,
 	*cow_offset += bitmap_offset;
 }
 
-static void cowify_req(struct io_thread_req *req, unsigned long *bitmap,
+static void cowify_req(struct io_thread_req *req, struct io_desc *segment,
+		       unsigned long offset, unsigned long *bitmap,
 		       __u64 bitmap_offset, __u64 bitmap_len)
 {
-	__u64 sector = req->offset >> SECTOR_SHIFT;
+	__u64 sector = offset >> SECTOR_SHIFT;
 	int i;
 
-	if (req->length > (sizeof(req->sector_mask) * 8) << SECTOR_SHIFT)
+	if (segment->length > (sizeof(segment->sector_mask) * 8) << SECTOR_SHIFT)
 		panic("Operation too long");
 
 	if (req_op(req->req) == REQ_OP_READ) {
-		for (i = 0; i < req->length >> SECTOR_SHIFT; i++) {
+		for (i = 0; i < segment->length >> SECTOR_SHIFT; i++) {
 			if(ubd_test_bit(sector + i, (unsigned char *) bitmap))
 				ubd_set_bit(i, (unsigned char *)
-					    &req->sector_mask);
+					    &segment->sector_mask);
 		}
+	} else {
+		cowify_bitmap(offset, segment->length, &segment->sector_mask,
+			      &segment->cow_offset, bitmap, bitmap_offset,
+			      segment->bitmap_words, bitmap_len);
 	}
-	else cowify_bitmap(req->offset, req->length, &req->sector_mask,
-			   &req->cow_offset, bitmap, bitmap_offset,
-			   req->bitmap_words, bitmap_len);
 }
 
-static int ubd_queue_one_vec(struct blk_mq_hw_ctx *hctx, struct request *req,
-		u64 off, struct bio_vec *bvec)
+static void ubd_map_req(struct ubd *dev, struct io_thread_req *io_req,
+			struct request *req)
 {
-	struct ubd *dev = hctx->queue->queuedata;
-	struct io_thread_req *io_req;
-	int ret;
+	struct bio_vec bvec;
+	struct req_iterator iter;
+	int i = 0;
+	unsigned long byte_offset = io_req->offset;
+	int op = req_op(req);
 
-	io_req = kmalloc(sizeof(struct io_thread_req), GFP_ATOMIC);
+	if (op == REQ_OP_WRITE_ZEROES || op == REQ_OP_DISCARD) {
+		io_req->io_desc[0].buffer = NULL;
+		io_req->io_desc[0].length = blk_rq_bytes(req);
+	} else {
+		rq_for_each_segment(bvec, req, iter) {
+			BUG_ON(i >= io_req->desc_cnt);
+
+			io_req->io_desc[i].buffer =
+				page_address(bvec.bv_page) + bvec.bv_offset;
+			io_req->io_desc[i].length = bvec.bv_len;
+			i++;
+		}
+	}
+
+	if (dev->cow.file) {
+		for (i = 0; i < io_req->desc_cnt; i++) {
+			cowify_req(io_req, &io_req->io_desc[i], byte_offset,
+				   dev->cow.bitmap, dev->cow.bitmap_offset,
+				   dev->cow.bitmap_len);
+			byte_offset += io_req->io_desc[i].length;
+		}
+
+	}
+}
+
+static struct io_thread_req *ubd_alloc_req(struct ubd *dev, struct request *req,
+					   int desc_cnt)
+{
+	struct io_thread_req *io_req;
+	int i;
+
+	io_req = kmalloc(sizeof(*io_req) +
+			 (desc_cnt * sizeof(struct io_desc)),
+			 GFP_ATOMIC);
 	if (!io_req)
-		return -ENOMEM;
+		return NULL;
 
 	io_req->req = req;
 	if (dev->cow.file)
@@ -1327,26 +1367,41 @@ static int ubd_queue_one_vec(struct blk_mq_hw_ctx *hctx, struct request *req,
 	else
 		io_req->fds[0] = dev->fd;
 	io_req->error = 0;
-
-	if (bvec != NULL) {
-		io_req->buffer = page_address(bvec->bv_page) + bvec->bv_offset;
-		io_req->length = bvec->bv_len;
-	} else {
-		io_req->buffer = NULL;
-		io_req->length = blk_rq_bytes(req);
-	}
-
 	io_req->sectorsize = SECTOR_SIZE;
 	io_req->fds[1] = dev->fd;
-	io_req->cow_offset = -1;
-	io_req->offset = off;
-	io_req->sector_mask = 0;
+	io_req->offset = (u64) blk_rq_pos(req) << SECTOR_SHIFT;
 	io_req->offsets[0] = 0;
 	io_req->offsets[1] = dev->cow.data_offset;
 
-	if (dev->cow.file)
-		cowify_req(io_req, dev->cow.bitmap,
-			   dev->cow.bitmap_offset, dev->cow.bitmap_len);
+	for (i = 0 ; i < desc_cnt; i++) {
+		io_req->io_desc[i].sector_mask = 0;
+		io_req->io_desc[i].cow_offset = -1;
+	}
+
+	return io_req;
+}
+
+static int ubd_submit_request(struct ubd *dev, struct request *req)
+{
+	int segs = 0;
+	struct io_thread_req *io_req;
+	int ret;
+	int op = req_op(req);
+
+	if (op == REQ_OP_FLUSH)
+		segs = 0;
+	else if (op == REQ_OP_WRITE_ZEROES || op == REQ_OP_DISCARD)
+		segs = 1;
+	else
+		segs = blk_rq_nr_phys_segments(req);
+
+	io_req = ubd_alloc_req(dev, req, segs);
+	if (!io_req)
+		return -ENOMEM;
+
+	io_req->desc_cnt = segs;
+	if (segs)
+		ubd_map_req(dev, io_req, req);
 
 	ret = os_write_file(thread_fd, &io_req, sizeof(io_req));
 	if (ret != sizeof(io_req)) {
@@ -1355,22 +1410,6 @@ static int ubd_queue_one_vec(struct blk_mq_hw_ctx *hctx, struct request *req,
 		kfree(io_req);
 	}
 	return ret;
-}
-
-static int queue_rw_req(struct blk_mq_hw_ctx *hctx, struct request *req)
-{
-	struct req_iterator iter;
-	struct bio_vec bvec;
-	int ret;
-	u64 off = (u64)blk_rq_pos(req) << SECTOR_SHIFT;
-
-	rq_for_each_segment(bvec, req, iter) {
-		ret = ubd_queue_one_vec(hctx, req, off, &bvec);
-		if (ret < 0)
-			return ret;
-		off += bvec.bv_len;
-	}
-	return 0;
 }
 
 static blk_status_t ubd_queue_rq(struct blk_mq_hw_ctx *hctx,
@@ -1385,17 +1424,12 @@ static blk_status_t ubd_queue_rq(struct blk_mq_hw_ctx *hctx,
 	spin_lock_irq(&ubd_dev->lock);
 
 	switch (req_op(req)) {
-	/* operations with no lentgth/offset arguments */
 	case REQ_OP_FLUSH:
-		ret = ubd_queue_one_vec(hctx, req, 0, NULL);
-		break;
 	case REQ_OP_READ:
 	case REQ_OP_WRITE:
-		ret = queue_rw_req(hctx, req);
-		break;
 	case REQ_OP_DISCARD:
 	case REQ_OP_WRITE_ZEROES:
-		ret = ubd_queue_one_vec(hctx, req, (u64)blk_rq_pos(req) << 9, NULL);
+		ret = ubd_submit_request(ubd_dev, req);
 		break;
 	default:
 		WARN_ON_ONCE(1);
@@ -1483,22 +1517,22 @@ static int map_error(int error_code)
  * will result in unpredictable behaviour and/or crashes.
  */
 
-static int update_bitmap(struct io_thread_req *req)
+static int update_bitmap(struct io_thread_req *req, struct io_desc *segment)
 {
 	int n;
 
-	if(req->cow_offset == -1)
+	if (segment->cow_offset == -1)
 		return map_error(0);
 
-	n = os_pwrite_file(req->fds[1], &req->bitmap_words,
-			  sizeof(req->bitmap_words), req->cow_offset);
-	if (n != sizeof(req->bitmap_words))
+	n = os_pwrite_file(req->fds[1], &segment->bitmap_words,
+			  sizeof(segment->bitmap_words), segment->cow_offset);
+	if (n != sizeof(segment->bitmap_words))
 		return map_error(-n);
 
 	return map_error(0);
 }
 
-static void do_io(struct io_thread_req *req)
+static void do_io(struct io_thread_req *req, struct io_desc *desc)
 {
 	char *buf = NULL;
 	unsigned long len;
@@ -1513,21 +1547,20 @@ static void do_io(struct io_thread_req *req)
 		return;
 	}
 
-	nsectors = req->length / req->sectorsize;
+	nsectors = desc->length / req->sectorsize;
 	start = 0;
 	do {
-		bit = ubd_test_bit(start, (unsigned char *) &req->sector_mask);
+		bit = ubd_test_bit(start, (unsigned char *) &desc->sector_mask);
 		end = start;
 		while((end < nsectors) &&
-		      (ubd_test_bit(end, (unsigned char *)
-				    &req->sector_mask) == bit))
+		      (ubd_test_bit(end, (unsigned char *) &desc->sector_mask) == bit))
 			end++;
 
 		off = req->offset + req->offsets[bit] +
 			start * req->sectorsize;
 		len = (end - start) * req->sectorsize;
-		if (req->buffer != NULL)
-			buf = &req->buffer[start * req->sectorsize];
+		if (desc->buffer != NULL)
+			buf = &desc->buffer[start * req->sectorsize];
 
 		switch (req_op(req->req)) {
 		case REQ_OP_READ:
@@ -1567,7 +1600,8 @@ static void do_io(struct io_thread_req *req)
 		start = end;
 	} while(start < nsectors);
 
-	req->error = update_bitmap(req);
+	req->offset += len;
+	req->error = update_bitmap(req, desc);
 }
 
 /* Changed in start_io_thread, which is serialized by being called only
@@ -1600,8 +1634,13 @@ int io_thread(void *arg)
 		}
 
 		for (count = 0; count < n/sizeof(struct io_thread_req *); count++) {
+			struct io_thread_req *req = (*io_req_buffer)[count];
+			int i;
+
 			io_count++;
-			do_io((*io_req_buffer)[count]);
+			for (i = 0; !req->error && i < req->desc_cnt; i++)
+				do_io(req, &(req->io_desc[i]));
+
 		}
 
 		written = 0;
