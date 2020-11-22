@@ -50,8 +50,6 @@ enum cc_std_body {
 	CC_STD_ALL = 0x3
 };
 
-#define CC_COHERENT_CACHE_PARAMS 0xEEE
-
 #define CC_PINS_FULL	0x0
 #define CC_PINS_SLIM	0x9F
 
@@ -156,6 +154,8 @@ struct cc_drvdata {
 	int std_bodies;
 	bool sec_disabled;
 	u32 comp_mask;
+	u32 cache_params;
+	u32 ace_const;
 };
 
 struct cc_crypto_alg {
@@ -206,7 +206,7 @@ static inline void dump_byte_array(const char *name, const u8 *the_array,
 }
 
 bool cc_wait_for_reset_completion(struct cc_drvdata *drvdata);
-int init_cc_regs(struct cc_drvdata *drvdata, bool is_probe);
+int init_cc_regs(struct cc_drvdata *drvdata);
 void fini_cc_regs(struct cc_drvdata *drvdata);
 unsigned int cc_get_default_hash_len(struct cc_drvdata *drvdata);
 
