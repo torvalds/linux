@@ -1231,8 +1231,6 @@ SYSCALL_DEFINE5(process_madvise, int, pidfd, const struct iovec __user *, vec,
 		ret = total_len - iov_iter_count(&iter);
 
 	mmput(mm);
-	return ret;
-
 release_task:
 	put_task_struct(task);
 put_pid:
