@@ -5337,11 +5337,11 @@ static int decode_getacl(struct xdr_stream *xdr, struct rpc_rqst *req,
 		res->acl_len = attrlen;
 
 		/* Check for receive buffer overflow */
-		if (res->acl_len > (xdr->nwords << 2) ||
+		if (res->acl_len > xdr_stream_remaining(xdr) ||
 		    res->acl_len + res->acl_data_offset > xdr->buf->page_len) {
 			res->acl_flags |= NFS4_ACL_TRUNC;
-			dprintk("NFS: acl reply: attrlen %u > page_len %u\n",
-					attrlen, xdr->nwords << 2);
+			dprintk("NFS: acl reply: attrlen %u > page_len %zu\n",
+				attrlen, xdr_stream_remaining(xdr));
 		}
 	} else
 		status = -EOPNOTSUPP;
