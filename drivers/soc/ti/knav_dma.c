@@ -500,7 +500,7 @@ EXPORT_SYMBOL_GPL(knav_dma_open_channel);
 /**
  * knav_dma_close_channel()	- Destroy a dma channel
  *
- * channel:	dma channel handle
+ * @channel:	dma channel handle
  *
  */
 void knav_dma_close_channel(void *channel)
