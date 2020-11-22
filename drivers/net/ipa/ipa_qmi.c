@@ -168,7 +168,7 @@ static void ipa_server_bye(struct qmi_handle *qmi, unsigned int node)
 	ipa_qmi->indication_sent = false;
 }
 
-static struct qmi_ops ipa_server_ops = {
+static const struct qmi_ops ipa_server_ops = {
 	.bye		= ipa_server_bye,
 };
 
@@ -234,7 +234,7 @@ static void ipa_server_driver_init_complete(struct qmi_handle *qmi,
 }
 
 /* The server handles two request message types sent by the modem. */
-static struct qmi_msg_handler ipa_server_msg_handlers[] = {
+static const struct qmi_msg_handler ipa_server_msg_handlers[] = {
 	{
 		.type		= QMI_REQUEST,
 		.msg_id		= IPA_QMI_INDICATION_REGISTER,
@@ -261,7 +261,7 @@ static void ipa_client_init_driver(struct qmi_handle *qmi,
 }
 
 /* The client handles one response message type sent by the modem. */
-static struct qmi_msg_handler ipa_client_msg_handlers[] = {
+static const struct qmi_msg_handler ipa_client_msg_handlers[] = {
 	{
 		.type		= QMI_RESPONSE,
 		.msg_id		= IPA_QMI_INIT_DRIVER,
@@ -463,7 +463,7 @@ ipa_client_new_server(struct qmi_handle *qmi, struct qmi_service *svc)
 	return 0;
 }
 
-static struct qmi_ops ipa_client_ops = {
+static const struct qmi_ops ipa_client_ops = {
 	.new_server	= ipa_client_new_server,
 };
 
