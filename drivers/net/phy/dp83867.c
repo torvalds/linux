@@ -310,6 +310,30 @@ static int dp83867_config_intr(struct phy_device *phydev)
 	return phy_write(phydev, MII_DP83867_MICR, micr_status);
 }
 
+static irqreturn_t dp83867_handle_interrupt(struct phy_device *phydev)
+{
+	int irq_status, irq_enabled;
+
+	irq_status = phy_read(phydev, MII_DP83867_ISR);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	irq_enabled = phy_read(phydev, MII_DP83867_MICR);
+	if (irq_enabled < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	if (!(irq_status & irq_enabled))
+		return IRQ_NONE;
+
+	phy_trigger_machine(phydev);
+
+	return IRQ_HANDLED;
+}
+
 static int dp83867_read_status(struct phy_device *phydev)
 {
 	int status = phy_read(phydev, MII_DP83867_PHYSTS);
@@ -827,6 +851,7 @@ static struct phy_driver dp83867_driver[] = {
 		/* IRQ related */
 		.ack_interrupt	= dp83867_ack_interrupt,
 		.config_intr	= dp83867_config_intr,
+		.handle_interrupt = dp83867_handle_interrupt,
 
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,

@@ -50,6 +50,14 @@
 #define MII_DP83640_MISR_LINK_INT_EN 0x20
 #define MII_DP83640_MISR_ED_INT_EN 0x40
 #define MII_DP83640_MISR_LQ_INT_EN 0x80
+#define MII_DP83640_MISR_ANC_INT 0x400
+#define MII_DP83640_MISR_DUP_INT 0x800
+#define MII_DP83640_MISR_SPD_INT 0x1000
+#define MII_DP83640_MISR_LINK_INT 0x2000
+#define MII_DP83640_MISR_INT_MASK (MII_DP83640_MISR_ANC_INT |\
+				   MII_DP83640_MISR_DUP_INT |\
+				   MII_DP83640_MISR_SPD_INT |\
+				   MII_DP83640_MISR_LINK_INT)
 
 /* phyter seems to miss the mark by 16 ns */
 #define ADJTIME_FIX	16
@@ -1193,6 +1201,24 @@ static int dp83640_config_intr(struct phy_device *phydev)
 	}
 }
 
+static irqreturn_t dp83640_handle_interrupt(struct phy_device *phydev)
+{
+	int irq_status;
+
+	irq_status = phy_read(phydev, MII_DP83640_MISR);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	if (!(irq_status & MII_DP83640_MISR_INT_MASK))
+		return IRQ_NONE;
+
+	phy_trigger_machine(phydev);
+
+	return IRQ_HANDLED;
+}
+
 static int dp83640_hwtstamp(struct mii_timestamper *mii_ts, struct ifreq *ifr)
 {
 	struct dp83640_private *dp83640 =
@@ -1517,6 +1543,7 @@ static struct phy_driver dp83640_driver = {
 	.config_init	= dp83640_config_init,
 	.ack_interrupt  = dp83640_ack_interrupt,
 	.config_intr    = dp83640_config_intr,
+	.handle_interrupt = dp83640_handle_interrupt,
 };
 
 static int __init dp83640_init(void)

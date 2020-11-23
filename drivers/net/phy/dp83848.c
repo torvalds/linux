@@ -37,6 +37,20 @@
 	 DP83848_MISR_SPD_INT_EN |	\
 	 DP83848_MISR_LINK_INT_EN)
 
+#define DP83848_MISR_RHF_INT		BIT(8)
+#define DP83848_MISR_FHF_INT		BIT(9)
+#define DP83848_MISR_ANC_INT		BIT(10)
+#define DP83848_MISR_DUP_INT		BIT(11)
+#define DP83848_MISR_SPD_INT		BIT(12)
+#define DP83848_MISR_LINK_INT		BIT(13)
+#define DP83848_MISR_ED_INT		BIT(14)
+
+#define DP83848_INT_MASK		\
+	(DP83848_MISR_ANC_INT |	\
+	 DP83848_MISR_DUP_INT |	\
+	 DP83848_MISR_SPD_INT |	\
+	 DP83848_MISR_LINK_INT)
+
 static int dp83848_ack_interrupt(struct phy_device *phydev)
 {
 	int err = phy_read(phydev, DP83848_MISR);
@@ -64,6 +78,24 @@ static int dp83848_config_intr(struct phy_device *phydev)
 	}
 
 	return phy_write(phydev, DP83848_MICR, control);
+}
+
+static irqreturn_t dp83848_handle_interrupt(struct phy_device *phydev)
+{
+	int irq_status;
+
+	irq_status = phy_read(phydev, DP83848_MISR);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	if (!(irq_status & DP83848_INT_MASK))
+		return IRQ_NONE;
+
+	phy_trigger_machine(phydev);
+
+	return IRQ_HANDLED;
 }
 
 static int dp83848_config_init(struct phy_device *phydev)
@@ -104,6 +136,7 @@ MODULE_DEVICE_TABLE(mdio, dp83848_tbl);
 		/* IRQ related */				\
 		.ack_interrupt	= dp83848_ack_interrupt,	\
 		.config_intr	= dp83848_config_intr,		\
+		.handle_interrupt = dp83848_handle_interrupt,	\
 	}
 
 static struct phy_driver dp83848_driver[] = {
