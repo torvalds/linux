@@ -120,7 +120,7 @@ struct snd_usb_endpoint {
 	bool need_setup;		/* (re-)need for configure? */
 
 	/* for hw constraints */
-	struct audioformat *cur_audiofmt;
+	const struct audioformat *cur_audiofmt;
 	unsigned int cur_rate;
 	snd_pcm_format_t cur_format;
 	unsigned int cur_channels;
@@ -142,7 +142,7 @@ struct snd_usb_substream {
 	int direction;	/* playback or capture */
 	int interface;	/* current interface */
 	int endpoint;	/* assigned endpoint */
-	struct audioformat *cur_audiofmt;	/* current audioformat pointer (for hw_params callback) */
+	const struct audioformat *cur_audiofmt;	/* current audioformat pointer (for hw_params callback) */
 	struct snd_usb_power_domain *str_pd;	/* UAC3 Power Domain for streaming path */
 	snd_pcm_format_t pcm_format;	/* current audio format (for hw_params callback) */
 	unsigned int channels;		/* current number of channels (for hw_params callback) */

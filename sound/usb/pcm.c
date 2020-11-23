@@ -80,13 +80,13 @@ static snd_pcm_uframes_t snd_usb_pcm_pointer(struct snd_pcm_substream *substream
 /*
  * find a matching audio format
  */
-static struct audioformat *
+static const struct audioformat *
 find_format(struct list_head *fmt_list_head, snd_pcm_format_t format,
 	    unsigned int rate, unsigned int channels, bool strict_match,
 	    struct snd_usb_substream *subs)
 {
-	struct audioformat *fp;
-	struct audioformat *found = NULL;
+	const struct audioformat *fp;
+	const struct audioformat *found = NULL;
 	int cur_attr = 0, attr;
 
 	list_for_each_entry(fp, fmt_list_head, list) {
@@ -141,7 +141,7 @@ find_format(struct list_head *fmt_list_head, snd_pcm_format_t format,
 	return found;
 }
 
-static struct audioformat *
+static const struct audioformat *
 find_substream_format(struct snd_usb_substream *subs,
 		      const struct snd_pcm_hw_params *params)
 {
@@ -182,7 +182,7 @@ static int init_pitch_v2(struct snd_usb_audio *chip, int ep)
  * initialize the pitch control and sample rate
  */
 int snd_usb_init_pitch(struct snd_usb_audio *chip,
-		       struct audioformat *fmt)
+		       const struct audioformat *fmt)
 {
 	int err;
 
@@ -641,14 +641,14 @@ find_matching_substream(struct snd_usb_audio *chip, int stream, int ep_num,
 	return NULL;
 }
 
-static struct audioformat *
+static const struct audioformat *
 find_implicit_fb_sync_format(struct snd_usb_audio *chip,
 			     const struct audioformat *target,
 			     const struct snd_pcm_hw_params *params,
 			     int stream)
 {
 	struct snd_usb_substream *subs;
-	struct audioformat *fp, *sync_fmt;
+	const struct audioformat *fp, *sync_fmt;
 	int score, high_score;
 
 	subs = find_matching_substream(chip, stream, target->sync_ep,
@@ -726,8 +726,8 @@ static int snd_usb_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_usb_substream *subs = substream->runtime->private_data;
 	struct snd_usb_audio *chip = subs->stream->chip;
-	struct audioformat *fmt;
-	struct audioformat *sync_fmt;
+	const struct audioformat *fmt;
+	const struct audioformat *sync_fmt;
 	int ret;
 
 	ret = snd_media_start_pipeline(subs);
@@ -918,7 +918,7 @@ static const struct snd_pcm_hardware snd_usb_hardware =
 
 static int hw_check_valid_format(struct snd_usb_substream *subs,
 				 struct snd_pcm_hw_params *params,
-				 struct audioformat *fp)
+				 const struct audioformat *fp)
 {
 	struct snd_interval *it = hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
 	struct snd_interval *ct = hw_param_interval(params, SNDRV_PCM_HW_PARAM_CHANNELS);
@@ -995,7 +995,7 @@ static int hw_rule_rate(struct snd_pcm_hw_params *params,
 			struct snd_pcm_hw_rule *rule)
 {
 	struct snd_usb_substream *subs = rule->private;
-	struct audioformat *fp;
+	const struct audioformat *fp;
 	struct snd_interval *it = hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
 	unsigned int rmin, rmax, r;
 	int i;
@@ -1028,7 +1028,7 @@ static int hw_rule_channels(struct snd_pcm_hw_params *params,
 			    struct snd_pcm_hw_rule *rule)
 {
 	struct snd_usb_substream *subs = rule->private;
-	struct audioformat *fp;
+	const struct audioformat *fp;
 	struct snd_interval *it = hw_param_interval(params, SNDRV_PCM_HW_PARAM_CHANNELS);
 	unsigned int rmin, rmax;
 
@@ -1049,7 +1049,7 @@ static int hw_rule_format(struct snd_pcm_hw_params *params,
 			  struct snd_pcm_hw_rule *rule)
 {
 	struct snd_usb_substream *subs = rule->private;
-	struct audioformat *fp;
+	const struct audioformat *fp;
 	struct snd_mask *fmt = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
 	u64 fbits;
 	u32 oldbits[2];
@@ -1080,7 +1080,7 @@ static int hw_rule_period_time(struct snd_pcm_hw_params *params,
 			       struct snd_pcm_hw_rule *rule)
 {
 	struct snd_usb_substream *subs = rule->private;
-	struct audioformat *fp;
+	const struct audioformat *fp;
 	struct snd_interval *it;
 	unsigned char min_datainterval;
 	unsigned int pmin;
@@ -1109,7 +1109,7 @@ static int apply_hw_constraint_from_sync(struct snd_pcm_runtime *runtime,
 {
 	struct snd_usb_audio *chip = subs->stream->chip;
 	struct snd_usb_endpoint *ep;
-	struct audioformat *fp;
+	const struct audioformat *fp;
 	int err;
 
 	list_for_each_entry(fp, &subs->fmt_list, list) {
@@ -1170,7 +1170,7 @@ static int apply_hw_constraint_from_sync(struct snd_pcm_runtime *runtime,
 static int setup_hw_info(struct snd_pcm_runtime *runtime, struct snd_usb_substream *subs)
 {
 	struct snd_usb_audio *chip = subs->stream->chip;
-	struct audioformat *fp;
+	const struct audioformat *fp;
 	unsigned int pt, ptmin;
 	int param_period_time_if_needed = -1;
 	int err;

@@ -152,7 +152,7 @@ static int uac_clock_selector_set_val(struct snd_usb_audio *chip, int selector_i
 }
 
 static bool uac_clock_source_is_valid_quirk(struct snd_usb_audio *chip,
-					    struct audioformat *fmt,
+					    const struct audioformat *fmt,
 					    int source_id)
 {
 	bool ret = false;
@@ -215,7 +215,7 @@ static bool uac_clock_source_is_valid_quirk(struct snd_usb_audio *chip,
 }
 
 static bool uac_clock_source_is_valid(struct snd_usb_audio *chip,
-				      struct audioformat *fmt,
+				      const struct audioformat *fmt,
 				      int source_id)
 {
 	int err;
@@ -264,7 +264,7 @@ static bool uac_clock_source_is_valid(struct snd_usb_audio *chip,
 }
 
 static int __uac_clock_find_source(struct snd_usb_audio *chip,
-				   struct audioformat *fmt, int entity_id,
+				   const struct audioformat *fmt, int entity_id,
 				   unsigned long *visited, bool validate)
 {
 	struct uac_clock_source_descriptor *source;
@@ -358,7 +358,7 @@ static int __uac_clock_find_source(struct snd_usb_audio *chip,
 }
 
 static int __uac3_clock_find_source(struct snd_usb_audio *chip,
-				    struct audioformat *fmt, int entity_id,
+				    const struct audioformat *fmt, int entity_id,
 				    unsigned long *visited, bool validate)
 {
 	struct uac3_clock_source_descriptor *source;
@@ -464,7 +464,7 @@ static int __uac3_clock_find_source(struct snd_usb_audio *chip,
  * Returns the clock source UnitID (>=0) on success, or an error.
  */
 int snd_usb_clock_find_source(struct snd_usb_audio *chip,
-			      struct audioformat *fmt, bool validate)
+			      const struct audioformat *fmt, bool validate)
 {
 	DECLARE_BITMAP(visited, 256);
 	memset(visited, 0, sizeof(visited));
@@ -482,7 +482,7 @@ int snd_usb_clock_find_source(struct snd_usb_audio *chip,
 }
 
 static int set_sample_rate_v1(struct snd_usb_audio *chip,
-			      struct audioformat *fmt, int rate)
+			      const struct audioformat *fmt, int rate)
 {
 	struct usb_device *dev = chip->dev;
 	struct usb_host_interface *alts;
@@ -611,7 +611,7 @@ int snd_usb_set_sample_rate_v2v3(struct snd_usb_audio *chip,
 }
 
 static int set_sample_rate_v2v3(struct snd_usb_audio *chip,
-				struct audioformat *fmt, int rate)
+				const struct audioformat *fmt, int rate)
 {
 	int cur_rate, prev_rate;
 	int clock;
@@ -663,7 +663,7 @@ validation:
 }
 
 int snd_usb_init_sample_rate(struct snd_usb_audio *chip,
-			     struct audioformat *fmt, int rate)
+			     const struct audioformat *fmt, int rate)
 {
 	usb_audio_dbg(chip, "%d:%d Set sample rate %d, clock %d\n",
 		      fmt->iface, fmt->altsetting, rate, fmt->clock);

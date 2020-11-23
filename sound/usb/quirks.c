@@ -1375,7 +1375,8 @@ int snd_usb_apply_boot_quirk_once(struct usb_device *dev,
 /*
  * check if the device uses big-endian samples
  */
-int snd_usb_is_big_endian_format(struct snd_usb_audio *chip, struct audioformat *fp)
+int snd_usb_is_big_endian_format(struct snd_usb_audio *chip,
+				 const struct audioformat *fp)
 {
 	/* it depends on altsetting whether the device is big-endian or not */
 	switch (chip->usb_id) {
@@ -1414,7 +1415,7 @@ enum {
 };
 
 static void set_format_emu_quirk(struct snd_usb_substream *subs,
-				 struct audioformat *fmt)
+				 const struct audioformat *fmt)
 {
 	unsigned char emu_samplerate_id = 0;
 
@@ -1476,7 +1477,7 @@ static int pioneer_djm_set_format_quirk(struct snd_usb_substream *subs)
 }
 
 void snd_usb_set_format_quirk(struct snd_usb_substream *subs,
-			      struct audioformat *fmt)
+			      const struct audioformat *fmt)
 {
 	switch (subs->stream->chip->usb_id) {
 	case USB_ID(0x041e, 0x3f02): /* E-Mu 0202 USB */
@@ -1543,7 +1544,7 @@ static bool is_itf_usb_dsd_dac(unsigned int id)
 }
 
 int snd_usb_select_mode_quirk(struct snd_usb_audio *chip,
-			      struct audioformat *fmt)
+			      const struct audioformat *fmt)
 {
 	struct usb_device *dev = chip->dev;
 	int err;
