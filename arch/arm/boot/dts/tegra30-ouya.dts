@@ -4509,3 +4509,11 @@
 		nvidia,slew-rate-falling = <TEGRA_PIN_SLEW_RATE_SLOWEST>;
 	};
 };
+
+&emc_icc_dvfs_opp_table {
+	/delete-node/ opp@900000000,1350;
+};
+
+&emc_bw_dfs_opp_table {
+	/delete-node/ opp@900000000;
+};
