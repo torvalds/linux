@@ -459,6 +459,9 @@ snd_usb_get_endpoint(struct snd_usb_audio *chip,
 	return NULL;
 }
 
+#define ep_type_name(type) \
+	(type == SND_USB_ENDPOINT_TYPE_DATA ? "data" : "sync")
+
 /**
  * snd_usb_add_endpoint: Add an endpoint to an USB audio chip
  *
@@ -500,9 +503,9 @@ struct snd_usb_endpoint *snd_usb_add_endpoint(struct snd_usb_audio *chip,
 	}
 
 	usb_audio_dbg(chip, "Creating new %s %s endpoint #%x\n",
-		    is_playback ? "playback" : "capture",
-		    type == SND_USB_ENDPOINT_TYPE_DATA ? "data" : "sync",
-		    ep_num);
+		      is_playback ? "playback" : "capture",
+		      ep_type_name(type),
+		      ep_num);
 
 	ep = kzalloc(sizeof(*ep), GFP_KERNEL);
 	if (!ep)
@@ -644,13 +647,14 @@ static void release_urbs(struct snd_usb_endpoint *ep, int force)
  * Check data endpoint for format differences
  */
 static bool check_ep_params(struct snd_usb_endpoint *ep,
-			      snd_pcm_format_t pcm_format,
-			      unsigned int channels,
-			      unsigned int period_bytes,
-			      unsigned int frames_per_period,
-			      unsigned int periods_per_buffer,
-			      struct audioformat *fmt,
-			      struct snd_usb_endpoint *sync_ep)
+			    snd_pcm_format_t pcm_format,
+			    unsigned int channels,
+			    unsigned int period_bytes,
+			    unsigned int frames_per_period,
+			    unsigned int periods_per_buffer,
+			    unsigned int rate,
+			    struct audioformat *fmt,
+			    struct snd_usb_endpoint *sync_ep)
 {
 	unsigned int maxsize, minsize, packs_per_ms, max_packs_per_urb;
 	unsigned int max_packs_per_period, urbs_per_period, urb_packs;
@@ -659,6 +663,14 @@ static bool check_ep_params(struct snd_usb_endpoint *ep,
 	int tx_length_quirk = (ep->chip->tx_length_quirk &&
 			       usb_pipeout(ep->pipe));
 	bool ret = 1;
+
+	/* matching with the saved parameters? */
+	if (ep->cur_rate == rate &&
+	    ep->cur_format == pcm_format &&
+	    ep->cur_channels == channels &&
+	    ep->cur_period_frames == frames_per_period &&
+	    ep->cur_buffer_periods == periods_per_buffer)
+		return true;
 
 	if (pcm_format == SNDRV_PCM_FORMAT_DSD_U16_LE && fmt->dsd_dop) {
 		/*
@@ -917,7 +929,8 @@ static int data_ep_set_params(struct snd_usb_endpoint *ep,
 	 * as their corresponding capture endpoint.
 	 */
 	if (usb_pipein(ep->pipe) ||
-			snd_usb_endpoint_implicit_feedback_sink(ep)) {
+	    ep->is_implicit_feedback ||
+	    snd_usb_endpoint_implicit_feedback_sink(ep)) {
 
 		urb_packs = packs_per_ms;
 		/*
@@ -1076,12 +1089,17 @@ int snd_usb_endpoint_set_params(struct snd_usb_endpoint *ep,
 {
 	int err;
 
+	usb_audio_dbg(ep->chip,
+		      "Setting params for ep %x (type %s, count %d), rate=%d, format=%s, channels=%d, period_bytes=%d, periods=%d\n",
+		      ep->ep_num, ep_type_name(ep->type), ep->use_count,
+		      rate, snd_pcm_format_name(pcm_format), channels,
+		      period_bytes, buffer_periods);
+
 	if (ep->use_count != 0) {
 		bool check = ep->is_implicit_feedback &&
-			check_ep_params(ep, pcm_format,
-					     channels, period_bytes,
-					     period_frames, buffer_periods,
-					     fmt, sync_ep);
+			check_ep_params(ep, pcm_format, channels, period_bytes,
+					period_frames, buffer_periods, rate,
+					fmt, sync_ep);
 
 		if (!check) {
 			usb_audio_warn(ep->chip,
@@ -1134,11 +1152,22 @@ int snd_usb_endpoint_set_params(struct snd_usb_endpoint *ep,
 		err = -EINVAL;
 	}
 
-	usb_audio_dbg(ep->chip,
-		"Setting params for ep #%x (type %d, %d urbs), ret=%d\n",
-		ep->ep_num, ep->type, ep->nurbs, err);
+	usb_audio_dbg(ep->chip, "Set up %d URBS, ret=%d\n", ep->nurbs, err);
 
-	return err;
+	if (err < 0)
+		return err;
+
+	/* record the current set up in the endpoint (for implicit fb) */
+	spin_lock_irq(&ep->lock);
+	ep->cur_rate = rate;
+	ep->cur_channels = channels;
+	ep->cur_format = pcm_format;
+	ep->cur_period_frames = period_frames;
+	ep->cur_period_bytes = period_bytes;
+	ep->cur_buffer_periods = buffer_periods;
+	spin_unlock_irq(&ep->lock);
+
+	return 0;
 }
 
 /**
@@ -1273,6 +1302,11 @@ void snd_usb_endpoint_deactivate(struct snd_usb_endpoint *ep)
 
 	deactivate_urbs(ep, true);
 	wait_clear_urbs(ep);
+
+	/* clear the saved hw params */
+	spin_lock_irq(&ep->lock);
+	ep->cur_rate = 0;
+	spin_unlock_irq(&ep->lock);
 }
 
 /**

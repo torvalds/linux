@@ -114,6 +114,14 @@ struct snd_usb_endpoint {
 					   in a stream */
 	bool is_implicit_feedback;      /* This endpoint is used as implicit feedback */
 
+	/* for hw constraints */
+	unsigned int cur_rate;
+	snd_pcm_format_t cur_format;
+	unsigned int cur_channels;
+	unsigned int cur_period_frames;
+	unsigned int cur_period_bytes;
+	unsigned int cur_buffer_periods;
+
 	spinlock_t lock;
 	struct list_head list;
 };
@@ -144,6 +152,7 @@ struct snd_usb_substream {
 	unsigned int stream_offset_adj;	/* Bytes to drop from beginning of stream (for non-compliant devices) */
 
 	unsigned int running: 1;	/* running status */
+	unsigned int fixed_hw:1;	/* fixed hw constraints due to sync EP */
 
 	unsigned int hwptr_done;	/* processed byte position in the buffer */
 	unsigned int transfer_done;		/* processed frames since last period update */

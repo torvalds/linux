@@ -81,30 +81,33 @@ static snd_pcm_uframes_t snd_usb_pcm_pointer(struct snd_pcm_substream *substream
 /*
  * find a matching audio format
  */
-static struct audioformat *find_format(struct snd_usb_substream *subs)
+static struct audioformat *find_format(struct list_head *fmt_list_head,
+				       snd_pcm_format_t format,
+				       unsigned int rate,
+				       unsigned int channels,
+				       struct snd_usb_substream *subs)
 {
 	struct audioformat *fp;
 	struct audioformat *found = NULL;
 	int cur_attr = 0, attr;
 
-	list_for_each_entry(fp, &subs->fmt_list, list) {
-		if (!(fp->formats & pcm_format_to_bits(subs->pcm_format)))
+	list_for_each_entry(fp, fmt_list_head, list) {
+		if (!(fp->formats & pcm_format_to_bits(format)))
 			continue;
-		if (fp->channels != subs->channels)
+		if (fp->channels != channels)
 			continue;
-		if (subs->cur_rate < fp->rate_min ||
-		    subs->cur_rate > fp->rate_max)
+		if (rate < fp->rate_min || rate > fp->rate_max)
 			continue;
-		if (! (fp->rates & SNDRV_PCM_RATE_CONTINUOUS)) {
+		if (!(fp->rates & SNDRV_PCM_RATE_CONTINUOUS)) {
 			unsigned int i;
 			for (i = 0; i < fp->nr_rates; i++)
-				if (fp->rate_table[i] == subs->cur_rate)
+				if (fp->rate_table[i] == rate)
 					break;
 			if (i >= fp->nr_rates)
 				continue;
 		}
 		attr = fp->ep_attr & USB_ENDPOINT_SYNCTYPE;
-		if (! found) {
+		if (!found) {
 			found = fp;
 			cur_attr = attr;
 			continue;
@@ -114,7 +117,7 @@ static struct audioformat *find_format(struct snd_usb_substream *subs)
 		 * this is a workaround for the case like
 		 * M-audio audiophile USB.
 		 */
-		if (attr != cur_attr) {
+		if (subs && attr != cur_attr) {
 			if ((attr == USB_ENDPOINT_SYNC_ASYNC &&
 			     subs->direction == SNDRV_PCM_STREAM_PLAYBACK) ||
 			    (attr == USB_ENDPOINT_SYNC_ADAPTIVE &&
@@ -136,6 +139,12 @@ static struct audioformat *find_format(struct snd_usb_substream *subs)
 		}
 	}
 	return found;
+}
+
+static struct audioformat *find_substream_format(struct snd_usb_substream *subs)
+{
+	return find_format(&subs->fmt_list, subs->pcm_format, subs->cur_rate,
+			   subs->channels, subs);
 }
 
 static int init_pitch_v1(struct snd_usb_audio *chip, int iface,
@@ -744,7 +753,6 @@ static int match_endpoint_audioformats(struct snd_usb_substream *subs,
  */
 static int configure_sync_endpoint(struct snd_usb_substream *subs)
 {
-	int ret;
 	struct audioformat *fp;
 	struct audioformat *sync_fp = NULL;
 	int cur_score = 0;
@@ -752,16 +760,16 @@ static int configure_sync_endpoint(struct snd_usb_substream *subs)
 	struct snd_usb_substream *sync_subs =
 		&subs->stream->substream[subs->direction ^ 1];
 
-	if (subs->sync_endpoint->type != SND_USB_ENDPOINT_TYPE_DATA ||
-	    !subs->stream)
-		return snd_usb_endpoint_set_params(subs->sync_endpoint,
-						   subs->pcm_format,
-						   subs->channels,
-						   subs->period_bytes,
-						   0, 0,
-						   subs->cur_rate,
-						   subs->cur_audiofmt,
-						   NULL);
+	if (subs->fixed_hw ||
+	    !subs->sync_endpoint->is_implicit_feedback) {
+		sync_fp = subs->cur_audiofmt;
+		goto configure;
+	}
+
+	sync_fp = find_format(&sync_subs->fmt_list, subs->pcm_format,
+			      subs->cur_rate, subs->channels, NULL);
+	if (sync_fp)
+		goto configure;
 
 	/* Try to find the best matching audioformat. */
 	list_for_each_entry(fp, &sync_subs->fmt_list, list) {
@@ -794,16 +802,16 @@ static int configure_sync_endpoint(struct snd_usb_substream *subs)
 			__func__, subs->period_bytes, sync_period_bytes);
 	}
 
-	ret = snd_usb_endpoint_set_params(subs->sync_endpoint,
-					  subs->pcm_format,
-					  sync_fp->channels,
-					  sync_period_bytes,
-					  0, 0,
-					  subs->cur_rate,
-					  sync_fp,
-					  NULL);
-
-	return ret;
+ configure:
+	return snd_usb_endpoint_set_params(subs->sync_endpoint,
+					   subs->pcm_format,
+					   sync_fp->channels,
+					   sync_period_bytes,
+					   subs->period_frames,
+					   subs->buffer_periods,
+					   subs->cur_rate,
+					   sync_fp,
+					   NULL);
 }
 
 /*
@@ -912,7 +920,7 @@ static int snd_usb_hw_params(struct snd_pcm_substream *substream,
 	subs->channels = params_channels(hw_params);
 	subs->cur_rate = params_rate(hw_params);
 
-	fmt = find_format(subs);
+	fmt = find_substream_format(subs);
 	if (!fmt) {
 		dev_dbg(&subs->dev->dev,
 			"cannot set format: format = %#x, rate = %d, channels = %d\n",
@@ -956,12 +964,13 @@ static int snd_usb_hw_params(struct snd_pcm_substream *substream,
 static int snd_usb_hw_free(struct snd_pcm_substream *substream)
 {
 	struct snd_usb_substream *subs = substream->runtime->private_data;
+	struct snd_usb_audio *chip = subs->stream->chip;
 
 	snd_media_stop_pipeline(subs);
 	subs->cur_audiofmt = NULL;
 	subs->cur_rate = 0;
 	subs->period_bytes = 0;
-	if (!snd_usb_lock_shutdown(subs->stream->chip)) {
+	if (!snd_usb_lock_shutdown(chip)) {
 		stop_endpoints(subs);
 		sync_pending_stops(subs);
 		snd_usb_endpoint_deactivate(subs->sync_endpoint);
@@ -971,7 +980,7 @@ static int snd_usb_hw_free(struct snd_pcm_substream *substream)
 			subs->data_endpoint = NULL;
 		}
 		subs->sync_endpoint = NULL;
-		snd_usb_unlock_shutdown(subs->stream->chip);
+		snd_usb_unlock_shutdown(chip);
 	}
 
 	return 0;
@@ -1288,6 +1297,64 @@ static int hw_rule_period_time(struct snd_pcm_hw_params *params,
 	return changed;
 }
 
+/* apply PCM hw constraints from the concurrent sync EP */
+static int apply_hw_constraint_from_sync(struct snd_pcm_runtime *runtime,
+					 struct snd_usb_substream *subs)
+{
+	struct snd_usb_audio *chip = subs->stream->chip;
+	struct snd_usb_endpoint *ep;
+	struct audioformat *fp;
+	int err;
+
+	subs->fixed_hw = 0;
+	list_for_each_entry(fp, &subs->fmt_list, list) {
+		ep = snd_usb_get_endpoint(chip, fp->endpoint, fp->iface,
+					  fp->altsetting);
+		if (ep && ep->cur_rate)
+			goto found;
+		if (!fp->implicit_fb)
+			continue;
+		/* for the implicit fb, check the sync ep as well */
+		ep = snd_usb_get_endpoint(chip, fp->sync_ep, fp->sync_iface,
+					  fp->sync_altsetting);
+		if (ep && ep->cur_rate)
+			goto found;
+	}
+	return 0;
+
+ found:
+	if (!find_format(&subs->fmt_list, ep->cur_format, ep->cur_rate,
+			 ep->cur_channels, NULL)) {
+		usb_audio_dbg(chip, "EP 0x%x being used, but not applicable\n",
+			      ep->ep_num);
+		return 0;
+	}
+
+	usb_audio_dbg(chip, "EP 0x%x being used, using fixed params:\n",
+		      ep->ep_num);
+	usb_audio_dbg(chip, "rate=%d, format=%s, channels=%d, period_size=%d, periods=%d\n",
+		      ep->cur_rate, snd_pcm_format_name(ep->cur_format),
+		      ep->cur_channels, ep->cur_period_frames,
+		      ep->cur_buffer_periods);
+
+	runtime->hw.formats = pcm_format_to_bits(ep->cur_format);
+	runtime->hw.rate_min = runtime->hw.rate_max = ep->cur_rate;
+	runtime->hw.channels_min = runtime->hw.channels_max =
+		ep->cur_channels;
+	runtime->hw.rates = SNDRV_PCM_RATE_KNOT;
+	runtime->hw.periods_min = runtime->hw.periods_max =
+		ep->cur_buffer_periods;
+	subs->fixed_hw = 1;
+
+	err = snd_pcm_hw_constraint_minmax(runtime,
+					   SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
+					   ep->cur_period_frames,
+					   ep->cur_period_frames);
+	if (err < 0)
+		return err;
+
+	return 1; /* notify the finding */
+}
 
 /*
  * set up the runtime hardware information.
@@ -1295,10 +1362,19 @@ static int hw_rule_period_time(struct snd_pcm_hw_params *params,
 
 static int setup_hw_info(struct snd_pcm_runtime *runtime, struct snd_usb_substream *subs)
 {
+	struct snd_usb_audio *chip = subs->stream->chip;
 	struct audioformat *fp;
 	unsigned int pt, ptmin;
-	int param_period_time_if_needed;
+	int param_period_time_if_needed = -1;
 	int err;
+
+	mutex_lock(&chip->mutex);
+	err = apply_hw_constraint_from_sync(runtime, subs);
+	mutex_unlock(&chip->mutex);
+	if (err < 0)
+		return err;
+	if (err > 0) /* found the matching? */
+		goto add_extra_rules;
 
 	runtime->hw.formats = subs->formats;
 
@@ -1350,6 +1426,8 @@ static int setup_hw_info(struct snd_pcm_runtime *runtime, struct snd_usb_substre
 				  -1);
 	if (err < 0)
 		return err;
+
+add_extra_rules:
 	err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
 				  hw_rule_channels, subs,
 				  SNDRV_PCM_HW_PARAM_FORMAT,
