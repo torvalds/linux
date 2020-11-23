@@ -289,20 +289,16 @@ static int snd_usb_pcm_sync_stop(struct snd_pcm_substream *substream)
 }
 
 /* Check whether the given iface:altsetting points to an implicit fb source */
-static bool search_generic_implicit_fb(struct usb_device *dev, int ifnum,
+static bool search_generic_implicit_fb(struct snd_usb_audio *chip, int ifnum,
 				       unsigned int altsetting,
 				       struct usb_host_interface **altsp,
 				       unsigned int *ep)
 {
-	struct usb_interface *iface;
 	struct usb_host_interface *alts;
 	struct usb_interface_descriptor *altsd;
 	struct usb_endpoint_descriptor *epd;
 
-	iface = usb_ifnum_to_if(dev, ifnum);
-	if (!iface)
-		return false;
-	alts = usb_altnum_to_altsetting(iface, altsetting);
+	alts = snd_usb_get_host_interface(chip, ifnum, altsetting);
 	if (!alts)
 		return false;
 	altsd = get_iface_desc(alts);
@@ -322,20 +318,16 @@ static bool search_generic_implicit_fb(struct usb_device *dev, int ifnum,
 }
 
 /* Like the function above, but specific to Roland with vendor class and hack */
-static bool search_roland_implicit_fb(struct usb_device *dev, int ifnum,
+static bool search_roland_implicit_fb(struct snd_usb_audio *chip, int ifnum,
 				      unsigned int altsetting,
 				      struct usb_host_interface **altsp,
 				      unsigned int *ep)
 {
-	struct usb_interface *iface;
 	struct usb_host_interface *alts;
 	struct usb_interface_descriptor *altsd;
 	struct usb_endpoint_descriptor *epd;
 
-	iface = usb_ifnum_to_if(dev, ifnum);
-	if (!iface)
-		return false;
-	alts = usb_altnum_to_altsetting(iface, altsetting);
+	alts = snd_usb_get_host_interface(chip, ifnum, altsetting);
 	if (!alts)
 		return false;
 	altsd = get_iface_desc(alts);
@@ -359,11 +351,11 @@ static bool search_roland_implicit_fb(struct usb_device *dev, int ifnum,
  */
 static int audioformat_implicit_fb_quirk(struct snd_usb_audio *chip,
 					 struct audioformat *fmt,
-					 struct usb_interface *iface,
 					 struct usb_host_interface *alts)
 {
 	struct usb_device *dev = chip->dev;
 	struct usb_interface_descriptor *altsd = get_iface_desc(alts);
+	struct usb_interface *iface;
 	unsigned int attr = fmt->ep_attr & USB_ENDPOINT_SYNCTYPE;
 	unsigned int ep;
 	unsigned int ifnum;
@@ -431,7 +423,7 @@ static int audioformat_implicit_fb_quirk(struct snd_usb_audio *chip,
 	    altsd->bInterfaceProtocol == UAC_VERSION_2 &&
 	    altsd->bNumEndpoints == 1) {
 		ifnum = altsd->bInterfaceNumber + 1;
-		if (search_generic_implicit_fb(dev, ifnum,
+		if (search_generic_implicit_fb(chip, ifnum,
 					       altsd->bAlternateSetting,
 					       &alts, &ep))
 			goto add_sync_ep;
@@ -444,7 +436,7 @@ static int audioformat_implicit_fb_quirk(struct snd_usb_audio *chip,
 	    altsd->bNumEndpoints == 1 &&
 	    USB_ID_VENDOR(chip->usb_id) == 0x0582 /* Roland */) {
 		ifnum = altsd->bInterfaceNumber + 1;
-		if (search_roland_implicit_fb(dev, ifnum,
+		if (search_roland_implicit_fb(chip, ifnum,
 					      altsd->bAlternateSetting,
 					      &alts, &ep))
 			goto add_sync_ep;
@@ -477,24 +469,20 @@ int snd_usb_audioformat_set_sync_ep(struct snd_usb_audio *chip,
 				    struct audioformat *fmt)
 {
 	struct usb_device *dev = chip->dev;
-	struct usb_interface *iface;
 	struct usb_host_interface *alts;
 	struct usb_interface_descriptor *altsd;
 	unsigned int ep, attr, sync_attr;
 	bool is_playback;
 	int err;
 
-	iface = usb_ifnum_to_if(dev, fmt->iface);
-	if (!iface)
-		return 0;
-	alts = usb_altnum_to_altsetting(iface, fmt->altsetting);
+	alts = snd_usb_get_host_interface(chip, fmt->iface, fmt->altsetting);
 	if (!alts)
 		return 0;
 	altsd = get_iface_desc(alts);
 
 	is_playback = !(get_endpoint(alts, 0)->bEndpointAddress & USB_DIR_IN);
 	if (is_playback) {
-		err = audioformat_implicit_fb_quirk(chip, fmt, iface, alts);
+		err = audioformat_implicit_fb_quirk(chip, fmt, alts);
 		if (err > 0)
 			return 0;
 	}
@@ -564,7 +552,6 @@ static int set_sync_endpoint(struct snd_usb_substream *subs,
 			     struct audioformat *fmt)
 {
 	struct usb_device *dev = subs->dev;
-	struct usb_interface *iface;
 	struct usb_host_interface *alts;
 	int is_playback = subs->direction == SNDRV_PCM_STREAM_PLAYBACK;
 	unsigned int ep;
@@ -577,11 +564,8 @@ static int set_sync_endpoint(struct snd_usb_substream *subs,
 	if (!ep)
 		return 0;
 
-	iface = usb_ifnum_to_if(dev, fmt->sync_iface);
-	if (!iface)
-		return 0;
-
-	alts = usb_altnum_to_altsetting(iface, fmt->altsetting);
+	alts = snd_usb_get_host_interface(subs->stream->chip, fmt->sync_iface,
+					  fmt->altsetting);
 	if (!alts)
 		return 0;
 
