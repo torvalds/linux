@@ -101,13 +101,7 @@ static int probe(struct pci_dev *pdev,
 			 "no support for interrupts?\n");
 	}
 
-	err = devm_uio_register_device(&pdev->dev, &gdev->info);
-	if (err)
-		return err;
-
-	pci_set_drvdata(pdev, gdev);
-
-	return 0;
+	return devm_uio_register_device(&pdev->dev, &gdev->info);
 }
 
 static struct pci_driver uio_pci_driver = {
