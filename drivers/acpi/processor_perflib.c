@@ -616,7 +616,6 @@ int acpi_processor_preregister_performance(
 			continue;
 
 		pr->performance = per_cpu_ptr(performance, i);
-		cpumask_set_cpu(i, pr->performance->shared_cpu_map);
 		pdomain = &(pr->performance->domain_info);
 		if (acpi_processor_get_psd(pr->handle, pdomain)) {
 			retval = -EINVAL;
