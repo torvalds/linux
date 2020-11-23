@@ -328,6 +328,39 @@ static inline void prepare_inbound_urb(struct snd_usb_endpoint *ep,
 	}
 }
 
+/* notify an error as XRUN to the assigned PCM data substream */
+static void notify_xrun(struct snd_usb_endpoint *ep)
+{
+	struct snd_usb_substream *data_subs;
+
+	data_subs = READ_ONCE(ep->data_subs);
+	if (data_subs && data_subs->pcm_substream)
+		snd_pcm_stop_xrun(data_subs->pcm_substream);
+}
+
+static struct snd_usb_packet_info *
+next_packet_fifo_enqueue(struct snd_usb_endpoint *ep)
+{
+	struct snd_usb_packet_info *p;
+
+	p = ep->next_packet + (ep->next_packet_head + ep->next_packet_queued) %
+		ARRAY_SIZE(ep->next_packet);
+	ep->next_packet_queued++;
+	return p;
+}
+
+static struct snd_usb_packet_info *
+next_packet_fifo_dequeue(struct snd_usb_endpoint *ep)
+{
+	struct snd_usb_packet_info *p;
+
+	p = ep->next_packet + ep->next_packet_head;
+	ep->next_packet_head++;
+	ep->next_packet_head %= ARRAY_SIZE(ep->next_packet);
+	ep->next_packet_queued--;
+	return p;
+}
+
 /*
  * Send output urbs that have been prepared previously. URBs are dequeued
  * from ep->ready_playback_urbs and in case there aren't any available
@@ -352,17 +385,14 @@ static void queue_pending_output_urbs(struct snd_usb_endpoint *ep)
 		int err, i;
 
 		spin_lock_irqsave(&ep->lock, flags);
-		if (ep->next_packet_read_pos != ep->next_packet_write_pos) {
-			packet = ep->next_packet + ep->next_packet_read_pos;
-			ep->next_packet_read_pos++;
-			ep->next_packet_read_pos %= MAX_URBS;
-
+		if (ep->next_packet_queued > 0 &&
+		    !list_empty(&ep->ready_playback_urbs)) {
 			/* take URB out of FIFO */
-			if (!list_empty(&ep->ready_playback_urbs)) {
-				ctx = list_first_entry(&ep->ready_playback_urbs,
+			ctx = list_first_entry(&ep->ready_playback_urbs,
 					       struct snd_urb_ctx, ready_list);
-				list_del_init(&ctx->ready_list);
-			}
+			list_del_init(&ctx->ready_list);
+
+			packet = next_packet_fifo_dequeue(ep);
 		}
 		spin_unlock_irqrestore(&ep->lock, flags);
 
@@ -377,12 +407,15 @@ static void queue_pending_output_urbs(struct snd_usb_endpoint *ep)
 		prepare_outbound_urb(ep, ctx);
 
 		err = usb_submit_urb(ctx->urb, GFP_ATOMIC);
-		if (err < 0)
+		if (err < 0) {
 			usb_audio_err(ep->chip,
 				      "Unable to submit urb #%d: %d at %s\n",
 				      ctx->index, err, __func__);
-		else
-			set_bit(ctx->index, &ep->active_mask);
+			notify_xrun(ep);
+			return;
+		}
+
+		set_bit(ctx->index, &ep->active_mask);
 	}
 }
 
@@ -393,7 +426,6 @@ static void snd_complete_urb(struct urb *urb)
 {
 	struct snd_urb_ctx *ctx = urb->context;
 	struct snd_usb_endpoint *ep = ctx->ep;
-	struct snd_usb_substream *data_subs;
 	unsigned long flags;
 	int err;
 
@@ -418,10 +450,10 @@ static void snd_complete_urb(struct urb *urb)
 		if (snd_usb_endpoint_implicit_feedback_sink(ep)) {
 			spin_lock_irqsave(&ep->lock, flags);
 			list_add_tail(&ctx->ready_list, &ep->ready_playback_urbs);
+			clear_bit(ctx->index, &ep->active_mask);
 			spin_unlock_irqrestore(&ep->lock, flags);
 			queue_pending_output_urbs(ep);
-
-			goto exit_clear;
+			return;
 		}
 
 		prepare_outbound_urb(ep, ctx);
@@ -442,9 +474,7 @@ static void snd_complete_urb(struct urb *urb)
 		return;
 
 	usb_audio_err(ep->chip, "cannot submit urb (err = %d)\n", err);
-	data_subs = READ_ONCE(ep->data_subs);
-	if (data_subs && data_subs->pcm_substream)
-		snd_pcm_stop_xrun(data_subs->pcm_substream);
+	notify_xrun(ep);
 
 exit_clear:
 	clear_bit(ctx->index, &ep->active_mask);
@@ -789,8 +819,8 @@ static int deactivate_urbs(struct snd_usb_endpoint *ep, bool force)
 	clear_bit(EP_FLAG_RUNNING, &ep->flags);
 
 	INIT_LIST_HEAD(&ep->ready_playback_urbs);
-	ep->next_packet_read_pos = 0;
-	ep->next_packet_write_pos = 0;
+	ep->next_packet_head = 0;
+	ep->next_packet_queued = 0;
 
 	for (i = 0; i < ep->nurbs; i++) {
 		if (test_bit(i, &ep->active_mask)) {
@@ -1402,7 +1432,16 @@ static void snd_usb_handle_sync_urb(struct snd_usb_endpoint *ep,
 			return;
 
 		spin_lock_irqsave(&ep->lock, flags);
-		out_packet = ep->next_packet + ep->next_packet_write_pos;
+		if (ep->next_packet_queued >= ARRAY_SIZE(ep->next_packet)) {
+			spin_unlock_irqrestore(&ep->lock, flags);
+			usb_audio_err(ep->chip,
+				      "next package FIFO overflow EP 0x%x\n",
+				      ep->ep_num);
+			notify_xrun(ep);
+			return;
+		}
+
+		out_packet = next_packet_fifo_enqueue(ep);
 
 		/*
 		 * Iterate through the inbound packet and prepare the lengths
@@ -1423,8 +1462,6 @@ static void snd_usb_handle_sync_urb(struct snd_usb_endpoint *ep,
 				out_packet->packet_size[i] = 0;
 		}
 
-		ep->next_packet_write_pos++;
-		ep->next_packet_write_pos %= MAX_URBS;
 		spin_unlock_irqrestore(&ep->lock, flags);
 		queue_pending_output_urbs(ep);
 

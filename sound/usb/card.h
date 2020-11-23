@@ -80,8 +80,9 @@ struct snd_usb_endpoint {
 		uint32_t packet_size[MAX_PACKS_HS];
 		int packets;
 	} next_packet[MAX_URBS];
-	int next_packet_read_pos, next_packet_write_pos;
-	struct list_head ready_playback_urbs;
+	unsigned int next_packet_head;	/* ring buffer offset to read */
+	unsigned int next_packet_queued; /* queued items in the ring buffer */
+	struct list_head ready_playback_urbs; /* playback URB FIFO for implicit fb */
 
 	unsigned int nurbs;		/* # urbs */
 	unsigned long active_mask;	/* bitmask of active urbs */
