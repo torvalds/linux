@@ -23,6 +23,7 @@
 #include "clock.h"
 #include "power.h"
 #include "media.h"
+#include "implicit.h"
 
 #define SUBSTREAM_FLAG_DATA_EP_STARTED	0
 #define SUBSTREAM_FLAG_SYNC_EP_STARTED	1
@@ -276,211 +277,7 @@ static int snd_usb_pcm_sync_stop(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-/* Check whether the given iface:altsetting points to an implicit fb source */
-static bool search_generic_implicit_fb(struct snd_usb_audio *chip, int ifnum,
-				       unsigned int altsetting,
-				       struct usb_host_interface **altsp,
-				       unsigned int *ep)
-{
-	struct usb_host_interface *alts;
-	struct usb_interface_descriptor *altsd;
-	struct usb_endpoint_descriptor *epd;
-
-	alts = snd_usb_get_host_interface(chip, ifnum, altsetting);
-	if (!alts)
-		return false;
-	altsd = get_iface_desc(alts);
-	if (altsd->bInterfaceClass != USB_CLASS_AUDIO ||
-	    altsd->bInterfaceSubClass != USB_SUBCLASS_AUDIOSTREAMING ||
-	    altsd->bInterfaceProtocol != UAC_VERSION_2 ||
-	    altsd->bNumEndpoints < 1)
-		return false;
-	epd = get_endpoint(alts, 0);
-	if (!usb_endpoint_is_isoc_in(epd) ||
-	    (epd->bmAttributes & USB_ENDPOINT_USAGE_MASK) !=
-					USB_ENDPOINT_USAGE_IMPLICIT_FB)
-		return false;
-	*ep = epd->bEndpointAddress;
-	*altsp = alts;
-	return true;
-}
-
-/* Like the function above, but specific to Roland with vendor class and hack */
-static bool search_roland_implicit_fb(struct snd_usb_audio *chip, int ifnum,
-				      unsigned int altsetting,
-				      struct usb_host_interface **altsp,
-				      unsigned int *ep)
-{
-	struct usb_host_interface *alts;
-	struct usb_interface_descriptor *altsd;
-	struct usb_endpoint_descriptor *epd;
-
-	alts = snd_usb_get_host_interface(chip, ifnum, altsetting);
-	if (!alts)
-		return false;
-	altsd = get_iface_desc(alts);
-	if (altsd->bInterfaceClass != USB_CLASS_VENDOR_SPEC ||
-	    (altsd->bInterfaceSubClass != 2 &&
-	     altsd->bInterfaceProtocol != 2) ||
-	    altsd->bNumEndpoints < 1)
-		return false;
-	epd = get_endpoint(alts, 0);
-	if (!usb_endpoint_is_isoc_in(epd) ||
-	    (epd->bmAttributes & USB_ENDPOINT_USAGE_MASK) !=
-					USB_ENDPOINT_USAGE_IMPLICIT_FB)
-		return false;
-	*ep = epd->bEndpointAddress;
-	*altsp = alts;
-	return true;
-}
-
-/* Setup an implicit feedback endpoint from a quirk. Returns 0 if no quirk
- * applies. Returns 1 if a quirk was found.
- */
-static int audioformat_implicit_fb_quirk(struct snd_usb_audio *chip,
-					 struct audioformat *fmt,
-					 struct usb_host_interface *alts)
-{
-	struct usb_device *dev = chip->dev;
-	struct usb_interface_descriptor *altsd = get_iface_desc(alts);
-	struct usb_interface *iface;
-	unsigned int attr = fmt->ep_attr & USB_ENDPOINT_SYNCTYPE;
-	unsigned int ep;
-	unsigned int ifnum;
-
-	switch (chip->usb_id) {
-	case USB_ID(0x0763, 0x2030): /* M-Audio Fast Track C400 */
-	case USB_ID(0x0763, 0x2031): /* M-Audio Fast Track C600 */
-	case USB_ID(0x22f0, 0x0006): /* Allen&Heath Qu-16 */
-		ep = 0x81;
-		ifnum = 3;
-		goto add_sync_ep_from_ifnum;
-	case USB_ID(0x0763, 0x2080): /* M-Audio FastTrack Ultra */
-	case USB_ID(0x0763, 0x2081):
-		ep = 0x81;
-		ifnum = 2;
-		goto add_sync_ep_from_ifnum;
-	case USB_ID(0x2466, 0x8003): /* Fractal Audio Axe-Fx II */
-	case USB_ID(0x0499, 0x172a): /* Yamaha MODX */
-		ep = 0x86;
-		ifnum = 2;
-		goto add_sync_ep_from_ifnum;
-	case USB_ID(0x2466, 0x8010): /* Fractal Audio Axe-Fx III */
-		ep = 0x81;
-		ifnum = 2;
-		goto add_sync_ep_from_ifnum;
-	case USB_ID(0x1686, 0xf029): /* Zoom UAC-2 */
-		ep = 0x82;
-		ifnum = 2;
-		goto add_sync_ep_from_ifnum;
-	case USB_ID(0x1397, 0x0001): /* Behringer UFX1604 */
-	case USB_ID(0x1397, 0x0002): /* Behringer UFX1204 */
-		ep = 0x81;
-		ifnum = 1;
-		goto add_sync_ep_from_ifnum;
-	case USB_ID(0x07fd, 0x0004): /* MOTU MicroBook II/IIc */
-		/* MicroBook IIc */
-		if (altsd->bInterfaceClass == USB_CLASS_AUDIO)
-			return 0;
-
-		/* MicroBook II */
-		ep = 0x84;
-		ifnum = 0;
-		goto add_sync_ep_from_ifnum;
-	case USB_ID(0x07fd, 0x0008): /* MOTU M Series */
-	case USB_ID(0x31e9, 0x0001): /* Solid State Logic SSL2 */
-	case USB_ID(0x31e9, 0x0002): /* Solid State Logic SSL2+ */
-	case USB_ID(0x0499, 0x172f): /* Steinberg UR22C */
-	case USB_ID(0x0d9a, 0x00df): /* RTX6001 */
-		ep = 0x81;
-		ifnum = 2;
-		goto add_sync_ep_from_ifnum;
-	case USB_ID(0x2b73, 0x000a): /* Pioneer DJ DJM-900NXS2 */
-	case USB_ID(0x2b73, 0x0017): /* Pioneer DJ DJM-250MK2 */
-		ep = 0x82;
-		ifnum = 0;
-		goto add_sync_ep_from_ifnum;
-	case USB_ID(0x0582, 0x01d8): /* BOSS Katana */
-		/* BOSS Katana amplifiers do not need quirks */
-		return 0;
-	case USB_ID(0x0582, 0x01e5): /* BOSS GT-001 */
-		/* BOSS GT-001 needs no implicit fb for playback */
-		return 0;
-	}
-
-	/* Generic UAC2 implicit feedback */
-	if (attr == USB_ENDPOINT_SYNC_ASYNC &&
-	    altsd->bInterfaceClass == USB_CLASS_AUDIO &&
-	    altsd->bInterfaceProtocol == UAC_VERSION_2 &&
-	    altsd->bNumEndpoints == 1) {
-		ifnum = altsd->bInterfaceNumber + 1;
-		if (search_generic_implicit_fb(chip, ifnum,
-					       altsd->bAlternateSetting,
-					       &alts, &ep))
-			goto add_sync_ep;
-	}
-
-	/* Roland/BOSS implicit feedback with vendor spec class */
-	if (attr == USB_ENDPOINT_SYNC_ASYNC &&
-	    altsd->bInterfaceClass == USB_CLASS_VENDOR_SPEC &&
-	    altsd->bInterfaceProtocol == 2 &&
-	    altsd->bNumEndpoints == 1 &&
-	    USB_ID_VENDOR(chip->usb_id) == 0x0582 /* Roland */) {
-		ifnum = altsd->bInterfaceNumber + 1;
-		if (search_roland_implicit_fb(chip, ifnum,
-					      altsd->bAlternateSetting,
-					      &alts, &ep))
-			goto add_sync_ep;
-	}
-
-	/* No quirk */
-	return 0;
-
-add_sync_ep_from_ifnum:
-	iface = usb_ifnum_to_if(dev, ifnum);
-
-	if (!iface || iface->num_altsetting < 2)
-		return 0;
-
-	alts = &iface->altsetting[1];
-
-add_sync_ep:
-	fmt->sync_ep = ep;
-	fmt->sync_iface = ifnum;
-	fmt->sync_altsetting = alts->desc.bAlternateSetting;
-	fmt->sync_ep_idx = 0;
-	fmt->implicit_fb = 1;
-	dev_dbg(&dev->dev, "%d:%d: found implicit_fb sync_ep=%x, iface=%d, alt=%d\n",
-		fmt->iface, fmt->altsetting, fmt->sync_ep, fmt->sync_iface,
-		fmt->sync_altsetting);
-
-	return 1;
-}
-
-static int audioformat_capture_quirk(struct snd_usb_audio *chip,
-				     struct audioformat *fmt,
-				     struct usb_host_interface *alts)
-{
-	struct usb_device *dev = chip->dev;
-
-	switch (chip->usb_id) {
-	case USB_ID(0x0582, 0x01e5): /* BOSS GT-001 */
-		if (!snd_usb_get_host_interface(chip, 0x01, 0x01))
-			return 0;
-		fmt->sync_ep = 0x0d;
-		fmt->sync_iface = 0x01;
-		fmt->sync_altsetting = 0x01;
-		fmt->sync_ep_idx = 0;
-		fmt->implicit_fb = 1;
-		dev_dbg(&dev->dev, "%d:%d: added fake capture sync sync_ep=%x, iface=%d, alt=%d\n",
-			fmt->iface, fmt->altsetting, fmt->sync_ep, fmt->sync_iface,
-			fmt->sync_altsetting);
-		return 1;
-	}
-	return 0;
-
-}
-
+/* Set up sync endpoint */
 int snd_usb_audioformat_set_sync_ep(struct snd_usb_audio *chip,
 				    struct audioformat *fmt)
 {
@@ -496,20 +293,18 @@ int snd_usb_audioformat_set_sync_ep(struct snd_usb_audio *chip,
 		return 0;
 	altsd = get_iface_desc(alts);
 
-	is_playback = !(get_endpoint(alts, 0)->bEndpointAddress & USB_DIR_IN);
-	if (is_playback) {
-		err = audioformat_implicit_fb_quirk(chip, fmt, alts);
-		if (err > 0)
-			return 0;
-	} else {
-		err = audioformat_capture_quirk(chip, fmt, alts);
-		if (err > 0)
-			return 0;
-	}
+	err = snd_usb_parse_implicit_fb_quirk(chip, fmt, alts);
+	if (err > 0)
+		return 0; /* matched */
+
+	/*
+	 * Generic sync EP handling
+	 */
 
 	if (altsd->bNumEndpoints < 2)
 		return 0;
 
+	is_playback = !(get_endpoint(alts, 0)->bEndpointAddress & USB_DIR_IN);
 	attr = fmt->ep_attr & USB_ENDPOINT_SYNCTYPE;
 	if ((is_playback && (attr == USB_ENDPOINT_SYNC_SYNC ||
 			     attr == USB_ENDPOINT_SYNC_ADAPTIVE)) ||
@@ -569,45 +364,6 @@ int snd_usb_audioformat_set_sync_ep(struct snd_usb_audio *chip,
 	return 0;
 }
 
-/*
- * Return the score of matching two audioformats.
- * Veto the audioformat if:
- * - It has no channels for some reason.
- * - Requested PCM format is not supported.
- * - Requested sample rate is not supported.
- */
-static int match_endpoint_audioformats(struct snd_usb_substream *subs,
-				       const struct audioformat *fp,
-				       int rate, int channels,
-				       snd_pcm_format_t pcm_format)
-{
-	int i, score;
-
-	if (fp->channels < 1)
-		return 0;
-
-	if (!(fp->formats & pcm_format_to_bits(pcm_format)))
-		return 0;
-
-	if (fp->rates & SNDRV_PCM_RATE_CONTINUOUS) {
-		if (rate < fp->rate_min || rate > fp->rate_max)
-			return 0;
-	} else {
-		for (i = 0; i < fp->nr_rates; i++) {
-			if (fp->rate_table[i] == rate)
-				break;
-		}
-		if (i >= fp->nr_rates)
-			return 0;
-	}
-
-	score = 1;
-	if (fp->channels == channels)
-		score++;
-
-	return score;
-}
-
 static int snd_usb_pcm_change_state(struct snd_usb_substream *subs, int state)
 {
 	int ret;
@@ -654,53 +410,6 @@ int snd_usb_pcm_resume(struct snd_usb_stream *as)
 		return ret;
 
 	return 0;
-}
-
-static struct snd_usb_substream *
-find_matching_substream(struct snd_usb_audio *chip, int stream, int ep_num,
-			int fmt_type)
-{
-	struct snd_usb_stream *as;
-	struct snd_usb_substream *subs;
-
-	list_for_each_entry(as, &chip->pcm_list, list) {
-		subs = &as->substream[stream];
-		if (as->fmt_type == fmt_type && subs->ep_num == ep_num)
-			return subs;
-	}
-
-	return NULL;
-}
-
-static const struct audioformat *
-find_implicit_fb_sync_format(struct snd_usb_audio *chip,
-			     const struct audioformat *target,
-			     const struct snd_pcm_hw_params *params,
-			     int stream)
-{
-	struct snd_usb_substream *subs;
-	const struct audioformat *fp, *sync_fmt;
-	int score, high_score;
-
-	subs = find_matching_substream(chip, stream, target->sync_ep,
-				       target->fmt_type);
-	if (!subs)
-		return NULL;
-
-	sync_fmt = NULL;
-	high_score = 0;
-	list_for_each_entry(fp, &subs->fmt_list, list) {
-		score = match_endpoint_audioformats(subs, fp,
-						    params_rate(params),
-						    params_channels(params),
-						    params_format(params));
-		if (score > high_score) {
-			sync_fmt = fp;
-			high_score = score;
-		}
-	}
-
-	return sync_fmt;
 }
 
 static void close_endpoints(struct snd_usb_audio *chip,
@@ -775,11 +484,10 @@ static int snd_usb_hw_params(struct snd_pcm_substream *substream,
 		goto stop_pipeline;
 	}
 
-	if (fmt->implicit_fb &&
-	    (fmt->iface != fmt->sync_iface ||
-	     fmt->altsetting != fmt->sync_altsetting)) {
-		sync_fmt = find_implicit_fb_sync_format(chip, fmt, hw_params,
-							!substream->stream);
+	if (fmt->implicit_fb) {
+		sync_fmt = snd_usb_find_implicit_fb_sync_format(chip, fmt,
+								hw_params,
+								!substream->stream);
 		if (!sync_fmt) {
 			usb_audio_dbg(chip,
 				      "cannot find sync format: ep=0x%x, iface=%d:%d, format=%s, rate=%d, channels=%d\n",
