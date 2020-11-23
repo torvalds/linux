@@ -60,7 +60,7 @@ struct snd_usb_endpoint {
 	struct snd_usb_audio *chip;
 
 	int opened;		/* open refcount; protect with chip->mutex */
-	int use_count;
+	atomic_t running;	/* running status */
 	int ep_num;		/* the referenced endpoint number */
 	int type;		/* SND_USB_ENDPOINT_TYPE_* */
 	unsigned long flags;

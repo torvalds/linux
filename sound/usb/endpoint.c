@@ -1234,7 +1234,7 @@ unlock:
  *
  * @ep: the endpoint to start
  *
- * A call to this function will increment the use count of the endpoint.
+ * A call to this function will increment the running count of the endpoint.
  * In case it is not already running, the URBs for this endpoint will be
  * submitted. Otherwise, this function does nothing.
  *
@@ -1253,11 +1253,12 @@ int snd_usb_endpoint_start(struct snd_usb_endpoint *ep)
 	if (ep->sync_master)
 		WRITE_ONCE(ep->sync_master->sync_slave, ep);
 
-	usb_audio_dbg(ep->chip, "Starting %s EP 0x%x (count %d)\n",
-		      ep_type_name(ep->type), ep->ep_num, ep->use_count);
+	usb_audio_dbg(ep->chip, "Starting %s EP 0x%x (running %d)\n",
+		      ep_type_name(ep->type), ep->ep_num,
+		      atomic_read(&ep->running));
 
 	/* already running? */
-	if (++ep->use_count != 1)
+	if (atomic_inc_return(&ep->running) != 1)
 		return 0;
 
 	/* just to be sure */
@@ -1319,7 +1320,7 @@ __error:
 	if (ep->sync_master)
 		WRITE_ONCE(ep->sync_master->sync_slave, NULL);
 	clear_bit(EP_FLAG_RUNNING, &ep->flags);
-	ep->use_count--;
+	atomic_dec(&ep->running);
 	deactivate_urbs(ep, false);
 	return -EPIPE;
 }
@@ -1329,7 +1330,7 @@ __error:
  *
  * @ep: the endpoint to stop (may be NULL)
  *
- * A call to this function will decrement the use count of the endpoint.
+ * A call to this function will decrement the running count of the endpoint.
  * In case the last user has requested the endpoint stop, the URBs will
  * actually be deactivated.
  *
@@ -1343,16 +1344,17 @@ void snd_usb_endpoint_stop(struct snd_usb_endpoint *ep)
 	if (!ep)
 		return;
 
-	usb_audio_dbg(ep->chip, "Stopping %s EP 0x%x (count %d)\n",
-		      ep_type_name(ep->type), ep->ep_num, ep->use_count);
+	usb_audio_dbg(ep->chip, "Stopping %s EP 0x%x (running %d)\n",
+		      ep_type_name(ep->type), ep->ep_num,
+		      atomic_read(&ep->running));
 
-	if (snd_BUG_ON(ep->use_count == 0))
+	if (snd_BUG_ON(!atomic_read(&ep->running)))
 		return;
 
 	if (ep->sync_master)
 		WRITE_ONCE(ep->sync_master->sync_slave, NULL);
 
-	if (--ep->use_count == 0) {
+	if (!atomic_dec_return(&ep->running)) {
 		deactivate_urbs(ep, false);
 		set_bit(EP_FLAG_STOPPING, &ep->flags);
 	}
@@ -1363,7 +1365,7 @@ void snd_usb_endpoint_stop(struct snd_usb_endpoint *ep)
  *
  * @ep: the endpoint to release
  *
- * This function does not care for the endpoint's use count but will tear
+ * This function does not care for the endpoint's running count but will tear
  * down all the streaming URBs immediately.
  */
 void snd_usb_endpoint_release(struct snd_usb_endpoint *ep)
@@ -1410,7 +1412,7 @@ static void snd_usb_handle_sync_urb(struct snd_usb_endpoint *ep,
 	 * will take care of them later.
 	 */
 	if (snd_usb_endpoint_implicit_feedback_sink(ep) &&
-	    ep->use_count != 0) {
+	    atomic_read(&ep->running)) {
 
 		/* implicit feedback case */
 		int i, bytes = 0;
