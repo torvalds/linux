@@ -39,6 +39,7 @@ done
 if test -n "$files"
 then
 	$editor $files
+	editorret=1
 else
 	echo No build errors.
 fi
@@ -62,5 +63,10 @@ then
 	exit 1
 else
 	echo No errors in console logs.
-	exit 0
+	if test -n "$editorret"
+	then
+		exit $editorret
+	else
+		exit 0
+	fi
 fi
