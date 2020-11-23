@@ -285,16 +285,24 @@ static int ip101a_g_config_intr(struct phy_device *phydev)
 	return phy_write(phydev, IP101A_G_IRQ_CONF_STATUS, val);
 }
 
-static int ip101a_g_did_interrupt(struct phy_device *phydev)
+static irqreturn_t ip101a_g_handle_interrupt(struct phy_device *phydev)
 {
-	int val = phy_read(phydev, IP101A_G_IRQ_CONF_STATUS);
+	int irq_status;
 
-	if (val < 0)
-		return 0;
+	irq_status = phy_read(phydev, IP101A_G_IRQ_CONF_STATUS);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
 
-	return val & (IP101A_G_IRQ_SPEED_CHANGE |
-		      IP101A_G_IRQ_DUPLEX_CHANGE |
-		      IP101A_G_IRQ_LINK_CHANGE);
+	if (!(irq_status & (IP101A_G_IRQ_SPEED_CHANGE |
+			    IP101A_G_IRQ_DUPLEX_CHANGE |
+			    IP101A_G_IRQ_LINK_CHANGE)))
+		return IRQ_NONE;
+
+	phy_trigger_machine(phydev);
+
+	return IRQ_HANDLED;
 }
 
 static int ip101a_g_ack_interrupt(struct phy_device *phydev)
@@ -332,8 +340,8 @@ static struct phy_driver icplus_driver[] = {
 	/* PHY_BASIC_FEATURES */
 	.probe		= ip101a_g_probe,
 	.config_intr	= ip101a_g_config_intr,
-	.did_interrupt	= ip101a_g_did_interrupt,
 	.ack_interrupt	= ip101a_g_ack_interrupt,
+	.handle_interrupt = ip101a_g_handle_interrupt,
 	.config_init	= &ip101a_g_config_init,
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
