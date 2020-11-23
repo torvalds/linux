@@ -20,6 +20,7 @@ This driver implements support for Monolithic Power Systems, Inc. (MPS)
 vendor dual-loop, digital, multi-phase controller MP2975.
 
 This device:
+
 - Supports up to two power rail.
 - Provides 8 pulse-width modulations (PWMs), and can be configured up
   to 8-phase operation for rail 1 and up to 4-phase operation for rail
@@ -32,10 +33,12 @@ This device:
   10-mV DAC, IMVP9 mode with 5-mV DAC.
 
 Device supports:
+
 - SVID interface.
 - AVSBus interface.
 
 Device complaint with:
+
 - PMBus rev 1.3 interface.
 
 Device supports direct format for reading output current, output voltage,
@@ -45,11 +48,14 @@ Device supports VID and direct formats for reading output voltage.
 The below VID modes are supported: VR12, VR13, IMVP9.
 
 The driver provides the next attributes for the current:
+
 - for current in: input, maximum alarm;
 - for current out input, maximum alarm and highest values;
 - for phase current: input and label.
-attributes.
+  attributes.
+
 The driver exports the following attributes via the 'sysfs' files, where
+
 - 'n' is number of telemetry pages (from 1 to 2);
 - 'k' is number of configured phases (from 1 to 8);
 - indexes 1, 1*n for "iin";
@@ -65,11 +71,14 @@ The driver exports the following attributes via the 'sysfs' files, where
 **curr[1-{2n+k}]_label**
 
 The driver provides the next attributes for the voltage:
+
 - for voltage in: input, high critical threshold, high critical alarm, all only
   from page 0;
 - for voltage out: input, low and high critical thresholds, low and high
   critical alarms, from pages 0 and 1;
+
 The driver exports the following attributes via the 'sysfs' files, where
+
 - 'n' is number of telemetry pages (from 1 to 2);
 - indexes 1 for "iin";
 - indexes n+1, n+2 for "vout";
@@ -87,9 +96,12 @@ The driver exports the following attributes via the 'sysfs' files, where
 **in[2-{n+1}1_lcrit_alarm**
 
 The driver provides the next attributes for the power:
+
 - for power in alarm and input.
 - for power out: highest and input.
+
 The driver exports the following attributes via the 'sysfs' files, where
+
 - 'n' is number of telemetry pages (from 1 to 2);
 - indexes 1 for "pin";
 - indexes n+1, n+2 for "pout";

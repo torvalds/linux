@@ -86,6 +86,34 @@ int vm_enable_cap(struct kvm_vm *vm, struct kvm_enable_cap *cap)
 	return ret;
 }
 
+/* VCPU Enable Capability
+ *
+ * Input Args:
+ *   vm - Virtual Machine
+ *   vcpu_id - VCPU
+ *   cap - Capability
+ *
+ * Output Args: None
+ *
+ * Return: On success, 0. On failure a TEST_ASSERT failure is produced.
+ *
+ * Enables a capability (KVM_CAP_*) on the VCPU.
+ */
+int vcpu_enable_cap(struct kvm_vm *vm, uint32_t vcpu_id,
+		    struct kvm_enable_cap *cap)
+{
+	struct vcpu *vcpu = vcpu_find(vm, vcpu_id);
+	int r;
+
+	TEST_ASSERT(vcpu, "cannot find vcpu %d", vcpu_id);
+
+	r = ioctl(vcpu->fd, KVM_ENABLE_CAP, cap);
+	TEST_ASSERT(!r, "KVM_ENABLE_CAP vCPU ioctl failed,\n"
+			"  rc: %i, errno: %i", r, errno);
+
+	return r;
+}
+
 static void vm_open(struct kvm_vm *vm, int perm)
 {
 	vm->kvm_fd = open(KVM_DEV_PATH, perm);
@@ -152,7 +180,7 @@ _Static_assert(sizeof(vm_guest_mode_params)/sizeof(struct vm_guest_mode_params) 
  * descriptor to control the created VM is created with the permissions
  * given by perm (e.g. O_RDWR).
  */
-struct kvm_vm *_vm_create(enum vm_guest_mode mode, uint64_t phy_pages, int perm)
+struct kvm_vm *vm_create(enum vm_guest_mode mode, uint64_t phy_pages, int perm)
 {
 	struct kvm_vm *vm;
 
@@ -241,11 +269,6 @@ struct kvm_vm *_vm_create(enum vm_guest_mode mode, uint64_t phy_pages, int perm)
 					    0, 0, phy_pages, 0);
 
 	return vm;
-}
-
-struct kvm_vm *vm_create(enum vm_guest_mode mode, uint64_t phy_pages, int perm)
-{
-	return _vm_create(mode, phy_pages, perm);
 }
 
 /*
@@ -1204,6 +1227,9 @@ int _vcpu_run(struct kvm_vm *vm, uint32_t vcpuid)
 	do {
 		rc = ioctl(vcpu->fd, KVM_RUN, NULL);
 	} while (rc == -1 && errno == EINTR);
+
+	assert_on_unhandled_exception(vm, vcpuid);
+
 	return rc;
 }
 
@@ -1258,6 +1284,35 @@ void vcpu_set_mp_state(struct kvm_vm *vm, uint32_t vcpuid,
 	ret = ioctl(vcpu->fd, KVM_SET_MP_STATE, mp_state);
 	TEST_ASSERT(ret == 0, "KVM_SET_MP_STATE IOCTL failed, "
 		"rc: %i errno: %i", ret, errno);
+}
+
+/*
+ * VM VCPU Get Reg List
+ *
+ * Input Args:
+ *   vm - Virtual Machine
+ *   vcpuid - VCPU ID
+ *
+ * Output Args:
+ *   None
+ *
+ * Return:
+ *   A pointer to an allocated struct kvm_reg_list
+ *
+ * Get the list of guest registers which are supported for
+ * KVM_GET_ONE_REG/KVM_SET_ONE_REG calls
+ */
+struct kvm_reg_list *vcpu_get_reg_list(struct kvm_vm *vm, uint32_t vcpuid)
+{
+	struct kvm_reg_list reg_list_n = { .n = 0 }, *reg_list;
+	int ret;
+
+	ret = _vcpu_ioctl(vm, vcpuid, KVM_GET_REG_LIST, &reg_list_n);
+	TEST_ASSERT(ret == -1 && errno == E2BIG, "KVM_GET_REG_LIST n=0");
+	reg_list = calloc(1, sizeof(*reg_list) + reg_list_n.n * sizeof(__u64));
+	reg_list->n = reg_list_n.n;
+	vcpu_ioctl(vm, vcpuid, KVM_GET_REG_LIST, reg_list);
+	return reg_list;
 }
 
 /*

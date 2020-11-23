@@ -51,7 +51,7 @@ static struct vc4_ctm_state *vc4_get_ctm_state(struct drm_atomic_state *state,
 					       struct drm_private_obj *manager)
 {
 	struct drm_device *dev = state->dev;
-	struct vc4_dev *vc4 = dev->dev_private;
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct drm_private_state *priv_state;
 	int ret;
 
@@ -92,6 +92,29 @@ static const struct drm_private_state_funcs vc4_ctm_state_funcs = {
 	.atomic_duplicate_state = vc4_ctm_duplicate_state,
 	.atomic_destroy_state = vc4_ctm_destroy_state,
 };
+
+static void vc4_ctm_obj_fini(struct drm_device *dev, void *unused)
+{
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+
+	drm_atomic_private_obj_fini(&vc4->ctm_manager);
+}
+
+static int vc4_ctm_obj_init(struct vc4_dev *vc4)
+{
+	struct vc4_ctm_state *ctm_state;
+
+	drm_modeset_lock_init(&vc4->ctm_state_lock);
+
+	ctm_state = kzalloc(sizeof(*ctm_state), GFP_KERNEL);
+	if (!ctm_state)
+		return -ENOMEM;
+
+	drm_atomic_private_obj_init(&vc4->base, &vc4->ctm_manager, &ctm_state->base,
+				    &vc4_ctm_state_funcs);
+
+	return drmm_add_action(&vc4->base, vc4_ctm_obj_fini, NULL);
+}
 
 /* Converts a DRM S31.32 value to the HW S0.9 format. */
 static u16 vc4_ctm_s31_32_to_s0_9(u64 in)
@@ -609,6 +632,34 @@ static const struct drm_private_state_funcs vc4_load_tracker_state_funcs = {
 	.atomic_destroy_state = vc4_load_tracker_destroy_state,
 };
 
+static void vc4_load_tracker_obj_fini(struct drm_device *dev, void *unused)
+{
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+
+	if (!vc4->load_tracker_available)
+		return;
+
+	drm_atomic_private_obj_fini(&vc4->load_tracker);
+}
+
+static int vc4_load_tracker_obj_init(struct vc4_dev *vc4)
+{
+	struct vc4_load_tracker_state *load_state;
+
+	if (!vc4->load_tracker_available)
+		return 0;
+
+	load_state = kzalloc(sizeof(*load_state), GFP_KERNEL);
+	if (!load_state)
+		return -ENOMEM;
+
+	drm_atomic_private_obj_init(&vc4->base, &vc4->load_tracker,
+				    &load_state->base,
+				    &vc4_load_tracker_state_funcs);
+
+	return drmm_add_action(&vc4->base, vc4_load_tracker_obj_fini, NULL);
+}
+
 #define NUM_OUTPUTS  6
 #define NUM_CHANNELS 3
 
@@ -711,8 +762,6 @@ static const struct drm_mode_config_funcs vc4_mode_funcs = {
 int vc4_kms_load(struct drm_device *dev)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	struct vc4_ctm_state *ctm_state;
-	struct vc4_load_tracker_state *load_state;
 	bool is_vc5 = of_device_is_compatible(dev->dev->of_node,
 					      "brcm,bcm2711-vc5");
 	int ret;
@@ -751,26 +800,13 @@ int vc4_kms_load(struct drm_device *dev)
 	dev->mode_config.async_page_flip = true;
 	dev->mode_config.allow_fb_modifiers = true;
 
-	drm_modeset_lock_init(&vc4->ctm_state_lock);
+	ret = vc4_ctm_obj_init(vc4);
+	if (ret)
+		return ret;
 
-	ctm_state = kzalloc(sizeof(*ctm_state), GFP_KERNEL);
-	if (!ctm_state)
-		return -ENOMEM;
-
-	drm_atomic_private_obj_init(dev, &vc4->ctm_manager, &ctm_state->base,
-				    &vc4_ctm_state_funcs);
-
-	if (vc4->load_tracker_available) {
-		load_state = kzalloc(sizeof(*load_state), GFP_KERNEL);
-		if (!load_state) {
-			drm_atomic_private_obj_fini(&vc4->ctm_manager);
-			return -ENOMEM;
-		}
-
-		drm_atomic_private_obj_init(dev, &vc4->load_tracker,
-					    &load_state->base,
-					    &vc4_load_tracker_state_funcs);
-	}
+	ret = vc4_load_tracker_obj_init(vc4);
+	if (ret)
+		return ret;
 
 	drm_mode_config_reset(dev);
 

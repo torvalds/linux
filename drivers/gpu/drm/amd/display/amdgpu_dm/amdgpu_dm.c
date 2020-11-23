@@ -100,6 +100,8 @@ MODULE_FIRMWARE(FIRMWARE_SIENNA_CICHLID_DMUB);
 #define FIRMWARE_NAVY_FLOUNDER_DMUB "amdgpu/navy_flounder_dmcub.bin"
 MODULE_FIRMWARE(FIRMWARE_NAVY_FLOUNDER_DMUB);
 #endif
+#define FIRMWARE_GREEN_SARDINE_DMUB "amdgpu/green_sardine_dmcub.bin"
+MODULE_FIRMWARE(FIRMWARE_GREEN_SARDINE_DMUB);
 
 #define FIRMWARE_RAVEN_DMCU		"amdgpu/raven_dmcu.bin"
 MODULE_FIRMWARE(FIRMWARE_RAVEN_DMCU);
@@ -583,7 +585,7 @@ static void amdgpu_dm_fbc_init(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 	struct amdgpu_device *adev = drm_to_adev(dev);
-	struct dm_comressor_info *compressor = &adev->dm.compressor;
+	struct dm_compressor_info *compressor = &adev->dm.compressor;
 	struct amdgpu_dm_connector *aconn = to_amdgpu_dm_connector(connector);
 	struct drm_display_mode *mode;
 	unsigned long max_size = 0;
@@ -973,6 +975,8 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 	case CHIP_RAVEN:
 	case CHIP_RENOIR:
 		init_data.flags.gpu_vm_support = true;
+		if (ASICREV_IS_GREEN_SARDINE(adev->external_rev_id))
+			init_data.flags.disable_dmcu = true;
 		break;
 	default:
 		break;
@@ -1267,6 +1271,8 @@ static int dm_dmub_sw_init(struct amdgpu_device *adev)
 	case CHIP_RENOIR:
 		dmub_asic = DMUB_ASIC_DCN21;
 		fw_name_dmub = FIRMWARE_RENOIR_DMUB;
+		if (ASICREV_IS_GREEN_SARDINE(adev->external_rev_id))
+			fw_name_dmub = FIRMWARE_GREEN_SARDINE_DMUB;
 		break;
 #if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	case CHIP_SIENNA_CICHLID:
@@ -7500,7 +7506,6 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 	bool mode_set_reset_required = false;
 
 	drm_atomic_helper_update_legacy_modeset_state(dev, state);
-	drm_atomic_helper_calc_timestamping_constants(state);
 
 	dm_state = dm_atomic_get_new_state(state);
 	if (dm_state && dm_state->context) {
@@ -7526,6 +7531,8 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 			dc_stream_release(dm_old_crtc_state->stream);
 		}
 	}
+
+	drm_atomic_helper_calc_timestamping_constants(state);
 
 	/* update changed items */
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {

@@ -480,6 +480,7 @@ struct ceph_mds_client {
 extern const char *ceph_mds_op_name(int op);
 
 extern bool check_session_state(struct ceph_mds_session *s);
+void inc_session_sequence(struct ceph_mds_session *s);
 
 extern struct ceph_mds_session *
 __ceph_lookup_mds_session(struct ceph_mds_client *, int mds);

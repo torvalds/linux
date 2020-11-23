@@ -14,6 +14,7 @@
 #include <drm/drm_device.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_managed.h>
 #include <drm/drm_mm.h>
 #include <drm/drm_modeset_lock.h>
 
@@ -71,7 +72,7 @@ struct vc4_perfmon {
 };
 
 struct vc4_dev {
-	struct drm_device *dev;
+	struct drm_device base;
 
 	struct vc4_hvs *hvs;
 	struct vc4_v3d *v3d;
@@ -234,7 +235,7 @@ struct vc4_dev {
 static inline struct vc4_dev *
 to_vc4_dev(struct drm_device *dev)
 {
-	return (struct vc4_dev *)dev->dev_private;
+	return container_of(dev, struct vc4_dev, base);
 }
 
 struct vc4_bo {
@@ -809,7 +810,6 @@ struct drm_gem_object *vc4_prime_import_sg_table(struct drm_device *dev,
 						 struct sg_table *sgt);
 void *vc4_prime_vmap(struct drm_gem_object *obj);
 int vc4_bo_cache_init(struct drm_device *dev);
-void vc4_bo_cache_destroy(struct drm_device *dev);
 int vc4_bo_inc_usecnt(struct vc4_bo *bo);
 void vc4_bo_dec_usecnt(struct vc4_bo *bo);
 void vc4_bo_add_to_purgeable_pool(struct vc4_bo *bo);
@@ -874,8 +874,7 @@ extern struct platform_driver vc4_dsi_driver;
 extern const struct dma_fence_ops vc4_fence_ops;
 
 /* vc4_gem.c */
-void vc4_gem_init(struct drm_device *dev);
-void vc4_gem_destroy(struct drm_device *dev);
+int vc4_gem_init(struct drm_device *dev);
 int vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 int vc4_wait_seqno_ioctl(struct drm_device *dev, void *data,

@@ -20,9 +20,9 @@ index, like the ASL example below shows::
 
       Name (_CRS, ResourceTemplate ()
       {
-          GpioIo (Exclusive, PullUp, 0, 0, IoRestrictionInputOnly,
+          GpioIo (Exclusive, PullUp, 0, 0, IoRestrictionOutputOnly,
                   "\\_SB.GPO0", 0, ResourceConsumer) {15}
-          GpioIo (Exclusive, PullUp, 0, 0, IoRestrictionInputOnly,
+          GpioIo (Exclusive, PullUp, 0, 0, IoRestrictionOutputOnly,
                   "\\_SB.GPO0", 0, ResourceConsumer) {27, 31}
       })
 
@@ -49,14 +49,40 @@ index
 pin
   Pin in the GpioIo()/GpioInt() resource. Typically this is zero.
 active_low
-  If 1 the GPIO is marked as active_low.
+  If 1, the GPIO is marked as active_low.
 
 Since ACPI GpioIo() resource does not have a field saying whether it is
 active low or high, the "active_low" argument can be used here.  Setting
 it to 1 marks the GPIO as active low.
 
+Note, active_low in _DSD does not make sense for GpioInt() resource and
+must be 0. GpioInt() resource has its own means of defining it.
+
 In our Bluetooth example the "reset-gpios" refers to the second GpioIo()
 resource, second pin in that resource with the GPIO number of 31.
+
+The GpioIo() resource unfortunately doesn't explicitly provide an initial
+state of the output pin which driver should use during its initialization.
+
+Linux tries to use common sense here and derives the state from the bias
+and polarity settings. The table below shows the expectations:
+
+=========  =============  ==============
+Pull Bias     Polarity     Requested...
+=========  =============  ==============
+Implicit     x            AS IS (assumed firmware configured for us)
+Explicit     x (no _DSD)  as Pull Bias (Up == High, Down == Low),
+                          assuming non-active (Polarity = !Pull Bias)
+Down         Low          as low, assuming active
+Down         High         as low, assuming non-active
+Up           Low          as high, assuming non-active
+Up           High         as high, assuming active
+=========  =============  ==============
+
+That said, for our above example the both GPIOs, since the bias setting
+is explicit and _DSD is present, will be treated as active with a high
+polarity and Linux will configure the pins in this state until a driver
+reprograms them differently.
 
 It is possible to leave holes in the array of GPIOs. This is useful in
 cases like with SPI host controllers where some chip selects may be
@@ -112,8 +138,8 @@ Example::
   Package () {
       "gpio-line-names",
       Package () {
-          "SPI0_CS_N", "EXP2_INT", "MUX6_IO", "UART0_RXD", "MUX7_IO",
-          "LVL_C_A1", "MUX0_IO", "SPI1_MISO"
+          "SPI0_CS_N", "EXP2_INT", "MUX6_IO", "UART0_RXD",
+          "MUX7_IO", "LVL_C_A1", "MUX0_IO", "SPI1_MISO",
       }
   }
 
@@ -137,7 +163,7 @@ to the GPIO lines it is going to use and provide the GPIO subsystem with a
 mapping between those names and the ACPI GPIO resources corresponding to them.
 
 To do that, the driver needs to define a mapping table as a NULL-terminated
-array of struct acpi_gpio_mapping objects that each contain a name, a pointer
+array of struct acpi_gpio_mapping objects that each contains a name, a pointer
 to an array of line data (struct acpi_gpio_params) objects and the size of that
 array.  Each struct acpi_gpio_params object consists of three fields,
 crs_entry_index, line_index, active_low, representing the index of the target
@@ -154,13 +180,14 @@ question would look like this::
   static const struct acpi_gpio_mapping bluetooth_acpi_gpios[] = {
     { "reset-gpios", &reset_gpio, 1 },
     { "shutdown-gpios", &shutdown_gpio, 1 },
-    { },
+    { }
   };
 
 Next, the mapping table needs to be passed as the second argument to
-acpi_dev_add_driver_gpios() that will register it with the ACPI device object
-pointed to by its first argument.  That should be done in the driver's .probe()
-routine.  On removal, the driver should unregister its GPIO mapping table by
+acpi_dev_add_driver_gpios() or its managed analogue that will
+register it with the ACPI device object pointed to by its first
+argument. That should be done in the driver's .probe() routine.
+On removal, the driver should unregister its GPIO mapping table by
 calling acpi_dev_remove_driver_gpios() on the ACPI device object where that
 table was previously registered.
 
@@ -191,12 +218,12 @@ The driver might expect to get the right GPIO when it does::
 but since there is no way to know the mapping between "reset" and
 the GpioIo() in _CRS desc will hold ERR_PTR(-ENOENT).
 
-The driver author can solve this by passing the mapping explictly
-(the recommended way and documented in the above chapter).
+The driver author can solve this by passing the mapping explicitly
+(this is the recommended way and it's documented in the above chapter).
 
 The ACPI GPIO mapping tables should not contaminate drivers that are not
 knowing about which exact device they are servicing on. It implies that
-the ACPI GPIO mapping tables are hardly linked to ACPI ID and certain
+the ACPI GPIO mapping tables are hardly linked to an ACPI ID and certain
 objects, as listed in the above chapter, of the device in question.
 
 Getting GPIO descriptor
@@ -229,5 +256,5 @@ Case 2 explicitly tells GPIO core to look for resources in _CRS.
 Be aware that gpiod_get_index() in cases 1 and 2, assuming that there
 are two versions of ACPI device description provided and no mapping is
 present in the driver, will return different resources. That's why a
-certain driver has to handle them carefully as explained in previous
+certain driver has to handle them carefully as explained in the previous
 chapter.

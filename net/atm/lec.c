@@ -954,9 +954,8 @@ static void *lec_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	struct lec_state *state = seq->private;
 
-	v = lec_get_idx(state, 1);
-	*pos += !!PTR_ERR(v);
-	return v;
+	++*pos;
+	return lec_get_idx(state, 1);
 }
 
 static int lec_seq_show(struct seq_file *seq, void *v)

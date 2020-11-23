@@ -180,7 +180,6 @@ int zcrypt_queue_register(struct zcrypt_queue *zq)
 				&zcrypt_queue_attr_group);
 	if (rc)
 		goto out;
-	get_device(&zq->queue->ap_dev.device);
 
 	if (zq->ops->rng) {
 		rc = zcrypt_rng_device_add();
@@ -192,7 +191,6 @@ int zcrypt_queue_register(struct zcrypt_queue *zq)
 out_unregister:
 	sysfs_remove_group(&zq->queue->ap_dev.device.kobj,
 			   &zcrypt_queue_attr_group);
-	put_device(&zq->queue->ap_dev.device);
 out:
 	spin_lock(&zcrypt_list_lock);
 	list_del_init(&zq->list);
@@ -220,12 +218,10 @@ void zcrypt_queue_unregister(struct zcrypt_queue *zq)
 	list_del_init(&zq->list);
 	zcrypt_device_count--;
 	spin_unlock(&zcrypt_list_lock);
-	zcrypt_card_put(zc);
 	if (zq->ops->rng)
 		zcrypt_rng_device_remove();
 	sysfs_remove_group(&zq->queue->ap_dev.device.kobj,
 			   &zcrypt_queue_attr_group);
-	put_device(&zq->queue->ap_dev.device);
-	zcrypt_queue_put(zq);
+	zcrypt_card_put(zc);
 }
 EXPORT_SYMBOL(zcrypt_queue_unregister);

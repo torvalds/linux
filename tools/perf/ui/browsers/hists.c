@@ -2963,7 +2963,7 @@ static int perf_evsel__hists_browse(struct evsel *evsel, int nr_events,
 	struct popup_action actions[MAX_OPTIONS];
 	int nr_options = 0;
 	int key = -1;
-	char buf[64];
+	char buf[128];
 	int delay_secs = hbt ? hbt->refresh : 0;
 
 #define HIST_BROWSER_HELP_COMMON					\

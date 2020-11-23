@@ -46,11 +46,20 @@ int null_init_zoned_dev(struct nullb_device *dev, struct request_queue *q)
 	if (!dev->zones)
 		return -ENOMEM;
 
-	spin_lock_init(&dev->zone_dev_lock);
-	dev->zone_locks = bitmap_zalloc(dev->nr_zones, GFP_KERNEL);
-	if (!dev->zone_locks) {
-		kvfree(dev->zones);
-		return -ENOMEM;
+	/*
+	 * With memory backing, the zone_lock spinlock needs to be temporarily
+	 * released to avoid scheduling in atomic context. To guarantee zone
+	 * information protection, use a bitmap to lock zones with
+	 * wait_on_bit_lock_io(). Sleeping on the lock is OK as memory backing
+	 * implies that the queue is marked with BLK_MQ_F_BLOCKING.
+	 */
+	spin_lock_init(&dev->zone_lock);
+	if (dev->memory_backed) {
+		dev->zone_locks = bitmap_zalloc(dev->nr_zones, GFP_KERNEL);
+		if (!dev->zone_locks) {
+			kvfree(dev->zones);
+			return -ENOMEM;
+		}
 	}
 
 	if (dev->zone_nr_conv >= dev->nr_zones) {
@@ -137,12 +146,17 @@ void null_free_zoned_dev(struct nullb_device *dev)
 
 static inline void null_lock_zone(struct nullb_device *dev, unsigned int zno)
 {
-	wait_on_bit_lock_io(dev->zone_locks, zno, TASK_UNINTERRUPTIBLE);
+	if (dev->memory_backed)
+		wait_on_bit_lock_io(dev->zone_locks, zno, TASK_UNINTERRUPTIBLE);
+	spin_lock_irq(&dev->zone_lock);
 }
 
 static inline void null_unlock_zone(struct nullb_device *dev, unsigned int zno)
 {
-	clear_and_wake_up_bit(zno, dev->zone_locks);
+	spin_unlock_irq(&dev->zone_lock);
+
+	if (dev->memory_backed)
+		clear_and_wake_up_bit(zno, dev->zone_locks);
 }
 
 int null_report_zones(struct gendisk *disk, sector_t sector,
@@ -322,7 +336,6 @@ static blk_status_t null_zone_write(struct nullb_cmd *cmd, sector_t sector,
 		return null_process_cmd(cmd, REQ_OP_WRITE, sector, nr_sectors);
 
 	null_lock_zone(dev, zno);
-	spin_lock(&dev->zone_dev_lock);
 
 	switch (zone->cond) {
 	case BLK_ZONE_COND_FULL:
@@ -375,9 +388,17 @@ static blk_status_t null_zone_write(struct nullb_cmd *cmd, sector_t sector,
 	if (zone->cond != BLK_ZONE_COND_EXP_OPEN)
 		zone->cond = BLK_ZONE_COND_IMP_OPEN;
 
-	spin_unlock(&dev->zone_dev_lock);
+	/*
+	 * Memory backing allocation may sleep: release the zone_lock spinlock
+	 * to avoid scheduling in atomic context. Zone operation atomicity is
+	 * still guaranteed through the zone_locks bitmap.
+	 */
+	if (dev->memory_backed)
+		spin_unlock_irq(&dev->zone_lock);
 	ret = null_process_cmd(cmd, REQ_OP_WRITE, sector, nr_sectors);
-	spin_lock(&dev->zone_dev_lock);
+	if (dev->memory_backed)
+		spin_lock_irq(&dev->zone_lock);
+
 	if (ret != BLK_STS_OK)
 		goto unlock;
 
@@ -392,7 +413,6 @@ static blk_status_t null_zone_write(struct nullb_cmd *cmd, sector_t sector,
 	ret = BLK_STS_OK;
 
 unlock:
-	spin_unlock(&dev->zone_dev_lock);
 	null_unlock_zone(dev, zno);
 
 	return ret;
@@ -516,9 +536,7 @@ static blk_status_t null_zone_mgmt(struct nullb_cmd *cmd, enum req_opf op,
 			null_lock_zone(dev, i);
 			zone = &dev->zones[i];
 			if (zone->cond != BLK_ZONE_COND_EMPTY) {
-				spin_lock(&dev->zone_dev_lock);
 				null_reset_zone(dev, zone);
-				spin_unlock(&dev->zone_dev_lock);
 				trace_nullb_zone_op(cmd, i, zone->cond);
 			}
 			null_unlock_zone(dev, i);
@@ -530,7 +548,6 @@ static blk_status_t null_zone_mgmt(struct nullb_cmd *cmd, enum req_opf op,
 	zone = &dev->zones[zone_no];
 
 	null_lock_zone(dev, zone_no);
-	spin_lock(&dev->zone_dev_lock);
 
 	switch (op) {
 	case REQ_OP_ZONE_RESET:
@@ -549,8 +566,6 @@ static blk_status_t null_zone_mgmt(struct nullb_cmd *cmd, enum req_opf op,
 		ret = BLK_STS_NOTSUPP;
 		break;
 	}
-
-	spin_unlock(&dev->zone_dev_lock);
 
 	if (ret == BLK_STS_OK)
 		trace_nullb_zone_op(cmd, zone_no, zone->cond);

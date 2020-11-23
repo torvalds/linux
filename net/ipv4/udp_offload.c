@@ -366,7 +366,7 @@ out:
 static struct sk_buff *udp_gro_receive_segment(struct list_head *head,
 					       struct sk_buff *skb)
 {
-	struct udphdr *uh = udp_hdr(skb);
+	struct udphdr *uh = udp_gro_udphdr(skb);
 	struct sk_buff *pp = NULL;
 	struct udphdr *uh2;
 	struct sk_buff *p;
@@ -500,12 +500,22 @@ out:
 }
 EXPORT_SYMBOL(udp_gro_receive);
 
+static struct sock *udp4_gro_lookup_skb(struct sk_buff *skb, __be16 sport,
+					__be16 dport)
+{
+	const struct iphdr *iph = skb_gro_network_header(skb);
+
+	return __udp4_lib_lookup(dev_net(skb->dev), iph->saddr, sport,
+				 iph->daddr, dport, inet_iif(skb),
+				 inet_sdif(skb), &udp_table, NULL);
+}
+
 INDIRECT_CALLABLE_SCOPE
 struct sk_buff *udp4_gro_receive(struct list_head *head, struct sk_buff *skb)
 {
 	struct udphdr *uh = udp_gro_udphdr(skb);
+	struct sock *sk = NULL;
 	struct sk_buff *pp;
-	struct sock *sk;
 
 	if (unlikely(!uh))
 		goto flush;
@@ -523,7 +533,10 @@ struct sk_buff *udp4_gro_receive(struct list_head *head, struct sk_buff *skb)
 skip:
 	NAPI_GRO_CB(skb)->is_ipv6 = 0;
 	rcu_read_lock();
-	sk = static_branch_unlikely(&udp_encap_needed_key) ? udp4_lib_lookup_skb(skb, uh->source, uh->dest) : NULL;
+
+	if (static_branch_unlikely(&udp_encap_needed_key))
+		sk = udp4_gro_lookup_skb(skb, uh->source, uh->dest);
+
 	pp = udp_gro_receive(head, skb, uh, sk);
 	rcu_read_unlock();
 	return pp;

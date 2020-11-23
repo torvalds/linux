@@ -515,7 +515,7 @@ xfs_attr_copy_value(
  *========================================================================*/
 
 /*
- * Query whether the requested number of additional bytes of extended
+ * Query whether the total requested number of attr fork bytes of extended
  * attribute space will be able to fit inline.
  *
  * Returns zero if not, else the di_forkoff fork offset to be used in the
@@ -534,6 +534,12 @@ xfs_attr_shortform_bytesfit(
 	int			minforkoff;
 	int			maxforkoff;
 	int			offset;
+
+	/*
+	 * Check if the new size could fit at all first:
+	 */
+	if (bytes > XFS_LITINO(mp))
+		return 0;
 
 	/* rounded down */
 	offset = (XFS_LITINO(mp) - bytes) >> 3;
