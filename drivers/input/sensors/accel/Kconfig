@@ -140,4 +140,10 @@ config GS_DA223
 	  To have support for your specific gsesnor you will have to
 	  select the proper drivers which depend on this option.
 
+config ICM2060X_ACC
+	tristate "gsensor icm2060x"
+	help
+	  To have support for your specific gsesnor you will have to
+	  select the proper drivers which depend on this option.
+
 endif
