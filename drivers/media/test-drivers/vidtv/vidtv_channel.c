@@ -53,8 +53,8 @@ struct vidtv_channel
 *vidtv_channel_s302m_init(struct vidtv_channel *head, u16 transport_stream_id)
 {
 	const __be32 s302m_fid              = cpu_to_be32(VIDTV_S302M_FORMAT_IDENTIFIER);
-	char *event_text = ENCODING_ISO8859_15 "Beethoven's Für Elise";
-	char *event_name = ENCODING_ISO8859_15 "Beethoven Music";
+	char *event_text = ENCODING_ISO8859_15 "Bagatelle No. 25 in A minor for solo piano, also known as F\xfcr Elise, composed by Ludwig van Beethoven";
+	char *event_name = ENCODING_ISO8859_15 "Ludwig van Beethoven: F\xfcr Elise";
 	struct vidtv_s302m_encoder_init_args encoder_args = {};
 	char *iso_language_code = ENCODING_ISO8859_15 "eng";
 	char *provider = ENCODING_ISO8859_15 "LinuxTV.org";
