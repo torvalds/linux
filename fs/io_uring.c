@@ -7185,9 +7185,9 @@ static int io_sqe_files_unregister(struct io_ring_ctx *ctx)
 	if (!data)
 		return -ENXIO;
 
-	spin_lock(&data->lock);
+	spin_lock_bh(&data->lock);
 	ref_node = data->node;
-	spin_unlock(&data->lock);
+	spin_unlock_bh(&data->lock);
 	if (ref_node)
 		percpu_ref_kill(&ref_node->refs);
 
@@ -7569,7 +7569,7 @@ static void io_file_data_ref_zero(struct percpu_ref *ref)
 	data = ref_node->file_data;
 	ctx = data->ctx;
 
-	spin_lock(&data->lock);
+	spin_lock_bh(&data->lock);
 	ref_node->done = true;
 
 	while (!list_empty(&data->ref_list)) {
@@ -7581,7 +7581,7 @@ static void io_file_data_ref_zero(struct percpu_ref *ref)
 		list_del(&ref_node->node);
 		first_add |= llist_add(&ref_node->llist, &ctx->file_put_llist);
 	}
-	spin_unlock(&data->lock);
+	spin_unlock_bh(&data->lock);
 
 	if (percpu_ref_is_dying(&data->refs))
 		delay = 0;
@@ -7704,9 +7704,9 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 	}
 
 	file_data->node = ref_node;
-	spin_lock(&file_data->lock);
+	spin_lock_bh(&file_data->lock);
 	list_add_tail(&ref_node->node, &file_data->ref_list);
-	spin_unlock(&file_data->lock);
+	spin_unlock_bh(&file_data->lock);
 	percpu_ref_get(&file_data->refs);
 	return ret;
 out_fput:
@@ -7863,10 +7863,10 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 
 	if (needs_switch) {
 		percpu_ref_kill(&data->node->refs);
-		spin_lock(&data->lock);
+		spin_lock_bh(&data->lock);
 		list_add_tail(&ref_node->node, &data->ref_list);
 		data->node = ref_node;
-		spin_unlock(&data->lock);
+		spin_unlock_bh(&data->lock);
 		percpu_ref_get(&ctx->file_data->refs);
 	} else
 		destroy_fixed_file_ref_node(ref_node);
