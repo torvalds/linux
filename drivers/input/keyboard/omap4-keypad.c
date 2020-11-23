@@ -18,6 +18,7 @@
 #include <linux/input/matrix_keypad.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
+#include <linux/pm_wakeirq.h>
 
 /* OMAP4 registers */
 #define OMAP4_KBD_REVISION		0x00
@@ -69,7 +70,6 @@ struct omap4_keypad {
 	struct input_dev *input;
 
 	void __iomem *base;
-	bool irq_wake_enabled;
 	unsigned int irq;
 
 	unsigned int rows;
@@ -376,6 +376,11 @@ static int omap4_keypad_probe(struct platform_device *pdev)
 	}
 
 	device_init_wakeup(&pdev->dev, true);
+	error = dev_pm_set_wake_irq(&pdev->dev, keypad_data->irq);
+	if (error)
+		dev_warn(&pdev->dev,
+			 "failed to set up wakeup irq: %d\n", error);
+
 	platform_set_drvdata(pdev, keypad_data);
 
 	return 0;
@@ -401,6 +406,8 @@ static int omap4_keypad_remove(struct platform_device *pdev)
 	struct omap4_keypad *keypad_data = platform_get_drvdata(pdev);
 	struct resource *res;
 
+	dev_pm_clear_wake_irq(&pdev->dev);
+
 	free_irq(keypad_data->irq, keypad_data);
 
 	pm_runtime_disable(&pdev->dev);
@@ -424,45 +431,11 @@ static const struct of_device_id omap_keypad_dt_match[] = {
 };
 MODULE_DEVICE_TABLE(of, omap_keypad_dt_match);
 
-#ifdef CONFIG_PM_SLEEP
-static int omap4_keypad_suspend(struct device *dev)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct omap4_keypad *keypad_data = platform_get_drvdata(pdev);
-	int error;
-
-	if (device_may_wakeup(&pdev->dev)) {
-		error = enable_irq_wake(keypad_data->irq);
-		if (!error)
-			keypad_data->irq_wake_enabled = true;
-	}
-
-	return 0;
-}
-
-static int omap4_keypad_resume(struct device *dev)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct omap4_keypad *keypad_data = platform_get_drvdata(pdev);
-
-	if (device_may_wakeup(&pdev->dev) && keypad_data->irq_wake_enabled) {
-		disable_irq_wake(keypad_data->irq);
-		keypad_data->irq_wake_enabled = false;
-	}
-
-	return 0;
-}
-#endif
-
-static SIMPLE_DEV_PM_OPS(omap4_keypad_pm_ops,
-			 omap4_keypad_suspend, omap4_keypad_resume);
-
 static struct platform_driver omap4_keypad_driver = {
 	.probe		= omap4_keypad_probe,
 	.remove		= omap4_keypad_remove,
 	.driver		= {
 		.name	= "omap4-keypad",
-		.pm	= &omap4_keypad_pm_ops,
 		.of_match_table = omap_keypad_dt_match,
 	},
 };
