@@ -789,24 +789,6 @@ static void ena_free_all_io_tx_resources(struct ena_adapter *adapter)
 					      adapter->num_io_queues);
 }
 
-static int validate_rx_req_id(struct ena_ring *rx_ring, u16 req_id)
-{
-	if (likely(req_id < rx_ring->ring_size))
-		return 0;
-
-	netif_err(rx_ring->adapter, rx_err, rx_ring->netdev,
-		  "Invalid rx req_id: %hu\n", req_id);
-
-	u64_stats_update_begin(&rx_ring->syncp);
-	rx_ring->rx_stats.bad_req_id++;
-	u64_stats_update_end(&rx_ring->syncp);
-
-	/* Trigger device reset */
-	rx_ring->adapter->reset_reason = ENA_REGS_RESET_INV_RX_REQ_ID;
-	set_bit(ENA_FLAG_TRIGGER_RESET, &rx_ring->adapter->flags);
-	return -EFAULT;
-}
-
 /* ena_setup_rx_resources - allocate I/O Rx resources (Descriptors)
  * @adapter: network interface device structure
  * @qid: queue index
@@ -1356,14 +1338,9 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring,
 	struct ena_rx_buffer *rx_info;
 	u16 len, req_id, buf = 0;
 	void *va;
-	int rc;
 
 	len = ena_bufs[buf].len;
 	req_id = ena_bufs[buf].req_id;
-
-	rc = validate_rx_req_id(rx_ring, req_id);
-	if (unlikely(rc < 0))
-		return NULL;
 
 	rx_info = &rx_ring->rx_buffer_info[req_id];
 
@@ -1439,10 +1416,6 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring,
 		buf++;
 		len = ena_bufs[buf].len;
 		req_id = ena_bufs[buf].req_id;
-
-		rc = validate_rx_req_id(rx_ring, req_id);
-		if (unlikely(rc < 0))
-			return NULL;
 
 		rx_info = &rx_ring->rx_buffer_info[req_id];
 	} while (1);
@@ -1697,12 +1670,18 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 error:
 	adapter = netdev_priv(rx_ring->netdev);
 
-	u64_stats_update_begin(&rx_ring->syncp);
-	rx_ring->rx_stats.bad_desc_num++;
-	u64_stats_update_end(&rx_ring->syncp);
+	if (rc == -ENOSPC) {
+		u64_stats_update_begin(&rx_ring->syncp);
+		rx_ring->rx_stats.bad_desc_num++;
+		u64_stats_update_end(&rx_ring->syncp);
+		adapter->reset_reason = ENA_REGS_RESET_TOO_MANY_RX_DESCS;
+	} else {
+		u64_stats_update_begin(&rx_ring->syncp);
+		rx_ring->rx_stats.bad_req_id++;
+		u64_stats_update_end(&rx_ring->syncp);
+		adapter->reset_reason = ENA_REGS_RESET_INV_RX_REQ_ID;
+	}
 
-	/* Too many desc from the device. Trigger reset */
-	adapter->reset_reason = ENA_REGS_RESET_TOO_MANY_RX_DESCS;
 	set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
 
 	return 0;
