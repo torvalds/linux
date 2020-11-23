@@ -26,6 +26,7 @@ struct audioformat {
 	unsigned char sync_ep;		/* sync endpoint number */
 	unsigned char sync_iface;	/* sync EP interface */
 	unsigned char sync_altsetting;	/* sync EP alternate setting */
+	unsigned char sync_ep_idx;	/* sync EP array index */
 	unsigned char datainterval;	/* log_2 of data packet interval */
 	unsigned char protocol;		/* UAC_VERSION_1/2/3 */
 	unsigned int maxpacksize;	/* max. packet size */
@@ -58,6 +59,7 @@ struct snd_urb_ctx {
 struct snd_usb_endpoint {
 	struct snd_usb_audio *chip;
 
+	int opened;		/* open refcount; protect with chip->mutex */
 	int use_count;
 	int ep_num;		/* the referenced endpoint number */
 	int type;		/* SND_USB_ENDPOINT_TYPE_* */
@@ -110,14 +112,18 @@ struct snd_usb_endpoint {
 	unsigned char silence_value;
 	unsigned int stride;
 	int iface, altsetting;
+	unsigned char ep_idx;		/* endpoint array index */
 	int skip_packets;		/* quirks for devices to ignore the first n packets
 					   in a stream */
-	bool is_implicit_feedback;      /* This endpoint is used as implicit feedback */
+	bool implicit_fb_sync;		/* syncs with implicit feedback */
+	bool need_setup;		/* (re-)need for configure? */
 
 	/* for hw constraints */
+	struct audioformat *cur_audiofmt;
 	unsigned int cur_rate;
 	snd_pcm_format_t cur_format;
 	unsigned int cur_channels;
+	unsigned int cur_frame_bytes;
 	unsigned int cur_period_frames;
 	unsigned int cur_period_bytes;
 	unsigned int cur_buffer_periods;
@@ -152,7 +158,6 @@ struct snd_usb_substream {
 	unsigned int stream_offset_adj;	/* Bytes to drop from beginning of stream (for non-compliant devices) */
 
 	unsigned int running: 1;	/* running status */
-	unsigned int fixed_hw:1;	/* fixed hw constraints due to sync EP */
 
 	unsigned int hwptr_done;	/* processed byte position in the buffer */
 	unsigned int transfer_done;		/* processed frames since last period update */
@@ -163,8 +168,6 @@ struct snd_usb_substream {
 	struct snd_usb_endpoint *data_endpoint;
 	struct snd_usb_endpoint *sync_endpoint;
 	unsigned long flags;
-	bool need_setup_ep;		/* (re)configure EP at prepare? */
-	bool need_setup_fmt;		/* (re)configure fmt after resume? */
 	unsigned int speed;		/* USB_SPEED_XXX */
 
 	u64 formats;			/* format bitmasks (all or'ed) */

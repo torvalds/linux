@@ -613,7 +613,6 @@ int snd_usb_set_sample_rate_v2v3(struct snd_usb_audio *chip,
 static int set_sample_rate_v2v3(struct snd_usb_audio *chip,
 				struct audioformat *fmt, int rate)
 {
-	struct usb_device *dev = chip->dev;
 	int cur_rate, prev_rate;
 	int clock;
 
@@ -656,15 +655,6 @@ static int set_sample_rate_v2v3(struct snd_usb_audio *chip,
 		return -ENXIO;
 	}
 
-	/* Some devices doesn't respond to sample rate changes while the
-	 * interface is active. */
-	if (rate != prev_rate) {
-		usb_set_interface(dev, fmt->iface, 0);
-		snd_usb_set_interface_quirk(chip);
-		usb_set_interface(dev, fmt->iface, fmt->altsetting);
-		snd_usb_set_interface_quirk(chip);
-	}
-
 validation:
 	/* validate clock after rate change */
 	if (!uac_clock_source_is_valid(chip, fmt, clock))
@@ -675,6 +665,9 @@ validation:
 int snd_usb_init_sample_rate(struct snd_usb_audio *chip,
 			     struct audioformat *fmt, int rate)
 {
+	usb_audio_dbg(chip, "%d:%d Set sample rate %d, clock %d\n",
+		      fmt->iface, fmt->altsetting, rate, fmt->clock);
+
 	switch (fmt->protocol) {
 	case UAC_VERSION_1:
 	default:
