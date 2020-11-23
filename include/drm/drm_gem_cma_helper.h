@@ -96,14 +96,14 @@ unsigned long drm_gem_cma_get_unmapped_area(struct file *filp,
 void drm_gem_cma_print_info(struct drm_printer *p, unsigned int indent,
 			    const struct drm_gem_object *obj);
 
-struct sg_table *drm_gem_cma_prime_get_sg_table(struct drm_gem_object *obj);
+struct sg_table *drm_gem_cma_get_sg_table(struct drm_gem_object *obj);
 struct drm_gem_object *
 drm_gem_cma_prime_import_sg_table(struct drm_device *dev,
 				  struct dma_buf_attachment *attach,
 				  struct sg_table *sgt);
 int drm_gem_cma_prime_mmap(struct drm_gem_object *obj,
 			   struct vm_area_struct *vma);
-int drm_gem_cma_prime_vmap(struct drm_gem_object *obj, struct dma_buf_map *map);
+int drm_gem_cma_vmap(struct drm_gem_object *obj, struct dma_buf_map *map);
 
 /**
  * DRM_GEM_CMA_DRIVER_OPS_WITH_DUMB_CREATE - CMA GEM driver operations
