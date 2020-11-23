@@ -19,6 +19,7 @@
 
 enum {
 	IMPLICIT_FB_NONE,
+	IMPLICIT_FB_GENERIC,
 	IMPLICIT_FB_FIXED,
 };
 
@@ -30,6 +31,8 @@ struct snd_usb_implicit_fb_match {
 	int type;
 };
 
+#define IMPLICIT_FB_GENERIC_DEV(vend, prod) \
+	{ .id = USB_ID(vend, prod), .type = IMPLICIT_FB_GENERIC }
 #define IMPLICIT_FB_FIXED_DEV(vend, prod, ep, ifnum) \
 	{ .id = USB_ID(vend, prod), .type = IMPLICIT_FB_FIXED, .ep_num = (ep),\
 	    .iface = (ifnum) }
@@ -38,19 +41,22 @@ struct snd_usb_implicit_fb_match {
 
 /* Implicit feedback quirk table for playback */
 static const struct snd_usb_implicit_fb_match playback_implicit_fb_quirks[] = {
+	/* Generic matching */
+	IMPLICIT_FB_GENERIC_DEV(0x0763, 0x2080), /* M-Audio FastTrack Ultra */
+	IMPLICIT_FB_GENERIC_DEV(0x0763, 0x2081), /* M-Audio FastTrack Ultra */
+	IMPLICIT_FB_GENERIC_DEV(0x0763, 0x2030), /* M-Audio Fast Track C400 */
+	IMPLICIT_FB_GENERIC_DEV(0x0763, 0x2031), /* M-Audio Fast Track C600 */
+
 	/* Fixed EP */
+	/* FIXME: check the availability of generic matching */
 	IMPLICIT_FB_FIXED_DEV(0x1397, 0x0001, 0x81, 1), /* Behringer UFX1604 */
 	IMPLICIT_FB_FIXED_DEV(0x1397, 0x0002, 0x81, 1), /* Behringer UFX1204 */
-	IMPLICIT_FB_FIXED_DEV(0x0763, 0x2080, 0x81, 2), /* M-Audio FastTrack Ultra */
-	IMPLICIT_FB_FIXED_DEV(0x0763, 0x2081, 0x81, 2), /* M-Audio FastTrack Ultra */
 	IMPLICIT_FB_FIXED_DEV(0x2466, 0x8010, 0x81, 2), /* Fractal Audio Axe-Fx III */
 	IMPLICIT_FB_FIXED_DEV(0x07fd, 0x0008, 0x81, 2), /* MOTU M Series */
 	IMPLICIT_FB_FIXED_DEV(0x31e9, 0x0001, 0x81, 2), /* Solid State Logic SSL2 */
 	IMPLICIT_FB_FIXED_DEV(0x31e9, 0x0002, 0x81, 2), /* Solid State Logic SSL2+ */
 	IMPLICIT_FB_FIXED_DEV(0x0499, 0x172f, 0x81, 2), /* Steinberg UR22C */
 	IMPLICIT_FB_FIXED_DEV(0x0d9a, 0x00df, 0x81, 2), /* RTX6001 */
-	IMPLICIT_FB_FIXED_DEV(0x0763, 0x2030, 0x81, 3), /* M-Audio Fast Track C400 */
-	IMPLICIT_FB_FIXED_DEV(0x0763, 0x2031, 0x81, 3), /* M-Audio Fast Track C600 */
 	IMPLICIT_FB_FIXED_DEV(0x22f0, 0x0006, 0x81, 3), /* Allen&Heath Qu-16 */
 	IMPLICIT_FB_FIXED_DEV(0x2b73, 0x000a, 0x82, 0), /* Pioneer DJ DJM-900NXS2 */
 	IMPLICIT_FB_FIXED_DEV(0x2b73, 0x0017, 0x82, 0), /* Pioneer DJ DJM-250MK2 */
@@ -75,7 +81,7 @@ static const struct snd_usb_implicit_fb_match playback_implicit_fb_quirks[] = {
 	{} /* terminator */
 };
 
-/* Implicit feedback quirk table for capture */
+/* Implicit feedback quirk table for capture: only FIXED type */
 static const struct snd_usb_implicit_fb_match capture_implicit_fb_quirks[] = {
 	IMPLICIT_FB_FIXED_DEV(0x0582, 0x01e5, 0x0d, 0x01), /* BOSS GT-001 */
 
@@ -162,6 +168,47 @@ static int add_roland_implicit_fb(struct snd_usb_audio *chip,
 				       ifnum, alts);
 }
 
+
+static int __add_generic_implicit_fb(struct snd_usb_audio *chip,
+				     struct audioformat *fmt,
+				     int iface, int altset)
+{
+	struct usb_host_interface *alts;
+	struct usb_endpoint_descriptor *epd;
+
+	alts = snd_usb_get_host_interface(chip, iface, altset);
+	if (!alts)
+		return 0;
+
+	if ((alts->desc.bInterfaceClass != USB_CLASS_VENDOR_SPEC &&
+	     alts->desc.bInterfaceClass != USB_CLASS_AUDIO) ||
+	    alts->desc.bNumEndpoints < 1)
+		return 0;
+	epd = get_endpoint(alts, 0);
+	if (!usb_endpoint_is_isoc_in(epd) ||
+	    (epd->bmAttributes & USB_ENDPOINT_SYNCTYPE) != USB_ENDPOINT_SYNC_ASYNC)
+		return 0;
+	return add_implicit_fb_sync_ep(chip, fmt, epd->bEndpointAddress,
+				       iface, alts);
+}
+
+/* More generic quirk: look for the sync EP next to the data EP */
+static int add_generic_implicit_fb(struct snd_usb_audio *chip,
+				   struct audioformat *fmt,
+				   struct usb_host_interface *alts)
+{
+	if ((fmt->ep_attr & USB_ENDPOINT_SYNCTYPE) != USB_ENDPOINT_SYNC_ASYNC)
+		return 0;
+
+	if (__add_generic_implicit_fb(chip, fmt,
+				      alts->desc.bInterfaceNumber + 1,
+				      alts->desc.bAlternateSetting))
+		return 1;
+	return __add_generic_implicit_fb(chip, fmt,
+					 alts->desc.bInterfaceNumber - 1,
+					 alts->desc.bAlternateSetting);
+}
+
 static const struct snd_usb_implicit_fb_match *
 find_implicit_fb_entry(struct snd_usb_audio *chip,
 		       const struct snd_usb_implicit_fb_match *match,
@@ -189,6 +236,8 @@ static int audioformat_implicit_fb_quirk(struct snd_usb_audio *chip,
 	p = find_implicit_fb_entry(chip, playback_implicit_fb_quirks, alts);
 	if (p) {
 		switch (p->type) {
+		case IMPLICIT_FB_GENERIC:
+			return add_generic_implicit_fb(chip, fmt, alts);
 		case IMPLICIT_FB_NONE:
 			return 0; /* No quirk */
 		case IMPLICIT_FB_FIXED:
