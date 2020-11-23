@@ -1121,35 +1121,10 @@ static int hw_check_valid_format(struct snd_usb_substream *subs,
 	return 1;
 }
 
-static int hw_rule_rate(struct snd_pcm_hw_params *params,
-			struct snd_pcm_hw_rule *rule)
+static int apply_hw_params_minmax(struct snd_interval *it, unsigned int rmin,
+				  unsigned int rmax)
 {
-	struct snd_usb_substream *subs = rule->private;
-	struct audioformat *fp;
-	struct snd_interval *it = hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
-	unsigned int rmin, rmax, r;
 	int changed;
-	int i;
-
-	hwc_debug("hw_rule_rate: (%d,%d)\n", it->min, it->max);
-	rmin = UINT_MAX;
-	rmax = 0;
-	list_for_each_entry(fp, &subs->fmt_list, list) {
-		if (!hw_check_valid_format(subs, params, fp))
-			continue;
-		if (fp->rate_table && fp->nr_rates) {
-			for (i = 0; i < fp->nr_rates; i++) {
-				r = fp->rate_table[i];
-				if (!snd_interval_test(it, r))
-					continue;
-				rmin = min(rmin, r);
-				rmax = max(rmax, r);
-			}
-		} else {
-			rmin = min(rmin, fp->rate_min);
-			rmax = max(rmax, fp->rate_max);
-		}
-	}
 
 	if (rmin > rmax) {
 		hwc_debug("  --> get empty\n");
@@ -1176,6 +1151,38 @@ static int hw_rule_rate(struct snd_pcm_hw_params *params,
 	return changed;
 }
 
+static int hw_rule_rate(struct snd_pcm_hw_params *params,
+			struct snd_pcm_hw_rule *rule)
+{
+	struct snd_usb_substream *subs = rule->private;
+	struct audioformat *fp;
+	struct snd_interval *it = hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
+	unsigned int rmin, rmax, r;
+	int i;
+
+	hwc_debug("hw_rule_rate: (%d,%d)\n", it->min, it->max);
+	rmin = UINT_MAX;
+	rmax = 0;
+	list_for_each_entry(fp, &subs->fmt_list, list) {
+		if (!hw_check_valid_format(subs, params, fp))
+			continue;
+		if (fp->rate_table && fp->nr_rates) {
+			for (i = 0; i < fp->nr_rates; i++) {
+				r = fp->rate_table[i];
+				if (!snd_interval_test(it, r))
+					continue;
+				rmin = min(rmin, r);
+				rmax = max(rmax, r);
+			}
+		} else {
+			rmin = min(rmin, fp->rate_min);
+			rmax = max(rmax, fp->rate_max);
+		}
+	}
+
+	return apply_hw_params_minmax(it, rmin, rmax);
+}
+
 
 static int hw_rule_channels(struct snd_pcm_hw_params *params,
 			    struct snd_pcm_hw_rule *rule)
@@ -1184,48 +1191,18 @@ static int hw_rule_channels(struct snd_pcm_hw_params *params,
 	struct audioformat *fp;
 	struct snd_interval *it = hw_param_interval(params, SNDRV_PCM_HW_PARAM_CHANNELS);
 	unsigned int rmin, rmax;
-	int changed;
 
 	hwc_debug("hw_rule_channels: (%d,%d)\n", it->min, it->max);
-	changed = 0;
-	rmin = rmax = 0;
+	rmin = UINT_MAX;
+	rmax = 0;
 	list_for_each_entry(fp, &subs->fmt_list, list) {
 		if (!hw_check_valid_format(subs, params, fp))
 			continue;
-		if (changed++) {
-			if (rmin > fp->channels)
-				rmin = fp->channels;
-			if (rmax < fp->channels)
-				rmax = fp->channels;
-		} else {
-			rmin = fp->channels;
-			rmax = fp->channels;
-		}
+		rmin = min(rmin, fp->channels);
+		rmax = max(rmax, fp->channels);
 	}
 
-	if (!changed) {
-		hwc_debug("  --> get empty\n");
-		it->empty = 1;
-		return -EINVAL;
-	}
-
-	changed = 0;
-	if (it->min < rmin) {
-		it->min = rmin;
-		it->openmin = 0;
-		changed = 1;
-	}
-	if (it->max > rmax) {
-		it->max = rmax;
-		it->openmax = 0;
-		changed = 1;
-	}
-	if (snd_interval_checkempty(it)) {
-		it->empty = 1;
-		return -EINVAL;
-	}
-	hwc_debug("  --> (%d, %d) (changed = %d)\n", it->min, it->max, changed);
-	return changed;
+	return apply_hw_params_minmax(it, rmin, rmax);
 }
 
 static int hw_rule_format(struct snd_pcm_hw_params *params,
@@ -1267,7 +1244,6 @@ static int hw_rule_period_time(struct snd_pcm_hw_params *params,
 	struct snd_interval *it;
 	unsigned char min_datainterval;
 	unsigned int pmin;
-	int changed;
 
 	it = hw_param_interval(params, SNDRV_PCM_HW_PARAM_PERIOD_TIME);
 	hwc_debug("hw_rule_period_time: (%u,%u)\n", it->min, it->max);
@@ -1283,18 +1259,8 @@ static int hw_rule_period_time(struct snd_pcm_hw_params *params,
 		return -EINVAL;
 	}
 	pmin = 125 * (1 << min_datainterval);
-	changed = 0;
-	if (it->min < pmin) {
-		it->min = pmin;
-		it->openmin = 0;
-		changed = 1;
-	}
-	if (snd_interval_checkempty(it)) {
-		it->empty = 1;
-		return -EINVAL;
-	}
-	hwc_debug("  --> (%u,%u) (changed = %d)\n", it->min, it->max, changed);
-	return changed;
+
+	return apply_hw_params_minmax(it, pmin, UINT_MAX);
 }
 
 /* apply PCM hw constraints from the concurrent sync EP */
