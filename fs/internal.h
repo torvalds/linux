@@ -25,7 +25,6 @@ extern void __init bdev_cache_init(void);
 extern int __sync_blockdev(struct block_device *bdev, int wait);
 void iterate_bdevs(void (*)(struct block_device *, void *), void *);
 void emergency_thaw_bdev(struct super_block *sb);
-void bd_forget(struct inode *inode);
 #else
 static inline void bdev_cache_init(void)
 {
@@ -42,9 +41,6 @@ static inline void iterate_bdevs(void (*f)(struct block_device *, void *),
 static inline int emergency_thaw_bdev(struct super_block *sb)
 {
 	return 0;
-}
-static inline void bd_forget(struct inode *inode)
-{
 }
 #endif /* CONFIG_BLOCK */
 
@@ -114,8 +110,7 @@ extern struct file *alloc_empty_file_noaccount(int, const struct cred *);
  */
 extern int reconfigure_super(struct fs_context *);
 extern bool trylock_super(struct super_block *sb);
-struct super_block *__get_super(struct block_device *bdev, bool excl);
-extern struct super_block *user_get_super(dev_t);
+struct super_block *user_get_super(dev_t, bool excl);
 void put_super(struct super_block *sb);
 extern bool mount_capable(struct fs_context *);
 

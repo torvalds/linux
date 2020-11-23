@@ -883,7 +883,6 @@ static struct block_device *bdget(dev_t dev)
 		bdev->bd_dev = dev;
 		inode->i_mode = S_IFBLK;
 		inode->i_rdev = dev;
-		inode->i_bdev = bdev;
 		inode->i_data.a_ops = &def_blk_aops;
 		mapping_set_gfp_mask(&inode->i_data, GFP_USER);
 		unlock_new_inode(inode);
@@ -928,67 +927,8 @@ void bdput(struct block_device *bdev)
 {
 	iput(bdev->bd_inode);
 }
-
 EXPORT_SYMBOL(bdput);
  
-static struct block_device *bd_acquire(struct inode *inode)
-{
-	struct block_device *bdev;
-
-	spin_lock(&bdev_lock);
-	bdev = inode->i_bdev;
-	if (bdev && !inode_unhashed(bdev->bd_inode)) {
-		bdgrab(bdev);
-		spin_unlock(&bdev_lock);
-		return bdev;
-	}
-	spin_unlock(&bdev_lock);
-
-	/*
-	 * i_bdev references block device inode that was already shut down
-	 * (corresponding device got removed).  Remove the reference and look
-	 * up block device inode again just in case new device got
-	 * reestablished under the same device number.
-	 */
-	if (bdev)
-		bd_forget(inode);
-
-	bdev = bdget(inode->i_rdev);
-	if (bdev) {
-		spin_lock(&bdev_lock);
-		if (!inode->i_bdev) {
-			/*
-			 * We take an additional reference to bd_inode,
-			 * and it's released in clear_inode() of inode.
-			 * So, we can access it via ->i_mapping always
-			 * without igrab().
-			 */
-			bdgrab(bdev);
-			inode->i_bdev = bdev;
-			inode->i_mapping = bdev->bd_inode->i_mapping;
-		}
-		spin_unlock(&bdev_lock);
-	}
-	return bdev;
-}
-
-/* Call when you free inode */
-
-void bd_forget(struct inode *inode)
-{
-	struct block_device *bdev = NULL;
-
-	spin_lock(&bdev_lock);
-	if (!sb_is_blkdev_sb(inode->i_sb))
-		bdev = inode->i_bdev;
-	inode->i_bdev = NULL;
-	inode->i_mapping = &inode->i_data;
-	spin_unlock(&bdev_lock);
-
-	if (bdev)
-		bdput(bdev);
-}
-
 /**
  * bd_may_claim - test whether a block device can be claimed
  * @bdev: block device of interest
@@ -1497,38 +1437,45 @@ static int __blkdev_get(struct block_device *bdev, struct gendisk *disk,
 }
 
 /**
- * blkdev_get - open a block device
- * @bdev: block_device to open
+ * blkdev_get_by_dev - open a block device by device number
+ * @dev: device number of block device to open
  * @mode: FMODE_* mask
  * @holder: exclusive holder identifier
  *
- * Open @bdev with @mode.  If @mode includes %FMODE_EXCL, @bdev is
- * open with exclusive access.  Specifying %FMODE_EXCL with %NULL
- * @holder is invalid.  Exclusive opens may nest for the same @holder.
+ * Open the block device described by device number @dev. If @mode includes
+ * %FMODE_EXCL, the block device is opened with exclusive access.  Specifying
+ * %FMODE_EXCL with a %NULL @holder is invalid.  Exclusive opens may nest for
+ * the same @holder.
  *
- * On success, the reference count of @bdev is unchanged.  On failure,
- * @bdev is put.
+ * Use this interface ONLY if you really do not have anything better - i.e. when
+ * you are behind a truly sucky interface and all you are given is a device
+ * number.  Everything else should use blkdev_get_by_path().
  *
  * CONTEXT:
  * Might sleep.
  *
  * RETURNS:
- * 0 on success, -errno on failure.
+ * Reference to the block_device on success, ERR_PTR(-errno) on failure.
  */
-static int blkdev_get(struct block_device *bdev, fmode_t mode, void *holder)
+struct block_device *blkdev_get_by_dev(dev_t dev, fmode_t mode, void *holder)
 {
 	struct block_device *claiming;
 	bool unblock_events = true;
+	struct block_device *bdev;
 	struct gendisk *disk;
 	int partno;
 	int ret;
 
 	ret = devcgroup_check_permission(DEVCG_DEV_BLOCK,
-			imajor(bdev->bd_inode), iminor(bdev->bd_inode),
+			MAJOR(dev), MINOR(dev),
 			((mode & FMODE_READ) ? DEVCG_ACC_READ : 0) |
 			((mode & FMODE_WRITE) ? DEVCG_ACC_WRITE : 0));
 	if (ret)
-		goto bdput;
+		return ERR_PTR(ret);
+
+	bdev = bdget(dev);
+	if (!bdev)
+		return ERR_PTR(-ENOMEM);
 
 	/*
 	 * If we lost a race with 'disk' being deleted, try again.  See md.c.
@@ -1589,10 +1536,13 @@ put_disk:
 	if (ret == -ERESTARTSYS)
 		goto retry;
 bdput:
-	if (ret)
+	if (ret) {
 		bdput(bdev);
-	return ret;
+		return ERR_PTR(ret);
+	}
+	return bdev;
 }
+EXPORT_SYMBOL(blkdev_get_by_dev);
 
 /**
  * blkdev_get_by_path - open a block device by name
@@ -1600,32 +1550,30 @@ bdput:
  * @mode: FMODE_* mask
  * @holder: exclusive holder identifier
  *
- * Open the blockdevice described by the device file at @path.  @mode
- * and @holder are identical to blkdev_get().
- *
- * On success, the returned block_device has reference count of one.
+ * Open the block device described by the device file at @path.  If @mode
+ * includes %FMODE_EXCL, the block device is opened with exclusive access.
+ * Specifying %FMODE_EXCL with a %NULL @holder is invalid.  Exclusive opens may
+ * nest for the same @holder.
  *
  * CONTEXT:
  * Might sleep.
  *
  * RETURNS:
- * Pointer to block_device on success, ERR_PTR(-errno) on failure.
+ * Reference to the block_device on success, ERR_PTR(-errno) on failure.
  */
 struct block_device *blkdev_get_by_path(const char *path, fmode_t mode,
 					void *holder)
 {
 	struct block_device *bdev;
-	int err;
+	dev_t dev;
+	int error;
 
-	bdev = lookup_bdev(path);
-	if (IS_ERR(bdev))
-		return bdev;
+	error = lookup_bdev(path, &dev);
+	if (error)
+		return ERR_PTR(error);
 
-	err = blkdev_get(bdev, mode, holder);
-	if (err)
-		return ERR_PTR(err);
-
-	if ((mode & FMODE_WRITE) && bdev_read_only(bdev)) {
+	bdev = blkdev_get_by_dev(dev, mode, holder);
+	if (!IS_ERR(bdev) && (mode & FMODE_WRITE) && bdev_read_only(bdev)) {
 		blkdev_put(bdev, mode);
 		return ERR_PTR(-EACCES);
 	}
@@ -1633,45 +1581,6 @@ struct block_device *blkdev_get_by_path(const char *path, fmode_t mode,
 	return bdev;
 }
 EXPORT_SYMBOL(blkdev_get_by_path);
-
-/**
- * blkdev_get_by_dev - open a block device by device number
- * @dev: device number of block device to open
- * @mode: FMODE_* mask
- * @holder: exclusive holder identifier
- *
- * Open the blockdevice described by device number @dev.  @mode and
- * @holder are identical to blkdev_get().
- *
- * Use it ONLY if you really do not have anything better - i.e. when
- * you are behind a truly sucky interface and all you are given is a
- * device number.  _Never_ to be used for internal purposes.  If you
- * ever need it - reconsider your API.
- *
- * On success, the returned block_device has reference count of one.
- *
- * CONTEXT:
- * Might sleep.
- *
- * RETURNS:
- * Pointer to block_device on success, ERR_PTR(-errno) on failure.
- */
-struct block_device *blkdev_get_by_dev(dev_t dev, fmode_t mode, void *holder)
-{
-	struct block_device *bdev;
-	int err;
-
-	bdev = bdget(dev);
-	if (!bdev)
-		return ERR_PTR(-ENOMEM);
-
-	err = blkdev_get(bdev, mode, holder);
-	if (err)
-		return ERR_PTR(err);
-
-	return bdev;
-}
-EXPORT_SYMBOL(blkdev_get_by_dev);
 
 static int blkdev_open(struct inode * inode, struct file * filp)
 {
@@ -1694,14 +1603,12 @@ static int blkdev_open(struct inode * inode, struct file * filp)
 	if ((filp->f_flags & O_ACCMODE) == 3)
 		filp->f_mode |= FMODE_WRITE_IOCTL;
 
-	bdev = bd_acquire(inode);
-	if (bdev == NULL)
-		return -ENOMEM;
-
+	bdev = blkdev_get_by_dev(inode->i_rdev, filp->f_mode, filp);
+	if (IS_ERR(bdev))
+		return PTR_ERR(bdev);
 	filp->f_mapping = bdev->bd_inode->i_mapping;
 	filp->f_wb_err = filemap_sample_wb_err(filp->f_mapping);
-
-	return blkdev_get(bdev, filp->f_mode, filp);
+	return 0;
 }
 
 static void __blkdev_put(struct block_device *bdev, fmode_t mode, int for_part)
@@ -2010,37 +1917,32 @@ const struct file_operations def_blk_fops = {
  * namespace if possible and return it.  Return ERR_PTR(error)
  * otherwise.
  */
-struct block_device *lookup_bdev(const char *pathname)
+int lookup_bdev(const char *pathname, dev_t *dev)
 {
-	struct block_device *bdev;
 	struct inode *inode;
 	struct path path;
 	int error;
 
 	if (!pathname || !*pathname)
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
 	error = kern_path(pathname, LOOKUP_FOLLOW, &path);
 	if (error)
-		return ERR_PTR(error);
+		return error;
 
 	inode = d_backing_inode(path.dentry);
 	error = -ENOTBLK;
 	if (!S_ISBLK(inode->i_mode))
-		goto fail;
+		goto out_path_put;
 	error = -EACCES;
 	if (!may_open_dev(&path))
-		goto fail;
-	error = -ENOMEM;
-	bdev = bd_acquire(inode);
-	if (!bdev)
-		goto fail;
-out:
+		goto out_path_put;
+
+	*dev = inode->i_rdev;
+	error = 0;
+out_path_put:
 	path_put(&path);
-	return bdev;
-fail:
-	bdev = ERR_PTR(error);
-	goto out;
+	return error;
 }
 EXPORT_SYMBOL(lookup_bdev);
 
