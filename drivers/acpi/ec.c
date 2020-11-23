@@ -667,25 +667,24 @@ static void advance_transaction(struct acpi_ec *ec, bool interrupt)
 
 	if (t->flags & ACPI_EC_COMMAND_POLL) {
 		if (t->wlen > t->wi) {
-			if ((status & ACPI_EC_FLAG_IBF) == 0)
+			if (!(status & ACPI_EC_FLAG_IBF))
 				acpi_ec_write_data(ec, t->wdata[t->wi++]);
 			else if (interrupt && !(status & ACPI_EC_FLAG_SCI))
 				acpi_ec_spurious_interrupt(ec, t);
 		} else if (t->rlen > t->ri) {
-			if ((status & ACPI_EC_FLAG_OBF) == 1) {
+			if (status & ACPI_EC_FLAG_OBF) {
 				t->rdata[t->ri++] = acpi_ec_read_data(ec);
 				if (t->rlen == t->ri) {
 					ec_transaction_transition(ec, ACPI_EC_COMMAND_COMPLETE);
+					wakeup = true;
 					if (t->command == ACPI_EC_COMMAND_QUERY)
 						ec_dbg_evt("Command(%s) completed by hardware",
 							   acpi_ec_cmd_string(ACPI_EC_COMMAND_QUERY));
-					wakeup = true;
 				}
 			} else if (interrupt && !(status & ACPI_EC_FLAG_SCI)) {
 				acpi_ec_spurious_interrupt(ec, t);
 			}
-		} else if (t->wlen == t->wi &&
-			   (status & ACPI_EC_FLAG_IBF) == 0) {
+		} else if (t->wlen == t->wi && !(status & ACPI_EC_FLAG_IBF)) {
 			ec_transaction_transition(ec, ACPI_EC_COMMAND_COMPLETE);
 			wakeup = true;
 		}
@@ -697,6 +696,7 @@ static void advance_transaction(struct acpi_ec *ec, bool interrupt)
 out:
 	if (status & ACPI_EC_FLAG_SCI)
 		acpi_ec_submit_query(ec);
+
 	if (wakeup && interrupt)
 		wake_up(&ec->wait);
 }
