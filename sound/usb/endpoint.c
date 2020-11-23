@@ -1172,6 +1172,9 @@ int snd_usb_endpoint_start(struct snd_usb_endpoint *ep)
 	if (atomic_read(&ep->chip->shutdown))
 		return -EBADFD;
 
+	usb_audio_dbg(ep->chip, "Starting %s EP 0x%x (count %d)\n",
+		      ep_type_name(ep->type), ep->ep_num, ep->use_count);
+
 	/* already running? */
 	if (++ep->use_count != 1)
 		return 0;
@@ -1253,6 +1256,9 @@ void snd_usb_endpoint_stop(struct snd_usb_endpoint *ep)
 {
 	if (!ep)
 		return;
+
+	usb_audio_dbg(ep->chip, "Stopping %s EP 0x%x (count %d)\n",
+		      ep_type_name(ep->type), ep->ep_num, ep->use_count);
 
 	if (snd_BUG_ON(ep->use_count == 0))
 		return;
