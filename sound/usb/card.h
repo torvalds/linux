@@ -71,8 +71,8 @@ struct snd_usb_endpoint {
 				 struct urb *urb);
 
 	struct snd_usb_substream *data_subs;
-	struct snd_usb_endpoint *sync_master;
-	struct snd_usb_endpoint *sync_slave;
+	struct snd_usb_endpoint *sync_source;
+	struct snd_usb_endpoint *sync_sink;
 
 	struct snd_urb_ctx urb[MAX_URBS];
 

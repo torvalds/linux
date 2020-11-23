@@ -175,7 +175,7 @@ int snd_usb_endpoint_next_packet_size(struct snd_usb_endpoint *ep,
 {
 	if (ctx->packet_size[idx])
 		return ctx->packet_size[idx];
-	else if (ep->sync_master)
+	else if (ep->sync_source)
 		return slave_next_packet_size(ep);
 	else
 		return next_packet_size(ep);
@@ -205,16 +205,16 @@ static void retire_inbound_urb(struct snd_usb_endpoint *ep,
 			       struct snd_urb_ctx *urb_ctx)
 {
 	struct urb *urb = urb_ctx->urb;
-	struct snd_usb_endpoint *sync_slave;
+	struct snd_usb_endpoint *sync_sink;
 
 	if (unlikely(ep->skip_packets > 0)) {
 		ep->skip_packets--;
 		return;
 	}
 
-	sync_slave = READ_ONCE(ep->sync_slave);
-	if (sync_slave)
-		snd_usb_handle_sync_urb(sync_slave, ep, urb);
+	sync_sink = READ_ONCE(ep->sync_sink);
+	if (sync_sink)
+		snd_usb_handle_sync_urb(sync_sink, ep, urb);
 
 	call_retire_callback(ep, urb);
 }
@@ -708,7 +708,7 @@ void snd_usb_endpoint_set_sync(struct snd_usb_audio *chip,
 			       struct snd_usb_endpoint *data_ep,
 			       struct snd_usb_endpoint *sync_ep)
 {
-	data_ep->sync_master = sync_ep;
+	data_ep->sync_source = sync_ep;
 }
 
 /*
@@ -802,7 +802,7 @@ static int wait_clear_urbs(struct snd_usb_endpoint *ep)
 			alive, ep->ep_num);
 	clear_bit(EP_FLAG_STOPPING, &ep->flags);
 
-	ep->sync_slave = NULL;
+	ep->sync_sink = NULL;
 	snd_usb_endpoint_set_callback(ep, NULL, NULL, NULL);
 
 	return 0;
@@ -969,9 +969,9 @@ static int data_ep_set_params(struct snd_usb_endpoint *ep)
 		packs_per_ms = 1;
 		max_packs_per_urb = MAX_PACKS;
 	}
-	if (ep->sync_master && !ep->implicit_fb_sync)
+	if (ep->sync_source && !ep->implicit_fb_sync)
 		max_packs_per_urb = min(max_packs_per_urb,
-					1U << ep->sync_master->syncinterval);
+					1U << ep->sync_source->syncinterval);
 	max_packs_per_urb = max(1u, max_packs_per_urb >> ep->datainterval);
 
 	/*
@@ -1015,7 +1015,7 @@ static int data_ep_set_params(struct snd_usb_endpoint *ep)
 		minsize = (ep->freqn >> (16 - ep->datainterval)) *
 				(frame_bits >> 3);
 		/* with sync from device, assume it can be 12% lower */
-		if (ep->sync_master)
+		if (ep->sync_source)
 			minsize -= minsize >> 3;
 		minsize = max(minsize, 1u);
 
@@ -1272,8 +1272,8 @@ int snd_usb_endpoint_start(struct snd_usb_endpoint *ep)
 	if (atomic_read(&ep->chip->shutdown))
 		return -EBADFD;
 
-	if (ep->sync_master)
-		WRITE_ONCE(ep->sync_master->sync_slave, ep);
+	if (ep->sync_source)
+		WRITE_ONCE(ep->sync_source->sync_sink, ep);
 
 	usb_audio_dbg(ep->chip, "Starting %s EP 0x%x (running %d)\n",
 		      ep_type_name(ep->type), ep->ep_num,
@@ -1366,8 +1366,8 @@ void snd_usb_endpoint_stop(struct snd_usb_endpoint *ep)
 	if (snd_BUG_ON(!atomic_read(&ep->running)))
 		return;
 
-	if (ep->sync_master)
-		WRITE_ONCE(ep->sync_master->sync_slave, NULL);
+	if (ep->sync_source)
+		WRITE_ONCE(ep->sync_source->sync_sink, NULL);
 
 	if (!atomic_dec_return(&ep->running))
 		stop_and_unlink_urbs(ep, false, false);
