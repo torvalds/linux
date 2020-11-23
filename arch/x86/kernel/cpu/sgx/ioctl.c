@@ -652,7 +652,7 @@ out:
 
 /**
  * sgx_ioc_enclave_provision() - handler for %SGX_IOC_ENCLAVE_PROVISION
- * @enclave:	an enclave pointer
+ * @encl:	an enclave pointer
  * @arg:	userspace pointer to a struct sgx_enclave_provision instance
  *
  * Allow ATTRIBUTE.PROVISION_KEY for an enclave by providing a file handle to
