@@ -439,7 +439,7 @@ static void uvd_v4_2_stop(struct amdgpu_device *adev)
  * @ring: amdgpu_ring pointer
  * @addr: address
  * @seq: sequence number
- * @fence: fence to emit
+ * @flags: fence related flags
  *
  * Write a fence and a trap command to the ring.
  */
