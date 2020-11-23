@@ -648,14 +648,12 @@ static int set_format(struct snd_usb_substream *subs, struct audioformat *fmt)
 
 	/* close the old interface */
 	if (subs->interface >= 0 && (subs->interface != fmt->iface || subs->need_setup_fmt)) {
-		if (!subs->stream->chip->keep_iface) {
-			err = usb_set_interface(subs->dev, subs->interface, 0);
-			if (err < 0) {
-				dev_err(&dev->dev,
-					"%d:%d: return to setting 0 failed (%d)\n",
-					fmt->iface, fmt->altsetting, err);
-				return -EIO;
-			}
+		err = usb_set_interface(subs->dev, subs->interface, 0);
+		if (err < 0) {
+			dev_err(&dev->dev,
+				"%d:%d: return to setting 0 failed (%d)\n",
+				fmt->iface, fmt->altsetting, err);
+			return -EIO;
 		}
 		subs->interface = -1;
 		subs->altset_idx = 0;
@@ -1483,8 +1481,7 @@ static int snd_usb_pcm_close(struct snd_pcm_substream *substream)
 
 	snd_media_stop_pipeline(subs);
 
-	if (!as->chip->keep_iface &&
-	    subs->interface >= 0 &&
+	if (subs->interface >= 0 &&
 	    !snd_usb_lock_shutdown(subs->stream->chip)) {
 		usb_set_interface(subs->dev, subs->interface, 0);
 		subs->interface = -1;
