@@ -13,6 +13,10 @@
 scriptname=$0
 args="$*"
 
+KVM="`pwd`/tools/testing/selftests/rcutorture"; export KVM
+PATH=${KVM}/bin:$PATH; export PATH
+. functions.sh
+
 # Default duration and apportionment.
 duration_base=10
 duration_rcutorture_frac=7
@@ -172,7 +176,7 @@ touch $T/successes
 
 ds="`date +%Y.%m.%d-%H.%M.%S`-torture"
 startdate="`date`"
-starttime="`awk 'BEGIN { print systime() }' < /dev/null`"
+starttime="`get_starttime`"
 
 # tortureme flavor command
 # Note that "flavor" is an arbitrary string.  Supply --torture if needed.
@@ -274,17 +278,7 @@ then
 	nfailures="`wc -l "$T/failures" | awk '{ print $1 }'`"
 	ret=2
 fi
-duration="`awk -v starttime=$starttime '
-BEGIN {
-	s = systime() - starttime;
-	h = s / 3600;
-	d = h /24;
-	if (d < 1)
-		print h " hours";
-	else
-		print d " days (" h " hours)";
-}' < /dev/null`"
-echo Started at $startdate, ended at `date`, duration $duration. | tee -a $T/log
+echo Started at $startdate, ended at `date`, duration `get_starttime_duration $starttime`. | tee -a $T/log
 echo Summary: Successes: $nsuccesses Failures: $nfailures. | tee -a $T/log
 tdir="`cat $T/successes $T/failures | head -1 | awk '{ print $NF }' | sed -e 's,/[^/]\+/*$,,'`"
 if test -n "$tdir"
@@ -293,9 +287,9 @@ then
 fi
 exit $ret
 
+# @@@
 # RCU CPU stall warnings?
 # scftorture warnings?
 # Need a way for the invoker to specify clang.
 # Work out --configs based on number of available CPUs?
-# Need a way to specify --configs.  --configs--rcutorture?
 # Need to sense CPUs to size scftorture run.  Ditto rcuscale and refscale.
