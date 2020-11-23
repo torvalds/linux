@@ -1271,7 +1271,8 @@ void vidtv_psi_pmt_table_destroy(struct vidtv_psi_table_pmt *pmt)
 	kfree(pmt);
 }
 
-struct vidtv_psi_table_sdt *vidtv_psi_sdt_table_init(u16 transport_stream_id)
+struct vidtv_psi_table_sdt *vidtv_psi_sdt_table_init(u16 network_id,
+						     u16 transport_stream_id)
 {
 	struct vidtv_psi_table_sdt *sdt;
 	const u16 RESERVED = 0xff;
@@ -1307,7 +1308,7 @@ struct vidtv_psi_table_sdt *vidtv_psi_sdt_table_init(u16 transport_stream_id)
 	 * This can be changed to something more useful, when support for
 	 * NIT gets added
 	 */
-	sdt->network_id = cpu_to_be16(0xff01);
+	sdt->network_id = cpu_to_be16(network_id);
 	sdt->reserved = RESERVED;
 
 	vidtv_psi_sdt_table_update_sec_len(sdt);

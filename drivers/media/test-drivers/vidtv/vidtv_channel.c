@@ -424,7 +424,8 @@ int vidtv_channel_si_init(struct vidtv_mux *m)
 	if (!m->si.pat)
 		return -ENOMEM;
 
-	m->si.sdt = vidtv_psi_sdt_table_init(m->transport_stream_id);
+	m->si.sdt = vidtv_psi_sdt_table_init(m->network_id,
+					     m->transport_stream_id);
 	if (!m->si.sdt)
 		goto free_pat;
 

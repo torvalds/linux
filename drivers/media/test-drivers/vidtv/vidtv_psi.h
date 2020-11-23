@@ -366,7 +366,8 @@ struct vidtv_psi_table_pat *vidtv_psi_pat_table_init(u16 transport_stream_id);
 struct vidtv_psi_table_pmt *vidtv_psi_pmt_table_init(u16 program_number,
 						     u16 pcr_pid);
 
-struct vidtv_psi_table_sdt *vidtv_psi_sdt_table_init(u16 transport_stream_id);
+struct vidtv_psi_table_sdt *vidtv_psi_sdt_table_init(u16 network_id,
+						     u16 transport_stream_id);
 
 struct vidtv_psi_table_sdt_service*
 vidtv_psi_sdt_service_init(struct vidtv_psi_table_sdt_service *head,
