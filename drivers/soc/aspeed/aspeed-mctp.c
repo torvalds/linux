@@ -170,7 +170,6 @@ struct aspeed_mctp {
 	struct list_head clients;
 	struct mctp_client *default_client;
 	spinlock_t clients_lock; /* to protect clients list operations */
-	wait_queue_head_t wait_queue;
 	struct {
 		struct regmap *map;
 		struct delayed_work rst_dwork;
@@ -186,6 +185,7 @@ struct mctp_client {
 	struct ptr_ring tx_queue;
 	struct ptr_ring rx_queue;
 	struct list_head link;
+	wait_queue_head_t wait_queue;
 };
 
 #define TX_CMD_BUF_SIZE \
@@ -324,7 +324,7 @@ static void aspeed_mctp_dispatch_packet(struct aspeed_mctp *priv,
 			dev_warn(priv->dev, "Failed to produce RX packet\n");
 			packet_free(packet);
 		} else {
-			wake_up_all(&priv->wait_queue);
+			wake_up_all(&client->wait_queue);
 		}
 		aspeed_mctp_client_put(client);
 	} else {
@@ -457,6 +457,8 @@ static struct mctp_client *aspeed_mctp_create_client(struct aspeed_mctp *priv)
 	client = aspeed_mctp_client_alloc(priv);
 	if (!client)
 		return NULL;
+
+	init_waitqueue_head(&client->wait_queue);
 
 	spin_lock_bh(&priv->clients_lock);
 	list_add_tail(&client->link, &priv->clients);
@@ -706,10 +708,9 @@ static __poll_t aspeed_mctp_poll(struct file *file,
 				 struct poll_table_struct *pt)
 {
 	struct mctp_client *client = file->private_data;
-	struct aspeed_mctp *priv = client->priv;
 	__poll_t ret = 0;
 
-	poll_wait(file, &priv->wait_queue, pt);
+	poll_wait(file, &client->wait_queue, pt);
 
 	if (!ptr_ring_full_bh(&client->tx_queue))
 		ret |= EPOLLOUT;
@@ -836,8 +837,6 @@ static irqreturn_t aspeed_mctp_irq_handler(int irq, void *arg)
 
 		tasklet_hi_schedule(&priv->tx.tasklet);
 
-		wake_up_all(&priv->wait_queue);
-
 		handled |= TX_CMD_LAST_INT;
 	}
 
@@ -900,7 +899,6 @@ static irqreturn_t aspeed_mctp_pcie_rst_irq_handler(int irq, void *arg)
 
 static void aspeed_mctp_drv_init(struct aspeed_mctp *priv)
 {
-	init_waitqueue_head(&priv->wait_queue);
 	INIT_LIST_HEAD(&priv->clients);
 
 	spin_lock_init(&priv->clients_lock);
