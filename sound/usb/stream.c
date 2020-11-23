@@ -47,7 +47,6 @@ static void free_substream(struct snd_usb_substream *subs)
 		return; /* not initialized */
 	list_for_each_entry_safe(fp, n, &subs->fmt_list, list)
 		audioformat_free(fp);
-	kfree(subs->rate_list.list);
 	kfree(subs->str_pd);
 	snd_media_stream_delete(subs);
 }

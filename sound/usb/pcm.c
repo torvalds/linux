@@ -1039,27 +1039,31 @@ static int hw_rule_rate(struct snd_pcm_hw_params *params,
 	struct snd_usb_substream *subs = rule->private;
 	struct audioformat *fp;
 	struct snd_interval *it = hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
-	unsigned int rmin, rmax;
+	unsigned int rmin, rmax, r;
 	int changed;
+	int i;
 
 	hwc_debug("hw_rule_rate: (%d,%d)\n", it->min, it->max);
-	changed = 0;
-	rmin = rmax = 0;
+	rmin = UINT_MAX;
+	rmax = 0;
 	list_for_each_entry(fp, &subs->fmt_list, list) {
 		if (!hw_check_valid_format(subs, params, fp))
 			continue;
-		if (changed++) {
-			if (rmin > fp->rate_min)
-				rmin = fp->rate_min;
-			if (rmax < fp->rate_max)
-				rmax = fp->rate_max;
+		if (fp->rate_table && fp->nr_rates) {
+			for (i = 0; i < fp->nr_rates; i++) {
+				r = fp->rate_table[i];
+				if (!snd_interval_test(it, r))
+					continue;
+				rmin = min(rmin, r);
+				rmax = max(rmax, r);
+			}
 		} else {
-			rmin = fp->rate_min;
-			rmax = fp->rate_max;
+			rmin = min(rmin, fp->rate_min);
+			rmax = max(rmax, fp->rate_max);
 		}
 	}
 
-	if (!changed) {
+	if (rmin > rmax) {
 		hwc_debug("  --> get empty\n");
 		it->empty = 1;
 		return -EINVAL;
@@ -1205,50 +1209,6 @@ static int hw_rule_period_time(struct snd_pcm_hw_params *params,
 	return changed;
 }
 
-/*
- *  If the device supports unusual bit rates, does the request meet these?
- */
-static int snd_usb_pcm_check_knot(struct snd_pcm_runtime *runtime,
-				  struct snd_usb_substream *subs)
-{
-	struct audioformat *fp;
-	int *rate_list;
-	int count = 0, needs_knot = 0;
-	int err;
-
-	kfree(subs->rate_list.list);
-	subs->rate_list.list = NULL;
-
-	list_for_each_entry(fp, &subs->fmt_list, list) {
-		if (fp->rates & SNDRV_PCM_RATE_CONTINUOUS)
-			return 0;
-		count += fp->nr_rates;
-		if (fp->rates & SNDRV_PCM_RATE_KNOT)
-			needs_knot = 1;
-	}
-	if (!needs_knot)
-		return 0;
-
-	subs->rate_list.list = rate_list =
-		kmalloc_array(count, sizeof(int), GFP_KERNEL);
-	if (!subs->rate_list.list)
-		return -ENOMEM;
-	subs->rate_list.count = count;
-	subs->rate_list.mask = 0;
-	count = 0;
-	list_for_each_entry(fp, &subs->fmt_list, list) {
-		int i;
-		for (i = 0; i < fp->nr_rates; i++)
-			rate_list[count++] = fp->rate_table[i];
-	}
-	err = snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
-					 &subs->rate_list);
-	if (err < 0)
-		return err;
-
-	return 0;
-}
-
 
 /*
  * set up the runtime hardware information.
@@ -1338,9 +1298,6 @@ static int setup_hw_info(struct snd_pcm_runtime *runtime, struct snd_usb_substre
 		if (err < 0)
 			return err;
 	}
-	err = snd_usb_pcm_check_knot(runtime, subs);
-	if (err < 0)
-		return err;
 
 	return snd_usb_autoresume(subs->stream->chip);
 }
