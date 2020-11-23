@@ -36,6 +36,8 @@
 #define X86_CR4_SMAP		(1ul << 21)
 #define X86_CR4_PKE		(1ul << 22)
 
+#define UNEXPECTED_VECTOR_PORT 0xfff0u
+
 /* General Registers in 64-Bit Mode */
 struct gpr64_regs {
 	u64 rax;
@@ -59,7 +61,7 @@ struct gpr64_regs {
 struct desc64 {
 	uint16_t limit0;
 	uint16_t base0;
-	unsigned base1:8, s:1, type:4, dpl:2, p:1;
+	unsigned base1:8, type:4, s:1, dpl:2, p:1;
 	unsigned limit1:4, avl:1, l:1, db:1, g:1, base2:8;
 	uint32_t base3;
 	uint32_t zero1;
@@ -239,6 +241,11 @@ static inline struct desc_ptr get_idt(void)
 	return idt;
 }
 
+static inline void outl(uint16_t port, uint32_t value)
+{
+	__asm__ __volatile__("outl %%eax, %%dx" : : "d"(port), "a"(value));
+}
+
 #define SET_XMM(__var, __xmm) \
 	asm volatile("movq %0, %%"#__xmm : : "r"(__var) : #__xmm)
 
@@ -337,6 +344,35 @@ void vcpu_set_msr(struct kvm_vm *vm, uint32_t vcpuid, uint64_t msr_index,
 uint32_t kvm_get_cpuid_max_basic(void);
 uint32_t kvm_get_cpuid_max_extended(void);
 void kvm_get_cpu_address_width(unsigned int *pa_bits, unsigned int *va_bits);
+
+struct ex_regs {
+	uint64_t rax, rcx, rdx, rbx;
+	uint64_t rbp, rsi, rdi;
+	uint64_t r8, r9, r10, r11;
+	uint64_t r12, r13, r14, r15;
+	uint64_t vector;
+	uint64_t error_code;
+	uint64_t rip;
+	uint64_t cs;
+	uint64_t rflags;
+};
+
+void vm_init_descriptor_tables(struct kvm_vm *vm);
+void vcpu_init_descriptor_tables(struct kvm_vm *vm, uint32_t vcpuid);
+void vm_handle_exception(struct kvm_vm *vm, int vector,
+			void (*handler)(struct ex_regs *));
+
+/*
+ * set_cpuid() - overwrites a matching cpuid entry with the provided value.
+ *		 matches based on ent->function && ent->index. returns true
+ *		 if a match was found and successfully overwritten.
+ * @cpuid: the kvm cpuid list to modify.
+ * @ent: cpuid entry to insert
+ */
+bool set_cpuid(struct kvm_cpuid2 *cpuid, struct kvm_cpuid_entry2 *ent);
+
+uint64_t kvm_hypercall(uint64_t nr, uint64_t a0, uint64_t a1, uint64_t a2,
+		       uint64_t a3);
 
 /*
  * Basic CPU control in CR0

@@ -788,10 +788,12 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 	}
 
 	switch (vma_shift) {
+#ifndef __PAGETABLE_PMD_FOLDED
 	case PUD_SHIFT:
 		if (fault_supports_stage2_huge_mapping(memslot, hva, PUD_SIZE))
 			break;
 		fallthrough;
+#endif
 	case CONT_PMD_SHIFT:
 		vma_shift = PMD_SHIFT;
 		fallthrough;

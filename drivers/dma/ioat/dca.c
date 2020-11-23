@@ -40,16 +40,6 @@
 #define DCA2_TAG_MAP_BYTE3 0x82
 #define DCA2_TAG_MAP_BYTE4 0x82
 
-/* verify if tag map matches expected values */
-static inline int dca2_tag_map_valid(u8 *tag_map)
-{
-	return ((tag_map[0] == DCA2_TAG_MAP_BYTE0) &&
-		(tag_map[1] == DCA2_TAG_MAP_BYTE1) &&
-		(tag_map[2] == DCA2_TAG_MAP_BYTE2) &&
-		(tag_map[3] == DCA2_TAG_MAP_BYTE3) &&
-		(tag_map[4] == DCA2_TAG_MAP_BYTE4));
-}
-
 /*
  * "Legacy" DCA systems do not implement the DCA register set in the
  * I/OAT device.  Software needs direct support for their tag mappings.

@@ -64,9 +64,13 @@ struct amdtee_session {
 /**
  * struct amdtee_context_data - AMD-TEE driver context data
  * @sess_list:    Keeps track of sessions opened in current TEE context
+ * @shm_list:     Keeps track of buffers allocated and mapped in current TEE
+ *                context
  */
 struct amdtee_context_data {
 	struct list_head sess_list;
+	struct list_head shm_list;
+	struct mutex shm_mutex;   /* synchronizes access to @shm_list */
 };
 
 struct amdtee_driver_data {
@@ -87,10 +91,6 @@ struct amdtee_shm_data {
 	struct  list_head shm_node;
 	void    *kaddr;
 	u32     buf_id;
-};
-
-struct amdtee_shm_context {
-	struct list_head shmdata_list;
 };
 
 #define LOWER_TWO_BYTE_MASK	0x0000FFFF

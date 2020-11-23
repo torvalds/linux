@@ -2754,14 +2754,18 @@ qed_iwarp_ll2_start(struct qed_hwfn *p_hwfn,
 	iwarp_info->partial_fpdus = kcalloc((u16)p_hwfn->p_rdma_info->num_qps,
 					    sizeof(*iwarp_info->partial_fpdus),
 					    GFP_KERNEL);
-	if (!iwarp_info->partial_fpdus)
+	if (!iwarp_info->partial_fpdus) {
+		rc = -ENOMEM;
 		goto err;
+	}
 
 	iwarp_info->max_num_partial_fpdus = (u16)p_hwfn->p_rdma_info->num_qps;
 
 	iwarp_info->mpa_intermediate_buf = kzalloc(buff_size, GFP_KERNEL);
-	if (!iwarp_info->mpa_intermediate_buf)
+	if (!iwarp_info->mpa_intermediate_buf) {
+		rc = -ENOMEM;
 		goto err;
+	}
 
 	/* The mpa_bufs array serves for pending RX packets received on the
 	 * mpa ll2 that don't have place on the tx ring and require later
@@ -2771,8 +2775,10 @@ qed_iwarp_ll2_start(struct qed_hwfn *p_hwfn,
 	iwarp_info->mpa_bufs = kcalloc(data.input.rx_num_desc,
 				       sizeof(*iwarp_info->mpa_bufs),
 				       GFP_KERNEL);
-	if (!iwarp_info->mpa_bufs)
+	if (!iwarp_info->mpa_bufs) {
+		rc = -ENOMEM;
 		goto err;
+	}
 
 	INIT_LIST_HEAD(&iwarp_info->mpa_buf_pending_list);
 	INIT_LIST_HEAD(&iwarp_info->mpa_buf_list);

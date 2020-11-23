@@ -226,12 +226,6 @@ struct nvme_fault_inject {
 #endif
 };
 
-struct nvme_cel {
-	struct list_head	entry;
-	struct nvme_effects_log	log;
-	u8			csi;
-};
-
 struct nvme_ctrl {
 	bool comp_seen;
 	enum nvme_ctrl_state state;
