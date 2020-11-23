@@ -81,7 +81,7 @@ struct vidtv_channel
 
 	s302m->service->descriptor = (struct vidtv_psi_desc *)
 				     vidtv_psi_service_desc_init(NULL,
-								 DIGITAL_TELEVISION_SERVICE,
+								 DIGITAL_RADIO_SOUND_SERVICE,
 								 name,
 								 provider);
 	if (!s302m->service->descriptor)

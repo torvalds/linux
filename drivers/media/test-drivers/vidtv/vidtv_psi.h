@@ -220,6 +220,7 @@ enum service_running_status {
 enum service_type {
 	/* see ETSI EN 300 468 v1.15.1 p. 77 */
 	DIGITAL_TELEVISION_SERVICE = 0x1,
+	DIGITAL_RADIO_SOUND_SERVICE = 0X2,
 };
 
 /**
