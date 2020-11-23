@@ -654,10 +654,8 @@ static int mt7621_pcie_register_host(struct pci_host_bridge *host,
 	struct mt7621_pcie *pcie = pci_host_bridge_priv(host);
 
 	list_splice_init(res, &host->windows);
-	host->dev.parent = pcie->dev;
 	host->ops = &mt7621_pci_ops;
 	host->map_irq = mt7621_map_irq;
-	host->swizzle_irq = pci_common_swizzle;
 	host->sysdata = pcie;
 
 	return pci_host_probe(host);
