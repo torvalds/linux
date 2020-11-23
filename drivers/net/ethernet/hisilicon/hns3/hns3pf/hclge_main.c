@@ -9924,7 +9924,7 @@ static int hclge_dev_mem_map(struct hclge_dev *hdev)
 				       pci_resource_start(pdev, HCLGE_MEM_BAR),
 				       pci_resource_len(pdev, HCLGE_MEM_BAR));
 	if (!hw->mem_base) {
-		dev_err(&pdev->dev, "failed to map device memroy\n");
+		dev_err(&pdev->dev, "failed to map device memory\n");
 		return -EFAULT;
 	}
 
