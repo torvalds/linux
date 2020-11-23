@@ -782,7 +782,7 @@ int vc4_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 		return -EINVAL;
 	}
 
-	return drm_gem_cma_prime_mmap(obj, vma);
+	return drm_gem_prime_mmap(obj, vma);
 }
 
 int vc4_prime_vmap(struct drm_gem_object *obj, struct dma_buf_map *map)
