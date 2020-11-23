@@ -724,7 +724,7 @@ EXPORT_SYMBOL_GPL(wait_for_device_probe);
  *
  * If the device has a parent, runtime-resume the parent before driver probing.
  */
-int driver_probe_device(struct device_driver *drv, struct device *dev)
+static int driver_probe_device(struct device_driver *drv, struct device *dev)
 {
 	int ret = 0;
 
