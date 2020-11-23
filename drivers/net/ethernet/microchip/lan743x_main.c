@@ -140,18 +140,13 @@ clean_up:
 	return result;
 }
 
-static void lan743x_intr_software_isr(void *context)
+static void lan743x_intr_software_isr(struct lan743x_adapter *adapter)
 {
-	struct lan743x_adapter *adapter = context;
 	struct lan743x_intr *intr = &adapter->intr;
-	u32 int_sts;
 
-	int_sts = lan743x_csr_read(adapter, INT_STS);
-	if (int_sts & INT_BIT_SW_GP_) {
-		/* disable the interrupt to prevent repeated re-triggering */
-		lan743x_csr_write(adapter, INT_EN_CLR, INT_BIT_SW_GP_);
-		intr->software_isr_flag = 1;
-	}
+	/* disable the interrupt to prevent repeated re-triggering */
+	lan743x_csr_write(adapter, INT_EN_CLR, INT_BIT_SW_GP_);
+	intr->software_isr_flag = 1;
 }
 
 static void lan743x_tx_isr(void *context, u32 int_sts, u32 flags)
