@@ -609,6 +609,8 @@ static int gmc_v8_0_mc_init(struct amdgpu_device *adev)
  *
  * @adev: amdgpu_device pointer
  * @pasid: pasid to be flush
+ * @flush_type: type of flush
+ * @all_hub: flush all hubs
  *
  * Flush the TLB for the requested pasid.
  */
@@ -649,6 +651,8 @@ static int gmc_v8_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
  *
  * @adev: amdgpu_device pointer
  * @vmid: vm instance to flush
+ * @vmhub: which hub to flush
+ * @flush_type: type of flush
  *
  * Flush the TLB for the requested page table (VI).
  */
@@ -990,6 +994,7 @@ static void gmc_v8_0_gart_disable(struct amdgpu_device *adev)
  * @status: VM_CONTEXT1_PROTECTION_FAULT_STATUS register value
  * @addr: VM_CONTEXT1_PROTECTION_FAULT_ADDR register value
  * @mc_client: VM_CONTEXT1_PROTECTION_FAULT_MCCLIENT register value
+ * @pasid: debug logging only - no functional use
  *
  * Print human readable fault information (VI).
  */
