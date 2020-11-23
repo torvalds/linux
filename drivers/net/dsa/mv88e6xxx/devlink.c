@@ -393,8 +393,10 @@ static int mv88e6xxx_region_atu_snapshot(struct devlink *dl,
 	mv88e6xxx_reg_lock(chip);
 
 	err = mv88e6xxx_fid_map(chip, fid_bitmap);
-	if (err)
+	if (err) {
+		kfree(table);
 		goto out;
+	}
 
 	while (1) {
 		fid = find_next_bit(fid_bitmap, MV88E6XXX_N_FID, fid + 1);

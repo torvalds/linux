@@ -127,7 +127,7 @@ static void *image_load(struct kimage *image,
 				kernel_segment->mem, kbuf.bufsz,
 				kernel_segment->memsz);
 
-	return 0;
+	return NULL;
 }
 
 #ifdef CONFIG_KEXEC_IMAGE_VERIFY_SIG

@@ -680,8 +680,7 @@ static int _gaudi_init_tpc_mem(struct hl_device *hdev,
 	if (!cb)
 		return -EFAULT;
 
-	init_tpc_mem_pkt = (struct packet_lin_dma *) (uintptr_t)
-					cb->kernel_address;
+	init_tpc_mem_pkt = cb->kernel_address;
 	cb_size = sizeof(*init_tpc_mem_pkt);
 	memset(init_tpc_mem_pkt, 0, cb_size);
 
@@ -3811,8 +3810,7 @@ static int gaudi_validate_cb(struct hl_device *hdev,
 		u16 pkt_size;
 		struct gaudi_packet *user_pkt;
 
-		user_pkt = (struct gaudi_packet *) (uintptr_t)
-			(parser->user_cb->kernel_address + cb_parsed_length);
+		user_pkt = parser->user_cb->kernel_address + cb_parsed_length;
 
 		pkt_id = (enum packet_id) (
 				(le64_to_cpu(user_pkt->header) &
@@ -4035,11 +4033,9 @@ static int gaudi_patch_cb(struct hl_device *hdev,
 		u32 new_pkt_size = 0;
 		struct gaudi_packet *user_pkt, *kernel_pkt;
 
-		user_pkt = (struct gaudi_packet *) (uintptr_t)
-			(parser->user_cb->kernel_address + cb_parsed_length);
-		kernel_pkt = (struct gaudi_packet *) (uintptr_t)
-			(parser->patched_cb->kernel_address +
-					cb_patched_cur_length);
+		user_pkt = parser->user_cb->kernel_address + cb_parsed_length;
+		kernel_pkt = parser->patched_cb->kernel_address +
+					cb_patched_cur_length;
 
 		pkt_id = (enum packet_id) (
 				(le64_to_cpu(user_pkt->header) &
@@ -4155,8 +4151,8 @@ static int gaudi_parse_cb_mmu(struct hl_device *hdev,
 	 * The check that parser->user_cb_size <= parser->user_cb->size was done
 	 * in validate_queue_index().
 	 */
-	memcpy((void *) (uintptr_t) parser->patched_cb->kernel_address,
-		(void *) (uintptr_t) parser->user_cb->kernel_address,
+	memcpy(parser->patched_cb->kernel_address,
+		parser->user_cb->kernel_address,
 		parser->user_cb_size);
 
 	patched_cb_size = parser->patched_cb_size;
@@ -4290,7 +4286,7 @@ static int gaudi_cs_parser(struct hl_device *hdev, struct hl_cs_parser *parser)
 }
 
 static void gaudi_add_end_of_cb_packets(struct hl_device *hdev,
-					u64 kernel_address, u32 len,
+					void *kernel_address, u32 len,
 					u64 cq_addr, u32 cq_val, u32 msi_vec,
 					bool eb)
 {
@@ -4298,8 +4294,7 @@ static void gaudi_add_end_of_cb_packets(struct hl_device *hdev,
 	struct packet_msg_prot *cq_pkt;
 	u32 tmp;
 
-	cq_pkt = (struct packet_msg_prot *) (uintptr_t)
-		(kernel_address + len - (sizeof(struct packet_msg_prot) * 2));
+	cq_pkt = kernel_address + len - (sizeof(struct packet_msg_prot) * 2);
 
 	tmp = FIELD_PREP(GAUDI_PKT_CTL_OPCODE_MASK, PACKET_MSG_PROT);
 	tmp |= FIELD_PREP(GAUDI_PKT_CTL_MB_MASK, 1);
@@ -4342,7 +4337,7 @@ static int gaudi_memset_device_memory(struct hl_device *hdev, u64 addr,
 	if (!cb)
 		return -EFAULT;
 
-	lin_dma_pkt = (struct packet_lin_dma *) (uintptr_t) cb->kernel_address;
+	lin_dma_pkt = cb->kernel_address;
 	memset(lin_dma_pkt, 0, sizeof(*lin_dma_pkt));
 	cb_size = sizeof(*lin_dma_pkt);
 
@@ -4747,7 +4742,7 @@ static void gaudi_write_pte(struct hl_device *hdev, u64 addr, u64 val)
 			(addr - gaudi->hbm_bar_cur_addr));
 }
 
-static void gaudi_mmu_prepare_reg(struct hl_device *hdev, u64 reg, u32 asid)
+void gaudi_mmu_prepare_reg(struct hl_device *hdev, u64 reg, u32 asid)
 {
 	/* mask to zero the MMBP and ASID bits */
 	WREG32_AND(reg, ~0x7FF);
@@ -4915,9 +4910,6 @@ static void gaudi_mmu_prepare(struct hl_device *hdev, u32 asid)
 	gaudi_mmu_prepare_reg(hdev, mmMME2_ACC_WBC, asid);
 	gaudi_mmu_prepare_reg(hdev, mmMME3_ACC_WBC, asid);
 
-	gaudi_mmu_prepare_reg(hdev, mmPSOC_GLOBAL_CONF_TRACE_ARUSER, asid);
-	gaudi_mmu_prepare_reg(hdev, mmPSOC_GLOBAL_CONF_TRACE_AWUSER, asid);
-
 	hdev->asic_funcs->set_clock_gating(hdev);
 
 	mutex_unlock(&gaudi->clk_gate_mutex);
@@ -4954,8 +4946,8 @@ static int gaudi_send_job_on_qman0(struct hl_device *hdev,
 
 	cb = job->patched_cb;
 
-	fence_pkt = (struct packet_msg_prot *) (uintptr_t) (cb->kernel_address +
-			job->job_cb_size - sizeof(struct packet_msg_prot));
+	fence_pkt = cb->kernel_address +
+			job->job_cb_size - sizeof(struct packet_msg_prot);
 
 	tmp = FIELD_PREP(GAUDI_PKT_CTL_OPCODE_MASK, PACKET_MSG_PROT);
 	tmp |= FIELD_PREP(GAUDI_PKT_CTL_EB_MASK, 1);
@@ -6386,7 +6378,7 @@ static void gaudi_gen_signal_cb(struct hl_device *hdev, void *data, u16 sob_id)
 	struct packet_msg_short *pkt;
 	u32 value, ctl;
 
-	pkt = (struct packet_msg_short *) (uintptr_t) cb->kernel_address;
+	pkt = cb->kernel_address;
 	memset(pkt, 0, sizeof(*pkt));
 
 	/* Inc by 1, Mode ADD */
@@ -6478,7 +6470,7 @@ static void gaudi_gen_wait_cb(struct hl_device *hdev, void *data, u16 sob_id,
 			u16 sob_val, u16 mon_id, u32 q_idx)
 {
 	struct hl_cb *cb = (struct hl_cb *) data;
-	void *buf = (void *) (uintptr_t) cb->kernel_address;
+	void *buf = cb->kernel_address;
 	u64 monitor_base, fence_addr = 0;
 	u32 size = 0;
 	u16 msg_addr_offset;
