@@ -439,6 +439,26 @@ exit_clear:
 	clear_bit(ctx->index, &ep->active_mask);
 }
 
+/*
+ * Get the existing endpoint object corresponding EP, iface and alt numbers
+ * Returns NULL if not present.
+ * Call inside chip->mutex locking for avoiding the race.
+ */
+struct snd_usb_endpoint *
+snd_usb_get_endpoint(struct snd_usb_audio *chip,
+		     int ep_num, int iface, int altsetting)
+{
+	struct snd_usb_endpoint *ep;
+
+	list_for_each_entry(ep, &chip->ep_list, list) {
+		if (ep->ep_num == ep_num &&
+		    ep->iface == iface &&
+		    ep->altsetting == altsetting)
+			return ep;
+	}
+	return NULL;
+}
+
 /**
  * snd_usb_add_endpoint: Add an endpoint to an USB audio chip
  *
@@ -470,15 +490,13 @@ struct snd_usb_endpoint *snd_usb_add_endpoint(struct snd_usb_audio *chip,
 
 	mutex_lock(&chip->mutex);
 
-	list_for_each_entry(ep, &chip->ep_list, list) {
-		if (ep->ep_num == ep_num &&
-		    ep->iface == alts->desc.bInterfaceNumber &&
-		    ep->altsetting == alts->desc.bAlternateSetting) {
-			usb_audio_dbg(ep->chip,
-				      "Re-using EP %x in iface %d,%d @%p\n",
-					ep_num, ep->iface, ep->altsetting, ep);
-			goto __exit_unlock;
-		}
+	ep = snd_usb_get_endpoint(chip, ep_num,
+				  alts->desc.bInterfaceNumber,
+				  alts->desc.bAlternateSetting);
+	if (ep) {
+		usb_audio_dbg(ep->chip, "Re-using EP %x in iface %d,%d @%p\n",
+			      ep_num, ep->iface, ep->altsetting, ep);
+		goto __exit_unlock;
 	}
 
 	usb_audio_dbg(chip, "Creating new %s %s endpoint #%x\n",
