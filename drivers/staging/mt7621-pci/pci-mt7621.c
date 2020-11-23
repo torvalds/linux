@@ -337,28 +337,18 @@ static int mt7621_pci_parse_request_of_pci_ranges(struct pci_host_bridge *host)
 }
 
 static int mt7621_pcie_parse_port(struct mt7621_pcie *pcie,
-				  struct device_node *node,
 				  int slot)
 {
 	struct mt7621_pcie_port *port;
 	struct device *dev = pcie->dev;
 	struct platform_device *pdev = to_platform_device(dev);
-	struct device_node *pnode = dev->of_node;
-	struct resource regs;
 	char name[10];
-	int err;
 
 	port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
 	if (!port)
 		return -ENOMEM;
 
-	err = of_address_to_resource(pnode, slot + 1, &regs);
-	if (err) {
-		dev_err(dev, "missing \"reg\" property\n");
-		return err;
-	}
-
-	port->base = devm_ioremap_resource(dev, &regs);
+	port->base = devm_platform_ioremap_resource(pdev, slot + 1);
 	if (IS_ERR(port->base))
 		return PTR_ERR(port->base);
 
@@ -399,17 +389,11 @@ static int mt7621_pcie_parse_port(struct mt7621_pcie *pcie,
 static int mt7621_pcie_parse_dt(struct mt7621_pcie *pcie)
 {
 	struct device *dev = pcie->dev;
+	struct platform_device *pdev = to_platform_device(dev);
 	struct device_node *node = dev->of_node, *child;
-	struct resource regs;
 	int err;
 
-	err = of_address_to_resource(node, 0, &regs);
-	if (err) {
-		dev_err(dev, "missing \"reg\" property\n");
-		return err;
-	}
-
-	pcie->base = devm_ioremap_resource(dev, &regs);
+	pcie->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pcie->base))
 		return PTR_ERR(pcie->base);
 
@@ -425,7 +409,7 @@ static int mt7621_pcie_parse_dt(struct mt7621_pcie *pcie)
 
 		slot = PCI_SLOT(err);
 
-		err = mt7621_pcie_parse_port(pcie, child, slot);
+		err = mt7621_pcie_parse_port(pcie, slot);
 		if (err) {
 			of_node_put(child);
 			return err;
