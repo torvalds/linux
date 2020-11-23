@@ -335,12 +335,12 @@ static const char *acpi_ec_cmd_string(u8 cmd)
  *                           GPE Registers
  * -------------------------------------------------------------------------- */
 
-static inline bool acpi_ec_is_gpe_raised(struct acpi_ec *ec)
+static inline bool acpi_ec_gpe_status_set(struct acpi_ec *ec)
 {
 	acpi_event_status gpe_status = 0;
 
 	(void)acpi_get_gpe_status(NULL, ec->gpe, &gpe_status);
-	return (gpe_status & ACPI_EVENT_FLAG_STATUS_SET) ? true : false;
+	return !!(gpe_status & ACPI_EVENT_FLAG_STATUS_SET);
 }
 
 static inline void acpi_ec_enable_gpe(struct acpi_ec *ec, bool open)
@@ -351,7 +351,7 @@ static inline void acpi_ec_enable_gpe(struct acpi_ec *ec, bool open)
 		BUG_ON(ec->reference_count < 1);
 		acpi_set_gpe(NULL, ec->gpe, ACPI_GPE_ENABLE);
 	}
-	if (acpi_ec_is_gpe_raised(ec)) {
+	if (acpi_ec_gpe_status_set(ec)) {
 		/*
 		 * On some platforms, EN=1 writes cannot trigger GPE. So
 		 * software need to manually trigger a pseudo GPE event on
@@ -635,7 +635,7 @@ static void advance_transaction(struct acpi_ec *ec, bool interrupt)
 	 * 2. As long as software can ensure only clearing it when it is set,
 	 *    hardware won't set it in parallel.
 	 */
-	if (ec->gpe >= 0 && acpi_ec_is_gpe_raised(ec))
+	if (ec->gpe >= 0 && acpi_ec_gpe_status_set(ec))
 		acpi_clear_gpe(NULL, ec->gpe);
 
 	status = acpi_ec_read_status(ec);
