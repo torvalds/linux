@@ -209,14 +209,6 @@ static int xway_gphy_ack_interrupt(struct phy_device *phydev)
 	return (reg < 0) ? reg : 0;
 }
 
-static int xway_gphy_did_interrupt(struct phy_device *phydev)
-{
-	int reg;
-
-	reg = phy_read(phydev, XWAY_MDIO_ISTAT);
-	return reg & XWAY_MDIO_INIT_MASK;
-}
-
 static int xway_gphy_config_intr(struct phy_device *phydev)
 {
 	u16 mask = 0;
@@ -225,6 +217,24 @@ static int xway_gphy_config_intr(struct phy_device *phydev)
 		mask = XWAY_MDIO_INIT_MASK;
 
 	return phy_write(phydev, XWAY_MDIO_IMASK, mask);
+}
+
+static irqreturn_t xway_gphy_handle_interrupt(struct phy_device *phydev)
+{
+	int irq_status;
+
+	irq_status = phy_read(phydev, XWAY_MDIO_ISTAT);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	if (!(irq_status & XWAY_MDIO_INIT_MASK))
+		return IRQ_NONE;
+
+	phy_trigger_machine(phydev);
+
+	return IRQ_HANDLED;
 }
 
 static struct phy_driver xway_gphy[] = {
@@ -236,7 +246,7 @@ static struct phy_driver xway_gphy[] = {
 		.config_init	= xway_gphy_config_init,
 		.config_aneg	= xway_gphy14_config_aneg,
 		.ack_interrupt	= xway_gphy_ack_interrupt,
-		.did_interrupt	= xway_gphy_did_interrupt,
+		.handle_interrupt = xway_gphy_handle_interrupt,
 		.config_intr	= xway_gphy_config_intr,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
@@ -248,7 +258,7 @@ static struct phy_driver xway_gphy[] = {
 		.config_init	= xway_gphy_config_init,
 		.config_aneg	= xway_gphy14_config_aneg,
 		.ack_interrupt	= xway_gphy_ack_interrupt,
-		.did_interrupt	= xway_gphy_did_interrupt,
+		.handle_interrupt = xway_gphy_handle_interrupt,
 		.config_intr	= xway_gphy_config_intr,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
@@ -260,7 +270,7 @@ static struct phy_driver xway_gphy[] = {
 		.config_init	= xway_gphy_config_init,
 		.config_aneg	= xway_gphy14_config_aneg,
 		.ack_interrupt	= xway_gphy_ack_interrupt,
-		.did_interrupt	= xway_gphy_did_interrupt,
+		.handle_interrupt = xway_gphy_handle_interrupt,
 		.config_intr	= xway_gphy_config_intr,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
@@ -272,7 +282,7 @@ static struct phy_driver xway_gphy[] = {
 		.config_init	= xway_gphy_config_init,
 		.config_aneg	= xway_gphy14_config_aneg,
 		.ack_interrupt	= xway_gphy_ack_interrupt,
-		.did_interrupt	= xway_gphy_did_interrupt,
+		.handle_interrupt = xway_gphy_handle_interrupt,
 		.config_intr	= xway_gphy_config_intr,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
@@ -283,7 +293,7 @@ static struct phy_driver xway_gphy[] = {
 		/* PHY_GBIT_FEATURES */
 		.config_init	= xway_gphy_config_init,
 		.ack_interrupt	= xway_gphy_ack_interrupt,
-		.did_interrupt	= xway_gphy_did_interrupt,
+		.handle_interrupt = xway_gphy_handle_interrupt,
 		.config_intr	= xway_gphy_config_intr,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
@@ -294,7 +304,7 @@ static struct phy_driver xway_gphy[] = {
 		/* PHY_BASIC_FEATURES */
 		.config_init	= xway_gphy_config_init,
 		.ack_interrupt	= xway_gphy_ack_interrupt,
-		.did_interrupt	= xway_gphy_did_interrupt,
+		.handle_interrupt = xway_gphy_handle_interrupt,
 		.config_intr	= xway_gphy_config_intr,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
@@ -305,7 +315,7 @@ static struct phy_driver xway_gphy[] = {
 		/* PHY_GBIT_FEATURES */
 		.config_init	= xway_gphy_config_init,
 		.ack_interrupt	= xway_gphy_ack_interrupt,
-		.did_interrupt	= xway_gphy_did_interrupt,
+		.handle_interrupt = xway_gphy_handle_interrupt,
 		.config_intr	= xway_gphy_config_intr,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
@@ -316,7 +326,7 @@ static struct phy_driver xway_gphy[] = {
 		/* PHY_BASIC_FEATURES */
 		.config_init	= xway_gphy_config_init,
 		.ack_interrupt	= xway_gphy_ack_interrupt,
-		.did_interrupt	= xway_gphy_did_interrupt,
+		.handle_interrupt = xway_gphy_handle_interrupt,
 		.config_intr	= xway_gphy_config_intr,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
@@ -327,7 +337,7 @@ static struct phy_driver xway_gphy[] = {
 		/* PHY_GBIT_FEATURES */
 		.config_init	= xway_gphy_config_init,
 		.ack_interrupt	= xway_gphy_ack_interrupt,
-		.did_interrupt	= xway_gphy_did_interrupt,
+		.handle_interrupt = xway_gphy_handle_interrupt,
 		.config_intr	= xway_gphy_config_intr,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
@@ -338,7 +348,7 @@ static struct phy_driver xway_gphy[] = {
 		/* PHY_BASIC_FEATURES */
 		.config_init	= xway_gphy_config_init,
 		.ack_interrupt	= xway_gphy_ack_interrupt,
-		.did_interrupt	= xway_gphy_did_interrupt,
+		.handle_interrupt = xway_gphy_handle_interrupt,
 		.config_intr	= xway_gphy_config_intr,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
