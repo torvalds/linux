@@ -777,6 +777,9 @@ static int wait_clear_urbs(struct snd_usb_endpoint *ep)
 	unsigned long end_time = jiffies + msecs_to_jiffies(1000);
 	int alive;
 
+	if (!test_bit(EP_FLAG_STOPPING, &ep->flags))
+		return 0;
+
 	do {
 		alive = bitmap_weight(&ep->active_mask, ep->nurbs);
 		if (!alive)
@@ -802,22 +805,31 @@ static int wait_clear_urbs(struct snd_usb_endpoint *ep)
  */
 void snd_usb_endpoint_sync_pending_stop(struct snd_usb_endpoint *ep)
 {
-	if (ep && test_bit(EP_FLAG_STOPPING, &ep->flags))
+	if (ep)
 		wait_clear_urbs(ep);
 }
 
 /*
- * unlink active urbs.
+ * Stop and unlink active urbs.
+ *
+ * This function checks and clears EP_FLAG_RUNNING state.
+ * When @wait_sync is set, it waits until all pending URBs are killed.
  */
-static int deactivate_urbs(struct snd_usb_endpoint *ep, bool force)
+static int stop_and_unlink_urbs(struct snd_usb_endpoint *ep, bool force,
+				bool wait_sync)
 {
 	unsigned int i;
 
 	if (!force && atomic_read(&ep->chip->shutdown)) /* to be sure... */
 		return -EBADFD;
 
-	clear_bit(EP_FLAG_RUNNING, &ep->flags);
+	if (atomic_read(&ep->running))
+		return -EBUSY;
 
+	if (!test_and_clear_bit(EP_FLAG_RUNNING, &ep->flags))
+		goto out;
+
+	set_bit(EP_FLAG_STOPPING, &ep->flags);
 	INIT_LIST_HEAD(&ep->ready_playback_urbs);
 	ep->next_packet_head = 0;
 	ep->next_packet_queued = 0;
@@ -831,6 +843,9 @@ static int deactivate_urbs(struct snd_usb_endpoint *ep, bool force)
 		}
 	}
 
+ out:
+	if (wait_sync)
+		return wait_clear_urbs(ep);
 	return 0;
 }
 
@@ -845,8 +860,7 @@ static void release_urbs(struct snd_usb_endpoint *ep, int force)
 	snd_usb_endpoint_set_callback(ep, NULL, NULL, NULL);
 
 	/* stop urbs */
-	deactivate_urbs(ep, force);
-	wait_clear_urbs(ep);
+	stop_and_unlink_urbs(ep, force, true);
 
 	for (i = 0; i < ep->nurbs; i++)
 		release_urb_ctx(&ep->urb[i]);
@@ -1261,9 +1275,6 @@ int snd_usb_endpoint_start(struct snd_usb_endpoint *ep)
 	if (atomic_inc_return(&ep->running) != 1)
 		return 0;
 
-	/* just to be sure */
-	deactivate_urbs(ep, false);
-
 	ep->active_mask = 0;
 	ep->unlink_mask = 0;
 	ep->phase = 0;
@@ -1317,11 +1328,7 @@ int snd_usb_endpoint_start(struct snd_usb_endpoint *ep)
 	return 0;
 
 __error:
-	if (ep->sync_master)
-		WRITE_ONCE(ep->sync_master->sync_slave, NULL);
-	clear_bit(EP_FLAG_RUNNING, &ep->flags);
-	atomic_dec(&ep->running);
-	deactivate_urbs(ep, false);
+	snd_usb_endpoint_stop(ep);
 	return -EPIPE;
 }
 
@@ -1354,10 +1361,8 @@ void snd_usb_endpoint_stop(struct snd_usb_endpoint *ep)
 	if (ep->sync_master)
 		WRITE_ONCE(ep->sync_master->sync_slave, NULL);
 
-	if (!atomic_dec_return(&ep->running)) {
-		deactivate_urbs(ep, false);
-		set_bit(EP_FLAG_STOPPING, &ep->flags);
-	}
+	if (!atomic_dec_return(&ep->running))
+		stop_and_unlink_urbs(ep, false, false);
 }
 
 /**
