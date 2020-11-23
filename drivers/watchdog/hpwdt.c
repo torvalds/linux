@@ -23,7 +23,7 @@
 #include <asm/nmi.h>
 #include <linux/crash_dump.h>
 
-#define HPWDT_VERSION			"2.0.3"
+#define HPWDT_VERSION			"2.0.4"
 #define SECS_TO_TICKS(secs)		((secs) * 1000 / 128)
 #define TICKS_TO_SECS(ticks)		((ticks) * 128 / 1000)
 #define HPWDT_MAX_TICKS			65535
