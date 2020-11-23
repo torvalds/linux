@@ -106,6 +106,27 @@ static int qs6612_config_intr(struct phy_device *phydev)
 
 }
 
+static irqreturn_t qs6612_handle_interrupt(struct phy_device *phydev)
+{
+	int irq_status;
+
+	irq_status = phy_read(phydev, MII_QS6612_ISR);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	if (!(irq_status & MII_QS6612_IMR_INIT))
+		return IRQ_NONE;
+
+	/* the interrupt source register is not self-clearing */
+	qs6612_ack_interrupt(phydev);
+
+	phy_trigger_machine(phydev);
+
+	return IRQ_HANDLED;
+}
+
 static struct phy_driver qs6612_driver[] = { {
 	.phy_id		= 0x00181440,
 	.name		= "QS6612",
@@ -114,6 +135,7 @@ static struct phy_driver qs6612_driver[] = { {
 	.config_init	= qs6612_config_init,
 	.ack_interrupt	= qs6612_ack_interrupt,
 	.config_intr	= qs6612_config_intr,
+	.handle_interrupt = qs6612_handle_interrupt,
 } };
 
 module_phy_driver(qs6612_driver);
