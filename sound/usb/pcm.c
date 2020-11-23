@@ -601,8 +601,9 @@ static int set_sync_endpoint(struct snd_usb_substream *subs,
 
 	subs->data_endpoint->sync_master = subs->sync_endpoint;
 
-	if (subs->data_endpoint->iface != subs->sync_endpoint->iface ||
-	    subs->data_endpoint->altsetting != subs->sync_endpoint->altsetting) {
+	if (!subs->sync_endpoint->use_count &&
+	    (subs->data_endpoint->iface != subs->sync_endpoint->iface ||
+	     subs->data_endpoint->altsetting != subs->sync_endpoint->altsetting)) {
 		err = usb_set_interface(subs->dev,
 					subs->sync_endpoint->iface,
 					subs->sync_endpoint->altsetting);
@@ -625,6 +626,7 @@ static int set_format(struct snd_usb_substream *subs, struct audioformat *fmt)
 	struct usb_device *dev = subs->dev;
 	struct usb_host_interface *alts;
 	struct usb_interface *iface;
+	struct snd_usb_endpoint *ep;
 	int err;
 
 	iface = usb_ifnum_to_if(dev, fmt->iface);
@@ -636,6 +638,14 @@ static int set_format(struct snd_usb_substream *subs, struct audioformat *fmt)
 
 	if (fmt == subs->cur_audiofmt && !subs->need_setup_fmt)
 		return 0;
+
+	/* shared EP with implicit fb */
+	if (fmt->implicit_fb && !subs->need_setup_fmt) {
+		ep = snd_usb_get_endpoint(subs->stream->chip, fmt->endpoint,
+					  fmt->iface, fmt->altsetting);
+		if (ep && ep->use_count > 0)
+			goto add_data_ep;
+	}
 
 	/* close the old interface */
 	if (subs->interface >= 0 && (subs->interface != fmt->iface || subs->need_setup_fmt)) {
@@ -673,6 +683,9 @@ static int set_format(struct snd_usb_substream *subs, struct audioformat *fmt)
 		snd_usb_set_interface_quirk(dev);
 	}
 
+	subs->need_setup_ep = true;
+
+ add_data_ep:
 	subs->interface = fmt->iface;
 	subs->altset_idx = fmt->altset_idx;
 	subs->data_endpoint = snd_usb_add_endpoint(subs->stream->chip,
@@ -686,9 +699,11 @@ static int set_format(struct snd_usb_substream *subs, struct audioformat *fmt)
 	if (err < 0)
 		return err;
 
-	err = snd_usb_init_pitch(subs->stream->chip, fmt->iface, alts, fmt);
-	if (err < 0)
-		return err;
+	if (subs->need_setup_ep) {
+		err = snd_usb_init_pitch(subs->stream->chip, fmt->iface, alts, fmt);
+		if (err < 0)
+			return err;
+	}
 
 	subs->cur_audiofmt = fmt;
 
@@ -939,10 +954,6 @@ static int snd_usb_hw_params(struct snd_pcm_substream *substream,
 	ret = set_format(subs, fmt);
 	if (ret < 0)
 		goto unlock;
-
-	subs->interface = fmt->iface;
-	subs->altset_idx = fmt->altset_idx;
-	subs->need_setup_ep = true;
 
  unlock:
 	snd_usb_unlock_shutdown(subs->stream->chip);
