@@ -615,6 +615,16 @@ static inline void ec_transaction_transition(struct acpi_ec *ec, unsigned long f
 	}
 }
 
+static void acpi_ec_spurious_interrupt(struct acpi_ec *ec, struct transaction *t)
+{
+	if (t->irq_count < ec_storm_threshold)
+		++t->irq_count;
+
+	/* Trigger if the threshold is 0 too. */
+	if (t->irq_count == ec_storm_threshold)
+		acpi_ec_mask_events(ec);
+}
+
 static void advance_transaction(struct acpi_ec *ec, bool interrupt)
 {
 	struct transaction *t = ec->curr;
@@ -659,8 +669,8 @@ static void advance_transaction(struct acpi_ec *ec, bool interrupt)
 		if (t->wlen > t->wi) {
 			if ((status & ACPI_EC_FLAG_IBF) == 0)
 				acpi_ec_write_data(ec, t->wdata[t->wi++]);
-			else
-				goto err;
+			else if (interrupt && !(status & ACPI_EC_FLAG_SCI))
+				acpi_ec_spurious_interrupt(ec, t);
 		} else if (t->rlen > t->ri) {
 			if ((status & ACPI_EC_FLAG_OBF) == 1) {
 				t->rdata[t->ri++] = acpi_ec_read_data(ec);
@@ -671,32 +681,19 @@ static void advance_transaction(struct acpi_ec *ec, bool interrupt)
 							   acpi_ec_cmd_string(ACPI_EC_COMMAND_QUERY));
 					wakeup = true;
 				}
-			} else
-				goto err;
+			} else if (interrupt && !(status & ACPI_EC_FLAG_SCI)) {
+				acpi_ec_spurious_interrupt(ec, t);
+			}
 		} else if (t->wlen == t->wi &&
 			   (status & ACPI_EC_FLAG_IBF) == 0) {
 			ec_transaction_transition(ec, ACPI_EC_COMMAND_COMPLETE);
 			wakeup = true;
 		}
-		goto out;
 	} else if (!(status & ACPI_EC_FLAG_IBF)) {
 		acpi_ec_write_cmd(ec, t->command);
 		ec_transaction_transition(ec, ACPI_EC_COMMAND_POLL);
-		goto out;
 	}
-err:
-	/*
-	 * If SCI bit is set, then don't think it's a false IRQ
-	 * otherwise will take a not handled IRQ as a false one.
-	 */
-	if (!(status & ACPI_EC_FLAG_SCI) && interrupt) {
-		if (t->irq_count < ec_storm_threshold)
-			++t->irq_count;
 
-		/* Allow triggering on 0 threshold */
-		if (t->irq_count == ec_storm_threshold)
-			acpi_ec_mask_events(ec);
-	}
 out:
 	if (status & ACPI_EC_FLAG_SCI)
 		acpi_ec_submit_query(ec);
