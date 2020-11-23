@@ -406,7 +406,7 @@ static const struct vop2_video_port_regs rk3568_vop_vp0_regs = {
 
 static const struct vop2_video_port_regs rk3568_vop_vp1_regs = {
 	.cfg_done = VOP_REG(RK3568_REG_CFG_DONE, 0x1, 1),
-	.overlay_mode = VOP_REG(RK3568_OVL_CTRL, 0x1, 0),
+	.overlay_mode = VOP_REG(RK3568_OVL_CTRL, 0x1, 1),
 	.port_mux = VOP_REG(RK3568_OVL_PORT_SEL, 0xf, 4),
 	.out_mode = VOP_REG(RK3568_VP1_DSP_CTRL, 0xf, 0),
 	.standby = VOP_REG(RK3568_VP1_DSP_CTRL, 0x1, 31),
@@ -438,7 +438,7 @@ static const struct vop2_video_port_regs rk3568_vop_vp1_regs = {
 
 static const struct vop2_video_port_regs rk3568_vop_vp2_regs = {
 	.cfg_done = VOP_REG(RK3568_REG_CFG_DONE, 0x1, 2),
-	.overlay_mode = VOP_REG(RK3568_OVL_CTRL, 0x1, 0),
+	.overlay_mode = VOP_REG(RK3568_OVL_CTRL, 0x1, 2),
 	.port_mux = VOP_REG(RK3568_OVL_PORT_SEL, 0xf, 8),
 	.out_mode = VOP_REG(RK3568_VP2_DSP_CTRL, 0xf, 0),
 	.standby = VOP_REG(RK3568_VP2_DSP_CTRL, 0x1, 31),
