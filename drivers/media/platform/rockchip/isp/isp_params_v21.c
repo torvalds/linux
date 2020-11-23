@@ -630,7 +630,7 @@ static void
 isp_lsc_config(struct rkisp_isp_params_vdev *params_vdev,
 	       const struct isp2x_lsc_cfg *arg)
 {
-	struct rkisp_hw_dev *hw = params_vdev->dev->hw_dev;
+	struct rkisp_device *dev = params_vdev->dev;
 	unsigned int data;
 	u32 lsc_ctrl;
 	int i;
@@ -639,7 +639,7 @@ isp_lsc_config(struct rkisp_isp_params_vdev *params_vdev,
 	lsc_ctrl = rkisp_ioread32(params_vdev, ISP_LSC_CTRL);
 	isp_param_clear_bits(params_vdev, ISP_LSC_CTRL,
 			     ISP_LSC_EN);
-	if (hw->is_single)
+	if (!IS_HDR_RDBK(dev->csi_dev.rd_mode))
 		isp_lsc_matrix_cfg_ddr(params_vdev, arg);
 
 	for (i = 0; i < 4; i++) {
@@ -686,10 +686,10 @@ static void
 isp_lsc_enable(struct rkisp_isp_params_vdev *params_vdev,
 	       bool en)
 {
-	struct rkisp_hw_dev *hw = params_vdev->dev->hw_dev;
+	struct rkisp_device *dev = params_vdev->dev;
 	u32 val = ISP_LSC_EN;
 
-	if (hw->is_single)
+	if (!IS_HDR_RDBK(dev->csi_dev.rd_mode))
 		val |= ISP_LSC_LUT_EN;
 
 	if (en)

@@ -570,16 +570,16 @@ void rkisp_trigger_read_back(struct rkisp_csi_device *csi, u8 dma2frm, u32 mode)
 		rkisp_update_regs(dev, CTRL_VI_ISP_PATH, SUPER_IMP_COLOR_CR);
 		rkisp_update_regs(dev, ISP_ACQ_PROP, ISP_LSC_CTRL);
 		rkisp_update_regs(dev, ISP_LSC_XGRAD_01, ISP_RAWAWB_RAM_DATA);
-		rkisp_params_cfgsram(params_vdev);
 		is_upd = true;
 	}
+
+	if (IS_HDR_RDBK(dev->csi_dev.rd_mode))
+		rkisp_params_cfgsram(params_vdev);
+
 	if (is_upd) {
 		val = rkisp_read(dev, ISP_CTRL, false);
 		val |= CIF_ISP_CTRL_ISP_CFG_UPD;
 		rkisp_write(dev, ISP_CTRL, val, true);
-
-		/* wait 50 us to load lsc table, otherwise lsc lut error will occur */
-		udelay(50);
 	}
 
 	val = rkisp_read(dev, CSI2RX_CTRL0, true);
