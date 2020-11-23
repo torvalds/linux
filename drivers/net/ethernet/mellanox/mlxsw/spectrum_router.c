@@ -4994,7 +4994,7 @@ int mlxsw_sp_fib_entry_commit(struct mlxsw_sp *mlxsw_sp,
 	return err;
 }
 
-static int mlxsw_sp_adj_discard_write(struct mlxsw_sp *mlxsw_sp, u16 rif_index)
+static int mlxsw_sp_adj_discard_write(struct mlxsw_sp *mlxsw_sp)
 {
 	enum mlxsw_reg_ratr_trap_action trap_action;
 	char ratr_pl[MLXSW_REG_RATR_LEN];
@@ -5011,7 +5011,8 @@ static int mlxsw_sp_adj_discard_write(struct mlxsw_sp *mlxsw_sp, u16 rif_index)
 	trap_action = MLXSW_REG_RATR_TRAP_ACTION_TRAP;
 	mlxsw_reg_ratr_pack(ratr_pl, MLXSW_REG_RATR_OP_WRITE_WRITE_ENTRY, true,
 			    MLXSW_REG_RATR_TYPE_ETHERNET,
-			    mlxsw_sp->router->adj_discard_index, rif_index);
+			    mlxsw_sp->router->adj_discard_index,
+			    mlxsw_sp->router->lb_rif_index);
 	mlxsw_reg_ratr_trap_action_set(ratr_pl, trap_action);
 	mlxsw_reg_ratr_trap_id_set(ratr_pl, MLXSW_TRAP_ID_RTR_EGRESS0);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ratr), ratr_pl);
@@ -5051,8 +5052,7 @@ static int mlxsw_sp_fib_entry_op_remote(struct mlxsw_sp *mlxsw_sp,
 		adjacency_index = nhgi->adj_index;
 		ecmp_size = nhgi->ecmp_size;
 	} else if (!nhgi->adj_index_valid && nhgi->count && nhgi->nh_rif) {
-		err = mlxsw_sp_adj_discard_write(mlxsw_sp,
-						 nhgi->nh_rif->rif_index);
+		err = mlxsw_sp_adj_discard_write(mlxsw_sp);
 		if (err)
 			return err;
 		trap_action = MLXSW_REG_RALUE_TRAP_ACTION_NOP;
