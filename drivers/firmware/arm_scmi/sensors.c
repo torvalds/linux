@@ -168,7 +168,7 @@ struct scmi_resp_sensor_reading_complete {
 	__le64 readings;
 };
 
-struct scmi_sensor_reading_le {
+struct scmi_sensor_reading_resp {
 	__le32 sensor_value_low;
 	__le32 sensor_value_high;
 	__le32 timestamp_low;
@@ -177,7 +177,7 @@ struct scmi_sensor_reading_le {
 
 struct scmi_resp_sensor_reading_complete_v3 {
 	__le32 id;
-	struct scmi_sensor_reading_le readings[];
+	struct scmi_sensor_reading_resp readings[];
 };
 
 struct scmi_sensor_trip_notify_payld {
@@ -189,7 +189,7 @@ struct scmi_sensor_trip_notify_payld {
 struct scmi_sensor_update_notify_payld {
 	__le32 agent_id;
 	__le32 sensor_id;
-	struct scmi_sensor_reading_le readings[];
+	struct scmi_sensor_reading_resp readings[];
 };
 
 struct sensors_info {
@@ -734,7 +734,7 @@ static int scmi_sensor_reading_get(const struct scmi_handle *handle,
 
 static inline void
 scmi_parse_sensor_readings(struct scmi_sensor_reading *out,
-			   const struct scmi_sensor_reading_le *in)
+			   const struct scmi_sensor_reading_resp *in)
 {
 	out->value = get_unaligned_le64((void *)&in->sensor_value_low);
 	out->timestamp = get_unaligned_le64((void *)&in->timestamp_low);
@@ -797,7 +797,7 @@ scmi_sensor_reading_get_timestamped(const struct scmi_handle *handle,
 		ret = scmi_do_xfer(handle, t);
 		if (!ret) {
 			int i;
-			struct scmi_sensor_reading_le *resp_readings;
+			struct scmi_sensor_reading_resp *resp_readings;
 
 			resp_readings = t->rx.buf;
 			for (i = 0; i < count; i++)
@@ -931,7 +931,7 @@ static const struct scmi_event sensor_events[] = {
 		.max_payld_sz =
 			sizeof(struct scmi_sensor_update_notify_payld) +
 			 SCMI_MAX_NUM_SENSOR_AXIS *
-			 sizeof(struct scmi_sensor_reading_le),
+			 sizeof(struct scmi_sensor_reading_resp),
 		.max_report_sz = sizeof(struct scmi_sensor_update_report) +
 				  SCMI_MAX_NUM_SENSOR_AXIS *
 				  sizeof(struct scmi_sensor_reading),
