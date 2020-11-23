@@ -71,19 +71,10 @@ It does not support any current operation.
 SCMI Regulators are grouped under a 'regulators' node which in turn is a child
 of the SCMI Voltage protocol node inside the desired SCMI instance node.
 
-This binding uses the common regulator binding[6] but, due to SCMI abstractions,
-supports only a subset of its properties as specified below amongst Optional
-properties.
+This binding uses the common regulator binding[6].
 
 Required properties:
  - reg : shall identify an existent SCMI Voltage Domain.
-
-Optional properties:
- - regulator-name
- - regulator-min-microvolt / regulator-max-microvolt
- - regulator-always-on / regulator-boot-on
- - regulator-max-step-microvolt
- - regulator-coupled-with / regulator-coupled-max-spread
 
 Sensor bindings for the sensors based on SCMI Message Protocol
 --------------------------------------------------------------
