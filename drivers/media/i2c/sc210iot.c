@@ -26,6 +26,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
+#include "../platform/rockchip/isp/rkisp_tb_helper.h"
 
 #define DRIVER_VERSION		KERNEL_VERSION(0, 0x01, 0x01)
 
@@ -72,6 +73,8 @@
 #define SC210IOT_GAIN_MAX		0x8000
 #define SC210IOT_GAIN_STEP		1
 #define SC210IOT_GAIN_DEFAULT	64
+
+#define SC210IOT_SOFTWARE_RESET_REG	0x0103
 
 #define SC210IOT_LANES		2
 
@@ -145,15 +148,18 @@ struct sc210iot {
 	struct v4l2_ctrl    *link_freq;
 	struct v4l2_ctrl    *pixel_rate;
 	struct mutex        lock;
-	bool		    streaming;
-	bool		    power_on;
-	unsigned int        cfg_num;
+	bool		streaming;
+	bool		power_on;
+	bool		is_thunderboot;
+	bool		is_thunderboot_ng;
+	bool		is_first_streamoff;
+	unsigned int	cfg_num;
 	const struct sc210iot_mode *cur_mode;
 	u32		module_index;
 	const char      *module_facing;
 	const char      *module_name;
 	const char      *len_name;
-	bool			  has_init_exp;
+	bool		has_init_exp;
 	struct preisp_hdrae_exp_s init_hdrae_exp;
 };
 
@@ -279,6 +285,8 @@ static inline int sc210iot_read_reg(struct sc210iot *sc210iot, u16 addr, u8 *val
 	return 0;
 }
 
+static int __sc210iot_power_on(struct sc210iot *sc210iot);
+
 static inline int sc210iot_write_reg(struct sc210iot *sc210iot, u16 addr, u8 value)
 {
 	int ret;
@@ -310,6 +318,11 @@ static int sc210iot_set_gain(struct sc210iot *sc210iot, u32 gain)
 	int a_gain = 0, d_gain = 0;
 
 	dev_dbg(sc210iot->dev, "%s: gain : %d\n", __func__, gain);
+	if (sc210iot->is_thunderboot && rkisp_tb_get_state() == RKISP_TB_NG) {
+		sc210iot->is_thunderboot = false;
+		sc210iot->is_thunderboot_ng = true;
+		__sc210iot_power_on(sc210iot);
+	}
 
 	for (i = 0; i < ARRAY_SIZE(gain_sections) - 1; i++)
 		if ((gain_sections[i].min_gain <= gain) && (gain < gain_sections[i].max_gain))
@@ -485,6 +498,9 @@ static int __sc210iot_power_on(struct sc210iot *sc210iot)
 	int ret;
 	struct device *dev = sc210iot->dev;
 
+	if (sc210iot->is_thunderboot)
+		return 0;
+
 	if (!IS_ERR_OR_NULL(sc210iot->pins_default)) {
 		ret = pinctrl_select_state(sc210iot->pinctrl,
 					   sc210iot->pins_default);
@@ -507,12 +523,12 @@ static int __sc210iot_power_on(struct sc210iot *sc210iot)
 		goto disable_clk;
 	}
 	if (!IS_ERR(sc210iot->reset_gpio))
-		gpiod_set_value_cansleep(sc210iot->reset_gpio, 1);
+		gpiod_direction_output(sc210iot->reset_gpio, 1);
 	usleep_range(1000, 2000);
 	if (!IS_ERR(sc210iot->pwdn_gpio))
-		gpiod_set_value_cansleep(sc210iot->pwdn_gpio, 1);
+		gpiod_direction_output(sc210iot->pwdn_gpio, 1);
 	if (!IS_ERR(sc210iot->reset_gpio))
-		gpiod_set_value_cansleep(sc210iot->reset_gpio, 0);
+		gpiod_direction_output(sc210iot->reset_gpio, 0);
 	usleep_range(10000, 20000);
 	return 0;
 disable_clk:
@@ -529,6 +545,14 @@ static void __sc210iot_power_off(struct sc210iot *sc210iot)
 	int ret;
 	struct device *dev = sc210iot->dev;
 
+	if (sc210iot->is_thunderboot) {
+		if (sc210iot->is_first_streamoff) {
+			sc210iot->is_thunderboot = false;
+			sc210iot->is_first_streamoff = false;
+		} else {
+			return;
+		}
+	}
 	if (!IS_ERR_OR_NULL(sc210iot->pins_sleep)) {
 		ret = pinctrl_select_state(sc210iot->pinctrl,
 					   sc210iot->pins_sleep);
@@ -536,10 +560,13 @@ static void __sc210iot_power_off(struct sc210iot *sc210iot)
 			dev_dbg(dev, "could not set pins\n");
 	}
 	if (!IS_ERR(sc210iot->reset_gpio))
-		gpiod_set_value_cansleep(sc210iot->reset_gpio, 1);
+		gpiod_direction_output(sc210iot->reset_gpio, 1);
 	if (!IS_ERR(sc210iot->pwdn_gpio))
-		gpiod_set_value_cansleep(sc210iot->pwdn_gpio, 0);
-	regulator_bulk_disable(SC210IOT_NUM_SUPPLIES, sc210iot->supplies);
+		gpiod_direction_output(sc210iot->pwdn_gpio, 0);
+	if (sc210iot->is_thunderboot_ng) {
+		sc210iot->is_thunderboot_ng = false;
+		regulator_bulk_disable(SC210IOT_NUM_SUPPLIES, sc210iot->supplies);
+	}
 	clk_disable_unprepare(sc210iot->xvclk);
 }
 
@@ -548,6 +575,11 @@ static int sc210iot_check_sensor_id(struct sc210iot *sc210iot)
 	u8 id_h = 0, id_l = 0;
 	u16 id = 0;
 	int ret = 0;
+
+	if (sc210iot->is_thunderboot) {
+		dev_info(sc210iot->dev, "Enable thunderboot mode, skip sensor id check\n");
+		return 0;
+	}
 
 	ret = sc210iot_read_reg(sc210iot, SC210IOT_REG_CHIP_ID_H, &id_h);
 	ret |= sc210iot_read_reg(sc210iot, SC210IOT_REG_CHIP_ID_L, &id_l);
@@ -613,21 +645,28 @@ static long sc210iot_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 
 static int __sc210iot_start_stream(struct sc210iot *sc210iot)
 {
-	int ret;
+	int ret = 0;
 
-	ret = regmap_multi_reg_write(sc210iot->regmap,
-				     sc210iot->cur_mode->reg_list,
-				     sc210iot->cur_mode->reg_num);
-	if (ret)
-		return ret;
+	if (!sc210iot->is_thunderboot) {
+		ret = regmap_multi_reg_write(sc210iot->regmap,
+					     sc210iot->cur_mode->reg_list,
+					     sc210iot->cur_mode->reg_num);
+		if (ret)
+			return ret;
+	}
 	__v4l2_ctrl_handler_setup(&sc210iot->ctrl_handler);
-	return sc210iot_write_reg(sc210iot, SC210IOT_REG_CTRL_MODE, SC210IOT_MODE_STREAMING);
+	return sc210iot_write_reg(sc210iot,
+				  SC210IOT_REG_CTRL_MODE,
+				  SC210IOT_MODE_STREAMING);
 }
 
 static int __sc210iot_stop_stream(struct sc210iot *sc210iot)
 {
 	sc210iot->has_init_exp = false;
-	return sc210iot_write_reg(sc210iot, SC210IOT_REG_CTRL_MODE, SC210IOT_MODE_SW_STANDBY);
+	if (sc210iot->is_thunderboot)
+		sc210iot->is_first_streamoff = true;
+	return sc210iot_write_reg(sc210iot, SC210IOT_REG_CTRL_MODE,
+				  SC210IOT_MODE_SW_STANDBY);
 }
 
 #ifdef CONFIG_COMPAT
@@ -688,6 +727,10 @@ static int sc210iot_s_stream(struct v4l2_subdev *sd, int on)
 	if (on == sc210iot->streaming)
 		goto unlock_and_return;
 	if (on) {
+		if (sc210iot->is_thunderboot && rkisp_tb_get_state() == RKISP_TB_NG) {
+			sc210iot->is_thunderboot = false;
+			__sc210iot_power_on(sc210iot);
+		}
 		ret = pm_runtime_get_sync(sc210iot->dev);
 		if (ret < 0) {
 			pm_runtime_put_noidle(sc210iot->dev);
@@ -882,6 +925,11 @@ static int sc210iot_s_power(struct v4l2_subdev *sd, int on)
 			pm_runtime_put_noidle(sc210iot->dev);
 			goto unlock_and_return;
 		}
+		if (!sc210iot->is_thunderboot) {
+			ret |= sc210iot_write_reg(sc210iot,
+						  SC210IOT_SOFTWARE_RESET_REG, 0x01);
+			usleep_range(100, 200);
+		}
 		sc210iot->power_on = true;
 	} else {
 		pm_runtime_put(sc210iot->dev);
@@ -980,15 +1028,18 @@ static int sc210iot_probe(struct i2c_client *client,
 		dev_err(dev, "Failed to get module information\n");
 		return -EINVAL;
 	}
+
+	sc210iot->is_thunderboot = IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP);
+
 	sc210iot->xvclk = devm_clk_get(sc210iot->dev, "xvclk");
 	if (IS_ERR(sc210iot->xvclk)) {
 		dev_err(sc210iot->dev, "Failed to get xvclk\n");
 		return -EINVAL;
 	}
-	sc210iot->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
+	sc210iot->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_ASIS);
 	if (IS_ERR(sc210iot->reset_gpio))
 		dev_warn(dev, "Failed to get reset-gpios\n");
-	sc210iot->pwdn_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_OUT_HIGH);
+	sc210iot->pwdn_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_ASIS);
 	if (IS_ERR(sc210iot->pwdn_gpio))
 		dev_warn(dev, "Failed to get pwdn-gpios\n");
 	ret = sc210iot_get_regulators(sc210iot);
