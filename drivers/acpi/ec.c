@@ -372,23 +372,6 @@ static inline void acpi_ec_disable_gpe(struct acpi_ec *ec, bool close)
 	}
 }
 
-static inline void acpi_ec_clear_gpe(struct acpi_ec *ec)
-{
-	/*
-	 * GPE STS is a W1C register, which means:
-	 * 1. Software can clear it without worrying about clearing other
-	 *    GPEs' STS bits when the hardware sets them in parallel.
-	 * 2. As long as software can ensure only clearing it when it is
-	 *    set, hardware won't set it in parallel.
-	 * So software can clear GPE in any contexts.
-	 * Warning: do not move the check into advance_transaction() as the
-	 * EC commands will be sent without GPE raised.
-	 */
-	if (!acpi_ec_is_gpe_raised(ec))
-		return;
-	acpi_clear_gpe(NULL, ec->gpe);
-}
-
 /* --------------------------------------------------------------------------
  *                           Transaction Management
  * -------------------------------------------------------------------------- */
@@ -639,13 +622,21 @@ static void advance_transaction(struct acpi_ec *ec, bool interrupt)
 	bool wakeup = false;
 
 	ec_dbg_stm("%s (%d)", interrupt ? "IRQ" : "TASK", smp_processor_id());
+
 	/*
-	 * By always clearing STS before handling all indications, we can
-	 * ensure a hardware STS 0->1 change after this clearing can always
-	 * trigger a GPE interrupt.
+	 * Clear GPE_STS upfront to allow subsequent hardware GPE_STS 0->1
+	 * changes to always trigger a GPE interrupt.
+	 *
+	 * GPE STS is a W1C register, which means:
+	 *
+	 * 1. Software can clear it without worrying about clearing the other
+	 *    GPEs' STS bits when the hardware sets them in parallel.
+	 *
+	 * 2. As long as software can ensure only clearing it when it is set,
+	 *    hardware won't set it in parallel.
 	 */
-	if (ec->gpe >= 0)
-		acpi_ec_clear_gpe(ec);
+	if (ec->gpe >= 0 && acpi_ec_is_gpe_raised(ec))
+		acpi_clear_gpe(NULL, ec->gpe);
 
 	status = acpi_ec_read_status(ec);
 	t = ec->curr;
