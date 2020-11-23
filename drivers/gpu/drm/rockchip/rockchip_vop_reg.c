@@ -1735,7 +1735,6 @@ static const struct vop_ctrl rv1126_ctrl_data = {
 	.mcu_type = VOP_REG(RK3366_LIT_MCU_CTRL, 0x1, 31),
 	.mcu_rw_bypass_port = VOP_REG(RK3366_LIT_MCU_RW_BYPASS_PORT,
 				      0xffffffff, 0),
-	.bt1120_uv_swap = VOP_REG(RK3366_LIT_DSP_CTRL2, 0x1, 11),
 	.bt1120_yc_swap = VOP_REG(RK3366_LIT_DSP_CTRL0, 0x1, 30),
 	.bt1120_en = VOP_REG(RK3366_LIT_DSP_CTRL0, 0x1, 31),
 };

@@ -2910,7 +2910,7 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 	int act_end;
 	bool interlaced = !!(adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE);
 	int for_ddr_freq = 0;
-	bool dclk_inv, yc_swap = false, uv_swap = false;
+	bool dclk_inv, yc_swap = false;
 
 	rockchip_set_system_status(sys_status);
 	vop_lock(vop);
@@ -2960,9 +2960,7 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 		if (s->output_if & VOP_OUTPUT_IF_BT1120) {
 			VOP_CTRL_SET(vop, bt1120_en, 1);
 			yc_swap = is_yc_swap(s->bus_format);
-			uv_swap = is_uv_swap(s->bus_format, s->output_mode);
 			VOP_CTRL_SET(vop, bt1120_yc_swap, yc_swap);
-			VOP_CTRL_SET(vop, bt1120_uv_swap, uv_swap);
 		}
 		break;
 	case DRM_MODE_CONNECTOR_eDP:

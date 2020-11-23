@@ -2658,7 +2658,7 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 	int sys_status = SYS_STATUS_LCDC0;
 	uint8_t out_mode;
 	int for_ddr_freq = 0;
-	bool dclk_inv, yc_swap = false, uv_swap = false;
+	bool dclk_inv, yc_swap = false;
 	int act_end;
 	uint32_t val;
 
@@ -2694,9 +2694,7 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 		VOP_CTRL_SET(vop2, rgb_mux, vp_data->id);
 		VOP_GRF_SET(vop2, grf_bt1120_clk_inv, !dclk_inv);
 		yc_swap = vop2_output_yc_swap(vcstate->bus_format);
-		uv_swap = vop2_output_uv_swap(vcstate->bus_format, vcstate->output_mode);
 		VOP_CTRL_SET(vop2, bt1120_yc_swap, yc_swap);
-		VOP_CTRL_SET(vop2, bt1120_uv_swap, uv_swap);
 	}
 
 	if (vcstate->output_if & VOP_OUTPUT_IF_BT656) {
@@ -2704,9 +2702,7 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 		VOP_CTRL_SET(vop2, rgb_mux, vp_data->id);
 		VOP_GRF_SET(vop2, grf_bt656_clk_inv, !dclk_inv);
 		yc_swap = vop2_output_yc_swap(vcstate->bus_format);
-		uv_swap = vop2_output_uv_swap(vcstate->bus_format, vcstate->output_mode);
 		VOP_CTRL_SET(vop2, bt656_yc_swap, yc_swap);
-		VOP_CTRL_SET(vop2, bt656_uv_swap, uv_swap);
 	}
 
 	if (vcstate->output_if & VOP_OUTPUT_IF_LVDS0) {
