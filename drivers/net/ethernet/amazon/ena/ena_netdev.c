@@ -908,9 +908,13 @@ static void ena_free_all_io_rx_resources(struct ena_adapter *adapter)
 static int ena_alloc_rx_page(struct ena_ring *rx_ring,
 				    struct ena_rx_buffer *rx_info, gfp_t gfp)
 {
+	int headroom = rx_ring->rx_headroom;
 	struct ena_com_buf *ena_buf;
 	struct page *page;
 	dma_addr_t dma;
+
+	/* restore page offset value in case it has been changed by device */
+	rx_info->page_offset = headroom;
 
 	/* if previous allocated page is not used */
 	if (unlikely(rx_info->page))
@@ -941,10 +945,9 @@ static int ena_alloc_rx_page(struct ena_ring *rx_ring,
 		  "Allocate page %p, rx_info %p\n", page, rx_info);
 
 	rx_info->page = page;
-	rx_info->page_offset = 0;
 	ena_buf = &rx_info->ena_buf;
-	ena_buf->paddr = dma + rx_ring->rx_headroom;
-	ena_buf->len = ENA_PAGE_SIZE - rx_ring->rx_headroom;
+	ena_buf->paddr = dma + headroom;
+	ena_buf->len = ENA_PAGE_SIZE - headroom;
 
 	return 0;
 }
@@ -1356,7 +1359,8 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring,
 
 	/* save virt address of first buffer */
 	va = page_address(rx_info->page) + rx_info->page_offset;
-	prefetch(va + NET_IP_ALIGN);
+
+	prefetch(va);
 
 	if (len <= rx_ring->rx_copybreak) {
 		skb = ena_alloc_skb(rx_ring, false);
@@ -1397,8 +1401,6 @@ static struct sk_buff *ena_rx_skb(struct ena_ring *rx_ring,
 
 		skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, rx_info->page,
 				rx_info->page_offset, len, ENA_PAGE_SIZE);
-		/* The offset is non zero only for the first buffer */
-		rx_info->page_offset = 0;
 
 		netif_dbg(rx_ring->adapter, rx_status, rx_ring->netdev,
 			  "RX skb updated. len %d. data_len %d\n",
@@ -1517,8 +1519,7 @@ static int ena_xdp_handle_buff(struct ena_ring *rx_ring, struct xdp_buff *xdp)
 	int ret;
 
 	rx_info = &rx_ring->rx_buffer_info[rx_ring->ena_bufs[0].req_id];
-	xdp->data = page_address(rx_info->page) +
-		rx_info->page_offset + rx_ring->rx_headroom;
+	xdp->data = page_address(rx_info->page) + rx_info->page_offset;
 	xdp_set_data_meta_invalid(xdp);
 	xdp->data_hard_start = page_address(rx_info->page);
 	xdp->data_end = xdp->data + rx_ring->ena_bufs[0].len;
@@ -1585,8 +1586,9 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 		if (unlikely(ena_rx_ctx.descs == 0))
 			break;
 
+		/* First descriptor might have an offset set by the device */
 		rx_info = &rx_ring->rx_buffer_info[rx_ring->ena_bufs[0].req_id];
-		rx_info->page_offset = ena_rx_ctx.pkt_offset;
+		rx_info->page_offset += ena_rx_ctx.pkt_offset;
 
 		netif_dbg(rx_ring->adapter, rx_status, rx_ring->netdev,
 			  "rx_poll: q %d got packet from ena. descs #: %d l3 proto %d l4 proto %d hash: %x\n",
