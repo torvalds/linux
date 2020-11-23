@@ -239,7 +239,7 @@ static bool _dpu_rm_needs_split_display(const struct msm_display_topology *top)
  * @rm: dpu resource manager handle
  * @primary_idx: index of primary mixer in rm->mixer_blks[]
  * @peer_idx: index of other mixer in rm->mixer_blks[]
- * @Return: true if rm->mixer_blks[peer_idx] is a peer of
+ * Return: true if rm->mixer_blks[peer_idx] is a peer of
  *          rm->mixer_blks[primary_idx]
  */
 static bool _dpu_rm_check_lm_peer(struct dpu_rm *rm, int primary_idx,
@@ -264,6 +264,7 @@ static bool _dpu_rm_check_lm_peer(struct dpu_rm *rm, int primary_idx,
  *	proposed use case requirements, incl. hardwired dependent blocks like
  *	pingpong
  * @rm: dpu resource manager handle
+ * @global_state: resources shared across multiple kms objects
  * @enc_id: encoder id requesting for allocation
  * @lm_idx: index of proposed layer mixer in rm->mixer_blks[], function checks
  *      if lm, and all other hardwired blocks connected to the lm (pp) is
@@ -274,7 +275,7 @@ static bool _dpu_rm_check_lm_peer(struct dpu_rm *rm, int primary_idx,
  *      mixer in rm->dspp_blks[].
  * @reqs: input parameter, rm requirements for HW blocks needed in the
  *      datapath.
- * @Return: true if lm matches all requirements, false otherwise
+ * Return: true if lm matches all requirements, false otherwise
  */
 static bool _dpu_rm_check_lm_and_get_connected_blks(struct dpu_rm *rm,
 		struct dpu_global_state *global_state,
