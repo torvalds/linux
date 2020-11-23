@@ -517,7 +517,7 @@ devlink_reload_limit_is_supported(struct devlink *devlink, enum devlink_reload_l
 	return test_bit(limit, &devlink->ops->reload_limits);
 }
 
-static int devlink_reload_stat_put(struct sk_buff *msg, enum devlink_reload_action action,
+static int devlink_reload_stat_put(struct sk_buff *msg,
 				   enum devlink_reload_limit limit, u32 value)
 {
 	struct nlattr *reload_stats_entry;
@@ -526,8 +526,7 @@ static int devlink_reload_stat_put(struct sk_buff *msg, enum devlink_reload_acti
 	if (!reload_stats_entry)
 		return -EMSGSIZE;
 
-	if (nla_put_u8(msg, DEVLINK_ATTR_RELOAD_ACTION, action) ||
-	    nla_put_u8(msg, DEVLINK_ATTR_RELOAD_STATS_LIMIT, limit) ||
+	if (nla_put_u8(msg, DEVLINK_ATTR_RELOAD_STATS_LIMIT, limit) ||
 	    nla_put_u32(msg, DEVLINK_ATTR_RELOAD_STATS_VALUE, value))
 		goto nla_put_failure;
 	nla_nest_end(msg, reload_stats_entry);
@@ -540,7 +539,7 @@ nla_put_failure:
 
 static int devlink_reload_stats_put(struct sk_buff *msg, struct devlink *devlink, bool is_remote)
 {
-	struct nlattr *reload_stats_attr;
+	struct nlattr *reload_stats_attr, *act_info, *act_stats;
 	int i, j, stat_idx;
 	u32 value;
 
@@ -552,17 +551,29 @@ static int devlink_reload_stats_put(struct sk_buff *msg, struct devlink *devlink
 	if (!reload_stats_attr)
 		return -EMSGSIZE;
 
-	for (j = 0; j <= DEVLINK_RELOAD_LIMIT_MAX; j++) {
-		/* Remote stats are shown even if not locally supported. Stats
-		 * of actions with unspecified limit are shown though drivers
-		 * don't need to register unspecified limit.
-		 */
-		if (!is_remote && j != DEVLINK_RELOAD_LIMIT_UNSPEC &&
-		    !devlink_reload_limit_is_supported(devlink, j))
+	for (i = 0; i <= DEVLINK_RELOAD_ACTION_MAX; i++) {
+		if ((!is_remote &&
+		     !devlink_reload_action_is_supported(devlink, i)) ||
+		    i == DEVLINK_RELOAD_ACTION_UNSPEC)
 			continue;
-		for (i = 0; i <= DEVLINK_RELOAD_ACTION_MAX; i++) {
-			if ((!is_remote && !devlink_reload_action_is_supported(devlink, i)) ||
-			    i == DEVLINK_RELOAD_ACTION_UNSPEC ||
+		act_info = nla_nest_start(msg, DEVLINK_ATTR_RELOAD_ACTION_INFO);
+		if (!act_info)
+			goto nla_put_failure;
+
+		if (nla_put_u8(msg, DEVLINK_ATTR_RELOAD_ACTION, i))
+			goto action_info_nest_cancel;
+		act_stats = nla_nest_start(msg, DEVLINK_ATTR_RELOAD_ACTION_STATS);
+		if (!act_stats)
+			goto action_info_nest_cancel;
+
+		for (j = 0; j <= DEVLINK_RELOAD_LIMIT_MAX; j++) {
+			/* Remote stats are shown even if not locally supported.
+			 * Stats of actions with unspecified limit are shown
+			 * though drivers don't need to register unspecified
+			 * limit.
+			 */
+			if ((!is_remote && j != DEVLINK_RELOAD_LIMIT_UNSPEC &&
+			     !devlink_reload_limit_is_supported(devlink, j)) ||
 			    devlink_reload_combination_is_invalid(i, j))
 				continue;
 
@@ -571,13 +582,19 @@ static int devlink_reload_stats_put(struct sk_buff *msg, struct devlink *devlink
 				value = devlink->stats.reload_stats[stat_idx];
 			else
 				value = devlink->stats.remote_reload_stats[stat_idx];
-			if (devlink_reload_stat_put(msg, i, j, value))
-				goto nla_put_failure;
+			if (devlink_reload_stat_put(msg, j, value))
+				goto action_stats_nest_cancel;
 		}
+		nla_nest_end(msg, act_stats);
+		nla_nest_end(msg, act_info);
 	}
 	nla_nest_end(msg, reload_stats_attr);
 	return 0;
 
+action_stats_nest_cancel:
+	nla_nest_cancel(msg, act_stats);
+action_info_nest_cancel:
+	nla_nest_cancel(msg, act_info);
 nla_put_failure:
 	nla_nest_cancel(msg, reload_stats_attr);
 	return -EMSGSIZE;
