@@ -8918,6 +8918,30 @@ static void mlxsw_sp_router_ll_op_ctx_fini(struct mlxsw_sp_router *router)
 	kfree(router->ll_op_ctx);
 }
 
+static int mlxsw_sp_lb_rif_init(struct mlxsw_sp *mlxsw_sp)
+{
+	u16 lb_rif_index;
+	int err;
+
+	/* Create a generic loopback RIF associated with the main table
+	 * (default VRF). Any table can be used, but the main table exists
+	 * anyway, so we do not waste resources.
+	 */
+	err = mlxsw_sp_router_ul_rif_get(mlxsw_sp, RT_TABLE_MAIN,
+					 &lb_rif_index);
+	if (err)
+		return err;
+
+	mlxsw_sp->router->lb_rif_index = lb_rif_index;
+
+	return 0;
+}
+
+static void mlxsw_sp_lb_rif_fini(struct mlxsw_sp *mlxsw_sp)
+{
+	mlxsw_sp_router_ul_rif_put(mlxsw_sp, mlxsw_sp->router->lb_rif_index);
+}
+
 int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp,
 			 struct netlink_ext_ack *extack)
 {
@@ -8973,6 +8997,10 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp,
 	err = mlxsw_sp_vrs_init(mlxsw_sp);
 	if (err)
 		goto err_vrs_init;
+
+	err = mlxsw_sp_lb_rif_init(mlxsw_sp);
+	if (err)
+		goto err_lb_rif_init;
 
 	err = mlxsw_sp_neigh_init(mlxsw_sp);
 	if (err)
@@ -9039,6 +9067,8 @@ err_dscp_init:
 err_mp_hash_init:
 	mlxsw_sp_neigh_fini(mlxsw_sp);
 err_neigh_init:
+	mlxsw_sp_lb_rif_fini(mlxsw_sp);
+err_lb_rif_init:
 	mlxsw_sp_vrs_fini(mlxsw_sp);
 err_vrs_init:
 	mlxsw_sp_mr_fini(mlxsw_sp);
@@ -9074,6 +9104,7 @@ void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp)
 	mlxsw_core_flush_owq();
 	WARN_ON(!list_empty(&mlxsw_sp->router->fib_event_queue));
 	mlxsw_sp_neigh_fini(mlxsw_sp);
+	mlxsw_sp_lb_rif_fini(mlxsw_sp);
 	mlxsw_sp_vrs_fini(mlxsw_sp);
 	mlxsw_sp_mr_fini(mlxsw_sp);
 	mlxsw_sp_lpm_fini(mlxsw_sp);

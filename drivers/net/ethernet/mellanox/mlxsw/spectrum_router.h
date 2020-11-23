@@ -75,6 +75,7 @@ struct mlxsw_sp_router {
 	/* One set of ops for each protocol: IPv4 and IPv6 */
 	const struct mlxsw_sp_router_ll_ops *proto_ll_ops[MLXSW_SP_L3_PROTO_MAX];
 	struct mlxsw_sp_fib_entry_op_ctx *ll_op_ctx;
+	u16 lb_rif_index;
 };
 
 struct mlxsw_sp_fib_entry_priv {
