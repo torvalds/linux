@@ -2857,6 +2857,12 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 
 	clk_set_rate(vp->dclk, adjusted_mode->crtc_clock * 1000);
 
+	if (is_yuv_output(vcstate->bus_format))
+		val = 0x20010200;
+	else
+		val = 0;
+	VOP_MODULE_SET(vop2, vp, dsp_background, val);
+
 	vop2_cfg_done(crtc);
 
 	drm_crtc_vblank_on(crtc);

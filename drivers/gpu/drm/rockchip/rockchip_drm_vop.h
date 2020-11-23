@@ -505,6 +505,7 @@ struct vop2_win_regs {
 struct vop2_video_port_regs {
 	struct vop_reg cfg_done;
 	struct vop_reg overlay_mode;
+	struct vop_reg dsp_background;
 	struct vop_reg port_mux;
 	struct vop_reg out_mode;
 	struct vop_reg standby;
