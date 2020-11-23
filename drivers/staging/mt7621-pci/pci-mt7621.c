@@ -116,7 +116,7 @@ struct mt7621_pcie_port {
  * struct mt7621_pcie - PCIe host information
  * @base: IO Mapped Register Base
  * @io: IO resource
- * @mem: non-prefetchable memory resource
+ * @mem: pointer to non-prefetchable memory resource
  * @dev: Pointer to PCIe device
  * @io_map_base: virtual memory base address for io
  * @ports: pointer to PCIe port information
@@ -128,7 +128,7 @@ struct mt7621_pcie {
 	void __iomem *base;
 	struct device *dev;
 	struct resource io;
-	struct resource mem;
+	struct resource *mem;
 	unsigned long io_map_base;
 	struct list_head ports;
 	int irq_map[PCIE_P2P_CNT];
@@ -256,7 +256,7 @@ static inline void mt7621_control_deassert(struct mt7621_pcie_port *port)
 
 static void setup_cm_memory_region(struct mt7621_pcie *pcie)
 {
-	struct resource *mem_resource = &pcie->mem;
+	struct resource *mem_resource = pcie->mem;
 	struct device *dev = pcie->dev;
 	resource_size_t mask;
 
@@ -286,12 +286,15 @@ static int mt7621_map_irq(const struct pci_dev *pdev, u8 slot, u8 pin)
 	return irq;
 }
 
-static int mt7621_pci_parse_request_of_pci_ranges(struct mt7621_pcie *pcie)
+static int mt7621_pci_parse_request_of_pci_ranges(struct pci_host_bridge *host)
 {
+	struct mt7621_pcie *pcie = pci_host_bridge_priv(host);
 	struct device *dev = pcie->dev;
 	struct device_node *node = dev->of_node;
 	struct of_pci_range_parser parser;
+	struct resource_entry *entry;
 	struct of_pci_range range;
+	LIST_HEAD(res);
 
 	if (of_pci_range_parser_init(&parser, node)) {
 		dev_err(dev, "missing \"ranges\" property\n");
@@ -314,14 +317,21 @@ static int mt7621_pci_parse_request_of_pci_ranges(struct mt7621_pcie *pcie)
 			of_pci_range_to_resource(&range, node, &pcie->io);
 			pcie->io.start = range.cpu_addr;
 			pcie->io.end = range.cpu_addr + range.size - 1;
-			break;
-		case IORESOURCE_MEM:
-			of_pci_range_to_resource(&range, node, &pcie->mem);
+			set_io_port_base(pcie->io_map_base);
 			break;
 		}
 	}
 
-	set_io_port_base(pcie->io_map_base);
+	entry = resource_list_first_type(&host->windows, IORESOURCE_MEM);
+	if (!entry) {
+		dev_err(dev, "Cannot get memory resource");
+		return -EINVAL;
+	}
+
+	pcie->mem = entry->res;
+	pci_add_resource(&res, &pcie->io);
+	pci_add_resource(&res, entry->res);
+	list_splice_init(&res, &host->windows);
 
 	return 0;
 }
@@ -641,19 +651,10 @@ static int mt7621_pcie_init_virtual_bridges(struct mt7621_pcie *pcie)
 	return 0;
 }
 
-static void mt7621_pcie_add_resources(struct mt7621_pcie *pcie,
-				      struct list_head *res)
-{
-	pci_add_resource(res, &pcie->io);
-	pci_add_resource(res, &pcie->mem);
-}
-
-static int mt7621_pcie_register_host(struct pci_host_bridge *host,
-				     struct list_head *res)
+static int mt7621_pcie_register_host(struct pci_host_bridge *host)
 {
 	struct mt7621_pcie *pcie = pci_host_bridge_priv(host);
 
-	list_splice_init(res, &host->windows);
 	host->ops = &mt7621_pci_ops;
 	host->map_irq = mt7621_map_irq;
 	host->sysdata = pcie;
@@ -672,7 +673,6 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 	struct mt7621_pcie *pcie;
 	struct pci_host_bridge *bridge;
 	int err;
-	LIST_HEAD(res);
 
 	if (!dev->of_node)
 		return -ENODEV;
@@ -696,7 +696,7 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	err = mt7621_pci_parse_request_of_pci_ranges(pcie);
+	err = mt7621_pci_parse_request_of_pci_ranges(bridge);
 	if (err) {
 		dev_err(dev, "Error requesting pci resources from ranges");
 		return err;
@@ -718,9 +718,7 @@ static int mt7621_pci_probe(struct platform_device *pdev)
 
 	setup_cm_memory_region(pcie);
 
-	mt7621_pcie_add_resources(pcie, &res);
-
-	err = mt7621_pcie_register_host(bridge, &res);
+	err = mt7621_pcie_register_host(bridge);
 	if (err) {
 		dev_err(dev, "Error registering host\n");
 		return err;
