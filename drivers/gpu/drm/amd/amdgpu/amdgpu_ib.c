@@ -106,6 +106,7 @@ void amdgpu_ib_free(struct amdgpu_device *adev, struct amdgpu_ib *ib,
  * @ring: ring index the IB is associated with
  * @num_ibs: number of IBs to schedule
  * @ibs: IB objects to schedule
+ * @job: job to schedule
  * @f: fence created during this submission
  *
  * Schedule an IB on the associated ring (all asics).
