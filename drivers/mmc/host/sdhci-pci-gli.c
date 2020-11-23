@@ -97,6 +97,10 @@
 #define   GLI_9755_WT_EN_ON     0x1
 #define   GLI_9755_WT_EN_OFF    0x0
 
+#define PCI_GLI_9755_PECONF   0x44
+#define   PCI_GLI_9755_LFCLK    GENMASK(14, 12)
+#define   PCI_GLI_9755_DMACLK   BIT(29)
+
 #define PCI_GLI_9755_PLL            0x64
 #define   PCI_GLI_9755_PLL_LDIV       GENMASK(9, 0)
 #define   PCI_GLI_9755_PLL_PDIV       GENMASK(14, 12)
@@ -519,6 +523,21 @@ static void sdhci_gl9755_set_clock(struct sdhci_host *host, unsigned int clock)
 	sdhci_enable_clk(host, clk);
 }
 
+static void gl9755_hw_setting(struct sdhci_pci_slot *slot)
+{
+	struct pci_dev *pdev = slot->chip->pdev;
+	u32 value;
+
+	gl9755_wt_on(pdev);
+
+	pci_read_config_dword(pdev, PCI_GLI_9755_PECONF, &value);
+	value &= ~PCI_GLI_9755_LFCLK;
+	value &= ~PCI_GLI_9755_DMACLK;
+	pci_write_config_dword(pdev, PCI_GLI_9755_PECONF, value);
+
+	gl9755_wt_off(pdev);
+}
+
 static int gli_probe_slot_gl9750(struct sdhci_pci_slot *slot)
 {
 	struct sdhci_host *host = slot->host;
@@ -534,6 +553,7 @@ static int gli_probe_slot_gl9755(struct sdhci_pci_slot *slot)
 {
 	struct sdhci_host *host = slot->host;
 
+	gl9755_hw_setting(slot);
 	gli_pcie_enable_msi(slot);
 	slot->host->mmc->caps2 |= MMC_CAP2_NO_SDIO;
 	sdhci_enable_v4_mode(host);
