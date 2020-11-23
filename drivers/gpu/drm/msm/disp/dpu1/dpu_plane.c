@@ -19,7 +19,6 @@
 #include "dpu_kms.h"
 #include "dpu_formats.h"
 #include "dpu_hw_sspp.h"
-#include "dpu_hw_catalog_format.h"
 #include "dpu_trace.h"
 #include "dpu_crtc.h"
 #include "dpu_vbif.h"
@@ -62,6 +61,16 @@ enum {
 #define DPU_QSEED4_DEFAULT_PRELOAD_H 0x4
 
 #define DEFAULT_REFRESH_RATE	60
+
+static const uint32_t qcom_compressed_supported_formats[] = {
+	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_BGR565,
+
+	DRM_FORMAT_NV12,
+};
 
 /**
  * enum dpu_plane_qos - Different qos configurations for each pipe
