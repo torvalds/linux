@@ -513,6 +513,15 @@ static const struct dmi_system_id acer_quirks[] __initconst = {
 	},
 	{
 		.callback = set_force_caps,
+		.ident = "Acer Aspire Switch 10E SW3-016",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire SW3-016"),
+		},
+		.driver_data = (void *)ACER_CAP_KBD_DOCK,
+	},
+	{
+		.callback = set_force_caps,
 		.ident = "Acer Aspire Switch 10 SW5-012",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
