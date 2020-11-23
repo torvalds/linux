@@ -146,7 +146,8 @@ static void lan743x_intr_software_isr(struct lan743x_adapter *adapter)
 
 	/* disable the interrupt to prevent repeated re-triggering */
 	lan743x_csr_write(adapter, INT_EN_CLR, INT_BIT_SW_GP_);
-	intr->software_isr_flag = 1;
+	intr->software_isr_flag = true;
+	wake_up(&intr->software_isr_wq);
 }
 
 static void lan743x_tx_isr(void *context, u32 int_sts, u32 flags)
@@ -343,27 +344,22 @@ irq_done:
 static int lan743x_intr_test_isr(struct lan743x_adapter *adapter)
 {
 	struct lan743x_intr *intr = &adapter->intr;
-	int result = -ENODEV;
-	int timeout = 10;
+	int ret;
 
-	intr->software_isr_flag = 0;
+	intr->software_isr_flag = false;
 
-	/* enable interrupt */
+	/* enable and activate test interrupt */
 	lan743x_csr_write(adapter, INT_EN_SET, INT_BIT_SW_GP_);
-
-	/* activate interrupt here */
 	lan743x_csr_write(adapter, INT_SET, INT_BIT_SW_GP_);
-	while ((timeout > 0) && (!(intr->software_isr_flag))) {
-		usleep_range(1000, 20000);
-		timeout--;
-	}
 
-	if (intr->software_isr_flag)
-		result = 0;
+	ret = wait_event_timeout(intr->software_isr_wq,
+				 intr->software_isr_flag,
+				 msecs_to_jiffies(200));
 
-	/* disable interrupts */
+	/* disable test interrupt */
 	lan743x_csr_write(adapter, INT_EN_CLR, INT_BIT_SW_GP_);
-	return result;
+
+	return ret > 0 ? 0 : -ENODEV;
 }
 
 static int lan743x_intr_register_isr(struct lan743x_adapter *adapter,
@@ -536,6 +532,8 @@ static int lan743x_intr_open(struct lan743x_adapter *adapter)
 		flags |= LAN743X_VECTOR_FLAG_SOURCE_STATUS_R2C;
 		flags |= LAN743X_VECTOR_FLAG_SOURCE_ENABLE_R2C;
 	}
+
+	init_waitqueue_head(&intr->software_isr_wq);
 
 	ret = lan743x_intr_register_isr(adapter, 0, flags,
 					INT_BIT_ALL_RX_ | INT_BIT_ALL_TX_ |
