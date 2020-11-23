@@ -8,7 +8,9 @@
 		     + __clang_patchlevel__)
 
 #if CLANG_VERSION < 100001
+#ifndef __BPF_TRACING__
 # error Sorry, your version of Clang is too old - please use 10.0.1 or newer.
+#endif
 #endif
 
 /* Compiler specific definitions for Clang compiler */

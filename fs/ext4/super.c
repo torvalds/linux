@@ -2638,10 +2638,6 @@ static int _ext4_show_options(struct seq_file *seq, struct super_block *sb,
 	} else if (test_opt2(sb, DAX_INODE)) {
 		SEQ_OPTS_PUTS("dax=inode");
 	}
-
-	if (test_opt2(sb, JOURNAL_FAST_COMMIT))
-		SEQ_OPTS_PUTS("fast_commit");
-
 	ext4_show_quota_options(seq, sb);
 	return 0;
 }
