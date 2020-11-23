@@ -1223,9 +1223,10 @@ static int __snd_usb_parse_audio_interface(struct snd_usb_audio *chip,
 		}
 
 		/* try to set the interface... */
-		usb_set_interface(chip->dev, iface_no, altno);
+		usb_set_interface(chip->dev, iface_no, 0);
 		snd_usb_init_pitch(chip, iface_no, alts, fp);
 		snd_usb_init_sample_rate(chip, iface_no, alts, fp, fp->rate_max);
+		usb_set_interface(chip->dev, iface_no, altno);
 	}
 	return 0;
 }
