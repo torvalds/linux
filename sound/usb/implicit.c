@@ -269,6 +269,10 @@ static int audioformat_implicit_fb_quirk(struct snd_usb_audio *chip,
 			return 1;
 	}
 
+	/* Try the generic implicit fb if available */
+	if (chip->generic_implicit_fb)
+		return add_generic_implicit_fb(chip, fmt, alts);
+
 	/* No quirk */
 	return 0;
 }
