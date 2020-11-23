@@ -117,7 +117,6 @@ struct mt7621_pcie_port {
  * @base: IO Mapped Register Base
  * @io: IO resource
  * @mem: non-prefetchable memory resource
- * @offset: IO / Memory offset
  * @dev: Pointer to PCIe device
  * @io_map_base: virtual memory base address for io
  * @ports: pointer to PCIe port information
@@ -130,10 +129,6 @@ struct mt7621_pcie {
 	struct device *dev;
 	struct resource io;
 	struct resource mem;
-	struct {
-		resource_size_t mem;
-		resource_size_t io;
-	} offset;
 	unsigned long io_map_base;
 	struct list_head ports;
 	int irq_map[PCIE_P2P_CNT];
@@ -312,11 +307,9 @@ static int mt7621_pci_parse_request_of_pci_ranges(struct mt7621_pcie *pcie)
 			of_pci_range_to_resource(&range, node, &pcie->io);
 			pcie->io.start = range.cpu_addr;
 			pcie->io.end = range.cpu_addr + range.size - 1;
-			pcie->offset.io = 0x00000000UL;
 			break;
 		case IORESOURCE_MEM:
 			of_pci_range_to_resource(&range, node, &pcie->mem);
-			pcie->offset.mem = 0x00000000UL;
 			break;
 		}
 	}
@@ -644,8 +637,8 @@ static int mt7621_pcie_init_virtual_bridges(struct mt7621_pcie *pcie)
 static void mt7621_pcie_add_resources(struct mt7621_pcie *pcie,
 				      struct list_head *res)
 {
-	pci_add_resource_offset(res, &pcie->io, pcie->offset.io);
-	pci_add_resource_offset(res, &pcie->mem, pcie->offset.mem);
+	pci_add_resource(res, &pcie->io);
+	pci_add_resource(res, &pcie->mem);
 }
 
 static int mt7621_pcie_register_host(struct pci_host_bridge *host,
