@@ -232,7 +232,6 @@ static int start_endpoints(struct snd_usb_substream *subs)
 	if (!test_and_set_bit(SUBSTREAM_FLAG_DATA_EP_STARTED, &subs->flags)) {
 		struct snd_usb_endpoint *ep = subs->data_endpoint;
 
-		ep->data_subs = subs;
 		err = snd_usb_endpoint_start(ep);
 		if (err < 0) {
 			clear_bit(SUBSTREAM_FLAG_DATA_EP_STARTED, &subs->flags);
@@ -1830,18 +1829,24 @@ static int snd_usb_substream_playback_trigger(struct snd_pcm_substream *substrea
 		subs->trigger_tstamp_pending_update = true;
 		fallthrough;
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		subs->data_endpoint->prepare_data_urb = prepare_playback_urb;
-		subs->data_endpoint->retire_data_urb = retire_playback_urb;
+		snd_usb_endpoint_set_callback(subs->data_endpoint,
+					      prepare_playback_urb,
+					      retire_playback_urb,
+					      subs);
 		subs->running = 1;
 		return 0;
 	case SNDRV_PCM_TRIGGER_STOP:
 		stop_endpoints(subs);
+		snd_usb_endpoint_set_callback(subs->data_endpoint,
+					      NULL, NULL, NULL);
 		subs->running = 0;
 		return 0;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		subs->data_endpoint->prepare_data_urb = NULL;
 		/* keep retire_data_urb for delay calculation */
-		subs->data_endpoint->retire_data_urb = retire_playback_urb;
+		snd_usb_endpoint_set_callback(subs->data_endpoint,
+					      NULL,
+					      retire_playback_urb,
+					      subs);
 		subs->running = 0;
 		return 0;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
@@ -1867,22 +1872,20 @@ static int snd_usb_substream_capture_trigger(struct snd_pcm_substream *substream
 		err = start_endpoints(subs);
 		if (err < 0)
 			return err;
-
-		subs->data_endpoint->retire_data_urb = retire_capture_urb;
+		fallthrough;
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		snd_usb_endpoint_set_callback(subs->data_endpoint,
+					      NULL, retire_capture_urb,
+					      subs);
 		subs->running = 1;
 		return 0;
 	case SNDRV_PCM_TRIGGER_STOP:
 		stop_endpoints(subs);
-		subs->data_endpoint->retire_data_urb = NULL;
-		subs->running = 0;
-		return 0;
+		fallthrough;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		subs->data_endpoint->retire_data_urb = NULL;
+		snd_usb_endpoint_set_callback(subs->data_endpoint,
+					      NULL, NULL, NULL);
 		subs->running = 0;
-		return 0;
-	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		subs->data_endpoint->retire_data_urb = retire_capture_urb;
-		subs->running = 1;
 		return 0;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 		if (subs->stream->chip->setup_fmt_after_resume_quirk) {

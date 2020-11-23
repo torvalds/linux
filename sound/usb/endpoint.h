@@ -20,6 +20,13 @@ int snd_usb_endpoint_set_params(struct snd_usb_endpoint *ep,
 				struct audioformat *fmt,
 				struct snd_usb_endpoint *sync_ep);
 
+void snd_usb_endpoint_set_callback(struct snd_usb_endpoint *ep,
+				   void (*prepare)(struct snd_usb_substream *subs,
+						   struct urb *urb),
+				   void (*retire)(struct snd_usb_substream *subs,
+						  struct urb *urb),
+				   struct snd_usb_substream *data_subs);
+
 int  snd_usb_endpoint_start(struct snd_usb_endpoint *ep);
 void snd_usb_endpoint_stop(struct snd_usb_endpoint *ep);
 void snd_usb_endpoint_sync_pending_stop(struct snd_usb_endpoint *ep);

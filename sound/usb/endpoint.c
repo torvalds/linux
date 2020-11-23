@@ -169,11 +169,20 @@ int snd_usb_endpoint_next_packet_size(struct snd_usb_endpoint *ep)
 	return ret;
 }
 
+static void call_retire_callback(struct snd_usb_endpoint *ep,
+				 struct urb *urb)
+{
+	struct snd_usb_substream *data_subs;
+
+	data_subs = READ_ONCE(ep->data_subs);
+	if (data_subs && ep->retire_data_urb)
+		ep->retire_data_urb(data_subs, urb);
+}
+
 static void retire_outbound_urb(struct snd_usb_endpoint *ep,
 				struct snd_urb_ctx *urb_ctx)
 {
-	if (ep->retire_data_urb)
-		ep->retire_data_urb(ep->data_subs, urb_ctx->urb);
+	call_retire_callback(ep, urb_ctx->urb);
 }
 
 static void retire_inbound_urb(struct snd_usb_endpoint *ep,
@@ -189,8 +198,7 @@ static void retire_inbound_urb(struct snd_usb_endpoint *ep,
 	if (ep->sync_slave)
 		snd_usb_handle_sync_urb(ep->sync_slave, ep, urb);
 
-	if (ep->retire_data_urb)
-		ep->retire_data_urb(ep->data_subs, urb);
+	call_retire_callback(ep, urb);
 }
 
 static void prepare_silent_urb(struct snd_usb_endpoint *ep,
@@ -244,17 +252,17 @@ static void prepare_outbound_urb(struct snd_usb_endpoint *ep,
 {
 	struct urb *urb = ctx->urb;
 	unsigned char *cp = urb->transfer_buffer;
+	struct snd_usb_substream *data_subs;
 
 	urb->dev = ep->chip->dev; /* we need to set this at each time */
 
 	switch (ep->type) {
 	case SND_USB_ENDPOINT_TYPE_DATA:
-		if (ep->prepare_data_urb) {
-			ep->prepare_data_urb(ep->data_subs, urb);
-		} else {
-			/* no data provider, so send silence */
+		data_subs = READ_ONCE(ep->data_subs);
+		if (data_subs && ep->prepare_data_urb)
+			ep->prepare_data_urb(data_subs, urb);
+		else /* no data provider, so send silence */
 			prepare_silent_urb(ep, ctx);
-		}
 		break;
 
 	case SND_USB_ENDPOINT_TYPE_SYNC:
@@ -381,7 +389,7 @@ static void snd_complete_urb(struct urb *urb)
 {
 	struct snd_urb_ctx *ctx = urb->context;
 	struct snd_usb_endpoint *ep = ctx->ep;
-	struct snd_pcm_substream *substream;
+	struct snd_usb_substream *data_subs;
 	unsigned long flags;
 	int err;
 
@@ -430,10 +438,9 @@ static void snd_complete_urb(struct urb *urb)
 		return;
 
 	usb_audio_err(ep->chip, "cannot submit urb (err = %d)\n", err);
-	if (ep->data_subs && ep->data_subs->pcm_substream) {
-		substream = ep->data_subs->pcm_substream;
-		snd_pcm_stop_xrun(substream);
-	}
+	data_subs = READ_ONCE(ep->data_subs);
+	if (data_subs && data_subs->pcm_substream)
+		snd_pcm_stop_xrun(data_subs->pcm_substream);
 
 exit_clear:
 	clear_bit(ctx->index, &ep->active_mask);
@@ -533,6 +540,24 @@ void snd_usb_endpoint_set_syncinterval(struct snd_usb_audio *chip,
 }
 
 /*
+ * Set data endpoint callbacks and the assigned data stream
+ *
+ * Called at PCM trigger and cleanups.
+ * Pass NULL to deactivate each callback.
+ */
+void snd_usb_endpoint_set_callback(struct snd_usb_endpoint *ep,
+				   void (*prepare)(struct snd_usb_substream *subs,
+						   struct urb *urb),
+				   void (*retire)(struct snd_usb_substream *subs,
+						  struct urb *urb),
+				   struct snd_usb_substream *data_subs)
+{
+	ep->prepare_data_urb = prepare;
+	ep->retire_data_urb = retire;
+	WRITE_ONCE(ep->data_subs, data_subs);
+}
+
+/*
  *  wait until all urbs are processed.
  */
 static int wait_clear_urbs(struct snd_usb_endpoint *ep)
@@ -554,10 +579,8 @@ static int wait_clear_urbs(struct snd_usb_endpoint *ep)
 			alive, ep->ep_num);
 	clear_bit(EP_FLAG_STOPPING, &ep->flags);
 
-	ep->data_subs = NULL;
 	ep->sync_slave = NULL;
-	ep->retire_data_urb = NULL;
-	ep->prepare_data_urb = NULL;
+	snd_usb_endpoint_set_callback(ep, NULL, NULL, NULL);
 
 	return 0;
 }
@@ -607,8 +630,7 @@ static void release_urbs(struct snd_usb_endpoint *ep, int force)
 	int i;
 
 	/* route incoming urbs to nirvana */
-	ep->retire_data_urb = NULL;
-	ep->prepare_data_urb = NULL;
+	snd_usb_endpoint_set_callback(ep, NULL, NULL, NULL);
 
 	/* stop urbs */
 	deactivate_urbs(ep, force);
