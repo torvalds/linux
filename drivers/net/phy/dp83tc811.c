@@ -197,6 +197,10 @@ static int dp83811_config_intr(struct phy_device *phydev)
 	int misr_status, err;
 
 	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		err = dp83811_ack_interrupt(phydev);
+		if (err)
+			return err;
+
 		misr_status = phy_read(phydev, MII_DP83811_INT_STAT1);
 		if (misr_status < 0)
 			return misr_status;
@@ -249,6 +253,10 @@ static int dp83811_config_intr(struct phy_device *phydev)
 			return err;
 
 		err = phy_write(phydev, MII_DP83811_INT_STAT3, 0);
+		if (err < 0)
+			return err;
+
+		err = dp83811_ack_interrupt(phydev);
 	}
 
 	return err;
@@ -386,7 +394,6 @@ static struct phy_driver dp83811_driver[] = {
 		.soft_reset = dp83811_phy_reset,
 		.get_wol = dp83811_get_wol,
 		.set_wol = dp83811_set_wol,
-		.ack_interrupt = dp83811_ack_interrupt,
 		.config_intr = dp83811_config_intr,
 		.handle_interrupt = dp83811_handle_interrupt,
 		.suspend = dp83811_suspend,

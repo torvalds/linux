@@ -288,9 +288,13 @@ static void dp83867_get_wol(struct phy_device *phydev,
 
 static int dp83867_config_intr(struct phy_device *phydev)
 {
-	int micr_status;
+	int micr_status, err;
 
 	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		err = dp83867_ack_interrupt(phydev);
+		if (err)
+			return err;
+
 		micr_status = phy_read(phydev, MII_DP83867_MICR);
 		if (micr_status < 0)
 			return micr_status;
@@ -303,11 +307,17 @@ static int dp83867_config_intr(struct phy_device *phydev)
 			MII_DP83867_MICR_DUP_MODE_CHNG_INT_EN |
 			MII_DP83867_MICR_SLEEP_MODE_CHNG_INT_EN);
 
-		return phy_write(phydev, MII_DP83867_MICR, micr_status);
+		err = phy_write(phydev, MII_DP83867_MICR, micr_status);
+	} else {
+		micr_status = 0x0;
+		err = phy_write(phydev, MII_DP83867_MICR, micr_status);
+		if (err)
+			return err;
+
+		err = dp83867_ack_interrupt(phydev);
 	}
 
-	micr_status = 0x0;
-	return phy_write(phydev, MII_DP83867_MICR, micr_status);
+	return err;
 }
 
 static irqreturn_t dp83867_handle_interrupt(struct phy_device *phydev)
@@ -849,7 +859,6 @@ static struct phy_driver dp83867_driver[] = {
 		.set_wol	= dp83867_set_wol,
 
 		/* IRQ related */
-		.ack_interrupt	= dp83867_ack_interrupt,
 		.config_intr	= dp83867_config_intr,
 		.handle_interrupt = dp83867_handle_interrupt,
 

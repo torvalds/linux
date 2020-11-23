@@ -67,17 +67,28 @@ static int dp83848_config_intr(struct phy_device *phydev)
 		return control;
 
 	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		ret = dp83848_ack_interrupt(phydev);
+		if (ret)
+			return ret;
+
 		control |= DP83848_MICR_INT_OE;
 		control |= DP83848_MICR_INTEN;
 
 		ret = phy_write(phydev, DP83848_MISR, DP83848_INT_EN_MASK);
 		if (ret < 0)
 			return ret;
+
+		ret = phy_write(phydev, DP83848_MICR, control);
 	} else {
 		control &= ~DP83848_MICR_INTEN;
+		ret = phy_write(phydev, DP83848_MICR, control);
+		if (ret)
+			return ret;
+
+		ret = dp83848_ack_interrupt(phydev);
 	}
 
-	return phy_write(phydev, DP83848_MICR, control);
+	return ret;
 }
 
 static irqreturn_t dp83848_handle_interrupt(struct phy_device *phydev)
@@ -134,7 +145,6 @@ MODULE_DEVICE_TABLE(mdio, dp83848_tbl);
 		.resume		= genphy_resume,		\
 								\
 		/* IRQ related */				\
-		.ack_interrupt	= dp83848_ack_interrupt,	\
 		.config_intr	= dp83848_config_intr,		\
 		.handle_interrupt = dp83848_handle_interrupt,	\
 	}
