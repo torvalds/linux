@@ -298,6 +298,13 @@ static int mt7621_pci_parse_request_of_pci_ranges(struct mt7621_pcie *pcie)
 		return -EINVAL;
 	}
 
+	/*
+	 * IO_SPACE_LIMIT for MIPS is 0xffff but this platform uses IO at
+	 * upper address 0x001e160000 so we have to get the resource from
+	 * the DT because when it has been requested it failed and has been
+	 * removed from bridge->dma_ranges and bridge->windows. So parse it
+	 * and remap it manually to make things work.
+	 */
 	for_each_of_pci_range(&parser, &range) {
 		switch (range.flags & IORESOURCE_TYPE_BITS) {
 		case IORESOURCE_IO:
