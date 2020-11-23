@@ -617,9 +617,9 @@ static inline void ec_transaction_transition(struct acpi_ec *ec, unsigned long f
 
 static void advance_transaction(struct acpi_ec *ec, bool interrupt)
 {
-	struct transaction *t;
-	u8 status;
+	struct transaction *t = ec->curr;
 	bool wakeup = false;
+	u8 status;
 
 	ec_dbg_stm("%s (%d)", interrupt ? "IRQ" : "TASK", smp_processor_id());
 
@@ -639,7 +639,7 @@ static void advance_transaction(struct acpi_ec *ec, bool interrupt)
 		acpi_clear_gpe(NULL, ec->gpe);
 
 	status = acpi_ec_read_status(ec);
-	t = ec->curr;
+
 	/*
 	 * Another IRQ or a guarded polling mode advancement is detected,
 	 * the next QR_EC submission is then allowed.
@@ -651,9 +651,10 @@ static void advance_transaction(struct acpi_ec *ec, bool interrupt)
 			clear_bit(EC_FLAGS_QUERY_GUARDING, &ec->flags);
 			acpi_ec_complete_query(ec);
 		}
+		if (!t)
+			goto out;
 	}
-	if (!t)
-		goto err;
+
 	if (t->flags & ACPI_EC_COMMAND_POLL) {
 		if (t->wlen > t->wi) {
 			if ((status & ACPI_EC_FLAG_IBF) == 0)
@@ -688,14 +689,13 @@ err:
 	 * If SCI bit is set, then don't think it's a false IRQ
 	 * otherwise will take a not handled IRQ as a false one.
 	 */
-	if (!(status & ACPI_EC_FLAG_SCI)) {
-		if (interrupt && t) {
-			if (t->irq_count < ec_storm_threshold)
-				++t->irq_count;
-			/* Allow triggering on 0 threshold */
-			if (t->irq_count == ec_storm_threshold)
-				acpi_ec_mask_events(ec);
-		}
+	if (!(status & ACPI_EC_FLAG_SCI) && interrupt) {
+		if (t->irq_count < ec_storm_threshold)
+			++t->irq_count;
+
+		/* Allow triggering on 0 threshold */
+		if (t->irq_count == ec_storm_threshold)
+			acpi_ec_mask_events(ec);
 	}
 out:
 	if (status & ACPI_EC_FLAG_SCI)
