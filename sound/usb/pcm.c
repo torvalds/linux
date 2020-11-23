@@ -272,33 +272,70 @@ static int snd_usb_pcm_sync_stop(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int search_roland_implicit_fb(struct usb_device *dev, int ifnum,
-				     unsigned int altsetting,
-				     struct usb_host_interface **alts,
-				     unsigned int *ep)
+/* Check whether the given iface:altsetting points to an implicit fb source */
+static bool search_generic_implicit_fb(struct usb_device *dev, int ifnum,
+				       unsigned int altsetting,
+				       struct usb_host_interface **altsp,
+				       unsigned int *ep)
 {
 	struct usb_interface *iface;
+	struct usb_host_interface *alts;
 	struct usb_interface_descriptor *altsd;
 	struct usb_endpoint_descriptor *epd;
 
 	iface = usb_ifnum_to_if(dev, ifnum);
-	if (!iface || iface->num_altsetting < altsetting + 1)
-		return -ENOENT;
-	*alts = &iface->altsetting[altsetting];
-	altsd = get_iface_desc(*alts);
-	if (altsd->bAlternateSetting != altsetting ||
-	    altsd->bInterfaceClass != USB_CLASS_VENDOR_SPEC ||
-	    (altsd->bInterfaceSubClass != 2 &&
-	     altsd->bInterfaceProtocol != 2   ) ||
+	if (!iface)
+		return false;
+	alts = usb_altnum_to_altsetting(iface, altsetting);
+	if (!alts)
+		return false;
+	altsd = get_iface_desc(alts);
+	if (altsd->bInterfaceClass != USB_CLASS_AUDIO ||
+	    altsd->bInterfaceSubClass != USB_SUBCLASS_AUDIOSTREAMING ||
+	    altsd->bInterfaceProtocol != UAC_VERSION_2 ||
 	    altsd->bNumEndpoints < 1)
-		return -ENOENT;
-	epd = get_endpoint(*alts, 0);
+		return false;
+	epd = get_endpoint(alts, 0);
 	if (!usb_endpoint_is_isoc_in(epd) ||
 	    (epd->bmAttributes & USB_ENDPOINT_USAGE_MASK) !=
 					USB_ENDPOINT_USAGE_IMPLICIT_FB)
-		return -ENOENT;
+		return false;
 	*ep = epd->bEndpointAddress;
-	return 0;
+	*altsp = alts;
+	return true;
+}
+
+/* Like the function above, but specific to Roland with vendor class and hack */
+static bool search_roland_implicit_fb(struct usb_device *dev, int ifnum,
+				      unsigned int altsetting,
+				      struct usb_host_interface **altsp,
+				      unsigned int *ep)
+{
+	struct usb_interface *iface;
+	struct usb_host_interface *alts;
+	struct usb_interface_descriptor *altsd;
+	struct usb_endpoint_descriptor *epd;
+
+	iface = usb_ifnum_to_if(dev, ifnum);
+	if (!iface)
+		return false;
+	alts = usb_altnum_to_altsetting(iface, altsetting);
+	if (!alts)
+		return false;
+	altsd = get_iface_desc(alts);
+	if (altsd->bInterfaceClass != USB_CLASS_VENDOR_SPEC ||
+	    (altsd->bInterfaceSubClass != 2 &&
+	     altsd->bInterfaceProtocol != 2) ||
+	    altsd->bNumEndpoints < 1)
+		return false;
+	epd = get_endpoint(alts, 0);
+	if (!usb_endpoint_is_isoc_in(epd) ||
+	    (epd->bmAttributes & USB_ENDPOINT_USAGE_MASK) !=
+					USB_ENDPOINT_USAGE_IMPLICIT_FB)
+		return false;
+	*ep = epd->bEndpointAddress;
+	*altsp = alts;
+	return true;
 }
 
 /* Setup an implicit feedback endpoint from a quirk. Returns 0 if no quirk
@@ -375,6 +412,19 @@ static int set_sync_ep_implicit_fb_quirk(struct snd_usb_substream *subs,
 		return 0;
 	}
 
+	/* Generic UAC2 implicit feedback */
+	if (attr == USB_ENDPOINT_SYNC_ASYNC &&
+	    altsd->bInterfaceClass == USB_CLASS_AUDIO &&
+	    altsd->bInterfaceProtocol == UAC_VERSION_2 &&
+	    altsd->bNumEndpoints == 1) {
+		ifnum = altsd->bInterfaceNumber + 1;
+		if (search_generic_implicit_fb(dev, ifnum,
+					       altsd->bAlternateSetting,
+					       &alts, &ep))
+			goto add_sync_ep;
+	}
+
+	/* Roland/BOSS implicit feedback with vendor spec class */
 	if (attr == USB_ENDPOINT_SYNC_ASYNC &&
 	    altsd->bInterfaceClass == USB_CLASS_VENDOR_SPEC &&
 	    altsd->bInterfaceProtocol == 2 &&
@@ -382,9 +432,8 @@ static int set_sync_ep_implicit_fb_quirk(struct snd_usb_substream *subs,
 	    USB_ID_VENDOR(subs->stream->chip->usb_id) == 0x0582 /* Roland */ &&
 	    search_roland_implicit_fb(dev, altsd->bInterfaceNumber + 1,
 				      altsd->bAlternateSetting,
-				      &alts, &ep) >= 0) {
+				      &alts, &ep))
 		goto add_sync_ep;
-	}
 
 	/* No quirk */
 	return 0;
