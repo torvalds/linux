@@ -164,6 +164,23 @@ static int set_fixed_rate(struct audioformat *fp, int rate, int rate_bits)
 	return 0;
 }
 
+/* set up rate_min, rate_max and rates from the rate table */
+static void set_rate_table_min_max(struct audioformat *fp)
+{
+	unsigned int rate;
+	int i;
+
+	fp->rate_min = INT_MAX;
+	fp->rate_max = 0;
+	fp->rates = 0;
+	for (i = 0; i < fp->nr_rates; i++) {
+		rate = fp->rate_table[i];
+		fp->rate_min = min(fp->rate_min, rate);
+		fp->rate_max = max(fp->rate_max, rate);
+		fp->rates |= snd_pcm_rate_to_rate_bit(rate);
+	}
+}
+
 /*
  * parse the format descriptor and stores the possible sample rates
  * on the audioformat table (audio class v1).
@@ -198,7 +215,6 @@ static int parse_audio_format_rates_v1(struct snd_usb_audio *chip, struct audiof
 			return -ENOMEM;
 
 		fp->nr_rates = 0;
-		fp->rate_min = fp->rate_max = 0;
 		for (r = 0, idx = offset + 1; r < nr_rates; r++, idx += 3) {
 			unsigned int rate = combine_triple(&fmt[idx]);
 			if (!rate)
@@ -217,13 +233,7 @@ static int parse_audio_format_rates_v1(struct snd_usb_audio *chip, struct audiof
 			     chip->usb_id == USB_ID(0x041e, 0x4068)))
 				rate = 8000;
 
-			fp->rate_table[fp->nr_rates] = rate;
-			if (!fp->rate_min || rate < fp->rate_min)
-				fp->rate_min = rate;
-			if (!fp->rate_max || rate > fp->rate_max)
-				fp->rate_max = rate;
-			fp->rates |= snd_pcm_rate_to_rate_bit(rate);
-			fp->nr_rates++;
+			fp->rate_table[fp->nr_rates++] = rate;
 		}
 		if (!fp->nr_rates) {
 			usb_audio_info(chip,
@@ -231,6 +241,7 @@ static int parse_audio_format_rates_v1(struct snd_usb_audio *chip, struct audiof
 				       fp->iface, fp->altsetting);
 			return -EINVAL;
 		}
+		set_rate_table_min_max(fp);
 	} else {
 		/* continuous rates */
 		fp->rates = SNDRV_PCM_RATE_CONTINUOUS;
@@ -336,8 +347,6 @@ static int parse_uac2_sample_rate_range(struct snd_usb_audio *chip,
 {
 	int i, nr_rates = 0;
 
-	fp->rates = fp->rate_min = fp->rate_max = 0;
-
 	for (i = 0; i < nr_triplets; i++) {
 		int min = combine_quad(&data[2 + 12 * i]);
 		int max = combine_quad(&data[6 + 12 * i]);
@@ -373,12 +382,6 @@ static int parse_uac2_sample_rate_range(struct snd_usb_audio *chip,
 
 			if (fp->rate_table)
 				fp->rate_table[nr_rates] = rate;
-			if (!fp->rate_min || rate < fp->rate_min)
-				fp->rate_min = rate;
-			if (!fp->rate_max || rate > fp->rate_max)
-				fp->rate_max = rate;
-			fp->rates |= snd_pcm_rate_to_rate_bit(rate);
-
 			nr_rates++;
 			if (nr_rates >= MAX_NR_RATES) {
 				usb_audio_err(chip, "invalid uac2 rates\n");
@@ -459,9 +462,6 @@ static int validate_sample_rate_table_v2v3(struct snd_usb_audio *chip,
 	struct usb_device *dev = chip->dev;
 	unsigned int *table;
 	unsigned int nr_rates;
-	unsigned int rate_min = 0x7fffffff;
-	unsigned int rate_max = 0;
-	unsigned int rates = 0;
 	int i, err;
 
 	table = kcalloc(fp->nr_rates, sizeof(*table), GFP_KERNEL);
@@ -478,14 +478,8 @@ static int validate_sample_rate_table_v2v3(struct snd_usb_audio *chip,
 		if (err < 0)
 			continue;
 
-		if (check_valid_altsetting_v2v3(chip, fp->iface, fp->altsetting)) {
+		if (check_valid_altsetting_v2v3(chip, fp->iface, fp->altsetting))
 			table[nr_rates++] = fp->rate_table[i];
-			if (rate_min > fp->rate_table[i])
-				rate_min = fp->rate_table[i];
-			if (rate_max < fp->rate_table[i])
-				rate_max = fp->rate_table[i];
-			rates |= snd_pcm_rate_to_rate_bit(fp->rate_table[i]);
-		}
 	}
 
 	if (!nr_rates) {
@@ -503,9 +497,6 @@ static int validate_sample_rate_table_v2v3(struct snd_usb_audio *chip,
 	kfree(fp->rate_table);
 	fp->rate_table = table;
 	fp->nr_rates = nr_rates;
-	fp->rate_min = rate_min;
-	fp->rate_max = rate_max;
-	fp->rates = rates;
 	return 0;
 }
 
@@ -602,6 +593,10 @@ static int parse_audio_format_rates_v2v3(struct snd_usb_audio *chip,
 	parse_uac2_sample_rate_range(chip, fp, nr_triplets, data);
 
 	ret = validate_sample_rate_table_v2v3(chip, fp, clock);
+	if (ret < 0)
+		goto err_free;
+
+	set_rate_table_min_max(fp);
 
 err_free:
 	kfree(data);
