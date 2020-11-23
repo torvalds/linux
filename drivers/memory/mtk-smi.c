@@ -130,7 +130,7 @@ static void mtk_smi_clk_disable(const struct mtk_smi *smi)
 
 int mtk_smi_larb_get(struct device *larbdev)
 {
-	int ret = pm_runtime_get_sync(larbdev);
+	int ret = pm_runtime_resume_and_get(larbdev);
 
 	return (ret < 0) ? ret : 0;
 }
@@ -366,7 +366,7 @@ static int __maybe_unused mtk_smi_larb_resume(struct device *dev)
 	int ret;
 
 	/* Power on smi-common. */
-	ret = pm_runtime_get_sync(larb->smi_common_dev);
+	ret = pm_runtime_resume_and_get(larb->smi_common_dev);
 	if (ret < 0) {
 		dev_err(dev, "Failed to pm get for smi-common(%d).\n", ret);
 		return ret;
