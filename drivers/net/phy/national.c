@@ -89,6 +89,27 @@ static int ns_ack_interrupt(struct phy_device *phydev)
 	return ret;
 }
 
+static irqreturn_t ns_handle_interrupt(struct phy_device *phydev)
+{
+	int irq_status;
+
+	irq_status = phy_read(phydev, DP83865_INT_STATUS);
+	if (irq_status < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	if (!(irq_status & DP83865_INT_MASK_DEFAULT))
+		return IRQ_NONE;
+
+	/* clear the interrupt */
+	phy_write(phydev, DP83865_INT_CLEAR, irq_status & ~0x7);
+
+	phy_trigger_machine(phydev);
+
+	return IRQ_HANDLED;
+}
+
 static void ns_giga_speed_fallback(struct phy_device *phydev, int mode)
 {
 	int bmcr = phy_read(phydev, MII_BMCR);
@@ -135,6 +156,7 @@ static struct phy_driver dp83865_driver[] = { {
 	.config_init = ns_config_init,
 	.ack_interrupt = ns_ack_interrupt,
 	.config_intr = ns_config_intr,
+	.handle_interrupt = ns_handle_interrupt,
 } };
 
 module_phy_driver(dp83865_driver);
