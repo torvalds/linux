@@ -218,7 +218,7 @@ static int start_endpoints(struct snd_usb_substream *subs)
 	if (!test_and_set_bit(SUBSTREAM_FLAG_DATA_EP_STARTED, &subs->flags)) {
 		struct snd_usb_endpoint *ep = subs->data_endpoint;
 
-		dev_dbg(&subs->dev->dev, "Starting data EP @%p\n", ep);
+		dev_dbg(&subs->dev->dev, "Starting data EP 0x%x\n", ep->ep_num);
 
 		ep->data_subs = subs;
 		err = snd_usb_endpoint_start(ep);
@@ -232,7 +232,7 @@ static int start_endpoints(struct snd_usb_substream *subs)
 	    !test_and_set_bit(SUBSTREAM_FLAG_SYNC_EP_STARTED, &subs->flags)) {
 		struct snd_usb_endpoint *ep = subs->sync_endpoint;
 
-		dev_dbg(&subs->dev->dev, "Starting sync EP @%p\n", ep);
+		dev_dbg(&subs->dev->dev, "Starting sync EP 0x%x\n", ep->ep_num);
 
 		ep->sync_slave = subs->data_endpoint;
 		err = snd_usb_endpoint_start(ep);
@@ -255,12 +255,17 @@ static void sync_pending_stops(struct snd_usb_substream *subs)
 static void stop_endpoints(struct snd_usb_substream *subs)
 {
 	if (test_and_clear_bit(SUBSTREAM_FLAG_SYNC_EP_STARTED, &subs->flags)) {
+		dev_dbg(&subs->dev->dev, "Stopping sync EP 0x%x\n",
+			subs->sync_endpoint->ep_num);
 		snd_usb_endpoint_stop(subs->sync_endpoint);
 		subs->sync_endpoint->sync_slave = NULL;
 	}
 
-	if (test_and_clear_bit(SUBSTREAM_FLAG_DATA_EP_STARTED, &subs->flags))
+	if (test_and_clear_bit(SUBSTREAM_FLAG_DATA_EP_STARTED, &subs->flags)) {
+		dev_dbg(&subs->dev->dev, "Stopping data EP 0x%x\n",
+			subs->data_endpoint->ep_num);
 		snd_usb_endpoint_stop(subs->data_endpoint);
+	}
 }
 
 /* PCM sync_stop callback */
