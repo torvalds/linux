@@ -481,15 +481,18 @@ int snd_usb_clock_find_source(struct snd_usb_audio *chip,
 	}
 }
 
-static int set_sample_rate_v1(struct snd_usb_audio *chip, int iface,
-			      struct usb_host_interface *alts,
+static int set_sample_rate_v1(struct snd_usb_audio *chip,
 			      struct audioformat *fmt, int rate)
 {
 	struct usb_device *dev = chip->dev;
+	struct usb_host_interface *alts;
 	unsigned int ep;
 	unsigned char data[3];
 	int err, crate;
 
+	alts = snd_usb_get_host_interface(chip, fmt->iface, fmt->altsetting);
+	if (!alts)
+		return -EINVAL;
 	if (get_iface_desc(alts)->bNumEndpoints < 1)
 		return -EINVAL;
 	ep = get_endpoint(alts, 0)->bEndpointAddress;
@@ -507,7 +510,7 @@ static int set_sample_rate_v1(struct snd_usb_audio *chip, int iface,
 			      data, sizeof(data));
 	if (err < 0) {
 		dev_err(&dev->dev, "%d:%d: cannot set freq %d to ep %#x\n",
-			iface, fmt->altsetting, rate, ep);
+			fmt->iface, fmt->altsetting, rate, ep);
 		return err;
 	}
 
@@ -525,7 +528,7 @@ static int set_sample_rate_v1(struct snd_usb_audio *chip, int iface,
 			      data, sizeof(data));
 	if (err < 0) {
 		dev_err(&dev->dev, "%d:%d: cannot get freq at ep %#x\n",
-			iface, fmt->altsetting, ep);
+			fmt->iface, fmt->altsetting, ep);
 		chip->sample_rate_read_error++;
 		return 0; /* some devices don't support reading */
 	}
@@ -607,8 +610,7 @@ int snd_usb_set_sample_rate_v2v3(struct snd_usb_audio *chip,
 	return get_sample_rate_v2v3(chip, fmt->iface, fmt->altsetting, clock);
 }
 
-static int set_sample_rate_v2v3(struct snd_usb_audio *chip, int iface,
-				struct usb_host_interface *alts,
+static int set_sample_rate_v2v3(struct snd_usb_audio *chip,
 				struct audioformat *fmt, int rate)
 {
 	struct usb_device *dev = chip->dev;
@@ -632,7 +634,7 @@ static int set_sample_rate_v2v3(struct snd_usb_audio *chip, int iface,
 			return clock;
 	}
 
-	prev_rate = get_sample_rate_v2v3(chip, iface, fmt->altsetting, clock);
+	prev_rate = get_sample_rate_v2v3(chip, fmt->iface, fmt->altsetting, clock);
 	if (prev_rate == rate)
 		goto validation;
 
@@ -640,7 +642,7 @@ static int set_sample_rate_v2v3(struct snd_usb_audio *chip, int iface,
 	if (cur_rate < 0) {
 		usb_audio_err(chip,
 			      "%d:%d: cannot set freq %d (v2/v3): err %d\n",
-			      iface, fmt->altsetting, rate, cur_rate);
+			      fmt->iface, fmt->altsetting, rate, cur_rate);
 		return cur_rate;
 	}
 
@@ -657,9 +659,9 @@ static int set_sample_rate_v2v3(struct snd_usb_audio *chip, int iface,
 	/* Some devices doesn't respond to sample rate changes while the
 	 * interface is active. */
 	if (rate != prev_rate) {
-		usb_set_interface(dev, iface, 0);
+		usb_set_interface(dev, fmt->iface, 0);
 		snd_usb_set_interface_quirk(chip);
-		usb_set_interface(dev, iface, fmt->altsetting);
+		usb_set_interface(dev, fmt->iface, fmt->altsetting);
 		snd_usb_set_interface_quirk(chip);
 	}
 
@@ -670,14 +672,13 @@ validation:
 	return 0;
 }
 
-int snd_usb_init_sample_rate(struct snd_usb_audio *chip, int iface,
-			     struct usb_host_interface *alts,
+int snd_usb_init_sample_rate(struct snd_usb_audio *chip,
 			     struct audioformat *fmt, int rate)
 {
 	switch (fmt->protocol) {
 	case UAC_VERSION_1:
 	default:
-		return set_sample_rate_v1(chip, iface, alts, fmt, rate);
+		return set_sample_rate_v1(chip, fmt, rate);
 
 	case UAC_VERSION_3:
 		if (chip->badd_profile >= UAC3_FUNCTION_SUBCLASS_GENERIC_IO) {
@@ -688,7 +689,7 @@ int snd_usb_init_sample_rate(struct snd_usb_audio *chip, int iface,
 		}
 		fallthrough;
 	case UAC_VERSION_2:
-		return set_sample_rate_v2v3(chip, iface, alts, fmt, rate);
+		return set_sample_rate_v2v3(chip, fmt, rate);
 	}
 }
 
