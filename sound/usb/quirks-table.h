@@ -3256,14 +3256,6 @@ AU0828_DEVICE(0x2040, 0x7270, "Hauppauge", "HVR-950Q"),
 		}
 	}
 },
-/* Dell WD19 Dock */
-{
-	USB_DEVICE(0x0bda, 0x402e),
-	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
-		.ifnum = QUIRK_ANY_INTERFACE,
-		.type = QUIRK_SETUP_FMT_AFTER_RESUME
-	}
-},
 /* MOTU Microbook II */
 {
 	USB_DEVICE_VENDOR_SPEC(0x07fd, 0x0004),
