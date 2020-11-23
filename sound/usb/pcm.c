@@ -17,7 +17,6 @@
 #include "usbaudio.h"
 #include "card.h"
 #include "quirks.h"
-#include "debug.h"
 #include "endpoint.h"
 #include "helper.h"
 #include "pcm.h"
@@ -1060,6 +1059,16 @@ static int snd_usb_pcm_prepare(struct snd_pcm_substream *substream)
 	snd_usb_unlock_shutdown(subs->stream->chip);
 	return ret;
 }
+
+/*
+ * h/w constraints
+ */
+
+#ifdef HW_CONST_DEBUG
+#define hwc_debug(fmt, args...) pr_debug(fmt, ##args)
+#else
+#define hwc_debug(fmt, args...) do { } while(0)
+#endif
 
 static const struct snd_pcm_hardware snd_usb_hardware =
 {

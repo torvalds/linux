@@ -16,7 +16,6 @@
 #include "card.h"
 #include "quirks.h"
 #include "helper.h"
-#include "debug.h"
 #include "clock.h"
 #include "format.h"
 
@@ -227,7 +226,9 @@ static int parse_audio_format_rates_v1(struct snd_usb_audio *chip, struct audiof
 			fp->nr_rates++;
 		}
 		if (!fp->nr_rates) {
-			hwc_debug("All rates were zero. Skipping format!\n");
+			usb_audio_info(chip,
+				       "%u:%d: All rates were zero\n",
+				       fp->iface, fp->altsetting);
 			return -EINVAL;
 		}
 	} else {
