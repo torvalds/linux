@@ -26,6 +26,8 @@ static int mt7915_start(struct ieee80211_hw *hw)
 	struct mt7915_phy *phy = mt7915_hw_phy(hw);
 	bool running;
 
+	flush_work(&dev->init_work);
+
 	mutex_lock(&dev->mt76.mutex);
 
 	running = mt7915_dev_running(dev);
