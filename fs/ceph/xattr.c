@@ -321,6 +321,19 @@ static ssize_t ceph_vxattrcb_client_id(struct ceph_inode_info *ci,
 			      ceph_client_gid(fsc->client));
 }
 
+static ssize_t ceph_vxattrcb_caps(struct ceph_inode_info *ci, char *val,
+					size_t size)
+{
+	int issued;
+
+	spin_lock(&ci->i_ceph_lock);
+	issued = __ceph_caps_issued(ci, NULL);
+	spin_unlock(&ci->i_ceph_lock);
+
+	return ceph_fmt_xattr(val, size, "%s/0x%x",
+			      ceph_cap_string(issued), issued);
+}
+
 #define CEPH_XATTR_NAME(_type, _name)	XATTR_CEPH_PREFIX #_type "." #_name
 #define CEPH_XATTR_NAME2(_type, _name, _name2)	\
 	XATTR_CEPH_PREFIX #_type "." #_name "." #_name2
@@ -396,6 +409,13 @@ static struct ceph_vxattr ceph_dir_vxattrs[] = {
 		.exists_cb = ceph_vxattrcb_snap_btime_exists,
 		.flags = VXATTR_FLAG_READONLY,
 	},
+	{
+		.name = "ceph.caps",
+		.name_size = sizeof("ceph.caps"),
+		.getxattr_cb = ceph_vxattrcb_caps,
+		.exists_cb = NULL,
+		.flags = VXATTR_FLAG_HIDDEN,
+	},
 	{ .name = NULL, 0 }	/* Required table terminator */
 };
 
@@ -420,6 +440,13 @@ static struct ceph_vxattr ceph_file_vxattrs[] = {
 		.getxattr_cb = ceph_vxattrcb_snap_btime,
 		.exists_cb = ceph_vxattrcb_snap_btime_exists,
 		.flags = VXATTR_FLAG_READONLY,
+	},
+	{
+		.name = "ceph.caps",
+		.name_size = sizeof("ceph.caps"),
+		.getxattr_cb = ceph_vxattrcb_caps,
+		.exists_cb = NULL,
+		.flags = VXATTR_FLAG_HIDDEN,
 	},
 	{ .name = NULL, 0 }	/* Required table terminator */
 };
