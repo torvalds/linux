@@ -440,22 +440,19 @@ exit_clear:
 }
 
 /*
- * Get the existing endpoint object corresponding EP, iface and alt numbers
+ * Get the existing endpoint object corresponding EP
  * Returns NULL if not present.
- * Call inside chip->mutex locking for avoiding the race.
  */
 struct snd_usb_endpoint *
-snd_usb_get_endpoint(struct snd_usb_audio *chip,
-		     int ep_num, int iface, int altsetting)
+snd_usb_get_endpoint(struct snd_usb_audio *chip, int ep_num)
 {
 	struct snd_usb_endpoint *ep;
 
 	list_for_each_entry(ep, &chip->ep_list, list) {
-		if (ep->ep_num == ep_num &&
-		    ep->iface == iface &&
-		    ep->altsetting == altsetting)
+		if (ep->ep_num == ep_num)
 			return ep;
 	}
+
 	return NULL;
 }
 
@@ -466,14 +463,13 @@ snd_usb_get_endpoint(struct snd_usb_audio *chip,
  * snd_usb_add_endpoint: Add an endpoint to an USB audio chip
  *
  * @chip: The chip
- * @alts: The USB host interface
  * @ep_num: The number of the endpoint to use
- * @direction: SNDRV_PCM_STREAM_PLAYBACK or SNDRV_PCM_STREAM_CAPTURE
  * @type: SND_USB_ENDPOINT_TYPE_DATA or SND_USB_ENDPOINT_TYPE_SYNC
  *
  * If the requested endpoint has not been added to the given chip before,
- * a new instance is created. Otherwise, a pointer to the previoulsy
- * created instance is returned. In case of any error, NULL is returned.
+ * a new instance is created.
+ *
+ * Returns zero on success or a negative error code.
  *
  * New endpoints will be added to chip->ep_list and must be freed by
  * calling snd_usb_endpoint_free().
@@ -481,74 +477,59 @@ snd_usb_get_endpoint(struct snd_usb_audio *chip,
  * For SND_USB_ENDPOINT_TYPE_SYNC, the caller needs to guarantee that
  * bNumEndpoints > 1 beforehand.
  */
-struct snd_usb_endpoint *snd_usb_add_endpoint(struct snd_usb_audio *chip,
-					      struct usb_host_interface *alts,
-					      int ep_num, int direction, int type)
+int snd_usb_add_endpoint(struct snd_usb_audio *chip, int ep_num, int type)
 {
 	struct snd_usb_endpoint *ep;
-	int is_playback = direction == SNDRV_PCM_STREAM_PLAYBACK;
+	bool is_playback;
 
-	if (WARN_ON(!alts))
-		return NULL;
+	ep = snd_usb_get_endpoint(chip, ep_num);
+	if (ep)
+		return 0;
 
-	mutex_lock(&chip->mutex);
-
-	ep = snd_usb_get_endpoint(chip, ep_num,
-				  alts->desc.bInterfaceNumber,
-				  alts->desc.bAlternateSetting);
-	if (ep) {
-		usb_audio_dbg(ep->chip, "Re-using EP %x in iface %d,%d\n",
-			      ep_num, ep->iface, ep->altsetting);
-		goto __exit_unlock;
-	}
-
-	usb_audio_dbg(chip, "Creating new %s %s endpoint #%x\n",
-		      is_playback ? "playback" : "capture",
+	usb_audio_dbg(chip, "Creating new %s endpoint #%x\n",
 		      ep_type_name(type),
 		      ep_num);
-
 	ep = kzalloc(sizeof(*ep), GFP_KERNEL);
 	if (!ep)
-		goto __exit_unlock;
+		return -ENOMEM;
 
 	ep->chip = chip;
 	spin_lock_init(&ep->lock);
 	ep->type = type;
 	ep->ep_num = ep_num;
-	ep->iface = alts->desc.bInterfaceNumber;
-	ep->altsetting = alts->desc.bAlternateSetting;
 	INIT_LIST_HEAD(&ep->ready_playback_urbs);
-	ep_num &= USB_ENDPOINT_NUMBER_MASK;
 
+	is_playback = ((ep_num & USB_ENDPOINT_DIR_MASK) == USB_DIR_OUT);
+	ep_num &= USB_ENDPOINT_NUMBER_MASK;
 	if (is_playback)
 		ep->pipe = usb_sndisocpipe(chip->dev, ep_num);
 	else
 		ep->pipe = usb_rcvisocpipe(chip->dev, ep_num);
 
-	if (type == SND_USB_ENDPOINT_TYPE_SYNC) {
-		if (get_endpoint(alts, 1)->bLength >= USB_DT_ENDPOINT_AUDIO_SIZE &&
-		    get_endpoint(alts, 1)->bRefresh >= 1 &&
-		    get_endpoint(alts, 1)->bRefresh <= 9)
-			ep->syncinterval = get_endpoint(alts, 1)->bRefresh;
+	list_add_tail(&ep->list, &chip->ep_list);
+	return 0;
+}
+
+/* Set up syncinterval and maxsyncsize for a sync EP */
+void snd_usb_endpoint_set_syncinterval(struct snd_usb_audio *chip,
+				       struct snd_usb_endpoint *ep,
+				       struct usb_host_interface *alts)
+{
+	struct usb_endpoint_descriptor *desc = get_endpoint(alts, 1);
+
+	if (ep->type == SND_USB_ENDPOINT_TYPE_SYNC) {
+		if (desc->bLength >= USB_DT_ENDPOINT_AUDIO_SIZE &&
+		    desc->bRefresh >= 1 && desc->bRefresh <= 9)
+			ep->syncinterval = desc->bRefresh;
 		else if (snd_usb_get_speed(chip->dev) == USB_SPEED_FULL)
 			ep->syncinterval = 1;
-		else if (get_endpoint(alts, 1)->bInterval >= 1 &&
-			 get_endpoint(alts, 1)->bInterval <= 16)
-			ep->syncinterval = get_endpoint(alts, 1)->bInterval - 1;
+		else if (desc->bInterval >= 1 && desc->bInterval <= 16)
+			ep->syncinterval = desc->bInterval - 1;
 		else
 			ep->syncinterval = 3;
 
-		ep->syncmaxsize = le16_to_cpu(get_endpoint(alts, 1)->wMaxPacketSize);
+		ep->syncmaxsize = le16_to_cpu(desc->wMaxPacketSize);
 	}
-
-	list_add_tail(&ep->list, &chip->ep_list);
-
-	ep->is_implicit_feedback = 0;
-
-__exit_unlock:
-	mutex_unlock(&chip->mutex);
-
-	return ep;
 }
 
 /*

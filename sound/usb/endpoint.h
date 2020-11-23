@@ -6,12 +6,9 @@
 #define SND_USB_ENDPOINT_TYPE_SYNC     1
 
 struct snd_usb_endpoint *snd_usb_get_endpoint(struct snd_usb_audio *chip,
-					      int ep_num, int iface,
-					      int altsetting);
+					      int ep_num);
 
-struct snd_usb_endpoint *snd_usb_add_endpoint(struct snd_usb_audio *chip,
-					      struct usb_host_interface *alts,
-					      int ep_num, int direction, int type);
+int snd_usb_add_endpoint(struct snd_usb_audio *chip, int ep_num, int type);
 
 int snd_usb_endpoint_set_params(struct snd_usb_endpoint *ep,
 				snd_pcm_format_t pcm_format,
@@ -34,6 +31,9 @@ void snd_usb_endpoint_free(struct snd_usb_endpoint *ep);
 int snd_usb_endpoint_implicit_feedback_sink(struct snd_usb_endpoint *ep);
 int snd_usb_endpoint_slave_next_packet_size(struct snd_usb_endpoint *ep);
 int snd_usb_endpoint_next_packet_size(struct snd_usb_endpoint *ep);
+void snd_usb_endpoint_set_syncinterval(struct snd_usb_audio *chip,
+				       struct snd_usb_endpoint *ep,
+				       struct usb_host_interface *alts);
 
 void snd_usb_handle_sync_urb(struct snd_usb_endpoint *ep,
 			     struct snd_usb_endpoint *sender,

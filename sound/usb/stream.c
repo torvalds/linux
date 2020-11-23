@@ -1206,6 +1206,22 @@ static int __snd_usb_parse_audio_interface(struct snd_usb_audio *chip,
 			kfree(pd);
 			return err;
 		}
+
+		/* add endpoints */
+		err = snd_usb_add_endpoint(chip, fp->endpoint,
+					   SND_USB_ENDPOINT_TYPE_DATA);
+		if (err < 0)
+			return err;
+
+		if (fp->sync_ep) {
+			err = snd_usb_add_endpoint(chip, fp->sync_ep,
+						   fp->implicit_fb ?
+						   SND_USB_ENDPOINT_TYPE_DATA :
+						   SND_USB_ENDPOINT_TYPE_SYNC);
+			if (err < 0)
+				return err;
+		}
+
 		/* try to set the interface... */
 		usb_set_interface(chip->dev, iface_no, altno);
 		snd_usb_init_pitch(chip, iface_no, alts, fp);

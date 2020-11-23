@@ -585,11 +585,7 @@ static int set_sync_endpoint(struct snd_usb_substream *subs,
 	if (!alts)
 		return 0;
 
-	subs->sync_endpoint = snd_usb_add_endpoint(subs->stream->chip,
-						   alts, ep, !subs->direction,
-						   fmt->implicit_fb ?
-						   SND_USB_ENDPOINT_TYPE_DATA :
-						   SND_USB_ENDPOINT_TYPE_SYNC);
+	subs->sync_endpoint = snd_usb_get_endpoint(subs->stream->chip, ep);
 	if (!subs->sync_endpoint) {
 		if (is_playback &&
 		    (fmt->ep_attr & USB_ENDPOINT_SYNCTYPE) == USB_ENDPOINT_SYNC_NONE)
@@ -597,9 +593,13 @@ static int set_sync_endpoint(struct snd_usb_substream *subs,
 		return -EINVAL;
 	}
 
+	subs->sync_endpoint->iface = fmt->sync_iface;
+	subs->sync_endpoint->altsetting = fmt->sync_altsetting;
 	subs->sync_endpoint->is_implicit_feedback = fmt->implicit_fb;
 
 	subs->data_endpoint->sync_master = subs->sync_endpoint;
+
+	snd_usb_endpoint_set_syncinterval(subs->stream->chip, subs->sync_endpoint, alts);
 
 	if (!subs->sync_endpoint->use_count &&
 	    (subs->data_endpoint->iface != subs->sync_endpoint->iface ||
@@ -641,8 +641,7 @@ static int set_format(struct snd_usb_substream *subs, struct audioformat *fmt)
 
 	/* shared EP with implicit fb */
 	if (fmt->implicit_fb && !subs->need_setup_fmt) {
-		ep = snd_usb_get_endpoint(subs->stream->chip, fmt->endpoint,
-					  fmt->iface, fmt->altsetting);
+		ep = snd_usb_get_endpoint(subs->stream->chip, fmt->endpoint);
 		if (ep && ep->use_count > 0)
 			goto add_data_ep;
 	}
@@ -688,12 +687,12 @@ static int set_format(struct snd_usb_substream *subs, struct audioformat *fmt)
  add_data_ep:
 	subs->interface = fmt->iface;
 	subs->altset_idx = fmt->altset_idx;
-	subs->data_endpoint = snd_usb_add_endpoint(subs->stream->chip,
-						   alts, fmt->endpoint, subs->direction,
-						   SND_USB_ENDPOINT_TYPE_DATA);
-
+	subs->data_endpoint = snd_usb_get_endpoint(subs->stream->chip,
+						   fmt->endpoint);
 	if (!subs->data_endpoint)
 		return -EINVAL;
+	subs->data_endpoint->iface = fmt->iface;
+	subs->data_endpoint->altsetting = fmt->altsetting;
 
 	err = set_sync_endpoint(subs, fmt);
 	if (err < 0)
@@ -1294,15 +1293,13 @@ static int apply_hw_constraint_from_sync(struct snd_pcm_runtime *runtime,
 
 	subs->fixed_hw = 0;
 	list_for_each_entry(fp, &subs->fmt_list, list) {
-		ep = snd_usb_get_endpoint(chip, fp->endpoint, fp->iface,
-					  fp->altsetting);
+		ep = snd_usb_get_endpoint(chip, fp->endpoint);
 		if (ep && ep->cur_rate)
 			goto found;
 		if (!fp->implicit_fb)
 			continue;
 		/* for the implicit fb, check the sync ep as well */
-		ep = snd_usb_get_endpoint(chip, fp->sync_ep, fp->sync_iface,
-					  fp->sync_altsetting);
+		ep = snd_usb_get_endpoint(chip, fp->sync_ep);
 		if (ep && ep->cur_rate)
 			goto found;
 	}
