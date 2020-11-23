@@ -1424,7 +1424,7 @@ static void set_format_emu_quirk(struct snd_usb_substream *subs,
 	 * by playback substream
 	 */
 	if (subs->direction == SNDRV_PCM_STREAM_PLAYBACK) {
-		if (subs->stream->substream[SNDRV_PCM_STREAM_CAPTURE].interface != -1)
+		if (subs->stream->substream[SNDRV_PCM_STREAM_CAPTURE].cur_audiofmt)
 			return;
 	}
 
@@ -1459,13 +1459,13 @@ static void set_format_emu_quirk(struct snd_usb_substream *subs,
  */
 static int pioneer_djm_set_format_quirk(struct snd_usb_substream *subs)
 {
-
+	unsigned int cur_rate = subs->data_endpoint->cur_rate;
 	/* Convert sample rate value to little endian */
 	u8 sr[3];
 
-	sr[0] = subs->cur_rate & 0xff;
-	sr[1] = (subs->cur_rate >> 8) & 0xff;
-	sr[2] = (subs->cur_rate >> 16) & 0xff;
+	sr[0] = cur_rate & 0xff;
+	sr[1] = (cur_rate >> 8) & 0xff;
+	sr[2] = (cur_rate >> 16) & 0xff;
 
 	/* Configure device */
 	usb_set_interface(subs->dev, 0, 1);

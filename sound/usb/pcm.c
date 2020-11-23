@@ -797,20 +797,11 @@ static int snd_usb_hw_params(struct snd_pcm_substream *substream,
 					  subs->sync_endpoint);
 	}
 
-	subs->interface = fmt->iface;
-	subs->altset_idx = fmt->altset_idx;
+	mutex_lock(&chip->mutex);
 	subs->cur_audiofmt = fmt;
+	mutex_unlock(&chip->mutex);
 
 	ret = configure_endpoints(chip, subs);
-	if (ret < 0)
-		goto unlock;
-
-	subs->pcm_format = params_format(hw_params);
-	subs->period_bytes = params_period_bytes(hw_params);
-	subs->period_frames = params_period_size(hw_params);
-	subs->buffer_periods = params_periods(hw_params);
-	subs->channels = params_channels(hw_params);
-	subs->cur_rate = params_rate(hw_params);
 
  unlock:
 	if (ret < 0)
@@ -835,9 +826,9 @@ static int snd_usb_hw_free(struct snd_pcm_substream *substream)
 	struct snd_usb_audio *chip = subs->stream->chip;
 
 	snd_media_stop_pipeline(subs);
+	mutex_lock(&chip->mutex);
 	subs->cur_audiofmt = NULL;
-	subs->cur_rate = 0;
-	subs->period_bytes = 0;
+	mutex_unlock(&chip->mutex);
 	if (!snd_usb_lock_shutdown(chip)) {
 		if (stop_endpoints(subs))
 			sync_pending_stops(subs);
@@ -1274,8 +1265,6 @@ static int snd_usb_pcm_open(struct snd_pcm_substream *substream)
 	struct snd_usb_substream *subs = &as->substream[direction];
 	int ret;
 
-	subs->interface = -1;
-	subs->altset_idx = 0;
 	runtime->hw = snd_usb_hardware;
 	runtime->private_data = subs;
 	subs->pcm_substream = substream;
@@ -1308,7 +1297,6 @@ static int snd_usb_pcm_close(struct snd_pcm_substream *substream)
 	snd_media_stop_pipeline(subs);
 
 	if (!snd_usb_lock_shutdown(subs->stream->chip)) {
-		subs->interface = -1;
 		ret = snd_usb_pcm_change_state(subs, UAC3_PD_STATE_D1);
 		snd_usb_unlock_shutdown(subs->stream->chip);
 		if (ret < 0)
@@ -1570,10 +1558,10 @@ static void prepare_playback_urb(struct snd_usb_substream *subs,
 	}
 	bytes = frames * ep->stride;
 
-	if (unlikely(subs->pcm_format == SNDRV_PCM_FORMAT_DSD_U16_LE &&
+	if (unlikely(ep->cur_format == SNDRV_PCM_FORMAT_DSD_U16_LE &&
 		     subs->cur_audiofmt->dsd_dop)) {
 		fill_playback_urb_dsd_dop(subs, urb, bytes);
-	} else if (unlikely(subs->pcm_format == SNDRV_PCM_FORMAT_DSD_U8 &&
+	} else if (unlikely(ep->cur_format == SNDRV_PCM_FORMAT_DSD_U8 &&
 			   subs->cur_audiofmt->dsd_bitrev)) {
 		/* bit-reverse the bytes */
 		u8 *buf = urb->transfer_buffer;

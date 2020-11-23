@@ -140,18 +140,10 @@ struct snd_usb_substream {
 	struct usb_device *dev;
 	struct snd_pcm_substream *pcm_substream;
 	int direction;	/* playback or capture */
-	int interface;	/* current interface */
 	int endpoint;	/* assigned endpoint */
 	const struct audioformat *cur_audiofmt;	/* current audioformat pointer (for hw_params callback) */
 	struct snd_usb_power_domain *str_pd;	/* UAC3 Power Domain for streaming path */
-	snd_pcm_format_t pcm_format;	/* current audio format (for hw_params callback) */
-	unsigned int channels;		/* current number of channels (for hw_params callback) */
 	unsigned int channels_max;	/* max channels in the all audiofmts */
-	unsigned int cur_rate;		/* current rate (for hw_params callback) */
-	unsigned int period_bytes;	/* current period bytes (for hw_params callback) */
-	unsigned int period_frames;	/* current frames per period */
-	unsigned int buffer_periods;	/* current periods per buffer */
-	unsigned int altset_idx;     /* USB data format: index of alternate setting */
 	unsigned int txfr_quirk:1;	/* allow sub-frame alignment */
 	unsigned int tx_length_quirk:1;	/* add length specifier to transfers */
 	unsigned int fmt_type;		/* USB audio format type (1-3) */
