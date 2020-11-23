@@ -658,9 +658,9 @@ static int set_sample_rate_v2v3(struct snd_usb_audio *chip, int iface,
 	 * interface is active. */
 	if (rate != prev_rate) {
 		usb_set_interface(dev, iface, 0);
-		snd_usb_set_interface_quirk(dev);
+		snd_usb_set_interface_quirk(chip);
 		usb_set_interface(dev, iface, fmt->altsetting);
-		snd_usb_set_interface_quirk(dev);
+		snd_usb_set_interface_quirk(chip);
 	}
 
 validation:

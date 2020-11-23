@@ -1553,13 +1553,13 @@ static bool is_itf_usb_dsd_dac(unsigned int id)
 	return false;
 }
 
-int snd_usb_select_mode_quirk(struct snd_usb_substream *subs,
+int snd_usb_select_mode_quirk(struct snd_usb_audio *chip,
 			      struct audioformat *fmt)
 {
-	struct usb_device *dev = subs->dev;
+	struct usb_device *dev = chip->dev;
 	int err;
 
-	if (is_itf_usb_dsd_dac(subs->stream->chip->usb_id)) {
+	if (is_itf_usb_dsd_dac(chip->usb_id)) {
 		/* First switch to alt set 0, otherwise the mode switch cmd
 		 * will not be accepted by the DAC
 		 */
@@ -1622,10 +1622,8 @@ void snd_usb_endpoint_start_quirk(struct snd_usb_endpoint *ep)
 		ep->tenor_fb_quirk = 1;
 }
 
-void snd_usb_set_interface_quirk(struct usb_device *dev)
+void snd_usb_set_interface_quirk(struct snd_usb_audio *chip)
 {
-	struct snd_usb_audio *chip = dev_get_drvdata(&dev->dev);
-
 	if (!chip)
 		return;
 	/*
