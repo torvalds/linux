@@ -13161,7 +13161,9 @@ M:	Jesper Dangaard Brouer <hawk@kernel.org>
 M:	Ilias Apalodimas <ilias.apalodimas@linaro.org>
 L:	netdev@vger.kernel.org
 S:	Supported
+F:	Documentation/networking/page_pool.rst
 F:	include/net/page_pool.h
+F:	include/trace/events/page_pool.h
 F:	net/core/page_pool.c
 
 PANASONIC LAPTOP ACPI EXTRAS DRIVER
