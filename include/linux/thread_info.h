@@ -35,6 +35,7 @@ enum {
 	GOOD_STACK,
 };
 
+#ifdef CONFIG_GENERIC_ENTRY
 enum syscall_work_bit {
 	SYSCALL_WORK_BIT_SECCOMP,
 	SYSCALL_WORK_BIT_SYSCALL_TRACEPOINT,
@@ -48,6 +49,7 @@ enum syscall_work_bit {
 #define SYSCALL_WORK_SYSCALL_TRACE	BIT(SYSCALL_WORK_BIT_SYSCALL_TRACE)
 #define SYSCALL_WORK_SYSCALL_EMU	BIT(SYSCALL_WORK_BIT_SYSCALL_EMU)
 #define SYSCALL_WORK_SYSCALL_AUDIT	BIT(SYSCALL_WORK_BIT_SYSCALL_AUDIT)
+#endif
 
 #include <asm/thread_info.h>
 
@@ -129,11 +131,11 @@ static inline int test_ti_thread_flag(struct thread_info *ti, int flag)
 #else /* CONFIG_GENERIC_ENTRY */
 
 #define set_syscall_work(fl)						\
-	set_ti_thread_flag(current_thread_info(), SYSCALL_WORK_##fl)
+	set_ti_thread_flag(current_thread_info(), TIF_##fl)
 #define test_syscall_work(fl) \
-	test_ti_thread_flag(current_thread_info(), SYSCALL_WORK_##fl)
+	test_ti_thread_flag(current_thread_info(), TIF_##fl)
 #define clear_syscall_work(fl) \
-	clear_ti_thread_flag(current_thread_info(), SYSCALL_WORK_##fl)
+	clear_ti_thread_flag(current_thread_info(), TIF_##fl)
 
 #define set_task_syscall_work(t, fl) \
 	set_ti_thread_flag(task_thread_info(t), TIF_##fl)
