@@ -141,6 +141,7 @@
 #define NTB_HWERR_B2BDOORBELL_BIT14	BIT_ULL(2)
 #define NTB_HWERR_MSIX_VECTOR32_BAD	BIT_ULL(3)
 #define NTB_HWERR_BAR_ALIGN		BIT_ULL(4)
+#define NTB_HWERR_LTR_BAD		BIT_ULL(5)
 
 extern struct intel_b2b_addr xeon_b2b_usd_addr;
 extern struct intel_b2b_addr xeon_b2b_dsd_addr;
