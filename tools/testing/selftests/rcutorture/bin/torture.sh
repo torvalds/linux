@@ -178,11 +178,26 @@ ds="`date +%Y.%m.%d-%H.%M.%S`-torture"
 startdate="`date`"
 starttime="`get_starttime`"
 
-# tortureme flavor command
+# torture_one - Does a single kvm.sh run.
+#
+# Usage:
+#	torture_bootargs="[ kernel boot arguments ]"
+#	torture_one flavor [ kvm.sh arguments ]
+#
 # Note that "flavor" is an arbitrary string.  Supply --torture if needed.
+# Note that quoting is problematic.  So on the command line, pass multiple
+# values with multiple kvm.sh argument instances.
 function torture_one {
+	local cur_bootargs=
+	local boottag=
+
 	echo " --- $curflavor:" Start `date` | tee -a $T/log
-	eval $* --datestamp "$ds/results-$curflavor" > $T/$curflavor.out 2>&1
+	if test -n "$torture_bootargs"
+	then
+		boottag="--bootargs"
+		cur_bootargs="$torture_bootargs"
+	fi
+	"$@" $boottag "$cur_bootargs" --datestamp "$ds/results-$curflavor" > $T/$curflavor.out 2>&1
 	retcode=$?
 	resdir="`grep '^Results directory: ' $T/$curflavor.out | tail -1 | sed -e 's/^Results directory: //'`"
 	if test -n "$resdir"
@@ -201,36 +216,48 @@ function torture_one {
 	fi
 }
 
+# torture_set - Does a set of tortures with and without KASAN and KCSAN.
+#
+# Usage:
+#	torture_bootargs="[ kernel boot arguments ]"
+#	torture_set flavor [ kvm.sh arguments ]
+#
+# Note that "flavor" is an arbitrary string.  Supply --torture if needed.
+# Note that quoting is problematic.  So on the command line, pass multiple
+# values with multiple kvm.sh argument instances.
 function torture_set {
 	local flavor=$1
 	shift
 	curflavor=$flavor
-	torture_one $*
+	torture_one "$@"
 	if test "$do_kasan" = "yes"
 	then
 		curflavor=${flavor}-kasan
-		torture_one $* --kasan
+		torture_one "$@" --kasan
 	fi
 	if test "$do_kcsan" = "yes"
 	then
 		curflavor=${flavor}-kcsan
-		torture_one $* --kconfig '"CONFIG_DEBUG_LOCK_ALLOC=y CONFIG_PROVE_LOCKING=y"' --kmake-arg "CC=clang" --kcsan
+		torture_one $* --kconfig "CONFIG_DEBUG_LOCK_ALLOC=y CONFIG_PROVE_LOCKING=y" --kmake-arg "CC=clang" --kcsan
 	fi
 }
 
 if test "$do_rcutorture" = "yes"
 then
-	torture_set "rcutorture" 'tools/testing/selftests/rcutorture/bin/kvm.sh --allcpus --duration '"$duration_rcutorture"' --configs "TREE10 4*CFLIST" --bootargs "rcupdate.rcu_cpu_stall_suppress_at_boot=1 torture.disable_onoff_at_boot rcupdate.rcu_task_stall_timeout=30000" --trust-make'
+	torture_bootargs="rcupdate.rcu_cpu_stall_suppress_at_boot=1 torture.disable_onoff_at_boot rcupdate.rcu_task_stall_timeout=30000"
+	torture_set "rcutorture" tools/testing/selftests/rcutorture/bin/kvm.sh --allcpus --duration "$duration_rcutorture" --configs "TREE10 4*CFLIST" --trust-make
 fi
 
 if test "$do_locktorture" = "yes"
 then
-	torture_set "locktorture" 'tools/testing/selftests/rcutorture/bin/kvm.sh --torture lock --allcpus --duration '"$duration_locktorture"' --configs "14*CFLIST" --bootargs "torture.disable_onoff_at_boot" --trust-make'
+	torture_bootargs="torture.disable_onoff_at_boot"
+	torture_set "locktorture" tools/testing/selftests/rcutorture/bin/kvm.sh --torture lock --allcpus --duration "$duration_locktorture" --configs "14*CFLIST" --trust-make
 fi
 
 if test "$do_scftorture" = "yes"
 then
-	torture_set "scftorture" 'tools/testing/selftests/rcutorture/bin/kvm.sh --torture scf --allcpus --duration '"$duration_scftorture"' --kconfig "CONFIG_NR_CPUS=224" --bootargs "scftorture.nthreads=224 torture.disable_onoff_at_boot" --trust-make'
+	torture_bootargs="scftorture.nthreads=224 torture.disable_onoff_at_boot"
+	torture_set "scftorture" tools/testing/selftests/rcutorture/bin/kvm.sh --torture scf --allcpus --duration "$duration_scftorture" --kconfig "CONFIG_NR_CPUS=224" --trust-make
 fi
 
 if test "$do_refscale" = yes
@@ -241,7 +268,8 @@ else
 fi
 for prim in $primlist
 do
-	torture_set "refscale-$prim" 'tools/testing/selftests/rcutorture/bin/kvm.sh --torture refscale --allcpus --duration 5 --kconfig "CONFIG_NR_CPUS=224" --bootargs "refscale.scale_type='"$prim"' refscale.nreaders=224 refscale.loops=10000 refscale.holdoff=20 torture.disable_onoff_at_boot" --trust-make'
+	torture_bootargs="refscale.scale_type="$prim" refscale.nreaders=224 refscale.loops=10000 refscale.holdoff=20 torture.disable_onoff_at_boot"
+	torture_set "refscale-$prim" tools/testing/selftests/rcutorture/bin/kvm.sh --torture refscale --allcpus --duration 5 --kconfig "CONFIG_NR_CPUS=224" --trust-make
 done
 
 if test "$do_rcuscale" = yes
@@ -252,12 +280,14 @@ else
 fi
 for prim in $primlist
 do
-	torture_set "rcuscale-$prim" 'tools/testing/selftests/rcutorture/bin/kvm.sh --torture rcuscale --allcpus --duration 5 --kconfig "CONFIG_NR_CPUS=224" --bootargs "rcuscale.scale_type='"$prim"' rcuscale.nwriters=224 rcuscale.holdoff=20 torture.disable_onoff_at_boot" --trust-make'
+	torture_bootargs="rcuscale.scale_type="$prim" rcuscale.nwriters=224 rcuscale.holdoff=20 torture.disable_onoff_at_boot"
+	torture_set "rcuscale-$prim" tools/testing/selftests/rcutorture/bin/kvm.sh --torture rcuscale --allcpus --duration 5 --kconfig "CONFIG_NR_CPUS=224" --trust-make
 done
 
 if test "$do_kvfree" = "yes"
 then
-	torture_set "rcuscale-kvfree" 'tools/testing/selftests/rcutorture/bin/kvm.sh --torture rcuscale --allcpus --duration 10 --kconfig "CONFIG_NR_CPUS=224" --bootargs "rcuscale.kfree_rcu_test=1 rcuscale.kfree_nthreads=16 rcuscale.holdoff=20 rcuscale.kfree_loops=10000 torture.disable_onoff_at_boot" --trust-make'
+	torture_bootargs="rcuscale.kfree_rcu_test=1 rcuscale.kfree_nthreads=16 rcuscale.holdoff=20 rcuscale.kfree_loops=10000 torture.disable_onoff_at_boot"
+	torture_set "rcuscale-kvfree" tools/testing/selftests/rcutorture/bin/kvm.sh --torture rcuscale --allcpus --duration 10 --kconfig "CONFIG_NR_CPUS=224" --trust-make
 fi
 
 echo " --- " $scriptname $args
@@ -293,3 +323,6 @@ exit $ret
 # Need a way for the invoker to specify clang.
 # Work out --configs based on number of available CPUs?
 # Need to sense CPUs to size scftorture run.  Ditto rcuscale and refscale.
+# --kconfig as with --bootargs (Both have overrides.)
+# Command line parameters for --bootargs, --config, --kconfig, --kmake-arg, and --qemu-arg
+# Ensure that build failures count as failures
