@@ -45,6 +45,7 @@ static void vidtv_channel_encoder_destroy(struct vidtv_encoder *e)
 }
 
 #define ENCODING_ISO8859_15 "\x0b"
+#define TS_NIT_PID	0x10
 
 /*
  * init an audio only channel with a s302m encoder
@@ -296,6 +297,8 @@ vidtv_channel_pat_prog_cat_into_new(struct vidtv_mux *m)
 
 		cur_chnl = cur_chnl->next;
 	}
+	/* Add the NIT table */
+	vidtv_psi_pat_program_init(tail, 0, TS_NIT_PID);
 
 	return head;
 }
@@ -471,7 +474,7 @@ int vidtv_channel_si_init(struct vidtv_mux *m)
 
 	vidtv_channel_pmt_match_sections(m->channels,
 					 m->si.pmt_secs,
-					 m->si.pat->programs);
+					 m->si.pat->num_pmt);
 
 	vidtv_channel_destroy_service_list(service_list);
 
@@ -498,12 +501,11 @@ free_pat:
 
 void vidtv_channel_si_destroy(struct vidtv_mux *m)
 {
-	u16 num_programs = m->si.pat->programs;
 	u32 i;
 
 	vidtv_psi_pat_table_destroy(m->si.pat);
 
-	for (i = 0; i < num_programs; ++i)
+	for (i = 0; i < m->si.pat->num_pmt; ++i)
 		vidtv_psi_pmt_table_destroy(m->si.pmt_secs[i]);
 
 	kfree(m->si.pmt_secs);

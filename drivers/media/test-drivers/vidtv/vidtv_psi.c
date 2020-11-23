@@ -794,7 +794,7 @@ vidtv_psi_pat_table_update_sec_len(struct vidtv_psi_table_pat *pat)
 	length += PAT_LEN_UNTIL_LAST_SECTION_NUMBER;
 
 	/* do not count the pointer */
-	for (i = 0; i < pat->programs; ++i)
+	for (i = 0; i < pat->num_pat; ++i)
 		length += sizeof(struct vidtv_psi_table_pat_program) -
 			  sizeof(struct vidtv_psi_table_pat_program *);
 
@@ -931,7 +931,7 @@ vidtv_psi_pat_program_assign(struct vidtv_psi_table_pat *pat,
 			program = program->next;
 		}
 
-		pat->programs = program_count;
+		pat->num_pat = program_count;
 		pat->program  = p;
 
 		/* Recompute section length */
@@ -965,8 +965,6 @@ struct vidtv_psi_table_pat *vidtv_psi_pat_table_init(u16 transport_stream_id)
 	pat->header.one2         = 0x03;
 	pat->header.section_id   = 0x0;
 	pat->header.last_section = 0x0;
-
-	pat->programs = 0;
 
 	vidtv_psi_pat_table_update_sec_len(pat);
 
@@ -1488,22 +1486,43 @@ vidtv_psi_pmt_create_sec_for_each_pat_entry(struct vidtv_psi_table_pat *pat,
 					    u16 pcr_pid)
 
 {
-	struct vidtv_psi_table_pat_program *program = pat->program;
+	struct vidtv_psi_table_pat_program *program;
 	struct vidtv_psi_table_pmt **pmt_secs;
-	u32 i = 0;
+	u32 i = 0, num_pmt = 0;
 
-	/* a section for each program_id */
-	pmt_secs = kcalloc(pat->programs,
+	/*
+	 * The number of PMT entries is the number of PAT entries
+	 * that contain service_id. That exclude special tables, like NIT
+	 */
+	program = pat->program;
+	while (program) {
+		if (program->service_id)
+			num_pmt++;
+		program = program->next;
+	}
+
+	pmt_secs = kcalloc(num_pmt,
 			   sizeof(struct vidtv_psi_table_pmt *),
 			   GFP_KERNEL);
 	if (!pmt_secs)
 		return NULL;
 
-	while (program) {
-		pmt_secs[i] = vidtv_psi_pmt_table_init(be16_to_cpu(program->service_id), pcr_pid);
-		++i;
-		program = program->next;
+	for (program = pat->program; program; program = program->next) {
+		if (!program->service_id)
+			continue;
+		pmt_secs[i] = vidtv_psi_pmt_table_init(be16_to_cpu(program->service_id),
+						       pcr_pid);
+
+		if (!pmt_secs[i]) {
+			while (i > 0) {
+				i--;
+				vidtv_psi_pmt_table_destroy(pmt_secs[i]);
+			}
+			return NULL;
+		}
+		i++;
 	}
+	pat->num_pmt = num_pmt;
 
 	return pmt_secs;
 }

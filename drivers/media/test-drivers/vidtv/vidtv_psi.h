@@ -174,7 +174,8 @@ struct vidtv_psi_table_pat_program {
  */
 struct vidtv_psi_table_pat {
 	struct vidtv_psi_table_header header;
-	u16 programs; /* Included by libdvbv5, not part of the table and not actually serialized */
+	u16 num_pat;
+	u16 num_pmt;
 	struct vidtv_psi_table_pat_program *program;
 } __packed;
 
