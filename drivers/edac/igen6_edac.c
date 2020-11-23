@@ -164,7 +164,7 @@ struct ecclog_node {
  * to EDAC core in a worker.
  */
 #define ECCLOG_POOL_SIZE	PAGE_SIZE
-LLIST_HEAD(ecclog_llist);
+static LLIST_HEAD(ecclog_llist);
 static struct gen_pool *ecclog_pool;
 static char ecclog_buf[ECCLOG_POOL_SIZE];
 static struct irq_work ecclog_irq_work;
