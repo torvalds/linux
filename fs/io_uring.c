@@ -3193,7 +3193,7 @@ static void io_req_map_rw(struct io_kiocb *req, const struct iovec *iovec,
 	rw->free_iovec = iovec;
 	rw->bytes_done = 0;
 	/* can only be fixed buffers, no need to do anything */
-	if (iter->type == ITER_BVEC)
+	if (iov_iter_is_bvec(iter))
 		return;
 	if (!iovec) {
 		unsigned iov_off = 0;
