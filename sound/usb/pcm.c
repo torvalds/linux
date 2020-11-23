@@ -349,21 +349,18 @@ static bool search_roland_implicit_fb(struct usb_device *dev, int ifnum,
 /* Setup an implicit feedback endpoint from a quirk. Returns 0 if no quirk
  * applies. Returns 1 if a quirk was found.
  */
-static int set_sync_ep_implicit_fb_quirk(struct snd_usb_substream *subs,
-					 struct usb_device *dev,
-					 struct usb_interface_descriptor *altsd,
-					 unsigned int attr)
+static int audioformat_implicit_fb_quirk(struct snd_usb_audio *chip,
+					 struct audioformat *fmt,
+					 struct usb_interface *iface,
+					 struct usb_host_interface *alts)
 {
-	struct usb_host_interface *alts;
-	struct usb_interface *iface;
+	struct usb_device *dev = chip->dev;
+	struct usb_interface_descriptor *altsd = get_iface_desc(alts);
+	unsigned int attr = fmt->ep_attr & USB_ENDPOINT_SYNCTYPE;
 	unsigned int ep;
 	unsigned int ifnum;
 
-	/* Implicit feedback sync EPs consumers are always playback EPs */
-	if (subs->direction != SNDRV_PCM_STREAM_PLAYBACK)
-		return 0;
-
-	switch (subs->stream->chip->usb_id) {
+	switch (chip->usb_id) {
 	case USB_ID(0x0763, 0x2030): /* M-Audio Fast Track C400 */
 	case USB_ID(0x0763, 0x2031): /* M-Audio Fast Track C600 */
 	case USB_ID(0x22f0, 0x0006): /* Allen&Heath Qu-16 */
@@ -437,11 +434,13 @@ static int set_sync_ep_implicit_fb_quirk(struct snd_usb_substream *subs,
 	    altsd->bInterfaceClass == USB_CLASS_VENDOR_SPEC &&
 	    altsd->bInterfaceProtocol == 2 &&
 	    altsd->bNumEndpoints == 1 &&
-	    USB_ID_VENDOR(subs->stream->chip->usb_id) == 0x0582 /* Roland */ &&
-	    search_roland_implicit_fb(dev, altsd->bInterfaceNumber + 1,
-				      altsd->bAlternateSetting,
-				      &alts, &ep))
-		goto add_sync_ep;
+	    USB_ID_VENDOR(chip->usb_id) == 0x0582 /* Roland */) {
+		ifnum = altsd->bInterfaceNumber + 1;
+		if (search_roland_implicit_fb(dev, ifnum,
+					      altsd->bAlternateSetting,
+					      &alts, &ep))
+			goto add_sync_ep;
+	}
 
 	/* No quirk */
 	return 0;
@@ -450,55 +449,58 @@ add_sync_ep_from_ifnum:
 	iface = usb_ifnum_to_if(dev, ifnum);
 
 	if (!iface || iface->num_altsetting < 2)
-		return -EINVAL;
+		return 0;
 
 	alts = &iface->altsetting[1];
 
 add_sync_ep:
-	subs->sync_endpoint = snd_usb_add_endpoint(subs->stream->chip,
-						   alts, ep, !subs->direction,
-						   SND_USB_ENDPOINT_TYPE_DATA);
-	if (!subs->sync_endpoint)
-		return -EINVAL;
-
-	subs->sync_endpoint->is_implicit_feedback = 1;
-
-	subs->data_endpoint->sync_master = subs->sync_endpoint;
+	fmt->sync_ep = ep;
+	fmt->sync_iface = ifnum;
+	fmt->sync_altsetting = alts->desc.bAlternateSetting;
+	fmt->implicit_fb = 1;
+	dev_dbg(&dev->dev, "%d:%d: found implicit_fb sync_ep=%x, iface=%d, alt=%d\n",
+		fmt->iface, fmt->altsetting, fmt->sync_ep, fmt->sync_iface,
+		fmt->sync_altsetting);
 
 	return 1;
 }
 
-static int set_sync_endpoint(struct snd_usb_substream *subs,
-			     struct audioformat *fmt,
-			     struct usb_device *dev,
-			     struct usb_host_interface *alts,
-			     struct usb_interface_descriptor *altsd)
+int snd_usb_audioformat_set_sync_ep(struct snd_usb_audio *chip,
+				    struct audioformat *fmt)
 {
-	int is_playback = subs->direction == SNDRV_PCM_STREAM_PLAYBACK;
-	unsigned int ep, attr;
-	bool implicit_fb;
+	struct usb_device *dev = chip->dev;
+	struct usb_interface *iface;
+	struct usb_host_interface *alts;
+	struct usb_interface_descriptor *altsd;
+	unsigned int ep, attr, sync_attr;
+	bool is_playback;
 	int err;
 
-	attr = fmt->ep_attr & USB_ENDPOINT_SYNCTYPE;
-
-	subs->sync_endpoint = NULL;
-	subs->data_endpoint->sync_master = NULL;
-
-	err = set_sync_ep_implicit_fb_quirk(subs, dev, altsd, attr);
-	if (err < 0)
-		return err;
-
-	/* endpoint set by quirk */
-	if (err > 0)
+	iface = usb_ifnum_to_if(dev, fmt->iface);
+	if (!iface)
 		return 0;
+	alts = usb_altnum_to_altsetting(iface, fmt->altsetting);
+	if (!alts)
+		return 0;
+	altsd = get_iface_desc(alts);
+
+	is_playback = !(get_endpoint(alts, 0)->bEndpointAddress & USB_DIR_IN);
+	if (is_playback) {
+		err = audioformat_implicit_fb_quirk(chip, fmt, iface, alts);
+		if (err > 0)
+			return 0;
+	}
 
 	if (altsd->bNumEndpoints < 2)
 		return 0;
 
+	attr = fmt->ep_attr & USB_ENDPOINT_SYNCTYPE;
 	if ((is_playback && (attr == USB_ENDPOINT_SYNC_SYNC ||
 			     attr == USB_ENDPOINT_SYNC_ADAPTIVE)) ||
 	    (!is_playback && attr != USB_ENDPOINT_SYNC_ADAPTIVE))
 		return 0;
+
+	sync_attr = get_endpoint(alts, 1)->bmAttributes;
 
 	/*
 	 * In case of illegal SYNC_NONE for OUT endpoint, we keep going to see
@@ -510,7 +512,7 @@ static int set_sync_endpoint(struct snd_usb_substream *subs,
 	/* ... and check descriptor size before accessing bSynchAddress
 	   because there is a version of the SB Audigy 2 NX firmware lacking
 	   the audio fields in the endpoint descriptors */
-	if ((get_endpoint(alts, 1)->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) != USB_ENDPOINT_XFER_ISOC ||
+	if ((sync_attr & USB_ENDPOINT_XFERTYPE_MASK) != USB_ENDPOINT_XFER_ISOC ||
 	    (get_endpoint(alts, 1)->bLength >= USB_DT_ENDPOINT_AUDIO_SIZE &&
 	     get_endpoint(alts, 1)->bSynchAddress != 0)) {
 		dev_err(&dev->dev,
@@ -537,22 +539,57 @@ static int set_sync_endpoint(struct snd_usb_substream *subs,
 		return -EINVAL;
 	}
 
-	implicit_fb = (get_endpoint(alts, 1)->bmAttributes & USB_ENDPOINT_USAGE_MASK)
-			== USB_ENDPOINT_USAGE_IMPLICIT_FB;
+	fmt->sync_ep = ep;
+	fmt->sync_iface = altsd->bInterfaceNumber;
+	fmt->sync_altsetting = altsd->bAlternateSetting;
+	if ((sync_attr & USB_ENDPOINT_USAGE_MASK) == USB_ENDPOINT_USAGE_IMPLICIT_FB)
+		fmt->implicit_fb = 1;
+
+	dev_dbg(&dev->dev, "%d:%d: found sync_ep=0x%x, iface=%d, alt=%d, implicit_fb=%d\n",
+		fmt->iface, fmt->altsetting, fmt->sync_ep, fmt->sync_iface,
+		fmt->sync_altsetting, fmt->implicit_fb);
+
+	return 0;
+}
+
+static int set_sync_endpoint(struct snd_usb_substream *subs,
+			     struct audioformat *fmt)
+{
+	struct usb_device *dev = subs->dev;
+	struct usb_interface *iface;
+	struct usb_host_interface *alts;
+	int is_playback = subs->direction == SNDRV_PCM_STREAM_PLAYBACK;
+	unsigned int ep;
+	int err;
+
+	subs->sync_endpoint = NULL;
+	subs->data_endpoint->sync_master = NULL;
+
+	ep = fmt->sync_ep;
+	if (!ep)
+		return 0;
+
+	iface = usb_ifnum_to_if(dev, fmt->sync_iface);
+	if (!iface)
+		return 0;
+
+	alts = usb_altnum_to_altsetting(iface, fmt->altsetting);
+	if (!alts)
+		return 0;
 
 	subs->sync_endpoint = snd_usb_add_endpoint(subs->stream->chip,
 						   alts, ep, !subs->direction,
-						   implicit_fb ?
-							SND_USB_ENDPOINT_TYPE_DATA :
-							SND_USB_ENDPOINT_TYPE_SYNC);
-
+						   fmt->implicit_fb ?
+						   SND_USB_ENDPOINT_TYPE_DATA :
+						   SND_USB_ENDPOINT_TYPE_SYNC);
 	if (!subs->sync_endpoint) {
-		if (is_playback && attr == USB_ENDPOINT_SYNC_NONE)
+		if (is_playback &&
+		    (fmt->ep_attr & USB_ENDPOINT_SYNCTYPE) == USB_ENDPOINT_SYNC_NONE)
 			return 0;
 		return -EINVAL;
 	}
 
-	subs->sync_endpoint->is_implicit_feedback = implicit_fb;
+	subs->sync_endpoint->is_implicit_feedback = fmt->implicit_fb;
 
 	subs->data_endpoint->sync_master = subs->sync_endpoint;
 
@@ -579,7 +616,6 @@ static int set_format(struct snd_usb_substream *subs, struct audioformat *fmt)
 {
 	struct usb_device *dev = subs->dev;
 	struct usb_host_interface *alts;
-	struct usb_interface_descriptor *altsd;
 	struct usb_interface *iface;
 	int err;
 
@@ -589,7 +625,6 @@ static int set_format(struct snd_usb_substream *subs, struct audioformat *fmt)
 	alts = usb_altnum_to_altsetting(iface, fmt->altsetting);
 	if (WARN_ON(!alts))
 		return -EINVAL;
-	altsd = get_iface_desc(alts);
 
 	if (fmt == subs->cur_audiofmt && !subs->need_setup_fmt)
 		return 0;
@@ -639,7 +674,7 @@ static int set_format(struct snd_usb_substream *subs, struct audioformat *fmt)
 	if (!subs->data_endpoint)
 		return -EINVAL;
 
-	err = set_sync_endpoint(subs, fmt, dev, alts, altsd);
+	err = set_sync_endpoint(subs, fmt);
 	if (err < 0)
 		return err;
 

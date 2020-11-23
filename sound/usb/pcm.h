@@ -14,5 +14,7 @@ int snd_usb_init_pitch(struct snd_usb_audio *chip, int iface,
 		       struct audioformat *fmt);
 void snd_usb_preallocate_buffer(struct snd_usb_substream *subs);
 
+int snd_usb_audioformat_set_sync_ep(struct snd_usb_audio *chip,
+				    struct audioformat *fmt);
 
 #endif /* __USBAUDIO_PCM_H */

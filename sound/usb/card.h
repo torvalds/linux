@@ -22,6 +22,10 @@ struct audioformat {
 	unsigned char attributes;	/* corresponding attributes of cs endpoint */
 	unsigned char endpoint;		/* endpoint */
 	unsigned char ep_attr;		/* endpoint attributes */
+	bool implicit_fb;		/* implicit feedback endpoint */
+	unsigned char sync_ep;		/* sync endpoint number */
+	unsigned char sync_iface;	/* sync EP interface */
+	unsigned char sync_altsetting;	/* sync EP alternate setting */
 	unsigned char datainterval;	/* log_2 of data packet interval */
 	unsigned char protocol;		/* UAC_VERSION_1/2/3 */
 	unsigned int maxpacksize;	/* max. packet size */
