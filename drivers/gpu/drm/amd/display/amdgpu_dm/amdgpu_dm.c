@@ -2563,11 +2563,9 @@ static void handle_hpd_rx_irq(void *param)
 	bool result = false;
 	enum dc_connection_type new_connection_type = dc_connection_none;
 	struct amdgpu_device *adev = drm_to_adev(dev);
-#ifdef CONFIG_DRM_AMD_DC_HDCP
 	union hpd_irq_data hpd_irq_data;
 
 	memset(&hpd_irq_data, 0, sizeof(hpd_irq_data));
-#endif
 
 	/*
 	 * TODO:Temporary add mutex to protect hpd interrupt not have a gpio
@@ -2577,6 +2575,21 @@ static void handle_hpd_rx_irq(void *param)
 	if (dc_link->type != dc_connection_mst_branch)
 		mutex_lock(&aconnector->hpd_lock);
 
+	read_hpd_rx_irq_data(dc_link, &hpd_irq_data);
+
+	if ((dc_link->cur_link_settings.lane_count != LANE_COUNT_UNKNOWN) ||
+		(dc_link->type == dc_connection_mst_branch)) {
+		if (hpd_irq_data.bytes.device_service_irq.bits.UP_REQ_MSG_RDY) {
+			result = true;
+			dm_handle_hpd_rx_irq(aconnector);
+			goto out;
+		} else if (hpd_irq_data.bytes.device_service_irq.bits.DOWN_REP_MSG_RDY) {
+			result = false;
+			dm_handle_hpd_rx_irq(aconnector);
+			goto out;
+		}
+	}
+
 	mutex_lock(&adev->dm.dc_lock);
 #ifdef CONFIG_DRM_AMD_DC_HDCP
 	result = dc_link_handle_hpd_rx_irq(dc_link, &hpd_irq_data, NULL);
@@ -2585,6 +2598,7 @@ static void handle_hpd_rx_irq(void *param)
 #endif
 	mutex_unlock(&adev->dm.dc_lock);
 
+out:
 	if (result && !is_mst_root_connector) {
 		/* Downstream Port status changed. */
 		if (!dc_link_detect_sink(dc_link, &new_connection_type))
@@ -2625,9 +2639,6 @@ static void handle_hpd_rx_irq(void *param)
 			hdcp_handle_cpirq(adev->dm.hdcp_workqueue,  aconnector->base.index);
 	}
 #endif
-	if ((dc_link->cur_link_settings.lane_count != LANE_COUNT_UNKNOWN) ||
-	    (dc_link->type == dc_connection_mst_branch))
-		dm_handle_hpd_rx_irq(aconnector);
 
 	if (dc_link->type != dc_connection_mst_branch) {
 		drm_dp_cec_irq(&aconnector->dm_dp_aux.aux);
