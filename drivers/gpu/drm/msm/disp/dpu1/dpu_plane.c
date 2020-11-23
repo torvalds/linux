@@ -142,7 +142,8 @@ static struct dpu_kms *_dpu_plane_get_kms(struct drm_plane *plane)
 
 /**
  * _dpu_plane_calc_bw - calculate bandwidth required for a plane
- * @Plane: Pointer to drm plane.
+ * @plane: Pointer to drm plane.
+ * @fb:   Pointer to framebuffer associated with the given plane
  * Result: Updates calculated bandwidth in the plane state.
  * BW Equation: src_w * src_h * bpp * fps * (v_total / v_dest)
  * Prefill BW Equation: line src bytes * line_time
@@ -192,7 +193,7 @@ static void _dpu_plane_calc_bw(struct drm_plane *plane,
 
 /**
  * _dpu_plane_calc_clk - calculate clock required for a plane
- * @Plane: Pointer to drm plane.
+ * @plane: Pointer to drm plane.
  * Result: Updates calculated clock in the plane state.
  * Clock equation: dst_w * v_total * fps * (src_h / dst_h)
  */
@@ -224,7 +225,7 @@ static void _dpu_plane_calc_clk(struct drm_plane *plane)
  * _dpu_plane_calc_fill_level - calculate fill level of the given source format
  * @plane:		Pointer to drm plane
  * @fmt:		Pointer to source buffer format
- * @src_wdith:		width of source buffer
+ * @src_width:		width of source buffer
  * Return: fill level corresponding to the source buffer/format or 0 if error
  */
 static int _dpu_plane_calc_fill_level(struct drm_plane *plane,
@@ -1055,6 +1056,7 @@ void dpu_plane_flush(struct drm_plane *plane)
 /**
  * dpu_plane_set_error: enable/disable error condition
  * @plane: pointer to drm_plane structure
+ * @error: error value to set
  */
 void dpu_plane_set_error(struct drm_plane *plane, bool error)
 {
