@@ -16,7 +16,7 @@ struct audioformat {
 	unsigned int fmt_type;		/* USB audio format type (1-3) */
 	unsigned int fmt_bits;		/* number of significant bits */
 	unsigned int frame_size;	/* samples per frame for non-audio */
-	int iface;			/* interface number */
+	unsigned char iface;		/* interface number */
 	unsigned char altsetting;	/* corresponding alternate setting */
 	unsigned char altset_idx;	/* array index of altenate setting */
 	unsigned char attributes;	/* corresponding attributes of cs endpoint */
@@ -63,7 +63,12 @@ struct snd_usb_endpoint {
 	atomic_t running;	/* running status */
 	int ep_num;		/* the referenced endpoint number */
 	int type;		/* SND_USB_ENDPOINT_TYPE_* */
-	unsigned long flags;
+
+	unsigned char iface;		/* interface number */
+	unsigned char altsetting;	/* corresponding alternate setting */
+	unsigned char ep_idx;		/* endpoint array index */
+
+	unsigned long flags;	/* running bit flags */
 
 	void (*prepare_data_urb) (struct snd_usb_substream *subs,
 				  struct urb *urb);
@@ -112,8 +117,6 @@ struct snd_usb_endpoint {
 	unsigned int syncinterval;	/* P for adaptive mode, 0 otherwise */
 	unsigned char silence_value;
 	unsigned int stride;
-	int iface, altsetting;
-	unsigned char ep_idx;		/* endpoint array index */
 	int skip_packets;		/* quirks for devices to ignore the first n packets
 					   in a stream */
 	bool implicit_fb_sync;		/* syncs with implicit feedback */

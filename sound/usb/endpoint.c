@@ -762,7 +762,7 @@ void snd_usb_endpoint_close(struct snd_usb_audio *chip,
 		      ep->ep_num, ep->opened);
 	if (!--ep->opened) {
 		endpoint_set_interface(chip, ep, false);
-		ep->iface = -1;
+		ep->iface = 0;
 		ep->altsetting = 0;
 		ep->cur_audiofmt = NULL;
 		ep->cur_rate = 0;
