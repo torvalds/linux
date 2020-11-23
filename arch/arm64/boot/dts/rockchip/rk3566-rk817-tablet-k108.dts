@@ -1067,6 +1067,12 @@
 		};
 	};
 
+	sdmmc0 {
+		sdmmc0_det_gpio: sdmmc0-det-gpio {
+			rockchip,pins = <0 RK_PA4 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
 	usb {
 		vcc5v0_host_en: vcc5v0-host-en {
 			rockchip,pins = <3 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>;
@@ -1168,8 +1174,9 @@
 	sd-uhs-sdr104;
 	vmmc-supply = <&vcc_sd>;
 	vqmmc-supply = <&vccio_sd>;
+	cd-gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_HIGH>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&sdmmc0_bus4 &sdmmc0_clk &sdmmc0_cmd &sdmmc0_det>;
+	pinctrl-0 = <&sdmmc0_bus4 &sdmmc0_clk &sdmmc0_cmd &sdmmc0_det_gpio>;
 	status = "okay";
 };
 
