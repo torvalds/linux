@@ -121,13 +121,13 @@ int snd_usb_endpoint_implicit_feedback_sink(struct snd_usb_endpoint *ep)
 }
 
 /*
- * For streaming based on information derived from sync endpoints,
- * prepare_outbound_urb_sizes() will call slave_next_packet_size() to
- * determine the number of samples to be sent in the next packet.
+ * Return the number of samples to be sent in the next packet
+ * for streaming based on information derived from sync endpoints
  *
- * For implicit feedback, slave_next_packet_size() is unused.
+ * This won't be used for implicit feedback which takes the packet size
+ * returned from the sync source
  */
-int snd_usb_endpoint_slave_next_packet_size(struct snd_usb_endpoint *ep)
+static int slave_next_packet_size(struct snd_usb_endpoint *ep)
 {
 	unsigned long flags;
 	int ret;
@@ -145,11 +145,10 @@ int snd_usb_endpoint_slave_next_packet_size(struct snd_usb_endpoint *ep)
 }
 
 /*
- * For adaptive and synchronous endpoints, prepare_outbound_urb_sizes()
- * will call next_packet_size() to determine the number of samples to be
- * sent in the next packet.
+ * Return the number of samples to be sent in the next packet
+ * for adaptive and synchronous endpoints
  */
-int snd_usb_endpoint_next_packet_size(struct snd_usb_endpoint *ep)
+static int next_packet_size(struct snd_usb_endpoint *ep)
 {
 	int ret;
 
@@ -165,6 +164,21 @@ int snd_usb_endpoint_next_packet_size(struct snd_usb_endpoint *ep)
 	}
 
 	return ret;
+}
+
+/*
+ * snd_usb_endpoint_next_packet_size: Return the number of samples to be sent
+ * in the next packet
+ */
+int snd_usb_endpoint_next_packet_size(struct snd_usb_endpoint *ep,
+				      struct snd_urb_ctx *ctx, int idx)
+{
+	if (ctx->packet_size[idx])
+		return ctx->packet_size[idx];
+	else if (ep->sync_master)
+		return slave_next_packet_size(ep);
+	else
+		return next_packet_size(ep);
 }
 
 static void call_retire_callback(struct snd_usb_endpoint *ep,
@@ -223,13 +237,7 @@ static void prepare_silent_urb(struct snd_usb_endpoint *ep,
 		unsigned int length;
 		int counts;
 
-		if (ctx->packet_size[i])
-			counts = ctx->packet_size[i];
-		else if (ep->sync_master)
-			counts = snd_usb_endpoint_slave_next_packet_size(ep);
-		else
-			counts = snd_usb_endpoint_next_packet_size(ep);
-
+		counts = snd_usb_endpoint_next_packet_size(ep, ctx, i);
 		length = counts * ep->stride; /* number of silent bytes */
 		offset = offs * ep->stride + extra * i;
 		urb->iso_frame_desc[i].offset = offset;
