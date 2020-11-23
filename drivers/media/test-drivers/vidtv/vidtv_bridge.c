@@ -29,8 +29,9 @@
 #define MUX_BUF_MAX_SZ (MUX_BUF_MIN_SZ * 10)
 #define TUNER_DEFAULT_ADDR 0x68
 #define DEMOD_DEFAULT_ADDR 0x60
-#define VIDTV_DEFAULT_NETWORK_ID 0x744
+#define VIDTV_DEFAULT_NETWORK_ID 0xff44
 #define VIDTV_DEFAULT_NETWORK_NAME "LinuxTV.org"
+#define VIDTV_DEFAULT_TS_ID 0x4081
 
 /*
  * The LNBf fake parameters here are the ranges used by an
