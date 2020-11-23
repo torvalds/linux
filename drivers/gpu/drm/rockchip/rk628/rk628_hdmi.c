@@ -904,6 +904,40 @@ rk628_hdmi_connector_detect(struct drm_connector *connector, bool force)
 			connector_status_disconnected;
 }
 
+static bool source_is_bt1120(struct device_node *np)
+{
+	struct device_node *first_remote, *second_remote;
+	bool ret = false;
+
+	first_remote = of_graph_get_remote_node(np, 0, -1);
+	if (!first_remote)
+		return ret;
+
+	if (!of_device_is_available(first_remote)) {
+		of_node_put(first_remote);
+		return ret;
+	}
+
+	second_remote = of_graph_get_remote_node(first_remote, 0, -1);
+	if (!second_remote) {
+		of_node_put(first_remote);
+		return ret;
+	}
+
+	of_node_put(first_remote);
+	if (!of_device_is_available(second_remote)) {
+		of_node_put(second_remote);
+		return ret;
+	}
+
+	if (strstr(of_node_full_name(second_remote), "bt1120-rx"))
+		ret = true;
+
+	of_node_put(second_remote);
+
+	return ret;
+}
+
 static int rk628_hdmi_connector_get_modes(struct drm_connector *connector)
 {
 	struct rk628_hdmi *hdmi = connector_to_hdmi(connector);
@@ -934,6 +968,13 @@ static int rk628_hdmi_connector_get_modes(struct drm_connector *connector)
 		info->color_formats = 0;
 
 		dev_info(hdmi->dev, "failed to get edid\n");
+	}
+
+	if (source_is_bt1120(hdmi->dev->of_node)) {
+		u32 bus_format = MEDIA_BUS_FMT_VYUY8_1X16;
+
+		drm_display_info_set_bus_formats(&connector->display_info,
+						 &bus_format, 1);
 	}
 
 	return ret;
