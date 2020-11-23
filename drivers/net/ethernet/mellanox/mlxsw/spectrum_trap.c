@@ -1007,6 +1007,12 @@ static const struct mlxsw_sp_trap_item mlxsw_sp_trap_items_arr[] = {
 					     false),
 		},
 	},
+	{
+		.trap = MLXSW_SP_TRAP_DROP(BLACKHOLE_NEXTHOP, L3_DROPS),
+		.listeners_arr = {
+			MLXSW_SP_RXL_DISCARD(ROUTER3, L3_DISCARDS),
+		},
+	},
 };
 
 static struct mlxsw_sp_trap_policer_item *
