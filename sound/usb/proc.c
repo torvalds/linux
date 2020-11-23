@@ -108,7 +108,8 @@ static void proc_dump_substream_formats(struct snd_usb_substream *subs, struct s
 					    snd_pcm_format_name(fmt));
 		snd_iprintf(buffer, "\n");
 		snd_iprintf(buffer, "    Channels: %d\n", fp->channels);
-		snd_iprintf(buffer, "    Endpoint: %d %s (%s)\n",
+		snd_iprintf(buffer, "    Endpoint: 0x%02x (%d %s) (%s)\n",
+			    fp->endpoint,
 			    fp->endpoint & USB_ENDPOINT_NUMBER_MASK,
 			    fp->endpoint & USB_DIR_IN ? "IN" : "OUT",
 			    sync_types[(fp->ep_attr & USB_ENDPOINT_SYNCTYPE) >> 2]);
@@ -148,6 +149,19 @@ static void proc_dump_substream_formats(struct snd_usb_substream *subs, struct s
 						    channel_labels[map->map[c]]);
 			}
 			snd_iprintf(buffer, "\n");
+		}
+
+		if (fp->sync_ep) {
+			snd_iprintf(buffer, "    Sync Endpoint: 0x%02x (%d %s)\n",
+				    fp->sync_ep,
+				    fp->sync_ep & USB_ENDPOINT_NUMBER_MASK,
+				    fp->sync_ep & USB_DIR_IN ? "IN" : "OUT");
+			snd_iprintf(buffer, "    Sync EP Interface: %d\n",
+				    fp->sync_iface);
+			snd_iprintf(buffer, "    Sync EP Altset: %d\n",
+				    fp->sync_altsetting);
+			snd_iprintf(buffer, "    Implicit Feedback Mode: %s\n",
+				    fp->implicit_fb ? "Yes" : "No");
 		}
 
 		// snd_iprintf(buffer, "    Max Packet Size = %d\n", fp->maxpacksize);
