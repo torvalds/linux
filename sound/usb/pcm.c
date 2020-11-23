@@ -403,6 +403,9 @@ static int audioformat_implicit_fb_quirk(struct snd_usb_audio *chip,
 	case USB_ID(0x0582, 0x01d8): /* BOSS Katana */
 		/* BOSS Katana amplifiers do not need quirks */
 		return 0;
+	case USB_ID(0x0582, 0x01e5): /* BOSS GT-001 */
+		/* BOSS GT-001 needs no implicit fb for playback */
+		return 0;
 	}
 
 	/* Generic UAC2 implicit feedback */
@@ -454,6 +457,30 @@ add_sync_ep:
 	return 1;
 }
 
+static int audioformat_capture_quirk(struct snd_usb_audio *chip,
+				     struct audioformat *fmt,
+				     struct usb_host_interface *alts)
+{
+	struct usb_device *dev = chip->dev;
+
+	switch (chip->usb_id) {
+	case USB_ID(0x0582, 0x01e5): /* BOSS GT-001 */
+		if (!snd_usb_get_host_interface(chip, 0x01, 0x01))
+			return 0;
+		fmt->sync_ep = 0x0d;
+		fmt->sync_iface = 0x01;
+		fmt->sync_altsetting = 0x01;
+		fmt->sync_ep_idx = 0;
+		fmt->implicit_fb = 1;
+		dev_dbg(&dev->dev, "%d:%d: added fake capture sync sync_ep=%x, iface=%d, alt=%d\n",
+			fmt->iface, fmt->altsetting, fmt->sync_ep, fmt->sync_iface,
+			fmt->sync_altsetting);
+		return 1;
+	}
+	return 0;
+
+}
+
 int snd_usb_audioformat_set_sync_ep(struct snd_usb_audio *chip,
 				    struct audioformat *fmt)
 {
@@ -472,6 +499,10 @@ int snd_usb_audioformat_set_sync_ep(struct snd_usb_audio *chip,
 	is_playback = !(get_endpoint(alts, 0)->bEndpointAddress & USB_DIR_IN);
 	if (is_playback) {
 		err = audioformat_implicit_fb_quirk(chip, fmt, alts);
+		if (err > 0)
+			return 0;
+	} else {
+		err = audioformat_capture_quirk(chip, fmt, alts);
 		if (err > 0)
 			return 0;
 	}
