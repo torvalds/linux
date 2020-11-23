@@ -5008,11 +5008,12 @@ static int mlxsw_sp_adj_discard_write(struct mlxsw_sp *mlxsw_sp, u16 rif_index)
 	if (err)
 		return err;
 
-	trap_action = MLXSW_REG_RATR_TRAP_ACTION_DISCARD_ERRORS;
+	trap_action = MLXSW_REG_RATR_TRAP_ACTION_TRAP;
 	mlxsw_reg_ratr_pack(ratr_pl, MLXSW_REG_RATR_OP_WRITE_WRITE_ENTRY, true,
 			    MLXSW_REG_RATR_TYPE_ETHERNET,
 			    mlxsw_sp->router->adj_discard_index, rif_index);
 	mlxsw_reg_ratr_trap_action_set(ratr_pl, trap_action);
+	mlxsw_reg_ratr_trap_id_set(ratr_pl, MLXSW_TRAP_ID_RTR_EGRESS0);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ratr), ratr_pl);
 	if (err)
 		goto err_ratr_write;
