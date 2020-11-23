@@ -781,6 +781,7 @@ const struct gfs2_glock_operations gfs2_iopen_glops = {
 	.go_callback = iopen_go_callback,
 	.go_demote_ok = iopen_go_demote_ok,
 	.go_flags = GLOF_LRU | GLOF_NONDISK,
+	.go_subclass = 1,
 };
 
 const struct gfs2_glock_operations gfs2_flock_glops = {
