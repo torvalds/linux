@@ -1378,7 +1378,7 @@ static int setup_hw_info(struct snd_pcm_runtime *runtime, struct snd_usb_substre
 			return err;
 	}
 
-	return snd_usb_autoresume(subs->stream->chip);
+	return 0;
 }
 
 static int snd_usb_pcm_open(struct snd_pcm_substream *substream)
@@ -1402,11 +1402,14 @@ static int snd_usb_pcm_open(struct snd_pcm_substream *substream)
 	subs->dsd_dop.marker = 1;
 
 	ret = setup_hw_info(runtime, subs);
-	if (ret == 0) {
-		ret = snd_media_stream_init(subs, as->pcm, direction);
-		if (ret)
-			snd_usb_autosuspend(subs->stream->chip);
-	}
+	if (ret < 0)
+		return ret;
+	ret = snd_usb_autoresume(subs->stream->chip);
+	if (ret < 0)
+		return ret;
+	ret = snd_media_stream_init(subs, as->pcm, direction);
+	if (ret < 0)
+		snd_usb_autosuspend(subs->stream->chip);
 	return ret;
 }
 
