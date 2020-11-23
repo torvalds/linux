@@ -117,7 +117,6 @@ struct mt7621_pcie_port {
  * @base: IO Mapped Register Base
  * @io: IO resource
  * @mem: non-prefetchable memory resource
- * @busn: bus range
  * @offset: IO / Memory offset
  * @dev: Pointer to PCIe device
  * @io_map_base: virtual memory base address for io
@@ -131,7 +130,6 @@ struct mt7621_pcie {
 	struct device *dev;
 	struct resource io;
 	struct resource mem;
-	struct resource busn;
 	struct {
 		resource_size_t mem;
 		resource_size_t io;
@@ -299,7 +297,6 @@ static int mt7621_pci_parse_request_of_pci_ranges(struct mt7621_pcie *pcie)
 	struct device_node *node = dev->of_node;
 	struct of_pci_range_parser parser;
 	struct of_pci_range range;
-	int err;
 
 	if (of_pci_range_parser_init(&parser, node)) {
 		dev_err(dev, "missing \"ranges\" property\n");
@@ -322,15 +319,6 @@ static int mt7621_pci_parse_request_of_pci_ranges(struct mt7621_pcie *pcie)
 			pcie->offset.mem = 0x00000000UL;
 			break;
 		}
-	}
-
-	err = of_pci_parse_bus_range(node, &pcie->busn);
-	if (err < 0) {
-		dev_err(dev, "failed to parse bus ranges property: %d\n", err);
-		pcie->busn.name = node->name;
-		pcie->busn.start = 0;
-		pcie->busn.end = 0xff;
-		pcie->busn.flags = IORESOURCE_BUS;
 	}
 
 	set_io_port_base(pcie->io_map_base);
@@ -666,7 +654,6 @@ static int mt7621_pcie_register_host(struct pci_host_bridge *host,
 	struct mt7621_pcie *pcie = pci_host_bridge_priv(host);
 
 	list_splice_init(res, &host->windows);
-	host->busnr = pcie->busn.start;
 	host->dev.parent = pcie->dev;
 	host->ops = &mt7621_pci_ops;
 	host->map_irq = mt7621_map_irq;
