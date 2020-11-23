@@ -450,7 +450,8 @@ int vidtv_channel_si_init(struct vidtv_mux *m)
 		goto free_service_list;
 
 	m->si.eit = vidtv_psi_eit_table_init(m->network_id,
-					     m->transport_stream_id);
+					     m->transport_stream_id,
+					     programs->service_id);
 	if (!m->si.eit)
 		goto free_nit;
 

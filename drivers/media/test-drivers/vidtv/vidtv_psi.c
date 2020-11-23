@@ -1809,7 +1809,8 @@ void vidtv_psi_eit_event_assign(struct vidtv_psi_table_eit *eit,
 
 struct vidtv_psi_table_eit
 *vidtv_psi_eit_table_init(u16 network_id,
-			  u16 transport_stream_id)
+			  u16 transport_stream_id,
+			  __be16 service_id)
 {
 	struct vidtv_psi_table_eit *eit;
 	const u16 SYNTAX = 0x1;
@@ -1824,7 +1825,7 @@ struct vidtv_psi_table_eit
 
 	eit->header.bitfield = cpu_to_be16((SYNTAX << 15) | (ONE << 14) | (ONES << 12));
 
-	eit->header.id = cpu_to_be16(network_id);
+	eit->header.id = service_id;
 	eit->header.current_next = ONE;
 
 	eit->header.version = 0x1f;
