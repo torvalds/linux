@@ -238,6 +238,7 @@ static int start_endpoints(struct snd_usb_substream *subs)
 		err = snd_usb_endpoint_start(ep);
 		if (err < 0) {
 			clear_bit(SUBSTREAM_FLAG_SYNC_EP_STARTED, &subs->flags);
+			ep->sync_slave = NULL;
 			return err;
 		}
 	}
@@ -253,8 +254,10 @@ static void sync_pending_stops(struct snd_usb_substream *subs)
 
 static void stop_endpoints(struct snd_usb_substream *subs)
 {
-	if (test_and_clear_bit(SUBSTREAM_FLAG_SYNC_EP_STARTED, &subs->flags))
+	if (test_and_clear_bit(SUBSTREAM_FLAG_SYNC_EP_STARTED, &subs->flags)) {
 		snd_usb_endpoint_stop(subs->sync_endpoint);
+		subs->sync_endpoint->sync_slave = NULL;
+	}
 
 	if (test_and_clear_bit(SUBSTREAM_FLAG_DATA_EP_STARTED, &subs->flags))
 		snd_usb_endpoint_stop(subs->data_endpoint);
@@ -471,26 +474,10 @@ static int set_sync_endpoint(struct snd_usb_substream *subs,
 	bool implicit_fb;
 	int err;
 
-	/* we need a sync pipe in async OUT or adaptive IN mode */
-	/* check the number of EP, since some devices have broken
-	 * descriptors which fool us.  if it has only one EP,
-	 * assume it as adaptive-out or sync-in.
-	 */
 	attr = fmt->ep_attr & USB_ENDPOINT_SYNCTYPE;
 
-	if ((is_playback && (attr != USB_ENDPOINT_SYNC_ASYNC)) ||
-		(!is_playback && (attr != USB_ENDPOINT_SYNC_ADAPTIVE))) {
-
-		/*
-		 * In these modes the notion of sync_endpoint is irrelevant.
-		 * Reset pointers to avoid using stale data from previously
-		 * used settings, e.g. when configuration and endpoints were
-		 * changed
-		 */
-
-		subs->sync_endpoint = NULL;
-		subs->data_endpoint->sync_master = NULL;
-	}
+	subs->sync_endpoint = NULL;
+	subs->data_endpoint->sync_master = NULL;
 
 	err = set_sync_ep_implicit_fb_quirk(subs, dev, altsd, attr);
 	if (err < 0)
@@ -939,6 +926,11 @@ static int snd_usb_hw_free(struct snd_pcm_substream *substream)
 		sync_pending_stops(subs);
 		snd_usb_endpoint_deactivate(subs->sync_endpoint);
 		snd_usb_endpoint_deactivate(subs->data_endpoint);
+		if (subs->data_endpoint) {
+			subs->data_endpoint->sync_master = NULL;
+			subs->data_endpoint = NULL;
+		}
+		subs->sync_endpoint = NULL;
 		snd_usb_unlock_shutdown(subs->stream->chip);
 	}
 
