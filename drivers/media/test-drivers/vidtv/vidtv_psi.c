@@ -11,13 +11,16 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ":%s, %d: " fmt, __func__, __LINE__
 
+#include <linux/bcd.h>
 #include <linux/crc32.h>
 #include <linux/kernel.h>
+#include <linux/ktime.h>
 #include <linux/printk.h>
 #include <linux/ratelimit.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/string.h>
+#include <linux/time.h>
 #include <linux/types.h>
 
 #include "vidtv_common.h"
@@ -1953,16 +1956,51 @@ u32 vidtv_psi_eit_write_into(struct vidtv_psi_eit_write_args args)
 struct vidtv_psi_table_eit_event
 *vidtv_psi_eit_event_init(struct vidtv_psi_table_eit_event *head, u16 event_id)
 {
-	const u8 DURATION_ONE_HOUR[] = {1, 0, 0};
+	const u8 DURATION[] = {0x23, 0x59, 0x59}; /* BCD encoded */
 	struct vidtv_psi_table_eit_event *e;
+	struct timespec64 ts;
+	struct tm time;
+	int mjd, l;
+	__be16 mjd_be;
 
 	e = kzalloc(sizeof(*e), GFP_KERNEL);
 	if (!e)
 		return NULL;
 
 	e->event_id = cpu_to_be16(event_id);
-	memset(e->start_time, 0xff, sizeof(e->start_time)); //todo: 0xff means 'unspecified'
-	memcpy(e->duration, DURATION_ONE_HOUR, sizeof(e->duration)); //todo, default to this for now
+
+	ts = ktime_to_timespec64(ktime_get_real());
+	time64_to_tm(ts.tv_sec, 0, &time);
+
+	/* Convert date to Modified Julian Date - per EN 300 468 Annex C */
+	if (time.tm_mon < 2)
+		l = 1;
+	else
+		l = 0;
+
+	mjd = 14956 + time.tm_mday;
+	mjd += (time.tm_year - l) * 36525 / 100;
+	mjd += (time.tm_mon + 2 + l * 12) * 306001 / 10000;
+	mjd_be = cpu_to_be16(mjd);
+
+	/*
+	 * Store MJD and hour/min/sec to the event.
+	 *
+	 * Let's make the event to start on a full hour
+	 */
+	memcpy(e->start_time, &mjd_be, sizeof(mjd_be));
+	e->start_time[2] = bin2bcd(time.tm_hour);
+	e->start_time[3] = 0;
+	e->start_time[4] = 0;
+
+	/*
+	 * TODO: for now, the event will last for a day. Should be
+	 * enough for testing purposes, but if one runs the driver
+	 * for more than that, the current event will become invalid.
+	 * So, we need a better code here in order to change the start
+	 * time once the event expires.
+	 */
+	memcpy(e->duration, DURATION, sizeof(e->duration));
 
 	e->bitfield = cpu_to_be16(RUNNING << 13);
 
