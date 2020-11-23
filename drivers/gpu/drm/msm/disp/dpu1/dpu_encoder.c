@@ -132,9 +132,10 @@ enum dpu_enc_rc_states {
  * @phys_encs:		Container of physical encoders managed.
  * @cur_master:		Pointer to the current master in this mode. Optimization
  *			Only valid after enable. Cleared as disable.
- * @hw_pp		Handle to the pingpong blocks used for the display. No.
+ * @cur_slave:		As above but for the slave encoder.
+ * @hw_pp:		Handle to the pingpong blocks used for the display. No.
  *			pingpong blocks can be different than num_phys_encs.
- * @intfs_swapped	Whether or not the phys_enc interfaces have been swapped
+ * @intfs_swapped:	Whether or not the phys_enc interfaces have been swapped
  *			for partial update right-only cases, such as pingpong
  *			split where virtual pingpong does not generate IRQs
  * @crtc:		Pointer to the currently assigned crtc. Normally you
@@ -1436,9 +1437,9 @@ static void dpu_encoder_off_work(struct work_struct *work)
 
 /**
  * _dpu_encoder_trigger_flush - trigger flush for a physical encoder
- * drm_enc: Pointer to drm encoder structure
- * phys: Pointer to physical encoder structure
- * extra_flush_bits: Additional bit mask to include in flush trigger
+ * @drm_enc: Pointer to drm encoder structure
+ * @phys: Pointer to physical encoder structure
+ * @extra_flush_bits: Additional bit mask to include in flush trigger
  */
 static void _dpu_encoder_trigger_flush(struct drm_encoder *drm_enc,
 		struct dpu_encoder_phys *phys, uint32_t extra_flush_bits)
@@ -1475,7 +1476,7 @@ static void _dpu_encoder_trigger_flush(struct drm_encoder *drm_enc,
 
 /**
  * _dpu_encoder_trigger_start - trigger start for a physical encoder
- * phys: Pointer to physical encoder structure
+ * @phys: Pointer to physical encoder structure
  */
 static void _dpu_encoder_trigger_start(struct dpu_encoder_phys *phys)
 {
@@ -1558,7 +1559,7 @@ static void dpu_encoder_helper_hw_reset(struct dpu_encoder_phys *phys_enc)
  *	encoder rather than the individual physical ones in order to handle
  *	use cases that require visibility into multiple physical encoders at
  *	a time.
- * dpu_enc: Pointer to virtual encoder structure
+ * @dpu_enc: Pointer to virtual encoder structure
  */
 static void _dpu_encoder_kickoff_phys(struct dpu_encoder_virt *dpu_enc)
 {
