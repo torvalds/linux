@@ -5,6 +5,7 @@ config FSL_DPAA2_ETH
 	select PHYLINK
 	select PCS_LYNX
 	select FSL_XGMAC_MDIO
+	select NET_DEVLINK
 	help
 	  This is the DPAA2 Ethernet driver supporting Freescale SoCs
 	  with DPAA2 (DataPath Acceleration Architecture v2).
