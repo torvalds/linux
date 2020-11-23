@@ -1363,41 +1363,60 @@ static void genpd_complete(struct device *dev)
 	genpd_unlock(genpd);
 }
 
-/**
- * genpd_syscore_switch - Switch power during system core suspend or resume.
- * @dev: Device that normally is marked as "always on" to switch power for.
- *
- * This routine may only be called during the system core (syscore) suspend or
- * resume phase for devices whose "always on" flags are set.
- */
-static void genpd_syscore_switch(struct device *dev, bool suspend)
+static void genpd_switch_state(struct device *dev, bool suspend)
 {
 	struct generic_pm_domain *genpd;
+	bool use_lock;
 
 	genpd = dev_to_genpd_safe(dev);
 	if (!genpd)
 		return;
 
+	use_lock = genpd_is_irq_safe(genpd);
+
+	if (use_lock)
+		genpd_lock(genpd);
+
 	if (suspend) {
 		genpd->suspended_count++;
-		genpd_sync_power_off(genpd, false, 0);
+		genpd_sync_power_off(genpd, use_lock, 0);
 	} else {
-		genpd_sync_power_on(genpd, false, 0);
+		genpd_sync_power_on(genpd, use_lock, 0);
 		genpd->suspended_count--;
 	}
+
+	if (use_lock)
+		genpd_unlock(genpd);
 }
 
-void pm_genpd_syscore_poweroff(struct device *dev)
+/**
+ * dev_pm_genpd_suspend - Synchronously try to suspend the genpd for @dev
+ * @dev: The device that is attached to the genpd, that can be suspended.
+ *
+ * This routine should typically be called for a device that needs to be
+ * suspended during the syscore suspend phase. It may also be called during
+ * suspend-to-idle to suspend a corresponding CPU device that is attached to a
+ * genpd.
+ */
+void dev_pm_genpd_suspend(struct device *dev)
 {
-	genpd_syscore_switch(dev, true);
+	genpd_switch_state(dev, true);
 }
-EXPORT_SYMBOL_GPL(pm_genpd_syscore_poweroff);
+EXPORT_SYMBOL_GPL(dev_pm_genpd_suspend);
 
-void pm_genpd_syscore_poweron(struct device *dev)
+/**
+ * dev_pm_genpd_resume - Synchronously try to resume the genpd for @dev
+ * @dev: The device that is attached to the genpd, which needs to be resumed.
+ *
+ * This routine should typically be called for a device that needs to be resumed
+ * during the syscore resume phase. It may also be called during suspend-to-idle
+ * to resume a corresponding CPU device that is attached to a genpd.
+ */
+void dev_pm_genpd_resume(struct device *dev)
 {
-	genpd_syscore_switch(dev, false);
+	genpd_switch_state(dev, false);
 }
-EXPORT_SYMBOL_GPL(pm_genpd_syscore_poweron);
+EXPORT_SYMBOL_GPL(dev_pm_genpd_resume);
 
 #else /* !CONFIG_PM_SLEEP */
 
