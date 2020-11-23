@@ -194,6 +194,16 @@
 			3300000 0x1>;
 	};
 
+	vcc5v0_host: vcc5v0-host-regulator {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio3 RK_PA3 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&vcc5v0_host_en>;
+		regulator-name = "vcc5v0_host";
+		regulator-always-on;
+	};
+
 	wireless-wlan {
 		compatible = "wlan-platdata";
 		rockchip,grf = <&grf>;
@@ -898,7 +908,7 @@
 		reg = <0x14>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&gt9xx_gpio>;
-		touch-gpio = <&gpio3 RK_PB0 IRQ_TYPE_LEVEL_LOW>;
+		touch-gpio = <&gpio3 RK_PB0 IRQ_TYPE_LEVEL_HIGH>;
 		reset-gpio = <&gpio3 RK_PB1 GPIO_ACTIVE_HIGH>;
 		max-x = <1200>;
 		max-y = <1920>;
@@ -1057,6 +1067,12 @@
 		};
 	};
 
+	usb {
+		vcc5v0_host_en: vcc5v0-host-en {
+			rockchip,pins = <3 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
 	wireless-wlan {
 		wifi_host_wake_irq: wifi-host-wake-irq {
 			rockchip,pins = <2 RK_PB2 RK_FUNC_GPIO &pcfg_pull_down>;
@@ -1183,6 +1199,11 @@
 	pinctrl-0 = <&uart1m0_xfer &uart1ctsnm0>;
 };
 
+&u2phy0_host {
+	phy-supply = <&vcc5v0_host>;
+	status = "okay";
+};
+
 &u2phy0_otg {
 	status = "okay";
 };
@@ -1193,12 +1214,25 @@
 
 &usbdrd_dwc3 {
 	dr_mode = "otg";
+	phys = <&u2phy0_otg>;
+	phy-names = "usb2-phy";
 	extcon = <&usb2phy0>;
 	maximum-speed = "high-speed";
 	status = "okay";
 };
 
 &usbdrd30 {
+	status = "okay";
+};
+
+&usbhost30 {
+	status = "okay";
+};
+
+&usbhost_dwc3 {
+	phys = <&u2phy0_host>;
+	phy-names = "usb2-phy";
+	maximum-speed = "high-speed";
 	status = "okay";
 };
 
