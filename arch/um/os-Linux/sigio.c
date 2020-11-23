@@ -167,15 +167,17 @@ static void update_thread(void)
 int add_sigio_fd(int fd)
 {
 	struct pollfd *p;
-	int err = 0, i, n;
+	int err, i, n;
 
 	sigio_lock();
 	for (i = 0; i < all_sigio_fds.used; i++) {
 		if (all_sigio_fds.poll[i].fd == fd)
 			break;
 	}
-	if (i == all_sigio_fds.used)
+	if (i == all_sigio_fds.used) {
+		err = -ENOSPC;
 		goto out;
+	}
 
 	p = &all_sigio_fds.poll[i];
 
