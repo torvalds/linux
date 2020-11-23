@@ -32,6 +32,7 @@ ALL_TESTS="
 	nexthop_obj_invalid_test
 	nexthop_obj_offload_test
 	nexthop_obj_group_offload_test
+	nexthop_obj_blackhole_offload_test
 	nexthop_obj_route_offload_test
 	devlink_reload_test
 "
@@ -693,9 +694,6 @@ nexthop_obj_invalid_test()
 	ip nexthop add id 1 encap mpls 200/300 via 192.0.2.3 dev $swp1
 	check_fail $? "managed to configure a nexthop with MPLS encap when should not"
 
-	ip nexthop add id 1 blackhole
-	check_fail $? "managed to configure a blackhole nexthop when should not"
-
 	ip nexthop add id 1 dev $swp1
 	ip nexthop add id 2 dev $swp1
 	ip nexthop add id 10 group 1/2
@@ -815,6 +813,27 @@ nexthop_obj_group_offload_test()
 
 	simple_if_fini $swp2
 	simple_if_fini $swp1 192.0.2.1/24 2001:db8:1::1/64
+}
+
+nexthop_obj_blackhole_offload_test()
+{
+	# Test offload indication of blackhole nexthop objects
+	RET=0
+
+	ip nexthop add id 1 blackhole
+	busywait "$TIMEOUT" wait_for_offload \
+		ip nexthop show id 1
+	check_err $? "Blackhole nexthop not marked as offloaded when should"
+
+	ip nexthop add id 10 group 1
+	busywait "$TIMEOUT" wait_for_offload \
+		ip nexthop show id 10
+	check_err $? "Nexthop group not marked as offloaded when should"
+
+	log_test "blackhole nexthop objects offload indication"
+
+	ip nexthop del id 10
+	ip nexthop del id 1
 }
 
 nexthop_obj_route_offload_test()
