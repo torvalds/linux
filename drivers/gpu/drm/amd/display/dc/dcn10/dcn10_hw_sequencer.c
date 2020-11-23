@@ -1442,15 +1442,12 @@ void dcn10_init_hw(struct dc *dc)
 /* In headless boot cases, DIG may be turned
  * on which causes HW/SW discrepancies.
  * To avoid this, power down hardware on boot
- * if DIG is turned on and seamless boot not enabled
+ * if DIG is turned on
  */
 void dcn10_power_down_on_boot(struct dc *dc)
 {
 	int i = 0;
 	struct dc_link *edp_link;
-
-	if (!dc->config.power_down_display_on_boot)
-		return;
 
 	edp_link = get_edp_link(dc);
 	if (edp_link &&
