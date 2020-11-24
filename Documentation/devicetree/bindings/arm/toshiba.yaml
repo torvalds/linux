@@ -19,4 +19,7 @@ properties:
           - enum:
               - toshiba,tmpv7708-rm-mbrc  # TMPV7708 RM main board
           - const: toshiba,tmpv7708
+
+additionalProperties: true
+
 ...

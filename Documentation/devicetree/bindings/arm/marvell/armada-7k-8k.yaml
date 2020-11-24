@@ -59,3 +59,5 @@ properties:
           - const: marvell,cn9130
           - const: marvell,armada-ap807-quad
           - const: marvell,armada-ap807
+
+additionalProperties: true

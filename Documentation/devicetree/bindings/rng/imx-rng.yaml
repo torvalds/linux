@@ -19,9 +19,9 @@ properties:
           - const: fsl,imx21-rnga
       - items:
           - enum:
-            - fsl,imx6sl-rngb
-            - fsl,imx6sll-rngb
-            - fsl,imx6ull-rngb
+              - fsl,imx6sl-rngb
+              - fsl,imx6sll-rngb
+              - fsl,imx6ull-rngb
           - const: fsl,imx25-rngb
       - const: fsl,imx35-rngc
 

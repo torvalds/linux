@@ -8,6 +8,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/clk-provider.h>
 #include <linux/cpu.h>
 #include <linux/cpufreq.h>
 #include <linux/cpumask.h>
@@ -228,11 +229,16 @@ static struct cpufreq_driver scmi_cpufreq_driver = {
 static int scmi_cpufreq_probe(struct scmi_device *sdev)
 {
 	int ret;
+	struct device *dev = &sdev->dev;
 
 	handle = sdev->handle;
 
 	if (!handle || !handle->perf_ops)
 		return -ENODEV;
+
+	/* dummy clock provider as needed by OPP if clocks property is used */
+	if (of_find_property(dev->of_node, "#clock-cells", NULL))
+		devm_of_clk_add_hw_provider(dev, of_clk_hw_simple_get, NULL);
 
 	ret = cpufreq_register_driver(&scmi_cpufreq_driver);
 	if (ret) {

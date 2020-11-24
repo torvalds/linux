@@ -252,14 +252,16 @@ static void isotp_rcv_skb(struct sk_buff *skb, struct sock *sk)
 
 static u8 padlen(u8 datalen)
 {
-	const u8 plen[] = {8, 8, 8, 8, 8, 8, 8, 8, 8,		/* 0 - 8 */
-			   12, 12, 12, 12,			/* 9 - 12 */
-			   16, 16, 16, 16,			/* 13 - 16 */
-			   20, 20, 20, 20,			/* 17 - 20 */
-			   24, 24, 24, 24,			/* 21 - 24 */
-			   32, 32, 32, 32, 32, 32, 32, 32,	/* 25 - 32 */
-			   48, 48, 48, 48, 48, 48, 48, 48,	/* 33 - 40 */
-			   48, 48, 48, 48, 48, 48, 48, 48};	/* 41 - 48 */
+	static const u8 plen[] = {
+		8, 8, 8, 8, 8, 8, 8, 8, 8,	/* 0 - 8 */
+		12, 12, 12, 12,			/* 9 - 12 */
+		16, 16, 16, 16,			/* 13 - 16 */
+		20, 20, 20, 20,			/* 17 - 20 */
+		24, 24, 24, 24,			/* 21 - 24 */
+		32, 32, 32, 32, 32, 32, 32, 32,	/* 25 - 32 */
+		48, 48, 48, 48, 48, 48, 48, 48,	/* 33 - 40 */
+		48, 48, 48, 48, 48, 48, 48, 48	/* 41 - 48 */
+	};
 
 	if (datalen > 48)
 		return 64;
@@ -569,10 +571,6 @@ static int isotp_rcv_cf(struct sock *sk, struct canfd_frame *cf, int ae,
 		return 0;
 	}
 
-	/* no creation of flow control frames */
-	if (so->opt.flags & CAN_ISOTP_LISTEN_MODE)
-		return 0;
-
 	/* perform blocksize handling, if enabled */
 	if (!so->rxfc.bs || ++so->rx.bs < so->rxfc.bs) {
 		/* start rx timeout watchdog */
@@ -580,6 +578,10 @@ static int isotp_rcv_cf(struct sock *sk, struct canfd_frame *cf, int ae,
 			      HRTIMER_MODE_REL_SOFT);
 		return 0;
 	}
+
+	/* no creation of flow control frames */
+	if (so->opt.flags & CAN_ISOTP_LISTEN_MODE)
+		return 0;
 
 	/* we reached the specified blocksize so->rxfc.bs */
 	isotp_send_fc(sk, ae, ISOTP_FC_CTS);

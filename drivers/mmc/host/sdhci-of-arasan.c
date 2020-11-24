@@ -30,7 +30,10 @@
 #define SDHCI_ARASAN_VENDOR_REGISTER	0x78
 
 #define SDHCI_ARASAN_ITAPDLY_REGISTER	0xF0F8
+#define SDHCI_ARASAN_ITAPDLY_SEL_MASK	0xFF
+
 #define SDHCI_ARASAN_OTAPDLY_REGISTER	0xF0FC
+#define SDHCI_ARASAN_OTAPDLY_SEL_MASK	0x3F
 
 #define SDHCI_ARASAN_CQE_BASE_ADDR	0x200
 #define VENDOR_ENHANCED_STROBE		BIT(0)
@@ -600,14 +603,8 @@ static int sdhci_zynqmp_sdcardclk_set_phase(struct clk_hw *hw, int degrees)
 	u8 tap_delay, tap_max = 0;
 	int ret;
 
-	/*
-	 * This is applicable for SDHCI_SPEC_300 and above
-	 * ZynqMP does not set phase for <=25MHz clock.
-	 * If degrees is zero, no need to do anything.
-	 */
-	if (host->version < SDHCI_SPEC_300 ||
-	    host->timing == MMC_TIMING_LEGACY ||
-	    host->timing == MMC_TIMING_UHS_SDR12 || !degrees)
+	/* This is applicable for SDHCI_SPEC_300 and above */
+	if (host->version < SDHCI_SPEC_300)
 		return 0;
 
 	switch (host->timing) {
@@ -637,6 +634,9 @@ static int sdhci_zynqmp_sdcardclk_set_phase(struct clk_hw *hw, int degrees)
 	ret = zynqmp_pm_set_sd_tapdelay(node_id, PM_TAPDELAY_OUTPUT, tap_delay);
 	if (ret)
 		pr_err("Error setting Output Tap Delay\n");
+
+	/* Release DLL Reset */
+	zynqmp_pm_sd_dll_reset(node_id, PM_DLL_RESET_RELEASE);
 
 	return ret;
 }
@@ -668,15 +668,12 @@ static int sdhci_zynqmp_sampleclk_set_phase(struct clk_hw *hw, int degrees)
 	u8 tap_delay, tap_max = 0;
 	int ret;
 
-	/*
-	 * This is applicable for SDHCI_SPEC_300 and above
-	 * ZynqMP does not set phase for <=25MHz clock.
-	 * If degrees is zero, no need to do anything.
-	 */
-	if (host->version < SDHCI_SPEC_300 ||
-	    host->timing == MMC_TIMING_LEGACY ||
-	    host->timing == MMC_TIMING_UHS_SDR12 || !degrees)
+	/* This is applicable for SDHCI_SPEC_300 and above */
+	if (host->version < SDHCI_SPEC_300)
 		return 0;
+
+	/* Assert DLL Reset */
+	zynqmp_pm_sd_dll_reset(node_id, PM_DLL_RESET_ASSERT);
 
 	switch (host->timing) {
 	case MMC_TIMING_MMC_HS:
@@ -733,14 +730,8 @@ static int sdhci_versal_sdcardclk_set_phase(struct clk_hw *hw, int degrees)
 	struct sdhci_host *host = sdhci_arasan->host;
 	u8 tap_delay, tap_max = 0;
 
-	/*
-	 * This is applicable for SDHCI_SPEC_300 and above
-	 * Versal does not set phase for <=25MHz clock.
-	 * If degrees is zero, no need to do anything.
-	 */
-	if (host->version < SDHCI_SPEC_300 ||
-	    host->timing == MMC_TIMING_LEGACY ||
-	    host->timing == MMC_TIMING_UHS_SDR12 || !degrees)
+	/* This is applicable for SDHCI_SPEC_300 and above */
+	if (host->version < SDHCI_SPEC_300)
 		return 0;
 
 	switch (host->timing) {
@@ -773,6 +764,7 @@ static int sdhci_versal_sdcardclk_set_phase(struct clk_hw *hw, int degrees)
 		regval = sdhci_readl(host, SDHCI_ARASAN_OTAPDLY_REGISTER);
 		regval |= SDHCI_OTAPDLY_ENABLE;
 		sdhci_writel(host, regval, SDHCI_ARASAN_OTAPDLY_REGISTER);
+		regval &= ~SDHCI_ARASAN_OTAPDLY_SEL_MASK;
 		regval |= tap_delay;
 		sdhci_writel(host, regval, SDHCI_ARASAN_OTAPDLY_REGISTER);
 	}
@@ -804,14 +796,8 @@ static int sdhci_versal_sampleclk_set_phase(struct clk_hw *hw, int degrees)
 	struct sdhci_host *host = sdhci_arasan->host;
 	u8 tap_delay, tap_max = 0;
 
-	/*
-	 * This is applicable for SDHCI_SPEC_300 and above
-	 * Versal does not set phase for <=25MHz clock.
-	 * If degrees is zero, no need to do anything.
-	 */
-	if (host->version < SDHCI_SPEC_300 ||
-	    host->timing == MMC_TIMING_LEGACY ||
-	    host->timing == MMC_TIMING_UHS_SDR12 || !degrees)
+	/* This is applicable for SDHCI_SPEC_300 and above */
+	if (host->version < SDHCI_SPEC_300)
 		return 0;
 
 	switch (host->timing) {
@@ -846,6 +832,7 @@ static int sdhci_versal_sampleclk_set_phase(struct clk_hw *hw, int degrees)
 		sdhci_writel(host, regval, SDHCI_ARASAN_ITAPDLY_REGISTER);
 		regval |= SDHCI_ITAPDLY_ENABLE;
 		sdhci_writel(host, regval, SDHCI_ARASAN_ITAPDLY_REGISTER);
+		regval &= ~SDHCI_ARASAN_ITAPDLY_SEL_MASK;
 		regval |= tap_delay;
 		sdhci_writel(host, regval, SDHCI_ARASAN_ITAPDLY_REGISTER);
 		regval &= ~SDHCI_ITAPDLY_CHGWIN;

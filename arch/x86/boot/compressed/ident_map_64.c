@@ -164,6 +164,7 @@ void initialize_identity_maps(void *rmode)
 	add_identity_map(cmdline, cmdline + COMMAND_LINE_SIZE);
 
 	/* Load the new page-table. */
+	sev_verify_cbit(top_level_pgt);
 	write_cr3(top_level_pgt);
 }
 

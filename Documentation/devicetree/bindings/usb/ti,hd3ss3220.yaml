@@ -17,7 +17,7 @@ description: |-
 
 properties:
   compatible:
-   const: ti,hd3ss3220
+    const: ti,hd3ss3220
 
   reg:
     maxItems: 1

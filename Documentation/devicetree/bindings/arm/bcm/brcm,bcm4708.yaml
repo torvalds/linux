@@ -87,4 +87,7 @@ properties:
           - const: brcm,brcm53012
           - const: brcm,brcm53016
           - const: brcm,bcm4708
+
+additionalProperties: true
+
 ...

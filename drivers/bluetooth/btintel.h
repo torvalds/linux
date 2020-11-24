@@ -47,7 +47,7 @@ enum {
 struct intel_tlv {
 	u8 type;
 	u8 len;
-	u8 val[0];
+	u8 val[];
 } __packed;
 
 struct intel_version_tlv {

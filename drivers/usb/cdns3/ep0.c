@@ -137,47 +137,35 @@ static int cdns3_req_ep0_set_configuration(struct cdns3_device *priv_dev,
 					   struct usb_ctrlrequest *ctrl_req)
 {
 	enum usb_device_state device_state = priv_dev->gadget.state;
-	struct cdns3_endpoint *priv_ep;
 	u32 config = le16_to_cpu(ctrl_req->wValue);
 	int result = 0;
-	int i;
 
 	switch (device_state) {
 	case USB_STATE_ADDRESS:
-		/* Configure non-control EPs */
-		for (i = 0; i < CDNS3_ENDPOINTS_MAX_COUNT; i++) {
-			priv_ep = priv_dev->eps[i];
-			if (!priv_ep)
-				continue;
-
-			if (priv_ep->flags & EP_CLAIMED)
-				cdns3_ep_config(priv_ep);
-		}
-
 		result = cdns3_ep0_delegate_req(priv_dev, ctrl_req);
 
-		if (result)
-			return result;
-
-		if (!config) {
-			cdns3_hw_reset_eps_config(priv_dev);
-			usb_gadget_set_state(&priv_dev->gadget,
-					     USB_STATE_ADDRESS);
-		}
+		if (result || !config)
+			goto reset_config;
 
 		break;
 	case USB_STATE_CONFIGURED:
 		result = cdns3_ep0_delegate_req(priv_dev, ctrl_req);
+		if (!config && !result)
+			goto reset_config;
 
-		if (!config && !result) {
-			cdns3_hw_reset_eps_config(priv_dev);
-			usb_gadget_set_state(&priv_dev->gadget,
-					     USB_STATE_ADDRESS);
-		}
 		break;
 	default:
-		result = -EINVAL;
+		return -EINVAL;
 	}
+
+	return 0;
+
+reset_config:
+	if (result != USB_GADGET_DELAYED_STATUS)
+		cdns3_hw_reset_eps_config(priv_dev);
+
+	usb_gadget_set_state(&priv_dev->gadget,
+			     USB_STATE_ADDRESS);
 
 	return result;
 }
@@ -705,6 +693,7 @@ static int cdns3_gadget_ep0_queue(struct usb_ep *ep,
 	unsigned long flags;
 	int ret = 0;
 	u8 zlp = 0;
+	int i;
 
 	spin_lock_irqsave(&priv_dev->lock, flags);
 	trace_cdns3_ep0_queue(priv_dev, request);
@@ -720,6 +709,17 @@ static int cdns3_gadget_ep0_queue(struct usb_ep *ep,
 		u32 val;
 
 		cdns3_select_ep(priv_dev, 0x00);
+
+		/*
+		 * Configure all non-control EPs which are not enabled by class driver
+		 */
+		for (i = 0; i < CDNS3_ENDPOINTS_MAX_COUNT; i++) {
+			priv_ep = priv_dev->eps[i];
+			if (priv_ep && priv_ep->flags & EP_CLAIMED &&
+			    !(priv_ep->flags & EP_ENABLED))
+				cdns3_ep_config(priv_ep, 0);
+		}
+
 		cdns3_set_hw_configuration(priv_dev);
 		cdns3_ep0_complete_setup(priv_dev, 0, 1);
 		/* wait until configuration set */
@@ -811,6 +811,7 @@ void cdns3_ep0_config(struct cdns3_device *priv_dev)
 	struct cdns3_usb_regs __iomem *regs;
 	struct cdns3_endpoint *priv_ep;
 	u32 max_packet_size = 64;
+	u32 ep_cfg;
 
 	regs = priv_dev->regs;
 
@@ -842,8 +843,10 @@ void cdns3_ep0_config(struct cdns3_device *priv_dev)
 				       BIT(0) | BIT(16));
 	}
 
-	writel(EP_CFG_ENABLE | EP_CFG_MAXPKTSIZE(max_packet_size),
-	       &regs->ep_cfg);
+	ep_cfg = EP_CFG_ENABLE | EP_CFG_MAXPKTSIZE(max_packet_size);
+
+	if (!(priv_ep->flags & EP_CONFIGURED))
+		writel(ep_cfg, &regs->ep_cfg);
 
 	writel(EP_STS_EN_SETUPEN | EP_STS_EN_DESCMISEN | EP_STS_EN_TRBERREN,
 	       &regs->ep_sts_en);
@@ -851,8 +854,10 @@ void cdns3_ep0_config(struct cdns3_device *priv_dev)
 	/* init ep in */
 	cdns3_select_ep(priv_dev, USB_DIR_IN);
 
-	writel(EP_CFG_ENABLE | EP_CFG_MAXPKTSIZE(max_packet_size),
-	       &regs->ep_cfg);
+	if (!(priv_ep->flags & EP_CONFIGURED))
+		writel(ep_cfg, &regs->ep_cfg);
+
+	priv_ep->flags |= EP_CONFIGURED;
 
 	writel(EP_STS_EN_SETUPEN | EP_STS_EN_TRBERREN, &regs->ep_sts_en);
 

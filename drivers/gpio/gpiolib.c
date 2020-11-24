@@ -480,11 +480,23 @@ static void gpiodevice_release(struct device *dev)
 	kfree(gdev);
 }
 
+#ifdef CONFIG_GPIO_CDEV
+#define gcdev_register(gdev, devt)	gpiolib_cdev_register((gdev), (devt))
+#define gcdev_unregister(gdev)		gpiolib_cdev_unregister((gdev))
+#else
+/*
+ * gpiolib_cdev_register() indirectly calls device_add(), which is still
+ * required even when cdev is not selected.
+ */
+#define gcdev_register(gdev, devt)	device_add(&(gdev)->dev)
+#define gcdev_unregister(gdev)		device_del(&(gdev)->dev)
+#endif
+
 static int gpiochip_setup_dev(struct gpio_device *gdev)
 {
 	int ret;
 
-	ret = gpiolib_cdev_register(gdev, gpio_devt);
+	ret = gcdev_register(gdev, gpio_devt);
 	if (ret)
 		return ret;
 
@@ -500,7 +512,7 @@ static int gpiochip_setup_dev(struct gpio_device *gdev)
 	return 0;
 
 err_remove_device:
-	gpiolib_cdev_unregister(gdev);
+	gcdev_unregister(gdev);
 	return ret;
 }
 
@@ -825,7 +837,7 @@ void gpiochip_remove(struct gpio_chip *gc)
 	 * be removed, else it will be dangling until the last user is
 	 * gone.
 	 */
-	gpiolib_cdev_unregister(gdev);
+	gcdev_unregister(gdev);
 	put_device(&gdev->dev);
 }
 EXPORT_SYMBOL_GPL(gpiochip_remove);

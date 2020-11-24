@@ -9,7 +9,7 @@ Description:
 		http://simplefirmware.org/documentation
 
 		While the tables are used by the kernel, user-space
-		can observe them this way:
+		can observe them this way::
 
-		# cd /sys/firmware/sfi/tables
-		# cat $TABLENAME > $TABLENAME.bin
+		  # cd /sys/firmware/sfi/tables
+		  # cat $TABLENAME > $TABLENAME.bin

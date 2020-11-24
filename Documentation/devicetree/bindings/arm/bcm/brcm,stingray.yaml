@@ -21,4 +21,6 @@ properties:
           - brcm,bcm958802a802x
       - const: brcm,stingray
 
+additionalProperties: true
+
 ...

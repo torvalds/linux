@@ -267,9 +267,12 @@ static int catpt_dsp_select_lpclock(struct catpt_dev *cdev, bool lp, bool waiti)
 					    reg, (reg & CATPT_ISD_DCPWM),
 					    500, 10000);
 		if (ret) {
-			dev_err(cdev->dev, "await WAITI timeout\n");
-			mutex_unlock(&cdev->clk_mutex);
-			return ret;
+			dev_warn(cdev->dev, "await WAITI timeout\n");
+			/* no signal - only high clock selection allowed */
+			if (lp) {
+				mutex_unlock(&cdev->clk_mutex);
+				return 0;
+			}
 		}
 	}
 

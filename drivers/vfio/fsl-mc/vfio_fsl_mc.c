@@ -248,7 +248,9 @@ static long vfio_fsl_mc_ioctl(void *device_data, unsigned int cmd,
 		info.size = vdev->regions[info.index].size;
 		info.flags = vdev->regions[info.index].flags;
 
-		return copy_to_user((void __user *)arg, &info, minsz);
+		if (copy_to_user((void __user *)arg, &info, minsz))
+			return -EFAULT;
+		return 0;
 	}
 	case VFIO_DEVICE_GET_IRQ_INFO:
 	{
@@ -267,7 +269,9 @@ static long vfio_fsl_mc_ioctl(void *device_data, unsigned int cmd,
 		info.flags = VFIO_IRQ_INFO_EVENTFD;
 		info.count = 1;
 
-		return copy_to_user((void __user *)arg, &info, minsz);
+		if (copy_to_user((void __user *)arg, &info, minsz))
+			return -EFAULT;
+		return 0;
 	}
 	case VFIO_DEVICE_SET_IRQS:
 	{
@@ -468,7 +472,7 @@ static int vfio_fsl_mc_mmap(void *device_data, struct vm_area_struct *vma)
 {
 	struct vfio_fsl_mc_device *vdev = device_data;
 	struct fsl_mc_device *mc_dev = vdev->mc_dev;
-	int index;
+	unsigned int index;
 
 	index = vma->vm_pgoff >> (VFIO_FSL_MC_OFFSET_SHIFT - PAGE_SHIFT);
 

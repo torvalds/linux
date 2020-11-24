@@ -413,7 +413,13 @@ static int mcde_probe(struct platform_device *pdev)
 					      match);
 	if (ret) {
 		dev_err(dev, "failed to add component master\n");
-		goto clk_disable;
+		/*
+		 * The EPOD regulator is already disabled at this point so some
+		 * special errorpath code is needed
+		 */
+		clk_disable_unprepare(mcde->mcde_clk);
+		regulator_disable(mcde->vana);
+		return ret;
 	}
 
 	return 0;

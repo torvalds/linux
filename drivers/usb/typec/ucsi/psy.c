@@ -238,4 +238,13 @@ void ucsi_unregister_port_psy(struct ucsi_connector *con)
 		return;
 
 	power_supply_unregister(con->psy);
+	con->psy = NULL;
+}
+
+void ucsi_port_psy_changed(struct ucsi_connector *con)
+{
+	if (IS_ERR_OR_NULL(con->psy))
+		return;
+
+	power_supply_changed(con->psy);
 }

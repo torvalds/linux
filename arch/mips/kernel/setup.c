@@ -262,8 +262,8 @@ static void __init bootmem_init(void)
 static void __init bootmem_init(void)
 {
 	phys_addr_t ramstart, ramend;
-	phys_addr_t start, end;
-	u64 i;
+	unsigned long start, end;
+	int i;
 
 	ramstart = memblock_start_of_DRAM();
 	ramend = memblock_end_of_DRAM();
@@ -300,7 +300,7 @@ static void __init bootmem_init(void)
 
 	min_low_pfn = ARCH_PFN_OFFSET;
 	max_pfn = PFN_DOWN(ramend);
-	for_each_mem_range(i, &start, &end) {
+	for_each_mem_pfn_range(i, MAX_NUMNODES, &start, &end, NULL) {
 		/*
 		 * Skip highmem here so we get an accurate max_low_pfn if low
 		 * memory stops short of high memory.

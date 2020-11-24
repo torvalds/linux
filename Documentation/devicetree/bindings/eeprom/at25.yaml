@@ -81,14 +81,14 @@ properties:
   at25,byte-len:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:
-       Total eeprom size in bytes. Deprecated, use "size" property instead.
+      Total eeprom size in bytes. Deprecated, use "size" property instead.
     deprecated: true
 
   at25,addr-mode:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:
-       Addr-mode flags, as defined in include/linux/spi/eeprom.h.
-       Deprecated, use "address-width" property instead.
+      Addr-mode flags, as defined in include/linux/spi/eeprom.h.
+      Deprecated, use "address-width" property instead.
     deprecated: true
 
   at25,page-size:

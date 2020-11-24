@@ -251,15 +251,18 @@ void xp_get_pool(struct xsk_buff_pool *pool)
 	refcount_inc(&pool->users);
 }
 
-void xp_put_pool(struct xsk_buff_pool *pool)
+bool xp_put_pool(struct xsk_buff_pool *pool)
 {
 	if (!pool)
-		return;
+		return false;
 
 	if (refcount_dec_and_test(&pool->users)) {
 		INIT_WORK(&pool->work, xp_release_deferred);
 		schedule_work(&pool->work);
+		return true;
 	}
+
+	return false;
 }
 
 static struct xsk_dma_map *xp_find_dma_map(struct xsk_buff_pool *pool)

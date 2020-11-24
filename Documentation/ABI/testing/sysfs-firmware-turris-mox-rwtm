@@ -2,21 +2,21 @@ What:		/sys/firmware/turris-mox-rwtm/board_version
 Date:		August 2019
 KernelVersion:	5.4
 Contact:	Marek Behún <marek.behun@nic.cz>
-Description:	(R) Board version burned into eFuses of this Turris Mox board.
+Description:	(Read) Board version burned into eFuses of this Turris Mox board.
 		Format: %i
 
 What:		/sys/firmware/turris-mox-rwtm/mac_address*
 Date:		August 2019
 KernelVersion:	5.4
 Contact:	Marek Behún <marek.behun@nic.cz>
-Description:	(R) MAC addresses burned into eFuses of this Turris Mox board.
+Description:	(Read) MAC addresses burned into eFuses of this Turris Mox board.
 		Format: %pM
 
 What:		/sys/firmware/turris-mox-rwtm/pubkey
 Date:		August 2019
 KernelVersion:	5.4
 Contact:	Marek Behún <marek.behun@nic.cz>
-Description:	(R) ECDSA public key (in pubkey hex compressed form) computed
+Description:	(Read) ECDSA public key (in pubkey hex compressed form) computed
 		as pair to the ECDSA private key burned into eFuses of this
 		Turris Mox Board.
 		Format: string
@@ -25,7 +25,7 @@ What:		/sys/firmware/turris-mox-rwtm/ram_size
 Date:		August 2019
 KernelVersion:	5.4
 Contact:	Marek Behún <marek.behun@nic.cz>
-Description:	(R) RAM size in MiB of this Turris Mox board as was detected
+Description:	(Read) RAM size in MiB of this Turris Mox board as was detected
 		during manufacturing and burned into eFuses. Can be 512 or 1024.
 		Format: %i
 
@@ -33,5 +33,5 @@ What:		/sys/firmware/turris-mox-rwtm/serial_number
 Date:		August 2019
 KernelVersion:	5.4
 Contact:	Marek Behún <marek.behun@nic.cz>
-Description:	(R) Serial number burned into eFuses of this Turris Mox device.
+Description:	(Read) Serial number burned into eFuses of this Turris Mox device.
 		Format: %016X

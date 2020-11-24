@@ -16,10 +16,13 @@ Contact:	Krzysztof Opasiak <k.opasiak@samsung.com>
 Description:
 		Current status of the device.
 		Allowed values:
-		1 - Device is available and can be exported
-		2 - Device is currently exported
-		3 - Fatal error occurred during communication
-		  with peer
+
+		==  ==========================================
+		1   Device is available and can be exported
+		2   Device is currently exported
+		3   Fatal error occurred during communication
+		    with peer
+		==  ==========================================
 
 What:		/sys/devices/platform/usbip-vudc.%d/usbip_sockfd
 Date:		April 2016
