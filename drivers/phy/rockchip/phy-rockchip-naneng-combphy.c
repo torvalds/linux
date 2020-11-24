@@ -53,6 +53,8 @@ struct rockchip_combphy_grfcfg {
 	struct combphy_reg con2_for_sata;
 	struct combphy_reg con3_for_sata;
 	struct combphy_reg pipe_con0_for_sata;
+	struct combphy_reg u3otg0_port_en;
+	struct combphy_reg u3otg1_port_en;
 };
 
 struct rockchip_combphy_cfg {
@@ -273,6 +275,13 @@ static int rockchip_combphy_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->phy_grf);
 	}
 
+	if (device_property_present(dev, "rockchip,dis-u3otg0-port"))
+		param_write(priv->pipe_grf, &phy_cfg->grfcfg->u3otg0_port_en,
+			    false);
+	else if (device_property_present(dev, "rockchip,dis-u3otg1-port"))
+		param_write(priv->pipe_grf, &phy_cfg->grfcfg->u3otg1_port_en,
+			    false);
+
 	priv->dev = dev;
 	priv->mode = PHY_NONE;
 	priv->cfg = phy_cfg;
@@ -412,6 +421,8 @@ static const struct rockchip_combphy_grfcfg rk3568_combphy_grfcfgs = {
 	.con2_for_sata		= { 0x0008, 15, 0, 0x00, 0x80c3 },
 	.con3_for_sata		= { 0x000c, 15, 0, 0x00, 0x4402 },
 	.pipe_con0_for_sata	= { 0x0000, 15, 0, 0x00, 0x2220 },
+	.u3otg0_port_en		= { 0x0104, 15, 0, 0x0181, 0x1100 },
+	.u3otg1_port_en		= { 0x0144, 15, 0, 0x0181, 0x1100 },
 };
 
 static const struct clk_bulk_data rk3568_clks[] = {
