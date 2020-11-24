@@ -117,18 +117,13 @@ static u32 estimate_sustainable_power(struct thermal_zone_device *tz)
  * @sustainable_power:	sustainable power for the thermal zone
  * @trip_switch_on:	trip point number for the switch on temperature
  * @control_temp:	target temperature for the power allocator governor
- * @force:	whether to force the update of the constants
  *
  * This function is used to update the estimation of the PID
  * controller constants in struct thermal_zone_parameters.
- *
- * If @force is not set, the values in the thermal zone's parameters
- * are preserved if they are not zero.  If @force is set, the values
- * in thermal zone's parameters are overwritten.
  */
 static void estimate_pid_constants(struct thermal_zone_device *tz,
 				   u32 sustainable_power, int trip_switch_on,
-				   int control_temp, bool force)
+				   int control_temp)
 {
 	int ret;
 	int switch_on_temp;
@@ -151,18 +146,14 @@ static void estimate_pid_constants(struct thermal_zone_device *tz,
 	if (!temperature_threshold)
 		return;
 
-	if (!tz->tzp->k_po || force)
-		tz->tzp->k_po = int_to_frac(sustainable_power) /
-			temperature_threshold;
+	tz->tzp->k_po = int_to_frac(sustainable_power) /
+		temperature_threshold;
 
-	if (!tz->tzp->k_pu || force)
-		tz->tzp->k_pu = int_to_frac(2 * sustainable_power) /
-			temperature_threshold;
+	tz->tzp->k_pu = int_to_frac(2 * sustainable_power) /
+		temperature_threshold;
 
-	if (!tz->tzp->k_i || force) {
-		k_i = tz->tzp->k_pu / 10;
-		tz->tzp->k_i = k_i > 0 ? k_i : 1;
-	}
+	k_i = tz->tzp->k_pu / 10;
+	tz->tzp->k_i = k_i > 0 ? k_i : 1;
 
 	/*
 	 * The default for k_d and integral_cutoff is 0, so we can
@@ -195,8 +186,7 @@ static u32 get_sustainable_power(struct thermal_zone_device *tz,
 	/* Check if it's init value 0 or there was update via sysfs */
 	if (sustainable_power != params->sustainable_power) {
 		estimate_pid_constants(tz, sustainable_power,
-				       params->trip_switch_on, control_temp,
-				       true);
+				       params->trip_switch_on, control_temp);
 
 		/* Do the estimation only once and make available in sysfs */
 		tz->tzp->sustainable_power = sustainable_power;
@@ -640,7 +630,7 @@ static int power_allocator_bind(struct thermal_zone_device *tz)
 		if (!ret)
 			estimate_pid_constants(tz, tz->tzp->sustainable_power,
 					       params->trip_switch_on,
-					       control_temp, false);
+					       control_temp);
 	}
 
 	reset_pid_controller(params);
