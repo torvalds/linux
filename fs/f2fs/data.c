@@ -1783,15 +1783,6 @@ static int __get_data_block(struct inode *inode, sector_t iblock,
 	return err;
 }
 
-static int get_data_block(struct inode *inode, sector_t iblock,
-			struct buffer_head *bh_result, int create, int flag,
-			pgoff_t *next_pgofs)
-{
-	return __get_data_block(inode, iblock, bh_result, create,
-							flag, next_pgofs,
-							NO_CHECK_TYPE, create);
-}
-
 static int get_data_block_dio_write(struct inode *inode, sector_t iblock,
 			struct buffer_head *bh_result, int create)
 {
@@ -1808,14 +1799,6 @@ static int get_data_block_dio(struct inode *inode, sector_t iblock,
 				F2FS_GET_BLOCK_DIO, NULL,
 				f2fs_rw_hint_to_seg_type(inode->i_write_hint),
 				false);
-}
-
-static int get_data_block_bmap(struct inode *inode, sector_t iblock,
-			struct buffer_head *bh_result, int create)
-{
-	return __get_data_block(inode, iblock, bh_result, create,
-						F2FS_GET_BLOCK_BMAP, NULL,
-						NO_CHECK_TYPE, create);
 }
 
 static int f2fs_xattr_fiemap(struct inode *inode,
@@ -1913,7 +1896,7 @@ static loff_t max_inode_blocks(struct inode *inode)
 int f2fs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		u64 start, u64 len)
 {
-	struct buffer_head map_bh;
+	struct f2fs_map_blocks map;
 	sector_t start_blk, last_blk;
 	pgoff_t next_pgofs;
 	u64 logical = 0, phys = 0, size = 0;
@@ -1952,19 +1935,21 @@ int f2fs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	last_blk = bytes_to_blks(inode, start + len - 1);
 
 next:
-	memset(&map_bh, 0, sizeof(struct buffer_head));
-	map_bh.b_size = len;
+	memset(&map, 0, sizeof(map));
+	map.m_lblk = start_blk;
+	map.m_len = bytes_to_blks(inode, len);
+	map.m_next_pgofs = &next_pgofs;
+	map.m_seg_type = NO_CHECK_TYPE;
 
 	if (compr_cluster)
-		map_bh.b_size = blks_to_bytes(inode, cluster_size - 1);
+		map.m_len = cluster_size - 1;
 
-	ret = get_data_block(inode, start_blk, &map_bh, 0,
-					F2FS_GET_BLOCK_FIEMAP, &next_pgofs);
+	ret = f2fs_map_blocks(inode, &map, 0, F2FS_GET_BLOCK_FIEMAP);
 	if (ret)
 		goto out;
 
 	/* HOLE */
-	if (!buffer_mapped(&map_bh)) {
+	if (!(map.m_flags & F2FS_MAP_FLAGS)) {
 		start_blk = next_pgofs;
 
 		if (blks_to_bytes(inode, start_blk) < blks_to_bytes(inode,
@@ -1994,7 +1979,7 @@ next:
 
 
 		logical = blks_to_bytes(inode, start_blk - 1);
-		phys = blks_to_bytes(inode, map_bh.b_blocknr);
+		phys = blks_to_bytes(inode, map.m_pblk);
 		size = blks_to_bytes(inode, cluster_size);
 
 		flags |= FIEMAP_EXTENT_ENCODED;
@@ -2007,17 +1992,17 @@ next:
 		goto prep_next;
 	}
 
-	if (map_bh.b_blocknr == COMPRESS_ADDR) {
+	if (map.m_pblk == COMPRESS_ADDR) {
 		compr_cluster = true;
 		start_blk++;
 		goto prep_next;
 	}
 
 	logical = blks_to_bytes(inode, start_blk);
-	phys = blks_to_bytes(inode, map_bh.b_blocknr);
-	size = map_bh.b_size;
+	phys = blks_to_bytes(inode, map.m_pblk);
+	size = blks_to_bytes(inode, map.m_len);
 	flags = 0;
-	if (buffer_unwritten(&map_bh))
+	if (map.m_flags & F2FS_MAP_UNWRITTEN)
 		flags = FIEMAP_EXTENT_UNWRITTEN;
 
 	start_blk += bytes_to_blks(inode, size);
@@ -3797,9 +3782,6 @@ static sector_t f2fs_bmap_compress(struct inode *inode, sector_t block)
 static sector_t f2fs_bmap(struct address_space *mapping, sector_t block)
 {
 	struct inode *inode = mapping->host;
-	struct buffer_head tmp = {
-		.b_size = i_blocksize(inode),
-	};
 	sector_t blknr = 0;
 
 	if (f2fs_has_inline_data(inode))
@@ -3816,8 +3798,16 @@ static sector_t f2fs_bmap(struct address_space *mapping, sector_t block)
 	if (f2fs_compressed_file(inode)) {
 		blknr = f2fs_bmap_compress(inode, block);
 	} else {
-		if (!get_data_block_bmap(inode, block, &tmp, 0))
-			blknr = tmp.b_blocknr;
+		struct f2fs_map_blocks map;
+
+		memset(&map, 0, sizeof(map));
+		map.m_lblk = block;
+		map.m_len = 1;
+		map.m_next_pgofs = NULL;
+		map.m_seg_type = NO_CHECK_TYPE;
+
+		if (!f2fs_map_blocks(inode, &map, 0, F2FS_GET_BLOCK_BMAP))
+			blknr = map.m_pblk;
 	}
 out:
 	trace_f2fs_bmap(inode, block, blknr);
@@ -3905,25 +3895,27 @@ static int check_swap_activate_fast(struct swap_info_struct *sis,
 	len = i_size_read(inode);
 
 	while (cur_lblock <= last_lblock && cur_lblock < sis->max) {
-		struct buffer_head map_bh;
+		struct f2fs_map_blocks map;
 		pgoff_t next_pgofs;
 
 		cond_resched();
 
-		memset(&map_bh, 0, sizeof(struct buffer_head));
-		map_bh.b_size = len - blks_to_bytes(inode, cur_lblock);
+		memset(&map, 0, sizeof(map));
+		map.m_lblk = cur_lblock;
+		map.m_len = bytes_to_blks(inode, len) - cur_lblock;
+		map.m_next_pgofs = &next_pgofs;
+		map.m_seg_type = NO_CHECK_TYPE;
 
-		ret = get_data_block(inode, cur_lblock, &map_bh, 0,
-					F2FS_GET_BLOCK_FIEMAP, &next_pgofs);
+		ret = f2fs_map_blocks(inode, &map, 0, F2FS_GET_BLOCK_FIEMAP);
 		if (ret)
 			goto err_out;
 
 		/* hole */
-		if (!buffer_mapped(&map_bh))
+		if (!(map.m_flags & F2FS_MAP_FLAGS))
 			goto err_out;
 
-		pblock = map_bh.b_blocknr;
-		nr_pblocks = bytes_to_blks(inode, map_bh.b_size);
+		pblock = map.m_pblk;
+		nr_pblocks = map.m_len;
 
 		if (cur_lblock + nr_pblocks >= sis->max)
 			nr_pblocks = sis->max - cur_lblock;
