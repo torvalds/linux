@@ -2176,6 +2176,7 @@ int wcn36xx_smd_exit_bmps(struct wcn36xx *wcn, struct ieee80211_vif *vif)
 	INIT_HAL_MSG(msg_body, WCN36XX_HAL_EXIT_BMPS_REQ);
 
 	msg_body.bss_index = vif_priv->bss_index;
+	msg_body.send_data_null = 1;
 
 	PREPARE_HAL_BUF(wcn->hal_buf, msg_body);
 
