@@ -2715,7 +2715,7 @@ static struct sk_buff *ath11k_dp_rx_alloc_mon_status_buf(struct ath11k_base *ab,
 
 	paddr = dma_map_single(ab->dev, skb->data,
 			       skb->len + skb_tailroom(skb),
-			       DMA_BIDIRECTIONAL);
+			       DMA_FROM_DEVICE);
 	if (unlikely(dma_mapping_error(ab->dev, paddr)))
 		goto fail_free_skb;
 
@@ -2731,7 +2731,7 @@ static struct sk_buff *ath11k_dp_rx_alloc_mon_status_buf(struct ath11k_base *ab,
 
 fail_dma_unmap:
 	dma_unmap_single(ab->dev, paddr, skb->len + skb_tailroom(skb),
-			 DMA_BIDIRECTIONAL);
+			 DMA_FROM_DEVICE);
 fail_free_skb:
 	dev_kfree_skb_any(skb);
 fail_alloc_skb:
@@ -2795,7 +2795,7 @@ fail_desc_get:
 	idr_remove(&rx_ring->bufs_idr, buf_id);
 	spin_unlock_bh(&rx_ring->idr_lock);
 	dma_unmap_single(ab->dev, paddr, skb->len + skb_tailroom(skb),
-			 DMA_BIDIRECTIONAL);
+			 DMA_FROM_DEVICE);
 	dev_kfree_skb_any(skb);
 	ath11k_hal_srng_access_end(ab, srng);
 	spin_unlock_bh(&srng->lock);
@@ -2858,7 +2858,7 @@ static int ath11k_dp_rx_reap_mon_status_ring(struct ath11k_base *ab, int mac_id,
 
 			dma_unmap_single(ab->dev, rxcb->paddr,
 					 skb->len + skb_tailroom(skb),
-					 DMA_BIDIRECTIONAL);
+					 DMA_FROM_DEVICE);
 
 			tlv = (struct hal_tlv_hdr *)skb->data;
 			if (FIELD_GET(HAL_TLV_HDR_TAG, tlv->tl) !=
