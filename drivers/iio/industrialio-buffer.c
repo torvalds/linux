@@ -210,18 +210,6 @@ void iio_buffer_init(struct iio_buffer *buffer)
 }
 EXPORT_SYMBOL(iio_buffer_init);
 
-/**
- * iio_buffer_set_attrs - Set buffer specific attributes
- * @buffer: The buffer for which we are setting attributes
- * @attrs: Pointer to a null terminated list of pointers to attributes
- */
-void iio_buffer_set_attrs(struct iio_buffer *buffer,
-			 const struct attribute **attrs)
-{
-	buffer->attrs = attrs;
-}
-EXPORT_SYMBOL_GPL(iio_buffer_set_attrs);
-
 static ssize_t iio_show_scan_index(struct device *dev,
 				   struct device_attribute *attr,
 				   char *buf)

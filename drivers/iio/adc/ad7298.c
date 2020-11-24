@@ -23,8 +23,6 @@
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
 
-#include <linux/platform_data/ad7298.h>
-
 #define AD7298_WRITE	BIT(15) /* write to the control register */
 #define AD7298_REPEAT	BIT(14) /* repeated conversion enable */
 #define AD7298_CH(x)	BIT(13 - (x)) /* channel select */
@@ -283,7 +281,6 @@ static const struct iio_info ad7298_info = {
 
 static int ad7298_probe(struct spi_device *spi)
 {
-	struct ad7298_platform_data *pdata = spi->dev.platform_data;
 	struct ad7298_state *st;
 	struct iio_dev *indio_dev;
 	int ret;
@@ -294,14 +291,18 @@ static int ad7298_probe(struct spi_device *spi)
 
 	st = iio_priv(indio_dev);
 
-	if (pdata && pdata->ext_ref)
+	st->reg = devm_regulator_get_optional(&spi->dev, "vref");
+	if (!IS_ERR(st->reg)) {
 		st->ext_ref = AD7298_EXTREF;
+	} else {
+		ret = PTR_ERR(st->reg);
+		if (ret != -ENODEV)
+			return ret;
 
-	if (st->ext_ref) {
-		st->reg = devm_regulator_get(&spi->dev, "vref");
-		if (IS_ERR(st->reg))
-			return PTR_ERR(st->reg);
+		st->reg = NULL;
+	}
 
+	if (st->reg) {
 		ret = regulator_enable(st->reg);
 		if (ret)
 			return ret;

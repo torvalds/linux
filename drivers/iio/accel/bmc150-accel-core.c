@@ -1558,6 +1558,7 @@ static int bmc150_accel_chip_init(struct bmc150_accel_data *data)
 int bmc150_accel_core_probe(struct device *dev, struct regmap *regmap, int irq,
 			    const char *name, bool block_supported)
 {
+	const struct attribute **fifo_attrs;
 	struct bmc150_accel_data *data;
 	struct iio_dev *indio_dev;
 	int ret;
@@ -1590,10 +1591,19 @@ int bmc150_accel_core_probe(struct device *dev, struct regmap *regmap, int irq,
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &bmc150_accel_info;
 
-	ret = iio_triggered_buffer_setup(indio_dev,
-					 &iio_pollfunc_store_time,
-					 bmc150_accel_trigger_handler,
-					 &bmc150_accel_buffer_ops);
+	if (block_supported) {
+		indio_dev->modes |= INDIO_BUFFER_SOFTWARE;
+		indio_dev->info = &bmc150_accel_info_fifo;
+		fifo_attrs = bmc150_accel_fifo_attributes;
+	} else {
+		fifo_attrs = NULL;
+	}
+
+	ret = iio_triggered_buffer_setup_ext(indio_dev,
+					     &iio_pollfunc_store_time,
+					     bmc150_accel_trigger_handler,
+					     &bmc150_accel_buffer_ops,
+					     fifo_attrs);
 	if (ret < 0) {
 		dev_err(dev, "Failed: iio triggered buffer setup\n");
 		return ret;
@@ -1628,13 +1638,6 @@ int bmc150_accel_core_probe(struct device *dev, struct regmap *regmap, int irq,
 		ret = bmc150_accel_triggers_setup(indio_dev, data);
 		if (ret)
 			goto err_buffer_cleanup;
-
-		if (block_supported) {
-			indio_dev->modes |= INDIO_BUFFER_SOFTWARE;
-			indio_dev->info = &bmc150_accel_info_fifo;
-			iio_buffer_set_attrs(indio_dev->buffer,
-					     bmc150_accel_fifo_attributes);
-		}
 	}
 
 	ret = pm_runtime_set_active(dev);

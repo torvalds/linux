@@ -97,7 +97,7 @@ static inline struct iio_trigger *iio_trigger_get(struct iio_trigger *trig)
 }
 
 /**
- * iio_device_set_drvdata() - Set trigger driver data
+ * iio_trigger_set_drvdata() - Set trigger driver data
  * @trig: IIO trigger structure
  * @data: Driver specific data
  *

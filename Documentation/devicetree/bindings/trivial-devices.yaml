@@ -44,6 +44,8 @@ properties:
           - atmel,atsha204a
             # i2c h/w elliptic curve crypto module
           - atmel,atecc508a
+            # Bosch Sensortec pressure, temperature, humididty and VOC sensor
+          - bosch,bme680
             # CM32181: Ambient Light Sensor
           - capella,cm32181
             # CM3232: Ambient Light Sensor
@@ -70,6 +72,12 @@ properties:
           - dlg,da9053
             # DA9063: system PMIC for quad-core application processors
           - dlg,da9063
+            # DMARD05: 3-axis I2C Accelerometer
+          - domintech,dmard05
+            # DMARD06: 3-axis I2C Accelerometer
+          - domintech,dmard06
+            # DMARD05: 3-axis I2C Accelerometer
+          - domintech,dmard07
             # DMARD09: 3-axis Accelerometer
           - domintech,dmard09
             # DMARD10: 3-axis Accelerometer
@@ -108,6 +116,12 @@ properties:
           - isil,isl68137
             # 5 Bit Programmable, Pulse-Width Modulator
           - maxim,ds1050
+            # 10 kOhm digital potentiometer with I2C interface
+          - maxim,ds1803-010
+            # 50 kOhm digital potentiometer with I2C interface
+          - maxim,ds1803-050
+            # 100 kOhm digital potentiometer with I2C interface
+          - maxim,ds1803-100
             # 10-bit 8 channels 300ks/s SPI ADC with temperature sensor
           - maxim,max1027
             # 10-bit 12 channels 300ks/s SPI ADC with temperature sensor
@@ -122,6 +136,14 @@ properties:
           - maxim,max1231
             # Low-Power, 4-/12-Channel, 2-Wire Serial, 12-Bit ADCs
           - maxim,max1237
+            # 10-bit 10 kOhm linear programable voltage divider
+          - maxim,max5481
+            # 10-bit 50 kOhm linear programable voltage divider
+          - maxim,max5482
+            # 10-bit 10 kOhm linear programable variable resistor
+          - maxim,max5483
+            # 10-bit 50 kOhm linear programable variable resistor
+          - maxim,max5484
             # PECI-to-I2C translator for PECI-to-SMBus/I2C protocol conversion
           - maxim,max6621
             # 9-Bit/12-Bit Temperature Sensors with I²C-Compatible Serial Interface
@@ -130,8 +152,24 @@ properties:
           - maxim,max31730
             # mCube 3-axis 8-bit digital accelerometer
           - mcube,mc3230
+            # MEMSIC magnetometer
+          - memsic,mmc35240
             # MEMSIC 2-axis 8-bit digital accelerometer
           - memsic,mxc6225
+            # Measurement Specialities I2C temperature and humidity sensor
+          - meas,htu21
+            # Measurement Specialities I2C pressure and temperature sensor
+          - meas,ms5637
+            # Measurement Specialities I2C pressure and temperature sensor
+          - meas,ms5805
+            # Measurement Specialities I2C pressure and temperature sensor
+          - meas,ms5837
+            # Measurement Specialities temp and humidity part of ms8607 device
+          - meas,ms8607-humidity
+            # Measurement Specialities temp and pressure part of ms8607 device
+          - meas,ms8607-temppressure
+            # Measurement Specialties temperature sensor
+          - meas,tsys01
             # Microchip differential I2C ADC, 1 Channel, 18 bit
           - microchip,mcp3421
             # Microchip differential I2C ADC, 2 Channel, 18 bit
@@ -336,8 +374,14 @@ properties:
           - plx,pex8648
             # Pulsedlight LIDAR range-finding sensor
           - pulsedlight,lidar-lite-v2
+            # Renesas ISL29501 time-of-flight sensor
+          - renesas,isl29501
             # S524AD0XF1 (128K/256K-bit Serial EEPROM for Low Power)
           - samsung,24ad0xd1
+            # Sensirion low power multi-pixel gas sensor with I2C interface
+          - sensirion,sgpc3
+            # Sensirion multi-pixel gas sensor with I2C interface
+          - sensirion,sgp30
             # SGX Sensortech VZ89X Sensors
           - sgx,vz89x
             # Relative Humidity and Temperature Sensors
@@ -356,6 +400,16 @@ properties:
           - ti,ads7830
             # Temperature Monitoring and Fan Control
           - ti,amc6821
+            # Temperature and humidity sensor with i2c interface
+          - ti,hdc1000
+            # Temperature and humidity sensor with i2c interface
+          - ti,hdc1008
+            # Temperature and humidity sensor with i2c interface
+          - ti,hdc1010
+            # Temperature and humidity sensor with i2c interface
+          - ti,hdc1050
+            # Temperature and humidity sensor with i2c interface
+          - ti,hdc1080
             # Temperature sensor with 2-wire interface
           - ti,lm73
             # Temperature sensor with integrated fan control

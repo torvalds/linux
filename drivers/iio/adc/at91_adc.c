@@ -22,8 +22,6 @@
 #include <linux/slab.h>
 #include <linux/wait.h>
 
-#include <linux/platform_data/at91_adc.h>
-
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
 #include <linux/iio/trigger.h>
@@ -153,6 +151,25 @@
 #define TOUCH_SHTIM                    0xa
 #define TOUCH_SCTIM_US		10		/* 10us for the Touchscreen Switches Closure Time */
 
+enum atmel_adc_ts_type {
+	ATMEL_ADC_TOUCHSCREEN_NONE = 0,
+	ATMEL_ADC_TOUCHSCREEN_4WIRE = 4,
+	ATMEL_ADC_TOUCHSCREEN_5WIRE = 5,
+};
+
+/**
+ * struct at91_adc_trigger - description of triggers
+ * @name:		name of the trigger advertised to the user
+ * @value:		value to set in the ADC's trigger setup register
+ *			to enable the trigger
+ * @is_external:	Does the trigger rely on an external pin?
+ */
+struct at91_adc_trigger {
+	const char	*name;
+	u8		value;
+	bool		is_external;
+};
+
 /**
  * struct at91_adc_reg_desc - Various informations relative to registers
  * @channel_base:	Base offset for the channel data registers
@@ -202,7 +219,7 @@ struct at91_adc_state {
 	struct mutex		lock;
 	u8			num_channels;
 	void __iomem		*reg_base;
-	struct at91_adc_reg_desc *registers;
+	const struct at91_adc_reg_desc *registers;
 	u32			startup_time;
 	u8			sample_hold_time;
 	bool			sleep_mode;
@@ -214,7 +231,7 @@ struct at91_adc_state {
 	u32			res;		/* resolution used for convertions */
 	bool			low_res;	/* the resolution corresponds to the lowest one */
 	wait_queue_head_t	wq_data_avail;
-	struct at91_adc_caps	*caps;
+	const struct at91_adc_caps	*caps;
 
 	/*
 	 * Following ADC channels are shared by touchscreen:
@@ -550,7 +567,7 @@ static int at91_adc_configure_trigger(struct iio_trigger *trig, bool state)
 {
 	struct iio_dev *idev = iio_trigger_get_drvdata(trig);
 	struct at91_adc_state *st = iio_priv(idev);
-	struct at91_adc_reg_desc *reg = st->registers;
+	const struct at91_adc_reg_desc *reg = st->registers;
 	u32 status = at91_adc_readl(st, reg->trigger_register);
 	int value;
 	u8 bit;
@@ -829,8 +846,6 @@ static u32 calc_startup_ticks_9x5(u32 startup_time, u32 adc_clk_khz)
 	return ticks;
 }
 
-static const struct of_device_id at91_adc_dt_ids[];
-
 static int at91_adc_probe_dt_ts(struct device_node *node,
 	struct at91_adc_state *st, struct device *dev)
 {
@@ -875,11 +890,7 @@ static int at91_adc_probe_dt(struct iio_dev *idev,
 	int i = 0, ret;
 	u32 prop;
 
-	if (!node)
-		return -EINVAL;
-
-	st->caps = (struct at91_adc_caps *)
-		of_match_device(at91_adc_dt_ids, &pdev->dev)->data;
+	st->caps = of_device_get_match_data(&pdev->dev);
 
 	st->use_external = of_property_read_bool(node, "atmel,adc-use-external-triggers");
 
@@ -958,30 +969,6 @@ static int at91_adc_probe_dt(struct iio_dev *idev,
 
 error_ret:
 	return ret;
-}
-
-static int at91_adc_probe_pdata(struct at91_adc_state *st,
-				struct platform_device *pdev)
-{
-	struct at91_adc_data *pdata = pdev->dev.platform_data;
-
-	if (!pdata)
-		return -EINVAL;
-
-	st->caps = (struct at91_adc_caps *)
-			platform_get_device_id(pdev)->driver_data;
-
-	st->use_external = pdata->use_external_triggers;
-	st->vref_mv = pdata->vref;
-	st->channels_mask = pdata->channels_used;
-	st->num_channels = st->caps->num_channels;
-	st->startup_time = pdata->startup_time;
-	st->trigger_number = pdata->trigger_number;
-	st->trigger_list = pdata->trigger_list;
-	st->registers = &st->caps->registers;
-	st->touchscreen_type = pdata->touchscreen_type;
-
-	return 0;
 }
 
 static const struct iio_info at91_adc_info = {
@@ -1160,15 +1147,9 @@ static int at91_adc_probe(struct platform_device *pdev)
 
 	st = iio_priv(idev);
 
-	if (pdev->dev.of_node)
-		ret = at91_adc_probe_dt(idev, pdev);
-	else
-		ret = at91_adc_probe_pdata(st, pdev);
-
-	if (ret) {
-		dev_err(&pdev->dev, "No platform data available.\n");
-		return -EINVAL;
-	}
+	ret = at91_adc_probe_dt(idev, pdev);
+	if (ret)
+		return ret;
 
 	platform_set_drvdata(pdev, idev);
 
@@ -1469,7 +1450,7 @@ static struct platform_driver at91_adc_driver = {
 	.id_table = at91_adc_ids,
 	.driver = {
 		   .name = DRIVER_NAME,
-		   .of_match_table = of_match_ptr(at91_adc_dt_ids),
+		   .of_match_table = at91_adc_dt_ids,
 		   .pm = &at91_adc_pm_ops,
 	},
 };

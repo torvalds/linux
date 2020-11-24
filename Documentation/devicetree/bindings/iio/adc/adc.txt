@@ -5,18 +5,24 @@ Optional properties for child nodes:
 - diff-channels : Differential channels muxed for this ADC. The first value
 		specifies the positive input pin, the second value the negative
 		input pin.
+- reg: The channel number.
+- label: Unique name to identify which channel this is.
 
 Example:
 	adc@0 {
 		compatible = "some,adc";
 		...
 		channel@0 {
+			reg = <0>;
+			label = "channel_0_name";
 			bipolar;
 			diff-channels = <0 1>;
 			...
 		};
 
 		channel@1 {
+			reg = <1>;
+			label = "channel_1_name";
 			diff-channels = <2 3>;
 			...
 		};
