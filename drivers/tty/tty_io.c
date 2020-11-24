@@ -541,6 +541,28 @@ void tty_wakeup(struct tty_struct *tty)
 EXPORT_SYMBOL_GPL(tty_wakeup);
 
 /**
+ *	tty_release_redirect	-	Release a redirect on a pty if present
+ *	@tty: tty device
+ *
+ *	This is available to the pty code so if the master closes, if the
+ *	slave is a redirect it can release the redirect.
+ */
+struct file *tty_release_redirect(struct tty_struct *tty)
+{
+	struct file *f = NULL;
+
+	spin_lock(&redirect_lock);
+	if (redirect && file_tty(redirect) == tty) {
+		f = redirect;
+		redirect = NULL;
+	}
+	spin_unlock(&redirect_lock);
+
+	return f;
+}
+EXPORT_SYMBOL_GPL(tty_release_redirect);
+
+/**
  *	__tty_hangup		-	actual handler for hangup events
  *	@tty: tty device
  *	@exit_session: if non-zero, signal all foreground group processes
@@ -566,7 +588,7 @@ EXPORT_SYMBOL_GPL(tty_wakeup);
 static void __tty_hangup(struct tty_struct *tty, int exit_session)
 {
 	struct file *cons_filp = NULL;
-	struct file *filp, *f = NULL;
+	struct file *filp, *f;
 	struct tty_file_private *priv;
 	int    closecount = 0, n;
 	int refs;
@@ -574,13 +596,7 @@ static void __tty_hangup(struct tty_struct *tty, int exit_session)
 	if (!tty)
 		return;
 
-
-	spin_lock(&redirect_lock);
-	if (redirect && file_tty(redirect) == tty) {
-		f = redirect;
-		redirect = NULL;
-	}
-	spin_unlock(&redirect_lock);
+	f = tty_release_redirect(tty);
 
 	tty_lock(tty);
 
