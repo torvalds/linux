@@ -116,6 +116,9 @@ struct sugov_policy;
 DECLARE_RESTRICTED_HOOK(android_rvh_set_sugov_update,
 	TP_PROTO(struct sugov_policy *sg_policy, unsigned int next_freq, bool *should_update),
 	TP_ARGS(sg_policy, next_freq, should_update), 1);
+DECLARE_RESTRICTED_HOOK(android_rvh_sched_setaffinity,
+	TP_PROTO(struct task_struct *p, const struct cpumask *in_mask, int *retval),
+	TP_ARGS(p, in_mask, retval), 1);
 #else
 #define trace_android_rvh_select_task_rq_fair(p, prev_cpu, sd_flag, wake_flags, new_cpu)
 #define trace_android_rvh_select_task_rq_rt(p, prev_cpu, sd_flag, wake_flags, new_cpu)
@@ -141,6 +144,7 @@ DECLARE_RESTRICTED_HOOK(android_rvh_set_sugov_update,
 #define trace_android_vh_set_sugov_sched_attr(attr)
 #define trace_android_rvh_set_iowait(p, should_iowait_boost)
 #define trace_android_rvh_set_sugov_update(sg_policy, next_freq, should_update)
+#define trace_android_rvh_sched_setaffinity(p, in_mask, retval)
 #endif
 #endif /* _TRACE_HOOK_SCHED_H */
 /* This part must be outside protection */
