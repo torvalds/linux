@@ -3019,6 +3019,7 @@ vm_fault_t filemap_map_pages(struct vm_fault *vmf,
 	struct address_space *mapping = file->f_mapping;
 	pgoff_t last_pgoff = start_pgoff;
 	unsigned long address = vmf->address;
+	unsigned long flags = vmf->flags;
 	XA_STATE(xas, &mapping->i_pages, start_pgoff);
 	struct page *head, *page;
 	unsigned int mmap_miss = READ_ONCE(file->f_ra.mmap_miss);
@@ -3051,14 +3052,18 @@ vm_fault_t filemap_map_pages(struct vm_fault *vmf,
 		if (!pte_none(*vmf->pte))
 			goto unlock;
 
+		/* We're about to handle the fault */
+		if (vmf->address == address) {
+			vmf->flags &= ~FAULT_FLAG_PREFAULT;
+			ret = VM_FAULT_NOPAGE;
+		} else {
+			vmf->flags |= FAULT_FLAG_PREFAULT;
+		}
+
 		do_set_pte(vmf, page);
 		/* no need to invalidate: a not-present page won't be cached */
 		update_mmu_cache(vma, vmf->address, vmf->pte);
 		unlock_page(head);
-
-		/* The fault is handled */
-		if (vmf->address == address)
-			ret = VM_FAULT_NOPAGE;
 		continue;
 unlock:
 		unlock_page(head);
@@ -3067,6 +3072,7 @@ unlock:
 	pte_unmap_unlock(vmf->pte, vmf->ptl);
 out:
 	rcu_read_unlock();
+	vmf->flags = flags;
 	vmf->address = address;
 	WRITE_ONCE(file->f_ra.mmap_miss, mmap_miss);
 	return ret;
