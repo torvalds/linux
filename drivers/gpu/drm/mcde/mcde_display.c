@@ -738,7 +738,7 @@ static void mcde_configure_fifo(struct mcde *mcde, enum mcde_fifo fifo,
 	} else {
 		/* Use the MCDE clock for DSI */
 		val &= ~MCDE_CRX1_CLKSEL_MASK;
-		val = MCDE_CRX1_CLKSEL_MCDECLK << MCDE_CRX1_CLKSEL_SHIFT;
+		val |= MCDE_CRX1_CLKSEL_MCDECLK << MCDE_CRX1_CLKSEL_SHIFT;
 	}
 	writel(val, mcde->regs + cr1);
 	spin_unlock(&mcde->fifo_crx1_lock);
