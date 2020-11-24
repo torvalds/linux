@@ -660,7 +660,7 @@ config IRQ_ALL_CPUS
 
 config NUMA
 	bool "NUMA support"
-	depends on PPC64
+	depends on PPC64 && SMP
 	default y if SMP && PPC_PSERIES
 
 config NODES_SHIFT
