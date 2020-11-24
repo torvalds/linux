@@ -289,9 +289,9 @@
 	usbdrd30: usbdrd {
 		compatible = "rockchip,rk3568-dwc3", "rockchip,rk3399-dwc3";
 		clocks = <&cru CLK_USB3OTG0_REF>, <&cru CLK_USB3OTG0_SUSPEND>,
-			 <&cru ACLK_USB3OTG0>;
+			 <&cru ACLK_USB3OTG0>, <&cru PCLK_PIPE>;
 		clock-names = "ref_clk", "suspend_clk",
-			      "bus_clk";
+			      "bus_clk", "pipe_clk";
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
@@ -320,9 +320,9 @@
 	usbhost30: usbhost {
 		compatible = "rockchip,rk3568-dwc3", "rockchip,rk3399-dwc3";
 		clocks = <&cru CLK_USB3OTG1_REF>, <&cru CLK_USB3OTG1_SUSPEND>,
-			 <&cru ACLK_USB3OTG1>;
+			 <&cru ACLK_USB3OTG1>, <&cru PCLK_PIPE>;
 		clock-names = "ref_clk", "suspend_clk",
-			      "bus_clk";
+			      "bus_clk", "pipe_clk";
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
@@ -2590,8 +2590,9 @@
 		compatible = "rockchip,rk3568-naneng-combphy";
 		reg = <0x0 0xfe820000 0x0 0x100>;
 		#phy-cells = <1>;
-		clocks = <&pmucru CLK_PCIEPHY0_REF>, <&cru PCLK_PIPEPHY0>;
-		clock-names = "refclk", "apbclk";
+		clocks = <&pmucru CLK_PCIEPHY0_REF>, <&cru PCLK_PIPEPHY0>,
+			 <&cru PCLK_PIPE>;
+		clock-names = "refclk", "apbclk", "pipe_clk";
 		assigned-clocks = <&pmucru CLK_PCIEPHY0_REF>;
 		assigned-clock-rates = <24000000>;
 		resets = <&cru SRST_P_PIPEPHY0>, <&cru SRST_PIPEPHY0>;
@@ -2605,8 +2606,9 @@
 		compatible = "rockchip,rk3568-naneng-combphy";
 		reg = <0x0 0xfe830000 0x0 0x100>;
 		#phy-cells = <1>;
-		clocks = <&pmucru CLK_PCIEPHY1_REF>, <&cru PCLK_PIPEPHY1>;
-		clock-names = "refclk", "apbclk";
+		clocks = <&pmucru CLK_PCIEPHY1_REF>, <&cru PCLK_PIPEPHY1>,
+			 <&cru PCLK_PIPE>;
+		clock-names = "refclk", "apbclk", "pipe_clk";
 		assigned-clocks = <&pmucru CLK_PCIEPHY1_REF>;
 		assigned-clock-rates = <24000000>;
 		resets = <&cru SRST_P_PIPEPHY1>, <&cru SRST_PIPEPHY1>;
@@ -2620,8 +2622,9 @@
 		compatible = "rockchip,rk3568-naneng-combphy";
 		reg = <0x0 0xfe840000 0x0 0x100>;
 		#phy-cells = <1>;
-		clocks = <&pmucru CLK_PCIEPHY2_REF>, <&cru PCLK_PIPEPHY2>;
-		clock-names = "refclk", "apbclk";
+		clocks = <&pmucru CLK_PCIEPHY2_REF>, <&cru PCLK_PIPEPHY2>,
+			 <&cru PCLK_PIPE>;
+		clock-names = "refclk", "apbclk", "pipe_clk";
 		assigned-clocks = <&pmucru CLK_PCIEPHY2_REF>;
 		assigned-clock-rates = <24000000>;
 		resets = <&cru SRST_P_PIPEPHY2>, <&cru SRST_PIPEPHY2>;
