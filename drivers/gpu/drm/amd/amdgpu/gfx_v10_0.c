@@ -5014,7 +5014,7 @@ static int gfx_v10_0_init_csb(struct amdgpu_device *adev)
 	return 0;
 }
 
-void gfx_v10_0_rlc_stop(struct amdgpu_device *adev)
+static void gfx_v10_0_rlc_stop(struct amdgpu_device *adev)
 {
 	u32 tmp = RREG32_SOC15(GC, 0, mmRLC_CNTL);
 
