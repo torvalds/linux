@@ -290,6 +290,7 @@ enum sof_debugfs_access_type {
 /* FS entry for debug files that can expose DSP memories, registers */
 struct snd_sof_dfsentry {
 	size_t size;
+	size_t buf_data_size;  /* length of buffered data for file read operation */
 	enum sof_dfsentry_type type;
 	/*
 	 * access_type specifies if the
@@ -523,6 +524,7 @@ void snd_sof_get_status(struct snd_sof_dev *sdev, u32 panic_code,
 			void *stack, size_t stack_words);
 int snd_sof_init_trace_ipc(struct snd_sof_dev *sdev);
 void snd_sof_handle_fw_exception(struct snd_sof_dev *sdev);
+int snd_sof_dbg_memory_info_init(struct snd_sof_dev *sdev);
 
 /*
  * Platform specific ops.

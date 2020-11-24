@@ -205,6 +205,7 @@ static int ext_man_get_config_data(struct snd_sof_dev *sdev,
 	const struct sof_config_elem *elem;
 	int elems_counter;
 	int elems_size;
+	int ret = 0;
 	int i;
 
 	/* calculate elements counter */
@@ -225,10 +226,19 @@ static int ext_man_get_config_data(struct snd_sof_dev *sdev,
 		case SOF_EXT_MAN_CONFIG_IPC_MSG_SIZE:
 			/* TODO: use ipc msg size from config data */
 			break;
+		case SOF_EXT_MAN_CONFIG_MEMORY_USAGE_SCAN:
+			if (sdev->first_boot && elem->value)
+				ret = snd_sof_dbg_memory_info_init(sdev);
+			break;
 		default:
 			dev_info(sdev->dev, "Unknown firmware configuration token %d value %d",
 				 elem->token, elem->value);
 			break;
+		}
+		if (ret < 0) {
+			dev_err(sdev->dev, "error: processing sof_ext_man_config_data failed for token %d value 0x%x, %d\n",
+				elem->token, elem->value, ret);
+			return ret;
 		}
 	}
 

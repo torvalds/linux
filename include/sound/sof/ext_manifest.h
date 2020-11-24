@@ -104,6 +104,7 @@ struct ext_man_dbg_abi {
 enum config_elem_type {
 	SOF_EXT_MAN_CONFIG_EMPTY		= 0,
 	SOF_EXT_MAN_CONFIG_IPC_MSG_SIZE		= 1,
+	SOF_EXT_MAN_CONFIG_MEMORY_USAGE_SCAN	= 2, /**< ABI 3.18 */
 };
 
 struct sof_config_elem {
