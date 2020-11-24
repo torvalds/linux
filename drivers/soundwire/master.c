@@ -9,6 +9,15 @@
 #include "bus.h"
 
 /*
+ * The 3s value for autosuspend will only be used if there are no
+ * devices physically attached on a bus segment. In practice enabling
+ * the bus operation will result in children devices become active and
+ * the master device will only suspend when all its children are no
+ * longer active.
+ */
+#define SDW_MASTER_SUSPEND_DELAY_MS 3000
+
+/*
  * The sysfs for properties reflects the MIPI description as given
  * in the MIPI DisCo spec
  *
@@ -154,7 +163,12 @@ int sdw_master_device_add(struct sdw_bus *bus, struct device *parent,
 	bus->dev = &md->dev;
 	bus->md = md;
 
+	pm_runtime_set_autosuspend_delay(&bus->md->dev, SDW_MASTER_SUSPEND_DELAY_MS);
+	pm_runtime_use_autosuspend(&bus->md->dev);
+	pm_runtime_mark_last_busy(&bus->md->dev);
+	pm_runtime_set_active(&bus->md->dev);
 	pm_runtime_enable(&bus->md->dev);
+	pm_runtime_idle(&bus->md->dev);
 device_register_err:
 	return ret;
 }
