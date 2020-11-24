@@ -254,26 +254,23 @@ static u32 vidtv_psi_ts_psi_write_into(struct psi_write_args *args)
 	return nbytes;
 }
 
-static u32 table_section_crc32_write_into(struct crc32_write_args args)
+static u32 table_section_crc32_write_into(struct crc32_write_args *args)
 {
-	struct psi_write_args psi_args = {};
-	u32 nbytes = 0;
+	struct psi_write_args psi_args = {
+		.dest_buf           = args->dest_buf,
+		.from               = &args->crc,
+		.len                = CRC_SIZE_IN_BYTES,
+		.dest_offset        = args->dest_offset,
+		.pid                = args->pid,
+		.new_psi_section    = false,
+		.continuity_counter = args->continuity_counter,
+		.is_crc             = true,
+		.dest_buf_sz        = args->dest_buf_sz,
+	};
 
 	/* the CRC is the last entry in the section */
 
-	psi_args.dest_buf           = args.dest_buf;
-	psi_args.from               = &args.crc;
-	psi_args.len                = CRC_SIZE_IN_BYTES;
-	psi_args.dest_offset        = args.dest_offset;
-	psi_args.pid                = args.pid;
-	psi_args.new_psi_section    = false;
-	psi_args.continuity_counter = args.continuity_counter;
-	psi_args.is_crc             = true;
-	psi_args.dest_buf_sz        = args.dest_buf_sz;
-
-	nbytes += vidtv_psi_ts_psi_write_into(&psi_args);
-
-	return nbytes;
+	return vidtv_psi_ts_psi_write_into(&psi_args);
 }
 
 static void vidtv_psi_desc_chain(struct vidtv_psi_desc *head, struct vidtv_psi_desc *desc)
@@ -1023,7 +1020,7 @@ u32 vidtv_psi_pat_write_into(struct vidtv_psi_pat_write_args args)
 	c_args.dest_buf_sz        = args.buf_sz;
 
 	/* Write the CRC32 at the end */
-	nbytes += table_section_crc32_write_into(c_args);
+	nbytes += table_section_crc32_write_into(&c_args);
 
 	return nbytes;
 }
@@ -1258,7 +1255,7 @@ u32 vidtv_psi_pmt_write_into(struct vidtv_psi_pmt_write_args args)
 	c_args.dest_buf_sz        = args.buf_sz;
 
 	/* Write the CRC32 at the end */
-	nbytes += table_section_crc32_write_into(c_args);
+	nbytes += table_section_crc32_write_into(&c_args);
 
 	return nbytes;
 }
@@ -1397,7 +1394,7 @@ u32 vidtv_psi_sdt_write_into(struct vidtv_psi_sdt_write_args args)
 	c_args.dest_buf_sz        = args.buf_sz;
 
 	/* Write the CRC at the end */
-	nbytes += table_section_crc32_write_into(c_args);
+	nbytes += table_section_crc32_write_into(&c_args);
 
 	return nbytes;
 }
@@ -1754,7 +1751,7 @@ u32 vidtv_psi_nit_write_into(struct vidtv_psi_nit_write_args args)
 	c_args.dest_buf_sz        = args.buf_sz;
 
 	/* Write the CRC32 at the end */
-	nbytes += table_section_crc32_write_into(c_args);
+	nbytes += table_section_crc32_write_into(&c_args);
 
 	return nbytes;
 }
@@ -1944,7 +1941,7 @@ u32 vidtv_psi_eit_write_into(struct vidtv_psi_eit_write_args args)
 	c_args.dest_buf_sz        = args.buf_sz;
 
 	/* Write the CRC at the end */
-	nbytes += table_section_crc32_write_into(c_args);
+	nbytes += table_section_crc32_write_into(&c_args);
 
 	return nbytes;
 }
