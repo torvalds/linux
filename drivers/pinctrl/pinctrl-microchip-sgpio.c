@@ -60,17 +60,17 @@ struct sgpio_properties {
 #define SGPIO_SPARX5_CLK_FREQ    GENMASK(19, 8)
 #define SGPIO_SPARX5_BIT_SOURCE  GENMASK(23, 12)
 
-const struct sgpio_properties properties_luton = {
+static const struct sgpio_properties properties_luton = {
 	.arch   = SGPIO_ARCH_LUTON,
 	.regoff = { 0x00, 0x09, 0x29, 0x2a, 0x2b },
 };
 
-const struct sgpio_properties properties_ocelot = {
+static const struct sgpio_properties properties_ocelot = {
 	.arch   = SGPIO_ARCH_OCELOT,
 	.regoff = { 0x00, 0x06, 0x26, 0x04, 0x05 },
 };
 
-const struct sgpio_properties properties_sparx5 = {
+static const struct sgpio_properties properties_sparx5 = {
 	.arch   = SGPIO_ARCH_SPARX5,
 	.regoff = { 0x00, 0x06, 0x26, 0x04, 0x05 },
 };
