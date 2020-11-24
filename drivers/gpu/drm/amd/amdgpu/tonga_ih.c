@@ -181,6 +181,7 @@ static void tonga_ih_irq_disable(struct amdgpu_device *adev)
  * tonga_ih_get_wptr - get the IH ring buffer wptr
  *
  * @adev: amdgpu_device pointer
+ * @ih: IH ring buffer to fetch wptr
  *
  * Get the IH ring buffer wptr from either the register
  * or the writeback memory buffer (VI).  Also check for
@@ -215,6 +216,8 @@ static u32 tonga_ih_get_wptr(struct amdgpu_device *adev,
  * tonga_ih_decode_iv - decode an interrupt vector
  *
  * @adev: amdgpu_device pointer
+ * @ih: IH ring buffer to decode
+ * @entry: IV entry to place decoded information into
  *
  * Decodes the interrupt vector at the current rptr
  * position and also advance the position.
@@ -247,6 +250,7 @@ static void tonga_ih_decode_iv(struct amdgpu_device *adev,
  * tonga_ih_set_rptr - set the IH ring buffer rptr
  *
  * @adev: amdgpu_device pointer
+ * @ih: IH ring buffer to set rptr
  *
  * Set the IH ring buffer rptr.
  */
