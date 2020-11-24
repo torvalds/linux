@@ -17,6 +17,9 @@ KVM="`pwd`/tools/testing/selftests/rcutorture"; export KVM
 PATH=${KVM}/bin:$PATH; export PATH
 . functions.sh
 
+TORTURE_ALLOTED_CPUS="`identify_qemu_vcpus`"
+MAKE_ALLOTED_CPUS=$((TORTURE_ALLOTED_CPUS*2))
+
 # Default duration and apportionment.
 duration_base=10
 duration_rcutorture_frac=7
@@ -24,6 +27,7 @@ duration_locktorture_frac=1
 duration_scftorture_frac=2
 
 # "yes" or "no" parameters
+do_allmodconfig=yes
 do_rcutorture=yes
 do_locktorture=yes
 do_scftorture=yes
@@ -36,6 +40,7 @@ do_kcsan=no
 usage () {
 	echo "Usage: $scriptname optional arguments:"
 	echo "       --doall"
+	echo "       --doallmodconfig / --do-no-allmodconfig"
 	echo "       --do-kasan / --do-no-kasan"
 	echo "       --do-kcsan / --do-no-kcsan"
 	echo "       --do-kvfree / --do-no-kvfree"
@@ -53,6 +58,7 @@ while test $# -gt 0
 do
 	case "$1" in
 	--doall)
+		do_allmodconfig=yes
 		do_rcutorture=yes
 		do_locktorture=yes
 		do_scftorture=yes
@@ -61,6 +67,14 @@ do
 		do_kvfree=yes
 		do_kasan=yes
 		do_kcsan=yes
+		;;
+	--do-allmodconfig|--do-no-allmodconfig)
+		if test "$1" = --do-allmodconfig
+		then
+			do_allmodconfig=yes
+		else
+			do_allmodconfig=no
+		fi
 		;;
 	--do-kasan|--do-no-kasan)
 		if test "$1" = --do-kasan
@@ -95,6 +109,7 @@ do
 		fi
 		;;
 	--do-none)
+		do_allmodconfig=no
 		do_rcutorture=no
 		do_locktorture=no
 		do_scftorture=no
@@ -242,6 +257,26 @@ function torture_set {
 	fi
 }
 
+# make allmodconfig
+if test "$do_allmodconfig" = "yes"
+then
+	echo " --- allmodconfig:" Start `date` | tee -a $T/log
+	amcdir="tools/testing/selftests/rcutorture/res/$ds/allmodconfig"
+	mkdir -p "$amcdir"
+	make -j$MAKE_ALLOTED_CPUS clean > "$amcdir/Make.out" 2>&1
+	make -j$MAKE_ALLOTED_CPUS allmodconfig > "$amcdir/Make.out" 2>&1
+	make -j$MAKE_ALLOTED_CPUS > "$amcdir/Make.out" 2>&1
+	retcode="$?"
+	echo $retcode > "$amcdir/Make.exitcode"
+	if test "$retcode" == 0
+	then
+		echo "allmodconfig($retcode)" $amcdir >> $T/successes
+	else
+		echo "allmodconfig($retcode)" $amcdir >> $T/failures
+	fi
+fi
+
+# --torture rcu
 if test "$do_rcutorture" = "yes"
 then
 	torture_bootargs="rcupdate.rcu_cpu_stall_suppress_at_boot=1 torture.disable_onoff_at_boot rcupdate.rcu_task_stall_timeout=30000"
@@ -320,7 +355,7 @@ exit $ret
 # @@@
 # RCU CPU stall warnings?
 # scftorture warnings?
-# Need a way for the invoker to specify clang.
+# Need a way for the invoker to specify clang.  Maybe --kcsan-kmake or some such.
 # Work out --configs based on number of available CPUs?
 # Need to sense CPUs to size scftorture run.  Ditto rcuscale and refscale.
 # --kconfig as with --bootargs (Both have overrides.)
