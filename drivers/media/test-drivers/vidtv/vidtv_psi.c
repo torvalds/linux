@@ -961,57 +961,60 @@ struct vidtv_psi_table_pat *vidtv_psi_pat_table_init(u16 transport_stream_id)
 	return pat;
 }
 
-u32 vidtv_psi_pat_write_into(struct vidtv_psi_pat_write_args args)
+u32 vidtv_psi_pat_write_into(struct vidtv_psi_pat_write_args *args)
 {
-	struct vidtv_psi_table_pat_program *p = args.pat->program;
-	struct header_write_args h_args       = {};
-	struct psi_write_args psi_args        = {};
-	struct crc32_write_args c_args        = {};
-	const u16 pat_pid = VIDTV_PAT_PID;
+	struct vidtv_psi_table_pat_program *p = args->pat->program;
+	struct header_write_args h_args       = {
+		.dest_buf           = args->buf,
+		.dest_offset        = args->offset,
+		.pid                = VIDTV_PAT_PID,
+		.h                  = &args->pat->header,
+		.continuity_counter = args->continuity_counter,
+		.dest_buf_sz        = args->buf_sz,
+	};
+	struct psi_write_args psi_args        = {
+		.dest_buf           = args->buf,
+		.pid                = VIDTV_PAT_PID,
+		.new_psi_section    = false,
+		.continuity_counter = args->continuity_counter,
+		.is_crc             = false,
+		.dest_buf_sz        = args->buf_sz,
+	};
+	struct crc32_write_args c_args        = {
+		.dest_buf           = args->buf,
+		.pid                = VIDTV_PAT_PID,
+		.dest_buf_sz        = args->buf_sz,
+	};
 	u32 crc = INITIAL_CRC;
 	u32 nbytes = 0;
 
-	vidtv_psi_pat_table_update_sec_len(args.pat);
+	vidtv_psi_pat_table_update_sec_len(args->pat);
 
-	h_args.dest_buf           = args.buf;
-	h_args.dest_offset        = args.offset;
-	h_args.h                  = &args.pat->header;
-	h_args.pid                = pat_pid;
-	h_args.continuity_counter = args.continuity_counter;
-	h_args.dest_buf_sz        = args.buf_sz;
 	h_args.crc = &crc;
 
 	nbytes += vidtv_psi_table_header_write_into(&h_args);
 
 	/* note that the field 'u16 programs' is not really part of the PAT */
 
-	psi_args.dest_buf           = args.buf;
-	psi_args.pid                = pat_pid;
-	psi_args.new_psi_section    = false;
-	psi_args.continuity_counter = args.continuity_counter;
-	psi_args.is_crc             = false;
-	psi_args.dest_buf_sz        = args.buf_sz;
-	psi_args.crc                = &crc;
+	psi_args.crc = &crc;
 
 	while (p) {
 		/* copy the PAT programs */
 		psi_args.from = p;
 		/* skip the pointer */
 		psi_args.len = sizeof(*p) -
-			   sizeof(struct vidtv_psi_table_pat_program *);
-		psi_args.dest_offset = args.offset + nbytes;
+			       sizeof(struct vidtv_psi_table_pat_program *);
+		psi_args.dest_offset = args->offset + nbytes;
+		psi_args.continuity_counter = args->continuity_counter;
 
 		nbytes += vidtv_psi_ts_psi_write_into(&psi_args);
 
 		p = p->next;
 	}
 
-	c_args.dest_buf           = args.buf;
-	c_args.dest_offset        = args.offset + nbytes;
+	c_args.dest_offset        = args->offset + nbytes;
+	c_args.continuity_counter = args->continuity_counter;
 	c_args.crc                = cpu_to_be32(crc);
-	c_args.pid                = pat_pid;
-	c_args.continuity_counter = args.continuity_counter;
-	c_args.dest_buf_sz        = args.buf_sz;
 
 	/* Write the CRC32 at the end */
 	nbytes += table_section_crc32_write_into(&c_args);

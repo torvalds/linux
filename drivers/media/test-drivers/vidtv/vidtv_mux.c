@@ -173,7 +173,7 @@ static u32 vidtv_mux_push_si(struct vidtv_mux *m)
 	pat_args.offset             = m->mux_buf_offset;
 	pat_args.continuity_counter = &pat_ctx->cc;
 
-	m->mux_buf_offset += vidtv_psi_pat_write_into(pat_args);
+	m->mux_buf_offset += vidtv_psi_pat_write_into(&pat_args);
 
 	for (i = 0; i < m->si.pat->num_pmt; ++i) {
 		pmt_pid = vidtv_psi_pmt_get_pid(m->si.pmt_secs[i],
