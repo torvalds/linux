@@ -122,6 +122,7 @@ struct scmi_perf_ops {
 			     unsigned long *rate, unsigned long *power);
 	bool (*fast_switch_possible)(const struct scmi_handle *handle,
 				     struct device *dev);
+	bool (*power_scale_mw_get)(const struct scmi_handle *handle);
 };
 
 /**
