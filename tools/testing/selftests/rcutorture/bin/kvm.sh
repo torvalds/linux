@@ -290,7 +290,13 @@ for CF1 in $configs_derep
 do
 	if test -f "$CONFIGFRAG/$CF1"
 	then
-		cpu_count=`configNR_CPUS.sh $CONFIGFRAG/$CF1`
+		if echo "$TORTURE_KCONFIG_ARG" | grep -q '\<CONFIG_NR_CPUS='
+		then
+			echo "$TORTURE_KCONFIG_ARG" | tr -s ' ' | tr ' ' '\012' > $T/KCONFIG_ARG
+			cpu_count=`configNR_CPUS.sh $T/KCONFIG_ARG`
+		else
+			cpu_count=`configNR_CPUS.sh $CONFIGFRAG/$CF1`
+		fi
 		cpu_count=`configfrag_boot_cpus "$TORTURE_BOOTARGS" "$CONFIGFRAG/$CF1" "$cpu_count"`
 		cpu_count=`configfrag_boot_maxcpus "$TORTURE_BOOTARGS" "$CONFIGFRAG/$CF1" "$cpu_count"`
 		echo $CF1 $cpu_count >> $T/cfgcpu
