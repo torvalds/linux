@@ -588,7 +588,7 @@ struct vidtv_psi_sdt_write_args {
  * equal to the size of the SDT, since more space is needed for TS headers during TS
  * encapsulation.
  */
-u32 vidtv_psi_sdt_write_into(struct vidtv_psi_sdt_write_args args);
+u32 vidtv_psi_sdt_write_into(struct vidtv_psi_sdt_write_args *args);
 
 /**
  * struct vidtv_psi_pmt_write_args - Arguments for writing a PMT section

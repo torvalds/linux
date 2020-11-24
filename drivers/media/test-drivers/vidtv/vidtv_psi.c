@@ -1306,57 +1306,66 @@ struct vidtv_psi_table_sdt *vidtv_psi_sdt_table_init(u16 network_id,
 	return sdt;
 }
 
-u32 vidtv_psi_sdt_write_into(struct vidtv_psi_sdt_write_args args)
+u32 vidtv_psi_sdt_write_into(struct vidtv_psi_sdt_write_args *args)
 {
-	struct vidtv_psi_table_sdt_service *service = args.sdt->service;
+	struct header_write_args h_args = {
+		.dest_buf           = args->buf,
+		.dest_offset        = args->offset,
+		.h                  = &args->sdt->header,
+		.pid                = VIDTV_SDT_PID,
+		.dest_buf_sz        = args->buf_sz,
+	};
+	struct psi_write_args psi_args  = {
+		.dest_buf = args->buf,
+		.len = sizeof_field(struct vidtv_psi_table_sdt, network_id) +
+		       sizeof_field(struct vidtv_psi_table_sdt, reserved),
+		.pid                = VIDTV_SDT_PID,
+		.new_psi_section    = false,
+		.is_crc             = false,
+		.dest_buf_sz        = args->buf_sz,
+	};
+	struct desc_write_args d_args   = {
+		.dest_buf           = args->buf,
+		.pid                = VIDTV_SDT_PID,
+		.dest_buf_sz        = args->buf_sz,
+	};
+	struct crc32_write_args c_args  = {
+		.dest_buf           = args->buf,
+		.pid                = VIDTV_SDT_PID,
+		.dest_buf_sz        = args->buf_sz,
+	};
+	struct vidtv_psi_table_sdt_service *service = args->sdt->service;
 	struct vidtv_psi_desc *service_desc;
-	struct header_write_args h_args = {};
-	struct psi_write_args psi_args  = {};
-	struct desc_write_args d_args   = {};
-	struct crc32_write_args c_args  = {};
-	u16 sdt_pid = VIDTV_SDT_PID;
 	u32 nbytes  = 0;
 	u32 crc = INITIAL_CRC;
 
 	/* see ETSI EN 300 468 v1.15.1 p. 11 */
 
-	vidtv_psi_sdt_table_update_sec_len(args.sdt);
+	vidtv_psi_sdt_table_update_sec_len(args->sdt);
 
-	h_args.dest_buf           = args.buf;
-	h_args.dest_offset        = args.offset;
-	h_args.h                  = &args.sdt->header;
-	h_args.pid                = sdt_pid;
-	h_args.continuity_counter = args.continuity_counter;
-	h_args.dest_buf_sz        = args.buf_sz;
+	h_args.continuity_counter = args->continuity_counter;
 	h_args.crc                = &crc;
 
 	nbytes += vidtv_psi_table_header_write_into(&h_args);
 
-	psi_args.dest_buf = args.buf;
-	psi_args.from     = &args.sdt->network_id;
-
-	psi_args.len = sizeof_field(struct vidtv_psi_table_sdt, network_id) +
-		       sizeof_field(struct vidtv_psi_table_sdt, reserved);
-
-	psi_args.dest_offset        = args.offset + nbytes;
-	psi_args.pid                = sdt_pid;
-	psi_args.new_psi_section    = false;
-	psi_args.continuity_counter = args.continuity_counter;
-	psi_args.is_crc             = false;
-	psi_args.dest_buf_sz        = args.buf_sz;
+	psi_args.from               = &args->sdt->network_id;
+	psi_args.dest_offset        = args->offset + nbytes;
+	psi_args.continuity_counter = args->continuity_counter;
 	psi_args.crc                = &crc;
 
 	/* copy u16 network_id + u8 reserved)*/
 	nbytes += vidtv_psi_ts_psi_write_into(&psi_args);
 
+	/* skip both pointers at the end */
+	psi_args.len = sizeof(struct vidtv_psi_table_sdt_service) -
+		       sizeof(struct vidtv_psi_desc *) -
+		       sizeof(struct vidtv_psi_table_sdt_service *);
+
 	while (service) {
 		/* copy the services, if any */
 		psi_args.from = service;
-		/* skip both pointers at the end */
-		psi_args.len = sizeof(struct vidtv_psi_table_sdt_service) -
-			       sizeof(struct vidtv_psi_desc *) -
-			       sizeof(struct vidtv_psi_table_sdt_service *);
-		psi_args.dest_offset = args.offset + nbytes;
+		psi_args.dest_offset = args->offset + nbytes;
+		psi_args.continuity_counter = args->continuity_counter;
 
 		nbytes += vidtv_psi_ts_psi_write_into(&psi_args);
 
@@ -1364,12 +1373,9 @@ u32 vidtv_psi_sdt_write_into(struct vidtv_psi_sdt_write_args args)
 
 		while (service_desc) {
 			/* copy the service descriptors, if any */
-			d_args.dest_buf           = args.buf;
-			d_args.dest_offset        = args.offset + nbytes;
+			d_args.dest_offset        = args->offset + nbytes;
 			d_args.desc               = service_desc;
-			d_args.pid                = sdt_pid;
-			d_args.continuity_counter = args.continuity_counter;
-			d_args.dest_buf_sz        = args.buf_sz;
+			d_args.continuity_counter = args->continuity_counter;
 			d_args.crc                = &crc;
 
 			nbytes += vidtv_psi_desc_write_into(&d_args);
@@ -1380,12 +1386,9 @@ u32 vidtv_psi_sdt_write_into(struct vidtv_psi_sdt_write_args args)
 		service = service->next;
 	}
 
-	c_args.dest_buf           = args.buf;
-	c_args.dest_offset        = args.offset + nbytes;
+	c_args.dest_offset        = args->offset + nbytes;
 	c_args.crc                = cpu_to_be32(crc);
-	c_args.pid                = sdt_pid;
-	c_args.continuity_counter = args.continuity_counter;
-	c_args.dest_buf_sz        = args.buf_sz;
+	c_args.continuity_counter = args->continuity_counter;
 
 	/* Write the CRC at the end */
 	nbytes += table_section_crc32_write_into(&c_args);
