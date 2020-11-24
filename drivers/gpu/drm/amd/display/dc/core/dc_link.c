@@ -3270,8 +3270,6 @@ void core_link_enable_stream(
 #if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 #endif
 
-		dc->hwss.enable_audio_stream(pipe_ctx);
-
 		/* turn off otg test pattern if enable */
 		if (pipe_ctx->stream_res.tg->funcs->set_test_pattern)
 			pipe_ctx->stream_res.tg->funcs->set_test_pattern(pipe_ctx->stream_res.tg,
@@ -3310,6 +3308,9 @@ void core_link_enable_stream(
 #if defined(CONFIG_DRM_AMD_DC_HDCP)
 		update_psp_stream_config(pipe_ctx, false);
 #endif
+
+		dc->hwss.enable_audio_stream(pipe_ctx);
+
 	} else { // if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment))
 		if (dc_is_dp_signal(pipe_ctx->stream->signal) ||
 				dc_is_virtual_signal(pipe_ctx->stream->signal))
@@ -3336,6 +3337,8 @@ void core_link_disable_stream(struct pipe_ctx *pipe_ctx)
 		if (dc_is_hdmi_signal(pipe_ctx->stream->signal))
 			core_link_set_avmute(pipe_ctx, true);
 	}
+
+	dc->hwss.disable_audio_stream(pipe_ctx);
 
 #if defined(CONFIG_DRM_AMD_DC_HDCP)
 	update_psp_stream_config(pipe_ctx, true);
