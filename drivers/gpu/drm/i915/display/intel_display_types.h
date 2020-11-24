@@ -1053,7 +1053,10 @@ struct intel_crtc_state {
 		u32 cgm_mode;
 	};
 
-	/* bitmask of visible planes (enum plane_id) */
+	/* bitmask of logically enabled planes (enum plane_id) */
+	u8 enabled_planes;
+
+	/* bitmask of actually visible planes (enum plane_id) */
 	u8 active_planes;
 	u8 nv12_planes;
 	u8 c8_planes;
