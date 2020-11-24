@@ -2181,8 +2181,7 @@ static int do_relocation(struct btrfs_trans_handle *trans,
 	u32 blocksize;
 	u64 bytenr;
 	int slot;
-	int ret;
-	int err = 0;
+	int ret = 0;
 
 	BUG_ON(lowest && node->eb);
 
@@ -2200,10 +2199,8 @@ static int do_relocation(struct btrfs_trans_handle *trans,
 		if (upper->eb && !upper->locked) {
 			if (!lowest) {
 				ret = btrfs_bin_search(upper->eb, key, &slot);
-				if (ret < 0) {
-					err = ret;
+				if (ret < 0)
 					goto next;
-				}
 				BUG_ON(ret);
 				bytenr = btrfs_node_blockptr(upper->eb, slot);
 				if (node->eb->start == bytenr)
@@ -2215,10 +2212,8 @@ static int do_relocation(struct btrfs_trans_handle *trans,
 		if (!upper->eb) {
 			ret = btrfs_search_slot(trans, root, key, path, 0, 1);
 			if (ret) {
-				if (ret < 0)
-					err = ret;
-				else
-					err = -ENOENT;
+				if (ret > 0)
+					ret = -ENOENT;
 
 				btrfs_release_path(path);
 				break;
@@ -2238,10 +2233,8 @@ static int do_relocation(struct btrfs_trans_handle *trans,
 			btrfs_release_path(path);
 		} else {
 			ret = btrfs_bin_search(upper->eb, key, &slot);
-			if (ret < 0) {
-				err = ret;
+			if (ret < 0)
 				goto next;
-			}
 			BUG_ON(ret);
 		}
 
@@ -2252,7 +2245,7 @@ static int do_relocation(struct btrfs_trans_handle *trans,
 		"lowest leaf/node mismatch: bytenr %llu node->bytenr %llu slot %d upper %llu",
 					  bytenr, node->bytenr, slot,
 					  upper->eb->start);
-				err = -EIO;
+				ret = -EIO;
 				goto next;
 			}
 		} else {
@@ -2263,7 +2256,7 @@ static int do_relocation(struct btrfs_trans_handle *trans,
 		blocksize = root->fs_info->nodesize;
 		eb = btrfs_read_node_slot(upper->eb, slot);
 		if (IS_ERR(eb)) {
-			err = PTR_ERR(eb);
+			ret = PTR_ERR(eb);
 			goto next;
 		}
 		btrfs_tree_lock(eb);
@@ -2273,10 +2266,8 @@ static int do_relocation(struct btrfs_trans_handle *trans,
 					      slot, &eb, BTRFS_NESTING_COW);
 			btrfs_tree_unlock(eb);
 			free_extent_buffer(eb);
-			if (ret < 0) {
-				err = ret;
+			if (ret < 0)
 				goto next;
-			}
 			BUG_ON(node->eb != eb);
 		} else {
 			btrfs_set_node_blockptr(upper->eb, slot,
@@ -2302,19 +2293,19 @@ next:
 			btrfs_backref_drop_node_buffer(upper);
 		else
 			btrfs_backref_unlock_node_buffer(upper);
-		if (err)
+		if (ret)
 			break;
 	}
 
-	if (!err && node->pending) {
+	if (!ret && node->pending) {
 		btrfs_backref_drop_node_buffer(node);
 		list_move_tail(&node->list, &rc->backref_cache.changed);
 		node->pending = 0;
 	}
 
 	path->lowest_level = 0;
-	BUG_ON(err == -ENOSPC);
-	return err;
+	BUG_ON(ret == -ENOSPC);
+	return ret;
 }
 
 static int link_to_upper(struct btrfs_trans_handle *trans,
