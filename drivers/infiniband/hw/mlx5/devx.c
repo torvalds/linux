@@ -2106,7 +2106,7 @@ static int devx_umem_reg_cmd_alloc(struct mlx5_ib_dev *dev,
 		     (MLX5_ST_SZ_BYTES(mtt) *
 		      ib_umem_num_dma_blocks(obj->umem, page_size));
 	cmd->in = uverbs_zalloc(attrs, cmd->inlen);
-	if (!cmd->in)
+	if (IS_ERR(cmd->in))
 		return PTR_ERR(cmd->in);
 
 	umem = MLX5_ADDR_OF(create_umem_in, cmd->in, umem);
