@@ -417,6 +417,10 @@ struct mv88e6xxx_ops {
 	 */
 	int (*port_set_link)(struct mv88e6xxx_chip *chip, int port, int link);
 
+	/* Synchronise the port link state with that of the SERDES
+	 */
+	int (*port_sync_link)(struct mv88e6xxx_chip *chip, int port, unsigned int mode, bool isup);
+
 #define PAUSE_ON		1
 #define PAUSE_OFF		0
 
