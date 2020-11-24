@@ -754,26 +754,22 @@ static u32 vidtv_psi_desc_write_into(struct desc_write_args *args)
 }
 
 static u32
-vidtv_psi_table_header_write_into(struct header_write_args args)
+vidtv_psi_table_header_write_into(struct header_write_args *args)
 {
-	struct psi_write_args psi_args = {};
-	/* the number of bytes written by this function */
-	u32 nbytes = 0;
+	struct psi_write_args psi_args = {
+		.dest_buf           = args->dest_buf,
+		.from               = args->h,
+		.len                = sizeof(struct vidtv_psi_table_header),
+		.dest_offset        = args->dest_offset,
+		.pid                = args->pid,
+		.new_psi_section    = true,
+		.continuity_counter = args->continuity_counter,
+		.is_crc             = false,
+		.dest_buf_sz        = args->dest_buf_sz,
+		.crc                = args->crc,
+	};
 
-	psi_args.dest_buf           = args.dest_buf;
-	psi_args.from               = args.h;
-	psi_args.len                = sizeof(struct vidtv_psi_table_header);
-	psi_args.dest_offset        = args.dest_offset;
-	psi_args.pid                = args.pid;
-	psi_args.new_psi_section    = true;
-	psi_args.continuity_counter = args.continuity_counter;
-	psi_args.is_crc             = false;
-	psi_args.dest_buf_sz        = args.dest_buf_sz;
-	psi_args.crc                = args.crc;
-
-	nbytes += vidtv_psi_ts_psi_write_into(&psi_args);
-
-	return nbytes;
+	return vidtv_psi_ts_psi_write_into(&psi_args);
 }
 
 void
@@ -985,7 +981,7 @@ u32 vidtv_psi_pat_write_into(struct vidtv_psi_pat_write_args args)
 	h_args.dest_buf_sz        = args.buf_sz;
 	h_args.crc = &crc;
 
-	nbytes += vidtv_psi_table_header_write_into(h_args);
+	nbytes += vidtv_psi_table_header_write_into(&h_args);
 
 	/* note that the field 'u16 programs' is not really part of the PAT */
 
@@ -1182,7 +1178,7 @@ u32 vidtv_psi_pmt_write_into(struct vidtv_psi_pmt_write_args args)
 	h_args.dest_buf_sz        = args.buf_sz;
 	h_args.crc                = &crc;
 
-	nbytes += vidtv_psi_table_header_write_into(h_args);
+	nbytes += vidtv_psi_table_header_write_into(&h_args);
 
 	/* write the two bitfields */
 	psi_args.dest_buf = args.buf;
@@ -1334,7 +1330,7 @@ u32 vidtv_psi_sdt_write_into(struct vidtv_psi_sdt_write_args args)
 	h_args.dest_buf_sz        = args.buf_sz;
 	h_args.crc                = &crc;
 
-	nbytes += vidtv_psi_table_header_write_into(h_args);
+	nbytes += vidtv_psi_table_header_write_into(&h_args);
 
 	psi_args.dest_buf = args.buf;
 	psi_args.from     = &args.sdt->network_id;
@@ -1670,7 +1666,7 @@ u32 vidtv_psi_nit_write_into(struct vidtv_psi_nit_write_args args)
 	h_args.dest_buf_sz        = args.buf_sz;
 	h_args.crc                = &crc;
 
-	nbytes += vidtv_psi_table_header_write_into(h_args);
+	nbytes += vidtv_psi_table_header_write_into(&h_args);
 
 	/* write the bitfield */
 	psi_args.dest_buf = args.buf;
@@ -1880,7 +1876,7 @@ u32 vidtv_psi_eit_write_into(struct vidtv_psi_eit_write_args args)
 	h_args.dest_buf_sz        = args.buf_sz;
 	h_args.crc                = &crc;
 
-	nbytes += vidtv_psi_table_header_write_into(h_args);
+	nbytes += vidtv_psi_table_header_write_into(&h_args);
 
 	psi_args.dest_buf = args.buf;
 	psi_args.from     = &args.eit->transport_id;
