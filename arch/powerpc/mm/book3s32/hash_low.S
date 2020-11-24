@@ -182,12 +182,6 @@ _GLOBAL(add_hash_page)
 	mflr	r0
 	stw	r0,4(r1)
 
-	/* Convert context and va to VSID */
-	mulli	r3,r3,897*16		/* multiply context by context skew */
-	rlwinm	r0,r4,4,28,31		/* get ESID (top 4 bits of va) */
-	mulli	r0,r0,0x111		/* multiply by ESID skew */
-	add	r3,r3,r0		/* note create_hpte trims to 24 bits */
-
 #ifdef CONFIG_SMP
 	lwz	r8,TASK_CPU(r2)		/* to go in mmu_hash_lock */
 	oris	r8,r8,12
@@ -250,6 +244,12 @@ _GLOBAL(add_hash_page)
 	ori	r5,r6,_PAGE_HASHPTE
 	stwcx.	r5,0,r8
 	bne-	1b
+
+	/* Convert context and va to VSID */
+	mulli	r3,r3,897*16		/* multiply context by context skew */
+	rlwinm	r0,r4,4,28,31		/* get ESID (top 4 bits of va) */
+	mulli	r0,r0,0x111		/* multiply by ESID skew */
+	add	r3,r3,r0		/* note create_hpte trims to 24 bits */
 
 	bl	create_hpte
 
