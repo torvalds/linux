@@ -1425,7 +1425,7 @@ static int sdw_handle_slave_alerts(struct sdw_slave *slave)
 	u8 clear = 0, bit, port_status[15] = {0};
 	int port_num, stat, ret, count = 0;
 	unsigned long port;
-	bool slave_notify = false;
+	bool slave_notify;
 	u8 sdca_cascade = 0;
 	u8 buf, buf2[2], _buf, _buf2[2];
 	bool parity_check;
@@ -1467,6 +1467,8 @@ static int sdw_handle_slave_alerts(struct sdw_slave *slave)
 	}
 
 	do {
+		slave_notify = false;
+
 		/*
 		 * Check parity, bus clash and Slave (impl defined)
 		 * interrupt
