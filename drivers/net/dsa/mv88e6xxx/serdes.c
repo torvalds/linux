@@ -490,6 +490,53 @@ int mv88e6185_serdes_pcs_get_state(struct mv88e6xxx_chip *chip, int port,
 	return 0;
 }
 
+int mv88e6097_serdes_irq_enable(struct mv88e6xxx_chip *chip, int port, u8 lane,
+				bool enable)
+{
+	u8 cmode = chip->ports[port].cmode;
+
+	/* The serdes interrupts are enabled in the G2_INT_MASK register. We
+	 * need to return 0 to avoid returning -EOPNOTSUPP in
+	 * mv88e6xxx_serdes_irq_enable/mv88e6xxx_serdes_irq_disable
+	 */
+	switch (cmode) {
+	case MV88E6185_PORT_STS_CMODE_SERDES:
+	case MV88E6185_PORT_STS_CMODE_1000BASE_X:
+		return 0;
+	}
+
+	return -EOPNOTSUPP;
+}
+
+static void mv88e6097_serdes_irq_link(struct mv88e6xxx_chip *chip, int port)
+{
+	u16 status;
+	int err;
+
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_STS, &status);
+	if (err) {
+		dev_err(chip->dev, "can't read port status: %d\n", err);
+		return;
+	}
+
+	dsa_port_phylink_mac_change(chip->ds, port, !!(status & MV88E6XXX_PORT_STS_LINK));
+}
+
+irqreturn_t mv88e6097_serdes_irq_status(struct mv88e6xxx_chip *chip, int port,
+					u8 lane)
+{
+	u8 cmode = chip->ports[port].cmode;
+
+	switch (cmode) {
+	case MV88E6185_PORT_STS_CMODE_SERDES:
+	case MV88E6185_PORT_STS_CMODE_1000BASE_X:
+		mv88e6097_serdes_irq_link(chip, port);
+		return IRQ_HANDLED;
+	}
+
+	return IRQ_NONE;
+}
+
 u8 mv88e6390_serdes_get_lane(struct mv88e6xxx_chip *chip, int port)
 {
 	u8 cmode = chip->ports[port].cmode;
