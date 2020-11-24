@@ -4,6 +4,7 @@
 #include <linux/compiler.h>
 #include <linux/getcpu.h>
 #include <asm/timex.h>
+#include "vdso.h"
 
 int __s390_vdso_getcpu(unsigned *cpu, unsigned *node, struct getcpu_cache *unused)
 {
