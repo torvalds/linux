@@ -400,14 +400,16 @@ void mv88e6352_serdes_get_regs(struct mv88e6xxx_chip *chip, int port, void *_p)
 {
 	u16 *p = _p;
 	u16 reg;
+	int err;
 	int i;
 
 	if (!mv88e6352_port_has_serdes(chip, port))
 		return;
 
 	for (i = 0 ; i < 32; i++) {
-		mv88e6352_serdes_read(chip, i, &reg);
-		p[i] = reg;
+		err = mv88e6352_serdes_read(chip, i, &reg);
+		if (!err)
+			p[i] = reg;
 	}
 }
 
@@ -1096,6 +1098,7 @@ void mv88e6390_serdes_get_regs(struct mv88e6xxx_chip *chip, int port, void *_p)
 	u16 *p = _p;
 	int lane;
 	u16 reg;
+	int err;
 	int i;
 
 	lane = mv88e6xxx_serdes_get_lane(chip, port);
@@ -1103,8 +1106,9 @@ void mv88e6390_serdes_get_regs(struct mv88e6xxx_chip *chip, int port, void *_p)
 		return;
 
 	for (i = 0 ; i < ARRAY_SIZE(mv88e6390_serdes_regs); i++) {
-		mv88e6390_serdes_read(chip, lane, MDIO_MMD_PHYXS,
-				      mv88e6390_serdes_regs[i], &reg);
-		p[i] = reg;
+		err = mv88e6390_serdes_read(chip, lane, MDIO_MMD_PHYXS,
+					    mv88e6390_serdes_regs[i], &reg);
+		if (!err)
+			p[i] = reg;
 	}
 }
