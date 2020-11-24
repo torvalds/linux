@@ -347,6 +347,8 @@ static inline void membarrier_mm_sync_core_before_usermode(struct mm_struct *mm)
 
 extern void membarrier_exec_mmap(struct mm_struct *mm);
 
+extern void membarrier_update_current_mm(struct mm_struct *next_mm);
+
 #else
 #ifdef CONFIG_ARCH_HAS_MEMBARRIER_CALLBACKS
 static inline void membarrier_arch_switch_mm(struct mm_struct *prev,
@@ -359,6 +361,9 @@ static inline void membarrier_exec_mmap(struct mm_struct *mm)
 {
 }
 static inline void membarrier_mm_sync_core_before_usermode(struct mm_struct *mm)
+{
+}
+static inline void membarrier_update_current_mm(struct mm_struct *next_mm)
 {
 }
 #endif
