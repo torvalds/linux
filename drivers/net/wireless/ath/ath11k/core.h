@@ -909,6 +909,8 @@ static inline const char *ath11k_scan_state_str(enum ath11k_scan_state state)
 
 static inline struct ath11k_skb_cb *ATH11K_SKB_CB(struct sk_buff *skb)
 {
+	BUILD_BUG_ON(sizeof(struct ath11k_skb_cb) >
+		     IEEE80211_TX_INFO_DRIVER_DATA_SIZE);
 	return (struct ath11k_skb_cb *)&IEEE80211_SKB_CB(skb)->driver_data;
 }
 
