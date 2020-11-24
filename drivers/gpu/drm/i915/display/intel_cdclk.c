@@ -2415,8 +2415,7 @@ static int intel_modeset_all_pipes(struct intel_atomic_state *state)
 		if (ret)
 			return ret;
 
-		ret = drm_atomic_add_affected_planes(&state->base,
-						     &crtc->base);
+		ret = intel_atomic_add_affected_planes(state, crtc);
 		if (ret)
 			return ret;
 
