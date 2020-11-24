@@ -153,6 +153,12 @@ static inline size_t xsk_ring_cons__peek(struct xsk_ring_cons *cons,
 	return entries;
 }
 
+static inline void xsk_ring_cons__cancel(struct xsk_ring_cons *cons,
+					 size_t nb)
+{
+	cons->cached_cons -= nb;
+}
+
 static inline void xsk_ring_cons__release(struct xsk_ring_cons *cons, size_t nb)
 {
 	/* Make sure data has been read before indicating we are done
