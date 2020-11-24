@@ -2574,9 +2574,9 @@ out:
 	return err;
 }
 
-int parse_ta_bin_descriptor(struct psp_context *psp,
-			    const struct ta_fw_bin_desc *desc,
-			    const struct ta_firmware_header_v2_0 *ta_hdr)
+static int parse_ta_bin_descriptor(struct psp_context *psp,
+				   const struct ta_fw_bin_desc *desc,
+				   const struct ta_firmware_header_v2_0 *ta_hdr)
 {
 	uint8_t *ucode_start_addr  = NULL;
 
