@@ -3123,6 +3123,8 @@ static void vop2_setup_layer_mixer_for_vp(struct vop2_video_port *vp,
 	u8 layer_id, win_phys_id;
 	int i;
 
+	VOP_CTRL_SET(vop2, ovl_cfg_done_port, port_id);
+	VOP_CTRL_SET(vop2, ovl_port_mux_cfg_done_imd, 0);
 	for (i = 0; i < port_id; i++) {
 		used_layers += hweight32(vop2->vps[i].win_mask);
 		/*
