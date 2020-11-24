@@ -39,6 +39,7 @@
  * Every stream will have its corresponding encoder polled to produce TS packets
  * These packets may be interleaved by the mux and then delivered to the bridge
  *
+ * @name: name of the channel
  * @transport_stream_id: a number to identify the TS, chosen at will.
  * @service: A _single_ service. Will be concatenated into the SDT.
  * @program_num: The link between PAT, PMT and SDT.

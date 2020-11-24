@@ -484,3 +484,30 @@ A nice addition is to simulate some noise when the signal quality is bad by:
 - Updating the error statistics accordingly (e.g. BER, etc).
 
 - Simulating some noise in the encoded data.
+
+Functions and structs used within vidtv
+---------------------------------------
+
+.. kernel-doc:: drivers/media/test-drivers/vidtv/vidtv_bridge.h
+
+.. kernel-doc:: drivers/media/test-drivers/vidtv/vidtv_channel.h
+
+.. kernel-doc:: drivers/media/test-drivers/vidtv/vidtv_demod.h
+
+.. kernel-doc:: drivers/media/test-drivers/vidtv/vidtv_encoder.h
+
+.. kernel-doc:: drivers/media/test-drivers/vidtv/vidtv_mux.h
+
+.. kernel-doc:: drivers/media/test-drivers/vidtv/vidtv_pes.h
+
+.. kernel-doc:: drivers/media/test-drivers/vidtv/vidtv_psi.h
+
+.. kernel-doc:: drivers/media/test-drivers/vidtv/vidtv_s302m.h
+
+.. kernel-doc:: drivers/media/test-drivers/vidtv/vidtv_ts.h
+
+.. kernel-doc:: drivers/media/test-drivers/vidtv/vidtv_tuner.h
+
+.. kernel-doc:: drivers/media/test-drivers/vidtv/vidtv_common.c
+
+.. kernel-doc:: drivers/media/test-drivers/vidtv/vidtv_tuner.c

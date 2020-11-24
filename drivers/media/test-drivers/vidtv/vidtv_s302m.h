@@ -33,6 +33,9 @@
  * @enc: A pointer to the containing encoder structure.
  * @frame_index: The current frame in a block
  * @au_count: The total number of access units encoded up to now
+ * @last_duration: Duration of the tone currently being played
+ * @note_offset: Position at the music tone array
+ * @last_tone: Tone currently being played
  */
 struct vidtv_s302m_ctx {
 	struct vidtv_encoder *enc;
@@ -43,7 +46,7 @@ struct vidtv_s302m_ctx {
 	enum musical_notes last_tone;
 };
 
-/**
+/*
  * struct vidtv_smpte_s302m_es - s302m MPEG Elementary Stream header.
  *
  * See SMPTE 302M 2007 table 1.

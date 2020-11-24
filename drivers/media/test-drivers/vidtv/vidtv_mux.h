@@ -59,6 +59,7 @@ struct vidtv_mux_timing {
  * @pat: The PAT in use by the muxer.
  * @pmt_secs: The PMT sections in use by the muxer. One for each program in the PAT.
  * @sdt: The SDT in use by the muxer.
+ * @nit: The NIT in use by the muxer.
  * @eit: the EIT in use by the muxer.
  */
 struct vidtv_mux_si {
@@ -86,8 +87,10 @@ struct vidtv_mux_pid_ctx {
 
 /**
  * struct vidtv_mux - A muxer abstraction loosely based in libavcodec/mpegtsenc.c
- * @mux_rate_kbytes_sec: The bit rate for the TS, in kbytes.
+ * @fe: The frontend structure allocated by the muxer.
+ * @dev: pointer to struct device.
  * @timing: Keeps track of timing related information.
+ * @mux_rate_kbytes_sec: The bit rate for the TS, in kbytes.
  * @pid_ctx: A hash table to keep track of per-PID metadata.
  * @on_new_packets_available_cb: A callback to inform of new TS packets ready.
  * @mux_buf: A pointer to a buffer for this muxer. TS packets are stored there

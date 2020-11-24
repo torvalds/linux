@@ -43,7 +43,7 @@ enum vidtv_psi_stream_types {
 	STREAM_PRIVATE_DATA = 0x06, /* see ISO/IEC 13818-1 2000 p. 48 */
 };
 
-/**
+/*
  * struct vidtv_psi_desc - A generic PSI descriptor type.
  * The descriptor length is an 8-bit field specifying the total number of bytes of the data portion
  * of the descriptor following the byte defining the value of this field.
@@ -55,7 +55,7 @@ struct vidtv_psi_desc {
 	u8 data[];
 } __packed;
 
-/**
+/*
  * struct vidtv_psi_desc_service - Service descriptor.
  * See ETSI EN 300 468 section 6.2.33.
  */
@@ -71,7 +71,7 @@ struct vidtv_psi_desc_service {
 	char *service_name;
 } __packed;
 
-/**
+/*
  * struct vidtv_psi_desc_registration - A registration descriptor.
  * See ISO/IEC 13818-1 section 2.6.8
  */
@@ -93,7 +93,7 @@ struct vidtv_psi_desc_registration {
 	u8 additional_identification_info[];
 } __packed;
 
-/**
+/*
  * struct vidtv_psi_desc_network_name - A network name descriptor
  * see ETSI EN 300 468 v1.15.1 section 6.2.27
  */
@@ -110,7 +110,7 @@ struct vidtv_psi_desc_service_list_entry {
 	struct vidtv_psi_desc_service_list_entry *next;
 } __packed;
 
-/**
+/*
  * struct vidtv_psi_desc_service_list - A service list descriptor
  * see ETSI EN 300 468 v1.15.1 section 6.2.35
  */
@@ -121,7 +121,7 @@ struct vidtv_psi_desc_service_list {
 	struct vidtv_psi_desc_service_list_entry *service_list;
 } __packed;
 
-/**
+/*
  * struct vidtv_psi_desc_short_event - A short event descriptor
  * see ETSI EN 300 468 v1.15.1 section 6.2.37
  */
@@ -142,7 +142,7 @@ struct vidtv_psi_desc_short_event
 				 char *event_name,
 				 char *text);
 
-/**
+/*
  * struct vidtv_psi_table_header - A header that is present for all PSI tables.
  */
 struct vidtv_psi_table_header {
@@ -158,7 +158,7 @@ struct vidtv_psi_table_header {
 	u8  last_section; /* last_section_number */
 } __packed;
 
-/**
+/*
  * struct vidtv_psi_table_pat_program - A single program in the PAT
  * See ISO/IEC 13818-1 : 2000 p.43
  */
@@ -168,7 +168,7 @@ struct vidtv_psi_table_pat_program {
 	struct vidtv_psi_table_pat_program *next;
 } __packed;
 
-/**
+/*
  * struct vidtv_psi_table_pat - The Program Allocation Table (PAT)
  * See ISO/IEC 13818-1 : 2000 p.43
  */
@@ -179,7 +179,7 @@ struct vidtv_psi_table_pat {
 	struct vidtv_psi_table_pat_program *program;
 } __packed;
 
-/**
+/*
  * struct vidtv_psi_table_sdt_service - Represents a service in the SDT.
  * see ETSI EN 300 468 v1.15.1 section 5.2.3.
  */
@@ -193,7 +193,7 @@ struct vidtv_psi_table_sdt_service {
 	struct vidtv_psi_table_sdt_service *next;
 } __packed;
 
-/**
+/*
  * struct vidtv_psi_table_sdt - Represents the Service Description Table
  * see ETSI EN 300 468 v1.15.1 section 5.2.3.
  */
@@ -205,7 +205,7 @@ struct vidtv_psi_table_sdt {
 	struct vidtv_psi_table_sdt_service *service;
 } __packed;
 
-/**
+/*
  * enum service_running_status - Status of a SDT service.
  * see ETSI EN 300 468 v1.15.1 section 5.2.3 table 6.
  */
@@ -213,7 +213,7 @@ enum service_running_status {
 	RUNNING = 0x4,
 };
 
-/**
+/*
  * enum service_type - The type of a SDT service.
  * see ETSI EN 300 468 v1.15.1 section 6.2.33, table 81.
  */
@@ -223,7 +223,7 @@ enum service_type {
 	DIGITAL_RADIO_SOUND_SERVICE = 0X2,
 };
 
-/**
+/*
  * struct vidtv_psi_table_pmt_stream - A single stream in the PMT.
  * See ISO/IEC 13818-1 : 2000 p.46.
  */
@@ -235,7 +235,7 @@ struct vidtv_psi_table_pmt_stream {
 	struct vidtv_psi_table_pmt_stream *next;
 } __packed;
 
-/**
+/*
  * struct vidtv_psi_table_pmt - The Program Map Table (PMT).
  * See ISO/IEC 13818-1 : 2000 p.46.
  */
@@ -477,7 +477,6 @@ struct vidtv_psi_desc *vidtv_psi_desc_clone(struct vidtv_psi_desc *desc);
  * vidtv_psi_create_sec_for_each_pat_entry - Create a PMT section for each
  * program found in the PAT
  * @pat: The PAT to look for programs.
- * @s: The stream loop (one or more streams)
  * @pcr_pid: packet ID for the PCR to be used for the program described in this
  * PMT section
  */
@@ -595,9 +594,11 @@ u32 vidtv_psi_sdt_write_into(struct vidtv_psi_sdt_write_args *args);
  * @buf: The destination buffer.
  * @offset: The offset into the destination buffer.
  * @pmt: A pointer to the PMT.
+ * @pid: Program ID
  * @buf_sz: The size of the destination buffer.
  * @continuity_counter: A pointer to the CC. Incremented on every new packet.
- *
+ * @pcr_pid: The TS PID used for the PSI packets. All channels will share the
+ * same PCR.
  */
 struct vidtv_psi_pmt_write_args {
 	char *buf;
@@ -713,7 +714,7 @@ u32 vidtv_psi_nit_write_into(struct vidtv_psi_nit_write_args *args);
 
 void vidtv_psi_nit_table_destroy(struct vidtv_psi_table_nit *nit);
 
-/**
+/*
  * struct vidtv_psi_desc_short_event - A short event descriptor
  * see ETSI EN 300 468 v1.15.1 section 6.2.37
  */
@@ -748,7 +749,7 @@ struct vidtv_psi_table_eit
  * struct vidtv_psi_eit_write_args - Arguments for writing an EIT section
  * @buf: The destination buffer.
  * @offset: The offset into the destination buffer.
- * @nit: A pointer to the NIT
+ * @eit: A pointer to the EIT
  * @buf_sz: The size of the destination buffer.
  * @continuity_counter: A pointer to the CC. Incremented on every new packet.
  *
