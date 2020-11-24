@@ -18,6 +18,9 @@
 #define DR_STE_SVLAN 0x1
 #define DR_STE_CVLAN 0x2
 #define DR_SZ_MATCH_PARAM (MLX5_ST_SZ_DW_MATCH_PARAM * 4)
+#define DR_NUM_OF_FLEX_PARSERS 8
+#define DR_STE_MAX_FLEX_0_ID 3
+#define DR_STE_MAX_FLEX_1_ID 7
 
 #define mlx5dr_err(dmn, arg...) mlx5_core_err((dmn)->mdev, ##arg)
 #define mlx5dr_info(dmn, arg...) mlx5_core_info((dmn)->mdev, ##arg)
@@ -87,7 +90,8 @@ enum mlx5dr_matcher_criteria {
 	DR_MATCHER_CRITERIA_INNER = 1 << 2,
 	DR_MATCHER_CRITERIA_MISC2 = 1 << 3,
 	DR_MATCHER_CRITERIA_MISC3 = 1 << 4,
-	DR_MATCHER_CRITERIA_MAX = 1 << 5,
+	DR_MATCHER_CRITERIA_MISC4 = 1 << 5,
+	DR_MATCHER_CRITERIA_MAX = 1 << 6,
 };
 
 enum mlx5dr_action_type {
@@ -419,6 +423,14 @@ void mlx5dr_ste_build_src_gvmi_qpn(struct mlx5dr_ste_ctx *ste_ctx,
 				   struct mlx5dr_match_param *mask,
 				   struct mlx5dr_domain *dmn,
 				   bool inner, bool rx);
+void mlx5dr_ste_build_flex_parser_0(struct mlx5dr_ste_ctx *ste_ctx,
+				    struct mlx5dr_ste_build *sb,
+				    struct mlx5dr_match_param *mask,
+				    bool inner, bool rx);
+void mlx5dr_ste_build_flex_parser_1(struct mlx5dr_ste_ctx *ste_ctx,
+				    struct mlx5dr_ste_build *sb,
+				    struct mlx5dr_match_param *mask,
+				    bool inner, bool rx);
 void mlx5dr_ste_build_empty_always_hit(struct mlx5dr_ste_build *sb, bool rx);
 
 /* Actions utils */
@@ -649,12 +661,24 @@ struct mlx5dr_match_misc3 {
 	u8 reserved_auto3[0x1c];
 };
 
+struct mlx5dr_match_misc4 {
+	u32 prog_sample_field_value_0;
+	u32 prog_sample_field_id_0;
+	u32 prog_sample_field_value_1;
+	u32 prog_sample_field_id_1;
+	u32 prog_sample_field_value_2;
+	u32 prog_sample_field_id_2;
+	u32 prog_sample_field_value_3;
+	u32 prog_sample_field_id_3;
+};
+
 struct mlx5dr_match_param {
 	struct mlx5dr_match_spec outer;
 	struct mlx5dr_match_misc misc;
 	struct mlx5dr_match_spec inner;
 	struct mlx5dr_match_misc2 misc2;
 	struct mlx5dr_match_misc3 misc3;
+	struct mlx5dr_match_misc4 misc4;
 };
 
 #define DR_MASK_IS_ICMPV4_SET(_misc3) ((_misc3)->icmpv4_type || \

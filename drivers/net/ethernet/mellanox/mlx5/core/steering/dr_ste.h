@@ -95,6 +95,13 @@ enum {
 
 u16 mlx5dr_ste_conv_bit_to_byte_mask(u8 *bit_mask);
 
+static inline u8 *
+dr_ste_calc_flex_parser_offset(u8 *tag, u8 parser_id)
+{
+	/* Calculate tag byte offset based on flex parser id */
+	return tag + 4 * (3 - (parser_id % 4));
+}
+
 #define DR_STE_CTX_BUILDER(fname) \
 	((*build_##fname##_init)(struct mlx5dr_ste_build *sb, \
 				 struct mlx5dr_match_param *mask))
@@ -121,6 +128,8 @@ struct mlx5dr_ste_ctx {
 	void DR_STE_CTX_BUILDER(register_0);
 	void DR_STE_CTX_BUILDER(register_1);
 	void DR_STE_CTX_BUILDER(src_gvmi_qpn);
+	void DR_STE_CTX_BUILDER(flex_parser_0);
+	void DR_STE_CTX_BUILDER(flex_parser_1);
 
 	/* Getters and Setters */
 	void (*ste_init)(u8 *hw_ste_p, u16 lu_type,

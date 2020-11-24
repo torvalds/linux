@@ -854,6 +854,26 @@ static void dr_ste_copy_mask_misc3(char *mask, struct mlx5dr_match_misc3 *spec)
 	spec->icmpv6_code = MLX5_GET(fte_match_set_misc3, mask, icmpv6_code);
 }
 
+static void dr_ste_copy_mask_misc4(char *mask, struct mlx5dr_match_misc4 *spec)
+{
+	spec->prog_sample_field_id_0 =
+		MLX5_GET(fte_match_set_misc4, mask, prog_sample_field_id_0);
+	spec->prog_sample_field_value_0 =
+		MLX5_GET(fte_match_set_misc4, mask, prog_sample_field_value_0);
+	spec->prog_sample_field_id_1 =
+		MLX5_GET(fte_match_set_misc4, mask, prog_sample_field_id_1);
+	spec->prog_sample_field_value_1 =
+		MLX5_GET(fte_match_set_misc4, mask, prog_sample_field_value_1);
+	spec->prog_sample_field_id_2 =
+		MLX5_GET(fte_match_set_misc4, mask, prog_sample_field_id_2);
+	spec->prog_sample_field_value_2 =
+		MLX5_GET(fte_match_set_misc4, mask, prog_sample_field_value_2);
+	spec->prog_sample_field_id_3 =
+		MLX5_GET(fte_match_set_misc4, mask, prog_sample_field_id_3);
+	spec->prog_sample_field_value_3 =
+		MLX5_GET(fte_match_set_misc4, mask, prog_sample_field_value_3);
+}
+
 void mlx5dr_ste_copy_param(u8 match_criteria,
 			   struct mlx5dr_match_param *set_param,
 			   struct mlx5dr_match_parameters *mask)
@@ -924,6 +944,20 @@ void mlx5dr_ste_copy_param(u8 match_criteria,
 			buff = data + param_location;
 		}
 		dr_ste_copy_mask_misc3(buff, &set_param->misc3);
+	}
+
+	param_location += sizeof(struct mlx5dr_match_misc3);
+
+	if (match_criteria & DR_MATCHER_CRITERIA_MISC4) {
+		if (mask->match_sz < param_location +
+		    sizeof(struct mlx5dr_match_misc4)) {
+			memcpy(tail_param, data + param_location,
+			       mask->match_sz - param_location);
+			buff = tail_param;
+		} else {
+			buff = data + param_location;
+		}
+		dr_ste_copy_mask_misc4(buff, &set_param->misc4);
 	}
 }
 
@@ -1146,6 +1180,26 @@ void mlx5dr_ste_build_src_gvmi_qpn(struct mlx5dr_ste_ctx *ste_ctx,
 	sb->dmn = dmn;
 	sb->inner = inner;
 	ste_ctx->build_src_gvmi_qpn_init(sb, mask);
+}
+
+void mlx5dr_ste_build_flex_parser_0(struct mlx5dr_ste_ctx *ste_ctx,
+				    struct mlx5dr_ste_build *sb,
+				    struct mlx5dr_match_param *mask,
+				    bool inner, bool rx)
+{
+	sb->rx = rx;
+	sb->inner = inner;
+	ste_ctx->build_flex_parser_0_init(sb, mask);
+}
+
+void mlx5dr_ste_build_flex_parser_1(struct mlx5dr_ste_ctx *ste_ctx,
+				    struct mlx5dr_ste_build *sb,
+				    struct mlx5dr_match_param *mask,
+				    bool inner, bool rx)
+{
+	sb->rx = rx;
+	sb->inner = inner;
+	ste_ctx->build_flex_parser_1_init(sb, mask);
 }
 
 static struct mlx5dr_ste_ctx *mlx5dr_ste_ctx_arr[] = {
