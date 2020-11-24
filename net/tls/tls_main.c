@@ -521,6 +521,9 @@ static int do_tls_setsockopt_conf(struct sock *sk, sockptr_t optval,
 	case TLS_CIPHER_AES_CCM_128:
 		optsize = sizeof(struct tls12_crypto_info_aes_ccm_128);
 		break;
+	case TLS_CIPHER_CHACHA20_POLY1305:
+		optsize = sizeof(struct tls12_crypto_info_chacha20_poly1305);
+		break;
 	default:
 		rc = -EINVAL;
 		goto err_crypto_info;

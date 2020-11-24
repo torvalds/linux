@@ -2290,6 +2290,7 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 	struct tls12_crypto_info_aes_gcm_128 *gcm_128_info;
 	struct tls12_crypto_info_aes_gcm_256 *gcm_256_info;
 	struct tls12_crypto_info_aes_ccm_128 *ccm_128_info;
+	struct tls12_crypto_info_chacha20_poly1305 *chacha20_poly1305_info;
 	struct tls_sw_context_tx *sw_ctx_tx = NULL;
 	struct tls_sw_context_rx *sw_ctx_rx = NULL;
 	struct cipher_context *cctx;
@@ -2400,6 +2401,21 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 		salt = ccm_128_info->salt;
 		salt_size = TLS_CIPHER_AES_CCM_128_SALT_SIZE;
 		cipher_name = "ccm(aes)";
+		break;
+	}
+	case TLS_CIPHER_CHACHA20_POLY1305: {
+		chacha20_poly1305_info = (void *)crypto_info;
+		nonce_size = 0;
+		tag_size = TLS_CIPHER_CHACHA20_POLY1305_TAG_SIZE;
+		iv_size = TLS_CIPHER_CHACHA20_POLY1305_IV_SIZE;
+		iv = chacha20_poly1305_info->iv;
+		rec_seq_size = TLS_CIPHER_CHACHA20_POLY1305_REC_SEQ_SIZE;
+		rec_seq = chacha20_poly1305_info->rec_seq;
+		keysize = TLS_CIPHER_CHACHA20_POLY1305_KEY_SIZE;
+		key = chacha20_poly1305_info->key;
+		salt = chacha20_poly1305_info->salt;
+		salt_size = TLS_CIPHER_CHACHA20_POLY1305_SALT_SIZE;
+		cipher_name = "rfc7539(chacha20,poly1305)";
 		break;
 	}
 	default:
