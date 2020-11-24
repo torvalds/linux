@@ -170,7 +170,7 @@ err0_out:
 	return -ENOMEM;
 }
 
-/**
+/*
  * This interface just for getting uclk ultimate freq and should't introduce
  * other likewise function result in overmuch callback.
  */
@@ -656,7 +656,7 @@ static int renoir_get_power(struct smu_context *smu, uint32_t *value)
 	return 0;
 }
 
-/**
+/*
  * This interface get dpm clock table for dc
  */
 static int renoir_get_dpm_clock_table(struct smu_context *smu, struct dpm_clocks *clock_table)
