@@ -63,6 +63,8 @@ static inline s64 div_frac(s64 x, s64 y)
  * @trip_max_desired_temperature:	last passive trip point of the thermal
  *					zone.  The temperature we are
  *					controlling for.
+ * @sustainable_power:	Sustainable power (heat) that this thermal zone can
+ *			dissipate
  */
 struct power_allocator_params {
 	bool allocated_tzp;
@@ -70,6 +72,7 @@ struct power_allocator_params {
 	s32 prev_err;
 	int trip_switch_on;
 	int trip_max_desired_temperature;
+	u32 sustainable_power;
 };
 
 /**
@@ -118,10 +121,6 @@ static u32 estimate_sustainable_power(struct thermal_zone_device *tz)
  *
  * This function is used to update the estimation of the PID
  * controller constants in struct thermal_zone_parameters.
- * Sustainable power is provided in case it was estimated.  The
- * estimated sustainable_power should not be stored in the
- * thermal_zone_parameters so it has to be passed explicitly to this
- * function.
  *
  * If @force is not set, the values in the thermal zone's parameters
  * are preserved if they are not zero.  If @force is set, the values
@@ -172,6 +171,42 @@ static void estimate_pid_constants(struct thermal_zone_device *tz,
 }
 
 /**
+ * get_sustainable_power() - Get the right sustainable power
+ * @tz:		thermal zone for which to estimate the constants
+ * @params:	parameters for the power allocator governor
+ * @control_temp:	target temperature for the power allocator governor
+ *
+ * This function is used for getting the proper sustainable power value based
+ * on variables which might be updated by the user sysfs interface. If that
+ * happen the new value is going to be estimated and updated. It is also used
+ * after thermal zone binding, where the initial values where set to 0.
+ */
+static u32 get_sustainable_power(struct thermal_zone_device *tz,
+				 struct power_allocator_params *params,
+				 int control_temp)
+{
+	u32 sustainable_power;
+
+	if (!tz->tzp->sustainable_power)
+		sustainable_power = estimate_sustainable_power(tz);
+	else
+		sustainable_power = tz->tzp->sustainable_power;
+
+	/* Check if it's init value 0 or there was update via sysfs */
+	if (sustainable_power != params->sustainable_power) {
+		estimate_pid_constants(tz, sustainable_power,
+				       params->trip_switch_on, control_temp,
+				       true);
+
+		/* Do the estimation only once and make available in sysfs */
+		tz->tzp->sustainable_power = sustainable_power;
+		params->sustainable_power = sustainable_power;
+	}
+
+	return sustainable_power;
+}
+
+/**
  * pid_controller() - PID controller
  * @tz:	thermal zone we are operating in
  * @control_temp:	the target temperature in millicelsius
@@ -200,14 +235,7 @@ static u32 pid_controller(struct thermal_zone_device *tz,
 
 	max_power_frac = int_to_frac(max_allocatable_power);
 
-	if (tz->tzp->sustainable_power) {
-		sustainable_power = tz->tzp->sustainable_power;
-	} else {
-		sustainable_power = estimate_sustainable_power(tz);
-		estimate_pid_constants(tz, sustainable_power,
-				       params->trip_switch_on, control_temp,
-				       true);
-	}
+	sustainable_power = get_sustainable_power(tz, params, control_temp);
 
 	err = control_temp - tz->temperature;
 	err = int_to_frac(err);
