@@ -203,6 +203,17 @@ static bool program_hpd_filter(const struct dc_link *link)
 	return result;
 }
 
+bool dc_link_wait_for_t12(struct dc_link *link)
+{
+	if (link->connector_signal == SIGNAL_TYPE_EDP && link->dc->hwss.edp_wait_for_T12) {
+		link->dc->hwss.edp_wait_for_T12(link);
+
+		return true;
+	}
+
+	return false;
+}
+
 /**
  * dc_link_detect_sink() - Determine if there is a sink connected
  *

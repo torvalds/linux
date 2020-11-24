@@ -259,6 +259,13 @@ enum dc_status dc_link_reallocate_mst_payload(struct dc_link *link);
 bool dc_link_handle_hpd_rx_irq(struct dc_link *dc_link,
 		union hpd_irq_data *hpd_irq_dpcd_data, bool *out_link_loss);
 
+/*
+ * On eDP links this function call will stall until T12 has elapsed.
+ * If the panel is not in power off state, this function will return
+ * immediately.
+ */
+bool dc_link_wait_for_t12(struct dc_link *link);
+
 enum dc_status read_hpd_rx_irq_data(
 	struct dc_link *link,
 	union hpd_irq_data *irq_data);

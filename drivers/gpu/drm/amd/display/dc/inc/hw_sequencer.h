@@ -54,6 +54,7 @@ struct hw_sequencer_funcs {
 	/* Embedded Display Related */
 	void (*edp_power_control)(struct dc_link *link, bool enable);
 	void (*edp_wait_for_hpd_ready)(struct dc_link *link, bool power_up);
+	void (*edp_wait_for_T12)(struct dc_link *link);
 
 	/* Pipe Programming Related */
 	void (*init_hw)(struct dc *dc);

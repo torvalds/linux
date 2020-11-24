@@ -163,6 +163,8 @@ void dcn10_wait_for_mpcc_disconnect(
 void dce110_edp_backlight_control(
 		struct dc_link *link,
 		bool enable);
+void dce110_edp_wait_for_T12(
+		struct dc_link *link);
 void dce110_edp_power_control(
 		struct dc_link *link,
 		bool power_up);
