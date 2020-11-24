@@ -27,6 +27,11 @@
 #define ASPEED_MCTP_READY "PCIE_READY"
 
 /*
+ * maximum possible number of struct eid_info elements stored in list
+ */
+#define ASPEED_MCTP_EID_INFO_MAX 256
+
+/*
  * MCTP operations
  * @ASPEED_MCTP_IOCTL_FILTER_EID: enable/disable filter incoming packets based
  * on Endpoint ID (BROKEN)
@@ -41,6 +46,10 @@
  * messages of specified MCTP type or PCI vendor defined type
  * @ASPEED_MCTP_IOCTL_UNREGISTER_TYPE_HANDLER Unregister client as handler
  * for specified MCTP type or PCI vendor defined message type
+ * @ASPEED_MCTP_GET_EID_INFO: read list of existing endpoint mappings
+ * returns count which is less of the two requested count and existing count
+ * @ASPEED_MCTP_SET_EID_INFO: write list of endpoint mappings
+ * overwrites already existing endpoint mappings
  */
 
 struct aspeed_mctp_filter_eid {
@@ -68,6 +77,22 @@ struct aspeed_mctp_type_handler_ioctl {
 	__u16 vendor_type_mask; /* Mask applied to vendor type */
 };
 
+struct aspeed_mctp_eid_info {
+	__u8 eid;
+	__u16 bdf;
+};
+
+struct aspeed_mctp_get_eid_info {
+	__u64 ptr;
+	__u16 count;
+	__u8 start_eid;
+};
+
+struct aspeed_mctp_set_eid_info {
+	__u64 ptr;
+	__u16 count;
+};
+
 #define ASPEED_MCTP_IOCTL_BASE	0x4d
 
 #define ASPEED_MCTP_IOCTL_FILTER_EID \
@@ -84,5 +109,9 @@ struct aspeed_mctp_type_handler_ioctl {
 	_IOW(ASPEED_MCTP_IOCTL_BASE, 6, struct aspeed_mctp_type_handler_ioctl)
 #define ASPEED_MCTP_IOCTL_UNREGISTER_TYPE_HANDLER \
 	_IOW(ASPEED_MCTP_IOCTL_BASE, 7, struct aspeed_mctp_type_handler_ioctl)
+#define ASPEED_MCTP_IOCTL_GET_EID_INFO \
+	_IOWR(ASPEED_MCTP_IOCTL_BASE, 8, struct aspeed_mctp_get_eid_info)
+#define ASPEED_MCTP_IOCTL_SET_EID_INFO \
+	_IOW(ASPEED_MCTP_IOCTL_BASE, 9, struct aspeed_mctp_set_eid_info)
 
 #endif /* _UAPI_LINUX_ASPEED_MCTP_H */

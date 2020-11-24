@@ -8,10 +8,12 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/list_sort.h>
 #include <linux/mfd/syscon.h>
 #include <linux/miscdevice.h>
 #include <linux/mm.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/of_platform.h>
 #include <linux/pci.h>
 #include <linux/poll.h>
@@ -187,6 +189,12 @@ struct aspeed_mctp {
 	 * and default client
 	 */
 	spinlock_t clients_lock;
+	struct list_head endpoints;
+	size_t endpoints_count;
+	/*
+	 * endpoints_lock protects list of endpoints
+	 */
+	struct mutex endpoints_lock;
 	struct {
 		struct regmap *map;
 		struct delayed_work rst_dwork;
@@ -211,6 +219,11 @@ struct mctp_type_handler {
 	u16 vdm_type;
 	u16 vdm_mask;
 	struct mctp_client *client;
+	struct list_head link;
+};
+
+struct aspeed_mctp_endpoint {
+	struct aspeed_mctp_eid_info data;
 	struct list_head link;
 };
 
@@ -868,6 +881,160 @@ aspeed_mctp_get_mtu(struct aspeed_mctp *priv, void __user *userbuf)
 	return 0;
 }
 
+static int
+aspeed_mctp_get_eid_info(struct aspeed_mctp *priv, void __user *userbuf)
+{
+	int count = 0;
+	int ret = 0;
+	struct aspeed_mctp_get_eid_info get_eid;
+	struct aspeed_mctp_endpoint *endpoint;
+	struct aspeed_mctp_eid_info *user_ptr;
+	size_t count_to_copy;
+
+	if (copy_from_user(&get_eid, userbuf, sizeof(get_eid))) {
+		dev_err(priv->dev, "copy from user failed\n");
+		return -EFAULT;
+	}
+
+	mutex_lock(&priv->endpoints_lock);
+
+	if (get_eid.count == 0) {
+		count = priv->endpoints_count;
+		goto out_unlock;
+	}
+
+	user_ptr = u64_to_user_ptr(get_eid.ptr);
+	count_to_copy = get_eid.count > priv->endpoints_count ?
+					priv->endpoints_count : get_eid.count;
+	list_for_each_entry(endpoint, &priv->endpoints, link) {
+		if (endpoint->data.eid < get_eid.start_eid)
+			continue;
+		if (count >= count_to_copy)
+			break;
+		if (copy_to_user(&user_ptr[count], &endpoint->data, sizeof(*user_ptr))) {
+			dev_err(priv->dev, "copy to user failed\n");
+			ret = -EFAULT;
+			goto out_unlock;
+		}
+		count++;
+	}
+
+out_unlock:
+	get_eid.count = count;
+	if (copy_to_user(userbuf, &get_eid, sizeof(get_eid))) {
+		dev_err(priv->dev, "copy to user failed\n");
+		ret = -EFAULT;
+	}
+
+	mutex_unlock(&priv->endpoints_lock);
+	return ret;
+}
+
+static int
+eid_info_cmp(void *priv, struct list_head *a, struct list_head *b)
+{
+	struct aspeed_mctp_endpoint *endpoint_a;
+	struct aspeed_mctp_endpoint *endpoint_b;
+
+	if (a == b)
+		return 0;
+
+	endpoint_a = list_entry(a, typeof(*endpoint_a), link);
+	endpoint_b = list_entry(b, typeof(*endpoint_b), link);
+
+	if (endpoint_a->data.eid < endpoint_b->data.eid)
+		return -1;
+	else if (endpoint_a->data.eid > endpoint_b->data.eid)
+		return 1;
+
+	return 0;
+}
+
+static void aspeed_mctp_eid_info_list_remove(struct list_head *list)
+{
+	struct aspeed_mctp_endpoint *endpoint;
+	struct aspeed_mctp_endpoint *tmp;
+
+	list_for_each_entry_safe(endpoint, tmp, list, link) {
+		list_del(&endpoint->link);
+		kfree(endpoint);
+	}
+}
+
+static bool
+aspeed_mctp_eid_info_list_valid(struct list_head *list)
+{
+	struct aspeed_mctp_endpoint *endpoint;
+	struct aspeed_mctp_endpoint *next;
+
+	list_for_each_entry(endpoint, list, link) {
+		next = list_next_entry(endpoint, link);
+		if (&next->link == list)
+			break;
+
+		/* duplicted eids */
+		if (next->data.eid == endpoint->data.eid)
+			return false;
+	}
+
+	return true;
+}
+
+static int
+aspeed_mctp_set_eid_info(struct aspeed_mctp *priv, void __user *userbuf)
+{
+	struct list_head list = LIST_HEAD_INIT(list);
+	int ret = 0;
+	struct aspeed_mctp_set_eid_info set_eid;
+	struct aspeed_mctp_eid_info *user_ptr;
+	struct aspeed_mctp_endpoint *endpoint;
+	size_t i;
+
+	if (copy_from_user(&set_eid, userbuf, sizeof(set_eid))) {
+		dev_err(priv->dev, "copy from user failed\n");
+		return -EFAULT;
+	}
+
+	if (set_eid.count > ASPEED_MCTP_EID_INFO_MAX)
+		return -EINVAL;
+
+	user_ptr = u64_to_user_ptr(set_eid.ptr);
+	for (i = 0; i < set_eid.count; i++) {
+		endpoint = kzalloc(sizeof(*endpoint), GFP_KERNEL);
+		if (!endpoint) {
+			ret = -ENOMEM;
+			goto out;
+		}
+
+		if (copy_from_user(&endpoint->data, &user_ptr[i],
+				   sizeof(*user_ptr))) {
+			dev_err(priv->dev, "copy from user failed\n");
+			kfree(endpoint);
+			ret = -EFAULT;
+			goto out;
+		}
+
+		list_add_tail(&endpoint->link, &list);
+	}
+
+	list_sort(NULL, &list, &eid_info_cmp);
+	if (!aspeed_mctp_eid_info_list_valid(&list)) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	mutex_lock(&priv->endpoints_lock);
+	if (list_empty(&priv->endpoints))
+		list_splice_init(&list, &priv->endpoints);
+	else
+		list_swap(&list, &priv->endpoints);
+	priv->endpoints_count = set_eid.count;
+	mutex_unlock(&priv->endpoints_lock);
+out:
+	aspeed_mctp_eid_info_list_remove(&list);
+	return ret;
+}
+
 static long
 aspeed_mctp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
@@ -903,6 +1070,14 @@ aspeed_mctp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	case ASPEED_MCTP_IOCTL_UNREGISTER_TYPE_HANDLER:
 		ret = aspeed_mctp_unregister_type_handler(client, userbuf);
+	break;
+
+	case ASPEED_MCTP_IOCTL_GET_EID_INFO:
+		ret = aspeed_mctp_get_eid_info(priv, userbuf);
+	break;
+
+	case ASPEED_MCTP_IOCTL_SET_EID_INFO:
+		ret = aspeed_mctp_set_eid_info(priv, userbuf);
 	break;
 
 	default:
@@ -1109,8 +1284,10 @@ static void aspeed_mctp_drv_init(struct aspeed_mctp *priv)
 {
 	INIT_LIST_HEAD(&priv->clients);
 	INIT_LIST_HEAD(&priv->mctp_type_handlers);
+	INIT_LIST_HEAD(&priv->endpoints);
 
 	spin_lock_init(&priv->clients_lock);
+	mutex_init(&priv->endpoints_lock);
 
 	INIT_DELAYED_WORK(&priv->pcie.rst_dwork, aspeed_mctp_reset_work);
 
@@ -1122,6 +1299,7 @@ static void aspeed_mctp_drv_init(struct aspeed_mctp *priv)
 
 static void aspeed_mctp_drv_fini(struct aspeed_mctp *priv)
 {
+	aspeed_mctp_eid_info_list_remove(&priv->endpoints);
 	tasklet_disable(&priv->tx.tasklet);
 	tasklet_kill(&priv->tx.tasklet);
 	tasklet_disable(&priv->rx.tasklet);
