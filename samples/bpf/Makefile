@@ -82,7 +82,7 @@ test_overhead-objs := bpf_load.o test_overhead_user.o
 test_cgrp2_array_pin-objs := test_cgrp2_array_pin.o
 test_cgrp2_attach-objs := test_cgrp2_attach.o
 test_cgrp2_sock-objs := test_cgrp2_sock.o
-test_cgrp2_sock2-objs := bpf_load.o test_cgrp2_sock2.o
+test_cgrp2_sock2-objs := test_cgrp2_sock2.o
 xdp1-objs := xdp1_user.o
 # reuse xdp1 source intentionally
 xdp2-objs := xdp1_user.o
