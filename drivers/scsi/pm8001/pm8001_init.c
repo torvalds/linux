@@ -386,17 +386,17 @@ static int pm8001_alloc(struct pm8001_hba_info *pm8001_ha,
 	pm8001_ha->memoryMap.region[FORENSIC_MEM].element_size = 0x10000;
 	pm8001_ha->memoryMap.region[FORENSIC_MEM].alignment = 0x10000;
 	for (i = 0; i < pm8001_ha->max_memcnt; i++) {
+		struct mpi_mem *region = &pm8001_ha->memoryMap.region[i];
+
 		if (pm8001_mem_alloc(pm8001_ha->pdev,
-			&pm8001_ha->memoryMap.region[i].virt_ptr,
-			&pm8001_ha->memoryMap.region[i].phys_addr,
-			&pm8001_ha->memoryMap.region[i].phys_addr_hi,
-			&pm8001_ha->memoryMap.region[i].phys_addr_lo,
-			pm8001_ha->memoryMap.region[i].total_len,
-			pm8001_ha->memoryMap.region[i].alignment) != 0) {
-			pm8001_dbg(pm8001_ha, FAIL,
-				   "Mem%d alloc failed\n",
-				   i);
-				goto err_out;
+				     &region->virt_ptr,
+				     &region->phys_addr,
+				     &region->phys_addr_hi,
+				     &region->phys_addr_lo,
+				     region->total_len,
+				     region->alignment) != 0) {
+			pm8001_dbg(pm8001_ha, FAIL, "Mem%d alloc failed\n", i);
+			goto err_out;
 		}
 	}
 
