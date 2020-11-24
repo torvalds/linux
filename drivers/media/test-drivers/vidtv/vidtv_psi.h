@@ -709,7 +709,7 @@ struct vidtv_psi_nit_write_args {
  * equal to the size of the NIT, since more space is needed for TS headers during TS
  * encapsulation.
  */
-u32 vidtv_psi_nit_write_into(struct vidtv_psi_nit_write_args args);
+u32 vidtv_psi_nit_write_into(struct vidtv_psi_nit_write_args *args);
 
 void vidtv_psi_nit_table_destroy(struct vidtv_psi_table_nit *nit);
 

@@ -1647,53 +1647,60 @@ free_nit:
 	return NULL;
 }
 
-u32 vidtv_psi_nit_write_into(struct vidtv_psi_nit_write_args args)
+u32 vidtv_psi_nit_write_into(struct vidtv_psi_nit_write_args *args)
 {
-	struct vidtv_psi_desc *table_descriptor     = args.nit->descriptor;
-	struct vidtv_psi_table_transport *transport = args.nit->transport;
+	struct header_write_args h_args = {
+		.dest_buf           = args->buf,
+		.dest_offset        = args->offset,
+		.h                  = &args->nit->header,
+		.pid                = VIDTV_NIT_PID,
+		.dest_buf_sz        = args->buf_sz,
+	};
+	struct psi_write_args psi_args  = {
+		.dest_buf           = args->buf,
+		.from               = &args->nit->bitfield,
+		.len                = sizeof_field(struct vidtv_psi_table_nit, bitfield),
+		.pid                = VIDTV_NIT_PID,
+		.new_psi_section    = false,
+		.is_crc             = false,
+		.dest_buf_sz        = args->buf_sz,
+	};
+	struct desc_write_args d_args   = {
+		.dest_buf           = args->buf,
+		.pid                = VIDTV_NIT_PID,
+		.dest_buf_sz        = args->buf_sz,
+	};
+	struct crc32_write_args c_args  = {
+		.dest_buf           = args->buf,
+		.pid                = VIDTV_NIT_PID,
+		.dest_buf_sz        = args->buf_sz,
+	};
+	struct vidtv_psi_desc *table_descriptor     = args->nit->descriptor;
+	struct vidtv_psi_table_transport *transport = args->nit->transport;
 	struct vidtv_psi_desc *transport_descriptor;
-	struct header_write_args h_args = {};
-	struct psi_write_args psi_args  = {};
-	struct desc_write_args d_args   = {};
-	struct crc32_write_args c_args  = {};
 	u32 crc = INITIAL_CRC;
 	u32 nbytes = 0;
 
-	vidtv_psi_nit_table_update_sec_len(args.nit);
+	vidtv_psi_nit_table_update_sec_len(args->nit);
 
-	h_args.dest_buf           = args.buf;
-	h_args.dest_offset        = args.offset;
-	h_args.h                  = &args.nit->header;
-	h_args.pid                = VIDTV_NIT_PID;
-	h_args.continuity_counter = args.continuity_counter;
-	h_args.dest_buf_sz        = args.buf_sz;
+	h_args.continuity_counter = args->continuity_counter;
 	h_args.crc                = &crc;
 
 	nbytes += vidtv_psi_table_header_write_into(&h_args);
 
 	/* write the bitfield */
-	psi_args.dest_buf = args.buf;
-	psi_args.from     = &args.nit->bitfield;
-	psi_args.len      = sizeof_field(struct vidtv_psi_table_nit, bitfield);
 
-	psi_args.dest_offset        = args.offset + nbytes;
-	psi_args.pid                = VIDTV_NIT_PID;
-	psi_args.new_psi_section    = false;
-	psi_args.continuity_counter = args.continuity_counter;
-	psi_args.is_crc             = false;
-	psi_args.dest_buf_sz        = args.buf_sz;
+	psi_args.dest_offset        = args->offset + nbytes;
+	psi_args.continuity_counter = args->continuity_counter;
 	psi_args.crc                = &crc;
 
 	nbytes += vidtv_psi_ts_psi_write_into(&psi_args);
 
 	while (table_descriptor) {
 		/* write the descriptors, if any */
-		d_args.dest_buf           = args.buf;
-		d_args.dest_offset        = args.offset + nbytes;
+		d_args.dest_offset        = args->offset + nbytes;
 		d_args.desc               = table_descriptor;
-		d_args.pid                = VIDTV_NIT_PID;
-		d_args.continuity_counter = args.continuity_counter;
-		d_args.dest_buf_sz        = args.buf_sz;
+		d_args.continuity_counter = args->continuity_counter;
 		d_args.crc                = &crc;
 
 		nbytes += vidtv_psi_desc_write_into(&d_args);
@@ -1702,21 +1709,19 @@ u32 vidtv_psi_nit_write_into(struct vidtv_psi_nit_write_args args)
 	}
 
 	/* write the second bitfield */
-	psi_args.dest_buf = args.buf;
-	psi_args.from = &args.nit->bitfield2;
+	psi_args.from = &args->nit->bitfield2;
 	psi_args.len = sizeof_field(struct vidtv_psi_table_nit, bitfield2);
-	psi_args.dest_offset = args.offset + nbytes;
-	psi_args.pid = VIDTV_NIT_PID;
+	psi_args.dest_offset = args->offset + nbytes;
 
 	nbytes += vidtv_psi_ts_psi_write_into(&psi_args);
 
+	psi_args.len  = sizeof_field(struct vidtv_psi_table_transport, transport_id) +
+			sizeof_field(struct vidtv_psi_table_transport, network_id)   +
+			sizeof_field(struct vidtv_psi_table_transport, bitfield);
 	while (transport) {
 		/* write the transport sections, if any */
 		psi_args.from = transport;
-		psi_args.len  = sizeof_field(struct vidtv_psi_table_transport, transport_id) +
-				sizeof_field(struct vidtv_psi_table_transport, network_id)   +
-				sizeof_field(struct vidtv_psi_table_transport, bitfield);
-		psi_args.dest_offset = args.offset + nbytes;
+		psi_args.dest_offset = args->offset + nbytes;
 
 		nbytes += vidtv_psi_ts_psi_write_into(&psi_args);
 
@@ -1724,12 +1729,9 @@ u32 vidtv_psi_nit_write_into(struct vidtv_psi_nit_write_args args)
 
 		while (transport_descriptor) {
 			/* write the transport descriptors, if any */
-			d_args.dest_buf           = args.buf;
-			d_args.dest_offset        = args.offset + nbytes;
+			d_args.dest_offset        = args->offset + nbytes;
 			d_args.desc               = transport_descriptor;
-			d_args.pid                = VIDTV_NIT_PID;
-			d_args.continuity_counter = args.continuity_counter;
-			d_args.dest_buf_sz        = args.buf_sz;
+			d_args.continuity_counter = args->continuity_counter;
 			d_args.crc                = &crc;
 
 			nbytes += vidtv_psi_desc_write_into(&d_args);
@@ -1740,12 +1742,9 @@ u32 vidtv_psi_nit_write_into(struct vidtv_psi_nit_write_args args)
 		transport = transport->next;
 	}
 
-	c_args.dest_buf           = args.buf;
-	c_args.dest_offset        = args.offset + nbytes;
+	c_args.dest_offset        = args->offset + nbytes;
 	c_args.crc                = cpu_to_be32(crc);
-	c_args.pid                = VIDTV_NIT_PID;
-	c_args.continuity_counter = args.continuity_counter;
-	c_args.dest_buf_sz        = args.buf_sz;
+	c_args.continuity_counter = args->continuity_counter;
 
 	/* Write the CRC32 at the end */
 	nbytes += table_section_crc32_write_into(&c_args);
