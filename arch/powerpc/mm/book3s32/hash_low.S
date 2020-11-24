@@ -26,6 +26,12 @@
 #include <asm/feature-fixups.h>
 #include <asm/code-patching-asm.h>
 
+#ifdef CONFIG_PTE_64BIT
+#define PTE_FLAGS_OFFSET	4	/* offset of PTE flags, in bytes */
+#else
+#define PTE_FLAGS_OFFSET	0
+#endif
+
 /*
  * Load a PTE into the hash table, if possible.
  * The address is in r4, and r3 contains an access flag:
@@ -88,6 +94,11 @@ _GLOBAL(hash_page)
 	rlwimi	r8,r4,22,20,29		/* insert next 10 bits of address */
 #else
 	rlwimi	r8,r4,23,20,28		/* compute pte address */
+	/*
+	 * If PTE_64BIT is set, the low word is the flags word; use that
+	 * word for locking since it contains all the interesting bits.
+	 */
+	addi	r8,r8,PTE_FLAGS_OFFSET
 #endif
 
 	/*
@@ -95,13 +106,7 @@ _GLOBAL(hash_page)
 	 * because almost always, there won't be a permission violation
 	 * and there won't already be an HPTE, and thus we will have
 	 * to update the PTE to set _PAGE_HASHPTE.  -- paulus.
-	 *
-	 * If PTE_64BIT is set, the low word is the flags word; use that
-	 * word for locking since it contains all the interesting bits.
 	 */
-#if (PTE_FLAGS_OFFSET != 0)
-	addi	r8,r8,PTE_FLAGS_OFFSET
-#endif
 .Lretry:
 	lwarx	r6,0,r8			/* get linux-style pte, flag word */
 #ifdef CONFIG_PPC_KUAP
@@ -489,8 +494,9 @@ _GLOBAL(flush_hash_pages)
 	rlwimi	r5,r4,22,20,29
 #else
 	rlwimi	r5,r4,23,20,28
+	addi	r5,r5,PTE_FLAGS_OFFSET
 #endif
-1:	lwz	r0,PTE_FLAGS_OFFSET(r5)
+1:	lwz	r0,0(r5)
 	cmpwi	cr1,r6,1
 	andi.	r0,r0,_PAGE_HASHPTE
 	bne	2f
@@ -534,9 +540,6 @@ _GLOBAL(flush_hash_pages)
 	 * already clear, we're done (for this pte).  If not,
 	 * clear it (atomically) and proceed.  -- paulus.
 	 */
-#if (PTE_FLAGS_OFFSET != 0)
-	addi	r5,r5,PTE_FLAGS_OFFSET
-#endif
 33:	lwarx	r8,0,r5			/* fetch the pte flags word */
 	andi.	r0,r8,_PAGE_HASHPTE
 	beq	8f			/* done if HASHPTE is already clear */
