@@ -1387,8 +1387,7 @@ static void commit_checkpoint(struct f2fs_sb_info *sbi,
 
 static inline u64 get_sectors_written(struct block_device *bdev)
 {
-	return bdev->bd_part ?
-		(u64)part_stat_read(bdev->bd_part, sectors[STAT_WRITE]) : 0;
+	return (u64)part_stat_read(bdev->bd_part, sectors[STAT_WRITE]);
 }
 
 u64 f2fs_get_sectors_written(struct f2fs_sb_info *sbi)
