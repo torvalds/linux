@@ -207,6 +207,40 @@
 	};
 	cif {
 		/omit-if-no-ref/
+		cif_clkout: cif-clkout {
+			rockchip,pins =
+				/* cif_clkout */
+				<4 RK_PC0 RK_FUNC_1 &pcfg_pull_none>;
+		};
+		/omit-if-no-ref/
+		cif_dvp_8bit: cif-dvp-8bit {
+			rockchip,pins =
+				/* cif_d8 */
+				<3 RK_PD6 1 &pcfg_pull_none>,
+				/* cif_d9 */
+				<3 RK_PD7 1 &pcfg_pull_none>,
+				/* cif_d10 */
+				<4 RK_PA0 1 &pcfg_pull_none>,
+				/* cif_d11 */
+				<4 RK_PA1 1 &pcfg_pull_none>,
+				/* cif_d12 */
+				<4 RK_PA2 1 &pcfg_pull_none>,
+				/* cif_d13 */
+				<4 RK_PA3 1 &pcfg_pull_none>,
+				/* cif_d14 */
+				<4 RK_PA4 1 &pcfg_pull_none>,
+				/* cif_d15 */
+				<4 RK_PA5 1 &pcfg_pull_none>,
+				/* cif_href */
+				<4 RK_PB6 1 &pcfg_pull_none>,
+				/* cif_vsync */
+				<4 RK_PB7 1 &pcfg_pull_none>,
+				/* cif_clkin */
+				<4 RK_PC1 1 &pcfg_pull_none>,
+				/* cif_clkout */
+				<4 RK_PC0 1 &pcfg_pull_none>;
+		};
+		/omit-if-no-ref/
 		cif_dvp_ctl: cif-dvp_ctl {
 			rockchip,pins =
 				/* cif_clkin */
