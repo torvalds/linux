@@ -1464,7 +1464,8 @@ static int decrypt_internal(struct sock *sk, struct sk_buff *skb,
 		kfree(mem);
 		return err;
 	}
-	if (prot->version == TLS_1_3_VERSION)
+	if (prot->version == TLS_1_3_VERSION ||
+	    prot->cipher_type == TLS_CIPHER_CHACHA20_POLY1305)
 		memcpy(iv + iv_offset, tls_ctx->rx.iv,
 		       crypto_aead_ivsize(ctx->aead_recv));
 	else
@@ -2068,7 +2069,8 @@ static int tls_read_size(struct strparser *strp, struct sk_buff *skb)
 	data_len = ((header[4] & 0xFF) | (header[3] << 8));
 
 	cipher_overhead = prot->tag_size;
-	if (prot->version != TLS_1_3_VERSION)
+	if (prot->version != TLS_1_3_VERSION &&
+	    prot->cipher_type != TLS_CIPHER_CHACHA20_POLY1305)
 		cipher_overhead += prot->iv_size;
 
 	if (data_len > TLS_MAX_PAYLOAD_SIZE + cipher_overhead +

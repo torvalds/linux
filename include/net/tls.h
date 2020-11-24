@@ -502,7 +502,8 @@ static inline void tls_advance_record_sn(struct sock *sk,
 	if (tls_bigint_increment(ctx->rec_seq, prot->rec_seq_size))
 		tls_err_abort(sk, EBADMSG);
 
-	if (prot->version != TLS_1_3_VERSION)
+	if (prot->version != TLS_1_3_VERSION &&
+	    prot->cipher_type != TLS_CIPHER_CHACHA20_POLY1305)
 		tls_bigint_increment(ctx->iv + prot->salt_size,
 				     prot->iv_size);
 }
@@ -516,7 +517,8 @@ static inline void tls_fill_prepend(struct tls_context *ctx,
 	size_t pkt_len, iv_size = prot->iv_size;
 
 	pkt_len = plaintext_len + prot->tag_size;
-	if (prot->version != TLS_1_3_VERSION) {
+	if (prot->version != TLS_1_3_VERSION &&
+	    prot->cipher_type != TLS_CIPHER_CHACHA20_POLY1305) {
 		pkt_len += iv_size;
 
 		memcpy(buf + TLS_NONCE_OFFSET,
@@ -561,7 +563,8 @@ static inline void xor_iv_with_seq(struct tls_prot_info *prot, char *iv, char *s
 {
 	int i;
 
-	if (prot->version == TLS_1_3_VERSION) {
+	if (prot->version == TLS_1_3_VERSION ||
+	    prot->cipher_type == TLS_CIPHER_CHACHA20_POLY1305) {
 		for (i = 0; i < 8; i++)
 			iv[i + 4] ^= seq[i];
 	}
