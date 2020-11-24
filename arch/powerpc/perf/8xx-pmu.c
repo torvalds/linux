@@ -153,10 +153,7 @@ static void mpc8xx_pmu_read(struct perf_event *event)
 
 static void mpc8xx_pmu_del(struct perf_event *event, int flags)
 {
-	struct ppc_inst insn;
-
-	/* mfspr r10, SPRN_SPRG_SCRATCH2 */
-	insn = ppc_inst(PPC_INST_MFSPR | __PPC_RS(R10) | __PPC_SPR(SPRN_SPRG_SCRATCH2));
+	struct ppc_inst insn = ppc_inst(PPC_RAW_MFSPR(10, SPRN_SPRG_SCRATCH2));
 
 	mpc8xx_pmu_read(event);
 
