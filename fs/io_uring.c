@@ -9252,14 +9252,16 @@ static int io_uring_create(unsigned entries, struct io_uring_params *p,
 		 * to a power-of-two, if it isn't already. We do NOT impose
 		 * any cq vs sq ring sizing.
 		 */
-		p->cq_entries = roundup_pow_of_two(p->cq_entries);
-		if (p->cq_entries < p->sq_entries)
+		if (!p->cq_entries)
 			return -EINVAL;
 		if (p->cq_entries > IORING_MAX_CQ_ENTRIES) {
 			if (!(p->flags & IORING_SETUP_CLAMP))
 				return -EINVAL;
 			p->cq_entries = IORING_MAX_CQ_ENTRIES;
 		}
+		p->cq_entries = roundup_pow_of_two(p->cq_entries);
+		if (p->cq_entries < p->sq_entries)
+			return -EINVAL;
 	} else {
 		p->cq_entries = 2 * p->sq_entries;
 	}
