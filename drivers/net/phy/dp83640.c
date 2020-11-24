@@ -972,15 +972,12 @@ static void decode_status_frame(struct dp83640_private *dp83640,
 static int is_sync(struct sk_buff *skb, int type)
 {
 	struct ptp_header *hdr;
-	u8 msgtype;
 
 	hdr = ptp_parse_header(skb, type);
 	if (!hdr)
 		return 0;
 
-	msgtype = ptp_get_msgtype(hdr, type);
-
-	return (msgtype & 0xf) == 0;
+	return ptp_get_msgtype(hdr, type) == PTP_MSGTYPE_SYNC;
 }
 
 static void dp83640_free_clocks(void)
