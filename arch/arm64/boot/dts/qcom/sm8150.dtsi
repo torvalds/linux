@@ -983,13 +983,6 @@
 			};
 		};
 
-		camnoc_virt: interconnect@ac00000 {
-			compatible = "qcom,sm8150-camnoc-virt";
-			reg = <0 0x0ac00000 0 0x1000>;
-			#interconnect-cells = <1>;
-			qcom,bcm-voters = <&apps_bcm_voter>;
-		};
-
 		usb_2: usb@a8f8800 {
 			compatible = "qcom,sm8150-dwc3", "qcom,dwc3";
 			reg = <0 0x0a8f8800 0 0x400>;
@@ -1033,6 +1026,13 @@
 				phys = <&usb_2_hsphy>, <&usb_2_ssphy>;
 				phy-names = "usb2-phy", "usb3-phy";
 			};
+		};
+
+		camnoc_virt: interconnect@ac00000 {
+			compatible = "qcom,sm8150-camnoc-virt";
+			reg = <0 0x0ac00000 0 0x1000>;
+			#interconnect-cells = <1>;
+			qcom,bcm-voters = <&apps_bcm_voter>;
 		};
 
 		aoss_qmp: power-controller@c300000 {
