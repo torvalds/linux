@@ -659,9 +659,15 @@ config IRQ_ALL_CPUS
 	  reported with SMP Power Macintoshes with this option enabled.
 
 config NUMA
-	bool "NUMA support"
+	bool "NUMA Memory Allocation and Scheduler Support"
 	depends on PPC64 && SMP
 	default y if PPC_PSERIES || PPC_POWERNV
+	help
+	  Enable NUMA (Non-Uniform Memory Access) support.
+
+	  The kernel will try to allocate memory used by a CPU on the
+	  local memory controller of the CPU and add some more
+	  NUMA awareness to the kernel.
 
 config NODES_SHIFT
 	int
