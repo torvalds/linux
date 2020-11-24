@@ -621,7 +621,7 @@ struct vidtv_psi_pmt_write_args {
  * equal to the size of the PMT section, since more space is needed for TS headers
  * during TS encapsulation.
  */
-u32 vidtv_psi_pmt_write_into(struct vidtv_psi_pmt_write_args args);
+u32 vidtv_psi_pmt_write_into(struct vidtv_psi_pmt_write_args *args);
 
 /**
  * vidtv_psi_find_pmt_sec - Finds the PMT section for 'program_num'

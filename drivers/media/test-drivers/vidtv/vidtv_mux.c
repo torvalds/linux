@@ -193,7 +193,7 @@ static u32 vidtv_mux_push_si(struct vidtv_mux *m)
 		pmt_args.continuity_counter = &pmt_ctx->cc;
 
 		/* write each section into buffer */
-		m->mux_buf_offset += vidtv_psi_pmt_write_into(pmt_args);
+		m->mux_buf_offset += vidtv_psi_pmt_write_into(&pmt_args);
 	}
 
 	sdt_args.offset             = m->mux_buf_offset;
