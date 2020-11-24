@@ -70,14 +70,14 @@
 #define PM8001_DEVIO_LOGGING	0x100 /* development io message logging */
 #define PM8001_IOERR_LOGGING	0x200 /* development io err message logging */
 
-#define pm8001_printk(HBA, fmt, ...)					\
+#define pm8001_info(HBA, fmt, ...)					\
 	pr_info("%s:: %s  %d:" fmt,					\
 		(HBA)->name, __func__, __LINE__, ##__VA_ARGS__)
 
 #define pm8001_dbg(HBA, level, fmt, ...)				\
 do {									\
 	if (unlikely((HBA)->logging_level & PM8001_##level##_LOGGING))	\
-		pm8001_printk(HBA, fmt, ##__VA_ARGS__);			\
+		pm8001_info(HBA, fmt, ##__VA_ARGS__);			\
 } while (0)
 
 #define PM8001_USE_TASKLET

@@ -1290,7 +1290,7 @@ static int __maybe_unused pm8001_pci_suspend(struct device *dev)
 		for (j = 0; j < PM8001_MAX_MSIX_VEC; j++)
 			tasklet_kill(&pm8001_ha->tasklet[j]);
 #endif
-	pm8001_printk(pm8001_ha, "pdev=0x%p, slot=%s, entering "
+	pm8001_info(pm8001_ha, "pdev=0x%p, slot=%s, entering "
 		      "suspended state\n", pdev,
 		      pm8001_ha->name);
 	return 0;
@@ -1314,7 +1314,7 @@ static int __maybe_unused pm8001_pci_resume(struct device *dev)
 	pm8001_ha = sha->lldd_ha;
 	device_state = pdev->current_state;
 
-	pm8001_printk(pm8001_ha, "pdev=0x%p, slot=%s, resuming from previous operating state [D%d]\n",
+	pm8001_info(pm8001_ha, "pdev=0x%p, slot=%s, resuming from previous operating state [D%d]\n",
 		      pdev, pm8001_ha->name, device_state);
 
 	rc = pci_go_44(pdev);
