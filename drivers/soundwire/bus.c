@@ -1280,7 +1280,7 @@ static int sdw_initialize_slave(struct sdw_slave *slave)
 
 static int sdw_handle_dp0_interrupt(struct sdw_slave *slave, u8 *slave_status)
 {
-	u8 clear = 0, impl_int_mask;
+	u8 clear, impl_int_mask;
 	int status, status2, ret, count = 0;
 
 	status = sdw_read(slave, SDW_DP0_INT);
@@ -1291,6 +1291,8 @@ static int sdw_handle_dp0_interrupt(struct sdw_slave *slave, u8 *slave_status)
 	}
 
 	do {
+		clear = status & ~SDW_DP0_INTERRUPTS;
+
 		if (status & SDW_DP0_INT_TEST_FAIL) {
 			dev_err(&slave->dev, "Test fail for port 0\n");
 			clear |= SDW_DP0_INT_TEST_FAIL;
@@ -1319,7 +1321,7 @@ static int sdw_handle_dp0_interrupt(struct sdw_slave *slave, u8 *slave_status)
 			*slave_status = clear;
 		}
 
-		/* clear the interrupt */
+		/* clear the interrupts but don't touch reserved and SDCA_CASCADE fields */
 		ret = sdw_write(slave, SDW_DP0_INT, clear);
 		if (ret < 0) {
 			dev_err(slave->bus->dev,
@@ -1340,7 +1342,7 @@ static int sdw_handle_dp0_interrupt(struct sdw_slave *slave, u8 *slave_status)
 		count++;
 
 		/* we can get alerts while processing so keep retrying */
-	} while (status != 0 && count < SDW_READ_INTR_CLEAR_RETRY);
+	} while ((status & SDW_DP0_INTERRUPTS) && (count < SDW_READ_INTR_CLEAR_RETRY));
 
 	if (count == SDW_READ_INTR_CLEAR_RETRY)
 		dev_warn(slave->bus->dev, "Reached MAX_RETRY on DP0 read\n");
