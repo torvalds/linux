@@ -672,6 +672,7 @@ struct vop_data {
 
 struct vop2_ctrl {
 	struct vop_reg cfg_done_en;
+	struct vop_reg auto_gating_en;
 	struct vop_reg ovl_cfg_done_port;
 	struct vop_reg ovl_port_mux_cfg_done_imd;
 	struct vop_reg if_ctrl_cfg_done_imd;

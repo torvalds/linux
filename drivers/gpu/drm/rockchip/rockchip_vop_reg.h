@@ -1051,6 +1051,7 @@
 /* System registers definition */
 #define RK3568_REG_CFG_DONE			0x000
 #define RK3568_VERSION_INFO			0x004
+#define RK3568_SYS_AUTO_GATING_CTRL		0x008
 #define RK3568_DSP_IF_EN			0x028
 #define RK3568_DSP_IF_CTRL			0x02c
 #define RK3568_DSP_IF_POL			0x030

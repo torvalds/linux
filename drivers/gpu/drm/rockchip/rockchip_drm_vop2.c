@@ -1358,6 +1358,11 @@ static void vop2_initial(struct drm_crtc *crtc)
 
 		VOP_CTRL_SET(vop2, cfg_done_en, 1);
 		/*
+		 * Disable auto gating, this is a workaround to
+		 * avoid display image shift when a window enabled.
+		 */
+		VOP_CTRL_SET(vop2, auto_gating_en, 0);
+		/*
 		 * Register OVERLAY_LAYER_SEL and OVERLAY_PORT_SEL should take effect immediately,
 		 * than windows configuration(CLUSTER/ESMART/SMART) can take effect according the
 		 * video port mux configuration as we wished.
