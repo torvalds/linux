@@ -3142,7 +3142,6 @@ static struct scsi_host_template sht_v3_hw = {
 };
 
 static const struct hisi_sas_hw hisi_sas_v3_hw = {
-	.hw_init = hisi_sas_v3_init,
 	.setup_itct = setup_itct_v3_hw,
 	.get_wideport_bitmap = get_wideport_bitmap_v3_hw,
 	.complete_hdr_size = sizeof(struct hisi_sas_complete_v3_hdr),
@@ -3322,7 +3321,7 @@ hisi_sas_v3_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (rc)
 		goto err_out_register_ha;
 
-	rc = hisi_hba->hw->hw_init(hisi_hba);
+	rc = hisi_sas_v3_init(hisi_hba);
 	if (rc)
 		goto err_out_register_ha;
 
@@ -3495,7 +3494,7 @@ static int _resume_v3_hw(struct device *device)
 		scsi_remove_host(shost);
 		return rc;
 	}
-	hisi_hba->hw->phys_init(hisi_hba);
+	phys_init_v3_hw(hisi_hba);
 	sas_resume_ha(sha);
 	clear_bit(HISI_SAS_RESET_BIT, &hisi_hba->flags);
 
