@@ -614,7 +614,7 @@ static void _tu_valid_boundary_calc(struct tu_algo_data *tu)
 static void _dp_ctrl_calc_tu(struct dp_tu_calc_input *in,
 				   struct dp_vc_tu_mapping_table *tu_table)
 {
-	struct tu_algo_data tu;
+	struct tu_algo_data *tu;
 	int compare_result_1, compare_result_2;
 	u64 temp = 0;
 	s64 temp_fp = 0, temp1_fp = 0, temp2_fp = 0;
@@ -629,298 +629,300 @@ static void _dp_ctrl_calc_tu(struct dp_tu_calc_input *in,
 	uint EXTRA_PIXCLK_CYCLE_DELAY = 4;
 	uint HBLANK_MARGIN = 4;
 
-	memset(&tu, 0, sizeof(tu));
+	tu = kzalloc(sizeof(*tu), GFP_KERNEL);
+	if (!tu)
+		return
 
-	dp_panel_update_tu_timings(in, &tu);
+	dp_panel_update_tu_timings(in, tu);
 
-	tu.err_fp = drm_fixp_from_fraction(1000, 1); /* 1000 */
+	tu->err_fp = drm_fixp_from_fraction(1000, 1); /* 1000 */
 
 	temp1_fp = drm_fixp_from_fraction(4, 1);
-	temp2_fp = drm_fixp_mul(temp1_fp, tu.lclk_fp);
-	temp_fp = drm_fixp_div(temp2_fp, tu.pclk_fp);
-	tu.extra_buffer_margin = drm_fixp2int_ceil(temp_fp);
+	temp2_fp = drm_fixp_mul(temp1_fp, tu->lclk_fp);
+	temp_fp = drm_fixp_div(temp2_fp, tu->pclk_fp);
+	tu->extra_buffer_margin = drm_fixp2int_ceil(temp_fp);
 
-	temp1_fp = drm_fixp_from_fraction(tu.bpp, 8);
-	temp2_fp = drm_fixp_mul(tu.pclk_fp, temp1_fp);
-	temp1_fp = drm_fixp_from_fraction(tu.nlanes, 1);
+	temp1_fp = drm_fixp_from_fraction(tu->bpp, 8);
+	temp2_fp = drm_fixp_mul(tu->pclk_fp, temp1_fp);
+	temp1_fp = drm_fixp_from_fraction(tu->nlanes, 1);
 	temp2_fp = drm_fixp_div(temp2_fp, temp1_fp);
-	tu.ratio_fp = drm_fixp_div(temp2_fp, tu.lclk_fp);
+	tu->ratio_fp = drm_fixp_div(temp2_fp, tu->lclk_fp);
 
-	tu.original_ratio_fp = tu.ratio_fp;
-	tu.boundary_moderation_en = false;
-	tu.upper_boundary_count = 0;
-	tu.lower_boundary_count = 0;
-	tu.i_upper_boundary_count = 0;
-	tu.i_lower_boundary_count = 0;
-	tu.valid_lower_boundary_link = 0;
-	tu.even_distribution_BF = 0;
-	tu.even_distribution_legacy = 0;
-	tu.even_distribution = 0;
-	tu.delay_start_time_fp = 0;
+	tu->original_ratio_fp = tu->ratio_fp;
+	tu->boundary_moderation_en = false;
+	tu->upper_boundary_count = 0;
+	tu->lower_boundary_count = 0;
+	tu->i_upper_boundary_count = 0;
+	tu->i_lower_boundary_count = 0;
+	tu->valid_lower_boundary_link = 0;
+	tu->even_distribution_BF = 0;
+	tu->even_distribution_legacy = 0;
+	tu->even_distribution = 0;
+	tu->delay_start_time_fp = 0;
 
-	tu.err_fp = drm_fixp_from_fraction(1000, 1);
-	tu.n_err_fp = 0;
-	tu.n_n_err_fp = 0;
+	tu->err_fp = drm_fixp_from_fraction(1000, 1);
+	tu->n_err_fp = 0;
+	tu->n_n_err_fp = 0;
 
-	tu.ratio = drm_fixp2int(tu.ratio_fp);
-	temp1_fp = drm_fixp_from_fraction(tu.nlanes, 1);
-	div64_u64_rem(tu.lwidth_fp, temp1_fp, &temp2_fp);
+	tu->ratio = drm_fixp2int(tu->ratio_fp);
+	temp1_fp = drm_fixp_from_fraction(tu->nlanes, 1);
+	div64_u64_rem(tu->lwidth_fp, temp1_fp, &temp2_fp);
 	if (temp2_fp != 0 &&
-			!tu.ratio && tu.dsc_en == 0) {
-		tu.ratio_fp = drm_fixp_mul(tu.ratio_fp, RATIO_SCALE_fp);
-		tu.ratio = drm_fixp2int(tu.ratio_fp);
-		if (tu.ratio)
-			tu.ratio_fp = drm_fixp_from_fraction(1, 1);
+			!tu->ratio && tu->dsc_en == 0) {
+		tu->ratio_fp = drm_fixp_mul(tu->ratio_fp, RATIO_SCALE_fp);
+		tu->ratio = drm_fixp2int(tu->ratio_fp);
+		if (tu->ratio)
+			tu->ratio_fp = drm_fixp_from_fraction(1, 1);
 	}
 
-	if (tu.ratio > 1)
-		tu.ratio = 1;
+	if (tu->ratio > 1)
+		tu->ratio = 1;
 
-	if (tu.ratio == 1)
+	if (tu->ratio == 1)
 		goto tu_size_calc;
 
-	compare_result_1 = _tu_param_compare(tu.ratio_fp, const_p49_fp);
+	compare_result_1 = _tu_param_compare(tu->ratio_fp, const_p49_fp);
 	if (!compare_result_1 || compare_result_1 == 1)
 		compare_result_1 = 1;
 	else
 		compare_result_1 = 0;
 
-	compare_result_2 = _tu_param_compare(tu.ratio_fp, const_p56_fp);
+	compare_result_2 = _tu_param_compare(tu->ratio_fp, const_p56_fp);
 	if (!compare_result_2 || compare_result_2 == 2)
 		compare_result_2 = 1;
 	else
 		compare_result_2 = 0;
 
-	if (tu.dsc_en && compare_result_1 && compare_result_2) {
+	if (tu->dsc_en && compare_result_1 && compare_result_2) {
 		HBLANK_MARGIN += 4;
 		DRM_DEBUG_DP("Info: increase HBLANK_MARGIN to %d\n",
 				HBLANK_MARGIN);
 	}
 
 tu_size_calc:
-	for (tu.tu_size = 32; tu.tu_size <= 64; tu.tu_size++) {
-		temp1_fp = drm_fixp_from_fraction(tu.tu_size, 1);
-		temp2_fp = drm_fixp_mul(tu.ratio_fp, temp1_fp);
+	for (tu->tu_size = 32; tu->tu_size <= 64; tu->tu_size++) {
+		temp1_fp = drm_fixp_from_fraction(tu->tu_size, 1);
+		temp2_fp = drm_fixp_mul(tu->ratio_fp, temp1_fp);
 		temp = drm_fixp2int_ceil(temp2_fp);
 		temp1_fp = drm_fixp_from_fraction(temp, 1);
-		tu.n_err_fp = temp1_fp - temp2_fp;
+		tu->n_err_fp = temp1_fp - temp2_fp;
 
-		if (tu.n_err_fp < tu.err_fp) {
-			tu.err_fp = tu.n_err_fp;
-			tu.tu_size_desired = tu.tu_size;
+		if (tu->n_err_fp < tu->err_fp) {
+			tu->err_fp = tu->n_err_fp;
+			tu->tu_size_desired = tu->tu_size;
 		}
 	}
 
-	tu.tu_size_minus1 = tu.tu_size_desired - 1;
+	tu->tu_size_minus1 = tu->tu_size_desired - 1;
 
-	temp1_fp = drm_fixp_from_fraction(tu.tu_size_desired, 1);
-	temp2_fp = drm_fixp_mul(tu.ratio_fp, temp1_fp);
-	tu.valid_boundary_link = drm_fixp2int_ceil(temp2_fp);
+	temp1_fp = drm_fixp_from_fraction(tu->tu_size_desired, 1);
+	temp2_fp = drm_fixp_mul(tu->ratio_fp, temp1_fp);
+	tu->valid_boundary_link = drm_fixp2int_ceil(temp2_fp);
 
-	temp1_fp = drm_fixp_from_fraction(tu.bpp, 8);
-	temp2_fp = tu.lwidth_fp;
+	temp1_fp = drm_fixp_from_fraction(tu->bpp, 8);
+	temp2_fp = tu->lwidth_fp;
 	temp2_fp = drm_fixp_mul(temp2_fp, temp1_fp);
 
-	temp1_fp = drm_fixp_from_fraction(tu.valid_boundary_link, 1);
+	temp1_fp = drm_fixp_from_fraction(tu->valid_boundary_link, 1);
 	temp2_fp = drm_fixp_div(temp2_fp, temp1_fp);
-	tu.n_tus = drm_fixp2int(temp2_fp);
+	tu->n_tus = drm_fixp2int(temp2_fp);
 	if ((temp2_fp & 0xFFFFFFFF) > 0xFFFFF000)
-		tu.n_tus += 1;
+		tu->n_tus += 1;
 
-	tu.even_distribution_legacy = tu.n_tus % tu.nlanes == 0 ? 1 : 0;
+	tu->even_distribution_legacy = tu->n_tus % tu->nlanes == 0 ? 1 : 0;
 	DRM_DEBUG_DP("Info: n_sym = %d, num_of_tus = %d\n",
-		tu.valid_boundary_link, tu.n_tus);
+		tu->valid_boundary_link, tu->n_tus);
 
-	temp1_fp = drm_fixp_from_fraction(tu.tu_size_desired, 1);
-	temp2_fp = drm_fixp_mul(tu.original_ratio_fp, temp1_fp);
-	temp1_fp = drm_fixp_from_fraction(tu.valid_boundary_link, 1);
+	temp1_fp = drm_fixp_from_fraction(tu->tu_size_desired, 1);
+	temp2_fp = drm_fixp_mul(tu->original_ratio_fp, temp1_fp);
+	temp1_fp = drm_fixp_from_fraction(tu->valid_boundary_link, 1);
 	temp2_fp = temp1_fp - temp2_fp;
-	temp1_fp = drm_fixp_from_fraction(tu.n_tus + 1, 1);
+	temp1_fp = drm_fixp_from_fraction(tu->n_tus + 1, 1);
 	temp2_fp = drm_fixp_mul(temp1_fp, temp2_fp);
 
 	temp = drm_fixp2int(temp2_fp);
 	if (temp && temp2_fp)
-		tu.extra_bytes = drm_fixp2int_ceil(temp2_fp);
+		tu->extra_bytes = drm_fixp2int_ceil(temp2_fp);
 	else
-		tu.extra_bytes = 0;
+		tu->extra_bytes = 0;
 
-	temp1_fp = drm_fixp_from_fraction(tu.extra_bytes, 1);
-	temp2_fp = drm_fixp_from_fraction(8, tu.bpp);
+	temp1_fp = drm_fixp_from_fraction(tu->extra_bytes, 1);
+	temp2_fp = drm_fixp_from_fraction(8, tu->bpp);
 	temp1_fp = drm_fixp_mul(temp1_fp, temp2_fp);
 
 	if (temp && temp1_fp)
-		tu.extra_pclk_cycles = drm_fixp2int_ceil(temp1_fp);
+		tu->extra_pclk_cycles = drm_fixp2int_ceil(temp1_fp);
 	else
-		tu.extra_pclk_cycles = drm_fixp2int(temp1_fp);
+		tu->extra_pclk_cycles = drm_fixp2int(temp1_fp);
 
-	temp1_fp = drm_fixp_div(tu.lclk_fp, tu.pclk_fp);
-	temp2_fp = drm_fixp_from_fraction(tu.extra_pclk_cycles, 1);
+	temp1_fp = drm_fixp_div(tu->lclk_fp, tu->pclk_fp);
+	temp2_fp = drm_fixp_from_fraction(tu->extra_pclk_cycles, 1);
 	temp1_fp = drm_fixp_mul(temp2_fp, temp1_fp);
 
 	if (temp1_fp)
-		tu.extra_pclk_cycles_in_link_clk = drm_fixp2int_ceil(temp1_fp);
+		tu->extra_pclk_cycles_in_link_clk = drm_fixp2int_ceil(temp1_fp);
 	else
-		tu.extra_pclk_cycles_in_link_clk = drm_fixp2int(temp1_fp);
+		tu->extra_pclk_cycles_in_link_clk = drm_fixp2int(temp1_fp);
 
-	tu.filler_size = tu.tu_size_desired - tu.valid_boundary_link;
+	tu->filler_size = tu->tu_size_desired - tu->valid_boundary_link;
 
-	temp1_fp = drm_fixp_from_fraction(tu.tu_size_desired, 1);
-	tu.ratio_by_tu_fp = drm_fixp_mul(tu.ratio_fp, temp1_fp);
+	temp1_fp = drm_fixp_from_fraction(tu->tu_size_desired, 1);
+	tu->ratio_by_tu_fp = drm_fixp_mul(tu->ratio_fp, temp1_fp);
 
-	tu.delay_start_link = tu.extra_pclk_cycles_in_link_clk +
-				tu.filler_size + tu.extra_buffer_margin;
+	tu->delay_start_link = tu->extra_pclk_cycles_in_link_clk +
+				tu->filler_size + tu->extra_buffer_margin;
 
-	tu.resulting_valid_fp =
-			drm_fixp_from_fraction(tu.valid_boundary_link, 1);
+	tu->resulting_valid_fp =
+			drm_fixp_from_fraction(tu->valid_boundary_link, 1);
 
-	temp1_fp = drm_fixp_from_fraction(tu.tu_size_desired, 1);
-	temp2_fp = drm_fixp_div(tu.resulting_valid_fp, temp1_fp);
-	tu.TU_ratio_err_fp = temp2_fp - tu.original_ratio_fp;
+	temp1_fp = drm_fixp_from_fraction(tu->tu_size_desired, 1);
+	temp2_fp = drm_fixp_div(tu->resulting_valid_fp, temp1_fp);
+	tu->TU_ratio_err_fp = temp2_fp - tu->original_ratio_fp;
 
 	temp1_fp = drm_fixp_from_fraction(HBLANK_MARGIN, 1);
-	temp1_fp = tu.hbp_relative_to_pclk_fp - temp1_fp;
-	tu.hbp_time_fp = drm_fixp_div(temp1_fp, tu.pclk_fp);
+	temp1_fp = tu->hbp_relative_to_pclk_fp - temp1_fp;
+	tu->hbp_time_fp = drm_fixp_div(temp1_fp, tu->pclk_fp);
 
-	temp1_fp = drm_fixp_from_fraction(tu.delay_start_link, 1);
-	tu.delay_start_time_fp = drm_fixp_div(temp1_fp, tu.lclk_fp);
+	temp1_fp = drm_fixp_from_fraction(tu->delay_start_link, 1);
+	tu->delay_start_time_fp = drm_fixp_div(temp1_fp, tu->lclk_fp);
 
-	compare_result_1 = _tu_param_compare(tu.hbp_time_fp,
-					tu.delay_start_time_fp);
+	compare_result_1 = _tu_param_compare(tu->hbp_time_fp,
+					tu->delay_start_time_fp);
 	if (compare_result_1 == 2) /* if (hbp_time_fp < delay_start_time_fp) */
-		tu.min_hblank_violated = 1;
+		tu->min_hblank_violated = 1;
 
-	tu.hactive_time_fp = drm_fixp_div(tu.lwidth_fp, tu.pclk_fp);
+	tu->hactive_time_fp = drm_fixp_div(tu->lwidth_fp, tu->pclk_fp);
 
-	compare_result_2 = _tu_param_compare(tu.hactive_time_fp,
-						tu.delay_start_time_fp);
+	compare_result_2 = _tu_param_compare(tu->hactive_time_fp,
+						tu->delay_start_time_fp);
 	if (compare_result_2 == 2)
-		tu.min_hblank_violated = 1;
+		tu->min_hblank_violated = 1;
 
-	tu.delay_start_time_fp = 0;
+	tu->delay_start_time_fp = 0;
 
 	/* brute force */
 
-	tu.delay_start_link_extra_pixclk = EXTRA_PIXCLK_CYCLE_DELAY;
-	tu.diff_abs_fp = tu.resulting_valid_fp - tu.ratio_by_tu_fp;
+	tu->delay_start_link_extra_pixclk = EXTRA_PIXCLK_CYCLE_DELAY;
+	tu->diff_abs_fp = tu->resulting_valid_fp - tu->ratio_by_tu_fp;
 
-	temp = drm_fixp2int(tu.diff_abs_fp);
-	if (!temp && tu.diff_abs_fp <= 0xffff)
-		tu.diff_abs_fp = 0;
+	temp = drm_fixp2int(tu->diff_abs_fp);
+	if (!temp && tu->diff_abs_fp <= 0xffff)
+		tu->diff_abs_fp = 0;
 
 	/* if(diff_abs < 0) diff_abs *= -1 */
-	if (tu.diff_abs_fp < 0)
-		tu.diff_abs_fp = drm_fixp_mul(tu.diff_abs_fp, -1);
+	if (tu->diff_abs_fp < 0)
+		tu->diff_abs_fp = drm_fixp_mul(tu->diff_abs_fp, -1);
 
-	tu.boundary_mod_lower_err = 0;
-	if ((tu.diff_abs_fp != 0 &&
-			((tu.diff_abs_fp > BRUTE_FORCE_THRESHOLD_fp) ||
-			 (tu.even_distribution_legacy == 0) ||
+	tu->boundary_mod_lower_err = 0;
+	if ((tu->diff_abs_fp != 0 &&
+			((tu->diff_abs_fp > BRUTE_FORCE_THRESHOLD_fp) ||
+			 (tu->even_distribution_legacy == 0) ||
 			 (DP_BRUTE_FORCE == 1))) ||
-			(tu.min_hblank_violated == 1)) {
+			(tu->min_hblank_violated == 1)) {
 		do {
-			tu.err_fp = drm_fixp_from_fraction(1000, 1);
+			tu->err_fp = drm_fixp_from_fraction(1000, 1);
 
-			temp1_fp = drm_fixp_div(tu.lclk_fp, tu.pclk_fp);
+			temp1_fp = drm_fixp_div(tu->lclk_fp, tu->pclk_fp);
 			temp2_fp = drm_fixp_from_fraction(
-					tu.delay_start_link_extra_pixclk, 1);
+					tu->delay_start_link_extra_pixclk, 1);
 			temp1_fp = drm_fixp_mul(temp2_fp, temp1_fp);
 
 			if (temp1_fp)
-				tu.extra_buffer_margin =
+				tu->extra_buffer_margin =
 					drm_fixp2int_ceil(temp1_fp);
 			else
-				tu.extra_buffer_margin = 0;
+				tu->extra_buffer_margin = 0;
 
-			temp1_fp = drm_fixp_from_fraction(tu.bpp, 8);
-			temp1_fp = drm_fixp_mul(tu.lwidth_fp, temp1_fp);
+			temp1_fp = drm_fixp_from_fraction(tu->bpp, 8);
+			temp1_fp = drm_fixp_mul(tu->lwidth_fp, temp1_fp);
 
 			if (temp1_fp)
-				tu.n_symbols = drm_fixp2int_ceil(temp1_fp);
+				tu->n_symbols = drm_fixp2int_ceil(temp1_fp);
 			else
-				tu.n_symbols = 0;
+				tu->n_symbols = 0;
 
-			for (tu.tu_size = 32; tu.tu_size <= 64; tu.tu_size++) {
-				for (tu.i_upper_boundary_count = 1;
-					tu.i_upper_boundary_count <= 15;
-					tu.i_upper_boundary_count++) {
-					for (tu.i_lower_boundary_count = 1;
-						tu.i_lower_boundary_count <= 15;
-						tu.i_lower_boundary_count++) {
-						_tu_valid_boundary_calc(&tu);
+			for (tu->tu_size = 32; tu->tu_size <= 64; tu->tu_size++) {
+				for (tu->i_upper_boundary_count = 1;
+					tu->i_upper_boundary_count <= 15;
+					tu->i_upper_boundary_count++) {
+					for (tu->i_lower_boundary_count = 1;
+						tu->i_lower_boundary_count <= 15;
+						tu->i_lower_boundary_count++) {
+						_tu_valid_boundary_calc(tu);
 					}
 				}
 			}
-			tu.delay_start_link_extra_pixclk--;
-		} while (tu.boundary_moderation_en != true &&
-			tu.boundary_mod_lower_err == 1 &&
-			tu.delay_start_link_extra_pixclk != 0);
+			tu->delay_start_link_extra_pixclk--;
+		} while (tu->boundary_moderation_en != true &&
+			tu->boundary_mod_lower_err == 1 &&
+			tu->delay_start_link_extra_pixclk != 0);
 
-		if (tu.boundary_moderation_en == true) {
+		if (tu->boundary_moderation_en == true) {
 			temp1_fp = drm_fixp_from_fraction(
-					(tu.upper_boundary_count *
-					tu.valid_boundary_link +
-					tu.lower_boundary_count *
-					(tu.valid_boundary_link - 1)), 1);
+					(tu->upper_boundary_count *
+					tu->valid_boundary_link +
+					tu->lower_boundary_count *
+					(tu->valid_boundary_link - 1)), 1);
 			temp2_fp = drm_fixp_from_fraction(
-					(tu.upper_boundary_count +
-					tu.lower_boundary_count), 1);
-			tu.resulting_valid_fp =
+					(tu->upper_boundary_count +
+					tu->lower_boundary_count), 1);
+			tu->resulting_valid_fp =
 					drm_fixp_div(temp1_fp, temp2_fp);
 
 			temp1_fp = drm_fixp_from_fraction(
-					tu.tu_size_desired, 1);
-			tu.ratio_by_tu_fp =
-				drm_fixp_mul(tu.original_ratio_fp, temp1_fp);
+					tu->tu_size_desired, 1);
+			tu->ratio_by_tu_fp =
+				drm_fixp_mul(tu->original_ratio_fp, temp1_fp);
 
-			tu.valid_lower_boundary_link =
-				tu.valid_boundary_link - 1;
+			tu->valid_lower_boundary_link =
+				tu->valid_boundary_link - 1;
 
-			temp1_fp = drm_fixp_from_fraction(tu.bpp, 8);
-			temp1_fp = drm_fixp_mul(tu.lwidth_fp, temp1_fp);
+			temp1_fp = drm_fixp_from_fraction(tu->bpp, 8);
+			temp1_fp = drm_fixp_mul(tu->lwidth_fp, temp1_fp);
 			temp2_fp = drm_fixp_div(temp1_fp,
-						tu.resulting_valid_fp);
-			tu.n_tus = drm_fixp2int(temp2_fp);
+						tu->resulting_valid_fp);
+			tu->n_tus = drm_fixp2int(temp2_fp);
 
-			tu.tu_size_minus1 = tu.tu_size_desired - 1;
-			tu.even_distribution_BF = 1;
+			tu->tu_size_minus1 = tu->tu_size_desired - 1;
+			tu->even_distribution_BF = 1;
 
 			temp1_fp =
-				drm_fixp_from_fraction(tu.tu_size_desired, 1);
+				drm_fixp_from_fraction(tu->tu_size_desired, 1);
 			temp2_fp =
-				drm_fixp_div(tu.resulting_valid_fp, temp1_fp);
-			tu.TU_ratio_err_fp = temp2_fp - tu.original_ratio_fp;
+				drm_fixp_div(tu->resulting_valid_fp, temp1_fp);
+			tu->TU_ratio_err_fp = temp2_fp - tu->original_ratio_fp;
 		}
 	}
 
-	temp2_fp = drm_fixp_mul(LCLK_FAST_SKEW_fp, tu.lwidth_fp);
+	temp2_fp = drm_fixp_mul(LCLK_FAST_SKEW_fp, tu->lwidth_fp);
 
 	if (temp2_fp)
 		temp = drm_fixp2int_ceil(temp2_fp);
 	else
 		temp = 0;
 
-	temp1_fp = drm_fixp_from_fraction(tu.nlanes, 1);
-	temp2_fp = drm_fixp_mul(tu.original_ratio_fp, temp1_fp);
-	temp1_fp = drm_fixp_from_fraction(tu.bpp, 8);
+	temp1_fp = drm_fixp_from_fraction(tu->nlanes, 1);
+	temp2_fp = drm_fixp_mul(tu->original_ratio_fp, temp1_fp);
+	temp1_fp = drm_fixp_from_fraction(tu->bpp, 8);
 	temp2_fp = drm_fixp_div(temp1_fp, temp2_fp);
 	temp1_fp = drm_fixp_from_fraction(temp, 1);
 	temp2_fp = drm_fixp_mul(temp1_fp, temp2_fp);
 	temp = drm_fixp2int(temp2_fp);
 
-	if (tu.async_en)
-		tu.delay_start_link += (int)temp;
+	if (tu->async_en)
+		tu->delay_start_link += (int)temp;
 
-	temp1_fp = drm_fixp_from_fraction(tu.delay_start_link, 1);
-	tu.delay_start_time_fp = drm_fixp_div(temp1_fp, tu.lclk_fp);
+	temp1_fp = drm_fixp_from_fraction(tu->delay_start_link, 1);
+	tu->delay_start_time_fp = drm_fixp_div(temp1_fp, tu->lclk_fp);
 
 	/* OUTPUTS */
-	tu_table->valid_boundary_link       = tu.valid_boundary_link;
-	tu_table->delay_start_link          = tu.delay_start_link;
-	tu_table->boundary_moderation_en    = tu.boundary_moderation_en;
-	tu_table->valid_lower_boundary_link = tu.valid_lower_boundary_link;
-	tu_table->upper_boundary_count      = tu.upper_boundary_count;
-	tu_table->lower_boundary_count      = tu.lower_boundary_count;
-	tu_table->tu_size_minus1            = tu.tu_size_minus1;
+	tu_table->valid_boundary_link       = tu->valid_boundary_link;
+	tu_table->delay_start_link          = tu->delay_start_link;
+	tu_table->boundary_moderation_en    = tu->boundary_moderation_en;
+	tu_table->valid_lower_boundary_link = tu->valid_lower_boundary_link;
+	tu_table->upper_boundary_count      = tu->upper_boundary_count;
+	tu_table->lower_boundary_count      = tu->lower_boundary_count;
+	tu_table->tu_size_minus1            = tu->tu_size_minus1;
 
 	DRM_DEBUG_DP("TU: valid_boundary_link: %d\n",
 				tu_table->valid_boundary_link);
@@ -935,6 +937,8 @@ tu_size_calc:
 	DRM_DEBUG_DP("TU: lower_boundary_count: %d\n",
 			tu_table->lower_boundary_count);
 	DRM_DEBUG_DP("TU: tu_size_minus1: %d\n", tu_table->tu_size_minus1);
+
+	kfree(tu);
 }
 
 static void dp_ctrl_calc_tu_parameters(struct dp_ctrl_private *ctrl,
