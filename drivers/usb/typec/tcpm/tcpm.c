@@ -3075,6 +3075,16 @@ static inline enum tcpm_state unattached_state(struct tcpm_port *port)
 	return SNK_UNATTACHED;
 }
 
+bool tcpm_is_toggling(struct tcpm_port *port)
+{
+	if (port->port_type == TYPEC_PORT_DRP)
+		return port->state == SRC_UNATTACHED || port->state == SNK_UNATTACHED ||
+			port->state == TOGGLING;
+
+	return false;
+}
+EXPORT_SYMBOL_GPL(tcpm_is_toggling);
+
 static void tcpm_check_send_discover(struct tcpm_port *port)
 {
 	if (port->data_role == TYPEC_HOST && port->send_discover &&

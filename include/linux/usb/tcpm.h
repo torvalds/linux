@@ -166,5 +166,6 @@ void tcpm_pd_transmit_complete(struct tcpm_port *port,
 void tcpm_pd_hard_reset(struct tcpm_port *port);
 void tcpm_tcpc_reset(struct tcpm_port *port);
 bool tcpm_is_debouncing(struct tcpm_port *tcpm);
+bool tcpm_is_toggling(struct tcpm_port *port);
 
 #endif /* __LINUX_USB_TCPM_H */
