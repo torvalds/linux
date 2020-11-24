@@ -1468,6 +1468,38 @@ xfs_fc_fill_super(
 	}
 
 	/*
+	 * Don't touch the filesystem if a user tool thinks it owns the primary
+	 * superblock.  mkfs doesn't clear the flag from secondary supers, so
+	 * we don't check them at all.
+	 */
+	if (mp->m_sb.sb_inprogress) {
+		xfs_warn(mp, "Offline file system operation in progress!");
+		error = -EFSCORRUPTED;
+		goto out_free_sb;
+	}
+
+	/*
+	 * Until this is fixed only page-sized or smaller data blocks work.
+	 */
+	if (mp->m_sb.sb_blocksize > PAGE_SIZE) {
+		xfs_warn(mp,
+		"File system with blocksize %d bytes. "
+		"Only pagesize (%ld) or less will currently work.",
+				mp->m_sb.sb_blocksize, PAGE_SIZE);
+		error = -ENOSYS;
+		goto out_free_sb;
+	}
+
+	/* Ensure this filesystem fits in the page cache limits */
+	if (xfs_sb_validate_fsb_count(&mp->m_sb, mp->m_sb.sb_dblocks) ||
+	    xfs_sb_validate_fsb_count(&mp->m_sb, mp->m_sb.sb_rblocks)) {
+		xfs_warn(mp,
+		"file system too large to be mounted on this system.");
+		error = -EFBIG;
+		goto out_free_sb;
+	}
+
+	/*
 	 * XFS block mappings use 54 bits to store the logical block offset.
 	 * This should suffice to handle the maximum file size that the VFS
 	 * supports (currently 2^63 bytes on 64-bit and ULONG_MAX << PAGE_SHIFT
