@@ -13,6 +13,8 @@
 	aliases {
 		serial0 = &uart_AO;
 		ethernet0 = &ethmac;
+		rtc0 = &rtc;
+		rtc1 = &vrtc;
 	};
 
 	chosen {
@@ -330,7 +332,7 @@
 		#gpio-cells = <2>;
 	};
 
-	rtc@51 {
+	rtc: rtc@51 {
 		compatible = "haoyu,hym8563";
 		reg = <0x51>;
 		#clock-cells = <0>;
