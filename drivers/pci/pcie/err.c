@@ -171,6 +171,7 @@ pci_ers_result_t pcie_do_recovery(struct pci_dev *dev,
 	int type = pci_pcie_type(dev);
 	struct pci_dev *bridge;
 	pci_ers_result_t status = PCI_ERS_RESULT_CAN_RECOVER;
+	struct pci_host_bridge *host = pci_find_host_bridge(dev->bus);
 
 	/*
 	 * Error recovery runs on all subordinates of the bridge.  If the
@@ -217,9 +218,17 @@ pci_ers_result_t pcie_do_recovery(struct pci_dev *dev,
 	pci_dbg(bridge, "broadcast resume message\n");
 	pci_walk_bridge(bridge, report_resume, &status);
 
-	if (pcie_aer_is_native(bridge))
+	/*
+	 * If we have native control of AER, clear error status in the Root
+	 * Port or Downstream Port that signaled the error.  If the
+	 * platform retained control of AER, it is responsible for clearing
+	 * this status.  In that case, the signaling device may not even be
+	 * visible to the OS.
+	 */
+	if (host->native_aer || pcie_ports_native) {
 		pcie_clear_device_status(bridge);
-	pci_aer_clear_nonfatal_status(bridge);
+		pci_aer_clear_nonfatal_status(bridge);
+	}
 	pci_info(bridge, "device recovery successful\n");
 	return status;
 
