@@ -327,7 +327,7 @@
 		//wifi-bt-power-toggle;
 		uart_rts_gpios = <&gpio2 RK_PB1 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default", "rts_gpio";
-		pinctrl-0 = <&uart8rtsnm0>;
+		pinctrl-0 = <&uart8m0_rtsn>;
 		pinctrl-1 = <&uart8_gpios>;
 		BT,reset_gpio    = <&gpio3 RK_PA0 GPIO_ACTIVE_HIGH>;
 		BT,wake_gpio     = <&gpio3 RK_PA1 GPIO_ACTIVE_HIGH>;
@@ -1303,7 +1303,7 @@
 			assigned-clocks = <&cru I2S1_MCLKOUT_TX>;
 			assigned-clock-parents = <&cru CLK_I2S1_8CH_TX>;
 			pinctrl-names = "default";
-			pinctrl-0 = <&i2s1mclkm0>;
+			pinctrl-0 = <&i2s1m0_mclk>;
 			hp-volume = <20>;
 			spk-volume = <3>;
 			mic-in-differential;
@@ -1351,10 +1351,10 @@
 	status = "okay";
 	rockchip,clk-trcm = <1>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&i2s1sclktxm0
-		     &i2s1lrcktxm0
-		     &i2s1sdi0m0
-		     &i2s1sdo0m0>;
+	pinctrl-0 = <&i2s1m0_sclktx
+		     &i2s1m0_lrcktx
+		     &i2s1m0_sdi0
+		     &i2s1m0_sdo0>;
 };
 
 &iep {

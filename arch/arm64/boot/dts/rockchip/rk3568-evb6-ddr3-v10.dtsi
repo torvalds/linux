@@ -244,7 +244,7 @@
 &uart1 {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart1m0_xfer &uart1ctsnm0>;
+	pinctrl-0 = <&uart1m0_xfer &uart1m0_ctsn>;
 };
 
 &usbhost_dwc3 {
@@ -278,7 +278,7 @@
 	//wifi-bt-power-toggle;
 	uart_rts_gpios = <&gpio2 RK_PB5 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default", "rts_gpio";
-	pinctrl-0 = <&uart1rtsnm0>;
+	pinctrl-0 = <&uart1m0_rtsn>;
 	pinctrl-1 = <&uart1_gpios>;
 	BT,reset_gpio    = <&gpio2 RK_PB7 GPIO_ACTIVE_HIGH>;
 	BT,wake_gpio     = <&gpio2 RK_PC1 GPIO_ACTIVE_HIGH>;
@@ -300,7 +300,11 @@
 	assigned-clock-rates = <0>, <125000000>;
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac1m0_miim_pins &gmac1m0_rgmii_pins>;
+	pinctrl-0 = <&gmac1m0_miim
+		     &gmac1m0_tx_bus2
+		     &gmac1m0_rx_bus2
+		     &gmac1m0_rgmii_clk
+		     &gmac1m0_rgmii_bus>;
 
 	tx_delay = <0x46>;
 	rx_delay = <0x2f>;

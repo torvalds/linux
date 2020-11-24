@@ -94,7 +94,11 @@
 	assigned-clock-rates = <0>, <125000000>;
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac0_miim_pins &gmac0_rgmii_pins>;
+	pinctrl-0 = <&gmac0_miim
+		     &gmac0_tx_bus2
+		     &gmac0_rx_bus2
+		     &gmac0_rgmii_clk
+		     &gmac0_rgmii_bus>;
 
 	tx_delay = <0x43>;
 	rx_delay = <0x33>;
@@ -117,7 +121,11 @@
 	assigned-clock-rates = <0>, <125000000>;
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac1m1_miim_pins &gmac1m1_rgmii_pins>;
+	pinctrl-0 = <&gmac1m1_miim
+		     &gmac1m1_tx_bus2
+		     &gmac1m1_rx_bus2
+		     &gmac1m1_rgmii_clk
+		     &gmac1m1_rgmii_bus>;
 
 	tx_delay = <0x4f>;
 	rx_delay = <0x2d>;

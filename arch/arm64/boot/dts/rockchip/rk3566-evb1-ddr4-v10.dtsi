@@ -48,7 +48,11 @@
 	status = "disabled";
 	rockchip,pwm-output-mode;
 	pinctrl-names = "default";
-	pinctrl-0 = <&audiopwmoutdiff_pins>;
+	pinctrl-0 = <&audiopwm_loutp
+		&audiopwm_loutn
+		&audiopwm_routp
+		&audiopwm_routn
+	>;
 };
 
 /*
@@ -135,7 +139,11 @@
 	assigned-clock-rates = <0>, <125000000>;
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac0_miim_pins &gmac0_rgmii_pins>;
+	pinctrl-0 = <&gmac0_miim
+		     &gmac0_tx_bus2
+		     &gmac0_rx_bus2
+		     &gmac0_rgmii_clk
+		     &gmac0_rgmii_bus>;
 
 	tx_delay = <0x38>;
 	rx_delay = <0x2c>;
@@ -172,10 +180,10 @@
 &pdm {
 	status = "disabled";
 	pinctrl-names = "default";
-	pinctrl-0 = <&pdmclk1m1
-		     &pdmsdi1m1
-		     &pdmsdi2m1
-		     &pdmsdi3m1>;
+	pinctrl-0 = <&pdmm1_clk1
+		     &pdmm1_sdi1
+		     &pdmm1_sdi2
+		     &pdmm1_sdi3>;
 };
 
 &pdmics {
@@ -189,7 +197,7 @@
 &uart1 {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart1m1_xfer &uart1ctsnm1>;
+	pinctrl-0 = <&uart1m1_xfer &uart1m1_ctsn>;
 };
 
 &usbdrd_dwc3 {
@@ -232,7 +240,7 @@
 	//wifi-bt-power-toggle;
 	uart_rts_gpios = <&gpio4 RK_PB6 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default", "rts_gpio";
-	pinctrl-0 = <&uart1rtsnm1>;
+	pinctrl-0 = <&uart1m1_rtsn>;
 	pinctrl-1 = <&uart1_gpios>;
 	BT,reset_gpio    = <&gpio4 RK_PA5 GPIO_ACTIVE_HIGH>;
 	BT,wake_gpio     = <&gpio4 RK_PA6 GPIO_ACTIVE_HIGH>;

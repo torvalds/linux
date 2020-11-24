@@ -140,7 +140,11 @@
 	assigned-clock-rates = <0>, <125000000>;
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac0_miim_pins &gmac0_rgmii_pins>;
+	pinctrl-0 = <&gmac0_miim
+		     &gmac0_tx_bus2
+		     &gmac0_rx_bus2
+		     &gmac0_rgmii_clk
+		     &gmac0_rgmii_bus>;
 
 	tx_delay = <0x3c>;
 	rx_delay = <0x2f>;
@@ -163,7 +167,11 @@
 	assigned-clock-rates = <0>, <125000000>;
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac1m1_miim_pins &gmac1m1_rgmii_pins>;
+	pinctrl-0 = <&gmac1m1_miim
+		     &gmac1m1_tx_bus2
+		     &gmac1m1_rx_bus2
+		     &gmac1m1_rgmii_clk
+		     &gmac1m1_rgmii_bus>;
 
 	tx_delay = <0x4f>;
 	rx_delay = <0x26>;
@@ -277,7 +285,7 @@
 &uart8 {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart8m0_xfer &uart8ctsnm0>;
+	pinctrl-0 = <&uart8m0_xfer &uart8m0_ctsn>;
 };
 
 &vcc3v3_lcd0_n {
@@ -307,7 +315,7 @@
 	//wifi-bt-power-toggle;
 	uart_rts_gpios = <&gpio2 RK_PB1 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default", "rts_gpio";
-	pinctrl-0 = <&uart8rtsnm0>;
+	pinctrl-0 = <&uart8m0_rtsn>;
 	pinctrl-1 = <&uart8_gpios>;
 	BT,reset_gpio    = <&gpio3 RK_PA0 GPIO_ACTIVE_HIGH>;
 	BT,wake_gpio     = <&gpio3 RK_PA2 GPIO_ACTIVE_HIGH>;

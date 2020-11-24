@@ -204,7 +204,7 @@
 		//wifi-bt-power-toggle;
 		uart_rts_gpios = <&gpio2 RK_PB5 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default", "rts_gpio";
-		pinctrl-0 = <&uart1rtsnm0>;
+		pinctrl-0 = <&uart1m0_rtsn>;
 		pinctrl-1 = <&uart1_gpios>;
 		BT,reset_gpio    = <&gpio2 RK_PB7 GPIO_ACTIVE_HIGH>;
 		BT,wake_gpio     = <&gpio2 RK_PC1 GPIO_ACTIVE_HIGH>;
@@ -751,7 +751,7 @@
 			assigned-clocks = <&cru I2S1_MCLKOUT_TX>;
 			assigned-clock-parents = <&cru CLK_I2S1_8CH_TX>;
 			pinctrl-names = "default";
-			pinctrl-0 = <&i2s1mclkm0>;
+			pinctrl-0 = <&i2s1m0_mclk>;
 			hp-volume = <20>;
 			spk-volume = <3>;
 			out-l2spk-r2hp;
@@ -773,7 +773,7 @@
 		clock-names = "xvclk";
 		power-domains = <&power RK3568_PD_VI>;
 		pinctrl-names = "rockchip,camera_default";
-		pinctrl-0 = <&cif_clkout>;
+		pinctrl-0 = <&cif_clk>;
 
 		//reset pin control by hardware,used this pin switch to mipi input
 		//1->2LANE(LANE 0&1) FRONT camera, 0->4LANE REAR camera
@@ -865,10 +865,10 @@
 	status = "okay";
 	rockchip,clk-trcm = <1>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&i2s1sclktxm0
-		     &i2s1lrcktxm0
-		     &i2s1sdi0m0
-		     &i2s1sdo0m0>;
+	pinctrl-0 = <&i2s1m0_sclktx
+		     &i2s1m0_lrcktx
+		     &i2s1m0_sdi0
+		     &i2s1m0_sdo0>;
 };
 
 &jpegd {
@@ -1104,7 +1104,7 @@
 &uart1 {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart1m0_xfer &uart1ctsnm0>;
+	pinctrl-0 = <&uart1m0_xfer &uart1m0_rtsn>;
 };
 
 &u2phy0_otg {

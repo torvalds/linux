@@ -127,7 +127,11 @@
 	assigned-clock-rates = <0>, <125000000>;
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac1m1_miim_pins &gmac1m1_rgmii_pins>;
+	pinctrl-0 = <&gmac1m1_miim
+		     &gmac1m1_tx_bus2
+		     &gmac1m1_rx_bus2
+		     &gmac1m1_rgmii_clk
+		     &gmac1m1_rgmii_bus>;
 
 	tx_delay = <0x4f>;
 	rx_delay = <0x25>;
@@ -148,7 +152,7 @@
 		clock-names = "xvclk";
 		power-domains = <&power RK3568_PD_VI>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&cif_clkout>;
+		pinctrl-0 = <&cif_clk>;
 		reset-gpios = <&gpio3 RK_PA6 GPIO_ACTIVE_HIGH>;
 		pwdn-gpios = <&gpio4 RK_PB2 GPIO_ACTIVE_HIGH>;
 		/*power-gpios = <&gpio0 RK_PC1 GPIO_ACTIVE_HIGH>;*/
@@ -182,8 +186,8 @@
 		clock-names = "xvclk";
 		power-domains = <&power RK3568_PD_VI>;
 		pinctrl-names = "default";
-		/* conflict with gmac1m1_rgmii_pins & cif_clkout*/
-		pinctrl-0 = <&cif_dvp_8bit>;
+		/* conflict with gmac1m1_rgmii_pins & cif_clk*/
+		pinctrl-0 = <&cif_dvp_bus8>;
 
 		/*avdd-supply = <&vcc2v8_dvp>;*/
 		/*dovdd-supply = <&vcc1v8_dvp>;*/
@@ -357,7 +361,7 @@
 &uart1 {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart1m0_xfer &uart1ctsnm0>;
+	pinctrl-0 = <&uart1m0_xfer &uart1m0_rtsn>;
 };
 
 &usbdrd_dwc3 {
@@ -399,7 +403,7 @@
 	//wifi-bt-power-toggle;
 	uart_rts_gpios = <&gpio2 RK_PB5 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default", "rts_gpio";
-	pinctrl-0 = <&uart1rtsnm0>;
+	pinctrl-0 = <&uart1m0_rtsn>;
 	pinctrl-1 = <&uart1_gpios>;
 	BT,reset_gpio    = <&gpio2 RK_PB7 GPIO_ACTIVE_HIGH>;
 	BT,wake_gpio     = <&gpio2 RK_PC1 GPIO_ACTIVE_HIGH>;

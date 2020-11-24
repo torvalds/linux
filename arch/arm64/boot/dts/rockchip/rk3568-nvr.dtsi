@@ -235,10 +235,10 @@
 	status = "okay";
 	rockchip,clk-trcm = <1>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&i2s1sclktxm0
-		     &i2s1lrcktxm0
-		     &i2s1sdi0m0
-		     &i2s1sdo0m0>;
+	pinctrl-0 = <&i2s1m0_sclktx
+		     &i2s1m0_lrcktx
+		     &i2s1m0_sdi0
+		     &i2s1m0_sdo0>;
 };
 
 &jpegd {

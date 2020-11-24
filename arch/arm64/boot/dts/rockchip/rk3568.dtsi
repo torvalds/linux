@@ -1958,18 +1958,18 @@
 		rockchip,grf = <&grf>;
 		#sound-dai-cells = <0>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&i2s1sclktxm0
-			     &i2s1sclkrxm0
-			     &i2s1lrcktxm0
-			     &i2s1lrckrxm0
-			     &i2s1sdi0m0
-			     &i2s1sdi1m0
-			     &i2s1sdi2m0
-			     &i2s1sdi3m0
-			     &i2s1sdo0m0
-			     &i2s1sdo1m0
-			     &i2s1sdo2m0
-			     &i2s1sdo3m0>;
+		pinctrl-0 = <&i2s1m0_sclktx
+			     &i2s1m0_sclkrx
+			     &i2s1m0_lrcktx
+			     &i2s1m0_lrckrx
+			     &i2s1m0_sdi0
+			     &i2s1m0_sdi1
+			     &i2s1m0_sdi2
+			     &i2s1m0_sdi3
+			     &i2s1m0_sdo0
+			     &i2s1m0_sdo1
+			     &i2s1m0_sdo2
+			     &i2s1m0_sdo3>;
 		status = "disabled";
 	};
 
@@ -1986,10 +1986,10 @@
 		rockchip,clk-trcm = <1>;
 		#sound-dai-cells = <0>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&i2s2sclktxm0
-			     &i2s2lrcktxm0
-			     &i2s2sdim0
-			     &i2s2sdom0>;
+		pinctrl-0 = <&i2s2m0_sclktx
+			     &i2s2m0_lrcktx
+			     &i2s2m0_sdi
+			     &i2s2m0_sdo>;
 		status = "disabled";
 	};
 
@@ -2007,10 +2007,10 @@
 		rockchip,grf = <&grf>;
 		#sound-dai-cells = <0>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&i2s3sclkm0
-			     &i2s3lrckm0
-			     &i2s3sdim0
-			     &i2s3sdom0>;
+		pinctrl-0 = <&i2s3m0_sclk
+			     &i2s3m0_lrck
+			     &i2s3m0_sdi
+			     &i2s3m0_sdo>;
 		status = "disabled";
 	};
 
@@ -2049,7 +2049,7 @@
 		clocks = <&cru MCLK_SPDIF_8CH>, <&cru HCLK_SPDIF_8CH>;
 		#sound-dai-cells = <0>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&spdifm0_pins>;
+		pinctrl-0 = <&spdifm0_tx>;
 		status = "disabled";
 	};
 
@@ -2227,8 +2227,8 @@
 		dmas = <&dmac0 20>, <&dmac0 21>;
 		dma-names = "tx", "rx";
 		pinctrl-names = "default", "high_speed";
-		pinctrl-0 = <&spi0clkm0 &spi0cs0m0 &spi0cs1m0 &spi0misom0 &spi0mosim0>;
-		pinctrl-1 = <&spi0clkm0_hs &spi0cs0m0 &spi0cs1m0 &spi0misom0_hs &spi0mosim0_hs>;
+		pinctrl-0 = <&spi0m0_cs0 &spi0m0_cs1 &spi0m0_pins>;
+		pinctrl-1 = <&spi0m0_cs0 &spi0m0_cs1 &spi0m0_pins_hs>;
 		status = "disabled";
 	};
 
@@ -2243,8 +2243,8 @@
 		dmas = <&dmac0 22>, <&dmac0 23>;
 		dma-names = "tx", "rx";
 		pinctrl-names = "default", "high_speed";
-		pinctrl-0 = <&spi1clkm0 &spi1cs0m0 &spi1cs1m0 &spi1misom0 &spi1mosim0>;
-		pinctrl-1 = <&spi1clkm0_hs &spi1cs0m0 &spi1cs1m0 &spi1misom0_hs &spi1mosim0_hs>;
+		pinctrl-0 = <&spi1m0_cs0 &spi1m0_cs1 &spi1m0_pins>;
+		pinctrl-1 = <&spi1m0_cs0 &spi1m0_cs1 &spi1m0_pins_hs>;
 		status = "disabled";
 	};
 
@@ -2259,8 +2259,8 @@
 		dmas = <&dmac0 24>, <&dmac0 25>;
 		dma-names = "tx", "rx";
 		pinctrl-names = "default", "high_speed";
-		pinctrl-0 = <&spi2clkm0 &spi2cs0m0 &spi2cs1m0 &spi2misom0 &spi2mosim0>;
-		pinctrl-1 = <&spi2clkm0_hs &spi2cs0m0 &spi2cs1m0 &spi2misom0_hs &spi2mosim0_hs>;
+		pinctrl-0 = <&spi2m0_cs0 &spi2m0_cs1 &spi2m0_pins>;
+		pinctrl-1 = <&spi2m0_cs0 &spi2m0_cs1 &spi2m0_pins_hs>;
 		status = "disabled";
 	};
 
@@ -2275,8 +2275,8 @@
 		dmas = <&dmac0 26>, <&dmac0 27>;
 		dma-names = "tx", "rx";
 		pinctrl-names = "default", "high_speed";
-		pinctrl-0 = <&spi3clkm0 &spi3cs0m0 &spi3cs1m0 &spi3misom0 &spi3mosim0>;
-		pinctrl-1 = <&spi3clkm0_hs &spi3cs0m0 &spi3cs1m0 &spi3misom0_hs &spi3mosim0_hs>;
+		pinctrl-0 = <&spi3m0_cs0 &spi3m0_cs1 &spi3m0_pins>;
+		pinctrl-1 = <&spi3m0_cs0 &spi3m0_cs1 &spi3m0_pins_hs>;
 		status = "disabled";
 	};
 

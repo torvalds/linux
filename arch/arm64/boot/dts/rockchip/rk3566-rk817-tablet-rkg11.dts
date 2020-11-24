@@ -164,7 +164,7 @@
 		//wifi-bt-power-toggle;
 		uart_rts_gpios = <&gpio2 RK_PB5 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default", "rts_gpio";
-		pinctrl-0 = <&uart1rtsnm0>;
+		pinctrl-0 = <&uart1m0_rtsn>;
 		pinctrl-1 = <&uart1_gpios>;
 		BT,reset_gpio    = <&gpio2 RK_PB7 GPIO_ACTIVE_HIGH>;
 		BT,wake_gpio     = <&gpio2 RK_PC1 GPIO_ACTIVE_HIGH>;
@@ -629,7 +629,7 @@
 			assigned-clocks = <&cru I2S3_MCLKOUT_TX>;
 			assigned-clock-parents = <&cru CLK_I2S3_2CH_TX>;
 			pinctrl-names = "default";
-			pinctrl-0 = <&i2s3mclkm1>;
+			pinctrl-0 = <&i2s3m1_mclk>;
 			hp-volume = <20>;
 			spk-volume = <3>;
 			mic-in-differential;
@@ -675,7 +675,7 @@
 		clock-names = "xvclk";
 		power-domains = <&power RK3568_PD_VI>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&cif_clkout>;
+		pinctrl-0 = <&cif_clk>;
 
 		//reset pin control by hardware,used this pin switch to mipi input
 		//0->FRONT camera, 1->REAR camera
@@ -821,10 +821,10 @@
 	status = "okay";
 	rockchip,clk-trcm = <2>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&i2s3sclkm1
-			     &i2s3lrckm1
-			     &i2s3sdim1
-			     &i2s3sdom1>;
+	pinctrl-0 = <&i2s3m1_sclk
+			     &i2s3m1_lrck
+			     &i2s3m1_sdi
+			     &i2s3m1_sdo>;
 };
 
 &jpegd {
@@ -1058,7 +1058,7 @@
 &uart1 {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart1m0_xfer &uart1ctsnm0>;
+	pinctrl-0 = <&uart1m0_xfer &uart1m0_rtsn>;
 };
 
 &u2phy0_otg {

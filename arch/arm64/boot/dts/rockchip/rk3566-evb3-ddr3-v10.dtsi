@@ -86,7 +86,11 @@
 	assigned-clock-rates = <0>, <125000000>;
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac1m1_miim_pins &gmac1m1_rgmii_pins>;
+	pinctrl-0 = <&gmac1m1_miim
+		     &gmac1m1_tx_bus2
+		     &gmac1m1_rx_bus2
+		     &gmac1m1_rgmii_clk
+		     &gmac1m1_rgmii_bus>;
 
 	tx_delay = <0x2a>;
 	rx_delay = <0x1a>;
@@ -106,10 +110,10 @@
 &i2s3_2ch {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&i2s3sclkm1
-			     &i2s3lrckm1
-			     &i2s3sdim1
-			     &i2s3sdom1>;
+	pinctrl-0 = <&i2s3m1_sclk
+			     &i2s3m1_lrck
+			     &i2s3m1_sdi
+			     &i2s3m1_sdo>;
 };
 
 &mdio1 {
@@ -134,10 +138,10 @@
 &pdm {
 	status = "disabled";
 	pinctrl-names = "default";
-	pinctrl-0 = <&pdmclk1m1
-		     &pdmsdi1m1
-		     &pdmsdi2m1
-		     &pdmsdi3m1>;
+	pinctrl-0 = <&pdmm1_clk1
+		     &pdmm1_sdi1
+		     &pdmm1_sdi2
+		     &pdmm1_sdi3>;
 };
 
 &pdmics {
@@ -185,7 +189,7 @@
 	clocks = <&cru I2S3_MCLKOUT_TX>;
 	clock-names = "mclk";
 	pinctrl-names = "default";
-	pinctrl-0 = <&i2s3mclkm1>;
+	pinctrl-0 = <&i2s3m1_mclk>;
 	hp-volume = <20>;
 	spk-volume = <3>;
 	mic-in-differential;
@@ -280,7 +284,7 @@
 	//wifi-bt-power-toggle;
 	uart_rts_gpios = <&gpio2 RK_PB5 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default", "rts_gpio";
-	pinctrl-0 = <&uart1ctsnm0>;
+	pinctrl-0 = <&uart1m0_rtsn>;
 	pinctrl-1 = <&uart1_gpios>;
 	BT,reset_gpio    = <&gpio2 RK_PB7 GPIO_ACTIVE_HIGH>;
 	BT,wake_gpio     = <&gpio2 RK_PC1 GPIO_ACTIVE_HIGH>;
