@@ -1630,8 +1630,7 @@ static noinline_for_stack int merge_reloc_root(struct reloc_control *rc,
 	int level;
 	int max_level;
 	int replaced = 0;
-	int ret;
-	int err = 0;
+	int ret = 0;
 	u32 min_reserved;
 
 	path = btrfs_alloc_path();
@@ -1682,13 +1681,11 @@ static noinline_for_stack int merge_reloc_root(struct reloc_control *rc,
 	while (1) {
 		ret = btrfs_block_rsv_refill(root, rc->block_rsv, min_reserved,
 					     BTRFS_RESERVE_FLUSH_LIMIT);
-		if (ret) {
-			err = ret;
+		if (ret)
 			goto out;
-		}
 		trans = btrfs_start_transaction(root, 0);
 		if (IS_ERR(trans)) {
-			err = PTR_ERR(trans);
+			ret = PTR_ERR(trans);
 			trans = NULL;
 			goto out;
 		}
@@ -1710,10 +1707,8 @@ static noinline_for_stack int merge_reloc_root(struct reloc_control *rc,
 		max_level = level;
 
 		ret = walk_down_reloc_tree(reloc_root, path, &level);
-		if (ret < 0) {
-			err = ret;
+		if (ret < 0)
 			goto out;
-		}
 		if (ret > 0)
 			break;
 
@@ -1724,11 +1719,8 @@ static noinline_for_stack int merge_reloc_root(struct reloc_control *rc,
 			ret = replace_path(trans, rc, root, reloc_root, path,
 					   &next_key, level, max_level);
 		}
-		if (ret < 0) {
-			err = ret;
+		if (ret < 0)
 			goto out;
-		}
-
 		if (ret > 0) {
 			level = ret;
 			btrfs_node_key_to_cpu(path->nodes[level], &key,
@@ -1767,12 +1759,10 @@ static noinline_for_stack int merge_reloc_root(struct reloc_control *rc,
 			      BTRFS_NESTING_COW);
 	btrfs_tree_unlock(leaf);
 	free_extent_buffer(leaf);
-	if (ret < 0)
-		err = ret;
 out:
 	btrfs_free_path(path);
 
-	if (err == 0)
+	if (ret == 0)
 		insert_dirty_subvol(trans, rc, root);
 
 	if (trans)
@@ -1783,7 +1773,7 @@ out:
 	if (replaced && rc->stage == UPDATE_DATA_PTRS)
 		invalidate_extent_cache(root, &key, &next_key);
 
-	return err;
+	return ret;
 }
 
 static noinline_for_stack
