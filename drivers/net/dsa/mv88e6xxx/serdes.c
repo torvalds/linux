@@ -428,6 +428,68 @@ u8 mv88e6341_serdes_get_lane(struct mv88e6xxx_chip *chip, int port)
 	return lane;
 }
 
+int mv88e6185_serdes_power(struct mv88e6xxx_chip *chip, int port, u8 lane,
+			   bool up)
+{
+	/* The serdes power can't be controlled on this switch chip but we need
+	 * to supply this function to avoid returning -EOPNOTSUPP in
+	 * mv88e6xxx_serdes_power_up/mv88e6xxx_serdes_power_down
+	 */
+	return 0;
+}
+
+u8 mv88e6185_serdes_get_lane(struct mv88e6xxx_chip *chip, int port)
+{
+	/* There are no configurable serdes lanes on this switch chip but we
+	 * need to return non-zero so that callers of
+	 * mv88e6xxx_serdes_get_lane() know this is a serdes port.
+	 */
+	switch (chip->ports[port].cmode) {
+	case MV88E6185_PORT_STS_CMODE_SERDES:
+	case MV88E6185_PORT_STS_CMODE_1000BASE_X:
+		return 0xff;
+	default:
+		return 0;
+	}
+}
+
+int mv88e6185_serdes_pcs_get_state(struct mv88e6xxx_chip *chip, int port,
+				   u8 lane, struct phylink_link_state *state)
+{
+	int err;
+	u16 status;
+
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_STS, &status);
+	if (err)
+		return err;
+
+	state->link = !!(status & MV88E6XXX_PORT_STS_LINK);
+
+	if (state->link) {
+		state->duplex = status & MV88E6XXX_PORT_STS_DUPLEX ? DUPLEX_FULL : DUPLEX_HALF;
+
+		switch (status &  MV88E6XXX_PORT_STS_SPEED_MASK) {
+		case MV88E6XXX_PORT_STS_SPEED_1000:
+			state->speed = SPEED_1000;
+			break;
+		case MV88E6XXX_PORT_STS_SPEED_100:
+			state->speed = SPEED_100;
+			break;
+		case MV88E6XXX_PORT_STS_SPEED_10:
+			state->speed = SPEED_10;
+			break;
+		default:
+			dev_err(chip->dev, "invalid PHY speed\n");
+			return -EINVAL;
+		}
+	} else {
+		state->duplex = DUPLEX_UNKNOWN;
+		state->speed = SPEED_UNKNOWN;
+	}
+
+	return 0;
+}
+
 u8 mv88e6390_serdes_get_lane(struct mv88e6xxx_chip *chip, int port)
 {
 	u8 cmode = chip->ports[port].cmode;
