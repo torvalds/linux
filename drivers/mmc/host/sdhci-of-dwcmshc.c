@@ -242,6 +242,8 @@ static int rockchip_pltf_init(struct sdhci_host *host, struct dwcmshc_priv *priv
 				 &priv->txclk_tapnum))
 		priv->txclk_tapnum = DLL_TXCLK_TAPNUM_DEFAULT;
 
+	/* Disable cmd conflict check */
+	sdhci_writel(host, 0x0, DWCMSHC_HOST_CTRL3);
 	return 0;
 }
 
