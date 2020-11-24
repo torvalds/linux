@@ -247,7 +247,7 @@ InstructionTLBMiss:
 
 	. = 0x1200
 DataStoreTLBMiss:
-	mtspr	SPRN_DAR, r10
+	mtspr	SPRN_SPRG_SCRATCH2, r10
 	mtspr	SPRN_M_TW, r11
 	mfcr	r11
 
@@ -286,11 +286,11 @@ DataStoreTLBMiss:
 	li	r11, RPN_PATTERN
 	rlwimi	r10, r11, 0, 24, 27	/* Set 24-27 */
 	mtspr	SPRN_MD_RPN, r10	/* Update TLB entry */
+	mtspr	SPRN_DAR, r11		/* Tag DAR */
 
 	/* Restore registers */
 
-0:	mfspr	r10, SPRN_DAR
-	mtspr	SPRN_DAR, r11	/* Tag DAR */
+0:	mfspr	r10, SPRN_SPRG_SCRATCH2
 	mfspr	r11, SPRN_M_TW
 	rfi
 	patch_site	0b, patch__dtlbmiss_exit_1
@@ -300,8 +300,7 @@ DataStoreTLBMiss:
 0:	lwz	r10, (dtlb_miss_counter - PAGE_OFFSET)@l(0)
 	addi	r10, r10, 1
 	stw	r10, (dtlb_miss_counter - PAGE_OFFSET)@l(0)
-	mfspr	r10, SPRN_DAR
-	mtspr	SPRN_DAR, r11	/* Tag DAR */
+	mfspr	r10, SPRN_SPRG_SCRATCH2
 	mfspr	r11, SPRN_M_TW
 	rfi
 #endif
