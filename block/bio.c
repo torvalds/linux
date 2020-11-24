@@ -1212,8 +1212,8 @@ void bio_copy_data_iter(struct bio *dst, struct bvec_iter *dst_iter,
 
 		flush_dcache_page(dst_bv.bv_page);
 
-		bio_advance_iter(src, src_iter, bytes);
-		bio_advance_iter(dst, dst_iter, bytes);
+		bio_advance_iter_single(src, src_iter, bytes);
+		bio_advance_iter_single(dst, dst_iter, bytes);
 	}
 }
 EXPORT_SYMBOL(bio_copy_data_iter);
