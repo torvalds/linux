@@ -8,11 +8,13 @@ Description:
 
 		It has the following valid values:
 
+		==	========================================================
 		0	OFF - the LED is not activated on activity
 		1	BLINK_ON - the LED blinks on every 10ms when activity is
 			detected.
 		2	BLINK_OFF - the LED is on when idle, and blinks off
 			every 10ms when activity is detected.
+		==	========================================================
 
 		Note that the user must turn sw_activity OFF it they wish to
 		control the activity LED via the em_message file.

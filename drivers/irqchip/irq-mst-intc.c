@@ -154,8 +154,8 @@ static const struct irq_domain_ops mst_intc_domain_ops = {
 	.free		= irq_domain_free_irqs_common,
 };
 
-int __init
-mst_intc_of_init(struct device_node *dn, struct device_node *parent)
+static int __init mst_intc_of_init(struct device_node *dn,
+				   struct device_node *parent)
 {
 	struct irq_domain *domain, *domain_parent;
 	struct mst_intc_chip_data *cd;

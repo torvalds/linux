@@ -761,7 +761,6 @@ static int ext4_file_mmap(struct file *file, struct vm_area_struct *vma)
 	if (!daxdev_mapping_supported(vma, dax_dev))
 		return -EOPNOTSUPP;
 
-	ext4_fc_start_update(inode);
 	file_accessed(file);
 	if (IS_DAX(file_inode(file))) {
 		vma->vm_ops = &ext4_dax_vm_ops;
@@ -769,7 +768,6 @@ static int ext4_file_mmap(struct file *file, struct vm_area_struct *vma)
 	} else {
 		vma->vm_ops = &ext4_file_vm_ops;
 	}
-	ext4_fc_stop_update(inode);
 	return 0;
 }
 
@@ -782,13 +780,13 @@ static int ext4_sample_last_mounted(struct super_block *sb,
 	handle_t *handle;
 	int err;
 
-	if (likely(sbi->s_mount_flags & EXT4_MF_MNTDIR_SAMPLED))
+	if (likely(ext4_test_mount_flag(sb, EXT4_MF_MNTDIR_SAMPLED)))
 		return 0;
 
 	if (sb_rdonly(sb) || !sb_start_intwrite_trylock(sb))
 		return 0;
 
-	sbi->s_mount_flags |= EXT4_MF_MNTDIR_SAMPLED;
+	ext4_set_mount_flag(sb, EXT4_MF_MNTDIR_SAMPLED);
 	/*
 	 * Sample where the filesystem has been mounted and
 	 * store it in the superblock for sysadmin convenience

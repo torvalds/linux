@@ -177,8 +177,8 @@ static int create_fixed_stream_quirk(struct snd_usb_audio *chip,
 	if (fp->maxpacksize == 0)
 		fp->maxpacksize = le16_to_cpu(get_endpoint(alts, 0)->wMaxPacketSize);
 	usb_set_interface(chip->dev, fp->iface, 0);
-	snd_usb_init_pitch(chip, fp->iface, alts, fp);
-	snd_usb_init_sample_rate(chip, fp->iface, alts, fp, fp->rate_max);
+	snd_usb_init_pitch(chip, fp);
+	snd_usb_init_sample_rate(chip, fp, fp->rate_max);
 	return 0;
 
  error:
@@ -508,16 +508,6 @@ static int create_standard_mixer_quirk(struct snd_usb_audio *chip,
 	return snd_usb_create_mixer(chip, quirk->ifnum, 0);
 }
 
-
-static int setup_fmt_after_resume_quirk(struct snd_usb_audio *chip,
-				       struct usb_interface *iface,
-				       struct usb_driver *driver,
-				       const struct snd_usb_audio_quirk *quirk)
-{
-	chip->setup_fmt_after_resume_quirk = 1;
-	return 1;	/* Continue with creating streams and mixer */
-}
-
 static int setup_disable_autosuspend(struct snd_usb_audio *chip,
 				       struct usb_interface *iface,
 				       struct usb_driver *driver,
@@ -565,7 +555,6 @@ int snd_usb_create_quirk(struct snd_usb_audio *chip,
 		[QUIRK_AUDIO_EDIROL_UAXX] = create_uaxx_quirk,
 		[QUIRK_AUDIO_ALIGN_TRANSFER] = create_align_transfer_quirk,
 		[QUIRK_AUDIO_STANDARD_MIXER] = create_standard_mixer_quirk,
-		[QUIRK_SETUP_FMT_AFTER_RESUME] = setup_fmt_after_resume_quirk,
 		[QUIRK_SETUP_DISABLE_AUTOSUSPEND] = setup_disable_autosuspend,
 	};
 
@@ -1121,23 +1110,7 @@ free_buf:
 
 static int snd_usb_motu_m_series_boot_quirk(struct usb_device *dev)
 {
-	int ret;
-
-	ret = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
-			      1, USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			      0x0, 0, NULL, 0, 1000);
-
-	if (ret < 0)
-		return ret;
-
 	msleep(2000);
-
-	ret = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
-			      1, USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			      0x20, 0, NULL, 0, 1000);
-
-	if (ret < 0)
-		return ret;
 
 	return 0;
 }
@@ -1386,7 +1359,8 @@ int snd_usb_apply_boot_quirk_once(struct usb_device *dev,
 /*
  * check if the device uses big-endian samples
  */
-int snd_usb_is_big_endian_format(struct snd_usb_audio *chip, struct audioformat *fp)
+int snd_usb_is_big_endian_format(struct snd_usb_audio *chip,
+				 const struct audioformat *fp)
 {
 	/* it depends on altsetting whether the device is big-endian or not */
 	switch (chip->usb_id) {
@@ -1425,7 +1399,7 @@ enum {
 };
 
 static void set_format_emu_quirk(struct snd_usb_substream *subs,
-				 struct audioformat *fmt)
+				 const struct audioformat *fmt)
 {
 	unsigned char emu_samplerate_id = 0;
 
@@ -1434,7 +1408,7 @@ static void set_format_emu_quirk(struct snd_usb_substream *subs,
 	 * by playback substream
 	 */
 	if (subs->direction == SNDRV_PCM_STREAM_PLAYBACK) {
-		if (subs->stream->substream[SNDRV_PCM_STREAM_CAPTURE].interface != -1)
+		if (subs->stream->substream[SNDRV_PCM_STREAM_CAPTURE].cur_audiofmt)
 			return;
 	}
 
@@ -1469,13 +1443,13 @@ static void set_format_emu_quirk(struct snd_usb_substream *subs,
  */
 static int pioneer_djm_set_format_quirk(struct snd_usb_substream *subs)
 {
-
+	unsigned int cur_rate = subs->data_endpoint->cur_rate;
 	/* Convert sample rate value to little endian */
 	u8 sr[3];
 
-	sr[0] = subs->cur_rate & 0xff;
-	sr[1] = (subs->cur_rate >> 8) & 0xff;
-	sr[2] = (subs->cur_rate >> 16) & 0xff;
+	sr[0] = cur_rate & 0xff;
+	sr[1] = (cur_rate >> 8) & 0xff;
+	sr[2] = (cur_rate >> 16) & 0xff;
 
 	/* Configure device */
 	usb_set_interface(subs->dev, 0, 1);
@@ -1487,7 +1461,7 @@ static int pioneer_djm_set_format_quirk(struct snd_usb_substream *subs)
 }
 
 void snd_usb_set_format_quirk(struct snd_usb_substream *subs,
-			      struct audioformat *fmt)
+			      const struct audioformat *fmt)
 {
 	switch (subs->stream->chip->usb_id) {
 	case USB_ID(0x041e, 0x3f02): /* E-Mu 0202 USB */
@@ -1553,13 +1527,13 @@ static bool is_itf_usb_dsd_dac(unsigned int id)
 	return false;
 }
 
-int snd_usb_select_mode_quirk(struct snd_usb_substream *subs,
-			      struct audioformat *fmt)
+int snd_usb_select_mode_quirk(struct snd_usb_audio *chip,
+			      const struct audioformat *fmt)
 {
-	struct usb_device *dev = subs->dev;
+	struct usb_device *dev = chip->dev;
 	int err;
 
-	if (is_itf_usb_dsd_dac(subs->stream->chip->usb_id)) {
+	if (is_itf_usb_dsd_dac(chip->usb_id)) {
 		/* First switch to alt set 0, otherwise the mode switch cmd
 		 * will not be accepted by the DAC
 		 */
@@ -1622,10 +1596,8 @@ void snd_usb_endpoint_start_quirk(struct snd_usb_endpoint *ep)
 		ep->tenor_fb_quirk = 1;
 }
 
-void snd_usb_set_interface_quirk(struct usb_device *dev)
+void snd_usb_set_interface_quirk(struct snd_usb_audio *chip)
 {
-	struct snd_usb_audio *chip = dev_get_drvdata(&dev->dev);
-
 	if (!chip)
 		return;
 	/*

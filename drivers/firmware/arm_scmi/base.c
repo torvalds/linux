@@ -197,6 +197,8 @@ static int scmi_base_implementation_list_get(const struct scmi_handle *handle,
 			protocols_imp[tot_num_ret + loop] = *(list + loop);
 
 		tot_num_ret += loop_num_ret;
+
+		scmi_reset_rx_to_maxsz(handle, t);
 	} while (loop_num_ret);
 
 	scmi_xfer_put(handle, t);

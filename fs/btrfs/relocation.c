@@ -1648,6 +1648,7 @@ static noinline_for_stack int merge_reloc_root(struct reloc_control *rc,
 	struct btrfs_root_item *root_item;
 	struct btrfs_path *path;
 	struct extent_buffer *leaf;
+	int reserve_level;
 	int level;
 	int max_level;
 	int replaced = 0;
@@ -1696,7 +1697,8 @@ static noinline_for_stack int merge_reloc_root(struct reloc_control *rc,
 	 * Thus the needed metadata size is at most root_level * nodesize,
 	 * and * 2 since we have two trees to COW.
 	 */
-	min_reserved = fs_info->nodesize * btrfs_root_level(root_item) * 2;
+	reserve_level = max_t(int, 1, btrfs_root_level(root_item));
+	min_reserved = fs_info->nodesize * reserve_level * 2;
 	memset(&next_key, 0, sizeof(next_key));
 
 	while (1) {

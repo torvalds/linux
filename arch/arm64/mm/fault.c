@@ -262,7 +262,7 @@ static bool __kprobes is_spurious_el1_translation_fault(unsigned long addr,
 	local_irq_save(flags);
 	asm volatile("at s1e1r, %0" :: "r" (addr));
 	isb();
-	par = read_sysreg(par_el1);
+	par = read_sysreg_par();
 	local_irq_restore(flags);
 
 	/*

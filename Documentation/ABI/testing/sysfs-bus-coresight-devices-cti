@@ -8,50 +8,50 @@ What:		/sys/bus/coresight/devices/<cti-name>/powered
 Date:		March 2020
 KernelVersion	5.7
 Contact:	Mike Leach or Mathieu Poirier
-Description:	(R) Indicate if the CTI hardware is powered.
+Description:	(Read) Indicate if the CTI hardware is powered.
 
 What:		/sys/bus/coresight/devices/<cti-name>/ctmid
 Date:		March 2020
 KernelVersion	5.7
 Contact:	Mike Leach or Mathieu Poirier
-Description:	(R) Display the associated CTM ID
+Description:	(Read) Display the associated CTM ID
 
 What:		/sys/bus/coresight/devices/<cti-name>/nr_trigger_cons
 Date:		March 2020
 KernelVersion	5.7
 Contact:	Mike Leach or Mathieu Poirier
-Description:	(R) Number of devices connected to triggers on this CTI
+Description:	(Read) Number of devices connected to triggers on this CTI
 
 What:		/sys/bus/coresight/devices/<cti-name>/triggers<N>/name
 Date:		March 2020
 KernelVersion	5.7
 Contact:	Mike Leach or Mathieu Poirier
-Description:	(R) Name of connected device <N>
+Description:	(Read) Name of connected device <N>
 
 What:		/sys/bus/coresight/devices/<cti-name>/triggers<N>/in_signals
 Date:		March 2020
 KernelVersion	5.7
 Contact:	Mike Leach or Mathieu Poirier
-Description:	(R) Input trigger signals from connected device <N>
+Description:	(Read) Input trigger signals from connected device <N>
 
 What:		/sys/bus/coresight/devices/<cti-name>/triggers<N>/in_types
 Date:		March 2020
 KernelVersion	5.7
 Contact:	Mike Leach or Mathieu Poirier
-Description:	(R) Functional types for the input trigger signals
+Description:	(Read) Functional types for the input trigger signals
 		from connected device <N>
 
 What:		/sys/bus/coresight/devices/<cti-name>/triggers<N>/out_signals
 Date:		March 2020
 KernelVersion	5.7
 Contact:	Mike Leach or Mathieu Poirier
-Description:	(R) Output trigger signals to connected device <N>
+Description:	(Read) Output trigger signals to connected device <N>
 
 What:		/sys/bus/coresight/devices/<cti-name>/triggers<N>/out_types
 Date:		March 2020
 KernelVersion	5.7
 Contact:	Mike Leach or Mathieu Poirier
-Description:	(R) Functional types for the output trigger signals
+Description:	(Read) Functional types for the output trigger signals
 		to connected device <N>
 
 What:		/sys/bus/coresight/devices/<cti-name>/regs/inout_sel
@@ -88,7 +88,7 @@ What:		/sys/bus/coresight/devices/<cti-name>/regs/intack
 Date:		March 2020
 KernelVersion	5.7
 Contact:	Mike Leach or Mathieu Poirier
-Description:	(W) Write the INTACK register.
+Description:	(Write) Write the INTACK register.
 
 What:		/sys/bus/coresight/devices/<cti-name>/regs/appset
 Date:		March 2020
@@ -101,99 +101,99 @@ What:		/sys/bus/coresight/devices/<cti-name>/regs/appclear
 Date:		March 2020
 KernelVersion	5.7
 Contact:	Mike Leach or Mathieu Poirier
-Description:	(W) Write APPCLEAR register to deactivate channel.
+Description:	(Write) Write APPCLEAR register to deactivate channel.
 
 What:		/sys/bus/coresight/devices/<cti-name>/regs/apppulse
 Date:		March 2020
 KernelVersion	5.7
 Contact:	Mike Leach or Mathieu Poirier
-Description:	(W) Write APPPULSE to pulse a channel active for one clock
+Description:	(Write) Write APPPULSE to pulse a channel active for one clock
 		cycle.
 
 What:		/sys/bus/coresight/devices/<cti-name>/regs/chinstatus
 Date:		March 2020
 KernelVersion	5.7
 Contact:	Mike Leach or Mathieu Poirier
-Description:	(R) Read current status of channel inputs.
+Description:	(Read) Read current status of channel inputs.
 
 What:		/sys/bus/coresight/devices/<cti-name>/regs/choutstatus
 Date:		March 2020
 KernelVersion	5.7
 Contact:	Mike Leach or Mathieu Poirier
-Description:	(R) read current status of channel outputs.
+Description:	(Read) read current status of channel outputs.
 
 What:		/sys/bus/coresight/devices/<cti-name>/regs/triginstatus
 Date:		March 2020
 KernelVersion	5.7
 Contact:	Mike Leach or Mathieu Poirier
-Description:	(R) read current status of input trigger signals
+Description:	(Read) read current status of input trigger signals
 
 What:		/sys/bus/coresight/devices/<cti-name>/regs/trigoutstatus
 Date:		March 2020
 KernelVersion	5.7
 Contact:	Mike Leach or Mathieu Poirier
-Description:	(R) read current status of output trigger signals.
+Description:	(Read) read current status of output trigger signals.
 
 What:		/sys/bus/coresight/devices/<cti-name>/channels/trigin_attach
 Date:		March 2020
 KernelVersion	5.7
 Contact:	Mike Leach or Mathieu Poirier
-Description:	(W) Attach a CTI input trigger to a CTM channel.
+Description:	(Write) Attach a CTI input trigger to a CTM channel.
 
 What:		/sys/bus/coresight/devices/<cti-name>/channels/trigin_detach
 Date:		March 2020
 KernelVersion	5.7
 Contact:	Mike Leach or Mathieu Poirier
-Description:	(W) Detach a CTI input trigger from a CTM channel.
+Description:	(Write) Detach a CTI input trigger from a CTM channel.
 
 What:		/sys/bus/coresight/devices/<cti-name>/channels/trigout_attach
 Date:		March 2020
 KernelVersion	5.7
 Contact:	Mike Leach or Mathieu Poirier
-Description:	(W) Attach a CTI output trigger to a CTM channel.
+Description:	(Write) Attach a CTI output trigger to a CTM channel.
 
 What:		/sys/bus/coresight/devices/<cti-name>/channels/trigout_detach
 Date:		March 2020
 KernelVersion	5.7
 Contact:	Mike Leach or Mathieu Poirier
-Description:	(W) Detach a CTI output trigger from a CTM channel.
+Description:	(Write) Detach a CTI output trigger from a CTM channel.
 
 What:		/sys/bus/coresight/devices/<cti-name>/channels/chan_gate_enable
 Date:		March 2020
 KernelVersion	5.7
 Contact:	Mike Leach or Mathieu Poirier
-Description:	(RW) Enable CTIGATE for single channel (W) or list enabled
+Description:	(RW) Enable CTIGATE for single channel (Write) or list enabled
 		channels through the gate (R).
 
 What:		/sys/bus/coresight/devices/<cti-name>/channels/chan_gate_disable
 Date:		March 2020
 KernelVersion	5.7
 Contact:	Mike Leach or Mathieu Poirier
-Description:	(W) Disable CTIGATE for single channel.
+Description:	(Write) Disable CTIGATE for single channel.
 
 What:		/sys/bus/coresight/devices/<cti-name>/channels/chan_set
 Date:		March 2020
 KernelVersion	5.7
 Contact:	Mike Leach or Mathieu Poirier
-Description:	(W) Activate a single channel.
+Description:	(Write) Activate a single channel.
 
 What:		/sys/bus/coresight/devices/<cti-name>/channels/chan_clear
 Date:		March 2020
 KernelVersion	5.7
 Contact:	Mike Leach or Mathieu Poirier
-Description:	(W) Deactivate a single channel.
+Description:	(Write) Deactivate a single channel.
 
 What:		/sys/bus/coresight/devices/<cti-name>/channels/chan_pulse
 Date:		March 2020
 KernelVersion	5.7
 Contact:	Mike Leach or Mathieu Poirier
-Description:	(W) Pulse a single channel - activate for a single clock cycle.
+Description:	(Write) Pulse a single channel - activate for a single clock cycle.
 
 What:		/sys/bus/coresight/devices/<cti-name>/channels/trigout_filtered
 Date:		March 2020
 KernelVersion	5.7
 Contact:	Mike Leach or Mathieu Poirier
-Description:	(R) List of output triggers filtered across all connections.
+Description:	(Read) List of output triggers filtered across all connections.
 
 What:		/sys/bus/coresight/devices/<cti-name>/channels/trig_filter_enable
 Date:		March 2020
@@ -205,13 +205,13 @@ What:		/sys/bus/coresight/devices/<cti-name>/channels/chan_inuse
 Date:		March 2020
 KernelVersion	5.7
 Contact:	Mike Leach or Mathieu Poirier
-Description:	(R) show channels with at least one attached trigger signal.
+Description:	(Read) show channels with at least one attached trigger signal.
 
 What:		/sys/bus/coresight/devices/<cti-name>/channels/chan_free
 Date:		March 2020
 KernelVersion	5.7
 Contact:	Mike Leach or Mathieu Poirier
-Description:	(R) show channels with no attached trigger signals.
+Description:	(Read) show channels with no attached trigger signals.
 
 What:		/sys/bus/coresight/devices/<cti-name>/channels/chan_xtrigs_sel
 Date:		March 2020
@@ -224,18 +224,18 @@ What:		/sys/bus/coresight/devices/<cti-name>/channels/chan_xtrigs_in
 Date:		March 2020
 KernelVersion	5.7
 Contact:	Mike Leach or Mathieu Poirier
-Description:	(R) Read to see input triggers connected to selected view
+Description:	(Read) Read to see input triggers connected to selected view
 		channel.
 
 What:		/sys/bus/coresight/devices/<cti-name>/channels/chan_xtrigs_out
 Date:		March 2020
 KernelVersion	5.7
 Contact:	Mike Leach or Mathieu Poirier
-Description:	(R) Read to see output triggers connected to selected view
+Description:	(Read) Read to see output triggers connected to selected view
 		channel.
 
 What:		/sys/bus/coresight/devices/<cti-name>/channels/chan_xtrigs_reset
 Date:		March 2020
 KernelVersion	5.7
 Contact:	Mike Leach or Mathieu Poirier
-Description:	(W) Clear all channel / trigger programming.
+Description:	(Write) Clear all channel / trigger programming.

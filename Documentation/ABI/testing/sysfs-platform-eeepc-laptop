@@ -4,9 +4,11 @@ KernelVersion:	2.6.26
 Contact:	"Corentin Chary" <corentincj@iksaif.net>
 Description:
 		This file allows display switching.
+
 		- 1 = LCD
 		- 2 = CRT
 		- 3 = LCD+CRT
+
 		If you run X11, you should use xrandr instead.
 
 What:		/sys/devices/platform/eeepc/camera
@@ -30,16 +32,20 @@ Contact:	"Corentin Chary" <corentincj@iksaif.net>
 Description:
 		Change CPU clock configuration.
 		On the Eee PC 1000H there are three available clock configuration:
+
 		    * 0 -> Super Performance Mode
 		    * 1 -> High Performance Mode
 		    * 2 -> Power Saving Mode
+
 		On Eee PC 701 there is only 2 available clock configurations.
 		Available configuration are listed in available_cpufv file.
 		Reading this file will show the raw hexadecimal value which
-		is defined as follow:
-		| 8 bit | 8 bit |
-		    |       `---- Current mode
-		    `------------ Availables modes
+		is defined as follow::
+
+		  | 8 bit | 8 bit |
+		      |       `---- Current mode
+		      `------------ Availables modes
+
 		For example, 0x301 means: mode 1 selected, 3 available modes.
 
 What:		/sys/devices/platform/eeepc/available_cpufv

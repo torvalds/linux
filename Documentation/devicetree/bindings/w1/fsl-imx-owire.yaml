@@ -15,10 +15,10 @@ properties:
       - const: fsl,imx21-owire
       - items:
           - enum:
-            - fsl,imx27-owire
-            - fsl,imx50-owire
-            - fsl,imx51-owire
-            - fsl,imx53-owire
+              - fsl,imx27-owire
+              - fsl,imx50-owire
+              - fsl,imx51-owire
+              - fsl,imx53-owire
           - const: fsl,imx21-owire
 
   reg:

@@ -72,6 +72,7 @@
 	pmic@4b {
 		compatible = "rohm,bd71847";
 		reg = <0x4b>;
+		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_pmic>;
 		interrupt-parent = <&gpio1>;
 		interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
@@ -210,6 +211,7 @@
 		host-wakeup-gpios = <&gpio2 8 GPIO_ACTIVE_HIGH>;
 		device-wakeup-gpios = <&gpio2 7 GPIO_ACTIVE_HIGH>;
 		clocks = <&osc_32k>;
+		max-speed = <4000000>;
 		clock-names = "extclk";
 	};
 };

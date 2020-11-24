@@ -26,7 +26,9 @@
 struct mantix {
 	struct device *dev;
 	struct drm_panel panel;
+
 	struct gpio_desc *reset_gpio;
+	struct gpio_desc *tp_rstn_gpio;
 
 	struct regulator *avdd;
 	struct regulator *avee;
@@ -124,6 +126,10 @@ static int mantix_unprepare(struct drm_panel *panel)
 {
 	struct mantix *ctx = panel_to_mantix(panel);
 
+	gpiod_set_value_cansleep(ctx->tp_rstn_gpio, 1);
+	usleep_range(5000, 6000);
+	gpiod_set_value_cansleep(ctx->reset_gpio, 1);
+
 	regulator_disable(ctx->avee);
 	regulator_disable(ctx->avdd);
 	/* T11 */
@@ -165,13 +171,10 @@ static int mantix_prepare(struct drm_panel *panel)
 		return ret;
 	}
 
-	/* T3+T5 */
-	usleep_range(10000, 12000);
-
-	gpiod_set_value_cansleep(ctx->reset_gpio, 1);
-	usleep_range(5150, 7000);
-
+	/* T3 + T4 + time for voltage to become stable: */
+	usleep_range(6000, 7000);
 	gpiod_set_value_cansleep(ctx->reset_gpio, 0);
+	gpiod_set_value_cansleep(ctx->tp_rstn_gpio, 0);
 
 	/* T6 */
 	msleep(50);
@@ -204,7 +207,7 @@ static int mantix_get_modes(struct drm_panel *panel,
 	if (!mode) {
 		dev_err(ctx->dev, "Failed to add mode %ux%u@%u\n",
 			default_mode.hdisplay, default_mode.vdisplay,
-			drm_mode_vrefresh(mode));
+			drm_mode_vrefresh(&default_mode));
 		return -ENOMEM;
 	}
 
@@ -236,10 +239,16 @@ static int mantix_probe(struct mipi_dsi_device *dsi)
 	if (!ctx)
 		return -ENOMEM;
 
-	ctx->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
+	ctx->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(ctx->reset_gpio)) {
 		dev_err(dev, "cannot get reset gpio\n");
 		return PTR_ERR(ctx->reset_gpio);
+	}
+
+	ctx->tp_rstn_gpio = devm_gpiod_get(dev, "mantix,tp-rstn", GPIOD_OUT_HIGH);
+	if (IS_ERR(ctx->tp_rstn_gpio)) {
+		dev_err(dev, "cannot get tp-rstn gpio\n");
+		return PTR_ERR(ctx->tp_rstn_gpio);
 	}
 
 	mipi_dsi_set_drvdata(dsi, ctx);

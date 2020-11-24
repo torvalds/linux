@@ -1708,6 +1708,13 @@ static int stm32_fmc2_nfc_attach_chip(struct nand_chip *chip)
 		return -EINVAL;
 	}
 
+	/* Default ECC settings in case they are not set in the device tree */
+	if (!chip->ecc.size)
+		chip->ecc.size = FMC2_ECC_STEP_SIZE;
+
+	if (!chip->ecc.strength)
+		chip->ecc.strength = FMC2_ECC_BCH8;
+
 	ret = nand_ecc_choose_conf(chip, &stm32_fmc2_nfc_ecc_caps,
 				   mtd->oobsize - FMC2_BBM_LEN);
 	if (ret) {
@@ -1727,8 +1734,7 @@ static int stm32_fmc2_nfc_attach_chip(struct nand_chip *chip)
 
 	mtd_set_ooblayout(mtd, &stm32_fmc2_nfc_ooblayout_ops);
 
-	if (chip->options & NAND_BUSWIDTH_16)
-		stm32_fmc2_nfc_set_buswidth_16(nfc, true);
+	stm32_fmc2_nfc_setup(chip);
 
 	return 0;
 }
@@ -1951,11 +1957,6 @@ static int stm32_fmc2_nfc_probe(struct platform_device *pdev)
 	chip->controller = &nfc->base;
 	chip->options |= NAND_BUSWIDTH_AUTO | NAND_NO_SUBPAGE_WRITE |
 			 NAND_USES_DMA;
-
-	/* Default ECC settings */
-	chip->ecc.engine_type = NAND_ECC_ENGINE_TYPE_ON_HOST;
-	chip->ecc.size = FMC2_ECC_STEP_SIZE;
-	chip->ecc.strength = FMC2_ECC_BCH8;
 
 	/* Scan to find existence of the device */
 	ret = nand_scan(chip, nand->ncs);
