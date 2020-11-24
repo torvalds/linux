@@ -162,6 +162,7 @@ enum vadc_scale_fn_type {
 };
 
 struct adc5_data {
+	const char	*name;
 	const u32	full_scale_code_volt;
 	const u32	full_scale_code_cur;
 	const struct adc5_channels *adc_chans;
