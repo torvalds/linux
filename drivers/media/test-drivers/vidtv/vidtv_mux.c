@@ -209,7 +209,7 @@ static u32 vidtv_mux_push_si(struct vidtv_mux *m)
 	eit_args.offset             = m->mux_buf_offset;
 	eit_args.continuity_counter = &eit_ctx->cc;
 
-	m->mux_buf_offset += vidtv_psi_eit_write_into(eit_args);
+	m->mux_buf_offset += vidtv_psi_eit_write_into(&eit_args);
 
 	nbytes = m->mux_buf_offset - initial_offset;
 
