@@ -76,6 +76,7 @@ struct cqspi_st {
 	bool			is_decoded_cs;
 	u32			fifo_depth;
 	u32			fifo_width;
+	u32			num_chipselect;
 	bool			rclk_en;
 	u32			trigger_address;
 	u32			wr_delay;
@@ -1353,6 +1354,9 @@ static int cqspi_of_get_pdata(struct cqspi_st *cqspi)
 		return -ENXIO;
 	}
 
+	if (of_property_read_u32(np, "num-cs", &cqspi->num_chipselect))
+		cqspi->num_chipselect = CQSPI_MAX_CHIPSELECT;
+
 	cqspi->rclk_en = of_property_read_bool(np, "cdns,rclk-en");
 
 	return 0;
@@ -1588,6 +1592,8 @@ static int cqspi_probe(struct platform_device *pdev)
 	cqspi_controller_init(cqspi);
 	cqspi->current_cs = -1;
 	cqspi->sclk = 0;
+
+	master->num_chipselect = cqspi->num_chipselect;
 
 	ret = cqspi_setup_flash(cqspi);
 	if (ret) {
