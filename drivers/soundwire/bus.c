@@ -1334,6 +1334,7 @@ static int sdw_handle_dp0_interrupt(struct sdw_slave *slave, u8 *slave_status)
 				"SDW_DP0_INT read failed:%d\n", status2);
 			return status2;
 		}
+		/* filter to limit loop to interrupts identified in the first status read */
 		status &= status2;
 
 		count++;
@@ -1404,6 +1405,7 @@ static int sdw_handle_port_interrupt(struct sdw_slave *slave,
 				"SDW_DPN_INT read failed:%d\n", status2);
 			return status2;
 		}
+		/* filter to limit loop to interrupts identified in the first status read */
 		status &= status2;
 
 		count++;
@@ -1589,7 +1591,10 @@ static int sdw_handle_slave_alerts(struct sdw_slave *slave)
 			sdca_cascade = ret & SDW_DP0_SDCA_CASCADE;
 		}
 
-		/* Make sure no interrupts are pending */
+		/*
+		 * Make sure no interrupts are pending, but filter to limit loop
+		 * to interrupts identified in the first status read
+		 */
 		buf &= _buf;
 		buf2[0] &= _buf2[0];
 		buf2[1] &= _buf2[1];
