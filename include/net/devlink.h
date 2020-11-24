@@ -835,6 +835,7 @@ enum devlink_trap_generic_id {
 	DEVLINK_TRAP_GENERIC_ID_DCCP_PARSING,
 	DEVLINK_TRAP_GENERIC_ID_GTP_PARSING,
 	DEVLINK_TRAP_GENERIC_ID_ESP_PARSING,
+	DEVLINK_TRAP_GENERIC_ID_BLACKHOLE_NEXTHOP,
 
 	/* Add new generic trap IDs above */
 	__DEVLINK_TRAP_GENERIC_ID_MAX,
@@ -1058,7 +1059,8 @@ enum devlink_trap_group_generic_id {
 	"gtp_parsing"
 #define DEVLINK_TRAP_GENERIC_NAME_ESP_PARSING \
 	"esp_parsing"
-
+#define DEVLINK_TRAP_GENERIC_NAME_BLACKHOLE_NEXTHOP \
+	"blackhole_nexthop"
 
 #define DEVLINK_TRAP_GROUP_GENERIC_NAME_L2_DROPS \
 	"l2_drops"

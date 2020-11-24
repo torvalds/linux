@@ -2858,9 +2858,10 @@ struct mlxsw_sp_nexthop {
 	   offloaded:1, /* set in case the neigh is actually put into
 			 * KVD linear area of this group.
 			 */
-	   update:1; /* set indicates that MAC of this neigh should be
+	   update:1, /* set indicates that MAC of this neigh should be
 		      * updated in HW
 		      */
+	   discard:1; /* nexthop is programmed to discard packets */
 	enum mlxsw_sp_nexthop_type type;
 	union {
 		struct mlxsw_sp_neigh_entry *neigh_entry;
@@ -3009,6 +3010,11 @@ bool mlxsw_sp_nexthop_group_has_ipip(struct mlxsw_sp_nexthop *nh)
 			return true;
 	}
 	return false;
+}
+
+bool mlxsw_sp_nexthop_is_discard(const struct mlxsw_sp_nexthop *nh)
+{
+	return nh->discard;
 }
 
 struct mlxsw_sp_nexthop_group_cmp_arg {
@@ -3284,8 +3290,12 @@ static int __mlxsw_sp_nexthop_update(struct mlxsw_sp *mlxsw_sp, u32 adj_index,
 
 	mlxsw_reg_ratr_pack(ratr_pl, MLXSW_REG_RATR_OP_WRITE_WRITE_ENTRY,
 			    true, MLXSW_REG_RATR_TYPE_ETHERNET,
-			    adj_index, neigh_entry->rif);
-	mlxsw_reg_ratr_eth_entry_pack(ratr_pl, neigh_entry->ha);
+			    adj_index, nh->rif->rif_index);
+	if (nh->discard)
+		mlxsw_reg_ratr_trap_action_set(ratr_pl,
+					       MLXSW_REG_RATR_TRAP_ACTION_DISCARD_ERRORS);
+	else
+		mlxsw_reg_ratr_eth_entry_pack(ratr_pl, neigh_entry->ha);
 	if (nh->counter_valid)
 		mlxsw_reg_ratr_counter_pack(ratr_pl, nh->counter_index, true);
 	else
@@ -4128,9 +4138,7 @@ mlxsw_sp_nexthop_obj_single_validate(struct mlxsw_sp *mlxsw_sp,
 {
 	int err = -EINVAL;
 
-	if (nh->is_reject)
-		NL_SET_ERR_MSG_MOD(extack, "Blackhole nexthops are not supported");
-	else if (nh->is_fdb)
+	if (nh->is_fdb)
 		NL_SET_ERR_MSG_MOD(extack, "FDB nexthops are not supported");
 	else if (nh->has_encap)
 		NL_SET_ERR_MSG_MOD(extack, "Encapsulating nexthops are not supported");
@@ -4165,7 +4173,7 @@ mlxsw_sp_nexthop_obj_group_validate(struct mlxsw_sp *mlxsw_sp,
 		/* Device only nexthops with an IPIP device are programmed as
 		 * encapsulating adjacency entries.
 		 */
-		if (!nh->gw_family &&
+		if (!nh->gw_family && !nh->is_reject &&
 		    !mlxsw_sp_netdev_ipip_type(mlxsw_sp, nh->dev, NULL)) {
 			NL_SET_ERR_MSG_MOD(extack, "Nexthop group entry does not have a gateway");
 			return -EINVAL;
@@ -4199,8 +4207,29 @@ static bool mlxsw_sp_nexthop_obj_is_gateway(struct mlxsw_sp *mlxsw_sp,
 		return true;
 
 	dev = info->nh->dev;
-	return info->nh->gw_family ||
+	return info->nh->gw_family || info->nh->is_reject ||
 	       mlxsw_sp_netdev_ipip_type(mlxsw_sp, dev, NULL);
+}
+
+static void mlxsw_sp_nexthop_obj_blackhole_init(struct mlxsw_sp *mlxsw_sp,
+						struct mlxsw_sp_nexthop *nh)
+{
+	u16 lb_rif_index = mlxsw_sp->router->lb_rif_index;
+
+	nh->discard = 1;
+	nh->should_offload = 1;
+	/* While nexthops that discard packets do not forward packets
+	 * via an egress RIF, they still need to be programmed using a
+	 * valid RIF, so use the loopback RIF created during init.
+	 */
+	nh->rif = mlxsw_sp->router->rifs[lb_rif_index];
+}
+
+static void mlxsw_sp_nexthop_obj_blackhole_fini(struct mlxsw_sp *mlxsw_sp,
+						struct mlxsw_sp_nexthop *nh)
+{
+	nh->rif = NULL;
+	nh->should_offload = 0;
 }
 
 static int
@@ -4236,6 +4265,9 @@ mlxsw_sp_nexthop_obj_init(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_type_init;
 
+	if (nh_obj->is_reject)
+		mlxsw_sp_nexthop_obj_blackhole_init(mlxsw_sp, nh);
+
 	return 0;
 
 err_type_init:
@@ -4247,6 +4279,8 @@ err_type_init:
 static void mlxsw_sp_nexthop_obj_fini(struct mlxsw_sp *mlxsw_sp,
 				      struct mlxsw_sp_nexthop *nh)
 {
+	if (nh->discard)
+		mlxsw_sp_nexthop_obj_blackhole_fini(mlxsw_sp, nh);
 	mlxsw_sp_nexthop_type_fini(mlxsw_sp, nh);
 	list_del(&nh->router_list_node);
 	mlxsw_sp_nexthop_counter_free(mlxsw_sp, nh);
@@ -4994,7 +5028,7 @@ int mlxsw_sp_fib_entry_commit(struct mlxsw_sp *mlxsw_sp,
 	return err;
 }
 
-static int mlxsw_sp_adj_discard_write(struct mlxsw_sp *mlxsw_sp, u16 rif_index)
+static int mlxsw_sp_adj_discard_write(struct mlxsw_sp *mlxsw_sp)
 {
 	enum mlxsw_reg_ratr_trap_action trap_action;
 	char ratr_pl[MLXSW_REG_RATR_LEN];
@@ -5008,11 +5042,13 @@ static int mlxsw_sp_adj_discard_write(struct mlxsw_sp *mlxsw_sp, u16 rif_index)
 	if (err)
 		return err;
 
-	trap_action = MLXSW_REG_RATR_TRAP_ACTION_DISCARD_ERRORS;
+	trap_action = MLXSW_REG_RATR_TRAP_ACTION_TRAP;
 	mlxsw_reg_ratr_pack(ratr_pl, MLXSW_REG_RATR_OP_WRITE_WRITE_ENTRY, true,
 			    MLXSW_REG_RATR_TYPE_ETHERNET,
-			    mlxsw_sp->router->adj_discard_index, rif_index);
+			    mlxsw_sp->router->adj_discard_index,
+			    mlxsw_sp->router->lb_rif_index);
 	mlxsw_reg_ratr_trap_action_set(ratr_pl, trap_action);
+	mlxsw_reg_ratr_trap_id_set(ratr_pl, MLXSW_TRAP_ID_RTR_EGRESS0);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ratr), ratr_pl);
 	if (err)
 		goto err_ratr_write;
@@ -5050,8 +5086,7 @@ static int mlxsw_sp_fib_entry_op_remote(struct mlxsw_sp *mlxsw_sp,
 		adjacency_index = nhgi->adj_index;
 		ecmp_size = nhgi->ecmp_size;
 	} else if (!nhgi->adj_index_valid && nhgi->count && nhgi->nh_rif) {
-		err = mlxsw_sp_adj_discard_write(mlxsw_sp,
-						 nhgi->nh_rif->rif_index);
+		err = mlxsw_sp_adj_discard_write(mlxsw_sp);
 		if (err)
 			return err;
 		trap_action = MLXSW_REG_RALUE_TRAP_ACTION_NOP;
@@ -8918,6 +8953,30 @@ static void mlxsw_sp_router_ll_op_ctx_fini(struct mlxsw_sp_router *router)
 	kfree(router->ll_op_ctx);
 }
 
+static int mlxsw_sp_lb_rif_init(struct mlxsw_sp *mlxsw_sp)
+{
+	u16 lb_rif_index;
+	int err;
+
+	/* Create a generic loopback RIF associated with the main table
+	 * (default VRF). Any table can be used, but the main table exists
+	 * anyway, so we do not waste resources.
+	 */
+	err = mlxsw_sp_router_ul_rif_get(mlxsw_sp, RT_TABLE_MAIN,
+					 &lb_rif_index);
+	if (err)
+		return err;
+
+	mlxsw_sp->router->lb_rif_index = lb_rif_index;
+
+	return 0;
+}
+
+static void mlxsw_sp_lb_rif_fini(struct mlxsw_sp *mlxsw_sp)
+{
+	mlxsw_sp_router_ul_rif_put(mlxsw_sp, mlxsw_sp->router->lb_rif_index);
+}
+
 int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp,
 			 struct netlink_ext_ack *extack)
 {
@@ -8973,6 +9032,10 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp,
 	err = mlxsw_sp_vrs_init(mlxsw_sp);
 	if (err)
 		goto err_vrs_init;
+
+	err = mlxsw_sp_lb_rif_init(mlxsw_sp);
+	if (err)
+		goto err_lb_rif_init;
 
 	err = mlxsw_sp_neigh_init(mlxsw_sp);
 	if (err)
@@ -9039,6 +9102,8 @@ err_dscp_init:
 err_mp_hash_init:
 	mlxsw_sp_neigh_fini(mlxsw_sp);
 err_neigh_init:
+	mlxsw_sp_lb_rif_fini(mlxsw_sp);
+err_lb_rif_init:
 	mlxsw_sp_vrs_fini(mlxsw_sp);
 err_vrs_init:
 	mlxsw_sp_mr_fini(mlxsw_sp);
@@ -9074,6 +9139,7 @@ void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp)
 	mlxsw_core_flush_owq();
 	WARN_ON(!list_empty(&mlxsw_sp->router->fib_event_queue));
 	mlxsw_sp_neigh_fini(mlxsw_sp);
+	mlxsw_sp_lb_rif_fini(mlxsw_sp);
 	mlxsw_sp_vrs_fini(mlxsw_sp);
 	mlxsw_sp_mr_fini(mlxsw_sp);
 	mlxsw_sp_lpm_fini(mlxsw_sp);
