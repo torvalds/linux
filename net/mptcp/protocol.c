@@ -1710,6 +1710,7 @@ static void mptcp_timeout_timer(struct timer_list *t)
 	struct sock *sk = from_timer(sk, t, sk_timer);
 
 	mptcp_schedule_work(sk);
+	sock_put(sk);
 }
 
 /* Find an idle subflow.  Return NULL if there is unacked data at tcp
