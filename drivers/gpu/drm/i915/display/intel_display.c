@@ -15487,20 +15487,36 @@ static int intel_atomic_check_async(struct intel_atomic_state *state)
 
 static int intel_bigjoiner_add_affected_crtcs(struct intel_atomic_state *state)
 {
-	const struct intel_crtc_state *crtc_state;
+	struct intel_crtc_state *crtc_state;
 	struct intel_crtc *crtc;
 	int i;
 
 	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
 		struct intel_crtc_state *linked_crtc_state;
+		struct intel_crtc *linked_crtc;
+		int ret;
 
 		if (!crtc_state->bigjoiner)
 			continue;
 
-		linked_crtc_state = intel_atomic_get_crtc_state(&state->base,
-								crtc_state->bigjoiner_linked_crtc);
+		linked_crtc = crtc_state->bigjoiner_linked_crtc;
+		linked_crtc_state = intel_atomic_get_crtc_state(&state->base, linked_crtc);
 		if (IS_ERR(linked_crtc_state))
 			return PTR_ERR(linked_crtc_state);
+
+		if (!needs_modeset(crtc_state))
+			continue;
+
+		linked_crtc_state->uapi.mode_changed = true;
+
+		ret = drm_atomic_add_affected_connectors(&state->base,
+							 &linked_crtc->base);
+		if (ret)
+			return ret;
+
+		ret = intel_atomic_add_affected_planes(state, linked_crtc);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
@@ -15616,6 +15632,16 @@ static int intel_atomic_check(struct drm_device *dev,
 				trans |= BIT(new_crtc_state->master_transcoder);
 
 			if (intel_cpu_transcoders_need_modeset(state, trans)) {
+				new_crtc_state->uapi.mode_changed = true;
+				new_crtc_state->update_pipe = false;
+			}
+		}
+
+		if (new_crtc_state->bigjoiner) {
+			struct intel_crtc_state *linked_crtc_state =
+				intel_atomic_get_new_crtc_state(state, new_crtc_state->bigjoiner_linked_crtc);
+
+			if (needs_modeset(linked_crtc_state)) {
 				new_crtc_state->uapi.mode_changed = true;
 				new_crtc_state->update_pipe = false;
 			}
