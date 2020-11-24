@@ -14,6 +14,7 @@
 #define RV1126_GMAC_CON			0x460
 #define RV1126_GRF_IOFUNC_CON1		0x10264
 #define RV1126_GRF_SOC_STATUS0		0x10
+#define RV1126_PMUGRF_SOC_CON0		0x100
 
 #define RV1126_FRAC_MAX_PRATE		1200000000
 #define RV1126_CSIOUT_FRAC_MAX_PRATE	300000000
@@ -145,6 +146,7 @@ static const struct rockchip_cpuclk_reg_data rv1126_cpuclk_data = {
 
 PNAME(mux_pll_p)			= { "xin24m" };
 PNAME(mux_rtc32k_p)			= { "clk_pmupvtm_divout", "xin32k", "clk_osc0_div32k" };
+PNAME(mux_clk_32k_ioe_p)		= { "xin32k", "clk_rtc32k" };
 PNAME(mux_wifi_p)			= { "clk_wifi_osc0", "clk_wifi_div" };
 PNAME(mux_uart1_p)			= { "sclk_uart1_div", "sclk_uart1_fracdiv", "xin24m" };
 PNAME(mux_xin24m_gpll_p)		= { "xin24m", "gpll" };
@@ -349,6 +351,9 @@ static struct rockchip_clk_branch rv1126_clk_pmu_branches[] __initdata = {
 			RV1126_PMU_CLKSEL_CON(13), 0,
 			RV1126_PMU_CLKGATE_CON(2), 9, GFLAGS,
 			&rv1126_rtc32k_fracmux, 0),
+
+	MUXPMUGRF(CLK_32K_IOE, "clk_32k_ioe", mux_clk_32k_ioe_p,  0,
+			RV1126_PMUGRF_SOC_CON0, 0, 1, MFLAGS),
 
 	COMPOSITE_NOMUX(CLK_WIFI_DIV, "clk_wifi_div", "gpll", 0,
 			RV1126_PMU_CLKSEL_CON(12), 0, 6, DFLAGS,

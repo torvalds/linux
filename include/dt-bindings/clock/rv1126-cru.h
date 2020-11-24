@@ -38,6 +38,7 @@
 #define CLK_USBPHY_HOST_REF	24
 #define CLK_REF24M		25
 #define CLK_MIPIDSIPHY_REF	26
+#define CLK_32K_IOE		27
 
 /* pclk */
 #define PCLK_PDPMU		30
