@@ -17,6 +17,8 @@ Optional properties:
  - assigned-clock-parents : parent of clk_xxx_osc or clk_xxx_div.
 		 Refer to clk/clock-bindings.txt for generic clock
 		 consumer properties.
+ - rockchip,dis-u3otg0-port: when set, disable the u3 root port of otg0 host.
+ - rockchip,dis-u3otg1-port: when set, disable the u3 root port of otg1 host.
 
 Example:
 
