@@ -902,6 +902,8 @@ void napi_consume_skb(struct sk_buff *skb, int budget)
 		return;
 	}
 
+	lockdep_assert_in_softirq();
+
 	if (!skb_unref(skb))
 		return;
 
