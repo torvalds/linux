@@ -84,6 +84,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-evb6-ddr3-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-evb6-ddr3-v10-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-evb6-ddr3-v10-rk628-bt1120-to-hdmi.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-evb6-ddr3-v10-rk628-rgb2hdmi.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-evb6-ddr3-v10-rk630-bt656-to-cvbs.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-iotest-ddr3-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-iotest-ddr3-v10-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3568-nvr-demo-v10.dtb
