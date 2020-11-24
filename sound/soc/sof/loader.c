@@ -197,6 +197,44 @@ static int ext_man_get_dbg_abi_info(struct snd_sof_dev *sdev,
 	return 0;
 }
 
+static int ext_man_get_config_data(struct snd_sof_dev *sdev,
+				   const struct sof_ext_man_elem_header *hdr)
+{
+	const struct sof_ext_man_config_data *config =
+		container_of(hdr, struct sof_ext_man_config_data, hdr);
+	const struct sof_config_elem *elem;
+	int elems_counter;
+	int elems_size;
+	int i;
+
+	/* calculate elements counter */
+	elems_size = config->hdr.size - sizeof(struct sof_ext_man_elem_header);
+	elems_counter = elems_size / sizeof(struct sof_config_elem);
+
+	dev_dbg(sdev->dev, "%s can hold up to %d config elements\n",
+		__func__, elems_counter);
+
+	for (i = 0; i < elems_counter; ++i) {
+		elem = &config->elems[i];
+		dev_dbg(sdev->dev, "%s get index %d token %d val %d\n",
+			__func__, i, elem->token, elem->value);
+		switch (elem->token) {
+		case SOF_EXT_MAN_CONFIG_EMPTY:
+			/* unused memory space is zero filled - mapped to EMPTY elements */
+			break;
+		case SOF_EXT_MAN_CONFIG_IPC_MSG_SIZE:
+			/* TODO: use ipc msg size from config data */
+			break;
+		default:
+			dev_info(sdev->dev, "Unknown firmware configuration token %d value %d",
+				 elem->token, elem->value);
+			break;
+		}
+	}
+
+	return 0;
+}
+
 static ssize_t snd_sof_ext_man_size(const struct firmware *fw)
 {
 	const struct sof_ext_man_header *head;
@@ -278,6 +316,9 @@ static int snd_sof_fw_ext_man_parse(struct snd_sof_dev *sdev,
 			break;
 		case SOF_EXT_MAN_ELEM_DBG_ABI:
 			ret = ext_man_get_dbg_abi_info(sdev, elem_hdr);
+			break;
+		case SOF_EXT_MAN_ELEM_CONFIG_DATA:
+			ret = ext_man_get_config_data(sdev, elem_hdr);
 			break;
 		default:
 			dev_info(sdev->dev, "unknown sof_ext_man header type %d size 0x%X\n",
