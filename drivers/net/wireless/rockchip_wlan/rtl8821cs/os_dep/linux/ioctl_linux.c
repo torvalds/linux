@@ -3946,6 +3946,9 @@ static int rtw_p2p_set_go_nego_ssid(struct net_device *dev,
 	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
 	struct wifidirect_info *pwdinfo = &(padapter->wdinfo);
 
+	if (wrqu->data.length > WLAN_SSID_MAXLEN - 1)
+		return -EINVAL;
+
 	RTW_INFO("[%s] ssid = %s, len = %zu\n", __FUNCTION__, extra, strlen(extra));
 	_rtw_memcpy(pwdinfo->nego_ssid, extra, strlen(extra));
 	pwdinfo->nego_ssidlen = strlen(extra);
@@ -4090,6 +4093,8 @@ static int rtw_p2p_setDN(struct net_device *dev,
 	_adapter *padapter = (_adapter *)rtw_netdev_priv(dev);
 	struct wifidirect_info *pwdinfo = &(padapter->wdinfo);
 
+	if (wrqu->data.length > WPS_MAX_DEVICE_NAME_LEN - 1)
+		return -EINVAL;
 
 	RTW_INFO("[%s] %s %d\n", __FUNCTION__, extra, wrqu->data.length - 1);
 	_rtw_memset(pwdinfo->device_name, 0x00, WPS_MAX_DEVICE_NAME_LEN);
