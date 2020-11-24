@@ -832,5 +832,5 @@ void dcn30_set_disp_pattern_generator(const struct dc *dc,
 		int width, int height, int offset)
 {
 	pipe_ctx->stream_res.opp->funcs->opp_set_disp_pattern_generator(pipe_ctx->stream_res.opp, test_pattern,
-			color_space, color_depth, solid_color, width, height, 0);
+			color_space, color_depth, solid_color, width, height, offset);
 }
