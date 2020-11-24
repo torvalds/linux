@@ -565,7 +565,10 @@ static void isp_config_clk(struct rkisp_hw_dev *dev, int on)
 		      CLK_CTRL_MI_Y12 | CLK_CTRL_MI_SP |
 		      CLK_CTRL_MI_RAW0 | CLK_CTRL_MI_RAW1 |
 		      CLK_CTRL_MI_READ | CLK_CTRL_MI_RAWRD |
-		      CLK_CTRL_ISP_3A | CLK_CTRL_ISP_RAW;
+		      CLK_CTRL_ISP_RAW;
+
+		if (dev->isp_ver == ISP_V20 && on)
+			val |= CLK_CTRL_ISP_3A;
 		writel(val, dev->base_addr + CTRL_VI_ISP_CLK_CTRL);
 	}
 }

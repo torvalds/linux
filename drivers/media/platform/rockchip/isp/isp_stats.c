@@ -181,6 +181,8 @@ static void rkisp_stats_vb2_stop_streaming(struct vb2_queue *vq)
 		list_del(&buf->queue);
 		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 	}
+	if (stats_vdev->cur_buf)
+		vb2_buffer_done(&stats_vdev->cur_buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 	spin_unlock_irqrestore(&stats_vdev->rd_lock, flags);
 }
 
@@ -190,6 +192,7 @@ rkisp_stats_vb2_start_streaming(struct vb2_queue *queue,
 {
 	struct rkisp_isp_stats_vdev *stats_vdev = queue->drv_priv;
 
+	stats_vdev->cur_buf = NULL;
 	stats_vdev->ops->rdbk_enable(stats_vdev, false);
 	stats_vdev->streamon = true;
 	kfifo_reset(&stats_vdev->rd_kfifo);
