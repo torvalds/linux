@@ -1467,6 +1467,13 @@ xfs_fc_fill_super(
 #endif
 	}
 
+	/* Filesystem claims it needs repair, so refuse the mount. */
+	if (xfs_sb_version_needsrepair(&mp->m_sb)) {
+		xfs_warn(mp, "Filesystem needs repair.  Please run xfs_repair.");
+		error = -EFSCORRUPTED;
+		goto out_free_sb;
+	}
+
 	/*
 	 * Don't touch the filesystem if a user tool thinks it owns the primary
 	 * superblock.  mkfs doesn't clear the flag from secondary supers, so
