@@ -293,7 +293,7 @@ static int hci_cmd_v1_daa(struct i3c_hci *hci)
 {
 	struct hci_xfer *xfer;
 	int ret, dat_idx = -1;
-	u8 next_addr;
+	u8 next_addr = 0;
 	u64 pid;
 	unsigned int dcr, bcr;
 	DECLARE_COMPLETION_ONSTACK(done);
