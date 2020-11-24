@@ -634,69 +634,67 @@ void vidtv_sdt_desc_assign(struct vidtv_psi_table_sdt *sdt,
 	vidtv_psi_update_version_num(&sdt->header);
 }
 
-static u32 vidtv_psi_desc_write_into(struct desc_write_args args)
+static u32 vidtv_psi_desc_write_into(struct desc_write_args *args)
 {
+	struct psi_write_args psi_args = {
+		.dest_buf           = args->dest_buf,
+		.from               = &args->desc->type,
+		.pid                = args->pid,
+		.new_psi_section    = false,
+		.continuity_counter = args->continuity_counter,
+		.is_crc             = false,
+		.dest_buf_sz        = args->dest_buf_sz,
+		.crc                = args->crc,
+		.len		    = sizeof_field(struct vidtv_psi_desc, type) +
+				      sizeof_field(struct vidtv_psi_desc, length),
+	};
 	struct vidtv_psi_desc_service_list_entry *serv_list_entry = NULL;
-	struct psi_write_args psi_args = {};
-	/* the number of bytes written by this function */
 	u32 nbytes = 0;
 
-	psi_args.dest_buf = args.dest_buf;
-	psi_args.from     = &args.desc->type;
-
-	psi_args.len = sizeof_field(struct vidtv_psi_desc, type) +
-		       sizeof_field(struct vidtv_psi_desc, length);
-
-	psi_args.dest_offset        = args.dest_offset + nbytes;
-	psi_args.pid                = args.pid;
-	psi_args.new_psi_section    = false;
-	psi_args.continuity_counter = args.continuity_counter;
-	psi_args.is_crc             = false;
-	psi_args.dest_buf_sz        = args.dest_buf_sz;
-	psi_args.crc                = args.crc;
+	psi_args.dest_offset        = args->dest_offset + nbytes;
 
 	nbytes += vidtv_psi_ts_psi_write_into(&psi_args);
 
-	switch (args.desc->type) {
+	switch (args->desc->type) {
 	case SERVICE_DESCRIPTOR:
-		psi_args.dest_offset = args.dest_offset + nbytes;
+		psi_args.dest_offset = args->dest_offset + nbytes;
 		psi_args.len = sizeof_field(struct vidtv_psi_desc_service, service_type) +
 			       sizeof_field(struct vidtv_psi_desc_service, provider_name_len);
-		psi_args.from = &((struct vidtv_psi_desc_service *)args.desc)->service_type;
+		psi_args.from = &((struct vidtv_psi_desc_service *)args->desc)->service_type;
 
 		nbytes += vidtv_psi_ts_psi_write_into(&psi_args);
 
-		psi_args.dest_offset = args.dest_offset + nbytes;
-		psi_args.len = ((struct vidtv_psi_desc_service *)args.desc)->provider_name_len;
-		psi_args.from = ((struct vidtv_psi_desc_service *)args.desc)->provider_name;
+		psi_args.dest_offset = args->dest_offset + nbytes;
+		psi_args.len = ((struct vidtv_psi_desc_service *)args->desc)->provider_name_len;
+		psi_args.from = ((struct vidtv_psi_desc_service *)args->desc)->provider_name;
 
 		nbytes += vidtv_psi_ts_psi_write_into(&psi_args);
 
-		psi_args.dest_offset = args.dest_offset + nbytes;
+		psi_args.dest_offset = args->dest_offset + nbytes;
 		psi_args.len = sizeof_field(struct vidtv_psi_desc_service, service_name_len);
-		psi_args.from = &((struct vidtv_psi_desc_service *)args.desc)->service_name_len;
+		psi_args.from = &((struct vidtv_psi_desc_service *)args->desc)->service_name_len;
 
 		nbytes += vidtv_psi_ts_psi_write_into(&psi_args);
 
-		psi_args.dest_offset = args.dest_offset + nbytes;
-		psi_args.len = ((struct vidtv_psi_desc_service *)args.desc)->service_name_len;
-		psi_args.from = ((struct vidtv_psi_desc_service *)args.desc)->service_name;
+		psi_args.dest_offset = args->dest_offset + nbytes;
+		psi_args.len = ((struct vidtv_psi_desc_service *)args->desc)->service_name_len;
+		psi_args.from = ((struct vidtv_psi_desc_service *)args->desc)->service_name;
 
 		nbytes += vidtv_psi_ts_psi_write_into(&psi_args);
 		break;
 
 	case NETWORK_NAME_DESCRIPTOR:
-		psi_args.dest_offset = args.dest_offset + nbytes;
-		psi_args.len = args.desc->length;
-		psi_args.from = ((struct vidtv_psi_desc_network_name *)args.desc)->network_name;
+		psi_args.dest_offset = args->dest_offset + nbytes;
+		psi_args.len = args->desc->length;
+		psi_args.from = ((struct vidtv_psi_desc_network_name *)args->desc)->network_name;
 
 		nbytes += vidtv_psi_ts_psi_write_into(&psi_args);
 		break;
 
 	case SERVICE_LIST_DESCRIPTOR:
-		serv_list_entry = ((struct vidtv_psi_desc_service_list *)args.desc)->service_list;
+		serv_list_entry = ((struct vidtv_psi_desc_service_list *)args->desc)->service_list;
 		while (serv_list_entry) {
-			psi_args.dest_offset = args.dest_offset + nbytes;
+			psi_args.dest_offset = args->dest_offset + nbytes;
 			psi_args.len = sizeof(struct vidtv_psi_desc_service_list_entry) -
 				       sizeof(struct vidtv_psi_desc_service_list_entry *);
 			psi_args.from = serv_list_entry;
@@ -708,35 +706,35 @@ static u32 vidtv_psi_desc_write_into(struct desc_write_args args)
 		break;
 
 	case SHORT_EVENT_DESCRIPTOR:
-		psi_args.dest_offset = args.dest_offset + nbytes;
+		psi_args.dest_offset = args->dest_offset + nbytes;
 		psi_args.len = ISO_LANGUAGE_CODE_LEN;
 		psi_args.from = ((struct vidtv_psi_desc_short_event *)
-				  args.desc)->iso_language_code;
+				  args->desc)->iso_language_code;
 
 		nbytes += vidtv_psi_ts_psi_write_into(&psi_args);
 
-		psi_args.dest_offset = args.dest_offset + nbytes;
+		psi_args.dest_offset = args->dest_offset + nbytes;
 		psi_args.len = sizeof_field(struct vidtv_psi_desc_short_event, event_name_len);
 		psi_args.from = &((struct vidtv_psi_desc_short_event *)
-				  args.desc)->event_name_len;
+				  args->desc)->event_name_len;
 
 		nbytes += vidtv_psi_ts_psi_write_into(&psi_args);
 
-		psi_args.dest_offset = args.dest_offset + nbytes;
-		psi_args.len = ((struct vidtv_psi_desc_short_event *)args.desc)->event_name_len;
-		psi_args.from = ((struct vidtv_psi_desc_short_event *)args.desc)->event_name;
+		psi_args.dest_offset = args->dest_offset + nbytes;
+		psi_args.len = ((struct vidtv_psi_desc_short_event *)args->desc)->event_name_len;
+		psi_args.from = ((struct vidtv_psi_desc_short_event *)args->desc)->event_name;
 
 		nbytes += vidtv_psi_ts_psi_write_into(&psi_args);
 
-		psi_args.dest_offset = args.dest_offset + nbytes;
+		psi_args.dest_offset = args->dest_offset + nbytes;
 		psi_args.len = sizeof_field(struct vidtv_psi_desc_short_event, text_len);
-		psi_args.from = &((struct vidtv_psi_desc_short_event *)args.desc)->text_len;
+		psi_args.from = &((struct vidtv_psi_desc_short_event *)args->desc)->text_len;
 
 		nbytes += vidtv_psi_ts_psi_write_into(&psi_args);
 
-		psi_args.dest_offset = args.dest_offset + nbytes;
-		psi_args.len = ((struct vidtv_psi_desc_short_event *)args.desc)->text_len;
-		psi_args.from = ((struct vidtv_psi_desc_short_event *)args.desc)->text;
+		psi_args.dest_offset = args->dest_offset + nbytes;
+		psi_args.len = ((struct vidtv_psi_desc_short_event *)args->desc)->text_len;
+		psi_args.from = ((struct vidtv_psi_desc_short_event *)args->desc)->text;
 
 		nbytes += vidtv_psi_ts_psi_write_into(&psi_args);
 
@@ -744,9 +742,9 @@ static u32 vidtv_psi_desc_write_into(struct desc_write_args args)
 
 	case REGISTRATION_DESCRIPTOR:
 	default:
-		psi_args.dest_offset = args.dest_offset + nbytes;
-		psi_args.len = args.desc->length;
-		psi_args.from = &args.desc->data;
+		psi_args.dest_offset = args->dest_offset + nbytes;
+		psi_args.len = args->desc->length;
+		psi_args.from = &args->desc->data;
 
 		nbytes += vidtv_psi_ts_psi_write_into(&psi_args);
 		break;
@@ -1212,7 +1210,7 @@ u32 vidtv_psi_pmt_write_into(struct vidtv_psi_pmt_write_args args)
 		d_args.dest_buf_sz        = args.buf_sz;
 		d_args.crc                = &crc;
 
-		nbytes += vidtv_psi_desc_write_into(d_args);
+		nbytes += vidtv_psi_desc_write_into(&d_args);
 
 		table_descriptor = table_descriptor->next;
 	}
@@ -1239,7 +1237,7 @@ u32 vidtv_psi_pmt_write_into(struct vidtv_psi_pmt_write_args args)
 			d_args.dest_buf_sz        = args.buf_sz;
 			d_args.crc                = &crc;
 
-			nbytes += vidtv_psi_desc_write_into(d_args);
+			nbytes += vidtv_psi_desc_write_into(&d_args);
 
 			stream_descriptor = stream_descriptor->next;
 		}
@@ -1378,7 +1376,7 @@ u32 vidtv_psi_sdt_write_into(struct vidtv_psi_sdt_write_args args)
 			d_args.dest_buf_sz        = args.buf_sz;
 			d_args.crc                = &crc;
 
-			nbytes += vidtv_psi_desc_write_into(d_args);
+			nbytes += vidtv_psi_desc_write_into(&d_args);
 
 			service_desc = service_desc->next;
 		}
@@ -1699,7 +1697,7 @@ u32 vidtv_psi_nit_write_into(struct vidtv_psi_nit_write_args args)
 		d_args.dest_buf_sz        = args.buf_sz;
 		d_args.crc                = &crc;
 
-		nbytes += vidtv_psi_desc_write_into(d_args);
+		nbytes += vidtv_psi_desc_write_into(&d_args);
 
 		table_descriptor = table_descriptor->next;
 	}
@@ -1735,7 +1733,7 @@ u32 vidtv_psi_nit_write_into(struct vidtv_psi_nit_write_args args)
 			d_args.dest_buf_sz        = args.buf_sz;
 			d_args.crc                = &crc;
 
-			nbytes += vidtv_psi_desc_write_into(d_args);
+			nbytes += vidtv_psi_desc_write_into(&d_args);
 
 			transport_descriptor = transport_descriptor->next;
 		}
@@ -1925,7 +1923,7 @@ u32 vidtv_psi_eit_write_into(struct vidtv_psi_eit_write_args args)
 			d_args.dest_buf_sz        = args.buf_sz;
 			d_args.crc                = &crc;
 
-			nbytes += vidtv_psi_desc_write_into(d_args);
+			nbytes += vidtv_psi_desc_write_into(&d_args);
 
 			event_descriptor = event_descriptor->next;
 		}
