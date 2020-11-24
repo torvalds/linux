@@ -194,13 +194,6 @@ config PIN_TLB_IMMR
 	  CONFIG_PIN_TLB_DATA is also selected, it will reduce
 	  CONFIG_PIN_TLB_DATA to 24 Mbytes.
 
-config PIN_TLB_TEXT
-	bool "Pinned TLB for TEXT"
-	depends on PIN_TLB
-	default y
-	help
-	  This pins kernel text with 8M pages.
-
 endmenu
 
 endmenu

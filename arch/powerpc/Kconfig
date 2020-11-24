@@ -808,8 +808,7 @@ config DATA_SHIFT_BOOL
 	bool "Set custom data alignment"
 	depends on ADVANCED_OPTIONS
 	depends on STRICT_KERNEL_RWX || DEBUG_PAGEALLOC
-	depends on PPC_BOOK3S_32 || (PPC_8xx && !PIN_TLB_DATA && \
-				     (!PIN_TLB_TEXT || !STRICT_KERNEL_RWX))
+	depends on PPC_BOOK3S_32 || (PPC_8xx && !PIN_TLB_DATA && !STRICT_KERNEL_RWX)
 	help
 	  This option allows you to set the kernel data alignment. When
 	  RAM is mapped by blocks, the alignment needs to fit the size and
