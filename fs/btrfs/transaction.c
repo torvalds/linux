@@ -908,14 +908,14 @@ static bool should_end_transaction(struct btrfs_trans_handle *trans)
 	return !!btrfs_block_rsv_check(&fs_info->global_block_rsv, 5);
 }
 
-int btrfs_should_end_transaction(struct btrfs_trans_handle *trans)
+bool btrfs_should_end_transaction(struct btrfs_trans_handle *trans)
 {
 	struct btrfs_transaction *cur_trans = trans->transaction;
 
 	smp_mb();
 	if (cur_trans->state >= TRANS_STATE_COMMIT_START ||
 	    cur_trans->delayed_refs.flushing)
-		return 1;
+		return true;
 
 	return should_end_transaction(trans);
 }
