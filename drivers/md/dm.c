@@ -1607,7 +1607,7 @@ static blk_qc_t __split_and_process_bio(struct mapped_device *md,
 				 * (by eliminating DM's splitting and just using bio_split)
 				 */
 				part_stat_lock();
-				__dm_part_stat_sub(dm_disk(md)->part0->bd_part,
+				__dm_part_stat_sub(dm_disk(md)->part0,
 						   sectors[op_stat_group(bio_op(bio))], ci.sector_count);
 				part_stat_unlock();
 
@@ -2242,7 +2242,7 @@ EXPORT_SYMBOL_GPL(dm_put);
 static bool md_in_flight_bios(struct mapped_device *md)
 {
 	int cpu;
-	struct hd_struct *part = dm_disk(md)->part0->bd_part;
+	struct block_device *part = dm_disk(md)->part0;
 	long sum = 0;
 
 	for_each_possible_cpu(cpu) {

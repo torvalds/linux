@@ -608,12 +608,12 @@ void bio_truncate(struct bio *bio, unsigned new_size)
 void guard_bio_eod(struct bio *bio)
 {
 	sector_t maxsector;
-	struct hd_struct *part;
+	struct block_device *part;
 
 	rcu_read_lock();
 	part = __disk_get_part(bio->bi_disk, bio->bi_partno);
 	if (part)
-		maxsector = bdev_nr_sectors(part->bdev);
+		maxsector = bdev_nr_sectors(part);
 	else	
 		maxsector = get_capacity(bio->bi_disk);
 	rcu_read_unlock();

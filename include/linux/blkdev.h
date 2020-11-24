@@ -191,7 +191,7 @@ struct request {
 	};
 
 	struct gendisk *rq_disk;
-	struct hd_struct *part;
+	struct block_device *part;
 #ifdef CONFIG_BLK_RQ_ALLOC_TIME
 	/* Time that the first bio started allocating this request. */
 	u64 alloc_time_ns;
@@ -1943,9 +1943,9 @@ unsigned long disk_start_io_acct(struct gendisk *disk, unsigned int sectors,
 void disk_end_io_acct(struct gendisk *disk, unsigned int op,
 		unsigned long start_time);
 
-unsigned long part_start_io_acct(struct gendisk *disk, struct hd_struct **part,
-				 struct bio *bio);
-void part_end_io_acct(struct hd_struct *part, struct bio *bio,
+unsigned long part_start_io_acct(struct gendisk *disk,
+		struct block_device **part, struct bio *bio);
+void part_end_io_acct(struct block_device *part, struct bio *bio,
 		      unsigned long start_time);
 
 /**

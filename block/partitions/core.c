@@ -298,12 +298,9 @@ void delete_partition(struct hd_struct *part)
 	struct disk_part_tbl *ptbl =
 		rcu_dereference_protected(disk->part_tbl, 1);
 
-	/*
-	 * ->part_tbl is referenced in this part's release handler, so
-	 *  we have to hold the disk device
-	 */
 	rcu_assign_pointer(ptbl->part[part->partno], NULL);
 	rcu_assign_pointer(ptbl->last_lookup, NULL);
+
 	kobject_put(part->bdev->bd_holder_dir);
 	device_del(part_to_dev(part));
 
@@ -421,7 +418,7 @@ static struct hd_struct *add_partition(struct gendisk *disk, int partno,
 
 	/* everything is up and running, commence */
 	bdev_add(bdev, devt);
-	rcu_assign_pointer(ptbl->part[partno], p);
+	rcu_assign_pointer(ptbl->part[partno], bdev);
 
 	/* suppress uevent if the disk suppresses it */
 	if (!dev_get_uevent_suppress(ddev))

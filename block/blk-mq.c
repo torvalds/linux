@@ -95,7 +95,7 @@ static void blk_mq_hctx_clear_pending(struct blk_mq_hw_ctx *hctx,
 }
 
 struct mq_inflight {
-	struct hd_struct *part;
+	struct block_device *part;
 	unsigned int inflight[2];
 };
 
@@ -111,7 +111,8 @@ static bool blk_mq_check_inflight(struct blk_mq_hw_ctx *hctx,
 	return true;
 }
 
-unsigned int blk_mq_in_flight(struct request_queue *q, struct hd_struct *part)
+unsigned int blk_mq_in_flight(struct request_queue *q,
+		struct block_device *part)
 {
 	struct mq_inflight mi = { .part = part };
 
@@ -120,8 +121,8 @@ unsigned int blk_mq_in_flight(struct request_queue *q, struct hd_struct *part)
 	return mi.inflight[0] + mi.inflight[1];
 }
 
-void blk_mq_in_flight_rw(struct request_queue *q, struct hd_struct *part,
-			 unsigned int inflight[2])
+void blk_mq_in_flight_rw(struct request_queue *q, struct block_device *part,
+		unsigned int inflight[2])
 {
 	struct mq_inflight mi = { .part = part };
 

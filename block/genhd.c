@@ -126,7 +126,7 @@ static void part_stat_read_all(struct hd_struct *part, struct disk_stats *stat)
 	}
 }
 
-static unsigned int part_in_flight(struct hd_struct *part)
+static unsigned int part_in_flight(struct block_device *part)
 {
 	unsigned int inflight = 0;
 	int cpu;
@@ -141,7 +141,8 @@ static unsigned int part_in_flight(struct hd_struct *part)
 	return inflight;
 }
 
-static void part_in_flight_rw(struct hd_struct *part, unsigned int inflight[2])
+static void part_in_flight_rw(struct block_device *part,
+		unsigned int inflight[2])
 {
 	int cpu;
 
@@ -157,7 +158,7 @@ static void part_in_flight_rw(struct hd_struct *part, unsigned int inflight[2])
 		inflight[1] = 0;
 }
 
-struct hd_struct *__disk_get_part(struct gendisk *disk, int partno)
+struct block_device *__disk_get_part(struct gendisk *disk, int partno)
 {
 	struct disk_part_tbl *ptbl = rcu_dereference(disk->part_tbl);
 
@@ -182,15 +183,21 @@ struct hd_struct *__disk_get_part(struct gendisk *disk, int partno)
  */
 struct hd_struct *disk_get_part(struct gendisk *disk, int partno)
 {
+	struct block_device *bdev;
 	struct hd_struct *part;
 
 	rcu_read_lock();
-	part = __disk_get_part(disk, partno);
-	if (part)
-		get_device(part_to_dev(part));
+	bdev = __disk_get_part(disk, partno);
+	if (!bdev)
+		goto fail;
+	part = bdev->bd_part;
+	if (!kobject_get_unless_zero(&part_to_dev(part)->kobj))
+		goto fail;
 	rcu_read_unlock();
-
 	return part;
+fail:
+	rcu_read_unlock();
+	return NULL;
 }
 
 /**
@@ -264,19 +271,19 @@ struct hd_struct *disk_part_iter_next(struct disk_part_iter *piter)
 
 	/* iterate to the next partition */
 	for (; piter->idx != end; piter->idx += inc) {
-		struct hd_struct *part;
+		struct block_device *part;
 
 		part = rcu_dereference(ptbl->part[piter->idx]);
 		if (!part)
 			continue;
-		if (!bdev_nr_sectors(part->bdev) &&
+		if (!bdev_nr_sectors(part) &&
 		    !(piter->flags & DISK_PITER_INCL_EMPTY) &&
 		    !(piter->flags & DISK_PITER_INCL_EMPTY_PART0 &&
 		      piter->idx == 0))
 			continue;
 
-		get_device(part_to_dev(part));
-		piter->part = part;
+		get_device(part_to_dev(part->bd_part));
+		piter->part = part->bd_part;
 		piter->idx += inc;
 		break;
 	}
@@ -303,10 +310,10 @@ void disk_part_iter_exit(struct disk_part_iter *piter)
 }
 EXPORT_SYMBOL_GPL(disk_part_iter_exit);
 
-static inline int sector_in_part(struct hd_struct *part, sector_t sector)
+static inline int sector_in_part(struct block_device *part, sector_t sector)
 {
-	return part->bdev->bd_start_sect <= sector &&
-		sector < part->bdev->bd_start_sect + bdev_nr_sectors(part->bdev);
+	return part->bd_start_sect <= sector &&
+		sector < part->bd_start_sect + bdev_nr_sectors(part);
 }
 
 /**
@@ -324,10 +331,10 @@ static inline int sector_in_part(struct hd_struct *part, sector_t sector)
  * Found partition on success, part0 is returned if no partition matches
  * or the matched partition is being deleted.
  */
-struct hd_struct *disk_map_sector_rcu(struct gendisk *disk, sector_t sector)
+struct block_device *disk_map_sector_rcu(struct gendisk *disk, sector_t sector)
 {
 	struct disk_part_tbl *ptbl;
-	struct hd_struct *part;
+	struct block_device *part;
 	int i;
 
 	rcu_read_lock();
@@ -346,7 +353,7 @@ struct hd_struct *disk_map_sector_rcu(struct gendisk *disk, sector_t sector)
 		}
 	}
 
-	part = disk->part0->bd_part;
+	part = disk->part0;
 out_unlock:
 	rcu_read_unlock();
 	return part;
@@ -882,7 +889,7 @@ void del_gendisk(struct gendisk *disk)
 	kobject_put(disk->part0->bd_holder_dir);
 	kobject_put(disk->slave_dir);
 
-	part_stat_set_all(disk->part0->bd_part, 0);
+	part_stat_set_all(disk->part0, 0);
 	disk->part0->bd_stamp = 0;
 	if (!sysfs_deprecated)
 		sysfs_remove_link(block_depr, dev_name(disk_to_dev(disk)));
@@ -1189,9 +1196,9 @@ ssize_t part_stat_show(struct device *dev,
 
 	part_stat_read_all(p, &stat);
 	if (queue_is_mq(q))
-		inflight = blk_mq_in_flight(q, p);
+		inflight = blk_mq_in_flight(q, p->bdev);
 	else
-		inflight = part_in_flight(p);
+		inflight = part_in_flight(p->bdev);
 
 	return sprintf(buf,
 		"%8lu %8lu %8llu %8u "
@@ -1231,9 +1238,9 @@ ssize_t part_inflight_show(struct device *dev, struct device_attribute *attr,
 	unsigned int inflight[2];
 
 	if (queue_is_mq(q))
-		blk_mq_in_flight_rw(q, p, inflight);
+		blk_mq_in_flight_rw(q, p->bdev, inflight);
 	else
-		part_in_flight_rw(p, inflight);
+		part_in_flight_rw(p->bdev, inflight);
 
 	return sprintf(buf, "%8u %8u\n", inflight[0], inflight[1]);
 }
@@ -1506,9 +1513,9 @@ static int diskstats_show(struct seq_file *seqf, void *v)
 	while ((hd = disk_part_iter_next(&piter))) {
 		part_stat_read_all(hd, &stat);
 		if (queue_is_mq(gp->queue))
-			inflight = blk_mq_in_flight(gp->queue, hd);
+			inflight = blk_mq_in_flight(gp->queue, hd->bdev);
 		else
-			inflight = part_in_flight(hd);
+			inflight = part_in_flight(hd->bdev);
 
 		seq_printf(seqf, "%4d %7d %s "
 			   "%lu %lu %lu %u "
@@ -1626,7 +1633,7 @@ struct gendisk *__alloc_disk_node(int minors, int node_id)
 		goto out_bdput;
 
 	ptbl = rcu_dereference_protected(disk->part_tbl, 1);
-	rcu_assign_pointer(ptbl->part[0], disk->part0->bd_part);
+	rcu_assign_pointer(ptbl->part[0], disk->part0);
 
 	disk->minors = minors;
 	rand_initialize_disk(disk);

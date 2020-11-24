@@ -131,8 +131,8 @@ enum {
 struct disk_part_tbl {
 	struct rcu_head rcu_head;
 	int len;
-	struct hd_struct __rcu *last_lookup;
-	struct hd_struct __rcu *part[];
+	struct block_device __rcu *last_lookup;
+	struct block_device __rcu *part[];
 };
 
 struct disk_events;
