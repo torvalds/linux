@@ -4660,6 +4660,7 @@ static void ath11k_mac_op_remove_interface(struct ieee80211_hw *hw,
 	struct ath11k *ar = hw->priv;
 	struct ath11k_vif *arvif = ath11k_vif_to_arvif(vif);
 	struct ath11k_base *ab = ar->ab;
+	unsigned long time_left;
 	int ret;
 	int i;
 
@@ -4668,10 +4669,6 @@ static void ath11k_mac_op_remove_interface(struct ieee80211_hw *hw,
 	ath11k_dbg(ab, ATH11K_DBG_MAC, "mac remove interface (vdev %d)\n",
 		   arvif->vdev_id);
 
-	spin_lock_bh(&ar->data_lock);
-	list_del(&arvif->list);
-	spin_unlock_bh(&ar->data_lock);
-
 	if (arvif->vdev_type == WMI_VDEV_TYPE_AP) {
 		ret = ath11k_peer_delete(ar, arvif->vdev_id, vif->addr);
 		if (ret)
@@ -4679,16 +4676,33 @@ static void ath11k_mac_op_remove_interface(struct ieee80211_hw *hw,
 				    arvif->vdev_id, ret);
 	}
 
+	reinit_completion(&ar->vdev_delete_done);
+
 	ret = ath11k_wmi_vdev_delete(ar, arvif->vdev_id);
-	if (ret)
+	if (ret) {
 		ath11k_warn(ab, "failed to delete WMI vdev %d: %d\n",
 			    arvif->vdev_id, ret);
+		goto err_vdev_del;
+	}
 
+	time_left = wait_for_completion_timeout(&ar->vdev_delete_done,
+						ATH11K_VDEV_DELETE_TIMEOUT_HZ);
+	if (time_left == 0) {
+		ath11k_warn(ab, "Timeout in receiving vdev delete response\n");
+		goto err_vdev_del;
+	}
+
+	ab->free_vdev_map |= 1LL << (arvif->vdev_id);
+	ar->allocated_vdev_map &= ~(1LL << arvif->vdev_id);
 	ar->num_created_vdevs--;
+
 	ath11k_dbg(ab, ATH11K_DBG_MAC, "vdev %pM deleted, vdev_id %d\n",
 		   vif->addr, arvif->vdev_id);
-	ar->allocated_vdev_map &= ~(1LL << arvif->vdev_id);
-	ab->free_vdev_map |= 1LL << (arvif->vdev_id);
+
+err_vdev_del:
+	spin_lock_bh(&ar->data_lock);
+	list_del(&arvif->list);
+	spin_unlock_bh(&ar->data_lock);
 
 	ath11k_peer_cleanup(ar, arvif->vdev_id);
 
@@ -6454,6 +6468,7 @@ int ath11k_mac_allocate(struct ath11k_base *ab)
 		INIT_LIST_HEAD(&ar->ppdu_stats_info);
 		mutex_init(&ar->conf_mutex);
 		init_completion(&ar->vdev_setup_done);
+		init_completion(&ar->vdev_delete_done);
 		init_completion(&ar->peer_assoc_done);
 		init_completion(&ar->install_key_done);
 		init_completion(&ar->bss_survey_done);

@@ -810,6 +810,7 @@ static void ath11k_core_restart(struct work_struct *work)
 		complete(&ar->peer_assoc_done);
 		complete(&ar->install_key_done);
 		complete(&ar->vdev_setup_done);
+		complete(&ar->vdev_delete_done);
 		complete(&ar->bss_survey_done);
 		complete(&ar->thermal.wmi_sync);
 

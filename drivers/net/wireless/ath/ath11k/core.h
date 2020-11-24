@@ -430,6 +430,7 @@ struct ath11k_per_peer_tx_stats {
 };
 
 #define ATH11K_FLUSH_TIMEOUT (5 * HZ)
+#define ATH11K_VDEV_DELETE_TIMEOUT_HZ (5 * HZ)
 
 struct ath11k_vdev_stop_status {
 	bool stop_in_progress;
@@ -512,6 +513,7 @@ struct ath11k {
 	int last_wmi_vdev_start_status;
 	struct ath11k_vdev_stop_status vdev_stop_status;
 	struct completion vdev_setup_done;
+	struct completion vdev_delete_done;
 
 	int num_peers;
 	int max_num_peers;
