@@ -224,6 +224,7 @@ struct venc_controls {
 	u32 multi_slice_max_mb;
 
 	u32 header_mode;
+	bool aud_enable;
 
 	struct {
 		u32 h264;
