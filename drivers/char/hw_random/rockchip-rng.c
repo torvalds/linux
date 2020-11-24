@@ -53,8 +53,6 @@
 /* end of CRYPTO V2 register define */
 
 struct rk_rng_soc_data {
-	const char * const *clks;
-	int clks_num;
 	int (*rk_rng_read)(struct hwrng *rng, void *buf, size_t max, bool wait);
 };
 
@@ -63,20 +61,8 @@ struct rk_rng {
 	struct hwrng		rng;
 	void __iomem		*mem;
 	struct rk_rng_soc_data	*soc_data;
-	u32			clk_num;
+	int			clk_num;
 	struct clk_bulk_data	*clk_bulks;
-};
-
-static const char * const rk_rng_v1_clks[] = {
-	"hclk_crypto",
-	"clk_crypto",
-};
-
-static const char * const rk_rng_v2_clks[] = {
-	"hclk_crypto",
-	"aclk_crypto",
-	"clk_crypto",
-	"clk_crypto_apk",
 };
 
 static void rk_rng_writel(struct rk_rng *rng, u32 val, u32 offset)
@@ -209,14 +195,10 @@ out:
 }
 
 static const struct rk_rng_soc_data rk_rng_v1_soc_data = {
-	.clks_num = ARRAY_SIZE(rk_rng_v1_clks),
-	.clks = rk_rng_v1_clks,
 	.rk_rng_read = rk_rng_v1_read,
 };
 
 static const struct rk_rng_soc_data rk_rng_v2_soc_data = {
-	.clks_num = ARRAY_SIZE(rk_rng_v2_clks),
-	.clks = rk_rng_v2_clks,
 	.rk_rng_read = rk_rng_v2_read,
 };
 
@@ -236,7 +218,6 @@ MODULE_DEVICE_TABLE(of, rk_rng_dt_match);
 
 static int rk_rng_probe(struct platform_device *pdev)
 {
-	int i;
 	int ret;
 	struct rk_rng *rk_rng;
 	struct device_node *np = pdev->dev.of_node;
@@ -259,24 +240,14 @@ static int rk_rng_probe(struct platform_device *pdev)
 	rk_rng->rng.read    = rk_rng->soc_data->rk_rng_read;
 	rk_rng->rng.quality = 999;
 
-	rk_rng->clk_bulks =
-		devm_kzalloc(&pdev->dev, sizeof(*rk_rng->clk_bulks) *
-			     rk_rng->soc_data->clks_num, GFP_KERNEL);
-
-	rk_rng->clk_num = rk_rng->soc_data->clks_num;
-
-	for (i = 0; i < rk_rng->soc_data->clks_num; i++)
-		rk_rng->clk_bulks[i].id = rk_rng->soc_data->clks[i];
-
 	rk_rng->mem = devm_of_iomap(&pdev->dev, pdev->dev.of_node, 0, NULL);
 	if (IS_ERR(rk_rng->mem))
 		return PTR_ERR(rk_rng->mem);
 
-	ret = devm_clk_bulk_get(&pdev->dev, rk_rng->clk_num,
-				rk_rng->clk_bulks);
-	if (ret) {
+	rk_rng->clk_num = devm_clk_bulk_get_all(&pdev->dev, &rk_rng->clk_bulks);
+	if (rk_rng->clk_num < 0) {
 		dev_err(&pdev->dev, "failed to get clks property\n");
-		return ret;
+		return -ENODEV;
 	}
 
 	platform_set_drvdata(pdev, rk_rng);
