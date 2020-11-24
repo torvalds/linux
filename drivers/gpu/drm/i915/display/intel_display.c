@@ -15335,21 +15335,16 @@ claimed:
 	return -EINVAL;
 }
 
-static int kill_bigjoiner_slave(struct intel_atomic_state *state,
-				struct intel_crtc_state *master_crtc_state)
+static void kill_bigjoiner_slave(struct intel_atomic_state *state,
+				 struct intel_crtc_state *master_crtc_state)
 {
 	struct intel_crtc_state *slave_crtc_state =
-		intel_atomic_get_crtc_state(&state->base,
-					    master_crtc_state->bigjoiner_linked_crtc);
-
-	if (IS_ERR(slave_crtc_state))
-		return PTR_ERR(slave_crtc_state);
+		intel_atomic_get_new_crtc_state(state, master_crtc_state->bigjoiner_linked_crtc);
 
 	slave_crtc_state->bigjoiner = master_crtc_state->bigjoiner = false;
 	slave_crtc_state->bigjoiner_slave = master_crtc_state->bigjoiner_slave = false;
 	slave_crtc_state->bigjoiner_linked_crtc = master_crtc_state->bigjoiner_linked_crtc = NULL;
 	intel_crtc_copy_uapi_to_hw_state(state, slave_crtc_state);
-	return 0;
 }
 
 /**
@@ -15519,6 +15514,13 @@ static int intel_bigjoiner_add_affected_crtcs(struct intel_atomic_state *state)
 			return ret;
 	}
 
+	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
+		/* Kill old bigjoiner link, we may re-establish afterwards */
+		if (needs_modeset(crtc_state) &&
+		    crtc_state->bigjoiner && !crtc_state->bigjoiner_slave)
+			kill_bigjoiner_slave(state, crtc_state);
+	}
+
 	return 0;
 }
 
@@ -15558,13 +15560,6 @@ static int intel_atomic_check(struct drm_device *dev,
 			intel_crtc_copy_uapi_to_hw_state_nomodeset(state, new_crtc_state);
 
 			continue;
-		}
-
-		/* Kill old bigjoiner link, we may re-establish afterwards */
-		if (old_crtc_state->bigjoiner && !old_crtc_state->bigjoiner_slave) {
-			ret = kill_bigjoiner_slave(state, new_crtc_state);
-			if (ret)
-				goto fail;
 		}
 
 		if (!new_crtc_state->uapi.enable) {
