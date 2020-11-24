@@ -49,7 +49,7 @@ static int convert_prio(int prio)
 static void
 drop_nopreempt_cpus(struct cpumask *lowest_mask)
 {
-	unsigned cpu = cpumask_first(lowest_mask);
+	unsigned int cpu = cpumask_first(lowest_mask);
 	while (cpu < nr_cpu_ids) {
 		/* unlocked access */
 		struct task_struct *task = READ_ONCE(cpu_rq(cpu)->curr);
