@@ -47,8 +47,7 @@
  * - Either we have modules
  * - Or we have not pinned the first 8M
  */
-#if defined(CONFIG_MODULES) || !defined(CONFIG_PIN_TLB_TEXT) || \
-    defined(CONFIG_DEBUG_PAGEALLOC)
+#if defined(CONFIG_MODULES) || !defined(CONFIG_PIN_TLB_TEXT)
 #define ITLB_MISS_KERNEL	1
 #endif
 
