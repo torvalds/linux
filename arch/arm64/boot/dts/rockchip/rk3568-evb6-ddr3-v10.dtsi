@@ -66,6 +66,11 @@
 	status = "okay";
 };
 
+&combphy1_usq {
+	rockchip,dis-u3otg1-port;
+	status = "okay";
+};
+
 &combphy2_psq {
 	status = "disabled";
 };
