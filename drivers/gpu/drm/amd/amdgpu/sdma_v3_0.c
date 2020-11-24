@@ -1633,7 +1633,7 @@ static void sdma_v3_0_set_irq_funcs(struct amdgpu_device *adev)
 /**
  * sdma_v3_0_emit_copy_buffer - copy buffer using the sDMA engine
  *
- * @ring: amdgpu_ring structure holding ring information
+ * @ib: indirect buffer to copy to
  * @src_offset: src GPU address
  * @dst_offset: dst GPU address
  * @byte_count: number of bytes to xfer
