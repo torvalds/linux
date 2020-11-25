@@ -78,6 +78,17 @@ config HUAWEI_WMI
 	  To compile this driver as a module, choose M here: the module
 	  will be called huawei-wmi.
 
+config UV_SYSFS
+	tristate "Sysfs structure for UV systems"
+	depends on X86_UV
+	depends on SYSFS
+	help
+	  This driver supports a sysfs tree describing information about
+	  UV systems at /sys/firmware/sgi_uv/.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called uv_sysfs.
+
 config INTEL_WMI_SBL_FW_UPDATE
 	tristate "Intel WMI Slim Bootloader firmware update signaling driver"
 	depends on ACPI_WMI
