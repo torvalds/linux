@@ -288,9 +288,9 @@ MachineCheck:
 	DO_KVM  0x300
 DataAccess:
 #ifdef CONFIG_VMAP_STACK
-	mtspr	SPRN_SPRG_SCRATCH0,r10
-	mfspr	r10, SPRN_SPRG_THREAD
 BEGIN_MMU_FTR_SECTION
+	mtspr	SPRN_SPRG_SCRATCH2,r10
+	mfspr	r10, SPRN_SPRG_THREAD
 	stw	r11, THR11(r10)
 	mfspr	r10, SPRN_DSISR
 	mfcr	r11
@@ -304,19 +304,11 @@ BEGIN_MMU_FTR_SECTION
 .Lhash_page_dsi_cont:
 	mtcr	r11
 	lwz	r11, THR11(r10)
-END_MMU_FTR_SECTION_IFSET(MMU_FTR_HPTE_TABLE)
-	mtspr	SPRN_SPRG_SCRATCH1,r11
-	mfspr	r11, SPRN_DAR
-	stw	r11, DAR(r10)
-	mfspr	r11, SPRN_DSISR
-	stw	r11, DSISR(r10)
-	mfspr	r11, SPRN_SRR0
-	stw	r11, SRR0(r10)
-	mfspr	r11, SPRN_SRR1		/* check whether user or kernel */
-	stw	r11, SRR1(r10)
-	mfcr	r10
-	andi.	r11, r11, MSR_PR
-
+	mfspr	r10, SPRN_SPRG_SCRATCH2
+MMU_FTR_SECTION_ELSE
+	b	1f
+ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_HPTE_TABLE)
+1:	EXCEPTION_PROLOG_0 handle_dar_dsisr=1
 	EXCEPTION_PROLOG_1
 	b	handle_page_fault_tramp_1
 #else	/* CONFIG_VMAP_STACK */
@@ -764,7 +756,7 @@ fast_hash_page_return:
 	/* DSI */
 	mtcr	r11
 	lwz	r11, THR11(r10)
-	mfspr	r10, SPRN_SPRG_SCRATCH0
+	mfspr	r10, SPRN_SPRG_SCRATCH2
 	rfi
 
 1:	/* ISI */
