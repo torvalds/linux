@@ -161,7 +161,7 @@ static void _dpu_plane_calc_bw(struct drm_plane *plane,
 	u64 plane_bw;
 	u32 hw_latency_lines;
 	u64 scale_factor;
-	int vbp, vpw;
+	int vbp, vpw, vfp;
 
 	pstate = to_dpu_plane_state(plane->state);
 	mode = &plane->state->crtc->mode;
@@ -174,6 +174,7 @@ static void _dpu_plane_calc_bw(struct drm_plane *plane,
 	fps = drm_mode_vrefresh(mode);
 	vbp = mode->vtotal - mode->vsync_end;
 	vpw = mode->vsync_end - mode->vsync_start;
+	vfp = mode->vsync_start - mode->vdisplay;
 	hw_latency_lines =  dpu_kms->catalog->perf.min_prefill_lines;
 	scale_factor = src_height > dst_height ?
 		mult_frac(src_height, 1, dst_height) : 1;
@@ -186,7 +187,13 @@ static void _dpu_plane_calc_bw(struct drm_plane *plane,
 		src_width * hw_latency_lines * fps * fmt->bpp *
 		scale_factor * mode->vtotal;
 
-	do_div(plane_prefill_bw, (vbp+vpw));
+	if ((vbp+vpw) > hw_latency_lines)
+		do_div(plane_prefill_bw, (vbp+vpw));
+	else if ((vbp+vpw+vfp) < hw_latency_lines)
+		do_div(plane_prefill_bw, (vbp+vpw+vfp));
+	else
+		do_div(plane_prefill_bw, hw_latency_lines);
+
 
 	pstate->plane_fetch_bw = max(plane_bw, plane_prefill_bw);
 }
