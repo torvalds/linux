@@ -23,10 +23,18 @@ DECLARE_HOOK(android_vh_binder_set_priority,
 DECLARE_HOOK(android_vh_binder_restore_priority,
 	TP_PROTO(struct binder_transaction *t, struct task_struct *task),
 	TP_ARGS(t, task));
+DECLARE_HOOK(android_vh_binder_wakeup_poll_threads_ilocked,
+	TP_PROTO(struct task_struct *task),
+	TP_ARGS(task));
+DECLARE_HOOK(android_vh_binder_wakeup_thread_ilocked,
+	TP_PROTO(struct task_struct *task),
+	TP_ARGS(task));
 #else
 #define trace_android_vh_binder_transaction_init(t)
 #define trace_android_vh_binder_set_priority(t, task)
 #define trace_android_vh_binder_restore_priority(t, task)
+#define trace_android_vh_binder_wakeup_poll_threads_ilocked(task)
+#define trace_android_vh_binder_wakeup_thread_ilocked(task)
 #endif
 #endif /* _TRACE_HOOK_BINDER_H */
 /* This part must be outside protection */
