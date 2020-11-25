@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2003-2017, Ericsson AB
  * Copyright (c) 2005-2007, 2012-2013, Wind River Systems
+ * Copyright (c) 2020, Red Hat Inc
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -71,8 +72,8 @@ struct tipc_subscription *tipc_sub_subscribe(struct net *net,
 					     int conid);
 void tipc_sub_unsubscribe(struct tipc_subscription *sub);
 
-int tipc_sub_check_overlap(struct tipc_name_seq *seq, u32 found_lower,
-			   u32 found_upper);
+int tipc_sub_check_overlap(struct tipc_service_range *seq,
+			   u32 found_lower, u32 found_upper);
 void tipc_sub_report_overlap(struct tipc_subscription *sub,
 			     u32 found_lower, u32 found_upper,
 			     u32 event, u32 port, u32 node,
