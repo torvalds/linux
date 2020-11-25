@@ -1038,7 +1038,7 @@ enum {
 	BTRFS_ROOT_DEAD_RELOC_TREE,
 	/* Mark dead root stored on device whose cleanup needs to be resumed */
 	BTRFS_ROOT_DEAD_TREE,
-	/* The root has a log tree. Used only for subvolume roots. */
+	/* The root has a log tree. Used for subvolume roots and the tree root. */
 	BTRFS_ROOT_HAS_LOG_TREE,
 	/* Qgroup flushing is in progress */
 	BTRFS_ROOT_QGROUP_FLUSHING,

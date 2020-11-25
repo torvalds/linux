@@ -138,7 +138,24 @@ static int start_log_trans(struct btrfs_trans_handle *trans,
 			   struct btrfs_log_ctx *ctx)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
+	struct btrfs_root *tree_root = fs_info->tree_root;
 	int ret = 0;
+
+	/*
+	 * First check if the log root tree was already created. If not, create
+	 * it before locking the root's log_mutex, just to keep lockdep happy.
+	 */
+	if (!test_bit(BTRFS_ROOT_HAS_LOG_TREE, &tree_root->state)) {
+		mutex_lock(&tree_root->log_mutex);
+		if (!fs_info->log_root_tree) {
+			ret = btrfs_init_log_root_tree(trans, fs_info);
+			if (!ret)
+				set_bit(BTRFS_ROOT_HAS_LOG_TREE, &tree_root->state);
+		}
+		mutex_unlock(&tree_root->log_mutex);
+		if (ret)
+			return ret;
+	}
 
 	mutex_lock(&root->log_mutex);
 
@@ -155,13 +172,6 @@ static int start_log_trans(struct btrfs_trans_handle *trans,
 			set_bit(BTRFS_ROOT_MULTI_LOG_TASKS, &root->state);
 		}
 	} else {
-		mutex_lock(&fs_info->tree_log_mutex);
-		if (!fs_info->log_root_tree)
-			ret = btrfs_init_log_root_tree(trans, fs_info);
-		mutex_unlock(&fs_info->tree_log_mutex);
-		if (ret)
-			goto out;
-
 		ret = btrfs_add_log_tree(trans, root);
 		if (ret)
 			goto out;
@@ -3021,6 +3031,8 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	int log_transid = 0;
 	struct btrfs_log_ctx root_log_ctx;
 	struct blk_plug plug;
+	u64 log_root_start;
+	u64 log_root_level;
 
 	mutex_lock(&root->log_mutex);
 	log_transid = ctx->log_transid;
@@ -3198,22 +3210,31 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 		goto out_wake_log_root;
 	}
 
-	btrfs_set_super_log_root(fs_info->super_for_commit,
-				 log_root_tree->node->start);
-	btrfs_set_super_log_root_level(fs_info->super_for_commit,
-				       btrfs_header_level(log_root_tree->node));
-
+	log_root_start = log_root_tree->node->start;
+	log_root_level = btrfs_header_level(log_root_tree->node);
 	log_root_tree->log_transid++;
 	mutex_unlock(&log_root_tree->log_mutex);
 
 	/*
-	 * Nobody else is going to jump in and write the ctree
-	 * super here because the log_commit atomic below is protecting
-	 * us.  We must be called with a transaction handle pinning
-	 * the running transaction open, so a full commit can't hop
-	 * in and cause problems either.
+	 * Here we are guaranteed that nobody is going to write the superblock
+	 * for the current transaction before us and that neither we do write
+	 * our superblock before the previous transaction finishes its commit
+	 * and writes its superblock, because:
+	 *
+	 * 1) We are holding a handle on the current transaction, so no body
+	 *    can commit it until we release the handle;
+	 *
+	 * 2) Before writing our superblock we acquire the tree_log_mutex, so
+	 *    if the previous transaction is still committing, and hasn't yet
+	 *    written its superblock, we wait for it to do it, because a
+	 *    transaction commit acquires the tree_log_mutex when the commit
+	 *    begins and releases it only after writing its superblock.
 	 */
+	mutex_lock(&fs_info->tree_log_mutex);
+	btrfs_set_super_log_root(fs_info->super_for_commit, log_root_start);
+	btrfs_set_super_log_root_level(fs_info->super_for_commit, log_root_level);
 	ret = write_all_supers(fs_info, 1);
+	mutex_unlock(&fs_info->tree_log_mutex);
 	if (ret) {
 		btrfs_set_log_full_commit(trans);
 		btrfs_abort_transaction(trans, ret);
@@ -3298,6 +3319,7 @@ int btrfs_free_log_root_tree(struct btrfs_trans_handle *trans,
 	if (fs_info->log_root_tree) {
 		free_log_tree(trans, fs_info->log_root_tree);
 		fs_info->log_root_tree = NULL;
+		clear_bit(BTRFS_ROOT_HAS_LOG_TREE, &fs_info->tree_root->state);
 	}
 	return 0;
 }
