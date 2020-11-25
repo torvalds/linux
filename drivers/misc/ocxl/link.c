@@ -499,6 +499,7 @@ static void invalidate_range(struct mmu_notifier *mn,
 	unsigned long addr, pid, page_size = PAGE_SIZE;
 
 	pid = mm->context.id;
+	trace_ocxl_mmu_notifier_range(start, end, pid);
 
 	spin_lock(&link->atsd_lock);
 	for (addr = start; addr < end; addr += page_size)
@@ -590,6 +591,7 @@ int ocxl_link_add_pe(void *link_handle, int pasid, u32 pidr, u32 tidr,
 			/* Use MMIO registers for the TLB Invalidate
 			 * operations.
 			 */
+			trace_ocxl_init_mmu_notifier(pasid, mm->context.id);
 			mmu_notifier_register(&pe_data->mmu_notifier, mm);
 		}
 	}
@@ -725,6 +727,8 @@ int ocxl_link_remove_pe(void *link_handle, int pasid)
 	} else {
 		if (pe_data->mm) {
 			if (link->arva) {
+				trace_ocxl_release_mmu_notifier(pasid,
+								pe_data->mm->context.id);
 				mmu_notifier_unregister(&pe_data->mmu_notifier,
 							pe_data->mm);
 				spin_lock(&link->atsd_lock);
