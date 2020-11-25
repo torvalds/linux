@@ -812,37 +812,48 @@ static const struct v4l2_async_notifier_operations rvin_group_notify_ops = {
 	.complete = rvin_group_notify_complete,
 };
 
-static int rvin_mc_parse_of_endpoint(struct device *dev,
-				     struct v4l2_fwnode_endpoint *vep,
-				     struct v4l2_async_subdev *asd)
+static int rvin_mc_parse_of(struct rvin_dev *vin, unsigned int id)
 {
-	struct rvin_dev *vin = dev_get_drvdata(dev);
-	int ret = 0;
+	struct fwnode_handle *ep, *fwnode;
+	struct v4l2_fwnode_endpoint vep = {
+		.bus_type = V4L2_MBUS_CSI2_DPHY,
+	};
+	struct v4l2_async_subdev *asd;
+	int ret;
 
-	if (vep->base.port != 1 || vep->base.id >= RVIN_CSI_MAX)
-		return -EINVAL;
+	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(vin->dev), 1, id, 0);
+	if (!ep)
+		return 0;
 
-	if (!of_device_is_available(to_of_node(asd->match.fwnode))) {
-		vin_dbg(vin, "OF device %pOF disabled, ignoring\n",
-			to_of_node(asd->match.fwnode));
-		return -ENOTCONN;
+	fwnode = fwnode_graph_get_remote_endpoint(ep);
+	ret = v4l2_fwnode_endpoint_parse(ep, &vep);
+	fwnode_handle_put(ep);
+	if (ret) {
+		vin_err(vin, "Failed to parse %pOF\n", to_of_node(fwnode));
+		ret = -EINVAL;
+		goto out;
 	}
 
-	mutex_lock(&vin->group->lock);
-
-	if (vin->group->csi[vep->base.id].asd) {
-		vin_dbg(vin, "OF device %pOF already handled\n",
-			to_of_node(asd->match.fwnode));
+	if (!of_device_is_available(to_of_node(fwnode))) {
+		vin_dbg(vin, "OF device %pOF disabled, ignoring\n",
+			to_of_node(fwnode));
 		ret = -ENOTCONN;
 		goto out;
 	}
 
-	vin->group->csi[vep->base.id].asd = asd;
+	asd = v4l2_async_notifier_add_fwnode_subdev(&vin->group->notifier,
+						    fwnode, sizeof(*asd));
+	if (IS_ERR(asd)) {
+		ret = PTR_ERR(asd);
+		goto out;
+	}
+
+	vin->group->csi[vep.base.id].asd = asd;
 
 	vin_dbg(vin, "Add group OF device %pOF to slot %u\n",
-		to_of_node(asd->match.fwnode), vep->base.id);
+		to_of_node(fwnode), vep.base.id);
 out:
-	mutex_unlock(&vin->group->lock);
+	fwnode_handle_put(fwnode);
 
 	return ret;
 }
@@ -850,7 +861,7 @@ out:
 static int rvin_mc_parse_of_graph(struct rvin_dev *vin)
 {
 	unsigned int count = 0, vin_mask = 0;
-	unsigned int i;
+	unsigned int i, id;
 	int ret;
 
 	mutex_lock(&vin->group->lock);
@@ -881,12 +892,14 @@ static int rvin_mc_parse_of_graph(struct rvin_dev *vin)
 		if (!(vin_mask & BIT(i)))
 			continue;
 
-		ret = v4l2_async_notifier_parse_fwnode_endpoints_by_port(
-				vin->group->vin[i]->dev, &vin->group->notifier,
-				sizeof(struct v4l2_async_subdev), 1,
-				rvin_mc_parse_of_endpoint);
-		if (ret)
-			return ret;
+		for (id = 0; id < RVIN_CSI_MAX; id++) {
+			if (vin->group->csi[id].asd)
+				continue;
+
+			ret = rvin_mc_parse_of(vin->group->vin[i], id);
+			if (ret)
+				return ret;
+		}
 	}
 
 	if (list_empty(&vin->group->notifier.asd_list))
