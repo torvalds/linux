@@ -955,6 +955,8 @@ void tls_device_offload_cleanup_rx(struct sock *sk)
 	if (tls_ctx->tx_conf != TLS_HW) {
 		dev_put(netdev);
 		tls_ctx->netdev = NULL;
+	} else {
+		set_bit(TLS_RX_DEV_CLOSED, &tls_ctx->flags);
 	}
 out:
 	up_read(&device_offload_lock);
@@ -984,7 +986,8 @@ static int tls_device_down(struct net_device *netdev)
 		if (ctx->tx_conf == TLS_HW)
 			netdev->tlsdev_ops->tls_dev_del(netdev, ctx,
 							TLS_OFFLOAD_CTX_DIR_TX);
-		if (ctx->rx_conf == TLS_HW)
+		if (ctx->rx_conf == TLS_HW &&
+		    !test_bit(TLS_RX_DEV_CLOSED, &ctx->flags))
 			netdev->tlsdev_ops->tls_dev_del(netdev, ctx,
 							TLS_OFFLOAD_CTX_DIR_RX);
 		WRITE_ONCE(ctx->netdev, NULL);
