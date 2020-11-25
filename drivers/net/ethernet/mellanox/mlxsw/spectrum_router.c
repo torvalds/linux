@@ -3279,9 +3279,22 @@ static int mlxsw_sp_adj_index_mass_update(struct mlxsw_sp *mlxsw_sp,
 							nhgi->adj_index,
 							nhgi->ecmp_size);
 		if (err)
-			return err;
+			goto err_mass_update_vr;
 	}
 	return 0;
+
+err_mass_update_vr:
+	list_for_each_entry_continue_reverse(fib_entry, &nh_grp->fib_list,
+					     nexthop_group_node) {
+		struct mlxsw_sp_nexthop_group_info *nhgi = nh_grp->nhgi;
+
+		fib = fib_entry->fib_node->fib;
+		mlxsw_sp_adj_index_mass_update_vr(mlxsw_sp, fib->proto,
+						  fib->vr->id, nhgi->adj_index,
+						  nhgi->ecmp_size,
+						  old_adj_index, old_ecmp_size);
+	}
+	return err;
 }
 
 static int __mlxsw_sp_nexthop_update(struct mlxsw_sp *mlxsw_sp, u32 adj_index,
