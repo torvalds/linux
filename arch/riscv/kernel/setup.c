@@ -54,8 +54,15 @@ static DEFINE_PER_CPU(struct cpu, cpu_devices);
 static void __init parse_dtb(void)
 {
 	/* Early scan of device tree from init memory */
-	if (early_init_dt_scan(dtb_early_va))
+	if (early_init_dt_scan(dtb_early_va)) {
+		const char *name = of_flat_dt_get_machine_name();
+
+		if (name) {
+			pr_info("Machine model: %s\n", name);
+			dump_stack_set_arch_desc("%s (DT)", name);
+		}
 		return;
+	}
 
 	pr_err("No DTB passed to the kernel\n");
 #ifdef CONFIG_CMDLINE_FORCE
