@@ -3243,7 +3243,8 @@ mlxsw_sp_nexthop_lookup(struct mlxsw_sp *mlxsw_sp,
 }
 
 static int mlxsw_sp_adj_index_mass_update_vr(struct mlxsw_sp *mlxsw_sp,
-					     const struct mlxsw_sp_fib *fib,
+					     enum mlxsw_sp_l3proto proto,
+					     u16 vr_id,
 					     u32 adj_index, u16 ecmp_size,
 					     u32 new_adj_index,
 					     u16 new_ecmp_size)
@@ -3251,8 +3252,8 @@ static int mlxsw_sp_adj_index_mass_update_vr(struct mlxsw_sp *mlxsw_sp,
 	char raleu_pl[MLXSW_REG_RALEU_LEN];
 
 	mlxsw_reg_raleu_pack(raleu_pl,
-			     (enum mlxsw_reg_ralxx_protocol) fib->proto,
-			     fib->vr->id, adj_index, ecmp_size, new_adj_index,
+			     (enum mlxsw_reg_ralxx_protocol) proto, vr_id,
+			     adj_index, ecmp_size, new_adj_index,
 			     new_ecmp_size);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(raleu), raleu_pl);
 }
@@ -3271,7 +3272,8 @@ static int mlxsw_sp_adj_index_mass_update(struct mlxsw_sp *mlxsw_sp,
 		if (fib == fib_entry->fib_node->fib)
 			continue;
 		fib = fib_entry->fib_node->fib;
-		err = mlxsw_sp_adj_index_mass_update_vr(mlxsw_sp, fib,
+		err = mlxsw_sp_adj_index_mass_update_vr(mlxsw_sp, fib->proto,
+							fib->vr->id,
 							old_adj_index,
 							old_ecmp_size,
 							nhgi->adj_index,
