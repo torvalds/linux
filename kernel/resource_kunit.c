@@ -148,3 +148,5 @@ static struct kunit_suite resource_test_suite = {
 	.test_cases = resource_test_cases,
 };
 kunit_test_suite(resource_test_suite);
+
+MODULE_LICENSE("GPL");
