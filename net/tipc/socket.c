@@ -1,8 +1,9 @@
 /*
  * net/tipc/socket.c: TIPC socket API
  *
- * Copyright (c) 2001-2007, 2012-2017, Ericsson AB
+ * Copyright (c) 2001-2007, 2012-2019, Ericsson AB
  * Copyright (c) 2004-2008, 2010-2013, Wind River Systems
+ * Copyright (c) 2020, Red Hat Inc
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -644,10 +645,10 @@ static int tipc_release(struct socket *sock)
 }
 
 /**
- * tipc_bind - associate or disassocate TIPC name(s) with a socket
+ * __tipc_bind - associate or disassocate TIPC name(s) with a socket
  * @sock: socket structure
- * @uaddr: socket address describing name(s) and desired operation
- * @uaddr_len: size of socket address data structure
+ * @skaddr: socket address describing name(s) and desired operation
+ * @alen: size of socket address data structure
  *
  * Name and name sequence binding is indicated using a positive scope value;
  * a negative scope value unbinds the specified name.  Specifying no name
@@ -658,44 +659,33 @@ static int tipc_release(struct socket *sock)
  * NOTE: This routine doesn't need to take the socket lock since it doesn't
  *       access any non-constant socket information.
  */
-
-int tipc_sk_bind(struct socket *sock, struct sockaddr *uaddr, int uaddr_len)
+static int __tipc_bind(struct socket *sock, struct sockaddr *skaddr, int alen)
 {
-	struct sock *sk = sock->sk;
-	struct sockaddr_tipc *addr = (struct sockaddr_tipc *)uaddr;
-	struct tipc_sock *tsk = tipc_sk(sk);
-	int res = -EINVAL;
+	struct sockaddr_tipc *addr = (struct sockaddr_tipc *)skaddr;
+	struct tipc_sock *tsk = tipc_sk(sock->sk);
 
-	lock_sock(sk);
-	if (unlikely(!uaddr_len)) {
-		res = tipc_sk_withdraw(tsk, 0, NULL);
-		goto exit;
-	}
-	if (tsk->group) {
-		res = -EACCES;
-		goto exit;
-	}
-	if (uaddr_len < sizeof(struct sockaddr_tipc)) {
-		res = -EINVAL;
-		goto exit;
-	}
-	if (addr->family != AF_TIPC) {
-		res = -EAFNOSUPPORT;
-		goto exit;
-	}
+	if (unlikely(!alen))
+		return tipc_sk_withdraw(tsk, 0, NULL);
 
 	if (addr->addrtype == TIPC_ADDR_NAME)
 		addr->addr.nameseq.upper = addr->addr.nameseq.lower;
-	else if (addr->addrtype != TIPC_ADDR_NAMESEQ) {
-		res = -EAFNOSUPPORT;
-		goto exit;
-	}
 
-	res = (addr->scope >= 0) ?
-		tipc_sk_publish(tsk, addr->scope, &addr->addr.nameseq) :
-		tipc_sk_withdraw(tsk, -addr->scope, &addr->addr.nameseq);
-exit:
-	release_sock(sk);
+	if (tsk->group)
+		return -EACCES;
+
+	if (addr->scope >= 0)
+		return tipc_sk_publish(tsk, addr->scope, &addr->addr.nameseq);
+	else
+		return tipc_sk_withdraw(tsk, -addr->scope, &addr->addr.nameseq);
+}
+
+int tipc_sk_bind(struct socket *sock, struct sockaddr *skaddr, int alen)
+{
+	int res;
+
+	lock_sock(sock->sk);
+	res = __tipc_bind(sock, skaddr, alen);
+	release_sock(sock->sk);
 	return res;
 }
 
@@ -706,6 +696,10 @@ static int tipc_bind(struct socket *sock, struct sockaddr *skaddr, int alen)
 	if (alen) {
 		if (alen < sizeof(struct sockaddr_tipc))
 			return -EINVAL;
+		if (addr->family != AF_TIPC)
+			return -EAFNOSUPPORT;
+		if (addr->addrtype > TIPC_SERVICE_ADDR)
+			return -EAFNOSUPPORT;
 		if (addr->addr.nameseq.type < TIPC_RESERVED_TYPES) {
 			pr_warn_once("Can't bind to reserved service type %u\n",
 				     addr->addr.nameseq.type);
