@@ -781,8 +781,10 @@ static void gsi_channel_program(struct gsi_channel *channel, bool doorbell)
 	if (gsi->version == IPA_VERSION_3_5_1 && doorbell)
 		val |= USE_DB_ENG_FMASK;
 
-	/* Starting with IPA v4.0 the command channel uses the escape buffer */
-	if (gsi->version != IPA_VERSION_3_5_1 && channel->command)
+	/* v4.0 introduces an escape buffer for prefetch.  We use it
+	 * on all but the AP command channel.
+	 */
+	if (gsi->version != IPA_VERSION_3_5_1 && !channel->command)
 		val |= USE_ESCAPE_BUF_ONLY_FMASK;
 
 	iowrite32(val, gsi->virt + GSI_CH_C_QOS_OFFSET(channel_id));
