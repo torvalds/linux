@@ -859,6 +859,16 @@ static void tegra_pcie_prepare_host(struct pcie_port *pp)
 	struct tegra_pcie_dw *pcie = to_tegra_pcie(pci);
 	u32 val;
 
+	if (!pcie->pcie_cap_base)
+		pcie->pcie_cap_base = dw_pcie_find_capability(&pcie->pci,
+							      PCI_CAP_ID_EXP);
+
+	/* Disable ASPM-L1SS advertisement if there is no CLKREQ routing */
+	if (!pcie->supports_clkreq) {
+		disable_aspm_l11(pcie);
+		disable_aspm_l12(pcie);
+	}
+
 	val = dw_pcie_readl_dbi(pci, PCI_IO_BASE);
 	val &= ~(IO_BASE_IO_DECODE | IO_BASE_IO_DECODE_BIT8);
 	dw_pcie_writel_dbi(pci, PCI_IO_BASE, val);
@@ -1381,15 +1391,6 @@ static int tegra_pcie_config_controller(struct tegra_pcie_dw *pcie,
 		    APPL_CFG_IATU_DMA_BASE_ADDR);
 
 	reset_control_deassert(pcie->core_rst);
-
-	pcie->pcie_cap_base = dw_pcie_find_capability(&pcie->pci,
-						      PCI_CAP_ID_EXP);
-
-	/* Disable ASPM-L1SS advertisement as there is no CLKREQ routing */
-	if (!pcie->supports_clkreq) {
-		disable_aspm_l11(pcie);
-		disable_aspm_l12(pcie);
-	}
 
 	return ret;
 
