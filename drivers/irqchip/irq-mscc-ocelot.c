@@ -16,6 +16,7 @@
 #define ICPU_CFG_INTR_INTR_TRIGGER(_p, x)   ((_p)->reg_off_trigger + 0x4 * (x))
 
 #define FLAGS_HAS_TRIGGER	BIT(0)
+#define FLAGS_NEED_INIT_ENABLE	BIT(1)
 
 struct chip_props {
 	u8 flags;
@@ -38,6 +39,17 @@ static struct chip_props ocelot_props = {
 	.reg_off_ident		= 0x38,
 	.reg_off_trigger	= 0x5c,
 	.n_irq			= 24,
+};
+
+static struct chip_props luton_props = {
+	.flags			= FLAGS_NEED_INIT_ENABLE,
+	.reg_off_sticky		= 0,
+	.reg_off_ena		= 0x4,
+	.reg_off_ena_clr	= 0x8,
+	.reg_off_ena_set	= 0xc,
+	.reg_off_ident		= 0x18,
+	.reg_off_ena_irq0	= 0x14,
+	.n_irq			= 28,
 };
 
 static void ocelot_irq_unmask(struct irq_data *data)
@@ -115,16 +127,26 @@ static int __init vcoreiii_irq_init(struct device_node *node,
 		goto err_gc_free;
 	}
 
-	gc->chip_types[0].regs.ack = p->reg_off_sticky;
-	gc->chip_types[0].regs.mask = p->reg_off_ena_clr;
 	gc->chip_types[0].chip.irq_ack = irq_gc_ack_set_bit;
-	gc->chip_types[0].chip.irq_mask = irq_gc_mask_set_bit;
-	if (p->flags & FLAGS_HAS_TRIGGER)
+	gc->chip_types[0].regs.ack = p->reg_off_sticky;
+	if (p->flags & FLAGS_HAS_TRIGGER) {
+		gc->chip_types[0].regs.mask = p->reg_off_ena_clr;
 		gc->chip_types[0].chip.irq_unmask = ocelot_irq_unmask;
+		gc->chip_types[0].chip.irq_mask = irq_gc_mask_set_bit;
+	} else {
+		gc->chip_types[0].regs.enable = p->reg_off_ena_set;
+		gc->chip_types[0].regs.disable = p->reg_off_ena_clr;
+		gc->chip_types[0].chip.irq_mask = irq_gc_mask_disable_reg;
+		gc->chip_types[0].chip.irq_unmask = irq_gc_unmask_enable_reg;
+	}
 
 	/* Mask and ack all interrupts */
 	irq_reg_writel(gc, 0, p->reg_off_ena);
 	irq_reg_writel(gc, 0xffffffff, p->reg_off_sticky);
+
+	/* Overall init */
+	if (p->flags & FLAGS_NEED_INIT_ENABLE)
+		irq_reg_writel(gc, BIT(0), p->reg_off_ena_irq0);
 
 	domain->host_data = p;
 	irq_set_chained_handler_and_data(parent_irq, ocelot_irq_handler,
@@ -148,3 +170,11 @@ static int __init ocelot_irq_init(struct device_node *node,
 }
 
 IRQCHIP_DECLARE(ocelot_icpu, "mscc,ocelot-icpu-intr", ocelot_irq_init);
+
+static int __init luton_irq_init(struct device_node *node,
+				 struct device_node *parent)
+{
+	return vcoreiii_irq_init(node, parent, &luton_props);
+}
+
+IRQCHIP_DECLARE(luton_icpu, "mscc,luton-icpu-intr", luton_irq_init);
