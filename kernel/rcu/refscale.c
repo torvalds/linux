@@ -52,8 +52,10 @@ static atomic_t verbose_batch_ctr;
 do {											\
 	if (verbose &&									\
 	    (verbose_batched <= 0 ||							\
-	     !(atomic_inc_return(&verbose_batch_ctr) % verbose_batched)))		\
+	     !(atomic_inc_return(&verbose_batch_ctr) % verbose_batched))) {		\
+		schedule_timeout_uninterruptible(1);					\
 		pr_alert("%s" SCALE_FLAG s, scale_type, ## x);				\
+	}										\
 } while (0)
 
 #define VERBOSE_SCALEOUT_ERRSTRING(s, x...) \
