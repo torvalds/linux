@@ -96,6 +96,7 @@
 	vcc1v2_dvdd: vcc1v8_dovdd: vcc2v8_avdd: vcc-camera {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_camera";
+		regulator-boot-on;
 		gpio = <&gpio0 RK_PA7 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 	};
