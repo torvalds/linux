@@ -151,6 +151,9 @@ static void __init node_mem_init(unsigned int node)
 	NODE_DATA(node)->node_spanned_pages = end_pfn - start_pfn;
 
 	if (node == 0) {
+		/* kernel start address */
+		unsigned long kernel_start_pfn = PFN_DOWN(__pa_symbol(&_text));
+
 		/* kernel end address */
 		unsigned long kernel_end_pfn = PFN_UP(__pa_symbol(&_end));
 
@@ -158,8 +161,8 @@ static void __init node_mem_init(unsigned int node)
 		max_low_pfn = end_pfn;
 
 		/* Reserve the kernel text/data/bss */
-		memblock_reserve(start_pfn << PAGE_SHIFT,
-				 ((kernel_end_pfn - start_pfn) << PAGE_SHIFT));
+		memblock_reserve(kernel_start_pfn << PAGE_SHIFT,
+				 ((kernel_end_pfn - kernel_start_pfn) << PAGE_SHIFT));
 
 		/* Reserve 0xfe000000~0xffffffff for RS780E integrated GPU */
 		if (node_end_pfn(0) >= (0xffffffff >> PAGE_SHIFT))
