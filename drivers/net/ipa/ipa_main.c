@@ -310,14 +310,17 @@ static void ipa_hardware_dcd_deconfig(struct ipa *ipa)
  */
 static void ipa_hardware_config(struct ipa *ipa)
 {
+	enum ipa_version version = ipa->version;
 	u32 granularity;
 	u32 val;
 
-	/* Fill in backward-compatibility register, based on version */
-	val = ipa_reg_bcr_val(ipa->version);
-	iowrite32(val, ipa->reg_virt + IPA_REG_BCR_OFFSET);
+	/* IPA v4.5 has no backward compatibility register */
+	if (version < IPA_VERSION_4_5) {
+		val = ipa_reg_bcr_val(version);
+		iowrite32(val, ipa->reg_virt + IPA_REG_BCR_OFFSET);
+	}
 
-	if (ipa->version != IPA_VERSION_3_5_1) {
+	if (version != IPA_VERSION_3_5_1) {
 		/* Enable open global clocks (hardware workaround) */
 		val = GLOBAL_FMASK;
 		val |= GLOBAL_2X_CLK_FMASK;
@@ -340,8 +343,8 @@ static void ipa_hardware_config(struct ipa *ipa)
 	iowrite32(val, ipa->reg_virt + IPA_REG_COUNTER_CFG_OFFSET);
 
 	/* IPA v4.2 does not support hashed tables, so disable them */
-	if (ipa->version == IPA_VERSION_4_2) {
-		u32 offset = ipa_reg_filt_rout_hash_en_offset(ipa->version);
+	if (version == IPA_VERSION_4_2) {
+		u32 offset = ipa_reg_filt_rout_hash_en_offset(version);
 
 		iowrite32(0, ipa->reg_virt + offset);
 	}

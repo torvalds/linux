@@ -65,12 +65,13 @@ struct ipa;
  * of valid bits for the register.
  */
 
-/* The next field is not supported for IPA v4.1 */
 #define IPA_REG_COMP_CFG_OFFSET				0x0000003c
+/* The next field is not supported for IPA v4.1 */
 #define ENABLE_FMASK				GENMASK(0, 0)
 #define GSI_SNOC_BYPASS_DIS_FMASK		GENMASK(1, 1)
 #define GEN_QMB_0_SNOC_BYPASS_DIS_FMASK		GENMASK(2, 2)
 #define GEN_QMB_1_SNOC_BYPASS_DIS_FMASK		GENMASK(3, 3)
+/* The next field is not present for IPA v4.5 */
 #define IPA_DCMP_FAST_CLK_EN_FMASK		GENMASK(4, 4)
 /* The remaining fields are not present for IPA v3.5.1 */
 #define IPA_QMB_SELECT_CONS_EN_FMASK		GENMASK(5, 5)
@@ -86,6 +87,8 @@ struct ipa;
 #define GSI_MULTI_AXI_MASTERS_DIS_FMASK		GENMASK(15, 15)
 #define IPA_QMB_SELECT_GLOBAL_EN_FMASK		GENMASK(16, 16)
 #define IPA_ATOMIC_FETCHER_ARB_LOCK_DIS_FMASK	GENMASK(20, 17)
+/* The next field is present for IPA v4.5 */
+#define IPA_FULL_FLUSH_WAIT_RSC_CLOSE_EN_FMASK	GENMASK(21, 21)
 
 #define IPA_REG_CLKON_CFG_OFFSET			0x00000044
 #define RX_FMASK				GENMASK(0, 0)
@@ -105,6 +108,7 @@ struct ipa;
 #define ACK_MNGR_FMASK				GENMASK(14, 14)
 #define D_DCPH_FMASK				GENMASK(15, 15)
 #define H_DCPH_FMASK				GENMASK(16, 16)
+/* The next field is not present for IPA v4.5 */
 #define DCMP_FMASK				GENMASK(17, 17)
 #define NTF_TX_CMDQS_FMASK			GENMASK(18, 18)
 #define TX_0_FMASK				GENMASK(19, 19)
@@ -119,6 +123,8 @@ struct ipa;
 #define GSI_IF_FMASK				GENMASK(27, 27)
 #define GLOBAL_FMASK				GENMASK(28, 28)
 #define GLOBAL_2X_CLK_FMASK			GENMASK(29, 29)
+/* The next field is present for IPA v4.5 */
+#define DPL_FIFO_FMASK				GENMASK(30, 30)
 
 #define IPA_REG_ROUTE_OFFSET				0x00000048
 #define ROUTE_DIS_FMASK				GENMASK(0, 0)
@@ -174,6 +180,7 @@ static inline u32 ipa_reg_state_aggr_active_offset(enum ipa_version version)
 	return 0x000000b4;
 }
 
+/* The next register is not present for IPA v4.5 */
 #define IPA_REG_BCR_OFFSET				0x000001d0
 /* The next two fields are not present for IPA v4.2 */
 #define BCR_CMDQ_L_LACK_ONE_ENTRY_FMASK		GENMASK(0, 0)
@@ -204,6 +211,8 @@ static inline u32 ipa_reg_bcr_val(enum ipa_version version)
 			BCR_SUSPEND_L2_IRQ_FMASK |
 			BCR_HOLB_DROP_L2_IRQ_FMASK |
 			BCR_DUAL_TX_FMASK;
+
+	/* assert(version != IPA_VERSION_4_5); */
 
 	return 0x00000000;
 }
@@ -241,6 +250,8 @@ static inline u32 ipa_aggr_granularity_val(u32 usec)
 #define DMAW_MAX_BEATS_256_DIS_FMASK		GENMASK(11, 11)
 #define PA_MASK_EN_FMASK			GENMASK(12, 12)
 #define PREFETCH_ALMOST_EMPTY_SIZE_TX1_FMASK	GENMASK(16, 13)
+/* The next field is present for IPA v4.5 */
+#define DUAL_TX_ENABLE_FMASK			GENMASK(17, 17)
 /* The next two fields are present for IPA v4.2 only */
 #define SSPND_PA_NO_START_STATE_FMASK		GENMASK(18, 18)
 #define SSPND_PA_NO_BQ_STATE_FMASK		GENMASK(19, 19)
@@ -253,7 +264,7 @@ static inline u32 ipa_aggr_granularity_val(u32 usec)
 
 static inline u32 ipa_reg_idle_indication_cfg_offset(enum ipa_version version)
 {
-	if (version == IPA_VERSION_4_2)
+	if (version >= IPA_VERSION_4_2)
 		return 0x00000240;
 
 	return 0x00000220;
@@ -303,12 +314,14 @@ static inline u32 ipa_resource_group_dst_count(enum ipa_version version)
 					(0x00000400 + 0x0020 * (rt))
 #define IPA_REG_SRC_RSRC_GRP_23_RSRC_TYPE_N_OFFSET(rt) \
 					(0x00000404 + 0x0020 * (rt))
+/* The next register is only present for IPA v4.5 */
 #define IPA_REG_SRC_RSRC_GRP_45_RSRC_TYPE_N_OFFSET(rt) \
 					(0x00000408 + 0x0020 * (rt))
 #define IPA_REG_DST_RSRC_GRP_01_RSRC_TYPE_N_OFFSET(rt) \
 					(0x00000500 + 0x0020 * (rt))
 #define IPA_REG_DST_RSRC_GRP_23_RSRC_TYPE_N_OFFSET(rt) \
 					(0x00000504 + 0x0020 * (rt))
+/* The next register is only present for IPA v4.5 */
 #define IPA_REG_DST_RSRC_GRP_45_RSRC_TYPE_N_OFFSET(rt) \
 					(0x00000508 + 0x0020 * (rt))
 /* The next four fields are used for all resource group registers */
@@ -348,7 +361,11 @@ enum ipa_cs_offload_en {
 #define HDR_OFST_PKT_SIZE_FMASK			GENMASK(25, 20)
 #define HDR_A5_MUX_FMASK			GENMASK(26, 26)
 #define HDR_LEN_INC_DEAGG_HDR_FMASK		GENMASK(27, 27)
+/* The next field is not present for IPA v4.5 */
 #define HDR_METADATA_REG_VALID_FMASK		GENMASK(28, 28)
+/* The next two fields are present for IPA v4.5 */
+#define HDR_LEN_MSB_FMASK			GENMASK(29, 28)
+#define HDR_OFST_METADATA_MSB_FMASK		GENMASK(31, 30)
 
 #define IPA_REG_ENDP_INIT_HDR_EXT_N_OFFSET(ep) \
 					(0x00000814 + 0x0070 * (ep))
@@ -358,6 +375,10 @@ enum ipa_cs_offload_en {
 #define HDR_PAYLOAD_LEN_INC_PADDING_FMASK	GENMASK(3, 3)
 #define HDR_TOTAL_LEN_OR_PAD_OFFSET_FMASK	GENMASK(9, 4)
 #define HDR_PAD_TO_ALIGNMENT_FMASK		GENMASK(13, 10)
+/* The next three fields are present for IPA v4.5 */
+#define HDR_TOTAL_LEN_OR_PAD_OFFSET_MSB_FMASK	GENMASK(17, 16)
+#define HDR_OFST_PKT_SIZE_MSB_FMASK		GENMASK(19, 18)
+#define HDR_ADDITIONAL_CONST_LEN_MSB_FMASK	GENMASK(21, 20)
 
 /* Valid only for RX (IPA producer) endpoints */
 #define IPA_REG_ENDP_INIT_HDR_METADATA_MASK_N_OFFSET(rxep) \
@@ -367,10 +388,13 @@ enum ipa_cs_offload_en {
 #define IPA_REG_ENDP_INIT_MODE_N_OFFSET(txep) \
 					(0x00000820 + 0x0070 * (txep))
 #define MODE_FMASK				GENMASK(2, 0)
+/* The next field is present for IPA v4.5 */
+#define DCPH_ENABLE_FMASK			GENMASK(3, 3)
 #define DEST_PIPE_INDEX_FMASK			GENMASK(8, 4)
 #define BYTE_THRESHOLD_FMASK			GENMASK(27, 12)
 #define PIPE_REPLICATION_EN_FMASK		GENMASK(28, 28)
 #define PAD_EN_FMASK				GENMASK(29, 29)
+/* The next register is not present for IPA v4.5 */
 #define HDR_FTCH_DISABLE_FMASK			GENMASK(30, 30)
 
 /** enum ipa_mode - mode field in ENDP_INIT_MODE_N */
@@ -421,6 +445,9 @@ enum ipa_aggr_type {
 /* The next two fields are present for IPA v4.2 only */
 #define BASE_VALUE_FMASK			GENMASK(4, 0)
 #define SCALE_FMASK				GENMASK(12, 8)
+/* The next two fields are present for IPA v4.5 */
+#define TIME_LIMIT_FMASK			GENMASK(4, 0)
+#define GRAN_SEL_FMASK				GENMASK(8, 8)
 
 /* Valid only for TX (IPA consumer) endpoints */
 #define IPA_REG_ENDP_INIT_DEAGGR_N_OFFSET(txep) \
@@ -440,6 +467,8 @@ static inline u32 rsrc_grp_encoded(enum ipa_version version, u32 rsrc_grp)
 	switch (version) {
 	case IPA_VERSION_4_2:
 		return u32_encode_bits(rsrc_grp, GENMASK(0, 0));
+	case IPA_VERSION_4_5:
+		return u32_encode_bits(rsrc_grp, GENMASK(2, 0));
 	default:
 		return u32_encode_bits(rsrc_grp, GENMASK(1, 0));
 	}
@@ -476,6 +505,7 @@ enum ipa_seq_type {
 					(0x00000840 + 0x0070 * (ep))
 #define STATUS_EN_FMASK				GENMASK(0, 0)
 #define STATUS_ENDP_FMASK			GENMASK(5, 1)
+/* The next field is not present for IPA v4.5 */
 #define STATUS_LOCATION_FMASK			GENMASK(8, 8)
 /* The next field is not present for IPA v3.5.1 */
 #define STATUS_PKT_SUPPRESS_FMASK		GENMASK(9, 9)
@@ -550,6 +580,8 @@ enum ipa_irq_id {
 	IPA_IRQ_GSI_EE				= 0x17,
 	IPA_IRQ_GSI_IPA_IF_TLV_RCVD		= 0x18,
 	IPA_IRQ_GSI_UC				= 0x19,
+	/* The next bit is present for IPA v4.5 */
+	IPA_IRQ_TLV_LEN_MIN_DSM			= 0x1a,
 	IPA_IRQ_COUNT,				/* Last; not an id */
 };
 
