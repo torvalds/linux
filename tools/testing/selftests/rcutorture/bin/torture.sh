@@ -47,6 +47,16 @@ do_kvfree=yes
 do_kasan=yes
 do_kcsan=no
 
+# doyesno - Helper function for yes/no arguments
+function doyesno () {
+	if test "$1" = "$2"
+	then
+		echo yes
+	else
+		echo no
+	fi
+}
+
 usage () {
 	echo "Usage: $scriptname optional arguments:"
 	echo "       --doall"
@@ -79,44 +89,19 @@ do
 		do_kcsan=yes
 		;;
 	--do-allmodconfig|--do-no-allmodconfig)
-		if test "$1" = --do-allmodconfig
-		then
-			do_allmodconfig=yes
-		else
-			do_allmodconfig=no
-		fi
+		do_allmodconfig=`doyesno "$1" --do-allmodconfig`
 		;;
 	--do-kasan|--do-no-kasan)
-		if test "$1" = --do-kasan
-		then
-			do_kasan=yes
-		else
-			do_kasan=no
-		fi
+		do_kasan=`doyesno "$1" --do-kasan`
 		;;
 	--do-kcsan|--do-no-kcsan)
-		if test "$1" = --do-kcsan
-		then
-			do_kcsan=yes
-		else
-			do_kcsan=no
-		fi
+		do_kcsan=`doyesno "$1" --do-kcsan`
 		;;
 	--do-kvfree|--do-no-kvfree)
-		if test "$1" = --do-kvfree
-		then
-			do_kvfree=yes
-		else
-			do_kvfree=no
-		fi
+		do_kvfree=`doyesno "$1" --do-kvfree`
 		;;
 	--do-locktorture|--do-no-locktorture)
-		if test "$1" = --do-locktorture
-		then
-			do_locktorture=yes
-		else
-			do_locktorture=no
-		fi
+		do_locktorture=`doyesno "$1" --do-locktorture`
 		;;
 	--do-none)
 		do_allmodconfig=no
@@ -130,36 +115,16 @@ do
 		do_kcsan=no
 		;;
 	--do-rcuscale|--do-no-rcuscale)
-		if test "$1" = --do-rcuscale
-		then
-			do_rcuscale=yes
-		else
-			do_rcuscale=no
-		fi
+		do_rcuscale=`doyesno "$1" --do-rcuscale`
 		;;
 	--do-rcutorture|--do-no-rcutorture)
-		if test "$1" = --do-rcutorture
-		then
-			do_rcutorture=yes
-		else
-			do_rcutorture=no
-		fi
+		do_rcutorture=`doyesno "$1" --do-rcutorture`
 		;;
 	--do-refscale|--do-no-refscale)
-		if test "$1" = --do-refscale
-		then
-			do_refscale=yes
-		else
-			do_refscale=no
-		fi
+		do_refscale=`doyesno "$1" --do-refscale`
 		;;
 	--do-scftorture|--do-no-scftorture)
-		if test "$1" = --do-scftorture
-		then
-			do_scftorture=yes
-		else
-			do_scftorture=no
-		fi
+		do_scftorture=`doyesno "$1" --do-scftorture`
 		;;
 	--duration)
 		checkarg --duration "(minutes)" $# "$2" '^[0-9][0-9]*\(m\|h\|d\|\)$' '^error'
@@ -363,11 +328,6 @@ fi
 exit $ret
 
 # @@@
-# RCU CPU stall warnings?
-# scftorture warnings?
 # Need a way for the invoker to specify clang.  Maybe --kcsan-kmake or some such.
-# Work out --configs based on number of available CPUs?
-# Need to sense CPUs to size scftorture run.  Ditto rcuscale and refscale.
 # --kconfig as with --bootargs (Both have overrides.)
 # Command line parameters for --bootargs, --config, --kconfig, --kmake-arg, and --qemu-arg
-# Ensure that build failures count as failures
