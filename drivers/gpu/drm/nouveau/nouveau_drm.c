@@ -796,7 +796,7 @@ nouveau_drm_device_remove(struct drm_device *dev)
 	struct nvkm_client *client;
 	struct nvkm_device *device;
 
-	drm_dev_unregister(dev);
+	drm_dev_unplug(dev);
 
 	client = nvxx_client(&drm->client.base);
 	device = nvkm_device_find(client->device);
