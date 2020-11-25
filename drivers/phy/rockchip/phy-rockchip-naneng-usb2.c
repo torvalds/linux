@@ -100,6 +100,9 @@ struct rockchip_chg_det_reg {
  * @idfall_det_st: id fall detection state register.
  * @idfall_det_clr: id fall detection clear register.
  * @idpullup: id pin pullup or pulldown control register.
+ * @iddig_output: utmi iddig value from grf output.
+ * @iddig_en: select utmi iddig output from grf or phy,
+ *	      0: from phy output; 1: from grf output
  * @idrise_det_en: id rise detection enable register.
  * @idrise_det_st: id rise detection state register.
  * @idrise_det_clr: id rise detection clear register.
@@ -129,6 +132,8 @@ struct rockchip_usb2phy_port_cfg {
 	struct usb2phy_reg	idfall_det_st;
 	struct usb2phy_reg	idfall_det_clr;
 	struct usb2phy_reg	idpullup;
+	struct usb2phy_reg	iddig_output;
+	struct usb2phy_reg	iddig_en;
 	struct usb2phy_reg	idrise_det_en;
 	struct usb2phy_reg	idrise_det_st;
 	struct usb2phy_reg	idrise_det_clr;
@@ -978,6 +983,155 @@ static void rockchip_usb2phy_otg_sm_work(struct work_struct *work)
 	}
 }
 
+/* Show & store the current value of otg mode for otg port */
+static ssize_t otg_mode_show(struct device *device,
+			     struct device_attribute *attr,
+			     char *buf)
+{
+	struct rockchip_usb2phy *rphy = dev_get_drvdata(device);
+	struct rockchip_usb2phy_port *rport = NULL;
+	unsigned int index;
+
+	for (index = 0; index < rphy->phy_cfg->num_ports; index++) {
+		rport = &rphy->ports[index];
+		if (rport->port_id == USB2PHY_PORT_OTG)
+			break;
+	}
+
+	if (!rport) {
+		dev_err(rphy->dev, "Fail to get otg port\n");
+		return -EINVAL;
+	} else if (rport->port_id != USB2PHY_PORT_OTG) {
+		dev_err(rphy->dev, "No support otg\n");
+		return -EINVAL;
+	}
+
+	switch (rport->mode) {
+	case USB_DR_MODE_HOST:
+		return sprintf(buf, "host\n");
+	case USB_DR_MODE_PERIPHERAL:
+		return sprintf(buf, "peripheral\n");
+	case USB_DR_MODE_OTG:
+		return sprintf(buf, "otg\n");
+	case USB_DR_MODE_UNKNOWN:
+		return sprintf(buf, "UNKNOWN\n");
+	default:
+		break;
+	}
+
+	return -EINVAL;
+}
+
+static ssize_t otg_mode_store(struct device *device,
+			      struct device_attribute *attr,
+			      const char *buf, size_t count)
+{
+	struct rockchip_usb2phy *rphy = dev_get_drvdata(device);
+	struct rockchip_usb2phy_port *rport = NULL;
+	enum usb_dr_mode new_dr_mode;
+	unsigned int index;
+	int rc = count;
+
+	for (index = 0; index < rphy->phy_cfg->num_ports; index++) {
+		rport = &rphy->ports[index];
+		if (rport->port_id == USB2PHY_PORT_OTG)
+			break;
+	}
+
+	if (!rport) {
+		dev_err(rphy->dev, "Fail to get otg port!\n");
+		rc = -EINVAL;
+		goto exit;
+	} else if (rport->port_id != USB2PHY_PORT_OTG ||
+		   rport->mode == USB_DR_MODE_UNKNOWN) {
+		dev_err(rphy->dev, "No support otg!\n");
+		rc = -EINVAL;
+		goto exit;
+	}
+
+	mutex_lock(&rport->mutex);
+
+	if (!strncmp(buf, "0", 1) || !strncmp(buf, "otg", 3)) {
+		new_dr_mode = USB_DR_MODE_OTG;
+	} else if (!strncmp(buf, "1", 1) || !strncmp(buf, "host", 4)) {
+		new_dr_mode = USB_DR_MODE_HOST;
+	} else if (!strncmp(buf, "2", 1) || !strncmp(buf, "peripheral", 10)) {
+		new_dr_mode = USB_DR_MODE_PERIPHERAL;
+	} else {
+		dev_err(rphy->dev, "Error mode! Input 'otg' or 'host' or 'peripheral'\n");
+		rc = -EINVAL;
+		goto unlock;
+	}
+
+	if (rport->mode == new_dr_mode) {
+		dev_warn(rphy->dev, "Same as current mode\n");
+		goto unlock;
+	}
+
+	rport->mode = new_dr_mode;
+
+	switch (rport->mode) {
+	case USB_DR_MODE_HOST:
+		rport->perip_connected = false;
+		extcon_set_state(rphy->edev, EXTCON_USB, false);
+		extcon_set_state(rphy->edev, EXTCON_USB_HOST, true);
+		extcon_sync(rphy->edev, EXTCON_USB);
+		extcon_sync(rphy->edev, EXTCON_USB_HOST);
+		rockchip_usb2phy_set_mode(rport->phy, PHY_MODE_USB_HOST);
+		property_enable(rphy->grf, &rport->port_cfg->idpullup,
+				false);
+		property_enable(rphy->grf, &rport->port_cfg->iddig_output,
+				false);
+		property_enable(rphy->grf, &rport->port_cfg->iddig_en,
+				true);
+		break;
+	case USB_DR_MODE_PERIPHERAL:
+		rockchip_usb2phy_set_mode(rport->phy, PHY_MODE_USB_DEVICE);
+		property_enable(rphy->grf, &rport->port_cfg->idpullup,
+				true);
+		property_enable(rphy->grf, &rport->port_cfg->iddig_output,
+				true);
+		property_enable(rphy->grf, &rport->port_cfg->iddig_en,
+				true);
+		break;
+	case USB_DR_MODE_OTG:
+		rockchip_usb2phy_set_mode(rport->phy, PHY_MODE_USB_OTG);
+		property_enable(rphy->grf, &rport->port_cfg->iddig_output,
+				false);
+		property_enable(rphy->grf, &rport->port_cfg->iddig_en,
+				false);
+		break;
+	default:
+		break;
+	}
+
+
+	if ((rport->mode == USB_DR_MODE_PERIPHERAL ||
+	     rport->mode == USB_DR_MODE_OTG) && property_enabled(rphy->grf,
+	     &rport->port_cfg->utmi_bvalid)) {
+		rport->vbus_attached = true;
+		cancel_delayed_work_sync(&rport->otg_sm_work);
+		schedule_delayed_work(&rport->otg_sm_work, OTG_SCHEDULE_DELAY);
+	}
+unlock:
+	mutex_unlock(&rport->mutex);
+
+exit:
+	return rc;
+}
+static DEVICE_ATTR_RW(otg_mode);
+
+/* Group all the usb2 phy attributes */
+static struct attribute *usb2_phy_attrs[] = {
+	&dev_attr_otg_mode.attr,
+	NULL,
+};
+
+static struct attribute_group usb2_phy_attr_group = {
+	.name = NULL,	/* we want them in the same directory */
+	.attrs = usb2_phy_attrs,
+};
+
 static irqreturn_t rockchip_usb2phy_bvalid_irq(int irq, void *data)
 {
 	struct rockchip_usb2phy_port *rport = data;
@@ -1432,6 +1586,13 @@ next_child:
 	if (IS_ERR_OR_NULL(provider))
 		goto put_child;
 
+	/* Attributes */
+	ret = sysfs_create_group(&dev->kobj, &usb2_phy_attr_group);
+	if (ret) {
+		dev_err(dev, "Cannot create sysfs group: %d\n", ret);
+		goto put_child;
+	}
+
 	ret = rockchip_usb2phy_clk480m_register(rphy);
 	if (ret) {
 		dev_err(dev, "failed to register 480m output clock\n");
@@ -1691,6 +1852,8 @@ static const struct rockchip_usb2phy_cfg rv1126_phy_cfgs[] = {
 				.idfall_det_st = { 0x10304, 5, 5, 0, 1 },
 				.idfall_det_clr = { 0x10308, 5, 5, 0, 1 },
 				.idpullup = { 0x10230, 11, 11, 0, 1 },
+				.iddig_output = { 0x10230, 10, 10, 0, 1 },
+				.iddig_en = { 0x10230, 9, 9, 0, 1 },
 				.idrise_det_en = { 0x10300, 4, 4, 0, 1 },
 				.idrise_det_st = { 0x10304, 4, 4, 0, 1 },
 				.idrise_det_clr = { 0x10308, 4, 4, 0, 1 },
