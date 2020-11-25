@@ -1473,11 +1473,14 @@ static int iio_device_register_sysfs(struct iio_dev *indio_dev)
 		goto error_clear_attrs;
 	}
 	/* Copy across original attributes */
-	if (indio_dev->info->attrs)
+	if (indio_dev->info->attrs) {
 		memcpy(iio_dev_opaque->chan_attr_group.attrs,
 		       indio_dev->info->attrs->attrs,
 		       sizeof(iio_dev_opaque->chan_attr_group.attrs[0])
 		       *attrcount_orig);
+		iio_dev_opaque->chan_attr_group.is_visible =
+			indio_dev->info->attrs->is_visible;
+	}
 	attrn = attrcount_orig;
 	/* Add all elements from the list. */
 	list_for_each_entry(p, &iio_dev_opaque->channel_attr_list, l)
