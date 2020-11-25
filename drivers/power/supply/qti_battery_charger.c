@@ -39,6 +39,7 @@
 #define BC_WLS_FW_UPDATE_STATUS_RESP	0x42
 #define BC_WLS_FW_PUSH_BUF_RESP		0x43
 #define BC_WLS_FW_GET_VERSION		0x44
+#define BC_SHUTDOWN_NOTIFY		0x47
 #define BC_GENERIC_NOTIFY		0x80
 
 /* Generic definitions */
@@ -1820,10 +1821,19 @@ static int battery_chg_parse_dt(struct battery_chg_dev *bcdev)
 static int battery_chg_ship_mode(struct notifier_block *nb, unsigned long code,
 		void *unused)
 {
+	struct battery_charger_notify_msg msg_notify = { { 0 } };
 	struct battery_charger_ship_mode_req_msg msg = { { 0 } };
 	struct battery_chg_dev *bcdev = container_of(nb, struct battery_chg_dev,
 						     reboot_notifier);
 	int rc;
+
+	msg_notify.hdr.owner = MSG_OWNER_BC;
+	msg_notify.hdr.type = MSG_TYPE_NOTIFY;
+	msg_notify.hdr.opcode = BC_SHUTDOWN_NOTIFY;
+
+	rc = battery_chg_write(bcdev, &msg_notify, sizeof(msg_notify));
+	if (rc < 0)
+		pr_err("Failed to send shutdown notification rc=%d\n", rc);
 
 	if (!bcdev->ship_mode_en)
 		return NOTIFY_DONE;
