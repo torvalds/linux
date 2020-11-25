@@ -914,14 +914,6 @@
 		};
 	};
 
-	cif {
-		cif_clkout: cif-clkout {
-			rockchip,pins =
-				/* cif_clkout */
-				<4 RK_PC0 RK_FUNC_1 &pcfg_pull_none>;
-		};
-	};
-
 	tp {
 		tp_gpio: tp-gpio {
 			rockchip,pins = <3 RK_PB0 RK_FUNC_GPIO &pcfg_pull_up>,
