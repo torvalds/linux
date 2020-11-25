@@ -784,8 +784,14 @@ static void gsi_channel_program(struct gsi_channel *channel, bool doorbell)
 	/* v4.0 introduces an escape buffer for prefetch.  We use it
 	 * on all but the AP command channel.
 	 */
-	if (gsi->version != IPA_VERSION_3_5_1 && !channel->command)
-		val |= USE_ESCAPE_BUF_ONLY_FMASK;
+	if (gsi->version != IPA_VERSION_3_5_1 && !channel->command) {
+		/* If not otherwise set, prefetch buffers are used */
+		if (gsi->version < IPA_VERSION_4_5)
+			val |= USE_ESCAPE_BUF_ONLY_FMASK;
+		else
+			val |= u32_encode_bits(GSI_ESCAPE_BUF_ONLY,
+					       PREFETCH_MODE_FMASK);
+	}
 
 	iowrite32(val, gsi->virt + GSI_CH_C_QOS_OFFSET(channel_id));
 
