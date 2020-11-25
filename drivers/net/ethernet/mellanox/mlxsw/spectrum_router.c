@@ -3608,10 +3608,8 @@ mlxsw_sp_nexthop_group_refresh(struct mlxsw_sp *mlxsw_sp,
 	int i, err2, err = 0;
 	u32 old_adj_index;
 
-	if (!nhgi->gateway) {
-		mlxsw_sp_nexthop_fib_entries_update(mlxsw_sp, nh_grp);
-		return 0;
-	}
+	if (!nhgi->gateway)
+		return mlxsw_sp_nexthop_fib_entries_update(mlxsw_sp, nh_grp);
 
 	for (i = 0; i < nhgi->count; i++) {
 		nh = &nhgi->nexthops[i];
