@@ -196,6 +196,8 @@ struct dpaa_priv {
 
 	bool tx_tstamp; /* Tx timestamping enabled */
 	bool rx_tstamp; /* Rx timestamping enabled */
+
+	struct bpf_prog *xdp_prog;
 };
 
 /* from dpaa_ethtool.c */
