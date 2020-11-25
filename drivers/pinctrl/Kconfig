@@ -376,11 +376,13 @@ config PINCTRL_OCELOT
 
 config PINCTRL_MICROCHIP_SGPIO
 	bool "Pinctrl driver for Microsemi/Microchip Serial GPIO"
+	depends on OF
 	depends on HAS_IOMEM
 	select GPIOLIB
 	select GENERIC_PINCONF
 	select GENERIC_PINCTRL_GROUPS
 	select GENERIC_PINMUX_FUNCTIONS
+	select OF_GPIO
 	help
 	  Support for the serial GPIO interface used on Microsemi and
 	  Microchip SoC's. By using a serial interface, the SIO
