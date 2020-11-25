@@ -32,9 +32,20 @@
 #define TOROUT_STRING(s) \
 	pr_alert("%s" TORTURE_FLAG " %s\n", torture_type, s)
 #define VERBOSE_TOROUT_STRING(s) \
-	do { if (verbose) pr_alert("%s" TORTURE_FLAG " %s\n", torture_type, s); } while (0)
+do {										\
+	if (verbose) {								\
+		verbose_torout_sleep();						\
+		pr_alert("%s" TORTURE_FLAG " %s\n", torture_type, s);		\
+	}									\
+} while (0)
 #define VERBOSE_TOROUT_ERRSTRING(s) \
-	do { if (verbose) pr_alert("%s" TORTURE_FLAG "!!! %s\n", torture_type, s); } while (0)
+do {										\
+	if (verbose) {								\
+		verbose_torout_sleep();						\
+		pr_alert("%s" TORTURE_FLAG "!!! %s\n", torture_type, s);	\
+	}									\
+} while (0)
+void verbose_torout_sleep(void);
 
 /* Definitions for online/offline exerciser. */
 typedef void torture_ofl_func(void);
