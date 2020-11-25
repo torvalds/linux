@@ -6030,16 +6030,6 @@ static int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 		goto end_no_trans;
 	}
 
-	/*
-	 * The prev transaction commit doesn't complete, we need do
-	 * full commit by ourselves.
-	 */
-	if (fs_info->last_trans_log_full_commit >
-	    fs_info->last_trans_committed) {
-		ret = 1;
-		goto end_no_trans;
-	}
-
 	if (btrfs_root_refs(&root->root_item) == 0) {
 		ret = 1;
 		goto end_no_trans;
