@@ -5834,7 +5834,6 @@ static int log_new_ancestors(struct btrfs_trans_handle *trans,
 
 	while (true) {
 		struct btrfs_fs_info *fs_info = root->fs_info;
-		const u64 last_committed = fs_info->last_trans_committed;
 		struct extent_buffer *leaf = path->nodes[0];
 		int slot = path->slots[0];
 		struct btrfs_key search_key;
@@ -5853,7 +5852,7 @@ static int log_new_ancestors(struct btrfs_trans_handle *trans,
 		if (IS_ERR(inode))
 			return PTR_ERR(inode);
 
-		if (BTRFS_I(inode)->generation > last_committed)
+		if (BTRFS_I(inode)->generation >= trans->transid)
 			ret = btrfs_log_inode(trans, root, BTRFS_I(inode),
 					      LOG_INODE_EXISTS, ctx);
 		btrfs_add_delayed_iput(inode);
@@ -5894,7 +5893,6 @@ static int log_new_ancestors_fast(struct btrfs_trans_handle *trans,
 				  struct btrfs_log_ctx *ctx)
 {
 	struct btrfs_root *root = inode->root;
-	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct dentry *old_parent = NULL;
 	struct super_block *sb = inode->vfs_inode.i_sb;
 	int ret = 0;
@@ -5908,7 +5906,7 @@ static int log_new_ancestors_fast(struct btrfs_trans_handle *trans,
 		if (root != inode->root)
 			break;
 
-		if (inode->generation > fs_info->last_trans_committed) {
+		if (inode->generation >= trans->transid) {
 			ret = btrfs_log_inode(trans, root, inode,
 					      LOG_INODE_EXISTS, ctx);
 			if (ret)
