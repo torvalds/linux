@@ -887,16 +887,20 @@ static void tmio_mmc_set_bus_width(struct tmio_mmc_host *host,
 	sd_ctrl_write16(host, CTL_SD_MEM_CARD_OPT, reg);
 }
 
-static void tmio_mmc_max_busy_timeout(struct tmio_mmc_host *host)
+static unsigned int tmio_mmc_get_timeout_cycles(struct tmio_mmc_host *host)
 {
 	u16 val = sd_ctrl_read16(host, CTL_SD_MEM_CARD_OPT);
-	unsigned int clk_rate = host->mmc->actual_clock ?: host->mmc->f_max;
-	unsigned int cycles;
 
 	val = (val & CARD_OPT_TOP_MASK) >> CARD_OPT_TOP_SHIFT;
-	cycles = 1 << (13 + val);
+	return 1 << (13 + val);
+}
 
-	host->mmc->max_busy_timeout = cycles / (clk_rate / MSEC_PER_SEC);
+static void tmio_mmc_max_busy_timeout(struct tmio_mmc_host *host)
+{
+	unsigned int clk_rate = host->mmc->actual_clock ?: host->mmc->f_max;
+
+	host->mmc->max_busy_timeout = host->get_timeout_cycles(host) /
+				      (clk_rate / MSEC_PER_SEC);
 }
 
 /* Set MMC clock / power.
@@ -1115,6 +1119,9 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host)
 
 	if (!(pdata->flags & TMIO_MMC_HAS_IDLE_WAIT))
 		_host->write16_hook = NULL;
+
+	if (pdata->flags & TMIO_MMC_USE_BUSY_TIMEOUT && !_host->get_timeout_cycles)
+		_host->get_timeout_cycles = tmio_mmc_get_timeout_cycles;
 
 	_host->set_pwr = pdata->set_pwr;
 
