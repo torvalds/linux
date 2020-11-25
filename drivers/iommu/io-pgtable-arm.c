@@ -1085,7 +1085,6 @@ static void __init dummy_tlb_add_page(struct iommu_iotlb_gather *gather,
 static const struct iommu_flush_ops dummy_tlb_ops __initconst = {
 	.tlb_flush_all	= dummy_tlb_flush_all,
 	.tlb_flush_walk	= dummy_tlb_flush,
-	.tlb_flush_leaf	= dummy_tlb_flush,
 	.tlb_add_page	= dummy_tlb_add_page,
 };
 

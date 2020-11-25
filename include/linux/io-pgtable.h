@@ -25,8 +25,6 @@ enum io_pgtable_fmt {
  * @tlb_flush_walk: Synchronously invalidate all intermediate TLB state
  *                  (sometimes referred to as the "walk cache") for a virtual
  *                  address range.
- * @tlb_flush_leaf: Synchronously invalidate all leaf TLB state for a virtual
- *                  address range.
  * @tlb_add_page:   Optional callback to queue up leaf TLB invalidation for a
  *                  single page.  IOMMUs that cannot batch TLB invalidation
  *                  operations efficiently will typically issue them here, but
@@ -39,8 +37,6 @@ enum io_pgtable_fmt {
 struct iommu_flush_ops {
 	void (*tlb_flush_all)(void *cookie);
 	void (*tlb_flush_walk)(unsigned long iova, size_t size, size_t granule,
-			       void *cookie);
-	void (*tlb_flush_leaf)(unsigned long iova, size_t size, size_t granule,
 			       void *cookie);
 	void (*tlb_add_page)(struct iommu_iotlb_gather *gather,
 			     unsigned long iova, size_t granule, void *cookie);
@@ -226,13 +222,6 @@ io_pgtable_tlb_flush_walk(struct io_pgtable *iop, unsigned long iova,
 			  size_t size, size_t granule)
 {
 	iop->cfg.tlb->tlb_flush_walk(iova, size, granule, iop->cookie);
-}
-
-static inline void
-io_pgtable_tlb_flush_leaf(struct io_pgtable *iop, unsigned long iova,
-			  size_t size, size_t granule)
-{
-	iop->cfg.tlb->tlb_flush_leaf(iova, size, granule, iop->cookie);
 }
 
 static inline void

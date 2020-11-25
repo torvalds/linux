@@ -347,16 +347,9 @@ static void mmu_tlb_flush_walk(unsigned long iova, size_t size, size_t granule,
 	mmu_tlb_sync_context(cookie);
 }
 
-static void mmu_tlb_flush_leaf(unsigned long iova, size_t size, size_t granule,
-			       void *cookie)
-{
-	mmu_tlb_sync_context(cookie);
-}
-
 static const struct iommu_flush_ops mmu_tlb_ops = {
 	.tlb_flush_all	= mmu_tlb_inv_context_s1,
 	.tlb_flush_walk = mmu_tlb_flush_walk,
-	.tlb_flush_leaf = mmu_tlb_flush_leaf,
 };
 
 int panfrost_mmu_pgtable_alloc(struct panfrost_file_priv *priv)
