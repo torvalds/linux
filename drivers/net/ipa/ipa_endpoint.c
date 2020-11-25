@@ -520,7 +520,7 @@ static void ipa_endpoint_init_hdr(struct ipa_endpoint *endpoint)
 		/* HDR_ADDITIONAL_CONST_LEN is 0; (RX only) */
 		/* HDR_A5_MUX is 0 */
 		/* HDR_LEN_INC_DEAGG_HDR is 0 */
-		/* HDR_METADATA_REG_VALID is 0 (TX only) */
+		/* HDR_METADATA_REG_VALID is 0 (TX only, version < v4.5) */
 	}
 
 	iowrite32(val, ipa->reg_virt + offset);
@@ -655,6 +655,7 @@ static void ipa_endpoint_init_aggr(struct ipa_endpoint *endpoint)
 			/* other fields ignored */
 		}
 		/* AGGR_FORCE_CLOSE is 0 */
+		/* AGGR_GRAN_SEL is 0 for IPA v4.5 */
 	} else {
 		val |= u32_encode_bits(IPA_BYPASS_AGGR, AGGR_EN_FMASK);
 		/* other fields ignored */
@@ -865,9 +866,10 @@ static void ipa_endpoint_status(struct ipa_endpoint *endpoint)
 			val |= u32_encode_bits(status_endpoint_id,
 					       STATUS_ENDP_FMASK);
 		}
-		/* STATUS_LOCATION is 0 (status element precedes packet) */
-		/* The next field is present for IPA v4.0 and above */
-		/* STATUS_PKT_SUPPRESS_FMASK is 0 */
+		/* STATUS_LOCATION is 0, meaning status element precedes
+		 * packet (not present for IPA v4.5)
+		 */
+		/* STATUS_PKT_SUPPRESS_FMASK is 0 (not present for v3.5.1) */
 	}
 
 	iowrite32(val, ipa->reg_virt + offset);

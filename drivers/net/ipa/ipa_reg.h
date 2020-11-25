@@ -238,6 +238,7 @@ static inline u32 ipa_aggr_granularity_val(u32 usec)
 	return DIV_ROUND_CLOSEST(usec * TIMER_FREQUENCY, USEC_PER_SEC) - 1;
 }
 
+/* The next register is not present for IPA v4.5 */
 #define IPA_REG_TX_CFG_OFFSET				0x000001fc
 /* The first three fields are present for IPA v3.5.1 only */
 #define TX0_PREFETCH_DISABLE_FMASK		GENMASK(0, 0)
@@ -285,6 +286,9 @@ static inline u32 ipa_resource_group_src_count(enum ipa_version version)
 	case IPA_VERSION_4_2:
 		return 1;
 
+	case IPA_VERSION_4_5:
+		return 5;
+
 	default:
 		return 0;
 	}
@@ -303,6 +307,9 @@ static inline u32 ipa_resource_group_dst_count(enum ipa_version version)
 
 	case IPA_VERSION_4_2:
 		return 1;
+
+	case IPA_VERSION_4_5:
+		return 5;
 
 	default:
 		return 0;
