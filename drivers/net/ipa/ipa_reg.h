@@ -367,6 +367,40 @@ enum ipa_cs_offload_en {
 #define HDR_LEN_MSB_FMASK			GENMASK(29, 28)
 #define HDR_OFST_METADATA_MSB_FMASK		GENMASK(31, 30)
 
+/* Encoded value for ENDP_INIT_HDR register HDR_LEN* field(s) */
+static inline u32 ipa_header_size_encoded(enum ipa_version version,
+					  u32 header_size)
+{
+	u32 val;
+
+	val = u32_encode_bits(header_size, HDR_LEN_FMASK);
+	if (version < IPA_VERSION_4_5)
+		return val;
+
+	/* IPA v4.5 adds a few more most-significant bits */
+	header_size >>= hweight32(HDR_LEN_FMASK);
+	val |= u32_encode_bits(header_size, HDR_LEN_MSB_FMASK);
+
+	return val;
+}
+
+/* Encoded value for ENDP_INIT_HDR register OFST_METADATA* field(s) */
+static inline u32 ipa_metadata_offset_encoded(enum ipa_version version,
+					      u32 offset)
+{
+	u32 val;
+
+	val = u32_encode_bits(offset, HDR_OFST_METADATA_FMASK);
+	if (version < IPA_VERSION_4_5)
+		return val;
+
+	/* IPA v4.5 adds a few more most-significant bits */
+	offset >>= hweight32(HDR_OFST_METADATA_FMASK);
+	val |= u32_encode_bits(offset, HDR_OFST_METADATA_MSB_FMASK);
+
+	return val;
+}
+
 #define IPA_REG_ENDP_INIT_HDR_EXT_N_OFFSET(ep) \
 					(0x00000814 + 0x0070 * (ep))
 #define HDR_ENDIANNESS_FMASK			GENMASK(0, 0)
@@ -461,7 +495,7 @@ enum ipa_aggr_type {
 
 #define IPA_REG_ENDP_INIT_RSRC_GRP_N_OFFSET(ep) \
 					(0x00000838 + 0x0070 * (ep))
-/* Encoded value for RSRC_GRP endpoint register RSRC_GRP field */
+/* Encoded value for ENDP_INIT_RSRC_GRP register RSRC_GRP field */
 static inline u32 rsrc_grp_encoded(enum ipa_version version, u32 rsrc_grp)
 {
 	switch (version) {
@@ -492,7 +526,7 @@ static inline u32 rsrc_grp_encoded(enum ipa_version version, u32 rsrc_grp)
  * @IPA_SEQ_INVALID:		invalid sequencer type
  *
  * The values defined here are broken into 4-bit nibbles that are written
- * into fields of the INIT_SEQ_N endpoint registers.
+ * into fields of the ENDP_INIT_SEQ registers.
  */
 enum ipa_seq_type {
 	IPA_SEQ_DMA_ONLY			= 0x0000,
