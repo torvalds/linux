@@ -60,6 +60,7 @@
 struct kvm_stats_debugfs_item debugfs_entries[] = {
 	VCPU_STAT("userspace_handled", exit_userspace),
 	VCPU_STAT("exit_null", exit_null),
+	VCPU_STAT("pfault_sync", pfault_sync),
 	VCPU_STAT("exit_validity", exit_validity),
 	VCPU_STAT("exit_stop_request", exit_stop_request),
 	VCPU_STAT("exit_external_request", exit_external_request),
@@ -4111,6 +4112,7 @@ static int vcpu_post_run(struct kvm_vcpu *vcpu, int exit_reason)
 		current->thread.gmap_pfault = 0;
 		if (kvm_arch_setup_async_pf(vcpu))
 			return 0;
+		vcpu->stat.pfault_sync++;
 		return kvm_arch_fault_in_page(vcpu, current->thread.gmap_addr, 1);
 	}
 	return vcpu_post_run_fault_in_sie(vcpu);
