@@ -112,10 +112,6 @@ static void __init __mapin_ram_chunk(unsigned long offset, unsigned long top)
 		ktext = ((char *)v >= _stext && (char *)v < etext) ||
 			((char *)v >= _sinittext && (char *)v < _einittext);
 		map_kernel_page(v, p, ktext ? PAGE_KERNEL_TEXT : PAGE_KERNEL);
-#ifdef CONFIG_PPC_BOOK3S_32
-		if (ktext)
-			hash_preload(&init_mm, v);
-#endif
 		v += PAGE_SIZE;
 		p += PAGE_SIZE;
 	}
