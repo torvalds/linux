@@ -1039,7 +1039,7 @@ static int vga_switcheroo_runtime_resume(struct device *dev)
 	mutex_lock(&vgasr_mutex);
 	vga_switcheroo_power_switch(pdev, VGA_SWITCHEROO_ON);
 	mutex_unlock(&vgasr_mutex);
-	pci_wakeup_bus(pdev->bus);
+	pci_resume_bus(pdev->bus);
 	ret = dev->bus->pm->runtime_resume(dev);
 	if (ret)
 		return ret;
