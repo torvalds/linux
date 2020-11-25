@@ -685,6 +685,7 @@ nfsd_file_cache_init(void)
 	if (IS_ERR(nfsd_file_fsnotify_group)) {
 		pr_err("nfsd: unable to create fsnotify group: %ld\n",
 			PTR_ERR(nfsd_file_fsnotify_group));
+		ret = PTR_ERR(nfsd_file_fsnotify_group);
 		nfsd_file_fsnotify_group = NULL;
 		goto out_notifier;
 	}
