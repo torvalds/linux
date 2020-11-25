@@ -88,5 +88,7 @@ void amdgpu_ih_ring_fini(struct amdgpu_device *adev, struct amdgpu_ih_ring *ih);
 void amdgpu_ih_ring_write(struct amdgpu_ih_ring *ih, const uint32_t *iv,
 			  unsigned int num_dw);
 int amdgpu_ih_process(struct amdgpu_device *adev, struct amdgpu_ih_ring *ih);
-
+void amdgpu_ih_decode_iv_helper(struct amdgpu_device *adev,
+				struct amdgpu_ih_ring *ih,
+				struct amdgpu_iv_entry *entry);
 #endif
