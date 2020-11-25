@@ -185,8 +185,8 @@ static int rvin_group_link_notify(struct media_link *link, u32 flags,
 		 */
 		sd = media_entity_to_v4l2_subdev(link->source->entity);
 		for (i = 0; i < RCAR_VIN_NUM; i++) {
-			if (group->vin[i] && group->vin[i]->parallel &&
-			    group->vin[i]->parallel->subdev == sd) {
+			if (group->vin[i] &&
+			    group->vin[i]->parallel.subdev == sd) {
 				group->vin[i]->is_csi = false;
 				ret = 0;
 				goto out;
@@ -440,20 +440,20 @@ static int rvin_parallel_subdevice_attach(struct rvin_dev *vin,
 	ret = rvin_find_pad(subdev, MEDIA_PAD_FL_SOURCE);
 	if (ret < 0)
 		return ret;
-	vin->parallel->source_pad = ret;
+	vin->parallel.source_pad = ret;
 
 	ret = rvin_find_pad(subdev, MEDIA_PAD_FL_SINK);
-	vin->parallel->sink_pad = ret < 0 ? 0 : ret;
+	vin->parallel.sink_pad = ret < 0 ? 0 : ret;
 
 	if (vin->info->use_mc) {
-		vin->parallel->subdev = subdev;
+		vin->parallel.subdev = subdev;
 		return 0;
 	}
 
 	/* Find compatible subdevices mbus format */
 	vin->mbus_code = 0;
 	code.index = 0;
-	code.pad = vin->parallel->source_pad;
+	code.pad = vin->parallel.source_pad;
 	while (!vin->mbus_code &&
 	       !v4l2_subdev_call(subdev, pad, enum_mbus_code, NULL, &code)) {
 		code.index++;
@@ -512,7 +512,7 @@ static int rvin_parallel_subdevice_attach(struct rvin_dev *vin,
 
 	vin->vdev.ctrl_handler = &vin->ctrl_handler;
 
-	vin->parallel->subdev = subdev;
+	vin->parallel.subdev = subdev;
 
 	return 0;
 }
@@ -520,7 +520,7 @@ static int rvin_parallel_subdevice_attach(struct rvin_dev *vin,
 static void rvin_parallel_subdevice_detach(struct rvin_dev *vin)
 {
 	rvin_v4l2_unregister(vin);
-	vin->parallel->subdev = NULL;
+	vin->parallel.subdev = NULL;
 
 	if (!vin->info->use_mc) {
 		v4l2_ctrl_handler_free(&vin->ctrl_handler);
@@ -551,11 +551,11 @@ static int rvin_parallel_notify_complete(struct v4l2_async_notifier *notifier)
 		return 0;
 
 	/* If we're running with media-controller, link the subdevs. */
-	source = &vin->parallel->subdev->entity;
+	source = &vin->parallel.subdev->entity;
 	sink = &vin->vdev.entity;
 
-	ret = media_create_pad_link(source, vin->parallel->source_pad,
-				    sink, vin->parallel->sink_pad, 0);
+	ret = media_create_pad_link(source, vin->parallel.source_pad,
+				    sink, vin->parallel.sink_pad, 0);
 	if (ret)
 		vin_err(vin, "Error adding link from %s to %s: %d\n",
 			source->name, sink->name, ret);
@@ -592,8 +592,8 @@ static int rvin_parallel_notify_bound(struct v4l2_async_notifier *notifier,
 	v4l2_set_subdev_hostdata(subdev, vin);
 
 	vin_dbg(vin, "bound subdev %s source pad: %u sink pad: %u\n",
-		subdev->name, vin->parallel->source_pad,
-		vin->parallel->sink_pad);
+		subdev->name, vin->parallel.source_pad,
+		vin->parallel.sink_pad);
 
 	return 0;
 }
@@ -609,27 +609,26 @@ static int rvin_parallel_parse_v4l2(struct device *dev,
 				    struct v4l2_async_subdev *asd)
 {
 	struct rvin_dev *vin = dev_get_drvdata(dev);
-	struct rvin_parallel_entity *rvpe =
-		container_of(asd, struct rvin_parallel_entity, asd);
 
 	if (vep->base.port || vep->base.id)
 		return -ENOTCONN;
 
-	vin->parallel = rvpe;
-	vin->parallel->mbus_type = vep->bus_type;
+	vin->parallel.mbus_type = vep->bus_type;
 
-	switch (vin->parallel->mbus_type) {
+	switch (vin->parallel.mbus_type) {
 	case V4L2_MBUS_PARALLEL:
 	case V4L2_MBUS_BT656:
 		vin_dbg(vin, "Found %s media bus\n",
-			vin->parallel->mbus_type == V4L2_MBUS_PARALLEL ?
+			vin->parallel.mbus_type == V4L2_MBUS_PARALLEL ?
 			"PARALLEL" : "BT656");
-		vin->parallel->bus = vep->bus.parallel;
+		vin->parallel.bus = vep->bus.parallel;
 		break;
 	default:
 		vin_err(vin, "Unknown media bus type\n");
 		return -EINVAL;
 	}
+
+	vin->parallel.asd = asd;
 
 	return 0;
 }
@@ -641,17 +640,17 @@ static int rvin_parallel_init(struct rvin_dev *vin)
 	v4l2_async_notifier_init(&vin->notifier);
 
 	ret = v4l2_async_notifier_parse_fwnode_endpoints_by_port(
-		vin->dev, &vin->notifier, sizeof(struct rvin_parallel_entity),
+		vin->dev, &vin->notifier, sizeof(*vin->parallel.asd),
 		0, rvin_parallel_parse_v4l2);
 	if (ret)
 		return ret;
 
 	/* If using mc, it's fine not to have any input registered. */
-	if (!vin->parallel)
+	if (!vin->parallel.asd)
 		return vin->info->use_mc ? 0 : -ENODEV;
 
 	vin_dbg(vin, "Found parallel subdevice %pOF\n",
-		to_of_node(vin->parallel->asd.match.fwnode));
+		to_of_node(vin->parallel.asd->match.fwnode));
 
 	vin->notifier.ops = &rvin_parallel_notify_ops;
 	ret = v4l2_async_notifier_register(&vin->v4l2_dev, &vin->notifier);

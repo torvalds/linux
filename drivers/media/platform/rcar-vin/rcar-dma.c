@@ -672,7 +672,7 @@ static int rvin_setup(struct rvin_dev *vin)
 	case MEDIA_BUS_FMT_UYVY8_2X8:
 		/* BT.656 8bit YCbCr422 or BT.601 8bit YCbCr422 */
 		if (!vin->is_csi &&
-		    vin->parallel->mbus_type == V4L2_MBUS_BT656)
+		    vin->parallel.mbus_type == V4L2_MBUS_BT656)
 			vnmc |= VNMC_INF_YUV8_BT656;
 		else
 			vnmc |= VNMC_INF_YUV8_BT601;
@@ -685,7 +685,7 @@ static int rvin_setup(struct rvin_dev *vin)
 	case MEDIA_BUS_FMT_UYVY10_2X10:
 		/* BT.656 10bit YCbCr422 or BT.601 10bit YCbCr422 */
 		if (!vin->is_csi &&
-		    vin->parallel->mbus_type == V4L2_MBUS_BT656)
+		    vin->parallel.mbus_type == V4L2_MBUS_BT656)
 			vnmc |= VNMC_INF_YUV10_BT656;
 		else
 			vnmc |= VNMC_INF_YUV10_BT601;
@@ -710,21 +710,21 @@ static int rvin_setup(struct rvin_dev *vin)
 
 	if (!vin->is_csi) {
 		/* Hsync Signal Polarity Select */
-		if (!(vin->parallel->bus.flags & V4L2_MBUS_HSYNC_ACTIVE_LOW))
+		if (!(vin->parallel.bus.flags & V4L2_MBUS_HSYNC_ACTIVE_LOW))
 			dmr2 |= VNDMR2_HPS;
 
 		/* Vsync Signal Polarity Select */
-		if (!(vin->parallel->bus.flags & V4L2_MBUS_VSYNC_ACTIVE_LOW))
+		if (!(vin->parallel.bus.flags & V4L2_MBUS_VSYNC_ACTIVE_LOW))
 			dmr2 |= VNDMR2_VPS;
 
 		/* Data Enable Polarity Select */
-		if (vin->parallel->bus.flags & V4L2_MBUS_DATA_ENABLE_LOW)
+		if (vin->parallel.bus.flags & V4L2_MBUS_DATA_ENABLE_LOW)
 			dmr2 |= VNDMR2_CES;
 
 		switch (vin->mbus_code) {
 		case MEDIA_BUS_FMT_UYVY8_2X8:
-			if (vin->parallel->bus.bus_width == 8 &&
-			    vin->parallel->bus.data_shift == 8)
+			if (vin->parallel.bus.bus_width == 8 &&
+			    vin->parallel.bus.data_shift == 8)
 				dmr2 |= VNDMR2_YDS;
 			break;
 		default:
@@ -1203,7 +1203,7 @@ static int rvin_set_stream(struct rvin_dev *vin, int on)
 
 	/* No media controller used, simply pass operation to subdevice. */
 	if (!vin->info->use_mc) {
-		ret = v4l2_subdev_call(vin->parallel->subdev, video, s_stream,
+		ret = v4l2_subdev_call(vin->parallel.subdev, video, s_stream,
 				       on);
 
 		return ret == -ENOIOCTLCMD ? 0 : ret;

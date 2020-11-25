@@ -101,7 +101,7 @@ struct rvin_video_format {
  *
  */
 struct rvin_parallel_entity {
-	struct v4l2_async_subdev asd;
+	struct v4l2_async_subdev *asd;
 	struct v4l2_subdev *subdev;
 
 	enum v4l2_mbus_type mbus_type;
@@ -213,7 +213,7 @@ struct rvin_dev {
 	struct v4l2_ctrl_handler ctrl_handler;
 	struct v4l2_async_notifier notifier;
 
-	struct rvin_parallel_entity *parallel;
+	struct rvin_parallel_entity parallel;
 
 	struct rvin_group *group;
 	unsigned int id;
@@ -248,7 +248,7 @@ struct rvin_dev {
 	unsigned int alpha;
 };
 
-#define vin_to_source(vin)		((vin)->parallel->subdev)
+#define vin_to_source(vin)		((vin)->parallel.subdev)
 
 /* Debug */
 #define vin_dbg(d, fmt, arg...)		dev_dbg(d->dev, fmt, ##arg)
