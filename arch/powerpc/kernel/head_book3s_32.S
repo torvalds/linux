@@ -461,8 +461,9 @@ InstructionTLBMiss:
 	lis	r1, TASK_SIZE@h		/* check if kernel address */
 	cmplw	0,r1,r3
 #endif
-	mfspr	r2, SPRN_SPRG_PGDIR
+	mfspr	r2, SPRN_SDR1
 	li	r1,_PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_EXEC
+	rlwinm	r2, r2, 28, 0xfffff000
 #ifdef CONFIG_MODULES
 	bgt-	112f
 	lis	r2, (swapper_pg_dir - PAGE_OFFSET)@ha	/* if kernel address, use */
@@ -523,8 +524,9 @@ DataLoadTLBMiss:
 	mfspr	r3,SPRN_DMISS
 	lis	r1, TASK_SIZE@h		/* check if kernel address */
 	cmplw	0,r1,r3
-	mfspr	r2, SPRN_SPRG_PGDIR
+	mfspr	r2, SPRN_SDR1
 	li	r1, _PAGE_PRESENT | _PAGE_ACCESSED
+	rlwinm	r2, r2, 28, 0xfffff000
 	bgt-	112f
 	lis	r2, (swapper_pg_dir - PAGE_OFFSET)@ha	/* if kernel address, use */
 	addi	r2, r2, (swapper_pg_dir - PAGE_OFFSET)@l	/* kernel page table */
@@ -599,8 +601,9 @@ DataStoreTLBMiss:
 	mfspr	r3,SPRN_DMISS
 	lis	r1, TASK_SIZE@h		/* check if kernel address */
 	cmplw	0,r1,r3
-	mfspr	r2, SPRN_SPRG_PGDIR
+	mfspr	r2, SPRN_SDR1
 	li	r1, _PAGE_RW | _PAGE_DIRTY | _PAGE_PRESENT | _PAGE_ACCESSED
+	rlwinm	r2, r2, 28, 0xfffff000
 	bgt-	112f
 	lis	r2, (swapper_pg_dir - PAGE_OFFSET)@ha	/* if kernel address, use */
 	addi	r2, r2, (swapper_pg_dir - PAGE_OFFSET)@l	/* kernel page table */
@@ -893,9 +896,12 @@ __secondary_start:
 	tophys(r4,r2)
 	addi	r4,r4,THREAD	/* phys address of our thread_struct */
 	mtspr	SPRN_SPRG_THREAD,r4
+BEGIN_MMU_FTR_SECTION
 	lis	r4, (swapper_pg_dir - PAGE_OFFSET)@h
 	ori	r4, r4, (swapper_pg_dir - PAGE_OFFSET)@l
-	mtspr	SPRN_SPRG_PGDIR, r4
+	rlwinm	r4, r4, 4, 0xffff01ff
+	mtspr	SPRN_SDR1, r4
+END_MMU_FTR_SECTION_IFCLR(MMU_FTR_HPTE_TABLE)
 
 	/* enable MMU and jump to start_secondary */
 	li	r4,MSR_KERNEL
@@ -935,11 +941,13 @@ load_up_mmu:
 	tlbia			/* Clear all TLB entries */
 	sync			/* wait for tlbia/tlbie to finish */
 	TLBSYNC			/* ... on all CPUs */
+BEGIN_MMU_FTR_SECTION
 	/* Load the SDR1 register (hash table base & size) */
 	lis	r6,_SDR1@ha
 	tophys(r6,r6)
 	lwz	r6,_SDR1@l(r6)
 	mtspr	SPRN_SDR1,r6
+END_MMU_FTR_SECTION_IFSET(MMU_FTR_HPTE_TABLE)
 
 /* Load the BAT registers with the values set up by MMU_init. */
 	lis	r3,BATS@ha
@@ -995,9 +1003,12 @@ start_here:
 	tophys(r4,r2)
 	addi	r4,r4,THREAD	/* init task's THREAD */
 	mtspr	SPRN_SPRG_THREAD,r4
+BEGIN_MMU_FTR_SECTION
 	lis	r4, (swapper_pg_dir - PAGE_OFFSET)@h
 	ori	r4, r4, (swapper_pg_dir - PAGE_OFFSET)@l
-	mtspr	SPRN_SPRG_PGDIR, r4
+	rlwinm	r4, r4, 4, 0xffff01ff
+	mtspr	SPRN_SDR1, r4
+END_MMU_FTR_SECTION_IFCLR(MMU_FTR_HPTE_TABLE)
 
 	/* stack */
 	lis	r1,init_thread_union@ha
@@ -1077,16 +1088,22 @@ _ENTRY(switch_mmu_context)
 	li	r0,NUM_USER_SEGMENTS
 	mtctr	r0
 
-	lwz	r4, MM_PGD(r4)
 #ifdef CONFIG_BDI_SWITCH
 	/* Context switch the PTE pointer for the Abatron BDI2000.
 	 * The PGDIR is passed as second argument.
 	 */
+	lwz	r4, MM_PGD(r4)
 	lis	r5, abatron_pteptrs@ha
 	stw	r4, abatron_pteptrs@l + 0x4(r5)
 #endif
+BEGIN_MMU_FTR_SECTION
+#ifndef CONFIG_BDI_SWITCH
+	lwz	r4, MM_PGD(r4)
+#endif
 	tophys(r4, r4)
-	mtspr	SPRN_SPRG_PGDIR, r4
+	rlwinm	r4, r4, 4, 0xffff01ff
+	mtspr	SPRN_SDR1, r4
+END_MMU_FTR_SECTION_IFCLR(MMU_FTR_HPTE_TABLE)
 	li	r4,0
 	isync
 3:
