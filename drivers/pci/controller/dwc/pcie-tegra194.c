@@ -1063,8 +1063,15 @@ phy_exit:
 
 static int tegra_pcie_dw_parse_dt(struct tegra_pcie_dw *pcie)
 {
+	struct platform_device *pdev = to_platform_device(pcie->dev);
 	struct device_node *np = pcie->dev->of_node;
 	int ret;
+
+	pcie->dbi_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dbi");
+	if (!pcie->dbi_res) {
+		dev_err(pcie->dev, "Failed to find \"dbi\" region\n");
+		return -ENODEV;
+	}
 
 	ret = of_property_read_u32(np, "nvidia,aspm-cmrt-us", &pcie->aspm_cmrt);
 	if (ret < 0) {
