@@ -2171,6 +2171,52 @@ workaround:
 
 	return 0;
 }
+
+static int dpaa_a050385_wa_xdpf(struct dpaa_priv *priv,
+				struct xdp_frame **init_xdpf)
+{
+	struct xdp_frame *new_xdpf, *xdpf = *init_xdpf;
+	void *new_buff;
+	struct page *p;
+
+	/* Check the data alignment and make sure the headroom is large
+	 * enough to store the xdpf backpointer. Use an aligned headroom
+	 * value.
+	 *
+	 * Due to alignment constraints, we give XDP access to the full 256
+	 * byte frame headroom. If the XDP program uses all of it, copy the
+	 * data to a new buffer and make room for storing the backpointer.
+	 */
+	if (PTR_IS_ALIGNED(xdpf->data, DPAA_A050385_ALIGN) &&
+	    xdpf->headroom >= priv->tx_headroom) {
+		xdpf->headroom = priv->tx_headroom;
+		return 0;
+	}
+
+	p = dev_alloc_pages(0);
+	if (unlikely(!p))
+		return -ENOMEM;
+
+	/* Copy the data to the new buffer at a properly aligned offset */
+	new_buff = page_address(p);
+	memcpy(new_buff + priv->tx_headroom, xdpf->data, xdpf->len);
+
+	/* Create an XDP frame around the new buffer in a similar fashion
+	 * to xdp_convert_buff_to_frame.
+	 */
+	new_xdpf = new_buff;
+	new_xdpf->data = new_buff + priv->tx_headroom;
+	new_xdpf->len = xdpf->len;
+	new_xdpf->headroom = priv->tx_headroom;
+	new_xdpf->frame_sz = DPAA_BP_RAW_SIZE;
+	new_xdpf->mem.type = MEM_TYPE_PAGE_ORDER0;
+
+	/* Release the initial buffer */
+	xdp_return_frame_rx_napi(xdpf);
+
+	*init_xdpf = new_xdpf;
+	return 0;
+}
 #endif
 
 static netdev_tx_t
@@ -2407,6 +2453,15 @@ static int dpaa_xdp_xmit_frame(struct net_device *net_dev,
 	percpu_priv = this_cpu_ptr(priv->percpu_priv);
 	percpu_stats = &percpu_priv->stats;
 
+#ifdef CONFIG_DPAA_ERRATUM_A050385
+	if (unlikely(fman_has_errata_a050385())) {
+		if (dpaa_a050385_wa_xdpf(priv, &xdpf)) {
+			err = -ENOMEM;
+			goto out_error;
+		}
+	}
+#endif
+
 	if (xdpf->headroom < DPAA_TX_PRIV_DATA_SIZE) {
 		err = -EINVAL;
 		goto out_error;
@@ -2480,6 +2535,20 @@ static u32 dpaa_run_xdp(struct dpaa_priv *priv, struct qm_fd *fd, void *vaddr,
 	xdp.frame_sz = DPAA_BP_RAW_SIZE - DPAA_TX_PRIV_DATA_SIZE;
 	xdp.rxq = &dpaa_fq->xdp_rxq;
 
+	/* We reserve a fixed headroom of 256 bytes under the erratum and we
+	 * offer it all to XDP programs to use. If no room is left for the
+	 * xdpf backpointer on TX, we will need to copy the data.
+	 * Disable metadata support since data realignments might be required
+	 * and the information can be lost.
+	 */
+#ifdef CONFIG_DPAA_ERRATUM_A050385
+	if (unlikely(fman_has_errata_a050385())) {
+		xdp_set_data_meta_invalid(&xdp);
+		xdp.data_hard_start = vaddr;
+		xdp.frame_sz = DPAA_BP_RAW_SIZE;
+	}
+#endif
+
 	xdp_act = bpf_prog_run_xdp(xdp_prog, &xdp);
 
 	/* Update the length and the offset of the FD */
@@ -2487,7 +2556,12 @@ static u32 dpaa_run_xdp(struct dpaa_priv *priv, struct qm_fd *fd, void *vaddr,
 
 	switch (xdp_act) {
 	case XDP_PASS:
+#ifdef CONFIG_DPAA_ERRATUM_A050385
+		*xdp_meta_len = xdp_data_meta_unsupported(&xdp) ? 0 :
+				xdp.data - xdp.data_meta;
+#else
 		*xdp_meta_len = xdp.data - xdp.data_meta;
+#endif
 		break;
 	case XDP_TX:
 		/* We can access the full headroom when sending the frame
@@ -3191,10 +3265,16 @@ static u16 dpaa_get_headroom(struct dpaa_buffer_layout *bl,
 	 */
 	headroom = (u16)(bl[port].priv_data_size + DPAA_HWA_SIZE);
 
-	if (port == RX)
+	if (port == RX) {
+#ifdef CONFIG_DPAA_ERRATUM_A050385
+		if (unlikely(fman_has_errata_a050385()))
+			headroom = XDP_PACKET_HEADROOM;
+#endif
+
 		return ALIGN(headroom, DPAA_FD_RX_DATA_ALIGNMENT);
-	else
+	} else {
 		return ALIGN(headroom, DPAA_FD_DATA_ALIGNMENT);
+	}
 }
 
 static int dpaa_eth_probe(struct platform_device *pdev)
