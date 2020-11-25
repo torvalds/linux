@@ -711,12 +711,6 @@ static inline bool bioset_initialized(struct bio_set *bs)
 	return bs->bio_slab != NULL;
 }
 
-/*
- * a small number of entries is fine, not going to be performance critical.
- * basically we just need to survive
- */
-#define BIO_SPLIT_ENTRIES 2
-
 #if defined(CONFIG_BLK_DEV_INTEGRITY)
 
 #define bip_for_each_vec(bvl, bip, iter)				\
