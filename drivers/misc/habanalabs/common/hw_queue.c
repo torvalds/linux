@@ -529,6 +529,7 @@ int hl_hw_queue_schedule_cs(struct hl_cs *cs)
 	hdev->asic_funcs->hw_queues_lock(hdev);
 
 	if (!hl_device_operational(hdev, &status)) {
+		atomic64_inc(&cntr->device_in_reset_drop_cnt);
 		atomic64_inc(&ctx->cs_counters.device_in_reset_drop_cnt);
 		dev_err(hdev->dev,
 			"device is %s, CS rejected!\n", hdev->status[status]);
