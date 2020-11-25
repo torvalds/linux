@@ -2889,6 +2889,18 @@ struct mlxsw_sp_nexthop_group_info {
 #define nh_rif	nexthops[0].rif
 };
 
+struct mlxsw_sp_nexthop_group_vr_key {
+	u16 vr_id;
+	enum mlxsw_sp_l3proto proto;
+};
+
+struct mlxsw_sp_nexthop_group_vr_entry {
+	struct list_head list; /* member in vr_list */
+	struct rhash_head ht_node; /* member in vr_ht */
+	refcount_t ref_count;
+	struct mlxsw_sp_nexthop_group_vr_key key;
+};
+
 struct mlxsw_sp_nexthop_group {
 	struct rhash_head ht_node;
 	struct list_head fib_list; /* list of fib entries that use this group */
@@ -2901,6 +2913,8 @@ struct mlxsw_sp_nexthop_group {
 		} obj;
 	};
 	struct mlxsw_sp_nexthop_group_info *nhgi;
+	struct list_head vr_list;
+	struct rhashtable vr_ht;
 	enum mlxsw_sp_nexthop_group_type type;
 	bool can_destroy;
 };
@@ -3015,6 +3029,96 @@ bool mlxsw_sp_nexthop_group_has_ipip(struct mlxsw_sp_nexthop *nh)
 bool mlxsw_sp_nexthop_is_discard(const struct mlxsw_sp_nexthop *nh)
 {
 	return nh->discard;
+}
+
+static const struct rhashtable_params mlxsw_sp_nexthop_group_vr_ht_params = {
+	.key_offset = offsetof(struct mlxsw_sp_nexthop_group_vr_entry, key),
+	.head_offset = offsetof(struct mlxsw_sp_nexthop_group_vr_entry, ht_node),
+	.key_len = sizeof(struct mlxsw_sp_nexthop_group_vr_key),
+	.automatic_shrinking = true,
+};
+
+static struct mlxsw_sp_nexthop_group_vr_entry *
+mlxsw_sp_nexthop_group_vr_entry_lookup(struct mlxsw_sp_nexthop_group *nh_grp,
+				       const struct mlxsw_sp_fib *fib)
+{
+	struct mlxsw_sp_nexthop_group_vr_key key;
+
+	memset(&key, 0, sizeof(key));
+	key.vr_id = fib->vr->id;
+	key.proto = fib->proto;
+	return rhashtable_lookup_fast(&nh_grp->vr_ht, &key,
+				      mlxsw_sp_nexthop_group_vr_ht_params);
+}
+
+static int
+mlxsw_sp_nexthop_group_vr_entry_create(struct mlxsw_sp_nexthop_group *nh_grp,
+				       const struct mlxsw_sp_fib *fib)
+{
+	struct mlxsw_sp_nexthop_group_vr_entry *vr_entry;
+	int err;
+
+	vr_entry = kzalloc(sizeof(*vr_entry), GFP_KERNEL);
+	if (!vr_entry)
+		return -ENOMEM;
+
+	vr_entry->key.vr_id = fib->vr->id;
+	vr_entry->key.proto = fib->proto;
+	refcount_set(&vr_entry->ref_count, 1);
+
+	err = rhashtable_insert_fast(&nh_grp->vr_ht, &vr_entry->ht_node,
+				     mlxsw_sp_nexthop_group_vr_ht_params);
+	if (err)
+		goto err_hashtable_insert;
+
+	list_add(&vr_entry->list, &nh_grp->vr_list);
+
+	return 0;
+
+err_hashtable_insert:
+	kfree(vr_entry);
+	return err;
+}
+
+static void
+mlxsw_sp_nexthop_group_vr_entry_destroy(struct mlxsw_sp_nexthop_group *nh_grp,
+					struct mlxsw_sp_nexthop_group_vr_entry *vr_entry)
+{
+	list_del(&vr_entry->list);
+	rhashtable_remove_fast(&nh_grp->vr_ht, &vr_entry->ht_node,
+			       mlxsw_sp_nexthop_group_vr_ht_params);
+	kfree(vr_entry);
+}
+
+static int
+mlxsw_sp_nexthop_group_vr_link(struct mlxsw_sp_nexthop_group *nh_grp,
+			       const struct mlxsw_sp_fib *fib)
+{
+	struct mlxsw_sp_nexthop_group_vr_entry *vr_entry;
+
+	vr_entry = mlxsw_sp_nexthop_group_vr_entry_lookup(nh_grp, fib);
+	if (vr_entry) {
+		refcount_inc(&vr_entry->ref_count);
+		return 0;
+	}
+
+	return mlxsw_sp_nexthop_group_vr_entry_create(nh_grp, fib);
+}
+
+static void
+mlxsw_sp_nexthop_group_vr_unlink(struct mlxsw_sp_nexthop_group *nh_grp,
+				 const struct mlxsw_sp_fib *fib)
+{
+	struct mlxsw_sp_nexthop_group_vr_entry *vr_entry;
+
+	vr_entry = mlxsw_sp_nexthop_group_vr_entry_lookup(nh_grp, fib);
+	if (WARN_ON_ONCE(!vr_entry))
+		return;
+
+	if (!refcount_dec_and_test(&vr_entry->ref_count))
+		return;
+
+	mlxsw_sp_nexthop_group_vr_entry_destroy(nh_grp, vr_entry);
 }
 
 struct mlxsw_sp_nexthop_group_cmp_arg {
@@ -4379,6 +4483,11 @@ mlxsw_sp_nexthop_obj_group_create(struct mlxsw_sp *mlxsw_sp,
 	nh_grp = kzalloc(sizeof(*nh_grp), GFP_KERNEL);
 	if (!nh_grp)
 		return ERR_PTR(-ENOMEM);
+	INIT_LIST_HEAD(&nh_grp->vr_list);
+	err = rhashtable_init(&nh_grp->vr_ht,
+			      &mlxsw_sp_nexthop_group_vr_ht_params);
+	if (err)
+		goto err_nexthop_group_vr_ht_init;
 	INIT_LIST_HEAD(&nh_grp->fib_list);
 	nh_grp->type = MLXSW_SP_NEXTHOP_GROUP_TYPE_OBJ;
 	nh_grp->obj.id = info->id;
@@ -4392,6 +4501,8 @@ mlxsw_sp_nexthop_obj_group_create(struct mlxsw_sp *mlxsw_sp,
 	return nh_grp;
 
 err_nexthop_group_info_init:
+	rhashtable_destroy(&nh_grp->vr_ht);
+err_nexthop_group_vr_ht_init:
 	kfree(nh_grp);
 	return ERR_PTR(err);
 }
@@ -4404,6 +4515,8 @@ mlxsw_sp_nexthop_obj_group_destroy(struct mlxsw_sp *mlxsw_sp,
 		return;
 	mlxsw_sp_nexthop_obj_group_info_fini(mlxsw_sp, nh_grp);
 	WARN_ON_ONCE(!list_empty(&nh_grp->fib_list));
+	WARN_ON_ONCE(!list_empty(&nh_grp->vr_list));
+	rhashtable_destroy(&nh_grp->vr_ht);
 	kfree(nh_grp);
 }
 
@@ -4652,6 +4765,11 @@ mlxsw_sp_nexthop4_group_create(struct mlxsw_sp *mlxsw_sp, struct fib_info *fi)
 	nh_grp = kzalloc(sizeof(*nh_grp), GFP_KERNEL);
 	if (!nh_grp)
 		return ERR_PTR(-ENOMEM);
+	INIT_LIST_HEAD(&nh_grp->vr_list);
+	err = rhashtable_init(&nh_grp->vr_ht,
+			      &mlxsw_sp_nexthop_group_vr_ht_params);
+	if (err)
+		goto err_nexthop_group_vr_ht_init;
 	INIT_LIST_HEAD(&nh_grp->fib_list);
 	nh_grp->type = MLXSW_SP_NEXTHOP_GROUP_TYPE_IPV4;
 	nh_grp->ipv4.fi = fi;
@@ -4673,6 +4791,8 @@ err_nexthop_group_insert:
 	mlxsw_sp_nexthop4_group_info_fini(mlxsw_sp, nh_grp);
 err_nexthop_group_info_init:
 	fib_info_put(fi);
+	rhashtable_destroy(&nh_grp->vr_ht);
+err_nexthop_group_vr_ht_init:
 	kfree(nh_grp);
 	return ERR_PTR(err);
 }
@@ -4686,6 +4806,8 @@ mlxsw_sp_nexthop4_group_destroy(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp_nexthop_group_remove(mlxsw_sp, nh_grp);
 	mlxsw_sp_nexthop4_group_info_fini(mlxsw_sp, nh_grp);
 	fib_info_put(nh_grp->ipv4.fi);
+	WARN_ON_ONCE(!list_empty(&nh_grp->vr_list));
+	rhashtable_destroy(&nh_grp->vr_ht);
 	kfree(nh_grp);
 }
 
@@ -5380,6 +5502,11 @@ mlxsw_sp_fib4_entry_create(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_nexthop4_group_get;
 
+	err = mlxsw_sp_nexthop_group_vr_link(fib_entry->nh_group,
+					     fib_node->fib);
+	if (err)
+		goto err_nexthop_group_vr_link;
+
 	err = mlxsw_sp_fib4_entry_type_set(mlxsw_sp, fen_info, fib_entry);
 	if (err)
 		goto err_fib4_entry_type_set;
@@ -5395,6 +5522,8 @@ mlxsw_sp_fib4_entry_create(struct mlxsw_sp *mlxsw_sp,
 	return fib4_entry;
 
 err_fib4_entry_type_set:
+	mlxsw_sp_nexthop_group_vr_unlink(fib_entry->nh_group, fib_node->fib);
+err_nexthop_group_vr_link:
 	mlxsw_sp_nexthop4_group_put(mlxsw_sp, &fib4_entry->common);
 err_nexthop4_group_get:
 	mlxsw_sp_fib_entry_priv_put(fib_entry->priv);
@@ -5406,8 +5535,12 @@ err_fib_entry_priv_create:
 static void mlxsw_sp_fib4_entry_destroy(struct mlxsw_sp *mlxsw_sp,
 					struct mlxsw_sp_fib4_entry *fib4_entry)
 {
+	struct mlxsw_sp_fib_node *fib_node = fib4_entry->common.fib_node;
+
 	fib_info_put(fib4_entry->fi);
 	mlxsw_sp_fib4_entry_type_unset(mlxsw_sp, &fib4_entry->common);
+	mlxsw_sp_nexthop_group_vr_unlink(fib4_entry->common.nh_group,
+					 fib_node->fib);
 	mlxsw_sp_nexthop4_group_put(mlxsw_sp, &fib4_entry->common);
 	mlxsw_sp_fib_entry_priv_put(fib4_entry->common.priv);
 	kfree(fib4_entry);
@@ -5984,6 +6117,11 @@ mlxsw_sp_nexthop6_group_create(struct mlxsw_sp *mlxsw_sp,
 	nh_grp = kzalloc(sizeof(*nh_grp), GFP_KERNEL);
 	if (!nh_grp)
 		return ERR_PTR(-ENOMEM);
+	INIT_LIST_HEAD(&nh_grp->vr_list);
+	err = rhashtable_init(&nh_grp->vr_ht,
+			      &mlxsw_sp_nexthop_group_vr_ht_params);
+	if (err)
+		goto err_nexthop_group_vr_ht_init;
 	INIT_LIST_HEAD(&nh_grp->fib_list);
 	nh_grp->type = MLXSW_SP_NEXTHOP_GROUP_TYPE_IPV6;
 
@@ -6002,6 +6140,8 @@ mlxsw_sp_nexthop6_group_create(struct mlxsw_sp *mlxsw_sp,
 err_nexthop_group_insert:
 	mlxsw_sp_nexthop6_group_info_fini(mlxsw_sp, nh_grp);
 err_nexthop_group_info_init:
+	rhashtable_destroy(&nh_grp->vr_ht);
+err_nexthop_group_vr_ht_init:
 	kfree(nh_grp);
 	return ERR_PTR(err);
 }
@@ -6014,6 +6154,8 @@ mlxsw_sp_nexthop6_group_destroy(struct mlxsw_sp *mlxsw_sp,
 		return;
 	mlxsw_sp_nexthop_group_remove(mlxsw_sp, nh_grp);
 	mlxsw_sp_nexthop6_group_info_fini(mlxsw_sp, nh_grp);
+	WARN_ON_ONCE(!list_empty(&nh_grp->vr_list));
+	rhashtable_destroy(&nh_grp->vr_ht);
 	kfree(nh_grp);
 }
 
@@ -6073,14 +6215,21 @@ static int mlxsw_sp_nexthop6_group_update(struct mlxsw_sp *mlxsw_sp,
 					  struct mlxsw_sp_fib6_entry *fib6_entry)
 {
 	struct mlxsw_sp_nexthop_group *old_nh_grp = fib6_entry->common.nh_group;
+	struct mlxsw_sp_fib_node *fib_node = fib6_entry->common.fib_node;
 	int err;
 
+	mlxsw_sp_nexthop_group_vr_unlink(old_nh_grp, fib_node->fib);
 	fib6_entry->common.nh_group = NULL;
 	list_del(&fib6_entry->common.nexthop_group_node);
 
 	err = mlxsw_sp_nexthop6_group_get(mlxsw_sp, fib6_entry);
 	if (err)
 		goto err_nexthop6_group_get;
+
+	err = mlxsw_sp_nexthop_group_vr_link(fib6_entry->common.nh_group,
+					     fib_node->fib);
+	if (err)
+		goto err_nexthop_group_vr_link;
 
 	/* In case this entry is offloaded, then the adjacency index
 	 * currently associated with it in the device's table is that
@@ -6097,11 +6246,15 @@ static int mlxsw_sp_nexthop6_group_update(struct mlxsw_sp *mlxsw_sp,
 	return 0;
 
 err_fib_entry_update:
+	mlxsw_sp_nexthop_group_vr_unlink(fib6_entry->common.nh_group,
+					 fib_node->fib);
+err_nexthop_group_vr_link:
 	mlxsw_sp_nexthop6_group_put(mlxsw_sp, &fib6_entry->common);
 err_nexthop6_group_get:
 	list_add_tail(&fib6_entry->common.nexthop_group_node,
 		      &old_nh_grp->fib_list);
 	fib6_entry->common.nh_group = old_nh_grp;
+	mlxsw_sp_nexthop_group_vr_link(old_nh_grp, fib_node->fib);
 	return err;
 }
 
@@ -6233,12 +6386,19 @@ mlxsw_sp_fib6_entry_create(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_nexthop6_group_get;
 
+	err = mlxsw_sp_nexthop_group_vr_link(fib_entry->nh_group,
+					     fib_node->fib);
+	if (err)
+		goto err_nexthop_group_vr_link;
+
 	mlxsw_sp_fib6_entry_type_set(mlxsw_sp, fib_entry, rt_arr[0]);
 
 	fib_entry->fib_node = fib_node;
 
 	return fib6_entry;
 
+err_nexthop_group_vr_link:
+	mlxsw_sp_nexthop6_group_put(mlxsw_sp, fib_entry);
 err_nexthop6_group_get:
 	i = nrt6;
 err_rt6_create:
@@ -6258,6 +6418,10 @@ err_fib_entry_priv_create:
 static void mlxsw_sp_fib6_entry_destroy(struct mlxsw_sp *mlxsw_sp,
 					struct mlxsw_sp_fib6_entry *fib6_entry)
 {
+	struct mlxsw_sp_fib_node *fib_node = fib6_entry->common.fib_node;
+
+	mlxsw_sp_nexthop_group_vr_unlink(fib6_entry->common.nh_group,
+					 fib_node->fib);
 	mlxsw_sp_nexthop6_group_put(mlxsw_sp, &fib6_entry->common);
 	mlxsw_sp_fib6_entry_rt_destroy_all(fib6_entry);
 	WARN_ON(fib6_entry->nrt6);
