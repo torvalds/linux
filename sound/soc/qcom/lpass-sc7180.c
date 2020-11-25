@@ -285,7 +285,7 @@ static struct lpass_variant sc7180_data = {
 	.free_dma_channel	= sc7180_lpass_free_dma_channel,
 };
 
-static const struct of_device_id sc7180_lpass_cpu_device_id[] = {
+static const struct of_device_id sc7180_lpass_cpu_device_id[] __maybe_unused = {
 	{.compatible = "qcom,sc7180-lpass-cpu", .data = &sc7180_data},
 	{}
 };
