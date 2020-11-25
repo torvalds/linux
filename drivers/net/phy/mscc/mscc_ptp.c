@@ -506,9 +506,9 @@ static int vsc85xx_ptp_cmp_init(struct phy_device *phydev, enum ts_blk blk)
 {
 	struct vsc8531_private *vsc8531 = phydev->priv;
 	bool base = phydev->mdio.addr == vsc8531->ts_base_addr;
-	enum vsc85xx_ptp_msg_type msgs[] = {
-		PTP_MSG_TYPE_SYNC,
-		PTP_MSG_TYPE_DELAY_REQ
+	u8 msgs[] = {
+		PTP_MSGTYPE_SYNC,
+		PTP_MSGTYPE_DELAY_REQ
 	};
 	u32 val;
 	u8 i;
@@ -847,9 +847,9 @@ static int vsc85xx_ts_ptp_action_flow(struct phy_device *phydev, enum ts_blk blk
 static int vsc85xx_ptp_conf(struct phy_device *phydev, enum ts_blk blk,
 			    bool one_step, bool enable)
 {
-	enum vsc85xx_ptp_msg_type msgs[] = {
-		PTP_MSG_TYPE_SYNC,
-		PTP_MSG_TYPE_DELAY_REQ
+	u8 msgs[] = {
+		PTP_MSGTYPE_SYNC,
+		PTP_MSGTYPE_DELAY_REQ
 	};
 	u32 val;
 	u8 i;
@@ -858,7 +858,7 @@ static int vsc85xx_ptp_conf(struct phy_device *phydev, enum ts_blk blk,
 		if (blk == INGRESS)
 			vsc85xx_ts_ptp_action_flow(phydev, blk, msgs[i],
 						   PTP_WRITE_NS);
-		else if (msgs[i] == PTP_MSG_TYPE_SYNC && one_step)
+		else if (msgs[i] == PTP_MSGTYPE_SYNC && one_step)
 			/* no need to know Sync t when sending in one_step */
 			vsc85xx_ts_ptp_action_flow(phydev, blk, msgs[i],
 						   PTP_WRITE_1588);
