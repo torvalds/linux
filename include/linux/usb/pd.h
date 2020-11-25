@@ -484,6 +484,7 @@ static inline unsigned int rdo_max_power(u32 rdo)
 
 #define PD_T_CC_DEBOUNCE	200	/* 100 - 200 ms */
 #define PD_T_PD_DEBOUNCE	20	/* 10 - 20 ms */
+#define PD_T_TRY_CC_DEBOUNCE	15	/* 10 - 20 ms */
 
 #define PD_N_CAPS_COUNT		(PD_T_NO_RESPONSE / PD_T_SEND_SOURCE_CAP)
 #define PD_N_HARD_RESET_COUNT	2

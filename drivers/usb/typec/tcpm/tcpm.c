@@ -3124,15 +3124,13 @@ static void run_state_machine(struct tcpm_port *port)
 		break;
 	case SNK_TRY_WAIT_DEBOUNCE:
 		tcpm_set_state(port, SNK_TRY_WAIT_DEBOUNCE_CHECK_VBUS,
-			       PD_T_PD_DEBOUNCE);
+			       PD_T_TRY_CC_DEBOUNCE);
 		break;
 	case SNK_TRY_WAIT_DEBOUNCE_CHECK_VBUS:
-		if (port->vbus_present && tcpm_port_is_sink(port)) {
+		if (port->vbus_present && tcpm_port_is_sink(port))
 			tcpm_set_state(port, SNK_ATTACHED, 0);
-		} else {
-			tcpm_set_state(port, SRC_TRYWAIT, 0);
+		else
 			port->max_wait = 0;
-		}
 		break;
 	case SRC_TRYWAIT:
 		tcpm_set_cc(port, tcpm_rp_cc(port));
@@ -4053,6 +4051,12 @@ static void _tcpm_cc_change(struct tcpm_port *port, enum typec_cc_status cc1,
 		if (!tcpm_port_is_sink(port))
 			tcpm_set_state(port, SNK_TRYWAIT_DEBOUNCE, 0);
 		break;
+	case SNK_TRY_WAIT_DEBOUNCE_CHECK_VBUS:
+		if (!tcpm_port_is_sink(port))
+			tcpm_set_state(port, SRC_TRYWAIT, PD_T_TRY_CC_DEBOUNCE);
+		else
+			tcpm_set_state(port, SNK_TRY_WAIT_DEBOUNCE_CHECK_VBUS, 0);
+		break;
 	case SNK_TRYWAIT:
 		/* Do nothing, waiting for tCCDebounce */
 		break;
@@ -4138,6 +4142,10 @@ static void _tcpm_pd_vbus_on(struct tcpm_port *port)
 		break;
 	case SNK_TRYWAIT_DEBOUNCE:
 		/* Do nothing, waiting for Rp */
+		break;
+	case SNK_TRY_WAIT_DEBOUNCE_CHECK_VBUS:
+		if (port->vbus_present && tcpm_port_is_sink(port))
+			tcpm_set_state(port, SNK_ATTACHED, 0);
 		break;
 	case SRC_TRY_WAIT:
 	case SRC_TRY_DEBOUNCE:
