@@ -604,31 +604,55 @@ static const struct v4l2_async_notifier_operations rvin_parallel_notify_ops = {
 	.complete = rvin_parallel_notify_complete,
 };
 
-static int rvin_parallel_parse_v4l2(struct device *dev,
-				    struct v4l2_fwnode_endpoint *vep,
-				    struct v4l2_async_subdev *asd)
+static int rvin_parallel_parse_of(struct rvin_dev *vin)
 {
-	struct rvin_dev *vin = dev_get_drvdata(dev);
+	struct fwnode_handle *ep, *fwnode;
+	struct v4l2_fwnode_endpoint vep = {
+		.bus_type = V4L2_MBUS_UNKNOWN,
+	};
+	struct v4l2_async_subdev *asd;
+	int ret;
 
-	if (vep->base.port || vep->base.id)
-		return -ENOTCONN;
+	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(vin->dev), 0, 0, 0);
+	if (!ep)
+		return 0;
 
-	vin->parallel.mbus_type = vep->bus_type;
+	fwnode = fwnode_graph_get_remote_endpoint(ep);
+	ret = v4l2_fwnode_endpoint_parse(ep, &vep);
+	fwnode_handle_put(ep);
+	if (ret) {
+		vin_err(vin, "Failed to parse %pOF\n", to_of_node(fwnode));
+		ret = -EINVAL;
+		goto out;
+	}
 
-	switch (vin->parallel.mbus_type) {
+	switch (vep.bus_type) {
 	case V4L2_MBUS_PARALLEL:
 	case V4L2_MBUS_BT656:
 		vin_dbg(vin, "Found %s media bus\n",
-			vin->parallel.mbus_type == V4L2_MBUS_PARALLEL ?
+			vep.bus_type == V4L2_MBUS_PARALLEL ?
 			"PARALLEL" : "BT656");
-		vin->parallel.bus = vep->bus.parallel;
+		vin->parallel.mbus_type = vep.bus_type;
+		vin->parallel.bus = vep.bus.parallel;
 		break;
 	default:
 		vin_err(vin, "Unknown media bus type\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
+	}
+
+	asd = v4l2_async_notifier_add_fwnode_subdev(&vin->notifier, fwnode,
+						    sizeof(*asd));
+	if (IS_ERR(asd)) {
+		ret = PTR_ERR(asd);
+		goto out;
 	}
 
 	vin->parallel.asd = asd;
+
+	vin_dbg(vin, "Add parallel OF device %pOF\n", to_of_node(fwnode));
+out:
+	fwnode_handle_put(fwnode);
 
 	return 0;
 }
@@ -639,9 +663,7 @@ static int rvin_parallel_init(struct rvin_dev *vin)
 
 	v4l2_async_notifier_init(&vin->notifier);
 
-	ret = v4l2_async_notifier_parse_fwnode_endpoints_by_port(
-		vin->dev, &vin->notifier, sizeof(*vin->parallel.asd),
-		0, rvin_parallel_parse_v4l2);
+	ret = rvin_parallel_parse_of(vin);
 	if (ret)
 		return ret;
 
