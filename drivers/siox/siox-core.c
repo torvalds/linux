@@ -525,12 +525,11 @@ static int siox_remove(struct device *dev)
 	struct siox_driver *sdriver =
 		container_of(dev->driver, struct siox_driver, driver);
 	struct siox_device *sdevice = to_siox_device(dev);
-	int ret = 0;
 
 	if (sdriver->remove)
-		ret = sdriver->remove(sdevice);
+		sdriver->remove(sdevice);
 
-	return ret;
+	return 0;
 }
 
 static void siox_shutdown(struct device *dev)
