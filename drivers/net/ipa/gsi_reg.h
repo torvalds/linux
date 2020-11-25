@@ -38,6 +38,17 @@
  * (though the actual limit is hardware-dependent).
  */
 
+/* GSI EE registers as a group are shifted downward by a fixed
+ * constant amount for IPA versions 4.5 and beyond.  This applies
+ * to all GSI registers we use *except* the ones that disable
+ * inter-EE interrupts for channels and event channels.
+ *
+ * We handle this by adjusting the pointer to the mapped GSI memory
+ * region downward.  Then in the one place we use them (gsi_irq_setup())
+ * we undo that adjustment for the inter-EE interrupt registers.
+ */
+#define GSI_EE_REG_ADJUST			0x0000d000	/* IPA v4.5+ */
+
 #define GSI_INTER_EE_SRC_CH_IRQ_OFFSET \
 			GSI_INTER_EE_N_SRC_CH_IRQ_OFFSET(GSI_EE_AP)
 #define GSI_INTER_EE_N_SRC_CH_IRQ_OFFSET(ee) \
