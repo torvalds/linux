@@ -68,6 +68,7 @@ struct dpaa_fq {
 	u16 channel;
 	u8 wq;
 	enum dpaa_fq_type fq_type;
+	struct xdp_rxq_info xdp_rxq;
 };
 
 struct dpaa_fq_cbs {
@@ -150,6 +151,7 @@ struct dpaa_buffer_layout {
  */
 struct dpaa_eth_swbp {
 	struct sk_buff *skb;
+	struct xdp_frame *xdpf;
 };
 
 struct dpaa_priv {

@@ -1130,6 +1130,25 @@ static int dpaa_fq_init(struct dpaa_fq *dpaa_fq, bool td_enable)
 
 	dpaa_fq->fqid = qman_fq_fqid(fq);
 
+	if (dpaa_fq->fq_type == FQ_TYPE_RX_DEFAULT ||
+	    dpaa_fq->fq_type == FQ_TYPE_RX_PCD) {
+		err = xdp_rxq_info_reg(&dpaa_fq->xdp_rxq, dpaa_fq->net_dev,
+				       dpaa_fq->fqid);
+		if (err) {
+			dev_err(dev, "xdp_rxq_info_reg() = %d\n", err);
+			return err;
+		}
+
+		err = xdp_rxq_info_reg_mem_model(&dpaa_fq->xdp_rxq,
+						 MEM_TYPE_PAGE_ORDER0, NULL);
+		if (err) {
+			dev_err(dev, "xdp_rxq_info_reg_mem_model() = %d\n",
+				err);
+			xdp_rxq_info_unreg(&dpaa_fq->xdp_rxq);
+			return err;
+		}
+	}
+
 	return 0;
 }
 
@@ -1158,6 +1177,11 @@ static int dpaa_fq_free_entry(struct device *dev, struct qman_fq *fq)
 				err = error;
 		}
 	}
+
+	if ((dpaa_fq->fq_type == FQ_TYPE_RX_DEFAULT ||
+	     dpaa_fq->fq_type == FQ_TYPE_RX_PCD) &&
+	    xdp_rxq_info_is_reg(&dpaa_fq->xdp_rxq))
+		xdp_rxq_info_unreg(&dpaa_fq->xdp_rxq);
 
 	qman_destroy_fq(fq);
 	list_del(&dpaa_fq->list);
@@ -1625,6 +1649,9 @@ static int dpaa_eth_refill_bpools(struct dpaa_priv *priv)
  *
  * Return the skb backpointer, since for S/G frames the buffer containing it
  * gets freed here.
+ *
+ * No skb backpointer is set when transmitting XDP frames. Cleanup the buffer
+ * and return NULL in this case.
  */
 static struct sk_buff *dpaa_cleanup_tx_fd(const struct dpaa_priv *priv,
 					  const struct qm_fd *fd, bool ts)
@@ -1664,12 +1691,20 @@ static struct sk_buff *dpaa_cleanup_tx_fd(const struct dpaa_priv *priv,
 		}
 	} else {
 		dma_unmap_single(priv->tx_dma_dev, addr,
-				 priv->tx_headroom + qm_fd_get_length(fd),
+				 qm_fd_get_offset(fd) + qm_fd_get_length(fd),
 				 dma_dir);
 	}
 
 	swbp = (struct dpaa_eth_swbp *)vaddr;
 	skb = swbp->skb;
+
+	/* No skb backpointer is set when running XDP. An xdp_frame
+	 * backpointer is saved instead.
+	 */
+	if (!skb) {
+		xdp_return_frame(swbp->xdpf);
+		return NULL;
+	}
 
 	/* DMA unmapping is required before accessing the HW provided info */
 	if (ts && priv->tx_tstamp &&
@@ -2350,11 +2385,76 @@ static enum qman_cb_dqrr_result rx_error_dqrr(struct qman_portal *portal,
 	return qman_cb_dqrr_consume;
 }
 
+static int dpaa_xdp_xmit_frame(struct net_device *net_dev,
+			       struct xdp_frame *xdpf)
+{
+	struct dpaa_priv *priv = netdev_priv(net_dev);
+	struct rtnl_link_stats64 *percpu_stats;
+	struct dpaa_percpu_priv *percpu_priv;
+	struct dpaa_eth_swbp *swbp;
+	struct netdev_queue *txq;
+	void *buff_start;
+	struct qm_fd fd;
+	dma_addr_t addr;
+	int err;
+
+	percpu_priv = this_cpu_ptr(priv->percpu_priv);
+	percpu_stats = &percpu_priv->stats;
+
+	if (xdpf->headroom < DPAA_TX_PRIV_DATA_SIZE) {
+		err = -EINVAL;
+		goto out_error;
+	}
+
+	buff_start = xdpf->data - xdpf->headroom;
+
+	/* Leave empty the skb backpointer at the start of the buffer.
+	 * Save the XDP frame for easy cleanup on confirmation.
+	 */
+	swbp = (struct dpaa_eth_swbp *)buff_start;
+	swbp->skb = NULL;
+	swbp->xdpf = xdpf;
+
+	qm_fd_clear_fd(&fd);
+	fd.bpid = FSL_DPAA_BPID_INV;
+	fd.cmd |= cpu_to_be32(FM_FD_CMD_FCO);
+	qm_fd_set_contig(&fd, xdpf->headroom, xdpf->len);
+
+	addr = dma_map_single(priv->tx_dma_dev, buff_start,
+			      xdpf->headroom + xdpf->len,
+			      DMA_TO_DEVICE);
+	if (unlikely(dma_mapping_error(priv->tx_dma_dev, addr))) {
+		err = -EINVAL;
+		goto out_error;
+	}
+
+	qm_fd_addr_set64(&fd, addr);
+
+	/* Bump the trans_start */
+	txq = netdev_get_tx_queue(net_dev, smp_processor_id());
+	txq->trans_start = jiffies;
+
+	err = dpaa_xmit(priv, percpu_stats, smp_processor_id(), &fd);
+	if (err) {
+		dma_unmap_single(priv->tx_dma_dev, addr,
+				 qm_fd_get_offset(&fd) + qm_fd_get_length(&fd),
+				 DMA_TO_DEVICE);
+		goto out_error;
+	}
+
+	return 0;
+
+out_error:
+	percpu_stats->tx_errors++;
+	return err;
+}
+
 static u32 dpaa_run_xdp(struct dpaa_priv *priv, struct qm_fd *fd, void *vaddr,
-			unsigned int *xdp_meta_len)
+			struct dpaa_fq *dpaa_fq, unsigned int *xdp_meta_len)
 {
 	ssize_t fd_off = qm_fd_get_offset(fd);
 	struct bpf_prog *xdp_prog;
+	struct xdp_frame *xdpf;
 	struct xdp_buff xdp;
 	u32 xdp_act;
 
@@ -2370,7 +2470,8 @@ static u32 dpaa_run_xdp(struct dpaa_priv *priv, struct qm_fd *fd, void *vaddr,
 	xdp.data_meta = xdp.data;
 	xdp.data_hard_start = xdp.data - XDP_PACKET_HEADROOM;
 	xdp.data_end = xdp.data + qm_fd_get_length(fd);
-	xdp.frame_sz = DPAA_BP_RAW_SIZE;
+	xdp.frame_sz = DPAA_BP_RAW_SIZE - DPAA_TX_PRIV_DATA_SIZE;
+	xdp.rxq = &dpaa_fq->xdp_rxq;
 
 	xdp_act = bpf_prog_run_xdp(xdp_prog, &xdp);
 
@@ -2380,6 +2481,22 @@ static u32 dpaa_run_xdp(struct dpaa_priv *priv, struct qm_fd *fd, void *vaddr,
 	switch (xdp_act) {
 	case XDP_PASS:
 		*xdp_meta_len = xdp.data - xdp.data_meta;
+		break;
+	case XDP_TX:
+		/* We can access the full headroom when sending the frame
+		 * back out
+		 */
+		xdp.data_hard_start = vaddr;
+		xdp.frame_sz = DPAA_BP_RAW_SIZE;
+		xdpf = xdp_convert_buff_to_frame(&xdp);
+		if (unlikely(!xdpf)) {
+			free_pages((unsigned long)vaddr, 0);
+			break;
+		}
+
+		if (dpaa_xdp_xmit_frame(priv->net_dev, xdpf))
+			xdp_return_frame_rx_napi(xdpf);
+
 		break;
 	default:
 		bpf_warn_invalid_xdp_action(xdp_act);
@@ -2415,6 +2532,7 @@ static enum qman_cb_dqrr_result rx_default_dqrr(struct qman_portal *portal,
 	u32 fd_status, hash_offset;
 	struct qm_sg_entry *sgt;
 	struct dpaa_bp *dpaa_bp;
+	struct dpaa_fq *dpaa_fq;
 	struct dpaa_priv *priv;
 	struct sk_buff *skb;
 	int *count_ptr;
@@ -2423,9 +2541,10 @@ static enum qman_cb_dqrr_result rx_default_dqrr(struct qman_portal *portal,
 	u32 hash;
 	u64 ns;
 
+	dpaa_fq = container_of(fq, struct dpaa_fq, fq_base);
 	fd_status = be32_to_cpu(fd->status);
 	fd_format = qm_fd_get_format(fd);
-	net_dev = ((struct dpaa_fq *)fq)->net_dev;
+	net_dev = dpaa_fq->net_dev;
 	priv = netdev_priv(net_dev);
 	dpaa_bp = dpaa_bpid2pool(dq->fd.bpid);
 	if (!dpaa_bp)
@@ -2494,7 +2613,7 @@ static enum qman_cb_dqrr_result rx_default_dqrr(struct qman_portal *portal,
 
 	if (likely(fd_format == qm_fd_contig)) {
 		xdp_act = dpaa_run_xdp(priv, (struct qm_fd *)fd, vaddr,
-				       &xdp_meta_len);
+				       dpaa_fq, &xdp_meta_len);
 		if (xdp_act != XDP_PASS) {
 			percpu_stats->rx_packets++;
 			percpu_stats->rx_bytes += qm_fd_get_length(fd);
