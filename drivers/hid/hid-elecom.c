@@ -90,7 +90,6 @@ static __u8 *elecom_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 	case USB_DEVICE_ID_ELECOM_M_DT1DRBK:
 	case USB_DEVICE_ID_ELECOM_M_HT1URBK:
 	case USB_DEVICE_ID_ELECOM_M_HT1DRBK:
-		/*mouse_button_fixup(hdev, rdesc, *rsize, 13, 15, 21, 31, 8);*/
 		/*
 		 * Report descriptor format:
 		 * 12: button bit count
