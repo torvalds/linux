@@ -3366,18 +3366,14 @@ static int mlxsw_sp_adj_index_mass_update(struct mlxsw_sp *mlxsw_sp,
 					  struct mlxsw_sp_nexthop_group *nh_grp,
 					  u32 old_adj_index, u16 old_ecmp_size)
 {
-	struct mlxsw_sp_fib_entry *fib_entry;
-	struct mlxsw_sp_fib *fib = NULL;
+	struct mlxsw_sp_nexthop_group_info *nhgi = nh_grp->nhgi;
+	struct mlxsw_sp_nexthop_group_vr_entry *vr_entry;
 	int err;
 
-	list_for_each_entry(fib_entry, &nh_grp->fib_list, nexthop_group_node) {
-		struct mlxsw_sp_nexthop_group_info *nhgi = nh_grp->nhgi;
-
-		if (fib == fib_entry->fib_node->fib)
-			continue;
-		fib = fib_entry->fib_node->fib;
-		err = mlxsw_sp_adj_index_mass_update_vr(mlxsw_sp, fib->proto,
-							fib->vr->id,
+	list_for_each_entry(vr_entry, &nh_grp->vr_list, list) {
+		err = mlxsw_sp_adj_index_mass_update_vr(mlxsw_sp,
+							vr_entry->key.proto,
+							vr_entry->key.vr_id,
 							old_adj_index,
 							old_ecmp_size,
 							nhgi->adj_index,
@@ -3388,16 +3384,12 @@ static int mlxsw_sp_adj_index_mass_update(struct mlxsw_sp *mlxsw_sp,
 	return 0;
 
 err_mass_update_vr:
-	list_for_each_entry_continue_reverse(fib_entry, &nh_grp->fib_list,
-					     nexthop_group_node) {
-		struct mlxsw_sp_nexthop_group_info *nhgi = nh_grp->nhgi;
-
-		fib = fib_entry->fib_node->fib;
-		mlxsw_sp_adj_index_mass_update_vr(mlxsw_sp, fib->proto,
-						  fib->vr->id, nhgi->adj_index,
+	list_for_each_entry_continue_reverse(vr_entry, &nh_grp->vr_list, list)
+		mlxsw_sp_adj_index_mass_update_vr(mlxsw_sp, vr_entry->key.proto,
+						  vr_entry->key.vr_id,
+						  nhgi->adj_index,
 						  nhgi->ecmp_size,
 						  old_adj_index, old_ecmp_size);
-	}
 	return err;
 }
 
