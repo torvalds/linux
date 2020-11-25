@@ -790,6 +790,7 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 	}
 
 	/* get us an unshared descriptor table; almost always a no-op */
+	/* The cell spufs coredump code reads the file descriptor tables */
 	retval = unshare_files();
 	if (retval)
 		goto close_fail;
