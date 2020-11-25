@@ -157,17 +157,17 @@ do
 		fi
 		;;
 	--duration)
-		# checkarg --duration "(minutes)" $# "$2" '^[0-9][0-9]*\(s\|m\|h\|d\|\)$' '^error'
-		mult=60
-		if echo "$2" | grep -q 's$'
+		checkarg --duration "(minutes)" $# "$2" '^[0-9][0-9]*\(m\|h\|d\|\)$' '^error'
+		mult=1
+		if echo "$2" | grep -q 'm$'
 		then
 			mult=1
 		elif echo "$2" | grep -q 'h$'
 		then
-			mult=3600
+			mult=60
 		elif echo "$2" | grep -q 'd$'
 		then
-			mult=86400
+			mult=1440
 		fi
 		ts=`echo $2 | sed -e 's/[smhd]$//'`
 		duration_base=$(($ts*mult))
