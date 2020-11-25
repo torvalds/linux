@@ -772,7 +772,7 @@ static void rvin_group_notify_unbind(struct v4l2_async_notifier *notifier,
 	mutex_lock(&vin->group->lock);
 
 	for (i = 0; i < RVIN_CSI_MAX; i++) {
-		if (vin->group->csi[i].fwnode != asd->match.fwnode)
+		if (vin->group->csi[i].asd != asd)
 			continue;
 		vin->group->csi[i].subdev = NULL;
 		vin_dbg(vin, "Unbind CSI-2 %s from slot %u\n", subdev->name, i);
@@ -794,7 +794,7 @@ static int rvin_group_notify_bound(struct v4l2_async_notifier *notifier,
 	mutex_lock(&vin->group->lock);
 
 	for (i = 0; i < RVIN_CSI_MAX; i++) {
-		if (vin->group->csi[i].fwnode != asd->match.fwnode)
+		if (vin->group->csi[i].asd != asd)
 			continue;
 		vin->group->csi[i].subdev = subdev;
 		vin_dbg(vin, "Bound CSI-2 %s to slot %u\n", subdev->name, i);
@@ -830,14 +830,14 @@ static int rvin_mc_parse_of_endpoint(struct device *dev,
 
 	mutex_lock(&vin->group->lock);
 
-	if (vin->group->csi[vep->base.id].fwnode) {
+	if (vin->group->csi[vep->base.id].asd) {
 		vin_dbg(vin, "OF device %pOF already handled\n",
 			to_of_node(asd->match.fwnode));
 		ret = -ENOTCONN;
 		goto out;
 	}
 
-	vin->group->csi[vep->base.id].fwnode = asd->match.fwnode;
+	vin->group->csi[vep->base.id].asd = asd;
 
 	vin_dbg(vin, "Add group OF device %pOF to slot %u\n",
 		to_of_node(asd->match.fwnode), vep->base.id);

@@ -280,7 +280,7 @@ struct rvin_group {
 	struct rvin_dev *vin[RCAR_VIN_NUM];
 
 	struct {
-		struct fwnode_handle *fwnode;
+		struct v4l2_async_subdev *asd;
 		struct v4l2_subdev *subdev;
 	} csi[RVIN_CSI_MAX];
 };
