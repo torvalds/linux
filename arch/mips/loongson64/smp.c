@@ -544,9 +544,6 @@ static int loongson3_cpu_disable(void)
 	unsigned long flags;
 	unsigned int cpu = smp_processor_id();
 
-	if (cpu == 0)
-		return -EBUSY;
-
 	set_cpu_online(cpu, false);
 	calculate_cpu_foreign_map();
 	local_irq_save(flags);
