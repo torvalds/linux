@@ -65,8 +65,6 @@
 			      "clk_scr1", "clk_scr1_core",
 			      "clk_scr1_rtc", "clk_scr1_jtag",
 			      "csiphy0_pclk";
-		assigned-clocks = <&cru ACLK_ISP>, <&cru HCLK_ISP>, <&cru CLK_MIPICSI_OUT>;
-		assigned-clock-rates = <500000000>, <250000000>, <24000000>;
 		power-domains = <&power RV1126_PD_VI>;
 
 		pinctrl-names = "default";
