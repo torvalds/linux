@@ -103,17 +103,25 @@
  * --------------------
  * <31>     :: data capable as a USB host
  * <30>     :: data capable as a USB device
- * <29:27>  :: product type
+ * <29:27>  :: product type (UFP / Cable)
  * <26>     :: modal operation supported (1b == yes)
- * <25:16>  :: Reserved, Shall be set to zero
+ * <25:16>  :: product type (DFP)
  * <15:0>   :: USB-IF assigned VID for this cable vendor
  */
 #define IDH_PTYPE_UNDEF		0
 #define IDH_PTYPE_HUB		1
 #define IDH_PTYPE_PERIPH	2
+#define IDH_PTYPE_PSD		3
+#define IDH_PTYPE_AMA		5
+
 #define IDH_PTYPE_PCABLE	3
 #define IDH_PTYPE_ACABLE	4
-#define IDH_PTYPE_AMA		5
+
+#define IDH_PTYPE_DFP_UNDEF	0
+#define IDH_PTYPE_DFP_HUB	1
+#define IDH_PTYPE_DFP_HOST	2
+#define IDH_PTYPE_DFP_PB	3
+#define IDH_PTYPE_DFP_AMC	4
 
 #define VDO_IDH(usbh, usbd, ptype, is_modal, vid)		\
 	((usbh) << 31 | (usbd) << 30 | ((ptype) & 0x7) << 27	\
@@ -122,6 +130,7 @@
 #define PD_IDH_PTYPE(vdo)	(((vdo) >> 27) & 0x7)
 #define PD_IDH_VID(vdo)		((vdo) & 0xffff)
 #define PD_IDH_MODAL_SUPP(vdo)	((vdo) & (1 << 26))
+#define PD_IDH_DFP_PTYPE(vdo)	(((vdo) >> 23) & 0x7)
 
 /*
  * Cert Stat VDO
