@@ -528,3 +528,72 @@ void pnv_ocxl_unmap_lpar(void __iomem *arva)
 	iounmap(arva);
 }
 EXPORT_SYMBOL_GPL(pnv_ocxl_unmap_lpar);
+
+void pnv_ocxl_tlb_invalidate(void __iomem *arva,
+			     unsigned long pid,
+			     unsigned long addr,
+			     unsigned long page_size)
+{
+	unsigned long timeout = jiffies + (HZ * PNV_OCXL_ATSD_TIMEOUT);
+	u64 val = 0ull;
+	int pend;
+	u8 size;
+
+	if (!(arva))
+		return;
+
+	if (addr) {
+		/* load Abbreviated Virtual Address register with
+		 * the necessary value
+		 */
+		val |= FIELD_PREP(PNV_OCXL_ATSD_AVA_AVA, addr >> (63-51));
+		out_be64(arva + PNV_OCXL_ATSD_AVA, val);
+	}
+
+	/* Write access initiates a shoot down to initiate the
+	 * TLB Invalidate command
+	 */
+	val = PNV_OCXL_ATSD_LNCH_R;
+	val |= FIELD_PREP(PNV_OCXL_ATSD_LNCH_RIC, 0b10);
+	if (addr)
+		val |= FIELD_PREP(PNV_OCXL_ATSD_LNCH_IS, 0b00);
+	else {
+		val |= FIELD_PREP(PNV_OCXL_ATSD_LNCH_IS, 0b01);
+		val |= PNV_OCXL_ATSD_LNCH_OCAPI_SINGLETON;
+	}
+	val |= PNV_OCXL_ATSD_LNCH_PRS;
+	/* Actual Page Size to be invalidated
+	 * 000 4KB
+	 * 101 64KB
+	 * 001 2MB
+	 * 010 1GB
+	 */
+	size = 0b101;
+	if (page_size == 0x1000)
+		size = 0b000;
+	if (page_size == 0x200000)
+		size = 0b001;
+	if (page_size == 0x40000000)
+		size = 0b010;
+	val |= FIELD_PREP(PNV_OCXL_ATSD_LNCH_AP, size);
+	val |= FIELD_PREP(PNV_OCXL_ATSD_LNCH_PID, pid);
+	out_be64(arva + PNV_OCXL_ATSD_LNCH, val);
+
+	/* Poll the ATSD status register to determine when the
+	 * TLB Invalidate has been completed.
+	 */
+	val = in_be64(arva + PNV_OCXL_ATSD_STAT);
+	pend = val >> 63;
+
+	while (pend) {
+		if (time_after_eq(jiffies, timeout)) {
+			pr_err("%s - Timeout while reading XTS MMIO ATSD status register (val=%#llx, pidr=0x%lx)\n",
+			       __func__, val, pid);
+			return;
+		}
+		cpu_relax();
+		val = in_be64(arva + PNV_OCXL_ATSD_STAT);
+		pend = val >> 63;
+	}
+}
+EXPORT_SYMBOL_GPL(pnv_ocxl_tlb_invalidate);
