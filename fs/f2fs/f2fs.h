@@ -2400,24 +2400,31 @@ static inline void *f2fs_kmem_cache_alloc(struct kmem_cache *cachep,
 	return entry;
 }
 
-static inline bool is_idle(struct f2fs_sb_info *sbi, int type)
+static inline bool is_inflight_io(struct f2fs_sb_info *sbi, int type)
 {
-	if (sbi->gc_mode == GC_URGENT_HIGH)
-		return true;
-
 	if (get_pages(sbi, F2FS_RD_DATA) || get_pages(sbi, F2FS_RD_NODE) ||
 		get_pages(sbi, F2FS_RD_META) || get_pages(sbi, F2FS_WB_DATA) ||
 		get_pages(sbi, F2FS_WB_CP_DATA) ||
 		get_pages(sbi, F2FS_DIO_READ) ||
 		get_pages(sbi, F2FS_DIO_WRITE))
-		return false;
+		return true;
 
 	if (type != DISCARD_TIME && SM_I(sbi) && SM_I(sbi)->dcc_info &&
 			atomic_read(&SM_I(sbi)->dcc_info->queued_discard))
-		return false;
+		return true;
 
 	if (SM_I(sbi) && SM_I(sbi)->fcc_info &&
 			atomic_read(&SM_I(sbi)->fcc_info->queued_flush))
+		return true;
+	return false;
+}
+
+static inline bool is_idle(struct f2fs_sb_info *sbi, int type)
+{
+	if (sbi->gc_mode == GC_URGENT_HIGH)
+		return true;
+
+	if (is_inflight_io(sbi, type))
 		return false;
 
 	if (sbi->gc_mode == GC_URGENT_LOW &&
