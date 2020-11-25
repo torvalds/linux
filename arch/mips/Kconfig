@@ -488,6 +488,7 @@ config MACH_LOONGSON64
 	select SYS_SUPPORTS_HIGHMEM
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_ZBOOT
+	select SYS_SUPPORTS_RELOCATABLE
 	select ZONE_DMA32
 	select NUMA
 	select SMP
@@ -2778,7 +2779,8 @@ config RELOCATABLE
 	depends on CPU_MIPS32_R2 || CPU_MIPS64_R2 || \
 		   CPU_MIPS32_R5 || CPU_MIPS64_R5 || \
 		   CPU_MIPS32_R6 || CPU_MIPS64_R6 || \
-		   CPU_P5600 || CAVIUM_OCTEON_SOC
+		   CPU_P5600 || CAVIUM_OCTEON_SOC || \
+		   CPU_LOONGSON64
 	help
 	  This builds a kernel image that retains relocation information
 	  so it can be loaded someplace besides the default 1MB.
@@ -2789,6 +2791,7 @@ config RELOCATION_TABLE_SIZE
 	hex "Relocation table size"
 	depends on RELOCATABLE
 	range 0x0 0x01000000
+	default "0x00200000" if CPU_LOONGSON64
 	default "0x00100000"
 	help
 	  A table of relocation data will be appended to the kernel binary

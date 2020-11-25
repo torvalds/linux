@@ -294,6 +294,13 @@ static inline int __init relocation_addr_valid(void *loc_new)
 	return 1;
 }
 
+#if defined(CONFIG_USE_OF)
+void __weak *plat_get_fdt(void)
+{
+	return NULL;
+}
+#endif
+
 void *__init relocate_kernel(void)
 {
 	void *loc_new;
