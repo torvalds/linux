@@ -1176,7 +1176,6 @@ EXPORT_SYMBOL_GPL(pci_platform_power_transition);
 
 static int pci_resume_one(struct pci_dev *pci_dev, void *ign)
 {
-	pci_wakeup_event(pci_dev);
 	pm_request_resume(&pci_dev->dev);
 	return 0;
 }
