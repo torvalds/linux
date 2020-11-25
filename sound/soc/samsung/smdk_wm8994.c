@@ -136,7 +136,7 @@ static struct snd_soc_card smdk = {
 	.num_links = ARRAY_SIZE(smdk_dai),
 };
 
-static const struct of_device_id samsung_wm8994_of_match[] = {
+static const struct of_device_id samsung_wm8994_of_match[] __maybe_unused = {
 	{ .compatible = "samsung,smdk-wm8994", .data = &smdk_board_data },
 	{},
 };
