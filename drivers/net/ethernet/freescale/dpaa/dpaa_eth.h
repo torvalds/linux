@@ -127,6 +127,7 @@ struct dpaa_napi_portal {
 	struct napi_struct napi;
 	struct qman_portal *p;
 	bool down;
+	int xdp_act;
 };
 
 struct dpaa_percpu_priv {
