@@ -62,7 +62,7 @@ unsigned long __mlx5_umem_find_best_quantized_pgoff(
 	unsigned int page_offset_bits, u64 pgoff_bitmask, unsigned int scale,
 	unsigned int *page_offset_quantized)
 {
-	const u64 page_offset_mask = (1 << page_offset_bits) - 1;
+	const u64 page_offset_mask = (1UL << page_offset_bits) - 1;
 	unsigned long page_size;
 	u64 page_offset;
 
