@@ -1701,7 +1701,7 @@ static void vcn_v3_0_dec_ring_set_wptr(struct amdgpu_ring *ring)
 	}
 }
 
-void vcn_v3_0_dec_sw_ring_emit_fence(struct amdgpu_ring *ring, u64 addr,
+static void vcn_v3_0_dec_sw_ring_emit_fence(struct amdgpu_ring *ring, u64 addr,
 				u64 seq, uint32_t flags)
 {
 	WARN_ON(flags & AMDGPU_FENCE_FLAG_64BIT);
@@ -1713,12 +1713,12 @@ void vcn_v3_0_dec_sw_ring_emit_fence(struct amdgpu_ring *ring, u64 addr,
 	amdgpu_ring_write(ring, VCN_DEC_SW_CMD_TRAP);
 }
 
-void vcn_v3_0_dec_sw_ring_insert_end(struct amdgpu_ring *ring)
+static void vcn_v3_0_dec_sw_ring_insert_end(struct amdgpu_ring *ring)
 {
 	amdgpu_ring_write(ring, VCN_DEC_SW_CMD_END);
 }
 
-void vcn_v3_0_dec_sw_ring_emit_ib(struct amdgpu_ring *ring,
+static void vcn_v3_0_dec_sw_ring_emit_ib(struct amdgpu_ring *ring,
 			       struct amdgpu_job *job,
 			       struct amdgpu_ib *ib,
 			       uint32_t flags)
@@ -1732,7 +1732,7 @@ void vcn_v3_0_dec_sw_ring_emit_ib(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, ib->length_dw);
 }
 
-void vcn_v3_0_dec_sw_ring_emit_reg_wait(struct amdgpu_ring *ring, uint32_t reg,
+static void vcn_v3_0_dec_sw_ring_emit_reg_wait(struct amdgpu_ring *ring, uint32_t reg,
 				uint32_t val, uint32_t mask)
 {
 	amdgpu_ring_write(ring, VCN_DEC_SW_CMD_REG_WAIT);
@@ -1741,7 +1741,7 @@ void vcn_v3_0_dec_sw_ring_emit_reg_wait(struct amdgpu_ring *ring, uint32_t reg,
 	amdgpu_ring_write(ring, val);
 }
 
-void vcn_v3_0_dec_sw_ring_emit_vm_flush(struct amdgpu_ring *ring,
+static void vcn_v3_0_dec_sw_ring_emit_vm_flush(struct amdgpu_ring *ring,
 				uint32_t vmid, uint64_t pd_addr)
 {
 	struct amdgpu_vmhub *hub = &ring->adev->vmhub[ring->funcs->vmhub];
@@ -1756,7 +1756,7 @@ void vcn_v3_0_dec_sw_ring_emit_vm_flush(struct amdgpu_ring *ring,
 	vcn_v3_0_dec_sw_ring_emit_reg_wait(ring, data0, data1, mask);
 }
 
-void vcn_v3_0_dec_sw_ring_emit_wreg(struct amdgpu_ring *ring, uint32_t reg, uint32_t val)
+static void vcn_v3_0_dec_sw_ring_emit_wreg(struct amdgpu_ring *ring, uint32_t reg, uint32_t val)
 {
 	amdgpu_ring_write(ring, VCN_DEC_SW_CMD_REG_WRITE);
 	amdgpu_ring_write(ring,	reg << 2);
