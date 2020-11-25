@@ -274,7 +274,6 @@ struct i40iw_device {
 	u8 max_sge;
 	u8 iw_status;
 	u8 send_term_ok;
-	bool push_mode;		/* Initialized from parameter passed to driver */
 
 	/* x710 specific */
 	struct mutex pbl_mutex;
