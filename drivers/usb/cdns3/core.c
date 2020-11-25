@@ -427,7 +427,6 @@ static irqreturn_t cdns3_wakeup_irq(int irq, void *data)
  */
 static int cdns3_probe(struct platform_device *pdev)
 {
-	struct usb_role_switch_desc sw_desc = { };
 	struct device *dev = &pdev->dev;
 	struct resource	*res;
 	struct cdns3 *cdns;
@@ -529,18 +528,21 @@ static int cdns3_probe(struct platform_device *pdev)
 	if (ret)
 		goto err2;
 
-	sw_desc.set = cdns3_role_set;
-	sw_desc.get = cdns3_role_get;
-	sw_desc.allow_userspace_control = true;
-	sw_desc.driver_data = cdns;
-	if (device_property_read_bool(dev, "usb-role-switch"))
+	if (device_property_read_bool(dev, "usb-role-switch")) {
+		struct usb_role_switch_desc sw_desc = { };
+
+		sw_desc.set = cdns3_role_set;
+		sw_desc.get = cdns3_role_get;
+		sw_desc.allow_userspace_control = true;
+		sw_desc.driver_data = cdns;
 		sw_desc.fwnode = dev->fwnode;
 
-	cdns->role_sw = usb_role_switch_register(dev, &sw_desc);
-	if (IS_ERR(cdns->role_sw)) {
-		ret = PTR_ERR(cdns->role_sw);
-		dev_warn(dev, "Unable to register Role Switch\n");
-		goto err3;
+		cdns->role_sw = usb_role_switch_register(dev, &sw_desc);
+		if (IS_ERR(cdns->role_sw)) {
+			ret = PTR_ERR(cdns->role_sw);
+			dev_warn(dev, "Unable to register Role Switch\n");
+			goto err3;
+		}
 	}
 
 	if (cdns->wakeup_irq) {
@@ -582,7 +584,8 @@ static int cdns3_probe(struct platform_device *pdev)
 	return 0;
 err4:
 	cdns3_drd_exit(cdns);
-	usb_role_switch_unregister(cdns->role_sw);
+	if (cdns->role_sw)
+		usb_role_switch_unregister(cdns->role_sw);
 err3:
 	set_phy_power_off(cdns);
 err2:
