@@ -144,6 +144,14 @@ struct dpaa_buffer_layout {
 	u16 priv_data_size;
 };
 
+/* Information to be used on the Tx confirmation path. Stored just
+ * before the start of the transmit buffer. Maximum size allowed
+ * is DPAA_TX_PRIV_DATA_SIZE bytes.
+ */
+struct dpaa_eth_swbp {
+	struct sk_buff *skb;
+};
+
 struct dpaa_priv {
 	struct dpaa_percpu_priv __percpu *percpu_priv;
 	struct dpaa_bp *dpaa_bp;

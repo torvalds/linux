@@ -1633,6 +1633,7 @@ static struct sk_buff *dpaa_cleanup_tx_fd(const struct dpaa_priv *priv,
 	dma_addr_t addr = qm_fd_addr(fd);
 	void *vaddr = phys_to_virt(addr);
 	const struct qm_sg_entry *sgt;
+	struct dpaa_eth_swbp *swbp;
 	struct sk_buff *skb;
 	u64 ns;
 	int i;
@@ -1665,7 +1666,8 @@ static struct sk_buff *dpaa_cleanup_tx_fd(const struct dpaa_priv *priv,
 				 dma_dir);
 	}
 
-	skb = *(struct sk_buff **)vaddr;
+	swbp = (struct dpaa_eth_swbp *)vaddr;
+	skb = swbp->skb;
 
 	/* DMA unmapping is required before accessing the HW provided info */
 	if (ts && priv->tx_tstamp &&
@@ -1879,8 +1881,8 @@ static int skb_to_contig_fd(struct dpaa_priv *priv,
 {
 	struct net_device *net_dev = priv->net_dev;
 	enum dma_data_direction dma_dir;
+	struct dpaa_eth_swbp *swbp;
 	unsigned char *buff_start;
-	struct sk_buff **skbh;
 	dma_addr_t addr;
 	int err;
 
@@ -1891,8 +1893,8 @@ static int skb_to_contig_fd(struct dpaa_priv *priv,
 	buff_start = skb->data - priv->tx_headroom;
 	dma_dir = DMA_TO_DEVICE;
 
-	skbh = (struct sk_buff **)buff_start;
-	*skbh = skb;
+	swbp = (struct dpaa_eth_swbp *)buff_start;
+	swbp->skb = skb;
 
 	/* Enable L3/L4 hardware checksum computation.
 	 *
@@ -1931,8 +1933,8 @@ static int skb_to_sg_fd(struct dpaa_priv *priv,
 	const enum dma_data_direction dma_dir = DMA_TO_DEVICE;
 	const int nr_frags = skb_shinfo(skb)->nr_frags;
 	struct net_device *net_dev = priv->net_dev;
+	struct dpaa_eth_swbp *swbp;
 	struct qm_sg_entry *sgt;
-	struct sk_buff **skbh;
 	void *buff_start;
 	skb_frag_t *frag;
 	dma_addr_t addr;
@@ -2005,8 +2007,8 @@ static int skb_to_sg_fd(struct dpaa_priv *priv,
 	qm_fd_set_sg(fd, priv->tx_headroom, skb->len);
 
 	/* DMA map the SGT page */
-	skbh = (struct sk_buff **)buff_start;
-	*skbh = skb;
+	swbp = (struct dpaa_eth_swbp *)buff_start;
+	swbp->skb = skb;
 
 	addr = dma_map_page(priv->tx_dma_dev, p, 0,
 			    priv->tx_headroom + DPAA_SGT_SIZE, dma_dir);
