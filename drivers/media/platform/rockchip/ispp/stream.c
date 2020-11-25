@@ -1927,11 +1927,11 @@ static void restart_module(struct rkispp_device *dev)
 
 	monitor->retry++;
 	v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
-		 "%s cnt:%d\n", __func__, monitor->retry);
+		 "%s enter\n", __func__);
 	if (dev->ispp_sdev.state == ISPP_STOP || monitor->retry > 3) {
 		monitor->is_en = false;
 		monitor->is_restart = false;
-		return;
+		goto end;
 	}
 	if (monitor->monitoring_module)
 		wait_for_completion_timeout(&monitor->cmpl,
@@ -1939,7 +1939,7 @@ static void restart_module(struct rkispp_device *dev)
 	if (dev->ispp_sdev.state == ISPP_STOP) {
 		monitor->is_en = false;
 		monitor->is_restart = false;
-		return;
+		goto end;
 	}
 	rkispp_soft_reset(dev);
 	rkispp_update_regs(dev, RKISPP_CTRL_QUICK, RKISPP_FEC_CROP);
@@ -1969,6 +1969,10 @@ static void restart_module(struct rkispp_device *dev)
 	writel(val, base + RKISPP_CTRL_STRT);
 	monitor->is_restart = false;
 	monitor->restart_module = 0;
+end:
+	v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
+		 "%s exit en:%d cnt:%d, monitoring:0x%x\n", __func__,
+		 monitor->is_en, monitor->retry, monitor->monitoring_module);
 }
 
 static void restart_monitor(struct work_struct *work)
@@ -1978,17 +1982,25 @@ static void restart_monitor(struct work_struct *work)
 	struct rkispp_device *dev = m_monitor->dev;
 	struct rkispp_monitor *monitor = &dev->stream_vdev.monitor;
 	unsigned long lock_flags = 0;
-	int ret, time;
+	long time;
+	int ret;
 
 	v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
 		 "%s module:0x%x enter\n", __func__, m_monitor->module);
 	while (monitor->is_en) {
-		time = (!m_monitor->time ? 300 : m_monitor->time) + 150;
+		/* max timeout for module idle */
+		time = MAX_SCHEDULE_TIMEOUT;
+		if (monitor->monitoring_module & m_monitor->module)
+			time = (m_monitor->time <= 0 ? 300 : m_monitor->time) + 150;
 		ret = wait_for_completion_timeout(&m_monitor->cmpl,
 						  msecs_to_jiffies(time));
 		if (!(monitor->monitoring_module & m_monitor->module) ||
 		    ret || !monitor->is_en)
 			continue;
+
+		v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
+			 "module:0x%x wait %ldms timeout ret:%d, monitoring:0x%x\n",
+			 m_monitor->module, time, ret, monitor->monitoring_module);
 
 		spin_lock_irqsave(&monitor->lock, lock_flags);
 		monitor->monitoring_module &= ~m_monitor->module;
@@ -2003,9 +2015,6 @@ static void restart_monitor(struct work_struct *work)
 			rkispp_write(dev, RKISPP_TNR_IIR_UV_BASE,
 				     readl(dev->hw_dev->base_addr + RKISPP_TNR_IIR_UV_BASE_SHD));
 		}
-		v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
-			 "monitoring:0x%x module:0x%x timeout\n",
-			 monitor->monitoring_module, m_monitor->module);
 		spin_unlock_irqrestore(&monitor->lock, lock_flags);
 		if (!ret && monitor->is_restart)
 			restart_module(dev);
