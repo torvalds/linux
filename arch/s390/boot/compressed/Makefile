@@ -23,7 +23,7 @@ OBJCOPYFLAGS :=
 OBJECTS := $(addprefix $(obj)/,$(obj-y))
 OBJECTS_ALL := $(addprefix $(obj)/,$(obj-all))
 
-LDFLAGS_vmlinux := --oformat $(LD_BFD) -e startup -T
+LDFLAGS_vmlinux := --oformat $(LD_BFD) -e startup --build-id=sha1 -T
 $(obj)/vmlinux: $(obj)/vmlinux.lds $(objtree)/arch/s390/boot/startup.a $(OBJECTS_ALL) FORCE
 	$(call if_changed,ld)
 

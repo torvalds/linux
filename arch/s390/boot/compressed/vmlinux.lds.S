@@ -27,6 +27,7 @@ SECTIONS
 		*(.rodata.*)
 		_erodata = . ;
 	}
+	NOTES
 	.data :	{
 		_data = . ;
 		*(.data)
