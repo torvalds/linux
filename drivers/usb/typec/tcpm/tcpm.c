@@ -4218,6 +4218,14 @@ static void _tcpm_pd_vbus_off(struct tcpm_port *port)
 		/* Do nothing, expected */
 		break;
 
+	case PR_SWAP_SNK_SRC_SOURCE_ON:
+		/*
+		 * Do nothing when vbus off notification is received.
+		 * TCPM can wait for PD_T_NEWSRC in PR_SWAP_SNK_SRC_SOURCE_ON
+		 * for the vbus source to ramp up.
+		 */
+		break;
+
 	case PORT_RESET_WAIT_OFF:
 		tcpm_set_state(port, tcpm_default_state(port), 0);
 		break;
