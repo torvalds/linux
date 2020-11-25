@@ -128,7 +128,7 @@ int main(int argc, char **argv)
 		perror("HIDIOCGFEATURE");
 	} else {
 		printf("ioctl HIDIOCGFEATURE returned: %d\n", res);
-		printf("Report data (not containing the report number):\n\t");
+		printf("Report data:\n\t");
 		for (i = 0; i < res; i++)
 			printf("%hhx ", buf[i]);
 		puts("\n");
