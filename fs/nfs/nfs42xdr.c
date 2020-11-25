@@ -1528,7 +1528,6 @@ static void nfs4_xdr_enc_listxattrs(struct rpc_rqst *req,
 
 	rpc_prepare_reply_pages(req, args->xattr_pages, 0, args->count,
 	    hdr.replen);
-	req->rq_rcv_buf.flags |= XDRBUF_SPARSE_PAGES;
 
 	encode_nops(&hdr);
 }
