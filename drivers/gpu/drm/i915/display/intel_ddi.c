@@ -3512,12 +3512,6 @@ static void intel_ddi_enable_fec(struct intel_encoder *encoder,
 	val = intel_de_read(dev_priv, dp_tp_ctl_reg(encoder, crtc_state));
 	val |= DP_TP_CTL_FEC_ENABLE;
 	intel_de_write(dev_priv, dp_tp_ctl_reg(encoder, crtc_state), val);
-
-	if (intel_de_wait_for_set(dev_priv,
-				  dp_tp_status_reg(encoder, crtc_state),
-				  DP_TP_STATUS_FEC_ENABLE_LIVE, 1))
-		drm_err(&dev_priv->drm,
-			"Timed out waiting for FEC Enable Status\n");
 }
 
 static void intel_ddi_disable_fec_state(struct intel_encoder *encoder,
