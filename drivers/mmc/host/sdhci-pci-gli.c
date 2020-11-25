@@ -87,6 +87,9 @@
 #define PCIE_GLI_9763E_SCR	 0x8E0
 #define   GLI_9763E_SCR_AXI_REQ	   BIT(9)
 
+#define PCIE_GLI_9763E_MMC_CTRL  0x960
+#define   GLI_9763E_HS400_SLOW     BIT(3)
+
 #define SDHCI_GLI_9763E_CQE_BASE_ADDR	 0x200
 #define GLI_9763E_CQE_TRNS_MODE	   (SDHCI_TRNS_MULTI | \
 				    SDHCI_TRNS_BLK_CNT_EN | \
@@ -783,6 +786,10 @@ static void gli_set_gl9763e(struct sdhci_pci_slot *slot)
 	pci_read_config_dword(pdev, PCIE_GLI_9763E_SCR, &value);
 	value |= GLI_9763E_SCR_AXI_REQ;
 	pci_write_config_dword(pdev, PCIE_GLI_9763E_SCR, value);
+
+	pci_read_config_dword(pdev, PCIE_GLI_9763E_MMC_CTRL, &value);
+	value &= ~GLI_9763E_HS400_SLOW;
+	pci_write_config_dword(pdev, PCIE_GLI_9763E_MMC_CTRL, value);
 
 	pci_read_config_dword(pdev, PCIE_GLI_9763E_VHS, &value);
 	value &= ~GLI_9763E_VHS_REV;
