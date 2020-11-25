@@ -2756,22 +2756,44 @@ static int dpaa_eth_stop(struct net_device *net_dev)
 	return err;
 }
 
+static bool xdp_validate_mtu(struct dpaa_priv *priv, int mtu)
+{
+	int max_contig_data = priv->dpaa_bp->size - priv->rx_headroom;
+
+	/* We do not support S/G fragments when XDP is enabled.
+	 * Limit the MTU in relation to the buffer size.
+	 */
+	if (mtu + VLAN_ETH_HLEN + ETH_FCS_LEN > max_contig_data) {
+		dev_warn(priv->net_dev->dev.parent,
+			 "The maximum MTU for XDP is %d\n",
+			 max_contig_data - VLAN_ETH_HLEN - ETH_FCS_LEN);
+		return false;
+	}
+
+	return true;
+}
+
+static int dpaa_change_mtu(struct net_device *net_dev, int new_mtu)
+{
+	struct dpaa_priv *priv = netdev_priv(net_dev);
+
+	if (priv->xdp_prog && !xdp_validate_mtu(priv, new_mtu))
+		return -EINVAL;
+
+	net_dev->mtu = new_mtu;
+	return 0;
+}
+
 static int dpaa_setup_xdp(struct net_device *net_dev, struct netdev_bpf *bpf)
 {
 	struct dpaa_priv *priv = netdev_priv(net_dev);
 	struct bpf_prog *old_prog;
-	int err, max_contig_data;
+	int err;
 	bool up;
 
-	max_contig_data = priv->dpaa_bp->size - priv->rx_headroom;
-
 	/* S/G fragments are not supported in XDP-mode */
-	if (bpf->prog &&
-	    (net_dev->mtu + VLAN_ETH_HLEN + ETH_FCS_LEN > max_contig_data)) {
+	if (bpf->prog && !xdp_validate_mtu(priv, net_dev->mtu)) {
 		NL_SET_ERR_MSG_MOD(bpf->extack, "MTU too large for XDP");
-		dev_warn(net_dev->dev.parent,
-			 "The maximum MTU for XDP is %d\n",
-			 max_contig_data - VLAN_ETH_HLEN - ETH_FCS_LEN);
 		return -EINVAL;
 	}
 
@@ -2871,6 +2893,7 @@ static const struct net_device_ops dpaa_ops = {
 	.ndo_set_rx_mode = dpaa_set_rx_mode,
 	.ndo_do_ioctl = dpaa_ioctl,
 	.ndo_setup_tc = dpaa_setup_tc,
+	.ndo_change_mtu = dpaa_change_mtu,
 	.ndo_bpf = dpaa_xdp,
 };
 
