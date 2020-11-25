@@ -319,13 +319,17 @@ int wilc_wlan_txq_add_mgmt_pkt(struct net_device *dev, void *priv, u8 *buffer,
 
 	wilc = vif->wilc;
 
-	if (wilc->quit)
+	if (wilc->quit) {
+		tx_complete_fn(priv, 0);
 		return 0;
+	}
 
 	tqe = kmalloc(sizeof(*tqe), GFP_ATOMIC);
 
-	if (!tqe)
+	if (!tqe) {
+		tx_complete_fn(priv, 0);
 		return 0;
+	}
 	tqe->type = WILC_MGMT_PKT;
 	tqe->buffer = buffer;
 	tqe->buffer_size = buffer_size;
