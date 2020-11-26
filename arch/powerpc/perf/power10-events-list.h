@@ -15,6 +15,9 @@ EVENT(PM_EXEC_STALL,				0x30008);
 EVENT(PM_RUN_INST_CMPL,				0x500fa);
 EVENT(PM_BR_CMPL,                               0x4d05e);
 EVENT(PM_BR_MPRED_CMPL,                         0x400f6);
+EVENT(PM_BR_FIN,				0x2f04a);
+EVENT(PM_MPRED_BR_FIN,				0x3e098);
+EVENT(PM_LD_DEMAND_MISS_L1_FIN,			0x400f0);
 
 /* All L1 D cache load references counted at finish, gated by reject */
 EVENT(PM_LD_REF_L1,				0x100fc);
