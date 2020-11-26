@@ -208,6 +208,10 @@ still cause this situation.
       - ``p_h264_decode_params``
       - A pointer to a struct :c:type:`v4l2_ctrl_h264_decode_params`. Valid if this control is
         of type ``V4L2_CTRL_TYPE_H264_DECODE_PARAMS``.
+    * - struct :c:type:`v4l2_ctrl_fwht_params` *
+      - ``p_fwht_params``
+      - A pointer to a struct :c:type:`v4l2_ctrl_fwht_params`. Valid if this control is
+        of type ``V4L2_CTRL_TYPE_FWHT_PARAMS``.
     * - void *
       - ``ptr``
       - A pointer to a compound type which can be an N-dimensional array

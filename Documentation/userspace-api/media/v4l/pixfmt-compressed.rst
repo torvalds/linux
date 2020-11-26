@@ -217,4 +217,6 @@ Compressed Formats
       - ``V4L2_PIX_FMT_FWHT_STATELESS``
       - 'SFWH'
       - Same format as V4L2_PIX_FMT_FWHT but requires stateless codec implementation.
-	See the :ref:`associated Codec Control IDs <v4l2-mpeg-fwht>`.
+        Metadata associated with the frame to decode is required to be passed
+        through the ``V4L2_CID_STATELESS_FWHT_PARAMS`` control.
+	See the :ref:`associated Codec Control ID <codec-stateless-fwht>`.
