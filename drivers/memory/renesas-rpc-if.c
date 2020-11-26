@@ -508,7 +508,8 @@ exit:
 	return ret;
 
 err_out:
-	ret = reset_control_reset(rpc->rstc);
+	if (reset_control_reset(rpc->rstc))
+		dev_err(rpc->dev, "Failed to reset HW\n");
 	rpcif_hw_init(rpc, rpc->bus_size == 2);
 	goto exit;
 }
