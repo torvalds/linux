@@ -1402,15 +1402,12 @@ static struct aggr_cpu_id perf_env__get_core(struct perf_cpu_map *map, int idx, 
 	if (cpu != -1) {
 		/*
 		 * core_id is relative to socket and die,
-		 * we need a global id. So we combine
-		 * socket + die id + core id
+		 * we need a global id. So we set
+		 * socket, die id and core id
 		 */
-		if (WARN_ONCE(env->cpu[cpu].core_id >> 16, "The core id number is too big.\n"))
-			return cpu_map__empty_aggr_cpu_id();
-
 		id.socket = env->cpu[cpu].socket_id;
 		id.die = env->cpu[cpu].die_id;
-		id.id = env->cpu[cpu].core_id & 0xffff;
+		id.core = env->cpu[cpu].core_id;
 	}
 
 	return id;

@@ -76,7 +76,7 @@ static void aggr_printout(struct perf_stat_config *config,
 			id.socket,
 			id.die,
 			config->csv_output ? 0 : -8,
-			cpu_map__id_to_cpu(id.id),
+			id.core,
 			config->csv_sep,
 			config->csv_output ? 0 : 4,
 			nr,
@@ -116,11 +116,11 @@ static void aggr_printout(struct perf_stat_config *config,
 				id.socket,
 				id.die,
 				config->csv_output ? 0 : -3,
-				cpu_map__id_to_cpu(id.id), config->csv_sep);
-		} else if (id.id > -1) {
+				id.core, config->csv_sep);
+		} else if (id.core > -1) {
 			fprintf(config->output, "CPU%*d%s",
 				config->csv_output ? 0 : -7,
-				evsel__cpus(evsel)->map[id.id],
+				evsel__cpus(evsel)->map[id.core],
 				config->csv_sep);
 		}
 		break;
@@ -326,7 +326,7 @@ static int first_shadow_cpu(struct perf_stat_config *config,
 	int i;
 
 	if (config->aggr_mode == AGGR_NONE)
-		return id.id;
+		return id.core;
 
 	if (!config->aggr_get_id)
 		return 0;
@@ -658,7 +658,7 @@ static void print_counter_aggrdata(struct perf_stat_config *config,
 	uval = val * counter->scale;
 	if (cpu != -1) {
 		id = cpu_map__empty_aggr_cpu_id();
-		id.id = cpu;
+		id.core = cpu;
 	}
 	printout(config, id, nr, counter, uval,
 		 prefix, run, ena, 1.0, &rt_stat);
@@ -871,7 +871,7 @@ static void print_counter(struct perf_stat_config *config,
 
 		uval = val * counter->scale;
 		id = cpu_map__empty_aggr_cpu_id();
-		id.id = cpu;
+		id.core = cpu;
 		printout(config, id, 0, counter, uval, prefix,
 			 run, ena, 1.0, &rt_stat);
 
@@ -898,7 +898,7 @@ static void print_no_aggr_metric(struct perf_stat_config *config,
 			fputs(prefix, config->output);
 		evlist__for_each_entry(evlist, counter) {
 			id = cpu_map__empty_aggr_cpu_id();
-			id.id = cpu;
+			id.core = cpu;
 			if (first) {
 				aggr_printout(config, counter, id, 0);
 				first = false;

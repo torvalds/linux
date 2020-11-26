@@ -12,6 +12,7 @@ struct aggr_cpu_id {
 	int node;
 	int socket;
 	int die;
+	int core;
 };
 
 struct cpu_aggr_map {
@@ -48,11 +49,6 @@ static inline int cpu_map__socket(struct perf_cpu_map *sock, int s)
 	if (!sock || s > sock->nr || s < 0)
 		return 0;
 	return sock->map[s];
-}
-
-static inline int cpu_map__id_to_cpu(int id)
-{
-	return id & 0xffff;
 }
 
 int cpu__setup_cpunode_map(void);
