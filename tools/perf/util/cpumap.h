@@ -9,6 +9,7 @@
 
 struct aggr_cpu_id {
 	int id;
+	int node;
 };
 
 struct cpu_aggr_map {

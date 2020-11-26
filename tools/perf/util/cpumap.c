@@ -148,7 +148,10 @@ static int cmp_aggr_cpu_id(const void *a_pointer, const void *b_pointer)
 	struct aggr_cpu_id *a = (struct aggr_cpu_id *)a_pointer;
 	struct aggr_cpu_id *b = (struct aggr_cpu_id *)b_pointer;
 
-	return a->id - b->id;
+	if (a->id != b->id)
+		return a->id - b->id;
+	else
+		return a->node - b->node;
 }
 
 int cpu_map__build_map(struct perf_cpu_map *cpus, struct cpu_aggr_map **res,
@@ -275,7 +278,7 @@ struct aggr_cpu_id cpu_map__get_node(struct perf_cpu_map *map, int idx, void *da
 	if (idx < 0 || idx >= map->nr)
 		return id;
 
-	id.id = cpu_map__get_node_id(map->map[idx]);
+	id.node = cpu_map__get_node_id(map->map[idx]);
 	return id;
 }
 
@@ -620,18 +623,21 @@ const struct perf_cpu_map *cpu_map__online(void) /* thread unsafe */
 
 bool cpu_map__compare_aggr_cpu_id(struct aggr_cpu_id a, struct aggr_cpu_id b)
 {
-	return a.id == b.id;
+	return a.id == b.id &&
+		a.node == b.node;
 }
 
 bool cpu_map__aggr_cpu_id_is_empty(struct aggr_cpu_id a)
 {
-	return a.id == -1;
+	return a.id == -1 &&
+		a.node == -1;
 }
 
 struct aggr_cpu_id cpu_map__empty_aggr_cpu_id(void)
 {
 	struct aggr_cpu_id ret = {
-		.id = -1
+		.id = -1,
+		.node = -1
 	};
 	return ret;
 }

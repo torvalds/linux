@@ -1435,7 +1435,7 @@ static struct aggr_cpu_id perf_env__get_node(struct perf_cpu_map *map, int idx, 
 	int cpu = perf_env__get_cpu(data, map, idx);
 	struct aggr_cpu_id id = cpu_map__empty_aggr_cpu_id();
 
-	id.id = perf_env__numa_node(data, cpu);
+	id.node = perf_env__numa_node(data, cpu);
 	return id;
 }
 

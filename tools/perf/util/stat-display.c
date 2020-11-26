@@ -104,7 +104,7 @@ static void aggr_printout(struct perf_stat_config *config,
 	case AGGR_NODE:
 		fprintf(config->output, "N%*d%s%*d%s",
 			config->csv_output ? 0 : -5,
-			id.id,
+			id.node,
 			config->csv_sep,
 			config->csv_output ? 0 : 4,
 			nr,
