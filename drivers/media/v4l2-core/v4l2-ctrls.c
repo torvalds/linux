@@ -830,7 +830,7 @@ const char *v4l2_ctrl_get_name(u32 id)
 	/* The MPEG controls are applicable to all codec controls
 	 * and the 'MPEG' part of the define is historical */
 	/* Keep the order of the 'case's the same as in videodev2.h! */
-	case V4L2_CID_MPEG_CLASS:		return "Codec Controls";
+	case V4L2_CID_CODEC_CLASS:		return "Codec Controls";
 	case V4L2_CID_MPEG_STREAM_TYPE:		return "Stream Type";
 	case V4L2_CID_MPEG_STREAM_PID_PMT:	return "Stream PMT Program ID";
 	case V4L2_CID_MPEG_STREAM_PID_AUDIO:	return "Stream Audio Program ID";
@@ -1358,7 +1358,7 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 		break;
 	case V4L2_CID_USER_CLASS:
 	case V4L2_CID_CAMERA_CLASS:
-	case V4L2_CID_MPEG_CLASS:
+	case V4L2_CID_CODEC_CLASS:
 	case V4L2_CID_FM_TX_CLASS:
 	case V4L2_CID_FLASH_CLASS:
 	case V4L2_CID_JPEG_CLASS:

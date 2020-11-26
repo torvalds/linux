@@ -322,10 +322,10 @@ still cause this situation.
 	:ref:`VIDIOC_S_CTRL <VIDIOC_G_CTRL>` and
 	:ref:`VIDIOC_G_CTRL <VIDIOC_G_CTRL>` ioctl belong to this
 	class.
-    * - ``V4L2_CTRL_CLASS_MPEG``
+    * - ``V4L2_CTRL_CLASS_CODEC``
       - 0x990000
-      - The class containing MPEG compression controls. These controls are
-	described in :ref:`mpeg-controls`.
+      - The class containing stateful codec controls. These controls are
+	described in :ref:`codec-controls`.
     * - ``V4L2_CTRL_CLASS_CAMERA``
       - 0x9a0000
       - The class containing camera controls. These controls are described

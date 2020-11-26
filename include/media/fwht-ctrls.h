@@ -13,7 +13,7 @@
 
 #define V4L2_CTRL_TYPE_FWHT_PARAMS 0x0105
 
-#define V4L2_CID_MPEG_VIDEO_FWHT_PARAMS	(V4L2_CID_MPEG_BASE + 292)
+#define V4L2_CID_MPEG_VIDEO_FWHT_PARAMS	(V4L2_CID_CODEC_BASE + 292)
 
 struct v4l2_ctrl_fwht_params {
 	__u64 backward_ref_ts;
