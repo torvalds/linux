@@ -349,7 +349,8 @@ static struct dw_hdmi_phy_config rockchip_phy_config[] = {
 	{ 165000000, 0x802b, 0x0004, 0x0209},
 	{ 297000000, 0x8039, 0x0005, 0x028d},
 	{ 594000000, 0x8039, 0x0000, 0x019d},
-	{ ~0UL,	     0x0000, 0x0000, 0x0000}
+	{ ~0UL,	     0x0000, 0x0000, 0x0000},
+	{ ~0UL,      0x0000, 0x0000, 0x0000},
 };
 
 static int rockchip_hdmi_update_phy_table(struct rockchip_hdmi *hdmi,
