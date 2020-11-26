@@ -3501,7 +3501,9 @@ int mt7915_mcu_get_rx_rate(struct mt7915_phy *phy, struct ieee80211_vif *vif,
 		break;
 	case MT_PHY_TYPE_HT:
 	case MT_PHY_TYPE_HT_GF:
-		rate->mcs += (rate->nss - 1) * 8;
+		if (rate->mcs > 31)
+			return -EINVAL;
+
 		flags |= RATE_INFO_FLAGS_MCS;
 
 		if (res->gi)
