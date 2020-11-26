@@ -104,7 +104,7 @@
 	};
 
 	accelerometer@53 {
-		compatible = "adi,adxl345", "adxl345", "adi,adxl34x", "adxl34x";
+		compatible = "adi,adxl345";
 		reg = <0x53>;
 		interrupt-parent = <&intc>;
 		interrupts = <0x0 0x1e 0x4>;
