@@ -52,15 +52,6 @@ struct partition_meta_info {
 
 struct hd_struct {
 	sector_t start_sect;
-	/*
-	 * nr_sects is protected by sequence counter. One might extend a
-	 * partition while IO is happening to it and update of nr_sects
-	 * can be non-atomic on 32bit machines with 64bit sector_t.
-	 */
-	sector_t nr_sects;
-#if BITS_PER_LONG==32 && defined(CONFIG_SMP)
-	seqcount_t nr_sects_seq;
-#endif
 	unsigned long stamp;
 	struct disk_stats __percpu *dkstats;
 	struct percpu_ref ref;
@@ -254,13 +245,6 @@ static inline void disk_put_part(struct hd_struct *part)
 		put_device(part_to_dev(part));
 }
 
-static inline void hd_sects_seq_init(struct hd_struct *p)
-{
-#if BITS_PER_LONG==32 && defined(CONFIG_SMP)
-	seqcount_init(&p->nr_sects_seq);
-#endif
-}
-
 /*
  * Smarter partition iterator without context limits.
  */
@@ -318,13 +302,15 @@ static inline sector_t get_start_sect(struct block_device *bdev)
 {
 	return bdev->bd_part->start_sect;
 }
+
+static inline sector_t bdev_nr_sectors(struct block_device *bdev)
+{
+	return i_size_read(bdev->bd_inode) >> 9;
+}
+
 static inline sector_t get_capacity(struct gendisk *disk)
 {
-	return disk->part0.nr_sects;
-}
-static inline void set_capacity(struct gendisk *disk, sector_t size)
-{
-	disk->part0.nr_sects = size;
+	return bdev_nr_sectors(disk->part0.bdev);
 }
 
 int bdev_disk_changed(struct block_device *bdev, bool invalidate);
@@ -358,10 +344,9 @@ int __register_blkdev(unsigned int major, const char *name,
 	__register_blkdev(major, name, NULL)
 void unregister_blkdev(unsigned int major, const char *name);
 
-void revalidate_disk_size(struct gendisk *disk, bool verbose);
 bool bdev_check_media_change(struct block_device *bdev);
 int __invalidate_device(struct block_device *bdev, bool kill_dirty);
-void bd_set_nr_sectors(struct block_device *bdev, sector_t sectors);
+void set_capacity(struct gendisk *disk, sector_t size);
 
 /* for drivers/char/raw.c: */
 int blkdev_ioctl(struct block_device *, fmode_t, unsigned, unsigned long);

@@ -85,6 +85,13 @@ static int (*check_part[])(struct parsed_partitions *) = {
 	NULL
 };
 
+static void bdev_set_nr_sectors(struct block_device *bdev, sector_t sectors)
+{
+	spin_lock(&bdev->bd_size_lock);
+	i_size_write(bdev->bd_inode, (loff_t)sectors << SECTOR_SHIFT);
+	spin_unlock(&bdev->bd_size_lock);
+}
+
 static struct parsed_partitions *allocate_partitions(struct gendisk *hd)
 {
 	struct parsed_partitions *state;
@@ -295,7 +302,7 @@ static void hd_struct_free_work(struct work_struct *work)
 	put_device(disk_to_dev(disk));
 
 	part->start_sect = 0;
-	part->nr_sects = 0;
+	bdev_set_nr_sectors(part->bdev, 0);
 	part_stat_set_all(part, 0);
 	put_device(part_to_dev(part));
 }
@@ -412,11 +419,10 @@ static struct hd_struct *add_partition(struct gendisk *disk, int partno,
 		goto out_free_stats;
 	p->bdev = bdev;
 
-	hd_sects_seq_init(p);
 	pdev = part_to_dev(p);
 
 	p->start_sect = start;
-	p->nr_sects = len;
+	bdev_set_nr_sectors(bdev, len);
 	p->partno = partno;
 	p->policy = get_disk_ro(disk);
 
@@ -509,7 +515,7 @@ static bool partition_overlaps(struct gendisk *disk, sector_t start,
 	disk_part_iter_init(&piter, disk, DISK_PITER_INCL_EMPTY);
 	while ((part = disk_part_iter_next(&piter))) {
 		if (part->partno == skip_partno ||
-		    start >= part->start_sect + part->nr_sects ||
+		    start >= part->start_sect + bdev_nr_sectors(part->bdev) ||
 		    start + length <= part->start_sect)
 			continue;
 		overlap = true;
@@ -600,8 +606,7 @@ int bdev_resize_partition(struct block_device *bdev, int partno,
 	if (partition_overlaps(bdev->bd_disk, start, length, partno))
 		goto out_unlock;
 
-	part_nr_sects_write(part, length);
-	bd_set_nr_sectors(bdevp, length);
+	bdev_set_nr_sectors(bdevp, length);
 
 	ret = 0;
 out_unlock:

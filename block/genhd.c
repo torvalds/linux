@@ -40,6 +40,16 @@ static void disk_add_events(struct gendisk *disk);
 static void disk_del_events(struct gendisk *disk);
 static void disk_release_events(struct gendisk *disk);
 
+void set_capacity(struct gendisk *disk, sector_t sectors)
+{
+	struct block_device *bdev = disk->part0.bdev;
+
+	spin_lock(&bdev->bd_size_lock);
+	i_size_write(bdev->bd_inode, (loff_t)sectors << SECTOR_SHIFT);
+	spin_unlock(&bdev->bd_size_lock);
+}
+EXPORT_SYMBOL(set_capacity);
+
 /*
  * Set disk capacity and notify if the size is not currently zero and will not
  * be set to zero.  Returns true if a uevent was sent, otherwise false.
@@ -47,18 +57,30 @@ static void disk_release_events(struct gendisk *disk);
 bool set_capacity_and_notify(struct gendisk *disk, sector_t size)
 {
 	sector_t capacity = get_capacity(disk);
+	char *envp[] = { "RESIZE=1", NULL };
 
 	set_capacity(disk, size);
-	revalidate_disk_size(disk, true);
 
-	if (capacity != size && capacity != 0 && size != 0) {
-		char *envp[] = { "RESIZE=1", NULL };
+	/*
+	 * Only print a message and send a uevent if the gendisk is user visible
+	 * and alive.  This avoids spamming the log and udev when setting the
+	 * initial capacity during probing.
+	 */
+	if (size == capacity ||
+	    (disk->flags & (GENHD_FL_UP | GENHD_FL_HIDDEN)) != GENHD_FL_UP)
+		return false;
 
-		kobject_uevent_env(&disk_to_dev(disk)->kobj, KOBJ_CHANGE, envp);
-		return true;
-	}
+	pr_info("%s: detected capacity change from %lld to %lld\n",
+		disk->disk_name, size, capacity);
 
-	return false;
+	/*
+	 * Historically we did not send a uevent for changes to/from an empty
+	 * device.
+	 */
+	if (!capacity || !size)
+		return false;
+	kobject_uevent_env(&disk_to_dev(disk)->kobj, KOBJ_CHANGE, envp);
+	return true;
 }
 EXPORT_SYMBOL_GPL(set_capacity_and_notify);
 
@@ -247,7 +269,7 @@ struct hd_struct *disk_part_iter_next(struct disk_part_iter *piter)
 		part = rcu_dereference(ptbl->part[piter->idx]);
 		if (!part)
 			continue;
-		if (!part_nr_sects_read(part) &&
+		if (!bdev_nr_sectors(part->bdev) &&
 		    !(piter->flags & DISK_PITER_INCL_EMPTY) &&
 		    !(piter->flags & DISK_PITER_INCL_EMPTY_PART0 &&
 		      piter->idx == 0))
@@ -284,7 +306,7 @@ EXPORT_SYMBOL_GPL(disk_part_iter_exit);
 static inline int sector_in_part(struct hd_struct *part, sector_t sector)
 {
 	return part->start_sect <= sector &&
-		sector < part->start_sect + part_nr_sects_read(part);
+		sector < part->start_sect + bdev_nr_sectors(part->bdev);
 }
 
 /**
@@ -986,8 +1008,8 @@ void __init printk_all_partitions(void)
 
 			printk("%s%s %10llu %s %s", is_part0 ? "" : "  ",
 			       bdevt_str(part_devt(part), devt_buf),
-			       (unsigned long long)part_nr_sects_read(part) >> 1
-			       , disk_name(disk, part->partno, name_buf),
+			       bdev_nr_sectors(part->bdev) >> 1,
+			       disk_name(disk, part->partno, name_buf),
 			       part->info ? part->info->uuid : "");
 			if (is_part0) {
 				if (dev->parent && dev->parent->driver)
@@ -1079,7 +1101,7 @@ static int show_partition(struct seq_file *seqf, void *v)
 	while ((part = disk_part_iter_next(&piter)))
 		seq_printf(seqf, "%4d  %7d %10llu %s\n",
 			   MAJOR(part_devt(part)), MINOR(part_devt(part)),
-			   (unsigned long long)part_nr_sects_read(part) >> 1,
+			   bdev_nr_sectors(part->bdev) >> 1,
 			   disk_name(sgp, part->partno, buf));
 	disk_part_iter_exit(&piter);
 
@@ -1161,8 +1183,7 @@ ssize_t part_size_show(struct device *dev,
 {
 	struct hd_struct *p = dev_to_part(dev);
 
-	return sprintf(buf, "%llu\n",
-		(unsigned long long)part_nr_sects_read(p));
+	return sprintf(buf, "%llu\n", bdev_nr_sectors(p->bdev));
 }
 
 ssize_t part_stat_show(struct device *dev,
@@ -1618,16 +1639,6 @@ struct gendisk *__alloc_disk_node(int minors, int node_id)
 	ptbl = rcu_dereference_protected(disk->part_tbl, 1);
 	rcu_assign_pointer(ptbl->part[0], &disk->part0);
 
-	/*
-	 * set_capacity() and get_capacity() currently don't use
-	 * seqcounter to read/update the part0->nr_sects. Still init
-	 * the counter as we can read the sectors in IO submission
-	 * patch using seqence counters.
-	 *
-	 * TODO: Ideally set_capacity() and get_capacity() should be
-	 * converted to make use of bd_mutex and sequence counters.
-	 */
-	hd_sects_seq_init(&disk->part0);
 	if (hd_ref_init(&disk->part0))
 		goto out_free_bdstats;
 

@@ -1208,70 +1208,6 @@ void bd_unlink_disk_holder(struct block_device *bdev, struct gendisk *disk)
 EXPORT_SYMBOL_GPL(bd_unlink_disk_holder);
 #endif
 
-/**
- * check_disk_size_change - checks for disk size change and adjusts bdev size.
- * @disk: struct gendisk to check
- * @bdev: struct bdev to adjust.
- * @verbose: if %true log a message about a size change if there is any
- *
- * This routine checks to see if the bdev size does not match the disk size
- * and adjusts it if it differs. When shrinking the bdev size, its all caches
- * are freed.
- */
-static void check_disk_size_change(struct gendisk *disk,
-		struct block_device *bdev, bool verbose)
-{
-	loff_t disk_size, bdev_size;
-
-	spin_lock(&bdev->bd_size_lock);
-	disk_size = (loff_t)get_capacity(disk) << 9;
-	bdev_size = i_size_read(bdev->bd_inode);
-	if (disk_size != bdev_size) {
-		if (verbose) {
-			printk(KERN_INFO
-			       "%s: detected capacity change from %lld to %lld\n",
-			       disk->disk_name, bdev_size, disk_size);
-		}
-		i_size_write(bdev->bd_inode, disk_size);
-	}
-	spin_unlock(&bdev->bd_size_lock);
-}
-
-/**
- * revalidate_disk_size - checks for disk size change and adjusts bdev size.
- * @disk: struct gendisk to check
- * @verbose: if %true log a message about a size change if there is any
- *
- * This routine checks to see if the bdev size does not match the disk size
- * and adjusts it if it differs. When shrinking the bdev size, its all caches
- * are freed.
- */
-void revalidate_disk_size(struct gendisk *disk, bool verbose)
-{
-	struct block_device *bdev;
-
-	/*
-	 * Hidden disks don't have associated bdev so there's no point in
-	 * revalidating them.
-	 */
-	if (disk->flags & GENHD_FL_HIDDEN)
-		return;
-
-	bdev = bdget_disk(disk, 0);
-	if (bdev) {
-		check_disk_size_change(disk, bdev, verbose);
-		bdput(bdev);
-	}
-}
-
-void bd_set_nr_sectors(struct block_device *bdev, sector_t sectors)
-{
-	spin_lock(&bdev->bd_size_lock);
-	i_size_write(bdev->bd_inode, (loff_t)sectors << SECTOR_SHIFT);
-	spin_unlock(&bdev->bd_size_lock);
-}
-EXPORT_SYMBOL(bd_set_nr_sectors);
-
 static void __blkdev_put(struct block_device *bdev, fmode_t mode, int for_part);
 
 int bdev_disk_changed(struct block_device *bdev, bool invalidate)
@@ -1304,8 +1240,6 @@ rescan:
 		if (disk->fops->revalidate_disk)
 			disk->fops->revalidate_disk(disk);
 	}
-
-	check_disk_size_change(disk, bdev, !invalidate);
 
 	if (get_capacity(disk)) {
 		ret = blk_add_partitions(disk, bdev);
@@ -1349,10 +1283,8 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode)
 			if (disk->fops->open)
 				ret = disk->fops->open(bdev, mode);
 
-			if (!ret) {
-				bd_set_nr_sectors(bdev, get_capacity(disk));
+			if (!ret)
 				set_init_blocksize(bdev);
-			}
 
 			/*
 			 * If the device is invalidated, rescan partition
@@ -1381,13 +1313,12 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode)
 
 			bdev->bd_part = disk_get_part(disk, bdev->bd_partno);
 			if (!(disk->flags & GENHD_FL_UP) ||
-			    !bdev->bd_part || !bdev->bd_part->nr_sects) {
+			    !bdev->bd_part || !bdev_nr_sectors(bdev)) {
 				__blkdev_put(whole, mode, 1);
 				bdput(whole);
 				ret = -ENXIO;
 				goto out_clear;
 			}
-			bd_set_nr_sectors(bdev, bdev->bd_part->nr_sects);
 			set_init_blocksize(bdev);
 		}
 
