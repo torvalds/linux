@@ -21,9 +21,6 @@
 
 #define V4L2_H264_REF_LIST_LEN (2 * V4L2_H264_NUM_DPB_ENTRIES)
 
-/* Our pixel format isn't stable at the moment */
-#define V4L2_PIX_FMT_H264_SLICE v4l2_fourcc('S', '2', '6', '4') /* H264 parsed slices */
-
 /*
  * This is put insanely high to avoid conflicting with controls that
  * would be added during the phase where those controls are not
