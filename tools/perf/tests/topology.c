@@ -64,7 +64,8 @@ static int check_cpu_topology(char *path, struct perf_cpu_map *map)
 		.path = path,
 		.mode = PERF_DATA_MODE_READ,
 	};
-	int i, id;
+	int i;
+	struct aggr_cpu_id id;
 
 	session = perf_session__new(&data, false, NULL);
 	TEST_ASSERT_VAL("can't get session", !IS_ERR(session));
@@ -110,14 +111,14 @@ static int check_cpu_topology(char *path, struct perf_cpu_map *map)
 	for (i = 0; i < map->nr; i++) {
 		id = cpu_map__get_core(map, i, NULL);
 		TEST_ASSERT_VAL("Core map - Core ID doesn't match",
-			session->header.env.cpu[map->map[i]].core_id == cpu_map__id_to_cpu(id));
+			session->header.env.cpu[map->map[i]].core_id == cpu_map__id_to_cpu(id.id));
 
 		TEST_ASSERT_VAL("Core map - Socket ID doesn't match",
 			session->header.env.cpu[map->map[i]].socket_id ==
-				cpu_map__id_to_socket(id));
+				cpu_map__id_to_socket(id.id));
 
 		TEST_ASSERT_VAL("Core map - Die ID doesn't match",
-			session->header.env.cpu[map->map[i]].die_id == cpu_map__id_to_die(id));
+			session->header.env.cpu[map->map[i]].die_id == cpu_map__id_to_die(id.id));
 	}
 
 	// Test that die ID contains socket and die
@@ -125,25 +126,25 @@ static int check_cpu_topology(char *path, struct perf_cpu_map *map)
 		id = cpu_map__get_die(map, i, NULL);
 		TEST_ASSERT_VAL("Die map - Socket ID doesn't match",
 			session->header.env.cpu[map->map[i]].socket_id ==
-				cpu_map__id_to_socket(id << 16));
+				cpu_map__id_to_socket(id.id << 16));
 
 		TEST_ASSERT_VAL("Die map - Die ID doesn't match",
 			session->header.env.cpu[map->map[i]].die_id ==
-				cpu_map__id_to_die(id << 16));
+				cpu_map__id_to_die(id.id << 16));
 	}
 
 	// Test that socket ID contains only socket
 	for (i = 0; i < map->nr; i++) {
 		id = cpu_map__get_socket(map, i, NULL);
 		TEST_ASSERT_VAL("Socket map - Socket ID doesn't match",
-			session->header.env.cpu[map->map[i]].socket_id == id);
+			session->header.env.cpu[map->map[i]].socket_id == id.id);
 	}
 
 	// Test that node ID contains only node
 	for (i = 0; i < map->nr; i++) {
 		id = cpu_map__get_node(map, i, NULL);
 		TEST_ASSERT_VAL("Node map - Node ID doesn't match",
-			cpu__get_node(map->map[i]) == id);
+			cpu__get_node(map->map[i]) == id.id);
 	}
 	perf_session__delete(session);
 

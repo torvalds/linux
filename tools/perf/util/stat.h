@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/resource.h>
+#include "cpumap.h"
 #include "rblist.h"
 
 struct perf_cpu_map;
@@ -99,7 +100,7 @@ struct runtime_stat {
 	struct rblist value_list;
 };
 
-typedef int (*aggr_get_id_t)(struct perf_stat_config *config,
+typedef struct aggr_cpu_id (*aggr_get_id_t)(struct perf_stat_config *config,
 			     struct perf_cpu_map *m, int cpu);
 
 struct perf_stat_config {
@@ -170,7 +171,7 @@ struct evlist;
 
 struct perf_aggr_thread_value {
 	struct evsel *counter;
-	int id;
+	struct aggr_cpu_id id;
 	double uval;
 	u64 val;
 	u64 run;
