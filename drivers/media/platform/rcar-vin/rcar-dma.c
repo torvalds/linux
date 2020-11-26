@@ -133,7 +133,6 @@
 #define VNCSI_IFMD_DES1		(1 << 26)
 #define VNCSI_IFMD_DES0		(1 << 25)
 #define VNCSI_IFMD_CSI_CHSEL(n) (((n) & 0xf) << 0)
-#define VNCSI_IFMD_CSI_CHSEL_MASK 0xf
 
 struct rvin_buffer {
 	struct vb2_v4l2_buffer vb;
