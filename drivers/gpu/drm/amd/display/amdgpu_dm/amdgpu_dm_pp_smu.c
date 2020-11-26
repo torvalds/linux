@@ -661,22 +661,6 @@ static enum pp_smu_status pp_nv_set_wm_ranges(struct pp_smu *pp,
 	return PP_SMU_RESULT_OK;
 }
 
-static enum pp_smu_status pp_nv_set_pme_wa_enable(struct pp_smu *pp)
-{
-	const struct dc_context *ctx = pp->dm;
-	struct amdgpu_device *adev = ctx->driver_context;
-	struct smu_context *smu = &adev->smu;
-
-	if (!smu->ppt_funcs)
-		return PP_SMU_RESULT_UNSUPPORTED;
-
-	/* 0: successful or smu.ppt_funcs->set_azalia_d3_pme = NULL;  1: fail */
-	if (smu_set_azalia_d3_pme(smu))
-		return PP_SMU_RESULT_FAIL;
-
-	return PP_SMU_RESULT_OK;
-}
-
 static enum pp_smu_status pp_nv_set_display_count(struct pp_smu *pp, int count)
 {
 	const struct dc_context *ctx = pp->dm;
