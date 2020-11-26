@@ -539,6 +539,7 @@ static int video_enum_fmt(struct file *file, void *fh, struct v4l2_fmtdesc *f)
 {
 	struct camss_video *video = video_drvdata(file);
 	int i, j, k;
+	u32 mcode = f->mbus_code;
 
 	if (f->type != video->type)
 		return -EINVAL;
@@ -546,10 +547,26 @@ static int video_enum_fmt(struct file *file, void *fh, struct v4l2_fmtdesc *f)
 	if (f->index >= video->nformats)
 		return -EINVAL;
 
-	/* find index "i" of "k"th unique pixelformat in formats array */
+	/*
+	 * Find index "i" of "k"th unique pixelformat in formats array.
+	 *
+	 * If f->mbus_code passed to video_enum_fmt() is not zero, a device
+	 * with V4L2_CAP_IO_MC capability restricts enumeration to only the
+	 * pixel formats that can be produced from that media bus code.
+	 * This is implemented by skipping video->formats[] entries with
+	 * code != f->mbus_code (if f->mbus_code is not zero).
+	 * If the f->mbus_code passed to video_enum_fmt() is not supported,
+	 * -EINVAL is returned.
+	 * If f->mbus_code is zero, all the pixel formats are enumerated.
+	 */
 	k = -1;
 	for (i = 0; i < video->nformats; i++) {
+		if (mcode != 0 && video->formats[i].code != mcode)
+			continue;
+
 		for (j = 0; j < i; j++) {
+			if (mcode != 0 && video->formats[j].code != mcode)
+				continue;
 			if (video->formats[i].pixelformat ==
 					video->formats[j].pixelformat)
 				break;
@@ -563,6 +580,11 @@ static int video_enum_fmt(struct file *file, void *fh, struct v4l2_fmtdesc *f)
 	}
 
 	if (k < f->index)
+		/*
+		 * All the unique pixel formats matching the arguments
+		 * have been enumerated (k >= 0 and f->index > 0), or
+		 * no pixel formats match the non-zero f->mbus_code (k == -1).
+		 */
 		return -EINVAL;
 
 	f->pixelformat = video->formats[i].pixelformat;
@@ -949,8 +971,8 @@ int msm_video_register(struct camss_video *video, struct v4l2_device *v4l2_dev,
 	}
 
 	vdev->fops = &msm_vid_fops;
-	vdev->device_caps = V4L2_CAP_VIDEO_CAPTURE_MPLANE | V4L2_CAP_STREAMING |
-							V4L2_CAP_READWRITE;
+	vdev->device_caps = V4L2_CAP_VIDEO_CAPTURE_MPLANE | V4L2_CAP_STREAMING
+			  | V4L2_CAP_READWRITE | V4L2_CAP_IO_MC;
 	vdev->ioctl_ops = &msm_vid_ioctl_ops;
 	vdev->release = msm_video_release;
 	vdev->v4l2_dev = v4l2_dev;
