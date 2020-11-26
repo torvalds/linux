@@ -5,6 +5,7 @@
 #define BUILD_ID_SIZE	20
 #define SBUILD_ID_SIZE	(BUILD_ID_SIZE * 2 + 1)
 
+#include "machine.h"
 #include "tool.h"
 #include <linux/types.h>
 
@@ -46,6 +47,8 @@ bool perf_session__read_build_ids(struct perf_session *session, bool with_hits);
 int perf_session__write_buildid_table(struct perf_session *session,
 				      struct feat_fd *fd);
 int perf_session__cache_build_ids(struct perf_session *session);
+int __perf_session__cache_build_ids(struct perf_session *session,
+				    machine__dso_t fn, void *priv);
 
 char *build_id_cache__origname(const char *sbuild_id);
 char *build_id_cache__linkname(const char *sbuild_id, char *bf, size_t size);
