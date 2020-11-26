@@ -340,6 +340,23 @@ static void mcp251xfd_ring_init(struct mcp251xfd_priv *priv)
 	tef_ring->head = 0;
 	tef_ring->tail = 0;
 
+	/* FIFO increment TEF tail pointer */
+	addr = MCP251XFD_REG_TEFCON;
+	val = MCP251XFD_REG_TEFCON_UINC;
+	len = mcp251xfd_cmd_prepare_write_reg(priv, &tef_ring->uinc_buf,
+					      addr, val, val);
+
+	for (j = 0; j < ARRAY_SIZE(tef_ring->uinc_xfer); j++) {
+		struct spi_transfer *xfer;
+
+		xfer = &tef_ring->uinc_xfer[j];
+		xfer->tx_buf = &tef_ring->uinc_buf;
+		xfer->len = len;
+		xfer->cs_change = 1;
+		xfer->cs_change_delay.value = 0;
+		xfer->cs_change_delay.unit = SPI_DELAY_UNIT_NSECS;
+	}
+
 	/* TX */
 	tx_ring = priv->tx;
 	tx_ring->head = 0;
@@ -1231,10 +1248,8 @@ static int
 mcp251xfd_handle_tefif_one(struct mcp251xfd_priv *priv,
 			   const struct mcp251xfd_hw_tef_obj *hw_tef_obj)
 {
-	struct mcp251xfd_tx_ring *tx_ring = priv->tx;
 	struct net_device_stats *stats = &priv->ndev->stats;
 	u32 seq, seq_masked, tef_tail_masked;
-	int err;
 
 	seq = FIELD_GET(MCP251XFD_OBJ_FLAGS_SEQ_MCP2518FD_MASK,
 			hw_tef_obj->flags);
@@ -1255,18 +1270,9 @@ mcp251xfd_handle_tefif_one(struct mcp251xfd_priv *priv,
 					    mcp251xfd_get_tef_tail(priv),
 					    hw_tef_obj->ts);
 	stats->tx_packets++;
-
-	/* finally increment the TEF pointer */
-	err = regmap_update_bits(priv->map_reg, MCP251XFD_REG_TEFCON,
-				 GENMASK(15, 8),
-				 MCP251XFD_REG_TEFCON_UINC);
-	if (err)
-		return err;
-
 	priv->tef->tail++;
-	tx_ring->tail++;
 
-	return mcp251xfd_check_tef_tail(priv);
+	return 0;
 }
 
 static int mcp251xfd_tef_ring_update(struct mcp251xfd_priv *priv)
@@ -1353,6 +1359,40 @@ static int mcp251xfd_handle_tefif(struct mcp251xfd_priv *priv)
 	}
 
  out_netif_wake_queue:
+	len = i;	/* number of handled goods TEFs */
+	if (len) {
+		struct mcp251xfd_tef_ring *ring = priv->tef;
+		struct mcp251xfd_tx_ring *tx_ring = priv->tx;
+		struct spi_transfer *last_xfer;
+
+		tx_ring->tail += len;
+
+		/* Increment the TEF FIFO tail pointer 'len' times in
+		 * a single SPI message.
+		 */
+
+		/* Note:
+		 *
+		 * "cs_change == 1" on the last transfer results in an
+		 * active chip select after the complete SPI
+		 * message. This causes the controller to interpret
+		 * the next register access as data. Temporary set
+		 * "cs_change" of the last transfer to "0" to properly
+		 * deactivate the chip select at the end of the
+		 * message.
+		 */
+		last_xfer = &ring->uinc_xfer[len - 1];
+		last_xfer->cs_change = 0;
+		err = spi_sync_transfer(priv->spi, ring->uinc_xfer, len);
+		last_xfer->cs_change = 1;
+		if (err)
+			return err;
+
+		err = mcp251xfd_check_tef_tail(priv);
+		if (err)
+			return err;
+	}
+
 	mcp251xfd_ecc_tefif_successful(priv);
 
 	if (mcp251xfd_get_tx_free(priv->tx)) {
