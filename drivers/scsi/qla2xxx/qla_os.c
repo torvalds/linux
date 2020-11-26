@@ -5619,25 +5619,10 @@ qla83xx_service_idc_aen(struct work_struct *work)
 	}
 }
 
-static void
-qla83xx_wait_logic(void)
-{
-	int i;
-
-	/* Yield CPU */
-	if (!in_interrupt()) {
-		/*
-		 * Wait about 200ms before retrying again.
-		 * This controls the number of retries for single
-		 * lock operation.
-		 */
-		msleep(100);
-		schedule();
-	} else {
-		for (i = 0; i < 20; i++)
-			cpu_relax(); /* This a nop instr on i386 */
-	}
-}
+/*
+ * Control the frequency of IDC lock retries
+ */
+#define QLA83XX_WAIT_LOGIC_MS	100
 
 static int
 qla83xx_force_lock_recovery(scsi_qla_host_t *base_vha)
@@ -5727,7 +5712,7 @@ retry_lockid:
 		goto exit;
 
 	if (o_drv_lockid == n_drv_lockid) {
-		qla83xx_wait_logic();
+		msleep(QLA83XX_WAIT_LOGIC_MS);
 		goto retry_lockid;
 	} else
 		return QLA_SUCCESS;
@@ -5736,12 +5721,17 @@ exit:
 	return rval;
 }
 
+/*
+ * Context: task, can sleep
+ */
 void
 qla83xx_idc_lock(scsi_qla_host_t *base_vha, uint16_t requester_id)
 {
 	uint32_t data;
 	uint32_t lock_owner;
 	struct qla_hw_data *ha = base_vha->hw;
+
+	might_sleep();
 
 	/* IDC-lock implementation using driver-lock/lock-id remote registers */
 retry_lock:
@@ -5761,7 +5751,7 @@ retry_lock:
 			/* Retry/Perform IDC-Lock recovery */
 			if (qla83xx_idc_lock_recovery(base_vha)
 			    == QLA_SUCCESS) {
-				qla83xx_wait_logic();
+				msleep(QLA83XX_WAIT_LOGIC_MS);
 				goto retry_lock;
 			} else
 				ql_log(ql_log_warn, base_vha, 0xb075,
@@ -6259,6 +6249,9 @@ void qla24xx_process_purex_list(struct purex_list *list)
 	}
 }
 
+/*
+ * Context: task, can sleep
+ */
 void
 qla83xx_idc_unlock(scsi_qla_host_t *base_vha, uint16_t requester_id)
 {
@@ -6268,6 +6261,8 @@ qla83xx_idc_unlock(scsi_qla_host_t *base_vha, uint16_t requester_id)
 	uint16_t retry;
 	uint32_t data;
 	struct qla_hw_data *ha = base_vha->hw;
+
+	might_sleep();
 
 	/* IDC-unlock implementation using driver-unlock/lock-id
 	 * remote registers
@@ -6284,7 +6279,7 @@ retry_unlock:
 			/* SV: XXX: IDC unlock retrying needed here? */
 
 			/* Retry for IDC-unlock */
-			qla83xx_wait_logic();
+			msleep(QLA83XX_WAIT_LOGIC_MS);
 			retry++;
 			ql_dbg(ql_dbg_p3p, base_vha, 0xb064,
 			    "Failed to release IDC lock, retrying=%d\n", retry);
@@ -6292,7 +6287,7 @@ retry_unlock:
 		}
 	} else if (retry < 10) {
 		/* Retry for IDC-unlock */
-		qla83xx_wait_logic();
+		msleep(QLA83XX_WAIT_LOGIC_MS);
 		retry++;
 		ql_dbg(ql_dbg_p3p, base_vha, 0xb065,
 		    "Failed to read drv-lockid, retrying=%d\n", retry);
@@ -6308,7 +6303,7 @@ retry_unlock2:
 	if (qla83xx_access_control(base_vha, options, 0, 0, NULL)) {
 		if (retry < 10) {
 			/* Retry for IDC-unlock */
-			qla83xx_wait_logic();
+			msleep(QLA83XX_WAIT_LOGIC_MS);
 			retry++;
 			ql_dbg(ql_dbg_p3p, base_vha, 0xb066,
 			    "Failed to release IDC lock, retrying=%d\n", retry);
