@@ -699,7 +699,7 @@ int atomctrl_calculate_voltage_evv_on_sclk(
 	fInt fMargin_RO_a, fMargin_RO_b, fMargin_RO_c, fMargin_fixed, fMargin_FMAX_mean, fMargin_Plat_mean, fMargin_FMAX_sigma, fMargin_Plat_sigma, fMargin_DC_sigma;
 	fInt fLkg_FT, repeat;
 	fInt fMicro_FMAX, fMicro_CR, fSigma_FMAX, fSigma_CR, fSigma_DC, fDC_SCLK, fSquared_Sigma_DC, fSquared_Sigma_CR, fSquared_Sigma_FMAX;
-	fInt fRLL_LoadLine, fPowerDPMx, fDerateTDP, fVDDC_base, fA_Term, fC_Term, fB_Term, fRO_DC_margin;
+	fInt fRLL_LoadLine, fDerateTDP, fVDDC_base, fA_Term, fC_Term, fB_Term, fRO_DC_margin;
 	fInt fRO_fused, fCACm_fused, fCACb_fused, fKv_m_fused, fKv_b_fused, fKt_Beta_fused, fFT_Lkg_V0NORM;
 	fInt fSclk_margin, fSclk, fEVV_V;
 	fInt fV_min, fV_max, fT_prod, fLKG_Factor, fT_FT, fV_FT, fV_x, fTDP_Power, fTDP_Power_right, fTDP_Power_left, fTDP_Current, fV_NL;
@@ -731,36 +731,28 @@ int atomctrl_calculate_voltage_evv_on_sclk(
 
 	switch (dpm_level) {
 	case 1:
-		fPowerDPMx = Convert_ULONG_ToFraction(le16_to_cpu(getASICProfilingInfo->usPowerDpm1));
 		fDerateTDP = GetScaledFraction(le32_to_cpu(getASICProfilingInfo->ulTdpDerateDPM1), 1000);
 		break;
 	case 2:
-		fPowerDPMx = Convert_ULONG_ToFraction(le16_to_cpu(getASICProfilingInfo->usPowerDpm2));
 		fDerateTDP = GetScaledFraction(le32_to_cpu(getASICProfilingInfo->ulTdpDerateDPM2), 1000);
 		break;
 	case 3:
-		fPowerDPMx = Convert_ULONG_ToFraction(le16_to_cpu(getASICProfilingInfo->usPowerDpm3));
 		fDerateTDP = GetScaledFraction(le32_to_cpu(getASICProfilingInfo->ulTdpDerateDPM3), 1000);
 		break;
 	case 4:
-		fPowerDPMx = Convert_ULONG_ToFraction(le16_to_cpu(getASICProfilingInfo->usPowerDpm4));
 		fDerateTDP = GetScaledFraction(le32_to_cpu(getASICProfilingInfo->ulTdpDerateDPM4), 1000);
 		break;
 	case 5:
-		fPowerDPMx = Convert_ULONG_ToFraction(le16_to_cpu(getASICProfilingInfo->usPowerDpm5));
 		fDerateTDP = GetScaledFraction(le32_to_cpu(getASICProfilingInfo->ulTdpDerateDPM5), 1000);
 		break;
 	case 6:
-		fPowerDPMx = Convert_ULONG_ToFraction(le16_to_cpu(getASICProfilingInfo->usPowerDpm6));
 		fDerateTDP = GetScaledFraction(le32_to_cpu(getASICProfilingInfo->ulTdpDerateDPM6), 1000);
 		break;
 	case 7:
-		fPowerDPMx = Convert_ULONG_ToFraction(le16_to_cpu(getASICProfilingInfo->usPowerDpm7));
 		fDerateTDP = GetScaledFraction(le32_to_cpu(getASICProfilingInfo->ulTdpDerateDPM7), 1000);
 		break;
 	default:
 		pr_err("DPM Level not supported\n");
-		fPowerDPMx = Convert_ULONG_ToFraction(1);
 		fDerateTDP = GetScaledFraction(le32_to_cpu(getASICProfilingInfo->ulTdpDerateDPM0), 1000);
 	}
 
