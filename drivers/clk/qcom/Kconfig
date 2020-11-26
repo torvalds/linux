@@ -44,7 +44,7 @@ config QCOM_CLK_APCC_MSM8996
 	help
 	  Support for the CPU clock controller on msm8996 devices.
 	  Say Y if you want to support CPU clock scaling using CPUfreq
-	  drivers for dyanmic power management.
+	  drivers for dynamic power management.
 
 config QCOM_CLK_RPM
 	tristate "RPM based Clock Controller"
