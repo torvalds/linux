@@ -542,11 +542,18 @@ static int qcom_vadc_scale_hw_calib_volt(
 				const struct u32_fract *prescale,
 				const struct adc5_data *data,
 				u16 adc_code, int *result_uv);
+/* Current scaling for PMIC7 */
 static int qcom_vadc_scale_hw_calib_current(
 				const struct u32_fract *prescale,
 				const struct adc5_data *data,
 				u16 adc_code, int *result_ua);
+/* Raw current for PMIC7 */
 static int qcom_vadc_scale_hw_calib_current_raw(
+				const struct u32_fract *prescale,
+				const struct adc5_data *data,
+				u16 adc_code, int *result_ua);
+/* Current scaling for PMIC5 */
+static int qcom_vadc5_scale_hw_calib_current(
 				const struct u32_fract *prescale,
 				const struct adc5_data *data,
 				u16 adc_code, int *result_ua);
@@ -607,6 +614,7 @@ static struct qcom_adc5_scale_type scale_adc5_fn[] = {
 	[SCALE_HW_CALIB_DEFAULT] = {qcom_vadc_scale_hw_calib_volt},
 	[SCALE_HW_CALIB_CUR] = {qcom_vadc_scale_hw_calib_current},
 	[SCALE_HW_CALIB_CUR_RAW] = {qcom_vadc_scale_hw_calib_current_raw},
+	[SCALE_HW_CALIB_PM5_CUR] = {qcom_vadc5_scale_hw_calib_current},
 	[SCALE_HW_CALIB_THERM_100K_PULLUP] = {qcom_vadc_scale_hw_calib_therm},
 	[SCALE_HW_CALIB_BATT_THERM_100K] = {
 				qcom_vadc_scale_hw_calib_batt_therm_100},
@@ -876,6 +884,30 @@ static int qcom_vadc_scale_hw_calib_current(
 	voltage = div_s64(voltage * prescale->denominator, prescale->numerator);
 	*result_ua = (int) voltage;
 	pr_debug("adc_code: %#x result_ua: %d\n", adc_code, *result_ua);
+
+	return 0;
+}
+
+static int qcom_vadc5_scale_hw_calib_current(
+				const struct u32_fract *prescale,
+				const struct adc5_data *data,
+				u16 adc_code, int *result_ua)
+{
+	s64 voltage = 0, result = 0;
+	bool positive = true;
+
+	if (adc_code & ADC5_USR_DATA_CHECK) {
+		adc_code = ~adc_code + 1;
+		positive = false;
+	}
+
+	voltage = (s64)(s16) adc_code * data->full_scale_code_cur * 1000;
+	voltage = div64_s64(voltage, VADC5_MAX_CODE);
+	result = div64_s64(voltage * prescale->denominator, prescale->numerator);
+	*result_ua = result;
+
+	if (!positive)
+		*result_ua = -result;
 
 	return 0;
 }
