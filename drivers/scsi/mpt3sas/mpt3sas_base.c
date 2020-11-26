@@ -4798,6 +4798,42 @@ _base_update_ioc_page1_inlinewith_perf_mode(struct MPT3SAS_ADAPTER *ioc)
 }
 
 /**
+ * _base_get_master_diag_triggers - get master diag trigger values from
+ *				persistent pages
+ * @ioc : per adapter object
+ *
+ * Return nothing.
+ */
+static void
+_base_get_master_diag_triggers(struct MPT3SAS_ADAPTER *ioc)
+{
+	Mpi26DriverTriggerPage1_t trigger_pg1;
+	Mpi2ConfigReply_t mpi_reply;
+	int r;
+	u16 ioc_status;
+
+	r = mpt3sas_config_get_driver_trigger_pg1(ioc, &mpi_reply,
+	    &trigger_pg1);
+	if (r)
+		return;
+
+	ioc_status = le16_to_cpu(mpi_reply.IOCStatus) &
+	    MPI2_IOCSTATUS_MASK;
+	if (ioc_status != MPI2_IOCSTATUS_SUCCESS) {
+		dinitprintk(ioc,
+		    ioc_err(ioc,
+		    "%s: Failed to get trigger pg1, ioc_status(0x%04x)\n",
+		   __func__, ioc_status));
+		return;
+	}
+
+	if (le16_to_cpu(trigger_pg1.NumMasterTrigger))
+		ioc->diag_trigger_master.MasterData |=
+		    le32_to_cpu(
+		    trigger_pg1.MasterTriggers[0].MasterTriggerFlags);
+}
+
+/**
  * _base_check_for_trigger_pages_support - checks whether HBA FW supports
  *					driver trigger pages or not
  * @ioc : per adapter object
@@ -4843,10 +4879,20 @@ _base_get_diag_triggers(struct MPT3SAS_ADAPTER *ioc)
 	 */
 	ioc->diag_trigger_master.MasterData =
 	    (MASTER_TRIGGER_FW_FAULT + MASTER_TRIGGER_ADAPTER_RESET);
+
 	trigger_flags = _base_check_for_trigger_pages_support(ioc);
 	if (trigger_flags < 0)
 		return;
+
 	ioc->supports_trigger_pages = 1;
+
+	/*
+	 * Retrieve master diag trigger values from driver trigger pg1
+	 * if master trigger bit enabled in TriggerFlags.
+	 */
+	if ((u16)trigger_flags &
+	    MPI26_DRIVER_TRIGGER0_FLAG_MASTER_TRIGGER_VALID)
+		_base_get_master_diag_triggers(ioc);
 }
 
 /**
