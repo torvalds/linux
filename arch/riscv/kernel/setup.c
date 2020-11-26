@@ -251,8 +251,7 @@ void __init setup_arch(char **cmdline_p)
 		pr_err("No DTB found in kernel mappings\n");
 #endif
 
-	if (IS_ENABLED(CONFIG_RISCV_SBI))
-		sbi_init();
+	sbi_init();
 
 	if (IS_ENABLED(CONFIG_STRICT_KERNEL_RWX))
 		protect_kernel_text_data();
