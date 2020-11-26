@@ -1895,9 +1895,13 @@ void hl_vm_ctx_fini(struct hl_ctx *ctx)
 		unmap_device_va(ctx, hnode->vaddr, true);
 	}
 
+	mutex_lock(&ctx->mmu_lock);
+
 	/* invalidate the cache once after the unmapping loop */
 	hdev->asic_funcs->mmu_invalidate_cache(hdev, true, VM_TYPE_USERPTR);
 	hdev->asic_funcs->mmu_invalidate_cache(hdev, true, VM_TYPE_PHYS_PACK);
+
+	mutex_unlock(&ctx->mmu_lock);
 
 	spin_lock(&vm->idr_lock);
 	idr_for_each_entry(&vm->phys_pg_pack_handles, phys_pg_list, i)

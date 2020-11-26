@@ -5073,8 +5073,6 @@ static int goya_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard,
 	else
 		timeout_usec = MMU_CONFIG_TIMEOUT_USEC;
 
-	mutex_lock(&hdev->mmu_cache_lock);
-
 	/* L0 & L1 invalidation */
 	WREG32(mmSTLB_INV_ALL_START, 1);
 
@@ -5085,8 +5083,6 @@ static int goya_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard,
 		!status,
 		1000,
 		timeout_usec);
-
-	mutex_unlock(&hdev->mmu_cache_lock);
 
 	if (rc) {
 		dev_err_ratelimited(hdev->dev,
@@ -5117,8 +5113,6 @@ static int goya_mmu_invalidate_cache_range(struct hl_device *hdev,
 	else
 		timeout_usec = MMU_CONFIG_TIMEOUT_USEC;
 
-	mutex_lock(&hdev->mmu_cache_lock);
-
 	/*
 	 * TODO: currently invalidate entire L0 & L1 as in regular hard
 	 * invalidation. Need to apply invalidation of specific cache lines with
@@ -5140,8 +5134,6 @@ static int goya_mmu_invalidate_cache_range(struct hl_device *hdev,
 		status == pi,
 		1000,
 		timeout_usec);
-
-	mutex_unlock(&hdev->mmu_cache_lock);
 
 	if (rc) {
 		dev_err_ratelimited(hdev->dev,

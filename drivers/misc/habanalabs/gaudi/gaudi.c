@@ -7330,8 +7330,6 @@ static int gaudi_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard,
 	else
 		timeout_usec = MMU_CONFIG_TIMEOUT_USEC;
 
-	mutex_lock(&hdev->mmu_cache_lock);
-
 	/* L0 & L1 invalidation */
 	WREG32(mmSTLB_INV_PS, 3);
 	WREG32(mmSTLB_CACHE_INV, gaudi->mmu_cache_inv_pi++);
@@ -7346,8 +7344,6 @@ static int gaudi_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard,
 		timeout_usec);
 
 	WREG32(mmSTLB_INV_SET, 0);
-
-	mutex_unlock(&hdev->mmu_cache_lock);
 
 	if (rc) {
 		dev_err_ratelimited(hdev->dev,
@@ -7370,8 +7366,6 @@ static int gaudi_mmu_invalidate_cache_range(struct hl_device *hdev,
 	if (!(gaudi->hw_cap_initialized & HW_CAP_MMU) ||
 		hdev->hard_reset_pending)
 		return 0;
-
-	mutex_lock(&hdev->mmu_cache_lock);
 
 	if (hdev->pldm)
 		timeout_usec = GAUDI_PLDM_MMU_TIMEOUT_USEC;
@@ -7399,8 +7393,6 @@ static int gaudi_mmu_invalidate_cache_range(struct hl_device *hdev,
 		status == pi,
 		1000,
 		timeout_usec);
-
-	mutex_unlock(&hdev->mmu_cache_lock);
 
 	if (rc) {
 		dev_err_ratelimited(hdev->dev,

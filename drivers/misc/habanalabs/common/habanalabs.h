@@ -1764,7 +1764,6 @@ struct hl_mmu_funcs {
  * @asic_funcs: ASIC specific functions.
  * @asic_specific: ASIC specific information to use only from ASIC files.
  * @vm: virtual memory manager for MMU.
- * @mmu_cache_lock: protects MMU cache invalidation as it can serve one context.
  * @hwmon_dev: H/W monitor device.
  * @pm_mng_profile: current power management profile.
  * @hl_chip_info: ASIC's sensors information.
@@ -1879,7 +1878,6 @@ struct hl_device {
 	const struct hl_asic_funcs	*asic_funcs;
 	void				*asic_specific;
 	struct hl_vm			vm;
-	struct mutex			mmu_cache_lock;
 	struct device			*hwmon_dev;
 	enum hl_pm_mng_profile		pm_mng_profile;
 	struct hwmon_chip_info		*hl_chip_info;

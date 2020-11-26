@@ -373,7 +373,6 @@ static int device_early_init(struct hl_device *hdev)
 
 	mutex_init(&hdev->send_cpu_message_lock);
 	mutex_init(&hdev->debug_lock);
-	mutex_init(&hdev->mmu_cache_lock);
 	INIT_LIST_HEAD(&hdev->cs_mirror_list);
 	spin_lock_init(&hdev->cs_mirror_lock);
 	INIT_LIST_HEAD(&hdev->fpriv_list);
@@ -414,7 +413,6 @@ static void device_early_fini(struct hl_device *hdev)
 {
 	int i;
 
-	mutex_destroy(&hdev->mmu_cache_lock);
 	mutex_destroy(&hdev->debug_lock);
 	mutex_destroy(&hdev->send_cpu_message_lock);
 
