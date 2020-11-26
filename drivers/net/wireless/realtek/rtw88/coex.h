@@ -5,6 +5,7 @@
 #ifndef __RTW_COEX_H__
 #define __RTW_COEX_H__
 
+#define COEX_CCK_2	0x1
 #define COEX_RESP_ACK_BY_WL_FW	0x1
 #define COEX_REQUEST_TIMEOUT	msecs_to_jiffies(10)
 
@@ -385,6 +386,8 @@ void rtw_coex_defreeze_work(struct work_struct *work);
 void rtw_coex_wl_remain_work(struct work_struct *work);
 void rtw_coex_bt_remain_work(struct work_struct *work);
 void rtw_coex_wl_connecting_work(struct work_struct *work);
+void rtw_coex_bt_multi_link_remain_work(struct work_struct *work);
+void rtw_coex_wl_ccklock_work(struct work_struct *work);
 
 void rtw_coex_power_on_setting(struct rtw_dev *rtwdev);
 void rtw_coex_init_hw_config(struct rtw_dev *rtwdev, bool wifi_only);

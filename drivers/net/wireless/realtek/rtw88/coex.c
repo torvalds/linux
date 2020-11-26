@@ -109,25 +109,73 @@ static void rtw_coex_limited_wl(struct rtw_dev *rtwdev)
 	rtw_coex_limited_tx(rtwdev, tx_limit, tx_agg_ctrl);
 }
 
-static void rtw_coex_wl_ccklock_action(struct rtw_dev *rtwdev)
+static bool rtw_coex_freerun_check(struct rtw_dev *rtwdev)
+{
+	struct rtw_coex *coex = &rtwdev->coex;
+	struct rtw_coex_dm *coex_dm = &coex->dm;
+	struct rtw_coex_stat *coex_stat = &coex->stat;
+	struct rtw_efuse *efuse = &rtwdev->efuse;
+	u8 bt_rssi;
+	u8 ant_distance = 10;
+
+	if (coex_stat->bt_disabled)
+		return false;
+
+	if (efuse->share_ant || ant_distance <= 5 || !coex_stat->wl_gl_busy)
+		return false;
+
+	if (ant_distance >= 40 || coex_stat->bt_hid_pair_num >= 2)
+		return true;
+
+	/* ant_distance = 5 ~ 40  */
+	if (COEX_RSSI_HIGH(coex_dm->wl_rssi_state[1]) &&
+	    COEX_RSSI_HIGH(coex_dm->bt_rssi_state[0]))
+		return true;
+
+	if (coex_stat->wl_tput_dir == COEX_WL_TPUT_TX)
+		bt_rssi = coex_dm->bt_rssi_state[0];
+	else
+		bt_rssi = coex_dm->bt_rssi_state[1];
+
+	if (COEX_RSSI_HIGH(coex_dm->wl_rssi_state[3]) &&
+	    COEX_RSSI_HIGH(bt_rssi) &&
+	    coex_stat->cnt_wl[COEX_CNT_WL_SCANAP] <= 5)
+		return true;
+
+	return false;
+}
+
+static void rtw_coex_wl_slot_extend(struct rtw_dev *rtwdev, bool enable)
 {
 	struct rtw_coex *coex = &rtwdev->coex;
 	struct rtw_coex_stat *coex_stat = &coex->stat;
 	u8 para[6] = {0};
 
+	para[0] = COEX_H2C69_WL_LEAKAP;
+	para[1] = PARA1_H2C69_DIS_5MS;
+
+	if (enable)
+		para[1] = PARA1_H2C69_EN_5MS;
+	else
+		coex_stat->cnt_wl[COEX_CNT_WL_5MS_NOEXTEND] = 0;
+
+	coex_stat->wl_slot_extend = enable;
+	rtw_fw_bt_wifi_control(rtwdev, para[0], &para[1]);
+}
+
+static void rtw_coex_wl_ccklock_action(struct rtw_dev *rtwdev)
+{
+	struct rtw_coex *coex = &rtwdev->coex;
+	struct rtw_coex_stat *coex_stat = &coex->stat;
+
 	if (coex->manual_control || coex->stop_dm)
 		return;
 
-	para[0] = COEX_H2C69_WL_LEAKAP;
 
 	if (coex_stat->tdma_timer_base == 3 && coex_stat->wl_slot_extend) {
 		rtw_dbg(rtwdev, RTW_DBG_COEX,
 			"[BTCoex], set h2c 0x69 opcode 12 to turn off 5ms WL slot extend!!\n");
-
-		para[1] = PARA1_H2C69_DIS_5MS; /* disable 5ms extend */
-		rtw_fw_bt_wifi_control(rtwdev, para[0], &para[1]);
-		coex_stat->wl_slot_extend = false;
-		coex_stat->cnt_wl[COEX_CNT_WL_5MS_NOEXTEND] = 0;
+		rtw_coex_wl_slot_extend(rtwdev, false);
 		return;
 	}
 
@@ -145,19 +193,13 @@ static void rtw_coex_wl_ccklock_action(struct rtw_dev *rtwdev)
 		if (coex_stat->cnt_wl[COEX_CNT_WL_5MS_NOEXTEND] == 7) {
 			rtw_dbg(rtwdev, RTW_DBG_COEX,
 				"[BTCoex], set h2c 0x69 opcode 12 to turn off 5ms WL slot extend!!\n");
-
-			para[1] = PARA1_H2C69_DIS_5MS;
-			rtw_fw_bt_wifi_control(rtwdev, para[0], &para[1]);
-			coex_stat->wl_slot_extend = false;
-			coex_stat->cnt_wl[COEX_CNT_WL_5MS_NOEXTEND] = 0;
+			rtw_coex_wl_slot_extend(rtwdev, false);
 		}
 	} else if (!coex_stat->wl_slot_extend && coex_stat->wl_cck_lock) {
 		rtw_dbg(rtwdev, RTW_DBG_COEX,
 			"[BTCoex], set h2c 0x69 opcode 12 to turn on 5ms WL slot extend!!\n");
 
-		para[1] = PARA1_H2C69_EN_5MS;
-		rtw_fw_bt_wifi_control(rtwdev, para[0], &para[1]);
-		coex_stat->wl_slot_extend = true;
+		rtw_coex_wl_slot_extend(rtwdev, true);
 	}
 }
 
@@ -165,11 +207,48 @@ static void rtw_coex_wl_ccklock_detect(struct rtw_dev *rtwdev)
 {
 	struct rtw_coex *coex = &rtwdev->coex;
 	struct rtw_coex_stat *coex_stat = &coex->stat;
+	struct rtw_coex_dm *coex_dm = &coex->dm;
 
-	/* TODO: wait for rx_rate_change_notify implement */
-	coex_stat->wl_cck_lock = false;
-	coex_stat->wl_cck_lock_pre = false;
-	coex_stat->wl_cck_lock_ever = false;
+	bool is_cck_lock_rate = false;
+
+	if (coex_dm->bt_status == COEX_BTSTATUS_INQ_PAGE ||
+	    coex_stat->bt_setup_link) {
+		coex_stat->wl_cck_lock = false;
+		coex_stat->wl_cck_lock_pre = false;
+		return;
+	}
+
+	if (coex_stat->wl_rx_rate <= COEX_CCK_2 ||
+	    coex_stat->wl_rts_rx_rate <= COEX_CCK_2)
+		is_cck_lock_rate = true;
+
+	if (coex_stat->wl_connected && coex_stat->wl_gl_busy &&
+	    COEX_RSSI_HIGH(coex_dm->wl_rssi_state[3]) &&
+	    (coex_dm->bt_status == COEX_BTSTATUS_ACL_BUSY ||
+	     coex_dm->bt_status == COEX_BTSTATUS_ACL_SCO_BUSY ||
+	     coex_dm->bt_status == COEX_BTSTATUS_SCO_BUSY)) {
+		if (is_cck_lock_rate) {
+			coex_stat->wl_cck_lock = true;
+
+			rtw_dbg(rtwdev, RTW_DBG_COEX,
+				"[BTCoex], cck locking...\n");
+
+		} else {
+			coex_stat->wl_cck_lock = false;
+
+			rtw_dbg(rtwdev, RTW_DBG_COEX,
+				"[BTCoex], cck unlock...\n");
+		}
+	} else {
+		coex_stat->wl_cck_lock = false;
+	}
+
+	/* CCK lock identification */
+	if (coex_stat->wl_cck_lock && !coex_stat->wl_cck_lock_pre)
+		ieee80211_queue_delayed_work(rtwdev->hw, &coex->wl_ccklock_work,
+					     3 * HZ);
+
+	coex_stat->wl_cck_lock_pre = coex_stat->wl_cck_lock;
 }
 
 static void rtw_coex_wl_noisy_detect(struct rtw_dev *rtwdev)
@@ -178,11 +257,12 @@ static void rtw_coex_wl_noisy_detect(struct rtw_dev *rtwdev)
 	struct rtw_coex_stat *coex_stat = &coex->stat;
 	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
 	u32 cnt_cck;
+	bool wl_cck_lock = false;
 
 	/* wifi noisy environment identification */
 	cnt_cck = dm_info->cck_ok_cnt + dm_info->cck_err_cnt;
 
-	if (!coex_stat->wl_gl_busy) {
+	if (!coex_stat->wl_gl_busy && !wl_cck_lock) {
 		if (cnt_cck > 250) {
 			if (coex_stat->cnt_wl[COEX_CNT_WL_NOISY2] < 5)
 				coex_stat->cnt_wl[COEX_CNT_WL_NOISY2]++;
@@ -2177,18 +2257,7 @@ static void rtw_coex_action_wl_connected(struct rtw_dev *rtwdev)
 {
 	struct rtw_coex *coex = &rtwdev->coex;
 	struct rtw_coex_stat *coex_stat = &coex->stat;
-	struct rtw_coex_dm *coex_dm = &coex->dm;
-	struct rtw_efuse *efuse = &rtwdev->efuse;
-	bool freerun_check = false;
 	u8 algorithm;
-
-	/* Non-Shared-Ant */
-	if (!efuse->share_ant && coex_stat->wl_gl_busy &&
-	    COEX_RSSI_HIGH(coex_dm->wl_rssi_state[3]) &&
-	    COEX_RSSI_HIGH(coex_dm->bt_rssi_state[0])) {
-		rtw_coex_action_freerun(rtwdev);
-		return;
-	}
 
 	rtw_dbg(rtwdev, RTW_DBG_COEX, "[BTCoex], %s()\n", __func__);
 
@@ -2199,13 +2268,13 @@ static void rtw_coex_action_wl_connected(struct rtw_dev *rtwdev)
 		rtw_coex_action_bt_hfp(rtwdev);
 		break;
 	case COEX_ALGO_HID:
-		if (freerun_check)
+		if (rtw_coex_freerun_check(rtwdev))
 			rtw_coex_action_freerun(rtwdev);
 		else
 			rtw_coex_action_bt_hid(rtwdev);
 		break;
 	case COEX_ALGO_A2DP:
-		if (freerun_check)
+		if (rtw_coex_freerun_check(rtwdev))
 			rtw_coex_action_freerun(rtwdev);
 		else if (coex_stat->bt_a2dp_sink)
 			rtw_coex_action_bt_a2dpsink(rtwdev);
@@ -2216,7 +2285,7 @@ static void rtw_coex_action_wl_connected(struct rtw_dev *rtwdev)
 		rtw_coex_action_bt_pan(rtwdev);
 		break;
 	case COEX_ALGO_A2DP_HID:
-		if (freerun_check)
+		if (rtw_coex_freerun_check(rtwdev))
 			rtw_coex_action_freerun(rtwdev);
 		else
 			rtw_coex_action_bt_a2dp_hid(rtwdev);
@@ -2372,6 +2441,8 @@ static void rtw_coex_init_coex_var(struct rtw_dev *rtwdev)
 		coex_dm->wl_rssi_state[i] = COEX_RSSI_STATE_LOW;
 
 	coex_stat->wl_coex_mode = COEX_WLINK_MAX;
+	coex_stat->wl_rx_rate = DESC_RATE5_5M;
+	coex_stat->wl_rts_rx_rate = DESC_RATE5_5M;
 }
 
 static void __rtw_coex_init_hw_config(struct rtw_dev *rtwdev, bool wifi_only)
@@ -2855,6 +2926,16 @@ void rtw_coex_bt_info_notify(struct rtw_dev *rtwdev, u8 *buf, u8 length)
 		coex_stat->cnt_bt[COEX_CNT_BT_ROLESWITCH]++;
 
 	coex_stat->bt_multi_link = ((coex_stat->bt_info_hb1 & BIT(7)) == BIT(7));
+	/* for multi_link = 0 but bt pkt remain exist */
+	/* Use PS-TDMA to protect WL RX */
+	if (!coex_stat->bt_multi_link && coex_stat->bt_multi_link_pre) {
+		coex_stat->bt_multi_link_remain = true;
+		ieee80211_queue_delayed_work(rtwdev->hw,
+					     &coex->bt_multi_link_remain_work,
+					     3 * HZ);
+	}
+	coex_stat->bt_multi_link_pre = coex_stat->bt_multi_link;
+
 	/* resend wifi info to bt, it is reset and lost the info */
 	if (coex_stat->bt_info_hb1 & BIT(1)) {
 		rtw_dbg(rtwdev, RTW_DBG_COEX,
@@ -3006,6 +3087,28 @@ void rtw_coex_wl_connecting_work(struct work_struct *work)
 	coex_stat->wl_connecting = false;
 	rtw_dbg(rtwdev, RTW_DBG_COEX, "[BTCoex], WL connecting stop!!\n");
 	rtw_coex_run_coex(rtwdev, COEX_RSN_WLSTATUS);
+	mutex_unlock(&rtwdev->mutex);
+}
+
+void rtw_coex_bt_multi_link_remain_work(struct work_struct *work)
+{
+	struct rtw_dev *rtwdev = container_of(work, struct rtw_dev,
+		coex.bt_multi_link_remain_work.work);
+	struct rtw_coex_stat *coex_stat = &rtwdev->coex.stat;
+
+	mutex_lock(&rtwdev->mutex);
+	coex_stat->bt_multi_link_remain = false;
+	mutex_unlock(&rtwdev->mutex);
+}
+
+void rtw_coex_wl_ccklock_work(struct work_struct *work)
+{
+	struct rtw_dev *rtwdev = container_of(work, struct rtw_dev,
+					      coex.wl_ccklock_work.work);
+	struct rtw_coex_stat *coex_stat = &rtwdev->coex.stat;
+
+	mutex_lock(&rtwdev->mutex);
+	coex_stat->wl_cck_lock = false;
 	mutex_unlock(&rtwdev->mutex);
 }
 

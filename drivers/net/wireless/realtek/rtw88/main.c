@@ -1154,6 +1154,8 @@ void rtw_core_stop(struct rtw_dev *rtwdev)
 	cancel_delayed_work_sync(&coex->wl_remain_work);
 	cancel_delayed_work_sync(&coex->bt_remain_work);
 	cancel_delayed_work_sync(&coex->wl_connecting_work);
+	cancel_delayed_work_sync(&coex->bt_multi_link_remain_work);
+	cancel_delayed_work_sync(&coex->wl_ccklock_work);
 
 	mutex_lock(&rtwdev->mutex);
 
@@ -1660,6 +1662,9 @@ int rtw_core_init(struct rtw_dev *rtwdev)
 	INIT_DELAYED_WORK(&coex->wl_remain_work, rtw_coex_wl_remain_work);
 	INIT_DELAYED_WORK(&coex->bt_remain_work, rtw_coex_bt_remain_work);
 	INIT_DELAYED_WORK(&coex->wl_connecting_work, rtw_coex_wl_connecting_work);
+	INIT_DELAYED_WORK(&coex->bt_multi_link_remain_work,
+			  rtw_coex_bt_multi_link_remain_work);
+	INIT_DELAYED_WORK(&coex->wl_ccklock_work, rtw_coex_wl_ccklock_work);
 	INIT_WORK(&rtwdev->c2h_work, rtw_c2h_work);
 	INIT_WORK(&rtwdev->fw_recovery_work, rtw_fw_recovery_work);
 	INIT_WORK(&rtwdev->ba_work, rtw_txq_ba_work);
