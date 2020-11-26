@@ -2082,7 +2082,7 @@ static int iceland_init_smc_table(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int iceland_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
+static int iceland_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_smumgr *smu7_data = (struct smu7_smumgr *)(hwmgr->smu_backend);
 	SMU71_Discrete_FanTable fan_table = { FDO_MODE_HARDWARE };
