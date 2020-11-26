@@ -46,7 +46,7 @@ enum rkisp1_plane {
 /*
  * @fourcc: pixel format
  * @fmt_type: helper filed for pixel format
- * @uv_swap: if cb cr swaped, for yuv
+ * @uv_swap: if cb cr swapped, for yuv
  * @write_format: defines how YCbCr self picture data is written to memory
  * @output_format: defines sp output format
  * @mbus: the mbus code on the src resizer pad that matches the pixel format
@@ -870,7 +870,7 @@ static void rkisp1_cap_stream_disable(struct rkisp1_capture *cap)
 {
 	int ret;
 
-	/* Stream should stop in interrupt. If it dosn't, stop it by force. */
+	/* Stream should stop in interrupt. If it doesn't, stop it by force. */
 	cap->is_stopping = true;
 	ret = wait_event_timeout(cap->done,
 				 !cap->is_streaming,
