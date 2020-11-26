@@ -372,7 +372,7 @@ static const struct uniphier_aio_chip_spec uniphier_aio_ld20_spec = {
 	.addr_ext  = 1,
 };
 
-static const struct of_device_id uniphier_aio_of_match[] = {
+static const struct of_device_id uniphier_aio_of_match[] __maybe_unused = {
 	{
 		.compatible = "socionext,uniphier-ld11-aio",
 		.data = &uniphier_aio_ld11_spec,

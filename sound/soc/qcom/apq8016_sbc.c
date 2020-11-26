@@ -167,7 +167,7 @@ static int apq8016_sbc_platform_probe(struct platform_device *pdev)
 	return devm_snd_soc_register_card(&pdev->dev, card);
 }
 
-static const struct of_device_id apq8016_sbc_device_id[]  = {
+static const struct of_device_id apq8016_sbc_device_id[] __maybe_unused = {
 	{ .compatible = "qcom,apq8016-sbc-sndcard" },
 	{},
 };
