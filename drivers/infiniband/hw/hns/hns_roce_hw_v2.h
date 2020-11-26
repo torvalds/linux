@@ -466,68 +466,72 @@ enum hns_roce_v2_qp_state {
 	HNS_ROCE_QP_NUM_ST
 };
 
+struct hns_roce_v2_qp_context_ex {
+	__le32 data[64];
+};
 struct hns_roce_v2_qp_context {
-	__le32	byte_4_sqpn_tst;
-	__le32	wqe_sge_ba;
-	__le32	byte_12_sq_hop;
-	__le32	byte_16_buf_ba_pg_sz;
-	__le32	byte_20_smac_sgid_idx;
-	__le32	byte_24_mtu_tc;
-	__le32	byte_28_at_fl;
-	u8	dgid[GID_LEN_V2];
-	__le32	dmac;
-	__le32	byte_52_udpspn_dmac;
-	__le32	byte_56_dqpn_err;
-	__le32	byte_60_qpst_tempid;
-	__le32	qkey_xrcd;
-	__le32	byte_68_rq_db;
-	__le32	rq_db_record_addr;
-	__le32	byte_76_srqn_op_en;
-	__le32	byte_80_rnr_rx_cqn;
-	__le32	byte_84_rq_ci_pi;
-	__le32	rq_cur_blk_addr;
-	__le32	byte_92_srq_info;
-	__le32	byte_96_rx_reqmsn;
-	__le32	rq_nxt_blk_addr;
-	__le32	byte_104_rq_sge;
-	__le32	byte_108_rx_reqepsn;
-	__le32	rq_rnr_timer;
-	__le32	rx_msg_len;
-	__le32	rx_rkey_pkt_info;
-	__le64	rx_va;
-	__le32	byte_132_trrl;
-	__le32	trrl_ba;
-	__le32	byte_140_raq;
-	__le32	byte_144_raq;
-	__le32	byte_148_raq;
-	__le32	byte_152_raq;
-	__le32	byte_156_raq;
-	__le32	byte_160_sq_ci_pi;
-	__le32	sq_cur_blk_addr;
-	__le32	byte_168_irrl_idx;
-	__le32	byte_172_sq_psn;
-	__le32	byte_176_msg_pktn;
-	__le32	sq_cur_sge_blk_addr;
-	__le32	byte_184_irrl_idx;
-	__le32	cur_sge_offset;
-	__le32	byte_192_ext_sge;
-	__le32	byte_196_sq_psn;
-	__le32	byte_200_sq_max;
-	__le32	irrl_ba;
-	__le32	byte_208_irrl;
-	__le32	byte_212_lsn;
-	__le32	sq_timer;
-	__le32	byte_220_retry_psn_msn;
-	__le32	byte_224_retry_msg;
-	__le32	rx_sq_cur_blk_addr;
-	__le32	byte_232_irrl_sge;
-	__le32	irrl_cur_sge_offset;
-	__le32	byte_240_irrl_tail;
-	__le32	byte_244_rnr_rxack;
-	__le32	byte_248_ack_psn;
-	__le32	byte_252_err_txcqn;
-	__le32	byte_256_sqflush_rqcqe;
-	__le32	ext[64];
+	__le32 byte_4_sqpn_tst;
+	__le32 wqe_sge_ba;
+	__le32 byte_12_sq_hop;
+	__le32 byte_16_buf_ba_pg_sz;
+	__le32 byte_20_smac_sgid_idx;
+	__le32 byte_24_mtu_tc;
+	__le32 byte_28_at_fl;
+	u8 dgid[GID_LEN_V2];
+	__le32 dmac;
+	__le32 byte_52_udpspn_dmac;
+	__le32 byte_56_dqpn_err;
+	__le32 byte_60_qpst_tempid;
+	__le32 qkey_xrcd;
+	__le32 byte_68_rq_db;
+	__le32 rq_db_record_addr;
+	__le32 byte_76_srqn_op_en;
+	__le32 byte_80_rnr_rx_cqn;
+	__le32 byte_84_rq_ci_pi;
+	__le32 rq_cur_blk_addr;
+	__le32 byte_92_srq_info;
+	__le32 byte_96_rx_reqmsn;
+	__le32 rq_nxt_blk_addr;
+	__le32 byte_104_rq_sge;
+	__le32 byte_108_rx_reqepsn;
+	__le32 rq_rnr_timer;
+	__le32 rx_msg_len;
+	__le32 rx_rkey_pkt_info;
+	__le64 rx_va;
+	__le32 byte_132_trrl;
+	__le32 trrl_ba;
+	__le32 byte_140_raq;
+	__le32 byte_144_raq;
+	__le32 byte_148_raq;
+	__le32 byte_152_raq;
+	__le32 byte_156_raq;
+	__le32 byte_160_sq_ci_pi;
+	__le32 sq_cur_blk_addr;
+	__le32 byte_168_irrl_idx;
+	__le32 byte_172_sq_psn;
+	__le32 byte_176_msg_pktn;
+	__le32 sq_cur_sge_blk_addr;
+	__le32 byte_184_irrl_idx;
+	__le32 cur_sge_offset;
+	__le32 byte_192_ext_sge;
+	__le32 byte_196_sq_psn;
+	__le32 byte_200_sq_max;
+	__le32 irrl_ba;
+	__le32 byte_208_irrl;
+	__le32 byte_212_lsn;
+	__le32 sq_timer;
+	__le32 byte_220_retry_psn_msn;
+	__le32 byte_224_retry_msg;
+	__le32 rx_sq_cur_blk_addr;
+	__le32 byte_232_irrl_sge;
+	__le32 irrl_cur_sge_offset;
+	__le32 byte_240_irrl_tail;
+	__le32 byte_244_rnr_rxack;
+	__le32 byte_248_ack_psn;
+	__le32 byte_252_err_txcqn;
+	__le32 byte_256_sqflush_rqcqe;
+
+	struct hns_roce_v2_qp_context_ex ext;
 };
 
 #define	V2_QPC_BYTE_4_TST_S 0
@@ -895,6 +899,10 @@ struct hns_roce_v2_qp_context {
 
 #define	V2_QPC_BYTE_256_SQ_FLUSH_IDX_S 16
 #define V2_QPC_BYTE_256_SQ_FLUSH_IDX_M GENMASK(31, 16)
+
+#define QPCEX_FIELD_LOC(h, l) FIELD_LOC(struct hns_roce_v2_qp_context_ex, h, l)
+
+#define QPCEX_STASH QPCEX_FIELD_LOC(82, 82)
 
 #define	V2_QP_RWE_S 1 /* rdma write enable */
 #define	V2_QP_RRE_S 2 /* rdma read enable */
