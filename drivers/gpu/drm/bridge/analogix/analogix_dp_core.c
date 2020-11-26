@@ -1531,7 +1531,7 @@ int analogix_dp_audio_startup(struct analogix_dp_device *dp)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(analogix_dp_audio_enable);
+EXPORT_SYMBOL_GPL(analogix_dp_audio_startup);
 
 int analogix_dp_audio_get_eld(struct analogix_dp_device *dp, u8 *buf, size_t len)
 {
