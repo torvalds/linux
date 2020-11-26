@@ -16,7 +16,6 @@
 #include "transaction.h"
 #include "disk-io.h"
 #include "extent_io.h"
-#include "inode-map.h"
 #include "volumes.h"
 #include "space-info.h"
 #include "delalloc-space.h"
@@ -37,10 +36,6 @@ static int link_free_space(struct btrfs_free_space_ctl *ctl,
 			   struct btrfs_free_space *info);
 static void unlink_free_space(struct btrfs_free_space_ctl *ctl,
 			      struct btrfs_free_space *info);
-static int btrfs_wait_cache_io_root(struct btrfs_root *root,
-			     struct btrfs_trans_handle *trans,
-			     struct btrfs_io_ctl *io_ctl,
-			     struct btrfs_path *path);
 static int search_bitmap(struct btrfs_free_space_ctl *ctl,
 			 struct btrfs_free_space *bitmap_info, u64 *offset,
 			 u64 *bytes, bool for_alloc);
@@ -1220,14 +1215,6 @@ out:
 
 	return ret;
 
-}
-
-static int btrfs_wait_cache_io_root(struct btrfs_root *root,
-				    struct btrfs_trans_handle *trans,
-				    struct btrfs_io_ctl *io_ctl,
-				    struct btrfs_path *path)
-{
-	return __btrfs_wait_cache_io(root, trans, NULL, io_ctl, path, 0);
 }
 
 int btrfs_wait_cache_io(struct btrfs_trans_handle *trans,
@@ -3803,170 +3790,6 @@ int btrfs_trim_block_group_bitmaps(struct btrfs_block_group *block_group,
 			   async);
 
 	btrfs_unfreeze_block_group(block_group);
-
-	return ret;
-}
-
-/*
- * Find the left-most item in the cache tree, and then return the
- * smallest inode number in the item.
- *
- * Note: the returned inode number may not be the smallest one in
- * the tree, if the left-most item is a bitmap.
- */
-u64 btrfs_find_ino_for_alloc(struct btrfs_root *fs_root)
-{
-	struct btrfs_free_space_ctl *ctl = fs_root->free_ino_ctl;
-	struct btrfs_free_space *entry = NULL;
-	u64 ino = 0;
-
-	spin_lock(&ctl->tree_lock);
-
-	if (RB_EMPTY_ROOT(&ctl->free_space_offset))
-		goto out;
-
-	entry = rb_entry(rb_first(&ctl->free_space_offset),
-			 struct btrfs_free_space, offset_index);
-
-	if (!entry->bitmap) {
-		ino = entry->offset;
-
-		unlink_free_space(ctl, entry);
-		entry->offset++;
-		entry->bytes--;
-		if (!entry->bytes)
-			kmem_cache_free(btrfs_free_space_cachep, entry);
-		else
-			link_free_space(ctl, entry);
-	} else {
-		u64 offset = 0;
-		u64 count = 1;
-		int ret;
-
-		ret = search_bitmap(ctl, entry, &offset, &count, true);
-		/* Logic error; Should be empty if it can't find anything */
-		ASSERT(!ret);
-
-		ino = offset;
-		bitmap_clear_bits(ctl, entry, offset, 1);
-		if (entry->bytes == 0)
-			free_bitmap(ctl, entry);
-	}
-out:
-	spin_unlock(&ctl->tree_lock);
-
-	return ino;
-}
-
-struct inode *lookup_free_ino_inode(struct btrfs_root *root,
-				    struct btrfs_path *path)
-{
-	struct inode *inode = NULL;
-
-	spin_lock(&root->ino_cache_lock);
-	if (root->ino_cache_inode)
-		inode = igrab(root->ino_cache_inode);
-	spin_unlock(&root->ino_cache_lock);
-	if (inode)
-		return inode;
-
-	inode = __lookup_free_space_inode(root, path, 0);
-	if (IS_ERR(inode))
-		return inode;
-
-	spin_lock(&root->ino_cache_lock);
-	if (!btrfs_fs_closing(root->fs_info))
-		root->ino_cache_inode = igrab(inode);
-	spin_unlock(&root->ino_cache_lock);
-
-	return inode;
-}
-
-int create_free_ino_inode(struct btrfs_root *root,
-			  struct btrfs_trans_handle *trans,
-			  struct btrfs_path *path)
-{
-	return __create_free_space_inode(root, trans, path,
-					 BTRFS_FREE_INO_OBJECTID, 0);
-}
-
-int load_free_ino_cache(struct btrfs_fs_info *fs_info, struct btrfs_root *root)
-{
-	struct btrfs_free_space_ctl *ctl = root->free_ino_ctl;
-	struct btrfs_path *path;
-	struct inode *inode;
-	int ret = 0;
-	u64 root_gen = btrfs_root_generation(&root->root_item);
-
-	if (!btrfs_test_opt(fs_info, INODE_MAP_CACHE))
-		return 0;
-
-	/*
-	 * If we're unmounting then just return, since this does a search on the
-	 * normal root and not the commit root and we could deadlock.
-	 */
-	if (btrfs_fs_closing(fs_info))
-		return 0;
-
-	path = btrfs_alloc_path();
-	if (!path)
-		return 0;
-
-	inode = lookup_free_ino_inode(root, path);
-	if (IS_ERR(inode))
-		goto out;
-
-	if (root_gen != BTRFS_I(inode)->generation)
-		goto out_put;
-
-	ret = __load_free_space_cache(root, inode, ctl, path, 0);
-
-	if (ret < 0)
-		btrfs_err(fs_info,
-			"failed to load free ino cache for root %llu",
-			root->root_key.objectid);
-out_put:
-	iput(inode);
-out:
-	btrfs_free_path(path);
-	return ret;
-}
-
-int btrfs_write_out_ino_cache(struct btrfs_root *root,
-			      struct btrfs_trans_handle *trans,
-			      struct btrfs_path *path,
-			      struct inode *inode)
-{
-	struct btrfs_fs_info *fs_info = root->fs_info;
-	struct btrfs_free_space_ctl *ctl = root->free_ino_ctl;
-	int ret;
-	struct btrfs_io_ctl io_ctl;
-	bool release_metadata = true;
-
-	if (!btrfs_test_opt(fs_info, INODE_MAP_CACHE))
-		return 0;
-
-	memset(&io_ctl, 0, sizeof(io_ctl));
-	ret = __btrfs_write_out_cache(root, inode, ctl, NULL, &io_ctl, trans);
-	if (!ret) {
-		/*
-		 * At this point writepages() didn't error out, so our metadata
-		 * reservation is released when the writeback finishes, at
-		 * inode.c:btrfs_finish_ordered_io(), regardless of it finishing
-		 * with or without an error.
-		 */
-		release_metadata = false;
-		ret = btrfs_wait_cache_io_root(root, trans, &io_ctl, path);
-	}
-
-	if (ret) {
-		if (release_metadata)
-			btrfs_delalloc_release_metadata(BTRFS_I(inode),
-					inode->i_size, true);
-		btrfs_debug(fs_info,
-			  "failed to write free ino cache for root %llu error %d",
-			  root->root_key.objectid, ret);
-	}
 
 	return ret;
 }

@@ -1077,15 +1077,6 @@ struct btrfs_root {
 	spinlock_t accounting_lock;
 	struct btrfs_block_rsv *block_rsv;
 
-	/* free ino cache stuff */
-	struct btrfs_free_space_ctl *free_ino_ctl;
-	enum btrfs_caching_type ino_cache_state;
-	spinlock_t ino_cache_lock;
-	wait_queue_head_t ino_cache_wait;
-	struct btrfs_free_space_ctl *free_ino_pinned;
-	u64 ino_cache_progress;
-	struct inode *ino_cache_inode;
-
 	struct mutex log_mutex;
 	wait_queue_head_t log_writer_wait;
 	wait_queue_head_t log_commit_wait[2];
@@ -1359,7 +1350,7 @@ static inline u32 BTRFS_MAX_XATTR_SIZE(const struct btrfs_fs_info *info)
 #define BTRFS_MOUNT_USER_SUBVOL_RM_ALLOWED (1 << 14)
 #define BTRFS_MOUNT_ENOSPC_DEBUG	 (1 << 15)
 #define BTRFS_MOUNT_AUTO_DEFRAG		(1 << 16)
-#define BTRFS_MOUNT_INODE_MAP_CACHE	(1 << 17)
+/* bit 17 is free */
 #define BTRFS_MOUNT_USEBACKUPROOT	(1 << 18)
 #define BTRFS_MOUNT_SKIP_BALANCE	(1 << 19)
 #define BTRFS_MOUNT_CHECK_INTEGRITY	(1 << 20)
@@ -1406,9 +1397,7 @@ do {									\
  * transaction commit)
  */
 
-#define BTRFS_PENDING_SET_INODE_MAP_CACHE	(0)
-#define BTRFS_PENDING_CLEAR_INODE_MAP_CACHE	(1)
-#define BTRFS_PENDING_COMMIT			(2)
+#define BTRFS_PENDING_COMMIT			(0)
 
 #define btrfs_test_pending(info, opt)	\
 	test_bit(BTRFS_PENDING_##opt, &(info)->pending_changes)

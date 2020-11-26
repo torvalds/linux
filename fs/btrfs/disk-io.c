@@ -29,7 +29,6 @@
 #include "tree-log.h"
 #include "free-space-cache.h"
 #include "free-space-tree.h"
-#include "inode-map.h"
 #include "check-integrity.h"
 #include "rcu-string.h"
 #include "dev-replace.h"
@@ -1336,14 +1335,6 @@ static int btrfs_init_fs_root(struct btrfs_root *root, dev_t anon_dev)
 	int ret;
 	unsigned int nofs_flag;
 
-	root->free_ino_ctl = kzalloc(sizeof(*root->free_ino_ctl), GFP_NOFS);
-	root->free_ino_pinned = kzalloc(sizeof(*root->free_ino_pinned),
-					GFP_NOFS);
-	if (!root->free_ino_pinned || !root->free_ino_ctl) {
-		ret = -ENOMEM;
-		goto fail;
-	}
-
 	/*
 	 * We might be called under a transaction (e.g. indirect backref
 	 * resolution) which could deadlock if it triggers memory reclaim
@@ -1359,10 +1350,6 @@ static int btrfs_init_fs_root(struct btrfs_root *root, dev_t anon_dev)
 		set_bit(BTRFS_ROOT_SHAREABLE, &root->state);
 		btrfs_check_and_init_root_item(&root->root_item);
 	}
-
-	btrfs_init_free_ino_ctl(root);
-	spin_lock_init(&root->ino_cache_lock);
-	init_waitqueue_head(&root->ino_cache_wait);
 
 	/*
 	 * Don't assign anonymous block device to roots that are not exposed to
@@ -2033,8 +2020,6 @@ void btrfs_put_root(struct btrfs_root *root)
 			free_anon_bdev(root->anon_dev);
 		btrfs_drew_lock_destroy(&root->snapshot_lock);
 		free_root_extent_buffers(root);
-		kfree(root->free_ino_ctl);
-		kfree(root->free_ino_pinned);
 #ifdef CONFIG_BTRFS_DEBUG
 		spin_lock(&root->fs_info->fs_roots_radix_lock);
 		list_del_init(&root->leak_list);
@@ -3988,14 +3973,6 @@ void btrfs_drop_and_free_fs_root(struct btrfs_fs_info *fs_info,
 		}
 	}
 
-	if (root->free_ino_pinned)
-		__btrfs_remove_free_space_cache(root->free_ino_pinned);
-	if (root->free_ino_ctl)
-		__btrfs_remove_free_space_cache(root->free_ino_ctl);
-	if (root->ino_cache_inode) {
-		iput(root->ino_cache_inode);
-		root->ino_cache_inode = NULL;
-	}
 	if (drop_ref)
 		btrfs_put_root(root);
 }

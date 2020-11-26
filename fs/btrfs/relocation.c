@@ -18,7 +18,6 @@
 #include "btrfs_inode.h"
 #include "async-thread.h"
 #include "free-space-cache.h"
-#include "inode-map.h"
 #include "qgroup.h"
 #include "print-tree.h"
 #include "delalloc-space.h"

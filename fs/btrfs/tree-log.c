@@ -17,7 +17,6 @@
 #include "backref.h"
 #include "compression.h"
 #include "qgroup.h"
-#include "inode-map.h"
 #include "block-group.h"
 #include "space-info.h"
 

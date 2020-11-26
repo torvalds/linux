@@ -16,7 +16,6 @@
 #include "transaction.h"
 #include "locking.h"
 #include "tree-log.h"
-#include "inode-map.h"
 #include "volumes.h"
 #include "dev-replace.h"
 #include "qgroup.h"
@@ -163,8 +162,6 @@ static noinline void switch_commit_roots(struct btrfs_trans_handle *trans)
 		list_del_init(&root->dirty_list);
 		free_extent_buffer(root->commit_root);
 		root->commit_root = btrfs_root_node(root);
-		if (is_fstree(root->root_key.objectid))
-			btrfs_unpin_free_ino(root);
 		extent_io_tree_release(&root->dirty_log_pages);
 		btrfs_qgroup_clean_swapped_blocks(root);
 	}
@@ -1342,8 +1339,6 @@ static noinline int commit_fs_roots(struct btrfs_trans_handle *trans)
 			btrfs_free_log(trans, root);
 			btrfs_update_reloc_root(trans, root);
 
-			btrfs_save_ino_cache(root, trans);
-
 			/* see comments in should_cow_block() */
 			clear_bit(BTRFS_ROOT_FORCE_COW, &root->state);
 			smp_mb__after_atomic();
@@ -2436,10 +2431,6 @@ int btrfs_clean_one_deleted_snapshot(struct btrfs_root *root)
 	btrfs_debug(fs_info, "cleaner removing %llu", root->root_key.objectid);
 
 	btrfs_kill_all_delayed_nodes(root);
-	if (root->ino_cache_inode) {
-		iput(root->ino_cache_inode);
-		root->ino_cache_inode = NULL;
-	}
 
 	if (btrfs_header_backref_rev(root->node) <
 			BTRFS_MIXED_BACKREF_REV)
@@ -2459,16 +2450,6 @@ void btrfs_apply_pending_changes(struct btrfs_fs_info *fs_info)
 	prev = xchg(&fs_info->pending_changes, 0);
 	if (!prev)
 		return;
-
-	bit = 1 << BTRFS_PENDING_SET_INODE_MAP_CACHE;
-	if (prev & bit)
-		btrfs_set_opt(fs_info->mount_opt, INODE_MAP_CACHE);
-	prev &= ~bit;
-
-	bit = 1 << BTRFS_PENDING_CLEAR_INODE_MAP_CACHE;
-	if (prev & bit)
-		btrfs_clear_opt(fs_info->mount_opt, INODE_MAP_CACHE);
-	prev &= ~bit;
 
 	bit = 1 << BTRFS_PENDING_COMMIT;
 	if (prev & bit)
