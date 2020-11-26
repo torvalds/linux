@@ -1335,6 +1335,8 @@ struct rtw_coex_stat {
 	bool wl_cck_lock_pre;
 	bool wl_cck_lock_ever;
 	bool wl_connecting;
+	bool wl_slot_toggle;
+	bool wl_slot_toggle_change; /* if toggle to no-toggle */
 
 	u32 bt_supported_version;
 	u32 bt_supported_feature;
@@ -1374,6 +1376,9 @@ struct rtw_coex_stat {
 	u8 wl_iot_peer;
 	u8 ampdu_max_time;
 	u8 wl_tput_dir;
+
+	u8 wl_toggle_para[6];
+	u8 wl_toggle_interval;
 
 	u16 score_board;
 	u16 retry_limit;
