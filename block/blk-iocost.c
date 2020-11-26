@@ -2069,13 +2069,88 @@ static void ioc_forgive_debts(struct ioc *ioc, u64 usage_us_sum, int nr_debtors,
 	}
 }
 
+/*
+ * Check the active iocgs' state to avoid oversleeping and deactive
+ * idle iocgs.
+ *
+ * Since waiters determine the sleep durations based on the vrate
+ * they saw at the time of sleep, if vrate has increased, some
+ * waiters could be sleeping for too long. Wake up tardy waiters
+ * which should have woken up in the last period and expire idle
+ * iocgs.
+ */
+static int ioc_check_iocgs(struct ioc *ioc, struct ioc_now *now)
+{
+	int nr_debtors = 0;
+	struct ioc_gq *iocg, *tiocg;
+
+	list_for_each_entry_safe(iocg, tiocg, &ioc->active_iocgs, active_list) {
+		if (!waitqueue_active(&iocg->waitq) && !iocg->abs_vdebt &&
+		    !iocg->delay && !iocg_is_idle(iocg))
+			continue;
+
+		spin_lock(&iocg->waitq.lock);
+
+		/* flush wait and indebt stat deltas */
+		if (iocg->wait_since) {
+			iocg->local_stat.wait_us += now->now - iocg->wait_since;
+			iocg->wait_since = now->now;
+		}
+		if (iocg->indebt_since) {
+			iocg->local_stat.indebt_us +=
+				now->now - iocg->indebt_since;
+			iocg->indebt_since = now->now;
+		}
+		if (iocg->indelay_since) {
+			iocg->local_stat.indelay_us +=
+				now->now - iocg->indelay_since;
+			iocg->indelay_since = now->now;
+		}
+
+		if (waitqueue_active(&iocg->waitq) || iocg->abs_vdebt ||
+		    iocg->delay) {
+			/* might be oversleeping vtime / hweight changes, kick */
+			iocg_kick_waitq(iocg, true, now);
+			if (iocg->abs_vdebt || iocg->delay)
+				nr_debtors++;
+		} else if (iocg_is_idle(iocg)) {
+			/* no waiter and idle, deactivate */
+			u64 vtime = atomic64_read(&iocg->vtime);
+			s64 excess;
+
+			/*
+			 * @iocg has been inactive for a full duration and will
+			 * have a high budget. Account anything above target as
+			 * error and throw away. On reactivation, it'll start
+			 * with the target budget.
+			 */
+			excess = now->vnow - vtime - ioc->margins.target;
+			if (excess > 0) {
+				u32 old_hwi;
+
+				current_hweight(iocg, NULL, &old_hwi);
+				ioc->vtime_err -= div64_u64(excess * old_hwi,
+							    WEIGHT_ONE);
+			}
+
+			__propagate_weights(iocg, 0, 0, false, now);
+			list_del_init(&iocg->active_list);
+		}
+
+		spin_unlock(&iocg->waitq.lock);
+	}
+
+	commit_weights(ioc);
+	return nr_debtors;
+}
+
 static void ioc_timer_fn(struct timer_list *timer)
 {
 	struct ioc *ioc = container_of(timer, struct ioc, timer);
 	struct ioc_gq *iocg, *tiocg;
 	struct ioc_now now;
 	LIST_HEAD(surpluses);
-	int nr_debtors = 0, nr_shortages = 0, nr_lagging = 0;
+	int nr_debtors, nr_shortages = 0, nr_lagging = 0;
 	u64 usage_us_sum = 0;
 	u32 ppm_rthr = MILLION - ioc->params.qos[QOS_RPPM];
 	u32 ppm_wthr = MILLION - ioc->params.qos[QOS_WPPM];
@@ -2097,68 +2172,7 @@ static void ioc_timer_fn(struct timer_list *timer)
 		return;
 	}
 
-	/*
-	 * Waiters determine the sleep durations based on the vrate they
-	 * saw at the time of sleep.  If vrate has increased, some waiters
-	 * could be sleeping for too long.  Wake up tardy waiters which
-	 * should have woken up in the last period and expire idle iocgs.
-	 */
-	list_for_each_entry_safe(iocg, tiocg, &ioc->active_iocgs, active_list) {
-		if (!waitqueue_active(&iocg->waitq) && !iocg->abs_vdebt &&
-		    !iocg->delay && !iocg_is_idle(iocg))
-			continue;
-
-		spin_lock(&iocg->waitq.lock);
-
-		/* flush wait and indebt stat deltas */
-		if (iocg->wait_since) {
-			iocg->local_stat.wait_us += now.now - iocg->wait_since;
-			iocg->wait_since = now.now;
-		}
-		if (iocg->indebt_since) {
-			iocg->local_stat.indebt_us +=
-				now.now - iocg->indebt_since;
-			iocg->indebt_since = now.now;
-		}
-		if (iocg->indelay_since) {
-			iocg->local_stat.indelay_us +=
-				now.now - iocg->indelay_since;
-			iocg->indelay_since = now.now;
-		}
-
-		if (waitqueue_active(&iocg->waitq) || iocg->abs_vdebt ||
-		    iocg->delay) {
-			/* might be oversleeping vtime / hweight changes, kick */
-			iocg_kick_waitq(iocg, true, &now);
-			if (iocg->abs_vdebt || iocg->delay)
-				nr_debtors++;
-		} else if (iocg_is_idle(iocg)) {
-			/* no waiter and idle, deactivate */
-			u64 vtime = atomic64_read(&iocg->vtime);
-			s64 excess;
-
-			/*
-			 * @iocg has been inactive for a full duration and will
-			 * have a high budget. Account anything above target as
-			 * error and throw away. On reactivation, it'll start
-			 * with the target budget.
-			 */
-			excess = now.vnow - vtime - ioc->margins.target;
-			if (excess > 0) {
-				u32 old_hwi;
-
-				current_hweight(iocg, NULL, &old_hwi);
-				ioc->vtime_err -= div64_u64(excess * old_hwi,
-							    WEIGHT_ONE);
-			}
-
-			__propagate_weights(iocg, 0, 0, false, &now);
-			list_del_init(&iocg->active_list);
-		}
-
-		spin_unlock(&iocg->waitq.lock);
-	}
-	commit_weights(ioc);
+	nr_debtors = ioc_check_iocgs(ioc, &now);
 
 	/*
 	 * Wait and indebt stat are flushed above and the donation calculation
