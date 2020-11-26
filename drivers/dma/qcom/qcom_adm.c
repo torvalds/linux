@@ -173,8 +173,9 @@ struct adm_device {
 /**
  * adm_free_chan - Frees dma resources associated with the specific channel
  *
- * Free all allocated descriptors associated with this channel
+ * @chan: dma channel
  *
+ * Free all allocated descriptors associated with this channel
  */
 static void adm_free_chan(struct dma_chan *chan)
 {
@@ -185,6 +186,7 @@ static void adm_free_chan(struct dma_chan *chan)
 /**
  * adm_get_blksize - Get block size from burst value
  *
+ * @burst: Burst size of transaction
  */
 static int adm_get_blksize(unsigned int burst)
 {
@@ -456,7 +458,7 @@ free:
 
 /**
  * adm_terminate_all - terminate all transactions on a channel
- * @achan: adm dma channel
+ * @chan: dma channel
  *
  * Dequeues and frees all transactions, aborts current transaction
  * No callbacks are done
@@ -497,7 +499,7 @@ static int adm_slave_config(struct dma_chan *chan, struct dma_slave_config *cfg)
 
 /**
  * adm_start_dma - start next transaction
- * @achan - ADM dma channel
+ * @achan: ADM dma channel
  */
 static void adm_start_dma(struct adm_chan *achan)
 {
