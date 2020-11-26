@@ -191,8 +191,8 @@ config DA8XX_DDRCTL
 config PL353_SMC
 	tristate "ARM PL35X Static Memory Controller(SMC) driver"
 	default y if ARM
-	depends on ARM
-	depends on ARM_AMBA || COMPILE_TEST
+	depends on ARM || COMPILE_TEST
+	depends on ARM_AMBA
 	help
 	  This driver is for the ARM PL351/PL353 Static Memory
 	  Controller(SMC) module.
