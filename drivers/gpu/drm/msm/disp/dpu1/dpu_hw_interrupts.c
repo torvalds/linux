@@ -189,7 +189,7 @@ struct dpu_irq_type {
 	u32 reg_idx;
 };
 
-/**
+/*
  * struct dpu_intr_reg -  List of DPU interrupt registers
  */
 static const struct dpu_intr_reg dpu_intr_set[] = {
@@ -245,7 +245,7 @@ static const struct dpu_intr_reg dpu_intr_set[] = {
 	}
 };
 
-/**
+/*
  * struct dpu_irq_type - IRQ mapping table use for lookup an irq_idx in this
  *			 table that have a matching interface type and
  *			 instance index.
