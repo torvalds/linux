@@ -22,5 +22,6 @@
 #define RPMH_LN_BB_CLK1				13
 #define RPMH_LN_BB_CLK1_A			14
 #define RPMH_CE_CLK				15
+#define RPMH_QPIC_CLK				16
 
 #endif
