@@ -103,7 +103,7 @@ uint32_t phm_set_field_to_u32(u32 offset, u32 original_data, u32 field, u32 size
 	return original_data;
 }
 
-/**
+/*
  * Returns once the part of the register indicated by the mask has
  * reached the given value.
  */
@@ -132,7 +132,7 @@ int phm_wait_on_register(struct pp_hwmgr *hwmgr, uint32_t index,
 }
 
 
-/**
+/*
  * Returns once the part of the register indicated by the mask has
  * reached the given value.The indirect space is described by giving
  * the memory-mapped index of the indirect index register.
@@ -486,9 +486,9 @@ int phm_get_sclk_for_voltage_evv(struct pp_hwmgr *hwmgr,
 }
 
 /**
- * Initialize Dynamic State Adjustment Rule Settings
+ * phm_initializa_dynamic_state_adjustment_rule_settings - Initialize Dynamic State Adjustment Rule Settings
  *
- * @param    hwmgr  the address of the powerplay hardware manager.
+ * @hwmgr:  the address of the powerplay hardware manager.
  */
 int phm_initializa_dynamic_state_adjustment_rule_settings(struct pp_hwmgr *hwmgr)
 {
