@@ -351,7 +351,12 @@ int isa207_get_constraint(u64 event, unsigned long *maskp, unsigned long *valp)
 		value |= CNST_SAMPLE_VAL(event >> EVENT_SAMPLE_SHIFT);
 	}
 
-	if (cpu_has_feature(CPU_FTR_ARCH_300))  {
+	if (cpu_has_feature(CPU_FTR_ARCH_31)) {
+		if (event_is_threshold(event)) {
+			mask  |= CNST_THRESH_CTL_SEL_MASK;
+			value |= CNST_THRESH_CTL_SEL_VAL(event >> EVENT_THRESH_SHIFT);
+		}
+	} else if (cpu_has_feature(CPU_FTR_ARCH_300))  {
 		if (event_is_threshold(event) && is_thresh_cmp_valid(event)) {
 			mask  |= CNST_THRESH_MASK;
 			value |= CNST_THRESH_VAL(event >> EVENT_THRESH_SHIFT);
