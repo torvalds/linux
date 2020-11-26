@@ -1116,8 +1116,10 @@ __unwind_incomplete_requests(struct intel_engine_cs *engine)
 	list_for_each_entry_safe_reverse(rq, rn,
 					 &engine->active.requests,
 					 sched.link) {
-		if (i915_request_completed(rq))
-			continue; /* XXX */
+		if (i915_request_completed(rq)) {
+			list_del_init(&rq->sched.link);
+			continue;
+		}
 
 		__i915_request_unsubmit(rq);
 
