@@ -549,11 +549,8 @@ put_sync_adapter:
 
 static int i2c_device_remove(struct device *dev)
 {
-	struct i2c_client	*client = i2c_verify_client(dev);
+	struct i2c_client	*client = to_i2c_client(dev);
 	struct i2c_driver	*driver;
-
-	if (!client || !dev->driver)
-		return 0;
 
 	driver = to_i2c_driver(dev->driver);
 	if (driver->remove) {
