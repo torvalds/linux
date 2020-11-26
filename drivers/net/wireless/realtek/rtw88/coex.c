@@ -2179,6 +2179,7 @@ static void rtw_coex_action_wl_connected(struct rtw_dev *rtwdev)
 	struct rtw_coex_stat *coex_stat = &coex->stat;
 	struct rtw_coex_dm *coex_dm = &coex->dm;
 	struct rtw_efuse *efuse = &rtwdev->efuse;
+	bool freerun_check = false;
 	u8 algorithm;
 
 	/* Non-Shared-Ant */
@@ -2198,10 +2199,15 @@ static void rtw_coex_action_wl_connected(struct rtw_dev *rtwdev)
 		rtw_coex_action_bt_hfp(rtwdev);
 		break;
 	case COEX_ALGO_HID:
-		rtw_coex_action_bt_hid(rtwdev);
+		if (freerun_check)
+			rtw_coex_action_freerun(rtwdev);
+		else
+			rtw_coex_action_bt_hid(rtwdev);
 		break;
 	case COEX_ALGO_A2DP:
-		if (coex_stat->bt_a2dp_sink)
+		if (freerun_check)
+			rtw_coex_action_freerun(rtwdev);
+		else if (coex_stat->bt_a2dp_sink)
 			rtw_coex_action_bt_a2dpsink(rtwdev);
 		else
 			rtw_coex_action_bt_a2dp(rtwdev);
@@ -2210,7 +2216,10 @@ static void rtw_coex_action_wl_connected(struct rtw_dev *rtwdev)
 		rtw_coex_action_bt_pan(rtwdev);
 		break;
 	case COEX_ALGO_A2DP_HID:
-		rtw_coex_action_bt_a2dp_hid(rtwdev);
+		if (freerun_check)
+			rtw_coex_action_freerun(rtwdev);
+		else
+			rtw_coex_action_bt_a2dp_hid(rtwdev);
 		break;
 	case COEX_ALGO_A2DP_PAN:
 		rtw_coex_action_bt_a2dp_pan(rtwdev);
