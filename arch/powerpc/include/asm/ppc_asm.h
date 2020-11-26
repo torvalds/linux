@@ -251,6 +251,8 @@ n:
 
 #define _GLOBAL_TOC(name) _GLOBAL(name)
 
+#define DOTSYM(a)	a
+
 #endif
 
 /*
