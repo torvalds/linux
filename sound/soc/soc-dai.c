@@ -612,16 +612,27 @@ int snd_soc_dai_compr_startup(struct snd_soc_dai *dai,
 	    dai->driver->cops->startup)
 		ret = dai->driver->cops->startup(cstream, dai);
 
+	/* mark cstream if succeeded */
+	if (ret == 0)
+		soc_dai_mark_push(dai, cstream, compr_startup);
+
 	return soc_dai_ret(dai, ret);
 }
 EXPORT_SYMBOL_GPL(snd_soc_dai_compr_startup);
 
 void snd_soc_dai_compr_shutdown(struct snd_soc_dai *dai,
-				struct snd_compr_stream *cstream)
+				struct snd_compr_stream *cstream,
+				int rollback)
 {
+	if (rollback && !soc_dai_mark_match(dai, cstream, compr_startup))
+		return;
+
 	if (dai->driver->cops &&
 	    dai->driver->cops->shutdown)
 		dai->driver->cops->shutdown(cstream, dai);
+
+	/* remove marked cstream */
+	soc_dai_mark_pop(dai, cstream, compr_startup);
 }
 EXPORT_SYMBOL_GPL(snd_soc_dai_compr_shutdown);
 

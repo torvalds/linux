@@ -196,7 +196,8 @@ int snd_soc_pcm_dai_bespoke_trigger(struct snd_pcm_substream *substream,
 int snd_soc_dai_compr_startup(struct snd_soc_dai *dai,
 			      struct snd_compr_stream *cstream);
 void snd_soc_dai_compr_shutdown(struct snd_soc_dai *dai,
-				struct snd_compr_stream *cstream);
+				struct snd_compr_stream *cstream,
+				int rollback);
 int snd_soc_dai_compr_trigger(struct snd_soc_dai *dai,
 			      struct snd_compr_stream *cstream, int cmd);
 int snd_soc_dai_compr_set_params(struct snd_soc_dai *dai,
@@ -400,6 +401,7 @@ struct snd_soc_dai {
 	/* function mark */
 	struct snd_pcm_substream *mark_startup;
 	struct snd_pcm_substream *mark_hw_params;
+	struct snd_compr_stream  *mark_compr_startup;
 
 	/* bit field */
 	unsigned int probed:1;
