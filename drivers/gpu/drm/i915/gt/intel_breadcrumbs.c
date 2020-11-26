@@ -187,18 +187,6 @@ static void add_retire(struct intel_breadcrumbs *b, struct intel_timeline *tl)
 		intel_engine_add_retire(b->irq_engine, tl);
 }
 
-static bool __signal_request(struct i915_request *rq)
-{
-	GEM_BUG_ON(test_bit(I915_FENCE_FLAG_SIGNAL, &rq->fence.flags));
-
-	if (!__dma_fence_signal(&rq->fence)) {
-		i915_request_put(rq);
-		return false;
-	}
-
-	return true;
-}
-
 static struct llist_node *
 slist_add(struct llist_node *node, struct llist_node *head)
 {
@@ -269,9 +257,11 @@ static void signal_irq_work(struct irq_work *work)
 			release = remove_signaling_context(b, ce);
 			spin_unlock(&ce->signal_lock);
 
-			if (__signal_request(rq))
+			if (__dma_fence_signal(&rq->fence))
 				/* We own signal_node now, xfer to local list */
 				signal = slist_add(&rq->signal_node, signal);
+			else
+				i915_request_put(rq);
 
 			if (release) {
 				add_retire(b, ce->timeline);
@@ -358,6 +348,17 @@ void intel_breadcrumbs_free(struct intel_breadcrumbs *b)
 	kfree(b);
 }
 
+static void irq_signal_request(struct i915_request *rq,
+			       struct intel_breadcrumbs *b)
+{
+	if (!__dma_fence_signal(&rq->fence))
+		return;
+
+	i915_request_get(rq);
+	if (llist_add(&rq->signal_node, &b->signaled_requests))
+		irq_work_queue(&b->irq_work);
+}
+
 static void insert_breadcrumb(struct i915_request *rq)
 {
 	struct intel_breadcrumbs *b = READ_ONCE(rq->engine)->breadcrumbs;
@@ -367,17 +368,13 @@ static void insert_breadcrumb(struct i915_request *rq)
 	if (test_bit(I915_FENCE_FLAG_SIGNAL, &rq->fence.flags))
 		return;
 
-	i915_request_get(rq);
-
 	/*
 	 * If the request is already completed, we can transfer it
 	 * straight onto a signaled list, and queue the irq worker for
 	 * its signal completion.
 	 */
 	if (__i915_request_is_complete(rq)) {
-		if (__signal_request(rq) &&
-		    llist_add(&rq->signal_node, &b->signaled_requests))
-			irq_work_queue(&b->irq_work);
+		irq_signal_request(rq, b);
 		return;
 	}
 
@@ -408,6 +405,8 @@ static void insert_breadcrumb(struct i915_request *rq)
 				break;
 		}
 	}
+
+	i915_request_get(rq);
 	list_add_rcu(&rq->signal_link, pos);
 	GEM_BUG_ON(!check_signal_order(ce, rq));
 	GEM_BUG_ON(test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &rq->fence.flags));
@@ -448,6 +447,7 @@ bool i915_request_enable_breadcrumb(struct i915_request *rq)
 
 void i915_request_cancel_breadcrumb(struct i915_request *rq)
 {
+	struct intel_breadcrumbs *b = READ_ONCE(rq->engine)->breadcrumbs;
 	struct intel_context *ce = rq->context;
 	bool release;
 
@@ -456,10 +456,13 @@ void i915_request_cancel_breadcrumb(struct i915_request *rq)
 
 	spin_lock(&ce->signal_lock);
 	list_del_rcu(&rq->signal_link);
-	release = remove_signaling_context(rq->engine->breadcrumbs, ce);
+	release = remove_signaling_context(b, ce);
 	spin_unlock(&ce->signal_lock);
 	if (release)
 		intel_context_put(ce);
+
+	if (__i915_request_is_complete(rq))
+		irq_signal_request(rq, b);
 
 	i915_request_put(rq);
 }
