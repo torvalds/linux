@@ -418,14 +418,94 @@ int lapb_data_transmit(struct lapb_cb *lapb, struct sk_buff *skb)
 	return used;
 }
 
+/* Handle device status changes. */
+static int lapb_device_event(struct notifier_block *this, unsigned long event,
+			     void *ptr)
+{
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct lapb_cb *lapb;
+
+	if (!net_eq(dev_net(dev), &init_net))
+		return NOTIFY_DONE;
+
+	if (dev->type != ARPHRD_X25)
+		return NOTIFY_DONE;
+
+	lapb = lapb_devtostruct(dev);
+	if (!lapb)
+		return NOTIFY_DONE;
+
+	switch (event) {
+	case NETDEV_UP:
+		lapb_dbg(0, "(%p) Interface up: %s\n", dev, dev->name);
+
+		if (netif_carrier_ok(dev)) {
+			lapb_dbg(0, "(%p): Carrier is already up: %s\n", dev,
+				 dev->name);
+			if (lapb->mode & LAPB_DCE) {
+				lapb_start_t1timer(lapb);
+			} else {
+				if (lapb->state == LAPB_STATE_0) {
+					lapb->state = LAPB_STATE_1;
+					lapb_establish_data_link(lapb);
+				}
+			}
+		}
+		break;
+	case NETDEV_GOING_DOWN:
+		if (netif_carrier_ok(dev))
+			lapb_disconnect_request(dev);
+		break;
+	case NETDEV_DOWN:
+		lapb_dbg(0, "(%p) Interface down: %s\n", dev, dev->name);
+		lapb_dbg(0, "(%p) S%d -> S0\n", dev, lapb->state);
+		lapb_clear_queues(lapb);
+		lapb->state = LAPB_STATE_0;
+		lapb->n2count   = 0;
+		lapb_stop_t1timer(lapb);
+		lapb_stop_t2timer(lapb);
+		break;
+	case NETDEV_CHANGE:
+		if (netif_carrier_ok(dev)) {
+			lapb_dbg(0, "(%p): Carrier detected: %s\n", dev,
+				 dev->name);
+			if (lapb->mode & LAPB_DCE) {
+				lapb_start_t1timer(lapb);
+			} else {
+				if (lapb->state == LAPB_STATE_0) {
+					lapb->state = LAPB_STATE_1;
+					lapb_establish_data_link(lapb);
+				}
+			}
+		} else {
+			lapb_dbg(0, "(%p) Carrier lost: %s\n", dev, dev->name);
+			lapb_dbg(0, "(%p) S%d -> S0\n", dev, lapb->state);
+			lapb_clear_queues(lapb);
+			lapb->state = LAPB_STATE_0;
+			lapb->n2count   = 0;
+			lapb_stop_t1timer(lapb);
+			lapb_stop_t2timer(lapb);
+		}
+		break;
+	}
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block lapb_dev_notifier = {
+	.notifier_call = lapb_device_event,
+};
+
 static int __init lapb_init(void)
 {
-	return 0;
+	return register_netdevice_notifier(&lapb_dev_notifier);
 }
 
 static void __exit lapb_exit(void)
 {
 	WARN_ON(!list_empty(&lapb_list));
+
+	unregister_netdevice_notifier(&lapb_dev_notifier);
 }
 
 MODULE_AUTHOR("Jonathan Naylor <g4klx@g4klx.demon.co.uk>");
