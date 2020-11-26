@@ -1087,6 +1087,8 @@ struct ibmvnic_adapter {
 	unsigned long resetting;
 	bool napi_enabled, from_passive_init;
 	bool login_pending;
+	/* last device reset time */
+	unsigned long last_reset_time;
 
 	bool failover_pending;
 	bool force_reset_recovery;
