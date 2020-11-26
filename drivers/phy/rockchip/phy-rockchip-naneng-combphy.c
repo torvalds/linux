@@ -428,6 +428,7 @@ static const struct rockchip_combphy_grfcfg rk3568_combphy_grfcfgs = {
 static const struct clk_bulk_data rk3568_clks[] = {
 	{ .id = "refclk" },
 	{ .id = "apbclk" },
+	{ .id = "pipe_clk" },
 };
 
 static const struct rockchip_combphy_cfg rk3568_combphy_cfgs = {
