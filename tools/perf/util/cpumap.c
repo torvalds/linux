@@ -151,12 +151,12 @@ static int cmp_aggr_cpu_id(const void *a_pointer, const void *b_pointer)
 	return a->id - b->id;
 }
 
-int cpu_map__build_map(struct perf_cpu_map *cpus, struct perf_cpu_map **res,
+int cpu_map__build_map(struct perf_cpu_map *cpus, struct cpu_aggr_map **res,
 		       struct aggr_cpu_id (*f)(struct perf_cpu_map *map, int cpu, void *data),
 		       void *data)
 {
 	int nr = cpus->nr;
-	struct perf_cpu_map *c = perf_cpu_map__empty_new(nr);
+	struct cpu_aggr_map *c = cpu_aggr_map__empty_new(nr);
 	int cpu, s2;
 	struct aggr_cpu_id s1;
 
@@ -279,22 +279,22 @@ struct aggr_cpu_id cpu_map__get_node(struct perf_cpu_map *map, int idx, void *da
 	return id;
 }
 
-int cpu_map__build_socket_map(struct perf_cpu_map *cpus, struct perf_cpu_map **sockp)
+int cpu_map__build_socket_map(struct perf_cpu_map *cpus, struct cpu_aggr_map **sockp)
 {
 	return cpu_map__build_map(cpus, sockp, cpu_map__get_socket, NULL);
 }
 
-int cpu_map__build_die_map(struct perf_cpu_map *cpus, struct perf_cpu_map **diep)
+int cpu_map__build_die_map(struct perf_cpu_map *cpus, struct cpu_aggr_map **diep)
 {
 	return cpu_map__build_map(cpus, diep, cpu_map__get_die, NULL);
 }
 
-int cpu_map__build_core_map(struct perf_cpu_map *cpus, struct perf_cpu_map **corep)
+int cpu_map__build_core_map(struct perf_cpu_map *cpus, struct cpu_aggr_map **corep)
 {
 	return cpu_map__build_map(cpus, corep, cpu_map__get_core, NULL);
 }
 
-int cpu_map__build_node_map(struct perf_cpu_map *cpus, struct perf_cpu_map **numap)
+int cpu_map__build_node_map(struct perf_cpu_map *cpus, struct cpu_aggr_map **numap)
 {
 	return cpu_map__build_map(cpus, numap, cpu_map__get_node, NULL);
 }
