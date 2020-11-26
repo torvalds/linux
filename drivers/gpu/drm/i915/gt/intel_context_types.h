@@ -44,7 +44,16 @@ struct intel_context_ops {
 };
 
 struct intel_context {
-	struct kref ref;
+	/*
+	 * Note: Some fields may be accessed under RCU.
+	 *
+	 * Unless otherwise noted a field can safely be assumed to be protected
+	 * by strong reference counting.
+	 */
+	union {
+		struct kref ref; /* no kref_get_unless_zero()! */
+		struct rcu_head rcu;
+	};
 
 	struct intel_engine_cs *engine;
 	struct intel_engine_cs *inflight;
