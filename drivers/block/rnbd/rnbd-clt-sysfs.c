@@ -480,6 +480,10 @@ static int rnbd_clt_get_path_name(struct rnbd_clt_dev *dev, char *buf,
 	if (ret >= len)
 		return -ENAMETOOLONG;
 
+	ret = snprintf(buf, len, "%s@%s", buf, dev->sess->sessname);
+	if (ret >= len)
+		return -ENAMETOOLONG;
+
 	return 0;
 }
 

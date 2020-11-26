@@ -1410,13 +1410,16 @@ out_alloc:
 	return ERR_PTR(ret);
 }
 
-static bool __exists_dev(const char *pathname)
+static bool __exists_dev(const char *pathname, const char *sessname)
 {
 	struct rnbd_clt_session *sess;
 	struct rnbd_clt_dev *dev;
 	bool found = false;
 
 	list_for_each_entry(sess, &sess_list, list) {
+		if (sessname && strncmp(sess->sessname, sessname,
+					sizeof(sess->sessname)))
+			continue;
 		mutex_lock(&sess->lock);
 		list_for_each_entry(dev, &sess->devs_list, list) {
 			if (!strncmp(dev->pathname, pathname,
@@ -1433,12 +1436,12 @@ static bool __exists_dev(const char *pathname)
 	return found;
 }
 
-static bool exists_devpath(const char *pathname)
+static bool exists_devpath(const char *pathname, const char *sessname)
 {
 	bool found;
 
 	mutex_lock(&sess_lock);
-	found = __exists_dev(pathname);
+	found = __exists_dev(pathname, sessname);
 	mutex_unlock(&sess_lock);
 
 	return found;
@@ -1451,7 +1454,7 @@ static bool insert_dev_if_not_exists_devpath(const char *pathname,
 	bool found;
 
 	mutex_lock(&sess_lock);
-	found = __exists_dev(pathname);
+	found = __exists_dev(pathname, sess->sessname);
 	if (!found) {
 		mutex_lock(&sess->lock);
 		list_add_tail(&dev->list, &sess->devs_list);
@@ -1481,7 +1484,7 @@ struct rnbd_clt_dev *rnbd_clt_map_device(const char *sessname,
 	struct rnbd_clt_dev *dev;
 	int ret;
 
-	if (exists_devpath(pathname))
+	if (unlikely(exists_devpath(pathname, sessname)))
 		return ERR_PTR(-EEXIST);
 
 	sess = find_and_get_or_create_sess(sessname, paths, path_cnt, port_nr);
