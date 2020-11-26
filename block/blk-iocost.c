@@ -971,6 +971,58 @@ done:
 	ioc->vtime_err = clamp(ioc->vtime_err, -vperiod, vperiod);
 }
 
+static void ioc_adjust_base_vrate(struct ioc *ioc, u32 rq_wait_pct,
+				  int nr_lagging, int nr_shortages,
+				  int prev_busy_level, u32 *missed_ppm)
+{
+	u64 vrate = ioc->vtime_base_rate;
+	u64 vrate_min = ioc->vrate_min, vrate_max = ioc->vrate_max;
+
+	if (!ioc->busy_level || (ioc->busy_level < 0 && nr_lagging)) {
+		if (ioc->busy_level != prev_busy_level || nr_lagging)
+			trace_iocost_ioc_vrate_adj(ioc, atomic64_read(&ioc->vtime_rate),
+						   missed_ppm, rq_wait_pct,
+						   nr_lagging, nr_shortages);
+
+		return;
+	}
+
+	/* rq_wait signal is always reliable, ignore user vrate_min */
+	if (rq_wait_pct > RQ_WAIT_BUSY_PCT)
+		vrate_min = VRATE_MIN;
+
+	/*
+	 * If vrate is out of bounds, apply clamp gradually as the
+	 * bounds can change abruptly.  Otherwise, apply busy_level
+	 * based adjustment.
+	 */
+	if (vrate < vrate_min) {
+		vrate = div64_u64(vrate * (100 + VRATE_CLAMP_ADJ_PCT), 100);
+		vrate = min(vrate, vrate_min);
+	} else if (vrate > vrate_max) {
+		vrate = div64_u64(vrate * (100 - VRATE_CLAMP_ADJ_PCT), 100);
+		vrate = max(vrate, vrate_max);
+	} else {
+		int idx = min_t(int, abs(ioc->busy_level),
+				ARRAY_SIZE(vrate_adj_pct) - 1);
+		u32 adj_pct = vrate_adj_pct[idx];
+
+		if (ioc->busy_level > 0)
+			adj_pct = 100 - adj_pct;
+		else
+			adj_pct = 100 + adj_pct;
+
+		vrate = clamp(DIV64_U64_ROUND_UP(vrate * adj_pct, 100),
+			      vrate_min, vrate_max);
+	}
+
+	trace_iocost_ioc_vrate_adj(ioc, vrate, missed_ppm, rq_wait_pct,
+				   nr_lagging, nr_shortages);
+
+	ioc->vtime_base_rate = vrate;
+	ioc_refresh_margins(ioc);
+}
+
 /* take a snapshot of the current [v]time and vrate */
 static void ioc_now(struct ioc *ioc, struct ioc_now *now)
 {
@@ -2323,51 +2375,8 @@ static void ioc_timer_fn(struct timer_list *timer)
 
 	ioc->busy_level = clamp(ioc->busy_level, -1000, 1000);
 
-	if (ioc->busy_level > 0 || (ioc->busy_level < 0 && !nr_lagging)) {
-		u64 vrate = ioc->vtime_base_rate;
-		u64 vrate_min = ioc->vrate_min, vrate_max = ioc->vrate_max;
-
-		/* rq_wait signal is always reliable, ignore user vrate_min */
-		if (rq_wait_pct > RQ_WAIT_BUSY_PCT)
-			vrate_min = VRATE_MIN;
-
-		/*
-		 * If vrate is out of bounds, apply clamp gradually as the
-		 * bounds can change abruptly.  Otherwise, apply busy_level
-		 * based adjustment.
-		 */
-		if (vrate < vrate_min) {
-			vrate = div64_u64(vrate * (100 + VRATE_CLAMP_ADJ_PCT),
-					  100);
-			vrate = min(vrate, vrate_min);
-		} else if (vrate > vrate_max) {
-			vrate = div64_u64(vrate * (100 - VRATE_CLAMP_ADJ_PCT),
-					  100);
-			vrate = max(vrate, vrate_max);
-		} else {
-			int idx = min_t(int, abs(ioc->busy_level),
-					ARRAY_SIZE(vrate_adj_pct) - 1);
-			u32 adj_pct = vrate_adj_pct[idx];
-
-			if (ioc->busy_level > 0)
-				adj_pct = 100 - adj_pct;
-			else
-				adj_pct = 100 + adj_pct;
-
-			vrate = clamp(DIV64_U64_ROUND_UP(vrate * adj_pct, 100),
-				      vrate_min, vrate_max);
-		}
-
-		trace_iocost_ioc_vrate_adj(ioc, vrate, missed_ppm, rq_wait_pct,
-					   nr_lagging, nr_shortages);
-
-		ioc->vtime_base_rate = vrate;
-		ioc_refresh_margins(ioc);
-	} else if (ioc->busy_level != prev_busy_level || nr_lagging) {
-		trace_iocost_ioc_vrate_adj(ioc, atomic64_read(&ioc->vtime_rate),
-					   missed_ppm, rq_wait_pct, nr_lagging,
-					   nr_shortages);
-	}
+	ioc_adjust_base_vrate(ioc, rq_wait_pct, nr_lagging, nr_shortages,
+			      prev_busy_level, missed_ppm);
 
 	ioc_refresh_params(ioc, false);
 
