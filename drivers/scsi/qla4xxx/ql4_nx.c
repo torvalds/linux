@@ -512,11 +512,14 @@ int qla4_82xx_md_wr_32(struct scsi_qla_host *ha, uint32_t off, uint32_t data)
  *
  * General purpose lock used to synchronize access to
  * CRB_DEV_STATE, CRB_DEV_REF_COUNT, etc.
+ *
+ * Context: task, can sleep
  **/
 int qla4_82xx_idc_lock(struct scsi_qla_host *ha)
 {
-	int i;
 	int done = 0, timeout = 0;
+
+	might_sleep();
 
 	while (!done) {
 		/* acquire semaphore5 from PCI HW block */
@@ -527,14 +530,7 @@ int qla4_82xx_idc_lock(struct scsi_qla_host *ha)
 			return -1;
 
 		timeout++;
-
-		/* Yield CPU */
-		if (!in_interrupt())
-			schedule();
-		else {
-			for (i = 0; i < 20; i++)
-				cpu_relax();    /*This a nop instr on i386*/
-		}
+		msleep(100);
 	}
 	return 0;
 }
