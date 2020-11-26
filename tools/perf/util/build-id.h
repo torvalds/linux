@@ -29,6 +29,8 @@ char *build_id_cache__kallsyms_path(const char *sbuild_id, char *bf,
 
 char *dso__build_id_filename(const struct dso *dso, char *bf, size_t size,
 			     bool is_debug);
+char *__dso__build_id_filename(const struct dso *dso, char *bf, size_t size,
+			       bool is_debug, bool is_kallsyms);
 
 int build_id__mark_dso_hit(struct perf_tool *tool, union perf_event *event,
 			   struct perf_sample *sample, struct evsel *evsel,

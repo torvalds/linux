@@ -261,10 +261,9 @@ static const char *build_id_cache__basename(bool is_kallsyms, bool is_vdso,
 	    "debug" : "elf"));
 }
 
-char *dso__build_id_filename(const struct dso *dso, char *bf, size_t size,
-			     bool is_debug)
+char *__dso__build_id_filename(const struct dso *dso, char *bf, size_t size,
+			       bool is_debug, bool is_kallsyms)
 {
-	bool is_kallsyms = dso__is_kallsyms((struct dso *)dso);
 	bool is_vdso = dso__is_vdso((struct dso *)dso);
 	char sbuild_id[SBUILD_ID_SIZE];
 	char *linkname;
@@ -291,6 +290,14 @@ char *dso__build_id_filename(const struct dso *dso, char *bf, size_t size,
 	free(linkname);
 
 	return bf;
+}
+
+char *dso__build_id_filename(const struct dso *dso, char *bf, size_t size,
+			     bool is_debug)
+{
+	bool is_kallsyms = dso__is_kallsyms((struct dso *)dso);
+
+	return __dso__build_id_filename(dso, bf, size, is_debug, is_kallsyms);
 }
 
 #define dsos__for_each_with_build_id(pos, head)	\
