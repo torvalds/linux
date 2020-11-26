@@ -181,16 +181,12 @@ static int __rpmh_write(const struct device *dev, enum rpmh_state state,
 	struct cache_req *req;
 	int i;
 
-	rpm_msg->msg.state = state;
-
 	/* Cache the request in our store and link the payload */
 	for (i = 0; i < rpm_msg->msg.num_cmds; i++) {
 		req = cache_rpm_request(ctrlr, state, &rpm_msg->msg.cmds[i]);
 		if (IS_ERR(req))
 			return PTR_ERR(req);
 	}
-
-	rpm_msg->msg.state = state;
 
 	if (state == RPMH_ACTIVE_ONLY_STATE) {
 		WARN_ON(irqs_disabled());
@@ -268,11 +264,9 @@ int rpmh_write(const struct device *dev, enum rpmh_state state,
 	DEFINE_RPMH_MSG_ONSTACK(dev, state, &compl, rpm_msg);
 	int ret;
 
-	if (!cmd || !n || n > MAX_RPMH_PAYLOAD)
-		return -EINVAL;
-
-	memcpy(rpm_msg.cmd, cmd, n * sizeof(*cmd));
-	rpm_msg.msg.num_cmds = n;
+	ret = __fill_rpmh_msg(&rpm_msg, state, cmd, n);
+	if (ret)
+		return ret;
 
 	ret = __rpmh_write(dev, state, &rpm_msg);
 	if (ret)
