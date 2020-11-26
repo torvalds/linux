@@ -1215,8 +1215,8 @@ retry:
 			}
 
 			reg->bus.offset = handle;
-			ret = 0;
 		}
+		ret = 0;
 		break;
 	default:
 		ret = -EINVAL;
