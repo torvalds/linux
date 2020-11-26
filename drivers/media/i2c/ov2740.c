@@ -600,8 +600,8 @@ static void ov2740_update_pad_format(const struct ov2740_mode *mode,
 
 static int ov2740_load_otp_data(struct nvm_data *nvm)
 {
-	struct i2c_client *client = nvm->client;
-	struct ov2740 *ov2740 = to_ov2740(i2c_get_clientdata(client));
+	struct i2c_client *client;
+	struct ov2740 *ov2740;
 	u32 isp_ctrl00 = 0;
 	u32 isp_ctrl01 = 0;
 	int ret;
@@ -611,6 +611,9 @@ static int ov2740_load_otp_data(struct nvm_data *nvm)
 
 	if (nvm->nvm_buffer)
 		return 0;
+
+	client = nvm->client;
+	ov2740 = to_ov2740(i2c_get_clientdata(client));
 
 	nvm->nvm_buffer = kzalloc(CUSTOMER_USE_OTP_SIZE, GFP_KERNEL);
 	if (!nvm->nvm_buffer)
