@@ -318,6 +318,7 @@ void dm_dtn_log_begin(struct dc_context *ctx,
 	dm_dtn_log_append_v(ctx, log_ctx, "%s", msg);
 }
 
+__printf(3, 4)
 void dm_dtn_log_append_v(struct dc_context *ctx,
 	struct dc_log_buffer_ctx *log_ctx,
 	const char *msg, ...)
