@@ -11,6 +11,7 @@
 
 #include <linux/string.h>
 #include <linux/kernel.h>
+#include <linux/videodev2.h>
 #include "codec-fwht.h"
 
 #define OVERFLOW_BIT BIT(14)

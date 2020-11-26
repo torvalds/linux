@@ -1746,7 +1746,7 @@ static int vicodec_try_ctrl(struct v4l2_ctrl *ctrl)
 			V4L2_BUF_TYPE_VIDEO_CAPTURE);
 
 	switch (ctrl->id) {
-	case V4L2_CID_MPEG_VIDEO_FWHT_PARAMS:
+	case V4L2_CID_STATELESS_FWHT_PARAMS:
 		if (!q_dst->info)
 			return -EINVAL;
 		params = ctrl->p_new.p_fwht_params;
@@ -1799,7 +1799,7 @@ static int vicodec_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_FWHT_P_FRAME_QP:
 		ctx->state.p_frame_qp = ctrl->val;
 		return 0;
-	case V4L2_CID_MPEG_VIDEO_FWHT_PARAMS:
+	case V4L2_CID_STATELESS_FWHT_PARAMS:
 		params = ctrl->p_new.p_fwht_params;
 		update_header_from_stateless_params(ctx, params);
 		ctx->state.ref_frame_ts = params->backward_ref_ts;
@@ -1815,7 +1815,7 @@ static const struct v4l2_ctrl_ops vicodec_ctrl_ops = {
 
 static const struct v4l2_ctrl_config vicodec_ctrl_stateless_state = {
 	.ops		= &vicodec_ctrl_ops,
-	.id		= V4L2_CID_MPEG_VIDEO_FWHT_PARAMS,
+	.id		= V4L2_CID_STATELESS_FWHT_PARAMS,
 	.elem_size      = sizeof(struct v4l2_ctrl_fwht_params),
 };
 

@@ -1740,6 +1740,7 @@ struct v4l2_ext_control {
 		struct v4l2_ctrl_h264_pred_weights __user *p_h264_pred_weights;
 		struct v4l2_ctrl_h264_slice_params __user *p_h264_slice_params;
 		struct v4l2_ctrl_h264_decode_params __user *p_h264_decode_params;
+		struct v4l2_ctrl_fwht_params __user *p_fwht_params;
 		void __user *ptr;
 	};
 } __attribute__ ((packed));
@@ -1793,6 +1794,8 @@ enum v4l2_ctrl_type {
 	V4L2_CTRL_TYPE_H264_SLICE_PARAMS    = 0x0203,
 	V4L2_CTRL_TYPE_H264_DECODE_PARAMS   = 0x0204,
 	V4L2_CTRL_TYPE_H264_PRED_WEIGHTS    = 0x0205,
+
+	V4L2_CTRL_TYPE_FWHT_PARAMS	    = 0x0220,
 };
 
 /*  Used in the VIDIOC_QUERYCTRL ioctl for querying controls */

@@ -1565,6 +1565,76 @@ struct v4l2_ctrl_h264_decode_params {
 };
 
 
+/* Stateless FWHT control, used by the vicodec driver */
+
+/* Current FWHT version */
+#define V4L2_FWHT_VERSION			3
+
+/* Set if this is an interlaced format */
+#define V4L2_FWHT_FL_IS_INTERLACED		BIT(0)
+/* Set if this is a bottom-first (NTSC) interlaced format */
+#define V4L2_FWHT_FL_IS_BOTTOM_FIRST		BIT(1)
+/* Set if each 'frame' contains just one field */
+#define V4L2_FWHT_FL_IS_ALTERNATE		BIT(2)
+/*
+ * If V4L2_FWHT_FL_IS_ALTERNATE was set, then this is set if this
+ * 'frame' is the bottom field, else it is the top field.
+ */
+#define V4L2_FWHT_FL_IS_BOTTOM_FIELD		BIT(3)
+/* Set if the Y' plane is uncompressed */
+#define V4L2_FWHT_FL_LUMA_IS_UNCOMPRESSED	BIT(4)
+/* Set if the Cb plane is uncompressed */
+#define V4L2_FWHT_FL_CB_IS_UNCOMPRESSED		BIT(5)
+/* Set if the Cr plane is uncompressed */
+#define V4L2_FWHT_FL_CR_IS_UNCOMPRESSED		BIT(6)
+/* Set if the chroma plane is full height, if cleared it is half height */
+#define V4L2_FWHT_FL_CHROMA_FULL_HEIGHT		BIT(7)
+/* Set if the chroma plane is full width, if cleared it is half width */
+#define V4L2_FWHT_FL_CHROMA_FULL_WIDTH		BIT(8)
+/* Set if the alpha plane is uncompressed */
+#define V4L2_FWHT_FL_ALPHA_IS_UNCOMPRESSED	BIT(9)
+/* Set if this is an I Frame */
+#define V4L2_FWHT_FL_I_FRAME			BIT(10)
+
+/* A 4-values flag - the number of components - 1 */
+#define V4L2_FWHT_FL_COMPONENTS_NUM_MSK		GENMASK(18, 16)
+#define V4L2_FWHT_FL_COMPONENTS_NUM_OFFSET	16
+
+/* A 4-values flag - the pixel encoding type */
+#define V4L2_FWHT_FL_PIXENC_MSK			GENMASK(20, 19)
+#define V4L2_FWHT_FL_PIXENC_OFFSET		19
+#define V4L2_FWHT_FL_PIXENC_YUV			(1 << V4L2_FWHT_FL_PIXENC_OFFSET)
+#define V4L2_FWHT_FL_PIXENC_RGB			(2 << V4L2_FWHT_FL_PIXENC_OFFSET)
+#define V4L2_FWHT_FL_PIXENC_HSV			(3 << V4L2_FWHT_FL_PIXENC_OFFSET)
+
+#define V4L2_CID_STATELESS_FWHT_PARAMS		(V4L2_CID_CODEC_STATELESS_BASE + 100)
+/**
+ * struct v4l2_ctrl_fwht_params - FWHT parameters
+ *
+ * @backward_ref_ts: timestamp of the V4L2 capture buffer to use as reference.
+ * The timestamp refers to the timestamp field in struct v4l2_buffer.
+ * Use v4l2_timeval_to_ns() to convert the struct timeval to a __u64.
+ * @version: must be V4L2_FWHT_VERSION.
+ * @width: width of frame.
+ * @height: height of frame.
+ * @flags: FWHT flags (see V4L2_FWHT_FL_*).
+ * @colorspace: the colorspace (enum v4l2_colorspace).
+ * @xfer_func: the transfer function (enum v4l2_xfer_func).
+ * @ycbcr_enc: the Y'CbCr encoding (enum v4l2_ycbcr_encoding).
+ * @quantization: the quantization (enum v4l2_quantization).
+ */
+struct v4l2_ctrl_fwht_params {
+	__u64 backward_ref_ts;
+	__u32 version;
+	__u32 width;
+	__u32 height;
+	__u32 flags;
+	__u32 colorspace;
+	__u32 xfer_func;
+	__u32 ycbcr_enc;
+	__u32 quantization;
+};
+
 /* MPEG-compression definitions kept for backwards compatibility */
 #ifndef __KERNEL__
 #define V4L2_CTRL_CLASS_MPEG            V4L2_CTRL_CLASS_CODEC
