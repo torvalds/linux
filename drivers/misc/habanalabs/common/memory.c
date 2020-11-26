@@ -1761,6 +1761,7 @@ static int vm_ctx_init_with_ranges(struct hl_ctx *ctx,
 			goto clear_host_va_range;
 		}
 	} else {
+		kfree(ctx->va_range[HL_VA_RANGE_TYPE_HOST_HUGE]);
 		ctx->va_range[HL_VA_RANGE_TYPE_HOST_HUGE] =
 				ctx->va_range[HL_VA_RANGE_TYPE_HOST];
 	}
@@ -1906,9 +1907,10 @@ void hl_vm_ctx_fini(struct hl_ctx *ctx)
 	spin_unlock(&vm->idr_lock);
 
 	va_range_fini(hdev, ctx->va_range[HL_VA_RANGE_TYPE_DRAM]);
+	va_range_fini(hdev, ctx->va_range[HL_VA_RANGE_TYPE_HOST]);
+
 	if (hdev->pmmu_huge_range)
 		va_range_fini(hdev, ctx->va_range[HL_VA_RANGE_TYPE_HOST_HUGE]);
-	va_range_fini(hdev, ctx->va_range[HL_VA_RANGE_TYPE_HOST]);
 
 	mutex_destroy(&ctx->mem_hash_lock);
 	hl_mmu_ctx_fini(ctx);
