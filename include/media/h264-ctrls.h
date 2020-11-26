@@ -98,6 +98,15 @@ enum v4l2_mpeg_video_h264_start_code {
 #define V4L2_H264_SPS_FLAG_MB_ADAPTIVE_FRAME_FIELD		0x20
 #define V4L2_H264_SPS_FLAG_DIRECT_8X8_INFERENCE			0x40
 
+#define V4L2_H264_SPS_HAS_CHROMA_FORMAT(sps) \
+	((sps)->profile_idc == 100 || (sps)->profile_idc == 110 || \
+	 (sps)->profile_idc == 122 || (sps)->profile_idc == 244 || \
+	 (sps)->profile_idc == 44  || (sps)->profile_idc == 83  || \
+	 (sps)->profile_idc == 86  || (sps)->profile_idc == 118 || \
+	 (sps)->profile_idc == 128 || (sps)->profile_idc == 138 || \
+	 (sps)->profile_idc == 139 || (sps)->profile_idc == 134 || \
+	 (sps)->profile_idc == 135)
+
 /**
  * struct v4l2_ctrl_h264_sps - H264 sequence parameter set
  *
