@@ -4849,6 +4849,57 @@ _base_get_event_diag_triggers(struct MPT3SAS_ADAPTER *ioc)
 }
 
 /**
+ * _base_get_scsi_diag_triggers - get scsi diag trigger values from
+ *				persistent pages
+ * @ioc : per adapter object
+ *
+ * Return nothing.
+ */
+static void
+_base_get_scsi_diag_triggers(struct MPT3SAS_ADAPTER *ioc)
+{
+	Mpi26DriverTriggerPage3_t trigger_pg3;
+	struct SL_WH_SCSI_TRIGGER_T *scsi_tg;
+	MPI26_DRIVER_SCSI_SENSE_TIGGER_ENTRY *mpi_scsi_tg;
+	Mpi2ConfigReply_t mpi_reply;
+	int r = 0, i = 0;
+	u16 count = 0;
+	u16 ioc_status;
+
+	r = mpt3sas_config_get_driver_trigger_pg3(ioc, &mpi_reply,
+	    &trigger_pg3);
+	if (r)
+		return;
+
+	ioc_status = le16_to_cpu(mpi_reply.IOCStatus) &
+	    MPI2_IOCSTATUS_MASK;
+	if (ioc_status != MPI2_IOCSTATUS_SUCCESS) {
+		dinitprintk(ioc,
+		    ioc_err(ioc,
+		    "%s: Failed to get trigger pg3, ioc_status(0x%04x)\n",
+		    __func__, ioc_status));
+		return;
+	}
+
+	if (le16_to_cpu(trigger_pg3.NumSCSISenseTrigger)) {
+		count = le16_to_cpu(trigger_pg3.NumSCSISenseTrigger);
+		count = min_t(u16, NUM_VALID_ENTRIES, count);
+		ioc->diag_trigger_scsi.ValidEntries = count;
+
+		scsi_tg = &ioc->diag_trigger_scsi.SCSITriggerEntry[0];
+		mpi_scsi_tg = &trigger_pg3.SCSISenseTriggers[0];
+		for (i = 0; i < count; i++) {
+			scsi_tg->ASCQ = mpi_scsi_tg->ASCQ;
+			scsi_tg->ASC = mpi_scsi_tg->ASC;
+			scsi_tg->SenseKey = mpi_scsi_tg->SenseKey;
+
+			scsi_tg++;
+			mpi_scsi_tg++;
+		}
+	}
+}
+
+/**
  * _base_get_master_diag_triggers - get master diag trigger values from
  *				persistent pages
  * @ioc : per adapter object
@@ -4952,6 +5003,14 @@ _base_get_diag_triggers(struct MPT3SAS_ADAPTER *ioc)
 	if ((u16)trigger_flags &
 	    MPI26_DRIVER_TRIGGER0_FLAG_MPI_EVENT_TRIGGER_VALID)
 		_base_get_event_diag_triggers(ioc);
+
+	/*
+	 * Retrieve scsi diag trigger values from driver trigger pg3
+	 * if scsi trigger bit enabled in TriggerFlags.
+	 */
+	if ((u16)trigger_flags &
+	    MPI26_DRIVER_TRIGGER0_FLAG_SCSI_SENSE_TRIGGER_VALID)
+		_base_get_scsi_diag_triggers(ioc);
 
 }
 
