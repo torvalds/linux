@@ -231,9 +231,21 @@ void vlv_ccu_write(struct drm_i915_private *i915, u32 reg, u32 val)
 			SB_CRWRDA_NP, reg, &val);
 }
 
+static u32 vlv_dpio_phy_iosf_port(struct drm_i915_private *i915, enum dpio_phy phy)
+{
+	/*
+	 * IOSF_PORT_DPIO: VLV x2 PHY (DP/HDMI B and C), CHV x1 PHY (DP/HDMI D)
+	 * IOSF_PORT_DPIO_2: CHV x2 PHY (DP/HDMI B and C)
+	 */
+	if (IS_CHERRYVIEW(i915))
+		return phy == DPIO_PHY0 ? IOSF_PORT_DPIO_2 : IOSF_PORT_DPIO;
+	else
+		return IOSF_PORT_DPIO;
+}
+
 u32 vlv_dpio_read(struct drm_i915_private *i915, enum pipe pipe, int reg)
 {
-	int port = i915->dpio_phy_iosf_port[DPIO_PHY(pipe)];
+	u32 port = vlv_dpio_phy_iosf_port(i915, DPIO_PHY(pipe));
 	u32 val = 0;
 
 	vlv_sideband_rw(i915, DPIO_DEVFN, port, SB_MRD_NP, reg, &val);
@@ -252,7 +264,7 @@ u32 vlv_dpio_read(struct drm_i915_private *i915, enum pipe pipe, int reg)
 void vlv_dpio_write(struct drm_i915_private *i915,
 		    enum pipe pipe, int reg, u32 val)
 {
-	int port = i915->dpio_phy_iosf_port[DPIO_PHY(pipe)];
+	u32 port = vlv_dpio_phy_iosf_port(i915, DPIO_PHY(pipe));
 
 	vlv_sideband_rw(i915, DPIO_DEVFN, port, SB_MWR_NP, reg, &val);
 }

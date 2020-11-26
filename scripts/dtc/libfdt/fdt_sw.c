@@ -93,8 +93,8 @@ static inline uint32_t sw_flags(void *fdt)
 
 static void *fdt_grab_space_(void *fdt, size_t len)
 {
-	int offset = fdt_size_dt_struct(fdt);
-	int spaceleft;
+	unsigned int offset = fdt_size_dt_struct(fdt);
+	unsigned int spaceleft;
 
 	spaceleft = fdt_totalsize(fdt) - fdt_off_dt_struct(fdt)
 		- fdt_size_dt_strings(fdt);
@@ -108,8 +108,8 @@ static void *fdt_grab_space_(void *fdt, size_t len)
 
 int fdt_create_with_flags(void *buf, int bufsize, uint32_t flags)
 {
-	const size_t hdrsize = FDT_ALIGN(sizeof(struct fdt_header),
-					 sizeof(struct fdt_reserve_entry));
+	const int hdrsize = FDT_ALIGN(sizeof(struct fdt_header),
+				      sizeof(struct fdt_reserve_entry));
 	void *fdt = buf;
 
 	if (bufsize < hdrsize)
@@ -152,6 +152,9 @@ int fdt_resize(void *fdt, void *buf, int bufsize)
 
 	FDT_SW_PROBE(fdt);
 
+	if (bufsize < 0)
+		return -FDT_ERR_NOSPACE;
+
 	headsize = fdt_off_dt_struct(fdt) + fdt_size_dt_struct(fdt);
 	tailsize = fdt_size_dt_strings(fdt);
 
@@ -159,7 +162,7 @@ int fdt_resize(void *fdt, void *buf, int bufsize)
 	    headsize + tailsize > fdt_totalsize(fdt))
 		return -FDT_ERR_INTERNAL;
 
-	if ((headsize + tailsize) > bufsize)
+	if ((headsize + tailsize) > (unsigned)bufsize)
 		return -FDT_ERR_NOSPACE;
 
 	oldtail = (char *)fdt + fdt_totalsize(fdt) - tailsize;
@@ -247,18 +250,18 @@ int fdt_end_node(void *fdt)
 static int fdt_add_string_(void *fdt, const char *s)
 {
 	char *strtab = (char *)fdt + fdt_totalsize(fdt);
-	int strtabsize = fdt_size_dt_strings(fdt);
-	int len = strlen(s) + 1;
-	int struct_top, offset;
+	unsigned int strtabsize = fdt_size_dt_strings(fdt);
+	unsigned int len = strlen(s) + 1;
+	unsigned int struct_top, offset;
 
-	offset = -strtabsize - len;
+	offset = strtabsize + len;
 	struct_top = fdt_off_dt_struct(fdt) + fdt_size_dt_struct(fdt);
-	if (fdt_totalsize(fdt) + offset < struct_top)
+	if (fdt_totalsize(fdt) - offset < struct_top)
 		return 0; /* no more room :( */
 
-	memcpy(strtab + offset, s, len);
+	memcpy(strtab - offset, s, len);
 	fdt_set_size_dt_strings(fdt, strtabsize + len);
-	return offset;
+	return -offset;
 }
 
 /* Must only be used to roll back in case of error */

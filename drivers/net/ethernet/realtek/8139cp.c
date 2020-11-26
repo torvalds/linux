@@ -1239,7 +1239,7 @@ static void cp_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct cp_private *cp = netdev_priv(dev);
 	unsigned long flags;
-	int rc, i;
+	int i;
 
 	netdev_warn(dev, "Transmit timeout, status %2x %4x %4x %4x\n",
 		    cpr8(Cmd), cpr16(CpCmd),
@@ -1260,7 +1260,7 @@ static void cp_tx_timeout(struct net_device *dev, unsigned int txqueue)
 
 	cp_stop_hw(cp);
 	cp_clean_rings(cp);
-	rc = cp_init_rings(cp);
+	cp_init_rings(cp);
 	cp_start_hw(cp);
 	__cp_set_rx_mode(dev);
 	cpw16_f(IntrMask, cp_norx_intr_mask);

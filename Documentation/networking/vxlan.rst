@@ -58,3 +58,31 @@ forwarding table using the new bridge command.
 3. Show forwarding table::
 
     # bridge fdb show dev vxlan0
+
+The following NIC features may indicate support for UDP tunnel-related
+offloads (most commonly VXLAN features, but support for a particular
+encapsulation protocol is NIC specific):
+
+ - `tx-udp_tnl-segmentation`
+ - `tx-udp_tnl-csum-segmentation`
+    ability to perform TCP segmentation offload of UDP encapsulated frames
+
+ - `rx-udp_tunnel-port-offload`
+    receive side parsing of UDP encapsulated frames which allows NICs to
+    perform protocol-aware offloads, like checksum validation offload of
+    inner frames (only needed by NICs without protocol-agnostic offloads)
+
+For devices supporting `rx-udp_tunnel-port-offload` the list of currently
+offloaded ports can be interrogated with `ethtool`::
+
+  $ ethtool --show-tunnels eth0
+  Tunnel information for eth0:
+    UDP port table 0:
+      Size: 4
+      Types: vxlan
+      No entries
+    UDP port table 1:
+      Size: 4
+      Types: geneve, vxlan-gpe
+      Entries (1):
+          port 1230, vxlan-gpe

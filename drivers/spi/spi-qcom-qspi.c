@@ -143,7 +143,6 @@ struct qcom_qspi {
 	struct qspi_xfer xfer;
 	struct icc_path *icc_path_cpu_to_qspi;
 	struct opp_table *opp_table;
-	bool has_opp_table;
 	unsigned long last_speed;
 	/* Lock to protect data accessed by IRQs */
 	spinlock_t lock;
@@ -421,9 +420,8 @@ static irqreturn_t qcom_qspi_irq(int irq, void *dev_id)
 	u32 int_status;
 	struct qcom_qspi *ctrl = dev_id;
 	irqreturn_t ret = IRQ_NONE;
-	unsigned long flags;
 
-	spin_lock_irqsave(&ctrl->lock, flags);
+	spin_lock(&ctrl->lock);
 
 	int_status = readl(ctrl->base + MSTR_INT_STATUS);
 	writel(int_status, ctrl->base + MSTR_INT_STATUS);
@@ -451,7 +449,7 @@ static irqreturn_t qcom_qspi_irq(int irq, void *dev_id)
 		spi_finalize_current_transfer(dev_get_drvdata(ctrl->dev));
 	}
 
-	spin_unlock_irqrestore(&ctrl->lock, flags);
+	spin_unlock(&ctrl->lock);
 	return ret;
 }
 
@@ -495,9 +493,8 @@ static int qcom_qspi_probe(struct platform_device *pdev)
 
 	ctrl->icc_path_cpu_to_qspi = devm_of_icc_get(dev, "qspi-config");
 	if (IS_ERR(ctrl->icc_path_cpu_to_qspi)) {
-		ret = PTR_ERR(ctrl->icc_path_cpu_to_qspi);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "Failed to get cpu path: %d\n", ret);
+		ret = dev_err_probe(dev, PTR_ERR(ctrl->icc_path_cpu_to_qspi),
+				    "Failed to get cpu path\n");
 		goto exit_probe_master_put;
 	}
 	/* Set BW vote for register access */
@@ -546,11 +543,9 @@ static int qcom_qspi_probe(struct platform_device *pdev)
 	}
 	/* OPP table is optional */
 	ret = dev_pm_opp_of_add_table(&pdev->dev);
-	if (!ret) {
-		ctrl->has_opp_table = true;
-	} else if (ret != -ENODEV) {
+	if (ret && ret != -ENODEV) {
 		dev_err(&pdev->dev, "invalid OPP table in device tree\n");
-		goto exit_probe_master_put;
+		goto exit_probe_put_clkname;
 	}
 
 	pm_runtime_use_autosuspend(dev);
@@ -562,8 +557,9 @@ static int qcom_qspi_probe(struct platform_device *pdev)
 		return 0;
 
 	pm_runtime_disable(dev);
-	if (ctrl->has_opp_table)
-		dev_pm_opp_of_remove_table(&pdev->dev);
+	dev_pm_opp_of_remove_table(&pdev->dev);
+
+exit_probe_put_clkname:
 	dev_pm_opp_put_clkname(ctrl->opp_table);
 
 exit_probe_master_put:
@@ -581,8 +577,7 @@ static int qcom_qspi_remove(struct platform_device *pdev)
 	spi_unregister_master(master);
 
 	pm_runtime_disable(&pdev->dev);
-	if (ctrl->has_opp_table)
-		dev_pm_opp_of_remove_table(&pdev->dev);
+	dev_pm_opp_of_remove_table(&pdev->dev);
 	dev_pm_opp_put_clkname(ctrl->opp_table);
 
 	return 0;

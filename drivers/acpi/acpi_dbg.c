@@ -749,6 +749,9 @@ static int __init acpi_aml_init(void)
 {
 	int ret;
 
+	if (acpi_disabled)
+		return -ENODEV;
+
 	/* Initialize AML IO interface */
 	mutex_init(&acpi_aml_io.lock);
 	init_waitqueue_head(&acpi_aml_io.wait);

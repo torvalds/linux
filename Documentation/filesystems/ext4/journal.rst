@@ -28,6 +28,17 @@ metadata are written to disk through the journal. This is slower but
 safest. If ``data=writeback``, dirty data blocks are not flushed to the
 disk before the metadata are written to disk through the journal.
 
+In case of ``data=ordered`` mode, Ext4 also supports fast commits which
+help reduce commit latency significantly. The default ``data=ordered``
+mode works by logging metadata blocks to the journal. In fast commit
+mode, Ext4 only stores the minimal delta needed to recreate the
+affected metadata in fast commit space that is shared with JBD2.
+Once the fast commit area fills in or if fast commit is not possible
+or if JBD2 commit timer goes off, Ext4 performs a traditional full commit.
+A full commit invalidates all the fast commits that happened before
+it and thus it makes the fast commit area empty for further fast
+commits. This feature needs to be enabled at mkfs time.
+
 The journal inode is typically inode 8. The first 68 bytes of the
 journal inode are replicated in the ext4 superblock. The journal itself
 is normal (but hidden) file within the filesystem. The file usually
@@ -245,6 +256,10 @@ which is 1024 bytes long:
      - s\_padding2
      -
    * - 0x54
+     - \_\_be32
+     - s\_num\_fc\_blocks
+     - Number of fast commit blocks in the journal.
+   * - 0x58
      - \_\_u32
      - s\_padding[42]
      -
@@ -299,6 +314,8 @@ The journal incompat features are any combination of the following:
      - This journal uses v3 of the checksum on-disk format. This is the same as
        v2, but the journal block tag size is fixed regardless of the size of
        block numbers. (JBD2\_FEATURE\_INCOMPAT\_CSUM\_V3)
+   * - 0x20
+     - Journal has fast commit blocks. (JBD2\_FEATURE\_INCOMPAT\_FAST\_COMMIT)
 
 .. _jbd2_checksum_type:
 
@@ -608,4 +625,59 @@ bytes long (but uses a full block):
      - \_\_be32
      - h\_commit\_nsec
      - Nanoseconds component of the above timestamp.
+
+Fast commits
+~~~~~~~~~~~~
+
+Fast commit area is organized as a log of tag length values. Each TLV has
+a ``struct ext4_fc_tl`` in the beginning which stores the tag and the length
+of the entire field. It is followed by variable length tag specific value.
+Here is the list of supported tags and their meanings:
+
+.. list-table::
+   :widths: 8 20 20 32
+   :header-rows: 1
+
+   * - Tag
+     - Meaning
+     - Value struct
+     - Description
+   * - EXT4_FC_TAG_HEAD
+     - Fast commit area header
+     - ``struct ext4_fc_head``
+     - Stores the TID of the transaction after which these fast commits should
+       be applied.
+   * - EXT4_FC_TAG_ADD_RANGE
+     - Add extent to inode
+     - ``struct ext4_fc_add_range``
+     - Stores the inode number and extent to be added in this inode
+   * - EXT4_FC_TAG_DEL_RANGE
+     - Remove logical offsets to inode
+     - ``struct ext4_fc_del_range``
+     - Stores the inode number and the logical offset range that needs to be
+       removed
+   * - EXT4_FC_TAG_CREAT
+     - Create directory entry for a newly created file
+     - ``struct ext4_fc_dentry_info``
+     - Stores the parent inode number, inode number and directory entry of the
+       newly created file
+   * - EXT4_FC_TAG_LINK
+     - Link a directory entry to an inode
+     - ``struct ext4_fc_dentry_info``
+     - Stores the parent inode number, inode number and directory entry
+   * - EXT4_FC_TAG_UNLINK
+     - Unlink a directory entry of an inode
+     - ``struct ext4_fc_dentry_info``
+     - Stores the parent inode number, inode number and directory entry
+
+   * - EXT4_FC_TAG_PAD
+     - Padding (unused area)
+     - None
+     - Unused bytes in the fast commit area.
+
+   * - EXT4_FC_TAG_TAIL
+     - Mark the end of a fast commit
+     - ``struct ext4_fc_tail``
+     - Stores the TID of the commit, CRC of the fast commit of which this tag
+       represents the end of
 

@@ -15,6 +15,7 @@ TEST_LIST=(
 	"-T m"
 	"-T m -M"
 	"-T i"
+	"-T r"
 )
 
 TEST_NAME=(
@@ -25,6 +26,7 @@ TEST_NAME=(
 	"memcpy"
 	"memcpy with barrier"
 	"increment"
+	"membarrier"
 )
 IFS="$OLDIFS"
 

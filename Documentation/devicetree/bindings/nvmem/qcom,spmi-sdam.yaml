@@ -66,6 +66,8 @@ patternProperties:
 
     additionalProperties: false
 
+unevaluatedProperties: false
+
 examples:
   - |
       sdam_1: nvram@b000 {

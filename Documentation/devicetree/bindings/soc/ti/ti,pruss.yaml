@@ -1,0 +1,439 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/soc/ti/ti,pruss.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: |+
+  TI Programmable Real-Time Unit and Industrial Communication Subsystem
+
+maintainers:
+  - Suman Anna <s-anna@ti.com>
+
+description: |+
+
+  The Programmable Real-Time Unit and Industrial Communication Subsystem
+  (PRU-ICSS a.k.a. PRUSS) is present on various TI SoCs such as AM335x, AM437x,
+  Keystone 66AK2G, OMAP-L138/DA850 etc. A PRUSS consists of dual 32-bit RISC
+  cores (Programmable Real-Time Units, or PRUs), shared RAM, data and
+  instruction RAMs, some internal peripheral modules to facilitate industrial
+  communication, and an interrupt controller.
+
+  The programmable nature of the PRUs provide flexibility to implement custom
+  peripheral interfaces, fast real-time responses, or specialized data handling.
+  The common peripheral modules include the following,
+    - an Ethernet MII_RT module with two MII ports
+    - an MDIO port to control external Ethernet PHYs
+    - an Industrial Ethernet Peripheral (IEP) to manage/generate Industrial
+      Ethernet functions
+    - an Enhanced Capture Module (eCAP)
+    - an Industrial Ethernet Timer with 7/9 capture and 16 compare events
+    - a 16550-compatible UART to support PROFIBUS
+    - Enhanced GPIO with async capture and serial support
+
+  A PRU-ICSS subsystem can have up to three shared data memories. A PRU core
+  acts on a primary Data RAM (there are usually 2 Data RAMs) at its address
+  0x0, but also has access to a secondary Data RAM (primary to the other PRU
+  core) at its address 0x2000. A shared Data RAM, if present, can be accessed
+  by both the PRU cores. The Interrupt Controller (INTC) and a CFG module are
+  common to both the PRU cores. Each PRU core also has a private instruction
+  RAM, and specific register spaces for Control and Debug functionalities.
+
+  Various sub-modules within a PRU-ICSS subsystem are represented as individual
+  nodes and are defined using a parent-child hierarchy depending on their
+  integration within the IP and the SoC. These nodes are described in the
+  following sections.
+
+
+  PRU-ICSS Node
+  ==============
+  Each PRU-ICSS instance is represented as its own node with the individual PRU
+  processor cores, the memories node, an INTC node and an MDIO node represented
+  as child nodes within this PRUSS node. This node shall be a child of the
+  corresponding interconnect bus nodes or target-module nodes.
+
+  See ../../mfd/syscon.yaml for generic SysCon binding details.
+
+
+properties:
+  $nodename:
+    pattern: "^(pruss|icssg)@[0-9a-f]+$"
+
+  compatible:
+    enum:
+      - ti,am3356-pruss  # for AM335x SoC family
+      - ti,am4376-pruss0 # for AM437x SoC family and PRUSS unit 0
+      - ti,am4376-pruss1 # for AM437x SoC family and PRUSS unit 1
+      - ti,am5728-pruss  # for AM57xx SoC family
+      - ti,k2g-pruss     # for 66AK2G SoC family
+      - ti,am654-icssg   # for K3 AM65x SoC family
+      - ti,j721e-icssg   # for K3 J721E SoC family
+
+  reg:
+    maxItems: 1
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 1
+
+  ranges:
+    maxItems: 1
+
+  power-domains:
+    description: |
+      This property is as per sci-pm-domain.txt.
+
+patternProperties:
+
+  memories@[a-f0-9]+$:
+    description: |
+      The various Data RAMs within a single PRU-ICSS unit are represented as a
+      single node with the name 'memories'.
+
+    type: object
+
+    properties:
+      reg:
+        minItems: 2 # On AM437x one of two PRUSS units don't contain Shared RAM.
+        maxItems: 3
+        items:
+          - description: Address and size of the Data RAM0.
+          - description: Address and size of the Data RAM1.
+          - description: |
+              Address and size of the Shared Data RAM. Note that on AM437x one
+              of two PRUSS units don't contain Shared RAM, while the second one
+              has it.
+
+      reg-names:
+        minItems: 2
+        maxItems: 3
+        items:
+          - const: dram0
+          - const: dram1
+          - const: shrdram2
+
+    required:
+      - reg
+      - reg-names
+
+    additionalProperties: false
+
+  cfg@[a-f0-9]+$:
+    description: |
+      PRU-ICSS configuration space. CFG sub-module represented as a SysCon.
+
+    type: object
+
+    properties:
+      compatible:
+        items:
+          - const: ti,pruss-cfg
+          - const: syscon
+
+      "#address-cells":
+        const: 1
+
+      "#size-cells":
+        const: 1
+
+      reg:
+        maxItems: 1
+
+      ranges:
+        maxItems: 1
+
+      clocks:
+        type: object
+
+        properties:
+          "#address-cells":
+            const: 1
+
+          "#size-cells":
+            const: 0
+
+        patternProperties:
+          coreclk-mux@[a-f0-9]+$:
+            description: |
+              This is applicable only for ICSSG (K3 SoCs). The ICSSG modules
+              core clock can be set to one of the 2 sources: ICSSG_CORE_CLK or
+              ICSSG_ICLK.  This node models this clock mux and should have the
+              name "coreclk-mux".
+
+            type: object
+
+            properties:
+              '#clock-cells':
+                const: 0
+
+              clocks:
+                items:
+                  - description: ICSSG_CORE Clock
+                  - description: ICSSG_ICLK Clock
+
+              assigned-clocks:
+                maxItems: 1
+
+              assigned-clock-parents:
+                maxItems: 1
+                description: |
+                  Standard assigned-clocks-parents definition used for selecting
+                  mux parent (one of the mux input).
+
+              reg:
+                maxItems: 1
+
+            required:
+              - clocks
+
+            additionalProperties: false
+
+          iepclk-mux@[a-f0-9]+$:
+            description: |
+              The IEP module can get its clock from 2 sources: ICSSG_IEP_CLK or
+              CORE_CLK (OCP_CLK in older SoCs). This node models this clock
+              mux and should have the name "iepclk-mux".
+
+            type: object
+
+            properties:
+              '#clock-cells':
+                const: 0
+
+              clocks:
+                items:
+                  - description: ICSSG_IEP Clock
+                  - description: Core Clock (OCP Clock in older SoCs)
+
+              assigned-clocks:
+                maxItems: 1
+
+              assigned-clock-parents:
+                maxItems: 1
+                description: |
+                  Standard assigned-clocks-parents definition used for selecting
+                  mux parent (one of the mux input).
+
+              reg:
+                maxItems: 1
+
+            required:
+              - clocks
+
+            additionalProperties: false
+
+        additionalProperties: false
+
+  iep@[a-f0-9]+$:
+    description: |
+      Industrial Ethernet Peripheral to manage/generate Industrial Ethernet
+      functions such as time stamping. Each PRUSS has either 1 IEP (on AM335x,
+      AM437x, AM57xx & 66AK2G SoCs) or 2 IEPs (on K3 AM65x & J721E SoCs ). IEP
+      is used for creating PTP clocks and generating PPS signals.
+
+    type: object
+
+  mii-rt@[a-f0-9]+$:
+    description: |
+      Real-Time Ethernet to support multiple industrial communication protocols.
+      MII-RT sub-module represented as a SysCon.
+
+    type: object
+
+    properties:
+      compatible:
+        items:
+          - const: ti,pruss-mii
+          - const: syscon
+
+      reg:
+        maxItems: 1
+
+    additionalProperties: false
+
+  mii-g-rt@[a-f0-9]+$:
+    description: |
+      The Real-time Media Independent Interface to support multiple industrial
+      communication protocols (G stands for Gigabit). MII-G-RT sub-module
+      represented as a SysCon.
+
+    type: object
+
+    properties:
+      compatible:
+        items:
+          - const: ti,pruss-mii-g
+          - const: syscon
+
+      reg:
+        maxItems: 1
+
+    additionalProperties: false
+
+  interrupt-controller@[a-f0-9]+$:
+    description: |
+      PRUSS INTC Node. Each PRUSS has a single interrupt controller instance
+      that is common to all the PRU cores. This should be represented as an
+      interrupt-controller node.
+
+    type: object
+
+  mdio@[a-f0-9]+$:
+    description: |
+      MDIO Node. Each PRUSS has an MDIO module that can be used to control
+      external PHYs. The MDIO module used within the PRU-ICSS is an instance of
+      the MDIO Controller used in TI Davinci SoCs.
+
+    allOf:
+      - $ref: /schemas/net/ti,davinci-mdio.yaml#
+
+    type: object
+
+  "^(pru|rtu|txpru)@[0-9a-f]+$":
+    description: |
+      PRU Node. Each PRUSS has dual PRU cores, each represented as a RemoteProc
+      device through a PRU child node each. Each node can optionally be rendered
+      inactive by using the standard DT string property, "status". The ICSSG IP
+      present on K3 SoCs have additional auxiliary PRU cores with slightly
+      different IP integration.
+
+    type: object
+
+required:
+  - compatible
+  - reg
+  - ranges
+
+additionalProperties: false
+
+# Due to inability of correctly verifying sub-nodes with an @address through
+# the "required" list, the required sub-nodes below are commented out for now.
+
+#required:
+# - memories
+# - interrupt-controller
+# - pru
+
+if:
+  properties:
+    compatible:
+      contains:
+        enum:
+          - ti,k2g-pruss
+          - ti,am654-icssg
+          - ti,j721e-icssg
+then:
+  required:
+    - power-domains
+
+examples:
+  - |
+
+    /* Example 1 AM33xx PRU-ICSS */
+    pruss: pruss@0 {
+        compatible = "ti,am3356-pruss";
+        reg = <0x0 0x80000>;
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges;
+
+        pruss_mem: memories@0 {
+            reg = <0x0 0x2000>,
+                  <0x2000 0x2000>,
+                  <0x10000 0x3000>;
+            reg-names = "dram0", "dram1", "shrdram2";
+        };
+
+        pruss_cfg: cfg@26000 {
+            compatible = "ti,pruss-cfg", "syscon";
+            #address-cells = <1>;
+            #size-cells = <1>;
+            reg = <0x26000 0x2000>;
+            ranges = <0x00 0x26000 0x2000>;
+
+            clocks {
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                pruss_iepclk_mux: iepclk-mux@30 {
+                    reg = <0x30>;
+                    #clock-cells = <0>;
+                    clocks = <&l3_gclk>,        /* icss_iep */
+                             <&pruss_ocp_gclk>; /* icss_ocp */
+                };
+            };
+        };
+
+        pruss_mii_rt: mii-rt@32000 {
+            compatible = "ti,pruss-mii", "syscon";
+            reg = <0x32000 0x58>;
+        };
+
+        pruss_mdio: mdio@32400 {
+            compatible = "ti,davinci_mdio";
+            reg = <0x32400 0x90>;
+            clocks = <&dpll_core_m4_ck>;
+            clock-names = "fck";
+            bus_freq = <1000000>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+        };
+    };
+
+  - |
+
+    /* Example 2 AM43xx PRU-ICSS with PRUSS1 node */
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    pruss1: pruss@0 {
+        compatible = "ti,am4376-pruss1";
+        reg = <0x0 0x40000>;
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges;
+
+        pruss1_mem: memories@0 {
+            reg = <0x0 0x2000>,
+                  <0x2000 0x2000>,
+                  <0x10000 0x8000>;
+            reg-names = "dram0", "dram1", "shrdram2";
+        };
+
+        pruss1_cfg: cfg@26000 {
+            compatible = "ti,pruss-cfg", "syscon";
+            #address-cells = <1>;
+            #size-cells = <1>;
+            reg = <0x26000 0x2000>;
+            ranges = <0x00 0x26000 0x2000>;
+
+            clocks {
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                pruss1_iepclk_mux: iepclk-mux@30 {
+                    reg = <0x30>;
+                    #clock-cells = <0>;
+                    clocks = <&sysclk_div>,     /* icss_iep */
+                             <&pruss_ocp_gclk>; /* icss_ocp */
+                };
+            };
+        };
+
+        pruss1_mii_rt: mii-rt@32000 {
+            compatible = "ti,pruss-mii", "syscon";
+            reg = <0x32000 0x58>;
+        };
+
+        pruss1_mdio: mdio@32400 {
+            compatible = "ti,davinci_mdio";
+            reg = <0x32400 0x90>;
+            clocks = <&dpll_core_m4_ck>;
+            clock-names = "fck";
+            bus_freq = <1000000>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+        };
+    };
+
+...

@@ -250,7 +250,7 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 				regs->a0 = -EINTR;
 				break;
 			}
-			/* fallthrough */
+			fallthrough;
 		case -ERESTARTNOINTR:
                         regs->a0 = regs->orig_a0;
 			regs->epc -= 0x4;
@@ -313,8 +313,6 @@ asmlinkage __visible void do_notify_resume(struct pt_regs *regs,
 	if (thread_info_flags & _TIF_SIGPENDING)
 		do_signal(regs);
 
-	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
-		clear_thread_flag(TIF_NOTIFY_RESUME);
+	if (thread_info_flags & _TIF_NOTIFY_RESUME)
 		tracehook_notify_resume(regs);
-	}
 }

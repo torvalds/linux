@@ -376,6 +376,9 @@ static void cqhci_off(struct mmc_host *mmc)
 	else
 		pr_debug("%s: cqhci: CQE off\n", mmc_hostname(mmc));
 
+	if (cq_host->ops->post_disable)
+		cq_host->ops->post_disable(mmc);
+
 	mmc->cqe_on = false;
 }
 
@@ -580,6 +583,9 @@ static int cqhci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		__cqhci_enable(cq_host);
 
 	if (!mmc->cqe_on) {
+		if (cq_host->ops->pre_enable)
+			cq_host->ops->pre_enable(mmc);
+
 		cqhci_writel(cq_host, 0, CQHCI_CTL);
 		mmc->cqe_on = true;
 		pr_debug("%s: cqhci: CQE on\n", mmc_hostname(mmc));

@@ -80,6 +80,10 @@ int vkms_output_init(struct vkms_device *vkmsdev, int index)
 		goto err_attach;
 	}
 
+	ret = vkms_enable_writeback_connector(vkmsdev);
+	if (ret)
+		DRM_ERROR("Failed to init writeback connector\n");
+
 	drm_mode_config_reset(dev);
 
 	return 0;

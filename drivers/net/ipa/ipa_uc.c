@@ -144,7 +144,7 @@ static void ipa_uc_response_hdlr(struct ipa *ipa, enum ipa_irq_id irq_id)
 	 * should only receive responses from the microcontroller when it has
 	 * sent it a request message.
 	 *
-	 * We can drop the clock reference taken in ipa_uc_init() once we
+	 * We can drop the clock reference taken in ipa_uc_setup() once we
 	 * know the microcontroller has finished its initialization.
 	 */
 	switch (shared->response) {

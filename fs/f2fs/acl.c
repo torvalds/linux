@@ -160,7 +160,7 @@ static void *f2fs_acl_to_disk(struct f2fs_sb_info *sbi,
 	return (void *)f2fs_acl;
 
 fail:
-	kvfree(f2fs_acl);
+	kfree(f2fs_acl);
 	return ERR_PTR(-EINVAL);
 }
 
@@ -190,7 +190,7 @@ static struct posix_acl *__f2fs_get_acl(struct inode *inode, int type,
 		acl = NULL;
 	else
 		acl = ERR_PTR(retval);
-	kvfree(value);
+	kfree(value);
 
 	return acl;
 }
@@ -240,7 +240,7 @@ static int __f2fs_set_acl(struct inode *inode, int type,
 
 	error = f2fs_setxattr(inode, name_index, "", value, size, ipage, 0);
 
-	kvfree(value);
+	kfree(value);
 	if (!error)
 		set_cached_acl(inode, type, acl);
 

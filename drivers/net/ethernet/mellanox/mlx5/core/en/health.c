@@ -242,8 +242,8 @@ static int mlx5e_health_rsc_fmsg_binary(struct devlink_fmsg *fmsg,
 
 {
 	u32 data_size;
+	int err = 0;
 	u32 offset;
-	int err;
 
 	for (offset = 0; offset < value_len; offset += data_size) {
 		data_size = value_len - offset;

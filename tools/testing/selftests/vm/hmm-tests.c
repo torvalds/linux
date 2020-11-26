@@ -45,7 +45,7 @@ struct hmm_buffer {
 #define TWOMEG		(1 << 21)
 #define HMM_BUFFER_SIZE (1024 << 12)
 #define HMM_PATH_MAX    64
-#define NTIMES		256
+#define NTIMES		10
 
 #define ALIGN(x, a) (((x) + (a - 1)) & (~((a) - 1)))
 
@@ -680,7 +680,7 @@ TEST_F(hmm, anon_write_hugetlbfs)
 
 	n = gethugepagesizes(pagesizes, 4);
 	if (n <= 0)
-		return;
+		SKIP(return, "Huge page size could not be determined");
 	for (idx = 0; --n > 0; ) {
 		if (pagesizes[n] < pagesizes[idx])
 			idx = n;
@@ -694,7 +694,7 @@ TEST_F(hmm, anon_write_hugetlbfs)
 	buffer->ptr = get_hugepage_region(size, GHR_STRICT);
 	if (buffer->ptr == NULL) {
 		free(buffer);
-		return;
+		SKIP(return, "Huge page could not be allocated");
 	}
 
 	buffer->fd = -1;

@@ -11,18 +11,6 @@
 #include "idxd.h"
 #include "registers.h"
 
-void idxd_device_wqs_clear_state(struct idxd_device *idxd)
-{
-	int i;
-
-	lockdep_assert_held(&idxd->dev_lock);
-	for (i = 0; i < idxd->max_wqs; i++) {
-		struct idxd_wq *wq = &idxd->wqs[i];
-
-		wq->state = IDXD_WQ_DISABLED;
-	}
-}
-
 static void idxd_device_reinit(struct work_struct *work)
 {
 	struct idxd_device *idxd = container_of(work, struct idxd_device, work);
@@ -76,6 +64,7 @@ irqreturn_t idxd_misc_thread(int vec, void *data)
 	bool err = false;
 
 	cause = ioread32(idxd->reg_base + IDXD_INTCAUSE_OFFSET);
+	iowrite32(cause, idxd->reg_base + IDXD_INTCAUSE_OFFSET);
 
 	if (cause & IDXD_INTC_ERR) {
 		spin_lock_bh(&idxd->dev_lock);
@@ -133,7 +122,6 @@ irqreturn_t idxd_misc_thread(int vec, void *data)
 		dev_warn_once(dev, "Unexpected interrupt cause bits set: %#x\n",
 			      val);
 
-	iowrite32(cause, idxd->reg_base + IDXD_INTCAUSE_OFFSET);
 	if (!err)
 		goto out;
 

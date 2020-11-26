@@ -48,6 +48,7 @@ config ARC
 	select PCI_SYSCALL if PCI
 	select PERF_USE_VMALLOC if ARC_CACHE_VIPT_ALIASING
 	select HAVE_ARCH_JUMP_LABEL if ISA_ARCV2 && !CPU_ENDIAN_BE32
+	select SET_FS
 
 config ARCH_HAS_CACHE_LINE_SIZE
 	def_bool y
@@ -96,8 +97,6 @@ menu "ARC Platform/SoC/Board"
 
 source "arch/arc/plat-tb10x/Kconfig"
 source "arch/arc/plat-axs10x/Kconfig"
-#New platform adds here
-source "arch/arc/plat-eznps/Kconfig"
 source "arch/arc/plat-hsdk/Kconfig"
 
 endmenu

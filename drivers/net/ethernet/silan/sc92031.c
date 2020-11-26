@@ -301,6 +301,7 @@ struct sc92031_priv {
 
 	/* for dev->get_stats */
 	long			rx_value;
+	struct net_device	*ndev;
 };
 
 /* I don't know which registers can be safely read; however, I can guess
@@ -829,10 +830,10 @@ static void _sc92031_link_tasklet(struct net_device *dev)
 	}
 }
 
-static void sc92031_tasklet(unsigned long data)
+static void sc92031_tasklet(struct tasklet_struct *t)
 {
-	struct net_device *dev = (struct net_device *)data;
-	struct sc92031_priv *priv = netdev_priv(dev);
+	struct  sc92031_priv *priv = from_tasklet(priv, t, tasklet);
+	struct net_device *dev = priv->ndev;
 	void __iomem *port_base = priv->port_base;
 	u32 intr_status, intr_mask;
 
@@ -993,15 +994,15 @@ static int sc92031_open(struct net_device *dev)
 	struct sc92031_priv *priv = netdev_priv(dev);
 	struct pci_dev *pdev = priv->pdev;
 
-	priv->rx_ring = pci_alloc_consistent(pdev, RX_BUF_LEN,
-			&priv->rx_ring_dma_addr);
+	priv->rx_ring = dma_alloc_coherent(&pdev->dev, RX_BUF_LEN,
+					   &priv->rx_ring_dma_addr, GFP_KERNEL);
 	if (unlikely(!priv->rx_ring)) {
 		err = -ENOMEM;
 		goto out_alloc_rx_ring;
 	}
 
-	priv->tx_bufs = pci_alloc_consistent(pdev, TX_BUF_TOT_LEN,
-			&priv->tx_bufs_dma_addr);
+	priv->tx_bufs = dma_alloc_coherent(&pdev->dev, TX_BUF_TOT_LEN,
+					   &priv->tx_bufs_dma_addr, GFP_KERNEL);
 	if (unlikely(!priv->tx_bufs)) {
 		err = -ENOMEM;
 		goto out_alloc_tx_bufs;
@@ -1031,11 +1032,11 @@ static int sc92031_open(struct net_device *dev)
 	return 0;
 
 out_request_irq:
-	pci_free_consistent(pdev, TX_BUF_TOT_LEN, priv->tx_bufs,
-			priv->tx_bufs_dma_addr);
+	dma_free_coherent(&pdev->dev, TX_BUF_TOT_LEN, priv->tx_bufs,
+			  priv->tx_bufs_dma_addr);
 out_alloc_tx_bufs:
-	pci_free_consistent(pdev, RX_BUF_LEN, priv->rx_ring,
-			priv->rx_ring_dma_addr);
+	dma_free_coherent(&pdev->dev, RX_BUF_LEN, priv->rx_ring,
+			  priv->rx_ring_dma_addr);
 out_alloc_rx_ring:
 	return err;
 }
@@ -1058,10 +1059,10 @@ static int sc92031_stop(struct net_device *dev)
 	spin_unlock_bh(&priv->lock);
 
 	free_irq(pdev->irq, dev);
-	pci_free_consistent(pdev, TX_BUF_TOT_LEN, priv->tx_bufs,
-			priv->tx_bufs_dma_addr);
-	pci_free_consistent(pdev, RX_BUF_LEN, priv->rx_ring,
-			priv->rx_ring_dma_addr);
+	dma_free_coherent(&pdev->dev, TX_BUF_TOT_LEN, priv->tx_bufs,
+			  priv->tx_bufs_dma_addr);
+	dma_free_coherent(&pdev->dev, RX_BUF_LEN, priv->rx_ring,
+			  priv->rx_ring_dma_addr);
 
 	return 0;
 }
@@ -1108,7 +1109,7 @@ static void sc92031_poll_controller(struct net_device *dev)
 
 	disable_irq(irq);
 	if (sc92031_interrupt(irq, dev) != IRQ_NONE)
-		sc92031_tasklet((unsigned long)dev);
+		sc92031_tasklet(&priv->tasklet);
 	enable_irq(irq);
 }
 #endif
@@ -1407,11 +1408,11 @@ static int sc92031_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	pci_set_master(pdev);
 
-	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+	err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
 	if (unlikely(err < 0))
 		goto out_set_dma_mask;
 
-	err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
+	err = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
 	if (unlikely(err < 0))
 		goto out_set_dma_mask;
 
@@ -1443,10 +1444,11 @@ static int sc92031_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	dev->ethtool_ops	= &sc92031_ethtool_ops;
 
 	priv = netdev_priv(dev);
+	priv->ndev = dev;
 	spin_lock_init(&priv->lock);
 	priv->port_base = port_base;
 	priv->pdev = pdev;
-	tasklet_init(&priv->tasklet, sc92031_tasklet, (unsigned long)dev);
+	tasklet_setup(&priv->tasklet, sc92031_tasklet);
 	/* Fudge tasklet count so the call to sc92031_enable_interrupts at
 	 * sc92031_open will work correctly */
 	tasklet_disable_nosync(&priv->tasklet);

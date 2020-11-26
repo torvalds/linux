@@ -141,6 +141,8 @@ then:
   required:
     - ti,udma-atype
 
+unevaluatedProperties: false
+
 examples:
   - |+
     cbass_main {

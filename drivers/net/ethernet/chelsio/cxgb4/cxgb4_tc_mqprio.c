@@ -114,8 +114,7 @@ static int cxgb4_init_eosw_txq(struct net_device *dev,
 	eosw_txq->cred = adap->params.ofldq_wr_cred;
 	eosw_txq->hwqid = hwqid;
 	eosw_txq->netdev = dev;
-	tasklet_init(&eosw_txq->qresume_tsk, cxgb4_ethofld_restart,
-		     (unsigned long)eosw_txq);
+	tasklet_setup(&eosw_txq->qresume_tsk, cxgb4_ethofld_restart);
 	return 0;
 }
 

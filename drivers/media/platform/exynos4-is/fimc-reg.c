@@ -606,6 +606,11 @@ int fimc_hw_set_camera_source(struct fimc_dev *fimc,
 	switch (source->fimc_bus_type) {
 	case FIMC_BUS_TYPE_ITU_601:
 	case FIMC_BUS_TYPE_ITU_656:
+		if (fimc_fmt_is_user_defined(f->fmt->color)) {
+			cfg |= FIMC_REG_CISRCFMT_ITU601_8BIT;
+			break;
+		}
+
 		for (i = 0; i < ARRAY_SIZE(pix_desc); i++) {
 			if (vc->ci_fmt.code == pix_desc[i].pixelcode) {
 				cfg = pix_desc[i].cisrcfmt;
@@ -707,10 +712,12 @@ int fimc_hw_set_camera_type(struct fimc_dev *fimc,
 	case FIMC_BUS_TYPE_ITU_601...FIMC_BUS_TYPE_ITU_656:
 		if (source->mux_id == 0) /* ITU-A, ITU-B: 0, 1 */
 			cfg |= FIMC_REG_CIGCTRL_SELCAM_ITU_A;
+		if (vid_cap->ci_fmt.code == MEDIA_BUS_FMT_JPEG_1X8)
+			cfg |= FIMC_REG_CIGCTRL_CAM_JPEG;
 		break;
 	case FIMC_BUS_TYPE_LCD_WRITEBACK_A:
 		cfg |= FIMC_REG_CIGCTRL_CAMIF_SELWB;
-		/* fall through */
+		fallthrough;
 	case FIMC_BUS_TYPE_ISP_WRITEBACK:
 		if (fimc->variant->has_isp_wb)
 			cfg |= FIMC_REG_CIGCTRL_CAMIF_SELWB;

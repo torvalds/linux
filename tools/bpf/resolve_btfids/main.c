@@ -199,9 +199,16 @@ static char *get_id(const char *prefix_end)
 	/*
 	 * __BTF_ID__func__vfs_truncate__0
 	 * prefix_end =  ^
+	 * pos        =    ^
 	 */
-	char *p, *id = strdup(prefix_end + sizeof("__") - 1);
+	int len = strlen(prefix_end);
+	int pos = sizeof("__") - 1;
+	char *p, *id;
 
+	if (pos >= len)
+		return NULL;
+
+	id = strdup(prefix_end + pos);
 	if (id) {
 		/*
 		 * __BTF_ID__func__vfs_truncate__0
@@ -220,6 +227,24 @@ static char *get_id(const char *prefix_end)
 	return id;
 }
 
+static struct btf_id *add_set(struct object *obj, char *name)
+{
+	/*
+	 * __BTF_ID__set__name
+	 * name =    ^
+	 * id   =         ^
+	 */
+	char *id = name + sizeof(BTF_SET "__") - 1;
+	int len = strlen(name);
+
+	if (id >= name + len) {
+		pr_err("FAILED to parse set name: %s\n", name);
+		return NULL;
+	}
+
+	return btf_id__add(&obj->sets, id, true);
+}
+
 static struct btf_id *add_symbol(struct rb_root *root, char *name, size_t size)
 {
 	char *id;
@@ -231,6 +256,39 @@ static struct btf_id *add_symbol(struct rb_root *root, char *name, size_t size)
 	}
 
 	return btf_id__add(root, id, false);
+}
+
+/*
+ * The data of compressed section should be aligned to 4
+ * (for 32bit) or 8 (for 64 bit) bytes. The binutils ld
+ * sets sh_addralign to 1, which makes libelf fail with
+ * misaligned section error during the update:
+ *    FAILED elf_update(WRITE): invalid section alignment
+ *
+ * While waiting for ld fix, we fix the compressed sections
+ * sh_addralign value manualy.
+ */
+static int compressed_section_fix(Elf *elf, Elf_Scn *scn, GElf_Shdr *sh)
+{
+	int expected = gelf_getclass(elf) == ELFCLASS32 ? 4 : 8;
+
+	if (!(sh->sh_flags & SHF_COMPRESSED))
+		return 0;
+
+	if (sh->sh_addralign == expected)
+		return 0;
+
+	pr_debug2(" - fixing wrong alignment sh_addralign %u, expected %u\n",
+		  sh->sh_addralign, expected);
+
+	sh->sh_addralign = expected;
+
+	if (gelf_update_shdr(scn, sh) == 0) {
+		printf("FAILED cannot update section header: %s\n",
+			elf_errmsg(-1));
+		return -1;
+	}
+	return 0;
 }
 
 static int elf_collect(struct object *obj)
@@ -309,6 +367,9 @@ static int elf_collect(struct object *obj)
 			obj->efile.idlist_shndx = idx;
 			obj->efile.idlist_addr  = sh.sh_addr;
 		}
+
+		if (compressed_section_fix(elf, scn, &sh))
+			return -1;
 	}
 
 	return 0;
@@ -376,7 +437,7 @@ static int symbols_collect(struct object *obj)
 			id = add_symbol(&obj->funcs, prefix, sizeof(BTF_FUNC) - 1);
 		/* set */
 		} else if (!strncmp(prefix, BTF_SET, sizeof(BTF_SET) - 1)) {
-			id = add_symbol(&obj->sets, prefix, sizeof(BTF_SET) - 1);
+			id = add_set(obj, prefix);
 			/*
 			 * SET objects store list's count, which is encoded
 			 * in symbol's size, together with 'cnt' field hence

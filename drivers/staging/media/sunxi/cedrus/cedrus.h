@@ -62,6 +62,7 @@ struct cedrus_h264_run {
 	const struct v4l2_ctrl_h264_scaling_matrix	*scaling_matrix;
 	const struct v4l2_ctrl_h264_slice_params	*slice_params;
 	const struct v4l2_ctrl_h264_sps			*sps;
+	const struct v4l2_ctrl_h264_pred_weights	*pred_weights;
 };
 
 struct cedrus_mpeg2_run {

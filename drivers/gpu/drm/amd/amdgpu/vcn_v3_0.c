@@ -198,7 +198,7 @@ static int vcn_v3_0_sw_init(void *handle)
 		} else {
 			ring->doorbell_index = (adev->doorbell_index.vcn.vcn_ring0_1 << 1) + 8 * i;
 		}
-		if (i != 0)
+		if (adev->asic_type == CHIP_SIENNA_CICHLID && i != 0)
 			ring->no_scheduler = true;
 		sprintf(ring->name, "vcn_dec_%d", i);
 		r = amdgpu_ring_init(adev, ring, 512, &adev->vcn.inst[i].irq, 0,
@@ -222,7 +222,7 @@ static int vcn_v3_0_sw_init(void *handle)
 			} else {
 				ring->doorbell_index = (adev->doorbell_index.vcn.vcn_ring0_1 << 1) + 2 + j + 8 * i;
 			}
-			if (i != 1)
+			if (adev->asic_type == CHIP_SIENNA_CICHLID && i != 1)
 				ring->no_scheduler = true;
 			sprintf(ring->name, "vcn_enc_%d.%d", i, j);
 			r = amdgpu_ring_init(adev, ring, 512, &adev->vcn.inst[i].irq, 0,
@@ -746,18 +746,18 @@ static void vcn_v3_0_disable_clock_gating(struct amdgpu_device *adev, int inst)
 		| UVD_SUVD_CGC_GATE__IME_HEVC_MASK
 		| UVD_SUVD_CGC_GATE__EFC_MASK
 		| UVD_SUVD_CGC_GATE__SAOE_MASK
-		| 0x08000000
+		| UVD_SUVD_CGC_GATE__SRE_AV1_MASK
 		| UVD_SUVD_CGC_GATE__FBC_PCLK_MASK
 		| UVD_SUVD_CGC_GATE__FBC_CCLK_MASK
-		| 0x40000000
+		| UVD_SUVD_CGC_GATE__SCM_AV1_MASK
 		| UVD_SUVD_CGC_GATE__SMPA_MASK);
 	WREG32_SOC15(VCN, inst, mmUVD_SUVD_CGC_GATE, data);
 
 	data = RREG32_SOC15(VCN, inst, mmUVD_SUVD_CGC_GATE2);
 	data |= (UVD_SUVD_CGC_GATE2__MPBE0_MASK
 		| UVD_SUVD_CGC_GATE2__MPBE1_MASK
-		| 0x00000004
-		| 0x00000008
+		| UVD_SUVD_CGC_GATE2__SIT_AV1_MASK
+		| UVD_SUVD_CGC_GATE2__SDB_AV1_MASK
 		| UVD_SUVD_CGC_GATE2__MPC1_MASK);
 	WREG32_SOC15(VCN, inst, mmUVD_SUVD_CGC_GATE2, data);
 
@@ -776,8 +776,8 @@ static void vcn_v3_0_disable_clock_gating(struct amdgpu_device *adev, int inst)
 		| UVD_SUVD_CGC_CTRL__SMPA_MODE_MASK
 		| UVD_SUVD_CGC_CTRL__MPBE0_MODE_MASK
 		| UVD_SUVD_CGC_CTRL__MPBE1_MODE_MASK
-		| 0x00008000
-		| 0x00010000
+		| UVD_SUVD_CGC_CTRL__SIT_AV1_MODE_MASK
+		| UVD_SUVD_CGC_CTRL__SDB_AV1_MODE_MASK
 		| UVD_SUVD_CGC_CTRL__MPC1_MODE_MASK
 		| UVD_SUVD_CGC_CTRL__FBC_PCLK_MASK
 		| UVD_SUVD_CGC_CTRL__FBC_CCLK_MASK);
@@ -892,8 +892,8 @@ static void vcn_v3_0_enable_clock_gating(struct amdgpu_device *adev, int inst)
 		| UVD_SUVD_CGC_CTRL__SMPA_MODE_MASK
 		| UVD_SUVD_CGC_CTRL__MPBE0_MODE_MASK
 		| UVD_SUVD_CGC_CTRL__MPBE1_MODE_MASK
-		| 0x00008000
-		| 0x00010000
+		| UVD_SUVD_CGC_CTRL__SIT_AV1_MODE_MASK
+		| UVD_SUVD_CGC_CTRL__SDB_AV1_MODE_MASK
 		| UVD_SUVD_CGC_CTRL__MPC1_MODE_MASK
 		| UVD_SUVD_CGC_CTRL__FBC_PCLK_MASK
 		| UVD_SUVD_CGC_CTRL__FBC_CCLK_MASK);

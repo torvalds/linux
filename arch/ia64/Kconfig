@@ -8,6 +8,7 @@ menu "Processor type and features"
 
 config IA64
 	bool
+	select ARCH_HAS_DMA_MARK_CLEAN
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_MIGHT_HAVE_PC_SERIO
 	select ACPI
@@ -32,8 +33,6 @@ config IA64
 	select TTY
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_VIRT_CPU_ACCOUNTING
-	select DMA_NONCOHERENT_MMAP
-	select ARCH_HAS_SYNC_DMA_FOR_CPU
 	select VIRT_TO_BUS
 	select GENERIC_IRQ_PROBE
 	select GENERIC_PENDING_IRQ if SMP
@@ -56,6 +55,8 @@ config IA64
 	select NEED_DMA_MAP_STATE
 	select NEED_SG_DMA_LENGTH
 	select NUMA if !FLATMEM
+	select PCI_MSI_ARCH_FALLBACKS if PCI_MSI
+	select SET_FS
 	default y
 	help
 	  The Itanium Processor Family is Intel's 64-bit successor to
@@ -361,15 +362,6 @@ config ARCH_PROC_KCORE_TEXT
 
 config IA64_MCA_RECOVERY
 	tristate "MCA recovery from errors other than TLB."
-
-config PERFMON
-	bool "Performance monitor support"
-	depends on BROKEN
-	help
-	  Selects whether support for the IA-64 performance monitor hardware
-	  is included in the kernel.  This makes some kernel data-structures a
-	  little bigger and slows down execution a bit, but it is generally
-	  a good idea to turn this on.  If you're unsure, say Y.
 
 config IA64_PALINFO
 	tristate "/proc/pal support"

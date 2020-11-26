@@ -688,9 +688,11 @@ static int tvp7002_g_register(struct v4l2_subdev *sd,
 	int ret;
 
 	ret = tvp7002_read(sd, reg->reg & 0xff, &val);
+	if (ret < 0)
+		return ret;
 	reg->val = val;
 	reg->size = 1;
-	return ret;
+	return 0;
 }
 
 /*

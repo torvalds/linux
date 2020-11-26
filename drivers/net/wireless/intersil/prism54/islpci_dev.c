@@ -918,7 +918,7 @@ islpci_set_state(islpci_private *priv, islpci_state_t new_state)
 	switch (new_state) {
 	case PRV_STATE_OFF:
 		priv->state_off++;
-		/* fall through */
+		fallthrough;
 	default:
 		priv->state = new_state;
 		break;

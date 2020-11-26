@@ -42,9 +42,10 @@ extern __wsum csum_partial(const void *buff, int len, __wsum sum);
  * better 64-bit) boundary
  */
 #define _HAVE_ARCH_COPY_AND_CSUM_FROM_USER
-__wsum csum_and_copy_from_user(const void __user *src, void *dst, int len, __wsum sum, int *errp);
+#define _HAVE_ARCH_CSUM_AND_COPY
+__wsum csum_and_copy_from_user(const void __user *src, void *dst, int len);
 
-__wsum csum_partial_copy_nocheck(const void *src, void *dst, int len, __wsum sum);
+__wsum csum_partial_copy_nocheck(const void *src, void *dst, int len);
 
 
 /*

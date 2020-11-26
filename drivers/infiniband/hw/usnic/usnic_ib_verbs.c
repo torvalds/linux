@@ -367,7 +367,6 @@ int usnic_ib_query_port(struct ib_device *ibdev, u8 port,
 
 	props->port_cap_flags = 0;
 	props->gid_tbl_len = 1;
-	props->pkey_tbl_len = 1;
 	props->bad_pkey_cntr = 0;
 	props->qkey_viol_cntr = 0;
 	props->max_mtu = IB_MTU_4096;
@@ -437,16 +436,6 @@ int usnic_ib_query_gid(struct ib_device *ibdev, u8 port, int index,
 	return 0;
 }
 
-int usnic_ib_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
-				u16 *pkey)
-{
-	if (index > 0)
-		return -EINVAL;
-
-	*pkey = 0xffff;
-	return 0;
-}
-
 int usnic_ib_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 {
 	struct usnic_ib_pd *pd = to_upd(ibpd);
@@ -460,9 +449,10 @@ int usnic_ib_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 	return 0;
 }
 
-void usnic_ib_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata)
+int usnic_ib_dealloc_pd(struct ib_pd *pd, struct ib_udata *udata)
 {
 	usnic_uiom_dealloc_pd((to_upd(pd))->umem_pd);
+	return 0;
 }
 
 struct ib_qp *usnic_ib_create_qp(struct ib_pd *pd,
@@ -596,9 +586,9 @@ int usnic_ib_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	return 0;
 }
 
-void usnic_ib_destroy_cq(struct ib_cq *cq, struct ib_udata *udata)
+int usnic_ib_destroy_cq(struct ib_cq *cq, struct ib_udata *udata)
 {
-	return;
+	return 0;
 }
 
 struct ib_mr *usnic_ib_reg_mr(struct ib_pd *pd, u64 start, u64 length,

@@ -10,23 +10,24 @@
 #include <linux/version.h>
 #include <bpf/bpf_helpers.h>
 #include <uapi/linux/utsname.h>
+#include "trace_common.h"
 
-struct bpf_map_def SEC("maps") cgroup_map = {
-	.type			= BPF_MAP_TYPE_CGROUP_ARRAY,
-	.key_size		= sizeof(u32),
-	.value_size		= sizeof(u32),
-	.max_entries	= 1,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_CGROUP_ARRAY);
+	__uint(key_size, sizeof(u32));
+	__uint(value_size, sizeof(u32));
+	__uint(max_entries, 1);
+} cgroup_map SEC(".maps");
 
-struct bpf_map_def SEC("maps") perf_map = {
-	.type			= BPF_MAP_TYPE_ARRAY,
-	.key_size		= sizeof(u32),
-	.value_size		= sizeof(u64),
-	.max_entries	= 1,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__type(key, u32);
+	__type(value, u64);
+	__uint(max_entries, 1);
+} perf_map SEC(".maps");
 
 /* Writes the last PID that called sync to a map at index 0 */
-SEC("kprobe/sys_sync")
+SEC("kprobe/" SYSCALL(sys_sync))
 int bpf_prog1(struct pt_regs *ctx)
 {
 	u64 pid = bpf_get_current_pid_tgid();

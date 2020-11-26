@@ -33,8 +33,6 @@
 #include <asm/ppc-pci.h>
 #include <asm/rtas.h>
 
-static int pseries_eeh_get_pe_addr(struct pci_dn *pdn);
-
 /* RTAS tokens */
 static int ibm_set_eeh_option;
 static int ibm_set_slot_reset;
@@ -86,42 +84,43 @@ void pseries_pcibios_bus_add_device(struct pci_dev *pdev)
 
 
 /**
- * pseries_eeh_get_config_addr - Retrieve config address
+ * pseries_eeh_get_pe_config_addr - Find the pe_config_addr for a device
+ * @pdn: pci_dn of the input device
  *
- * Retrieve the assocated config address. Actually, there're 2 RTAS
- * function calls dedicated for the purpose. We need implement
- * it through the new function and then the old one. Besides,
- * you should make sure the config address is figured out from
- * FDT node before calling the function.
+ * The EEH RTAS calls use a tuple consisting of: (buid_hi, buid_lo,
+ * pe_config_addr) as a handle to a given PE. This function finds the
+ * pe_config_addr based on the device's config addr.
  *
- * It's notable that zero'ed return value means invalid PE config
- * address.
+ * Keep in mind that the pe_config_addr *might* be numerically identical to the
+ * device's config addr, but the two are conceptually distinct.
+ *
+ * Returns the pe_config_addr, or a negative error code.
  */
-static int pseries_eeh_get_config_addr(struct pci_controller *phb, int config_addr)
+static int pseries_eeh_get_pe_config_addr(struct pci_dn *pdn)
 {
-	int ret = 0;
-	int rets[3];
+	int config_addr = rtas_config_addr(pdn->busno, pdn->devfn, 0);
+	struct pci_controller *phb = pdn->phb;
+	int ret, rets[3];
 
 	if (ibm_get_config_addr_info2 != RTAS_UNKNOWN_SERVICE) {
 		/*
-		 * First of all, we need to make sure there has one PE
-		 * associated with the device. Otherwise, PE address is
-		 * meaningless.
+		 * First of all, use function 1 to determine if this device is
+		 * part of a PE or not. ret[0] being zero indicates it's not.
 		 */
 		ret = rtas_call(ibm_get_config_addr_info2, 4, 2, rets,
 				config_addr, BUID_HI(phb->buid),
 				BUID_LO(phb->buid), 1);
 		if (ret || (rets[0] == 0))
-			return 0;
+			return -ENOENT;
 
-		/* Retrieve the associated PE config address */
+		/* Retrieve the associated PE config address with function 0 */
 		ret = rtas_call(ibm_get_config_addr_info2, 4, 2, rets,
 				config_addr, BUID_HI(phb->buid),
 				BUID_LO(phb->buid), 0);
 		if (ret) {
 			pr_warn("%s: Failed to get address for PHB#%x-PE#%x\n",
 				__func__, phb->global_number, config_addr);
-			return 0;
+			return -ENXIO;
 		}
 
 		return rets[0];
@@ -134,13 +133,20 @@ static int pseries_eeh_get_config_addr(struct pci_controller *phb, int config_ad
 		if (ret) {
 			pr_warn("%s: Failed to get address for PHB#%x-PE#%x\n",
 				__func__, phb->global_number, config_addr);
-			return 0;
+			return -ENXIO;
 		}
 
 		return rets[0];
 	}
 
-	return ret;
+	/*
+	 * PAPR does describe a process for finding the pe_config_addr that was
+	 * used before the ibm,get-config-addr-info calls were added. However,
+	 * I haven't found *any* systems that don't have that RTAS call
+	 * implemented. If you happen to find one that needs the old DT based
+	 * process, patches are welcome!
+	 */
+	return -ENOENT;
 }
 
 /**
@@ -161,8 +167,7 @@ static int pseries_eeh_phb_reset(struct pci_controller *phb, int config_addr, in
 			BUID_LO(phb->buid), option);
 
 	/* If fundamental-reset not supported, try hot-reset */
-	if (option == EEH_RESET_FUNDAMENTAL &&
-	    ret == -8) {
+	if (option == EEH_RESET_FUNDAMENTAL && ret == -8) {
 		option = EEH_RESET_HOT;
 		ret = rtas_call(ibm_set_slot_reset, 4, 1, NULL,
 				config_addr, BUID_HI(phb->buid),
@@ -170,8 +175,7 @@ static int pseries_eeh_phb_reset(struct pci_controller *phb, int config_addr, in
 	}
 
 	/* We need reset hold or settlement delay */
-	if (option == EEH_RESET_FUNDAMENTAL ||
-	    option == EEH_RESET_HOT)
+	if (option == EEH_RESET_FUNDAMENTAL || option == EEH_RESET_HOT)
 		msleep(EEH_PE_RST_HOLD_TIME);
 	else
 		msleep(EEH_PE_RST_SETTLE_TIME);
@@ -238,88 +242,6 @@ static int pseries_eeh_phb_configure_bridge(struct pci_controller *phb, int conf
 static unsigned char slot_errbuf[RTAS_ERROR_LOG_MAX];
 static DEFINE_SPINLOCK(slot_errbuf_lock);
 static int eeh_error_buf_size;
-
-/**
- * pseries_eeh_init - EEH platform dependent initialization
- *
- * EEH platform dependent initialization on pseries.
- */
-static int pseries_eeh_init(void)
-{
-	struct pci_controller *phb;
-	struct pci_dn *pdn;
-	int addr, config_addr;
-
-	/* figure out EEH RTAS function call tokens */
-	ibm_set_eeh_option		= rtas_token("ibm,set-eeh-option");
-	ibm_set_slot_reset		= rtas_token("ibm,set-slot-reset");
-	ibm_read_slot_reset_state2	= rtas_token("ibm,read-slot-reset-state2");
-	ibm_read_slot_reset_state	= rtas_token("ibm,read-slot-reset-state");
-	ibm_slot_error_detail		= rtas_token("ibm,slot-error-detail");
-	ibm_get_config_addr_info2	= rtas_token("ibm,get-config-addr-info2");
-	ibm_get_config_addr_info	= rtas_token("ibm,get-config-addr-info");
-	ibm_configure_pe		= rtas_token("ibm,configure-pe");
-
-	/*
-	 * ibm,configure-pe and ibm,configure-bridge have the same semantics,
-	 * however ibm,configure-pe can be faster.  If we can't find
-	 * ibm,configure-pe then fall back to using ibm,configure-bridge.
-	 */
-	if (ibm_configure_pe == RTAS_UNKNOWN_SERVICE)
-		ibm_configure_pe 	= rtas_token("ibm,configure-bridge");
-
-	/*
-	 * Necessary sanity check. We needn't check "get-config-addr-info"
-	 * and its variant since the old firmware probably support address
-	 * of domain/bus/slot/function for EEH RTAS operations.
-	 */
-	if (ibm_set_eeh_option == RTAS_UNKNOWN_SERVICE		||
-	    ibm_set_slot_reset == RTAS_UNKNOWN_SERVICE		||
-	    (ibm_read_slot_reset_state2 == RTAS_UNKNOWN_SERVICE &&
-	     ibm_read_slot_reset_state == RTAS_UNKNOWN_SERVICE)	||
-	    ibm_slot_error_detail == RTAS_UNKNOWN_SERVICE	||
-	    ibm_configure_pe == RTAS_UNKNOWN_SERVICE) {
-		pr_info("EEH functionality not supported\n");
-		return -EINVAL;
-	}
-
-	/* Initialize error log lock and size */
-	spin_lock_init(&slot_errbuf_lock);
-	eeh_error_buf_size = rtas_token("rtas-error-log-max");
-	if (eeh_error_buf_size == RTAS_UNKNOWN_SERVICE) {
-		pr_info("%s: unknown EEH error log size\n",
-			__func__);
-		eeh_error_buf_size = 1024;
-	} else if (eeh_error_buf_size > RTAS_ERROR_LOG_MAX) {
-		pr_info("%s: EEH error log size %d exceeds the maximal %d\n",
-			__func__, eeh_error_buf_size, RTAS_ERROR_LOG_MAX);
-		eeh_error_buf_size = RTAS_ERROR_LOG_MAX;
-	}
-
-	/* Set EEH probe mode */
-	eeh_add_flag(EEH_PROBE_MODE_DEVTREE | EEH_ENABLE_IO_FOR_LOG);
-
-	/* Set EEH machine dependent code */
-	ppc_md.pcibios_bus_add_device = pseries_pcibios_bus_add_device;
-
-	if (is_kdump_kernel() || reset_devices) {
-		pr_info("Issue PHB reset ...\n");
-		list_for_each_entry(phb, &hose_list, list_node) {
-			pdn = list_first_entry(&PCI_DN(phb->dn)->child_list, struct pci_dn, list);
-			addr = (pdn->busno << 16) | (pdn->devfn << 8);
-			config_addr = pseries_eeh_get_config_addr(phb, addr);
-			/* invalid PE config addr */
-			if (config_addr == 0)
-				continue;
-
-			pseries_eeh_phb_reset(phb, config_addr, EEH_RESET_FUNDAMENTAL);
-			pseries_eeh_phb_reset(phb, config_addr, EEH_RESET_DEACTIVATE);
-			pseries_eeh_phb_configure_bridge(phb, config_addr);
-		}
-	}
-
-	return 0;
-}
 
 static int pseries_eeh_cap_start(struct pci_dn *pdn)
 {
@@ -439,10 +361,9 @@ static struct eeh_pe *pseries_eeh_pe_get_parent(struct eeh_dev *edev)
  */
 void pseries_eeh_init_edev(struct pci_dn *pdn)
 {
+	struct eeh_pe pe, *parent;
 	struct eeh_dev *edev;
-	struct eeh_pe pe;
 	u32 pcie_flags;
-	int enable = 0;
 	int ret;
 
 	if (WARN_ON_ONCE(!eeh_has_flag(EEH_PROBE_MODE_DEVTREE)))
@@ -499,51 +420,38 @@ void pseries_eeh_init_edev(struct pci_dn *pdn)
 		}
 	}
 
-	/* Initialize the fake PE */
+	/* first up, find the pe_config_addr for the PE containing the device */
+	ret = pseries_eeh_get_pe_config_addr(pdn);
+	if (ret < 0) {
+		eeh_edev_dbg(edev, "Unable to find pe_config_addr\n");
+		goto err;
+	}
+
+	/* Try enable EEH on the fake PE */
 	memset(&pe, 0, sizeof(struct eeh_pe));
 	pe.phb = pdn->phb;
-	pe.config_addr = (pdn->busno << 16) | (pdn->devfn << 8);
+	pe.addr = ret;
 
-	/* Enable EEH on the device */
 	eeh_edev_dbg(edev, "Enabling EEH on device\n");
 	ret = eeh_ops->set_option(&pe, EEH_OPT_ENABLE);
 	if (ret) {
 		eeh_edev_dbg(edev, "EEH failed to enable on device (code %d)\n", ret);
-	} else {
-		struct eeh_pe *parent;
-
-		/* Retrieve PE address */
-		edev->pe_config_addr = pseries_eeh_get_pe_addr(pdn);
-		pe.addr = edev->pe_config_addr;
-
-		/* Some older systems (Power4) allow the ibm,set-eeh-option
-		 * call to succeed even on nodes where EEH is not supported.
-		 * Verify support explicitly.
-		 */
-		ret = eeh_ops->get_state(&pe, NULL);
-		if (ret > 0 && ret != EEH_STATE_NOT_SUPPORT)
-			enable = 1;
-
-		/*
-		 * This device doesn't support EEH, but it may have an
-		 * EEH parent. In this case any error on the device will
-		 * freeze the PE of it's upstream bridge, so added it to
-		 * the upstream PE.
-		 */
-		parent = pseries_eeh_pe_get_parent(edev);
-		if (parent && !enable)
-			edev->pe_config_addr = parent->addr;
-
-		if (enable || parent) {
-			eeh_add_flag(EEH_ENABLED);
-			eeh_pe_tree_insert(edev, parent);
-		}
-		eeh_edev_dbg(edev, "EEH is %s on device (code %d)\n",
-			     (enable ? "enabled" : "unsupported"), ret);
+		goto err;
 	}
 
-	/* Save memory bars */
+	edev->pe_config_addr = pe.addr;
+
+	eeh_add_flag(EEH_ENABLED);
+
+	parent = pseries_eeh_pe_get_parent(edev);
+	eeh_pe_tree_insert(edev, parent);
 	eeh_save_bars(edev);
+	eeh_edev_dbg(edev, "EEH enabled for device");
+
+	return;
+
+err:
+	eeh_edev_dbg(edev, "EEH is unsupported on device (code = %d)\n", ret);
 }
 
 static struct eeh_dev *pseries_eeh_probe(struct pci_dev *pdev)
@@ -600,7 +508,6 @@ EXPORT_SYMBOL_GPL(pseries_eeh_init_edev_recursive);
 static int pseries_eeh_set_option(struct eeh_pe *pe, int option)
 {
 	int ret = 0;
-	int config_addr;
 
 	/*
 	 * When we're enabling or disabling EEH functioality on
@@ -613,80 +520,18 @@ static int pseries_eeh_set_option(struct eeh_pe *pe, int option)
 	case EEH_OPT_ENABLE:
 	case EEH_OPT_THAW_MMIO:
 	case EEH_OPT_THAW_DMA:
-		config_addr = pe->config_addr;
-		if (pe->addr)
-			config_addr = pe->addr;
 		break;
 	case EEH_OPT_FREEZE_PE:
 		/* Not support */
 		return 0;
 	default:
-		pr_err("%s: Invalid option %d\n",
-			__func__, option);
+		pr_err("%s: Invalid option %d\n", __func__, option);
 		return -EINVAL;
 	}
 
 	ret = rtas_call(ibm_set_eeh_option, 4, 1, NULL,
-			config_addr, BUID_HI(pe->phb->buid),
+			pe->addr, BUID_HI(pe->phb->buid),
 			BUID_LO(pe->phb->buid), option);
-
-	return ret;
-}
-
-/**
- * pseries_eeh_get_pe_addr - Retrieve PE address
- * @pe: EEH PE
- *
- * Retrieve the assocated PE address. Actually, there're 2 RTAS
- * function calls dedicated for the purpose. We need implement
- * it through the new function and then the old one. Besides,
- * you should make sure the config address is figured out from
- * FDT node before calling the function.
- *
- * It's notable that zero'ed return value means invalid PE config
- * address.
- */
-static int pseries_eeh_get_pe_addr(struct pci_dn *pdn)
-{
-	int config_addr = rtas_config_addr(pdn->busno, pdn->devfn, 0);
-	unsigned long buid = pdn->phb->buid;
-	int ret = 0;
-	int rets[3];
-
-	if (ibm_get_config_addr_info2 != RTAS_UNKNOWN_SERVICE) {
-		/*
-		 * First of all, we need to make sure there has one PE
-		 * associated with the device. Otherwise, PE address is
-		 * meaningless.
-		 */
-		ret = rtas_call(ibm_get_config_addr_info2, 4, 2, rets,
-				config_addr, BUID_HI(buid), BUID_LO(buid), 1);
-		if (ret || (rets[0] == 0))
-			return 0;
-
-		/* Retrieve the associated PE config address */
-		ret = rtas_call(ibm_get_config_addr_info2, 4, 2, rets,
-				config_addr, BUID_HI(buid), BUID_LO(buid), 0);
-		if (ret) {
-			pr_warn("%s: Failed to get address for PHB#%x-PE#%x\n",
-				__func__, pdn->phb->global_number, config_addr);
-			return 0;
-		}
-
-		return rets[0];
-	}
-
-	if (ibm_get_config_addr_info != RTAS_UNKNOWN_SERVICE) {
-		ret = rtas_call(ibm_get_config_addr_info, 4, 2, rets,
-				config_addr, BUID_HI(buid), BUID_LO(buid), 0);
-		if (ret) {
-			pr_warn("%s: Failed to get address for PHB#%x-PE#%x\n",
-				__func__, pdn->phb->global_number, config_addr);
-			return 0;
-		}
-
-		return rets[0];
-	}
 
 	return ret;
 }
@@ -706,25 +551,19 @@ static int pseries_eeh_get_pe_addr(struct pci_dn *pdn)
  */
 static int pseries_eeh_get_state(struct eeh_pe *pe, int *delay)
 {
-	int config_addr;
 	int ret;
 	int rets[4];
 	int result;
 
-	/* Figure out PE config address if possible */
-	config_addr = pe->config_addr;
-	if (pe->addr)
-		config_addr = pe->addr;
-
 	if (ibm_read_slot_reset_state2 != RTAS_UNKNOWN_SERVICE) {
 		ret = rtas_call(ibm_read_slot_reset_state2, 3, 4, rets,
-				config_addr, BUID_HI(pe->phb->buid),
+				pe->addr, BUID_HI(pe->phb->buid),
 				BUID_LO(pe->phb->buid));
 	} else if (ibm_read_slot_reset_state != RTAS_UNKNOWN_SERVICE) {
 		/* Fake PE unavailable info */
 		rets[2] = 0;
 		ret = rtas_call(ibm_read_slot_reset_state, 3, 3, rets,
-				config_addr, BUID_HI(pe->phb->buid),
+				pe->addr, BUID_HI(pe->phb->buid),
 				BUID_LO(pe->phb->buid));
 	} else {
 		return EEH_STATE_NOT_SUPPORT;
@@ -778,14 +617,7 @@ static int pseries_eeh_get_state(struct eeh_pe *pe, int *delay)
  */
 static int pseries_eeh_reset(struct eeh_pe *pe, int option)
 {
-	int config_addr;
-
-	/* Figure out PE address */
-	config_addr = pe->config_addr;
-	if (pe->addr)
-		config_addr = pe->addr;
-
-	return pseries_eeh_phb_reset(pe->phb, config_addr, option);
+	return pseries_eeh_phb_reset(pe->phb, pe->addr, option);
 }
 
 /**
@@ -801,19 +633,13 @@ static int pseries_eeh_reset(struct eeh_pe *pe, int option)
  */
 static int pseries_eeh_get_log(struct eeh_pe *pe, int severity, char *drv_log, unsigned long len)
 {
-	int config_addr;
 	unsigned long flags;
 	int ret;
 
 	spin_lock_irqsave(&slot_errbuf_lock, flags);
 	memset(slot_errbuf, 0, eeh_error_buf_size);
 
-	/* Figure out the PE address */
-	config_addr = pe->config_addr;
-	if (pe->addr)
-		config_addr = pe->addr;
-
-	ret = rtas_call(ibm_slot_error_detail, 8, 1, NULL, config_addr,
+	ret = rtas_call(ibm_slot_error_detail, 8, 1, NULL, pe->addr,
 			BUID_HI(pe->phb->buid), BUID_LO(pe->phb->buid),
 			virt_to_phys(drv_log), len,
 			virt_to_phys(slot_errbuf), eeh_error_buf_size,
@@ -832,14 +658,7 @@ static int pseries_eeh_get_log(struct eeh_pe *pe, int severity, char *drv_log, u
  */
 static int pseries_eeh_configure_bridge(struct eeh_pe *pe)
 {
-	int config_addr;
-
-	/* Figure out the PE address */
-	config_addr = pe->config_addr;
-	if (pe->addr)
-		config_addr = pe->addr;
-
-	return pseries_eeh_phb_configure_bridge(pe->phb, config_addr);
+	return pseries_eeh_phb_configure_bridge(pe->phb, pe->addr);
 }
 
 /**
@@ -954,8 +773,7 @@ static int pseries_notify_resume(struct eeh_dev *edev)
 	if (!edev)
 		return -EEXIST;
 
-	if (rtas_token("ibm,open-sriov-allow-unfreeze")
-	    == RTAS_UNKNOWN_SERVICE)
+	if (rtas_token("ibm,open-sriov-allow-unfreeze") == RTAS_UNKNOWN_SERVICE)
 		return -EINVAL;
 
 	if (edev->pdev->is_physfn || edev->pdev->is_virtfn)
@@ -967,7 +785,6 @@ static int pseries_notify_resume(struct eeh_dev *edev)
 
 static struct eeh_ops pseries_eeh_ops = {
 	.name			= "pseries",
-	.init			= pseries_eeh_init,
 	.probe			= pseries_eeh_probe,
 	.set_option		= pseries_eeh_set_option,
 	.get_state		= pseries_eeh_get_state,
@@ -992,15 +809,84 @@ static struct eeh_ops pseries_eeh_ops = {
  */
 static int __init eeh_pseries_init(void)
 {
-	int ret;
+	struct pci_controller *phb;
+	struct pci_dn *pdn;
+	int ret, config_addr;
 
-	ret = eeh_ops_register(&pseries_eeh_ops);
+	/* figure out EEH RTAS function call tokens */
+	ibm_set_eeh_option		= rtas_token("ibm,set-eeh-option");
+	ibm_set_slot_reset		= rtas_token("ibm,set-slot-reset");
+	ibm_read_slot_reset_state2	= rtas_token("ibm,read-slot-reset-state2");
+	ibm_read_slot_reset_state	= rtas_token("ibm,read-slot-reset-state");
+	ibm_slot_error_detail		= rtas_token("ibm,slot-error-detail");
+	ibm_get_config_addr_info2	= rtas_token("ibm,get-config-addr-info2");
+	ibm_get_config_addr_info	= rtas_token("ibm,get-config-addr-info");
+	ibm_configure_pe		= rtas_token("ibm,configure-pe");
+
+	/*
+	 * ibm,configure-pe and ibm,configure-bridge have the same semantics,
+	 * however ibm,configure-pe can be faster.  If we can't find
+	 * ibm,configure-pe then fall back to using ibm,configure-bridge.
+	 */
+	if (ibm_configure_pe == RTAS_UNKNOWN_SERVICE)
+		ibm_configure_pe	= rtas_token("ibm,configure-bridge");
+
+	/*
+	 * Necessary sanity check. We needn't check "get-config-addr-info"
+	 * and its variant since the old firmware probably support address
+	 * of domain/bus/slot/function for EEH RTAS operations.
+	 */
+	if (ibm_set_eeh_option == RTAS_UNKNOWN_SERVICE		||
+	    ibm_set_slot_reset == RTAS_UNKNOWN_SERVICE		||
+	    (ibm_read_slot_reset_state2 == RTAS_UNKNOWN_SERVICE &&
+	     ibm_read_slot_reset_state == RTAS_UNKNOWN_SERVICE)	||
+	    ibm_slot_error_detail == RTAS_UNKNOWN_SERVICE	||
+	    ibm_configure_pe == RTAS_UNKNOWN_SERVICE) {
+		pr_info("EEH functionality not supported\n");
+		return -EINVAL;
+	}
+
+	/* Initialize error log lock and size */
+	spin_lock_init(&slot_errbuf_lock);
+	eeh_error_buf_size = rtas_token("rtas-error-log-max");
+	if (eeh_error_buf_size == RTAS_UNKNOWN_SERVICE) {
+		pr_info("%s: unknown EEH error log size\n",
+			__func__);
+		eeh_error_buf_size = 1024;
+	} else if (eeh_error_buf_size > RTAS_ERROR_LOG_MAX) {
+		pr_info("%s: EEH error log size %d exceeds the maximal %d\n",
+			__func__, eeh_error_buf_size, RTAS_ERROR_LOG_MAX);
+		eeh_error_buf_size = RTAS_ERROR_LOG_MAX;
+	}
+
+	/* Set EEH probe mode */
+	eeh_add_flag(EEH_PROBE_MODE_DEVTREE | EEH_ENABLE_IO_FOR_LOG);
+
+	/* Set EEH machine dependent code */
+	ppc_md.pcibios_bus_add_device = pseries_pcibios_bus_add_device;
+
+	if (is_kdump_kernel() || reset_devices) {
+		pr_info("Issue PHB reset ...\n");
+		list_for_each_entry(phb, &hose_list, list_node) {
+			pdn = list_first_entry(&PCI_DN(phb->dn)->child_list, struct pci_dn, list);
+			config_addr = pseries_eeh_get_pe_config_addr(pdn);
+
+			/* invalid PE config addr */
+			if (config_addr < 0)
+				continue;
+
+			pseries_eeh_phb_reset(phb, config_addr, EEH_RESET_FUNDAMENTAL);
+			pseries_eeh_phb_reset(phb, config_addr, EEH_RESET_DEACTIVATE);
+			pseries_eeh_phb_configure_bridge(phb, config_addr);
+		}
+	}
+
+	ret = eeh_init(&pseries_eeh_ops);
 	if (!ret)
 		pr_info("EEH: pSeries platform initialized\n");
 	else
 		pr_info("EEH: pSeries platform initialization failure (%d)\n",
 			ret);
-
 	return ret;
 }
-machine_early_initcall(pseries, eeh_pseries_init);
+machine_arch_initcall(pseries, eeh_pseries_init);

@@ -6,7 +6,7 @@
 
 /dts-v1/;
 #include <dt-bindings/input/input.h>
-#include "mt7623.dtsi"
+#include "mt7623n.dtsi"
 #include "mt6323.dtsi"
 
 / {
@@ -19,6 +19,19 @@
 
 	chosen {
 		stdout-path = "serial2:115200n8";
+	};
+
+	connector {
+		compatible = "hdmi-connector";
+		label = "hdmi";
+		type = "d";
+		ddc-i2c-bus = <&hdmiddc0>;
+
+		port {
+			hdmi_connector_in: endpoint {
+				remote-endpoint = <&hdmi0_out>;
+			};
+		};
 	};
 
 	cpus {
@@ -64,6 +77,13 @@
 		regulator-max-microvolt = <5000000>;
 		regulator-boot-on;
 		regulator-always-on;
+	};
+
+	reg_vgpu: fixedregulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_fixed_vgpu";
+		regulator-min-microvolt = <1150000>;
+		regulator-max-microvolt = <1150000>;
 	};
 
 	gpio-keys {
@@ -114,7 +134,15 @@
 	};
 };
 
+&bls {
+	status = "okay";
+};
+
 &btif {
+	status = "okay";
+};
+
+&cec {
 	status = "okay";
 };
 
@@ -126,6 +154,21 @@
 
 &crypto {
 	status = "okay";
+};
+
+&dpi0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			dpi0_out: endpoint {
+				remote-endpoint = <&hdmi0_in>;
+			};
+		};
+	};
 };
 
 &eth {
@@ -192,11 +235,48 @@
 					fixed-link {
 						speed = <1000>;
 						full-duplex;
+						pause;
 					};
 				};
 			};
 		};
 	};
+};
+
+&hdmi0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&hdmi_pins_a>;
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			hdmi0_in: endpoint {
+				remote-endpoint = <&dpi0_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			hdmi0_out: endpoint {
+				remote-endpoint = <&hdmi_connector_in>;
+			};
+		};
+	};
+};
+
+&hdmiddc0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&hdmi_ddc_pins_a>;
+	status = "okay";
+};
+
+&hdmi_phy {
+	mediatek,ibias = <0xa>;
+	mediatek,ibias_up = <0x1c>;
+	status = "okay";
 };
 
 &i2c0 {
@@ -208,6 +288,11 @@
 &i2c1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c1_pins_a>;
+	status = "okay";
+};
+
+&mali {
+	mali-supply = <&reg_vgpu>;
 	status = "okay";
 };
 
@@ -330,4 +415,3 @@
 &u3phy2 {
 	status = "okay";
 };
-

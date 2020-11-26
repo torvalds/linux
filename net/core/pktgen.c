@@ -922,7 +922,7 @@ static ssize_t pktgen_if_write(struct file *file,
 			pkt_dev->min_pkt_size = value;
 			pkt_dev->cur_pkt_size = value;
 		}
-		sprintf(pg_result, "OK: min_pkt_size=%u",
+		sprintf(pg_result, "OK: min_pkt_size=%d",
 			pkt_dev->min_pkt_size);
 		return count;
 	}
@@ -939,7 +939,7 @@ static ssize_t pktgen_if_write(struct file *file,
 			pkt_dev->max_pkt_size = value;
 			pkt_dev->cur_pkt_size = value;
 		}
-		sprintf(pg_result, "OK: max_pkt_size=%u",
+		sprintf(pg_result, "OK: max_pkt_size=%d",
 			pkt_dev->max_pkt_size);
 		return count;
 	}
@@ -959,7 +959,7 @@ static ssize_t pktgen_if_write(struct file *file,
 			pkt_dev->max_pkt_size = value;
 			pkt_dev->cur_pkt_size = value;
 		}
-		sprintf(pg_result, "OK: pkt_size=%u", pkt_dev->min_pkt_size);
+		sprintf(pg_result, "OK: pkt_size=%d", pkt_dev->min_pkt_size);
 		return count;
 	}
 
@@ -981,7 +981,7 @@ static ssize_t pktgen_if_write(struct file *file,
 
 		i += len;
 		pkt_dev->nfrags = value;
-		sprintf(pg_result, "OK: frags=%u", pkt_dev->nfrags);
+		sprintf(pg_result, "OK: frags=%d", pkt_dev->nfrags);
 		return count;
 	}
 	if (!strcmp(name, "delay")) {
@@ -1146,7 +1146,7 @@ static ssize_t pktgen_if_write(struct file *file,
 		     (!(pkt_dev->odev->priv_flags & IFF_TX_SKB_SHARING)))))
 			return -ENOTSUPP;
 		pkt_dev->burst = value < 1 ? 1 : value;
-		sprintf(pg_result, "OK: burst=%d", pkt_dev->burst);
+		sprintf(pg_result, "OK: burst=%u", pkt_dev->burst);
 		return count;
 	}
 	if (!strcmp(name, "node")) {
@@ -3430,7 +3430,7 @@ xmit_more:
 		net_info_ratelimited("%s xmit error: %d\n",
 				     pkt_dev->odevname, ret);
 		pkt_dev->errors++;
-		/* fall through */
+		fallthrough;
 	case NETDEV_TX_BUSY:
 		/* Retry it next time */
 		refcount_dec(&(pkt_dev->skb->users));
@@ -3699,7 +3699,7 @@ static int __net_init pktgen_create_thread(int cpu, struct pktgen_net *pn)
 				   cpu_to_node(cpu),
 				   "kpktgend_%d", cpu);
 	if (IS_ERR(p)) {
-		pr_err("kernel_thread() failed for cpu %d\n", t->cpu);
+		pr_err("kthread_create_on_node() failed for cpu %d\n", t->cpu);
 		list_del(&t->th_list);
 		kfree(t);
 		return PTR_ERR(p);

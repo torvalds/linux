@@ -434,3 +434,7 @@ EM28xx cards list
      - PCTV DVB-S2 Stick (461e v2)
      - em28178
      - 2013:0461, 2013:0259
+   * - 105
+     - MyGica iGrabber
+     - em2860
+     - 1f4d:1abe

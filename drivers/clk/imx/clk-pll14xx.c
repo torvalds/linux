@@ -3,9 +3,10 @@
  * Copyright 2017-2018 NXP.
  */
 
-#include <linux/bitops.h>
+#include <linux/bits.h>
 #include <linux/clk-provider.h>
 #include <linux/err.h>
+#include <linux/export.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/slab.h>
@@ -68,6 +69,7 @@ struct imx_pll14xx_clk imx_1443x_pll = {
 	.rate_table = imx_pll1443x_tbl,
 	.rate_count = ARRAY_SIZE(imx_pll1443x_tbl),
 };
+EXPORT_SYMBOL_GPL(imx_1443x_pll);
 
 struct imx_pll14xx_clk imx_1443x_dram_pll = {
 	.type = PLL_1443X,
@@ -75,12 +77,14 @@ struct imx_pll14xx_clk imx_1443x_dram_pll = {
 	.rate_count = ARRAY_SIZE(imx_pll1443x_tbl),
 	.flags = CLK_GET_RATE_NOCACHE,
 };
+EXPORT_SYMBOL_GPL(imx_1443x_dram_pll);
 
 struct imx_pll14xx_clk imx_1416x_pll = {
 	.type = PLL_1416X,
 	.rate_table = imx_pll1416x_tbl,
 	.rate_count = ARRAY_SIZE(imx_pll1416x_tbl),
 };
+EXPORT_SYMBOL_GPL(imx_1416x_pll);
 
 static const struct imx_pll14xx_rate_table *imx_get_pll_settings(
 		struct clk_pll14xx *pll, unsigned long rate)
@@ -436,3 +440,4 @@ struct clk_hw *imx_dev_clk_hw_pll14xx(struct device *dev, const char *name,
 
 	return hw;
 }
+EXPORT_SYMBOL_GPL(imx_dev_clk_hw_pll14xx);

@@ -119,6 +119,8 @@ required:
   - reg
   - port
 
+additionalProperties: false
+
 examples:
   - |
     i2c@e66d8000 {

@@ -233,12 +233,6 @@ acpi_ev_create_gpe_info_blocks(struct acpi_gpe_block_info *gpe_block)
 
 		this_register->status_address.space_id = gpe_block->space_id;
 		this_register->enable_address.space_id = gpe_block->space_id;
-		this_register->status_address.bit_width =
-		    ACPI_GPE_REGISTER_WIDTH;
-		this_register->enable_address.bit_width =
-		    ACPI_GPE_REGISTER_WIDTH;
-		this_register->status_address.bit_offset = 0;
-		this_register->enable_address.bit_offset = 0;
 
 		/* Init the event_info for each GPE within this register */
 
@@ -251,14 +245,14 @@ acpi_ev_create_gpe_info_blocks(struct acpi_gpe_block_info *gpe_block)
 
 		/* Disable all GPEs within this register */
 
-		status = acpi_hw_write(0x00, &this_register->enable_address);
+		status = acpi_hw_gpe_write(0x00, &this_register->enable_address);
 		if (ACPI_FAILURE(status)) {
 			goto error_exit;
 		}
 
 		/* Clear any pending GPE events within this register */
 
-		status = acpi_hw_write(0xFF, &this_register->status_address);
+		status = acpi_hw_gpe_write(0xFF, &this_register->status_address);
 		if (ACPI_FAILURE(status)) {
 			goto error_exit;
 		}
@@ -315,6 +309,23 @@ acpi_ev_create_gpe_block(struct acpi_namespace_node *gpe_device,
 
 	if (!register_count) {
 		return_ACPI_STATUS(AE_OK);
+	}
+
+	/* Validate the space_ID */
+
+	if ((space_id != ACPI_ADR_SPACE_SYSTEM_MEMORY) &&
+	    (space_id != ACPI_ADR_SPACE_SYSTEM_IO)) {
+		ACPI_ERROR((AE_INFO,
+			    "Unsupported address space: 0x%X", space_id));
+		return_ACPI_STATUS(AE_SUPPORT);
+	}
+
+	if (space_id == ACPI_ADR_SPACE_SYSTEM_IO) {
+		status = acpi_hw_validate_io_block(address,
+						   ACPI_GPE_REGISTER_WIDTH,
+						   register_count);
+		if (ACPI_FAILURE(status))
+			return_ACPI_STATUS(status);
 	}
 
 	/* Allocate a new GPE block */

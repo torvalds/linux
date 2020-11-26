@@ -121,12 +121,16 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 	struct mlx5e_xdpsq *xsksq = &c->xsksq;
 	struct mlx5e_rq *xskrq = &c->xskrq;
 	struct mlx5e_rq *rq = &c->rq;
-	bool xsk_open = test_bit(MLX5E_CHANNEL_STATE_XSK, c->state);
 	bool aff_change = false;
 	bool busy_xsk = false;
 	bool busy = false;
 	int work_done = 0;
+	bool xsk_open;
 	int i;
+
+	rcu_read_lock();
+
+	xsk_open = test_bit(MLX5E_CHANNEL_STATE_XSK, c->state);
 
 	ch_stats->poll++;
 
@@ -167,8 +171,10 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 	busy |= busy_xsk;
 
 	if (busy) {
-		if (likely(mlx5e_channel_no_affinity_change(c)))
-			return budget;
+		if (likely(mlx5e_channel_no_affinity_change(c))) {
+			work_done = budget;
+			goto out;
+		}
 		ch_stats->aff_change++;
 		aff_change = true;
 		if (budget && work_done == budget)
@@ -176,7 +182,7 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 	}
 
 	if (unlikely(!napi_complete_done(napi, work_done)))
-		return work_done;
+		goto out;
 
 	ch_stats->arm++;
 
@@ -202,6 +208,9 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 		mlx5e_trigger_irq(&c->icosq);
 		ch_stats->force_irq++;
 	}
+
+out:
+	rcu_read_unlock();
 
 	return work_done;
 }

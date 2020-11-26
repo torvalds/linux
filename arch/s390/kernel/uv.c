@@ -26,32 +26,9 @@ int __bootdata_preserved(prot_virt_guest);
 struct uv_info __bootdata_preserved(uv_info);
 
 #if IS_ENABLED(CONFIG_KVM)
-int prot_virt_host;
+int __bootdata_preserved(prot_virt_host);
 EXPORT_SYMBOL(prot_virt_host);
 EXPORT_SYMBOL(uv_info);
-
-static int __init prot_virt_setup(char *val)
-{
-	bool enabled;
-	int rc;
-
-	rc = kstrtobool(val, &enabled);
-	if (!rc && enabled)
-		prot_virt_host = 1;
-
-	if (is_prot_virt_guest() && prot_virt_host) {
-		prot_virt_host = 0;
-		pr_warn("Protected virtualization not available in protected guests.");
-	}
-
-	if (prot_virt_host && !test_facility(158)) {
-		prot_virt_host = 0;
-		pr_warn("Protected virtualization not supported by the hardware.");
-	}
-
-	return rc;
-}
-early_param("prot_virt", prot_virt_setup);
 
 static int __init uv_init(unsigned long stor_base, unsigned long stor_len)
 {
@@ -73,6 +50,24 @@ static int __init uv_init(unsigned long stor_base, unsigned long stor_len)
 void __init setup_uv(void)
 {
 	unsigned long uv_stor_base;
+
+	/*
+	 * keep these conditions in line with kasan init code has_uv_sec_stor_limit()
+	 */
+	if (!is_prot_virt_host())
+		return;
+
+	if (is_prot_virt_guest()) {
+		prot_virt_host = 0;
+		pr_warn("Protected virtualization not available in protected guests.");
+		return;
+	}
+
+	if (!test_facility(158)) {
+		prot_virt_host = 0;
+		pr_warn("Protected virtualization not supported by the hardware.");
+		return;
+	}
 
 	uv_stor_base = (unsigned long)memblock_alloc_try_nid(
 		uv_info.uv_base_stor_len, SZ_1M, SZ_2G,
@@ -98,7 +93,8 @@ fail:
 
 void adjust_to_uv_max(unsigned long *vmax)
 {
-	*vmax = min_t(unsigned long, *vmax, uv_info.max_sec_stor_addr);
+	if (uv_info.max_sec_stor_addr)
+		*vmax = min_t(unsigned long, *vmax, uv_info.max_sec_stor_addr);
 }
 
 /*
@@ -111,6 +107,26 @@ static int uv_pin_shared(unsigned long paddr)
 		.header.cmd = UVC_CMD_PIN_PAGE_SHARED,
 		.header.len = sizeof(uvcb),
 		.paddr = paddr,
+	};
+
+	if (uv_call(0, (u64)&uvcb))
+		return -EINVAL;
+	return 0;
+}
+
+/*
+ * Requests the Ultravisor to destroy a guest page and make it
+ * accessible to the host. The destroy clears the page instead of
+ * exporting.
+ *
+ * @paddr: Absolute host address of page to be destroyed
+ */
+int uv_destroy_page(unsigned long paddr)
+{
+	struct uv_cb_cfs uvcb = {
+		.header.cmd = UVC_CMD_DESTR_SEC_STOR,
+		.header.len = sizeof(uvcb),
+		.paddr = paddr
 	};
 
 	if (uv_call(0, (u64)&uvcb))

@@ -68,6 +68,7 @@ the flags may not apply to requests. Recognized flags are:
   =================================  ===================================
   ``ETHTOOL_FLAG_COMPACT_BITSETS``   use compact format bitsets in reply
   ``ETHTOOL_FLAG_OMIT_REPLY``        omit optional reply (_SET and _ACT)
+  ``ETHTOOL_FLAG_STATS``             include optional device statistics
   =================================  ===================================
 
 New request flags should follow the general idea that if the flag is not set,
@@ -206,6 +207,7 @@ Userspace to kernel:
   ``ETHTOOL_MSG_TSINFO_GET``		get timestamping info
   ``ETHTOOL_MSG_CABLE_TEST_ACT``        action start cable test
   ``ETHTOOL_MSG_CABLE_TEST_TDR_ACT``    action start raw TDR cable test
+  ``ETHTOOL_MSG_TUNNEL_INFO_GET``       get tunnel offload info
   ===================================== ================================
 
 Kernel to userspace:
@@ -239,6 +241,7 @@ Kernel to userspace:
   ``ETHTOOL_MSG_TSINFO_GET_REPLY``	timestamping info
   ``ETHTOOL_MSG_CABLE_TEST_NTF``        Cable test results
   ``ETHTOOL_MSG_CABLE_TEST_TDR_NTF``    Cable test TDR results
+  ``ETHTOOL_MSG_TUNNEL_INFO_GET_REPLY`` tunnel offload info
   ===================================== =================================
 
 ``GET`` requests are sent by userspace applications to retrieve device
@@ -989,8 +992,18 @@ Kernel response contents:
   ``ETHTOOL_A_PAUSE_AUTONEG``            bool    pause autonegotiation
   ``ETHTOOL_A_PAUSE_RX``                 bool    receive pause frames
   ``ETHTOOL_A_PAUSE_TX``                 bool    transmit pause frames
+  ``ETHTOOL_A_PAUSE_STATS``              nested  pause statistics
   =====================================  ======  ==========================
 
+``ETHTOOL_A_PAUSE_STATS`` are reported if ``ETHTOOL_FLAG_STATS`` was set
+in ``ETHTOOL_A_HEADER_FLAGS``.
+It will be empty if driver did not report any statistics. Drivers fill in
+the statistics in the following structure:
+
+.. kernel-doc:: include/linux/ethtool.h
+    :identifiers: ethtool_pause_stats
+
+Each member has a corresponding attribute defined.
 
 PAUSE_SET
 ============
@@ -1363,4 +1376,5 @@ are netlink only.
   ``ETHTOOL_SFECPARAM``               n/a
   n/a                                 ''ETHTOOL_MSG_CABLE_TEST_ACT''
   n/a                                 ''ETHTOOL_MSG_CABLE_TEST_TDR_ACT''
+  n/a                                 ``ETHTOOL_MSG_TUNNEL_INFO_GET``
   =================================== =====================================

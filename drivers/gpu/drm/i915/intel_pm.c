@@ -100,12 +100,6 @@ static void gen9_init_clock_gating(struct drm_i915_private *dev_priv)
 	 */
 	I915_WRITE(DISP_ARB_CTL, I915_READ(DISP_ARB_CTL) |
 		   DISP_FBC_MEMORY_WAKE);
-
-	if (IS_SKYLAKE(dev_priv)) {
-		/* WaDisableDopClockGating */
-		I915_WRITE(GEN7_MISCCPCTL, I915_READ(GEN7_MISCCPCTL)
-			   & ~GEN7_DOP_CLOCK_GATE_ENABLE);
-	}
 }
 
 static void bxt_init_clock_gating(struct drm_i915_private *dev_priv)
@@ -7124,25 +7118,12 @@ static void icl_init_clock_gating(struct drm_i915_private *dev_priv)
 
 static void tgl_init_clock_gating(struct drm_i915_private *dev_priv)
 {
-	u32 vd_pg_enable = 0;
-	unsigned int i;
-
 	/* Wa_1409120013:tgl */
 	I915_WRITE(ILK_DPFC_CHICKEN,
 		   ILK_DPFC_CHICKEN_COMP_DUMMY_PIXEL);
 
-	/* This is not a WA. Enable VD HCP & MFX_ENC powergate */
-	for (i = 0; i < I915_MAX_VCS; i++) {
-		if (HAS_ENGINE(&dev_priv->gt, _VCS(i)))
-			vd_pg_enable |= VDN_HCP_POWERGATE_ENABLE(i) |
-					VDN_MFX_POWERGATE_ENABLE(i);
-	}
-
-	I915_WRITE(POWERGATE_ENABLE,
-		   I915_READ(POWERGATE_ENABLE) | vd_pg_enable);
-
 	/* Wa_1409825376:tgl (pre-prod)*/
-	if (IS_TGL_REVID(dev_priv, TGL_REVID_A0, TGL_REVID_A0))
+	if (IS_TGL_DISP_REVID(dev_priv, TGL_REVID_A0, TGL_REVID_B1))
 		I915_WRITE(GEN9_CLKGATE_DIS_3, I915_READ(GEN9_CLKGATE_DIS_3) |
 			   TGL_VRH_GATING_DIS);
 
@@ -7223,12 +7204,12 @@ static void kbl_init_clock_gating(struct drm_i915_private *dev_priv)
 	gen9_init_clock_gating(dev_priv);
 
 	/* WaDisableSDEUnitClockGating:kbl */
-	if (IS_KBL_REVID(dev_priv, 0, KBL_REVID_B0))
+	if (IS_KBL_GT_REVID(dev_priv, 0, KBL_REVID_B0))
 		I915_WRITE(GEN8_UCGCTL6, I915_READ(GEN8_UCGCTL6) |
 			   GEN8_SDEUNIT_CLOCK_GATE_DISABLE);
 
 	/* WaDisableGamClockGating:kbl */
-	if (IS_KBL_REVID(dev_priv, 0, KBL_REVID_B0))
+	if (IS_KBL_GT_REVID(dev_priv, 0, KBL_REVID_B0))
 		I915_WRITE(GEN6_UCGCTL1, I915_READ(GEN6_UCGCTL1) |
 			   GEN6_GAMUNIT_CLOCK_GATE_DISABLE);
 
@@ -7250,6 +7231,10 @@ static void kbl_init_clock_gating(struct drm_i915_private *dev_priv)
 static void skl_init_clock_gating(struct drm_i915_private *dev_priv)
 {
 	gen9_init_clock_gating(dev_priv);
+
+	/* WaDisableDopClockGating:skl */
+	I915_WRITE(GEN7_MISCCPCTL, I915_READ(GEN7_MISCCPCTL) &
+		   ~GEN7_DOP_CLOCK_GATE_ENABLE);
 
 	/* WAC6entrylatency:skl */
 	I915_WRITE(FBC_LLC_READ_CTRL, I915_READ(FBC_LLC_READ_CTRL) |

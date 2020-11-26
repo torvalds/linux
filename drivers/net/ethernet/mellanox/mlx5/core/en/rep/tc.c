@@ -12,7 +12,7 @@
 #include "neigh.h"
 #include "en_rep.h"
 #include "eswitch.h"
-#include "esw/chains.h"
+#include "lib/fs_chains.h"
 #include "en/tc_ct.h"
 #include "en/mapping.h"
 #include "en/tc_tun.h"
@@ -107,12 +107,16 @@ void mlx5e_rep_update_flows(struct mlx5e_priv *priv,
 		mlx5e_tc_encap_flows_del(priv, e, &flow_list);
 
 	if (neigh_connected && !(e->flags & MLX5_ENCAP_ENTRY_VALID)) {
+		struct net_device *route_dev;
+
 		ether_addr_copy(e->h_dest, ha);
 		ether_addr_copy(eth->h_dest, ha);
 		/* Update the encap source mac, in case that we delete
 		 * the flows when encap source mac changed.
 		 */
-		ether_addr_copy(eth->h_source, e->route_dev->dev_addr);
+		route_dev = __dev_get_by_index(dev_net(priv->netdev), e->route_dev_ifindex);
+		if (route_dev)
+			ether_addr_copy(eth->h_source, route_dev->dev_addr);
 
 		mlx5e_tc_encap_flows_add(priv, e, &flow_list);
 	}
@@ -191,7 +195,7 @@ static int mlx5e_rep_setup_ft_cb(enum tc_setup_type type, void *type_data,
 	case TC_SETUP_CLSFLOWER:
 		memcpy(&tmp, f, sizeof(*f));
 
-		if (!mlx5_esw_chains_prios_supported(esw))
+		if (!mlx5_chains_prios_supported(esw_chains(esw)))
 			return -EOPNOTSUPP;
 
 		/* Re-use tc offload path by moving the ft flow to the
@@ -203,12 +207,12 @@ static int mlx5e_rep_setup_ft_cb(enum tc_setup_type type, void *type_data,
 		 *
 		 * We only support chain 0 of FT offload.
 		 */
-		if (tmp.common.prio >= mlx5_esw_chains_get_prio_range(esw))
+		if (tmp.common.prio >= mlx5_chains_get_prio_range(esw_chains(esw)))
 			return -EOPNOTSUPP;
 		if (tmp.common.chain_index != 0)
 			return -EOPNOTSUPP;
 
-		tmp.common.chain_index = mlx5_esw_chains_get_ft_chain(esw);
+		tmp.common.chain_index = mlx5_chains_get_nf_ft_chain(esw_chains(esw));
 		tmp.common.prio++;
 		err = mlx5e_rep_setup_tc_cls_flower(priv, &tmp, flags);
 		memcpy(&f->stats, &tmp.stats, sizeof(f->stats));
@@ -378,12 +382,12 @@ static int mlx5e_rep_indr_setup_ft_cb(enum tc_setup_type type,
 		 *
 		 * We only support chain 0 of FT offload.
 		 */
-		if (!mlx5_esw_chains_prios_supported(esw) ||
-		    tmp.common.prio >= mlx5_esw_chains_get_prio_range(esw) ||
+		if (!mlx5_chains_prios_supported(esw_chains(esw)) ||
+		    tmp.common.prio >= mlx5_chains_get_prio_range(esw_chains(esw)) ||
 		    tmp.common.chain_index)
 			return -EOPNOTSUPP;
 
-		tmp.common.chain_index = mlx5_esw_chains_get_ft_chain(esw);
+		tmp.common.chain_index = mlx5_chains_get_nf_ft_chain(esw_chains(esw));
 		tmp.common.prio++;
 		err = mlx5e_rep_indr_offload(priv->netdev, &tmp, priv, flags);
 		memcpy(&f->stats, &tmp.stats, sizeof(f->stats));
@@ -612,7 +616,6 @@ bool mlx5e_rep_tc_update_skb(struct mlx5_cqe64 *cqe,
 	struct tc_skb_ext *tc_skb_ext;
 	struct mlx5_eswitch *esw;
 	struct mlx5e_priv *priv;
-	int tunnel_moffset;
 	int err;
 
 	reg_c0 = (be32_to_cpu(cqe->sop_drop_qpn) & MLX5E_TC_FLOW_ID_MASK);
@@ -626,7 +629,7 @@ bool mlx5e_rep_tc_update_skb(struct mlx5_cqe64 *cqe,
 	priv = netdev_priv(skb->dev);
 	esw = priv->mdev->priv.eswitch;
 
-	err = mlx5_eswitch_get_chain_for_tag(esw, reg_c0, &chain);
+	err = mlx5_get_chain_for_tag(esw_chains(esw), reg_c0, &chain);
 	if (err) {
 		netdev_dbg(priv->netdev,
 			   "Couldn't find chain for chain tag: %d, err: %d\n",
@@ -647,13 +650,12 @@ bool mlx5e_rep_tc_update_skb(struct mlx5_cqe64 *cqe,
 
 		uplink_rpriv = mlx5_eswitch_get_uplink_priv(esw, REP_ETH);
 		uplink_priv = &uplink_rpriv->uplink_priv;
-		if (!mlx5e_tc_ct_restore_flow(uplink_priv, skb,
+		if (!mlx5e_tc_ct_restore_flow(uplink_priv->ct_priv, skb,
 					      zone_restore_id))
 			return false;
 	}
 
-	tunnel_moffset = mlx5e_tc_attr_to_reg_mappings[TUNNEL_TO_REG].moffset;
-	tunnel_id = reg_c1 >> (8 * tunnel_moffset);
+	tunnel_id = reg_c1 >> REG_MAPPING_SHIFT(TUNNEL_TO_REG);
 	return mlx5e_restore_tunnel(priv, skb, tc_priv, tunnel_id);
 #endif /* CONFIG_NET_TC_SKB_EXT */
 

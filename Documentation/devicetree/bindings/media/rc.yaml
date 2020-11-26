@@ -150,3 +150,5 @@ properties:
       - rc-x96max
       - rc-xbox-dvd
       - rc-zx-irdec
+
+additionalProperties: true

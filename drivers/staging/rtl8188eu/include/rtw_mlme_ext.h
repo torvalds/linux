@@ -448,7 +448,7 @@ void init_addba_retry_timer(struct adapter *adapt, struct sta_info *sta);
 struct xmit_frame *alloc_mgtxmitframe(struct xmit_priv *pxmitpriv);
 
 unsigned char networktype_to_raid(unsigned char network_type);
-u8 judge_network_type(struct adapter *padapter, unsigned char *rate, int len);
+u8 judge_network_type(struct adapter *padapter, unsigned char *rate);
 void get_rate_set(struct adapter *padapter, unsigned char *pbssrate, int *len);
 void UpdateBrateTbl(struct adapter *padapter, u8 *mBratesOS);
 void UpdateBrateTblForSoftAP(u8 *bssrateset, u32 bssratelen);
@@ -567,9 +567,6 @@ void addba_timer_hdl(struct timer_list *t);
 #define set_link_timer(mlmeext, ms) \
 	mod_timer(&mlmeext->link_timer, jiffies +	\
 		  msecs_to_jiffies(ms))
-
-bool cckrates_included(unsigned char *rate, int ratelen);
-bool cckratesonly_included(unsigned char *rate, int ratelen);
 
 void process_addba_req(struct adapter *padapter, u8 *paddba_req, u8 *addr);
 

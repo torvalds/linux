@@ -805,16 +805,13 @@ static unsigned gmc_v6_0_get_vbios_fb_size(struct amdgpu_device *adev)
 	unsigned size;
 
 	if (REG_GET_FIELD(d1vga_control, D1VGA_CONTROL, D1VGA_MODE_ENABLE)) {
-		size = 9 * 1024 * 1024; /* reserve 8MB for vga emulator and 1 MB for FB */
+		size = AMDGPU_VBIOS_VGA_ALLOCATION;
 	} else {
 		u32 viewport = RREG32(mmVIEWPORT_SIZE);
 		size = (REG_GET_FIELD(viewport, VIEWPORT_SIZE, VIEWPORT_HEIGHT) *
 			REG_GET_FIELD(viewport, VIEWPORT_SIZE, VIEWPORT_WIDTH) *
 			4);
 	}
-	/* return 0 if the pre-OS buffer uses up most of vram */
-	if ((adev->gmc.real_vram_size - size) < (8 * 1024 * 1024))
-		return 0;
 	return size;
 }
 
@@ -862,7 +859,7 @@ static int gmc_v6_0_sw_init(void *handle)
 	if (r)
 		return r;
 
-	adev->gmc.stolen_size = gmc_v6_0_get_vbios_fb_size(adev);
+	amdgpu_gmc_get_vbios_allocations(adev);
 
 	r = amdgpu_bo_init(adev);
 	if (r)
@@ -1136,6 +1133,7 @@ static const struct amdgpu_gmc_funcs gmc_v6_0_gmc_funcs = {
 	.set_prt = gmc_v6_0_set_prt,
 	.get_vm_pde = gmc_v6_0_get_vm_pde,
 	.get_vm_pte = gmc_v6_0_get_vm_pte,
+	.get_vbios_fb_size = gmc_v6_0_get_vbios_fb_size,
 };
 
 static const struct amdgpu_irq_src_funcs gmc_v6_0_irq_funcs = {

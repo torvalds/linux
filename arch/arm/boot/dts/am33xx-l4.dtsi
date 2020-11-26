@@ -425,7 +425,6 @@
 
 		target-module@3e000 {			/* 0x44e3e000, ap 35 60.0 */
 			compatible = "ti,sysc-omap4-simple", "ti,sysc";
-			ti,hwmods = "rtc";
 			reg = <0x3e074 0x4>,
 			      <0x3e078 0x4>;
 			reg-names = "rev", "sysc";

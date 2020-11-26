@@ -41,6 +41,13 @@ config ARM_CCN
 	  PMU (perf) driver supporting the ARM CCN (Cache Coherent Network)
 	  interconnect.
 
+config ARM_CMN
+	tristate "Arm CMN-600 PMU support"
+	depends on ARM64 || (COMPILE_TEST && 64BIT)
+	help
+	  Support for PMU events monitoring on the Arm CMN-600 Coherent Mesh
+	  Network interconnect.
+
 config ARM_PMU
 	depends on ARM || ARM64
 	bool "ARM PMU framework"

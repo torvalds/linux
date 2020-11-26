@@ -1758,7 +1758,7 @@ static int nvmet_rdma_cm_handler(struct rdma_cm_id *cm_id,
 			schedule_delayed_work(&port->repair_work, 0);
 			break;
 		}
-		/* FALLTHROUGH */
+		fallthrough;
 	case RDMA_CM_EVENT_DISCONNECTED:
 	case RDMA_CM_EVENT_TIMEWAIT_EXIT:
 		nvmet_rdma_queue_disconnect(queue);
@@ -1769,7 +1769,7 @@ static int nvmet_rdma_cm_handler(struct rdma_cm_id *cm_id,
 	case RDMA_CM_EVENT_REJECTED:
 		pr_debug("Connection rejected: %s\n",
 			 rdma_reject_msg(cm_id, event->status));
-		/* FALLTHROUGH */
+		fallthrough;
 	case RDMA_CM_EVENT_UNREACHABLE:
 	case RDMA_CM_EVENT_CONNECT_ERROR:
 		nvmet_rdma_queue_connect_fail(cm_id, queue);

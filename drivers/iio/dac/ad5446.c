@@ -17,6 +17,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/err.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -478,13 +479,11 @@ static const struct spi_device_id ad5446_spi_ids[] = {
 };
 MODULE_DEVICE_TABLE(spi, ad5446_spi_ids);
 
-#ifdef CONFIG_OF
 static const struct of_device_id ad5446_of_ids[] = {
 	{ .compatible = "ti,dac7512" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ad5446_of_ids);
-#endif
 
 static int ad5446_spi_probe(struct spi_device *spi)
 {
@@ -502,7 +501,7 @@ static int ad5446_spi_remove(struct spi_device *spi)
 static struct spi_driver ad5446_spi_driver = {
 	.driver = {
 		.name	= "ad5446",
-		.of_match_table = of_match_ptr(ad5446_of_ids),
+		.of_match_table = ad5446_of_ids,
 	},
 	.probe		= ad5446_spi_probe,
 	.remove		= ad5446_spi_remove,

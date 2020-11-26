@@ -216,6 +216,8 @@ struct amdgpu_gfx_funcs {
 	int (*ras_error_inject)(struct amdgpu_device *adev, void *inject_if);
 	int (*query_ras_error_count) (struct amdgpu_device *adev, void *ras_error_status);
 	void (*reset_ras_error_count) (struct amdgpu_device *adev);
+	void (*init_spm_golden)(struct amdgpu_device *adev);
+	void (*query_ras_error_status) (struct amdgpu_device *adev);
 };
 
 struct sq_work {
@@ -324,6 +326,7 @@ struct amdgpu_gfx {
 #define amdgpu_gfx_get_gpu_clock_counter(adev) (adev)->gfx.funcs->get_gpu_clock_counter((adev))
 #define amdgpu_gfx_select_se_sh(adev, se, sh, instance) (adev)->gfx.funcs->select_se_sh((adev), (se), (sh), (instance))
 #define amdgpu_gfx_select_me_pipe_q(adev, me, pipe, q, vmid) (adev)->gfx.funcs->select_me_pipe_q((adev), (me), (pipe), (q), (vmid))
+#define amdgpu_gfx_init_spm_golden(adev) (adev)->gfx.funcs->init_spm_golden((adev))
 
 /**
  * amdgpu_gfx_create_bitmask - create a bitmask

@@ -58,7 +58,7 @@ static inline struct snd_soc_acpi_mach *snd_soc_acpi_codec_list(void *arg)
  * snd_soc_acpi_mach_params: interface for machine driver configuration
  *
  * @acpi_ipc_irq_index: used for BYT-CR detection
- * @platform: string used for HDaudio codec support
+ * @platform: string used for HDAudio codec support
  * @codec_mask: used for HDAudio support
  * @common_hdmi_codec_drv: use commom HDAudio HDMI codec driver
  * @link_mask: links enabled on the board
@@ -93,11 +93,13 @@ struct snd_soc_acpi_endpoint {
  * @adr: 64 bit ACPI _ADR value
  * @num_endpoints: number of endpoints for this device
  * @endpoints: array of endpoints
+ * @name_prefix: string used for codec controls
  */
 struct snd_soc_acpi_adr_device {
 	const u64 adr;
 	const u8 num_endpoints;
 	const struct snd_soc_acpi_endpoint *endpoints;
+	const char *name_prefix;
 };
 
 /**

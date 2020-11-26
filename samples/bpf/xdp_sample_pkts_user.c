@@ -18,7 +18,6 @@
 
 #include "perf-sys.h"
 
-#define MAX_CPUS 128
 static int if_idx;
 static char *if_name;
 static __u32 xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;

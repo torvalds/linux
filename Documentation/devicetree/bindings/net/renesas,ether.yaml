@@ -59,9 +59,15 @@ properties:
   clocks:
     maxItems: 1
 
-  pinctrl-0: true
+  power-domains:
+    maxItems: 1
 
-  pinctrl-names: true
+  resets:
+    maxItems: 1
+
+  phy-mode: true
+
+  phy-handle: true
 
   renesas,no-ether-link:
     type: boolean
@@ -74,6 +80,11 @@ properties:
       specify when the Ether LINK signal is active-low instead of normal
       active-high
 
+patternProperties:
+  "^ethernet-phy@[0-9a-f]$":
+    type: object
+    $ref: ethernet-phy.yaml#
+
 required:
   - compatible
   - reg
@@ -83,7 +94,8 @@ required:
   - '#address-cells'
   - '#size-cells'
   - clocks
-  - pinctrl-0
+
+additionalProperties: false
 
 examples:
   # Lager board
@@ -99,8 +111,6 @@ examples:
         clocks = <&mstp8_clks R8A7790_CLK_ETHER>;
         phy-mode = "rmii";
         phy-handle = <&phy1>;
-        pinctrl-0 = <&ether_pins>;
-        pinctrl-names = "default";
         renesas,ether-link-active-low;
         #address-cells = <1>;
         #size-cells = <0>;
@@ -109,7 +119,5 @@ examples:
             reg = <1>;
             interrupt-parent = <&irqc0>;
             interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
-            pinctrl-0 = <&phy1_pins>;
-            pinctrl-names = "default";
         };
     };

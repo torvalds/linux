@@ -173,10 +173,14 @@ EXPORT_SYMBOL_GPL(adf_disable_sriov);
 /**
  * adf_sriov_configure() - Enable SRIOV for the device
  * @pdev:  Pointer to pci device.
+ * @numvfs: Number of virtual functions (VFs) to enable.
+ *
+ * Note that the @numvfs parameter is ignored and all VFs supported by the
+ * device are enabled due to the design of the hardware.
  *
  * Function enables SRIOV for the pci device.
  *
- * Return: 0 on success, error code otherwise.
+ * Return: number of VFs enabled on success, error code otherwise.
  */
 int adf_sriov_configure(struct pci_dev *pdev, int numvfs)
 {

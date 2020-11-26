@@ -1,11 +1,5 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: CEC
 
 .. _CEC_ADAP_G_CAPS:
 
@@ -21,17 +15,17 @@ CEC_ADAP_G_CAPS - Query device capabilities
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, CEC_ADAP_G_CAPS, struct cec_caps *argp )
-    :name: CEC_ADAP_G_CAPS
+.. c:macro:: CEC_ADAP_G_CAPS
+
+``int ioctl(int fd, CEC_ADAP_G_CAPS, struct cec_caps *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :c:func:`open() <cec-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
-
 
 Description
 ===========
@@ -68,7 +62,6 @@ returns the information to the application. The ioctl never fails.
       - ``version``
       - CEC Framework API version, formatted with the ``KERNEL_VERSION()``
 	macro.
-
 
 .. tabularcolumns:: |p{4.4cm}|p{2.5cm}|p{10.6cm}|
 

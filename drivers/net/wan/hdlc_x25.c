@@ -107,8 +107,14 @@ static netdev_tx_t x25_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	int result;
 
+	/* There should be a pseudo header of 1 byte added by upper layers.
+	 * Check to make sure it is there before reading it.
+	 */
+	if (skb->len < 1) {
+		kfree_skb(skb);
+		return NETDEV_TX_OK;
+	}
 
-	/* X.25 to LAPB */
 	switch (skb->data[0]) {
 	case X25_IFACE_DATA:	/* Data to be transmitted */
 		skb_pull(skb, 1);
@@ -294,6 +300,15 @@ static int x25_ioctl(struct net_device *dev, struct ifreq *ifr)
 			return result;
 
 		memcpy(&state(hdlc)->settings, &new_settings, size);
+
+		/* There's no header_ops so hard_header_len should be 0. */
+		dev->hard_header_len = 0;
+		/* When transmitting data:
+		 * first we'll remove a pseudo header of 1 byte,
+		 * then we'll prepend an LAPB header of at most 3 bytes.
+		 */
+		dev->needed_headroom = 3 - 1;
+
 		dev->type = ARPHRD_X25;
 		call_netdevice_notifiers(NETDEV_POST_TYPE_CHANGE, dev);
 		netif_dormant_off(dev);

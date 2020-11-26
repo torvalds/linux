@@ -15,8 +15,8 @@
 
 const struct cpu_operations *cpu_ops[NR_CPUS] __ro_after_init;
 
-void *__cpu_up_stack_pointer[NR_CPUS] __section(.data);
-void *__cpu_up_task_pointer[NR_CPUS] __section(.data);
+void *__cpu_up_stack_pointer[NR_CPUS] __section(".data");
+void *__cpu_up_task_pointer[NR_CPUS] __section(".data");
 
 extern const struct cpu_operations cpu_ops_sbi;
 extern const struct cpu_operations cpu_ops_spinwait;

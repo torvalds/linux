@@ -218,6 +218,8 @@ patternProperties:
       - trips
     additionalProperties: false
 
+additionalProperties: false
+
 examples:
   - |
     #include <dt-bindings/interrupt-controller/arm-gic.h>

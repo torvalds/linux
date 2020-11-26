@@ -126,10 +126,6 @@ static int mfd_match_of_node_to_dev(struct platform_device *pdev,
 	const __be32 *reg;
 	u64 of_node_addr;
 
-	/* Skip devices 'disabled' by Device Tree */
-	if (!of_device_is_available(np))
-		return -ENODEV;
-
 	/* Skip if OF node has previously been allocated to a device */
 	list_for_each_entry(of_entry, &mfd_of_node_list, list)
 		if (of_entry->np == np)
@@ -212,6 +208,12 @@ static int mfd_add_device(struct device *parent, int id,
 	if (IS_ENABLED(CONFIG_OF) && parent->of_node && cell->of_compatible) {
 		for_each_child_of_node(parent->of_node, np) {
 			if (of_device_is_compatible(np, cell->of_compatible)) {
+				/* Ignore 'disabled' devices error free */
+				if (!of_device_is_available(np)) {
+					ret = 0;
+					goto fail_alias;
+				}
+
 				ret = mfd_match_of_node_to_dev(pdev, np, cell);
 				if (ret == -EAGAIN)
 					continue;
@@ -369,8 +371,6 @@ static int mfd_remove_devices_fn(struct device *dev, void *data)
 
 	regulator_bulk_unregister_supply_alias(dev, cell->parent_supplies,
 					       cell->num_parent_supplies);
-
-	kfree(cell);
 
 	platform_device_unregister(pdev);
 	return 0;

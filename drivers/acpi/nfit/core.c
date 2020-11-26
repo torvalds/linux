@@ -1389,7 +1389,7 @@ static bool ars_supported(struct nvdimm_bus *nvdimm_bus)
 
 static umode_t nfit_visible(struct kobject *kobj, struct attribute *a, int n)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct nvdimm_bus *nvdimm_bus = to_nvdimm_bus(dev);
 
 	if (a == &dev_attr_scrub.attr)
@@ -1564,7 +1564,7 @@ static ssize_t format1_show(struct device *dev,
 					le16_to_cpu(nfit_dcr->dcr->code));
 			break;
 		}
-		if (rc != ENXIO)
+		if (rc != -ENXIO)
 			break;
 	}
 	mutex_unlock(&acpi_desc->init_mutex);
@@ -1679,7 +1679,7 @@ static struct attribute *acpi_nfit_dimm_attributes[] = {
 static umode_t acpi_nfit_dimm_attr_visible(struct kobject *kobj,
 		struct attribute *a, int n)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct nvdimm *nvdimm = to_nvdimm(dev);
 	struct nfit_mem *nfit_mem = nvdimm_provider_data(nvdimm);
 
@@ -2175,10 +2175,10 @@ static int acpi_nfit_register_dimms(struct acpi_nfit_desc *acpi_desc)
  * these commands.
  */
 enum nfit_aux_cmds {
-        NFIT_CMD_TRANSLATE_SPA = 5,
-        NFIT_CMD_ARS_INJECT_SET = 7,
-        NFIT_CMD_ARS_INJECT_CLEAR = 8,
-        NFIT_CMD_ARS_INJECT_GET = 9,
+	NFIT_CMD_TRANSLATE_SPA = 5,
+	NFIT_CMD_ARS_INJECT_SET = 7,
+	NFIT_CMD_ARS_INJECT_CLEAR = 8,
+	NFIT_CMD_ARS_INJECT_GET = 9,
 };
 
 static void acpi_nfit_init_dsms(struct acpi_nfit_desc *acpi_desc)
@@ -2632,7 +2632,7 @@ static int acpi_nfit_blk_region_enable(struct nvdimm_bus *nvdimm_bus,
 	nfit_blk->bdw_offset = nfit_mem->bdw->offset;
 	mmio = &nfit_blk->mmio[BDW];
 	mmio->addr.base = devm_nvdimm_memremap(dev, nfit_mem->spa_bdw->address,
-                        nfit_mem->spa_bdw->length, nd_blk_memremap_flags(ndbr));
+			nfit_mem->spa_bdw->length, nd_blk_memremap_flags(ndbr));
 	if (!mmio->addr.base) {
 		dev_dbg(dev, "%s failed to map bdw\n",
 				nvdimm_name(nvdimm));
@@ -3006,10 +3006,8 @@ static int acpi_nfit_register_region(struct acpi_nfit_desc *acpi_desc,
 	ndr_desc->provider_data = nfit_spa;
 	ndr_desc->attr_groups = acpi_nfit_region_attribute_groups;
 	if (spa->flags & ACPI_NFIT_PROXIMITY_VALID) {
-		ndr_desc->numa_node = acpi_map_pxm_to_online_node(
-						spa->proximity_domain);
-		ndr_desc->target_node = acpi_map_pxm_to_node(
-				spa->proximity_domain);
+		ndr_desc->numa_node = pxm_to_online_node(spa->proximity_domain);
+		ndr_desc->target_node = pxm_to_node(spa->proximity_domain);
 	} else {
 		ndr_desc->numa_node = NUMA_NO_NODE;
 		ndr_desc->target_node = NUMA_NO_NODE;

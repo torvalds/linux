@@ -638,7 +638,7 @@ static void smu_expose_childs(struct work_struct *unused)
 {
 	struct device_node *np;
 
-	for (np = NULL; (np = of_get_next_child(smu->of_node, np)) != NULL;)
+	for_each_child_of_node(smu->of_node, np)
 		if (of_device_is_compatible(np, "smu-sensors"))
 			of_platform_device_create(np, "smu-sensors",
 						  &smu->of_dev->dev);
@@ -852,7 +852,7 @@ int smu_queue_i2c(struct smu_i2c_cmd *cmd)
 		break;
 	case SMU_I2C_TRANSFER_COMBINED:
 		cmd->info.devaddr &= 0xfe;
-		/* fall through */
+		fallthrough;
 	case SMU_I2C_TRANSFER_STDSUB:
 		if (cmd->info.sublen > 3)
 			return -EINVAL;
@@ -1015,7 +1015,7 @@ static struct smu_sdbp_header *smu_create_sdb_partition(int id)
 /* Note: Only allowed to return error code in pointers (using ERR_PTR)
  * when interruptible is 1
  */
-const struct smu_sdbp_header *__smu_get_sdb_partition(int id,
+static const struct smu_sdbp_header *__smu_get_sdb_partition(int id,
 		unsigned int *size, int interruptible)
 {
 	char pname[32];

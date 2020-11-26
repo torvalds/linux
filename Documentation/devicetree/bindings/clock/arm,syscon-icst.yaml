@@ -89,6 +89,8 @@ required:
   - compatible
   - clocks
 
+additionalProperties: false
+
 examples:
   - |
     vco1: clock {

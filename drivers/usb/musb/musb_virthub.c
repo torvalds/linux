@@ -211,7 +211,7 @@ void musb_root_disconnect(struct musb *musb)
 			musb->g.is_a_peripheral = 1;
 			break;
 		}
-		/* FALLTHROUGH */
+		fallthrough;
 	case OTG_STATE_A_HOST:
 		musb->xceiv->otg->state = OTG_STATE_A_WAIT_BCON;
 		musb->is_active = 0;

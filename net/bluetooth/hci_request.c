@@ -1027,6 +1027,9 @@ void hci_req_add_le_passive_scan(struct hci_request *req)
 	} else if (hci_is_le_conn_scanning(hdev)) {
 		window = hdev->le_scan_window_connect;
 		interval = hdev->le_scan_int_connect;
+	} else if (hci_is_adv_monitoring(hdev)) {
+		window = hdev->le_scan_window_adv_monitor;
+		interval = hdev->le_scan_int_adv_monitor;
 	} else {
 		window = hdev->le_scan_window;
 		interval = hdev->le_scan_interval;
@@ -1111,6 +1114,53 @@ static void hci_req_config_le_suspend_scan(struct hci_request *req)
 	set_bit(SUSPEND_SCAN_ENABLE, req->hdev->suspend_tasks);
 }
 
+static void cancel_adv_timeout(struct hci_dev *hdev)
+{
+	if (hdev->adv_instance_timeout) {
+		hdev->adv_instance_timeout = 0;
+		cancel_delayed_work(&hdev->adv_instance_expire);
+	}
+}
+
+/* This function requires the caller holds hdev->lock */
+static void hci_suspend_adv_instances(struct hci_request *req)
+{
+	bt_dev_dbg(req->hdev, "Suspending advertising instances");
+
+	/* Call to disable any advertisements active on the controller.
+	 * This will succeed even if no advertisements are configured.
+	 */
+	__hci_req_disable_advertising(req);
+
+	/* If we are using software rotation, pause the loop */
+	if (!ext_adv_capable(req->hdev))
+		cancel_adv_timeout(req->hdev);
+}
+
+/* This function requires the caller holds hdev->lock */
+static void hci_resume_adv_instances(struct hci_request *req)
+{
+	struct adv_info *adv;
+
+	bt_dev_dbg(req->hdev, "Resuming advertising instances");
+
+	if (ext_adv_capable(req->hdev)) {
+		/* Call for each tracked instance to be re-enabled */
+		list_for_each_entry(adv, &req->hdev->adv_instances, list) {
+			__hci_req_enable_ext_advertising(req,
+							 adv->instance);
+		}
+
+	} else {
+		/* Schedule for most recent instance to be restarted and begin
+		 * the software rotation loop
+		 */
+		__hci_req_schedule_adv_instance(req,
+						req->hdev->cur_adv_instance,
+						true);
+	}
+}
+
 static void suspend_req_complete(struct hci_dev *hdev, u8 status, u16 opcode)
 {
 	bt_dev_dbg(hdev, "Request complete opcode=0x%x, status=0x%x", opcode,
@@ -1153,7 +1203,7 @@ void hci_req_prepare_suspend(struct hci_dev *hdev, enum suspended_state next)
 		hdev->discovery_paused = true;
 		hdev->discovery_old_state = old_state;
 
-		/* Stop advertising */
+		/* Stop directed advertising */
 		old_state = hci_dev_test_flag(hdev, HCI_ADVERTISING);
 		if (old_state) {
 			set_bit(SUSPEND_PAUSE_ADVERTISING, hdev->suspend_tasks);
@@ -1161,6 +1211,10 @@ void hci_req_prepare_suspend(struct hci_dev *hdev, enum suspended_state next)
 			queue_delayed_work(hdev->req_workqueue,
 					   &hdev->discov_off, 0);
 		}
+
+		/* Pause other advertisements */
+		if (hdev->adv_instance_cnt)
+			hci_suspend_adv_instances(&req);
 
 		hdev->advertising_paused = true;
 		hdev->advertising_old_state = old_state;
@@ -1212,7 +1266,7 @@ void hci_req_prepare_suspend(struct hci_dev *hdev, enum suspended_state next)
 		/* Reset passive/background scanning to normal */
 		hci_req_config_le_suspend_scan(&req);
 
-		/* Unpause advertising */
+		/* Unpause directed advertising */
 		hdev->advertising_paused = false;
 		if (hdev->advertising_old_state) {
 			set_bit(SUSPEND_UNPAUSE_ADVERTISING,
@@ -1222,6 +1276,10 @@ void hci_req_prepare_suspend(struct hci_dev *hdev, enum suspended_state next)
 				   &hdev->discoverable_update);
 			hdev->advertising_old_state = 0;
 		}
+
+		/* Resume other advertisements */
+		if (hdev->adv_instance_cnt)
+			hci_resume_adv_instances(&req);
 
 		/* Unpause discovery */
 		hdev->discovery_paused = false;
@@ -1533,11 +1591,14 @@ void __hci_req_update_scan_rsp_data(struct hci_request *req, u8 instance)
 
 		memset(&cp, 0, sizeof(cp));
 
-		if (instance)
+		/* Extended scan response data doesn't allow a response to be
+		 * set if the instance isn't scannable.
+		 */
+		if (get_adv_instance_scan_rsp_len(hdev, instance))
 			len = create_instance_scan_rsp_data(hdev, instance,
 							    cp.data);
 		else
-			len = create_default_scan_rsp_data(hdev, cp.data);
+			len = 0;
 
 		if (hdev->scan_rsp_data_len == len &&
 		    !memcmp(cp.data, hdev->scan_rsp_data, len))
@@ -1824,7 +1885,13 @@ int hci_get_random_address(struct hci_dev *hdev, bool require_privacy,
 	if (use_rpa) {
 		int to;
 
-		*own_addr_type = ADDR_LE_DEV_RANDOM;
+		/* If Controller supports LL Privacy use own address type is
+		 * 0x03
+		 */
+		if (use_ll_privacy(hdev))
+			*own_addr_type = ADDR_LE_DEV_RANDOM_RESOLVED;
+		else
+			*own_addr_type = ADDR_LE_DEV_RANDOM;
 
 		if (adv_instance) {
 			if (!adv_instance->rpa_expired &&
@@ -2181,14 +2248,6 @@ int __hci_req_schedule_adv_instance(struct hci_request *req, u8 instance,
 	}
 
 	return 0;
-}
-
-static void cancel_adv_timeout(struct hci_dev *hdev)
-{
-	if (hdev->adv_instance_timeout) {
-		hdev->adv_instance_timeout = 0;
-		cancel_delayed_work(&hdev->adv_instance_expire);
-	}
 }
 
 /* For a single instance:

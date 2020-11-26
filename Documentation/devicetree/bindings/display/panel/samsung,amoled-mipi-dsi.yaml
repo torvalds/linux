@@ -12,6 +12,17 @@ maintainers:
 allOf:
   - $ref: panel-common.yaml#
 
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - samsung,s6e3ha2
+              - samsung,s6e3hf2
+    then:
+      required:
+        - enable-gpios
+
 properties:
   compatible:
     enum:
@@ -39,7 +50,6 @@ required:
   - vdd3-supply
   - vci-supply
   - reset-gpios
-  - enable-gpios
 
 additionalProperties: false
 

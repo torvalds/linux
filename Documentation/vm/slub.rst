@@ -378,7 +378,7 @@ c) Execute ``slabinfo-gnuplot.sh`` in '-t' mode, passing all of the
    can go unnoticed. To deal with that, ``slabinfo-gnuplot.sh`` has two
    options to 'zoom-in'/'zoom-out':
 
-   a) ``-s %d,%d`` -- overwrites the default image width and heigh
+   a) ``-s %d,%d`` -- overwrites the default image width and height
    b) ``-r %d,%d`` -- specifies a range of samples to use (for example,
       in ``slabinfo -X >> FOO_STATS; sleep 1;`` case, using a ``-r
       40,60`` range will plot only samples collected between 40th and

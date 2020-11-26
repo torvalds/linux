@@ -1962,6 +1962,7 @@ static int ocrdma_mbx_reg_mr(struct ocrdma_dev *dev, struct ocrdma_hw_mr *hwmr,
 	int i;
 	struct ocrdma_reg_nsmr *cmd;
 	struct ocrdma_reg_nsmr_rsp *rsp;
+	u64 fbo = hwmr->va & (hwmr->pbe_size - 1);
 
 	cmd = ocrdma_init_emb_mqe(OCRDMA_CMD_REGISTER_NSMR, sizeof(*cmd));
 	if (!cmd)
@@ -1987,8 +1988,8 @@ static int ocrdma_mbx_reg_mr(struct ocrdma_dev *dev, struct ocrdma_hw_mr *hwmr,
 					OCRDMA_REG_NSMR_HPAGE_SIZE_SHIFT;
 	cmd->totlen_low = hwmr->len;
 	cmd->totlen_high = upper_32_bits(hwmr->len);
-	cmd->fbo_low = (u32) (hwmr->fbo & 0xffffffff);
-	cmd->fbo_high = (u32) upper_32_bits(hwmr->fbo);
+	cmd->fbo_low = lower_32_bits(fbo);
+	cmd->fbo_high = upper_32_bits(fbo);
 	cmd->va_loaddr = (u32) hwmr->va;
 	cmd->va_hiaddr = (u32) upper_32_bits(hwmr->va);
 

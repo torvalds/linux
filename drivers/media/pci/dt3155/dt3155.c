@@ -575,9 +575,8 @@ static void dt3155_remove(struct pci_dev *pdev)
 	struct dt3155_priv *pd = container_of(v4l2_dev, struct dt3155_priv,
 					      v4l2_dev);
 
-	video_unregister_device(&pd->vdev);
+	vb2_video_unregister_device(&pd->vdev);
 	free_irq(pd->pdev->irq, pd);
-	vb2_queue_release(&pd->vidq);
 	v4l2_device_unregister(&pd->v4l2_dev);
 	pci_iounmap(pdev, pd->regs);
 	pci_release_region(pdev, 0);

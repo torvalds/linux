@@ -81,7 +81,7 @@ int ieee802154_nl_reply(struct sk_buff *msg, struct genl_info *info)
 	return genlmsg_reply(msg, info);
 }
 
-static const struct genl_ops ieee802154_ops[] = {
+static const struct genl_small_ops ieee802154_ops[] = {
 	/* see nl-phy.c */
 	IEEE802154_DUMP(IEEE802154_LIST_PHY, ieee802154_list_phy,
 			ieee802154_dump_phy),
@@ -130,8 +130,8 @@ struct genl_family nl802154_family __ro_after_init = {
 	.maxattr	= IEEE802154_ATTR_MAX,
 	.policy		= ieee802154_policy,
 	.module		= THIS_MODULE,
-	.ops		= ieee802154_ops,
-	.n_ops		= ARRAY_SIZE(ieee802154_ops),
+	.small_ops	= ieee802154_ops,
+	.n_small_ops	= ARRAY_SIZE(ieee802154_ops),
 	.mcgrps		= ieee802154_mcgrps,
 	.n_mcgrps	= ARRAY_SIZE(ieee802154_mcgrps),
 };

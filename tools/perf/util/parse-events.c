@@ -37,6 +37,7 @@
 #include "util/evsel_config.h"
 #include "util/event.h"
 #include "util/pfm.h"
+#include "perf.h"
 
 #define MAX_NAME_LEN 100
 
@@ -352,18 +353,20 @@ __add_event(struct list_head *list, int *idx,
 	    const char *cpu_list)
 {
 	struct evsel *evsel;
-	struct perf_cpu_map *cpus = pmu ? pmu->cpus :
+	struct perf_cpu_map *cpus = pmu ? perf_cpu_map__get(pmu->cpus) :
 			       cpu_list ? perf_cpu_map__new(cpu_list) : NULL;
 
 	if (init_attr)
 		event_attr_init(attr);
 
 	evsel = evsel__new_idx(attr, *idx);
-	if (!evsel)
+	if (!evsel) {
+		perf_cpu_map__put(cpus);
 		return NULL;
+	}
 
 	(*idx)++;
-	evsel->core.cpus   = perf_cpu_map__get(cpus);
+	evsel->core.cpus = cpus;
 	evsel->core.own_cpus = perf_cpu_map__get(cpus);
 	evsel->core.system_wide = pmu ? pmu->is_uncore : false;
 	evsel->auto_merge_stats = auto_merge_stats;
@@ -410,7 +413,7 @@ static int add_event_tool(struct list_head *list, int *idx,
 		return -ENOMEM;
 	evsel->tool_event = tool_event;
 	if (tool_event == PERF_TOOL_DURATION_TIME)
-		evsel->unit = strdup("ns");
+		evsel->unit = "ns";
 	return 0;
 }
 
@@ -939,12 +942,12 @@ do {					\
 }
 
 int parse_events_add_breakpoint(struct list_head *list, int *idx,
-				void *ptr, char *type, u64 len)
+				u64 addr, char *type, u64 len)
 {
 	struct perf_event_attr attr;
 
 	memset(&attr, 0, sizeof(attr));
-	attr.bp_addr = (unsigned long) ptr;
+	attr.bp_addr = addr;
 
 	if (parse_breakpoint_type(type, &attr))
 		return -EINVAL;
@@ -1533,19 +1536,23 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 	evsel = __add_event(list, &parse_state->idx, &attr, true,
 			    get_config_name(head_config), pmu,
 			    &config_terms, auto_merge_stats, NULL);
-	if (evsel) {
-		evsel->unit = info.unit;
-		evsel->scale = info.scale;
-		evsel->per_pkg = info.per_pkg;
-		evsel->snapshot = info.snapshot;
-		evsel->metric_expr = info.metric_expr;
-		evsel->metric_name = info.metric_name;
-		evsel->pmu_name = name ? strdup(name) : NULL;
-		evsel->use_uncore_alias = use_uncore_alias;
-		evsel->percore = config_term_percore(&evsel->config_terms);
-	}
+	if (!evsel)
+		return -ENOMEM;
 
-	return evsel ? 0 : -ENOMEM;
+	evsel->pmu_name = name ? strdup(name) : NULL;
+	evsel->use_uncore_alias = use_uncore_alias;
+	evsel->percore = config_term_percore(&evsel->config_terms);
+
+	if (parse_state->fake_pmu)
+		return 0;
+
+	evsel->unit = info.unit;
+	evsel->scale = info.scale;
+	evsel->per_pkg = info.per_pkg;
+	evsel->snapshot = info.snapshot;
+	evsel->metric_expr = info.metric_expr;
+	evsel->metric_name = info.metric_name;
+	return 0;
 }
 
 int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
@@ -1768,6 +1775,7 @@ struct event_modifier {
 	int sample_read;
 	int pinned;
 	int weak;
+	int exclusive;
 };
 
 static int get_event_modifier(struct event_modifier *mod, char *str,
@@ -1783,6 +1791,7 @@ static int get_event_modifier(struct event_modifier *mod, char *str,
 	int precise_max = 0;
 	int sample_read = 0;
 	int pinned = evsel ? evsel->core.attr.pinned : 0;
+	int exclusive = evsel ? evsel->core.attr.exclusive : 0;
 
 	int exclude = eu | ek | eh;
 	int exclude_GH = evsel ? evsel->exclude_GH : 0;
@@ -1794,6 +1803,8 @@ static int get_event_modifier(struct event_modifier *mod, char *str,
 		if (*str == 'u') {
 			if (!exclude)
 				exclude = eu = ek = eh = 1;
+			if (!exclude_GH && !perf_guest)
+				eG = 1;
 			eu = 0;
 		} else if (*str == 'k') {
 			if (!exclude)
@@ -1824,6 +1835,8 @@ static int get_event_modifier(struct event_modifier *mod, char *str,
 			sample_read = 1;
 		} else if (*str == 'D') {
 			pinned = 1;
+		} else if (*str == 'e') {
+			exclusive = 1;
 		} else if (*str == 'W') {
 			weak = 1;
 		} else
@@ -1857,6 +1870,7 @@ static int get_event_modifier(struct event_modifier *mod, char *str,
 	mod->sample_read = sample_read;
 	mod->pinned = pinned;
 	mod->weak = weak;
+	mod->exclusive = exclusive;
 
 	return 0;
 }
@@ -1870,7 +1884,7 @@ static int check_modifier(char *str)
 	char *p = str;
 
 	/* The sizeof includes 0 byte as well. */
-	if (strlen(str) > (sizeof("ukhGHpppPSDIW") - 1))
+	if (strlen(str) > (sizeof("ukhGHpppPSDIWe") - 1))
 		return -1;
 
 	while (*p) {
@@ -1912,8 +1926,10 @@ int parse_events__modifier_event(struct list_head *list, char *str, bool add)
 		evsel->precise_max         = mod.precise_max;
 		evsel->weak_group	   = mod.weak;
 
-		if (evsel__is_group_leader(evsel))
+		if (evsel__is_group_leader(evsel)) {
 			evsel->core.attr.pinned = mod.pinned;
+			evsel->core.attr.exclusive = mod.exclusive;
+		}
 	}
 
 	return 0;

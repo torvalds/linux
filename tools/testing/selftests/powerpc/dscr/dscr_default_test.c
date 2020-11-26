@@ -63,6 +63,8 @@ int dscr_default(void)
 	unsigned long i, *status[THREADS];
 	unsigned long orig_dscr_default;
 
+	SKIP_IF(!have_hwcap2(PPC_FEATURE2_DSCR));
+
 	orig_dscr_default = get_default_dscr();
 
 	/* Initial DSCR default */

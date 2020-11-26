@@ -24,7 +24,6 @@
 ENTRY(csum_partial_copy_nocheck)
 	MVC	.S2	ILC,B30
 
-	MV	.D1X	B6,A31		; given csum
 	ZERO	.D1	A9		; csum (a side)
 ||	ZERO	.D2	B9		; csum (b side)
 ||	SHRU	.S2X	A6,2,B5		; len / 4
@@ -144,8 +143,7 @@ L91:	SHRU	.S2X	A9,16,B4
 	SHRU	.S1	A9,16,A0
    [A0]	BNOP	.S1	L91,5
 
-L10:	ADD	.D1	A31,A9,A9
-	MV	.D1	A9,A4
+L10:	MV	.D1	A9,A4
 
 	BNOP	.S2	B3,4
 	MVC	.S2	B30,ILC

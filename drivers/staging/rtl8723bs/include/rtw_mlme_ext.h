@@ -716,8 +716,6 @@ void sa_query_timer_hdl(struct timer_list *t);
 		DBG_871X("%s set_sa_query_timer(%p, %d)\n", __func__, (mlmeext), (ms)); \
 		_set_timer(&(mlmeext)->sa_query_timer, (ms)); \
 	} while (0)
-extern int cckrates_included(unsigned char *rate, int ratelen);
-extern int cckratesonly_included(unsigned char *rate, int ratelen);
 
 extern void process_addba_req(struct adapter *padapter, u8 *paddba_req, u8 *addr);
 

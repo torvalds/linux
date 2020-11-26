@@ -672,7 +672,7 @@ void ieee80211_mesh_root_setup(struct ieee80211_if_mesh *ifmsh)
  * @hdr:	802.11 frame header
  * @fc:		frame control field
  * @meshda:	destination address in the mesh
- * @meshsa:	source address address in the mesh.  Same as TA, as frame is
+ * @meshsa:	source address in the mesh.  Same as TA, as frame is
  *              locally originated.
  *
  * Return the length of the 802.11 (does not include a mesh control header)
@@ -864,8 +864,8 @@ ieee80211_mesh_build_beacon(struct ieee80211_if_mesh *ifmsh)
 		*pos++ = 0x0;
 		*pos++ = ieee80211_frequency_to_channel(
 				csa->settings.chandef.chan->center_freq);
-		bcn->csa_current_counter = csa->settings.count;
-		bcn->csa_counter_offsets[0] = hdr_len + 6;
+		bcn->cntdwn_current_counter = csa->settings.count;
+		bcn->cntdwn_counter_offsets[0] = hdr_len + 6;
 		*pos++ = csa->settings.count;
 		*pos++ = WLAN_EID_CHAN_SWITCH_PARAM;
 		*pos++ = 6;

@@ -13,7 +13,6 @@
 
 #include <linux/types.h>
 #include <linux/slab.h>
-#include <linux/ktime.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/timer.h>
@@ -84,7 +83,6 @@ struct usbhid_device {
 	struct mutex mutex;						/* start/stop/open/close */
 	spinlock_t lock;						/* fifo spinlock */
 	unsigned long iofl;                                             /* I/O flags (CTRL_RUNNING, OUT_RUNNING) */
-	ktime_t input_start_time;					/* When to start handling input */
 	struct timer_list io_retry;                                     /* Retry timer */
 	unsigned long stop_retry;                                       /* Time to give up, in jiffies */
 	unsigned int retry_delay;                                       /* Delay length in ms */

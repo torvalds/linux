@@ -15,7 +15,7 @@
 #include <linux/irq.h>
 #include <linux/irq_work.h>
 #include <linux/i2c.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
 #include <linux/regmap.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
@@ -620,7 +620,6 @@ static int atlas_probe(struct i2c_client *client,
 {
 	struct atlas_data *data;
 	struct atlas_device *chip;
-	const struct of_device_id *of_id;
 	struct iio_trigger *trig;
 	struct iio_dev *indio_dev;
 	int ret;
@@ -629,11 +628,10 @@ static int atlas_probe(struct i2c_client *client,
 	if (!indio_dev)
 		return -ENOMEM;
 
-	of_id = of_match_device(atlas_dt_ids, &client->dev);
-	if (!of_id)
+	if (!dev_fwnode(&client->dev))
 		chip = &atlas_devices[id->driver_data];
 	else
-		chip = &atlas_devices[(unsigned long)of_id->data];
+		chip = &atlas_devices[(unsigned long)device_get_match_data(&client->dev)];
 
 	indio_dev->info = &atlas_info;
 	indio_dev->name = ATLAS_DRV_NAME;
@@ -775,7 +773,7 @@ static const struct dev_pm_ops atlas_pm_ops = {
 static struct i2c_driver atlas_driver = {
 	.driver = {
 		.name	= ATLAS_DRV_NAME,
-		.of_match_table	= of_match_ptr(atlas_dt_ids),
+		.of_match_table	= atlas_dt_ids,
 		.pm	= &atlas_pm_ops,
 	},
 	.probe		= atlas_probe,

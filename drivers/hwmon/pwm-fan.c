@@ -54,16 +54,18 @@ static irqreturn_t pulse_handler(int irq, void *dev_id)
 static void sample_timer(struct timer_list *t)
 {
 	struct pwm_fan_ctx *ctx = from_timer(ctx, t, rpm_timer);
+	unsigned int delta = ktime_ms_delta(ktime_get(), ctx->sample_start);
 	int pulses;
-	u64 tmp;
 
-	pulses = atomic_read(&ctx->pulses);
-	atomic_sub(pulses, &ctx->pulses);
-	tmp = (u64)pulses * ktime_ms_delta(ktime_get(), ctx->sample_start) * 60;
-	do_div(tmp, ctx->pulses_per_revolution * 1000);
-	ctx->rpm = tmp;
+	if (delta) {
+		pulses = atomic_read(&ctx->pulses);
+		atomic_sub(pulses, &ctx->pulses);
+		ctx->rpm = (unsigned int)(pulses * 1000 * 60) /
+			(ctx->pulses_per_revolution * delta);
 
-	ctx->sample_start = ktime_get();
+		ctx->sample_start = ktime_get();
+	}
+
 	mod_timer(&ctx->rpm_timer, jiffies + HZ);
 }
 
@@ -293,14 +295,8 @@ static int pwm_fan_probe(struct platform_device *pdev)
 	mutex_init(&ctx->lock);
 
 	ctx->pwm = devm_of_pwm_get(dev, dev->of_node, NULL);
-	if (IS_ERR(ctx->pwm)) {
-		ret = PTR_ERR(ctx->pwm);
-
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "Could not get PWM: %d\n", ret);
-
-		return ret;
-	}
+	if (IS_ERR(ctx->pwm))
+		return dev_err_probe(dev, PTR_ERR(ctx->pwm), "Could not get PWM\n");
 
 	platform_set_drvdata(pdev, ctx);
 

@@ -180,7 +180,7 @@ The configuration can only be set up via VLAN tagging and bridge setup.
 
   # bring up the slave interfaces
   ip link set lan1 up
-  ip link set lan1 up
+  ip link set lan2 up
   ip link set lan3 up
 
   # create bridge

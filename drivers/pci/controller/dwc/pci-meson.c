@@ -17,37 +17,13 @@
 #include <linux/resource.h>
 #include <linux/types.h>
 #include <linux/phy/phy.h>
+#include <linux/module.h>
 
 #include "pcie-designware.h"
 
 #define to_meson_pcie(x) dev_get_drvdata((x)->dev)
 
-/* External local bus interface registers */
-#define PLR_OFFSET			0x700
-#define PCIE_PORT_LINK_CTRL_OFF		(PLR_OFFSET + 0x10)
-#define FAST_LINK_MODE			BIT(7)
-#define LINK_CAPABLE_MASK		GENMASK(21, 16)
-#define LINK_CAPABLE_X1			BIT(16)
-
-#define PCIE_GEN2_CTRL_OFF		(PLR_OFFSET + 0x10c)
-#define NUM_OF_LANES_MASK		GENMASK(12, 8)
-#define NUM_OF_LANES_X1			BIT(8)
-#define DIRECT_SPEED_CHANGE		BIT(17)
-
-#define TYPE1_HDR_OFFSET		0x0
-#define PCIE_STATUS_COMMAND		(TYPE1_HDR_OFFSET + 0x04)
-#define PCI_IO_EN			BIT(0)
-#define PCI_MEM_SPACE_EN		BIT(1)
-#define PCI_BUS_MASTER_EN		BIT(2)
-
-#define PCIE_BASE_ADDR0			(TYPE1_HDR_OFFSET + 0x10)
-#define PCIE_BASE_ADDR1			(TYPE1_HDR_OFFSET + 0x14)
-
-#define PCIE_CAP_OFFSET			0x70
-#define PCIE_DEV_CTRL_DEV_STUS		(PCIE_CAP_OFFSET + 0x08)
-#define PCIE_CAP_MAX_PAYLOAD_MASK	GENMASK(7, 5)
 #define PCIE_CAP_MAX_PAYLOAD_SIZE(x)	((x) << 5)
-#define PCIE_CAP_MAX_READ_REQ_MASK	GENMASK(14, 12)
 #define PCIE_CAP_MAX_READ_REQ_SIZE(x)	((x) << 12)
 
 /* PCIe specific config registers */
@@ -77,11 +53,6 @@ enum pcie_data_rate {
 	PCIE_GEN4
 };
 
-struct meson_pcie_mem_res {
-	void __iomem *elbi_base;
-	void __iomem *cfg_base;
-};
-
 struct meson_pcie_clk_res {
 	struct clk *clk;
 	struct clk *port_clk;
@@ -95,7 +66,7 @@ struct meson_pcie_rc_reset {
 
 struct meson_pcie {
 	struct dw_pcie pci;
-	struct meson_pcie_mem_res mem_res;
+	void __iomem *cfg_base;
 	struct meson_pcie_clk_res clk_res;
 	struct meson_pcie_rc_reset mrst;
 	struct gpio_desc *reset_gpio;
@@ -134,28 +105,18 @@ static int meson_pcie_get_resets(struct meson_pcie *mp)
 	return 0;
 }
 
-static void __iomem *meson_pcie_get_mem(struct platform_device *pdev,
-					struct meson_pcie *mp,
-					const char *id)
-{
-	struct device *dev = mp->pci.dev;
-	struct resource *res;
-
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, id);
-
-	return devm_ioremap_resource(dev, res);
-}
-
 static int meson_pcie_get_mems(struct platform_device *pdev,
 			       struct meson_pcie *mp)
 {
-	mp->mem_res.elbi_base = meson_pcie_get_mem(pdev, mp, "elbi");
-	if (IS_ERR(mp->mem_res.elbi_base))
-		return PTR_ERR(mp->mem_res.elbi_base);
+	struct dw_pcie *pci = &mp->pci;
 
-	mp->mem_res.cfg_base = meson_pcie_get_mem(pdev, mp, "cfg");
-	if (IS_ERR(mp->mem_res.cfg_base))
-		return PTR_ERR(mp->mem_res.cfg_base);
+	pci->dbi_base = devm_platform_ioremap_resource_byname(pdev, "elbi");
+	if (IS_ERR(pci->dbi_base))
+		return PTR_ERR(pci->dbi_base);
+
+	mp->cfg_base = devm_platform_ioremap_resource_byname(pdev, "cfg");
+	if (IS_ERR(mp->cfg_base))
+		return PTR_ERR(mp->cfg_base);
 
 	return 0;
 }
@@ -253,24 +214,14 @@ static int meson_pcie_probe_clocks(struct meson_pcie *mp)
 	return 0;
 }
 
-static inline void meson_elb_writel(struct meson_pcie *mp, u32 val, u32 reg)
-{
-	writel(val, mp->mem_res.elbi_base + reg);
-}
-
-static inline u32 meson_elb_readl(struct meson_pcie *mp, u32 reg)
-{
-	return readl(mp->mem_res.elbi_base + reg);
-}
-
 static inline u32 meson_cfg_readl(struct meson_pcie *mp, u32 reg)
 {
-	return readl(mp->mem_res.cfg_base + reg);
+	return readl(mp->cfg_base + reg);
 }
 
 static inline void meson_cfg_writel(struct meson_pcie *mp, u32 val, u32 reg)
 {
-	writel(val, mp->mem_res.cfg_base + reg);
+	writel(val, mp->cfg_base + reg);
 }
 
 static void meson_pcie_assert_reset(struct meson_pcie *mp)
@@ -287,25 +238,6 @@ static void meson_pcie_init_dw(struct meson_pcie *mp)
 	val = meson_cfg_readl(mp, PCIE_CFG0);
 	val |= APP_LTSSM_ENABLE;
 	meson_cfg_writel(mp, val, PCIE_CFG0);
-
-	val = meson_elb_readl(mp, PCIE_PORT_LINK_CTRL_OFF);
-	val &= ~(LINK_CAPABLE_MASK | FAST_LINK_MODE);
-	meson_elb_writel(mp, val, PCIE_PORT_LINK_CTRL_OFF);
-
-	val = meson_elb_readl(mp, PCIE_PORT_LINK_CTRL_OFF);
-	val |= LINK_CAPABLE_X1;
-	meson_elb_writel(mp, val, PCIE_PORT_LINK_CTRL_OFF);
-
-	val = meson_elb_readl(mp, PCIE_GEN2_CTRL_OFF);
-	val &= ~NUM_OF_LANES_MASK;
-	meson_elb_writel(mp, val, PCIE_GEN2_CTRL_OFF);
-
-	val = meson_elb_readl(mp, PCIE_GEN2_CTRL_OFF);
-	val |= NUM_OF_LANES_X1 | DIRECT_SPEED_CHANGE;
-	meson_elb_writel(mp, val, PCIE_GEN2_CTRL_OFF);
-
-	meson_elb_writel(mp, 0x0, PCIE_BASE_ADDR0);
-	meson_elb_writel(mp, 0x0, PCIE_BASE_ADDR1);
 }
 
 static int meson_size_to_payload(struct meson_pcie *mp, int size)
@@ -327,37 +259,34 @@ static int meson_size_to_payload(struct meson_pcie *mp, int size)
 
 static void meson_set_max_payload(struct meson_pcie *mp, int size)
 {
+	struct dw_pcie *pci = &mp->pci;
 	u32 val;
+	u16 offset = dw_pcie_find_capability(pci, PCI_CAP_ID_EXP);
 	int max_payload_size = meson_size_to_payload(mp, size);
 
-	val = meson_elb_readl(mp, PCIE_DEV_CTRL_DEV_STUS);
-	val &= ~PCIE_CAP_MAX_PAYLOAD_MASK;
-	meson_elb_writel(mp, val, PCIE_DEV_CTRL_DEV_STUS);
+	val = dw_pcie_readl_dbi(pci, offset + PCI_EXP_DEVCTL);
+	val &= ~PCI_EXP_DEVCTL_PAYLOAD;
+	dw_pcie_writel_dbi(pci, offset + PCI_EXP_DEVCTL, val);
 
-	val = meson_elb_readl(mp, PCIE_DEV_CTRL_DEV_STUS);
+	val = dw_pcie_readl_dbi(pci, offset + PCI_EXP_DEVCTL);
 	val |= PCIE_CAP_MAX_PAYLOAD_SIZE(max_payload_size);
-	meson_elb_writel(mp, val, PCIE_DEV_CTRL_DEV_STUS);
+	dw_pcie_writel_dbi(pci, offset + PCI_EXP_DEVCTL, val);
 }
 
 static void meson_set_max_rd_req_size(struct meson_pcie *mp, int size)
 {
+	struct dw_pcie *pci = &mp->pci;
 	u32 val;
+	u16 offset = dw_pcie_find_capability(pci, PCI_CAP_ID_EXP);
 	int max_rd_req_size = meson_size_to_payload(mp, size);
 
-	val = meson_elb_readl(mp, PCIE_DEV_CTRL_DEV_STUS);
-	val &= ~PCIE_CAP_MAX_READ_REQ_MASK;
-	meson_elb_writel(mp, val, PCIE_DEV_CTRL_DEV_STUS);
+	val = dw_pcie_readl_dbi(pci, offset + PCI_EXP_DEVCTL);
+	val &= ~PCI_EXP_DEVCTL_READRQ;
+	dw_pcie_writel_dbi(pci, offset + PCI_EXP_DEVCTL, val);
 
-	val = meson_elb_readl(mp, PCIE_DEV_CTRL_DEV_STUS);
+	val = dw_pcie_readl_dbi(pci, offset + PCI_EXP_DEVCTL);
 	val |= PCIE_CAP_MAX_READ_REQ_SIZE(max_rd_req_size);
-	meson_elb_writel(mp, val, PCIE_DEV_CTRL_DEV_STUS);
-}
-
-static inline void meson_enable_memory_space(struct meson_pcie *mp)
-{
-	/* Set the RC Bus Master, Memory Space and I/O Space enables */
-	meson_elb_writel(mp, PCI_IO_EN | PCI_MEM_SPACE_EN | PCI_BUS_MASTER_EN,
-			 PCIE_STATUS_COMMAND);
+	dw_pcie_writel_dbi(pci, offset + PCI_EXP_DEVCTL, val);
 }
 
 static int meson_pcie_establish_link(struct meson_pcie *mp)
@@ -370,26 +299,18 @@ static int meson_pcie_establish_link(struct meson_pcie *mp)
 	meson_set_max_rd_req_size(mp, MAX_READ_REQ_SIZE);
 
 	dw_pcie_setup_rc(pp);
-	meson_enable_memory_space(mp);
 
 	meson_pcie_assert_reset(mp);
 
 	return dw_pcie_wait_for_link(pci);
 }
 
-static void meson_pcie_enable_interrupts(struct meson_pcie *mp)
+static int meson_pcie_rd_own_conf(struct pci_bus *bus, u32 devfn,
+				  int where, int size, u32 *val)
 {
-	if (IS_ENABLED(CONFIG_PCI_MSI))
-		dw_pcie_msi_init(&mp->pci.pp);
-}
-
-static int meson_pcie_rd_own_conf(struct pcie_port *pp, int where, int size,
-				  u32 *val)
-{
-	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	int ret;
 
-	ret = dw_pcie_read(pci->dbi_base + where, size, val);
+	ret = pci_generic_config_read(bus, devfn, where, size, val);
 	if (ret != PCIBIOS_SUCCESSFUL)
 		return ret;
 
@@ -410,13 +331,11 @@ static int meson_pcie_rd_own_conf(struct pcie_port *pp, int where, int size,
 	return PCIBIOS_SUCCESSFUL;
 }
 
-static int meson_pcie_wr_own_conf(struct pcie_port *pp, int where,
-				  int size, u32 val)
-{
-	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
-
-	return dw_pcie_write(pci->dbi_base + where, size, val);
-}
+static struct pci_ops meson_pci_ops = {
+	.map_bus = dw_pcie_own_conf_map_bus,
+	.read = meson_pcie_rd_own_conf,
+	.write = pci_generic_config_write,
+};
 
 static int meson_pcie_link_up(struct dw_pcie *pci)
 {
@@ -463,18 +382,18 @@ static int meson_pcie_host_init(struct pcie_port *pp)
 	struct meson_pcie *mp = to_meson_pcie(pci);
 	int ret;
 
+	pp->bridge->ops = &meson_pci_ops;
+
 	ret = meson_pcie_establish_link(mp);
 	if (ret)
 		return ret;
 
-	meson_pcie_enable_interrupts(mp);
+	dw_pcie_msi_init(pp);
 
 	return 0;
 }
 
 static const struct dw_pcie_host_ops meson_pcie_host_ops = {
-	.rd_own_conf = meson_pcie_rd_own_conf,
-	.wr_own_conf = meson_pcie_wr_own_conf,
 	.host_init = meson_pcie_host_init,
 };
 
@@ -493,7 +412,6 @@ static int meson_add_pcie_port(struct meson_pcie *mp,
 	}
 
 	pp->ops = &meson_pcie_host_ops;
-	pci->dbi_base = mp->mem_res.elbi_base;
 
 	ret = dw_pcie_host_init(pp);
 	if (ret) {
@@ -522,6 +440,7 @@ static int meson_pcie_probe(struct platform_device *pdev)
 	pci = &mp->pci;
 	pci->dev = dev;
 	pci->ops = &dw_pcie_ops;
+	pci->num_lanes = 1;
 
 	mp->phy = devm_phy_get(dev, "pcie");
 	if (IS_ERR(mp->phy)) {
@@ -589,6 +508,7 @@ static const struct of_device_id meson_pcie_of_match[] = {
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, meson_pcie_of_match);
 
 static struct platform_driver meson_pcie_driver = {
 	.probe = meson_pcie_probe,
@@ -598,4 +518,8 @@ static struct platform_driver meson_pcie_driver = {
 	},
 };
 
-builtin_platform_driver(meson_pcie_driver);
+module_platform_driver(meson_pcie_driver);
+
+MODULE_AUTHOR("Yue Wang <yue.wang@amlogic.com>");
+MODULE_DESCRIPTION("Amlogic PCIe Controller driver");
+MODULE_LICENSE("GPL v2");

@@ -238,16 +238,16 @@
 			#include "exynos5420-trip-points.dtsi"
 		};
 		cpu1_thermal: cpu1-thermal {
-		       thermal-sensors = <&tmu_cpu1>;
-		       #include "exynos5420-trip-points.dtsi"
+			thermal-sensors = <&tmu_cpu1>;
+			#include "exynos5420-trip-points.dtsi"
 		};
 		cpu2_thermal: cpu2-thermal {
-		       thermal-sensors = <&tmu_cpu2>;
-		       #include "exynos5420-trip-points.dtsi"
+			thermal-sensors = <&tmu_cpu2>;
+			#include "exynos5420-trip-points.dtsi"
 		};
 		cpu3_thermal: cpu3-thermal {
-		       thermal-sensors = <&tmu_cpu3>;
-		       #include "exynos5420-trip-points.dtsi"
+			thermal-sensors = <&tmu_cpu3>;
+			#include "exynos5420-trip-points.dtsi"
 		};
 	};
 };

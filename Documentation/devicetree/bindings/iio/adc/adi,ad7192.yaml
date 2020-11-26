@@ -30,6 +30,8 @@ properties:
 
   spi-cpha: true
 
+  spi-max-frequency: true
+
   clocks:
     maxItems: 1
     description: phandle to the master clock (mclk)
@@ -91,6 +93,8 @@ required:
   - avdd-supply
   - spi-cpol
   - spi-cpha
+
+additionalProperties: false
 
 examples:
   - |

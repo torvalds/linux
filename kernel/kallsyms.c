@@ -40,10 +40,10 @@ extern const u8 kallsyms_names[] __weak;
  * has one (eg: FRV).
  */
 extern const unsigned int kallsyms_num_syms
-__attribute__((weak, section(".rodata")));
+__section(".rodata") __attribute__((weak));
 
 extern const unsigned long kallsyms_relative_base
-__attribute__((weak, section(".rodata")));
+__section(".rodata") __attribute__((weak));
 
 extern const char kallsyms_token_table[] __weak;
 extern const u16 kallsyms_token_index[] __weak;
@@ -684,12 +684,12 @@ bool kallsyms_show_value(const struct cred *cred)
 	case 0:
 		if (kallsyms_for_perf())
 			return true;
-	/* fallthrough */
+		fallthrough;
 	case 1:
 		if (security_capable(cred, &init_user_ns, CAP_SYSLOG,
 				     CAP_OPT_NOAUDIT) == 0)
 			return true;
-	/* fallthrough */
+		fallthrough;
 	default:
 		return false;
 	}

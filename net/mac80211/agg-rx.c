@@ -350,7 +350,7 @@ void ___ieee80211_start_rx_ba_session(struct sta_info *sta,
 					   sta->sta.addr, tid);
 			/* We have no API to update the timeout value in the
 			 * driver so reject the timeout update if the timeout
-			 * changed. If if did not change, i.e., no real update,
+			 * changed. If it did not change, i.e., no real update,
 			 * just reply with success.
 			 */
 			rcu_read_lock();

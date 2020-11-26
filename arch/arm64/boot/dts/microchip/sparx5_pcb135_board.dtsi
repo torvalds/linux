@@ -51,6 +51,38 @@
 	};
 };
 
+&spi0 {
+	status = "okay";
+	spi@0 {
+		compatible = "spi-mux";
+		mux-controls = <&mux>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0>; /* CS0 */
+		spi-flash@9 {
+			compatible = "jedec,spi-nor";
+			spi-max-frequency = <8000000>;
+			reg = <0x9>; /* SPI */
+		};
+	};
+};
+
+&spi0 {
+	status = "okay";
+	spi@0 {
+		compatible = "spi-mux";
+		mux-controls = <&mux>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0>; /* CS0 */
+		spi-flash@9 {
+			compatible = "jedec,spi-nor";
+			spi-max-frequency = <8000000>;
+			reg = <0x9>; /* SPI */
+		};
+	};
+};
+
 &axi {
 	i2c0_imux: i2c0-imux@0 {
 		compatible = "i2c-mux-pinctrl";

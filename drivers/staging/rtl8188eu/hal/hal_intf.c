@@ -23,7 +23,7 @@ uint rtw_hal_init(struct adapter *adapt)
 			rtw_hal_notch_filter(adapt, 1);
 	} else {
 		adapt->hw_init_completed = false;
-		DBG_88E("rtw_hal_init: hal__init fail\n");
+		DBG_88E("%s: hal__init fail\n", __func__);
 	}
 
 	RT_TRACE(_module_hal_init_c_, _drv_err_,
@@ -41,7 +41,7 @@ uint rtw_hal_deinit(struct adapter *adapt)
 	if (status == _SUCCESS)
 		adapt->hw_init_completed = false;
 	else
-		DBG_88E("\n rtw_hal_deinit: hal_init fail\n");
+		DBG_88E("\n %s: hal_init fail\n", __func__);
 
 	return status;
 }

@@ -31,7 +31,6 @@ struct sk_buff *mlx5e_xsk_skb_from_cqe_mpwrq_linear(struct mlx5e_rq *rq,
 {
 	struct xdp_buff *xdp = wi->umr.dma_info[page_idx].xsk;
 	u32 cqe_bcnt32 = cqe_bcnt;
-	bool consumed;
 
 	/* Check packet size. Note LRO doesn't use linear SKB */
 	if (unlikely(cqe_bcnt > rq->hw_mtu)) {
@@ -48,12 +47,8 @@ struct sk_buff *mlx5e_xsk_skb_from_cqe_mpwrq_linear(struct mlx5e_rq *rq,
 
 	xdp->data_end = xdp->data + cqe_bcnt32;
 	xdp_set_data_meta_invalid(xdp);
-	xsk_buff_dma_sync_for_cpu(xdp);
-	prefetch(xdp->data);
-
-	rcu_read_lock();
-	consumed = mlx5e_xdp_handle(rq, NULL, &cqe_bcnt32, xdp);
-	rcu_read_unlock();
+	xsk_buff_dma_sync_for_cpu(xdp, rq->xsk_pool);
+	net_prefetch(xdp->data);
 
 	/* Possible flows:
 	 * - XDP_REDIRECT to XSKMAP:
@@ -70,7 +65,7 @@ struct sk_buff *mlx5e_xsk_skb_from_cqe_mpwrq_linear(struct mlx5e_rq *rq,
 	 * allocated first from the Reuse Ring, so it has enough space.
 	 */
 
-	if (likely(consumed)) {
+	if (likely(mlx5e_xdp_handle(rq, NULL, &cqe_bcnt32, xdp))) {
 		if (likely(__test_and_clear_bit(MLX5E_RQ_FLAG_XDP_XMIT, rq->flags)))
 			__set_bit(page_idx, wi->xdp_xmit_bitmap); /* non-atomic */
 		return NULL; /* page/packet was consumed by XDP */
@@ -88,7 +83,6 @@ struct sk_buff *mlx5e_xsk_skb_from_cqe_linear(struct mlx5e_rq *rq,
 					      u32 cqe_bcnt)
 {
 	struct xdp_buff *xdp = wi->di->xsk;
-	bool consumed;
 
 	/* wi->offset is not used in this function, because xdp->data and the
 	 * DMA address point directly to the necessary place. Furthermore, the
@@ -99,19 +93,15 @@ struct sk_buff *mlx5e_xsk_skb_from_cqe_linear(struct mlx5e_rq *rq,
 
 	xdp->data_end = xdp->data + cqe_bcnt;
 	xdp_set_data_meta_invalid(xdp);
-	xsk_buff_dma_sync_for_cpu(xdp);
-	prefetch(xdp->data);
+	xsk_buff_dma_sync_for_cpu(xdp, rq->xsk_pool);
+	net_prefetch(xdp->data);
 
 	if (unlikely(get_cqe_opcode(cqe) != MLX5_CQE_RESP_SEND)) {
 		rq->stats->wqe_err++;
 		return NULL;
 	}
 
-	rcu_read_lock();
-	consumed = mlx5e_xdp_handle(rq, NULL, &cqe_bcnt, xdp);
-	rcu_read_unlock();
-
-	if (likely(consumed))
+	if (likely(mlx5e_xdp_handle(rq, NULL, &cqe_bcnt, xdp)))
 		return NULL; /* page/packet was consumed by XDP */
 
 	/* XDP_PASS: copy the data from the UMEM to a new SKB. The frame reuse

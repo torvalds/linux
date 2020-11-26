@@ -122,7 +122,7 @@ static bool pgattr_change_is_safe(u64 old, u64 new)
 	 * The following mapping attributes may be updated in live
 	 * kernel mappings without the need for break-before-make.
 	 */
-	static const pteval_t mask = PTE_PXN | PTE_RDONLY | PTE_WRITE | PTE_NG;
+	pteval_t mask = PTE_PXN | PTE_RDONLY | PTE_WRITE | PTE_NG;
 
 	/* creating or taking down mappings is always safe */
 	if (old == 0 || new == 0)
@@ -135,6 +135,17 @@ static bool pgattr_change_is_safe(u64 old, u64 new)
 	/* Transitioning from Non-Global to Global is unsafe */
 	if (old & ~new & PTE_NG)
 		return false;
+
+	/*
+	 * Changing the memory type between Normal and Normal-Tagged is safe
+	 * since Tagged is considered a permission attribute from the
+	 * mismatched attribute aliases perspective.
+	 */
+	if (((old & PTE_ATTRINDX_MASK) == PTE_ATTRINDX(MT_NORMAL) ||
+	     (old & PTE_ATTRINDX_MASK) == PTE_ATTRINDX(MT_NORMAL_TAGGED)) &&
+	    ((new & PTE_ATTRINDX_MASK) == PTE_ATTRINDX(MT_NORMAL) ||
+	     (new & PTE_ATTRINDX_MASK) == PTE_ATTRINDX(MT_NORMAL_TAGGED)))
+		mask |= PTE_ATTRINDX_MASK;
 
 	return ((old ^ new) & ~mask) == 0;
 }
@@ -462,8 +473,9 @@ static void __init map_mem(pgd_t *pgdp)
 {
 	phys_addr_t kernel_start = __pa_symbol(_text);
 	phys_addr_t kernel_end = __pa_symbol(__init_begin);
-	struct memblock_region *reg;
+	phys_addr_t start, end;
 	int flags = 0;
+	u64 i;
 
 	if (rodata_full || debug_pagealloc_enabled())
 		flags = NO_BLOCK_MAPPINGS | NO_CONT_MAPPINGS;
@@ -482,16 +494,15 @@ static void __init map_mem(pgd_t *pgdp)
 #endif
 
 	/* map all the memory banks */
-	for_each_memblock(memory, reg) {
-		phys_addr_t start = reg->base;
-		phys_addr_t end = start + reg->size;
-
+	for_each_mem_range(i, &start, &end) {
 		if (start >= end)
 			break;
-		if (memblock_is_nomap(reg))
-			continue;
-
-		__map_memblock(pgdp, start, end, PAGE_KERNEL, flags);
+		/*
+		 * The linear map must allow allocation tags reading/writing
+		 * if MTE is present. Otherwise, it has the same attributes as
+		 * PAGE_KERNEL.
+		 */
+		__map_memblock(pgdp, start, end, PAGE_KERNEL_TAGGED, flags);
 	}
 
 	/*
@@ -1433,10 +1444,27 @@ static void __remove_pgd_mapping(pgd_t *pgdir, unsigned long start, u64 size)
 	free_empty_tables(start, end, PAGE_OFFSET, PAGE_END);
 }
 
+static bool inside_linear_region(u64 start, u64 size)
+{
+	/*
+	 * Linear mapping region is the range [PAGE_OFFSET..(PAGE_END - 1)]
+	 * accommodating both its ends but excluding PAGE_END. Max physical
+	 * range which can be mapped inside this linear mapping range, must
+	 * also be derived from its end points.
+	 */
+	return start >= __pa(_PAGE_OFFSET(vabits_actual)) &&
+	       (start + size - 1) <= __pa(PAGE_END - 1);
+}
+
 int arch_add_memory(int nid, u64 start, u64 size,
 		    struct mhp_params *params)
 {
 	int ret, flags = 0;
+
+	if (!inside_linear_region(start, size)) {
+		pr_err("[%llx %llx] is outside linear mapping region\n", start, start + size);
+		return -EINVAL;
+	}
 
 	if (rodata_full || debug_pagealloc_enabled())
 		flags = NO_BLOCK_MAPPINGS | NO_CONT_MAPPINGS;

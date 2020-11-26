@@ -118,7 +118,7 @@ good_area:
 	pr_debug("do_page_fault: good_area\n");
 	switch (error_code & 3) {
 		default:	/* 3: write, present */
-			/* fall through */
+			fallthrough;
 		case 2:		/* write, not present */
 			if (!(vma->vm_flags & VM_WRITE))
 				goto acc_err;

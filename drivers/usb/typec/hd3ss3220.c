@@ -155,7 +155,7 @@ static int hd3ss3220_probe(struct i2c_client *client,
 {
 	struct typec_capability typec_cap = { };
 	struct hd3ss3220 *hd3ss3220;
-	struct fwnode_handle *connector;
+	struct fwnode_handle *connector, *ep;
 	int ret;
 	unsigned int data;
 
@@ -173,11 +173,21 @@ static int hd3ss3220_probe(struct i2c_client *client,
 
 	hd3ss3220_set_source_pref(hd3ss3220,
 				  HD3SS3220_REG_GEN_CTRL_SRC_PREF_DRP_DEFAULT);
+	/* For backward compatibility check the connector child node first */
 	connector = device_get_named_child_node(hd3ss3220->dev, "connector");
-	if (!connector)
-		return -ENODEV;
+	if (connector) {
+		hd3ss3220->role_sw = fwnode_usb_role_switch_get(connector);
+	} else {
+		ep = fwnode_graph_get_next_endpoint(dev_fwnode(hd3ss3220->dev), NULL);
+		if (!ep)
+			return -ENODEV;
+		connector = fwnode_graph_get_remote_port_parent(ep);
+		fwnode_handle_put(ep);
+		if (!connector)
+			return -ENODEV;
+		hd3ss3220->role_sw = usb_role_switch_get(hd3ss3220->dev);
+	}
 
-	hd3ss3220->role_sw = fwnode_usb_role_switch_get(connector);
 	if (IS_ERR(hd3ss3220->role_sw)) {
 		ret = PTR_ERR(hd3ss3220->role_sw);
 		goto err_put_fwnode;

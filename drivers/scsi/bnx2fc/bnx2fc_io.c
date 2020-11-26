@@ -864,7 +864,7 @@ int bnx2fc_initiate_abts(struct bnx2fc_cmd *io_req)
 
 	abts_io_req = bnx2fc_elstm_alloc(tgt, BNX2FC_ABTS);
 	if (!abts_io_req) {
-		printk(KERN_ERR PFX "abts: couldnt allocate cmd\n");
+		printk(KERN_ERR PFX "abts: couldn't allocate cmd\n");
 		rc = FAILED;
 		goto abts_err;
 	}
@@ -957,7 +957,7 @@ int bnx2fc_initiate_seq_cleanup(struct bnx2fc_cmd *orig_io_req, u32 offset,
 
 	seq_clnp_req = bnx2fc_elstm_alloc(tgt, BNX2FC_SEQ_CLEANUP);
 	if (!seq_clnp_req) {
-		printk(KERN_ERR PFX "cleanup: couldnt allocate cmd\n");
+		printk(KERN_ERR PFX "cleanup: couldn't allocate cmd\n");
 		rc = -ENOMEM;
 		kfree(cb_arg);
 		goto cleanup_err;
@@ -1015,7 +1015,7 @@ int bnx2fc_initiate_cleanup(struct bnx2fc_cmd *io_req)
 
 	cleanup_io_req = bnx2fc_elstm_alloc(tgt, BNX2FC_CLEANUP);
 	if (!cleanup_io_req) {
-		printk(KERN_ERR PFX "cleanup: couldnt allocate cmd\n");
+		printk(KERN_ERR PFX "cleanup: couldn't allocate cmd\n");
 		rc = -1;
 		goto cleanup_err;
 	}

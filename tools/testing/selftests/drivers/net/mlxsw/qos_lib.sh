@@ -82,3 +82,17 @@ bail_on_lldpad()
 		fi
 	fi
 }
+
+__mlnx_qos()
+{
+	local err
+
+	mlnx_qos "$@" 2>/dev/null
+	err=$?
+
+	if ((err)); then
+		echo "Error ($err) in mlnx_qos $@" >/dev/stderr
+	fi
+
+	return $err
+}

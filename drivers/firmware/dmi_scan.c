@@ -21,7 +21,7 @@ EXPORT_SYMBOL_GPL(dmi_kobj);
 /*
  * DMI stands for "Desktop Management Interface".  It is part
  * of and an antecedent to, SMBIOS, which stands for System
- * Management BIOS.  See further: http://www.dmtf.org/standards
+ * Management BIOS.  See further: https://www.dmtf.org/standards
  */
 static const char dmi_empty_string[] = "";
 

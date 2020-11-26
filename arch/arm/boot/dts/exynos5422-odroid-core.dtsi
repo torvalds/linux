@@ -333,8 +333,8 @@
 		compatible	= "samsung,K3QF2F20DB", "jedec,lpddr3";
 		density		= <16384>;
 		io-width	= <32>;
-		#address-cells  = <1>;
-		#size-cells     = <0>;
+		#address-cells	= <1>;
+		#size-cells	= <0>;
 
 		tRFC-min-tck		= <17>;
 		tRRD-min-tck		= <2>;

@@ -55,7 +55,7 @@ static void rx51_ext_control(struct snd_soc_dapm_context *dapm)
 		break;
 	case RX51_JACK_HS:
 		hs = 1;
-		/* fall through */
+		fallthrough;
 	case RX51_JACK_HP:
 		hp = 1;
 		break;

@@ -62,6 +62,8 @@ required:
   - interrupts
   - clocks
 
+unevaluatedProperties: false
+
 examples:
   - |
     #include <dt-bindings/clock/jz4780-cgu.h>

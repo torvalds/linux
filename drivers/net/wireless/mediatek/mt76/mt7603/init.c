@@ -536,11 +536,6 @@ int mt7603_register_device(struct mt7603_dev *dev)
 	tasklet_init(&dev->mt76.pre_tbtt_tasklet, mt7603_pre_tbtt_tasklet,
 		     (unsigned long)dev);
 
-	/* Check for 7688, which only has 1SS */
-	dev->mphy.antenna_mask = 3;
-	if (mt76_rr(dev, MT_EFUSE_BASE + 0x64) & BIT(4))
-		dev->mphy.antenna_mask = 1;
-
 	dev->slottime = 9;
 	dev->sensitivity_limit = 28;
 	dev->dynamic_sensitivity = true;

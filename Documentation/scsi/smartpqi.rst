@@ -1,12 +1,12 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-=====================================
-SMARTPQI - Microsemi Smart PQI Driver
-=====================================
+==============================================
+SMARTPQI - Microchip Smart Storage SCSI driver
+==============================================
 
-This file describes the smartpqi SCSI driver for Microsemi
-(http://www.microsemi.com) PQI controllers. The smartpqi driver
-is the next generation SCSI driver for Microsemi Corp. The smartpqi
+This file describes the smartpqi SCSI driver for Microchip
+(http://www.microchip.com) PQI controllers. The smartpqi driver
+is the next generation SCSI driver for Microchip Corp. The smartpqi
 driver is the first SCSI driver to implement the PQI queuing model.
 
 The smartpqi driver will replace the aacraid driver for Adaptec Series 9
@@ -14,7 +14,7 @@ controllers. Customers running an older kernel (Pre-4.9) using an Adaptec
 Series 9 controller will have to configure the smartpqi driver or their
 volumes will not be added to the OS.
 
-For Microsemi smartpqi controller support, enable the smartpqi driver
+For Microchip smartpqi controller support, enable the smartpqi driver
 when configuring the kernel.
 
 For more information on the PQI Queuing Interface, please see:

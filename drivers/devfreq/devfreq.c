@@ -984,47 +984,74 @@ EXPORT_SYMBOL(devm_devfreq_add_device);
 
 #ifdef CONFIG_OF
 /*
- * devfreq_get_devfreq_by_phandle - Get the devfreq device from devicetree
- * @dev - instance to the given device
- * @index - index into list of devfreq
+ * devfreq_get_devfreq_by_node - Get the devfreq device from devicetree
+ * @node - pointer to device_node
  *
  * return the instance of devfreq device
  */
-struct devfreq *devfreq_get_devfreq_by_phandle(struct device *dev, int index)
+struct devfreq *devfreq_get_devfreq_by_node(struct device_node *node)
 {
-	struct device_node *node;
 	struct devfreq *devfreq;
 
-	if (!dev)
-		return ERR_PTR(-EINVAL);
-
-	if (!dev->of_node)
-		return ERR_PTR(-EINVAL);
-
-	node = of_parse_phandle(dev->of_node, "devfreq", index);
 	if (!node)
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(-EINVAL);
 
 	mutex_lock(&devfreq_list_lock);
 	list_for_each_entry(devfreq, &devfreq_list, node) {
 		if (devfreq->dev.parent
 			&& devfreq->dev.parent->of_node == node) {
 			mutex_unlock(&devfreq_list_lock);
-			of_node_put(node);
 			return devfreq;
 		}
 	}
 	mutex_unlock(&devfreq_list_lock);
+
+	return ERR_PTR(-ENODEV);
+}
+
+/*
+ * devfreq_get_devfreq_by_phandle - Get the devfreq device from devicetree
+ * @dev - instance to the given device
+ * @phandle_name - name of property holding a phandle value
+ * @index - index into list of devfreq
+ *
+ * return the instance of devfreq device
+ */
+struct devfreq *devfreq_get_devfreq_by_phandle(struct device *dev,
+					const char *phandle_name, int index)
+{
+	struct device_node *node;
+	struct devfreq *devfreq;
+
+	if (!dev || !phandle_name)
+		return ERR_PTR(-EINVAL);
+
+	if (!dev->of_node)
+		return ERR_PTR(-EINVAL);
+
+	node = of_parse_phandle(dev->of_node, phandle_name, index);
+	if (!node)
+		return ERR_PTR(-ENODEV);
+
+	devfreq = devfreq_get_devfreq_by_node(node);
 	of_node_put(node);
 
-	return ERR_PTR(-EPROBE_DEFER);
+	return devfreq;
 }
+
 #else
-struct devfreq *devfreq_get_devfreq_by_phandle(struct device *dev, int index)
+struct devfreq *devfreq_get_devfreq_by_node(struct device_node *node)
+{
+	return ERR_PTR(-ENODEV);
+}
+
+struct devfreq *devfreq_get_devfreq_by_phandle(struct device *dev,
+					const char *phandle_name, int index)
 {
 	return ERR_PTR(-ENODEV);
 }
 #endif /* CONFIG_OF */
+EXPORT_SYMBOL_GPL(devfreq_get_devfreq_by_node);
 EXPORT_SYMBOL_GPL(devfreq_get_devfreq_by_phandle);
 
 /**
@@ -1766,19 +1793,22 @@ static int devfreq_summary_show(struct seq_file *s, void *data)
 	struct devfreq *p_devfreq = NULL;
 	unsigned long cur_freq, min_freq, max_freq;
 	unsigned int polling_ms;
+	unsigned int timer;
 
-	seq_printf(s, "%-30s %-30s %-15s %10s %12s %12s %12s\n",
+	seq_printf(s, "%-30s %-30s %-15s %-10s %10s %12s %12s %12s\n",
 			"dev",
 			"parent_dev",
 			"governor",
+			"timer",
 			"polling_ms",
 			"cur_freq_Hz",
 			"min_freq_Hz",
 			"max_freq_Hz");
-	seq_printf(s, "%30s %30s %15s %10s %12s %12s %12s\n",
+	seq_printf(s, "%30s %30s %15s %10s %10s %12s %12s %12s\n",
 			"------------------------------",
 			"------------------------------",
 			"---------------",
+			"----------",
 			"----------",
 			"------------",
 			"------------",
@@ -1803,13 +1833,15 @@ static int devfreq_summary_show(struct seq_file *s, void *data)
 		cur_freq = devfreq->previous_freq;
 		get_freq_range(devfreq, &min_freq, &max_freq);
 		polling_ms = devfreq->profile->polling_ms;
+		timer = devfreq->profile->timer;
 		mutex_unlock(&devfreq->lock);
 
 		seq_printf(s,
-			"%-30s %-30s %-15s %10d %12ld %12ld %12ld\n",
+			"%-30s %-30s %-15s %-10s %10d %12ld %12ld %12ld\n",
 			dev_name(&devfreq->dev),
 			p_devfreq ? dev_name(&p_devfreq->dev) : "null",
 			devfreq->governor_name,
+			polling_ms ? timer_name[timer] : "null",
 			polling_ms,
 			cur_freq,
 			min_freq,

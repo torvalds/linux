@@ -14,43 +14,139 @@
 #include "hif.h"
 
 unsigned int ath11k_debug_mask;
+EXPORT_SYMBOL(ath11k_debug_mask);
 module_param_named(debug_mask, ath11k_debug_mask, uint, 0644);
 MODULE_PARM_DESC(debug_mask, "Debugging mask");
 
-static const struct ath11k_hw_params ath11k_hw_params = {
-	.name = "ipq8074",
-	.fw = {
-		.dir = IPQ8074_FW_DIR,
-		.board_size = IPQ8074_MAX_BOARD_DATA_SZ,
-		.cal_size =  IPQ8074_MAX_CAL_DATA_SZ,
+static unsigned int ath11k_crypto_mode;
+module_param_named(crypto_mode, ath11k_crypto_mode, uint, 0644);
+MODULE_PARM_DESC(crypto_mode, "crypto mode: 0-hardware, 1-software");
+
+/* frame mode values are mapped as per enum ath11k_hw_txrx_mode */
+unsigned int ath11k_frame_mode = ATH11K_HW_TXRX_NATIVE_WIFI;
+module_param_named(frame_mode, ath11k_frame_mode, uint, 0644);
+MODULE_PARM_DESC(frame_mode,
+		 "Datapath frame mode (0: raw, 1: native wifi (default), 2: ethernet)");
+
+static const struct ath11k_hw_params ath11k_hw_params[] = {
+	{
+		.hw_rev = ATH11K_HW_IPQ8074,
+		.name = "ipq8074 hw2.0",
+		.fw = {
+			.dir = "IPQ8074/hw2.0",
+			.board_size = 256 * 1024,
+			.cal_size = 256 * 1024,
+		},
+		.max_radios = 3,
+		.bdf_addr = 0x4B0C0000,
+		.hw_ops = &ipq8074_ops,
+		.ring_mask = &ath11k_hw_ring_mask_ipq8074,
+		.internal_sleep_clock = false,
+		.regs = &ipq8074_regs,
+		.host_ce_config = ath11k_host_ce_config_ipq8074,
+		.ce_count = 12,
+		.target_ce_config = ath11k_target_ce_config_wlan_ipq8074,
+		.target_ce_count = 11,
+		.svc_to_ce_map = ath11k_target_service_to_ce_map_wlan_ipq8074,
+		.svc_to_ce_map_len = 21,
+		.single_pdev_only = false,
+		.needs_band_to_mac = true,
+		.rxdma1_enable = true,
+		.num_rxmda_per_pdev = 1,
+		.rx_mac_buf_ring = false,
+		.vdev_start_delay = false,
+		.htt_peer_map_v2 = true,
+		.tcl_0_only = false,
+		.spectral_fft_sz = 2,
+
+		.interface_modes = BIT(NL80211_IFTYPE_STATION) |
+					BIT(NL80211_IFTYPE_AP) |
+					BIT(NL80211_IFTYPE_MESH_POINT),
+		.supports_monitor = true,
+		.supports_shadow_regs = false,
+		.idle_ps = false,
+	},
+	{
+		.hw_rev = ATH11K_HW_IPQ6018_HW10,
+		.name = "ipq6018 hw1.0",
+		.fw = {
+			.dir = "IPQ6018/hw1.0",
+			.board_size = 256 * 1024,
+			.cal_size = 256 * 1024,
+		},
+		.max_radios = 2,
+		.bdf_addr = 0x4ABC0000,
+		.hw_ops = &ipq6018_ops,
+		.ring_mask = &ath11k_hw_ring_mask_ipq8074,
+		.internal_sleep_clock = false,
+		.regs = &ipq8074_regs,
+		.host_ce_config = ath11k_host_ce_config_ipq8074,
+		.ce_count = 12,
+		.target_ce_config = ath11k_target_ce_config_wlan_ipq8074,
+		.target_ce_count = 11,
+		.svc_to_ce_map = ath11k_target_service_to_ce_map_wlan_ipq6018,
+		.svc_to_ce_map_len = 19,
+		.single_pdev_only = false,
+		.needs_band_to_mac = true,
+		.rxdma1_enable = true,
+		.num_rxmda_per_pdev = 1,
+		.rx_mac_buf_ring = false,
+		.vdev_start_delay = false,
+		.htt_peer_map_v2 = true,
+		.tcl_0_only = false,
+		.spectral_fft_sz = 4,
+
+		.interface_modes = BIT(NL80211_IFTYPE_STATION) |
+					BIT(NL80211_IFTYPE_AP) |
+					BIT(NL80211_IFTYPE_MESH_POINT),
+		.supports_monitor = true,
+		.supports_shadow_regs = false,
+		.idle_ps = false,
+	},
+	{
+		.name = "qca6390 hw2.0",
+		.hw_rev = ATH11K_HW_QCA6390_HW20,
+		.fw = {
+			.dir = "QCA6390/hw2.0",
+			.board_size = 256 * 1024,
+			.cal_size = 256 * 1024,
+		},
+		.max_radios = 3,
+		.bdf_addr = 0x4B0C0000,
+		.hw_ops = &qca6390_ops,
+		.ring_mask = &ath11k_hw_ring_mask_qca6390,
+		.internal_sleep_clock = true,
+		.regs = &qca6390_regs,
+		.host_ce_config = ath11k_host_ce_config_qca6390,
+		.ce_count = 9,
+		.target_ce_config = ath11k_target_ce_config_wlan_qca6390,
+		.target_ce_count = 9,
+		.svc_to_ce_map = ath11k_target_service_to_ce_map_wlan_qca6390,
+		.svc_to_ce_map_len = 14,
+		.single_pdev_only = true,
+		.needs_band_to_mac = false,
+		.rxdma1_enable = false,
+		.num_rxmda_per_pdev = 2,
+		.rx_mac_buf_ring = true,
+		.vdev_start_delay = true,
+		.htt_peer_map_v2 = false,
+		.tcl_0_only = true,
+		.spectral_fft_sz = 0,
+
+		.interface_modes = BIT(NL80211_IFTYPE_STATION) |
+					BIT(NL80211_IFTYPE_AP),
+		.supports_monitor = false,
+		.supports_shadow_regs = true,
+		.idle_ps = true,
 	},
 };
-
-/* Map from pdev index to hw mac index */
-u8 ath11k_core_get_hw_mac_id(struct ath11k_base *ab, int pdev_idx)
-{
-	switch (pdev_idx) {
-	case 0:
-		return 0;
-	case 1:
-		return 2;
-	case 2:
-		return 1;
-	default:
-		ath11k_warn(ab, "Invalid pdev idx %d\n", pdev_idx);
-		return ATH11K_INVALID_HW_MAC_ID;
-	}
-}
-EXPORT_SYMBOL(ath11k_core_get_hw_mac_id);
 
 static int ath11k_core_create_board_name(struct ath11k_base *ab, char *name,
 					 size_t name_len)
 {
-	/* Note: bus is fixed to ahb. When other bus type supported,
-	 * make it to dynamic.
-	 */
 	scnprintf(name, name_len,
-		  "bus=ahb,qmi-chip-id=%d,qmi-board-id=%d",
+		  "bus=%s,qmi-chip-id=%d,qmi-board-id=%d",
+		  ath11k_bus_str(ab->hif.bus),
 		  ab->qmi.target.chip_id,
 		  ab->qmi.target.board_id);
 
@@ -59,29 +155,24 @@ static int ath11k_core_create_board_name(struct ath11k_base *ab, char *name,
 	return 0;
 }
 
-static const struct firmware *ath11k_fetch_fw_file(struct ath11k_base *ab,
-						   const char *dir,
-						   const char *file)
+const struct firmware *ath11k_core_firmware_request(struct ath11k_base *ab,
+						    const char *file)
 {
-	char filename[100];
 	const struct firmware *fw;
+	char path[100];
 	int ret;
 
 	if (file == NULL)
 		return ERR_PTR(-ENOENT);
 
-	if (dir == NULL)
-		dir = ".";
+	ath11k_core_create_firmware_path(ab, file, path, sizeof(path));
 
-	snprintf(filename, sizeof(filename), "%s/%s", dir, file);
-	ret = firmware_request_nowarn(&fw, filename, ab->dev);
-	ath11k_dbg(ab, ATH11K_DBG_BOOT, "boot fw request '%s': %d\n",
-		   filename, ret);
-
+	ret = firmware_request_nowarn(&fw, path, ab->dev);
 	if (ret)
 		return ERR_PTR(ret);
-	ath11k_warn(ab, "Downloading BDF: %s, size: %zu\n",
-		    filename, fw->size);
+
+	ath11k_dbg(ab, ATH11K_DBG_BOOT, "boot firmware request %s size %zu\n",
+		   path, fw->size);
 
 	return fw;
 }
@@ -181,26 +272,30 @@ static int ath11k_core_fetch_board_data_api_n(struct ath11k_base *ab,
 {
 	size_t len, magic_len;
 	const u8 *data;
-	char *filename = ATH11K_BOARD_API2_FILE;
+	char *filename, filepath[100];
 	size_t ie_len;
 	struct ath11k_fw_ie *hdr;
 	int ret, ie_id;
 
+	filename = ATH11K_BOARD_API2_FILE;
+
 	if (!bd->fw)
-		bd->fw = ath11k_fetch_fw_file(ab,
-					      ab->hw_params.fw.dir,
-					      filename);
+		bd->fw = ath11k_core_firmware_request(ab, filename);
+
 	if (IS_ERR(bd->fw))
 		return PTR_ERR(bd->fw);
 
 	data = bd->fw->data;
 	len = bd->fw->size;
 
+	ath11k_core_create_firmware_path(ab, filename,
+					 filepath, sizeof(filepath));
+
 	/* magic has extra null byte padded */
 	magic_len = strlen(ATH11K_BOARD_MAGIC) + 1;
 	if (len < magic_len) {
-		ath11k_err(ab, "failed to find magic value in %s/%s, file too short: %zu\n",
-			   ab->hw_params.fw.dir, filename, len);
+		ath11k_err(ab, "failed to find magic value in %s, file too short: %zu\n",
+			   filepath, len);
 		ret = -EINVAL;
 		goto err;
 	}
@@ -214,8 +309,8 @@ static int ath11k_core_fetch_board_data_api_n(struct ath11k_base *ab,
 	/* magic is padded to 4 bytes */
 	magic_len = ALIGN(magic_len, 4);
 	if (len < magic_len) {
-		ath11k_err(ab, "failed: %s/%s too small to contain board data, len: %zu\n",
-			   ab->hw_params.fw.dir, filename, len);
+		ath11k_err(ab, "failed: %s too small to contain board data, len: %zu\n",
+			   filepath, len);
 		ret = -EINVAL;
 		goto err;
 	}
@@ -263,8 +358,8 @@ static int ath11k_core_fetch_board_data_api_n(struct ath11k_base *ab,
 out:
 	if (!bd->data || !bd->len) {
 		ath11k_err(ab,
-			   "failed to fetch board data for %s from %s/%s\n",
-			   boardname, ab->hw_params.fw.dir, filename);
+			   "failed to fetch board data for %s from %s\n",
+			   boardname, filepath);
 		ret = -ENODATA;
 		goto err;
 	}
@@ -279,9 +374,7 @@ err:
 static int ath11k_core_fetch_board_data_api_1(struct ath11k_base *ab,
 					      struct ath11k_board_data *bd)
 {
-	bd->fw = ath11k_fetch_fw_file(ab,
-				      ab->hw_params.fw.dir,
-				      ATH11K_DEFAULT_BOARD_FILE);
+	bd->fw = ath11k_core_firmware_request(ab, ATH11K_DEFAULT_BOARD_FILE);
 	if (IS_ERR(bd->fw))
 		return PTR_ERR(bd->fw);
 
@@ -325,6 +418,7 @@ static void ath11k_core_stop(struct ath11k_base *ab)
 {
 	if (!test_bit(ATH11K_FLAG_CRASH_FLUSH, &ab->dev_flags))
 		ath11k_qmi_firmware_stop(ab);
+
 	ath11k_hif_stop(ab);
 	ath11k_wmi_detach(ab);
 	ath11k_dp_pdev_reo_cleanup(ab);
@@ -342,7 +436,7 @@ static int ath11k_core_soc_create(struct ath11k_base *ab)
 		return ret;
 	}
 
-	ret = ath11k_debug_soc_create(ab);
+	ret = ath11k_debugfs_soc_create(ab);
 	if (ret) {
 		ath11k_err(ab, "failed to create ath11k debugfs\n");
 		goto err_qmi_deinit;
@@ -357,7 +451,7 @@ static int ath11k_core_soc_create(struct ath11k_base *ab)
 	return 0;
 
 err_debugfs_reg:
-	ath11k_debug_soc_destroy(ab);
+	ath11k_debugfs_soc_destroy(ab);
 err_qmi_deinit:
 	ath11k_qmi_deinit_service(ab);
 	return ret;
@@ -365,7 +459,7 @@ err_qmi_deinit:
 
 static void ath11k_core_soc_destroy(struct ath11k_base *ab)
 {
-	ath11k_debug_soc_destroy(ab);
+	ath11k_debugfs_soc_destroy(ab);
 	ath11k_dp_free(ab);
 	ath11k_reg_free(ab);
 	ath11k_qmi_deinit_service(ab);
@@ -375,7 +469,7 @@ static int ath11k_core_pdev_create(struct ath11k_base *ab)
 {
 	int ret;
 
-	ret = ath11k_debug_pdev_create(ab);
+	ret = ath11k_debugfs_pdev_create(ab);
 	if (ret) {
 		ath11k_err(ab, "failed to create core pdev debugfs: %d\n", ret);
 		return ret;
@@ -415,7 +509,7 @@ err_dp_pdev_free:
 err_mac_unregister:
 	ath11k_mac_unregister(ab);
 err_pdev_debug:
-	ath11k_debug_pdev_destroy(ab);
+	ath11k_debugfs_pdev_destroy(ab);
 
 	return ret;
 }
@@ -427,7 +521,7 @@ static void ath11k_core_pdev_destroy(struct ath11k_base *ab)
 	ath11k_mac_unregister(ab);
 	ath11k_hif_irq_disable(ab);
 	ath11k_dp_pdev_free(ab);
-	ath11k_debug_pdev_destroy(ab);
+	ath11k_debugfs_pdev_destroy(ab);
 }
 
 static int ath11k_core_start(struct ath11k_base *ab,
@@ -556,6 +650,23 @@ int ath11k_core_qmi_firmware_ready(struct ath11k_base *ab)
 		ath11k_err(ab, "failed to init DP: %d\n", ret);
 		return ret;
 	}
+
+	switch (ath11k_crypto_mode) {
+	case ATH11K_CRYPT_MODE_SW:
+		set_bit(ATH11K_FLAG_HW_CRYPTO_DISABLED, &ab->dev_flags);
+		set_bit(ATH11K_FLAG_RAW_MODE, &ab->dev_flags);
+		break;
+	case ATH11K_CRYPT_MODE_HW:
+		clear_bit(ATH11K_FLAG_HW_CRYPTO_DISABLED, &ab->dev_flags);
+		clear_bit(ATH11K_FLAG_RAW_MODE, &ab->dev_flags);
+		break;
+	default:
+		ath11k_info(ab, "invalid crypto_mode: %d\n", ath11k_crypto_mode);
+		return -EINVAL;
+	}
+
+	if (ath11k_frame_mode == ATH11K_HW_TXRX_RAW)
+		set_bit(ATH11K_FLAG_RAW_MODE, &ab->dev_flags);
 
 	mutex_lock(&ab->core_lock);
 	ret = ath11k_core_start(ab, ATH11K_FIRMWARE_MODE_NORMAL);
@@ -706,7 +817,7 @@ static void ath11k_core_restart(struct work_struct *work)
 			break;
 		case ATH11K_STATE_RESTARTED:
 			ar->state = ATH11K_STATE_WEDGED;
-			/* fall through */
+			fallthrough;
 		case ATH11K_STATE_WEDGED:
 			ath11k_warn(ab,
 				    "device is wedged, will not restart radio %d\n", i);
@@ -717,25 +828,47 @@ static void ath11k_core_restart(struct work_struct *work)
 	complete(&ab->driver_recovery);
 }
 
-int ath11k_core_init(struct ath11k_base *ab)
+static int ath11k_init_hw_params(struct ath11k_base *ab)
 {
-	struct device *dev = ab->dev;
-	struct rproc *prproc;
-	phandle rproc_phandle;
-	int ret;
+	const struct ath11k_hw_params *hw_params = NULL;
+	int i;
 
-	if (of_property_read_u32(dev->of_node, "qcom,rproc", &rproc_phandle)) {
-		ath11k_err(ab, "failed to get q6_rproc handle\n");
-		return -ENOENT;
+	for (i = 0; i < ARRAY_SIZE(ath11k_hw_params); i++) {
+		hw_params = &ath11k_hw_params[i];
+
+		if (hw_params->hw_rev == ab->hw_rev)
+			break;
 	}
 
-	prproc = rproc_get_by_phandle(rproc_phandle);
-	if (!prproc) {
-		ath11k_err(ab, "failed to get rproc\n");
+	if (i == ARRAY_SIZE(ath11k_hw_params)) {
+		ath11k_err(ab, "Unsupported hardware version: 0x%x\n", ab->hw_rev);
 		return -EINVAL;
 	}
-	ab->tgt_rproc = prproc;
-	ab->hw_params = ath11k_hw_params;
+
+	ab->hw_params = *hw_params;
+
+	ath11k_dbg(ab, ATH11K_DBG_BOOT, "Hardware name %s\n", ab->hw_params.name);
+
+	return 0;
+}
+
+int ath11k_core_pre_init(struct ath11k_base *ab)
+{
+	int ret;
+
+	ret = ath11k_init_hw_params(ab);
+	if (ret) {
+		ath11k_err(ab, "failed to get hw params: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(ath11k_core_pre_init);
+
+int ath11k_core_init(struct ath11k_base *ab)
+{
+	int ret;
 
 	ret = ath11k_core_soc_create(ab);
 	if (ret) {
@@ -745,6 +878,7 @@ int ath11k_core_init(struct ath11k_base *ab)
 
 	return 0;
 }
+EXPORT_SYMBOL(ath11k_core_init);
 
 void ath11k_core_deinit(struct ath11k_base *ab)
 {
@@ -759,14 +893,17 @@ void ath11k_core_deinit(struct ath11k_base *ab)
 	ath11k_mac_destroy(ab);
 	ath11k_core_soc_destroy(ab);
 }
+EXPORT_SYMBOL(ath11k_core_deinit);
 
 void ath11k_core_free(struct ath11k_base *ab)
 {
 	kfree(ab);
 }
+EXPORT_SYMBOL(ath11k_core_free);
 
 struct ath11k_base *ath11k_core_alloc(struct device *dev, size_t priv_size,
-				      enum ath11k_bus bus)
+				      enum ath11k_bus bus,
+				      const struct ath11k_bus_params *bus_params)
 {
 	struct ath11k_base *ab;
 
@@ -789,6 +926,8 @@ struct ath11k_base *ath11k_core_alloc(struct device *dev, size_t priv_size,
 	INIT_WORK(&ab->restart_work, ath11k_core_restart);
 	timer_setup(&ab->rx_replenish_retry, ath11k_ce_rx_replenish_retry, 0);
 	ab->dev = dev;
+	ab->bus_params = *bus_params;
+	ab->hif.bus = bus;
 
 	return ab;
 
@@ -796,3 +935,7 @@ err_sc_free:
 	kfree(ab);
 	return NULL;
 }
+EXPORT_SYMBOL(ath11k_core_alloc);
+
+MODULE_DESCRIPTION("Core module for Qualcomm Atheros 802.11ax wireless LAN cards.");
+MODULE_LICENSE("Dual BSD/GPL");

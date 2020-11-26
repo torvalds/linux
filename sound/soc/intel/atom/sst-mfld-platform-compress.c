@@ -42,8 +42,7 @@ static void sst_drain_notify(void *arg)
 static int sst_platform_compr_open(struct snd_soc_component *component,
 				   struct snd_compr_stream *cstream)
 {
-
-	int ret_val = 0;
+	int ret_val;
 	struct snd_compr_runtime *runtime = cstream->runtime;
 	struct sst_runtime_stream *stream;
 

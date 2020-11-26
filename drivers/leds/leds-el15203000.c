@@ -263,9 +263,6 @@ static int el15203000_probe_dt(struct el15203000 *priv)
 			return -EINVAL;
 		}
 
-		fwnode_property_read_string(child, "linux,default-trigger",
-					    &led->ldev.default_trigger);
-
 		led->priv			  = priv;
 		led->ldev.max_brightness	  = LED_ON;
 		led->ldev.brightness_set_blocking = el15203000_set_blocking;

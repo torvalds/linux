@@ -96,6 +96,7 @@ config TOUCHSCREEN_AD7879_SPI
 config TOUCHSCREEN_ADC
 	tristate "Generic ADC based resistive touchscreen"
 	depends on IIO
+	select IIO_BUFFER
 	select IIO_BUFFER_CB
 	help
 	  Say Y here if you want to use the generic ADC
@@ -1321,5 +1322,17 @@ config TOUCHSCREEN_IQS5XX
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called iqs5xx.
+
+config TOUCHSCREEN_ZINITIX
+	tristate "Zinitix touchscreen support"
+	depends on I2C
+	help
+	  Say Y here if you have a touchscreen using Zinitix bt541,
+	  or something similar enough.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called zinitix.
 
 endif

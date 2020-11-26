@@ -2393,6 +2393,7 @@
 #define VCN_FEATURES__HAS_MJPEG2_IDCT_DEC__SHIFT                                                              0x7
 #define VCN_FEATURES__HAS_SCLR_DEC__SHIFT                                                                     0x8
 #define VCN_FEATURES__HAS_VP9_DEC__SHIFT                                                                      0x9
+#define VCN_FEATURES__HAS_AV1_DEC__SHIFT                                                                      0xa
 #define VCN_FEATURES__HAS_EFC_ENC__SHIFT                                                                      0xb
 #define VCN_FEATURES__HAS_EFC_HDR2SDR_ENC__SHIFT                                                              0xc
 #define VCN_FEATURES__HAS_DUAL_MJPEG_DEC__SHIFT                                                               0xd
@@ -2407,6 +2408,7 @@
 #define VCN_FEATURES__HAS_MJPEG2_IDCT_DEC_MASK                                                                0x00000080L
 #define VCN_FEATURES__HAS_SCLR_DEC_MASK                                                                       0x00000100L
 #define VCN_FEATURES__HAS_VP9_DEC_MASK                                                                        0x00000200L
+#define VCN_FEATURES__HAS_AV1_DEC_MASK                                                                        0x00000400L
 #define VCN_FEATURES__HAS_EFC_ENC_MASK                                                                        0x00000800L
 #define VCN_FEATURES__HAS_EFC_HDR2SDR_ENC_MASK                                                                0x00001000L
 #define VCN_FEATURES__HAS_DUAL_MJPEG_DEC_MASK                                                                 0x00002000L
@@ -2809,8 +2811,10 @@
 #define UVD_SUVD_CGC_GATE__IME_HEVC__SHIFT                                                                    0x18
 #define UVD_SUVD_CGC_GATE__EFC__SHIFT                                                                         0x19
 #define UVD_SUVD_CGC_GATE__SAOE__SHIFT                                                                        0x1a
+#define UVD_SUVD_CGC_GATE__SRE_AV1__SHIFT                                                                     0x1b
 #define UVD_SUVD_CGC_GATE__FBC_PCLK__SHIFT                                                                    0x1c
 #define UVD_SUVD_CGC_GATE__FBC_CCLK__SHIFT                                                                    0x1d
+#define UVD_SUVD_CGC_GATE__SCM_AV1__SHIFT                                                                     0x1e
 #define UVD_SUVD_CGC_GATE__SMPA__SHIFT                                                                        0x1f
 #define UVD_SUVD_CGC_GATE__SRE_MASK                                                                           0x00000001L
 #define UVD_SUVD_CGC_GATE__SIT_MASK                                                                           0x00000002L
@@ -2839,8 +2843,10 @@
 #define UVD_SUVD_CGC_GATE__IME_HEVC_MASK                                                                      0x01000000L
 #define UVD_SUVD_CGC_GATE__EFC_MASK                                                                           0x02000000L
 #define UVD_SUVD_CGC_GATE__SAOE_MASK                                                                          0x04000000L
+#define UVD_SUVD_CGC_GATE__SRE_AV1_MASK                                                                       0x08000000L
 #define UVD_SUVD_CGC_GATE__FBC_PCLK_MASK                                                                      0x10000000L
 #define UVD_SUVD_CGC_GATE__FBC_CCLK_MASK                                                                      0x20000000L
+#define UVD_SUVD_CGC_GATE__SCM_AV1_MASK                                                                       0x40000000L
 #define UVD_SUVD_CGC_GATE__SMPA_MASK                                                                          0x80000000L
 //UVD_SUVD_CGC_STATUS
 #define UVD_SUVD_CGC_STATUS__SRE_VCLK__SHIFT                                                                  0x0
@@ -2873,6 +2879,8 @@
 #define UVD_SUVD_CGC_STATUS__IME_HEVC_DCLK__SHIFT                                                             0x1b
 #define UVD_SUVD_CGC_STATUS__EFC_DCLK__SHIFT                                                                  0x1c
 #define UVD_SUVD_CGC_STATUS__SAOE_DCLK__SHIFT                                                                 0x1d
+#define UVD_SUVD_CGC_STATUS__SRE_AV1_VCLK__SHIFT                                                              0x1e
+#define UVD_SUVD_CGC_STATUS__SCM_AV1_DCLK__SHIFT                                                              0x1f
 #define UVD_SUVD_CGC_STATUS__SRE_VCLK_MASK                                                                    0x00000001L
 #define UVD_SUVD_CGC_STATUS__SRE_DCLK_MASK                                                                    0x00000002L
 #define UVD_SUVD_CGC_STATUS__SIT_DCLK_MASK                                                                    0x00000004L
@@ -2903,6 +2911,8 @@
 #define UVD_SUVD_CGC_STATUS__IME_HEVC_DCLK_MASK                                                               0x08000000L
 #define UVD_SUVD_CGC_STATUS__EFC_DCLK_MASK                                                                    0x10000000L
 #define UVD_SUVD_CGC_STATUS__SAOE_DCLK_MASK                                                                   0x20000000L
+#define UVD_SUVD_CGC_STATUS__SRE_AV1_VCLK_MASK                                                                0x40000000L
+#define UVD_SUVD_CGC_STATUS__SCM_AV1_DCLK_MASK                                                                0x80000000L
 //UVD_SUVD_CGC_CTRL
 #define UVD_SUVD_CGC_CTRL__SRE_MODE__SHIFT                                                                    0x0
 #define UVD_SUVD_CGC_CTRL__SIT_MODE__SHIFT                                                                    0x1
@@ -2919,6 +2929,8 @@
 #define UVD_SUVD_CGC_CTRL__SMPA_MODE__SHIFT                                                                   0xc
 #define UVD_SUVD_CGC_CTRL__MPBE0_MODE__SHIFT                                                                  0xd
 #define UVD_SUVD_CGC_CTRL__MPBE1_MODE__SHIFT                                                                  0xe
+#define UVD_SUVD_CGC_CTRL__SIT_AV1_MODE__SHIFT                                                                0xf
+#define UVD_SUVD_CGC_CTRL__SDB_AV1_MODE__SHIFT                                                                0x10
 #define UVD_SUVD_CGC_CTRL__MPC1_MODE__SHIFT                                                                   0x11
 #define UVD_SUVD_CGC_CTRL__FBC_PCLK__SHIFT                                                                    0x1c
 #define UVD_SUVD_CGC_CTRL__FBC_CCLK__SHIFT                                                                    0x1d
@@ -2937,6 +2949,8 @@
 #define UVD_SUVD_CGC_CTRL__SMPA_MODE_MASK                                                                     0x00001000L
 #define UVD_SUVD_CGC_CTRL__MPBE0_MODE_MASK                                                                    0x00002000L
 #define UVD_SUVD_CGC_CTRL__MPBE1_MODE_MASK                                                                    0x00004000L
+#define UVD_SUVD_CGC_CTRL__SIT_AV1_MODE_MASK                                                                  0x00008000L
+#define UVD_SUVD_CGC_CTRL__SDB_AV1_MODE_MASK                                                                  0x00010000L
 #define UVD_SUVD_CGC_CTRL__MPC1_MODE_MASK                                                                     0x00020000L
 #define UVD_SUVD_CGC_CTRL__FBC_PCLK_MASK                                                                      0x10000000L
 #define UVD_SUVD_CGC_CTRL__FBC_CCLK_MASK                                                                      0x20000000L
@@ -3658,6 +3672,8 @@
 #define UVD_SUVD_CGC_STATUS2__SMPA_VCLK__SHIFT                                                                0x0
 #define UVD_SUVD_CGC_STATUS2__SMPA_DCLK__SHIFT                                                                0x1
 #define UVD_SUVD_CGC_STATUS2__MPBE1_DCLK__SHIFT                                                               0x3
+#define UVD_SUVD_CGC_STATUS2__SIT_AV1_DCLK__SHIFT                                                             0x4
+#define UVD_SUVD_CGC_STATUS2__SDB_AV1_DCLK__SHIFT                                                             0x5
 #define UVD_SUVD_CGC_STATUS2__MPC1_DCLK__SHIFT                                                                0x6
 #define UVD_SUVD_CGC_STATUS2__MPC1_SCLK__SHIFT                                                                0x7
 #define UVD_SUVD_CGC_STATUS2__MPC1_VCLK__SHIFT                                                                0x8
@@ -3666,6 +3682,8 @@
 #define UVD_SUVD_CGC_STATUS2__SMPA_VCLK_MASK                                                                  0x00000001L
 #define UVD_SUVD_CGC_STATUS2__SMPA_DCLK_MASK                                                                  0x00000002L
 #define UVD_SUVD_CGC_STATUS2__MPBE1_DCLK_MASK                                                                 0x00000008L
+#define UVD_SUVD_CGC_STATUS2__SIT_AV1_DCLK_MASK                                                               0x00000010L
+#define UVD_SUVD_CGC_STATUS2__SDB_AV1_DCLK_MASK                                                               0x00000020L
 #define UVD_SUVD_CGC_STATUS2__MPC1_DCLK_MASK                                                                  0x00000040L
 #define UVD_SUVD_CGC_STATUS2__MPC1_SCLK_MASK                                                                  0x00000080L
 #define UVD_SUVD_CGC_STATUS2__MPC1_VCLK_MASK                                                                  0x00000100L
@@ -3674,25 +3692,41 @@
 //UVD_SUVD_CGC_GATE2
 #define UVD_SUVD_CGC_GATE2__MPBE0__SHIFT                                                                      0x0
 #define UVD_SUVD_CGC_GATE2__MPBE1__SHIFT                                                                      0x1
+#define UVD_SUVD_CGC_GATE2__SIT_AV1__SHIFT                                                                    0x2
+#define UVD_SUVD_CGC_GATE2__SDB_AV1__SHIFT                                                                    0x3
 #define UVD_SUVD_CGC_GATE2__MPC1__SHIFT                                                                       0x4
 #define UVD_SUVD_CGC_GATE2__MPBE0_MASK                                                                        0x00000001L
 #define UVD_SUVD_CGC_GATE2__MPBE1_MASK                                                                        0x00000002L
+#define UVD_SUVD_CGC_GATE2__SIT_AV1_MASK                                                                      0x00000004L
+#define UVD_SUVD_CGC_GATE2__SDB_AV1_MASK                                                                      0x00000008L
 #define UVD_SUVD_CGC_GATE2__MPC1_MASK                                                                         0x00000010L
 //UVD_SUVD_INT_STATUS2
 #define UVD_SUVD_INT_STATUS2__SMPA_FUNC_INT__SHIFT                                                            0x0
 #define UVD_SUVD_INT_STATUS2__SMPA_ERR_INT__SHIFT                                                             0x5
+#define UVD_SUVD_INT_STATUS2__SDB_AV1_FUNC_INT__SHIFT                                                         0x6
+#define UVD_SUVD_INT_STATUS2__SDB_AV1_ERR_INT__SHIFT                                                          0xb
 #define UVD_SUVD_INT_STATUS2__SMPA_FUNC_INT_MASK                                                              0x0000001FL
 #define UVD_SUVD_INT_STATUS2__SMPA_ERR_INT_MASK                                                               0x00000020L
+#define UVD_SUVD_INT_STATUS2__SDB_AV1_FUNC_INT_MASK                                                           0x000007C0L
+#define UVD_SUVD_INT_STATUS2__SDB_AV1_ERR_INT_MASK                                                            0x00000800L
 //UVD_SUVD_INT_EN2
 #define UVD_SUVD_INT_EN2__SMPA_FUNC_INT_EN__SHIFT                                                             0x0
 #define UVD_SUVD_INT_EN2__SMPA_ERR_INT_EN__SHIFT                                                              0x5
+#define UVD_SUVD_INT_EN2__SDB_AV1_FUNC_INT_EN__SHIFT                                                          0x6
+#define UVD_SUVD_INT_EN2__SDB_AV1_ERR_INT_EN__SHIFT                                                           0xb
 #define UVD_SUVD_INT_EN2__SMPA_FUNC_INT_EN_MASK                                                               0x0000001FL
 #define UVD_SUVD_INT_EN2__SMPA_ERR_INT_EN_MASK                                                                0x00000020L
+#define UVD_SUVD_INT_EN2__SDB_AV1_FUNC_INT_EN_MASK                                                            0x000007C0L
+#define UVD_SUVD_INT_EN2__SDB_AV1_ERR_INT_EN_MASK                                                             0x00000800L
 //UVD_SUVD_INT_ACK2
 #define UVD_SUVD_INT_ACK2__SMPA_FUNC_INT_ACK__SHIFT                                                           0x0
 #define UVD_SUVD_INT_ACK2__SMPA_ERR_INT_ACK__SHIFT                                                            0x5
+#define UVD_SUVD_INT_ACK2__SDB_AV1_FUNC_INT_ACK__SHIFT                                                        0x6
+#define UVD_SUVD_INT_ACK2__SDB_AV1_ERR_INT_ACK__SHIFT                                                         0xb
 #define UVD_SUVD_INT_ACK2__SMPA_FUNC_INT_ACK_MASK                                                             0x0000001FL
 #define UVD_SUVD_INT_ACK2__SMPA_ERR_INT_ACK_MASK                                                              0x00000020L
+#define UVD_SUVD_INT_ACK2__SDB_AV1_FUNC_INT_ACK_MASK                                                          0x000007C0L
+#define UVD_SUVD_INT_ACK2__SDB_AV1_ERR_INT_ACK_MASK                                                           0x00000800L
 
 
 // addressBlock: uvd0_ecpudec

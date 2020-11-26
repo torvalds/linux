@@ -290,7 +290,8 @@ config MFD_CS47L92
 
 config MFD_ASIC3
 	bool "Compaq ASIC3"
-	depends on GPIOLIB && ARM
+	depends on GPIOLIB
+	depends on ARM || COMPILE_TEST
 	select MFD_CORE
 	help
 	  This driver supports the ASIC3 multifunction chip found on many
@@ -398,6 +399,17 @@ config MFD_DLN2
 	  etc. must be enabled in order to use the functionality of
 	  the device.
 
+config MFD_ENE_KB3930
+	tristate "ENE KB3930 Embedded Controller support"
+	depends on I2C
+	depends on MACH_MMP3_DT || COMPILE_TEST
+	select MFD_CORE
+	help
+	  This adds support for the power-off functionality and access to
+	  the registers that control LEDS and USB port power on ENE KB3930
+	  Embedded Controller. To use the LED functionality LEDS_ARIEL must
+	  be enabled.
+
 config MFD_EXYNOS_LPASS
 	tristate "Samsung Exynos SoC Low Power Audio Subsystem"
 	depends on ARCH_EXYNOS || COMPILE_TEST
@@ -493,7 +505,7 @@ config MFD_HI6421_PMIC
 	  Add support for HiSilicon Hi6421 PMIC. Hi6421 includes multi-
 	  functions, such as regulators, RTC, codec, Coulomb counter, etc.
 	  This driver includes core APIs _only_. You have to select
-	  individul components like voltage regulators under corresponding
+	  individual components like voltage regulators under corresponding
 	  menus in order to enable them.
 	  We communicate with the Hi6421 via memory-mapped I/O.
 
@@ -1161,6 +1173,29 @@ config MFD_SI476X_CORE
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called si476x-core.
+
+config MFD_SIMPLE_MFD_I2C
+	tristate
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This driver creates a single register map with the intention for it
+	  to be shared by all sub-devices.
+
+	  Once the register map has been successfully initialised, any
+	  sub-devices represented by child nodes in Device Tree will be
+	  subsequently registered.
+
+config MFD_SL28CPLD
+	tristate "Kontron sl28cpld Board Management Controller"
+	depends on I2C
+	select MFD_SIMPLE_MFD_I2C
+	help
+	  Say yes here to enable support for the Kontron sl28cpld board
+	  management controller.
+
+	  It can be found on the following boards:
+		* SMARC-sAL28
 
 config MFD_SM501
 	tristate "Silicon Motion SM501"
@@ -2117,6 +2152,19 @@ config SGI_MFD_IOC3
 
 	  If you have an SGI Origin, Octane, or a PCI IOC3 card,
 	  then say Y. Otherwise say N.
+
+config MFD_INTEL_M10_BMC
+	tristate "Intel MAX 10 Board Management Controller"
+	depends on SPI_MASTER
+	select REGMAP_SPI_AVMM
+	select MFD_CORE
+	help
+	  Support for the Intel MAX 10 board management controller using the
+	  SPI interface.
+
+	  This driver provides common support for accessing the device,
+	  additional drivers must be enabled in order to use the functionality
+	  of the device.
 
 endmenu
 endif

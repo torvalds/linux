@@ -76,7 +76,7 @@
 		};
 	};
 
-	cpu0_opp_table: opp_table0 {
+	cpu0_opp_table: opp-table0 {
 		compatible = "operating-points-v2";
 		opp-shared;
 
@@ -218,6 +218,8 @@
 			reg = <0x10502000 0x1000>;
 			cache-unified;
 			cache-level = <2>;
+			prefetch-data = <1>;
+			prefetch-instr = <1>;
 			arm,tag-latency = <2 2 1>;
 			arm,data-latency = <3 2 1>;
 			arm,double-linefill = <1>;
@@ -400,7 +402,7 @@
 			status = "disabled";
 		};
 
-		bus_dmc_opp_table: opp_table1 {
+		bus_dmc_opp_table: opp-table1 {
 			compatible = "operating-points-v2";
 			opp-shared;
 
@@ -427,7 +429,7 @@
 			};
 		};
 
-		bus_acp_opp_table: opp_table2 {
+		bus_acp_opp_table: opp-table2 {
 			compatible = "operating-points-v2";
 			opp-shared;
 
@@ -493,7 +495,7 @@
 			status = "disabled";
 		};
 
-		bus_leftbus_opp_table: opp_table3 {
+		bus_leftbus_opp_table: opp-table3 {
 			compatible = "operating-points-v2";
 			opp-shared;
 
@@ -516,7 +518,7 @@
 			};
 		};
 
-		bus_display_opp_table: opp_table4 {
+		bus_display_opp_table: opp-table4 {
 			compatible = "operating-points-v2";
 			opp-shared;
 
@@ -528,7 +530,7 @@
 			};
 		};
 
-		bus_fsys_opp_table: opp_table5 {
+		bus_fsys_opp_table: opp-table5 {
 			compatible = "operating-points-v2";
 			opp-shared;
 
@@ -540,7 +542,7 @@
 			};
 		};
 
-		bus_peri_opp_table: opp_table6 {
+		bus_peri_opp_table: opp-table6 {
 			compatible = "operating-points-v2";
 			opp-shared;
 
@@ -732,7 +734,7 @@
 			  "pmu";
 	operating-points-v2 = <&gpu_opp_table>;
 
-	gpu_opp_table: opp_table {
+	gpu_opp_table: opp-table {
 		compatible = "operating-points-v2";
 
 		opp-160000000 {

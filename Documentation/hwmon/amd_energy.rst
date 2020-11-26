@@ -84,6 +84,11 @@ per run to a respective 64-bit counter. The kernel thread starts
 running during probe, wakes up every 100secs and stops running
 when driver is removed.
 
+Frequency of the accumulator thread is set during the probe
+based on the chosen energy unit resolution. For example
+A. fine grain (1.625 micro J)
+B. course grain (0.125 milli J)
+
 A socket and core energy read would return the current register
 value added to the respective energy accumulator.
 

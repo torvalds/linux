@@ -12,6 +12,8 @@
 #include <crypto/hmac.h>
 #include <crypto/md5.h>
 #include <crypto/sha.h>
+#include <linux/device.h>
+#include <linux/dma-mapping.h>
 
 #include "cesa.h"
 
@@ -222,9 +224,11 @@ static void mv_cesa_ahash_std_step(struct ahash_request *req)
 					      CESA_SA_DATA_SRAM_OFFSET + len,
 					      new_cache_ptr);
 			} else {
-				len += mv_cesa_ahash_pad_req(creq,
-						engine->sram + len +
-						CESA_SA_DATA_SRAM_OFFSET);
+				i = mv_cesa_ahash_pad_req(creq, creq->cache);
+				len += i;
+				memcpy_toio(engine->sram + len +
+					    CESA_SA_DATA_SRAM_OFFSET,
+					    creq->cache, i);
 			}
 
 			if (frag_mode == CESA_SA_DESC_CFG_LAST_FRAG)
@@ -342,7 +346,7 @@ static void mv_cesa_ahash_complete(struct crypto_async_request *req)
 		 */
 		data = creq->base.chain.last->op->ctx.hash.hash;
 		for (i = 0; i < digsize / 4; i++)
-			creq->state[i] = cpu_to_le32(data[i]);
+			creq->state[i] = le32_to_cpu(data[i]);
 
 		memcpy(ahashreq->result, data, digsize);
 	} else {
@@ -1265,10 +1269,10 @@ static int mv_cesa_ahmac_md5_setkey(struct crypto_ahash *tfm, const u8 *key,
 		return ret;
 
 	for (i = 0; i < ARRAY_SIZE(istate.hash); i++)
-		ctx->iv[i] = be32_to_cpu(istate.hash[i]);
+		ctx->iv[i] = cpu_to_be32(istate.hash[i]);
 
 	for (i = 0; i < ARRAY_SIZE(ostate.hash); i++)
-		ctx->iv[i + 8] = be32_to_cpu(ostate.hash[i]);
+		ctx->iv[i + 8] = cpu_to_be32(ostate.hash[i]);
 
 	return 0;
 }
@@ -1336,10 +1340,10 @@ static int mv_cesa_ahmac_sha1_setkey(struct crypto_ahash *tfm, const u8 *key,
 		return ret;
 
 	for (i = 0; i < ARRAY_SIZE(istate.state); i++)
-		ctx->iv[i] = be32_to_cpu(istate.state[i]);
+		ctx->iv[i] = cpu_to_be32(istate.state[i]);
 
 	for (i = 0; i < ARRAY_SIZE(ostate.state); i++)
-		ctx->iv[i + 8] = be32_to_cpu(ostate.state[i]);
+		ctx->iv[i + 8] = cpu_to_be32(ostate.state[i]);
 
 	return 0;
 }
@@ -1394,10 +1398,10 @@ static int mv_cesa_ahmac_sha256_setkey(struct crypto_ahash *tfm, const u8 *key,
 		return ret;
 
 	for (i = 0; i < ARRAY_SIZE(istate.state); i++)
-		ctx->iv[i] = be32_to_cpu(istate.state[i]);
+		ctx->iv[i] = cpu_to_be32(istate.state[i]);
 
 	for (i = 0; i < ARRAY_SIZE(ostate.state); i++)
-		ctx->iv[i + 8] = be32_to_cpu(ostate.state[i]);
+		ctx->iv[i + 8] = cpu_to_be32(ostate.state[i]);
 
 	return 0;
 }

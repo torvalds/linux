@@ -906,7 +906,7 @@ static int m88ds3103_set_frontend(struct dvb_frontend *fe)
 			if (ret)
 				goto err;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		u16tmp = DIV_ROUND_UP(target_mclk, dev->cfg->ts_clk);
 		u8tmp1 = u16tmp / 2 - 1;

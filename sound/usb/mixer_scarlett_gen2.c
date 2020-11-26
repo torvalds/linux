@@ -1946,7 +1946,7 @@ static void scarlett2_mixer_interrupt(struct urb *urb)
 		goto requeue;
 
 	if (len == 8) {
-		data = le32_to_cpu(*(u32 *)urb->transfer_buffer);
+		data = le32_to_cpu(*(__le32 *)urb->transfer_buffer);
 		if (data & SCARLETT2_USB_INTERRUPT_VOL_CHANGE)
 			scarlett2_mixer_interrupt_vol_change(mixer);
 		if (data & SCARLETT2_USB_INTERRUPT_BUTTON_CHANGE)
@@ -1978,7 +1978,7 @@ static int scarlett2_mixer_status_create(struct usb_mixer_interface *mixer)
 		return 0;
 	}
 
-	if (snd_usb_pipe_sanity_check(dev, pipe))
+	if (usb_pipe_type_check(dev, pipe))
 		return -EINVAL;
 
 	mixer->urb = usb_alloc_urb(0, GFP_KERNEL);

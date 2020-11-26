@@ -103,7 +103,7 @@ static int check_partial_mapping(struct drm_i915_gem_object *obj,
 	GEM_BUG_ON(i915_gem_object_get_tiling(obj) != tile->tiling);
 	GEM_BUG_ON(i915_gem_object_get_stride(obj) != tile->stride);
 
-	i915_gem_object_lock(obj);
+	i915_gem_object_lock(obj, NULL);
 	err = i915_gem_object_set_to_gtt_domain(obj, true);
 	i915_gem_object_unlock(obj);
 	if (err) {
@@ -188,7 +188,7 @@ static int check_partial_mappings(struct drm_i915_gem_object *obj,
 	GEM_BUG_ON(i915_gem_object_get_tiling(obj) != tile->tiling);
 	GEM_BUG_ON(i915_gem_object_get_stride(obj) != tile->stride);
 
-	i915_gem_object_lock(obj);
+	i915_gem_object_lock(obj, NULL);
 	err = i915_gem_object_set_to_gtt_domain(obj, true);
 	i915_gem_object_unlock(obj);
 	if (err) {
@@ -528,31 +528,42 @@ static int make_obj_busy(struct drm_i915_gem_object *obj)
 	for_each_uabi_engine(engine, i915) {
 		struct i915_request *rq;
 		struct i915_vma *vma;
+		struct i915_gem_ww_ctx ww;
 		int err;
 
 		vma = i915_vma_instance(obj, &engine->gt->ggtt->vm, NULL);
 		if (IS_ERR(vma))
 			return PTR_ERR(vma);
 
-		err = i915_vma_pin(vma, 0, 0, PIN_USER);
+		i915_gem_ww_ctx_init(&ww, false);
+retry:
+		err = i915_gem_object_lock(obj, &ww);
+		if (!err)
+			err = i915_vma_pin_ww(vma, &ww, 0, 0, PIN_USER);
 		if (err)
-			return err;
+			goto err;
 
 		rq = intel_engine_create_kernel_request(engine);
 		if (IS_ERR(rq)) {
-			i915_vma_unpin(vma);
-			return PTR_ERR(rq);
+			err = PTR_ERR(rq);
+			goto err_unpin;
 		}
 
-		i915_vma_lock(vma);
 		err = i915_request_await_object(rq, vma->obj, true);
 		if (err == 0)
 			err = i915_vma_move_to_active(vma, rq,
 						      EXEC_OBJECT_WRITE);
-		i915_vma_unlock(vma);
 
 		i915_request_add(rq);
+err_unpin:
 		i915_vma_unpin(vma);
+err:
+		if (err == -EDEADLK) {
+			err = i915_gem_ww_ctx_backoff(&ww);
+			if (!err)
+				goto retry;
+		}
+		i915_gem_ww_ctx_fini(&ww);
 		if (err)
 			return err;
 	}
@@ -1123,6 +1134,7 @@ static int __igt_mmap_gpu(struct drm_i915_private *i915,
 	for_each_uabi_engine(engine, i915) {
 		struct i915_request *rq;
 		struct i915_vma *vma;
+		struct i915_gem_ww_ctx ww;
 
 		vma = i915_vma_instance(obj, engine->kernel_context->vm, NULL);
 		if (IS_ERR(vma)) {
@@ -1130,9 +1142,13 @@ static int __igt_mmap_gpu(struct drm_i915_private *i915,
 			goto out_unmap;
 		}
 
-		err = i915_vma_pin(vma, 0, 0, PIN_USER);
+		i915_gem_ww_ctx_init(&ww, false);
+retry:
+		err = i915_gem_object_lock(obj, &ww);
+		if (!err)
+			err = i915_vma_pin_ww(vma, &ww, 0, 0, PIN_USER);
 		if (err)
-			goto out_unmap;
+			goto out_ww;
 
 		rq = i915_request_create(engine->kernel_context);
 		if (IS_ERR(rq)) {
@@ -1140,11 +1156,9 @@ static int __igt_mmap_gpu(struct drm_i915_private *i915,
 			goto out_unpin;
 		}
 
-		i915_vma_lock(vma);
 		err = i915_request_await_object(rq, vma->obj, false);
 		if (err == 0)
 			err = i915_vma_move_to_active(vma, rq, 0);
-		i915_vma_unlock(vma);
 
 		err = engine->emit_bb_start(rq, vma->node.start, 0, 0);
 		i915_request_get(rq);
@@ -1166,6 +1180,13 @@ static int __igt_mmap_gpu(struct drm_i915_private *i915,
 
 out_unpin:
 		i915_vma_unpin(vma);
+out_ww:
+		if (err == -EDEADLK) {
+			err = i915_gem_ww_ctx_backoff(&ww);
+			if (!err)
+				goto retry;
+		}
+		i915_gem_ww_ctx_fini(&ww);
 		if (err)
 			goto out_unmap;
 	}

@@ -12,7 +12,7 @@ config MTD_BCM47XX_PARTS
 	  boards.
 
 config MTD_BCM63XX_PARTS
-	tristate "BCM63XX CFE partitioning parser"
+	bool "BCM63XX CFE partitioning parser"
 	depends on BCM63XX || BMIPS_GENERIC || COMPILE_TEST
 	select CRC32
 	select MTD_PARSER_IMAGETAG

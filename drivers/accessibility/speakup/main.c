@@ -257,7 +257,7 @@ static struct notifier_block vt_notifier_block = {
 
 static unsigned char get_attributes(struct vc_data *vc, u16 *pos)
 {
-	pos = screen_pos(vc, pos - (u16 *)vc->vc_origin, 1);
+	pos = screen_pos(vc, pos - (u16 *)vc->vc_origin, true);
 	return (scr_readw(pos) & ~vc->vc_hi_font_mask) >> 8;
 }
 
@@ -357,7 +357,6 @@ static void speakup_cut(struct vc_data *vc)
 	mark_cut_flag = 0;
 	synth_printf("%s\n", spk_msg_get(MSG_CUT));
 
-	speakup_clear_selection();
 	ret = speakup_set_selection(tty);
 
 	switch (ret) {
@@ -465,7 +464,7 @@ static u16 get_char(struct vc_data *vc, u16 *pos, u_char *attribs)
 		u16 w;
 		u16 c;
 
-		pos = screen_pos(vc, pos - (u16 *)vc->vc_origin, 1);
+		pos = screen_pos(vc, pos - (u16 *)vc->vc_origin, true);
 		w = scr_readw(pos);
 		c = w & 0xff;
 

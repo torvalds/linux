@@ -120,13 +120,13 @@ struct ipu3_uapi_awb_config {
 #define IPU3_UAPI_AE_WEIGHTS				96
 
 /**
- + * struct ipu3_uapi_ae_raw_buffer - AE global weighted histogram
- + *
- + * @vals: Sum of IPU3_UAPI_AE_COLORS in cell
- + *
- + * Each histogram contains IPU3_UAPI_AE_BINS bins. Each bin has 24 bit unsigned
- + * for counting the number of the pixel.
- + */
+ * struct ipu3_uapi_ae_raw_buffer - AE global weighted histogram
+ *
+ * @vals: Sum of IPU3_UAPI_AE_COLORS in cell
+ *
+ * Each histogram contains IPU3_UAPI_AE_BINS bins. Each bin has 24 bit unsigned
+ * for counting the number of the pixel.
+ */
 struct ipu3_uapi_ae_raw_buffer {
 	__u32 vals[IPU3_UAPI_AE_BINS * IPU3_UAPI_AE_COLORS];
 } __packed;

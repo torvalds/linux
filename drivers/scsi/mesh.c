@@ -1457,7 +1457,7 @@ static void cmd_complete(struct mesh_state *ms)
 		/* huh?  we expected a phase mismatch */
 		ms->n_msgin = 0;
 		ms->msgphase = msg_in;
-		/* fall through */
+		fallthrough;
 
 	case msg_in:
 		/* should have some message bytes in fifo */

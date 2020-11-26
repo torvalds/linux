@@ -64,16 +64,24 @@ void qxl_ttm_placement_from_domain(struct qxl_bo *qbo, u32 domain, bool pinned)
 
 	qbo->placement.placement = qbo->placements;
 	qbo->placement.busy_placement = qbo->placements;
-	if (domain == QXL_GEM_DOMAIN_VRAM)
-		qbo->placements[c++].flags = TTM_PL_FLAG_CACHED | TTM_PL_FLAG_VRAM | pflag;
-	if (domain == QXL_GEM_DOMAIN_SURFACE) {
-		qbo->placements[c++].flags = TTM_PL_FLAG_CACHED | TTM_PL_FLAG_PRIV | pflag;
-		qbo->placements[c++].flags = TTM_PL_FLAG_CACHED | TTM_PL_FLAG_VRAM | pflag;
+	if (domain == QXL_GEM_DOMAIN_VRAM) {
+		qbo->placements[c].mem_type = TTM_PL_VRAM;
+		qbo->placements[c++].flags = TTM_PL_FLAG_CACHED | pflag;
 	}
-	if (domain == QXL_GEM_DOMAIN_CPU)
-		qbo->placements[c++].flags = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM | pflag;
-	if (!c)
-		qbo->placements[c++].flags = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM;
+	if (domain == QXL_GEM_DOMAIN_SURFACE) {
+		qbo->placements[c].mem_type = TTM_PL_PRIV;
+		qbo->placements[c++].flags = TTM_PL_FLAG_CACHED | pflag;
+		qbo->placements[c].mem_type = TTM_PL_VRAM;
+		qbo->placements[c++].flags = TTM_PL_FLAG_CACHED | pflag;
+	}
+	if (domain == QXL_GEM_DOMAIN_CPU) {
+		qbo->placements[c].mem_type = TTM_PL_SYSTEM;
+		qbo->placements[c++].flags = TTM_PL_MASK_CACHING | pflag;
+	}
+	if (!c) {
+		qbo->placements[c].mem_type = TTM_PL_SYSTEM;
+		qbo->placements[c++].flags = TTM_PL_MASK_CACHING;
+	}
 	qbo->placement.num_placement = c;
 	qbo->placement.num_busy_placement = c;
 	for (i = 0; i < c; ++i) {
@@ -167,6 +175,7 @@ int qxl_bo_kmap(struct qxl_bo *bo, void **ptr)
 void *qxl_bo_kmap_atomic_page(struct qxl_device *qdev,
 			      struct qxl_bo *bo, int page_offset)
 {
+	unsigned long offset;
 	void *rptr;
 	int ret;
 	struct io_mapping *map;
@@ -178,9 +187,8 @@ void *qxl_bo_kmap_atomic_page(struct qxl_device *qdev,
 	else
 		goto fallback;
 
-	ret = qxl_ttm_io_mem_reserve(bo->tbo.bdev, &bo->tbo.mem);
-
-	return io_mapping_map_atomic_wc(map, bo->tbo.mem.bus.offset + page_offset);
+	offset = bo->tbo.mem.start << PAGE_SHIFT;
+	return io_mapping_map_atomic_wc(map, offset + page_offset);
 fallback:
 	if (bo->kptr) {
 		rptr = bo->kptr + (page_offset * PAGE_SIZE);
@@ -284,7 +292,7 @@ int qxl_bo_pin(struct qxl_bo *bo)
 {
 	int r;
 
-	r = qxl_bo_reserve(bo, false);
+	r = qxl_bo_reserve(bo);
 	if (r)
 		return r;
 
@@ -302,7 +310,7 @@ int qxl_bo_unpin(struct qxl_bo *bo)
 {
 	int r;
 
-	r = qxl_bo_reserve(bo, false);
+	r = qxl_bo_reserve(bo);
 	if (r)
 		return r;
 

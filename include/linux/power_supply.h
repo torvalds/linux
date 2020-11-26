@@ -186,6 +186,7 @@ enum power_supply_type {
 	POWER_SUPPLY_TYPE_USB_PD,		/* Power Delivery Port */
 	POWER_SUPPLY_TYPE_USB_PD_DRP,		/* PD Dual Role Port */
 	POWER_SUPPLY_TYPE_APPLE_BRICK_ID,	/* Apple Charging Method */
+	POWER_SUPPLY_TYPE_WIRELESS,		/* Wireless */
 };
 
 enum power_supply_usb_type {
@@ -365,6 +366,12 @@ struct power_supply_battery_info {
 	int constant_charge_voltage_max_uv; /* microVolts */
 	int factory_internal_resistance_uohm;   /* microOhms */
 	int ocv_temp[POWER_SUPPLY_OCV_TEMP_MAX];/* celsius */
+	int temp_ambient_alert_min;             /* celsius */
+	int temp_ambient_alert_max;             /* celsius */
+	int temp_alert_min;                     /* celsius */
+	int temp_alert_max;                     /* celsius */
+	int temp_min;                           /* celsius */
+	int temp_max;                           /* celsius */
 	struct power_supply_battery_ocv_table *ocv_table[POWER_SUPPLY_OCV_TEMP_MAX];
 	int ocv_table_size[POWER_SUPPLY_OCV_TEMP_MAX];
 	struct power_supply_resistance_temp_table *resist_table;

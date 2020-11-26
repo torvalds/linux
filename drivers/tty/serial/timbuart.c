@@ -172,9 +172,9 @@ static void timbuart_handle_rx_port(struct uart_port *port, u32 isr, u32 *ier)
 	dev_dbg(port->dev, "%s - leaving\n", __func__);
 }
 
-static void timbuart_tasklet(unsigned long arg)
+static void timbuart_tasklet(struct tasklet_struct *t)
 {
-	struct timbuart_port *uart = (struct timbuart_port *)arg;
+	struct timbuart_port *uart = from_tasklet(uart, t, tasklet);
 	u32 isr, ier = 0;
 
 	spin_lock(&uart->port.lock);
@@ -451,7 +451,7 @@ static int timbuart_probe(struct platform_device *dev)
 	}
 	uart->port.irq = irq;
 
-	tasklet_init(&uart->tasklet, timbuart_tasklet, (unsigned long)uart);
+	tasklet_setup(&uart->tasklet, timbuart_tasklet);
 
 	err = uart_register_driver(&timbuart_driver);
 	if (err)

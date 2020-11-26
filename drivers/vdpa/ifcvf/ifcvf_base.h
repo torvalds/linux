@@ -84,7 +84,7 @@ struct ifcvf_hw {
 	void __iomem * const *base;
 	char config_msix_name[256];
 	struct vdpa_callback config_cb;
-
+	unsigned int config_irq;
 };
 
 struct ifcvf_adapter {

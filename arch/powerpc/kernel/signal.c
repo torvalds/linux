@@ -312,9 +312,6 @@ void do_notify_resume(struct pt_regs *regs, unsigned long thread_info_flags)
 {
 	user_exit();
 
-	/* Check valid addr_limit, TIF check is done there */
-	addr_limit_user_check();
-
 	if (thread_info_flags & _TIF_UPROBE)
 		uprobe_notify_resume(regs);
 
@@ -327,7 +324,6 @@ void do_notify_resume(struct pt_regs *regs, unsigned long thread_info_flags)
 	}
 
 	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
-		clear_thread_flag(TIF_NOTIFY_RESUME);
 		tracehook_notify_resume(regs);
 		rseq_handle_notify_resume(NULL, regs);
 	}

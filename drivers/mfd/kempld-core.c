@@ -13,6 +13,7 @@
 #include <linux/dmi.h>
 #include <linux/io.h>
 #include <linux/delay.h>
+#include <linux/acpi.h>
 
 #define MAX_ID_LEN 4
 static char force_device_id[MAX_ID_LEN + 1] = "";
@@ -124,6 +125,7 @@ static const struct kempld_platform_data kempld_platform_data_generic = {
 };
 
 static struct platform_device *kempld_pdev;
+static bool kempld_acpi_mode;
 
 static int kempld_create_platform_device(const struct dmi_system_id *id)
 {
@@ -426,13 +428,93 @@ static int kempld_detect_device(struct kempld_device_data *pld)
 	return ret;
 }
 
+#ifdef CONFIG_ACPI
+static int kempld_get_acpi_data(struct platform_device *pdev)
+{
+	struct list_head resource_list;
+	struct resource *resources;
+	struct resource_entry *rentry;
+	struct device *dev = &pdev->dev;
+	struct acpi_device *acpi_dev = ACPI_COMPANION(dev);
+	const struct kempld_platform_data *pdata;
+	int ret;
+	int count;
+
+	pdata = acpi_device_get_match_data(dev);
+	ret = platform_device_add_data(pdev, pdata,
+				       sizeof(struct kempld_platform_data));
+	if (ret)
+		return ret;
+
+	INIT_LIST_HEAD(&resource_list);
+	ret = acpi_dev_get_resources(acpi_dev, &resource_list, NULL, NULL);
+	if (ret < 0)
+		goto out;
+
+	count = ret;
+
+	if (count == 0) {
+		ret = platform_device_add_resources(pdev, pdata->ioresource, 1);
+		goto out;
+	}
+
+	resources = devm_kcalloc(&acpi_dev->dev, count, sizeof(*resources),
+				 GFP_KERNEL);
+	if (!resources) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	count = 0;
+	list_for_each_entry(rentry, &resource_list, node) {
+		memcpy(&resources[count], rentry->res,
+		       sizeof(*resources));
+		count++;
+	}
+	ret = platform_device_add_resources(pdev, resources, count);
+
+out:
+	acpi_dev_free_resource_list(&resource_list);
+
+	return ret;
+}
+#else
+static int kempld_get_acpi_data(struct platform_device *pdev)
+{
+	return -ENODEV;
+}
+#endif /* CONFIG_ACPI */
+
 static int kempld_probe(struct platform_device *pdev)
 {
-	const struct kempld_platform_data *pdata =
-		dev_get_platdata(&pdev->dev);
+	const struct kempld_platform_data *pdata;
 	struct device *dev = &pdev->dev;
 	struct kempld_device_data *pld;
 	struct resource *ioport;
+	int ret;
+
+	if (kempld_pdev == NULL) {
+		/*
+		 * No kempld_pdev device has been registered in kempld_init,
+		 * so we seem to be probing an ACPI platform device.
+		 */
+		ret = kempld_get_acpi_data(pdev);
+		if (ret)
+			return ret;
+
+		kempld_acpi_mode = true;
+	} else if (kempld_pdev != pdev) {
+		/*
+		 * The platform device we are probing is not the one we
+		 * registered in kempld_init using the DMI table, so this one
+		 * comes from ACPI.
+		 * As we can only probe one - abort here and use the DMI
+		 * based one instead.
+		 */
+		dev_notice(dev, "platform device exists - not using ACPI\n");
+		return -ENODEV;
+	}
+	pdata = dev_get_platdata(dev);
 
 	pld = devm_kzalloc(dev, sizeof(*pld), GFP_KERNEL);
 	if (!pld)
@@ -471,9 +553,19 @@ static int kempld_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id kempld_acpi_table[] = {
+	{ "KEM0001", (kernel_ulong_t)&kempld_platform_data_generic },
+	{}
+};
+MODULE_DEVICE_TABLE(acpi, kempld_acpi_table);
+#endif
+
 static struct platform_driver kempld_driver = {
 	.driver		= {
 		.name	= "kempld",
+		.acpi_match_table = ACPI_PTR(kempld_acpi_table),
+		.probe_type = PROBE_FORCE_SYNCHRONOUS,
 	},
 	.probe		= kempld_probe,
 	.remove		= kempld_remove,
@@ -792,6 +884,7 @@ MODULE_DEVICE_TABLE(dmi, kempld_dmi_table);
 static int __init kempld_init(void)
 {
 	const struct dmi_system_id *id;
+	int ret;
 
 	if (force_device_id[0]) {
 		for (id = kempld_dmi_table;
@@ -801,12 +894,24 @@ static int __init kempld_init(void)
 					break;
 		if (id->matches[0].slot == DMI_NONE)
 			return -ENODEV;
-	} else {
-		if (!dmi_check_system(kempld_dmi_table))
-			return -ENODEV;
 	}
 
-	return platform_driver_register(&kempld_driver);
+	ret = platform_driver_register(&kempld_driver);
+	if (ret)
+		return ret;
+
+	/*
+	 * With synchronous probing the device should already be probed now.
+	 * If no device id is forced and also no ACPI definition for the
+	 * device was found, scan DMI table as fallback.
+	 *
+	 * If drivers_autoprobing is disabled and the device is found here,
+	 * only that device can be bound manually later.
+	 */
+	if (!kempld_pdev && !kempld_acpi_mode)
+		dmi_check_system(kempld_dmi_table);
+
+	return 0;
 }
 
 static void __exit kempld_exit(void)

@@ -9,6 +9,7 @@
 #include <crypto/internal/hash.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/random.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/cpufeature.h>
@@ -22,10 +23,11 @@ static unsigned long iterations = 10000;
 static int __init crc_test_init(void)
 {
 	u16 crc16 = 0, verify16 = 0;
-	u32 crc32 = 0, verify32 = 0;
 	__le32 verify32le = 0;
 	unsigned char *data;
+	u32 verify32 = 0;
 	unsigned long i;
+	__le32 crc32;
 	int ret;
 
 	struct crypto_shash *crct10dif_tfm;
@@ -98,7 +100,7 @@ static int __init crc_test_init(void)
 			crypto_shash_final(crc32c_shash, (u8 *)(&crc32));
 			verify32 = le32_to_cpu(verify32le);
 		        verify32le = ~cpu_to_le32(__crc32c_le(~verify32, data+offset, len));
-			if (crc32 != (u32)verify32le) {
+			if (crc32 != verify32le) {
 				pr_err("FAILURE in CRC32: got 0x%08x expected 0x%08x (len %lu)\n",
 				       crc32, verify32, len);
 				break;

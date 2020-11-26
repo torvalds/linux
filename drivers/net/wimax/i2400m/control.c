@@ -352,7 +352,7 @@ void i2400m_report_tlv_system_state(struct i2400m *i2400m,
 
 	case I2400M_SS_IDLE:
 		d_printf(1, dev, "entering BS-negotiated idle mode\n");
-		/* Fall through */
+		fallthrough;
 	case I2400M_SS_DISCONNECTING:
 	case I2400M_SS_DATA_PATH_CONNECTED:
 		wimax_state_change(wimax_dev, WIMAX_ST_CONNECTED);
@@ -655,8 +655,6 @@ void i2400m_msg_to_dev_cancel_wait(struct i2400m *i2400m, int code)
  * i2400m_msg_to_dev - Send a control message to the device and get a response
  *
  * @i2400m: device descriptor
- *
- * @msg_skb: an skb  *
  *
  * @buf: pointer to the buffer containing the message to be sent; it
  *           has to start with a &struct i2400M_l3l4_hdr and then

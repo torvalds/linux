@@ -461,7 +461,7 @@ static inline void syscall_restart(unsigned long orig_i0, struct pt_regs *regs,
 	case ERESTARTSYS:
 		if (!(sa->sa_flags & SA_RESTART))
 			goto no_system_call_restart;
-		/* fallthrough */
+		fallthrough;
 	case ERESTARTNOINTR:
 		regs->u_regs[UREG_I0] = orig_i0;
 		regs->tpc -= 4;
@@ -532,7 +532,7 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 				regs->tpc -= 4;
 				regs->tnpc -= 4;
 				pt_regs_clear_syscall(regs);
-				/* fall through */
+				fallthrough;
 			case ERESTART_RESTARTBLOCK:
 				regs->u_regs[UREG_G1] = __NR_restart_syscall;
 				regs->tpc -= 4;
@@ -551,10 +551,8 @@ void do_notify_resume(struct pt_regs *regs, unsigned long orig_i0, unsigned long
 		uprobe_notify_resume(regs);
 	if (thread_info_flags & _TIF_SIGPENDING)
 		do_signal(regs, orig_i0);
-	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
-		clear_thread_flag(TIF_NOTIFY_RESUME);
+	if (thread_info_flags & _TIF_NOTIFY_RESUME)
 		tracehook_notify_resume(regs);
-	}
 	user_enter();
 }
 

@@ -302,7 +302,7 @@ static int gsmi_exec(u8 func, u8 sub)
 	return rc;
 }
 
-#ifdef CONFIG_EFI_VARS
+#ifdef CONFIG_EFI
 
 static struct efivars efivars;
 
@@ -483,7 +483,7 @@ static const struct efivar_operations efivar_ops = {
 	.get_next_variable = gsmi_get_next_variable,
 };
 
-#endif /* CONFIG_EFI_VARS */
+#endif /* CONFIG_EFI */
 
 static ssize_t eventlog_write(struct file *filp, struct kobject *kobj,
 			       struct bin_attribute *bin_attr,
@@ -1007,7 +1007,7 @@ static __init int gsmi_init(void)
 		goto out_remove_bin_file;
 	}
 
-#ifdef CONFIG_EFI_VARS
+#ifdef CONFIG_EFI
 	ret = efivars_register(&efivars, &efivar_ops, gsmi_kobj);
 	if (ret) {
 		printk(KERN_INFO "gsmi: Failed to register efivars\n");
@@ -1047,7 +1047,7 @@ static void __exit gsmi_exit(void)
 	unregister_die_notifier(&gsmi_die_notifier);
 	atomic_notifier_chain_unregister(&panic_notifier_list,
 					 &gsmi_panic_notifier);
-#ifdef CONFIG_EFI_VARS
+#ifdef CONFIG_EFI
 	efivars_unregister(&efivars);
 #endif
 

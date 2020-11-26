@@ -967,7 +967,7 @@ int c4iw_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 	return !err || err == -ENODATA ? npolled : err;
 }
 
-void c4iw_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
+int c4iw_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 {
 	struct c4iw_cq *chp;
 	struct c4iw_ucontext *ucontext;
@@ -985,6 +985,7 @@ void c4iw_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 		   ucontext ? &ucontext->uctx : &chp->cq.rdev->uctx,
 		   chp->destroy_skb, chp->wr_waitp);
 	c4iw_put_wr_wait(chp->wr_waitp);
+	return 0;
 }
 
 int c4iw_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,

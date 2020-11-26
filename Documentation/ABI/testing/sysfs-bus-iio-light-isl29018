@@ -15,5 +15,7 @@ Description:
 		Scheme 0 has wider dynamic range, Scheme 1 proximity detection
 		is less affected by the ambient IR noise variation.
 
-		0 Sensing IR from LED and ambient
-		1 Sensing IR from LED with ambient IR rejection
+		== =============================================
+		0  Sensing IR from LED and ambient
+		1  Sensing IR from LED with ambient IR rejection
+		== =============================================

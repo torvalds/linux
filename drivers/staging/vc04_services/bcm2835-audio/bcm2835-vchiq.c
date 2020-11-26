@@ -122,7 +122,7 @@ static int
 vc_vchi_audio_init(struct vchiq_instance *vchiq_instance,
 		   struct bcm2835_audio_instance *instance)
 {
-	struct vchiq_service_params params = {
+	struct vchiq_service_params_kernel params = {
 		.version		= VC_AUDIOSERV_VER,
 		.version_min		= VC_AUDIOSERV_MIN_VER,
 		.fourcc			= VCHIQ_MAKE_FOURCC('A', 'U', 'D', 'S'),

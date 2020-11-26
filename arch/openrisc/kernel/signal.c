@@ -244,7 +244,7 @@ int do_signal(struct pt_regs *regs, int syscall)
 		switch (retval) {
 		case -ERESTART_RESTARTBLOCK:
 			restart = -2;
-			/* Fall through */
+			fallthrough;
 		case -ERESTARTNOHAND:
 		case -ERESTARTSYS:
 		case -ERESTARTNOINTR:
@@ -311,7 +311,6 @@ do_work_pending(struct pt_regs *regs, unsigned int thread_flags, int syscall)
 				}
 				syscall = 0;
 			} else {
-				clear_thread_flag(TIF_NOTIFY_RESUME);
 				tracehook_notify_resume(regs);
 			}
 		}

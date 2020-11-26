@@ -24,7 +24,6 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/gcd.h>
-#include <linux/iopoll.h>
 
 #include <linux/spi/spi.h>
 
@@ -348,9 +347,19 @@ disable_fifo:
 
 static int mcspi_wait_for_reg_bit(void __iomem *reg, unsigned long bit)
 {
-	u32 val;
+	unsigned long timeout;
 
-	return readl_poll_timeout(reg, val, val & bit, 1, MSEC_PER_SEC);
+	timeout = jiffies + msecs_to_jiffies(1000);
+	while (!(readl_relaxed(reg) & bit)) {
+		if (time_after(jiffies, timeout)) {
+			if (!(readl_relaxed(reg) & bit))
+				return -ETIMEDOUT;
+			else
+				return 0;
+		}
+		cpu_relax();
+	}
+	return 0;
 }
 
 static int mcspi_wait_for_completion(struct  omap2_mcspi *mcspi,

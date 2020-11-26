@@ -293,8 +293,12 @@ struct bdb_general_features {
 #define DVO_PORT_HDMIE		12				/* 193 */
 #define DVO_PORT_DPF		13				/* N/A */
 #define DVO_PORT_HDMIF		14				/* N/A */
-#define DVO_PORT_DPG		15
-#define DVO_PORT_HDMIG		16
+#define DVO_PORT_DPG		15				/* 217 */
+#define DVO_PORT_HDMIG		16				/* 217 */
+#define DVO_PORT_DPH		17				/* 217 */
+#define DVO_PORT_HDMIH		18				/* 217 */
+#define DVO_PORT_DPI		19				/* 217 */
+#define DVO_PORT_HDMII		20				/* 217 */
 #define DVO_PORT_MIPIA		21				/* 171 */
 #define DVO_PORT_MIPIB		22				/* 171 */
 #define DVO_PORT_MIPIC		23				/* 171 */
@@ -330,6 +334,8 @@ enum vbt_gmbus_ddi {
 #define DP_AUX_E 0x50
 #define DP_AUX_F 0x60
 #define DP_AUX_G 0x70
+#define DP_AUX_H 0x80
+#define DP_AUX_I 0x90
 
 #define VBT_DP_MAX_LINK_RATE_HBR3	0
 #define VBT_DP_MAX_LINK_RATE_HBR2	1

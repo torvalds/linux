@@ -200,7 +200,6 @@ void spu2_cipher_req_finish(u8 *spu_hdr,
 			    u16 spu_req_hdr_len,
 			    unsigned int is_inbound,
 			    struct spu_cipher_parms *cipher_parms,
-			    bool update_key,
 			    unsigned int data_size);
 void spu2_request_pad(u8 *pad_start, u32 gcm_padding, u32 hash_pad_len,
 		      enum hash_alg auth_alg, enum hash_mode auth_mode,

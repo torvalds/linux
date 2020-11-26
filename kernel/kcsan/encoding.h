@@ -32,7 +32,7 @@
  *	1. different addresses but with the same encoded address race;
  *	2. and both map onto the same watchpoint slots;
  *
- * Both these are assumed to be very unlikely. However, in case it still happens
+ * Both these are assumed to be very unlikely. However, in case it still
  * happens, the report logic will filter out the false positive (see report.c).
  */
 #define WATCHPOINT_ADDR_BITS (BITS_PER_LONG-1 - WATCHPOINT_SIZE_BITS)

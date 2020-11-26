@@ -196,7 +196,7 @@
 };
 
 &sdio {
-	status = "ok";
+	status = "okay";
 };
 
 &uart0 {

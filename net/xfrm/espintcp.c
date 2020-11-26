@@ -29,8 +29,12 @@ static void handle_nonesp(struct espintcp_ctx *ctx, struct sk_buff *skb,
 
 static void handle_esp(struct sk_buff *skb, struct sock *sk)
 {
+	struct tcp_skb_cb *tcp_cb = (struct tcp_skb_cb *)skb->cb;
+
 	skb_reset_transport_header(skb);
-	memset(skb->cb, 0, sizeof(skb->cb));
+
+	/* restore IP CB, we need at least IP6CB->nhoff */
+	memmove(skb->cb, &tcp_cb->header, sizeof(tcp_cb->header));
 
 	rcu_read_lock();
 	skb->dev = dev_get_by_index_rcu(sock_net(sk), skb->skb_iif);

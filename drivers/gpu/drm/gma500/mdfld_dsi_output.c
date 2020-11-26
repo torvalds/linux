@@ -28,6 +28,7 @@
 #include <linux/delay.h>
 #include <linux/moduleparam.h>
 #include <linux/pm_runtime.h>
+#include <linux/gpio/consumer.h>
 
 #include <asm/intel_scu_ipc.h>
 
@@ -366,7 +367,7 @@ static enum drm_mode_status mdfld_dsi_connector_mode_valid(struct drm_connector 
 	/**
 	 * FIXME: current DC has no fitting unit, reject any mode setting
 	 * request
-	 * Will figure out a way to do up-scaling(pannel fitting) later.
+	 * Will figure out a way to do up-scaling(panel fitting) later.
 	 **/
 	if (fixed_mode) {
 		if (mode->hdisplay != fixed_mode->hdisplay)
@@ -432,42 +433,42 @@ static int mdfld_dsi_get_default_config(struct drm_device *dev,
 	return 0;
 }
 
-int mdfld_dsi_panel_reset(int pipe)
+int mdfld_dsi_panel_reset(struct drm_device *ddev, int pipe)
 {
-	unsigned gpio;
-	int ret = 0;
+	struct device *dev = ddev->dev;
+	struct gpio_desc *gpiod;
 
+	/*
+	 * Raise the GPIO reset line for the corresponding pipe to HIGH,
+	 * this is probably because it is active low so this takes the
+	 * respective pipe out of reset. (We have no code to put it back
+	 * into reset in this driver.)
+	 */
 	switch (pipe) {
 	case 0:
-		gpio = 128;
+		gpiod = gpiod_get(dev, "dsi-pipe0-reset", GPIOD_OUT_HIGH);
+		if (IS_ERR(gpiod))
+			return PTR_ERR(gpiod);
 		break;
 	case 2:
-		gpio = 34;
+		gpiod = gpiod_get(dev, "dsi-pipe2-reset", GPIOD_OUT_HIGH);
+		if (IS_ERR(gpiod))
+			return PTR_ERR(gpiod);
 		break;
 	default:
-		DRM_ERROR("Invalid output\n");
+		DRM_DEV_ERROR(dev, "Invalid output pipe\n");
 		return -EINVAL;
 	}
+	gpiod_put(gpiod);
 
-	ret = gpio_request(gpio, "gfx");
-	if (ret) {
-		DRM_ERROR("gpio_rqueset failed\n");
-		return ret;
-	}
+	/* Flush posted writes on the device */
+	gpiod = gpiod_get(dev, "dsi-pipe0-reset", GPIOD_ASIS);
+	if (IS_ERR(gpiod))
+		return PTR_ERR(gpiod);
+	gpiod_get_value(gpiod);
+	gpiod_put(gpiod);
 
-	ret = gpio_direction_output(gpio, 1);
-	if (ret) {
-		DRM_ERROR("gpio_direction_output failed\n");
-		goto gpio_error;
-	}
-
-	gpio_get_value(128);
-
-gpio_error:
-	if (gpio_is_valid(gpio))
-		gpio_free(gpio);
-
-	return ret;
+	return 0;
 }
 
 /*
@@ -531,7 +532,7 @@ void mdfld_dsi_output_init(struct drm_device *dev,
 	dsi_config->connector = dsi_connector;
 
 	if (!dsi_config->fixed_mode) {
-		DRM_ERROR("No pannel fixed mode was found\n");
+		DRM_ERROR("No panel fixed mode was found\n");
 		goto dsi_init_err0;
 	}
 

@@ -274,6 +274,7 @@ static int __test__pmu_event_aliases(char *pmu_name, int *count)
 	int res = 0;
 	bool use_uncore_table;
 	struct pmu_events_map *map = __test_pmu_get_events_map();
+	struct perf_pmu_alias *a, *tmp;
 
 	if (!map)
 		return -1;
@@ -347,6 +348,10 @@ static int __test__pmu_event_aliases(char *pmu_name, int *count)
 			  pmu_name, alias->name);
 	}
 
+	list_for_each_entry_safe(a, tmp, &aliases, list) {
+		list_del(&a->list);
+		perf_pmu_free_alias(a);
+	}
 	free(pmu);
 	return res;
 }

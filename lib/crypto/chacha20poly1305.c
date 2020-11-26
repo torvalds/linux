@@ -251,9 +251,7 @@ bool chacha20poly1305_crypt_sg_inplace(struct scatterlist *src,
 			poly1305_update(&poly1305_state, pad0, 0x10 - (ad_len & 0xf));
 	}
 
-	flags = SG_MITER_TO_SG;
-	if (!preemptible())
-		flags |= SG_MITER_ATOMIC;
+	flags = SG_MITER_TO_SG | SG_MITER_ATOMIC;
 
 	sg_miter_start(&miter, src, sg_nents(src), flags);
 

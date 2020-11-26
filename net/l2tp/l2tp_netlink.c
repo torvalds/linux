@@ -229,14 +229,11 @@ static int l2tp_nl_cmd_tunnel_create(struct sk_buff *skb, struct genl_info *info
 			goto out;
 	}
 
-	if (attrs[L2TP_ATTR_DEBUG])
-		cfg.debug = nla_get_u32(attrs[L2TP_ATTR_DEBUG]);
-
 	ret = -EINVAL;
 	switch (cfg.encap) {
 	case L2TP_ENCAPTYPE_UDP:
 	case L2TP_ENCAPTYPE_IP:
-		ret = l2tp_tunnel_create(net, fd, proto_version, tunnel_id,
+		ret = l2tp_tunnel_create(fd, proto_version, tunnel_id,
 					 peer_tunnel_id, &cfg, &tunnel);
 		break;
 	}
@@ -306,9 +303,6 @@ static int l2tp_nl_cmd_tunnel_modify(struct sk_buff *skb, struct genl_info *info
 		ret = -ENODEV;
 		goto out;
 	}
-
-	if (info->attrs[L2TP_ATTR_DEBUG])
-		tunnel->debug = nla_get_u32(info->attrs[L2TP_ATTR_DEBUG]);
 
 	ret = l2tp_tunnel_notify(&l2tp_nl_family, info,
 				 tunnel, L2TP_CMD_TUNNEL_MODIFY);
@@ -400,7 +394,7 @@ static int l2tp_nl_tunnel_send(struct sk_buff *skb, u32 portid, u32 seq, int fla
 	if (nla_put_u8(skb, L2TP_ATTR_PROTO_VERSION, tunnel->version) ||
 	    nla_put_u32(skb, L2TP_ATTR_CONN_ID, tunnel->tunnel_id) ||
 	    nla_put_u32(skb, L2TP_ATTR_PEER_CONN_ID, tunnel->peer_tunnel_id) ||
-	    nla_put_u32(skb, L2TP_ATTR_DEBUG, tunnel->debug) ||
+	    nla_put_u32(skb, L2TP_ATTR_DEBUG, 0) ||
 	    nla_put_u16(skb, L2TP_ATTR_ENCAP_TYPE, tunnel->encap))
 		goto nla_put_failure;
 
@@ -425,6 +419,9 @@ static int l2tp_nl_tunnel_send(struct sk_buff *skb, u32 portid, u32 seq, int fla
 			      L2TP_ATTR_STATS_PAD) ||
 	    nla_put_u64_64bit(skb, L2TP_ATTR_RX_SEQ_DISCARDS,
 			      atomic_long_read(&tunnel->stats.rx_seq_discards),
+			      L2TP_ATTR_STATS_PAD) ||
+	    nla_put_u64_64bit(skb, L2TP_ATTR_RX_COOKIE_DISCARDS,
+			      atomic_long_read(&tunnel->stats.rx_cookie_discards),
 			      L2TP_ATTR_STATS_PAD) ||
 	    nla_put_u64_64bit(skb, L2TP_ATTR_RX_OOS_PACKETS,
 			      atomic_long_read(&tunnel->stats.rx_oos_packets),
@@ -605,9 +602,6 @@ static int l2tp_nl_cmd_session_create(struct sk_buff *skb, struct genl_info *inf
 			cfg.ifname = nla_data(info->attrs[L2TP_ATTR_IFNAME]);
 	}
 
-	if (info->attrs[L2TP_ATTR_DEBUG])
-		cfg.debug = nla_get_u32(info->attrs[L2TP_ATTR_DEBUG]);
-
 	if (info->attrs[L2TP_ATTR_RECV_SEQ])
 		cfg.recv_seq = nla_get_u8(info->attrs[L2TP_ATTR_RECV_SEQ]);
 
@@ -689,9 +683,6 @@ static int l2tp_nl_cmd_session_modify(struct sk_buff *skb, struct genl_info *inf
 		goto out;
 	}
 
-	if (info->attrs[L2TP_ATTR_DEBUG])
-		session->debug = nla_get_u32(info->attrs[L2TP_ATTR_DEBUG]);
-
 	if (info->attrs[L2TP_ATTR_RECV_SEQ])
 		session->recv_seq = nla_get_u8(info->attrs[L2TP_ATTR_RECV_SEQ]);
 
@@ -730,7 +721,7 @@ static int l2tp_nl_session_send(struct sk_buff *skb, u32 portid, u32 seq, int fl
 	    nla_put_u32(skb, L2TP_ATTR_SESSION_ID, session->session_id) ||
 	    nla_put_u32(skb, L2TP_ATTR_PEER_CONN_ID, tunnel->peer_tunnel_id) ||
 	    nla_put_u32(skb, L2TP_ATTR_PEER_SESSION_ID, session->peer_session_id) ||
-	    nla_put_u32(skb, L2TP_ATTR_DEBUG, session->debug) ||
+	    nla_put_u32(skb, L2TP_ATTR_DEBUG, 0) ||
 	    nla_put_u16(skb, L2TP_ATTR_PW_TYPE, session->pwtype))
 		goto nla_put_failure;
 
@@ -771,6 +762,9 @@ static int l2tp_nl_session_send(struct sk_buff *skb, u32 portid, u32 seq, int fl
 			      L2TP_ATTR_STATS_PAD) ||
 	    nla_put_u64_64bit(skb, L2TP_ATTR_RX_SEQ_DISCARDS,
 			      atomic_long_read(&session->stats.rx_seq_discards),
+			      L2TP_ATTR_STATS_PAD) ||
+	    nla_put_u64_64bit(skb, L2TP_ATTR_RX_COOKIE_DISCARDS,
+			      atomic_long_read(&session->stats.rx_cookie_discards),
 			      L2TP_ATTR_STATS_PAD) ||
 	    nla_put_u64_64bit(skb, L2TP_ATTR_RX_OOS_PACKETS,
 			      atomic_long_read(&session->stats.rx_oos_packets),
@@ -920,7 +914,7 @@ static const struct nla_policy l2tp_nl_policy[L2TP_ATTR_MAX + 1] = {
 	},
 };
 
-static const struct genl_ops l2tp_nl_ops[] = {
+static const struct genl_small_ops l2tp_nl_ops[] = {
 	{
 		.cmd = L2TP_CMD_NOOP,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
@@ -987,8 +981,8 @@ static struct genl_family l2tp_nl_family __ro_after_init = {
 	.policy = l2tp_nl_policy,
 	.netnsok	= true,
 	.module		= THIS_MODULE,
-	.ops		= l2tp_nl_ops,
-	.n_ops		= ARRAY_SIZE(l2tp_nl_ops),
+	.small_ops	= l2tp_nl_ops,
+	.n_small_ops	= ARRAY_SIZE(l2tp_nl_ops),
 	.mcgrps		= l2tp_multicast_group,
 	.n_mcgrps	= ARRAY_SIZE(l2tp_multicast_group),
 };

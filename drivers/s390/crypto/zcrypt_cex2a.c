@@ -94,8 +94,7 @@ static int zcrypt_cex2a_card_probe(struct ap_device *ap_dev)
 	if (ac->ap_dev.device_type == AP_DEVICE_TYPE_CEX2A) {
 		zc->min_mod_size = CEX2A_MIN_MOD_SIZE;
 		zc->max_mod_size = CEX2A_MAX_MOD_SIZE;
-		memcpy(zc->speed_rating, CEX2A_SPEED_IDX,
-		       sizeof(CEX2A_SPEED_IDX));
+		zc->speed_rating = CEX2A_SPEED_IDX;
 		zc->max_exp_bit_length = CEX2A_MAX_MOD_SIZE;
 		zc->type_string = "CEX2A";
 		zc->user_space_type = ZCRYPT_CEX2A;
@@ -108,8 +107,7 @@ static int zcrypt_cex2a_card_probe(struct ap_device *ap_dev)
 			zc->max_mod_size = CEX3A_MAX_MOD_SIZE;
 			zc->max_exp_bit_length = CEX3A_MAX_MOD_SIZE;
 		}
-		memcpy(zc->speed_rating, CEX3A_SPEED_IDX,
-		       sizeof(CEX3A_SPEED_IDX));
+		zc->speed_rating = CEX3A_SPEED_IDX;
 		zc->type_string = "CEX3A";
 		zc->user_space_type = ZCRYPT_CEX3A;
 	} else {

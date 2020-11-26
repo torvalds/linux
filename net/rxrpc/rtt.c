@@ -14,7 +14,6 @@
 #define RXRPC_RTO_MAX	((unsigned)(120 * HZ))
 #define RXRPC_TIMEOUT_INIT ((unsigned)(1*HZ))	/* RFC6298 2.1 initial RTO value	*/
 #define rxrpc_jiffies32 ((u32)jiffies)		/* As rxrpc_jiffies32 */
-#define rxrpc_min_rtt_wlen 300			/* As sysctl_tcp_min_rtt_wlen */
 
 static u32 rxrpc_rto_min_us(struct rxrpc_peer *peer)
 {
@@ -146,6 +145,7 @@ static void rxrpc_ack_update_rtt(struct rxrpc_peer *peer, long rtt_us)
  * exclusive access to the peer RTT data.
  */
 void rxrpc_peer_add_rtt(struct rxrpc_call *call, enum rxrpc_rtt_rx_trace why,
+			int rtt_slot,
 			rxrpc_serial_t send_serial, rxrpc_serial_t resp_serial,
 			ktime_t send_time, ktime_t resp_time)
 {
@@ -162,7 +162,7 @@ void rxrpc_peer_add_rtt(struct rxrpc_call *call, enum rxrpc_rtt_rx_trace why,
 		peer->rtt_count++;
 	spin_unlock(&peer->rtt_input_lock);
 
-	trace_rxrpc_rtt_rx(call, why, send_serial, resp_serial,
+	trace_rxrpc_rtt_rx(call, why, rtt_slot, send_serial, resp_serial,
 			   peer->srtt_us >> 3, peer->rto_j);
 }
 

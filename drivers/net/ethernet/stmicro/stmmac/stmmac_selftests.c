@@ -796,7 +796,7 @@ static int stmmac_test_flowctrl(struct stmmac_priv *priv)
 		u32 tail;
 
 		tail = priv->rx_queue[i].dma_rx_phy +
-			(DMA_RX_SIZE * sizeof(struct dma_desc));
+			(priv->dma_rx_size * sizeof(struct dma_desc));
 
 		stmmac_set_rx_tail_ptr(priv, priv->ioaddr, tail, i);
 		stmmac_start_rx(priv, priv->ioaddr, i);
@@ -1985,7 +1985,7 @@ void stmmac_selftest_run(struct net_device *dev,
 				ret = phy_loopback(dev->phydev, true);
 			if (!ret)
 				break;
-			/* Fallthrough */
+			fallthrough;
 		case STMMAC_LOOPBACK_MAC:
 			ret = stmmac_set_mac_loopback(priv, priv->ioaddr, true);
 			break;
@@ -2018,7 +2018,7 @@ void stmmac_selftest_run(struct net_device *dev,
 				ret = phy_loopback(dev->phydev, false);
 			if (!ret)
 				break;
-			/* Fallthrough */
+			fallthrough;
 		case STMMAC_LOOPBACK_MAC:
 			stmmac_set_mac_loopback(priv, priv->ioaddr, false);
 			break;

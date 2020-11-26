@@ -229,13 +229,13 @@ static int rockchip_pdm_hw_params(struct snd_pcm_substream *substream,
 	switch (params_channels(params)) {
 	case 8:
 		val |= PDM_PATH3_EN;
-		/* fallthrough */
+		fallthrough;
 	case 6:
 		val |= PDM_PATH2_EN;
-		/* fallthrough */
+		fallthrough;
 	case 4:
 		val |= PDM_PATH1_EN;
-		/* fallthrough */
+		fallthrough;
 	case 2:
 		val |= PDM_PATH0_EN;
 		break;

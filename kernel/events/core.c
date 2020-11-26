@@ -100,7 +100,7 @@ static void remote_function(void *data)
  * retry due to any failures in smp_call_function_single(), such as if the
  * task_cpu() goes offline concurrently.
  *
- * returns @func return value or -ESRCH when the process isn't running
+ * returns @func return value or -ESRCH or -ENXIO when the process isn't running
  */
 static int
 task_function_call(struct task_struct *p, remote_function_f func, void *info)
@@ -116,7 +116,8 @@ task_function_call(struct task_struct *p, remote_function_f func, void *info)
 	for (;;) {
 		ret = smp_call_function_single(task_cpu(p), remote_function,
 					       &data, 1);
-		ret = !ret ? data.ret : -EAGAIN;
+		if (!ret)
+			ret = data.ret;
 
 		if (ret != -EAGAIN)
 			break;
@@ -2318,9 +2319,6 @@ group_sched_out(struct perf_event *group_event,
 		event_sched_out(event, cpuctx, ctx);
 
 	perf_pmu_enable(ctx->pmu);
-
-	if (group_event->attr.exclusive)
-		cpuctx->exclusive = 0;
 }
 
 #define DETACH_GROUP	0x01UL
@@ -2589,11 +2587,8 @@ group_sched_in(struct perf_event *group_event,
 
 	pmu->start_txn(pmu, PERF_PMU_TXN_ADD);
 
-	if (event_sched_in(group_event, cpuctx, ctx)) {
-		pmu->cancel_txn(pmu);
-		perf_mux_hrtimer_restart(cpuctx);
-		return -EAGAIN;
-	}
+	if (event_sched_in(group_event, cpuctx, ctx))
+		goto error;
 
 	/*
 	 * Schedule in siblings as one group (if any):
@@ -2622,10 +2617,8 @@ group_error:
 	}
 	event_sched_out(group_event, cpuctx, ctx);
 
+error:
 	pmu->cancel_txn(pmu);
-
-	perf_mux_hrtimer_restart(cpuctx);
-
 	return -EAGAIN;
 }
 
@@ -2651,7 +2644,7 @@ static int group_can_go_on(struct perf_event *event,
 	 * If this group is exclusive and there are already
 	 * events on the CPU, it can't go on.
 	 */
-	if (event->attr.exclusive && cpuctx->active_oncpu)
+	if (event->attr.exclusive && !list_empty(get_event_list(event)))
 		return 0;
 	/*
 	 * Otherwise, try to add it if all previous groups were able
@@ -3685,6 +3678,7 @@ static int merge_sched_in(struct perf_event *event, void *data)
 
 		*can_add_hw = 0;
 		ctx->rotate_necessary = 1;
+		perf_mux_hrtimer_restart(cpuctx);
 	}
 
 	return 0;
@@ -6380,14 +6374,13 @@ perf_output_sample_regs(struct perf_output_handle *handle,
 }
 
 static void perf_sample_regs_user(struct perf_regs *regs_user,
-				  struct pt_regs *regs,
-				  struct pt_regs *regs_user_copy)
+				  struct pt_regs *regs)
 {
 	if (user_mode(regs)) {
 		regs_user->abi = perf_reg_abi(current);
 		regs_user->regs = regs;
 	} else if (!(current->flags & PF_KTHREAD)) {
-		perf_get_regs_user(regs_user, regs, regs_user_copy);
+		perf_get_regs_user(regs_user, regs);
 	} else {
 		regs_user->abi = PERF_SAMPLE_REGS_ABI_NONE;
 		regs_user->regs = NULL;
@@ -7210,8 +7203,7 @@ void perf_prepare_sample(struct perf_event_header *header,
 	}
 
 	if (sample_type & (PERF_SAMPLE_REGS_USER | PERF_SAMPLE_STACK_USER))
-		perf_sample_regs_user(&data->regs_user, regs,
-				      &data->regs_user_copy);
+		perf_sample_regs_user(&data->regs_user, regs);
 
 	if (sample_type & PERF_SAMPLE_REGS_USER) {
 		/* regs dump ABI info */
@@ -7324,6 +7316,7 @@ __perf_event_output(struct perf_event *event,
 		    struct perf_sample_data *data,
 		    struct pt_regs *regs,
 		    int (*output_begin)(struct perf_output_handle *,
+					struct perf_sample_data *,
 					struct perf_event *,
 					unsigned int))
 {
@@ -7336,7 +7329,7 @@ __perf_event_output(struct perf_event *event,
 
 	perf_prepare_sample(&header, data, event, regs);
 
-	err = output_begin(&handle, event, header.size);
+	err = output_begin(&handle, data, event, header.size);
 	if (err)
 		goto exit;
 
@@ -7402,7 +7395,7 @@ perf_event_read_event(struct perf_event *event,
 	int ret;
 
 	perf_event_header__init_id(&read_event.header, &sample, event);
-	ret = perf_output_begin(&handle, event, read_event.header.size);
+	ret = perf_output_begin(&handle, &sample, event, read_event.header.size);
 	if (ret)
 		return;
 
@@ -7671,7 +7664,7 @@ static void perf_event_task_output(struct perf_event *event,
 
 	perf_event_header__init_id(&task_event->event_id.header, &sample, event);
 
-	ret = perf_output_begin(&handle, event,
+	ret = perf_output_begin(&handle, &sample, event,
 				task_event->event_id.header.size);
 	if (ret)
 		goto out;
@@ -7774,7 +7767,7 @@ static void perf_event_comm_output(struct perf_event *event,
 		return;
 
 	perf_event_header__init_id(&comm_event->event_id.header, &sample, event);
-	ret = perf_output_begin(&handle, event,
+	ret = perf_output_begin(&handle, &sample, event,
 				comm_event->event_id.header.size);
 
 	if (ret)
@@ -7874,7 +7867,7 @@ static void perf_event_namespaces_output(struct perf_event *event,
 
 	perf_event_header__init_id(&namespaces_event->event_id.header,
 				   &sample, event);
-	ret = perf_output_begin(&handle, event,
+	ret = perf_output_begin(&handle, &sample, event,
 				namespaces_event->event_id.header.size);
 	if (ret)
 		goto out;
@@ -8001,7 +7994,7 @@ static void perf_event_cgroup_output(struct perf_event *event, void *data)
 
 	perf_event_header__init_id(&cgroup_event->event_id.header,
 				   &sample, event);
-	ret = perf_output_begin(&handle, event,
+	ret = perf_output_begin(&handle, &sample, event,
 				cgroup_event->event_id.header.size);
 	if (ret)
 		goto out;
@@ -8127,7 +8120,7 @@ static void perf_event_mmap_output(struct perf_event *event,
 	}
 
 	perf_event_header__init_id(&mmap_event->event_id.header, &sample, event);
-	ret = perf_output_begin(&handle, event,
+	ret = perf_output_begin(&handle, &sample, event,
 				mmap_event->event_id.header.size);
 	if (ret)
 		goto out;
@@ -8437,7 +8430,7 @@ void perf_event_aux_event(struct perf_event *event, unsigned long head,
 	int ret;
 
 	perf_event_header__init_id(&rec.header, &sample, event);
-	ret = perf_output_begin(&handle, event, rec.header.size);
+	ret = perf_output_begin(&handle, &sample, event, rec.header.size);
 
 	if (ret)
 		return;
@@ -8471,7 +8464,7 @@ void perf_log_lost_samples(struct perf_event *event, u64 lost)
 
 	perf_event_header__init_id(&lost_samples_event.header, &sample, event);
 
-	ret = perf_output_begin(&handle, event,
+	ret = perf_output_begin(&handle, &sample, event,
 				lost_samples_event.header.size);
 	if (ret)
 		return;
@@ -8526,7 +8519,7 @@ static void perf_event_switch_output(struct perf_event *event, void *data)
 
 	perf_event_header__init_id(&se->event_id.header, &sample, event);
 
-	ret = perf_output_begin(&handle, event, se->event_id.header.size);
+	ret = perf_output_begin(&handle, &sample, event, se->event_id.header.size);
 	if (ret)
 		return;
 
@@ -8601,7 +8594,7 @@ static void perf_log_throttle(struct perf_event *event, int enable)
 
 	perf_event_header__init_id(&throttle_event.header, &sample, event);
 
-	ret = perf_output_begin(&handle, event,
+	ret = perf_output_begin(&handle, &sample, event,
 				throttle_event.header.size);
 	if (ret)
 		return;
@@ -8644,7 +8637,7 @@ static void perf_event_ksymbol_output(struct perf_event *event, void *data)
 
 	perf_event_header__init_id(&ksymbol_event->event_id.header,
 				   &sample, event);
-	ret = perf_output_begin(&handle, event,
+	ret = perf_output_begin(&handle, &sample, event,
 				ksymbol_event->event_id.header.size);
 	if (ret)
 		return;
@@ -8734,7 +8727,7 @@ static void perf_event_bpf_output(struct perf_event *event, void *data)
 
 	perf_event_header__init_id(&bpf_event->event_id.header,
 				   &sample, event);
-	ret = perf_output_begin(&handle, event,
+	ret = perf_output_begin(&handle, data, event,
 				bpf_event->event_id.header.size);
 	if (ret)
 		return;
@@ -8843,7 +8836,8 @@ static void perf_event_text_poke_output(struct perf_event *event, void *data)
 
 	perf_event_header__init_id(&text_poke_event->event_id.header, &sample, event);
 
-	ret = perf_output_begin(&handle, event, text_poke_event->event_id.header.size);
+	ret = perf_output_begin(&handle, &sample, event,
+				text_poke_event->event_id.header.size);
 	if (ret)
 		return;
 
@@ -8924,7 +8918,7 @@ static void perf_log_itrace_start(struct perf_event *event)
 	rec.tid	= perf_event_tid(event, current);
 
 	perf_event_header__init_id(&rec.header, &sample, event);
-	ret = perf_output_begin(&handle, event, rec.header.size);
+	ret = perf_output_begin(&handle, &sample, event, rec.header.size);
 
 	if (ret)
 		return;
@@ -10201,7 +10195,7 @@ perf_event_parse_addr_filter(struct perf_event *event, char *fstr,
 		case IF_SRC_KERNELADDR:
 		case IF_SRC_KERNEL:
 			kernel = 1;
-			/* fall through */
+			fallthrough;
 
 		case IF_SRC_FILEADDR:
 		case IF_SRC_FILE:
@@ -10223,6 +10217,7 @@ perf_event_parse_addr_filter(struct perf_event *event, char *fstr,
 			if (token == IF_SRC_FILE || token == IF_SRC_FILEADDR) {
 				int fpos = token == IF_SRC_FILE ? 2 : 1;
 
+				kfree(filename);
 				filename = match_strdup(&args[fpos]);
 				if (!filename) {
 					ret = -ENOMEM;
@@ -10269,16 +10264,13 @@ perf_event_parse_addr_filter(struct perf_event *event, char *fstr,
 				 */
 				ret = -EOPNOTSUPP;
 				if (!event->ctx->task)
-					goto fail_free_name;
+					goto fail;
 
 				/* look up the path and grab its inode */
 				ret = kern_path(filename, LOOKUP_FOLLOW,
 						&filter->path);
 				if (ret)
-					goto fail_free_name;
-
-				kfree(filename);
-				filename = NULL;
+					goto fail;
 
 				ret = -EINVAL;
 				if (!filter->path.dentry ||
@@ -10298,13 +10290,13 @@ perf_event_parse_addr_filter(struct perf_event *event, char *fstr,
 	if (state != IF_STATE_ACTION)
 		goto fail;
 
+	kfree(filename);
 	kfree(orig);
 
 	return 0;
 
-fail_free_name:
-	kfree(filename);
 fail:
+	kfree(filename);
 	free_filters_list(filters);
 	kfree(orig);
 

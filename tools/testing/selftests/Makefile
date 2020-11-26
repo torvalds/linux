@@ -88,10 +88,10 @@ endif
 # of the targets gets built.
 FORCE_TARGETS ?=
 
-# Clear LDFLAGS and MAKEFLAGS if called from main
-# Makefile to avoid test build failures when test
-# Makefile doesn't have explicit build rules.
-ifeq (1,$(MAKELEVEL))
+# Clear LDFLAGS and MAKEFLAGS when implicit rules are missing.  This provides
+# implicit rules to sub-test Makefiles which avoids build failures in test
+# Makefile that don't have explicit build rules.
+ifeq (,$(LINK.c))
 override LDFLAGS =
 override MAKEFLAGS =
 endif
@@ -206,6 +206,7 @@ KSFT_INSTALL_PATH := $(abspath $(KSFT_INSTALL_PATH))
 # Avoid changing the rest of the logic here and lib.mk.
 INSTALL_PATH := $(KSFT_INSTALL_PATH)
 ALL_SCRIPT := $(INSTALL_PATH)/run_kselftest.sh
+TEST_LIST := $(INSTALL_PATH)/kselftest-list.txt
 
 install: all
 ifdef INSTALL_PATH
@@ -214,6 +215,8 @@ ifdef INSTALL_PATH
 	install -m 744 kselftest/module.sh $(INSTALL_PATH)/kselftest/
 	install -m 744 kselftest/runner.sh $(INSTALL_PATH)/kselftest/
 	install -m 744 kselftest/prefix.pl $(INSTALL_PATH)/kselftest/
+	install -m 744 run_kselftest.sh $(INSTALL_PATH)/
+	rm -f $(TEST_LIST)
 	@ret=1;	\
 	for TARGET in $(TARGETS); do \
 		BUILD_TARGET=$$BUILD/$$TARGET;	\
@@ -222,33 +225,18 @@ ifdef INSTALL_PATH
 		ret=$$((ret * $$?));		\
 	done; exit $$ret;
 
-	@# Ask all targets to emit their test scripts
-	echo "#!/bin/sh" > $(ALL_SCRIPT)
-	echo "BASE_DIR=\$$(realpath \$$(dirname \$$0))" >> $(ALL_SCRIPT)
-	echo "cd \$$BASE_DIR" >> $(ALL_SCRIPT)
-	echo ". ./kselftest/runner.sh" >> $(ALL_SCRIPT)
-	echo "ROOT=\$$PWD" >> $(ALL_SCRIPT)
-	echo "if [ \"\$$1\" = \"--summary\" ]; then" >> $(ALL_SCRIPT)
-	echo "  logfile=\$$BASE_DIR/output.log" >> $(ALL_SCRIPT)
-	echo "  cat /dev/null > \$$logfile" >> $(ALL_SCRIPT)
-	echo "fi" >> $(ALL_SCRIPT)
 
-	@# While building run_kselftest.sh skip also non-existent TARGET dirs:
+	@# Ask all targets to emit their test scripts
+	@# While building kselftest-list.text skip also non-existent TARGET dirs:
 	@# they could be the result of a build failure and should NOT be
 	@# included in the generated runlist.
 	for TARGET in $(TARGETS); do \
 		BUILD_TARGET=$$BUILD/$$TARGET;	\
 		[ ! -d $(INSTALL_PATH)/$$TARGET ] && echo "Skipping non-existent dir: $$TARGET" && continue; \
-		echo "[ -w /dev/kmsg ] && echo \"kselftest: Running tests in $$TARGET\" >> /dev/kmsg" >> $(ALL_SCRIPT); \
-		echo "cd $$TARGET" >> $(ALL_SCRIPT); \
-		echo -n "run_many" >> $(ALL_SCRIPT); \
 		echo -n "Emit Tests for $$TARGET\n"; \
-		$(MAKE) -s --no-print-directory OUTPUT=$$BUILD_TARGET -C $$TARGET emit_tests >> $(ALL_SCRIPT); \
-		echo "" >> $(ALL_SCRIPT);	    \
-		echo "cd \$$ROOT" >> $(ALL_SCRIPT); \
+		$(MAKE) -s --no-print-directory OUTPUT=$$BUILD_TARGET COLLECTION=$$TARGET \
+			-C $$TARGET emit_tests >> $(TEST_LIST); \
 	done;
-
-	chmod u+x $(ALL_SCRIPT)
 else
 	$(error Error: set INSTALL_PATH to use install)
 endif

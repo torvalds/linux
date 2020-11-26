@@ -481,7 +481,7 @@ static void mtk_drm_crtc_hw_config(struct mtk_drm_crtc *mtk_crtc)
 		mbox_flush(mtk_crtc->cmdq_client->chan, 2000);
 		cmdq_handle = cmdq_pkt_create(mtk_crtc->cmdq_client, PAGE_SIZE);
 		cmdq_pkt_clear_event(cmdq_handle, mtk_crtc->cmdq_event);
-		cmdq_pkt_wfe(cmdq_handle, mtk_crtc->cmdq_event);
+		cmdq_pkt_wfe(cmdq_handle, mtk_crtc->cmdq_event, false);
 		mtk_crtc_ddp_config(crtc, cmdq_handle);
 		cmdq_pkt_finalize(cmdq_handle);
 		cmdq_pkt_flush_async(cmdq_handle, ddp_cmdq_cb, cmdq_handle);
@@ -831,13 +831,19 @@ int mtk_drm_crtc_create(struct drm_device *drm_dev,
 			drm_crtc_index(&mtk_crtc->base));
 		mtk_crtc->cmdq_client = NULL;
 	}
-	ret = of_property_read_u32_index(priv->mutex_node,
-					 "mediatek,gce-events",
-					 drm_crtc_index(&mtk_crtc->base),
-					 &mtk_crtc->cmdq_event);
-	if (ret)
-		dev_dbg(dev, "mtk_crtc %d failed to get mediatek,gce-events property\n",
-			drm_crtc_index(&mtk_crtc->base));
+
+	if (mtk_crtc->cmdq_client) {
+		ret = of_property_read_u32_index(priv->mutex_node,
+						 "mediatek,gce-events",
+						 drm_crtc_index(&mtk_crtc->base),
+						 &mtk_crtc->cmdq_event);
+		if (ret) {
+			dev_dbg(dev, "mtk_crtc %d failed to get mediatek,gce-events property\n",
+				drm_crtc_index(&mtk_crtc->base));
+			cmdq_mbox_destroy(mtk_crtc->cmdq_client);
+			mtk_crtc->cmdq_client = NULL;
+		}
+	}
 #endif
 	return 0;
 }

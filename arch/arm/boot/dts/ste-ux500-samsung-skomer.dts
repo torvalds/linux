@@ -108,15 +108,12 @@
 		};
 	};
 
-	/*
-	 * FIXME: this is not quite GPIO backlight. This is a
-	 * KTD253 one-wire GPIO-controlled backlight. It can
-	 * work as a GPIO backlight.
-	 */
-	gpio_bl: backlight {
-		compatible = "gpio-backlight";
+	ktd253: backlight {
+		compatible = "kinetic,ktd253";
 		/* GPIO 69 */
-		gpios = <&gpio2 5 GPIO_ACTIVE_HIGH>;
+		enable-gpios = <&gpio2 5 GPIO_ACTIVE_HIGH>;
+		/* Default to 13/32 brightness */
+		default-brightness = <13>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&gpio_backlight_default_mode>;
 	};
@@ -409,7 +406,7 @@
 					reset-gpios = <&gpio4 11 GPIO_ACTIVE_LOW>;
 					pinctrl-names = "default";
 					pinctrl-0 = <&display_default_mode>;
-					backlight = <&gpio_bl>;
+					backlight = <&ktd253>;
 				};
 			};
 		};

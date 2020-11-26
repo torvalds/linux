@@ -47,7 +47,8 @@
 };
 
 &pcie {
-	status = "disabled";
+	reset-gpio = <&max7310_c 5 GPIO_ACTIVE_LOW>;
+	status = "okay";
 };
 
 &sata {

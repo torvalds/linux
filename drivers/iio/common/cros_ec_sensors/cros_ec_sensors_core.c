@@ -72,8 +72,11 @@ static void get_default_min_max_freq(enum motionsensor_type type,
 
 	switch (type) {
 	case MOTIONSENSE_TYPE_ACCEL:
-	case MOTIONSENSE_TYPE_GYRO:
 		*min_freq = 12500;
+		*max_freq = 100000;
+		break;
+	case MOTIONSENSE_TYPE_GYRO:
+		*min_freq = 25000;
 		*max_freq = 100000;
 		break;
 	case MOTIONSENSE_TYPE_MAG:
@@ -174,12 +177,11 @@ static ssize_t hwfifo_watermark_max_show(struct device *dev,
 
 static IIO_DEVICE_ATTR_RO(hwfifo_watermark_max, 0);
 
-const struct attribute *cros_ec_sensor_fifo_attributes[] = {
+static const struct attribute *cros_ec_sensor_fifo_attributes[] = {
 	&iio_dev_attr_hwfifo_timeout.dev_attr.attr,
 	&iio_dev_attr_hwfifo_watermark_max.dev_attr.attr,
 	NULL,
 };
-EXPORT_SYMBOL_GPL(cros_ec_sensor_fifo_attributes);
 
 int cros_ec_sensors_push_data(struct iio_dev *indio_dev,
 			      s16 *data,
@@ -238,6 +240,7 @@ static void cros_ec_sensors_core_clean(void *arg)
  *    for backward compatibility.
  * @push_data:          function to call when cros_ec_sensorhub receives
  *    a sample for that sensor.
+ * @has_hw_fifo:	Set true if this device has/uses a HW FIFO
  *
  * Return: 0 on success, -errno on failure.
  */
@@ -245,14 +248,15 @@ int cros_ec_sensors_core_init(struct platform_device *pdev,
 			      struct iio_dev *indio_dev,
 			      bool physical_device,
 			      cros_ec_sensors_capture_t trigger_capture,
-			      cros_ec_sensorhub_push_data_cb_t push_data)
+			      cros_ec_sensorhub_push_data_cb_t push_data,
+			      bool has_hw_fifo)
 {
 	struct device *dev = &pdev->dev;
 	struct cros_ec_sensors_core_state *state = iio_priv(indio_dev);
 	struct cros_ec_sensorhub *sensor_hub = dev_get_drvdata(dev->parent);
 	struct cros_ec_dev *ec = sensor_hub->ec;
 	struct cros_ec_sensor_platform *sensor_platform = dev_get_platdata(dev);
-	u32 ver_mask;
+	u32 ver_mask, temp;
 	int frequencies[ARRAY_SIZE(state->frequencies) / 2] = { 0 };
 	int ret, i;
 
@@ -307,10 +311,16 @@ int cros_ec_sensors_core_init(struct platform_device *pdev,
 						 &frequencies[2],
 						 &state->fifo_max_event_count);
 		} else {
-			frequencies[1] = state->resp->info_3.min_frequency;
-			frequencies[2] = state->resp->info_3.max_frequency;
-			state->fifo_max_event_count =
-			    state->resp->info_3.fifo_max_event_count;
+			if (state->resp->info_3.max_frequency == 0) {
+				get_default_min_max_freq(state->resp->info.type,
+							 &frequencies[1],
+							 &frequencies[2],
+							 &temp);
+			} else {
+				frequencies[1] = state->resp->info_3.min_frequency;
+				frequencies[2] = state->resp->info_3.max_frequency;
+			}
+			state->fifo_max_event_count = state->resp->info_3.fifo_max_event_count;
 		}
 		for (i = 0; i < ARRAY_SIZE(frequencies); i++) {
 			state->frequencies[2 * i] = frequencies[i] / 1000;
@@ -358,6 +368,10 @@ int cros_ec_sensors_core_init(struct platform_device *pdev,
 					NULL);
 			if (ret)
 				return ret;
+
+			if (has_hw_fifo)
+				iio_buffer_set_attrs(indio_dev->buffer,
+						     cros_ec_sensor_fifo_attributes);
 		}
 	}
 

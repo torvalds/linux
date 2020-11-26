@@ -725,7 +725,7 @@ static void gdb_cmd_query(struct kgdb_state *ks)
 			}
 		}
 
-		do_each_thread(g, p) {
+		for_each_process_thread(g, p) {
 			if (i >= ks->thr_query && !finished) {
 				int_to_threadref(thref, p->pid);
 				ptr = pack_threadid(ptr, thref);
@@ -735,7 +735,7 @@ static void gdb_cmd_query(struct kgdb_state *ks)
 					finished = 1;
 			}
 			i++;
-		} while_each_thread(g, p);
+		}
 
 		*(--ptr) = '\0';
 		break;
@@ -1046,14 +1046,14 @@ int gdb_serial_stub(struct kgdb_state *ks)
 				return DBG_PASS_EVENT;
 			}
 #endif
-			/* Fall through */
+			fallthrough;
 		case 'C': /* Exception passing */
 			tmp = gdb_cmd_exception_pass(ks);
 			if (tmp > 0)
 				goto default_handle;
 			if (tmp == 0)
 				break;
-			/* Fall through - on tmp < 0 */
+			fallthrough;	/* on tmp < 0 */
 		case 'c': /* Continue packet */
 		case 's': /* Single step packet */
 			if (kgdb_contthread && kgdb_contthread != current) {
@@ -1061,8 +1061,7 @@ int gdb_serial_stub(struct kgdb_state *ks)
 				error_packet(remcom_out_buffer, -EINVAL);
 				break;
 			}
-			dbg_activate_sw_breakpoints();
-			/* Fall through - to default processing */
+			fallthrough;	/* to default processing */
 		default:
 default_handle:
 			error = kgdb_arch_handle_exception(ks->ex_vector,

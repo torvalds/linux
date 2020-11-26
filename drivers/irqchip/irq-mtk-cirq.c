@@ -295,6 +295,4 @@ out_free:
 	return ret;
 }
 
-IRQCHIP_PLATFORM_DRIVER_BEGIN(mtk_cirq)
-IRQCHIP_MATCH("mediatek,mtk-cirq", mtk_cirq_of_init)
-IRQCHIP_PLATFORM_DRIVER_END(mtk_cirq)
+IRQCHIP_DECLARE(mtk_cirq, "mediatek,mtk-cirq", mtk_cirq_of_init);

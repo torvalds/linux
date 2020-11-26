@@ -1738,13 +1738,13 @@ static int __phy_write_mcb_s6g(struct phy_device *phydev, u32 reg, u8 mcb,
 	return 0;
 }
 
-/* Trigger a read to the spcified MCB */
+/* Trigger a read to the specified MCB */
 static int phy_update_mcb_s6g(struct phy_device *phydev, u32 reg, u8 mcb)
 {
 	return __phy_write_mcb_s6g(phydev, reg, mcb, PHY_MCB_S6G_READ);
 }
 
-/* Trigger a write to the spcified MCB */
+/* Trigger a write to the specified MCB */
 static int phy_commit_mcb_s6g(struct phy_device *phydev, u32 reg, u8 mcb)
 {
 	return __phy_write_mcb_s6g(phydev, reg, mcb, PHY_MCB_S6G_WRITE);

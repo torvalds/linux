@@ -56,7 +56,7 @@ static int s5_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_temp_input:
 		stat = readl_relaxed(hwmon->base + TEMP_STAT);
 		if (!(stat & TEMP_STAT_VALID))
-			return -EIO;
+			return -EAGAIN;
 		value = stat & TEMP_STAT_TEMP;
 		/*
 		 * From register documentation:

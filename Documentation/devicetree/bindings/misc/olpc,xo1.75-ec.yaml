@@ -28,11 +28,13 @@ properties:
     description: GPIO uspecifier of the CMD pin
     maxItems: 1
 
+  spi-cpha: true
+
 required:
   - compatible
   - cmd-gpios
 
-unevaluatedProperties: false
+additionalProperties: false
 
 examples:
   - |
@@ -40,6 +42,8 @@ examples:
 
     spi {
       spi-slave;
+      #address-cells = <0>;
+      #size-cells = <0>;
       ready-gpios = <&gpio 125 GPIO_ACTIVE_HIGH>;
 
       slave {

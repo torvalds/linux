@@ -13,13 +13,11 @@
 #include <errno.h>
 #include <linux/err.h>
 #include <linux/btf.h>
+#include <linux/kernel.h>
 #include "btf.h"
 #include "hashmap.h"
 #include "libbpf.h"
 #include "libbpf_internal.h"
-
-/* make sure libbpf doesn't use kernel-only integer typedefs */
-#pragma GCC poison u8 u16 u32 u64 s8 s16 s32 s64
 
 static const char PREFIXES[] = "\t\t\t\t\t\t\t\t\t\t\t\t\t";
 static const size_t PREFIX_CNT = sizeof(PREFIXES) - 1;
@@ -60,12 +58,16 @@ struct btf_dump {
 	const struct btf_ext *btf_ext;
 	btf_dump_printf_fn_t printf_fn;
 	struct btf_dump_opts opts;
+	int ptr_sz;
 	bool strip_mods;
+	int last_id;
 
 	/* per-type auxiliary state */
 	struct btf_dump_type_aux_state *type_states;
+	size_t type_states_cap;
 	/* per-type optional cached unique name, must be freed, if present */
 	const char **cached_names;
+	size_t cached_names_cap;
 
 	/* topo-sorted list of dependent type definitions */
 	__u32 *emit_queue;
@@ -91,14 +93,7 @@ struct btf_dump {
 
 static size_t str_hash_fn(const void *key, void *ctx)
 {
-	const char *s = key;
-	size_t h = 0;
-
-	while (*s) {
-		h = h * 31 + *s;
-		s++;
-	}
-	return h;
+	return str_hash(key);
 }
 
 static bool str_equal_fn(const void *a, const void *b, void *ctx)
@@ -121,6 +116,7 @@ static void btf_dump_printf(const struct btf_dump *d, const char *fmt, ...)
 }
 
 static int btf_dump_mark_referenced(struct btf_dump *d);
+static int btf_dump_resize(struct btf_dump *d);
 
 struct btf_dump *btf_dump__new(const struct btf *btf,
 			       const struct btf_ext *btf_ext,
@@ -138,6 +134,7 @@ struct btf_dump *btf_dump__new(const struct btf *btf,
 	d->btf_ext = btf_ext;
 	d->printf_fn = printf_fn;
 	d->opts.ctx = opts ? opts->ctx : NULL;
+	d->ptr_sz = btf__pointer_size(btf) ? : sizeof(void *);
 
 	d->type_names = hashmap__new(str_hash_fn, str_equal_fn, NULL);
 	if (IS_ERR(d->type_names)) {
@@ -151,25 +148,8 @@ struct btf_dump *btf_dump__new(const struct btf *btf,
 		d->ident_names = NULL;
 		goto err;
 	}
-	d->type_states = calloc(1 + btf__get_nr_types(d->btf),
-				sizeof(d->type_states[0]));
-	if (!d->type_states) {
-		err = -ENOMEM;
-		goto err;
-	}
-	d->cached_names = calloc(1 + btf__get_nr_types(d->btf),
-				 sizeof(d->cached_names[0]));
-	if (!d->cached_names) {
-		err = -ENOMEM;
-		goto err;
-	}
 
-	/* VOID is special */
-	d->type_states[0].order_state = ORDERED;
-	d->type_states[0].emit_state = EMITTED;
-
-	/* eagerly determine referenced types for anon enums */
-	err = btf_dump_mark_referenced(d);
+	err = btf_dump_resize(d);
 	if (err)
 		goto err;
 
@@ -179,9 +159,38 @@ err:
 	return ERR_PTR(err);
 }
 
+static int btf_dump_resize(struct btf_dump *d)
+{
+	int err, last_id = btf__get_nr_types(d->btf);
+
+	if (last_id <= d->last_id)
+		return 0;
+
+	if (btf_ensure_mem((void **)&d->type_states, &d->type_states_cap,
+			   sizeof(*d->type_states), last_id + 1))
+		return -ENOMEM;
+	if (btf_ensure_mem((void **)&d->cached_names, &d->cached_names_cap,
+			   sizeof(*d->cached_names), last_id + 1))
+		return -ENOMEM;
+
+	if (d->last_id == 0) {
+		/* VOID is special */
+		d->type_states[0].order_state = ORDERED;
+		d->type_states[0].emit_state = EMITTED;
+	}
+
+	/* eagerly determine referenced types for anon enums */
+	err = btf_dump_mark_referenced(d);
+	if (err)
+		return err;
+
+	d->last_id = last_id;
+	return 0;
+}
+
 void btf_dump__free(struct btf_dump *d)
 {
-	int i, cnt;
+	int i;
 
 	if (IS_ERR_OR_NULL(d))
 		return;
@@ -189,7 +198,7 @@ void btf_dump__free(struct btf_dump *d)
 	free(d->type_states);
 	if (d->cached_names) {
 		/* any set cached name is owned by us and should be freed */
-		for (i = 0, cnt = btf__get_nr_types(d->btf); i <= cnt; i++) {
+		for (i = 0; i <= d->last_id; i++) {
 			if (d->cached_names[i])
 				free((void *)d->cached_names[i]);
 		}
@@ -229,6 +238,10 @@ int btf_dump__dump_type(struct btf_dump *d, __u32 id)
 	if (id > btf__get_nr_types(d->btf))
 		return -EINVAL;
 
+	err = btf_dump_resize(d);
+	if (err)
+		return err;
+
 	d->emit_queue_cnt = 0;
 	err = btf_dump_order_type(d, id, false);
 	if (err < 0)
@@ -258,7 +271,7 @@ static int btf_dump_mark_referenced(struct btf_dump *d)
 	const struct btf_type *t;
 	__u16 vlen;
 
-	for (i = 1; i <= n; i++) {
+	for (i = d->last_id + 1; i <= n; i++) {
 		t = btf__type_by_id(d->btf, i);
 		vlen = btf_vlen(t);
 
@@ -313,6 +326,7 @@ static int btf_dump_mark_referenced(struct btf_dump *d)
 	}
 	return 0;
 }
+
 static int btf_dump_add_emit_queue_id(struct btf_dump *d, __u32 id)
 {
 	__u32 *new_queue;
@@ -320,8 +334,7 @@ static int btf_dump_add_emit_queue_id(struct btf_dump *d, __u32 id)
 
 	if (d->emit_queue_cnt >= d->emit_queue_cap) {
 		new_cap = max(16, d->emit_queue_cap * 3 / 2);
-		new_queue = realloc(d->emit_queue,
-				    new_cap * sizeof(new_queue[0]));
+		new_queue = libbpf_reallocarray(d->emit_queue, new_cap, sizeof(new_queue[0]));
 		if (!new_queue)
 			return -ENOMEM;
 		d->emit_queue = new_queue;
@@ -549,6 +562,9 @@ static int btf_dump_order_type(struct btf_dump *d, __u32 id, bool through_ptr)
 	}
 }
 
+static void btf_dump_emit_missing_aliases(struct btf_dump *d, __u32 id,
+					  const struct btf_type *t);
+
 static void btf_dump_emit_struct_fwd(struct btf_dump *d, __u32 id,
 				     const struct btf_type *t);
 static void btf_dump_emit_struct_def(struct btf_dump *d, __u32 id,
@@ -671,6 +687,9 @@ static void btf_dump_emit_type(struct btf_dump *d, __u32 id, __u32 cont_id)
 
 	switch (kind) {
 	case BTF_KIND_INT:
+		/* Emit type alias definitions if necessary */
+		btf_dump_emit_missing_aliases(d, id, t);
+
 		tstate->emit_state = EMITTED;
 		break;
 	case BTF_KIND_ENUM:
@@ -797,7 +816,7 @@ static void btf_dump_emit_bit_padding(const struct btf_dump *d,
 				      int align, int lvl)
 {
 	int off_diff = m_off - cur_off;
-	int ptr_bits = sizeof(void *) * 8;
+	int ptr_bits = d->ptr_sz * 8;
 
 	if (off_diff <= 0)
 		/* no gap */
@@ -870,7 +889,7 @@ static void btf_dump_emit_struct_def(struct btf_dump *d,
 			btf_dump_printf(d, ": %d", m_sz);
 			off = m_off + m_sz;
 		} else {
-			m_sz = max(0, btf__resolve_size(d->btf, m->type));
+			m_sz = max((__s64)0, btf__resolve_size(d->btf, m->type));
 			off = m_off + m_sz * 8;
 		}
 		btf_dump_printf(d, ";");
@@ -888,6 +907,32 @@ static void btf_dump_emit_struct_def(struct btf_dump *d,
 	btf_dump_printf(d, "%s}", pfx(lvl));
 	if (packed)
 		btf_dump_printf(d, " __attribute__((packed))");
+}
+
+static const char *missing_base_types[][2] = {
+	/*
+	 * GCC emits typedefs to its internal __PolyX_t types when compiling Arm
+	 * SIMD intrinsics. Alias them to standard base types.
+	 */
+	{ "__Poly8_t",		"unsigned char" },
+	{ "__Poly16_t",		"unsigned short" },
+	{ "__Poly64_t",		"unsigned long long" },
+	{ "__Poly128_t",	"unsigned __int128" },
+};
+
+static void btf_dump_emit_missing_aliases(struct btf_dump *d, __u32 id,
+					  const struct btf_type *t)
+{
+	const char *name = btf_dump_type_name(d, id);
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(missing_base_types); i++) {
+		if (strcmp(name, missing_base_types[i][0]) == 0) {
+			btf_dump_printf(d, "typedef %s %s;\n\n",
+					missing_base_types[i][1], name);
+			break;
+		}
+	}
 }
 
 static void btf_dump_emit_enum_fwd(struct btf_dump *d, __u32 id,
@@ -968,8 +1013,7 @@ static int btf_dump_push_decl_stack_id(struct btf_dump *d, __u32 id)
 
 	if (d->decl_stack_cnt >= d->decl_stack_cap) {
 		new_cap = max(16, d->decl_stack_cap * 3 / 2);
-		new_stack = realloc(d->decl_stack,
-				    new_cap * sizeof(new_stack[0]));
+		new_stack = libbpf_reallocarray(d->decl_stack, new_cap, sizeof(new_stack[0]));
 		if (!new_stack)
 			return -ENOMEM;
 		d->decl_stack = new_stack;
@@ -1026,9 +1070,13 @@ int btf_dump__emit_type_decl(struct btf_dump *d, __u32 id,
 			     const struct btf_dump_emit_type_decl_opts *opts)
 {
 	const char *fname;
-	int lvl;
+	int lvl, err;
 
 	if (!OPTS_VALID(opts, btf_dump_emit_type_decl_opts))
+		return -EINVAL;
+
+	err = btf_dump_resize(d);
+	if (err)
 		return -EINVAL;
 
 	fname = OPTS_GET(opts, field_name, "");

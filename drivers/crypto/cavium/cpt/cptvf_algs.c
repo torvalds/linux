@@ -451,13 +451,7 @@ static struct skcipher_alg algs[] = { {
 
 static inline int cav_register_algs(void)
 {
-	int err = 0;
-
-	err = crypto_register_skciphers(algs, ARRAY_SIZE(algs));
-	if (err)
-		return err;
-
-	return 0;
+	return crypto_register_skciphers(algs, ARRAY_SIZE(algs));
 }
 
 static inline void cav_unregister_algs(void)

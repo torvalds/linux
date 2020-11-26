@@ -52,7 +52,6 @@ struct error_hdr {
 #define REP82_ERROR_INVALID_COMMAND	    0x30
 #define REP82_ERROR_MALFORMED_MSG	    0x40
 #define REP82_ERROR_INVALID_SPECIAL_CMD	    0x41
-#define REP82_ERROR_INVALID_DOMAIN_PRECHECK 0x42
 #define REP82_ERROR_RESERVED_FIELDO	    0x50 /* old value	*/
 #define REP82_ERROR_WORD_ALIGNMENT	    0x60
 #define REP82_ERROR_MESSAGE_LENGTH	    0x80
@@ -67,7 +66,6 @@ struct error_hdr {
 #define REP82_ERROR_ZERO_BUFFER_LEN	    0xB0
 
 #define REP88_ERROR_MODULE_FAILURE	    0x10
-
 #define REP88_ERROR_MESSAGE_TYPE	    0x20
 #define REP88_ERROR_MESSAGE_MALFORMD	    0x22
 #define REP88_ERROR_MESSAGE_LENGTH	    0x23
@@ -85,78 +83,56 @@ static inline int convert_error(struct zcrypt_queue *zq,
 	int queue = AP_QID_QUEUE(zq->queue->qid);
 
 	switch (ehdr->reply_code) {
-	case REP82_ERROR_OPERAND_INVALID:
-	case REP82_ERROR_OPERAND_SIZE:
-	case REP82_ERROR_EVEN_MOD_IN_OPND:
-	case REP88_ERROR_MESSAGE_MALFORMD:
-	case REP82_ERROR_INVALID_DOMAIN_PRECHECK:
-	case REP82_ERROR_INVALID_DOMAIN_PENDING:
-	case REP82_ERROR_INVALID_SPECIAL_CMD:
-	case REP82_ERROR_FILTERED_BY_HYPERVISOR:
-	//   REP88_ERROR_INVALID_KEY		// '82' CEX2A
-	//   REP88_ERROR_OPERAND		// '84' CEX2A
-	//   REP88_ERROR_OPERAND_EVEN_MOD	// '85' CEX2A
-		/* Invalid input data. */
+	case REP82_ERROR_INVALID_MSG_LEN:	 /* 0x23 */
+	case REP82_ERROR_RESERVD_FIELD:		 /* 0x24 */
+	case REP82_ERROR_FORMAT_FIELD:		 /* 0x29 */
+	case REP82_ERROR_MALFORMED_MSG:		 /* 0x40 */
+	case REP82_ERROR_INVALID_SPECIAL_CMD:	 /* 0x41 */
+	case REP82_ERROR_MESSAGE_LENGTH:	 /* 0x80 */
+	case REP82_ERROR_OPERAND_INVALID:	 /* 0x82 */
+	case REP82_ERROR_OPERAND_SIZE:		 /* 0x84 */
+	case REP82_ERROR_EVEN_MOD_IN_OPND:	 /* 0x85 */
+	case REP82_ERROR_INVALID_DOMAIN_PENDING: /* 0x8A */
+	case REP82_ERROR_FILTERED_BY_HYPERVISOR: /* 0x8B */
+	case REP82_ERROR_PACKET_TRUNCATED:	 /* 0xA0 */
+	case REP88_ERROR_MESSAGE_MALFORMD:	 /* 0x22 */
+	case REP88_ERROR_KEY_TYPE:		 /* 0x34 */
+		/* RY indicates malformed request */
 		ZCRYPT_DBF(DBF_WARN,
-			   "device=%02x.%04x reply=0x%02x => rc=EINVAL\n",
+			   "dev=%02x.%04x RY=0x%02x => rc=EINVAL\n",
 			   card, queue, ehdr->reply_code);
 		return -EINVAL;
-	case REP82_ERROR_MESSAGE_TYPE:
-	//   REP88_ERROR_MESSAGE_TYPE		// '20' CEX2A
+	case REP82_ERROR_MACHINE_FAILURE:	 /* 0x10 */
+	case REP82_ERROR_MESSAGE_TYPE:		 /* 0x20 */
+	case REP82_ERROR_TRANSPORT_FAIL:	 /* 0x90 */
 		/*
-		 * To sent a message of the wrong type is a bug in the
-		 * device driver. Send error msg, disable the device
-		 * and then repeat the request.
+		 * Msg to wrong type or card/infrastructure failure.
+		 * Trigger rescan of the ap bus, trigger retry request.
 		 */
 		atomic_set(&zcrypt_rescan_req, 1);
-		zq->online = 0;
-		pr_err("Cryptographic device %02x.%04x failed and was set offline\n",
-		       card, queue);
-		ZCRYPT_DBF(DBF_ERR,
-			   "device=%02x.%04x reply=0x%02x => online=0 rc=EAGAIN\n",
-			   card, queue, ehdr->reply_code);
-		return -EAGAIN;
-	case REP82_ERROR_TRANSPORT_FAIL:
-		/* Card or infrastructure failure, disable card */
-		atomic_set(&zcrypt_rescan_req, 1);
-		zq->online = 0;
-		pr_err("Cryptographic device %02x.%04x failed and was set offline\n",
-		       card, queue);
 		/* For type 86 response show the apfs value (failure reason) */
-		if (ehdr->type == TYPE86_RSP_CODE) {
+		if (ehdr->reply_code == REP82_ERROR_TRANSPORT_FAIL &&
+		    ehdr->type == TYPE86_RSP_CODE) {
 			struct {
 				struct type86_hdr hdr;
 				struct type86_fmt2_ext fmt2;
 			} __packed * head = reply->msg;
 			unsigned int apfs = *((u32 *)head->fmt2.apfs);
 
-			ZCRYPT_DBF(DBF_ERR,
-				   "device=%02x.%04x reply=0x%02x apfs=0x%x => online=0 rc=EAGAIN\n",
-				   card, queue, apfs, ehdr->reply_code);
+			ZCRYPT_DBF(DBF_WARN,
+				   "dev=%02x.%04x RY=0x%02x apfs=0x%x => bus rescan, rc=EAGAIN\n",
+				   card, queue, ehdr->reply_code, apfs);
 		} else
-			ZCRYPT_DBF(DBF_ERR,
-				   "device=%02x.%04x reply=0x%02x => online=0 rc=EAGAIN\n",
+			ZCRYPT_DBF(DBF_WARN,
+				   "dev=%02x.%04x RY=0x%02x => bus rescan, rc=EAGAIN\n",
 				   card, queue, ehdr->reply_code);
 		return -EAGAIN;
-	case REP82_ERROR_MACHINE_FAILURE:
-	//   REP88_ERROR_MODULE_FAILURE		// '10' CEX2A
-		/* If a card fails disable it and repeat the request. */
-		atomic_set(&zcrypt_rescan_req, 1);
-		zq->online = 0;
-		pr_err("Cryptographic device %02x.%04x failed and was set offline\n",
-		       card, queue);
-		ZCRYPT_DBF(DBF_ERR,
-			   "device=%02x.%04x reply=0x%02x => online=0 rc=EAGAIN\n",
+	default:
+		/* Assume request is valid and a retry will be worth it */
+		ZCRYPT_DBF(DBF_WARN,
+			   "dev=%02x.%04x RY=0x%02x => rc=EAGAIN\n",
 			   card, queue, ehdr->reply_code);
 		return -EAGAIN;
-	default:
-		zq->online = 0;
-		pr_err("Cryptographic device %02x.%04x failed and was set offline\n",
-		       card, queue);
-		ZCRYPT_DBF(DBF_ERR,
-			   "device=%02x.%04x reply=0x%02x => online=0 rc=EAGAIN\n",
-			   card, queue, ehdr->reply_code);
-		return -EAGAIN;	/* repeat the request on a different device. */
 	}
 }
 

@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
+#include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 
 #include <sound/initval.h>
@@ -22,8 +23,15 @@
 
 #include "ak5558.h"
 
+#define AK5558_NUM_SUPPLIES 2
+static const char *ak5558_supply_names[AK5558_NUM_SUPPLIES] = {
+	"DVDD",
+	"AVDD",
+};
+
 /* AK5558 Codec Private Data */
 struct ak5558_priv {
+	struct regulator_bulk_data supplies[AK5558_NUM_SUPPLIES];
 	struct snd_soc_component component;
 	struct regmap *regmap;
 	struct i2c_client *i2c;
@@ -299,12 +307,22 @@ static int __maybe_unused ak5558_runtime_suspend(struct device *dev)
 	regcache_cache_only(ak5558->regmap, true);
 	ak5558_power_off(ak5558);
 
+	regulator_bulk_disable(ARRAY_SIZE(ak5558->supplies),
+			       ak5558->supplies);
 	return 0;
 }
 
 static int __maybe_unused ak5558_runtime_resume(struct device *dev)
 {
 	struct ak5558_priv *ak5558 = dev_get_drvdata(dev);
+	int ret;
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(ak5558->supplies),
+				    ak5558->supplies);
+	if (ret != 0) {
+		dev_err(dev, "Failed to enable supplies: %d\n", ret);
+		return ret;
+	}
 
 	ak5558_power_off(ak5558);
 	ak5558_power_on(ak5558);
@@ -350,6 +368,7 @@ static int ak5558_i2c_probe(struct i2c_client *i2c)
 {
 	struct ak5558_priv *ak5558;
 	int ret = 0;
+	int i;
 
 	ak5558 = devm_kzalloc(&i2c->dev, sizeof(*ak5558), GFP_KERNEL);
 	if (!ak5558)
@@ -367,6 +386,16 @@ static int ak5558_i2c_probe(struct i2c_client *i2c)
 	if (IS_ERR(ak5558->reset_gpiod))
 		return PTR_ERR(ak5558->reset_gpiod);
 
+	for (i = 0; i < ARRAY_SIZE(ak5558->supplies); i++)
+		ak5558->supplies[i].supply = ak5558_supply_names[i];
+
+	ret = devm_regulator_bulk_get(&i2c->dev, ARRAY_SIZE(ak5558->supplies),
+				      ak5558->supplies);
+	if (ret != 0) {
+		dev_err(&i2c->dev, "Failed to request supplies: %d\n", ret);
+		return ret;
+	}
+
 	ret = devm_snd_soc_register_component(&i2c->dev,
 				     &soc_codec_dev_ak5558,
 				     &ak5558_dai, 1);
@@ -374,6 +403,7 @@ static int ak5558_i2c_probe(struct i2c_client *i2c)
 		return ret;
 
 	pm_runtime_enable(&i2c->dev);
+	regcache_cache_only(ak5558->regmap, true);
 
 	return 0;
 }

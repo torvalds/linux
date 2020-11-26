@@ -48,7 +48,6 @@ static struct clk_bulk_data clks[] = {
 };
 
 static struct device *cpu_dev;
-static bool free_opp;
 static struct cpufreq_frequency_table *freq_table;
 static unsigned int max_freq;
 static unsigned int transition_latency;
@@ -390,9 +389,6 @@ static int imx6q_cpufreq_probe(struct platform_device *pdev)
 		goto put_reg;
 	}
 
-	/* Because we have added the OPPs here, we must free them */
-	free_opp = true;
-
 	if (of_machine_is_compatible("fsl,imx6ul") ||
 	    of_machine_is_compatible("fsl,imx6ull")) {
 		ret = imx6ul_opp_check_speed_grading(cpu_dev);
@@ -507,8 +503,7 @@ soc_opp_out:
 free_freq_table:
 	dev_pm_opp_free_cpufreq_table(cpu_dev, &freq_table);
 out_free_opp:
-	if (free_opp)
-		dev_pm_opp_of_remove_table(cpu_dev);
+	dev_pm_opp_of_remove_table(cpu_dev);
 put_reg:
 	if (!IS_ERR(arm_reg))
 		regulator_put(arm_reg);
@@ -528,8 +523,7 @@ static int imx6q_cpufreq_remove(struct platform_device *pdev)
 {
 	cpufreq_unregister_driver(&imx6q_cpufreq_driver);
 	dev_pm_opp_free_cpufreq_table(cpu_dev, &freq_table);
-	if (free_opp)
-		dev_pm_opp_of_remove_table(cpu_dev);
+	dev_pm_opp_of_remove_table(cpu_dev);
 	regulator_put(arm_reg);
 	if (!IS_ERR(pu_reg))
 		regulator_put(pu_reg);

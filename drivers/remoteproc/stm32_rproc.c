@@ -685,7 +685,7 @@ static int stm32_rproc_get_m4_status(struct stm32_rproc *ddata,
 		 * We couldn't get the coprocessor's state, assume
 		 * it is not running.
 		 */
-		state = M4_STATE_OFF;
+		*state = M4_STATE_OFF;
 		return 0;
 	}
 

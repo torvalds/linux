@@ -219,24 +219,6 @@ struct veth {
 	__be16 h_vlan_TCI;
 };
 
-bool tun_is_xdp_frame(void *ptr)
-{
-	return (unsigned long)ptr & TUN_XDP_FLAG;
-}
-EXPORT_SYMBOL(tun_is_xdp_frame);
-
-void *tun_xdp_to_ptr(void *ptr)
-{
-	return (void *)((unsigned long)ptr | TUN_XDP_FLAG);
-}
-EXPORT_SYMBOL(tun_xdp_to_ptr);
-
-void *tun_ptr_to_xdp(void *ptr)
-{
-	return (void *)((unsigned long)ptr & ~TUN_XDP_FLAG);
-}
-EXPORT_SYMBOL(tun_ptr_to_xdp);
-
 static int tun_napi_receive(struct napi_struct *napi, int budget)
 {
 	struct tun_file *tfile = container_of(napi, struct tun_file, napi);
@@ -1590,10 +1572,10 @@ static int tun_xdp_act(struct tun_struct *tun, struct bpf_prog *xdp_prog,
 		break;
 	default:
 		bpf_warn_invalid_xdp_action(act);
-		/* fall through */
+		fallthrough;
 	case XDP_ABORTED:
 		trace_xdp_exception(tun->dev, xdp_prog, act);
-		/* fall through */
+		fallthrough;
 	case XDP_DROP:
 		this_cpu_inc(tun->pcpu_stats->rx_dropped);
 		break;
@@ -2417,7 +2399,7 @@ static int tun_xdp_one(struct tun_struct *tun,
 		switch (err) {
 		case XDP_REDIRECT:
 			*flush = true;
-			/* fall through */
+			fallthrough;
 		case XDP_TX:
 			return 0;
 		case XDP_PASS:

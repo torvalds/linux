@@ -178,8 +178,7 @@ static struct pmbus_driver_info ltc3815_info = {
 	.write_word_data = ltc3815_write_word_data,
 };
 
-static int ltc3815_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int ltc3815_probe(struct i2c_client *client)
 {
 	int chip_id;
 
@@ -193,14 +192,14 @@ static int ltc3815_probe(struct i2c_client *client,
 	if ((chip_id & LTC3815_ID_MASK) != LTC3815_ID)
 		return -ENODEV;
 
-	return pmbus_do_probe(client, id, &ltc3815_info);
+	return pmbus_do_probe(client, &ltc3815_info);
 }
 
 static struct i2c_driver ltc3815_driver = {
 	.driver = {
 		   .name = "ltc3815",
 		   },
-	.probe = ltc3815_probe,
+	.probe_new = ltc3815_probe,
 	.remove = pmbus_do_remove,
 	.id_table = ltc3815_id,
 };

@@ -337,8 +337,7 @@ static int dvb_register(struct saa7164_port *port)
 
 	dprintk(DBGLVL_DVB, "%s(port=%d)\n", __func__, port->nr);
 
-	if (port->type != SAA7164_MPEG_DVB)
-		BUG();
+	BUG_ON(port->type != SAA7164_MPEG_DVB);
 
 	/* Sanity check that the PCI configuration space is active */
 	if (port->hwcfg.BARLocation == 0) {
@@ -479,8 +478,7 @@ int saa7164_dvb_unregister(struct saa7164_port *port)
 
 	dprintk(DBGLVL_DVB, "%s()\n", __func__);
 
-	if (port->type != SAA7164_MPEG_DVB)
-		BUG();
+	BUG_ON(port->type != SAA7164_MPEG_DVB);
 
 	/* Remove any allocated buffers */
 	mutex_lock(&port->dmaqueue_lock);
@@ -740,4 +738,3 @@ frontend_detach:
 	printk(KERN_ERR "%s() Frontend/I2C initialization failed\n", __func__);
 	return -1;
 }
-

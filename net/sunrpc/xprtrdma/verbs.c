@@ -268,7 +268,7 @@ rpcrdma_cm_event_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 	case RDMA_CM_EVENT_DEVICE_REMOVAL:
 		pr_info("rpcrdma: removing device %s for %pISpc\n",
 			ep->re_id->device->name, sap);
-		/* fall through */
+		fallthrough;
 	case RDMA_CM_EVENT_ADDR_CHANGE:
 		ep->re_connect_status = -ENODEV;
 		goto disconnected;
@@ -933,6 +933,8 @@ static void rpcrdma_req_reset(struct rpcrdma_req *req)
 
 	rpcrdma_regbuf_dma_unmap(req->rl_sendbuf);
 	rpcrdma_regbuf_dma_unmap(req->rl_recvbuf);
+
+	frwr_reset(req);
 }
 
 /* ASSUMPTION: the rb_allreqs list is stable for the duration,

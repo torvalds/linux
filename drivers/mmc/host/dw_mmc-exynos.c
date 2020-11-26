@@ -592,6 +592,7 @@ static struct platform_driver dw_mci_exynos_pltfm_driver = {
 	.remove		= dw_mci_exynos_remove,
 	.driver		= {
 		.name		= "dwmmc_exynos",
+		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table	= dw_mci_exynos_match,
 		.pm		= &dw_mci_exynos_pmops,
 	},

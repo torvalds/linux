@@ -649,12 +649,12 @@ static int ltc2978_get_id(struct i2c_client *client)
 	return -ENODEV;
 }
 
-static int ltc2978_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int ltc2978_probe(struct i2c_client *client)
 {
 	int i, chip_id;
 	struct ltc2978_data *data;
 	struct pmbus_driver_info *info;
+	const struct i2c_device_id *id;
 
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_READ_WORD_DATA))
@@ -670,11 +670,13 @@ static int ltc2978_probe(struct i2c_client *client,
 		return chip_id;
 
 	data->id = chip_id;
+	id = i2c_match_id(ltc2978_id, client);
 	if (data->id != id->driver_data)
 		dev_warn(&client->dev,
-			 "Device mismatch: Configured %s, detected %s\n",
+			 "Device mismatch: Configured %s (%d), detected %d\n",
 			 id->name,
-			 ltc2978_id[data->id].name);
+			 (int) id->driver_data,
+			 chip_id);
 
 	info = &data->info;
 	info->write_word_data = ltc2978_write_word_data;
@@ -832,7 +834,7 @@ static int ltc2978_probe(struct i2c_client *client,
 	}
 #endif
 
-	return pmbus_do_probe(client, id, info);
+	return pmbus_do_probe(client, info);
 }
 
 
@@ -872,7 +874,7 @@ static struct i2c_driver ltc2978_driver = {
 		   .name = "ltc2978",
 		   .of_match_table = of_match_ptr(ltc2978_of_match),
 		   },
-	.probe = ltc2978_probe,
+	.probe_new = ltc2978_probe,
 	.remove = pmbus_do_remove,
 	.id_table = ltc2978_id,
 };

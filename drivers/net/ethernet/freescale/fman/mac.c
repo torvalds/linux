@@ -359,8 +359,8 @@ EXPORT_SYMBOL(fman_set_mac_active_pause);
 /**
  * fman_get_pause_cfg
  * @mac_dev:	A pointer to the MAC device
- * @rx:		Return value for RX setting
- * @tx:		Return value for TX setting
+ * @rx_pause:	Return value for RX setting
+ * @tx_pause:	Return value for TX setting
  *
  * Determine the MAC RX/TX PAUSE frames settings based on PHY
  * autonegotiation or values set by eththool.

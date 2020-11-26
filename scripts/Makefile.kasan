@@ -1,8 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
-ifdef CONFIG_KASAN
 CFLAGS_KASAN_NOSANITIZE := -fno-builtin
 KASAN_SHADOW_OFFSET ?= $(CONFIG_KASAN_SHADOW_OFFSET)
-endif
 
 ifdef CONFIG_KASAN_GENERIC
 
@@ -49,3 +47,5 @@ CFLAGS_KASAN := -fsanitize=kernel-hwaddress \
 		$(instrumentation_flags)
 
 endif # CONFIG_KASAN_SW_TAGS
+
+export CFLAGS_KASAN CFLAGS_KASAN_NOSANITIZE

@@ -1951,8 +1951,12 @@ static int w83627ehf_probe(struct platform_device *pdev)
 							 data,
 							 &w83627ehf_chip_info,
 							 w83627ehf_groups);
+	if (IS_ERR(hwmon_dev)) {
+		err = PTR_ERR(hwmon_dev);
+		goto exit_release;
+	}
 
-	return PTR_ERR_OR_ZERO(hwmon_dev);
+	return 0;
 
 exit_release:
 	release_region(res->start, IOREGION_LENGTH);

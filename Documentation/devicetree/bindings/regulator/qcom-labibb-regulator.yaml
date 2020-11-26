@@ -47,7 +47,7 @@ properties:
 required:
   - compatible
 
-unevaluatedProperties: false
+additionalProperties: false
 
 examples:
   - |

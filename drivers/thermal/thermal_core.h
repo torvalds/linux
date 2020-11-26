@@ -34,7 +34,7 @@ extern struct thermal_governor *__governor_thermal_table_end[];
 
 #define THERMAL_TABLE_ENTRY(table, name)			\
 	static typeof(name) *__thermal_table_entry_##name	\
-	__used __section(__##table##_thermal_table) = &name
+	__used __section("__" #table "_thermal_table") = &name
 
 #define THERMAL_GOVERNOR_DECLARE(name)	THERMAL_TABLE_ENTRY(governor, name)
 
@@ -66,9 +66,9 @@ static inline bool cdev_is_power_actor(struct thermal_cooling_device *cdev)
 }
 
 int power_actor_get_max_power(struct thermal_cooling_device *cdev,
-			      struct thermal_zone_device *tz, u32 *max_power);
+			      u32 *max_power);
 int power_actor_get_min_power(struct thermal_cooling_device *cdev,
-			      struct thermal_zone_device *tz, u32 *min_power);
+			      u32 *min_power);
 int power_actor_set_power(struct thermal_cooling_device *cdev,
 			  struct thermal_instance *ti, u32 power);
 /**

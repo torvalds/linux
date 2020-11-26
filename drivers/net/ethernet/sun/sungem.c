@@ -2712,7 +2712,7 @@ static int gem_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	switch (cmd) {
 	case SIOCGMIIPHY:		/* Get address of MII PHY in use. */
 		data->phy_id = gp->mii_phy_addr;
-		/* Fallthrough... */
+		fallthrough;
 
 	case SIOCGMIIREG:		/* Read MII PHY register. */
 		data->val_out = __sungem_phy_read(gp, data->phy_id & 0x1f,
@@ -2965,9 +2965,8 @@ static int gem_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* It is guaranteed that the returned buffer will be at least
 	 * PAGE_SIZE aligned.
 	 */
-	gp->init_block = (struct gem_init_block *)
-		dma_alloc_coherent(&pdev->dev, sizeof(struct gem_init_block),
-				   &gp->gblock_dvma, GFP_KERNEL);
+	gp->init_block = dma_alloc_coherent(&pdev->dev, sizeof(struct gem_init_block),
+					    &gp->gblock_dvma, GFP_KERNEL);
 	if (!gp->init_block) {
 		pr_err("Cannot allocate init block, aborting\n");
 		err = -ENOMEM;

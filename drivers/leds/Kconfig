@@ -274,7 +274,7 @@ config LEDS_MT6323
 config LEDS_S3C24XX
 	tristate "LED Support for Samsung S3C24XX GPIO LEDs"
 	depends on LEDS_CLASS
-	depends on ARCH_S3C24XX
+	depends on ARCH_S3C24XX || COMPILE_TEST
 	help
 	  This option enables support for LEDs connected to GPIO lines
 	  on Samsung S3C24XX series CPUs, such as the S3C2410 and S3C2440.
@@ -304,13 +304,13 @@ config LEDS_WRAP
 config LEDS_COBALT_QUBE
 	tristate "LED Support for the Cobalt Qube series front LED"
 	depends on LEDS_CLASS
-	depends on MIPS_COBALT
+	depends on MIPS_COBALT || COMPILE_TEST
 	help
 	  This option enables support for the front LED on Cobalt Qube series
 
 config LEDS_COBALT_RAQ
 	bool "LED Support for the Cobalt Raq series"
-	depends on LEDS_CLASS=y && MIPS_COBALT
+	depends on LEDS_CLASS=y && (MIPS_COBALT || COMPILE_TEST)
 	select LEDS_TRIGGERS
 	help
 	  This option enables support for the Cobalt Raq series LEDs.
@@ -395,8 +395,20 @@ config LEDS_LP3952
 	  To compile this driver as a module, choose M here: the
 	  module will be called leds-lp3952.
 
+config LEDS_LP50XX
+	tristate "LED Support for TI LP5036/30/24/18/12/9 LED driver chip"
+	depends on LEDS_CLASS && REGMAP_I2C
+	depends on LEDS_CLASS_MULTICOLOR || !LEDS_CLASS_MULTICOLOR
+	help
+	  If you say yes here you get support for the Texas Instruments
+	  LP5036, LP5030, LP5024, LP5018, LP5012 and LP5009 LED driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called leds-lp50xx.
+
 config LEDS_LP55XX_COMMON
 	tristate "Common Driver for TI/National LP5521/5523/55231/5562/8501"
+	depends on LEDS_CLASS
 	depends on LEDS_CLASS_MULTICOLOR || !LEDS_CLASS_MULTICOLOR
 	depends on OF
 	depends on I2C
@@ -632,7 +644,7 @@ config LEDS_MC13783
 config LEDS_NS2
 	tristate "LED support for Network Space v2 GPIO LEDs"
 	depends on LEDS_CLASS
-	depends on MACH_KIRKWOOD || MACH_ARMADA_370
+	depends on MACH_KIRKWOOD || MACH_ARMADA_370 || COMPILE_TEST
 	default y
 	help
 	  This option enables support for the dual-GPIO LEDs found on the
@@ -646,7 +658,7 @@ config LEDS_NS2
 config LEDS_NETXBIG
 	tristate "LED support for Big Network series LEDs"
 	depends on LEDS_CLASS
-	depends on MACH_KIRKWOOD
+	depends on MACH_KIRKWOOD || COMPILE_TEST
 	depends on OF_GPIO
 	default y
 	help
@@ -893,7 +905,7 @@ config LEDS_TPS6105X
 config LEDS_IP30
 	tristate "LED support for SGI Octane machines"
 	depends on LEDS_CLASS
-	depends on SGI_MFD_IOC3
+	depends on SGI_MFD_IOC3 || COMPILE_TEST
 	help
 	  This option enables support for the Red and White LEDs of
 	  SGI Octane machines.
@@ -908,6 +920,13 @@ config LEDS_SGM3140
 	help
 	  This option enables support for the SGM3140 500mA Buck/Boost Charge
 	  Pump LED Driver.
+
+config LEDS_ACER_A500
+	tristate "Power button LED support for Acer Iconia Tab A500"
+	depends on LEDS_CLASS && MFD_ACER_A500_EC
+	help
+	  This option enables support for the Power Button LED of
+	  Acer Iconia Tab A500.
 
 comment "LED Triggers"
 source "drivers/leds/trigger/Kconfig"

@@ -11,6 +11,8 @@ maintainers:
   - Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
 
 properties:
+  $nodename:
+    const: "/"
   compatible:
     oneOf:
       # The Actions Semi S500 is a quad-core ARM Cortex-A9 SoC.
@@ -18,6 +20,12 @@ properties:
           - enum:
               - allo,sparky # Allo.com Sparky
               - cubietech,cubieboard6 # Cubietech CubieBoard6
+              - roseapplepi,roseapplepi # RoseapplePi.org RoseapplePi
+          - const: actions,s500
+      - items:
+          - enum:
+              - caninos,labrador-base-m # Labrador Base Board M v1
+          - const: caninos,labrador-v2  # Labrador Core v2
           - const: actions,s500
       - items:
           - enum:
@@ -28,6 +36,11 @@ properties:
       # The Actions Semi S700 is a quad-core ARM Cortex-A53 SoC.
       - items:
           - enum:
+              - caninos,labrador-base-m2 # Labrador Base Board M v2
+          - const: caninos,labrador-v3   # Labrador Core v3
+          - const: actions,s700
+      - items:
+          - enum:
               - cubietech,cubieboard7 # Cubietech CubieBoard7
           - const: actions,s700
 
@@ -36,3 +49,5 @@ properties:
           - enum:
               - ucrobotics,bubblegum-96 # uCRobotics Bubblegum-96
           - const: actions,s900
+
+additionalProperties: true

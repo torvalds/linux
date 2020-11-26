@@ -118,8 +118,8 @@ IWL_EXPORT_SYMBOL(iwl_acpi_get_object);
 * method (DSM) interface. The returned acpi object must be freed by calling
 * function.
 */
-void *iwl_acpi_get_dsm_object(struct device *dev, int rev, int func,
-			      union acpi_object *args)
+static void *iwl_acpi_get_dsm_object(struct device *dev, int rev, int func,
+				     union acpi_object *args)
 {
 	union acpi_object *obj;
 
@@ -400,9 +400,9 @@ out_free:
 }
 IWL_EXPORT_SYMBOL(iwl_acpi_get_eckv);
 
-int iwl_sar_set_profile(union acpi_object *table,
-			struct iwl_sar_profile *profile,
-			bool enabled)
+static int iwl_sar_set_profile(union acpi_object *table,
+			       struct iwl_sar_profile *profile,
+			       bool enabled)
 {
 	int i;
 
@@ -418,18 +418,13 @@ int iwl_sar_set_profile(union acpi_object *table,
 
 	return 0;
 }
-IWL_EXPORT_SYMBOL(iwl_sar_set_profile);
 
-int iwl_sar_select_profile(struct iwl_fw_runtime *fwrt,
-			   __le16 per_chain_restriction[][IWL_NUM_SUB_BANDS],
-			   int prof_a, int prof_b)
+static int iwl_sar_fill_table(struct iwl_fw_runtime *fwrt,
+			      __le16 *per_chain, u32 n_subbands,
+			      int prof_a, int prof_b)
 {
-	int i, j, idx;
 	int profs[ACPI_SAR_NUM_CHAIN_LIMITS] = { prof_a, prof_b };
-
-	BUILD_BUG_ON(ACPI_SAR_NUM_CHAIN_LIMITS < 2);
-	BUILD_BUG_ON(ACPI_SAR_NUM_CHAIN_LIMITS * ACPI_SAR_NUM_SUB_BANDS !=
-		     ACPI_SAR_TABLE_SIZE);
+	int i, j, idx;
 
 	for (i = 0; i < ACPI_SAR_NUM_CHAIN_LIMITS; i++) {
 		struct iwl_sar_profile *prof;
@@ -461,9 +456,9 @@ int iwl_sar_select_profile(struct iwl_fw_runtime *fwrt,
 			       "SAR EWRD: chain %d profile index %d\n",
 			       i, profs[i]);
 		IWL_DEBUG_RADIO(fwrt, "  Chain[%d]:\n", i);
-		for (j = 0; j < ACPI_SAR_NUM_SUB_BANDS; j++) {
-			idx = (i * ACPI_SAR_NUM_SUB_BANDS) + j;
-			per_chain_restriction[i][j] =
+		for (j = 0; j < n_subbands; j++) {
+			idx = i * ACPI_SAR_NUM_SUB_BANDS + j;
+			per_chain[i * n_subbands + j] =
 				cpu_to_le16(prof->table[idx]);
 			IWL_DEBUG_RADIO(fwrt, "    Band[%d] = %d * .125dBm\n",
 					j, prof->table[idx]);
@@ -471,6 +466,23 @@ int iwl_sar_select_profile(struct iwl_fw_runtime *fwrt,
 	}
 
 	return 0;
+}
+
+int iwl_sar_select_profile(struct iwl_fw_runtime *fwrt,
+			   __le16 *per_chain, u32 n_tables, u32 n_subbands,
+			   int prof_a, int prof_b)
+{
+	int i, ret = 0;
+
+	for (i = 0; i < n_tables; i++) {
+		ret = iwl_sar_fill_table(fwrt,
+			 &per_chain[i * n_subbands * ACPI_SAR_NUM_CHAIN_LIMITS],
+			 n_subbands, prof_a, prof_b);
+		if (ret)
+			break;
+	}
+
+	return ret;
 }
 IWL_EXPORT_SYMBOL(iwl_sar_select_profile);
 
@@ -632,25 +644,8 @@ bool iwl_sar_geo_support(struct iwl_fw_runtime *fwrt)
 }
 IWL_EXPORT_SYMBOL(iwl_sar_geo_support);
 
-int iwl_validate_sar_geo_profile(struct iwl_fw_runtime *fwrt,
-				 struct iwl_host_cmd *cmd)
-{
-	struct iwl_geo_tx_power_profiles_resp *resp;
-	int ret;
-
-	resp = (void *)cmd->resp_pkt->data;
-	ret = le32_to_cpu(resp->profile_idx);
-	if (WARN_ON(ret > ACPI_NUM_GEO_PROFILES)) {
-		ret = -EIO;
-		IWL_WARN(fwrt, "Invalid geographic profile idx (%d)\n", ret);
-	}
-
-	return ret;
-}
-IWL_EXPORT_SYMBOL(iwl_validate_sar_geo_profile);
-
 int iwl_sar_geo_init(struct iwl_fw_runtime *fwrt,
-		     struct iwl_per_chain_offset_group *table)
+		     struct iwl_per_chain_offset *table, u32 n_bands)
 {
 	int ret, i, j;
 
@@ -666,23 +661,26 @@ int iwl_sar_geo_init(struct iwl_fw_runtime *fwrt,
 		return -ENOENT;
 	}
 
-	BUILD_BUG_ON(ACPI_NUM_GEO_PROFILES * ACPI_WGDS_NUM_BANDS *
-		     ACPI_WGDS_TABLE_SIZE + 1 !=  ACPI_WGDS_WIFI_DATA_SIZE);
-
-	BUILD_BUG_ON(ACPI_NUM_GEO_PROFILES > IWL_NUM_GEO_PROFILES);
-
 	for (i = 0; i < ACPI_NUM_GEO_PROFILES; i++) {
-		struct iwl_per_chain_offset *chain =
-			(struct iwl_per_chain_offset *)&table[i];
-
-		for (j = 0; j < ACPI_WGDS_NUM_BANDS; j++) {
+		for (j = 0; j < n_bands; j++) {
+			struct iwl_per_chain_offset *chain =
+				&table[i * n_bands + j];
 			u8 *value;
+
+			if (j * ACPI_GEO_PER_CHAIN_SIZE >=
+			    ARRAY_SIZE(fwrt->geo_profiles[0].values))
+				/*
+				 * Currently we only store lb an hb values, and
+				 * don't have any special ones for uhb. So leave
+				 * those empty for the time being
+				 */
+				break;
 
 			value = &fwrt->geo_profiles[i].values[j *
 				ACPI_GEO_PER_CHAIN_SIZE];
-			chain[j].max_tx_power = cpu_to_le16(value[0]);
-			chain[j].chain_a = value[1];
-			chain[j].chain_b = value[2];
+			chain->max_tx_power = cpu_to_le16(value[0]);
+			chain->chain_a = value[1];
+			chain->chain_b = value[2];
 			IWL_DEBUG_RADIO(fwrt,
 					"SAR geographic profile[%d] Band[%d]: chain A = %d chain B = %d max_tx_power = %d\n",
 					i, j, value[1], value[2], value[0]);

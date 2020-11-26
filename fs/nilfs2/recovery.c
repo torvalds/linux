@@ -626,7 +626,7 @@ static int nilfs_do_roll_forward(struct the_nilfs *nilfs,
 			    !(flags & NILFS_SS_SYNDT))
 				goto try_next_pseg;
 			state = RF_DSYNC_ST;
-			/* Fall through */
+			fallthrough;
 		case RF_DSYNC_ST:
 			if (!(flags & NILFS_SS_SYNDT))
 				goto confused;

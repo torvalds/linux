@@ -4363,7 +4363,7 @@ struct of_clk_provider {
 
 extern struct of_device_id __clk_of_table;
 static const struct of_device_id __clk_of_table_sentinel
-	__used __section(__clk_of_table_end);
+	__used __section("__clk_of_table_end");
 
 static LIST_HEAD(of_clk_providers);
 static DEFINE_MUTEX(of_clk_mutex);

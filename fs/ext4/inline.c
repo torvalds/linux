@@ -276,7 +276,7 @@ static int ext4_create_inline_data(handle_t *handle,
 		len = 0;
 	}
 
-	/* Insert the the xttr entry. */
+	/* Insert the xttr entry. */
 	i.value = value;
 	i.value_len = len;
 
@@ -354,7 +354,7 @@ static int ext4_update_inline_data(handle_t *handle, struct inode *inode,
 	if (error)
 		goto out;
 
-	/* Update the xttr entry. */
+	/* Update the xattr entry. */
 	i.value = value;
 	i.value_len = len;
 
@@ -1706,7 +1706,7 @@ int ext4_delete_inline_entry(handle_t *handle,
 	if (err)
 		goto out;
 
-	err = ext4_generic_delete_entry(handle, dir, de_del, bh,
+	err = ext4_generic_delete_entry(dir, de_del, bh,
 					inline_start, inline_size, 0);
 	if (err)
 		goto out;
@@ -1880,6 +1880,7 @@ int ext4_inline_data_truncate(struct inode *inode, int *has_inline)
 
 	ext4_write_lock_xattr(inode, &no_expand);
 	if (!ext4_has_inline_data(inode)) {
+		ext4_write_unlock_xattr(inode, &no_expand);
 		*has_inline = 0;
 		ext4_journal_stop(handle);
 		return 0;

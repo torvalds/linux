@@ -24,6 +24,8 @@
 #define I40E_MINOR_VER_GET_LINK_INFO_X722 0x0009
 /* API version 1.6 for X722 devices adds ability to stop FW LLDP agent */
 #define I40E_MINOR_VER_FW_LLDP_STOPPABLE_X722 0x0006
+/* API version 1.10 for X722 devices adds ability to request FEC encoding */
+#define I40E_MINOR_VER_FW_REQUEST_FEC_X722 0x000A
 
 struct i40e_aq_desc {
 	__le16 flags;
@@ -981,7 +983,7 @@ struct i40e_aqc_set_vsi_promiscuous_modes {
 #define I40E_AQC_SET_VSI_PROMISC_BROADCAST	0x04
 #define I40E_AQC_SET_VSI_DEFAULT		0x08
 #define I40E_AQC_SET_VSI_PROMISC_VLAN		0x10
-#define I40E_AQC_SET_VSI_PROMISC_TX		0x8000
+#define I40E_AQC_SET_VSI_PROMISC_RX_ONLY	0x8000
 	__le16	seid;
 	__le16	vlan_tag;
 #define I40E_AQC_SET_VSI_VLAN_VALID		0x8000

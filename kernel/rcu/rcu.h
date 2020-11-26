@@ -167,7 +167,7 @@ static inline unsigned long rcu_seq_diff(unsigned long new, unsigned long old)
 # define STATE_RCU_HEAD_READY	0
 # define STATE_RCU_HEAD_QUEUED	1
 
-extern struct debug_obj_descr rcuhead_debug_descr;
+extern const struct debug_obj_descr rcuhead_debug_descr;
 
 static inline int debug_rcu_head_queue(struct rcu_head *head)
 {

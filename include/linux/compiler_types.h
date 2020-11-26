@@ -11,8 +11,8 @@
 # define __iomem	__attribute__((noderef, address_space(__iomem)))
 # define __percpu	__attribute__((noderef, address_space(__percpu)))
 # define __rcu		__attribute__((noderef, address_space(__rcu)))
-extern void __chk_user_ptr(const volatile void __user *);
-extern void __chk_io_ptr(const volatile void __iomem *);
+static inline void __chk_user_ptr(const volatile void __user *ptr) { }
+static inline void __chk_io_ptr(const volatile void __iomem *ptr) { }
 /* context/locking */
 # define __must_hold(x)	__attribute__((context(x,1,1)))
 # define __acquires(x)	__attribute__((context(x,0,1)))
@@ -245,10 +245,6 @@ struct ftrace_likely_data {
 #define asm_inline asm __inline
 #else
 #define asm_inline asm
-#endif
-
-#ifndef __no_fgcse
-# define __no_fgcse
 #endif
 
 /* Are two types/vars the same type (ignoring qualifiers)? */

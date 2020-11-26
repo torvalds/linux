@@ -2184,7 +2184,7 @@ err_req:
 
 	if (ret == 0 && resp_len) {
 		*resp_len = min(*resp_len, xfer.resp_len);
-		memcpy(resp, tresp, xfer.resp_len);
+		memcpy(resp, tresp, *resp_len);
 	}
 err_dma:
 	kfree(treq);

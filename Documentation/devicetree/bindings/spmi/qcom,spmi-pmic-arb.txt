@@ -7,8 +7,8 @@ devices to control a single SPMI master.
 The PMIC Arbiter can also act as an interrupt controller, providing interrupts
 to slave devices.
 
-See spmi.txt for the generic SPMI controller binding requirements for child
-nodes.
+See Documentation/devicetree/bindings/spmi/spmi.yaml for the generic SPMI
+controller binding requirements for child nodes.
 
 See Documentation/devicetree/bindings/interrupt-controller/interrupts.txt for
 generic interrupt controller binding documentation.

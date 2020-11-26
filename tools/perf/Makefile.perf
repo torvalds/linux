@@ -48,7 +48,7 @@ include ../scripts/utilities.mak
 #
 # Define NO_SLANG if you do not want TUI support.
 #
-# Define NO_GTK2 if you do not want GTK+ GUI support.
+# Define GTK2 if you want GTK+ GUI support.
 #
 # Define NO_DEMANGLE if you do not want C++ symbol demangling.
 #
@@ -386,7 +386,7 @@ ifneq ($(OUTPUT),)
   CFLAGS += -I$(OUTPUT)
 endif
 
-ifndef NO_GTK2
+ifdef GTK2
   ALL_PROGRAMS += $(OUTPUT)libperf-gtk.so
   GTK_IN := $(OUTPUT)gtk-in.o
 endif
@@ -537,6 +537,12 @@ mmap_flags_tbl := $(srctree)/tools/perf/trace/beauty/mmap_flags.sh
 $(mmap_flags_array): $(linux_uapi_dir)/mman.h $(asm_generic_uapi_dir)/mman.h $(asm_generic_uapi_dir)/mman-common.h $(mmap_flags_tbl)
 	$(Q)$(SHELL) '$(mmap_flags_tbl)' $(linux_uapi_dir) $(asm_generic_uapi_dir) $(arch_asm_uapi_dir) > $@
 
+mremap_flags_array := $(beauty_outdir)/mremap_flags_array.c
+mremap_flags_tbl := $(srctree)/tools/perf/trace/beauty/mremap_flags.sh
+
+$(mremap_flags_array): $(linux_uapi_dir)/mman.h $(mremap_flags_tbl)
+	$(Q)$(SHELL) '$(mremap_flags_tbl)' $(linux_uapi_dir) > $@
+
 mount_flags_array := $(beauty_outdir)/mount_flags_array.c
 mount_flags_tbl := $(srctree)/tools/perf/trace/beauty/mount_flags.sh
 
@@ -548,6 +554,13 @@ move_mount_flags_tbl := $(srctree)/tools/perf/trace/beauty/move_mount_flags.sh
 
 $(move_mount_flags_array): $(linux_uapi_dir)/fs.h $(move_mount_flags_tbl)
 	$(Q)$(SHELL) '$(move_mount_flags_tbl)' $(linux_uapi_dir) > $@
+
+
+mmap_prot_array := $(beauty_outdir)/mmap_prot_array.c
+mmap_prot_tbl := $(srctree)/tools/perf/trace/beauty/mmap_prot.sh
+
+$(mmap_prot_array): $(asm_generic_uapi_dir)/mman.h $(asm_generic_uapi_dir)/mman-common.h $(mmap_prot_tbl)
+	$(Q)$(SHELL) '$(mmap_prot_tbl)' $(asm_generic_uapi_dir) $(arch_asm_uapi_dir) > $@
 
 prctl_option_array := $(beauty_outdir)/prctl_option_array.c
 prctl_hdr_dir := $(srctree)/tools/include/uapi/linux/
@@ -710,6 +723,8 @@ prepare: $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)common-cmds.h archheaders $(drm_ioc
 	$(vhost_virtio_ioctl_array) \
 	$(madvise_behavior_array) \
 	$(mmap_flags_array) \
+	$(mmap_prot_array) \
+	$(mremap_flags_array) \
 	$(mount_flags_array) \
 	$(move_mount_flags_array) \
 	$(perf_ioctl_array) \
@@ -886,7 +901,7 @@ check: $(OUTPUT)common-cmds.h
 
 ### Installation rules
 
-ifndef NO_GTK2
+ifdef GTK2
 install-gtk: $(OUTPUT)libperf-gtk.so
 	$(call QUIET_INSTALL, 'GTK UI') \
 		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(libdir_SQ)'; \
@@ -961,6 +976,7 @@ install-tests: all install-gtk
 	$(call QUIET_INSTALL, tests) \
 		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/tests'; \
 		$(INSTALL) tests/attr.py '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/tests'; \
+		$(INSTALL) tests/pe-file.exe* '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/tests'; \
 		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/tests/attr'; \
 		$(INSTALL) tests/attr/* '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/tests/attr'; \
 		$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(perfexec_instdir_SQ)/tests/shell'; \
@@ -1007,6 +1023,8 @@ clean:: $(LIBTRACEEVENT)-clean $(LIBAPI)-clean $(LIBBPF)-clean $(LIBSUBCMD)-clea
 		$(OUTPUT)$(fspick_arrays) \
 		$(OUTPUT)$(madvise_behavior_array) \
 		$(OUTPUT)$(mmap_flags_array) \
+		$(OUTPUT)$(mmap_prot_array) \
+		$(OUTPUT)$(mremap_flags_array) \
 		$(OUTPUT)$(mount_flags_array) \
 		$(OUTPUT)$(move_mount_flags_array) \
 		$(OUTPUT)$(drm_ioctl_array) \

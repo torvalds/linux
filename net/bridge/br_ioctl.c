@@ -103,7 +103,7 @@ static int add_del_if(struct net_bridge *br, int ifindex, int isadd)
 
 /*
  * Legacy ioctl's through SIOCDEVPRIVATE
- * This interface is deprecated because it was too difficult to
+ * This interface is deprecated because it was too difficult
  * to do the translation for 32/64bit ioctl compatibility.
  */
 static int old_dev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)

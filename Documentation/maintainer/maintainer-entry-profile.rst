@@ -101,3 +101,4 @@ to do something different in the near future.
 
    ../doc-guide/maintainer-profile
    ../nvdimm/maintainer-entry-profile
+   ../riscv/patch-acceptance

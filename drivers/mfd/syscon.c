@@ -95,7 +95,7 @@ static struct syscon *of_syscon_register(struct device_node *np, bool check_clk)
 			break;
 		default:
 			pr_err("Failed to retrieve valid hwlock: %d\n", ret);
-			/* fall-through */
+			fallthrough;
 		case -EPROBE_DEFER:
 			goto err_regmap;
 		}
@@ -108,7 +108,6 @@ static struct syscon *of_syscon_register(struct device_node *np, bool check_clk)
 	syscon_config.max_register = resource_size(&res) - reg_io_width;
 
 	regmap = regmap_init_mmio(NULL, base, &syscon_config);
-	kfree(syscon_config.name);
 	if (IS_ERR(regmap)) {
 		pr_err("regmap init failed\n");
 		ret = PTR_ERR(regmap);
@@ -145,6 +144,7 @@ err_clk:
 	regmap_exit(regmap);
 err_regmap:
 	iounmap(base);
+	kfree(syscon_config.name);
 err_map:
 	kfree(syscon);
 	return ERR_PTR(ret);

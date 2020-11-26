@@ -47,11 +47,12 @@ int efx_probe_tx_queue(struct efx_tx_queue *tx_queue)
 		goto fail1;
 	}
 
-	/* Allocate hardware ring */
+	/* Allocate hardware ring, determine TXQ type */
 	rc = efx_nic_probe_tx(tx_queue);
 	if (rc)
 		goto fail2;
 
+	tx_queue->channel->tx_queue_by_type[tx_queue->type] = tx_queue;
 	return 0;
 
 fail2:
@@ -78,18 +79,14 @@ void efx_init_tx_queue(struct efx_tx_queue *tx_queue)
 	tx_queue->read_count = 0;
 	tx_queue->old_read_count = 0;
 	tx_queue->empty_read_count = 0 | EFX_EMPTY_COUNT_VALID;
-	tx_queue->xmit_more_available = false;
+	tx_queue->xmit_pending = false;
 	tx_queue->timestamping = (efx_ptp_use_mac_tx_timestamps(efx) &&
 				  tx_queue->channel == efx_ptp_channel(efx));
 	tx_queue->completed_timestamp_major = 0;
 	tx_queue->completed_timestamp_minor = 0;
 
 	tx_queue->xdp_tx = efx_channel_is_xdp_tx(tx_queue->channel);
-
-	/* Set up default function pointers. These may get replaced by
-	 * efx_nic_init_tx() based off NIC/queue capabilities.
-	 */
-	tx_queue->handle_tso = efx_enqueue_skb_tso;
+	tx_queue->tso_version = 0;
 
 	/* Set up TX descriptor ring */
 	efx_nic_init_tx(tx_queue);
@@ -116,7 +113,7 @@ void efx_fini_tx_queue(struct efx_tx_queue *tx_queue)
 
 		++tx_queue->read_count;
 	}
-	tx_queue->xmit_more_available = false;
+	tx_queue->xmit_pending = false;
 	netdev_tx_reset_queue(tx_queue->core_txq);
 }
 
@@ -141,6 +138,7 @@ void efx_remove_tx_queue(struct efx_tx_queue *tx_queue)
 
 	kfree(tx_queue->buffer);
 	tx_queue->buffer = NULL;
+	tx_queue->channel->tx_queue_by_type[tx_queue->type] = NULL;
 }
 
 void efx_dequeue_buffer(struct efx_tx_queue *tx_queue,
@@ -242,7 +240,6 @@ void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index)
 {
 	unsigned int fill_level, pkts_compl = 0, bytes_compl = 0;
 	struct efx_nic *efx = tx_queue->efx;
-	struct efx_tx_queue *txq2;
 
 	EFX_WARN_ON_ONCE_PARANOID(index > tx_queue->ptr_mask);
 
@@ -261,9 +258,7 @@ void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index)
 	if (unlikely(netif_tx_queue_stopped(tx_queue->core_txq)) &&
 	    likely(efx->port_enabled) &&
 	    likely(netif_device_present(efx->net_dev))) {
-		txq2 = efx_tx_queue_partner(tx_queue);
-		fill_level = max(tx_queue->insert_count - tx_queue->read_count,
-				 txq2->insert_count - txq2->read_count);
+		fill_level = efx_channel_tx_fill_level(tx_queue->channel);
 		if (fill_level <= efx->txq_wake_thresh)
 			netif_tx_wake_queue(tx_queue->core_txq);
 	}

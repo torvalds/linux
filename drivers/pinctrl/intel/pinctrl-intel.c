@@ -62,10 +62,10 @@
 #define PADCFG1_TERM_UP			BIT(13)
 #define PADCFG1_TERM_SHIFT		10
 #define PADCFG1_TERM_MASK		GENMASK(12, 10)
-#define PADCFG1_TERM_20K		4
-#define PADCFG1_TERM_2K			3
-#define PADCFG1_TERM_5K			2
-#define PADCFG1_TERM_1K			1
+#define PADCFG1_TERM_20K		BIT(2)
+#define PADCFG1_TERM_5K			BIT(1)
+#define PADCFG1_TERM_1K			BIT(0)
+#define PADCFG1_TERM_833		(BIT(1) | BIT(0))
 
 #define PADCFG2				0x008
 #define PADCFG2_DEBEN			BIT(0)
@@ -549,11 +549,11 @@ static int intel_config_get_pull(struct intel_pinctrl *pctrl, unsigned int pin,
 			return -EINVAL;
 
 		switch (term) {
+		case PADCFG1_TERM_833:
+			*arg = 833;
+			break;
 		case PADCFG1_TERM_1K:
 			*arg = 1000;
-			break;
-		case PADCFG1_TERM_2K:
-			*arg = 2000;
 			break;
 		case PADCFG1_TERM_5K:
 			*arg = 5000;
@@ -570,6 +570,11 @@ static int intel_config_get_pull(struct intel_pinctrl *pctrl, unsigned int pin,
 			return -EINVAL;
 
 		switch (term) {
+		case PADCFG1_TERM_833:
+			if (!(community->features & PINCTRL_FEATURE_1K_PD))
+				return -EINVAL;
+			*arg = 833;
+			break;
 		case PADCFG1_TERM_1K:
 			if (!(community->features & PINCTRL_FEATURE_1K_PD))
 				return -EINVAL;
@@ -678,6 +683,10 @@ static int intel_config_set_pull(struct intel_pinctrl *pctrl, unsigned int pin,
 
 		value |= PADCFG1_TERM_UP;
 
+		/* Set default strength value in case none is given */
+		if (arg == 1)
+			arg = 5000;
+
 		switch (arg) {
 		case 20000:
 			value |= PADCFG1_TERM_20K << PADCFG1_TERM_SHIFT;
@@ -685,11 +694,11 @@ static int intel_config_set_pull(struct intel_pinctrl *pctrl, unsigned int pin,
 		case 5000:
 			value |= PADCFG1_TERM_5K << PADCFG1_TERM_SHIFT;
 			break;
-		case 2000:
-			value |= PADCFG1_TERM_2K << PADCFG1_TERM_SHIFT;
-			break;
 		case 1000:
 			value |= PADCFG1_TERM_1K << PADCFG1_TERM_SHIFT;
+			break;
+		case 833:
+			value |= PADCFG1_TERM_833 << PADCFG1_TERM_SHIFT;
 			break;
 		default:
 			ret = -EINVAL;
@@ -699,6 +708,10 @@ static int intel_config_set_pull(struct intel_pinctrl *pctrl, unsigned int pin,
 
 	case PIN_CONFIG_BIAS_PULL_DOWN:
 		value &= ~(PADCFG1_TERM_UP | PADCFG1_TERM_MASK);
+
+		/* Set default strength value in case none is given */
+		if (arg == 1)
+			arg = 5000;
 
 		switch (arg) {
 		case 20000:
@@ -713,6 +726,13 @@ static int intel_config_set_pull(struct intel_pinctrl *pctrl, unsigned int pin,
 				break;
 			}
 			value |= PADCFG1_TERM_1K << PADCFG1_TERM_SHIFT;
+			break;
+		case 833:
+			if (!(community->features & PINCTRL_FEATURE_1K_PD)) {
+				ret = -EINVAL;
+				break;
+			}
+			value |= PADCFG1_TERM_833 << PADCFG1_TERM_SHIFT;
 			break;
 		default:
 			ret = -EINVAL;
@@ -1414,9 +1434,6 @@ static int intel_pinctrl_probe(struct platform_device *pdev,
 	struct intel_pinctrl *pctrl;
 	int i, ret, irq;
 
-	if (!soc_data)
-		return -EINVAL;
-
 	pctrl = devm_kzalloc(&pdev->dev, sizeof(*pctrl), GFP_KERNEL);
 	if (!pctrl)
 		return -ENOMEM;
@@ -1505,11 +1522,26 @@ int intel_pinctrl_probe_by_hid(struct platform_device *pdev)
 	const struct intel_pinctrl_soc_data *data;
 
 	data = device_get_match_data(&pdev->dev);
+	if (!data)
+		return -ENODATA;
+
 	return intel_pinctrl_probe(pdev, data);
 }
 EXPORT_SYMBOL_GPL(intel_pinctrl_probe_by_hid);
 
 int intel_pinctrl_probe_by_uid(struct platform_device *pdev)
+{
+	const struct intel_pinctrl_soc_data *data;
+
+	data = intel_pinctrl_get_soc_data(pdev);
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
+	return intel_pinctrl_probe(pdev, data);
+}
+EXPORT_SYMBOL_GPL(intel_pinctrl_probe_by_uid);
+
+const struct intel_pinctrl_soc_data *intel_pinctrl_get_soc_data(struct platform_device *pdev)
 {
 	const struct intel_pinctrl_soc_data *data = NULL;
 	const struct intel_pinctrl_soc_data **table;
@@ -1532,15 +1564,15 @@ int intel_pinctrl_probe_by_uid(struct platform_device *pdev)
 
 		id = platform_get_device_id(pdev);
 		if (!id)
-			return -ENODEV;
+			return ERR_PTR(-ENODEV);
 
 		table = (const struct intel_pinctrl_soc_data **)id->driver_data;
 		data = table[pdev->id];
 	}
 
-	return intel_pinctrl_probe(pdev, data);
+	return data ?: ERR_PTR(-ENODATA);
 }
-EXPORT_SYMBOL_GPL(intel_pinctrl_probe_by_uid);
+EXPORT_SYMBOL_GPL(intel_pinctrl_get_soc_data);
 
 #ifdef CONFIG_PM_SLEEP
 static bool intel_pinctrl_should_save(struct intel_pinctrl *pctrl, unsigned int pin)

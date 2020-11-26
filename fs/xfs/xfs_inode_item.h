@@ -25,8 +25,8 @@ struct xfs_inode_log_item {
 	 *
 	 * We need atomic changes between inode dirtying, inode flushing and
 	 * inode completion, but these all hold different combinations of
-	 * ILOCK and iflock and hence we need some other method of serialising
-	 * updates to the flush state.
+	 * ILOCK and IFLUSHING and hence we need some other method of
+	 * serialising updates to the flush state.
 	 */
 	spinlock_t		ili_lock;	   /* flush state lock */
 	unsigned int		ili_last_fields;   /* fields when flushed */
@@ -43,7 +43,6 @@ static inline int xfs_inode_clean(struct xfs_inode *ip)
 
 extern void xfs_inode_item_init(struct xfs_inode *, struct xfs_mount *);
 extern void xfs_inode_item_destroy(struct xfs_inode *);
-extern void xfs_iflush_done(struct xfs_buf *);
 extern void xfs_iflush_abort(struct xfs_inode *);
 extern int xfs_inode_item_format_convert(xfs_log_iovec_t *,
 					 struct xfs_inode_log_format *);

@@ -20,23 +20,13 @@ struct felix_info {
 	const struct ocelot_stat_layout	*stats_layout;
 	unsigned int			num_stats;
 	int				num_ports;
-	int                             num_tx_queues;
-	struct vcap_field		*vcap_is2_keys;
-	struct vcap_field		*vcap_is2_actions;
-	const struct vcap_props		*vcap;
+	int				num_tx_queues;
+	struct vcap_props		*vcap;
 	int				switch_pci_bar;
 	int				imdio_pci_bar;
+	const struct ptp_clock_info	*ptp_caps;
 	int	(*mdio_bus_alloc)(struct ocelot *ocelot);
 	void	(*mdio_bus_free)(struct ocelot *ocelot);
-	void	(*pcs_config)(struct ocelot *ocelot, int port,
-			      unsigned int link_an_mode,
-			      const struct phylink_link_state *state);
-	void	(*pcs_link_up)(struct ocelot *ocelot, int port,
-			       unsigned int link_an_mode,
-			       phy_interface_t interface,
-			       int speed, int duplex);
-	void	(*pcs_link_state)(struct ocelot *ocelot, int port,
-				  struct phylink_link_state *state);
 	void	(*phylink_validate)(struct ocelot *ocelot, int port,
 				    unsigned long *supported,
 				    struct phylink_link_state *state);
@@ -50,8 +40,6 @@ struct felix_info {
 };
 
 extern const struct dsa_switch_ops felix_switch_ops;
-extern struct pci_driver felix_vsc9959_pci_driver;
-extern struct platform_driver seville_vsc9953_driver;
 
 /* DSA glue / front-end for struct ocelot */
 struct felix {
@@ -59,20 +47,12 @@ struct felix {
 	const struct felix_info		*info;
 	struct ocelot			ocelot;
 	struct mii_bus			*imdio;
-	struct phy_device		**pcs;
+	struct lynx_pcs			**pcs;
 	resource_size_t			switch_base;
 	resource_size_t			imdio_base;
 };
 
-void vsc9959_pcs_link_state(struct ocelot *ocelot, int port,
-			    struct phylink_link_state *state);
-void vsc9959_pcs_config(struct ocelot *ocelot, int port,
-			unsigned int link_an_mode,
-			const struct phylink_link_state *state);
-void vsc9959_pcs_link_up(struct ocelot *ocelot, int port,
-			 unsigned int link_an_mode,
-			 phy_interface_t interface,
-			 int speed, int duplex);
-void vsc9959_mdio_bus_free(struct ocelot *ocelot);
+struct net_device *felix_port_to_netdev(struct ocelot *ocelot, int port);
+int felix_netdev_to_port(struct net_device *dev);
 
 #endif

@@ -335,7 +335,7 @@ static unsigned int tifm_sd_op_flags(struct mmc_command *cmd)
 		break;
 	case MMC_RSP_R1B:
 		rc |= TIFM_MMCSD_RSP_BUSY;
-		/* fall-through */
+		fallthrough;
 	case MMC_RSP_R1:
 		rc |= TIFM_MMCSD_RSP_R1;
 		break;

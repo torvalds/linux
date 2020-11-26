@@ -106,8 +106,8 @@ int mlx5_ib_create_ah(struct ib_ah *ibah, struct rdma_ah_init_attr *init_attr,
 	if (ah_type == RDMA_AH_ATTR_TYPE_ROCE && udata) {
 		int err;
 		struct mlx5_ib_create_ah_resp resp = {};
-		u32 min_resp_len = offsetof(typeof(resp), dmac) +
-				   sizeof(resp.dmac);
+		u32 min_resp_len =
+			offsetofend(struct mlx5_ib_create_ah_resp, dmac);
 
 		if (udata->outlen < min_resp_len)
 			return -EINVAL;
@@ -146,9 +146,4 @@ int mlx5_ib_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr)
 	rdma_ah_set_sl(ah_attr, ah->av.stat_rate_sl & 0xf);
 
 	return 0;
-}
-
-void mlx5_ib_destroy_ah(struct ib_ah *ah, u32 flags)
-{
-	return;
 }

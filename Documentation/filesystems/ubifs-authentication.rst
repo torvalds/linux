@@ -1,10 +1,12 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-:orphan:
-
 .. UBIFS Authentication
 .. sigma star gmbh
 .. 2018
+
+============================
+UBIFS Authentication Support
+============================
 
 Introduction
 ============

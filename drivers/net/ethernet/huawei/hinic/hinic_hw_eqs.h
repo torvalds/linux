@@ -186,6 +186,7 @@ struct hinic_eq {
 	int                     num_elem_in_pg;
 
 	struct msix_entry       msix_entry;
+	char			irq_name[64];
 
 	dma_addr_t              *dma_addr;
 	void                    **virt_addr;

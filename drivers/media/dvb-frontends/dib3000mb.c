@@ -224,7 +224,7 @@ static int dib3000mb_set_frontend(struct dvb_frontend *fe, int tuner)
 	switch (c->hierarchy) {
 		case HIERARCHY_NONE:
 			deb_setf("hierarchy: none\n");
-			/* fall through */
+			fallthrough;
 		case HIERARCHY_1:
 			deb_setf("hierarchy: alpha=1\n");
 			wr(DIB3000MB_REG_VIT_ALPHA, DIB3000_ALPHA_1);

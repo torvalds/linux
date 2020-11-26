@@ -128,7 +128,7 @@ struct virtio_balloon {
 	struct page_reporting_dev_info pr_dev_info;
 };
 
-static struct virtio_device_id id_table[] = {
+static const struct virtio_device_id id_table[] = {
 	{ VIRTIO_ID_BALLOON, VIRTIO_DEV_ANY_ID },
 	{ 0 },
 };

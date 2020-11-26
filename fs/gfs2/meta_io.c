@@ -348,38 +348,109 @@ void gfs2_remove_from_journal(struct buffer_head *bh, int meta)
 		brelse(bh);
 	}
 	if (bd) {
-		spin_lock(&sdp->sd_ail_lock);
 		if (bd->bd_tr) {
 			gfs2_trans_add_revoke(sdp, bd);
 		} else if (was_pinned) {
 			bh->b_private = NULL;
 			kmem_cache_free(gfs2_bufdata_cachep, bd);
+		} else if (!list_empty(&bd->bd_ail_st_list) &&
+					!list_empty(&bd->bd_ail_gl_list)) {
+			gfs2_remove_from_ail(bd);
 		}
-		spin_unlock(&sdp->sd_ail_lock);
 	}
 	clear_buffer_dirty(bh);
 	clear_buffer_uptodate(bh);
 }
 
 /**
- * gfs2_meta_wipe - make inode's buffers so they aren't dirty/pinned anymore
+ * gfs2_ail1_wipe - remove deleted/freed buffers from the ail1 list
+ * @sdp: superblock
+ * @bstart: starting block address of buffers to remove
+ * @blen: length of buffers to be removed
+ *
+ * This function is called from gfs2_journal wipe, whose job is to remove
+ * buffers, corresponding to deleted blocks, from the journal. If we find any
+ * bufdata elements on the system ail1 list, they haven't been written to
+ * the journal yet. So we remove them.
+ */
+static void gfs2_ail1_wipe(struct gfs2_sbd *sdp, u64 bstart, u32 blen)
+{
+	struct gfs2_trans *tr, *s;
+	struct gfs2_bufdata *bd, *bs;
+	struct buffer_head *bh;
+	u64 end = bstart + blen;
+
+	gfs2_log_lock(sdp);
+	spin_lock(&sdp->sd_ail_lock);
+	list_for_each_entry_safe(tr, s, &sdp->sd_ail1_list, tr_list) {
+		list_for_each_entry_safe(bd, bs, &tr->tr_ail1_list,
+					 bd_ail_st_list) {
+			bh = bd->bd_bh;
+			if (bh->b_blocknr < bstart || bh->b_blocknr >= end)
+				continue;
+
+			gfs2_remove_from_journal(bh, REMOVE_JDATA);
+		}
+	}
+	spin_unlock(&sdp->sd_ail_lock);
+	gfs2_log_unlock(sdp);
+}
+
+static struct buffer_head *gfs2_getjdatabuf(struct gfs2_inode *ip, u64 blkno)
+{
+	struct address_space *mapping = ip->i_inode.i_mapping;
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
+	struct page *page;
+	struct buffer_head *bh;
+	unsigned int shift = PAGE_SHIFT - sdp->sd_sb.sb_bsize_shift;
+	unsigned long index = blkno >> shift; /* convert block to page */
+	unsigned int bufnum = blkno - (index << shift);
+
+	page = find_get_page_flags(mapping, index, FGP_LOCK|FGP_ACCESSED);
+	if (!page)
+		return NULL;
+	if (!page_has_buffers(page)) {
+		unlock_page(page);
+		put_page(page);
+		return NULL;
+	}
+	/* Locate header for our buffer within our page */
+	for (bh = page_buffers(page); bufnum--; bh = bh->b_this_page)
+		/* Do nothing */;
+	get_bh(bh);
+	unlock_page(page);
+	put_page(page);
+	return bh;
+}
+
+/**
+ * gfs2_journal_wipe - make inode's buffers so they aren't dirty/pinned anymore
  * @ip: the inode who owns the buffers
  * @bstart: the first buffer in the run
  * @blen: the number of buffers in the run
  *
  */
 
-void gfs2_meta_wipe(struct gfs2_inode *ip, u64 bstart, u32 blen)
+void gfs2_journal_wipe(struct gfs2_inode *ip, u64 bstart, u32 blen)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct buffer_head *bh;
+	int ty;
 
+	gfs2_ail1_wipe(sdp, bstart, blen);
 	while (blen) {
+		ty = REMOVE_META;
 		bh = gfs2_getbuf(ip->i_gl, bstart, NO_CREATE);
+		if (!bh && gfs2_is_jdata(ip)) {
+			bh = gfs2_getjdatabuf(ip, bstart);
+			ty = REMOVE_JDATA;
+		}
 		if (bh) {
 			lock_buffer(bh);
 			gfs2_log_lock(sdp);
-			gfs2_remove_from_journal(bh, REMOVE_META);
+			spin_lock(&sdp->sd_ail_lock);
+			gfs2_remove_from_journal(bh, ty);
+			spin_unlock(&sdp->sd_ail_lock);
 			gfs2_log_unlock(sdp);
 			unlock_buffer(bh);
 			brelse(bh);

@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Google Trogdor dts fragment for LTE SKUs
+ *
+ * Copyright 2020 Google LLC.
+ */
+
+&ap_sar_sensor {
+	label = "proximity-wifi-lte";
+};
+
+&remoteproc_mpss {
+	firmware-name = "qcom/sc7180-trogdor/modem/mba.mbn",
+			"qcom/sc7180-trogdor/modem/qdsp6sw.mbn";
+};

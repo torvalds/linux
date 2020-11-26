@@ -9,6 +9,8 @@
 #include <stddef.h>
 #include <linux/bpf.h>
 #include <linux/types.h>
+#include <linux/stddef.h>
+#include <linux/tcp.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include "bpf_tcp_helpers.h"

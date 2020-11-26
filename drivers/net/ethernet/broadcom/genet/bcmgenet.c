@@ -1185,10 +1185,10 @@ static void bcmgenet_update_mib_counters(struct bcmgenet_priv *priv)
 			continue;
 		case BCMGENET_STAT_RUNT:
 			offset += BCMGENET_STAT_OFFSET;
-			/* fall through */
+			fallthrough;
 		case BCMGENET_STAT_MIB_TX:
 			offset += BCMGENET_STAT_OFFSET;
-			/* fall through */
+			fallthrough;
 		case BCMGENET_STAT_MIB_RX:
 			val = bcmgenet_umac_readl(priv,
 						  UMAC_MIB_START + j + offset);
@@ -1364,7 +1364,7 @@ static int bcmgenet_validate_flow(struct net_device *dev,
 	case ETHER_FLOW:
 		eth_mask = &cmd->fs.m_u.ether_spec;
 		/* don't allow mask which isn't valid */
-		if (VALIDATE_MASK(eth_mask->h_source) ||
+		if (VALIDATE_MASK(eth_mask->h_dest) ||
 		    VALIDATE_MASK(eth_mask->h_source) ||
 		    VALIDATE_MASK(eth_mask->h_proto)) {
 			netdev_err(dev, "rxnfc: Unsupported mask\n");

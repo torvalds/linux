@@ -176,7 +176,7 @@ void tcp_assign_congestion_control(struct sock *sk)
 
 void tcp_init_congestion_control(struct sock *sk)
 {
-	const struct inet_connection_sock *icsk = inet_csk(sk);
+	struct inet_connection_sock *icsk = inet_csk(sk);
 
 	tcp_sk(sk)->prior_ssthresh = 0;
 	if (icsk->icsk_ca_ops->init)
@@ -185,6 +185,7 @@ void tcp_init_congestion_control(struct sock *sk)
 		INET_ECN_xmit(sk);
 	else
 		INET_ECN_dontxmit(sk);
+	icsk->icsk_ca_initialized = 1;
 }
 
 static void tcp_reinit_congestion_control(struct sock *sk,
@@ -340,7 +341,7 @@ out:
  * already initialized.
  */
 int tcp_set_congestion_control(struct sock *sk, const char *name, bool load,
-			       bool reinit, bool cap_net_admin)
+			       bool cap_net_admin)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	const struct tcp_congestion_ops *ca;
@@ -361,28 +362,14 @@ int tcp_set_congestion_control(struct sock *sk, const char *name, bool load,
 		goto out;
 	}
 
-	if (!ca) {
+	if (!ca)
 		err = -ENOENT;
-	} else if (!load) {
-		const struct tcp_congestion_ops *old_ca = icsk->icsk_ca_ops;
-
-		if (bpf_try_module_get(ca, ca->owner)) {
-			if (reinit) {
-				tcp_reinit_congestion_control(sk, ca);
-			} else {
-				icsk->icsk_ca_ops = ca;
-				bpf_module_put(old_ca, old_ca->owner);
-			}
-		} else {
-			err = -EBUSY;
-		}
-	} else if (!((ca->flags & TCP_CONG_NON_RESTRICTED) || cap_net_admin)) {
+	else if (!((ca->flags & TCP_CONG_NON_RESTRICTED) || cap_net_admin))
 		err = -EPERM;
-	} else if (!bpf_try_module_get(ca, ca->owner)) {
+	else if (!bpf_try_module_get(ca, ca->owner))
 		err = -EBUSY;
-	} else {
+	else
 		tcp_reinit_congestion_control(sk, ca);
-	}
  out:
 	rcu_read_unlock();
 	return err;

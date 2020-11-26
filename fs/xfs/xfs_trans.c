@@ -468,7 +468,7 @@ xfs_trans_apply_sb_deltas(
 	xfs_buf_t	*bp;
 	int		whole = 0;
 
-	bp = xfs_trans_getsb(tp, tp->t_mountp);
+	bp = xfs_trans_getsb(tp);
 	sbp = bp->b_addr;
 
 	/*
@@ -959,7 +959,7 @@ xfs_trans_cancel(
 		struct xfs_log_item *lip;
 
 		list_for_each_entry(lip, &tp->t_items, li_trans)
-			ASSERT(!(lip->li_type == XFS_LI_EFD));
+			ASSERT(!xlog_item_is_intent_done(lip));
 	}
 #endif
 	xfs_trans_unreserve_and_mod_sb(tp);

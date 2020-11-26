@@ -115,11 +115,7 @@ struct reset_control;
 struct sun4i_frontend_data {
 	bool	has_coef_access_ctrl;
 	bool	has_coef_rdy;
-
-	struct {
-		u32	horzphase;
-		u32	vertphase[2];
-	} ch_phase[2];
+	u32	ch_phase[2];
 };
 
 struct sun4i_frontend {

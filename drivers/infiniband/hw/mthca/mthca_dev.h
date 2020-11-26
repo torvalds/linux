@@ -548,7 +548,7 @@ int mthca_alloc_sqp(struct mthca_dev *dev,
 		    struct ib_qp_cap *cap,
 		    int qpn,
 		    int port,
-		    struct mthca_sqp *sqp,
+		    struct mthca_qp *qp,
 		    struct ib_udata *udata);
 void mthca_free_qp(struct mthca_dev *dev, struct mthca_qp *qp);
 int mthca_create_ah(struct mthca_dev *dev,

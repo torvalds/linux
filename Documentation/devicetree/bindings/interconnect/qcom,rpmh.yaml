@@ -1,0 +1,110 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/interconnect/qcom,rpmh.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm RPMh Network-On-Chip Interconnect
+
+maintainers:
+  - Georgi Djakov <georgi.djakov@linaro.org>
+  - Odelu Kukatla <okukatla@codeaurora.org>
+
+description: |
+   RPMh interconnect providers support system bandwidth requirements through
+   RPMh hardware accelerators known as Bus Clock Manager (BCM). The provider is
+   able to communicate with the BCM through the Resource State Coordinator (RSC)
+   associated with each execution environment. Provider nodes must point to at
+   least one RPMh device child node pertaining to their RSC and each provider
+   can map to multiple RPMh resources.
+
+properties:
+  reg:
+    maxItems: 1
+
+  compatible:
+    enum:
+      - qcom,sc7180-aggre1-noc
+      - qcom,sc7180-aggre2-noc
+      - qcom,sc7180-camnoc-virt
+      - qcom,sc7180-compute-noc
+      - qcom,sc7180-config-noc
+      - qcom,sc7180-dc-noc
+      - qcom,sc7180-gem-noc
+      - qcom,sc7180-ipa-virt
+      - qcom,sc7180-mc-virt
+      - qcom,sc7180-mmss-noc
+      - qcom,sc7180-npu-noc
+      - qcom,sc7180-qup-virt
+      - qcom,sc7180-system-noc
+      - qcom,sdm845-aggre1-noc
+      - qcom,sdm845-aggre2-noc
+      - qcom,sdm845-config-noc
+      - qcom,sdm845-dc-noc
+      - qcom,sdm845-gladiator-noc
+      - qcom,sdm845-mem-noc
+      - qcom,sdm845-mmss-noc
+      - qcom,sdm845-system-noc
+      - qcom,sm8150-aggre1-noc
+      - qcom,sm8150-aggre2-noc
+      - qcom,sm8150-camnoc-noc
+      - qcom,sm8150-compute-noc
+      - qcom,sm8150-config-noc
+      - qcom,sm8150-dc-noc
+      - qcom,sm8150-gem-noc
+      - qcom,sm8150-ipa-virt
+      - qcom,sm8150-mc-virt
+      - qcom,sm8150-mmss-noc
+      - qcom,sm8150-system-noc
+      - qcom,sm8250-aggre1-noc
+      - qcom,sm8250-aggre2-noc
+      - qcom,sm8250-compute-noc
+      - qcom,sm8250-config-noc
+      - qcom,sm8250-dc-noc
+      - qcom,sm8250-gem-noc
+      - qcom,sm8250-ipa-virt
+      - qcom,sm8250-mc-virt
+      - qcom,sm8250-mmss-noc
+      - qcom,sm8250-npu-noc
+      - qcom,sm8250-system-noc
+
+  '#interconnect-cells':
+    const: 1
+
+  qcom,bcm-voters:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    description: |
+      List of phandles to qcom,bcm-voter nodes that are required by
+      this interconnect to send RPMh commands.
+
+  qcom,bcm-voter-names:
+    $ref: /schemas/types.yaml#/definitions/string-array
+    description: |
+      Names for each of the qcom,bcm-voters specified.
+
+required:
+  - compatible
+  - reg
+  - '#interconnect-cells'
+  - qcom,bcm-voters
+
+additionalProperties: false
+
+examples:
+  - |
+      #include <dt-bindings/interconnect/qcom,sdm845.h>
+
+      mem_noc: interconnect@1380000 {
+             compatible = "qcom,sdm845-mem-noc";
+             reg = <0x01380000 0x27200>;
+             #interconnect-cells = <1>;
+             qcom,bcm-voters = <&apps_bcm_voter>;
+      };
+
+      mmss_noc: interconnect@1740000 {
+             compatible = "qcom,sdm845-mmss-noc";
+             reg = <0x01740000 0x1c1000>;
+             #interconnect-cells = <1>;
+             qcom,bcm-voter-names = "apps", "disp";
+             qcom,bcm-voters = <&apps_bcm_voter>, <&disp_bcm_voter>;
+      };

@@ -460,14 +460,8 @@ int ocxl_link_remove_pe(void *link_handle, int pasid);
  * Allocate an AFU interrupt associated to the link.
  *
  * 'hw_irq' is the hardware interrupt number
- * 'obj_handle' is the 64-bit object handle to be passed to the AFU to
- * trigger the interrupt.
- * On P9, 'obj_handle' is an address, which, if written, triggers the
- * interrupt. It is an MMIO address which needs to be remapped (one
- * page).
  */
-int ocxl_link_irq_alloc(void *link_handle, int *hw_irq,
-			u64 *obj_handle);
+int ocxl_link_irq_alloc(void *link_handle, int *hw_irq);
 
 /*
  * Free a previously allocated AFU interrupt

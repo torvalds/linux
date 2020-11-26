@@ -57,10 +57,14 @@
 #define PCA9685_NUMREGS		0xFF
 #define PCA9685_MAXCHAN		0x10
 
-#define LED_FULL		(1 << 4)
-#define MODE1_SLEEP		(1 << 4)
-#define MODE2_INVRT		(1 << 4)
-#define MODE2_OUTDRV		(1 << 2)
+#define LED_FULL		BIT(4)
+#define MODE1_ALLCALL		BIT(0)
+#define MODE1_SUB3		BIT(1)
+#define MODE1_SUB2		BIT(2)
+#define MODE1_SUB1		BIT(3)
+#define MODE1_SLEEP		BIT(4)
+#define MODE2_INVRT		BIT(4)
+#define MODE2_OUTDRV		BIT(2)
 
 #define LED_N_ON_H(N)	(PCA9685_LEDX_ON_H + (4 * (N)))
 #define LED_N_ON_L(N)	(PCA9685_LEDX_ON_L + (4 * (N)))
@@ -91,7 +95,7 @@ static bool pca9685_pwm_test_and_set_inuse(struct pca9685 *pca, int pwm_idx)
 	mutex_lock(&pca->lock);
 	if (pwm_idx >= PCA9685_MAXCHAN) {
 		/*
-		 * "all LEDs" channel:
+		 * "All LEDs" channel:
 		 * pretend already in use if any of the PWMs are requested
 		 */
 		if (!bitmap_empty(pca->pwms_inuse, PCA9685_MAXCHAN)) {
@@ -100,7 +104,7 @@ static bool pca9685_pwm_test_and_set_inuse(struct pca9685 *pca, int pwm_idx)
 		}
 	} else {
 		/*
-		 * regular channel:
+		 * Regular channel:
 		 * pretend already in use if the "all LEDs" channel is requested
 		 */
 		if (test_bit(PCA9685_MAXCHAN, pca->pwms_inuse)) {
@@ -257,7 +261,7 @@ static int pca9685_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		if (prescale >= PCA9685_PRESCALE_MIN &&
 			prescale <= PCA9685_PRESCALE_MAX) {
 			/*
-			 * putting the chip briefly into SLEEP mode
+			 * Putting the chip briefly into SLEEP mode
 			 * at this point won't interfere with the
 			 * pm_runtime framework, because the pm_runtime
 			 * state is guaranteed active here.
@@ -443,8 +447,8 @@ static int pca9685_pwm_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
 	struct pca9685 *pca;
+	unsigned int reg;
 	int ret;
-	int mode2;
 
 	pca = devm_kzalloc(&client->dev, sizeof(*pca), GFP_KERNEL);
 	if (!pca)
@@ -461,26 +465,31 @@ static int pca9685_pwm_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, pca);
 
-	regmap_read(pca->regmap, PCA9685_MODE2, &mode2);
+	regmap_read(pca->regmap, PCA9685_MODE2, &reg);
 
 	if (device_property_read_bool(&client->dev, "invert"))
-		mode2 |= MODE2_INVRT;
+		reg |= MODE2_INVRT;
 	else
-		mode2 &= ~MODE2_INVRT;
+		reg &= ~MODE2_INVRT;
 
 	if (device_property_read_bool(&client->dev, "open-drain"))
-		mode2 &= ~MODE2_OUTDRV;
+		reg &= ~MODE2_OUTDRV;
 	else
-		mode2 |= MODE2_OUTDRV;
+		reg |= MODE2_OUTDRV;
 
-	regmap_write(pca->regmap, PCA9685_MODE2, mode2);
+	regmap_write(pca->regmap, PCA9685_MODE2, reg);
 
-	/* clear all "full off" bits */
+	/* Disable all LED ALLCALL and SUBx addresses to avoid bus collisions */
+	regmap_read(pca->regmap, PCA9685_MODE1, &reg);
+	reg &= ~(MODE1_ALLCALL | MODE1_SUB1 | MODE1_SUB2 | MODE1_SUB3);
+	regmap_write(pca->regmap, PCA9685_MODE1, reg);
+
+	/* Clear all "full off" bits */
 	regmap_write(pca->regmap, PCA9685_ALL_LED_OFF_L, 0);
 	regmap_write(pca->regmap, PCA9685_ALL_LED_OFF_H, 0);
 
 	pca->chip.ops = &pca9685_pwm_ops;
-	/* add an extra channel for ALL_LED */
+	/* Add an extra channel for ALL_LED */
 	pca->chip.npwm = PCA9685_MAXCHAN + 1;
 
 	pca->chip.dev = &client->dev;
@@ -496,10 +505,10 @@ static int pca9685_pwm_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	/* the chip comes out of power-up in the active state */
+	/* The chip comes out of power-up in the active state */
 	pm_runtime_set_active(&client->dev);
 	/*
-	 * enable will put the chip into suspend, which is what we
+	 * Enable will put the chip into suspend, which is what we
 	 * want as all outputs are disabled at this point
 	 */
 	pm_runtime_enable(&client->dev);

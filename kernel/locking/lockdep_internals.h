@@ -19,8 +19,12 @@ enum lock_usage_bit {
 #include "lockdep_states.h"
 #undef LOCKDEP_STATE
 	LOCK_USED,
-	LOCK_USAGE_STATES
+	LOCK_USED_READ,
+	LOCK_USAGE_STATES,
 };
+
+/* states after LOCK_USED_READ are not traced and printed */
+static_assert(LOCK_TRACE_STATES == LOCK_USAGE_STATES);
 
 #define LOCK_USAGE_READ_MASK 1
 #define LOCK_USAGE_DIR_MASK  2
@@ -40,6 +44,7 @@ enum {
 #include "lockdep_states.h"
 #undef LOCKDEP_STATE
 	__LOCKF(USED)
+	__LOCKF(USED_READ)
 };
 
 #define LOCKDEP_STATE(__STATE)	LOCKF_ENABLED_##__STATE |
@@ -119,7 +124,7 @@ static const unsigned long LOCKF_USED_IN_IRQ_READ =
 extern struct list_head all_lock_classes;
 extern struct lock_chain lock_chains[];
 
-#define LOCK_USAGE_CHARS (1+LOCK_USAGE_STATES/2)
+#define LOCK_USAGE_CHARS (2*XXX_LOCK_USAGE_STATES + 1)
 
 extern void get_usage_chars(struct lock_class *class,
 			    char usage[LOCK_USAGE_CHARS]);

@@ -227,11 +227,17 @@ int cedrus_hw_probe(struct cedrus_dev *dev)
 	 * the RAM offset to the physcal addresses.
 	 *
 	 * This information will eventually be obtained from device-tree.
+	 *
+	 * XXX(hch): this has no business in a driver and needs to move
+	 * to the device tree.
 	 */
 
 #ifdef PHYS_PFN_OFFSET
-	if (!(variant->quirks & CEDRUS_QUIRK_NO_DMA_OFFSET))
-		dev->dev->dma_pfn_offset = PHYS_PFN_OFFSET;
+	if (!(variant->quirks & CEDRUS_QUIRK_NO_DMA_OFFSET)) {
+		ret = dma_direct_set_offset(dev->dev, PHYS_OFFSET, 0, SZ_4G);
+		if (ret)
+			return ret;
+	}
 #endif
 
 	ret = of_reserved_mem_device_init(dev->dev);

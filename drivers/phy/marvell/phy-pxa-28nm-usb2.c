@@ -13,6 +13,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/module.h>
@@ -138,15 +139,12 @@ struct mv_usb2_phy {
 	struct clk		*clk;
 };
 
-static bool wait_for_reg(void __iomem *reg, u32 mask, unsigned long timeout)
+static int wait_for_reg(void __iomem *reg, u32 mask, u32 ms)
 {
-	timeout += jiffies;
-	while (time_is_after_eq_jiffies(timeout)) {
-		if ((readl(reg) & mask) == mask)
-			return true;
-		msleep(1);
-	}
-	return false;
+	u32 val;
+
+	return readl_poll_timeout(reg, val, ((val & mask) == mask),
+				   1000, 1000 * ms);
 }
 
 static int mv_usb2_phy_28nm_init(struct phy *phy)
@@ -208,24 +206,23 @@ static int mv_usb2_phy_28nm_init(struct phy *phy)
 	 */
 
 	/* Make sure PHY Calibration is ready */
-	if (!wait_for_reg(base + PHY_28NM_CAL_REG,
-	    PHY_28NM_PLL_PLLCAL_DONE | PHY_28NM_PLL_IMPCAL_DONE,
-	    HZ / 10)) {
+	ret = wait_for_reg(base + PHY_28NM_CAL_REG,
+			   PHY_28NM_PLL_PLLCAL_DONE | PHY_28NM_PLL_IMPCAL_DONE,
+			   100);
+	if (ret) {
 		dev_warn(&pdev->dev, "USB PHY PLL calibrate not done after 100mS.");
-		ret = -ETIMEDOUT;
 		goto err_clk;
 	}
-	if (!wait_for_reg(base + PHY_28NM_RX_REG1,
-	    PHY_28NM_RX_SQCAL_DONE, HZ / 10)) {
+	ret = wait_for_reg(base + PHY_28NM_RX_REG1,
+			   PHY_28NM_RX_SQCAL_DONE, 100);
+	if (ret) {
 		dev_warn(&pdev->dev, "USB PHY RX SQ calibrate not done after 100mS.");
-		ret = -ETIMEDOUT;
 		goto err_clk;
 	}
 	/* Make sure PHY PLL is ready */
-	if (!wait_for_reg(base + PHY_28NM_PLL_REG0,
-	    PHY_28NM_PLL_READY, HZ / 10)) {
+	ret = wait_for_reg(base + PHY_28NM_PLL_REG0, PHY_28NM_PLL_READY, 100);
+	if (ret) {
 		dev_warn(&pdev->dev, "PLL_READY not set after 100mS.");
-		ret = -ETIMEDOUT;
 		goto err_clk;
 	}
 

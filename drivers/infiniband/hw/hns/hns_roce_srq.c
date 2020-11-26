@@ -285,7 +285,7 @@ int hns_roce_create_srq(struct ib_srq *ib_srq,
 	struct hns_roce_srq *srq = to_hr_srq(ib_srq);
 	struct ib_device *ibdev = &hr_dev->ib_dev;
 	struct hns_roce_ib_create_srq ucmd = {};
-	int ret = 0;
+	int ret;
 	u32 cqn;
 
 	/* Check the actual SRQ wqe and SRQ sge num */
@@ -297,7 +297,7 @@ int hns_roce_create_srq(struct ib_srq *ib_srq,
 	spin_lock_init(&srq->lock);
 
 	srq->wqe_cnt = roundup_pow_of_two(init_attr->attr.max_wr + 1);
-	srq->max_gs = init_attr->attr.max_sge + HNS_ROCE_RESERVED_SGE;
+	srq->max_gs = init_attr->attr.max_sge;
 
 	if (udata) {
 		ret = ib_copy_from_udata(&ucmd, udata, sizeof(ucmd));
@@ -363,7 +363,7 @@ err_buf_alloc:
 	return ret;
 }
 
-void hns_roce_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
+int hns_roce_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibsrq->device);
 	struct hns_roce_srq *srq = to_hr_srq(ibsrq);
@@ -372,6 +372,7 @@ void hns_roce_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
 	free_srq_idx(hr_dev, srq);
 	free_srq_wrid(srq);
 	free_srq_buf(hr_dev, srq);
+	return 0;
 }
 
 int hns_roce_init_srq_table(struct hns_roce_dev *hr_dev)

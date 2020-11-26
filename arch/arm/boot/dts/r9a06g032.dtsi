@@ -165,7 +165,7 @@
 			status = "disabled";
 		};
 
-		pinctrl: pin-controller@40067000 {
+		pinctrl: pinctrl@40067000 {
 			compatible = "renesas,r9a06g032-pinctrl", "renesas,rzn1-pinctrl";
 			reg = <0x40067000 0x1000>, <0x51000000 0x480>;
 			clocks = <&sysctrl R9A06G032_HCLK_PINCONFIG>;

@@ -98,27 +98,6 @@ static void __init init_topology_matrix(void)
 	}
 }
 
-static unsigned long nid_to_addroffset(unsigned int nid)
-{
-	unsigned long result;
-	switch (nid) {
-	case 0:
-	default:
-		result = NODE0_ADDRSPACE_OFFSET;
-		break;
-	case 1:
-		result = NODE1_ADDRSPACE_OFFSET;
-		break;
-	case 2:
-		result = NODE2_ADDRSPACE_OFFSET;
-		break;
-	case 3:
-		result = NODE3_ADDRSPACE_OFFSET;
-		break;
-	}
-	return result;
-}
-
 static void __init szmem(unsigned int node)
 {
 	u32 i, mem_type;
@@ -146,7 +125,7 @@ static void __init szmem(unsigned int node)
 			pr_info("       start_pfn:0x%llx, end_pfn:0x%llx, num_physpages:0x%lx\n",
 				start_pfn, end_pfn, num_physpages);
 			memblock_add_node(PFN_PHYS(start_pfn),
-				PFN_PHYS(end_pfn - start_pfn), node);
+				PFN_PHYS(node_psize), node);
 			break;
 		case SYSTEM_RAM_HIGH:
 			start_pfn = ((node_id << 44) + mem_start) >> PAGE_SHIFT;
@@ -158,7 +137,7 @@ static void __init szmem(unsigned int node)
 			pr_info("       start_pfn:0x%llx, end_pfn:0x%llx, num_physpages:0x%lx\n",
 				start_pfn, end_pfn, num_physpages);
 			memblock_add_node(PFN_PHYS(start_pfn),
-				PFN_PHYS(end_pfn - start_pfn), node);
+				PFN_PHYS(node_psize), node);
 			break;
 		case SYSTEM_RAM_RESERVED:
 			pr_info("Node%d: mem_type:%d, mem_start:0x%llx, mem_size:0x%llx MB\n",
@@ -175,7 +154,7 @@ static void __init node_mem_init(unsigned int node)
 	unsigned long node_addrspace_offset;
 	unsigned long start_pfn, end_pfn;
 
-	node_addrspace_offset = nid_to_addroffset(node);
+	node_addrspace_offset = nid_to_addrbase(node);
 	pr_info("Node%d's addrspace_offset is 0x%lx\n",
 			node, node_addrspace_offset);
 
@@ -242,9 +221,7 @@ void __init paging_init(void)
 	unsigned long zones_size[MAX_NR_ZONES] = {0, };
 
 	pagetable_init();
-#ifdef CONFIG_ZONE_DMA32
 	zones_size[ZONE_DMA32] = MAX_DMA32_PFN;
-#endif
 	zones_size[ZONE_NORMAL] = max_low_pfn;
 	free_area_init(zones_size);
 }

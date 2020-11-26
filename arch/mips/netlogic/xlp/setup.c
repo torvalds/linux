@@ -70,7 +70,7 @@ static void nlm_fixup_mem(void)
 	const int pref_backup = 512;
 	struct memblock_region *mem;
 
-	for_each_memblock(memory, mem) {
+	for_each_mem_region(mem) {
 		memblock_remove(mem->base + mem->size - pref_backup,
 			pref_backup);
 	}
@@ -89,7 +89,7 @@ static void __init xlp_init_mem_from_bars(void)
 		if (map[i] > 0x10000000 && map[i] < 0x20000000)
 			map[i] = 0x20000000;
 
-		add_memory_region(map[i], map[i+1] - map[i], BOOT_MEM_RAM);
+		memblock_add(map[i], map[i+1] - map[i]);
 	}
 }
 

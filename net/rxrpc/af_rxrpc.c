@@ -246,7 +246,7 @@ static int rxrpc_listen(struct socket *sock, int backlog)
 			ret = 0;
 			break;
 		}
-		/* Fall through */
+		fallthrough;
 	default:
 		ret = -EBUSY;
 		break;
@@ -308,9 +308,10 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 		key = NULL; /* a no-security key */
 
 	memset(&p, 0, sizeof(p));
-	p.user_call_ID = user_call_ID;
-	p.tx_total_len = tx_total_len;
-	p.interruptibility = interruptibility;
+	p.user_call_ID		= user_call_ID;
+	p.tx_total_len		= tx_total_len;
+	p.interruptibility	= interruptibility;
+	p.kernel		= true;
 
 	memset(&cp, 0, sizeof(cp));
 	cp.local		= rx->local;
@@ -545,7 +546,7 @@ static int rxrpc_sendmsg(struct socket *sock, struct msghdr *m, size_t len)
 
 		rx->local = local;
 		rx->sk.sk_state = RXRPC_CLIENT_BOUND;
-		/* Fall through */
+		fallthrough;
 
 	case RXRPC_CLIENT_BOUND:
 		if (!m->msg_name &&
@@ -553,7 +554,7 @@ static int rxrpc_sendmsg(struct socket *sock, struct msghdr *m, size_t len)
 			m->msg_name = &rx->connect_srx;
 			m->msg_namelen = sizeof(rx->connect_srx);
 		}
-		/* Fall through */
+		fallthrough;
 	case RXRPC_SERVER_BOUND:
 	case RXRPC_SERVER_LISTENING:
 		ret = rxrpc_do_sendmsg(rx, m, len);

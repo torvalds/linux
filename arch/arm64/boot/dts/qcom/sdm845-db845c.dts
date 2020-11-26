@@ -451,16 +451,16 @@
 			port@0 {
 				reg = <0>;
 
-				lt9611_out: endpoint {
-					remote-endpoint = <&hdmi_con>;
+				lt9611_a: endpoint {
+					remote-endpoint = <&dsi0_out>;
 				};
 			};
 
-			port@1 {
-				reg = <1>;
+			port@2 {
+				reg = <2>;
 
-				lt9611_a: endpoint {
-					remote-endpoint = <&dsi0_out>;
+				lt9611_out: endpoint {
+					remote-endpoint = <&hdmi_con>;
 				};
 			};
 		};
@@ -1103,7 +1103,7 @@
 };
 
 &cci {
-	status = "ok";
+	status = "okay";
 };
 
 &cci_i2c0 {

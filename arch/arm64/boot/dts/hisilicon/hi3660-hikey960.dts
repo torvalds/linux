@@ -530,7 +530,7 @@
 	rt1711h: rt1711h@4e {
 		compatible = "richtek,rt1711h";
 		reg = <0x4e>;
-		status = "ok";
+		status = "okay";
 		interrupt-parent = <&gpio27>;
 		interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
@@ -570,7 +570,7 @@
 	};
 
 	adv7533: adv7533@39 {
-		status = "ok";
+		status = "okay";
 		compatible = "adi,adv7533";
 		reg = <0x39>;
 		adi,dsi-lanes = <4>;
@@ -656,7 +656,7 @@
 		     &sdio_cfg_func>;
 	/* WL_EN */
 	vmmc-supply = <&wlan_en>;
-	status = "ok";
+	status = "okay";
 
 	wlcore: wlcore@2 {
 		compatible = "ti,wl1837";

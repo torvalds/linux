@@ -297,7 +297,7 @@ static void __init clean_path(char *path, umode_t fmode)
 {
 	struct kstat st;
 
-	if (init_stat(path, &st, AT_SYMLINK_NOFOLLOW) &&
+	if (!init_stat(path, &st, AT_SYMLINK_NOFOLLOW) &&
 	    (st.mode ^ fmode) & S_IFMT) {
 		if (S_ISDIR(st.mode))
 			init_rmdir(path);

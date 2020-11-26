@@ -20,6 +20,8 @@
 #include <asm/ptrace.h>
 #include <linux/uaccess.h>
 
+#include "probes-common.h"
+
 /*
  * Calculate and return exception PC in case of branch delay slot
  * for microMIPS and MIPS16e. It does not clear the ISA mode bit.

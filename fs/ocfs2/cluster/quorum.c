@@ -67,7 +67,7 @@ static void o2quo_fence_self(void)
 	default:
 		WARN_ON(o2nm_single_cluster->cl_fence_method >=
 			O2NM_FENCE_METHODS);
-		/* fall through */
+		fallthrough;
 	case O2NM_FENCE_RESET:
 		printk(KERN_ERR "*** ocfs2 is very sorry to be fencing this "
 		       "system by restarting ***\n");

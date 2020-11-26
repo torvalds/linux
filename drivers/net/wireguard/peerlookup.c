@@ -167,9 +167,13 @@ bool wg_index_hashtable_replace(struct index_hashtable *table,
 				struct index_hashtable_entry *old,
 				struct index_hashtable_entry *new)
 {
-	if (unlikely(hlist_unhashed(&old->index_hash)))
-		return false;
+	bool ret;
+
 	spin_lock_bh(&table->lock);
+	ret = !hlist_unhashed(&old->index_hash);
+	if (unlikely(!ret))
+		goto out;
+
 	new->index = old->index;
 	hlist_replace_rcu(&old->index_hash, &new->index_hash);
 
@@ -180,8 +184,9 @@ bool wg_index_hashtable_replace(struct index_hashtable *table,
 	 * simply gets dropped, which isn't terrible.
 	 */
 	INIT_HLIST_NODE(&old->index_hash);
+out:
 	spin_unlock_bh(&table->lock);
-	return true;
+	return ret;
 }
 
 void wg_index_hashtable_remove(struct index_hashtable *table,

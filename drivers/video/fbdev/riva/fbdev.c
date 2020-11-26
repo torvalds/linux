@@ -1093,7 +1093,7 @@ static int rivafb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 		break;
 	case 9 ... 15:
 		var->green.length = 5;
-		/* fall through */
+		fallthrough;
 	case 16:
 		var->bits_per_pixel = 16;
 		/* The Riva128 supports RGB555 only */

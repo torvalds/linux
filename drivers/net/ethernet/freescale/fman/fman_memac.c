@@ -528,7 +528,7 @@ static void setup_sgmii_internal_phy(struct fman_mac *memac,
 		case 100:
 			tmp_reg16 |= IF_MODE_SGMII_SPEED_100M;
 		break;
-		case 1000: /* fallthrough */
+		case 1000:
 		default:
 			tmp_reg16 |= IF_MODE_SGMII_SPEED_1G;
 		break;

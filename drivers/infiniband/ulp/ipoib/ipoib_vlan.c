@@ -195,6 +195,8 @@ int ipoib_vlan_add(struct net_device *pdev, unsigned short pkey)
 	}
 	priv = ipoib_priv(ndev);
 
+	ndev->rtnl_link_ops = ipoib_get_link_ops();
+
 	result = __ipoib_vlan_add(ppriv, priv, pkey, IPOIB_LEGACY_CHILD);
 
 	if (result && ndev->reg_state == NETREG_UNINITIALIZED)

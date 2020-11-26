@@ -163,4 +163,6 @@ dependencies:
   width-mm: [ height-mm ]
   height-mm: [ width-mm ]
 
+additionalProperties: true
+
 ...

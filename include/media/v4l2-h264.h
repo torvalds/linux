@@ -33,7 +33,7 @@ struct v4l2_h264_reflist_builder {
 	struct {
 		s32 pic_order_count;
 		int frame_num;
-		u16 pic_num;
+		u32 pic_num;
 		u16 longterm : 1;
 	} refs[V4L2_H264_NUM_DPB_ENTRIES];
 	s32 cur_pic_order_count;
@@ -44,7 +44,6 @@ struct v4l2_h264_reflist_builder {
 void
 v4l2_h264_init_reflist_builder(struct v4l2_h264_reflist_builder *b,
 		const struct v4l2_ctrl_h264_decode_params *dec_params,
-		const struct v4l2_ctrl_h264_slice_params *slice_params,
 		const struct v4l2_ctrl_h264_sps *sps,
 		const struct v4l2_h264_dpb_entry dpb[V4L2_H264_NUM_DPB_ENTRIES]);
 

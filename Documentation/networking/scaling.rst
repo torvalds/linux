@@ -465,9 +465,9 @@ XPS Configuration
 -----------------
 
 XPS is only available if the kconfig symbol CONFIG_XPS is enabled (on by
-default for SMP). The functionality remains disabled until explicitly
-configured. To enable XPS, the bitmap of CPUs/receive-queues that may
-use a transmit queue is configured using the sysfs file entry:
+default for SMP). If compiled in, it is driver dependent whether, and
+how, XPS is configured at device init. The mapping of CPUs/receive-queues
+to transmit queue can be inspected and configured using sysfs:
 
 For selection based on CPUs map::
 

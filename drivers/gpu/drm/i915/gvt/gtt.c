@@ -2501,7 +2501,7 @@ int intel_vgpu_init_gtt(struct intel_vgpu *vgpu)
 	return create_scratch_page_tree(vgpu);
 }
 
-static void intel_vgpu_destroy_all_ppgtt_mm(struct intel_vgpu *vgpu)
+void intel_vgpu_destroy_all_ppgtt_mm(struct intel_vgpu *vgpu)
 {
 	struct list_head *pos, *n;
 	struct intel_vgpu_mm *mm;

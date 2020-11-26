@@ -23,7 +23,7 @@
 /**
  * DOC: bitmap introduction
  *
- * bitmaps provide an array of bits, implemented using an an
+ * bitmaps provide an array of bits, implemented using an
  * array of unsigned longs.  The number of valid bits in a
  * given bitmap does _not_ need to be an exact multiple of
  * BITS_PER_LONG.
@@ -552,7 +552,7 @@ static inline bool end_of_region(char c)
 }
 
 /*
- * The format allows commas and whitespases at the beginning
+ * The format allows commas and whitespaces at the beginning
  * of the region.
  */
 static const char *bitmap_find_region(const char *str)

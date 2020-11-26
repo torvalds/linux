@@ -138,6 +138,14 @@
 		};
 	};
 
+	ir-receiver {
+		compatible = "gpio-ir-receiver";
+		gpios = <&gpio1 RK_PB6 GPIO_ACTIVE_LOW>;
+		linux,rc-map-name = "rc-khadas";
+		pinctrl-names = "default";
+		pinctrl-0 = <&ir_rx>;
+	};
+
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
@@ -585,6 +593,12 @@
 		};
 	};
 
+	ir {
+		ir_rx: ir-rx {
+		    rockchip,pins = <1 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
 	leds {
 		sys_led_pin: sys-led-pin {
 			rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
@@ -688,6 +702,16 @@
 	mmc-hs400-enhanced-strobe;
 	non-removable;
 	status = "okay";
+};
+
+&spi1 {
+	status = "okay";
+
+	spiflash: flash@0 {
+		compatible = "winbond,w25q128fw", "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <104000000>;
+	};
 };
 
 &tcphy0 {

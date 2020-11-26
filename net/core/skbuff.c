@@ -712,11 +712,10 @@ EXPORT_SYMBOL(kfree_skb_list);
  *
  * Must only be called from net_ratelimit()-ed paths.
  *
- * Dumps up to can_dump_full whole packets if full_pkt, headers otherwise.
+ * Dumps whole packets if full_pkt, only headers otherwise.
  */
 void skb_dump(const char *level, const struct sk_buff *skb, bool full_pkt)
 {
-	static atomic_t can_dump_full = ATOMIC_INIT(5);
 	struct skb_shared_info *sh = skb_shinfo(skb);
 	struct net_device *dev = skb->dev;
 	struct sock *sk = skb->sk;
@@ -724,9 +723,6 @@ void skb_dump(const char *level, const struct sk_buff *skb, bool full_pkt)
 	bool has_mac, has_trans;
 	int headroom, tailroom;
 	int i, len, seg_len;
-
-	if (full_pkt)
-		full_pkt = atomic_dec_if_positive(&can_dump_full) >= 0;
 
 	if (full_pkt)
 		len = skb->len;
@@ -820,6 +816,7 @@ void skb_tx_error(struct sk_buff *skb)
 }
 EXPORT_SYMBOL(skb_tx_error);
 
+#ifdef CONFIG_TRACEPOINTS
 /**
  *	consume_skb - free an skbuff
  *	@skb: buffer to free
@@ -837,6 +834,7 @@ void consume_skb(struct sk_buff *skb)
 	__kfree_skb(skb);
 }
 EXPORT_SYMBOL(consume_skb);
+#endif
 
 /**
  *	consume_stateless_skb - free an skbuff, assuming it is stateless
@@ -893,9 +891,6 @@ void __kfree_skb_defer(struct sk_buff *skb)
 
 void napi_consume_skb(struct sk_buff *skb, int budget)
 {
-	if (unlikely(!skb))
-		return;
-
 	/* Zero budget indicate non-NAPI context called us, like netpoll */
 	if (unlikely(!budget)) {
 		dev_consume_skb_any(skb);
@@ -2723,19 +2718,20 @@ EXPORT_SYMBOL(skb_checksum);
 /* Both of above in one bottle. */
 
 __wsum skb_copy_and_csum_bits(const struct sk_buff *skb, int offset,
-				    u8 *to, int len, __wsum csum)
+				    u8 *to, int len)
 {
 	int start = skb_headlen(skb);
 	int i, copy = start - offset;
 	struct sk_buff *frag_iter;
 	int pos = 0;
+	__wsum csum = 0;
 
 	/* Copy header. */
 	if (copy > 0) {
 		if (copy > len)
 			copy = len;
 		csum = csum_partial_copy_nocheck(skb->data + offset, to,
-						 copy, csum);
+						 copy);
 		if ((len -= copy) == 0)
 			return csum;
 		offset += copy;
@@ -2765,7 +2761,7 @@ __wsum skb_copy_and_csum_bits(const struct sk_buff *skb, int offset,
 				vaddr = kmap_atomic(p);
 				csum2 = csum_partial_copy_nocheck(vaddr + p_off,
 								  to + copied,
-								  p_len, 0);
+								  p_len);
 				kunmap_atomic(vaddr);
 				csum = csum_block_add(csum, csum2, pos);
 				pos += p_len;
@@ -2791,7 +2787,7 @@ __wsum skb_copy_and_csum_bits(const struct sk_buff *skb, int offset,
 				copy = len;
 			csum2 = skb_copy_and_csum_bits(frag_iter,
 						       offset - start,
-						       to, copy, 0);
+						       to, copy);
 			csum = csum_block_add(csum, csum2, pos);
 			if ((len -= copy) == 0)
 				return csum;
@@ -3011,7 +3007,7 @@ void skb_copy_and_csum_dev(const struct sk_buff *skb, u8 *to)
 	csum = 0;
 	if (csstart != skb->len)
 		csum = skb_copy_and_csum_bits(skb, csstart, to + csstart,
-					      skb->len - csstart, 0);
+					      skb->len - csstart);
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		long csstuff = csstart + skb->csum_offset;
@@ -3932,7 +3928,7 @@ normal:
 					skb_copy_and_csum_bits(head_skb, offset,
 							       skb_put(nskb,
 								       len),
-							       len, 0);
+							       len);
 				SKB_GSO_CB(nskb)->csum_start =
 					skb_headroom(nskb) + doffset;
 			} else {
@@ -5418,8 +5414,8 @@ struct sk_buff *skb_vlan_untag(struct sk_buff *skb)
 	skb = skb_share_check(skb, GFP_ATOMIC);
 	if (unlikely(!skb))
 		goto err_free;
-
-	if (unlikely(!pskb_may_pull(skb, VLAN_HLEN)))
+	/* We may access the two bytes after vlan_hdr in vlan_set_encap_proto(). */
+	if (unlikely(!pskb_may_pull(skb, VLAN_HLEN + sizeof(unsigned short))))
 		goto err_free;
 
 	vhdr = (struct vlan_hdr *)skb->data;
@@ -5559,6 +5555,73 @@ int skb_vlan_push(struct sk_buff *skb, __be16 vlan_proto, u16 vlan_tci)
 }
 EXPORT_SYMBOL(skb_vlan_push);
 
+/**
+ * skb_eth_pop() - Drop the Ethernet header at the head of a packet
+ *
+ * @skb: Socket buffer to modify
+ *
+ * Drop the Ethernet header of @skb.
+ *
+ * Expects that skb->data points to the mac header and that no VLAN tags are
+ * present.
+ *
+ * Returns 0 on success, -errno otherwise.
+ */
+int skb_eth_pop(struct sk_buff *skb)
+{
+	if (!pskb_may_pull(skb, ETH_HLEN) || skb_vlan_tagged(skb) ||
+	    skb_network_offset(skb) < ETH_HLEN)
+		return -EPROTO;
+
+	skb_pull_rcsum(skb, ETH_HLEN);
+	skb_reset_mac_header(skb);
+	skb_reset_mac_len(skb);
+
+	return 0;
+}
+EXPORT_SYMBOL(skb_eth_pop);
+
+/**
+ * skb_eth_push() - Add a new Ethernet header at the head of a packet
+ *
+ * @skb: Socket buffer to modify
+ * @dst: Destination MAC address of the new header
+ * @src: Source MAC address of the new header
+ *
+ * Prepend @skb with a new Ethernet header.
+ *
+ * Expects that skb->data points to the mac header, which must be empty.
+ *
+ * Returns 0 on success, -errno otherwise.
+ */
+int skb_eth_push(struct sk_buff *skb, const unsigned char *dst,
+		 const unsigned char *src)
+{
+	struct ethhdr *eth;
+	int err;
+
+	if (skb_network_offset(skb) || skb_vlan_tag_present(skb))
+		return -EPROTO;
+
+	err = skb_cow_head(skb, sizeof(*eth));
+	if (err < 0)
+		return err;
+
+	skb_push(skb, sizeof(*eth));
+	skb_reset_mac_header(skb);
+	skb_reset_mac_len(skb);
+
+	eth = eth_hdr(skb);
+	ether_addr_copy(eth->h_dest, dst);
+	ether_addr_copy(eth->h_source, src);
+	eth->h_proto = skb->protocol;
+
+	skb_postpush_rcsum(skb, eth, sizeof(*eth));
+
+	return 0;
+}
+EXPORT_SYMBOL(skb_eth_push);
+
 /* Update the ethertype of hdr and the skb csum value if required. */
 static void skb_mod_eth_type(struct sk_buff *skb, struct ethhdr *hdr,
 			     __be16 ethertype)
@@ -5620,7 +5683,7 @@ int skb_mpls_push(struct sk_buff *skb, __be32 mpls_lse, __be16 mpls_proto,
 	lse->label_stack_entry = mpls_lse;
 	skb_postpush_rcsum(skb, lse, MPLS_HLEN);
 
-	if (ethernet)
+	if (ethernet && mac_len >= ETH_HLEN)
 		skb_mod_eth_type(skb, eth_hdr(skb), mpls_proto);
 	skb->protocol = mpls_proto;
 
@@ -5660,7 +5723,7 @@ int skb_mpls_pop(struct sk_buff *skb, __be16 next_proto, int mac_len,
 	skb_reset_mac_header(skb);
 	skb_set_network_header(skb, mac_len);
 
-	if (ethernet) {
+	if (ethernet && mac_len >= ETH_HLEN) {
 		struct ethhdr *hdr;
 
 		/* use mpls_hdr() to get ethertype to account for VLANs. */
@@ -5953,8 +6016,7 @@ static int pskb_carve_inside_nonlinear(struct sk_buff *skb, const u32 off,
 	size = SKB_WITH_OVERHEAD(ksize(data));
 
 	memcpy((struct skb_shared_info *)(data + size),
-	       skb_shinfo(skb), offsetof(struct skb_shared_info,
-					 frags[skb_shinfo(skb)->nr_frags]));
+	       skb_shinfo(skb), offsetof(struct skb_shared_info, frags[0]));
 	if (skb_orphan_frags(skb, gfp_mask)) {
 		kfree(data);
 		return -ENOMEM;
@@ -5987,9 +6049,13 @@ static int pskb_carve_inside_nonlinear(struct sk_buff *skb, const u32 off,
 	if (skb_has_frag_list(skb))
 		skb_clone_fraglist(skb);
 
-	if (k == 0) {
-		/* split line is in frag list */
-		pskb_carve_frag_list(skb, shinfo, off - pos, gfp_mask);
+	/* split line is in frag list */
+	if (k == 0 && pskb_carve_frag_list(skb, shinfo, off - pos, gfp_mask)) {
+		/* skb_frag_unref() is not needed here as shinfo->nr_frags = 0. */
+		if (skb_has_frag_list(skb))
+			kfree_skb_list(skb_shinfo(skb)->frag_list);
+		kfree(data);
+		return -ENOMEM;
 	}
 	skb_release_data(skb);
 

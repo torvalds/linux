@@ -21,6 +21,8 @@
 #include <asm/mmu_context.h>
 #include <asm/pgalloc.h>
 
+#include "internal.h"
+
 static DEFINE_IDA(mmu_context_ida);
 
 static int alloc_context_id(int min_id, int max_id)
@@ -47,8 +49,6 @@ int hash__alloc_context_id(void)
 	return alloc_context_id(MIN_USER_CONTEXT, max);
 }
 EXPORT_SYMBOL_GPL(hash__alloc_context_id);
-
-void slb_setup_new_exec(void);
 
 static int realloc_context_ids(mm_context_t *ctx)
 {

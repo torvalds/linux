@@ -10,12 +10,15 @@
 #ifndef PINCTRL_INTEL_H
 #define PINCTRL_INTEL_H
 
+#include <linux/bits.h>
+#include <linux/compiler_types.h>
 #include <linux/gpio/driver.h>
 #include <linux/irq.h>
+#include <linux/kernel.h>
 #include <linux/pm.h>
+#include <linux/pinctrl/pinctrl.h>
 #include <linux/spinlock_types.h>
 
-struct pinctrl_pin_desc;
 struct platform_device;
 struct device;
 
@@ -193,6 +196,8 @@ struct intel_pinctrl_soc_data {
 	const struct intel_community *communities;
 	size_t ncommunities;
 };
+
+const struct intel_pinctrl_soc_data *intel_pinctrl_get_soc_data(struct platform_device *pdev);
 
 struct intel_pad_context;
 struct intel_community_context;

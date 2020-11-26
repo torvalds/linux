@@ -136,7 +136,7 @@ retry:
 			msleep(10);	/* give the device some time */
 			goto retry;
 		}
-		/* fall through */
+		fallthrough;
 	case -EINVAL:			/* while removing driver */
 	case -ENODEV:			/* dev disconnect ... */
 	case -ENOENT:			/* just ignore it */

@@ -252,6 +252,7 @@ config USB_NET_CDC_EEM
 config USB_NET_CDC_NCM
 	tristate "CDC NCM support"
 	depends on USB_USBNET
+	select USB_NET_CDCETHER
 	default y
 	help
 	  This driver provides support for CDC NCM (Network Control Model
@@ -345,6 +346,8 @@ config USB_NET_SMSC75XX
 config USB_NET_SMSC95XX
 	tristate "SMSC LAN95XX based USB 2.0 10/100 ethernet devices"
 	depends on USB_USBNET
+	select PHYLIB
+	select SMSC_PHY
 	select BITREVERSE
 	select CRC16
 	select CRC32

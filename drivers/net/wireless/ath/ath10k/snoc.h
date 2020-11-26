@@ -78,6 +78,7 @@ struct ath10k_snoc {
 	unsigned long flags;
 	bool xo_cal_supported;
 	u32 xo_cal_data;
+	DECLARE_BITMAP(pending_ce_irqs, CE_COUNT_MAX);
 };
 
 static inline struct ath10k_snoc *ath10k_snoc_priv(struct ath10k *ar)

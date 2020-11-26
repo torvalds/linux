@@ -4,6 +4,7 @@ Contact:	linux-input@vger.kernel.org
 Description:    Reports the firmware version provided by the touchscreen, for example "00_T6" on a EXC80H60
 
 		Access: Read
+
 		Valid values: Represented as string
 
 What:		/sys/bus/i2c/devices/xxx/model
@@ -12,4 +13,5 @@ Contact:	linux-input@vger.kernel.org
 Description:    Reports the model identification provided by the touchscreen, for example "Orion_1320" on a EXC80H60
 
 		Access: Read
+
 		Valid values: Represented as string

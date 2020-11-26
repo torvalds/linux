@@ -67,9 +67,12 @@ enum variants {
 	raa_dmpvr1_2rail,
 	raa_dmpvr2_1rail,
 	raa_dmpvr2_2rail,
+	raa_dmpvr2_2rail_nontc,
 	raa_dmpvr2_3rail,
 	raa_dmpvr2_hv,
 };
+
+static const struct i2c_device_id raa_dmpvr_id[];
 
 static ssize_t isl68137_avs_enable_show_page(struct i2c_client *client,
 					     int page,
@@ -217,8 +220,7 @@ static struct pmbus_driver_info raa_dmpvr_info = {
 	    | PMBUS_HAVE_STATUS_IOUT | PMBUS_HAVE_POUT,
 };
 
-static int isl68137_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int isl68137_probe(struct i2c_client *client)
 {
 	struct pmbus_driver_info *info;
 
@@ -227,7 +229,7 @@ static int isl68137_probe(struct i2c_client *client,
 		return -ENOMEM;
 	memcpy(info, &raa_dmpvr_info, sizeof(*info));
 
-	switch (id->driver_data) {
+	switch (i2c_match_id(raa_dmpvr_id, client)->driver_data) {
 	case raa_dmpvr1_2rail:
 		info->pages = 2;
 		info->R[PSC_VOLTAGE_IN] = 3;
@@ -241,6 +243,10 @@ static int isl68137_probe(struct i2c_client *client,
 		info->pages = 1;
 		info->read_word_data = raa_dmpvr2_read_word_data;
 		break;
+	case raa_dmpvr2_2rail_nontc:
+		info->func[0] &= ~PMBUS_HAVE_TEMP;
+		info->func[1] &= ~PMBUS_HAVE_TEMP;
+		fallthrough;
 	case raa_dmpvr2_2rail:
 		info->pages = 2;
 		info->read_word_data = raa_dmpvr2_read_word_data;
@@ -262,7 +268,7 @@ static int isl68137_probe(struct i2c_client *client,
 		return -ENODEV;
 	}
 
-	return pmbus_do_probe(client, id, info);
+	return pmbus_do_probe(client, info);
 }
 
 static const struct i2c_device_id raa_dmpvr_id[] = {
@@ -304,7 +310,7 @@ static const struct i2c_device_id raa_dmpvr_id[] = {
 	{"raa228000", raa_dmpvr2_hv},
 	{"raa228004", raa_dmpvr2_hv},
 	{"raa228006", raa_dmpvr2_hv},
-	{"raa228228", raa_dmpvr2_2rail},
+	{"raa228228", raa_dmpvr2_2rail_nontc},
 	{"raa229001", raa_dmpvr2_2rail},
 	{"raa229004", raa_dmpvr2_2rail},
 	{}
@@ -317,7 +323,7 @@ static struct i2c_driver isl68137_driver = {
 	.driver = {
 		   .name = "isl68137",
 		   },
-	.probe = isl68137_probe,
+	.probe_new = isl68137_probe,
 	.remove = pmbus_do_remove,
 	.id_table = raa_dmpvr_id,
 };

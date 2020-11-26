@@ -1026,7 +1026,9 @@ int qede_change_mtu(struct net_device *ndev, int new_mtu)
 	args.u.mtu = new_mtu;
 	args.func = &qede_update_mtu;
 	qede_reload(edev, &args, false);
-
+#if IS_ENABLED(CONFIG_QED_RDMA)
+	qede_rdma_event_change_mtu(edev);
+#endif
 	edev->ops->common->update_mtu(edev->cdev, new_mtu);
 
 	return 0;

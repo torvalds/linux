@@ -35,7 +35,7 @@ static uint64_t __calc_target_rate(struct cached_dev *dc)
 	 * This is the size of the cache, minus the amount used for
 	 * flash-only devices
 	 */
-	uint64_t cache_sectors = c->nbuckets * c->sb.bucket_size -
+	uint64_t cache_sectors = c->nbuckets * c->cache->sb.bucket_size -
 				atomic_long_read(&c->flash_dev_dirty_sectors);
 
 	/*

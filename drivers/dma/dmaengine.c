@@ -847,8 +847,10 @@ struct dma_chan *dma_request_chan(struct device *dev, const char *name)
 	}
 	mutex_unlock(&dma_list_mutex);
 
-	if (IS_ERR_OR_NULL(chan))
-		return chan ? chan : ERR_PTR(-EPROBE_DEFER);
+	if (IS_ERR(chan))
+		return chan;
+	if (!chan)
+		return ERR_PTR(-EPROBE_DEFER);
 
 found:
 #ifdef CONFIG_DEBUG_FS
@@ -870,24 +872,6 @@ found:
 	return chan;
 }
 EXPORT_SYMBOL_GPL(dma_request_chan);
-
-/**
- * dma_request_slave_channel - try to allocate an exclusive slave channel
- * @dev:	pointer to client device structure
- * @name:	slave channel name
- *
- * Returns pointer to appropriate DMA channel on success or NULL.
- */
-struct dma_chan *dma_request_slave_channel(struct device *dev,
-					   const char *name)
-{
-	struct dma_chan *ch = dma_request_chan(dev, name);
-	if (IS_ERR(ch))
-		return NULL;
-
-	return ch;
-}
-EXPORT_SYMBOL_GPL(dma_request_slave_channel);
 
 /**
  * dma_request_chan_by_mask - allocate a channel satisfying certain capabilities
@@ -1055,16 +1039,15 @@ static int get_dma_id(struct dma_device *device)
 static int __dma_async_device_channel_register(struct dma_device *device,
 					       struct dma_chan *chan)
 {
-	int rc = 0;
+	int rc;
 
 	chan->local = alloc_percpu(typeof(*chan->local));
 	if (!chan->local)
-		goto err_out;
+		return -ENOMEM;
 	chan->dev = kzalloc(sizeof(*chan->dev), GFP_KERNEL);
 	if (!chan->dev) {
-		free_percpu(chan->local);
-		chan->local = NULL;
-		goto err_out;
+		rc = -ENOMEM;
+		goto err_free_local;
 	}
 
 	/*
@@ -1077,7 +1060,8 @@ static int __dma_async_device_channel_register(struct dma_device *device,
 	if (chan->chan_id < 0) {
 		pr_err("%s: unable to alloc ida for chan: %d\n",
 		       __func__, chan->chan_id);
-		goto err_out;
+		rc = chan->chan_id;
+		goto err_free_dev;
 	}
 
 	chan->dev->device.class = &dma_devclass;
@@ -1098,9 +1082,10 @@ static int __dma_async_device_channel_register(struct dma_device *device,
 	mutex_lock(&device->chan_mutex);
 	ida_free(&device->chan_ida, chan->chan_id);
 	mutex_unlock(&device->chan_mutex);
- err_out:
-	free_percpu(chan->local);
+ err_free_dev:
 	kfree(chan->dev);
+ err_free_local:
+	free_percpu(chan->local);
 	return rc;
 }
 

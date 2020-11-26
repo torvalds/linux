@@ -23,6 +23,7 @@ config PINCTRL_BCM2835
 	select PINMUX
 	select PINCONF
 	select GENERIC_PINCONF
+	select GPIOLIB
 	select GPIOLIB_IRQCHIP
 	default ARCH_BCM2835 || ARCH_BRCMSTB
 	help

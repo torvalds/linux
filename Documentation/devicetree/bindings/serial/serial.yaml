@@ -124,6 +124,8 @@ patternProperties:
       required:
         - compatible
 
+additionalProperties: true
+
 examples:
   - |
     serial@1234 {

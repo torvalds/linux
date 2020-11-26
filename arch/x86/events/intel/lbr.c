@@ -1268,7 +1268,7 @@ static int branch_type(unsigned long from, unsigned long to, int abort)
 			ret = X86_BR_ZERO_CALL;
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	case 0x9a: /* call far absolute */
 		ret = X86_BR_CALL;
 		break;

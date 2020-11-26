@@ -215,10 +215,16 @@ switch_create()
 
 	bridge fdb add 00:00:5e:00:01:01 dev br1 self local vlan 10
 	bridge fdb add 00:00:5e:00:01:01 dev br1 self local vlan 20
+
+	sysctl_set net.ipv4.conf.all.rp_filter 0
+	sysctl_set net.ipv4.conf.vlan10-v.rp_filter 0
+	sysctl_set net.ipv4.conf.vlan20-v.rp_filter 0
 }
 
 switch_destroy()
 {
+	sysctl_restore net.ipv4.conf.all.rp_filter
+
 	bridge fdb del 00:00:5e:00:01:01 dev br1 self local vlan 20
 	bridge fdb del 00:00:5e:00:01:01 dev br1 self local vlan 10
 
@@ -359,6 +365,10 @@ ns_switch_create()
 
 	bridge fdb add 00:00:5e:00:01:01 dev br1 self local vlan 10
 	bridge fdb add 00:00:5e:00:01:01 dev br1 self local vlan 20
+
+	sysctl_set net.ipv4.conf.all.rp_filter 0
+	sysctl_set net.ipv4.conf.vlan10-v.rp_filter 0
+	sysctl_set net.ipv4.conf.vlan20-v.rp_filter 0
 }
 export -f ns_switch_create
 

@@ -23,7 +23,7 @@ config TORTURE_TEST
 	tristate
 	default n
 
-config RCU_PERF_TEST
+config RCU_SCALE_TEST
 	tristate "performance tests for RCU"
 	depends on DEBUG_KERNEL
 	select TORTURE_TEST
@@ -113,5 +113,20 @@ config RCU_EQS_DEBUG
 
 	  Say N here if you need ultimate kernel/user switch latencies
 	  Say Y if you are unsure
+
+config RCU_STRICT_GRACE_PERIOD
+	bool "Provide debug RCU implementation with short grace periods"
+	depends on DEBUG_KERNEL && RCU_EXPERT
+	default n
+	select PREEMPT_COUNT if PREEMPT=n
+	help
+	  Select this option to build an RCU variant that is strict about
+	  grace periods, making them as short as it can.  This limits
+	  scalability, destroys real-time response, degrades battery
+	  lifetime and kills performance.  Don't try this on large
+	  machines, as in systems with more than about 10 or 20 CPUs.
+	  But in conjunction with tools like KASAN, it can be helpful
+	  when looking for certain types of RCU usage bugs, for example,
+	  too-short RCU read-side critical sections.
 
 endmenu # "RCU Debugging"

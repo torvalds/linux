@@ -168,17 +168,17 @@ static int rmi_f30_config(struct rmi_function *fn)
 				rmi_get_platform_data(fn->rmi_dev);
 	int error;
 
-	/* can happen if f30_data.disable is set */
+	/* can happen if gpio_data.disable is set */
 	if (!f30)
 		return 0;
 
-	if (pdata->f30_data.trackstick_buttons) {
+	if (pdata->gpio_data.trackstick_buttons) {
 		/* Try [re-]establish link to F03. */
 		f30->f03 = rmi_find_function(fn->rmi_dev, 0x03);
 		f30->trackstick_buttons = f30->f03 != NULL;
 	}
 
-	if (pdata->f30_data.disable) {
+	if (pdata->gpio_data.disable) {
 		drv->clear_irq_bits(fn->rmi_dev, fn->irq_mask);
 	} else {
 		/* Write Control Register values back to device */
@@ -245,10 +245,10 @@ static int rmi_f30_map_gpios(struct rmi_function *fn,
 		if (!rmi_f30_is_valid_button(i, f30->ctrl))
 			continue;
 
-		if (pdata->f30_data.trackstick_buttons &&
+		if (pdata->gpio_data.trackstick_buttons &&
 		    i >= TRACKSTICK_RANGE_START && i < TRACKSTICK_RANGE_END) {
 			f30->gpioled_key_map[i] = trackstick_button++;
-		} else if (!pdata->f30_data.buttonpad || !button_mapped) {
+		} else if (!pdata->gpio_data.buttonpad || !button_mapped) {
 			f30->gpioled_key_map[i] = button;
 			input_set_capability(input, EV_KEY, button++);
 			button_mapped = true;
@@ -264,7 +264,7 @@ static int rmi_f30_map_gpios(struct rmi_function *fn,
 	 * but I am not sure, so use only the pdata info and the number of
 	 * mapped buttons.
 	 */
-	if (pdata->f30_data.buttonpad || (button - BTN_LEFT == 1))
+	if (pdata->gpio_data.buttonpad || (button - BTN_LEFT == 1))
 		__set_bit(INPUT_PROP_BUTTONPAD, input->propbit);
 
 	return 0;
@@ -372,7 +372,7 @@ static int rmi_f30_probe(struct rmi_function *fn)
 	struct f30_data *f30;
 	int error;
 
-	if (pdata->f30_data.disable)
+	if (pdata->gpio_data.disable)
 		return 0;
 
 	if (!drv_data->input) {

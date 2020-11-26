@@ -1226,7 +1226,7 @@ static void frontend_init(struct budget_av *budget_av)
 		 * but so far it has been only confirmed for this type
 		 */
 		budget_av->reinitialise_demod = 1;
-		/* fall through */
+		fallthrough;
 	case SUBID_DVBS_KNC1_PLUS:
 	case SUBID_DVBS_EASYWATCH_1:
 		if (saa->pci->subsystem_vendor == 0x1894) {

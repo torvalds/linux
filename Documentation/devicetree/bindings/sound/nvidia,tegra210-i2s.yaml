@@ -82,6 +82,8 @@ required:
   - assigned-clocks
   - assigned-clock-parents
 
+additionalProperties: false
+
 examples:
   - |
     #include<dt-bindings/clock/tegra210-car.h>

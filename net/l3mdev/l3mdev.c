@@ -154,7 +154,7 @@ int l3mdev_master_upper_ifindex_by_index_rcu(struct net *net, int ifindex)
 EXPORT_SYMBOL_GPL(l3mdev_master_upper_ifindex_by_index_rcu);
 
 /**
- *	l3mdev_fib_table - get FIB table id associated with an L3
+ *	l3mdev_fib_table_rcu - get FIB table id associated with an L3
  *                             master interface
  *	@dev: targeted interface
  */

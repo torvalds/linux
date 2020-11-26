@@ -36,6 +36,8 @@ required:
   - reset-names
   - "#phy-cells"
 
+additionalProperties: false
+
 examples:
   - |
     #include <dt-bindings/clock/qcom,gcc-ipq4019.h>

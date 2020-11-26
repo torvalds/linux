@@ -113,6 +113,10 @@ END_FTR_SECTION_IFSET(CPU_FTR_TM)
 	ld	r11,exception_marker@toc(r2)
 	std	r11,-16(r10)		/* "regshere" marker */
 
+BEGIN_FTR_SECTION
+	HMT_MEDIUM
+END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
+
 	/*
 	 * RECONCILE_IRQ_STATE without calling trace_hardirqs_off(), which
 	 * would clobber syscall parameters. Also we always enter with IRQs
@@ -426,7 +430,11 @@ _ASM_NOKPROBE_SYMBOL(save_nvgprs);
 
 #define FLUSH_COUNT_CACHE	\
 1:	nop;			\
-	patch_site 1b, patch__call_flush_branch_caches
+	patch_site 1b, patch__call_flush_branch_caches1; \
+1:	nop;			\
+	patch_site 1b, patch__call_flush_branch_caches2; \
+1:	nop;			\
+	patch_site 1b, patch__call_flush_branch_caches3
 
 .macro nops number
 	.rept \number
@@ -508,7 +516,7 @@ _GLOBAL(_switch)
 
 	kuap_check_amr r9, r10
 
-	FLUSH_COUNT_CACHE
+	FLUSH_COUNT_CACHE	/* Clobbers r9, ctr */
 
 	/*
 	 * On SMP kernels, care must be taken because a task may be

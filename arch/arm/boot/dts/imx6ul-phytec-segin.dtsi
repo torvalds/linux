@@ -106,7 +106,7 @@
 &ecspi3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi3>;
-	cs-gpios = <&gpio1 20 GPIO_ACTIVE_HIGH>;
+	cs-gpios = <&gpio1 20 GPIO_ACTIVE_LOW>;
 	status = "disabled";
 };
 

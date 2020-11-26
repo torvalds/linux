@@ -22,4 +22,5 @@
 #define __releases(x)
 #define __must_hold(x)
 
+#define EXPORT_PER_CPU_SYMBOL_GPL(x)
 #endif /* _KERNEL_H */

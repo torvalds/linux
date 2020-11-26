@@ -80,23 +80,18 @@ static int vcn_v2_5_early_init(void *handle)
 		adev->vcn.harvest_config = 0;
 		adev->vcn.num_enc_rings = 1;
 	} else {
-		if (adev->asic_type == CHIP_ARCTURUS) {
-			u32 harvest;
-			int i;
-
-			adev->vcn.num_vcn_inst = VCN25_MAX_HW_INSTANCES_ARCTURUS;
-			for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
-				harvest = RREG32_SOC15(VCN, i, mmCC_UVD_HARVESTING);
-				if (harvest & CC_UVD_HARVESTING__UVD_DISABLE_MASK)
-					adev->vcn.harvest_config |= 1 << i;
-			}
-
-			if (adev->vcn.harvest_config == (AMDGPU_VCN_HARVEST_VCN0 |
-						AMDGPU_VCN_HARVEST_VCN1))
-				/* both instances are harvested, disable the block */
-				return -ENOENT;
-		} else
-			adev->vcn.num_vcn_inst = 1;
+		u32 harvest;
+		int i;
+		adev->vcn.num_vcn_inst = VCN25_MAX_HW_INSTANCES_ARCTURUS;
+		for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
+			harvest = RREG32_SOC15(VCN, i, mmCC_UVD_HARVESTING);
+			if (harvest & CC_UVD_HARVESTING__UVD_DISABLE_MASK)
+				adev->vcn.harvest_config |= 1 << i;
+		}
+		if (adev->vcn.harvest_config == (AMDGPU_VCN_HARVEST_VCN0 |
+					AMDGPU_VCN_HARVEST_VCN1))
+			/* both instances are harvested, disable the block */
+			return -ENOENT;
 
 		adev->vcn.num_enc_rings = 2;
 	}
@@ -887,7 +882,7 @@ static int vcn_v2_5_start_dpg_mode(struct amdgpu_device *adev, int inst_idx, boo
 	WREG32_SOC15(VCN, inst_idx, mmUVD_RBC_RB_RPTR_ADDR,
 		(upper_32_bits(ring->gpu_addr) >> 2));
 
-	/* programm the RB_BASE for ring buffer */
+	/* program the RB_BASE for ring buffer */
 	WREG32_SOC15(VCN, inst_idx, mmUVD_LMI_RBC_RB_64BIT_BAR_LOW,
 		lower_32_bits(ring->gpu_addr));
 	WREG32_SOC15(VCN, inst_idx, mmUVD_LMI_RBC_RB_64BIT_BAR_HIGH,
@@ -1067,7 +1062,7 @@ static int vcn_v2_5_start(struct amdgpu_device *adev)
 		WREG32_SOC15(VCN, i, mmUVD_RBC_RB_CNTL, tmp);
 
 		fw_shared->multi_queue.decode_queue_mode |= FW_QUEUE_RING_RESET;
-		/* programm the RB_BASE for ring buffer */
+		/* program the RB_BASE for ring buffer */
 		WREG32_SOC15(VCN, i, mmUVD_LMI_RBC_RB_64BIT_BAR_LOW,
 			lower_32_bits(ring->gpu_addr));
 		WREG32_SOC15(VCN, i, mmUVD_LMI_RBC_RB_64BIT_BAR_HIGH,
@@ -1108,7 +1103,7 @@ static int vcn_v2_5_mmsch_start(struct amdgpu_device *adev,
 {
 	uint32_t data = 0, loop = 0, size = 0;
 	uint64_t addr = table->gpu_addr;
-	struct mmsch_v1_1_init_header *header = NULL;;
+	struct mmsch_v1_1_init_header *header = NULL;
 
 	header = (struct mmsch_v1_1_init_header *)table->cpu_addr;
 	size = header->total_size;

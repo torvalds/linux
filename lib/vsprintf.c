@@ -940,13 +940,13 @@ char *bdev_name(char *buf, char *end, struct block_device *bdev,
 
 	hd = bdev->bd_disk;
 	buf = string(buf, end, hd->disk_name, spec);
-	if (bdev->bd_part->partno) {
+	if (bdev->bd_partno) {
 		if (isdigit(hd->disk_name[strlen(hd->disk_name)-1])) {
 			if (buf < end)
 				*buf = 'p';
 			buf++;
 		}
-		buf = number(buf, end, bdev->bd_part->partno, spec);
+		buf = number(buf, end, bdev->bd_partno, spec);
 	}
 	return buf;
 }
@@ -1681,7 +1681,8 @@ char *uuid_string(char *buf, char *end, const u8 *addr,
 
 	switch (*(++fmt)) {
 	case 'L':
-		uc = true;		/* fall-through */
+		uc = true;
+		/* fall through */
 	case 'l':
 		index = guid_index;
 		break;
@@ -2218,7 +2219,7 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 	case 'S':
 	case 's':
 		ptr = dereference_symbol_descriptor(ptr);
-		/* Fallthrough */
+		/* fall through */
 	case 'B':
 		return symbol_string(buf, end, ptr, spec, fmt);
 	case 'R':
@@ -2467,7 +2468,7 @@ qualifier:
 		 * utility, treat it as any other invalid or
 		 * unsupported format specifier.
 		 */
-		/* Fall-through */
+		/* fall through */
 
 	default:
 		WARN_ONCE(1, "Please remove unsupported %%%c in format string\n", *fmt);

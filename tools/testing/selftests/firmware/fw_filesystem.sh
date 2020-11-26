@@ -149,6 +149,26 @@ config_unset_into_buf()
 	echo 0 >  $DIR/config_into_buf
 }
 
+config_set_buf_size()
+{
+	echo $1 >  $DIR/config_buf_size
+}
+
+config_set_file_offset()
+{
+	echo $1 >  $DIR/config_file_offset
+}
+
+config_set_partial()
+{
+	echo 1 >  $DIR/config_partial
+}
+
+config_unset_partial()
+{
+	echo 0 >  $DIR/config_partial
+}
+
 config_set_sync_direct()
 {
 	echo 1 >  $DIR/config_sync_direct
@@ -207,6 +227,35 @@ read_firmwares()
 	done
 }
 
+read_partial_firmwares()
+{
+	if [ "$(cat $DIR/config_into_buf)" == "1" ]; then
+		fwfile="${FW_INTO_BUF}"
+	else
+		fwfile="${FW}"
+	fi
+
+	if [ "$1" = "xzonly" ]; then
+		fwfile="${fwfile}-orig"
+	fi
+
+	# Strip fwfile down to match partial offset and length
+	partial_data="$(cat $fwfile)"
+	partial_data="${partial_data:$2:$3}"
+
+	for i in $(seq 0 3); do
+		config_set_read_fw_idx $i
+
+		read_firmware="$(cat $DIR/read_firmware)"
+
+		# Verify the contents are what we expect.
+		if [ $read_firmware != $partial_data ]; then
+			echo "request #$i: partial firmware was not loaded" >&2
+			exit 1
+		fi
+	done
+}
+
 read_firmwares_expect_nofile()
 {
 	for i in $(seq 0 3); do
@@ -236,6 +285,21 @@ test_batched_request_firmware_into_buf_nofile()
 	config_reset
 	config_set_name nope-test-firmware.bin
 	config_set_into_buf
+	config_trigger_sync
+	read_firmwares_expect_nofile
+	release_all_firmware
+	echo "OK"
+}
+
+test_request_partial_firmware_into_buf_nofile()
+{
+	echo -n "Test request_partial_firmware_into_buf() off=$1 size=$2 nofile: "
+	config_reset
+	config_set_name nope-test-firmware.bin
+	config_set_into_buf
+	config_set_partial
+	config_set_buf_size $2
+	config_set_file_offset $1
 	config_trigger_sync
 	read_firmwares_expect_nofile
 	release_all_firmware
@@ -356,6 +420,21 @@ test_request_firmware_nowait_custom()
 	echo "OK"
 }
 
+test_request_partial_firmware_into_buf()
+{
+	echo -n "Test request_partial_firmware_into_buf() off=$1 size=$2: "
+	config_reset
+	config_set_name $TEST_FIRMWARE_INTO_BUF_FILENAME
+	config_set_into_buf
+	config_set_partial
+	config_set_buf_size $2
+	config_set_file_offset $1
+	config_trigger_sync
+	read_partial_firmwares normal $1 $2
+	release_all_firmware
+	echo "OK"
+}
+
 # Only continue if batched request triggers are present on the
 # test-firmware driver
 test_config_present
@@ -383,6 +462,12 @@ for i in $(seq 1 5); do
 	test_request_firmware_nowait_custom $i normal
 done
 
+# Partial loads cannot use fallback, so do not repeat tests.
+test_request_partial_firmware_into_buf 0 10
+test_request_partial_firmware_into_buf 0 5
+test_request_partial_firmware_into_buf 1 6
+test_request_partial_firmware_into_buf 2 10
+
 # Test for file not found, errors are expected, the failure would be
 # a hung task, which would require a hard reset.
 echo
@@ -406,6 +491,12 @@ done
 for i in $(seq 1 5); do
 	test_request_firmware_nowait_custom_nofile $i
 done
+
+# Partial loads cannot use fallback, so do not repeat tests.
+test_request_partial_firmware_into_buf_nofile 0 10
+test_request_partial_firmware_into_buf_nofile 0 5
+test_request_partial_firmware_into_buf_nofile 1 6
+test_request_partial_firmware_into_buf_nofile 2 10
 
 test "$HAS_FW_LOADER_COMPRESS" != "yes" && exit 0
 

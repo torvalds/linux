@@ -74,37 +74,6 @@ enum WIFI_FRAME_SUBTYPE {
 	WIFI_QOS_DATA_NULL	= (BIT(6) | WIFI_QOS_DATA_TYPE),
 };
 
-enum WIFI_REASON_CODE	{
-	_RSON_RESERVED_			= 0,
-	_RSON_UNSPECIFIED_		= 1,
-	_RSON_AUTH_NO_LONGER_VALID_	= 2,
-	_RSON_DEAUTH_STA_LEAVING_	= 3,
-	_RSON_INACTIVITY_		= 4,
-	_RSON_UNABLE_HANDLE_		= 5,
-	_RSON_CLS2_			= 6,
-	_RSON_CLS3_			= 7,
-	_RSON_DISAOC_STA_LEAVING_	= 8,
-	_RSON_ASOC_NOT_AUTH_		= 9,
-
-	/*  WPA reason */
-	_RSON_INVALID_IE_		= 13,
-	_RSON_MIC_FAILURE_		= 14,
-	_RSON_4WAY_HNDSHK_TIMEOUT_	= 15,
-	_RSON_GROUP_KEY_UPDATE_TIMEOUT_	= 16,
-	_RSON_DIFF_IE_			= 17,
-	_RSON_MLTCST_CIPHER_NOT_VALID_	= 18,
-	_RSON_UNICST_CIPHER_NOT_VALID_	= 19,
-	_RSON_AKMP_NOT_VALID_		= 20,
-	_RSON_UNSUPPORT_RSNE_VER_	= 21,
-	_RSON_INVALID_RSNE_CAP_		= 22,
-	_RSON_IEEE_802DOT1X_AUTH_FAIL_	= 23,
-
-	/* belowing are Realtek definition */
-	_RSON_PMK_NOT_AVAILABLE_	= 24,
-	_RSON_TDLS_TEAR_TOOFAR_		= 25,
-	_RSON_TDLS_TEAR_UN_RSN_		= 26,
-};
-
 enum WIFI_STATUS_CODE {
 	_STATS_SUCCESSFUL_		= 0,
 	_STATS_FAILURE_			= 1,
@@ -326,11 +295,12 @@ static inline unsigned char *get_hdr_bssid(unsigned char *pframe)
 
 static inline int IsFrameTypeCtrl(unsigned char *pframe)
 {
-	if (WIFI_CTRL_TYPE == GetFrameType(pframe))
+	if (GetFrameType(pframe) == WIFI_CTRL_TYPE)
 		return true;
 	else
 		return false;
 }
+
 /*-----------------------------------------------------------------------------
 			Below is for the security related definition
 ------------------------------------------------------------------------------*/

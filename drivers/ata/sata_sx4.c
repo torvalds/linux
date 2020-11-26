@@ -669,7 +669,7 @@ static unsigned int pdc20621_qc_issue(struct ata_queued_cmd *qc)
 	case ATA_PROT_NODATA:
 		if (qc->tf.flags & ATA_TFLAG_POLLING)
 			break;
-		/*FALLTHROUGH*/
+		fallthrough;
 	case ATA_PROT_DMA:
 		pdc20621_packet_start(qc);
 		return 0;

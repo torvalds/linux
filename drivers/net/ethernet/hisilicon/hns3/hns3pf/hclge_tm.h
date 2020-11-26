@@ -19,6 +19,8 @@
 #define HCLGE_TM_TX_SCHD_DWRR_MSK	BIT(0)
 #define HCLGE_TM_TX_SCHD_SP_MSK		(0xFE)
 
+#define HCLGE_ETHER_MAX_RATE	100000
+
 struct hclge_pg_to_pri_link_cmd {
 	u8 pg_id;
 	u8 rsvd1[3];
@@ -137,6 +139,12 @@ struct hclge_pfc_stats_cmd {
 
 struct hclge_port_shapping_cmd {
 	__le32 port_shapping_para;
+};
+
+struct hclge_shaper_ir_para {
+	u8 ir_b; /* IR_B parameter of IR shaper */
+	u8 ir_u; /* IR_U parameter of IR shaper */
+	u8 ir_s; /* IR_S parameter of IR shaper */
 };
 
 #define hclge_tm_set_field(dest, string, val) \

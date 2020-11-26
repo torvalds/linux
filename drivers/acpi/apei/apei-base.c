@@ -632,7 +632,15 @@ int apei_map_generic_address(struct acpi_generic_address *reg)
 	rc = apei_check_gar(reg, &address, &access_bit_width);
 	if (rc)
 		return rc;
-	return acpi_os_map_generic_address(reg);
+
+	/* IO space doesn't need mapping */
+	if (reg->space_id == ACPI_ADR_SPACE_SYSTEM_IO)
+		return 0;
+
+	if (!acpi_os_map_generic_address(reg))
+		return -ENXIO;
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(apei_map_generic_address);
 

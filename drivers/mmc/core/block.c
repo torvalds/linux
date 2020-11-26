@@ -723,7 +723,7 @@ static int mmc_blk_check_blkdev(struct block_device *bdev)
 	 * whole block device, not on a partition.  This prevents overspray
 	 * between sibling partitions.
 	 */
-	if ((!capable(CAP_SYS_RAWIO)) || (bdev != bdev->bd_contains))
+	if (!capable(CAP_SYS_RAWIO) || bdev_is_partition(bdev))
 		return -EPERM;
 	return 0;
 }

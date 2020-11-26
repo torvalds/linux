@@ -1206,7 +1206,8 @@ again:
 	}
 
 	if (cow) {
-		ret = btrfs_cow_block(trans, dest, eb, NULL, 0, &eb);
+		ret = btrfs_cow_block(trans, dest, eb, NULL, 0, &eb,
+				      BTRFS_NESTING_COW);
 		BUG_ON(ret);
 	}
 	btrfs_set_lock_blocking_write(eb);
@@ -1274,7 +1275,8 @@ again:
 			btrfs_tree_lock(eb);
 			if (cow) {
 				ret = btrfs_cow_block(trans, dest, eb, parent,
-						      slot, &eb);
+						      slot, &eb,
+						      BTRFS_NESTING_COW);
 				BUG_ON(ret);
 			}
 			btrfs_set_lock_blocking_write(eb);
@@ -1646,6 +1648,7 @@ static noinline_for_stack int merge_reloc_root(struct reloc_control *rc,
 	struct btrfs_root_item *root_item;
 	struct btrfs_path *path;
 	struct extent_buffer *leaf;
+	int reserve_level;
 	int level;
 	int max_level;
 	int replaced = 0;
@@ -1694,7 +1697,8 @@ static noinline_for_stack int merge_reloc_root(struct reloc_control *rc,
 	 * Thus the needed metadata size is at most root_level * nodesize,
 	 * and * 2 since we have two trees to COW.
 	 */
-	min_reserved = fs_info->nodesize * btrfs_root_level(root_item) * 2;
+	reserve_level = max_t(int, 1, btrfs_root_level(root_item));
+	min_reserved = fs_info->nodesize * reserve_level * 2;
 	memset(&next_key, 0, sizeof(next_key));
 
 	while (1) {
@@ -1781,7 +1785,8 @@ static noinline_for_stack int merge_reloc_root(struct reloc_control *rc,
 	 * relocated and the block is tree root.
 	 */
 	leaf = btrfs_lock_root_node(root);
-	ret = btrfs_cow_block(trans, root, leaf, NULL, 0, &leaf);
+	ret = btrfs_cow_block(trans, root, leaf, NULL, 0, &leaf,
+			      BTRFS_NESTING_COW);
 	btrfs_tree_unlock(leaf);
 	free_extent_buffer(leaf);
 	if (ret < 0)
@@ -2308,7 +2313,7 @@ static int do_relocation(struct btrfs_trans_handle *trans,
 
 		if (!node->eb) {
 			ret = btrfs_cow_block(trans, root, eb, upper->eb,
-					      slot, &eb);
+					      slot, &eb, BTRFS_NESTING_COW);
 			btrfs_tree_unlock(eb);
 			free_extent_buffer(eb);
 			if (ret < 0) {

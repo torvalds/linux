@@ -136,6 +136,14 @@ struct dc_vbios_funcs {
 
 	enum bp_result (*get_atom_dc_golden_table)(
 			struct dc_bios *dcb);
+
+	enum bp_result (*enable_lvtma_control)(
+		struct dc_bios *bios,
+		uint8_t uc_pwr_on);
+
+	enum bp_result (*get_soc_bb_info)(
+		struct dc_bios *dcb,
+		struct bp_soc_bb_info *soc_bb_info);
 };
 
 struct bios_registers {

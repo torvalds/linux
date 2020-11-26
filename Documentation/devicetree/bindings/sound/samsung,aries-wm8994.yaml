@@ -11,12 +11,11 @@ maintainers:
 
 properties:
   compatible:
-    oneOf:
-      - const: samsung,aries-wm8994
-        description: With FM radio and modem master
-
-      - const: samsung,fascinate4g-wm8994
-        description: Without FM radio and modem slave
+    enum:
+      # With FM radio and modem master
+      - samsung,aries-wm8994
+      # Without FM radio and modem slave
+      - samsung,fascinate4g-wm8994
 
   model:
     $ref: /schemas/types.yaml#/definitions/string

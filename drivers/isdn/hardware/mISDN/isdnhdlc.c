@@ -397,7 +397,7 @@ int isdnhdlc_encode(struct isdnhdlc_vars *hdlc, const u8 *src, u16 slen,
 				dsize--;
 				break;
 			}
-			/* fall through */
+			fallthrough;
 		case HDLC_SENDFLAG_ONE:
 			if (hdlc->bit_shift == 8) {
 				hdlc->cbin = hdlc->ffvalue >>

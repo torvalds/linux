@@ -20,6 +20,8 @@ struct pmbus_device_info {
 	u32 flags;
 };
 
+static const struct i2c_device_id pmbus_id[];
+
 /*
  * Find sensor groups and status registers on each page.
  */
@@ -159,8 +161,7 @@ abort:
 	return ret;
 }
 
-static int pmbus_probe(struct i2c_client *client,
-		       const struct i2c_device_id *id)
+static int pmbus_probe(struct i2c_client *client)
 {
 	struct pmbus_driver_info *info;
 	struct pmbus_platform_data *pdata = NULL;
@@ -171,7 +172,7 @@ static int pmbus_probe(struct i2c_client *client,
 	if (!info)
 		return -ENOMEM;
 
-	device_info = (struct pmbus_device_info *)id->driver_data;
+	device_info = (struct pmbus_device_info *)i2c_match_id(pmbus_id, client)->driver_data;
 	if (device_info->flags & PMBUS_SKIP_STATUS_CHECK) {
 		pdata = devm_kzalloc(dev, sizeof(struct pmbus_platform_data),
 				     GFP_KERNEL);
@@ -185,7 +186,7 @@ static int pmbus_probe(struct i2c_client *client,
 	info->identify = pmbus_identify;
 	dev->platform_data = pdata;
 
-	return pmbus_do_probe(client, id, info);
+	return pmbus_do_probe(client, info);
 }
 
 static const struct pmbus_device_info pmbus_info_one = {
@@ -236,7 +237,7 @@ static struct i2c_driver pmbus_driver = {
 	.driver = {
 		   .name = "pmbus",
 		   },
-	.probe = pmbus_probe,
+	.probe_new = pmbus_probe,
 	.remove = pmbus_do_remove,
 	.id_table = pmbus_id,
 };

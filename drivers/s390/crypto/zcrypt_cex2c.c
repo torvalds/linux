@@ -109,25 +109,52 @@ static ssize_t cca_mkvps_show(struct device *dev,
 		     AP_QID_QUEUE(zq->queue->qid),
 		     &ci, zq->online);
 
-	if (ci.new_mk_state >= '1' && ci.new_mk_state <= '3')
+	if (ci.new_aes_mk_state >= '1' && ci.new_aes_mk_state <= '3')
 		n = scnprintf(buf, PAGE_SIZE, "AES NEW: %s 0x%016llx\n",
-			      new_state[ci.new_mk_state - '1'], ci.new_mkvp);
+			      new_state[ci.new_aes_mk_state - '1'],
+			      ci.new_aes_mkvp);
 	else
 		n = scnprintf(buf, PAGE_SIZE, "AES NEW: - -\n");
 
-	if (ci.cur_mk_state >= '1' && ci.cur_mk_state <= '2')
+	if (ci.cur_aes_mk_state >= '1' && ci.cur_aes_mk_state <= '2')
 		n += scnprintf(buf + n, PAGE_SIZE - n,
 			       "AES CUR: %s 0x%016llx\n",
-			       cao_state[ci.cur_mk_state - '1'], ci.cur_mkvp);
+			       cao_state[ci.cur_aes_mk_state - '1'],
+			       ci.cur_aes_mkvp);
 	else
 		n += scnprintf(buf + n, PAGE_SIZE - n, "AES CUR: - -\n");
 
-	if (ci.old_mk_state >= '1' && ci.old_mk_state <= '2')
+	if (ci.old_aes_mk_state >= '1' && ci.old_aes_mk_state <= '2')
 		n += scnprintf(buf + n, PAGE_SIZE - n,
 			       "AES OLD: %s 0x%016llx\n",
-			       cao_state[ci.old_mk_state - '1'], ci.old_mkvp);
+			       cao_state[ci.old_aes_mk_state - '1'],
+			       ci.old_aes_mkvp);
 	else
 		n += scnprintf(buf + n, PAGE_SIZE - n, "AES OLD: - -\n");
+
+	if (ci.new_apka_mk_state >= '1' && ci.new_apka_mk_state <= '3')
+		n += scnprintf(buf + n, PAGE_SIZE - n,
+			       "APKA NEW: %s 0x%016llx\n",
+			       new_state[ci.new_apka_mk_state - '1'],
+			       ci.new_apka_mkvp);
+	else
+		n += scnprintf(buf + n, PAGE_SIZE - n, "APKA NEW: - -\n");
+
+	if (ci.cur_apka_mk_state >= '1' && ci.cur_apka_mk_state <= '2')
+		n += scnprintf(buf + n, PAGE_SIZE - n,
+			       "APKA CUR: %s 0x%016llx\n",
+			       cao_state[ci.cur_apka_mk_state - '1'],
+			       ci.cur_apka_mkvp);
+	else
+		n += scnprintf(buf + n, PAGE_SIZE - n, "APKA CUR: - -\n");
+
+	if (ci.old_apka_mk_state >= '1' && ci.old_apka_mk_state <= '2')
+		n += scnprintf(buf + n, PAGE_SIZE - n,
+			       "APKA OLD: %s 0x%016llx\n",
+			       cao_state[ci.old_apka_mk_state - '1'],
+			       ci.old_apka_mkvp);
+	else
+		n += scnprintf(buf + n, PAGE_SIZE - n, "APKA OLD: - -\n");
 
 	return n;
 }
@@ -239,8 +266,7 @@ static int zcrypt_cex2c_card_probe(struct ap_device *ap_dev)
 	case AP_DEVICE_TYPE_CEX2C:
 		zc->user_space_type = ZCRYPT_CEX2C;
 		zc->type_string = "CEX2C";
-		memcpy(zc->speed_rating, CEX2C_SPEED_IDX,
-		       sizeof(CEX2C_SPEED_IDX));
+		zc->speed_rating = CEX2C_SPEED_IDX;
 		zc->min_mod_size = CEX2C_MIN_MOD_SIZE;
 		zc->max_mod_size = CEX2C_MAX_MOD_SIZE;
 		zc->max_exp_bit_length = CEX2C_MAX_MOD_SIZE;
@@ -248,8 +274,7 @@ static int zcrypt_cex2c_card_probe(struct ap_device *ap_dev)
 	case AP_DEVICE_TYPE_CEX3C:
 		zc->user_space_type = ZCRYPT_CEX3C;
 		zc->type_string = "CEX3C";
-		memcpy(zc->speed_rating, CEX3C_SPEED_IDX,
-		       sizeof(CEX3C_SPEED_IDX));
+		zc->speed_rating = CEX3C_SPEED_IDX;
 		zc->min_mod_size = CEX3C_MIN_MOD_SIZE;
 		zc->max_mod_size = CEX3C_MAX_MOD_SIZE;
 		zc->max_exp_bit_length = CEX3C_MAX_MOD_SIZE;

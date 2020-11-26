@@ -138,7 +138,7 @@ static int acp3x_1015_hw_params(struct snd_pcm_substream *substream,
 	srate = params_rate(params);
 
 	for_each_rtd_codec_dais(rtd, i, codec_dai) {
-		if (strcmp(codec_dai->component->name, "rt1015-aif"))
+		if (strcmp(codec_dai->name, "rt1015-aif"))
 			continue;
 		ret = snd_soc_dai_set_bclk_ratio(codec_dai, 64);
 		if (ret < 0)
@@ -472,12 +472,17 @@ static int acp3x_probe(struct platform_device *pdev)
 
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
 	if (ret) {
-		dev_err(&pdev->dev,
+		if (ret != -EPROBE_DEFER)
+			dev_err(&pdev->dev,
 				"devm_snd_soc_register_card(%s) failed: %d\n",
 				card->name, ret);
-		return ret;
+		else
+			dev_dbg(&pdev->dev,
+				"devm_snd_soc_register_card(%s) probe deferred: %d\n",
+				card->name, ret);
 	}
-	return 0;
+
+	return ret;
 }
 
 static const struct acpi_device_id acp3x_audio_acpi_match[] = {

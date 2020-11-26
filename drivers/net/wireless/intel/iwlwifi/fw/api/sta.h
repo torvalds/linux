@@ -380,7 +380,7 @@ struct iwl_mvm_add_sta_cmd {
 	u8 add_modify;
 	u8 awake_acs;
 	__le16 tid_disable_tx;
-	__le32 mac_id_n_color;
+	__le32 mac_id_n_color;  /* can be used for lmac id when using cmd v12 */
 	u8 addr[ETH_ALEN];	/* _STA_ID_MODIFY_INFO_API_S_VER_1 */
 	__le16 reserved2;
 	u8 sta_id;

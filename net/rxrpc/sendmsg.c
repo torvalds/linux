@@ -241,7 +241,7 @@ static int rxrpc_queue_packet(struct rxrpc_sock *rx, struct rxrpc_call *call,
 			trace_rxrpc_timer(call, rxrpc_timer_init_for_send_reply, now);
 			if (!last)
 				break;
-			/* Fall through */
+			fallthrough;
 		case RXRPC_CALL_SERVER_SEND_REPLY:
 			call->state = RXRPC_CALL_SERVER_AWAIT_ACK;
 			rxrpc_notify_end_tx(rx, call, notify_end_tx);
@@ -530,10 +530,10 @@ static int rxrpc_sendmsg_cmsg(struct msghdr *msg, struct rxrpc_send_params *p)
 				return -EINVAL;
 			break;
 
-		case RXRPC_ACCEPT:
+		case RXRPC_CHARGE_ACCEPT:
 			if (p->command != RXRPC_CMD_SEND_DATA)
 				return -EINVAL;
-			p->command = RXRPC_CMD_ACCEPT;
+			p->command = RXRPC_CMD_CHARGE_ACCEPT;
 			if (len != 0)
 				return -EINVAL;
 			break;
@@ -659,16 +659,12 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 	if (ret < 0)
 		goto error_release_sock;
 
-	if (p.command == RXRPC_CMD_ACCEPT) {
+	if (p.command == RXRPC_CMD_CHARGE_ACCEPT) {
 		ret = -EINVAL;
 		if (rx->sk.sk_state != RXRPC_SERVER_LISTENING)
 			goto error_release_sock;
-		call = rxrpc_accept_call(rx, p.call.user_call_ID, NULL);
-		/* The socket is now unlocked. */
-		if (IS_ERR(call))
-			return PTR_ERR(call);
-		ret = 0;
-		goto out_put_unlock;
+		ret = rxrpc_user_charge_accept(rx, p.call.user_call_ID);
+		goto error_release_sock;
 	}
 
 	call = rxrpc_find_call_by_user_ID(rx, p.call.user_call_ID);
@@ -690,7 +686,6 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 		case RXRPC_CALL_CLIENT_AWAIT_CONN:
 		case RXRPC_CALL_SERVER_PREALLOC:
 		case RXRPC_CALL_SERVER_SECURING:
-		case RXRPC_CALL_SERVER_ACCEPTING:
 			rxrpc_put_call(call, rxrpc_call_put);
 			ret = -EBUSY;
 			goto error_release_sock;
@@ -721,13 +716,13 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 		if (p.call.timeouts.normal > 0 && j == 0)
 			j = 1;
 		WRITE_ONCE(call->next_rx_timo, j);
-		/* Fall through */
+		fallthrough;
 	case 2:
 		j = msecs_to_jiffies(p.call.timeouts.idle);
 		if (p.call.timeouts.idle > 0 && j == 0)
 			j = 1;
 		WRITE_ONCE(call->next_req_timo, j);
-		/* Fall through */
+		fallthrough;
 	case 1:
 		if (p.call.timeouts.hard > 0) {
 			j = msecs_to_jiffies(p.call.timeouts.hard);

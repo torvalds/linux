@@ -305,6 +305,28 @@ void v4l2_m2m_last_buffer_done(struct v4l2_m2m_ctx *m2m_ctx,
 			       struct vb2_v4l2_buffer *vbuf);
 
 /**
+ * v4l2_m2m_suspend() - stop new jobs from being run and wait for current job
+ * to finish
+ *
+ * @m2m_dev: opaque pointer to the internal data to handle M2M context
+ *
+ * Called by a driver in the suspend hook. Stop new jobs from being run, and
+ * wait for current running job to finish.
+ */
+void v4l2_m2m_suspend(struct v4l2_m2m_dev *m2m_dev);
+
+/**
+ * v4l2_m2m_resume() - resume job running and try to run a queued job
+ *
+ * @m2m_dev: opaque pointer to the internal data to handle M2M context
+ *
+ * Called by a driver in the resume hook. This reverts the operation of
+ * v4l2_m2m_suspend() and allows job to be run. Also try to run a queued job if
+ * there is any.
+ */
+void v4l2_m2m_resume(struct v4l2_m2m_dev *m2m_dev);
+
+/**
  * v4l2_m2m_reqbufs() - multi-queue-aware REQBUFS multiplexer
  *
  * @file: pointer to struct &file

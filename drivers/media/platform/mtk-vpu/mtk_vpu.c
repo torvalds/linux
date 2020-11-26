@@ -849,10 +849,6 @@ static int mtk_vpu_probe(struct platform_device *pdev)
 #ifdef CONFIG_DEBUG_FS
 	vpu_debugfs = debugfs_create_file("mtk_vpu", S_IRUGO, NULL, (void *)dev,
 					  &vpu_debug_fops);
-	if (!vpu_debugfs) {
-		ret = -ENOMEM;
-		goto cleanup_ipi;
-	}
 #endif
 
 	/* Set PTCM to 96K and DTCM to 32K */
@@ -910,7 +906,6 @@ remove_debugfs:
 	of_reserved_mem_device_release(dev);
 #ifdef CONFIG_DEBUG_FS
 	debugfs_remove(vpu_debugfs);
-cleanup_ipi:
 #endif
 	memset(vpu->ipi_desc, 0, sizeof(struct vpu_ipi_desc) * IPI_MAX);
 vpu_mutex_destroy:

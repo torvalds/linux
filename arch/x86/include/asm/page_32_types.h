@@ -42,6 +42,17 @@
 #endif	/* CONFIG_X86_PAE */
 
 /*
+ * User space process size: 3GB (default).
+ */
+#define IA32_PAGE_OFFSET	__PAGE_OFFSET
+#define TASK_SIZE		__PAGE_OFFSET
+#define TASK_SIZE_LOW		TASK_SIZE
+#define TASK_SIZE_MAX		TASK_SIZE
+#define DEFAULT_MAP_WINDOW	TASK_SIZE
+#define STACK_TOP		TASK_SIZE
+#define STACK_TOP_MAX		STACK_TOP
+
+/*
  * Kernel image size is limited to 512 MB (see in arch/x86/kernel/head_32.S)
  */
 #define KERNEL_IMAGE_SIZE	(512 * 1024 * 1024)

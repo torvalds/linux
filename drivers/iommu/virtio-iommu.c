@@ -440,7 +440,7 @@ static int viommu_add_resv_mem(struct viommu_endpoint *vdev,
 	default:
 		dev_warn(vdev->dev, "unknown resv mem subtype 0x%x\n",
 			 mem->subtype);
-		/* Fall-through */
+		fallthrough;
 	case VIRTIO_IOMMU_RESV_MEM_T_RESERVED:
 		region = iommu_alloc_resv_region(start, size, 0,
 						 IOMMU_RESV_RESERVED);

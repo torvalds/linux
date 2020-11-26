@@ -1,11 +1,5 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: MC
 
 .. _media_ioc_enum_links:
 
@@ -18,23 +12,21 @@ Name
 
 MEDIA_IOC_ENUM_LINKS - Enumerate all pads and links for a given entity
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, MEDIA_IOC_ENUM_LINKS, struct media_links_enum *argp )
-    :name: MEDIA_IOC_ENUM_LINKS
+.. c:macro:: MEDIA_IOC_ENUM_LINKS
 
+``int ioctl(int fd, MEDIA_IOC_ENUM_LINKS, struct media_links_enum *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <media-func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to struct :c:type:`media_links_enum`.
-
 
 Description
 ===========
@@ -59,7 +51,6 @@ outbound links can be retrieved with :ref:`MEDIA_IOC_ENUM_ENTITIES`.
 
 Only forward links that originate at one of the entity's source pads are
 returned during the enumeration process.
-
 
 .. c:type:: media_links_enum
 
@@ -89,7 +80,6 @@ returned during the enumeration process.
        -  Reserved for future extensions. Drivers and applications must set
           the array to zero.
 
-
 .. c:type:: media_pad_desc
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
@@ -117,7 +107,6 @@ returned during the enumeration process.
           the array to zero.
 
 
-
 .. c:type:: media_link_desc
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
@@ -143,7 +132,6 @@ returned during the enumeration process.
        -  ``reserved[2]``
        -  Reserved for future extensions. Drivers and applications must set
           the array to zero.
-
 
 Return Value
 ============

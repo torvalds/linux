@@ -104,7 +104,7 @@ static inline notrace unsigned long get_irq_happened(void)
 
 static inline notrace int decrementer_check_overflow(void)
 {
- 	u64 now = get_tb_or_rtc();
+	u64 now = get_tb();
 	u64 *next_tb = this_cpu_ptr(&decrementers_next_tb);
  
 	return now >= *next_tb;
@@ -113,7 +113,7 @@ static inline notrace int decrementer_check_overflow(void)
 #ifdef CONFIG_PPC_BOOK3E
 
 /* This is called whenever we are re-enabling interrupts
- * and returns either 0 (nothing to do) or 500/900/280/a00/e80 if
+ * and returns either 0 (nothing to do) or 500/900/280 if
  * there's an EE, DEC or DBELL to generate.
  *
  * This is called in two contexts: From arch_local_irq_restore()
@@ -181,16 +181,6 @@ notrace unsigned int __check_irq_replay(void)
 		return 0x500;
 	}
 
-	/*
-	 * Check if an EPR external interrupt happened this bit is typically
-	 * set if we need to handle another "edge" interrupt from within the
-	 * MPIC "EPR" handler.
-	 */
-	if (happened & PACA_IRQ_EE_EDGE) {
-		local_paca->irq_happened &= ~PACA_IRQ_EE_EDGE;
-		return 0x500;
-	}
-
 	if (happened & PACA_IRQ_DBELL) {
 		local_paca->irq_happened &= ~PACA_IRQ_DBELL;
 		return 0x280;
@@ -201,6 +191,25 @@ notrace unsigned int __check_irq_replay(void)
 
 	return 0;
 }
+
+/*
+ * This is specifically called by assembly code to re-enable interrupts
+ * if they are currently disabled. This is typically called before
+ * schedule() or do_signal() when returning to userspace. We do it
+ * in C to avoid the burden of dealing with lockdep etc...
+ *
+ * NOTE: This is called with interrupts hard disabled but not marked
+ * as such in paca->irq_happened, so we need to resync this.
+ */
+void notrace restore_interrupts(void)
+{
+	if (irqs_disabled()) {
+		local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
+		local_irq_enable();
+	} else
+		__hard_irq_enable();
+}
+
 #endif /* CONFIG_PPC_BOOK3E */
 
 void replay_soft_interrupts(void)
@@ -214,7 +223,7 @@ void replay_soft_interrupts(void)
 	struct pt_regs regs;
 
 	ppc_save_regs(&regs);
-	regs.softe = IRQS_ALL_DISABLED;
+	regs.softe = IRQS_ENABLED;
 
 again:
 	if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG))
@@ -264,19 +273,6 @@ again:
 
 	if (happened & PACA_IRQ_EE) {
 		local_paca->irq_happened &= ~PACA_IRQ_EE;
-		regs.trap = 0x500;
-		do_IRQ(&regs);
-		if (!(local_paca->irq_happened & PACA_IRQ_HARD_DIS))
-			hard_irq_disable();
-	}
-
-	/*
-	 * Check if an EPR external interrupt happened this bit is typically
-	 * set if we need to handle another "edge" interrupt from within the
-	 * MPIC "EPR" handler.
-	 */
-	if (IS_ENABLED(CONFIG_PPC_BOOK3E) && (happened & PACA_IRQ_EE_EDGE)) {
-		local_paca->irq_happened &= ~PACA_IRQ_EE_EDGE;
 		regs.trap = 0x500;
 		do_IRQ(&regs);
 		if (!(local_paca->irq_happened & PACA_IRQ_HARD_DIS))
@@ -368,6 +364,12 @@ notrace void arch_local_irq_restore(unsigned long mask)
 		}
 	}
 
+	/*
+	 * Disable preempt here, so that the below preempt_enable will
+	 * perform resched if required (a replayed interrupt may set
+	 * need_resched).
+	 */
+	preempt_disable();
 	irq_soft_mask_set(IRQS_ALL_DISABLED);
 	trace_hardirqs_off();
 
@@ -377,26 +379,9 @@ notrace void arch_local_irq_restore(unsigned long mask)
 	trace_hardirqs_on();
 	irq_soft_mask_set(IRQS_ENABLED);
 	__hard_irq_enable();
+	preempt_enable();
 }
 EXPORT_SYMBOL(arch_local_irq_restore);
-
-/*
- * This is specifically called by assembly code to re-enable interrupts
- * if they are currently disabled. This is typically called before
- * schedule() or do_signal() when returning to userspace. We do it
- * in C to avoid the burden of dealing with lockdep etc...
- *
- * NOTE: This is called with interrupts hard disabled but not marked
- * as such in paca->irq_happened, so we need to resync this.
- */
-void notrace restore_interrupts(void)
-{
-	if (irqs_disabled()) {
-		local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
-		local_irq_enable();
-	} else
-		__hard_irq_enable();
-}
 
 /*
  * This is a helper to use when about to go into idle low-power

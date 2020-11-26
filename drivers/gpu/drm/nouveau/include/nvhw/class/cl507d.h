@@ -32,7 +32,10 @@
 #define NV_DISP_CORE_NOTIFIER_1_COMPLETION_0_DONE_TRUE                               0x00000001
 #define NV_DISP_CORE_NOTIFIER_1_COMPLETION_0_R0                                      15:1
 #define NV_DISP_CORE_NOTIFIER_1_COMPLETION_0_TIMESTAMP                               29:16
-
+#define NV_DISP_CORE_NOTIFIER_1_CAPABILITIES_1                                       0x00000001
+#define NV_DISP_CORE_NOTIFIER_1_CAPABILITIES_1_DONE                                  0:0
+#define NV_DISP_CORE_NOTIFIER_1_CAPABILITIES_1_DONE_FALSE                            0x00000000
+#define NV_DISP_CORE_NOTIFIER_1_CAPABILITIES_1_DONE_TRUE                             0x00000001
 
 // class methods
 #define NV507D_UPDATE                                                           (0x00000080)

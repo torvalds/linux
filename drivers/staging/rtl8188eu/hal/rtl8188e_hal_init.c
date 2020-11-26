@@ -95,7 +95,7 @@ void _8051Reset88E(struct adapter *padapter)
 	u1bTmp = usb_read8(padapter, REG_SYS_FUNC_EN + 1);
 	usb_write8(padapter, REG_SYS_FUNC_EN + 1, u1bTmp & (~BIT(2)));
 	usb_write8(padapter, REG_SYS_FUNC_EN + 1, u1bTmp | (BIT(2)));
-	DBG_88E("=====> _8051Reset88E(): 8051 reset success .\n");
+	DBG_88E("=====> %s(): 8051 reset success .\n", __func__);
 }
 
 void rtl8188e_InitializeFirmwareVars(struct adapter *padapter)
@@ -187,7 +187,7 @@ static s32 _LLTWrite(struct adapter *padapter, u32 address, u32 data)
 	/* polling */
 	do {
 		value = usb_read32(padapter, LLTReg);
-		if (_LLT_NO_ACTIVE == _LLT_OP_VALUE(value))
+		if (_LLT_OP_VALUE(value) == _LLT_NO_ACTIVE)
 			break;
 
 		if (count > POLLING_LLT_THRESHOLD) {
@@ -406,7 +406,7 @@ void Hal_ReadPowerSavingMode88E(struct adapter *padapter, u8 *hwinfo, bool AutoL
 		padapter->pwrctrlpriv.bSupportRemoteWakeup = (hwinfo[EEPROM_USB_OPTIONAL_FUNCTION0] & BIT(1)) ? true : false;
 
 		DBG_88E("%s...bHWPwrPindetect(%x)-bHWPowerdown(%x) , bSupportRemoteWakeup(%x)\n", __func__,
-		padapter->pwrctrlpriv.bHWPwrPindetect, padapter->pwrctrlpriv.bHWPowerdown, padapter->pwrctrlpriv.bSupportRemoteWakeup);
+			padapter->pwrctrlpriv.bHWPwrPindetect, padapter->pwrctrlpriv.bHWPowerdown, padapter->pwrctrlpriv.bSupportRemoteWakeup);
 
 		DBG_88E("### PS params =>  power_mgnt(%x), usbss_enable(%x) ###\n", padapter->registrypriv.power_mgnt, padapter->registrypriv.usbss_enable);
 	}

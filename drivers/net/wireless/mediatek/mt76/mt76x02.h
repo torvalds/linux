@@ -15,6 +15,8 @@
 #include "mt76x02_dfs.h"
 #include "mt76x02_dma.h"
 
+#define MT76x02_TX_RING_SIZE	512
+#define MT76x02_PSD_RING_SIZE	128
 #define MT76x02_N_WCIDS 128
 #define MT_CALIBRATE_INTERVAL	HZ
 #define MT_MAC_WORK_INTERVAL	(HZ / 10)

@@ -16,7 +16,7 @@
 #include "system_global.h"
 #include <linux/kernel.h>
 
-#ifdef USE_INPUT_SYSTEM_VERSION_2
+#ifndef ISP2401
 
 #include "ia_css_ifmtr.h"
 #include <math_support.h>

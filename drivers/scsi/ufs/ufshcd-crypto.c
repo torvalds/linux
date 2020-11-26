@@ -59,7 +59,7 @@ static int ufshcd_crypto_keyslot_program(struct blk_keyslot_manager *ksm,
 	u8 data_unit_mask = key->crypto_cfg.data_unit_size / 512;
 	int i;
 	int cap_idx = -1;
-	union ufs_crypto_cfg_entry cfg = { 0 };
+	union ufs_crypto_cfg_entry cfg = {};
 	int err;
 
 	BUILD_BUG_ON(UFS_CRYPTO_KEY_SIZE_INVALID != 0);
@@ -100,7 +100,7 @@ static int ufshcd_clear_keyslot(struct ufs_hba *hba, int slot)
 	 * Clear the crypto cfg on the device. Clearing CFGE
 	 * might not be sufficient, so just clear the entire cfg.
 	 */
-	union ufs_crypto_cfg_entry cfg = { 0 };
+	union ufs_crypto_cfg_entry cfg = {};
 
 	return ufshcd_program_key(hba, &cfg, slot);
 }

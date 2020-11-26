@@ -1575,7 +1575,7 @@ static int sunxi_nand_ooblayout_free(struct mtd_info *mtd, int section,
 	 * only have 2 bytes available in the first user data
 	 * section.
 	 */
-	if (!section && ecc->mode == NAND_ECC_HW) {
+	if (!section && ecc->engine_type == NAND_ECC_ENGINE_TYPE_ON_HOST) {
 		oobregion->offset = 2;
 		oobregion->length = 2;
 
@@ -1609,12 +1609,13 @@ static int sunxi_nand_hw_ecc_ctrl_init(struct nand_chip *nand,
 	static const u8 strengths[] = { 16, 24, 28, 32, 40, 48, 56, 60, 64 };
 	struct sunxi_nfc *nfc = to_sunxi_nfc(nand->controller);
 	struct mtd_info *mtd = nand_to_mtd(nand);
+	struct nand_device *nanddev = mtd_to_nanddev(mtd);
 	struct sunxi_nand_hw_ecc *data;
 	int nsectors;
 	int ret;
 	int i;
 
-	if (ecc->options & NAND_ECC_MAXIMIZE) {
+	if (nanddev->ecc.user_conf.flags & NAND_ECC_MAXIMIZE_STRENGTH) {
 		int bytes;
 
 		ecc->size = 1024;
@@ -1720,11 +1721,11 @@ err:
 
 static void sunxi_nand_ecc_cleanup(struct nand_ecc_ctrl *ecc)
 {
-	switch (ecc->mode) {
-	case NAND_ECC_HW:
+	switch (ecc->engine_type) {
+	case NAND_ECC_ENGINE_TYPE_ON_HOST:
 		sunxi_nand_hw_ecc_ctrl_cleanup(ecc);
 		break;
-	case NAND_ECC_NONE:
+	case NAND_ECC_ENGINE_TYPE_NONE:
 	default:
 		break;
 	}
@@ -1732,6 +1733,8 @@ static void sunxi_nand_ecc_cleanup(struct nand_ecc_ctrl *ecc)
 
 static int sunxi_nand_attach_chip(struct nand_chip *nand)
 {
+	const struct nand_ecc_props *requirements =
+		nanddev_get_ecc_requirements(&nand->base);
 	struct nand_ecc_ctrl *ecc = &nand->ecc;
 	struct device_node *np = nand_get_flash_node(nand);
 	int ret;
@@ -1745,21 +1748,21 @@ static int sunxi_nand_attach_chip(struct nand_chip *nand)
 	nand->options |= NAND_SUBPAGE_READ;
 
 	if (!ecc->size) {
-		ecc->size = nand->base.eccreq.step_size;
-		ecc->strength = nand->base.eccreq.strength;
+		ecc->size = requirements->step_size;
+		ecc->strength = requirements->strength;
 	}
 
 	if (!ecc->size || !ecc->strength)
 		return -EINVAL;
 
-	switch (ecc->mode) {
-	case NAND_ECC_HW:
+	switch (ecc->engine_type) {
+	case NAND_ECC_ENGINE_TYPE_ON_HOST:
 		ret = sunxi_nand_hw_ecc_ctrl_init(nand, ecc, np);
 		if (ret)
 			return ret;
 		break;
-	case NAND_ECC_NONE:
-	case NAND_ECC_SOFT:
+	case NAND_ECC_ENGINE_TYPE_NONE:
+	case NAND_ECC_ENGINE_TYPE_SOFT:
 		break;
 	default:
 		return -EINVAL;
@@ -1991,7 +1994,7 @@ static int sunxi_nand_chip_init(struct device *dev, struct sunxi_nfc *nfc,
 	 * Set the ECC mode to the default value in case nothing is specified
 	 * in the DT.
 	 */
-	nand->ecc.mode = NAND_ECC_HW;
+	nand->ecc.engine_type = NAND_ECC_ENGINE_TYPE_ON_HOST;
 	nand_set_flash_node(nand, np);
 
 	mtd = nand_to_mtd(nand);

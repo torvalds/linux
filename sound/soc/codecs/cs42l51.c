@@ -122,6 +122,9 @@ static const char *chan_mix[] = {
 	"R L",
 };
 
+static const DECLARE_TLV_DB_SCALE(pga_tlv, -300, 50, 0);
+static const DECLARE_TLV_DB_SCALE(adc_att_tlv, -9600, 100, 0);
+
 static SOC_ENUM_SINGLE_EXT_DECL(cs42l51_chan_mix, chan_mix);
 
 static const struct snd_kcontrol_new cs42l51_snd_controls[] = {
@@ -138,6 +141,12 @@ static const struct snd_kcontrol_new cs42l51_snd_controls[] = {
 			0, 0x19, 0x7F, adc_pcm_tlv),
 	SOC_DOUBLE_R("ADC Mixer Switch",
 			CS42L51_ADCA_VOL, CS42L51_ADCB_VOL, 7, 1, 1),
+	SOC_DOUBLE_R_SX_TLV("ADC Attenuator Volume",
+			CS42L51_ADCA_ATT, CS42L51_ADCB_ATT,
+			0, 0xA0, 96, adc_att_tlv),
+	SOC_DOUBLE_R_SX_TLV("PGA Volume",
+			CS42L51_ALC_PGA_CTL, CS42L51_ALC_PGB_CTL,
+			0, 0x1A, 30, pga_tlv),
 	SOC_SINGLE("Playback Deemphasis Switch", CS42L51_DAC_CTL, 3, 1, 0),
 	SOC_SINGLE("Auto-Mute Switch", CS42L51_DAC_CTL, 2, 1, 0),
 	SOC_SINGLE("Soft Ramp Switch", CS42L51_DAC_CTL, 1, 1, 0),
@@ -245,8 +254,28 @@ static const struct snd_soc_dapm_widget cs42l51_dapm_widgets[] = {
 		&cs42l51_adcr_mux_controls),
 };
 
+static int mclk_event(struct snd_soc_dapm_widget *w,
+		      struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_component *comp = snd_soc_dapm_to_component(w->dapm);
+	struct cs42l51_private *cs42l51 = snd_soc_component_get_drvdata(comp);
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		return clk_prepare_enable(cs42l51->mclk_handle);
+	case SND_SOC_DAPM_POST_PMD:
+		/* Delay mclk shutdown to fulfill power-down sequence requirements */
+		msleep(20);
+		clk_disable_unprepare(cs42l51->mclk_handle);
+		break;
+	}
+
+	return 0;
+}
+
 static const struct snd_soc_dapm_widget cs42l51_dapm_mclk_widgets[] = {
-	SND_SOC_DAPM_CLOCK_SUPPLY("MCLK")
+	SND_SOC_DAPM_SUPPLY("MCLK", SND_SOC_NOPM, 0, 0, mclk_event,
+			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 };
 
 static const struct snd_soc_dapm_route cs42l51_routes[] = {

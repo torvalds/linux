@@ -2,7 +2,7 @@
 /*
  * Debugfs interface.
  *
- * Copyright (c) 2017-2019, Silicon Laboratories, Inc.
+ * Copyright (c) 2017-2020, Silicon Laboratories, Inc.
  * Copyright (c) 2010, ST-Ericsson
  */
 #include <linux/debugfs.h>
@@ -32,7 +32,7 @@ static const struct trace_print_flags wfx_reg_print_map[] = {
 };
 
 static const char *get_symbol(unsigned long val,
-		const struct trace_print_flags *symbol_array)
+			      const struct trace_print_flags *symbol_array)
 {
 	int i;
 
@@ -230,21 +230,6 @@ static const struct file_operations wfx_send_pds_fops = {
 	.write = wfx_send_pds_write,
 };
 
-static ssize_t wfx_burn_slk_key_write(struct file *file,
-				      const char __user *user_buf,
-				      size_t count, loff_t *ppos)
-{
-	struct wfx_dev *wdev = file->private_data;
-
-	dev_info(wdev->dev, "this driver does not support secure link\n");
-	return -EINVAL;
-}
-
-static const struct file_operations wfx_burn_slk_key_fops = {
-	.open = simple_open,
-	.write = wfx_burn_slk_key_write,
-};
-
 struct dbgfs_hif_msg {
 	struct wfx_dev *wdev;
 	struct completion complete;
@@ -267,7 +252,7 @@ static ssize_t wfx_send_hif_msg_write(struct file *file,
 	if (count < sizeof(struct hif_msg))
 		return -EINVAL;
 
-	// wfx_cmd_send() chekc that reply buffer is wide enough, but do not
+	// wfx_cmd_send() checks that reply buffer is wide enough, but does not
 	// return precise length read. User have to know how many bytes should
 	// be read. Filling reply buffer with a memory pattern may help user.
 	memset(context->reply, 0xFF, sizeof(context->reply));
@@ -299,8 +284,8 @@ static ssize_t wfx_send_hif_msg_read(struct file *file, char __user *user_buf,
 		return ret;
 	if (context->ret < 0)
 		return context->ret;
-	// Be carefull, write() is waiting for a full message while read()
-	// only return a payload
+	// Be careful, write() is waiting for a full message while read()
+	// only returns a payload
 	if (copy_to_user(user_buf, context->reply, count))
 		return -EFAULT;
 
@@ -366,8 +351,6 @@ int wfx_debug_init(struct wfx_dev *wdev)
 	debugfs_create_file("tx_power_loop", 0444, d, wdev,
 			    &wfx_tx_power_loop_fops);
 	debugfs_create_file("send_pds", 0200, d, wdev, &wfx_send_pds_fops);
-	debugfs_create_file("burn_slk_key", 0200, d, wdev,
-			    &wfx_burn_slk_key_fops);
 	debugfs_create_file("send_hif_msg", 0600, d, wdev,
 			    &wfx_send_hif_msg_fops);
 	debugfs_create_file("ps_timeout", 0600, d, wdev, &wfx_ps_timeout_fops);

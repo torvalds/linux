@@ -1101,6 +1101,8 @@ static void intel_pt_set_pid_tid_cpu(struct intel_pt *pt,
 
 	if (queue->tid == -1 || pt->have_sched_switch) {
 		ptq->tid = machine__get_current_tid(pt->machine, ptq->cpu);
+		if (ptq->tid == -1)
+			ptq->pid = -1;
 		thread__zput(ptq->thread);
 	}
 
@@ -2603,10 +2605,8 @@ static int intel_pt_context_switch(struct intel_pt *pt, union perf_event *event,
 		tid = sample->tid;
 	}
 
-	if (tid == -1) {
-		pr_err("context_switch event has no tid\n");
-		return -EINVAL;
-	}
+	if (tid == -1)
+		intel_pt_log("context_switch event has no tid\n");
 
 	ret = intel_pt_sync_switch(pt, cpu, tid, sample->time);
 	if (ret <= 0)
@@ -3017,8 +3017,15 @@ static int intel_pt_synth_events(struct intel_pt *pt,
 
 	if (pt->synth_opts.callchain)
 		attr.sample_type |= PERF_SAMPLE_CALLCHAIN;
-	if (pt->synth_opts.last_branch)
+	if (pt->synth_opts.last_branch) {
 		attr.sample_type |= PERF_SAMPLE_BRANCH_STACK;
+		/*
+		 * We don't use the hardware index, but the sample generation
+		 * code uses the new format branch_stack with this field,
+		 * so the event attributes must indicate that it's present.
+		 */
+		attr.branch_sample_type |= PERF_SAMPLE_BRANCH_HW_INDEX;
+	}
 
 	if (pt->synth_opts.instructions) {
 		attr.config = PERF_COUNT_HW_INSTRUCTIONS;

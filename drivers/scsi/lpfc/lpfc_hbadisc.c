@@ -71,6 +71,7 @@ static void lpfc_disc_timeout_handler(struct lpfc_vport *);
 static void lpfc_disc_flush_list(struct lpfc_vport *vport);
 static void lpfc_unregister_fcfi_cmpl(struct lpfc_hba *, LPFC_MBOXQ_t *);
 static int lpfc_fcf_inuse(struct lpfc_hba *);
+static void lpfc_mbx_cmpl_read_sparam(struct lpfc_hba *, LPFC_MBOXQ_t *);
 
 void
 lpfc_terminate_rport_io(struct fc_rport *rport)
@@ -1138,11 +1139,13 @@ out:
 	return;
 }
 
-
 void
 lpfc_mbx_cmpl_local_config_link(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	struct lpfc_vport *vport = pmb->vport;
+	LPFC_MBOXQ_t *sparam_mb;
+	struct lpfc_dmabuf *sparam_mp;
+	int rc;
 
 	if (pmb->u.mb.mbxStatus)
 		goto out;
@@ -1167,12 +1170,42 @@ lpfc_mbx_cmpl_local_config_link(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	}
 
 	/* Start discovery by sending a FLOGI. port_state is identically
-	 * LPFC_FLOGI while waiting for FLOGI cmpl. Check if sending
-	 * the FLOGI is being deferred till after MBX_READ_SPARAM completes.
+	 * LPFC_FLOGI while waiting for FLOGI cmpl.
 	 */
 	if (vport->port_state != LPFC_FLOGI) {
-		if (!(phba->hba_flag & HBA_DEFER_FLOGI))
+		/* Issue MBX_READ_SPARAM to update CSPs before FLOGI if
+		 * bb-credit recovery is in place.
+		 */
+		if (phba->bbcredit_support && phba->cfg_enable_bbcr &&
+		    !(phba->link_flag & LS_LOOPBACK_MODE)) {
+			sparam_mb = mempool_alloc(phba->mbox_mem_pool,
+						  GFP_KERNEL);
+			if (!sparam_mb)
+				goto sparam_out;
+
+			rc = lpfc_read_sparam(phba, sparam_mb, 0);
+			if (rc) {
+				mempool_free(sparam_mb, phba->mbox_mem_pool);
+				goto sparam_out;
+			}
+			sparam_mb->vport = vport;
+			sparam_mb->mbox_cmpl = lpfc_mbx_cmpl_read_sparam;
+			rc = lpfc_sli_issue_mbox(phba, sparam_mb, MBX_NOWAIT);
+			if (rc == MBX_NOT_FINISHED) {
+				sparam_mp = (struct lpfc_dmabuf *)
+						sparam_mb->ctx_buf;
+				lpfc_mbuf_free(phba, sparam_mp->virt,
+					       sparam_mp->phys);
+				kfree(sparam_mp);
+				sparam_mb->ctx_buf = NULL;
+				mempool_free(sparam_mb, phba->mbox_mem_pool);
+				goto sparam_out;
+			}
+
+			phba->hba_flag |= HBA_DEFER_FLOGI;
+		}  else {
 			lpfc_initial_flogi(vport);
+		}
 	} else {
 		if (vport->fc_flag & FC_PT2PT)
 			lpfc_disc_start(vport);
@@ -1184,6 +1217,7 @@ out:
 			 "0306 CONFIG_LINK mbxStatus error x%x "
 			 "HBA state x%x\n",
 			 pmb->u.mb.mbxStatus, vport->port_state);
+sparam_out:
 	mempool_free(pmb, phba->mbox_mem_pool);
 
 	lpfc_linkdown(phba);
@@ -3239,21 +3273,6 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 	lpfc_linkup(phba);
 	sparam_mbox = NULL;
 
-	if (!(phba->hba_flag & HBA_FCOE_MODE)) {
-		cfglink_mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
-		if (!cfglink_mbox)
-			goto out;
-		vport->port_state = LPFC_LOCAL_CFG_LINK;
-		lpfc_config_link(phba, cfglink_mbox);
-		cfglink_mbox->vport = vport;
-		cfglink_mbox->mbox_cmpl = lpfc_mbx_cmpl_local_config_link;
-		rc = lpfc_sli_issue_mbox(phba, cfglink_mbox, MBX_NOWAIT);
-		if (rc == MBX_NOT_FINISHED) {
-			mempool_free(cfglink_mbox, phba->mbox_mem_pool);
-			goto out;
-		}
-	}
-
 	sparam_mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!sparam_mbox)
 		goto out;
@@ -3274,7 +3293,20 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 		goto out;
 	}
 
-	if (phba->hba_flag & HBA_FCOE_MODE) {
+	if (!(phba->hba_flag & HBA_FCOE_MODE)) {
+		cfglink_mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+		if (!cfglink_mbox)
+			goto out;
+		vport->port_state = LPFC_LOCAL_CFG_LINK;
+		lpfc_config_link(phba, cfglink_mbox);
+		cfglink_mbox->vport = vport;
+		cfglink_mbox->mbox_cmpl = lpfc_mbx_cmpl_local_config_link;
+		rc = lpfc_sli_issue_mbox(phba, cfglink_mbox, MBX_NOWAIT);
+		if (rc == MBX_NOT_FINISHED) {
+			mempool_free(cfglink_mbox, phba->mbox_mem_pool);
+			goto out;
+		}
+	} else {
 		vport->port_state = LPFC_VPORT_UNKNOWN;
 		/*
 		 * Add the driver's default FCF record at FCF index 0 now. This
@@ -3331,10 +3363,6 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 		}
 		/* Reset FCF roundrobin bmask for new discovery */
 		lpfc_sli4_clear_fcf_rr_bmask(phba);
-	} else {
-		if (phba->bbcredit_support && phba->cfg_enable_bbcr &&
-		    !(phba->link_flag & LS_LOOPBACK_MODE))
-			phba->hba_flag |= HBA_DEFER_FLOGI;
 	}
 
 	/* Prepare for LINK up registrations */
@@ -4728,15 +4756,14 @@ lpfc_check_sli_ndlp(struct lpfc_hba *phba,
 		case CMD_GEN_REQUEST64_CR:
 			if (iocb->context_un.ndlp == ndlp)
 				return 1;
-			/* fall through */
+			fallthrough;
 		case CMD_ELS_REQUEST64_CR:
 			if (icmd->un.elsreq64.remoteID == ndlp->nlp_DID)
 				return 1;
-			/* fall through */
+			fallthrough;
 		case CMD_XMIT_ELS_RSP64_CX:
 			if (iocb->context1 == (uint8_t *) ndlp)
 				return 1;
-			/* fall through */
 		}
 	} else if (pring->ringno == LPFC_FCP_RING) {
 		/* Skip match check if waiting to relogin to FCP target */
@@ -6055,7 +6082,7 @@ restart_disc:
 
 	case LPFC_LINK_UP:
 		lpfc_issue_clear_la(phba, vport);
-		/* fall through */
+		fallthrough;
 	case LPFC_LINK_UNKNOWN:
 	case LPFC_WARM_START:
 	case LPFC_INIT_START:

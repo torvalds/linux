@@ -43,11 +43,27 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/sun8i-v3s-ccu.h>
 #include <dt-bindings/reset/sun8i-v3s-ccu.h>
+#include <dt-bindings/clock/sun8i-de2.h>
 
 / {
 	#address-cells = <1>;
 	#size-cells = <1>;
 	interrupt-parent = <&gic>;
+
+	chosen {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		framebuffer-lcd {
+			compatible = "allwinner,simple-framebuffer",
+				     "simple-framebuffer";
+			allwinner,pipeline = "mixer0-lcd0";
+			clocks = <&display_clocks CLK_MIXER0>,
+				 <&ccu CLK_TCON0>;
+			status = "disabled";
+		};
+	};
 
 	cpus {
 		#address-cells = <1>;
@@ -136,6 +152,15 @@
 					};
 				};
 			};
+		};
+
+		syscon: system-control@1c00000 {
+			compatible = "allwinner,sun8i-v3s-system-control",
+				     "allwinner,sun8i-h3-system-control";
+			reg = <0x01c00000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
 		};
 
 		tcon0: lcd-controller@1c0c000 {
@@ -234,6 +259,17 @@
 			#size-cells = <0>;
 		};
 
+		crypto@1c15000 {
+			compatible = "allwinner,sun8i-v3s-crypto",
+				     "allwinner,sun8i-a33-crypto";
+			reg = <0x01c15000 0x1000>;
+			interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&ccu CLK_BUS_CE>, <&ccu CLK_CE>;
+			clock-names = "ahb", "mod";
+			resets = <&ccu RST_BUS_CE>;
+			reset-names = "ahb";
+		};
+
 		usb_otg: usb@1c19000 {
 			compatible = "allwinner,sun8i-h3-musb";
 			reg = <0x01c19000 0x0400>;
@@ -292,14 +328,39 @@
 			interrupt-controller;
 			#interrupt-cells = <3>;
 
+			/omit-if-no-ref/
+			csi1_8bit_pins: csi1-8bit-pins {
+				pins = "PE0", "PE2", "PE3", "PE8", "PE9",
+				       "PE10", "PE11", "PE12", "PE13", "PE14",
+				       "PE15";
+				function = "csi";
+			};
+
+			/omit-if-no-ref/
+			csi1_mclk_pin: csi1-mclk-pin {
+				pins = "PE1";
+				function = "csi";
+			};
+
 			i2c0_pins: i2c0-pins {
 				pins = "PB6", "PB7";
 				function = "i2c0";
 			};
 
+			/omit-if-no-ref/
+			i2c1_pe_pins: i2c1-pe-pins {
+				pins = "PE21", "PE22";
+				function = "i2c1";
+			};
+
 			uart0_pb_pins: uart0-pb-pins {
 				pins = "PB8", "PB9";
 				function = "uart0";
+			};
+
+			uart2_pins: uart2-pins {
+				pins = "PB0", "PB1";
+				function = "uart2";
 			};
 
 			mmc0_pins: mmc0-pins {
@@ -377,6 +438,8 @@
 			reg-io-width = <4>;
 			clocks = <&ccu CLK_BUS_UART2>;
 			resets = <&ccu RST_BUS_UART2>;
+			pinctrl-0 = <&uart2_pins>;
+			pinctrl-names = "default";
 			status = "disabled";
 		};
 
@@ -404,6 +467,49 @@
 			#size-cells = <0>;
 		};
 
+		emac: ethernet@1c30000 {
+			compatible = "allwinner,sun8i-v3s-emac";
+			syscon = <&syscon>;
+			reg = <0x01c30000 0x10000>;
+			interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "macirq";
+			resets = <&ccu RST_BUS_EMAC>;
+			reset-names = "stmmaceth";
+			clocks = <&ccu CLK_BUS_EMAC>;
+			clock-names = "stmmaceth";
+			phy-handle = <&int_mii_phy>;
+			phy-mode = "mii";
+			status = "disabled";
+
+			mdio: mdio {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "snps,dwmac-mdio";
+			};
+
+			mdio_mux: mdio-mux {
+				compatible = "allwinner,sun8i-h3-mdio-mux";
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				mdio-parent-bus = <&mdio>;
+				/* Only one MDIO is usable at the time */
+				internal_mdio: mdio@1 {
+					compatible = "allwinner,sun8i-h3-mdio-internal";
+					reg = <1>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					int_mii_phy: ethernet-phy@1 {
+						compatible = "ethernet-phy-ieee802.3-c22";
+						reg = <1>;
+						clocks = <&ccu CLK_BUS_EPHY>;
+						resets = <&ccu RST_BUS_EPHY>;
+					};
+				};
+			};
+		};
+
 		spi0: spi@1c68000 {
 			compatible = "allwinner,sun8i-h3-spi";
 			reg = <0x01c68000 0x1000>;
@@ -416,6 +522,18 @@
 			status = "disabled";
 			#address-cells = <1>;
 			#size-cells = <0>;
+		};
+
+		csi1: camera@1cb4000 {
+			compatible = "allwinner,sun8i-v3s-csi";
+			reg = <0x01cb4000 0x3000>;
+			interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&ccu CLK_BUS_CSI>,
+				 <&ccu CLK_CSI1_SCLK>,
+				 <&ccu CLK_DRAM_CSI>;
+			clock-names = "bus", "mod", "ram";
+			resets = <&ccu RST_BUS_CSI>;
+			status = "disabled";
 		};
 
 		gic: interrupt-controller@1c81000 {

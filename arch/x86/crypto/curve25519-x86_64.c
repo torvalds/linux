@@ -11,6 +11,7 @@
 #include <linux/jump_label.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/scatterlist.h>
 
 #include <asm/cpufeature.h>
 #include <asm/processor.h>
@@ -45,11 +46,11 @@ static inline u64 add_scalar(u64 *out, const u64 *f1, u64 f2)
 
 	asm volatile(
 		/* Clear registers to propagate the carry bit */
-		"  xor %%r8, %%r8;"
-		"  xor %%r9, %%r9;"
-		"  xor %%r10, %%r10;"
-		"  xor %%r11, %%r11;"
-		"  xor %1, %1;"
+		"  xor %%r8d, %%r8d;"
+		"  xor %%r9d, %%r9d;"
+		"  xor %%r10d, %%r10d;"
+		"  xor %%r11d, %%r11d;"
+		"  xor %k1, %k1;"
 
 		/* Begin addition chain */
 		"  addq 0(%3), %0;"
@@ -93,7 +94,7 @@ static inline void fadd(u64 *out, const u64 *f1, const u64 *f2)
 		"  cmovc %0, %%rax;"
 
 		/* Step 2: Add carry*38 to the original sum */
-		"  xor %%rcx, %%rcx;"
+		"  xor %%ecx, %%ecx;"
 		"  add %%rax, %%r8;"
 		"  adcx %%rcx, %%r9;"
 		"  movq %%r9, 8(%1);"
@@ -165,28 +166,28 @@ static inline void fmul(u64 *out, const u64 *f1, const u64 *f2, u64 *tmp)
 
 		/* Compute src1[0] * src2 */
 		"  movq 0(%1), %%rdx;"
-		"  mulxq 0(%3), %%r8, %%r9;"       "  xor %%r10, %%r10;"     "  movq %%r8, 0(%0);"
+		"  mulxq 0(%3), %%r8, %%r9;"       "  xor %%r10d, %%r10d;"   "  movq %%r8, 0(%0);"
 		"  mulxq 8(%3), %%r10, %%r11;"     "  adox %%r9, %%r10;"     "  movq %%r10, 8(%0);"
 		"  mulxq 16(%3), %%rbx, %%r13;"    "  adox %%r11, %%rbx;"
 		"  mulxq 24(%3), %%r14, %%rdx;"    "  adox %%r13, %%r14;"    "  mov $0, %%rax;"
 		                                   "  adox %%rdx, %%rax;"
 		/* Compute src1[1] * src2 */
 		"  movq 8(%1), %%rdx;"
-		"  mulxq 0(%3), %%r8, %%r9;"       "  xor %%r10, %%r10;"     "  adcxq 8(%0), %%r8;"    "  movq %%r8, 8(%0);"
+		"  mulxq 0(%3), %%r8, %%r9;"       "  xor %%r10d, %%r10d;"   "  adcxq 8(%0), %%r8;"    "  movq %%r8, 8(%0);"
 		"  mulxq 8(%3), %%r10, %%r11;"     "  adox %%r9, %%r10;"     "  adcx %%rbx, %%r10;"    "  movq %%r10, 16(%0);"
 		"  mulxq 16(%3), %%rbx, %%r13;"    "  adox %%r11, %%rbx;"    "  adcx %%r14, %%rbx;"    "  mov $0, %%r8;"
 		"  mulxq 24(%3), %%r14, %%rdx;"    "  adox %%r13, %%r14;"    "  adcx %%rax, %%r14;"    "  mov $0, %%rax;"
 		                                   "  adox %%rdx, %%rax;"    "  adcx %%r8, %%rax;"
 		/* Compute src1[2] * src2 */
 		"  movq 16(%1), %%rdx;"
-		"  mulxq 0(%3), %%r8, %%r9;"       "  xor %%r10, %%r10;"    "  adcxq 16(%0), %%r8;"    "  movq %%r8, 16(%0);"
+		"  mulxq 0(%3), %%r8, %%r9;"       "  xor %%r10d, %%r10d;"   "  adcxq 16(%0), %%r8;"   "  movq %%r8, 16(%0);"
 		"  mulxq 8(%3), %%r10, %%r11;"     "  adox %%r9, %%r10;"     "  adcx %%rbx, %%r10;"    "  movq %%r10, 24(%0);"
 		"  mulxq 16(%3), %%rbx, %%r13;"    "  adox %%r11, %%rbx;"    "  adcx %%r14, %%rbx;"    "  mov $0, %%r8;"
 		"  mulxq 24(%3), %%r14, %%rdx;"    "  adox %%r13, %%r14;"    "  adcx %%rax, %%r14;"    "  mov $0, %%rax;"
 		                                   "  adox %%rdx, %%rax;"    "  adcx %%r8, %%rax;"
 		/* Compute src1[3] * src2 */
 		"  movq 24(%1), %%rdx;"
-		"  mulxq 0(%3), %%r8, %%r9;"       "  xor %%r10, %%r10;"    "  adcxq 24(%0), %%r8;"    "  movq %%r8, 24(%0);"
+		"  mulxq 0(%3), %%r8, %%r9;"       "  xor %%r10d, %%r10d;"   "  adcxq 24(%0), %%r8;"   "  movq %%r8, 24(%0);"
 		"  mulxq 8(%3), %%r10, %%r11;"     "  adox %%r9, %%r10;"     "  adcx %%rbx, %%r10;"    "  movq %%r10, 32(%0);"
 		"  mulxq 16(%3), %%rbx, %%r13;"    "  adox %%r11, %%rbx;"    "  adcx %%r14, %%rbx;"    "  movq %%rbx, 40(%0);"    "  mov $0, %%r8;"
 		"  mulxq 24(%3), %%r14, %%rdx;"    "  adox %%r13, %%r14;"    "  adcx %%rax, %%r14;"    "  movq %%r14, 48(%0);"    "  mov $0, %%rax;"
@@ -200,7 +201,7 @@ static inline void fmul(u64 *out, const u64 *f1, const u64 *f2, u64 *tmp)
 		/* Step 1: Compute dst + carry == tmp_hi * 38 + tmp_lo */
 		"  mov $38, %%rdx;"
 		"  mulxq 32(%1), %%r8, %%r13;"
-		"  xor %3, %3;"
+		"  xor %k3, %k3;"
 		"  adoxq 0(%1), %%r8;"
 		"  mulxq 40(%1), %%r9, %%rbx;"
 		"  adcx %%r13, %%r9;"
@@ -246,28 +247,28 @@ static inline void fmul2(u64 *out, const u64 *f1, const u64 *f2, u64 *tmp)
 
 		/* Compute src1[0] * src2 */
 		"  movq 0(%1), %%rdx;"
-		"  mulxq 0(%3), %%r8, %%r9;"       "  xor %%r10, %%r10;"     "  movq %%r8, 0(%0);"
+		"  mulxq 0(%3), %%r8, %%r9;"       "  xor %%r10d, %%r10d;"   "  movq %%r8, 0(%0);"
 		"  mulxq 8(%3), %%r10, %%r11;"     "  adox %%r9, %%r10;"     "  movq %%r10, 8(%0);"
 		"  mulxq 16(%3), %%rbx, %%r13;"    "  adox %%r11, %%rbx;"
 		"  mulxq 24(%3), %%r14, %%rdx;"    "  adox %%r13, %%r14;"    "  mov $0, %%rax;"
 		                                   "  adox %%rdx, %%rax;"
 		/* Compute src1[1] * src2 */
 		"  movq 8(%1), %%rdx;"
-		"  mulxq 0(%3), %%r8, %%r9;"       "  xor %%r10, %%r10;"     "  adcxq 8(%0), %%r8;"    "  movq %%r8, 8(%0);"
+		"  mulxq 0(%3), %%r8, %%r9;"       "  xor %%r10d, %%r10d;"   "  adcxq 8(%0), %%r8;"    "  movq %%r8, 8(%0);"
 		"  mulxq 8(%3), %%r10, %%r11;"     "  adox %%r9, %%r10;"     "  adcx %%rbx, %%r10;"    "  movq %%r10, 16(%0);"
 		"  mulxq 16(%3), %%rbx, %%r13;"    "  adox %%r11, %%rbx;"    "  adcx %%r14, %%rbx;"    "  mov $0, %%r8;"
 		"  mulxq 24(%3), %%r14, %%rdx;"    "  adox %%r13, %%r14;"    "  adcx %%rax, %%r14;"    "  mov $0, %%rax;"
 		                                   "  adox %%rdx, %%rax;"    "  adcx %%r8, %%rax;"
 		/* Compute src1[2] * src2 */
 		"  movq 16(%1), %%rdx;"
-		"  mulxq 0(%3), %%r8, %%r9;"       "  xor %%r10, %%r10;"    "  adcxq 16(%0), %%r8;"    "  movq %%r8, 16(%0);"
+		"  mulxq 0(%3), %%r8, %%r9;"       "  xor %%r10d, %%r10d;"   "  adcxq 16(%0), %%r8;"   "  movq %%r8, 16(%0);"
 		"  mulxq 8(%3), %%r10, %%r11;"     "  adox %%r9, %%r10;"     "  adcx %%rbx, %%r10;"    "  movq %%r10, 24(%0);"
 		"  mulxq 16(%3), %%rbx, %%r13;"    "  adox %%r11, %%rbx;"    "  adcx %%r14, %%rbx;"    "  mov $0, %%r8;"
 		"  mulxq 24(%3), %%r14, %%rdx;"    "  adox %%r13, %%r14;"    "  adcx %%rax, %%r14;"    "  mov $0, %%rax;"
 		                                   "  adox %%rdx, %%rax;"    "  adcx %%r8, %%rax;"
 		/* Compute src1[3] * src2 */
 		"  movq 24(%1), %%rdx;"
-		"  mulxq 0(%3), %%r8, %%r9;"       "  xor %%r10, %%r10;"    "  adcxq 24(%0), %%r8;"    "  movq %%r8, 24(%0);"
+		"  mulxq 0(%3), %%r8, %%r9;"       "  xor %%r10d, %%r10d;"   "  adcxq 24(%0), %%r8;"   "  movq %%r8, 24(%0);"
 		"  mulxq 8(%3), %%r10, %%r11;"     "  adox %%r9, %%r10;"     "  adcx %%rbx, %%r10;"    "  movq %%r10, 32(%0);"
 		"  mulxq 16(%3), %%rbx, %%r13;"    "  adox %%r11, %%rbx;"    "  adcx %%r14, %%rbx;"    "  movq %%rbx, 40(%0);"    "  mov $0, %%r8;"
 		"  mulxq 24(%3), %%r14, %%rdx;"    "  adox %%r13, %%r14;"    "  adcx %%rax, %%r14;"    "  movq %%r14, 48(%0);"    "  mov $0, %%rax;"
@@ -277,29 +278,29 @@ static inline void fmul2(u64 *out, const u64 *f1, const u64 *f2, u64 *tmp)
 
 		/* Compute src1[0] * src2 */
 		"  movq 32(%1), %%rdx;"
-		"  mulxq 32(%3), %%r8, %%r9;"       "  xor %%r10, %%r10;"     "  movq %%r8, 64(%0);"
-		"  mulxq 40(%3), %%r10, %%r11;"     "  adox %%r9, %%r10;"     "  movq %%r10, 72(%0);"
+		"  mulxq 32(%3), %%r8, %%r9;"      "  xor %%r10d, %%r10d;"   "  movq %%r8, 64(%0);"
+		"  mulxq 40(%3), %%r10, %%r11;"    "  adox %%r9, %%r10;"     "  movq %%r10, 72(%0);"
 		"  mulxq 48(%3), %%rbx, %%r13;"    "  adox %%r11, %%rbx;"
 		"  mulxq 56(%3), %%r14, %%rdx;"    "  adox %%r13, %%r14;"    "  mov $0, %%rax;"
 		                                   "  adox %%rdx, %%rax;"
 		/* Compute src1[1] * src2 */
 		"  movq 40(%1), %%rdx;"
-		"  mulxq 32(%3), %%r8, %%r9;"       "  xor %%r10, %%r10;"     "  adcxq 72(%0), %%r8;"    "  movq %%r8, 72(%0);"
-		"  mulxq 40(%3), %%r10, %%r11;"     "  adox %%r9, %%r10;"     "  adcx %%rbx, %%r10;"    "  movq %%r10, 80(%0);"
+		"  mulxq 32(%3), %%r8, %%r9;"      "  xor %%r10d, %%r10d;"   "  adcxq 72(%0), %%r8;"   "  movq %%r8, 72(%0);"
+		"  mulxq 40(%3), %%r10, %%r11;"    "  adox %%r9, %%r10;"     "  adcx %%rbx, %%r10;"    "  movq %%r10, 80(%0);"
 		"  mulxq 48(%3), %%rbx, %%r13;"    "  adox %%r11, %%rbx;"    "  adcx %%r14, %%rbx;"    "  mov $0, %%r8;"
 		"  mulxq 56(%3), %%r14, %%rdx;"    "  adox %%r13, %%r14;"    "  adcx %%rax, %%r14;"    "  mov $0, %%rax;"
 		                                   "  adox %%rdx, %%rax;"    "  adcx %%r8, %%rax;"
 		/* Compute src1[2] * src2 */
 		"  movq 48(%1), %%rdx;"
-		"  mulxq 32(%3), %%r8, %%r9;"       "  xor %%r10, %%r10;"    "  adcxq 80(%0), %%r8;"    "  movq %%r8, 80(%0);"
-		"  mulxq 40(%3), %%r10, %%r11;"     "  adox %%r9, %%r10;"     "  adcx %%rbx, %%r10;"    "  movq %%r10, 88(%0);"
+		"  mulxq 32(%3), %%r8, %%r9;"      "  xor %%r10d, %%r10d;"   "  adcxq 80(%0), %%r8;"   "  movq %%r8, 80(%0);"
+		"  mulxq 40(%3), %%r10, %%r11;"    "  adox %%r9, %%r10;"     "  adcx %%rbx, %%r10;"    "  movq %%r10, 88(%0);"
 		"  mulxq 48(%3), %%rbx, %%r13;"    "  adox %%r11, %%rbx;"    "  adcx %%r14, %%rbx;"    "  mov $0, %%r8;"
 		"  mulxq 56(%3), %%r14, %%rdx;"    "  adox %%r13, %%r14;"    "  adcx %%rax, %%r14;"    "  mov $0, %%rax;"
 		                                   "  adox %%rdx, %%rax;"    "  adcx %%r8, %%rax;"
 		/* Compute src1[3] * src2 */
 		"  movq 56(%1), %%rdx;"
-		"  mulxq 32(%3), %%r8, %%r9;"       "  xor %%r10, %%r10;"    "  adcxq 88(%0), %%r8;"    "  movq %%r8, 88(%0);"
-		"  mulxq 40(%3), %%r10, %%r11;"     "  adox %%r9, %%r10;"     "  adcx %%rbx, %%r10;"    "  movq %%r10, 96(%0);"
+		"  mulxq 32(%3), %%r8, %%r9;"      "  xor %%r10d, %%r10d;"   "  adcxq 88(%0), %%r8;"   "  movq %%r8, 88(%0);"
+		"  mulxq 40(%3), %%r10, %%r11;"    "  adox %%r9, %%r10;"     "  adcx %%rbx, %%r10;"    "  movq %%r10, 96(%0);"
 		"  mulxq 48(%3), %%rbx, %%r13;"    "  adox %%r11, %%rbx;"    "  adcx %%r14, %%rbx;"    "  movq %%rbx, 104(%0);"    "  mov $0, %%r8;"
 		"  mulxq 56(%3), %%r14, %%rdx;"    "  adox %%r13, %%r14;"    "  adcx %%rax, %%r14;"    "  movq %%r14, 112(%0);"    "  mov $0, %%rax;"
 		                                   "  adox %%rdx, %%rax;"    "  adcx %%r8, %%rax;"     "  movq %%rax, 120(%0);"
@@ -312,7 +313,7 @@ static inline void fmul2(u64 *out, const u64 *f1, const u64 *f2, u64 *tmp)
 		/* Step 1: Compute dst + carry == tmp_hi * 38 + tmp_lo */
 		"  mov $38, %%rdx;"
 		"  mulxq 32(%1), %%r8, %%r13;"
-		"  xor %3, %3;"
+		"  xor %k3, %k3;"
 		"  adoxq 0(%1), %%r8;"
 		"  mulxq 40(%1), %%r9, %%rbx;"
 		"  adcx %%r13, %%r9;"
@@ -345,7 +346,7 @@ static inline void fmul2(u64 *out, const u64 *f1, const u64 *f2, u64 *tmp)
 		/* Step 1: Compute dst + carry == tmp_hi * 38 + tmp_lo */
 		"  mov $38, %%rdx;"
 		"  mulxq 96(%1), %%r8, %%r13;"
-		"  xor %3, %3;"
+		"  xor %k3, %k3;"
 		"  adoxq 64(%1), %%r8;"
 		"  mulxq 104(%1), %%r9, %%rbx;"
 		"  adcx %%r13, %%r9;"
@@ -516,7 +517,7 @@ static inline void fsqr(u64 *out, const u64 *f, u64 *tmp)
 
 		/* Step 1: Compute all partial products */
 		"  movq 0(%1), %%rdx;"                                       /* f[0] */
-		"  mulxq 8(%1), %%r8, %%r14;"      "  xor %%r15, %%r15;"     /* f[1]*f[0] */
+		"  mulxq 8(%1), %%r8, %%r14;"      "  xor %%r15d, %%r15d;"   /* f[1]*f[0] */
 		"  mulxq 16(%1), %%r9, %%r10;"     "  adcx %%r14, %%r9;"     /* f[2]*f[0] */
 		"  mulxq 24(%1), %%rax, %%rcx;"    "  adcx %%rax, %%r10;"    /* f[3]*f[0] */
 		"  movq 24(%1), %%rdx;"                                      /* f[3] */
@@ -526,7 +527,7 @@ static inline void fsqr(u64 *out, const u64 *f, u64 *tmp)
 		"  mulxq 16(%1), %%rax, %%rcx;"    "  mov $0, %%r14;"        /* f[2]*f[1] */
 
 		/* Step 2: Compute two parallel carry chains */
-		"  xor %%r15, %%r15;"
+		"  xor %%r15d, %%r15d;"
 		"  adox %%rax, %%r10;"
 		"  adcx %%r8, %%r8;"
 		"  adox %%rcx, %%r11;"
@@ -563,7 +564,7 @@ static inline void fsqr(u64 *out, const u64 *f, u64 *tmp)
 		/* Step 1: Compute dst + carry == tmp_hi * 38 + tmp_lo */
 		"  mov $38, %%rdx;"
 		"  mulxq 32(%1), %%r8, %%r13;"
-		"  xor %%rcx, %%rcx;"
+		"  xor %%ecx, %%ecx;"
 		"  adoxq 0(%1), %%r8;"
 		"  mulxq 40(%1), %%r9, %%rbx;"
 		"  adcx %%r13, %%r9;"
@@ -607,7 +608,7 @@ static inline void fsqr2(u64 *out, const u64 *f, u64 *tmp)
 	asm volatile(
 		/* Step 1: Compute all partial products */
 		"  movq 0(%1), %%rdx;"                                       /* f[0] */
-		"  mulxq 8(%1), %%r8, %%r14;"      "  xor %%r15, %%r15;"     /* f[1]*f[0] */
+		"  mulxq 8(%1), %%r8, %%r14;"      "  xor %%r15d, %%r15d;"   /* f[1]*f[0] */
 		"  mulxq 16(%1), %%r9, %%r10;"     "  adcx %%r14, %%r9;"     /* f[2]*f[0] */
 		"  mulxq 24(%1), %%rax, %%rcx;"    "  adcx %%rax, %%r10;"    /* f[3]*f[0] */
 		"  movq 24(%1), %%rdx;"                                      /* f[3] */
@@ -617,7 +618,7 @@ static inline void fsqr2(u64 *out, const u64 *f, u64 *tmp)
 		"  mulxq 16(%1), %%rax, %%rcx;"    "  mov $0, %%r14;"        /* f[2]*f[1] */
 
 		/* Step 2: Compute two parallel carry chains */
-		"  xor %%r15, %%r15;"
+		"  xor %%r15d, %%r15d;"
 		"  adox %%rax, %%r10;"
 		"  adcx %%r8, %%r8;"
 		"  adox %%rcx, %%r11;"
@@ -647,7 +648,7 @@ static inline void fsqr2(u64 *out, const u64 *f, u64 *tmp)
 
 		/* Step 1: Compute all partial products */
 		"  movq 32(%1), %%rdx;"                                       /* f[0] */
-		"  mulxq 40(%1), %%r8, %%r14;"      "  xor %%r15, %%r15;"     /* f[1]*f[0] */
+		"  mulxq 40(%1), %%r8, %%r14;"     "  xor %%r15d, %%r15d;"   /* f[1]*f[0] */
 		"  mulxq 48(%1), %%r9, %%r10;"     "  adcx %%r14, %%r9;"     /* f[2]*f[0] */
 		"  mulxq 56(%1), %%rax, %%rcx;"    "  adcx %%rax, %%r10;"    /* f[3]*f[0] */
 		"  movq 56(%1), %%rdx;"                                      /* f[3] */
@@ -657,7 +658,7 @@ static inline void fsqr2(u64 *out, const u64 *f, u64 *tmp)
 		"  mulxq 48(%1), %%rax, %%rcx;"    "  mov $0, %%r14;"        /* f[2]*f[1] */
 
 		/* Step 2: Compute two parallel carry chains */
-		"  xor %%r15, %%r15;"
+		"  xor %%r15d, %%r15d;"
 		"  adox %%rax, %%r10;"
 		"  adcx %%r8, %%r8;"
 		"  adox %%rcx, %%r11;"
@@ -692,7 +693,7 @@ static inline void fsqr2(u64 *out, const u64 *f, u64 *tmp)
 		/* Step 1: Compute dst + carry == tmp_hi * 38 + tmp_lo */
 		"  mov $38, %%rdx;"
 		"  mulxq 32(%1), %%r8, %%r13;"
-		"  xor %%rcx, %%rcx;"
+		"  xor %%ecx, %%ecx;"
 		"  adoxq 0(%1), %%r8;"
 		"  mulxq 40(%1), %%r9, %%rbx;"
 		"  adcx %%r13, %%r9;"
@@ -725,7 +726,7 @@ static inline void fsqr2(u64 *out, const u64 *f, u64 *tmp)
 		/* Step 1: Compute dst + carry == tmp_hi * 38 + tmp_lo */
 		"  mov $38, %%rdx;"
 		"  mulxq 96(%1), %%r8, %%r13;"
-		"  xor %%rcx, %%rcx;"
+		"  xor %%ecx, %%ecx;"
 		"  adoxq 64(%1), %%r8;"
 		"  mulxq 104(%1), %%r9, %%rbx;"
 		"  adcx %%r13, %%r9;"

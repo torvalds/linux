@@ -19,6 +19,8 @@ TEST_PROGS += txtimestamp.sh
 TEST_PROGS += vrf-xfrm-tests.sh
 TEST_PROGS += rxtimestamp.sh
 TEST_PROGS += devlink_port_split.py
+TEST_PROGS += drop_monitor_tests.sh
+TEST_PROGS += vrf_route_leaking.sh
 TEST_PROGS_EXTENDED := in_netns.sh
 TEST_GEN_FILES =  socket nettest
 TEST_GEN_FILES += psock_fanout psock_tpacket msg_zerocopy reuseport_addr_any
@@ -29,6 +31,7 @@ TEST_GEN_FILES += tcp_fastopen_backup_key
 TEST_GEN_FILES += fin_ack_lat
 TEST_GEN_FILES += reuseaddr_ports_exhausted
 TEST_GEN_FILES += hwtstamp_config rxtimestamp timestamping txtimestamp
+TEST_GEN_FILES += ipsec
 TEST_GEN_PROGS = reuseport_bpf reuseport_bpf_cpu reuseport_bpf_numa
 TEST_GEN_PROGS += reuseport_dualstack reuseaddr_conflict tls
 

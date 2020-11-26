@@ -14,7 +14,6 @@
 #include <asm/nospec-branch.h>
 #include <asm/cache.h>
 #include <asm/apic.h>
-#include <asm/uv/uv.h>
 
 #include "mm_internal.h"
 
@@ -555,21 +554,12 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 		this_cpu_write(cpu_tlbstate.ctxs[new_asid].tlb_gen, next_tlb_gen);
 		load_new_mm_cr3(next->pgd, new_asid, true);
 
-		/*
-		 * NB: This gets called via leave_mm() in the idle path
-		 * where RCU functions differently.  Tracing normally
-		 * uses RCU, so we need to use the _rcuidle variant.
-		 *
-		 * (There is no good reason for this.  The idle code should
-		 *  be rearranged to call this before rcu_idle_enter().)
-		 */
-		trace_tlb_flush_rcuidle(TLB_FLUSH_ON_TASK_SWITCH, TLB_FLUSH_ALL);
+		trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH, TLB_FLUSH_ALL);
 	} else {
 		/* The new ASID is already up to date. */
 		load_new_mm_cr3(next->pgd, new_asid, false);
 
-		/* See above wrt _rcuidle. */
-		trace_tlb_flush_rcuidle(TLB_FLUSH_ON_TASK_SWITCH, 0);
+		trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH, 0);
 	}
 
 	/* Make sure we write CR3 before loaded_mm. */
@@ -808,29 +798,6 @@ STATIC_NOPV void native_flush_tlb_others(const struct cpumask *cpumask,
 	else
 		trace_tlb_flush(TLB_REMOTE_SEND_IPI,
 				(info->end - info->start) >> PAGE_SHIFT);
-
-	if (is_uv_system()) {
-		/*
-		 * This whole special case is confused.  UV has a "Broadcast
-		 * Assist Unit", which seems to be a fancy way to send IPIs.
-		 * Back when x86 used an explicit TLB flush IPI, UV was
-		 * optimized to use its own mechanism.  These days, x86 uses
-		 * smp_call_function_many(), but UV still uses a manual IPI,
-		 * and that IPI's action is out of date -- it does a manual
-		 * flush instead of calling flush_tlb_func_remote().  This
-		 * means that the percpu tlb_gen variables won't be updated
-		 * and we'll do pointless flushes on future context switches.
-		 *
-		 * Rather than hooking native_flush_tlb_others() here, I think
-		 * that UV should be updated so that smp_call_function_many(),
-		 * etc, are optimal on UV.
-		 */
-		cpumask = uv_flush_tlb_others(cpumask, info);
-		if (cpumask)
-			smp_call_function_many(cpumask, flush_tlb_func_remote,
-					       (void *)info, 1);
-		return;
-	}
 
 	/*
 	 * If no page tables were freed, we can skip sending IPIs to

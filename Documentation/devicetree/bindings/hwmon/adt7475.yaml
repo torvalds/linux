@@ -65,6 +65,8 @@ required:
   - compatible
   - reg
 
+additionalProperties: false
+
 examples:
   - |
     i2c {

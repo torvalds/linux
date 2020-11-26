@@ -146,7 +146,7 @@ static struct davinci_nand_pdata davinci_nand_data = {
 	.mask_chipsel		= BIT(14),
 	.parts			= davinci_nand_partitions,
 	.nr_parts		= ARRAY_SIZE(davinci_nand_partitions),
-	.ecc_mode		= NAND_ECC_HW,
+	.engine_type		= NAND_ECC_ENGINE_TYPE_ON_HOST,
 	.bbt_options		= NAND_BBT_USE_FLASH,
 	.ecc_bits		= 4,
 };

@@ -592,6 +592,17 @@ static int soc_tplg_kcontrol_bind_io(struct snd_soc_tplg_ctl_hdr *hdr,
 		k->info = snd_soc_bytes_info_ext;
 		k->tlv.c = snd_soc_bytes_tlv_callback;
 
+		/*
+		 * When a topology-based implementation abuses the
+		 * control interface and uses bytes_ext controls of
+		 * more than 512 bytes, we need to disable the size
+		 * checks, otherwise accesses to such controls will
+		 * return an -EINVAL error and prevent the card from
+		 * being configured.
+		 */
+		if (IS_ENABLED(CONFIG_SND_CTL_VALIDATION) && sbe->max > 512)
+			k->access |= SNDRV_CTL_ELEM_ACCESS_SKIP_CHECK;
+
 		ext_ops = tplg->bytes_ext_ops;
 		num_ops = tplg->bytes_ext_ops_count;
 		for (i = 0; i < num_ops; i++) {
@@ -603,10 +614,11 @@ static int soc_tplg_kcontrol_bind_io(struct snd_soc_tplg_ctl_hdr *hdr,
 				sbe->get = ext_ops[i].get;
 		}
 
-		if (sbe->put && sbe->get)
-			return 0;
-		else
+		if ((k->access & SNDRV_CTL_ELEM_ACCESS_TLV_READ) && !sbe->get)
 			return -EINVAL;
+		if ((k->access & SNDRV_CTL_ELEM_ACCESS_TLV_WRITE) && !sbe->put)
+			return -EINVAL;
+		return 0;
 	}
 
 	/* try and map vendor specific kcontrol handlers first */
@@ -1057,7 +1069,7 @@ static int soc_tplg_denum_create(struct soc_tplg *tplg, unsigned int count,
 					ec->hdr.name);
 				goto err_denum;
 			}
-			/* fall through */
+			fallthrough;
 		case SND_SOC_TPLG_CTL_ENUM:
 		case SND_SOC_TPLG_DAPM_CTL_ENUM_DOUBLE:
 		case SND_SOC_TPLG_DAPM_CTL_ENUM_VIRT:
@@ -1445,7 +1457,7 @@ static struct snd_kcontrol_new *soc_tplg_dapm_widget_denum_create(
 					ec->hdr.name);
 				goto err_se;
 			}
-			/* fall through */
+			fallthrough;
 		case SND_SOC_TPLG_CTL_ENUM:
 		case SND_SOC_TPLG_DAPM_CTL_ENUM_DOUBLE:
 		case SND_SOC_TPLG_DAPM_CTL_ENUM_VIRT:

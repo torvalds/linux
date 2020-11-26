@@ -13,4 +13,6 @@ static inline bool stress_slb(void)
 	return static_branch_unlikely(&stress_slb_key);
 }
 
+void slb_setup_new_exec(void);
+
 #endif /* ARCH_POWERPC_MM_BOOK3S64_INTERNAL_H */

@@ -230,8 +230,9 @@ static void ad7418_init_client(struct i2c_client *client)
 	}
 }
 
-static int ad7418_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static const struct i2c_device_id ad7418_id[];
+
+static int ad7418_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct i2c_adapter *adapter = client->adapter;
@@ -254,7 +255,7 @@ static int ad7418_probe(struct i2c_client *client,
 	if (dev->of_node)
 		data->type = (enum chips)of_device_get_match_data(dev);
 	else
-		data->type = id->driver_data;
+		data->type = i2c_match_id(ad7418_id, client)->driver_data;
 
 	switch (data->type) {
 	case ad7416:
@@ -305,7 +306,7 @@ static struct i2c_driver ad7418_driver = {
 		.name	= "ad7418",
 		.of_match_table = ad7418_dt_ids,
 	},
-	.probe		= ad7418_probe,
+	.probe_new	= ad7418_probe,
 	.id_table	= ad7418_id,
 };
 

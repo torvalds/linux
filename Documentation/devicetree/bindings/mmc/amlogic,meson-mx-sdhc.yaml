@@ -50,6 +50,8 @@ required:
   - clocks
   - clock-names
 
+unevaluatedProperties: false
+
 examples:
   - |
     #include <dt-bindings/interrupt-controller/irq.h>

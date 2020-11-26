@@ -7,6 +7,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/mutex.h>
 #include <linux/init.h>
 #include <linux/i2c.h>
@@ -177,7 +178,7 @@ MODULE_DEVICE_TABLE(of, ams_iaqcore_dt_ids);
 static struct i2c_driver ams_iaqcore_driver = {
 	.driver = {
 		.name	= "ams-iaq-core",
-		.of_match_table = of_match_ptr(ams_iaqcore_dt_ids),
+		.of_match_table = ams_iaqcore_dt_ids,
 	},
 	.probe = ams_iaqcore_probe,
 	.id_table = ams_iaqcore_id,

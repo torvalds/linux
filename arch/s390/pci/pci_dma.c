@@ -10,7 +10,7 @@
 #include <linux/slab.h>
 #include <linux/export.h>
 #include <linux/iommu-helper.h>
-#include <linux/dma-mapping.h>
+#include <linux/dma-map-ops.h>
 #include <linux/vmalloc.h>
 #include <linux/pci.h>
 #include <asm/pci_dma.h>
@@ -261,13 +261,11 @@ static unsigned long __dma_alloc_iommu(struct device *dev,
 				       unsigned long start, int size)
 {
 	struct zpci_dev *zdev = to_zpci(to_pci_dev(dev));
-	unsigned long boundary_size;
 
-	boundary_size = ALIGN(dma_get_seg_boundary(dev) + 1,
-			      PAGE_SIZE) >> PAGE_SHIFT;
 	return iommu_area_alloc(zdev->iommu_bitmap, zdev->iommu_pages,
 				start, size, zdev->start_dma >> PAGE_SHIFT,
-				boundary_size, 0);
+				dma_get_seg_boundary_nr_pages(dev, PAGE_SHIFT),
+				0);
 }
 
 static dma_addr_t dma_alloc_address(struct device *dev, int size)
@@ -670,6 +668,8 @@ const struct dma_map_ops s390_pci_dma_ops = {
 	.unmap_page	= s390_dma_unmap_pages,
 	.mmap		= dma_common_mmap,
 	.get_sgtable	= dma_common_get_sgtable,
+	.alloc_pages	= dma_common_alloc_pages,
+	.free_pages	= dma_common_free_pages,
 	/* dma_supported is unconditionally true without a callback */
 };
 EXPORT_SYMBOL_GPL(s390_pci_dma_ops);

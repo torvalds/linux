@@ -16,8 +16,36 @@
 #define RKISP1_DEF_FMT MEDIA_BUS_FMT_YUYV8_2X8
 #define RKISP1_DEF_PIXEL_ENC V4L2_PIXEL_ENC_YUV
 
-#define RKISP1_MBUS_FMT_HDIV 2
-#define RKISP1_MBUS_FMT_VDIV 1
+struct rkisp1_rsz_yuv_mbus_info {
+	u32 mbus_code;
+	u32 hdiv;
+	u32 vdiv;
+};
+
+static const struct rkisp1_rsz_yuv_mbus_info rkisp1_rsz_yuv_src_formats[] = {
+	{
+		.mbus_code	= MEDIA_BUS_FMT_YUYV8_2X8, /* YUV422 */
+		.hdiv		= 2,
+		.vdiv		= 1,
+	},
+	{
+		.mbus_code	= MEDIA_BUS_FMT_YUYV8_1_5X8, /* YUV420 */
+		.hdiv		= 2,
+		.vdiv		= 2,
+	},
+};
+
+static const struct rkisp1_rsz_yuv_mbus_info *rkisp1_rsz_get_yuv_mbus_info(u32 mbus_code)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(rkisp1_rsz_yuv_src_formats); i++) {
+		if (rkisp1_rsz_yuv_src_formats[i].mbus_code == mbus_code)
+			return &rkisp1_rsz_yuv_src_formats[i];
+	}
+
+	return NULL;
+}
 
 enum rkisp1_shadow_regs_when {
 	RKISP1_SHADOW_REGS_SYNC,
@@ -361,16 +389,19 @@ static void rkisp1_rsz_config_regs(struct rkisp1_resizer *rsz,
 static void rkisp1_rsz_config(struct rkisp1_resizer *rsz,
 			      enum rkisp1_shadow_regs_when when)
 {
-	u8 hdiv = RKISP1_MBUS_FMT_HDIV, vdiv = RKISP1_MBUS_FMT_VDIV;
+	const struct rkisp1_rsz_yuv_mbus_info *sink_yuv_info, *src_yuv_info;
 	struct v4l2_rect sink_y, sink_c, src_y, src_c;
-	struct v4l2_mbus_framefmt *src_fmt;
+	struct v4l2_mbus_framefmt *src_fmt, *sink_fmt;
 	struct v4l2_rect *sink_crop;
-	struct rkisp1_capture *cap = &rsz->rkisp1->capture_devs[rsz->id];
 
 	sink_crop = rkisp1_rsz_get_pad_crop(rsz, NULL, RKISP1_RSZ_PAD_SINK,
 					    V4L2_SUBDEV_FORMAT_ACTIVE);
 	src_fmt = rkisp1_rsz_get_pad_fmt(rsz, NULL, RKISP1_RSZ_PAD_SRC,
 					 V4L2_SUBDEV_FORMAT_ACTIVE);
+	src_yuv_info = rkisp1_rsz_get_yuv_mbus_info(src_fmt->code);
+	sink_fmt = rkisp1_rsz_get_pad_fmt(rsz, NULL, RKISP1_RSZ_PAD_SINK,
+					  V4L2_SUBDEV_FORMAT_ACTIVE);
+	sink_yuv_info = rkisp1_rsz_get_yuv_mbus_info(sink_fmt->code);
 
 	/*
 	 * The resizer only works on yuv formats,
@@ -386,25 +417,17 @@ static void rkisp1_rsz_config(struct rkisp1_resizer *rsz,
 	src_y.width = src_fmt->width;
 	src_y.height = src_fmt->height;
 
-	sink_c.width = sink_y.width / RKISP1_MBUS_FMT_HDIV;
-	sink_c.height = sink_y.height / RKISP1_MBUS_FMT_VDIV;
+	sink_c.width = sink_y.width / sink_yuv_info->hdiv;
+	sink_c.height = sink_y.height / sink_yuv_info->vdiv;
 
 	/*
 	 * The resizer is used not only to change the dimensions of the frame
 	 * but also to change the scale for YUV formats,
 	 * (4:2:2 -> 4:2:0 for example). So the width/height of the CbCr
-	 * streams should be set according to the pixel format in the capture.
-	 * The resizer always gets the input as YUV422. If the capture format
-	 * is RGB then the memory input should be YUV422 so we don't change the
-	 * default hdiv, vdiv in that case.
+	 * streams should be set according to the media bus format in the src pad.
 	 */
-	if (v4l2_is_format_yuv(cap->pix.info)) {
-		hdiv = cap->pix.info->hdiv;
-		vdiv = cap->pix.info->vdiv;
-	}
-
-	src_c.width = src_y.width / hdiv;
-	src_c.height = src_y.height / vdiv;
+	src_c.width = src_y.width / src_yuv_info->hdiv;
+	src_c.height = src_y.height / src_yuv_info->vdiv;
 
 	if (sink_c.width == src_c.width && sink_c.height == src_c.height) {
 		rkisp1_rsz_disable(rsz, when);
@@ -437,13 +460,32 @@ static int rkisp1_rsz_enum_mbus_code(struct v4l2_subdev *sd,
 	u32 pad = code->pad;
 	int ret;
 
-	/* supported mbus codes are the same in isp video src pad */
+	if (code->pad == RKISP1_RSZ_PAD_SRC) {
+		/* supported mbus codes on the src are the same as in the capture */
+		struct rkisp1_capture *cap = &rsz->rkisp1->capture_devs[rsz->id];
+
+		return rkisp1_cap_enum_mbus_codes(cap, code);
+	}
+
+	/*
+	 * The selfpath capture doesn't support bayer formats. Therefore the selfpath resizer
+	 * should support only YUV422 on the sink pad
+	 */
+	if (rsz->id == RKISP1_SELFPATH) {
+		if (code->index > 0)
+			return -EINVAL;
+		code->code = MEDIA_BUS_FMT_YUYV8_2X8;
+		return 0;
+	}
+
+	/* supported mbus codes on the sink pad are the same as isp src pad */
 	code->pad = RKISP1_ISP_PAD_SOURCE_VIDEO;
 	ret = v4l2_subdev_call(&rsz->rkisp1->isp.sd, pad, enum_mbus_code,
 			       &dummy_cfg, code);
 
 	/* restore pad */
 	code->pad = pad;
+	code->flags = 0;
 	return ret;
 }
 
@@ -478,9 +520,17 @@ static void rkisp1_rsz_set_src_fmt(struct rkisp1_resizer *rsz,
 				   struct v4l2_mbus_framefmt *format,
 				   unsigned int which)
 {
+	const struct rkisp1_isp_mbus_info *mbus_info;
 	struct v4l2_mbus_framefmt *src_fmt;
 
 	src_fmt = rkisp1_rsz_get_pad_fmt(rsz, cfg, RKISP1_RSZ_PAD_SRC, which);
+	mbus_info = rkisp1_isp_mbus_info_get(src_fmt->code);
+
+	/* for YUV formats, userspace can change the mbus code on the src pad if it is supported */
+	if (mbus_info->pixel_enc == V4L2_PIXEL_ENC_YUV &&
+	    rkisp1_rsz_get_yuv_mbus_info(format->code))
+		src_fmt->code = format->code;
+
 	src_fmt->width = clamp_t(u32, format->width,
 				 rsz->config->min_rsz_width,
 				 rsz->config->max_rsz_width);
@@ -540,7 +590,11 @@ static void rkisp1_rsz_set_sink_fmt(struct rkisp1_resizer *rsz,
 	src_fmt = rkisp1_rsz_get_pad_fmt(rsz, cfg, RKISP1_RSZ_PAD_SRC, which);
 	sink_crop = rkisp1_rsz_get_pad_crop(rsz, cfg, RKISP1_RSZ_PAD_SINK,
 					    which);
-	sink_fmt->code = format->code;
+	if (rsz->id == RKISP1_SELFPATH)
+		sink_fmt->code = MEDIA_BUS_FMT_YUYV8_2X8;
+	else
+		sink_fmt->code = format->code;
+
 	mbus_info = rkisp1_isp_mbus_info_get(sink_fmt->code);
 	if (!mbus_info || !(mbus_info->direction & RKISP1_ISP_SD_SRC)) {
 		sink_fmt->code = RKISP1_DEF_FMT;

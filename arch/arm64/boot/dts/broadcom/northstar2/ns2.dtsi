@@ -576,7 +576,7 @@
 			reg = <0x66090000 0x1000>;
 			interrupts = <GIC_SPI 406 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&iprocslow>, <&iprocslow>;
-			clock-names = "wdogclk", "apb_pclk";
+			clock-names = "wdog_clk", "apb_pclk";
 		};
 
 		gpio_g: gpio@660a0000 {
@@ -745,7 +745,7 @@
 		};
 
 		qspi: spi@66470200 {
-			compatible = "brcm,spi-bcm-qspi", "brcm,spi-ns2-qspi";
+			compatible = "brcm,spi-ns2-qspi", "brcm,spi-bcm-qspi";
 			reg = <0x66470200 0x184>,
 				<0x66470000 0x124>,
 				<0x67017408 0x004>,

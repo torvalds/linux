@@ -589,8 +589,19 @@ name::
         { .type = "int",                .name = "my_int_field" },
   };
 
-See synth_field_size() for available types. If field_name contains [n]
-the field is considered to be an array.
+See synth_field_size() for available types.
+
+If field_name contains [n], the field is considered to be a static array.
+
+If field_names contains[] (no subscript), the field is considered to
+be a dynamic array, which will only take as much space in the event as
+is required to hold the array.
+
+Because space for an event is reserved before assigning field values
+to the event, using dynamic arrays implies that the piecewise
+in-kernel API described below can't be used with dynamic arrays.  The
+other non-piecewise in-kernel APIs can, however, be used with dynamic
+arrays.
 
 If the event is created from within a module, a pointer to the module
 must be passed to synth_event_create().  This will ensure that the

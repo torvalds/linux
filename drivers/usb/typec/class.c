@@ -1449,6 +1449,21 @@ void typec_set_pwr_opmode(struct typec_port *port,
 EXPORT_SYMBOL_GPL(typec_set_pwr_opmode);
 
 /**
+ * typec_find_pwr_opmode - Get the typec power operation mode capability
+ * @name: power operation mode string
+ *
+ * This routine is used to find the typec_pwr_opmode by its string @name.
+ *
+ * Returns typec_pwr_opmode if success, otherwise negative error code.
+ */
+int typec_find_pwr_opmode(const char *name)
+{
+	return match_string(typec_pwr_opmodes,
+			    ARRAY_SIZE(typec_pwr_opmodes), name);
+}
+EXPORT_SYMBOL_GPL(typec_find_pwr_opmode);
+
+/**
  * typec_find_orientation - Convert orientation string to enum typec_orientation
  * @name: Orientation string
  *

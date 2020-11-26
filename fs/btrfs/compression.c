@@ -29,41 +29,6 @@
 #include "extent_io.h"
 #include "extent_map.h"
 
-int zlib_compress_pages(struct list_head *ws, struct address_space *mapping,
-		u64 start, struct page **pages, unsigned long *out_pages,
-		unsigned long *total_in, unsigned long *total_out);
-int zlib_decompress_bio(struct list_head *ws, struct compressed_bio *cb);
-int zlib_decompress(struct list_head *ws, unsigned char *data_in,
-		struct page *dest_page, unsigned long start_byte, size_t srclen,
-		size_t destlen);
-struct list_head *zlib_alloc_workspace(unsigned int level);
-void zlib_free_workspace(struct list_head *ws);
-struct list_head *zlib_get_workspace(unsigned int level);
-
-int lzo_compress_pages(struct list_head *ws, struct address_space *mapping,
-		u64 start, struct page **pages, unsigned long *out_pages,
-		unsigned long *total_in, unsigned long *total_out);
-int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb);
-int lzo_decompress(struct list_head *ws, unsigned char *data_in,
-		struct page *dest_page, unsigned long start_byte, size_t srclen,
-		size_t destlen);
-struct list_head *lzo_alloc_workspace(unsigned int level);
-void lzo_free_workspace(struct list_head *ws);
-
-int zstd_compress_pages(struct list_head *ws, struct address_space *mapping,
-		u64 start, struct page **pages, unsigned long *out_pages,
-		unsigned long *total_in, unsigned long *total_out);
-int zstd_decompress_bio(struct list_head *ws, struct compressed_bio *cb);
-int zstd_decompress(struct list_head *ws, unsigned char *data_in,
-		struct page *dest_page, unsigned long start_byte, size_t srclen,
-		size_t destlen);
-void zstd_init_workspace_manager(void);
-void zstd_cleanup_workspace_manager(void);
-struct list_head *zstd_alloc_workspace(unsigned int level);
-void zstd_free_workspace(struct list_head *ws);
-struct list_head *zstd_get_workspace(unsigned int level);
-void zstd_put_workspace(struct list_head *ws);
-
 static const char* const btrfs_compress_types[] = { "", "zlib", "lzo", "zstd" };
 
 const char* btrfs_compress_type2str(enum btrfs_compression_type type)

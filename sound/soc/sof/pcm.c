@@ -361,7 +361,7 @@ static int sof_pcm_trigger(struct snd_soc_component *component,
 			return ret;
 		}
 
-		/* fallthrough */
+		fallthrough;
 	case SNDRV_PCM_TRIGGER_START:
 		if (spcm->stream[substream->stream].suspend_ignored) {
 			/*
@@ -386,7 +386,7 @@ static int sof_pcm_trigger(struct snd_soc_component *component,
 			spcm->stream[substream->stream].suspend_ignored = true;
 			return 0;
 		}
-		/* fallthrough */
+		fallthrough;
 	case SNDRV_PCM_TRIGGER_STOP:
 		stream.hdr.cmd |= SOF_IPC_STREAM_TRIG_STOP;
 		ipc_first = true;
@@ -446,9 +446,9 @@ static snd_pcm_uframes_t sof_pcm_pointer(struct snd_soc_component *component,
 	dai = bytes_to_frames(substream->runtime,
 			      spcm->stream[substream->stream].posn.dai_posn);
 
-	dev_dbg(component->dev,
-		"PCM: stream %d dir %d DMA position %lu DAI position %lu\n",
-		spcm->pcm.pcm_id, substream->stream, host, dai);
+	dev_vdbg(component->dev,
+		 "PCM: stream %d dir %d DMA position %lu DAI position %lu\n",
+		 spcm->pcm.pcm_id, substream->stream, host, dai);
 
 	return host;
 }
@@ -704,7 +704,7 @@ static int sof_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 		break;
 	case SOF_DAI_INTEL_HDA:
 		/*
-		 * HDaudio does not follow the default trigger
+		 * HDAudio does not follow the default trigger
 		 * sequence due to firmware implementation
 		 */
 		for_each_dpcm_fe(rtd, SNDRV_PCM_STREAM_PLAYBACK, dpcm) {

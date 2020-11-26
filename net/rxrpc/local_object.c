@@ -86,8 +86,8 @@ static struct rxrpc_local *rxrpc_alloc_local(struct rxrpc_net *rxnet,
 		init_rwsem(&local->defrag_sem);
 		skb_queue_head_init(&local->reject_queue);
 		skb_queue_head_init(&local->event_queue);
-		local->client_conns = RB_ROOT;
-		spin_lock_init(&local->client_conns_lock);
+		local->client_bundles = RB_ROOT;
+		spin_lock_init(&local->client_bundles_lock);
 		spin_lock_init(&local->lock);
 		rwlock_init(&local->services_lock);
 		local->debug_id = atomic_inc_return(&rxrpc_debug_id);
@@ -162,7 +162,7 @@ static int rxrpc_open_socket(struct rxrpc_local *local, struct net *net)
 		/* Fall through and set IPv4 options too otherwise we don't get
 		 * errors from IPv4 packets sent through the IPv6 socket.
 		 */
-		/* Fall through */
+		fallthrough;
 	case AF_INET:
 		/* we want to receive ICMP errors */
 		ip_sock_set_recverr(local->socket->sk);

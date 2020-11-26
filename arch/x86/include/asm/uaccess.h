@@ -13,30 +13,6 @@
 #include <asm/extable.h>
 
 /*
- * The fs value determines whether argument validity checking should be
- * performed or not.  If get_fs() == USER_DS, checking is performed, with
- * get_fs() == KERNEL_DS, checking is bypassed.
- *
- * For historical reasons, these macros are grossly misnamed.
- */
-
-#define MAKE_MM_SEG(s)	((mm_segment_t) { (s) })
-
-#define KERNEL_DS	MAKE_MM_SEG(-1UL)
-#define USER_DS 	MAKE_MM_SEG(TASK_SIZE_MAX)
-
-#define get_fs()	(current->thread.addr_limit)
-static inline void set_fs(mm_segment_t fs)
-{
-	current->thread.addr_limit = fs;
-	/* On user-mode return, check fs is correct */
-	set_thread_flag(TIF_FSCHECK);
-}
-
-#define uaccess_kernel() (get_fs().seg == KERNEL_DS.seg)
-#define user_addr_max() (current->thread.addr_limit.seg)
-
-/*
  * Test whether a block of memory is a valid user space address.
  * Returns 0 if the range is valid, nonzero otherwise.
  */
@@ -93,28 +69,17 @@ static inline bool pagefault_disabled(void);
 #define access_ok(addr, size)					\
 ({									\
 	WARN_ON_IN_IRQ();						\
-	likely(!__range_not_ok(addr, size, user_addr_max()));		\
+	likely(!__range_not_ok(addr, size, TASK_SIZE_MAX));		\
 })
-
-/*
- * These are the main single-value transfer routines.  They automatically
- * use the right size if we just have the right pointer type.
- *
- * This gets kind of ugly. We want to return _two_ values in "get_user()"
- * and yet we don't want to do any pointers, because that is too much
- * of a performance impact. Thus we have a few rather ugly macros here,
- * and hide all the ugliness from the user.
- *
- * The "__xxx" versions of the user access functions are versions that
- * do not verify the address space, that must have been done previously
- * with a separate "access_ok()" call (this is used when we do multiple
- * accesses to the same area of user memory).
- */
 
 extern int __get_user_1(void);
 extern int __get_user_2(void);
 extern int __get_user_4(void);
 extern int __get_user_8(void);
+extern int __get_user_nocheck_1(void);
+extern int __get_user_nocheck_2(void);
+extern int __get_user_nocheck_4(void);
+extern int __get_user_nocheck_8(void);
 extern int __get_user_bad(void);
 
 #define __uaccess_begin() stac()
@@ -138,6 +103,37 @@ extern int __get_user_bad(void);
 #define __typefits(x,type,not) \
 	__builtin_choose_expr(sizeof(x)<=sizeof(type),(unsigned type)0,not)
 
+/*
+ * This is used for both get_user() and __get_user() to expand to
+ * the proper special function call that has odd calling conventions
+ * due to returning both a value and an error, and that depends on
+ * the size of the pointer passed in.
+ *
+ * Careful: we have to cast the result to the type of the pointer
+ * for sign reasons.
+ *
+ * The use of _ASM_DX as the register specifier is a bit of a
+ * simplification, as gcc only cares about it as the starting point
+ * and not size: for a 64-bit value it will use %ecx:%edx on 32 bits
+ * (%ecx being the next register in gcc's x86 register sequence), and
+ * %rdx on 64 bits.
+ *
+ * Clang/LLVM cares about the size of the register, but still wants
+ * the base register for something that ends up being a pair.
+ */
+#define do_get_user_call(fn,x,ptr)					\
+({									\
+	int __ret_gu;							\
+	register __inttype(*(ptr)) __val_gu asm("%"_ASM_DX);		\
+	__chk_user_ptr(ptr);						\
+	asm volatile("call __" #fn "_%P4"				\
+		     : "=a" (__ret_gu), "=r" (__val_gu),		\
+			ASM_CALL_CONSTRAINT				\
+		     : "0" (ptr), "i" (sizeof(*(ptr))));		\
+	(x) = (__force __typeof__(*(ptr))) __val_gu;			\
+	__builtin_expect(__ret_gu, 0);					\
+})
+
 /**
  * get_user - Get a simple variable from user space.
  * @x:   Variable to store result.
@@ -156,37 +152,30 @@ extern int __get_user_bad(void);
  * Return: zero on success, or -EFAULT on error.
  * On error, the variable @x is set to zero.
  */
-/*
- * Careful: we have to cast the result to the type of the pointer
- * for sign reasons.
+#define get_user(x,ptr) ({ might_fault(); do_get_user_call(get_user,x,ptr); })
+
+/**
+ * __get_user - Get a simple variable from user space, with less checking.
+ * @x:   Variable to store result.
+ * @ptr: Source address, in user space.
  *
- * The use of _ASM_DX as the register specifier is a bit of a
- * simplification, as gcc only cares about it as the starting point
- * and not size: for a 64-bit value it will use %ecx:%edx on 32 bits
- * (%ecx being the next register in gcc's x86 register sequence), and
- * %rdx on 64 bits.
+ * Context: User context only. This function may sleep if pagefaults are
+ *          enabled.
  *
- * Clang/LLVM cares about the size of the register, but still wants
- * the base register for something that ends up being a pair.
+ * This macro copies a single simple variable from user space to kernel
+ * space.  It supports simple types like char and int, but not larger
+ * data types like structures or arrays.
+ *
+ * @ptr must have pointer-to-simple-variable type, and the result of
+ * dereferencing @ptr must be assignable to @x without a cast.
+ *
+ * Caller must check the pointer with access_ok() before calling this
+ * function.
+ *
+ * Return: zero on success, or -EFAULT on error.
+ * On error, the variable @x is set to zero.
  */
-#define get_user(x, ptr)						\
-({									\
-	int __ret_gu;							\
-	register __inttype(*(ptr)) __val_gu asm("%"_ASM_DX);		\
-	__chk_user_ptr(ptr);						\
-	might_fault();							\
-	asm volatile("call __get_user_%P4"				\
-		     : "=a" (__ret_gu), "=r" (__val_gu),		\
-			ASM_CALL_CONSTRAINT				\
-		     : "0" (ptr), "i" (sizeof(*(ptr))));		\
-	(x) = (__force __typeof__(*(ptr))) __val_gu;			\
-	__builtin_expect(__ret_gu, 0);					\
-})
-
-#define __put_user_x(size, x, ptr, __ret_pu)			\
-	asm volatile("call __put_user_" #size : "=a" (__ret_pu)	\
-		     : "0" ((typeof(*(ptr)))(x)), "c" (ptr) : "ebx")
-
+#define __get_user(x,ptr) do_get_user_call(get_user_nocheck,x,ptr)
 
 
 #ifdef CONFIG_X86_32
@@ -199,25 +188,49 @@ extern int __get_user_bad(void);
 		     : : "A" (x), "r" (addr)			\
 		     : : label)
 
-#define __put_user_x8(x, ptr, __ret_pu)				\
-	asm volatile("call __put_user_8" : "=a" (__ret_pu)	\
-		     : "A" ((typeof(*(ptr)))(x)), "c" (ptr) : "ebx")
 #else
 #define __put_user_goto_u64(x, ptr, label) \
 	__put_user_goto(x, ptr, "q", "er", label)
-#define __put_user_x8(x, ptr, __ret_pu) __put_user_x(8, x, ptr, __ret_pu)
 #endif
 
 extern void __put_user_bad(void);
 
 /*
  * Strange magic calling convention: pointer in %ecx,
- * value in %eax(:%edx), return value in %eax. clobbers %rbx
+ * value in %eax(:%edx), return value in %ecx. clobbers %rbx
  */
 extern void __put_user_1(void);
 extern void __put_user_2(void);
 extern void __put_user_4(void);
 extern void __put_user_8(void);
+extern void __put_user_nocheck_1(void);
+extern void __put_user_nocheck_2(void);
+extern void __put_user_nocheck_4(void);
+extern void __put_user_nocheck_8(void);
+
+/*
+ * ptr must be evaluated and assigned to the temporary __ptr_pu before
+ * the assignment of x to __val_pu, to avoid any function calls
+ * involved in the ptr expression (possibly implicitly generated due
+ * to KASAN) from clobbering %ax.
+ */
+#define do_put_user_call(fn,x,ptr)					\
+({									\
+	int __ret_pu;							\
+	void __user *__ptr_pu;						\
+	register __typeof__(*(ptr)) __val_pu asm("%"_ASM_AX);		\
+	__chk_user_ptr(ptr);						\
+	__ptr_pu = (ptr);						\
+	__val_pu = (x);							\
+	asm volatile("call __" #fn "_%P[size]"				\
+		     : "=c" (__ret_pu),					\
+			ASM_CALL_CONSTRAINT				\
+		     : "0" (__ptr_pu),					\
+		       "r" (__val_pu),					\
+		       [size] "i" (sizeof(*(ptr)))			\
+		     :"ebx");						\
+	__builtin_expect(__ret_pu, 0);					\
+})
 
 /**
  * put_user - Write a simple value into user space.
@@ -236,32 +249,29 @@ extern void __put_user_8(void);
  *
  * Return: zero on success, or -EFAULT on error.
  */
-#define put_user(x, ptr)					\
-({								\
-	int __ret_pu;						\
-	__typeof__(*(ptr)) __pu_val;				\
-	__chk_user_ptr(ptr);					\
-	might_fault();						\
-	__pu_val = x;						\
-	switch (sizeof(*(ptr))) {				\
-	case 1:							\
-		__put_user_x(1, __pu_val, ptr, __ret_pu);	\
-		break;						\
-	case 2:							\
-		__put_user_x(2, __pu_val, ptr, __ret_pu);	\
-		break;						\
-	case 4:							\
-		__put_user_x(4, __pu_val, ptr, __ret_pu);	\
-		break;						\
-	case 8:							\
-		__put_user_x8(__pu_val, ptr, __ret_pu);		\
-		break;						\
-	default:						\
-		__put_user_x(X, __pu_val, ptr, __ret_pu);	\
-		break;						\
-	}							\
-	__builtin_expect(__ret_pu, 0);				\
-})
+#define put_user(x, ptr) ({ might_fault(); do_put_user_call(put_user,x,ptr); })
+
+/**
+ * __put_user - Write a simple value into user space, with less checking.
+ * @x:   Value to copy to user space.
+ * @ptr: Destination address, in user space.
+ *
+ * Context: User context only. This function may sleep if pagefaults are
+ *          enabled.
+ *
+ * This macro copies a single simple value from kernel space to user
+ * space.  It supports simple types like char and int, but not larger
+ * data types like structures or arrays.
+ *
+ * @ptr must have pointer-to-simple-variable type, and @x must be assignable
+ * to the result of dereferencing @ptr.
+ *
+ * Caller must check the pointer with access_ok() before calling this
+ * function.
+ *
+ * Return: zero on success, or -EFAULT on error.
+ */
+#define __put_user(x, ptr) do_put_user_call(put_user_nocheck,x,ptr)
 
 #define __put_user_size(x, ptr, size, label)				\
 do {									\
@@ -283,6 +293,55 @@ do {									\
 		__put_user_bad();					\
 	}								\
 } while (0)
+
+#ifdef CONFIG_CC_HAS_ASM_GOTO_OUTPUT
+
+#ifdef CONFIG_X86_32
+#define __get_user_asm_u64(x, ptr, label) do {				\
+	unsigned int __gu_low, __gu_high;				\
+	const unsigned int __user *__gu_ptr;				\
+	__gu_ptr = (const void __user *)(ptr);				\
+	__get_user_asm(__gu_low, ptr, "l", "=r", label);		\
+	__get_user_asm(__gu_high, ptr+1, "l", "=r", label);		\
+	(x) = ((unsigned long long)__gu_high << 32) | __gu_low;		\
+} while (0)
+#else
+#define __get_user_asm_u64(x, ptr, label)				\
+	__get_user_asm(x, ptr, "q", "=r", label)
+#endif
+
+#define __get_user_size(x, ptr, size, label)				\
+do {									\
+	__chk_user_ptr(ptr);						\
+	switch (size) {							\
+	unsigned char x_u8__;						\
+	case 1:								\
+		__get_user_asm(x_u8__, ptr, "b", "=q", label);		\
+		(x) = x_u8__;						\
+		break;							\
+	case 2:								\
+		__get_user_asm(x, ptr, "w", "=r", label);		\
+		break;							\
+	case 4:								\
+		__get_user_asm(x, ptr, "l", "=r", label);		\
+		break;							\
+	case 8:								\
+		__get_user_asm_u64(x, ptr, label);			\
+		break;							\
+	default:							\
+		(x) = __get_user_bad();					\
+	}								\
+} while (0)
+
+#define __get_user_asm(x, addr, itype, ltype, label)			\
+	asm_volatile_goto("\n"						\
+		     "1:	mov"itype" %[umem],%[output]\n"		\
+		     _ASM_EXTABLE_UA(1b, %l2)				\
+		     : [output] ltype(x)				\
+		     : [umem] "m" (__m(addr))				\
+		     : : label)
+
+#else // !CONFIG_CC_HAS_ASM_GOTO_OUTPUT
 
 #ifdef CONFIG_X86_32
 #define __get_user_asm_u64(x, ptr, retval)				\
@@ -343,7 +402,7 @@ do {									\
 		     "2:\n"						\
 		     ".section .fixup,\"ax\"\n"				\
 		     "3:	mov %[efault],%[errout]\n"		\
-		     "	xor"itype" %[output],%[output]\n"		\
+		     "	xorl %k[output],%k[output]\n"			\
 		     "	jmp 2b\n"					\
 		     ".previous\n"					\
 		     _ASM_EXTABLE_UA(1b, 3b)				\
@@ -352,33 +411,7 @@ do {									\
 		     : [umem] "m" (__m(addr)),				\
 		       [efault] "i" (-EFAULT), "0" (err))
 
-#define __put_user_nocheck(x, ptr, size)			\
-({								\
-	__label__ __pu_label;					\
-	int __pu_err = -EFAULT;					\
-	__typeof__(*(ptr)) __pu_val = (x);			\
-	__typeof__(ptr) __pu_ptr = (ptr);			\
-	__typeof__(size) __pu_size = (size);			\
-	__uaccess_begin();					\
-	__put_user_size(__pu_val, __pu_ptr, __pu_size, __pu_label);	\
-	__pu_err = 0;						\
-__pu_label:							\
-	__uaccess_end();					\
-	__builtin_expect(__pu_err, 0);				\
-})
-
-#define __get_user_nocheck(x, ptr, size)				\
-({									\
-	int __gu_err;							\
-	__inttype(*(ptr)) __gu_val;					\
-	__typeof__(ptr) __gu_ptr = (ptr);				\
-	__typeof__(size) __gu_size = (size);				\
-	__uaccess_begin_nospec();					\
-	__get_user_size(__gu_val, __gu_ptr, __gu_size, __gu_err);	\
-	__uaccess_end();						\
-	(x) = (__force __typeof__(*(ptr)))__gu_val;			\
-	__builtin_expect(__gu_err, 0);					\
-})
+#endif // CONFIG_CC_ASM_GOTO_OUTPUT
 
 /* FIXME: this hack is definitely wrong -AK */
 struct __large_struct { unsigned long buf[100]; };
@@ -396,55 +429,6 @@ struct __large_struct { unsigned long buf[100]; };
 		: : ltype(x), "m" (__m(addr))				\
 		: : label)
 
-/**
- * __get_user - Get a simple variable from user space, with less checking.
- * @x:   Variable to store result.
- * @ptr: Source address, in user space.
- *
- * Context: User context only. This function may sleep if pagefaults are
- *          enabled.
- *
- * This macro copies a single simple variable from user space to kernel
- * space.  It supports simple types like char and int, but not larger
- * data types like structures or arrays.
- *
- * @ptr must have pointer-to-simple-variable type, and the result of
- * dereferencing @ptr must be assignable to @x without a cast.
- *
- * Caller must check the pointer with access_ok() before calling this
- * function.
- *
- * Return: zero on success, or -EFAULT on error.
- * On error, the variable @x is set to zero.
- */
-
-#define __get_user(x, ptr)						\
-	__get_user_nocheck((x), (ptr), sizeof(*(ptr)))
-
-/**
- * __put_user - Write a simple value into user space, with less checking.
- * @x:   Value to copy to user space.
- * @ptr: Destination address, in user space.
- *
- * Context: User context only. This function may sleep if pagefaults are
- *          enabled.
- *
- * This macro copies a single simple value from kernel space to user
- * space.  It supports simple types like char and int, but not larger
- * data types like structures or arrays.
- *
- * @ptr must have pointer-to-simple-variable type, and @x must be assignable
- * to the result of dereferencing @ptr.
- *
- * Caller must check the pointer with access_ok() before calling this
- * function.
- *
- * Return: zero on success, or -EFAULT on error.
- */
-
-#define __put_user(x, ptr)						\
-	__put_user_nocheck((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)))
-
 extern unsigned long
 copy_from_user_nmi(void *to, const void __user *from, unsigned long n);
 extern __must_check long
@@ -454,6 +438,15 @@ extern __must_check long strnlen_user(const char __user *str, long n);
 
 unsigned long __must_check clear_user(void __user *mem, unsigned long len);
 unsigned long __must_check __clear_user(void __user *mem, unsigned long len);
+
+#ifdef CONFIG_ARCH_HAS_COPY_MC
+unsigned long __must_check
+copy_mc_to_kernel(void *to, const void *from, unsigned len);
+#define copy_mc_to_kernel copy_mc_to_kernel
+
+unsigned long __must_check
+copy_mc_to_user(void *to, const void *from, unsigned len);
+#endif
 
 /*
  * movsl can be slow when source and dest are not both 8-byte aligned
@@ -494,6 +487,14 @@ static __must_check __always_inline bool user_access_begin(const void __user *pt
 #define unsafe_put_user(x, ptr, label)	\
 	__put_user_size((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)), label)
 
+#ifdef CONFIG_CC_HAS_ASM_GOTO_OUTPUT
+#define unsafe_get_user(x, ptr, err_label)					\
+do {										\
+	__inttype(*(ptr)) __gu_val;						\
+	__get_user_size(__gu_val, (ptr), sizeof(*(ptr)), err_label);		\
+	(x) = (__force __typeof__(*(ptr)))__gu_val;				\
+} while (0)
+#else // !CONFIG_CC_HAS_ASM_GOTO_OUTPUT
 #define unsafe_get_user(x, ptr, err_label)					\
 do {										\
 	int __gu_err;								\
@@ -502,6 +503,7 @@ do {										\
 	(x) = (__force __typeof__(*(ptr)))__gu_val;				\
 	if (unlikely(__gu_err)) goto err_label;					\
 } while (0)
+#endif // CONFIG_CC_HAS_ASM_GOTO_OUTPUT
 
 /*
  * We want the unsafe accessors to always be inlined and use
@@ -528,6 +530,11 @@ do {									\
 
 #define HAVE_GET_KERNEL_NOFAULT
 
+#ifdef CONFIG_CC_HAS_ASM_GOTO_OUTPUT
+#define __get_kernel_nofault(dst, src, type, err_label)			\
+	__get_user_size(*((type *)(dst)), (__force type __user *)(src),	\
+			sizeof(type), err_label)
+#else // !CONFIG_CC_HAS_ASM_GOTO_OUTPUT
 #define __get_kernel_nofault(dst, src, type, err_label)			\
 do {									\
 	int __kr_err;							\
@@ -537,6 +544,7 @@ do {									\
 	if (unlikely(__kr_err))						\
 		goto err_label;						\
 } while (0)
+#endif // CONFIG_CC_HAS_ASM_GOTO_OUTPUT
 
 #define __put_kernel_nofault(dst, src, type, err_label)			\
 	__put_user_size(*((type *)(src)), (__force type __user *)(dst),	\

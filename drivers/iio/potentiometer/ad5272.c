@@ -15,6 +15,7 @@
 #include <linux/i2c.h>
 #include <linux/iio/iio.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 
 #define  AD5272_RDAC_WR  1
 #define  AD5272_RDAC_RD  2
@@ -192,7 +193,6 @@ static int ad5272_probe(struct i2c_client *client,
 	return devm_iio_device_register(dev, indio_dev);
 }
 
-#if defined(CONFIG_OF)
 static const struct of_device_id ad5272_dt_ids[] = {
 	{ .compatible = "adi,ad5272-020", .data = (void *)AD5272_020 },
 	{ .compatible = "adi,ad5272-050", .data = (void *)AD5272_050 },
@@ -202,7 +202,6 @@ static const struct of_device_id ad5272_dt_ids[] = {
 	{}
 };
 MODULE_DEVICE_TABLE(of, ad5272_dt_ids);
-#endif /* CONFIG_OF */
 
 static const struct i2c_device_id ad5272_id[] = {
 	{ "ad5272-020", AD5272_020 },
@@ -217,7 +216,7 @@ MODULE_DEVICE_TABLE(i2c, ad5272_id);
 static struct i2c_driver ad5272_driver = {
 	.driver = {
 		.name	= "ad5272",
-		.of_match_table = of_match_ptr(ad5272_dt_ids),
+		.of_match_table = ad5272_dt_ids,
 	},
 	.probe		= ad5272_probe,
 	.id_table	= ad5272_id,

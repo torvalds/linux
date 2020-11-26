@@ -34,7 +34,7 @@ static void *i915_sw_fence_debug_hint(void *addr)
 
 #ifdef CONFIG_DRM_I915_SW_FENCE_DEBUG_OBJECTS
 
-static struct debug_obj_descr i915_sw_fence_debug_descr = {
+static const struct debug_obj_descr i915_sw_fence_debug_descr = {
 	.name = "i915_sw_fence",
 	.debug_hint = i915_sw_fence_debug_hint,
 };
@@ -164,9 +164,13 @@ static void __i915_sw_fence_wake_up_all(struct i915_sw_fence *fence,
 
 		do {
 			list_for_each_entry_safe(pos, next, &x->head, entry) {
-				pos->func(pos,
-					  TASK_NORMAL, fence->error,
-					  &extra);
+				int wake_flags;
+
+				wake_flags = fence->error;
+				if (pos->func == autoremove_wake_function)
+					wake_flags = 0;
+
+				pos->func(pos, TASK_NORMAL, wake_flags, &extra);
 			}
 
 			if (list_empty(&extra))

@@ -172,7 +172,6 @@ static unsigned long iommu_range_alloc(struct device *dev,
 	int largealloc = npages > 15;
 	int pass = 0;
 	unsigned long align_mask;
-	unsigned long boundary_size;
 	unsigned long flags;
 	unsigned int pool_nr;
 	struct iommu_pool *pool;
@@ -236,15 +235,9 @@ again:
 		}
 	}
 
-	if (dev)
-		boundary_size = ALIGN(dma_get_seg_boundary(dev) + 1,
-				      1 << tbl->it_page_shift);
-	else
-		boundary_size = ALIGN(1UL << 32, 1 << tbl->it_page_shift);
-	/* 4GB boundary for iseries_hv_alloc and iseries_hv_map */
-
 	n = iommu_area_alloc(tbl->it_map, limit, start, npages, tbl->it_offset,
-			     boundary_size >> tbl->it_page_shift, align_mask);
+			dma_get_seg_boundary_nr_pages(dev, tbl->it_page_shift),
+			align_mask);
 	if (n == -1) {
 		if (likely(pass == 0)) {
 			/* First try the pool from the start */

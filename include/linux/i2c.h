@@ -344,7 +344,7 @@ const struct i2c_device_id *i2c_match_id(const struct i2c_device_id *id,
 
 static inline struct i2c_client *kobj_to_i2c_client(struct kobject *kobj)
 {
-	struct device * const dev = container_of(kobj, struct device, kobj);
+	struct device * const dev = kobj_to_dev(kobj);
 	return to_i2c_client(dev);
 }
 

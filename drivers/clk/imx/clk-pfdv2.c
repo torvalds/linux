@@ -17,7 +17,7 @@
 
 /**
  * struct clk_pfdv2 - IMX PFD clock
- * @clk_hw:	clock source
+ * @hw:		clock source
  * @reg:	PFD register address
  * @gate_bit:	Gate bit offset
  * @vld_bit:	Valid bit offset

@@ -17,12 +17,6 @@ set a timer to hold a state, however when user space application crashes or
 goes away without deactivating the timer, the hardware will be left in that
 state permanently.
 
-As a specific example of this use-case, let's look at vibrate feature on
-phones. Vibrate function on phones is implemented using PWM pins on SoC or
-PMIC. There is a need to activate one shot timer to control the vibrate
-feature, to prevent user space crashes leaving the phone in vibrate mode
-permanently causing the battery to drain.
-
 Transient trigger addresses the need for one shot timer activation. The
 transient trigger can be enabled and disabled just like the other leds
 triggers.
@@ -159,7 +153,6 @@ repeat the following step as needed::
 
 This trigger is intended to be used for the following example use cases:
 
- - Control of vibrate (phones, tablets etc.) hardware by user space app.
  - Use of LED by user space app as activity indicator.
  - Use of LED by user space app as a kind of watchdog indicator -- as
    long as the app is alive, it can keep the LED illuminated, if it dies

@@ -247,6 +247,30 @@
         "UMask": "0x10"
     },
     {
+        "BriefDescription": "Decode Stream Buffer (DSB)-to-MITE switches",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xAB",
+        "EventName": "DSB2MITE_SWITCHES.COUNT",
+        "PublicDescription": "This event counts the number of the Decode Stream Buffer (DSB)-to-MITE switches including all misses because of missing Decode Stream Buffer (DSB) cache and u-arch forced misses.\nNote: Invoking MITE requires two or three cycles delay.",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Retired instructions after front-end starvation of at least 1 cycle",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc6",
+        "EventName": "FRONTEND_RETIRED.LATENCY_GE_1",
+        "MSRIndex": "0x3F7",
+        "MSRValue": "0x400106",
+        "PEBS": "2",
+        "PublicDescription": "Retired instructions that are fetched after an interval where the front-end delivered no uops for a period of at least 1 cycle which was not interrupted by a back-end stall.",
+        "SampleAfterValue": "100007",
+        "TakenAlone": "1",
+        "UMask": "0x1"
+    },
+    {
         "BriefDescription": "Instruction fetch tag lookups that miss in the instruction cache (L1I). Counts at 64-byte cache-line granularity.",
         "Counter": "0,1,2,3",
         "CounterHTOff": "0,1,2,3,4,5,6,7",
@@ -358,6 +382,16 @@
         "PublicDescription": "Counts the number of cycles uops were delivered to the Instruction Decode Queue (IDQ) from the MITE (legacy decode pipeline) path. Counting includes uops that may 'bypass' the IDQ. During these cycles uops are not being delivered from the Decode Stream Buffer (DSB).",
         "SampleAfterValue": "2000003",
         "UMask": "0x24"
+    },
+    {
+        "BriefDescription": "Counts the total number when the front end is resteered, mainly when the BPU cannot provide a correct prediction and this is corrected by other branch handling mechanisms at the front end.",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xE6",
+        "EventName": "BACLEARS.ANY",
+        "PublicDescription": "Counts the number of times the front-end is resteered when it finds a branch instruction in a fetch line. This occurs for the first time a branch instruction is fetched or when the branch is not tracked by the BPU (Branch Prediction Unit) anymore.",
+        "SampleAfterValue": "100003",
+        "UMask": "0x1"
     },
     {
         "BriefDescription": "Retired instructions that are fetched after an interval where the front-end delivered no uops for a period of 16 cycles which was not interrupted by a back-end stall.",

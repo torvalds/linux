@@ -55,7 +55,7 @@ static void rtas_stop_self(void)
 	panic("Alas, I survived.\n");
 }
 
-static void pseries_mach_cpu_die(void)
+static void pseries_cpu_offline_self(void)
 {
 	unsigned int hwcpu = hard_smp_processor_id();
 
@@ -102,27 +102,33 @@ static int pseries_cpu_disable(void)
  * to self-destroy so that the cpu-offline thread can send the CPU_DEAD
  * notifications.
  *
- * OTOH, pseries_mach_cpu_die() is called by the @cpu when it wants to
+ * OTOH, pseries_cpu_offline_self() is called by the @cpu when it wants to
  * self-destruct.
  */
 static void pseries_cpu_die(unsigned int cpu)
 {
-	int tries;
 	int cpu_status = 1;
 	unsigned int pcpu = get_hard_smp_processor_id(cpu);
+	unsigned long timeout = jiffies + msecs_to_jiffies(120000);
 
-	for (tries = 0; tries < 25; tries++) {
+	while (true) {
 		cpu_status = smp_query_cpu_stopped(pcpu);
 		if (cpu_status == QCSS_STOPPED ||
 		    cpu_status == QCSS_HARDWARE_ERROR)
 			break;
-		cpu_relax();
 
+		if (time_after(jiffies, timeout)) {
+			pr_warn("CPU %i (hwid %i) didn't die after 120 seconds\n",
+				cpu, pcpu);
+			timeout = jiffies + msecs_to_jiffies(120000);
+		}
+
+		cond_resched();
 	}
 
-	if (cpu_status != 0) {
-		printk("Querying DEAD? cpu %i (%i) shows %i\n",
-		       cpu, pcpu, cpu_status);
+	if (cpu_status == QCSS_HARDWARE_ERROR) {
+		pr_warn("CPU %i (hwid %i) reported error while dying\n",
+			cpu, pcpu);
 	}
 
 	/* Isolation and deallocation are definitely done by
@@ -895,7 +901,7 @@ static int __init pseries_cpu_hotplug_init(void)
 		return 0;
 	}
 
-	ppc_md.cpu_die = pseries_mach_cpu_die;
+	smp_ops->cpu_offline_self = pseries_cpu_offline_self;
 	smp_ops->cpu_disable = pseries_cpu_disable;
 	smp_ops->cpu_die = pseries_cpu_die;
 

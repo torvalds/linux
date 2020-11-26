@@ -368,7 +368,12 @@ static int ext4_validate_block_bitmap(struct super_block *sb,
 				      struct buffer_head *bh)
 {
 	ext4_fsblk_t	blk;
-	struct ext4_group_info *grp = ext4_get_group_info(sb, block_group);
+	struct ext4_group_info *grp;
+
+	if (EXT4_SB(sb)->s_mount_state & EXT4_FC_REPLAY)
+		return 0;
+
+	grp = ext4_get_group_info(sb, block_group);
 
 	if (buffer_verified(bh))
 		return 0;
@@ -413,7 +418,8 @@ verified:
  * Return buffer_head on success or an ERR_PTR in case of failure.
  */
 struct buffer_head *
-ext4_read_block_bitmap_nowait(struct super_block *sb, ext4_group_t block_group)
+ext4_read_block_bitmap_nowait(struct super_block *sb, ext4_group_t block_group,
+			      bool ignore_locked)
 {
 	struct ext4_group_desc *desc;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
@@ -439,6 +445,12 @@ ext4_read_block_bitmap_nowait(struct super_block *sb, ext4_group_t block_group)
 			     "block_group = %u, block_bitmap = %llu",
 			     block_group, bitmap_blk);
 		return ERR_PTR(-ENOMEM);
+	}
+
+	if (ignore_locked && buffer_locked(bh)) {
+		/* buffer under IO already, return if called for prefetching */
+		put_bh(bh);
+		return NULL;
 	}
 
 	if (bitmap_uptodate(bh))
@@ -487,10 +499,10 @@ ext4_read_block_bitmap_nowait(struct super_block *sb, ext4_group_t block_group)
 	 * submit the buffer_head for reading
 	 */
 	set_buffer_new(bh);
-	trace_ext4_read_block_bitmap_load(sb, block_group);
-	bh->b_end_io = ext4_end_bitmap_read;
-	get_bh(bh);
-	submit_bh(REQ_OP_READ, REQ_META | REQ_PRIO, bh);
+	trace_ext4_read_block_bitmap_load(sb, block_group, ignore_locked);
+	ext4_read_bh_nowait(bh, REQ_META | REQ_PRIO |
+			    (ignore_locked ? REQ_RAHEAD : 0),
+			    ext4_end_bitmap_read);
 	return bh;
 verify:
 	err = ext4_validate_block_bitmap(sb, desc, block_group, bh);
@@ -534,7 +546,7 @@ ext4_read_block_bitmap(struct super_block *sb, ext4_group_t block_group)
 	struct buffer_head *bh;
 	int err;
 
-	bh = ext4_read_block_bitmap_nowait(sb, block_group);
+	bh = ext4_read_block_bitmap_nowait(sb, block_group, false);
 	if (IS_ERR(bh))
 		return bh;
 	err = ext4_wait_block_bitmap(sb, block_group, bh);

@@ -9,7 +9,6 @@
 #define pr_fmt(fmt)	"power10-pmu: " fmt
 
 #include "isa207-common.h"
-#include "internal.h"
 
 /*
  * Raw event encoding for Power10:
@@ -86,6 +85,8 @@
 #define POWER10_MMCRA_IFM2		0x0000000080000000UL
 #define POWER10_MMCRA_IFM3		0x00000000C0000000UL
 #define POWER10_MMCRA_BHRB_MASK		0x00000000C0000000UL
+
+extern u64 PERF_REG_EXTENDED_MASK;
 
 /* Table of alternatives, sorted by column 0 */
 static const unsigned int power10_event_alternatives[][MAX_ALT] = {
@@ -397,6 +398,7 @@ static struct power_pmu power10_pmu = {
 	.cache_events		= &power10_cache_events,
 	.attr_groups		= power10_pmu_attr_groups,
 	.bhrb_nr		= 32,
+	.capabilities           = PERF_PMU_CAP_EXTENDED_REGS,
 };
 
 int init_power10_pmu(void)
@@ -407,6 +409,9 @@ int init_power10_pmu(void)
 	if (!cur_cpu_spec->oprofile_cpu_type ||
 	    strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/power10"))
 		return -ENODEV;
+
+	/* Set the PERF_REG_EXTENDED_MASK here */
+	PERF_REG_EXTENDED_MASK = PERF_REG_PMU_MASK_31;
 
 	rc = register_power_pmu(&power10_pmu);
 	if (rc)

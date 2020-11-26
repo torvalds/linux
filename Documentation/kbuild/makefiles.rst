@@ -16,11 +16,12 @@ This document describes the Linux kernel Makefiles.
 	   --- 3.5 Library file goals - lib-y
 	   --- 3.6 Descending down in directories
 	   --- 3.7 Compilation flags
-	   --- 3.8 Command line dependency
+	   --- 3.8 <deleted>
 	   --- 3.9 Dependency tracking
 	   --- 3.10 Special Rules
 	   --- 3.11 $(CC) support functions
 	   --- 3.12 $(LD) support functions
+	   --- 3.13 Script Invocation
 
 	=== 4 Host Program support
 	   --- 4.1 Simple Host Program
@@ -39,8 +40,8 @@ This document describes the Linux kernel Makefiles.
 
 	=== 7 Architecture Makefiles
 	   --- 7.1 Set variables to tweak the build to the architecture
-	   --- 7.2 Add prerequisites to archheaders:
-	   --- 7.3 Add prerequisites to archprepare:
+	   --- 7.2 Add prerequisites to archheaders
+	   --- 7.3 Add prerequisites to archprepare
 	   --- 7.4 List directories to visit when descending
 	   --- 7.5 Architecture-specific boot images
 	   --- 7.6 Building non-kbuild targets
@@ -129,7 +130,7 @@ The preferred name for the kbuild files are 'Makefile' but 'Kbuild' can
 be used and if both a 'Makefile' and a 'Kbuild' file exists, then the 'Kbuild'
 file will be used.
 
-Section 3.1 "Goal definitions" is a quick intro, further chapters provide
+Section 3.1 "Goal definitions" is a quick intro; further chapters provide
 more details, with real examples.
 
 3.1 Goal definitions
@@ -605,6 +606,25 @@ more details, with real examples.
 		#Makefile
 		LDFLAGS_vmlinux += $(call ld-option, -X)
 
+3.13 Script invocation
+----------------------
+
+	Make rules may invoke scripts to build the kernel. The rules shall
+	always provide the appropriate interpreter to execute the script. They
+	shall not rely on the execute bits being set, and shall not invoke the
+	script directly. For the convenience of manual script invocation, such
+	as invoking ./scripts/checkpatch.pl, it is recommended to set execute
+	bits on the scripts nonetheless.
+
+	Kbuild provides variables $(CONFIG_SHELL), $(AWK), $(PERL),
+	$(PYTHON) and $(PYTHON3) to refer to interpreters for the respective
+	scripts.
+
+	Example::
+
+		#Makefile
+		cmd_depmod = $(CONFIG_SHELL) $(srctree)/scripts/depmod.sh $(DEPMOD) \
+			     $(KERNELRELEASE)
 
 4 Host Program support
 ======================
@@ -965,7 +985,7 @@ When kbuild executes, the following steps are followed (roughly):
 		KBUILD_LDFLAGS         := -m elf_s390
 
 	Note: ldflags-y can be used to further customise
-	the flags used. See chapter 3.7.
+	the flags used. See section 3.7.
 
     LDFLAGS_vmlinux
 	Options for $(LD) when linking vmlinux
@@ -1121,7 +1141,7 @@ When kbuild executes, the following steps are followed (roughly):
 
 	In this example, the file target maketools will be processed
 	before descending down in the subdirectories.
-	See also chapter XXX-TODO that describe how kbuild supports
+	See also chapter XXX-TODO that describes how kbuild supports
 	generating offset header files.
 
 
@@ -1261,7 +1281,7 @@ When kbuild executes, the following steps are followed (roughly):
 	always be built.
 	Assignments to $(targets) are without $(obj)/ prefix.
 	if_changed may be used in conjunction with custom commands as
-	defined in 6.8 "Custom kbuild commands".
+	defined in 7.8 "Custom kbuild commands".
 
 	Note: It is a typical mistake to forget the FORCE prerequisite.
 	Another common pitfall is that whitespace is sometimes
@@ -1411,7 +1431,7 @@ When kbuild executes, the following steps are followed (roughly):
 	that may be shared between individual architectures.
 	The recommended approach how to use a generic header file is
 	to list the file in the Kbuild file.
-	See "7.2 generic-y" for further info on syntax etc.
+	See "8.2 generic-y" for further info on syntax etc.
 
 7.11 Post-link pass
 -------------------
@@ -1601,4 +1621,4 @@ is the right choice.
 
 - Describe how kbuild supports shipped files with _shipped.
 - Generating offset header files.
-- Add more variables to section 7?
+- Add more variables to chapters 7 or 9?

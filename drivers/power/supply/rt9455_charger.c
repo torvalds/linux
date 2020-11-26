@@ -1731,11 +1731,13 @@ static const struct of_device_id rt9455_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, rt9455_of_match);
 
+#ifdef CONFIG_ACPI
 static const struct acpi_device_id rt9455_i2c_acpi_match[] = {
 	{ "RT945500", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, rt9455_i2c_acpi_match);
+#endif
 
 static struct i2c_driver rt9455_driver = {
 	.probe		= rt9455_probe,

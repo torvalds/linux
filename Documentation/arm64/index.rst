@@ -1,3 +1,5 @@
+.. _arm64_index:
+
 ==================
 ARM64 Architecture
 ==================
@@ -14,6 +16,7 @@ ARM64 Architecture
     hugetlbpage
     legacy_instructions
     memory
+    memory-tagging-extension
     perf
     pointer-authentication
     silicon-errata

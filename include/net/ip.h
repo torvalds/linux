@@ -151,7 +151,7 @@ int igmp_mc_init(void);
 
 int ip_build_and_send_pkt(struct sk_buff *skb, const struct sock *sk,
 			  __be32 saddr, __be32 daddr,
-			  struct ip_options_rcu *opt);
+			  struct ip_options_rcu *opt, u8 tos);
 int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt,
 	   struct net_device *orig_dev);
 void ip_list_rcv(struct list_head *head, struct packet_type *pt,
@@ -436,11 +436,17 @@ static inline unsigned int ip_dst_mtu_maybe_forward(const struct dst_entry *dst,
 						    bool forwarding)
 {
 	struct net *net = dev_net(dst->dev);
+	unsigned int mtu;
 
 	if (net->ipv4.sysctl_ip_fwd_use_pmtu ||
 	    ip_mtu_locked(dst) ||
 	    !forwarding)
 		return dst_mtu(dst);
+
+	/* 'forwarding = true' case should always honour route mtu */
+	mtu = dst_metric_raw(dst, RTAX_MTU);
+	if (mtu)
+		return mtu;
 
 	return min(READ_ONCE(dst->dev->mtu), IP_MAX_MTU);
 }

@@ -21,7 +21,6 @@ config RPCSEC_GSS_KRB5
 	depends on SUNRPC && CRYPTO
 	depends on CRYPTO_MD5 && CRYPTO_DES && CRYPTO_CBC && CRYPTO_CTS
 	depends on CRYPTO_ECB && CRYPTO_HMAC && CRYPTO_SHA1 && CRYPTO_AES
-	depends on CRYPTO_ARC4
 	default y
 	select SUNRPC_GSS
 	help

@@ -101,7 +101,6 @@ struct mlx5e_rep_priv {
 	struct list_head       vport_sqs_list;
 	struct mlx5_rep_uplink_priv uplink_priv; /* valid for uplink rep */
 	struct rtnl_link_stats64 prev_vf_vport_stats;
-	struct devlink_port dl_port;
 };
 
 static inline
@@ -134,12 +133,6 @@ struct mlx5e_neigh_hash_entry {
 	spinlock_t encap_list_lock;
 	/* encap list sharing the same neigh */
 	struct list_head encap_list;
-
-	/* valid only when the neigh reference is taken during
-	 * neigh_update_work workqueue callback.
-	 */
-	struct neighbour *n;
-	struct work_struct neigh_update_work;
 
 	/* neigh hash entry can be deleted only when the refcount is zero.
 	 * refcount is needed to avoid neigh hash entry removal by TC, while
@@ -193,7 +186,7 @@ struct mlx5e_encap_entry {
 	unsigned char h_dest[ETH_ALEN];	/* destination eth addr	*/
 
 	struct net_device *out_dev;
-	struct net_device *route_dev;
+	int route_dev_ifindex;
 	struct mlx5e_tc_tunnel *tunnel;
 	int reformat_type;
 	u8 flags;

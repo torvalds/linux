@@ -593,7 +593,6 @@ static void longhaul_setup_voltagescaling(void)
 		break;
 	default:
 		return;
-		break;
 	}
 	if (min_vid_speed >= highest_speed)
 		return;

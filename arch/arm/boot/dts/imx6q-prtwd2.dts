@@ -30,7 +30,7 @@
 	};
 
 	/* PRTWD2 rev 1 bitbang I2C for Ethernet Switch */
-	i2c@4 {
+	i2c {
 		compatible = "i2c-gpio";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c4>;

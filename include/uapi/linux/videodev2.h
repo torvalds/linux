@@ -191,8 +191,6 @@ enum v4l2_memory {
 	V4L2_MEMORY_DMABUF           = 4,
 };
 
-#define V4L2_FLAG_MEMORY_NON_CONSISTENT		(1 << 0)
-
 /* see also http://vektor.theorem.ca/graphics/ycbcr/ */
 enum v4l2_colorspace {
 	/*
@@ -375,9 +373,9 @@ enum v4l2_hsv_encoding {
 
 enum v4l2_quantization {
 	/*
-	 * The default for R'G'B' quantization is always full range, except
-	 * for the BT2020 colorspace. For Y'CbCr the quantization is always
-	 * limited range, except for COLORSPACE_JPEG: this is full range.
+	 * The default for R'G'B' quantization is always full range.
+	 * For Y'CbCr the quantization is always limited range, except
+	 * for COLORSPACE_JPEG: this is full range.
 	 */
 	V4L2_QUANTIZATION_DEFAULT     = 0,
 	V4L2_QUANTIZATION_FULL_RANGE  = 1,
@@ -386,14 +384,13 @@ enum v4l2_quantization {
 
 /*
  * Determine how QUANTIZATION_DEFAULT should map to a proper quantization.
- * This depends on whether the image is RGB or not, the colorspace and the
- * Y'CbCr encoding.
+ * This depends on whether the image is RGB or not, the colorspace.
+ * The Y'CbCr encoding is not used anymore, but is still there for backwards
+ * compatibility.
  */
 #define V4L2_MAP_QUANTIZATION_DEFAULT(is_rgb_or_hsv, colsp, ycbcr_enc) \
-	(((is_rgb_or_hsv) && (colsp) == V4L2_COLORSPACE_BT2020) ? \
-	 V4L2_QUANTIZATION_LIM_RANGE : \
-	 (((is_rgb_or_hsv) || (colsp) == V4L2_COLORSPACE_JPEG) ? \
-	 V4L2_QUANTIZATION_FULL_RANGE : V4L2_QUANTIZATION_LIM_RANGE))
+	(((is_rgb_or_hsv) || (colsp) == V4L2_COLORSPACE_JPEG) ? \
+	 V4L2_QUANTIZATION_FULL_RANGE : V4L2_QUANTIZATION_LIM_RANGE)
 
 /*
  * Deprecated names for opRGB colorspace (IEC 61966-2-5)
@@ -778,6 +775,7 @@ struct v4l2_pix_format {
 
 /* Flags */
 #define V4L2_PIX_FMT_FLAG_PREMUL_ALPHA	0x00000001
+#define V4L2_PIX_FMT_FLAG_SET_CSC	0x00000002
 
 /*
  *	F O R M A T   E N U M E R A T I O N
@@ -797,6 +795,11 @@ struct v4l2_fmtdesc {
 #define V4L2_FMT_FLAG_CONTINUOUS_BYTESTREAM	0x0004
 #define V4L2_FMT_FLAG_DYN_RESOLUTION		0x0008
 #define V4L2_FMT_FLAG_ENC_CAP_FRAME_INTERVAL	0x0010
+#define V4L2_FMT_FLAG_CSC_COLORSPACE		0x0020
+#define V4L2_FMT_FLAG_CSC_XFER_FUNC		0x0040
+#define V4L2_FMT_FLAG_CSC_YCBCR_ENC		0x0080
+#define V4L2_FMT_FLAG_CSC_HSV_ENC		V4L2_FMT_FLAG_CSC_YCBCR_ENC
+#define V4L2_FMT_FLAG_CSC_QUANTIZATION		0x0100
 
 	/* Frame Size and frame rate enumeration */
 /*
@@ -949,10 +952,7 @@ struct v4l2_requestbuffers {
 	__u32			type;		/* enum v4l2_buf_type */
 	__u32			memory;		/* enum v4l2_memory */
 	__u32			capabilities;
-	union {
-		__u32		flags;
-		__u32		reserved[1];
-	};
+	__u32			reserved[1];
 };
 
 /* capabilities for struct v4l2_requestbuffers and v4l2_create_buffers */
@@ -2456,9 +2456,6 @@ struct v4l2_dbg_chip_info {
  * @memory:	enum v4l2_memory; buffer memory type
  * @format:	frame format, for which buffers are requested
  * @capabilities: capabilities of this buffer type.
- * @flags:	additional buffer management attributes (ignored unless the
- *		queue has V4L2_BUF_CAP_SUPPORTS_MMAP_CACHE_HINTS capability
- *		and configured for MMAP streaming I/O).
  * @reserved:	future extensions
  */
 struct v4l2_create_buffers {
@@ -2467,8 +2464,7 @@ struct v4l2_create_buffers {
 	__u32			memory;
 	struct v4l2_format	format;
 	__u32			capabilities;
-	__u32			flags;
-	__u32			reserved[6];
+	__u32			reserved[7];
 };
 
 /*

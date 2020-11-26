@@ -14,9 +14,6 @@
 #include <linux/acpi.h>
 #include <acpi/processor.h>
 
-#define _COMPONENT		ACPI_PROCESSOR_COMPONENT
-ACPI_MODULE_NAME("processor_core");
-
 static struct acpi_table_madt *get_madt_table(void)
 {
 	static struct acpi_table_madt *madt;

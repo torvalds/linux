@@ -92,6 +92,12 @@
 #define TCEIE				BIT(0)
 #define DMA_ECC_INT_STATUS		0x00001088
 
+/* EQoS version 5.xx VLAN Tag Filter Fail Packets Queuing */
+#define GMAC_RXQ_CTRL4			0x00000094
+#define GMAC_RXQCTRL_VFFQ_MASK		GENMASK(19, 17)
+#define GMAC_RXQCTRL_VFFQ_SHIFT		17
+#define GMAC_RXQCTRL_VFFQE		BIT(16)
+
 int dwmac5_safety_feat_config(void __iomem *ioaddr, unsigned int asp);
 int dwmac5_safety_feat_irq_status(struct net_device *ndev,
 		void __iomem *ioaddr, unsigned int asp,

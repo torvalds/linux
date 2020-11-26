@@ -237,12 +237,8 @@ static int davinci_gpio_probe(struct platform_device *pdev)
 
 	for (i = 0; i < nirq; i++) {
 		chips->irqs[i] = platform_get_irq(pdev, i);
-		if (chips->irqs[i] < 0) {
-			if (chips->irqs[i] != -EPROBE_DEFER)
-				dev_info(dev, "IRQ not populated, err = %d\n",
-					 chips->irqs[i]);
-			return chips->irqs[i];
-		}
+		if (chips->irqs[i] < 0)
+			return dev_err_probe(dev, chips->irqs[i], "IRQ not populated\n");
 	}
 
 	chips->chip.label = dev_name(dev);

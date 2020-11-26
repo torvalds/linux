@@ -113,8 +113,6 @@ int lmc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd) /*fold00*/
     u16 regVal;
     unsigned long flags;
 
-    lmc_trace(dev, "lmc_ioctl in");
-
     /*
      * Most functions mess with the structure
      * Disable interrupts while we do the polling
@@ -619,8 +617,6 @@ int lmc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd) /*fold00*/
         break;
     }
 
-    lmc_trace(dev, "lmc_ioctl out");
-
     return ret;
 }
 
@@ -633,8 +629,6 @@ static void lmc_watchdog(struct timer_list *t) /*fold00*/
     int link_status;
     u32 ticks;
     unsigned long flags;
-
-    lmc_trace(dev, "lmc_watchdog in");
 
     spin_lock_irqsave(&sc->lmc_lock, flags);
 
@@ -782,9 +776,6 @@ kick_timer:
     add_timer (&sc->timer);
 
     spin_unlock_irqrestore(&sc->lmc_lock, flags);
-
-    lmc_trace(dev, "lmc_watchdog out");
-
 }
 
 static int lmc_attach(struct net_device *dev, unsigned short encoding,
@@ -812,8 +803,6 @@ static int lmc_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	u16 AdapModelNum;
 	int err;
 	static int cards_found;
-
-	/* lmc_trace(dev, "lmc_init_one in"); */
 
 	err = pcim_enable_device(pdev);
 	if (err) {
@@ -955,7 +944,6 @@ static int lmc_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
     sc->lmc_ok = 0;
     sc->last_link_status = 0;
 
-    lmc_trace(dev, "lmc_init_one out");
     return 0;
 }
 
@@ -981,8 +969,6 @@ static int lmc_open(struct net_device *dev)
     lmc_softc_t *sc = dev_to_sc(dev);
     int err;
 
-    lmc_trace(dev, "lmc_open in");
-
     lmc_led_on(sc, LMC_DS3_LED0);
 
     lmc_dec_reset(sc);
@@ -992,17 +978,14 @@ static int lmc_open(struct net_device *dev)
     LMC_EVENT_LOG(LMC_EVENT_RESET2, lmc_mii_readreg(sc, 0, 16),
 		  lmc_mii_readreg(sc, 0, 17));
 
-    if (sc->lmc_ok){
-        lmc_trace(dev, "lmc_open lmc_ok out");
+    if (sc->lmc_ok)
         return 0;
-    }
 
     lmc_softreset (sc);
 
     /* Since we have to use PCI bus, this should work on x86,alpha,ppc */
     if (request_irq (dev->irq, lmc_interrupt, IRQF_SHARED, dev->name, dev)){
         printk(KERN_WARNING "%s: could not get irq: %d\n", dev->name, dev->irq);
-        lmc_trace(dev, "lmc_open irq failed out");
         return -EAGAIN;
     }
     sc->got_irq = 1;
@@ -1078,8 +1061,6 @@ static int lmc_open(struct net_device *dev)
     sc->timer.expires = jiffies + HZ;
     add_timer (&sc->timer);
 
-    lmc_trace(dev, "lmc_open out");
-
     return 0;
 }
 
@@ -1090,8 +1071,6 @@ static int lmc_open(struct net_device *dev)
 static void lmc_running_reset (struct net_device *dev) /*fold00*/
 {
     lmc_softc_t *sc = dev_to_sc(dev);
-
-    lmc_trace(dev, "lmc_running_reset in");
 
     /* stop interrupts */
     /* Clear the interrupt mask */
@@ -1114,8 +1093,6 @@ static void lmc_running_reset (struct net_device *dev) /*fold00*/
 
     sc->lmc_cmdmode |= (TULIP_CMD_TXRUN | TULIP_CMD_RXRUN);
     LMC_CSR_WRITE (sc, csr_command, sc->lmc_cmdmode);
-
-    lmc_trace(dev, "lmc_running_reset_out");
 }
 
 
@@ -1128,15 +1105,11 @@ static int lmc_close(struct net_device *dev)
     /* not calling release_region() as we should */
     lmc_softc_t *sc = dev_to_sc(dev);
 
-    lmc_trace(dev, "lmc_close in");
-
     sc->lmc_ok = 0;
     sc->lmc_media->set_link_status (sc, 0);
     del_timer (&sc->timer);
     lmc_proto_close(sc);
     lmc_ifdown (dev);
-
-    lmc_trace(dev, "lmc_close out");
 
     return 0;
 }
@@ -1148,8 +1121,6 @@ static int lmc_ifdown (struct net_device *dev) /*fold00*/
     lmc_softc_t *sc = dev_to_sc(dev);
     u32 csr6;
     int i;
-
-    lmc_trace(dev, "lmc_ifdown in");
 
     /* Don't let anything else go on right now */
     //    dev->start = 0;
@@ -1200,8 +1171,6 @@ static int lmc_ifdown (struct net_device *dev) /*fold00*/
     netif_wake_queue(dev);
     sc->extra_stats.tx_tbusy0++;
 
-    lmc_trace(dev, "lmc_ifdown out");
-
     return 0;
 }
 
@@ -1219,8 +1188,6 @@ static irqreturn_t lmc_interrupt (int irq, void *dev_instance) /*fold00*/
     u32 firstcsr;
     int max_work = LMC_RXDESCS;
     int handled = 0;
-
-    lmc_trace(dev, "lmc_interrupt in");
 
     spin_lock(&sc->lmc_lock);
 
@@ -1264,12 +1231,10 @@ static irqreturn_t lmc_interrupt (int irq, void *dev_instance) /*fold00*/
             lmc_running_reset (dev);
             break;
         }
-        
-        if (csr & TULIP_STS_RXINTR){
-            lmc_trace(dev, "rx interrupt");
+
+        if (csr & TULIP_STS_RXINTR)
             lmc_rx (dev);
-            
-        }
+
         if (csr & (TULIP_STS_TXINTR | TULIP_STS_TXNOBUF | TULIP_STS_TXSTOPPED)) {
 
 	    int		n_compl = 0 ;
@@ -1389,7 +1354,6 @@ lmc_int_fail_out:
 
     spin_unlock(&sc->lmc_lock);
 
-    lmc_trace(dev, "lmc_interrupt out");
     return IRQ_RETVAL(handled);
 }
 
@@ -1400,8 +1364,6 @@ static netdev_tx_t lmc_start_xmit(struct sk_buff *skb,
     u32 flag;
     int entry;
     unsigned long flags;
-
-    lmc_trace(dev, "lmc_start_xmit in");
 
     spin_lock_irqsave(&sc->lmc_lock, flags);
 
@@ -1477,7 +1439,6 @@ static netdev_tx_t lmc_start_xmit(struct sk_buff *skb,
 
     spin_unlock_irqrestore(&sc->lmc_lock, flags);
 
-    lmc_trace(dev, "lmc_start_xmit_out");
     return NETDEV_TX_OK;
 }
 
@@ -1492,8 +1453,6 @@ static int lmc_rx(struct net_device *dev)
     long stat;
     struct sk_buff *skb, *nsb;
     u16 len;
-
-    lmc_trace(dev, "lmc_rx in");
 
     lmc_led_on(sc, LMC_DS3_LED3);
 
@@ -1673,9 +1632,6 @@ static int lmc_rx(struct net_device *dev)
     lmc_led_off(sc, LMC_DS3_LED3);
 
 skip_out_of_mem:
-
-    lmc_trace(dev, "lmc_rx out");
-
     return 0;
 }
 
@@ -1684,15 +1640,11 @@ static struct net_device_stats *lmc_get_stats(struct net_device *dev)
     lmc_softc_t *sc = dev_to_sc(dev);
     unsigned long flags;
 
-    lmc_trace(dev, "lmc_get_stats in");
-
     spin_lock_irqsave(&sc->lmc_lock, flags);
 
     sc->lmc_device->stats.rx_missed_errors += LMC_CSR_READ(sc, csr_missed_frames) & 0xffff;
 
     spin_unlock_irqrestore(&sc->lmc_lock, flags);
-
-    lmc_trace(dev, "lmc_get_stats out");
 
     return &sc->lmc_device->stats;
 }
@@ -1712,11 +1664,7 @@ unsigned lmc_mii_readreg (lmc_softc_t * const sc, unsigned devaddr, unsigned reg
     int command = (0xf6 << 10) | (devaddr << 5) | regno;
     int retval = 0;
 
-    lmc_trace(sc->lmc_device, "lmc_mii_readreg in");
-
     LMC_MII_SYNC (sc);
-
-    lmc_trace(sc->lmc_device, "lmc_mii_readreg: done sync");
 
     for (i = 15; i >= 0; i--)
     {
@@ -1730,8 +1678,6 @@ unsigned lmc_mii_readreg (lmc_softc_t * const sc, unsigned devaddr, unsigned reg
         /* __SLOW_DOWN_IO; */
     }
 
-    lmc_trace(sc->lmc_device, "lmc_mii_readreg: done1");
-
     for (i = 19; i > 0; i--)
     {
         LMC_CSR_WRITE (sc, csr_9, 0x40000);
@@ -1743,8 +1689,6 @@ unsigned lmc_mii_readreg (lmc_softc_t * const sc, unsigned devaddr, unsigned reg
         /* __SLOW_DOWN_IO; */
     }
 
-    lmc_trace(sc->lmc_device, "lmc_mii_readreg out");
-
     return (retval >> 1) & 0xffff;
 }
 
@@ -1752,8 +1696,6 @@ void lmc_mii_writereg (lmc_softc_t * const sc, unsigned devaddr, unsigned regno,
 {
     int i = 32;
     int command = (0x5002 << 16) | (devaddr << 23) | (regno << 18) | data;
-
-    lmc_trace(sc->lmc_device, "lmc_mii_writereg in");
 
     LMC_MII_SYNC (sc);
 
@@ -1787,15 +1729,11 @@ void lmc_mii_writereg (lmc_softc_t * const sc, unsigned devaddr, unsigned regno,
         /* __SLOW_DOWN_IO; */
         i--;
     }
-
-    lmc_trace(sc->lmc_device, "lmc_mii_writereg out");
 }
 
 static void lmc_softreset (lmc_softc_t * const sc) /*fold00*/
 {
     int i;
-
-    lmc_trace(sc->lmc_device, "lmc_softreset in");
 
     /* Initialize the receive rings and buffers. */
     sc->lmc_txfull = 0;
@@ -1871,55 +1809,40 @@ static void lmc_softreset (lmc_softc_t * const sc) /*fold00*/
     }
     sc->lmc_txring[i - 1].buffer2 = virt_to_bus (&sc->lmc_txring[0]);
     LMC_CSR_WRITE (sc, csr_txlist, virt_to_bus (sc->lmc_txring));
-
-    lmc_trace(sc->lmc_device, "lmc_softreset out");
 }
 
 void lmc_gpio_mkinput(lmc_softc_t * const sc, u32 bits) /*fold00*/
 {
-    lmc_trace(sc->lmc_device, "lmc_gpio_mkinput in");
     sc->lmc_gpio_io &= ~bits;
     LMC_CSR_WRITE(sc, csr_gp, TULIP_GP_PINSET | (sc->lmc_gpio_io));
-    lmc_trace(sc->lmc_device, "lmc_gpio_mkinput out");
 }
 
 void lmc_gpio_mkoutput(lmc_softc_t * const sc, u32 bits) /*fold00*/
 {
-    lmc_trace(sc->lmc_device, "lmc_gpio_mkoutput in");
     sc->lmc_gpio_io |= bits;
     LMC_CSR_WRITE(sc, csr_gp, TULIP_GP_PINSET | (sc->lmc_gpio_io));
-    lmc_trace(sc->lmc_device, "lmc_gpio_mkoutput out");
 }
 
 void lmc_led_on(lmc_softc_t * const sc, u32 led) /*fold00*/
 {
-    lmc_trace(sc->lmc_device, "lmc_led_on in");
-    if((~sc->lmc_miireg16) & led){ /* Already on! */
-        lmc_trace(sc->lmc_device, "lmc_led_on aon out");
+    if ((~sc->lmc_miireg16) & led) /* Already on! */
         return;
-    }
-    
+
     sc->lmc_miireg16 &= ~led;
     lmc_mii_writereg(sc, 0, 16, sc->lmc_miireg16);
-    lmc_trace(sc->lmc_device, "lmc_led_on out");
 }
 
 void lmc_led_off(lmc_softc_t * const sc, u32 led) /*fold00*/
 {
-    lmc_trace(sc->lmc_device, "lmc_led_off in");
-    if(sc->lmc_miireg16 & led){ /* Already set don't do anything */
-        lmc_trace(sc->lmc_device, "lmc_led_off aoff out");
+    if (sc->lmc_miireg16 & led) /* Already set don't do anything */
         return;
-    }
-    
+
     sc->lmc_miireg16 |= led;
     lmc_mii_writereg(sc, 0, 16, sc->lmc_miireg16);
-    lmc_trace(sc->lmc_device, "lmc_led_off out");
 }
 
 static void lmc_reset(lmc_softc_t * const sc) /*fold00*/
 {
-    lmc_trace(sc->lmc_device, "lmc_reset in");
     sc->lmc_miireg16 |= LMC_MII16_FIFO_RESET;
     lmc_mii_writereg(sc, 0, 16, sc->lmc_miireg16);
 
@@ -1955,13 +1878,11 @@ static void lmc_reset(lmc_softc_t * const sc) /*fold00*/
     sc->lmc_media->init(sc);
 
     sc->extra_stats.resetCount++;
-    lmc_trace(sc->lmc_device, "lmc_reset out");
 }
 
 static void lmc_dec_reset(lmc_softc_t * const sc) /*fold00*/
 {
     u32 val;
-    lmc_trace(sc->lmc_device, "lmc_dec_reset in");
 
     /*
      * disable all interrupts
@@ -2017,14 +1938,11 @@ static void lmc_dec_reset(lmc_softc_t * const sc) /*fold00*/
     val = LMC_CSR_READ(sc, csr_sia_general);
     val |= (TULIP_WATCHDOG_TXDISABLE | TULIP_WATCHDOG_RXDISABLE);
     LMC_CSR_WRITE(sc, csr_sia_general, val);
-
-    lmc_trace(sc->lmc_device, "lmc_dec_reset out");
 }
 
 static void lmc_initcsrs(lmc_softc_t * const sc, lmc_csrptr_t csr_base, /*fold00*/
                          size_t csr_size)
 {
-    lmc_trace(sc->lmc_device, "lmc_initcsrs in");
     sc->lmc_csrs.csr_busmode	        = csr_base +  0 * csr_size;
     sc->lmc_csrs.csr_txpoll		= csr_base +  1 * csr_size;
     sc->lmc_csrs.csr_rxpoll		= csr_base +  2 * csr_size;
@@ -2041,7 +1959,6 @@ static void lmc_initcsrs(lmc_softc_t * const sc, lmc_csrptr_t csr_base, /*fold00
     sc->lmc_csrs.csr_13		        = csr_base + 13 * csr_size;
     sc->lmc_csrs.csr_14		        = csr_base + 14 * csr_size;
     sc->lmc_csrs.csr_15		        = csr_base + 15 * csr_size;
-    lmc_trace(sc->lmc_device, "lmc_initcsrs out");
 }
 
 static void lmc_driver_timeout(struct net_device *dev, unsigned int txqueue)
@@ -2049,8 +1966,6 @@ static void lmc_driver_timeout(struct net_device *dev, unsigned int txqueue)
     lmc_softc_t *sc = dev_to_sc(dev);
     u32 csr6;
     unsigned long flags;
-
-    lmc_trace(dev, "lmc_driver_timeout in");
 
     spin_lock_irqsave(&sc->lmc_lock, flags);
 
@@ -2094,8 +2009,4 @@ static void lmc_driver_timeout(struct net_device *dev, unsigned int txqueue)
 bug_out:
 
     spin_unlock_irqrestore(&sc->lmc_lock, flags);
-
-    lmc_trace(dev, "lmc_driver_timeout out");
-
-
 }

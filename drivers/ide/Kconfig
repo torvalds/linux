@@ -744,9 +744,10 @@ config BLK_DEV_MAC_IDE
 	depends on MAC
 	help
 	  This is the IDE driver for the on-board IDE interface on some m68k
-	  Macintosh models. It supports both the `Quadra style' (used in
-	  Quadra/ Centris 630 and Performa 588 models) and `Powerbook style'
-	  (used in the Powerbook 150 and 190 models) IDE interface.
+	  Macintosh models, namely Quadra/Centris 630, Performa 588 and
+	  Powerbook 150. The IDE interface on the Powerbook 190 is not
+	  supported by this driver and requires BLK_DEV_PLATFORM or
+	  PATA_PLATFORM.
 
 	  Say Y if you have such an Macintosh model and want to use IDE
 	  devices (hard disks, CD-ROM drives, etc.) that are connected to the

@@ -15,6 +15,7 @@
 
 #include <linux/ratelimit.h>
 #include <linux/mutex.h>
+#include <linux/scatterlist.h>
 #include <crypto/internal/hash.h>
 #include <crypto/internal/aead.h>
 #include <crypto/internal/rng.h>

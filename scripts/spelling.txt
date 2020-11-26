@@ -9,6 +9,7 @@
 #
 abandonning||abandoning
 abigious||ambiguous
+abitrary||arbitrary
 abitrate||arbitrate
 abnornally||abnormally
 abnrormal||abnormal
@@ -482,6 +483,7 @@ disgest||digest
 dispalying||displaying
 diplay||display
 directon||direction
+direcly||directly
 direectly||directly
 diregard||disregard
 disassocation||disassociation
@@ -589,14 +591,13 @@ explictly||explicitly
 expresion||expression
 exprimental||experimental
 extened||extended
-exteneded||extended||extended
+exteneded||extended
 extensability||extensibility
 extention||extension
 extenstion||extension
 extracter||extractor
 faied||failed
 faield||failed
-falied||failed
 faild||failed
 failded||failed
 failer||failure
@@ -793,7 +794,6 @@ interrup||interrupt
 interrups||interrupts
 interruptted||interrupted
 interupted||interrupted
-interupt||interrupt
 intial||initial
 intialisation||initialisation
 intialised||initialised
@@ -871,6 +871,7 @@ malplace||misplace
 managable||manageable
 managment||management
 mangement||management
+manger||manager
 manoeuvering||maneuvering
 manufaucturing||manufacturing
 mappping||mapping
@@ -968,7 +969,6 @@ occurd||occurred
 occured||occurred
 occurence||occurrence
 occure||occurred
-occured||occurred
 occuring||occurring
 offser||offset
 offet||offset
@@ -1437,7 +1437,6 @@ udpate||update
 uesd||used
 uknown||unknown
 usccess||success
-usupported||unsupported
 uncommited||uncommitted
 uncompatible||incompatible
 unconditionaly||unconditionally
@@ -1478,6 +1477,7 @@ unsolicitied||unsolicited
 unsuccessfull||unsuccessful
 unsuported||unsupported
 untill||until
+ununsed||unused
 unuseful||useless
 unvalid||invalid
 upate||update

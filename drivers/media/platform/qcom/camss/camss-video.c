@@ -18,6 +18,12 @@
 #include "camss-video.h"
 #include "camss.h"
 
+#define CAMSS_FRAME_MIN_WIDTH		1
+#define CAMSS_FRAME_MAX_WIDTH		8191
+#define CAMSS_FRAME_MIN_HEIGHT		1
+#define CAMSS_FRAME_MAX_HEIGHT_RDI	8191
+#define CAMSS_FRAME_MAX_HEIGHT_PIX	4096
+
 struct fract {
 	u8 numerator;
 	u8 denominator;
@@ -529,16 +535,15 @@ static int video_querycap(struct file *file, void *fh,
 	return 0;
 }
 
-static int video_enum_fmt(struct file *file, void *fh, struct v4l2_fmtdesc *f)
+/*
+ *  Returns the index in the video->formats[] array of the element which
+ *  has the "ndx"th unique value of pixelformat field.
+ *  If not found (no more unique pixelformat's) returns -EINVAL.
+ */
+static int video_get_unique_pixelformat_by_index(struct camss_video *video,
+						 int ndx)
 {
-	struct camss_video *video = video_drvdata(file);
 	int i, j, k;
-
-	if (f->type != video->type)
-		return -EINVAL;
-
-	if (f->index >= video->nformats)
-		return -EINVAL;
 
 	/* find index "i" of "k"th unique pixelformat in formats array */
 	k = -1;
@@ -552,14 +557,86 @@ static int video_enum_fmt(struct file *file, void *fh, struct v4l2_fmtdesc *f)
 		if (j == i)
 			k++;
 
-		if (k == f->index)
-			break;
+		if (k == ndx)
+			return i;
 	}
 
-	if (k < f->index)
+	return -EINVAL;
+}
+
+/*
+ *  Returns the index in the video->formats[] array of the element which
+ *  has code equal to mcode.
+ *  If not found returns -EINVAL.
+ */
+static int video_get_pixelformat_by_mbus_code(struct camss_video *video,
+					      u32 mcode)
+{
+	int i;
+
+	for (i = 0; i < video->nformats; i++) {
+		if (video->formats[i].code == mcode)
+			return i;
+	}
+
+	return -EINVAL;
+}
+
+static int video_enum_fmt(struct file *file, void *fh, struct v4l2_fmtdesc *f)
+{
+	struct camss_video *video = video_drvdata(file);
+	int i;
+
+	if (f->type != video->type)
+		return -EINVAL;
+
+	if (f->index >= video->nformats)
+		return -EINVAL;
+
+	if (f->mbus_code) {
+		/* Each entry in formats[] table has unique mbus_code */
+		if (f->index > 0)
+			return -EINVAL;
+
+		i = video_get_pixelformat_by_mbus_code(video, f->mbus_code);
+	} else {
+		i = video_get_unique_pixelformat_by_index(video, f->index);
+	}
+
+	if (i < 0)
 		return -EINVAL;
 
 	f->pixelformat = video->formats[i].pixelformat;
+
+	return 0;
+}
+
+static int video_enum_framesizes(struct file *file, void *fh,
+				 struct v4l2_frmsizeenum *fsize)
+{
+	struct camss_video *video = video_drvdata(file);
+	int i;
+
+	if (fsize->index)
+		return -EINVAL;
+
+	/* Only accept pixel format present in the formats[] table */
+	for (i = 0; i < video->nformats; i++) {
+		if (video->formats[i].pixelformat == fsize->pixel_format)
+			break;
+	}
+
+	if (i == video->nformats)
+		return -EINVAL;
+
+	fsize->type = V4L2_FRMSIZE_TYPE_CONTINUOUS;
+	fsize->stepwise.min_width = CAMSS_FRAME_MIN_WIDTH;
+	fsize->stepwise.max_width = CAMSS_FRAME_MAX_WIDTH;
+	fsize->stepwise.min_height = CAMSS_FRAME_MIN_HEIGHT;
+	fsize->stepwise.max_height = (video->line_based) ?
+		CAMSS_FRAME_MAX_HEIGHT_PIX : CAMSS_FRAME_MAX_HEIGHT_RDI;
+	fsize->stepwise.step_width = 1;
+	fsize->stepwise.step_height = 1;
 
 	return 0;
 }
@@ -593,7 +670,7 @@ static int __video_try_fmt(struct camss_video *video, struct v4l2_format *f)
 						  1, 65528);
 			sizeimage[i] = clamp_t(u32, p->sizeimage,
 					       bytesperline[i],
-					       bytesperline[i] * 4096);
+					       bytesperline[i] * CAMSS_FRAME_MAX_HEIGHT_PIX);
 		}
 
 	for (j = 0; j < video->nformats; j++)
@@ -610,8 +687,8 @@ static int __video_try_fmt(struct camss_video *video, struct v4l2_format *f)
 	memset(pix_mp, 0, sizeof(*pix_mp));
 
 	pix_mp->pixelformat = fi->pixelformat;
-	pix_mp->width = clamp_t(u32, width, 1, 8191);
-	pix_mp->height = clamp_t(u32, height, 1, 8191);
+	pix_mp->width = clamp_t(u32, width, 1, CAMSS_FRAME_MAX_WIDTH);
+	pix_mp->height = clamp_t(u32, height, 1, CAMSS_FRAME_MAX_HEIGHT_RDI);
 	pix_mp->num_planes = fi->planes;
 	for (i = 0; i < pix_mp->num_planes; i++) {
 		bpl = pix_mp->width / fi->hsub[i].numerator *
@@ -637,7 +714,7 @@ static int __video_try_fmt(struct camss_video *video, struct v4l2_format *f)
 						  1, 65528);
 			p->sizeimage = clamp_t(u32, p->sizeimage,
 					       p->bytesperline,
-					       p->bytesperline * 4096);
+					       p->bytesperline * CAMSS_FRAME_MAX_HEIGHT_PIX);
 			lines = p->sizeimage / p->bytesperline;
 
 			if (p->bytesperline < bytesperline[i])
@@ -704,6 +781,7 @@ static int video_s_input(struct file *file, void *fh, unsigned int input)
 static const struct v4l2_ioctl_ops msm_vid_ioctl_ops = {
 	.vidioc_querycap		= video_querycap,
 	.vidioc_enum_fmt_vid_cap	= video_enum_fmt,
+	.vidioc_enum_framesizes		= video_enum_framesizes,
 	.vidioc_g_fmt_vid_cap_mplane	= video_g_fmt,
 	.vidioc_s_fmt_vid_cap_mplane	= video_s_fmt,
 	.vidioc_try_fmt_vid_cap_mplane	= video_try_fmt,
@@ -879,7 +957,7 @@ int msm_video_register(struct camss_video *video, struct v4l2_device *v4l2_dev,
 	if (ret < 0) {
 		dev_err(v4l2_dev->dev, "Failed to init video entity: %d\n",
 			ret);
-		goto error_media_init;
+		goto error_vb2_init;
 	}
 
 	mutex_init(&video->lock);
@@ -911,8 +989,8 @@ int msm_video_register(struct camss_video *video, struct v4l2_device *v4l2_dev,
 	}
 
 	vdev->fops = &msm_vid_fops;
-	vdev->device_caps = V4L2_CAP_VIDEO_CAPTURE_MPLANE | V4L2_CAP_STREAMING |
-							V4L2_CAP_READWRITE;
+	vdev->device_caps = V4L2_CAP_VIDEO_CAPTURE_MPLANE | V4L2_CAP_STREAMING
+			  | V4L2_CAP_READWRITE | V4L2_CAP_IO_MC;
 	vdev->ioctl_ops = &msm_vid_ioctl_ops;
 	vdev->release = msm_video_release;
 	vdev->v4l2_dev = v4l2_dev;
@@ -936,23 +1014,15 @@ int msm_video_register(struct camss_video *video, struct v4l2_device *v4l2_dev,
 error_video_register:
 	media_entity_cleanup(&vdev->entity);
 	mutex_destroy(&video->lock);
-error_media_init:
-	vb2_queue_release(&video->vb2_q);
 error_vb2_init:
 	mutex_destroy(&video->q_lock);
 
 	return ret;
 }
 
-void msm_video_stop_streaming(struct camss_video *video)
-{
-	if (vb2_is_streaming(&video->vb2_q))
-		vb2_queue_release(&video->vb2_q);
-}
-
 void msm_video_unregister(struct camss_video *video)
 {
 	atomic_inc(&video->camss->ref_count);
-	video_unregister_device(&video->vdev);
+	vb2_video_unregister_device(&video->vdev);
 	atomic_dec(&video->camss->ref_count);
 }

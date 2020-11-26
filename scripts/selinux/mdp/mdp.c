@@ -35,6 +35,9 @@ struct security_class_mapping {
 
 #include "classmap.h"
 #include "initial_sid_to_string.h"
+#include "policycap_names.h"
+
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
 int main(int argc, char *argv[])
 {
@@ -114,6 +117,10 @@ int main(int argc, char *argv[])
 			fprintf(fout, "} (l2 eq h2 and h1 dom h2);\n\n");
 		}
 	}
+
+	/* enable all policy capabilities */
+	for (i = 0; i < ARRAY_SIZE(selinux_policycap_names); i++)
+		fprintf(fout, "policycap %s;\n", selinux_policycap_names[i]);
 
 	/* types, roles, and allows */
 	fprintf(fout, "type base_t;\n");

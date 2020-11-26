@@ -359,6 +359,29 @@ static void iommu_set_exclusion_range(struct amd_iommu *iommu)
 			&entry, sizeof(entry));
 }
 
+static void iommu_set_cwwb_range(struct amd_iommu *iommu)
+{
+	u64 start = iommu_virt_to_phys((void *)iommu->cmd_sem);
+	u64 entry = start & PM_ADDR_MASK;
+
+	if (!iommu_feature(iommu, FEATURE_SNP))
+		return;
+
+	/* Note:
+	 * Re-purpose Exclusion base/limit registers for Completion wait
+	 * write-back base/limit.
+	 */
+	memcpy_toio(iommu->mmio_base + MMIO_EXCL_BASE_OFFSET,
+		    &entry, sizeof(entry));
+
+	/* Note:
+	 * Default to 4 Kbytes, which can be specified by setting base
+	 * address equal to the limit address.
+	 */
+	memcpy_toio(iommu->mmio_base + MMIO_EXCL_LIMIT_OFFSET,
+		    &entry, sizeof(entry));
+}
+
 /* Programs the physical address of the device table into the IOMMU hardware */
 static void iommu_set_device_table(struct amd_iommu *iommu)
 {
@@ -813,6 +836,19 @@ static int iommu_init_ga(struct amd_iommu *iommu)
 	return ret;
 }
 
+static int __init alloc_cwwb_sem(struct amd_iommu *iommu)
+{
+	iommu->cmd_sem = (void *)get_zeroed_page(GFP_KERNEL);
+
+	return iommu->cmd_sem ? 0 : -ENOMEM;
+}
+
+static void __init free_cwwb_sem(struct amd_iommu *iommu)
+{
+	if (iommu->cmd_sem)
+		free_page((unsigned long)iommu->cmd_sem);
+}
+
 static void iommu_enable_xt(struct amd_iommu *iommu)
 {
 #ifdef CONFIG_IRQ_REMAP
@@ -1104,25 +1140,6 @@ static int __init add_early_maps(void)
 }
 
 /*
- * Reads the device exclusion range from ACPI and initializes the IOMMU with
- * it
- */
-static void __init set_device_exclusion_range(u16 devid, struct ivmd_header *m)
-{
-	if (!(m->flags & IVMD_FLAG_EXCL_RANGE))
-		return;
-
-	/*
-	 * Treat per-device exclusion ranges as r/w unity-mapped regions
-	 * since some buggy BIOSes might lead to the overwritten exclusion
-	 * range (exclusion_start and exclusion_length members). This
-	 * happens when there are multiple exclusion ranges (IVMD entries)
-	 * defined in ACPI table.
-	 */
-	m->flags = (IVMD_FLAG_IW | IVMD_FLAG_IR | IVMD_FLAG_UNITY_MAP);
-}
-
-/*
  * Takes a pointer to an AMD IOMMU entry in the ACPI table and
  * initializes the hardware and our data structures with it.
  */
@@ -1395,6 +1412,7 @@ static int __init init_iommu_from_acpi(struct amd_iommu *iommu,
 
 static void __init free_iommu_one(struct amd_iommu *iommu)
 {
+	free_cwwb_sem(iommu);
 	free_command_buffer(iommu);
 	free_event_buffer(iommu);
 	free_ppr_log(iommu);
@@ -1481,6 +1499,7 @@ static int __init init_iommu_one(struct amd_iommu *iommu, struct ivhd_header *h)
 	int ret;
 
 	raw_spin_lock_init(&iommu->lock);
+	iommu->cmd_sem_val = 0;
 
 	/* Add IOMMU to internal data structures */
 	list_add_tail(&iommu->list, &amd_iommu_list);
@@ -1511,7 +1530,14 @@ static int __init init_iommu_one(struct amd_iommu *iommu, struct ivhd_header *h)
 			iommu->mmio_phys_end = MMIO_REG_END_OFFSET;
 		else
 			iommu->mmio_phys_end = MMIO_CNTR_CONF_OFFSET;
-		if (((h->efr_attr & (0x1 << IOMMU_FEAT_GASUP_SHIFT)) == 0))
+
+		/*
+		 * Note: GA (128-bit IRTE) mode requires cmpxchg16b supports.
+		 * GAM also requires GA mode. Therefore, we need to
+		 * check cmpxchg16b support before enabling it.
+		 */
+		if (!boot_cpu_has(X86_FEATURE_CX16) ||
+		    ((h->efr_attr & (0x1 << IOMMU_FEAT_GASUP_SHIFT)) == 0))
 			amd_iommu_guest_ir = AMD_IOMMU_GUEST_IR_LEGACY;
 		break;
 	case 0x11:
@@ -1520,8 +1546,18 @@ static int __init init_iommu_one(struct amd_iommu *iommu, struct ivhd_header *h)
 			iommu->mmio_phys_end = MMIO_REG_END_OFFSET;
 		else
 			iommu->mmio_phys_end = MMIO_CNTR_CONF_OFFSET;
-		if (((h->efr_reg & (0x1 << IOMMU_EFR_GASUP_SHIFT)) == 0))
+
+		/*
+		 * Note: GA (128-bit IRTE) mode requires cmpxchg16b supports.
+		 * XT, GAM also requires GA mode. Therefore, we need to
+		 * check cmpxchg16b support before enabling them.
+		 */
+		if (!boot_cpu_has(X86_FEATURE_CX16) ||
+		    ((h->efr_reg & (0x1 << IOMMU_EFR_GASUP_SHIFT)) == 0)) {
 			amd_iommu_guest_ir = AMD_IOMMU_GUEST_IR_LEGACY;
+			break;
+		}
+
 		/*
 		 * Note: Since iommu_update_intcapxt() leverages
 		 * the IOMMU MMIO access to MSI capability block registers
@@ -1539,6 +1575,9 @@ static int __init init_iommu_one(struct amd_iommu *iommu, struct ivhd_header *h)
 	iommu->mmio_base = iommu_map_mmio_space(iommu->mmio_phys,
 						iommu->mmio_phys_end);
 	if (!iommu->mmio_base)
+		return -ENOMEM;
+
+	if (alloc_cwwb_sem(iommu))
 		return -ENOMEM;
 
 	if (alloc_command_buffer(iommu))
@@ -1578,7 +1617,7 @@ static int __init init_iommu_one(struct amd_iommu *iommu, struct ivhd_header *h)
 
 /**
  * get_highest_supported_ivhd_type - Look up the appropriate IVHD type
- * @ivrs          Pointer to the IVRS header
+ * @ivrs: Pointer to the IVRS header
  *
  * This function search through all IVDB of the maximum supported IVHD
  */
@@ -1866,6 +1905,9 @@ static int __init amd_iommu_init_pci(void)
 		ret = iommu_init_pci(iommu);
 		if (ret)
 			break;
+
+		/* Need to setup range after PCI init */
+		iommu_set_cwwb_range(iommu);
 	}
 
 	/*
@@ -1929,7 +1971,7 @@ static int iommu_setup_msi(struct amd_iommu *iommu)
 #define XT_INT_VEC(x)		(((x) & 0xFFULL) << 32)
 #define XT_INT_DEST_HI(x)	((((x) >> 24) & 0xFFULL) << 56)
 
-/**
+/*
  * Setup the IntCapXT registers with interrupt routing information
  * based on the PCI MSI capability block registers, accessed via
  * MMIO MSI address low/hi and MSI data registers.
@@ -2056,30 +2098,6 @@ static void __init free_unity_maps(void)
 	}
 }
 
-/* called when we find an exclusion range definition in ACPI */
-static int __init init_exclusion_range(struct ivmd_header *m)
-{
-	int i;
-
-	switch (m->type) {
-	case ACPI_IVMD_TYPE:
-		set_device_exclusion_range(m->devid, m);
-		break;
-	case ACPI_IVMD_TYPE_ALL:
-		for (i = 0; i <= amd_iommu_last_bdf; ++i)
-			set_device_exclusion_range(i, m);
-		break;
-	case ACPI_IVMD_TYPE_RANGE:
-		for (i = m->devid; i <= m->aux; ++i)
-			set_device_exclusion_range(i, m);
-		break;
-	default:
-		break;
-	}
-
-	return 0;
-}
-
 /* called for unity map ACPI definition */
 static int __init init_unity_map_range(struct ivmd_header *m)
 {
@@ -2089,9 +2107,6 @@ static int __init init_unity_map_range(struct ivmd_header *m)
 	e = kzalloc(sizeof(*e), GFP_KERNEL);
 	if (e == NULL)
 		return -ENOMEM;
-
-	if (m->flags & IVMD_FLAG_EXCL_RANGE)
-		init_exclusion_range(m);
 
 	switch (m->type) {
 	default:
@@ -2115,6 +2130,16 @@ static int __init init_unity_map_range(struct ivmd_header *m)
 	e->address_start = PAGE_ALIGN(m->range_start);
 	e->address_end = e->address_start + PAGE_ALIGN(m->range_length);
 	e->prot = m->flags >> 1;
+
+	/*
+	 * Treat per-device exclusion ranges as r/w unity-mapped regions
+	 * since some buggy BIOSes might lead to the overwritten exclusion
+	 * range (exclusion_start and exclusion_length members). This
+	 * happens when there are multiple exclusion ranges (IVMD entries)
+	 * defined in ACPI table.
+	 */
+	if (m->flags & IVMD_FLAG_EXCL_RANGE)
+		e->prot = (IVMD_FLAG_IW | IVMD_FLAG_IR) >> 1;
 
 	DUMP_printk("%s devid_start: %02x:%02x.%x devid_end: %02x:%02x.%x"
 		    " range_start: %016llx range_end: %016llx flags: %x\n", s,
@@ -2258,7 +2283,7 @@ static void iommu_enable_ga(struct amd_iommu *iommu)
 	switch (amd_iommu_guest_ir) {
 	case AMD_IOMMU_GUEST_IR_VAPIC:
 		iommu_feature_enable(iommu, CONTROL_GAM_EN);
-		/* Fall through */
+		fallthrough;
 	case AMD_IOMMU_GUEST_IR_LEGACY_GA:
 		iommu_feature_enable(iommu, CONTROL_GA_EN);
 		iommu->irte_ops = &irte_128_ops;

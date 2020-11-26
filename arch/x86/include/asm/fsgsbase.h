@@ -57,7 +57,7 @@ static inline unsigned long x86_fsbase_read_cpu(void)
 {
 	unsigned long fsbase;
 
-	if (static_cpu_has(X86_FEATURE_FSGSBASE))
+	if (boot_cpu_has(X86_FEATURE_FSGSBASE))
 		fsbase = rdfsbase();
 	else
 		rdmsrl(MSR_FS_BASE, fsbase);
@@ -67,7 +67,7 @@ static inline unsigned long x86_fsbase_read_cpu(void)
 
 static inline void x86_fsbase_write_cpu(unsigned long fsbase)
 {
-	if (static_cpu_has(X86_FEATURE_FSGSBASE))
+	if (boot_cpu_has(X86_FEATURE_FSGSBASE))
 		wrfsbase(fsbase);
 	else
 		wrmsrl(MSR_FS_BASE, fsbase);

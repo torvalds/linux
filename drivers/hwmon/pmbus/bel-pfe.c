@@ -87,12 +87,13 @@ static struct pmbus_driver_info pfe_driver_info[] = {
 	},
 };
 
-static int pfe_pmbus_probe(struct i2c_client *client,
-			   const struct i2c_device_id *id)
+static const struct i2c_device_id pfe_device_id[];
+
+static int pfe_pmbus_probe(struct i2c_client *client)
 {
 	int model;
 
-	model = (int)id->driver_data;
+	model = (int)i2c_match_id(pfe_device_id, client)->driver_data;
 
 	/*
 	 * PFE3000-12-069RA devices may not stay in page 0 during device
@@ -104,7 +105,7 @@ static int pfe_pmbus_probe(struct i2c_client *client,
 		i2c_smbus_write_byte_data(client, PMBUS_PAGE, 0);
 	}
 
-	return pmbus_do_probe(client, id, &pfe_driver_info[model]);
+	return pmbus_do_probe(client, &pfe_driver_info[model]);
 }
 
 static const struct i2c_device_id pfe_device_id[] = {
@@ -119,7 +120,7 @@ static struct i2c_driver pfe_pmbus_driver = {
 	.driver = {
 		   .name = "bel-pfe",
 	},
-	.probe = pfe_pmbus_probe,
+	.probe_new = pfe_pmbus_probe,
 	.remove = pmbus_do_remove,
 	.id_table = pfe_device_id,
 };

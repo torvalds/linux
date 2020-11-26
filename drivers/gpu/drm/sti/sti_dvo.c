@@ -389,8 +389,6 @@ sti_dvo_connector_detect(struct drm_connector *connector, bool force)
 		dvo->panel = of_drm_find_panel(dvo->panel_node);
 		if (IS_ERR(dvo->panel))
 			dvo->panel = NULL;
-		else
-			drm_panel_attach(dvo->panel, connector);
 	}
 
 	if (dvo->panel)

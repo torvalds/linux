@@ -223,26 +223,6 @@ void intel_engine_get_instdone(const struct intel_engine_cs *engine,
 
 void intel_engine_init_execlists(struct intel_engine_cs *engine);
 
-void intel_engine_init_breadcrumbs(struct intel_engine_cs *engine);
-void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine);
-
-void intel_engine_disarm_breadcrumbs(struct intel_engine_cs *engine);
-
-static inline void
-intel_engine_signal_breadcrumbs(struct intel_engine_cs *engine)
-{
-	irq_work_queue(&engine->breadcrumbs.irq_work);
-}
-
-void intel_engine_reset_breadcrumbs(struct intel_engine_cs *engine);
-void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine);
-
-void intel_engine_transfer_stale_breadcrumbs(struct intel_engine_cs *engine,
-					     struct intel_context *ce);
-
-void intel_engine_print_breadcrumbs(struct intel_engine_cs *engine,
-				    struct drm_printer *p);
-
 static inline u32 *__gen8_emit_pipe_control(u32 *batch, u32 flags0, u32 flags1, u32 offset)
 {
 	memset(batch, 0, 6 * sizeof(u32));
@@ -265,22 +245,14 @@ static inline u32 *gen12_emit_pipe_control(u32 *batch, u32 flags0, u32 flags1, u
 }
 
 static inline u32 *
-__gen8_emit_ggtt_write_rcs(u32 *cs, u32 value, u32 gtt_offset, u32 flags0, u32 flags1)
+__gen8_emit_write_rcs(u32 *cs, u32 value, u32 offset, u32 flags0, u32 flags1)
 {
-	/* We're using qword write, offset should be aligned to 8 bytes. */
-	GEM_BUG_ON(!IS_ALIGNED(gtt_offset, 8));
-
-	/* w/a for post sync ops following a GPGPU operation we
-	 * need a prior CS_STALL, which is emitted by the flush
-	 * following the batch.
-	 */
 	*cs++ = GFX_OP_PIPE_CONTROL(6) | flags0;
-	*cs++ = flags1 | PIPE_CONTROL_QW_WRITE | PIPE_CONTROL_GLOBAL_GTT_IVB;
-	*cs++ = gtt_offset;
+	*cs++ = flags1 | PIPE_CONTROL_QW_WRITE;
+	*cs++ = offset;
 	*cs++ = 0;
 	*cs++ = value;
-	/* We're thrashing one dword of HWS. */
-	*cs++ = 0;
+	*cs++ = 0; /* We're thrashing one extra dword. */
 
 	return cs;
 }
@@ -288,13 +260,38 @@ __gen8_emit_ggtt_write_rcs(u32 *cs, u32 value, u32 gtt_offset, u32 flags0, u32 f
 static inline u32*
 gen8_emit_ggtt_write_rcs(u32 *cs, u32 value, u32 gtt_offset, u32 flags)
 {
-	return __gen8_emit_ggtt_write_rcs(cs, value, gtt_offset, 0, flags);
+	/* We're using qword write, offset should be aligned to 8 bytes. */
+	GEM_BUG_ON(!IS_ALIGNED(gtt_offset, 8));
+
+	return __gen8_emit_write_rcs(cs,
+				     value,
+				     gtt_offset,
+				     0,
+				     flags | PIPE_CONTROL_GLOBAL_GTT_IVB);
 }
 
 static inline u32*
 gen12_emit_ggtt_write_rcs(u32 *cs, u32 value, u32 gtt_offset, u32 flags0, u32 flags1)
 {
-	return __gen8_emit_ggtt_write_rcs(cs, value, gtt_offset, flags0, flags1);
+	/* We're using qword write, offset should be aligned to 8 bytes. */
+	GEM_BUG_ON(!IS_ALIGNED(gtt_offset, 8));
+
+	return __gen8_emit_write_rcs(cs,
+				     value,
+				     gtt_offset,
+				     flags0,
+				     flags1 | PIPE_CONTROL_GLOBAL_GTT_IVB);
+}
+
+static inline u32 *
+__gen8_emit_flush_dw(u32 *cs, u32 value, u32 gtt_offset, u32 flags)
+{
+	*cs++ = (MI_FLUSH_DW + 1) | flags;
+	*cs++ = gtt_offset;
+	*cs++ = 0;
+	*cs++ = value;
+
+	return cs;
 }
 
 static inline u32 *
@@ -305,12 +302,10 @@ gen8_emit_ggtt_write(u32 *cs, u32 value, u32 gtt_offset, u32 flags)
 	/* Offset should be aligned to 8 bytes for both (QW/DW) write types */
 	GEM_BUG_ON(!IS_ALIGNED(gtt_offset, 8));
 
-	*cs++ = (MI_FLUSH_DW + 1) | MI_FLUSH_DW_OP_STOREDW | flags;
-	*cs++ = gtt_offset | MI_FLUSH_DW_USE_GTT;
-	*cs++ = 0;
-	*cs++ = value;
-
-	return cs;
+	return __gen8_emit_flush_dw(cs,
+				    value,
+				    gtt_offset | MI_FLUSH_DW_USE_GTT,
+				    flags | MI_FLUSH_DW_OP_STOREDW);
 }
 
 static inline void __intel_engine_reset(struct intel_engine_cs *engine,
@@ -355,6 +350,15 @@ intel_engine_has_preempt_reset(const struct intel_engine_cs *engine)
 		return false;
 
 	return intel_engine_has_preemption(engine);
+}
+
+static inline bool
+intel_engine_has_heartbeat(const struct intel_engine_cs *engine)
+{
+	if (!IS_ACTIVE(CONFIG_DRM_I915_HEARTBEAT_INTERVAL))
+		return false;
+
+	return READ_ONCE(engine->props.heartbeat_interval_ms);
 }
 
 #endif /* _INTEL_RINGBUFFER_H_ */

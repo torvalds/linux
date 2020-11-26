@@ -19,7 +19,7 @@ static int libbpf_debug_print(enum libbpf_print_level level,
 	log_buf = va_arg(args, char *);
 	if (!log_buf)
 		goto out;
-	if (strstr(log_buf, err_str) == 0)
+	if (err_str && strstr(log_buf, err_str) == 0)
 		found = true;
 out:
 	printf(format, log_buf);
@@ -60,6 +60,7 @@ void test_test_global_funcs(void)
 		{ "test_global_func5.o" , "expected pointer to ctx, but got PTR" },
 		{ "test_global_func6.o" , "modified ctx ptr R2" },
 		{ "test_global_func7.o" , "foo() doesn't return scalar" },
+		{ "test_global_func8.o" },
 	};
 	libbpf_print_fn_t old_print_fn = NULL;
 	int err, i, duration = 0;

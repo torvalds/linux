@@ -32,8 +32,8 @@
   {
     "EventCode": "0x1c04e",
     "EventName": "PM_DATA_FROM_L2MISS_MOD",
-    "BriefDescription": "The processor's data cache was reloaded from a localtion other than the local core's L2 due to a demand load",
-    "PublicDescription": "The processor's data cache was reloaded from a localtion other than the local core's L2 due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
+    "BriefDescription": "The processor's data cache was reloaded from a location other than the local core's L2 due to a demand load",
+    "PublicDescription": "The processor's data cache was reloaded from a location other than the local core's L2 due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
   },
   {
     "EventCode": "0x3c040",
@@ -74,8 +74,8 @@
   {
     "EventCode": "0x4c04e",
     "EventName": "PM_DATA_FROM_L3MISS_MOD",
-    "BriefDescription": "The processor's data cache was reloaded from a localtion other than the local core's L3 due to a demand load",
-    "PublicDescription": "The processor's data cache was reloaded from a localtion other than the local core's L3 due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
+    "BriefDescription": "The processor's data cache was reloaded from a location other than the local core's L3 due to a demand load",
+    "PublicDescription": "The processor's data cache was reloaded from a location other than the local core's L3 due to either only demand loads or demand loads plus prefetches if MMCR1[16] is 1"
   },
   {
     "EventCode": "0x3c042",
@@ -134,7 +134,7 @@
   {
     "EventCode": "0x4e04e",
     "EventName": "PM_DPTEG_FROM_L3MISS",
-    "BriefDescription": "A Page Table Entry was loaded into the TLB from a localtion other than the local core's L3 due to a data side request",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from a location other than the local core's L3 due to a data side request",
     "PublicDescription": ""
   },
   {

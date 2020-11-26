@@ -9,6 +9,7 @@ config HAS_DMA
 	default y
 
 config DMA_OPS
+	depends on HAS_DMA
 	bool
 
 #
@@ -43,6 +44,12 @@ config ARCH_HAS_DMA_SET_MASK
 config ARCH_HAS_DMA_WRITE_COMBINE
 	bool
 
+#
+# Select if the architectures provides the arch_dma_mark_clean hook
+#
+config ARCH_HAS_DMA_MARK_CLEAN
+	bool
+
 config DMA_DECLARE_COHERENT
 	bool
 
@@ -66,9 +73,6 @@ config ARCH_HAS_DMA_PREP_COHERENT
 	bool
 
 config ARCH_HAS_FORCE_DMA_UNENCRYPTED
-	bool
-
-config DMA_NONCOHERENT_CACHE_SYNC
 	bool
 
 config DMA_VIRT_OPS
@@ -114,10 +118,21 @@ config DMA_CMA
 	  You can disable CMA by specifying "cma=0" on the kernel's command
 	  line.
 
-	  For more information see <include/linux/dma-contiguous.h>.
+	  For more information see <kernel/dma/contiguous.c>.
 	  If unsure, say "n".
 
 if  DMA_CMA
+
+config DMA_PERNUMA_CMA
+	bool "Enable separate DMA Contiguous Memory Area for each NUMA Node"
+	default NUMA && ARM64
+	help
+	  Enable this option to get pernuma CMA areas so that devices like
+	  ARM64 SMMU can get local memory by DMA coherent APIs.
+
+	  You can set the size of pernuma CMA by specifying "cma_pernuma=size"
+	  on the kernel's command line.
+
 comment "Default contiguous memory area size:"
 
 config CMA_SIZE_MBYTES
@@ -162,7 +177,7 @@ endchoice
 
 config CMA_ALIGNMENT
 	int "Maximum PAGE_SIZE order of alignment for contiguous buffers"
-	range 4 12
+	range 2 12
 	default 8
 	help
 	  DMA mapping framework by default aligns all buffers to the smallest

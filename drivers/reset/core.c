@@ -32,7 +32,8 @@ static LIST_HEAD(reset_lookup_list);
  * @refcnt: Number of gets of this reset_control
  * @acquired: Only one reset_control may be acquired for a given rcdev and id.
  * @shared: Is this a shared (1), or an exclusive (0) reset_control?
- * @deassert_cnt: Number of times this reset line has been deasserted
+ * @array: Is this an array of reset controls (1)?
+ * @deassert_count: Number of times this reset line has been deasserted
  * @triggered_count: Number of times this reset line has been reset. Currently
  *                   only used for shared resets, which means that the value
  *                   will be either 0 or 1.

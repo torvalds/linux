@@ -134,7 +134,6 @@ static int setflags(struct inode *inode, int flags)
 	return err;
 
 out_unlock:
-	ubifs_err(c, "can't modify inode %lu attributes", inode->i_ino);
 	mutex_unlock(&ui->ui_mutex);
 	ubifs_release_budget(c, &req);
 	return err;

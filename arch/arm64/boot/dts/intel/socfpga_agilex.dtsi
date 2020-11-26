@@ -20,7 +20,7 @@
 
 		service_reserved: svcbuffer@0 {
 			compatible = "shared-dma-pool";
-			reg = <0x0 0x0 0x0 0x1000000>;
+			reg = <0x0 0x0 0x0 0x2000000>;
 			alignment = <0x1000>;
 			no-map;
 		};
@@ -149,8 +149,8 @@
 			snps,multicast-filter-bins = <256>;
 			iommus = <&smmu 1>;
 			altr,sysmgr-syscon = <&sysmgr 0x44 0>;
-			clocks = <&clkmgr AGILEX_EMAC0_CLK>;
-			clock-names = "stmmaceth";
+			clocks = <&clkmgr AGILEX_EMAC0_CLK>, <&clkmgr AGILEX_EMAC_PTP_CLK>;
+			clock-names = "stmmaceth", "ptp_ref";
 			status = "disabled";
 		};
 
@@ -167,8 +167,8 @@
 			snps,multicast-filter-bins = <256>;
 			iommus = <&smmu 2>;
 			altr,sysmgr-syscon = <&sysmgr 0x48 8>;
-			clocks = <&clkmgr AGILEX_EMAC1_CLK>;
-			clock-names = "stmmaceth";
+			clocks = <&clkmgr AGILEX_EMAC1_CLK>, <&clkmgr AGILEX_EMAC_PTP_CLK>;
+			clock-names = "stmmaceth", "ptp_ref";
 			status = "disabled";
 		};
 
@@ -185,8 +185,8 @@
 			snps,multicast-filter-bins = <256>;
 			iommus = <&smmu 3>;
 			altr,sysmgr-syscon = <&sysmgr 0x4c 16>;
-			clocks = <&clkmgr AGILEX_EMAC2_CLK>;
-			clock-names = "stmmaceth";
+			clocks = <&clkmgr AGILEX_EMAC2_CLK>, <&clkmgr AGILEX_EMAC_PTP_CLK>;
+			clock-names = "stmmaceth", "ptp_ref";
 			status = "disabled";
 		};
 

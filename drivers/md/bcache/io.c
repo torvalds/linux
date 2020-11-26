@@ -26,7 +26,7 @@ struct bio *bch_bbio_alloc(struct cache_set *c)
 	struct bbio *b = mempool_alloc(&c->bio_meta, GFP_NOIO);
 	struct bio *bio = &b->bio;
 
-	bio_init(bio, bio->bi_inline_vecs, meta_bucket_pages(&c->sb));
+	bio_init(bio, bio->bi_inline_vecs, meta_bucket_pages(&c->cache->sb));
 
 	return bio;
 }

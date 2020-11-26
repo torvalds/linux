@@ -20,7 +20,13 @@ struct meson_clk_triphase_data {
 	struct parm ph2;
 };
 
+struct meson_sclk_ws_inv_data {
+	struct parm ph;
+	struct parm ws;
+};
+
 extern const struct clk_ops meson_clk_phase_ops;
 extern const struct clk_ops meson_clk_triphase_ops;
+extern const struct clk_ops meson_sclk_ws_inv_ops;
 
 #endif /* __MESON_CLK_PHASE_H */

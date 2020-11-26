@@ -942,8 +942,14 @@ static irqreturn_t imx_uart_int(int irq, void *dev_id)
 	struct imx_port *sport = dev_id;
 	unsigned int usr1, usr2, ucr1, ucr2, ucr3, ucr4;
 	irqreturn_t ret = IRQ_NONE;
+	unsigned long flags = 0;
 
-	spin_lock(&sport->port.lock);
+	/*
+	 * IRQs might not be disabled upon entering this interrupt handler,
+	 * e.g. when interrupt handlers are forced to be threaded. To support
+	 * this scenario as well, disable IRQs when acquiring the spinlock.
+	 */
+	spin_lock_irqsave(&sport->port.lock, flags);
 
 	usr1 = imx_uart_readl(sport, USR1);
 	usr2 = imx_uart_readl(sport, USR2);
@@ -1013,7 +1019,7 @@ static irqreturn_t imx_uart_int(int irq, void *dev_id)
 		ret = IRQ_HANDLED;
 	}
 
-	spin_unlock(&sport->port.lock);
+	spin_unlock_irqrestore(&sport->port.lock, flags);
 
 	return ret;
 }
@@ -1552,10 +1558,6 @@ static void imx_uart_shutdown(struct uart_port *port)
 	ucr2 = imx_uart_readl(sport, UCR2);
 	ucr2 &= ~(UCR2_TXEN | UCR2_ATEN);
 	imx_uart_writel(sport, ucr2, UCR2);
-
-	ucr4 = imx_uart_readl(sport, UCR4);
-	ucr4 &= ~UCR4_OREN;
-	imx_uart_writel(sport, ucr4, UCR4);
 	spin_unlock_irqrestore(&sport->port.lock, flags);
 
 	/*
@@ -1568,10 +1570,15 @@ static void imx_uart_shutdown(struct uart_port *port)
 	 */
 
 	spin_lock_irqsave(&sport->port.lock, flags);
+
 	ucr1 = imx_uart_readl(sport, UCR1);
 	ucr1 &= ~(UCR1_TRDYEN | UCR1_RRDYEN | UCR1_RTSDEN | UCR1_UARTEN | UCR1_RXDMAEN | UCR1_ATDMAEN);
-
 	imx_uart_writel(sport, ucr1, UCR1);
+
+	ucr4 = imx_uart_readl(sport, UCR4);
+	ucr4 &= ~(UCR4_OREN | UCR4_TCEN);
+	imx_uart_writel(sport, ucr4, UCR4);
+
 	spin_unlock_irqrestore(&sport->port.lock, flags);
 
 	clk_disable_unprepare(sport->clk_per);
@@ -2001,16 +2008,6 @@ imx_uart_console_write(struct console *co, const char *s, unsigned int count)
 	unsigned int ucr1;
 	unsigned long flags = 0;
 	int locked = 1;
-	int retval;
-
-	retval = clk_enable(sport->clk_per);
-	if (retval)
-		return;
-	retval = clk_enable(sport->clk_ipg);
-	if (retval) {
-		clk_disable(sport->clk_per);
-		return;
-	}
 
 	if (sport->port.sysrq)
 		locked = 0;
@@ -2046,9 +2043,6 @@ imx_uart_console_write(struct console *co, const char *s, unsigned int count)
 
 	if (locked)
 		spin_unlock_irqrestore(&sport->port.lock, flags);
-
-	clk_disable(sport->clk_ipg);
-	clk_disable(sport->clk_per);
 }
 
 /*
@@ -2149,15 +2143,14 @@ imx_uart_console_setup(struct console *co, char *options)
 
 	retval = uart_set_options(&sport->port, co, baud, parity, bits, flow);
 
-	clk_disable(sport->clk_ipg);
 	if (retval) {
-		clk_unprepare(sport->clk_ipg);
+		clk_disable_unprepare(sport->clk_ipg);
 		goto error_console;
 	}
 
-	retval = clk_prepare(sport->clk_per);
+	retval = clk_prepare_enable(sport->clk_per);
 	if (retval)
-		clk_unprepare(sport->clk_ipg);
+		clk_disable_unprepare(sport->clk_ipg);
 
 error_console:
 	return retval;
@@ -2389,8 +2382,7 @@ static int imx_uart_probe(struct platform_device *pdev)
 
 	/* Disable interrupts before requesting them */
 	ucr1 = imx_uart_readl(sport, UCR1);
-	ucr1 &= ~(UCR1_ADEN | UCR1_TRDYEN | UCR1_IDEN | UCR1_RRDYEN |
-		 UCR1_TRDYEN | UCR1_RTSDEN);
+	ucr1 &= ~(UCR1_ADEN | UCR1_TRDYEN | UCR1_IDEN | UCR1_RRDYEN | UCR1_RTSDEN);
 	imx_uart_writel(sport, ucr1, UCR1);
 
 	if (!imx_uart_is_imx1(sport) && sport->dte_mode) {

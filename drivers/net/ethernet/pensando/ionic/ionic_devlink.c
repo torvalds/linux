@@ -9,6 +9,15 @@
 #include "ionic_lif.h"
 #include "ionic_devlink.h"
 
+static int ionic_dl_flash_update(struct devlink *dl,
+				 struct devlink_flash_update_params *params,
+				 struct netlink_ext_ack *extack)
+{
+	struct ionic *ionic = devlink_priv(dl);
+
+	return ionic_firmware_update(ionic->lif, params->file_name, extack);
+}
+
 static int ionic_dl_info_get(struct devlink *dl, struct devlink_info_req *req,
 			     struct netlink_ext_ack *extack)
 {
@@ -48,6 +57,7 @@ static int ionic_dl_info_get(struct devlink *dl, struct devlink_info_req *req,
 
 static const struct devlink_ops ionic_dl_ops = {
 	.info_get	= ionic_dl_info_get,
+	.flash_update	= ionic_dl_flash_update,
 };
 
 struct ionic *ionic_devlink_alloc(struct device *dev)
@@ -85,7 +95,7 @@ int ionic_devlink_register(struct ionic *ionic)
 		dev_err(ionic->dev, "devlink_port_register failed: %d\n", err);
 	else
 		devlink_port_type_eth_set(&ionic->dl_port,
-					  ionic->master_lif->netdev);
+					  ionic->lif->netdev);
 
 	return err;
 }

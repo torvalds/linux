@@ -4,6 +4,7 @@ Required properties:
 - compatible: Should contain one of the following:
   - "nvidia,tegra186-pmc": for Tegra186
   - "nvidia,tegra194-pmc": for Tegra194
+  - "nvidia,tegra234-pmc": for Tegra234
 - reg: Must contain an (offset, length) pair of the register set for each
   entry in reg-names.
 - reg-names: Must include the following entries:
@@ -11,7 +12,7 @@ Required properties:
   - "wake"
   - "aotag"
   - "scratch"
-  - "misc" (Only for Tegra194)
+  - "misc" (Only for Tegra194 and later)
 
 Optional properties:
 - nvidia,invert-interrupt: If present, inverts the PMU interrupt signal.

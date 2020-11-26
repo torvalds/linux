@@ -60,16 +60,10 @@ bool __kprobes aarch64_insn_is_steppable_hint(u32 insn)
 	case AARCH64_INSN_HINT_XPACLRI:
 	case AARCH64_INSN_HINT_PACIA_1716:
 	case AARCH64_INSN_HINT_PACIB_1716:
-	case AARCH64_INSN_HINT_AUTIA_1716:
-	case AARCH64_INSN_HINT_AUTIB_1716:
 	case AARCH64_INSN_HINT_PACIAZ:
 	case AARCH64_INSN_HINT_PACIASP:
 	case AARCH64_INSN_HINT_PACIBZ:
 	case AARCH64_INSN_HINT_PACIBSP:
-	case AARCH64_INSN_HINT_AUTIAZ:
-	case AARCH64_INSN_HINT_AUTIASP:
-	case AARCH64_INSN_HINT_AUTIBZ:
-	case AARCH64_INSN_HINT_AUTIBSP:
 	case AARCH64_INSN_HINT_BTI:
 	case AARCH64_INSN_HINT_BTIC:
 	case AARCH64_INSN_HINT_BTIJ:
@@ -176,7 +170,7 @@ bool __kprobes aarch64_insn_uses_literal(u32 insn)
 
 bool __kprobes aarch64_insn_is_branch(u32 insn)
 {
-	/* b, bl, cb*, tb*, b.cond, br, blr */
+	/* b, bl, cb*, tb*, ret*, b.cond, br*, blr* */
 
 	return aarch64_insn_is_b(insn) ||
 		aarch64_insn_is_bl(insn) ||
@@ -185,8 +179,11 @@ bool __kprobes aarch64_insn_is_branch(u32 insn)
 		aarch64_insn_is_tbz(insn) ||
 		aarch64_insn_is_tbnz(insn) ||
 		aarch64_insn_is_ret(insn) ||
+		aarch64_insn_is_ret_auth(insn) ||
 		aarch64_insn_is_br(insn) ||
+		aarch64_insn_is_br_auth(insn) ||
 		aarch64_insn_is_blr(insn) ||
+		aarch64_insn_is_blr_auth(insn) ||
 		aarch64_insn_is_bcond(insn);
 }
 

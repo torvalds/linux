@@ -370,12 +370,6 @@ static inline struct mtu3 *gadget_to_mtu3(struct usb_gadget *g)
 	return container_of(g, struct mtu3, g);
 }
 
-static inline int is_first_entry(const struct list_head *list,
-	const struct list_head *head)
-{
-	return list_is_last(head, list);
-}
-
 static inline struct mtu3_request *to_mtu3_request(struct usb_request *req)
 {
 	return req ? container_of(req, struct mtu3_request, request) : NULL;

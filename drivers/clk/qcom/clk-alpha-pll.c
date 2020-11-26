@@ -609,7 +609,7 @@ static unsigned long
 alpha_huayra_pll_calc_rate(u64 prate, u32 l, u32 a)
 {
 	/*
-	 * a contains 16 bit alpha_val in two’s compliment number in the range
+	 * a contains 16 bit alpha_val in two’s complement number in the range
 	 * of [-0.5, 0.5).
 	 */
 	if (a >= BIT(PLL_HUAYRA_ALPHA_WIDTH - 1))
@@ -641,7 +641,7 @@ alpha_huayra_pll_round_rate(unsigned long rate, unsigned long prate,
 		quotient++;
 
 	/*
-	 * alpha_val should be in two’s compliment number in the range
+	 * alpha_val should be in two’s complement number in the range
 	 * of [-0.5, 0.5) so if quotient >= 0.5 then increment the l value
 	 * since alpha value will be subtracted in this case.
 	 */
@@ -666,7 +666,7 @@ alpha_pll_huayra_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 		regmap_read(pll->clkr.regmap, PLL_ALPHA_VAL(pll), &alpha);
 		/*
 		 * Depending upon alpha_mode, it can be treated as M/N value or
-		 * as a two’s compliment number. When alpha_mode=1,
+		 * as a two’s complement number. When alpha_mode=1,
 		 * pll_alpha_val<15:8>=M and pll_apla_val<7:0>=N
 		 *
 		 *		Fout=FIN*(L+(M/N))
@@ -674,12 +674,12 @@ alpha_pll_huayra_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 		 * M is a signed number (-128 to 127) and N is unsigned
 		 * (0 to 255). M/N has to be within +/-0.5.
 		 *
-		 * When alpha_mode=0, it is a two’s compliment number in the
+		 * When alpha_mode=0, it is a two’s complement number in the
 		 * range [-0.5, 0.5).
 		 *
 		 *		Fout=FIN*(L+(alpha_val)/2^16)
 		 *
-		 * where alpha_val is two’s compliment number.
+		 * where alpha_val is two’s complement number.
 		 */
 		if (!(ctl & PLL_ALPHA_MODE))
 			return alpha_huayra_pll_calc_rate(rate, l, alpha);

@@ -54,7 +54,7 @@ struct ceph_connection_operations {
 	int (*check_message_signature) (struct ceph_msg *msg);
 };
 
-/* use format string %s%d */
+/* use format string %s%lld */
 #define ENTITY_NAME(n) ceph_entity_type_name((n).type), le64_to_cpu((n).num)
 
 struct ceph_messenger {

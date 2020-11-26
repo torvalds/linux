@@ -4,6 +4,7 @@
 
 #include "aspeed-g6.dtsi"
 #include <dt-bindings/gpio/aspeed-gpio.h>
+#include <dt-bindings/i2c/i2c.h>
 #include <dt-bindings/leds/leds-pca955x.h>
 
 / {
@@ -52,9 +53,10 @@
 		};
 
 		vga_memory: region@bf000000 {
-                        no-map;
-                        reg = <0xbf000000 0x01000000>;  /* 16M */
-                };
+			no-map;
+			compatible = "shared-dma-pool";
+			reg = <0xbf000000 0x01000000>;  /* 16M */
+		};
 	};
 
 	gpio-keys {
@@ -176,6 +178,10 @@
 
 &emmc_controller {
 	status = "okay";
+};
+
+&pinctrl_emmc_default {
+	bias-disable;
 };
 
 &emmc {
@@ -698,6 +704,7 @@
 };
 
 &i2c7 {
+	multi-master;
 	status = "okay";
 
 	si7021-a20@20 {
@@ -829,6 +836,11 @@
 			reg = <15>;
 			type = <PCA955X_TYPE_GPIO>;
 		};
+	};
+
+	ibm-panel@62 {
+		compatible = "ibm,op-panel";
+		reg = <(0x62 | I2C_OWN_SLAVE_ADDRESS)>;
 	};
 
 	dps: dps310@76 {
@@ -1120,4 +1132,9 @@
 		label = "pnor";
 		spi-max-frequency = <100000000>;
 	};
+};
+
+&xdma {
+	status = "okay";
+	memory-region = <&vga_memory>;
 };

@@ -20,7 +20,10 @@
 	ldr	\rp, =CLPS711X_UART_PADDR
 	.endm
 
-	.macro	waituart,rd,rx
+	.macro	waituartcts,rd,rx
+	.endm
+
+	.macro	waituarttxrdy,rd,rx
 	.endm
 
 	.macro	senduart,rd,rx

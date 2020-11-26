@@ -74,7 +74,7 @@ static int __do_binderfs_test(struct __test_metadata *_metadata)
 	ret = mount(NULL, binderfs_mntpt, "binder", 0, 0);
 	EXPECT_EQ(ret, 0) {
 		if (errno == ENODEV)
-			XFAIL(goto out, "binderfs missing");
+			SKIP(goto out, "binderfs missing");
 		TH_LOG("%s - Failed to mount binderfs", strerror(errno));
 		goto rmdir;
 	}
@@ -475,10 +475,10 @@ TEST(binderfs_stress)
 TEST(binderfs_test_privileged)
 {
 	if (geteuid() != 0)
-		XFAIL(return, "Tests are not run as root. Skipping privileged tests");
+		SKIP(return, "Tests are not run as root. Skipping privileged tests");
 
 	if (__do_binderfs_test(_metadata))
-		XFAIL(return, "The Android binderfs filesystem is not available");
+		SKIP(return, "The Android binderfs filesystem is not available");
 }
 
 TEST(binderfs_test_unprivileged)
@@ -511,7 +511,7 @@ TEST(binderfs_test_unprivileged)
 	ret = wait_for_pid(pid);
 	if (ret) {
 		if (ret == 2)
-			XFAIL(return, "The Android binderfs filesystem is not available");
+			SKIP(return, "The Android binderfs filesystem is not available");
 		ASSERT_EQ(ret, 0) {
 			TH_LOG("wait_for_pid() failed");
 		}

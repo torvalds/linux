@@ -2,7 +2,7 @@
 /*
  * Palmas USB transceiver driver
  *
- * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com
+ * Copyright (C) 2013 Texas Instruments Incorporated - https://www.ti.com
  * Author: Graeme Gregory <gg@slimlogic.co.uk>
  * Author: Kishon Vijay Abraham I <kishon@ti.com>
  * Based on twl6030_usb.c
@@ -205,21 +205,15 @@ static int palmas_usb_probe(struct platform_device *pdev)
 
 	palmas_usb->id_gpiod = devm_gpiod_get_optional(&pdev->dev, "id",
 							GPIOD_IN);
-	if (PTR_ERR(palmas_usb->id_gpiod) == -EPROBE_DEFER) {
-		return -EPROBE_DEFER;
-	} else if (IS_ERR(palmas_usb->id_gpiod)) {
-		dev_err(&pdev->dev, "failed to get id gpio\n");
-		return PTR_ERR(palmas_usb->id_gpiod);
-	}
+	if (IS_ERR(palmas_usb->id_gpiod))
+		return dev_err_probe(&pdev->dev, PTR_ERR(palmas_usb->id_gpiod),
+				     "failed to get id gpio\n");
 
 	palmas_usb->vbus_gpiod = devm_gpiod_get_optional(&pdev->dev, "vbus",
 							GPIOD_IN);
-	if (PTR_ERR(palmas_usb->vbus_gpiod) == -EPROBE_DEFER) {
-		return -EPROBE_DEFER;
-	} else if (IS_ERR(palmas_usb->vbus_gpiod)) {
-		dev_err(&pdev->dev, "failed to get vbus gpio\n");
-		return PTR_ERR(palmas_usb->vbus_gpiod);
-	}
+	if (IS_ERR(palmas_usb->vbus_gpiod))
+		return dev_err_probe(&pdev->dev, PTR_ERR(palmas_usb->vbus_gpiod),
+				     "failed to get id gpio\n");
 
 	if (palmas_usb->enable_id_detection && palmas_usb->id_gpiod) {
 		palmas_usb->enable_id_detection = false;

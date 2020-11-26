@@ -49,7 +49,7 @@ struct s3c2410_platform_nand {
 
 	unsigned int	ignore_unset_ecc:1;
 
-	enum nand_ecc_mode	ecc_mode;
+	enum nand_ecc_engine_type engine_type;
 
 	int			nr_sets;
 	struct s3c2410_nand_set *sets;

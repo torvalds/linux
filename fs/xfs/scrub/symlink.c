@@ -22,7 +22,7 @@ xchk_setup_symlink(
 	struct xfs_inode	*ip)
 {
 	/* Allocate the buffer without the inode lock held. */
-	sc->buf = kmem_zalloc_large(XFS_SYMLINK_MAXLEN + 1, 0);
+	sc->buf = kvzalloc(XFS_SYMLINK_MAXLEN + 1, GFP_KERNEL);
 	if (!sc->buf)
 		return -ENOMEM;
 

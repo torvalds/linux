@@ -761,7 +761,7 @@ static int calipso_genopt(unsigned char *buf, u32 start, u32 buf_len,
 	calipso[1] = len - 2;
 	*(__be32 *)(calipso + 2) = htonl(doi_def->doi);
 	calipso[6] = (len - CALIPSO_HDR_LEN) / 4;
-	calipso[7] = secattr->attr.mls.lvl,
+	calipso[7] = secattr->attr.mls.lvl;
 	crc = ~crc_ccitt(0xffff, calipso, len);
 	calipso[8] = crc & 0xff;
 	calipso[9] = (crc >> 8) & 0xff;

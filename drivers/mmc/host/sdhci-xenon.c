@@ -677,6 +677,7 @@ MODULE_DEVICE_TABLE(of, sdhci_xenon_dt_ids);
 static struct platform_driver sdhci_xenon_driver = {
 	.driver	= {
 		.name	= "xenon-sdhci",
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = sdhci_xenon_dt_ids,
 		.pm = &sdhci_xenon_dev_pm_ops,
 	},

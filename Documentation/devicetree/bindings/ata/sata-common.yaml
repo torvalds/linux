@@ -47,4 +47,6 @@ patternProperties:
           multiplier making it possible to connect up to 15 disks to a single
           SATA port.
 
+additionalProperties: true
+
 ...

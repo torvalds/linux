@@ -601,10 +601,14 @@ static int efx_ef10_probe(struct efx_nic *efx)
 	efx_ef10_read_licensed_features(efx);
 
 	/* We can have one VI for each vi_stride-byte region.
-	 * However, until we use TX option descriptors we need two TX queues
-	 * per channel.
+	 * However, until we use TX option descriptors we need up to four
+	 * TX queues per channel for different checksumming combinations.
 	 */
-	efx->tx_queues_per_channel = 2;
+	if (nic_data->datapath_caps &
+	    (1 << MC_CMD_GET_CAPABILITIES_OUT_VXLAN_NVGRE_LBN))
+		efx->tx_queues_per_channel = 4;
+	else
+		efx->tx_queues_per_channel = 2;
 	efx->max_vis = efx_ef10_mem_map_size(efx) / efx->vi_stride;
 	if (!efx->max_vis) {
 		netif_err(efx, drv, efx->net_dev, "error determining max VIs\n");
@@ -1300,6 +1304,7 @@ static void efx_ef10_fini_nic(struct efx_nic *efx)
 static int efx_ef10_init_nic(struct efx_nic *efx)
 {
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	netdev_features_t hw_enc_features = 0;
 	int rc;
 
 	if (nic_data->must_check_datapath_caps) {
@@ -1343,6 +1348,21 @@ static int efx_ef10_init_nic(struct efx_nic *efx)
 				  "failed to restore PIO buffers (%d)\n", rc);
 		nic_data->must_restore_piobufs = false;
 	}
+
+	/* add encapsulated checksum offload features */
+	if (efx_has_cap(efx, VXLAN_NVGRE) && !efx_ef10_is_vf(efx))
+		hw_enc_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
+	/* add encapsulated TSO features */
+	if (efx_has_cap(efx, TX_TSO_V2_ENCAP)) {
+		netdev_features_t encap_tso_features;
+
+		encap_tso_features = NETIF_F_GSO_UDP_TUNNEL | NETIF_F_GSO_GRE |
+			NETIF_F_GSO_UDP_TUNNEL_CSUM | NETIF_F_GSO_GRE_CSUM;
+
+		hw_enc_features |= encap_tso_features | NETIF_F_TSO;
+		efx->net_dev->features |= encap_tso_features;
+	}
+	efx->net_dev->hw_enc_features = hw_enc_features;
 
 	/* don't fail init if RSS setup doesn't work */
 	rc = efx->type->rx_push_rss_config(efx, false,
@@ -1851,18 +1871,9 @@ static int efx_ef10_try_update_nic_stats_vf(struct efx_nic *efx)
 
 	spin_unlock_bh(&efx->stats_lock);
 
-	if (in_interrupt()) {
-		/* If in atomic context, cannot update stats.  Just update the
-		 * software stats and return so the caller can continue.
-		 */
-		spin_lock_bh(&efx->stats_lock);
-		efx_update_sw_stats(efx, stats);
-		return 0;
-	}
-
 	efx_ef10_get_stat_mask(efx, mask);
 
-	rc = efx_nic_alloc_buffer(efx, &stats_buf, dma_len, GFP_ATOMIC);
+	rc = efx_nic_alloc_buffer(efx, &stats_buf, dma_len, GFP_KERNEL);
 	if (rc) {
 		spin_lock_bh(&efx->stats_lock);
 		return rc;
@@ -1915,6 +1926,18 @@ static size_t efx_ef10_update_stats_vf(struct efx_nic *efx, u64 *full_stats,
 	if (efx_ef10_try_update_nic_stats_vf(efx))
 		return 0;
 
+	return efx_ef10_update_stats_common(efx, full_stats, core_stats);
+}
+
+static size_t efx_ef10_update_stats_atomic_vf(struct efx_nic *efx, u64 *full_stats,
+					      struct rtnl_link_stats64 *core_stats)
+{
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+
+	/* In atomic context, cannot update HW stats.  Just update the
+	 * software stats and return so the caller can continue.
+	 */
+	efx_update_sw_stats(efx, nic_data->stats);
 	return efx_ef10_update_stats_common(efx, full_stats, core_stats);
 }
 
@@ -2146,6 +2169,9 @@ static int efx_ef10_irq_test_generate(struct efx_nic *efx)
 
 static int efx_ef10_tx_probe(struct efx_tx_queue *tx_queue)
 {
+	/* low two bits of label are what we want for type */
+	BUILD_BUG_ON((EFX_TXQ_TYPE_OUTER_CSUM | EFX_TXQ_TYPE_INNER_CSUM) != 3);
+	tx_queue->type = tx_queue->label & 3;
 	return efx_nic_alloc_buffer(tx_queue->efx, &tx_queue->txd.buf,
 				    (tx_queue->ptr_mask + 1) *
 				    sizeof(efx_qword_t),
@@ -2168,15 +2194,15 @@ static inline void efx_ef10_push_tx_desc(struct efx_tx_queue *tx_queue,
 
 /* Add Firmware-Assisted TSO v2 option descriptors to a queue.
  */
-static int efx_ef10_tx_tso_desc(struct efx_tx_queue *tx_queue,
-				struct sk_buff *skb,
-				bool *data_mapped)
+int efx_ef10_tx_tso_desc(struct efx_tx_queue *tx_queue, struct sk_buff *skb,
+			 bool *data_mapped)
 {
 	struct efx_tx_buffer *buffer;
+	u16 inner_ipv4_id = 0;
+	u16 outer_ipv4_id = 0;
 	struct tcphdr *tcp;
 	struct iphdr *ip;
-
-	u16 ipv4_id;
+	u16 ip_tot_len;
 	u32 seqnum;
 	u32 mss;
 
@@ -2189,21 +2215,43 @@ static int efx_ef10_tx_tso_desc(struct efx_tx_queue *tx_queue,
 		return -EINVAL;
 	}
 
-	ip = ip_hdr(skb);
-	if (ip->version == 4) {
-		/* Modify IPv4 header if needed. */
-		ip->tot_len = 0;
-		ip->check = 0;
-		ipv4_id = ntohs(ip->id);
-	} else {
-		/* Modify IPv6 header if needed. */
-		struct ipv6hdr *ipv6 = ipv6_hdr(skb);
+	if (skb->encapsulation) {
+		if (!tx_queue->tso_encap)
+			return -EINVAL;
+		ip = ip_hdr(skb);
+		if (ip->version == 4)
+			outer_ipv4_id = ntohs(ip->id);
 
-		ipv6->payload_len = 0;
-		ipv4_id = 0;
+		ip = inner_ip_hdr(skb);
+		tcp = inner_tcp_hdr(skb);
+	} else {
+		ip = ip_hdr(skb);
+		tcp = tcp_hdr(skb);
 	}
 
-	tcp = tcp_hdr(skb);
+	/* 8000-series EF10 hardware requires that IP Total Length be
+	 * greater than or equal to the value it will have in each segment
+	 * (which is at most mss + 208 + TCP header length), but also less
+	 * than (0x10000 - inner_network_header).  Otherwise the TCP
+	 * checksum calculation will be broken for encapsulated packets.
+	 * We fill in ip->tot_len with 0xff30, which should satisfy the
+	 * first requirement unless the MSS is ridiculously large (which
+	 * should be impossible as the driver max MTU is 9216); it is
+	 * guaranteed to satisfy the second as we only attempt TSO if
+	 * inner_network_header <= 208.
+	 */
+	ip_tot_len = -EFX_TSO2_MAX_HDRLEN;
+	EFX_WARN_ON_ONCE_PARANOID(mss + EFX_TSO2_MAX_HDRLEN +
+				  (tcp->doff << 2u) > ip_tot_len);
+
+	if (ip->version == 4) {
+		ip->tot_len = htons(ip_tot_len);
+		ip->check = 0;
+		inner_ipv4_id = ntohs(ip->id);
+	} else {
+		((struct ipv6hdr *)ip)->payload_len = htons(ip_tot_len);
+	}
+
 	seqnum = ntohl(tcp->seq);
 
 	buffer = efx_tx_queue_get_insert_buffer(tx_queue);
@@ -2216,7 +2264,7 @@ static int efx_ef10_tx_tso_desc(struct efx_tx_queue *tx_queue,
 			ESF_DZ_TX_OPTION_TYPE, ESE_DZ_TX_OPTION_DESC_TSO,
 			ESF_DZ_TX_TSO_OPTION_TYPE,
 			ESE_DZ_TX_TSO_OPTION_DESC_FATSO2A,
-			ESF_DZ_TX_TSO_IP_ID, ipv4_id,
+			ESF_DZ_TX_TSO_IP_ID, inner_ipv4_id,
 			ESF_DZ_TX_TSO_TCP_SEQNO, seqnum
 			);
 	++tx_queue->insert_count;
@@ -2226,11 +2274,12 @@ static int efx_ef10_tx_tso_desc(struct efx_tx_queue *tx_queue,
 	buffer->flags = EFX_TX_BUF_OPTION;
 	buffer->len = 0;
 	buffer->unmap_len = 0;
-	EFX_POPULATE_QWORD_4(buffer->option,
+	EFX_POPULATE_QWORD_5(buffer->option,
 			ESF_DZ_TX_DESC_IS_OPT, 1,
 			ESF_DZ_TX_OPTION_TYPE, ESE_DZ_TX_OPTION_DESC_TSO,
 			ESF_DZ_TX_TSO_OPTION_TYPE,
 			ESE_DZ_TX_TSO_OPTION_DESC_FATSO2B,
+			ESF_DZ_TX_TSO_OUTER_IPID, outer_ipv4_id,
 			ESF_DZ_TX_TSO_TCP_MSS, mss
 			);
 	++tx_queue->insert_count;
@@ -2254,11 +2303,11 @@ static u32 efx_ef10_tso_versions(struct efx_nic *efx)
 
 static void efx_ef10_tx_init(struct efx_tx_queue *tx_queue)
 {
-	bool csum_offload = tx_queue->label & EFX_TXQ_TYPE_OFFLOAD;
+	bool csum_offload = tx_queue->type & EFX_TXQ_TYPE_OUTER_CSUM;
+	bool inner_csum = tx_queue->type & EFX_TXQ_TYPE_INNER_CSUM;
 	struct efx_channel *channel = tx_queue->channel;
 	struct efx_nic *efx = tx_queue->efx;
 	struct efx_ef10_nic_data *nic_data;
-	bool tso_v2 = false;
 	efx_qword_t *txd;
 	int rc;
 
@@ -2281,15 +2330,18 @@ static void efx_ef10_tx_init(struct efx_tx_queue *tx_queue)
 	 * TSOv2 cannot be used with Hardware timestamping, and is never needed
 	 * for XDP tx.
 	 */
-	if (csum_offload && (nic_data->datapath_caps2 &
-			(1 << MC_CMD_GET_CAPABILITIES_V2_OUT_TX_TSO_V2_LBN)) &&
-	    !tx_queue->timestamping && !tx_queue->xdp_tx) {
-		tso_v2 = true;
-		netif_dbg(efx, hw, efx->net_dev, "Using TSOv2 for channel %u\n",
-				channel->channel);
+	if (efx_has_cap(efx, TX_TSO_V2)) {
+		if ((csum_offload || inner_csum) &&
+		    !tx_queue->timestamping && !tx_queue->xdp_tx) {
+			tx_queue->tso_version = 2;
+			netif_dbg(efx, hw, efx->net_dev, "Using TSOv2 for channel %u\n",
+				  channel->channel);
+		}
+	} else if (efx_has_cap(efx, TX_TSO)) {
+		tx_queue->tso_version = 1;
 	}
 
-	rc = efx_mcdi_tx_init(tx_queue, tso_v2);
+	rc = efx_mcdi_tx_init(tx_queue);
 	if (rc)
 		goto fail;
 
@@ -2302,22 +2354,19 @@ static void efx_ef10_tx_init(struct efx_tx_queue *tx_queue)
 	tx_queue->buffer[0].flags = EFX_TX_BUF_OPTION;
 	tx_queue->insert_count = 1;
 	txd = efx_tx_desc(tx_queue, 0);
-	EFX_POPULATE_QWORD_5(*txd,
+	EFX_POPULATE_QWORD_7(*txd,
 			     ESF_DZ_TX_DESC_IS_OPT, true,
 			     ESF_DZ_TX_OPTION_TYPE,
 			     ESE_DZ_TX_OPTION_DESC_CRC_CSUM,
 			     ESF_DZ_TX_OPTION_UDP_TCP_CSUM, csum_offload,
-			     ESF_DZ_TX_OPTION_IP_CSUM, csum_offload,
+			     ESF_DZ_TX_OPTION_IP_CSUM, csum_offload && tx_queue->tso_version != 2,
+			     ESF_DZ_TX_OPTION_INNER_UDP_TCP_CSUM, inner_csum,
+			     ESF_DZ_TX_OPTION_INNER_IP_CSUM, inner_csum && tx_queue->tso_version != 2,
 			     ESF_DZ_TX_TIMESTAMP, tx_queue->timestamping);
 	tx_queue->write_count = 1;
 
-	if (tso_v2) {
-		tx_queue->handle_tso = efx_ef10_tx_tso_desc;
-		tx_queue->tso_version = 2;
-	} else if (nic_data->datapath_caps &
-			(1 << MC_CMD_GET_CAPABILITIES_OUT_TX_TSO_LBN)) {
-		tx_queue->tso_version = 1;
-	}
+	if (tx_queue->tso_version == 2 && efx_has_cap(efx, TX_TSO_V2_ENCAP))
+		tx_queue->tso_encap = true;
 
 	wmb();
 	efx_ef10_push_tx_desc(tx_queue, txd);
@@ -2367,7 +2416,7 @@ static void efx_ef10_tx_write(struct efx_tx_queue *tx_queue)
 	unsigned int write_ptr;
 	efx_qword_t *txd;
 
-	tx_queue->xmit_more_available = false;
+	tx_queue->xmit_pending = false;
 	if (unlikely(tx_queue->write_count == tx_queue->insert_count))
 		return;
 
@@ -2880,7 +2929,7 @@ efx_ef10_handle_tx_event(struct efx_channel *channel, efx_qword_t *event)
 	/* Get the transmit queue */
 	tx_ev_q_label = EFX_QWORD_FIELD(*event, ESF_DZ_TX_QLABEL);
 	tx_queue = efx_channel_get_tx_queue(channel,
-					    tx_ev_q_label % EFX_TXQ_TYPES);
+					    tx_ev_q_label % EFX_MAX_TXQ_PER_CHANNEL);
 
 	if (!tx_queue->timestamping) {
 		/* Transmit completion */
@@ -3952,10 +4001,10 @@ const struct efx_nic_type efx_hunt_a0_vf_nic_type = {
 	.finish_flr = efx_port_dummy_op_void,
 	.describe_stats = efx_ef10_describe_stats,
 	.update_stats = efx_ef10_update_stats_vf,
+	.update_stats_atomic = efx_ef10_update_stats_atomic_vf,
 	.start_stats = efx_port_dummy_op_void,
 	.pull_stats = efx_port_dummy_op_void,
 	.stop_stats = efx_port_dummy_op_void,
-	.set_id_led = efx_mcdi_set_id_led,
 	.push_irq_moderation = efx_ef10_push_irq_moderation,
 	.reconfigure_mac = efx_ef10_mac_reconfigure,
 	.check_mac_fault = efx_mcdi_mac_check_fault,
@@ -4066,7 +4115,6 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.start_stats = efx_mcdi_mac_start_stats,
 	.pull_stats = efx_mcdi_mac_pull_stats,
 	.stop_stats = efx_mcdi_mac_stop_stats,
-	.set_id_led = efx_mcdi_set_id_led,
 	.push_irq_moderation = efx_ef10_push_irq_moderation,
 	.reconfigure_mac = efx_ef10_mac_reconfigure,
 	.check_mac_fault = efx_mcdi_mac_check_fault,

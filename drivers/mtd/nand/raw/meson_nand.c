@@ -1197,7 +1197,7 @@ static int meson_nand_attach_chip(struct nand_chip *nand)
 	if (ret)
 		return -EINVAL;
 
-	nand->ecc.mode = NAND_ECC_HW;
+	nand->ecc.engine_type = NAND_ECC_ENGINE_TYPE_ON_HOST;
 	nand->ecc.write_page_raw = meson_nfc_write_page_raw;
 	nand->ecc.write_page = meson_nfc_write_page_hwecc;
 	nand->ecc.write_oob_raw = nand_write_oob_std;

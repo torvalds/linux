@@ -191,7 +191,7 @@ void rtl_btc_init_hw_config(struct rtl_priv *rtlpriv)
 	u8 bt_exist;
 
 	bt_exist = rtl_get_hwpg_bt_exist(rtlpriv);
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
+	rtl_dbg(rtlpriv, COMP_INIT, DBG_DMESG,
 		"%s, bt_exist is %d\n", __func__, bt_exist);
 
 	if (!btcoexist)
@@ -383,8 +383,8 @@ void rtl_btc_btmpinfo_notify(struct rtl_priv *rtlpriv, u8 *tmp_buf, u8 length)
 		break;
 	}
 
-	RT_TRACE(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
-		 "btmpinfo complete req_num=%d\n", seq);
+	rtl_dbg(rtlpriv, COMP_BT_COEXIST, DBG_LOUD,
+		"btmpinfo complete req_num=%d\n", seq);
 
 	complete(&btcoexist->bt_mp_comp);
 }

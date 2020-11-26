@@ -187,7 +187,7 @@ static int filelayout_async_handle_error(struct rpc_task *task,
 		pnfs_error_mark_layout_for_return(inode, lseg);
 		pnfs_set_lo_fail(lseg);
 		rpc_wake_up(&tbl->slot_tbl_waitq);
-		/* fall through */
+		fallthrough;
 	default:
 reset:
 		dprintk("%s Retry through MDS. Error %d\n", __func__,

@@ -270,7 +270,7 @@ static void *stuff(unsigned char *dest, const unsigned char *src, size_t n)
 		case RAVE_SP_ETX:
 		case RAVE_SP_DLE:
 			*dest++ = RAVE_SP_DLE;
-			/* FALLTHROUGH */
+			fallthrough;
 		default:
 			*dest++ = byte;
 		}
@@ -541,7 +541,7 @@ static int rave_sp_receive_buf(struct serdev_device *serdev,
 			 * deframer buffer
 			 */
 
-			/* FALLTHROUGH */
+			fallthrough;
 
 		case RAVE_SP_EXPECT_ESCAPED_DATA:
 			if (deframer->length == sizeof(deframer->data)) {

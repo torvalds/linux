@@ -894,6 +894,7 @@ int ubifs_jnl_write_inode(struct ubifs_info *c, const struct inode *inode)
 				if (err == -ENOENT)
 					break;
 
+				kfree(pxent);
 				goto out_release;
 			}
 
@@ -906,6 +907,7 @@ int ubifs_jnl_write_inode(struct ubifs_info *c, const struct inode *inode)
 				ubifs_err(c, "dead directory entry '%s', error %d",
 					  xent->name, err);
 				ubifs_ro_mode(c, err);
+				kfree(pxent);
 				kfree(xent);
 				goto out_release;
 			}
@@ -936,8 +938,6 @@ int ubifs_jnl_write_inode(struct ubifs_info *c, const struct inode *inode)
 					  inode->i_ino);
 	release_head(c, BASEHD);
 
-	ubifs_add_auth_dirt(c, lnum);
-
 	if (last_reference) {
 		err = ubifs_tnc_remove_ino(c, inode->i_ino);
 		if (err)
@@ -946,6 +946,8 @@ int ubifs_jnl_write_inode(struct ubifs_info *c, const struct inode *inode)
 		err = ubifs_add_dirt(c, lnum, write_len);
 	} else {
 		union ubifs_key key;
+
+		ubifs_add_auth_dirt(c, lnum);
 
 		ino_key_init(c, &key, inode->i_ino);
 		err = ubifs_tnc_add(c, &key, lnum, offs, ilen, hash);
@@ -1798,7 +1800,6 @@ int ubifs_jnl_change_xattr(struct ubifs_info *c, const struct inode *inode,
 	u8 hash[UBIFS_HASH_ARR_SZ];
 
 	dbg_jnl("ino %lu, ino %lu", host->i_ino, inode->i_ino);
-	ubifs_assert(c, host->i_nlink > 0);
 	ubifs_assert(c, inode->i_nlink > 0);
 	ubifs_assert(c, mutex_is_locked(&host_ui->ui_mutex));
 

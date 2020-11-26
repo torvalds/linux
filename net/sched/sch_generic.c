@@ -802,9 +802,8 @@ struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
 			  const struct Qdisc_ops *ops,
 			  struct netlink_ext_ack *extack)
 {
-	void *p;
 	struct Qdisc *sch;
-	unsigned int size = QDISC_ALIGN(sizeof(*sch)) + ops->priv_size;
+	unsigned int size = sizeof(*sch) + ops->priv_size;
 	int err = -ENOBUFS;
 	struct net_device *dev;
 
@@ -815,22 +814,10 @@ struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
 	}
 
 	dev = dev_queue->dev;
-	p = kzalloc_node(size, GFP_KERNEL,
-			 netdev_queue_numa_node_read(dev_queue));
+	sch = kzalloc_node(size, GFP_KERNEL, netdev_queue_numa_node_read(dev_queue));
 
-	if (!p)
+	if (!sch)
 		goto errout;
-	sch = (struct Qdisc *) QDISC_ALIGN((unsigned long) p);
-	/* if we got non aligned memory, ask more and do alignment ourself */
-	if (sch != p) {
-		kfree(p);
-		p = kzalloc_node(size + QDISC_ALIGNTO - 1, GFP_KERNEL,
-				 netdev_queue_numa_node_read(dev_queue));
-		if (!p)
-			goto errout;
-		sch = (struct Qdisc *) QDISC_ALIGN((unsigned long) p);
-		sch->padded = (char *) sch - (char *) p;
-	}
 	__skb_queue_head_init(&sch->gso_skb);
 	__skb_queue_head_init(&sch->skb_bad_txq);
 	qdisc_skb_head_init(&sch->q);
@@ -873,7 +860,7 @@ struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
 
 	return sch;
 errout1:
-	kfree(p);
+	kfree(sch);
 errout:
 	return ERR_PTR(err);
 }
@@ -941,7 +928,7 @@ void qdisc_free(struct Qdisc *qdisc)
 		free_percpu(qdisc->cpu_qstats);
 	}
 
-	kfree((char *) qdisc - qdisc->padded);
+	kfree(qdisc);
 }
 
 static void qdisc_free_cb(struct rcu_head *head)
@@ -1131,24 +1118,10 @@ EXPORT_SYMBOL(dev_activate);
 
 static void qdisc_deactivate(struct Qdisc *qdisc)
 {
-	bool nolock = qdisc->flags & TCQ_F_NOLOCK;
-
 	if (qdisc->flags & TCQ_F_BUILTIN)
 		return;
-	if (test_bit(__QDISC_STATE_DEACTIVATED, &qdisc->state))
-		return;
-
-	if (nolock)
-		spin_lock_bh(&qdisc->seqlock);
-	spin_lock_bh(qdisc_lock(qdisc));
 
 	set_bit(__QDISC_STATE_DEACTIVATED, &qdisc->state);
-
-	qdisc_reset(qdisc);
-
-	spin_unlock_bh(qdisc_lock(qdisc));
-	if (nolock)
-		spin_unlock_bh(&qdisc->seqlock);
 }
 
 static void dev_deactivate_queue(struct net_device *dev,
@@ -1163,6 +1136,30 @@ static void dev_deactivate_queue(struct net_device *dev,
 		qdisc_deactivate(qdisc);
 		rcu_assign_pointer(dev_queue->qdisc, qdisc_default);
 	}
+}
+
+static void dev_reset_queue(struct net_device *dev,
+			    struct netdev_queue *dev_queue,
+			    void *_unused)
+{
+	struct Qdisc *qdisc;
+	bool nolock;
+
+	qdisc = dev_queue->qdisc_sleeping;
+	if (!qdisc)
+		return;
+
+	nolock = qdisc->flags & TCQ_F_NOLOCK;
+
+	if (nolock)
+		spin_lock_bh(&qdisc->seqlock);
+	spin_lock_bh(qdisc_lock(qdisc));
+
+	qdisc_reset(qdisc);
+
+	spin_unlock_bh(qdisc_lock(qdisc));
+	if (nolock)
+		spin_unlock_bh(&qdisc->seqlock);
 }
 
 static bool some_qdisc_is_busy(struct net_device *dev)
@@ -1213,11 +1210,19 @@ void dev_deactivate_many(struct list_head *head)
 		dev_watchdog_down(dev);
 	}
 
-	/* Wait for outstanding qdisc-less dev_queue_xmit calls.
+	/* Wait for outstanding qdisc-less dev_queue_xmit calls or
+	 * outstanding qdisc enqueuing calls.
 	 * This is avoided if all devices are in dismantle phase :
 	 * Caller will call synchronize_net() for us
 	 */
 	synchronize_net();
+
+	list_for_each_entry(dev, head, close_list) {
+		netdev_for_each_tx_queue(dev, dev_reset_queue, NULL);
+
+		if (dev_ingress_queue(dev))
+			dev_reset_queue(dev, dev_ingress_queue(dev), NULL);
+	}
 
 	/* Wait for outstanding qdisc_run calls. */
 	list_for_each_entry(dev, head, close_list) {

@@ -2,7 +2,7 @@
 /*
  * Datapath implementation.
  *
- * Copyright (c) 2017-2019, Silicon Laboratories, Inc.
+ * Copyright (c) 2017-2020, Silicon Laboratories, Inc.
  * Copyright (c) 2010, ST-Ericsson
  */
 #ifndef WFX_DATA_TX_H
@@ -35,8 +35,7 @@ struct tx_policy_cache {
 
 struct wfx_tx_priv {
 	ktime_t xmit_timestamp;
-	struct ieee80211_key_conf *hw_key;
-} __packed;
+};
 
 void wfx_tx_policy_init(struct wfx_vif *wvif);
 void wfx_tx_policy_upload_work(struct work_struct *work);

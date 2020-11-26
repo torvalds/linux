@@ -10,7 +10,7 @@
 #include <linux/sched.h>
 #include <linux/tboot.h>
 #include <linux/delay.h>
-#include <linux/frame.h>
+#include <linux/objtool.h>
 #include <linux/pgtable.h>
 #include <acpi/reboot.h>
 #include <asm/io.h>
@@ -654,7 +654,7 @@ static void native_machine_emergency_restart(void)
 
 		case BOOT_CF9_FORCE:
 			port_cf9_safe = true;
-			/* Fall through */
+			fallthrough;
 
 		case BOOT_CF9_SAFE:
 			if (port_cf9_safe) {

@@ -54,6 +54,8 @@ properties:
           - dallas,ds1682
             # Tiny Digital Thermometer and Thermostat
           - dallas,ds1775
+            # CPU Peripheral Monitor
+          - dallas,ds1780
             # CPU Supervisor with Nonvolatile Memory and Programmable I/O
           - dallas,ds4510
             # Digital Thermometer and Thermostat
@@ -80,6 +82,8 @@ properties:
           - fsl,mpl3115
             # MPR121: Proximity Capacitive Touch Sensor Controller
           - fsl,mpr121
+            # Monolithic Power Systems Inc. multi-phase controller mp2975
+          - mps,mp2975
             # G751: Digital Temperature Sensor and Thermal Watchdog with Two-Wire Interface
           - gmt,g751
             # Infineon IR38064 Voltage Regulator
@@ -128,6 +132,22 @@ properties:
           - mcube,mc3230
             # MEMSIC 2-axis 8-bit digital accelerometer
           - memsic,mxc6225
+            # Microchip differential I2C ADC, 1 Channel, 18 bit
+          - microchip,mcp3421
+            # Microchip differential I2C ADC, 2 Channel, 18 bit
+          - microchip,mcp3422
+            # Microchip differential I2C ADC, 2 Channel, 18 bit
+          - microchip,mcp3423
+            # Microchip differential I2C ADC, 4 Channel, 18 bit
+          - microchip,mcp3424
+            # Microchip differential I2C ADC, 1 Channel, 16 bit
+          - microchip,mcp3425
+            # Microchip differential I2C ADC, 2 Channel, 16 bit
+          - microchip,mcp3426
+            # Microchip differential I2C ADC, 2 Channel, 16 bit
+          - microchip,mcp3427
+            # Microchip differential I2C ADC, 4 Channel, 16 bit
+          - microchip,mcp3428
             # Microchip 7-bit Single I2C Digital POT (5k)
           - microchip,mcp4017-502
             # Microchip 7-bit Single I2C Digital POT (10k)
@@ -296,6 +316,8 @@ properties:
           - national,lm75
             # Serial Interface ACPI-Compatible Microprocessor System Hardware Monitor
           - national,lm80
+            # Serial Interface ACPI-Compatible Microprocessor System Hardware Monitor
+          - national,lm81
             # Temperature sensor with integrated fan control
           - national,lm85
             # I2C ±0.33°C Accurate, 12-Bit + Sign Temperature Sensor and Thermal Window Comparator
@@ -306,10 +328,6 @@ properties:
           - nuvoton,npct601
             # Nuvoton Temperature Sensor
           - nuvoton,w83773g
-            # Octal SMBus and I2C registered interface
-          - nxp,pca9556
-            # 8-bit I2C-bus and SMBus I/O port with reset
-          - nxp,pca9557
             # OKI ML86V7667 video decoder
           - oki,ml86v7667
             # OV5642: Color CMOS QSXGA (5-megapixel) Image Sensor with OmniBSI and Embedded TrueFocus
@@ -326,6 +344,8 @@ properties:
           - silabs,si7020
             # Skyworks SKY81452: Six-Channel White LED Driver with Touch Panel Bias Supply
           - skyworks,sky81452
+            # Socionext SynQuacer TPM MMIO module
+          - socionext,synquacer-tpm-mmio
             # i2c serial eeprom  (24cxx)
           - st,24c256
             # Ambient Light Sensor with SMBUS/Two Wire Serial Interface

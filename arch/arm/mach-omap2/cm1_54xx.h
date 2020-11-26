@@ -2,7 +2,7 @@
 /*
  * OMAP54xx CM1 instance offset macros
  *
- * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com
+ * Copyright (C) 2013 Texas Instruments Incorporated - https://www.ti.com
  *
  * Paul Walmsley (paul@pwsan.com)
  * Rajendra Nayak (rnayak@ti.com)

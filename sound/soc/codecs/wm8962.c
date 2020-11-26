@@ -151,7 +151,6 @@ static const struct reg_default wm8962_reg[] = {
 	{ 40, 0x0000 },   /* R40    - SPKOUTL volume */
 	{ 41, 0x0000 },   /* R41    - SPKOUTR volume */
 
-	{ 48, 0x0000 },   /* R48    - Additional control(4) */
 	{ 49, 0x0010 },   /* R49    - Class D Control 1 */
 	{ 51, 0x0003 },   /* R51    - Class D Control 2 */
 
@@ -842,6 +841,7 @@ static bool wm8962_readable_register(struct device *dev, unsigned int reg)
 	case WM8962_SPKOUTL_VOLUME:
 	case WM8962_SPKOUTR_VOLUME:
 	case WM8962_THERMAL_SHUTDOWN_STATUS:
+	case WM8962_ADDITIONAL_CONTROL_4:
 	case WM8962_CLASS_D_CONTROL_1:
 	case WM8962_CLASS_D_CONTROL_2:
 	case WM8962_CLOCKING_4:
@@ -1702,6 +1702,8 @@ SOC_DOUBLE_R_TLV("Digital Playback Volume", WM8962_LEFT_DAC_VOLUME,
 SOC_SINGLE("DAC High Performance Switch", WM8962_ADC_DAC_CONTROL_2, 0, 1, 0),
 SOC_SINGLE("DAC L/R Swap Switch", WM8962_AUDIO_INTERFACE_0, 5, 1, 0),
 SOC_SINGLE("ADC L/R Swap Switch", WM8962_AUDIO_INTERFACE_0, 8, 1, 0),
+SOC_SINGLE("DAC Monomix Switch", WM8962_DAC_DSP_MIXING_1, WM8962_DAC_MONOMIX_SHIFT, 1, 0),
+SOC_SINGLE("ADC Monomix Switch", WM8962_THREED1, WM8962_ADC_MONOMIX_SHIFT, 1, 0),
 
 SOC_SINGLE("ADC High Performance Switch", WM8962_ADDITIONAL_CONTROL_1,
 	   5, 1, 0),

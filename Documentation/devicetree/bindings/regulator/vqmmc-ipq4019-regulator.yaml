@@ -28,6 +28,8 @@ required:
   - compatible
   - reg
 
+unevaluatedProperties: false
+
 examples:
   - |
     regulator@1948000 {

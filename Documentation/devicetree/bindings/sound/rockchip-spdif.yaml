@@ -27,6 +27,7 @@ properties:
           - enum:
               - rockchip,rk3188-spdif
               - rockchip,rk3288-spdif
+              - rockchip,rk3308-spdif
           - const: rockchip,rk3066-spdif
 
   reg:

@@ -67,6 +67,7 @@ enum {
 };
 
 extern int sysctl_tipc_max_tfms __read_mostly;
+extern int sysctl_tipc_key_exchange_enabled __read_mostly;
 
 /**
  * TIPC encryption message format:
@@ -74,7 +75,7 @@ extern int sysctl_tipc_max_tfms __read_mostly;
  *     3 3 2 2 2 2 2 2 2 2 2 2 1 1 1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0
  *     1 0 9 8 7 6 5 4|3 2 1 0 9 8 7 6|5 4 3 2 1 0 9 8|7 6 5 4 3 2 1 0
  *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- * w0:|Ver=7| User  |D|TX |RX |K|                 Rsvd                |
+ * w0:|Ver=7| User  |D|TX |RX |K|M|N|             Rsvd                |
  *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  * w1:|                             Seqno                             |
  * w2:|                           (8 octets)                          |
@@ -101,6 +102,9 @@ extern int sysctl_tipc_max_tfms __read_mostly;
  *	RX	: Currently RX active key corresponding to the destination
  *	          node's TX key (when the "D" bit is set)
  *	K	: Keep-alive bit (for RPS, LINK_PROTOCOL/STATE_MSG only)
+ *	M       : Bit indicates if sender has master key
+ *	N	: Bit indicates if sender has no RX keys corresponding to the
+ *	          receiver's TX (when the "D" bit is set)
  *	Rsvd	: Reserved bit, field
  * Word1-2:
  *	Seqno	: The 64-bit sequence number of the encrypted message, also
@@ -117,7 +121,9 @@ struct tipc_ehdr {
 			__u8	destined:1,
 				user:4,
 				version:3;
-			__u8	reserved_1:3,
+			__u8	reserved_1:1,
+				rx_nokey:1,
+				master_key:1,
 				keepalive:1,
 				rx_key_active:2,
 				tx_key:2;
@@ -128,7 +134,9 @@ struct tipc_ehdr {
 			__u8	tx_key:2,
 				rx_key_active:2,
 				keepalive:1,
-				reserved_1:3;
+				master_key:1,
+				rx_nokey:1,
+				reserved_1:1;
 #else
 #error  "Please fix <asm/byteorder.h>"
 #endif
@@ -158,10 +166,35 @@ int tipc_crypto_xmit(struct net *net, struct sk_buff **skb,
 int tipc_crypto_rcv(struct net *net, struct tipc_crypto *rx,
 		    struct sk_buff **skb, struct tipc_bearer *b);
 int tipc_crypto_key_init(struct tipc_crypto *c, struct tipc_aead_key *ukey,
-			 u8 mode);
+			 u8 mode, bool master_key);
 void tipc_crypto_key_flush(struct tipc_crypto *c);
-int tipc_aead_key_validate(struct tipc_aead_key *ukey);
+int tipc_crypto_key_distr(struct tipc_crypto *tx, u8 key,
+			  struct tipc_node *dest);
+void tipc_crypto_msg_rcv(struct net *net, struct sk_buff *skb);
+void tipc_crypto_rekeying_sched(struct tipc_crypto *tx, bool changed,
+				u32 new_intv);
+int tipc_aead_key_validate(struct tipc_aead_key *ukey, struct genl_info *info);
 bool tipc_ehdr_validate(struct sk_buff *skb);
+
+static inline u32 msg_key_gen(struct tipc_msg *m)
+{
+	return msg_bits(m, 4, 16, 0xffff);
+}
+
+static inline void msg_set_key_gen(struct tipc_msg *m, u32 gen)
+{
+	msg_set_bits(m, 4, 16, 0xffff, gen);
+}
+
+static inline u32 msg_key_mode(struct tipc_msg *m)
+{
+	return msg_bits(m, 4, 0, 0xf);
+}
+
+static inline void msg_set_key_mode(struct tipc_msg *m, u32 mode)
+{
+	msg_set_bits(m, 4, 0, 0xf, mode);
+}
 
 #endif /* _TIPC_CRYPTO_H */
 #endif

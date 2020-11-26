@@ -238,8 +238,6 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 	spin_unlock_bh(&p->tcf_lock);
 	if (goto_ch)
 		tcf_chain_put_by_act(goto_ch);
-	if (ret == ACT_P_CREATED)
-		tcf_idr_insert(tn, *a);
 	return ret;
 
 put_chain:

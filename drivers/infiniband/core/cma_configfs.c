@@ -123,15 +123,16 @@ static ssize_t default_roce_mode_store(struct config_item *item,
 {
 	struct cma_device *cma_dev;
 	struct cma_dev_port_group *group;
-	int gid_type = ib_cache_gid_parse_type_str(buf);
+	int gid_type;
 	ssize_t ret;
-
-	if (gid_type < 0)
-		return -EINVAL;
 
 	ret = cma_configfs_params_get(item, &cma_dev, &group);
 	if (ret)
 		return ret;
+
+	gid_type = ib_cache_gid_parse_type_str(buf);
+	if (gid_type < 0)
+		return -EINVAL;
 
 	ret = cma_set_default_gid_type(cma_dev, group->port_num, gid_type);
 

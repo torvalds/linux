@@ -185,7 +185,7 @@ struct qmi_elem_info servreg_get_domain_list_resp_ei[] = {
 		.data_type      = QMI_STRUCT,
 		.elem_len       = SERVREG_DOMAIN_LIST_LENGTH,
 		.elem_size      = sizeof(struct servreg_location_entry),
-		.array_type	= NO_ARRAY,
+		.array_type	= VAR_LEN_ARRAY,
 		.tlv_type       = 0x12,
 		.offset         = offsetof(struct servreg_get_domain_list_resp,
 					   domain_list),

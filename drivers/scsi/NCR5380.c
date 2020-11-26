@@ -1943,7 +1943,7 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 						return;
 
 					/* Reject message */
-					/* Fall through */
+					fallthrough;
 				default:
 					/*
 					 * If we get something weird that we aren't expecting,

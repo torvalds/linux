@@ -281,13 +281,6 @@ ex_saved_reg1:
 .macro COMMIT_ENTRY_TO_MMU
 #if (CONFIG_ARC_MMU_VER < 4)
 
-#ifdef CONFIG_EZNPS_MTM_EXT
-	/* verify if entry for this vaddr+ASID already exists */
-	sr    TLBProbe, [ARC_REG_TLBCOMMAND]
-	lr    r0, [ARC_REG_TLBINDEX]
-	bbit0 r0, 31, 88f
-#endif
-
 	/* Get free TLB slot: Set = computed from vaddr, way = random */
 	sr  TLBGetIndex, [ARC_REG_TLBCOMMAND]
 

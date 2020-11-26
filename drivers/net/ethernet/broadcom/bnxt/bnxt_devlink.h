@@ -60,6 +60,12 @@ struct bnxt_dl_nvm_param {
 	u8 dl_num_bytes;
 };
 
+enum bnxt_dl_version_type {
+	BNXT_VERSION_FIXED,
+	BNXT_VERSION_RUNNING,
+	BNXT_VERSION_STORED,
+};
+
 void bnxt_devlink_health_report(struct bnxt *bp, unsigned long event);
 void bnxt_dl_health_status_update(struct bnxt *bp, bool healthy);
 void bnxt_dl_health_recovery_done(struct bnxt *bp);

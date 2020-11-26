@@ -517,3 +517,8 @@ void hfi_destroy(struct venus_core *core)
 {
 	venus_hfi_destroy(core);
 }
+
+void hfi_reinit(struct venus_core *core)
+{
+	venus_hfi_queues_reinit(core);
+}

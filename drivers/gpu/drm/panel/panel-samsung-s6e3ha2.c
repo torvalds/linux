@@ -18,7 +18,6 @@
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_panel.h>
-#include <drm/drm_print.h>
 
 #define S6E3HA2_MIN_BRIGHTNESS		0
 #define S6E3HA2_MAX_BRIGHTNESS		100
@@ -651,7 +650,7 @@ static int s6e3ha2_get_modes(struct drm_panel *panel,
 
 	mode = drm_mode_duplicate(connector->dev, ctx->desc->mode);
 	if (!mode) {
-		DRM_ERROR("failed to add mode %ux%ux@%u\n",
+		dev_err(panel->dev, "failed to add mode %ux%u@%u\n",
 			ctx->desc->mode->hdisplay, ctx->desc->mode->vdisplay,
 			drm_mode_vrefresh(ctx->desc->mode));
 		return -ENOMEM;
@@ -733,9 +732,7 @@ static int s6e3ha2_probe(struct mipi_dsi_device *dsi)
 	drm_panel_init(&ctx->panel, dev, &s6e3ha2_drm_funcs,
 		       DRM_MODE_CONNECTOR_DSI);
 
-	ret = drm_panel_add(&ctx->panel);
-	if (ret < 0)
-		goto unregister_backlight;
+	drm_panel_add(&ctx->panel);
 
 	ret = mipi_dsi_attach(dsi);
 	if (ret < 0)
@@ -745,8 +742,6 @@ static int s6e3ha2_probe(struct mipi_dsi_device *dsi)
 
 remove_panel:
 	drm_panel_remove(&ctx->panel);
-
-unregister_backlight:
 	backlight_device_unregister(ctx->bl_dev);
 
 	return ret;

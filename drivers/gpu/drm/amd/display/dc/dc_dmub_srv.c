@@ -132,3 +132,19 @@ void dc_dmub_srv_wait_phy_init(struct dc_dmub_srv *dc_dmub_srv)
 		/* Continue spinning so we don't hang the ASIC. */
 	}
 }
+
+bool dc_dmub_srv_notify_stream_mask(struct dc_dmub_srv *dc_dmub_srv,
+				    unsigned int stream_mask)
+{
+	struct dmub_srv *dmub;
+	const uint32_t timeout = 30;
+
+	if (!dc_dmub_srv || !dc_dmub_srv->dmub)
+		return false;
+
+	dmub = dc_dmub_srv->dmub;
+
+	return dmub_srv_send_gpint_command(
+		       dmub, DMUB_GPINT__IDLE_OPT_NOTIFY_STREAM_MASK,
+		       stream_mask, timeout) == DMUB_STATUS_OK;
+}

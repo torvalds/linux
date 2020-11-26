@@ -195,6 +195,7 @@ enum reconstruct_states {
 	reconstruct_state_result,
 };
 
+#define DEFAULT_STRIPE_SIZE	4096
 struct stripe_head {
 	struct hlist_node	hash;
 	struct list_head	lru;	      /* inactive_list or handle_list */
@@ -246,6 +247,13 @@ struct stripe_head {
 		int 		     target, target2;
 		enum sum_check_flags zero_sum_result;
 	} ops;
+
+#if PAGE_SIZE != DEFAULT_STRIPE_SIZE
+	/* These pages will be used by bios in dev[i] */
+	struct page	**pages;
+	int	nr_pages;	/* page array size */
+	int	stripes_per_page;
+#endif
 	struct r5dev {
 		/* rreq and rvec are used for the replacement device when
 		 * writing data to both devices.
@@ -253,6 +261,7 @@ struct stripe_head {
 		struct bio	req, rreq;
 		struct bio_vec	vec, rvec;
 		struct page	*page, *orig_page;
+		unsigned int    offset;     /* offset of the page */
 		struct bio	*toread, *read, *towrite, *written;
 		sector_t	sector;			/* sector of this page */
 		unsigned long	flags;
@@ -472,7 +481,6 @@ struct disk_info {
  */
 
 #define NR_STRIPES		256
-#define DEFAULT_STRIPE_SIZE	4096
 
 #if PAGE_SIZE == DEFAULT_STRIPE_SIZE
 #define STRIPE_SIZE		PAGE_SIZE
@@ -770,6 +778,25 @@ static inline int algorithm_is_DDF(int layout)
 {
 	return layout >= 8 && layout <= 10;
 }
+
+#if PAGE_SIZE != DEFAULT_STRIPE_SIZE
+/*
+ * Return offset of the corresponding page for r5dev.
+ */
+static inline int raid5_get_page_offset(struct stripe_head *sh, int disk_idx)
+{
+	return (disk_idx % sh->stripes_per_page) * RAID5_STRIPE_SIZE(sh->raid_conf);
+}
+
+/*
+ * Return corresponding page address for r5dev.
+ */
+static inline struct page *
+raid5_get_dev_page(struct stripe_head *sh, int disk_idx)
+{
+	return sh->pages[disk_idx / sh->stripes_per_page];
+}
+#endif
 
 extern void md_raid5_kick_device(struct r5conf *conf);
 extern int raid5_set_cache_size(struct mddev *mddev, int size);

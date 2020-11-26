@@ -21,7 +21,8 @@ int intel_ring_cacheline_align(struct i915_request *rq);
 
 unsigned int intel_ring_update_space(struct intel_ring *ring);
 
-int intel_ring_pin(struct intel_ring *ring);
+void __intel_ring_pin(struct intel_ring *ring);
+int intel_ring_pin(struct intel_ring *ring, struct i915_gem_ww_ctx *ww);
 void intel_ring_unpin(struct intel_ring *ring);
 void intel_ring_reset(struct intel_ring *ring, u32 tail);
 

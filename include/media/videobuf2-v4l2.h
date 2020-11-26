@@ -23,6 +23,8 @@
 #error VB2_MAX_PLANES != VIDEO_MAX_PLANES
 #endif
 
+struct video_device;
+
 /**
  * struct vb2_v4l2_buffer - video buffer information for v4l2.
  *
@@ -318,6 +320,21 @@ __poll_t vb2_fop_poll(struct file *file, poll_table *wait);
 unsigned long vb2_fop_get_unmapped_area(struct file *file, unsigned long addr,
 		unsigned long len, unsigned long pgoff, unsigned long flags);
 #endif
+
+/**
+ * vb2_video_unregister_device - unregister the video device and release queue
+ *
+ * @vdev: pointer to &struct video_device
+ *
+ * If the driver uses vb2_fop_release()/_vb2_fop_release(), then it should use
+ * vb2_video_unregister_device() instead of video_unregister_device().
+ *
+ * This function will call video_unregister_device() and then release the
+ * vb2_queue if streaming is in progress. This will stop streaming and
+ * this will simplify the unbind sequence since after this call all subdevs
+ * will have stopped streaming as well.
+ */
+void vb2_video_unregister_device(struct video_device *vdev);
 
 /**
  * vb2_ops_wait_prepare - helper function to lock a struct &vb2_queue

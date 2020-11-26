@@ -25,7 +25,7 @@
 
 static void rndis_set_multicast(struct work_struct *w);
 
-#define RNDIS_EXT_LEN PAGE_SIZE
+#define RNDIS_EXT_LEN HV_HYP_PAGE_SIZE
 struct rndis_request {
 	struct list_head list_ent;
 	struct completion  wait_event;
@@ -215,18 +215,17 @@ static int rndis_filter_send_request(struct rndis_device *dev,
 	packet->page_buf_cnt = 1;
 
 	pb[0].pfn = virt_to_phys(&req->request_msg) >>
-					PAGE_SHIFT;
+					HV_HYP_PAGE_SHIFT;
 	pb[0].len = req->request_msg.msg_len;
-	pb[0].offset =
-		(unsigned long)&req->request_msg & (PAGE_SIZE - 1);
+	pb[0].offset = offset_in_hvpage(&req->request_msg);
 
 	/* Add one page_buf when request_msg crossing page boundary */
-	if (pb[0].offset + pb[0].len > PAGE_SIZE) {
+	if (pb[0].offset + pb[0].len > HV_HYP_PAGE_SIZE) {
 		packet->page_buf_cnt++;
-		pb[0].len = PAGE_SIZE -
+		pb[0].len = HV_HYP_PAGE_SIZE -
 			pb[0].offset;
 		pb[1].pfn = virt_to_phys((void *)&req->request_msg
-			+ pb[0].len) >> PAGE_SHIFT;
+			+ pb[0].len) >> HV_HYP_PAGE_SHIFT;
 		pb[1].offset = 0;
 		pb[1].len = req->request_msg.msg_len -
 			pb[0].len;
@@ -272,6 +271,16 @@ static void rndis_filter_receive_response(struct net_device *ndev,
 	if (dev->state == RNDIS_DEV_UNINITIALIZED) {
 		netdev_err(ndev,
 			   "got rndis message uninitialized\n");
+		return;
+	}
+
+	/* Ensure the packet is big enough to read req_id. Req_id is the 1st
+	 * field in any request/response message, so the payload should have at
+	 * least sizeof(u32) bytes
+	 */
+	if (resp->msg_len - RNDIS_HEADER_SIZE < sizeof(u32)) {
+		netdev_err(ndev, "rndis msg_len too small: %u\n",
+			   resp->msg_len);
 		return;
 	}
 
@@ -331,8 +340,9 @@ static void rndis_filter_receive_response(struct net_device *ndev,
  * Get the Per-Packet-Info with the specified type
  * return NULL if not found.
  */
-static inline void *rndis_get_ppi(struct rndis_packet *rpkt,
-				  u32 type, u8 internal)
+static inline void *rndis_get_ppi(struct net_device *ndev,
+				  struct rndis_packet *rpkt,
+				  u32 rpkt_len, u32 type, u8 internal)
 {
 	struct rndis_per_packet_info *ppi;
 	int len;
@@ -340,11 +350,36 @@ static inline void *rndis_get_ppi(struct rndis_packet *rpkt,
 	if (rpkt->per_pkt_info_offset == 0)
 		return NULL;
 
+	/* Validate info_offset and info_len */
+	if (rpkt->per_pkt_info_offset < sizeof(struct rndis_packet) ||
+	    rpkt->per_pkt_info_offset > rpkt_len) {
+		netdev_err(ndev, "Invalid per_pkt_info_offset: %u\n",
+			   rpkt->per_pkt_info_offset);
+		return NULL;
+	}
+
+	if (rpkt->per_pkt_info_len > rpkt_len - rpkt->per_pkt_info_offset) {
+		netdev_err(ndev, "Invalid per_pkt_info_len: %u\n",
+			   rpkt->per_pkt_info_len);
+		return NULL;
+	}
+
 	ppi = (struct rndis_per_packet_info *)((ulong)rpkt +
 		rpkt->per_pkt_info_offset);
 	len = rpkt->per_pkt_info_len;
 
 	while (len > 0) {
+		/* Validate ppi_offset and ppi_size */
+		if (ppi->size > len) {
+			netdev_err(ndev, "Invalid ppi size: %u\n", ppi->size);
+			continue;
+		}
+
+		if (ppi->ppi_offset >= ppi->size) {
+			netdev_err(ndev, "Invalid ppi_offset: %u\n", ppi->ppi_offset);
+			continue;
+		}
+
 		if (ppi->type == type && ppi->internal == internal)
 			return (void *)((ulong)ppi + ppi->ppi_offset);
 		len -= ppi->size;
@@ -388,14 +423,29 @@ static int rndis_filter_receive_data(struct net_device *ndev,
 	const struct ndis_pkt_8021q_info *vlan;
 	const struct rndis_pktinfo_id *pktinfo_id;
 	const u32 *hash_info;
-	u32 data_offset;
+	u32 data_offset, rpkt_len;
 	void *data;
 	bool rsc_more = false;
 	int ret;
 
+	/* Ensure data_buflen is big enough to read header fields */
+	if (data_buflen < RNDIS_HEADER_SIZE + sizeof(struct rndis_packet)) {
+		netdev_err(ndev, "invalid rndis pkt, data_buflen too small: %u\n",
+			   data_buflen);
+		return NVSP_STAT_FAIL;
+	}
+
+	/* Validate rndis_pkt offset */
+	if (rndis_pkt->data_offset >= data_buflen - RNDIS_HEADER_SIZE) {
+		netdev_err(ndev, "invalid rndis packet offset: %u\n",
+			   rndis_pkt->data_offset);
+		return NVSP_STAT_FAIL;
+	}
+
 	/* Remove the rndis header and pass it back up the stack */
 	data_offset = RNDIS_HEADER_SIZE + rndis_pkt->data_offset;
 
+	rpkt_len = data_buflen - RNDIS_HEADER_SIZE;
 	data_buflen -= data_offset;
 
 	/*
@@ -410,13 +460,13 @@ static int rndis_filter_receive_data(struct net_device *ndev,
 		return NVSP_STAT_FAIL;
 	}
 
-	vlan = rndis_get_ppi(rndis_pkt, IEEE_8021Q_INFO, 0);
+	vlan = rndis_get_ppi(ndev, rndis_pkt, rpkt_len, IEEE_8021Q_INFO, 0);
 
-	csum_info = rndis_get_ppi(rndis_pkt, TCPIP_CHKSUM_PKTINFO, 0);
+	csum_info = rndis_get_ppi(ndev, rndis_pkt, rpkt_len, TCPIP_CHKSUM_PKTINFO, 0);
 
-	hash_info = rndis_get_ppi(rndis_pkt, NBL_HASH_VALUE, 0);
+	hash_info = rndis_get_ppi(ndev, rndis_pkt, rpkt_len, NBL_HASH_VALUE, 0);
 
-	pktinfo_id = rndis_get_ppi(rndis_pkt, RNDIS_PKTINFO_ID, 1);
+	pktinfo_id = rndis_get_ppi(ndev, rndis_pkt, rpkt_len, RNDIS_PKTINFO_ID, 1);
 
 	data = (void *)msg + data_offset;
 
@@ -473,6 +523,14 @@ int rndis_filter_receive(struct net_device *ndev,
 
 	if (netif_msg_rx_status(net_device_ctx))
 		dump_rndis_message(ndev, rndis_msg);
+
+	/* Validate incoming rndis_message packet */
+	if (buflen < RNDIS_HEADER_SIZE || rndis_msg->msg_len < RNDIS_HEADER_SIZE ||
+	    buflen < rndis_msg->msg_len) {
+		netdev_err(ndev, "Invalid rndis_msg (buflen: %u, msg_len: %u)\n",
+			   buflen, rndis_msg->msg_len);
+		return NVSP_STAT_FAIL;
+	}
 
 	switch (rndis_msg->ndis_msg_type) {
 	case RNDIS_MSG_PACKET:

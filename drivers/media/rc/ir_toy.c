@@ -38,8 +38,8 @@ static const u8 COMMAND_TXSTART[] = { 0x26, 0x24, 0x25, 0x03 };
 #define LEN_SAMPLEMODEPROTO 3
 
 #define MIN_FW_VERSION 20
-#define UNIT_NS 21333
-#define MAX_TIMEOUT_NS (UNIT_NS * U16_MAX)
+#define UNIT_US 21
+#define MAX_TIMEOUT_US (UNIT_US * U16_MAX)
 
 #define MAX_PACKET 64
 
@@ -131,7 +131,7 @@ static void irtoy_response(struct irtoy *irtoy, u32 len)
 			if (v == 0xffff) {
 				rawir.pulse = false;
 			} else {
-				rawir.duration = v * UNIT_NS;
+				rawir.duration = v * UNIT_US;
 				ir_raw_event_store_with_timeout(irtoy->rc,
 								&rawir);
 			}
@@ -302,7 +302,7 @@ static int irtoy_tx(struct rc_dev *rc, uint *txbuf, uint count)
 		return -ENOMEM;
 
 	for (i = 0; i < count; i++) {
-		u16 v = DIV_ROUND_CLOSEST(US_TO_NS(txbuf[i]), UNIT_NS);
+		u16 v = DIV_ROUND_CLOSEST(txbuf[i], UNIT_US);
 
 		if (!v)
 			v = 1;
@@ -438,7 +438,7 @@ static int irtoy_probe(struct usb_interface *intf,
 	rc->tx_ir = irtoy_tx;
 	rc->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
 	rc->map_name = RC_MAP_RC6_MCE;
-	rc->rx_resolution = UNIT_NS;
+	rc->rx_resolution = UNIT_US;
 	rc->timeout = IR_DEFAULT_TIMEOUT;
 
 	/*
@@ -450,8 +450,8 @@ static int irtoy_probe(struct usb_interface *intf,
 	 *
 	 * So, make timeout a largish minimum which works with most protocols.
 	 */
-	rc->min_timeout = MS_TO_NS(40);
-	rc->max_timeout = MAX_TIMEOUT_NS;
+	rc->min_timeout = MS_TO_US(40);
+	rc->max_timeout = MAX_TIMEOUT_US;
 
 	err = rc_register_device(rc);
 	if (err)

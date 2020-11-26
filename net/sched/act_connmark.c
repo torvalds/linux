@@ -139,7 +139,6 @@ static int tcf_connmark_init(struct net *net, struct nlattr *nla,
 		ci->net = net;
 		ci->zone = parm->zone;
 
-		tcf_idr_insert(tn, *a);
 		ret = ACT_P_CREATED;
 	} else if (ret > 0) {
 		ci = to_connmark(*a);

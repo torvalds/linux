@@ -58,7 +58,7 @@
 #include "pm8001_defs.h"
 
 #define DRV_NAME		"pm80xx"
-#define DRV_VERSION		"0.1.39"
+#define DRV_VERSION		"0.1.40"
 #define PM8001_FAIL_LOGGING	0x01 /* Error message logging */
 #define PM8001_INIT_LOGGING	0x02 /* driver init logging */
 #define PM8001_DISC_LOGGING	0x04 /* discovery layer logging */
@@ -315,7 +315,7 @@ struct pm8001_ccb_info {
 	u32			ccb_tag;
 	dma_addr_t		ccb_dma_handle;
 	struct pm8001_device	*device;
-	struct pm8001_prd	buf_prd[PM8001_MAX_DMA_SG];
+	struct pm8001_prd	*buf_prd;
 	struct fw_control_ex	*fw_control_context;
 	u8			open_retry;
 };
@@ -468,6 +468,7 @@ struct inbound_queue_table {
 	u32			reserved;
 	__le32			consumer_index;
 	u32			producer_idx;
+	spinlock_t		iq_lock;
 };
 struct outbound_queue_table {
 	u32			element_size_cnt;
@@ -524,8 +525,8 @@ struct pm8001_hba_info {
 	void __iomem	*fatal_tbl_addr; /*MPI IVT Table Addr */
 	union main_cfg_table	main_cfg_tbl;
 	union general_status_table	gs_tbl;
-	struct inbound_queue_table	inbnd_q_tbl[PM8001_MAX_SPCV_INB_NUM];
-	struct outbound_queue_table	outbnd_q_tbl[PM8001_MAX_SPCV_OUTB_NUM];
+	struct inbound_queue_table	inbnd_q_tbl[PM8001_MAX_INB_NUM];
+	struct outbound_queue_table	outbnd_q_tbl[PM8001_MAX_OUTB_NUM];
 	struct sas_phy_attribute_table	phy_attr_table;
 					/* MPI SAS PHY attributes */
 	u8			sas_addr[SAS_ADDR_SIZE];
@@ -561,6 +562,12 @@ struct pm8001_hba_info {
 	u32			reset_in_progress;
 	u32			non_fatal_count;
 	u32			non_fatal_read_length;
+	u32 max_q_num;
+	u32 ib_offset;
+	u32 ob_offset;
+	u32 ci_offset;
+	u32 pi_offset;
+	u32 max_memcnt;
 };
 
 struct pm8001_work {

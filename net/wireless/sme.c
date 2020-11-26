@@ -24,7 +24,7 @@
 
 /*
  * Software SME in cfg80211, using auth/assoc/deauth calls to the
- * driver. This is is for implementing nl80211's connect/disconnect
+ * driver. This is for implementing nl80211's connect/disconnect
  * and wireless extensions (if configured.)
  */
 
@@ -205,7 +205,7 @@ static int cfg80211_conn_do_work(struct wireless_dev *wdev,
 		return err;
 	case CFG80211_CONN_ASSOC_FAILED_TIMEOUT:
 		*treason = NL80211_TIMEOUT_ASSOC;
-		/* fall through */
+		fallthrough;
 	case CFG80211_CONN_ASSOC_FAILED:
 		cfg80211_mlme_deauth(rdev, wdev->netdev, params->bssid,
 				     NULL, 0,
@@ -215,7 +215,7 @@ static int cfg80211_conn_do_work(struct wireless_dev *wdev,
 		cfg80211_mlme_deauth(rdev, wdev->netdev, params->bssid,
 				     NULL, 0,
 				     WLAN_REASON_DEAUTH_LEAVING, false);
-		/* fall through */
+		fallthrough;
 	case CFG80211_CONN_ABANDON:
 		/* free directly, disconnected event already sent */
 		cfg80211_sme_free(wdev);

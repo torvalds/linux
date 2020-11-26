@@ -148,7 +148,8 @@ static int process_rdma(struct rtrs_srv *sess,
 	/* Generate bio with pages pointing to the rdma buffer */
 	bio = rnbd_bio_map_kern(data, sess_dev->rnbd_dev->ibd_bio_set, datalen, GFP_KERNEL);
 	if (IS_ERR(bio)) {
-		rnbd_srv_err(sess_dev, "Failed to generate bio, err: %ld\n", PTR_ERR(bio));
+		err = PTR_ERR(bio);
+		rnbd_srv_err(sess_dev, "Failed to generate bio, err: %d\n", err);
 		goto sess_dev_put;
 	}
 

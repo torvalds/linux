@@ -40,7 +40,7 @@ struct v4l2_fwnode_bus_mipi_csi2 {
 	unsigned int flags;
 	unsigned char data_lanes[V4L2_FWNODE_CSI2_MAX_DATA_LANES];
 	unsigned char clock_lane;
-	unsigned short num_data_lanes;
+	unsigned char num_data_lanes;
 	bool lane_polarities[1 + V4L2_FWNODE_CSI2_MAX_DATA_LANES];
 };
 
@@ -78,7 +78,7 @@ struct v4l2_fwnode_bus_mipi_csi1 {
  * struct v4l2_fwnode_endpoint - the endpoint data structure
  * @base: fwnode endpoint of the v4l2_fwnode
  * @bus_type: bus type
- * @bus: union with bus configuration data structure
+ * @bus: bus configuration data structure
  * @bus.parallel: embedded &struct v4l2_fwnode_bus_parallel.
  *		  Used if the bus is parallel.
  * @bus.mipi_csi1: embedded &struct v4l2_fwnode_bus_mipi_csi1.
@@ -99,7 +99,7 @@ struct v4l2_fwnode_endpoint {
 	 * v4l2_fwnode_endpoint_parse()
 	 */
 	enum v4l2_mbus_type bus_type;
-	union {
+	struct {
 		struct v4l2_fwnode_bus_parallel parallel;
 		struct v4l2_fwnode_bus_mipi_csi1 mipi_csi1;
 		struct v4l2_fwnode_bus_mipi_csi2 mipi_csi2;
@@ -226,11 +226,10 @@ struct v4l2_fwnode_connector {
  * call this function once the correct type is found --- with a default
  * configuration valid for that type.
  *
- * As a compatibility means guessing the bus type is also supported by setting
- * @vep.bus_type to V4L2_MBUS_UNKNOWN. The caller may not provide a default
- * configuration in this case as the defaults are specific to a given bus type.
- * This functionality is deprecated and should not be used in new drivers and it
- * is only supported for CSI-2 D-PHY, parallel and Bt.656 buses.
+ * It is also allowed to set @vep.bus_type to V4L2_MBUS_UNKNOWN. USING THIS
+ * FEATURE REQUIRES "bus-type" PROPERTY IN DT BINDINGS. For old drivers,
+ * guessing @vep.bus_type between CSI-2 D-PHY, parallel and BT.656 busses is
+ * supported. NEVER RELY ON GUESSING @vep.bus_type IN NEW DRIVERS!
  *
  * The function does not change the V4L2 fwnode endpoint state if it fails.
  *
@@ -269,11 +268,10 @@ void v4l2_fwnode_endpoint_free(struct v4l2_fwnode_endpoint *vep);
  * call this function once the correct type is found --- with a default
  * configuration valid for that type.
  *
- * As a compatibility means guessing the bus type is also supported by setting
- * @vep.bus_type to V4L2_MBUS_UNKNOWN. The caller may not provide a default
- * configuration in this case as the defaults are specific to a given bus type.
- * This functionality is deprecated and should not be used in new drivers and it
- * is only supported for CSI-2 D-PHY, parallel and Bt.656 buses.
+ * It is also allowed to set @vep.bus_type to V4L2_MBUS_UNKNOWN. USING THIS
+ * FEATURE REQUIRES "bus-type" PROPERTY IN DT BINDINGS. For old drivers,
+ * guessing @vep.bus_type between CSI-2 D-PHY, parallel and BT.656 busses is
+ * supported. NEVER RELY ON GUESSING @vep.bus_type IN NEW DRIVERS!
  *
  * The function does not change the V4L2 fwnode endpoint state if it fails.
  *

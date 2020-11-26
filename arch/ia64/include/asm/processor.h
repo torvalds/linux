@@ -280,15 +280,6 @@ struct thread_struct {
 	__u64 map_base;			/* base address for get_unmapped_area() */
 	__u64 rbs_bot;			/* the base address for the RBS */
 	int last_fph_cpu;		/* CPU that may hold the contents of f32-f127 */
-
-#ifdef CONFIG_PERFMON
-	void *pfm_context;		     /* pointer to detailed PMU context */
-	unsigned long pfm_needs_checking;    /* when >0, pending perfmon work on kernel exit */
-# define INIT_THREAD_PM		.pfm_context =		NULL,     \
-				.pfm_needs_checking =	0UL,
-#else
-# define INIT_THREAD_PM
-#endif
 	unsigned long dbr[IA64_NUM_DBG_REGS];
 	unsigned long ibr[IA64_NUM_DBG_REGS];
 	struct ia64_fpreg fph[96];	/* saved/loaded on demand */
@@ -301,7 +292,6 @@ struct thread_struct {
 	.map_base =	DEFAULT_MAP_BASE,			\
 	.rbs_bot =	STACK_TOP - DEFAULT_USER_STACK_SIZE,	\
 	.last_fph_cpu =  -1,					\
-	INIT_THREAD_PM						\
 	.dbr =		{0, },					\
 	.ibr =		{0, },					\
 	.fph =		{{{{0}}}, }				\

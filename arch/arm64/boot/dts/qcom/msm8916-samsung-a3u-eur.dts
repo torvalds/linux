@@ -44,15 +44,11 @@
 			};
 		};
 	};
+};
 
-	ports {
-		port@1 {
-			dsi0_out: endpoint {
-				remote-endpoint = <&panel_in>;
-				data-lanes = <0 1>;
-			};
-		};
-	};
+&dsi0_out {
+	data-lanes = <0 1>;
+	remote-endpoint = <&panel_in>;
 };
 
 &msmgpio {

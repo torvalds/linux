@@ -151,7 +151,7 @@ static int run_test(int cgfd)
 	}
 
 	bpf_object__for_each_program(prog, pobj) {
-		prog_name = bpf_program__title(prog, /*needs_copy*/ false);
+		prog_name = bpf_program__section_name(prog);
 
 		if (libbpf_attach_type_by_name(prog_name, &attach_type))
 			goto err;

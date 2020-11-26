@@ -73,6 +73,8 @@ else:
     The 'reg' property for the clock node is also required if there is a sub
     range of registers for the clocks.
 
+additionalProperties: false
+
 examples:
   - |
     ap_clk: clock-controller@21500000 {

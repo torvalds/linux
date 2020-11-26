@@ -411,8 +411,15 @@ ipv6_fdb_grp_fcnal()
 	run_cmd "$IP -6 ro add 2001:db8:101::1/128 nhid 103"
 	log_test $? 2 "Route add with fdb nexthop group"
 
+	run_cmd "$IP nexthop del id 61"
+	run_cmd "$BRIDGE fdb get to 02:02:00:00:00:13 dev vx10 self"
+	log_test $? 0 "Fdb entry after deleting a single nexthop"
+
 	run_cmd "$IP nexthop del id 102"
 	log_test $? 0 "Fdb nexthop delete"
+
+	run_cmd "$BRIDGE fdb get to 02:02:00:00:00:13 dev vx10 self"
+	log_test $? 254 "Fdb entry after deleting a nexthop group"
 
 	$IP link del dev vx10
 }
@@ -484,8 +491,15 @@ ipv4_fdb_grp_fcnal()
 	run_cmd "$IP ro add 172.16.0.0/22 nhid 103"
 	log_test $? 2 "Route add with fdb nexthop group"
 
+	run_cmd "$IP nexthop del id 12"
+	run_cmd "$BRIDGE fdb get to 02:02:00:00:00:13 dev vx10 self"
+	log_test $? 0 "Fdb entry after deleting a single nexthop"
+
 	run_cmd "$IP nexthop del id 102"
 	log_test $? 0 "Fdb nexthop delete"
+
+	run_cmd "$BRIDGE fdb get to 02:02:00:00:00:13 dev vx10 self"
+	log_test $? 254 "Fdb entry after deleting a nexthop group"
 
 	$IP link del dev vx10
 }
@@ -738,6 +752,36 @@ ipv6_fcnal_runtime()
 	run_cmd "$IP ro replace 2001:db8:101::1/128 nhid 122"
 	run_cmd "$IP nexthop replace id 81 via 172.16.1.1 dev veth1"
 	log_test $? 2 "Nexthop replace of group entry - v6 route, v4 nexthop"
+
+	run_cmd "$IP nexthop add id 86 via 2001:db8:92::2 dev veth3"
+	run_cmd "$IP nexthop add id 87 via 172.16.1.1 dev veth1"
+	run_cmd "$IP nexthop add id 88 via 172.16.1.1 dev veth1"
+	run_cmd "$IP nexthop add id 124 group 86/87/88"
+	run_cmd "$IP ro replace 2001:db8:101::1/128 nhid 124"
+	log_test $? 2 "IPv6 route can not have a group with v4 and v6 gateways"
+
+	run_cmd "$IP nexthop del id 88"
+	run_cmd "$IP ro replace 2001:db8:101::1/128 nhid 124"
+	log_test $? 2 "IPv6 route can not have a group with v4 and v6 gateways"
+
+	run_cmd "$IP nexthop del id 87"
+	run_cmd "$IP ro replace 2001:db8:101::1/128 nhid 124"
+	log_test $? 0 "IPv6 route using a group after removing v4 gateways"
+
+	run_cmd "$IP ro delete 2001:db8:101::1/128"
+	run_cmd "$IP nexthop add id 87 via 172.16.1.1 dev veth1"
+	run_cmd "$IP nexthop add id 88 via 172.16.1.1 dev veth1"
+	run_cmd "$IP nexthop replace id 124 group 86/87/88"
+	run_cmd "$IP ro replace 2001:db8:101::1/128 nhid 124"
+	log_test $? 2 "IPv6 route can not have a group with v4 and v6 gateways"
+
+	run_cmd "$IP nexthop replace id 88 via 2001:db8:92::2 dev veth3"
+	run_cmd "$IP ro replace 2001:db8:101::1/128 nhid 124"
+	log_test $? 2 "IPv6 route can not have a group with v4 and v6 gateways"
+
+	run_cmd "$IP nexthop replace id 87 via 2001:db8:92::2 dev veth3"
+	run_cmd "$IP ro replace 2001:db8:101::1/128 nhid 124"
+	log_test $? 0 "IPv6 route using a group after replacing v4 gateways"
 
 	$IP nexthop flush >/dev/null 2>&1
 

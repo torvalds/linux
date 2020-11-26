@@ -4800,7 +4800,7 @@ struct send_frame_wqe {
 	uint32_t fc_hdr_wd5;           /* word 15 */
 };
 
-#define ELS_RDF_REG_TAG_CNT		1
+#define ELS_RDF_REG_TAG_CNT		4
 struct lpfc_els_rdf_reg_desc {
 	struct fc_df_desc_fpin_reg	reg_desc;	/* descriptor header */
 	__be32				desc_tags[ELS_RDF_REG_TAG_CNT];

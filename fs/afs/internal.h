@@ -263,11 +263,11 @@ struct afs_net {
 
 	/* Cell database */
 	struct rb_root		cells;
-	struct afs_cell __rcu	*ws_cell;
+	struct afs_cell		*ws_cell;
 	struct work_struct	cells_manager;
 	struct timer_list	cells_timer;
 	atomic_t		cells_outstanding;
-	seqlock_t		cells_lock;
+	struct rw_semaphore	cells_lock;
 	struct mutex		cells_alias_lock;
 
 	struct mutex		proc_cells_lock;
@@ -326,6 +326,7 @@ enum afs_cell_state {
 	AFS_CELL_DEACTIVATING,
 	AFS_CELL_INACTIVE,
 	AFS_CELL_FAILED,
+	AFS_CELL_REMOVED,
 };
 
 /*
@@ -363,7 +364,8 @@ struct afs_cell {
 #endif
 	time64_t		dns_expiry;	/* Time AFSDB/SRV record expires */
 	time64_t		last_inactive;	/* Time of last drop of usage count */
-	atomic_t		usage;
+	atomic_t		ref;		/* Struct refcount */
+	atomic_t		active;		/* Active usage counter */
 	unsigned long		flags;
 #define AFS_CELL_FL_NO_GC	0		/* The cell was added manually, don't auto-gc */
 #define AFS_CELL_FL_DO_LOOKUP	1		/* DNS lookup requested */
@@ -373,6 +375,7 @@ struct afs_cell {
 	enum dns_record_source	dns_source:8;	/* Latest source of data from lookup */
 	enum dns_lookup_status	dns_status:8;	/* Latest status of data from lookup */
 	unsigned int		dns_lookup_count; /* Counter of DNS lookups */
+	unsigned int		debug_id;
 
 	/* The volumes belonging to this cell */
 	struct rb_root		volumes;	/* Tree of volumes on this server */
@@ -401,22 +404,24 @@ struct afs_vlserver {
 #define AFS_VLSERVER_FL_PROBED	0		/* The VL server has been probed */
 #define AFS_VLSERVER_FL_PROBING	1		/* VL server is being probed */
 #define AFS_VLSERVER_FL_IS_YFS	2		/* Server is YFS not AFS */
+#define AFS_VLSERVER_FL_RESPONDING 3		/* VL server is responding */
 	rwlock_t		lock;		/* Lock on addresses */
 	atomic_t		usage;
+	unsigned int		rtt;		/* Server's current RTT in uS */
 
 	/* Probe state */
 	wait_queue_head_t	probe_wq;
 	atomic_t		probe_outstanding;
 	spinlock_t		probe_lock;
 	struct {
-		unsigned int	rtt;		/* RTT as ktime/64 */
+		unsigned int	rtt;		/* RTT in uS */
 		u32		abort_code;
 		short		error;
-		bool		have_result;
-		bool		responded:1;
-		bool		is_yfs:1;
-		bool		not_yfs:1;
-		bool		local_failure:1;
+		unsigned short	flags;
+#define AFS_VLSERVER_PROBE_RESPONDED		0x01 /* At least once response (may be abort) */
+#define AFS_VLSERVER_PROBE_IS_YFS		0x02 /* The peer appears to be YFS */
+#define AFS_VLSERVER_PROBE_NOT_YFS		0x04 /* The peer appears not to be YFS */
+#define AFS_VLSERVER_PROBE_LOCAL_FAILURE	0x08 /* A local failure prevented a probe */
 	} probe;
 
 	u16			port;
@@ -750,6 +755,7 @@ struct afs_vnode_param {
 	bool			update_ctime:1;	/* Need to update the ctime */
 	bool			set_size:1;	/* Must update i_size */
 	bool			op_unlinked:1;	/* True if file was unlinked by op */
+	bool			speculative:1;	/* T if speculative status fetch (no vnode lock) */
 };
 
 /*
@@ -807,9 +813,11 @@ struct afs_operation {
 			pgoff_t		last;		/* last page in mapping to deal with */
 			unsigned	first_offset;	/* offset into mapping[first] */
 			unsigned	last_to;	/* amount of mapping[last] */
+			bool		laundering;	/* Laundering page, PG_writeback not set */
 		} store;
 		struct {
 			struct iattr	*attr;
+			loff_t		old_i_size;
 		} setattr;
 		struct afs_acl	*acl;
 		struct yfs_acl	*yacl;
@@ -850,6 +858,62 @@ struct afs_operation {
 struct afs_vnode_cache_aux {
 	u64			data_version;
 } __packed;
+
+/*
+ * We use page->private to hold the amount of the page that we've written to,
+ * splitting the field into two parts.  However, we need to represent a range
+ * 0...PAGE_SIZE, so we reduce the resolution if the size of the page
+ * exceeds what we can encode.
+ */
+#ifdef CONFIG_64BIT
+#define __AFS_PAGE_PRIV_MASK	0x7fffffffUL
+#define __AFS_PAGE_PRIV_SHIFT	32
+#define __AFS_PAGE_PRIV_MMAPPED	0x80000000UL
+#else
+#define __AFS_PAGE_PRIV_MASK	0x7fffUL
+#define __AFS_PAGE_PRIV_SHIFT	16
+#define __AFS_PAGE_PRIV_MMAPPED	0x8000UL
+#endif
+
+static inline unsigned int afs_page_dirty_resolution(void)
+{
+	int shift = PAGE_SHIFT - (__AFS_PAGE_PRIV_SHIFT - 1);
+	return (shift > 0) ? shift : 0;
+}
+
+static inline size_t afs_page_dirty_from(unsigned long priv)
+{
+	unsigned long x = priv & __AFS_PAGE_PRIV_MASK;
+
+	/* The lower bound is inclusive */
+	return x << afs_page_dirty_resolution();
+}
+
+static inline size_t afs_page_dirty_to(unsigned long priv)
+{
+	unsigned long x = (priv >> __AFS_PAGE_PRIV_SHIFT) & __AFS_PAGE_PRIV_MASK;
+
+	/* The upper bound is immediately beyond the region */
+	return (x + 1) << afs_page_dirty_resolution();
+}
+
+static inline unsigned long afs_page_dirty(size_t from, size_t to)
+{
+	unsigned int res = afs_page_dirty_resolution();
+	from >>= res;
+	to = (to - 1) >> res;
+	return (to << __AFS_PAGE_PRIV_SHIFT) | from;
+}
+
+static inline unsigned long afs_page_dirty_mmapped(unsigned long priv)
+{
+	return priv | __AFS_PAGE_PRIV_MMAPPED;
+}
+
+static inline bool afs_is_page_dirty_mmapped(unsigned long priv)
+{
+	return priv & __AFS_PAGE_PRIV_MMAPPED;
+}
 
 #include <trace/events/afs.h>
 
@@ -914,11 +978,16 @@ static inline bool afs_cb_is_broken(unsigned int cb_break,
  * cell.c
  */
 extern int afs_cell_init(struct afs_net *, const char *);
-extern struct afs_cell *afs_lookup_cell_rcu(struct afs_net *, const char *, unsigned);
+extern struct afs_cell *afs_find_cell(struct afs_net *, const char *, unsigned,
+				      enum afs_cell_trace);
 extern struct afs_cell *afs_lookup_cell(struct afs_net *, const char *, unsigned,
 					const char *, bool);
-extern struct afs_cell *afs_get_cell(struct afs_cell *);
-extern void afs_put_cell(struct afs_net *, struct afs_cell *);
+extern struct afs_cell *afs_use_cell(struct afs_cell *, enum afs_cell_trace);
+extern void afs_unuse_cell(struct afs_net *, struct afs_cell *, enum afs_cell_trace);
+extern struct afs_cell *afs_get_cell(struct afs_cell *, enum afs_cell_trace);
+extern void afs_see_cell(struct afs_cell *, enum afs_cell_trace);
+extern void afs_put_cell(struct afs_cell *, enum afs_cell_trace);
+extern void afs_queue_cell(struct afs_cell *, enum afs_cell_trace);
 extern void afs_manage_cells(struct work_struct *);
 extern void afs_cells_timer(struct timer_list *);
 extern void __net_exit afs_cell_purge(struct afs_net *);

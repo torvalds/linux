@@ -1,34 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
  * Copyright (c) 2016 Mellanox Technologies Ltd. All rights reserved.
  * Copyright (c) 2015 System Fabric Works, Inc. All rights reserved.
- *
- * This software is available to you under a choice of one of two
- * licenses.  You may choose to be licensed under the terms of the GNU
- * General Public License (GPL) Version 2, available from the file
- * COPYING in the main directory of this source tree, or the
- * OpenIB.org BSD license below:
- *
- *	   Redistribution and use in source and binary forms, with or
- *	   without modification, are permitted provided that the following
- *	   conditions are met:
- *
- *	- Redistributions of source code must retain the above
- *	  copyright notice, this list of conditions and the following
- *	  disclaimer.
- *
- *	- Redistributions in binary form must reproduce the above
- *	  copyright notice, this list of conditions and the following
- *	  disclaimer in the documentation and/or other materials
- *	  provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
  */
 
 #include <linux/kernel.h>
@@ -55,12 +28,12 @@ int __rxe_do_task(struct rxe_task *task)
  * a second caller finds the task already running
  * but looks just after the last call to func
  */
-void rxe_do_task(unsigned long data)
+void rxe_do_task(struct tasklet_struct *t)
 {
 	int cont;
 	int ret;
 	unsigned long flags;
-	struct rxe_task *task = (struct rxe_task *)data;
+	struct rxe_task *task = from_tasklet(task, t, tasklet);
 
 	spin_lock_irqsave(&task->state_lock, flags);
 	switch (task->state) {
@@ -71,7 +44,7 @@ void rxe_do_task(unsigned long data)
 
 	case TASK_STATE_BUSY:
 		task->state = TASK_STATE_ARMED;
-		/* fall through */
+		fallthrough;
 	case TASK_STATE_ARMED:
 		spin_unlock_irqrestore(&task->state_lock, flags);
 		return;
@@ -123,7 +96,7 @@ int rxe_init_task(void *obj, struct rxe_task *task,
 	snprintf(task->name, sizeof(task->name), "%s", name);
 	task->destroyed	= false;
 
-	tasklet_init(&task->tasklet, rxe_do_task, (unsigned long)task);
+	tasklet_setup(&task->tasklet, rxe_do_task);
 
 	task->state = TASK_STATE_START;
 	spin_lock_init(&task->state_lock);
@@ -159,7 +132,7 @@ void rxe_run_task(struct rxe_task *task, int sched)
 	if (sched)
 		tasklet_schedule(&task->tasklet);
 	else
-		rxe_do_task((unsigned long)task);
+		rxe_do_task(&task->tasklet);
 }
 
 void rxe_disable_task(struct rxe_task *task)

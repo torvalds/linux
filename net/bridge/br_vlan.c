@@ -140,7 +140,7 @@ static int __vlan_vid_del(struct net_device *dev, struct net_bridge *br,
 	return err == -EOPNOTSUPP ? 0 : err;
 }
 
-/* Returns a master vlan, if it didn't exist it gets created. In all cases a
+/* Returns a master vlan, if it didn't exist it gets created. In all cases
  * a reference is taken to the master vlan before returning.
  */
 static struct net_bridge_vlan *
@@ -1288,11 +1288,13 @@ void br_vlan_get_stats(const struct net_bridge_vlan *v,
 	}
 }
 
-static int __br_vlan_get_pvid(const struct net_device *dev,
-			      struct net_bridge_port *p, u16 *p_pvid)
+int br_vlan_get_pvid(const struct net_device *dev, u16 *p_pvid)
 {
 	struct net_bridge_vlan_group *vg;
+	struct net_bridge_port *p;
 
+	ASSERT_RTNL();
+	p = br_port_get_check_rtnl(dev);
 	if (p)
 		vg = nbp_vlan_group(p);
 	else if (netif_is_bridge_master(dev))
@@ -1303,18 +1305,23 @@ static int __br_vlan_get_pvid(const struct net_device *dev,
 	*p_pvid = br_get_pvid(vg);
 	return 0;
 }
-
-int br_vlan_get_pvid(const struct net_device *dev, u16 *p_pvid)
-{
-	ASSERT_RTNL();
-
-	return __br_vlan_get_pvid(dev, br_port_get_check_rtnl(dev), p_pvid);
-}
 EXPORT_SYMBOL_GPL(br_vlan_get_pvid);
 
 int br_vlan_get_pvid_rcu(const struct net_device *dev, u16 *p_pvid)
 {
-	return __br_vlan_get_pvid(dev, br_port_get_check_rcu(dev), p_pvid);
+	struct net_bridge_vlan_group *vg;
+	struct net_bridge_port *p;
+
+	p = br_port_get_check_rcu(dev);
+	if (p)
+		vg = nbp_vlan_group_rcu(p);
+	else if (netif_is_bridge_master(dev))
+		vg = br_vlan_group_rcu(netdev_priv(dev));
+	else
+		return -EINVAL;
+
+	*p_pvid = br_get_pvid(vg);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(br_vlan_get_pvid_rcu);
 
@@ -1353,7 +1360,7 @@ static int br_vlan_is_bind_vlan_dev(const struct net_device *dev)
 }
 
 static int br_vlan_is_bind_vlan_dev_fn(struct net_device *dev,
-				       __always_unused void *data)
+			       __always_unused struct netdev_nested_priv *priv)
 {
 	return br_vlan_is_bind_vlan_dev(dev);
 }
@@ -1376,9 +1383,9 @@ struct br_vlan_bind_walk_data {
 };
 
 static int br_vlan_match_bind_vlan_dev_fn(struct net_device *dev,
-					  void *data_in)
+					  struct netdev_nested_priv *priv)
 {
-	struct br_vlan_bind_walk_data *data = data_in;
+	struct br_vlan_bind_walk_data *data = priv->data;
 	int found = 0;
 
 	if (br_vlan_is_bind_vlan_dev(dev) &&
@@ -1396,10 +1403,13 @@ br_vlan_get_upper_bind_vlan_dev(struct net_device *dev, u16 vid)
 	struct br_vlan_bind_walk_data data = {
 		.vid = vid,
 	};
+	struct netdev_nested_priv priv = {
+		.data = (void *)&data,
+	};
 
 	rcu_read_lock();
 	netdev_walk_all_upper_dev_rcu(dev, br_vlan_match_bind_vlan_dev_fn,
-				      &data);
+				      &priv);
 	rcu_read_unlock();
 
 	return data.result;
@@ -1480,9 +1490,9 @@ struct br_vlan_link_state_walk_data {
 };
 
 static int br_vlan_link_state_change_fn(struct net_device *vlan_dev,
-					void *data_in)
+					struct netdev_nested_priv *priv)
 {
-	struct br_vlan_link_state_walk_data *data = data_in;
+	struct br_vlan_link_state_walk_data *data = priv->data;
 
 	if (br_vlan_is_bind_vlan_dev(vlan_dev))
 		br_vlan_set_vlan_dev_state(data->br, vlan_dev);
@@ -1496,10 +1506,13 @@ static void br_vlan_link_state_change(struct net_device *dev,
 	struct br_vlan_link_state_walk_data data = {
 		.br = br
 	};
+	struct netdev_nested_priv priv = {
+		.data = (void *)&data,
+	};
 
 	rcu_read_lock();
 	netdev_walk_all_upper_dev_rcu(dev, br_vlan_link_state_change_fn,
-				      &data);
+				      &priv);
 	rcu_read_unlock();
 }
 
@@ -1884,8 +1897,8 @@ out_err:
 }
 
 static const struct nla_policy br_vlan_db_policy[BRIDGE_VLANDB_ENTRY_MAX + 1] = {
-	[BRIDGE_VLANDB_ENTRY_INFO]	= { .type = NLA_EXACT_LEN,
-					    .len = sizeof(struct bridge_vlan_info) },
+	[BRIDGE_VLANDB_ENTRY_INFO]	=
+		NLA_POLICY_EXACT_LEN(sizeof(struct bridge_vlan_info)),
 	[BRIDGE_VLANDB_ENTRY_RANGE]	= { .type = NLA_U16 },
 	[BRIDGE_VLANDB_ENTRY_STATE]	= { .type = NLA_U8 },
 	[BRIDGE_VLANDB_ENTRY_TUNNEL_INFO] = { .type = NLA_NESTED },

@@ -10,7 +10,7 @@
 static void
 nfp_flower_compile_meta_tci(struct nfp_flower_meta_tci *ext,
 			    struct nfp_flower_meta_tci *msk,
-			    struct flow_rule *rule, u8 key_type)
+			    struct flow_rule *rule, u8 key_type, bool qinq_sup)
 {
 	u16 tmp_tci;
 
@@ -24,7 +24,7 @@ nfp_flower_compile_meta_tci(struct nfp_flower_meta_tci *ext,
 	msk->nfp_flow_key_layer = key_type;
 	msk->mask_id = ~0;
 
-	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_VLAN)) {
+	if (!qinq_sup && flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_VLAN)) {
 		struct flow_match_vlan match;
 
 		flow_rule_match_vlan(rule, &match);
@@ -231,6 +231,50 @@ nfp_flower_compile_ip_ext(struct nfp_flower_ip_ext *ext,
 }
 
 static void
+nfp_flower_fill_vlan(struct flow_dissector_key_vlan *key,
+		     struct nfp_flower_vlan *frame,
+		     bool outer_vlan)
+{
+	u16 tci;
+
+	tci = NFP_FLOWER_MASK_VLAN_PRESENT;
+	tci |= FIELD_PREP(NFP_FLOWER_MASK_VLAN_PRIO,
+			  key->vlan_priority) |
+	       FIELD_PREP(NFP_FLOWER_MASK_VLAN_VID,
+			  key->vlan_id);
+
+	if (outer_vlan) {
+		frame->outer_tci = cpu_to_be16(tci);
+		frame->outer_tpid = key->vlan_tpid;
+	} else {
+		frame->inner_tci = cpu_to_be16(tci);
+		frame->inner_tpid = key->vlan_tpid;
+	}
+}
+
+static void
+nfp_flower_compile_vlan(struct nfp_flower_vlan *ext,
+			struct nfp_flower_vlan *msk,
+			struct flow_rule *rule)
+{
+	struct flow_match_vlan match;
+
+	memset(ext, 0, sizeof(struct nfp_flower_vlan));
+	memset(msk, 0, sizeof(struct nfp_flower_vlan));
+
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_VLAN)) {
+		flow_rule_match_vlan(rule, &match);
+		nfp_flower_fill_vlan(match.key, ext, true);
+		nfp_flower_fill_vlan(match.mask, msk, true);
+	}
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_CVLAN)) {
+		flow_rule_match_cvlan(rule, &match);
+		nfp_flower_fill_vlan(match.key, ext, false);
+		nfp_flower_fill_vlan(match.mask, msk, false);
+	}
+}
+
+static void
 nfp_flower_compile_ipv4(struct nfp_flower_ipv4 *ext,
 			struct nfp_flower_ipv4 *msk, struct flow_rule *rule)
 {
@@ -433,7 +477,10 @@ int nfp_flower_compile_flow_match(struct nfp_app *app,
 				  struct netlink_ext_ack *extack)
 {
 	struct flow_rule *rule = flow_cls_offload_flow_rule(flow);
+	struct nfp_flower_priv *priv = app->priv;
+	bool qinq_sup;
 	u32 port_id;
+	int ext_len;
 	int err;
 	u8 *ext;
 	u8 *msk;
@@ -446,9 +493,11 @@ int nfp_flower_compile_flow_match(struct nfp_app *app,
 	ext = nfp_flow->unmasked_data;
 	msk = nfp_flow->mask_data;
 
+	qinq_sup = !!(priv->flower_ext_feats & NFP_FL_FEATS_VLAN_QINQ);
+
 	nfp_flower_compile_meta_tci((struct nfp_flower_meta_tci *)ext,
 				    (struct nfp_flower_meta_tci *)msk,
-				    rule, key_ls->key_layer);
+				    rule, key_ls->key_layer, qinq_sup);
 	ext += sizeof(struct nfp_flower_meta_tci);
 	msk += sizeof(struct nfp_flower_meta_tci);
 
@@ -547,6 +596,14 @@ int nfp_flower_compile_flow_match(struct nfp_app *app,
 		}
 	}
 
+	if (NFP_FLOWER_LAYER2_QINQ & key_ls->key_layer_two) {
+		nfp_flower_compile_vlan((struct nfp_flower_vlan *)ext,
+					(struct nfp_flower_vlan *)msk,
+					rule);
+		ext += sizeof(struct nfp_flower_vlan);
+		msk += sizeof(struct nfp_flower_vlan);
+	}
+
 	if (key_ls->key_layer & NFP_FLOWER_LAYER_VXLAN ||
 	    key_ls->key_layer_two & NFP_FLOWER_LAYER2_GENEVE) {
 		if (key_ls->key_layer_two & NFP_FLOWER_LAYER2_TUN_IPV6) {
@@ -587,6 +644,16 @@ int nfp_flower_compile_flow_match(struct nfp_app *app,
 			if (err)
 				return err;
 		}
+	}
+
+	/* Check that the flow key does not exceed the maximum limit.
+	 * All structures in the key is multiples of 4 bytes, so use u32.
+	 */
+	ext_len = (u32 *)ext - (u32 *)nfp_flow->unmasked_data;
+	if (ext_len > NFP_FLOWER_KEY_MAX_LW) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "unsupported offload: flow key too long");
+		return -EOPNOTSUPP;
 	}
 
 	return 0;

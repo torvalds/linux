@@ -151,6 +151,9 @@
 
 #define IEEE80211_ANO_NETTYPE_WILD              15
 
+/* bits unique to S1G beacon */
+#define IEEE80211_S1G_BCN_NEXT_TBTT    0x100
+
 /* control extension - for IEEE80211_FTYPE_CTL | IEEE80211_STYPE_CTL_EXT */
 #define IEEE80211_CTL_EXT_POLL		0x2000
 #define IEEE80211_CTL_EXT_SPR		0x3000
@@ -551,6 +554,28 @@ static inline bool ieee80211_is_s1g_beacon(__le16 fc)
 	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE |
 				 IEEE80211_FCTL_STYPE)) ==
 	       cpu_to_le16(IEEE80211_FTYPE_EXT | IEEE80211_STYPE_S1G_BEACON);
+}
+
+/**
+ * ieee80211_next_tbtt_present - check if IEEE80211_FTYPE_EXT &&
+ * IEEE80211_STYPE_S1G_BEACON && IEEE80211_S1G_BCN_NEXT_TBTT
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_next_tbtt_present(__le16 fc)
+{
+	return (fc & cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
+	       cpu_to_le16(IEEE80211_FTYPE_EXT | IEEE80211_STYPE_S1G_BEACON) &&
+	       fc & cpu_to_le16(IEEE80211_S1G_BCN_NEXT_TBTT);
+}
+
+/**
+ * ieee80211_is_s1g_short_beacon - check if next tbtt present bit is set. Only
+ * true for S1G beacons when they're short.
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee80211_is_s1g_short_beacon(__le16 fc)
+{
+	return ieee80211_is_s1g_beacon(fc) && ieee80211_next_tbtt_present(fc);
 }
 
 /**
@@ -962,6 +987,25 @@ enum ieee80211_vht_opmode_bits {
 	IEEE80211_OPMODE_NOTIF_RX_NSS_TYPE_BF	= 0x80,
 };
 
+/**
+ * enum ieee80211_s1g_chanwidth
+ * These are defined in IEEE802.11-2016ah Table 10-20
+ * as BSS Channel Width
+ *
+ * @IEEE80211_S1G_CHANWIDTH_1MHZ: 1MHz operating channel
+ * @IEEE80211_S1G_CHANWIDTH_2MHZ: 2MHz operating channel
+ * @IEEE80211_S1G_CHANWIDTH_4MHZ: 4MHz operating channel
+ * @IEEE80211_S1G_CHANWIDTH_8MHZ: 8MHz operating channel
+ * @IEEE80211_S1G_CHANWIDTH_16MHZ: 16MHz operating channel
+ */
+enum ieee80211_s1g_chanwidth {
+	IEEE80211_S1G_CHANWIDTH_1MHZ = 0,
+	IEEE80211_S1G_CHANWIDTH_2MHZ = 1,
+	IEEE80211_S1G_CHANWIDTH_4MHZ = 3,
+	IEEE80211_S1G_CHANWIDTH_8MHZ = 7,
+	IEEE80211_S1G_CHANWIDTH_16MHZ = 15,
+};
+
 #define WLAN_SA_QUERY_TR_ID_LEN 2
 #define WLAN_MEMBERSHIP_LEN 8
 #define WLAN_USER_POSITION_LEN 16
@@ -1034,6 +1078,13 @@ struct ieee80211_ext {
 			u8 change_seq;
 			u8 variable[0];
 		} __packed s1g_beacon;
+		struct {
+			u8 sa[ETH_ALEN];
+			__le32 timestamp;
+			u8 change_seq;
+			u8 next_tbtt[3];
+			u8 variable[0];
+		} __packed s1g_short_beacon;
 	} u;
 } __packed __aligned(2);
 
@@ -1068,6 +1119,11 @@ struct ieee80211_mgmt {
 			/* followed by Supported rates */
 			u8 variable[0];
 		} __packed assoc_resp, reassoc_resp;
+		struct {
+			__le16 capab_info;
+			__le16 status_code;
+			u8 variable[0];
+		} __packed s1g_assoc_resp, s1g_reassoc_resp;
 		struct {
 			__le16 capab_info;
 			__le16 listen_interval;
@@ -2294,8 +2350,11 @@ ieee80211_he_6ghz_oper(const struct ieee80211_he_operation *he_oper)
 }
 
 /* HE Spatial Reuse defines */
-#define IEEE80211_HE_SPR_NON_SRG_OFFSET_PRESENT			0x4
-#define IEEE80211_HE_SPR_SRG_INFORMATION_PRESENT		0x8
+#define IEEE80211_HE_SPR_PSR_DISALLOWED				BIT(0)
+#define IEEE80211_HE_SPR_NON_SRG_OBSS_PD_SR_DISALLOWED		BIT(1)
+#define IEEE80211_HE_SPR_NON_SRG_OFFSET_PRESENT			BIT(2)
+#define IEEE80211_HE_SPR_SRG_INFORMATION_PRESENT		BIT(3)
+#define IEEE80211_HE_SPR_HESIGA_SR_VAL15_ALLOWED		BIT(4)
 
 /*
  * ieee80211_he_spr_size - calculate 802.11ax HE Spatial Reuse IE size
@@ -2330,84 +2389,93 @@ ieee80211_he_spr_size(const u8 *he_spr_ie)
 }
 
 /* S1G Capabilities Information field */
-#define S1G_CAPAB_B0_S1G_LONG BIT(0)
-#define S1G_CAPAB_B0_SGI_1MHZ BIT(1)
-#define S1G_CAPAB_B0_SGI_2MHZ BIT(2)
-#define S1G_CAPAB_B0_SGI_4MHZ BIT(3)
-#define S1G_CAPAB_B0_SGI_8MHZ BIT(4)
-#define S1G_CAPAB_B0_SGI_16MHZ BIT(5)
-#define S1G_CAPAB_B0_SUPP_CH_WIDTH_MASK (BIT(6) | BIT(7))
-#define S1G_CAPAB_B0_SUPP_CH_WIDTH_SHIFT 6
+#define IEEE80211_S1G_CAPABILITY_LEN	15
 
-#define S1G_CAPAB_B1_RX_LDPC BIT(0)
-#define S1G_CAPAB_B1_TX_STBC BIT(1)
-#define S1G_CAPAB_B1_RX_STBC BIT(2)
-#define S1G_CAPAB_B1_SU_BFER BIT(3)
-#define S1G_CAPAB_B1_SU_BFEE BIT(4)
-#define S1G_CAPAB_B1_BFEE_STS_MASK (BIT(5) | BIT(6) | BIT(7))
-#define S1G_CAPAB_B1_BFEE_STS_SHIFT 5
+#define S1G_CAP0_S1G_LONG	BIT(0)
+#define S1G_CAP0_SGI_1MHZ	BIT(1)
+#define S1G_CAP0_SGI_2MHZ	BIT(2)
+#define S1G_CAP0_SGI_4MHZ	BIT(3)
+#define S1G_CAP0_SGI_8MHZ	BIT(4)
+#define S1G_CAP0_SGI_16MHZ	BIT(5)
+#define S1G_CAP0_SUPP_CH_WIDTH	GENMASK(7, 6)
 
-#define S1G_CAPAB_B2_SOUNDING_DIMENSIONS_MASK (BIT(0) | BIT(1) | BIT(2))
-#define S1G_CAPAB_B2_SOUNDING_DIMENSIONS_SHIFT 0
-#define S1G_CAPAB_B2_MU_BFER BIT(3)
-#define S1G_CAPAB_B2_MU_BFEE BIT(4)
-#define S1G_CAPAB_B2_PLUS_HTC_VHT BIT(5)
-#define S1G_CAPAB_B2_TRAVELING_PILOT_MASK (BIT(6) | BIT(7))
-#define S1G_CAPAB_B2_TRAVELING_PILOT_SHIFT 6
+#define S1G_SUPP_CH_WIDTH_2	0
+#define S1G_SUPP_CH_WIDTH_4	1
+#define S1G_SUPP_CH_WIDTH_8	2
+#define S1G_SUPP_CH_WIDTH_16	3
+#define S1G_SUPP_CH_WIDTH_MAX(cap) ((1 << FIELD_GET(S1G_CAP0_SUPP_CH_WIDTH, \
+						    cap[0])) << 1)
 
-#define S1G_CAPAB_B3_RD_RESPONDER BIT(0)
-#define S1G_CAPAB_B3_HT_DELAYED_BA BIT(1)
-#define S1G_CAPAB_B3_MAX_MPDU_LEN BIT(2)
-#define S1G_CAPAB_B3_MAX_AMPDU_LEN_EXP_MASK (BIT(3) | BIT(4))
-#define S1G_CAPAB_B3_MAX_AMPDU_LEN_EXP_SHIFT 3
-#define S1G_CAPAB_B3_MIN_MPDU_START_MASK (BIT(5) | BIT(6) | BIT(7))
-#define S1G_CAPAB_B3_MIN_MPDU_START_SHIFT 5
+#define S1G_CAP1_RX_LDPC	BIT(0)
+#define S1G_CAP1_TX_STBC	BIT(1)
+#define S1G_CAP1_RX_STBC	BIT(2)
+#define S1G_CAP1_SU_BFER	BIT(3)
+#define S1G_CAP1_SU_BFEE	BIT(4)
+#define S1G_CAP1_BFEE_STS	GENMASK(7, 5)
 
-#define S1G_CAPAB_B4_UPLINK_SYNC BIT(0)
-#define S1G_CAPAB_B4_DYNAMIC_AID BIT(1)
-#define S1G_CAPAB_B4_BAT BIT(2)
-#define S1G_CAPAB_B4_TIME_ADE BIT(3)
-#define S1G_CAPAB_B4_NON_TIM BIT(4)
-#define S1G_CAPAB_B4_GROUP_AID BIT(5)
-#define S1G_CAPAB_B4_STA_TYPE_MASK (BIT(6) | BIT(7))
-#define S1G_CAPAB_B4_STA_TYPE_SHIFT 6
+#define S1G_CAP2_SOUNDING_DIMENSIONS	GENMASK(2, 0)
+#define S1G_CAP2_MU_BFER		BIT(3)
+#define S1G_CAP2_MU_BFEE		BIT(4)
+#define S1G_CAP2_PLUS_HTC_VHT		BIT(5)
+#define S1G_CAP2_TRAVELING_PILOT	GENMASK(7, 6)
 
-#define S1G_CAPAB_B5_CENT_AUTH_CONTROL BIT(0)
-#define S1G_CAPAB_B5_DIST_AUTH_CONTROL BIT(1)
-#define S1G_CAPAB_B5_AMSDU BIT(2)
-#define S1G_CAPAB_B5_AMPDU BIT(3)
-#define S1G_CAPAB_B5_ASYMMETRIC_BA BIT(4)
-#define S1G_CAPAB_B5_FLOW_CONTROL BIT(5)
-#define S1G_CAPAB_B5_SECTORIZED_BEAM_MASK (BIT(6) | BIT(7))
-#define S1G_CAPAB_B5_SECTORIZED_BEAM_SHIFT 6
+#define S1G_CAP3_RD_RESPONDER		BIT(0)
+#define S1G_CAP3_HT_DELAYED_BA		BIT(1)
+#define S1G_CAP3_MAX_MPDU_LEN		BIT(2)
+#define S1G_CAP3_MAX_AMPDU_LEN_EXP	GENMASK(4, 3)
+#define S1G_CAP3_MIN_MPDU_START		GENMASK(7, 5)
 
-#define S1G_CAPAB_B6_OBSS_MITIGATION BIT(0)
-#define S1G_CAPAB_B6_FRAGMENT_BA BIT(1)
-#define S1G_CAPAB_B6_NDP_PS_POLL BIT(2)
-#define S1G_CAPAB_B6_RAW_OPERATION BIT(3)
-#define S1G_CAPAB_B6_PAGE_SLICING BIT(4)
-#define S1G_CAPAB_B6_TXOP_SHARING_IMP_ACK BIT(5)
-#define S1G_CAPAB_B6_VHT_LINK_ADAPT_MASK (BIT(6) | BIT(7))
-#define S1G_CAPAB_B6_VHT_LINK_ADAPT_SHIFT 6
+#define S1G_CAP4_UPLINK_SYNC	BIT(0)
+#define S1G_CAP4_DYNAMIC_AID	BIT(1)
+#define S1G_CAP4_BAT		BIT(2)
+#define S1G_CAP4_TIME_ADE	BIT(3)
+#define S1G_CAP4_NON_TIM	BIT(4)
+#define S1G_CAP4_GROUP_AID	BIT(5)
+#define S1G_CAP4_STA_TYPE	GENMASK(7, 6)
 
-#define S1G_CAPAB_B7_TACK_AS_PS_POLL BIT(0)
-#define S1G_CAPAB_B7_DUP_1MHZ BIT(1)
-#define S1G_CAPAB_B7_MCS_NEGOTIATION BIT(2)
-#define S1G_CAPAB_B7_1MHZ_CTL_RESPONSE_PREAMBLE BIT(3)
-#define S1G_CAPAB_B7_NDP_BFING_REPORT_POLL BIT(4)
-#define S1G_CAPAB_B7_UNSOLICITED_DYN_AID BIT(5)
-#define S1G_CAPAB_B7_SECTOR_TRAINING_OPERATION BIT(6)
-#define S1G_CAPAB_B7_TEMP_PS_MODE_SWITCH BIT(7)
+#define S1G_CAP5_CENT_AUTH_CONTROL	BIT(0)
+#define S1G_CAP5_DIST_AUTH_CONTROL	BIT(1)
+#define S1G_CAP5_AMSDU			BIT(2)
+#define S1G_CAP5_AMPDU			BIT(3)
+#define S1G_CAP5_ASYMMETRIC_BA		BIT(4)
+#define S1G_CAP5_FLOW_CONTROL		BIT(5)
+#define S1G_CAP5_SECTORIZED_BEAM	GENMASK(7, 6)
 
-#define S1G_CAPAB_B8_TWT_GROUPING BIT(0)
-#define S1G_CAPAB_B8_BDT BIT(1)
-#define S1G_CAPAB_B8_COLOR_MASK (BIT(2) | BIT(3) | BIT(4))
-#define S1G_CAPAB_B8_COLOR_SHIFT 2
-#define S1G_CAPAB_B8_TWT_REQUEST BIT(5)
-#define S1G_CAPAB_B8_TWT_RESPOND BIT(6)
-#define S1G_CAPAB_B8_PV1_FRAME BIT(7)
+#define S1G_CAP6_OBSS_MITIGATION	BIT(0)
+#define S1G_CAP6_FRAGMENT_BA		BIT(1)
+#define S1G_CAP6_NDP_PS_POLL		BIT(2)
+#define S1G_CAP6_RAW_OPERATION		BIT(3)
+#define S1G_CAP6_PAGE_SLICING		BIT(4)
+#define S1G_CAP6_TXOP_SHARING_IMP_ACK	BIT(5)
+#define S1G_CAP6_VHT_LINK_ADAPT		GENMASK(7, 6)
 
-#define S1G_CAPAB_B9_LINK_ADAPT_PER_CONTROL_RESPONSE BIT(0)
+#define S1G_CAP7_TACK_AS_PS_POLL		BIT(0)
+#define S1G_CAP7_DUP_1MHZ			BIT(1)
+#define S1G_CAP7_MCS_NEGOTIATION		BIT(2)
+#define S1G_CAP7_1MHZ_CTL_RESPONSE_PREAMBLE	BIT(3)
+#define S1G_CAP7_NDP_BFING_REPORT_POLL		BIT(4)
+#define S1G_CAP7_UNSOLICITED_DYN_AID		BIT(5)
+#define S1G_CAP7_SECTOR_TRAINING_OPERATION	BIT(6)
+#define S1G_CAP7_TEMP_PS_MODE_SWITCH		BIT(7)
+
+#define S1G_CAP8_TWT_GROUPING	BIT(0)
+#define S1G_CAP8_BDT		BIT(1)
+#define S1G_CAP8_COLOR		GENMASK(4, 2)
+#define S1G_CAP8_TWT_REQUEST	BIT(5)
+#define S1G_CAP8_TWT_RESPOND	BIT(6)
+#define S1G_CAP8_PV1_FRAME	BIT(7)
+
+#define S1G_CAP9_LINK_ADAPT_PER_CONTROL_RESPONSE BIT(0)
+
+#define S1G_OPER_CH_WIDTH_PRIMARY_1MHZ	BIT(0)
+#define S1G_OPER_CH_WIDTH_OPER		GENMASK(4, 1)
+
+
+#define LISTEN_INT_USF	GENMASK(15, 14)
+#define LISTEN_INT_UI	GENMASK(13, 0)
+
+#define IEEE80211_MAX_USF	FIELD_MAX(LISTEN_INT_USF)
+#define IEEE80211_MAX_UI	FIELD_MAX(LISTEN_INT_UI)
 
 /* Authentication algorithms */
 #define WLAN_AUTH_OPEN 0
@@ -2808,6 +2876,8 @@ enum ieee80211_eid {
 
 	WLAN_EID_REDUCED_NEIGHBOR_REPORT = 201,
 
+	WLAN_EID_AID_REQUEST = 210,
+	WLAN_EID_AID_RESPONSE = 211,
 	WLAN_EID_S1G_BCN_COMPAT = 213,
 	WLAN_EID_S1G_SHORT_BCN_INTERVAL = 214,
 	WLAN_EID_S1G_CAPABILITIES = 217,

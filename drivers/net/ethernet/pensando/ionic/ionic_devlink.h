@@ -6,6 +6,9 @@
 
 #include <net/devlink.h>
 
+int ionic_firmware_update(struct ionic_lif *lif, const char *fw_name,
+			  struct netlink_ext_ack *extack);
+
 struct ionic *ionic_devlink_alloc(struct device *dev);
 void ionic_devlink_free(struct ionic *ionic);
 int ionic_devlink_register(struct ionic *ionic);

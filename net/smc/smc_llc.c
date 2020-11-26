@@ -233,8 +233,6 @@ static bool smc_llc_flow_start(struct smc_llc_flow *flow,
 	default:
 		flow->type = SMC_LLC_FLOW_NONE;
 	}
-	if (qentry == lgr->delayed_event)
-		lgr->delayed_event = NULL;
 	smc_llc_flow_qentry_set(flow, qentry);
 	spin_unlock_bh(&lgr->llc_flow_lock);
 	return true;
@@ -841,6 +839,9 @@ int smc_llc_cli_add_link(struct smc_link *link, struct smc_llc_qentry *qentry)
 	struct smc_init_info ini;
 	int lnk_idx, rc = 0;
 
+	if (!llc->qp_mtu)
+		goto out_reject;
+
 	ini.vlan_id = lgr->vlan_id;
 	smc_pnet_find_alt_roce(lgr, &ini, link->smcibdev);
 	if (!memcmp(llc->sender_gid, link->peer_gid, SMC_GID_SIZE) &&
@@ -917,10 +918,20 @@ out:
 	kfree(qentry);
 }
 
+static bool smc_llc_is_empty_llc_message(union smc_llc_msg *llc)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(llc->raw.data); i++)
+		if (llc->raw.data[i])
+			return false;
+	return true;
+}
+
 static bool smc_llc_is_local_add_link(union smc_llc_msg *llc)
 {
 	if (llc->raw.hdr.common.type == SMC_LLC_ADD_LINK &&
-	    !llc->add_link.qp_mtu && !llc->add_link.link_num)
+	    smc_llc_is_empty_llc_message(llc))
 		return true;
 	return false;
 }
@@ -1196,7 +1207,7 @@ static void smc_llc_process_srv_add_link(struct smc_link_group *lgr)
 /* enqueue a local add_link req to trigger a new add_link flow */
 void smc_llc_add_link_local(struct smc_link *link)
 {
-	struct smc_llc_msg_add_link add_llc = {0};
+	struct smc_llc_msg_add_link add_llc = {};
 
 	add_llc.hd.length = sizeof(add_llc);
 	add_llc.hd.common.type = SMC_LLC_ADD_LINK;
@@ -1229,7 +1240,7 @@ out:
  */
 void smc_llc_srv_delete_link_local(struct smc_link *link, u8 del_link_id)
 {
-	struct smc_llc_msg_del_link del_llc = {0};
+	struct smc_llc_msg_del_link del_llc = {};
 
 	del_llc.hd.length = sizeof(del_llc);
 	del_llc.hd.common.type = SMC_LLC_DELETE_LINK;
@@ -1301,7 +1312,7 @@ out:
  */
 void smc_llc_send_link_delete_all(struct smc_link_group *lgr, bool ord, u32 rsn)
 {
-	struct smc_llc_msg_del_link delllc = {0};
+	struct smc_llc_msg_del_link delllc = {};
 	int i;
 
 	delllc.hd.common.type = SMC_LLC_DELETE_LINK;
@@ -1590,13 +1601,12 @@ static void smc_llc_event_work(struct work_struct *work)
 	struct smc_llc_qentry *qentry;
 
 	if (!lgr->llc_flow_lcl.type && lgr->delayed_event) {
-		if (smc_link_usable(lgr->delayed_event->link)) {
-			smc_llc_event_handler(lgr->delayed_event);
-		} else {
-			qentry = lgr->delayed_event;
-			lgr->delayed_event = NULL;
+		qentry = lgr->delayed_event;
+		lgr->delayed_event = NULL;
+		if (smc_link_usable(qentry->link))
+			smc_llc_event_handler(qentry);
+		else
 			kfree(qentry);
-		}
 	}
 
 again:
@@ -1678,7 +1688,7 @@ static void smc_llc_enqueue(struct smc_link *link, union smc_llc_msg *llc)
 	spin_lock_irqsave(&lgr->llc_event_q_lock, flags);
 	list_add_tail(&qentry->list, &lgr->llc_event_q);
 	spin_unlock_irqrestore(&lgr->llc_event_q_lock, flags);
-	schedule_work(&lgr->llc_event_work);
+	queue_work(system_highpri_wq, &lgr->llc_event_work);
 }
 
 /* copy received msg and add it to the event queue */

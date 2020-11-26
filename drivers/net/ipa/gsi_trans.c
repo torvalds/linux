@@ -81,7 +81,6 @@ struct gsi_tre {
 
 /* gsi_tre->flags mask values (in CPU byte order) */
 #define TRE_FLAGS_CHAIN_FMASK	GENMASK(0, 0)
-#define TRE_FLAGS_IEOB_FMASK	GENMASK(8, 8)
 #define TRE_FLAGS_IEOT_FMASK	GENMASK(9, 9)
 #define TRE_FLAGS_BEI_FMASK	GENMASK(10, 10)
 #define TRE_FLAGS_TYPE_FMASK	GENMASK(23, 16)
@@ -363,21 +362,30 @@ struct gsi_trans *gsi_channel_trans_alloc(struct gsi *gsi, u32 channel_id,
 	return trans;
 }
 
-/* Free a previously-allocated transaction (used only in case of error) */
+/* Free a previously-allocated transaction */
 void gsi_trans_free(struct gsi_trans *trans)
 {
+	refcount_t *refcount = &trans->refcount;
 	struct gsi_trans_info *trans_info;
+	bool last;
 
-	if (!refcount_dec_and_test(&trans->refcount))
+	/* We must hold the lock to release the last reference */
+	if (refcount_dec_not_one(refcount))
 		return;
 
 	trans_info = &trans->gsi->channel[trans->channel_id].trans_info;
 
 	spin_lock_bh(&trans_info->spinlock);
 
-	list_del(&trans->links);
+	/* Reference might have been added before we got the lock */
+	last = refcount_dec_and_test(refcount);
+	if (last)
+		list_del(&trans->links);
 
 	spin_unlock_bh(&trans_info->spinlock);
+
+	if (!last)
+		return;
 
 	ipa_gsi_trans_release(trans);
 
@@ -398,15 +406,24 @@ void gsi_trans_cmd_add(struct gsi_trans *trans, void *buf, u32 size,
 
 	/* assert(which < trans->tre_count); */
 
-	/* Set the page information for the buffer.  We also need to fill in
-	 * the DMA address and length for the buffer (something dma_map_sg()
-	 * normally does).
+	/* Commands are quite different from data transfer requests.
+	 * Their payloads come from a pool whose memory is allocated
+	 * using dma_alloc_coherent().  We therefore do *not* map them
+	 * for DMA (unlike what we do for pages and skbs).
+	 *
+	 * When a transaction completes, the SGL is normally unmapped.
+	 * A command transaction has direction DMA_NONE, which tells
+	 * gsi_trans_complete() to skip the unmapping step.
+	 *
+	 * The only things we use directly in a command scatter/gather
+	 * entry are the DMA address and length.  We still need the SG
+	 * table flags to be maintained though, so assign a NULL page
+	 * pointer for that purpose.
 	 */
 	sg = &trans->sgl[which];
-
-	sg_set_buf(sg, buf, size);
+	sg_assign_page(sg, NULL);
 	sg_dma_address(sg) = addr;
-	sg_dma_len(sg) = sg->length;
+	sg_dma_len(sg) = size;
 
 	info = &trans->info[which];
 	info->opcode = opcode;

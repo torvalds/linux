@@ -79,10 +79,5 @@ arch_get_random_seed_long_early(unsigned long *v)
 }
 #define arch_get_random_seed_long_early arch_get_random_seed_long_early
 
-#else
-
-static inline bool __arm64_rndr(unsigned long *v) { return false; }
-static inline bool __init __early_cpu_has_rndr(void) { return false; }
-
 #endif /* CONFIG_ARCH_RANDOM */
 #endif /* _ASM_ARCHRANDOM_H */

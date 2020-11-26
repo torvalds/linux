@@ -521,6 +521,8 @@
 #define SPRN_TSCR	0x399	/* Thread Switch Control Register */
 
 #define SPRN_DEC	0x016		/* Decrement Register */
+#define SPRN_PIT	0x3DB		/* Programmable Interval Timer (40x/BOOKE) */
+
 #define SPRN_DER	0x095		/* Debug Enable Register */
 #define DER_RSTE	0x40000000	/* Reset Interrupt */
 #define DER_CHSTPE	0x20000000	/* Check Stop */
@@ -817,7 +819,7 @@
 #define THRM1_TIN	(1 << 31)
 #define THRM1_TIV	(1 << 30)
 #define THRM1_THRES(x)	((x&0x7f)<<23)
-#define THRM3_SITV(x)	((x&0x3fff)<<1)
+#define THRM3_SITV(x)	((x & 0x1fff) << 1)
 #define THRM1_TID	(1<<2)
 #define THRM1_TIE	(1<<1)
 #define THRM1_V		(1<<0)
@@ -1353,6 +1355,7 @@
 #define PVR_POWER8NVL	0x004C
 #define PVR_POWER8	0x004D
 #define PVR_POWER9	0x004E
+#define PVR_POWER10	0x0080
 #define PVR_BE		0x0070
 #define PVR_PA6T	0x0090
 
@@ -1416,8 +1419,7 @@ static inline void msr_check_and_clear(unsigned long bits)
 		__msr_check_and_clear(bits);
 }
 
-#ifdef __powerpc64__
-#if defined(CONFIG_PPC_CELL) || defined(CONFIG_PPC_FSL_BOOK3E)
+#if defined(CONFIG_PPC_CELL) || defined(CONFIG_E500)
 #define mftb()		({unsigned long rval;				\
 			asm volatile(					\
 				"90:	mfspr %0, %2;\n"		\
@@ -1427,29 +1429,23 @@ static inline void msr_check_and_clear(unsigned long bits)
 			: "=r" (rval) \
 			: "i" (CPU_FTR_CELL_TB_BUG), "i" (SPRN_TBRL) : "cr0"); \
 			rval;})
+#elif defined(CONFIG_PPC_8xx)
+#define mftb()		({unsigned long rval;	\
+			asm volatile("mftbl %0" : "=r" (rval)); rval;})
 #else
 #define mftb()		({unsigned long rval;	\
 			asm volatile("mfspr %0, %1" : \
 				     "=r" (rval) : "i" (SPRN_TBRL)); rval;})
 #endif /* !CONFIG_PPC_CELL */
 
-#else /* __powerpc64__ */
-
 #if defined(CONFIG_PPC_8xx)
-#define mftbl()		({unsigned long rval;	\
-			asm volatile("mftbl %0" : "=r" (rval)); rval;})
 #define mftbu()		({unsigned long rval;	\
 			asm volatile("mftbu %0" : "=r" (rval)); rval;})
 #else
-#define mftbl()		({unsigned long rval;	\
-			asm volatile("mfspr %0, %1" : "=r" (rval) : \
-				"i" (SPRN_TBRL)); rval;})
 #define mftbu()		({unsigned long rval;	\
 			asm volatile("mfspr %0, %1" : "=r" (rval) : \
 				"i" (SPRN_TBRU)); rval;})
 #endif
-#define mftb()		mftbl()
-#endif /* !__powerpc64__ */
 
 #define mttbl(v)	asm volatile("mttbl %0":: "r"(v))
 #define mttbu(v)	asm volatile("mttbu %0":: "r"(v))

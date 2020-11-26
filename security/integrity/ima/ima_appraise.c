@@ -19,18 +19,29 @@
 static int __init default_appraise_setup(char *str)
 {
 #ifdef CONFIG_IMA_APPRAISE_BOOTPARAM
-	if (arch_ima_get_secureboot()) {
-		pr_info("Secure boot enabled: ignoring ima_appraise=%s boot parameter option",
-			str);
-		return 1;
-	}
+	bool sb_state = arch_ima_get_secureboot();
+	int appraisal_state = ima_appraise;
 
 	if (strncmp(str, "off", 3) == 0)
-		ima_appraise = 0;
+		appraisal_state = 0;
 	else if (strncmp(str, "log", 3) == 0)
-		ima_appraise = IMA_APPRAISE_LOG;
+		appraisal_state = IMA_APPRAISE_LOG;
 	else if (strncmp(str, "fix", 3) == 0)
-		ima_appraise = IMA_APPRAISE_FIX;
+		appraisal_state = IMA_APPRAISE_FIX;
+	else if (strncmp(str, "enforce", 7) == 0)
+		appraisal_state = IMA_APPRAISE_ENFORCE;
+	else
+		pr_err("invalid \"%s\" appraise option", str);
+
+	/* If appraisal state was changed, but secure boot is enabled,
+	 * keep its default */
+	if (sb_state) {
+		if (!(appraisal_state & IMA_APPRAISE_ENFORCE))
+			pr_info("Secure boot enabled: ignoring ima_appraise=%s option",
+				str);
+	} else {
+		ima_appraise = appraisal_state;
+	}
 #endif
 	return 1;
 }
@@ -223,7 +234,7 @@ static int xattr_verify(enum ima_hooks func, struct integrity_iint_cache *iint,
 	case IMA_XATTR_DIGEST_NG:
 		/* first byte contains algorithm id */
 		hash_start = 1;
-		/* fall through */
+		fallthrough;
 	case IMA_XATTR_DIGEST:
 		if (iint->flags & IMA_DIGSIG_REQUIRED) {
 			*cause = "IMA-signature-required";
@@ -395,7 +406,7 @@ int ima_appraise_measurement(enum ima_hooks func,
 		/* It's fine not to have xattrs when using a modsig. */
 		if (try_modsig)
 			break;
-		/* fall through */
+		fallthrough;
 	case INTEGRITY_NOLABEL:		/* No security.evm xattr. */
 		cause = "missing-HMAC";
 		goto out;

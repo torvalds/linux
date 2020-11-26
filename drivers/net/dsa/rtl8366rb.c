@@ -35,7 +35,7 @@
 #define RTL8366RB_SGCR_MAX_LENGTH_1522		RTL8366RB_SGCR_MAX_LENGTH(0x0)
 #define RTL8366RB_SGCR_MAX_LENGTH_1536		RTL8366RB_SGCR_MAX_LENGTH(0x1)
 #define RTL8366RB_SGCR_MAX_LENGTH_1552		RTL8366RB_SGCR_MAX_LENGTH(0x2)
-#define RTL8366RB_SGCR_MAX_LENGTH_9216		RTL8366RB_SGCR_MAX_LENGTH(0x3)
+#define RTL8366RB_SGCR_MAX_LENGTH_16000		RTL8366RB_SGCR_MAX_LENGTH(0x3)
 #define RTL8366RB_SGCR_EN_VLAN			BIT(13)
 #define RTL8366RB_SGCR_EN_VLAN_4KTB		BIT(14)
 
@@ -310,6 +310,14 @@
 #define RTL8366RB_GREEN_FEATURE_MSK	0x0007
 #define RTL8366RB_GREEN_FEATURE_TX	BIT(0)
 #define RTL8366RB_GREEN_FEATURE_RX	BIT(2)
+
+/**
+ * struct rtl8366rb - RTL8366RB-specific data
+ * @max_mtu: per-port max MTU setting
+ */
+struct rtl8366rb {
+	unsigned int max_mtu[RTL8366RB_NUM_PORTS];
+};
 
 static struct rtl8366_mib_counter rtl8366rb_mib_counters[] = {
 	{ 0,  0, 4, "IfInOctets"				},
@@ -712,12 +720,15 @@ static int rtl8366rb_setup(struct dsa_switch *ds)
 {
 	struct realtek_smi *smi = ds->priv;
 	const u16 *jam_table;
+	struct rtl8366rb *rb;
 	u32 chip_ver = 0;
 	u32 chip_id = 0;
 	int jam_size;
 	u32 val;
 	int ret;
 	int i;
+
+	rb = smi->chip_data;
 
 	ret = regmap_read(smi->map, RTL8366RB_CHIP_ID_REG, &chip_id);
 	if (ret) {
@@ -868,6 +879,9 @@ static int rtl8366rb_setup(struct dsa_switch *ds)
 				 RTL8366RB_SGCR_MAX_LENGTH_1536);
 	if (ret)
 		return ret;
+	for (i = 0; i < RTL8366RB_NUM_PORTS; i++)
+		/* layer 2 size, see rtl8366rb_change_mtu() */
+		rb->max_mtu[i] = 1532;
 
 	/* Enable learning for all ports */
 	ret = regmap_write(smi->map, RTL8366RB_SSCR0, 0);
@@ -969,8 +983,10 @@ static enum dsa_tag_protocol rtl8366_get_tag_protocol(struct dsa_switch *ds,
 	return DSA_TAG_PROTO_RTL4_A;
 }
 
-static void rtl8366rb_adjust_link(struct dsa_switch *ds, int port,
-				  struct phy_device *phydev)
+static void
+rtl8366rb_mac_link_up(struct dsa_switch *ds, int port, unsigned int mode,
+		      phy_interface_t interface, struct phy_device *phydev,
+		      int speed, int duplex, bool tx_pause, bool rx_pause)
 {
 	struct realtek_smi *smi = ds->priv;
 	int ret;
@@ -978,25 +994,52 @@ static void rtl8366rb_adjust_link(struct dsa_switch *ds, int port,
 	if (port != smi->cpu_port)
 		return;
 
-	dev_info(smi->dev, "adjust link on CPU port (%d)\n", port);
+	dev_dbg(smi->dev, "MAC link up on CPU port (%d)\n", port);
 
 	/* Force the fixed CPU port into 1Gbit mode, no autonegotiation */
 	ret = regmap_update_bits(smi->map, RTL8366RB_MAC_FORCE_CTRL_REG,
 				 BIT(port), BIT(port));
-	if (ret)
+	if (ret) {
+		dev_err(smi->dev, "failed to force 1Gbit on CPU port\n");
 		return;
+	}
 
 	ret = regmap_update_bits(smi->map, RTL8366RB_PAACR2,
 				 0xFF00U,
 				 RTL8366RB_PAACR_CPU_PORT << 8);
-	if (ret)
+	if (ret) {
+		dev_err(smi->dev, "failed to set PAACR on CPU port\n");
 		return;
+	}
 
 	/* Enable the CPU port */
 	ret = regmap_update_bits(smi->map, RTL8366RB_PECR, BIT(port),
 				 0);
-	if (ret)
+	if (ret) {
+		dev_err(smi->dev, "failed to enable the CPU port\n");
 		return;
+	}
+}
+
+static void
+rtl8366rb_mac_link_down(struct dsa_switch *ds, int port, unsigned int mode,
+			phy_interface_t interface)
+{
+	struct realtek_smi *smi = ds->priv;
+	int ret;
+
+	if (port != smi->cpu_port)
+		return;
+
+	dev_dbg(smi->dev, "MAC link down on CPU port (%d)\n", port);
+
+	/* Disable the CPU port */
+	ret = regmap_update_bits(smi->map, RTL8366RB_PECR, BIT(port),
+				 BIT(port));
+	if (ret) {
+		dev_err(smi->dev, "failed to disable the CPU port\n");
+		return;
+	}
 }
 
 static void rb8366rb_set_port_led(struct realtek_smi *smi,
@@ -1075,6 +1118,56 @@ rtl8366rb_port_disable(struct dsa_switch *ds, int port)
 		return;
 
 	rb8366rb_set_port_led(smi, port, false);
+}
+
+static int rtl8366rb_change_mtu(struct dsa_switch *ds, int port, int new_mtu)
+{
+	struct realtek_smi *smi = ds->priv;
+	struct rtl8366rb *rb;
+	unsigned int max_mtu;
+	u32 len;
+	int i;
+
+	/* Cache the per-port MTU setting */
+	rb = smi->chip_data;
+	rb->max_mtu[port] = new_mtu;
+
+	/* Roof out the MTU for the entire switch to the greatest
+	 * common denominator: the biggest set for any one port will
+	 * be the biggest MTU for the switch.
+	 *
+	 * The first setting, 1522 bytes, is max IP packet 1500 bytes,
+	 * plus ethernet header, 1518 bytes, plus CPU tag, 4 bytes.
+	 * This function should consider the parameter an SDU, so the
+	 * MTU passed for this setting is 1518 bytes. The same logic
+	 * of subtracting the DSA tag of 4 bytes apply to the other
+	 * settings.
+	 */
+	max_mtu = 1518;
+	for (i = 0; i < RTL8366RB_NUM_PORTS; i++) {
+		if (rb->max_mtu[i] > max_mtu)
+			max_mtu = rb->max_mtu[i];
+	}
+	if (max_mtu <= 1518)
+		len = RTL8366RB_SGCR_MAX_LENGTH_1522;
+	else if (max_mtu > 1518 && max_mtu <= 1532)
+		len = RTL8366RB_SGCR_MAX_LENGTH_1536;
+	else if (max_mtu > 1532 && max_mtu <= 1548)
+		len = RTL8366RB_SGCR_MAX_LENGTH_1552;
+	else
+		len = RTL8366RB_SGCR_MAX_LENGTH_16000;
+
+	return regmap_update_bits(smi->map, RTL8366RB_SGCR,
+				  RTL8366RB_SGCR_MAX_LENGTH_MASK,
+				  len);
+}
+
+static int rtl8366rb_max_mtu(struct dsa_switch *ds, int port)
+{
+	/* The max MTU is 16000 bytes, so we subtract the CPU tag
+	 * and the max presented to the system is 15996 bytes.
+	 */
+	return 15996;
 }
 
 static int rtl8366rb_get_vlan_4k(struct realtek_smi *smi, u32 vid,
@@ -1255,7 +1348,7 @@ static bool rtl8366rb_is_vlan_valid(struct realtek_smi *smi, unsigned int vlan)
 	if (smi->vlan4k_enabled)
 		max = RTL8366RB_NUM_VIDS - 1;
 
-	if (vlan == 0 || vlan >= max)
+	if (vlan == 0 || vlan > max)
 		return false;
 
 	return true;
@@ -1405,7 +1498,8 @@ static int rtl8366rb_detect(struct realtek_smi *smi)
 static const struct dsa_switch_ops rtl8366rb_switch_ops = {
 	.get_tag_protocol = rtl8366_get_tag_protocol,
 	.setup = rtl8366rb_setup,
-	.adjust_link = rtl8366rb_adjust_link,
+	.phylink_mac_link_up = rtl8366rb_mac_link_up,
+	.phylink_mac_link_down = rtl8366rb_mac_link_down,
 	.get_strings = rtl8366_get_strings,
 	.get_ethtool_stats = rtl8366_get_ethtool_stats,
 	.get_sset_count = rtl8366_get_sset_count,
@@ -1415,6 +1509,8 @@ static const struct dsa_switch_ops rtl8366rb_switch_ops = {
 	.port_vlan_del = rtl8366_vlan_del,
 	.port_enable = rtl8366rb_port_enable,
 	.port_disable = rtl8366rb_port_disable,
+	.port_change_mtu = rtl8366rb_change_mtu,
+	.port_max_mtu = rtl8366rb_max_mtu,
 };
 
 static const struct realtek_smi_ops rtl8366rb_smi_ops = {
@@ -1439,5 +1535,6 @@ const struct realtek_smi_variant rtl8366rb_variant = {
 	.clk_delay = 10,
 	.cmd_read = 0xa9,
 	.cmd_write = 0xa8,
+	.chip_data_sz = sizeof(struct rtl8366rb),
 };
 EXPORT_SYMBOL_GPL(rtl8366rb_variant);

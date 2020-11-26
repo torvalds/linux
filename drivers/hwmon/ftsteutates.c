@@ -752,7 +752,7 @@ static int fts_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int fts_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int fts_probe(struct i2c_client *client)
 {
 	u8 revision;
 	struct fts_data *data;
@@ -819,7 +819,7 @@ static struct i2c_driver fts_driver = {
 		.name = "ftsteutates",
 	},
 	.id_table = fts_id,
-	.probe = fts_probe,
+	.probe_new = fts_probe,
 	.remove = fts_remove,
 	.detect = fts_detect,
 	.address_list = normal_i2c,

@@ -24,6 +24,11 @@ struct msm_gem_address_space {
 	spinlock_t lock; /* Protects drm_mm node allocation/removal */
 	struct msm_mmu *mmu;
 	struct kref kref;
+
+	/* For address spaces associated with a specific process, this
+	 * will be non-NULL:
+	 */
+	struct pid *pid;
 };
 
 struct msm_gem_vma {
@@ -83,12 +88,14 @@ struct msm_gem_object {
 	struct mutex lock; /* Protects resources associated with bo */
 
 	char name[32]; /* Identifier to print for the debugfs files */
+
+	atomic_t active_count;
 };
 #define to_msm_bo(x) container_of(x, struct msm_gem_object, base)
 
 static inline bool is_active(struct msm_gem_object *msm_obj)
 {
-	return msm_obj->gpu != NULL;
+	return atomic_read(&msm_obj->active_count);
 }
 
 static inline bool is_purgeable(struct msm_gem_object *msm_obj)
@@ -142,6 +149,7 @@ struct msm_gem_submit {
 	bool valid;         /* true if no cmdstream patching needed */
 	bool in_rb;         /* "sudo" mode, copy cmds into RB */
 	struct msm_ringbuffer *ring;
+	struct msm_file_private *ctx;
 	unsigned int nr_cmds;
 	unsigned int nr_bos;
 	u32 ident;	   /* A "identifier" for the submit for logging */

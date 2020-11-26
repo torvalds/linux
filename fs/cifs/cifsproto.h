@@ -209,6 +209,8 @@ extern int cifs_set_file_info(struct inode *inode, struct iattr *attrs,
 extern int cifs_rename_pending_delete(const char *full_path,
 				      struct dentry *dentry,
 				      const unsigned int xid);
+extern int sid_to_id(struct cifs_sb_info *cifs_sb, struct cifs_sid *psid,
+				struct cifs_fattr *fattr, uint sidtype);
 extern int cifs_acl_to_fattr(struct cifs_sb_info *cifs_sb,
 			      struct cifs_fattr *fattr, struct inode *inode,
 			      bool get_mode_from_special_sid,

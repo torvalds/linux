@@ -9,14 +9,12 @@
 
 #include <linux/sizes.h>
 
-#include <asm-generic/vmlinux.lds.h>
+#include <asm/vmlinux.lds.h>
 #include <asm/cache.h>
 #include <asm/thread_info.h>
 #include <asm/memory.h>
 #include <asm/mpu.h>
 #include <asm/page.h>
-
-#include "vmlinux.lds.h"
 
 OUTPUT_ARCH(arm)
 ENTRY(stext)
@@ -152,6 +150,10 @@ SECTIONS
 	_end = .;
 
 	STABS_DEBUG
+	DWARF_DEBUG
+	ARM_DETAILS
+
+	ARM_ASSERTS
 }
 
 /*

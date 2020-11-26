@@ -138,10 +138,9 @@ union ib_gid {
 extern union ib_gid zgid;
 
 enum ib_gid_type {
-	/* If link layer is Ethernet, this is RoCE V1 */
-	IB_GID_TYPE_IB        = 0,
-	IB_GID_TYPE_ROCE      = 0,
-	IB_GID_TYPE_ROCE_UDP_ENCAP = 1,
+	IB_GID_TYPE_IB = IB_UVERBS_GID_TYPE_IB,
+	IB_GID_TYPE_ROCE = IB_UVERBS_GID_TYPE_ROCE_V1,
+	IB_GID_TYPE_ROCE_UDP_ENCAP = IB_UVERBS_GID_TYPE_ROCE_V2,
 	IB_GID_TYPE_SIZE
 };
 
@@ -180,7 +179,7 @@ rdma_node_get_transport(unsigned int node_type);
 
 enum rdma_network_type {
 	RDMA_NETWORK_IB,
-	RDMA_NETWORK_ROCE_V1 = RDMA_NETWORK_IB,
+	RDMA_NETWORK_ROCE_V1,
 	RDMA_NETWORK_IPV4,
 	RDMA_NETWORK_IPV6
 };
@@ -190,9 +189,10 @@ static inline enum ib_gid_type ib_network_to_gid_type(enum rdma_network_type net
 	if (network_type == RDMA_NETWORK_IPV4 ||
 	    network_type == RDMA_NETWORK_IPV6)
 		return IB_GID_TYPE_ROCE_UDP_ENCAP;
-
-	/* IB_GID_TYPE_IB same as RDMA_NETWORK_ROCE_V1 */
-	return IB_GID_TYPE_IB;
+	else if (network_type == RDMA_NETWORK_ROCE_V1)
+		return IB_GID_TYPE_ROCE;
+	else
+		return IB_GID_TYPE_IB;
 }
 
 static inline enum rdma_network_type
@@ -200,6 +200,9 @@ rdma_gid_attr_network_type(const struct ib_gid_attr *attr)
 {
 	if (attr->gid_type == IB_GID_TYPE_IB)
 		return RDMA_NETWORK_IB;
+
+	if (attr->gid_type == IB_GID_TYPE_ROCE)
+		return RDMA_NETWORK_ROCE_V1;
 
 	if (ipv6_addr_v4mapped((struct in6_addr *)&attr->gid))
 		return RDMA_NETWORK_IPV4;
@@ -535,7 +538,8 @@ enum ib_port_speed {
 	IB_SPEED_FDR10	= 8,
 	IB_SPEED_FDR	= 16,
 	IB_SPEED_EDR	= 32,
-	IB_SPEED_HDR	= 64
+	IB_SPEED_HDR	= 64,
+	IB_SPEED_NDR	= 128,
 };
 
 /**
@@ -669,7 +673,7 @@ struct ib_port_attr {
 	u8			subnet_timeout;
 	u8			init_type_reply;
 	u8			active_width;
-	u8			active_speed;
+	u16			active_speed;
 	u8                      phys_state;
 	u16			port_cap_flags2;
 };
@@ -952,13 +956,14 @@ enum ib_wc_status {
 const char *__attribute_const__ ib_wc_status_msg(enum ib_wc_status status);
 
 enum ib_wc_opcode {
-	IB_WC_SEND,
-	IB_WC_RDMA_WRITE,
-	IB_WC_RDMA_READ,
-	IB_WC_COMP_SWAP,
-	IB_WC_FETCH_ADD,
-	IB_WC_LSO,
-	IB_WC_LOCAL_INV,
+	IB_WC_SEND = IB_UVERBS_WC_SEND,
+	IB_WC_RDMA_WRITE = IB_UVERBS_WC_RDMA_WRITE,
+	IB_WC_RDMA_READ = IB_UVERBS_WC_RDMA_READ,
+	IB_WC_COMP_SWAP = IB_UVERBS_WC_COMP_SWAP,
+	IB_WC_FETCH_ADD = IB_UVERBS_WC_FETCH_ADD,
+	IB_WC_BIND_MW = IB_UVERBS_WC_BIND_MW,
+	IB_WC_LOCAL_INV = IB_UVERBS_WC_LOCAL_INV,
+	IB_WC_LSO = IB_UVERBS_WC_TSO,
 	IB_WC_REG_MR,
 	IB_WC_MASKED_COMP_SWAP,
 	IB_WC_MASKED_FETCH_ADD,
@@ -1291,6 +1296,7 @@ enum ib_wr_opcode {
 	IB_WR_RDMA_READ = IB_UVERBS_WR_RDMA_READ,
 	IB_WR_ATOMIC_CMP_AND_SWP = IB_UVERBS_WR_ATOMIC_CMP_AND_SWP,
 	IB_WR_ATOMIC_FETCH_AND_ADD = IB_UVERBS_WR_ATOMIC_FETCH_AND_ADD,
+	IB_WR_BIND_MW = IB_UVERBS_WR_BIND_MW,
 	IB_WR_LSO = IB_UVERBS_WR_TSO,
 	IB_WR_SEND_WITH_INV = IB_UVERBS_WR_SEND_WITH_INV,
 	IB_WR_RDMA_READ_WITH_INV = IB_UVERBS_WR_RDMA_READ_WITH_INV,
@@ -1463,11 +1469,6 @@ enum rdma_remove_reason {
 	RDMA_REMOVE_DRIVER_REMOVE,
 	/* uobj is being cleaned-up before being committed */
 	RDMA_REMOVE_ABORT,
-	/*
-	 * uobj has been fully created, with the uobj->object set, but is being
-	 * cleaned up before being comitted
-	 */
-	RDMA_REMOVE_ABORT_HWOBJ,
 };
 
 struct ib_rdmacg_object {
@@ -1479,12 +1480,6 @@ struct ib_rdmacg_object {
 struct ib_ucontext {
 	struct ib_device       *device;
 	struct ib_uverbs_file  *ufile;
-	/*
-	 * 'closing' can be read by the driver only during a destroy callback,
-	 * it is set when we are closing the file descriptor and indicates
-	 * that mm_sem may be locked.
-	 */
-	bool closing;
 
 	bool cleanup_retryable;
 
@@ -1862,17 +1857,6 @@ enum ib_flow_spec_type {
 };
 #define IB_FLOW_SPEC_LAYER_MASK	0xF0
 #define IB_FLOW_SPEC_SUPPORT_LAYERS 10
-
-/* Flow steering rule priority is set according to it's domain.
- * Lower domain value means higher priority.
- */
-enum ib_flow_domain {
-	IB_FLOW_DOMAIN_USER,
-	IB_FLOW_DOMAIN_ETHTOOL,
-	IB_FLOW_DOMAIN_RFS,
-	IB_FLOW_DOMAIN_NIC,
-	IB_FLOW_DOMAIN_NUM /* Must be last */
-};
 
 enum ib_flow_flags {
 	IB_FLOW_ATTR_FLAGS_DONT_TRAP = 1UL << 1, /* Continue match, no steal */
@@ -2414,12 +2398,12 @@ struct ib_device_ops {
 	void (*mmap_free)(struct rdma_user_mmap_entry *entry);
 	void (*disassociate_ucontext)(struct ib_ucontext *ibcontext);
 	int (*alloc_pd)(struct ib_pd *pd, struct ib_udata *udata);
-	void (*dealloc_pd)(struct ib_pd *pd, struct ib_udata *udata);
+	int (*dealloc_pd)(struct ib_pd *pd, struct ib_udata *udata);
 	int (*create_ah)(struct ib_ah *ah, struct rdma_ah_init_attr *attr,
 			 struct ib_udata *udata);
 	int (*modify_ah)(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
 	int (*query_ah)(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
-	void (*destroy_ah)(struct ib_ah *ah, u32 flags);
+	int (*destroy_ah)(struct ib_ah *ah, u32 flags);
 	int (*create_srq)(struct ib_srq *srq,
 			  struct ib_srq_init_attr *srq_init_attr,
 			  struct ib_udata *udata);
@@ -2427,7 +2411,7 @@ struct ib_device_ops {
 			  enum ib_srq_attr_mask srq_attr_mask,
 			  struct ib_udata *udata);
 	int (*query_srq)(struct ib_srq *srq, struct ib_srq_attr *srq_attr);
-	void (*destroy_srq)(struct ib_srq *srq, struct ib_udata *udata);
+	int (*destroy_srq)(struct ib_srq *srq, struct ib_udata *udata);
 	struct ib_qp *(*create_qp)(struct ib_pd *pd,
 				   struct ib_qp_init_attr *qp_init_attr,
 				   struct ib_udata *udata);
@@ -2439,7 +2423,7 @@ struct ib_device_ops {
 	int (*create_cq)(struct ib_cq *cq, const struct ib_cq_init_attr *attr,
 			 struct ib_udata *udata);
 	int (*modify_cq)(struct ib_cq *cq, u16 cq_count, u16 cq_period);
-	void (*destroy_cq)(struct ib_cq *cq, struct ib_udata *udata);
+	int (*destroy_cq)(struct ib_cq *cq, struct ib_udata *udata);
 	int (*resize_cq)(struct ib_cq *cq, int cqe, struct ib_udata *udata);
 	struct ib_mr *(*get_dma_mr)(struct ib_pd *pd, int mr_access_flags);
 	struct ib_mr *(*reg_user_mr)(struct ib_pd *pd, u64 start, u64 length,
@@ -2462,16 +2446,15 @@ struct ib_device_ops {
 			 unsigned int *sg_offset);
 	int (*check_mr_status)(struct ib_mr *mr, u32 check_mask,
 			       struct ib_mr_status *mr_status);
-	struct ib_mw *(*alloc_mw)(struct ib_pd *pd, enum ib_mw_type type,
-				  struct ib_udata *udata);
+	int (*alloc_mw)(struct ib_mw *mw, struct ib_udata *udata);
 	int (*dealloc_mw)(struct ib_mw *mw);
 	int (*attach_mcast)(struct ib_qp *qp, union ib_gid *gid, u16 lid);
 	int (*detach_mcast)(struct ib_qp *qp, union ib_gid *gid, u16 lid);
 	int (*alloc_xrcd)(struct ib_xrcd *xrcd, struct ib_udata *udata);
-	void (*dealloc_xrcd)(struct ib_xrcd *xrcd, struct ib_udata *udata);
+	int (*dealloc_xrcd)(struct ib_xrcd *xrcd, struct ib_udata *udata);
 	struct ib_flow *(*create_flow)(struct ib_qp *qp,
 				       struct ib_flow_attr *flow_attr,
-				       int domain, struct ib_udata *udata);
+				       struct ib_udata *udata);
 	int (*destroy_flow)(struct ib_flow *flow_id);
 	struct ib_flow_action *(*create_flow_action_esp)(
 		struct ib_device *device,
@@ -2496,13 +2479,12 @@ struct ib_device_ops {
 	struct ib_wq *(*create_wq)(struct ib_pd *pd,
 				   struct ib_wq_init_attr *init_attr,
 				   struct ib_udata *udata);
-	void (*destroy_wq)(struct ib_wq *wq, struct ib_udata *udata);
+	int (*destroy_wq)(struct ib_wq *wq, struct ib_udata *udata);
 	int (*modify_wq)(struct ib_wq *wq, struct ib_wq_attr *attr,
 			 u32 wq_attr_mask, struct ib_udata *udata);
-	struct ib_rwq_ind_table *(*create_rwq_ind_table)(
-		struct ib_device *device,
-		struct ib_rwq_ind_table_init_attr *init_attr,
-		struct ib_udata *udata);
+	int (*create_rwq_ind_table)(struct ib_rwq_ind_table *ib_rwq_ind_table,
+				    struct ib_rwq_ind_table_init_attr *init_attr,
+				    struct ib_udata *udata);
 	int (*destroy_rwq_ind_table)(struct ib_rwq_ind_table *wq_ind_table);
 	struct ib_dm *(*alloc_dm)(struct ib_device *device,
 				  struct ib_ucontext *context,
@@ -2514,7 +2496,7 @@ struct ib_device_ops {
 				   struct uverbs_attr_bundle *attrs);
 	int (*create_counters)(struct ib_counters *counters,
 			       struct uverbs_attr_bundle *attrs);
-	void (*destroy_counters)(struct ib_counters *counters);
+	int (*destroy_counters)(struct ib_counters *counters);
 	int (*read_counters)(struct ib_counters *counters,
 			     struct ib_counters_read_attr *counters_read_attr,
 			     struct uverbs_attr_bundle *attrs);
@@ -2624,7 +2606,9 @@ struct ib_device_ops {
 	DECLARE_RDMA_OBJ_SIZE(ib_ah);
 	DECLARE_RDMA_OBJ_SIZE(ib_counters);
 	DECLARE_RDMA_OBJ_SIZE(ib_cq);
+	DECLARE_RDMA_OBJ_SIZE(ib_mw);
 	DECLARE_RDMA_OBJ_SIZE(ib_pd);
+	DECLARE_RDMA_OBJ_SIZE(ib_rwq_ind_table);
 	DECLARE_RDMA_OBJ_SIZE(ib_srq);
 	DECLARE_RDMA_OBJ_SIZE(ib_ucontext);
 	DECLARE_RDMA_OBJ_SIZE(ib_xrcd);
@@ -2798,7 +2782,8 @@ void ib_dealloc_device(struct ib_device *device);
 
 void ib_get_device_fw_str(struct ib_device *device, char *str);
 
-int ib_register_device(struct ib_device *device, const char *name);
+int ib_register_device(struct ib_device *device, const char *name,
+		       struct device *dma_device);
 void ib_unregister_device(struct ib_device *device);
 void ib_unregister_driver(enum rdma_driver_id driver_id);
 void ib_unregister_device_and_put(struct ib_device *device);
@@ -3352,30 +3337,6 @@ static inline bool rdma_cap_read_inv(struct ib_device *dev, u32 port_num)
 }
 
 /**
- * rdma_find_pg_bit - Find page bit given address and HW supported page sizes
- *
- * @addr: address
- * @pgsz_bitmap: bitmap of HW supported page sizes
- */
-static inline unsigned int rdma_find_pg_bit(unsigned long addr,
-					    unsigned long pgsz_bitmap)
-{
-	unsigned long align;
-	unsigned long pgsz;
-
-	align = addr & -addr;
-
-	/* Find page bit such that addr is aligned to the highest supported
-	 * HW page size
-	 */
-	pgsz = pgsz_bitmap & ~(-align << 1);
-	if (!pgsz)
-		return __ffs(pgsz_bitmap);
-
-	return __fls(pgsz);
-}
-
-/**
  * rdma_core_cap_opa_port - Return whether the RDMA Port is OPA or not.
  * @device: Device
  * @port_num: 1 based Port number
@@ -3472,12 +3433,7 @@ struct ib_pd *__ib_alloc_pd(struct ib_device *device, unsigned int flags,
 #define ib_alloc_pd(device, flags) \
 	__ib_alloc_pd((device), (flags), KBUILD_MODNAME)
 
-/**
- * ib_dealloc_pd_user - Deallocate kernel/user PD
- * @pd: The protection domain
- * @udata: Valid user data or NULL for kernel objects
- */
-void ib_dealloc_pd_user(struct ib_pd *pd, struct ib_udata *udata);
+int ib_dealloc_pd_user(struct ib_pd *pd, struct ib_udata *udata);
 
 /**
  * ib_dealloc_pd - Deallocate kernel PD
@@ -3487,7 +3443,9 @@ void ib_dealloc_pd_user(struct ib_pd *pd, struct ib_udata *udata);
  */
 static inline void ib_dealloc_pd(struct ib_pd *pd)
 {
-	ib_dealloc_pd_user(pd, NULL);
+	int ret = ib_dealloc_pd_user(pd, NULL);
+
+	WARN_ONCE(ret, "Destroy of kernel PD shouldn't fail");
 }
 
 enum rdma_create_ah_flags {
@@ -3615,9 +3573,11 @@ int rdma_destroy_ah_user(struct ib_ah *ah, u32 flags, struct ib_udata *udata);
  *
  * NOTE: for user ah use rdma_destroy_ah_user with valid udata!
  */
-static inline int rdma_destroy_ah(struct ib_ah *ah, u32 flags)
+static inline void rdma_destroy_ah(struct ib_ah *ah, u32 flags)
 {
-	return rdma_destroy_ah_user(ah, flags, NULL);
+	int ret = rdma_destroy_ah_user(ah, flags, NULL);
+
+	WARN_ONCE(ret, "Destroy of kernel AH shouldn't fail");
 }
 
 struct ib_srq *ib_create_srq_user(struct ib_pd *pd,
@@ -3671,9 +3631,11 @@ int ib_destroy_srq_user(struct ib_srq *srq, struct ib_udata *udata);
  *
  * NOTE: for user srq use ib_destroy_srq_user with valid udata!
  */
-static inline int ib_destroy_srq(struct ib_srq *srq)
+static inline void ib_destroy_srq(struct ib_srq *srq)
 {
-	return ib_destroy_srq_user(srq, NULL);
+	int ret = ib_destroy_srq_user(srq, NULL);
+
+	WARN_ONCE(ret, "Destroy of kernel SRQ shouldn't fail");
 }
 
 /**
@@ -3817,46 +3779,15 @@ static inline int ib_post_recv(struct ib_qp *qp,
 	return qp->device->ops.post_recv(qp, recv_wr, bad_recv_wr ? : &dummy);
 }
 
-struct ib_cq *__ib_alloc_cq_user(struct ib_device *dev, void *private,
-				 int nr_cqe, int comp_vector,
-				 enum ib_poll_context poll_ctx,
-				 const char *caller, struct ib_udata *udata);
-
-/**
- * ib_alloc_cq_user: Allocate kernel/user CQ
- * @dev: The IB device
- * @private: Private data attached to the CQE
- * @nr_cqe: Number of CQEs in the CQ
- * @comp_vector: Completion vector used for the IRQs
- * @poll_ctx: Context used for polling the CQ
- * @udata: Valid user data or NULL for kernel objects
- */
-static inline struct ib_cq *ib_alloc_cq_user(struct ib_device *dev,
-					     void *private, int nr_cqe,
-					     int comp_vector,
-					     enum ib_poll_context poll_ctx,
-					     struct ib_udata *udata)
-{
-	return __ib_alloc_cq_user(dev, private, nr_cqe, comp_vector, poll_ctx,
-				  KBUILD_MODNAME, udata);
-}
-
-/**
- * ib_alloc_cq: Allocate kernel CQ
- * @dev: The IB device
- * @private: Private data attached to the CQE
- * @nr_cqe: Number of CQEs in the CQ
- * @comp_vector: Completion vector used for the IRQs
- * @poll_ctx: Context used for polling the CQ
- *
- * NOTE: for user cq use ib_alloc_cq_user with valid udata!
- */
+struct ib_cq *__ib_alloc_cq(struct ib_device *dev, void *private, int nr_cqe,
+			    int comp_vector, enum ib_poll_context poll_ctx,
+			    const char *caller);
 static inline struct ib_cq *ib_alloc_cq(struct ib_device *dev, void *private,
 					int nr_cqe, int comp_vector,
 					enum ib_poll_context poll_ctx)
 {
-	return ib_alloc_cq_user(dev, private, nr_cqe, comp_vector, poll_ctx,
-				NULL);
+	return __ib_alloc_cq(dev, private, nr_cqe, comp_vector, poll_ctx,
+			     KBUILD_MODNAME);
 }
 
 struct ib_cq *__ib_alloc_cq_any(struct ib_device *dev, void *private,
@@ -3878,26 +3809,7 @@ static inline struct ib_cq *ib_alloc_cq_any(struct ib_device *dev,
 				 KBUILD_MODNAME);
 }
 
-/**
- * ib_free_cq_user - Free kernel/user CQ
- * @cq: The CQ to free
- * @udata: Valid user data or NULL for kernel objects
- *
- * NOTE: This function shouldn't be called on shared CQs.
- */
-void ib_free_cq_user(struct ib_cq *cq, struct ib_udata *udata);
-
-/**
- * ib_free_cq - Free kernel CQ
- * @cq: The CQ to free
- *
- * NOTE: for user cq use ib_free_cq_user with valid udata!
- */
-static inline void ib_free_cq(struct ib_cq *cq)
-{
-	ib_free_cq_user(cq, NULL);
-}
-
+void ib_free_cq(struct ib_cq *cq);
 int ib_process_cq_direct(struct ib_cq *cq, int budget);
 
 /**
@@ -3955,7 +3867,9 @@ int ib_destroy_cq_user(struct ib_cq *cq, struct ib_udata *udata);
  */
 static inline void ib_destroy_cq(struct ib_cq *cq)
 {
-	ib_destroy_cq_user(cq, NULL);
+	int ret = ib_destroy_cq_user(cq, NULL);
+
+	WARN_ONCE(ret, "Destroy of kernel CQ shouldn't fail");
 }
 
 /**
@@ -4379,10 +4293,9 @@ struct net_device *ib_device_netdev(struct ib_device *dev, u8 port);
 
 struct ib_wq *ib_create_wq(struct ib_pd *pd,
 			   struct ib_wq_init_attr *init_attr);
-int ib_destroy_wq(struct ib_wq *wq, struct ib_udata *udata);
+int ib_destroy_wq_user(struct ib_wq *wq, struct ib_udata *udata);
 int ib_modify_wq(struct ib_wq *wq, struct ib_wq_attr *attr,
 		 u32 wq_attr_mask);
-int ib_destroy_rwq_ind_table(struct ib_rwq_ind_table *wq_ind_table);
 
 int ib_map_mr_sg(struct ib_mr *mr, struct scatterlist *sg, int sg_nents,
 		 unsigned int *sg_offset, unsigned int page_size);
@@ -4410,7 +4323,7 @@ void ib_drain_rq(struct ib_qp *qp);
 void ib_drain_sq(struct ib_qp *qp);
 void ib_drain_qp(struct ib_qp *qp);
 
-int ib_get_eth_speed(struct ib_device *dev, u8 port_num, u8 *speed, u8 *width);
+int ib_get_eth_speed(struct ib_device *dev, u8 port_num, u16 *speed, u8 *width);
 
 static inline u8 *rdma_ah_retrieve_dmac(struct rdma_ah_attr *attr)
 {
@@ -4717,6 +4630,7 @@ bool rdma_dev_access_netns(const struct ib_device *device,
 			   const struct net *net);
 
 #define IB_ROCE_UDP_ENCAP_VALID_PORT_MIN (0xC000)
+#define IB_ROCE_UDP_ENCAP_VALID_PORT_MAX (0xFFFF)
 #define IB_GRH_FLOWLABEL_MASK (0x000FFFFF)
 
 /**

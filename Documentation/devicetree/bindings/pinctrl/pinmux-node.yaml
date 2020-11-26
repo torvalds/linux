@@ -129,3 +129,5 @@ properties:
 
   pinctrl-pin-array:
     $ref: /schemas/types.yaml#/definitions/uint32-array
+
+additionalProperties: true

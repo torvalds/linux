@@ -449,7 +449,7 @@ struct vc4_bo *vc4_bo_create(struct drm_device *dev, size_t unaligned_size,
 	}
 
 	if (IS_ERR(cma_obj)) {
-		struct drm_printer p = drm_info_printer(vc4->dev->dev);
+		struct drm_printer p = drm_info_printer(vc4->base.dev);
 		DRM_ERROR("Failed to allocate from CMA:\n");
 		vc4_bo_stats_print(&p, vc4);
 		return ERR_PTR(-ENOMEM);
@@ -590,7 +590,7 @@ static void vc4_bo_cache_time_work(struct work_struct *work)
 {
 	struct vc4_dev *vc4 =
 		container_of(work, struct vc4_dev, bo_cache.time_work);
-	struct drm_device *dev = vc4->dev;
+	struct drm_device *dev = &vc4->base;
 
 	mutex_lock(&vc4->bo_lock);
 	vc4_bo_cache_free_old(dev);
@@ -1005,6 +1005,7 @@ int vc4_get_tiling_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
+static void vc4_bo_cache_destroy(struct drm_device *dev, void *unused);
 int vc4_bo_cache_init(struct drm_device *dev)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
@@ -1033,10 +1034,10 @@ int vc4_bo_cache_init(struct drm_device *dev)
 	INIT_WORK(&vc4->bo_cache.time_work, vc4_bo_cache_time_work);
 	timer_setup(&vc4->bo_cache.time_timer, vc4_bo_cache_time_timer, 0);
 
-	return 0;
+	return drmm_add_action_or_reset(dev, vc4_bo_cache_destroy, NULL);
 }
 
-void vc4_bo_cache_destroy(struct drm_device *dev)
+static void vc4_bo_cache_destroy(struct drm_device *dev, void *unused)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	int i;

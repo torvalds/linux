@@ -272,8 +272,6 @@ enum dpio_phy {
 	DPIO_PHY2,
 };
 
-#define I915_NUM_PHYS_VLV 2
-
 enum aux_ch {
 	AUX_CH_A,
 	AUX_CH_B,
@@ -282,6 +280,8 @@ enum aux_ch {
 	AUX_CH_E, /* ICL+ */
 	AUX_CH_F,
 	AUX_CH_G,
+	AUX_CH_H,
+	AUX_CH_I,
 };
 
 #define aux_ch_name(a) ((a) + 'A')
@@ -629,9 +629,11 @@ intel_format_info_is_yuv_semiplanar(const struct drm_format_info *info,
 /* modesetting */
 void intel_modeset_init_hw(struct drm_i915_private *i915);
 int intel_modeset_init_noirq(struct drm_i915_private *i915);
+int intel_modeset_init_nogem(struct drm_i915_private *i915);
 int intel_modeset_init(struct drm_i915_private *i915);
 void intel_modeset_driver_remove(struct drm_i915_private *i915);
 void intel_modeset_driver_remove_noirq(struct drm_i915_private *i915);
+void intel_modeset_driver_remove_nogem(struct drm_i915_private *i915);
 void intel_display_resume(struct drm_device *dev);
 void intel_init_pch_refclk(struct drm_i915_private *dev_priv);
 

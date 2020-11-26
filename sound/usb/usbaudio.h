@@ -102,6 +102,7 @@ enum quirk_type {
 	QUIRK_AUDIO_ALIGN_TRANSFER,
 	QUIRK_AUDIO_STANDARD_MIXER,
 	QUIRK_SETUP_FMT_AFTER_RESUME,
+	QUIRK_SETUP_DISABLE_AUTOSUSPEND,
 
 	QUIRK_TYPE_COUNT
 };
@@ -109,7 +110,6 @@ enum quirk_type {
 struct snd_usb_audio_quirk {
 	const char *vendor_name;
 	const char *product_name;
-	const char *profile_name;	/* override the card->longname */
 	int16_t ifnum;
 	uint16_t type;
 	bool shares_media_device;

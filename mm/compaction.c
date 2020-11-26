@@ -180,11 +180,10 @@ bool compaction_deferred(struct zone *zone, int order)
 		return false;
 
 	/* Avoid possible overflow */
-	if (++zone->compact_considered > defer_limit)
+	if (++zone->compact_considered >= defer_limit) {
 		zone->compact_considered = defer_limit;
-
-	if (zone->compact_considered >= defer_limit)
 		return false;
+	}
 
 	trace_mm_compaction_deferred(zone, order);
 
@@ -626,7 +625,7 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
 		}
 
 		/* Found a free page, will break it into order-0 pages */
-		order = page_order(page);
+		order = buddy_order(page);
 		isolated = __isolate_free_page(page, order);
 		if (!isolated)
 			break;
@@ -818,6 +817,10 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 	 * delay for some time until fewer pages are isolated
 	 */
 	while (unlikely(too_many_isolated(pgdat))) {
+		/* stop isolation if there are still pages not migrated */
+		if (cc->nr_migratepages)
+			return 0;
+
 		/* async migration should just abort */
 		if (cc->mode == MIGRATE_ASYNC)
 			return 0;
@@ -899,7 +902,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 		 * potential isolation targets.
 		 */
 		if (PageBuddy(page)) {
-			unsigned long freepage_order = page_order_unsafe(page);
+			unsigned long freepage_order = buddy_order_unsafe(page);
 
 			/*
 			 * Without lock, we cannot be sure that what we got is
@@ -1013,8 +1016,8 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 
 isolate_success:
 		list_add(&page->lru, &cc->migratepages);
-		cc->nr_migratepages++;
-		nr_isolated++;
+		cc->nr_migratepages += compound_nr(page);
+		nr_isolated += compound_nr(page);
 
 		/*
 		 * Avoid isolating too much unless this block is being
@@ -1022,7 +1025,7 @@ isolate_success:
 		 * or a lock is contended. For contention, isolate quickly to
 		 * potentially remove one source of contention.
 		 */
-		if (cc->nr_migratepages == COMPACT_CLUSTER_MAX &&
+		if (cc->nr_migratepages >= COMPACT_CLUSTER_MAX &&
 		    !cc->rescan && !cc->contended) {
 			++low_pfn;
 			break;
@@ -1133,7 +1136,7 @@ isolate_migratepages_range(struct compact_control *cc, unsigned long start_pfn,
 		if (!pfn)
 			break;
 
-		if (cc->nr_migratepages == COMPACT_CLUSTER_MAX)
+		if (cc->nr_migratepages >= COMPACT_CLUSTER_MAX)
 			break;
 	}
 
@@ -1173,7 +1176,7 @@ static bool suitable_migration_target(struct compact_control *cc,
 		 * the only small danger is that we skip a potentially suitable
 		 * pageblock, so it's not worth to check order for valid range.
 		 */
-		if (page_order_unsafe(page) >= pageblock_order)
+		if (buddy_order_unsafe(page) >= pageblock_order)
 			return false;
 	}
 

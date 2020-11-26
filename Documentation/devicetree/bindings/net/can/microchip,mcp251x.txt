@@ -12,6 +12,9 @@ Required properties:
 Optional properties:
  - vdd-supply: Regulator that powers the CAN controller.
  - xceiver-supply: Regulator that powers the CAN transceiver.
+ - gpio-controller: Indicates this device is a GPIO controller.
+ - #gpio-cells: Should be two. The first cell is the pin number and
+                the second cell is used to specify the gpio polarity.
 
 Example:
 	can0: can@1 {
@@ -19,7 +22,9 @@ Example:
 		reg = <1>;
 		clocks = <&clk24m>;
 		interrupt-parent = <&gpio4>;
-		interrupts = <13 0x2>;
+		interrupts = <13 IRQ_TYPE_LEVEL_LOW>;
 		vdd-supply = <&reg5v0>;
 		xceiver-supply = <&reg5v0>;
+		gpio-controller;
+		#gpio-cells = <2>;
 	};

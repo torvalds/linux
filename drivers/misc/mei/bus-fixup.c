@@ -463,6 +463,17 @@ out:
 	dev_dbg(bus->dev, "end of fixup match = %d\n", cldev->do_match);
 }
 
+/**
+ * vt_support - enable on bus clients with vtag support
+ *
+ * @cldev: me clients device
+ */
+static void vt_support(struct mei_cl_device *cldev)
+{
+	if (cldev->me_cl->props.vt_supported == 1)
+		cldev->do_match = 1;
+}
+
 #define MEI_FIXUP(_uuid, _hook) { _uuid, _hook }
 
 static struct mei_fixup {
@@ -476,6 +487,7 @@ static struct mei_fixup {
 	MEI_FIXUP(MEI_UUID_WD, mei_wd),
 	MEI_FIXUP(MEI_UUID_MKHIF_FIX, mei_mkhi_fix),
 	MEI_FIXUP(MEI_UUID_HDCP, whitelist),
+	MEI_FIXUP(MEI_UUID_ANY, vt_support),
 };
 
 /**

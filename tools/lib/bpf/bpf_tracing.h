@@ -289,9 +289,9 @@ struct pt_regs;
 #define BPF_KRETPROBE_READ_RET_IP		BPF_KPROBE_READ_RET_IP
 #else
 #define BPF_KPROBE_READ_RET_IP(ip, ctx)					    \
-	({ bpf_probe_read(&(ip), sizeof(ip), (void *)PT_REGS_RET(ctx)); })
+	({ bpf_probe_read_kernel(&(ip), sizeof(ip), (void *)PT_REGS_RET(ctx)); })
 #define BPF_KRETPROBE_READ_RET_IP(ip, ctx)				    \
-	({ bpf_probe_read(&(ip), sizeof(ip),				    \
+	({ bpf_probe_read_kernel(&(ip), sizeof(ip),			    \
 			  (void *)(PT_REGS_FP(ctx) + sizeof(ip))); })
 #endif
 

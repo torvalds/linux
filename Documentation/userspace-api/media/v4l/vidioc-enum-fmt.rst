@@ -1,11 +1,5 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _VIDIOC_ENUM_FMT:
 
@@ -18,23 +12,21 @@ Name
 
 VIDIOC_ENUM_FMT - Enumerate image formats
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, VIDIOC_ENUM_FMT, struct v4l2_fmtdesc *argp )
-    :name: VIDIOC_ENUM_FMT
+.. c:macro:: VIDIOC_ENUM_FMT
 
+``int ioctl(int fd, VIDIOC_ENUM_FMT, struct v4l2_fmtdesc *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to struct :c:type:`v4l2_fmtdesc`.
-
 
 Description
 ===========
@@ -78,7 +70,6 @@ the ``mbus_code`` field is handled differently:
    Regardless of the value of the ``mbus_code`` field, the enumerated image
    formats shall not depend on the active configuration of the video device
    or device pipeline.
-
 
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
@@ -144,7 +135,6 @@ the ``mbus_code`` field is handled differently:
 	zero.
 
 
-
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. _fmtdesc-flags:
@@ -198,7 +188,41 @@ the ``mbus_code`` field is handled differently:
 	This flag can only be used in combination with the
 	``V4L2_FMT_FLAG_COMPRESSED`` flag, since this applies to
         compressed formats only. This flag is valid for stateful encoders only.
-
+    * - ``V4L2_FMT_FLAG_CSC_COLORSPACE``
+      - 0x0020
+      - The driver allows the application to try to change the default
+	colorspace. This flag is relevant only for capture devices.
+	The application can ask to configure the colorspace of the capture device
+	when calling the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl with
+	:ref:`V4L2_PIX_FMT_FLAG_SET_CSC <v4l2-pix-fmt-flag-set-csc>` set.
+    * - ``V4L2_FMT_FLAG_CSC_XFER_FUNC``
+      - 0x0040
+      - The driver allows the application to try to change the default
+	transfer function. This flag is relevant only for capture devices.
+	The application can ask to configure the transfer function of the capture
+	device when calling the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl with
+	:ref:`V4L2_PIX_FMT_FLAG_SET_CSC <v4l2-pix-fmt-flag-set-csc>` set.
+    * - ``V4L2_FMT_FLAG_CSC_YCBCR_ENC``
+      - 0x0080
+      - The driver allows the application to try to change the default
+	Y'CbCr encoding. This flag is relevant only for capture devices.
+	The application can ask to configure the Y'CbCr encoding of the capture device
+	when calling the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl with
+	:ref:`V4L2_PIX_FMT_FLAG_SET_CSC <v4l2-pix-fmt-flag-set-csc>` set.
+    * - ``V4L2_FMT_FLAG_CSC_HSV_ENC``
+      - 0x0080
+      - The driver allows the application to try to change the default
+	HSV encoding. This flag is relevant only for capture devices.
+	The application can ask to configure the HSV encoding of the capture device
+	when calling the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl with
+	:ref:`V4L2_PIX_FMT_FLAG_SET_CSC <v4l2-pix-fmt-flag-set-csc>` set.
+    * - ``V4L2_FMT_FLAG_CSC_QUANTIZATION``
+      - 0x0100
+      - The driver allows the application to try to change the default
+	quantization. This flag is relevant only for capture devices.
+	The application can ask to configure the quantization of the capture
+	device when calling the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` ioctl with
+	:ref:`V4L2_PIX_FMT_FLAG_SET_CSC <v4l2-pix-fmt-flag-set-csc>` set.
 
 Return Value
 ============

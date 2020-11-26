@@ -118,7 +118,7 @@ struct stm32_cryp_ctx {
 	struct crypto_engine_ctx enginectx;
 	struct stm32_cryp       *cryp;
 	int                     keylen;
-	u32                     key[AES_KEYSIZE_256 / sizeof(u32)];
+	__be32                  key[AES_KEYSIZE_256 / sizeof(u32)];
 	unsigned long           flags;
 };
 
@@ -380,24 +380,24 @@ static int stm32_cryp_copy_sgs(struct stm32_cryp *cryp)
 	return 0;
 }
 
-static void stm32_cryp_hw_write_iv(struct stm32_cryp *cryp, u32 *iv)
+static void stm32_cryp_hw_write_iv(struct stm32_cryp *cryp, __be32 *iv)
 {
 	if (!iv)
 		return;
 
-	stm32_cryp_write(cryp, CRYP_IV0LR, cpu_to_be32(*iv++));
-	stm32_cryp_write(cryp, CRYP_IV0RR, cpu_to_be32(*iv++));
+	stm32_cryp_write(cryp, CRYP_IV0LR, be32_to_cpu(*iv++));
+	stm32_cryp_write(cryp, CRYP_IV0RR, be32_to_cpu(*iv++));
 
 	if (is_aes(cryp)) {
-		stm32_cryp_write(cryp, CRYP_IV1LR, cpu_to_be32(*iv++));
-		stm32_cryp_write(cryp, CRYP_IV1RR, cpu_to_be32(*iv++));
+		stm32_cryp_write(cryp, CRYP_IV1LR, be32_to_cpu(*iv++));
+		stm32_cryp_write(cryp, CRYP_IV1RR, be32_to_cpu(*iv++));
 	}
 }
 
 static void stm32_cryp_get_iv(struct stm32_cryp *cryp)
 {
 	struct skcipher_request *req = cryp->req;
-	u32 *tmp = (void *)req->iv;
+	__be32 *tmp = (void *)req->iv;
 
 	if (!tmp)
 		return;
@@ -417,13 +417,13 @@ static void stm32_cryp_hw_write_key(struct stm32_cryp *c)
 	int r_id;
 
 	if (is_des(c)) {
-		stm32_cryp_write(c, CRYP_K1LR, cpu_to_be32(c->ctx->key[0]));
-		stm32_cryp_write(c, CRYP_K1RR, cpu_to_be32(c->ctx->key[1]));
+		stm32_cryp_write(c, CRYP_K1LR, be32_to_cpu(c->ctx->key[0]));
+		stm32_cryp_write(c, CRYP_K1RR, be32_to_cpu(c->ctx->key[1]));
 	} else {
 		r_id = CRYP_K3RR;
 		for (i = c->ctx->keylen / sizeof(u32); i > 0; i--, r_id -= 4)
 			stm32_cryp_write(c, r_id,
-					 cpu_to_be32(c->ctx->key[i - 1]));
+					 be32_to_cpu(c->ctx->key[i - 1]));
 	}
 }
 
@@ -469,7 +469,7 @@ static unsigned int stm32_cryp_get_input_text_len(struct stm32_cryp *cryp)
 static int stm32_cryp_gcm_init(struct stm32_cryp *cryp, u32 cfg)
 {
 	int ret;
-	u32 iv[4];
+	__be32 iv[4];
 
 	/* Phase 1 : init */
 	memcpy(iv, cryp->areq->iv, 12);
@@ -491,6 +491,7 @@ static int stm32_cryp_ccm_init(struct stm32_cryp *cryp, u32 cfg)
 {
 	int ret;
 	u8 iv[AES_BLOCK_SIZE], b0[AES_BLOCK_SIZE];
+	__be32 *bd;
 	u32 *d;
 	unsigned int i, textlen;
 
@@ -498,7 +499,7 @@ static int stm32_cryp_ccm_init(struct stm32_cryp *cryp, u32 cfg)
 	memcpy(iv, cryp->areq->iv, AES_BLOCK_SIZE);
 	memset(iv + AES_BLOCK_SIZE - 1 - iv[0], 0, iv[0] + 1);
 	iv[AES_BLOCK_SIZE - 1] = 1;
-	stm32_cryp_hw_write_iv(cryp, (u32 *)iv);
+	stm32_cryp_hw_write_iv(cryp, (__be32 *)iv);
 
 	/* Build B0 */
 	memcpy(b0, iv, AES_BLOCK_SIZE);
@@ -518,11 +519,14 @@ static int stm32_cryp_ccm_init(struct stm32_cryp *cryp, u32 cfg)
 
 	/* Write B0 */
 	d = (u32 *)b0;
+	bd = (__be32 *)b0;
 
 	for (i = 0; i < AES_BLOCK_32; i++) {
+		u32 xd = d[i];
+
 		if (!cryp->caps->padding_wa)
-			*d = cpu_to_be32(*d);
-		stm32_cryp_write(cryp, CRYP_DIN, *d++);
+			xd = be32_to_cpu(bd[i]);
+		stm32_cryp_write(cryp, CRYP_DIN, xd);
 	}
 
 	/* Wait for end of processing */
@@ -617,7 +621,7 @@ static int stm32_cryp_hw_init(struct stm32_cryp *cryp)
 	case CR_TDES_CBC:
 	case CR_AES_CBC:
 	case CR_AES_CTR:
-		stm32_cryp_hw_write_iv(cryp, (u32 *)cryp->req->iv);
+		stm32_cryp_hw_write_iv(cryp, (__be32 *)cryp->req->iv);
 		break;
 
 	default:
@@ -1120,7 +1124,7 @@ static int stm32_cryp_read_auth_tag(struct stm32_cryp *cryp)
 		/* GCM: write aad and payload size (in bits) */
 		size_bit = cryp->areq->assoclen * 8;
 		if (cryp->caps->swap_final)
-			size_bit = cpu_to_be32(size_bit);
+			size_bit = (__force u32)cpu_to_be32(size_bit);
 
 		stm32_cryp_write(cryp, CRYP_DIN, 0);
 		stm32_cryp_write(cryp, CRYP_DIN, size_bit);
@@ -1129,7 +1133,7 @@ static int stm32_cryp_read_auth_tag(struct stm32_cryp *cryp)
 				cryp->areq->cryptlen - AES_BLOCK_SIZE;
 		size_bit *= 8;
 		if (cryp->caps->swap_final)
-			size_bit = cpu_to_be32(size_bit);
+			size_bit = (__force u32)cpu_to_be32(size_bit);
 
 		stm32_cryp_write(cryp, CRYP_DIN, 0);
 		stm32_cryp_write(cryp, CRYP_DIN, size_bit);
@@ -1137,14 +1141,19 @@ static int stm32_cryp_read_auth_tag(struct stm32_cryp *cryp)
 		/* CCM: write CTR0 */
 		u8 iv[AES_BLOCK_SIZE];
 		u32 *iv32 = (u32 *)iv;
+		__be32 *biv;
+
+		biv = (void *)iv;
 
 		memcpy(iv, cryp->areq->iv, AES_BLOCK_SIZE);
 		memset(iv + AES_BLOCK_SIZE - 1 - iv[0], 0, iv[0] + 1);
 
 		for (i = 0; i < AES_BLOCK_32; i++) {
+			u32 xiv = iv32[i];
+
 			if (!cryp->caps->padding_wa)
-				*iv32 = cpu_to_be32(*iv32);
-			stm32_cryp_write(cryp, CRYP_DIN, *iv32++);
+				xiv = be32_to_cpu(biv[i]);
+			stm32_cryp_write(cryp, CRYP_DIN, xiv);
 		}
 	}
 

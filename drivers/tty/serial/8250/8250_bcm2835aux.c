@@ -110,12 +110,8 @@ static int bcm2835aux_serial_probe(struct platform_device *pdev)
 
 	/* get the clock - this also enables the HW */
 	data->clk = devm_clk_get(&pdev->dev, NULL);
-	ret = PTR_ERR_OR_ZERO(data->clk);
-	if (ret) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "could not get clk: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(data->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(data->clk), "could not get clk\n");
 
 	/* get the interrupt */
 	ret = platform_get_irq(pdev, 0);
@@ -155,9 +151,7 @@ static int bcm2835aux_serial_probe(struct platform_device *pdev)
 	/* register the port */
 	ret = serial8250_register_8250_port(&up);
 	if (ret < 0) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev,
-				"unable to register 8250 port - %d\n", ret);
+		dev_err_probe(&pdev->dev, ret, "unable to register 8250 port\n");
 		goto dis_clk;
 	}
 	data->line = ret;

@@ -449,8 +449,15 @@ struct kfd_ioctl_import_dmabuf_args {
 /*
  * KFD SMI(System Management Interface) events
  */
-/* Event type (defined by bitmask) */
-#define KFD_SMI_EVENT_VMFAULT     0x0000000000000001
+enum kfd_smi_event {
+	KFD_SMI_EVENT_NONE = 0, /* not used */
+	KFD_SMI_EVENT_VMFAULT = 1, /* event start counting at 1 */
+	KFD_SMI_EVENT_THERMAL_THROTTLE = 2,
+	KFD_SMI_EVENT_GPU_PRE_RESET = 3,
+	KFD_SMI_EVENT_GPU_POST_RESET = 4,
+};
+
+#define KFD_SMI_EVENT_MASK_FROM_INDEX(i) (1ULL << ((i) - 1))
 
 struct kfd_ioctl_smi_events_args {
 	__u32 gpuid;	/* to KFD */

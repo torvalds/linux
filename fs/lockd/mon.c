@@ -417,7 +417,7 @@ void nsm_release(struct nsm_handle *nsm)
 /*
  * XDR functions for NSM.
  *
- * See http://www.opengroup.org/ for details on the Network
+ * See https://www.opengroup.org/ for details on the Network
  * Status Monitor wire protocol.
  */
 

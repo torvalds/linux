@@ -1615,8 +1615,6 @@ static void cxusb_medion_videodev_release(struct video_device *vdev)
 
 	cxusb_vprintk(dvbdev, OPS, "video device release\n");
 
-	vb2_queue_release(vdev->queue);
-
 	video_device_release(vdev);
 }
 
@@ -1647,8 +1645,7 @@ static int cxusb_medion_register_analog_video(struct dvb_usb_device *dvbdev)
 	cxdev->videodev = video_device_alloc();
 	if (!cxdev->videodev) {
 		dev_err(&dvbdev->udev->dev, "video device alloc failed\n");
-		ret = -ENOMEM;
-		goto ret_qrelease;
+		return -ENOMEM;
 	}
 
 	cxdev->videodev->device_caps = videocaps;
@@ -1674,10 +1671,6 @@ static int cxusb_medion_register_analog_video(struct dvb_usb_device *dvbdev)
 
 ret_vrelease:
 	video_device_release(cxdev->videodev);
-
-ret_qrelease:
-	vb2_queue_release(&cxdev->videoqueue);
-
 	return ret;
 }
 
@@ -1820,7 +1813,7 @@ int cxusb_medion_register_analog(struct dvb_usb_device *dvbdev)
 	return 0;
 
 ret_vunreg:
-	video_unregister_device(cxdev->videodev);
+	vb2_video_unregister_device(cxdev->videodev);
 
 ret_unregister:
 	v4l2_device_put(&cxdev->v4l2dev);
@@ -1836,7 +1829,7 @@ void cxusb_medion_unregister_analog(struct dvb_usb_device *dvbdev)
 	cxusb_vprintk(dvbdev, OPS, "unregistering analog\n");
 
 	video_unregister_device(cxdev->radiodev);
-	video_unregister_device(cxdev->videodev);
+	vb2_video_unregister_device(cxdev->videodev);
 
 	v4l2_device_put(&cxdev->v4l2dev);
 	wait_for_completion(&cxdev->v4l2_release);

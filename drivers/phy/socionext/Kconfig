@@ -34,3 +34,13 @@ config PHY_UNIPHIER_PCIE
 	help
 	  Enable this to support PHY implemented in PCIe controller
 	  on UniPhier SoCs. This driver supports LD20 and PXs3 SoCs.
+
+config PHY_UNIPHIER_AHCI
+	tristate "UniPhier AHCI PHY driver"
+	depends on ARCH_UNIPHIER || COMPILE_TEST
+	depends on OF && HAS_IOMEM
+	default SATA_AHCI_PLATFORM
+	select GENERIC_PHY
+	help
+	  Enable this to support PHY implemented in AHCI controller
+	  on UniPhier SoCs. This driver supports PXs2 and PXs3 SoCs.

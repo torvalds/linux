@@ -112,6 +112,12 @@ properties:
 #     threshold, and the current is below this setting (7 in above chart)
 #   See also Documentation/devicetree/bindings/power/supply/battery.txt
 
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
   monitored-battery:
     description:
       phandle of battery characteristics devicetree node
@@ -136,6 +142,8 @@ properties:
 
 required:
   - compatible
+
+additionalProperties: false
 
 examples:
   - |

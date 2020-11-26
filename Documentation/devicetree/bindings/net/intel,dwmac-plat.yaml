@@ -1,0 +1,132 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/intel,dwmac-plat.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Intel DWMAC glue layer Device Tree Bindings
+
+maintainers:
+  - Vineetha G. Jaya Kumaran <vineetha.g.jaya.kumaran@intel.com>
+
+select:
+  properties:
+    compatible:
+      contains:
+        enum:
+          - intel,keembay-dwmac
+  required:
+    - compatible
+
+allOf:
+  - $ref: "snps,dwmac.yaml#"
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - intel,keembay-dwmac
+          - const: snps,dwmac-4.10a
+
+  clocks:
+    items:
+      - description: GMAC main clock
+      - description: PTP reference clock
+      - description: Tx clock
+
+  clock-names:
+    items:
+      - const: stmmaceth
+      - const: ptp_ref
+      - const: tx_clk
+
+required:
+  - compatible
+  - clocks
+  - clock-names
+
+unevaluatedProperties: false
+
+examples:
+# FIXME: Remove defines and include the correct header file
+# once it is available in mainline.
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #define MOVISOC_KMB_PSS_GBE
+    #define MOVISOC_KMB_PSS_AUX_GBE_PTP
+    #define MOVISOC_KMB_PSS_AUX_GBE_TX
+
+    stmmac_axi_setup: stmmac-axi-config {
+        snps,lpi_en;
+        snps,wr_osr_lmt = <0x0>;
+        snps,rd_osr_lmt = <0x2>;
+        snps,blen = <0 0 0 0 16 8 4>;
+    };
+
+    mtl_rx_setup: rx-queues-config {
+        snps,rx-queues-to-use = <2>;
+        snps,rx-sched-sp;
+        queue0 {
+            snps,dcb-algorithm;
+            snps,map-to-dma-channel = <0x0>;
+            snps,priority = <0x0>;
+        };
+
+        queue1 {
+            snps,dcb-algorithm;
+            snps,map-to-dma-channel = <0x1>;
+            snps,priority = <0x1>;
+        };
+    };
+
+    mtl_tx_setup: tx-queues-config {
+        snps,tx-queues-to-use = <2>;
+        snps,tx-sched-wrr;
+        queue0 {
+           snps,weight = <0x10>;
+           snps,dcb-algorithm;
+           snps,priority = <0x0>;
+        };
+
+        queue1 {
+            snps,weight = <0x10>;
+            snps,dcb-algorithm;
+            snps,priority = <0x1>;
+        };
+    };
+
+    gmac0: ethernet@3a000000 {
+        compatible = "intel,keembay-dwmac", "snps,dwmac-4.10a";
+        interrupts = <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-names = "macirq";
+        reg = <0x3a000000 0x8000>;
+        snps,perfect-filter-entries = <128>;
+        phy-handle = <&eth_phy0>;
+        phy-mode = "rgmii";
+        rx-fifo-depth = <4096>;
+        tx-fifo-depth = <4096>;
+        clock-names = "stmmaceth", "ptp_ref", "tx_clk";
+        clocks = <&scmi_clk MOVISOC_KMB_PSS_GBE>,
+                 <&scmi_clk MOVISOC_KMB_PSS_AUX_GBE_PTP>,
+                 <&scmi_clk MOVISOC_KMB_PSS_AUX_GBE_TX>;
+        snps,pbl = <0x4>;
+        snps,axi-config = <&stmmac_axi_setup>;
+        snps,mtl-rx-config = <&mtl_rx_setup>;
+        snps,mtl-tx-config = <&mtl_tx_setup>;
+        snps,tso;
+        status = "okay";
+
+        mdio0 {
+            #address-cells = <1>;
+            #size-cells = <0>;
+            compatible = "snps,dwmac-mdio";
+
+            ethernet-phy@0 {
+                reg = <0>;
+            };
+        };
+    };
+
+...

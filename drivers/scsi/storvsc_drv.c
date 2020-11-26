@@ -1739,23 +1739,65 @@ static int storvsc_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scmnd)
 	payload_sz = sizeof(cmd_request->mpb);
 
 	if (sg_count) {
-		if (sg_count > MAX_PAGE_BUFFER_COUNT) {
+		unsigned int hvpgoff = 0;
+		unsigned long offset_in_hvpg = sgl->offset & ~HV_HYP_PAGE_MASK;
+		unsigned int hvpg_count = HVPFN_UP(offset_in_hvpg + length);
+		u64 hvpfn;
 
-			payload_sz = (sg_count * sizeof(u64) +
+		if (hvpg_count > MAX_PAGE_BUFFER_COUNT) {
+
+			payload_sz = (hvpg_count * sizeof(u64) +
 				      sizeof(struct vmbus_packet_mpb_array));
 			payload = kzalloc(payload_sz, GFP_ATOMIC);
 			if (!payload)
 				return SCSI_MLQUEUE_DEVICE_BUSY;
 		}
 
+		/*
+		 * sgl is a list of PAGEs, and payload->range.pfn_array
+		 * expects the page number in the unit of HV_HYP_PAGE_SIZE (the
+		 * page size that Hyper-V uses, so here we need to divide PAGEs
+		 * into HV_HYP_PAGE in case that PAGE_SIZE > HV_HYP_PAGE_SIZE.
+		 * Besides, payload->range.offset should be the offset in one
+		 * HV_HYP_PAGE.
+		 */
 		payload->range.len = length;
-		payload->range.offset = sgl[0].offset;
+		payload->range.offset = offset_in_hvpg;
+		hvpgoff = sgl->offset >> HV_HYP_PAGE_SHIFT;
 
 		cur_sgl = sgl;
-		for (i = 0; i < sg_count; i++) {
-			payload->range.pfn_array[i] =
-				page_to_pfn(sg_page((cur_sgl)));
-			cur_sgl = sg_next(cur_sgl);
+		for (i = 0; i < hvpg_count; i++) {
+			/*
+			 * 'i' is the index of hv pages in the payload and
+			 * 'hvpgoff' is the offset (in hv pages) of the first
+			 * hv page in the the first page. The relationship
+			 * between the sum of 'i' and 'hvpgoff' and the offset
+			 * (in hv pages) in a payload page ('hvpgoff_in_page')
+			 * is as follow:
+			 *
+			 * |------------------ PAGE -------------------|
+			 * |   NR_HV_HYP_PAGES_IN_PAGE hvpgs in total  |
+			 * |hvpg|hvpg| ...              |hvpg|... |hvpg|
+			 * ^         ^                                 ^                 ^
+			 * +-hvpgoff-+                                 +-hvpgoff_in_page-+
+			 *           ^                                                   |
+			 *           +--------------------- i ---------------------------+
+			 */
+			unsigned int hvpgoff_in_page =
+				(i + hvpgoff) % NR_HV_HYP_PAGES_IN_PAGE;
+
+			/*
+			 * Two cases that we need to fetch a page:
+			 * 1) i == 0, the first step or
+			 * 2) hvpgoff_in_page == 0, when we reach the boundary
+			 *    of a page.
+			 */
+			if (hvpgoff_in_page == 0 || i == 0) {
+				hvpfn = page_to_hvpfn(sg_page(cur_sgl));
+				cur_sgl = sg_next(cur_sgl);
+			}
+
+			payload->range.pfn_array[i] = hvpfn + hvpgoff_in_page;
 		}
 	}
 

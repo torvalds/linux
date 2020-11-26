@@ -3059,7 +3059,7 @@ static void sym_sir_bad_scsi_status(struct sym_hcb *np, int num, struct sym_ccb 
 			sym_print_addr(cp->cmd, "%s\n",
 			        s_status == S_BUSY ? "BUSY" : "QUEUE FULL\n");
 		}
-		/* fall through */
+		fallthrough;
 	default:	/* S_INT, S_INT_COND_MET, S_CONFLICT */
 		sym_complete_error (np, cp);
 		break;
@@ -4620,7 +4620,7 @@ static void sym_int_sir(struct sym_hcb *np)
 	 *  Negotiation failed.
 	 *  Target does not want answer message.
 	 */
-	/* fall through */
+		fallthrough;
 	case SIR_NEGO_PROTO:
 		sym_nego_default(np, tp, cp);
 		goto out;
@@ -5656,7 +5656,7 @@ int sym_hcb_attach(struct Scsi_Host *shost, struct sym_fw *fw, struct sym_nvram 
 	/*
 	 *  Allocate the array of lists of CCBs hashed by DSA.
 	 */
-	np->ccbh = kcalloc(CCB_HASH_SIZE, sizeof(struct sym_ccb **), GFP_KERNEL);
+	np->ccbh = kcalloc(CCB_HASH_SIZE, sizeof(*np->ccbh), GFP_KERNEL);
 	if (!np->ccbh)
 		goto attach_failed;
 

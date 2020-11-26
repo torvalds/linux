@@ -1385,7 +1385,7 @@ static int cx8800_initdev(struct pci_dev *pci_dev,
 		request_module("rtc-isl1208");
 		core->i2c_rtc = i2c_new_client_device(&core->i2c_adap, &rtc_info);
 	}
-		/* fall-through */
+		fallthrough;
 	case CX88_BOARD_DVICO_FUSIONHDTV_5_PCI_NANO:
 		request_module("ir-kbd-i2c");
 	}

@@ -7,6 +7,7 @@ NSIM_DEV_SYS=/sys/bus/netdevsim/devices/netdevsim$NSIM_ID
 NSIM_DEV_DFS=/sys/kernel/debug/netdevsim/netdevsim$NSIM_ID
 NSIM_NETDEV=
 HAS_ETHTOOL=
+STATIC_ENTRIES=
 EXIT_STATUS=0
 num_cases=0
 num_errors=0
@@ -193,6 +194,21 @@ function check_tables {
 	sleep 0.02
 	((retries--))
     done
+
+    if [ -n "$HAS_ETHTOOL" -a -n "${STATIC_ENTRIES[0]}" ]; then
+	fail=0
+	for i in "${!STATIC_ENTRIES[@]}"; do
+	    pp_expected=`pre_ethtool ${STATIC_ENTRIES[i]}`
+	    cnt=$(ethtool --show-tunnels $NSIM_NETDEV | grep -c "$pp_expected")
+	    if [ $cnt -ne 1 ]; then
+		err_cnt "ethtool static entry: $pfx - $msg"
+		echo "       check_table: ethtool does not contain '$pp_expected'"
+		ethtool --show-tunnels $NSIM_NETDEV
+		fail=1
+	    fi
+	done
+	[ $fail == 0 ] && pass_cnt
+    fi
 }
 
 function print_table {
@@ -774,6 +790,157 @@ for port in 0 1; do
     exp0=( 0 0 0 0 )
     exp1=( 0 0 0 0 )
 done
+
+cleanup_nsim
+
+# shared port tables
+pfx="table sharing"
+
+echo $NSIM_ID > /sys/bus/netdevsim/new_device
+echo 0 > $NSIM_DEV_SYS/del_port
+
+echo 0 > $NSIM_DEV_DFS/udp_ports_open_only
+echo 1 > $NSIM_DEV_DFS/udp_ports_sleep
+echo 1 > $NSIM_DEV_DFS/udp_ports_shared
+
+old_netdevs=$(ls /sys/class/net)
+echo 1 > $NSIM_DEV_SYS/new_port
+NSIM_NETDEV=`get_netdev_name old_netdevs`
+old_netdevs=$(ls /sys/class/net)
+echo 2 > $NSIM_DEV_SYS/new_port
+NSIM_NETDEV2=`get_netdev_name old_netdevs`
+
+msg="VxLAN v4 devices"
+exp0=( `mke 4789 1` 0 0 0 )
+exp1=( 0 0 0 0 )
+new_vxlan vxlan0 4789 $NSIM_NETDEV
+new_vxlan vxlan1 4789 $NSIM_NETDEV2
+
+msg="VxLAN v4 devices go down"
+exp0=( 0 0 0 0 )
+ifconfig vxlan1 down
+ifconfig vxlan0 down
+check_tables
+
+for ifc in vxlan0 vxlan1; do
+    ifconfig $ifc up
+done
+
+msg="VxLAN v6 device"
+exp0=( `mke 4789 1` `mke 4790 1` 0 0 )
+new_vxlan vxlanC 4790 $NSIM_NETDEV 6
+
+msg="Geneve device"
+exp1=( `mke 6081 2` 0 0 0 )
+new_geneve gnv0 6081
+
+msg="NIC device goes down"
+ifconfig $NSIM_NETDEV down
+check_tables
+
+msg="NIC device goes up again"
+ifconfig $NSIM_NETDEV up
+check_tables
+
+for i in `seq 2`; do
+    msg="turn feature off - 1, rep $i"
+    ethtool -K $NSIM_NETDEV rx-udp_tunnel-port-offload off
+    check_tables
+
+    msg="turn feature off - 2, rep $i"
+    exp0=( 0 0 0 0 )
+    exp1=( 0 0 0 0 )
+    ethtool -K $NSIM_NETDEV2 rx-udp_tunnel-port-offload off
+    check_tables
+
+    msg="turn feature on - 1, rep $i"
+    exp0=( `mke 4789 1` `mke 4790 1` 0 0 )
+    exp1=( `mke 6081 2` 0 0 0 )
+    ethtool -K $NSIM_NETDEV rx-udp_tunnel-port-offload on
+    check_tables
+
+    msg="turn feature on - 2, rep $i"
+    ethtool -K $NSIM_NETDEV2 rx-udp_tunnel-port-offload on
+    check_tables
+done
+
+msg="tunnels destroyed 1"
+cleanup_tuns
+exp0=( 0 0 0 0 )
+exp1=( 0 0 0 0 )
+check_tables
+
+overflow_table0 "overflow NIC table"
+
+msg="re-add a port"
+
+echo 2 > $NSIM_DEV_SYS/del_port
+echo 2 > $NSIM_DEV_SYS/new_port
+check_tables
+
+msg="replace VxLAN in overflow table"
+exp0=( `mke 10000 1` `mke 10004 1` `mke 10002 1` `mke 10003 1` )
+del_dev vxlan1
+
+msg="vacate VxLAN in overflow table"
+exp0=( `mke 10000 1` `mke 10004 1` 0 `mke 10003 1` )
+del_dev vxlan2
+
+echo 1 > $NSIM_DEV_DFS/ports/$port/udp_ports_reset
+check_tables
+
+msg="tunnels destroyed 2"
+cleanup_tuns
+exp0=( 0 0 0 0 )
+exp1=( 0 0 0 0 )
+check_tables
+
+echo 1 > $NSIM_DEV_SYS/del_port
+echo 2 > $NSIM_DEV_SYS/del_port
+
+cleanup_nsim
+
+# Static IANA port
+pfx="static IANA vxlan"
+
+echo $NSIM_ID > /sys/bus/netdevsim/new_device
+echo 0 > $NSIM_DEV_SYS/del_port
+
+echo 1 > $NSIM_DEV_DFS/udp_ports_static_iana_vxlan
+STATIC_ENTRIES=( `mke 4789 1` )
+
+port=1
+old_netdevs=$(ls /sys/class/net)
+echo $port > $NSIM_DEV_SYS/new_port
+NSIM_NETDEV=`get_netdev_name old_netdevs`
+
+msg="check empty"
+exp0=( 0 0 0 0 )
+exp1=( 0 0 0 0 )
+check_tables
+
+msg="add on static port"
+new_vxlan vxlan0 4789 $NSIM_NETDEV
+new_vxlan vxlan1 4789 $NSIM_NETDEV
+
+msg="add on different port"
+exp0=( `mke 4790 1` 0 0 0 )
+new_vxlan vxlan2 4790 $NSIM_NETDEV
+
+cleanup_tuns
+
+msg="tunnels destroyed"
+exp0=( 0 0 0 0 )
+exp1=( 0 0 0 0 )
+check_tables
+
+msg="different type"
+new_geneve gnv0	4789
+
+cleanup_tuns
+cleanup_nsim
+
+# END
 
 modprobe -r netdevsim
 

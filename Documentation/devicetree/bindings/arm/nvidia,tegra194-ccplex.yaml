@@ -30,6 +30,8 @@ properties:
       Specifies the bpmp node that needs to be queried to get
       operating point data for all CPUs.
 
+additionalProperties: true
+
 examples:
   - |
     cpus {

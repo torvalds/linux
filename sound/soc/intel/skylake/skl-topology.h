@@ -453,7 +453,7 @@ int skl_dsp_set_dma_control(struct skl_dev *skl, u32 *caps,
 void skl_tplg_set_be_dmic_config(struct snd_soc_dai *dai,
 	struct skl_pipe_params *params, int stream);
 int skl_tplg_init(struct snd_soc_component *component,
-				struct hdac_bus *ebus);
+				struct hdac_bus *bus);
 void skl_tplg_exit(struct snd_soc_component *component,
 				struct hdac_bus *bus);
 struct skl_module_cfg *skl_tplg_fe_get_cpr_module(
@@ -476,13 +476,13 @@ int skl_stop_pipe(struct skl_dev *skl, struct skl_pipe *pipe);
 
 int skl_reset_pipe(struct skl_dev *skl, struct skl_pipe *pipe);
 
-int skl_init_module(struct skl_dev *skl, struct skl_module_cfg *module_config);
+int skl_init_module(struct skl_dev *skl, struct skl_module_cfg *mconfig);
 
 int skl_bind_modules(struct skl_dev *skl, struct skl_module_cfg
-	*src_module, struct skl_module_cfg *dst_module);
+	*src_mcfg, struct skl_module_cfg *dst_mcfg);
 
 int skl_unbind_modules(struct skl_dev *skl, struct skl_module_cfg
-	*src_module, struct skl_module_cfg *dst_module);
+	*src_mcfg, struct skl_module_cfg *dst_mcfg);
 
 int skl_set_module_params(struct skl_dev *skl, u32 *params, int size,
 			u32 param_id, struct skl_module_cfg *mcfg);

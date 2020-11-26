@@ -11,7 +11,7 @@
 #include <linux/types.h>
 #include <linux/mm.h>
 #include <linux/init.h>
-#include <linux/dma-noncoherent.h>
+#include <linux/dma-map-ops.h>
 #include <asm/cpuinfo.h>
 #include <asm/cacheflush.h>
 

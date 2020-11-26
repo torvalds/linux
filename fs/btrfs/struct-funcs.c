@@ -7,16 +7,6 @@
 
 #include "ctree.h"
 
-static inline u8 get_unaligned_le8(const void *p)
-{
-       return *(u8 *)p;
-}
-
-static inline void put_unaligned_le8(u8 val, void *p)
-{
-       *(u8 *)p = val;
-}
-
 static bool check_setget_bounds(const struct extent_buffer *eb,
 				const void *ptr, unsigned off, int size)
 {

@@ -403,6 +403,7 @@ __i915_gem_userptr_alloc_pages(struct drm_i915_gem_object *obj,
 	unsigned int max_segment = i915_sg_segment_size();
 	struct sg_table *st;
 	unsigned int sg_page_sizes;
+	struct scatterlist *sg;
 	int ret;
 
 	st = kmalloc(sizeof(*st), GFP_KERNEL);
@@ -410,13 +411,12 @@ __i915_gem_userptr_alloc_pages(struct drm_i915_gem_object *obj,
 		return ERR_PTR(-ENOMEM);
 
 alloc_table:
-	ret = __sg_alloc_table_from_pages(st, pvec, num_pages,
-					  0, num_pages << PAGE_SHIFT,
-					  max_segment,
-					  GFP_KERNEL);
-	if (ret) {
+	sg = __sg_alloc_table_from_pages(st, pvec, num_pages, 0,
+					 num_pages << PAGE_SHIFT, max_segment,
+					 NULL, 0, GFP_KERNEL);
+	if (IS_ERR(sg)) {
 		kfree(st);
-		return ERR_PTR(ret);
+		return ERR_CAST(sg);
 	}
 
 	ret = i915_gem_gtt_prepare_pages(obj, st);
@@ -596,14 +596,6 @@ static int i915_gem_userptr_get_pages(struct drm_i915_gem_object *obj)
 				      GFP_KERNEL |
 				      __GFP_NORETRY |
 				      __GFP_NOWARN);
-		/*
-		 * Using __get_user_pages_fast() with a read-only
-		 * access is questionable. A read-only page may be
-		 * COW-broken, and then this might end up giving
-		 * the wrong side of the COW..
-		 *
-		 * We may or may not care.
-		 */
 		if (pvec) {
 			/* defer to worker if malloc fails */
 			if (!i915_gem_object_is_readonly(obj))

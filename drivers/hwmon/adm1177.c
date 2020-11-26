@@ -196,8 +196,7 @@ static void adm1177_remove(void *data)
 	regulator_disable(st->reg);
 }
 
-static int adm1177_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int adm1177_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device *hwmon_dev;
@@ -277,7 +276,7 @@ static struct i2c_driver adm1177_driver = {
 		.name = "adm1177",
 		.of_match_table = adm1177_dt_ids,
 	},
-	.probe = adm1177_probe,
+	.probe_new = adm1177_probe,
 	.id_table = adm1177_id,
 };
 module_i2c_driver(adm1177_driver);

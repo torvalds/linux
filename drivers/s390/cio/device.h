@@ -96,7 +96,6 @@ int ccw_device_online(struct ccw_device *);
 int ccw_device_offline(struct ccw_device *);
 void ccw_device_update_sense_data(struct ccw_device *);
 int ccw_device_test_sense_data(struct ccw_device *);
-void ccw_device_schedule_sch_unregister(struct ccw_device *);
 int ccw_purge_blacklisted(void);
 void ccw_device_sched_todo(struct ccw_device *cdev, enum cdev_todo todo);
 struct ccw_device *get_ccwdev_by_dev_id(struct ccw_dev_id *dev_id);

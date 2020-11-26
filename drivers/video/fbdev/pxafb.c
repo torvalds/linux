@@ -1614,7 +1614,7 @@ static void set_ctrlr_state(struct pxafb_info *fbi, u_int state)
 		 */
 		if (old_state != C_DISABLE_PM)
 			break;
-		/* fall through */
+		fallthrough;
 
 	case C_ENABLE:
 		/*

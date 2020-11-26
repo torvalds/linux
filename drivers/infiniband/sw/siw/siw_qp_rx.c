@@ -1215,7 +1215,7 @@ static int siw_rdmap_complete(struct siw_qp *qp, int error)
 	case RDMAP_SEND_SE:
 	case RDMAP_SEND_SE_INVAL:
 		wqe->rqe.flags |= SIW_WQE_SOLICITED;
-		/* Fall through */
+		fallthrough;
 
 	case RDMAP_SEND:
 	case RDMAP_SEND_INVAL:
@@ -1386,7 +1386,7 @@ int siw_tcp_rx_data(read_descriptor_t *rd_desc, struct sk_buff *skb,
 			 * DDP segment.
 			 */
 			qp->rx_fpdu->first_ddp_seg = 0;
-			/* Fall through */
+			fallthrough;
 
 		case SIW_GET_DATA_START:
 			/*

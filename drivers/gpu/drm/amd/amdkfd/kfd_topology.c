@@ -446,7 +446,7 @@ static ssize_t node_show(struct kobject *kobj, struct attribute *attr,
 	sysfs_show_32bit_prop(buffer, offs, "cpu_cores_count",
 			      dev->node_props.cpu_cores_count);
 	sysfs_show_32bit_prop(buffer, offs, "simd_count",
-			      dev->node_props.simd_count);
+			      dev->gpu ? dev->node_props.simd_count : 0);
 	sysfs_show_32bit_prop(buffer, offs, "mem_banks_count",
 			      dev->node_props.mem_banks_count);
 	sysfs_show_32bit_prop(buffer, offs, "caches_count",
@@ -1139,7 +1139,7 @@ static struct kfd_topology_device *kfd_assign_gpu(struct kfd_dev *gpu)
 		/* Discrete GPUs need their own topology device list
 		 * entries. Don't assign them to CPU/APU nodes.
 		 */
-		if (!gpu->device_info->needs_iommu_device &&
+		if (!gpu->use_iommu_v2 &&
 		    dev->node_props.cpu_cores_count)
 			continue;
 
@@ -1239,7 +1239,7 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	void *crat_image = NULL;
 	size_t image_size = 0;
 	int proximity_domain;
-	struct amdgpu_ras *ctx;
+	struct amdgpu_device *adev;
 
 	INIT_LIST_HEAD(&temp_topology_device_list);
 
@@ -1388,7 +1388,7 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	* Overwrite ATS capability according to needs_iommu_device to fix
 	* potential missing corresponding bit in CRAT of BIOS.
 	*/
-	if (dev->gpu->device_info->needs_iommu_device)
+	if (dev->gpu->use_iommu_v2)
 		dev->node_props.capability |= HSA_CAP_ATS_PRESENT;
 	else
 		dev->node_props.capability &= ~HSA_CAP_ATS_PRESENT;
@@ -1404,19 +1404,17 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 		dev->node_props.max_waves_per_simd = 10;
 	}
 
-	ctx = amdgpu_ras_get_context((struct amdgpu_device *)(dev->gpu->kgd));
-	if (ctx) {
-		/* kfd only concerns sram ecc on GFX/SDMA and HBM ecc on UMC */
-		dev->node_props.capability |=
-			(((ctx->features & BIT(AMDGPU_RAS_BLOCK__SDMA)) != 0) ||
-			 ((ctx->features & BIT(AMDGPU_RAS_BLOCK__GFX)) != 0)) ?
-			HSA_CAP_SRAM_EDCSUPPORTED : 0;
-		dev->node_props.capability |= ((ctx->features & BIT(AMDGPU_RAS_BLOCK__UMC)) != 0) ?
-			HSA_CAP_MEM_EDCSUPPORTED : 0;
+	adev = (struct amdgpu_device *)(dev->gpu->kgd);
+	/* kfd only concerns sram ecc on GFX and HBM ecc on UMC */
+	dev->node_props.capability |=
+		((adev->ras_features & BIT(AMDGPU_RAS_BLOCK__GFX)) != 0) ?
+		HSA_CAP_SRAM_EDCSUPPORTED : 0;
+	dev->node_props.capability |= ((adev->ras_features & BIT(AMDGPU_RAS_BLOCK__UMC)) != 0) ?
+		HSA_CAP_MEM_EDCSUPPORTED : 0;
 
-		dev->node_props.capability |= (ctx->features != 0) ?
+	if (adev->asic_type != CHIP_VEGA10)
+		dev->node_props.capability |= (adev->ras_features != 0) ?
 			HSA_CAP_RASEVENTNOTIFY : 0;
-	}
 
 	kfd_debug_print_topology();
 
@@ -1513,6 +1511,29 @@ int kfd_numa_node_to_apic_id(int numa_node_id)
 		return kfd_cpumask_to_apic_id(cpu_online_mask);
 	}
 	return kfd_cpumask_to_apic_id(cpumask_of_node(numa_node_id));
+}
+
+void kfd_double_confirm_iommu_support(struct kfd_dev *gpu)
+{
+	struct kfd_topology_device *dev;
+
+	gpu->use_iommu_v2 = false;
+
+	if (!gpu->device_info->needs_iommu_device)
+		return;
+
+	down_read(&topology_lock);
+
+	/* Only use IOMMUv2 if there is an APU topology node with no GPU
+	 * assigned yet. This GPU will be assigned to it.
+	 */
+	list_for_each_entry(dev, &topology_device_list, list)
+		if (dev->node_props.cpu_cores_count &&
+		    dev->node_props.simd_count &&
+		    !dev->gpu)
+			gpu->use_iommu_v2 = true;
+
+	up_read(&topology_lock);
 }
 
 #if defined(CONFIG_DEBUG_FS)

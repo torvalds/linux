@@ -627,7 +627,7 @@ static int scom_remove(struct device *dev)
 	return 0;
 }
 
-static struct fsi_device_id scom_ids[] = {
+static const struct fsi_device_id scom_ids[] = {
 	{
 		.engine_type = FSI_ENGID_SCOM,
 		.version = FSI_VERSION_ANY,

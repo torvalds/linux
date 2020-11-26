@@ -15,6 +15,7 @@
 #include "rvu.h"
 #include "cgx.h"
 #include "rvu_reg.h"
+#include "rvu_trace.h"
 
 struct cgx_evq_entry {
 	struct list_head evq_node;
@@ -34,6 +35,7 @@ static struct _req_type __maybe_unused					\
 		return NULL;						\
 	req->hdr.sig = OTX2_MBOX_REQ_SIG;				\
 	req->hdr.id = _id;						\
+	trace_otx2_msg_alloc(rvu->pdev, _id, sizeof(*req));		\
 	return req;							\
 }
 
@@ -507,6 +509,45 @@ int rvu_mbox_handler_cgx_promisc_disable(struct rvu *rvu, struct msg_req *req,
 
 	cgx_lmac_promisc_config(cgx_id, lmac_id, false);
 	return 0;
+}
+
+static int rvu_cgx_ptp_rx_cfg(struct rvu *rvu, u16 pcifunc, bool enable)
+{
+	int pf = rvu_get_pf(pcifunc);
+	u8 cgx_id, lmac_id;
+	void *cgxd;
+
+	/* This msg is expected only from PFs that are mapped to CGX LMACs,
+	 * if received from other PF/VF simply ACK, nothing to do.
+	 */
+	if ((pcifunc & RVU_PFVF_FUNC_MASK) ||
+	    !is_pf_cgxmapped(rvu, pf))
+		return -ENODEV;
+
+	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
+	cgxd = rvu_cgx_pdata(cgx_id, rvu);
+
+	cgx_lmac_ptp_config(cgxd, lmac_id, enable);
+	/* If PTP is enabled then inform NPC that packets to be
+	 * parsed by this PF will have their data shifted by 8 bytes
+	 * and if PTP is disabled then no shift is required
+	 */
+	if (npc_config_ts_kpuaction(rvu, pf, pcifunc, enable))
+		return -EINVAL;
+
+	return 0;
+}
+
+int rvu_mbox_handler_cgx_ptp_rx_enable(struct rvu *rvu, struct msg_req *req,
+				       struct msg_rsp *rsp)
+{
+	return rvu_cgx_ptp_rx_cfg(rvu, req->hdr.pcifunc, true);
+}
+
+int rvu_mbox_handler_cgx_ptp_rx_disable(struct rvu *rvu, struct msg_req *req,
+					struct msg_rsp *rsp)
+{
+	return rvu_cgx_ptp_rx_cfg(rvu, req->hdr.pcifunc, false);
 }
 
 static int rvu_cgx_config_linkevents(struct rvu *rvu, u16 pcifunc, bool en)

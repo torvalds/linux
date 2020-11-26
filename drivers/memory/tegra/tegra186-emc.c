@@ -172,14 +172,8 @@ static int tegra186_emc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	emc->bpmp = tegra_bpmp_get(&pdev->dev);
-	if (IS_ERR(emc->bpmp)) {
-		err = PTR_ERR(emc->bpmp);
-
-		if (err != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "failed to get BPMP: %d\n", err);
-
-		return err;
-	}
+	if (IS_ERR(emc->bpmp))
+		return dev_err_probe(&pdev->dev, PTR_ERR(emc->bpmp), "failed to get BPMP\n");
 
 	emc->clk = devm_clk_get(&pdev->dev, "emc");
 	if (IS_ERR(emc->clk)) {

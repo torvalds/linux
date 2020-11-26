@@ -123,7 +123,7 @@
 		reset-gpios = <&gpl1 2 GPIO_ACTIVE_LOW>;
 	};
 
-	i2c_max17042_fuel: i2c-gpio {
+	i2c_max17042_fuel: i2c-gpio-0 {
 		compatible = "i2c-gpio";
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -147,7 +147,7 @@
 		};
 	};
 
-	spi-lcd {
+	spi-3 {
 		compatible = "spi-gpio";
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -209,20 +209,12 @@
 			compatible = "samsung,clock-xusbxti";
 			clock-frequency = <24000000>;
 		};
-	};
 
-	thermal-zones {
-		cpu_thermal: cpu-thermal {
-			cooling-maps {
-				map0 {
-					/* Corresponds to 800MHz */
-					cooling-device = <&cpu0 2 2>;
-				};
-				map1 {
-					/* Corresponds to 200MHz */
-					cooling-device = <&cpu0 4 4>;
-				};
-			};
+		pmic_ap_clk: pmic-ap-clk {
+			/* Workaround for missing clock on max8997 PMIC */
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <32768>;
 		};
 	};
 };
@@ -233,6 +225,19 @@
 
 &cpu0 {
 	cpu0-supply = <&varm_breg>;
+};
+
+&cpu_thermal {
+	cooling-maps {
+		map0 {
+			/* Corresponds to 800MHz */
+			cooling-device = <&cpu0 2 2>;
+		};
+		map1 {
+			/* Corresponds to 200MHz */
+			cooling-device = <&cpu0 4 4>;
+		};
+	};
 };
 
 &ehci {
@@ -304,8 +309,6 @@
 	status = "okay";
 
 	mali-supply = <&vg3d_breg>;
-	regulator-microvolt-offset = <50000>;
-	regulator-microsecs-delay = <50>;
 };
 
 &hsotg {
@@ -524,6 +527,7 @@
 				regulator-name = "G3D_1.1V";
 				regulator-min-microvolt = <900000>;
 				regulator-max-microvolt = <1200000>;
+				regulator-microvolt-offset = <50000>;
 				regulator-always-on;
 			};
 
@@ -567,6 +571,16 @@
 				regulator-name = "CHARGER_CV";
 				regulator-min-microvolt = <3800000>;
 				regulator-max-microvolt = <4100000>;
+				regulator-always-on;
+			};
+
+			EN32KHZ_AP {
+				regulator-name = "EN32KHZ_AP";
+				regulator-always-on;
+			};
+
+			EN32KHZ_CP {
+				regulator-name = "EN32KHZ_CP";
 				regulator-always-on;
 			};
 		};
@@ -667,7 +681,7 @@
 		samsung,pin-val = <0>;
 	};
 
-	mag_mhl_gpio: mag-mhl-gpio {
+	mag_mhl_gpio: mag-mhl {
 		samsung,pins = "gpd0-2";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_3>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
@@ -687,6 +701,12 @@
 		samsung,pins = "gpx0-4";
 		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
 	};
+};
+
+&rtc {
+	status = "okay";
+	clocks = <&clock CLK_RTC>, <&pmic_ap_clk>;
+	clock-names = "rtc", "rtc_src";
 };
 
 &sdhci_0 {

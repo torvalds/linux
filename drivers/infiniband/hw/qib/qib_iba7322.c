@@ -1733,9 +1733,9 @@ done:
 	return;
 }
 
-static void qib_error_tasklet(unsigned long data)
+static void qib_error_tasklet(struct tasklet_struct *t)
 {
-	struct qib_devdata *dd = (struct qib_devdata *)data;
+	struct qib_devdata *dd = from_tasklet(dd, t, error_tasklet);
 
 	handle_7322_errors(dd);
 	qib_write_kreg(dd, kr_errmask, dd->cspec->errormask);
@@ -3537,8 +3537,7 @@ try_intx:
 	for (i = 0; i < ARRAY_SIZE(redirect); i++)
 		qib_write_kreg(dd, kr_intredirect + i, redirect[i]);
 	dd->cspec->main_int_mask = mask;
-	tasklet_init(&dd->error_tasklet, qib_error_tasklet,
-		(unsigned long)dd);
+	tasklet_setup(&dd->error_tasklet, qib_error_tasklet);
 }
 
 /**
@@ -5508,11 +5507,11 @@ static u32 qib_7322_iblink_state(u64 ibcs)
 		state = IB_PORT_ARMED;
 		break;
 	case IB_7322_L_STATE_ACTIVE:
-		/* fall through */
 	case IB_7322_L_STATE_ACT_DEFER:
 		state = IB_PORT_ACTIVE;
 		break;
-	default: /* fall through */
+	default:
+		fallthrough;
 	case IB_7322_L_STATE_DOWN:
 		state = IB_PORT_DOWN;
 		break;
@@ -6533,7 +6532,7 @@ static int qib_init_7322_variables(struct qib_devdata *dd)
 				    "Invalid num_vls %u, using 4 VLs\n",
 				    qib_num_cfg_vls);
 			qib_num_cfg_vls = 4;
-			/* fall through */
+			fallthrough;
 		case 4:
 			ppd->vls_supported = IB_VL_VL0_3;
 			break;

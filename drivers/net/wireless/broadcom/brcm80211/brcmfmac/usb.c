@@ -532,7 +532,7 @@ static void brcmf_usb_rx_complete(struct urb *urb)
 	if (devinfo->bus_pub.state == BRCMFMAC_USB_STATE_UP ||
 	    devinfo->bus_pub.state == BRCMFMAC_USB_STATE_SLEEP) {
 		skb_put(skb, urb->actual_length);
-		brcmf_rx_frame(devinfo->dev, skb, true);
+		brcmf_rx_frame(devinfo->dev, skb, true, true);
 		brcmf_usb_rx_refill(devinfo, req);
 		usb_mark_last_busy(urb->dev);
 	} else {
@@ -1578,6 +1578,9 @@ void brcmf_usb_exit(void)
 	brcmf_dbg(USB, "Enter\n");
 	ret = driver_for_each_device(drv, NULL, NULL,
 				     brcmf_usb_reset_device);
+	if (ret)
+		brcmf_err("failed to reset all usb devices %d\n", ret);
+
 	usb_deregister(&brcmf_usbdrvr);
 }
 

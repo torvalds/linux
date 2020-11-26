@@ -402,7 +402,8 @@ void pcs_get_state(struct phylink_pcs *pcs,
  * For most 10GBASE-R, there is no advertisement.
  */
 int pcs_config(struct phylink_pcs *pcs, unsigned int mode,
-	       phy_interface_t interface, const unsigned long *advertising);
+	       phy_interface_t interface, const unsigned long *advertising,
+	       bool permit_pause_to_mac);
 
 /**
  * pcs_an_restart() - restart 802.3z BaseX autonegotiation
@@ -489,4 +490,7 @@ void phylink_mii_c22_pcs_an_restart(struct mdio_device *pcs);
 
 void phylink_mii_c45_pcs_get_state(struct mdio_device *pcs,
 				   struct phylink_link_state *state);
+
+void phylink_decode_usxgmii_word(struct phylink_link_state *state,
+				 uint16_t lpa);
 #endif

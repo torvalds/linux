@@ -11,6 +11,7 @@
 #include "habanalabs.h"
 
 #include <linux/pci.h>
+#include <linux/aer.h>
 #include <linux/module.h>
 
 #define HL_DRIVER_AUTHOR	"HabanaLabs Kernel Driver Team"
@@ -408,6 +409,8 @@ static int hl_pci_probe(struct pci_dev *pdev,
 
 	pci_set_drvdata(pdev, hdev);
 
+	pci_enable_pcie_error_reporting(pdev);
+
 	rc = hl_device_init(hdev, hl_class);
 	if (rc) {
 		dev_err(&pdev->dev, "Fatal error during habanalabs device init\n");
@@ -440,14 +443,84 @@ static void hl_pci_remove(struct pci_dev *pdev)
 		return;
 
 	hl_device_fini(hdev);
+	pci_disable_pcie_error_reporting(pdev);
 	pci_set_drvdata(pdev, NULL);
-
 	destroy_hdev(hdev);
+}
+
+/**
+ * hl_pci_err_detected - a PCI bus error detected on this device
+ *
+ * @pdev: pointer to pci device
+ * @state: PCI error type
+ *
+ * Called by the PCI subsystem whenever a non-correctable
+ * PCI bus error is detected
+ */
+static pci_ers_result_t
+hl_pci_err_detected(struct pci_dev *pdev, pci_channel_state_t state)
+{
+	struct hl_device *hdev = pci_get_drvdata(pdev);
+	enum pci_ers_result result;
+
+	switch (state) {
+	case pci_channel_io_normal:
+		return PCI_ERS_RESULT_CAN_RECOVER;
+
+	case pci_channel_io_frozen:
+		dev_warn(hdev->dev, "frozen state error detected\n");
+		result = PCI_ERS_RESULT_NEED_RESET;
+		break;
+
+	case pci_channel_io_perm_failure:
+		dev_warn(hdev->dev, "failure state error detected\n");
+		result = PCI_ERS_RESULT_DISCONNECT;
+		break;
+
+	default:
+		result = PCI_ERS_RESULT_NONE;
+	}
+
+	hdev->asic_funcs->halt_engines(hdev, true);
+
+	return result;
+}
+
+/**
+ * hl_pci_err_resume - resume after a PCI slot reset
+ *
+ * @pdev: pointer to pci device
+ *
+ */
+static void hl_pci_err_resume(struct pci_dev *pdev)
+{
+	struct hl_device *hdev = pci_get_drvdata(pdev);
+
+	dev_warn(hdev->dev, "Resuming device after PCI slot reset\n");
+	hl_device_resume(hdev);
+}
+
+/**
+ * hl_pci_err_slot_reset - a PCI slot reset has just happened
+ *
+ * @pdev: pointer to pci device
+ *
+ * Determine if the driver can recover from the PCI slot reset
+ */
+static pci_ers_result_t hl_pci_err_slot_reset(struct pci_dev *pdev)
+{
+	return PCI_ERS_RESULT_RECOVERED;
 }
 
 static const struct dev_pm_ops hl_pm_ops = {
 	.suspend = hl_pmops_suspend,
 	.resume = hl_pmops_resume,
+};
+
+static const struct pci_error_handlers hl_pci_err_handler = {
+	.error_detected = hl_pci_err_detected,
+	.slot_reset = hl_pci_err_slot_reset,
+	.resume = hl_pci_err_resume,
 };
 
 static struct pci_driver hl_pci_driver = {
@@ -456,6 +529,7 @@ static struct pci_driver hl_pci_driver = {
 	.probe = hl_pci_probe,
 	.remove = hl_pci_remove,
 	.driver.pm = &hl_pm_ops,
+	.err_handler = &hl_pci_err_handler,
 };
 
 /*

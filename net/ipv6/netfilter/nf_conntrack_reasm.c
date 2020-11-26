@@ -355,6 +355,7 @@ static int nf_ct_frag6_reasm(struct frag_queue *fq, struct sk_buff *skb,
 	ipv6_hdr(skb)->payload_len = htons(payload_len);
 	ipv6_change_dsfield(ipv6_hdr(skb), 0xff, ecn);
 	IP6CB(skb)->frag_max_size = sizeof(struct ipv6hdr) + fq->q.max_size;
+	IP6CB(skb)->flags |= IP6SKB_FRAGMENTED;
 
 	/* Yes, and fold redundant checksum back. 8) */
 	if (skb->ip_summed == CHECKSUM_COMPLETE)
@@ -439,6 +440,7 @@ find_prev_fhdr(struct sk_buff *skb, u8 *prevhdrp, int *prevhoff, int *fhoff)
 int nf_ct_frag6_gather(struct net *net, struct sk_buff *skb, u32 user)
 {
 	u16 savethdr = skb->transport_header;
+	u8 nexthdr = NEXTHDR_FRAGMENT;
 	int fhoff, nhoff, ret;
 	struct frag_hdr *fhdr;
 	struct frag_queue *fq;
@@ -453,6 +455,14 @@ int nf_ct_frag6_gather(struct net *net, struct sk_buff *skb, u32 user)
 
 	if (find_prev_fhdr(skb, &prevhdr, &nhoff, &fhoff) < 0)
 		return 0;
+
+	/* Discard the first fragment if it does not include all headers
+	 * RFC 8200, Section 4.5
+	 */
+	if (ipv6frag_thdr_truncated(skb, fhoff, &nexthdr)) {
+		pr_debug("Drop incomplete fragment\n");
+		return 0;
+	}
 
 	if (!pskb_may_pull(skb, fhoff + sizeof(*fhdr)))
 		return -ENOMEM;

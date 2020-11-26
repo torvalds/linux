@@ -246,7 +246,6 @@ static inline bool kvm_vcpu_latch_init(struct kvm_vcpu *vcpu)
 	return is_smm(vcpu) || kvm_x86_ops.apic_init_signal_blocked(vcpu);
 }
 
-void kvm_set_pending_timer(struct kvm_vcpu *vcpu);
 void kvm_inject_realmode_interrupt(struct kvm_vcpu *vcpu, int irq, int inc_eip);
 
 void kvm_write_tsc(struct kvm_vcpu *vcpu, struct msr_data *msr);
@@ -372,8 +371,18 @@ void kvm_load_host_xsave_state(struct kvm_vcpu *vcpu);
 int kvm_spec_ctrl_test_value(u64 value);
 int kvm_valid_cr4(struct kvm_vcpu *vcpu, unsigned long cr4);
 bool kvm_vcpu_exit_request(struct kvm_vcpu *vcpu);
+int kvm_handle_memory_failure(struct kvm_vcpu *vcpu, int r,
+			      struct x86_exception *e);
+int kvm_handle_invpcid(struct kvm_vcpu *vcpu, unsigned long type, gva_t gva);
+bool kvm_msr_allowed(struct kvm_vcpu *vcpu, u32 index, u32 type);
 
-#define  KVM_MSR_RET_INVALID  2
+/*
+ * Internal error codes that are used to indicate that MSR emulation encountered
+ * an error that should result in #GP in the guest, unless userspace
+ * handles it.
+ */
+#define  KVM_MSR_RET_INVALID	2	/* in-kernel MSR emulation #GP condition */
+#define  KVM_MSR_RET_FILTERED	3	/* #GP due to userspace MSR filter */
 
 #define __cr4_reserved_bits(__cpu_has, __c)             \
 ({                                                      \

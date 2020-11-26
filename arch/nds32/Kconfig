@@ -48,6 +48,7 @@ config NDS32
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_DYNAMIC_FTRACE
+	select SET_FS
 	help
 	  Andes(nds32) Linux support.
 

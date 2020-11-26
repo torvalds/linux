@@ -201,8 +201,8 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_USE_HIGH_BATS)
 	addi r3,r3,sleep_storage@l
 	stw r5,0(r3)
 
-	.globl	low_cpu_die
-low_cpu_die:
+	.globl	low_cpu_offline_self
+low_cpu_offline_self:
 	/* Flush & disable all caches */
 	bl	flush_disable_caches
 
@@ -244,7 +244,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_SPEC7450)
 	mtmsr	r2
 	isync
 	b	1b
-_ASM_NOKPROBE_SYMBOL(low_cpu_die)
+_ASM_NOKPROBE_SYMBOL(low_cpu_offline_self)
 /*
  * Here is the resume code.
  */
@@ -294,14 +294,7 @@ grackle_wake_up:
 	 * we do any r1 memory access as we are not sure they
 	 * are in a sane state above the first 256Mb region
 	 */
-	li	r0,16		/* load up segment register values */
-	mtctr	r0		/* for context 0 */
-	lis	r3,0x2000	/* Ku = 1, VSID = 0 */
-	li	r4,0
-3:	mtsrin	r3,r4
-	addi	r3,r3,0x111	/* increment VSID */
-	addis	r4,r4,0x1000	/* address of next segment */
-	bdnz	3b
+	bl	load_segment_registers
 	sync
 	isync
 

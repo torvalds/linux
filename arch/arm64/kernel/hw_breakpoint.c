@@ -257,7 +257,7 @@ static int hw_breakpoint_control(struct perf_event *bp,
 		 * level.
 		 */
 		enable_debug_monitors(dbg_el);
-		/* Fall through */
+		fallthrough;
 	case HW_BREAKPOINT_RESTORE:
 		/* Setup the address register. */
 		write_wb_reg(val_reg, i, info->address);
@@ -541,13 +541,13 @@ int hw_breakpoint_arch_parse(struct perf_event *bp,
 			if (hw->ctrl.len == ARM_BREAKPOINT_LEN_2)
 				break;
 
-			/* Fallthrough */
+			fallthrough;
 		case 3:
 			/* Allow single byte watchpoint. */
 			if (hw->ctrl.len == ARM_BREAKPOINT_LEN_1)
 				break;
 
-			/* Fallthrough */
+			fallthrough;
 		default:
 			return -EINVAL;
 		}

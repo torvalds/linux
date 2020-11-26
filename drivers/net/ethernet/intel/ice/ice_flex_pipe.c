@@ -489,8 +489,6 @@ static void ice_init_pkg_hints(struct ice_hw *hw, struct ice_seg *ice_seg)
 			if ((label_name[len] - '0') == hw->pf_id) {
 				hw->tnl.tbl[hw->tnl.count].type = tnls[i].type;
 				hw->tnl.tbl[hw->tnl.count].valid = false;
-				hw->tnl.tbl[hw->tnl.count].in_use = false;
-				hw->tnl.tbl[hw->tnl.count].marked = false;
 				hw->tnl.tbl[hw->tnl.count].boost_addr = val;
 				hw->tnl.tbl[hw->tnl.count].port = 0;
 				hw->tnl.count++;
@@ -505,8 +503,11 @@ static void ice_init_pkg_hints(struct ice_hw *hw, struct ice_seg *ice_seg)
 	for (i = 0; i < hw->tnl.count; i++) {
 		ice_find_boost_entry(ice_seg, hw->tnl.tbl[i].boost_addr,
 				     &hw->tnl.tbl[i].boost_entry);
-		if (hw->tnl.tbl[i].boost_entry)
+		if (hw->tnl.tbl[i].boost_entry) {
 			hw->tnl.tbl[i].valid = true;
+			if (hw->tnl.tbl[i].type < __TNL_TYPE_CNT)
+				hw->tnl.valid_count[hw->tnl.tbl[i].type]++;
+		}
 	}
 }
 
@@ -1626,82 +1627,12 @@ static struct ice_buf *ice_pkg_buf(struct ice_buf_build *bld)
 }
 
 /**
- * ice_tunnel_port_in_use_hlpr - helper function to determine tunnel usage
- * @hw: pointer to the HW structure
- * @port: port to search for
- * @index: optionally returns index
- *
- * Returns whether a port is already in use as a tunnel, and optionally its
- * index
- */
-static bool ice_tunnel_port_in_use_hlpr(struct ice_hw *hw, u16 port, u16 *index)
-{
-	u16 i;
-
-	for (i = 0; i < hw->tnl.count && i < ICE_TUNNEL_MAX_ENTRIES; i++)
-		if (hw->tnl.tbl[i].in_use && hw->tnl.tbl[i].port == port) {
-			if (index)
-				*index = i;
-			return true;
-		}
-
-	return false;
-}
-
-/**
- * ice_tunnel_port_in_use
- * @hw: pointer to the HW structure
- * @port: port to search for
- * @index: optionally returns index
- *
- * Returns whether a port is already in use as a tunnel, and optionally its
- * index
- */
-bool ice_tunnel_port_in_use(struct ice_hw *hw, u16 port, u16 *index)
-{
-	bool res;
-
-	mutex_lock(&hw->tnl_lock);
-	res = ice_tunnel_port_in_use_hlpr(hw, port, index);
-	mutex_unlock(&hw->tnl_lock);
-
-	return res;
-}
-
-/**
- * ice_find_free_tunnel_entry
- * @hw: pointer to the HW structure
- * @type: tunnel type
- * @index: optionally returns index
- *
- * Returns whether there is a free tunnel entry, and optionally its index
- */
-static bool
-ice_find_free_tunnel_entry(struct ice_hw *hw, enum ice_tunnel_type type,
-			   u16 *index)
-{
-	u16 i;
-
-	for (i = 0; i < hw->tnl.count && i < ICE_TUNNEL_MAX_ENTRIES; i++)
-		if (hw->tnl.tbl[i].valid && !hw->tnl.tbl[i].in_use &&
-		    hw->tnl.tbl[i].type == type) {
-			if (index)
-				*index = i;
-			return true;
-		}
-
-	return false;
-}
-
-/**
  * ice_get_open_tunnel_port - retrieve an open tunnel port
  * @hw: pointer to the HW structure
- * @type: tunnel type (TNL_ALL will return any open port)
  * @port: returns open port
  */
 bool
-ice_get_open_tunnel_port(struct ice_hw *hw, enum ice_tunnel_type type,
-			 u16 *port)
+ice_get_open_tunnel_port(struct ice_hw *hw, u16 *port)
 {
 	bool res = false;
 	u16 i;
@@ -1709,8 +1640,7 @@ ice_get_open_tunnel_port(struct ice_hw *hw, enum ice_tunnel_type type,
 	mutex_lock(&hw->tnl_lock);
 
 	for (i = 0; i < hw->tnl.count && i < ICE_TUNNEL_MAX_ENTRIES; i++)
-		if (hw->tnl.tbl[i].valid && hw->tnl.tbl[i].in_use &&
-		    (type == TNL_ALL || hw->tnl.tbl[i].type == type)) {
+		if (hw->tnl.tbl[i].valid && hw->tnl.tbl[i].port) {
 			*port = hw->tnl.tbl[i].port;
 			res = true;
 			break;
@@ -1722,8 +1652,34 @@ ice_get_open_tunnel_port(struct ice_hw *hw, enum ice_tunnel_type type,
 }
 
 /**
+ * ice_tunnel_idx_to_entry - convert linear index to the sparse one
+ * @hw: pointer to the HW structure
+ * @type: type of tunnel
+ * @idx: linear index
+ *
+ * Stack assumes we have 2 linear tables with indexes [0, count_valid),
+ * but really the port table may be sprase, and types are mixed, so convert
+ * the stack index into the device index.
+ */
+static u16 ice_tunnel_idx_to_entry(struct ice_hw *hw, enum ice_tunnel_type type,
+				   u16 idx)
+{
+	u16 i;
+
+	for (i = 0; i < hw->tnl.count && i < ICE_TUNNEL_MAX_ENTRIES; i++)
+		if (hw->tnl.tbl[i].valid &&
+		    hw->tnl.tbl[i].type == type &&
+		    idx--)
+			return i;
+
+	WARN_ON_ONCE(1);
+	return 0;
+}
+
+/**
  * ice_create_tunnel
  * @hw: pointer to the HW structure
+ * @index: device table entry
  * @type: type of tunnel
  * @port: port of tunnel to create
  *
@@ -1731,26 +1687,15 @@ ice_get_open_tunnel_port(struct ice_hw *hw, enum ice_tunnel_type type,
  * creating a package buffer with the tunnel info and issuing an update package
  * command.
  */
-enum ice_status
-ice_create_tunnel(struct ice_hw *hw, enum ice_tunnel_type type, u16 port)
+static enum ice_status
+ice_create_tunnel(struct ice_hw *hw, u16 index,
+		  enum ice_tunnel_type type, u16 port)
 {
 	struct ice_boost_tcam_section *sect_rx, *sect_tx;
 	enum ice_status status = ICE_ERR_MAX_LIMIT;
 	struct ice_buf_build *bld;
-	u16 index;
 
 	mutex_lock(&hw->tnl_lock);
-
-	if (ice_tunnel_port_in_use_hlpr(hw, port, &index)) {
-		hw->tnl.tbl[index].ref++;
-		status = 0;
-		goto ice_create_tunnel_end;
-	}
-
-	if (!ice_find_free_tunnel_entry(hw, type, &index)) {
-		status = ICE_ERR_OUT_OF_RANGE;
-		goto ice_create_tunnel_end;
-	}
 
 	bld = ice_pkg_buf_alloc(hw);
 	if (!bld) {
@@ -1790,11 +1735,8 @@ ice_create_tunnel(struct ice_hw *hw, enum ice_tunnel_type type, u16 port)
 	memcpy(sect_tx->tcam, sect_rx->tcam, sizeof(*sect_tx->tcam));
 
 	status = ice_update_pkg(hw, ice_pkg_buf(bld), 1);
-	if (!status) {
+	if (!status)
 		hw->tnl.tbl[index].port = port;
-		hw->tnl.tbl[index].in_use = true;
-		hw->tnl.tbl[index].ref = 1;
-	}
 
 ice_create_tunnel_err:
 	ice_pkg_buf_free(hw, bld);
@@ -1808,45 +1750,30 @@ ice_create_tunnel_end:
 /**
  * ice_destroy_tunnel
  * @hw: pointer to the HW structure
+ * @index: device table entry
+ * @type: type of tunnel
  * @port: port of tunnel to destroy (ignored if the all parameter is true)
- * @all: flag that states to destroy all tunnels
  *
  * Destroys a tunnel or all tunnels by creating an update package buffer
  * targeting the specific updates requested and then performing an update
  * package.
  */
-enum ice_status ice_destroy_tunnel(struct ice_hw *hw, u16 port, bool all)
+static enum ice_status
+ice_destroy_tunnel(struct ice_hw *hw, u16 index, enum ice_tunnel_type type,
+		   u16 port)
 {
 	struct ice_boost_tcam_section *sect_rx, *sect_tx;
 	enum ice_status status = ICE_ERR_MAX_LIMIT;
 	struct ice_buf_build *bld;
-	u16 count = 0;
-	u16 index;
-	u16 size;
-	u16 i;
 
 	mutex_lock(&hw->tnl_lock);
 
-	if (!all && ice_tunnel_port_in_use_hlpr(hw, port, &index))
-		if (hw->tnl.tbl[index].ref > 1) {
-			hw->tnl.tbl[index].ref--;
-			status = 0;
-			goto ice_destroy_tunnel_end;
-		}
-
-	/* determine count */
-	for (i = 0; i < hw->tnl.count && i < ICE_TUNNEL_MAX_ENTRIES; i++)
-		if (hw->tnl.tbl[i].valid && hw->tnl.tbl[i].in_use &&
-		    (all || hw->tnl.tbl[i].port == port))
-			count++;
-
-	if (!count) {
-		status = ICE_ERR_PARAM;
+	if (WARN_ON(!hw->tnl.tbl[index].valid ||
+		    hw->tnl.tbl[index].type != type ||
+		    hw->tnl.tbl[index].port != port)) {
+		status = ICE_ERR_OUT_OF_RANGE;
 		goto ice_destroy_tunnel_end;
 	}
-
-	/* size of section - there is at least one entry */
-	size = struct_size(sect_rx, tcam, count);
 
 	bld = ice_pkg_buf_alloc(hw);
 	if (!bld) {
@@ -1859,13 +1786,13 @@ enum ice_status ice_destroy_tunnel(struct ice_hw *hw, u16 port, bool all)
 		goto ice_destroy_tunnel_err;
 
 	sect_rx = ice_pkg_buf_alloc_section(bld, ICE_SID_RXPARSER_BOOST_TCAM,
-					    size);
+					    struct_size(sect_rx, tcam, 1));
 	if (!sect_rx)
 		goto ice_destroy_tunnel_err;
 	sect_rx->count = cpu_to_le16(1);
 
 	sect_tx = ice_pkg_buf_alloc_section(bld, ICE_SID_TXPARSER_BOOST_TCAM,
-					    size);
+					    struct_size(sect_tx, tcam, 1));
 	if (!sect_tx)
 		goto ice_destroy_tunnel_err;
 	sect_tx->count = cpu_to_le16(1);
@@ -1873,26 +1800,14 @@ enum ice_status ice_destroy_tunnel(struct ice_hw *hw, u16 port, bool all)
 	/* copy original boost entry to update package buffer, one copy to Rx
 	 * section, another copy to the Tx section
 	 */
-	for (i = 0; i < hw->tnl.count && i < ICE_TUNNEL_MAX_ENTRIES; i++)
-		if (hw->tnl.tbl[i].valid && hw->tnl.tbl[i].in_use &&
-		    (all || hw->tnl.tbl[i].port == port)) {
-			memcpy(sect_rx->tcam + i, hw->tnl.tbl[i].boost_entry,
-			       sizeof(*sect_rx->tcam));
-			memcpy(sect_tx->tcam + i, hw->tnl.tbl[i].boost_entry,
-			       sizeof(*sect_tx->tcam));
-			hw->tnl.tbl[i].marked = true;
-		}
+	memcpy(sect_rx->tcam, hw->tnl.tbl[index].boost_entry,
+	       sizeof(*sect_rx->tcam));
+	memcpy(sect_tx->tcam, hw->tnl.tbl[index].boost_entry,
+	       sizeof(*sect_tx->tcam));
 
 	status = ice_update_pkg(hw, ice_pkg_buf(bld), 1);
 	if (!status)
-		for (i = 0; i < hw->tnl.count &&
-		     i < ICE_TUNNEL_MAX_ENTRIES; i++)
-			if (hw->tnl.tbl[i].marked) {
-				hw->tnl.tbl[i].ref = 0;
-				hw->tnl.tbl[i].port = 0;
-				hw->tnl.tbl[i].in_use = false;
-				hw->tnl.tbl[i].marked = false;
-			}
+		hw->tnl.tbl[index].port = 0;
 
 ice_destroy_tunnel_err:
 	ice_pkg_buf_free(hw, bld);
@@ -1901,6 +1816,52 @@ ice_destroy_tunnel_end:
 	mutex_unlock(&hw->tnl_lock);
 
 	return status;
+}
+
+int ice_udp_tunnel_set_port(struct net_device *netdev, unsigned int table,
+			    unsigned int idx, struct udp_tunnel_info *ti)
+{
+	struct ice_netdev_priv *np = netdev_priv(netdev);
+	struct ice_vsi *vsi = np->vsi;
+	struct ice_pf *pf = vsi->back;
+	enum ice_tunnel_type tnl_type;
+	enum ice_status status;
+	u16 index;
+
+	tnl_type = ti->type == UDP_TUNNEL_TYPE_VXLAN ? TNL_VXLAN : TNL_GENEVE;
+	index = ice_tunnel_idx_to_entry(&pf->hw, idx, tnl_type);
+
+	status = ice_create_tunnel(&pf->hw, index, tnl_type, ntohs(ti->port));
+	if (status) {
+		netdev_err(netdev, "Error adding UDP tunnel - %s\n",
+			   ice_stat_str(status));
+		return -EIO;
+	}
+
+	udp_tunnel_nic_set_port_priv(netdev, table, idx, index);
+	return 0;
+}
+
+int ice_udp_tunnel_unset_port(struct net_device *netdev, unsigned int table,
+			      unsigned int idx, struct udp_tunnel_info *ti)
+{
+	struct ice_netdev_priv *np = netdev_priv(netdev);
+	struct ice_vsi *vsi = np->vsi;
+	struct ice_pf *pf = vsi->back;
+	enum ice_tunnel_type tnl_type;
+	enum ice_status status;
+
+	tnl_type = ti->type == UDP_TUNNEL_TYPE_VXLAN ? TNL_VXLAN : TNL_GENEVE;
+
+	status = ice_destroy_tunnel(&pf->hw, ti->hw_priv, tnl_type,
+				    ntohs(ti->port));
+	if (status) {
+		netdev_err(netdev, "Error removing UDP tunnel - %s\n",
+			   ice_stat_str(status));
+		return -EIO;
+	}
+
+	return 0;
 }
 
 /* PTG Management */
@@ -4915,7 +4876,7 @@ ice_rem_prof_id_flow(struct ice_hw *hw, enum ice_block blk, u16 vsi, u64 hdl)
 
 			if (last_profile) {
 				/* If there are no profiles left for this VSIG,
-				 * then simply remove the the VSIG.
+				 * then simply remove the VSIG.
 				 */
 				status = ice_rem_vsig(hw, blk, vsig, &chg);
 				if (status)

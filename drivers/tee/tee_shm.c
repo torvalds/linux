@@ -12,6 +12,22 @@
 #include <linux/uio.h>
 #include "tee_private.h"
 
+static void release_registered_pages(struct tee_shm *shm)
+{
+	if (shm->pages) {
+		if (shm->flags & TEE_SHM_USER_MAPPED) {
+			unpin_user_pages(shm->pages, shm->num_pages);
+		} else {
+			size_t n;
+
+			for (n = 0; n < shm->num_pages; n++)
+				put_page(shm->pages[n]);
+		}
+
+		kfree(shm->pages);
+	}
+}
+
 static void tee_shm_release(struct tee_shm *shm)
 {
 	struct tee_device *teedev = shm->ctx->teedev;
@@ -32,17 +48,13 @@ static void tee_shm_release(struct tee_shm *shm)
 
 		poolm->ops->free(poolm, shm);
 	} else if (shm->flags & TEE_SHM_REGISTER) {
-		size_t n;
 		int rc = teedev->desc->ops->shm_unregister(shm->ctx, shm);
 
 		if (rc)
 			dev_err(teedev->dev.parent,
 				"unregister shm %p failed: %d", shm, rc);
 
-		for (n = 0; n < shm->num_pages; n++)
-			put_page(shm->pages[n]);
-
-		kfree(shm->pages);
+		release_registered_pages(shm);
 	}
 
 	teedev_ctx_put(shm->ctx);
@@ -228,7 +240,7 @@ struct tee_shm *tee_shm_register(struct tee_context *ctx, unsigned long addr,
 	}
 
 	if (flags & TEE_SHM_USER_MAPPED) {
-		rc = get_user_pages_fast(start, num_pages, FOLL_WRITE,
+		rc = pin_user_pages_fast(start, num_pages, FOLL_WRITE,
 					 shm->pages);
 	} else {
 		struct kvec *kiov;
@@ -292,18 +304,12 @@ struct tee_shm *tee_shm_register(struct tee_context *ctx, unsigned long addr,
 	return shm;
 err:
 	if (shm) {
-		size_t n;
-
 		if (shm->id >= 0) {
 			mutex_lock(&teedev->mutex);
 			idr_remove(&teedev->idr, shm->id);
 			mutex_unlock(&teedev->mutex);
 		}
-		if (shm->pages) {
-			for (n = 0; n < shm->num_pages; n++)
-				put_page(shm->pages[n]);
-			kfree(shm->pages);
-		}
+		release_registered_pages(shm);
 	}
 	kfree(shm);
 	teedev_ctx_put(ctx);

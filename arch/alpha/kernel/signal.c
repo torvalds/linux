@@ -453,7 +453,7 @@ syscall_restart(unsigned long r0, unsigned long r19,
 			regs->r0 = EINTR;
 			break;
 		}
-		/* fallthrough */
+		fallthrough;
 	case ERESTARTNOINTR:
 		regs->r0 = r0;	/* reset v0 and a3 and replay syscall */
 		regs->r19 = r19;
@@ -531,7 +531,6 @@ do_work_pending(struct pt_regs *regs, unsigned long thread_flags,
 				do_signal(regs, r0, r19);
 				r0 = 0;
 			} else {
-				clear_thread_flag(TIF_NOTIFY_RESUME);
 				tracehook_notify_resume(regs);
 			}
 		}

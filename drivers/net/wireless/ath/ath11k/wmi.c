@@ -338,7 +338,7 @@ ath11k_pull_mac_phy_cap_svc_ready_ext(struct ath11k_pdev_wmi *wmi_handle,
 	mac_phy_caps = wmi_mac_phy_caps + phy_idx;
 
 	pdev->pdev_id = mac_phy_caps->pdev_id;
-	pdev_cap->supported_bands = mac_phy_caps->supported_bands;
+	pdev_cap->supported_bands |= mac_phy_caps->supported_bands;
 	pdev_cap->ampdu_density = mac_phy_caps->ampdu_density;
 
 	/* Take non-zero tx/rx chainmask. If tx/rx chainmask differs from
@@ -371,27 +371,33 @@ ath11k_pull_mac_phy_cap_svc_ready_ext(struct ath11k_pdev_wmi *wmi_handle,
 	pdev_cap->rx_chain_mask_shift =
 			find_first_bit((unsigned long *)&pdev_cap->rx_chain_mask, 32);
 
-	cap_band = &pdev_cap->band[NL80211_BAND_2GHZ];
-	cap_band->max_bw_supported = mac_phy_caps->max_bw_supported_2g;
-	cap_band->ht_cap_info = mac_phy_caps->ht_cap_info_2g;
-	cap_band->he_cap_info[0] = mac_phy_caps->he_cap_info_2g;
-	cap_band->he_cap_info[1] = mac_phy_caps->he_cap_info_2g_ext;
-	cap_band->he_mcs = mac_phy_caps->he_supp_mcs_2g;
-	memcpy(cap_band->he_cap_phy_info, &mac_phy_caps->he_cap_phy_info_2g,
-	       sizeof(u32) * PSOC_HOST_MAX_PHY_SIZE);
-	memcpy(&cap_band->he_ppet, &mac_phy_caps->he_ppet2g,
-	       sizeof(struct ath11k_ppe_threshold));
+	if (mac_phy_caps->supported_bands & WMI_HOST_WLAN_2G_CAP) {
+		cap_band = &pdev_cap->band[NL80211_BAND_2GHZ];
+		cap_band->phy_id = mac_phy_caps->phy_id;
+		cap_band->max_bw_supported = mac_phy_caps->max_bw_supported_2g;
+		cap_band->ht_cap_info = mac_phy_caps->ht_cap_info_2g;
+		cap_band->he_cap_info[0] = mac_phy_caps->he_cap_info_2g;
+		cap_band->he_cap_info[1] = mac_phy_caps->he_cap_info_2g_ext;
+		cap_band->he_mcs = mac_phy_caps->he_supp_mcs_2g;
+		memcpy(cap_band->he_cap_phy_info, &mac_phy_caps->he_cap_phy_info_2g,
+		       sizeof(u32) * PSOC_HOST_MAX_PHY_SIZE);
+		memcpy(&cap_band->he_ppet, &mac_phy_caps->he_ppet2g,
+		       sizeof(struct ath11k_ppe_threshold));
+	}
 
-	cap_band = &pdev_cap->band[NL80211_BAND_5GHZ];
-	cap_band->max_bw_supported = mac_phy_caps->max_bw_supported_5g;
-	cap_band->ht_cap_info = mac_phy_caps->ht_cap_info_5g;
-	cap_band->he_cap_info[0] = mac_phy_caps->he_cap_info_5g;
-	cap_band->he_cap_info[1] = mac_phy_caps->he_cap_info_5g_ext;
-	cap_band->he_mcs = mac_phy_caps->he_supp_mcs_5g;
-	memcpy(cap_band->he_cap_phy_info, &mac_phy_caps->he_cap_phy_info_5g,
-	       sizeof(u32) * PSOC_HOST_MAX_PHY_SIZE);
-	memcpy(&cap_band->he_ppet, &mac_phy_caps->he_ppet5g,
-	       sizeof(struct ath11k_ppe_threshold));
+	if (mac_phy_caps->supported_bands & WMI_HOST_WLAN_5G_CAP) {
+		cap_band = &pdev_cap->band[NL80211_BAND_5GHZ];
+		cap_band->phy_id = mac_phy_caps->phy_id;
+		cap_band->max_bw_supported = mac_phy_caps->max_bw_supported_5g;
+		cap_band->ht_cap_info = mac_phy_caps->ht_cap_info_5g;
+		cap_band->he_cap_info[0] = mac_phy_caps->he_cap_info_5g;
+		cap_band->he_cap_info[1] = mac_phy_caps->he_cap_info_5g_ext;
+		cap_band->he_mcs = mac_phy_caps->he_supp_mcs_5g;
+		memcpy(cap_band->he_cap_phy_info, &mac_phy_caps->he_cap_phy_info_5g,
+		       sizeof(u32) * PSOC_HOST_MAX_PHY_SIZE);
+		memcpy(&cap_band->he_ppet, &mac_phy_caps->he_ppet5g,
+		       sizeof(struct ath11k_ppe_threshold));
+	}
 
 	cap_band = &pdev_cap->band[NL80211_BAND_6GHZ];
 	cap_band->max_bw_supported = mac_phy_caps->max_bw_supported_5g;
@@ -1593,8 +1599,8 @@ int ath11k_wmi_bcn_tmpl(struct ath11k *ar, u32 vdev_id,
 			  FIELD_PREP(WMI_TLV_LEN, sizeof(*cmd) - TLV_HDR_SIZE);
 	cmd->vdev_id = vdev_id;
 	cmd->tim_ie_offset = offs->tim_offset;
-	cmd->csa_switch_count_offset = offs->csa_counter_offs[0];
-	cmd->ext_csa_switch_count_offset = offs->csa_counter_offs[1];
+	cmd->csa_switch_count_offset = offs->cntdwn_counter_offs[0];
+	cmd->ext_csa_switch_count_offset = offs->cntdwn_counter_offs[1];
 	cmd->buf_len = bcn->len;
 
 	ptr = skb->data + sizeof(*cmd);
@@ -3175,7 +3181,7 @@ static int ath11k_init_cmd_send(struct ath11k_pdev_wmi *wmi,
 			      (param->num_band_to_mac * sizeof(*band_to_mac));
 
 	len = sizeof(*cmd) + TLV_HDR_SIZE + sizeof(*cfg) + hw_mode_len +
-	      (sizeof(*host_mem_chunks) * WMI_MAX_MEM_REQS);
+	      (param->num_mem_chunks ? (sizeof(*host_mem_chunks) * WMI_MAX_MEM_REQS) : 0);
 
 	skb = ath11k_wmi_alloc_skb(wmi->wmi_ab, len);
 	if (!skb)
@@ -3336,50 +3342,7 @@ int ath11k_wmi_cmd_init(struct ath11k_base *ab)
 	memset(&init_param, 0, sizeof(init_param));
 	memset(&config, 0, sizeof(config));
 
-	config.num_vdevs = ab->num_radios * TARGET_NUM_VDEVS;
-
-	if (ab->num_radios == 2) {
-		config.num_peers = TARGET_NUM_PEERS(DBS);
-		config.num_tids = TARGET_NUM_TIDS(DBS);
-	} else if (ab->num_radios == 3) {
-		config.num_peers = TARGET_NUM_PEERS(DBS_SBS);
-		config.num_tids = TARGET_NUM_TIDS(DBS_SBS);
-	} else {
-		/* Control should not reach here */
-		config.num_peers = TARGET_NUM_PEERS(SINGLE);
-		config.num_tids = TARGET_NUM_TIDS(SINGLE);
-	}
-	config.num_offload_peers = TARGET_NUM_OFFLD_PEERS;
-	config.num_offload_reorder_buffs = TARGET_NUM_OFFLD_REORDER_BUFFS;
-	config.num_peer_keys = TARGET_NUM_PEER_KEYS;
-	config.ast_skid_limit = TARGET_AST_SKID_LIMIT;
-	config.tx_chain_mask = (1 << ab->target_caps.num_rf_chains) - 1;
-	config.rx_chain_mask = (1 << ab->target_caps.num_rf_chains) - 1;
-	config.rx_timeout_pri[0] = TARGET_RX_TIMEOUT_LO_PRI;
-	config.rx_timeout_pri[1] = TARGET_RX_TIMEOUT_LO_PRI;
-	config.rx_timeout_pri[2] = TARGET_RX_TIMEOUT_LO_PRI;
-	config.rx_timeout_pri[3] = TARGET_RX_TIMEOUT_HI_PRI;
-	config.rx_decap_mode = TARGET_DECAP_MODE_NATIVE_WIFI;
-	config.scan_max_pending_req = TARGET_SCAN_MAX_PENDING_REQS;
-	config.bmiss_offload_max_vdev = TARGET_BMISS_OFFLOAD_MAX_VDEV;
-	config.roam_offload_max_vdev = TARGET_ROAM_OFFLOAD_MAX_VDEV;
-	config.roam_offload_max_ap_profiles = TARGET_ROAM_OFFLOAD_MAX_AP_PROFILES;
-	config.num_mcast_groups = TARGET_NUM_MCAST_GROUPS;
-	config.num_mcast_table_elems = TARGET_NUM_MCAST_TABLE_ELEMS;
-	config.mcast2ucast_mode = TARGET_MCAST2UCAST_MODE;
-	config.tx_dbg_log_size = TARGET_TX_DBG_LOG_SIZE;
-	config.num_wds_entries = TARGET_NUM_WDS_ENTRIES;
-	config.dma_burst_size = TARGET_DMA_BURST_SIZE;
-	config.rx_skip_defrag_timeout_dup_detection_check =
-		TARGET_RX_SKIP_DEFRAG_TIMEOUT_DUP_DETECTION_CHECK;
-	config.vow_config = TARGET_VOW_CONFIG;
-	config.gtk_offload_max_vdev = TARGET_GTK_OFFLOAD_MAX_VDEV;
-	config.num_msdu_desc = TARGET_NUM_MSDU_DESC;
-	config.beacon_tx_offload_max_vdev = ab->num_radios * TARGET_MAX_BCN_OFFLD;
-	config.rx_batchmode = TARGET_RX_BATCHMODE;
-	config.peer_map_unmap_v2_support = 1;
-	config.twt_ap_pdev_count = ab->num_radios;
-	config.twt_ap_sta_count = 1000;
+	ab->hw_params.hw_ops->wmi_init_config(ab, &config);
 
 	memcpy(&wmi_sc->wlan_resource_config, &config, sizeof(config));
 
@@ -3391,9 +3354,10 @@ int ath11k_wmi_cmd_init(struct ath11k_base *ab)
 	if (wmi_sc->preferred_hw_mode == WMI_HOST_HW_MODE_SINGLE)
 		init_param.hw_mode_id = WMI_HOST_HW_MODE_MAX;
 
-	init_param.num_band_to_mac = ab->num_radios;
-
-	ath11k_fill_band_to_mac_param(ab, init_param.band_to_mac);
+	if (ab->hw_params.needs_band_to_mac) {
+		init_param.num_band_to_mac = ab->num_radios;
+		ath11k_fill_band_to_mac_param(ab, init_param.band_to_mac);
+	}
 
 	return ath11k_init_cmd_send(&wmi_sc->wmi[0], &init_param);
 }
@@ -3688,6 +3652,8 @@ static int ath11k_wmi_tlv_hw_mode_caps(struct ath11k_base *soc,
 		i++;
 	}
 
+	ath11k_dbg(soc, ATH11K_DBG_WMI, "preferred_hw_mode:%d\n",
+		   soc->wmi_ab.preferred_hw_mode);
 	if (soc->wmi_ab.preferred_hw_mode == WMI_HOST_HW_MODE_MAX)
 		return -EINVAL;
 
@@ -3778,6 +3744,7 @@ static int ath11k_wmi_tlv_ext_soc_hal_reg_caps_parse(struct ath11k_base *soc,
 	struct wmi_tlv_svc_rdy_ext_parse *svc_rdy_ext = data;
 	u8 hw_mode_id = svc_rdy_ext->pref_hw_mode_caps.hw_mode_id;
 	u32 phy_id_map;
+	int pdev_index = 0;
 	int ret;
 
 	svc_rdy_ext->soc_hal_reg_caps = (struct wmi_soc_hal_reg_capabilities *)ptr;
@@ -3793,7 +3760,7 @@ static int ath11k_wmi_tlv_ext_soc_hal_reg_caps_parse(struct ath11k_base *soc,
 							    svc_rdy_ext->soc_hal_reg_caps,
 							    svc_rdy_ext->mac_phy_caps,
 							    hw_mode_id, soc->num_radios,
-							    &soc->pdevs[soc->num_radios]);
+							    &soc->pdevs[pdev_index]);
 		if (ret) {
 			ath11k_warn(soc, "failed to extract mac caps, idx :%d\n",
 				    soc->num_radios);
@@ -3802,9 +3769,25 @@ static int ath11k_wmi_tlv_ext_soc_hal_reg_caps_parse(struct ath11k_base *soc,
 
 		soc->num_radios++;
 
+		/* For QCA6390, save mac_phy capability in the same pdev */
+		if (soc->hw_params.single_pdev_only)
+			pdev_index = 0;
+		else
+			pdev_index = soc->num_radios;
+
 		/* TODO: mac_phy_cap prints */
 		phy_id_map >>= 1;
 	}
+
+	/* For QCA6390, set num_radios to 1 because host manages
+	 * both 2G and 5G radio in one pdev.
+	 * Set pdev_id = 0 and 0 means soc level.
+	 */
+	if (soc->hw_params.single_pdev_only) {
+		soc->num_radios = 1;
+		soc->pdevs[0].pdev_id = 0;
+	}
+
 	return 0;
 }
 
@@ -5434,8 +5417,17 @@ static int ath11k_reg_chan_list_event(struct ath11k_base *ab, struct sk_buff *sk
 
 	pdev_idx = reg_info->phy_id;
 
-	if (pdev_idx >= ab->num_radios)
-		goto fallback;
+	if (pdev_idx >= ab->num_radios) {
+		/* Process the event for phy0 only if single_pdev_only
+		 * is true. If pdev_idx is valid but not 0, discard the
+		 * event. Otherwise, it goes to fallback.
+		 */
+		if (ab->hw_params.single_pdev_only &&
+		    pdev_idx < ab->hw_params.num_rxmda_per_pdev)
+			goto mem_free;
+		else
+			goto fallback;
+	}
 
 	/* Avoid multiple overwrites to default regd, during core
 	 * stop-start after mac registration.
@@ -6260,7 +6252,7 @@ static void ath11k_peer_assoc_conf_event(struct ath11k_base *ab, struct sk_buff 
 
 static void ath11k_update_stats_event(struct ath11k_base *ab, struct sk_buff *skb)
 {
-	ath11k_debug_fw_stats_process(ab, skb);
+	ath11k_debugfs_fw_stats_process(ab, skb);
 }
 
 /* PDEV_CTL_FAILSAFE_CHECK_EVENT is received from FW when the frequency scanned
@@ -6538,7 +6530,7 @@ static void ath11k_wmi_tlv_op_rx(struct ath11k_base *ab, struct sk_buff *skb)
 		break;
 	/* TODO: Add remaining events */
 	default:
-		ath11k_warn(ab, "Unknown eventid: 0x%x\n", id);
+		ath11k_dbg(ab, ATH11K_DBG_WMI, "Unknown eventid: 0x%x\n", id);
 		break;
 	}
 
@@ -6682,7 +6674,7 @@ int ath11k_wmi_connect(struct ath11k_base *ab)
 	u8 wmi_ep_count;
 
 	wmi_ep_count = ab->htc.wmi_ep_count;
-	if (wmi_ep_count > MAX_RADIOS)
+	if (wmi_ep_count > ab->hw_params.max_radios)
 		return -1;
 
 	for (i = 0; i < wmi_ep_count; i++)
@@ -6704,7 +6696,7 @@ int ath11k_wmi_pdev_attach(struct ath11k_base *ab,
 {
 	struct ath11k_pdev_wmi *wmi_handle;
 
-	if (pdev_id >= MAX_RADIOS)
+	if (pdev_id >= ab->hw_params.max_radios)
 		return -EINVAL;
 
 	wmi_handle = &ab->wmi_ab.wmi[pdev_id];
@@ -6727,6 +6719,10 @@ int ath11k_wmi_attach(struct ath11k_base *ab)
 
 	ab->wmi_ab.ab = ab;
 	ab->wmi_ab.preferred_hw_mode = WMI_HOST_HW_MODE_MAX;
+
+	/* It's overwritten when service_ext_ready is handled */
+	if (ab->hw_params.single_pdev_only)
+		ab->wmi_ab.preferred_hw_mode = WMI_HOST_HW_MODE_SINGLE;
 
 	/* TODO: Init remaining wmi soc resources required */
 	init_completion(&ab->wmi_ab.service_ready);

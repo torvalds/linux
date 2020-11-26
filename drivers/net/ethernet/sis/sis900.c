@@ -789,10 +789,9 @@ static u16 sis900_default_phy(struct net_device * net_dev)
 static void sis900_set_capability(struct net_device *net_dev, struct mii_phy *phy)
 {
 	u16 cap;
-	u16 status;
 
-	status = mdio_read(net_dev, phy->phy_addr, MII_STATUS);
-	status = mdio_read(net_dev, phy->phy_addr, MII_STATUS);
+	mdio_read(net_dev, phy->phy_addr, MII_STATUS);
+	mdio_read(net_dev, phy->phy_addr, MII_STATUS);
 
 	cap = MII_NWAY_CSMA_CD |
 		((phy->status & MII_STAT_CAN_TX_FDX)? MII_NWAY_TX_FDX:0) |
@@ -1302,7 +1301,7 @@ static void sis630_set_eq(struct net_device *net_dev, u8 revision)
 
 /**
  *	sis900_timer - sis900 timer routine
- *	@data: pointer to sis900 net device
+ *	@t: timer list containing a pointer to sis900 net device
  *
  *	On each timer ticks we check two things,
  *	link status (ON/OFF) and link mode (10/100/Full/Half)
@@ -1536,6 +1535,7 @@ static void sis900_read_mode(struct net_device *net_dev, int *speed, int *duplex
 /**
  *	sis900_tx_timeout - sis900 transmit timeout routine
  *	@net_dev: the net device to transmit
+ *	@txqueue: index of hanging queue
  *
  *	print transmit timeout status
  *	disable interrupts and do some tasks
@@ -2228,7 +2228,7 @@ static int mii_ioctl(struct net_device *net_dev, struct ifreq *rq, int cmd)
 	switch(cmd) {
 	case SIOCGMIIPHY:		/* Get address of MII PHY in use. */
 		data->phy_id = sis_priv->mii->phy_addr;
-		/* Fall Through */
+		fallthrough;
 
 	case SIOCGMIIREG:		/* Read MII PHY register. */
 		data->val_out = mdio_read(net_dev, data->phy_id & 0x1f, data->reg_num & 0x1f);

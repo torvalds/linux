@@ -48,6 +48,7 @@ config INFINIBAND_ON_DEMAND_PAGING
 	depends on INFINIBAND_USER_MEM
 	select MMU_NOTIFIER
 	select INTERVAL_TREE
+	select HMM_MIRROR
 	default y
 	help
 	  On demand paging support for the InfiniBand subsystem.
@@ -71,6 +72,9 @@ config INFINIBAND_ADDR_TRANS_CONFIGFS
 	  ConfigFS support for RDMA communication manager (CM).
 	  This allows the user to config the default GID type that the CM
 	  uses for each device, when initiaing new connections.
+
+config INFINIBAND_VIRT_DMA
+	def_bool !HIGHMEM
 
 if INFINIBAND_USER_ACCESS || !INFINIBAND_USER_ACCESS
 source "drivers/infiniband/hw/mthca/Kconfig"

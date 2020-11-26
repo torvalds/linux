@@ -9,11 +9,7 @@
 #include <linux/types.h>
 #include <uapi/asm/setup.h>
 
-#ifdef CONFIG_ARC_PLAT_EZNPS
-#define COMMAND_LINE_SIZE 2048
-#else
 #define COMMAND_LINE_SIZE 256
-#endif
 
 /*
  * Data structure to map a ID to string

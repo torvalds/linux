@@ -254,8 +254,8 @@ static void gsi_irq_enable(struct gsi *gsi)
 
 	/* We don't use inter-EE channel or event interrupts */
 	val = GSI_CNTXT_TYPE_IRQ_MSK_ALL;
-	val &= ~MSK_INTER_EE_CH_CTRL_FMASK;
-	val &= ~MSK_INTER_EE_EV_CTRL_FMASK;
+	val &= ~INTER_EE_CH_CTRL_FMASK;
+	val &= ~INTER_EE_EV_CTRL_FMASK;
 	iowrite32(val, gsi->virt + GSI_CNTXT_TYPE_IRQ_MSK_OFFSET);
 
 	val = GENMASK(gsi->channel_count - 1, 0);
@@ -271,7 +271,7 @@ static void gsi_irq_enable(struct gsi *gsi)
 	iowrite32(val, gsi->virt + GSI_CNTXT_GLOB_IRQ_EN_OFFSET);
 
 	/* Never enable GSI_BREAK_POINT */
-	val = GSI_CNTXT_GSI_IRQ_ALL & ~EN_BREAK_POINT_FMASK;
+	val = GSI_CNTXT_GSI_IRQ_ALL & ~BREAK_POINT_FMASK;
 	iowrite32(val, gsi->virt + GSI_CNTXT_GSI_IRQ_EN_OFFSET);
 }
 
@@ -1074,8 +1074,8 @@ static void gsi_isr_glob_ee(struct gsi *gsi)
 
 	val &= ~ERROR_INT_FMASK;
 
-	if (val & EN_GP_INT1_FMASK) {
-		val ^= EN_GP_INT1_FMASK;
+	if (val & GP_INT1_FMASK) {
+		val ^= GP_INT1_FMASK;
 		gsi_isr_gp_int1(gsi);
 	}
 
@@ -1600,7 +1600,7 @@ err_unwind_modem:
 	/* Compute which modem channels need to be deallocated */
 	mask ^= gsi->modem_channel_bitmap;
 	while (mask) {
-		u32 channel_id = __fls(mask);
+		channel_id = __fls(mask);
 
 		mask ^= BIT(channel_id);
 
@@ -1628,7 +1628,7 @@ static void gsi_channel_teardown(struct gsi *gsi)
 	mutex_lock(&gsi->mutex);
 
 	while (mask) {
-		u32 channel_id = __fls(mask);
+		channel_id = __fls(mask);
 
 		mask ^= BIT(channel_id);
 
@@ -1972,7 +1972,6 @@ int gsi_init(struct gsi *gsi, struct platform_device *pdev, bool prefetch,
 	 */
 	init_dummy_netdev(&gsi->dummy_dev);
 
-	/* Get the GSI IRQ and request for it to wake the system */
 	ret = platform_get_irq_byname(pdev, "gsi");
 	if (ret <= 0) {
 		dev_err(dev, "DT error %d getting \"gsi\" IRQ property\n", ret);
@@ -1987,31 +1986,26 @@ int gsi_init(struct gsi *gsi, struct platform_device *pdev, bool prefetch,
 	}
 	gsi->irq = irq;
 
-	ret = enable_irq_wake(gsi->irq);
-	if (ret)
-		dev_warn(dev, "error %d enabling gsi wake irq\n", ret);
-	gsi->irq_wake_enabled = !ret;
-
 	/* Get GSI memory range and map it */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "gsi");
 	if (!res) {
 		dev_err(dev, "DT error getting \"gsi\" memory property\n");
 		ret = -ENODEV;
-		goto err_disable_irq_wake;
+		goto err_free_irq;
 	}
 
 	size = resource_size(res);
 	if (res->start > U32_MAX || size > U32_MAX - res->start) {
 		dev_err(dev, "DT memory resource \"gsi\" out of range\n");
 		ret = -EINVAL;
-		goto err_disable_irq_wake;
+		goto err_free_irq;
 	}
 
 	gsi->virt = ioremap(res->start, size);
 	if (!gsi->virt) {
 		dev_err(dev, "unable to remap \"gsi\" memory\n");
 		ret = -ENOMEM;
-		goto err_disable_irq_wake;
+		goto err_free_irq;
 	}
 
 	ret = gsi_channel_init(gsi, prefetch, count, data, modem_alloc);
@@ -2025,9 +2019,7 @@ int gsi_init(struct gsi *gsi, struct platform_device *pdev, bool prefetch,
 
 err_iounmap:
 	iounmap(gsi->virt);
-err_disable_irq_wake:
-	if (gsi->irq_wake_enabled)
-		(void)disable_irq_wake(gsi->irq);
+err_free_irq:
 	free_irq(gsi->irq, gsi);
 
 	return ret;
@@ -2038,8 +2030,6 @@ void gsi_exit(struct gsi *gsi)
 {
 	mutex_destroy(&gsi->mutex);
 	gsi_channel_exit(gsi);
-	if (gsi->irq_wake_enabled)
-		(void)disable_irq_wake(gsi->irq);
 	free_irq(gsi->irq, gsi);
 	iounmap(gsi->virt);
 }

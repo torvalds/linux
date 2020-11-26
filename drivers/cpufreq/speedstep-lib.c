@@ -240,7 +240,7 @@ unsigned int speedstep_get_frequency(enum speedstep_processor processor)
 		return pentium3_get_frequency(processor);
 	default:
 		return 0;
-	};
+	}
 	return 0;
 }
 EXPORT_SYMBOL_GPL(speedstep_get_frequency);
@@ -366,7 +366,7 @@ enum speedstep_processor speedstep_detect_processor(void)
 			} else
 				return SPEEDSTEP_CPU_PIII_C;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		return 0;
 	}

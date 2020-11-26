@@ -166,6 +166,7 @@ enum xgbe_port_mode {
 	XGBE_PORT_MODE_10GBASE_T,
 	XGBE_PORT_MODE_10GBASE_R,
 	XGBE_PORT_MODE_SFP,
+	XGBE_PORT_MODE_BACKPLANE_NO_AUTONEG,
 	XGBE_PORT_MODE_MAX,
 };
 
@@ -1634,6 +1635,7 @@ static enum xgbe_mode xgbe_phy_an73_redrv_outcome(struct xgbe_prv_data *pdata)
 	if (ad_reg & 0x80) {
 		switch (phy_data->port_mode) {
 		case XGBE_PORT_MODE_BACKPLANE:
+		case XGBE_PORT_MODE_BACKPLANE_NO_AUTONEG:
 			mode = XGBE_MODE_KR;
 			break;
 		default:
@@ -1643,6 +1645,7 @@ static enum xgbe_mode xgbe_phy_an73_redrv_outcome(struct xgbe_prv_data *pdata)
 	} else if (ad_reg & 0x20) {
 		switch (phy_data->port_mode) {
 		case XGBE_PORT_MODE_BACKPLANE:
+		case XGBE_PORT_MODE_BACKPLANE_NO_AUTONEG:
 			mode = XGBE_MODE_KX_1000;
 			break;
 		case XGBE_PORT_MODE_1000BASE_X:
@@ -1782,6 +1785,7 @@ static void xgbe_phy_an_advertising(struct xgbe_prv_data *pdata,
 
 	switch (phy_data->port_mode) {
 	case XGBE_PORT_MODE_BACKPLANE:
+	case XGBE_PORT_MODE_BACKPLANE_NO_AUTONEG:
 		XGBE_SET_ADV(dlks, 10000baseKR_Full);
 		break;
 	case XGBE_PORT_MODE_BACKPLANE_2500:
@@ -1874,6 +1878,7 @@ static enum xgbe_an_mode xgbe_phy_an_mode(struct xgbe_prv_data *pdata)
 	switch (phy_data->port_mode) {
 	case XGBE_PORT_MODE_BACKPLANE:
 		return XGBE_AN_MODE_CL73;
+	case XGBE_PORT_MODE_BACKPLANE_NO_AUTONEG:
 	case XGBE_PORT_MODE_BACKPLANE_2500:
 		return XGBE_AN_MODE_NONE;
 	case XGBE_PORT_MODE_1000BASE_T:
@@ -2156,6 +2161,7 @@ static enum xgbe_mode xgbe_phy_switch_mode(struct xgbe_prv_data *pdata)
 
 	switch (phy_data->port_mode) {
 	case XGBE_PORT_MODE_BACKPLANE:
+	case XGBE_PORT_MODE_BACKPLANE_NO_AUTONEG:
 		return xgbe_phy_switch_bp_mode(pdata);
 	case XGBE_PORT_MODE_BACKPLANE_2500:
 		return xgbe_phy_switch_bp_2500_mode(pdata);
@@ -2251,6 +2257,7 @@ static enum xgbe_mode xgbe_phy_get_mode(struct xgbe_prv_data *pdata,
 
 	switch (phy_data->port_mode) {
 	case XGBE_PORT_MODE_BACKPLANE:
+	case XGBE_PORT_MODE_BACKPLANE_NO_AUTONEG:
 		return xgbe_phy_get_bp_mode(speed);
 	case XGBE_PORT_MODE_BACKPLANE_2500:
 		return xgbe_phy_get_bp_2500_mode(speed);
@@ -2426,6 +2433,7 @@ static bool xgbe_phy_use_mode(struct xgbe_prv_data *pdata, enum xgbe_mode mode)
 
 	switch (phy_data->port_mode) {
 	case XGBE_PORT_MODE_BACKPLANE:
+	case XGBE_PORT_MODE_BACKPLANE_NO_AUTONEG:
 		return xgbe_phy_use_bp_mode(pdata, mode);
 	case XGBE_PORT_MODE_BACKPLANE_2500:
 		return xgbe_phy_use_bp_2500_mode(pdata, mode);
@@ -2515,6 +2523,7 @@ static bool xgbe_phy_valid_speed(struct xgbe_prv_data *pdata, int speed)
 
 	switch (phy_data->port_mode) {
 	case XGBE_PORT_MODE_BACKPLANE:
+	case XGBE_PORT_MODE_BACKPLANE_NO_AUTONEG:
 		return xgbe_phy_valid_speed_bp_mode(speed);
 	case XGBE_PORT_MODE_BACKPLANE_2500:
 		return xgbe_phy_valid_speed_bp_2500_mode(speed);
@@ -2792,6 +2801,7 @@ static bool xgbe_phy_port_mode_mismatch(struct xgbe_prv_data *pdata)
 
 	switch (phy_data->port_mode) {
 	case XGBE_PORT_MODE_BACKPLANE:
+	case XGBE_PORT_MODE_BACKPLANE_NO_AUTONEG:
 		if ((phy_data->port_speeds & XGBE_PHY_PORT_SPEED_1000) ||
 		    (phy_data->port_speeds & XGBE_PHY_PORT_SPEED_10000))
 			return false;
@@ -2844,6 +2854,7 @@ static bool xgbe_phy_conn_type_mismatch(struct xgbe_prv_data *pdata)
 
 	switch (phy_data->port_mode) {
 	case XGBE_PORT_MODE_BACKPLANE:
+	case XGBE_PORT_MODE_BACKPLANE_NO_AUTONEG:
 	case XGBE_PORT_MODE_BACKPLANE_2500:
 		if (phy_data->conn_type == XGBE_CONN_TYPE_BACKPLANE)
 			return false;
@@ -3160,6 +3171,8 @@ static int xgbe_phy_init(struct xgbe_prv_data *pdata)
 	/* Backplane support */
 	case XGBE_PORT_MODE_BACKPLANE:
 		XGBE_SET_SUP(lks, Autoneg);
+		fallthrough;
+	case XGBE_PORT_MODE_BACKPLANE_NO_AUTONEG:
 		XGBE_SET_SUP(lks, Pause);
 		XGBE_SET_SUP(lks, Asym_Pause);
 		XGBE_SET_SUP(lks, Backplane);

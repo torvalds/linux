@@ -356,3 +356,33 @@ const struct tegra_fuse_soc tegra194_fuse_soc = {
 	.soc_attr_group = &tegra194_soc_attr_group,
 };
 #endif
+
+#if defined(CONFIG_ARCH_TEGRA_234_SOC)
+static const struct nvmem_cell_lookup tegra234_fuse_lookups[] = {
+	{
+		.nvmem_name = "fuse",
+		.cell_name = "xusb-pad-calibration",
+		.dev_id = "3520000.padctl",
+		.con_id = "calibration",
+	}, {
+		.nvmem_name = "fuse",
+		.cell_name = "xusb-pad-calibration-ext",
+		.dev_id = "3520000.padctl",
+		.con_id = "calibration-ext",
+	},
+};
+
+static const struct tegra_fuse_info tegra234_fuse_info = {
+	.read = tegra30_fuse_read,
+	.size = 0x300,
+	.spare = 0x280,
+};
+
+const struct tegra_fuse_soc tegra234_fuse_soc = {
+	.init = tegra30_fuse_init,
+	.info = &tegra234_fuse_info,
+	.lookups = tegra234_fuse_lookups,
+	.num_lookups = ARRAY_SIZE(tegra234_fuse_lookups),
+	.soc_attr_group = &tegra194_soc_attr_group,
+};
+#endif

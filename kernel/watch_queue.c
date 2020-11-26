@@ -393,6 +393,7 @@ static void free_watch(struct rcu_head *rcu)
 	struct watch *watch = container_of(rcu, struct watch, rcu);
 
 	put_watch_queue(rcu_access_pointer(watch->queue));
+	atomic_dec(&watch->cred->user->nr_watches);
 	put_cred(watch->cred);
 }
 
@@ -451,6 +452,13 @@ int add_watch_to_object(struct watch *watch, struct watch_list *wlist)
 
 	watch->cred = get_current_cred();
 	rcu_assign_pointer(watch->watch_list, wlist);
+
+	if (atomic_inc_return(&watch->cred->user->nr_watches) >
+	    task_rlimit(current, RLIMIT_NOFILE)) {
+		atomic_dec(&watch->cred->user->nr_watches);
+		put_cred(watch->cred);
+		return -EAGAIN;
+	}
 
 	spin_lock_bh(&wqueue->lock);
 	kref_get(&wqueue->usage);

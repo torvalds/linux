@@ -3266,7 +3266,7 @@ static int kvm_vz_vcpu_run(struct kvm_vcpu *vcpu)
 	kvm_vz_vcpu_load_tlb(vcpu, cpu);
 	kvm_vz_vcpu_load_wired(vcpu);
 
-	r = vcpu->arch.vcpu_run(vcpu->run, vcpu);
+	r = vcpu->arch.vcpu_run(vcpu);
 
 	kvm_vz_vcpu_save_wired(vcpu);
 

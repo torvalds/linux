@@ -148,7 +148,7 @@ static void virtscsi_complete_cmd(struct virtio_scsi *vscsi, void *buf)
 	default:
 		scmd_printk(KERN_WARNING, sc, "Unknown response %d",
 			    resp->response);
-		/* fall through */
+		fallthrough;
 	case VIRTIO_SCSI_S_FAILURE:
 		set_host_byte(sc, DID_ERROR);
 		break;
@@ -284,7 +284,12 @@ static void virtscsi_handle_transport_reset(struct virtio_scsi *vscsi,
 
 	switch (virtio32_to_cpu(vscsi->vdev, event->reason)) {
 	case VIRTIO_SCSI_EVT_RESET_RESCAN:
-		scsi_add_device(shost, 0, target, lun);
+		if (lun == 0) {
+			scsi_scan_target(&shost->shost_gendev, 0, target,
+					 SCAN_WILD_CARD, SCSI_SCAN_INITIAL);
+		} else {
+			scsi_add_device(shost, 0, target, lun);
+		}
 		break;
 	case VIRTIO_SCSI_EVT_RESET_REMOVED:
 		sdev = scsi_device_lookup(shost, 0, target, lun);

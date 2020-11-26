@@ -188,3 +188,5 @@ required:
   - gpio-ranges
   - pinctrl-0
   - pinctrl-names
+
+additionalProperties: false

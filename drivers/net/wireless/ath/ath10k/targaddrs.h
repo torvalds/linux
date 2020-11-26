@@ -334,6 +334,17 @@ struct host_interest {
 #define HI_ACS_FLAGS_SDIO_REDUCE_TX_COMPL_FW_ACK (1 << 17)
 
 /*
+ * If both SDIO_CRASH_DUMP_ENHANCEMENT_HOST and SDIO_CRASH_DUMP_ENHANCEMENT_FW
+ * flags are set, then crashdump upload will be done using the BMI host/target
+ * communication channel.
+ */
+/* HOST to support using BMI dump FW memory when hit assert */
+#define HI_OPTION_SDIO_CRASH_DUMP_ENHANCEMENT_HOST 0x400
+
+/* FW to support using BMI dump FW memory when hit assert */
+#define HI_OPTION_SDIO_CRASH_DUMP_ENHANCEMENT_FW   0x800
+
+/*
  * CONSOLE FLAGS
  *
  * Bit Range  Meaning

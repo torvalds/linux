@@ -2,7 +2,7 @@
 
 /* Glue code to lib/swiotlb-xen.c */
 
-#include <linux/dma-mapping.h>
+#include <linux/dma-map-ops.h>
 #include <linux/pci.h>
 #include <xen/swiotlb-xen.h>
 

@@ -627,7 +627,7 @@ extern const struct comedi_lrange range_unknown;
  * @range: Array of &struct comedi_krange, one for each range.
  *
  * Each element of @range[] describes the minimum and maximum physical range
- * range and the type of units.  Typically, the type of unit is %UNIT_volt
+ * and the type of units.  Typically, the type of unit is %UNIT_volt
  * (i.e. volts) and the minimum and maximum are in millionths of a volt.
  * There may also be a flag that indicates the minimum and maximum are merely
  * scale factors for an unknown, external reference.

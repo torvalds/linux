@@ -26,7 +26,6 @@
 #define COMPHY_SIP_POWER_ON			0x82000001
 #define COMPHY_SIP_POWER_OFF			0x82000002
 #define COMPHY_SIP_PLL_LOCK			0x82000003
-#define COMPHY_FW_NOT_SUPPORTED			(-1)
 
 #define COMPHY_FW_MODE_SATA			0x1
 #define COMPHY_FW_MODE_SGMII			0x2
@@ -112,10 +111,19 @@ static int mvebu_a3700_comphy_smc(unsigned long function, unsigned long lane,
 				  unsigned long mode)
 {
 	struct arm_smccc_res res;
+	s32 ret;
 
 	arm_smccc_smc(function, lane, mode, 0, 0, 0, 0, 0, &res);
+	ret = res.a0;
 
-	return res.a0;
+	switch (ret) {
+	case SMCCC_RET_SUCCESS:
+		return 0;
+	case SMCCC_RET_NOT_SUPPORTED:
+		return -EOPNOTSUPP;
+	default:
+		return -EINVAL;
+	}
 }
 
 static int mvebu_a3700_comphy_get_fw_mode(int lane, int port,
@@ -220,7 +228,7 @@ static int mvebu_a3700_comphy_power_on(struct phy *phy)
 	}
 
 	ret = mvebu_a3700_comphy_smc(COMPHY_SIP_POWER_ON, lane->id, fw_param);
-	if (ret == COMPHY_FW_NOT_SUPPORTED)
+	if (ret == -EOPNOTSUPP)
 		dev_err(lane->dev,
 			"unsupported SMC call, try updating your firmware\n");
 

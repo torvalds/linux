@@ -209,7 +209,10 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 		task->num_scatter = si;
 	}
 
-	task->data_dir = qc->dma_dir;
+	if (qc->tf.protocol == ATA_PROT_NODATA)
+		task->data_dir = DMA_NONE;
+	else
+		task->data_dir = qc->dma_dir;
 	task->scatter = qc->sg;
 	task->ata_task.retry_count = 1;
 	task->task_state_flags = SAS_TASK_STATE_PENDING;
@@ -324,7 +327,7 @@ static int smp_ata_check_ready(struct ata_link *link)
 	case SAS_END_DEVICE:
 		if (ex_phy->attached_sata_dev)
 			return sas_ata_clear_pending(dev, ex_phy);
-		/* fall through */
+		fallthrough;
 	default:
 		return -ENODEV;
 	}
@@ -723,19 +726,13 @@ void sas_resume_sata(struct asd_sas_port *port)
  */
 int sas_discover_sata(struct domain_device *dev)
 {
-	int res;
-
 	if (dev->dev_type == SAS_SATA_PM)
 		return -ENODEV;
 
 	dev->sata_dev.class = sas_get_ata_command_set(dev);
 	sas_fill_in_rphy(dev, dev->rphy);
 
-	res = sas_notify_lldd_dev_found(dev);
-	if (res)
-		return res;
-
-	return 0;
+	return sas_notify_lldd_dev_found(dev);
 }
 
 static void async_sas_ata_eh(void *data, async_cookie_t cookie)

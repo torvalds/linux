@@ -13,7 +13,7 @@
 };
 
 &ethernet {
-	status = "ok";
+	status = "okay";
 
 	snps,reset-gpio = <&tlmm 60 GPIO_ACTIVE_LOW>;
 	snps,reset-active-low;

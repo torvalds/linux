@@ -65,7 +65,6 @@ struct machdep_calls {
 	void __noreturn	(*restart)(char *cmd);
 	void __noreturn (*halt)(void);
 	void		(*panic)(char *str);
-	void		(*cpu_die)(void);
 
 	long		(*time_init)(void); /* Optional, may be NULL */
 
@@ -222,8 +221,6 @@ struct machdep_calls {
 
 extern void e500_idle(void);
 extern void power4_idle(void);
-extern void power7_idle(void);
-extern void power9_idle(void);
 extern void ppc6xx_idle(void);
 extern void book3e_idle(void);
 
@@ -235,7 +232,7 @@ extern void book3e_idle(void);
 extern struct machdep_calls ppc_md;
 extern struct machdep_calls *machine_id;
 
-#define __machine_desc __attribute__ ((__section__ (".machine.desc")))
+#define __machine_desc __section(".machine.desc")
 
 #define define_machine(name)					\
 	extern struct machdep_calls mach_##name;		\

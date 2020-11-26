@@ -26,7 +26,7 @@
 		stdout-path = &usart2;
 	};
 
-	memory {
+	memory@20000000 {
 		reg = <0x20000000 0x4000000>;
 	};
 
@@ -81,6 +81,7 @@
 				pinctrl-0 = <&pinctrl_mmc0_clk
 					     &pinctrl_mmc0_slot1_cmd_dat0
 					     &pinctrl_mmc0_slot1_dat1_3>;
+				pinctrl-names = "default";
 				status = "okay";
 
 				slot@1 {

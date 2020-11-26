@@ -145,10 +145,9 @@ static int ext4_release_file(struct inode *inode, struct file *filp)
 	/* if we are the last writer on the inode, drop the block reservation */
 	if ((filp->f_mode & FMODE_WRITE) &&
 			(atomic_read(&inode->i_writecount) == 1) &&
-		        !EXT4_I(inode)->i_reserved_data_blocks)
-	{
+			!EXT4_I(inode)->i_reserved_data_blocks) {
 		down_write(&EXT4_I(inode)->i_data_sem);
-		ext4_discard_preallocations(inode);
+		ext4_discard_preallocations(inode, 0);
 		up_write(&EXT4_I(inode)->i_data_sem);
 	}
 	if (is_dx(inode) && filp->private_data)
@@ -261,6 +260,7 @@ static ssize_t ext4_buffered_write_iter(struct kiocb *iocb,
 	if (iocb->ki_flags & IOCB_NOWAIT)
 		return -EOPNOTSUPP;
 
+	ext4_fc_start_update(inode);
 	inode_lock(inode);
 	ret = ext4_write_checks(iocb, from);
 	if (ret <= 0)
@@ -272,6 +272,7 @@ static ssize_t ext4_buffered_write_iter(struct kiocb *iocb,
 
 out:
 	inode_unlock(inode);
+	ext4_fc_stop_update(inode);
 	if (likely(ret > 0)) {
 		iocb->ki_pos += ret;
 		ret = generic_write_sync(iocb, ret);
@@ -428,6 +429,10 @@ restart:
 	 */
 	if (*ilock_shared && (!IS_NOSEC(inode) || *extend ||
 	     !ext4_overwrite_io(inode, offset, count))) {
+		if (iocb->ki_flags & IOCB_NOWAIT) {
+			ret = -EAGAIN;
+			goto out;
+		}
 		inode_unlock_shared(inode);
 		*ilock_shared = false;
 		inode_lock(inode);
@@ -531,7 +536,9 @@ static ssize_t ext4_dio_write_iter(struct kiocb *iocb, struct iov_iter *from)
 			goto out;
 		}
 
+		ext4_fc_start_update(inode);
 		ret = ext4_orphan_add(handle, inode);
+		ext4_fc_stop_update(inode);
 		if (ret) {
 			ext4_journal_stop(handle);
 			goto out;
@@ -653,8 +660,8 @@ ext4_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 #endif
 	if (iocb->ki_flags & IOCB_DIRECT)
 		return ext4_dio_write_iter(iocb, from);
-
-	return ext4_buffered_write_iter(iocb, from);
+	else
+		return ext4_buffered_write_iter(iocb, from);
 }
 
 #ifdef CONFIG_FS_DAX
@@ -773,13 +780,13 @@ static int ext4_sample_last_mounted(struct super_block *sb,
 	handle_t *handle;
 	int err;
 
-	if (likely(sbi->s_mount_flags & EXT4_MF_MNTDIR_SAMPLED))
+	if (likely(ext4_test_mount_flag(sb, EXT4_MF_MNTDIR_SAMPLED)))
 		return 0;
 
 	if (sb_rdonly(sb) || !sb_start_intwrite_trylock(sb))
 		return 0;
 
-	sbi->s_mount_flags |= EXT4_MF_MNTDIR_SAMPLED;
+	ext4_set_mount_flag(sb, EXT4_MF_MNTDIR_SAMPLED);
 	/*
 	 * Sample where the filesystem has been mounted and
 	 * store it in the superblock for sysadmin convenience
@@ -812,7 +819,7 @@ out:
 	return err;
 }
 
-static int ext4_file_open(struct inode * inode, struct file * filp)
+static int ext4_file_open(struct inode *inode, struct file *filp)
 {
 	int ret;
 
@@ -841,7 +848,7 @@ static int ext4_file_open(struct inode * inode, struct file * filp)
 			return ret;
 	}
 
-	filp->f_mode |= FMODE_NOWAIT;
+	filp->f_mode |= FMODE_NOWAIT | FMODE_BUF_RASYNC;
 	return dquot_file_open(inode, filp);
 }
 

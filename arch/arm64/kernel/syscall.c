@@ -123,6 +123,16 @@ static void el0_svc_common(struct pt_regs *regs, int scno, int sc_nr,
 	local_daif_restore(DAIF_PROCCTX);
 	user_exit();
 
+	if (system_supports_mte() && (flags & _TIF_MTE_ASYNC_FAULT)) {
+		/*
+		 * Process the asynchronous tag check fault before the actual
+		 * syscall. do_notify_resume() will send a signal to userspace
+		 * before the syscall is restarted.
+		 */
+		regs->regs[0] = -ERESTARTNOINTR;
+		return;
+	}
+
 	if (has_syscall_work(flags)) {
 		/*
 		 * The de-facto standard way to skip a system call using ptrace

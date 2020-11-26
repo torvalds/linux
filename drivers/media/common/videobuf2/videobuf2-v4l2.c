@@ -14,21 +14,22 @@
  * the Free Software Foundation.
  */
 
+#include <linux/device.h>
 #include <linux/err.h>
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/mm.h>
-#include <linux/poll.h>
-#include <linux/slab.h>
-#include <linux/sched.h>
 #include <linux/freezer.h>
+#include <linux/kernel.h>
 #include <linux/kthread.h>
+#include <linux/mm.h>
+#include <linux/module.h>
+#include <linux/poll.h>
+#include <linux/sched.h>
+#include <linux/slab.h>
 
+#include <media/v4l2-common.h>
 #include <media/v4l2-dev.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fh.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-common.h>
+#include <media/v4l2-fh.h>
 
 #include <media/videobuf2-v4l2.h>
 
@@ -600,7 +601,7 @@ static void __fill_v4l2_buffer(struct vb2_buffer *vb, void *pb)
 		break;
 	case VB2_BUF_STATE_ERROR:
 		b->flags |= V4L2_BUF_FLAG_ERROR;
-		/* fall through */
+		fallthrough;
 	case VB2_BUF_STATE_DONE:
 		b->flags |= V4L2_BUF_FLAG_DONE;
 		break;
@@ -722,22 +723,12 @@ static void fill_buf_caps(struct vb2_queue *q, u32 *caps)
 #endif
 }
 
-static void clear_consistency_attr(struct vb2_queue *q,
-				   int memory,
-				   unsigned int *flags)
-{
-	if (!q->allow_cache_hints || memory != V4L2_MEMORY_MMAP)
-		*flags &= ~V4L2_FLAG_MEMORY_NON_CONSISTENT;
-}
-
 int vb2_reqbufs(struct vb2_queue *q, struct v4l2_requestbuffers *req)
 {
 	int ret = vb2_verify_memory_type(q, req->memory, req->type);
 
 	fill_buf_caps(q, &req->capabilities);
-	clear_consistency_attr(q, req->memory, &req->flags);
-	return ret ? ret : vb2_core_reqbufs(q, req->memory,
-					    req->flags, &req->count);
+	return ret ? ret : vb2_core_reqbufs(q, req->memory, &req->count);
 }
 EXPORT_SYMBOL_GPL(vb2_reqbufs);
 
@@ -769,7 +760,6 @@ int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create)
 	unsigned i;
 
 	fill_buf_caps(q, &create->capabilities);
-	clear_consistency_attr(q, create->memory, &create->flags);
 	create->index = q->num_buffers;
 	if (create->count == 0)
 		return ret != -EBUSY ? ret : 0;
@@ -813,7 +803,6 @@ int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create)
 		if (requested_sizes[i] == 0)
 			return -EINVAL;
 	return ret ? ret : vb2_core_create_bufs(q, create->memory,
-						create->flags,
 						&create->count,
 						requested_planes,
 						requested_sizes);
@@ -998,12 +987,11 @@ int vb2_ioctl_reqbufs(struct file *file, void *priv,
 	int res = vb2_verify_memory_type(vdev->queue, p->memory, p->type);
 
 	fill_buf_caps(vdev->queue, &p->capabilities);
-	clear_consistency_attr(vdev->queue, p->memory, &p->flags);
 	if (res)
 		return res;
 	if (vb2_queue_is_busy(vdev, file))
 		return -EBUSY;
-	res = vb2_core_reqbufs(vdev->queue, p->memory, p->flags, &p->count);
+	res = vb2_core_reqbufs(vdev->queue, p->memory, &p->count);
 	/* If count == 0, then the owner has released all buffers and he
 	   is no longer owner of the queue. Otherwise we have a new owner. */
 	if (res == 0)
@@ -1021,7 +1009,6 @@ int vb2_ioctl_create_bufs(struct file *file, void *priv,
 
 	p->index = vdev->queue->num_buffers;
 	fill_buf_caps(vdev->queue, &p->capabilities);
-	clear_consistency_attr(vdev->queue, p->memory, &p->flags);
 	/*
 	 * If count == 0, then just check if memory and type are valid.
 	 * Any -EBUSY result from vb2_verify_memory_type can be mapped to 0.
@@ -1233,6 +1220,44 @@ unsigned long vb2_fop_get_unmapped_area(struct file *file, unsigned long addr,
 }
 EXPORT_SYMBOL_GPL(vb2_fop_get_unmapped_area);
 #endif
+
+void vb2_video_unregister_device(struct video_device *vdev)
+{
+	/* Check if vdev was ever registered at all */
+	if (!vdev || !video_is_registered(vdev))
+		return;
+
+	/*
+	 * Calling this function only makes sense if vdev->queue is set.
+	 * If it is NULL, then just call video_unregister_device() instead.
+	 */
+	WARN_ON(!vdev->queue);
+
+	/*
+	 * Take a reference to the device since video_unregister_device()
+	 * calls device_unregister(), but we don't want that to release
+	 * the device since we want to clean up the queue first.
+	 */
+	get_device(&vdev->dev);
+	video_unregister_device(vdev);
+	if (vdev->queue && vdev->queue->owner) {
+		struct mutex *lock = vdev->queue->lock ?
+			vdev->queue->lock : vdev->lock;
+
+		if (lock)
+			mutex_lock(lock);
+		vb2_queue_release(vdev->queue);
+		vdev->queue->owner = NULL;
+		if (lock)
+			mutex_unlock(lock);
+	}
+	/*
+	 * Now we put the device, and in most cases this will release
+	 * everything.
+	 */
+	put_device(&vdev->dev);
+}
+EXPORT_SYMBOL_GPL(vb2_video_unregister_device);
 
 /* vb2_ops helpers. Only use if vq->lock is non-NULL. */
 

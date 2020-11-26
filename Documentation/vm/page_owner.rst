@@ -18,7 +18,7 @@ Although we already have tracepoint for tracing page allocation/free,
 using it for analyzing who allocate each page is rather complex. We need
 to enlarge the trace buffer for preventing overlapping until userspace
 program launched. And, launched program continually dump out the trace
-buffer for later analysis and it would change system behviour with more
+buffer for later analysis and it would change system behaviour with more
 possibility rather than just keeping it in memory, so bad for debugging.
 
 page owner can also be used for various purposes. For example, accurate

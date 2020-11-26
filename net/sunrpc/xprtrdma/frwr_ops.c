@@ -124,7 +124,7 @@ int frwr_mr_init(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr *mr)
 	if (IS_ERR(frmr))
 		goto out_mr_err;
 
-	sg = kcalloc(depth, sizeof(*sg), GFP_NOFS);
+	sg = kmalloc_array(depth, sizeof(*sg), GFP_NOFS);
 	if (!sg)
 		goto out_list_err;
 

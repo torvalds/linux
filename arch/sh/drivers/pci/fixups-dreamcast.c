@@ -19,7 +19,7 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/pci.h>
-#include <linux/dma-mapping.h>
+#include <linux/dma-map-ops.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>

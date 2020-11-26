@@ -24,22 +24,20 @@
 #include <system_global.h>
 #include "ia_css_isys_comm.h"
 
-#ifdef USE_INPUT_SYSTEM_VERSION_2401
+#ifdef ISP2401
 /**
  * Virtual Input System. (Input System 2401)
  */
-typedef input_system_cfg_t	ia_css_isys_descr_t;
+typedef isp2401_input_system_cfg_t	ia_css_isys_descr_t;
 /* end of Virtual Input System */
 #endif
 
-#if defined(USE_INPUT_SYSTEM_VERSION_2) || defined(USE_INPUT_SYSTEM_VERSION_2401)
-input_system_error_t ia_css_isys_init(void);
+input_system_err_t ia_css_isys_init(void);
 void ia_css_isys_uninit(void);
 enum mipi_port_id ia_css_isys_port_to_mipi_port(
     enum mipi_port_id api_port);
-#endif
 
-#if defined(USE_INPUT_SYSTEM_VERSION_2401)
+#if defined(ISP2401)
 
 /**
  * @brief Register one (virtual) stream. This is used to track when all
@@ -73,12 +71,12 @@ int ia_css_isys_csi_rx_unregister_stream(
 
 int ia_css_isys_convert_compressed_format(
     struct ia_css_csi2_compression *comp,
-    struct input_system_cfg_s *cfg);
+    struct isp2401_input_system_cfg_s *cfg);
 unsigned int ia_css_csi2_calculate_input_system_alignment(
     enum atomisp_input_format fmt_type);
 #endif
 
-#if !defined(USE_INPUT_SYSTEM_VERSION_2401)
+#if !defined(ISP2401)
 /* CSS Receiver */
 void ia_css_isys_rx_configure(
     const rx_cfg_t *config,
@@ -95,7 +93,7 @@ void ia_css_isys_rx_clear_irq_info(enum mipi_port_id port,
 				   unsigned int irq_infos);
 unsigned int ia_css_isys_rx_translate_irq_infos(unsigned int bits);
 
-#endif /* #if !defined(USE_INPUT_SYSTEM_VERSION_2401) */
+#endif /* #if !defined(ISP2401) */
 
 /* @brief Translate format and compression to format type.
  *
@@ -113,7 +111,7 @@ int ia_css_isys_convert_stream_format_to_mipi_format(
     mipi_predictor_t compression,
     unsigned int *fmt_type);
 
-#ifdef USE_INPUT_SYSTEM_VERSION_2401
+#ifdef ISP2401
 /**
  * Virtual Input System. (Input System 2401)
  */

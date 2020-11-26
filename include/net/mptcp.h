@@ -85,8 +85,7 @@ bool mptcp_synack_options(const struct request_sock *req, unsigned int *size,
 bool mptcp_established_options(struct sock *sk, struct sk_buff *skb,
 			       unsigned int *size, unsigned int remaining,
 			       struct mptcp_out_options *opts);
-void mptcp_incoming_options(struct sock *sk, struct sk_buff *skb,
-			    struct tcp_options_received *opt_rx);
+void mptcp_incoming_options(struct sock *sk, struct sk_buff *skb);
 
 void mptcp_write_options(__be32 *ptr, struct mptcp_out_options *opts);
 
@@ -185,8 +184,7 @@ static inline bool mptcp_established_options(struct sock *sk,
 }
 
 static inline void mptcp_incoming_options(struct sock *sk,
-					  struct sk_buff *skb,
-					  struct tcp_options_received *opt_rx)
+					  struct sk_buff *skb)
 {
 }
 

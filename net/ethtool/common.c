@@ -192,6 +192,8 @@ const char link_mode_names[][ETH_GSTRING_LEN] = {
 	__DEFINE_LINK_MODE_NAME(400000, LR4_ER4_FR4, Full),
 	__DEFINE_LINK_MODE_NAME(400000, DR4, Full),
 	__DEFINE_LINK_MODE_NAME(400000, CR4, Full),
+	__DEFINE_LINK_MODE_NAME(100, FX, Half),
+	__DEFINE_LINK_MODE_NAME(100, FX, Full),
 };
 static_assert(ARRAY_SIZE(link_mode_names) == __ETHTOOL_LINK_MODE_MASK_NBITS);
 

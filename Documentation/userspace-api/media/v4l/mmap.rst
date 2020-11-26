@@ -1,11 +1,5 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _mmap:
 
@@ -42,22 +36,22 @@ This ioctl can also be used to change the number of buffers or to free
 the allocated memory, provided none of the buffers are still mapped.
 
 Before applications can access the buffers they must map them into their
-address space with the :ref:`mmap() <func-mmap>` function. The
+address space with the :c:func:`mmap()` function. The
 location of the buffers in device memory can be determined with the
 :ref:`VIDIOC_QUERYBUF` ioctl. In the single-planar
 API case, the ``m.offset`` and ``length`` returned in a struct
 :c:type:`v4l2_buffer` are passed as sixth and second
-parameter to the :ref:`mmap() <func-mmap>` function. When using the
+parameter to the :c:func:`mmap()` function. When using the
 multi-planar API, struct :c:type:`v4l2_buffer` contains an
 array of struct :c:type:`v4l2_plane` structures, each
 containing its own ``m.offset`` and ``length``. When using the
 multi-planar API, every plane of every buffer has to be mapped
-separately, so the number of calls to :ref:`mmap() <func-mmap>` should
+separately, so the number of calls to :c:func:`mmap()` should
 be equal to number of buffers times number of planes in each buffer. The
 offset and length values must not be modified. Remember, the buffers are
 allocated in physical memory, as opposed to virtual memory, which can be
 swapped out to disk. Applications should free the buffers as soon as
-possible with the :ref:`munmap() <func-munmap>` function.
+possible with the :c:func:`munmap()` function.
 
 Example: Mapping buffers in the single-planar API
 =================================================
@@ -128,7 +122,6 @@ Example: Mapping buffers in the single-planar API
 
     for (i = 0; i < reqbuf.count; i++)
 	munmap(buffers[i].start, buffers[i].length);
-
 
 Example: Mapping buffers in the multi-planar API
 ================================================
@@ -245,10 +238,10 @@ be determined at any time using the :ref:`VIDIOC_QUERYBUF` ioctl. Two
 methods exist to suspend execution of the application until one or more
 buffers can be dequeued.  By default :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>`
 blocks when no buffer is in the outgoing queue. When the ``O_NONBLOCK``
-flag was given to the :ref:`open() <func-open>` function,
+flag was given to the :c:func:`open()` function,
 :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` returns immediately with an ``EAGAIN``
-error code when no buffer is available. The :ref:`select() <func-select>`
-or :ref:`poll() <func-poll>` functions are always available.
+error code when no buffer is available. The :c:func:`select()`
+or :c:func:`poll()` functions are always available.
 
 To start and stop capturing or output applications call the
 :ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>` and :ref:`VIDIOC_STREAMOFF
@@ -266,15 +259,15 @@ Drivers implementing memory mapping I/O must support the
 <VIDIOC_QUERYBUF>`, :ref:`VIDIOC_QBUF <VIDIOC_QBUF>`, :ref:`VIDIOC_DQBUF
 <VIDIOC_QBUF>`, :ref:`VIDIOC_STREAMON <VIDIOC_STREAMON>`
 and :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` ioctls, the :ref:`mmap()
-<func-mmap>`, :ref:`munmap() <func-munmap>`, :ref:`select()
-<func-select>` and :ref:`poll() <func-poll>` function. [#f3]_
+<func-mmap>`, :c:func:`munmap()`, :ref:`select()
+<func-select>` and :c:func:`poll()` function. [#f3]_
 
 [capture example]
 
 .. [#f1]
    One could use one file descriptor and set the buffer type field
    accordingly when calling :ref:`VIDIOC_QBUF` etc.,
-   but it makes the :ref:`select() <func-select>` function ambiguous. We also
+   but it makes the :c:func:`select()` function ambiguous. We also
    like the clean approach of one file descriptor per logical stream.
    Video overlay for example is also a logical stream, although the CPU
    is not needed for continuous operation.
@@ -287,6 +280,6 @@ and :ref:`VIDIOC_STREAMOFF <VIDIOC_STREAMON>` ioctls, the :ref:`mmap()
    scatter-gather lists and the like.
 
 .. [#f3]
-   At the driver level :ref:`select() <func-select>` and :ref:`poll() <func-poll>` are
-   the same, and :ref:`select() <func-select>` is too important to be optional.
+   At the driver level :c:func:`select()` and :c:func:`poll()` are
+   the same, and :c:func:`select()` is too important to be optional.
    The rest should be evident.

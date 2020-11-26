@@ -1585,7 +1585,7 @@ static int ave_probe(struct platform_device *pdev)
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
-	ndev = alloc_etherdev(sizeof(struct ave_private));
+	ndev = devm_alloc_etherdev(dev, sizeof(struct ave_private));
 	if (!ndev) {
 		dev_err(dev, "can't allocate ethernet device\n");
 		return -ENOMEM;
@@ -1632,7 +1632,7 @@ static int ave_probe(struct platform_device *pdev)
 	}
 	ret = dma_set_mask(dev, dma_mask);
 	if (ret)
-		goto out_free_netdev;
+		return ret;
 
 	priv->tx.ndesc = AVE_NR_TXDESC;
 	priv->rx.ndesc = AVE_NR_RXDESC;
@@ -1645,10 +1645,8 @@ static int ave_probe(struct platform_device *pdev)
 		if (!name)
 			break;
 		priv->clk[i] = devm_clk_get(dev, name);
-		if (IS_ERR(priv->clk[i])) {
-			ret = PTR_ERR(priv->clk[i]);
-			goto out_free_netdev;
-		}
+		if (IS_ERR(priv->clk[i]))
+			return PTR_ERR(priv->clk[i]);
 		priv->nclks++;
 	}
 
@@ -1657,10 +1655,8 @@ static int ave_probe(struct platform_device *pdev)
 		if (!name)
 			break;
 		priv->rst[i] = devm_reset_control_get_shared(dev, name);
-		if (IS_ERR(priv->rst[i])) {
-			ret = PTR_ERR(priv->rst[i]);
-			goto out_free_netdev;
-		}
+		if (IS_ERR(priv->rst[i]))
+			return PTR_ERR(priv->rst[i]);
 		priv->nrsts++;
 	}
 
@@ -1669,26 +1665,23 @@ static int ave_probe(struct platform_device *pdev)
 					       1, 0, &args);
 	if (ret) {
 		dev_err(dev, "can't get syscon-phy-mode property\n");
-		goto out_free_netdev;
+		return ret;
 	}
 	priv->regmap = syscon_node_to_regmap(args.np);
 	of_node_put(args.np);
 	if (IS_ERR(priv->regmap)) {
 		dev_err(dev, "can't map syscon-phy-mode\n");
-		ret = PTR_ERR(priv->regmap);
-		goto out_free_netdev;
+		return PTR_ERR(priv->regmap);
 	}
 	ret = priv->data->get_pinmode(priv, phy_mode, args.args[0]);
 	if (ret) {
 		dev_err(dev, "invalid phy-mode setting\n");
-		goto out_free_netdev;
+		return ret;
 	}
 
 	priv->mdio = devm_mdiobus_alloc(dev);
-	if (!priv->mdio) {
-		ret = -ENOMEM;
-		goto out_free_netdev;
-	}
+	if (!priv->mdio)
+		return -ENOMEM;
 	priv->mdio->priv = ndev;
 	priv->mdio->parent = dev;
 	priv->mdio->read = ave_mdiobus_read;
@@ -1725,8 +1718,6 @@ static int ave_probe(struct platform_device *pdev)
 out_del_napi:
 	netif_napi_del(&priv->napi_rx);
 	netif_napi_del(&priv->napi_tx);
-out_free_netdev:
-	free_netdev(ndev);
 
 	return ret;
 }
@@ -1739,7 +1730,6 @@ static int ave_remove(struct platform_device *pdev)
 	unregister_netdev(ndev);
 	netif_napi_del(&priv->napi_rx);
 	netif_napi_del(&priv->napi_tx);
-	free_netdev(ndev);
 
 	return 0;
 }

@@ -94,16 +94,23 @@ pinctrl-single,bit-per-mux is set), and uses the common pinctrl bindings as
 specified in the pinctrl-bindings.txt document in this directory.
 
 The pin configuration nodes for pinctrl-single are specified as pinctrl
-register offset and value pairs using pinctrl-single,pins. Only the bits
-specified in pinctrl-single,function-mask are updated. For example, setting
-a pin for a device could be done with:
+register offset and values using pinctrl-single,pins. Only the bits specified
+in pinctrl-single,function-mask are updated.
+
+When #pinctrl-cells = 1, then setting a pin for a device could be done with:
 
 	pinctrl-single,pins = <0xdc 0x118>;
 
-Where 0xdc is the offset from the pinctrl register base address for the
-device pinctrl register, and 0x118 contains the desired value of the
-pinctrl register. See the device example and static board pins example
-below for more information.
+Where 0xdc is the offset from the pinctrl register base address for the device
+pinctrl register, and 0x118 contains the desired value of the pinctrl register.
+
+When #pinctrl-cells = 2, then setting a pin for a device could be done with:
+
+	pinctrl-single,pins = <0xdc 0x30 0x07>;
+
+Where 0x30 is the pin configuration value and 0x07 is the pin mux mode value.
+These two values are OR'd together to produce the value stored at offset 0xdc.
+See the device example and static board pins example below for more information.
 
 In case when one register changes more than one pin's mux the
 pinctrl-single,bits need to be used which takes three parameters:

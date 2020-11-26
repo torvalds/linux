@@ -83,16 +83,12 @@ struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT] = {
 };
 #elif defined(CONFIG_PPC_8xx)
 struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT] = {
-	/* we only manage 4k and 16k pages as normal pages */
-#ifdef CONFIG_PPC_4K_PAGES
 	[MMU_PAGE_4K] = {
 		.shift	= 12,
 	},
-#else
 	[MMU_PAGE_16K] = {
 		.shift	= 14,
 	},
-#endif
 	[MMU_PAGE_512K] = {
 		.shift	= 19,
 	},

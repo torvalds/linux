@@ -276,23 +276,17 @@ static irqreturn_t ltc3676_isr(int irq, void *dev_id)
 	if (irqstat & LTC3676_IRQSTAT_THERMAL_WARN) {
 		dev_warn(dev, "Over-temperature Warning\n");
 		event = REGULATOR_EVENT_OVER_TEMP;
-		for (i = 0; i < LTC3676_NUM_REGULATORS; i++) {
-			regulator_lock(ltc3676->regulators[i]);
+		for (i = 0; i < LTC3676_NUM_REGULATORS; i++)
 			regulator_notifier_call_chain(ltc3676->regulators[i],
 						      event, NULL);
-			regulator_unlock(ltc3676->regulators[i]);
-		}
 	}
 
 	if (irqstat & LTC3676_IRQSTAT_UNDERVOLT_WARN) {
 		dev_info(dev, "Undervoltage Warning\n");
 		event = REGULATOR_EVENT_UNDER_VOLTAGE;
-		for (i = 0; i < LTC3676_NUM_REGULATORS; i++) {
-			regulator_lock(ltc3676->regulators[i]);
+		for (i = 0; i < LTC3676_NUM_REGULATORS; i++)
 			regulator_notifier_call_chain(ltc3676->regulators[i],
 						      event, NULL);
-			regulator_unlock(ltc3676->regulators[i]);
-		}
 	}
 
 	/* Clear warning condition */
@@ -368,7 +362,7 @@ static const struct i2c_device_id ltc3676_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ltc3676_i2c_id);
 
-static const struct of_device_id ltc3676_of_match[] = {
+static const struct of_device_id __maybe_unused ltc3676_of_match[] = {
 	{ .compatible = "lltc,ltc3676" },
 	{ },
 };

@@ -46,7 +46,7 @@ static int s5c73m3_get_af_status(struct s5c73m3 *state, struct v4l2_ctrl *ctrl)
 		break;
 	default:
 		v4l2_info(&state->sensor_sd, "Unknown AF status %#x\n", reg);
-		/* Fall through */
+		fallthrough;
 	case REG_CAF_STATUS_UNFOCUSED:
 	case REG_AF_STATUS_UNFOCUSED:
 	case REG_AF_STATUS_INVALID:

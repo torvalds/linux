@@ -47,6 +47,7 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 
 / {
 	/* these are used by bootloader for disabling nodes */
@@ -252,7 +253,7 @@
 };
 
 &ecspi3 {
-	cs-gpios = <&gpio4 24 GPIO_ACTIVE_HIGH>;
+	cs-gpios = <&gpio4 24 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi3>;
 	status = "okay";
@@ -294,7 +295,7 @@
 		compatible = "gw,gsc";
 		reg = <0x20>;
 		interrupt-parent = <&gpio1>;
-		interrupts = <4 GPIO_ACTIVE_LOW>;
+		interrupts = <4 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-controller;
 		#interrupt-cells = <1>;
 		#size-cells = <0>;

@@ -474,7 +474,7 @@ static void ncsi_suspend_channel(struct ncsi_dev_priv *ndp)
 	switch (nd->state) {
 	case ncsi_dev_state_suspend:
 		nd->state = ncsi_dev_state_suspend_select;
-		/* Fall through */
+		fallthrough;
 	case ncsi_dev_state_suspend_select:
 		ndp->pending_req_num = 1;
 
@@ -1302,7 +1302,7 @@ static void ncsi_probe_channel(struct ncsi_dev_priv *ndp)
 	switch (nd->state) {
 	case ncsi_dev_state_probe:
 		nd->state = ncsi_dev_state_probe_deselect;
-		/* Fall through */
+		fallthrough;
 	case ncsi_dev_state_probe_deselect:
 		ndp->pending_req_num = 8;
 
@@ -1726,9 +1726,6 @@ struct ncsi_dev *ncsi_register_dev(struct net_device *dev,
 	ndp->ptype.dev = dev;
 	dev_add_pack(&ndp->ptype);
 
-	/* Set up generic netlink interface */
-	ncsi_init_netlink(dev);
-
 	pdev = to_platform_device(dev->dev.parent);
 	if (pdev) {
 		np = pdev->dev.of_node;
@@ -1891,8 +1888,6 @@ void ncsi_unregister_dev(struct ncsi_dev *nd)
 	spin_lock_irqsave(&ncsi_dev_lock, flags);
 	list_del_rcu(&ndp->node);
 	spin_unlock_irqrestore(&ncsi_dev_lock, flags);
-
-	ncsi_unregister_netlink(nd->dev);
 
 	kfree(ndp);
 }

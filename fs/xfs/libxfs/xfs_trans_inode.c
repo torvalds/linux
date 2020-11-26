@@ -110,9 +110,9 @@ xfs_trans_log_inode(
 	 * to log the timestamps, or will clear already cleared fields in the
 	 * worst case.
 	 */
-	if (inode->i_state & (I_DIRTY_TIME | I_DIRTY_TIME_EXPIRED)) {
+	if (inode->i_state & I_DIRTY_TIME) {
 		spin_lock(&inode->i_lock);
-		inode->i_state &= ~(I_DIRTY_TIME | I_DIRTY_TIME_EXPIRED);
+		inode->i_state &= ~I_DIRTY_TIME;
 		spin_unlock(&inode->i_lock);
 	}
 
@@ -129,6 +129,17 @@ xfs_trans_log_inode(
 		if (IS_I_VERSION(inode) &&
 		    inode_maybe_inc_iversion(inode, flags & XFS_ILOG_CORE))
 			iversion_flags = XFS_ILOG_CORE;
+	}
+
+	/*
+	 * If we're updating the inode core or the timestamps and it's possible
+	 * to upgrade this inode to bigtime format, do so now.
+	 */
+	if ((flags & (XFS_ILOG_CORE | XFS_ILOG_TIMESTAMP)) &&
+	    xfs_sb_version_hasbigtime(&ip->i_mount->m_sb) &&
+	    !xfs_inode_has_bigtime(ip)) {
+		ip->i_d.di_flags2 |= XFS_DIFLAG2_BIGTIME;
+		flags |= XFS_ILOG_CORE;
 	}
 
 	/*
@@ -177,9 +188,9 @@ xfs_trans_log_inode(
 
 	/*
 	 * Always OR in the bits from the ili_last_fields field.  This is to
-	 * coordinate with the xfs_iflush() and xfs_iflush_done() routines in
-	 * the eventual clearing of the ili_fields bits.  See the big comment in
-	 * xfs_iflush() for an explanation of this coordination mechanism.
+	 * coordinate with the xfs_iflush() and xfs_buf_inode_iodone() routines
+	 * in the eventual clearing of the ili_fields bits.  See the big comment
+	 * in xfs_iflush() for an explanation of this coordination mechanism.
 	 */
 	iip->ili_fields |= (flags | iip->ili_last_fields | iversion_flags);
 	spin_unlock(&iip->ili_lock);

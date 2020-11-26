@@ -7,7 +7,6 @@
 
 */
 
-#define DRV_NAME	"DL2000/TC902x-based linux driver"
 #include "dl2k.h"
 #include <linux/dma-mapping.h>
 
@@ -223,13 +222,15 @@ rio_probe1 (struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_drvdata (pdev, dev);
 
-	ring_space = pci_alloc_consistent (pdev, TX_TOTAL_SIZE, &ring_dma);
+	ring_space = dma_alloc_coherent(&pdev->dev, TX_TOTAL_SIZE, &ring_dma,
+					GFP_KERNEL);
 	if (!ring_space)
 		goto err_out_iounmap;
 	np->tx_ring = ring_space;
 	np->tx_ring_dma = ring_dma;
 
-	ring_space = pci_alloc_consistent (pdev, RX_TOTAL_SIZE, &ring_dma);
+	ring_space = dma_alloc_coherent(&pdev->dev, RX_TOTAL_SIZE, &ring_dma,
+					GFP_KERNEL);
 	if (!ring_space)
 		goto err_out_unmap_tx;
 	np->rx_ring = ring_space;
@@ -280,9 +281,11 @@ rio_probe1 (struct pci_dev *pdev, const struct pci_device_id *ent)
 	return 0;
 
 err_out_unmap_rx:
-	pci_free_consistent (pdev, RX_TOTAL_SIZE, np->rx_ring, np->rx_ring_dma);
+	dma_free_coherent(&pdev->dev, RX_TOTAL_SIZE, np->rx_ring,
+			  np->rx_ring_dma);
 err_out_unmap_tx:
-	pci_free_consistent (pdev, TX_TOTAL_SIZE, np->tx_ring, np->tx_ring_dma);
+	dma_free_coherent(&pdev->dev, TX_TOTAL_SIZE, np->tx_ring,
+			  np->tx_ring_dma);
 err_out_iounmap:
 #ifdef MEM_MAPPING
 	pci_iounmap(pdev, np->ioaddr);
@@ -436,8 +439,9 @@ static void free_list(struct net_device *dev)
 	for (i = 0; i < RX_RING_SIZE; i++) {
 		skb = np->rx_skbuff[i];
 		if (skb) {
-			pci_unmap_single(np->pdev, desc_to_dma(&np->rx_ring[i]),
-					 skb->len, PCI_DMA_FROMDEVICE);
+			dma_unmap_single(&np->pdev->dev,
+					 desc_to_dma(&np->rx_ring[i]),
+					 skb->len, DMA_FROM_DEVICE);
 			dev_kfree_skb(skb);
 			np->rx_skbuff[i] = NULL;
 		}
@@ -447,8 +451,9 @@ static void free_list(struct net_device *dev)
 	for (i = 0; i < TX_RING_SIZE; i++) {
 		skb = np->tx_skbuff[i];
 		if (skb) {
-			pci_unmap_single(np->pdev, desc_to_dma(&np->tx_ring[i]),
-					 skb->len, PCI_DMA_TODEVICE);
+			dma_unmap_single(&np->pdev->dev,
+					 desc_to_dma(&np->tx_ring[i]),
+					 skb->len, DMA_TO_DEVICE);
 			dev_kfree_skb(skb);
 			np->tx_skbuff[i] = NULL;
 		}
@@ -505,9 +510,8 @@ static int alloc_list(struct net_device *dev)
 						sizeof(struct netdev_desc));
 		/* Rubicon now supports 40 bits of addressing space. */
 		np->rx_ring[i].fraginfo =
-		    cpu_to_le64(pci_map_single(
-				  np->pdev, skb->data, np->rx_buf_sz,
-				  PCI_DMA_FROMDEVICE));
+		    cpu_to_le64(dma_map_single(&np->pdev->dev, skb->data,
+					       np->rx_buf_sz, DMA_FROM_DEVICE));
 		np->rx_ring[i].fraginfo |= cpu_to_le64((u64)np->rx_buf_sz << 48);
 	}
 
@@ -673,9 +677,8 @@ rio_timer (struct timer_list *t)
 				}
 				np->rx_skbuff[entry] = skb;
 				np->rx_ring[entry].fraginfo =
-				    cpu_to_le64 (pci_map_single
-					 (np->pdev, skb->data, np->rx_buf_sz,
-					  PCI_DMA_FROMDEVICE));
+				    cpu_to_le64 (dma_map_single(&np->pdev->dev, skb->data,
+								np->rx_buf_sz, DMA_FROM_DEVICE));
 			}
 			np->rx_ring[entry].fraginfo |=
 			    cpu_to_le64((u64)np->rx_buf_sz << 48);
@@ -729,9 +732,8 @@ start_xmit (struct sk_buff *skb, struct net_device *dev)
 		    ((u64)np->vlan << 32) |
 		    ((u64)skb->priority << 45);
 	}
-	txdesc->fraginfo = cpu_to_le64 (pci_map_single (np->pdev, skb->data,
-							skb->len,
-							PCI_DMA_TODEVICE));
+	txdesc->fraginfo = cpu_to_le64 (dma_map_single(&np->pdev->dev, skb->data,
+						       skb->len, DMA_TO_DEVICE));
 	txdesc->fraginfo |= cpu_to_le64((u64)skb->len << 48);
 
 	/* DL2K bug: DMA fails to get next descriptor ptr in 10Mbps mode
@@ -828,9 +830,9 @@ rio_free_tx (struct net_device *dev, int irq)
 		if (!(np->tx_ring[entry].status & cpu_to_le64(TFDDone)))
 			break;
 		skb = np->tx_skbuff[entry];
-		pci_unmap_single (np->pdev,
-				  desc_to_dma(&np->tx_ring[entry]),
-				  skb->len, PCI_DMA_TODEVICE);
+		dma_unmap_single(&np->pdev->dev,
+				 desc_to_dma(&np->tx_ring[entry]), skb->len,
+				 DMA_TO_DEVICE);
 		if (irq)
 			dev_consume_skb_irq(skb);
 		else
@@ -950,25 +952,25 @@ receive_packet (struct net_device *dev)
 
 			/* Small skbuffs for short packets */
 			if (pkt_len > copy_thresh) {
-				pci_unmap_single (np->pdev,
-						  desc_to_dma(desc),
-						  np->rx_buf_sz,
-						  PCI_DMA_FROMDEVICE);
+				dma_unmap_single(&np->pdev->dev,
+						 desc_to_dma(desc),
+						 np->rx_buf_sz,
+						 DMA_FROM_DEVICE);
 				skb_put (skb = np->rx_skbuff[entry], pkt_len);
 				np->rx_skbuff[entry] = NULL;
 			} else if ((skb = netdev_alloc_skb_ip_align(dev, pkt_len))) {
-				pci_dma_sync_single_for_cpu(np->pdev,
-							    desc_to_dma(desc),
-							    np->rx_buf_sz,
-							    PCI_DMA_FROMDEVICE);
+				dma_sync_single_for_cpu(&np->pdev->dev,
+							desc_to_dma(desc),
+							np->rx_buf_sz,
+							DMA_FROM_DEVICE);
 				skb_copy_to_linear_data (skb,
 						  np->rx_skbuff[entry]->data,
 						  pkt_len);
 				skb_put (skb, pkt_len);
-				pci_dma_sync_single_for_device(np->pdev,
-							       desc_to_dma(desc),
-							       np->rx_buf_sz,
-							       PCI_DMA_FROMDEVICE);
+				dma_sync_single_for_device(&np->pdev->dev,
+							   desc_to_dma(desc),
+							   np->rx_buf_sz,
+							   DMA_FROM_DEVICE);
 			}
 			skb->protocol = eth_type_trans (skb, dev);
 #if 0
@@ -1001,9 +1003,8 @@ receive_packet (struct net_device *dev)
 			}
 			np->rx_skbuff[entry] = skb;
 			np->rx_ring[entry].fraginfo =
-			    cpu_to_le64 (pci_map_single
-					 (np->pdev, skb->data, np->rx_buf_sz,
-					  PCI_DMA_FROMDEVICE));
+			    cpu_to_le64(dma_map_single(&np->pdev->dev, skb->data,
+						       np->rx_buf_sz, DMA_FROM_DEVICE));
 		}
 		np->rx_ring[entry].fraginfo |=
 		    cpu_to_le64((u64)np->rx_buf_sz << 48);
@@ -1797,10 +1798,10 @@ rio_remove1 (struct pci_dev *pdev)
 		struct netdev_private *np = netdev_priv(dev);
 
 		unregister_netdev (dev);
-		pci_free_consistent (pdev, RX_TOTAL_SIZE, np->rx_ring,
-				     np->rx_ring_dma);
-		pci_free_consistent (pdev, TX_TOTAL_SIZE, np->tx_ring,
-				     np->tx_ring_dma);
+		dma_free_coherent(&pdev->dev, RX_TOTAL_SIZE, np->rx_ring,
+				  np->rx_ring_dma);
+		dma_free_coherent(&pdev->dev, TX_TOTAL_SIZE, np->tx_ring,
+				  np->tx_ring_dma);
 #ifdef MEM_MAPPING
 		pci_iounmap(pdev, np->ioaddr);
 #endif

@@ -70,6 +70,8 @@ static const char *version =
 #include <linux/bitops.h>
 #include <linux/jiffies.h>
 
+#include <net/Space.h>
+
 #include <asm/io.h>
 #include <asm/dma.h>
 
@@ -301,7 +303,7 @@ static int __init cops_probe1(struct net_device *dev, int ioaddr)
 			dev->irq = cops_irq(ioaddr, board);
 			if (dev->irq)
 				break;
-			/* fall through - Once no IRQ found on this port. */
+			fallthrough;	/* Once no IRQ found on this port */
 		case 1:
 			retval = -EINVAL;
 			goto err_out;

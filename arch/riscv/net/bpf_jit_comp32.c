@@ -1020,7 +1020,7 @@ int bpf_jit_emit_insn(const struct bpf_insn *insn, struct rv_jit_context *ctx,
 			emit_zext64(dst, ctx);
 			break;
 		}
-		/* Fallthrough. */
+		fallthrough;
 
 	case BPF_ALU | BPF_ADD | BPF_X:
 	case BPF_ALU | BPF_SUB | BPF_X:
@@ -1079,7 +1079,7 @@ int bpf_jit_emit_insn(const struct bpf_insn *insn, struct rv_jit_context *ctx,
 		case 16:
 			emit(rv_slli(lo(rd), lo(rd), 16), ctx);
 			emit(rv_srli(lo(rd), lo(rd), 16), ctx);
-			/* Fallthrough. */
+			fallthrough;
 		case 32:
 			if (!ctx->prog->aux->verifier_zext)
 				emit(rv_addi(hi(rd), RV_REG_ZERO, 0), ctx);

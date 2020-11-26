@@ -3,11 +3,11 @@
 V4L2 File handlers
 ------------------
 
-struct :c:type:`v4l2_fh` provides a way to easily keep file handle specific
+struct v4l2_fh provides a way to easily keep file handle specific
 data that is used by the V4L2 framework.
 
 .. attention::
-	New drivers must use struct :c:type:`v4l2_fh`
+	New drivers must use struct v4l2_fh
 	since it is also used to implement priority handling
 	(:ref:`VIDIOC_G_PRIORITY`).
 
@@ -16,11 +16,11 @@ whether a driver uses :c:type:`v4l2_fh` as its ``file->private_data`` pointer
 by testing the ``V4L2_FL_USES_V4L2_FH`` bit in :c:type:`video_device`->flags.
 This bit is set whenever :c:func:`v4l2_fh_init` is called.
 
-struct :c:type:`v4l2_fh` is allocated as a part of the driver's own file handle
+struct v4l2_fh is allocated as a part of the driver's own file handle
 structure and ``file->private_data`` is set to it in the driver's ``open()``
 function by the driver.
 
-In many cases the struct :c:type:`v4l2_fh` will be embedded in a larger
+In many cases the struct v4l2_fh will be embedded in a larger
 structure. In that case you should call:
 
 #) :c:func:`v4l2_fh_init` and :c:func:`v4l2_fh_add` in ``open()``
@@ -102,18 +102,18 @@ Below is a short description of the :c:type:`v4l2_fh` functions used:
   memory can be freed.
 
 
-If struct :c:type:`v4l2_fh` is not embedded, then you can use these helper functions:
+If struct v4l2_fh is not embedded, then you can use these helper functions:
 
 :c:func:`v4l2_fh_open <v4l2_fh_open>`
 (struct file \*filp)
 
-- This allocates a struct :c:type:`v4l2_fh`, initializes it and adds it to
-  the struct :c:type:`video_device` associated with the file struct.
+- This allocates a struct v4l2_fh, initializes it and adds it to
+  the struct video_device associated with the file struct.
 
 :c:func:`v4l2_fh_release <v4l2_fh_release>`
 (struct file \*filp)
 
-- This deletes it from the struct :c:type:`video_device` associated with the
+- This deletes it from the struct video_device associated with the
   file struct, uninitialised the :c:type:`v4l2_fh` and frees it.
 
 These two functions can be plugged into the v4l2_file_operation's ``open()``

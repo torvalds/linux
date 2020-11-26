@@ -751,6 +751,9 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 	struct cec_data *data;
 	bool is_raw = msg_is_raw(msg);
 
+	if (adap->devnode.unregistered)
+		return -ENODEV;
+
 	msg->rx_ts = 0;
 	msg->tx_ts = 0;
 	msg->rx_status = 0;
@@ -1049,6 +1052,9 @@ void cec_received_msg_ts(struct cec_adapter *adap,
 	if (WARN_ON(!msg->len || msg->len > CEC_MAX_MSG_SIZE))
 		return;
 
+	if (adap->devnode.unregistered)
+		return;
+
 	/*
 	 * Some CEC adapters will receive the messages that they transmitted.
 	 * This test filters out those messages by checking if we are the
@@ -1199,7 +1205,7 @@ void cec_received_msg_ts(struct cec_adapter *adap,
 			/* Cancel the pending timeout work */
 			if (!cancel_delayed_work(&data->work)) {
 				mutex_unlock(&adap->lock);
-				flush_scheduled_work();
+				cancel_delayed_work_sync(&data->work);
 				mutex_lock(&adap->lock);
 			}
 			/*
@@ -1928,7 +1934,7 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 		 */
 		if (!adap->passthrough && from_unregistered)
 			return 0;
-		/* Fall through */
+		fallthrough;
 	case CEC_MSG_GIVE_DEVICE_VENDOR_ID:
 	case CEC_MSG_GIVE_FEATURES:
 	case CEC_MSG_GIVE_PHYSICAL_ADDR:

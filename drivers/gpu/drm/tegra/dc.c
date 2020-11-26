@@ -135,7 +135,7 @@ static inline u32 compute_dda_inc(unsigned int in, unsigned int out, bool v,
 
 		default:
 			WARN_ON_ONCE(1);
-			/* fallthrough */
+			fallthrough;
 		case 4:
 			max = 4;
 			break;

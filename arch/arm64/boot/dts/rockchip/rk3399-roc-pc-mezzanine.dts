@@ -11,6 +11,16 @@
 	model = "Firefly ROC-RK3399-PC Mezzanine Board";
 	compatible = "firefly,roc-rk3399-pc-mezzanine", "rockchip,rk3399";
 
+	/* MP8009 PoE PD */
+	poe_12v: poe-12v {
+		compatible = "regulator-fixed";
+		regulator-name = "poe_12v";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+	};
+
 	vcc3v3_ngff: vcc3v3-ngff {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_ngff";
@@ -22,7 +32,7 @@
 		regulator-boot-on;
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		vin-supply = <&dc_12v>;
+		vin-supply = <&sys_12v>;
 	};
 
 	vcc3v3_pcie: vcc3v3-pcie {
@@ -34,8 +44,12 @@
 		pinctrl-0 = <&vcc3v3_pcie_en>;
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		vin-supply = <&dc_12v>;
+		vin-supply = <&sys_12v>;
 	};
+};
+
+&sys_12v {
+	vin-supply = <&poe_12v>;
 };
 
 &pcie_phy {

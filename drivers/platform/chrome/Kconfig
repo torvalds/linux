@@ -3,16 +3,6 @@
 # Platform support for Chrome OS hardware (Chromebooks and Chromeboxes)
 #
 
-config MFD_CROS_EC
-	tristate "Platform support for Chrome hardware (transitional)"
-	select CHROME_PLATFORMS
-	select CROS_EC
-	select MFD_CROS_EC_DEV
-	depends on X86 || ARM || ARM64 || COMPILE_TEST
-	help
-	  This is a transitional Kconfig option and will be removed after
-	  everyone enables the parts individually.
-
 menuconfig CHROME_PLATFORMS
 	bool "Platform support for Chrome hardware"
 	depends on X86 || ARM || ARM64 || COMPILE_TEST

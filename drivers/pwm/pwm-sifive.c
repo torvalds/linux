@@ -254,11 +254,9 @@ static int pwm_sifive_probe(struct platform_device *pdev)
 		return PTR_ERR(ddata->regs);
 
 	ddata->clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(ddata->clk)) {
-		if (PTR_ERR(ddata->clk) != -EPROBE_DEFER)
-			dev_err(dev, "Unable to find controller clock\n");
-		return PTR_ERR(ddata->clk);
-	}
+	if (IS_ERR(ddata->clk))
+		return dev_err_probe(dev, PTR_ERR(ddata->clk),
+				     "Unable to find controller clock\n");
 
 	ret = clk_prepare_enable(ddata->clk);
 	if (ret) {

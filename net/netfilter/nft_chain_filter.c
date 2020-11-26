@@ -161,16 +161,49 @@ static unsigned int nft_do_chain_inet(void *priv, struct sk_buff *skb,
 	return nft_do_chain(&pkt, priv);
 }
 
+static unsigned int nft_do_chain_inet_ingress(void *priv, struct sk_buff *skb,
+					      const struct nf_hook_state *state)
+{
+	struct nf_hook_state ingress_state = *state;
+	struct nft_pktinfo pkt;
+
+	switch (skb->protocol) {
+	case htons(ETH_P_IP):
+		/* Original hook is NFPROTO_NETDEV and NF_NETDEV_INGRESS. */
+		ingress_state.pf = NFPROTO_IPV4;
+		ingress_state.hook = NF_INET_INGRESS;
+		nft_set_pktinfo(&pkt, skb, &ingress_state);
+
+		if (nft_set_pktinfo_ipv4_ingress(&pkt, skb) < 0)
+			return NF_DROP;
+		break;
+	case htons(ETH_P_IPV6):
+		ingress_state.pf = NFPROTO_IPV6;
+		ingress_state.hook = NF_INET_INGRESS;
+		nft_set_pktinfo(&pkt, skb, &ingress_state);
+
+		if (nft_set_pktinfo_ipv6_ingress(&pkt, skb) < 0)
+			return NF_DROP;
+		break;
+	default:
+		return NF_ACCEPT;
+	}
+
+	return nft_do_chain(&pkt, priv);
+}
+
 static const struct nft_chain_type nft_chain_filter_inet = {
 	.name		= "filter",
 	.type		= NFT_CHAIN_T_DEFAULT,
 	.family		= NFPROTO_INET,
-	.hook_mask	= (1 << NF_INET_LOCAL_IN) |
+	.hook_mask	= (1 << NF_INET_INGRESS) |
+			  (1 << NF_INET_LOCAL_IN) |
 			  (1 << NF_INET_LOCAL_OUT) |
 			  (1 << NF_INET_FORWARD) |
 			  (1 << NF_INET_PRE_ROUTING) |
 			  (1 << NF_INET_POST_ROUTING),
 	.hooks		= {
+		[NF_INET_INGRESS]	= nft_do_chain_inet_ingress,
 		[NF_INET_LOCAL_IN]	= nft_do_chain_inet,
 		[NF_INET_LOCAL_OUT]	= nft_do_chain_inet,
 		[NF_INET_FORWARD]	= nft_do_chain_inet,

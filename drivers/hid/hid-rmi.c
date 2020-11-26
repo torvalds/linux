@@ -428,7 +428,6 @@ static void rmi_report(struct hid_device *hid, struct hid_report *report)
 
 	switch (report->id) {
 	case RMI_READ_DATA_REPORT_ID:
-		/* fall-through */
 	case RMI_ATTN_REPORT_ID:
 		return;
 	}
@@ -721,7 +720,7 @@ static int rmi_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	}
 
 	if (data->device_flags & RMI_DEVICE_HAS_PHYS_BUTTONS)
-		rmi_hid_pdata.f30_data.disable = true;
+		rmi_hid_pdata.gpio_data.disable = true;
 
 	data->xport.dev = hdev->dev.parent;
 	data->xport.pdata = rmi_hid_pdata;

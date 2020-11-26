@@ -5,8 +5,9 @@
  * Copyright (c) 2003-2004, Jouni Malinen <jkmaline@cc.hut.fi>
  */
 
+#include <crypto/arc4.h>
 #include <crypto/hash.h>
-#include <crypto/skcipher.h>
+#include <linux/fips.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -16,7 +17,6 @@
 #include <linux/if_ether.h>
 #include <linux/if_arp.h>
 #include <linux/string.h>
-#include <linux/scatterlist.h>
 #include <linux/crc32.h>
 #include <linux/etherdevice.h>
 
@@ -45,9 +45,9 @@ struct rtllib_tkip_data {
 	u32 dot11RSNAStatsTKIPLocalMICFailures;
 
 	int key_idx;
-	struct crypto_sync_skcipher *rx_tfm_arc4;
+	struct arc4_ctx rx_ctx_arc4;
+	struct arc4_ctx tx_ctx_arc4;
 	struct crypto_shash *rx_tfm_michael;
-	struct crypto_sync_skcipher *tx_tfm_arc4;
 	struct crypto_shash *tx_tfm_michael;
 	/* scratch buffers for virt_to_page() (crypto API) */
 	u8 rx_hdr[16];
@@ -58,28 +58,18 @@ static void *rtllib_tkip_init(int key_idx)
 {
 	struct rtllib_tkip_data *priv;
 
+	if (fips_enabled)
+		return NULL;
+
 	priv = kzalloc(sizeof(*priv), GFP_ATOMIC);
 	if (priv == NULL)
 		goto fail;
 	priv->key_idx = key_idx;
-	priv->tx_tfm_arc4 = crypto_alloc_sync_skcipher("ecb(arc4)", 0, 0);
-	if (IS_ERR(priv->tx_tfm_arc4)) {
-		pr_debug("Could not allocate crypto API arc4\n");
-		priv->tx_tfm_arc4 = NULL;
-		goto fail;
-	}
 
 	priv->tx_tfm_michael = crypto_alloc_shash("michael_mic", 0, 0);
 	if (IS_ERR(priv->tx_tfm_michael)) {
 		pr_debug("Could not allocate crypto API michael_mic\n");
 		priv->tx_tfm_michael = NULL;
-		goto fail;
-	}
-
-	priv->rx_tfm_arc4 = crypto_alloc_sync_skcipher("ecb(arc4)", 0, 0);
-	if (IS_ERR(priv->rx_tfm_arc4)) {
-		pr_debug("Could not allocate crypto API arc4\n");
-		priv->rx_tfm_arc4 = NULL;
 		goto fail;
 	}
 
@@ -94,9 +84,7 @@ static void *rtllib_tkip_init(int key_idx)
 fail:
 	if (priv) {
 		crypto_free_shash(priv->tx_tfm_michael);
-		crypto_free_sync_skcipher(priv->tx_tfm_arc4);
 		crypto_free_shash(priv->rx_tfm_michael);
-		crypto_free_sync_skcipher(priv->rx_tfm_arc4);
 		kfree(priv);
 	}
 
@@ -110,11 +98,9 @@ static void rtllib_tkip_deinit(void *priv)
 
 	if (_priv) {
 		crypto_free_shash(_priv->tx_tfm_michael);
-		crypto_free_sync_skcipher(_priv->tx_tfm_arc4);
 		crypto_free_shash(_priv->rx_tfm_michael);
-		crypto_free_sync_skcipher(_priv->rx_tfm_arc4);
 	}
-	kfree(priv);
+	kfree_sensitive(priv);
 }
 
 
@@ -289,7 +275,6 @@ static int rtllib_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	int ret = 0;
 	u8 rc4key[16],  *icv;
 	u32 crc;
-	struct scatterlist sg;
 
 	if (skb_headroom(skb) < 8 || skb_tailroom(skb) < 4 ||
 	    skb->len < hdr_len)
@@ -331,8 +316,6 @@ static int rtllib_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	*pos++ = (tkey->tx_iv32 >> 24) & 0xff;
 
 	if (!tcb_desc->bHwSec) {
-		SYNC_SKCIPHER_REQUEST_ON_STACK(req, tkey->tx_tfm_arc4);
-
 		icv = skb_put(skb, 4);
 		crc = ~crc32_le(~0, pos, len);
 		icv[0] = crc;
@@ -340,15 +323,8 @@ static int rtllib_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		icv[2] = crc >> 16;
 		icv[3] = crc >> 24;
 
-		sg_init_one(&sg, pos, len+4);
-
-
-		crypto_sync_skcipher_setkey(tkey->tx_tfm_arc4, rc4key, 16);
-		skcipher_request_set_sync_tfm(req, tkey->tx_tfm_arc4);
-		skcipher_request_set_callback(req, 0, NULL, NULL);
-		skcipher_request_set_crypt(req, &sg, &sg, len + 4, NULL);
-		ret = crypto_skcipher_encrypt(req);
-		skcipher_request_zero(req);
+		arc4_setkey(&tkey->tx_ctx_arc4, rc4key, 16);
+		arc4_crypt(&tkey->tx_ctx_arc4, pos, pos, len + 4);
 	}
 
 	tkey->tx_iv16++;
@@ -376,9 +352,7 @@ static int rtllib_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	u8 rc4key[16];
 	u8 icv[4];
 	u32 crc;
-	struct scatterlist sg;
 	int plen;
-	int err;
 
 	if (skb->len < hdr_len + 8 + 4)
 		return -1;
@@ -414,8 +388,6 @@ static int rtllib_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	pos += 8;
 
 	if (!tcb_desc->bHwSec || (skb->cb[0] == 1)) {
-		SYNC_SKCIPHER_REQUEST_ON_STACK(req, tkey->rx_tfm_arc4);
-
 		if ((iv32 < tkey->rx_iv32 ||
 		    (iv32 == tkey->rx_iv32 && iv16 <= tkey->rx_iv16)) &&
 		    tkey->initialized) {
@@ -439,22 +411,8 @@ static int rtllib_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 
 		plen = skb->len - hdr_len - 12;
 
-		sg_init_one(&sg, pos, plen+4);
-
-		crypto_sync_skcipher_setkey(tkey->rx_tfm_arc4, rc4key, 16);
-		skcipher_request_set_sync_tfm(req, tkey->rx_tfm_arc4);
-		skcipher_request_set_callback(req, 0, NULL, NULL);
-		skcipher_request_set_crypt(req, &sg, &sg, plen + 4, NULL);
-		err = crypto_skcipher_decrypt(req);
-		skcipher_request_zero(req);
-		if (err) {
-			if (net_ratelimit()) {
-				netdev_dbg(skb->dev,
-					   "Failed to decrypt received packet from %pM\n",
-					   hdr->addr2);
-			}
-			return -7;
-		}
+		arc4_setkey(&tkey->rx_ctx_arc4, rc4key, 16);
+		arc4_crypt(&tkey->rx_ctx_arc4, pos, pos, plen + 4);
 
 		crc = ~crc32_le(~0, pos, plen);
 		icv[0] = crc;
@@ -657,17 +615,13 @@ static int rtllib_tkip_set_key(void *key, int len, u8 *seq, void *priv)
 	struct rtllib_tkip_data *tkey = priv;
 	int keyidx;
 	struct crypto_shash *tfm = tkey->tx_tfm_michael;
-	struct crypto_sync_skcipher *tfm2 = tkey->tx_tfm_arc4;
 	struct crypto_shash *tfm3 = tkey->rx_tfm_michael;
-	struct crypto_sync_skcipher *tfm4 = tkey->rx_tfm_arc4;
 
 	keyidx = tkey->key_idx;
 	memset(tkey, 0, sizeof(*tkey));
 	tkey->key_idx = keyidx;
 	tkey->tx_tfm_michael = tfm;
-	tkey->tx_tfm_arc4 = tfm2;
 	tkey->rx_tfm_michael = tfm3;
-	tkey->rx_tfm_arc4 = tfm4;
 
 	if (len == TKIP_KEY_LEN) {
 		memcpy(tkey->key, key, TKIP_KEY_LEN);

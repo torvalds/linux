@@ -312,7 +312,7 @@ static struct attribute *rtrs_clt_stats_attrs[] = {
 	NULL
 };
 
-static struct attribute_group rtrs_clt_stats_attr_group = {
+static const struct attribute_group rtrs_clt_stats_attr_group = {
 	.attrs = rtrs_clt_stats_attrs,
 };
 
@@ -388,7 +388,7 @@ static struct attribute *rtrs_clt_sess_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group rtrs_clt_sess_attr_group = {
+static const struct attribute_group rtrs_clt_sess_attr_group = {
 	.attrs = rtrs_clt_sess_attrs,
 };
 
@@ -460,7 +460,7 @@ static struct attribute *rtrs_clt_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group rtrs_clt_attr_group = {
+static const struct attribute_group rtrs_clt_attr_group = {
 	.attrs = rtrs_clt_attrs,
 };
 

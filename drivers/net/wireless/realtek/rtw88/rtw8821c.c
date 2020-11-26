@@ -68,7 +68,7 @@ static const u32 rtw8821c_txscale_tbl[] = {
 	0x2d3, 0x2fe, 0x32b, 0x35c, 0x38e, 0x3c4, 0x3fe
 };
 
-static const u8 rtw8821c_get_swing_index(struct rtw_dev *rtwdev)
+static u8 rtw8821c_get_swing_index(struct rtw_dev *rtwdev)
 {
 	u8 i = 0;
 	u32 swing, table_value;

@@ -9,7 +9,6 @@
 
 int zpci_bus_device_register(struct zpci_dev *zdev, struct pci_ops *ops);
 void zpci_bus_device_unregister(struct zpci_dev *zdev);
-int zpci_bus_init(void);
 
 void zpci_release_device(struct kref *kref);
 static inline void zpci_zdev_put(struct zpci_dev *zdev)
@@ -29,3 +28,4 @@ static inline struct zpci_dev *get_zdev_by_bus(struct pci_bus *bus,
 
 	return (devfn >= ZPCI_FUNCTIONS_PER_BUS) ? NULL : zbus->function[devfn];
 }
+

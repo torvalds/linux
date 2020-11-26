@@ -15,6 +15,7 @@
  */
 
 #include <linux/pgtable.h>
+#include <linux/init.h>
 #include <asm/reg.h>
 #include <asm/page.h>
 #include <asm/cputable.h>
@@ -199,11 +200,9 @@ _GLOBAL(add_hash_page)
 	 * covered by a BAT).  -- paulus
 	 */
 	mfmsr	r9
-	SYNC
 	rlwinm	r0,r9,0,17,15		/* clear bit 16 (MSR_EE) */
 	rlwinm	r0,r0,0,28,26		/* clear MSR_DR */
 	mtmsr	r0
-	SYNC_601
 	isync
 
 #ifdef CONFIG_SMP
@@ -262,7 +261,6 @@ _GLOBAL(add_hash_page)
 
 	/* reenable interrupts and DR */
 	mtmsr	r9
-	SYNC_601
 	isync
 
 	lwz	r0,4(r1)
@@ -287,9 +285,9 @@ _ASM_NOKPROBE_SYMBOL(add_hash_page)
  *
  * For speed, 4 of the instructions get patched once the size and
  * physical address of the hash table are known.  These definitions
- * of Hash_base and Hash_bits below are just an example.
+ * of Hash_base and Hash_bits below are for the early hash table.
  */
-Hash_base = 0xc0180000
+Hash_base = early_hash
 Hash_bits = 12				/* e.g. 256kB hash table */
 Hash_msk = (((1 << Hash_bits) - 1) * 64)
 
@@ -310,6 +308,7 @@ Hash_msk = (((1 << Hash_bits) - 1) * 64)
 #define HASH_LEFT	31-(LG_PTEG_SIZE+Hash_bits-1)
 #define HASH_RIGHT	31-LG_PTEG_SIZE
 
+__REF
 _GLOBAL(create_hpte)
 	/* Convert linux-style PTE (r5) to low word of PPC-style PTE (r8) */
 	rlwinm	r8,r5,32-9,30,30	/* _PAGE_RW -> PP msb */
@@ -476,6 +475,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_NEED_COHERENT)
 
 	sync		/* make sure pte updates get to memory */
 	blr
+	.previous
 _ASM_NOKPROBE_SYMBOL(create_hpte)
 
 	.section .bss
@@ -496,6 +496,7 @@ htab_hash_searches:
  *
  * We assume that there is a hash table in use (Hash != 0).
  */
+__REF
 _GLOBAL(flush_hash_pages)
 	/*
 	 * We disable interrupts here, even on UP, because we want
@@ -506,11 +507,9 @@ _GLOBAL(flush_hash_pages)
 	 * covered by a BAT).  -- paulus
 	 */
 	mfmsr	r10
-	SYNC
 	rlwinm	r0,r10,0,17,15		/* clear bit 16 (MSR_EE) */
 	rlwinm	r0,r0,0,28,26		/* clear MSR_DR */
 	mtmsr	r0
-	SYNC_601
 	isync
 
 	/* First find a PTE in the range that has _PAGE_HASHPTE set */
@@ -629,9 +628,9 @@ _GLOBAL(flush_hash_pages)
 #endif
 
 19:	mtmsr	r10
-	SYNC_601
 	isync
 	blr
+	.previous
 EXPORT_SYMBOL(flush_hash_pages)
 _ASM_NOKPROBE_SYMBOL(flush_hash_pages)
 
@@ -643,11 +642,9 @@ _GLOBAL(_tlbie)
 	lwz	r8,TASK_CPU(r2)
 	oris	r8,r8,11
 	mfmsr	r10
-	SYNC
 	rlwinm	r0,r10,0,17,15		/* clear bit 16 (MSR_EE) */
 	rlwinm	r0,r0,0,28,26		/* clear DR */
 	mtmsr	r0
-	SYNC_601
 	isync
 	lis	r9,mmu_hash_lock@h
 	ori	r9,r9,mmu_hash_lock@l
@@ -664,7 +661,6 @@ _GLOBAL(_tlbie)
 	li	r0,0
 	stw	r0,0(r9)		/* clear mmu_hash_lock */
 	mtmsr	r10
-	SYNC_601
 	isync
 #else /* CONFIG_SMP */
 	tlbie	r3
@@ -681,11 +677,9 @@ _GLOBAL(_tlbia)
 	lwz	r8,TASK_CPU(r2)
 	oris	r8,r8,10
 	mfmsr	r10
-	SYNC
 	rlwinm	r0,r10,0,17,15		/* clear bit 16 (MSR_EE) */
 	rlwinm	r0,r0,0,28,26		/* clear DR */
 	mtmsr	r0
-	SYNC_601
 	isync
 	lis	r9,mmu_hash_lock@h
 	ori	r9,r9,mmu_hash_lock@l
@@ -709,7 +703,6 @@ _GLOBAL(_tlbia)
 	li	r0,0
 	stw	r0,0(r9)		/* clear mmu_hash_lock */
 	mtmsr	r10
-	SYNC_601
 	isync
 #endif /* CONFIG_SMP */
 	blr

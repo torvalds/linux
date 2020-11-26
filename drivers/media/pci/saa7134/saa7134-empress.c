@@ -314,8 +314,7 @@ static int empress_fini(struct saa7134_dev *dev)
 	if (NULL == dev->empress_dev)
 		return 0;
 	flush_work(&dev->empress_workqueue);
-	video_unregister_device(dev->empress_dev);
-	vb2_queue_release(&dev->empress_vbq);
+	vb2_video_unregister_device(dev->empress_dev);
 	v4l2_ctrl_handler_free(&dev->empress_ctrl_handler);
 	dev->empress_dev = NULL;
 	return 0;

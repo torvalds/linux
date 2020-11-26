@@ -173,6 +173,7 @@
 			compatible = "atmel,24c02";
 			reg = <0x50>;
 
+			label = "module";
 			vcc-supply = <&vdd_1v8>;
 			address-width = <8>;
 			pagesize = <8>;

@@ -55,7 +55,7 @@
 		interrupts = <46 IRQ_TYPE_LEVEL_HIGH 0>;
 	};
 
-	memory {
+	memory@20000000 {
 		device_type = "memory";
 		reg = <0x20000000 0x8000000>;
 	};
@@ -83,6 +83,9 @@
 	sram: sram@300000 {
 		compatible = "mmio-sram";
 		reg = <0x00300000 0x20000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x00300000 0x20000>;
 	};
 
 	ahb {
@@ -1073,6 +1076,9 @@
 			compatible = "mmio-sram";
 			no-memory-wc;
 			reg = <0x200000 0x2400>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x200000 0x2400>;
 		};
 
 		usb0: gadget@500000 {

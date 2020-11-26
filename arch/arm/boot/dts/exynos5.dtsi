@@ -86,7 +86,7 @@
 		};
 
 		gic: interrupt-controller@10481000 {
-			compatible = "arm,gic-400", "arm,cortex-a15-gic", "arm,cortex-a9-gic";
+			compatible = "arm,gic-400", "arm,cortex-a15-gic";
 			#interrupt-cells = <3>;
 			interrupt-controller;
 			reg =	<0x10481000 0x1000>,
@@ -211,13 +211,13 @@
 		};
 
 		prng: rng@10830400 {
-		      compatible = "samsung,exynos5250-prng";
-		      reg = <0x10830400 0x200>;
+			compatible = "samsung,exynos5250-prng";
+			reg = <0x10830400 0x200>;
 		};
 
 		trng: rng@10830600 {
-		      compatible = "samsung,exynos5250-trng";
-		      reg = <0x10830600 0x100>;
+			compatible = "samsung,exynos5250-trng";
+			reg = <0x10830600 0x100>;
 		};
 
 		g2d: g2d@10850000 {

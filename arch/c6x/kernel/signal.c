@@ -220,7 +220,7 @@ handle_restart(struct pt_regs *regs, struct k_sigaction *ka, int has_handler)
 			regs->a4 = -EINTR;
 			break;
 		}
-	/* fallthrough */
+		fallthrough;
 	case -ERESTARTNOINTR:
 do_restart:
 		regs->a4 = regs->orig_a4;
@@ -252,7 +252,7 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs,
 				break;
 			}
 
-			/* fallthrough */
+			fallthrough;
 		case -ERESTARTNOINTR:
 			regs->a4 = regs->orig_a4;
 			regs->pc -= 4;
@@ -316,8 +316,6 @@ asmlinkage void do_notify_resume(struct pt_regs *regs, u32 thread_info_flags,
 	if (thread_info_flags & (1 << TIF_SIGPENDING))
 		do_signal(regs, syscall);
 
-	if (thread_info_flags & (1 << TIF_NOTIFY_RESUME)) {
-		clear_thread_flag(TIF_NOTIFY_RESUME);
+	if (thread_info_flags & (1 << TIF_NOTIFY_RESUME))
 		tracehook_notify_resume(regs);
-	}
 }

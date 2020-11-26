@@ -1348,7 +1348,7 @@ static int adjust_enet_interface(struct ucc_geth_private *ugeth)
 		switch (ugeth->max_speed) {
 		case SPEED_10:
 			upsmr |= UCC_GETH_UPSMR_R10M;
-			/* FALLTHROUGH */
+			fallthrough;
 		case SPEED_100:
 			if (ugeth->phy_interface != PHY_INTERFACE_MODE_RTBI)
 				upsmr |= UCC_GETH_UPSMR_RMM;
@@ -1358,7 +1358,7 @@ static int adjust_enet_interface(struct ucc_geth_private *ugeth)
 	    (ugeth->phy_interface == PHY_INTERFACE_MODE_RTBI)) {
 		upsmr |= UCC_GETH_UPSMR_TBIM;
 	}
-	if ((ugeth->phy_interface == PHY_INTERFACE_MODE_SGMII))
+	if (ugeth->phy_interface == PHY_INTERFACE_MODE_SGMII)
 		upsmr |= UCC_GETH_UPSMR_SGMM;
 
 	out_be32(&uf_regs->upsmr, upsmr);

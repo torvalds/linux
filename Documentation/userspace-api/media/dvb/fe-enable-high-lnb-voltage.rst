@@ -1,11 +1,5 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.fe
 
 .. _FE_ENABLE_HIGH_LNB_VOLTAGE:
 
@@ -18,19 +12,18 @@ Name
 
 FE_ENABLE_HIGH_LNB_VOLTAGE - Select output DC level between normal LNBf voltages or higher LNBf - voltages.
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, FE_ENABLE_HIGH_LNB_VOLTAGE, unsigned int high )
-    :name: FE_ENABLE_HIGH_LNB_VOLTAGE
+.. c:macro:: FE_ENABLE_HIGH_LNB_VOLTAGE
 
+``int ioctl(int fd, FE_ENABLE_HIGH_LNB_VOLTAGE, unsigned int high)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <frontend_f_open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``high``
     Valid flags:
@@ -40,14 +33,12 @@ Arguments
     -  >0 - enables slightly higher voltages instead of 13/18V, in order
        to compensate for long antenna cables.
 
-
 Description
 ===========
 
 Select output DC level between normal LNBf voltages or higher LNBf
 voltages between 0 (normal) or a value grater than 0 for higher
 voltages.
-
 
 Return Value
 ============

@@ -431,7 +431,7 @@ static void olpc_xo175_ec_complete(void *arg)
 			input_sync(priv->pwrbtn);
 			input_report_key(priv->pwrbtn, KEY_POWER, 0);
 			input_sync(priv->pwrbtn);
-			/* fall through */
+			fallthrough;
 		case EVENT_POWER_PRESS_WAKE:
 		case EVENT_TIMED_HOST_WAKE:
 			pm_wakeup_event(priv->pwrbtn->dev.parent,

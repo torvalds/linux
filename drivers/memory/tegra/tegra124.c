@@ -957,7 +957,6 @@ static const struct tegra_smmu_swgroup tegra124_swgroups[] = {
 static const unsigned int tegra124_group_drm[] = {
 	TEGRA_SWGROUP_DC,
 	TEGRA_SWGROUP_DCB,
-	TEGRA_SWGROUP_GPU,
 	TEGRA_SWGROUP_VIC,
 };
 

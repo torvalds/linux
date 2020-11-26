@@ -41,6 +41,13 @@ Contact:	Tomas Winkler <tomas.winkler@intel.com>
 Description:	Stores mei client fixed address, if any
 		Format: %d
 
+What:		/sys/bus/mei/devices/.../vtag
+Date:		Nov 2020
+KernelVersion:	5.9
+Contact:	Tomas Winkler <tomas.winkler@intel.com>
+Description:	Stores mei client vtag support status
+		Format: %d
+
 What:		/sys/bus/mei/devices/.../max_len
 Date:		Nov 2019
 KernelVersion:	5.5

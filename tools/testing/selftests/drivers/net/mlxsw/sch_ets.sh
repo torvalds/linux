@@ -27,11 +27,17 @@ switch_create()
 	# amount of traffic that is admitted to the shared buffers. This makes
 	# sure that there is always enough traffic of all types to select from
 	# for the DWRR process.
+	devlink_port_pool_th_save $swp1 0
 	devlink_port_pool_th_set $swp1 0 12
+	devlink_tc_bind_pool_th_save $swp1 0 ingress
 	devlink_tc_bind_pool_th_set $swp1 0 ingress 0 12
+	devlink_port_pool_th_save $swp2 4
 	devlink_port_pool_th_set $swp2 4 12
+	devlink_tc_bind_pool_th_save $swp2 7 egress
 	devlink_tc_bind_pool_th_set $swp2 7 egress 4 5
+	devlink_tc_bind_pool_th_save $swp2 6 egress
 	devlink_tc_bind_pool_th_set $swp2 6 egress 4 5
+	devlink_tc_bind_pool_th_save $swp2 5 egress
 	devlink_tc_bind_pool_th_set $swp2 5 egress 4 5
 
 	# Note: sch_ets_core.sh uses VLAN ingress-qos-map to assign packet

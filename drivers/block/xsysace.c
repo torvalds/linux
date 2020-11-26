@@ -443,11 +443,16 @@ static void ace_fix_driveid(u16 *id)
 #define ACE_FSM_NUM_STATES              11
 
 /* Set flag to exit FSM loop and reschedule tasklet */
-static inline void ace_fsm_yield(struct ace_device *ace)
+static inline void ace_fsm_yieldpoll(struct ace_device *ace)
 {
-	dev_dbg(ace->dev, "ace_fsm_yield()\n");
 	tasklet_schedule(&ace->fsm_tasklet);
 	ace->fsm_continue_flag = 0;
+}
+
+static inline void ace_fsm_yield(struct ace_device *ace)
+{
+	dev_dbg(ace->dev, "%s()\n", __func__);
+	ace_fsm_yieldpoll(ace);
 }
 
 /* Set flag to exit FSM loop and wait for IRQ to reschedule tasklet */
@@ -455,10 +460,10 @@ static inline void ace_fsm_yieldirq(struct ace_device *ace)
 {
 	dev_dbg(ace->dev, "ace_fsm_yieldirq()\n");
 
-	if (!ace->irq)
-		/* No IRQ assigned, so need to poll */
-		tasklet_schedule(&ace->fsm_tasklet);
-	ace->fsm_continue_flag = 0;
+	if (ace->irq > 0)
+		ace->fsm_continue_flag = 0;
+	else
+		ace_fsm_yieldpoll(ace);
 }
 
 static bool ace_has_next_request(struct request_queue *q)
@@ -888,26 +893,20 @@ static unsigned int ace_check_events(struct gendisk *gd, unsigned int clearing)
 	return ace->media_change ? DISK_EVENT_MEDIA_CHANGE : 0;
 }
 
-static int ace_revalidate_disk(struct gendisk *gd)
+static void ace_media_changed(struct ace_device *ace)
 {
-	struct ace_device *ace = gd->private_data;
 	unsigned long flags;
 
-	dev_dbg(ace->dev, "ace_revalidate_disk()\n");
+	dev_dbg(ace->dev, "requesting cf id and scheduling tasklet\n");
 
-	if (ace->media_change) {
-		dev_dbg(ace->dev, "requesting cf id and scheduling tasklet\n");
+	spin_lock_irqsave(&ace->lock, flags);
+	ace->id_req_count++;
+	spin_unlock_irqrestore(&ace->lock, flags);
 
-		spin_lock_irqsave(&ace->lock, flags);
-		ace->id_req_count++;
-		spin_unlock_irqrestore(&ace->lock, flags);
-
-		tasklet_schedule(&ace->fsm_tasklet);
-		wait_for_completion(&ace->id_completion);
-	}
+	tasklet_schedule(&ace->fsm_tasklet);
+	wait_for_completion(&ace->id_completion);
 
 	dev_dbg(ace->dev, "revalidate complete\n");
-	return ace->id_result;
 }
 
 static int ace_open(struct block_device *bdev, fmode_t mode)
@@ -922,7 +921,8 @@ static int ace_open(struct block_device *bdev, fmode_t mode)
 	ace->users++;
 	spin_unlock_irqrestore(&ace->lock, flags);
 
-	check_disk_change(bdev);
+	if (bdev_check_media_change(bdev) && ace->media_change)
+		ace_media_changed(ace);
 	mutex_unlock(&xsysace_mutex);
 
 	return 0;
@@ -966,7 +966,6 @@ static const struct block_device_operations ace_fops = {
 	.open = ace_open,
 	.release = ace_release,
 	.check_events = ace_check_events,
-	.revalidate_disk = ace_revalidate_disk,
 	.getgeo = ace_getgeo,
 };
 
@@ -1059,12 +1058,12 @@ static int ace_setup(struct ace_device *ace)
 		ACE_CTRL_DATABUFRDYIRQ | ACE_CTRL_ERRORIRQ);
 
 	/* Now we can hook up the irq handler */
-	if (ace->irq) {
+	if (ace->irq > 0) {
 		rc = request_irq(ace->irq, ace_interrupt, 0, "systemace", ace);
 		if (rc) {
 			/* Failure - fall back to polled mode */
 			dev_err(ace->dev, "request_irq failed\n");
-			ace->irq = 0;
+			ace->irq = rc;
 		}
 	}
 
@@ -1080,7 +1079,7 @@ static int ace_setup(struct ace_device *ace)
 		(unsigned long long) ace->physaddr, ace->baseaddr, ace->irq);
 
 	ace->media_change = 1;
-	ace_revalidate_disk(ace->gd);
+	ace_media_changed(ace);
 
 	/* Make the sysace device 'live' */
 	add_disk(ace->gd);
@@ -1116,7 +1115,7 @@ static void ace_teardown(struct ace_device *ace)
 
 	tasklet_kill(&ace->fsm_tasklet);
 
-	if (ace->irq)
+	if (ace->irq > 0)
 		free_irq(ace->irq, ace);
 
 	iounmap(ace->baseaddr);
@@ -1128,11 +1127,6 @@ static int ace_alloc(struct device *dev, int id, resource_size_t physaddr,
 	struct ace_device *ace;
 	int rc;
 	dev_dbg(dev, "ace_alloc(%p)\n", dev);
-
-	if (!physaddr) {
-		rc = -ENODEV;
-		goto err_noreg;
-	}
 
 	/* Allocate and initialize the ace device structure */
 	ace = kzalloc(sizeof(struct ace_device), GFP_KERNEL);
@@ -1159,7 +1153,6 @@ err_setup:
 	dev_set_drvdata(dev, NULL);
 	kfree(ace);
 err_alloc:
-err_noreg:
 	dev_err(dev, "could not initialize device, err=%i\n", rc);
 	return rc;
 }
@@ -1182,10 +1175,11 @@ static void ace_free(struct device *dev)
 
 static int ace_probe(struct platform_device *dev)
 {
-	resource_size_t physaddr = 0;
 	int bus_width = ACE_BUS_WIDTH_16; /* FIXME: should not be hard coded */
+	resource_size_t physaddr;
+	struct resource *res;
 	u32 id = dev->id;
-	int irq = 0;
+	int irq;
 	int i;
 
 	dev_dbg(&dev->dev, "ace_probe(%p)\n", dev);
@@ -1196,12 +1190,15 @@ static int ace_probe(struct platform_device *dev)
 	if (of_find_property(dev->dev.of_node, "8-bit", NULL))
 		bus_width = ACE_BUS_WIDTH_8;
 
-	for (i = 0; i < dev->num_resources; i++) {
-		if (dev->resource[i].flags & IORESOURCE_MEM)
-			physaddr = dev->resource[i].start;
-		if (dev->resource[i].flags & IORESOURCE_IRQ)
-			irq = dev->resource[i].start;
-	}
+	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
+	if (!res)
+		return -EINVAL;
+
+	physaddr = res->start;
+	if (!physaddr)
+		return -ENODEV;
+
+	irq = platform_get_irq_optional(dev, 0);
 
 	/* Call the bus-independent setup code */
 	return ace_alloc(&dev->dev, id, physaddr, irq, bus_width);

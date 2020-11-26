@@ -387,8 +387,8 @@ static int alloc_retstack_tasklist(struct ftrace_ret_stack **ret_stack_list)
 		}
 	}
 
-	read_lock(&tasklist_lock);
-	do_each_thread(g, t) {
+	rcu_read_lock();
+	for_each_process_thread(g, t) {
 		if (start == end) {
 			ret = -EAGAIN;
 			goto unlock;
@@ -403,10 +403,10 @@ static int alloc_retstack_tasklist(struct ftrace_ret_stack **ret_stack_list)
 			smp_wmb();
 			t->ret_stack = ret_stack_list[start++];
 		}
-	} while_each_thread(g, t);
+	}
 
 unlock:
-	read_unlock(&tasklist_lock);
+	rcu_read_unlock();
 free:
 	for (i = start; i < end; i++)
 		kfree(ret_stack_list[i]);

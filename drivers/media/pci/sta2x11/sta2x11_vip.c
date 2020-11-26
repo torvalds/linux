@@ -1101,12 +1101,11 @@ static int sta2x11_vip_init_one(struct pci_dev *pdev,
 vunreg:
 	video_set_drvdata(&vip->video_dev, NULL);
 vrelease:
-	video_unregister_device(&vip->video_dev);
+	vb2_video_unregister_device(&vip->video_dev);
 	free_irq(pdev->irq, vip);
 release_buf:
 	pci_disable_msi(pdev);
 unmap:
-	vb2_queue_release(&vip->vb_vidq);
 	pci_iounmap(pdev, vip->iomem);
 release:
 	pci_release_regions(pdev);
@@ -1146,10 +1145,9 @@ static void sta2x11_vip_remove_one(struct pci_dev *pdev)
 	sta2x11_vip_clear_register(vip);
 
 	video_set_drvdata(&vip->video_dev, NULL);
-	video_unregister_device(&vip->video_dev);
+	vb2_video_unregister_device(&vip->video_dev);
 	free_irq(pdev->irq, vip);
 	pci_disable_msi(pdev);
-	vb2_queue_release(&vip->vb_vidq);
 	pci_iounmap(pdev, vip->iomem);
 	pci_release_regions(pdev);
 

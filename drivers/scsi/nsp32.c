@@ -1247,7 +1247,7 @@ static irqreturn_t do_nsp32_isr(int irq, void *dev_id)
 				 *   ---> AutoSCSI with MSGOUTreg is processed.
 				 */
 				data->msgout_len = 0;
-			};
+			}
 
 			nsp32_dbg(NSP32_DEBUG_INTR, "MsgOut phase processed");
 		}
@@ -1839,7 +1839,7 @@ static void nsp32_msgout_occur(struct scsi_cmnd *SCpnt)
 
 		nsp32_dbg(NSP32_DEBUG_MSGOUTOCCUR, "bus: 0x%x\n",
 			  nsp32_read1(base, SCSI_BUS_MONITOR));
-	};
+	}
 
 	data->msgout_len = 0;
 

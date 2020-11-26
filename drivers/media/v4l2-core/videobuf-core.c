@@ -354,7 +354,7 @@ static void videobuf_status(struct videobuf_queue *q, struct v4l2_buffer *b,
 		break;
 	case VIDEOBUF_ERROR:
 		b->flags |= V4L2_BUF_FLAG_ERROR;
-		/* fall through */
+		fallthrough;
 	case VIDEOBUF_DONE:
 		b->flags |= V4L2_BUF_FLAG_DONE;
 		break;

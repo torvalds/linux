@@ -168,6 +168,7 @@ struct rdt_resource rdt_resources_all[] = {
 		.name			= "MB",
 		.domains		= domain_init(RDT_RESOURCE_MBA),
 		.cache_level		= 3,
+		.parse_ctrlval		= parse_bw,
 		.format_str		= "%d=%*u",
 		.fflags			= RFTYPE_RES_MB,
 	},
@@ -254,21 +255,29 @@ static bool __get_mem_config_intel(struct rdt_resource *r)
 {
 	union cpuid_0x10_3_eax eax;
 	union cpuid_0x10_x_edx edx;
-	u32 ebx, ecx;
+	u32 ebx, ecx, max_delay;
 
 	cpuid_count(0x00000010, 3, &eax.full, &ebx, &ecx, &edx.full);
 	r->num_closid = edx.split.cos_max + 1;
-	r->membw.max_delay = eax.split.max_delay + 1;
+	max_delay = eax.split.max_delay + 1;
 	r->default_ctrl = MAX_MBA_BW;
+	r->membw.arch_needs_linear = true;
 	if (ecx & MBA_IS_LINEAR) {
 		r->membw.delay_linear = true;
-		r->membw.min_bw = MAX_MBA_BW - r->membw.max_delay;
-		r->membw.bw_gran = MAX_MBA_BW - r->membw.max_delay;
+		r->membw.min_bw = MAX_MBA_BW - max_delay;
+		r->membw.bw_gran = MAX_MBA_BW - max_delay;
 	} else {
 		if (!rdt_get_mb_table(r))
 			return false;
+		r->membw.arch_needs_linear = false;
 	}
 	r->data_width = 3;
+
+	if (boot_cpu_has(X86_FEATURE_PER_THREAD_MBA))
+		r->membw.throttle_mode = THREAD_THROTTLE_PER_THREAD;
+	else
+		r->membw.throttle_mode = THREAD_THROTTLE_MAX;
+	thread_throttle_mode_init();
 
 	r->alloc_capable = true;
 	r->alloc_enabled = true;
@@ -288,7 +297,13 @@ static bool __rdt_get_mem_config_amd(struct rdt_resource *r)
 
 	/* AMD does not use delay */
 	r->membw.delay_linear = false;
+	r->membw.arch_needs_linear = false;
 
+	/*
+	 * AMD does not use memory delay throttle model to control
+	 * the allocation like Intel does.
+	 */
+	r->membw.throttle_mode = THREAD_THROTTLE_UNDEFINED;
 	r->membw.min_bw = 0;
 	r->membw.bw_gran = 1;
 	/* Max value is 2048, Data width should be 4 in decimal */
@@ -344,19 +359,6 @@ static void rdt_get_cdp_l2_config(void)
 {
 	rdt_get_cdp_config(RDT_RESOURCE_L2, RDT_RESOURCE_L2DATA);
 	rdt_get_cdp_config(RDT_RESOURCE_L2, RDT_RESOURCE_L2CODE);
-}
-
-static int get_cache_id(int cpu, int level)
-{
-	struct cpu_cacheinfo *ci = get_cpu_cacheinfo(cpu);
-	int i;
-
-	for (i = 0; i < ci->num_leaves; i++) {
-		if (ci->info_list[i].level == level)
-			return ci->info_list[i].id;
-	}
-
-	return -1;
 }
 
 static void
@@ -556,13 +558,13 @@ static int domain_setup_mon_state(struct rdt_resource *r, struct rdt_domain *d)
  */
 static void domain_add_cpu(int cpu, struct rdt_resource *r)
 {
-	int id = get_cache_id(cpu, r->cache_level);
+	int id = get_cpu_cacheinfo_id(cpu, r->cache_level);
 	struct list_head *add_pos = NULL;
 	struct rdt_domain *d;
 
 	d = rdt_find_domain(r, id, &add_pos);
 	if (IS_ERR(d)) {
-		pr_warn("Could't find cache id for cpu %d\n", cpu);
+		pr_warn("Couldn't find cache id for CPU %d\n", cpu);
 		return;
 	}
 
@@ -602,12 +604,12 @@ static void domain_add_cpu(int cpu, struct rdt_resource *r)
 
 static void domain_remove_cpu(int cpu, struct rdt_resource *r)
 {
-	int id = get_cache_id(cpu, r->cache_level);
+	int id = get_cpu_cacheinfo_id(cpu, r->cache_level);
 	struct rdt_domain *d;
 
 	d = rdt_find_domain(r, id, NULL);
 	if (IS_ERR_OR_NULL(d)) {
-		pr_warn("Could't find cache id for cpu %d\n", cpu);
+		pr_warn("Couldn't find cache id for CPU %d\n", cpu);
 		return;
 	}
 
@@ -918,12 +920,12 @@ static __init void rdt_init_res_defs_intel(void)
 		    r->rid == RDT_RESOURCE_L3CODE ||
 		    r->rid == RDT_RESOURCE_L2 ||
 		    r->rid == RDT_RESOURCE_L2DATA ||
-		    r->rid == RDT_RESOURCE_L2CODE)
-			r->cbm_validate = cbm_validate_intel;
-		else if (r->rid == RDT_RESOURCE_MBA) {
+		    r->rid == RDT_RESOURCE_L2CODE) {
+			r->cache.arch_has_sparse_bitmaps = false;
+			r->cache.arch_has_empty_bitmaps = false;
+		} else if (r->rid == RDT_RESOURCE_MBA) {
 			r->msr_base = MSR_IA32_MBA_THRTL_BASE;
 			r->msr_update = mba_wrmsr_intel;
-			r->parse_ctrlval = parse_bw_intel;
 		}
 	}
 }
@@ -938,12 +940,12 @@ static __init void rdt_init_res_defs_amd(void)
 		    r->rid == RDT_RESOURCE_L3CODE ||
 		    r->rid == RDT_RESOURCE_L2 ||
 		    r->rid == RDT_RESOURCE_L2DATA ||
-		    r->rid == RDT_RESOURCE_L2CODE)
-			r->cbm_validate = cbm_validate_amd;
-		else if (r->rid == RDT_RESOURCE_MBA) {
+		    r->rid == RDT_RESOURCE_L2CODE) {
+			r->cache.arch_has_sparse_bitmaps = true;
+			r->cache.arch_has_empty_bitmaps = true;
+		} else if (r->rid == RDT_RESOURCE_MBA) {
 			r->msr_base = MSR_IA32_MBA_BW_BASE;
 			r->msr_update = mba_wrmsr_amd;
-			r->parse_ctrlval = parse_bw_amd;
 		}
 	}
 }

@@ -12,6 +12,7 @@
 #include <stdbool.h>
 #include <linux/auxvec.h>
 #include <linux/perf_event.h>
+#include <asm/cputable.h>
 #include "reg.h"
 
 /* Avoid headaches with PRI?64 - just use %ll? always */
@@ -35,12 +36,16 @@ int pick_online_cpu(void);
 int read_debugfs_file(char *debugfs_file, int *result);
 int write_debugfs_file(char *debugfs_file, int result);
 int read_sysfs_file(char *debugfs_file, char *result, size_t result_size);
-void set_dscr(unsigned long val);
 int perf_event_open_counter(unsigned int type,
 			    unsigned long config, int group_fd);
 int perf_event_enable(int fd);
 int perf_event_disable(int fd);
 int perf_event_reset(int fd);
+
+struct perf_event_read {
+	__u64 nr;
+	__u64 l1d_misses;
+};
 
 #if !defined(__GLIBC_PREREQ) || !__GLIBC_PREREQ(2, 30)
 #include <unistd.h>

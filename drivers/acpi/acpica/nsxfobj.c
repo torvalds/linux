@@ -24,7 +24,8 @@ ACPI_MODULE_NAME("nsxfobj")
  *
  * RETURN:      Status
  *
- * DESCRIPTION: This routine returns the type associatd with a particular handle
+ * DESCRIPTION: This routine returns the type associated with a particular
+ *              handle
  *
  ******************************************************************************/
 acpi_status acpi_get_type(acpi_handle handle, acpi_object_type *ret_type)

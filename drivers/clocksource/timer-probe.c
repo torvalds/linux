@@ -11,7 +11,7 @@
 extern struct of_device_id __timer_of_table[];
 
 static const struct of_device_id __timer_of_table_sentinel
-	__used __section(__timer_of_table_end);
+	__used __section("__timer_of_table_end");
 
 void __init timer_probe(void)
 {

@@ -2238,6 +2238,10 @@ static int compat_do_ebt_get_ctl(struct sock *sk, int cmd,
 	struct ebt_table *t;
 	struct net *net = sock_net(sk);
 
+	if ((cmd == EBT_SO_GET_INFO || cmd == EBT_SO_GET_INIT_INFO) &&
+	    *len != sizeof(struct compat_ebt_replace))
+		return -EINVAL;
+
 	if (copy_from_user(&tmp, user, sizeof(tmp)))
 		return -EFAULT;
 

@@ -78,8 +78,8 @@ extern ssize_t add_to_pipe(struct pipe_inode_info *,
 			      struct pipe_buffer *);
 extern ssize_t splice_direct_to_actor(struct file *, struct splice_desc *,
 				      splice_direct_actor *);
-extern long do_splice(struct file *in, loff_t __user *off_in,
-		      struct file *out, loff_t __user *off_out,
+extern long do_splice(struct file *in, loff_t *off_in,
+		      struct file *out, loff_t *off_out,
 		      size_t len, unsigned int flags);
 
 extern long do_tee(struct file *in, struct file *out, size_t len,

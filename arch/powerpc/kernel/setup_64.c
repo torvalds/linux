@@ -66,6 +66,7 @@
 #include <asm/feature-fixups.h>
 #include <asm/kup.h>
 #include <asm/early_ioremap.h>
+#include <asm/pgalloc.h>
 
 #include "setup.h"
 
@@ -756,17 +757,46 @@ void __init emergency_stack_init(void)
 }
 
 #ifdef CONFIG_SMP
-#define PCPU_DYN_SIZE		()
-
-static void * __init pcpu_fc_alloc(unsigned int cpu, size_t size, size_t align)
+/**
+ * pcpu_alloc_bootmem - NUMA friendly alloc_bootmem wrapper for percpu
+ * @cpu: cpu to allocate for
+ * @size: size allocation in bytes
+ * @align: alignment
+ *
+ * Allocate @size bytes aligned at @align for cpu @cpu.  This wrapper
+ * does the right thing for NUMA regardless of the current
+ * configuration.
+ *
+ * RETURNS:
+ * Pointer to the allocated area on success, NULL on failure.
+ */
+static void * __init pcpu_alloc_bootmem(unsigned int cpu, size_t size,
+					size_t align)
 {
-	return memblock_alloc_try_nid(size, align, __pa(MAX_DMA_ADDRESS),
-				      MEMBLOCK_ALLOC_ACCESSIBLE,
-				      early_cpu_to_node(cpu));
+	const unsigned long goal = __pa(MAX_DMA_ADDRESS);
+#ifdef CONFIG_NEED_MULTIPLE_NODES
+	int node = early_cpu_to_node(cpu);
+	void *ptr;
 
+	if (!node_online(node) || !NODE_DATA(node)) {
+		ptr = memblock_alloc_from(size, align, goal);
+		pr_info("cpu %d has no node %d or node-local memory\n",
+			cpu, node);
+		pr_debug("per cpu data for cpu%d %lu bytes at %016lx\n",
+			 cpu, size, __pa(ptr));
+	} else {
+		ptr = memblock_alloc_try_nid(size, align, goal,
+					     MEMBLOCK_ALLOC_ACCESSIBLE, node);
+		pr_debug("per cpu data for cpu%d %lu bytes on node%d at "
+			 "%016lx\n", cpu, size, node, __pa(ptr));
+	}
+	return ptr;
+#else
+	return memblock_alloc_from(size, align, goal);
+#endif
 }
 
-static void __init pcpu_fc_free(void *ptr, size_t size)
+static void __init pcpu_free_bootmem(void *ptr, size_t size)
 {
 	memblock_free(__pa(ptr), size);
 }
@@ -782,13 +812,58 @@ static int pcpu_cpu_distance(unsigned int from, unsigned int to)
 unsigned long __per_cpu_offset[NR_CPUS] __read_mostly;
 EXPORT_SYMBOL(__per_cpu_offset);
 
+static void __init pcpu_populate_pte(unsigned long addr)
+{
+	pgd_t *pgd = pgd_offset_k(addr);
+	p4d_t *p4d;
+	pud_t *pud;
+	pmd_t *pmd;
+
+	p4d = p4d_offset(pgd, addr);
+	if (p4d_none(*p4d)) {
+		pud_t *new;
+
+		new = memblock_alloc(PUD_TABLE_SIZE, PUD_TABLE_SIZE);
+		if (!new)
+			goto err_alloc;
+		p4d_populate(&init_mm, p4d, new);
+	}
+
+	pud = pud_offset(p4d, addr);
+	if (pud_none(*pud)) {
+		pmd_t *new;
+
+		new = memblock_alloc(PMD_TABLE_SIZE, PMD_TABLE_SIZE);
+		if (!new)
+			goto err_alloc;
+		pud_populate(&init_mm, pud, new);
+	}
+
+	pmd = pmd_offset(pud, addr);
+	if (!pmd_present(*pmd)) {
+		pte_t *new;
+
+		new = memblock_alloc(PTE_TABLE_SIZE, PTE_TABLE_SIZE);
+		if (!new)
+			goto err_alloc;
+		pmd_populate_kernel(&init_mm, pmd, new);
+	}
+
+	return;
+
+err_alloc:
+	panic("%s: Failed to allocate %lu bytes align=%lx from=%lx\n",
+	      __func__, PAGE_SIZE, PAGE_SIZE, PAGE_SIZE);
+}
+
+
 void __init setup_per_cpu_areas(void)
 {
 	const size_t dyn_size = PERCPU_MODULE_RESERVE + PERCPU_DYNAMIC_RESERVE;
 	size_t atom_size;
 	unsigned long delta;
 	unsigned int cpu;
-	int rc;
+	int rc = -EINVAL;
 
 	/*
 	 * Linear mapping is one of 4K, 1M and 16M.  For 4K, no need
@@ -800,8 +875,18 @@ void __init setup_per_cpu_areas(void)
 	else
 		atom_size = 1 << 20;
 
-	rc = pcpu_embed_first_chunk(0, dyn_size, atom_size, pcpu_cpu_distance,
-				    pcpu_fc_alloc, pcpu_fc_free);
+	if (pcpu_chosen_fc != PCPU_FC_PAGE) {
+		rc = pcpu_embed_first_chunk(0, dyn_size, atom_size, pcpu_cpu_distance,
+					    pcpu_alloc_bootmem, pcpu_free_bootmem);
+		if (rc)
+			pr_warn("PERCPU: %s allocator failed (%d), "
+				"falling back to page size\n",
+				pcpu_fc_names[pcpu_chosen_fc], rc);
+	}
+
+	if (rc < 0)
+		rc = pcpu_page_first_chunk(0, pcpu_alloc_bootmem, pcpu_free_bootmem,
+					   pcpu_populate_pte);
 	if (rc < 0)
 		panic("cannot initialize percpu area (err=%d)", rc);
 
@@ -860,7 +945,13 @@ early_initcall(disable_hardlockup_detector);
 static enum l1d_flush_type enabled_flush_types;
 static void *l1d_flush_fallback_area;
 static bool no_rfi_flush;
+static bool no_entry_flush;
+static bool no_uaccess_flush;
 bool rfi_flush;
+bool entry_flush;
+bool uaccess_flush;
+DEFINE_STATIC_KEY_FALSE(uaccess_flush_key);
+EXPORT_SYMBOL(uaccess_flush_key);
 
 static int __init handle_no_rfi_flush(char *p)
 {
@@ -869,6 +960,22 @@ static int __init handle_no_rfi_flush(char *p)
 	return 0;
 }
 early_param("no_rfi_flush", handle_no_rfi_flush);
+
+static int __init handle_no_entry_flush(char *p)
+{
+	pr_info("entry-flush: disabled on command line.");
+	no_entry_flush = true;
+	return 0;
+}
+early_param("no_entry_flush", handle_no_entry_flush);
+
+static int __init handle_no_uaccess_flush(char *p)
+{
+	pr_info("uaccess-flush: disabled on command line.");
+	no_uaccess_flush = true;
+	return 0;
+}
+early_param("no_uaccess_flush", handle_no_uaccess_flush);
 
 /*
  * The RFI flush is not KPTI, but because users will see doco that says to use
@@ -899,6 +1006,32 @@ void rfi_flush_enable(bool enable)
 		do_rfi_flush_fixups(L1D_FLUSH_NONE);
 
 	rfi_flush = enable;
+}
+
+void entry_flush_enable(bool enable)
+{
+	if (enable) {
+		do_entry_flush_fixups(enabled_flush_types);
+		on_each_cpu(do_nothing, NULL, 1);
+	} else {
+		do_entry_flush_fixups(L1D_FLUSH_NONE);
+	}
+
+	entry_flush = enable;
+}
+
+void uaccess_flush_enable(bool enable)
+{
+	if (enable) {
+		do_uaccess_flush_fixups(enabled_flush_types);
+		static_branch_enable(&uaccess_flush_key);
+		on_each_cpu(do_nothing, NULL, 1);
+	} else {
+		static_branch_disable(&uaccess_flush_key);
+		do_uaccess_flush_fixups(L1D_FLUSH_NONE);
+	}
+
+	uaccess_flush = enable;
 }
 
 static void __ref init_fallback_flush(void)
@@ -959,8 +1092,26 @@ void setup_rfi_flush(enum l1d_flush_type types, bool enable)
 
 	enabled_flush_types = types;
 
-	if (!no_rfi_flush && !cpu_mitigations_off())
+	if (!cpu_mitigations_off() && !no_rfi_flush)
 		rfi_flush_enable(enable);
+}
+
+void setup_entry_flush(bool enable)
+{
+	if (cpu_mitigations_off())
+		return;
+
+	if (!no_entry_flush)
+		entry_flush_enable(enable);
+}
+
+void setup_uaccess_flush(bool enable)
+{
+	if (cpu_mitigations_off())
+		return;
+
+	if (!no_uaccess_flush)
+		uaccess_flush_enable(enable);
 }
 
 #ifdef CONFIG_DEBUG_FS
@@ -990,9 +1141,63 @@ static int rfi_flush_get(void *data, u64 *val)
 
 DEFINE_SIMPLE_ATTRIBUTE(fops_rfi_flush, rfi_flush_get, rfi_flush_set, "%llu\n");
 
+static int entry_flush_set(void *data, u64 val)
+{
+	bool enable;
+
+	if (val == 1)
+		enable = true;
+	else if (val == 0)
+		enable = false;
+	else
+		return -EINVAL;
+
+	/* Only do anything if we're changing state */
+	if (enable != entry_flush)
+		entry_flush_enable(enable);
+
+	return 0;
+}
+
+static int entry_flush_get(void *data, u64 *val)
+{
+	*val = entry_flush ? 1 : 0;
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(fops_entry_flush, entry_flush_get, entry_flush_set, "%llu\n");
+
+static int uaccess_flush_set(void *data, u64 val)
+{
+	bool enable;
+
+	if (val == 1)
+		enable = true;
+	else if (val == 0)
+		enable = false;
+	else
+		return -EINVAL;
+
+	/* Only do anything if we're changing state */
+	if (enable != uaccess_flush)
+		uaccess_flush_enable(enable);
+
+	return 0;
+}
+
+static int uaccess_flush_get(void *data, u64 *val)
+{
+	*val = uaccess_flush ? 1 : 0;
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(fops_uaccess_flush, uaccess_flush_get, uaccess_flush_set, "%llu\n");
+
 static __init int rfi_flush_debugfs_init(void)
 {
 	debugfs_create_file("rfi_flush", 0600, powerpc_debugfs_root, NULL, &fops_rfi_flush);
+	debugfs_create_file("entry_flush", 0600, powerpc_debugfs_root, NULL, &fops_entry_flush);
+	debugfs_create_file("uaccess_flush", 0600, powerpc_debugfs_root, NULL, &fops_uaccess_flush);
 	return 0;
 }
 device_initcall(rfi_flush_debugfs_init);

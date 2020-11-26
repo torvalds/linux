@@ -56,8 +56,6 @@ kecho := $($(quiet)kecho)
 # - If no file exist it is created
 # - If the content differ the new file is used
 # - If they are equal no change, and no timestamp update
-# - stdin is piped in from the first prerequisite ($<) so one has
-#   to specify a valid file as first prerequisite (often the kbuild file)
 define filechk
 	$(Q)set -e;						\
 	mkdir -p $(dir $@);					\

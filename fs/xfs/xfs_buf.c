@@ -52,6 +52,15 @@ static kmem_zone_t *xfs_buf_zone;
  *	  b_lock (trylock due to inversion)
  */
 
+static int __xfs_buf_submit(struct xfs_buf *bp, bool wait);
+
+static inline int
+xfs_buf_submit(
+	struct xfs_buf		*bp)
+{
+	return __xfs_buf_submit(bp, !(bp->b_flags & XBF_ASYNC));
+}
+
 static inline int
 xfs_buf_is_vmapped(
 	struct xfs_buf	*bp)
@@ -751,7 +760,7 @@ found:
 	return 0;
 }
 
-STATIC int
+int
 _xfs_buf_read(
 	xfs_buf_t		*bp,
 	xfs_buf_flags_t		flags)
@@ -759,7 +768,7 @@ _xfs_buf_read(
 	ASSERT(!(flags & XBF_WRITE));
 	ASSERT(bp->b_maps[0].bm_bn != XFS_BUF_DADDR_NULL);
 
-	bp->b_flags &= ~(XBF_WRITE | XBF_ASYNC | XBF_READ_AHEAD);
+	bp->b_flags &= ~(XBF_WRITE | XBF_ASYNC | XBF_READ_AHEAD | XBF_DONE);
 	bp->b_flags |= flags & (XBF_READ | XBF_ASYNC | XBF_READ_AHEAD);
 
 	return xfs_buf_submit(bp);
@@ -1170,19 +1179,144 @@ xfs_buf_wait_unpin(
 	set_current_state(TASK_RUNNING);
 }
 
-/*
- *	Buffer Utility Routines
- */
+static void
+xfs_buf_ioerror_alert_ratelimited(
+	struct xfs_buf		*bp)
+{
+	static unsigned long	lasttime;
+	static struct xfs_buftarg *lasttarg;
 
-void
+	if (bp->b_target != lasttarg ||
+	    time_after(jiffies, (lasttime + 5*HZ))) {
+		lasttime = jiffies;
+		xfs_buf_ioerror_alert(bp, __this_address);
+	}
+	lasttarg = bp->b_target;
+}
+
+/*
+ * Account for this latest trip around the retry handler, and decide if
+ * we've failed enough times to constitute a permanent failure.
+ */
+static bool
+xfs_buf_ioerror_permanent(
+	struct xfs_buf		*bp,
+	struct xfs_error_cfg	*cfg)
+{
+	struct xfs_mount	*mp = bp->b_mount;
+
+	if (cfg->max_retries != XFS_ERR_RETRY_FOREVER &&
+	    ++bp->b_retries > cfg->max_retries)
+		return true;
+	if (cfg->retry_timeout != XFS_ERR_RETRY_FOREVER &&
+	    time_after(jiffies, cfg->retry_timeout + bp->b_first_retry_time))
+		return true;
+
+	/* At unmount we may treat errors differently */
+	if ((mp->m_flags & XFS_MOUNT_UNMOUNTING) && mp->m_fail_unmount)
+		return true;
+
+	return false;
+}
+
+/*
+ * On a sync write or shutdown we just want to stale the buffer and let the
+ * caller handle the error in bp->b_error appropriately.
+ *
+ * If the write was asynchronous then no one will be looking for the error.  If
+ * this is the first failure of this type, clear the error state and write the
+ * buffer out again. This means we always retry an async write failure at least
+ * once, but we also need to set the buffer up to behave correctly now for
+ * repeated failures.
+ *
+ * If we get repeated async write failures, then we take action according to the
+ * error configuration we have been set up to use.
+ *
+ * Returns true if this function took care of error handling and the caller must
+ * not touch the buffer again.  Return false if the caller should proceed with
+ * normal I/O completion handling.
+ */
+static bool
+xfs_buf_ioend_handle_error(
+	struct xfs_buf		*bp)
+{
+	struct xfs_mount	*mp = bp->b_mount;
+	struct xfs_error_cfg	*cfg;
+
+	/*
+	 * If we've already decided to shutdown the filesystem because of I/O
+	 * errors, there's no point in giving this a retry.
+	 */
+	if (XFS_FORCED_SHUTDOWN(mp))
+		goto out_stale;
+
+	xfs_buf_ioerror_alert_ratelimited(bp);
+
+	/*
+	 * We're not going to bother about retrying this during recovery.
+	 * One strike!
+	 */
+	if (bp->b_flags & _XBF_LOGRECOVERY) {
+		xfs_force_shutdown(mp, SHUTDOWN_META_IO_ERROR);
+		return false;
+	}
+
+	/*
+	 * Synchronous writes will have callers process the error.
+	 */
+	if (!(bp->b_flags & XBF_ASYNC))
+		goto out_stale;
+
+	trace_xfs_buf_iodone_async(bp, _RET_IP_);
+
+	cfg = xfs_error_get_cfg(mp, XFS_ERR_METADATA, bp->b_error);
+	if (bp->b_last_error != bp->b_error ||
+	    !(bp->b_flags & (XBF_STALE | XBF_WRITE_FAIL))) {
+		bp->b_last_error = bp->b_error;
+		if (cfg->retry_timeout != XFS_ERR_RETRY_FOREVER &&
+		    !bp->b_first_retry_time)
+			bp->b_first_retry_time = jiffies;
+		goto resubmit;
+	}
+
+	/*
+	 * Permanent error - we need to trigger a shutdown if we haven't already
+	 * to indicate that inconsistency will result from this action.
+	 */
+	if (xfs_buf_ioerror_permanent(bp, cfg)) {
+		xfs_force_shutdown(mp, SHUTDOWN_META_IO_ERROR);
+		goto out_stale;
+	}
+
+	/* Still considered a transient error. Caller will schedule retries. */
+	if (bp->b_flags & _XBF_INODES)
+		xfs_buf_inode_io_fail(bp);
+	else if (bp->b_flags & _XBF_DQUOTS)
+		xfs_buf_dquot_io_fail(bp);
+	else
+		ASSERT(list_empty(&bp->b_li_list));
+	xfs_buf_ioerror(bp, 0);
+	xfs_buf_relse(bp);
+	return true;
+
+resubmit:
+	xfs_buf_ioerror(bp, 0);
+	bp->b_flags |= (XBF_DONE | XBF_WRITE_FAIL);
+	xfs_buf_submit(bp);
+	return true;
+out_stale:
+	xfs_buf_stale(bp);
+	bp->b_flags |= XBF_DONE;
+	bp->b_flags &= ~XBF_WRITE;
+	trace_xfs_buf_error_relse(bp, _RET_IP_);
+	return false;
+}
+
+static void
 xfs_buf_ioend(
 	struct xfs_buf	*bp)
 {
-	bool		read = bp->b_flags & XBF_READ;
-
 	trace_xfs_buf_iodone(bp, _RET_IP_);
-
-	bp->b_flags &= ~(XBF_READ | XBF_WRITE | XBF_READ_AHEAD);
 
 	/*
 	 * Pull in IO completion errors now. We are guaranteed to be running
@@ -1191,39 +1325,47 @@ xfs_buf_ioend(
 	if (!bp->b_error && bp->b_io_error)
 		xfs_buf_ioerror(bp, bp->b_io_error);
 
-	if (read) {
+	if (bp->b_flags & XBF_READ) {
 		if (!bp->b_error && bp->b_ops)
 			bp->b_ops->verify_read(bp);
 		if (!bp->b_error)
 			bp->b_flags |= XBF_DONE;
-		xfs_buf_ioend_finish(bp);
-		return;
+	} else {
+		if (!bp->b_error) {
+			bp->b_flags &= ~XBF_WRITE_FAIL;
+			bp->b_flags |= XBF_DONE;
+		}
+
+		if (unlikely(bp->b_error) && xfs_buf_ioend_handle_error(bp))
+			return;
+
+		/* clear the retry state */
+		bp->b_last_error = 0;
+		bp->b_retries = 0;
+		bp->b_first_retry_time = 0;
+
+		/*
+		 * Note that for things like remote attribute buffers, there may
+		 * not be a buffer log item here, so processing the buffer log
+		 * item must remain optional.
+		 */
+		if (bp->b_log_item)
+			xfs_buf_item_done(bp);
+
+		if (bp->b_flags & _XBF_INODES)
+			xfs_buf_inode_iodone(bp);
+		else if (bp->b_flags & _XBF_DQUOTS)
+			xfs_buf_dquot_iodone(bp);
+
 	}
 
-	if (!bp->b_error) {
-		bp->b_flags &= ~XBF_WRITE_FAIL;
-		bp->b_flags |= XBF_DONE;
-	}
+	bp->b_flags &= ~(XBF_READ | XBF_WRITE | XBF_READ_AHEAD |
+			 _XBF_LOGRECOVERY);
 
-	/*
-	 * If this is a log recovery buffer, we aren't doing transactional IO
-	 * yet so we need to let it handle IO completions.
-	 */
-	if (bp->b_flags & _XBF_LOGRECOVERY) {
-		xlog_recover_iodone(bp);
-		return;
-	}
-
-	if (bp->b_flags & _XBF_INODES) {
-		xfs_buf_inode_iodone(bp);
-		return;
-	}
-
-	if (bp->b_flags & _XBF_DQUOTS) {
-		xfs_buf_dquot_iodone(bp);
-		return;
-	}
-	xfs_buf_iodone(bp);
+	if (bp->b_flags & XBF_ASYNC)
+		xfs_buf_relse(bp);
+	else
+		complete(&bp->b_iowait);
 }
 
 static void
@@ -1506,7 +1648,7 @@ xfs_buf_iowait(
  * safe to reference the buffer after a call to this function unless the caller
  * holds an additional reference itself.
  */
-int
+static int
 __xfs_buf_submit(
 	struct xfs_buf	*bp,
 	bool		wait)

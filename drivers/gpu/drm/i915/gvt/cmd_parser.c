@@ -936,7 +936,7 @@ static int cmd_reg_handler(struct parser_exec_state *s,
 		return -EFAULT;
 	}
 
-	if (!intel_gvt_mmio_is_cmd_access(gvt, offset)) {
+	if (!intel_gvt_mmio_is_cmd_accessible(gvt, offset)) {
 		gvt_vgpu_err("%s access to non-render register (%x)\n",
 				cmd, offset);
 		return -EBADRQC;
@@ -976,7 +976,7 @@ static int cmd_reg_handler(struct parser_exec_state *s,
 	 * inhibit context will restore with correct values
 	 */
 	if (IS_GEN(s->engine->i915, 9) &&
-	    intel_gvt_mmio_is_in_ctx(gvt, offset) &&
+	    intel_gvt_mmio_is_sr_in_ctx(gvt, offset) &&
 	    !strncmp(cmd, "lri", 3)) {
 		intel_gvt_hypervisor_read_gpa(s->vgpu,
 			s->workload->ring_context_gpa + 12, &ctx_sr_ctl, 4);
@@ -992,8 +992,6 @@ static int cmd_reg_handler(struct parser_exec_state *s,
 		}
 	}
 
-	/* TODO: Update the global mask if this MMIO is a masked-MMIO */
-	intel_gvt_mmio_set_cmd_accessed(gvt, offset);
 	return 0;
 }
 
@@ -1923,6 +1921,7 @@ static int perform_bb_shadow(struct parser_exec_state *s)
 	if (ret)
 		goto err_unmap;
 
+	i915_gem_object_unlock(bb->obj);
 	INIT_LIST_HEAD(&bb->list);
 	list_add(&bb->list, &s->workload->shadow_bb);
 
@@ -2982,7 +2981,7 @@ static int shadow_indirect_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 		goto put_obj;
 	}
 
-	i915_gem_object_lock(obj);
+	i915_gem_object_lock(obj, NULL);
 	ret = i915_gem_object_set_to_cpu_domain(obj, false);
 	i915_gem_object_unlock(obj);
 	if (ret) {

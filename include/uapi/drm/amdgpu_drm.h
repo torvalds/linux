@@ -673,6 +673,7 @@ struct drm_amdgpu_cs_chunk_data {
  */
 #define AMDGPU_IDS_FLAGS_FUSION         0x1
 #define AMDGPU_IDS_FLAGS_PREEMPTION     0x2
+#define AMDGPU_IDS_FLAGS_TMZ            0x4
 
 /* indicate if acceleration can be working */
 #define AMDGPU_INFO_ACCEL_WORKING		0x00

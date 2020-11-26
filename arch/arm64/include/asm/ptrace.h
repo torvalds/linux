@@ -31,8 +31,20 @@
  * interrupt disabling temporarily does not rely on IRQ priorities.
  */
 #define GIC_PRIO_IRQON			0xe0
-#define GIC_PRIO_IRQOFF			(GIC_PRIO_IRQON & ~0x80)
+#define __GIC_PRIO_IRQOFF		(GIC_PRIO_IRQON & ~0x80)
+#define __GIC_PRIO_IRQOFF_NS		0xa0
 #define GIC_PRIO_PSR_I_SET		(1 << 4)
+
+#define GIC_PRIO_IRQOFF							\
+	({								\
+		extern struct static_key_false gic_nonsecure_priorities;\
+		u8 __prio = __GIC_PRIO_IRQOFF;				\
+									\
+		if (static_branch_unlikely(&gic_nonsecure_priorities))	\
+			__prio = __GIC_PRIO_IRQOFF_NS;			\
+									\
+		__prio;							\
+	})
 
 /* Additional SPSR bits not exposed in the UABI */
 #define PSR_MODE_THREAD_BIT	(1 << 0)

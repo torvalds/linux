@@ -1332,6 +1332,9 @@ int cmd_report(int argc, const char **argv)
 	if (report.mmaps_mode)
 		report.tasks_mode = true;
 
+	if (dump_trace)
+		report.tool.ordered_events = false;
+
 	if (quiet)
 		perf_quiet_option();
 

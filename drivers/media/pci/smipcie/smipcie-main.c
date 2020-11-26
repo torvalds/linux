@@ -280,9 +280,9 @@ static void smi_port_clearInterrupt(struct smi_port *port)
 }
 
 /* tasklet handler: DMA data to dmx.*/
-static void smi_dma_xfer(unsigned long data)
+static void smi_dma_xfer(struct tasklet_struct *t)
 {
-	struct smi_port *port = (struct smi_port *) data;
+	struct smi_port *port = from_tasklet(port, t, tasklet);
 	struct smi_dev *dev = port->dev;
 	u32 intr_status, finishedData, dmaManagement;
 	u8 dmaChan0State, dmaChan1State;
@@ -422,7 +422,7 @@ static int smi_port_init(struct smi_port *port, int dmaChanUsed)
 	}
 
 	smi_port_disableInterrupt(port);
-	tasklet_init(&port->tasklet, smi_dma_xfer, (unsigned long)port);
+	tasklet_setup(&port->tasklet, smi_dma_xfer);
 	tasklet_disable(&port->tasklet);
 	port->enable = 1;
 	return 0;

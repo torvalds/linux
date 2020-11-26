@@ -93,7 +93,7 @@ static void amdgpu_display_flip_work_func(struct work_struct *__work)
 	 * targeted by the flip
 	 */
 	if (amdgpu_crtc->enabled &&
-	    (amdgpu_display_get_crtc_scanoutpos(adev->ddev, work->crtc_id, 0,
+	    (amdgpu_display_get_crtc_scanoutpos(adev_to_drm(adev), work->crtc_id, 0,
 						&vpos, &hpos, NULL, NULL,
 						&crtc->hwmode)
 	     & (DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_IN_VBLANK)) ==
@@ -152,7 +152,7 @@ int amdgpu_display_crtc_page_flip_target(struct drm_crtc *crtc,
 				struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_device *dev = crtc->dev;
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 	struct drm_gem_object *obj;
 	struct amdgpu_flip_work *work;
@@ -292,12 +292,12 @@ int amdgpu_display_crtc_set_config(struct drm_mode_set *set,
 
 	pm_runtime_mark_last_busy(dev->dev);
 
-	adev = dev->dev_private;
+	adev = drm_to_adev(dev);
 	/* if we have active crtcs and we don't have a power ref,
 	   take the current one */
 	if (active && !adev->have_disp_power_ref) {
 		adev->have_disp_power_ref = true;
-		goto out;
+		return ret;
 	}
 	/* if we have no active crtcs, then drop the power ref
 	   we got before */
@@ -619,51 +619,51 @@ int amdgpu_display_modeset_create_props(struct amdgpu_device *adev)
 	int sz;
 
 	adev->mode_info.coherent_mode_property =
-		drm_property_create_range(adev->ddev, 0 , "coherent", 0, 1);
+		drm_property_create_range(adev_to_drm(adev), 0, "coherent", 0, 1);
 	if (!adev->mode_info.coherent_mode_property)
 		return -ENOMEM;
 
 	adev->mode_info.load_detect_property =
-		drm_property_create_range(adev->ddev, 0, "load detection", 0, 1);
+		drm_property_create_range(adev_to_drm(adev), 0, "load detection", 0, 1);
 	if (!adev->mode_info.load_detect_property)
 		return -ENOMEM;
 
-	drm_mode_create_scaling_mode_property(adev->ddev);
+	drm_mode_create_scaling_mode_property(adev_to_drm(adev));
 
 	sz = ARRAY_SIZE(amdgpu_underscan_enum_list);
 	adev->mode_info.underscan_property =
-		drm_property_create_enum(adev->ddev, 0,
-				    "underscan",
-				    amdgpu_underscan_enum_list, sz);
+		drm_property_create_enum(adev_to_drm(adev), 0,
+					 "underscan",
+					 amdgpu_underscan_enum_list, sz);
 
 	adev->mode_info.underscan_hborder_property =
-		drm_property_create_range(adev->ddev, 0,
-					"underscan hborder", 0, 128);
+		drm_property_create_range(adev_to_drm(adev), 0,
+					  "underscan hborder", 0, 128);
 	if (!adev->mode_info.underscan_hborder_property)
 		return -ENOMEM;
 
 	adev->mode_info.underscan_vborder_property =
-		drm_property_create_range(adev->ddev, 0,
-					"underscan vborder", 0, 128);
+		drm_property_create_range(adev_to_drm(adev), 0,
+					  "underscan vborder", 0, 128);
 	if (!adev->mode_info.underscan_vborder_property)
 		return -ENOMEM;
 
 	sz = ARRAY_SIZE(amdgpu_audio_enum_list);
 	adev->mode_info.audio_property =
-		drm_property_create_enum(adev->ddev, 0,
+		drm_property_create_enum(adev_to_drm(adev), 0,
 					 "audio",
 					 amdgpu_audio_enum_list, sz);
 
 	sz = ARRAY_SIZE(amdgpu_dither_enum_list);
 	adev->mode_info.dither_property =
-		drm_property_create_enum(adev->ddev, 0,
+		drm_property_create_enum(adev_to_drm(adev), 0,
 					 "dither",
 					 amdgpu_dither_enum_list, sz);
 
 	if (amdgpu_device_has_dc_support(adev)) {
 		adev->mode_info.abm_level_property =
-			drm_property_create_range(adev->ddev, 0,
-						"abm level", 0, 4);
+			drm_property_create_range(adev_to_drm(adev), 0,
+						  "abm level", 0, 4);
 		if (!adev->mode_info.abm_level_property)
 			return -ENOMEM;
 	}
@@ -813,7 +813,7 @@ int amdgpu_display_get_crtc_scanoutpos(struct drm_device *dev,
 	int vbl_start, vbl_end, vtotal, ret = 0;
 	bool in_vbl = true;
 
-	struct amdgpu_device *adev = dev->dev_private;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 
 	/* preempt_disable_rt() should go right here in PREEMPT_RT patchset. */
 

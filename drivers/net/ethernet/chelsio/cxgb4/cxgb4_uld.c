@@ -663,7 +663,7 @@ static int uld_attach(struct adapter *adap, unsigned int uld)
 	return 0;
 }
 
-#ifdef CONFIG_CHELSIO_TLS_DEVICE
+#if IS_ENABLED(CONFIG_CHELSIO_TLS_DEVICE)
 static bool cxgb4_uld_in_use(struct adapter *adap)
 {
 	const struct tid_info *t = &adap->tids;
@@ -690,8 +690,8 @@ int cxgb4_set_ktls_feature(struct adapter *adap, bool enable)
 			 * ULD is/are already active, return failure.
 			 */
 			if (cxgb4_uld_in_use(adap)) {
-				dev_warn(adap->pdev_dev,
-					 "ULD connections (tid/stid) active. Can't enable kTLS\n");
+				dev_dbg(adap->pdev_dev,
+					"ULD connections (tid/stid) active. Can't enable kTLS\n");
 				return -EINVAL;
 			}
 			ret = t4_set_params(adap, adap->mbox, adap->pf,
@@ -699,7 +699,7 @@ int cxgb4_set_ktls_feature(struct adapter *adap, bool enable)
 			if (ret)
 				return ret;
 			refcount_set(&adap->chcr_ktls.ktls_refcount, 1);
-			pr_info("kTLS has been enabled. Restrictions placed on ULD support\n");
+			pr_debug("kTLS has been enabled. Restrictions placed on ULD support\n");
 		} else {
 			/* ktls settings already up, just increment refcount. */
 			refcount_inc(&adap->chcr_ktls.ktls_refcount);
@@ -716,7 +716,7 @@ int cxgb4_set_ktls_feature(struct adapter *adap, bool enable)
 					    0, 1, &params, &params);
 			if (ret)
 				return ret;
-			pr_info("kTLS is disabled. Restrictions on ULD support removed\n");
+			pr_debug("kTLS is disabled. Restrictions on ULD support removed\n");
 		}
 	}
 

@@ -59,6 +59,7 @@ struct hinic_nic_cfg {
 struct hinic_func_to_io {
 	struct hinic_hwif       *hwif;
 	struct hinic_hwdev      *hwdev;
+	u16			global_qpn;
 	struct hinic_ceqs       ceqs;
 
 	struct hinic_wqs        wqs;

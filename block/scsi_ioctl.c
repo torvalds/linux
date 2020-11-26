@@ -37,8 +37,6 @@ const unsigned char scsi_command_size_tbl[8] =
 };
 EXPORT_SYMBOL(scsi_command_size_tbl);
 
-#include <scsi/sg.h>
-
 static int sg_get_version(int __user *p)
 {
 	static const int sg_version_num = 30527;
@@ -333,16 +331,8 @@ static int sg_io(struct request_queue *q, struct gendisk *bd_disk,
 		struct iov_iter i;
 		struct iovec *iov = NULL;
 
-#ifdef CONFIG_COMPAT
-		if (in_compat_syscall())
-			ret = compat_import_iovec(rq_data_dir(rq),
-				   hdr->dxferp, hdr->iovec_count,
-				   0, &iov, &i);
-		else
-#endif
-			ret = import_iovec(rq_data_dir(rq),
-				   hdr->dxferp, hdr->iovec_count,
-				   0, &iov, &i);
+		ret = import_iovec(rq_data_dir(rq), hdr->dxferp,
+				   hdr->iovec_count, 0, &iov, &i);
 		if (ret < 0)
 			goto out_free_cdb;
 
@@ -651,9 +641,10 @@ struct compat_cdrom_generic_command {
 	compat_int_t	stat;
 	compat_caddr_t	sense;
 	unsigned char	data_direction;
+	unsigned char	pad[3];
 	compat_int_t	quiet;
 	compat_int_t	timeout;
-	compat_caddr_t	reserved[1];
+	compat_caddr_t	unused;
 };
 #endif
 
@@ -675,7 +666,7 @@ static int scsi_get_cdrom_generic_arg(struct cdrom_generic_command *cgc,
 			.data_direction	= cgc32.data_direction,
 			.quiet		= cgc32.quiet,
 			.timeout	= cgc32.timeout,
-			.reserved[0]	= compat_ptr(cgc32.reserved[0]),
+			.unused		= compat_ptr(cgc32.unused),
 		};
 		memcpy(&cgc->cmd, &cgc32.cmd, CDROM_PACKET_SIZE);
 		return 0;
@@ -700,7 +691,7 @@ static int scsi_put_cdrom_generic_arg(const struct cdrom_generic_command *cgc,
 			.data_direction	= cgc->data_direction,
 			.quiet		= cgc->quiet,
 			.timeout	= cgc->timeout,
-			.reserved[0]	= (uintptr_t)(cgc->reserved[0]),
+			.unused		= (uintptr_t)(cgc->unused),
 		};
 		memcpy(&cgc32.cmd, &cgc->cmd, CDROM_PACKET_SIZE);
 
@@ -854,7 +845,7 @@ EXPORT_SYMBOL(scsi_cmd_ioctl);
 
 int scsi_verify_blk_ioctl(struct block_device *bd, unsigned int cmd)
 {
-	if (bd && bd == bd->bd_contains)
+	if (bd && !bdev_is_partition(bd))
 		return 0;
 
 	if (capable(CAP_SYS_RAWIO))

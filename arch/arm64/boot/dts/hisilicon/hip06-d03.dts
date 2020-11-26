@@ -22,37 +22,37 @@
 };
 
 &ipmi0 {
-	status = "ok";
+	status = "okay";
 };
 
 &uart0 {
-	status = "ok";
+	status = "okay";
 };
 
 &eth0 {
-	status = "ok";
+	status = "okay";
 };
 
 &eth1 {
-	status = "ok";
+	status = "okay";
 };
 
 &eth2 {
-	status = "ok";
+	status = "okay";
 };
 
 &eth3 {
-	status = "ok";
+	status = "okay";
 };
 
 &sas1 {
-	status = "ok";
+	status = "okay";
 };
 
 &usb_ohci {
-	status = "ok";
+	status = "okay";
 };
 
 &usb_ehci {
-	status = "ok";
+	status = "okay";
 };

@@ -113,8 +113,7 @@ struct f75375_data {
 
 static int f75375_detect(struct i2c_client *client,
 			 struct i2c_board_info *info);
-static int f75375_probe(struct i2c_client *client,
-			const struct i2c_device_id *id);
+static int f75375_probe(struct i2c_client *client);
 static int f75375_remove(struct i2c_client *client);
 
 static const struct i2c_device_id f75375_id[] = {
@@ -130,7 +129,7 @@ static struct i2c_driver f75375_driver = {
 	.driver = {
 		.name = "f75375",
 	},
-	.probe = f75375_probe,
+	.probe_new = f75375_probe,
 	.remove = f75375_remove,
 	.id_table = f75375_id,
 	.detect = f75375_detect,
@@ -814,8 +813,7 @@ static void f75375_init(struct i2c_client *client, struct f75375_data *data,
 
 }
 
-static int f75375_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+static int f75375_probe(struct i2c_client *client)
 {
 	struct f75375_data *data;
 	struct f75375s_platform_data *f75375s_pdata =
@@ -832,7 +830,7 @@ static int f75375_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, data);
 	mutex_init(&data->update_lock);
-	data->kind = id->driver_data;
+	data->kind = i2c_match_id(f75375_id, client)->driver_data;
 
 	err = sysfs_create_group(&client->dev.kobj, &f75375_group);
 	if (err)

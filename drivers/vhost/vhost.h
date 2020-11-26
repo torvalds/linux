@@ -64,7 +64,6 @@ enum vhost_uaddr_type {
 struct vhost_vring_call {
 	struct eventfd_ctx *ctx;
 	struct irq_bypass_producer producer;
-	spinlock_t ctx_lock;
 };
 
 /* The virtqueue structure describes a queue attached to a device. */
@@ -123,6 +122,7 @@ struct vhost_virtqueue {
 	/* Log write descriptors */
 	void __user *log_base;
 	struct vhost_log *log;
+	struct iovec log_iov[64];
 
 	/* Ring endianness. Defaults to legacy native endianness.
 	 * Set to true when starting a modern virtio device. */
@@ -190,6 +190,7 @@ int vhost_get_vq_desc(struct vhost_virtqueue *,
 		      struct vhost_log *log, unsigned int *log_num);
 void vhost_discard_vq_desc(struct vhost_virtqueue *, int n);
 
+bool vhost_vq_is_setup(struct vhost_virtqueue *vq);
 int vhost_vq_init_access(struct vhost_virtqueue *);
 int vhost_add_used(struct vhost_virtqueue *, unsigned int head, int len);
 int vhost_add_used_n(struct vhost_virtqueue *, struct vring_used_elem *heads,

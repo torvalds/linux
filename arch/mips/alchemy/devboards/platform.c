@@ -20,23 +20,6 @@
 
 #include <prom.h>
 
-void __init prom_init(void)
-{
-	unsigned char *memsize_str;
-	unsigned long memsize;
-
-	prom_argc = (int)fw_arg0;
-	prom_argv = (char **)fw_arg1;
-	prom_envp = (char **)fw_arg2;
-
-	prom_init_cmdline();
-	memsize_str = prom_getenv("memsize");
-	if (!memsize_str || kstrtoul(memsize_str, 0, &memsize))
-		memsize = 64 << 20; /* all devboards have at least 64MB RAM */
-
-	add_memory_region(0, memsize, BOOT_MEM_RAM);
-}
-
 void prom_putchar(char c)
 {
 	if (alchemy_get_cputype() == ALCHEMY_CPU_AU1300)

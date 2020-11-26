@@ -49,7 +49,7 @@ checking of rcu_dereference() primitives:
 		is invoked by both RCU-sched readers and updaters.
 	srcu_dereference_check(p, c):
 		Use explicit check expression "c" along with
-		srcu_read_lock_held()().  This is useful in code that
+		srcu_read_lock_held().  This is useful in code that
 		is invoked by both SRCU readers and updaters.
 	rcu_dereference_raw(p):
 		Don't check.  (Use sparingly, if at all.)

@@ -205,8 +205,7 @@ struct asb100_data {
 static int asb100_read_value(struct i2c_client *client, u16 reg);
 static void asb100_write_value(struct i2c_client *client, u16 reg, u16 val);
 
-static int asb100_probe(struct i2c_client *client,
-			const struct i2c_device_id *id);
+static int asb100_probe(struct i2c_client *client);
 static int asb100_detect(struct i2c_client *client,
 			 struct i2c_board_info *info);
 static int asb100_remove(struct i2c_client *client);
@@ -224,7 +223,7 @@ static struct i2c_driver asb100_driver = {
 	.driver = {
 		.name	= "asb100",
 	},
-	.probe		= asb100_probe,
+	.probe_new	= asb100_probe,
 	.remove		= asb100_remove,
 	.id_table	= asb100_id,
 	.detect		= asb100_detect,
@@ -775,8 +774,7 @@ static int asb100_detect(struct i2c_client *client,
 	return 0;
 }
 
-static int asb100_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int asb100_probe(struct i2c_client *client)
 {
 	int err;
 	struct asb100_data *data;

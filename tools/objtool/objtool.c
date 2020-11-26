@@ -22,6 +22,8 @@
 #include <linux/kernel.h>
 
 #include "builtin.h"
+#include "objtool.h"
+#include "warn.h"
 
 struct cmd_struct {
 	const char *name;
@@ -38,6 +40,34 @@ static struct cmd_struct objtool_cmds[] = {
 };
 
 bool help;
+
+const char *objname;
+static struct objtool_file file;
+
+struct objtool_file *objtool_open_read(const char *_objname)
+{
+	if (objname) {
+		if (strcmp(objname, _objname)) {
+			WARN("won't handle more than one file at a time");
+			return NULL;
+		}
+		return &file;
+	}
+	objname = _objname;
+
+	file.elf = elf_open_read(objname, O_RDWR);
+	if (!file.elf)
+		return NULL;
+
+	INIT_LIST_HEAD(&file.insn_list);
+	hash_init(file.insn_hash);
+	INIT_LIST_HEAD(&file.static_call_list);
+	file.c_file = !vmlinux && find_section_by_name(file.elf, ".comment");
+	file.ignore_unreachables = no_unreachable;
+	file.hints = false;
+
+	return &file;
+}
 
 static void cmd_usage(void)
 {

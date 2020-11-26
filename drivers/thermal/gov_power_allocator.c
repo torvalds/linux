@@ -96,7 +96,7 @@ static u32 estimate_sustainable_power(struct thermal_zone_device *tz)
 		if (instance->trip != params->trip_max_desired_temperature)
 			continue;
 
-		if (power_actor_get_min_power(cdev, tz, &min_power))
+		if (power_actor_get_min_power(cdev, &min_power))
 			continue;
 
 		sustainable_power += min_power;
@@ -388,7 +388,7 @@ static int allocate_power(struct thermal_zone_device *tz,
 		if (!cdev_is_power_actor(cdev))
 			continue;
 
-		if (cdev->ops->get_requested_power(cdev, tz, &req_power[i]))
+		if (cdev->ops->get_requested_power(cdev, &req_power[i]))
 			continue;
 
 		if (!total_weight)
@@ -398,7 +398,7 @@ static int allocate_power(struct thermal_zone_device *tz,
 
 		weighted_req_power[i] = frac_to_int(weight * req_power[i]);
 
-		if (power_actor_get_max_power(cdev, tz, &max_power[i]))
+		if (power_actor_get_max_power(cdev, &max_power[i]))
 			continue;
 
 		total_req_power += req_power[i];

@@ -313,7 +313,7 @@ void i40iw_process_aeq(struct i40iw_device *iwdev)
 					    __func__, info->qp_cq_id);
 				continue;
 			}
-			i40iw_add_ref(&iwqp->ibqp);
+			i40iw_qp_add_ref(&iwqp->ibqp);
 			spin_unlock_irqrestore(&iwdev->qptable_lock, flags);
 			qp = &iwqp->sc_qp;
 			spin_lock_irqsave(&iwqp->lock, flags);
@@ -353,7 +353,6 @@ void i40iw_process_aeq(struct i40iw_device *iwdev)
 				i40iw_cm_disconn(iwqp);
 			break;
 		case I40IW_AE_BAD_CLOSE:
-			/* fall through */
 		case I40IW_AE_RESET_SENT:
 			i40iw_next_iw_state(iwqp, I40IW_QP_STATE_ERROR, 1, 0, 0);
 			i40iw_cm_disconn(iwqp);
@@ -413,7 +412,7 @@ void i40iw_process_aeq(struct i40iw_device *iwdev)
 		case I40IW_AE_UDA_XMIT_DGRAM_TOO_LONG:
 		case I40IW_AE_UDA_XMIT_DGRAM_TOO_SHORT:
 			ctx_info->err_rq_idx_valid = false;
-			/* fall through */
+			fallthrough;
 		default:
 			if (!info->sq && ctx_info->err_rq_idx_valid) {
 				ctx_info->err_rq_idx = info->wqe_idx;
@@ -427,7 +426,7 @@ void i40iw_process_aeq(struct i40iw_device *iwdev)
 			break;
 		}
 		if (info->qp)
-			i40iw_rem_ref(&iwqp->ibqp);
+			i40iw_qp_rem_ref(&iwqp->ibqp);
 	} while (1);
 
 	if (aeqcnt)

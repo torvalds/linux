@@ -40,8 +40,14 @@ struct kstatfs {
 #define ST_NOATIME	0x0400	/* do not update access times */
 #define ST_NODIRATIME	0x0800	/* do not update directory access times */
 #define ST_RELATIME	0x1000	/* update atime relative to mtime/ctime */
+#define ST_NOSYMFOLLOW	0x2000	/* do not follow symlinks */
 
 struct dentry;
 extern int vfs_get_fsid(struct dentry *dentry, __kernel_fsid_t *fsid);
+
+static inline __kernel_fsid_t u64_to_fsid(u64 v)
+{
+	return (__kernel_fsid_t){.val = {(u32)v, (u32)(v>>32)}};
+}
 
 #endif

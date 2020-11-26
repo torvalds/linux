@@ -426,11 +426,9 @@ static int meson_mmc_clk_init(struct meson_host *host)
 
 		snprintf(name, sizeof(name), "clkin%d", i);
 		clk = devm_clk_get(host->dev, name);
-		if (IS_ERR(clk)) {
-			if (clk != ERR_PTR(-EPROBE_DEFER))
-				dev_err(host->dev, "Missing clock %s\n", name);
-			return PTR_ERR(clk);
-		}
+		if (IS_ERR(clk))
+			return dev_err_probe(host->dev, PTR_ERR(clk),
+					     "Missing clock %s\n", name);
 
 		mux_parent_names[i] = __clk_get_name(clk);
 	}
@@ -521,7 +519,7 @@ static int meson_mmc_resampling_tuning(struct mmc_host *mmc, u32 opcode)
 	val |= ADJUST_ADJ_EN;
 	writel(val, host->regs + host->data->adjust);
 
-	if (mmc->doing_retune)
+	if (mmc_doing_retune(mmc))
 		dly = FIELD_GET(ADJUST_ADJ_DELAY_MASK, val) + 1;
 	else
 		dly = 0;
@@ -1077,12 +1075,8 @@ static int meson_mmc_probe(struct platform_device *pdev)
 	}
 
 	ret = device_reset_optional(&pdev->dev);
-	if (ret) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "device reset failed: %d\n", ret);
-
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret, "device reset failed\n");
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	host->regs = devm_ioremap_resource(&pdev->dev, res);
@@ -1270,6 +1264,7 @@ static struct platform_driver meson_mmc_driver = {
 	.remove		= meson_mmc_remove,
 	.driver		= {
 		.name = DRIVER_NAME,
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(meson_mmc_of_match),
 	},
 };

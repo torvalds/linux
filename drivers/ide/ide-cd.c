@@ -350,7 +350,7 @@ static int cdrom_decode_status(ide_drive_t *drive, u8 stat)
 		 */
 		if (scsi_req(rq)->cmd[0] == GPCMD_START_STOP_UNIT)
 			break;
-		/* fall-through */
+		fallthrough;
 	case DATA_PROTECT:
 		/*
 		 * No point in retrying after an illegal request or data
@@ -750,7 +750,7 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	case REQ_OP_DRV_IN:
 	case REQ_OP_DRV_OUT:
 		expiry = ide_cd_expiry;
-		/*FALLTHRU*/
+		fallthrough;
 	default:
 		timeout = ATAPI_WAIT_PC;
 		break;
@@ -1611,7 +1611,11 @@ static int idecd_open(struct block_device *bdev, fmode_t mode)
 	struct cdrom_info *info;
 	int rc = -ENXIO;
 
-	check_disk_change(bdev);
+	if (bdev_check_media_change(bdev)) {
+		info = ide_drv_g(bdev->bd_disk, cdrom_info);
+
+		ide_cd_read_toc(info->drive);
+	}
 
 	mutex_lock(&ide_cd_mutex);
 	info = ide_cd_get(bdev->bd_disk);
@@ -1753,15 +1757,6 @@ static unsigned int idecd_check_events(struct gendisk *disk,
 	return cdrom_check_events(&info->devinfo, clearing);
 }
 
-static int idecd_revalidate_disk(struct gendisk *disk)
-{
-	struct cdrom_info *info = ide_drv_g(disk, cdrom_info);
-
-	ide_cd_read_toc(info->drive);
-
-	return  0;
-}
-
 static const struct block_device_operations idecd_ops = {
 	.owner			= THIS_MODULE,
 	.open			= idecd_open,
@@ -1770,7 +1765,6 @@ static const struct block_device_operations idecd_ops = {
 	.compat_ioctl		= IS_ENABLED(CONFIG_COMPAT) ?
 				  idecd_compat_ioctl : NULL,
 	.check_events		= idecd_check_events,
-	.revalidate_disk	= idecd_revalidate_disk
 };
 
 /* module options */

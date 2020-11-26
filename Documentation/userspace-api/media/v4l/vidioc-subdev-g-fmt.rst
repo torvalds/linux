@@ -1,11 +1,5 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: V4L
 
 .. _VIDIOC_SUBDEV_G_FMT:
 
@@ -18,26 +12,25 @@ Name
 
 VIDIOC_SUBDEV_G_FMT - VIDIOC_SUBDEV_S_FMT - Get or set the data format on a subdev pad
 
-
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_G_FMT, struct v4l2_subdev_format *argp )
-    :name: VIDIOC_SUBDEV_G_FMT
+.. c:macro:: VIDIOC_SUBDEV_G_FMT
 
-.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_S_FMT, struct v4l2_subdev_format *argp )
-    :name: VIDIOC_SUBDEV_S_FMT
+``int ioctl(int fd, VIDIOC_SUBDEV_G_FMT, struct v4l2_subdev_format *argp)``
 
+.. c:macro:: VIDIOC_SUBDEV_S_FMT
+
+``int ioctl(int fd, VIDIOC_SUBDEV_S_FMT, struct v4l2_subdev_format *argp)``
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <func-open>`.
+    File descriptor returned by :c:func:`open()`.
 
 ``argp``
     Pointer to struct :c:type:`v4l2_subdev_format`.
-
 
 Description
 ===========
@@ -88,7 +81,6 @@ doesn't match the device capabilities. They must instead modify the
 format to match what the hardware can provide. The modified format
 should be as close as possible to the original request.
 
-
 .. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
 .. c:type:: v4l2_subdev_format
@@ -115,7 +107,6 @@ should be as close as possible to the original request.
 	the array to zero.
 
 
-
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. _v4l2-subdev-format-whence:
@@ -131,7 +122,6 @@ should be as close as possible to the original request.
     * - V4L2_SUBDEV_FORMAT_ACTIVE
       - 1
       - Active formats, applied to the hardware.
-
 
 Return Value
 ============

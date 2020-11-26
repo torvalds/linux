@@ -2,6 +2,7 @@
 #ifndef __MACH_IMX_CLK_H
 #define __MACH_IMX_CLK_H
 
+#include <linux/bits.h>
 #include <linux/spinlock.h>
 #include <linux/clk-provider.h>
 
@@ -11,7 +12,13 @@ extern spinlock_t imx_ccm_lock;
 
 void imx_check_clocks(struct clk *clks[], unsigned int count);
 void imx_check_clk_hws(struct clk_hw *clks[], unsigned int count);
+#ifndef MODULE
 void imx_register_uart_clocks(struct clk ** const clks[]);
+#else
+static inline void imx_register_uart_clocks(struct clk ** const clks[])
+{
+}
+#endif
 void imx_mmdc_mask_handshake(void __iomem *ccm_base, unsigned int chn);
 void imx_unregister_clocks(struct clk *clks[], unsigned int count);
 void imx_unregister_hw_clocks(struct clk_hw *hws[], unsigned int count);
@@ -541,6 +548,11 @@ struct clk_hw *imx8m_clk_hw_composite_flags(const char *name,
 			ARRAY_SIZE(parent_names), reg, \
 			IMX_COMPOSITE_BUS, \
 			CLK_SET_RATE_NO_REPARENT | CLK_OPS_PARENT_ENABLE)
+
+#define imx8m_clk_hw_composite_bus_critical(name, parent_names, reg)	\
+	imx8m_clk_hw_composite_flags(name, parent_names, ARRAY_SIZE(parent_names), reg, \
+			IMX_COMPOSITE_BUS, \
+			CLK_SET_RATE_NO_REPARENT | CLK_OPS_PARENT_ENABLE | CLK_IS_CRITICAL)
 
 #define imx8m_clk_hw_composite_core(name, parent_names, reg)	\
 	imx8m_clk_hw_composite_flags(name, parent_names, \

@@ -1,11 +1,5 @@
-.. Permission is granted to copy, distribute and/or modify this
-.. document under the terms of the GNU Free Documentation License,
-.. Version 1.1 or any later version published by the Free Software
-.. Foundation, with no Invariant Sections, no Front-Cover Texts
-.. and no Back-Cover Texts. A copy of the license is included at
-.. Documentation/userspace-api/media/fdl-appendix.rst.
-..
-.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+.. SPDX-License-Identifier: GFDL-1.1-no-invariants-or-later
+.. c:namespace:: DTV.audio
 
 .. _AUDIO_SET_ID:
 
@@ -23,8 +17,9 @@ AUDIO_SET_ID
 Synopsis
 --------
 
-.. c:function:: int  ioctl(int fd, AUDIO_SET_ID, int id)
-    :name: AUDIO_SET_ID
+.. c:macro:: AUDIO_SET_ID
+
+``int ioctl(int fd, AUDIO_SET_ID, int id)``
 
 Arguments
 ---------
@@ -32,7 +27,6 @@ Arguments
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-
 
     -
 
@@ -46,7 +40,6 @@ Arguments
 
        -  audio sub-stream id
 
-
 Description
 -----------
 
@@ -57,7 +50,6 @@ AC3 and in [0xA0,0xA7] for LPCM. More specifications may follow for
 other stream types. If the stream type is set the id just specifies the
 substream id of the audio stream and only the first 5 bits are
 recognized.
-
 
 Return Value
 ------------

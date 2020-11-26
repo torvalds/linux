@@ -188,7 +188,7 @@ static int post_rx_param_wqes(struct mlx5e_channel *c,
 
 	err = 0;
 	sq = &c->async_icosq;
-	spin_lock(&c->async_icosq_lock);
+	spin_lock_bh(&c->async_icosq_lock);
 
 	cseg = post_static_params(sq, priv_rx);
 	if (IS_ERR(cseg))
@@ -199,7 +199,7 @@ static int post_rx_param_wqes(struct mlx5e_channel *c,
 
 	mlx5e_notify_hw(&sq->wq, sq->pc, sq->uar_map, cseg);
 unlock:
-	spin_unlock(&c->async_icosq_lock);
+	spin_unlock_bh(&c->async_icosq_lock);
 
 	return err;
 
@@ -234,7 +234,7 @@ mlx5e_get_ktls_rx_priv_ctx(struct tls_context *tls_ctx)
 
 /* Re-sync */
 /* Runs in work context */
-static struct mlx5_wqe_ctrl_seg *
+static int
 resync_post_get_progress_params(struct mlx5e_icosq *sq,
 				struct mlx5e_ktls_offload_context_rx *priv_rx)
 {
@@ -253,20 +253,24 @@ resync_post_get_progress_params(struct mlx5e_icosq *sq,
 		goto err_out;
 	}
 
-	pdev = sq->channel->priv->mdev->device;
+	pdev = mlx5_core_dma_dev(sq->channel->priv->mdev);
 	buf->dma_addr = dma_map_single(pdev, &buf->progress,
 				       PROGRESS_PARAMS_PADDED_SIZE, DMA_FROM_DEVICE);
 	if (unlikely(dma_mapping_error(pdev, buf->dma_addr))) {
 		err = -ENOMEM;
-		goto err_out;
+		goto err_free;
 	}
 
 	buf->priv_rx = priv_rx;
 
 	BUILD_BUG_ON(MLX5E_KTLS_GET_PROGRESS_WQEBBS != 1);
+
+	spin_lock_bh(&sq->channel->async_icosq_lock);
+
 	if (unlikely(!mlx5e_wqc_has_room_for(&sq->wq, sq->cc, sq->pc, 1))) {
+		spin_unlock_bh(&sq->channel->async_icosq_lock);
 		err = -ENOSPC;
-		goto err_out;
+		goto err_dma_unmap;
 	}
 
 	pi = mlx5e_icosq_get_next_pi(sq, 1);
@@ -294,12 +298,18 @@ resync_post_get_progress_params(struct mlx5e_icosq *sq,
 	};
 	icosq_fill_wi(sq, pi, &wi);
 	sq->pc++;
+	mlx5e_notify_hw(&sq->wq, sq->pc, sq->uar_map, cseg);
+	spin_unlock_bh(&sq->channel->async_icosq_lock);
 
-	return cseg;
+	return 0;
 
+err_dma_unmap:
+	dma_unmap_single(pdev, buf->dma_addr, PROGRESS_PARAMS_PADDED_SIZE, DMA_FROM_DEVICE);
+err_free:
+	kfree(buf);
 err_out:
 	priv_rx->stats->tls_resync_req_skip++;
-	return ERR_PTR(err);
+	return err;
 }
 
 /* Function is called with elevated refcount.
@@ -309,10 +319,8 @@ static void resync_handle_work(struct work_struct *work)
 {
 	struct mlx5e_ktls_offload_context_rx *priv_rx;
 	struct mlx5e_ktls_rx_resync_ctx *resync;
-	struct mlx5_wqe_ctrl_seg *cseg;
 	struct mlx5e_channel *c;
 	struct mlx5e_icosq *sq;
-	struct mlx5_wq_cyc *wq;
 
 	resync = container_of(work, struct mlx5e_ktls_rx_resync_ctx, work);
 	priv_rx = container_of(resync, struct mlx5e_ktls_offload_context_rx, resync);
@@ -324,18 +332,9 @@ static void resync_handle_work(struct work_struct *work)
 
 	c = resync->priv->channels.c[priv_rx->rxq];
 	sq = &c->async_icosq;
-	wq = &sq->wq;
 
-	spin_lock(&c->async_icosq_lock);
-
-	cseg = resync_post_get_progress_params(sq, priv_rx);
-	if (IS_ERR(cseg)) {
+	if (resync_post_get_progress_params(sq, priv_rx))
 		refcount_dec(&resync->refcnt);
-		goto unlock;
-	}
-	mlx5e_notify_hw(wq, sq->pc, sq->uar_map, cseg);
-unlock:
-	spin_unlock(&c->async_icosq_lock);
 }
 
 static void resync_init(struct mlx5e_ktls_rx_resync_ctx *resync,
@@ -361,7 +360,7 @@ static int resync_handle_seq_match(struct mlx5e_ktls_offload_context_rx *priv_rx
 	err = 0;
 
 	sq = &c->async_icosq;
-	spin_lock(&c->async_icosq_lock);
+	spin_lock_bh(&c->async_icosq_lock);
 
 	cseg = post_static_params(sq, priv_rx);
 	if (IS_ERR(cseg)) {
@@ -373,7 +372,7 @@ static int resync_handle_seq_match(struct mlx5e_ktls_offload_context_rx *priv_rx
 	mlx5e_notify_hw(&sq->wq, sq->pc, sq->uar_map, cseg);
 	priv_rx->stats->tls_resync_res_ok++;
 unlock:
-	spin_unlock(&c->async_icosq_lock);
+	spin_unlock_bh(&c->async_icosq_lock);
 
 	return err;
 }
@@ -386,16 +385,17 @@ void mlx5e_ktls_handle_get_psv_completion(struct mlx5e_icosq_wqe_info *wi,
 	struct mlx5e_ktls_offload_context_rx *priv_rx;
 	struct mlx5e_ktls_rx_resync_ctx *resync;
 	u8 tracker_state, auth_state, *ctx;
+	struct device *dev;
 	u32 hw_seq;
 
 	priv_rx = buf->priv_rx;
 	resync = &priv_rx->resync;
-
+	dev = mlx5_core_dma_dev(resync->priv->mdev);
 	if (unlikely(test_bit(MLX5E_PRIV_RX_FLAG_DELETING, priv_rx->flags)))
 		goto out;
 
-	dma_sync_single_for_cpu(resync->priv->mdev->device, buf->dma_addr,
-				PROGRESS_PARAMS_PADDED_SIZE, DMA_FROM_DEVICE);
+	dma_sync_single_for_cpu(dev, buf->dma_addr, PROGRESS_PARAMS_PADDED_SIZE,
+				DMA_FROM_DEVICE);
 
 	ctx = buf->progress.ctx;
 	tracker_state = MLX5_GET(tls_progress_params, ctx, record_tracker_state);
@@ -411,6 +411,7 @@ void mlx5e_ktls_handle_get_psv_completion(struct mlx5e_icosq_wqe_info *wi,
 	priv_rx->stats->tls_resync_req_end++;
 out:
 	refcount_dec(&resync->refcnt);
+	dma_unmap_single(dev, buf->dma_addr, PROGRESS_PARAMS_PADDED_SIZE, DMA_FROM_DEVICE);
 	kfree(buf);
 }
 
@@ -475,19 +476,22 @@ static void resync_update_sn(struct mlx5e_rq *rq, struct sk_buff *skb)
 
 	depth += sizeof(struct tcphdr);
 
-	if (unlikely(!sk || sk->sk_state == TCP_TIME_WAIT))
+	if (unlikely(!sk))
 		return;
+
+	if (unlikely(sk->sk_state == TCP_TIME_WAIT))
+		goto unref;
 
 	if (unlikely(!resync_queue_get_psv(sk)))
-		return;
-
-	skb->sk = sk;
-	skb->destructor = sock_edemux;
+		goto unref;
 
 	seq = th->seq;
 	datalen = skb->len - depth;
 	tls_offload_rx_resync_async_request_start(sk, seq, datalen);
 	rq->stats->tls_resync_req_start++;
+
+unref:
+	sock_gen_put(sk);
 }
 
 void mlx5e_ktls_rx_resync(struct net_device *netdev, struct sock *sk,
@@ -659,7 +663,7 @@ void mlx5e_ktls_del_rx(struct net_device *netdev, struct tls_context *tls_ctx)
 	priv_rx = mlx5e_get_ktls_rx_priv_ctx(tls_ctx);
 	set_bit(MLX5E_PRIV_RX_FLAG_DELETING, priv_rx->flags);
 	mlx5e_set_ktls_rx_priv_ctx(tls_ctx, NULL);
-	napi_synchronize(&priv->channels.c[priv_rx->rxq]->napi);
+	synchronize_rcu(); /* Sync with NAPI */
 	if (!cancel_work_sync(&priv_rx->rule.work))
 		/* completion is needed, as the priv_rx in the add flow
 		 * is maintained on the wqe info (wi), not on the socket.

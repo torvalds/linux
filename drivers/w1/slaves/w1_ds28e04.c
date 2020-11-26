@@ -410,7 +410,7 @@ static void w1_f1C_remove_slave(struct w1_slave *sl)
 	sl->family_data = NULL;
 }
 
-static struct w1_family_ops w1_f1C_fops = {
+static const struct w1_family_ops w1_f1C_fops = {
 	.add_slave      = w1_f1C_add_slave,
 	.remove_slave   = w1_f1C_remove_slave,
 	.groups		= w1_f1C_groups,

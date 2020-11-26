@@ -1170,21 +1170,16 @@ u16 spu2_cipher_req_init(u8 *spu_hdr, struct spu_cipher_parms *cipher_parms)
  * @spu_req_hdr_len: Length in bytes of the SPU request header
  * @isInbound:       0 encrypt, 1 decrypt
  * @cipher_parms:    Parameters describing cipher operation to be performed
- * @update_key:      If true, rewrite the cipher key in SCTX
  * @data_size:       Length of the data in the BD field
  *
  * Assumes much of the header was already filled in at setkey() time in
  * spu_cipher_req_init().
- * spu_cipher_req_init() fills in the encryption key. For RC4, when submitting a
- * request for a non-first chunk, we use the 260-byte SUPDT field from the
- * previous response as the key. update_key is true for this case. Unused in all
- * other cases.
+ * spu_cipher_req_init() fills in the encryption key.
  */
 void spu2_cipher_req_finish(u8 *spu_hdr,
 			    u16 spu_req_hdr_len,
 			    unsigned int is_inbound,
 			    struct spu_cipher_parms *cipher_parms,
-			    bool update_key,
 			    unsigned int data_size)
 {
 	struct SPU2_FMD *fmd;
@@ -1196,11 +1191,6 @@ void spu2_cipher_req_finish(u8 *spu_hdr,
 	flow_log(" in: %u\n", is_inbound);
 	flow_log(" cipher alg: %u, cipher_type: %u\n", cipher_parms->alg,
 		 cipher_parms->type);
-	if (update_key) {
-		flow_log(" cipher key len: %u\n", cipher_parms->key_len);
-		flow_dump("  key: ", cipher_parms->key_buf,
-			  cipher_parms->key_len);
-	}
 	flow_log(" iv len: %d\n", cipher_parms->iv_len);
 	flow_dump("    iv: ", cipher_parms->iv_buf, cipher_parms->iv_len);
 	flow_log(" data_size: %u\n", data_size);

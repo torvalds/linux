@@ -2,7 +2,7 @@
 /*
  * Tracepoints definitions.
  *
- * Copyright (c) 2018-2019, Silicon Laboratories, Inc.
+ * Copyright (c) 2018-2020, Silicon Laboratories, Inc.
  */
 
 #undef TRACE_SYSTEM

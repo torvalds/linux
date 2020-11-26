@@ -21,7 +21,7 @@ LINK COMMANDS
 
 |	**bpftool** **link { show | list }** [*LINK*]
 |	**bpftool** **link pin** *LINK* *FILE*
-|	**bpftool** **link detach *LINK*
+|	**bpftool** **link detach** *LINK*
 |	**bpftool** **link help**
 |
 |	*LINK* := { **id** *LINK_ID* | **pinned** *FILE* }
@@ -62,18 +62,7 @@ DESCRIPTION
 
 OPTIONS
 =======
-	-h, --help
-		  Print short generic help message (similar to **bpftool help**).
-
-	-V, --version
-		  Print version number (similar to **bpftool version**).
-
-	-j, --json
-		  Generate JSON output. For commands that cannot produce JSON, this
-		  option has no effect.
-
-	-p, --pretty
-		  Generate human-readable JSON output. Implies **-j**.
+	.. include:: common_options.rst
 
 	-f, --bpffs
 		  When showing BPF links, show file names of pinned
@@ -82,10 +71,6 @@ OPTIONS
 	-n, --nomount
 		  Do not automatically attempt to mount any virtual file system
 		  (such as tracefs or BPF virtual file system) when necessary.
-
-	-d, --debug
-		  Print all logs available, even debug-level information. This
-		  includes logs from libbpf.
 
 EXAMPLES
 ========
@@ -121,20 +106,3 @@ EXAMPLES
 ::
 
     -rw------- 1 root root 0 Apr 23 21:39 link
-
-
-SEE ALSO
-========
-	**bpf**\ (2),
-	**bpf-helpers**\ (7),
-	**bpftool**\ (8),
-	**bpftool-btf**\ (8),
-	**bpftool-cgroup**\ (8),
-	**bpftool-feature**\ (8),
-	**bpftool-gen**\ (8),
-	**bpftool-iter**\ (8),
-	**bpftool-map**\ (8),
-	**bpftool-net**\ (8),
-	**bpftool-perf**\ (8),
-	**bpftool-prog**\ (8),
-	**bpftool-struct_ops**\ (8)

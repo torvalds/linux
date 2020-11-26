@@ -53,8 +53,10 @@ int i915_gem_stolen_insert_node(struct drm_i915_private *i915,
 				struct drm_mm_node *node, u64 size,
 				unsigned alignment)
 {
-	return i915_gem_stolen_insert_node_in_range(i915, node, size,
-						    alignment, 0, U64_MAX);
+	return i915_gem_stolen_insert_node_in_range(i915, node,
+						    size, alignment,
+						    I915_GEM_STOLEN_BIAS,
+						    U64_MAX);
 }
 
 void i915_gem_stolen_remove_node(struct drm_i915_private *i915,
@@ -249,7 +251,7 @@ static void vlv_get_stolen_reserved(struct drm_i915_private *i915,
 	switch (reg_val & GEN7_STOLEN_RESERVED_SIZE_MASK) {
 	default:
 		MISSING_CASE(reg_val & GEN7_STOLEN_RESERVED_SIZE_MASK);
-		/* fall through */
+		fallthrough;
 	case GEN7_STOLEN_RESERVED_1M:
 		*size = 1024 * 1024;
 		break;
@@ -416,7 +418,7 @@ static int i915_gem_init_stolen(struct drm_i915_private *i915)
 	case 4:
 		if (!IS_G4X(i915))
 			break;
-		/* fall through */
+		fallthrough;
 	case 5:
 		g4x_get_stolen_reserved(i915, uncore,
 					&reserved_base, &reserved_size);
@@ -445,7 +447,7 @@ static int i915_gem_init_stolen(struct drm_i915_private *i915)
 		break;
 	default:
 		MISSING_CASE(INTEL_GEN(i915));
-		/* fall-through */
+		fallthrough;
 	case 11:
 	case 12:
 		icl_get_stolen_reserved(i915, uncore,

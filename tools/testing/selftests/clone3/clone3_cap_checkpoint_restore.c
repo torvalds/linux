@@ -44,13 +44,13 @@ static int call_clone3_set_tid(struct __test_metadata *_metadata,
 	int status;
 	pid_t pid = -1;
 
-	struct clone_args args = {
+	struct __clone_args args = {
 		.exit_signal = SIGCHLD,
 		.set_tid = ptr_to_u64(set_tid),
 		.set_tid_size = set_tid_size,
 	};
 
-	pid = sys_clone3(&args, sizeof(struct clone_args));
+	pid = sys_clone3(&args, sizeof(args));
 	if (pid < 0) {
 		TH_LOG("%s - Failed to create new process", strerror(errno));
 		return -errno;
@@ -145,7 +145,7 @@ TEST(clone3_cap_checkpoint_restore)
 	test_clone3_supported();
 
 	EXPECT_EQ(getuid(), 0)
-		XFAIL(return, "Skipping all tests as non-root\n");
+		SKIP(return, "Skipping all tests as non-root");
 
 	memset(&set_tid, 0, sizeof(set_tid));
 

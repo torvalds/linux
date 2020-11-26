@@ -694,7 +694,7 @@ thumb2arm(u16 tinstr)
 			return subset[(L<<1) | ((tinstr & (1<<8)) >> 8)] |
 			    (tinstr & 255);		/* register_list */
 		}
-		/* Else, fall through - for illegal instruction case */
+		fallthrough;	/* for illegal instruction case */
 
 	default:
 		return BAD_INSTR;
@@ -750,7 +750,7 @@ do_alignment_t32_to_handler(u32 *pinstr, struct pt_regs *regs,
 	case 0xe8e0:
 	case 0xe9e0:
 		poffset->un = (tinst2 & 0xff) << 2;
-		/* Fall through */
+		fallthrough;
 
 	case 0xe940:
 	case 0xe9c0:

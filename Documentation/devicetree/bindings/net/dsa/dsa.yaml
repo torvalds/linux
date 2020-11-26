@@ -89,4 +89,6 @@ oneOf:
   - required:
       - ethernet-ports
 
+additionalProperties: true
+
 ...

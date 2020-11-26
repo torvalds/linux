@@ -145,6 +145,7 @@ struct hfi_ops {
 
 int hfi_create(struct venus_core *core, const struct hfi_core_ops *ops);
 void hfi_destroy(struct venus_core *core);
+void hfi_reinit(struct venus_core *core);
 
 int hfi_core_init(struct venus_core *core);
 int hfi_core_deinit(struct venus_core *core, bool blocking);

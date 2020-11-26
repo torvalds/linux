@@ -10,7 +10,6 @@
 #include <fcntl.h>
 #include <link.h>
 #include <sched.h>
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -273,40 +272,6 @@ int perf_event_reset(int fd)
 	return 0;
 }
 
-static void sigill_handler(int signr, siginfo_t *info, void *unused)
-{
-	static int warned = 0;
-	ucontext_t *ctx = (ucontext_t *)unused;
-	unsigned long *pc = &UCONTEXT_NIA(ctx);
-
-	/* mtspr 3,RS to check for move to DSCR below */
-	if ((*((unsigned int *)*pc) & 0xfc1fffff) == 0x7c0303a6) {
-		if (!warned++)
-			printf("WARNING: Skipping over dscr setup. Consider running 'ppc64_cpu --dscr=1' manually.\n");
-		*pc += 4;
-	} else {
-		printf("SIGILL at %p\n", pc);
-		abort();
-	}
-}
-
-void set_dscr(unsigned long val)
-{
-	static int init = 0;
-	struct sigaction sa;
-
-	if (!init) {
-		memset(&sa, 0, sizeof(sa));
-		sa.sa_sigaction = sigill_handler;
-		sa.sa_flags = SA_SIGINFO;
-		if (sigaction(SIGILL, &sa, NULL))
-			perror("sigill_handler");
-		init = 1;
-	}
-
-	asm volatile("mtspr %1,%0" : : "r" (val), "i" (SPRN_DSCR));
-}
-
 int using_hash_mmu(bool *using_hash)
 {
 	char line[128];
@@ -318,7 +283,9 @@ int using_hash_mmu(bool *using_hash)
 
 	rc = 0;
 	while (fgets(line, sizeof(line), f) != NULL) {
-		if (strcmp(line, "MMU		: Hash\n") == 0) {
+		if (!strcmp(line, "MMU		: Hash\n") ||
+		    !strcmp(line, "platform	: Cell\n") ||
+		    !strcmp(line, "platform	: PowerMac\n")) {
 			*using_hash = true;
 			goto out;
 		}

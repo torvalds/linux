@@ -73,10 +73,8 @@ static int board_added(struct controller *ctrl)
 
 	/* Check link training status */
 	retval = pciehp_check_link_status(ctrl);
-	if (retval) {
-		ctrl_err(ctrl, "Failed to check link status\n");
+	if (retval)
 		goto err_exit;
-	}
 
 	/* Check for a power fault */
 	if (ctrl->power_fault_detected || pciehp_query_power_fault(ctrl)) {
@@ -236,7 +234,7 @@ void pciehp_handle_presence_or_link_change(struct controller *ctrl, u32 events)
 	switch (ctrl->state) {
 	case BLINKINGOFF_STATE:
 		cancel_delayed_work(&ctrl->button_work);
-		/* fall through */
+		fallthrough;
 	case ON_STATE:
 		ctrl->state = POWEROFF_STATE;
 		mutex_unlock(&ctrl->state_lock);
@@ -265,7 +263,7 @@ void pciehp_handle_presence_or_link_change(struct controller *ctrl, u32 events)
 	switch (ctrl->state) {
 	case BLINKINGON_STATE:
 		cancel_delayed_work(&ctrl->button_work);
-		/* fall through */
+		fallthrough;
 	case OFF_STATE:
 		ctrl->state = POWERON_STATE;
 		mutex_unlock(&ctrl->state_lock);

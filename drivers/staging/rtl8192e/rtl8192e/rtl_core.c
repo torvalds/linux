@@ -82,8 +82,8 @@ static int _rtl92e_hard_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static void _rtl92e_tx_cmd(struct net_device *dev, struct sk_buff *skb);
 static short _rtl92e_tx(struct net_device *dev, struct sk_buff *skb);
 static short _rtl92e_pci_initdescring(struct net_device *dev);
-static void _rtl92e_irq_tx_tasklet(unsigned long data);
-static void _rtl92e_irq_rx_tasklet(unsigned long data);
+static void _rtl92e_irq_tx_tasklet(struct tasklet_struct *t);
+static void _rtl92e_irq_rx_tasklet(struct tasklet_struct *t);
 static void _rtl92e_cancel_deferred_work(struct r8192_priv *priv);
 static int _rtl92e_up(struct net_device *dev, bool is_silent_reset);
 static int _rtl92e_try_up(struct net_device *dev);
@@ -517,9 +517,10 @@ static int _rtl92e_handle_assoc_response(struct net_device *dev,
 	return 0;
 }
 
-static void _rtl92e_prepare_beacon(unsigned long data)
+static void _rtl92e_prepare_beacon(struct tasklet_struct *t)
 {
-	struct r8192_priv *priv = (struct r8192_priv *)data;
+	struct r8192_priv *priv = from_tasklet(priv, t,
+					       irq_prepare_beacon_tasklet);
 	struct net_device *dev = priv->rtllib->dev;
 	struct sk_buff *pskb = NULL, *pnewskb = NULL;
 	struct cb_desc *tcb_desc = NULL;
@@ -1009,12 +1010,10 @@ static void _rtl92e_init_priv_task(struct net_device *dev)
 			      (void *)rtl92e_hw_wakeup_wq, dev);
 	INIT_DELAYED_WORK_RSL(&priv->rtllib->hw_sleep_wq,
 			      (void *)rtl92e_hw_sleep_wq, dev);
-	tasklet_init(&priv->irq_rx_tasklet, _rtl92e_irq_rx_tasklet,
-		     (unsigned long)priv);
-	tasklet_init(&priv->irq_tx_tasklet, _rtl92e_irq_tx_tasklet,
-		     (unsigned long)priv);
-	tasklet_init(&priv->irq_prepare_beacon_tasklet, _rtl92e_prepare_beacon,
-		     (unsigned long)priv);
+	tasklet_setup(&priv->irq_rx_tasklet, _rtl92e_irq_rx_tasklet);
+	tasklet_setup(&priv->irq_tx_tasklet, _rtl92e_irq_tx_tasklet);
+	tasklet_setup(&priv->irq_prepare_beacon_tasklet,
+		      _rtl92e_prepare_beacon);
 }
 
 static short _rtl92e_get_channel_map(struct net_device *dev)
@@ -2109,16 +2108,16 @@ static void _rtl92e_tx_resume(struct net_device *dev)
 	}
 }
 
-static void _rtl92e_irq_tx_tasklet(unsigned long data)
+static void _rtl92e_irq_tx_tasklet(struct tasklet_struct *t)
 {
-	struct r8192_priv *priv = (struct r8192_priv *)data;
+	struct r8192_priv *priv = from_tasklet(priv, t, irq_tx_tasklet);
 
 	_rtl92e_tx_resume(priv->rtllib->dev);
 }
 
-static void _rtl92e_irq_rx_tasklet(unsigned long data)
+static void _rtl92e_irq_rx_tasklet(struct tasklet_struct *t)
 {
-	struct r8192_priv *priv = (struct r8192_priv *)data;
+	struct r8192_priv *priv = from_tasklet(priv, t, irq_rx_tasklet);
 
 	_rtl92e_rx_normal(priv->rtllib->dev);
 

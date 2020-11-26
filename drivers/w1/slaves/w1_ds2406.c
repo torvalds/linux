@@ -138,7 +138,7 @@ static void w1_f12_remove_slave(struct w1_slave *sl)
 			&(w1_f12_sysfs_bin_files[i]));
 }
 
-static struct w1_family_ops w1_f12_fops = {
+static const struct w1_family_ops w1_f12_fops = {
 	.add_slave      = w1_f12_add_slave,
 	.remove_slave   = w1_f12_remove_slave,
 };

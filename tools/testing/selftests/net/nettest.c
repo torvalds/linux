@@ -1667,6 +1667,8 @@ int main(int argc, char *argv[])
 		case 'R':
 			args.type = SOCK_RAW;
 			args.port = 0;
+			if (!args.protocol)
+				args.protocol = IPPROTO_RAW;
 			break;
 		case 'P':
 			pe = getprotobyname(optarg);

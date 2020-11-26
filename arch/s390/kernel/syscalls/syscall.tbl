@@ -26,7 +26,7 @@
 16   32		lchown			-				sys_lchown16
 19   common	lseek			sys_lseek			compat_sys_lseek
 20   common	getpid			sys_getpid			sys_getpid
-21   common	mount			sys_mount			compat_sys_mount
+21   common	mount			sys_mount			sys_mount
 22   common	umount			sys_oldumount			sys_oldumount
 23   32		setuid			-				sys_setuid16
 24   32		getuid			-				sys_getuid16
@@ -134,8 +134,8 @@
 142  64		select			sys_select			-
 143  common	flock			sys_flock			sys_flock
 144  common	msync			sys_msync			sys_msync
-145  common	readv			sys_readv			compat_sys_readv
-146  common	writev			sys_writev			compat_sys_writev
+145  common	readv			sys_readv			sys_readv
+146  common	writev			sys_writev			sys_writev
 147  common	getsid			sys_getsid			sys_getsid
 148  common	fdatasync		sys_fdatasync			sys_fdatasync
 149  common	_sysctl			-				-
@@ -316,7 +316,7 @@
 306  common	splice			sys_splice			sys_splice
 307  common	sync_file_range		sys_sync_file_range		compat_sys_s390_sync_file_range
 308  common	tee			sys_tee				sys_tee
-309  common	vmsplice		sys_vmsplice			compat_sys_vmsplice
+309  common	vmsplice		sys_vmsplice			sys_vmsplice
 310  common	move_pages		sys_move_pages			compat_sys_move_pages
 311  common	getcpu			sys_getcpu			sys_getcpu
 312  common	epoll_pwait		sys_epoll_pwait			compat_sys_epoll_pwait
@@ -347,8 +347,8 @@
 337  common	clock_adjtime		sys_clock_adjtime		sys_clock_adjtime32
 338  common	syncfs			sys_syncfs			sys_syncfs
 339  common	setns			sys_setns			sys_setns
-340  common	process_vm_readv	sys_process_vm_readv		compat_sys_process_vm_readv
-341  common	process_vm_writev	sys_process_vm_writev		compat_sys_process_vm_writev
+340  common	process_vm_readv	sys_process_vm_readv		sys_process_vm_readv
+341  common	process_vm_writev	sys_process_vm_writev		sys_process_vm_writev
 342  common	s390_runtime_instr	sys_s390_runtime_instr		sys_s390_runtime_instr
 343  common	kcmp			sys_kcmp			sys_kcmp
 344  common	finit_module		sys_finit_module		sys_finit_module
@@ -442,3 +442,4 @@
 437  common	openat2			sys_openat2			sys_openat2
 438  common	pidfd_getfd		sys_pidfd_getfd			sys_pidfd_getfd
 439  common	faccessat2		sys_faccessat2			sys_faccessat2
+440  common	process_madvise		sys_process_madvise		sys_process_madvise

@@ -20,6 +20,7 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/io.h>
 #include <linux/list.h>
 #include <linux/pm.h>
@@ -44,49 +45,6 @@ struct mmp_camera {
 static inline struct mmp_camera *mcam_to_cam(struct mcam_camera *mcam)
 {
 	return container_of(mcam, struct mmp_camera, mcam);
-}
-
-/*
- * A silly little infrastructure so we can keep track of our devices.
- * Chances are that we will never have more than one of them, but
- * the Armada 610 *does* have two controllers...
- */
-
-static LIST_HEAD(mmpcam_devices);
-static struct mutex mmpcam_devices_lock;
-
-static void mmpcam_add_device(struct mmp_camera *cam)
-{
-	mutex_lock(&mmpcam_devices_lock);
-	list_add(&cam->devlist, &mmpcam_devices);
-	mutex_unlock(&mmpcam_devices_lock);
-}
-
-static void mmpcam_remove_device(struct mmp_camera *cam)
-{
-	mutex_lock(&mmpcam_devices_lock);
-	list_del(&cam->devlist);
-	mutex_unlock(&mmpcam_devices_lock);
-}
-
-/*
- * Platform dev remove passes us a platform_device, and there's
- * no handy unused drvdata to stash a backpointer in.  So just
- * dig it out of our list.
- */
-static struct mmp_camera *mmpcam_find_device(struct platform_device *pdev)
-{
-	struct mmp_camera *cam;
-
-	mutex_lock(&mmpcam_devices_lock);
-	list_for_each_entry(cam, &mmpcam_devices, devlist) {
-		if (cam->pdev == pdev) {
-			mutex_unlock(&mmpcam_devices_lock);
-			return cam;
-		}
-	}
-	mutex_unlock(&mmpcam_devices_lock);
-	return NULL;
 }
 
 /*
@@ -227,6 +185,7 @@ static int mmpcam_probe(struct platform_device *pdev)
 	cam = devm_kzalloc(&pdev->dev, sizeof(*cam), GFP_KERNEL);
 	if (cam == NULL)
 		return -ENOMEM;
+	platform_set_drvdata(pdev, cam);
 	cam->pdev = pdev;
 	INIT_LIST_HEAD(&cam->devlist);
 
@@ -313,11 +272,11 @@ static int mmpcam_probe(struct platform_device *pdev)
 	cam->irq = res->start;
 	ret = devm_request_irq(&pdev->dev, cam->irq, mmpcam_irq, IRQF_SHARED,
 					"mmp-camera", mcam);
-	if (ret == 0) {
-		mmpcam_add_device(cam);
-		return 0;
-	}
+	if (ret)
+		goto out;
 
+	pm_runtime_enable(&pdev->dev);
+	return 0;
 out:
 	fwnode_handle_put(mcam->asd.match.fwnode);
 	mccic_shutdown(mcam);
@@ -330,14 +289,14 @@ static int mmpcam_remove(struct mmp_camera *cam)
 {
 	struct mcam_camera *mcam = &cam->mcam;
 
-	mmpcam_remove_device(cam);
 	mccic_shutdown(mcam);
+	pm_runtime_force_suspend(mcam->dev);
 	return 0;
 }
 
 static int mmpcam_platform_remove(struct platform_device *pdev)
 {
-	struct mmp_camera *cam = mmpcam_find_device(pdev);
+	struct mmp_camera *cam = platform_get_drvdata(pdev);
 
 	if (cam == NULL)
 		return -ENODEV;
@@ -347,26 +306,59 @@ static int mmpcam_platform_remove(struct platform_device *pdev)
 /*
  * Suspend/resume support.
  */
+
 #ifdef CONFIG_PM
-
-static int mmpcam_suspend(struct platform_device *pdev, pm_message_t state)
+static int mmpcam_runtime_resume(struct device *dev)
 {
-	struct mmp_camera *cam = mmpcam_find_device(pdev);
+	struct mmp_camera *cam = dev_get_drvdata(dev);
+	struct mcam_camera *mcam = &cam->mcam;
+	unsigned int i;
 
-	if (state.event != PM_EVENT_SUSPEND)
-		return 0;
-	mccic_suspend(&cam->mcam);
+	for (i = 0; i < NR_MCAM_CLK; i++) {
+		if (!IS_ERR(mcam->clk[i]))
+			clk_prepare_enable(mcam->clk[i]);
+	}
+
 	return 0;
 }
 
-static int mmpcam_resume(struct platform_device *pdev)
+static int mmpcam_runtime_suspend(struct device *dev)
 {
-	struct mmp_camera *cam = mmpcam_find_device(pdev);
+	struct mmp_camera *cam = dev_get_drvdata(dev);
+	struct mcam_camera *mcam = &cam->mcam;
+	int i;
 
-	return mccic_resume(&cam->mcam);
+	for (i = NR_MCAM_CLK - 1; i >= 0; i--) {
+		if (!IS_ERR(mcam->clk[i]))
+			clk_disable_unprepare(mcam->clk[i]);
+	}
+
+	return 0;
 }
 
+static int __maybe_unused mmpcam_suspend(struct device *dev)
+{
+	struct mmp_camera *cam = dev_get_drvdata(dev);
+
+	if (!pm_runtime_suspended(dev))
+		mccic_suspend(&cam->mcam);
+	return 0;
+}
+
+static int __maybe_unused mmpcam_resume(struct device *dev)
+{
+	struct mmp_camera *cam = dev_get_drvdata(dev);
+
+	if (!pm_runtime_suspended(dev))
+		return mccic_resume(&cam->mcam);
+	return 0;
+}
 #endif
+
+static const struct dev_pm_ops mmpcam_pm_ops = {
+	SET_RUNTIME_PM_OPS(mmpcam_runtime_suspend, mmpcam_runtime_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(mmpcam_suspend, mmpcam_resume)
+};
 
 static const struct of_device_id mmpcam_of_match[] = {
 	{ .compatible = "marvell,mmp2-ccic", },
@@ -377,32 +369,11 @@ MODULE_DEVICE_TABLE(of, mmpcam_of_match);
 static struct platform_driver mmpcam_driver = {
 	.probe		= mmpcam_probe,
 	.remove		= mmpcam_platform_remove,
-#ifdef CONFIG_PM
-	.suspend	= mmpcam_suspend,
-	.resume		= mmpcam_resume,
-#endif
 	.driver = {
 		.name	= "mmp-camera",
 		.of_match_table = of_match_ptr(mmpcam_of_match),
+		.pm = &mmpcam_pm_ops,
 	}
 };
 
-
-static int __init mmpcam_init_module(void)
-{
-	mutex_init(&mmpcam_devices_lock);
-	return platform_driver_register(&mmpcam_driver);
-}
-
-static void __exit mmpcam_exit_module(void)
-{
-	platform_driver_unregister(&mmpcam_driver);
-	/*
-	 * platform_driver_unregister() should have emptied the list
-	 */
-	if (!list_empty(&mmpcam_devices))
-		printk(KERN_ERR "mmp_camera leaving devices behind\n");
-}
-
-module_init(mmpcam_init_module);
-module_exit(mmpcam_exit_module);
+module_platform_driver(mmpcam_driver);

@@ -11,10 +11,8 @@
  *	Jianhua Li <lijianhua@huawei.com>
  */
 
-#include <drm/drm_gem_vram_helper.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_probe_helper.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_print.h>
 
 #include "hibmc_drm_drv.h"
@@ -87,7 +85,7 @@ int hibmc_vdac_init(struct hibmc_drm_private *priv)
 	ret = drm_encoder_init(dev, encoder, &hibmc_encoder_funcs,
 			       DRM_MODE_ENCODER_DAC, NULL);
 	if (ret) {
-		DRM_ERROR("failed to init encoder: %d\n", ret);
+		drm_err(dev, "failed to init encoder: %d\n", ret);
 		return ret;
 	}
 
@@ -96,7 +94,7 @@ int hibmc_vdac_init(struct hibmc_drm_private *priv)
 	ret = drm_connector_init(dev, connector, &hibmc_connector_funcs,
 				 DRM_MODE_CONNECTOR_VGA);
 	if (ret) {
-		DRM_ERROR("failed to init connector: %d\n", ret);
+		drm_err(dev, "failed to init connector: %d\n", ret);
 		return ret;
 	}
 	drm_connector_helper_add(connector, &hibmc_connector_helper_funcs);

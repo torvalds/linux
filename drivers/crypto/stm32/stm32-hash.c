@@ -9,6 +9,7 @@
 #include <linux/clk.h>
 #include <linux/crypto.h>
 #include <linux/delay.h>
+#include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -748,7 +749,7 @@ static int stm32_hash_final_req(struct stm32_hash_dev *hdev)
 static void stm32_hash_copy_hash(struct ahash_request *req)
 {
 	struct stm32_hash_request_ctx *rctx = ahash_request_ctx(req);
-	u32 *hash = (u32 *)rctx->digest;
+	__be32 *hash = (void *)rctx->digest;
 	unsigned int i, hashsize;
 
 	switch (rctx->flags & HASH_FLAGS_ALGO_MASK) {
@@ -769,7 +770,7 @@ static void stm32_hash_copy_hash(struct ahash_request *req)
 	}
 
 	for (i = 0; i < hashsize / sizeof(u32); i++)
-		hash[i] = be32_to_cpu(stm32_hash_read(rctx->hdev,
+		hash[i] = cpu_to_be32(stm32_hash_read(rctx->hdev,
 						      HASH_HREG(i)));
 }
 
@@ -1463,14 +1464,9 @@ static int stm32_hash_probe(struct platform_device *pdev)
 	}
 
 	hdev->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(hdev->clk)) {
-		if (PTR_ERR(hdev->clk) != -EPROBE_DEFER) {
-			dev_err(dev, "failed to get clock for hash (%lu)\n",
-				PTR_ERR(hdev->clk));
-		}
-
-		return PTR_ERR(hdev->clk);
-	}
+	if (IS_ERR(hdev->clk))
+		return dev_err_probe(dev, PTR_ERR(hdev->clk),
+				     "failed to get clock for hash\n");
 
 	ret = clk_prepare_enable(hdev->clk);
 	if (ret) {

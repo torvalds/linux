@@ -95,7 +95,7 @@ u32 ieee80211_channel_to_freq_khz(int chan, enum nl80211_band band)
 		/* see 802.11ax D6.1 27.3.23.2 */
 		if (chan == 2)
 			return MHZ_TO_KHZ(5935);
-		if (chan <= 253)
+		if (chan <= 233)
 			return MHZ_TO_KHZ(5950 + chan * 5);
 		break;
 	case NL80211_BAND_60GHZ:
@@ -111,6 +111,33 @@ u32 ieee80211_channel_to_freq_khz(int chan, enum nl80211_band band)
 }
 EXPORT_SYMBOL(ieee80211_channel_to_freq_khz);
 
+enum nl80211_chan_width
+ieee80211_s1g_channel_width(const struct ieee80211_channel *chan)
+{
+	if (WARN_ON(!chan || chan->band != NL80211_BAND_S1GHZ))
+		return NL80211_CHAN_WIDTH_20_NOHT;
+
+	/*S1G defines a single allowed channel width per channel.
+	 * Extract that width here.
+	 */
+	if (chan->flags & IEEE80211_CHAN_1MHZ)
+		return NL80211_CHAN_WIDTH_1;
+	else if (chan->flags & IEEE80211_CHAN_2MHZ)
+		return NL80211_CHAN_WIDTH_2;
+	else if (chan->flags & IEEE80211_CHAN_4MHZ)
+		return NL80211_CHAN_WIDTH_4;
+	else if (chan->flags & IEEE80211_CHAN_8MHZ)
+		return NL80211_CHAN_WIDTH_8;
+	else if (chan->flags & IEEE80211_CHAN_16MHZ)
+		return NL80211_CHAN_WIDTH_16;
+
+	pr_err("unknown channel width for channel at %dKHz?\n",
+	       ieee80211_channel_to_khz(chan));
+
+	return NL80211_CHAN_WIDTH_1;
+}
+EXPORT_SYMBOL(ieee80211_s1g_channel_width);
+
 int ieee80211_freq_khz_to_channel(u32 freq)
 {
 	/* TODO: just handle MHz for now */
@@ -123,11 +150,13 @@ int ieee80211_freq_khz_to_channel(u32 freq)
 		return (freq - 2407) / 5;
 	else if (freq >= 4910 && freq <= 4980)
 		return (freq - 4000) / 5;
-	else if (freq < 5945)
+	else if (freq < 5925)
 		return (freq - 5000) / 5;
+	else if (freq == 5935)
+		return 2;
 	else if (freq <= 45000) /* DMG band lower limit */
-		/* see 802.11ax D4.1 27.3.22.2 */
-		return (freq - 5940) / 5;
+		/* see 802.11ax D6.1 27.3.22.2 */
+		return (freq - 5950) / 5;
 	else if (freq >= 58320 && freq <= 70200)
 		return (freq - 56160) / 2160;
 	else
@@ -198,7 +227,7 @@ static void set_mandatory_flags_band(struct ieee80211_supported_band *sband)
 				sband->bitrates[i].flags |=
 					IEEE80211_RATE_MANDATORY_G;
 				want--;
-				/* fall through */
+				fallthrough;
 			default:
 				sband->bitrates[i].flags |=
 					IEEE80211_RATE_ERP_G;
@@ -396,6 +425,11 @@ int cfg80211_validate_key_settings(struct cfg80211_registered_device *rdev,
 unsigned int __attribute_const__ ieee80211_hdrlen(__le16 fc)
 {
 	unsigned int hdrlen = 24;
+
+	if (ieee80211_is_ext(fc)) {
+		hdrlen = 4;
+		goto out;
+	}
 
 	if (ieee80211_is_data(fc)) {
 		if (ieee80211_has_a4(fc))
@@ -1008,7 +1042,7 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 		case NL80211_IFTYPE_STATION:
 			if (dev->ieee80211_ptr->use_4addr)
 				break;
-			/* fall through */
+			fallthrough;
 		case NL80211_IFTYPE_OCB:
 		case NL80211_IFTYPE_P2P_CLIENT:
 		case NL80211_IFTYPE_ADHOC:

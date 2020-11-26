@@ -112,6 +112,32 @@ The flags are "bcrosyiABEx" which stand for branch, call, return, conditional,
 system, asynchronous, interrupt, transaction abort, trace begin, trace end, and
 in transaction, respectively.
 
+perf script also supports higher level ways to dump instruction traces:
+
+	perf script --insn-trace --xed
+
+Dump all instructions. This requires installing the xed tool (see XED below)
+Dumping all instructions in a long trace can be fairly slow. It is usually better
+to start with higher level decoding, like
+
+	perf script --call-trace
+
+or
+
+	perf script --call-ret-trace
+
+and then select a time range of interest. The time range can then be examined
+in detail with
+
+	perf script --time starttime,stoptime --insn-trace --xed
+
+While examining the trace it's also useful to filter on specific CPUs using
+the -C option
+
+	perf script --time starttime,stoptime --insn-trace --xed -C 1
+
+Dump all instructions in time range on CPU 1.
+
 Another interesting field that is not printed by default is 'ipc' which can be
 displayed as follows:
 
@@ -558,7 +584,7 @@ The mmap size and auxtrace mmap size are displayed if the -vv option is used e.g
 Intel PT modes of operation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Intel PT can be used in 2 modes:
+Intel PT can be used in 3 modes:
 	full-trace mode
 	sample mode
 	snapshot mode
@@ -571,7 +597,8 @@ Sample mode attaches a Intel PT sample to other events e.g.
 
 	perf record --aux-sample -e intel_pt//u -e branch-misses:u
 
-Snapshot mode captures the available data when a signal is sent e.g.
+Snapshot mode captures the available data when a signal is sent or "snapshot"
+control command is issued. e.g. using a signal
 
 	perf record -v -e intel_pt//u -S ./loopy 1000000000 &
 	[1] 11435
@@ -582,7 +609,23 @@ Note that the signal sent is SIGUSR2.
 Note that "Recording AUX area tracing snapshot" is displayed because the -v
 option is used.
 
-The 2 modes cannot be used together.
+The advantage of using "snapshot" control command is that the access is
+controlled by access to a FIFO e.g.
+
+	$ mkfifo perf.control
+	$ mkfifo perf.ack
+	$ cat perf.ack &
+	[1] 15235
+	$ sudo ~/bin/perf record --control fifo:perf.control,perf.ack -S -e intel_pt//u -- sleep 60 &
+	[2] 15243
+	$ ps -e | grep perf
+	15244 pts/1    00:00:00 perf
+	$ kill -USR2 15244
+	bash: kill: (15244) - Operation not permitted
+	$ echo snapshot > perf.control
+	ack
+
+The 3 Intel PT modes of operation cannot be used together.
 
 
 Buffer handling
@@ -1093,6 +1136,10 @@ To display PEBS events from the Intel PT trace, use the itrace 'o' option e.g.
 
 	perf script --itrace=oe
 
+XED
+---
+
+include::build-xed.txt[]
 
 SEE ALSO
 --------

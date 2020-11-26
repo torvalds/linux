@@ -140,7 +140,7 @@ static struct scatterlist* vmalloc_to_sg(unsigned char *virt, int nr_pages)
 	struct page *pg;
 	int i;
 
-	sglist = kcalloc(nr_pages, sizeof(struct scatterlist), GFP_KERNEL);
+	sglist = kmalloc_array(nr_pages, sizeof(struct scatterlist), GFP_KERNEL);
 	if (NULL == sglist)
 		return NULL;
 	sg_init_table(sglist, nr_pages);

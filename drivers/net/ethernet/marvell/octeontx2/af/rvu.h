@@ -289,6 +289,22 @@ struct rvu_fwdata {
 	u64 reserved[FWDATA_RESERVED_MEM];
 };
 
+struct ptp;
+
+/* KPU profile adapter structure gathering all KPU configuration data and abstracting out the
+ * source where it came from.
+ */
+struct npc_kpu_profile_adapter {
+	const char			*name;
+	u64				version;
+	const struct npc_lt_def_cfg	*lt_def;
+	const struct npc_kpu_profile_action	*ikpu; /* array[pkinds] */
+	const struct npc_kpu_profile	*kpu; /* array[kpus] */
+	const struct npc_mcam_kex	*mkex;
+	size_t				pkinds;
+	size_t				kpus;
+};
+
 struct rvu {
 	void __iomem		*afreg_base;
 	void __iomem		*pfreg_base;
@@ -336,6 +352,11 @@ struct rvu {
 
 	/* Firmware data */
 	struct rvu_fwdata	*fwdata;
+
+	/* NPC KPU data */
+	struct npc_kpu_profile_adapter kpu;
+
+	struct ptp		*ptp;
 
 #ifdef CONFIG_DEBUG_FS
 	struct rvu_debugfs	rvu_dbg;
@@ -463,12 +484,14 @@ void rvu_nix_freemem(struct rvu *rvu);
 int rvu_get_nixlf_count(struct rvu *rvu);
 void rvu_nix_lf_teardown(struct rvu *rvu, u16 pcifunc, int blkaddr, int npalf);
 int nix_get_nixlf(struct rvu *rvu, u16 pcifunc, int *nixlf, int *nix_blkaddr);
+int nix_update_bcast_mce_list(struct rvu *rvu, u16 pcifunc, bool add);
 
 /* NPC APIs */
 int rvu_npc_init(struct rvu *rvu);
 void rvu_npc_freemem(struct rvu *rvu);
 int rvu_npc_get_pkind(struct rvu *rvu, u16 pf);
 void rvu_npc_set_pkind(struct rvu *rvu, int pkind, struct rvu_pfvf *pfvf);
+int npc_config_ts_kpuaction(struct rvu *rvu, int pf, u16 pcifunc, bool en);
 void rvu_npc_install_ucast_entry(struct rvu *rvu, u16 pcifunc,
 				 int nixlf, u64 chan, u8 *mac_addr);
 void rvu_npc_install_promisc_entry(struct rvu *rvu, u16 pcifunc,
@@ -477,7 +500,7 @@ void rvu_npc_disable_promisc_entry(struct rvu *rvu, u16 pcifunc, int nixlf);
 void rvu_npc_enable_promisc_entry(struct rvu *rvu, u16 pcifunc, int nixlf);
 void rvu_npc_install_bcast_match_entry(struct rvu *rvu, u16 pcifunc,
 				       int nixlf, u64 chan);
-void rvu_npc_disable_bcast_entry(struct rvu *rvu, u16 pcifunc);
+void rvu_npc_enable_bcast_entry(struct rvu *rvu, u16 pcifunc, bool enable);
 int rvu_npc_update_rxvlan(struct rvu *rvu, u16 pcifunc, int nixlf);
 void rvu_npc_disable_mcam_entries(struct rvu *rvu, u16 pcifunc, int nixlf);
 void rvu_npc_disable_default_entries(struct rvu *rvu, u16 pcifunc, int nixlf);

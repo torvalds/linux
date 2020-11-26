@@ -1647,9 +1647,9 @@ static void qed_src_init_pf(struct qed_hwfn *p_hwfn)
 		     ilog2(rounded_conn_num));
 
 	STORE_RT_REG_AGG(p_hwfn, SRC_REG_FIRSTFREE_RT_OFFSET,
-			 p_hwfn->p_cxt_mngr->first_free);
+			 p_hwfn->p_cxt_mngr->src_t2.first_free);
 	STORE_RT_REG_AGG(p_hwfn, SRC_REG_LASTFREE_RT_OFFSET,
-			 p_hwfn->p_cxt_mngr->last_free);
+			 p_hwfn->p_cxt_mngr->src_t2.last_free);
 }
 
 /* Timers PF */
@@ -2046,7 +2046,7 @@ int qed_cxt_set_pf_params(struct qed_hwfn *p_hwfn, u32 rdma_tasks)
 					       rdma_tasks);
 		/* no need for break since RoCE coexist with Ethernet */
 	}
-	/* fall through */
+		fallthrough;
 	case QED_PCI_ETH:
 	{
 		struct qed_eth_pf_params *p_params =

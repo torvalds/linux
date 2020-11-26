@@ -84,7 +84,7 @@ static int __init efibc_init(void)
 {
 	int ret;
 
-	if (!efi_enabled(EFI_RUNTIME_SERVICES))
+	if (!efivars_kobject() || !efivar_supports_writes())
 		return -ENODEV;
 
 	ret = register_reboot_notifier(&efibc_reboot_notifier);

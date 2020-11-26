@@ -12,7 +12,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@20000000 {
 		reg = <0x20000000 0x20000000>;
 	};
 

@@ -102,10 +102,10 @@ static int __init md_setup(char *str)
 				pername = "raid0";
 			break;
 		}
-		/* FALL THROUGH */
+		fallthrough;
 	case 1: /* the first device is numeric */
 		str = str1;
-		/* FALL THROUGH */
+		fallthrough;
 	case 0:
 		md_setup_args[ent].level = LEVEL_NONE;
 		pername="super-block";

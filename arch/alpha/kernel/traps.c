@@ -883,7 +883,7 @@ do_entUnaUser(void __user * va, unsigned long opcode,
 
 	case 0x26: /* sts */
 		fake_reg = s_reg_to_mem(alpha_read_fp_reg(reg));
-		/* FALLTHRU */
+		fallthrough;
 
 	case 0x2c: /* stl */
 		__asm__ __volatile__(
@@ -911,7 +911,7 @@ do_entUnaUser(void __user * va, unsigned long opcode,
 
 	case 0x27: /* stt */
 		fake_reg = alpha_read_fp_reg(reg);
-		/* FALLTHRU */
+		fallthrough;
 
 	case 0x2d: /* stq */
 		__asm__ __volatile__(

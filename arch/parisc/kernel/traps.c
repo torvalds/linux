@@ -437,7 +437,6 @@ void parisc_terminate(char *msg, struct pt_regs *regs, int code, unsigned long o
 		break;
 
 	default:
-		/* Fall through */
 		break;
 
 	}
@@ -644,12 +643,12 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 
 	case 15:
 		/* Data TLB miss fault/Data page fault */
-		/* Fall through */
+		fallthrough;
 	case 16:
 		/* Non-access instruction TLB miss fault */
 		/* The instruction TLB entry needed for the target address of the FIC
 		   is absent, and hardware can't find it, so we get to cleanup */
-		/* Fall through */
+		fallthrough;
 	case 17:
 		/* Non-access data TLB miss fault/Non-access data page fault */
 		/* FIXME: 
@@ -673,7 +672,7 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 			handle_unaligned(regs);
 			return;
 		}
-		/* Fall Through */
+		fallthrough;
 	case 26: 
 		/* PCXL: Data memory access rights trap */
 		fault_address = regs->ior;
@@ -683,7 +682,7 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 	case 19:
 		/* Data memory break trap */
 		regs->gr[0] |= PSW_X; /* So we can single-step over the trap */
-		/* fall thru */
+		fallthrough;
 	case 21:
 		/* Page reference trap */
 		handle_gdb_break(regs, TRAP_HWBKPT);
@@ -730,7 +729,7 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 			}
 			mmap_read_unlock(current->mm);
 		}
-		/* Fall Through */
+		fallthrough;
 	case 27: 
 		/* Data memory protection ID trap */
 		if (code == 27 && !user_mode(regs) &&

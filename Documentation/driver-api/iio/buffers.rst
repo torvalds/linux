@@ -2,7 +2,7 @@
 Buffers
 =======
 
-* struct :c:type:`iio_buffer` — general buffer structure
+* struct iio_buffer — general buffer structure
 * :c:func:`iio_validate_scan_mask_onehot` — Validates that exactly one channel
   is selected
 * :c:func:`iio_buffer_get` — Grab a reference to the buffer

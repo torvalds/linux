@@ -1018,6 +1018,10 @@ static int ov2740_register_nvmem(struct i2c_client *client)
 	if (!nvm)
 		return -ENOMEM;
 
+	nvm->nvm_buffer = devm_kzalloc(dev, CUSTOMER_USE_OTP_SIZE, GFP_KERNEL);
+	if (!nvm->nvm_buffer)
+		return -ENOMEM;
+
 	regmap_config.val_bits = 8;
 	regmap_config.reg_bits = 16;
 	regmap_config.disable_locking = true;
@@ -1026,6 +1030,12 @@ static int ov2740_register_nvmem(struct i2c_client *client)
 		return PTR_ERR(regmap);
 
 	nvm->regmap = regmap;
+
+	ret = ov2740_load_otp_data(client, nvm);
+	if (ret) {
+		dev_err(dev, "failed to load OTP data, ret %d\n", ret);
+		return ret;
+	}
 
 	nvmem_config.name = dev_name(dev);
 	nvmem_config.dev = dev;
@@ -1042,18 +1052,8 @@ static int ov2740_register_nvmem(struct i2c_client *client)
 	nvmem_config.size = CUSTOMER_USE_OTP_SIZE;
 
 	nvm->nvmem = devm_nvmem_register(dev, &nvmem_config);
-	if (IS_ERR(nvm->nvmem))
-		return PTR_ERR(nvm->nvmem);
 
-	nvm->nvm_buffer = devm_kzalloc(dev, CUSTOMER_USE_OTP_SIZE, GFP_KERNEL);
-	if (!nvm->nvm_buffer)
-		return -ENOMEM;
-
-	ret = ov2740_load_otp_data(client, nvm);
-	if (ret)
-		dev_err(dev, "failed to load OTP data, ret %d\n", ret);
-
-	return ret;
+	return PTR_ERR_OR_ZERO(nvm->nvmem);
 }
 
 static int ov2740_probe(struct i2c_client *client)
@@ -1107,7 +1107,7 @@ static int ov2740_probe(struct i2c_client *client)
 
 	ret = ov2740_register_nvmem(client);
 	if (ret)
-		dev_err(&client->dev, "register nvmem failed, ret %d\n", ret);
+		dev_warn(&client->dev, "register nvmem failed, ret %d\n", ret);
 
 	/*
 	 * Device is already turned on by i2c-core with ACPI domain PM.

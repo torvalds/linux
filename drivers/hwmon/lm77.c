@@ -315,7 +315,7 @@ static void lm77_init_client(struct i2c_client *client)
 		lm77_write_value(client, LM77_REG_CONF, conf & 0xfe);
 }
 
-static int lm77_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int lm77_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct device *hwmon_dev;
@@ -348,7 +348,7 @@ static struct i2c_driver lm77_driver = {
 	.driver = {
 		.name	= "lm77",
 	},
-	.probe		= lm77_probe,
+	.probe_new	= lm77_probe,
 	.id_table	= lm77_id,
 	.detect		= lm77_detect,
 	.address_list	= normal_i2c,

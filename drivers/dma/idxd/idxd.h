@@ -103,7 +103,7 @@ struct idxd_wq {
 	u32 priority;
 	enum idxd_wq_state state;
 	unsigned long flags;
-	union wqcfg wqcfg;
+	union wqcfg *wqcfg;
 	u32 vec_ptr;		/* interrupt steering */
 	struct dsa_hw_desc **hw_descs;
 	int num_descs;
@@ -114,6 +114,8 @@ struct idxd_wq {
 	struct sbitmap_queue sbq;
 	struct dma_chan dma_chan;
 	char name[WQ_NAME_SIZE + 1];
+	u64 max_xfer_bytes;
+	u32 max_batch_size;
 };
 
 struct idxd_engine {
@@ -154,6 +156,7 @@ struct idxd_device {
 	unsigned long flags;
 	int id;
 	int major;
+	u8 cmd_status;
 
 	struct pci_dev *pdev;
 	void __iomem *reg_base;
@@ -180,6 +183,7 @@ struct idxd_device {
 	int max_wq_size;
 	int token_limit;
 	int nr_tokens;		/* non-reserved tokens */
+	unsigned int wqcfg_size;
 
 	union sw_err_reg sw_err;
 	wait_queue_head_t cmd_waitq;

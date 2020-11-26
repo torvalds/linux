@@ -577,8 +577,8 @@ extern void slb_set_size(u16 size);
  * For vmalloc and memmap, we use just one context with 512TB. With 64 byte
  * struct page size, we need ony 32 TB in memmap for 2PB (51 bits (MAX_PHYSMEM_BITS)).
  */
-#if (MAX_PHYSMEM_BITS > MAX_EA_BITS_PER_CONTEXT)
-#define MAX_KERNEL_CTX_CNT	(1UL << (MAX_PHYSMEM_BITS - MAX_EA_BITS_PER_CONTEXT))
+#if (H_MAX_PHYSMEM_BITS > MAX_EA_BITS_PER_CONTEXT)
+#define MAX_KERNEL_CTX_CNT	(1UL << (H_MAX_PHYSMEM_BITS - MAX_EA_BITS_PER_CONTEXT))
 #else
 #define MAX_KERNEL_CTX_CNT	1
 #endif

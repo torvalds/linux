@@ -1,5 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
+.. _MIPI_CSI_2:
+
 MIPI CSI-2
 ==========
 

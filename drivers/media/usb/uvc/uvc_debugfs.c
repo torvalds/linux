@@ -73,7 +73,6 @@ static struct dentry *uvc_debugfs_root_dir;
 void uvc_debugfs_init_stream(struct uvc_streaming *stream)
 {
 	struct usb_device *udev = stream->dev->udev;
-	struct dentry *dent;
 	char dir_name[33];
 
 	if (uvc_debugfs_root_dir == NULL)
@@ -82,22 +81,11 @@ void uvc_debugfs_init_stream(struct uvc_streaming *stream)
 	snprintf(dir_name, sizeof(dir_name), "%u-%u-%u", udev->bus->busnum,
 		 udev->devnum, stream->intfnum);
 
-	dent = debugfs_create_dir(dir_name, uvc_debugfs_root_dir);
-	if (IS_ERR_OR_NULL(dent)) {
-		uvc_printk(KERN_INFO, "Unable to create debugfs %s "
-			   "directory.\n", dir_name);
-		return;
-	}
+	stream->debugfs_dir = debugfs_create_dir(dir_name,
+						 uvc_debugfs_root_dir);
 
-	stream->debugfs_dir = dent;
-
-	dent = debugfs_create_file("stats", 0444, stream->debugfs_dir,
-				   stream, &uvc_debugfs_stats_fops);
-	if (IS_ERR_OR_NULL(dent)) {
-		uvc_printk(KERN_INFO, "Unable to create debugfs stats file.\n");
-		uvc_debugfs_cleanup_stream(stream);
-		return;
-	}
+	debugfs_create_file("stats", 0444, stream->debugfs_dir, stream,
+			    &uvc_debugfs_stats_fops);
 }
 
 void uvc_debugfs_cleanup_stream(struct uvc_streaming *stream)

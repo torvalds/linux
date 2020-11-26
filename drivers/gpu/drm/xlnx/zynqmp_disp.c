@@ -242,12 +242,6 @@ static const u32 scaling_factors_565[] = {
 	ZYNQMP_DISP_AV_BUF_5BIT_SF,
 };
 
-static const u32 scaling_factors_666[] = {
-	ZYNQMP_DISP_AV_BUF_6BIT_SF,
-	ZYNQMP_DISP_AV_BUF_6BIT_SF,
-	ZYNQMP_DISP_AV_BUF_6BIT_SF,
-};
-
 static const u32 scaling_factors_888[] = {
 	ZYNQMP_DISP_AV_BUF_8BIT_SF,
 	ZYNQMP_DISP_AV_BUF_8BIT_SF,

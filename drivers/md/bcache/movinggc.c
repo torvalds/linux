@@ -196,49 +196,47 @@ static unsigned int bucket_heap_top(struct cache *ca)
 
 void bch_moving_gc(struct cache_set *c)
 {
-	struct cache *ca;
+	struct cache *ca = c->cache;
 	struct bucket *b;
-	unsigned int i;
+	unsigned long sectors_to_move, reserve_sectors;
 
 	if (!c->copy_gc_enabled)
 		return;
 
 	mutex_lock(&c->bucket_lock);
 
-	for_each_cache(ca, c, i) {
-		unsigned long sectors_to_move = 0;
-		unsigned long reserve_sectors = ca->sb.bucket_size *
+	sectors_to_move = 0;
+	reserve_sectors = ca->sb.bucket_size *
 			     fifo_used(&ca->free[RESERVE_MOVINGGC]);
 
-		ca->heap.used = 0;
+	ca->heap.used = 0;
 
-		for_each_bucket(b, ca) {
-			if (GC_MARK(b) == GC_MARK_METADATA ||
-			    !GC_SECTORS_USED(b) ||
-			    GC_SECTORS_USED(b) == ca->sb.bucket_size ||
-			    atomic_read(&b->pin))
-				continue;
+	for_each_bucket(b, ca) {
+		if (GC_MARK(b) == GC_MARK_METADATA ||
+		    !GC_SECTORS_USED(b) ||
+		    GC_SECTORS_USED(b) == ca->sb.bucket_size ||
+		    atomic_read(&b->pin))
+			continue;
 
-			if (!heap_full(&ca->heap)) {
-				sectors_to_move += GC_SECTORS_USED(b);
-				heap_add(&ca->heap, b, bucket_cmp);
-			} else if (bucket_cmp(b, heap_peek(&ca->heap))) {
-				sectors_to_move -= bucket_heap_top(ca);
-				sectors_to_move += GC_SECTORS_USED(b);
+		if (!heap_full(&ca->heap)) {
+			sectors_to_move += GC_SECTORS_USED(b);
+			heap_add(&ca->heap, b, bucket_cmp);
+		} else if (bucket_cmp(b, heap_peek(&ca->heap))) {
+			sectors_to_move -= bucket_heap_top(ca);
+			sectors_to_move += GC_SECTORS_USED(b);
 
-				ca->heap.data[0] = b;
-				heap_sift(&ca->heap, 0, bucket_cmp);
-			}
+			ca->heap.data[0] = b;
+			heap_sift(&ca->heap, 0, bucket_cmp);
 		}
-
-		while (sectors_to_move > reserve_sectors) {
-			heap_pop(&ca->heap, b, bucket_cmp);
-			sectors_to_move -= GC_SECTORS_USED(b);
-		}
-
-		while (heap_pop(&ca->heap, b, bucket_cmp))
-			SET_GC_MOVE(b, 1);
 	}
+
+	while (sectors_to_move > reserve_sectors) {
+		heap_pop(&ca->heap, b, bucket_cmp);
+		sectors_to_move -= GC_SECTORS_USED(b);
+	}
+
+	while (heap_pop(&ca->heap, b, bucket_cmp))
+		SET_GC_MOVE(b, 1);
 
 	mutex_unlock(&c->bucket_lock);
 

@@ -26,6 +26,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/etherdevice.h>
 #include <linux/firmware.h>
 #include <linux/if_bridge.h>
@@ -736,14 +737,23 @@ static int gswip_pce_load_microcode(struct gswip_priv *priv)
 }
 
 static int gswip_port_vlan_filtering(struct dsa_switch *ds, int port,
-				     bool vlan_filtering)
+				     bool vlan_filtering,
+				     struct switchdev_trans *trans)
 {
 	struct gswip_priv *priv = ds->priv;
-	struct net_device *bridge = dsa_to_port(ds, port)->bridge_dev;
 
 	/* Do not allow changing the VLAN filtering options while in bridge */
-	if (!!(priv->port_vlan_filter & BIT(port)) != vlan_filtering && bridge)
-		return -EIO;
+	if (switchdev_trans_ph_prepare(trans)) {
+		struct net_device *bridge = dsa_to_port(ds, port)->bridge_dev;
+
+		if (!bridge)
+			return 0;
+
+		if (!!(priv->port_vlan_filter & BIT(port)) != vlan_filtering)
+			return -EIO;
+
+		return 0;
+	}
 
 	if (vlan_filtering) {
 		/* Use port based VLAN tag */
@@ -781,8 +791,15 @@ static int gswip_setup(struct dsa_switch *ds)
 
 	/* disable port fetch/store dma on all ports */
 	for (i = 0; i < priv->hw_info->max_ports; i++) {
+		struct switchdev_trans trans;
+
+		/* Skip the prepare phase, this shouldn't return an error
+		 * during setup.
+		 */
+		trans.ph_prepare = false;
+
 		gswip_port_disable(ds, i);
-		gswip_port_vlan_filtering(ds, i, false);
+		gswip_port_vlan_filtering(ds, i, false, &trans);
 	}
 
 	/* enable Switch */
@@ -1820,6 +1837,16 @@ static int gswip_gphy_fw_list(struct gswip_priv *priv,
 			goto remove_gphy;
 		i++;
 	}
+
+	/* The standalone PHY11G requires 300ms to be fully
+	 * initialized and ready for any MDIO communication after being
+	 * taken out of reset. For the SoC-internal GPHY variant there
+	 * is no (known) documentation for the minimum time after a
+	 * reset. Use the same value as for the standalone variant as
+	 * some users have reported internal PHYs not being detected
+	 * without any delay.
+	 */
+	msleep(300);
 
 	return 0;
 

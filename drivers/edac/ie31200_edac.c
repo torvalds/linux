@@ -9,7 +9,7 @@
  * Since the DRAM controller is on the cpu chip, we can use its PCI device
  * id to identify these processors.
  *
- * PCI DRAM controller device ids (Taken from The PCI ID Repository - http://pci-ids.ucw.cz/)
+ * PCI DRAM controller device ids (Taken from The PCI ID Repository - https://pci-ids.ucw.cz/)
  *
  * 0108: Xeon E3-1200 Processor Family DRAM Controller
  * 010c: Xeon E3-1200/2nd Generation Core Processor Family DRAM Controller
@@ -23,9 +23,9 @@
  * 3e..: 8th/9th Gen Core Processor Host Bridge/DRAM Registers
  *
  * Based on Intel specification:
- * http://www.intel.com/content/dam/www/public/us/en/documents/datasheets/xeon-e3-1200v3-vol-2-datasheet.pdf
+ * https://www.intel.com/content/dam/www/public/us/en/documents/datasheets/xeon-e3-1200v3-vol-2-datasheet.pdf
  * http://www.intel.com/content/www/us/en/processors/xeon/xeon-e3-1200-family-vol-2-datasheet.html
- * http://www.intel.com/content/www/us/en/processors/core/7th-gen-core-family-mobile-h-processor-lines-datasheet-vol-2.html
+ * https://www.intel.com/content/www/us/en/processors/core/7th-gen-core-family-mobile-h-processor-lines-datasheet-vol-2.html
  * https://www.intel.com/content/www/us/en/products/docs/processors/core/8th-gen-core-family-datasheet-vol-2.html
  *
  * According to the above datasheet (p.16):

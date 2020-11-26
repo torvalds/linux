@@ -297,7 +297,7 @@ nfp_fl_get_tun_from_act(struct nfp_app *app,
 	case htons(GENEVE_UDP_PORT):
 		if (priv->flower_ext_feats & NFP_FL_FEATS_GENEVE)
 			return NFP_FL_TUNNEL_GENEVE;
-		/* FALLTHROUGH */
+		fallthrough;
 	default:
 		return NFP_FL_TUNNEL_NONE;
 	}

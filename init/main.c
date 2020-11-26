@@ -33,6 +33,7 @@
 #include <linux/nmi.h>
 #include <linux/percpu.h>
 #include <linux/kmod.h>
+#include <linux/kprobes.h>
 #include <linux/vmalloc.h>
 #include <linux/kernel_stat.h>
 #include <linux/start_kernel.h>
@@ -106,6 +107,8 @@
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/initcall.h>
+
+#include <kunit/test.h>
 
 static int kernel_init(void *);
 
@@ -266,14 +269,24 @@ static void * __init get_boot_config_from_initrd(u32 *_size, u32 *_csum)
 	u32 size, csum;
 	char *data;
 	u32 *hdr;
+	int i;
 
 	if (!initrd_end)
 		return NULL;
 
 	data = (char *)initrd_end - BOOTCONFIG_MAGIC_LEN;
-	if (memcmp(data, BOOTCONFIG_MAGIC, BOOTCONFIG_MAGIC_LEN))
-		return NULL;
+	/*
+	 * Since Grub may align the size of initrd to 4, we must
+	 * check the preceding 3 bytes as well.
+	 */
+	for (i = 0; i < 4; i++) {
+		if (!memcmp(data, BOOTCONFIG_MAGIC, BOOTCONFIG_MAGIC_LEN))
+			goto found;
+		data--;
+	}
+	return NULL;
 
+found:
 	hdr = (u32 *)(data - 8);
 	size = hdr[0];
 	csum = hdr[1];
@@ -303,7 +316,7 @@ static void * __init get_boot_config_from_initrd(u32 *_size, u32 *_csum)
 
 #ifdef CONFIG_BOOT_CONFIG
 
-char xbc_namebuf[XBC_KEYLEN_MAX] __initdata;
+static char xbc_namebuf[XBC_KEYLEN_MAX] __initdata;
 
 #define rest(dst, end) ((end) > (dst) ? (end) - (dst) : 0)
 
@@ -467,7 +480,7 @@ static void __init setup_boot_config(const char *cmdline)
 
 static int __init warn_bootconfig(char *str)
 {
-	pr_warn("WARNING: 'bootconfig' found on the kernel command line but CONFIG_BOOTCONFIG is not set.\n");
+	pr_warn("WARNING: 'bootconfig' found on the kernel command line but CONFIG_BOOT_CONFIG is not set.\n");
 	return 0;
 }
 early_param("bootconfig", warn_bootconfig);
@@ -1402,6 +1415,7 @@ static int __ref kernel_init(void *unused)
 	kernel_init_freeable();
 	/* need to finish all async __init code before freeing the memory */
 	async_synchronize_full();
+	kprobe_free_init_mem();
 	ftrace_free_init_mem();
 	free_initmem();
 	mark_readonly();
@@ -1510,6 +1524,8 @@ static noinline void __init kernel_init_freeable(void)
 	page_ext_init();
 
 	do_basic_setup();
+
+	kunit_run_all_tests();
 
 	console_on_rootfs();
 

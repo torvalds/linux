@@ -228,8 +228,8 @@ int prism2mgmt_scan(struct wlandevice *wlandev, void *msgp)
 		__le16 wordbuf[17];
 
 		result = hfa384x_drvr_setconfig16(hw,
-					HFA384x_RID_CNFROAMINGMODE,
-					HFA384x_ROAMMODE_HOSTSCAN_HOSTROAM);
+						  HFA384x_RID_CNFROAMINGMODE,
+						  HFA384x_ROAMMODE_HOSTSCAN_HOSTROAM);
 		if (result) {
 			netdev_err(wlandev->netdev,
 				   "setconfig(ROAMINGMODE) failed. result=%d\n",
@@ -275,8 +275,8 @@ int prism2mgmt_scan(struct wlandevice *wlandev, void *msgp)
 		}
 		/* ibss options */
 		result = hfa384x_drvr_setconfig16(hw,
-					HFA384x_RID_CREATEIBSS,
-					HFA384x_CREATEIBSS_JOINCREATEIBSS);
+						  HFA384x_RID_CREATEIBSS,
+						  HFA384x_CREATEIBSS_JOINCREATEIBSS);
 		if (result) {
 			netdev_err(wlandev->netdev,
 				   "Failed to set CREATEIBSS.\n");
@@ -1167,8 +1167,8 @@ int prism2mgmt_wlansniff(struct wlandevice *wlandev, void *msgp)
 		if (hw->presniff_port_type != 0) {
 			word = hw->presniff_port_type;
 			result = hfa384x_drvr_setconfig16(hw,
-						  HFA384x_RID_CNFPORTTYPE,
-						  word);
+							  HFA384x_RID_CNFPORTTYPE,
+							  word);
 			if (result) {
 				netdev_dbg
 				    (wlandev->netdev,
@@ -1209,8 +1209,8 @@ int prism2mgmt_wlansniff(struct wlandevice *wlandev, void *msgp)
 				}
 				/* Save the wepflags state */
 				result = hfa384x_drvr_getconfig16(hw,
-						  HFA384x_RID_CNFWEPFLAGS,
-						  &hw->presniff_wepflags);
+								  HFA384x_RID_CNFWEPFLAGS,
+								  &hw->presniff_wepflags);
 				if (result) {
 					netdev_dbg
 					(wlandev->netdev,
@@ -1259,8 +1259,8 @@ int prism2mgmt_wlansniff(struct wlandevice *wlandev, void *msgp)
 			/* Set the port type to pIbss */
 			word = HFA384x_PORTTYPE_PSUEDOIBSS;
 			result = hfa384x_drvr_setconfig16(hw,
-						  HFA384x_RID_CNFPORTTYPE,
-						  word);
+							  HFA384x_RID_CNFPORTTYPE,
+							  word);
 			if (result) {
 				netdev_dbg
 				    (wlandev->netdev,
@@ -1276,8 +1276,8 @@ int prism2mgmt_wlansniff(struct wlandevice *wlandev, void *msgp)
 				    HFA384x_WEPFLAGS_DISABLE_RXCRYPT;
 				result =
 				    hfa384x_drvr_setconfig16(hw,
-						     HFA384x_RID_CNFWEPFLAGS,
-						     word);
+							     HFA384x_RID_CNFWEPFLAGS,
+							     word);
 			}
 
 			if (result) {

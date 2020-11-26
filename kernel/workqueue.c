@@ -427,7 +427,7 @@ static void show_pwq(struct pool_workqueue *pwq);
 
 #ifdef CONFIG_DEBUG_OBJECTS_WORK
 
-static struct debug_obj_descr work_debug_descr;
+static const struct debug_obj_descr work_debug_descr;
 
 static void *work_debug_hint(void *addr)
 {
@@ -477,7 +477,7 @@ static bool work_fixup_free(void *addr, enum debug_obj_state state)
 	}
 }
 
-static struct debug_obj_descr work_debug_descr = {
+static const struct debug_obj_descr work_debug_descr = {
 	.name		= "work_struct",
 	.debug_hint	= work_debug_hint,
 	.is_static_object = work_is_static_object,
@@ -1212,11 +1212,14 @@ out_put:
  * stable state - idle, on timer or on worklist.
  *
  * Return:
+ *
+ *  ========	================================================================
  *  1		if @work was pending and we successfully stole PENDING
  *  0		if @work was idle and we claimed PENDING
  *  -EAGAIN	if PENDING couldn't be grabbed at the moment, safe to busy-retry
  *  -ENOENT	if someone else is canceling @work, this state may persist
  *		for arbitrarily long
+ *  ========	================================================================
  *
  * Note:
  * On >= 0 return, the caller owns @work's PENDING bit.  To avoid getting

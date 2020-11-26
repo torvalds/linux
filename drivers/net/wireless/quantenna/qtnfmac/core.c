@@ -15,7 +15,6 @@
 #include "util.h"
 #include "switchdev.h"
 
-#define QTNF_DMP_MAX_LEN 48
 #define QTNF_PRIMARY_VIF_IDX	0
 
 static bool slave_radar = true;
@@ -140,34 +139,13 @@ static void qtnf_netdev_get_stats64(struct net_device *ndev,
 				    struct rtnl_link_stats64 *stats)
 {
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(ndev);
-	unsigned int start;
-	int cpu;
 
 	netdev_stats_to_stats64(stats, &ndev->stats);
 
 	if (!vif->stats64)
 		return;
 
-	for_each_possible_cpu(cpu) {
-		struct pcpu_sw_netstats *stats64;
-		u64 rx_packets, rx_bytes;
-		u64 tx_packets, tx_bytes;
-
-		stats64 = per_cpu_ptr(vif->stats64, cpu);
-
-		do {
-			start = u64_stats_fetch_begin_irq(&stats64->syncp);
-			rx_packets = stats64->rx_packets;
-			rx_bytes = stats64->rx_bytes;
-			tx_packets = stats64->tx_packets;
-			tx_bytes = stats64->tx_bytes;
-		} while (u64_stats_fetch_retry_irq(&stats64->syncp, start));
-
-		stats->rx_packets += rx_packets;
-		stats->rx_bytes += rx_bytes;
-		stats->tx_packets += tx_packets;
-		stats->tx_bytes += tx_bytes;
-	}
+	dev_fetch_sw_netstats(stats, vif->stats64);
 }
 
 /* Netdev handler for transmission timeout.
@@ -671,9 +649,10 @@ bool qtnf_netdev_is_qtn(const struct net_device *ndev)
 	return ndev->netdev_ops == &qtnf_netdev_ops;
 }
 
-static int qtnf_check_br_ports(struct net_device *dev, void *data)
+static int qtnf_check_br_ports(struct net_device *dev,
+			       struct netdev_nested_priv *priv)
 {
-	struct net_device *ndev = data;
+	struct net_device *ndev = (struct net_device *)priv->data;
 
 	if (dev != ndev && netdev_port_same_parent_id(dev, ndev))
 		return -ENOTSUPP;
@@ -686,6 +665,9 @@ static int qtnf_core_netdevice_event(struct notifier_block *nb,
 {
 	struct net_device *ndev = netdev_notifier_info_to_dev(ptr);
 	const struct netdev_notifier_changeupper_info *info;
+	struct netdev_nested_priv priv = {
+		.data = (void *)ndev,
+	};
 	struct net_device *brdev;
 	struct qtnf_vif *vif;
 	struct qtnf_bus *bus;
@@ -725,7 +707,7 @@ static int qtnf_core_netdevice_event(struct notifier_block *nb,
 		} else {
 			ret = netdev_walk_all_lower_dev(brdev,
 							qtnf_check_br_ports,
-							ndev);
+							&priv);
 		}
 
 		break;

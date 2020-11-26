@@ -84,7 +84,7 @@ static int rtw_hw_resume(struct adapter *padapter)
 	pwrpriv->bips_processing = true;
 	rtw_reset_drv_sw(padapter);
 
-	if (ips_netdrv_open((struct adapter *)rtw_netdev_priv(pnetdev)) != _SUCCESS) {
+	if (ips_netdrv_open(rtw_netdev_priv(pnetdev)) != _SUCCESS) {
 		mutex_unlock(&pwrpriv->mutex_lock);
 		goto error_exit;
 	}
@@ -530,11 +530,11 @@ void rtw_init_pwrctrl_priv(struct adapter *padapter)
 }
 
 /*
-* rtw_pwr_wakeup - Wake the NIC up from: 1)IPS. 2)USB autosuspend
-* @adapter: pointer to struct adapter structure
-* @ips_deffer_ms: the ms will prevent from falling into IPS after wakeup
-* Return _SUCCESS or _FAIL
-*/
+ * rtw_pwr_wakeup - Wake the NIC up from: 1)IPS. 2)USB autosuspend
+ * @adapter: pointer to struct adapter structure
+ * @ips_deffer_ms: the ms will prevent from falling into IPS after wakeup
+ * Return _SUCCESS or _FAIL
+ */
 
 int _rtw_pwr_wakeup(struct adapter *padapter, u32 ips_deffer_ms, const char *caller)
 {

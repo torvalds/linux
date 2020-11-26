@@ -194,6 +194,11 @@ static inline bool xfs_inode_has_cow_data(struct xfs_inode *ip)
 	return ip->i_cowfp && ip->i_cowfp->if_bytes;
 }
 
+static inline bool xfs_inode_has_bigtime(struct xfs_inode *ip)
+{
+	return ip->i_d.di_flags2 & XFS_DIFLAG2_BIGTIME;
+}
+
 /*
  * Return the buftarg used for data allocations on a given inode.
  */
@@ -211,8 +216,7 @@ static inline bool xfs_inode_has_cow_data(struct xfs_inode *ip)
 #define XFS_INEW		(1 << __XFS_INEW_BIT)
 #define XFS_ITRUNCATED		(1 << 5) /* truncated down so flush-on-close */
 #define XFS_IDIRTY_RELEASE	(1 << 6) /* dirty release already seen */
-#define __XFS_IFLOCK_BIT	7	 /* inode is being flushed right now */
-#define XFS_IFLOCK		(1 << __XFS_IFLOCK_BIT)
+#define XFS_IFLUSHING		(1 << 7) /* inode is being flushed */
 #define __XFS_IPINNED_BIT	8	 /* wakeup key for zero pin count */
 #define XFS_IPINNED		(1 << __XFS_IPINNED_BIT)
 #define XFS_IEOFBLOCKS		(1 << 9) /* has the preallocblocks tag set */
@@ -232,36 +236,6 @@ static inline bool xfs_inode_has_cow_data(struct xfs_inode *ip)
 #define XFS_IRECLAIM_RESET_FLAGS	\
 	(XFS_IRECLAIMABLE | XFS_IRECLAIM | \
 	 XFS_IDIRTY_RELEASE | XFS_ITRUNCATED)
-
-/*
- * Synchronize processes attempting to flush the in-core inode back to disk.
- */
-
-static inline int xfs_isiflocked(struct xfs_inode *ip)
-{
-	return xfs_iflags_test(ip, XFS_IFLOCK);
-}
-
-extern void __xfs_iflock(struct xfs_inode *ip);
-
-static inline int xfs_iflock_nowait(struct xfs_inode *ip)
-{
-	return !xfs_iflags_test_and_set(ip, XFS_IFLOCK);
-}
-
-static inline void xfs_iflock(struct xfs_inode *ip)
-{
-	if (!xfs_iflock_nowait(ip))
-		__xfs_iflock(ip);
-}
-
-static inline void xfs_ifunlock(struct xfs_inode *ip)
-{
-	ASSERT(xfs_isiflocked(ip));
-	xfs_iflags_clear(ip, XFS_IFLOCK);
-	smp_mb();
-	wake_up_bit(&ip->i_flags, __XFS_IFLOCK_BIT);
-}
 
 /*
  * Flags for inode locking.

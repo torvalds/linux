@@ -228,7 +228,7 @@ static void __iomem *ssb_ioremap(struct ssb_bus *bus,
 	switch (bus->bustype) {
 	case SSB_BUSTYPE_SSB:
 		/* Only map the first core for now. */
-		/* fallthrough... */
+		fallthrough;
 	case SSB_BUSTYPE_PCMCIA:
 		mmio = ioremap(baseaddr, SSB_CORE_SIZE);
 		break;

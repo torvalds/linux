@@ -899,19 +899,19 @@ intr_check_sig:
 	 * Only do signals if we are returning to user space
 	 */
 	LDREG	PT_IASQ0(%r16), %r20
-	cmpib,COND(=),n LINUX_GATEWAY_SPACE, %r20, intr_restore /* backward */
+	cmpib,COND(=),n LINUX_GATEWAY_SPACE, %r20, intr_restore /* forward */
 	LDREG	PT_IASQ1(%r16), %r20
-	cmpib,COND(=),n LINUX_GATEWAY_SPACE, %r20, intr_restore /* backward */
-
-	/* NOTE: We need to enable interrupts if we have to deliver
-	 * signals. We used to do this earlier but it caused kernel
-	 * stack overflows. */
-	ssm     PSW_SM_I, %r0
+	cmpib,COND(=),n LINUX_GATEWAY_SPACE, %r20, intr_restore /* forward */
 
 	copy	%r0, %r25			/* long in_syscall = 0 */
 #ifdef CONFIG_64BIT
 	ldo	-16(%r30),%r29			/* Reference param save area */
 #endif
+
+	/* NOTE: We need to enable interrupts if we have to deliver
+	 * signals. We used to do this earlier but it caused kernel
+	 * stack overflows. */
+	ssm	PSW_SM_I, %r0
 
 	BL	do_notify_resume,%r2
 	copy	%r16, %r26			/* struct pt_regs *regs */

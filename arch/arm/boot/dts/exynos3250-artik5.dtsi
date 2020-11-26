@@ -55,6 +55,10 @@
 	assigned-clock-rates = <6000000>;
 };
 
+&cmu {
+	clocks = <&xusbxti>;
+};
+
 &cpu0 {
 	cpu0-supply = <&buck2_reg>;
 };

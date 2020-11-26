@@ -1,0 +1,5 @@
+fpsimd-test
+sve-probe-vls
+sve-ptrace
+sve-test
+vlset

@@ -96,15 +96,13 @@ static void yurex_delete(struct kref *kref)
 	if (dev->cntl_urb) {
 		usb_kill_urb(dev->cntl_urb);
 		kfree(dev->cntl_req);
-		if (dev->cntl_buffer)
-			usb_free_coherent(dev->udev, YUREX_BUF_SIZE,
+		usb_free_coherent(dev->udev, YUREX_BUF_SIZE,
 				dev->cntl_buffer, dev->cntl_urb->transfer_dma);
 		usb_free_urb(dev->cntl_urb);
 	}
 	if (dev->urb) {
 		usb_kill_urb(dev->urb);
-		if (dev->int_buffer)
-			usb_free_coherent(dev->udev, YUREX_BUF_SIZE,
+		usb_free_coherent(dev->udev, YUREX_BUF_SIZE,
 				dev->int_buffer, dev->urb->transfer_dma);
 		usb_free_urb(dev->urb);
 	}
@@ -492,7 +490,7 @@ static ssize_t yurex_write(struct file *file, const char __user *user_buffer,
 	prepare_to_wait(&dev->waitq, &wait, TASK_INTERRUPTIBLE);
 	dev_dbg(&dev->interface->dev, "%s - submit %c\n", __func__,
 		dev->cntl_buffer[0]);
-	retval = usb_submit_urb(dev->cntl_urb, GFP_KERNEL);
+	retval = usb_submit_urb(dev->cntl_urb, GFP_ATOMIC);
 	if (retval >= 0)
 		timeout = schedule_timeout(YUREX_WRITE_TIMEOUT);
 	finish_wait(&dev->waitq, &wait);

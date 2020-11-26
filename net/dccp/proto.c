@@ -101,7 +101,7 @@ void dccp_set_state(struct sock *sk, const int state)
 		if (inet_csk(sk)->icsk_bind_hash != NULL &&
 		    !(sk->sk_userlocks & SOCK_BINDPORT_LOCK))
 			inet_put_port(sk);
-		/* fall through */
+		fallthrough;
 	default:
 		if (oldstate == DCCP_OPEN)
 			DCCP_DEC_STATS(DCCP_MIB_CURRESTAB);
@@ -834,7 +834,7 @@ int dccp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int nonblock,
 		case DCCP_PKT_CLOSEREQ:
 			if (!(flags & MSG_PEEK))
 				dccp_finish_passive_close(sk);
-			/* fall through */
+			fallthrough;
 		case DCCP_PKT_RESET:
 			dccp_pr_debug("found fin (%s) ok!\n",
 				      dccp_packet_name(dh->dccph_type));
@@ -960,7 +960,7 @@ static void dccp_terminate_connection(struct sock *sk)
 	case DCCP_PARTOPEN:
 		dccp_pr_debug("Stop PARTOPEN timer (%p)\n", sk);
 		inet_csk_clear_xmit_timer(sk, ICSK_TIME_DACK);
-		/* fall through */
+		fallthrough;
 	case DCCP_OPEN:
 		dccp_send_close(sk, 1);
 
@@ -969,7 +969,7 @@ static void dccp_terminate_connection(struct sock *sk)
 			next_state = DCCP_ACTIVE_CLOSEREQ;
 		else
 			next_state = DCCP_CLOSING;
-		/* fall through */
+		fallthrough;
 	default:
 		dccp_set_state(sk, next_state);
 	}

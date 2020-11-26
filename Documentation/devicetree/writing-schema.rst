@@ -5,7 +5,7 @@ Writing DeviceTree Bindings in json-schema
 
 Devicetree bindings are written using json-schema vocabulary. Schema files are
 written in a JSON compatible subset of YAML. YAML is used instead of JSON as it
-considered more human readable and has some advantages such as allowing
+is considered more human readable and has some advantages such as allowing
 comments (Prefixed with '#').
 
 Schema Contents
@@ -19,7 +19,7 @@ $id
   A json-schema unique identifier string. The string must be a valid
   URI typically containing the binding's filename and path. For DT schema, it must
   begin with "http://devicetree.org/schemas/". The URL is used in constructing
-  references to other files specified in schema "$ref" properties. A $ref values
+  references to other files specified in schema "$ref" properties. A $ref value
   with a leading '/' will have the hostname prepended. A $ref value a relative
   path or filename only will be prepended with the hostname and path components
   of the current schema file's '$id' value. A URL is used even for local files,

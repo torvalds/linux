@@ -39,7 +39,7 @@ pmic: pmic@4b {
 	compatible = "rohm,bd70528";
 	reg = <0x4b>;
 	interrupt-parent = <&gpio1>;
-	interrupts = <29 GPIO_ACTIVE_LOW>;
+	interrupts = <29 IRQ_TYPE_LEVEL_LOW>;
 	clocks = <&osc 0>;
 	#clock-cells = <0>;
 	clock-output-names = "bd70528-32k-out";

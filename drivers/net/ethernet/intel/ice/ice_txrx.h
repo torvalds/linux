@@ -43,7 +43,7 @@
 
 /**
  * ice_compute_pad - compute the padding
- * rx_buf_len: buffer length
+ * @rx_buf_len: buffer length
  *
  * Figure out the size of half page based on given buffer length and
  * then subtract the skb_shared_info followed by subtraction of the
@@ -295,7 +295,7 @@ struct ice_ring {
 
 	struct rcu_head rcu;		/* to avoid race on free */
 	struct bpf_prog *xdp_prog;
-	struct xdp_umem *xsk_umem;
+	struct xsk_buff_pool *xsk_pool;
 	/* CL3 - 3rd cacheline starts here */
 	struct xdp_rxq_info xdp_rxq;
 	/* CLX - the below items are only accessed infrequently and should be

@@ -233,7 +233,8 @@ enum mlx4_ib_mad_ifc_flags {
 };
 
 enum {
-	MLX4_NUM_TUNNEL_BUFS		= 256,
+	MLX4_NUM_TUNNEL_BUFS		= 512,
+	MLX4_NUM_WIRE_BUFS		= 2048,
 };
 
 struct mlx4_ib_tunnel_header {
@@ -298,6 +299,26 @@ struct mlx4_ib_rss {
 	u8			rss_key[MLX4_EN_RSS_KEY_SIZE];
 };
 
+enum {
+	/*
+	 * Largest possible UD header: send with GRH and immediate
+	 * data plus 18 bytes for an Ethernet header with VLAN/802.1Q
+	 * tag.  (LRH would only use 8 bytes, so Ethernet is the
+	 * biggest case)
+	 */
+	MLX4_IB_UD_HEADER_SIZE		= 82,
+	MLX4_IB_LSO_HEADER_SPARE	= 128,
+};
+
+struct mlx4_ib_sqp {
+	int pkey_index;
+	u32 qkey;
+	u32 send_psn;
+	struct ib_ud_header ud_header;
+	u8 header_buf[MLX4_IB_UD_HEADER_SIZE];
+	struct ib_qp *roce_v2_gsi;
+};
+
 struct mlx4_ib_qp {
 	union {
 		struct ib_qp	ibqp;
@@ -343,7 +364,10 @@ struct mlx4_ib_qp {
 	struct mlx4_wqn_range	*wqn_range;
 	/* Number of RSS QP parents that uses this WQ */
 	u32			rss_usecnt;
-	struct mlx4_ib_rss	*rss_ctx;
+	union {
+		struct mlx4_ib_rss *rss_ctx;
+		struct mlx4_ib_sqp *sqp;
+	};
 };
 
 struct mlx4_ib_srq {
@@ -364,6 +388,10 @@ struct mlx4_ib_srq {
 struct mlx4_ib_ah {
 	struct ib_ah		ibah;
 	union mlx4_ext_av       av;
+};
+
+struct mlx4_ib_rwq_ind_table {
+	struct ib_rwq_ind_table ib_rwq_ind_tbl;
 };
 
 /****************************************/
@@ -454,6 +482,7 @@ struct mlx4_ib_demux_pv_ctx {
 	struct ib_pd *pd;
 	struct work_struct work;
 	struct workqueue_struct *wq;
+	struct workqueue_struct *wi_wq;
 	struct mlx4_ib_demux_pv_qp qp[2];
 };
 
@@ -461,6 +490,7 @@ struct mlx4_ib_demux_ctx {
 	struct ib_device *ib_dev;
 	int port;
 	struct workqueue_struct *wq;
+	struct workqueue_struct *wi_wq;
 	struct workqueue_struct *ud_wq;
 	spinlock_t ud_lock;
 	atomic64_t subnet_prefix;
@@ -492,6 +522,7 @@ struct mlx4_ib_sriov {
 	spinlock_t id_map_lock;
 	struct rb_root sl_id_map;
 	struct list_head cm_list;
+	struct xarray xa_rej_tmout;
 };
 
 struct gid_cache_context {
@@ -725,8 +756,7 @@ struct ib_mr *mlx4_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 				  u64 virt_addr, int access_flags,
 				  struct ib_udata *udata);
 int mlx4_ib_dereg_mr(struct ib_mr *mr, struct ib_udata *udata);
-struct ib_mw *mlx4_ib_alloc_mw(struct ib_pd *pd, enum ib_mw_type type,
-			       struct ib_udata *udata);
+int mlx4_ib_alloc_mw(struct ib_mw *mw, struct ib_udata *udata);
 int mlx4_ib_dealloc_mw(struct ib_mw *mw);
 struct ib_mr *mlx4_ib_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
 			       u32 max_num_sg);
@@ -736,7 +766,7 @@ int mlx4_ib_modify_cq(struct ib_cq *cq, u16 cq_count, u16 cq_period);
 int mlx4_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata);
 int mlx4_ib_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 		      struct ib_udata *udata);
-void mlx4_ib_destroy_cq(struct ib_cq *cq, struct ib_udata *udata);
+int mlx4_ib_destroy_cq(struct ib_cq *cq, struct ib_udata *udata);
 int mlx4_ib_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc);
 int mlx4_ib_arm_cq(struct ib_cq *cq, enum ib_cq_notify_flags flags);
 void __mlx4_ib_cq_clean(struct mlx4_ib_cq *cq, u32 qpn, struct mlx4_ib_srq *srq);
@@ -747,14 +777,17 @@ int mlx4_ib_create_ah(struct ib_ah *ah, struct rdma_ah_init_attr *init_attr,
 int mlx4_ib_create_ah_slave(struct ib_ah *ah, struct rdma_ah_attr *ah_attr,
 			    int slave_sgid_index, u8 *s_mac, u16 vlan_tag);
 int mlx4_ib_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr);
-void mlx4_ib_destroy_ah(struct ib_ah *ah, u32 flags);
+static inline int mlx4_ib_destroy_ah(struct ib_ah *ah, u32 flags)
+{
+	return 0;
+}
 
 int mlx4_ib_create_srq(struct ib_srq *srq, struct ib_srq_init_attr *init_attr,
 		       struct ib_udata *udata);
 int mlx4_ib_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 		       enum ib_srq_attr_mask attr_mask, struct ib_udata *udata);
 int mlx4_ib_query_srq(struct ib_srq *srq, struct ib_srq_attr *srq_attr);
-void mlx4_ib_destroy_srq(struct ib_srq *srq, struct ib_udata *udata);
+int mlx4_ib_destroy_srq(struct ib_srq *srq, struct ib_udata *udata);
 void mlx4_ib_free_srq_wqe(struct mlx4_ib_srq *srq, int wqe_index);
 int mlx4_ib_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
 			  const struct ib_recv_wr **bad_wr);
@@ -890,15 +923,18 @@ void mlx4_ib_sl2vl_update(struct mlx4_ib_dev *mdev, int port);
 struct ib_wq *mlx4_ib_create_wq(struct ib_pd *pd,
 				struct ib_wq_init_attr *init_attr,
 				struct ib_udata *udata);
-void mlx4_ib_destroy_wq(struct ib_wq *wq, struct ib_udata *udata);
+int mlx4_ib_destroy_wq(struct ib_wq *wq, struct ib_udata *udata);
 int mlx4_ib_modify_wq(struct ib_wq *wq, struct ib_wq_attr *wq_attr,
 		      u32 wq_attr_mask, struct ib_udata *udata);
 
-struct ib_rwq_ind_table
-*mlx4_ib_create_rwq_ind_table(struct ib_device *device,
-			      struct ib_rwq_ind_table_init_attr *init_attr,
-			      struct ib_udata *udata);
-int mlx4_ib_destroy_rwq_ind_table(struct ib_rwq_ind_table *wq_ind_table);
+int mlx4_ib_create_rwq_ind_table(struct ib_rwq_ind_table *ib_rwq_ind_tbl,
+				 struct ib_rwq_ind_table_init_attr *init_attr,
+				 struct ib_udata *udata);
+static inline int
+mlx4_ib_destroy_rwq_ind_table(struct ib_rwq_ind_table *wq_ind_table)
+{
+	return 0;
+}
 int mlx4_ib_umem_calc_optimal_mtt_size(struct ib_umem *umem, u64 start_va,
 				       int *num_of_mtts);
 

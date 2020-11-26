@@ -736,7 +736,8 @@ static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 	if (ret)
 		return ret;
 
-	return ib_register_device(ibdev, "bnxt_re%d");
+	dma_set_max_seg_size(&rdev->en_dev->pdev->dev, UINT_MAX);
+	return ib_register_device(ibdev, "bnxt_re%d", &rdev->en_dev->pdev->dev);
 }
 
 static void bnxt_re_dev_remove(struct bnxt_re_dev *rdev)
@@ -821,7 +822,8 @@ static int bnxt_re_handle_qp_async_event(struct creq_qp_event *qp_event,
 	struct ib_event event;
 	unsigned int flags;
 
-	if (qp->qplib_qp.state == CMDQ_MODIFY_QP_NEW_STATE_ERR) {
+	if (qp->qplib_qp.state == CMDQ_MODIFY_QP_NEW_STATE_ERR &&
+	    rdma_is_kernel_res(&qp->ib_qp.res)) {
 		flags = bnxt_re_lock_cqs(qp);
 		bnxt_qplib_add_flush_qp(&qp->qplib_qp);
 		bnxt_re_unlock_cqs(qp, flags);
@@ -1008,7 +1010,6 @@ static void bnxt_re_free_res(struct bnxt_re_dev *rdev)
 static int bnxt_re_alloc_res(struct bnxt_re_dev *rdev)
 {
 	struct bnxt_re_ring_attr rattr = {};
-	struct bnxt_qplib_ctx *qplib_ctx;
 	int num_vec_created = 0;
 	int rc = 0, i;
 	u8 type;
@@ -1031,13 +1032,11 @@ static int bnxt_re_alloc_res(struct bnxt_re_dev *rdev)
 	if (rc)
 		goto dealloc_res;
 
-	qplib_ctx = &rdev->qplib_ctx;
 	for (i = 0; i < rdev->num_msix - 1; i++) {
 		struct bnxt_qplib_nq *nq;
 
 		nq = &rdev->nq[i];
-		nq->hwq.max_elements = (qplib_ctx->cq_count +
-					qplib_ctx->srqc_count + 2);
+		nq->hwq.max_elements = BNXT_QPLIB_NQE_MAX_CNT;
 		rc = bnxt_qplib_alloc_nq(&rdev->qplib_res, &rdev->nq[i]);
 		if (rc) {
 			ibdev_err(&rdev->ibdev, "Alloc Failed NQ%d rc:%#x",

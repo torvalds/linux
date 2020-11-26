@@ -48,7 +48,6 @@
 #define MAX_SEND_MSG_COUNT	25
 #define MAX_RECV_MSG_COUNT	25
 #define CF_CONNECTED		1
-#define CF_SERVER		2
 
 #define TIPC_SERVER_NAME_LEN	32
 
@@ -665,12 +664,18 @@ static int tipc_topsrv_start(struct net *net)
 
 	ret = tipc_topsrv_work_start(srv);
 	if (ret < 0)
-		return ret;
+		goto err_start;
 
 	ret = tipc_topsrv_create_listener(srv);
 	if (ret < 0)
-		tipc_topsrv_work_stop(srv);
+		goto err_create;
 
+	return 0;
+
+err_create:
+	tipc_topsrv_work_stop(srv);
+err_start:
+	kfree(srv);
 	return ret;
 }
 

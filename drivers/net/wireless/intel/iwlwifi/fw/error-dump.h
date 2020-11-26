@@ -495,6 +495,20 @@ struct iwl_fw_ini_monitor_dump {
 } __packed;
 
 /**
+ * struct iwl_fw_ini_special_device_memory - special device memory
+ * @header: header of the region
+ * @type: type of special memory
+ * @version: struct special memory version
+ * @ranges: the memory ranges of this this region
+ */
+struct iwl_fw_ini_special_device_memory {
+	struct iwl_fw_ini_error_dump_header header;
+	__le16 type;
+	__le16 version;
+	struct iwl_fw_ini_error_dump_range ranges[];
+} __packed;
+
+/**
  * struct iwl_fw_error_dump_paging - content of the UMAC's image page
  *	block on DRAM
  * @index: the index of the page block

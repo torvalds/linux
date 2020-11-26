@@ -1375,8 +1375,8 @@ static inline u8 zd_rate_from_ofdm_plcp_header(const void *rx_frame)
 
 /**
  * zd_rx_rate - report zd-rate
- * @rx_frame - received frame
- * @rx_status - rx_status as given by the device
+ * @rx_frame: received frame
+ * @status: rx_status as given by the device
  *
  * This function converts the rate as encoded in the received packet to the
  * zd-rate, we are using on other places in the driver.

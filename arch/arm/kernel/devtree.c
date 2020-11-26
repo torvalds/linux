@@ -29,7 +29,7 @@
 extern struct of_cpu_method __cpu_method_of_table[];
 
 static const struct of_cpu_method __cpu_method_of_table_sentinel
-	__used __section(__cpu_method_of_table_end);
+	__used __section("__cpu_method_of_table_end");
 
 
 static int __init set_smp_ops_by_method(struct device_node *node)

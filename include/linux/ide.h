@@ -490,8 +490,6 @@ enum {
 	IDE_DFLAG_NOPROBE		= BIT(9),
 	/* need to do check_media_change() */
 	IDE_DFLAG_REMOVABLE		= BIT(10),
-	/* needed for removable devices */
-	IDE_DFLAG_ATTACH		= BIT(11),
 	IDE_DFLAG_FORCED_GEOM		= BIT(12),
 	/* disallow setting unmask bit */
 	IDE_DFLAG_NO_UNMASK		= BIT(13),

@@ -6,25 +6,8 @@ adp8860, adp8861 and adp8863 devices: daylight (level 1), office (level 2) and
 dark (level 3). By default the brightness operates at the daylight brightness
 level.
 
-What:		/sys/class/backlight/<backlight>/ambient_light_level
-Date:		Apr, 2010
-KernelVersion:	v2.6.35
-Contact:	Michael Hennerich <michael.hennerich@analog.com>
-Description:
-		(RO) 13-bit conversion value for the first light sensor—high
-		byte (Bit 12 to Bit 8). The value is updated every 80 ms (when
-		the light sensor is enabled).
-
-
-What:		/sys/class/backlight/<backlight>/ambient_light_zone
-Date:		Apr, 2010
-KernelVersion:	v2.6.35
-Contact:	Michael Hennerich <michael.hennerich@analog.com>
-Description:
-		(RW) Read or write the specific level at which the backlight
-		operates. Value "0" enables automatic ambient light sensing, and
-		values "1", "2" or "3" set the control to daylight, office or
-		dark respectively.
+See also /sys/class/backlight/<backlight>/ambient_light_level and
+/sys/class/backlight/<backlight>/ambient_light_zone.
 
 
 What:		/sys/class/backlight/<backlight>/l1_daylight_max

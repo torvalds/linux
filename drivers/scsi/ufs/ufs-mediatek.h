@@ -33,8 +33,8 @@
 /*
  * Vendor specific pre-defined parameters
  */
-#define UFS_MTK_LIMIT_NUM_LANES_RX  1
-#define UFS_MTK_LIMIT_NUM_LANES_TX  1
+#define UFS_MTK_LIMIT_NUM_LANES_RX  2
+#define UFS_MTK_LIMIT_NUM_LANES_TX  2
 #define UFS_MTK_LIMIT_HSGEAR_RX     UFS_HS_G3
 #define UFS_MTK_LIMIT_HSGEAR_TX     UFS_HS_G3
 #define UFS_MTK_LIMIT_PWMGEAR_RX    UFS_PWM_G4
@@ -89,9 +89,34 @@ enum {
 	TX_CLK_GATE_EN          = 3,
 };
 
+/*
+ * Host capability
+ */
+enum ufs_mtk_host_caps {
+	UFS_MTK_CAP_BOOST_CRYPT_ENGINE         = 1 << 0,
+};
+
+struct ufs_mtk_crypt_cfg {
+	struct regulator *reg_vcore;
+	struct clk *clk_crypt_perf;
+	struct clk *clk_crypt_mux;
+	struct clk *clk_crypt_lp;
+	int vcore_volt;
+};
+
+struct ufs_mtk_host_cfg {
+	enum ufs_mtk_host_caps caps;
+};
+
 struct ufs_mtk_host {
 	struct ufs_hba *hba;
 	struct phy *mphy;
+	struct ufs_mtk_host_cfg *cfg;
+	struct ufs_mtk_crypt_cfg *crypt;
+	enum ufs_mtk_host_caps caps;
+	struct reset_control *hci_reset;
+	struct reset_control *unipro_reset;
+	struct reset_control *crypto_reset;
 	bool mphy_powered_on;
 	bool unipro_lpm;
 	bool ref_clk_enabled;

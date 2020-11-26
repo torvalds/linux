@@ -9,4 +9,10 @@ enum dma_data_direction {
 	DMA_NONE = 3,
 };
 
-#endif
+static inline int valid_dma_direction(enum dma_data_direction dir)
+{
+	return dir == DMA_BIDIRECTIONAL || dir == DMA_TO_DEVICE ||
+		dir == DMA_FROM_DEVICE;
+}
+
+#endif /* _LINUX_DMA_DIRECTION_H */

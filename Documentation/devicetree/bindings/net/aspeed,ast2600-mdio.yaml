@@ -30,6 +30,8 @@ required:
   - "#address-cells"
   - "#size-cells"
 
+unevaluatedProperties: false
+
 examples:
   - |
     mdio0: mdio@1e650000 {

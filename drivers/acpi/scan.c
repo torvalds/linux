@@ -13,7 +13,7 @@
 #include <linux/kthread.h>
 #include <linux/dmi.h>
 #include <linux/nls.h>
-#include <linux/dma-mapping.h>
+#include <linux/dma-map-ops.h>
 #include <linux/platform_data/x86/apple.h>
 #include <linux/pgtable.h>
 
@@ -898,8 +898,7 @@ static void acpi_bus_get_wakeup_device_flags(struct acpi_device *device)
 	 */
 	err = acpi_device_sleep_wake(device, 0, 0, 0);
 	if (err)
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				"error in _DSW or _PSW evaluation\n"));
+		pr_debug("error in _DSW or _PSW evaluation\n");
 }
 
 static void acpi_bus_init_power_state(struct acpi_device *device, int state)
@@ -1454,7 +1453,7 @@ int acpi_dma_get_range(struct device *dev, u64 *dma_addr, u64 *offset,
 }
 
 /**
- * acpi_dma_configure - Set-up DMA configuration for the device.
+ * acpi_dma_configure_id - Set-up DMA configuration for the device.
  * @dev: The pointer to the device
  * @attr: device dma attributes
  * @input_id: input device id const value pointer

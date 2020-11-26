@@ -261,6 +261,82 @@ err_close_objects:
 	return err;
 }
 
+static int igt_mock_splintered_region(void *arg)
+{
+	struct intel_memory_region *mem = arg;
+	struct drm_i915_private *i915 = mem->i915;
+	struct drm_i915_gem_object *obj;
+	unsigned int expected_order;
+	LIST_HEAD(objects);
+	u64 size;
+	int err = 0;
+
+	/*
+	 * Sanity check we can still allocate everything even if the
+	 * mm.max_order != mm.size. i.e our starting address space size is not a
+	 * power-of-two.
+	 */
+
+	size = (SZ_4G - 1) & PAGE_MASK;
+	mem = mock_region_create(i915, 0, size, PAGE_SIZE, 0);
+	if (IS_ERR(mem))
+		return PTR_ERR(mem);
+
+	if (mem->mm.size != size) {
+		pr_err("%s size mismatch(%llu != %llu)\n",
+		       __func__, mem->mm.size, size);
+		err = -EINVAL;
+		goto out_put;
+	}
+
+	expected_order = get_order(rounddown_pow_of_two(size));
+	if (mem->mm.max_order != expected_order) {
+		pr_err("%s order mismatch(%u != %u)\n",
+		       __func__, mem->mm.max_order, expected_order);
+		err = -EINVAL;
+		goto out_put;
+	}
+
+	obj = igt_object_create(mem, &objects, size, 0);
+	if (IS_ERR(obj)) {
+		err = PTR_ERR(obj);
+		goto out_close;
+	}
+
+	close_objects(mem, &objects);
+
+	/*
+	 * While we should be able allocate everything without any flag
+	 * restrictions, if we consider I915_BO_ALLOC_CONTIGUOUS then we are
+	 * actually limited to the largest power-of-two for the region size i.e
+	 * max_order, due to the inner workings of the buddy allocator. So make
+	 * sure that does indeed hold true.
+	 */
+
+	obj = igt_object_create(mem, &objects, size, I915_BO_ALLOC_CONTIGUOUS);
+	if (!IS_ERR(obj)) {
+		pr_err("%s too large contiguous allocation was not rejected\n",
+		       __func__);
+		err = -EINVAL;
+		goto out_close;
+	}
+
+	obj = igt_object_create(mem, &objects, rounddown_pow_of_two(size),
+				I915_BO_ALLOC_CONTIGUOUS);
+	if (IS_ERR(obj)) {
+		pr_err("%s largest possible contiguous allocation failed\n",
+		       __func__);
+		err = PTR_ERR(obj);
+		goto out_close;
+	}
+
+out_close:
+	close_objects(mem, &objects);
+out_put:
+	intel_memory_region_put(mem);
+	return err;
+}
+
 static int igt_gpu_write_dw(struct intel_context *ce,
 			    struct i915_vma *vma,
 			    u32 dword,
@@ -509,7 +585,7 @@ static int igt_lmem_write_cpu(void *arg)
 	if (err)
 		goto out_unpin;
 
-	i915_gem_object_lock(obj);
+	i915_gem_object_lock(obj, NULL);
 	err = i915_gem_object_set_to_wc_domain(obj, true);
 	i915_gem_object_unlock(obj);
 	if (err)
@@ -522,9 +598,9 @@ static int igt_lmem_write_cpu(void *arg)
 		goto out_unpin;
 	}
 
-	/* We want to throw in a random width/align */
-	bytes[0] = igt_random_offset(&prng, 0, PAGE_SIZE, sizeof(u32),
-				     sizeof(u32));
+	/* A random multiple of u32, picked between [64, PAGE_SIZE - 64] */
+	bytes[0] = igt_random_offset(&prng, 64, PAGE_SIZE - 64, 0, sizeof(u32));
+	GEM_BUG_ON(!IS_ALIGNED(bytes[0], sizeof(u32)));
 
 	i = 0;
 	do {
@@ -771,6 +847,7 @@ int intel_memory_region_mock_selftests(void)
 	static const struct i915_subtest tests[] = {
 		SUBTEST(igt_mock_fill),
 		SUBTEST(igt_mock_contiguous),
+		SUBTEST(igt_mock_splintered_region),
 	};
 	struct intel_memory_region *mem;
 	struct drm_i915_private *i915;
@@ -791,7 +868,7 @@ int intel_memory_region_mock_selftests(void)
 
 	intel_memory_region_put(mem);
 out_unref:
-	drm_dev_put(&i915->drm);
+	mock_destroy_device(i915);
 	return err;
 }
 

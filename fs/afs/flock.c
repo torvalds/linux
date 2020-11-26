@@ -376,7 +376,6 @@ again:
 		spin_unlock(&vnode->lock);
 		return;
 
-		/* Fall through */
 	default:
 		/* Looks like a lock request was withdrawn. */
 		spin_unlock(&vnode->lock);

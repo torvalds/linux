@@ -123,7 +123,7 @@ static int xen_pcibk_do_attach(struct xen_pcibk_device *pdev, int gnt_ref,
 
 	pdev->sh_info = vaddr;
 
-	err = bind_interdomain_evtchn_to_irqhandler(
+	err = bind_interdomain_evtchn_to_irqhandler_lateeoi(
 		pdev->xdev->otherend_id, remote_evtchn, xen_pcibk_handle_event,
 		0, DRV_NAME, pdev);
 	if (err < 0) {
@@ -545,7 +545,7 @@ static void xen_pcibk_frontend_changed(struct xenbus_device *xdev,
 		xenbus_switch_state(xdev, XenbusStateClosed);
 		if (xenbus_dev_is_online(xdev))
 			break;
-		/* fall through - if not online */
+		fallthrough;	/* if not online */
 	case XenbusStateUnknown:
 		dev_dbg(&xdev->dev, "frontend is gone! unregister device\n");
 		device_unregister(&xdev->dev);

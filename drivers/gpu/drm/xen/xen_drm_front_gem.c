@@ -18,6 +18,7 @@
 #include <drm/drm_probe_helper.h>
 
 #include <xen/balloon.h>
+#include <xen/xen.h>
 
 #include "xen_drm_front.h"
 #include "xen_drm_front_gem.h"
@@ -99,8 +100,8 @@ static struct xen_gem_object *gem_create(struct drm_device *dev, size_t size)
 		 * allocate ballooned pages which will be used to map
 		 * grant references provided by the backend
 		 */
-		ret = alloc_xenballooned_pages(xen_obj->num_pages,
-					       xen_obj->pages);
+		ret = xen_alloc_unpopulated_pages(xen_obj->num_pages,
+					          xen_obj->pages);
 		if (ret < 0) {
 			DRM_ERROR("Cannot allocate %zu ballooned pages: %d\n",
 				  xen_obj->num_pages, ret);
@@ -152,8 +153,8 @@ void xen_drm_front_gem_free_object_unlocked(struct drm_gem_object *gem_obj)
 	} else {
 		if (xen_obj->pages) {
 			if (xen_obj->be_alloc) {
-				free_xenballooned_pages(xen_obj->num_pages,
-							xen_obj->pages);
+				xen_free_unpopulated_pages(xen_obj->num_pages,
+							   xen_obj->pages);
 				gem_free_pages_array(xen_obj);
 			} else {
 				drm_gem_put_pages(&xen_obj->base,
@@ -179,7 +180,8 @@ struct sg_table *xen_drm_front_gem_get_sg_table(struct drm_gem_object *gem_obj)
 	if (!xen_obj->pages)
 		return ERR_PTR(-ENOMEM);
 
-	return drm_prime_pages_to_sg(xen_obj->pages, xen_obj->num_pages);
+	return drm_prime_pages_to_sg(gem_obj->dev,
+				     xen_obj->pages, xen_obj->num_pages);
 }
 
 struct drm_gem_object *
@@ -216,7 +218,7 @@ xen_drm_front_gem_import_sg_table(struct drm_device *dev,
 		return ERR_PTR(ret);
 
 	DRM_DEBUG("Imported buffer of size %zu with nents %u\n",
-		  size, sgt->nents);
+		  size, sgt->orig_nents);
 
 	return &xen_obj->base;
 }

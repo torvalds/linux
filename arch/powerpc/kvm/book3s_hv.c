@@ -111,7 +111,7 @@ module_param(one_vm_per_core, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(one_vm_per_core, "Only run vCPUs from the same VM on a core (requires indep_threads_mode=N)");
 
 #ifdef CONFIG_KVM_XICS
-static struct kernel_param_ops module_param_ops = {
+static const struct kernel_param_ops module_param_ops = {
 	.set = param_set_int,
 	.get = param_get_int,
 };
@@ -3442,9 +3442,19 @@ static int kvmhv_load_hv_regs_and_go(struct kvm_vcpu *vcpu, u64 time_limit,
 	unsigned long host_psscr = mfspr(SPRN_PSSCR);
 	unsigned long host_pidr = mfspr(SPRN_PID);
 
+	/*
+	 * P8 and P9 suppress the HDEC exception when LPCR[HDICE] = 0,
+	 * so set HDICE before writing HDEC.
+	 */
+	mtspr(SPRN_LPCR, vcpu->kvm->arch.host_lpcr | LPCR_HDICE);
+	isync();
+
 	hdec = time_limit - mftb();
-	if (hdec < 0)
+	if (hdec < 0) {
+		mtspr(SPRN_LPCR, vcpu->kvm->arch.host_lpcr);
+		isync();
 		return BOOK3S_INTERRUPT_HV_DECREMENTER;
+	}
 	mtspr(SPRN_HDEC, hdec);
 
 	if (vc->tb_offset) {
@@ -3530,6 +3540,13 @@ static int kvmhv_load_hv_regs_and_go(struct kvm_vcpu *vcpu, u64 time_limit,
 	 */
 	asm volatile("eieio; tlbsync; ptesync");
 
+	/*
+	 * cp_abort is required if the processor supports local copy-paste
+	 * to clear the copy buffer that was under control of the guest.
+	 */
+	if (cpu_has_feature(CPU_FTR_ARCH_31))
+		asm volatile(PPC_CP_ABORT);
+
 	mtspr(SPRN_LPID, vcpu->kvm->arch.host_lpid);	/* restore host LPID */
 	isync();
 
@@ -3558,7 +3575,7 @@ static int kvmhv_load_hv_regs_and_go(struct kvm_vcpu *vcpu, u64 time_limit,
  * Virtual-mode guest entry for POWER9 and later when the host and
  * guest are both using the radix MMU.  The LPIDR has already been set.
  */
-int kvmhv_p9_guest_entry(struct kvm_vcpu *vcpu, u64 time_limit,
+static int kvmhv_p9_guest_entry(struct kvm_vcpu *vcpu, u64 time_limit,
 			 unsigned long lpcr)
 {
 	struct kvmppc_vcore *vc = vcpu->arch.vcore;
@@ -3572,7 +3589,7 @@ int kvmhv_p9_guest_entry(struct kvm_vcpu *vcpu, u64 time_limit,
 
 	dec = mfspr(SPRN_DEC);
 	tb = mftb();
-	if (dec < 512)
+	if (dec < 0)
 		return BOOK3S_INTERRUPT_HV_DECREMENTER;
 	local_paca->kvm_hstate.dec_expires = dec + tb;
 	if (local_paca->kvm_hstate.dec_expires < time_limit)
@@ -5249,6 +5266,12 @@ static long kvm_arch_vm_ioctl_hv(struct file *filp,
 
 	case KVM_PPC_ALLOCATE_HTAB: {
 		u32 htab_order;
+
+		/* If we're a nested hypervisor, we currently only support radix */
+		if (kvmhv_on_pseries()) {
+			r = -EOPNOTSUPP;
+			break;
+		}
 
 		r = -EFAULT;
 		if (get_user(htab_order, (u32 __user *)argp))
