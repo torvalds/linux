@@ -152,8 +152,10 @@ static int cmp_aggr_cpu_id(const void *a_pointer, const void *b_pointer)
 		return a->id - b->id;
 	else if (a->node != b->node)
 		return a->node - b->node;
-	else
+	else if (a->socket != b->socket)
 		return a->socket - b->socket;
+	else
+		return a->die - b->die;
 }
 
 int cpu_map__build_map(struct perf_cpu_map *cpus, struct cpu_aggr_map **res,
@@ -220,10 +222,7 @@ struct aggr_cpu_id cpu_map__get_die(struct perf_cpu_map *map, int idx, void *dat
 	if (cpu_map__aggr_cpu_id_is_empty(id))
 		return id;
 
-	if (WARN_ONCE(die >> 8, "The die id number is too big.\n"))
-		return cpu_map__empty_aggr_cpu_id();
-
-	id.id = (die & 0xff);
+	id.die = die;
 	return id;
 }
 
@@ -250,21 +249,19 @@ struct aggr_cpu_id cpu_map__get_core(struct perf_cpu_map *map, int idx, void *da
 
 	cpu = cpu_map__get_core_id(cpu);
 
-	/* cpu_map__get_die returns the combination of socket + die id */
+	/* cpu_map__get_die returns a struct with socket and die set*/
 	id = cpu_map__get_die(map, idx, data);
 	if (cpu_map__aggr_cpu_id_is_empty(id))
 		return id;
 
 	/*
-	 * encode die id in bit range 23:16
-	 * core_id is relative to socket and die,
-	 * we need a global id. So we combine
-	 * socket + die id + core id
+	 * core_id is relative to socket and die, we need a global id.
+	 * So we combine the result from cpu_map__get_die with the core id
 	 */
 	if (WARN_ONCE(cpu >> 16, "The core id number is too big.\n"))
 		return cpu_map__empty_aggr_cpu_id();
 
-	id.id = (id.id << 16) | (cpu & 0xffff);
+	id.id = (cpu & 0xffff);
 	return id;
 }
 
@@ -622,14 +619,16 @@ bool cpu_map__compare_aggr_cpu_id(struct aggr_cpu_id a, struct aggr_cpu_id b)
 {
 	return a.id == b.id &&
 		a.node == b.node &&
-		a.socket == b.socket;
+		a.socket == b.socket &&
+		a.die == b.die;
 }
 
 bool cpu_map__aggr_cpu_id_is_empty(struct aggr_cpu_id a)
 {
 	return a.id == -1 &&
 		a.node == -1 &&
-		a.socket == -1;
+		a.socket == -1 &&
+		a.die == -1;
 }
 
 struct aggr_cpu_id cpu_map__empty_aggr_cpu_id(void)
@@ -637,7 +636,8 @@ struct aggr_cpu_id cpu_map__empty_aggr_cpu_id(void)
 	struct aggr_cpu_id ret = {
 		.id = -1,
 		.node = -1,
-		.socket = -1
+		.socket = -1,
+		.die = -1
 	};
 	return ret;
 }
