@@ -370,8 +370,6 @@ enum {
 	AUTOP_SSD_FAST,
 };
 
-struct ioc_gq;
-
 struct ioc_params {
 	u32				qos[NR_QOS_PARAMS];
 	u64				i_lcoefs[NR_I_LCOEFS];
