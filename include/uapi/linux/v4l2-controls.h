@@ -65,6 +65,7 @@
 #define V4L2_CTRL_CLASS_FM_RX		0x00a10000	/* FM Receiver controls */
 #define V4L2_CTRL_CLASS_RF_TUNER	0x00a20000	/* RF tuner controls */
 #define V4L2_CTRL_CLASS_DETECT		0x00a30000	/* Detection controls */
+#define V4L2_CTRL_CLASS_CODEC_STATELESS 0x00a40000	/* Stateless codecs controls */
 
 /* User-class control IDs */
 
@@ -1176,6 +1177,12 @@ enum v4l2_detect_md_mode {
 #define V4L2_CID_DETECT_MD_GLOBAL_THRESHOLD	(V4L2_CID_DETECT_CLASS_BASE + 2)
 #define V4L2_CID_DETECT_MD_THRESHOLD_GRID	(V4L2_CID_DETECT_CLASS_BASE + 3)
 #define V4L2_CID_DETECT_MD_REGION_GRID		(V4L2_CID_DETECT_CLASS_BASE + 4)
+
+
+/*  Stateless CODECs controls */
+#define V4L2_CID_CODEC_STATELESS_BASE          (V4L2_CTRL_CLASS_CODEC_STATELESS | 0x900)
+#define V4L2_CID_CODEC_STATELESS_CLASS         (V4L2_CTRL_CLASS_CODEC_STATELESS | 1)
+
 
 /* MPEG-compression definitions kept for backwards compatibility */
 #ifndef __KERNEL__

@@ -362,6 +362,10 @@ still cause this situation.
       - 0xa30000
       - The class containing motion or object detection controls. These controls
         are described in :ref:`detect-controls`.
+    * - ``V4L2_CTRL_CLASS_CODEC_STATELESS``
+      - 0xa40000
+      - The class containing stateless codec controls. These controls are
+	described in :ref:`codec-stateless-controls`.
 
 Return Value
 ============
