@@ -286,7 +286,7 @@ static int pwm_fan_probe(struct platform_device *pdev)
 	struct device *hwmon;
 	int ret;
 	struct pwm_state state = { };
-	u32 ppr = 2;
+	int tach_count;
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
@@ -299,10 +299,6 @@ static int pwm_fan_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, PTR_ERR(ctx->pwm), "Could not get PWM\n");
 
 	platform_set_drvdata(pdev, ctx);
-
-	ctx->irq = platform_get_irq_optional(pdev, 0);
-	if (ctx->irq == -EPROBE_DEFER)
-		return ctx->irq;
 
 	ctx->reg_en = devm_regulator_get_optional(dev, "fan");
 	if (IS_ERR(ctx->reg_en)) {
@@ -339,20 +335,40 @@ static int pwm_fan_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	of_property_read_u32(dev->of_node, "pulses-per-revolution", &ppr);
-	ctx->pulses_per_revolution = ppr;
-	if (!ctx->pulses_per_revolution) {
-		dev_err(dev, "pulses-per-revolution can't be zero.\n");
-		return -EINVAL;
-	}
+	tach_count = platform_irq_count(pdev);
+	if (tach_count < 0)
+		return dev_err_probe(dev, tach_count,
+				     "Could not get number of fan tachometer inputs\n");
 
-	if (ctx->irq > 0) {
-		ret = devm_request_irq(dev, ctx->irq, pulse_handler, 0,
-				       pdev->name, ctx);
-		if (ret) {
-			dev_err(dev, "Failed to request interrupt: %d\n", ret);
-			return ret;
+	if (tach_count > 0) {
+		u32 ppr = 2;
+
+		ctx->irq = platform_get_irq(pdev, 0);
+		if (ctx->irq == -EPROBE_DEFER)
+			return ctx->irq;
+		if (ctx->irq > 0) {
+			ret = devm_request_irq(dev, ctx->irq, pulse_handler, 0,
+					       pdev->name, ctx);
+			if (ret) {
+				dev_err(dev,
+					"Failed to request interrupt: %d\n",
+					ret);
+				return ret;
+			}
 		}
+
+		of_property_read_u32(dev->of_node,
+				     "pulses-per-revolution",
+				     &ppr);
+		ctx->pulses_per_revolution = ppr;
+		if (!ctx->pulses_per_revolution) {
+			dev_err(dev, "pulses-per-revolution can't be zero.\n");
+			return -EINVAL;
+		}
+
+		dev_dbg(dev, "tach: irq=%d, pulses_per_revolution=%d\n",
+			ctx->irq, ctx->pulses_per_revolution);
+
 		ctx->sample_start = ktime_get();
 		mod_timer(&ctx->rpm_timer, jiffies + HZ);
 	}
