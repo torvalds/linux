@@ -2752,6 +2752,7 @@ struct rtw_chip_info rtw8723d_hw_spec = {
 	.bt_desired_ver = 0x2f,
 	.scbd_support = true,
 	.new_scbd10_def = true,
+	.ble_hid_profile_support = false,
 	.pstdma_type = COEX_PSTDMA_FORCE_LPSOFF,
 	.bt_rssi_type = COEX_BTRSSI_RATIO,
 	.ant_isolation = 15,

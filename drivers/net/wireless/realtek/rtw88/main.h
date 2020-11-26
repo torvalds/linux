@@ -1174,6 +1174,7 @@ struct rtw_chip_info {
 	u8 bt_desired_ver;
 	bool scbd_support;
 	bool new_scbd10_def; /* true: fix 2M(8822c) */
+	bool ble_hid_profile_support;
 	u8 pstdma_type; /* 0: LPSoff, 1:LPSon */
 	u8 bt_rssi_type;
 	u8 ant_isolation;
