@@ -11,32 +11,16 @@
 
 #include "xsk.h"
 
-int xsk_map_inc(struct xsk_map *map)
-{
-	bpf_map_inc(&map->map);
-	return 0;
-}
-
-void xsk_map_put(struct xsk_map *map)
-{
-	bpf_map_put(&map->map);
-}
-
 static struct xsk_map_node *xsk_map_node_alloc(struct xsk_map *map,
 					       struct xdp_sock **map_entry)
 {
 	struct xsk_map_node *node;
-	int err;
 
 	node = kzalloc(sizeof(*node), GFP_ATOMIC | __GFP_NOWARN);
 	if (!node)
 		return ERR_PTR(-ENOMEM);
 
-	err = xsk_map_inc(map);
-	if (err) {
-		kfree(node);
-		return ERR_PTR(err);
-	}
+	bpf_map_inc(&map->map);
 
 	node->map = map;
 	node->map_entry = map_entry;
@@ -45,7 +29,7 @@ static struct xsk_map_node *xsk_map_node_alloc(struct xsk_map *map,
 
 static void xsk_map_node_free(struct xsk_map_node *node)
 {
-	xsk_map_put(node->map);
+	bpf_map_put(&node->map->map);
 	kfree(node);
 }
 
