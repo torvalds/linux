@@ -863,31 +863,46 @@ void __init bdev_cache_init(void)
 	blockdev_superblock = bd_mnt->mnt_sb;   /* For writeback */
 }
 
-static struct block_device *bdget(dev_t dev)
+struct block_device *bdev_alloc(struct gendisk *disk, u8 partno)
 {
 	struct block_device *bdev;
 	struct inode *inode;
 
-	inode = iget_locked(blockdev_superblock, dev);
+	inode = new_inode(blockdev_superblock);
 	if (!inode)
 		return NULL;
+	inode->i_mode = S_IFBLK;
+	inode->i_rdev = 0;
+	inode->i_data.a_ops = &def_blk_aops;
+	mapping_set_gfp_mask(&inode->i_data, GFP_USER);
 
-	bdev = &BDEV_I(inode)->bdev;
-
-	if (inode->i_state & I_NEW) {
-		spin_lock_init(&bdev->bd_size_lock);
-		bdev->bd_contains = NULL;
-		bdev->bd_super = NULL;
-		bdev->bd_inode = inode;
-		bdev->bd_part_count = 0;
-		bdev->bd_dev = dev;
-		inode->i_mode = S_IFBLK;
-		inode->i_rdev = dev;
-		inode->i_data.a_ops = &def_blk_aops;
-		mapping_set_gfp_mask(&inode->i_data, GFP_USER);
-		unlock_new_inode(inode);
-	}
+	bdev = I_BDEV(inode);
+	spin_lock_init(&bdev->bd_size_lock);
+	bdev->bd_disk = disk;
+	bdev->bd_partno = partno;
+	bdev->bd_contains = NULL;
+	bdev->bd_super = NULL;
+	bdev->bd_inode = inode;
+	bdev->bd_part_count = 0;
 	return bdev;
+}
+
+void bdev_add(struct block_device *bdev, dev_t dev)
+{
+	bdev->bd_dev = dev;
+	bdev->bd_inode->i_rdev = dev;
+	bdev->bd_inode->i_ino = dev;
+	insert_inode_hash(bdev->bd_inode);
+}
+
+static struct block_device *bdget(dev_t dev)
+{
+	struct inode *inode;
+
+	inode = ilookup(blockdev_superblock, dev);
+	if (!inode)
+		return NULL;
+	return &BDEV_I(inode)->bdev;
 }
 
 /**
@@ -1003,27 +1018,6 @@ retry:
 	return 0;
 }
 EXPORT_SYMBOL_GPL(bd_prepare_to_claim); /* only for the loop driver */
-
-static struct gendisk *bdev_get_gendisk(struct block_device *bdev, int *partno)
-{
-	struct gendisk *disk = get_gendisk(bdev->bd_dev, partno);
-
-	if (!disk)
-		return NULL;
-	/*
-	 * Now that we hold gendisk reference we make sure bdev we looked up is
-	 * not stale. If it is, it means device got removed and created before
-	 * we looked up gendisk and we fail open in such case. Associating
-	 * unhashed bdev with newly created gendisk could lead to two bdevs
-	 * (and thus two independent caches) being associated with one device
-	 * which is bad.
-	 */
-	if (inode_unhashed(bdev->bd_inode)) {
-		put_disk_and_module(disk);
-		return NULL;
-	}
-	return disk;
-}
 
 static void bd_clear_claiming(struct block_device *whole, void *holder)
 {
@@ -1347,19 +1341,17 @@ EXPORT_SYMBOL_GPL(bdev_disk_changed);
  *  mutex_lock(part->bd_mutex)
  *    mutex_lock_nested(whole->bd_mutex, 1)
  */
-static int __blkdev_get(struct block_device *bdev, struct gendisk *disk,
-		int partno, fmode_t mode)
+static int __blkdev_get(struct block_device *bdev, fmode_t mode)
 {
+	struct gendisk *disk = bdev->bd_disk;
 	int ret;
 
 	if (!bdev->bd_openers) {
-		bdev->bd_disk = disk;
 		bdev->bd_contains = bdev;
-		bdev->bd_partno = partno;
 
-		if (!partno) {
+		if (!bdev->bd_partno) {
 			ret = -ENXIO;
-			bdev->bd_part = disk_get_part(disk, partno);
+			bdev->bd_part = disk_get_part(disk, 0);
 			if (!bdev->bd_part)
 				goto out_clear;
 
@@ -1388,7 +1380,7 @@ static int __blkdev_get(struct block_device *bdev, struct gendisk *disk,
 			struct block_device *whole = bdget_disk(disk, 0);
 
 			mutex_lock_nested(&whole->bd_mutex, 1);
-			ret = __blkdev_get(whole, disk, 0, mode);
+			ret = __blkdev_get(whole, mode);
 			if (ret) {
 				mutex_unlock(&whole->bd_mutex);
 				bdput(whole);
@@ -1398,7 +1390,7 @@ static int __blkdev_get(struct block_device *bdev, struct gendisk *disk,
 			mutex_unlock(&whole->bd_mutex);
 
 			bdev->bd_contains = whole;
-			bdev->bd_part = disk_get_part(disk, partno);
+			bdev->bd_part = disk_get_part(disk, bdev->bd_partno);
 			if (!(disk->flags & GENHD_FL_UP) ||
 			    !bdev->bd_part || !bdev->bd_part->nr_sects) {
 				__blkdev_put(whole, mode, 1);
@@ -1430,10 +1422,51 @@ static int __blkdev_get(struct block_device *bdev, struct gendisk *disk,
 
  out_clear:
 	disk_put_part(bdev->bd_part);
-	bdev->bd_disk = NULL;
 	bdev->bd_part = NULL;
 	bdev->bd_contains = NULL;
 	return ret;
+}
+
+struct block_device *blkdev_get_no_open(dev_t dev)
+{
+	struct block_device *bdev;
+	struct gendisk *disk;
+
+	down_read(&bdev_lookup_sem);
+	bdev = bdget(dev);
+	if (!bdev) {
+		up_read(&bdev_lookup_sem);
+		blk_request_module(dev);
+		down_read(&bdev_lookup_sem);
+
+		bdev = bdget(dev);
+		if (!bdev)
+			goto unlock;
+	}
+
+	disk = bdev->bd_disk;
+	if (!kobject_get_unless_zero(&disk_to_dev(disk)->kobj))
+		goto bdput;
+	if ((disk->flags & (GENHD_FL_UP | GENHD_FL_HIDDEN)) != GENHD_FL_UP)
+		goto put_disk;
+	if (!try_module_get(bdev->bd_disk->fops->owner))
+		goto put_disk;
+	up_read(&bdev_lookup_sem);
+	return bdev;
+put_disk:
+	put_disk(disk);
+bdput:
+	bdput(bdev);
+unlock:
+	up_read(&bdev_lookup_sem);
+	return NULL;
+}
+
+void blkdev_put_no_open(struct block_device *bdev)
+{
+	module_put(bdev->bd_disk->fops->owner);
+	put_disk(bdev->bd_disk);
+	bdput(bdev);
 }
 
 /**
@@ -1463,7 +1496,6 @@ struct block_device *blkdev_get_by_dev(dev_t dev, fmode_t mode, void *holder)
 	bool unblock_events = true;
 	struct block_device *bdev;
 	struct gendisk *disk;
-	int partno;
 	int ret;
 
 	ret = devcgroup_check_permission(DEVCG_DEV_BLOCK,
@@ -1473,18 +1505,14 @@ struct block_device *blkdev_get_by_dev(dev_t dev, fmode_t mode, void *holder)
 	if (ret)
 		return ERR_PTR(ret);
 
-	bdev = bdget(dev);
-	if (!bdev)
-		return ERR_PTR(-ENOMEM);
-
 	/*
 	 * If we lost a race with 'disk' being deleted, try again.  See md.c.
 	 */
 retry:
-	ret = -ENXIO;
-	disk = bdev_get_gendisk(bdev, &partno);
-	if (!disk)
-		goto bdput;
+	bdev = blkdev_get_no_open(dev);
+	if (!bdev)
+		return ERR_PTR(-ENXIO);
+	disk = bdev->bd_disk;
 
 	if (mode & FMODE_EXCL) {
 		WARN_ON_ONCE(!holder);
@@ -1492,7 +1520,7 @@ retry:
 		ret = -ENOMEM;
 		claiming = bdget_disk(disk, 0);
 		if (!claiming)
-			goto put_disk;
+			goto put_blkdev;
 		ret = bd_prepare_to_claim(bdev, claiming, holder);
 		if (ret)
 			goto put_claiming;
@@ -1501,12 +1529,10 @@ retry:
 	disk_block_events(disk);
 
 	mutex_lock(&bdev->bd_mutex);
-	ret =__blkdev_get(bdev, disk, partno, mode);
-	if (!(mode & FMODE_EXCL)) {
-		; /* nothing to do here */
-	} else if (ret) {
-		bd_abort_claiming(bdev, claiming, holder);
-	} else {
+	ret =__blkdev_get(bdev, mode);
+	if (ret)
+		goto abort_claiming;
+	if (mode & FMODE_EXCL) {
 		bd_finish_claiming(bdev, claiming, holder);
 
 		/*
@@ -1526,21 +1552,23 @@ retry:
 
 	if (unblock_events)
 		disk_unblock_events(disk);
+	if (mode & FMODE_EXCL)
+		bdput(claiming);
+	return bdev;
 
+abort_claiming:
+	if (mode & FMODE_EXCL)
+		bd_abort_claiming(bdev, claiming, holder);
+	mutex_unlock(&bdev->bd_mutex);
+	disk_unblock_events(disk);
 put_claiming:
 	if (mode & FMODE_EXCL)
 		bdput(claiming);
-put_disk:
-	if (ret)
-		put_disk_and_module(disk);
+put_blkdev:
+	blkdev_put_no_open(bdev);
 	if (ret == -ERESTARTSYS)
 		goto retry;
-bdput:
-	if (ret) {
-		bdput(bdev);
-		return ERR_PTR(ret);
-	}
-	return bdev;
+	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL(blkdev_get_by_dev);
 
@@ -1641,7 +1669,6 @@ static void __blkdev_put(struct block_device *bdev, fmode_t mode, int for_part)
 
 		disk_put_part(bdev->bd_part);
 		bdev->bd_part = NULL;
-		bdev->bd_disk = NULL;
 		if (bdev_is_partition(bdev))
 			victim = bdev->bd_contains;
 		bdev->bd_contains = NULL;
@@ -1699,12 +1726,10 @@ void blkdev_put(struct block_device *bdev, fmode_t mode)
 	 * from userland - e.g. eject(1).
 	 */
 	disk_flush_events(disk, DISK_EVENT_MEDIA_CHANGE);
-
 	mutex_unlock(&bdev->bd_mutex);
 
 	__blkdev_put(bdev, mode, 0);
-	bdput(bdev);
-	put_disk_and_module(disk);
+	blkdev_put_no_open(bdev);
 }
 EXPORT_SYMBOL(blkdev_put);
 

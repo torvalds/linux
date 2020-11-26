@@ -352,7 +352,6 @@ struct hd_struct *disk_map_sector_rcu(struct gendisk *disk, sector_t sector);
 
 int blk_alloc_devt(struct hd_struct *part, dev_t *devt);
 void blk_free_devt(dev_t devt);
-void blk_invalidate_devt(dev_t devt);
 char *disk_name(struct gendisk *hd, int partno, char *buf);
 #define ADDPART_FLAG_NONE	0
 #define ADDPART_FLAG_RAID	1
@@ -384,6 +383,7 @@ static inline void hd_free_part(struct hd_struct *part)
 {
 	free_percpu(part->dkstats);
 	kfree(part->info);
+	bdput(part->bdev);
 	percpu_ref_exit(&part->ref);
 }
 
