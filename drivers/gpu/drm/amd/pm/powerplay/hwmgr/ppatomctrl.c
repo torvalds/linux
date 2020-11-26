@@ -92,11 +92,11 @@ static int atomctrl_retrieve_ac_timing(
 }
 
 /**
- * Get memory clock AC timing registers index from VBIOS table
+ * atomctrl_set_mc_reg_address_table - Get memory clock AC timing registers index from VBIOS table
  * VBIOS set end of memory clock AC timing registers by ucPreRegDataLength bit6 = 1
- * @param    reg_block the address ATOM_INIT_REG_BLOCK
- * @param    table the address of MCRegTable
- * @return   0
+ * @reg_block: the address ATOM_INIT_REG_BLOCK
+ * @table: the address of MCRegTable
+ * Return:   0
  */
 static int atomctrl_set_mc_reg_address_table(
 		ATOM_INIT_REG_BLOCK *reg_block,
@@ -203,7 +203,7 @@ int atomctrl_initialize_mc_reg_table_v2_2(
 	return result;
 }
 
-/**
+/*
  * Set DRAM timings based on engine clock and memory clock.
  */
 int atomctrl_set_engine_dram_timings_rv770(
@@ -229,7 +229,7 @@ int atomctrl_set_engine_dram_timings_rv770(
 			(uint32_t *)&engine_clock_parameters);
 }
 
-/**
+/*
  * Private Function to get the PowerPlay Table Address.
  * WARNING: The tabled returned by this function is in
  * dynamically allocated memory.
@@ -274,12 +274,13 @@ static const ATOM_VOLTAGE_OBJECT_V3 *atomctrl_lookup_voltage_type_v3(
 	return NULL;
 }
 
-/** atomctrl_get_memory_pll_dividers_si().
+/**
+ * atomctrl_get_memory_pll_dividers_si().
  *
- * @param hwmgr                 input parameter: pointer to HwMgr
- * @param clock_value             input parameter: memory clock
- * @param dividers                 output parameter: memory PLL dividers
- * @param strobe_mode            input parameter: 1 for strobe mode,  0 for performance mode
+ * @hwmgr:           input parameter: pointer to HwMgr
+ * @clock_value:     input parameter: memory clock
+ * @dividers:        output parameter: memory PLL dividers
+ * @strobe_mode:     input parameter: 1 for strobe mode,  0 for performance mode
  */
 int atomctrl_get_memory_pll_dividers_si(
 		struct pp_hwmgr *hwmgr,
@@ -326,11 +327,12 @@ int atomctrl_get_memory_pll_dividers_si(
 	return result;
 }
 
-/** atomctrl_get_memory_pll_dividers_vi().
+/**
+ * atomctrl_get_memory_pll_dividers_vi().
  *
- * @param hwmgr                 input parameter: pointer to HwMgr
- * @param clock_value             input parameter: memory clock
- * @param dividers               output parameter: memory PLL dividers
+ * @hwmgr:                 input parameter: pointer to HwMgr
+ * @clock_value:           input parameter: memory clock
+ * @dividers:              output parameter: memory PLL dividers
  */
 int atomctrl_get_memory_pll_dividers_vi(struct pp_hwmgr *hwmgr,
 		uint32_t clock_value, pp_atomctrl_memory_clock_param *mpll_param)
@@ -512,7 +514,7 @@ int atomctrl_get_dfs_pll_dividers_vi(
 	return result;
 }
 
-/**
+/*
  * Get the reference clock in 10KHz
  */
 uint32_t atomctrl_get_reference_clock(struct pp_hwmgr *hwmgr)
@@ -535,7 +537,7 @@ uint32_t atomctrl_get_reference_clock(struct pp_hwmgr *hwmgr)
 	return clock;
 }
 
-/**
+/*
  * Returns true if the given voltage type is controlled by GPIO pins.
  * voltage_type is one of SET_VOLTAGE_TYPE_ASIC_VDDC,
  * SET_VOLTAGE_TYPE_ASIC_MVDDC, SET_VOLTAGE_TYPE_ASIC_MVDDQ.
@@ -630,7 +632,7 @@ static bool atomctrl_lookup_gpio_pin(
 	return false;
 }
 
-/**
+/*
  * Private Function to get the PowerPlay Table Address.
  * WARNING: The tabled returned by this function is in
  * dynamically allocated memory.
@@ -653,7 +655,7 @@ static ATOM_GPIO_PIN_LUT *get_gpio_lookup_table(void *device)
 	return (ATOM_GPIO_PIN_LUT *)table_address;
 }
 
-/**
+/*
  * Returns 1 if the given pin id find in lookup table.
  */
 bool atomctrl_get_pp_assign_pin(
@@ -1101,14 +1103,15 @@ int atomctrl_calculate_voltage_evv_on_sclk(
 	return result;
 }
 
-/** atomctrl_get_voltage_evv_on_sclk gets voltage via call to ATOM COMMAND table.
- * @param hwmgr	input: pointer to hwManager
- * @param voltage_type            input: type of EVV voltage VDDC or VDDGFX
- * @param sclk                        input: in 10Khz unit. DPM state SCLK frequency
- *		which is define in PPTable SCLK/VDDC dependence
- *				table associated with this virtual_voltage_Id
- * @param virtual_voltage_Id      input: voltage id which match per voltage DPM state: 0xff01, 0xff02.. 0xff08
- * @param voltage		       output: real voltage level in unit of mv
+/**
+ * atomctrl_get_voltage_evv_on_sclk gets voltage via call to ATOM COMMAND table.
+ * @hwmgr:              input: pointer to hwManager
+ * @voltage_type:       input: type of EVV voltage VDDC or VDDGFX
+ * @sclk:               input: in 10Khz unit. DPM state SCLK frequency
+ *		         which is define in PPTable SCLK/VDDC dependence
+ *			 table associated with this virtual_voltage_Id
+ * @virtual_voltage_Id: input: voltage id which match per voltage DPM state: 0xff01, 0xff02.. 0xff08
+ * @voltage: 	        output: real voltage level in unit of mv
  */
 int atomctrl_get_voltage_evv_on_sclk(
 		struct pp_hwmgr *hwmgr,
@@ -1142,9 +1145,9 @@ int atomctrl_get_voltage_evv_on_sclk(
 
 /**
  * atomctrl_get_voltage_evv gets voltage via call to ATOM COMMAND table.
- * @param hwmgr	input: pointer to hwManager
- * @param virtual_voltage_id      input: voltage id which match per voltage DPM state: 0xff01, 0xff02.. 0xff08
- * @param voltage		       output: real voltage level in unit of mv
+ * @hwmgr:              input: pointer to hwManager
+ * @virtual_voltage_id: input: voltage id which match per voltage DPM state: 0xff01, 0xff02.. 0xff08
+ * @voltage: 	       output: real voltage level in unit of mv
  */
 int atomctrl_get_voltage_evv(struct pp_hwmgr *hwmgr,
 			     uint16_t virtual_voltage_id,
@@ -1187,7 +1190,7 @@ int atomctrl_get_voltage_evv(struct pp_hwmgr *hwmgr,
 	return result;
 }
 
-/**
+/*
  * Get the mpll reference clock in 10KHz
  */
 uint32_t atomctrl_get_mpll_reference_clock(struct pp_hwmgr *hwmgr)
@@ -1220,7 +1223,7 @@ uint32_t atomctrl_get_mpll_reference_clock(struct pp_hwmgr *hwmgr)
 	return clock;
 }
 
-/**
+/*
  * Get the asic internal spread spectrum table
  */
 static ATOM_ASIC_INTERNAL_SS_INFO *asic_internal_ss_get_ss_table(void *device)
@@ -1248,7 +1251,7 @@ bool atomctrl_is_asic_internal_ss_supported(struct pp_hwmgr *hwmgr)
 		return false;
 }
 
-/**
+/*
  * Get the asic internal spread spectrum assignment
  */
 static int asic_internal_ss_get_ss_asignment(struct pp_hwmgr *hwmgr,
@@ -1311,7 +1314,7 @@ static int asic_internal_ss_get_ss_asignment(struct pp_hwmgr *hwmgr,
 	return entry_found ? 0 : 1;
 }
 
-/**
+/*
  * Get the memory clock spread spectrum info
  */
 int atomctrl_get_memory_clock_spread_spectrum(
@@ -1322,7 +1325,8 @@ int atomctrl_get_memory_clock_spread_spectrum(
 	return asic_internal_ss_get_ss_asignment(hwmgr,
 			ASIC_INTERNAL_MEMORY_SS, memory_clock, ssInfo);
 }
-/**
+
+/*
  * Get the engine clock spread spectrum info
  */
 int atomctrl_get_engine_clock_spread_spectrum(
