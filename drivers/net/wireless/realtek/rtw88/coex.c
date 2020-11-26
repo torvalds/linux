@@ -1361,6 +1361,7 @@ static void rtw_coex_action_freerun(struct rtw_dev *rtwdev)
 	struct rtw_efuse *efuse = &rtwdev->efuse;
 	struct rtw_chip_info *chip = rtwdev->chip;
 	u8 level = 0;
+	bool bt_afh_loss = true;
 
 	rtw_dbg(rtwdev, RTW_DBG_COEX, "[BTCoex], %s()\n", __func__);
 
@@ -1369,7 +1370,7 @@ static void rtw_coex_action_freerun(struct rtw_dev *rtwdev)
 
 	coex->freerun = true;
 
-	if (coex_stat->wl_connected)
+	if (bt_afh_loss)
 		rtw_coex_update_wl_ch_info(rtwdev, COEX_MEDIA_CONNECT);
 
 	rtw_coex_set_ant_path(rtwdev, false, COEX_SET_ANT_2G_FREERUN);
