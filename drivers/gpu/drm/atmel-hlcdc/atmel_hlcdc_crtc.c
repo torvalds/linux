@@ -25,7 +25,7 @@
 #include "atmel_hlcdc_dc.h"
 
 /**
- * Atmel HLCDC CRTC state structure
+ * struct atmel_hlcdc_crtc_state - Atmel HLCDC CRTC state structure
  *
  * @base: base CRTC state
  * @output_mode: RGBXXX output mode
@@ -42,10 +42,10 @@ drm_crtc_state_to_atmel_hlcdc_crtc_state(struct drm_crtc_state *state)
 }
 
 /**
- * Atmel HLCDC CRTC structure
+ * struct atmel_hlcdc_crtc - Atmel HLCDC CRTC structure
  *
  * @base: base DRM CRTC structure
- * @hlcdc: pointer to the atmel_hlcdc structure provided by the MFD device
+ * @dc: pointer to the atmel_hlcdc structure provided by the MFD device
  * @event: pointer to the current page flip event
  * @id: CRTC id (returned by drm_crtc_index)
  */

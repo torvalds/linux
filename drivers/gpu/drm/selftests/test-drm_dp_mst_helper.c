@@ -120,44 +120,58 @@ sideband_msg_req_equal(const struct drm_dp_sideband_msg_req_body *in,
 static bool
 sideband_msg_req_encode_decode(struct drm_dp_sideband_msg_req_body *in)
 {
-	struct drm_dp_sideband_msg_req_body out = {0};
+	struct drm_dp_sideband_msg_req_body *out;
 	struct drm_printer p = drm_err_printer(PREFIX_STR);
-	struct drm_dp_sideband_msg_tx txmsg;
+	struct drm_dp_sideband_msg_tx *txmsg;
 	int i, ret;
+	bool result = true;
 
-	drm_dp_encode_sideband_req(in, &txmsg);
-	ret = drm_dp_decode_sideband_req(&txmsg, &out);
+	out = kzalloc(sizeof(*out), GFP_KERNEL);
+	if (!out)
+		return false;
+
+	txmsg = kzalloc(sizeof(*txmsg), GFP_KERNEL);
+	if (!txmsg)
+		return false;
+
+	drm_dp_encode_sideband_req(in, txmsg);
+	ret = drm_dp_decode_sideband_req(txmsg, out);
 	if (ret < 0) {
 		drm_printf(&p, "Failed to decode sideband request: %d\n",
 			   ret);
-		return false;
+		result = false;
+		goto out;
 	}
 
-	if (!sideband_msg_req_equal(in, &out)) {
+	if (!sideband_msg_req_equal(in, out)) {
 		drm_printf(&p, "Encode/decode failed, expected:\n");
 		drm_dp_dump_sideband_msg_req_body(in, 1, &p);
 		drm_printf(&p, "Got:\n");
-		drm_dp_dump_sideband_msg_req_body(&out, 1, &p);
-		return false;
+		drm_dp_dump_sideband_msg_req_body(out, 1, &p);
+		result = false;
+		goto out;
 	}
 
 	switch (in->req_type) {
 	case DP_REMOTE_DPCD_WRITE:
-		kfree(out.u.dpcd_write.bytes);
+		kfree(out->u.dpcd_write.bytes);
 		break;
 	case DP_REMOTE_I2C_READ:
-		for (i = 0; i < out.u.i2c_read.num_transactions; i++)
-			kfree(out.u.i2c_read.transactions[i].bytes);
+		for (i = 0; i < out->u.i2c_read.num_transactions; i++)
+			kfree(out->u.i2c_read.transactions[i].bytes);
 		break;
 	case DP_REMOTE_I2C_WRITE:
-		kfree(out.u.i2c_write.bytes);
+		kfree(out->u.i2c_write.bytes);
 		break;
 	}
 
 	/* Clear everything but the req_type for the input */
 	memset(&in->u, 0, sizeof(in->u));
 
-	return true;
+out:
+	kfree(out);
+	kfree(txmsg);
+	return result;
 }
 
 int igt_dp_mst_sideband_msg_req_decode(void *unused)

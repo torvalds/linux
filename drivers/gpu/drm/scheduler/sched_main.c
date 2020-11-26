@@ -446,7 +446,7 @@ void drm_sched_stop(struct drm_gpu_scheduler *sched, struct drm_sched_job *bad)
 EXPORT_SYMBOL(drm_sched_stop);
 
 /**
- * drm_sched_job_recovery - recover jobs after a reset
+ * drm_sched_start - recover jobs after a reset
  *
  * @sched: scheduler instance
  * @full_recovery: proceed with complete sched restart

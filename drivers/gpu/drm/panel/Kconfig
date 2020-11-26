@@ -8,6 +8,15 @@ config DRM_PANEL
 menu "Display Panels"
 	depends on DRM && DRM_PANEL
 
+config DRM_PANEL_ABT_Y030XX067A
+	tristate "ABT Y030XX067A 320x480 LCD panel"
+	depends on OF && SPI
+	select REGMAP_SPI
+	help
+	  Say Y here to enable support for the Asia Better Technology Ltd.
+	  Y030XX067A 320x480 3.0" panel as found in the YLM RG-280M, RG-300
+	  and RG-99 handheld gaming consoles.
+
 config DRM_PANEL_ARM_VERSATILE
 	tristate "ARM Versatile panel driver"
 	depends on OF
@@ -370,6 +379,18 @@ config DRM_PANEL_SAMSUNG_S6E8AA0
 	depends on OF
 	select DRM_MIPI_DSI
 	select VIDEOMODE_HELPERS
+
+config DRM_PANEL_SAMSUNG_SOFEF00
+	tristate "Samsung sofef00/s6e3fc2x01 OnePlus 6/6T DSI cmd mode panels"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	select VIDEOMODE_HELPERS
+	help
+	  Say Y or M here if you want to enable support for the Samsung AMOLED
+	  command mode panels found in the OnePlus 6/6T smartphones.
+
+	  The panels are 2280x1080@60Hz and 2340x1080@60Hz respectively
 
 config DRM_PANEL_SEIKO_43WVF1G
 	tristate "Seiko 43WVF1G panel"

@@ -584,7 +584,6 @@ static int cdv_chip_setup(struct drm_device *dev)
 
 const struct psb_ops cdv_chip_ops = {
 	.name = "GMA3600/3650",
-	.accel_2d = 0,
 	.pipes = 2,
 	.crtcs = 2,
 	.hdmi_mask = (1 << 0) | (1 << 1),
