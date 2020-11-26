@@ -461,6 +461,7 @@ int smu_v13_0_get_vbios_bootup_values(struct smu_context *smu)
 	uint16_t size;
 	uint8_t frev, crev;
 	struct atom_common_table_header *header;
+	struct atom_firmware_info_v3_4 *v_3_4;
 	struct atom_firmware_info_v3_3 *v_3_3;
 	struct atom_firmware_info_v3_1 *v_3_1;
 
@@ -495,7 +496,6 @@ int smu_v13_0_get_vbios_bootup_values(struct smu_context *smu)
 		smu->smu_table.boot_values.pp_table_id = 0;
 		break;
 	case 3:
-	default:
 		v_3_3 = (struct atom_firmware_info_v3_3 *)header;
 		smu->smu_table.boot_values.revision = v_3_3->firmware_revision;
 		smu->smu_table.boot_values.gfxclk = v_3_3->bootup_sclk_in10khz;
@@ -508,6 +508,20 @@ int smu_v13_0_get_vbios_bootup_values(struct smu_context *smu)
 		smu->smu_table.boot_values.vdd_gfx = v_3_3->bootup_vddgfx_mv;
 		smu->smu_table.boot_values.cooling_id = v_3_3->coolingsolution_id;
 		smu->smu_table.boot_values.pp_table_id = v_3_3->pplib_pptable_id;
+	case 4:
+	default:
+		v_3_4 = (struct atom_firmware_info_v3_4 *)header;
+		smu->smu_table.boot_values.revision = v_3_4->firmware_revision;
+		smu->smu_table.boot_values.gfxclk = v_3_4->bootup_sclk_in10khz;
+		smu->smu_table.boot_values.uclk = v_3_4->bootup_mclk_in10khz;
+		smu->smu_table.boot_values.socclk = 0;
+		smu->smu_table.boot_values.dcefclk = 0;
+		smu->smu_table.boot_values.vddc = v_3_4->bootup_vddc_mv;
+		smu->smu_table.boot_values.vddci = v_3_4->bootup_vddci_mv;
+		smu->smu_table.boot_values.mvddc = v_3_4->bootup_mvddc_mv;
+		smu->smu_table.boot_values.vdd_gfx = v_3_4->bootup_vddgfx_mv;
+		smu->smu_table.boot_values.cooling_id = v_3_4->coolingsolution_id;
+		smu->smu_table.boot_values.pp_table_id = v_3_4->pplib_pptable_id;
 	}
 
 	smu->smu_table.boot_values.format_revision = header->format_revision;
