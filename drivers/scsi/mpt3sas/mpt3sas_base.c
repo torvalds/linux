@@ -597,6 +597,71 @@ static int mpt3sas_remove_dead_ioc_func(void *arg)
 }
 
 /**
+ * _base_sync_drv_fw_timestamp - Sync Drive-Fw TimeStamp.
+ * @ioc: Per Adapter Object
+ *
+ * Return nothing.
+ */
+static void _base_sync_drv_fw_timestamp(struct MPT3SAS_ADAPTER *ioc)
+{
+	Mpi26IoUnitControlRequest_t *mpi_request;
+	Mpi26IoUnitControlReply_t *mpi_reply;
+	u16 smid;
+	ktime_t current_time;
+	u64 TimeStamp = 0;
+	u8 issue_reset = 0;
+
+	mutex_lock(&ioc->scsih_cmds.mutex);
+	if (ioc->scsih_cmds.status != MPT3_CMD_NOT_USED) {
+		ioc_err(ioc, "scsih_cmd in use %s\n", __func__);
+		goto out;
+	}
+	ioc->scsih_cmds.status = MPT3_CMD_PENDING;
+	smid = mpt3sas_base_get_smid(ioc, ioc->scsih_cb_idx);
+	if (!smid) {
+		ioc_err(ioc, "Failed obtaining a smid %s\n", __func__);
+		ioc->scsih_cmds.status = MPT3_CMD_NOT_USED;
+		goto out;
+	}
+	mpi_request = mpt3sas_base_get_msg_frame(ioc, smid);
+	ioc->scsih_cmds.smid = smid;
+	memset(mpi_request, 0, sizeof(Mpi26IoUnitControlRequest_t));
+	mpi_request->Function = MPI2_FUNCTION_IO_UNIT_CONTROL;
+	mpi_request->Operation = MPI26_CTRL_OP_SET_IOC_PARAMETER;
+	mpi_request->IOCParameter = MPI26_SET_IOC_PARAMETER_SYNC_TIMESTAMP;
+	current_time = ktime_get_real();
+	TimeStamp = ktime_to_ms(current_time);
+	mpi_request->Reserved7 = cpu_to_le32(TimeStamp & 0xFFFFFFFF);
+	mpi_request->IOCParameterValue = cpu_to_le32(TimeStamp >> 32);
+	init_completion(&ioc->scsih_cmds.done);
+	ioc->put_smid_default(ioc, smid);
+	dinitprintk(ioc, ioc_info(ioc,
+	    "Io Unit Control Sync TimeStamp (sending), @time %lld ms\n",
+	    TimeStamp));
+	wait_for_completion_timeout(&ioc->scsih_cmds.done,
+		MPT3SAS_TIMESYNC_TIMEOUT_SECONDS*HZ);
+	if (!(ioc->scsih_cmds.status & MPT3_CMD_COMPLETE)) {
+		mpt3sas_check_cmd_timeout(ioc,
+		    ioc->scsih_cmds.status, mpi_request,
+		    sizeof(Mpi2SasIoUnitControlRequest_t)/4, issue_reset);
+		goto issue_host_reset;
+	}
+	if (ioc->scsih_cmds.status & MPT3_CMD_REPLY_VALID) {
+		mpi_reply = ioc->scsih_cmds.reply;
+		dinitprintk(ioc, ioc_info(ioc,
+		    "Io Unit Control sync timestamp (complete): ioc_status(0x%04x), loginfo(0x%08x)\n",
+		    le16_to_cpu(mpi_reply->IOCStatus),
+		    le32_to_cpu(mpi_reply->IOCLogInfo)));
+	}
+issue_host_reset:
+	if (issue_reset)
+		mpt3sas_base_hard_reset_handler(ioc, FORCE_BIG_HAMMER);
+	ioc->scsih_cmds.status = MPT3_CMD_NOT_USED;
+out:
+	mutex_unlock(&ioc->scsih_cmds.mutex);
+}
+
+/**
  * _base_fault_reset_work - workq handling ioc fault conditions
  * @work: input argument, used to derive ioc
  *
@@ -720,7 +785,11 @@ _base_fault_reset_work(struct work_struct *work)
 			return; /* don't rearm timer */
 	}
 	ioc->ioc_coredump_loop = 0;
-
+	if (ioc->time_sync_interval &&
+	    ++ioc->timestamp_update_count >= ioc->time_sync_interval) {
+		ioc->timestamp_update_count = 0;
+		_base_sync_drv_fw_timestamp(ioc);
+	}
 	spin_lock_irqsave(&ioc->ioc_reset_in_progress_lock, flags);
  rearm_timer:
 	if (ioc->fault_reset_work_q)
@@ -744,6 +813,7 @@ mpt3sas_base_start_watchdog(struct MPT3SAS_ADAPTER *ioc)
 	if (ioc->fault_reset_work_q)
 		return;
 
+	ioc->timestamp_update_count = 0;
 	/* initialize fault polling */
 
 	INIT_DELAYED_WORK(&ioc->fault_reset_work, _base_fault_reset_work);
@@ -4754,7 +4824,24 @@ _base_static_config_pages(struct MPT3SAS_ADAPTER *ioc)
 		else
 			ioc->nvme_abort_timeout = ioc->manu_pg11.NVMeAbortTO;
 	}
-
+	ioc->time_sync_interval =
+	    ioc->manu_pg11.TimeSyncInterval & MPT3SAS_TIMESYNC_MASK;
+	if (ioc->time_sync_interval) {
+		if (ioc->manu_pg11.TimeSyncInterval & MPT3SAS_TIMESYNC_UNIT_MASK)
+			ioc->time_sync_interval =
+			    ioc->time_sync_interval * SECONDS_PER_HOUR;
+		else
+			ioc->time_sync_interval =
+			    ioc->time_sync_interval * SECONDS_PER_MIN;
+		dinitprintk(ioc, ioc_info(ioc,
+		    "Driver-FW TimeSync interval is %d seconds. ManuPg11 TimeSync Unit is in %s\n",
+		    ioc->time_sync_interval, (ioc->manu_pg11.TimeSyncInterval &
+		    MPT3SAS_TIMESYNC_UNIT_MASK) ? "Hour" : "Minute"));
+	} else {
+		if (ioc->is_gen35_ioc)
+			ioc_warn(ioc,
+			    "TimeSync Interval in Manuf page-11 is not enabled. Periodic Time-Sync will be disabled\n");
+	}
 	mpt3sas_config_get_bios_pg2(ioc, &mpi_reply, &ioc->bios_pg2);
 	mpt3sas_config_get_bios_pg3(ioc, &mpi_reply, &ioc->bios_pg3);
 	mpt3sas_config_get_ioc_pg8(ioc, &mpi_reply, &ioc->ioc_pg8);
@@ -6466,6 +6553,8 @@ _base_send_ioc_init(struct MPT3SAS_ADAPTER *ioc)
 		r = -EIO;
 	}
 
+	/* Reset TimeSync Counter*/
+	ioc->timestamp_update_count = 0;
 	return r;
 }
 

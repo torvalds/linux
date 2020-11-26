@@ -93,6 +93,14 @@
 /* CoreDump: Default timeout */
 #define MPT3SAS_DEFAULT_COREDUMP_TIMEOUT_SECONDS	(15) /*15 seconds*/
 #define MPT3SAS_COREDUMP_LOOP_DONE                     (0xFF)
+#define MPT3SAS_TIMESYNC_TIMEOUT_SECONDS		(10) /* 10 seconds */
+#define MPT3SAS_TIMESYNC_UPDATE_INTERVAL		(900) /* 15 minutes */
+#define MPT3SAS_TIMESYNC_UNIT_MASK			(0x80) /* bit 7 */
+#define MPT3SAS_TIMESYNC_MASK				(0x7F) /* 0 - 6 bits */
+#define SECONDS_PER_MIN					(60)
+#define SECONDS_PER_HOUR				(3600)
+#define MPT3SAS_COREDUMP_LOOP_DONE			(0xFF)
+#define MPI26_SET_IOC_PARAMETER_SYNC_TIMESTAMP		(0x81)
 
 /*
  * Set MPT3SAS_SG_DEPTH value based on user input.
@@ -405,7 +413,7 @@ struct Mpi2ManufacturingPage11_t {
 	u16	HostTraceBufferMaxSizeKB;	/* 50h */
 	u16	HostTraceBufferMinSizeKB;	/* 52h */
 	u8	CoreDumpTOSec;			/* 54h */
-	u8	Reserved8;			/* 55h */
+	u8	TimeSyncInterval;		/* 55h */
 	u16	Reserved9;			/* 56h */
 	__le32	Reserved10;			/* 58h */
 };
@@ -1113,6 +1121,8 @@ typedef void (*MPT3SAS_FLUSH_RUNNING_CMDS)(struct MPT3SAS_ADAPTER *ioc);
  * @cpu_msix_table_sz: table size
  * @total_io_cnt: Gives total IO count, used to load balance the interrupts
  * @ioc_coredump_loop: will have non-zero value when FW is in CoreDump state
+ * @timestamp_update_count: Counter to fire timeSync command
+ * time_sync_interval: Time sync interval read from man page 11
  * @high_iops_outstanding: used to load balance the interrupts
  *				within high iops reply queues
  * @msix_load_balance: Enables load balancing of interrupts across
@@ -1308,6 +1318,8 @@ struct MPT3SAS_ADAPTER {
 	MPT3SAS_FLUSH_RUNNING_CMDS schedule_dead_ioc_flush_running_cmds;
 	u32             non_operational_loop;
 	u8              ioc_coredump_loop;
+	u32		timestamp_update_count;
+	u32		time_sync_interval;
 	atomic64_t      total_io_cnt;
 	atomic64_t	high_iops_outstanding;
 	bool            msix_load_balance;
