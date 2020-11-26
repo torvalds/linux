@@ -2476,6 +2476,8 @@ void rtw_coex_lps_notify(struct rtw_dev *rtwdev, u8 type)
 
 		if (!coex_stat->wl_force_lps_ctrl)
 			rtw_coex_query_bt_info(rtwdev);
+
+		rtw_coex_run_coex(rtwdev, COEX_RSN_LPS);
 	}
 }
 
