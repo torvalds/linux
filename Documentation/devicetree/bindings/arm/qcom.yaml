@@ -40,6 +40,7 @@ description: |
         sdm630
         sdm660
         sdm845
+        sdx55
         sm8250
 
   The 'board' element must be one of the following strings:
@@ -166,6 +167,11 @@ properties:
           - enum:
               - xiaomi,lavender
           - const: qcom,sdm660
+
+      - items:
+          - enum:
+              - qcom,sdx55-mtp
+          - const: qcom,sdx55
 
       - items:
           - enum:
