@@ -27,9 +27,9 @@
  */
 static inline void native_set_pte(pte_t *ptep, pte_t pte)
 {
-	ptep->pte_high = pte.pte_high;
+	WRITE_ONCE(ptep->pte_high, pte.pte_high);
 	smp_wmb();
-	ptep->pte_low = pte.pte_low;
+	WRITE_ONCE(ptep->pte_low, pte.pte_low);
 }
 
 static inline void native_set_pte_atomic(pte_t *ptep, pte_t pte)
@@ -58,16 +58,16 @@ static inline void native_set_pud(pud_t *pudp, pud_t pud)
 static inline void native_pte_clear(struct mm_struct *mm, unsigned long addr,
 				    pte_t *ptep)
 {
-	ptep->pte_low = 0;
+	WRITE_ONCE(ptep->pte_low, 0);
 	smp_wmb();
-	ptep->pte_high = 0;
+	WRITE_ONCE(ptep->pte_high, 0);
 }
 
 static inline void native_pmd_clear(pmd_t *pmdp)
 {
-	pmdp->pmd_low = 0;
+	WRITE_ONCE(pmdp->pmd_low, 0);
 	smp_wmb();
-	pmdp->pmd_high = 0;
+	WRITE_ONCE(pmdp->pmd_high, 0);
 }
 
 static inline void native_pud_clear(pud_t *pudp)
