@@ -238,9 +238,12 @@ then
 	echo " --- allmodconfig:" Start `date` | tee -a $T/log
 	amcdir="tools/testing/selftests/rcutorture/res/$ds/allmodconfig"
 	mkdir -p "$amcdir"
-	make -j$MAKE_ALLOTED_CPUS clean > "$amcdir/Make.out" 2>&1
-	make -j$MAKE_ALLOTED_CPUS allmodconfig > "$amcdir/Make.out" 2>&1
-	make -j$MAKE_ALLOTED_CPUS > "$amcdir/Make.out" 2>&1
+	echo " --- make clean" > "$amcdir/Make.out" 2>&1
+	make -j$MAKE_ALLOTED_CPUS clean >> "$amcdir/Make.out" 2>&1
+	echo " --- make allmodconfig" >> "$amcdir/Make.out" 2>&1
+	make -j$MAKE_ALLOTED_CPUS allmodconfig >> "$amcdir/Make.out" 2>&1
+	echo " --- make " >> "$amcdir/Make.out" 2>&1
+	make -j$MAKE_ALLOTED_CPUS >> "$amcdir/Make.out" 2>&1
 	retcode="$?"
 	echo $retcode > "$amcdir/Make.exitcode"
 	if test "$retcode" == 0
