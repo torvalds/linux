@@ -56,6 +56,7 @@ struct rapl_mmio_regs {
 #define PROC_THERMAL_FEATURE_RAPL	0x01
 #define PROC_THERMAL_FEATURE_FIVR	0x02
 #define PROC_THERMAL_FEATURE_DVFS	0x04
+#define PROC_THERMAL_FEATURE_MBOX	0x08
 
 #if IS_ENABLED(CONFIG_PROC_THERMAL_MMIO_RAPL)
 int proc_thermal_rapl_add(struct pci_dev *pdev, struct proc_thermal_device *proc_priv);
@@ -74,5 +75,8 @@ static void __maybe_unused proc_thermal_rapl_remove(void)
 
 int proc_thermal_rfim_add(struct pci_dev *pdev, struct proc_thermal_device *proc_priv);
 void proc_thermal_rfim_remove(struct pci_dev *pdev);
+
+int proc_thermal_mbox_add(struct pci_dev *pdev, struct proc_thermal_device *proc_priv);
+void proc_thermal_mbox_remove(struct pci_dev *pdev);
 
 #endif
