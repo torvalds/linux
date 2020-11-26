@@ -84,11 +84,11 @@ struct ccs_hwconfig {
 	unsigned short i2c_addr_dfl;	/* Default i2c addr */
 	unsigned short i2c_addr_alt;	/* Alternate i2c addr */
 
-	uint32_t ext_clk;		/* sensor external clk */
+	u32 ext_clk;			/* sensor external clk */
 
 	unsigned int lanes;		/* Number of CSI-2 lanes */
-	uint32_t csi_signalling_mode;	/* CCS_CSI_SIGNALLING_MODE_* */
-	uint64_t *op_sys_clock;
+	u32 csi_signalling_mode;	/* CCS_CSI_SIGNALLING_MODE_* */
+	u64 *op_sys_clock;
 
 	enum ccs_module_board_orient module_board_orient;
 

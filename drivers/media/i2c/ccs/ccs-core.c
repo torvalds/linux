@@ -1190,7 +1190,7 @@ static void ccs_update_blanking(struct ccs_sensor *sensor)
 {
 	struct v4l2_ctrl *vblank = sensor->vblank;
 	struct v4l2_ctrl *hblank = sensor->hblank;
-	uint16_t min_fll, max_fll, min_llp, max_llp, min_lbp;
+	u16 min_fll, max_fll, min_llp, max_llp, min_lbp;
 	int min, max;
 
 	if (sensor->binning_vertical > 1 || sensor->binning_horizontal > 1) {
