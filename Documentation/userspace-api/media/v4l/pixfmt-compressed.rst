@@ -191,10 +191,10 @@ Compressed Formats
 	through the ``V4L2_CID_MPEG_VIDEO_HEVC_DECODE_MODE``
         and ``V4L2_CID_MPEG_VIDEO_HEVC_START_CODE`` controls.
 	Metadata associated with the frame to decode is required to be passed
-	through the following controls :
-        * ``V4L2_CID_MPEG_VIDEO_HEVC_SPS``
-        * ``V4L2_CID_MPEG_VIDEO_HEVC_PPS``
-        * ``V4L2_CID_MPEG_VIDEO_HEVC_SLICE_PARAMS``
+	through the following controls:
+        ``V4L2_CID_MPEG_VIDEO_HEVC_SPS``,
+        ``V4L2_CID_MPEG_VIDEO_HEVC_PPS``, and
+        ``V4L2_CID_MPEG_VIDEO_HEVC_SLICE_PARAMS``.
 	See the :ref:`associated Codec Control IDs <v4l2-mpeg-hevc>`.
 	Buffers associated with this pixel format must contain the appropriate
 	number of macroblocks to decode a full corresponding frame.
