@@ -60,13 +60,14 @@
 #define MCELSIUS(temp)	((temp) * 1000)
 #define GEN3_FUSE_MASK	0xFFF
 
-#define TSC_MAX_NUM	3
+#define TSC_MAX_NUM	4
 
 /* default THCODE values if FUSEs are missing */
 static const int thcodes[TSC_MAX_NUM][3] = {
 	{ 3397, 2800, 2221 },
 	{ 3393, 2795, 2216 },
 	{ 3389, 2805, 2237 },
+	{ 3415, 2694, 2195 },
 };
 
 /* Structure for thermal temperature calculation */
@@ -274,6 +275,10 @@ static const struct of_device_id rcar_gen3_thermal_dt_ids[] = {
 	},
 	{
 		.compatible = "renesas,r8a77980-thermal",
+		.data = &rcar_gen3_ths_tj_1,
+	},
+	{
+		.compatible = "renesas,r8a779a0-thermal",
 		.data = &rcar_gen3_ths_tj_1,
 	},
 	{},
