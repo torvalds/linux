@@ -959,6 +959,7 @@ static int ufs_qcom_init(struct ufs_hba *hba)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct ufs_qcom_host *host;
 	struct resource *res;
+	struct ufs_clk_info *clki;
 
 	if (strlen(android_boot_dev) && strcmp(android_boot_dev, dev_name(dev)))
 		return -ENODEV;
@@ -1055,6 +1056,11 @@ static int ufs_qcom_init(struct ufs_hba *hba)
 			}
 			host->dev_ref_clk_en_mask = BIT(5);
 		}
+	}
+
+	list_for_each_entry(clki, &hba->clk_list_head, list) {
+		if (!strcmp(clki->name, "core_clk_unipro"))
+			clki->keep_link_active = true;
 	}
 
 	err = ufs_qcom_init_lane_clks(host);
