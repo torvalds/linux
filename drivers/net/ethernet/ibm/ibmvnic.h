@@ -1086,6 +1086,7 @@ struct ibmvnic_adapter {
 	struct delayed_work ibmvnic_delayed_reset;
 	unsigned long resetting;
 	bool napi_enabled, from_passive_init;
+	bool login_pending;
 
 	bool failover_pending;
 	bool force_reset_recovery;
