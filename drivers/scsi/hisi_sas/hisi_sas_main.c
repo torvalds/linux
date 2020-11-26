@@ -585,13 +585,7 @@ static int hisi_sas_task_exec(struct sas_task *task, gfp_t gfp_flags,
 	dev = hisi_hba->dev;
 
 	if (unlikely(test_bit(HISI_SAS_REJECT_CMD_BIT, &hisi_hba->flags))) {
-		/*
-		 * For IOs from upper layer, it may already disable preempt
-		 * in the IO path, if disable preempt again in down(),
-		 * function schedule() will report schedule_bug(), so check
-		 * preemptible() before goto down().
-		 */
-		if (!preemptible())
+		if (!gfpflags_allow_blocking(gfp_flags))
 			return -EINVAL;
 
 		down(&hisi_hba->sem);
