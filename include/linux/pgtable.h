@@ -1352,11 +1352,6 @@ static inline int pud_trans_unstable(pud_t *pud)
 #endif
 }
 
-static inline pmd_t pmd_read_atomic(pmd_t *pmdp)
-{
-	return pmdp_get_lockless(pmdp);
-}
-
 #ifndef arch_needs_pgtable_deposit
 #define arch_needs_pgtable_deposit() (false)
 #endif
@@ -1383,13 +1378,13 @@ static inline pmd_t pmd_read_atomic(pmd_t *pmdp)
  */
 static inline int pmd_none_or_trans_huge_or_clear_bad(pmd_t *pmd)
 {
-	pmd_t pmdval = pmd_read_atomic(pmd);
+	pmd_t pmdval = pmdp_get_lockless(pmd);
 	/*
 	 * The barrier will stabilize the pmdval in a register or on
 	 * the stack so that it will stop changing under the code.
 	 *
 	 * When CONFIG_TRANSPARENT_HUGEPAGE=y on x86 32bit PAE,
-	 * pmd_read_atomic is allowed to return a not atomic pmdval
+	 * pmdp_get_lockless is allowed to return a not atomic pmdval
 	 * (for example pointing to an hugepage that has never been
 	 * mapped in the pmd). The below checks will only care about
 	 * the low part of the pmd with 32bit PAE x86 anyway, with the
