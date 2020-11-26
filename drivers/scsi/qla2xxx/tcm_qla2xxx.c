@@ -1400,8 +1400,6 @@ static void tcm_qla2xxx_free_session(struct fc_port *sess)
 	struct se_session *se_sess;
 	struct tcm_qla2xxx_lport *lport;
 
-	BUG_ON(in_interrupt());
-
 	se_sess = sess->se_sess;
 	if (!se_sess) {
 		pr_err("struct fc_port->se_sess is NULL\n");
