@@ -416,7 +416,8 @@ static int mcp251xfd_ring_alloc(struct mcp251xfd_priv *priv)
 		int rx_obj_num;
 
 		rx_obj_num = ram_free / rx_obj_size;
-		rx_obj_num = min(1 << (fls(rx_obj_num) - 1), 32);
+		rx_obj_num = min(1 << (fls(rx_obj_num) - 1),
+				 MCP251XFD_RX_OBJ_NUM_MAX);
 
 		rx_ring = kzalloc(sizeof(*rx_ring) + rx_obj_size * rx_obj_num,
 				  GFP_KERNEL);

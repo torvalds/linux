@@ -368,6 +368,7 @@
  * FIFO setup: tef: 8*12 bytes = 96 bytes, tx: 8*16 bytes = 128 bytes
  * FIFO setup: tef: 4*12 bytes = 48 bytes, tx: 4*72 bytes = 288 bytes
  */
+#define MCP251XFD_RX_OBJ_NUM_MAX 32
 #define MCP251XFD_TX_OBJ_NUM_CAN 8
 #define MCP251XFD_TX_OBJ_NUM_CANFD 4
 
