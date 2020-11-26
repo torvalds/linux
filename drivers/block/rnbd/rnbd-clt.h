@@ -108,7 +108,7 @@ struct rnbd_clt_dev {
 	u32			clt_device_id;
 	struct mutex		lock;
 	enum rnbd_clt_dev_state	dev_state;
-	char			pathname[NAME_MAX];
+	char			*pathname;
 	enum rnbd_access_mode	access_mode;
 	bool			read_only;
 	bool			rotational;
@@ -126,7 +126,7 @@ struct rnbd_clt_dev {
 	struct list_head        list;
 	struct gendisk		*gd;
 	struct kobject		kobj;
-	char			blk_symlink_name[NAME_MAX];
+	char			*blk_symlink_name;
 	refcount_t		refcount;
 	struct work_struct	unmap_on_rmmod_work;
 };
