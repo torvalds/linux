@@ -2448,11 +2448,19 @@ static void rtw_coex_init_coex_var(struct rtw_dev *rtwdev)
 static void __rtw_coex_init_hw_config(struct rtw_dev *rtwdev, bool wifi_only)
 {
 	struct rtw_coex *coex = &rtwdev->coex;
+	struct rtw_coex_stat *coex_stat = &coex->stat;
 
 	rtw_dbg(rtwdev, RTW_DBG_COEX, "[BTCoex], %s()\n", __func__);
 
 	rtw_coex_init_coex_var(rtwdev);
+
+	coex_stat->kt_ver = u8_get_bits(rtw_read8(rtwdev, 0xf1), GENMASK(7, 4));
+
 	rtw_coex_monitor_bt_enable(rtwdev);
+	rtw_coex_wl_slot_extend(rtwdev, coex_stat->wl_slot_extend);
+
+	rtw_write8_set(rtwdev, REG_BCN_CTRL, BIT_EN_BCN_FUNCTION);
+
 	rtw_coex_set_rfe_type(rtwdev);
 	rtw_coex_set_init(rtwdev);
 
@@ -2515,6 +2523,7 @@ void rtw_coex_power_on_setting(struct rtw_dev *rtwdev)
 	rtw_coex_table(rtwdev, true, table_case);
 	/* red x issue */
 	rtw_write8(rtwdev, 0xff1a, 0x0);
+	rtw_coex_set_gnt_debug(rtwdev);
 }
 
 void rtw_coex_init_hw_config(struct rtw_dev *rtwdev, bool wifi_only)
