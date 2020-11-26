@@ -104,6 +104,14 @@
 	};
 };
 
+&analog_sound {
+	status = "okay";
+};
+
+&codec {
+	status = "okay";
+};
+
 &cpu0 {
 	cpu-supply = <&vdd_arm>;
 };
@@ -275,6 +283,10 @@
 };
 
 &i2s0 {
+	status = "okay";
+};
+
+&i2s1 {
 	status = "okay";
 };
 
