@@ -53,6 +53,18 @@
 #define roce_set_bit(origin, shift, val) \
 	roce_set_field((origin), (1ul << (shift)), (shift), (val))
 
+#define FIELD_LOC(field_type, field_h, field_l) field_type, field_h, field_l
+
+#define _hr_reg_enable(ptr, field_type, field_h, field_l)                      \
+	({                                                                     \
+		const field_type *_ptr = ptr;                                  \
+		*((__le32 *)_ptr + (field_h) / 32) |=                          \
+			cpu_to_le32(BIT((field_l) % 32)) +                     \
+			BUILD_BUG_ON_ZERO((field_h) != (field_l));             \
+	})
+
+#define hr_reg_enable(ptr, field) _hr_reg_enable(ptr, field)
+
 #define ROCEE_GLB_CFG_ROCEE_DB_SQ_MODE_S 3
 #define ROCEE_GLB_CFG_ROCEE_DB_OTH_MODE_S 4
 

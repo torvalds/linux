@@ -267,23 +267,24 @@ enum hns_roce_sgid_type {
 };
 
 struct hns_roce_v2_cq_context {
-	__le32	byte_4_pg_ceqn;
-	__le32	byte_8_cqn;
-	__le32	cqe_cur_blk_addr;
-	__le32	byte_16_hop_addr;
-	__le32	cqe_nxt_blk_addr;
-	__le32	byte_24_pgsz_addr;
-	__le32	byte_28_cq_pi;
-	__le32	byte_32_cq_ci;
-	__le32	cqe_ba;
-	__le32	byte_40_cqe_ba;
-	__le32	byte_44_db_record;
-	__le32	db_record_addr;
-	__le32	byte_52_cqe_cnt;
-	__le32	byte_56_cqe_period_maxcnt;
-	__le32	cqe_report_timer;
-	__le32	byte_64_se_cqe_idx;
+	__le32 byte_4_pg_ceqn;
+	__le32 byte_8_cqn;
+	__le32 cqe_cur_blk_addr;
+	__le32 byte_16_hop_addr;
+	__le32 cqe_nxt_blk_addr;
+	__le32 byte_24_pgsz_addr;
+	__le32 byte_28_cq_pi;
+	__le32 byte_32_cq_ci;
+	__le32 cqe_ba;
+	__le32 byte_40_cqe_ba;
+	__le32 byte_44_db_record;
+	__le32 db_record_addr;
+	__le32 byte_52_cqe_cnt;
+	__le32 byte_56_cqe_period_maxcnt;
+	__le32 cqe_report_timer;
+	__le32 byte_64_se_cqe_idx;
 };
+
 #define HNS_ROCE_V2_CQ_DEFAULT_BURST_NUM 0x0
 #define HNS_ROCE_V2_CQ_DEFAULT_INTERVAL	0x0
 
@@ -359,6 +360,10 @@ struct hns_roce_v2_cq_context {
 
 #define	V2_CQC_BYTE_64_SE_CQE_IDX_S 0
 #define	V2_CQC_BYTE_64_SE_CQE_IDX_M GENMASK(23, 0)
+
+#define CQC_FIELD_LOC(h, l) FIELD_LOC(struct hns_roce_v2_cq_context, h, l)
+
+#define CQC_STASH CQC_FIELD_LOC(63, 63)
 
 struct hns_roce_srq_context {
 	__le32	byte_4_srqn_srqst;
