@@ -212,7 +212,7 @@ EXPORT_SYMBOL(rpcif_enable_rpm);
 
 void rpcif_disable_rpm(struct rpcif *rpc)
 {
-	pm_runtime_put_sync(rpc->dev);
+	pm_runtime_disable(rpc->dev);
 }
 EXPORT_SYMBOL(rpcif_disable_rpm);
 
