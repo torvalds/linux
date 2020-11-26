@@ -8,7 +8,11 @@
 
 #include <asm/reg.h>
 
-#if defined(CONFIG_PPC_CELL) || defined(CONFIG_E500)
+/*
+ * We use __powerpc64__ here because we want the compat VDSO to use the 32-bit
+ * version below in the else case of the ifdef.
+ */
+#if defined(__powerpc64__) && (defined(CONFIG_PPC_CELL) || defined(CONFIG_E500))
 #define mftb()		({unsigned long rval;				\
 			asm volatile(					\
 				"90:	mfspr %0, %2;\n"		\
@@ -49,7 +53,11 @@ static inline u64 get_tb(void)
 {
 	unsigned int tbhi, tblo, tbhi2;
 
-	if (IS_ENABLED(CONFIG_PPC64))
+	/*
+	 * We use __powerpc64__ here not CONFIG_PPC64 because we want the compat
+	 * VDSO to use the 32-bit compatible version in the while loop below.
+	 */
+	if (__is_defined(__powerpc64__))
 		return mftb();
 
 	do {
