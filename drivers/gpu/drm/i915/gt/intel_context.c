@@ -25,9 +25,16 @@ static struct intel_context *intel_context_alloc(void)
 	return kmem_cache_zalloc(global.slab_ce, GFP_KERNEL);
 }
 
+static void rcu_context_free(struct rcu_head *rcu)
+{
+	struct intel_context *ce = container_of(rcu, typeof(*ce), rcu);
+
+	kmem_cache_free(global.slab_ce, ce);
+}
+
 void intel_context_free(struct intel_context *ce)
 {
-	kmem_cache_free(global.slab_ce, ce);
+	call_rcu(&ce->rcu, rcu_context_free);
 }
 
 struct intel_context *
@@ -356,8 +363,7 @@ static int __intel_context_active(struct i915_active *active)
 }
 
 void
-intel_context_init(struct intel_context *ce,
-		   struct intel_engine_cs *engine)
+intel_context_init(struct intel_context *ce, struct intel_engine_cs *engine)
 {
 	GEM_BUG_ON(!engine->cops);
 	GEM_BUG_ON(!engine->gt->vm);
