@@ -859,11 +859,15 @@ out_free:
 	return err;
 }
 
-static int dso__cache_build_id(struct dso *dso, struct machine *machine)
+static int dso__cache_build_id(struct dso *dso, struct machine *machine,
+			       void *priv __maybe_unused)
 {
 	bool is_kallsyms = dso__is_kallsyms(dso);
 	bool is_vdso = dso__is_vdso(dso);
 	const char *name = dso->long_name;
+
+	if (!dso->has_build_id)
+		return 0;
 
 	if (dso__is_kcore(dso)) {
 		is_kallsyms = true;
@@ -873,43 +877,30 @@ static int dso__cache_build_id(struct dso *dso, struct machine *machine)
 				     is_kallsyms, is_vdso);
 }
 
-static int __dsos__cache_build_ids(struct list_head *head,
-				   struct machine *machine)
+static int
+machines__for_each_dso(struct machines *machines, machine__dso_t fn, void *priv)
 {
-	struct dso *pos;
-	int err = 0;
+	int ret = machine__for_each_dso(&machines->host, fn, priv);
+	struct rb_node *nd;
 
-	dsos__for_each_with_build_id(pos, head)
-		if (dso__cache_build_id(pos, machine))
-			err = -1;
+	for (nd = rb_first_cached(&machines->guests); nd;
+	     nd = rb_next(nd)) {
+		struct machine *pos = rb_entry(nd, struct machine, rb_node);
 
-	return err;
-}
-
-static int machine__cache_build_ids(struct machine *machine)
-{
-	return __dsos__cache_build_ids(&machine->dsos.head, machine);
+		ret |= machine__for_each_dso(pos, fn, priv);
+	}
+	return ret ? -1 : 0;
 }
 
 int perf_session__cache_build_ids(struct perf_session *session)
 {
-	struct rb_node *nd;
-	int ret;
-
 	if (no_buildid_cache)
 		return 0;
 
 	if (mkdir(buildid_dir, 0755) != 0 && errno != EEXIST)
 		return -1;
 
-	ret = machine__cache_build_ids(&session->machines.host);
-
-	for (nd = rb_first_cached(&session->machines.guests); nd;
-	     nd = rb_next(nd)) {
-		struct machine *pos = rb_entry(nd, struct machine, rb_node);
-		ret |= machine__cache_build_ids(pos);
-	}
-	return ret ? -1 : 0;
+	return machines__for_each_dso(&session->machines, dso__cache_build_id, NULL) ?  -1 : 0;
 }
 
 static bool machine__read_build_ids(struct machine *machine, bool with_hits)
