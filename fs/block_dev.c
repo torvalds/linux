@@ -1299,7 +1299,7 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode)
 			if (ret)
 				return ret;
 		} else {
-			struct block_device *whole = bdget_disk(disk, 0);
+			struct block_device *whole = bdgrab(disk->part0);
 
 			mutex_lock_nested(&whole->bd_mutex, 1);
 			ret = __blkdev_get(whole, mode);
