@@ -492,3 +492,22 @@ char *perf_data__kallsyms_name(struct perf_data *data)
 
 	return kallsyms_name;
 }
+
+bool is_perf_data(const char *path)
+{
+	bool ret = false;
+	FILE *file;
+	u64 magic;
+
+	file = fopen(path, "r");
+	if (!file)
+		return false;
+
+	if (fread(&magic, 1, 8, file) < 8)
+		goto out;
+
+	ret = is_perf_magic(magic);
+out:
+	fclose(file);
+	return ret;
+}
