@@ -561,6 +561,14 @@ int isa207_compute_mmcr(u64 event[], int n_ev,
 	if (!(pmc_inuse & 0x60))
 		mmcr->mmcr0 |= MMCR0_FC56;
 
+	/*
+	 * Set mmcr0 (PMCCEXT) for p10 which
+	 * will restrict access to group B registers
+	 * when MMCR0 PMCC=0b00.
+	 */
+	if (cpu_has_feature(CPU_FTR_ARCH_31))
+		mmcr->mmcr0 |= MMCR0_PMCCEXT;
+
 	mmcr->mmcr1 = mmcr1;
 	mmcr->mmcra = mmcra;
 	mmcr->mmcr2 = mmcr2;

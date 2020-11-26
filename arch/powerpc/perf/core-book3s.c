@@ -95,6 +95,7 @@ static unsigned int freeze_events_kernel = MMCR0_FCS;
 #define SPRN_SIER3		0
 #define MMCRA_SAMPLE_ENABLE	0
 #define MMCRA_BHRB_DISABLE     0
+#define MMCR0_PMCCEXT		0
 
 static inline unsigned long perf_ip_adjust(struct pt_regs *regs)
 {
@@ -1245,6 +1246,9 @@ static void power_pmu_disable(struct pmu *pmu)
 		val |= MMCR0_FC;
 		val &= ~(MMCR0_EBE | MMCR0_BHRBA | MMCR0_PMCC | MMCR0_PMAO |
 			 MMCR0_FC56);
+		/* Set mmcr0 PMCCEXT for p10 */
+		if (ppmu->flags & PPMU_ARCH_31)
+			val |= MMCR0_PMCCEXT;
 
 		/*
 		 * The barrier is to make sure the mtspr has been
