@@ -37,6 +37,7 @@
 
 #include <linux/ctype.h>
 #include <linux/zalloc.h>
+#include <linux/string.h>
 #include <asm/bug.h>
 
 static bool no_buildid_cache;
@@ -911,4 +912,9 @@ void build_id__init(struct build_id *bid, const u8 *data, size_t size)
 	WARN_ON(size > BUILD_ID_SIZE);
 	memcpy(bid->data, data, size);
 	bid->size = size;
+}
+
+bool build_id__is_defined(const struct build_id *bid)
+{
+	return bid && bid->size ? !!memchr_inv(bid->data, 0, bid->size) : false;
 }
