@@ -498,7 +498,7 @@ static struct tomoyo_profile *tomoyo_assign_profile
 	ptr = ns->profile_ptr[profile];
 	if (ptr)
 		return ptr;
-	entry = kzalloc(sizeof(*entry), GFP_NOFS);
+	entry = kzalloc(sizeof(*entry), GFP_NOFS | __GFP_NOWARN);
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		goto out;
 	ptr = ns->profile_ptr[profile];
