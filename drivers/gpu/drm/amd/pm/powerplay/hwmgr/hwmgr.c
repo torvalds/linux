@@ -46,7 +46,6 @@ extern const struct pp_smumgr_func vega12_smu_funcs;
 extern const struct pp_smumgr_func smu10_smu_funcs;
 extern const struct pp_smumgr_func vega20_smu_funcs;
 
-extern int smu7_init_function_pointers(struct pp_hwmgr *hwmgr);
 extern int vega10_hwmgr_init(struct pp_hwmgr *hwmgr);
 extern int vega12_hwmgr_init(struct pp_hwmgr *hwmgr);
 extern int vega20_hwmgr_init(struct pp_hwmgr *hwmgr);
