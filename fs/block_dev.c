@@ -39,6 +39,7 @@
 
 struct bdev_inode {
 	struct block_device bdev;
+	struct hd_struct hd;
 	struct inode vfs_inode;
 };
 
@@ -886,6 +887,9 @@ struct block_device *bdev_alloc(struct gendisk *disk, u8 partno)
 		iput(inode);
 		return NULL;
 	}
+	bdev->bd_part = &BDEV_I(inode)->hd;
+	memset(bdev->bd_part, 0, sizeof(*bdev->bd_part));
+	bdev->bd_part->bdev = bdev;
 	return bdev;
 }
 
@@ -1280,15 +1284,10 @@ EXPORT_SYMBOL_GPL(bdev_disk_changed);
 static int __blkdev_get(struct block_device *bdev, fmode_t mode)
 {
 	struct gendisk *disk = bdev->bd_disk;
-	int ret;
+	int ret = 0;
 
 	if (!bdev->bd_openers) {
 		if (!bdev_is_partition(bdev)) {
-			ret = -ENXIO;
-			bdev->bd_part = disk_get_part(disk, 0);
-			if (!bdev->bd_part)
-				goto out_clear;
-
 			ret = 0;
 			if (disk->fops->open)
 				ret = disk->fops->open(bdev, mode);
@@ -1307,7 +1306,7 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode)
 				bdev_disk_changed(bdev, ret == -ENOMEDIUM);
 
 			if (ret)
-				goto out_clear;
+				return ret;
 		} else {
 			struct block_device *whole = bdget_disk(disk, 0);
 
@@ -1316,18 +1315,16 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode)
 			if (ret) {
 				mutex_unlock(&whole->bd_mutex);
 				bdput(whole);
-				goto out_clear;
+				return ret;
 			}
 			whole->bd_part_count++;
 			mutex_unlock(&whole->bd_mutex);
 
-			bdev->bd_part = disk_get_part(disk, bdev->bd_partno);
 			if (!(disk->flags & GENHD_FL_UP) ||
-			    !bdev->bd_part || !bdev_nr_sectors(bdev)) {
+			    !bdev_nr_sectors(bdev)) {
 				__blkdev_put(whole, mode, 1);
 				bdput(whole);
-				ret = -ENXIO;
-				goto out_clear;
+				return -ENXIO;
 			}
 			set_init_blocksize(bdev);
 		}
@@ -1336,7 +1333,6 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode)
 			bdev->bd_bdi = bdi_get(disk->queue->backing_dev_info);
 	} else {
 		if (!bdev_is_partition(bdev)) {
-			ret = 0;
 			if (bdev->bd_disk->fops->open)
 				ret = bdev->bd_disk->fops->open(bdev, mode);
 			/* the same as first opener case, read comment there */
@@ -1349,11 +1345,6 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode)
 	}
 	bdev->bd_openers++;
 	return 0;
-
- out_clear:
-	disk_put_part(bdev->bd_part);
-	bdev->bd_part = NULL;
-	return ret;
 }
 
 struct block_device *blkdev_get_no_open(dev_t dev)
@@ -1580,18 +1571,12 @@ static void __blkdev_put(struct block_device *bdev, fmode_t mode, int for_part)
 		sync_blockdev(bdev);
 		kill_bdev(bdev);
 		bdev_write_inode(bdev);
-
-		if (!bdev_is_partition(bdev) && disk->fops->release)
-			disk->fops->release(disk, mode);
-
-		disk_put_part(bdev->bd_part);
-		bdev->bd_part = NULL;
 		if (bdev_is_partition(bdev))
 			victim = bdev_whole(bdev);
-	} else {
-		if (!bdev_is_partition(bdev) && disk->fops->release)
-			disk->fops->release(disk, mode);
 	}
+
+	if (!bdev_is_partition(bdev) && disk->fops->release)
+		disk->fops->release(disk, mode);
 	mutex_unlock(&bdev->bd_mutex);
 	if (victim) {
 		__blkdev_put(victim, mode, 1);

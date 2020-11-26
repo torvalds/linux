@@ -363,27 +363,6 @@ int bdev_del_partition(struct block_device *bdev, int partno);
 int bdev_resize_partition(struct block_device *bdev, int partno,
 		sector_t start, sector_t length);
 int disk_expand_part_tbl(struct gendisk *disk, int target);
-int hd_ref_init(struct hd_struct *part);
-
-/* no need to get/put refcount of part0 */
-static inline int hd_struct_try_get(struct hd_struct *part)
-{
-	if (part->partno)
-		return percpu_ref_tryget_live(&part->ref);
-	return 1;
-}
-
-static inline void hd_struct_put(struct hd_struct *part)
-{
-	if (part->partno)
-		percpu_ref_put(&part->ref);
-}
-
-static inline void hd_free_part(struct hd_struct *part)
-{
-	bdput(part->bdev);
-	percpu_ref_exit(&part->ref);
-}
 
 int bio_add_hw_page(struct request_queue *q, struct bio *bio,
 		struct page *page, unsigned int len, unsigned int offset,

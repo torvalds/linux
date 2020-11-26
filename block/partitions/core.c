@@ -265,9 +265,9 @@ static const struct attribute_group *part_attr_groups[] = {
 static void part_release(struct device *dev)
 {
 	struct hd_struct *p = dev_to_part(dev);
+
 	blk_free_devt(dev->devt);
-	hd_free_part(p);
-	kfree(p);
+	bdput(p->bdev);
 }
 
 static int part_uevent(struct device *dev, struct kobj_uevent_env *env)
@@ -288,46 +288,6 @@ struct device_type part_type = {
 	.uevent		= part_uevent,
 };
 
-static void hd_struct_free_work(struct work_struct *work)
-{
-	struct hd_struct *part =
-		container_of(to_rcu_work(work), struct hd_struct, rcu_work);
-	struct gendisk *disk = part_to_disk(part);
-
-	/*
-	 * Release the disk reference acquired in delete_partition here.
-	 * We can't release it in hd_struct_free because the final put_device
-	 * needs process context and thus can't be run directly from a
-	 * percpu_ref ->release handler.
-	 */
-	put_device(disk_to_dev(disk));
-
-	part->bdev->bd_start_sect = 0;
-	bdev_set_nr_sectors(part->bdev, 0);
-	part_stat_set_all(part, 0);
-	put_device(part_to_dev(part));
-}
-
-static void hd_struct_free(struct percpu_ref *ref)
-{
-	struct hd_struct *part = container_of(ref, struct hd_struct, ref);
-	struct gendisk *disk = part_to_disk(part);
-	struct disk_part_tbl *ptbl =
-		rcu_dereference_protected(disk->part_tbl, 1);
-
-	rcu_assign_pointer(ptbl->last_lookup, NULL);
-
-	INIT_RCU_WORK(&part->rcu_work, hd_struct_free_work);
-	queue_rcu_work(system_wq, &part->rcu_work);
-}
-
-int hd_ref_init(struct hd_struct *part)
-{
-	if (percpu_ref_init(&part->ref, hd_struct_free, 0, GFP_KERNEL))
-		return -ENOMEM;
-	return 0;
-}
-
 /*
  * Must be called either with bd_mutex held, before a disk can be opened or
  * after all disk users are gone.
@@ -342,8 +302,8 @@ void delete_partition(struct hd_struct *part)
 	 * ->part_tbl is referenced in this part's release handler, so
 	 *  we have to hold the disk device
 	 */
-	get_device(disk_to_dev(disk));
 	rcu_assign_pointer(ptbl->part[part->partno], NULL);
+	rcu_assign_pointer(ptbl->last_lookup, NULL);
 	kobject_put(part->bdev->bd_holder_dir);
 	device_del(part_to_dev(part));
 
@@ -353,7 +313,7 @@ void delete_partition(struct hd_struct *part)
 	 */
 	remove_inode_hash(part->bdev->bd_inode);
 
-	percpu_ref_kill(&part->ref);
+	put_device(part_to_dev(part));
 }
 
 static ssize_t whole_disk_show(struct device *dev,
@@ -406,15 +366,11 @@ static struct hd_struct *add_partition(struct gendisk *disk, int partno,
 	if (ptbl->part[partno])
 		return ERR_PTR(-EBUSY);
 
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
-	if (!p)
-		return ERR_PTR(-EBUSY);
-
 	bdev = bdev_alloc(disk, partno);
 	if (!bdev)
-		goto out_free;
-	p->bdev = bdev;
+		return ERR_PTR(-ENOMEM);
 
+	p = bdev->bd_part;
 	pdev = part_to_dev(p);
 
 	bdev->bd_start_sect = start;
@@ -463,13 +419,6 @@ static struct hd_struct *add_partition(struct gendisk *disk, int partno,
 			goto out_del;
 	}
 
-	err = hd_ref_init(p);
-	if (err) {
-		if (flags & ADDPART_FLAG_WHOLEDISK)
-			goto out_remove_file;
-		goto out_del;
-	}
-
 	/* everything is up and running, commence */
 	bdev_add(bdev, devt);
 	rcu_assign_pointer(ptbl->part[partno], p);
@@ -481,11 +430,7 @@ static struct hd_struct *add_partition(struct gendisk *disk, int partno,
 
 out_bdput:
 	bdput(bdev);
-out_free:
-	kfree(p);
 	return ERR_PTR(err);
-out_remove_file:
-	device_remove_file(pdev, &dev_attr_whole_disk);
 out_del:
 	kobject_put(bdev->bd_holder_dir);
 	device_del(pdev);

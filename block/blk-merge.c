@@ -683,8 +683,6 @@ static void blk_account_io_merge_request(struct request *req)
 		part_stat_lock();
 		part_stat_inc(req->part, merges[op_stat_group(req_op(req))]);
 		part_stat_unlock();
-
-		hd_struct_put(req->part);
 	}
 }
 

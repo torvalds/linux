@@ -59,8 +59,8 @@ static inline void part_stat_set_all(struct hd_struct *part, int value)
 #define part_stat_add(part, field, addnd)	do {			\
 	__part_stat_add((part), field, addnd);				\
 	if ((part)->partno)						\
-		__part_stat_add(&part_to_disk((part))->part0,		\
-				field, addnd);				\
+		__part_stat_add(part_to_disk((part))->part0->bd_part,	\
+			field, addnd); \
 } while (0)
 
 #define part_stat_dec(part, field)					\

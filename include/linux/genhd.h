@@ -19,10 +19,11 @@
 #include <linux/blk_types.h>
 #include <asm/local.h>
 
-#define dev_to_disk(device)	container_of((device), struct gendisk, part0.__dev)
 #define dev_to_part(device)	container_of((device), struct hd_struct, __dev)
-#define disk_to_dev(disk)	(&(disk)->part0.__dev)
 #define part_to_dev(part)	(&((part)->__dev))
+
+#define dev_to_disk(device)	(dev_to_part(device)->bdev->bd_disk)
+#define disk_to_dev(disk)	(part_to_dev((disk)->part0->bd_part))
 
 extern const struct device_type disk_type;
 extern struct device_type part_type;
@@ -51,12 +52,9 @@ struct partition_meta_info {
 };
 
 struct hd_struct {
-	struct percpu_ref ref;
-
 	struct block_device *bdev;
 	struct device __dev;
 	int partno;
-	struct rcu_work rcu_work;
 };
 
 /**
@@ -168,7 +166,7 @@ struct gendisk {
 	 * helpers.
 	 */
 	struct disk_part_tbl __rcu *part_tbl;
-	struct hd_struct part0;
+	struct block_device *part0;
 
 	const struct block_device_operations *fops;
 	struct request_queue *queue;
@@ -278,7 +276,7 @@ extern void set_disk_ro(struct gendisk *disk, int flag);
 
 static inline int get_disk_ro(struct gendisk *disk)
 {
-	return disk->part0.bdev->bd_read_only;
+	return disk->part0->bd_read_only;
 }
 
 extern void disk_block_events(struct gendisk *disk);
@@ -302,7 +300,7 @@ static inline sector_t bdev_nr_sectors(struct block_device *bdev)
 
 static inline sector_t get_capacity(struct gendisk *disk)
 {
-	return bdev_nr_sectors(disk->part0.bdev);
+	return bdev_nr_sectors(disk->part0);
 }
 
 int bdev_disk_changed(struct block_device *bdev, bool invalidate);

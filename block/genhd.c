@@ -42,7 +42,7 @@ static void disk_release_events(struct gendisk *disk);
 
 void set_capacity(struct gendisk *disk, sector_t sectors)
 {
-	struct block_device *bdev = disk->part0.bdev;
+	struct block_device *bdev = disk->part0;
 
 	spin_lock(&bdev->bd_size_lock);
 	i_size_write(bdev->bd_inode, (loff_t)sectors << SECTOR_SHIFT);
@@ -318,9 +318,7 @@ static inline int sector_in_part(struct hd_struct *part, sector_t sector)
  * primarily used for stats accounting.
  *
  * CONTEXT:
- * RCU read locked.  The returned partition pointer is always valid
- * because its refcount is grabbed except for part0, which lifetime
- * is same with the disk.
+ * RCU read locked.
  *
  * RETURNS:
  * Found partition on success, part0 is returned if no partition matches
@@ -336,26 +334,19 @@ struct hd_struct *disk_map_sector_rcu(struct gendisk *disk, sector_t sector)
 	ptbl = rcu_dereference(disk->part_tbl);
 
 	part = rcu_dereference(ptbl->last_lookup);
-	if (part && sector_in_part(part, sector) && hd_struct_try_get(part))
+	if (part && sector_in_part(part, sector))
 		goto out_unlock;
 
 	for (i = 1; i < ptbl->len; i++) {
 		part = rcu_dereference(ptbl->part[i]);
 
 		if (part && sector_in_part(part, sector)) {
-			/*
-			 * only live partition can be cached for lookup,
-			 * so use-after-free on cached & deleting partition
-			 * can be avoided
-			 */
-			if (!hd_struct_try_get(part))
-				break;
 			rcu_assign_pointer(ptbl->last_lookup, part);
 			goto out_unlock;
 		}
 	}
 
-	part = &disk->part0;
+	part = disk->part0->bd_part;
 out_unlock:
 	rcu_read_unlock();
 	return part;
@@ -681,8 +672,8 @@ static void register_disk(struct device *parent, struct gendisk *disk,
 	 */
 	pm_runtime_set_memalloc_noio(ddev, true);
 
-	disk->part0.bdev->bd_holder_dir =
-			kobject_create_and_add("holders", &ddev->kobj);
+	disk->part0->bd_holder_dir =
+		kobject_create_and_add("holders", &ddev->kobj);
 	disk->slave_dir = kobject_create_and_add("slaves", &ddev->kobj);
 
 	if (disk->flags & GENHD_FL_HIDDEN) {
@@ -748,7 +739,7 @@ static void __device_add_disk(struct device *parent, struct gendisk *disk,
 
 	disk->flags |= GENHD_FL_UP;
 
-	retval = blk_alloc_devt(&disk->part0, &devt);
+	retval = blk_alloc_devt(disk->part0->bd_part, &devt);
 	if (retval) {
 		WARN_ON(1);
 		return;
@@ -775,7 +766,7 @@ static void __device_add_disk(struct device *parent, struct gendisk *disk,
 		ret = bdi_register(bdi, "%u:%u", MAJOR(devt), MINOR(devt));
 		WARN_ON(ret);
 		bdi_set_owner(bdi, dev);
-		bdev_add(disk->part0.bdev, devt);
+		bdev_add(disk->part0, devt);
 	}
 	register_disk(parent, disk, groups);
 	if (register_queue)
@@ -888,11 +879,11 @@ void del_gendisk(struct gendisk *disk)
 
 	blk_unregister_queue(disk);
 
-	kobject_put(disk->part0.bdev->bd_holder_dir);
+	kobject_put(disk->part0->bd_holder_dir);
 	kobject_put(disk->slave_dir);
 
-	part_stat_set_all(&disk->part0, 0);
-	disk->part0.bdev->bd_stamp = 0;
+	part_stat_set_all(disk->part0->bd_part, 0);
+	disk->part0->bd_stamp = 0;
 	if (!sysfs_deprecated)
 		sysfs_remove_link(block_depr, dev_name(disk_to_dev(disk)));
 	pm_runtime_set_memalloc_noio(disk_to_dev(disk), false);
@@ -1005,7 +996,7 @@ void __init printk_all_partitions(void)
 		 */
 		disk_part_iter_init(&piter, disk, DISK_PITER_INCL_PART0);
 		while ((part = disk_part_iter_next(&piter))) {
-			bool is_part0 = part == &disk->part0;
+			bool is_part0 = part == disk->part0->bd_part;
 
 			printk("%s%s %10llu %s %s", is_part0 ? "" : "  ",
 			       bdevt_str(part_devt(part), devt_buf),
@@ -1460,7 +1451,7 @@ static void disk_release(struct device *dev)
 	disk_release_events(disk);
 	kfree(disk->random);
 	disk_replace_part_tbl(disk, NULL);
-	hd_free_part(&disk->part0);
+	bdput(disk->part0);
 	if (disk->queue)
 		blk_put_queue(disk->queue);
 	kfree(disk);
@@ -1626,8 +1617,8 @@ struct gendisk *__alloc_disk_node(int minors, int node_id)
 	if (!disk)
 		return NULL;
 
-	disk->part0.bdev = bdev_alloc(disk, 0);
-	if (!disk->part0.bdev)
+	disk->part0 = bdev_alloc(disk, 0);
+	if (!disk->part0)
 		goto out_free_disk;
 
 	disk->node_id = node_id;
@@ -1635,10 +1626,7 @@ struct gendisk *__alloc_disk_node(int minors, int node_id)
 		goto out_bdput;
 
 	ptbl = rcu_dereference_protected(disk->part_tbl, 1);
-	rcu_assign_pointer(ptbl->part[0], &disk->part0);
-
-	if (hd_ref_init(&disk->part0))
-		goto out_bdput;
+	rcu_assign_pointer(ptbl->part[0], disk->part0->bd_part);
 
 	disk->minors = minors;
 	rand_initialize_disk(disk);
@@ -1648,7 +1636,7 @@ struct gendisk *__alloc_disk_node(int minors, int node_id)
 	return disk;
 
 out_bdput:
-	bdput(disk->part0.bdev);
+	bdput(disk->part0);
 out_free_disk:
 	kfree(disk);
 	return NULL;
@@ -1687,9 +1675,9 @@ void set_disk_ro(struct gendisk *disk, int flag)
 	struct disk_part_iter piter;
 	struct hd_struct *part;
 
-	if (disk->part0.bdev->bd_read_only != flag) {
+	if (disk->part0->bd_read_only != flag) {
 		set_disk_ro_uevent(disk, flag);
-		disk->part0.bdev->bd_read_only = flag;
+		disk->part0->bd_read_only = flag;
 	}
 
 	disk_part_iter_init(&piter, disk, DISK_PITER_INCL_EMPTY);

@@ -59,7 +59,7 @@ struct block_device {
 } __randomize_layout;
 
 #define bdev_whole(_bdev) \
-	((_bdev)->bd_disk->part0.bdev)
+	((_bdev)->bd_disk->part0)
 
 #define bdev_kobj(_bdev) \
 	(&part_to_dev((_bdev)->bd_part)->kobj)

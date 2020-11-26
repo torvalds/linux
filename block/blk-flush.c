@@ -139,7 +139,7 @@ static void blk_flush_queue_rq(struct request *rq, bool add_front)
 
 static void blk_account_io_flush(struct request *rq)
 {
-	struct hd_struct *part = &rq->rq_disk->part0;
+	struct hd_struct *part = rq->rq_disk->part0->bd_part;
 
 	part_stat_lock();
 	part_stat_inc(part, ios[STAT_FLUSH]);

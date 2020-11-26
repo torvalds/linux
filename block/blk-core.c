@@ -714,7 +714,8 @@ static inline bool bio_check_ro(struct bio *bio, struct hd_struct *part)
 
 static noinline int should_fail_bio(struct bio *bio)
 {
-	if (should_fail_request(&bio->bi_disk->part0, bio->bi_iter.bi_size))
+	if (should_fail_request(bio->bi_disk->part0->bd_part,
+			bio->bi_iter.bi_size))
 		return -EIO;
 	return 0;
 }
@@ -831,7 +832,7 @@ static noinline_for_stack bool submit_bio_checks(struct bio *bio)
 		if (unlikely(blk_partition_remap(bio)))
 			goto end_io;
 	} else {
-		if (unlikely(bio_check_ro(bio, &bio->bi_disk->part0)))
+		if (unlikely(bio_check_ro(bio, bio->bi_disk->part0->bd_part)))
 			goto end_io;
 		if (unlikely(bio_check_eod(bio, get_capacity(bio->bi_disk))))
 			goto end_io;
@@ -1203,7 +1204,7 @@ blk_status_t blk_insert_cloned_request(struct request_queue *q, struct request *
 		return ret;
 
 	if (rq->rq_disk &&
-	    should_fail_request(&rq->rq_disk->part0, blk_rq_bytes(rq)))
+	    should_fail_request(rq->rq_disk->part0->bd_part, blk_rq_bytes(rq)))
 		return BLK_STS_IOERR;
 
 	if (blk_crypto_insert_cloned_request(rq))
@@ -1272,7 +1273,7 @@ again:
 			__part_stat_add(part, io_ticks, end ? now - stamp : 1);
 	}
 	if (part->partno) {
-		part = &part_to_disk(part)->part0;
+		part = part_to_disk(part)->part0->bd_part;
 		goto again;
 	}
 }
@@ -1309,8 +1310,6 @@ void blk_account_io_done(struct request *req, u64 now)
 		part_stat_inc(part, ios[sgrp]);
 		part_stat_add(part, nsecs[sgrp], now - req->start_time_ns);
 		part_stat_unlock();
-
-		hd_struct_put(part);
 	}
 }
 
@@ -1354,7 +1353,7 @@ EXPORT_SYMBOL_GPL(part_start_io_acct);
 unsigned long disk_start_io_acct(struct gendisk *disk, unsigned int sectors,
 				 unsigned int op)
 {
-	return __part_start_io_acct(&disk->part0, sectors, op);
+	return __part_start_io_acct(disk->part0->bd_part, sectors, op);
 }
 EXPORT_SYMBOL(disk_start_io_acct);
 
@@ -1376,14 +1375,13 @@ void part_end_io_acct(struct hd_struct *part, struct bio *bio,
 		      unsigned long start_time)
 {
 	__part_end_io_acct(part, bio_op(bio), start_time);
-	hd_struct_put(part);
 }
 EXPORT_SYMBOL_GPL(part_end_io_acct);
 
 void disk_end_io_acct(struct gendisk *disk, unsigned int op,
 		      unsigned long start_time)
 {
-	__part_end_io_acct(&disk->part0, op, start_time);
+	__part_end_io_acct(disk->part0->bd_part, op, start_time);
 }
 EXPORT_SYMBOL(disk_end_io_acct);
 
