@@ -151,15 +151,28 @@ do
 	shift
 done
 
-duration_rcutorture=$((duration_base*duration_rcutorture_frac/10))
-# Need to sum remaining weights, and if duration weights to zero,
-# set do_no_rcutorture. @@@
-duration_locktorture=$((duration_base*duration_locktorture_frac/10))
-duration_scftorture=$((duration_base*duration_scftorture_frac/10))
-
 T=/tmp/torture.sh.$$
 trap 'rm -rf $T' 0 2
 mkdir $T
+
+duration_rcutorture=$((duration_base*duration_rcutorture_frac/10))
+if test "$duration_rcutorture" -eq 0
+then
+	echo " --- Zero time for rcutorture, disabling" | tee -a $T/log
+	do_rcutorture=no
+fi
+duration_locktorture=$((duration_base*duration_locktorture_frac/10))
+if test "$duration_locktorture" -eq 0
+then
+	echo " --- Zero time for locktorture, disabling" | tee -a $T/log
+	do_locktorture=no
+fi
+duration_scftorture=$((duration_base*duration_scftorture_frac/10))
+if test "$duration_scftorture" -eq 0
+then
+	echo " --- Zero time for scftorture, disabling" | tee -a $T/log
+	do_scftorture=no
+fi
 
 touch $T/failures
 touch $T/successes
