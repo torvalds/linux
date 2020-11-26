@@ -190,12 +190,10 @@ static int microblaze_debugfs_init(void)
 }
 arch_initcall(microblaze_debugfs_init);
 
-# ifdef CONFIG_MMU
 static int __init debugfs_tlb(void)
 {
 	debugfs_create_u32("tlb_skip", S_IRUGO, of_debugfs_root, &tlb_skip);
 	return 0;
 }
 device_initcall(debugfs_tlb);
-# endif
 #endif

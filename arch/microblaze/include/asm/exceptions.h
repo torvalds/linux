@@ -11,11 +11,6 @@
 #define _ASM_MICROBLAZE_EXCEPTIONS_H
 
 #ifdef __KERNEL__
-
-#ifndef CONFIG_MMU
-#define EX_HANDLER_STACK_SIZ	(4*19)
-#endif
-
 #ifndef __ASSEMBLY__
 
 /* Macros to enable and disable HW exceptions in the MSR */
