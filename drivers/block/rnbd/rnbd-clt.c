@@ -1193,6 +1193,12 @@ find_and_get_or_create_sess(const char *sessname,
 	else if (!first)
 		return sess;
 
+	if (!path_cnt) {
+		pr_err("Session %s not found, and path parameter not given", sessname);
+		err = -ENXIO;
+		goto put_sess;
+	}
+
 	rtrs_ops = (struct rtrs_clt_ops) {
 		.priv = sess,
 		.link_ev = rnbd_clt_link_ev,

@@ -37,7 +37,6 @@ enum {
 };
 
 static const unsigned int rnbd_opt_mandatory[] = {
-	RNBD_OPT_PATH,
 	RNBD_OPT_DEV_PATH,
 	RNBD_OPT_SESSNAME,
 };
