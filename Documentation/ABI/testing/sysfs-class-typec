@@ -147,6 +147,52 @@ Description:
 		during Power Delivery discovery. This file remains hidden until a value
 		greater than or equal to 0 is set by Type C port driver.
 
+What:		/sys/class/typec/<port>-partner/type
+Date:		December 2020
+Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
+Description:	USB Power Delivery Specification defines a set of product types
+		for the partner devices. This file will show the product type of
+		the partner if it is known. Dual-role capable partners will have
+		both UFP and DFP product types defined, but only one that
+		matches the current role will be active at the time. If the
+		product type of the partner is not visible to the device driver,
+		this file will not exist.
+
+		When the partner product type is detected, or changed with role
+		swap, uvevent is also raised that contains PRODUCT_TYPE=<product
+		type> (for example PRODUCT_TYPE=hub).
+
+		Valid values:
+
+		UFP / device role
+		======================  ==========================
+		undefined		-
+		hub			PDUSB Hub
+		peripheral		PDUSB Peripheral
+		psd			Power Bank
+		ama			Alternate Mode Adapter
+		======================  ==========================
+
+		DFP / host role
+		======================  ==========================
+		undefined		-
+		hub			PDUSB Hub
+		host			PDUSB Host
+		power_brick		Power Brick
+		amc			Alternate Mode Controller
+		======================  ==========================
+
+What:		/sys/class/typec/<port>-partner>/identity/
+Date:		April 2017
+Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
+Description:
+		This directory appears only if the port device driver is capable
+		of showing the result of Discover Identity USB power delivery
+		command. That will not always be possible even when USB power
+		delivery is supported, for example when USB power delivery
+		communication for the port is mostly handled in firmware. If the
+		directory exists, it will have an attribute file for every VDO
+		in Discover Identity command result.
 
 USB Type-C cable devices (eg. /sys/class/typec/port0-cable/)
 
@@ -159,9 +205,21 @@ described in USB Type-C and USB Power Delivery specifications.
 What:		/sys/class/typec/<port>-cable/type
 Date:		April 2017
 Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
-Description:
-		Shows if the cable is active.
-		Valid values: active, passive
+Description:	USB Power Delivery Specification defines a set of product types
+		for the cables. This file will show the product type of the
+		cable if it is known. If the product type of the cable is not
+		visible to the device driver, this file will not exist.
+
+		When the cable product type is detected, uvevent is also raised
+		with PRODUCT_TYPE showing the product type of the cable.
+
+		Valid values:
+
+		======================  ==========================
+		undefined		-
+		active			Active Cable
+		passive			Passive Cable
+		======================  ==========================
 
 What:		/sys/class/typec/<port>-cable/plug_type
 Date:		April 2017
