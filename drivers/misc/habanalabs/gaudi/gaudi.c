@@ -3829,33 +3829,6 @@ static void gaudi_pre_hw_init(struct hl_device *hdev)
 	 * cleared by the H/W upon H/W reset
 	 */
 	WREG32(mmHW_STATE, HL_DEVICE_HW_STATE_DIRTY);
-	if (hdev->asic_prop.fw_security_disabled) {
-		/* Configure the reset registers. Must be done as early as
-		 * possible in case we fail during H/W initialization
-		 */
-		WREG32(mmPSOC_GLOBAL_CONF_SOFT_RST_CFG_H,
-						(CFG_RST_H_DMA_MASK |
-						CFG_RST_H_MME_MASK |
-						CFG_RST_H_SM_MASK |
-						CFG_RST_H_TPC_7_MASK));
-
-		WREG32(mmPSOC_GLOBAL_CONF_SOFT_RST_CFG_L, CFG_RST_L_TPC_MASK);
-
-		WREG32(mmPSOC_GLOBAL_CONF_SW_ALL_RST_CFG_H,
-						(CFG_RST_H_HBM_MASK |
-						CFG_RST_H_TPC_7_MASK |
-						CFG_RST_H_NIC_MASK |
-						CFG_RST_H_SM_MASK |
-						CFG_RST_H_DMA_MASK |
-						CFG_RST_H_MME_MASK |
-						CFG_RST_H_CPU_MASK |
-						CFG_RST_H_MMU_MASK));
-
-		WREG32(mmPSOC_GLOBAL_CONF_SW_ALL_RST_CFG_L,
-						(CFG_RST_L_IF_MASK |
-						CFG_RST_L_PSOC_MASK |
-						CFG_RST_L_TPC_MASK));
-	}
 }
 
 static int gaudi_hw_init(struct hl_device *hdev)
@@ -3946,7 +3919,8 @@ static void gaudi_hw_fini(struct hl_device *hdev, bool hard_reset)
 	/* Set device to handle FLR by H/W as we will put the device CPU to
 	 * halt mode
 	 */
-	if (!hdev->asic_prop.hard_reset_done_by_fw)
+	if (hdev->asic_prop.fw_security_disabled &&
+				!hdev->asic_prop.hard_reset_done_by_fw)
 		WREG32(mmPCIE_AUX_FLR_CTRL, (PCIE_AUX_FLR_CTRL_HW_CTRL_MASK |
 					PCIE_AUX_FLR_CTRL_INT_MASK_MASK));
 
@@ -3957,7 +3931,35 @@ static void gaudi_hw_fini(struct hl_device *hdev, bool hard_reset)
 
 	WREG32(mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR, GAUDI_EVENT_HALT_MACHINE);
 
-	if (!hdev->asic_prop.hard_reset_done_by_fw) {
+	if (hdev->asic_prop.fw_security_disabled &&
+				!hdev->asic_prop.hard_reset_done_by_fw) {
+
+		/* Configure the reset registers. Must be done as early as
+		 * possible in case we fail during H/W initialization
+		 */
+		WREG32(mmPSOC_GLOBAL_CONF_SOFT_RST_CFG_H,
+						(CFG_RST_H_DMA_MASK |
+						CFG_RST_H_MME_MASK |
+						CFG_RST_H_SM_MASK |
+						CFG_RST_H_TPC_7_MASK));
+
+		WREG32(mmPSOC_GLOBAL_CONF_SOFT_RST_CFG_L, CFG_RST_L_TPC_MASK);
+
+		WREG32(mmPSOC_GLOBAL_CONF_SW_ALL_RST_CFG_H,
+						(CFG_RST_H_HBM_MASK |
+						CFG_RST_H_TPC_7_MASK |
+						CFG_RST_H_NIC_MASK |
+						CFG_RST_H_SM_MASK |
+						CFG_RST_H_DMA_MASK |
+						CFG_RST_H_MME_MASK |
+						CFG_RST_H_CPU_MASK |
+						CFG_RST_H_MMU_MASK));
+
+		WREG32(mmPSOC_GLOBAL_CONF_SW_ALL_RST_CFG_L,
+						(CFG_RST_L_IF_MASK |
+						CFG_RST_L_PSOC_MASK |
+						CFG_RST_L_TPC_MASK));
+
 		msleep(cpu_timeout_ms);
 
 		/* Tell ASIC not to re-initialize PCIe */
