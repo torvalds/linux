@@ -1734,6 +1734,12 @@ struct v4l2_ext_control {
 		__u16 __user *p_u16;
 		__u32 __user *p_u32;
 		struct v4l2_area __user *p_area;
+		struct v4l2_ctrl_h264_sps __user *p_h264_sps;
+		struct v4l2_ctrl_h264_pps *p_h264_pps;
+		struct v4l2_ctrl_h264_scaling_matrix __user *p_h264_scaling_matrix;
+		struct v4l2_ctrl_h264_pred_weights __user *p_h264_pred_weights;
+		struct v4l2_ctrl_h264_slice_params __user *p_h264_slice_params;
+		struct v4l2_ctrl_h264_decode_params __user *p_h264_decode_params;
 		void __user *ptr;
 	};
 } __attribute__ ((packed));
