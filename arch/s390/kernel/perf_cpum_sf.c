@@ -672,7 +672,7 @@ static void cpumsf_output_event_pid(struct perf_event *event,
 	rcu_read_lock();
 
 	perf_prepare_sample(&header, data, event, regs);
-	if (perf_output_begin(&handle, event, header.size))
+	if (perf_output_begin(&handle, data, event, header.size))
 		goto out;
 
 	/* Update the process ID (see also kernel/events/core.c) */

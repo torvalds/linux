@@ -1902,8 +1902,6 @@ int mlx5_devlink_port_function_hw_addr_get(struct devlink *devlink,
 		ether_addr_copy(hw_addr, vport->info.mac);
 		*hw_addr_len = ETH_ALEN;
 		err = 0;
-	} else {
-		NL_SET_ERR_MSG_MOD(extack, "Eswitch vport is disabled");
 	}
 	mutex_unlock(&esw->state_lock);
 	return err;
