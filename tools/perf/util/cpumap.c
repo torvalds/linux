@@ -586,3 +586,21 @@ const struct perf_cpu_map *cpu_map__online(void) /* thread unsafe */
 
 	return online;
 }
+
+bool cpu_map__compare_aggr_cpu_id(struct aggr_cpu_id a, struct aggr_cpu_id b)
+{
+	return a.id == b.id;
+}
+
+bool cpu_map__aggr_cpu_id_is_empty(struct aggr_cpu_id a)
+{
+	return a.id == -1;
+}
+
+struct aggr_cpu_id cpu_map__empty_aggr_cpu_id(void)
+{
+	struct aggr_cpu_id ret = {
+		.id = -1
+	};
+	return ret;
+}

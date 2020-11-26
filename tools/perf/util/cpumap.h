@@ -7,6 +7,10 @@
 #include <internal/cpumap.h>
 #include <perf/cpumap.h>
 
+struct aggr_cpu_id {
+	int id;
+};
+
 struct perf_record_cpu_map_data;
 
 struct perf_cpu_map *perf_cpu_map__empty_new(int nr);
@@ -63,5 +67,9 @@ int cpu_map__build_map(struct perf_cpu_map *cpus, struct perf_cpu_map **res,
 
 int cpu_map__cpu(struct perf_cpu_map *cpus, int idx);
 bool cpu_map__has(struct perf_cpu_map *cpus, int cpu);
+
+bool cpu_map__compare_aggr_cpu_id(struct aggr_cpu_id a, struct aggr_cpu_id b);
+bool cpu_map__aggr_cpu_id_is_empty(struct aggr_cpu_id a);
+struct aggr_cpu_id cpu_map__empty_aggr_cpu_id(void);
 
 #endif /* __PERF_CPUMAP_H */
