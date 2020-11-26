@@ -114,8 +114,7 @@ static int check_cpu_topology(char *path, struct perf_cpu_map *map)
 			session->header.env.cpu[map->map[i]].core_id == cpu_map__id_to_cpu(id.id));
 
 		TEST_ASSERT_VAL("Core map - Socket ID doesn't match",
-			session->header.env.cpu[map->map[i]].socket_id ==
-				cpu_map__id_to_socket(id.id));
+			session->header.env.cpu[map->map[i]].socket_id == id.socket);
 
 		TEST_ASSERT_VAL("Core map - Die ID doesn't match",
 			session->header.env.cpu[map->map[i]].die_id == cpu_map__id_to_die(id.id));
@@ -126,8 +125,7 @@ static int check_cpu_topology(char *path, struct perf_cpu_map *map)
 	for (i = 0; i < map->nr; i++) {
 		id = cpu_map__get_die(map, i, NULL);
 		TEST_ASSERT_VAL("Die map - Socket ID doesn't match",
-			session->header.env.cpu[map->map[i]].socket_id ==
-				cpu_map__id_to_socket(id.id << 16));
+			session->header.env.cpu[map->map[i]].socket_id == id.socket);
 
 		TEST_ASSERT_VAL("Die map - Die ID doesn't match",
 			session->header.env.cpu[map->map[i]].die_id ==
@@ -140,9 +138,10 @@ static int check_cpu_topology(char *path, struct perf_cpu_map *map)
 	for (i = 0; i < map->nr; i++) {
 		id = cpu_map__get_socket(map, i, NULL);
 		TEST_ASSERT_VAL("Socket map - Socket ID doesn't match",
-			session->header.env.cpu[map->map[i]].socket_id == id.id);
+			session->header.env.cpu[map->map[i]].socket_id == id.socket);
 
 		TEST_ASSERT_VAL("Socket map - Node ID is set", id.node == -1);
+		TEST_ASSERT_VAL("Socket map - ID is set", id.id == -1);
 	}
 
 	// Test that node ID contains only node
@@ -151,6 +150,7 @@ static int check_cpu_topology(char *path, struct perf_cpu_map *map)
 		TEST_ASSERT_VAL("Node map - Node ID doesn't match",
 			cpu__get_node(map->map[i]) == id.node);
 		TEST_ASSERT_VAL("Node map - ID is set", id.id == -1);
+		TEST_ASSERT_VAL("Node map - Socket is set", id.socket == -1);
 	}
 	perf_session__delete(session);
 

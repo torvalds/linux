@@ -139,7 +139,7 @@ struct aggr_cpu_id cpu_map__get_socket(struct perf_cpu_map *map, int idx,
 
 	cpu = map->map[idx];
 
-	id.id = cpu_map__get_socket_id(cpu);
+	id.socket = cpu_map__get_socket_id(cpu);
 	return id;
 }
 
@@ -150,8 +150,10 @@ static int cmp_aggr_cpu_id(const void *a_pointer, const void *b_pointer)
 
 	if (a->id != b->id)
 		return a->id - b->id;
-	else
+	else if (a->node != b->node)
 		return a->node - b->node;
+	else
+		return a->socket - b->socket;
 }
 
 int cpu_map__build_map(struct perf_cpu_map *cpus, struct cpu_aggr_map **res,
@@ -196,7 +198,7 @@ int cpu_map__get_die_id(int cpu)
 
 struct aggr_cpu_id cpu_map__get_die(struct perf_cpu_map *map, int idx, void *data)
 {
-	int cpu, s;
+	int cpu, die;
 	struct aggr_cpu_id id = cpu_map__empty_aggr_cpu_id();
 
 	if (idx > map->nr)
@@ -204,28 +206,24 @@ struct aggr_cpu_id cpu_map__get_die(struct perf_cpu_map *map, int idx, void *dat
 
 	cpu = map->map[idx];
 
-	id.id = cpu_map__get_die_id(cpu);
+	die = cpu_map__get_die_id(cpu);
 	/* There is no die_id on legacy system. */
-	if (id.id == -1)
-		id.id = 0;
-
-	s = cpu_map__get_socket(map, idx, data).id;
-	if (s == -1)
-		return cpu_map__empty_aggr_cpu_id();
+	if (die == -1)
+		die = 0;
 
 	/*
-	 * Encode socket in bit range 15:8
-	 * die_id is relative to socket, and
-	 * we need a global id. So we combine
-	 * socket + die id
+	 * die_id is relative to socket, so start
+	 * with the socket ID and then add die to
+	 * make a unique ID.
 	 */
-	if (WARN_ONCE(id.id >> 8, "The die id number is too big.\n"))
+	id = cpu_map__get_socket(map, idx, data);
+	if (cpu_map__aggr_cpu_id_is_empty(id))
+		return id;
+
+	if (WARN_ONCE(die >> 8, "The die id number is too big.\n"))
 		return cpu_map__empty_aggr_cpu_id();
 
-	if (WARN_ONCE(s >> 8, "The socket id number is too big.\n"))
-		return cpu_map__empty_aggr_cpu_id();
-
-	id.id = (s << 8) | (id.id & 0xff);
+	id.id = (die & 0xff);
 	return id;
 }
 
@@ -258,7 +256,6 @@ struct aggr_cpu_id cpu_map__get_core(struct perf_cpu_map *map, int idx, void *da
 		return id;
 
 	/*
-	 * encode socket in bit range 31:24
 	 * encode die id in bit range 23:16
 	 * core_id is relative to socket and die,
 	 * we need a global id. So we combine
@@ -624,20 +621,23 @@ const struct perf_cpu_map *cpu_map__online(void) /* thread unsafe */
 bool cpu_map__compare_aggr_cpu_id(struct aggr_cpu_id a, struct aggr_cpu_id b)
 {
 	return a.id == b.id &&
-		a.node == b.node;
+		a.node == b.node &&
+		a.socket == b.socket;
 }
 
 bool cpu_map__aggr_cpu_id_is_empty(struct aggr_cpu_id a)
 {
 	return a.id == -1 &&
-		a.node == -1;
+		a.node == -1 &&
+		a.socket == -1;
 }
 
 struct aggr_cpu_id cpu_map__empty_aggr_cpu_id(void)
 {
 	struct aggr_cpu_id ret = {
 		.id = -1,
-		.node = -1
+		.node = -1,
+		.socket = -1
 	};
 	return ret;
 }

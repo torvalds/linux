@@ -1369,7 +1369,7 @@ static struct aggr_cpu_id perf_env__get_socket(struct perf_cpu_map *map, int idx
 	struct aggr_cpu_id id = cpu_map__empty_aggr_cpu_id();
 
 	if (cpu != -1)
-		id.id = env->cpu[cpu].socket_id;
+		id.socket = env->cpu[cpu].socket_id;
 
 	return id;
 }
@@ -1382,18 +1382,16 @@ static struct aggr_cpu_id perf_env__get_die(struct perf_cpu_map *map, int idx, v
 
 	if (cpu != -1) {
 		/*
-		 * Encode socket in bit range 15:8
-		 * die_id is relative to socket,
-		 * we need a global id. So we combine
-		 * socket + die id
+		 * die_id is relative to socket, so start
+		 * with the socket ID and then add die to
+		 * make a unique ID.
 		 */
-		if (WARN_ONCE(env->cpu[cpu].socket_id >> 8, "The socket id number is too big.\n"))
-			return cpu_map__empty_aggr_cpu_id();
+		id.socket = env->cpu[cpu].socket_id;
 
 		if (WARN_ONCE(env->cpu[cpu].die_id >> 8, "The die id number is too big.\n"))
 			return cpu_map__empty_aggr_cpu_id();
 
-		id.id = (env->cpu[cpu].socket_id << 8) | (env->cpu[cpu].die_id & 0xff);
+		id.id = env->cpu[cpu].die_id & 0xff;
 	}
 
 	return id;
@@ -1407,23 +1405,19 @@ static struct aggr_cpu_id perf_env__get_core(struct perf_cpu_map *map, int idx, 
 
 	if (cpu != -1) {
 		/*
-		 * Encode socket in bit range 31:24
 		 * encode die id in bit range 23:16
 		 * core_id is relative to socket and die,
 		 * we need a global id. So we combine
 		 * socket + die id + core id
 		 */
-		if (WARN_ONCE(env->cpu[cpu].socket_id >> 8, "The socket id number is too big.\n"))
-			return cpu_map__empty_aggr_cpu_id();
-
 		if (WARN_ONCE(env->cpu[cpu].die_id >> 8, "The die id number is too big.\n"))
 			return cpu_map__empty_aggr_cpu_id();
 
 		if (WARN_ONCE(env->cpu[cpu].core_id >> 16, "The core id number is too big.\n"))
 			return cpu_map__empty_aggr_cpu_id();
 
-		id.id = (env->cpu[cpu].socket_id << 24) |
-		       (env->cpu[cpu].die_id << 16) |
+		id.socket = env->cpu[cpu].socket_id;
+		id.id = (env->cpu[cpu].die_id << 16) |
 		       (env->cpu[cpu].core_id & 0xffff);
 	}
 

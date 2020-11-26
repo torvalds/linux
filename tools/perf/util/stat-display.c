@@ -73,7 +73,7 @@ static void aggr_printout(struct perf_stat_config *config,
 	switch (config->aggr_mode) {
 	case AGGR_CORE:
 		fprintf(config->output, "S%d-D%d-C%*d%s%*d%s",
-			cpu_map__id_to_socket(id.id),
+			id.socket,
 			cpu_map__id_to_die(id.id),
 			config->csv_output ? 0 : -8,
 			cpu_map__id_to_cpu(id.id),
@@ -84,7 +84,7 @@ static void aggr_printout(struct perf_stat_config *config,
 		break;
 	case AGGR_DIE:
 		fprintf(config->output, "S%d-D%*d%s%*d%s",
-			cpu_map__id_to_socket(id.id << 16),
+			id.socket,
 			config->csv_output ? 0 : -8,
 			cpu_map__id_to_die(id.id << 16),
 			config->csv_sep,
@@ -95,7 +95,7 @@ static void aggr_printout(struct perf_stat_config *config,
 	case AGGR_SOCKET:
 		fprintf(config->output, "S%*d%s%*d%s",
 			config->csv_output ? 0 : -5,
-			id.id,
+			id.socket,
 			config->csv_sep,
 			config->csv_output ? 0 : 4,
 			nr,
@@ -113,7 +113,7 @@ static void aggr_printout(struct perf_stat_config *config,
 	case AGGR_NONE:
 		if (evsel->percore && !config->percore_show_thread) {
 			fprintf(config->output, "S%d-D%d-C%*d%s",
-				cpu_map__id_to_socket(id.id),
+				id.socket,
 				cpu_map__id_to_die(id.id),
 				config->csv_output ? 0 : -3,
 				cpu_map__id_to_cpu(id.id), config->csv_sep);
