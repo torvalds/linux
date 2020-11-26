@@ -123,13 +123,23 @@
 		vin-supply = <&vcc5v0_sys>;
 	};
 
+	vdd_fixed: vdd-fixed {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_fixed";
+		regulator-min-microvolt = <900000>;
+		regulator-max-microvolt = <900000>;
+		regulator-always-on;
+		regulator-boot-on;
+		vin-supply = <&vcc5v0_sys>;
+	};
+
 	vdd_logic: vdd-logic {
 		compatible = "pwm-regulator";
 		pwms = <&pwm1 0 5000 1>;
 		regulator-name = "vdd_logic";
 		regulator-min-microvolt = <800000>;
 		regulator-max-microvolt = <1200000>;
-		regulator-init-microvolt = <950000>;
+		regulator-init-microvolt = <900000>;
 		regulator-always-on;
 		regulator-boot-on;
 		regulator-settling-time-up-us = <250>;
@@ -190,8 +200,12 @@
 };
 
 &gpu {
-	mali-supply = <&vdd_logic>;
+	mali-supply = <&vdd_fixed>;
 	status = "okay";
+};
+
+&gpu_opp_table {
+	/delete-node/ opp-800000000;
 };
 
 &hdmi {
