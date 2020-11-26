@@ -1065,6 +1065,17 @@ void tb_port_lane_bonding_disable(struct tb_port *port)
 	tb_port_set_link_width(port, 1);
 }
 
+static int tb_port_start_lane_initialization(struct tb_port *port)
+{
+	int ret;
+
+	if (tb_switch_is_usb4(port->sw))
+		return 0;
+
+	ret = tb_lc_start_lane_initialization(port);
+	return ret == -EINVAL ? 0 : ret;
+}
+
 /**
  * tb_port_is_enabled() - Is the adapter port enabled
  * @port: Port to check
@@ -2694,8 +2705,22 @@ int tb_switch_resume(struct tb_switch *sw)
 
 	/* check for surviving downstream switches */
 	tb_switch_for_each_port(sw, port) {
-		if (!tb_port_has_remote(port) && !port->xdomain)
+		if (!tb_port_has_remote(port) && !port->xdomain) {
+			/*
+			 * For disconnected downstream lane adapters
+			 * start lane initialization now so we detect
+			 * future connects.
+			 */
+			if (!tb_is_upstream_port(port) && tb_port_is_null(port))
+				tb_port_start_lane_initialization(port);
 			continue;
+		} else if (port->xdomain) {
+			/*
+			 * Start lane initialization for XDomain so the
+			 * link gets re-established.
+			 */
+			tb_port_start_lane_initialization(port);
+		}
 
 		if (tb_wait_for_port(port, true) <= 0) {
 			tb_port_warn(port,
