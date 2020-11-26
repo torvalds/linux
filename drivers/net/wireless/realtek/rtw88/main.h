@@ -1198,6 +1198,7 @@ struct rtw_chip_info {
 	const struct coex_5g_afh_map *afh_5g;
 	const struct rtw_hw_reg *btg_reg;
 	const struct rtw_reg_domain *coex_info_hw_regs;
+	u32 wl_fw_desired_ver;
 };
 
 enum rtw_coex_bt_state_cnt {
@@ -1333,6 +1334,10 @@ struct rtw_coex_stat {
 
 	u32 bt_supported_version;
 	u32 bt_supported_feature;
+	u32 hi_pri_tx;
+	u32 hi_pri_rx;
+	u32 lo_pri_tx;
+	u32 lo_pri_rx;
 	u32 patch_ver;
 	u16 bt_reg_vendor_ae;
 	u16 bt_reg_vendor_ac;

@@ -26,6 +26,7 @@ enum rtw_debug_mask {
 #ifdef CONFIG_RTW88_DEBUGFS
 
 void rtw_debugfs_init(struct rtw_dev *rtwdev);
+void rtw_debugfs_get_simple_phy_info(struct seq_file *m);
 
 #else
 
