@@ -358,6 +358,10 @@ still cause this situation.
       - 0xa20000
       - The class containing RF tuner controls. These controls are
 	described in :ref:`rf-tuner-controls`.
+    * - ``V4L2_CTRL_CLASS_DETECT``
+      - 0xa30000
+      - The class containing motion or object detection controls. These controls
+        are described in :ref:`detect-controls`.
 
 Return Value
 ============
