@@ -2284,52 +2284,52 @@ FWHT Flags
     :stub-columns: 0
     :widths:       3 1 4
 
-    * - ``FWHT_FL_IS_INTERLACED``
+    * - ``V4L2_FWHT_FL_IS_INTERLACED``
       - 0x00000001
       - Set if this is an interlaced format
-    * - ``FWHT_FL_IS_BOTTOM_FIRST``
+    * - ``V4L2_FWHT_FL_IS_BOTTOM_FIRST``
       - 0x00000002
       - Set if this is a bottom-first (NTSC) interlaced format
-    * - ``FWHT_FL_IS_ALTERNATE``
+    * - ``V4L2_FWHT_FL_IS_ALTERNATE``
       - 0x00000004
       - Set if each 'frame' contains just one field
-    * - ``FWHT_FL_IS_BOTTOM_FIELD``
+    * - ``V4L2_FWHT_FL_IS_BOTTOM_FIELD``
       - 0x00000008
-      - If FWHT_FL_IS_ALTERNATE was set, then this is set if this 'frame' is the
+      - If V4L2_FWHT_FL_IS_ALTERNATE was set, then this is set if this 'frame' is the
 	bottom field, else it is the top field.
-    * - ``FWHT_FL_LUMA_IS_UNCOMPRESSED``
+    * - ``V4L2_FWHT_FL_LUMA_IS_UNCOMPRESSED``
       - 0x00000010
       - Set if the luma plane is uncompressed
-    * - ``FWHT_FL_CB_IS_UNCOMPRESSED``
+    * - ``V4L2_FWHT_FL_CB_IS_UNCOMPRESSED``
       - 0x00000020
       - Set if the cb plane is uncompressed
-    * - ``FWHT_FL_CR_IS_UNCOMPRESSED``
+    * - ``V4L2_FWHT_FL_CR_IS_UNCOMPRESSED``
       - 0x00000040
       - Set if the cr plane is uncompressed
-    * - ``FWHT_FL_CHROMA_FULL_HEIGHT``
+    * - ``V4L2_FWHT_FL_CHROMA_FULL_HEIGHT``
       - 0x00000080
       - Set if the chroma plane has the same height as the luma plane,
 	else the chroma plane is half the height of the luma plane
-    * - ``FWHT_FL_CHROMA_FULL_WIDTH``
+    * - ``V4L2_FWHT_FL_CHROMA_FULL_WIDTH``
       - 0x00000100
       - Set if the chroma plane has the same width as the luma plane,
 	else the chroma plane is half the width of the luma plane
-    * - ``FWHT_FL_ALPHA_IS_UNCOMPRESSED``
+    * - ``V4L2_FWHT_FL_ALPHA_IS_UNCOMPRESSED``
       - 0x00000200
       - Set if the alpha plane is uncompressed
-    * - ``FWHT_FL_I_FRAME``
+    * - ``V4L2_FWHT_FL_I_FRAME``
       - 0x00000400
       - Set if this is an I-frame
-    * - ``FWHT_FL_COMPONENTS_NUM_MSK``
+    * - ``V4L2_FWHT_FL_COMPONENTS_NUM_MSK``
       - 0x00070000
       - A 4-values flag - the number of components - 1
-    * - ``FWHT_FL_PIXENC_YUV``
+    * - ``V4L2_FWHT_FL_PIXENC_YUV``
       - 0x00080000
       - Set if the pixel encoding is YUV
-    * - ``FWHT_FL_PIXENC_RGB``
+    * - ``V4L2_FWHT_FL_PIXENC_RGB``
       - 0x00100000
       - Set if the pixel encoding is RGB
-    * - ``FWHT_FL_PIXENC_HSV``
+    * - ``V4L2_FWHT_FL_PIXENC_HSV``
       - 0x00180000
       - Set if the pixel encoding is HSV
 
