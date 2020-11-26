@@ -1090,7 +1090,7 @@ static int fiji_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 }
 
 
-/**
+/*
  * MCLK Frequency Ratio
  * SEQ_CG_RESP  Bit[31:24] - 0x0
  * Bit[27:24] \96 DDR3 Frequency ratio
