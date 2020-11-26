@@ -8,7 +8,7 @@
 #include <perf/cpumap.h>
 
 struct aggr_cpu_id {
-	int id;
+	int thread;
 	int node;
 	int socket;
 	int die;

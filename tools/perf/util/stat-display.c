@@ -127,9 +127,9 @@ static void aggr_printout(struct perf_stat_config *config,
 	case AGGR_THREAD:
 		fprintf(config->output, "%*s-%*d%s",
 			config->csv_output ? 0 : 16,
-			perf_thread_map__comm(evsel->core.threads, id.id),
+			perf_thread_map__comm(evsel->core.threads, id.thread),
 			config->csv_output ? 0 : -8,
-			perf_thread_map__pid(evsel->core.threads, id.id),
+			perf_thread_map__pid(evsel->core.threads, id.thread),
 			config->csv_sep);
 		break;
 	case AGGR_GLOBAL:
@@ -740,7 +740,7 @@ static struct perf_aggr_thread_value *sort_aggr_thread(
 
 		buf[i].counter = counter;
 		buf[i].id = cpu_map__empty_aggr_cpu_id();
-		buf[i].id.id = thread;
+		buf[i].id.thread = thread;
 		buf[i].uval = uval;
 		buf[i].val = val;
 		buf[i].run = run;
@@ -781,7 +781,7 @@ static void print_aggr_thread(struct perf_stat_config *config,
 		if (config->stats)
 			printout(config, id, 0, buf[thread].counter, buf[thread].uval,
 				 prefix, buf[thread].run, buf[thread].ena, 1.0,
-				 &config->stats[id.id]);
+				 &config->stats[id.thread]);
 		else
 			printout(config, id, 0, buf[thread].counter, buf[thread].uval,
 				 prefix, buf[thread].run, buf[thread].ena, 1.0,

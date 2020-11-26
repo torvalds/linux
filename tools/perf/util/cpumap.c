@@ -148,16 +148,16 @@ static int cmp_aggr_cpu_id(const void *a_pointer, const void *b_pointer)
 	struct aggr_cpu_id *a = (struct aggr_cpu_id *)a_pointer;
 	struct aggr_cpu_id *b = (struct aggr_cpu_id *)b_pointer;
 
-	if (a->id != b->id)
-		return a->id - b->id;
-	else if (a->node != b->node)
+	if (a->node != b->node)
 		return a->node - b->node;
 	else if (a->socket != b->socket)
 		return a->socket - b->socket;
 	else if (a->die != b->die)
 		return a->die - b->die;
-	else
+	else if (a->core != b->core)
 		return a->core - b->core;
+	else
+		return a->thread - b->thread;
 }
 
 int cpu_map__build_map(struct perf_cpu_map *cpus, struct cpu_aggr_map **res,
@@ -616,7 +616,7 @@ const struct perf_cpu_map *cpu_map__online(void) /* thread unsafe */
 
 bool cpu_map__compare_aggr_cpu_id(struct aggr_cpu_id a, struct aggr_cpu_id b)
 {
-	return a.id == b.id &&
+	return a.thread == b.thread &&
 		a.node == b.node &&
 		a.socket == b.socket &&
 		a.die == b.die &&
@@ -625,7 +625,7 @@ bool cpu_map__compare_aggr_cpu_id(struct aggr_cpu_id a, struct aggr_cpu_id b)
 
 bool cpu_map__aggr_cpu_id_is_empty(struct aggr_cpu_id a)
 {
-	return a.id == -1 &&
+	return a.thread == -1 &&
 		a.node == -1 &&
 		a.socket == -1 &&
 		a.die == -1 &&
@@ -635,7 +635,7 @@ bool cpu_map__aggr_cpu_id_is_empty(struct aggr_cpu_id a)
 struct aggr_cpu_id cpu_map__empty_aggr_cpu_id(void)
 {
 	struct aggr_cpu_id ret = {
-		.id = -1,
+		.thread = -1,
 		.node = -1,
 		.socket = -1,
 		.die = -1,
