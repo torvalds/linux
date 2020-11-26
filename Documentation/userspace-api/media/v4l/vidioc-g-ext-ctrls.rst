@@ -180,31 +180,31 @@ still cause this situation.
       - ``p_u32``
       - A pointer to a matrix control of unsigned 32-bit values. Valid if
 	this control is of type ``V4L2_CTRL_TYPE_U32``.
-    * - :c:type:`v4l2_area` *
+    * - struct :c:type:`v4l2_area` *
       - ``p_area``
       - A pointer to a struct :c:type:`v4l2_area`. Valid if this control is
         of type ``V4L2_CTRL_TYPE_AREA``.
-    * - :c:type:`v4l2_ctrl_h264_sps` *
+    * - struct :c:type:`v4l2_ctrl_h264_sps` *
       - ``p_h264_sps``
       - A pointer to a struct :c:type:`v4l2_ctrl_h264_sps`. Valid if this control is
         of type ``V4L2_CTRL_TYPE_H264_SPS``.
-    * - :c:type:`v4l2_ctrl_h264_pps` *
+    * - struct :c:type:`v4l2_ctrl_h264_pps` *
       - ``p_h264_pps``
       - A pointer to a struct :c:type:`v4l2_ctrl_h264_pps`. Valid if this control is
         of type ``V4L2_CTRL_TYPE_H264_PPS``.
-    * - :c:type:`v4l2_ctrl_h264_scaling_matrix` *
+    * - struct :c:type:`v4l2_ctrl_h264_scaling_matrix` *
       - ``p_h264_scaling_matrix``
       - A pointer to a struct :c:type:`v4l2_ctrl_h264_scaling_matrix`. Valid if this control is
         of type ``V4L2_CTRL_TYPE_H264_SCALING_MATRIX``.
-    * - :c:type:`v4l2_ctrl_h264_pred_weights` *
+    * - struct :c:type:`v4l2_ctrl_h264_pred_weights` *
       - ``p_h264_pred_weights``
       - A pointer to a struct :c:type:`v4l2_ctrl_h264_pred_weights`. Valid if this control is
         of type ``V4L2_CTRL_TYPE_H264_PRED_WEIGHTS``.
-    * - :c:type:`v4l2_ctrl_h264_slice_params` *
+    * - struct :c:type:`v4l2_ctrl_h264_slice_params` *
       - ``p_h264_slice_params``
       - A pointer to a struct :c:type:`v4l2_ctrl_h264_slice_params`. Valid if this control is
         of type ``V4L2_CTRL_TYPE_H264_SLICE_PARAMS``.
-    * - :c:type:`v4l2_ctrl_h264_decode_params` *
+    * - struct :c:type:`v4l2_ctrl_h264_decode_params` *
       - ``p_h264_decode_params``
       - A pointer to a struct :c:type:`v4l2_ctrl_h264_decode_params`. Valid if this control is
         of type ``V4L2_CTRL_TYPE_H264_DECODE_PARAMS``.
