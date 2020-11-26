@@ -825,8 +825,11 @@ bool kvm_arm_support_pmu_v3(void)
 
 int kvm_arm_pmu_v3_enable(struct kvm_vcpu *vcpu)
 {
-	if (!vcpu->arch.pmu.created)
+	if (!kvm_vcpu_has_pmu(vcpu))
 		return 0;
+
+	if (!vcpu->arch.pmu.created)
+		return -EINVAL;
 
 	/*
 	 * A valid interrupt configuration for the PMU is either to have a
@@ -835,9 +838,6 @@ int kvm_arm_pmu_v3_enable(struct kvm_vcpu *vcpu)
 	 */
 	if (irqchip_in_kernel(vcpu->kvm)) {
 		int irq = vcpu->arch.pmu.irq_num;
-		if (!kvm_arm_pmu_irq_initialized(vcpu))
-			return -EINVAL;
-
 		/*
 		 * If we are using an in-kernel vgic, at this point we know
 		 * the vgic will be initialized, so we can check the PMU irq
