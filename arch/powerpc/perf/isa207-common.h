@@ -101,6 +101,9 @@
 #define p10_EVENT_CACHE_SEL_MASK	0x3ull
 #define p10_EVENT_MMCR3_MASK		0x7fffull
 #define p10_EVENT_MMCR3_SHIFT		45
+#define p10_EVENT_RADIX_SCOPE_QUAL_SHIFT	9
+#define p10_EVENT_RADIX_SCOPE_QUAL_MASK	0x1
+#define p10_MMCR1_RADIX_SCOPE_QUAL_SHIFT	45
 
 #define p10_EVENT_VALID_MASK		\
 	((p10_SDAR_MODE_MASK   << p10_SDAR_MODE_SHIFT		|	\
@@ -112,6 +115,7 @@
 	(p9_EVENT_COMBINE_MASK << p9_EVENT_COMBINE_SHIFT)	|	\
 	(p10_EVENT_MMCR3_MASK  << p10_EVENT_MMCR3_SHIFT)	|	\
 	(EVENT_MARKED_MASK     << EVENT_MARKED_SHIFT)		|	\
+	(p10_EVENT_RADIX_SCOPE_QUAL_MASK << p10_EVENT_RADIX_SCOPE_QUAL_SHIFT)	|	\
 	 EVENT_LINUX_MASK					|	\
 	EVENT_PSEL_MASK))
 /*
@@ -125,9 +129,9 @@
  *
  *        28        24        20        16        12         8         4         0
  * | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - | - - - - |
- *               [ ] |   [ ]   [  sample ]   [     ]   [6] [5]   [4] [3]   [2] [1]
- *                |  |    |                     |
- *      BHRB IFM -*  |    |                     |      Count of events for each PMC.
+ *               [ ] |   [ ] |  [  sample ]   [     ]   [6] [5]   [4] [3]   [2] [1]
+ *                |  |    |  |                  |
+ *      BHRB IFM -*  |    |  |*radix_scope      |      Count of events for each PMC.
  *              EBB -*    |                     |        p1, p2, p3, p4, p5, p6.
  *      L1 I/D qualifier -*                     |
  *                     nc - number of counters -*
@@ -164,6 +168,9 @@
 
 #define CNST_L2L3_GROUP_VAL(v)	(((v) & 0x1full) << 55)
 #define CNST_L2L3_GROUP_MASK	CNST_L2L3_GROUP_VAL(0x1f)
+
+#define CNST_RADIX_SCOPE_GROUP_VAL(v)	(((v) & 0x1ull) << 21)
+#define CNST_RADIX_SCOPE_GROUP_MASK	CNST_RADIX_SCOPE_GROUP_VAL(1)
 
 /*
  * For NC we are counting up to 4 events. This requires three bits, and we need

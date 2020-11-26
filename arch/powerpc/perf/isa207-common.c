@@ -339,6 +339,11 @@ int isa207_get_constraint(u64 event, unsigned long *maskp, unsigned long *valp)
 		value |= CNST_L1_QUAL_VAL(cache);
 	}
 
+	if (cpu_has_feature(CPU_FTR_ARCH_31)) {
+		mask |= CNST_RADIX_SCOPE_GROUP_MASK;
+		value |= CNST_RADIX_SCOPE_GROUP_VAL(event >> p10_EVENT_RADIX_SCOPE_QUAL_SHIFT);
+	}
+
 	if (is_event_marked(event)) {
 		mask  |= CNST_SAMPLE_MASK;
 		value |= CNST_SAMPLE_VAL(event >> EVENT_SAMPLE_SHIFT);
@@ -454,6 +459,13 @@ int isa207_compute_mmcr(u64 event[], int n_ev,
 				cache = dc_ic_rld_quad_l1_sel(event[i]);
 				mmcr1 |= (cache) << MMCR1_DC_IC_QUAL_SHIFT;
 			}
+		}
+
+		/* Set RADIX_SCOPE_QUAL bit */
+		if (cpu_has_feature(CPU_FTR_ARCH_31)) {
+			val = (event[i] >> p10_EVENT_RADIX_SCOPE_QUAL_SHIFT) &
+				p10_EVENT_RADIX_SCOPE_QUAL_MASK;
+			mmcr1 |= val << p10_MMCR1_RADIX_SCOPE_QUAL_SHIFT;
 		}
 
 		if (is_event_marked(event[i])) {
