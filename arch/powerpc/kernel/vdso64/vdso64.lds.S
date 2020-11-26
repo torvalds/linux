@@ -61,7 +61,6 @@ SECTIONS
 	.gcc_except_table : { *(.gcc_except_table) }
 	.rela.dyn ALIGN(8) : { *(.rela.dyn) }
 
-	.opd ALIGN(8)	: { KEEP (*(.opd)) }
 	.got ALIGN(8)	: { *(.got .toc) }
 
 	_end = .;
@@ -111,6 +110,7 @@ SECTIONS
 		*(.branch_lt)
 		*(.data .data.* .gnu.linkonce.d.* .sdata*)
 		*(.bss .sbss .dynbss .dynsbss)
+		*(.opd)
 	}
 }
 
