@@ -289,6 +289,7 @@ mptsas_add_fw_event(MPT_ADAPTER *ioc, struct fw_event_work *fw_event,
 
 	spin_lock_irqsave(&ioc->fw_event_lock, flags);
 	list_add_tail(&fw_event->list, &ioc->fw_event_list);
+	fw_event->users = 1;
 	INIT_DELAYED_WORK(&fw_event->work, mptsas_firmware_event_work);
 	devtprintk(ioc, printk(MYIOC_s_DEBUG_FMT "%s: add (fw_event=0x%p)"
 		"on cpuid %d\n", ioc->name, __func__,
@@ -314,6 +315,15 @@ mptsas_requeue_fw_event(MPT_ADAPTER *ioc, struct fw_event_work *fw_event,
 	spin_unlock_irqrestore(&ioc->fw_event_lock, flags);
 }
 
+static void __mptsas_free_fw_event(MPT_ADAPTER *ioc,
+				   struct fw_event_work *fw_event)
+{
+	devtprintk(ioc, printk(MYIOC_s_DEBUG_FMT "%s: kfree (fw_event=0x%p)\n",
+	    ioc->name, __func__, fw_event));
+	list_del(&fw_event->list);
+	kfree(fw_event);
+}
+
 /* free memory associated to a sas firmware event */
 static void
 mptsas_free_fw_event(MPT_ADAPTER *ioc, struct fw_event_work *fw_event)
@@ -321,10 +331,9 @@ mptsas_free_fw_event(MPT_ADAPTER *ioc, struct fw_event_work *fw_event)
 	unsigned long flags;
 
 	spin_lock_irqsave(&ioc->fw_event_lock, flags);
-	devtprintk(ioc, printk(MYIOC_s_DEBUG_FMT "%s: kfree (fw_event=0x%p)\n",
-	    ioc->name, __func__, fw_event));
-	list_del(&fw_event->list);
-	kfree(fw_event);
+	fw_event->users--;
+	if (!fw_event->users)
+		__mptsas_free_fw_event(ioc, fw_event);
 	spin_unlock_irqrestore(&ioc->fw_event_lock, flags);
 }
 
@@ -333,9 +342,10 @@ mptsas_free_fw_event(MPT_ADAPTER *ioc, struct fw_event_work *fw_event)
 static void
 mptsas_cleanup_fw_event_q(MPT_ADAPTER *ioc)
 {
-	struct fw_event_work *fw_event, *next;
+	struct fw_event_work *fw_event;
 	struct mptsas_target_reset_event *target_reset_list, *n;
 	MPT_SCSI_HOST	*hd = shost_priv(ioc->sh);
+	unsigned long flags;
 
 	/* flush the target_reset_list */
 	if (!list_empty(&hd->target_reset_list)) {
@@ -350,14 +360,29 @@ mptsas_cleanup_fw_event_q(MPT_ADAPTER *ioc)
 		}
 	}
 
-	if (list_empty(&ioc->fw_event_list) ||
-	     !ioc->fw_event_q || in_interrupt())
+	if (list_empty(&ioc->fw_event_list) || !ioc->fw_event_q)
 		return;
 
-	list_for_each_entry_safe(fw_event, next, &ioc->fw_event_list, list) {
-		if (cancel_delayed_work(&fw_event->work))
-			mptsas_free_fw_event(ioc, fw_event);
+	spin_lock_irqsave(&ioc->fw_event_lock, flags);
+
+	while (!list_empty(&ioc->fw_event_list)) {
+		bool canceled = false;
+
+		fw_event = list_first_entry(&ioc->fw_event_list,
+					    struct fw_event_work, list);
+		fw_event->users++;
+		spin_unlock_irqrestore(&ioc->fw_event_lock, flags);
+		if (cancel_delayed_work_sync(&fw_event->work))
+			canceled = true;
+
+		spin_lock_irqsave(&ioc->fw_event_lock, flags);
+		if (canceled)
+			fw_event->users--;
+		fw_event->users--;
+		WARN_ON_ONCE(fw_event->users);
+		__mptsas_free_fw_event(ioc, fw_event);
 	}
+	spin_unlock_irqrestore(&ioc->fw_event_lock, flags);
 }
 
 
