@@ -975,6 +975,20 @@ _base_sas_ioc_info(struct MPT3SAS_ADAPTER *ioc, MPI2DefaultReply_t *mpi_reply,
 
 	if (ioc_status == MPI2_IOCSTATUS_CONFIG_INVALID_PAGE)
 		return;
+	/*
+	 * Older Firmware version doesn't support driver trigger pages.
+	 * So, skip displaying 'config invalid type' type
+	 * of error message.
+	 */
+	if (request_hdr->Function == MPI2_FUNCTION_CONFIG) {
+		Mpi2ConfigRequest_t *rqst = (Mpi2ConfigRequest_t *)request_hdr;
+
+		if ((rqst->ExtPageType ==
+		    MPI2_CONFIG_EXTPAGETYPE_DRIVER_PERSISTENT_TRIGGER) &&
+		    !(ioc->logging_level & MPT_DEBUG_CONFIG)) {
+			return;
+		}
+	}
 
 	switch (ioc_status) {
 
@@ -4784,6 +4798,58 @@ _base_update_ioc_page1_inlinewith_perf_mode(struct MPT3SAS_ADAPTER *ioc)
 }
 
 /**
+ * _base_check_for_trigger_pages_support - checks whether HBA FW supports
+ *					driver trigger pages or not
+ * @ioc : per adapter object
+ *
+ * Returns trigger flags mask if HBA FW supports driver trigger pages,
+ * otherwise returns EFAULT.
+ */
+static int
+_base_check_for_trigger_pages_support(struct MPT3SAS_ADAPTER *ioc)
+{
+	Mpi26DriverTriggerPage0_t trigger_pg0;
+	int r = 0;
+	Mpi2ConfigReply_t mpi_reply;
+	u16 ioc_status;
+
+	r = mpt3sas_config_get_driver_trigger_pg0(ioc, &mpi_reply,
+	    &trigger_pg0);
+	if (r)
+		return -EFAULT;
+
+	ioc_status = le16_to_cpu(mpi_reply.IOCStatus) &
+	    MPI2_IOCSTATUS_MASK;
+	if (ioc_status != MPI2_IOCSTATUS_SUCCESS)
+		return -EFAULT;
+
+	return le16_to_cpu(trigger_pg0.TriggerFlags);
+}
+
+/**
+ * _base_get_diag_triggers - Retrieve diag trigger values from
+ *				persistent pages.
+ * @ioc : per adapter object
+ *
+ * Return nothing.
+ */
+static void
+_base_get_diag_triggers(struct MPT3SAS_ADAPTER *ioc)
+{
+	u16 trigger_flags;
+
+	/*
+	 * Default setting of master trigger.
+	 */
+	ioc->diag_trigger_master.MasterData =
+	    (MASTER_TRIGGER_FW_FAULT + MASTER_TRIGGER_ADAPTER_RESET);
+	trigger_flags = _base_check_for_trigger_pages_support(ioc);
+	if (trigger_flags < 0)
+		return;
+	ioc->supports_trigger_pages = 1;
+}
+
+/**
  * _base_static_config_pages - static start of day config pages
  * @ioc: per adapter object
  */
@@ -4869,6 +4935,10 @@ _base_static_config_pages(struct MPT3SAS_ADAPTER *ioc)
 		ioc->temp_sensors_count = ioc->iounit_pg8.NumSensors;
 	if (ioc->is_aero_ioc)
 		_base_update_ioc_page1_inlinewith_perf_mode(ioc);
+	if (ioc->is_gen35_ioc) {
+		if (ioc->is_driver_loading)
+			_base_get_diag_triggers(ioc);
+	}
 }
 
 /**
