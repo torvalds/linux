@@ -120,10 +120,46 @@ static ssize_t mapping_path_show(struct kobject *kobj,
 static struct kobj_attribute rnbd_srv_dev_session_mapping_path_attr =
 	__ATTR_RO(mapping_path);
 
+static ssize_t rnbd_srv_dev_session_force_close_show(struct kobject *kobj,
+					struct kobj_attribute *attr, char *page)
+{
+	return scnprintf(page, PAGE_SIZE, "Usage: echo 1 > %s\n",
+			 attr->attr.name);
+}
+
+static ssize_t rnbd_srv_dev_session_force_close_store(struct kobject *kobj,
+					struct kobj_attribute *attr,
+					const char *buf, size_t count)
+{
+	struct rnbd_srv_sess_dev *sess_dev;
+
+	sess_dev = container_of(kobj, struct rnbd_srv_sess_dev, kobj);
+
+	if (!sysfs_streq(buf, "1")) {
+		rnbd_srv_err(sess_dev, "%s: invalid value: '%s'\n",
+			      attr->attr.name, buf);
+		return -EINVAL;
+	}
+
+	rnbd_srv_info(sess_dev, "force close requested\n");
+
+	/* first remove sysfs itself to avoid deadlock */
+	sysfs_remove_file_self(&sess_dev->kobj, &attr->attr);
+	rnbd_srv_sess_dev_force_close(sess_dev);
+
+	return count;
+}
+
+static struct kobj_attribute rnbd_srv_dev_session_force_close_attr =
+	__ATTR(force_close, 0644,
+	       rnbd_srv_dev_session_force_close_show,
+	       rnbd_srv_dev_session_force_close_store);
+
 static struct attribute *rnbd_srv_default_dev_sessions_attrs[] = {
 	&rnbd_srv_dev_session_access_mode_attr.attr,
 	&rnbd_srv_dev_session_ro_attr.attr,
 	&rnbd_srv_dev_session_mapping_path_attr.attr,
+	&rnbd_srv_dev_session_force_close_attr.attr,
 	NULL,
 };
 
@@ -145,7 +181,7 @@ static void rnbd_srv_sess_dev_release(struct kobject *kobj)
 	struct rnbd_srv_sess_dev *sess_dev;
 
 	sess_dev = container_of(kobj, struct rnbd_srv_sess_dev, kobj);
-	rnbd_destroy_sess_dev(sess_dev);
+	rnbd_destroy_sess_dev(sess_dev, sess_dev->keep_id);
 }
 
 static struct kobj_type rnbd_srv_sess_dev_ktype = {
