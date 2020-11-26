@@ -2168,8 +2168,8 @@ static void ioc_timer_fn(struct timer_list *timer)
 
 	/* calc usage and see whether some weights need to be moved around */
 	list_for_each_entry(iocg, &ioc->active_iocgs, active_list) {
-		u64 vdone, vtime, usage_us, usage_dur;
-		u32 usage, hw_active, hw_inuse;
+		u64 vdone, vtime, usage_us;
+		u32 hw_active, hw_inuse;
 
 		/*
 		 * Collect unused and wind vtime closer to vnow to prevent
@@ -2200,30 +2200,32 @@ static void ioc_timer_fn(struct timer_list *timer)
 		usage_us = iocg->usage_delta_us;
 		usage_us_sum += usage_us;
 
-		if (vdone != vtime) {
-			u64 inflight_us = DIV64_U64_ROUND_UP(
-				cost_to_abs_cost(vtime - vdone, hw_inuse),
-				ioc->vtime_base_rate);
-			usage_us = max(usage_us, inflight_us);
-		}
-
-		/* convert to hweight based usage ratio */
-		if (time_after64(iocg->activated_at, ioc->period_at))
-			usage_dur = max_t(u64, now.now - iocg->activated_at, 1);
-		else
-			usage_dur = max_t(u64, now.now - ioc->period_at, 1);
-
-		usage = clamp_t(u32,
-				DIV64_U64_ROUND_UP(usage_us * WEIGHT_ONE,
-						   usage_dur),
-				1, WEIGHT_ONE);
-
 		/* see whether there's surplus vtime */
 		WARN_ON_ONCE(!list_empty(&iocg->surplus_list));
 		if (hw_inuse < hw_active ||
 		    (!waitqueue_active(&iocg->waitq) &&
 		     time_before64(vtime, now.vnow - ioc->margins.low))) {
-			u32 hwa, old_hwi, hwm, new_hwi;
+			u32 hwa, old_hwi, hwm, new_hwi, usage;
+			u64 usage_dur;
+
+			if (vdone != vtime) {
+				u64 inflight_us = DIV64_U64_ROUND_UP(
+					cost_to_abs_cost(vtime - vdone, hw_inuse),
+					ioc->vtime_base_rate);
+
+				usage_us = max(usage_us, inflight_us);
+			}
+
+			/* convert to hweight based usage ratio */
+			if (time_after64(iocg->activated_at, ioc->period_at))
+				usage_dur = max_t(u64, now.now - iocg->activated_at, 1);
+			else
+				usage_dur = max_t(u64, now.now - ioc->period_at, 1);
+
+			usage = clamp_t(u32,
+				DIV64_U64_ROUND_UP(usage_us * WEIGHT_ONE,
+						   usage_dur),
+				1, WEIGHT_ONE);
 
 			/*
 			 * Already donating or accumulated enough to start.
