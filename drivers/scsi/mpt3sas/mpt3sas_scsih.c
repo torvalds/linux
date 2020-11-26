@@ -3673,6 +3673,8 @@ static struct fw_event_work *dequeue_next_fw_event(struct MPT3SAS_ADAPTER *ioc)
  *
  * Walk the firmware event queue, either killing timers, or waiting
  * for outstanding events to complete
+ *
+ * Context: task, can sleep
  */
 static void
 _scsih_fw_event_cleanup_queue(struct MPT3SAS_ADAPTER *ioc)
@@ -3680,7 +3682,7 @@ _scsih_fw_event_cleanup_queue(struct MPT3SAS_ADAPTER *ioc)
 	struct fw_event_work *fw_event;
 
 	if ((list_empty(&ioc->fw_event_list) && !ioc->current_event) ||
-	     !ioc->firmware_event_thread || in_interrupt())
+	    !ioc->firmware_event_thread)
 		return;
 
 	ioc->fw_events_cleanup = 1;
