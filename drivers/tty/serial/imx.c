@@ -2174,9 +2174,6 @@ static int imx_uart_probe_dt(struct imx_port *sport,
 	int ret;
 
 	sport->devdata = of_device_get_match_data(&pdev->dev);
-	if (!sport->devdata)
-		/* no device tree device */
-		return 1;
 
 	ret = of_alias_get_id(np, "serial");
 	if (ret < 0) {
