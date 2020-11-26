@@ -406,6 +406,16 @@
 			};
 		};
 
+		i2c12_pins: i2c12 {
+			mux {
+				pins = "gpio87", "gpio88";
+				function = "blsp_i2c12";
+
+				drive-strength = <2>;
+				bias-disable;
+			};
+		};
+
 		i2c_touchkey_pins: i2c-touchkey {
 			mux {
 				pins = "gpio95", "gpio96";
@@ -666,6 +676,27 @@
 			};
 		};
 	};
+
+	i2c@f9968000 {
+		status = "okay";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c12_pins>;
+
+		fuelgauge@36 {
+			compatible = "maxim,max17048";
+			reg = <0x36>;
+
+			maxim,double-soc;
+			maxim,rcomp = /bits/ 8 <0x56>;
+
+			interrupt-parent = <&pma8084_gpios>;
+			interrupts = <21 IRQ_TYPE_EDGE_FALLING>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&fuelgauge_pin>;
+		};
+	};
 };
 
 &spmi_bus {
@@ -702,6 +733,14 @@
 				output-high;
 				power-source = <PMA8084_GPIO_S4>;
 				qcom,drive-strength = <PMIC_GPIO_STRENGTH_HIGH>;
+			};
+
+			fuelgauge_pin: fuelgauge-int-pin {
+				pins = "gpio21";
+				function = "normal";
+				bias-disable;
+				input-enable;
+				power-source = <PMA8084_GPIO_S4>;
 			};
 		};
 	};
