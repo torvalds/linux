@@ -452,10 +452,11 @@ struct aspeed_sig_desc {
  * evaluation of the descriptors.
  *
  * @signal: The signal name for the priority level on the pin. If the signal
- *          type is GPIO, then the signal name must begin with the string
- *          "GPIO", e.g. GPIOA0, GPIOT4 etc.
+ *          type is GPIO, then the signal name must begin with the
+ *          prefix "GPI", e.g. GPIOA0, GPIT0 etc.
  * @function: The name of the function the signal participates in for the
- *            associated expression
+ *            associated expression. For pin-specific GPIO, the function
+ *            name must match the signal name.
  * @ndescs: The number of signal descriptors in the expression
  * @descs: Pointer to an array of signal descriptors that comprise the
  *         function expression
