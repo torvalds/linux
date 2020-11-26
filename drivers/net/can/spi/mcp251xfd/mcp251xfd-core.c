@@ -332,7 +332,7 @@ static void mcp251xfd_ring_init(struct mcp251xfd_priv *priv)
 	u32 val;
 	u16 addr;
 	u8 len;
-	int i;
+	int i, j;
 
 	/* TEF */
 	priv->tef.head = 0;
@@ -370,6 +370,23 @@ static void mcp251xfd_ring_init(struct mcp251xfd_priv *priv)
 				prev_rx_ring->obj_num;
 
 		prev_rx_ring = rx_ring;
+
+		/* FIFO increment RX tail pointer */
+		addr = MCP251XFD_REG_FIFOCON(rx_ring->fifo_nr);
+		val = MCP251XFD_REG_FIFOCON_UINC;
+		len = mcp251xfd_cmd_prepare_write_reg(priv, &rx_ring->uinc_buf,
+						      addr, val, val);
+
+		for (j = 0; j < ARRAY_SIZE(rx_ring->uinc_xfer); j++) {
+			struct spi_transfer *xfer;
+
+			xfer = &rx_ring->uinc_xfer[j];
+			xfer->tx_buf = &rx_ring->uinc_buf;
+			xfer->len = len;
+			xfer->cs_change = 1;
+			xfer->cs_change_delay.value = 0;
+			xfer->cs_change_delay.unit = SPI_DELAY_UNIT_NSECS;
+		}
 	}
 }
 
@@ -1440,13 +1457,7 @@ mcp251xfd_handle_rxif_one(struct mcp251xfd_priv *priv,
 	if (err)
 		stats->rx_fifo_errors++;
 
-	ring->tail++;
-
-	/* finally increment the RX pointer */
-	return regmap_update_bits(priv->map_reg,
-				  MCP251XFD_REG_FIFOCON(ring->fifo_nr),
-				  GENMASK(15, 8),
-				  MCP251XFD_REG_FIFOCON_UINC);
+	return 0;
 }
 
 static inline int
@@ -1478,6 +1489,8 @@ mcp251xfd_handle_rxif_ring(struct mcp251xfd_priv *priv,
 		return err;
 
 	while ((len = mcp251xfd_get_rx_linear_len(ring))) {
+		struct spi_transfer *last_xfer;
+
 		rx_tail = mcp251xfd_get_rx_tail(ring);
 
 		err = mcp251xfd_rx_obj_read(priv, ring, hw_rx_obj,
@@ -1492,6 +1505,28 @@ mcp251xfd_handle_rxif_ring(struct mcp251xfd_priv *priv,
 			if (err)
 				return err;
 		}
+
+		/* Increment the RX FIFO tail pointer 'len' times in a
+		 * single SPI message.
+		 */
+		ring->tail += len;
+
+		/* Note:
+		 *
+		 * "cs_change == 1" on the last transfer results in an
+		 * active chip select after the complete SPI
+		 * message. This causes the controller to interpret
+		 * the next register access as data. Temporary set
+		 * "cs_change" of the last transfer to "0" to properly
+		 * deactivate the chip select at the end of the
+		 * message.
+		 */
+		last_xfer = &ring->uinc_xfer[len - 1];
+		last_xfer->cs_change = 0;
+		err = spi_sync_transfer(priv->spi, ring->uinc_xfer, len);
+		last_xfer->cs_change = 1;
+		if (err)
+			return err;
 	}
 
 	return 0;

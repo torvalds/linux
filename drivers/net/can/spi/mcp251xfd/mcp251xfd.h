@@ -528,6 +528,8 @@ struct mcp251xfd_rx_ring {
 	u8 obj_num;
 	u8 obj_size;
 
+	union mcp251xfd_write_reg_buf uinc_buf;
+	struct spi_transfer uinc_xfer[MCP251XFD_RX_OBJ_NUM_MAX];
 	struct mcp251xfd_hw_rx_obj_canfd obj[];
 };
 
