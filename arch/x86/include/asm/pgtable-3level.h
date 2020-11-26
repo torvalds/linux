@@ -2,8 +2,6 @@
 #ifndef _ASM_X86_PGTABLE_3LEVEL_H
 #define _ASM_X86_PGTABLE_3LEVEL_H
 
-#include <asm/atomic64_32.h>
-
 /*
  * Intel Physical Address Extension (PAE) Mode - three-level page
  * tables on PPro+ CPUs.
@@ -95,11 +93,12 @@ static inline void pud_clear(pud_t *pudp)
 #ifdef CONFIG_SMP
 static inline pte_t native_ptep_get_and_clear(pte_t *ptep)
 {
-	pte_t res;
+	pte_t old = *ptep;
 
-	res.pte = (pteval_t)arch_atomic64_xchg((atomic64_t *)ptep, 0);
+	do {
+	} while (!try_cmpxchg64(&ptep->pte, &old.pte, 0ULL));
 
-	return res;
+	return old;
 }
 #else
 #define native_ptep_get_and_clear(xp) native_local_ptep_get_and_clear(xp)
