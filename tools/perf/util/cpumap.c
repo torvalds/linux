@@ -95,6 +95,23 @@ struct perf_cpu_map *perf_cpu_map__empty_new(int nr)
 	return cpus;
 }
 
+struct cpu_aggr_map *cpu_aggr_map__empty_new(int nr)
+{
+	struct cpu_aggr_map *cpus = malloc(sizeof(*cpus) + sizeof(int) * nr);
+
+	if (cpus != NULL) {
+		int i;
+
+		cpus->nr = nr;
+		for (i = 0; i < nr; i++)
+			cpus->map[i] = -1;
+
+		refcount_set(&cpus->refcnt, 1);
+	}
+
+	return cpus;
+}
+
 static int cpu__get_topology_int(int cpu, const char *name, int *value)
 {
 	char path[PATH_MAX];

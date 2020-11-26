@@ -11,9 +11,17 @@ struct aggr_cpu_id {
 	int id;
 };
 
+struct cpu_aggr_map {
+	refcount_t refcnt;
+	int nr;
+	int map[];
+};
+
 struct perf_record_cpu_map_data;
 
 struct perf_cpu_map *perf_cpu_map__empty_new(int nr);
+struct cpu_aggr_map *cpu_aggr_map__empty_new(int nr);
+
 struct perf_cpu_map *cpu_map__new_data(struct perf_record_cpu_map_data *data);
 size_t cpu_map__snprint(struct perf_cpu_map *map, char *buf, size_t size);
 size_t cpu_map__snprint_mask(struct perf_cpu_map *map, char *buf, size_t size);
