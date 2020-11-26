@@ -429,6 +429,8 @@ static int proc_thermal_mmio_add(struct pci_dev *pdev,
 {
 	int ret;
 
+	proc_priv->mmio_feature_mask = feature_mask;
+
 	if (feature_mask) {
 		ret = proc_thermal_set_mmio_base(pdev, proc_priv);
 		if (ret)
@@ -443,9 +445,21 @@ static int proc_thermal_mmio_add(struct pci_dev *pdev,
 		}
 	}
 
-	proc_priv->mmio_feature_mask = feature_mask;
+	if (feature_mask & PROC_THERMAL_FEATURE_FIVR ||
+	    feature_mask & PROC_THERMAL_FEATURE_DVFS) {
+		ret = proc_thermal_rfim_add(pdev, proc_priv);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to add RFIM interface\n");
+			goto err_rem_rapl;
+		}
+	}
 
 	return 0;
+
+err_rem_rapl:
+	proc_thermal_rapl_remove();
+
+	return ret;
 }
 
 static void proc_thermal_mmio_remove(struct pci_dev *pdev)
@@ -455,6 +469,9 @@ static void proc_thermal_mmio_remove(struct pci_dev *pdev)
 	if (proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_RAPL)
 		proc_thermal_rapl_remove();
 
+	if (proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_FIVR ||
+	    proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_DVFS)
+		proc_thermal_rfim_remove(pdev);
 }
 
 static int  proc_thermal_pci_probe(struct pci_dev *pdev,
@@ -566,7 +583,7 @@ static int proc_thermal_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(proc_thermal_pm, NULL, proc_thermal_resume);
 
 static const struct pci_device_id proc_thermal_pci_ids[] = {
-	{ PCI_DEVICE_DATA(INTEL, ADL_THERMAL, PROC_THERMAL_FEATURE_RAPL) },
+	{ PCI_DEVICE_DATA(INTEL, ADL_THERMAL, PROC_THERMAL_FEATURE_RAPL | PROC_THERMAL_FEATURE_FIVR | PROC_THERMAL_FEATURE_DVFS) },
 	{ PCI_DEVICE_DATA(INTEL, BDW_THERMAL, 0) },
 	{ PCI_DEVICE_DATA(INTEL, BSW_THERMAL, 0) },
 	{ PCI_DEVICE_DATA(INTEL, BXT0_THERMAL, 0) },
@@ -580,7 +597,7 @@ static const struct pci_device_id proc_thermal_pci_ids[] = {
 	{ PCI_DEVICE_DATA(INTEL, ICL_THERMAL, PROC_THERMAL_FEATURE_RAPL) },
 	{ PCI_DEVICE_DATA(INTEL, JSL_THERMAL, 0) },
 	{ PCI_DEVICE_DATA(INTEL, SKL_THERMAL, PROC_THERMAL_FEATURE_RAPL) },
-	{ PCI_DEVICE_DATA(INTEL, TGL_THERMAL, PROC_THERMAL_FEATURE_RAPL) },
+	{ PCI_DEVICE_DATA(INTEL, TGL_THERMAL, PROC_THERMAL_FEATURE_RAPL | PROC_THERMAL_FEATURE_FIVR) },
 	{ },
 };
 
