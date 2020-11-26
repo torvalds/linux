@@ -583,7 +583,7 @@ struct mcp251xfd_priv {
 	struct spi_device *spi;
 	u32 spi_max_speed_hz_orig;
 
-	struct mcp251xfd_tef_ring tef;
+	struct mcp251xfd_tef_ring tef[1];
 	struct mcp251xfd_tx_ring tx[1];
 	struct mcp251xfd_rx_ring *rx[1];
 
@@ -744,17 +744,17 @@ mcp251xfd_get_rx_obj_addr(const struct mcp251xfd_rx_ring *ring, u8 n)
 
 static inline u8 mcp251xfd_get_tef_head(const struct mcp251xfd_priv *priv)
 {
-	return priv->tef.head & (priv->tx->obj_num - 1);
+	return priv->tef->head & (priv->tx->obj_num - 1);
 }
 
 static inline u8 mcp251xfd_get_tef_tail(const struct mcp251xfd_priv *priv)
 {
-	return priv->tef.tail & (priv->tx->obj_num - 1);
+	return priv->tef->tail & (priv->tx->obj_num - 1);
 }
 
 static inline u8 mcp251xfd_get_tef_len(const struct mcp251xfd_priv *priv)
 {
-	return priv->tef.head - priv->tef.tail;
+	return priv->tef->head - priv->tef->tail;
 }
 
 static inline u8 mcp251xfd_get_tef_linear_len(const struct mcp251xfd_priv *priv)

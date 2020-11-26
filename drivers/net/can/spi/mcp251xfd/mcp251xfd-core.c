@@ -326,6 +326,7 @@ mcp251xfd_tx_ring_init_tx_obj(const struct mcp251xfd_priv *priv,
 
 static void mcp251xfd_ring_init(struct mcp251xfd_priv *priv)
 {
+	struct mcp251xfd_tef_ring *tef_ring;
 	struct mcp251xfd_tx_ring *tx_ring;
 	struct mcp251xfd_rx_ring *rx_ring, *prev_rx_ring = NULL;
 	struct mcp251xfd_tx_obj *tx_obj;
@@ -335,8 +336,9 @@ static void mcp251xfd_ring_init(struct mcp251xfd_priv *priv)
 	int i, j;
 
 	/* TEF */
-	priv->tef.head = 0;
-	priv->tef.tail = 0;
+	tef_ring = priv->tef;
+	tef_ring->head = 0;
+	tef_ring->tail = 0;
 
 	/* TX */
 	tx_ring = priv->tx;
@@ -1219,7 +1221,7 @@ mcp251xfd_handle_tefif_recover(const struct mcp251xfd_priv *priv, const u32 seq)
 		    tef_sta & MCP251XFD_REG_TEFSTA_TEFFIF ?
 		    "full" : tef_sta & MCP251XFD_REG_TEFSTA_TEFNEIF ?
 		    "not empty" : "empty",
-		    seq, priv->tef.tail, priv->tef.head, tx_ring->head);
+		    seq, priv->tef->tail, priv->tef->head, tx_ring->head);
 
 	/* The Sequence Number in the TEF doesn't match our tef_tail. */
 	return -EAGAIN;
@@ -1243,7 +1245,7 @@ mcp251xfd_handle_tefif_one(struct mcp251xfd_priv *priv,
 	 */
 	seq_masked = seq &
 		field_mask(MCP251XFD_OBJ_FLAGS_SEQ_MCP2517FD_MASK);
-	tef_tail_masked = priv->tef.tail &
+	tef_tail_masked = priv->tef->tail &
 		field_mask(MCP251XFD_OBJ_FLAGS_SEQ_MCP2517FD_MASK);
 	if (seq_masked != tef_tail_masked)
 		return mcp251xfd_handle_tefif_recover(priv, seq);
@@ -1261,7 +1263,7 @@ mcp251xfd_handle_tefif_one(struct mcp251xfd_priv *priv,
 	if (err)
 		return err;
 
-	priv->tef.tail++;
+	priv->tef->tail++;
 	tx_ring->tail++;
 
 	return mcp251xfd_check_tef_tail(priv);
@@ -1281,12 +1283,12 @@ static int mcp251xfd_tef_ring_update(struct mcp251xfd_priv *priv)
 	/* chip_tx_tail, is the next TX-Object send by the HW.
 	 * The new TEF head must be >= the old head, ...
 	 */
-	new_head = round_down(priv->tef.head, tx_ring->obj_num) + chip_tx_tail;
-	if (new_head <= priv->tef.head)
+	new_head = round_down(priv->tef->head, tx_ring->obj_num) + chip_tx_tail;
+	if (new_head <= priv->tef->head)
 		new_head += tx_ring->obj_num;
 
 	/* ... but it cannot exceed the TX head. */
-	priv->tef.head = min(new_head, tx_ring->head);
+	priv->tef->head = min(new_head, tx_ring->head);
 
 	return mcp251xfd_check_tef_tail(priv);
 }
