@@ -1122,6 +1122,8 @@ static u64 read_id_reg(const struct kvm_vcpu *vcpu,
 		val &= ~(0xfUL << ID_AA64PFR0_AMU_SHIFT);
 		val &= ~(0xfUL << ID_AA64PFR0_CSV2_SHIFT);
 		val |= ((u64)vcpu->kvm->arch.pfr0_csv2 << ID_AA64PFR0_CSV2_SHIFT);
+		val &= ~(0xfUL << ID_AA64PFR0_CSV3_SHIFT);
+		val |= ((u64)vcpu->kvm->arch.pfr0_csv3 << ID_AA64PFR0_CSV3_SHIFT);
 	} else if (id == SYS_ID_AA64PFR1_EL1) {
 		val &= ~(0xfUL << ID_AA64PFR1_MTE_SHIFT);
 	} else if (id == SYS_ID_AA64ISAR1_EL1 && !vcpu_has_ptrauth(vcpu)) {
@@ -1209,9 +1211,9 @@ static int set_id_aa64pfr0_el1(struct kvm_vcpu *vcpu,
 			       const struct kvm_one_reg *reg, void __user *uaddr)
 {
 	const u64 id = sys_reg_to_index(rd);
+	u8 csv2, csv3;
 	int err;
 	u64 val;
-	u8 csv2;
 
 	err = reg_from_user(&val, uaddr, id);
 	if (err)
@@ -1227,13 +1229,21 @@ static int set_id_aa64pfr0_el1(struct kvm_vcpu *vcpu,
 	    (csv2 && arm64_get_spectre_v2_state() != SPECTRE_UNAFFECTED))
 		return -EINVAL;
 
-	/* We can only differ with CSV2, and anything else is an error */
+	/* Same thing for CSV3 */
+	csv3 = cpuid_feature_extract_unsigned_field(val, ID_AA64PFR0_CSV3_SHIFT);
+	if (csv3 > 1 ||
+	    (csv3 && arm64_get_meltdown_state() != SPECTRE_UNAFFECTED))
+		return -EINVAL;
+
+	/* We can only differ with CSV[23], and anything else is an error */
 	val ^= read_id_reg(vcpu, rd, false);
-	val &= ~(0xFUL << ID_AA64PFR0_CSV2_SHIFT);
+	val &= ~((0xFUL << ID_AA64PFR0_CSV2_SHIFT) |
+		 (0xFUL << ID_AA64PFR0_CSV3_SHIFT));
 	if (val)
 		return -EINVAL;
 
 	vcpu->kvm->arch.pfr0_csv2 = csv2;
+	vcpu->kvm->arch.pfr0_csv3 = csv3 ;
 
 	return 0;
 }

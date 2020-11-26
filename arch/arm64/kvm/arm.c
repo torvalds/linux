@@ -102,7 +102,7 @@ static int kvm_arm_default_max_vcpus(void)
 	return vgic_present ? kvm_vgic_get_max_vcpus() : KVM_MAX_VCPUS;
 }
 
-static void set_default_csv2(struct kvm *kvm)
+static void set_default_spectre(struct kvm *kvm)
 {
 	/*
 	 * The default is to expose CSV2 == 1 if the HW isn't affected.
@@ -114,6 +114,8 @@ static void set_default_csv2(struct kvm *kvm)
 	 */
 	if (arm64_get_spectre_v2_state() == SPECTRE_UNAFFECTED)
 		kvm->arch.pfr0_csv2 = 1;
+	if (arm64_get_meltdown_state() == SPECTRE_UNAFFECTED)
+		kvm->arch.pfr0_csv3 = 1;
 }
 
 /**
@@ -141,7 +143,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	/* The maximum number of VCPUs is limited by the host's GIC model */
 	kvm->arch.max_vcpus = kvm_arm_default_max_vcpus();
 
-	set_default_csv2(kvm);
+	set_default_spectre(kvm);
 
 	return ret;
 out_free_stage2_pgd:
