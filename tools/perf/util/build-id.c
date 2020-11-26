@@ -671,23 +671,14 @@ out:
 	return realname;
 }
 
-int build_id_cache__add_s(const char *sbuild_id, const char *name,
-			  struct nsinfo *nsi, bool is_kallsyms, bool is_vdso)
+int
+build_id_cache__add(const char *sbuild_id, const char *name, const char *realname,
+		    struct nsinfo *nsi, bool is_kallsyms, bool is_vdso)
 {
 	const size_t size = PATH_MAX;
-	char *realname = NULL, *filename = NULL, *dir_name = NULL,
-	     *linkname = zalloc(size), *tmp;
+	char *filename = NULL, *dir_name = NULL, *linkname = zalloc(size), *tmp;
 	char *debugfile = NULL;
 	int err = -1;
-
-	if (!is_kallsyms) {
-		if (!is_vdso)
-			realname = nsinfo__realpath(name, nsi);
-		else
-			realname = realpath(name, NULL);
-		if (!realname)
-			goto out_free;
-	}
 
 	dir_name = build_id_cache__cachedir(sbuild_id, name, nsi, is_kallsyms,
 					    is_vdso);
@@ -788,12 +779,33 @@ int build_id_cache__add_s(const char *sbuild_id, const char *name,
 		pr_debug4("Failed to update/scan SDT cache for %s\n", realname);
 
 out_free:
-	if (!is_kallsyms)
-		free(realname);
 	free(filename);
 	free(debugfile);
 	free(dir_name);
 	free(linkname);
+	return err;
+}
+
+int build_id_cache__add_s(const char *sbuild_id, const char *name,
+			  struct nsinfo *nsi, bool is_kallsyms, bool is_vdso)
+{
+	char *realname = NULL;
+	int err = -1;
+
+	if (!is_kallsyms) {
+		if (!is_vdso)
+			realname = nsinfo__realpath(name, nsi);
+		else
+			realname = realpath(name, NULL);
+		if (!realname)
+			goto out_free;
+	}
+
+	err = build_id_cache__add(sbuild_id, name, realname, nsi, is_kallsyms, is_vdso);
+
+out_free:
+	if (!is_kallsyms)
+		free(realname);
 	return err;
 }
 
