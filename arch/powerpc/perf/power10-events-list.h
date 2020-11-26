@@ -39,6 +39,12 @@ EVENT(PM_IC_PREF_REQ,				0x040a0);
 EVENT(PM_DATA_FROM_L3,				0x01340000001c040);
 /* Demand LD - L3 Miss (not L2 hit and not L3 hit) */
 EVENT(PM_DATA_FROM_L3MISS,			0x300fe);
+/* All successful D-side store dispatches for this thread */
+EVENT(PM_L2_ST,					0x010000046080);
+/* All successful D-side store dispatches for this thread that were L2 Miss */
+EVENT(PM_L2_ST_MISS,				0x26880);
+/* Total HW L3 prefetches(Load+store) */
+EVENT(PM_L3_PF_MISS_L3,				0x100000016080);
 /* Data PTEG reload */
 EVENT(PM_DTLB_MISS,				0x300fc);
 /* ITLB Reloaded */
