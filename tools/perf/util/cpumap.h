@@ -14,7 +14,7 @@ struct aggr_cpu_id {
 struct cpu_aggr_map {
 	refcount_t refcnt;
 	int nr;
-	int map[];
+	struct aggr_cpu_id map[];
 };
 
 struct perf_record_cpu_map_data;

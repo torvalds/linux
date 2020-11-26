@@ -506,7 +506,7 @@ static void aggr_update_shadow(struct perf_stat_config *config,
 	struct evsel *counter;
 
 	for (s = 0; s < config->aggr_map->nr; s++) {
-		id.id = config->aggr_map->map[s];
+		id = config->aggr_map->map[s];
 		evlist__for_each_entry(evlist, counter) {
 			val = 0;
 			for (cpu = 0; cpu < evsel__nr_cpus(counter); cpu++) {
@@ -638,7 +638,7 @@ static void print_counter_aggrdata(struct perf_stat_config *config,
 	struct aggr_cpu_id id;
 	double uval;
 
-	ad.id.id = id.id = config->aggr_map->map[s];
+	ad.id = id = config->aggr_map->map[s];
 	ad.val = ad.ena = ad.run = 0;
 	ad.nr = 0;
 	if (!collect_data(config, counter, aggr_cb, &ad))
@@ -1166,7 +1166,7 @@ static void print_percore_thread(struct perf_stat_config *config,
 	for (int i = 0; i < evsel__nr_cpus(counter); i++) {
 		s2 = config->aggr_get_id(config, evsel__cpus(counter), i);
 		for (s = 0; s < config->aggr_map->nr; s++) {
-			id.id = config->aggr_map->map[s];
+			id = config->aggr_map->map[s];
 			if (cpu_map__compare_aggr_cpu_id(s2, id))
 				break;
 		}

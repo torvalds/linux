@@ -1221,10 +1221,10 @@ static struct aggr_cpu_id perf_stat__get_aggr(struct perf_stat_config *config,
 
 	cpu = map->map[idx];
 
-	if (config->cpus_aggr_map->map[cpu] == -1)
-		config->cpus_aggr_map->map[cpu] = get_id(config, map, idx).id;
+	if (cpu_map__aggr_cpu_id_is_empty(config->cpus_aggr_map->map[cpu]))
+		config->cpus_aggr_map->map[cpu] = get_id(config, map, idx);
 
-	id.id = config->cpus_aggr_map->map[cpu];
+	id = config->cpus_aggr_map->map[cpu];
 	return id;
 }
 

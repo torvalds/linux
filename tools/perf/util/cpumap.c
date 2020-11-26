@@ -97,14 +97,14 @@ struct perf_cpu_map *perf_cpu_map__empty_new(int nr)
 
 struct cpu_aggr_map *cpu_aggr_map__empty_new(int nr)
 {
-	struct cpu_aggr_map *cpus = malloc(sizeof(*cpus) + sizeof(int) * nr);
+	struct cpu_aggr_map *cpus = malloc(sizeof(*cpus) + sizeof(struct aggr_cpu_id) * nr);
 
 	if (cpus != NULL) {
 		int i;
 
 		cpus->nr = nr;
 		for (i = 0; i < nr; i++)
-			cpus->map[i] = -1;
+			cpus->map[i] = cpu_map__empty_aggr_cpu_id();
 
 		refcount_set(&cpus->refcnt, 1);
 	}
@@ -169,11 +169,11 @@ int cpu_map__build_map(struct perf_cpu_map *cpus, struct cpu_aggr_map **res,
 	for (cpu = 0; cpu < nr; cpu++) {
 		s1 = f(cpus, cpu, data);
 		for (s2 = 0; s2 < c->nr; s2++) {
-			if (s1.id == c->map[s2])
+			if (cpu_map__compare_aggr_cpu_id(s1, c->map[s2]))
 				break;
 		}
 		if (s2 == c->nr) {
-			c->map[c->nr] = s1.id;
+			c->map[c->nr] = s1;
 			c->nr++;
 		}
 	}
