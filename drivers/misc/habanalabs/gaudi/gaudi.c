@@ -1732,7 +1732,7 @@ static int gaudi_enable_msi_single(struct hl_device *hdev)
 {
 	int rc, irq;
 
-	dev_info(hdev->dev, "Working in single MSI IRQ mode\n");
+	dev_dbg(hdev->dev, "Working in single MSI IRQ mode\n");
 
 	irq = gaudi_pci_irq_vector(hdev, 0, false);
 	rc = request_irq(irq, gaudi_irq_handler_single, 0,

@@ -526,7 +526,7 @@ static void fw_read_errors(struct hl_device *hdev, u32 boot_err0_reg,
 
 	security_val = RREG32(cpu_security_boot_status_reg);
 	if (security_val & CPU_BOOT_DEV_STS0_ENABLED)
-		dev_info(hdev->dev, "Device security status %#x\n",
+		dev_dbg(hdev->dev, "Device security status %#x\n",
 				security_val);
 }
 
@@ -806,7 +806,7 @@ int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 			hdev->asic_prop.hard_reset_done_by_fw = true;
 	}
 
-	dev_info(hdev->dev, "Firmware hard-reset is %s\n",
+	dev_dbg(hdev->dev, "Firmware hard-reset is %s\n",
 		hdev->asic_prop.hard_reset_done_by_fw ? "enabled" : "disabled");
 
 	dev_info(hdev->dev, "Successfully loaded firmware to device\n");
