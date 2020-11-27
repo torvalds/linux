@@ -2647,16 +2647,6 @@ static inline void mi_raw2_rd_set_addr(void __iomem *base, u32 val)
 	writel(val, base + MI_RAW2_RD_BASE);
 }
 
-static inline void raw_rd_set_pic_size(struct rkisp_stream *stream)
-{
-	struct rkisp_device *dev = stream->ispdev;
-	u32 w = stream->out_fmt.width;
-	u32 h = dev->isp_sdev.in_crop.top + dev->isp_sdev.in_crop.height;
-
-	/* rx height should equal to isp height + offset */
-	rkisp_write(dev, CSI2RX_RAW_RD_PIC_SIZE, h << 16 | w, false);
-}
-
 static inline void raw_rd_ctrl(void __iomem *base, u32 val)
 {
 	writel(val, base + CSI2RX_RAW_RD_CTRL);

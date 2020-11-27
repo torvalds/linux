@@ -60,8 +60,13 @@ isp_param_get_insize(struct rkisp_isp_params_vdev *params_vdev)
 {
 	struct rkisp_device *dev = params_vdev->dev;
 	struct rkisp_isp_subdev *isp_sdev = &dev->isp_sdev;
+	u32 height = isp_sdev->in_crop.height;
 
-	return isp_sdev->in_crop.width * isp_sdev->in_crop.height;
+	if (dev->isp_ver == ISP_V20 &&
+	    dev->csi_dev.rd_mode == HDR_RDBK_FRAME1)
+		height += RKMODULE_EXTEND_LINE;
+
+	return isp_sdev->in_crop.width * height;
 }
 
 static void
@@ -3437,10 +3442,6 @@ isp_gain_config(struct rkisp_isp_params_vdev *params_vdev,
 		mge_en = 1;
 	else
 		mge_en = 0;
-#if RKISP_NORMAL_MERGE_EN
-	if (dev->csi_dev.rd_mode == HDR_RDBK_FRAME1)
-		mge_en = 1;
-#endif
 
 	gain_wsize = rkisp_ioread32(params_vdev, MI_GAIN_WR_SIZE);
 	gain_wsize &= 0x0FFFFFF0;
@@ -3547,7 +3548,7 @@ isp_ldch_config(struct rkisp_isp_params_vdev *params_vdev,
 	struct rkisp_isp_params_val_v2x *priv_val;
 	struct isp2x_ldch_head *ldch_head;
 	int buf_idx, i;
-	u32 value;
+	u32 value, vsize;
 
 	priv_val = (struct rkisp_isp_params_val_v2x *)params_vdev->priv_val;
 	for (i = 0; i < ISP2X_LDCH_BUF_NUM; i++) {
@@ -3573,10 +3574,21 @@ isp_ldch_config(struct rkisp_isp_params_vdev *params_vdev,
 	ldch_head->stat = LDCH_BUF_CHIPINUSE;
 	priv_val->buf_ldch_idx = buf_idx;
 
+	vsize = arg->vsize;
+	/* normal extend line for ldch mesh */
+	if (dev->isp_ver == ISP_V20) {
+		void *buf = priv_val->buf_ldch[buf_idx].vaddr + ldch_head->data_oft;
+		u32 cnt = RKMODULE_EXTEND_LINE / 8;
+
+		value = arg->hsize * 4;
+		memcpy(buf + value * vsize, buf + value * (vsize - cnt), cnt * value);
+		if (dev->csi_dev.rd_mode == HDR_RDBK_FRAME1)
+			vsize += cnt;
+	}
 	value = priv_val->buf_ldch[buf_idx].dma_addr + ldch_head->data_oft;
 	rkisp_iowrite32(params_vdev, value, MI_LUT_LDCH_RD_BASE);
 	rkisp_iowrite32(params_vdev, arg->hsize, MI_LUT_LDCH_RD_H_WSIZE);
-	rkisp_iowrite32(params_vdev, arg->vsize, MI_LUT_LDCH_RD_V_SIZE);
+	rkisp_iowrite32(params_vdev, vsize, MI_LUT_LDCH_RD_V_SIZE);
 }
 
 static void
@@ -4239,10 +4251,14 @@ static void rkisp_clear_first_param_v2x(struct rkisp_isp_params_vdev *params_vde
 static u32 rkisp_get_ldch_meshsize(struct rkisp_isp_params_vdev *params_vdev,
 				   struct rkisp_ldchbuf_size *ldchsize)
 {
-	int mesh_w, mesh_h, map_align;
+	int mesh_w, mesh_h, map_align, height;
+
+	height = ldchsize->meas_height;
+	if (params_vdev->dev->isp_ver == ISP_V20)
+		height += RKMODULE_EXTEND_LINE;
 
 	mesh_w = ((ldchsize->meas_width + (1 << 4) - 1) >> 4) + 1;
-	mesh_h = ((ldchsize->meas_height + (1 << 3) - 1) >> 3) + 1;
+	mesh_h = ((height + (1 << 3) - 1) >> 3) + 1;
 
 	map_align = ((mesh_w + 1) >> 1) << 1;
 	return map_align * mesh_h;

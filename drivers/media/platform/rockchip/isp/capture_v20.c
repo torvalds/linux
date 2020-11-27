@@ -404,6 +404,7 @@ end:
 int hdr_config_dmatx(struct rkisp_device *dev)
 {
 	struct rkisp_stream *stream;
+	struct v4l2_pix_format_mplane pixm;
 
 	if (atomic_inc_return(&dev->hdr.refcnt) > 1 ||
 	    !dev->active_sensor ||
@@ -413,7 +414,7 @@ int hdr_config_dmatx(struct rkisp_device *dev)
 		return 0;
 
 	rkisp_create_hdr_buf(dev);
-
+	memset(&pixm, 0, sizeof(pixm));
 	if (dev->hdr.op_mode == HDR_FRAMEX2_DDR ||
 	    dev->hdr.op_mode == HDR_LINEX2_DDR ||
 	    dev->hdr.op_mode == HDR_FRAMEX3_DDR ||
@@ -423,6 +424,13 @@ int hdr_config_dmatx(struct rkisp_device *dev)
 		stream = &dev->cap_dev.stream[RKISP_STREAM_DMATX0];
 		if (stream->ops && stream->ops->config_mi)
 			stream->ops->config_mi(stream);
+
+		if (!dev->dmarx_dev.trigger) {
+			pixm = stream->out_fmt;
+			stream = &dev->dmarx_dev.stream[RKISP_STREAM_RAWRD0];
+			rkisp_dmarx_set_fmt(stream, pixm);
+			mi_raw_length(stream);
+		}
 	}
 	if (dev->hdr.op_mode == HDR_FRAMEX3_DDR ||
 	    dev->hdr.op_mode == HDR_LINEX3_DDR ||
@@ -430,6 +438,13 @@ int hdr_config_dmatx(struct rkisp_device *dev)
 		stream = &dev->cap_dev.stream[RKISP_STREAM_DMATX1];
 		if (stream->ops && stream->ops->config_mi)
 			stream->ops->config_mi(stream);
+
+		if (!dev->dmarx_dev.trigger) {
+			pixm = stream->out_fmt;
+			stream = &dev->dmarx_dev.stream[RKISP_STREAM_RAWRD1];
+			rkisp_dmarx_set_fmt(stream, pixm);
+			mi_raw_length(stream);
+		}
 	}
 	if (dev->hdr.op_mode == HDR_RDBK_FRAME1 ||
 	    dev->hdr.op_mode == HDR_RDBK_FRAME2 ||
@@ -437,16 +452,19 @@ int hdr_config_dmatx(struct rkisp_device *dev)
 		stream = &dev->cap_dev.stream[RKISP_STREAM_DMATX2];
 		if (stream->ops && stream->ops->config_mi)
 			stream->ops->config_mi(stream);
+
+		if (!dev->dmarx_dev.trigger) {
+			pixm = stream->out_fmt;
+			stream = &dev->dmarx_dev.stream[RKISP_STREAM_RAWRD2];
+			rkisp_dmarx_set_fmt(stream, pixm);
+			mi_raw_length(stream);
+		}
 	}
 
-	if (IS_HDR_RDBK(dev->hdr.op_mode) && !dev->dmarx_dev.trigger) {
+	if (dev->hdr.op_mode != HDR_NORMAL && !dev->dmarx_dev.trigger) {
 		raw_rd_ctrl(dev->base_addr, dev->csi_dev.memory << 2);
-		mi_raw_length(&dev->dmarx_dev.stream[RKISP_STREAM_RAWRD2]);
-		if (dev->hdr.op_mode == HDR_RDBK_FRAME3)
-			mi_raw_length(&dev->dmarx_dev.stream[RKISP_STREAM_RAWRD1]);
-		if (dev->hdr.op_mode == HDR_RDBK_FRAME3 ||
-		    dev->hdr.op_mode == HDR_RDBK_FRAME2)
-			mi_raw_length(&dev->dmarx_dev.stream[RKISP_STREAM_RAWRD0]);
+		if (pixm.width && pixm.height)
+			rkisp_rawrd_set_pic_size(dev, pixm.width, pixm.height);
 	}
 	return 0;
 }
@@ -843,7 +861,6 @@ static int dmatx2_config_mi(struct rkisp_stream *stream)
 				    stream->out_fmt.width,
 				    stream->out_fmt.height);
 		raw_wr_set_pic_offs(stream, 0);
-		raw_rd_set_pic_size(stream);
 		vc = csi->sink[CSI_SRC_CH3 - 1].index;
 		val = SW_CSI_RAW_WR_CH_EN(vc);
 		val |= csi->memory;

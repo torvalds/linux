@@ -370,7 +370,6 @@ static int dmatx2_config_mi(struct rkisp_stream *stream)
 				    stream->out_fmt.width,
 				    stream->out_fmt.height);
 		raw_wr_set_pic_offs(stream, 0);
-		raw_rd_set_pic_size(stream);
 		vc = csi->sink[CSI_SRC_CH3 - 1].index;
 		val = SW_CSI_RAW_WR_CH_EN(vc);
 		val |= csi->memory;
@@ -845,6 +844,9 @@ static void rkisp_stream_stop(struct rkisp_stream *stream)
 	    stream->id == RKISP_STREAM_SP) {
 		rkisp_disable_dcrop(stream, true);
 		rkisp_disable_rsz(stream, true);
+		ret = (stream->id == RKISP_STREAM_MP) ?
+			ISP_FRAME_MP : ISP_FRAME_SP;
+		dev->irq_ends_mask &= ~ret;
 	}
 
 	stream->burst =
@@ -895,6 +897,8 @@ static int rkisp_start(struct rkisp_stream *stream)
 		force_cfg_update(dev);
 		mi_frame_end(stream);
 		hdr_update_dmatx_buf(dev);
+		dev->irq_ends_mask |=
+			(stream->id == RKISP_STREAM_MP) ? ISP_FRAME_MP : ISP_FRAME_SP;
 	}
 	stream->streaming = true;
 
@@ -1390,23 +1394,6 @@ void rkisp_unregister_stream_v21(struct rkisp_device *dev)
 
 /****************  Interrupter Handler ****************/
 
-static void rawrd_frame_end(struct rkisp_device *dev)
-{
-	u32 val = 0;
-
-	if (IS_HDR_RDBK(dev->csi_dev.rd_mode)) {
-		switch (dev->csi_dev.rd_mode) {
-		case HDR_RDBK_FRAME2://for rd0 rd2
-			val |= RAW0_RD_FRAME;
-			/* FALLTHROUGH */
-		default:// for rd2
-			val |= RAW2_RD_FRAME;
-			/* FALLTHROUGH */
-		}
-		rkisp2_rawrd_isr(val, dev);
-	}
-}
-
 void rkisp_mi_v21_isr(u32 mis_val, struct rkisp_device *dev)
 {
 	struct rkisp_stream *stream;
@@ -1462,10 +1449,21 @@ void rkisp_mi_v21_isr(u32 mis_val, struct rkisp_device *dev)
 		}
 	}
 
-	if (mis_val & (CIF_MI_MP_FRAME | CIF_MI_SP_FRAME)) {
-		rawrd_frame_end(dev);
-		if (dev->dmarx_dev.trigger == T_MANUAL)
-			rkisp_csi_trigger_event(dev, T_CMD_END, NULL);
+	if (mis_val & CIF_MI_MP_FRAME) {
+		stream = &dev->cap_dev.stream[RKISP_STREAM_MP];
+		if (!stream->streaming)
+			dev->irq_ends_mask &= ~ISP_FRAME_MP;
+		else
+			dev->irq_ends_mask |= ISP_FRAME_MP;
+		rkisp_check_idle(dev, ISP_FRAME_MP);
+	}
+	if (mis_val & CIF_MI_SP_FRAME) {
+		stream = &dev->cap_dev.stream[RKISP_STREAM_SP];
+		if (!stream->streaming)
+			dev->irq_ends_mask &= ~ISP_FRAME_SP;
+		else
+			dev->irq_ends_mask |= ISP_FRAME_SP;
+		rkisp_check_idle(dev, ISP_FRAME_SP);
 	}
 }
 

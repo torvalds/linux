@@ -532,6 +532,7 @@ static int config_mpfbc(struct rkisp_bridge_device *dev)
 	rkisp_write(dev->ispdev, ISP_MPFBC_BASE, ctrl, true);
 	rkisp_set_bits(dev->ispdev, MI_WR_CTRL, MI_LUM_BURST_MASK,
 		       MI_MIPI_LUM_BURST16, true);
+	dev->ispdev->irq_ends_mask |= ISP_FRAME_MPFBC;
 	return 0;
 }
 
@@ -601,6 +602,7 @@ static int config_mp(struct rkisp_bridge_device *dev)
 	rkisp_set_bits(dev->ispdev, CIF_MI_CTRL, MI_CTRL_MP_FMT_MASK,
 		       MI_CTRL_MP_WRITE_YUV_SPLA | CIF_MI_CTRL_MP_ENABLE |
 		       CIF_MI_MP_AUTOUPDATE_ENABLE, true);
+	dev->ispdev->irq_ends_mask |= ISP_FRAME_MP;
 	return 0;
 }
 
@@ -814,37 +816,33 @@ static void crop_on(struct rkisp_bridge_device *dev)
 	u32 dest_h = dev->crop.height;
 	u32 left = dev->crop.left;
 	u32 top = dev->crop.top;
-	u32 ctrl;
+	u32 ctrl = CIF_DUAL_CROP_CFG_UPD;
 
+	if (ispdev->isp_ver == ISP_V20 &&
+	    ispdev->csi_dev.rd_mode == HDR_RDBK_FRAME1 &&
+	    ispdev->isp_sdev.in_fmt.fmt_type == FMT_BAYER)
+		src_h += RKMODULE_EXTEND_LINE;
+
+	rkisp_write(ispdev, CIF_DUAL_CROP_M_H_OFFS, left, false);
+	rkisp_write(ispdev, CIF_DUAL_CROP_M_V_OFFS, top, false);
+	rkisp_write(ispdev, CIF_DUAL_CROP_M_H_SIZE, dest_w, false);
+	rkisp_write(ispdev, CIF_DUAL_CROP_M_V_SIZE, dest_h, false);
+	ctrl |= rkisp_read(ispdev, CIF_DUAL_CROP_CTRL, true);
 	if (src_w == dest_w && src_h == dest_h)
-		return;
-
-	rkisp_write(ispdev, CIF_DUAL_CROP_M_H_OFFS, left, true);
-	rkisp_write(ispdev, CIF_DUAL_CROP_M_V_OFFS, top, true);
-	rkisp_write(ispdev, CIF_DUAL_CROP_M_H_SIZE, dest_w, true);
-	rkisp_write(ispdev, CIF_DUAL_CROP_M_V_SIZE, dest_h, true);
-	ctrl = rkisp_read(ispdev, CIF_DUAL_CROP_CTRL, true);
-	ctrl |= CIF_DUAL_CROP_MP_MODE_YUV | CIF_DUAL_CROP_CFG_UPD;
-	rkisp_write(ispdev, CIF_DUAL_CROP_CTRL, ctrl, true);
+		ctrl &= ~(CIF_DUAL_CROP_MP_MODE_YUV | CIF_DUAL_CROP_MP_MODE_RAW);
+	else
+		ctrl |= CIF_DUAL_CROP_MP_MODE_YUV;
+	rkisp_write(ispdev, CIF_DUAL_CROP_CTRL, ctrl, false);
 }
 
 static void crop_off(struct rkisp_bridge_device *dev)
 {
 	struct rkisp_device *ispdev = dev->ispdev;
-	u32 src_w = ispdev->isp_sdev.out_crop.width;
-	u32 src_h = ispdev->isp_sdev.out_crop.height;
-	u32 dest_w = dev->crop.width;
-	u32 dest_h = dev->crop.height;
-	u32 ctrl;
-
-	if (src_w == dest_w && src_h == dest_h)
-		return;
+	u32 ctrl = CIF_DUAL_CROP_GEN_CFG_UPD;
 
 	ctrl = rkisp_read(ispdev, CIF_DUAL_CROP_CTRL, true);
-	ctrl &= ~(CIF_DUAL_CROP_MP_MODE_YUV |
-		  CIF_DUAL_CROP_MP_MODE_RAW);
-	ctrl |= CIF_DUAL_CROP_GEN_CFG_UPD;
-	rkisp_write(ispdev, CIF_DUAL_CROP_CTRL, ctrl, true);
+	ctrl &= ~(CIF_DUAL_CROP_MP_MODE_YUV | CIF_DUAL_CROP_MP_MODE_RAW);
+	rkisp_write(ispdev, CIF_DUAL_CROP_CTRL, ctrl, false);
 }
 
 static int bridge_start(struct rkisp_bridge_device *dev)
@@ -858,6 +856,7 @@ static int bridge_start(struct rkisp_bridge_device *dev)
 
 		if (!(dev->work_mode & ISP_ISPP_QUICK))
 			update_mi(dev);
+		hdr_update_dmatx_buf(dev->ispdev);
 	}
 	dev->ispdev->skip_frame = 0;
 	rkisp_stats_first_ddr_config(&dev->ispdev->stats_vdev);
@@ -868,6 +867,7 @@ static int bridge_start(struct rkisp_bridge_device *dev)
 static int bridge_stop(struct rkisp_bridge_device *dev)
 {
 	int ret;
+	u32 irq;
 
 	dev->stopping = true;
 	dev->ops->disable(dev);
@@ -880,6 +880,9 @@ static int bridge_stop(struct rkisp_bridge_device *dev)
 	crop_off(dev);
 	dev->stopping = false;
 	dev->en = false;
+	irq = dev->cfg->frame_end_id;
+	irq = (irq == MI_MPFBC_FRAME) ? ISP_FRAME_MPFBC : ISP_FRAME_MP;
+	dev->ispdev->irq_ends_mask &= ~irq;
 
 	/* make sure ispp last frame done */
 	if (dev->work_mode & ISP_ISPP_QUICK) {
@@ -893,10 +896,15 @@ static int bridge_stop(struct rkisp_bridge_device *dev)
 static int bridge_start_stream(struct v4l2_subdev *sd)
 {
 	struct rkisp_bridge_device *dev = v4l2_get_subdevdata(sd);
-	int ret;
+	int ret = -EINVAL;
 
 	if (WARN_ON(dev->en))
 		return -EBUSY;
+
+	if (dev->ispdev->isp_sdev.out_fmt.fmt_type == FMT_BAYER) {
+		v4l2_err(sd, "no support raw from isp to ispp\n");
+		goto free_buf;
+	}
 
 	if (dev->ispdev->isp_inp & INP_CSI ||
 	    dev->ispdev->isp_inp & INP_DVP ||
@@ -919,7 +927,6 @@ static int bridge_start_stream(struct v4l2_subdev *sd)
 	ret = bridge_start(dev);
 	if (ret)
 		goto close_pipe;
-	hdr_update_dmatx_buf(dev->ispdev);
 
 	/* start sub-devices */
 	ret = dev->ispdev->pipe.set_stream(&dev->ispdev->pipe, true);
@@ -1137,32 +1144,16 @@ void rkisp_bridge_isr(u32 *mis_val, struct rkisp_device *dev)
 {
 	struct rkisp_bridge_device *bridge = &dev->br_dev;
 	void __iomem *base = dev->base_addr;
-	u32 val = 0;
-
-	/* dmarx isr is unreliable, MI frame end to replace it */
-	if (*mis_val & (MI_MP_FRAME | MI_MPFBC_FRAME) &&
-	    IS_HDR_RDBK(dev->csi_dev.rd_mode)) {
-		switch (dev->csi_dev.rd_mode) {
-		case HDR_RDBK_FRAME3://for rd1 rd0 rd2
-			val |= RAW1_RD_FRAME;
-			/* FALLTHROUGH */
-		case HDR_RDBK_FRAME2://for rd0 rd2
-			val |= RAW0_RD_FRAME;
-			/* FALLTHROUGH */
-		default:// for rd2
-			val |= RAW2_RD_FRAME;
-			/* FALLTHROUGH */
-		}
-		rkisp2_rawrd_isr(val, dev);
-	}
+	u32 irq;
 
 	if (!bridge->cfg ||
 	    (bridge->cfg &&
 	     !(*mis_val & bridge->cfg->frame_end_id)))
 		return;
 
-	*mis_val &= ~bridge->cfg->frame_end_id;
-	writel(bridge->cfg->frame_end_id, base + CIF_MI_ICR);
+	irq = bridge->cfg->frame_end_id;
+	*mis_val &= ~irq;
+	writel(irq, base + CIF_MI_ICR);
 
 	if (bridge->stopping) {
 		if (bridge->ops->is_stopped(bridge)) {
@@ -1172,13 +1163,13 @@ void rkisp_bridge_isr(u32 *mis_val, struct rkisp_device *dev)
 		}
 	}
 
+	irq = (irq == MI_MPFBC_FRAME) ? ISP_FRAME_MPFBC : ISP_FRAME_MP;
 	if (!(bridge->work_mode & ISP_ISPP_QUICK)) {
 		frame_end(bridge, bridge->en);
 		if (!bridge->en)
-			dev->isp_state = ISP_STOP;
+			dev->irq_ends_mask &= ~irq;
 	}
-	if (dev->dmarx_dev.trigger == T_MANUAL)
-		rkisp_csi_trigger_event(dev, T_CMD_END, NULL);
+	rkisp_check_idle(dev, irq);
 }
 
 int rkisp_register_bridge_subdev(struct rkisp_device *dev,

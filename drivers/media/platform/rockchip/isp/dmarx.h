@@ -48,6 +48,10 @@ struct rkisp_dmarx_device {
 
 void rkisp_dmarx_isr(u32 mis_val, struct rkisp_device *dev);
 void rkisp2_rawrd_isr(u32 mis_val, struct rkisp_device *dev);
+void rkisp_dmarx_set_fmt(struct rkisp_stream *stream,
+			 struct v4l2_pix_format_mplane pixm);
+void rkisp_rawrd_set_pic_size(struct rkisp_device *dev,
+			      u32 width, u32 height);
 void rkisp_dmarx_get_frame(struct rkisp_device *dev, u32 *id,
 			   u64 *sof_timestamp, u64 *timestamp,
 			   bool sync);

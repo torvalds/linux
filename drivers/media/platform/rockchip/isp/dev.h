@@ -81,6 +81,9 @@ enum rkisp_isp_state {
 	ISP_FRAME_END = BIT(0),
 	ISP_FRAME_IN = BIT(1),
 	ISP_FRAME_VS = BIT(2),
+	ISP_FRAME_MP = BIT(3),
+	ISP_FRAME_SP = BIT(4),
+	ISP_FRAME_MPFBC = BIT(5),
 
 	ISP_STOP = BIT(8),
 	ISP_START = BIT(9),
@@ -210,5 +213,7 @@ struct rkisp_device {
 	size_t resmem_size;
 	int dev_id;
 	unsigned int skip_frame;
+	unsigned int irq_ends;
+	unsigned int irq_ends_mask;
 };
 #endif

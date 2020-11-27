@@ -35,9 +35,10 @@
 #ifndef _RKISP_H
 #define _RKISP_H
 
+#include <linux/interrupt.h>
 #include <linux/kfifo.h>
 #include <linux/platform_device.h>
-#include <linux/interrupt.h>
+#include <linux/rk-camera-module.h>
 #include <media/v4l2-fwnode.h>
 #include "common.h"
 
@@ -156,6 +157,8 @@ int rkisp_update_sensor_info(struct rkisp_device *dev);
 u32 rkisp_mbus_pixelcode_to_v4l2(u32 pixelcode);
 
 void rkisp_isp_queue_event_sof(struct rkisp_isp_subdev *isp);
+
+void rkisp_check_idle(struct rkisp_device *dev, u32 irq);
 
 static inline
 struct ispsd_out_fmt *rkisp_get_ispsd_out_fmt(struct rkisp_isp_subdev *isp_sdev)

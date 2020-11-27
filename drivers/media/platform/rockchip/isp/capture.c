@@ -39,6 +39,7 @@ int rkisp_fcc_xysubs(u32 fcc, u32 *xsubs, u32 *ysubs)
 	case V4L2_PIX_FMT_YUYV:
 	case V4L2_PIX_FMT_YVYU:
 	case V4L2_PIX_FMT_VYUY:
+	case V4L2_PIX_FMT_UYVY:
 	case V4L2_PIX_FMT_YUV422P:
 	case V4L2_PIX_FMT_NV16:
 	case V4L2_PIX_FMT_NV61:
@@ -599,9 +600,15 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 			height = pixm->height / ysubs;
 		}
 
+		if (dev->isp_ver == ISP_V20 &&
+		    fmt->fmt_type == FMT_BAYER &&
+		    stream->id == RKISP_STREAM_DMATX2)
+			height += RKMODULE_EXTEND_LINE;
+
 		if ((dev->isp_ver == ISP_V20 ||
 		     dev->isp_ver == ISP_V21) &&
 		    !dev->csi_dev.memory &&
+		    fmt->fmt_type == FMT_BAYER &&
 		    stream->id != RKISP_STREAM_MP &&
 		    stream->id != RKISP_STREAM_SP)
 			/* compact mode need bytesperline 4byte align */

@@ -320,7 +320,8 @@ static int rawrd_config_mi(struct rkisp_stream *stream)
 		val |= CIF_CSI2_DT_RAW12;
 	}
 	rkisp_write(dev, CSI2RX_DATA_IDS_1, val, false);
-	raw_rd_set_pic_size(stream);
+	rkisp_rawrd_set_pic_size(dev, stream->out_fmt.width,
+				 stream->out_fmt.height);
 	rkisp_set_bits(dev, CSI2RX_RAW_RD_CTRL, 0,
 		       dev->csi_dev.memory << 2 |
 		       1 << (stream->id - 1), true);
@@ -374,14 +375,6 @@ static void update_rawrd(struct rkisp_stream *stream)
 			val = readl(base + rawwr_addr);
 		}
 		mi_set_y_addr(stream, val);
-#if RKISP_NORMAL_MERGE_EN
-		if (dev->isp_ver == ISP_V20 &&
-		    dev->csi_dev.rd_mode == HDR_RDBK_FRAME1) {
-			rkisp_write(dev, MI_RAW0_RD_BASE, val, true);
-			rkisp_write(dev, MI_RAW0_RD_LENGTH,
-				rkisp_read(dev, MI_RAW2_RD_LENGTH, true), true);
-		}
-#endif
 	}
 }
 
@@ -666,8 +659,14 @@ static int rkisp_set_fmt(struct rkisp_stream *stream,
 			height = pixm->height / ysubs;
 		}
 
+		if (stream->ispdev->isp_ver == ISP_V20 &&
+		    stream->id == RKISP_STREAM_RAWRD2 &&
+		    fmt->fmt_type == FMT_BAYER)
+			height += RKMODULE_EXTEND_LINE;
+
 		if ((stream->ispdev->isp_ver == ISP_V20 ||
 		     stream->ispdev->isp_ver == ISP_V21) &&
+		    fmt->fmt_type == FMT_BAYER &&
 		    !stream->ispdev->csi_dev.memory &&
 		    stream->id != RKISP_STREAM_DMARX)
 			bytesperline = ALIGN(width * fmt->bpp[i] / 8, 256);
@@ -947,6 +946,31 @@ static int dmarx_init(struct rkisp_device *dev, u32 id)
 	sink = &dev->isp_sdev.sd.entity;
 	return media_create_pad_link(source, 0, sink,
 		RKISP_ISP_PAD_SINK, stream->linked);
+}
+
+void rkisp_dmarx_set_fmt(struct rkisp_stream *stream,
+			 struct v4l2_pix_format_mplane pixm)
+{
+	rkisp_set_fmt(stream, &pixm, false);
+}
+
+void rkisp_rawrd_set_pic_size(struct rkisp_device *dev,
+			      u32 width, u32 height)
+{
+	struct rkisp_isp_subdev *sdev = &dev->isp_sdev;
+
+	/* 1. isp20 extend line for normal read back mode to fix internal bug
+	 * 2. rx height should equal to isp height + offset for read back mode
+	 */
+	if (dev->isp_ver == ISP_V20 &&
+	    sdev->in_fmt.fmt_type == FMT_BAYER &&
+	    sdev->out_fmt.fmt_type != FMT_BAYER &&
+	    dev->csi_dev.rd_mode == HDR_RDBK_FRAME1)
+		height += RKMODULE_EXTEND_LINE;
+	else if (IS_HDR_RDBK(dev->hdr.op_mode))
+		height = sdev->in_crop.top + sdev->in_crop.height;
+
+	rkisp_write(dev, CSI2RX_RAW_RD_PIC_SIZE, height << 16 | width, false);
 }
 
 void rkisp_dmarx_get_frame(struct rkisp_device *dev, u32 *id,

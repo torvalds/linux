@@ -13,54 +13,6 @@
 #include "dev.h"
 #include "regs.h"
 
-static void __maybe_unused fixed_normal_merge_config(struct rkisp_device *dev)
-{
-	struct rkisp_stream *stream;
-	int i;
-
-	if (dev->isp_ver != ISP_V20 &&
-	    dev->csi_dev.rd_mode != HDR_RDBK_FRAME1)
-		return;
-
-	stream = &dev->dmarx_dev.stream[RKISP_STREAM_RAWRD2];
-	if (stream->curr_buf)
-		rkisp_write(dev, MI_RAW0_RD_BASE,
-			    stream->curr_buf->buff_addr[0], false);
-	rkisp_write(dev, MI_RAW0_RD_LENGTH,
-		    rkisp_read(dev, MI_RAW2_RD_LENGTH, false), false);
-
-	rkisp_write(dev, ISP_HDRMGE_BASE, SW_HDRMGE_EN |
-		    SW_HDRMGE_MODE_FRAMEX2, false);
-	rkisp_write(dev, ISP_HDRMGE_GAIN0, 0xfff0040, false);
-	rkisp_write(dev, ISP_HDRMGE_GAIN1, 0xfff0040, false);
-	rkisp_write(dev, ISP_HDRMGE_GAIN2, 0x40, false);
-	rkisp_write(dev, ISP_HDRMGE_CONS_DIFF, 0x26e626cd, false);
-	for (i = ISP_HDRMGE_DIFF_Y0; i <= ISP_HDRMGE_DIFF_Y3; i += 4)
-		rkisp_write(dev, i, 0, false);
-	rkisp_write(dev, ISP_HDRMGE_DIFF_Y4, 0x10001, false);
-	rkisp_write(dev, ISP_HDRMGE_DIFF_Y5, 0x40004, false);
-	rkisp_write(dev, ISP_HDRMGE_DIFF_Y6, 0xd000d, false);
-	rkisp_write(dev, ISP_HDRMGE_DIFF_Y7, 0x2b002b, false);
-	rkisp_write(dev, ISP_HDRMGE_DIFF_Y8, 0x890089, false);
-	rkisp_write(dev, ISP_HDRMGE_DIFF_Y9, 0x1680168, false);
-	rkisp_write(dev, ISP_HDRMGE_DIFF_Y10, 0x29e029e, false);
-	rkisp_write(dev, ISP_HDRMGE_DIFF_Y11, 0x3790379, false);
-	rkisp_write(dev, ISP_HDRMGE_DIFF_Y12, 0x3d603d6, false);
-	rkisp_write(dev, ISP_HDRMGE_DIFF_Y13, 0x3f303f3, false);
-	rkisp_write(dev, ISP_HDRMGE_DIFF_Y14, 0x3fc03fc, false);
-	rkisp_write(dev, ISP_HDRMGE_DIFF_Y15, 0x3ff03ff, false);
-	rkisp_write(dev, ISP_HDRMGE_DIFF_Y16, 0x3ff03ff, false);
-	for (i = ISP_HDRMGE_OVER_Y0; i <= ISP_HDRMGE_OVER_Y7; i += 4)
-		rkisp_write(dev, i, 0, false);
-	rkisp_write(dev, ISP_HDRMGE_OVER_Y8, 0x4, false);
-	rkisp_write(dev, ISP_HDRMGE_OVER_Y9, 0x2a, false);
-	rkisp_write(dev, ISP_HDRMGE_OVER_Y10, 0x162, false);
-	rkisp_write(dev, ISP_HDRMGE_OVER_Y11, 0x376, false);
-	rkisp_write(dev, ISP_HDRMGE_OVER_Y12, 0x3f3, false);
-	for (i = ISP_HDRMGE_OVER_Y12; i <= ISP_HDRMGE_OVER_Y16; i += 4)
-		rkisp_write(dev, i, 0x3ff, false);
-}
-
 static void get_remote_mipi_sensor(struct rkisp_device *dev,
 				  struct v4l2_subdev **sensor_sd, u32 function)
 {
@@ -497,23 +449,14 @@ int rkisp_csi_config_patch(struct rkisp_device *dev)
 	}
 
 	if (IS_HDR_RDBK(dev->hdr.op_mode)) {
-		dev->csi_dev.rd_mode = dev->hdr.op_mode;
 		rkisp_set_bits(dev, CTRL_SWS_CFG,
 			       0, SW_MPIP_DROP_FRM_DIS, true);
-#if RKISP_NORMAL_MERGE_EN
-		if (!dev->hw_dev->is_mi_update &&
-		    dev->hdr.op_mode == HDR_RDBK_FRAME1 &&
-		    dev->isp_ver == ISP_V20)
-			rkisp_write(dev, CSI2RX_CTRL0,
-				    SW_IBUF_OP_MODE(HDR_RDBK_FRAME2) |
-				    SW_HDR_ESP_MODE(dev->hdr.esp_mode), true);
-		fixed_normal_merge_config(dev);
-#endif
 	}
 	dev->csi_dev.frame_cnt = -1;
 	dev->csi_dev.frame_cnt_x1 = -1;
 	dev->csi_dev.frame_cnt_x2 = -1;
 	dev->csi_dev.frame_cnt_x3 = -1;
+	dev->csi_dev.rd_mode = dev->hdr.op_mode;
 	return ret;
 }
 
@@ -526,9 +469,11 @@ void rkisp_trigger_read_back(struct rkisp_csi_device *csi, u8 dma2frm, u32 mode)
 	struct rkisp_device *dev = csi->ispdev;
 	struct rkisp_hw_dev *hw = dev->hw_dev;
 	struct rkisp_isp_params_vdev *params_vdev = &dev->params_vdev;
-	u32 val, cur_frame_id, tmp;
+	u32 val, cur_frame_id, tmp, rd_mode;
 	bool is_upd = false;
 
+	if (dev->isp_ver == ISP_V21)
+		dma2frm = 0;
 	hw->cur_dev_id = dev->dev_id;
 	rkisp_dmarx_get_frame(dev, &cur_frame_id, NULL, NULL, true);
 	if (dma2frm > 2)
@@ -543,32 +488,56 @@ void rkisp_trigger_read_back(struct rkisp_csi_device *csi, u8 dma2frm, u32 mode)
 
 	val = 0;
 	if (mode & T_START_X1) {
-		csi->rd_mode = HDR_RDBK_FRAME1;
-#if RKISP_NORMAL_MERGE_EN
-		fixed_normal_merge_config(dev);
-		if (dev->isp_ver == ISP_V20)
-			val = SW_HDRMGE_EN | SW_HDRMGE_MODE_FRAMEX2;
-#endif
+		rd_mode = HDR_RDBK_FRAME1;
 	} else if (mode & T_START_X2) {
-		csi->rd_mode = HDR_RDBK_FRAME2;
+		rd_mode = HDR_RDBK_FRAME2;
 		val = SW_HDRMGE_EN | SW_HDRMGE_MODE_FRAMEX2;
 	} else if (mode & T_START_X3) {
-		csi->rd_mode = HDR_RDBK_FRAME3;
+		rd_mode = HDR_RDBK_FRAME3;
 		val = SW_HDRMGE_EN | SW_HDRMGE_MODE_FRAMEX3;
+	} else {
+		rd_mode = csi->rd_mode;
+		val = rkisp_read(dev, ISP_HDRMGE_BASE, false) & 0xf;
 	}
-
 	tmp = rkisp_read(dev, ISP_HDRMGE_BASE, false) & 0xf;
 	if (val != tmp) {
 		rkisp_write(dev, ISP_HDRMGE_BASE, val, false);
 		dev->skip_frame = 2;
 		is_upd = true;
 	}
+	if (dev->isp_ver == ISP_V20 && dev->dmarx_dev.trigger == T_MANUAL) {
+		if (csi->rd_mode != rd_mode && dev->br_dev.en) {
+			tmp = dev->isp_sdev.in_crop.height;
+			val = rkisp_read(dev, CIF_DUAL_CROP_CTRL, false);
+			if (rd_mode == HDR_RDBK_FRAME1) {
+				val |= CIF_DUAL_CROP_MP_MODE_YUV;
+				tmp += RKMODULE_EXTEND_LINE;
+			} else {
+				val &= ~CIF_DUAL_CROP_MP_MODE_YUV;
+			}
+			rkisp_write(dev, CIF_DUAL_CROP_CTRL, val, false);
+			rkisp_write(dev, CIF_ISP_ACQ_V_SIZE, tmp, false);
+			rkisp_write(dev, CIF_ISP_OUT_V_SIZE, tmp, false);
+		}
+		csi->rd_mode = rd_mode;
+		rkisp_rawrd_set_pic_size(dev,
+			dev->dmarx_dev.stream[RKISP_STREAM_RAWRD2].out_fmt.width,
+			dev->dmarx_dev.stream[RKISP_STREAM_RAWRD2].out_fmt.height);
+	}
+	csi->rd_mode = rd_mode;
+
 	/* configure hdr params in rdbk mode */
+	if (is_upd)
+		rkisp_params_first_cfg(&dev->params_vdev,
+				       &dev->isp_sdev.in_fmt,
+				       dev->isp_sdev.quantization);
 	rkisp_params_cfg(params_vdev, cur_frame_id, dma2frm + 1);
 
 	if (!hw->is_single) {
 		rkisp_update_regs(dev, CTRL_VI_ISP_PATH, SUPER_IMP_COLOR_CR);
-		rkisp_update_regs(dev, ISP_ACQ_PROP, ISP_LSC_CTRL);
+		rkisp_update_regs(dev, DUAL_CROP_M_H_OFFS, DUAL_CROP_S_V_SIZE);
+		rkisp_update_regs(dev, ISP_ACQ_PROP, DUAL_CROP_CTRL);
+		rkisp_update_regs(dev, ISP_GAMMA_OUT_CTRL, ISP_LSC_CTRL);
 		rkisp_update_regs(dev, ISP_LSC_XGRAD_01, ISP_RAWAWB_RAM_DATA);
 		is_upd = true;
 	}
@@ -585,10 +554,6 @@ void rkisp_trigger_read_back(struct rkisp_csi_device *csi, u8 dma2frm, u32 mode)
 	val = rkisp_read(dev, CSI2RX_CTRL0, true);
 	val &= ~SW_IBUF_OP_MODE(0xf);
 	tmp = SW_IBUF_OP_MODE(csi->rd_mode);
-#if RKISP_NORMAL_MERGE_EN
-	if (csi->rd_mode == HDR_RDBK_FRAME1 && dev->isp_ver == ISP_V20)
-		tmp = SW_IBUF_OP_MODE(HDR_RDBK_FRAME2);
-#endif
 	val |= tmp | SW_CSI2RX_EN | SW_DMA_2FRM_MODE(dma2frm);
 	v4l2_dbg(2, rkisp_debug, &dev->v4l2_dev,
 		 "readback frame:%d time:%d 0x%x\n",
