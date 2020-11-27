@@ -650,7 +650,6 @@ static void pulse8_disconnect(struct serio *serio)
 	struct pulse8 *pulse8 = serio_get_drvdata(serio);
 
 	cec_unregister_adapter(pulse8->adap);
-	pulse8->serio = NULL;
 	serio_set_drvdata(serio, NULL);
 	serio_close(serio);
 }
@@ -830,8 +829,10 @@ static int pulse8_connect(struct serio *serio, struct serio_driver *drv)
 	pulse8->adap = cec_allocate_adapter(&pulse8_cec_adap_ops, pulse8,
 					    dev_name(&serio->dev), caps, 1);
 	err = PTR_ERR_OR_ZERO(pulse8->adap);
-	if (err < 0)
-		goto free_device;
+	if (err < 0) {
+		kfree(pulse8);
+		return err;
+	}
 
 	pulse8->dev = &serio->dev;
 	serio_set_drvdata(serio, pulse8);
@@ -874,8 +875,6 @@ close_serio:
 	serio_close(serio);
 delete_adap:
 	cec_delete_adapter(pulse8->adap);
-free_device:
-	kfree(pulse8);
 	return err;
 }
 
