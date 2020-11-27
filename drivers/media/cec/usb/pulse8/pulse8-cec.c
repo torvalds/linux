@@ -88,13 +88,15 @@ enum pulse8_msgcodes {
 	MSGCODE_SET_PHYSICAL_ADDRESS,	/* 0x20 */
 	MSGCODE_GET_DEVICE_TYPE,
 	MSGCODE_SET_DEVICE_TYPE,
-	MSGCODE_GET_HDMI_VERSION,
+	MSGCODE_GET_HDMI_VERSION,	/* Removed in FW >= 10 */
 	MSGCODE_SET_HDMI_VERSION,
 	MSGCODE_GET_OSD_NAME,
 	MSGCODE_SET_OSD_NAME,
 	MSGCODE_WRITE_EEPROM,
 	MSGCODE_GET_ADAPTER_TYPE,	/* 0x28 */
 	MSGCODE_SET_ACTIVE_SOURCE,
+	MSGCODE_GET_AUTO_POWER_ON,	/* New for FW >= 10 */
+	MSGCODE_SET_AUTO_POWER_ON,
 
 	MSGCODE_FRAME_EOM = 0x80,
 	MSGCODE_FRAME_ACK = 0x40,
@@ -143,6 +145,8 @@ static const char * const pulse8_msgnames[] = {
 	"WRITE_EEPROM",
 	"GET_ADAPTER_TYPE",
 	"SET_ACTIVE_SOURCE",
+	"GET_AUTO_POWER_ON",
+	"SET_AUTO_POWER_ON",
 };
 
 static const char *pulse8_msgname(u8 cmd)
@@ -579,12 +583,14 @@ static int pulse8_cec_adap_log_addr(struct cec_adapter *adap, u8 log_addr)
 	if (err)
 		goto unlock;
 
-	cmd[0] = MSGCODE_SET_HDMI_VERSION;
-	cmd[1] = adap->log_addrs.cec_version;
-	err = pulse8_send_and_wait(pulse8, cmd, 2,
-				   MSGCODE_COMMAND_ACCEPTED, 0);
-	if (err)
-		goto unlock;
+	if (pulse8->vers < 10) {
+		cmd[0] = MSGCODE_SET_HDMI_VERSION;
+		cmd[1] = adap->log_addrs.cec_version;
+		err = pulse8_send_and_wait(pulse8, cmd, 2,
+					   MSGCODE_COMMAND_ACCEPTED, 0);
+		if (err)
+			goto unlock;
+	}
 
 	if (adap->log_addrs.osd_name[0]) {
 		size_t osd_len = strlen(adap->log_addrs.osd_name);
@@ -691,6 +697,14 @@ static int pulse8_setup(struct pulse8 *pulse8, struct serio *serio,
 	dev_dbg(pulse8->dev, "Autonomous mode: %s",
 		data[0] ? "on" : "off");
 
+	if (pulse8->vers >= 10) {
+		cmd[0] = MSGCODE_GET_AUTO_POWER_ON;
+		err = pulse8_send_and_wait(pulse8, cmd, 1, cmd[0], 1);
+		if (!err)
+			dev_dbg(pulse8->dev, "Auto Power On: %s",
+				data[0] ? "on" : "off");
+	}
+
 	cmd[0] = MSGCODE_GET_DEVICE_TYPE;
 	err = pulse8_send_and_wait(pulse8, cmd, 1, cmd[0], 1);
 	if (err)
@@ -752,12 +766,15 @@ static int pulse8_setup(struct pulse8 *pulse8, struct serio *serio,
 	dev_dbg(pulse8->dev, "Physical address: %x.%x.%x.%x\n",
 		cec_phys_addr_exp(*pa));
 
-	cmd[0] = MSGCODE_GET_HDMI_VERSION;
-	err = pulse8_send_and_wait(pulse8, cmd, 1, cmd[0], 1);
-	if (err)
-		return err;
-	log_addrs->cec_version = data[0];
-	dev_dbg(pulse8->dev, "CEC version: %d\n", log_addrs->cec_version);
+	log_addrs->cec_version = CEC_OP_CEC_VERSION_1_4;
+	if (pulse8->vers < 10) {
+		cmd[0] = MSGCODE_GET_HDMI_VERSION;
+		err = pulse8_send_and_wait(pulse8, cmd, 1, cmd[0], 1);
+		if (err)
+			return err;
+		log_addrs->cec_version = data[0];
+		dev_dbg(pulse8->dev, "CEC version: %d\n", log_addrs->cec_version);
+	}
 
 	cmd[0] = MSGCODE_GET_OSD_NAME;
 	err = pulse8_send_and_wait(pulse8, cmd, 1, cmd[0], 0);
