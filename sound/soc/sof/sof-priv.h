@@ -101,7 +101,7 @@ struct snd_sof_dsp_ops {
 
 	/* DSP core boot / reset */
 	int (*run)(struct snd_sof_dev *sof_dev); /* mandatory */
-	int (*stall)(struct snd_sof_dev *sof_dev); /* optional */
+	int (*stall)(struct snd_sof_dev *sof_dev, unsigned int core_mask); /* optional */
 	int (*reset)(struct snd_sof_dev *sof_dev); /* optional */
 	int (*core_power_up)(struct snd_sof_dev *sof_dev,
 			     unsigned int core_mask); /* optional */
