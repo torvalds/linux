@@ -103,10 +103,13 @@ static int __shmem_rw(struct file *file, loff_t off,
 			return PTR_ERR(page);
 
 		vaddr = kmap(page);
-		if (write)
+		if (write) {
 			memcpy(vaddr + offset_in_page(off), ptr, this);
-		else
+			set_page_dirty(page);
+		} else {
 			memcpy(ptr, vaddr + offset_in_page(off), this);
+		}
+		mark_page_accessed(page);
 		kunmap(page);
 		put_page(page);
 
