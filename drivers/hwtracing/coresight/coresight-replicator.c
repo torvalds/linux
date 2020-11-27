@@ -374,7 +374,7 @@ static struct platform_driver static_replicator_driver = {
 	.remove         = static_replicator_remove,
 	.driver         = {
 		.name   = "coresight-static-replicator",
-		.owner	= THIS_MODULE,
+		/* THIS_MODULE is taken care of by platform_driver_register() */
 		.of_match_table = of_match_ptr(static_replicator_match),
 		.acpi_match_table = ACPI_PTR(static_replicator_acpi_ids),
 		.pm	= &replicator_dev_pm_ops,

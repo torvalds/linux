@@ -356,7 +356,7 @@ static struct platform_driver static_funnel_driver = {
 	.remove          = static_funnel_remove,
 	.driver         = {
 		.name   = "coresight-static-funnel",
-		.owner	= THIS_MODULE,
+		/* THIS_MODULE is taken care of by platform_driver_register() */
 		.of_match_table = static_funnel_match,
 		.acpi_match_table = ACPI_PTR(static_funnel_ids),
 		.pm	= &funnel_dev_pm_ops,
