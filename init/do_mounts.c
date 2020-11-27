@@ -76,11 +76,11 @@ struct uuidcmp {
  */
 static int match_dev_by_uuid(struct device *dev, const void *data)
 {
+	struct block_device *bdev = dev_to_bdev(dev);
 	const struct uuidcmp *cmp = data;
-	struct hd_struct *part = dev_to_part(dev);
 
-	if (!part->bdev->bd_meta_info ||
-	    strncasecmp(cmp->uuid, part->bdev->bd_meta_info->uuid, cmp->len))
+	if (!bdev->bd_meta_info ||
+	    strncasecmp(cmp->uuid, bdev->bd_meta_info->uuid, cmp->len))
 		return 0;
 	return 1;
 }
@@ -133,13 +133,13 @@ static dev_t devt_from_partuuid(const char *uuid_str)
 		 * Attempt to find the requested partition by adding an offset
 		 * to the partition number found by UUID.
 		 */
-		struct hd_struct *part;
+		struct block_device *part;
 
-		part = disk_get_part(dev_to_disk(dev),
-				     dev_to_part(dev)->bdev->bd_partno + offset);
+		part = bdget_disk(dev_to_disk(dev),
+				  dev_to_bdev(dev)->bd_partno + offset);
 		if (part) {
-			devt = part_devt(part);
-			put_device(part_to_dev(part));
+			devt = part->bd_dev;
+			bdput(part);
 		}
 	} else {
 		devt = dev->devt;
@@ -166,11 +166,10 @@ clear_root_wait:
  */
 static int match_dev_by_label(struct device *dev, const void *data)
 {
+	struct block_device *bdev = dev_to_bdev(dev);
 	const char *label = data;
-	struct hd_struct *part = dev_to_part(dev);
 
-	if (!part->bdev->bd_meta_info ||
-	    strcmp(label, part->bdev->bd_meta_info->volname))
+	if (!bdev->bd_meta_info || strcmp(label, bdev->bd_meta_info->volname))
 		return 0;
 	return 1;
 }

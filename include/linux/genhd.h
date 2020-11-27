@@ -19,12 +19,6 @@
 #include <linux/blk_types.h>
 #include <asm/local.h>
 
-#define dev_to_part(device)	container_of((device), struct hd_struct, __dev)
-#define part_to_dev(part)	(&((part)->__dev))
-
-#define dev_to_disk(device)	(dev_to_part(device)->bdev->bd_disk)
-#define disk_to_dev(disk)	(part_to_dev((disk)->part0->bd_part))
-
 extern const struct device_type disk_type;
 extern struct device_type part_type;
 extern struct class block_class;
@@ -49,11 +43,6 @@ extern struct class block_class;
 struct partition_meta_info {
 	char uuid[PARTITION_META_INFO_UUIDLTH];
 	u8 volname[PARTITION_META_INFO_VOLNAMELTH];
-};
-
-struct hd_struct {
-	struct block_device *bdev;
-	struct device __dev;
 };
 
 /**
@@ -190,18 +179,20 @@ struct gendisk {
 	struct lockdep_map lockdep_map;
 };
 
+/*
+ * The gendisk is refcounted by the part0 block_device, and the bd_device
+ * therein is also used for device model presentation in sysfs.
+ */
+#define dev_to_disk(device) \
+	(dev_to_bdev(device)->bd_disk)
+#define disk_to_dev(disk) \
+	(&((disk)->part0->bd_device))
+
 #if IS_REACHABLE(CONFIG_CDROM)
 #define disk_to_cdi(disk)	((disk)->cdi)
 #else
 #define disk_to_cdi(disk)	NULL
 #endif
-
-static inline struct gendisk *part_to_disk(struct hd_struct *part)
-{
-	if (unlikely(!part))
-		return NULL;
-	return part->bdev->bd_disk;
-}
 
 static inline int disk_max_parts(struct gendisk *disk)
 {
@@ -219,19 +210,6 @@ static inline bool disk_part_scan_enabled(struct gendisk *disk)
 static inline dev_t disk_devt(struct gendisk *disk)
 {
 	return MKDEV(disk->major, disk->first_minor);
-}
-
-static inline dev_t part_devt(struct hd_struct *part)
-{
-	return part_to_dev(part)->devt;
-}
-
-extern struct hd_struct *disk_get_part(struct gendisk *disk, int partno);
-
-static inline void disk_put_part(struct hd_struct *part)
-{
-	if (likely(part))
-		put_device(part_to_dev(part));
 }
 
 /*

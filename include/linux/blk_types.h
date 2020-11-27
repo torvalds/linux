@@ -8,6 +8,7 @@
 
 #include <linux/types.h>
 #include <linux/bvec.h>
+#include <linux/device.h>
 #include <linux/ktime.h>
 
 struct bio_set;
@@ -30,6 +31,7 @@ struct block_device {
 	struct super_block *	bd_super;
 	struct mutex		bd_mutex;	/* open/close mutex */
 	void *			bd_claiming;
+	struct device		bd_device;
 	void *			bd_holder;
 	int			bd_holders;
 	bool			bd_write_holder;
@@ -38,7 +40,6 @@ struct block_device {
 #endif
 	struct kobject		*bd_holder_dir;
 	u8			bd_partno;
-	struct hd_struct *	bd_part;
 	/* number of times partitions within this device have been opened. */
 	unsigned		bd_part_count;
 
@@ -61,8 +62,11 @@ struct block_device {
 #define bdev_whole(_bdev) \
 	((_bdev)->bd_disk->part0)
 
+#define dev_to_bdev(device) \
+	container_of((device), struct block_device, bd_device)
+
 #define bdev_kobj(_bdev) \
-	(&part_to_dev((_bdev)->bd_part)->kobj)
+	(&((_bdev)->bd_device.kobj))
 
 /*
  * Block error status values.  See block/blk-core:blk_errors for the details.

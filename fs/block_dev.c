@@ -39,7 +39,6 @@
 
 struct bdev_inode {
 	struct block_device bdev;
-	struct hd_struct hd;
 	struct inode vfs_inode;
 };
 
@@ -887,9 +886,6 @@ struct block_device *bdev_alloc(struct gendisk *disk, u8 partno)
 		iput(inode);
 		return NULL;
 	}
-	bdev->bd_part = &BDEV_I(inode)->hd;
-	memset(bdev->bd_part, 0, sizeof(*bdev->bd_part));
-	bdev->bd_part->bdev = bdev;
 	return bdev;
 }
 
@@ -925,11 +921,6 @@ struct block_device *bdgrab(struct block_device *bdev)
 	return bdev;
 }
 EXPORT_SYMBOL(bdgrab);
-
-struct block_device *bdget_part(struct hd_struct *part)
-{
-	return bdget(part_devt(part));
-}
 
 long nr_blockdev_pages(void)
 {

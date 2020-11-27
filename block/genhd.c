@@ -106,13 +106,14 @@ const char *bdevname(struct block_device *bdev, char *buf)
 }
 EXPORT_SYMBOL(bdevname);
 
-static void part_stat_read_all(struct hd_struct *part, struct disk_stats *stat)
+static void part_stat_read_all(struct block_device *part,
+		struct disk_stats *stat)
 {
 	int cpu;
 
 	memset(stat, 0, sizeof(struct disk_stats));
 	for_each_possible_cpu(cpu) {
-		struct disk_stats *ptr = per_cpu_ptr(part->bdev->bd_stats, cpu);
+		struct disk_stats *ptr = per_cpu_ptr(part->bd_stats, cpu);
 		int group;
 
 		for (group = 0; group < NR_STAT_GROUPS; group++) {
@@ -165,39 +166,6 @@ struct block_device *__disk_get_part(struct gendisk *disk, int partno)
 	if (unlikely(partno < 0 || partno >= ptbl->len))
 		return NULL;
 	return rcu_dereference(ptbl->part[partno]);
-}
-
-/**
- * disk_get_part - get partition
- * @disk: disk to look partition from
- * @partno: partition number
- *
- * Look for partition @partno from @disk.  If found, increment
- * reference count and return it.
- *
- * CONTEXT:
- * Don't care.
- *
- * RETURNS:
- * Pointer to the found partition on success, NULL if not found.
- */
-struct hd_struct *disk_get_part(struct gendisk *disk, int partno)
-{
-	struct block_device *bdev;
-	struct hd_struct *part;
-
-	rcu_read_lock();
-	bdev = __disk_get_part(disk, partno);
-	if (!bdev)
-		goto fail;
-	part = bdev->bd_part;
-	if (!kobject_get_unless_zero(&part_to_dev(part)->kobj))
-		goto fail;
-	rcu_read_unlock();
-	return part;
-fail:
-	rcu_read_unlock();
-	return NULL;
 }
 
 /**
@@ -859,7 +827,7 @@ void del_gendisk(struct gendisk *disk)
 			     DISK_PITER_INCL_EMPTY | DISK_PITER_REVERSE);
 	while ((part = disk_part_iter_next(&piter))) {
 		invalidate_partition(part);
-		delete_partition(part->bd_part);
+		delete_partition(part);
 	}
 	disk_part_iter_exit(&piter);
 
@@ -952,13 +920,13 @@ void blk_request_module(dev_t devt)
  */
 struct block_device *bdget_disk(struct gendisk *disk, int partno)
 {
-	struct hd_struct *part;
 	struct block_device *bdev = NULL;
 
-	part = disk_get_part(disk, partno);
-	if (part)
-		bdev = bdget_part(part);
-	disk_put_part(part);
+	rcu_read_lock();
+	bdev = __disk_get_part(disk, partno);
+	if (bdev && !bdgrab(bdev))
+		bdev = NULL;
+	rcu_read_unlock();
 
 	return bdev;
 }
@@ -1175,24 +1143,22 @@ static ssize_t disk_ro_show(struct device *dev,
 ssize_t part_size_show(struct device *dev,
 		       struct device_attribute *attr, char *buf)
 {
-	struct hd_struct *p = dev_to_part(dev);
-
-	return sprintf(buf, "%llu\n", bdev_nr_sectors(p->bdev));
+	return sprintf(buf, "%llu\n", bdev_nr_sectors(dev_to_bdev(dev)));
 }
 
 ssize_t part_stat_show(struct device *dev,
 		       struct device_attribute *attr, char *buf)
 {
-	struct hd_struct *p = dev_to_part(dev);
-	struct request_queue *q = part_to_disk(p)->queue;
+	struct block_device *bdev = dev_to_bdev(dev);
+	struct request_queue *q = bdev->bd_disk->queue;
 	struct disk_stats stat;
 	unsigned int inflight;
 
-	part_stat_read_all(p, &stat);
+	part_stat_read_all(bdev, &stat);
 	if (queue_is_mq(q))
-		inflight = blk_mq_in_flight(q, p->bdev);
+		inflight = blk_mq_in_flight(q, bdev);
 	else
-		inflight = part_in_flight(p->bdev);
+		inflight = part_in_flight(bdev);
 
 	return sprintf(buf,
 		"%8lu %8lu %8llu %8u "
@@ -1227,14 +1193,14 @@ ssize_t part_stat_show(struct device *dev,
 ssize_t part_inflight_show(struct device *dev, struct device_attribute *attr,
 			   char *buf)
 {
-	struct hd_struct *p = dev_to_part(dev);
-	struct request_queue *q = part_to_disk(p)->queue;
+	struct block_device *bdev = dev_to_bdev(dev);
+	struct request_queue *q = bdev->bd_disk->queue;
 	unsigned int inflight[2];
 
 	if (queue_is_mq(q))
-		blk_mq_in_flight_rw(q, p->bdev, inflight);
+		blk_mq_in_flight_rw(q, bdev, inflight);
 	else
-		part_in_flight_rw(p->bdev, inflight);
+		part_in_flight_rw(bdev, inflight);
 
 	return sprintf(buf, "%8u %8u\n", inflight[0], inflight[1]);
 }
@@ -1282,20 +1248,17 @@ static DEVICE_ATTR(badblocks, 0644, disk_badblocks_show, disk_badblocks_store);
 ssize_t part_fail_show(struct device *dev,
 		       struct device_attribute *attr, char *buf)
 {
-	struct hd_struct *p = dev_to_part(dev);
-
-	return sprintf(buf, "%d\n", p->bdev->bd_make_it_fail);
+	return sprintf(buf, "%d\n", dev_to_bdev(dev)->bd_make_it_fail);
 }
 
 ssize_t part_fail_store(struct device *dev,
 			struct device_attribute *attr,
 			const char *buf, size_t count)
 {
-	struct hd_struct *p = dev_to_part(dev);
 	int i;
 
 	if (count > 0 && sscanf(buf, "%d", &i) > 0)
-		p->bdev->bd_make_it_fail = i;
+		dev_to_bdev(dev)->bd_make_it_fail = i;
 
 	return count;
 }
@@ -1505,7 +1468,7 @@ static int diskstats_show(struct seq_file *seqf, void *v)
 
 	disk_part_iter_init(&piter, gp, DISK_PITER_INCL_EMPTY_PART0);
 	while ((hd = disk_part_iter_next(&piter))) {
-		part_stat_read_all(hd->bd_part, &stat);
+		part_stat_read_all(hd, &stat);
 		if (queue_is_mq(gp->queue))
 			inflight = blk_mq_in_flight(gp->queue, hd);
 		else
@@ -1577,7 +1540,7 @@ dev_t blk_lookup_devt(const char *name, int partno)
 	class_dev_iter_init(&iter, &block_class, NULL, &disk_type);
 	while ((dev = class_dev_iter_next(&iter))) {
 		struct gendisk *disk = dev_to_disk(dev);
-		struct hd_struct *part;
+		struct block_device *part;
 
 		if (strcmp(dev_name(dev), name))
 			continue;
@@ -1590,13 +1553,12 @@ dev_t blk_lookup_devt(const char *name, int partno)
 				     MINOR(dev->devt) + partno);
 			break;
 		}
-		part = disk_get_part(disk, partno);
+		part = bdget_disk(disk, partno);
 		if (part) {
-			devt = part_devt(part);
-			disk_put_part(part);
+			devt = part->bd_dev;
+			bdput(part);
 			break;
 		}
-		disk_put_part(part);
 	}
 	class_dev_iter_exit(&iter);
 	return devt;
