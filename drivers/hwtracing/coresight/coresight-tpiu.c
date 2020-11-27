@@ -49,7 +49,7 @@
 
 DEFINE_CORESIGHT_DEVLIST(tpiu_devs, "tpiu");
 
-/**
+/*
  * @base:	memory mapped base address for this component.
  * @atclk:	optional clock for the core parts of the TPIU.
  * @csdev:	component vitals needed by the framework.
