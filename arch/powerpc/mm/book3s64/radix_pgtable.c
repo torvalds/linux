@@ -620,9 +620,6 @@ void setup_kuap(bool disabled)
 		cur_cpu_spec->mmu_features |= MMU_FTR_RADIX_KUAP;
 	}
 
-	/* Make sure userspace can't change the AMR */
-	mtspr(SPRN_UAMOR, 0);
-
 	/*
 	 * Set the default kernel AMR values on all cpus.
 	 */
@@ -721,6 +718,9 @@ void radix__early_init_mmu_secondary(void)
 
 	radix__switch_mmu_context(NULL, &init_mm);
 	tlbiel_all();
+
+	/* Make sure userspace can't change the AMR */
+	mtspr(SPRN_UAMOR, 0);
 }
 
 void radix__mmu_cleanup_all(void)
