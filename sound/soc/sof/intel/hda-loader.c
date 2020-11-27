@@ -19,6 +19,7 @@
 #include <sound/hdaudio_ext.h>
 #include <sound/hda_register.h>
 #include <sound/sof.h>
+#include "ext_manifest.h"
 #include "../ops.h"
 #include "hda.h"
 
@@ -469,4 +470,38 @@ int hda_dsp_post_fw_run(struct snd_sof_dev *sdev)
 
 	/* re-enable clock gating and power gating */
 	return hda_dsp_ctrl_clock_power_gating(sdev, true);
+}
+
+int hda_dsp_ext_man_get_cavs_config_data(struct snd_sof_dev *sdev,
+					 const struct sof_ext_man_elem_header *hdr)
+{
+	const struct sof_ext_man_cavs_config_data *config_data =
+		container_of(hdr, struct sof_ext_man_cavs_config_data, hdr);
+	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
+	int i, elem_num;
+
+	/* calculate total number of config data elements */
+	elem_num = (hdr->size - sizeof(struct sof_ext_man_elem_header))
+		   / sizeof(struct sof_config_elem);
+	if (elem_num <= 0) {
+		dev_err(sdev->dev, "cavs config data is inconsistent: %d\n", elem_num);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < elem_num; i++)
+		switch (config_data->elems[i].token) {
+		case SOF_EXT_MAN_CAVS_CONFIG_EMPTY:
+			/* skip empty token */
+			break;
+		case SOF_EXT_MAN_CAVS_CONFIG_CAVS_LPRO:
+			hda->clk_config_lpro = config_data->elems[i].value;
+			dev_dbg(sdev->dev, "FW clock config: %s\n",
+				hda->clk_config_lpro ? "LPRO" : "HPRO");
+			break;
+		default:
+			dev_warn(sdev->dev, "unsupported token type: %d\n",
+				 config_data->elems[i].token);
+		}
+
+	return 0;
 }
