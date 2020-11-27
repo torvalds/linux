@@ -198,6 +198,7 @@ static int rga2_buf_size_cal(unsigned long yrgb_addr, unsigned long uv_addr, uns
 	    pageCount = end - start;
             break;
         case RGA2_FORMAT_BGRA_8888 :
+	case RGA2_FORMAT_BGRX_8888 :
             stride = (w * 4 + 3) & (~3);
             size_yrgb = stride * h;
             start = yrgb_addr >> PAGE_SHIFT;
