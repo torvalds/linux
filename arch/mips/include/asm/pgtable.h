@@ -25,6 +25,8 @@
 struct mm_struct;
 struct vm_area_struct;
 
+#define PAGE_SHARED	vm_get_page_prot(VM_READ|VM_WRITE|VM_SHARED)
+
 #define PAGE_KERNEL	__pgprot(_PAGE_PRESENT | __READABLE | __WRITEABLE | \
 				 _PAGE_GLOBAL | _page_cachable_default)
 #define PAGE_KERNEL_NC	__pgprot(_PAGE_PRESENT | __READABLE | __WRITEABLE | \
