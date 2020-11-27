@@ -520,13 +520,31 @@ static void snd_soc_flush_all_delayed_work(struct snd_soc_card *card)
 }
 
 #ifdef CONFIG_PM_SLEEP
+static void soc_playback_digital_mute(struct snd_soc_card *card, int mute)
+{
+	struct snd_soc_pcm_runtime *rtd;
+	struct snd_soc_dai *dai;
+	int playback = SNDRV_PCM_STREAM_PLAYBACK;
+	int i;
+
+	for_each_card_rtds(card, rtd) {
+
+		if (rtd->dai_link->ignore_suspend)
+			continue;
+
+		for_each_rtd_dais(rtd, i, dai) {
+			if (snd_soc_dai_stream_active(dai, playback))
+				snd_soc_dai_digital_mute(dai, mute, playback);
+		}
+	}
+}
+
 /* powers down audio subsystem for suspend */
 int snd_soc_suspend(struct device *dev)
 {
 	struct snd_soc_card *card = dev_get_drvdata(dev);
 	struct snd_soc_component *component;
 	struct snd_soc_pcm_runtime *rtd;
-	int playback = SNDRV_PCM_STREAM_PLAYBACK;
 	int i;
 
 	/* If the card is not initialized yet there is nothing to do */
@@ -543,17 +561,7 @@ int snd_soc_suspend(struct device *dev)
 	snd_power_change_state(card->snd_card, SNDRV_CTL_POWER_D3hot);
 
 	/* mute any active DACs */
-	for_each_card_rtds(card, rtd) {
-		struct snd_soc_dai *dai;
-
-		if (rtd->dai_link->ignore_suspend)
-			continue;
-
-		for_each_rtd_dais(rtd, i, dai) {
-			if (snd_soc_dai_stream_active(dai, playback))
-				snd_soc_dai_digital_mute(dai, 1, playback);
-		}
-	}
+	soc_playback_digital_mute(card, 1);
 
 	/* suspend all pcms */
 	for_each_card_rtds(card, rtd) {
@@ -650,7 +658,6 @@ static void soc_resume_deferred(struct work_struct *work)
 				     deferred_resume_work);
 	struct snd_soc_pcm_runtime *rtd;
 	struct snd_soc_component *component;
-	int i;
 
 	/*
 	 * our power state is still SNDRV_CTL_POWER_D3hot from suspend time,
@@ -681,18 +688,7 @@ static void soc_resume_deferred(struct work_struct *work)
 	}
 
 	/* unmute any active DACs */
-	for_each_card_rtds(card, rtd) {
-		struct snd_soc_dai *dai;
-		int playback = SNDRV_PCM_STREAM_PLAYBACK;
-
-		if (rtd->dai_link->ignore_suspend)
-			continue;
-
-		for_each_rtd_dais(rtd, i, dai) {
-			if (snd_soc_dai_stream_active(dai, playback))
-				snd_soc_dai_digital_mute(dai, 0, playback);
-		}
-	}
+	soc_playback_digital_mute(card, 0);
 
 	snd_soc_card_resume_post(card);
 
