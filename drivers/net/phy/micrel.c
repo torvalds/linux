@@ -207,7 +207,7 @@ static irqreturn_t kszphy_handle_interrupt(struct phy_device *phydev)
 		return IRQ_NONE;
 	}
 
-	if ((irq_status & KSZPHY_INTCS_STATUS))
+	if (!(irq_status & KSZPHY_INTCS_STATUS))
 		return IRQ_NONE;
 
 	phy_trigger_machine(phydev);
