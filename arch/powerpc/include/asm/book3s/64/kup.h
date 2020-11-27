@@ -303,12 +303,29 @@ static inline void set_kuap(unsigned long value)
 	isync();
 }
 
-static inline bool
-bad_kuap_fault(struct pt_regs *regs, unsigned long address, bool is_write)
+#define RADIX_KUAP_BLOCK_READ	UL(0x4000000000000000)
+#define RADIX_KUAP_BLOCK_WRITE	UL(0x8000000000000000)
+
+static inline bool bad_kuap_fault(struct pt_regs *regs, unsigned long address,
+				  bool is_write, unsigned long error_code)
 {
-	return WARN(mmu_has_feature(MMU_FTR_BOOK3S_KUAP) &&
-		    (regs->kuap & (is_write ? AMR_KUAP_BLOCK_WRITE : AMR_KUAP_BLOCK_READ)),
-		    "Bug: %s fault blocked by AMR!", is_write ? "Write" : "Read");
+	if (!mmu_has_feature(MMU_FTR_BOOK3S_KUAP))
+		return false;
+
+	if (radix_enabled()) {
+		/*
+		 * Will be a storage protection fault.
+		 * Only check the details of AMR[0]
+		 */
+		return WARN((regs->kuap & (is_write ? RADIX_KUAP_BLOCK_WRITE : RADIX_KUAP_BLOCK_READ)),
+			    "Bug: %s fault blocked by AMR!", is_write ? "Write" : "Read");
+	}
+	/*
+	 * We don't want to WARN here because userspace can setup
+	 * keys such that a kernel access to user address can cause
+	 * fault
+	 */
+	return !!(error_code & DSISR_KEYFAULT);
 }
 
 static __always_inline void allow_user_access(void __user *to, const void __user *from,
