@@ -238,7 +238,7 @@ unlock:
 
 /* The 'mapping' part of i915_gem_object_pin_map() below */
 static void *i915_gem_object_map_page(struct drm_i915_gem_object *obj,
-		enum i915_map_type type)
+				      enum i915_map_type type)
 {
 	unsigned long n_pages = obj->base.size >> PAGE_SHIFT, i;
 	struct page *stack[32], **pages = stack, *page;
@@ -281,7 +281,7 @@ static void *i915_gem_object_map_page(struct drm_i915_gem_object *obj,
 		/* Too big for stack -- allocate temporary array instead */
 		pages = kvmalloc_array(n_pages, sizeof(*pages), GFP_KERNEL);
 		if (!pages)
-			return NULL;
+			return ERR_PTR(-ENOMEM);
 	}
 
 	i = 0;
@@ -294,7 +294,7 @@ static void *i915_gem_object_map_page(struct drm_i915_gem_object *obj,
 }
 
 static void *i915_gem_object_map_pfn(struct drm_i915_gem_object *obj,
-		enum i915_map_type type)
+				     enum i915_map_type type)
 {
 	resource_size_t iomap = obj->mm.region->iomap.base -
 		obj->mm.region->region.start;
@@ -305,13 +305,13 @@ static void *i915_gem_object_map_pfn(struct drm_i915_gem_object *obj,
 	void *vaddr;
 
 	if (type != I915_MAP_WC)
-		return NULL;
+		return ERR_PTR(-ENODEV);
 
 	if (n_pfn > ARRAY_SIZE(stack)) {
 		/* Too big for stack -- allocate temporary array instead */
 		pfns = kvmalloc_array(n_pfn, sizeof(*pfns), GFP_KERNEL);
 		if (!pfns)
-			return NULL;
+			return ERR_PTR(-ENOMEM);
 	}
 
 	i = 0;
@@ -349,8 +349,10 @@ void *i915_gem_object_pin_map(struct drm_i915_gem_object *obj,
 			GEM_BUG_ON(i915_gem_object_has_pinned_pages(obj));
 
 			err = ____i915_gem_object_get_pages(obj);
-			if (err)
-				goto err_unlock;
+			if (err) {
+				ptr = ERR_PTR(err);
+				goto out_unlock;
+			}
 
 			smp_mb__before_atomic();
 		}
@@ -362,7 +364,7 @@ void *i915_gem_object_pin_map(struct drm_i915_gem_object *obj,
 	ptr = page_unpack_bits(obj->mm.mapping, &has_type);
 	if (ptr && has_type != type) {
 		if (pinned) {
-			err = -EBUSY;
+			ptr = ERR_PTR(-EBUSY);
 			goto err_unpin;
 		}
 
@@ -374,15 +376,13 @@ void *i915_gem_object_pin_map(struct drm_i915_gem_object *obj,
 	if (!ptr) {
 		if (GEM_WARN_ON(type == I915_MAP_WC &&
 				!static_cpu_has(X86_FEATURE_PAT)))
-			ptr = NULL;
+			ptr = ERR_PTR(-ENODEV);
 		else if (i915_gem_object_has_struct_page(obj))
 			ptr = i915_gem_object_map_page(obj, type);
 		else
 			ptr = i915_gem_object_map_pfn(obj, type);
-		if (!ptr) {
-			err = -ENOMEM;
+		if (IS_ERR(ptr))
 			goto err_unpin;
-		}
 
 		obj->mm.mapping = page_pack_bits(ptr, type);
 	}
@@ -393,8 +393,6 @@ out_unlock:
 
 err_unpin:
 	atomic_dec(&obj->mm.pages_pin_count);
-err_unlock:
-	ptr = ERR_PTR(err);
 	goto out_unlock;
 }
 
