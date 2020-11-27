@@ -356,9 +356,25 @@ bool die_is_signed_type(Dwarf_Die *tp_die)
 bool die_is_func_def(Dwarf_Die *dw_die)
 {
 	Dwarf_Attribute attr;
+	Dwarf_Addr addr = 0;
 
-	return (dwarf_tag(dw_die) == DW_TAG_subprogram &&
-		dwarf_attr(dw_die, DW_AT_declaration, &attr) == NULL);
+	if (dwarf_tag(dw_die) != DW_TAG_subprogram)
+		return false;
+
+	if (dwarf_attr(dw_die, DW_AT_declaration, &attr))
+		return false;
+
+	/*
+	 * DW_AT_declaration can be lost from function declaration
+	 * by gcc's bug #97060.
+	 * So we need to check this subprogram DIE has DW_AT_inline
+	 * or an entry address.
+	 */
+	if (!dwarf_attr(dw_die, DW_AT_inline, &attr) &&
+	    die_entrypc(dw_die, &addr) < 0)
+		return false;
+
+	return true;
 }
 
 /**
