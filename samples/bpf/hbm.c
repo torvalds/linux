@@ -46,7 +46,6 @@
 #include <bpf/bpf.h>
 #include <getopt.h>
 
-#include "bpf_load.h"
 #include "bpf_rlimit.h"
 #include "cgroup_helpers.h"
 #include "hbm.h"
@@ -70,9 +69,9 @@ static void do_error(char *msg, bool errno_flag);
 
 #define DEBUGFS "/sys/kernel/debug/tracing/"
 
-struct bpf_object *obj;
-int bpfprog_fd;
-int cgroup_storage_fd;
+static struct bpf_program *bpf_prog;
+static struct bpf_object *obj;
+static int queue_stats_fd;
 
 static void read_trace_pipe2(void)
 {
@@ -121,56 +120,50 @@ static void do_error(char *msg, bool errno_flag)
 
 static int prog_load(char *prog)
 {
-	struct bpf_prog_load_attr prog_load_attr = {
-		.prog_type = BPF_PROG_TYPE_CGROUP_SKB,
-		.file = prog,
-		.expected_attach_type = BPF_CGROUP_INET_EGRESS,
-	};
-	int map_fd;
-	struct bpf_map *map;
-
-	int ret = 0;
-
-	if (access(prog, O_RDONLY) < 0) {
-		printf("Error accessing file %s: %s\n", prog, strerror(errno));
+	obj = bpf_object__open_file(prog, NULL);
+	if (libbpf_get_error(obj)) {
+		printf("ERROR: opening BPF object file failed\n");
 		return 1;
 	}
-	if (bpf_prog_load_xattr(&prog_load_attr, &obj, &bpfprog_fd))
-		ret = 1;
-	if (!ret) {
-		map = bpf_object__find_map_by_name(obj, "queue_stats");
-		map_fd = bpf_map__fd(map);
-		if (map_fd < 0) {
-			printf("Map not found: %s\n", strerror(map_fd));
-			ret = 1;
-		}
+
+	/* load BPF program */
+	if (bpf_object__load(obj)) {
+		printf("ERROR: loading BPF object file failed\n");
+		goto err;
 	}
 
-	if (ret) {
-		printf("ERROR: bpf_prog_load_xattr failed for: %s\n", prog);
-		printf("  Output from verifier:\n%s\n------\n", bpf_log_buf);
-		ret = -1;
-	} else {
-		ret = map_fd;
+	bpf_prog = bpf_object__find_program_by_title(obj, "cgroup_skb/egress");
+	if (!bpf_prog) {
+		printf("ERROR: finding a prog in obj file failed\n");
+		goto err;
 	}
 
-	return ret;
+	queue_stats_fd = bpf_object__find_map_fd_by_name(obj, "queue_stats");
+	if (queue_stats_fd < 0) {
+		printf("ERROR: finding a map in obj file failed\n");
+		goto err;
+	}
+
+	return 0;
+
+err:
+	bpf_object__close(obj);
+	return 1;
 }
 
 static int run_bpf_prog(char *prog, int cg_id)
 {
-	int map_fd;
-	int rc = 0;
+	struct hbm_queue_stats qstats = {0};
+	char cg_dir[100], cg_pin_path[100];
+	struct bpf_link *link = NULL;
 	int key = 0;
 	int cg1 = 0;
-	int type = BPF_CGROUP_INET_EGRESS;
-	char cg_dir[100];
-	struct hbm_queue_stats qstats = {0};
+	int rc = 0;
 
 	sprintf(cg_dir, "/hbm%d", cg_id);
-	map_fd = prog_load(prog);
-	if (map_fd  == -1)
-		return 1;
+	rc = prog_load(prog);
+	if (rc != 0)
+		return rc;
 
 	if (setup_cgroup_environment()) {
 		printf("ERROR: setting cgroup environment\n");
@@ -190,16 +183,24 @@ static int run_bpf_prog(char *prog, int cg_id)
 	qstats.stats = stats_flag ? 1 : 0;
 	qstats.loopback = loopback_flag ? 1 : 0;
 	qstats.no_cn = no_cn_flag ? 1 : 0;
-	if (bpf_map_update_elem(map_fd, &key, &qstats, BPF_ANY)) {
+	if (bpf_map_update_elem(queue_stats_fd, &key, &qstats, BPF_ANY)) {
 		printf("ERROR: Could not update map element\n");
 		goto err;
 	}
 
 	if (!outFlag)
-		type = BPF_CGROUP_INET_INGRESS;
-	if (bpf_prog_attach(bpfprog_fd, cg1, type, 0)) {
-		printf("ERROR: bpf_prog_attach fails!\n");
-		log_err("Attaching prog");
+		bpf_program__set_expected_attach_type(bpf_prog, BPF_CGROUP_INET_INGRESS);
+
+	link = bpf_program__attach_cgroup(bpf_prog, cg1);
+	if (libbpf_get_error(link)) {
+		fprintf(stderr, "ERROR: bpf_program__attach_cgroup failed\n");
+		goto err;
+	}
+
+	sprintf(cg_pin_path, "/sys/fs/bpf/hbm%d", cg_id);
+	rc = bpf_link__pin(link, cg_pin_path);
+	if (rc < 0) {
+		printf("ERROR: bpf_link__pin failed: %d\n", rc);
 		goto err;
 	}
 
@@ -213,7 +214,7 @@ static int run_bpf_prog(char *prog, int cg_id)
 #define DELTA_RATE_CHECK 10000		/* in us */
 #define RATE_THRESHOLD 9500000000	/* 9.5 Gbps */
 
-		bpf_map_lookup_elem(map_fd, &key, &qstats);
+		bpf_map_lookup_elem(queue_stats_fd, &key, &qstats);
 		if (gettimeofday(&t0, NULL) < 0)
 			do_error("gettimeofday failed", true);
 		t_last = t0;
@@ -242,7 +243,7 @@ static int run_bpf_prog(char *prog, int cg_id)
 			fclose(fin);
 			printf("  new_eth_tx_bytes:%llu\n",
 			       new_eth_tx_bytes);
-			bpf_map_lookup_elem(map_fd, &key, &qstats);
+			bpf_map_lookup_elem(queue_stats_fd, &key, &qstats);
 			new_cg_tx_bytes = qstats.bytes_total;
 			delta_bytes = new_eth_tx_bytes - last_eth_tx_bytes;
 			last_eth_tx_bytes = new_eth_tx_bytes;
@@ -289,14 +290,14 @@ static int run_bpf_prog(char *prog, int cg_id)
 					rate = minRate;
 				qstats.rate = rate;
 			}
-			if (bpf_map_update_elem(map_fd, &key, &qstats, BPF_ANY))
+			if (bpf_map_update_elem(queue_stats_fd, &key, &qstats, BPF_ANY))
 				do_error("update map element fails", false);
 		}
 	} else {
 		sleep(dur);
 	}
 	// Get stats!
-	if (stats_flag && bpf_map_lookup_elem(map_fd, &key, &qstats)) {
+	if (stats_flag && bpf_map_lookup_elem(queue_stats_fd, &key, &qstats)) {
 		char fname[100];
 		FILE *fout;
 
@@ -394,14 +395,20 @@ static int run_bpf_prog(char *prog, int cg_id)
 
 	if (debugFlag)
 		read_trace_pipe2();
-	return rc;
+	goto cleanup;
+
 err:
 	rc = 1;
 
-	if (cg1)
-		close(cg1);
-	cleanup_cgroup_environment();
+cleanup:
+	bpf_link__destroy(link);
+	bpf_object__close(obj);
 
+	if (cg1 != -1)
+		close(cg1);
+
+	if (rc != 0)
+		cleanup_cgroup_environment();
 	return rc;
 }
 
