@@ -954,11 +954,11 @@ static void tmc_sync_etr_buf(struct tmc_drvdata *drvdata)
 		dev_dbg(&drvdata->csdev->dev,
 			"tmc memory error detected, truncating buffer\n");
 		etr_buf->len = 0;
-		etr_buf->full = 0;
+		etr_buf->full = false;
 		return;
 	}
 
-	etr_buf->full = status & TMC_STS_FULL;
+	etr_buf->full = !!(status & TMC_STS_FULL);
 
 	WARN_ON(!etr_buf->ops || !etr_buf->ops->sync);
 
