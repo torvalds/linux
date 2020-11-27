@@ -689,7 +689,6 @@ static int qcom_slim_ngd_init_rx_msgq(struct qcom_slim_ngd_ctrl *ctrl)
 	ctrl->rx_base = dma_alloc_coherent(dev, size, &ctrl->rx_phys_base,
 					   GFP_KERNEL);
 	if (!ctrl->rx_base) {
-		dev_err(dev, "dma_alloc_coherent failed\n");
 		ret = -ENOMEM;
 		goto rel_rx;
 	}
@@ -728,7 +727,6 @@ static int qcom_slim_ngd_init_tx_msgq(struct qcom_slim_ngd_ctrl *ctrl)
 	ctrl->tx_base = dma_alloc_coherent(dev, size, &ctrl->tx_phys_base,
 					   GFP_KERNEL);
 	if (!ctrl->tx_base) {
-		dev_err(dev, "dma_alloc_coherent failed\n");
 		ret = -EINVAL;
 		goto rel_tx;
 	}
