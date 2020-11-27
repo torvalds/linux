@@ -61,8 +61,11 @@ struct pt_regs
 				unsigned long amr;
 #endif
 			};
+#ifdef CONFIG_PPC_PKEY
+			unsigned long iamr;
+#endif
 		};
-		unsigned long __pad[2];	/* Maintain 16 byte interrupt stack alignment */
+		unsigned long __pad[4];	/* Maintain 16 byte interrupt stack alignment */
 	};
 };
 #endif

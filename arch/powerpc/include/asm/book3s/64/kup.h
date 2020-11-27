@@ -13,17 +13,46 @@
 
 #ifdef __ASSEMBLY__
 
-.macro kuap_restore_amr	gpr1, gpr2
-#ifdef CONFIG_PPC_KUAP
+.macro kuap_user_restore gpr1
+#if defined(CONFIG_PPC_PKEY)
 	BEGIN_MMU_FTR_SECTION_NESTED(67)
-	mfspr	\gpr1, SPRN_AMR
+	/*
+	 * AMR and IAMR are going to be different when
+	 * returning to userspace.
+	 */
+	ld	\gpr1, STACK_REGS_AMR(r1)
+	isync
+	mtspr	SPRN_AMR, \gpr1
+	/*
+	 * Restore IAMR only when returning to userspace
+	 */
+	ld	\gpr1, STACK_REGS_IAMR(r1)
+	mtspr	SPRN_IAMR, \gpr1
+
+	/* No isync required, see kuap_user_restore() */
+	END_MMU_FTR_SECTION_NESTED_IFSET(MMU_FTR_PKEY, 67)
+#endif
+.endm
+
+.macro kuap_kernel_restore	gpr1, gpr2
+#if defined(CONFIG_PPC_PKEY)
+
+	BEGIN_MMU_FTR_SECTION_NESTED(67)
+	/*
+	 * AMR is going to be mostly the same since we are
+	 * returning to the kernel. Compare and do a mtspr.
+	 */
 	ld	\gpr2, STACK_REGS_AMR(r1)
+	mfspr	\gpr1, SPRN_AMR
 	cmpd	\gpr1, \gpr2
-	beq	998f
+	beq	100f
 	isync
 	mtspr	SPRN_AMR, \gpr2
-	/* No isync required, see kuap_restore_amr() */
-998:
+	/*
+	 * No isync required, see kuap_restore_amr()
+	 * No need to restore IAMR when returning to kernel space.
+	 */
+100:
 	END_MMU_FTR_SECTION_NESTED_IFSET(MMU_FTR_BOOK3S_KUAP, 67)
 #endif
 .endm
@@ -42,23 +71,98 @@
 .endm
 #endif
 
+/*
+ *	if (pkey) {
+ *
+ *		save AMR -> stack;
+ *		if (kuap) {
+ *			if (AMR != BLOCKED)
+ *				KUAP_BLOCKED -> AMR;
+ *		}
+ *		if (from_user) {
+ *			save IAMR -> stack;
+ *			if (kuep) {
+ *				KUEP_BLOCKED ->IAMR
+ *			}
+ *		}
+ *		return;
+ *	}
+ *
+ *	if (kuap) {
+ *		if (from_kernel) {
+ *			save AMR -> stack;
+ *			if (AMR != BLOCKED)
+ *				KUAP_BLOCKED -> AMR;
+ *		}
+ *
+ *	}
+ */
 .macro kuap_save_amr_and_lock gpr1, gpr2, use_cr, msr_pr_cr
-#ifdef CONFIG_PPC_KUAP
+#if defined(CONFIG_PPC_PKEY)
+
+	/*
+	 * if both pkey and kuap is disabled, nothing to do
+	 */
+	BEGIN_MMU_FTR_SECTION_NESTED(68)
+	b	100f  // skip_save_amr
+	END_MMU_FTR_SECTION_NESTED_IFCLR(MMU_FTR_PKEY | MMU_FTR_BOOK3S_KUAP, 68)
+
+	/*
+	 * if pkey is disabled and we are entering from userspace
+	 * don't do anything.
+	 */
 	BEGIN_MMU_FTR_SECTION_NESTED(67)
 	.ifnb \msr_pr_cr
-	bne	\msr_pr_cr, 99f
+	/*
+	 * Without pkey we are not changing AMR outside the kernel
+	 * hence skip this completely.
+	 */
+	bne	\msr_pr_cr, 100f  // from userspace
 	.endif
+        END_MMU_FTR_SECTION_NESTED_IFCLR(MMU_FTR_PKEY, 67)
+
+	/*
+	 * pkey is enabled or pkey is disabled but entering from kernel
+	 */
 	mfspr	\gpr1, SPRN_AMR
 	std	\gpr1, STACK_REGS_AMR(r1)
-	li	\gpr2, (AMR_KUAP_BLOCKED >> AMR_KUAP_SHIFT)
-	sldi	\gpr2, \gpr2, AMR_KUAP_SHIFT
+
+	/*
+	 * update kernel AMR with AMR_KUAP_BLOCKED only
+	 * if KUAP feature is enabled
+	 */
+	BEGIN_MMU_FTR_SECTION_NESTED(69)
+	LOAD_REG_IMMEDIATE(\gpr2, AMR_KUAP_BLOCKED)
 	cmpd	\use_cr, \gpr1, \gpr2
-	beq	\use_cr, 99f
-	// We don't isync here because we very recently entered via rfid
+	beq	\use_cr, 102f
+	/*
+	 * We don't isync here because we very recently entered via an interrupt
+	 */
 	mtspr	SPRN_AMR, \gpr2
 	isync
-99:
-	END_MMU_FTR_SECTION_NESTED_IFSET(MMU_FTR_BOOK3S_KUAP, 67)
+102:
+	END_MMU_FTR_SECTION_NESTED_IFSET(MMU_FTR_BOOK3S_KUAP, 69)
+
+	/*
+	 * if entering from kernel we don't need save IAMR
+	 */
+	.ifnb \msr_pr_cr
+	beq	\msr_pr_cr, 100f // from kernel space
+	mfspr	\gpr1, SPRN_IAMR
+	std	\gpr1, STACK_REGS_IAMR(r1)
+
+	/*
+	 * update kernel IAMR with AMR_KUEP_BLOCKED only
+	 * if KUEP feature is enabled
+	 */
+	BEGIN_MMU_FTR_SECTION_NESTED(70)
+	LOAD_REG_IMMEDIATE(\gpr2, AMR_KUEP_BLOCKED)
+	mtspr	SPRN_IAMR, \gpr2
+	isync
+	END_MMU_FTR_SECTION_NESTED_IFSET(MMU_FTR_BOOK3S_KUEP, 70)
+	.endif
+
+100: // skip_save_amr
 #endif
 .endm
 
@@ -68,22 +172,42 @@
 
 DECLARE_STATIC_KEY_FALSE(uaccess_flush_key);
 
-#ifdef CONFIG_PPC_KUAP
+#ifdef CONFIG_PPC_PKEY
 
 #include <asm/mmu.h>
 #include <asm/ptrace.h>
 
-static inline void kuap_restore_amr(struct pt_regs *regs, unsigned long amr)
+static inline void kuap_user_restore(struct pt_regs *regs)
 {
-	if (mmu_has_feature(MMU_FTR_BOOK3S_KUAP) && unlikely(regs->kuap != amr)) {
-		isync();
-		mtspr(SPRN_AMR, regs->kuap);
-		/*
-		 * No isync required here because we are about to RFI back to
-		 * previous context before any user accesses would be made,
-		 * which is a CSI.
-		 */
+	if (!mmu_has_feature(MMU_FTR_PKEY))
+		return;
+
+	isync();
+	mtspr(SPRN_AMR, regs->amr);
+	mtspr(SPRN_IAMR, regs->iamr);
+	/*
+	 * No isync required here because we are about to rfi
+	 * back to previous context before any user accesses
+	 * would be made, which is a CSI.
+	 */
+}
+static inline void kuap_kernel_restore(struct pt_regs *regs,
+					   unsigned long amr)
+{
+	if (mmu_has_feature(MMU_FTR_BOOK3S_KUAP)) {
+		if (unlikely(regs->amr != amr)) {
+			isync();
+			mtspr(SPRN_AMR, regs->amr);
+			/*
+			 * No isync required here because we are about to rfi
+			 * back to previous context before any user accesses
+			 * would be made, which is a CSI.
+			 */
+		}
 	}
+	/*
+	 * No need to restore IAMR when returning to kernel space.
+	 */
 }
 
 static inline unsigned long kuap_get_and_check_amr(void)
@@ -96,6 +220,26 @@ static inline unsigned long kuap_get_and_check_amr(void)
 	}
 	return 0;
 }
+
+#else /* CONFIG_PPC_PKEY */
+
+static inline void kuap_user_restore(struct pt_regs *regs)
+{
+}
+
+static inline void kuap_kernel_restore(struct pt_regs *regs, unsigned long amr)
+{
+}
+
+static inline unsigned long kuap_get_and_check_amr(void)
+{
+	return 0;
+}
+
+#endif /* CONFIG_PPC_PKEY */
+
+
+#ifdef CONFIG_PPC_KUAP
 
 static inline void kuap_check_amr(void)
 {
@@ -145,21 +289,6 @@ bad_kuap_fault(struct pt_regs *regs, unsigned long address, bool is_write)
 		    (regs->kuap & (is_write ? AMR_KUAP_BLOCK_WRITE : AMR_KUAP_BLOCK_READ)),
 		    "Bug: %s fault blocked by AMR!", is_write ? "Write" : "Read");
 }
-#else /* CONFIG_PPC_KUAP */
-static inline void kuap_restore_amr(struct pt_regs *regs, unsigned long amr) { }
-
-static inline unsigned long kuap_get_and_check_amr(void)
-{
-	return 0UL;
-}
-
-static inline unsigned long get_kuap(void)
-{
-	return AMR_KUAP_BLOCKED;
-}
-
-static inline void set_kuap(unsigned long value) { }
-#endif /* !CONFIG_PPC_KUAP */
 
 static __always_inline void allow_user_access(void __user *to, const void __user *from,
 					      unsigned long size, unsigned long dir)
@@ -175,6 +304,21 @@ static __always_inline void allow_user_access(void __user *to, const void __user
 	else
 		BUILD_BUG();
 }
+
+#else /* CONFIG_PPC_KUAP */
+
+static inline unsigned long get_kuap(void)
+{
+	return AMR_KUAP_BLOCKED;
+}
+
+static inline void set_kuap(unsigned long value) { }
+
+static __always_inline void allow_user_access(void __user *to, const void __user *from,
+					      unsigned long size, unsigned long dir)
+{ }
+
+#endif /* !CONFIG_PPC_KUAP */
 
 static inline void prevent_user_access(void __user *to, const void __user *from,
 				       unsigned long size, unsigned long dir)
