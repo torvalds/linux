@@ -539,6 +539,21 @@ static void soc_playback_digital_mute(struct snd_soc_card *card, int mute)
 	}
 }
 
+static void soc_dapm_suspend_resume(struct snd_soc_card *card, int event)
+{
+	struct snd_soc_pcm_runtime *rtd;
+	int stream;
+
+	for_each_card_rtds(card, rtd) {
+
+		if (rtd->dai_link->ignore_suspend)
+			continue;
+
+		for_each_pcm_streams(stream)
+			snd_soc_dapm_stream_event(rtd, stream, event);
+	}
+}
+
 /* powers down audio subsystem for suspend */
 int snd_soc_suspend(struct device *dev)
 {
@@ -576,16 +591,7 @@ int snd_soc_suspend(struct device *dev)
 	/* close any waiting streams */
 	snd_soc_flush_all_delayed_work(card);
 
-	for_each_card_rtds(card, rtd) {
-		int stream;
-
-		if (rtd->dai_link->ignore_suspend)
-			continue;
-
-		for_each_pcm_streams(stream)
-			snd_soc_dapm_stream_event(rtd, stream,
-						  SND_SOC_DAPM_STREAM_SUSPEND);
-	}
+	soc_dapm_suspend_resume(card, SND_SOC_DAPM_STREAM_SUSPEND);
 
 	/* Recheck all endpoints too, their state is affected by suspend */
 	dapm_mark_endpoints_dirty(card);
@@ -656,7 +662,6 @@ static void soc_resume_deferred(struct work_struct *work)
 	struct snd_soc_card *card =
 			container_of(work, struct snd_soc_card,
 				     deferred_resume_work);
-	struct snd_soc_pcm_runtime *rtd;
 	struct snd_soc_component *component;
 
 	/*
@@ -676,16 +681,7 @@ static void soc_resume_deferred(struct work_struct *work)
 			snd_soc_component_resume(component);
 	}
 
-	for_each_card_rtds(card, rtd) {
-		int stream;
-
-		if (rtd->dai_link->ignore_suspend)
-			continue;
-
-		for_each_pcm_streams(stream)
-			snd_soc_dapm_stream_event(rtd, stream,
-						  SND_SOC_DAPM_STREAM_RESUME);
-	}
+	soc_dapm_suspend_resume(card, SND_SOC_DAPM_STREAM_RESUME);
 
 	/* unmute any active DACs */
 	soc_playback_digital_mute(card, 0);
