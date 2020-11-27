@@ -203,48 +203,6 @@ enum vcpu_sysreg {
 	NR_SYS_REGS	/* Nothing after this line! */
 };
 
-/* 32bit mapping */
-#define c0_MPIDR	(MPIDR_EL1 * 2)	/* MultiProcessor ID Register */
-#define c0_CSSELR	(CSSELR_EL1 * 2)/* Cache Size Selection Register */
-#define c1_SCTLR	(SCTLR_EL1 * 2)	/* System Control Register */
-#define c1_ACTLR	(ACTLR_EL1 * 2)	/* Auxiliary Control Register */
-#define c1_CPACR	(CPACR_EL1 * 2)	/* Coprocessor Access Control */
-#define c2_TTBR0	(TTBR0_EL1 * 2)	/* Translation Table Base Register 0 */
-#define c2_TTBR0_high	(c2_TTBR0 + 1)	/* TTBR0 top 32 bits */
-#define c2_TTBR1	(TTBR1_EL1 * 2)	/* Translation Table Base Register 1 */
-#define c2_TTBR1_high	(c2_TTBR1 + 1)	/* TTBR1 top 32 bits */
-#define c2_TTBCR	(TCR_EL1 * 2)	/* Translation Table Base Control R. */
-#define c3_DACR		(DACR32_EL2 * 2)/* Domain Access Control Register */
-#define c5_DFSR		(ESR_EL1 * 2)	/* Data Fault Status Register */
-#define c5_IFSR		(IFSR32_EL2 * 2)/* Instruction Fault Status Register */
-#define c5_ADFSR	(AFSR0_EL1 * 2)	/* Auxiliary Data Fault Status R */
-#define c5_AIFSR	(AFSR1_EL1 * 2)	/* Auxiliary Instr Fault Status R */
-#define c6_DFAR		(FAR_EL1 * 2)	/* Data Fault Address Register */
-#define c6_IFAR		(c6_DFAR + 1)	/* Instruction Fault Address Register */
-#define c7_PAR		(PAR_EL1 * 2)	/* Physical Address Register */
-#define c7_PAR_high	(c7_PAR + 1)	/* PAR top 32 bits */
-#define c10_PRRR	(MAIR_EL1 * 2)	/* Primary Region Remap Register */
-#define c10_NMRR	(c10_PRRR + 1)	/* Normal Memory Remap Register */
-#define c12_VBAR	(VBAR_EL1 * 2)	/* Vector Base Address Register */
-#define c13_CID		(CONTEXTIDR_EL1 * 2)	/* Context ID Register */
-#define c13_TID_URW	(TPIDR_EL0 * 2)	/* Thread ID, User R/W */
-#define c13_TID_URO	(TPIDRRO_EL0 * 2)/* Thread ID, User R/O */
-#define c13_TID_PRIV	(TPIDR_EL1 * 2)	/* Thread ID, Privileged */
-#define c10_AMAIR0	(AMAIR_EL1 * 2)	/* Aux Memory Attr Indirection Reg */
-#define c10_AMAIR1	(c10_AMAIR0 + 1)/* Aux Memory Attr Indirection Reg */
-#define c14_CNTKCTL	(CNTKCTL_EL1 * 2) /* Timer Control Register (PL1) */
-
-#define cp14_DBGDSCRext	(MDSCR_EL1 * 2)
-#define cp14_DBGBCR0	(DBGBCR0_EL1 * 2)
-#define cp14_DBGBVR0	(DBGBVR0_EL1 * 2)
-#define cp14_DBGBXVR0	(cp14_DBGBVR0 + 1)
-#define cp14_DBGWCR0	(DBGWCR0_EL1 * 2)
-#define cp14_DBGWVR0	(DBGWVR0_EL1 * 2)
-#define cp14_DBGDCCINT	(MDCCINT_EL1 * 2)
-#define cp14_DBGVCR	(DBGVCR32_EL2 * 2)
-
-#define NR_COPRO_REGS	(NR_SYS_REGS * 2)
-
 struct kvm_cpu_context {
 	struct user_pt_regs regs;	/* sp = sp_el0 */
 
@@ -255,10 +213,7 @@ struct kvm_cpu_context {
 
 	struct user_fpsimd_state fp_regs;
 
-	union {
-		u64 sys_regs[NR_SYS_REGS];
-		u32 copro[NR_COPRO_REGS];
-	};
+	u64 sys_regs[NR_SYS_REGS];
 
 	struct kvm_vcpu *__hyp_running_vcpu;
 };
@@ -556,15 +511,6 @@ static inline bool __vcpu_write_sys_reg_to_cpu(u64 val, int reg)
 	return true;
 }
 
-/*
- * CP14 and CP15 live in the same array, as they are backed by the
- * same system registers.
- */
-#define CPx_BIAS		IS_ENABLED(CONFIG_CPU_BIG_ENDIAN)
-
-#define vcpu_cp14(v,r)		((v)->arch.ctxt.copro[(r) ^ CPx_BIAS])
-#define vcpu_cp15(v,r)		((v)->arch.ctxt.copro[(r) ^ CPx_BIAS])
-
 struct kvm_vm_stat {
 	ulong remote_tlb_flush;
 };
@@ -589,6 +535,12 @@ unsigned long kvm_arm_num_regs(struct kvm_vcpu *vcpu);
 int kvm_arm_copy_reg_indices(struct kvm_vcpu *vcpu, u64 __user *indices);
 int kvm_arm_get_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg);
 int kvm_arm_set_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg);
+
+unsigned long kvm_arm_num_sys_reg_descs(struct kvm_vcpu *vcpu);
+int kvm_arm_copy_sys_reg_indices(struct kvm_vcpu *vcpu, u64 __user *uindices);
+int kvm_arm_sys_reg_get_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *);
+int kvm_arm_sys_reg_set_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *);
+
 int __kvm_arm_vcpu_get_events(struct kvm_vcpu *vcpu,
 			      struct kvm_vcpu_events *events);
 
@@ -650,6 +602,17 @@ void kvm_mmu_wp_memory_region(struct kvm *kvm, int slot);
 
 int handle_exit(struct kvm_vcpu *vcpu, int exception_index);
 void handle_exit_early(struct kvm_vcpu *vcpu, int exception_index);
+
+int kvm_handle_cp14_load_store(struct kvm_vcpu *vcpu);
+int kvm_handle_cp14_32(struct kvm_vcpu *vcpu);
+int kvm_handle_cp14_64(struct kvm_vcpu *vcpu);
+int kvm_handle_cp15_32(struct kvm_vcpu *vcpu);
+int kvm_handle_cp15_64(struct kvm_vcpu *vcpu);
+int kvm_handle_sys_reg(struct kvm_vcpu *vcpu);
+
+void kvm_reset_sys_regs(struct kvm_vcpu *vcpu);
+
+void kvm_sys_reg_table_init(void);
 
 /* MMIO helpers */
 void kvm_mmio_write_buf(void *buf, unsigned int len, unsigned long data);

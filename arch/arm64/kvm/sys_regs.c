@@ -20,7 +20,6 @@
 #include <asm/debug-monitors.h>
 #include <asm/esr.h>
 #include <asm/kvm_arm.h>
-#include <asm/kvm_coproc.h>
 #include <asm/kvm_emulate.h>
 #include <asm/kvm_hyp.h>
 #include <asm/kvm_mmu.h>
@@ -128,6 +127,24 @@ static bool access_dcsw(struct kvm_vcpu *vcpu,
 	return true;
 }
 
+static void get_access_mask(const struct sys_reg_desc *r, u64 *mask, u64 *shift)
+{
+	switch (r->aarch32_map) {
+	case AA32_LO:
+		*mask = GENMASK_ULL(31, 0);
+		*shift = 0;
+		break;
+	case AA32_HI:
+		*mask = GENMASK_ULL(63, 32);
+		*shift = 32;
+		break;
+	default:
+		*mask = GENMASK_ULL(63, 0);
+		*shift = 0;
+		break;
+	}
+}
+
 /*
  * Generic accessor for VM registers. Only called as long as HCR_TVM
  * is set. If the guest enables the MMU, we stop trapping the VM
@@ -138,26 +155,21 @@ static bool access_vm_reg(struct kvm_vcpu *vcpu,
 			  const struct sys_reg_desc *r)
 {
 	bool was_enabled = vcpu_has_cache_enabled(vcpu);
-	u64 val;
-	int reg = r->reg;
+	u64 val, mask, shift;
 
 	BUG_ON(!p->is_write);
 
-	/* See the 32bit mapping in kvm_host.h */
-	if (p->is_aarch32)
-		reg = r->reg / 2;
+	get_access_mask(r, &mask, &shift);
 
-	if (!p->is_aarch32 || !p->is_32bit) {
-		val = p->regval;
+	if (~mask) {
+		val = vcpu_read_sys_reg(vcpu, r->reg);
+		val &= ~mask;
 	} else {
-		val = vcpu_read_sys_reg(vcpu, reg);
-		if (r->reg % 2)
-			val = (p->regval << 32) | (u64)lower_32_bits(val);
-		else
-			val = ((u64)upper_32_bits(val) << 32) |
-				lower_32_bits(p->regval);
+		val = 0;
 	}
-	vcpu_write_sys_reg(vcpu, val, reg);
+
+	val |= (p->regval & (mask >> shift)) << shift;
+	vcpu_write_sys_reg(vcpu, val, r->reg);
 
 	kvm_toggle_cache(vcpu, was_enabled);
 	return true;
@@ -167,17 +179,13 @@ static bool access_actlr(struct kvm_vcpu *vcpu,
 			 struct sys_reg_params *p,
 			 const struct sys_reg_desc *r)
 {
+	u64 mask, shift;
+
 	if (p->is_write)
 		return ignore_write(vcpu, p);
 
-	p->regval = vcpu_read_sys_reg(vcpu, ACTLR_EL1);
-
-	if (p->is_aarch32) {
-		if (r->Op2 & 2)
-			p->regval = upper_32_bits(p->regval);
-		else
-			p->regval = lower_32_bits(p->regval);
-	}
+	get_access_mask(r, &mask, &shift);
+	p->regval = (vcpu_read_sys_reg(vcpu, r->reg) & mask) >> shift;
 
 	return true;
 }
@@ -204,7 +212,7 @@ static bool access_gic_sgi(struct kvm_vcpu *vcpu,
 	 * equivalent to ICC_SGI0R_EL1, as there is no "alternative" secure
 	 * group.
 	 */
-	if (p->is_aarch32) {
+	if (p->Op0 == 0) {		/* AArch32 */
 		switch (p->Op1) {
 		default:		/* Keep GCC quiet */
 		case 0:			/* ICC_SGI1R */
@@ -215,7 +223,7 @@ static bool access_gic_sgi(struct kvm_vcpu *vcpu,
 			g1 = false;
 			break;
 		}
-	} else {
+	} else {			/* AArch64 */
 		switch (p->Op2) {
 		default:		/* Keep GCC quiet */
 		case 5:			/* ICC_SGI1R_EL1 */
@@ -357,26 +365,30 @@ static bool trap_debug_regs(struct kvm_vcpu *vcpu,
  */
 static void reg_to_dbg(struct kvm_vcpu *vcpu,
 		       struct sys_reg_params *p,
+		       const struct sys_reg_desc *rd,
 		       u64 *dbg_reg)
 {
-	u64 val = p->regval;
+	u64 mask, shift, val;
 
-	if (p->is_32bit) {
-		val &= 0xffffffffUL;
-		val |= ((*dbg_reg >> 32) << 32);
-	}
+	get_access_mask(rd, &mask, &shift);
 
+	val = *dbg_reg;
+	val &= ~mask;
+	val |= (p->regval & (mask >> shift)) << shift;
 	*dbg_reg = val;
+
 	vcpu->arch.flags |= KVM_ARM64_DEBUG_DIRTY;
 }
 
 static void dbg_to_reg(struct kvm_vcpu *vcpu,
 		       struct sys_reg_params *p,
+		       const struct sys_reg_desc *rd,
 		       u64 *dbg_reg)
 {
-	p->regval = *dbg_reg;
-	if (p->is_32bit)
-		p->regval &= 0xffffffffUL;
+	u64 mask, shift;
+
+	get_access_mask(rd, &mask, &shift);
+	p->regval = (*dbg_reg & mask) >> shift;
 }
 
 static bool trap_bvr(struct kvm_vcpu *vcpu,
@@ -386,9 +398,9 @@ static bool trap_bvr(struct kvm_vcpu *vcpu,
 	u64 *dbg_reg = &vcpu->arch.vcpu_debug_state.dbg_bvr[rd->reg];
 
 	if (p->is_write)
-		reg_to_dbg(vcpu, p, dbg_reg);
+		reg_to_dbg(vcpu, p, rd, dbg_reg);
 	else
-		dbg_to_reg(vcpu, p, dbg_reg);
+		dbg_to_reg(vcpu, p, rd, dbg_reg);
 
 	trace_trap_reg(__func__, rd->reg, p->is_write, *dbg_reg);
 
@@ -428,9 +440,9 @@ static bool trap_bcr(struct kvm_vcpu *vcpu,
 	u64 *dbg_reg = &vcpu->arch.vcpu_debug_state.dbg_bcr[rd->reg];
 
 	if (p->is_write)
-		reg_to_dbg(vcpu, p, dbg_reg);
+		reg_to_dbg(vcpu, p, rd, dbg_reg);
 	else
-		dbg_to_reg(vcpu, p, dbg_reg);
+		dbg_to_reg(vcpu, p, rd, dbg_reg);
 
 	trace_trap_reg(__func__, rd->reg, p->is_write, *dbg_reg);
 
@@ -471,9 +483,9 @@ static bool trap_wvr(struct kvm_vcpu *vcpu,
 	u64 *dbg_reg = &vcpu->arch.vcpu_debug_state.dbg_wvr[rd->reg];
 
 	if (p->is_write)
-		reg_to_dbg(vcpu, p, dbg_reg);
+		reg_to_dbg(vcpu, p, rd, dbg_reg);
 	else
-		dbg_to_reg(vcpu, p, dbg_reg);
+		dbg_to_reg(vcpu, p, rd, dbg_reg);
 
 	trace_trap_reg(__func__, rd->reg, p->is_write,
 		vcpu->arch.vcpu_debug_state.dbg_wvr[rd->reg]);
@@ -514,9 +526,9 @@ static bool trap_wcr(struct kvm_vcpu *vcpu,
 	u64 *dbg_reg = &vcpu->arch.vcpu_debug_state.dbg_wcr[rd->reg];
 
 	if (p->is_write)
-		reg_to_dbg(vcpu, p, dbg_reg);
+		reg_to_dbg(vcpu, p, rd, dbg_reg);
 	else
-		dbg_to_reg(vcpu, p, dbg_reg);
+		dbg_to_reg(vcpu, p, rd, dbg_reg);
 
 	trace_trap_reg(__func__, rd->reg, p->is_write, *dbg_reg);
 
@@ -1246,10 +1258,6 @@ static bool access_csselr(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 {
 	int reg = r->reg;
 
-	/* See the 32bit mapping in kvm_host.h */
-	if (p->is_aarch32)
-		reg = r->reg / 2;
-
 	if (p->is_write)
 		vcpu_write_sys_reg(vcpu, p->regval, reg);
 	else
@@ -1720,66 +1728,27 @@ static bool trap_dbgidr(struct kvm_vcpu *vcpu,
 	}
 }
 
-static bool trap_debug32(struct kvm_vcpu *vcpu,
-			 struct sys_reg_params *p,
-			 const struct sys_reg_desc *r)
-{
-	if (p->is_write) {
-		vcpu_cp14(vcpu, r->reg) = p->regval;
-		vcpu->arch.flags |= KVM_ARM64_DEBUG_DIRTY;
-	} else {
-		p->regval = vcpu_cp14(vcpu, r->reg);
-	}
-
-	return true;
-}
-
-/* AArch32 debug register mappings
+/*
+ * AArch32 debug register mappings
  *
  * AArch32 DBGBVRn is mapped to DBGBVRn_EL1[31:0]
  * AArch32 DBGBXVRn is mapped to DBGBVRn_EL1[63:32]
  *
- * All control registers and watchpoint value registers are mapped to
- * the lower 32 bits of their AArch64 equivalents. We share the trap
- * handlers with the above AArch64 code which checks what mode the
- * system is in.
+ * None of the other registers share their location, so treat them as
+ * if they were 64bit.
  */
-
-static bool trap_xvr(struct kvm_vcpu *vcpu,
-		     struct sys_reg_params *p,
-		     const struct sys_reg_desc *rd)
-{
-	u64 *dbg_reg = &vcpu->arch.vcpu_debug_state.dbg_bvr[rd->reg];
-
-	if (p->is_write) {
-		u64 val = *dbg_reg;
-
-		val &= 0xffffffffUL;
-		val |= p->regval << 32;
-		*dbg_reg = val;
-
-		vcpu->arch.flags |= KVM_ARM64_DEBUG_DIRTY;
-	} else {
-		p->regval = *dbg_reg >> 32;
-	}
-
-	trace_trap_reg(__func__, rd->reg, p->is_write, *dbg_reg);
-
-	return true;
-}
-
-#define DBG_BCR_BVR_WCR_WVR(n)						\
-	/* DBGBVRn */							\
-	{ Op1( 0), CRn( 0), CRm((n)), Op2( 4), trap_bvr, NULL, n }, 	\
-	/* DBGBCRn */							\
-	{ Op1( 0), CRn( 0), CRm((n)), Op2( 5), trap_bcr, NULL, n },	\
-	/* DBGWVRn */							\
-	{ Op1( 0), CRn( 0), CRm((n)), Op2( 6), trap_wvr, NULL, n },	\
-	/* DBGWCRn */							\
+#define DBG_BCR_BVR_WCR_WVR(n)						      \
+	/* DBGBVRn */							      \
+	{ AA32(LO), Op1( 0), CRn( 0), CRm((n)), Op2( 4), trap_bvr, NULL, n }, \
+	/* DBGBCRn */							      \
+	{ Op1( 0), CRn( 0), CRm((n)), Op2( 5), trap_bcr, NULL, n },	      \
+	/* DBGWVRn */							      \
+	{ Op1( 0), CRn( 0), CRm((n)), Op2( 6), trap_wvr, NULL, n },	      \
+	/* DBGWCRn */							      \
 	{ Op1( 0), CRn( 0), CRm((n)), Op2( 7), trap_wcr, NULL, n }
 
-#define DBGBXVR(n)							\
-	{ Op1( 0), CRn( 1), CRm((n)), Op2( 1), trap_xvr, NULL, n }
+#define DBGBXVR(n)							      \
+	{ AA32(HI), Op1( 0), CRn( 1), CRm((n)), Op2( 1), trap_bvr, NULL, n }
 
 /*
  * Trapped cp14 registers. We generally ignore most of the external
@@ -1797,9 +1766,9 @@ static const struct sys_reg_desc cp14_regs[] = {
 	{ Op1( 0), CRn( 0), CRm( 1), Op2( 0), trap_raz_wi },
 	DBG_BCR_BVR_WCR_WVR(1),
 	/* DBGDCCINT */
-	{ Op1( 0), CRn( 0), CRm( 2), Op2( 0), trap_debug32, NULL, cp14_DBGDCCINT },
+	{ Op1( 0), CRn( 0), CRm( 2), Op2( 0), trap_debug_regs, NULL, MDCCINT_EL1 },
 	/* DBGDSCRext */
-	{ Op1( 0), CRn( 0), CRm( 2), Op2( 2), trap_debug32, NULL, cp14_DBGDSCRext },
+	{ Op1( 0), CRn( 0), CRm( 2), Op2( 2), trap_debug_regs, NULL, MDSCR_EL1 },
 	DBG_BCR_BVR_WCR_WVR(2),
 	/* DBGDTR[RT]Xint */
 	{ Op1( 0), CRn( 0), CRm( 3), Op2( 0), trap_raz_wi },
@@ -1814,7 +1783,7 @@ static const struct sys_reg_desc cp14_regs[] = {
 	{ Op1( 0), CRn( 0), CRm( 6), Op2( 2), trap_raz_wi },
 	DBG_BCR_BVR_WCR_WVR(6),
 	/* DBGVCR */
-	{ Op1( 0), CRn( 0), CRm( 7), Op2( 0), trap_debug32, NULL, cp14_DBGVCR },
+	{ Op1( 0), CRn( 0), CRm( 7), Op2( 0), trap_debug_regs, NULL, DBGVCR32_EL2 },
 	DBG_BCR_BVR_WCR_WVR(7),
 	DBG_BCR_BVR_WCR_WVR(8),
 	DBG_BCR_BVR_WCR_WVR(9),
@@ -1900,19 +1869,29 @@ static const struct sys_reg_desc cp14_64_regs[] = {
  */
 static const struct sys_reg_desc cp15_regs[] = {
 	{ Op1( 0), CRn( 0), CRm( 0), Op2( 1), access_ctr },
-	{ Op1( 0), CRn( 1), CRm( 0), Op2( 0), access_vm_reg, NULL, c1_SCTLR },
-	{ Op1( 0), CRn( 1), CRm( 0), Op2( 1), access_actlr },
-	{ Op1( 0), CRn( 1), CRm( 0), Op2( 3), access_actlr },
-	{ Op1( 0), CRn( 2), CRm( 0), Op2( 0), access_vm_reg, NULL, c2_TTBR0 },
-	{ Op1( 0), CRn( 2), CRm( 0), Op2( 1), access_vm_reg, NULL, c2_TTBR1 },
-	{ Op1( 0), CRn( 2), CRm( 0), Op2( 2), access_vm_reg, NULL, c2_TTBCR },
-	{ Op1( 0), CRn( 3), CRm( 0), Op2( 0), access_vm_reg, NULL, c3_DACR },
-	{ Op1( 0), CRn( 5), CRm( 0), Op2( 0), access_vm_reg, NULL, c5_DFSR },
-	{ Op1( 0), CRn( 5), CRm( 0), Op2( 1), access_vm_reg, NULL, c5_IFSR },
-	{ Op1( 0), CRn( 5), CRm( 1), Op2( 0), access_vm_reg, NULL, c5_ADFSR },
-	{ Op1( 0), CRn( 5), CRm( 1), Op2( 1), access_vm_reg, NULL, c5_AIFSR },
-	{ Op1( 0), CRn( 6), CRm( 0), Op2( 0), access_vm_reg, NULL, c6_DFAR },
-	{ Op1( 0), CRn( 6), CRm( 0), Op2( 2), access_vm_reg, NULL, c6_IFAR },
+	{ Op1( 0), CRn( 1), CRm( 0), Op2( 0), access_vm_reg, NULL, SCTLR_EL1 },
+	/* ACTLR */
+	{ AA32(LO), Op1( 0), CRn( 1), CRm( 0), Op2( 1), access_actlr, NULL, ACTLR_EL1 },
+	/* ACTLR2 */
+	{ AA32(HI), Op1( 0), CRn( 1), CRm( 0), Op2( 3), access_actlr, NULL, ACTLR_EL1 },
+	{ Op1( 0), CRn( 2), CRm( 0), Op2( 0), access_vm_reg, NULL, TTBR0_EL1 },
+	{ Op1( 0), CRn( 2), CRm( 0), Op2( 1), access_vm_reg, NULL, TTBR1_EL1 },
+	/* TTBCR */
+	{ AA32(LO), Op1( 0), CRn( 2), CRm( 0), Op2( 2), access_vm_reg, NULL, TCR_EL1 },
+	/* TTBCR2 */
+	{ AA32(HI), Op1( 0), CRn( 2), CRm( 0), Op2( 3), access_vm_reg, NULL, TCR_EL1 },
+	{ Op1( 0), CRn( 3), CRm( 0), Op2( 0), access_vm_reg, NULL, DACR32_EL2 },
+	/* DFSR */
+	{ Op1( 0), CRn( 5), CRm( 0), Op2( 0), access_vm_reg, NULL, ESR_EL1 },
+	{ Op1( 0), CRn( 5), CRm( 0), Op2( 1), access_vm_reg, NULL, IFSR32_EL2 },
+	/* ADFSR */
+	{ Op1( 0), CRn( 5), CRm( 1), Op2( 0), access_vm_reg, NULL, AFSR0_EL1 },
+	/* AIFSR */
+	{ Op1( 0), CRn( 5), CRm( 1), Op2( 1), access_vm_reg, NULL, AFSR1_EL1 },
+	/* DFAR */
+	{ AA32(LO), Op1( 0), CRn( 6), CRm( 0), Op2( 0), access_vm_reg, NULL, FAR_EL1 },
+	/* IFAR */
+	{ AA32(HI), Op1( 0), CRn( 6), CRm( 0), Op2( 2), access_vm_reg, NULL, FAR_EL1 },
 
 	/*
 	 * DC{C,I,CI}SW operations:
@@ -1938,15 +1917,19 @@ static const struct sys_reg_desc cp15_regs[] = {
 	{ Op1( 0), CRn( 9), CRm(14), Op2( 2), access_pminten },
 	{ Op1( 0), CRn( 9), CRm(14), Op2( 3), access_pmovs },
 
-	{ Op1( 0), CRn(10), CRm( 2), Op2( 0), access_vm_reg, NULL, c10_PRRR },
-	{ Op1( 0), CRn(10), CRm( 2), Op2( 1), access_vm_reg, NULL, c10_NMRR },
-	{ Op1( 0), CRn(10), CRm( 3), Op2( 0), access_vm_reg, NULL, c10_AMAIR0 },
-	{ Op1( 0), CRn(10), CRm( 3), Op2( 1), access_vm_reg, NULL, c10_AMAIR1 },
+	/* PRRR/MAIR0 */
+	{ AA32(LO), Op1( 0), CRn(10), CRm( 2), Op2( 0), access_vm_reg, NULL, MAIR_EL1 },
+	/* NMRR/MAIR1 */
+	{ AA32(HI), Op1( 0), CRn(10), CRm( 2), Op2( 1), access_vm_reg, NULL, MAIR_EL1 },
+	/* AMAIR0 */
+	{ AA32(LO), Op1( 0), CRn(10), CRm( 3), Op2( 0), access_vm_reg, NULL, AMAIR_EL1 },
+	/* AMAIR1 */
+	{ AA32(HI), Op1( 0), CRn(10), CRm( 3), Op2( 1), access_vm_reg, NULL, AMAIR_EL1 },
 
 	/* ICC_SRE */
 	{ Op1( 0), CRn(12), CRm(12), Op2( 5), access_gic_sre },
 
-	{ Op1( 0), CRn(13), CRm( 0), Op2( 1), access_vm_reg, NULL, c13_CID },
+	{ Op1( 0), CRn(13), CRm( 0), Op2( 1), access_vm_reg, NULL, CONTEXTIDR_EL1 },
 
 	/* Arch Tmers */
 	{ SYS_DESC(SYS_AARCH32_CNTP_TVAL), access_arch_timer },
@@ -2021,14 +2004,14 @@ static const struct sys_reg_desc cp15_regs[] = {
 
 	{ Op1(1), CRn( 0), CRm( 0), Op2(0), access_ccsidr },
 	{ Op1(1), CRn( 0), CRm( 0), Op2(1), access_clidr },
-	{ Op1(2), CRn( 0), CRm( 0), Op2(0), access_csselr, NULL, c0_CSSELR },
+	{ Op1(2), CRn( 0), CRm( 0), Op2(0), access_csselr, NULL, CSSELR_EL1 },
 };
 
 static const struct sys_reg_desc cp15_64_regs[] = {
-	{ Op1( 0), CRn( 0), CRm( 2), Op2( 0), access_vm_reg, NULL, c2_TTBR0 },
+	{ Op1( 0), CRn( 0), CRm( 2), Op2( 0), access_vm_reg, NULL, TTBR0_EL1 },
 	{ Op1( 0), CRn( 0), CRm( 9), Op2( 0), access_pmu_evcntr },
 	{ Op1( 0), CRn( 0), CRm(12), Op2( 0), access_gic_sgi }, /* ICC_SGI1R */
-	{ Op1( 1), CRn( 0), CRm( 2), Op2( 0), access_vm_reg, NULL, c2_TTBR1 },
+	{ Op1( 1), CRn( 0), CRm( 2), Op2( 0), access_vm_reg, NULL, TTBR1_EL1 },
 	{ Op1( 1), CRn( 0), CRm(12), Op2( 0), access_gic_sgi }, /* ICC_ASGI1R */
 	{ Op1( 2), CRn( 0), CRm(12), Op2( 0), access_gic_sgi }, /* ICC_SGI0R */
 	{ SYS_DESC(SYS_AARCH32_CNTP_CVAL),    access_arch_timer },
@@ -2172,8 +2155,6 @@ static int kvm_handle_cp_64(struct kvm_vcpu *vcpu,
 	int Rt = kvm_vcpu_sys_get_rt(vcpu);
 	int Rt2 = (esr >> 10) & 0x1f;
 
-	params.is_aarch32 = true;
-	params.is_32bit = false;
 	params.CRm = (esr >> 1) & 0xf;
 	params.is_write = ((esr & 1) == 0);
 
@@ -2223,8 +2204,6 @@ static int kvm_handle_cp_32(struct kvm_vcpu *vcpu,
 	u32 esr = kvm_vcpu_get_esr(vcpu);
 	int Rt  = kvm_vcpu_sys_get_rt(vcpu);
 
-	params.is_aarch32 = true;
-	params.is_32bit = true;
 	params.CRm = (esr >> 1) & 0xf;
 	params.regval = vcpu_get_reg(vcpu, Rt);
 	params.is_write = ((esr & 1) == 0);
@@ -2318,8 +2297,6 @@ int kvm_handle_sys_reg(struct kvm_vcpu *vcpu)
 
 	trace_kvm_handle_sys_reg(esr);
 
-	params.is_aarch32 = false;
-	params.is_32bit = false;
 	params.Op0 = (esr >> 20) & 3;
 	params.Op1 = (esr >> 14) & 0x7;
 	params.CRn = (esr >> 10) & 0xf;
