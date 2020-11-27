@@ -22,12 +22,15 @@ static void ceph_x_validate_tickets(struct ceph_auth_client *ac, int *pneed);
 static int ceph_x_is_authenticated(struct ceph_auth_client *ac)
 {
 	struct ceph_x_info *xi = ac->private;
-	int need;
+	int missing;
+	int need;  /* missing + need renewal */
 
 	ceph_x_validate_tickets(ac, &need);
-	dout("ceph_x_is_authenticated want=%d need=%d have=%d\n",
-	     ac->want_keys, need, xi->have_keys);
-	return (ac->want_keys & xi->have_keys) == ac->want_keys;
+	missing = ac->want_keys & ~xi->have_keys;
+	WARN_ON((need & missing) != missing);
+	dout("%s want 0x%x have 0x%x missing 0x%x -> %d\n", __func__,
+	     ac->want_keys, xi->have_keys, missing, !missing);
+	return !missing;
 }
 
 static int ceph_x_should_authenticate(struct ceph_auth_client *ac)
@@ -36,9 +39,9 @@ static int ceph_x_should_authenticate(struct ceph_auth_client *ac)
 	int need;
 
 	ceph_x_validate_tickets(ac, &need);
-	dout("ceph_x_should_authenticate want=%d need=%d have=%d\n",
-	     ac->want_keys, need, xi->have_keys);
-	return need != 0;
+	dout("%s want 0x%x have 0x%x need 0x%x -> %d\n", __func__,
+	     ac->want_keys, xi->have_keys, need, !!need);
+	return !!need;
 }
 
 static int ceph_x_encrypt_offset(void)
@@ -379,6 +382,7 @@ static int ceph_x_build_authorizer(struct ceph_auth_client *ac,
 		}
 	}
 	au->service = th->service;
+	WARN_ON(!th->secret_id);
 	au->secret_id = th->secret_id;
 
 	msg_a = au->buf->vec.iov_base;
@@ -442,9 +446,10 @@ static bool need_key(struct ceph_x_ticket_handler *th)
 
 static bool have_key(struct ceph_x_ticket_handler *th)
 {
-	if (th->have_key) {
-		if (ktime_get_real_seconds() >= th->expires)
-			th->have_key = false;
+	if (th->have_key && ktime_get_real_seconds() >= th->expires) {
+		dout("ticket %d (%s) secret_id %llu expired\n", th->service,
+		     ceph_entity_type_name(th->service), th->secret_id);
+		th->have_key = false;
 	}
 
 	return th->have_key;
@@ -494,9 +499,8 @@ static int ceph_x_build_request(struct ceph_auth_client *ac,
 		return PTR_ERR(th);
 
 	ceph_x_validate_tickets(ac, &need);
-
-	dout("build_request want %x have %x need %x\n",
-	     ac->want_keys, xi->have_keys, need);
+	dout("%s want 0x%x have 0x%x need 0x%x\n", __func__, ac->want_keys,
+	     xi->have_keys, need);
 
 	if (need & CEPH_ENTITY_TYPE_AUTH) {
 		struct ceph_x_authenticate *auth = (void *)(head + 1);
@@ -785,8 +789,15 @@ static void invalidate_ticket(struct ceph_auth_client *ac, int peer_type)
 	struct ceph_x_ticket_handler *th;
 
 	th = get_ticket_handler(ac, peer_type);
-	if (!IS_ERR(th))
+	if (IS_ERR(th))
+		return;
+
+	if (th->have_key) {
+		dout("ticket %d (%s) secret_id %llu invalidated\n",
+		     th->service, ceph_entity_type_name(th->service),
+		     th->secret_id);
 		th->have_key = false;
+	}
 }
 
 static void ceph_x_invalidate_authorizer(struct ceph_auth_client *ac,
