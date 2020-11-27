@@ -471,12 +471,12 @@ static int pkey_active(struct task_struct *target, const struct user_regset *reg
 static int pkey_get(struct task_struct *target, const struct user_regset *regset,
 		    struct membuf to)
 {
-	BUILD_BUG_ON(TSO(amr) + sizeof(unsigned long) != TSO(iamr));
 
 	if (!arch_pkeys_enabled())
 		return -ENODEV;
 
-	membuf_write(&to, &target->thread.amr, 2 * sizeof(unsigned long));
+	membuf_store(&to, target->thread.regs->amr);
+	membuf_store(&to, target->thread.regs->iamr);
 	return membuf_store(&to, default_uamor);
 }
 
@@ -509,7 +509,8 @@ static int pkey_set(struct task_struct *target, const struct user_regset *regset
 	 * Pick the AMR values for the keys that kernel is using. This
 	 * will be indicated by the ~default_uamor bits.
 	 */
-	target->thread.amr = (new_amr & default_uamor) | (target->thread.amr & ~default_uamor);
+	target->thread.regs->amr = (new_amr & default_uamor) |
+		(target->thread.regs->amr & ~default_uamor);
 
 	return 0;
 }
