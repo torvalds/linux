@@ -637,10 +637,12 @@ static int ov9734_set_stream(struct v4l2_subdev *sd, int enable)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
 
-	if (ov9734->streaming == enable)
-		return 0;
-
 	mutex_lock(&ov9734->mutex);
+	if (ov9734->streaming == enable) {
+		mutex_unlock(&ov9734->mutex);
+		return 0;
+	}
+
 	if (enable) {
 		ret = pm_runtime_get_sync(&client->dev);
 		if (ret < 0) {
