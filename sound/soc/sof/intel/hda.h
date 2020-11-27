@@ -615,11 +615,14 @@ int hda_dsp_ipc_cmd_done(struct snd_sof_dev *sdev, int dir);
  */
 int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev);
 int hda_dsp_cl_boot_firmware_iccmax(struct snd_sof_dev *sdev);
+int hda_dsp_cl_boot_firmware_iccmax_icl(struct snd_sof_dev *sdev);
 int hda_dsp_cl_boot_firmware_skl(struct snd_sof_dev *sdev);
 
 /* pre and post fw run ops */
 int hda_dsp_pre_fw_run(struct snd_sof_dev *sdev);
 int hda_dsp_post_fw_run(struct snd_sof_dev *sdev);
+int hda_dsp_post_fw_run_icl(struct snd_sof_dev *sdev);
+int hda_dsp_core_stall_icl(struct snd_sof_dev *sdev, unsigned int core_mask);
 
 /* parse platform specific ext manifest ops */
 int hda_dsp_ext_man_get_cavs_config_data(struct snd_sof_dev *sdev,
@@ -740,6 +743,7 @@ extern struct snd_soc_dai_driver skl_dai[];
 extern const struct snd_sof_dsp_ops sof_apl_ops;
 extern const struct snd_sof_dsp_ops sof_cnl_ops;
 extern const struct snd_sof_dsp_ops sof_tgl_ops;
+extern const struct snd_sof_dsp_ops sof_icl_ops;
 
 extern const struct sof_intel_dsp_desc apl_chip_info;
 extern const struct sof_intel_dsp_desc cnl_chip_info;

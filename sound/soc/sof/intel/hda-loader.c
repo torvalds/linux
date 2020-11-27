@@ -472,6 +472,46 @@ int hda_dsp_post_fw_run(struct snd_sof_dev *sdev)
 	return hda_dsp_ctrl_clock_power_gating(sdev, true);
 }
 
+/*
+ * post fw run operations for ICL,
+ * Core 3 will be powered up and in stall when HPRO is enabled
+ */
+int hda_dsp_post_fw_run_icl(struct snd_sof_dev *sdev)
+{
+	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
+	int ret;
+
+	if (sdev->first_boot) {
+		ret = hda_sdw_startup(sdev);
+		if (ret < 0) {
+			dev_err(sdev->dev,
+				"error: could not startup SoundWire links\n");
+			return ret;
+		}
+	}
+
+	hda_sdw_int_enable(sdev, true);
+
+	/*
+	 * The recommended HW programming sequence for ICL is to
+	 * power up core 3 and keep it in stall if HPRO is enabled.
+	 * Major difference between ICL and TGL, on ICL core 3 is managed by
+	 * the host whereas on TGL it is handled by the firmware.
+	 */
+	if (!hda->clk_config_lpro) {
+		ret = snd_sof_dsp_core_power_up(sdev, BIT(3));
+		if (ret < 0) {
+			dev_err(sdev->dev, "error: dsp core power up failed on core 3\n");
+			return ret;
+		}
+
+		snd_sof_dsp_stall(sdev, BIT(3));
+	}
+
+	/* re-enable clock gating and power gating */
+	return hda_dsp_ctrl_clock_power_gating(sdev, true);
+}
+
 int hda_dsp_ext_man_get_cavs_config_data(struct snd_sof_dev *sdev,
 					 const struct sof_ext_man_elem_header *hdr)
 {
@@ -506,6 +546,27 @@ int hda_dsp_ext_man_get_cavs_config_data(struct snd_sof_dev *sdev,
 			dev_info(sdev->dev, "unsupported token type: %d\n",
 				 config_data->elems[i].token);
 		}
+
+	return 0;
+}
+
+int hda_dsp_core_stall_icl(struct snd_sof_dev *sdev, unsigned int core_mask)
+{
+	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
+	const struct sof_intel_dsp_desc *chip = hda->desc;
+
+	/* make sure core_mask in host managed cores */
+	core_mask &= chip->host_managed_cores_mask;
+	if (!core_mask) {
+		dev_err(sdev->dev, "error: core_mask is not in host managed cores\n");
+		return -EINVAL;
+	}
+
+	/* stall core */
+	snd_sof_dsp_update_bits_unlocked(sdev, HDA_DSP_BAR,
+					 HDA_DSP_REG_ADSPCS,
+					 HDA_DSP_ADSPCS_CSTALL_MASK(core_mask),
+					 HDA_DSP_ADSPCS_CSTALL_MASK(core_mask));
 
 	return 0;
 }
