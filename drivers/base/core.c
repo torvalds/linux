@@ -561,7 +561,7 @@ postcore_initcall(devlink_class_init);
  * with runtime PM.  First, setting the DL_FLAG_PM_RUNTIME flag will cause the
  * runtime PM framework to take the link into account.  Second, if the
  * DL_FLAG_RPM_ACTIVE flag is set in addition to it, the supplier devices will
- * be forced into the active metastate and reference-counted upon the creation
+ * be forced into the active meta state and reference-counted upon the creation
  * of the link.  If DL_FLAG_PM_RUNTIME is not set, DL_FLAG_RPM_ACTIVE will be
  * ignored.
  *
@@ -584,7 +584,7 @@ postcore_initcall(devlink_class_init);
  * Also, if DL_FLAG_STATELESS, DL_FLAG_AUTOREMOVE_CONSUMER and
  * DL_FLAG_AUTOREMOVE_SUPPLIER are not set in @flags (that is, a persistent
  * managed device link is being added), the DL_FLAG_AUTOPROBE_CONSUMER flag can
- * be used to request the driver core to automaticall probe for a consmer
+ * be used to request the driver core to automatically probe for a consumer
  * driver after successfully binding a driver to the supplier device.
  *
  * The combination of DL_FLAG_STATELESS and one of DL_FLAG_AUTOREMOVE_CONSUMER,
