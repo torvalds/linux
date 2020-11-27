@@ -10,10 +10,7 @@ C IRIW+poonceonces+OnceOnce
  * different process?
  *)
 
-{
-	int x;
-	int y;
-}
+{}
 
 P0(int *x)
 {

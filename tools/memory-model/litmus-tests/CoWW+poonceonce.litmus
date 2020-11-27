@@ -7,9 +7,7 @@ C CoWW+poonceonce
  * writes to the same variable are ordered.
  *)
 
-{
-	int x;
-}
+{}
 
 P0(int *x)
 {
