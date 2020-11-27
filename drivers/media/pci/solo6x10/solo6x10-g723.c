@@ -124,9 +124,10 @@ static int snd_solo_pcm_open(struct snd_pcm_substream *ss)
 	if (solo_pcm == NULL)
 		goto oom;
 
-	solo_pcm->g723_buf = pci_alloc_consistent(solo_dev->pdev,
-						  G723_PERIOD_BYTES,
-						  &solo_pcm->g723_dma);
+	solo_pcm->g723_buf = dma_alloc_coherent(&solo_dev->pdev->dev,
+						G723_PERIOD_BYTES,
+						&solo_pcm->g723_dma,
+						GFP_KERNEL);
 	if (solo_pcm->g723_buf == NULL)
 		goto oom;
 
@@ -148,8 +149,8 @@ static int snd_solo_pcm_close(struct snd_pcm_substream *ss)
 	struct solo_snd_pcm *solo_pcm = snd_pcm_substream_chip(ss);
 
 	snd_pcm_substream_chip(ss) = solo_pcm->solo_dev;
-	pci_free_consistent(solo_pcm->solo_dev->pdev, G723_PERIOD_BYTES,
-			    solo_pcm->g723_buf, solo_pcm->g723_dma);
+	dma_free_coherent(&solo_pcm->solo_dev->pdev->dev, G723_PERIOD_BYTES,
+			  solo_pcm->g723_buf, solo_pcm->g723_dma);
 	kfree(solo_pcm);
 
 	return 0;
