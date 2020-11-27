@@ -16,7 +16,7 @@
 #ifdef CONFIG_PPC_KUAP
 	BEGIN_MMU_FTR_SECTION_NESTED(67)
 	mfspr	\gpr1, SPRN_AMR
-	ld	\gpr2, STACK_REGS_KUAP(r1)
+	ld	\gpr2, STACK_REGS_AMR(r1)
 	cmpd	\gpr1, \gpr2
 	beq	998f
 	isync
@@ -48,7 +48,7 @@
 	bne	\msr_pr_cr, 99f
 	.endif
 	mfspr	\gpr1, SPRN_AMR
-	std	\gpr1, STACK_REGS_KUAP(r1)
+	std	\gpr1, STACK_REGS_AMR(r1)
 	li	\gpr2, (AMR_KUAP_BLOCKED >> AMR_KUAP_SHIFT)
 	sldi	\gpr2, \gpr2, AMR_KUAP_SHIFT
 	cmpd	\use_cr, \gpr1, \gpr2

@@ -89,12 +89,14 @@ static int scan_pkey_feature(void)
 		}
 	}
 
+#ifdef CONFIG_PPC_MEM_KEYS
 	/*
 	 * Adjust the upper limit, based on the number of bits supported by
 	 * arch-neutral code.
 	 */
 	pkeys_total = min_t(int, pkeys_total,
 			    ((ARCH_VM_PKEY_FLAGS >> VM_PKEY_SHIFT) + 1));
+#endif
 	return pkeys_total;
 }
 
@@ -102,6 +104,7 @@ void __init pkey_early_init_devtree(void)
 {
 	int pkeys_total, i;
 
+#ifdef CONFIG_PPC_MEM_KEYS
 	/*
 	 * We define PKEY_DISABLE_EXECUTE in addition to the arch-neutral
 	 * generic defines for PKEY_DISABLE_ACCESS and PKEY_DISABLE_WRITE.
@@ -117,7 +120,7 @@ void __init pkey_early_init_devtree(void)
 	BUILD_BUG_ON(__builtin_clzl(ARCH_VM_PKEY_FLAGS >> VM_PKEY_SHIFT) +
 		     __builtin_popcountl(ARCH_VM_PKEY_FLAGS >> VM_PKEY_SHIFT)
 				!= (sizeof(u64) * BITS_PER_BYTE));
-
+#endif
 	/*
 	 * Only P7 and above supports SPRN_AMR update with MSR[PR] = 1
 	 */
@@ -223,14 +226,6 @@ out:
 	return;
 }
 
-void pkey_mm_init(struct mm_struct *mm)
-{
-	if (!mmu_has_feature(MMU_FTR_PKEY))
-		return;
-	mm_pkey_allocation_map(mm) = initial_allocation_mask;
-	mm->context.execute_only_pkey = execute_only_key;
-}
-
 static inline u64 read_amr(void)
 {
 	return mfspr(SPRN_AMR);
@@ -255,6 +250,15 @@ static inline void write_iamr(u64 value)
 		return;
 
 	mtspr(SPRN_IAMR, value);
+}
+
+#ifdef CONFIG_PPC_MEM_KEYS
+void pkey_mm_init(struct mm_struct *mm)
+{
+	if (!mmu_has_feature(MMU_FTR_PKEY))
+		return;
+	mm_pkey_allocation_map(mm) = initial_allocation_mask;
+	mm->context.execute_only_pkey = execute_only_key;
 }
 
 static inline void init_amr(int pkey, u8 init_bits)
@@ -445,3 +449,5 @@ void arch_dup_pkeys(struct mm_struct *oldmm, struct mm_struct *mm)
 	mm_pkey_allocation_map(mm) = mm_pkey_allocation_map(oldmm);
 	mm->context.execute_only_pkey = oldmm->context.execute_only_pkey;
 }
+
+#endif /* CONFIG_PPC_MEM_KEYS */
