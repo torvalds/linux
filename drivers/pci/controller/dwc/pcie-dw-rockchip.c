@@ -411,11 +411,13 @@ static int rk_pcie_establish_link(struct dw_pcie *pci)
 
 	for (retries = 0; retries < 1000000; retries++) {
 		if (dw_pcie_link_up(pci)) {
-			dev_info(pci->dev, "PCIe Link up\n");
+			dev_info(pci->dev, "PCIe Link up, LTSSM is 0x%x\n",
+				 rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_LTSSM_STATUS));
 			return 0;
 		}
 
-		dev_info_ratelimited(pci->dev, "PCIe Linking...\n");
+		dev_info_ratelimited(pci->dev, "PCIe Linking... LTSSM is 0x%x\n",
+				     rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_LTSSM_STATUS));
 		mdelay(1000);
 	}
 
