@@ -42,14 +42,11 @@ udelay:
 	 *	(nanoseconds + (timebase_period_ns - 1 )) / timebase_period_ns
 	 *  timebase_period_ns defaults to 60 (16.6MHz) */
 	mflr	r5
-	bl	0f
+	bcl	20,31,0f
 0:	mflr	r6
 	mtlr	r5
-	lis	r5,0b@ha
-	addi	r5,r5,0b@l
-	subf	r5,r5,r6	/* In case we're relocated */
-	addis	r5,r5,timebase_period_ns@ha
-	lwz	r5,timebase_period_ns@l(r5)
+	addis	r5,r6,(timebase_period_ns-0b)@ha
+	lwz	r5,(timebase_period_ns-0b)@l(r5)
 	add	r4,r4,r5
 	addi	r4,r4,-1
 	divw	r4,r4,r5	/* BUS ticks */
