@@ -203,11 +203,8 @@ function torture_one {
 	"$@" $boottag "$cur_bootargs" --datestamp "$ds/results-$curflavor" > $T/$curflavor.out 2>&1
 	retcode=$?
 	resdir="`grep '^Results directory: ' $T/$curflavor.out | tail -1 | sed -e 's/^Results directory: //'`"
-	if test -n "$resdir"
+	if test -z "$resdir"
 	then
-		cp $T/$curflavor.out $resdir/log.long
-		echo retcode=$retcode >> $resdir/log.long
-	else
 		cat $T/$curflavor.out | tee -a $T/log
 		echo retcode=$retcode | tee -a $T/log
 	fi
