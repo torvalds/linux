@@ -545,76 +545,61 @@ static bool system_going_down(void)
 		|| system_state == SYSTEM_RESTART;
 }
 
+struct ext4_err_translation {
+	int code;
+	int errno;
+};
+
+#define EXT4_ERR_TRANSLATE(err) { .code = EXT4_ERR_##err, .errno = err }
+
+static struct ext4_err_translation err_translation[] = {
+	EXT4_ERR_TRANSLATE(EIO),
+	EXT4_ERR_TRANSLATE(ENOMEM),
+	EXT4_ERR_TRANSLATE(EFSBADCRC),
+	EXT4_ERR_TRANSLATE(EFSCORRUPTED),
+	EXT4_ERR_TRANSLATE(ENOSPC),
+	EXT4_ERR_TRANSLATE(ENOKEY),
+	EXT4_ERR_TRANSLATE(EROFS),
+	EXT4_ERR_TRANSLATE(EFBIG),
+	EXT4_ERR_TRANSLATE(EEXIST),
+	EXT4_ERR_TRANSLATE(ERANGE),
+	EXT4_ERR_TRANSLATE(EOVERFLOW),
+	EXT4_ERR_TRANSLATE(EBUSY),
+	EXT4_ERR_TRANSLATE(ENOTDIR),
+	EXT4_ERR_TRANSLATE(ENOTEMPTY),
+	EXT4_ERR_TRANSLATE(ESHUTDOWN),
+	EXT4_ERR_TRANSLATE(EFAULT),
+};
+
+static int ext4_errno_to_code(int errno)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(err_translation); i++)
+		if (err_translation[i].errno == errno)
+			return err_translation[i].code;
+	return EXT4_ERR_UNKNOWN;
+}
+
 static void __save_error_info(struct super_block *sb, int error,
 			      __u32 ino, __u64 block,
 			      const char *func, unsigned int line)
 {
 	struct ext4_super_block *es = EXT4_SB(sb)->s_es;
-	int err;
 
 	EXT4_SB(sb)->s_mount_state |= EXT4_ERROR_FS;
 	if (bdev_read_only(sb->s_bdev))
 		return;
+	/* We default to EFSCORRUPTED error... */
+	if (error == 0)
+		error = EFSCORRUPTED;
 	es->s_state |= cpu_to_le16(EXT4_ERROR_FS);
 	ext4_update_tstamp(es, s_last_error_time);
 	strncpy(es->s_last_error_func, func, sizeof(es->s_last_error_func));
 	es->s_last_error_line = cpu_to_le32(line);
 	es->s_last_error_ino = cpu_to_le32(ino);
 	es->s_last_error_block = cpu_to_le64(block);
-	switch (error) {
-	case EIO:
-		err = EXT4_ERR_EIO;
-		break;
-	case ENOMEM:
-		err = EXT4_ERR_ENOMEM;
-		break;
-	case EFSBADCRC:
-		err = EXT4_ERR_EFSBADCRC;
-		break;
-	case 0:
-	case EFSCORRUPTED:
-		err = EXT4_ERR_EFSCORRUPTED;
-		break;
-	case ENOSPC:
-		err = EXT4_ERR_ENOSPC;
-		break;
-	case ENOKEY:
-		err = EXT4_ERR_ENOKEY;
-		break;
-	case EROFS:
-		err = EXT4_ERR_EROFS;
-		break;
-	case EFBIG:
-		err = EXT4_ERR_EFBIG;
-		break;
-	case EEXIST:
-		err = EXT4_ERR_EEXIST;
-		break;
-	case ERANGE:
-		err = EXT4_ERR_ERANGE;
-		break;
-	case EOVERFLOW:
-		err = EXT4_ERR_EOVERFLOW;
-		break;
-	case EBUSY:
-		err = EXT4_ERR_EBUSY;
-		break;
-	case ENOTDIR:
-		err = EXT4_ERR_ENOTDIR;
-		break;
-	case ENOTEMPTY:
-		err = EXT4_ERR_ENOTEMPTY;
-		break;
-	case ESHUTDOWN:
-		err = EXT4_ERR_ESHUTDOWN;
-		break;
-	case EFAULT:
-		err = EXT4_ERR_EFAULT;
-		break;
-	default:
-		err = EXT4_ERR_UNKNOWN;
-	}
-	es->s_last_error_errcode = err;
+	es->s_last_error_errcode = ext4_errno_to_code(error);
 	if (!es->s_first_error_time) {
 		es->s_first_error_time = es->s_last_error_time;
 		es->s_first_error_time_hi = es->s_last_error_time_hi;
