@@ -418,7 +418,7 @@ static int coresight_enable_source(struct coresight_device *csdev, u32 mode)
 			if (ret) {
 				coresight_control_assoc_ectdev(csdev, false);
 				return ret;
-			};
+			}
 		}
 		csdev->enable = true;
 	}
