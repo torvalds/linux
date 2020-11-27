@@ -205,6 +205,18 @@ void __init pkey_early_init_devtree(void)
 	reserved_allocation_mask |= (0x1 << 1);
 	default_uamor &= ~(0x3ul << pkeyshift(1));
 
+	/*  handle key which is used by kernel for KAUP */
+	reserved_allocation_mask |= (0x1 << 3);
+	/*
+	 * Mark access for KUAP key in default amr so that
+	 * we continue to operate with that AMR in
+	 * copy_to/from_user().
+	 */
+	default_amr   &= ~(0x3ul << pkeyshift(3));
+	default_iamr  &= ~(0x1ul << pkeyshift(3));
+	default_uamor &= ~(0x3ul << pkeyshift(3));
+
+
 	/*
 	 * Prevent the usage of OS reserved keys. Update UAMOR
 	 * for those keys. Also mark the rest of the bits in the
