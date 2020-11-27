@@ -176,12 +176,10 @@ static int ext4_protect_reserved_inode(struct super_block *sb,
 			err = add_system_zone(system_blks, map.m_pblk, n, ino);
 			if (err < 0) {
 				if (err == -EFSCORRUPTED) {
-					__ext4_error(sb, __func__, __LINE__,
-						     -err, map.m_pblk,
-						     "blocks %llu-%llu from inode %u overlap system zone",
-						     map.m_pblk,
-						     map.m_pblk + map.m_len - 1,
-						     ino);
+					EXT4_ERROR_INODE_ERR(inode, -err,
+						"blocks %llu-%llu from inode overlap system zone",
+						map.m_pblk,
+						map.m_pblk + map.m_len - 1);
 				}
 				break;
 			}
