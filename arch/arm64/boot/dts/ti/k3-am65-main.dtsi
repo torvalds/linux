@@ -472,6 +472,7 @@
 			interrupt-controller;
 			interrupt-parent = <&intr_main_navss>;
 			msi-controller;
+			#interrupt-cells = <0>;
 			ti,sci = <&dmsc>;
 			ti,sci-dev-id = <179>;
 			ti,interrupt-ranges = <0 0 256>;
