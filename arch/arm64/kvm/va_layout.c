@@ -11,6 +11,7 @@
 #include <asm/debug-monitors.h>
 #include <asm/insn.h>
 #include <asm/kvm_mmu.h>
+#include <asm/memory.h>
 
 /*
  * The LSB of the HYP VA tag
@@ -200,4 +201,59 @@ void kvm_patch_vector_branch(struct alt_instr *alt,
 	insn = aarch64_insn_gen_branch_reg(AARCH64_INSN_REG_0,
 					   AARCH64_INSN_BRANCH_NOLINK);
 	*updptr++ = cpu_to_le32(insn);
+}
+
+static void generate_mov_q(u64 val, __le32 *origptr, __le32 *updptr, int nr_inst)
+{
+	u32 insn, oinsn, rd;
+
+	BUG_ON(nr_inst != 4);
+
+	/* Compute target register */
+	oinsn = le32_to_cpu(*origptr);
+	rd = aarch64_insn_decode_register(AARCH64_INSN_REGTYPE_RD, oinsn);
+
+	/* movz rd, #(val & 0xffff) */
+	insn = aarch64_insn_gen_movewide(rd,
+					 (u16)val,
+					 0,
+					 AARCH64_INSN_VARIANT_64BIT,
+					 AARCH64_INSN_MOVEWIDE_ZERO);
+	*updptr++ = cpu_to_le32(insn);
+
+	/* movk rd, #((val >> 16) & 0xffff), lsl #16 */
+	insn = aarch64_insn_gen_movewide(rd,
+					 (u16)(val >> 16),
+					 16,
+					 AARCH64_INSN_VARIANT_64BIT,
+					 AARCH64_INSN_MOVEWIDE_KEEP);
+	*updptr++ = cpu_to_le32(insn);
+
+	/* movk rd, #((val >> 32) & 0xffff), lsl #32 */
+	insn = aarch64_insn_gen_movewide(rd,
+					 (u16)(val >> 32),
+					 32,
+					 AARCH64_INSN_VARIANT_64BIT,
+					 AARCH64_INSN_MOVEWIDE_KEEP);
+	*updptr++ = cpu_to_le32(insn);
+
+	/* movk rd, #((val >> 48) & 0xffff), lsl #48 */
+	insn = aarch64_insn_gen_movewide(rd,
+					 (u16)(val >> 48),
+					 48,
+					 AARCH64_INSN_VARIANT_64BIT,
+					 AARCH64_INSN_MOVEWIDE_KEEP);
+	*updptr++ = cpu_to_le32(insn);
+}
+
+void kvm_update_kimg_phys_offset(struct alt_instr *alt,
+				 __le32 *origptr, __le32 *updptr, int nr_inst)
+{
+	generate_mov_q(kimage_voffset + PHYS_OFFSET, origptr, updptr, nr_inst);
+}
+
+void kvm_get_kimage_voffset(struct alt_instr *alt,
+			    __le32 *origptr, __le32 *updptr, int nr_inst)
+{
+	generate_mov_q(kimage_voffset, origptr, updptr, nr_inst);
 }

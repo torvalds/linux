@@ -72,6 +72,28 @@ alternative_cb kvm_update_va_mask
 alternative_cb_end
 .endm
 
+/*
+ * Convert a kernel image address to a PA
+ * reg: kernel address to be converted in place
+ * tmp: temporary register
+ *
+ * The actual code generation takes place in kvm_get_kimage_voffset, and
+ * the instructions below are only there to reserve the space and
+ * perform the register allocation (kvm_get_kimage_voffset uses the
+ * specific registers encoded in the instructions).
+ */
+.macro kimg_pa reg, tmp
+alternative_cb kvm_get_kimage_voffset
+	movz	\tmp, #0
+	movk	\tmp, #0, lsl #16
+	movk	\tmp, #0, lsl #32
+	movk	\tmp, #0, lsl #48
+alternative_cb_end
+
+	/* reg = __pa(reg) */
+	sub	\reg, \reg, \tmp
+.endm
+
 #else
 
 #include <linux/pgtable.h>
@@ -97,6 +119,24 @@ static __always_inline unsigned long __kern_hyp_va(unsigned long v)
 }
 
 #define kern_hyp_va(v) 	((typeof(v))(__kern_hyp_va((unsigned long)(v))))
+
+static __always_inline unsigned long __kimg_hyp_va(unsigned long v)
+{
+	unsigned long offset;
+
+	asm volatile(ALTERNATIVE_CB("movz %0, #0\n"
+				    "movk %0, #0, lsl #16\n"
+				    "movk %0, #0, lsl #32\n"
+				    "movk %0, #0, lsl #48\n",
+				    kvm_update_kimg_phys_offset)
+		     : "=r" (offset));
+
+	return __kern_hyp_va((v - offset) | PAGE_OFFSET);
+}
+
+#define kimg_fn_hyp_va(v) 	((typeof(*v))(__kimg_hyp_va((unsigned long)(v))))
+
+#define kimg_fn_ptr(x)	(typeof(x) **)(x)
 
 /*
  * We currently support using a VM-specified IPA size. For backward
