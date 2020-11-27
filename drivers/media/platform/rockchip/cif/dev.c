@@ -579,6 +579,17 @@ static int subdev_notifier_complete(struct v4l2_async_notifier *notifier)
 			}
 			break;
 		}
+
+		if (sensor->mbus.type == V4L2_MBUS_PARALLEL ||
+		    sensor->mbus.type == V4L2_MBUS_BT656) {
+			ret = rkcif_register_dvp_sof_subdev(dev);
+			if (ret < 0) {
+				v4l2_err(&dev->v4l2_dev,
+					 "Err: register dvp sof subdev failed!!!\n");
+				goto notifier_end;
+			}
+			break;
+		}
 	}
 
 	ret = rkcif_create_links(dev);
@@ -597,6 +608,7 @@ static int subdev_notifier_complete(struct v4l2_async_notifier *notifier)
 
 unregister_lvds:
 	rkcif_unregister_lvds_subdev(dev);
+	rkcif_unregister_dvp_sof_subdev(dev);
 notifier_end:
 	return ret;
 }
@@ -902,6 +914,9 @@ int rkcif_plat_uninit(struct rkcif_device *cif_dev)
 
 	if (cif_dev->active_sensor->mbus.type == V4L2_MBUS_CCP2)
 		rkcif_unregister_lvds_subdev(cif_dev);
+	if (cif_dev->active_sensor->mbus.type == V4L2_MBUS_BT656 ||
+	    cif_dev->active_sensor->mbus.type == V4L2_MBUS_PARALLEL)
+		rkcif_unregister_dvp_sof_subdev(cif_dev);
 
 	media_device_unregister(&cif_dev->media_dev);
 	v4l2_device_unregister(&cif_dev->v4l2_dev);

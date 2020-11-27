@@ -395,6 +395,12 @@ struct rkcif_lvds_subdev {
 	atomic_t			frm_sync_seq;
 };
 
+struct rkcif_dvp_sof_subdev {
+	struct rkcif_device *cifdev;
+	struct v4l2_subdev sd;
+	atomic_t			frm_sync_seq;
+};
+
 static inline struct rkcif_buffer *to_rkcif_buffer(struct vb2_v4l2_buffer *vb)
 {
 	return container_of(vb, struct rkcif_buffer, vb);
@@ -457,7 +463,7 @@ struct rkcif_device {
 	struct rkcif_buffer		*rdbk_buf[RDBK_MAX];
 	struct rkcif_luma_vdev		luma_vdev;
 	struct rkcif_lvds_subdev	lvds_subdev;
-
+	struct rkcif_dvp_sof_subdev	dvp_sof_subdev;
 	struct rkcif_hw *hw_dev;
 	irqreturn_t (*isr_hdl)(int irq, struct rkcif_device *cif_dev);
 	int inf_id;
@@ -502,6 +508,8 @@ void rkcif_soft_reset(struct rkcif_device *cif_dev,
 		      bool is_rst_iommu);
 int rkcif_register_lvds_subdev(struct rkcif_device *dev);
 void rkcif_unregister_lvds_subdev(struct rkcif_device *dev);
+int rkcif_register_dvp_sof_subdev(struct rkcif_device *dev);
+void rkcif_unregister_dvp_sof_subdev(struct rkcif_device *dev);
 void rkcif_irq_lite_lvds(struct rkcif_device *cif_dev);
 u32 rkcif_get_sof(struct rkcif_device *cif_dev);
 int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int inf_id);

@@ -312,6 +312,7 @@ enum cif_reg_index {
 #define BUS_ERR_EN			(0x1 << 6)
 #define SCL_ERR_EN			(0x1 << 7)
 #define PST_INF_FRAME_END_EN		(0x1 << 9)
+#define LINE_INT_EN			(0x1 << 10)
 
 /* CIF INTSTAT */
 #define INTSTAT_CLS			(0x3FF)
@@ -322,6 +323,7 @@ enum cif_reg_index {
 #define DFIFO_OVERFLOW			(0x1 << 5)
 #define BUS_ERR				(0x1 << 6)
 #define PST_INF_FRAME_END		(0x01 << 9)
+#define LINE_INT_END			(0x1 << 10)
 #define FRAME_END_CLR			(0x01 << 0)
 #define PST_INF_FRAME_END_CLR		(0x01 << 9)
 #define INTSTAT_ERR			(0xFC)

@@ -52,6 +52,7 @@
  *v0.1.9
  *1. support rk3568 cif
  *2. support rk3568 csi-host
+ *3. add dvp sof
  */
 
 #define RKCIF_DRIVER_VERSION RKCIF_API_VERSION

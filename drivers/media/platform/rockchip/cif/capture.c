@@ -2053,6 +2053,107 @@ static void rkcif_sync_crop_info(struct rkcif_stream *stream)
 	}
 }
 
+/**rkcif_sanity_check_fmt - check fmt for setting
+ * @stream - the stream for setting
+ * @s_crop - the crop information
+ */
+static int rkcif_sanity_check_fmt(struct rkcif_stream *stream,
+				  const struct v4l2_rect *s_crop)
+{
+	struct rkcif_device *dev = stream->cifdev;
+	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
+	struct v4l2_rect input, *crop;
+
+	stream->cif_fmt_in = get_input_fmt(dev->active_sensor->sd,
+					   &input, stream->id + 1);
+	if (!stream->cif_fmt_in) {
+		v4l2_err(v4l2_dev, "Input fmt is invalid\n");
+		return -EINVAL;
+	}
+
+	if (s_crop)
+		crop = (struct v4l2_rect *)s_crop;
+	else
+		crop = &stream->crop[CROP_SRC_ACT];
+
+	if (crop->width + crop->left > input.width ||
+	    crop->height + crop->top > input.height) {
+		v4l2_err(v4l2_dev, "crop size is bigger than input\n");
+		return -EINVAL;
+	}
+
+	if (dev->active_sensor->mbus.type == V4L2_MBUS_CSI2) {
+		if (crop->left > 0) {
+			int align_x = get_csi_crop_align(stream->cif_fmt_in);
+
+			if (align_x > 0 && crop->left % align_x != 0) {
+				v4l2_err(v4l2_dev,
+					 "ERROR: crop left must align %d\n",
+					 align_x);
+				return -EINVAL;
+			}
+		}
+	} else if (dev->active_sensor->mbus.type == V4L2_MBUS_CCP2) {
+		if (crop->left % 4 != 0 && crop->width % 4 != 0) {
+			v4l2_err(v4l2_dev,
+				 "ERROR: lvds crop left and width must align %d\n", 4);
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+int rkcif_update_sensor_info(struct rkcif_stream *stream)
+{
+	struct rkcif_sensor_info *sensor, *terminal_sensor;
+	struct v4l2_subdev *sensor_sd;
+	int ret = 0;
+
+	sensor_sd = get_remote_sensor(stream, NULL);
+	if (!sensor_sd)
+		return -ENODEV;
+
+	sensor = sd_to_sensor(stream->cifdev, sensor_sd);
+	if (!sensor) {
+		v4l2_err(&stream->cifdev->v4l2_dev, "get sensor for updating failed!\n");
+		return -ENODEV;
+	}
+	ret = v4l2_subdev_call(sensor->sd, video, g_mbus_config,
+			       &sensor->mbus);
+	if (ret && ret != -ENOIOCTLCMD)
+		return ret;
+	stream->cifdev->active_sensor = sensor;
+
+	terminal_sensor = &stream->cifdev->terminal_sensor;
+	get_remote_terminal_sensor(stream, &terminal_sensor->sd);
+	if (terminal_sensor->sd) {
+		ret = v4l2_subdev_call(terminal_sensor->sd, video, g_mbus_config,
+				       &terminal_sensor->mbus);
+		if (ret && ret != -ENOIOCTLCMD)
+			return ret;
+	}
+
+	switch (terminal_sensor->mbus.flags & V4L2_MBUS_CSI2_LANES) {
+	case V4L2_MBUS_CSI2_1_LANE:
+		terminal_sensor->lanes = 1;
+		break;
+	case V4L2_MBUS_CSI2_2_LANE:
+		terminal_sensor->lanes = 2;
+		break;
+	case V4L2_MBUS_CSI2_3_LANE:
+		terminal_sensor->lanes = 3;
+		break;
+	case V4L2_MBUS_CSI2_4_LANE:
+		terminal_sensor->lanes = 4;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return ret;
+}
+
 static int rkcif_stream_start(struct rkcif_stream *stream)
 {
 	u32 val, mbus_flags, href_pol, vsync_pol,
@@ -2064,6 +2165,7 @@ static int rkcif_stream_start(struct rkcif_stream *stream)
 	    bt1120_edge_mode = BT1120_CLOCK_SINGLE_EDGES;
 	struct rkcif_device *dev = stream->cifdev;
 	struct rkcif_sensor_info *sensor_info;
+	struct rkcif_dvp_sof_subdev *sof_sd = &dev->dvp_sof_subdev;
 	const struct cif_output_fmt *fmt;
 
 	sensor_info = dev->active_sensor;
@@ -2156,7 +2258,12 @@ static int rkcif_stream_start(struct rkcif_stream *stream)
 						 RKCIF_YUV_ADDR_STATE_INIT);
 
 	rkcif_write_register(dev, CIF_REG_DVP_INTEN,
-			     FRAME_END_EN | PST_INF_FRAME_END | INTSTAT_ERR);
+			     FRAME_END_EN | INTSTAT_ERR |
+			     PST_INF_FRAME_END);
+
+	/* enable line int for sof */
+	rkcif_write_register(dev, CIF_REG_DVP_LINE_INT_NUM, 0x1);
+	rkcif_write_register_or(dev, CIF_REG_DVP_INTEN, LINE_INT_EN);
 
 	if (dev->workmode == RKCIF_WORKMODE_ONEFRAME)
 		workmode = MODE_ONEFRAME;
@@ -2177,58 +2284,8 @@ static int rkcif_stream_start(struct rkcif_stream *stream)
 				     AXI_BURST_16 | workmode | ENABLE_CAPTURE);
 	}
 
+	atomic_set(&sof_sd->frm_sync_seq, 0);
 	stream->state = RKCIF_STATE_STREAMING;
-
-	return 0;
-}
-
-/**rkcif_sanity_check_fmt - check fmt for setting
- * @stream - the stream for setting
- * @s_crop - the crop information
- */
-static int rkcif_sanity_check_fmt(struct rkcif_stream *stream,
-				  const struct v4l2_rect *s_crop)
-{
-	struct rkcif_device *dev = stream->cifdev;
-	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
-	struct v4l2_rect input, *crop;
-
-	stream->cif_fmt_in = get_input_fmt(dev->active_sensor->sd,
-					   &input, stream->id + 1);
-	if (!stream->cif_fmt_in) {
-		v4l2_err(v4l2_dev, "Input fmt is invalid\n");
-		return -EINVAL;
-	}
-
-	if (s_crop)
-		crop = (struct v4l2_rect *)s_crop;
-	else
-		crop = &stream->crop[CROP_SRC_ACT];
-
-	if (crop->width + crop->left > input.width ||
-	    crop->height + crop->top > input.height) {
-		v4l2_err(v4l2_dev, "crop size is bigger than input\n");
-		return -EINVAL;
-	}
-
-	if (dev->active_sensor->mbus.type == V4L2_MBUS_CSI2) {
-		if (crop->left > 0) {
-			int align_x = get_csi_crop_align(stream->cif_fmt_in);
-
-			if (align_x > 0 && crop->left % align_x != 0) {
-				v4l2_err(v4l2_dev,
-					 "ERROR: crop left must align %d\n",
-					 align_x);
-				return -EINVAL;
-			}
-		}
-	} else if (dev->active_sensor->mbus.type == V4L2_MBUS_CCP2) {
-		if (crop->left % 4 != 0 && crop->width % 4 != 0) {
-			v4l2_err(v4l2_dev,
-				 "ERROR: lvds crop left and width must align %d\n", 4);
-			return -EINVAL;
-		}
-	}
 
 	return 0;
 }
@@ -3301,7 +3358,7 @@ static int rkcif_lvds_sd_s_power(struct v4l2_subdev *sd, int on)
 	return 0;
 }
 
-static int rkcif_lvds_subscribe_event(struct v4l2_subdev *sd, struct v4l2_fh *fh,
+static int rkcif_sof_subscribe_event(struct v4l2_subdev *sd, struct v4l2_fh *fh,
 				      struct v4l2_event_subscription *sub)
 {
 	if (sub->type != V4L2_EVENT_FRAME_SYNC)
@@ -3329,7 +3386,7 @@ static const struct v4l2_subdev_video_ops rkcif_lvds_sd_video_ops = {
 
 static const struct v4l2_subdev_core_ops rkcif_lvds_sd_core_ops = {
 	.s_power = rkcif_lvds_sd_s_power,
-	.subscribe_event = rkcif_lvds_subscribe_event,
+	.subscribe_event = rkcif_sof_subscribe_event,
 	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
 };
 
@@ -3359,56 +3416,6 @@ static u32 rkcif_lvds_get_sof(struct rkcif_device *dev)
 		return atomic_read(&dev->lvds_subdev.frm_sync_seq) - 1;
 
 	return 0;
-}
-
-int rkcif_update_sensor_info(struct rkcif_stream *stream)
-{
-	struct rkcif_sensor_info *sensor, *terminal_sensor;
-	struct v4l2_subdev *sensor_sd;
-	int ret = 0;
-
-	sensor_sd = get_remote_sensor(stream, NULL);
-	if (!sensor_sd)
-		return -ENODEV;
-
-	sensor = sd_to_sensor(stream->cifdev, sensor_sd);
-	if (!sensor) {
-		v4l2_err(&stream->cifdev->v4l2_dev, "get sensor for updating failed!\n");
-		return -ENODEV;
-	}
-	ret = v4l2_subdev_call(sensor->sd, video, g_mbus_config,
-			       &sensor->mbus);
-	if (ret && ret != -ENOIOCTLCMD)
-		return ret;
-	stream->cifdev->active_sensor = sensor;
-
-	terminal_sensor = &stream->cifdev->terminal_sensor;
-	get_remote_terminal_sensor(stream, &terminal_sensor->sd);
-	if (terminal_sensor->sd) {
-		ret = v4l2_subdev_call(terminal_sensor->sd, video, g_mbus_config,
-				       &terminal_sensor->mbus);
-		if (ret && ret != -ENOIOCTLCMD)
-			return ret;
-	}
-
-	switch (terminal_sensor->mbus.flags & V4L2_MBUS_CSI2_LANES) {
-	case V4L2_MBUS_CSI2_1_LANE:
-		terminal_sensor->lanes = 1;
-		break;
-	case V4L2_MBUS_CSI2_2_LANE:
-		terminal_sensor->lanes = 2;
-		break;
-	case V4L2_MBUS_CSI2_3_LANE:
-		terminal_sensor->lanes = 3;
-		break;
-	case V4L2_MBUS_CSI2_4_LANE:
-		terminal_sensor->lanes = 4;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return ret;
 }
 
 int rkcif_register_lvds_subdev(struct rkcif_device *dev)
@@ -3473,6 +3480,79 @@ void rkcif_unregister_lvds_subdev(struct rkcif_device *dev)
 	v4l2_device_unregister_subdev(sd);
 	media_entity_cleanup(&sd->entity);
 }
+
+static void rkcif_dvp_event_inc_sof(struct rkcif_device *dev)
+{
+	struct rkcif_dvp_sof_subdev *subdev = &dev->dvp_sof_subdev;
+
+	if (subdev) {
+		struct v4l2_event event = {
+			.type = V4L2_EVENT_FRAME_SYNC,
+			.u.frame_sync.frame_sequence =
+				atomic_inc_return(&subdev->frm_sync_seq) - 1,
+		};
+		v4l2_event_queue(subdev->sd.devnode, &event);
+	}
+}
+
+static u32 rkcif_dvp_get_sof(struct rkcif_device *dev)
+{
+	if (dev)
+		return atomic_read(&dev->dvp_sof_subdev.frm_sync_seq) - 1;
+
+	return 0;
+}
+
+static const struct v4l2_subdev_core_ops rkcif_dvp_sof_sd_core_ops = {
+	.subscribe_event = rkcif_sof_subscribe_event,
+	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
+};
+
+static struct v4l2_subdev_ops rkcif_dvp_sof_sd_ops = {
+	.core = &rkcif_dvp_sof_sd_core_ops,
+};
+
+int rkcif_register_dvp_sof_subdev(struct rkcif_device *dev)
+{
+	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
+	struct rkcif_dvp_sof_subdev *subdev = &dev->dvp_sof_subdev;
+	struct v4l2_subdev *sd;
+	int ret;
+
+	memset(subdev, 0, sizeof(*subdev));
+	subdev->cifdev = dev;
+	sd = &subdev->sd;
+	v4l2_subdev_init(sd, &rkcif_dvp_sof_sd_ops);
+	sd->owner = THIS_MODULE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
+	snprintf(sd->name, sizeof(sd->name), "rkcif-dvp-sof");
+
+	v4l2_set_subdevdata(sd, subdev);
+	ret = v4l2_device_register_subdev(v4l2_dev, sd);
+	if (ret < 0)
+		goto end;
+
+	ret = v4l2_device_register_subdev_nodes(v4l2_dev);
+	if (ret < 0)
+		goto free_subdev;
+
+	return ret;
+
+free_subdev:
+	v4l2_device_unregister_subdev(sd);
+
+end:
+	v4l2_err(sd, "Failed to register subdev, ret:%d\n", ret);
+	return ret;
+}
+
+void rkcif_unregister_dvp_sof_subdev(struct rkcif_device *dev)
+{
+	struct v4l2_subdev *sd = &dev->dvp_sof_subdev.sd;
+
+	v4l2_device_unregister_subdev(sd);
+}
+
 
 static void rkcif_vb_done_oneframe(struct rkcif_stream *stream,
 				   struct vb2_v4l2_buffer *vb_done)
@@ -3933,17 +4013,18 @@ static void rkcif_update_stream(struct rkcif_device *cif_dev,
 
 u32 rkcif_get_sof(struct rkcif_device *cif_dev)
 {
+	u32 val = 0x0;
 	struct rkcif_sensor_info *sensor = cif_dev->active_sensor;
 
 	if (sensor->mbus.type == V4L2_MBUS_CSI2)
-		return rkcif_csi2_get_sof();
+		val = rkcif_csi2_get_sof();
 	else if (sensor->mbus.type == V4L2_MBUS_CCP2)
-		return rkcif_lvds_get_sof(cif_dev);
-	else if (sensor->mbus.type == V4L2_MBUS_PARALLEL)
-		/*TODO*/
-		return 0;
+		val = rkcif_lvds_get_sof(cif_dev);
+	else if (sensor->mbus.type == V4L2_MBUS_PARALLEL ||
+		 sensor->mbus.type == V4L2_MBUS_BT656)
+		val = rkcif_dvp_get_sof(cif_dev);
 
-	return 0;
+	return val;
 }
 
 static int rkcif_do_reset_work(struct rkcif_device *cif_dev,
@@ -4322,7 +4403,8 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 		}
 		cif_dev->irq_stats.all_frm_end_cnt++;
 	} else {
-		u32 lastline, lastpix, ctl, cif_frmst, frmid;
+		u32 lastline, lastpix, ctl;
+		u32 cif_frmst, frmid, int_en;
 		struct rkcif_stream *stream;
 
 		intstat = rkcif_read_register(cif_dev, CIF_REG_DVP_INTSTAT);
@@ -4334,6 +4416,14 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 		ctl = rkcif_read_register(cif_dev, CIF_REG_DVP_CTRL);
 
 		stream = &cif_dev->stream[RKCIF_STREAM_CIF];
+
+		if ((intstat & LINE_INT_END) && !(intstat & FRAME_END)) {
+			rkcif_dvp_event_inc_sof(cif_dev);
+			rkcif_write_register(cif_dev, CIF_REG_DVP_INTSTAT, intstat);
+			int_en = rkcif_read_register(cif_dev, CIF_REG_DVP_INTEN);
+			int_en &= ~LINE_INT_EN;
+			rkcif_write_register(cif_dev, CIF_REG_DVP_INTEN, int_en);
+		}
 
 		if (intstat & BUS_ERR) {
 			cif_dev->irq_stats.dvp_bus_err_cnt++;
@@ -4382,6 +4472,10 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 
 			rkcif_write_register(cif_dev, CIF_REG_DVP_INTSTAT,
 					     FRAME_END_CLR);
+
+			int_en = rkcif_read_register(cif_dev, CIF_REG_DVP_INTEN);
+			int_en |= LINE_INT_EN;
+			rkcif_write_register(cif_dev, CIF_REG_DVP_INTEN, int_en);
 
 			if (stream->stopping) {
 				rkcif_stream_stop(stream);
