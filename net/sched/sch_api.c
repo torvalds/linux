@@ -1943,8 +1943,8 @@ static int tc_bind_class_walker(struct Qdisc *q, unsigned long cl,
 	     chain = tcf_get_next_chain(block, chain)) {
 		struct tcf_proto *tp;
 
-		for (tp = tcf_get_next_proto(chain, NULL, true);
-		     tp; tp = tcf_get_next_proto(chain, tp, true)) {
+		for (tp = tcf_get_next_proto(chain, NULL);
+		     tp; tp = tcf_get_next_proto(chain, tp)) {
 			struct tcf_bind_args arg = {};
 
 			arg.w.fn = tcf_node_bind;

@@ -991,13 +991,12 @@ __tcf_get_next_proto(struct tcf_chain *chain, struct tcf_proto *tp)
  */
 
 struct tcf_proto *
-tcf_get_next_proto(struct tcf_chain *chain, struct tcf_proto *tp,
-		   bool rtnl_held)
+tcf_get_next_proto(struct tcf_chain *chain, struct tcf_proto *tp)
 {
 	struct tcf_proto *tp_next = __tcf_get_next_proto(chain, tp);
 
 	if (tp)
-		tcf_proto_put(tp, rtnl_held, NULL);
+		tcf_proto_put(tp, true, NULL);
 
 	return tp_next;
 }
@@ -1924,15 +1923,14 @@ static int tfilter_del_notify(struct net *net, struct sk_buff *oskb,
 static void tfilter_notify_chain(struct net *net, struct sk_buff *oskb,
 				 struct tcf_block *block, struct Qdisc *q,
 				 u32 parent, struct nlmsghdr *n,
-				 struct tcf_chain *chain, int event,
-				 bool rtnl_held)
+				 struct tcf_chain *chain, int event)
 {
 	struct tcf_proto *tp;
 
-	for (tp = tcf_get_next_proto(chain, NULL, rtnl_held);
-	     tp; tp = tcf_get_next_proto(chain, tp, rtnl_held))
+	for (tp = tcf_get_next_proto(chain, NULL);
+	     tp; tp = tcf_get_next_proto(chain, tp))
 		tfilter_notify(net, oskb, n, tp, block,
-			       q, parent, NULL, event, false, rtnl_held);
+			       q, parent, NULL, event, false, true);
 }
 
 static void tfilter_put(struct tcf_proto *tp, void *fh)
@@ -2262,7 +2260,7 @@ static int tc_del_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
 
 	if (prio == 0) {
 		tfilter_notify_chain(net, skb, block, q, parent, n,
-				     chain, RTM_DELTFILTER, rtnl_held);
+				     chain, RTM_DELTFILTER);
 		tcf_chain_flush(chain, rtnl_held);
 		err = 0;
 		goto errout;
@@ -2895,7 +2893,7 @@ replay:
 		break;
 	case RTM_DELCHAIN:
 		tfilter_notify_chain(net, skb, block, q, parent, n,
-				     chain, RTM_DELTFILTER, true);
+				     chain, RTM_DELTFILTER);
 		/* Flush the chain first as the user requested chain removal. */
 		tcf_chain_flush(chain, true);
 		/* In case the chain was successfully deleted, put a reference
