@@ -244,7 +244,7 @@ cpt_init_fail:
 
 struct ucode_header {
 	u8 version[CPT_UCODE_VERSION_SZ];
-	u32 code_length;
+	__be32 code_length;
 	u32 data_length;
 	u64 sram_address;
 };
@@ -288,10 +288,10 @@ static int cpt_ucode_load_fw(struct cpt_device *cpt, const u8 *fw, bool is_ae)
 
 	/* Byte swap 64-bit */
 	for (j = 0; j < (mcode->code_size / 8); j++)
-		((u64 *)mcode->code)[j] = cpu_to_be64(((u64 *)mcode->code)[j]);
+		((__be64 *)mcode->code)[j] = cpu_to_be64(((u64 *)mcode->code)[j]);
 	/*  MC needs 16-bit swap */
 	for (j = 0; j < (mcode->code_size / 2); j++)
-		((u16 *)mcode->code)[j] = cpu_to_be16(((u16 *)mcode->code)[j]);
+		((__be16 *)mcode->code)[j] = cpu_to_be16(((u16 *)mcode->code)[j]);
 
 	dev_dbg(dev, "mcode->code_size = %u\n", mcode->code_size);
 	dev_dbg(dev, "mcode->is_ae = %u\n", mcode->is_ae);
