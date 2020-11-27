@@ -110,40 +110,14 @@ static struct kobj_type ttm_bo_glob_kobj_type  = {
 	.default_attrs = ttm_bo_global_attrs
 };
 
-static void ttm_bo_add_mem_to_lru(struct ttm_buffer_object *bo,
-				  struct ttm_resource *mem)
-{
-	struct ttm_bo_device *bdev = bo->bdev;
-	struct ttm_resource_manager *man;
-
-	if (!list_empty(&bo->lru) || bo->pin_count)
-		return;
-
-	man = ttm_manager_type(bdev, mem->mem_type);
-	list_add_tail(&bo->lru, &man->lru[bo->priority]);
-
-	if (man->use_tt && bo->ttm &&
-	    !(bo->ttm->page_flags & (TTM_PAGE_FLAG_SG |
-				     TTM_PAGE_FLAG_SWAPPED))) {
-		list_add_tail(&bo->swap, &ttm_bo_glob.swap_lru[bo->priority]);
-	}
-}
-
 static void ttm_bo_del_from_lru(struct ttm_buffer_object *bo)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
-	bool notify = false;
 
-	if (!list_empty(&bo->swap)) {
-		list_del_init(&bo->swap);
-		notify = true;
-	}
-	if (!list_empty(&bo->lru)) {
-		list_del_init(&bo->lru);
-		notify = true;
-	}
+	list_del_init(&bo->swap);
+	list_del_init(&bo->lru);
 
-	if (notify && bdev->driver->del_from_lru_notify)
+	if (bdev->driver->del_from_lru_notify)
 		bdev->driver->del_from_lru_notify(bo);
 }
 
@@ -156,12 +130,30 @@ static void ttm_bo_bulk_move_set_pos(struct ttm_lru_bulk_move_pos *pos,
 }
 
 void ttm_bo_move_to_lru_tail(struct ttm_buffer_object *bo,
+			     struct ttm_resource *mem,
 			     struct ttm_lru_bulk_move *bulk)
 {
+	struct ttm_bo_device *bdev = bo->bdev;
+	struct ttm_resource_manager *man;
+
 	dma_resv_assert_held(bo->base.resv);
 
-	ttm_bo_del_from_lru(bo);
-	ttm_bo_add_mem_to_lru(bo, &bo->mem);
+	if (bo->pin_count)
+		return;
+
+	man = ttm_manager_type(bdev, mem->mem_type);
+	list_move_tail(&bo->lru, &man->lru[bo->priority]);
+	if (man->use_tt && bo->ttm &&
+	    !(bo->ttm->page_flags & (TTM_PAGE_FLAG_SG |
+				     TTM_PAGE_FLAG_SWAPPED))) {
+		struct list_head *swap;
+
+		swap = &ttm_bo_glob.swap_lru[bo->priority];
+		list_move_tail(&bo->swap, swap);
+	}
+
+	if (bdev->driver->del_from_lru_notify)
+		bdev->driver->del_from_lru_notify(bo);
 
 	if (bulk && !bo->pin_count) {
 		switch (bo->mem.mem_type) {
@@ -517,8 +509,7 @@ static void ttm_bo_release(struct kref *kref)
 		 */
 		if (WARN_ON(bo->pin_count)) {
 			bo->pin_count = 0;
-			ttm_bo_del_from_lru(bo);
-			ttm_bo_add_mem_to_lru(bo, &bo->mem);
+			ttm_bo_move_to_lru_tail(bo, &bo->mem, NULL);
 		}
 
 		kref_init(&bo->kref);
@@ -860,8 +851,7 @@ static int ttm_bo_mem_placement(struct ttm_buffer_object *bo,
 	mem->placement = place->flags;
 
 	spin_lock(&ttm_bo_glob.lru_lock);
-	ttm_bo_del_from_lru(bo);
-	ttm_bo_add_mem_to_lru(bo, mem);
+	ttm_bo_move_to_lru_tail(bo, mem, NULL);
 	spin_unlock(&ttm_bo_glob.lru_lock);
 
 	return 0;
