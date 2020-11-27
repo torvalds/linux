@@ -86,7 +86,7 @@ MODULE_VERSION("0.0.1");
 #define check_command_failed(status)	(!(status & SI4713_CTS) || \
 					(status & SI4713_ERR))
 /* mute definition */
-#define set_mute(p)	((p & 1) | ((p & 1) << 1));
+#define set_mute(p)	(((p) & 1) | (((p) & 1) << 1))
 
 #ifdef DEBUG
 #define DBG_BUFFER(device, message, buffer, size)			\
