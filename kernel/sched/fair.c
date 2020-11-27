@@ -9393,7 +9393,8 @@ static struct rq *find_busiest_queue(struct lb_env *env,
 	unsigned int busiest_nr = 0;
 	int i, done = 0;
 
-	trace_android_rvh_find_busiest_queue(env->dst_cpu, group, &busiest, &done);
+	trace_android_rvh_find_busiest_queue(env->dst_cpu, group, env->cpus,
+					     &busiest, &done);
 	if (done)
 		return busiest;
 
