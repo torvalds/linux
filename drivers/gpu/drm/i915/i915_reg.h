@@ -676,6 +676,8 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define  GEN7_OASTATUS2_MEM_SELECT_GGTT     (1 << 0) /* 0: PPGTT, 1: GGTT */
 
 #define GEN8_OASTATUS _MMIO(0x2b08)
+#define  GEN8_OASTATUS_TAIL_POINTER_WRAP    (1 << 17)
+#define  GEN8_OASTATUS_HEAD_POINTER_WRAP    (1 << 16)
 #define  GEN8_OASTATUS_OVERRUN_STATUS	    (1 << 3)
 #define  GEN8_OASTATUS_COUNTER_OVERFLOW     (1 << 2)
 #define  GEN8_OASTATUS_OABUFFER_OVERFLOW    (1 << 1)
