@@ -733,4 +733,7 @@ bool kvm_arm_vcpu_is_finalized(struct kvm_vcpu *vcpu);
 #define kvm_arm_vcpu_sve_finalized(vcpu) \
 	((vcpu)->arch.flags & KVM_ARM64_VCPU_SVE_FINALIZED)
 
+#define kvm_vcpu_has_pmu(vcpu)					\
+	(test_bit(KVM_ARM_VCPU_PMU_V3, (vcpu)->arch.features))
+
 #endif /* __ARM64_KVM_HOST_H__ */
