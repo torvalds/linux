@@ -80,6 +80,7 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-npgtech.o \
 			rc-odroid.o \
 			rc-pctv-sedna.o \
+			rc-pine64.o \
 			rc-pinnacle-color.o \
 			rc-pinnacle-grey.o \
 			rc-pinnacle-pctv-hd.o \

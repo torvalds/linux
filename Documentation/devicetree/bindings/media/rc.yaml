@@ -103,6 +103,7 @@ properties:
       - rc-npgtech
       - rc-odroid
       - rc-pctv-sedna
+      - rc-pine64
       - rc-pinnacle-color
       - rc-pinnacle-grey
       - rc-pinnacle-pctv-hd
