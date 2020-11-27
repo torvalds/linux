@@ -30,6 +30,11 @@ then
 	VERBOSE_BATCH_CPUS=0
 fi
 
+# Configurations/scenarios.
+configs_rcutorture=
+configs_locktorture=
+configs_scftorture=
+
 # Default duration and apportionment.
 duration_base=10
 duration_rcutorture_frac=7
@@ -59,6 +64,9 @@ function doyesno () {
 
 usage () {
 	echo "Usage: $scriptname optional arguments:"
+	echo "       --configs-rcutorture \"config-file list w/ repeat factor (3*TINY01)\""
+	echo "       --configs-locktorture \"config-file list w/ repeat factor (10*LOCK01)\""
+	echo "       --configs-scftorture \"config-file list w/ repeat factor (2*CFLIST)\""
 	echo "       --doall"
 	echo "       --doallmodconfig / --do-no-allmodconfig"
 	echo "       --do-kasan / --do-no-kasan"
@@ -77,6 +85,21 @@ usage () {
 while test $# -gt 0
 do
 	case "$1" in
+	--config-rcutorture|--configs-rcutorture)
+		checkarg --configs-rcutorture "(list of config files)" "$#" "$2" '^[^/]\+$' '^--'
+		configs_rcutorture="$configs_rcutorture $2"
+		shift
+		;;
+	--config-locktorture|--configs-locktorture)
+		checkarg --configs-locktorture "(list of config files)" "$#" "$2" '^[^/]\+$' '^--'
+		configs_locktorture="$configs_locktorture $2"
+		shift
+		;;
+	--config-scftorture|--configs-scftorture)
+		checkarg --configs-scftorture "(list of config files)" "$#" "$2" '^[^/]\+$' '^--'
+		configs_scftorture="$configs_scftorture $2"
+		shift
+		;;
 	--doall)
 		do_allmodconfig=yes
 		do_rcutorture=yes
@@ -155,17 +178,34 @@ T=/tmp/torture.sh.$$
 trap 'rm -rf $T' 0 2
 mkdir $T
 
+# Calculate rcutorture defaults and apportion time
+if test -z "$configs_rcutorture"
+then
+	configs_rcutorture=CFLIST
+fi
 duration_rcutorture=$((duration_base*duration_rcutorture_frac/10))
 if test "$duration_rcutorture" -eq 0
 then
 	echo " --- Zero time for rcutorture, disabling" | tee -a $T/log
 	do_rcutorture=no
 fi
+
+# Calculate locktorture defaults and apportion time
+if test -z "$configs_locktorture"
+then
+	configs_locktorture=CFLIST
+fi
 duration_locktorture=$((duration_base*duration_locktorture_frac/10))
 if test "$duration_locktorture" -eq 0
 then
 	echo " --- Zero time for locktorture, disabling" | tee -a $T/log
 	do_locktorture=no
+fi
+
+# Calculate scftorture defaults and apportion time
+if test -z "$configs_scftorture"
+then
+	configs_scftorture=CFLIST
 fi
 duration_scftorture=$((duration_base*duration_scftorture_frac/10))
 if test "$duration_scftorture" -eq 0
@@ -268,19 +308,19 @@ fi
 if test "$do_rcutorture" = "yes"
 then
 	torture_bootargs="rcupdate.rcu_cpu_stall_suppress_at_boot=1 torture.disable_onoff_at_boot rcupdate.rcu_task_stall_timeout=30000"
-	torture_set "rcutorture" tools/testing/selftests/rcutorture/bin/kvm.sh --allcpus --duration "$duration_rcutorture" --configs "TREE10 4*CFLIST" --trust-make
+	torture_set "rcutorture" tools/testing/selftests/rcutorture/bin/kvm.sh --allcpus --duration "$duration_rcutorture" --configs "$configs_rcutorture" --trust-make
 fi
 
 if test "$do_locktorture" = "yes"
 then
 	torture_bootargs="torture.disable_onoff_at_boot"
-	torture_set "locktorture" tools/testing/selftests/rcutorture/bin/kvm.sh --torture lock --allcpus --duration "$duration_locktorture" --configs "14*CFLIST" --trust-make
+	torture_set "locktorture" tools/testing/selftests/rcutorture/bin/kvm.sh --torture lock --allcpus --duration "$duration_locktorture" --configs "$configs_locktorture" --trust-make
 fi
 
 if test "$do_scftorture" = "yes"
 then
 	torture_bootargs="scftorture.nthreads=$HALF_ALLOTED_CPUS torture.disable_onoff_at_boot"
-	torture_set "scftorture" tools/testing/selftests/rcutorture/bin/kvm.sh --torture scf --allcpus --duration "$duration_scftorture" --kconfig "CONFIG_NR_CPUS=$HALF_ALLOTED_CPUS" --trust-make
+	torture_set "scftorture" tools/testing/selftests/rcutorture/bin/kvm.sh --torture scf --allcpus --duration "$duration_scftorture" --configs "$configs_scftorture" --kconfig "CONFIG_NR_CPUS=$HALF_ALLOTED_CPUS" --trust-make
 fi
 
 if test "$do_refscale" = yes
