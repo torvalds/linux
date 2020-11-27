@@ -174,9 +174,16 @@ do
 	shift
 done
 
+ds="`date +%Y.%m.%d-%H.%M.%S`-torture"
+startdate="`date`"
+starttime="`get_starttime`"
+
 T=/tmp/torture.sh.$$
 trap 'rm -rf $T' 0 2
 mkdir $T
+
+echo " --- " $scriptname $args | tee -a $T/log
+echo " --- Results directory: " $ds | tee -a $T/log
 
 # Calculate rcutorture defaults and apportion time
 if test -z "$configs_rcutorture"
@@ -216,10 +223,6 @@ fi
 
 touch $T/failures
 touch $T/successes
-
-ds="`date +%Y.%m.%d-%H.%M.%S`-torture"
-startdate="`date`"
-starttime="`get_starttime`"
 
 # torture_one - Does a single kvm.sh run.
 #
