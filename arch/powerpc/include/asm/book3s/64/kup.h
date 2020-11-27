@@ -12,28 +12,54 @@
 
 #ifdef __ASSEMBLY__
 
-.macro kuap_user_restore gpr1
+.macro kuap_user_restore gpr1, gpr2
 #if defined(CONFIG_PPC_PKEY)
 	BEGIN_MMU_FTR_SECTION_NESTED(67)
+	b	100f  // skip_restore_amr
+	END_MMU_FTR_SECTION_NESTED_IFCLR(MMU_FTR_PKEY, 67)
 	/*
 	 * AMR and IAMR are going to be different when
 	 * returning to userspace.
 	 */
 	ld	\gpr1, STACK_REGS_AMR(r1)
+
+	/*
+	 * If kuap feature is not enabled, do the mtspr
+	 * only if AMR value is different.
+	 */
+	BEGIN_MMU_FTR_SECTION_NESTED(68)
+	mfspr	\gpr2, SPRN_AMR
+	cmpd	\gpr1, \gpr2
+	beq	99f
+	END_MMU_FTR_SECTION_NESTED_IFCLR(MMU_FTR_BOOK3S_KUAP, 68)
+
 	isync
 	mtspr	SPRN_AMR, \gpr1
+99:
 	/*
 	 * Restore IAMR only when returning to userspace
 	 */
 	ld	\gpr1, STACK_REGS_IAMR(r1)
+
+	/*
+	 * If kuep feature is not enabled, do the mtspr
+	 * only if IAMR value is different.
+	 */
+	BEGIN_MMU_FTR_SECTION_NESTED(69)
+	mfspr	\gpr2, SPRN_IAMR
+	cmpd	\gpr1, \gpr2
+	beq	100f
+	END_MMU_FTR_SECTION_NESTED_IFCLR(MMU_FTR_BOOK3S_KUEP, 69)
+
+	isync
 	mtspr	SPRN_IAMR, \gpr1
 
+100: //skip_restore_amr
 	/* No isync required, see kuap_user_restore() */
-	END_MMU_FTR_SECTION_NESTED_IFSET(MMU_FTR_PKEY, 67)
 #endif
 .endm
 
-.macro kuap_kernel_restore	gpr1, gpr2
+.macro kuap_kernel_restore gpr1, gpr2
 #if defined(CONFIG_PPC_PKEY)
 
 	BEGIN_MMU_FTR_SECTION_NESTED(67)
@@ -199,18 +225,43 @@ static inline u64 current_thread_iamr(void)
 
 static inline void kuap_user_restore(struct pt_regs *regs)
 {
+	bool restore_amr = false, restore_iamr = false;
+	unsigned long amr, iamr;
+
 	if (!mmu_has_feature(MMU_FTR_PKEY))
 		return;
 
-	isync();
-	mtspr(SPRN_AMR, regs->amr);
-	mtspr(SPRN_IAMR, regs->iamr);
+	if (!mmu_has_feature(MMU_FTR_BOOK3S_KUAP)) {
+		amr = mfspr(SPRN_AMR);
+		if (amr != regs->amr)
+			restore_amr = true;
+	} else {
+		restore_amr = true;
+	}
+
+	if (!mmu_has_feature(MMU_FTR_BOOK3S_KUEP)) {
+		iamr = mfspr(SPRN_IAMR);
+		if (iamr != regs->iamr)
+			restore_iamr = true;
+	} else {
+		restore_iamr = true;
+	}
+
+
+	if (restore_amr || restore_iamr) {
+		isync();
+		if (restore_amr)
+			mtspr(SPRN_AMR, regs->amr);
+		if (restore_iamr)
+			mtspr(SPRN_IAMR, regs->iamr);
+	}
 	/*
 	 * No isync required here because we are about to rfi
 	 * back to previous context before any user accesses
 	 * would be made, which is a CSI.
 	 */
 }
+
 static inline void kuap_kernel_restore(struct pt_regs *regs,
 					   unsigned long amr)
 {

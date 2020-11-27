@@ -38,6 +38,7 @@ notrace long system_call_exception(long r3, long r4, long r5,
 #ifdef CONFIG_PPC_PKEY
 	if (mmu_has_feature(MMU_FTR_PKEY)) {
 		unsigned long amr, iamr;
+		bool flush_needed = false;
 		/*
 		 * When entering from userspace we mostly have the AMR/IAMR
 		 * different from kernel default values. Hence don't compare.
@@ -46,11 +47,16 @@ notrace long system_call_exception(long r3, long r4, long r5,
 		iamr = mfspr(SPRN_IAMR);
 		regs->amr  = amr;
 		regs->iamr = iamr;
-		if (mmu_has_feature(MMU_FTR_BOOK3S_KUAP))
+		if (mmu_has_feature(MMU_FTR_BOOK3S_KUAP)) {
 			mtspr(SPRN_AMR, AMR_KUAP_BLOCKED);
-		if (mmu_has_feature(MMU_FTR_BOOK3S_KUEP))
+			flush_needed = true;
+		}
+		if (mmu_has_feature(MMU_FTR_BOOK3S_KUEP)) {
 			mtspr(SPRN_IAMR, AMR_KUEP_BLOCKED);
-		isync();
+			flush_needed = true;
+		}
+		if (flush_needed)
+			isync();
 	} else
 #endif
 		kuap_check_amr();

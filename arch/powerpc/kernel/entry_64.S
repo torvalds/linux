@@ -675,7 +675,7 @@ _ASM_NOKPROBE_SYMBOL(interrupt_return)
 	bne-	.Lrestore_nvgprs
 
 .Lfast_user_interrupt_return_amr:
-	kuap_user_restore r3
+	kuap_user_restore r3, r4
 .Lfast_user_interrupt_return:
 	ld	r11,_NIP(r1)
 	ld	r12,_MSR(r1)
