@@ -682,6 +682,12 @@ static int rk_pcie_add_ep(struct rk_pcie *rk_pcie)
 
 	rk_pcie_ep_setup(rk_pcie);
 
+	ret = rk_pcie_establish_link(rk_pcie->pci);
+	if (ret) {
+		dev_err(dev, "failed to establish pcie link\n");
+		return ret;
+	}
+
 	rk_pcie->dma_obj = rk_pcie_dma_obj_probe(dev);
 	if (IS_ERR(rk_pcie->dma_obj)) {
 		dev_err(dev, "failed to prepare dma object\n");
@@ -1164,12 +1170,6 @@ static int rk_pcie_probe(struct platform_device *pdev)
 	/* Set PCIe gen */
 	rk_pcie->link_gen = of_pci_get_max_link_speed(np);
 	rk_pcie_set_gens(rk_pcie);
-
-	ret = rk_pcie_establish_link(pci);
-	if (ret) {
-		dev_err(dev, "failed to establish pcie link\n");
-		goto deinit_clk;
-	}
 
 	switch (rk_pcie->mode) {
 	case RK_PCIE_RC_TYPE:
