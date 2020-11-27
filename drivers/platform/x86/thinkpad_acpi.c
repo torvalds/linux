@@ -1025,7 +1025,7 @@ static struct attribute_set *create_attr_set(unsigned int max_members,
 }
 
 #define destroy_attr_set(_set) \
-	kfree(_set);
+	kfree(_set)
 
 /* not multi-threaded safe, use it in a single thread per set */
 static int add_to_attr_set(struct attribute_set *s, struct attribute *attr)
