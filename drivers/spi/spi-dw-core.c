@@ -875,7 +875,8 @@ int dw_spi_add_host(struct device *dev, struct dw_spi *dws)
 		master->set_cs = dw_spi_set_cs;
 	master->transfer_one = dw_spi_transfer_one;
 	master->handle_err = dw_spi_handle_err;
-	master->mem_ops = &dws->mem_ops;
+	if (dws->mem_ops.exec_op)
+		master->mem_ops = &dws->mem_ops;
 	master->max_speed_hz = dws->max_freq;
 	master->dev.of_node = dev->of_node;
 	master->dev.fwnode = dev->fwnode;
