@@ -122,7 +122,6 @@ struct rk_pcie {
 	bool				in_suspend;
 	bool				is_rk1808;
 	bool				bifurcation;
-	int				link_gen;
 	struct regulator		*vpcie3v3;
 };
 
@@ -358,20 +357,6 @@ static inline void rk_pcie_disable_ltssm(struct rk_pcie *rk_pcie)
 static inline void rk_pcie_enable_ltssm(struct rk_pcie *rk_pcie)
 {
 	rk_pcie_writel_apb(rk_pcie, 0x0, 0xC000C);
-}
-
-static inline void rk_pcie_set_gens(struct rk_pcie *rk_pcie)
-{
-	int gen_encode[] = {0x1, 0x2, 0x4};
-
-	if (rk_pcie->link_gen <= 0 || rk_pcie->link_gen > 3)
-		rk_pcie->link_gen = gen_encode[1]; /* Default to Gen2 */
-	else
-		rk_pcie->link_gen = gen_encode[rk_pcie->link_gen - 1];
-
-	dw_pcie_writel_dbi(rk_pcie->pci,
-			   PCIE_CAP_LINK_CONTROL2_LINK_STATUS,
-			   rk_pcie->link_gen);
 }
 
 static int rk_pcie_link_up(struct dw_pcie *pci)
@@ -1167,10 +1152,6 @@ static int rk_pcie_probe(struct platform_device *pdev)
 	/* Set PCIe mode */
 	rk_pcie_set_mode(rk_pcie);
 
-	/* Set PCIe gen */
-	rk_pcie->link_gen = of_pci_get_max_link_speed(np);
-	rk_pcie_set_gens(rk_pcie);
-
 	switch (rk_pcie->mode) {
 	case RK_PCIE_RC_TYPE:
 		ret = rk_add_pcie_port(rk_pcie);
@@ -1270,8 +1251,6 @@ static int __maybe_unused rockchip_dw_pcie_resume(struct device *dev)
 
 	/* Set PCIe mode */
 	rk_pcie_set_mode(rk_pcie);
-	/* Set PCIe gen */
-	rk_pcie_set_gens(rk_pcie);
 
 	ret = rk_pcie_establish_link(rk_pcie->pci);
 	if (ret) {
