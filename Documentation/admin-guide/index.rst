@@ -111,6 +111,7 @@ configure specific aspects of kernel behavior to your liking.
    rtc
    serial-console
    svga
+   syscall-user-dispatch
    sysrq
    thunderbolt
    ufs
