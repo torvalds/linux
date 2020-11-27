@@ -116,6 +116,9 @@ label##5:							\
 #define END_MMU_FTR_SECTION_NESTED_IFSET(msk, label)	\
 	END_MMU_FTR_SECTION_NESTED((msk), (msk), label)
 
+#define END_MMU_FTR_SECTION_NESTED_IFCLR(msk, label)	\
+	END_MMU_FTR_SECTION_NESTED((msk), 0, label)
+
 #define END_MMU_FTR_SECTION_IFSET(msk)	END_MMU_FTR_SECTION((msk), (msk))
 #define END_MMU_FTR_SECTION_IFCLR(msk)	END_MMU_FTR_SECTION((msk), 0)
 
