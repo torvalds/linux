@@ -52,7 +52,7 @@ static int pending_userspace_extint(struct kvm_vcpu *v)
  * check if there is pending interrupt from
  * non-APIC source without intack.
  */
-static int kvm_cpu_has_extint(struct kvm_vcpu *v)
+int kvm_cpu_has_extint(struct kvm_vcpu *v)
 {
 	/*
 	 * FIXME: interrupt.injected represents an interrupt whose
