@@ -760,6 +760,8 @@ patternProperties:
     description: NXP Semiconductors
   "^oceanic,.*":
     description: Oceanic Systems (UK) Ltd.
+  "^oct,.*":
+    description: Octavo Systems LLC
   "^okaya,.*":
     description: Okaya Electric America, Inc.
   "^oki,.*":

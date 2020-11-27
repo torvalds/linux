@@ -20,6 +20,10 @@ properties:
               - st,stm32-syscfg
               - st,stm32-power-config
           - const: syscon
+      - items:
+          - const: st,stm32-tamp
+          - const: syscon
+          - const: simple-mfd
 
   reg:
     maxItems: 1
