@@ -1172,7 +1172,7 @@ decrypt_pki_encrypted_session_key(struct ecryptfs_auth_tok *auth_tok,
 	rc = ecryptfs_cipher_code_to_string(crypt_stat->cipher, cipher_code);
 	if (rc) {
 		ecryptfs_printk(KERN_ERR, "Cipher code [%d] is invalid\n",
-				cipher_code)
+				cipher_code);
 		goto out;
 	}
 	crypt_stat->flags |= ECRYPTFS_KEY_VALID;
