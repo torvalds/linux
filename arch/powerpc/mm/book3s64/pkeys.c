@@ -28,8 +28,8 @@ static u32 initial_allocation_mask __ro_after_init;
  * Even if we allocate keys with sys_pkey_alloc(), we need to make sure
  * other thread still find the access denied using the same keys.
  */
-static u64 default_amr = ~0x0UL;
-static u64 default_iamr = 0x5555555555555555UL;
+u64 default_amr __ro_after_init  = ~0x0UL;
+u64 default_iamr __ro_after_init = 0x5555555555555555UL;
 u64 default_uamor __ro_after_init;
 /*
  * Key used to implement PROT_EXEC mmap. Denies READ/WRITE
@@ -394,18 +394,6 @@ void thread_pkey_regs_restore(struct thread_struct *new_thread,
 		write_amr(new_thread->amr);
 	if (old_thread->iamr != new_thread->iamr)
 		write_iamr(new_thread->iamr);
-}
-
-void thread_pkey_regs_init(struct thread_struct *thread)
-{
-	if (!mmu_has_feature(MMU_FTR_PKEY))
-		return;
-
-	thread->amr   = default_amr;
-	thread->iamr  = default_iamr;
-
-	write_amr(default_amr);
-	write_iamr(default_iamr);
 }
 
 int execute_only_pkey(struct mm_struct *mm)

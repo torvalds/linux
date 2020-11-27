@@ -1546,6 +1546,11 @@ void arch_setup_new_exec(void)
 		struct pt_regs *regs = task_stack_page(current) + THREAD_SIZE;
 		current->thread.regs = regs - 1;
 	}
+
+#ifdef CONFIG_PPC_MEM_KEYS
+	current->thread.regs->amr  = default_amr;
+	current->thread.regs->iamr  = default_iamr;
+#endif
 }
 
 #ifdef CONFIG_PPC64
@@ -1895,7 +1900,6 @@ void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 	current->thread.load_tm = 0;
 #endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
 
-	thread_pkey_regs_init(&current->thread);
 }
 EXPORT_SYMBOL(start_thread);
 
