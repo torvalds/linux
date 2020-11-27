@@ -12,6 +12,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/nvmem-provider.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regulator/consumer.h>
 
 /* Blow timer clock frequency in Mhz */
@@ -86,6 +87,28 @@ struct qfprom_touched_values {
 	unsigned long clk_rate;
 	u32 accel_val;
 	u32 timer_val;
+};
+
+/**
+ * struct qfprom_soc_compatible_data - Data matched against the SoC
+ * compatible string.
+ *
+ * @keepout: Array of keepout regions for this SoC.
+ * @nkeepout: Number of elements in the keepout array.
+ */
+struct qfprom_soc_compatible_data {
+	const struct nvmem_keepout *keepout;
+	unsigned int nkeepout;
+};
+
+static const struct nvmem_keepout sc7180_qfprom_keepout[] = {
+	{.start = 0x128, .end = 0x148},
+	{.start = 0x220, .end = 0x228}
+};
+
+static const struct qfprom_soc_compatible_data sc7180_qfprom = {
+	.keepout = sc7180_qfprom_keepout,
+	.nkeepout = ARRAY_SIZE(sc7180_qfprom_keepout)
 };
 
 /**
@@ -281,6 +304,7 @@ static int qfprom_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct resource *res;
 	struct nvmem_device *nvmem;
+	const struct qfprom_soc_compatible_data *soc_data;
 	struct qfprom_priv *priv;
 	int ret;
 
@@ -299,6 +323,11 @@ static int qfprom_probe(struct platform_device *pdev)
 	econfig.priv = priv;
 
 	priv->dev = dev;
+	soc_data = device_get_match_data(dev);
+	if (soc_data) {
+		econfig.keepout = soc_data->keepout;
+		econfig.nkeepout = soc_data->nkeepout;
+	}
 
 	/*
 	 * If more than one region is provided then the OS has the ability
@@ -354,6 +383,7 @@ static int qfprom_probe(struct platform_device *pdev)
 
 static const struct of_device_id qfprom_of_match[] = {
 	{ .compatible = "qcom,qfprom",},
+	{ .compatible = "qcom,sc7180-qfprom", .data = &sc7180_qfprom},
 	{/* sentinel */},
 };
 MODULE_DEVICE_TABLE(of, qfprom_of_match);
