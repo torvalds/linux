@@ -3291,7 +3291,7 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 			/* Nothing came after this event between C and E */
 			info->delta = ts - info->after;
 			(void)rb_time_cmpxchg(&cpu_buffer->write_stamp,
-					      info->after, info->ts);
+					      info->after, ts);
 			info->ts = ts;
 		} else {
 			/*
