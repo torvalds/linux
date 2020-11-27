@@ -20,10 +20,13 @@ What:		/sys/fs/f2fs/<disk>/gc_idle
 Date:		July 2013
 Contact:	"Namjae Jeon" <namjae.jeon@samsung.com>
 Description:	Controls the victim selection policy for garbage collection.
-		Setting gc_idle = 0(default) will disable this option. Setting
-		gc_idle = 1 will select the Cost Benefit approach & setting
-		gc_idle = 2 will select the greedy approach & setting
-		gc_idle = 3 will select the age-threshold based approach.
+		Setting gc_idle = 0(default) will disable this option. Setting:
+
+		===========  ===============================================
+		gc_idle = 1  will select the Cost Benefit approach & setting
+		gc_idle = 2  will select the greedy approach & setting
+		gc_idle = 3  will select the age-threshold based approach.
+		===========  ===============================================
 
 What:		/sys/fs/f2fs/<disk>/reclaim_segments
 Date:		October 2013
@@ -46,10 +49,17 @@ Date:		November 2013
 Contact:	"Jaegeuk Kim" <jaegeuk.kim@samsung.com>
 Description:	Controls the in-place-update policy.
 		updates in f2fs. User can set:
-		0x01: F2FS_IPU_FORCE, 0x02: F2FS_IPU_SSR,
-		0x04: F2FS_IPU_UTIL,  0x08: F2FS_IPU_SSR_UTIL,
-		0x10: F2FS_IPU_FSYNC, 0x20: F2FS_IPU_ASYNC,
-		0x40: F2FS_IPU_NOCACHE.
+
+		====  =================
+		0x01  F2FS_IPU_FORCE
+		0x02  F2FS_IPU_SSR
+		0x04  F2FS_IPU_UTIL
+		0x08  F2FS_IPU_SSR_UTIL
+		0x10  F2FS_IPU_FSYNC
+		0x20  F2FS_IPU_ASYNC,
+		0x40  F2FS_IPU_NOCACHE
+		====  =================
+
 		Refer segment.h for details.
 
 What:		/sys/fs/f2fs/<disk>/min_ipu_util
@@ -332,18 +342,28 @@ Date:		April 2020
 Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
 Description:	Give a way to attach REQ_META|FUA to data writes
 		given temperature-based bits. Now the bits indicate:
-		*      REQ_META     |      REQ_FUA      |
-		*    5 |    4 |   3 |    2 |    1 |   0 |
-		* Cold | Warm | Hot | Cold | Warm | Hot |
+
+		+-------------------+-------------------+
+		|      REQ_META     |      REQ_FUA      |
+		+------+------+-----+------+------+-----+
+		|    5 |    4 |   3 |    2 |    1 |   0 |
+		+------+------+-----+------+------+-----+
+		| Cold | Warm | Hot | Cold | Warm | Hot |
+		+------+------+-----+------+------+-----+
 
 What:		/sys/fs/f2fs/<disk>/node_io_flag
 Date:		June 2020
 Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
 Description:	Give a way to attach REQ_META|FUA to node writes
 		given temperature-based bits. Now the bits indicate:
-		*      REQ_META     |      REQ_FUA      |
-		*    5 |    4 |   3 |    2 |    1 |   0 |
-		* Cold | Warm | Hot | Cold | Warm | Hot |
+
+		+-------------------+-------------------+
+		|      REQ_META     |      REQ_FUA      |
+		+------+------+-----+------+------+-----+
+		|    5 |    4 |   3 |    2 |    1 |   0 |
+		+------+------+-----+------+------+-----+
+		| Cold | Warm | Hot | Cold | Warm | Hot |
+		+------+------+-----+------+------+-----+
 
 What:		/sys/fs/f2fs/<disk>/iostat_period_ms
 Date:		April 2020

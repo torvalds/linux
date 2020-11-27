@@ -29,16 +29,16 @@ properties:
   reg-names:
     oneOf:
       - items:
-        - const: dbi
-        - const: dbi2
-        - const: link
-        - const: addr_space
+          - const: dbi
+          - const: dbi2
+          - const: link
+          - const: addr_space
       - items:
-        - const: dbi
-        - const: dbi2
-        - const: link
-        - const: addr_space
-        - const: atu
+          - const: dbi
+          - const: dbi2
+          - const: link
+          - const: addr_space
+          - const: atu
 
   clocks:
     maxItems: 2

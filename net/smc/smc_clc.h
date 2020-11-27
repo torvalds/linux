@@ -124,7 +124,7 @@ struct smc_clc_v2_extension {
 	struct smc_clnt_opts_area_hdr hdr;
 	u8 roce[16];		/* RoCEv2 GID */
 	u8 reserved[16];
-	u8 user_eids[0][SMC_MAX_EID_LEN];
+	u8 user_eids[][SMC_MAX_EID_LEN];
 };
 
 struct smc_clc_msg_proposal_prefix {	/* prefix part of clc proposal message*/
@@ -143,7 +143,7 @@ struct smc_clc_msg_smcd {	/* SMC-D GID information */
 struct smc_clc_smcd_v2_extension {
 	u8 system_eid[SMC_MAX_EID_LEN];
 	u8 reserved[16];
-	struct smc_clc_smcd_gid_chid gidchid[0];
+	struct smc_clc_smcd_gid_chid gidchid[];
 };
 
 struct smc_clc_msg_proposal {	/* clc proposal message sent by Linux */

@@ -1615,8 +1615,11 @@ static struct smc_buf_desc *smcd_new_buf_create(struct smc_link_group *lgr,
 		rc = smc_ism_register_dmb(lgr, bufsize, buf_desc);
 		if (rc) {
 			kfree(buf_desc);
-			return (rc == -ENOMEM) ? ERR_PTR(-EAGAIN) :
-						 ERR_PTR(-EIO);
+			if (rc == -ENOMEM)
+				return ERR_PTR(-EAGAIN);
+			if (rc == -ENOSPC)
+				return ERR_PTR(-ENOSPC);
+			return ERR_PTR(-EIO);
 		}
 		buf_desc->pages = virt_to_page(buf_desc->cpu_addr);
 		/* CDC header stored in buf. So, pretend it was smaller */

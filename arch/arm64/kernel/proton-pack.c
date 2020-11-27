@@ -135,8 +135,6 @@ static enum mitigation_state spectre_v2_get_cpu_hw_mitigation_state(void)
 	return SPECTRE_VULNERABLE;
 }
 
-#define SMCCC_ARCH_WORKAROUND_RET_UNAFFECTED	(1)
-
 static enum mitigation_state spectre_v2_get_cpu_fw_mitigation_state(void)
 {
 	int ret;

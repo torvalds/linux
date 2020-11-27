@@ -51,4 +51,6 @@ properties:
               - raspberrypi,3-compute-module-lite
           - const: brcm,bcm2837
 
+additionalProperties: true
+
 ...

@@ -173,4 +173,7 @@ properties:
           - enum:
               - amlogic,ad401
           - const: amlogic,a1
+
+additionalProperties: true
+
 ...

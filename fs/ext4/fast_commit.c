@@ -269,7 +269,7 @@ void ext4_fc_mark_ineligible(struct super_block *sb, int reason)
 	    (EXT4_SB(sb)->s_mount_state & EXT4_FC_REPLAY))
 		return;
 
-	sbi->s_mount_state |= EXT4_FC_INELIGIBLE;
+	sbi->s_mount_flags |= EXT4_MF_FC_INELIGIBLE;
 	WARN_ON(reason >= EXT4_FC_REASON_MAX);
 	sbi->s_fc_stats.fc_ineligible_reason_count[reason]++;
 }
@@ -292,7 +292,7 @@ void ext4_fc_start_ineligible(struct super_block *sb, int reason)
 }
 
 /*
- * Stop a fast commit ineligible update. We set EXT4_FC_INELIGIBLE flag here
+ * Stop a fast commit ineligible update. We set EXT4_MF_FC_INELIGIBLE flag here
  * to ensure that after stopping the ineligible update, at least one full
  * commit takes place.
  */
@@ -302,13 +302,13 @@ void ext4_fc_stop_ineligible(struct super_block *sb)
 	    (EXT4_SB(sb)->s_mount_state & EXT4_FC_REPLAY))
 		return;
 
-	EXT4_SB(sb)->s_mount_state |= EXT4_FC_INELIGIBLE;
+	EXT4_SB(sb)->s_mount_flags |= EXT4_MF_FC_INELIGIBLE;
 	atomic_dec(&EXT4_SB(sb)->s_fc_ineligible_updates);
 }
 
 static inline int ext4_fc_is_ineligible(struct super_block *sb)
 {
-	return (EXT4_SB(sb)->s_mount_state & EXT4_FC_INELIGIBLE) ||
+	return (EXT4_SB(sb)->s_mount_flags & EXT4_MF_FC_INELIGIBLE) ||
 		atomic_read(&EXT4_SB(sb)->s_fc_ineligible_updates);
 }
 
@@ -358,7 +358,7 @@ static int ext4_fc_track_template(
 	spin_lock(&sbi->s_fc_lock);
 	if (list_empty(&EXT4_I(inode)->i_fc_list))
 		list_add_tail(&EXT4_I(inode)->i_fc_list,
-				(sbi->s_mount_state & EXT4_FC_COMMITTING) ?
+				(sbi->s_mount_flags & EXT4_MF_FC_COMMITTING) ?
 				&sbi->s_fc_q[FC_Q_STAGING] :
 				&sbi->s_fc_q[FC_Q_MAIN]);
 	spin_unlock(&sbi->s_fc_lock);
@@ -411,7 +411,7 @@ static int __track_dentry_update(struct inode *inode, void *arg, bool update)
 	node->fcd_name.len = dentry->d_name.len;
 
 	spin_lock(&sbi->s_fc_lock);
-	if (sbi->s_mount_state & EXT4_FC_COMMITTING)
+	if (sbi->s_mount_flags & EXT4_MF_FC_COMMITTING)
 		list_add_tail(&node->fcd_list,
 				&sbi->s_fc_dentry_q[FC_Q_STAGING]);
 	else
@@ -846,7 +846,7 @@ static int ext4_fc_submit_inode_data_all(journal_t *journal)
 	int ret = 0;
 
 	spin_lock(&sbi->s_fc_lock);
-	sbi->s_mount_state |= EXT4_FC_COMMITTING;
+	sbi->s_mount_flags |= EXT4_MF_FC_COMMITTING;
 	list_for_each(pos, &sbi->s_fc_q[FC_Q_MAIN]) {
 		ei = list_entry(pos, struct ext4_inode_info, i_fc_list);
 		ext4_set_inode_state(&ei->vfs_inode, EXT4_STATE_FC_COMMITTING);
@@ -964,7 +964,6 @@ static int ext4_fc_commit_dentry_updates(journal_t *journal, u32 *crc)
 			fc_dentry->fcd_parent, fc_dentry->fcd_ino,
 			fc_dentry->fcd_name.len,
 			fc_dentry->fcd_name.name, crc)) {
-			spin_lock(&sbi->s_fc_lock);
 			ret = -ENOSPC;
 			goto lock_and_exit;
 		}
@@ -1191,8 +1190,8 @@ static void ext4_fc_cleanup(journal_t *journal, int full)
 	list_splice_init(&sbi->s_fc_q[FC_Q_STAGING],
 				&sbi->s_fc_q[FC_Q_STAGING]);
 
-	sbi->s_mount_state &= ~EXT4_FC_COMMITTING;
-	sbi->s_mount_state &= ~EXT4_FC_INELIGIBLE;
+	sbi->s_mount_flags &= ~EXT4_MF_FC_COMMITTING;
+	sbi->s_mount_flags &= ~EXT4_MF_FC_INELIGIBLE;
 
 	if (full)
 		sbi->s_fc_bytes = 0;
@@ -1617,8 +1616,10 @@ static int ext4_fc_replay_add_range(struct super_block *sb,
 		if (ret == 0) {
 			/* Range is not mapped */
 			path = ext4_find_extent(inode, cur, NULL, 0);
-			if (!path)
-				continue;
+			if (IS_ERR(path)) {
+				iput(inode);
+				return 0;
+			}
 			memset(&newex, 0, sizeof(newex));
 			newex.ee_block = cpu_to_le32(cur);
 			ext4_ext_store_pblock(
@@ -2078,6 +2079,8 @@ static int ext4_fc_replay(journal_t *journal, struct buffer_head *bh,
 
 void ext4_fc_init(struct super_block *sb, journal_t *journal)
 {
+	int num_fc_blocks;
+
 	/*
 	 * We set replay callback even if fast commit disabled because we may
 	 * could still have fast commit blocks that need to be replayed even if
@@ -2087,7 +2090,15 @@ void ext4_fc_init(struct super_block *sb, journal_t *journal)
 	if (!test_opt2(sb, JOURNAL_FAST_COMMIT))
 		return;
 	journal->j_fc_cleanup_callback = ext4_fc_cleanup;
-	if (jbd2_fc_init(journal, EXT4_NUM_FC_BLKS)) {
+	if (!buffer_uptodate(journal->j_sb_buffer)
+		&& ext4_read_bh_lock(journal->j_sb_buffer, REQ_META | REQ_PRIO,
+					true)) {
+		ext4_msg(sb, KERN_ERR, "I/O error on journal");
+		return;
+	}
+	num_fc_blocks = be32_to_cpu(journal->j_superblock->s_num_fc_blks);
+	if (jbd2_fc_init(journal, num_fc_blocks ? num_fc_blocks :
+					EXT4_NUM_FC_BLKS)) {
 		pr_warn("Error while enabling fast commits, turning off.");
 		ext4_clear_feature_fast_commit(sb);
 	}

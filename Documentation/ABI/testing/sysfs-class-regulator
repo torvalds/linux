@@ -35,13 +35,13 @@ Description:
 
 		This will be one of the following strings:
 
-			off
-			on
-			error
-			fast
-			normal
-			idle
-			standby
+			- off
+			- on
+			- error
+			- fast
+			- normal
+			- idle
+			- standby
 
 		"off" means the regulator is not supplying power to the
 		system.
@@ -74,9 +74,9 @@ Description:
 
 		This will be one of the following strings:
 
-		'voltage'
-		'current'
-		'unknown'
+		- 'voltage'
+		- 'current'
+		- 'unknown'
 
 		'voltage' means the regulator output voltage can be controlled
 		by software.
@@ -129,11 +129,11 @@ Description:
 
 		The opmode value can be one of the following strings:
 
-		'fast'
-		'normal'
-		'idle'
-		'standby'
-		'unknown'
+		- 'fast'
+		- 'normal'
+		- 'idle'
+		- 'standby'
+		- 'unknown'
 
 		The modes are described in include/linux/regulator/consumer.h
 
@@ -360,9 +360,9 @@ Description:
 
 		This will be one of the following strings:
 
-		'enabled'
-		'disabled'
-		'unknown'
+		- 'enabled'
+		- 'disabled'
+		- 'unknown'
 
 		'enabled' means the regulator is in bypass mode.
 

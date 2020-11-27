@@ -1918,7 +1918,7 @@ static int __ext4_journalled_writepage(struct page *page,
 	}
 	if (ret == 0)
 		ret = err;
-	err = ext4_jbd2_inode_add_write(handle, inode, 0, len);
+	err = ext4_jbd2_inode_add_write(handle, inode, page_offset(page), len);
 	if (ret == 0)
 		ret = err;
 	EXT4_I(inode)->i_datasync_tid = handle->h_transaction->t_tid;
@@ -3307,10 +3307,12 @@ static bool ext4_inode_datasync_dirty(struct inode *inode)
 
 	if (journal) {
 		if (jbd2_transaction_committed(journal,
-					EXT4_I(inode)->i_datasync_tid))
-			return true;
-		return atomic_read(&EXT4_SB(inode->i_sb)->s_fc_subtid) >=
-			EXT4_I(inode)->i_fc_committed_subtid;
+			EXT4_I(inode)->i_datasync_tid))
+			return false;
+		if (test_opt2(inode->i_sb, JOURNAL_FAST_COMMIT))
+			return atomic_read(&EXT4_SB(inode->i_sb)->s_fc_subtid) <
+				EXT4_I(inode)->i_fc_committed_subtid;
+		return true;
 	}
 
 	/* Any metadata buffers to write? */
@@ -6157,7 +6159,8 @@ retry_alloc:
 			if (ext4_walk_page_buffers(handle, page_buffers(page),
 					0, len, NULL, write_end_fn))
 				goto out_error;
-			if (ext4_jbd2_inode_add_write(handle, inode, 0, len))
+			if (ext4_jbd2_inode_add_write(handle, inode,
+						      page_offset(page), len))
 				goto out_error;
 			ext4_set_inode_state(inode, EXT4_STATE_JDATA);
 		} else {

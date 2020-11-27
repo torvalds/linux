@@ -32,4 +32,7 @@ properties:
       - description: K3 J7200 SoC
         items:
           - const: ti,j7200
+
+additionalProperties: true
+
 ...

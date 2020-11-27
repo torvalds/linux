@@ -41,24 +41,33 @@ Description:
 		When read, this entry provides the current state of an Intel
 		MIC device in the context of the card OS. Possible values that
 		will be read are:
-		"ready" - The MIC device is ready to boot the card OS. On
-		reading this entry after an OSPM resume, a "boot" has to be
-		written to this entry if the card was previously shutdown
-		during OSPM suspend.
-		"booting" - The MIC device has initiated booting a card OS.
-		"online" - The MIC device has completed boot and is online
-		"shutting_down" - The card OS is shutting down.
-		"resetting" - A reset has been initiated for the MIC device
-		"reset_failed" - The MIC device has failed to reset.
+
+
+		===============  ===============================================
+		"ready"		 The MIC device is ready to boot the card OS.
+				 On reading this entry after an OSPM resume,
+				 a "boot" has to be written to this entry if
+				 the card was previously shutdown during OSPM
+				 suspend.
+		"booting"	 The MIC device has initiated booting a card OS.
+		"online"	 The MIC device has completed boot and is online
+		"shutting_down"	 The card OS is shutting down.
+		"resetting"	 A reset has been initiated for the MIC device
+		"reset_failed"	 The MIC device has failed to reset.
+		===============  ===============================================
 
 		When written, this sysfs entry triggers different state change
 		operations depending upon the current state of the card OS.
 		Acceptable values are:
-		"boot" - Boot the card OS image specified by the combination
-			 of firmware, ramdisk, cmdline and bootmode
-			sysfs entries.
-		"reset" - Initiates device reset.
-		"shutdown" - Initiates card OS shutdown.
+
+
+		==========  ===================================================
+		"boot"      Boot the card OS image specified by the combination
+			    of firmware, ramdisk, cmdline and bootmode
+			    sysfs entries.
+		"reset"     Initiates device reset.
+		"shutdown"  Initiates card OS shutdown.
+		==========  ===================================================
 
 What:		/sys/class/mic/mic(x)/shutdown_status
 Date:		October 2013
@@ -69,12 +78,15 @@ Description:
 		OS can shutdown because of various reasons. When read, this
 		entry provides the status on why the card OS was shutdown.
 		Possible values are:
-		"nop" -  shutdown status is not applicable, when the card OS is
-			"online"
-		"crashed" - Shutdown because of a HW or SW crash.
-		"halted" - Shutdown because of a halt command.
-		"poweroff" - Shutdown because of a poweroff command.
-		"restart" - Shutdown because of a restart command.
+
+		==========  ===================================================
+		"nop"       shutdown status is not applicable, when the card OS
+			    is "online"
+		"crashed"   Shutdown because of a HW or SW crash.
+		"halted"    Shutdown because of a halt command.
+		"poweroff"  Shutdown because of a poweroff command.
+		"restart"   Shutdown because of a restart command.
+		==========  ===================================================
 
 What:		/sys/class/mic/mic(x)/cmdline
 Date:		October 2013

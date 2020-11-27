@@ -42,6 +42,7 @@ config DRM_AMD_DC_SI
 config DEBUG_KERNEL_DC
 	bool "Enable kgdb break in DC"
 	depends on DRM_AMD_DC
+	depends on KGDB
 	help
 	  Choose this option if you want to hit kdgb_break in assert.
 
