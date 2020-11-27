@@ -314,14 +314,20 @@ bad_kuap_fault(struct pt_regs *regs, unsigned long address, bool is_write)
 static __always_inline void allow_user_access(void __user *to, const void __user *from,
 					      unsigned long size, unsigned long dir)
 {
+	unsigned long thread_amr = 0;
+
 	// This is written so we can resolve to a single case at build time
 	BUILD_BUG_ON(!__builtin_constant_p(dir));
+
+	if (mmu_has_feature(MMU_FTR_PKEY))
+		thread_amr = current_thread_amr();
+
 	if (dir == KUAP_READ)
-		set_kuap(AMR_KUAP_BLOCK_WRITE);
+		set_kuap(thread_amr | AMR_KUAP_BLOCK_WRITE);
 	else if (dir == KUAP_WRITE)
-		set_kuap(AMR_KUAP_BLOCK_READ);
+		set_kuap(thread_amr | AMR_KUAP_BLOCK_READ);
 	else if (dir == KUAP_READ_WRITE)
-		set_kuap(0);
+		set_kuap(thread_amr);
 	else
 		BUILD_BUG();
 }
