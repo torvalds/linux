@@ -237,7 +237,7 @@ void __init setup_kuep(bool disabled)
 
 	if (smp_processor_id() == boot_cpuid) {
 		pr_info("Activating Kernel Userspace Execution Prevention\n");
-		cur_cpu_spec->mmu_features |= MMU_FTR_KUEP;
+		cur_cpu_spec->mmu_features |= MMU_FTR_BOOK3S_KUEP;
 	}
 
 	/*
@@ -258,7 +258,7 @@ void __init setup_kuap(bool disabled)
 
 	if (smp_processor_id() == boot_cpuid) {
 		pr_info("Activating Kernel Userspace Access Prevention\n");
-		cur_cpu_spec->mmu_features |= MMU_FTR_RADIX_KUAP;
+		cur_cpu_spec->mmu_features |= MMU_FTR_BOOK3S_KUAP;
 	}
 
 	/*

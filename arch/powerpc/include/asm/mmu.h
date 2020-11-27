@@ -29,9 +29,18 @@
  */
 
 /*
- * Support for KUEP feature.
+ * Supports KUAP feature
+ * key 0 controlling userspace addresses on radix
+ * Key 3 on hash
  */
-#define MMU_FTR_KUEP			ASM_CONST(0x00000400)
+#define MMU_FTR_BOOK3S_KUAP		ASM_CONST(0x00000200)
+
+/*
+ * Supports KUEP feature
+ * key 0 controlling userspace addresses on radix
+ * Key 3 on hash
+ */
+#define MMU_FTR_BOOK3S_KUEP		ASM_CONST(0x00000400)
 
 /*
  * Support for memory protection keys.
@@ -120,11 +129,6 @@
  */
 #define MMU_FTR_1T_SEGMENT		ASM_CONST(0x40000000)
 
-/*
- * Supports KUAP (key 0 controlling userspace addresses) on radix
- */
-#define MMU_FTR_RADIX_KUAP		ASM_CONST(0x80000000)
-
 /* MMU feature bit sets for various CPUs */
 #define MMU_FTRS_DEFAULT_HPTE_ARCH_V2	\
 	MMU_FTR_HPTE_TABLE | MMU_FTR_PPCAS_ARCH_V2
@@ -187,15 +191,15 @@ enum {
 #ifdef CONFIG_PPC_RADIX_MMU
 		MMU_FTR_TYPE_RADIX |
 		MMU_FTR_GTSE |
-#ifdef CONFIG_PPC_KUAP
-		MMU_FTR_RADIX_KUAP |
-#endif /* CONFIG_PPC_KUAP */
 #endif /* CONFIG_PPC_RADIX_MMU */
+#ifdef CONFIG_PPC_KUAP
+	MMU_FTR_BOOK3S_KUAP |
+#endif /* CONFIG_PPC_KUAP */
 #ifdef CONFIG_PPC_MEM_KEYS
 	MMU_FTR_PKEY |
 #endif
 #ifdef CONFIG_PPC_KUEP
-	MMU_FTR_KUEP |
+	MMU_FTR_BOOK3S_KUEP |
 #endif /* CONFIG_PPC_KUAP */
 
 		0,
