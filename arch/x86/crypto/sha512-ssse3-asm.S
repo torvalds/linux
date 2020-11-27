@@ -280,7 +280,7 @@ frame_size = frame_GPRSAVE + GPRSAVE_SIZE
 ########################################################################
 SYM_FUNC_START(sha512_transform_ssse3)
 
-	cmp $0, msglen
+	test msglen, msglen
 	je nowork
 
 	# Allocate Stack Space
