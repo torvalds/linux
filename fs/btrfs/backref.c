@@ -544,7 +544,18 @@ static int resolve_indirect_ref(struct btrfs_fs_info *fs_info,
 	int level = ref->level;
 	struct btrfs_key search_key = ref->key_for_search;
 
-	root = btrfs_get_fs_root(fs_info, ref->root_id, false);
+	/*
+	 * If we're search_commit_root we could possibly be holding locks on
+	 * other tree nodes.  This happens when qgroups does backref walks when
+	 * adding new delayed refs.  To deal with this we need to look in cache
+	 * for the root, and if we don't find it then we need to search the
+	 * tree_root's commit root, thus the btrfs_get_fs_root_commit_root usage
+	 * here.
+	 */
+	if (path->search_commit_root)
+		root = btrfs_get_fs_root_commit_root(fs_info, path, ref->root_id);
+	else
+		root = btrfs_get_fs_root(fs_info, ref->root_id, false);
 	if (IS_ERR(root)) {
 		ret = PTR_ERR(root);
 		goto out_free;

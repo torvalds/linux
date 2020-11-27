@@ -300,7 +300,8 @@ enum tls_offload_sync_type {
 #define TLS_DEVICE_RESYNC_ASYNC_LOGMAX		13
 struct tls_offload_resync_async {
 	atomic64_t req;
-	u32 loglen;
+	u16 loglen;
+	u16 rcd_delta;
 	u32 log[TLS_DEVICE_RESYNC_ASYNC_LOGMAX];
 };
 
@@ -471,6 +472,18 @@ static inline bool tls_bigint_increment(unsigned char *seq, int len)
 	return (i == -1);
 }
 
+static inline void tls_bigint_subtract(unsigned char *seq, int  n)
+{
+	u64 rcd_sn;
+	__be64 *p;
+
+	BUILD_BUG_ON(TLS_MAX_REC_SEQ_SIZE != 8);
+
+	p = (__be64 *)seq;
+	rcd_sn = be64_to_cpu(*p);
+	*p = cpu_to_be64(rcd_sn - n);
+}
+
 static inline struct tls_context *tls_get_ctx(const struct sock *sk)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
@@ -639,6 +652,7 @@ tls_offload_rx_resync_async_request_start(struct sock *sk, __be32 seq, u16 len)
 	atomic64_set(&rx_ctx->resync_async->req, ((u64)ntohl(seq) << 32) |
 		     ((u64)len << 16) | RESYNC_REQ | RESYNC_REQ_ASYNC);
 	rx_ctx->resync_async->loglen = 0;
+	rx_ctx->resync_async->rcd_delta = 0;
 }
 
 static inline void

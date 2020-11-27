@@ -147,24 +147,6 @@ static inline unsigned int refcount_read(const refcount_t *r)
 	return atomic_read(&r->refs);
 }
 
-/**
- * refcount_add_not_zero - add a value to a refcount unless it is 0
- * @i: the value to add to the refcount
- * @r: the refcount
- *
- * Will saturate at REFCOUNT_SATURATED and WARN.
- *
- * Provides no memory ordering, it is assumed the caller has guaranteed the
- * object memory to be stable (RCU, etc.). It does provide a control dependency
- * and thereby orders future stores. See the comment on top.
- *
- * Use of this function is not recommended for the normal reference counting
- * use case in which references are taken and released one at a time.  In these
- * cases, refcount_inc(), or one of its variants, should instead be used to
- * increment a reference count.
- *
- * Return: false if the passed refcount is 0, true otherwise
- */
 static inline __must_check bool __refcount_add_not_zero(int i, refcount_t *r, int *oldp)
 {
 	int old = refcount_read(r);
@@ -183,9 +165,40 @@ static inline __must_check bool __refcount_add_not_zero(int i, refcount_t *r, in
 	return old;
 }
 
+/**
+ * refcount_add_not_zero - add a value to a refcount unless it is 0
+ * @i: the value to add to the refcount
+ * @r: the refcount
+ *
+ * Will saturate at REFCOUNT_SATURATED and WARN.
+ *
+ * Provides no memory ordering, it is assumed the caller has guaranteed the
+ * object memory to be stable (RCU, etc.). It does provide a control dependency
+ * and thereby orders future stores. See the comment on top.
+ *
+ * Use of this function is not recommended for the normal reference counting
+ * use case in which references are taken and released one at a time.  In these
+ * cases, refcount_inc(), or one of its variants, should instead be used to
+ * increment a reference count.
+ *
+ * Return: false if the passed refcount is 0, true otherwise
+ */
 static inline __must_check bool refcount_add_not_zero(int i, refcount_t *r)
 {
 	return __refcount_add_not_zero(i, r, NULL);
+}
+
+static inline void __refcount_add(int i, refcount_t *r, int *oldp)
+{
+	int old = atomic_fetch_add_relaxed(i, &r->refs);
+
+	if (oldp)
+		*oldp = old;
+
+	if (unlikely(!old))
+		refcount_warn_saturate(r, REFCOUNT_ADD_UAF);
+	else if (unlikely(old < 0 || old + i < 0))
+		refcount_warn_saturate(r, REFCOUNT_ADD_OVF);
 }
 
 /**
@@ -204,22 +217,14 @@ static inline __must_check bool refcount_add_not_zero(int i, refcount_t *r)
  * cases, refcount_inc(), or one of its variants, should instead be used to
  * increment a reference count.
  */
-static inline void __refcount_add(int i, refcount_t *r, int *oldp)
-{
-	int old = atomic_fetch_add_relaxed(i, &r->refs);
-
-	if (oldp)
-		*oldp = old;
-
-	if (unlikely(!old))
-		refcount_warn_saturate(r, REFCOUNT_ADD_UAF);
-	else if (unlikely(old < 0 || old + i < 0))
-		refcount_warn_saturate(r, REFCOUNT_ADD_OVF);
-}
-
 static inline void refcount_add(int i, refcount_t *r)
 {
 	__refcount_add(i, r, NULL);
+}
+
+static inline __must_check bool __refcount_inc_not_zero(refcount_t *r, int *oldp)
+{
+	return __refcount_add_not_zero(1, r, oldp);
 }
 
 /**
@@ -235,14 +240,14 @@ static inline void refcount_add(int i, refcount_t *r)
  *
  * Return: true if the increment was successful, false otherwise
  */
-static inline __must_check bool __refcount_inc_not_zero(refcount_t *r, int *oldp)
-{
-	return __refcount_add_not_zero(1, r, oldp);
-}
-
 static inline __must_check bool refcount_inc_not_zero(refcount_t *r)
 {
 	return __refcount_inc_not_zero(r, NULL);
+}
+
+static inline void __refcount_inc(refcount_t *r, int *oldp)
+{
+	__refcount_add(1, r, oldp);
 }
 
 /**
@@ -257,14 +262,27 @@ static inline __must_check bool refcount_inc_not_zero(refcount_t *r)
  * Will WARN if the refcount is 0, as this represents a possible use-after-free
  * condition.
  */
-static inline void __refcount_inc(refcount_t *r, int *oldp)
-{
-	__refcount_add(1, r, oldp);
-}
-
 static inline void refcount_inc(refcount_t *r)
 {
 	__refcount_inc(r, NULL);
+}
+
+static inline __must_check bool __refcount_sub_and_test(int i, refcount_t *r, int *oldp)
+{
+	int old = atomic_fetch_sub_release(i, &r->refs);
+
+	if (oldp)
+		*oldp = old;
+
+	if (old == i) {
+		smp_acquire__after_ctrl_dep();
+		return true;
+	}
+
+	if (unlikely(old < 0 || old - i < 0))
+		refcount_warn_saturate(r, REFCOUNT_SUB_UAF);
+
+	return false;
 }
 
 /**
@@ -287,27 +305,14 @@ static inline void refcount_inc(refcount_t *r)
  *
  * Return: true if the resulting refcount is 0, false otherwise
  */
-static inline __must_check bool __refcount_sub_and_test(int i, refcount_t *r, int *oldp)
-{
-	int old = atomic_fetch_sub_release(i, &r->refs);
-
-	if (oldp)
-		*oldp = old;
-
-	if (old == i) {
-		smp_acquire__after_ctrl_dep();
-		return true;
-	}
-
-	if (unlikely(old < 0 || old - i < 0))
-		refcount_warn_saturate(r, REFCOUNT_SUB_UAF);
-
-	return false;
-}
-
 static inline __must_check bool refcount_sub_and_test(int i, refcount_t *r)
 {
 	return __refcount_sub_and_test(i, r, NULL);
+}
+
+static inline __must_check bool __refcount_dec_and_test(refcount_t *r, int *oldp)
+{
+	return __refcount_sub_and_test(1, r, oldp);
 }
 
 /**
@@ -323,14 +328,20 @@ static inline __must_check bool refcount_sub_and_test(int i, refcount_t *r)
  *
  * Return: true if the resulting refcount is 0, false otherwise
  */
-static inline __must_check bool __refcount_dec_and_test(refcount_t *r, int *oldp)
-{
-	return __refcount_sub_and_test(1, r, oldp);
-}
-
 static inline __must_check bool refcount_dec_and_test(refcount_t *r)
 {
 	return __refcount_dec_and_test(r, NULL);
+}
+
+static inline void __refcount_dec(refcount_t *r, int *oldp)
+{
+	int old = atomic_fetch_sub_release(1, &r->refs);
+
+	if (oldp)
+		*oldp = old;
+
+	if (unlikely(old <= 1))
+		refcount_warn_saturate(r, REFCOUNT_DEC_LEAK);
 }
 
 /**
@@ -343,17 +354,6 @@ static inline __must_check bool refcount_dec_and_test(refcount_t *r)
  * Provides release memory ordering, such that prior loads and stores are done
  * before.
  */
-static inline void __refcount_dec(refcount_t *r, int *oldp)
-{
-	int old = atomic_fetch_sub_release(1, &r->refs);
-
-	if (oldp)
-		*oldp = old;
-
-	if (unlikely(old <= 1))
-		refcount_warn_saturate(r, REFCOUNT_DEC_LEAK);
-}
-
 static inline void refcount_dec(refcount_t *r)
 {
 	__refcount_dec(r, NULL);

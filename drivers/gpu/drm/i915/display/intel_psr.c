@@ -1754,7 +1754,7 @@ void intel_psr_atomic_check(struct drm_connector *connector,
 		return;
 
 	intel_connector = to_intel_connector(connector);
-	dig_port = enc_to_dig_port(intel_attached_encoder(intel_connector));
+	dig_port = enc_to_dig_port(to_intel_encoder(new_state->best_encoder));
 	if (dev_priv->psr.dp != &dig_port->dp)
 		return;
 

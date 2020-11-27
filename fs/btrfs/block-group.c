@@ -2024,6 +2024,7 @@ int btrfs_read_block_groups(struct btrfs_fs_info *info)
 		key.offset = 0;
 		btrfs_release_path(path);
 	}
+	btrfs_release_path(path);
 
 	list_for_each_entry(space_info, &info->space_info, list) {
 		int i;

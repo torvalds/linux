@@ -1336,7 +1336,7 @@ static void dump_trace_imc_data(struct perf_event *event)
 			/* If this is a valid record, create the sample */
 			struct perf_output_handle handle;
 
-			if (perf_output_begin(&handle, event, header.size))
+			if (perf_output_begin(&handle, &data, event, header.size))
 				return;
 
 			perf_output_sample(&handle, &header, &data, event);

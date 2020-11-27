@@ -7,7 +7,7 @@ Description:    Read-only. Attribute group to describe the magic bits
 
                 Each attribute under this group defines a bit range of the
                 perf_event_attr.config. All supported attributes are listed
-                below.
+                below::
 
 				counter_info_version  = "config:16-23"
 				length  = "config:24-31"
@@ -20,9 +20,9 @@ Description:    Read-only. Attribute group to describe the magic bits
 				secondary_index = "config:0-15"
 				starting_index = "config:32-63"
 
-               For example,
+                For example::
 
-		processor_core_utilization_instructions_completed = "request=0x94,
+		  processor_core_utilization_instructions_completed = "request=0x94,
 					phys_processor_idx=?,counter_info_version=0x8,
 					length=8,offset=0x18"
 
@@ -36,6 +36,7 @@ Description:
 		'0' if the hypervisor is configured to forbid access to event
 		counters being accumulated by other guests and to physical
 		domain event counters.
+
 		'1' if that access is allowed.
 
 What:		/sys/bus/event_source/devices/hv_gpci/interface/ga

@@ -33,7 +33,7 @@ static union uvh_apicid		uvh_apicid;
 static int			uv_node_id;
 
 /* Unpack AT/OEM/TABLE ID's to be NULL terminated strings */
-static u8 uv_archtype[UV_AT_SIZE];
+static u8 uv_archtype[UV_AT_SIZE + 1];
 static u8 oem_id[ACPI_OEM_ID_SIZE + 1];
 static u8 oem_table_id[ACPI_OEM_TABLE_ID_SIZE + 1];
 
@@ -290,6 +290,9 @@ static void __init uv_stringify(int len, char *to, char *from)
 {
 	/* Relies on 'to' being NULL chars so result will be NULL terminated */
 	strncpy(to, from, len-1);
+
+	/* Trim trailing spaces */
+	(void)strim(to);
 }
 
 /* Find UV arch type entry in UVsystab */
@@ -317,7 +320,7 @@ static int __init decode_arch_type(unsigned long ptr)
 
 	if (n > 0 && n < sizeof(uv_ate->archtype)) {
 		pr_info("UV: UVarchtype received from BIOS\n");
-		uv_stringify(UV_AT_SIZE, uv_archtype, uv_ate->archtype);
+		uv_stringify(sizeof(uv_archtype), uv_archtype, uv_ate->archtype);
 		return 1;
 	}
 	return 0;
@@ -366,7 +369,7 @@ static int __init early_get_arch_type(void)
 	return ret;
 }
 
-static int __init uv_set_system_type(char *_oem_id)
+static int __init uv_set_system_type(char *_oem_id, char *_oem_table_id)
 {
 	/* Save OEM_ID passed from ACPI MADT */
 	uv_stringify(sizeof(oem_id), oem_id, _oem_id);
@@ -375,7 +378,7 @@ static int __init uv_set_system_type(char *_oem_id)
 	if (!early_get_arch_type())
 
 		/* If not use OEM ID for UVarchtype */
-		uv_stringify(UV_AT_SIZE, uv_archtype, _oem_id);
+		uv_stringify(sizeof(uv_archtype), uv_archtype, oem_id);
 
 	/* Check if not hubbed */
 	if (strncmp(uv_archtype, "SGI", 3) != 0) {
@@ -386,13 +389,23 @@ static int __init uv_set_system_type(char *_oem_id)
 			/* (Not hubless), not a UV */
 			return 0;
 
+		/* Is UV hubless system */
+		uv_hubless_system = 0x01;
+
+		/* UV5 Hubless */
+		if (strncmp(uv_archtype, "NSGI5", 5) == 0)
+			uv_hubless_system |= 0x20;
+
 		/* UV4 Hubless: CH */
-		if (strncmp(uv_archtype, "NSGI4", 5) == 0)
-			uv_hubless_system = 0x11;
+		else if (strncmp(uv_archtype, "NSGI4", 5) == 0)
+			uv_hubless_system |= 0x10;
 
 		/* UV3 Hubless: UV300/MC990X w/o hub */
 		else
-			uv_hubless_system = 0x9;
+			uv_hubless_system |= 0x8;
+
+		/* Copy APIC type */
+		uv_stringify(sizeof(oem_table_id), oem_table_id, _oem_table_id);
 
 		pr_info("UV: OEM IDs %s/%s, SystemType %d, HUBLESS ID %x\n",
 			oem_id, oem_table_id, uv_system_type, uv_hubless_system);
@@ -456,7 +469,7 @@ static int __init uv_acpi_madt_oem_check(char *_oem_id, char *_oem_table_id)
 	uv_cpu_info->p_uv_hub_info = &uv_hub_info_node0;
 
 	/* If not UV, return. */
-	if (likely(uv_set_system_type(_oem_id) == 0))
+	if (uv_set_system_type(_oem_id, _oem_table_id) == 0)
 		return 0;
 
 	/* Save and Decode OEM Table ID */

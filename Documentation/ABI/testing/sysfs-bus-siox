@@ -8,6 +8,7 @@ Description:
 		When the file contains a "1" the bus is operated and periodically
 		does a push-pull cycle to write and read data from the
 		connected devices.
+
 		When writing a "0" or "1" the bus moves to the described state.
 
 What:		/sys/bus/siox/devices/siox-X/device_add
@@ -21,8 +22,10 @@ Description:
 		to add a new device dynamically. <type> is the name that is used to match
 		to a driver (similar to the platform bus). <inbytes> and <outbytes> define
 		the length of the input and output shift register in bytes respectively.
+
 		<statustype> defines the 4 bit device type that is check to identify connection
 		problems.
+
 		The new device is added to the end of the existing chain.
 
 What:		/sys/bus/siox/devices/siox-X/device_remove

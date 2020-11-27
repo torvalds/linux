@@ -5,6 +5,7 @@ Description:
 		This attribute indicates the full path of ACPI namespace
 		object associated with the device object.  For example,
 		\_SB_.PCI0.
+
 		This file is not present for device objects representing
 		fixed ACPI hardware features (like power and sleep
 		buttons).
@@ -67,14 +68,16 @@ Description:
 		The return value is a decimal integer representing the device's
 		status bitmap:
 
-		Bit [0] –  Set if the device is present.
-		Bit [1] –  Set if the device is enabled and decoding its
-		           resources.
-		Bit [2] –  Set if the device should be shown in the UI.
-		Bit [3] –  Set if the device is functioning properly (cleared if
-		           device failed its diagnostics).
-		Bit [4] –  Set if the battery is present.
-		Bits [31:5] –  Reserved (must be cleared)
+		===========  ==================================================
+		Bit [0]      Set if the device is present.
+		Bit [1]      Set if the device is enabled and decoding its
+		             resources.
+		Bit [2]      Set if the device should be shown in the UI.
+		Bit [3]      Set if the device is functioning properly (cleared
+			     if device failed its diagnostics).
+		Bit [4]      Set if the battery is present.
+		Bits [31:5]  Reserved (must be cleared)
+		===========  ==================================================
 
 		If bit [0] is clear, then bit 1 must also be clear (a device
 		that is not present cannot be enabled).

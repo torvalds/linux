@@ -3282,4 +3282,99 @@ TEST(epoll60)
 	close(ctx.epfd);
 }
 
+struct epoll61_ctx {
+	int epfd;
+	int evfd;
+};
+
+static void *epoll61_write_eventfd(void *ctx_)
+{
+	struct epoll61_ctx *ctx = ctx_;
+	int64_t l = 1;
+
+	usleep(10950);
+	write(ctx->evfd, &l, sizeof(l));
+	return NULL;
+}
+
+static void *epoll61_epoll_with_timeout(void *ctx_)
+{
+	struct epoll61_ctx *ctx = ctx_;
+	struct epoll_event events[1];
+	int n;
+
+	n = epoll_wait(ctx->epfd, events, 1, 11);
+	/*
+	 * If epoll returned the eventfd, write on the eventfd to wake up the
+	 * blocking poller.
+	 */
+	if (n == 1) {
+		int64_t l = 1;
+
+		write(ctx->evfd, &l, sizeof(l));
+	}
+	return NULL;
+}
+
+static void *epoll61_blocking_epoll(void *ctx_)
+{
+	struct epoll61_ctx *ctx = ctx_;
+	struct epoll_event events[1];
+
+	epoll_wait(ctx->epfd, events, 1, -1);
+	return NULL;
+}
+
+TEST(epoll61)
+{
+	struct epoll61_ctx ctx;
+	struct epoll_event ev;
+	int i, r;
+
+	ctx.epfd = epoll_create1(0);
+	ASSERT_GE(ctx.epfd, 0);
+	ctx.evfd = eventfd(0, EFD_NONBLOCK);
+	ASSERT_GE(ctx.evfd, 0);
+
+	ev.events = EPOLLIN | EPOLLET | EPOLLERR | EPOLLHUP;
+	ev.data.ptr = NULL;
+	r = epoll_ctl(ctx.epfd, EPOLL_CTL_ADD, ctx.evfd, &ev);
+	ASSERT_EQ(r, 0);
+
+	/*
+	 * We are testing a race.  Repeat the test case 1000 times to make it
+	 * more likely to fail in case of a bug.
+	 */
+	for (i = 0; i < 1000; i++) {
+		pthread_t threads[3];
+		int n;
+
+		/*
+		 * Start 3 threads:
+		 * Thread 1 sleeps for 10.9ms and writes to the evenfd.
+		 * Thread 2 calls epoll with a timeout of 11ms.
+		 * Thread 3 calls epoll with a timeout of -1.
+		 *
+		 * The eventfd write by Thread 1 should either wakeup Thread 2
+		 * or Thread 3.  If it wakes up Thread 2, Thread 2 writes on the
+		 * eventfd to wake up Thread 3.
+		 *
+		 * If no events are missed, all three threads should eventually
+		 * be joinable.
+		 */
+		ASSERT_EQ(pthread_create(&threads[0], NULL,
+					 epoll61_write_eventfd, &ctx), 0);
+		ASSERT_EQ(pthread_create(&threads[1], NULL,
+					 epoll61_epoll_with_timeout, &ctx), 0);
+		ASSERT_EQ(pthread_create(&threads[2], NULL,
+					 epoll61_blocking_epoll, &ctx), 0);
+
+		for (n = 0; n < ARRAY_SIZE(threads); ++n)
+			ASSERT_EQ(pthread_join(threads[n], NULL), 0);
+	}
+
+	close(ctx.epfd);
+	close(ctx.evfd);
+}
+
 TEST_HARNESS_MAIN

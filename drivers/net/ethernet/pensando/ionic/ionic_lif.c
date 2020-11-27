@@ -1656,7 +1656,6 @@ static void ionic_txrx_deinit(struct ionic_lif *lif)
 	if (lif->rxqcqs) {
 		for (i = 0; i < lif->nxqs && lif->rxqcqs[i]; i++) {
 			ionic_lif_qcq_deinit(lif, lif->rxqcqs[i]);
-			ionic_rx_flush(&lif->rxqcqs[i]->cq);
 			ionic_rx_empty(&lif->rxqcqs[i]->q);
 		}
 	}
@@ -1915,11 +1914,11 @@ static int ionic_get_vf_config(struct net_device *netdev,
 		ret = -EINVAL;
 	} else {
 		ivf->vf           = vf;
-		ivf->vlan         = ionic->vfs[vf].vlanid;
+		ivf->vlan         = le16_to_cpu(ionic->vfs[vf].vlanid);
 		ivf->qos	  = 0;
 		ivf->spoofchk     = ionic->vfs[vf].spoofchk;
 		ivf->linkstate    = ionic->vfs[vf].linkstate;
-		ivf->max_tx_rate  = ionic->vfs[vf].maxrate;
+		ivf->max_tx_rate  = le32_to_cpu(ionic->vfs[vf].maxrate);
 		ivf->trusted      = ionic->vfs[vf].trusted;
 		ether_addr_copy(ivf->mac, ionic->vfs[vf].macaddr);
 	}
@@ -2019,7 +2018,7 @@ static int ionic_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan,
 		ret = ionic_set_vf_config(ionic, vf,
 					  IONIC_VF_ATTR_VLAN, (u8 *)&vlan);
 		if (!ret)
-			ionic->vfs[vf].vlanid = vlan;
+			ionic->vfs[vf].vlanid = cpu_to_le16(vlan);
 	}
 
 	up_write(&ionic->vf_op_lock);
@@ -2048,7 +2047,7 @@ static int ionic_set_vf_rate(struct net_device *netdev, int vf,
 		ret = ionic_set_vf_config(ionic, vf,
 					  IONIC_VF_ATTR_RATE, (u8 *)&tx_max);
 		if (!ret)
-			lif->ionic->vfs[vf].maxrate = tx_max;
+			lif->ionic->vfs[vf].maxrate = cpu_to_le32(tx_max);
 	}
 
 	up_write(&ionic->vf_op_lock);
@@ -2981,14 +2980,14 @@ void ionic_lif_unregister(struct ionic_lif *lif)
 
 static void ionic_lif_queue_identify(struct ionic_lif *lif)
 {
+	union ionic_q_identity __iomem *q_ident;
 	struct ionic *ionic = lif->ionic;
-	union ionic_q_identity *q_ident;
 	struct ionic_dev *idev;
 	int qtype;
 	int err;
 
 	idev = &lif->ionic->idev;
-	q_ident = (union ionic_q_identity *)&idev->dev_cmd_regs->data;
+	q_ident = (union ionic_q_identity __iomem *)&idev->dev_cmd_regs->data;
 
 	for (qtype = 0; qtype < ARRAY_SIZE(ionic_qtype_versions); qtype++) {
 		struct ionic_qtype_info *qti = &lif->qtype_info[qtype];
@@ -3011,14 +3010,14 @@ static void ionic_lif_queue_identify(struct ionic_lif *lif)
 					     ionic_qtype_versions[qtype]);
 		err = ionic_dev_cmd_wait(ionic, DEVCMD_TIMEOUT);
 		if (!err) {
-			qti->version   = q_ident->version;
-			qti->supported = q_ident->supported;
-			qti->features  = le64_to_cpu(q_ident->features);
-			qti->desc_sz   = le16_to_cpu(q_ident->desc_sz);
-			qti->comp_sz   = le16_to_cpu(q_ident->comp_sz);
-			qti->sg_desc_sz   = le16_to_cpu(q_ident->sg_desc_sz);
-			qti->max_sg_elems = le16_to_cpu(q_ident->max_sg_elems);
-			qti->sg_desc_stride = le16_to_cpu(q_ident->sg_desc_stride);
+			qti->version   = readb(&q_ident->version);
+			qti->supported = readb(&q_ident->supported);
+			qti->features  = readq(&q_ident->features);
+			qti->desc_sz   = readw(&q_ident->desc_sz);
+			qti->comp_sz   = readw(&q_ident->comp_sz);
+			qti->sg_desc_sz   = readw(&q_ident->sg_desc_sz);
+			qti->max_sg_elems = readw(&q_ident->max_sg_elems);
+			qti->sg_desc_stride = readw(&q_ident->sg_desc_stride);
 		}
 		mutex_unlock(&ionic->dev_cmd_lock);
 

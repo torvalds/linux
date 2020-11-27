@@ -3,7 +3,7 @@
 # description: Kprobe dynamic event - adding and removing
 # requires: kprobe_events
 
-echo p:myevent kernel_clone > kprobe_events
+echo p:myevent $FUNCTION_FORK > kprobe_events
 grep myevent kprobe_events
 test -d events/kprobes/myevent
 echo > kprobe_events

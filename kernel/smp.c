@@ -130,7 +130,7 @@ static __always_inline int csd_lock_wait_getcpu(call_single_data_t *csd)
 
 	csd_type = CSD_TYPE(csd);
 	if (csd_type == CSD_TYPE_ASYNC || csd_type == CSD_TYPE_SYNC)
-		return csd->dst; /* Other CSD_TYPE_ values might not have ->dst. */
+		return csd->node.dst; /* Other CSD_TYPE_ values might not have ->dst. */
 	return -1;
 }
 
