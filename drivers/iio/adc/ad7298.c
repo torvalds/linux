@@ -214,7 +214,7 @@ static int ad7298_get_ref_voltage(struct ad7298_state *st)
 {
 	int vref;
 
-	if (st->ext_ref) {
+	if (st->reg) {
 		vref = regulator_get_voltage(st->reg);
 		if (vref < 0)
 			return vref;
