@@ -938,9 +938,8 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 	}
 
 error:
-	if (bo->mem.mem_type == TTM_PL_SYSTEM && !list_empty(&bo->lru)) {
+	if (bo->mem.mem_type == TTM_PL_SYSTEM && !bo->pin_count)
 		ttm_bo_move_to_lru_tail_unlocked(bo);
-	}
 
 	return ret;
 }
