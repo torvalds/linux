@@ -103,43 +103,26 @@ static int timespec_to_char_array(struct timespec64 const *ts,
 	return 0;
 }
 
-static int idtcm_strverscmp(const char *ver1, const char *ver2)
+static int idtcm_strverscmp(const char *version1, const char *version2)
 {
-	u8 num1;
-	u8 num2;
-	int result = 0;
+	u8 ver1[3], ver2[3];
+	int i;
 
-	/* loop through each level of the version string */
-	while (result == 0) {
-		/* extract leading version numbers */
-		if (kstrtou8(ver1, 10, &num1) < 0)
+	if (sscanf(version1, "%hhu.%hhu.%hhu",
+		   &ver1[0], &ver1[1], &ver1[2]) != 3)
+		return -1;
+	if (sscanf(version2, "%hhu.%hhu.%hhu",
+		   &ver2[0], &ver2[1], &ver2[2]) != 3)
+		return -1;
+
+	for (i = 0; i < 3; i++) {
+		if (ver1[i] > ver2[i])
+			return 1;
+		if (ver1[i] < ver2[i])
 			return -1;
-
-		if (kstrtou8(ver2, 10, &num2) < 0)
-			return -1;
-
-		/* if numbers differ, then set the result */
-		if (num1 < num2)
-			result = -1;
-		else if (num1 > num2)
-			result = 1;
-		else {
-			/* if numbers are the same, go to next level */
-			ver1 = strchr(ver1, '.');
-			ver2 = strchr(ver2, '.');
-			if (!ver1 && !ver2)
-				break;
-			else if (!ver1)
-				result = -1;
-			else if (!ver2)
-				result = 1;
-			else {
-				ver1++;
-				ver2++;
-			}
-		}
 	}
-	return result;
+
+	return 0;
 }
 
 static int idtcm_xfer_read(struct idtcm *idtcm,
