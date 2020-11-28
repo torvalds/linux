@@ -3120,6 +3120,7 @@ static void vop2_setup_layer_mixer_for_vp(struct vop2_video_port *vp,
 	struct vop2_win *win;
 	struct vop2_layer *layer;
 	u8 used_layers = 0;
+	u8 port_mux;
 	u8 layer_id, win_phys_id;
 	int i;
 
@@ -3140,7 +3141,11 @@ static void vop2_setup_layer_mixer_for_vp(struct vop2_video_port *vp,
 		 *  VP0 should change at VP1's commit.
 		 */
 		prev_vp = &vop2->vps[i];
-		VOP_MODULE_SET(vop2, prev_vp, port_mux, (used_layers - 1));
+		if (used_layers == 0)
+			port_mux = 8;
+		else
+			port_mux = used_layers - 1;
+		VOP_MODULE_SET(vop2, prev_vp, port_mux, port_mux);
 	}
 
 	/*
