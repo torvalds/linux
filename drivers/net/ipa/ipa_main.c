@@ -230,8 +230,10 @@ static void ipa_hardware_config_comp(struct ipa *ipa)
 		val &= ~IPA_QMB_SELECT_CONS_EN_FMASK;
 		val &= ~IPA_QMB_SELECT_PROD_EN_FMASK;
 		val &= ~IPA_QMB_SELECT_GLOBAL_EN_FMASK;
-	} else  {
+	} else if (ipa->version < IPA_VERSION_4_5) {
 		val |= GSI_MULTI_AXI_MASTERS_DIS_FMASK;
+	} else {
+		/* For IPA v4.5 IPA_FULL_FLUSH_WAIT_RSC_CLOSE_EN is 0 */
 	}
 
 	val |= GSI_MULTI_INORDER_RD_DIS_FMASK;
@@ -243,25 +245,47 @@ static void ipa_hardware_config_comp(struct ipa *ipa)
 /* Configure DDR and PCIe max read/write QSB values */
 static void ipa_hardware_config_qsb(struct ipa *ipa)
 {
+	enum ipa_version version = ipa->version;
+	u32 max0;
+	u32 max1;
 	u32 val;
 
-	/* QMB_0 represents DDR; QMB_1 represents PCIe (not present in 4.2) */
+	/* QMB_0 represents DDR; QMB_1 represents PCIe */
 	val = u32_encode_bits(8, GEN_QMB_0_MAX_WRITES_FMASK);
-	if (ipa->version == IPA_VERSION_4_2)
-		val |= u32_encode_bits(0, GEN_QMB_1_MAX_WRITES_FMASK);
-	else
-		val |= u32_encode_bits(4, GEN_QMB_1_MAX_WRITES_FMASK);
+	switch (version) {
+	case IPA_VERSION_4_2:
+		max1 = 0;		/* PCIe not present */
+		break;
+	case IPA_VERSION_4_5:
+		max1 = 8;
+		break;
+	default:
+		max1 = 4;
+		break;
+	}
+	val |= u32_encode_bits(max1, GEN_QMB_1_MAX_WRITES_FMASK);
 	iowrite32(val, ipa->reg_virt + IPA_REG_QSB_MAX_WRITES_OFFSET);
 
-	if (ipa->version == IPA_VERSION_3_5_1) {
-		val = u32_encode_bits(8, GEN_QMB_0_MAX_READS_FMASK);
-		val |= u32_encode_bits(12, GEN_QMB_1_MAX_READS_FMASK);
-	} else {
-		val = u32_encode_bits(12, GEN_QMB_0_MAX_READS_FMASK);
-		if (ipa->version == IPA_VERSION_4_2)
-			val |= u32_encode_bits(0, GEN_QMB_1_MAX_READS_FMASK);
-		else
-			val |= u32_encode_bits(12, GEN_QMB_1_MAX_READS_FMASK);
+	max1 = 12;
+	switch (version) {
+	case IPA_VERSION_3_5_1:
+		max0 = 8;
+		break;
+	case IPA_VERSION_4_0:
+	case IPA_VERSION_4_1:
+		max0 = 12;
+		break;
+	case IPA_VERSION_4_2:
+		max0 = 12;
+		max1 = 0;		/* PCIe not present */
+		break;
+	case IPA_VERSION_4_5:
+		max0 = 16;
+		break;
+	}
+	val = u32_encode_bits(max0, GEN_QMB_0_MAX_READS_FMASK);
+	val |= u32_encode_bits(max1, GEN_QMB_1_MAX_READS_FMASK);
+	if (version != IPA_VERSION_3_5_1) {
 		/* GEN_QMB_0_MAX_READS_BEATS is 0 */
 		/* GEN_QMB_1_MAX_READS_BEATS is 0 */
 	}
@@ -294,7 +318,7 @@ static void ipa_idle_indication_cfg(struct ipa *ipa,
  */
 static void ipa_hardware_dcd_config(struct ipa *ipa)
 {
-	/* Recommended values for IPA 3.5 according to IPA HPG */
+	/* Recommended values for IPA 3.5 and later according to IPA HPG */
 	ipa_idle_indication_cfg(ipa, 256, false);
 }
 
@@ -310,20 +334,24 @@ static void ipa_hardware_dcd_deconfig(struct ipa *ipa)
  */
 static void ipa_hardware_config(struct ipa *ipa)
 {
+	enum ipa_version version = ipa->version;
 	u32 granularity;
 	u32 val;
 
-	/* Fill in backward-compatibility register, based on version */
-	val = ipa_reg_bcr_val(ipa->version);
-	iowrite32(val, ipa->reg_virt + IPA_REG_BCR_OFFSET);
+	/* IPA v4.5 has no backward compatibility register */
+	if (version < IPA_VERSION_4_5) {
+		val = ipa_reg_bcr_val(version);
+		iowrite32(val, ipa->reg_virt + IPA_REG_BCR_OFFSET);
+	}
 
-	if (ipa->version != IPA_VERSION_3_5_1) {
-		/* Enable open global clocks (hardware workaround) */
+	/* Implement some hardware workarounds */
+	if (version != IPA_VERSION_3_5_1 && version < IPA_VERSION_4_5) {
+		/* Enable open global clocks (not needed for IPA v4.5) */
 		val = GLOBAL_FMASK;
 		val |= GLOBAL_2X_CLK_FMASK;
 		iowrite32(val, ipa->reg_virt + IPA_REG_CLKON_CFG_OFFSET);
 
-		/* Disable PA mask to allow HOLB drop (hardware workaround) */
+		/* Disable PA mask to allow HOLB drop */
 		val = ioread32(ipa->reg_virt + IPA_REG_TX_CFG_OFFSET);
 		val &= ~PA_MASK_EN_FMASK;
 		iowrite32(val, ipa->reg_virt + IPA_REG_TX_CFG_OFFSET);
@@ -340,8 +368,8 @@ static void ipa_hardware_config(struct ipa *ipa)
 	iowrite32(val, ipa->reg_virt + IPA_REG_COUNTER_CFG_OFFSET);
 
 	/* IPA v4.2 does not support hashed tables, so disable them */
-	if (ipa->version == IPA_VERSION_4_2) {
-		u32 offset = ipa_reg_filt_rout_hash_en_offset(ipa->version);
+	if (version == IPA_VERSION_4_2) {
+		u32 offset = ipa_reg_filt_rout_hash_en_offset(version);
 
 		iowrite32(0, ipa->reg_virt + offset);
 	}

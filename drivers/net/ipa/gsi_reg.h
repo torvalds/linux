@@ -38,6 +38,17 @@
  * (though the actual limit is hardware-dependent).
  */
 
+/* GSI EE registers as a group are shifted downward by a fixed
+ * constant amount for IPA versions 4.5 and beyond.  This applies
+ * to all GSI registers we use *except* the ones that disable
+ * inter-EE interrupts for channels and event channels.
+ *
+ * We handle this by adjusting the pointer to the mapped GSI memory
+ * region downward.  Then in the one place we use them (gsi_irq_setup())
+ * we undo that adjustment for the inter-EE interrupt registers.
+ */
+#define GSI_EE_REG_ADJUST			0x0000d000	/* IPA v4.5+ */
+
 #define GSI_INTER_EE_SRC_CH_IRQ_OFFSET \
 			GSI_INTER_EE_N_SRC_CH_IRQ_OFFSET(GSI_EE_AP)
 #define GSI_INTER_EE_N_SRC_CH_IRQ_OFFSET(ee) \
@@ -105,6 +116,16 @@ enum gsi_channel_type {
 #define USE_DB_ENG_FMASK		GENMASK(9, 9)
 /* The next field is only present for IPA v4.0, v4.1, and v4.2 */
 #define USE_ESCAPE_BUF_ONLY_FMASK	GENMASK(10, 10)
+/* The next two fields are present for IPA v4.5 and above */
+#define PREFETCH_MODE_FMASK		GENMASK(13, 10)
+#define EMPTY_LVL_THRSHOLD_FMASK	GENMASK(23, 16)
+/** enum gsi_prefetch_mode - PREFETCH_MODE field in CH_C_QOS */
+enum gsi_prefetch_mode {
+	GSI_USE_PREFETCH_BUFS			= 0x0,
+	GSI_ESCAPE_BUF_ONLY			= 0x1,
+	GSI_SMART_PREFETCH			= 0x2,
+	GSI_FREE_PREFETCH			= 0x3,
+};
 
 #define GSI_CH_C_SCRATCH_0_OFFSET(ch) \
 		GSI_EE_N_CH_C_SCRATCH_0_OFFSET((ch), GSI_EE_AP)
@@ -287,6 +308,9 @@ enum gsi_iram_size {
 /* The next two values are available for IPA v4.0 and above */
 	IRAM_SIZE_TWO_N_HALF_KB			= 0x2,
 	IRAM_SIZE_THREE_KB			= 0x3,
+	/* The next two values are available for IPA v4.5 and above */
+	IRAM_SIZE_THREE_N_HALF_KB		= 0x4,
+	IRAM_SIZE_FOUR_KB			= 0x5,
 };
 
 /* IRQ condition for each type is cleared by writing type-specific register */
