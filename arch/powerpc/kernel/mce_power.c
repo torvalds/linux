@@ -97,7 +97,7 @@ void flush_and_reload_slb(void)
 }
 #endif
 
-static void flush_erat(void)
+void flush_erat(void)
 {
 #ifdef CONFIG_PPC_BOOK3S_64
 	if (!early_cpu_has_feature(CPU_FTR_ARCH_300)) {
