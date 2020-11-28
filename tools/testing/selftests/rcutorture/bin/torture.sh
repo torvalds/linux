@@ -34,6 +34,7 @@ fi
 configs_rcutorture=
 configs_locktorture=
 configs_scftorture=
+kcsan_kmake_args=
 
 # Default duration and apportionment.
 duration_base=10
@@ -79,6 +80,7 @@ usage () {
 	echo "       --do-refscale / --do-no-refscale"
 	echo "       --do-scftorture / --do-no-scftorture"
 	echo "       --duration [ <minutes> | <hours>h | <days>d ]"
+	echo "       --kcsan-kmake-arg kernel-make-arguments"
 	exit 1
 }
 
@@ -164,6 +166,11 @@ do
 		fi
 		ts=`echo $2 | sed -e 's/[smhd]$//'`
 		duration_base=$(($ts*mult))
+		shift
+		;;
+	--kcsan-kmake-arg|--kcsan-kmake-args)
+		checkarg --kcsan-kmake-arg "(kernel make arguments)" $# "$2" '.*' '^error$'
+		kcsan_kmake_args="`echo "$kcsan_kmake_args $2" | sed -e 's/^ *//' -e 's/ *$//'`"
 		shift
 		;;
 	*)
@@ -269,6 +276,8 @@ function torture_one {
 # Note that quoting is problematic.  So on the command line, pass multiple
 # values with multiple kvm.sh argument instances.
 function torture_set {
+	local cur_kcsan_kmake_args=
+	local kcsan_kmake_tag=
 	local flavor=$1
 	shift
 	curflavor=$flavor
@@ -281,7 +290,12 @@ function torture_set {
 	if test "$do_kcsan" = "yes"
 	then
 		curflavor=${flavor}-kcsan
-		torture_one $* --kconfig "CONFIG_DEBUG_LOCK_ALLOC=y CONFIG_PROVE_LOCKING=y" --kmake-arg "CC=clang" --kcsan
+		if test -n "$kcsan_kmake_args"
+		then
+			kcsan_kmake_tag="--kmake-args"
+			cur_kcsan_kmake_args="$kcsan_kmake_args"
+		fi
+		torture_one $* --kconfig "CONFIG_DEBUG_LOCK_ALLOC=y CONFIG_PROVE_LOCKING=y" $kcsan_kmake_tag $cur_kcsan_kmake_args --kcsan
 	fi
 }
 
@@ -382,8 +396,3 @@ then
 	cp $T/log $tdir
 fi
 exit $ret
-
-# @@@
-# Need a way for the invoker to specify clang.  Maybe --kcsan-kmake or some such.
-# --kconfig as with --bootargs (Both have overrides.)
-# Command line parameters for --bootargs, --config, --kconfig, --kmake-arg, and --qemu-arg
