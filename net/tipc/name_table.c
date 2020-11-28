@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2000-2006, 2014-2018, Ericsson AB
  * Copyright (c) 2004-2008, 2010-2014, Wind River Systems
+ * Copyright (c) 2020, Red Hat Inc
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -403,12 +404,12 @@ static void tipc_service_subscribe(struct tipc_service *service,
 	struct publication *p, *first, *tmp;
 	struct list_head publ_list;
 	struct service_range *sr;
-	struct tipc_name_seq ns;
+	struct tipc_service_range r;
 	u32 filter;
 
-	ns.type = tipc_sub_read(sb, seq.type);
-	ns.lower = tipc_sub_read(sb, seq.lower);
-	ns.upper = tipc_sub_read(sb, seq.upper);
+	r.type = tipc_sub_read(sb, seq.type);
+	r.lower = tipc_sub_read(sb, seq.lower);
+	r.upper = tipc_sub_read(sb, seq.upper);
 	filter = tipc_sub_read(sb, filter);
 
 	tipc_sub_get(sub);
@@ -418,7 +419,7 @@ static void tipc_service_subscribe(struct tipc_service *service,
 		return;
 
 	INIT_LIST_HEAD(&publ_list);
-	service_range_foreach_match(sr, service, ns.lower, ns.upper) {
+	service_range_foreach_match(sr, service, r.lower, r.upper) {
 		first = NULL;
 		list_for_each_entry(p, &sr->all_publ, all_publ) {
 			if (filter & TIPC_SUB_PORTS)
