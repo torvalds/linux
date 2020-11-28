@@ -18,6 +18,7 @@ enum hns3_nic_state {
 	HNS3_NIC_STATE_SERVICE_INITED,
 	HNS3_NIC_STATE_SERVICE_SCHED,
 	HNS3_NIC_STATE2_RESET_REQUESTED,
+	HNS3_NIC_STATE_HW_TX_CSUM_ENABLE,
 	HNS3_NIC_STATE_MAX
 };
 
@@ -145,12 +146,18 @@ enum hns3_nic_state {
 #define HNS3_TXD_L4LEN_S			24
 #define HNS3_TXD_L4LEN_M			(0xff << HNS3_TXD_L4LEN_S)
 
+#define HNS3_TXD_CSUM_START_S		8
+#define HNS3_TXD_CSUM_START_M		(0xffff << HNS3_TXD_CSUM_START_S)
+
 #define HNS3_TXD_OL3T_S				0
 #define HNS3_TXD_OL3T_M				(0x3 << HNS3_TXD_OL3T_S)
 #define HNS3_TXD_OVLAN_B			2
 #define HNS3_TXD_MACSEC_B			3
 #define HNS3_TXD_TUNTYPE_S			4
 #define HNS3_TXD_TUNTYPE_M			(0xf << HNS3_TXD_TUNTYPE_S)
+
+#define HNS3_TXD_CSUM_OFFSET_S		8
+#define HNS3_TXD_CSUM_OFFSET_M		(0xffff << HNS3_TXD_CSUM_OFFSET_S)
 
 #define HNS3_TXD_BDTYPE_S			0
 #define HNS3_TXD_BDTYPE_M			(0xf << HNS3_TXD_BDTYPE_S)
@@ -167,6 +174,7 @@ enum hns3_nic_state {
 
 #define HNS3_TXD_MSS_S				0
 #define HNS3_TXD_MSS_M				(0x3fff << HNS3_TXD_MSS_S)
+#define HNS3_TXD_HW_CS_B			14
 
 #define HNS3_VECTOR_TX_IRQ			BIT_ULL(0)
 #define HNS3_VECTOR_RX_IRQ			BIT_ULL(1)
@@ -258,7 +266,7 @@ struct __packed hns3_desc {
 
 			__le32 paylen;
 			__le16 bdtp_fe_sc_vld_ra_ri;
-			__le16 mss;
+			__le16 mss_hw_csum;
 		} tx;
 
 		struct {

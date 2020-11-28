@@ -178,6 +178,7 @@ static int hns3_dbg_bd_info(struct hnae3_handle *h, const char *cmd_buf)
 	u32 tx_index, rx_index;
 	u32 q_num, value;
 	dma_addr_t addr;
+	u16 mss_hw_csum;
 	int cnt;
 
 	cnt = sscanf(&cmd_buf[8], "%u %u", &q_num, &tx_index);
@@ -206,6 +207,7 @@ static int hns3_dbg_bd_info(struct hnae3_handle *h, const char *cmd_buf)
 
 	tx_desc = &ring->desc[tx_index];
 	addr = le64_to_cpu(tx_desc->addr);
+	mss_hw_csum = le16_to_cpu(tx_desc->tx.mss_hw_csum);
 	dev_info(dev, "TX Queue Num: %u, BD Index: %u\n", q_num, tx_index);
 	dev_info(dev, "(TX)addr: %pad\n", &addr);
 	dev_info(dev, "(TX)vlan_tag: %u\n", le16_to_cpu(tx_desc->tx.vlan_tag));
@@ -225,7 +227,7 @@ static int hns3_dbg_bd_info(struct hnae3_handle *h, const char *cmd_buf)
 	dev_info(dev, "(TX)paylen: %u\n", le32_to_cpu(tx_desc->tx.paylen));
 	dev_info(dev, "(TX)vld_ra_ri: %u\n",
 		 le16_to_cpu(tx_desc->tx.bdtp_fe_sc_vld_ra_ri));
-	dev_info(dev, "(TX)mss: %u\n", le16_to_cpu(tx_desc->tx.mss));
+	dev_info(dev, "(TX)mss_hw_csum: %u\n", mss_hw_csum);
 
 	ring = &priv->ring[q_num + h->kinfo.num_tqps];
 	value = readl_relaxed(ring->tqp->io_base + HNS3_RING_RX_RING_TAIL_REG);
@@ -324,6 +326,8 @@ static void hns3_dbg_dev_caps(struct hnae3_handle *h)
 		 test_bit(HNAE3_DEV_SUPPORT_PTP_B, caps) ? "yes" : "no");
 	dev_info(&h->pdev->dev, "support INT QL: %s\n",
 		 test_bit(HNAE3_DEV_SUPPORT_INT_QL_B, caps) ? "yes" : "no");
+	dev_info(&h->pdev->dev, "support HW TX csum: %s\n",
+		 test_bit(HNAE3_DEV_SUPPORT_HW_TX_CSUM_B, caps) ? "yes" : "no");
 }
 
 static void hns3_dbg_dev_specs(struct hnae3_handle *h)
