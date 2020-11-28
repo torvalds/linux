@@ -216,6 +216,9 @@ int smu_v13_0_check_fw_version(struct smu_context *smu)
 		break;
 	}
 
+	dev_info(smu->adev->dev, "smu fw reported version = 0x%08x (%d.%d.%d)\n",
+			 smu_version, smu_major, smu_minor, smu_debug);
+
 	/*
 	 * 1. if_version mismatch is not critical as our fw is designed
 	 * to be backward compatible.
@@ -273,8 +276,13 @@ int smu_v13_0_setup_pptable(struct smu_context *smu)
 	void *table;
 	uint16_t version_major, version_minor;
 
-	/* temporarily hardcode */
-	smu->smu_table.boot_values.pp_table_id = 3000;
+	/* temporarily hardcode to use vbios pptable */
+	smu->smu_table.boot_values.pp_table_id = 0;
+
+	if (amdgpu_smu_pptable_id >= 0) {
+		smu->smu_table.boot_values.pp_table_id = amdgpu_smu_pptable_id;
+		dev_info(adev->dev, "override pptable id %d\n", amdgpu_smu_pptable_id);
+	}
 
 	hdr = (const struct smc_firmware_header_v1_0 *) adev->pm.fw->data;
 	version_major = le16_to_cpu(hdr->header.header_version_major);
@@ -563,6 +571,7 @@ int smu_v13_0_get_vbios_bootup_values(struct smu_context *smu)
 
 	return 0;
 }
+
 
 int smu_v13_0_notify_memory_pool_location(struct smu_context *smu)
 {
