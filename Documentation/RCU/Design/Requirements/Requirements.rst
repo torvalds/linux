@@ -321,11 +321,10 @@ do_something_gp_buggy() below:
       12 }
 
 However, this temptation must be resisted because there are a
-surprisingly large number of ways that the compiler (to say nothing of
-`DEC Alpha CPUs <https://h71000.www7.hp.com/wizard/wiz_2637.html>`__)
-can trip this code up. For but one example, if the compiler were short
-of registers, it might choose to refetch from ``gp`` rather than keeping
-a separate copy in ``p`` as follows:
+surprisingly large number of ways that the compiler (or weak ordering
+CPUs like the DEC Alpha) can trip this code up. For but one example, if
+the compiler were short of registers, it might choose to refetch from
+``gp`` rather than keeping a separate copy in ``p`` as follows:
 
    ::
 
@@ -1183,7 +1182,7 @@ costs have plummeted. However, as I learned from Matt Mackall's
 `bloatwatch <http://elinux.org/Linux_Tiny-FAQ>`__ efforts, memory
 footprint is critically important on single-CPU systems with
 non-preemptible (``CONFIG_PREEMPT=n``) kernels, and thus `tiny
-RCU <https://lkml.kernel.org/g/20090113221724.GA15307@linux.vnet.ibm.com>`__
+RCU <https://lore.kernel.org/r/20090113221724.GA15307@linux.vnet.ibm.com>`__
 was born. Josh Triplett has since taken over the small-memory banner
 with his `Linux kernel tinification <https://tiny.wiki.kernel.org/>`__
 project, which resulted in `SRCU <#Sleepable%20RCU>`__ becoming optional
@@ -1624,7 +1623,7 @@ against mishaps and misuse:
    init_rcu_head() and cleaned up with destroy_rcu_head().
    Mathieu Desnoyers made me aware of this requirement, and also
    supplied the needed
-   `patch <https://lkml.kernel.org/g/20100319013024.GA28456@Krystal>`__.
+   `patch <https://lore.kernel.org/r/20100319013024.GA28456@Krystal>`__.
 #. An infinite loop in an RCU read-side critical section will eventually
    trigger an RCU CPU stall warning splat, with the duration of
    “eventually” being controlled by the ``RCU_CPU_STALL_TIMEOUT``
@@ -1716,7 +1715,7 @@ requires almost all of them be hidden behind a ``CONFIG_RCU_EXPERT``
 
 This all should be quite obvious, but the fact remains that Linus
 Torvalds recently had to
-`remind <https://lkml.kernel.org/g/CA+55aFy4wcCwaL4okTs8wXhGZ5h-ibecy_Meg9C4MNQrUnwMcg@mail.gmail.com>`__
+`remind <https://lore.kernel.org/r/CA+55aFy4wcCwaL4okTs8wXhGZ5h-ibecy_Meg9C4MNQrUnwMcg@mail.gmail.com>`__
 me of this requirement.
 
 Firmware Interface
@@ -1837,9 +1836,9 @@ NMI handlers.
 
 The name notwithstanding, some Linux-kernel architectures can have
 nested NMIs, which RCU must handle correctly. Andy Lutomirski `surprised
-me <https://lkml.kernel.org/r/CALCETrXLq1y7e_dKFPgou-FKHB6Pu-r8+t-6Ds+8=va7anBWDA@mail.gmail.com>`__
+me <https://lore.kernel.org/r/CALCETrXLq1y7e_dKFPgou-FKHB6Pu-r8+t-6Ds+8=va7anBWDA@mail.gmail.com>`__
 with this requirement; he also kindly surprised me with `an
-algorithm <https://lkml.kernel.org/r/CALCETrXSY9JpW3uE6H8WYk81sg56qasA2aqmjMPsq5dOtzso=g@mail.gmail.com>`__
+algorithm <https://lore.kernel.org/r/CALCETrXSY9JpW3uE6H8WYk81sg56qasA2aqmjMPsq5dOtzso=g@mail.gmail.com>`__
 that meets this requirement.
 
 Furthermore, NMI handlers can be interrupted by what appear to RCU to be
@@ -2264,7 +2263,7 @@ more extreme measures. Returning to the ``page`` structure, the
 ``rcu_head`` field shares storage with a great many other structures
 that are used at various points in the corresponding page's lifetime. In
 order to correctly resolve certain `race
-conditions <https://lkml.kernel.org/g/1439976106-137226-1-git-send-email-kirill.shutemov@linux.intel.com>`__,
+conditions <https://lore.kernel.org/r/1439976106-137226-1-git-send-email-kirill.shutemov@linux.intel.com>`__,
 the Linux kernel's memory-management subsystem needs a particular bit to
 remain zero during all phases of grace-period processing, and that bit
 happens to map to the bottom bit of the ``rcu_head`` structure's
@@ -2328,7 +2327,7 @@ preempted. This requirement made its presence known after users made it
 clear that an earlier `real-time
 patch <https://lwn.net/Articles/107930/>`__ did not meet their needs, in
 conjunction with some `RCU
-issues <https://lkml.kernel.org/g/20050318002026.GA2693@us.ibm.com>`__
+issues <https://lore.kernel.org/r/20050318002026.GA2693@us.ibm.com>`__
 encountered by a very early version of the -rt patchset.
 
 In addition, RCU must make do with a sub-100-microsecond real-time
