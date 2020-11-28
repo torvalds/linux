@@ -146,6 +146,7 @@ int amdgpu_compute_multipipe = -1;
 int amdgpu_gpu_recovery = -1; /* auto */
 int amdgpu_emu_mode;
 uint amdgpu_smu_memory_pool_size;
+int amdgpu_smu_pptable_id = -1;
 /*
  * FBC (bit 0) disabled by default
  * MULTI_MON_PP_MCLK_SWITCH (bit 1) enabled by default
@@ -827,6 +828,15 @@ module_param_named(bad_page_threshold, amdgpu_bad_page_threshold, int, 0444);
 
 MODULE_PARM_DESC(num_kcq, "number of kernel compute queue user want to setup (8 if set to greater than 8 or less than 0, only affect gfx 8+)");
 module_param_named(num_kcq, amdgpu_num_kcq, int, 0444);
+
+/**
+ * DOC: smu_pptable_id (int)
+ * Used to override pptable id. id = 0 use VBIOS pptable.
+ * id > 0 use the soft pptable with specicfied id.
+ */
+MODULE_PARM_DESC(smu_pptable_id,
+	"specify pptable id to be used (-1 = auto(default) value, 0 = use pptable from vbios, > 0 = soft pptable id)");
+module_param_named(smu_pptable_id, amdgpu_smu_pptable_id, int, 0444);
 
 static const struct pci_device_id pciidlist[] = {
 #ifdef  CONFIG_DRM_AMDGPU_SI
