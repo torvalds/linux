@@ -44,6 +44,8 @@ static const char *uv_type_string(void)
 		return "5.0";
 	else if (is_uv2_hub())
 		return "3.0";
+	else if (uv_get_hubless_system())
+		return "0.1";
 	else
 		return "unknown";
 }
@@ -748,6 +750,12 @@ static ssize_t uv_hub_type_show(struct kobject *kobj,
 	return scnprintf(buf, PAGE_SIZE, "0x%x\n", uv_hub_type());
 }
 
+static ssize_t uv_hubless_show(struct kobject *kobj,
+			struct kobj_attribute *attr, char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "0x%x\n", uv_get_hubless_system());
+}
+
 static struct kobj_attribute partition_id_attr =
 	__ATTR(partition_id, 0444, partition_id_show, NULL);
 static struct kobj_attribute coherence_id_attr =
@@ -758,6 +766,8 @@ static struct kobj_attribute uv_archtype_attr =
 	__ATTR(archtype, 0444, uv_archtype_show, NULL);
 static struct kobj_attribute uv_hub_type_attr =
 	__ATTR(hub_type, 0444, uv_hub_type_show, NULL);
+static struct kobj_attribute uv_hubless_attr =
+	__ATTR(hubless, 0444, uv_hubless_show, NULL);
 
 static struct attribute *base_attrs[] = {
 	&partition_id_attr.attr,
@@ -805,11 +815,36 @@ static int initial_bios_setup(void)
 	return 0;
 }
 
+static struct attribute *hubless_base_attrs[] = {
+	&partition_id_attr.attr,
+	&uv_type_attr.attr,
+	&uv_archtype_attr.attr,
+	&uv_hubless_attr.attr,
+	NULL,
+};
+
+static struct attribute_group hubless_base_attr_group = {
+	.attrs = hubless_base_attrs
+};
+
+
+static int __init uv_sysfs_hubless_init(void)
+{
+	int ret;
+
+	ret = sysfs_create_group(sgi_uv_kobj, &hubless_base_attr_group);
+	if (ret) {
+		pr_warn("sysfs_create_group hubless_base_attr_group failed\n");
+		kobject_put(sgi_uv_kobj);
+	}
+	return ret;
+}
+
 static int __init uv_sysfs_init(void)
 {
 	int ret = 0;
 
-	if (!is_uv_system())
+	if (!is_uv_system() && !uv_get_hubless_system())
 		return -ENODEV;
 
 	num_cnodes = uv_num_possible_blades();
@@ -820,6 +855,10 @@ static int __init uv_sysfs_init(void)
 		pr_warn("kobject_create_and_add sgi_uv failed\n");
 		return -EINVAL;
 	}
+
+	if (uv_get_hubless_system())
+		return uv_sysfs_hubless_init();
+
 	ret = sysfs_create_group(sgi_uv_kobj, &base_attr_group);
 	if (ret) {
 		pr_warn("sysfs_create_group base_attr_group failed\n");
@@ -857,10 +896,19 @@ err_create_group:
 	return ret;
 }
 
+static void __exit uv_sysfs_hubless_exit(void)
+{
+	sysfs_remove_group(sgi_uv_kobj, &hubless_base_attr_group);
+	kobject_put(sgi_uv_kobj);
+}
+
 static void __exit uv_sysfs_exit(void)
 {
-	if (!is_uv_system())
+	if (!is_uv_system()) {
+		if (uv_get_hubless_system())
+			uv_sysfs_hubless_exit();
 		return;
+	}
 
 	pci_topology_exit();
 	uv_ports_exit();
