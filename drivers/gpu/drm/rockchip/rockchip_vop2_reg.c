@@ -403,6 +403,18 @@ static const struct vop2_video_port_regs rk3568_vop_vp0_regs = {
 	.hdr_dst_color_ctrl = VOP_REG(RK3568_HDR0_DST_COLOR_CTRL, 0xffffffff, 0),
 	.hdr_src_alpha_ctrl = VOP_REG(RK3568_HDR0_SRC_ALPHA_CTRL, 0xffffffff, 0),
 	.hdr_dst_alpha_ctrl = VOP_REG(RK3568_HDR0_DST_ALPHA_CTRL, 0xffffffff, 0),
+
+	.bcsh_brightness = VOP_REG(RK3568_VP0_BCSH_BCS, 0xff, 0),
+	.bcsh_contrast = VOP_REG(RK3568_VP0_BCSH_BCS, 0x1ff, 8),
+	.bcsh_sat_con = VOP_REG(RK3568_VP0_BCSH_BCS, 0x3ff, 20),
+	.bcsh_out_mode = VOP_REG(RK3568_VP0_BCSH_BCS, 0x3, 30),
+	.bcsh_sin_hue = VOP_REG(RK3568_VP0_BCSH_H, 0x1ff, 0),
+	.bcsh_cos_hue = VOP_REG(RK3568_VP0_BCSH_H, 0x1ff, 16),
+	.bcsh_r2y_csc_mode = VOP_REG(RK3568_VP0_BCSH_CTRL, 0x3, 6),
+	.bcsh_r2y_en = VOP_REG(RK3568_VP0_BCSH_CTRL, 0x1, 4),
+	.bcsh_y2r_csc_mode = VOP_REG(RK3568_VP0_BCSH_CTRL, 0x3, 2),
+	.bcsh_y2r_en = VOP_REG(RK3568_VP0_BCSH_CTRL, 0x1, 0),
+	.bcsh_en = VOP_REG(RK3568_VP0_BCSH_COLOR_BAR, 0x1, 31),
 };
 
 static const struct vop2_video_port_regs rk3568_vop_vp1_regs = {
@@ -436,6 +448,18 @@ static const struct vop2_video_port_regs rk3568_vop_vp1_regs = {
 	.dither_down_mode = VOP_REG(RK3568_VP1_DSP_CTRL, 0x1, 20),
 	.mipi_dual_en = VOP_REG(RK3568_VP1_MIPI_CTRL, 0x1, 20),
 	.mipi_dual_channel_swap = VOP_REG(RK3568_VP1_MIPI_CTRL, 0x1, 21),
+
+	.bcsh_brightness = VOP_REG(RK3568_VP1_BCSH_BCS, 0xff, 0),
+	.bcsh_contrast = VOP_REG(RK3568_VP1_BCSH_BCS, 0x1ff, 8),
+	.bcsh_sat_con = VOP_REG(RK3568_VP1_BCSH_BCS, 0x3ff, 20),
+	.bcsh_out_mode = VOP_REG(RK3568_VP1_BCSH_BCS, 0x3, 30),
+	.bcsh_sin_hue = VOP_REG(RK3568_VP1_BCSH_H, 0x1ff, 0),
+	.bcsh_cos_hue = VOP_REG(RK3568_VP1_BCSH_H, 0x1ff, 16),
+	.bcsh_r2y_csc_mode = VOP_REG(RK3568_VP1_BCSH_CTRL, 0x3, 6),
+	.bcsh_r2y_en = VOP_REG(RK3568_VP1_BCSH_CTRL, 0x1, 4),
+	.bcsh_y2r_csc_mode = VOP_REG(RK3568_VP1_BCSH_CTRL, 0x3, 2),
+	.bcsh_y2r_en = VOP_REG(RK3568_VP1_BCSH_CTRL, 0x1, 0),
+	.bcsh_en = VOP_REG(RK3568_VP1_BCSH_COLOR_BAR, 0x1, 31),
 };
 
 static const struct vop2_video_port_regs rk3568_vop_vp2_regs = {
@@ -469,6 +493,18 @@ static const struct vop2_video_port_regs rk3568_vop_vp2_regs = {
 	.dither_down_mode = VOP_REG(RK3568_VP2_DSP_CTRL, 0x1, 20),
 	.mipi_dual_en = VOP_REG(RK3568_VP2_MIPI_CTRL, 0x1, 20),
 	.mipi_dual_channel_swap = VOP_REG(RK3568_VP2_MIPI_CTRL, 0x1, 21),
+
+	.bcsh_brightness = VOP_REG(RK3568_VP2_BCSH_BCS, 0xff, 0),
+	.bcsh_contrast = VOP_REG(RK3568_VP2_BCSH_BCS, 0x1ff, 8),
+	.bcsh_sat_con = VOP_REG(RK3568_VP2_BCSH_BCS, 0x3ff, 20),
+	.bcsh_out_mode = VOP_REG(RK3568_VP2_BCSH_BCS, 0x3, 30),
+	.bcsh_sin_hue = VOP_REG(RK3568_VP2_BCSH_H, 0x1ff, 0),
+	.bcsh_cos_hue = VOP_REG(RK3568_VP2_BCSH_H, 0x1ff, 16),
+	.bcsh_r2y_csc_mode = VOP_REG(RK3568_VP2_BCSH_CTRL, 0x3, 6),
+	.bcsh_r2y_en = VOP_REG(RK3568_VP2_BCSH_CTRL, 0x1, 4),
+	.bcsh_y2r_csc_mode = VOP_REG(RK3568_VP2_BCSH_CTRL, 0x3, 2),
+	.bcsh_y2r_en = VOP_REG(RK3568_VP2_BCSH_CTRL, 0x1, 0),
+	.bcsh_en = VOP_REG(RK3568_VP2_BCSH_COLOR_BAR, 0x1, 31),
 };
 
 static const struct vop2_video_port_data rk3568_vop_video_ports[] = {

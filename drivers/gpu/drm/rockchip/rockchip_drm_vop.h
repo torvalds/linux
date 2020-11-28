@@ -560,6 +560,19 @@ struct vop2_video_port_regs {
 	struct vop_reg hdr_dst_color_ctrl;
 	struct vop_reg hdr_src_alpha_ctrl;
 	struct vop_reg hdr_dst_alpha_ctrl;
+
+	/* BCSH */
+	struct vop_reg bcsh_brightness;
+	struct vop_reg bcsh_contrast;
+	struct vop_reg bcsh_sat_con;
+	struct vop_reg bcsh_sin_hue;
+	struct vop_reg bcsh_cos_hue;
+	struct vop_reg bcsh_r2y_csc_mode;
+	struct vop_reg bcsh_r2y_en;
+	struct vop_reg bcsh_y2r_csc_mode;
+	struct vop_reg bcsh_y2r_en;
+	struct vop_reg bcsh_out_mode;
+	struct vop_reg bcsh_en;
 };
 
 struct vop_win_data {

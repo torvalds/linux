@@ -342,6 +342,11 @@ struct vop2_video_port {
 	 * @nr_wins: active wins attached to the video port;
 	 */
 	uint8_t nr_wins;
+
+	/**
+	 * @active_tv_state: TV connector related states
+	 */
+	struct drm_tv_connector_state active_tv_state;
 };
 
 struct vop2 {
@@ -1028,8 +1033,11 @@ static int vop2_convert_csc_mode(int csc_mode)
 {
 	switch (csc_mode) {
 	case V4L2_COLORSPACE_SMPTE170M:
+	case V4L2_COLORSPACE_470_SYSTEM_M:
+	case V4L2_COLORSPACE_470_SYSTEM_BG:
 		return CSC_BT601L;
 	case V4L2_COLORSPACE_REC709:
+	case V4L2_COLORSPACE_SMPTE240M:
 	case V4L2_COLORSPACE_DEFAULT:
 		return CSC_BT709L;
 	case V4L2_COLORSPACE_JPEG:
@@ -3279,6 +3287,91 @@ static void vop2_post_config(struct drm_crtc *crtc)
 static void vop2_tv_config_update(struct drm_crtc *crtc,
 				  struct drm_crtc_state *old_crtc_state)
 {
+	struct rockchip_crtc_state *vcstate =
+			to_rockchip_crtc_state(crtc->state);
+	struct rockchip_crtc_state *old_vcstate =
+			to_rockchip_crtc_state(old_crtc_state);
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+	const struct vop2_data *vop2_data = vop2->data;
+	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
+	int brightness, contrast, saturation, hue, sin_hue, cos_hue;
+
+	if (!vcstate->tv_state)
+		return;
+
+	/* post BCSH CSC */
+	vcstate->post_r2y_en = 0;
+	vcstate->post_y2r_en = 0;
+	vcstate->bcsh_en = 0;
+	if (vcstate->tv_state->brightness != 50 ||
+	    vcstate->tv_state->contrast != 50 ||
+	    vcstate->tv_state->saturation != 50 || vcstate->tv_state->hue != 50)
+		vcstate->bcsh_en = 1;
+	/*
+	 * The BCSH only need to config once except one of the following
+	 * condition changed:
+	 *   1. tv_state: include brightness,contrast,saturation and hue;
+	 *   2. yuv_overlay: it is related to BCSH r2y module;
+	 *   4. bcsh_en: control the BCSH module enable or disable state;
+	 *   5. bus_format: it is related to BCSH y2r module;
+	 */
+	if (!memcmp(vcstate->tv_state, &vp->active_tv_state, sizeof(*vcstate->tv_state)) &&
+	    vcstate->yuv_overlay == old_vcstate->yuv_overlay &&
+	    vcstate->bcsh_en == old_vcstate->bcsh_en &&
+	    vcstate->bus_format == old_vcstate->bus_format)
+		return;
+
+	memcpy(&vp->active_tv_state, vcstate->tv_state, sizeof(*vcstate->tv_state));
+	if (vcstate->bcsh_en) {
+		if (!vcstate->yuv_overlay)
+			vcstate->post_r2y_en = 1;
+		if (!is_yuv_output(vcstate->bus_format))
+			vcstate->post_y2r_en = 1;
+	} else {
+		if (!vcstate->yuv_overlay && is_yuv_output(vcstate->bus_format))
+			vcstate->post_r2y_en = 1;
+		if (vcstate->yuv_overlay && !is_yuv_output(vcstate->bus_format))
+			vcstate->post_y2r_en = 1;
+	}
+
+	vcstate->post_csc_mode = vop2_convert_csc_mode(vcstate->color_space);
+	VOP_MODULE_SET(vop2, vp, bcsh_r2y_en, vcstate->post_r2y_en);
+	VOP_MODULE_SET(vop2, vp, bcsh_y2r_en, vcstate->post_y2r_en);
+	VOP_MODULE_SET(vop2, vp, bcsh_r2y_csc_mode, vcstate->post_csc_mode);
+	VOP_MODULE_SET(vop2, vp, bcsh_y2r_csc_mode, vcstate->post_csc_mode);
+	if (!vcstate->bcsh_en) {
+		VOP_MODULE_SET(vop2, vp, bcsh_en, vcstate->bcsh_en);
+		return;
+	}
+
+	if (vp_data->feature & VOP_FEATURE_OUTPUT_10BIT)
+		brightness = interpolate(0, -128, 100, 127,
+					 vcstate->tv_state->brightness);
+	else
+		brightness = interpolate(0, -32, 100, 31,
+					 vcstate->tv_state->brightness);
+	contrast = interpolate(0, 0, 100, 511, vcstate->tv_state->contrast);
+	saturation = interpolate(0, 0, 100, 511, vcstate->tv_state->saturation);
+	hue = interpolate(0, -30, 100, 30, vcstate->tv_state->hue);
+
+	/*
+	 *  a:[-30~0]:
+	 *    sin_hue = 0x100 - sin(a)*256;
+	 *    cos_hue = cos(a)*256;
+	 *  a:[0~30]
+	 *    sin_hue = sin(a)*256;
+	 *    cos_hue = cos(a)*256;
+	 */
+	sin_hue = fixp_sin32(hue) >> 23;
+	cos_hue = fixp_cos32(hue) >> 23;
+	VOP_MODULE_SET(vop2, vp, bcsh_brightness, brightness);
+	VOP_MODULE_SET(vop2, vp, bcsh_contrast, contrast);
+	VOP_MODULE_SET(vop2, vp, bcsh_sat_con, saturation * contrast / 0x100);
+	VOP_MODULE_SET(vop2, vp, bcsh_sin_hue, sin_hue);
+	VOP_MODULE_SET(vop2, vp, bcsh_cos_hue, cos_hue);
+	VOP_MODULE_SET(vop2, vp, bcsh_out_mode, BCSH_OUT_MODE_NORMAL_VIDEO);
+	VOP_MODULE_SET(vop2, vp, bcsh_en, vcstate->bcsh_en);
 }
 
 static void vop2_cfg_update(struct drm_crtc *crtc,
