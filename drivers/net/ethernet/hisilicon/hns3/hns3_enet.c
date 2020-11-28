@@ -2798,6 +2798,22 @@ static int hns3_gro_complete(struct sk_buff *skb, u32 l234info)
 	return 0;
 }
 
+static void hns3_checksum_complete(struct hns3_enet_ring *ring,
+				   struct sk_buff *skb, u32 l234info)
+{
+	u32 lo, hi;
+
+	u64_stats_update_begin(&ring->syncp);
+	ring->stats.csum_complete++;
+	u64_stats_update_end(&ring->syncp);
+	skb->ip_summed = CHECKSUM_COMPLETE;
+	lo = hnae3_get_field(l234info, HNS3_RXD_L2_CSUM_L_M,
+			     HNS3_RXD_L2_CSUM_L_S);
+	hi = hnae3_get_field(l234info, HNS3_RXD_L2_CSUM_H_M,
+			     HNS3_RXD_L2_CSUM_H_S);
+	skb->csum = csum_unfold((__force __sum16)(lo | hi << 8));
+}
+
 static void hns3_rx_checksum(struct hns3_enet_ring *ring, struct sk_buff *skb,
 			     u32 l234info, u32 bd_base_info, u32 ol_info)
 {
@@ -2811,6 +2827,11 @@ static void hns3_rx_checksum(struct hns3_enet_ring *ring, struct sk_buff *skb,
 
 	if (!(netdev->features & NETIF_F_RXCSUM))
 		return;
+
+	if (l234info & BIT(HNS3_RXD_L2_CSUM_B)) {
+		hns3_checksum_complete(ring, skb, l234info);
+		return;
+	}
 
 	/* check if hardware has done checksum */
 	if (!(bd_base_info & BIT(HNS3_RXD_L3L4P_B)))

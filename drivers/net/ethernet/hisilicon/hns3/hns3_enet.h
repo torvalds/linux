@@ -82,6 +82,12 @@ enum hns3_nic_state {
 #define HNS3_RXD_STRP_TAGP_S			13
 #define HNS3_RXD_STRP_TAGP_M			(0x3 << HNS3_RXD_STRP_TAGP_S)
 
+#define HNS3_RXD_L2_CSUM_B			15
+#define HNS3_RXD_L2_CSUM_L_S			4
+#define HNS3_RXD_L2_CSUM_L_M			(0xff << HNS3_RXD_L2_CSUM_L_S)
+#define HNS3_RXD_L2_CSUM_H_S			24
+#define HNS3_RXD_L2_CSUM_H_M			(0xff << HNS3_RXD_L2_CSUM_H_S)
+
 #define HNS3_RXD_L2E_B				16
 #define HNS3_RXD_L3E_B				17
 #define HNS3_RXD_L4E_B				18
@@ -371,6 +377,7 @@ struct ring_stats {
 			u64 err_bd_num;
 			u64 l2_err;
 			u64 l3l4_csum_err;
+			u64 csum_complete;
 			u64 rx_multicast;
 			u64 non_reuse_pg;
 		};
