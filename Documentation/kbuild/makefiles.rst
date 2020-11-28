@@ -16,9 +16,9 @@ This document describes the Linux kernel Makefiles.
 	   --- 3.5 Library file goals - lib-y
 	   --- 3.6 Descending down in directories
 	   --- 3.7 Compilation flags
-	   --- 3.8 <deleted>
-	   --- 3.9 Dependency tracking
-	   --- 3.10 Custom Rules
+	   --- 3.8 Dependency tracking
+	   --- 3.9 Custom Rules
+	   --- 3.10 Command change detection
 	   --- 3.11 $(CC) support functions
 	   --- 3.12 $(LD) support functions
 	   --- 3.13 Script Invocation
@@ -410,7 +410,7 @@ more details, with real examples.
 		AFLAGS_iwmmxt.o      := -Wa,-mcpu=iwmmxt
 
 
-3.9 Dependency tracking
+3.8 Dependency tracking
 -----------------------
 
 	Kbuild tracks dependencies on the following:
@@ -422,8 +422,8 @@ more details, with real examples.
 	Thus, if you change an option to $(CC) all affected files will
 	be re-compiled.
 
-3.10 Custom Rules
-------------------
+3.9 Custom Rules
+----------------
 
 	Custom rules are used when the kbuild infrastructure does
 	not provide the required support. A typical example is
@@ -498,6 +498,52 @@ more details, with real examples.
 		  GEN     lib/crc32table.h
 
 	will be displayed with "make KBUILD_VERBOSE=0".
+
+3.10 Command change detection
+-----------------------------
+
+	When the rule is evaluated, timestamps are compared between the target
+	and its prerequisite files. GNU Make updates the target when any of the
+	prerequisites is newer than that.
+
+	The target should be rebuilt also when the command line has changed
+	since the last invocation. This is not supported by Make itself, so
+	Kbuild achieves this by a kind of meta-programming.
+
+	if_changed is the macro used for this purpose, in the following form::
+
+		quiet_cmd_<command> = ...
+		      cmd_<command> = ...
+
+		<target>: <source(s)> FORCE
+			$(call if_changed,<command>)
+
+	Any target that utilizes if_changed must be listed in $(targets),
+	otherwise the command line check will fail, and the target will
+	always be built.
+
+	If the target is already listed in the recognized syntax such as
+	obj-y/m, lib-y/m, extra-y/m, always-y/m, hostprogs, userprogs, Kbuild
+	automatically adds it to $(targets). Otherwise, the target must be
+	explicitly added to $(targets).
+
+	Assignments to $(targets) are without $(obj)/ prefix. if_changed may be
+	used in conjunction with custom rules as defined in "3.9 Custom Rules".
+
+	Note: It is a typical mistake to forget the FORCE prerequisite.
+	Another common pitfall is that whitespace is sometimes significant; for
+	instance, the below will fail (note the extra space after the comma)::
+
+		target: source(s) FORCE
+
+	**WRONG!**	$(call if_changed, objcopy)
+
+	Note:
+		if_changed should not be used more than once per target.
+		It stores the executed command in a corresponding .cmd
+		file and multiple calls would result in overwrites and
+		unwanted results when the target is up to date and only the
+		tests on changed commands trigger execution of commands.
 
 3.11 $(CC) support functions
 ----------------------------
@@ -1286,42 +1332,6 @@ When kbuild executes, the following steps are followed (roughly):
 
     Kbuild provides a few macros that are useful when building a
     boot image.
-
-    if_changed
-	if_changed is the infrastructure used for the following commands.
-
-	Usage::
-
-		target: source(s) FORCE
-			$(call if_changed,ld/objcopy/gzip/...)
-
-	When the rule is evaluated, it is checked to see if any files
-	need an update, or the command line has changed since the last
-	invocation. The latter will force a rebuild if any options
-	to the executable have changed.
-	Any target that utilises if_changed must be listed in $(targets),
-	otherwise the command line check will fail, and the target will
-	always be built.
-	Assignments to $(targets) are without $(obj)/ prefix.
-	if_changed may be used in conjunction with custom rules as
-	defined in "3.10 Custom Rules".
-
-	Note: It is a typical mistake to forget the FORCE prerequisite.
-	Another common pitfall is that whitespace is sometimes
-	significant; for instance, the below will fail (note the extra space
-	after the comma)::
-
-		target: source(s) FORCE
-
-	**WRONG!**	$(call if_changed, ld/objcopy/gzip/...)
-
-        Note:
-	      if_changed should not be used more than once per target.
-              It stores the executed command in a corresponding .cmd
-
-        file and multiple calls would result in overwrites and
-        unwanted results when the target is up to date and only the
-        tests on changed commands trigger execution of commands.
 
     ld
 	Link target. Often, LDFLAGS_$@ is used to set specific options to ld.
