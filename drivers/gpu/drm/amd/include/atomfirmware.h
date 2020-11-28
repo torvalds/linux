@@ -2335,6 +2335,59 @@ struct atom_smc_dpm_info_v4_9
 
 };
 
+struct atom_smc_dpm_info_v4_10
+{
+  struct   atom_common_table_header  table_header;
+
+  // SECTION: BOARD PARAMETERS
+  // Telemetry Settings
+  uint16_t GfxMaxCurrent; // in Amps
+  uint8_t   GfxOffset;     // in Amps
+  uint8_t  Padding_TelemetryGfx;
+
+  uint16_t SocMaxCurrent; // in Amps
+  uint8_t   SocOffset;     // in Amps
+  uint8_t  Padding_TelemetrySoc;
+
+  uint16_t MemMaxCurrent; // in Amps
+  uint8_t   MemOffset;     // in Amps
+  uint8_t  Padding_TelemetryMem;
+
+  uint16_t BoardMaxCurrent; // in Amps
+  uint8_t   BoardOffset;     // in Amps
+  uint8_t  Padding_TelemetryBoardInput;
+
+  // Platform input telemetry voltage coefficient
+  uint32_t BoardVoltageCoeffA; // decode by /1000
+  uint32_t BoardVoltageCoeffB; // decode by /1000
+
+  // GPIO Settings
+  uint8_t  VR0HotGpio;     // GPIO pin configured for VR0 HOT event
+  uint8_t  VR0HotPolarity; // GPIO polarity for VR0 HOT event
+  uint8_t  VR1HotGpio;     // GPIO pin configured for VR1 HOT event
+  uint8_t  VR1HotPolarity; // GPIO polarity for VR1 HOT event
+
+  // UCLK Spread Spectrum
+  uint8_t  UclkSpreadEnabled; // on or off
+  uint8_t  UclkSpreadPercent; // Q4.4
+  uint16_t UclkSpreadFreq;    // kHz
+
+  // FCLK Spread Spectrum
+  uint8_t  FclkSpreadEnabled; // on or off
+  uint8_t  FclkSpreadPercent; // Q4.4
+  uint16_t FclkSpreadFreq;    // kHz
+
+  // I2C Controller Structure
+  struct smudpm_i2c_controller_config_v3  I2cControllers[8];
+
+  // GPIO pins for I2C communications with 2nd controller for Input Telemetry Sequence
+  uint8_t  GpioI2cScl; // Serial Clock
+  uint8_t  GpioI2cSda; // Serial Data
+  uint16_t spare5;
+
+  uint32_t reserved[16];
+};
+
 /* 
   ***************************************************************************
     Data Table asic_profiling_info  structure

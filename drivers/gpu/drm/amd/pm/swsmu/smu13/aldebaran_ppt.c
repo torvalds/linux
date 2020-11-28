@@ -377,6 +377,28 @@ static int aldebaran_store_powerplay_table(struct smu_context *smu)
 
 static int aldebaran_append_powerplay_table(struct smu_context *smu)
 {
+	struct smu_table_context *table_context = &smu->smu_table;
+	PPTable_t *smc_pptable = table_context->driver_pptable;
+	struct atom_smc_dpm_info_v4_10 *smc_dpm_table;
+	int index, ret;
+
+	index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
+					   smc_dpm_info);
+
+	ret = amdgpu_atombios_get_data_table(smu->adev, index, NULL, NULL, NULL,
+				      (uint8_t **)&smc_dpm_table);
+	if (ret)
+		return ret;
+
+	dev_info(smu->adev->dev, "smc_dpm_info table revision(format.content): %d.%d\n",
+			smc_dpm_table->table_header.format_revision,
+			smc_dpm_table->table_header.content_revision);
+
+	if ((smc_dpm_table->table_header.format_revision == 4) &&
+	    (smc_dpm_table->table_header.content_revision == 10))
+		memcpy(&smc_pptable->GfxMaxCurrent,
+		       &smc_dpm_table->GfxMaxCurrent,
+		       sizeof(*smc_dpm_table) - offsetof(struct atom_smc_dpm_info_v4_10, GfxMaxCurrent));
 	return 0;
 }
 
