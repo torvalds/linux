@@ -584,23 +584,6 @@ int smu_v13_0_notify_memory_pool_location(struct smu_context *smu)
 	if (memory_pool->size == 0 || memory_pool->cpu_addr == NULL)
 		return ret;
 
-	address = (uintptr_t)memory_pool->cpu_addr;
-	address_high = (uint32_t)upper_32_bits(address);
-	address_low  = (uint32_t)lower_32_bits(address);
-
-	ret = smu_cmn_send_smc_msg_with_param(smu,
-					      SMU_MSG_SetSystemVirtualDramAddrHigh,
-					      address_high,
-					      NULL);
-	if (ret)
-		return ret;
-	ret = smu_cmn_send_smc_msg_with_param(smu,
-					      SMU_MSG_SetSystemVirtualDramAddrLow,
-					      address_low,
-					      NULL);
-	if (ret)
-		return ret;
-
 	address = memory_pool->mc_address;
 	address_high = (uint32_t)upper_32_bits(address);
 	address_low  = (uint32_t)lower_32_bits(address);
