@@ -60,6 +60,8 @@ int iio_map_array_register(struct iio_dev *indio_dev, struct iio_map *maps)
 		i++;
 	}
 error_ret:
+	if (ret)
+		iio_map_array_unregister_locked(indio_dev);
 	mutex_unlock(&iio_map_list_lock);
 
 	return ret;
