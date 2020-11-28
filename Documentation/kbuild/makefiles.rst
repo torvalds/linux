@@ -278,7 +278,7 @@ more details, with real examples.
 	actually recognize that there is a lib.a being built, the directory
 	shall be listed in libs-y.
 
-	See also "6.4 List directories to visit when descending".
+	See also "7.4 List directories to visit when descending".
 
 	Use of lib-y is normally restricted to `lib/` and `arch/*/lib`.
 
@@ -1154,7 +1154,7 @@ When kbuild executes, the following steps are followed (roughly):
 	machinery is all architecture-independent.
 
 
-	head-y, init-y, core-y, libs-y, drivers-y, net-y
+	head-y, core-y, libs-y, drivers-y
 	    $(head-y) lists objects to be linked first in vmlinux.
 
 	    $(libs-y) lists directories where a lib.a archive can be located.
@@ -1162,11 +1162,9 @@ When kbuild executes, the following steps are followed (roughly):
 	    The rest list directories where a built-in.a object file can be
 	    located.
 
-	    $(init-y) objects will be located after $(head-y).
-
 	    Then the rest follows in this order:
 
-		$(core-y), $(libs-y), $(drivers-y) and $(net-y).
+		$(core-y), $(libs-y), $(drivers-y)
 
 	    The top level Makefile defines values for all generic directories,
 	    and arch/$(SRCARCH)/Makefile only adds architecture-specific
@@ -1174,11 +1172,14 @@ When kbuild executes, the following steps are followed (roughly):
 
 	    Example::
 
-		#arch/sparc64/Makefile
-		core-y += arch/sparc64/kernel/
-		libs-y += arch/sparc64/prom/ arch/sparc64/lib/
-		drivers-$(CONFIG_OPROFILE)  += arch/sparc64/oprofile/
+		# arch/sparc/Makefile
+		core-y                 += arch/sparc/
 
+		libs-y                 += arch/sparc/prom/
+		libs-y                 += arch/sparc/lib/
+
+		drivers-$(CONFIG_PM) += arch/sparc/power/
+		drivers-$(CONFIG_OPROFILE)	+= arch/sparc/oprofile/
 
 7.5 Architecture-specific boot images
 -------------------------------------
