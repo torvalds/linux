@@ -272,6 +272,7 @@ struct dw_mipi_dsi {
 	/* dual-channel */
 	struct dw_mipi_dsi *master;
 	struct dw_mipi_dsi *slave;
+	bool data_swap;
 
 	unsigned int lane_mbps; /* per lane */
 	u32 channel;
@@ -1365,10 +1366,14 @@ dw_mipi_dsi_encoder_atomic_check(struct drm_encoder *encoder,
 
 	if (dsi->slave) {
 		s->output_flags |= ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE;
+		if (dsi->data_swap)
+			s->output_flags |= ROCKCHIP_OUTPUT_DATA_SWAP;
+
 		s->output_if |= VOP_OUTPUT_IF_MIPI1;
 	}
 
-	if (dsi->id)
+	/* dual link dsi for rk3399 */
+	if (dsi->id && !dsi->dphy.phy)
 		s->output_flags |= ROCKCHIP_OUTPUT_DATA_SWAP;
 
 	return 0;
@@ -1455,6 +1460,8 @@ static int dw_mipi_dsi_dual_channel_probe(struct dw_mipi_dsi *dsi)
 
 	np = of_parse_phandle(dsi->dev->of_node, "rockchip,dual-channel", 0);
 	if (np) {
+		dsi->data_swap = of_property_read_bool(dsi->dev->of_node,
+						       "rockchip,data-swap");
 		secondary = of_find_device_by_node(np);
 		dsi->slave = platform_get_drvdata(secondary);
 		of_node_put(np);
