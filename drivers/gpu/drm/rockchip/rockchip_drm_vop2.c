@@ -235,6 +235,14 @@ struct vop2_win {
 	struct vop2_win *parent;
 	struct drm_plane base;
 
+	/*
+	 * This is for cluster window
+	 *
+	 * A cluster window can split as two windows:
+	 * a main window and a sub window.
+	 */
+	bool two_win_mode;
+
 	/**
 	 * @phys_id: physical id for cluster0/1, esmart0/1, smart0/1
 	 * Will be used as a identification for some register
@@ -290,6 +298,11 @@ struct vop2_win {
 	struct drm_property *output_height_prop;
 	struct drm_property *scale_prop;
 	struct drm_property *name_prop;
+};
+
+struct vop2_cluster {
+	struct vop2_win *main;
+	struct vop2_win *sub;
 };
 
 struct vop2_layer {
@@ -3096,6 +3109,59 @@ static int vop2_find_start_mixer_id_for_vp(struct vop2 *vop2, uint8_t port_id)
 	return mixer_id;
 }
 
+/*
+ * src: top layer
+ * dst: bottom layer.
+ * Cluster mixer default use win1 as top layer
+ */
+static void vop2_setup_cluster_alpha(struct vop2 *vop2, struct vop2_cluster *cluster)
+{
+	uint32_t src_color_ctrl_offset = vop2->data->ctrl->cluster0_src_color_ctrl.offset;
+	uint32_t dst_color_ctrl_offset = vop2->data->ctrl->cluster0_dst_color_ctrl.offset;
+	uint32_t src_alpha_ctrl_offset = vop2->data->ctrl->cluster0_src_alpha_ctrl.offset;
+	uint32_t dst_alpha_ctrl_offset = vop2->data->ctrl->cluster0_dst_alpha_ctrl.offset;
+	uint32_t offset = (cluster->main->phys_id * 0x10);
+	struct drm_framebuffer *fb;
+	struct vop2_alpha alpha;
+	struct vop2_win *main_win = cluster->main;
+	struct vop2_win *sub_win = cluster->sub;
+	struct vop2_win *win;
+	struct drm_plane *plane;
+	struct vop2_plane_state *vpstate;
+	struct vop2_plane_state *main_vpstate;
+	struct vop2_plane_state *sub_vpstate;
+	int pixel_alpha_en;
+	int premulti_en;
+	int swap;
+
+	plane = &sub_win->base;
+	sub_vpstate = to_vop2_plane_state(plane->state);
+	plane = &main_win->base;
+	main_vpstate = to_vop2_plane_state(plane->state);
+	if (main_vpstate->zpos > sub_vpstate->zpos) {
+		win = main_win;
+		swap = 1;
+	} else {
+		win = sub_win;
+		swap = 0;
+	}
+
+	plane = &win->base;
+	vpstate = to_vop2_plane_state(plane->state);
+	fb = plane->state->fb;
+	if (plane->state->pixel_blend_mode == DRM_MODE_BLEND_PREMULTI)
+		premulti_en = 1;
+	else
+		premulti_en = 0;
+	pixel_alpha_en = is_alpha_support(fb->format->format);
+	vop2_parse_alpha(&alpha, pixel_alpha_en, vpstate->global_alpha, premulti_en);
+	alpha.src_color_ctrl.bits.src_dst_swap = swap;
+	vop2_writel(vop2, src_color_ctrl_offset + offset, alpha.src_color_ctrl.val);
+	vop2_writel(vop2, dst_color_ctrl_offset + offset, alpha.dst_color_ctrl.val);
+	vop2_writel(vop2, src_alpha_ctrl_offset + offset, alpha.src_alpha_ctrl.val);
+	vop2_writel(vop2, dst_alpha_ctrl_offset + offset, alpha.dst_alpha_ctrl.val);
+}
+
 static void vop2_setup_alpha(struct vop2_video_port *vp, const struct vop2_zpos *vop2_zpos)
 {
 	struct vop2 *vop2 = vp->vop2;
@@ -3265,6 +3331,21 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_crtc_state 
 	vop2_zpos = kmalloc_array(vop2->data->win_size, sizeof(*vop2_zpos), GFP_KERNEL);
 	if (!vop2_zpos)
 		return;
+
+	/* Process cluster sub windows overlay. */
+	drm_atomic_crtc_for_each_plane(plane, crtc) {
+		struct vop2_win *win = to_vop2_win(plane);
+		struct vop2_win *main_win;
+		struct vop2_cluster cluster;
+
+		win->two_win_mode = false;
+		if (!(win->feature & WIN_FEATURE_CLUSTER_SUB))
+			continue;
+		main_win = vop2_find_win_by_phys_id(vop2, win->phys_id);
+		cluster.main = main_win;
+		cluster.sub = win;
+		vop2_setup_cluster_alpha(vop2, &cluster);
+	}
 
 	drm_atomic_crtc_for_each_plane(plane, crtc) {
 		struct vop2_win *win = to_vop2_win(plane);
