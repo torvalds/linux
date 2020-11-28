@@ -411,11 +411,7 @@ static int xsk_generic_xmit(struct sock *sk)
 		skb_shinfo(skb)->destructor_arg = (void *)(long)desc.addr;
 		skb->destructor = xsk_destruct_skb;
 
-		/* Hinder dev_direct_xmit from freeing the packet and
-		 * therefore completing it in the destructor
-		 */
-		refcount_inc(&skb->users);
-		err = dev_direct_xmit(skb, xs->queue_id);
+		err = __dev_direct_xmit(skb, xs->queue_id);
 		if  (err == NETDEV_TX_BUSY) {
 			/* Tell user-space to retry the send */
 			skb->destructor = sock_wfree;
@@ -429,12 +425,10 @@ static int xsk_generic_xmit(struct sock *sk)
 		/* Ignore NET_XMIT_CN as packet might have been sent */
 		if (err == NET_XMIT_DROP) {
 			/* SKB completed but not sent */
-			kfree_skb(skb);
 			err = -EBUSY;
 			goto out;
 		}
 
-		consume_skb(skb);
 		sent_frame = true;
 	}
 
@@ -1147,7 +1141,7 @@ static void xsk_destruct(struct sock *sk)
 		return;
 
 	if (!xp_put_pool(xs->pool))
-		xdp_put_umem(xs->umem);
+		xdp_put_umem(xs->umem, !xs->pool);
 
 	sk_refcnt_debug_dec(sk);
 }
