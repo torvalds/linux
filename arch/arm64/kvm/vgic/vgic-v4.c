@@ -353,6 +353,18 @@ int vgic_v4_load(struct kvm_vcpu *vcpu)
 	return err;
 }
 
+void vgic_v4_commit(struct kvm_vcpu *vcpu)
+{
+	struct its_vpe *vpe = &vcpu->arch.vgic_cpu.vgic_v3.its_vpe;
+
+	/*
+	 * No need to wait for the vPE to be ready across a shallow guest
+	 * exit, as only a vcpu_put will invalidate it.
+	 */
+	if (!vpe->ready)
+		its_commit_vpe(vpe);
+}
+
 static struct vgic_its *vgic_get_its(struct kvm *kvm,
 				     struct kvm_kernel_irq_routing_entry *irq_entry)
 {
