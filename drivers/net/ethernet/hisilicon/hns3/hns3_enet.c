@@ -695,7 +695,7 @@ void hns3_enable_vlan_filter(struct net_device *netdev, bool enable)
 	}
 }
 
-static int hns3_set_tso(struct sk_buff *skb, u32 *paylen,
+static int hns3_set_tso(struct sk_buff *skb, u32 *paylen_fdop_ol4cs,
 			u16 *mss, u32 *type_cs_vlan_tso)
 {
 	u32 l4_offset, hdr_len;
@@ -723,7 +723,8 @@ static int hns3_set_tso(struct sk_buff *skb, u32 *paylen,
 	/* tunnel packet */
 	if (skb_shinfo(skb)->gso_type & (SKB_GSO_GRE |
 					 SKB_GSO_GRE_CSUM |
-					 SKB_GSO_UDP_TUNNEL)) {
+					 SKB_GSO_UDP_TUNNEL |
+					 SKB_GSO_UDP_TUNNEL_CSUM)) {
 		/* reset l3&l4 pointers from outer to inner headers */
 		l3.hdr = skb_inner_network_header(skb);
 		l4.hdr = skb_inner_transport_header(skb);
@@ -752,8 +753,12 @@ static int hns3_set_tso(struct sk_buff *skb, u32 *paylen,
 	}
 
 	/* find the txbd field values */
-	*paylen = skb->len - hdr_len;
+	*paylen_fdop_ol4cs = skb->len - hdr_len;
 	hns3_set_field(*type_cs_vlan_tso, HNS3_TXD_TSO_B, 1);
+
+	/* offload outer UDP header checksum */
+	if (skb_shinfo(skb)->gso_type & SKB_GSO_UDP_TUNNEL_CSUM)
+		hns3_set_field(*paylen_fdop_ol4cs, HNS3_TXD_OL4CS_B, 1);
 
 	/* get MSS for TSO */
 	*mss = skb_shinfo(skb)->gso_size;
@@ -1065,8 +1070,8 @@ static int hns3_fill_skb_desc(struct hns3_enet_ring *ring,
 			      struct sk_buff *skb, struct hns3_desc *desc)
 {
 	u32 ol_type_vlan_len_msec = 0;
+	u32 paylen_ol4cs = skb->len;
 	u32 type_cs_vlan_tso = 0;
-	u32 paylen = skb->len;
 	u16 mss_hw_csum = 0;
 	u16 inner_vtag = 0;
 	u16 out_vtag = 0;
@@ -1125,7 +1130,7 @@ static int hns3_fill_skb_desc(struct hns3_enet_ring *ring,
 			return ret;
 		}
 
-		ret = hns3_set_tso(skb, &paylen, &mss_hw_csum,
+		ret = hns3_set_tso(skb, &paylen_ol4cs, &mss_hw_csum,
 				   &type_cs_vlan_tso);
 		if (unlikely(ret < 0)) {
 			u64_stats_update_begin(&ring->syncp);
@@ -1140,7 +1145,7 @@ out_hw_tx_csum:
 	desc->tx.ol_type_vlan_len_msec =
 		cpu_to_le32(ol_type_vlan_len_msec);
 	desc->tx.type_cs_vlan_tso_len = cpu_to_le32(type_cs_vlan_tso);
-	desc->tx.paylen = cpu_to_le32(paylen);
+	desc->tx.paylen_ol4cs = cpu_to_le32(paylen_ol4cs);
 	desc->tx.mss_hw_csum = cpu_to_le16(mss_hw_csum);
 	desc->tx.vlan_tag = cpu_to_le16(inner_vtag);
 	desc->tx.outer_vlan_tag = cpu_to_le16(out_vtag);
@@ -2398,6 +2403,13 @@ static void hns3_set_default_feature(struct net_device *netdev)
 		netdev->features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
 		netdev->vlan_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
 		netdev->hw_enc_features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
+	}
+
+	if (test_bit(HNAE3_DEV_SUPPORT_UDP_TUNNEL_CSUM_B, ae_dev->caps)) {
+		netdev->hw_features |= NETIF_F_GSO_UDP_TUNNEL_CSUM;
+		netdev->features |= NETIF_F_GSO_UDP_TUNNEL_CSUM;
+		netdev->vlan_features |= NETIF_F_GSO_UDP_TUNNEL_CSUM;
+		netdev->hw_enc_features |= NETIF_F_GSO_UDP_TUNNEL_CSUM;
 	}
 }
 

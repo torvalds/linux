@@ -172,6 +172,8 @@ enum hns3_nic_state {
 #define HNS3_TXD_DECTTL_S			12
 #define HNS3_TXD_DECTTL_M			(0xf << HNS3_TXD_DECTTL_S)
 
+#define HNS3_TXD_OL4CS_B			22
+
 #define HNS3_TXD_MSS_S				0
 #define HNS3_TXD_MSS_M				(0x3fff << HNS3_TXD_MSS_S)
 #define HNS3_TXD_HW_CS_B			14
@@ -264,7 +266,7 @@ struct __packed hns3_desc {
 			};
 		};
 
-			__le32 paylen;
+			__le32 paylen_ol4cs;
 			__le16 bdtp_fe_sc_vld_ra_ri;
 			__le16 mss_hw_csum;
 		} tx;
