@@ -831,69 +831,6 @@ static int at91_adc_probe_dt_ts(struct device_node *node,
 	}
 }
 
-static int at91_adc_probe_dt(struct iio_dev *idev,
-			     struct platform_device *pdev)
-{
-	struct at91_adc_state *st = iio_priv(idev);
-	struct device_node *node = pdev->dev.of_node;
-	int ret;
-	u32 prop;
-	char *s;
-
-	st->caps = of_device_get_match_data(&pdev->dev);
-
-	st->use_external = of_property_read_bool(node, "atmel,adc-use-external-triggers");
-
-	if (of_property_read_u32(node, "atmel,adc-channels-used", &prop)) {
-		dev_err(&idev->dev, "Missing adc-channels-used property in the DT.\n");
-		ret = -EINVAL;
-		goto error_ret;
-	}
-	st->channels_mask = prop;
-
-	st->sleep_mode = of_property_read_bool(node, "atmel,adc-sleep-mode");
-
-	if (of_property_read_u32(node, "atmel,adc-startup-time", &prop)) {
-		dev_err(&idev->dev, "Missing adc-startup-time property in the DT.\n");
-		ret = -EINVAL;
-		goto error_ret;
-	}
-	st->startup_time = prop;
-
-	prop = 0;
-	of_property_read_u32(node, "atmel,adc-sample-hold-time", &prop);
-	st->sample_hold_time = prop;
-
-	if (of_property_read_u32(node, "atmel,adc-vref", &prop)) {
-		dev_err(&idev->dev, "Missing adc-vref property in the DT.\n");
-		ret = -EINVAL;
-		goto error_ret;
-	}
-	st->vref_mv = prop;
-
-	st->res = st->caps->high_res_bits;
-	if (st->caps->low_res_bits &&
-	    !of_property_read_string(node, "atmel,adc-use-res", (const char **)&s)
-	    && !strcmp(s, "lowres"))
-		st->res = st->caps->low_res_bits;
-
-	dev_info(&idev->dev, "Resolution used: %u bits\n", st->res);
-
-	st->registers = &st->caps->registers;
-	st->num_channels = st->caps->num_channels;
-
-	/* Check if touchscreen is supported. */
-	if (st->caps->has_ts)
-		return at91_adc_probe_dt_ts(node, st, &idev->dev);
-	else
-		dev_info(&idev->dev, "not support touchscreen in the adc compatible string.\n");
-
-	return 0;
-
-error_ret:
-	return ret;
-}
-
 static const struct iio_info at91_adc_info = {
 	.read_raw = &at91_adc_read_raw,
 };
@@ -1059,10 +996,12 @@ static void at91_ts_unregister(struct at91_adc_state *st)
 static int at91_adc_probe(struct platform_device *pdev)
 {
 	unsigned int prsc, mstrclk, ticks, adc_clk, adc_clk_khz, shtim;
+	struct device_node *node = pdev->dev.of_node;
 	int ret;
 	struct iio_dev *idev;
 	struct at91_adc_state *st;
-	u32 reg;
+	u32 reg, prop;
+	char *s;
 
 	idev = devm_iio_device_alloc(&pdev->dev, sizeof(struct at91_adc_state));
 	if (!idev)
@@ -1070,9 +1009,51 @@ static int at91_adc_probe(struct platform_device *pdev)
 
 	st = iio_priv(idev);
 
-	ret = at91_adc_probe_dt(idev, pdev);
-	if (ret)
-		return ret;
+	st->caps = of_device_get_match_data(&pdev->dev);
+
+	st->use_external = of_property_read_bool(node, "atmel,adc-use-external-triggers");
+
+	if (of_property_read_u32(node, "atmel,adc-channels-used", &prop)) {
+		dev_err(&idev->dev, "Missing adc-channels-used property in the DT.\n");
+		return -EINVAL;
+	}
+	st->channels_mask = prop;
+
+	st->sleep_mode = of_property_read_bool(node, "atmel,adc-sleep-mode");
+
+	if (of_property_read_u32(node, "atmel,adc-startup-time", &prop)) {
+		dev_err(&idev->dev, "Missing adc-startup-time property in the DT.\n");
+		return -EINVAL;
+	}
+	st->startup_time = prop;
+
+	prop = 0;
+	of_property_read_u32(node, "atmel,adc-sample-hold-time", &prop);
+	st->sample_hold_time = prop;
+
+	if (of_property_read_u32(node, "atmel,adc-vref", &prop)) {
+		dev_err(&idev->dev, "Missing adc-vref property in the DT.\n");
+		return -EINVAL;
+	}
+	st->vref_mv = prop;
+
+	st->res = st->caps->high_res_bits;
+	if (st->caps->low_res_bits &&
+	    !of_property_read_string(node, "atmel,adc-use-res", (const char **)&s)
+	    && !strcmp(s, "lowres"))
+		st->res = st->caps->low_res_bits;
+
+	dev_info(&idev->dev, "Resolution used: %u bits\n", st->res);
+
+	st->registers = &st->caps->registers;
+	st->num_channels = st->caps->num_channels;
+
+	/* Check if touchscreen is supported. */
+	if (st->caps->has_ts) {
+		ret = at91_adc_probe_dt_ts(node, st, &idev->dev);
+		if (ret)
+			return ret;
+	}
 
 	platform_set_drvdata(pdev, idev);
 
