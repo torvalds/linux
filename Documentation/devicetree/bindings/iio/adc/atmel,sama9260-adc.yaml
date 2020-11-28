@@ -97,29 +97,6 @@ required:
   - atmel,adc-startup-time
   - atmel,adc-vref
 
-patternProperties:
-  "^(trigger)[0-9]$":
-    type: object
-    description: Child node to describe a trigger exposed to the user.
-    properties:
-      trigger-name:
-        $ref: /schemas/types.yaml#/definitions/string
-        description: Identifying name.
-
-      trigger-value:
-        $ref: /schemas/types.yaml#/definitions/uint32
-        description:
-          Value to put in the Trigger register to activate this trigger
-
-      trigger-external:
-        $ref: /schemas/types.yaml#/definitions/flag
-        description: This trigger is provided from an external pin.
-
-    additionalProperties: false
-    required:
-      - trigger-name
-      - trigger-value
-
 examples:
   - |
     #include <dt-bindings/dma/at91.h>
@@ -139,29 +116,6 @@ examples:
             atmel,adc-use-external-triggers;
             atmel,adc-vref = <3300>;
             atmel,adc-use-res = "lowres";
-
-            trigger0 {
-                trigger-name = "external-rising";
-                trigger-value = <0x1>;
-                trigger-external;
-            };
-
-            trigger1 {
-                trigger-name = "external-falling";
-                trigger-value = <0x2>;
-                trigger-external;
-            };
-
-            trigger2 {
-                trigger-name = "external-any";
-                trigger-value = <0x3>;
-                trigger-external;
-            };
-
-            trigger3 {
-                trigger-name = "continuous";
-                trigger-value = <0x6>;
-            };
         };
     };
 ...
