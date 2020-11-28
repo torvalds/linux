@@ -54,6 +54,12 @@
 #define REG_SET_MASK(x, name, off, reg, mask, v, relaxed) \
 		_REG_SET(x, name, off, reg, reg.mask & mask, v, relaxed)
 
+#define VOP_CLUSTER_SET(x, win, name, v) \
+	do { \
+		if (win->regs->cluster) \
+			REG_SET(x, name, 0, win->regs->cluster->name, v, true); \
+	} while (0)
+
 #define VOP_AFBC_SET(x, win, name, v) \
 	do { \
 		if (win->regs->afbc) \
@@ -660,7 +666,7 @@ static void vop2_win_disable(struct vop2_win *win)
 
 	VOP_WIN_SET(vop2, win, enable, 0);
 	if (win->feature & WIN_FEATURE_CLUSTER_MAIN)
-		VOP_WIN_SET(vop2, win, gate, 0);
+		VOP_CLUSTER_SET(vop2, win, enable, 0);
 }
 
 static inline void vop2_write_lut(struct vop2 *vop2, uint32_t offset, uint32_t v)
@@ -879,6 +885,12 @@ static bool is_alpha_support(uint32_t format)
 static inline bool rockchip_afbc(u64 modifier)
 {
 	return modifier == ROCKCHIP_AFBC_MOD;
+}
+
+
+static inline bool vop2_cluster_window(struct vop2_win *win)
+{
+	return  (win->feature & (WIN_FEATURE_CLUSTER_MAIN | WIN_FEATURE_CLUSTER_SUB));
 }
 
 static int vop2_afbc_half_block_enable(struct vop2_plane_state *vpstate)
@@ -1754,7 +1766,7 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 			format = VOP2_CLUSTER_YUV444_10;
 
 		afbc_half_block_en = vop2_afbc_half_block_enable(vpstate);
-		VOP_AFBC_SET(vop2, win, enable, 1);
+		VOP_CLUSTER_SET(vop2, win, afbc_enable, 1);
 		VOP_AFBC_SET(vop2, win, format, afbc_format);
 		VOP_AFBC_SET(vop2, win, rb_swap, rb_swap);
 		VOP_AFBC_SET(vop2, win, uv_swap, uv_swap);
@@ -1800,9 +1812,6 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 
 	vop2_setup_scale(vop2, win, actual_w, actual_h, dsp_w, dsp_h, fb->format->format);
 
-	lb_mode = vop2_get_cluster_lb_mode(win, vpstate);
-	VOP_WIN_SET(vop2, win, lb_mode, lb_mode);
-
 	VOP_WIN_SET(vop2, win, act_info, act_info);
 	VOP_WIN_SET(vop2, win, dsp_info, dsp_info);
 	VOP_WIN_SET(vop2, win, dsp_st, dsp_st);
@@ -1812,7 +1821,11 @@ static void vop2_plane_atomic_update(struct drm_plane *plane, struct drm_plane_s
 	VOP_WIN_SET(vop2, win, csc_mode, vpstate->csc_mode);
 
 	VOP_WIN_SET(vop2, win, enable, 1);
-	VOP_WIN_SET(vop2, win, gate, 1);
+	if (vop2_cluster_window(win)) {
+		lb_mode = vop2_get_cluster_lb_mode(win, vpstate);
+		VOP_CLUSTER_SET(vop2, win, lb_mode, lb_mode);
+		VOP_CLUSTER_SET(vop2, win, enable, 1);
+	}
 	spin_unlock(&vop2->reg_lock);
 
 	vop2->is_iommu_needed = true;

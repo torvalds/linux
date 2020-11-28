@@ -449,6 +449,12 @@ struct vop_win_phy {
 	struct vop_reg key_en;
 };
 
+struct vop2_cluster_regs {
+	struct vop_reg enable;
+	struct vop_reg afbc_enable;
+	struct vop_reg lb_mode;
+};
+
 struct vop2_scl_regs {
 	struct vop_reg scale_yrgb_x;
 	struct vop_reg scale_yrgb_y;
@@ -471,6 +477,7 @@ struct vop2_scl_regs {
 
 struct vop2_win_regs {
 	const struct vop2_scl_regs *scl;
+	const struct vop2_cluster_regs *cluster;
 	const struct vop_afbc *afbc;
 
 	struct vop_reg gate;
