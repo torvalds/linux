@@ -493,7 +493,12 @@ static int set_extend_sge_param(struct hns_roce_dev *hr_dev, u32 sq_wqe_cnt,
 	}
 
 	hr_qp->sge.sge_shift = HNS_ROCE_SGE_SHIFT;
-	hr_qp->sge.sge_cnt = cnt;
+
+	/* If the number of extended sge is not zero, they MUST use the
+	 * space of HNS_HW_PAGE_SIZE at least.
+	 */
+	hr_qp->sge.sge_cnt = cnt ?
+			max(cnt, (u32)HNS_HW_PAGE_SIZE / HNS_ROCE_SGE_SIZE) : 0;
 
 	return 0;
 }
