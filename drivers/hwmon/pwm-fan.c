@@ -8,7 +8,6 @@
  */
 
 #include <linux/hwmon.h>
-#include <linux/hwmon-sysfs.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -39,6 +38,28 @@ struct pwm_fan_ctx {
 	unsigned int pwm_fan_max_state;
 	unsigned int *pwm_fan_cooling_levels;
 	struct thermal_cooling_device *cdev;
+
+	struct hwmon_chip_info info;
+};
+
+static const u32 pwm_fan_channel_config_pwm[] = {
+	HWMON_PWM_INPUT,
+	0
+};
+
+static const struct hwmon_channel_info pwm_fan_channel_pwm = {
+	.type = hwmon_pwm,
+	.config = pwm_fan_channel_config_pwm,
+};
+
+static const u32 pwm_fan_channel_config_fan[] = {
+	HWMON_F_INPUT,
+	0
+};
+
+static const struct hwmon_channel_info pwm_fan_channel_fan = {
+	.type = hwmon_fan,
+	.config = pwm_fan_channel_config_fan,
 };
 
 /* This handler assumes self resetting edge triggered interrupt. */
@@ -103,70 +124,62 @@ static void pwm_fan_update_state(struct pwm_fan_ctx *ctx, unsigned long pwm)
 	ctx->pwm_fan_state = i;
 }
 
-static ssize_t pwm_store(struct device *dev, struct device_attribute *attr,
-			 const char *buf, size_t count)
+static int pwm_fan_write(struct device *dev, enum hwmon_sensor_types type,
+			 u32 attr, int channel, long val)
 {
 	struct pwm_fan_ctx *ctx = dev_get_drvdata(dev);
-	unsigned long pwm;
 	int ret;
 
-	if (kstrtoul(buf, 10, &pwm) || pwm > MAX_PWM)
+	if (val < 0 || val > MAX_PWM)
 		return -EINVAL;
 
-	ret = __set_pwm(ctx, pwm);
+	ret = __set_pwm(ctx, val);
 	if (ret)
 		return ret;
 
-	pwm_fan_update_state(ctx, pwm);
-	return count;
+	pwm_fan_update_state(ctx, val);
+	return 0;
 }
 
-static ssize_t pwm_show(struct device *dev, struct device_attribute *attr,
-			char *buf)
+static int pwm_fan_read(struct device *dev, enum hwmon_sensor_types type,
+			u32 attr, int channel, long *val)
 {
 	struct pwm_fan_ctx *ctx = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%u\n", ctx->pwm_value);
-}
-
-static ssize_t rpm_show(struct device *dev,
-			struct device_attribute *attr, char *buf)
-{
-	struct pwm_fan_ctx *ctx = dev_get_drvdata(dev);
-
-	return sprintf(buf, "%u\n", ctx->rpm);
-}
-
-static SENSOR_DEVICE_ATTR_RW(pwm1, pwm, 0);
-static SENSOR_DEVICE_ATTR_RO(fan1_input, rpm, 0);
-
-static struct attribute *pwm_fan_attrs[] = {
-	&sensor_dev_attr_pwm1.dev_attr.attr,
-	&sensor_dev_attr_fan1_input.dev_attr.attr,
-	NULL,
-};
-
-static umode_t pwm_fan_attrs_visible(struct kobject *kobj, struct attribute *a,
-				     int n)
-{
-	struct device *dev = container_of(kobj, struct device, kobj);
-	struct pwm_fan_ctx *ctx = dev_get_drvdata(dev);
-
-	/* Hide fan_input in case no interrupt is available  */
-	if (n == 1 && ctx->irq <= 0)
+	switch (type) {
+	case hwmon_pwm:
+		*val = ctx->pwm_value;
 		return 0;
 
-	return a->mode;
+	case hwmon_fan:
+		*val = ctx->rpm;
+		return 0;
+
+	default:
+		return -ENOTSUPP;
+	}
 }
 
-static const struct attribute_group pwm_fan_group = {
-	.attrs = pwm_fan_attrs,
-	.is_visible = pwm_fan_attrs_visible,
-};
+static umode_t pwm_fan_is_visible(const void *data,
+				  enum hwmon_sensor_types type,
+				  u32 attr, int channel)
+{
+	switch (type) {
+	case hwmon_pwm:
+		return 0644;
 
-static const struct attribute_group *pwm_fan_groups[] = {
-	&pwm_fan_group,
-	NULL,
+	case hwmon_fan:
+		return 0444;
+
+	default:
+		return 0;
+	}
+}
+
+static const struct hwmon_ops pwm_fan_hwmon_ops = {
+	.is_visible = pwm_fan_is_visible,
+	.read = pwm_fan_read,
+	.write = pwm_fan_write,
 };
 
 /* thermal cooling device callbacks */
@@ -287,6 +300,7 @@ static int pwm_fan_probe(struct platform_device *pdev)
 	int ret;
 	struct pwm_state state = { };
 	int tach_count;
+	const struct hwmon_channel_info **channels;
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
@@ -340,6 +354,13 @@ static int pwm_fan_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, tach_count,
 				     "Could not get number of fan tachometer inputs\n");
 
+	channels = devm_kcalloc(dev, tach_count + 2,
+				sizeof(struct hwmon_channel_info *), GFP_KERNEL);
+	if (!channels)
+		return -ENOMEM;
+
+	channels[0] = &pwm_fan_channel_pwm;
+
 	if (tach_count > 0) {
 		u32 ppr = 2;
 
@@ -371,10 +392,15 @@ static int pwm_fan_probe(struct platform_device *pdev)
 
 		ctx->sample_start = ktime_get();
 		mod_timer(&ctx->rpm_timer, jiffies + HZ);
+
+		channels[1] = &pwm_fan_channel_fan;
 	}
 
-	hwmon = devm_hwmon_device_register_with_groups(dev, "pwmfan",
-						       ctx, pwm_fan_groups);
+	ctx->info.ops = &pwm_fan_hwmon_ops;
+	ctx->info.info = channels;
+
+	hwmon = devm_hwmon_device_register_with_info(dev, "pwmfan",
+						     ctx, &ctx->info, NULL);
 	if (IS_ERR(hwmon)) {
 		dev_err(dev, "Failed to register hwmon device\n");
 		return PTR_ERR(hwmon);
