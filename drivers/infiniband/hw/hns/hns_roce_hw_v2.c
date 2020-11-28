@@ -214,25 +214,20 @@ static int fill_ext_sge_inl_data(struct hns_roce_qp *qp,
 	return 0;
 }
 
-static void set_extend_sge(struct hns_roce_qp *qp, const struct ib_send_wr *wr,
-			   unsigned int *sge_ind, unsigned int valid_num_sge)
+static void set_extend_sge(struct hns_roce_qp *qp, struct ib_sge *sge,
+			   unsigned int *sge_ind, unsigned int cnt)
 {
 	struct hns_roce_v2_wqe_data_seg *dseg;
-	unsigned int cnt = valid_num_sge;
-	struct ib_sge *sge = wr->sg_list;
 	unsigned int idx = *sge_ind;
-
-	if (qp->ibqp.qp_type == IB_QPT_RC || qp->ibqp.qp_type == IB_QPT_UC) {
-		cnt -= HNS_ROCE_SGE_IN_WQE;
-		sge += HNS_ROCE_SGE_IN_WQE;
-	}
 
 	while (cnt > 0) {
 		dseg = hns_roce_get_extend_sge(qp, idx & (qp->sge.sge_cnt - 1));
-		set_data_seg_v2(dseg, sge);
-		idx++;
+		if (likely(sge->length)) {
+			set_data_seg_v2(dseg, sge);
+			idx++;
+			cnt--;
+		}
 		sge++;
-		cnt--;
 	}
 
 	*sge_ind = idx;
@@ -340,7 +335,8 @@ static int set_rwqe_data_seg(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 			}
 		}
 
-		set_extend_sge(qp, wr, sge_ind, valid_num_sge);
+		set_extend_sge(qp, wr->sg_list + i, sge_ind,
+			       valid_num_sge - HNS_ROCE_SGE_IN_WQE);
 	}
 
 	roce_set_field(rc_sq_wqe->byte_16,
@@ -511,7 +507,7 @@ static inline int set_ud_wqe(struct hns_roce_qp *qp,
 
 	memcpy(&ud_sq_wqe->dgid[0], &ah->av.dgid[0], GID_LEN_V2);
 
-	set_extend_sge(qp, wr, &curr_idx, valid_num_sge);
+	set_extend_sge(qp, wr->sg_list, &curr_idx, valid_num_sge);
 
 	*sge_idx = curr_idx;
 
