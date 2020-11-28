@@ -67,11 +67,11 @@ This document describes the Linux kernel Makefiles.
 
 The Makefiles have five parts::
 
-	Makefile		the top Makefile.
-	.config			the kernel configuration file.
-	arch/$(ARCH)/Makefile	the arch Makefile.
-	scripts/Makefile.*	common rules etc. for all kbuild Makefiles.
-	kbuild Makefiles	exist in every subdirectory
+	Makefile                    the top Makefile.
+	.config                     the kernel configuration file.
+	arch/$(SRCARCH)/Makefile    the arch Makefile.
+	scripts/Makefile.*          common rules etc. for all kbuild Makefiles.
+	kbuild Makefiles            exist in every subdirectory
 
 The top Makefile reads the .config file, which comes from the kernel
 configuration process.
@@ -82,7 +82,7 @@ It builds these goals by recursively descending into the subdirectories of
 the kernel source tree.
 The list of subdirectories which are visited depends upon the kernel
 configuration. The top Makefile textually includes an arch Makefile
-with the name arch/$(ARCH)/Makefile. The arch Makefile supplies
+with the name arch/$(SRCARCH)/Makefile. The arch Makefile supplies
 architecture-specific information to the top Makefile.
 
 Each subdirectory has a kbuild Makefile which carries out the commands
@@ -933,7 +933,7 @@ When "make clean" is executed, make will descend down in arch/x86/boot,
 and clean as usual. The Makefile located in arch/x86/boot/ may use
 the subdir- trick to descend further down.
 
-Note 1: arch/$(ARCH)/Makefile cannot use "subdir-", because that file is
+Note 1: arch/$(SRCARCH)/Makefile cannot use "subdir-", because that file is
 included in the top level makefile, and the kbuild infrastructure
 is not operational at that point.
 
@@ -946,9 +946,9 @@ be visited during "make clean".
 The top level Makefile sets up the environment and does the preparation,
 before starting to descend down in the individual directories.
 The top level makefile contains the generic part, whereas
-arch/$(ARCH)/Makefile contains what is required to set up kbuild
+arch/$(SRCARCH)/Makefile contains what is required to set up kbuild
 for said architecture.
-To do so, arch/$(ARCH)/Makefile sets up a number of variables and defines
+To do so, arch/$(SRCARCH)/Makefile sets up a number of variables and defines
 a few targets.
 
 When kbuild executes, the following steps are followed (roughly):
@@ -956,14 +956,14 @@ When kbuild executes, the following steps are followed (roughly):
 1) Configuration of the kernel => produce .config
 2) Store kernel version in include/linux/version.h
 3) Updating all other prerequisites to the target prepare:
-   - Additional prerequisites are specified in arch/$(ARCH)/Makefile
+   - Additional prerequisites are specified in arch/$(SRCARCH)/Makefile
 4) Recursively descend down in all directories listed in
    init-* core* drivers-* net-* libs-* and build all targets.
-   - The values of the above variables are expanded in arch/$(ARCH)/Makefile.
+   - The values of the above variables are expanded in arch/$(SRCARCH)/Makefile.
 5) All object files are then linked and the resulting file vmlinux is
    located at the root of the obj tree.
    The very first objects linked are listed in head-y, assigned by
-   arch/$(ARCH)/Makefile.
+   arch/$(SRCARCH)/Makefile.
 6) Finally, the architecture-specific part does any required post processing
    and builds the final bootimage.
    - This includes building boot records
@@ -1169,7 +1169,7 @@ When kbuild executes, the following steps are followed (roughly):
 		$(core-y), $(libs-y), $(drivers-y) and $(net-y).
 
 	    The top level Makefile defines values for all generic directories,
-	    and arch/$(ARCH)/Makefile only adds architecture-specific
+	    and arch/$(SRCARCH)/Makefile only adds architecture-specific
 	    directories.
 
 	    Example::
@@ -1189,15 +1189,15 @@ When kbuild executes, the following steps are followed (roughly):
 	The actual goals are not standardized across architectures.
 
 	It is common to locate any additional processing in a boot/
-	directory below arch/$(ARCH)/.
+	directory below arch/$(SRCARCH)/.
 
 	Kbuild does not provide any smart way to support building a
-	target specified in boot/. Therefore arch/$(ARCH)/Makefile shall
+	target specified in boot/. Therefore arch/$(SRCARCH)/Makefile shall
 	call make manually to build a target in boot/.
 
 	The recommended approach is to include shortcuts in
-	arch/$(ARCH)/Makefile, and use the full path when calling down
-	into the arch/$(ARCH)/boot/Makefile.
+	arch/$(SRCARCH)/Makefile, and use the full path when calling down
+	into the arch/$(SRCARCH)/boot/Makefile.
 
 	Example::
 
@@ -1217,7 +1217,7 @@ When kbuild executes, the following steps are followed (roughly):
 
 		#arch/x86/Makefile
 		define archhelp
-		  echo  '* bzImage      - Image (arch/$(ARCH)/boot/bzImage)'
+		  echo  '* bzImage      - Compressed kernel image (arch/x86/boot/bzImage)'
 		endif
 
 	When make is executed without arguments, the first goal encountered
@@ -1332,7 +1332,7 @@ When kbuild executes, the following steps are followed (roughly):
 
     objcopy
 	Copy binary. Uses OBJCOPYFLAGS usually specified in
-	arch/$(ARCH)/Makefile.
+	arch/$(SRCARCH)/Makefile.
 	OBJCOPYFLAGS_$@ may be used to set additional options.
 
     gzip
@@ -1395,7 +1395,7 @@ When kbuild executes, the following steps are followed (roughly):
 --------------------------------
 
 	When the vmlinux image is built, the linker script
-	arch/$(ARCH)/kernel/vmlinux.lds is used.
+	arch/$(SRCARCH)/kernel/vmlinux.lds is used.
 	The script is a preprocessed variant of the file vmlinux.lds.S
 	located in the same directory.
 	kbuild knows .lds files and includes a rule `*lds.S` -> `*lds`.
@@ -1404,9 +1404,6 @@ When kbuild executes, the following steps are followed (roughly):
 
 		#arch/x86/kernel/Makefile
 		extra-y := vmlinux.lds
-
-		#Makefile
-		export CPPFLAGS_vmlinux.lds += -P -C -U$(ARCH)
 
 	The assignment to extra-y is used to tell kbuild to build the
 	target vmlinux.lds.
@@ -1481,7 +1478,7 @@ See subsequent chapter for the syntax of the Kbuild file.
 
 	If an architecture uses a verbatim copy of a header from
 	include/asm-generic then this is listed in the file
-	arch/$(ARCH)/include/asm/Kbuild like this:
+	arch/$(SRCARCH)/include/asm/Kbuild like this:
 
 		Example::
 
@@ -1492,7 +1489,7 @@ See subsequent chapter for the syntax of the Kbuild file.
 	During the prepare phase of the build a wrapper include
 	file is generated in the directory::
 
-		arch/$(ARCH)/include/generated/asm
+		arch/$(SRCARCH)/include/generated/asm
 
 	When a header is exported where the architecture uses
 	the generic header a similar wrapper is generated as part
@@ -1527,8 +1524,8 @@ See subsequent chapter for the syntax of the Kbuild file.
 	to define the minimum set of ASM headers that all architectures must have.
 
 	This works like optional generic-y. If a mandatory header is missing
-	in arch/$(ARCH)/include/(uapi/)/asm, Kbuild will automatically generate
-	a wrapper of the asm-generic one.
+	in arch/$(SRCARCH)/include/(uapi/)/asm, Kbuild will automatically
+	generate a wrapper of the asm-generic one.
 
 9 Kbuild Variables
 ==================
@@ -1564,6 +1561,16 @@ The top Makefile exports the following variables:
 
 	    make ARCH=m68k ...
 
+    SRCARCH
+	This variable specifies the directory in arch/ to build.
+
+	ARCH and SRCARCH may not necessarily match. A couple of arch
+	directories are biarch, that is, a single `arch/*/` directory supports
+	both 32-bit and 64-bit.
+
+	For example, you can pass in ARCH=i386, ARCH=x86_64, or ARCH=x86.
+	For all of them, SRCARCH=x86 because arch/x86/ supports	both i386 and
+	x86_64.
 
     INSTALL_PATH
 	This variable defines a place for the arch Makefiles to install
