@@ -71,7 +71,7 @@ The Makefiles have five parts::
 	.config			the kernel configuration file.
 	arch/$(ARCH)/Makefile	the arch Makefile.
 	scripts/Makefile.*	common rules etc. for all kbuild Makefiles.
-	kbuild Makefiles	there are about 500 of these.
+	kbuild Makefiles	exist in every subdirectory
 
 The top Makefile reads the .config file, which comes from the kernel
 configuration process.
