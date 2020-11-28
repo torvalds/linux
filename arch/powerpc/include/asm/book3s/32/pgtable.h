@@ -36,8 +36,10 @@ static inline bool pte_user(pte_t pte)
  */
 #ifdef CONFIG_PTE_64BIT
 #define PTE_RPN_MASK	(~((1ULL << PTE_RPN_SHIFT) - 1))
+#define MAX_POSSIBLE_PHYSMEM_BITS 36
 #else
 #define PTE_RPN_MASK	(~((1UL << PTE_RPN_SHIFT) - 1))
+#define MAX_POSSIBLE_PHYSMEM_BITS 32
 #endif
 
 /*

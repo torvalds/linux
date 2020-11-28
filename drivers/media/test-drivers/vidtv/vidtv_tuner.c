@@ -13,11 +13,12 @@
 #include <linux/errno.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/types.h>
-#include <media/dvb_frontend.h>
 #include <linux/printk.h>
 #include <linux/ratelimit.h>
+#include <linux/slab.h>
+#include <linux/types.h>
+
+#include <media/dvb_frontend.h>
 
 #include "vidtv_tuner.h"
 
