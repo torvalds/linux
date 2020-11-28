@@ -736,17 +736,35 @@ static ssize_t uv_type_show(struct kobject *kobj,
 	return scnprintf(buf, PAGE_SIZE, "%s\n", uv_type_string());
 }
 
+static ssize_t uv_archtype_show(struct kobject *kobj,
+			struct kobj_attribute *attr, char *buf)
+{
+	return uv_get_archtype(buf, PAGE_SIZE);
+}
+
+static ssize_t uv_hub_type_show(struct kobject *kobj,
+			struct kobj_attribute *attr, char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "0x%x\n", uv_hub_type());
+}
+
 static struct kobj_attribute partition_id_attr =
 	__ATTR(partition_id, 0444, partition_id_show, NULL);
 static struct kobj_attribute coherence_id_attr =
 	__ATTR(coherence_id, 0444, coherence_id_show, NULL);
 static struct kobj_attribute uv_type_attr =
 	__ATTR(uv_type, 0444, uv_type_show, NULL);
+static struct kobj_attribute uv_archtype_attr =
+	__ATTR(archtype, 0444, uv_archtype_show, NULL);
+static struct kobj_attribute uv_hub_type_attr =
+	__ATTR(hub_type, 0444, uv_hub_type_show, NULL);
 
 static struct attribute *base_attrs[] = {
 	&partition_id_attr.attr,
 	&coherence_id_attr.attr,
 	&uv_type_attr.attr,
+	&uv_archtype_attr.attr,
+	&uv_hub_type_attr.attr,
 	NULL,
 };
 
