@@ -7,9 +7,24 @@ Description:
 
 		Under that directory are a number of read-only attributes::
 
+			archtype
+			hub_type
+			hubless
 			partition_id
 			coherence_id
 			uv_type
+
+		The archtype entry contains the UV architecture type that
+		is used to select arch-dependent addresses and features.
+		It can be set via the OEM_ID in the ACPI MADT table or by
+		UVsystab entry both passed from UV BIOS.
+
+		The hub_type entry is used to select the type of hub which is
+		similar to uv_type but encoded in a binary format.  Include
+		the file uv_hub.h to get the definitions.
+
+		The hubless entry basically is present and set only if there
+		is no hub.  In this case the hub_type entry is not present.
 
 		The partition_id entry contains the partition id.
 		UV systems can be partitioned into multiple physical
@@ -24,6 +39,7 @@ Description:
 
 		The uv_type entry contains the hub revision number.
 		This value can be used to identify the UV system version::
+			"0.*" = Hubless UV ('*' is subtype)
 
 			"3.0" = UV2
 			"5.0" = UV3
