@@ -465,42 +465,43 @@ static int set_rq_size(struct hns_roce_dev *hr_dev, struct ib_qp_cap *cap,
 	return 0;
 }
 
-static int set_extend_sge_param(struct hns_roce_dev *hr_dev, u32 sq_wqe_cnt,
-				struct hns_roce_qp *hr_qp,
-				struct ib_qp_cap *cap)
+static u32 get_wqe_ext_sge_cnt(struct hns_roce_qp *qp)
 {
-	u32 cnt;
+	/* GSI/UD QP only has extended sge */
+	if (qp->ibqp.qp_type == IB_QPT_GSI || qp->ibqp.qp_type == IB_QPT_UD)
+		return qp->sq.max_gs;
 
-	cnt = max(1U, cap->max_send_sge);
-	if (hr_dev->hw_rev == HNS_ROCE_HW_VER1) {
-		hr_qp->sq.max_gs = roundup_pow_of_two(cnt);
-		hr_qp->sge.sge_cnt = 0;
+	if (qp->sq.max_gs > HNS_ROCE_SGE_IN_WQE)
+		return qp->sq.max_gs - HNS_ROCE_SGE_IN_WQE;
 
-		return 0;
-	}
+	return 0;
+}
 
-	hr_qp->sq.max_gs = cnt;
-
-	/* UD sqwqe's sge use extend sge */
-	if (hr_qp->ibqp.qp_type == IB_QPT_GSI ||
-	    hr_qp->ibqp.qp_type == IB_QPT_UD) {
-		cnt = roundup_pow_of_two(sq_wqe_cnt * hr_qp->sq.max_gs);
-	} else if (hr_qp->sq.max_gs > HNS_ROCE_SGE_IN_WQE) {
-		cnt = roundup_pow_of_two(sq_wqe_cnt *
-				     (hr_qp->sq.max_gs - HNS_ROCE_SGE_IN_WQE));
-	} else {
-		cnt = 0;
-	}
+static void set_ext_sge_param(struct hns_roce_dev *hr_dev, u32 sq_wqe_cnt,
+			      struct hns_roce_qp *hr_qp, struct ib_qp_cap *cap)
+{
+	u32 total_sge_cnt;
+	u32 wqe_sge_cnt;
 
 	hr_qp->sge.sge_shift = HNS_ROCE_SGE_SHIFT;
+
+	if (hr_dev->hw_rev == HNS_ROCE_HW_VER1) {
+		hr_qp->sq.max_gs = HNS_ROCE_SGE_IN_WQE;
+		return;
+	}
+
+	hr_qp->sq.max_gs = max(1U, cap->max_send_sge);
+
+	wqe_sge_cnt = get_wqe_ext_sge_cnt(hr_qp);
 
 	/* If the number of extended sge is not zero, they MUST use the
 	 * space of HNS_HW_PAGE_SIZE at least.
 	 */
-	hr_qp->sge.sge_cnt = cnt ?
-			max(cnt, (u32)HNS_HW_PAGE_SIZE / HNS_ROCE_SGE_SIZE) : 0;
-
-	return 0;
+	if (wqe_sge_cnt) {
+		total_sge_cnt = roundup_pow_of_two(sq_wqe_cnt * wqe_sge_cnt);
+		hr_qp->sge.sge_cnt = max(total_sge_cnt,
+				(u32)HNS_HW_PAGE_SIZE / HNS_ROCE_SGE_SIZE);
+	}
 }
 
 static int check_sq_size_with_integrity(struct hns_roce_dev *hr_dev,
@@ -545,9 +546,7 @@ static int set_user_sq_size(struct hns_roce_dev *hr_dev,
 		return ret;
 	}
 
-	ret = set_extend_sge_param(hr_dev, cnt, hr_qp, cap);
-	if (ret)
-		return ret;
+	set_ext_sge_param(hr_dev, cnt, hr_qp, cap);
 
 	hr_qp->sq.wqe_shift = ucmd->log_sq_stride;
 	hr_qp->sq.wqe_cnt = cnt;
@@ -612,7 +611,6 @@ static int set_kernel_sq_size(struct hns_roce_dev *hr_dev,
 {
 	struct ib_device *ibdev = &hr_dev->ib_dev;
 	u32 cnt;
-	int ret;
 
 	if (!cap->max_send_wr || cap->max_send_wr > hr_dev->caps.max_wqes ||
 	    cap->max_send_sge > hr_dev->caps.max_sq_sg) {
@@ -632,9 +630,7 @@ static int set_kernel_sq_size(struct hns_roce_dev *hr_dev,
 	hr_qp->sq.wqe_shift = ilog2(hr_dev->caps.max_sq_desc_sz);
 	hr_qp->sq.wqe_cnt = cnt;
 
-	ret = set_extend_sge_param(hr_dev, cnt, hr_qp, cap);
-	if (ret)
-		return ret;
+	set_ext_sge_param(hr_dev, cnt, hr_qp, cap);
 
 	/* sync the parameters of kernel QP to user's configuration */
 	cap->max_send_wr = cnt;
