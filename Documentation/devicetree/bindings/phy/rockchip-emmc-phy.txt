@@ -16,6 +16,8 @@ Optional properties:
  - drive-impedance-ohm: Specifies the drive impedance in Ohm.
                         Possible values are 33, 40, 50, 66 and 100.
                         If not set, the default value of 50 will be applied.
+ - enable-strobe-pulldown: Enable internal pull-down for the strobe line.
+                           If not set, pull-down is not used.
 
 Example:
 
