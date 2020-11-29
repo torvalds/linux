@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/msi.h>
 #include <linux/pci.h>
+#include <linux/pci-ecam.h>
 #include <linux/srcu.h>
 #include <linux/rculist.h>
 #include <linux/rcupdate.h>
@@ -328,15 +329,13 @@ static void vmd_remove_irq_domain(struct vmd_dev *vmd)
 static char __iomem *vmd_cfg_addr(struct vmd_dev *vmd, struct pci_bus *bus,
 				  unsigned int devfn, int reg, int len)
 {
-	char __iomem *addr = vmd->cfgbar +
-			     ((bus->number - vmd->busn_start) << 20) +
-			     (devfn << 12) + reg;
+	unsigned int busnr_ecam = bus->number - vmd->busn_start;
+	u32 offset = PCIE_ECAM_OFFSET(busnr_ecam, devfn, reg);
 
-	if ((addr - vmd->cfgbar) + len >=
-	    resource_size(&vmd->dev->resource[VMD_CFGBAR]))
+	if (offset + len >= resource_size(&vmd->dev->resource[VMD_CFGBAR]))
 		return NULL;
 
-	return addr;
+	return vmd->cfgbar + offset;
 }
 
 /*
