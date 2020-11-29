@@ -330,7 +330,7 @@ using something like insmod or modprobe. The module is called ``test_kasan``.
 ~~~~~~~~~~~~~
 
 With ``CONFIG_KUNIT`` built-in, ``CONFIG_KASAN_KUNIT_TEST`` can be built-in
-on any architecure that supports KASAN. These and any other KUnit
+on any architecture that supports KASAN. These and any other KUnit
 tests enabled will run and print the results at boot as a late-init
 call.
 
@@ -351,5 +351,5 @@ converted to KUnit. These tests can be run only as a module with
 ``CONFIG_KASAN`` built-in. The type of error expected and the
 function being run is printed before the expression expected to give
 an error. Then the error is printed, if found, and that test
-should be interpretted to pass only if the error was the one expected
+should be interpreted to pass only if the error was the one expected
 by the test.
