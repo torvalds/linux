@@ -5322,6 +5322,26 @@ void ieee80211_gtk_rekey_notify(struct ieee80211_vif *vif, const u8 *bssid,
 				const u8 *replay_ctr, gfp_t gfp);
 
 /**
+ * ieee80211_key_mic_failure - increment MIC failure counter for the key
+ *
+ * Note: this is really only safe if no other RX function is called
+ * at the same time.
+ *
+ * @keyconf: the key in question
+ */
+void ieee80211_key_mic_failure(struct ieee80211_key_conf *keyconf);
+
+/**
+ * ieee80211_key_replay - increment replay counter for the key
+ *
+ * Note: this is really only safe if no other RX function is called
+ * at the same time.
+ *
+ * @keyconf: the key in question
+ */
+void ieee80211_key_replay(struct ieee80211_key_conf *keyconf);
+
+/**
  * ieee80211_wake_queue - wake specific queue
  * @hw: pointer as obtained from ieee80211_alloc_hw().
  * @queue: queue number (counted from zero).
