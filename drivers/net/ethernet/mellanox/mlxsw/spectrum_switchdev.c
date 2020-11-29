@@ -764,6 +764,25 @@ static int mlxsw_sp_port_attr_br_vlan_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	return -EINVAL;
 }
 
+static int mlxsw_sp_port_attr_br_vlan_proto_set(struct mlxsw_sp_port *mlxsw_sp_port,
+						struct switchdev_trans *trans,
+						struct net_device *orig_dev,
+						u16 vlan_proto)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	struct mlxsw_sp_bridge_device *bridge_device;
+
+	if (!switchdev_trans_ph_prepare(trans))
+		return 0;
+
+	bridge_device = mlxsw_sp_bridge_device_find(mlxsw_sp->bridge, orig_dev);
+	if (WARN_ON(!bridge_device))
+		return -EINVAL;
+
+	netdev_err(bridge_device->dev, "VLAN protocol can't be changed on existing bridge\n");
+	return -EINVAL;
+}
+
 static int mlxsw_sp_port_attr_mrouter_set(struct mlxsw_sp_port *mlxsw_sp_port,
 					  struct switchdev_trans *trans,
 					  struct net_device *orig_dev,
@@ -932,6 +951,11 @@ static int mlxsw_sp_port_attr_set(struct net_device *dev,
 		err = mlxsw_sp_port_attr_br_vlan_set(mlxsw_sp_port, trans,
 						     attr->orig_dev,
 						     attr->u.vlan_filtering);
+		break;
+	case SWITCHDEV_ATTR_ID_BRIDGE_VLAN_PROTOCOL:
+		err = mlxsw_sp_port_attr_br_vlan_proto_set(mlxsw_sp_port, trans,
+							   attr->orig_dev,
+							   attr->u.vlan_protocol);
 		break;
 	case SWITCHDEV_ATTR_ID_PORT_MROUTER:
 		err = mlxsw_sp_port_attr_mrouter_set(mlxsw_sp_port, trans,
