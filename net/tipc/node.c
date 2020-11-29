@@ -82,7 +82,7 @@ struct tipc_bclink_entry {
 /**
  * struct tipc_node - TIPC node structure
  * @addr: network address of node
- * @ref: reference counter to node object
+ * @kref: reference counter to node object
  * @lock: rwlock governing access to structure
  * @net: the applicable net namespace
  * @hash: links to adjacent nodes in unsorted hash chain
@@ -90,9 +90,11 @@ struct tipc_bclink_entry {
  * @namedq: pointer to name table input queue with name table messages
  * @active_links: bearer ids of active links, used as index into links[] array
  * @links: array containing references to all links to node
+ * @bc_entry: broadcast link entry
  * @action_flags: bit mask of different types of node actions
  * @state: connectivity state vs peer node
  * @preliminary: a preliminary node or not
+ * @failover_sent: failover sent or not
  * @sync_point: sequence number where synch/failover is finished
  * @list: links to adjacent nodes in sorted list of cluster's nodes
  * @working_links: number of working links to node (both active and standby)
@@ -100,9 +102,16 @@ struct tipc_bclink_entry {
  * @capabilities: bitmap, indicating peer node's functional capabilities
  * @signature: node instance identifier
  * @link_id: local and remote bearer ids of changing link, if any
+ * @peer_id: 128-bit ID of peer
+ * @peer_id_string: ID string of peer
  * @publ_list: list of publications
+ * @conn_sks: list of connections (FIXME)
+ * @timer: node's keepalive timer
+ * @keepalive_intv: keepalive interval in milliseconds
  * @rcu: rcu struct for tipc_node
  * @delete_at: indicates the time for deleting a down node
+ * @peer_net: peer's net namespace
+ * @peer_hash_mix: hash for this peer (FIXME)
  * @crypto_rx: RX crypto handler
  */
 struct tipc_node {
@@ -267,6 +276,7 @@ char *tipc_node_get_id_str(struct tipc_node *node)
 #ifdef CONFIG_TIPC_CRYPTO
 /**
  * tipc_node_crypto_rx - Retrieve crypto RX handle from node
+ * @__n: target tipc_node
  * Note: node ref counter must be held first!
  */
 struct tipc_crypto *tipc_node_crypto_rx(struct tipc_node *__n)
@@ -814,6 +824,9 @@ static void tipc_node_timeout(struct timer_list *t)
 
 /**
  * __tipc_node_link_up - handle addition of link
+ * @n: target tipc_node
+ * @bearer_id: id of the bearer
+ * @xmitq: queue for messages to be xmited on
  * Node lock must be held by caller
  * Link becomes active (alone or shared) or standby, depending on its priority.
  */
@@ -880,6 +893,9 @@ static void __tipc_node_link_up(struct tipc_node *n, int bearer_id,
 
 /**
  * tipc_node_link_up - handle addition of link
+ * @n: target tipc_node
+ * @bearer_id: id of the bearer
+ * @xmitq: queue for messages to be xmited on
  *
  * Link becomes active (alone or shared) or standby, depending on its priority.
  */
@@ -941,6 +957,10 @@ static void tipc_node_link_failover(struct tipc_node *n, struct tipc_link *l,
 
 /**
  * __tipc_node_link_down - handle loss of link
+ * @n: target tipc_node
+ * @bearer_id: id of the bearer
+ * @xmitq: queue for messages to be xmited on
+ * @maddr: output media address of the bearer
  */
 static void __tipc_node_link_down(struct tipc_node *n, int *bearer_id,
 				  struct sk_buff_head *xmitq,
@@ -1526,9 +1546,11 @@ static void node_lost_contact(struct tipc_node *n,
 /**
  * tipc_node_get_linkname - get the name of a link
  *
+ * @net: the applicable net namespace
  * @bearer_id: id of the bearer
  * @addr: peer node address
  * @linkname: link name output buffer
+ * @len: size of @linkname output buffer
  *
  * Returns 0 on success
  */
@@ -1882,8 +1904,10 @@ static void tipc_node_bc_rcv(struct net *net, struct sk_buff *skb, int bearer_id
 
 /**
  * tipc_node_check_state - check and if necessary update node state
+ * @n: target tipc_node
  * @skb: TIPC packet
  * @bearer_id: identity of bearer delivering the packet
+ * @xmitq: queue for messages to be xmited on
  * Returns true if state and msg are ok, otherwise false
  */
 static bool tipc_node_check_state(struct tipc_node *n, struct sk_buff *skb,
