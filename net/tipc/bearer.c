@@ -132,7 +132,7 @@ int tipc_media_addr_printf(char *buf, int len, struct tipc_media_addr *a)
  * @name: ptr to bearer name string
  * @name_parts: ptr to area for bearer name components (or NULL if not needed)
  *
- * Returns 1 if bearer name is valid, otherwise 0.
+ * Return: 1 if bearer name is valid, otherwise 0.
  */
 static int bearer_name_validate(const char *name,
 				struct tipc_bearer_names *name_parts)

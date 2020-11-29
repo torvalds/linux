@@ -342,7 +342,7 @@ exit:
  * @dest: destination address for request messages
  * @skb: pointer to created frame
  *
- * Returns 0 if successful, otherwise -errno.
+ * Return: 0 if successful, otherwise -errno.
  */
 int tipc_disc_create(struct net *net, struct tipc_bearer *b,
 		     struct tipc_media_addr *dest, struct sk_buff **skb)

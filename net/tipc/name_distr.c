@@ -287,7 +287,7 @@ void tipc_publ_notify(struct net *net, struct list_head *nsub_list,
  * @dtype: name distributor message type
  *
  * tipc_nametbl_lock must be held.
- * Returns the publication item if successful, otherwise NULL.
+ * Return: the publication item if successful, otherwise NULL.
  */
 static bool tipc_update_nametbl(struct net *net, struct distr_item *i,
 				u32 node, u32 dtype)

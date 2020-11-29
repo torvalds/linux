@@ -721,9 +721,9 @@ static void *tipc_aead_mem_alloc(struct crypto_aead *tfm,
  * @__dnode: TIPC dest node if "known"
  *
  * Return:
- * 0                   : if the encryption has completed
- * -EINPROGRESS/-EBUSY : if a callback will be performed
- * < 0                 : the encryption has failed
+ * * 0                   : if the encryption has completed
+ * * -EINPROGRESS/-EBUSY : if a callback will be performed
+ * * < 0                 : the encryption has failed
  */
 static int tipc_aead_encrypt(struct tipc_aead *aead, struct sk_buff *skb,
 			     struct tipc_bearer *b,
@@ -877,9 +877,9 @@ static void tipc_aead_encrypt_done(struct crypto_async_request *base, int err)
  * @b: TIPC bearer where the message has been received
  *
  * Return:
- * 0                   : if the decryption has completed
- * -EINPROGRESS/-EBUSY : if a callback will be performed
- * < 0                 : the decryption has failed
+ * * 0                   : if the decryption has completed
+ * * -EINPROGRESS/-EBUSY : if a callback will be performed
+ * * < 0                 : the decryption has failed
  */
 static int tipc_aead_decrypt(struct net *net, struct tipc_aead *aead,
 			     struct sk_buff *skb, struct tipc_bearer *b)
@@ -1008,7 +1008,7 @@ static inline int tipc_ehdr_size(struct tipc_ehdr *ehdr)
  * tipc_ehdr_validate - Validate an encryption message
  * @skb: the message buffer
  *
- * Returns "true" if this is a valid encryption message, otherwise "false"
+ * Return: "true" if this is a valid encryption message, otherwise "false"
  */
 bool tipc_ehdr_validate(struct sk_buff *skb)
 {
@@ -1681,12 +1681,12 @@ static inline void tipc_crypto_clone_msg(struct net *net, struct sk_buff *_skb,
  * Otherwise, the skb is freed!
  *
  * Return:
- * 0                   : the encryption has succeeded (or no encryption)
- * -EINPROGRESS/-EBUSY : the encryption is ongoing, a callback will be made
- * -ENOKEK             : the encryption has failed due to no key
- * -EKEYREVOKED        : the encryption has failed due to key revoked
- * -ENOMEM             : the encryption has failed due to no memory
- * < 0                 : the encryption has failed due to other reasons
+ * * 0                   : the encryption has succeeded (or no encryption)
+ * * -EINPROGRESS/-EBUSY : the encryption is ongoing, a callback will be made
+ * * -ENOKEK             : the encryption has failed due to no key
+ * * -EKEYREVOKED        : the encryption has failed due to key revoked
+ * * -ENOMEM             : the encryption has failed due to no memory
+ * * < 0                 : the encryption has failed due to other reasons
  */
 int tipc_crypto_xmit(struct net *net, struct sk_buff **skb,
 		     struct tipc_bearer *b, struct tipc_media_addr *dst,
@@ -1806,12 +1806,12 @@ exit:
  * cluster key(s) can be taken for decryption (- recursive).
  *
  * Return:
- * 0                   : the decryption has successfully completed
- * -EINPROGRESS/-EBUSY : the decryption is ongoing, a callback will be made
- * -ENOKEY             : the decryption has failed due to no key
- * -EBADMSG            : the decryption has failed due to bad message
- * -ENOMEM             : the decryption has failed due to no memory
- * < 0                 : the decryption has failed due to other reasons
+ * * 0                   : the decryption has successfully completed
+ * * -EINPROGRESS/-EBUSY : the decryption is ongoing, a callback will be made
+ * * -ENOKEY             : the decryption has failed due to no key
+ * * -EBADMSG            : the decryption has failed due to bad message
+ * * -ENOMEM             : the decryption has failed due to no memory
+ * * < 0                 : the decryption has failed due to other reasons
  */
 int tipc_crypto_rcv(struct net *net, struct tipc_crypto *rx,
 		    struct sk_buff **skb, struct tipc_bearer *b)

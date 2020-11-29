@@ -488,7 +488,7 @@ u32 tipc_link_state(struct tipc_link *l)
  * @self: local unicast link id
  * @peer_id: 128-bit ID of peer
  *
- * Returns true if link was created, otherwise false
+ * Return: true if link was created, otherwise false
  */
 bool tipc_link_create(struct net *net, char *if_name, int bearer_id,
 		      int tolerance, char net_plane, u32 mtu, int priority,
@@ -567,7 +567,7 @@ bool tipc_link_create(struct net *net, char *if_name, int bearer_id,
  * @peer_caps: bitmap describing peer node capabilities
  * @bc_sndlink: the namespace global link used for broadcast sending
  *
- * Returns true if link was created, otherwise false
+ * Return: true if link was created, otherwise false
  */
 bool tipc_link_bc_create(struct net *net, u32 ownnode, u32 peer, u8 *peer_id,
 			 int mtu, u32 min_win, u32 max_win, u16 peer_caps,
@@ -822,7 +822,7 @@ static void link_profile_stats(struct tipc_link *l)
  * tipc_link_too_silent - check if link is "too silent"
  * @l: tipc link to be checked
  *
- * Returns true if the link 'silent_intv_cnt' is about to reach the
+ * Return: true if the link 'silent_intv_cnt' is about to reach the
  * 'abort_limit' value, otherwise false
  */
 bool tipc_link_too_silent(struct tipc_link *l)
@@ -1024,8 +1024,8 @@ void tipc_link_reset(struct tipc_link *l)
  * @xmitq: returned list of packets to be sent by caller
  *
  * Consumes the buffer chain.
- * Returns 0 if success, or errno: -ELINKCONG, -EMSGSIZE or -ENOBUFS
  * Messages at TIPC_SYSTEM_IMPORTANCE are always accepted
+ * Return: 0 if success, or errno: -ELINKCONG, -EMSGSIZE or -ENOBUFS
  */
 int tipc_link_xmit(struct tipc_link *l, struct sk_buff_head *list,
 		   struct sk_buff_head *xmitq)

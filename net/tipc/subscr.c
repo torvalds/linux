@@ -61,7 +61,7 @@ static void tipc_sub_send_event(struct tipc_subscription *sub,
  * @found_lower: lower value to test
  * @found_upper: upper value to test
  *
- * Returns 1 if there is overlap, otherwise 0.
+ * Return: 1 if there is overlap, otherwise 0.
  */
 int tipc_sub_check_overlap(struct tipc_service_range *seq, u32 found_lower,
 			   u32 found_upper)

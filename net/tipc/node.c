@@ -1552,7 +1552,7 @@ static void node_lost_contact(struct tipc_node *n,
  * @linkname: link name output buffer
  * @len: size of @linkname output buffer
  *
- * Returns 0 on success
+ * Return: 0 on success
  */
 int tipc_node_get_linkname(struct net *net, u32 bearer_id, u32 addr,
 			   char *linkname, size_t len)
@@ -1671,7 +1671,7 @@ static void tipc_lxc_xmit(struct net *peer_net, struct sk_buff_head *list)
  * @dnode: address of destination node
  * @selector: a number used for deterministic link selection
  * Consumes the buffer chain.
- * Returns 0 if success, otherwise: -ELINKCONG,-EHOSTUNREACH,-EMSGSIZE,-ENOBUF
+ * Return: 0 if success, otherwise: -ELINKCONG,-EHOSTUNREACH,-EMSGSIZE,-ENOBUF
  */
 int tipc_node_xmit(struct net *net, struct sk_buff_head *list,
 		   u32 dnode, int selector)
@@ -1908,7 +1908,7 @@ static void tipc_node_bc_rcv(struct net *net, struct sk_buff *skb, int bearer_id
  * @skb: TIPC packet
  * @bearer_id: identity of bearer delivering the packet
  * @xmitq: queue for messages to be xmited on
- * Returns true if state and msg are ok, otherwise false
+ * Return: true if state and msg are ok, otherwise false
  */
 static bool tipc_node_check_state(struct tipc_node *n, struct sk_buff *skb,
 				  int bearer_id, struct sk_buff_head *xmitq)
