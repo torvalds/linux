@@ -120,6 +120,34 @@ struct tipc_stats {
  * @reasm_buf: head of partially reassembled inbound message fragments
  * @bc_rcvr: marks that this is a broadcast receiver link
  * @stats: collects statistics regarding link activity
+ * @session: session to be used by link
+ * @snd_nxt_state: next send seq number
+ * @rcv_nxt_state: next rcv seq number
+ * @in_session: have received ACTIVATE_MSG from peer
+ * @active: link is active
+ * @if_name: associated interface name
+ * @rst_cnt: link reset counter
+ * @drop_point: seq number for failover handling (FIXME)
+ * @failover_reasm_skb: saved failover msg ptr (FIXME)
+ * @failover_deferdq: deferred message queue for failover processing (FIXME)
+ * @transmq: the link's transmit queue
+ * @backlog: link's backlog by priority (importance)
+ * @snd_nxt: next sequence number to be used
+ * @rcv_unacked: # messages read by user, but not yet acked back to peer
+ * @deferdq: deferred receive queue
+ * @window: sliding window size for congestion handling
+ * @min_win: minimal send window to be used by link
+ * @ssthresh: slow start threshold for congestion handling
+ * @max_win: maximal send window to be used by link
+ * @cong_acks: congestion acks for congestion avoidance (FIXME)
+ * @checkpoint: seq number for congestion window size handling
+ * @reasm_tnlmsg: fragmentation/reassembly area for tunnel protocol message
+ * @last_gap: last gap ack blocks for bcast (FIXME)
+ * @last_ga: ptr to gap ack blocks
+ * @bc_rcvlink: the peer specific link used for broadcast reception
+ * @bc_sndlink: the namespace global link used for broadcast sending
+ * @nack_state: bcast nack state
+ * @bc_peer_is_up: peer has acked the bcast init msg
  */
 struct tipc_link {
 	u32 addr;
@@ -450,7 +478,6 @@ u32 tipc_link_state(struct tipc_link *l)
  * @min_win: minimal send window to be used by link
  * @max_win: maximal send window to be used by link
  * @session: session to be used by link
- * @ownnode: identity of own node
  * @peer: node id of peer node
  * @peer_caps: bitmap describing peer node capabilities
  * @bc_sndlink: the namespace global link used for broadcast sending
@@ -458,6 +485,8 @@ u32 tipc_link_state(struct tipc_link *l)
  * @inputq: queue to put messages ready for delivery
  * @namedq: queue to put binding table update messages ready for delivery
  * @link: return value, pointer to put the created link
+ * @self: local unicast link id
+ * @peer_id: 128-bit ID of peer
  *
  * Returns true if link was created, otherwise false
  */
@@ -532,6 +561,11 @@ bool tipc_link_create(struct net *net, char *if_name, int bearer_id,
  * @inputq: queue to put messages ready for delivery
  * @namedq: queue to put binding table update messages ready for delivery
  * @link: return value, pointer to put the created link
+ * @ownnode: identity of own node
+ * @peer: node id of peer node
+ * @peer_id: 128-bit ID of peer
+ * @peer_caps: bitmap describing peer node capabilities
+ * @bc_sndlink: the namespace global link used for broadcast sending
  *
  * Returns true if link was created, otherwise false
  */
@@ -2376,7 +2410,7 @@ int tipc_link_bc_sync_rcv(struct tipc_link *l, struct tipc_msg *hdr,
 	if (!msg_peer_node_is_up(hdr))
 		return rc;
 
-	/* Open when peer ackowledges our bcast init msg (pkt #1) */
+	/* Open when peer acknowledges our bcast init msg (pkt #1) */
 	if (msg_ack(hdr))
 		l->bc_peer_is_up = true;
 
