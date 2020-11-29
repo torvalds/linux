@@ -32,7 +32,6 @@
 #include <linux/of_graph.h>
 #include <linux/dmi.h>
 #include <sound/core.h>
-#include <sound/jack.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
