@@ -80,19 +80,32 @@ struct sockaddr_pair {
  * @maxnagle: maximum size of msg which can be subject to nagle
  * @portid: unique port identity in TIPC socket hash table
  * @phdr: preformatted message header used when sending messages
- * #cong_links: list of congested links
+ * @cong_links: list of congested links
  * @publications: list of publications for port
  * @blocking_link: address of the congested link we are currently sleeping on
  * @pub_count: total # of publications port has made during its lifetime
  * @conn_timeout: the time we can wait for an unresponded setup request
+ * @probe_unacked: probe has not received ack yet
  * @dupl_rcvcnt: number of bytes counted twice, in both backlog and rcv queue
  * @cong_link_cnt: number of congested links
  * @snt_unacked: # messages sent by socket, and not yet acked by peer
+ * @snd_win: send window size
+ * @peer_caps: peer capabilities mask
  * @rcv_unacked: # messages read by user, but not yet acked back to peer
+ * @rcv_win: receive window size
  * @peer: 'connected' peer for dgram/rdm
  * @node: hash table node
  * @mc_method: cookie for use between socket and broadcast layer
  * @rcu: rcu struct for tipc_sock
+ * @group: TIPC communications group
+ * @oneway: message count in one direction (FIXME)
+ * @nagle_start: current nagle value
+ * @snd_backlog: send backlog count
+ * @msg_acc: messages accepted; used in managing backlog and nagle
+ * @pkt_cnt: TIPC socket packet count
+ * @expect_ack: whether this TIPC socket is expecting an ack
+ * @nodelay: setsockopt() TIPC_NODELAY setting
+ * @group_is_open: TIPC socket group is fully open (FIXME)
  */
 struct tipc_sock {
 	struct sock sk;
@@ -261,6 +274,7 @@ static void tsk_set_nagle(struct tipc_sock *tsk)
 
 /**
  * tsk_advance_rx_queue - discard first buffer in socket receive queue
+ * @sk: network socket
  *
  * Caller must hold socket lock
  */
@@ -289,6 +303,8 @@ static void tipc_sk_respond(struct sock *sk, struct sk_buff *skb, int err)
 
 /**
  * tsk_rej_rx_queue - reject all buffers in socket receive queue
+ * @sk: network socket
+ * @error: response error code
  *
  * Caller must hold socket lock
  */
@@ -876,6 +892,7 @@ static int tipc_sendmcast(struct  socket *sock, struct tipc_service_range *seq,
 /**
  * tipc_send_group_msg - send a message to a member in the group
  * @net: network namespace
+ * @tsk: tipc socket
  * @m: message to send
  * @mb: group member
  * @dnode: destination node
@@ -1171,6 +1188,7 @@ static int tipc_send_group_mcast(struct socket *sock, struct msghdr *m,
 
 /**
  * tipc_sk_mcast_rcv - Deliver multicast messages to all destination sockets
+ * @net: the associated network namespace
  * @arrvq: queue with arriving messages, to be cloned after destination lookup
  * @inputq: queue with cloned messages, delivered to socket after dest lookup
  *
@@ -1310,6 +1328,8 @@ static void tipc_sk_push_backlog(struct tipc_sock *tsk, bool nagle_ack)
  * tipc_sk_conn_proto_rcv - receive a connection mng protocol message
  * @tsk: receiving socket
  * @skb: pointer to message buffer.
+ * @inputq: buffer list containing the buffers
+ * @xmitq: output message area
  */
 static void tipc_sk_conn_proto_rcv(struct tipc_sock *tsk, struct sk_buff *skb,
 				   struct sk_buff_head *inputq,
@@ -1865,6 +1885,7 @@ static int tipc_wait_for_rcvmsg(struct socket *sock, long *timeop)
 
 /**
  * tipc_recvmsg - receive packet-oriented message
+ * @sock: network socket
  * @m: descriptor for message info
  * @buflen: length of user buffer area
  * @flags: receive flags
@@ -1973,6 +1994,7 @@ exit:
 
 /**
  * tipc_recvstream - receive stream-oriented data
+ * @sock: network socket
  * @m: descriptor for message info
  * @buflen: total size of user buffer area
  * @flags: receive flags
@@ -2295,6 +2317,7 @@ static unsigned int rcvbuf_limit(struct sock *sk, struct sk_buff *skb)
  * tipc_sk_filter_rcv - validate incoming message
  * @sk: socket
  * @skb: pointer to message.
+ * @xmitq: output message area (FIXME)
  *
  * Enqueues message on receive queue if acceptable; optionally handles
  * disconnect indication for a connected socket.
@@ -2390,6 +2413,7 @@ static int tipc_sk_backlog_rcv(struct sock *sk, struct sk_buff *skb)
  * @inputq: list of incoming buffers with potentially different destinations
  * @sk: socket where the buffers should be enqueued
  * @dport: port number for the socket
+ * @xmitq: output queue
  *
  * Caller must hold socket lock
  */
@@ -2442,6 +2466,7 @@ static void tipc_sk_enqueue(struct sk_buff_head *inputq, struct sock *sk,
 
 /**
  * tipc_sk_rcv - handle a chain of incoming buffers
+ * @net: the associated network namespace
  * @inputq: buffer list containing the buffers
  * Consumes all buffers in list until inputq is empty
  * Note: may be called in multiple threads referring to the same queue
@@ -2679,6 +2704,7 @@ static int tipc_wait_for_accept(struct socket *sock, long timeo)
  * @sock: listening socket
  * @new_sock: new socket that is to be connected
  * @flags: file-related flags associated with socket
+ * @kern: caused by kernel or by userspace?
  *
  * Returns 0 on success, errno otherwise
  */
@@ -3799,7 +3825,8 @@ int tipc_nl_publ_dump(struct sk_buff *skb, struct netlink_callback *cb)
 /**
  * tipc_sk_filtering - check if a socket should be traced
  * @sk: the socket to be examined
- * @sysctl_tipc_sk_filter: the socket tuple for filtering:
+ *
+ * @sysctl_tipc_sk_filter is used as the socket tuple for filtering:
  * (portid, sock type, name type, name lower, name upper)
  *
  * Returns true if the socket meets the socket tuple data
