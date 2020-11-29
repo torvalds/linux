@@ -609,6 +609,10 @@ static int bch2_journal_reclaim_thread(void *arg)
 	struct journal *j = arg;
 	unsigned long next;
 
+	set_freezable();
+
+	kthread_wait_freezable(test_bit(JOURNAL_RECLAIM_STARTED, &j->flags));
+
 	while (!kthread_should_stop()) {
 		j->reclaim_kicked = false;
 
@@ -627,6 +631,7 @@ static int bch2_journal_reclaim_thread(void *arg)
 			if (time_after_eq(jiffies, next))
 				break;
 			schedule_timeout(next - jiffies);
+			try_to_freeze();
 
 		}
 		__set_current_state(TASK_RUNNING);

@@ -616,6 +616,7 @@ static int bch2_journal_replay(struct bch_fs *c,
 	 */
 	set_bit(BCH_FS_BTREE_INTERIOR_REPLAY_DONE, &c->flags);
 	set_bit(JOURNAL_RECLAIM_STARTED, &j->flags);
+	journal_reclaim_kick(j);
 
 	j->replay_journal_seq = seq;
 
