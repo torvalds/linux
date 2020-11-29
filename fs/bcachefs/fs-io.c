@@ -667,7 +667,7 @@ static int readpages_iter_init(struct readpages_iter *iter,
 	if (!iter->pages)
 		return -ENOMEM;
 
-	__readahead_batch(ractl, iter->pages, nr_pages);
+	nr_pages = __readahead_batch(ractl, iter->pages, nr_pages);
 	for (i = 0; i < nr_pages; i++) {
 		__bch2_page_state_create(iter->pages[i], __GFP_NOFAIL);
 		put_page(iter->pages[i]);
