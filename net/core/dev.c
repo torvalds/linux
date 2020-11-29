@@ -1069,19 +1069,6 @@ struct net_device *dev_getbyhwaddr_rcu(struct net *net, unsigned short type,
 }
 EXPORT_SYMBOL(dev_getbyhwaddr_rcu);
 
-struct net_device *__dev_getfirstbyhwtype(struct net *net, unsigned short type)
-{
-	struct net_device *dev;
-
-	ASSERT_RTNL();
-	for_each_netdev(net, dev)
-		if (dev->type == type)
-			return dev;
-
-	return NULL;
-}
-EXPORT_SYMBOL(__dev_getfirstbyhwtype);
-
 struct net_device *dev_getfirstbyhwtype(struct net *net, unsigned short type)
 {
 	struct net_device *dev, *ret = NULL;
