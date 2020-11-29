@@ -144,11 +144,11 @@ static irqreturn_t stm32_ipcc_tx_irq(int irq, void *data)
 
 static int stm32_ipcc_send_data(struct mbox_chan *link, void *data)
 {
-	unsigned int chan = (unsigned int)link->con_priv;
+	unsigned long chan = (unsigned long)link->con_priv;
 	struct stm32_ipcc *ipcc = container_of(link->mbox, struct stm32_ipcc,
 					       controller);
 
-	dev_dbg(ipcc->controller.dev, "%s: chan:%d\n", __func__, chan);
+	dev_dbg(ipcc->controller.dev, "%s: chan:%lu\n", __func__, chan);
 
 	/* set channel n occupied */
 	stm32_ipcc_set_bits(&ipcc->lock, ipcc->reg_proc + IPCC_XSCR,
@@ -163,7 +163,7 @@ static int stm32_ipcc_send_data(struct mbox_chan *link, void *data)
 
 static int stm32_ipcc_startup(struct mbox_chan *link)
 {
-	unsigned int chan = (unsigned int)link->con_priv;
+	unsigned long chan = (unsigned long)link->con_priv;
 	struct stm32_ipcc *ipcc = container_of(link->mbox, struct stm32_ipcc,
 					       controller);
 	int ret;
@@ -183,7 +183,7 @@ static int stm32_ipcc_startup(struct mbox_chan *link)
 
 static void stm32_ipcc_shutdown(struct mbox_chan *link)
 {
-	unsigned int chan = (unsigned int)link->con_priv;
+	unsigned long chan = (unsigned long)link->con_priv;
 	struct stm32_ipcc *ipcc = container_of(link->mbox, struct stm32_ipcc,
 					       controller);
 
@@ -206,7 +206,7 @@ static int stm32_ipcc_probe(struct platform_device *pdev)
 	struct device_node *np = dev->of_node;
 	struct stm32_ipcc *ipcc;
 	struct resource *res;
-	unsigned int i;
+	unsigned long i;
 	int ret;
 	u32 ip_ver;
 	static const char * const irq_name[] = {"rx", "tx"};
@@ -265,7 +265,7 @@ static int stm32_ipcc_probe(struct platform_device *pdev)
 						irq_thread[i], IRQF_ONESHOT,
 						dev_name(dev), ipcc);
 		if (ret) {
-			dev_err(dev, "failed to request irq %d (%d)\n", i, ret);
+			dev_err(dev, "failed to request irq %lu (%d)\n", i, ret);
 			goto err_clk;
 		}
 	}
