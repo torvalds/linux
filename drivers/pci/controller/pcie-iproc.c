@@ -6,6 +6,7 @@
 
 #include <linux/kernel.h>
 #include <linux/pci.h>
+#include <linux/pci-ecam.h>
 #include <linux/msi.h>
 #include <linux/clk.h>
 #include <linux/module.h>
@@ -39,16 +40,8 @@
 
 #define CFG_IND_ADDR_MASK		0x00001ffc
 
-#define CFG_ADDR_BUS_NUM_SHIFT		20
-#define CFG_ADDR_BUS_NUM_MASK		0x0ff00000
-#define CFG_ADDR_DEV_NUM_SHIFT		15
-#define CFG_ADDR_DEV_NUM_MASK		0x000f8000
-#define CFG_ADDR_FUNC_NUM_SHIFT		12
-#define CFG_ADDR_FUNC_NUM_MASK		0x00007000
-#define CFG_ADDR_REG_NUM_SHIFT		2
 #define CFG_ADDR_REG_NUM_MASK		0x00000ffc
-#define CFG_ADDR_CFG_TYPE_SHIFT		0
-#define CFG_ADDR_CFG_TYPE_MASK		0x00000003
+#define CFG_ADDR_CFG_TYPE_1		1
 
 #define SYS_RC_INTX_MASK		0xf
 
@@ -459,19 +452,15 @@ static inline void iproc_pcie_apb_err_disable(struct pci_bus *bus,
 
 static void __iomem *iproc_pcie_map_ep_cfg_reg(struct iproc_pcie *pcie,
 					       unsigned int busno,
-					       unsigned int slot,
-					       unsigned int fn,
+					       unsigned int devfn,
 					       int where)
 {
 	u16 offset;
 	u32 val;
 
 	/* EP device access */
-	val = (busno << CFG_ADDR_BUS_NUM_SHIFT) |
-		(slot << CFG_ADDR_DEV_NUM_SHIFT) |
-		(fn << CFG_ADDR_FUNC_NUM_SHIFT) |
-		(where & CFG_ADDR_REG_NUM_MASK) |
-		(1 & CFG_ADDR_CFG_TYPE_MASK);
+	val = ALIGN_DOWN(PCIE_ECAM_OFFSET(busno, devfn, where), 4) |
+		CFG_ADDR_CFG_TYPE_1;
 
 	iproc_pcie_write_reg(pcie, IPROC_PCIE_CFG_ADDR, val);
 	offset = iproc_pcie_reg_offset(pcie, IPROC_PCIE_CFG_DATA);
@@ -574,8 +563,6 @@ static int iproc_pcie_config_read(struct pci_bus *bus, unsigned int devfn,
 				  int where, int size, u32 *val)
 {
 	struct iproc_pcie *pcie = iproc_data(bus);
-	unsigned int slot = PCI_SLOT(devfn);
-	unsigned int fn = PCI_FUNC(devfn);
 	unsigned int busno = bus->number;
 	void __iomem *cfg_data_p;
 	unsigned int data;
@@ -590,7 +577,7 @@ static int iproc_pcie_config_read(struct pci_bus *bus, unsigned int devfn,
 		return ret;
 	}
 
-	cfg_data_p = iproc_pcie_map_ep_cfg_reg(pcie, busno, slot, fn, where);
+	cfg_data_p = iproc_pcie_map_ep_cfg_reg(pcie, busno, devfn, where);
 
 	if (!cfg_data_p)
 		return PCIBIOS_DEVICE_NOT_FOUND;
@@ -631,13 +618,11 @@ static void __iomem *iproc_pcie_map_cfg_bus(struct iproc_pcie *pcie,
 					    int busno, unsigned int devfn,
 					    int where)
 {
-	unsigned slot = PCI_SLOT(devfn);
-	unsigned fn = PCI_FUNC(devfn);
 	u16 offset;
 
 	/* root complex access */
 	if (busno == 0) {
-		if (slot > 0 || fn > 0)
+		if (PCIE_ECAM_DEVFN(devfn) > 0)
 			return NULL;
 
 		iproc_pcie_write_reg(pcie, IPROC_PCIE_CFG_IND_ADDR,
@@ -649,7 +634,7 @@ static void __iomem *iproc_pcie_map_cfg_bus(struct iproc_pcie *pcie,
 			return (pcie->base + offset);
 	}
 
-	return iproc_pcie_map_ep_cfg_reg(pcie, busno, slot, fn, where);
+	return iproc_pcie_map_ep_cfg_reg(pcie, busno, devfn, where);
 }
 
 static void __iomem *iproc_pcie_bus_map_cfg_bus(struct pci_bus *bus,
