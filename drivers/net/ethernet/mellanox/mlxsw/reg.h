@@ -851,11 +851,13 @@ MLXSW_ITEM32(reg, spvid, et_vlan, 0x04, 16, 2);
  */
 MLXSW_ITEM32(reg, spvid, pvid, 0x04, 0, 12);
 
-static inline void mlxsw_reg_spvid_pack(char *payload, u8 local_port, u16 pvid)
+static inline void mlxsw_reg_spvid_pack(char *payload, u8 local_port, u16 pvid,
+					u8 et_vlan)
 {
 	MLXSW_REG_ZERO(spvid, payload);
 	mlxsw_reg_spvid_local_port_set(payload, local_port);
 	mlxsw_reg_spvid_pvid_set(payload, pvid);
+	mlxsw_reg_spvid_et_vlan_set(payload, et_vlan);
 }
 
 /* SPVM - Switch Port VLAN Membership

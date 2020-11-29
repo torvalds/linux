@@ -1129,6 +1129,7 @@ mlxsw_sp_bridge_port_vlan_add(struct mlxsw_sp_port *mlxsw_sp_port,
 	u16 pvid = mlxsw_sp_port_pvid_determine(mlxsw_sp_port, vid, is_pvid);
 	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
 	u16 old_pvid = mlxsw_sp_port->pvid;
+	u16 proto;
 	int err;
 
 	/* The only valid scenario in which a port-vlan already exists, is if
@@ -1152,7 +1153,8 @@ mlxsw_sp_bridge_port_vlan_add(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (err)
 		goto err_port_vlan_set;
 
-	err = mlxsw_sp_port_pvid_set(mlxsw_sp_port, pvid);
+	br_vlan_get_proto(bridge_port->bridge_device->dev, &proto);
+	err = mlxsw_sp_port_pvid_set(mlxsw_sp_port, pvid, proto);
 	if (err)
 		goto err_port_pvid_set;
 
@@ -1164,7 +1166,7 @@ mlxsw_sp_bridge_port_vlan_add(struct mlxsw_sp_port *mlxsw_sp_port,
 	return 0;
 
 err_port_vlan_bridge_join:
-	mlxsw_sp_port_pvid_set(mlxsw_sp_port, old_pvid);
+	mlxsw_sp_port_pvid_set(mlxsw_sp_port, old_pvid, proto);
 err_port_pvid_set:
 	mlxsw_sp_port_vlan_set(mlxsw_sp_port, vid, vid, false, false);
 err_port_vlan_set:
@@ -1821,13 +1823,15 @@ mlxsw_sp_bridge_port_vlan_del(struct mlxsw_sp_port *mlxsw_sp_port,
 {
 	u16 pvid = mlxsw_sp_port->pvid == vid ? 0 : mlxsw_sp_port->pvid;
 	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
+	u16 proto;
 
 	mlxsw_sp_port_vlan = mlxsw_sp_port_vlan_find_by_vid(mlxsw_sp_port, vid);
 	if (WARN_ON(!mlxsw_sp_port_vlan))
 		return;
 
 	mlxsw_sp_port_vlan_bridge_leave(mlxsw_sp_port_vlan);
-	mlxsw_sp_port_pvid_set(mlxsw_sp_port, pvid);
+	br_vlan_get_proto(bridge_port->bridge_device->dev, &proto);
+	mlxsw_sp_port_pvid_set(mlxsw_sp_port, pvid, proto);
 	mlxsw_sp_port_vlan_set(mlxsw_sp_port, vid, vid, false, false);
 	mlxsw_sp_port_vlan_destroy(mlxsw_sp_port_vlan);
 }
@@ -1998,7 +2002,8 @@ mlxsw_sp_bridge_8021q_port_leave(struct mlxsw_sp_bridge_device *bridge_device,
 				 struct mlxsw_sp_port *mlxsw_sp_port)
 {
 	/* Make sure untagged frames are allowed to ingress */
-	mlxsw_sp_port_pvid_set(mlxsw_sp_port, MLXSW_SP_DEFAULT_VID);
+	mlxsw_sp_port_pvid_set(mlxsw_sp_port, MLXSW_SP_DEFAULT_VID,
+			       ETH_P_8021Q);
 }
 
 static int
