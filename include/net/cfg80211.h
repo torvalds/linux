@@ -7532,6 +7532,7 @@ void cfg80211_ch_switch_notify(struct net_device *dev,
  * @dev: the device on which the channel switch started
  * @chandef: the future channel definition
  * @count: the number of TBTTs until the channel switch happens
+ * @quiet: whether or not immediate quiet was requested by the AP
  *
  * Inform the userspace about the channel switch that has just
  * started, so that it can take appropriate actions (eg. starting
@@ -7539,7 +7540,7 @@ void cfg80211_ch_switch_notify(struct net_device *dev,
  */
 void cfg80211_ch_switch_started_notify(struct net_device *dev,
 				       struct cfg80211_chan_def *chandef,
-				       u8 count);
+				       u8 count, bool quiet);
 
 /**
  * ieee80211_operating_class_to_band - convert operating class to band

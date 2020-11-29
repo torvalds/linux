@@ -2079,7 +2079,8 @@ enum nl80211_commands {
  *	until the channel switch event.
  * @NL80211_ATTR_CH_SWITCH_BLOCK_TX: flag attribute specifying that transmission
  *	must be blocked on the current channel (before the channel switch
- *	operation).
+ *	operation). Also included in the channel switch started event if quiet
+ *	was requested by the AP.
  * @NL80211_ATTR_CSA_IES: Nested set of attributes containing the IE information
  *	for the time while performing a channel switch.
  * @NL80211_ATTR_CNTDWN_OFFS_BEACON: An array of offsets (u16) to the channel

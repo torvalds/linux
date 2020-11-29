@@ -1509,7 +1509,7 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	mutex_unlock(&local->mtx);
 
 	cfg80211_ch_switch_started_notify(sdata->dev, &csa_ie.chandef,
-					  csa_ie.count);
+					  csa_ie.count, csa_ie.mode);
 
 	if (local->ops->channel_switch) {
 		/* use driver's channel switch callback */

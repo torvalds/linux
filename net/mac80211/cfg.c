@@ -3450,7 +3450,7 @@ __ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 					  IEEE80211_QUEUE_STOP_REASON_CSA);
 
 	cfg80211_ch_switch_started_notify(sdata->dev, &sdata->csa_chandef,
-					  params->count);
+					  params->count, params->block_tx);
 
 	if (changed) {
 		ieee80211_bss_info_change_notify(sdata, changed);
