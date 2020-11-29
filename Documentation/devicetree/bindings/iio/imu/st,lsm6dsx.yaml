@@ -30,6 +30,7 @@ properties:
       - st,lsm6ds0
       - st,lsm6dsrx
       - st,lsm6dst
+      - st,lsm6dsop
 
   reg:
     maxItems: 1
