@@ -1108,7 +1108,6 @@
 		ti,trm-icp = <0x8>;
 		ti,clkbuf-sel = <0x7>;
 		dma-coherent;
-		no-1-8-v;
 	};
 
 	main_sdhci2: sdhci@4f98000 {
@@ -1129,7 +1128,6 @@
 		ti,trm-icp = <0x8>;
 		ti,clkbuf-sel = <0x7>;
 		dma-coherent;
-		no-1-8-v;
 	};
 
 	usbss0: cdns-usb@4104000 {
