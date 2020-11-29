@@ -74,6 +74,7 @@ struct tipc_discoverer {
 /**
  * tipc_disc_init_msg - initialize a link setup message
  * @net: the applicable net namespace
+ * @skb: buffer containing message
  * @mtyp: message type (request or response)
  * @b: ptr to bearer issuing message
  */
@@ -380,7 +381,7 @@ int tipc_disc_create(struct net *net, struct tipc_bearer *b,
 
 /**
  * tipc_disc_delete - destroy object sending periodic link setup requests
- * @d: ptr to link duest structure
+ * @d: ptr to link dest structure
  */
 void tipc_disc_delete(struct tipc_discoverer *d)
 {

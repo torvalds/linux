@@ -900,10 +900,11 @@ static void tipc_node_link_up(struct tipc_node *n, int bearer_id,
  *
  * This function is only called in a very special situation where link
  * failover can be already started on peer node but not on this node.
- * This can happen when e.g.
+ * This can happen when e.g.::
+ *
  *	1. Both links <1A-2A>, <1B-2B> down
  *	2. Link endpoint 2A up, but 1A still down (e.g. due to network
- *	   disturbance, wrong session, etc.)
+ *	disturbance, wrong session, etc.)
  *	3. Link <1B-2B> up
  *	4. Link endpoint 2A down (e.g. due to link tolerance timeout)
  *	5. Node 2 starts failover onto link <1B-2B>

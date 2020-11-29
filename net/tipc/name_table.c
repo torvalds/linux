@@ -534,9 +534,9 @@ exit:
  *
  * On exit:
  * - if translation is deferred to another node, leave 'dnode' unchanged and
- *   return 0
+ * return 0
  * - if translation is attempted and succeeds, set 'dnode' to the publishing
- *   node and return the published (non-zero) port number
+ * node and return the published (non-zero) port number
  * - if translation is attempted and fails, set 'dnode' to 0 and return 0
  *
  * Note that for legacy users (node configured with Z.C.N address format) the

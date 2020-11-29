@@ -3799,8 +3799,8 @@ int tipc_nl_publ_dump(struct sk_buff *skb, struct netlink_callback *cb)
 /**
  * tipc_sk_filtering - check if a socket should be traced
  * @sk: the socket to be examined
- * @sysctl_tipc_sk_filter[]: the socket tuple for filtering,
- *  (portid, sock type, name type, name lower, name upper)
+ * @sysctl_tipc_sk_filter: the socket tuple for filtering:
+ * (portid, sock type, name type, name lower, name upper)
  *
  * Returns true if the socket meets the socket tuple data
  * (value 0 = 'any') or when there is no tuple set (all = 0),

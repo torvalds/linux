@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/**
+/*
  * net/tipc/crypto.c: TIPC crypto for key handling & packet en/decryption
  *
  * Copyright (c) 2019, Ericsson AB
@@ -51,7 +51,7 @@
 
 #define TIPC_REKEYING_INTV_DEF	(60 * 24) /* default: 1 day */
 
-/**
+/*
  * TIPC Key ids
  */
 enum {
@@ -63,7 +63,7 @@ enum {
 	KEY_MAX = KEY_3,
 };
 
-/**
+/*
  * TIPC Crypto statistics
  */
 enum {
@@ -90,7 +90,7 @@ int sysctl_tipc_max_tfms __read_mostly = TIPC_MAX_TFMS_DEF;
 /* Key exchange switch, default: on */
 int sysctl_tipc_key_exchange_enabled __read_mostly = 1;
 
-/**
+/*
  * struct tipc_key - TIPC keys' status indicator
  *
  *         7     6     5     4     3     2     1     0
@@ -123,6 +123,8 @@ struct tipc_key {
 
 /**
  * struct tipc_tfm - TIPC TFM structure to form a list of TFMs
+ * @tfm: cipher handle/key
+ * @list: linked list of TFMs
  */
 struct tipc_tfm {
 	struct crypto_aead *tfm;
@@ -138,7 +140,7 @@ struct tipc_tfm {
  * @salt: the key's SALT value
  * @authsize: authentication tag size (max = 16)
  * @mode: crypto mode is applied to the key
- * @hint[]: a hint for user key
+ * @hint: a hint for user key
  * @rcu: struct rcu_head
  * @key: the aead key
  * @gen: the key's generation
@@ -166,6 +168,7 @@ struct tipc_aead {
 
 /**
  * struct tipc_crypto_stats - TIPC Crypto statistics
+ * @stat: array of crypto statistics
  */
 struct tipc_crypto_stats {
 	unsigned int stat[MAX_STATS];
@@ -194,6 +197,7 @@ struct tipc_crypto_stats {
  * @key_master: flag indicates if master key exists
  * @legacy_user: flag indicates if a peer joins w/o master key (for bwd comp.)
  * @nokey: no key indication
+ * @flags: combined flags field
  * @lock: tipc_key lock
  */
 struct tipc_crypto {
@@ -324,6 +328,8 @@ do {									\
 
 /**
  * tipc_aead_key_validate - Validate a AEAD user key
+ * @ukey: pointer to user key data
+ * @info: netlink info pointer
  */
 int tipc_aead_key_validate(struct tipc_aead_key *ukey, struct genl_info *info)
 {
@@ -477,6 +483,7 @@ static void tipc_aead_users_set(struct tipc_aead __rcu *aead, int val)
 
 /**
  * tipc_aead_tfm_next - Move TFM entry to the next one in list and return it
+ * @aead: the AEAD key pointer
  */
 static struct crypto_aead *tipc_aead_tfm_next(struct tipc_aead *aead)
 {
