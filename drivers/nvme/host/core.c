@@ -1368,7 +1368,8 @@ static int nvme_identify_ns_descs(struct nvme_ctrl *ctrl, unsigned nsid,
 				      NVME_IDENTIFY_DATA_SIZE);
 	if (status) {
 		dev_warn(ctrl->device,
-			"Identify Descriptors failed (%d)\n", status);
+			"Identify Descriptors failed (nsid=%u, status=0x%x)\n",
+			nsid, status);
 		goto free_data;
 	}
 
