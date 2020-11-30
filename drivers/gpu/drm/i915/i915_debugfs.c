@@ -1193,20 +1193,6 @@ static int i915_swizzle_info(struct seq_file *m, void *data)
 	return 0;
 }
 
-static const char *rps_power_to_str(unsigned int power)
-{
-	static const char * const strings[] = {
-		[LOW_POWER] = "low power",
-		[BETWEEN] = "mixed",
-		[HIGH_POWER] = "high power",
-	};
-
-	if (power >= ARRAY_SIZE(strings) || !strings[power])
-		return "unknown";
-
-	return strings[power];
-}
-
 static int i915_rps_boost_info(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
@@ -1232,29 +1218,6 @@ static int i915_rps_boost_info(struct seq_file *m, void *data)
 		   intel_gpu_freq(rps, rps->boost_freq));
 
 	seq_printf(m, "Wait boosts: %d\n", atomic_read(&rps->boosts));
-
-	if (INTEL_GEN(dev_priv) >= 6 && intel_rps_is_active(rps)) {
-		u32 rpup, rpupei;
-		u32 rpdown, rpdownei;
-
-		intel_uncore_forcewake_get(&dev_priv->uncore, FORCEWAKE_ALL);
-		rpup = I915_READ_FW(GEN6_RP_CUR_UP) & GEN6_RP_EI_MASK;
-		rpupei = I915_READ_FW(GEN6_RP_CUR_UP_EI) & GEN6_RP_EI_MASK;
-		rpdown = I915_READ_FW(GEN6_RP_CUR_DOWN) & GEN6_RP_EI_MASK;
-		rpdownei = I915_READ_FW(GEN6_RP_CUR_DOWN_EI) & GEN6_RP_EI_MASK;
-		intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
-
-		seq_printf(m, "\nRPS Autotuning (current \"%s\" window):\n",
-			   rps_power_to_str(rps->power.mode));
-		seq_printf(m, "  Avg. up: %d%% [above threshold? %d%%]\n",
-			   rpup && rpupei ? 100 * rpup / rpupei : 0,
-			   rps->power.up_threshold);
-		seq_printf(m, "  Avg. down: %d%% [below threshold? %d%%]\n",
-			   rpdown && rpdownei ? 100 * rpdown / rpdownei : 0,
-			   rps->power.down_threshold);
-	} else {
-		seq_puts(m, "\nRPS Autotuning inactive\n");
-	}
 
 	return 0;
 }
