@@ -41,6 +41,11 @@ static const struct regulator_ops da9121_buck_ops = {
 	.list_voltage = regulator_list_voltage_linear,
 };
 
+static struct of_regulator_match da9121_matches[] = {
+	[DA9121_IDX_BUCK1] = { .name = "buck1" },
+	[DA9121_IDX_BUCK2] = { .name = "buck2" },
+};
+
 #define DA9121_MIN_MV		300
 #define DA9121_MAX_MV		1900
 #define DA9121_STEP_MV		10
@@ -49,9 +54,11 @@ static const struct regulator_ops da9121_buck_ops = {
 				 + 1 + DA9121_MIN_SEL)
 
 static const struct regulator_desc da9121_reg = {
+	.id = DA9121_IDX_BUCK1,
 	.name = "da9121",
 	.of_match = "buck1",
 	.owner = THIS_MODULE,
+	.regulators_node = of_match_ptr("regulators"),
 	.ops = &da9121_buck_ops,
 	.type = REGULATOR_VOLTAGE,
 	.n_voltages = DA9121_N_VOLTAGES,
@@ -66,6 +73,105 @@ static const struct regulator_desc da9121_reg = {
 	.ramp_delay = 20000,
 	/* tBUCK_EN */
 	.enable_time = 20,
+};
+
+static const struct regulator_desc da9220_reg[2] = {
+	{
+		.id = DA9121_IDX_BUCK1,
+		.name = "DA9220/DA9132 BUCK1",
+		.of_match = "buck1",
+		.owner = THIS_MODULE,
+		.regulators_node = of_match_ptr("regulators"),
+		.ops = &da9121_buck_ops,
+		.type = REGULATOR_VOLTAGE,
+		.n_voltages = DA9121_N_VOLTAGES,
+		.min_uV = DA9121_MIN_MV * 1000,
+		.uV_step = DA9121_STEP_MV * 1000,
+		.linear_min_sel = DA9121_MIN_SEL,
+		.enable_reg = DA9121_REG_BUCK_BUCK1_0,
+		.enable_mask = DA9121_MASK_BUCK_BUCKx_0_CHx_EN,
+		.vsel_reg = DA9121_REG_BUCK_BUCK1_5,
+		.vsel_mask = DA9121_MASK_BUCK_BUCKx_5_CHx_A_VOUT,
+	},
+	{
+		.id = DA9121_IDX_BUCK2,
+		.name = "DA9220/DA9132 BUCK2",
+		.of_match = "buck2",
+		.owner = THIS_MODULE,
+		.regulators_node = of_match_ptr("regulators"),
+		.ops = &da9121_buck_ops,
+		.type = REGULATOR_VOLTAGE,
+		.n_voltages = DA9121_N_VOLTAGES,
+		.min_uV = DA9121_MIN_MV * 1000,
+		.uV_step = DA9121_STEP_MV * 1000,
+		.linear_min_sel = DA9121_MIN_SEL,
+		.enable_reg = DA9xxx_REG_BUCK_BUCK2_0,
+		.enable_mask = DA9121_MASK_BUCK_BUCKx_0_CHx_EN,
+		.vsel_reg = DA9xxx_REG_BUCK_BUCK2_5,
+		.vsel_mask = DA9121_MASK_BUCK_BUCKx_5_CHx_A_VOUT,
+	}
+};
+
+static const struct regulator_desc da9122_reg[2] = {
+	{
+		.id = DA9121_IDX_BUCK1,
+		.name = "DA9122/DA9131 BUCK1",
+		.of_match = "buck1",
+		.owner = THIS_MODULE,
+		.regulators_node = of_match_ptr("regulators"),
+		.ops = &da9121_buck_ops,
+		.type = REGULATOR_VOLTAGE,
+		.n_voltages = DA9121_N_VOLTAGES,
+		.min_uV = DA9121_MIN_MV * 1000,
+		.uV_step = DA9121_STEP_MV * 1000,
+		.linear_min_sel = DA9121_MIN_SEL,
+		.enable_reg = DA9121_REG_BUCK_BUCK1_0,
+		.enable_mask = DA9121_MASK_BUCK_BUCKx_0_CHx_EN,
+		.vsel_reg = DA9121_REG_BUCK_BUCK1_5,
+		.vsel_mask = DA9121_MASK_BUCK_BUCKx_5_CHx_A_VOUT,
+	},
+	{
+		.id = DA9121_IDX_BUCK2,
+		.name = "DA9122/DA9131 BUCK2",
+		.of_match = "buck2",
+		.owner = THIS_MODULE,
+		.regulators_node = of_match_ptr("regulators"),
+		.ops = &da9121_buck_ops,
+		.type = REGULATOR_VOLTAGE,
+		.n_voltages = DA9121_N_VOLTAGES,
+		.min_uV = DA9121_MIN_MV * 1000,
+		.uV_step = DA9121_STEP_MV * 1000,
+		.linear_min_sel = DA9121_MIN_SEL,
+		.enable_reg = DA9xxx_REG_BUCK_BUCK2_0,
+		.enable_mask = DA9121_MASK_BUCK_BUCKx_0_CHx_EN,
+		.vsel_reg = DA9xxx_REG_BUCK_BUCK2_5,
+		.vsel_mask = DA9121_MASK_BUCK_BUCKx_5_CHx_A_VOUT,
+	}
+};
+
+static const struct regulator_desc da9217_reg = {
+	.id = DA9121_IDX_BUCK1,
+	.name = "DA9217 BUCK1",
+	.of_match = "buck1",
+	.owner = THIS_MODULE,
+	.regulators_node = of_match_ptr("regulators"),
+	.ops = &da9121_buck_ops,
+	.type = REGULATOR_VOLTAGE,
+	.n_voltages = DA9121_N_VOLTAGES,
+	.min_uV = DA9121_MIN_MV * 1000,
+	.uV_step = DA9121_STEP_MV * 1000,
+	.linear_min_sel = DA9121_MIN_SEL,
+	.enable_reg = DA9121_REG_BUCK_BUCK1_0,
+	.enable_mask = DA9121_MASK_BUCK_BUCKx_0_CHx_EN,
+	.vsel_reg = DA9121_REG_BUCK_BUCK1_5,
+	.vsel_mask = DA9121_MASK_BUCK_BUCKx_5_CHx_A_VOUT,
+};
+
+static const struct regulator_desc *local_da9121_regulators[][DA9121_IDX_MAX] = {
+	[DA9121_TYPE_DA9121_DA9130] = { &da9121_reg, NULL },
+	[DA9121_TYPE_DA9220_DA9132] = { &da9220_reg[0], &da9220_reg[1] },
+	[DA9121_TYPE_DA9122_DA9131] = { &da9122_reg[0], &da9122_reg[1] },
+	[DA9121_TYPE_DA9217] = { &da9217_reg, NULL },
 };
 
 /* DA9121 chip register model */
@@ -254,6 +360,10 @@ static int da9121_assign_chip_model(struct i2c_client *i2c,
 		regmap = &da9121_2ch_regmap_config;
 		break;
 	}
+
+	/* Set these up for of_regulator_match call which may want .of_map_modes */
+	da9121_matches[0].desc = local_da9121_regulators[chip->variant_id][0];
+	da9121_matches[1].desc = local_da9121_regulators[chip->variant_id][1];
 
 	chip->regmap = devm_regmap_init_i2c(i2c, regmap);
 	if (IS_ERR(chip->regmap)) {
