@@ -1899,6 +1899,16 @@
 		status = "disabled";
 	};
 
+	rng: rng@fe388000 {
+		compatible = "rockchip,cryptov2-rng";
+		reg = <0x0 0xfe388000 0x0 0x2000>;
+		clocks = <&cru CLK_TRNG_NS>, <&cru HCLK_TRNG_NS>;
+		clock-names = "clk_trng", "hclk_trng";
+		resets = <&cru SRST_TRNG_NS>;
+		reset-names = "reset";
+		status = "disabled";
+	};
+
 	otp: otp@fe38c000 {
 		compatible = "rockchip,rk3568-otp";
 		reg = <0x0 0xfe38c000 0x0 0x4000>;
