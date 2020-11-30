@@ -144,7 +144,7 @@ void perf_evlist__config(struct evlist *evlist, struct record_opts *opts,
 			evsel__set_sample_id(evsel, use_sample_identifier);
 	}
 
-	perf_evlist__set_id_pos(evlist);
+	evlist__set_id_pos(evlist);
 }
 
 static int get_max_rate(unsigned int *rate)

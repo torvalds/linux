@@ -158,7 +158,7 @@ void evlist__close(struct evlist *evlist);
 
 struct callchain_param;
 
-void perf_evlist__set_id_pos(struct evlist *evlist);
+void evlist__set_id_pos(struct evlist *evlist);
 void perf_evlist__config(struct evlist *evlist, struct record_opts *opts,
 			 struct callchain_param *callchain);
 int record_opts__config(struct record_opts *opts);

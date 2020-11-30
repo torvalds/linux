@@ -110,7 +110,7 @@ int evlist__start_sb_thread(struct evlist *evlist, struct target *target)
 		evlist__for_each_entry(evlist, counter)
 			evsel__set_sample_id(counter, can_sample_identifier);
 
-		perf_evlist__set_id_pos(evlist);
+		evlist__set_id_pos(evlist);
 	}
 
 	evlist__for_each_entry(evlist, counter) {

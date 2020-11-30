@@ -103,13 +103,13 @@ struct evlist *perf_evlist__new_dummy(void)
 }
 
 /**
- * perf_evlist__set_id_pos - set the positions of event ids.
+ * evlist__set_id_pos - set the positions of event ids.
  * @evlist: selected event list
  *
  * Events with compatible sample types all have the same id_pos
  * and is_pos.  For convenience, put a copy on evlist.
  */
-void perf_evlist__set_id_pos(struct evlist *evlist)
+void evlist__set_id_pos(struct evlist *evlist)
 {
 	struct evsel *first = evlist__first(evlist);
 
@@ -117,14 +117,14 @@ void perf_evlist__set_id_pos(struct evlist *evlist)
 	evlist->is_pos = first->is_pos;
 }
 
-static void perf_evlist__update_id_pos(struct evlist *evlist)
+static void evlist__update_id_pos(struct evlist *evlist)
 {
 	struct evsel *evsel;
 
 	evlist__for_each_entry(evlist, evsel)
 		evsel__calc_id_pos(evsel);
 
-	perf_evlist__set_id_pos(evlist);
+	evlist__set_id_pos(evlist);
 }
 
 static void evlist__purge(struct evlist *evlist)
@@ -168,7 +168,7 @@ void evlist__add(struct evlist *evlist, struct evsel *entry)
 	perf_evlist__add(&evlist->core, &entry->core);
 
 	if (evlist->core.nr_entries == 1)
-		perf_evlist__set_id_pos(evlist);
+		evlist__set_id_pos(evlist);
 }
 
 void evlist__remove(struct evlist *evlist, struct evsel *evsel)
@@ -1275,7 +1275,7 @@ int evlist__open(struct evlist *evlist)
 			goto out_err;
 	}
 
-	perf_evlist__update_id_pos(evlist);
+	evlist__update_id_pos(evlist);
 
 	evlist__for_each_entry(evlist, evsel) {
 		err = evsel__open(evsel, evsel->core.cpus, evsel->core.threads);
