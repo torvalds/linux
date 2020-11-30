@@ -153,16 +153,16 @@ static void gfxhub_v2_0_init_system_aperture_regs(struct amdgpu_device *adev)
 	uint64_t value;
 
 	if (!amdgpu_sriov_vf(adev)) {
-		/* Disable AGP. */
+		/* Program the AGP BAR */
 		WREG32_SOC15(GC, 0, mmGCMC_VM_AGP_BASE, 0);
-		WREG32_SOC15(GC, 0, mmGCMC_VM_AGP_TOP, 0);
-		WREG32_SOC15(GC, 0, mmGCMC_VM_AGP_BOT, 0x00FFFFFF);
+		WREG32_SOC15(GC, 0, mmGCMC_VM_AGP_BOT, adev->gmc.agp_start >> 24);
+		WREG32_SOC15(GC, 0, mmGCMC_VM_AGP_TOP, adev->gmc.agp_end >> 24);
 
 		/* Program the system aperture low logical page number. */
 		WREG32_SOC15(GC, 0, mmGCMC_VM_SYSTEM_APERTURE_LOW_ADDR,
-			     adev->gmc.vram_start >> 18);
+			     min(adev->gmc.fb_start, adev->gmc.agp_start) >> 18);
 		WREG32_SOC15(GC, 0, mmGCMC_VM_SYSTEM_APERTURE_HIGH_ADDR,
-			     adev->gmc.vram_end >> 18);
+			     max(adev->gmc.fb_end, adev->gmc.agp_end) >> 18);
 
 		/* Set default page address. */
 		value = adev->vram_scratch.gpu_addr - adev->gmc.vram_start
