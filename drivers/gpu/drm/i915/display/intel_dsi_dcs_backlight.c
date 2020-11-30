@@ -156,6 +156,14 @@ static int dcs_setup_backlight(struct intel_connector *connector,
 	return 0;
 }
 
+static const struct intel_panel_bl_funcs dcs_bl_funcs = {
+	.setup = dcs_setup_backlight,
+	.enable = dcs_enable_backlight,
+	.disable = dcs_disable_backlight,
+	.set = dcs_set_backlight,
+	.get = dcs_get_backlight,
+};
+
 int intel_dsi_dcs_init_backlight_funcs(struct intel_connector *intel_connector)
 {
 	struct drm_device *dev = intel_connector->base.dev;
@@ -169,11 +177,7 @@ int intel_dsi_dcs_init_backlight_funcs(struct intel_connector *intel_connector)
 	if (drm_WARN_ON(dev, encoder->type != INTEL_OUTPUT_DSI))
 		return -EINVAL;
 
-	panel->backlight.setup = dcs_setup_backlight;
-	panel->backlight.enable = dcs_enable_backlight;
-	panel->backlight.disable = dcs_disable_backlight;
-	panel->backlight.set = dcs_set_backlight;
-	panel->backlight.get = dcs_get_backlight;
+	panel->backlight.funcs = &dcs_bl_funcs;
 
 	return 0;
 }
