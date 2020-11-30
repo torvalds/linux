@@ -2221,7 +2221,7 @@ static int record__parse_mmap_pages(const struct option *opt,
 		*p = '\0';
 
 	if (*s) {
-		ret = __perf_evlist__parse_mmap_pages(&mmap_pages, s);
+		ret = __evlist__parse_mmap_pages(&mmap_pages, s);
 		if (ret)
 			goto out_free;
 		opts->mmap_pages = mmap_pages;
@@ -2232,7 +2232,7 @@ static int record__parse_mmap_pages(const struct option *opt,
 		goto out_free;
 	}
 
-	ret = __perf_evlist__parse_mmap_pages(&mmap_pages, p + 1);
+	ret = __evlist__parse_mmap_pages(&mmap_pages, p + 1);
 	if (ret)
 		goto out_free;
 
