@@ -209,7 +209,7 @@ static const struct sof_dev_desc icl_desc = {
 	.default_tplg_path = "intel/sof-tplg",
 	.default_fw_filename = "sof-icl.ri",
 	.nocodec_tplg_filename = "sof-icl-nocodec.tplg",
-	.ops = &sof_cnl_ops,
+	.ops = &sof_icl_ops,
 };
 #endif
 

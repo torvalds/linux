@@ -62,6 +62,7 @@ enum sof_ext_man_elem_type {
 	SOF_EXT_MAN_ELEM_CC_VERSION		= SOF_IPC_EXT_CC_INFO,
 	SOF_EXT_MAN_ELEM_DBG_ABI		= SOF_IPC_EXT_USER_ABI_INFO,
 	SOF_EXT_MAN_ELEM_CONFIG_DATA		= 5, /**< ABI3.17 */
+	SOF_EXT_MAN_ELEM_PLATFORM_CONFIG_DATA   = 6,
 };
 
 /* extended manifest element header */

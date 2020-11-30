@@ -2,26 +2,30 @@
 //
 // Copyright(c) 2020 Intel Corporation. All rights reserved.
 //
-// Authors: Ranjani Sridharan <ranjani.sridharan@linux.intel.com>
+// Author: Fred Oh <fred.oh@linux.intel.com>
 //
 
 /*
- * Hardware interface for audio DSP on Tigerlake.
+ * Hardware interface for audio DSP on IceLake.
  */
 
+#include <linux/kernel.h>
+#include <linux/kconfig.h>
+#include <linux/export.h>
+#include <linux/bits.h>
 #include "../ops.h"
 #include "hda.h"
 #include "hda-ipc.h"
 #include "../sof-audio.h"
 
-static const struct snd_sof_debugfs_map tgl_dsp_debugfs[] = {
+static const struct snd_sof_debugfs_map icl_dsp_debugfs[] = {
 	{"hda", HDA_DSP_HDA_BAR, 0, 0x4000, SOF_DEBUGFS_ACCESS_ALWAYS},
 	{"pp", HDA_DSP_PP_BAR,  0, 0x1000, SOF_DEBUGFS_ACCESS_ALWAYS},
 	{"dsp", HDA_DSP_BAR,  0, 0x10000, SOF_DEBUGFS_ACCESS_ALWAYS},
 };
 
-/* Tigerlake ops */
-const struct snd_sof_dsp_ops sof_tgl_ops = {
+/* Icelake ops */
+const struct snd_sof_dsp_ops sof_icl_ops = {
 	/* probe and remove */
 	.probe		= hda_dsp_probe,
 	.remove		= hda_dsp_remove,
@@ -55,8 +59,8 @@ const struct snd_sof_dsp_ops sof_tgl_ops = {
 	.set_mach_params = hda_set_mach_params,
 
 	/* debug */
-	.debug_map	= tgl_dsp_debugfs,
-	.debug_map_count	= ARRAY_SIZE(tgl_dsp_debugfs),
+	.debug_map	= icl_dsp_debugfs,
+	.debug_map_count	= ARRAY_SIZE(icl_dsp_debugfs),
 	.dbg_dump	= hda_dsp_dump,
 	.ipc_dump	= cnl_ipc_dump,
 
@@ -82,7 +86,7 @@ const struct snd_sof_dsp_ops sof_tgl_ops = {
 
 	/* pre/post fw run */
 	.pre_fw_run = hda_dsp_pre_fw_run,
-	.post_fw_run = hda_dsp_post_fw_run,
+	.post_fw_run = hda_dsp_post_fw_run_icl,
 
 	/* parse platform specific extended manifest */
 	.parse_platform_ext_manifest = hda_dsp_ext_man_get_cavs_config_data,
@@ -93,6 +97,7 @@ const struct snd_sof_dsp_ops sof_tgl_ops = {
 
 	/* firmware run */
 	.run = hda_dsp_cl_boot_firmware_iccmax,
+	.stall = hda_dsp_core_stall_icl,
 
 	/* trace callback */
 	.trace_init = hda_dsp_trace_init,
@@ -121,13 +126,13 @@ const struct snd_sof_dsp_ops sof_tgl_ops = {
 
 	.arch_ops = &sof_xtensa_arch_ops,
 };
-EXPORT_SYMBOL_NS(sof_tgl_ops, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(sof_icl_ops, SND_SOC_SOF_INTEL_HDA_COMMON);
 
-const struct sof_intel_dsp_desc tgl_chip_info = {
-	/* Tigerlake */
+const struct sof_intel_dsp_desc icl_chip_info = {
+	/* Icelake */
 	.cores_num = 4,
 	.init_core_mask = 1,
-	.host_managed_cores_mask = BIT(0),
+	.host_managed_cores_mask = GENMASK(3, 0),
 	.ipc_req = CNL_DSP_REG_HIPCIDR,
 	.ipc_req_mask = CNL_DSP_REG_HIPCIDR_BUSY,
 	.ipc_ack = CNL_DSP_REG_HIPCIDA,
@@ -137,36 +142,4 @@ const struct sof_intel_dsp_desc tgl_chip_info = {
 	.ssp_count = ICL_SSP_COUNT,
 	.ssp_base_offset = CNL_SSP_BASE_OFFSET,
 };
-EXPORT_SYMBOL_NS(tgl_chip_info, SND_SOC_SOF_INTEL_HDA_COMMON);
-
-const struct sof_intel_dsp_desc tglh_chip_info = {
-	/* Tigerlake-H */
-	.cores_num = 2,
-	.init_core_mask = 1,
-	.host_managed_cores_mask = BIT(0),
-	.ipc_req = CNL_DSP_REG_HIPCIDR,
-	.ipc_req_mask = CNL_DSP_REG_HIPCIDR_BUSY,
-	.ipc_ack = CNL_DSP_REG_HIPCIDA,
-	.ipc_ack_mask = CNL_DSP_REG_HIPCIDA_DONE,
-	.ipc_ctl = CNL_DSP_REG_HIPCCTL,
-	.rom_init_timeout	= 300,
-	.ssp_count = ICL_SSP_COUNT,
-	.ssp_base_offset = CNL_SSP_BASE_OFFSET,
-};
-EXPORT_SYMBOL_NS(tglh_chip_info, SND_SOC_SOF_INTEL_HDA_COMMON);
-
-const struct sof_intel_dsp_desc adls_chip_info = {
-	/* Alderlake-S */
-	.cores_num = 2,
-	.init_core_mask = BIT(0),
-	.host_managed_cores_mask = BIT(0),
-	.ipc_req = CNL_DSP_REG_HIPCIDR,
-	.ipc_req_mask = CNL_DSP_REG_HIPCIDR_BUSY,
-	.ipc_ack = CNL_DSP_REG_HIPCIDA,
-	.ipc_ack_mask = CNL_DSP_REG_HIPCIDA_DONE,
-	.ipc_ctl = CNL_DSP_REG_HIPCCTL,
-	.rom_init_timeout	= 300,
-	.ssp_count = ICL_SSP_COUNT,
-	.ssp_base_offset = CNL_SSP_BASE_OFFSET,
-};
-EXPORT_SYMBOL_NS(adls_chip_info, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(icl_chip_info, SND_SOC_SOF_INTEL_HDA_COMMON);

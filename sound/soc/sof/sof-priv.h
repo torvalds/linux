@@ -18,6 +18,7 @@
 #include <sound/sof/pm.h>
 #include <sound/sof/trace.h>
 #include <uapi/sound/sof/fw.h>
+#include <sound/sof/ext_manifest.h>
 
 /* debug flags */
 #define SOF_DBG_ENABLE_TRACE	BIT(0)
@@ -100,7 +101,7 @@ struct snd_sof_dsp_ops {
 
 	/* DSP core boot / reset */
 	int (*run)(struct snd_sof_dev *sof_dev); /* mandatory */
-	int (*stall)(struct snd_sof_dev *sof_dev); /* optional */
+	int (*stall)(struct snd_sof_dev *sof_dev, unsigned int core_mask); /* optional */
 	int (*reset)(struct snd_sof_dev *sof_dev); /* optional */
 	int (*core_power_up)(struct snd_sof_dev *sof_dev,
 			     unsigned int core_mask); /* optional */
@@ -207,6 +208,10 @@ struct snd_sof_dsp_ops {
 	/* pre/post firmware run */
 	int (*pre_fw_run)(struct snd_sof_dev *sof_dev); /* optional */
 	int (*post_fw_run)(struct snd_sof_dev *sof_dev); /* optional */
+
+	/* parse platform specific extended manifest, optional */
+	int (*parse_platform_ext_manifest)(struct snd_sof_dev *sof_dev,
+					   const struct sof_ext_man_elem_header *hdr);
 
 	/* DSP PM */
 	int (*suspend)(struct snd_sof_dev *sof_dev,
