@@ -54,7 +54,7 @@
 			status = "okay";
 		};
 
-		serial@c280000 {
+		serial@3100000 {
 			status = "okay";
 		};
 

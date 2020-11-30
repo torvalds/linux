@@ -236,8 +236,17 @@ static int au1550nd_exec_op(struct nand_chip *this,
 	return ret;
 }
 
+static int au1550nd_attach_chip(struct nand_chip *chip)
+{
+	chip->ecc.engine_type = NAND_ECC_ENGINE_TYPE_SOFT;
+	chip->ecc.algo = NAND_ECC_ALGO_HAMMING;
+
+	return 0;
+}
+
 static const struct nand_controller_ops au1550nd_ops = {
 	.exec_op = au1550nd_exec_op,
+	.attach_chip = au1550nd_attach_chip,
 };
 
 static int au1550nd_probe(struct platform_device *pdev)
@@ -294,8 +303,6 @@ static int au1550nd_probe(struct platform_device *pdev)
 	nand_controller_init(&ctx->controller);
 	ctx->controller.ops = &au1550nd_ops;
 	this->controller = &ctx->controller;
-	this->ecc.engine_type = NAND_ECC_ENGINE_TYPE_SOFT;
-	this->ecc.algo = NAND_ECC_ALGO_HAMMING;
 
 	if (pd->devwidth)
 		this->options |= NAND_BUSWIDTH_16;

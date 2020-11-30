@@ -458,10 +458,6 @@ static int catpt_dai_prepare(struct snd_pcm_substream *substream,
 	if (ret)
 		return CATPT_IPC_ERROR(ret);
 
-	ret = catpt_dsp_update_lpclock(cdev);
-	if (ret)
-		return ret;
-
 	ret = catpt_dai_apply_usettings(dai, stream);
 	if (ret)
 		return ret;
@@ -500,6 +496,7 @@ static int catpt_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 	resume_stream:
+		catpt_dsp_update_lpclock(cdev);
 		ret = catpt_ipc_resume_stream(cdev, stream->info.stream_hw_id);
 		if (ret)
 			return CATPT_IPC_ERROR(ret);
@@ -507,11 +504,11 @@ static int catpt_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 
 	case SNDRV_PCM_TRIGGER_STOP:
 		stream->prepared = false;
-		catpt_dsp_update_lpclock(cdev);
 		fallthrough;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		ret = catpt_ipc_pause_stream(cdev, stream->info.stream_hw_id);
+		catpt_dsp_update_lpclock(cdev);
 		if (ret)
 			return CATPT_IPC_ERROR(ret);
 		break;
@@ -534,6 +531,8 @@ void catpt_stream_update_position(struct catpt_dev *cdev,
 
 	dsppos = bytes_to_frames(r, pos->stream_position);
 
+	if (!stream->prepared)
+		goto exit;
 	/* only offload is set_write_pos driven */
 	if (stream->template->type != CATPT_STRM_TYPE_RENDER)
 		goto exit;

@@ -138,7 +138,8 @@ static int run_getsockopt_test(struct bpf_object *obj, int cg_parent,
 	 */
 
 	buf = 0x40;
-	if (setsockopt(sock_fd, SOL_IP, IP_TOS, &buf, 1) < 0) {
+	err = setsockopt(sock_fd, SOL_IP, IP_TOS, &buf, 1);
+	if (err < 0) {
 		log_err("Failed to call setsockopt(IP_TOS)");
 		goto detach;
 	}

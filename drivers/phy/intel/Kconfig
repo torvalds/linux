@@ -4,7 +4,7 @@
 #
 config PHY_INTEL_KEEMBAY_EMMC
 	tristate "Intel Keem Bay EMMC PHY driver"
-	depends on (OF && ARM64) || COMPILE_TEST
+	depends on ARCH_KEEMBAY || COMPILE_TEST
 	depends on HAS_IOMEM
 	select GENERIC_PHY
 	select REGMAP_MMIO

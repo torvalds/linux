@@ -282,20 +282,6 @@ struct mem_cgroup {
 
 	MEMCG_PADDING(_pad1_);
 
-	/*
-	 * set > 0 if pages under this cgroup are moving to other cgroup.
-	 */
-	atomic_t		moving_account;
-	struct task_struct	*move_lock_task;
-
-	/* Legacy local VM stats and events */
-	struct memcg_vmstats_percpu __percpu *vmstats_local;
-
-	/* Subtree VM stats and events (batched updates) */
-	struct memcg_vmstats_percpu __percpu *vmstats_percpu;
-
-	MEMCG_PADDING(_pad2_);
-
 	atomic_long_t		vmstats[MEMCG_NR_STAT];
 	atomic_long_t		vmevents[NR_VM_EVENT_ITEMS];
 
@@ -316,6 +302,20 @@ struct mem_cgroup {
 	struct obj_cgroup __rcu *objcg;
 	struct list_head objcg_list; /* list of inherited objcgs */
 #endif
+
+	MEMCG_PADDING(_pad2_);
+
+	/*
+	 * set > 0 if pages under this cgroup are moving to other cgroup.
+	 */
+	atomic_t		moving_account;
+	struct task_struct	*move_lock_task;
+
+	/* Legacy local VM stats and events */
+	struct memcg_vmstats_percpu __percpu *vmstats_local;
+
+	/* Subtree VM stats and events (batched updates) */
+	struct memcg_vmstats_percpu __percpu *vmstats_percpu;
 
 #ifdef CONFIG_CGROUP_WRITEBACK
 	struct list_head cgwb_list;

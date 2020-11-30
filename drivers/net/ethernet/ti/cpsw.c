@@ -838,9 +838,12 @@ static int cpsw_ndo_open(struct net_device *ndev)
 		if (ret < 0)
 			goto err_cleanup;
 
-		if (cpts_register(cpsw->cpts))
-			dev_err(priv->dev, "error registering cpts device\n");
-
+		if (cpsw->cpts) {
+			if (cpts_register(cpsw->cpts))
+				dev_err(priv->dev, "error registering cpts device\n");
+			else
+				writel(0x10, &cpsw->wr_regs->misc_en);
+		}
 	}
 
 	cpsw_restore(priv);
@@ -1631,6 +1634,7 @@ static int cpsw_probe(struct platform_device *pdev)
 				       CPSW_MAX_QUEUES, CPSW_MAX_QUEUES);
 	if (!ndev) {
 		dev_err(dev, "error allocating net_device\n");
+		ret = -ENOMEM;
 		goto clean_cpts;
 	}
 
@@ -1716,7 +1720,6 @@ static int cpsw_probe(struct platform_device *pdev)
 
 	/* Enable misc CPTS evnt_pend IRQ */
 	cpts_set_irqpoll(cpsw->cpts, false);
-	writel(0x10, &cpsw->wr_regs->misc_en);
 
 skip_cpts:
 	cpsw_notice(priv, probe,
