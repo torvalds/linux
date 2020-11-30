@@ -12559,6 +12559,12 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/display/imx/nxp,imx8mq-dcss.yaml
 F:	drivers/gpu/drm/imx/dcss/
 
+NXP PF8100/PF8121A/PF8200 PMIC REGULATOR DEVICE DRIVER
+M:	Jagan Teki <jagan@amarulasolutions.com>
+S:	Maintained
+F:	Documentation/devicetree/bindings/regulator/nxp,pf8x00-regulator.yaml
+F:	drivers/regulator/pf8x00-regulator.c
+
 NXP PTN5150A CC LOGIC AND EXTCON DRIVER
 M:	Krzysztof Kozlowski <krzk@kernel.org>
 L:	linux-kernel@vger.kernel.org
