@@ -197,8 +197,7 @@ static void s390_cpumcfdg_dump(struct perf_sample *sample)
  * its raw data.
  * The function is only invoked when the dump flag -D is set.
  */
-void perf_evlist__s390_sample_raw(struct evlist *evlist, union perf_event *event,
-				  struct perf_sample *sample)
+void evlist__s390_sample_raw(struct evlist *evlist, union perf_event *event, struct perf_sample *sample)
 {
 	struct evsel *ev_bc000;
 
