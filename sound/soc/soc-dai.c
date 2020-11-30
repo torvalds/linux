@@ -564,23 +564,51 @@ int snd_soc_pcm_dai_prepare(struct snd_pcm_substream *substream)
 	return 0;
 }
 
+static int soc_dai_trigger(struct snd_soc_dai *dai,
+			   struct snd_pcm_substream *substream, int cmd)
+{
+	int ret = 0;
+
+	if (dai->driver->ops &&
+	    dai->driver->ops->trigger)
+		ret = dai->driver->ops->trigger(substream, cmd, dai);
+
+	return soc_dai_ret(dai, ret);
+}
+
 int snd_soc_pcm_dai_trigger(struct snd_pcm_substream *substream,
-			    int cmd)
+			    int cmd, int rollback)
 {
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_dai *dai;
-	int i, ret;
+	int i, r, ret = 0;
 
-	for_each_rtd_dais(rtd, i, dai) {
-		if (dai->driver->ops &&
-		    dai->driver->ops->trigger) {
-			ret = dai->driver->ops->trigger(substream, cmd, dai);
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_RESUME:
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		for_each_rtd_dais(rtd, i, dai) {
+			ret = soc_dai_trigger(dai, substream, cmd);
 			if (ret < 0)
-				return soc_dai_ret(dai, ret);
+				break;
+			soc_dai_mark_push(dai, substream, trigger);
+		}
+		break;
+	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		for_each_rtd_dais(rtd, i, dai) {
+			if (rollback && !soc_dai_mark_match(dai, substream, trigger))
+				continue;
+
+			r = soc_dai_trigger(dai, substream, cmd);
+			if (r < 0)
+				ret = r; /* use last ret */
+			soc_dai_mark_pop(dai, substream, trigger);
 		}
 	}
 
-	return 0;
+	return ret;
 }
 
 int snd_soc_pcm_dai_bespoke_trigger(struct snd_pcm_substream *substream,

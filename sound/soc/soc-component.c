@@ -1075,22 +1075,51 @@ void snd_soc_pcm_component_hw_free(struct snd_pcm_substream *substream,
 	}
 }
 
+static int soc_component_trigger(struct snd_soc_component *component,
+				 struct snd_pcm_substream *substream,
+				 int cmd)
+{
+	int ret = 0;
+
+	if (component->driver->trigger)
+		ret = component->driver->trigger(component, substream, cmd);
+
+	return soc_component_ret(component, ret);
+}
+
 int snd_soc_pcm_component_trigger(struct snd_pcm_substream *substream,
-				  int cmd)
+				  int cmd, int rollback)
 {
 	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 	struct snd_soc_component *component;
-	int i, ret;
+	int i, r, ret = 0;
 
-	for_each_rtd_components(rtd, i, component) {
-		if (component->driver->trigger) {
-			ret = component->driver->trigger(component, substream, cmd);
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_RESUME:
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		for_each_rtd_components(rtd, i, component) {
+			ret = soc_component_trigger(component, substream, cmd);
 			if (ret < 0)
-				return soc_component_ret(component, ret);
+				break;
+			soc_component_mark_push(component, substream, trigger);
+		}
+		break;
+	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		for_each_rtd_components(rtd, i, component) {
+			if (rollback && !soc_component_mark_match(component, substream, trigger))
+				continue;
+
+			r = soc_component_trigger(component, substream, cmd);
+			if (r < 0)
+				ret = r; /* use last ret */
+			soc_component_mark_pop(component, substream, trigger);
 		}
 	}
 
-	return 0;
+	return ret;
 }
 
 int snd_soc_pcm_component_pm_runtime_get(struct snd_soc_pcm_runtime *rtd,

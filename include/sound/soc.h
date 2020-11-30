@@ -1042,6 +1042,7 @@ struct snd_soc_pcm_runtime {
 	/* function mark */
 	struct snd_pcm_substream *mark_startup;
 	struct snd_pcm_substream *mark_hw_params;
+	struct snd_pcm_substream *mark_trigger;
 	struct snd_compr_stream  *mark_compr_startup;
 
 	/* bit field */

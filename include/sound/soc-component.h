@@ -221,6 +221,7 @@ struct snd_soc_component {
 	struct snd_pcm_substream *mark_module;
 	struct snd_pcm_substream *mark_open;
 	struct snd_pcm_substream *mark_hw_params;
+	struct snd_pcm_substream *mark_trigger;
 	struct snd_compr_stream  *mark_compr_open;
 	void *mark_pm;
 
@@ -486,7 +487,7 @@ int snd_soc_pcm_component_hw_params(struct snd_pcm_substream *substream,
 void snd_soc_pcm_component_hw_free(struct snd_pcm_substream *substream,
 				   int rollback);
 int snd_soc_pcm_component_trigger(struct snd_pcm_substream *substream,
-				  int cmd);
+				  int cmd, int rollback);
 int snd_soc_pcm_component_pm_runtime_get(struct snd_soc_pcm_runtime *rtd,
 					 void *stream);
 void snd_soc_pcm_component_pm_runtime_put(struct snd_soc_pcm_runtime *rtd,
