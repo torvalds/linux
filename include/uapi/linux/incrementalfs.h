@@ -141,6 +141,11 @@
  */
 #define INCFS_FEATURE_FLAG_REPORT_UID "report_uid"
 
+/*
+ * zstd compression support
+ */
+#define INCFS_FEATURE_FLAG_ZSTD "zstd"
+
 enum incfs_compression_alg {
 	COMPRESSION_NONE = 0,
 	COMPRESSION_LZ4 = 1,
