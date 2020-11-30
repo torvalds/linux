@@ -312,9 +312,6 @@ static int vega20_ih_irq_init(struct amdgpu_device *adev)
 		if (adev->irq.ih.use_bus_addr) {
 			ih_chicken = REG_SET_FIELD(ih_chicken, IH_CHICKEN,
 						   MC_SPACE_GPA_ENABLE, 1);
-		} else {
-			ih_chicken = REG_SET_FIELD(ih_chicken, IH_CHICKEN,
-						   MC_SPACE_FBPA_ENABLE, 1);
 		}
 		WREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN, ih_chicken);
 	}
