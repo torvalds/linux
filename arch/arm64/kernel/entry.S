@@ -637,16 +637,8 @@ SYM_CODE_START_LOCAL_NOALIGN(el1_irq)
 	gic_prio_irq_setup pmr=x20, tmp=x1
 	enable_da_f
 
-#ifdef CONFIG_ARM64_PSEUDO_NMI
-	test_irqs_unmasked	res=x0, pmr=x20
-	cbz	x0, 1f
-	bl	asm_nmi_enter
-1:
-#endif
-
-#ifdef CONFIG_TRACE_IRQFLAGS
-	bl	trace_hardirqs_off
-#endif
+	mov	x0, sp
+	bl	enter_el1_irq_or_nmi
 
 	irq_handler
 
@@ -665,26 +657,8 @@ alternative_else_nop_endif
 1:
 #endif
 
-#ifdef CONFIG_ARM64_PSEUDO_NMI
-	/*
-	 * When using IRQ priority masking, we can get spurious interrupts while
-	 * PMR is set to GIC_PRIO_IRQOFF. An NMI might also have occurred in a
-	 * section with interrupts disabled. Skip tracing in those cases.
-	 */
-	test_irqs_unmasked	res=x0, pmr=x20
-	cbz	x0, 1f
-	bl	asm_nmi_exit
-1:
-#endif
-
-#ifdef CONFIG_TRACE_IRQFLAGS
-#ifdef CONFIG_ARM64_PSEUDO_NMI
-	test_irqs_unmasked	res=x0, pmr=x20
-	cbnz	x0, 1f
-#endif
-	bl	trace_hardirqs_on
-1:
-#endif
+	mov	x0, sp
+	bl	exit_el1_irq_or_nmi
 
 	kernel_exit 1
 SYM_CODE_END(el1_irq)

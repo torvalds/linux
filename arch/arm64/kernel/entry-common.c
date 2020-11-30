@@ -17,6 +17,22 @@
 #include <asm/mmu.h>
 #include <asm/sysreg.h>
 
+asmlinkage void noinstr enter_el1_irq_or_nmi(struct pt_regs *regs)
+{
+	if (IS_ENABLED(CONFIG_ARM64_PSEUDO_NMI) && !interrupts_enabled(regs))
+		nmi_enter();
+
+	trace_hardirqs_off();
+}
+
+asmlinkage void noinstr exit_el1_irq_or_nmi(struct pt_regs *regs)
+{
+	if (IS_ENABLED(CONFIG_ARM64_PSEUDO_NMI) && !interrupts_enabled(regs))
+		nmi_exit();
+	else
+		trace_hardirqs_on();
+}
+
 static void noinstr el1_abort(struct pt_regs *regs, unsigned long esr)
 {
 	unsigned long far = read_sysreg(far_el1);
