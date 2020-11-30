@@ -123,10 +123,6 @@ struct tcan4x5x_priv {
 	struct gpio_desc *device_wake_gpio;
 	struct gpio_desc *device_state_gpio;
 	struct regulator *power;
-
-	/* Register based ip */
-	int mram_start;
-	int reg_offset;
 };
 
 static struct can_bittiming_const tcan4x5x_bittiming_const = {
@@ -260,7 +256,7 @@ static u32 tcan4x5x_read_reg(struct m_can_classdev *cdev, int reg)
 	struct tcan4x5x_priv *priv = cdev->device_data;
 	u32 val;
 
-	regmap_read(priv->regmap, priv->reg_offset + reg, &val);
+	regmap_read(priv->regmap, TCAN4X5X_MCAN_OFFSET + reg, &val);
 
 	return val;
 }
@@ -270,7 +266,7 @@ static u32 tcan4x5x_read_fifo(struct m_can_classdev *cdev, int addr_offset)
 	struct tcan4x5x_priv *priv = cdev->device_data;
 	u32 val;
 
-	regmap_read(priv->regmap, priv->mram_start + addr_offset, &val);
+	regmap_read(priv->regmap, TCAN4X5X_MRAM_START + addr_offset, &val);
 
 	return val;
 }
@@ -279,7 +275,7 @@ static int tcan4x5x_write_reg(struct m_can_classdev *cdev, int reg, int val)
 {
 	struct tcan4x5x_priv *priv = cdev->device_data;
 
-	return regmap_write(priv->regmap, priv->reg_offset + reg, val);
+	return regmap_write(priv->regmap, TCAN4X5X_MCAN_OFFSET + reg, val);
 }
 
 static int tcan4x5x_write_fifo(struct m_can_classdev *cdev,
@@ -287,7 +283,7 @@ static int tcan4x5x_write_fifo(struct m_can_classdev *cdev,
 {
 	struct tcan4x5x_priv *priv = cdev->device_data;
 
-	return regmap_write(priv->regmap, priv->mram_start + addr_offset, val);
+	return regmap_write(priv->regmap, TCAN4X5X_MRAM_START + addr_offset, val);
 }
 
 static int tcan4x5x_power_enable(struct regulator *reg, int enable)
@@ -465,8 +461,6 @@ static int tcan4x5x_can_probe(struct spi_device *spi)
 		goto out_m_can_class_free_dev;
 	}
 
-	priv->reg_offset = TCAN4X5X_MCAN_OFFSET;
-	priv->mram_start = TCAN4X5X_MRAM_START;
 	priv->spi = spi;
 	priv->mcan_dev = mcan_class;
 
