@@ -681,6 +681,12 @@ static int dw9714_probe(struct i2c_client *client,
 		dev_err(&client->dev,
 			"%s: failed with error %d\n", __func__, ret);
 
+	/* set normal mode */
+	ret = dw9714_write_msg(client, 0xDF, 0x5B);
+	if (ret != 0)
+		dev_err(&client->dev,
+			"%s: failed with error %d\n", __func__, ret);
+
 	dw9714_dev->vcm_movefull_t =
 		dw9714_move_time(dw9714_dev, DW9714_MAX_REG);
 	pm_runtime_set_active(&client->dev);
