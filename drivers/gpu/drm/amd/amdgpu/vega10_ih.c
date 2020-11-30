@@ -640,15 +640,11 @@ static void vega10_ih_update_clockgating_state(struct amdgpu_device *adev,
 		def = data = RREG32_SOC15(OSSSYS, 0, mmIH_CLK_CTRL);
 		field_val = enable ? 0 : 1;
 		/**
-		 * Vega10 does not have IH_RETRY_INT_CAM_MEM_CLK_SOFT_OVERRIDE
-		 * and IH_BUFFER_MEM_CLK_SOFT_OVERRIDE field.
+		 * Vega10/12 and RAVEN don't have IH_BUFFER_MEM_CLK_SOFT_OVERRIDE field.
 		 */
-		if (adev->asic_type > CHIP_VEGA10) {
-			data = REG_SET_FIELD(data, IH_CLK_CTRL,
-				     IH_RETRY_INT_CAM_MEM_CLK_SOFT_OVERRIDE, field_val);
+		if (adev->asic_type == CHIP_RENOIR)
 			data = REG_SET_FIELD(data, IH_CLK_CTRL,
 				     IH_BUFFER_MEM_CLK_SOFT_OVERRIDE, field_val);
-		}
 
 		data = REG_SET_FIELD(data, IH_CLK_CTRL,
 				     DBUS_MUX_CLK_SOFT_OVERRIDE, field_val);
