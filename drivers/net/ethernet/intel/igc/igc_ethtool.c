@@ -544,7 +544,6 @@ static int igc_ethtool_set_eeprom(struct net_device *netdev,
 	if (ret_val == 0)
 		hw->nvm.ops.update(hw);
 
-	/* check if need: igc_set_fw_version(adapter); */
 	kfree(eeprom_buff);
 	return ret_val;
 }
