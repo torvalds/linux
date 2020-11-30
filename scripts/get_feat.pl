@@ -6,13 +6,18 @@ use Pod::Usage;
 use Getopt::Long;
 use File::Find;
 use Fcntl ':mode';
+use Cwd 'abs_path';
 
 my $help;
 my $man;
 my $debug;
 my $arch;
 my $feat;
-my $prefix="Documentation/features";
+
+my $basename = abs_path($0);
+$basename =~ s,/[^/]+$,/,;
+
+my $prefix=$basename . "../Documentation/features";
 
 GetOptions(
 	"debug|d+" => \$debug,
@@ -20,17 +25,19 @@ GetOptions(
 	'help|?' => \$help,
 	'arch=s' => \$arch,
 	'feat=s' => \$feat,
+	'feature=s' => \$feat,
 	man => \$man
 ) or pod2usage(2);
 
 pod2usage(1) if $help;
 pod2usage(-exitstatus => 0, -verbose => 2) if $man;
 
-pod2usage(2) if (scalar @ARGV < 1 || @ARGV > 2);
+pod2usage(1) if (scalar @ARGV < 1 || @ARGV > 2);
 
 my ($cmd, $arg) = @ARGV;
 
-pod2usage(2) if ($cmd ne "current" && $cmd ne "rest" && $cmd ne "validate");
+pod2usage(2) if ($cmd ne "current" && $cmd ne "rest" && $cmd ne "validate"
+		&& $cmd ne "ls" && $cmd ne "list");
 
 require Data::Dumper if ($debug);
 
@@ -213,7 +220,7 @@ sub output_arch_table {
 
 	foreach my $name (sort {
 				($data{$a}->{subsys} cmp $data{$b}->{subsys}) ||
-				($data{$a}->{name} cmp $data{$b}->{name})
+				("\L$a" cmp "\L$b")
 			       } keys %data) {
 		next if ($feat && $name ne $feat);
 
@@ -222,7 +229,7 @@ sub output_arch_table {
 		printf "%-${max_size_name}s  ", $name;
 		printf "%-${max_size_kconfig}s  ", $data{$name}->{kconfig};
 		printf "%-${max_size_status}s  ", $arch_table{$arch};
-		printf "%-${max_size_description}s\n", $data{$name}->{description};
+		printf "%-s\n", $data{$name}->{description};
 	}
 
 	print "=" x $max_size_subsys;
@@ -235,6 +242,31 @@ sub output_arch_table {
 	print "  ";
 	print "=" x $max_size_description;
 	print "\n";
+}
+
+#
+# list feature(s) for a given architecture
+#
+sub list_arch_features {
+	print "#\n# Kernel feature support matrix of the '$arch' architecture:\n#\n";
+
+	foreach my $name (sort {
+				($data{$a}->{subsys} cmp $data{$b}->{subsys}) ||
+				("\L$a" cmp "\L$b")
+			       } keys %data) {
+		next if ($feat && $name ne $feat);
+
+		my %arch_table = %{$data{$name}->{table}};
+
+		my $status = $arch_table{$arch};
+		$status = " " x ((4 - length($status)) / 2) . $status;
+
+		printf " %${max_size_subsys}s/ ", $data{$name}->{subsys};
+		printf "%-${max_size_name}s: ", $name;
+		printf "%-5s|   ", $status;
+		printf "%${max_size_kconfig}s # ", $data{$name}->{kconfig};
+		printf " %s\n", $data{$name}->{description};
+	}
 }
 
 #
@@ -337,7 +369,7 @@ sub output_matrix {
 	my $cur_subsys = "";
 	foreach my $name (sort {
 				($data{$a}->{subsys} cmp $data{$b}->{subsys}) or
-				($a cmp $b)
+				("\L$a" cmp "\L$b")
 			       } keys %data) {
 
 		if ($cur_subsys ne $data{$name}->{subsys}) {
@@ -400,6 +432,17 @@ if ($cmd eq "current") {
 	$arch =~s/\s+$//;
 }
 
+if ($cmd eq "ls" or $cmd eq "list") {
+	if (!$arch) {
+		$arch = qx(uname -m | sed 's/x86_64/x86/' | sed 's/i386/x86/');
+		$arch =~s/\s+$//;
+	}
+
+	list_arch_features;
+
+	exit;
+}
+
 if ($cmd ne "validate") {
 	if ($arch) {
 		output_arch_table;
@@ -418,18 +461,26 @@ get_feat.pl - parse the Linux Feature files and produce a ReST book.
 
 =head1 SYNOPSIS
 
-B<get_feat.pl> [--debug] [--man] [--help] [--dir=<dir>]
-	       [--arch=<arch>] [--feat=<feature>] <COMAND> [<ARGUMENT>]
+B<get_feat.pl> [--debug] [--man] [--help] [--dir=<dir>] [--arch=<arch>]
+	       [--feature=<feature>|--feat=<feature>] <COMAND> [<ARGUMENT>]
 
 Where <COMMAND> can be:
 
 =over 8
 
-B<current>               - output features for this machine's architecture
+B<current>               - output table in ReST compatible ASCII format
+			   with features for this machine's architecture
 
-B<rest>                  - output features in ReST markup language
+B<rest>                  - output table(s)  in ReST compatible ASCII format
+			   with features in ReST markup language. The output
+			   is affected by --arch or --feat/--feature flags.
 
-B<validate>              - validate the feature contents
+B<validate>              - validate the contents of the files under
+			   Documentation/features.
+
+B<ls> or B<list>         - list features for this machine's architecture,
+			   using an easier to parse format.
+			   The output is affected by --arch flag.
 
 =back
 
@@ -442,9 +493,9 @@ B<validate>              - validate the feature contents
 Output features for an specific architecture, optionally filtering for
 a single specific feature.
 
-=item B<--feat>
+=item B<--feat> or B<--feature>
 
-Output features for a single specific architecture.
+Output features for a single specific feature.
 
 =item B<--dir>
 
