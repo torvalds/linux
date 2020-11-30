@@ -4583,6 +4583,7 @@ static void intel_ddi_read_func_ctl(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	enum transcoder cpu_transcoder = pipe_config->cpu_transcoder;
+	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 	u32 temp, flags = 0;
 
 	temp = intel_de_read(dev_priv, TRANS_DDI_FUNC_CTL(cpu_transcoder));
@@ -4657,9 +4658,12 @@ static void intel_ddi_read_func_ctl(struct intel_encoder *encoder,
 				    pipe_config->fec_enable);
 		}
 
-		pipe_config->infoframes.enable |=
-			intel_hdmi_infoframes_enabled(encoder, pipe_config);
-
+		if (dig_port->lspcon.active && dig_port->dp.has_hdmi_sink)
+			pipe_config->infoframes.enable |=
+				intel_lspcon_infoframes_enabled(encoder, pipe_config);
+		else
+			pipe_config->infoframes.enable |=
+				intel_hdmi_infoframes_enabled(encoder, pipe_config);
 		break;
 	case TRANS_DDI_MODE_SELECT_DP_MST:
 		pipe_config->output_types |= BIT(INTEL_OUTPUT_DP_MST);

@@ -30,6 +30,7 @@
 #include "intel_display_types.h"
 #include "intel_dp.h"
 #include "intel_lspcon.h"
+#include "intel_hdmi.h"
 
 /* LSPCON OUI Vendor ID(signatures) */
 #define LSPCON_VENDOR_PARADE_OUI 0x001CF8
@@ -599,6 +600,14 @@ bool lspcon_init(struct intel_digital_port *dig_port)
 	lspcon->active = true;
 	DRM_DEBUG_KMS("Success: LSPCON init\n");
 	return true;
+}
+
+u32 intel_lspcon_infoframes_enabled(struct intel_encoder *encoder,
+				    const struct intel_crtc_state *pipe_config)
+{
+	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
+
+	return dig_port->infoframes_enabled(encoder, pipe_config);
 }
 
 void lspcon_resume(struct intel_digital_port *dig_port)
