@@ -601,6 +601,20 @@ struct vop2_video_port_regs {
 	struct vop_reg bcsh_en;
 };
 
+struct vop2_wb_regs {
+	struct vop_reg enable;
+	struct vop_reg format;
+	struct vop_reg dither_en;
+	struct vop_reg r2y_en;
+	struct vop_reg yrgb_mst;
+	struct vop_reg uv_mst;
+	struct vop_reg vp_id;
+	struct vop_reg fifo_throd;
+	struct vop_reg scale_x_factor;
+	struct vop_reg scale_x_en;
+	struct vop_reg scale_y_en;
+};
+
 struct vop_win_data {
 	uint32_t base;
 	enum drm_plane_type type;
@@ -642,6 +656,13 @@ struct vop2_win_data {
 	unsigned int max_upscale_factor;
 	unsigned int max_downscale_factor;
 	const uint8_t dly[VOP2_DLY_MODE_MAX];
+};
+
+struct vop2_wb_data {
+	uint32_t nformats;
+	const uint32_t *formats;
+	struct vop_rect max_output;
+	const struct vop2_wb_regs *regs;
 };
 
 struct vop2_video_port_data {
@@ -712,6 +733,7 @@ struct vop_data {
 
 struct vop2_ctrl {
 	struct vop_reg cfg_done_en;
+	struct vop_reg wb_cfg_done;
 	struct vop_reg auto_gating_en;
 	struct vop_reg ovl_cfg_done_port;
 	struct vop_reg ovl_port_mux_cfg_done_imd;
@@ -804,6 +826,7 @@ struct vop2_data {
 	const struct vop2_ctrl *ctrl;
 	const struct vop2_win_data *win;
 	const struct vop2_video_port_data *vp;
+	const struct vop2_wb_data *wb;
 	const struct vop2_layer_data *layer;
 	const struct vop_csc_table *csc_table;
 	const struct vop_hdr_table *hdr_table;
@@ -834,6 +857,9 @@ struct vop2_data {
 #define DMA_FINISH_INTR			BIT(14)
 #define FS_FIELD_INTR			BIT(15)
 #define FE_INTR				BIT(16)
+#define WB_UV_FIFO_FULL_INTR		BIT(17)
+#define WB_YRGB_FIFO_FULL_INTR		BIT(18)
+#define WB_COMPLETE_INTR		BIT(19)
 
 #define INTR_MASK			(DSP_HOLD_VALID_INTR | FS_INTR | \
 					 LINE_FLAG_INTR | BUS_ERROR_INTR | \

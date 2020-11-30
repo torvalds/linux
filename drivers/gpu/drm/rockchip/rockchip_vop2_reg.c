@@ -53,6 +53,13 @@ static const uint32_t formats_win_lite[] = {
 	DRM_FORMAT_BGR565,
 };
 
+static const u32 formats_wb[] = {
+	DRM_FORMAT_RGB888,
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_NV12,
+};
+
 static const u32 sdr2hdr_bt1886eotf_yn_for_hlg_hdr[65] = {
 	0,
 	1,	7,	17,	35,
@@ -287,6 +294,11 @@ static const struct vop_hdr_table rk3568_vop_hdr_table = {
 static const int rk3568_vop_axi_intrs[] = {
 	0,
 	BUS_ERROR_INTR,
+	0,
+	WB_UV_FIFO_FULL_INTR,
+	WB_YRGB_FIFO_FULL_INTR,
+	WB_COMPLETE_INTR,
+
 };
 
 static const struct vop_intr rk3568_vop_axi_intr[] = {
@@ -345,6 +357,27 @@ static const struct vop_intr rk3568_vp2_intr = {
 	.status = VOP_REG(RK3568_VP2_INT_STATUS, 0xffff, 0),
 	.enable = VOP_REG_MASK(RK3568_VP2_INT_EN, 0xffff, 0),
 	.clear = VOP_REG_MASK(RK3568_VP2_INT_CLR, 0xffff, 0),
+};
+
+static const struct vop2_wb_regs rk3568_vop_wb_regs = {
+	.enable = VOP_REG(RK3568_WB_CTRL, 0x1, 0),
+	.format = VOP_REG(RK3568_WB_CTRL, 0x7, 1),
+	.dither_en = VOP_REG(RK3568_WB_CTRL, 0x1, 4),
+	.r2y_en = VOP_REG(RK3568_WB_CTRL, 0x1, 5),
+	.scale_x_en = VOP_REG(RK3568_WB_CTRL, 0x1, 7),
+	.scale_y_en = VOP_REG(RK3568_WB_CTRL, 0x1, 8),
+	.scale_x_factor = VOP_REG(RK3568_WB_XSCAL_FACTOR, 0x3fff, 16),
+	.yrgb_mst = VOP_REG(RK3568_WB_YRGB_MST, 0xffffffff, 0),
+	.uv_mst = VOP_REG(RK3568_WB_CBR_MST, 0xffffffff, 0),
+	.vp_id = VOP_REG(RK3568_LUT_PORT_SEL, 0x3, 8),
+	.fifo_throd = VOP_REG(RK3568_WB_XSCAL_FACTOR, 0x3ff, 0),
+};
+
+static const struct vop2_wb_data rk3568_vop_wb_data = {
+	.formats = formats_wb,
+	.nformats = ARRAY_SIZE(formats_wb),
+	.max_output = { 1920, 1080 },
+	.regs = &rk3568_vop_wb_regs,
 };
 
 static const struct vop2_video_port_regs rk3568_vop_vp0_regs = {
@@ -1059,6 +1092,7 @@ static const struct vop_grf_ctrl rk3568_grf_ctrl = {
 
 static const struct vop2_ctrl rk3568_vop_ctrl = {
 	.cfg_done_en = VOP_REG(RK3568_REG_CFG_DONE, 0x1, 15),
+	.wb_cfg_done = VOP_REG_MASK(RK3568_REG_CFG_DONE, 0x1, 14),
 	.auto_gating_en = VOP_REG(RK3568_SYS_AUTO_GATING_CTRL, 0x1, 31),
 	.ovl_cfg_done_port = VOP_REG(RK3568_OVL_CTRL, 0x3, 30),
 	.ovl_port_mux_cfg_done_imd = VOP_REG(RK3568_OVL_CTRL, 0x1, 28),
@@ -1127,6 +1161,7 @@ static const struct vop2_data rk3568_vop = {
 	.axi_intr = rk3568_vop_axi_intr,
 	.nr_axi_intr = ARRAY_SIZE(rk3568_vop_axi_intr),
 	.vp = rk3568_vop_video_ports,
+	.wb = &rk3568_vop_wb_data,
 	.layer = rk3568_vop_layers,
 	.nr_layers = ARRAY_SIZE(rk3568_vop_layers),
 	.win = rk3568_vop_win_data,
