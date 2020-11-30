@@ -330,8 +330,7 @@ int evlist__add_newtp(struct evlist *evlist, const char *sys, const char *name, 
 	return 0;
 }
 
-static int perf_evlist__nr_threads(struct evlist *evlist,
-				   struct evsel *evsel)
+static int evlist__nr_threads(struct evlist *evlist, struct evsel *evsel)
 {
 	if (evsel->core.system_wide)
 		return 1;
@@ -450,7 +449,7 @@ void evlist__toggle_enable(struct evlist *evlist)
 static int evlist__enable_event_cpu(struct evlist *evlist, struct evsel *evsel, int cpu)
 {
 	int thread;
-	int nr_threads = perf_evlist__nr_threads(evlist, evsel);
+	int nr_threads = evlist__nr_threads(evlist, evsel);
 
 	if (!evsel->core.fd)
 		return -EINVAL;
