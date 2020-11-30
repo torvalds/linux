@@ -22,34 +22,29 @@ static struct file_system_type incfs_fs_type = {
 
 static struct kobject *sysfs_root, *featurefs_root;
 
-static ssize_t corefs_show(struct kobject *kobj,
-			  struct kobj_attribute *attr, char *buff)
+static ssize_t supported(struct kobject *kobj,
+			 struct kobj_attribute *attr, char *buff)
 {
 	return snprintf(buff, PAGE_SIZE, "supported\n");
 }
 
-static struct kobj_attribute corefs_attr = __ATTR_RO(corefs);
+typedef ssize_t (*const attr_show)(struct kobject *kobj,
+				   struct kobj_attribute *attr, char *buff);
 
-static ssize_t report_uid_show(struct kobject *kobj,
-			       struct kobj_attribute *attr, char *buff)
-{
-	return snprintf(buff, PAGE_SIZE, "supported\n");
-}
+#define _DECLARE_FEATURE_FLAG(name)					\
+	static attr_show name##_show = supported;			\
+	static struct kobj_attribute name##_attr = __ATTR_RO(name)
 
-static struct kobj_attribute report_uid_attr = __ATTR_RO(report_uid);
+#define DECLARE_FEATURE_FLAG(name) _DECLARE_FEATURE_FLAG(name)
 
-static ssize_t zstd_show(struct kobject *kobj,
-			       struct kobj_attribute *attr, char *buff)
-{
-	return snprintf(buff, PAGE_SIZE, "supported\n");
-}
-
-static struct kobj_attribute zstd_attr = __ATTR_RO(zstd);
+DECLARE_FEATURE_FLAG(corefs);
+DECLARE_FEATURE_FLAG(zstd);
+DECLARE_FEATURE_FLAG(v2);
 
 static struct attribute *attributes[] = {
 	&corefs_attr.attr,
-	&report_uid_attr.attr,
 	&zstd_attr.attr,
+	&v2_attr.attr,
 	NULL,
 };
 
