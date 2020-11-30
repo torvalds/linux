@@ -186,7 +186,6 @@ enum bmc150_accel_trigger_id {
 struct bmc150_accel_data {
 	struct regmap *regmap;
 	struct regulator_bulk_data regulators[2];
-	int irq;
 	struct bmc150_accel_interrupt interrupts[BMC150_ACCEL_INTERRUPTS];
 	struct bmc150_accel_trigger triggers[BMC150_ACCEL_TRIGGERS];
 	struct mutex mutex;
@@ -1582,7 +1581,6 @@ int bmc150_accel_core_probe(struct device *dev, struct regmap *regmap, int irq,
 
 	data = iio_priv(indio_dev);
 	dev_set_drvdata(dev, indio_dev);
-	data->irq = irq;
 
 	data->regmap = regmap;
 
@@ -1645,9 +1643,8 @@ int bmc150_accel_core_probe(struct device *dev, struct regmap *regmap, int irq,
 		goto err_disable_regulators;
 	}
 
-	if (data->irq > 0) {
-		ret = devm_request_threaded_irq(
-						dev, data->irq,
+	if (irq > 0) {
+		ret = devm_request_threaded_irq(dev, irq,
 						bmc150_accel_irq_handler,
 						bmc150_accel_irq_thread_handler,
 						IRQF_TRIGGER_RISING,
