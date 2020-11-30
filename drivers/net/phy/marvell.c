@@ -1132,8 +1132,8 @@ static int m88e1510_config_init(struct phy_device *phydev)
 			return err;
 
 		/* PHY reset is necessary after changing MODE[2:0] */
-		err = phy_modify(phydev, MII_88E1510_GEN_CTRL_REG_1, 0,
-				 MII_88E1510_GEN_CTRL_REG_1_RESET);
+		err = phy_set_bits(phydev, MII_88E1510_GEN_CTRL_REG_1,
+				   MII_88E1510_GEN_CTRL_REG_1_RESET);
 		if (err < 0)
 			return err;
 
@@ -1725,8 +1725,8 @@ static int m88e1318_set_wol(struct phy_device *phydev,
 			__phy_read(phydev, MII_M1011_IEVENT);
 
 		/* Enable the WOL interrupt */
-		err = __phy_modify(phydev, MII_88E1318S_PHY_CSIER, 0,
-				   MII_88E1318S_PHY_CSIER_WOL_EIE);
+		err = __phy_set_bits(phydev, MII_88E1318S_PHY_CSIER,
+				     MII_88E1318S_PHY_CSIER_WOL_EIE);
 		if (err < 0)
 			goto error;
 
@@ -1764,9 +1764,9 @@ static int m88e1318_set_wol(struct phy_device *phydev,
 			goto error;
 
 		/* Clear WOL status and enable magic packet matching */
-		err = __phy_modify(phydev, MII_88E1318S_PHY_WOL_CTRL, 0,
-				   MII_88E1318S_PHY_WOL_CTRL_CLEAR_WOL_STATUS |
-				   MII_88E1318S_PHY_WOL_CTRL_MAGIC_PACKET_MATCH_ENABLE);
+		err = __phy_set_bits(phydev, MII_88E1318S_PHY_WOL_CTRL,
+				     MII_88E1318S_PHY_WOL_CTRL_CLEAR_WOL_STATUS |
+				     MII_88E1318S_PHY_WOL_CTRL_MAGIC_PACKET_MATCH_ENABLE);
 		if (err < 0)
 			goto error;
 	} else {
@@ -1995,7 +1995,7 @@ static int marvell_cable_test_start_common(struct phy_device *phydev)
 		return bmsr;
 
 	if (bmcr & BMCR_ANENABLE) {
-		ret =  phy_modify(phydev, MII_BMCR, BMCR_ANENABLE, 0);
+		ret =  phy_clear_bits(phydev, MII_BMCR, BMCR_ANENABLE);
 		if (ret < 0)
 			return ret;
 		ret = genphy_soft_reset(phydev);
