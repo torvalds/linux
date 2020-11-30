@@ -11,6 +11,7 @@
 #include "netlink.h"
 #include "cifsglob.h"
 #include "cifs_debug.h"
+#include "cifs_swn.h"
 
 static const struct nla_policy cifs_genl_policy[CIFS_GENL_ATTR_MAX + 1] = {
 	[CIFS_GENL_ATTR_SWN_REGISTRATION_ID]	= { .type = NLA_U32 },
@@ -24,9 +25,17 @@ static const struct nla_policy cifs_genl_policy[CIFS_GENL_ATTR_MAX + 1] = {
 	[CIFS_GENL_ATTR_SWN_USER_NAME]		= { .type = NLA_STRING },
 	[CIFS_GENL_ATTR_SWN_PASSWORD]		= { .type = NLA_STRING },
 	[CIFS_GENL_ATTR_SWN_DOMAIN_NAME]	= { .type = NLA_STRING },
+	[CIFS_GENL_ATTR_SWN_NOTIFICATION_TYPE]	= { .type = NLA_U32 },
+	[CIFS_GENL_ATTR_SWN_RESOURCE_STATE]	= { .type = NLA_U32 },
+	[CIFS_GENL_ATTR_SWN_RESOURCE_NAME]	= { .type = NLA_STRING},
 };
 
 static struct genl_ops cifs_genl_ops[] = {
+	{
+		.cmd = CIFS_GENL_CMD_SWN_NOTIFY,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
+		.doit = cifs_swn_notify,
+	},
 };
 
 static const struct genl_multicast_group cifs_genl_mcgrps[] = {

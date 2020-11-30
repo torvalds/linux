@@ -9,9 +9,13 @@
 #define _CIFS_SWN_H
 
 struct cifs_tcon;
+struct sk_buff;
+struct genl_info;
 
 extern int cifs_swn_register(struct cifs_tcon *tcon);
 
 extern int cifs_swn_unregister(struct cifs_tcon *tcon);
+
+extern int cifs_swn_notify(struct sk_buff *skb, struct genl_info *info);
 
 #endif /* _CIFS_SWN_H */
