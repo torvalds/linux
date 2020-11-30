@@ -293,68 +293,95 @@ sub output_feature {
 # Output all features for all architectures
 #
 
-sub matrix_lines {
-	print "=" x $max_size_subsys;
-	print "  ";
-	print "=" x $max_size_name;
-	print "  ";
+sub matrix_lines($$) {
+	my $partial = shift;
+	my $header = shift;
+	my $split;
+	my $fill;
+	my $ln_marker;
 
-	foreach my $arch (sort keys %archs) {
-		my $len = $max_size_status;
-
-		$len = length($arch) if ($len < length($arch));
-
-		print "=" x $len;
-		print "  ";
+	if ($header) {
+		$ln_marker = "=";
+	} else {
+		$ln_marker = "-";
 	}
-	print "=" x $max_size_kconfig;
-	print "  ";
-	print "=" x $max_size_description;
-	print "\n";
+
+	if ($partial) {
+		$split = "|";
+		$fill = " ";
+	} else {
+		$split = "+";
+		$fill = $ln_marker;
+	}
+
+	print $split;
+	print $fill x $max_size_name;
+	print $split;
+	print $fill x $max_size_kconfig;
+	print $split;
+	print $fill x $max_size_description;
+	print "+";
+	print $ln_marker x $max_size_arch;
+	print "+";
+	print $ln_marker x $max_size_status;
+	print "+\n";
 }
 
 sub output_matrix {
-
-	my $title = "Feature List (feature x architecture)";
+	my $title = "Feature status on all architectures";
 
 	print "=" x length($title) . "\n";
 	print "$title\n";
 	print "=" x length($title) . "\n\n";
 
-	matrix_lines;
-
-	printf "%-${max_size_subsys}s  ", $h_subsys;
-	printf "%-${max_size_name}s  ", $h_name;
-
-	foreach my $arch (sort keys %archs) {
-		printf "%-${max_size_status}s  ", $arch;
-	}
-	printf "%-${max_size_kconfig}s  ", $h_kconfig;
-	printf "%-${max_size_description}s\n", $h_description;
-
-	matrix_lines;
-
+	my $cur_subsys = "";
 	foreach my $name (sort {
-				($data{$a}->{subsys} cmp $data{$b}->{subsys}) ||
-				($data{$a}->{name} cmp $data{$b}->{name})
+				($data{$a}->{subsys} cmp $data{$b}->{subsys}) or
+				($a cmp $b)
 			       } keys %data) {
-		printf "%-${max_size_subsys}s  ", $data{$name}->{subsys};
-		printf "%-${max_size_name}s  ", $name;
+
+		if ($cur_subsys ne $data{$name}->{subsys}) {
+			if ($cur_subsys ne "") {
+				printf "\n";
+			}
+
+			$cur_subsys = $data{$name}->{subsys};
+
+			my $title = "Subsystem: $cur_subsys";
+			print "$title\n";
+			print "=" x length($title) . "\n\n";
+
+			matrix_lines(0, 0);
+			printf "|%-${max_size_name}s", $h_name;
+			printf "|%-${max_size_kconfig}s", $h_kconfig;
+			printf "|%-${max_size_description}s", $h_description;
+
+			printf "|%-${max_size_arch}s", $h_arch;
+			printf "|%-${max_size_status}s|\n", $h_status;
+
+			matrix_lines(0, 1);
+		}
 
 		my %arch_table = %{$data{$name}->{table}};
-
+		my $first = 1;
 		foreach my $arch (sort keys %arch_table) {
-			my $len = $max_size_status;
+			if ($first) {
+				printf "|%-${max_size_name}s", $name;
+				printf "|%-${max_size_kconfig}s", $data{$name}->{kconfig};
+				printf "|%-${max_size_description}s", $data{$name}->{description};
+				$first = 0;
+			} else {
+				matrix_lines(1, 0);
 
-			$len = length($arch) if ($len < length($arch));
-
-			printf "%-${len}s  ", $arch_table{$arch};
+				printf "|%-${max_size_name}s", "";
+				printf "|%-${max_size_kconfig}s", "";
+				printf "|%-${max_size_description}s", "";
+			}
+			printf "|%-${max_size_arch}s", $arch;
+			printf "|%-${max_size_status}s|\n", $arch_table{$arch};
 		}
-		printf "%-${max_size_kconfig}s  ", $data{$name}->{kconfig};
-		printf "%-${max_size_description}s\n", $data{$name}->{description};
+		matrix_lines(0, 0);
 	}
-
-	matrix_lines;
 }
 
 
