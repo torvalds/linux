@@ -516,8 +516,6 @@ out_clk:
 	}
  out_m_can_class_free_dev:
 	m_can_class_free_dev(mcan_class->net);
-	dev_err(&spi->dev, "Probe failed, err=%d\n", ret);
-
 	return ret;
 }
 
