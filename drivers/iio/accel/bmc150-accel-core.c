@@ -413,6 +413,103 @@ static int bmc150_accel_set_power_state(struct bmc150_accel_data *data, bool on)
 }
 #endif
 
+#ifdef CONFIG_ACPI
+/*
+ * Support for getting accelerometer information from BOSC0200 ACPI nodes.
+ *
+ * There are 2 variants of the BOSC0200 ACPI node. Some 2-in-1s with 360 degree
+ * hinges declare 2 I2C ACPI-resources for 2 accelerometers, 1 in the display
+ * and 1 in the base of the 2-in-1. On these 2-in-1s the ROMS ACPI object
+ * contains the mount-matrix for the sensor in the display and ROMK contains
+ * the mount-matrix for the sensor in the base. On devices using a single
+ * sensor there is a ROTM ACPI object which contains the mount-matrix.
+ *
+ * Here is an incomplete list of devices known to use 1 of these setups:
+ *
+ * Yoga devices with 2 accelerometers using ROMS + ROMK for the mount-matrices:
+ * Lenovo Thinkpad Yoga 11e 3th gen
+ * Lenovo Thinkpad Yoga 11e 4th gen
+ *
+ * Tablets using a single accelerometer using ROTM for the mount-matrix:
+ * Chuwi Hi8 Pro (CWI513)
+ * Chuwi Vi8 Plus (CWI519)
+ * Chuwi Hi13
+ * Irbis TW90
+ * Jumper EZpad mini 3
+ * Onda V80 plus
+ * Predia Basic Tablet
+ */
+static bool bmc150_apply_acpi_orientation(struct device *dev,
+					  struct iio_mount_matrix *orientation)
+{
+	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
+	struct acpi_device *adev = ACPI_COMPANION(dev);
+	union acpi_object *obj, *elements;
+	char *name, *alt_name, *str;
+	acpi_status status;
+	int i, j, val[3];
+
+	if (!adev || !acpi_dev_hid_uid_match(adev, "BOSC0200", NULL))
+		return false;
+
+	if (strcmp(dev_name(dev), "i2c-BOSC0200:base") == 0)
+		alt_name = "ROMK";
+	else
+		alt_name = "ROMS";
+
+	if (acpi_has_method(adev->handle, "ROTM"))
+		name = "ROTM";
+	else if (acpi_has_method(adev->handle, alt_name))
+		name = alt_name;
+	else
+		return false;
+
+	status = acpi_evaluate_object(adev->handle, name, NULL, &buffer);
+	if (ACPI_FAILURE(status)) {
+		dev_warn(dev, "Failed to get ACPI mount matrix: %d\n", status);
+		return false;
+	}
+
+	obj = buffer.pointer;
+	if (obj->type != ACPI_TYPE_PACKAGE || obj->package.count != 3)
+		goto unknown_format;
+
+	elements = obj->package.elements;
+	for (i = 0; i < 3; i++) {
+		if (elements[i].type != ACPI_TYPE_STRING)
+			goto unknown_format;
+
+		str = elements[i].string.pointer;
+		if (sscanf(str, "%d %d %d", &val[0], &val[1], &val[2]) != 3)
+			goto unknown_format;
+
+		for (j = 0; j < 3; j++) {
+			switch (val[j]) {
+			case -1: str = "-1"; break;
+			case 0:  str = "0";  break;
+			case 1:  str = "1";  break;
+			default: goto unknown_format;
+			}
+			orientation->rotation[i * 3 + j] = str;
+		}
+	}
+
+	kfree(buffer.pointer);
+	return true;
+
+unknown_format:
+	dev_warn(dev, "Unknown ACPI mount matrix format, ignoring\n");
+	kfree(buffer.pointer);
+	return false;
+}
+#else
+static bool bmc150_apply_acpi_orientation(struct device *dev,
+					  struct iio_mount_matrix *orientation)
+{
+	return false;
+}
+#endif
+
 static const struct bmc150_accel_interrupt_info {
 	u8 map_reg;
 	u8 map_bitmask;
@@ -1585,10 +1682,13 @@ int bmc150_accel_core_probe(struct device *dev, struct regmap *regmap, int irq,
 
 	data->regmap = regmap;
 
-	ret = iio_read_mount_matrix(dev, "mount-matrix",
-				     &data->orientation);
-	if (ret)
-		return ret;
+	if (!bmc150_apply_acpi_orientation(dev, &data->orientation)) {
+		ret = iio_read_mount_matrix(dev, "mount-matrix",
+					     &data->orientation);
+		if (ret)
+			return ret;
+	}
+
 	/*
 	 * VDD   is the analog and digital domain voltage supply
 	 * VDDIO is the digital I/O voltage supply
