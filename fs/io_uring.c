@@ -5633,24 +5633,10 @@ static enum hrtimer_restart io_timeout_fn(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
-static int __io_timeout_cancel(struct io_kiocb *req)
+static struct io_kiocb *io_timeout_extract(struct io_ring_ctx *ctx,
+					   __u64 user_data)
 {
-	struct io_timeout_data *io = req->async_data;
-	int ret;
-
-	ret = hrtimer_try_to_cancel(&io->timer);
-	if (ret == -1)
-		return -EALREADY;
-	list_del_init(&req->timeout.list);
-
-	req_set_fail_links(req);
-	io_cqring_fill_event(req, -ECANCELED);
-	io_put_req_deferred(req, 1);
-	return 0;
-}
-
-static int io_timeout_cancel(struct io_ring_ctx *ctx, __u64 user_data)
-{
+	struct io_timeout_data *io;
 	struct io_kiocb *req;
 	int ret = -ENOENT;
 
@@ -5662,9 +5648,27 @@ static int io_timeout_cancel(struct io_ring_ctx *ctx, __u64 user_data)
 	}
 
 	if (ret == -ENOENT)
-		return ret;
+		return ERR_PTR(ret);
 
-	return __io_timeout_cancel(req);
+	io = req->async_data;
+	ret = hrtimer_try_to_cancel(&io->timer);
+	if (ret == -1)
+		return ERR_PTR(-EALREADY);
+	list_del_init(&req->timeout.list);
+	return req;
+}
+
+static int io_timeout_cancel(struct io_ring_ctx *ctx, __u64 user_data)
+{
+	struct io_kiocb *req = io_timeout_extract(ctx, user_data);
+
+	if (IS_ERR(req))
+		return PTR_ERR(req);
+
+	req_set_fail_links(req);
+	io_cqring_fill_event(req, -ECANCELED);
+	io_put_req_deferred(req, 1);
+	return 0;
 }
 
 static int io_timeout_remove_prep(struct io_kiocb *req,
