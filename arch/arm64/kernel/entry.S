@@ -30,18 +30,18 @@
 #include <asm/unistd.h>
 
 /*
- * Context tracking subsystem.  Used to instrument transitions
- * between user and kernel mode.
+ * Context tracking and irqflag tracing need to instrument transitions between
+ * user and kernel mode.
  */
-	.macro ct_user_exit_irqoff
-#ifdef CONFIG_CONTEXT_TRACKING
+	.macro user_exit_irqoff
+#if defined(CONFIG_CONTEXT_TRACKING) || defined(CONFIG_TRACE_IRQFLAGS)
 	bl	enter_from_user_mode
 #endif
 	.endm
 
-	.macro ct_user_enter
-#ifdef CONFIG_CONTEXT_TRACKING
-	bl	context_tracking_user_enter
+	.macro user_enter_irqoff
+#if defined(CONFIG_CONTEXT_TRACKING) || defined(CONFIG_TRACE_IRQFLAGS)
+	bl	exit_to_user_mode
 #endif
 	.endm
 
@@ -298,9 +298,6 @@ alternative_if ARM64_HAS_IRQ_PRIO_MASKING
 alternative_else_nop_endif
 
 	ldp	x21, x22, [sp, #S_PC]		// load ELR, SPSR
-	.if	\el == 0
-	ct_user_enter
-	.endif
 
 #ifdef CONFIG_ARM64_SW_TTBR0_PAN
 alternative_if_not ARM64_HAS_PAN
@@ -700,21 +697,14 @@ SYM_CODE_START_LOCAL_NOALIGN(el0_irq)
 	kernel_entry 0
 el0_irq_naked:
 	gic_prio_irq_setup pmr=x20, tmp=x0
-	ct_user_exit_irqoff
+	user_exit_irqoff
 	enable_da_f
-
-#ifdef CONFIG_TRACE_IRQFLAGS
-	bl	trace_hardirqs_off
-#endif
 
 	tbz	x22, #55, 1f
 	bl	do_el0_irq_bp_hardening
 1:
 	irq_handler
 
-#ifdef CONFIG_TRACE_IRQFLAGS
-	bl	trace_hardirqs_on
-#endif
 	b	ret_to_user
 SYM_CODE_END(el0_irq)
 
@@ -733,7 +723,7 @@ SYM_CODE_START_LOCAL(el0_error)
 el0_error_naked:
 	mrs	x25, esr_el1
 	gic_prio_kentry_setup tmp=x2
-	ct_user_exit_irqoff
+	user_exit_irqoff
 	enable_dbg
 	mov	x0, sp
 	mov	x1, x25
@@ -748,10 +738,14 @@ SYM_CODE_END(el0_error)
 SYM_CODE_START_LOCAL(ret_to_user)
 	disable_daif
 	gic_prio_kentry_setup tmp=x3
+#ifdef CONFIG_TRACE_IRQFLAGS
+	bl	trace_hardirqs_off
+#endif
 	ldr	x19, [tsk, #TSK_TI_FLAGS]
 	and	x2, x19, #_TIF_WORK_MASK
 	cbnz	x2, work_pending
 finish_ret_to_user:
+	user_enter_irqoff
 	/* Ignore asynchronous tag check faults in the uaccess routines */
 	clear_mte_async_tcf
 	enable_step_tsk x19, x2
@@ -767,9 +761,6 @@ work_pending:
 	mov	x0, sp				// 'regs'
 	mov	x1, x19
 	bl	do_notify_resume
-#ifdef CONFIG_TRACE_IRQFLAGS
-	bl	trace_hardirqs_on		// enabled while in userspace
-#endif
 	ldr	x19, [tsk, #TSK_TI_FLAGS]	// re-check for single-step
 	b	finish_ret_to_user
 SYM_CODE_END(ret_to_user)

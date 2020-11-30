@@ -119,15 +119,25 @@ asmlinkage void noinstr el1_sync_handler(struct pt_regs *regs)
 
 asmlinkage void noinstr enter_from_user_mode(void)
 {
+	lockdep_hardirqs_off(CALLER_ADDR0);
 	CT_WARN_ON(ct_state() != CONTEXT_USER);
 	user_exit_irqoff();
+	trace_hardirqs_off_finish();
+}
+
+asmlinkage void noinstr exit_to_user_mode(void)
+{
+	trace_hardirqs_on_prepare();
+	lockdep_hardirqs_on_prepare(CALLER_ADDR0);
+	user_enter_irqoff();
+	lockdep_hardirqs_on(CALLER_ADDR0);
 }
 
 static void noinstr el0_da(struct pt_regs *regs, unsigned long esr)
 {
 	unsigned long far = read_sysreg(far_el1);
 
-	user_exit_irqoff();
+	enter_from_user_mode();
 	local_daif_restore(DAIF_PROCCTX);
 	far = untagged_addr(far);
 	do_mem_abort(far, esr, regs);
@@ -145,35 +155,35 @@ static void noinstr el0_ia(struct pt_regs *regs, unsigned long esr)
 	if (!is_ttbr0_addr(far))
 		arm64_apply_bp_hardening();
 
-	user_exit_irqoff();
+	enter_from_user_mode();
 	local_daif_restore(DAIF_PROCCTX);
 	do_mem_abort(far, esr, regs);
 }
 
 static void noinstr el0_fpsimd_acc(struct pt_regs *regs, unsigned long esr)
 {
-	user_exit_irqoff();
+	enter_from_user_mode();
 	local_daif_restore(DAIF_PROCCTX);
 	do_fpsimd_acc(esr, regs);
 }
 
 static void noinstr el0_sve_acc(struct pt_regs *regs, unsigned long esr)
 {
-	user_exit_irqoff();
+	enter_from_user_mode();
 	local_daif_restore(DAIF_PROCCTX);
 	do_sve_acc(esr, regs);
 }
 
 static void noinstr el0_fpsimd_exc(struct pt_regs *regs, unsigned long esr)
 {
-	user_exit_irqoff();
+	enter_from_user_mode();
 	local_daif_restore(DAIF_PROCCTX);
 	do_fpsimd_exc(esr, regs);
 }
 
 static void noinstr el0_sys(struct pt_regs *regs, unsigned long esr)
 {
-	user_exit_irqoff();
+	enter_from_user_mode();
 	local_daif_restore(DAIF_PROCCTX);
 	do_sysinstr(esr, regs);
 }
@@ -185,35 +195,35 @@ static void noinstr el0_pc(struct pt_regs *regs, unsigned long esr)
 	if (!is_ttbr0_addr(instruction_pointer(regs)))
 		arm64_apply_bp_hardening();
 
-	user_exit_irqoff();
+	enter_from_user_mode();
 	local_daif_restore(DAIF_PROCCTX);
 	do_sp_pc_abort(far, esr, regs);
 }
 
 static void noinstr el0_sp(struct pt_regs *regs, unsigned long esr)
 {
-	user_exit_irqoff();
+	enter_from_user_mode();
 	local_daif_restore(DAIF_PROCCTX);
 	do_sp_pc_abort(regs->sp, esr, regs);
 }
 
 static void noinstr el0_undef(struct pt_regs *regs)
 {
-	user_exit_irqoff();
+	enter_from_user_mode();
 	local_daif_restore(DAIF_PROCCTX);
 	do_undefinstr(regs);
 }
 
 static void noinstr el0_bti(struct pt_regs *regs)
 {
-	user_exit_irqoff();
+	enter_from_user_mode();
 	local_daif_restore(DAIF_PROCCTX);
 	do_bti(regs);
 }
 
 static void noinstr el0_inv(struct pt_regs *regs, unsigned long esr)
 {
-	user_exit_irqoff();
+	enter_from_user_mode();
 	local_daif_restore(DAIF_PROCCTX);
 	bad_el0_sync(regs, 0, esr);
 }
@@ -226,7 +236,7 @@ static void noinstr el0_dbg(struct pt_regs *regs, unsigned long esr)
 	if (system_uses_irq_prio_masking())
 		gic_write_pmr(GIC_PRIO_IRQON | GIC_PRIO_PSR_I_SET);
 
-	user_exit_irqoff();
+	enter_from_user_mode();
 	do_debug_exception(far, esr, regs);
 	local_daif_restore(DAIF_PROCCTX_NOIRQ);
 }
@@ -236,12 +246,13 @@ static void noinstr el0_svc(struct pt_regs *regs)
 	if (system_uses_irq_prio_masking())
 		gic_write_pmr(GIC_PRIO_IRQON | GIC_PRIO_PSR_I_SET);
 
+	enter_from_user_mode();
 	do_el0_svc(regs);
 }
 
 static void noinstr el0_fpac(struct pt_regs *regs, unsigned long esr)
 {
-	user_exit_irqoff();
+	enter_from_user_mode();
 	local_daif_restore(DAIF_PROCCTX);
 	do_ptrauth_fault(regs, esr);
 }
@@ -302,7 +313,7 @@ asmlinkage void noinstr el0_sync_handler(struct pt_regs *regs)
 #ifdef CONFIG_COMPAT
 static void noinstr el0_cp15(struct pt_regs *regs, unsigned long esr)
 {
-	user_exit_irqoff();
+	enter_from_user_mode();
 	local_daif_restore(DAIF_PROCCTX);
 	do_cp15instr(esr, regs);
 }
@@ -312,6 +323,7 @@ static void noinstr el0_svc_compat(struct pt_regs *regs)
 	if (system_uses_irq_prio_masking())
 		gic_write_pmr(GIC_PRIO_IRQON | GIC_PRIO_PSR_I_SET);
 
+	enter_from_user_mode();
 	do_el0_svc_compat(regs);
 }
 
