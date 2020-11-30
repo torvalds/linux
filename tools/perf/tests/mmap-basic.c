@@ -133,7 +133,7 @@ int test__basic_mmap(struct test *test __maybe_unused, int subtest __maybe_unuse
 		}
 
 		err = -1;
-		evsel = perf_evlist__id2evsel(evlist, sample.id);
+		evsel = evlist__id2evsel(evlist, sample.id);
 		if (evsel == NULL) {
 			pr_debug("event with id %" PRIu64
 				 " doesn't map to an evsel\n", sample.id);

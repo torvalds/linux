@@ -1364,7 +1364,7 @@ static int deliver_sample_value(struct evlist *evlist,
 				struct sample_read_value *v,
 				struct machine *machine)
 {
-	struct perf_sample_id *sid = perf_evlist__id2sid(evlist, v->id);
+	struct perf_sample_id *sid = evlist__id2sid(evlist, v->id);
 	struct evsel *evsel;
 
 	if (sid) {
@@ -1445,7 +1445,7 @@ static int machines__deliver_event(struct machines *machines,
 
 	dump_event(evlist, event, file_offset, sample);
 
-	evsel = perf_evlist__id2evsel(evlist, sample->id);
+	evsel = evlist__id2evsel(evlist, sample->id);
 
 	machine = machines__find_for_cpumode(machines, event, sample);
 
@@ -2476,7 +2476,7 @@ int perf_event__process_id_index(struct perf_session *session,
 			fprintf(stdout,	"  tid: %"PRI_ld64"\n", e->tid);
 		}
 
-		sid = perf_evlist__id2sid(evlist, e->id);
+		sid = evlist__id2sid(evlist, e->id);
 		if (!sid)
 			return -ENOENT;
 		sid->idx = e->idx;

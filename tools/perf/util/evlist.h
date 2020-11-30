@@ -144,11 +144,10 @@ int evlist__filter_pollfd(struct evlist *evlist, short revents_and_mask);
 
 int evlist__poll(struct evlist *evlist, int timeout);
 
-struct evsel *perf_evlist__id2evsel(struct evlist *evlist, u64 id);
-struct evsel *perf_evlist__id2evsel_strict(struct evlist *evlist,
-						u64 id);
+struct evsel *evlist__id2evsel(struct evlist *evlist, u64 id);
+struct evsel *evlist__id2evsel_strict(struct evlist *evlist, u64 id);
 
-struct perf_sample_id *perf_evlist__id2sid(struct evlist *evlist, u64 id);
+struct perf_sample_id *evlist__id2sid(struct evlist *evlist, u64 id);
 
 void evlist__toggle_bkw_mmap(struct evlist *evlist, enum bkw_mmap_state state);
 
@@ -325,8 +324,7 @@ bool evsel__cpu_iter_skip_no_inc(struct evsel *ev, int cpu);
 
 struct evsel *evlist__find_evsel_by_str(struct evlist *evlist, const char *str);
 
-struct evsel *perf_evlist__event2evsel(struct evlist *evlist,
-					    union perf_event *event);
+struct evsel *evlist__event2evsel(struct evlist *evlist, union perf_event *event);
 
 bool perf_evlist__exclude_kernel(struct evlist *evlist);
 

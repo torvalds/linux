@@ -1643,7 +1643,7 @@ int perf_event__synthesize_id_index(struct perf_tool *tool, perf_event__handler_
 
 			e->id = evsel->core.id[j];
 
-			sid = perf_evlist__id2sid(evlist, e->id);
+			sid = evlist__id2sid(evlist, e->id);
 			if (!sid) {
 				free(ev);
 				return -ENOENT;

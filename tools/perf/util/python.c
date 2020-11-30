@@ -1055,7 +1055,7 @@ static PyObject *pyrf_evlist__read_on_cpu(struct pyrf_evlist *pevlist,
 		if (pyevent == NULL)
 			return PyErr_NoMemory();
 
-		evsel = perf_evlist__event2evsel(evlist, event);
+		evsel = evlist__event2evsel(evlist, event);
 		if (!evsel) {
 			Py_INCREF(Py_None);
 			return Py_None;

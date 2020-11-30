@@ -458,7 +458,7 @@ int perf_event__process_stat_event(struct perf_session *session,
 	count.ena = st->ena;
 	count.run = st->run;
 
-	counter = perf_evlist__id2evsel(session->evlist, st->id);
+	counter = evlist__id2evsel(session->evlist, st->id);
 	if (!counter) {
 		pr_err("Failed to resolve counter for stat event.\n");
 		return -EINVAL;

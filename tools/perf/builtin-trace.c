@@ -3105,7 +3105,7 @@ static void trace__handle_event(struct trace *trace, union perf_event *event, st
 		return;
 	}
 
-	evsel = perf_evlist__id2evsel(trace->evlist, sample->id);
+	evsel = evlist__id2evsel(trace->evlist, sample->id);
 	if (evsel == NULL) {
 		fprintf(trace->output, "Unknown tp ID %" PRIu64 ", skipping...\n", sample->id);
 		return;

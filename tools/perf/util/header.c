@@ -4030,7 +4030,7 @@ int perf_event__process_event_update(struct perf_tool *tool __maybe_unused,
 
 	evlist = *pevlist;
 
-	evsel = perf_evlist__id2evsel(evlist, ev->id);
+	evsel = evlist__id2evsel(evlist, ev->id);
 	if (evsel == NULL)
 		return -EINVAL;
 

@@ -133,7 +133,7 @@ static int process_sample_event(struct evlist *evlist,
 		return -1;
 	}
 
-	evsel = perf_evlist__id2evsel(evlist, sample.id);
+	evsel = evlist__id2evsel(evlist, sample.id);
 	if (evsel == switch_tracking->switch_evsel) {
 		next_tid = evsel__intval(evsel, &sample, "next_pid");
 		prev_tid = evsel__intval(evsel, &sample, "prev_pid");

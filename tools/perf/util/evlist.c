@@ -509,7 +509,7 @@ int evlist__poll(struct evlist *evlist, int timeout)
 	return perf_evlist__poll(&evlist->core, timeout);
 }
 
-struct perf_sample_id *perf_evlist__id2sid(struct evlist *evlist, u64 id)
+struct perf_sample_id *evlist__id2sid(struct evlist *evlist, u64 id)
 {
 	struct hlist_head *head;
 	struct perf_sample_id *sid;
@@ -525,14 +525,14 @@ struct perf_sample_id *perf_evlist__id2sid(struct evlist *evlist, u64 id)
 	return NULL;
 }
 
-struct evsel *perf_evlist__id2evsel(struct evlist *evlist, u64 id)
+struct evsel *evlist__id2evsel(struct evlist *evlist, u64 id)
 {
 	struct perf_sample_id *sid;
 
 	if (evlist->core.nr_entries == 1 || !id)
 		return evlist__first(evlist);
 
-	sid = perf_evlist__id2sid(evlist, id);
+	sid = evlist__id2sid(evlist, id);
 	if (sid)
 		return container_of(sid->evsel, struct evsel, core);
 
@@ -542,23 +542,21 @@ struct evsel *perf_evlist__id2evsel(struct evlist *evlist, u64 id)
 	return NULL;
 }
 
-struct evsel *perf_evlist__id2evsel_strict(struct evlist *evlist,
-						u64 id)
+struct evsel *evlist__id2evsel_strict(struct evlist *evlist, u64 id)
 {
 	struct perf_sample_id *sid;
 
 	if (!id)
 		return NULL;
 
-	sid = perf_evlist__id2sid(evlist, id);
+	sid = evlist__id2sid(evlist, id);
 	if (sid)
 		return container_of(sid->evsel, struct evsel, core);
 
 	return NULL;
 }
 
-static int perf_evlist__event2id(struct evlist *evlist,
-				 union perf_event *event, u64 *id)
+static int evlist__event2id(struct evlist *evlist, union perf_event *event, u64 *id)
 {
 	const __u64 *array = event->sample.array;
 	ssize_t n;
@@ -578,8 +576,7 @@ static int perf_evlist__event2id(struct evlist *evlist,
 	return 0;
 }
 
-struct evsel *perf_evlist__event2evsel(struct evlist *evlist,
-					    union perf_event *event)
+struct evsel *evlist__event2evsel(struct evlist *evlist, union perf_event *event)
 {
 	struct evsel *first = evlist__first(evlist);
 	struct hlist_head *head;
@@ -594,7 +591,7 @@ struct evsel *perf_evlist__event2evsel(struct evlist *evlist,
 	    event->header.type != PERF_RECORD_SAMPLE)
 		return first;
 
-	if (perf_evlist__event2id(evlist, event, &id))
+	if (evlist__event2id(evlist, event, &id))
 		return NULL;
 
 	/* Synthesized events have an id of zero */
@@ -1427,7 +1424,7 @@ int evlist__start_workload(struct evlist *evlist)
 
 int evlist__parse_sample(struct evlist *evlist, union perf_event *event, struct perf_sample *sample)
 {
-	struct evsel *evsel = perf_evlist__event2evsel(evlist, event);
+	struct evsel *evsel = evlist__event2evsel(evlist, event);
 
 	if (!evsel)
 		return -EFAULT;
@@ -1436,7 +1433,7 @@ int evlist__parse_sample(struct evlist *evlist, union perf_event *event, struct 
 
 int evlist__parse_sample_timestamp(struct evlist *evlist, union perf_event *event, u64 *timestamp)
 {
-	struct evsel *evsel = perf_evlist__event2evsel(evlist, event);
+	struct evsel *evsel = evlist__event2evsel(evlist, event);
 
 	if (!evsel)
 		return -EFAULT;

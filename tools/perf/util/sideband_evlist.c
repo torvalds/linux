@@ -62,7 +62,7 @@ static void *perf_evlist__poll_thread(void *arg)
 			if (perf_mmap__read_init(&map->core))
 				continue;
 			while ((event = perf_mmap__read_event(&map->core)) != NULL) {
-				struct evsel *evsel = perf_evlist__event2evsel(evlist, event);
+				struct evsel *evsel = evlist__event2evsel(evlist, event);
 
 				if (evsel && evsel->side_band.cb)
 					evsel->side_band.cb(event, evsel->side_band.data);

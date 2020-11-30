@@ -932,7 +932,7 @@ s390_cpumsf_process_event(struct perf_session *session,
 	if (event->header.type == PERF_RECORD_SAMPLE &&
 	    sample->raw_size) {
 		/* Handle event with raw data */
-		ev_bc000 = perf_evlist__event2evsel(session->evlist, event);
+		ev_bc000 = evlist__event2evsel(session->evlist, event);
 		if (ev_bc000 &&
 		    ev_bc000->core.attr.config == PERF_EVENT_CPUM_CF_DIAG)
 			err = s390_cpumcf_dumpctr(sf, sample);
