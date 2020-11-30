@@ -368,10 +368,11 @@ err:
 	if (ret == -EINTR)
 		goto retry;
 
-	BUG_ON(ret && !bch2_journal_error(j));
-
-	if (ret)
+	if (ret) {
+		bch2_fs_fatal_err_on(!bch2_journal_error(j), c,
+			"error flushing key cache: %i", ret);
 		goto out;
+	}
 
 	bch2_journal_pin_drop(j, &ck->journal);
 	bch2_journal_preres_put(j, &ck->res);
