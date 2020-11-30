@@ -2,7 +2,7 @@
 //
 // Device Tree file for LX2160ARDB
 //
-// Copyright 2018 NXP
+// Copyright 2018-2020 NXP
 
 /dts-v1/;
 
@@ -175,8 +175,8 @@
 	rtc@51 {
 		compatible = "nxp,pcf2129";
 		reg = <0x51>;
-		// IRQ10_B
-		interrupts = <0 150 0x4>;
+		/* IRQ_RTC_B -> IRQ08, active low */
+		interrupts-extended = <&extirq 8 IRQ_TYPE_LEVEL_LOW>;
 	};
 };
 
