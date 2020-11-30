@@ -236,7 +236,7 @@
 			mipi_in_ucam1: endpoint@1 {
 				reg = <1>;
 				remote-endpoint = <&ov8858_out>;
-				data-lanes = <1 2>;
+				data-lanes = <1 2 3 4>;
 			};
 		};
 		port@1 {
@@ -824,7 +824,7 @@
 		port {
 			ov8858_out: endpoint {
 				remote-endpoint = <&mipi_in_ucam1>;
-				data-lanes = <1 2>;
+				data-lanes = <1 2 3 4>;
 			};
 		};
 	};
