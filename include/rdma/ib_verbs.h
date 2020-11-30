@@ -4183,7 +4183,8 @@ struct ib_xrcd *ib_alloc_xrcd_user(struct ib_device *device,
 				   struct inode *inode, struct ib_udata *udata);
 int ib_dealloc_xrcd_user(struct ib_xrcd *xrcd, struct ib_udata *udata);
 
-static inline int ib_check_mr_access(int flags)
+static inline int ib_check_mr_access(struct ib_device *ib_dev,
+				     unsigned int flags)
 {
 	/*
 	 * Local write permission is required if remote write or
@@ -4196,6 +4197,9 @@ static inline int ib_check_mr_access(int flags)
 	if (flags & ~IB_ACCESS_SUPPORTED)
 		return -EINVAL;
 
+	if (flags & IB_ACCESS_ON_DEMAND &&
+	    !(ib_dev->attrs.device_cap_flags & IB_DEVICE_ON_DEMAND_PAGING))
+		return -EINVAL;
 	return 0;
 }
 

@@ -115,7 +115,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_DM_MR_REG)(
 	if (!(attr.access_flags & IB_ZERO_BASED))
 		return -EINVAL;
 
-	ret = ib_check_mr_access(attr.access_flags);
+	ret = ib_check_mr_access(ib_dev, attr.access_flags);
 	if (ret)
 		return ret;
 

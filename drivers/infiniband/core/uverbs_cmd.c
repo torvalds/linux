@@ -709,27 +709,18 @@ static int ib_uverbs_reg_mr(struct uverbs_attr_bundle *attrs)
 	if ((cmd.start & ~PAGE_MASK) != (cmd.hca_va & ~PAGE_MASK))
 		return -EINVAL;
 
-	ret = ib_check_mr_access(cmd.access_flags);
-	if (ret)
-		return ret;
-
 	uobj = uobj_alloc(UVERBS_OBJECT_MR, attrs, &ib_dev);
 	if (IS_ERR(uobj))
 		return PTR_ERR(uobj);
+
+	ret = ib_check_mr_access(ib_dev, cmd.access_flags);
+	if (ret)
+		goto err_free;
 
 	pd = uobj_get_obj_read(pd, UVERBS_OBJECT_PD, cmd.pd_handle, attrs);
 	if (!pd) {
 		ret = -EINVAL;
 		goto err_free;
-	}
-
-	if (cmd.access_flags & IB_ACCESS_ON_DEMAND) {
-		if (!(pd->device->attrs.device_cap_flags &
-		      IB_DEVICE_ON_DEMAND_PAGING)) {
-			pr_debug("ODP support not available\n");
-			ret = -EINVAL;
-			goto err_put;
-		}
 	}
 
 	mr = pd->device->ops.reg_user_mr(pd, cmd.start, cmd.length, cmd.hca_va,
@@ -805,7 +796,7 @@ static int ib_uverbs_rereg_mr(struct uverbs_attr_bundle *attrs)
 	}
 
 	if (cmd.flags & IB_MR_REREG_ACCESS) {
-		ret = ib_check_mr_access(cmd.access_flags);
+		ret = ib_check_mr_access(mr->device, cmd.access_flags);
 		if (ret)
 			goto put_uobjs;
 	}
