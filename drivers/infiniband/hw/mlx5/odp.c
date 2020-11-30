@@ -536,6 +536,10 @@ struct mlx5_ib_mr *mlx5_ib_alloc_implicit_mr(struct mlx5_ib_pd *pd,
 	struct mlx5_ib_mr *imr;
 	int err;
 
+	if (!mlx5_ib_can_load_pas_with_umr(dev,
+					   MLX5_IMR_MTT_ENTRIES * PAGE_SIZE))
+		return ERR_PTR(-EOPNOTSUPP);
+
 	umem_odp = ib_umem_odp_alloc_implicit(&dev->ib_dev, access_flags);
 	if (IS_ERR(umem_odp))
 		return ERR_CAST(umem_odp);
@@ -831,17 +835,13 @@ static int pagefault_mr(struct mlx5_ib_mr *mr, u64 io_virt, size_t bcnt,
 				     flags);
 }
 
-int mlx5_ib_init_odp_mr(struct mlx5_ib_mr *mr, bool enable)
+int mlx5_ib_init_odp_mr(struct mlx5_ib_mr *mr)
 {
-	u32 flags = MLX5_PF_FLAGS_SNAPSHOT;
 	int ret;
 
-	if (enable)
-		flags |= MLX5_PF_FLAGS_ENABLE;
-
-	ret = pagefault_real_mr(mr, to_ib_umem_odp(mr->umem),
-				mr->umem->address, mr->umem->length, NULL,
-				flags);
+	ret = pagefault_real_mr(mr, to_ib_umem_odp(mr->umem), mr->umem->address,
+				mr->umem->length, NULL,
+				MLX5_PF_FLAGS_SNAPSHOT | MLX5_PF_FLAGS_ENABLE);
 	return ret >= 0 ? 0 : ret;
 }
 
