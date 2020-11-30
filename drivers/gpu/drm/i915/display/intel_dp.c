@@ -7193,7 +7193,7 @@ intel_dp_add_properties(struct intel_dp *intel_dp, struct drm_connector *connect
 	else if (INTEL_GEN(dev_priv) >= 5)
 		drm_connector_attach_max_bpc_property(connector, 6, 12);
 
-	intel_attach_colorspace_property(connector);
+	intel_attach_dp_colorspace_property(connector);
 
 	if (intel_bios_is_lspcon_present(dev_priv, port))
 		drm_connector_attach_content_type_property(connector);

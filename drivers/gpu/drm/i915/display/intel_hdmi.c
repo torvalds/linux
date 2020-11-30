@@ -2963,7 +2963,7 @@ intel_hdmi_add_properties(struct intel_hdmi *intel_hdmi, struct drm_connector *c
 	 * as well. Will be implemented separately.
 	 */
 	if (!dig_port->lspcon.active)
-		intel_attach_colorspace_property(connector);
+		intel_attach_hdmi_colorspace_property(connector);
 
 	drm_connector_attach_content_type_property(connector);
 
