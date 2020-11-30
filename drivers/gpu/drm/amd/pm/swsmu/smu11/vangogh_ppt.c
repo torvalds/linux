@@ -410,6 +410,8 @@ static int vangogh_get_current_activity_percent(struct smu_context *smu,
 		ret = vangogh_get_smu_metrics_data(smu,
 						  METRICS_AVERAGE_GFXACTIVITY,
 						  value);
+		if (ret)
+			return ret;
 		break;
 	default:
 		dev_err(smu->adev->dev, "Invalid sensor for retrieving clock activity\n");
