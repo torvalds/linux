@@ -783,13 +783,15 @@ static int ib_uverbs_rereg_mr(struct uverbs_attr_bundle *attrs)
 	if (ret)
 		return ret;
 
-	if (cmd.flags & ~IB_MR_REREG_SUPPORTED || !cmd.flags)
+	if (!cmd.flags)
 		return -EINVAL;
 
+	if (cmd.flags & ~IB_MR_REREG_SUPPORTED)
+		return -EOPNOTSUPP;
+
 	if ((cmd.flags & IB_MR_REREG_TRANS) &&
-	    (!cmd.start || !cmd.hca_va || 0 >= cmd.length ||
-	     (cmd.start & ~PAGE_MASK) != (cmd.hca_va & ~PAGE_MASK)))
-			return -EINVAL;
+	    (cmd.start & ~PAGE_MASK) != (cmd.hca_va & ~PAGE_MASK))
+		return -EINVAL;
 
 	uobj = uobj_get_write(UVERBS_OBJECT_MR, cmd.mr_handle, attrs);
 	if (IS_ERR(uobj))
