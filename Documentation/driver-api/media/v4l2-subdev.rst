@@ -122,11 +122,12 @@ Don't forget to cleanup the media entity before the sub-device is destroyed:
 
 	media_entity_cleanup(&sd->entity);
 
-In that case, the subdev driver may set the link_validate field to provide
-its own link validation function. The link validation function is called for
-every link in the pipeline where both of the ends of the links are V4L2
-sub-devices. The driver is still responsible for validating the correctness
-of the format configuration between sub-devices and video nodes.
+If a sub-device driver implements sink pads, the subdev driver may set the
+link_validate field in :c:type:`v4l2_subdev_pad_ops`to provide its own link
+validation function. For every link in the pipeline, the link_validate pad
+operation of the sink end of the link is called. In both cases the driver is
+still responsible for validating the correctness of the format configuration
+between sub-devices and video nodes.
 
 If link_validate op is not set, the default function
 :c:func:`v4l2_subdev_link_validate_default` is used instead. This function
