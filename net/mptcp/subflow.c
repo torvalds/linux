@@ -228,27 +228,39 @@ int mptcp_subflow_init_cookie_req(struct request_sock *req,
 }
 EXPORT_SYMBOL_GPL(mptcp_subflow_init_cookie_req);
 
-static void subflow_v4_init_req(struct request_sock *req,
-				const struct sock *sk_listener,
-				struct sk_buff *skb)
+static struct dst_entry *subflow_v4_route_req(const struct sock *sk,
+					      struct sk_buff *skb,
+					      struct flowi *fl,
+					      struct request_sock *req)
 {
+	struct dst_entry *dst;
+
 	tcp_rsk(req)->is_mptcp = 1;
 
-	tcp_request_sock_ipv4_ops.init_req(req, sk_listener, skb);
+	dst = tcp_request_sock_ipv4_ops.route_req(sk, skb, fl, req);
+	if (!dst)
+		return NULL;
 
-	subflow_init_req(req, sk_listener, skb);
+	subflow_init_req(req, sk, skb);
+	return dst;
 }
 
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
-static void subflow_v6_init_req(struct request_sock *req,
-				const struct sock *sk_listener,
-				struct sk_buff *skb)
+static struct dst_entry *subflow_v6_route_req(const struct sock *sk,
+					      struct sk_buff *skb,
+					      struct flowi *fl,
+					      struct request_sock *req)
 {
+	struct dst_entry *dst;
+
 	tcp_rsk(req)->is_mptcp = 1;
 
-	tcp_request_sock_ipv6_ops.init_req(req, sk_listener, skb);
+	dst = tcp_request_sock_ipv6_ops.route_req(sk, skb, fl, req);
+	if (!dst)
+		return NULL;
 
-	subflow_init_req(req, sk_listener, skb);
+	subflow_init_req(req, sk, skb);
+	return dst;
 }
 #endif
 
@@ -1388,7 +1400,7 @@ void __init mptcp_subflow_init(void)
 		panic("MPTCP: failed to init subflow request sock ops\n");
 
 	subflow_request_sock_ipv4_ops = tcp_request_sock_ipv4_ops;
-	subflow_request_sock_ipv4_ops.init_req = subflow_v4_init_req;
+	subflow_request_sock_ipv4_ops.route_req = subflow_v4_route_req;
 
 	subflow_specific = ipv4_specific;
 	subflow_specific.conn_request = subflow_v4_conn_request;
@@ -1397,7 +1409,7 @@ void __init mptcp_subflow_init(void)
 
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
 	subflow_request_sock_ipv6_ops = tcp_request_sock_ipv6_ops;
-	subflow_request_sock_ipv6_ops.init_req = subflow_v6_init_req;
+	subflow_request_sock_ipv6_ops.route_req = subflow_v6_route_req;
 
 	subflow_v6_specific = ipv6_specific;
 	subflow_v6_specific.conn_request = subflow_v6_conn_request;
