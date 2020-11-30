@@ -1187,7 +1187,7 @@ void pre_sev_run(struct vcpu_svm *svm, int cpu)
 	int asid = sev_get_asid(svm->vcpu.kvm);
 
 	/* Assign the asid allocated with this SEV guest */
-	svm->vmcb->control.asid = asid;
+	svm->asid = asid;
 
 	/*
 	 * Flush guest TLB:
