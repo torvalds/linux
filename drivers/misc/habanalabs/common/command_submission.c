@@ -562,7 +562,7 @@ void hl_cs_rollback_all(struct hl_device *hdev)
 	for (i = 0 ; i < hdev->asic_prop.completion_queues_count ; i++)
 		flush_workqueue(hdev->cq_wq[i]);
 
-	/* Make sure we don't have leftovers in the H/W queues mirror list */
+	/* Make sure we don't have leftovers in the CS mirror list */
 	list_for_each_entry_safe(cs, tmp, &hdev->cs_mirror_list, mirror_node) {
 		cs_get(cs);
 		cs->aborted = true;
