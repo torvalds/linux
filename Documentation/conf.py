@@ -112,6 +112,9 @@ if major >= 3:
 
 else:
     extensions.append('cdomain')
+    if major == 1 and minor < 7:
+        sys.stderr.write('WARNING: Sphinx 1.7 or greater will be required as of '
+                         'the 5.12 release\n')
 
 # Ensure that autosectionlabel will produce unique names
 autosectionlabel_prefix_document = True
