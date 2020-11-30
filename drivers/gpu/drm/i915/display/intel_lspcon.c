@@ -523,6 +523,9 @@ void lspcon_set_infoframes(struct intel_encoder *encoder,
 	else
 		frame.avi.colorspace = HDMI_COLORSPACE_RGB;
 
+	/* Set the Colorspace as per the HDMI spec */
+	drm_hdmi_avi_infoframe_colorspace(&frame.avi, conn_state);
+
 	/* nonsense combination */
 	drm_WARN_ON(encoder->base.dev, crtc_state->limited_color_range &&
 		    crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB);

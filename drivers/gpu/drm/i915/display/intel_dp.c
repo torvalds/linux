@@ -7193,10 +7193,13 @@ intel_dp_add_properties(struct intel_dp *intel_dp, struct drm_connector *connect
 	else if (INTEL_GEN(dev_priv) >= 5)
 		drm_connector_attach_max_bpc_property(connector, 6, 12);
 
-	intel_attach_dp_colorspace_property(connector);
-
-	if (intel_bios_is_lspcon_present(dev_priv, port))
+	/* Register HDMI colorspace for case of lspcon */
+	if (intel_bios_is_lspcon_present(dev_priv, port)) {
 		drm_connector_attach_content_type_property(connector);
+		intel_attach_hdmi_colorspace_property(connector);
+	} else {
+		intel_attach_dp_colorspace_property(connector);
+	}
 
 	if (IS_GEMINILAKE(dev_priv) || INTEL_GEN(dev_priv) >= 11)
 		drm_object_attach_property(&connector->base,
