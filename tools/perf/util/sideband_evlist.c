@@ -12,8 +12,8 @@
 #include <sched.h>
 #include <stdbool.h>
 
-int perf_evlist__add_sb_event(struct evlist *evlist, struct perf_event_attr *attr,
-			      evsel__sb_cb_t cb, void *data)
+int evlist__add_sb_event(struct evlist *evlist, struct perf_event_attr *attr,
+			 evsel__sb_cb_t cb, void *data)
 {
 	struct evsel *evsel;
 
@@ -94,7 +94,7 @@ void evlist__set_cb(struct evlist *evlist, evsel__sb_cb_t cb, void *data)
       }
 }
 
-int perf_evlist__start_sb_thread(struct evlist *evlist, struct target *target)
+int evlist__start_sb_thread(struct evlist *evlist, struct target *target)
 {
 	struct evsel *counter;
 
@@ -138,7 +138,7 @@ out_delete_evlist:
 	return -1;
 }
 
-void perf_evlist__stop_sb_thread(struct evlist *evlist)
+void evlist__stop_sb_thread(struct evlist *evlist)
 {
 	if (!evlist)
 		return;

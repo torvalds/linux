@@ -112,14 +112,11 @@ int __evlist__add_default_attrs(struct evlist *evlist,
 
 int evlist__add_dummy(struct evlist *evlist);
 
-int perf_evlist__add_sb_event(struct evlist *evlist,
-			      struct perf_event_attr *attr,
-			      evsel__sb_cb_t cb,
-			      void *data);
+int evlist__add_sb_event(struct evlist *evlist, struct perf_event_attr *attr,
+			 evsel__sb_cb_t cb, void *data);
 void evlist__set_cb(struct evlist *evlist, evsel__sb_cb_t cb, void *data);
-int perf_evlist__start_sb_thread(struct evlist *evlist,
-				 struct target *target);
-void perf_evlist__stop_sb_thread(struct evlist *evlist);
+int evlist__start_sb_thread(struct evlist *evlist, struct target *target);
+void evlist__stop_sb_thread(struct evlist *evlist);
 
 int evlist__add_newtp(struct evlist *evlist, const char *sys, const char *name, void *handler);
 
