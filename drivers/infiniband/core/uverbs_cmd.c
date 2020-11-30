@@ -764,11 +764,14 @@ static int ib_uverbs_rereg_mr(struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uverbs_rereg_mr      cmd;
 	struct ib_uverbs_rereg_mr_resp resp;
-	struct ib_pd                *pd = NULL;
 	struct ib_mr                *mr;
-	struct ib_pd		    *old_pd;
 	int                          ret;
 	struct ib_uobject	    *uobj;
+	struct ib_uobject *new_uobj;
+	struct ib_device *ib_dev;
+	struct ib_pd *orig_pd;
+	struct ib_pd *new_pd;
+	struct ib_mr *new_mr;
 
 	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
 	if (ret)
@@ -801,31 +804,69 @@ static int ib_uverbs_rereg_mr(struct uverbs_attr_bundle *attrs)
 			goto put_uobjs;
 	}
 
+	orig_pd = mr->pd;
 	if (cmd.flags & IB_MR_REREG_PD) {
-		pd = uobj_get_obj_read(pd, UVERBS_OBJECT_PD, cmd.pd_handle,
-				       attrs);
-		if (!pd) {
+		new_pd = uobj_get_obj_read(pd, UVERBS_OBJECT_PD, cmd.pd_handle,
+					   attrs);
+		if (!new_pd) {
 			ret = -EINVAL;
 			goto put_uobjs;
 		}
+	} else {
+		new_pd = mr->pd;
 	}
 
-	old_pd = mr->pd;
-	ret = mr->device->ops.rereg_user_mr(mr, cmd.flags, cmd.start,
-					    cmd.length, cmd.hca_va,
-					    cmd.access_flags, pd,
-					    &attrs->driver_udata);
-	if (ret)
+	/*
+	 * The driver might create a new HW object as part of the rereg, we need
+	 * to have a uobject ready to hold it.
+	 */
+	new_uobj = uobj_alloc(UVERBS_OBJECT_MR, attrs, &ib_dev);
+	if (IS_ERR(new_uobj)) {
+		ret = PTR_ERR(new_uobj);
 		goto put_uobj_pd;
-
-	if (cmd.flags & IB_MR_REREG_PD) {
-		atomic_inc(&pd->usecnt);
-		mr->pd = pd;
-		atomic_dec(&old_pd->usecnt);
 	}
 
-	if (cmd.flags & IB_MR_REREG_TRANS)
-		mr->iova = cmd.hca_va;
+	new_mr = ib_dev->ops.rereg_user_mr(mr, cmd.flags, cmd.start, cmd.length,
+					   cmd.hca_va, cmd.access_flags, new_pd,
+					   &attrs->driver_udata);
+	if (IS_ERR(new_mr)) {
+		ret = PTR_ERR(new_mr);
+		goto put_new_uobj;
+	}
+	if (new_mr) {
+		new_mr->device = new_pd->device;
+		new_mr->pd = new_pd;
+		new_mr->type = IB_MR_TYPE_USER;
+		new_mr->dm = NULL;
+		new_mr->sig_attrs = NULL;
+		new_mr->uobject = uobj;
+		atomic_inc(&new_pd->usecnt);
+		new_mr->iova = cmd.hca_va;
+		new_uobj->object = new_mr;
+
+		rdma_restrack_new(&new_mr->res, RDMA_RESTRACK_MR);
+		rdma_restrack_set_name(&new_mr->res, NULL);
+		rdma_restrack_add(&new_mr->res);
+
+		/*
+		 * The new uobj for the new HW object is put into the same spot
+		 * in the IDR and the old uobj & HW object is deleted.
+		 */
+		rdma_assign_uobject(uobj, new_uobj, attrs);
+		rdma_alloc_commit_uobject(new_uobj, attrs);
+		uobj_put_destroy(uobj);
+		new_uobj = NULL;
+		uobj = NULL;
+		mr = new_mr;
+	} else {
+		if (cmd.flags & IB_MR_REREG_PD) {
+			atomic_dec(&orig_pd->usecnt);
+			mr->pd = new_pd;
+			atomic_inc(&new_pd->usecnt);
+		}
+		if (cmd.flags & IB_MR_REREG_TRANS)
+			mr->iova = cmd.hca_va;
+	}
 
 	memset(&resp, 0, sizeof(resp));
 	resp.lkey      = mr->lkey;
@@ -833,12 +874,16 @@ static int ib_uverbs_rereg_mr(struct uverbs_attr_bundle *attrs)
 
 	ret = uverbs_response(attrs, &resp, sizeof(resp));
 
+put_new_uobj:
+	if (new_uobj)
+		uobj_alloc_abort(new_uobj, attrs);
 put_uobj_pd:
 	if (cmd.flags & IB_MR_REREG_PD)
-		uobj_put_obj_read(pd);
+		uobj_put_obj_read(new_pd);
 
 put_uobjs:
-	uobj_put_write(uobj);
+	if (uobj)
+		uobj_put_write(uobj);
 
 	return ret;
 }
