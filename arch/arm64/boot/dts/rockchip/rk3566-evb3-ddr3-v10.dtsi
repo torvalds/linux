@@ -110,10 +110,11 @@
 &i2s3_2ch {
 	status = "okay";
 	pinctrl-names = "default";
+	rockchip,clk-trcm = <1>;
 	pinctrl-0 = <&i2s3m1_sclk
-			     &i2s3m1_lrck
-			     &i2s3m1_sdi
-			     &i2s3m1_sdo>;
+		     &i2s3m1_lrck
+		     &i2s3m1_sdi
+		     &i2s3m1_sdo>;
 };
 
 &mdio1 {
@@ -188,6 +189,8 @@
 	compatible = "rockchip,rk809-codec", "rockchip,rk817-codec";
 	clocks = <&cru I2S3_MCLKOUT_TX>;
 	clock-names = "mclk";
+	assigned-clocks = <&cru I2S3_MCLKOUT_TX>;
+	assigned-clock-parents = <&cru CLK_I2S3_2CH_TX>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2s3m1_mclk>;
 	hp-volume = <20>;
