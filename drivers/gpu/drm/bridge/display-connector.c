@@ -11,6 +11,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/regulator/consumer.h>
 
 #include <drm/drm_bridge.h>
 #include <drm/drm_edid.h>
@@ -20,6 +21,8 @@ struct display_connector {
 
 	struct gpio_desc	*hpd_gpio;
 	int			hpd_irq;
+
+	struct regulator	*dp_pwr;
 };
 
 static inline struct display_connector *
@@ -172,11 +175,12 @@ static int display_connector_probe(struct platform_device *pdev)
 	of_property_read_string(pdev->dev.of_node, "label", &label);
 
 	/*
-	 * Get the HPD GPIO for DVI and HDMI connectors. If the GPIO can provide
+	 * Get the HPD GPIO for DVI, HDMI and DP connectors. If the GPIO can provide
 	 * edge interrupts, register an interrupt handler.
 	 */
 	if (type == DRM_MODE_CONNECTOR_DVII ||
-	    type == DRM_MODE_CONNECTOR_HDMIA) {
+	    type == DRM_MODE_CONNECTOR_HDMIA ||
+	    type == DRM_MODE_CONNECTOR_DisplayPort) {
 		conn->hpd_gpio = devm_gpiod_get_optional(&pdev->dev, "hpd",
 							 GPIOD_IN);
 		if (IS_ERR(conn->hpd_gpio)) {
@@ -223,6 +227,38 @@ static int display_connector_probe(struct platform_device *pdev)
 		}
 	}
 
+	/* Get the DP PWR for DP connector. */
+	if (type == DRM_MODE_CONNECTOR_DisplayPort) {
+		int ret;
+
+		conn->dp_pwr = devm_regulator_get_optional(&pdev->dev, "dp-pwr");
+
+		if (IS_ERR(conn->dp_pwr)) {
+			ret = PTR_ERR(conn->dp_pwr);
+
+			switch (ret) {
+			case -ENODEV:
+				conn->dp_pwr = NULL;
+				break;
+
+			case -EPROBE_DEFER:
+				return -EPROBE_DEFER;
+
+			default:
+				dev_err(&pdev->dev, "failed to get DP PWR regulator: %d\n", ret);
+				return ret;
+			}
+		}
+
+		if (conn->dp_pwr) {
+			ret = regulator_enable(conn->dp_pwr);
+			if (ret) {
+				dev_err(&pdev->dev, "failed to enable DP PWR regulator: %d\n", ret);
+				return ret;
+			}
+		}
+	}
+
 	conn->bridge.funcs = &display_connector_bridge_funcs;
 	conn->bridge.of_node = pdev->dev.of_node;
 
@@ -251,6 +287,9 @@ static int display_connector_remove(struct platform_device *pdev)
 {
 	struct display_connector *conn = platform_get_drvdata(pdev);
 
+	if (conn->dp_pwr)
+		regulator_disable(conn->dp_pwr);
+
 	drm_bridge_remove(&conn->bridge);
 
 	if (!IS_ERR(conn->bridge.ddc))
@@ -275,6 +314,9 @@ static const struct of_device_id display_connector_match[] = {
 	}, {
 		.compatible = "vga-connector",
 		.data = (void *)DRM_MODE_CONNECTOR_VGA,
+	}, {
+		.compatible = "dp-connector",
+		.data = (void *)DRM_MODE_CONNECTOR_DisplayPort,
 	},
 	{},
 };
