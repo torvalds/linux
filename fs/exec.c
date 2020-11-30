@@ -1257,6 +1257,11 @@ int begin_new_exec(struct linux_binprm * bprm)
 	if (retval)
 		goto out;
 
+	/*
+	 * Cancel any io_uring activity across execve
+	 */
+	io_uring_task_cancel();
+
 	/* Ensure the files table is not shared. */
 	retval = unshare_files();
 	if (retval)
@@ -1782,11 +1787,6 @@ static int bprm_execve(struct linux_binprm *bprm,
 {
 	struct file *file;
 	int retval;
-
-	/*
-	 * Cancel any io_uring activity across execve
-	 */
-	io_uring_task_cancel();
 
 	retval = prepare_bprm_creds(bprm);
 	if (retval)
