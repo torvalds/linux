@@ -312,13 +312,24 @@ cifs_reconnect(struct TCP_Server_Info *server)
 		try_to_freeze();
 
 		mutex_lock(&server->srv_mutex);
+
+#ifdef CONFIG_CIFS_SWN_UPCALL
+		if (server->use_swn_dstaddr) {
+			server->dstaddr = server->swn_dstaddr;
+		} else {
+#endif
+
 #ifdef CONFIG_CIFS_DFS_UPCALL
-		/*
-		 * Set up next DFS target server (if any) for reconnect. If DFS
-		 * feature is disabled, then we will retry last server we
-		 * connected to before.
-		 */
-		reconn_set_next_dfs_target(server, cifs_sb, &tgt_list, &tgt_it);
+			/*
+			 * Set up next DFS target server (if any) for reconnect. If DFS
+			 * feature is disabled, then we will retry last server we
+			 * connected to before.
+			 */
+			reconn_set_next_dfs_target(server, cifs_sb, &tgt_list, &tgt_it);
+#endif
+
+#ifdef CONFIG_CIFS_SWN_UPCALL
+		}
 #endif
 
 		if (cifs_rdma_enabled(server))
@@ -336,6 +347,9 @@ cifs_reconnect(struct TCP_Server_Info *server)
 			if (server->tcpStatus != CifsExiting)
 				server->tcpStatus = CifsNeedNegotiate;
 			spin_unlock(&GlobalMid_Lock);
+#ifdef CONFIG_CIFS_SWN_UPCALL
+			server->use_swn_dstaddr = false;
+#endif
 			mutex_unlock(&server->srv_mutex);
 		}
 	} while (server->tcpStatus == CifsNeedReconnect);
