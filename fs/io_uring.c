@@ -453,6 +453,10 @@ struct io_timeout {
 struct io_timeout_rem {
 	struct file			*file;
 	u64				addr;
+
+	/* timeout update */
+	struct timespec64		ts;
+	u32				flags;
 };
 
 struct io_rw {
@@ -867,7 +871,10 @@ static const struct io_op_def io_op_defs[] = {
 		.async_size		= sizeof(struct io_timeout_data),
 		.work_flags		= IO_WQ_WORK_MM,
 	},
-	[IORING_OP_TIMEOUT_REMOVE] = {},
+	[IORING_OP_TIMEOUT_REMOVE] = {
+		/* used by timeout updates' prep() */
+		.work_flags		= IO_WQ_WORK_MM,
+	},
 	[IORING_OP_ACCEPT] = {
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
@@ -5671,17 +5678,48 @@ static int io_timeout_cancel(struct io_ring_ctx *ctx, __u64 user_data)
 	return 0;
 }
 
+static int io_timeout_update(struct io_ring_ctx *ctx, __u64 user_data,
+			     struct timespec64 *ts, enum hrtimer_mode mode)
+{
+	struct io_kiocb *req = io_timeout_extract(ctx, user_data);
+	struct io_timeout_data *data;
+
+	if (IS_ERR(req))
+		return PTR_ERR(req);
+
+	req->timeout.off = 0; /* noseq */
+	data = req->async_data;
+	list_add_tail(&req->timeout.list, &ctx->timeout_list);
+	hrtimer_init(&data->timer, CLOCK_MONOTONIC, mode);
+	data->timer.function = io_timeout_fn;
+	hrtimer_start(&data->timer, timespec64_to_ktime(*ts), mode);
+	return 0;
+}
+
 static int io_timeout_remove_prep(struct io_kiocb *req,
 				  const struct io_uring_sqe *sqe)
 {
+	struct io_timeout_rem *tr = &req->timeout_rem;
+
 	if (unlikely(req->ctx->flags & IORING_SETUP_IOPOLL))
 		return -EINVAL;
 	if (unlikely(req->flags & (REQ_F_FIXED_FILE | REQ_F_BUFFER_SELECT)))
 		return -EINVAL;
-	if (sqe->ioprio || sqe->buf_index || sqe->len || sqe->timeout_flags)
+	if (sqe->ioprio || sqe->buf_index || sqe->len)
 		return -EINVAL;
 
-	req->timeout_rem.addr = READ_ONCE(sqe->addr);
+	tr->addr = READ_ONCE(sqe->addr);
+	tr->flags = READ_ONCE(sqe->timeout_flags);
+	if (tr->flags & IORING_TIMEOUT_UPDATE) {
+		if (tr->flags & ~(IORING_TIMEOUT_UPDATE|IORING_TIMEOUT_ABS))
+			return -EINVAL;
+		if (get_timespec64(&tr->ts, u64_to_user_ptr(sqe->addr2)))
+			return -EFAULT;
+	} else if (tr->flags) {
+		/* timeout removal doesn't support flags */
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -5690,11 +5728,19 @@ static int io_timeout_remove_prep(struct io_kiocb *req,
  */
 static int io_timeout_remove(struct io_kiocb *req)
 {
+	struct io_timeout_rem *tr = &req->timeout_rem;
 	struct io_ring_ctx *ctx = req->ctx;
 	int ret;
 
 	spin_lock_irq(&ctx->completion_lock);
-	ret = io_timeout_cancel(ctx, req->timeout_rem.addr);
+	if (req->timeout_rem.flags & IORING_TIMEOUT_UPDATE) {
+		enum hrtimer_mode mode = (tr->flags & IORING_TIMEOUT_ABS)
+					? HRTIMER_MODE_ABS : HRTIMER_MODE_REL;
+
+		ret = io_timeout_update(ctx, tr->addr, &tr->ts, mode);
+	} else {
+		ret = io_timeout_cancel(ctx, tr->addr);
+	}
 
 	io_cqring_fill_event(req, ret);
 	io_commit_cqring(ctx);
