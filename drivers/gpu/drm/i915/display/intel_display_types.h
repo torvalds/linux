@@ -604,6 +604,8 @@ struct intel_plane_state {
 	u32 planar_slave;
 
 	struct drm_intel_sprite_colorkey ckey;
+
+	struct drm_rect psr2_sel_fetch_area;
 };
 
 struct intel_initial_plane_config {
