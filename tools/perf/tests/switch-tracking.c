@@ -380,7 +380,7 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 	cycles_evsel = evlist__last(evlist);
 
 	/* Third event */
-	if (!perf_evlist__can_select_event(evlist, sched_switch)) {
+	if (!evlist__can_select_event(evlist, sched_switch)) {
 		pr_debug("No sched_switch\n");
 		err = 0;
 		goto out;

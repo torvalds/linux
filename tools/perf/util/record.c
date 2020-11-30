@@ -217,7 +217,7 @@ int record_opts__config(struct record_opts *opts)
 	return record_opts__config_freq(opts);
 }
 
-bool perf_evlist__can_select_event(struct evlist *evlist, const char *str)
+bool evlist__can_select_event(struct evlist *evlist, const char *str)
 {
 	struct evlist *temp_evlist;
 	struct evsel *evsel;

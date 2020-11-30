@@ -3494,7 +3494,7 @@ static int perf_evsel_menu__run(struct evsel_menu *menu,
 				continue;
 			pos = menu->selection;
 browse_hists:
-			perf_evlist__set_selected(evlist, pos);
+			evlist__set_selected(evlist, pos);
 			/*
 			 * Give the calling tool a chance to populate the non
 			 * default evsel resorted hists tree.

@@ -192,8 +192,7 @@ void evlist__toggle_enable(struct evlist *evlist);
 
 int evlist__enable_event_idx(struct evlist *evlist, struct evsel *evsel, int idx);
 
-void perf_evlist__set_selected(struct evlist *evlist,
-			       struct evsel *evsel);
+void evlist__set_selected(struct evlist *evlist, struct evsel *evsel);
 
 int evlist__create_maps(struct evlist *evlist, struct target *target);
 int evlist__apply_filters(struct evlist *evlist, struct evsel **err_evsel);
@@ -238,7 +237,7 @@ static inline struct evsel *evlist__last(struct evlist *evlist)
 int evlist__strerror_open(struct evlist *evlist, int err, char *buf, size_t size);
 int evlist__strerror_mmap(struct evlist *evlist, int err, char *buf, size_t size);
 
-bool perf_evlist__can_select_event(struct evlist *evlist, const char *str);
+bool evlist__can_select_event(struct evlist *evlist, const char *str);
 void evlist__to_front(struct evlist *evlist, struct evsel *move_evsel);
 
 /**

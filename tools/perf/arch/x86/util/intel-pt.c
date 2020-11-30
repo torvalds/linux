@@ -416,7 +416,7 @@ static int intel_pt_track_switches(struct evlist *evlist)
 	struct evsel *evsel;
 	int err;
 
-	if (!perf_evlist__can_select_event(evlist, sched_switch))
+	if (!evlist__can_select_event(evlist, sched_switch))
 		return -EPERM;
 
 	err = parse_events(evlist, sched_switch, NULL);
