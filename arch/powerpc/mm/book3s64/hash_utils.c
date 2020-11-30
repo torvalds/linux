@@ -112,6 +112,7 @@ int mmu_linear_psize = MMU_PAGE_4K;
 EXPORT_SYMBOL_GPL(mmu_linear_psize);
 int mmu_virtual_psize = MMU_PAGE_4K;
 int mmu_vmalloc_psize = MMU_PAGE_4K;
+EXPORT_SYMBOL_GPL(mmu_vmalloc_psize);
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 int mmu_vmemmap_psize = MMU_PAGE_4K;
 #endif
