@@ -202,3 +202,16 @@ following flags are defined:
     This flag exempts the filesystem from subtree checking and causes
     exportfs to get back an error if it tries to enable subtree checking
     on it.
+
+  EXPORT_OP_CLOSE_BEFORE_UNLINK - always close cached files before unlinking
+    On some exportable filesystems (such as NFS) unlinking a file that
+    is still open can cause a fair bit of extra work. For instance,
+    the NFS client will do a "sillyrename" to ensure that the file
+    sticks around while it's still open. When reexporting, that open
+    file is held by nfsd so we usually end up doing a sillyrename, and
+    then immediately deleting the sillyrenamed file just afterward when
+    the link count actually goes to zero. Sometimes this delete can race
+    with other operations (for instance an rmdir of the parent directory).
+    This flag causes nfsd to close any open files for this inode _before_
+    calling into the vfs to do an unlink or a rename that would replace
+    an existing file.
