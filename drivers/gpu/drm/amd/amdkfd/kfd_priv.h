@@ -1049,7 +1049,9 @@ struct kfd_criu_device_priv_data {
 };
 
 struct kfd_criu_bo_priv_data {
-	uint64_t reserved;
+	uint64_t user_addr;
+	uint32_t idr_handle;
+	uint32_t mapped_gpuids[MAX_GPU_INSTANCE];
 };
 
 struct kfd_criu_svm_range_priv_data {

@@ -2629,3 +2629,14 @@ int amdgpu_amdkfd_get_tile_config(struct amdgpu_device *adev,
 
 	return 0;
 }
+
+bool amdgpu_amdkfd_bo_mapped_to_dev(struct amdgpu_device *adev, struct kgd_mem *mem)
+{
+	struct kfd_mem_attachment *entry;
+
+	list_for_each_entry(entry, &mem->attachments, list) {
+		if (entry->is_mapped && entry->adev == adev)
+			return true;
+	}
+	return false;
+}
