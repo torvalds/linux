@@ -306,7 +306,7 @@ int ice_setup_rx_ctx(struct ice_ring *ring)
 		if (!xdp_rxq_info_is_reg(&ring->xdp_rxq))
 			/* coverity[check_return] */
 			xdp_rxq_info_reg(&ring->xdp_rxq, ring->netdev,
-					 ring->q_index);
+					 ring->q_index, ring->q_vector->napi.napi_id);
 
 		ring->xsk_pool = ice_xsk_pool(ring);
 		if (ring->xsk_pool) {
@@ -333,7 +333,7 @@ int ice_setup_rx_ctx(struct ice_ring *ring)
 				/* coverity[check_return] */
 				xdp_rxq_info_reg(&ring->xdp_rxq,
 						 ring->netdev,
-						 ring->q_index);
+						 ring->q_index, ring->q_vector->napi.napi_id);
 
 			err = xdp_rxq_info_reg_mem_model(&ring->xdp_rxq,
 							 MEM_TYPE_PAGE_SHARED,

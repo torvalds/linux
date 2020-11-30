@@ -233,6 +233,7 @@ static int xsk_rcv(struct xdp_sock *xs, struct xdp_buff *xdp,
 	if (xs->dev != xdp->rxq->dev || xs->queue_id != xdp->rxq->queue_index)
 		return -EINVAL;
 
+	sk_mark_napi_id_once_xdp(&xs->sk, xdp);
 	len = xdp->data_end - xdp->data;
 
 	return xdp->rxq->mem.type == MEM_TYPE_XSK_BUFF_POOL ?

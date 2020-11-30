@@ -158,7 +158,7 @@ static void xdp_rxq_info_init(struct xdp_rxq_info *xdp_rxq)
 
 /* Returns 0 on success, negative on failure */
 int xdp_rxq_info_reg(struct xdp_rxq_info *xdp_rxq,
-		     struct net_device *dev, u32 queue_index)
+		     struct net_device *dev, u32 queue_index, unsigned int napi_id)
 {
 	if (xdp_rxq->reg_state == REG_STATE_UNUSED) {
 		WARN(1, "Driver promised not to register this");
@@ -179,6 +179,7 @@ int xdp_rxq_info_reg(struct xdp_rxq_info *xdp_rxq,
 	xdp_rxq_info_init(xdp_rxq);
 	xdp_rxq->dev = dev;
 	xdp_rxq->queue_index = queue_index;
+	xdp_rxq->napi_id = napi_id;
 
 	xdp_rxq->reg_state = REG_STATE_REGISTERED;
 	return 0;

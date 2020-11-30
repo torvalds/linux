@@ -135,14 +135,25 @@ static inline void sk_mark_napi_id(struct sock *sk, const struct sk_buff *skb)
 	sk_rx_queue_set(sk, skb);
 }
 
+static inline void __sk_mark_napi_id_once_xdp(struct sock *sk, unsigned int napi_id)
+{
+#ifdef CONFIG_NET_RX_BUSY_POLL
+	if (!READ_ONCE(sk->sk_napi_id))
+		WRITE_ONCE(sk->sk_napi_id, napi_id);
+#endif
+}
+
 /* variant used for unconnected sockets */
 static inline void sk_mark_napi_id_once(struct sock *sk,
 					const struct sk_buff *skb)
 {
-#ifdef CONFIG_NET_RX_BUSY_POLL
-	if (!READ_ONCE(sk->sk_napi_id))
-		WRITE_ONCE(sk->sk_napi_id, skb->napi_id);
-#endif
+	__sk_mark_napi_id_once_xdp(sk, skb->napi_id);
+}
+
+static inline void sk_mark_napi_id_once_xdp(struct sock *sk,
+					    const struct xdp_buff *xdp)
+{
+	__sk_mark_napi_id_once_xdp(sk, xdp->rxq->napi_id);
 }
 
 #endif /* _LINUX_NET_BUSY_POLL_H */
