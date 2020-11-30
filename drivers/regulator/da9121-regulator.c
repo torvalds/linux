@@ -9,12 +9,7 @@
 #include <linux/regmap.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
-
-#define DA9121_BUCK_BUCK1_0			0x20
-#define DA9121_BUCK_BUCK1_0_CH1_EN		BIT(0)
-
-#define DA9121_BUCK_BUCK1_5			0x25
-#define DA9121_BUCK_BUCK1_5_CH1_A_VOUT		GENMASK(7, 0)
+#include "da9121-regulator.h"
 
 #define DA9121_MIN_MV		300
 #define DA9121_MAX_MV		1900
@@ -47,10 +42,10 @@ static const struct regulator_desc da9121_reg = {
 	.min_uV = DA9121_MIN_MV * 1000,
 	.uV_step = DA9121_STEP_MV * 1000,
 	.linear_min_sel = DA9121_MIN_SEL,
-	.vsel_reg = DA9121_BUCK_BUCK1_5,
-	.vsel_mask = DA9121_BUCK_BUCK1_5_CH1_A_VOUT,
-	.enable_reg = DA9121_BUCK_BUCK1_0,
-	.enable_mask = DA9121_BUCK_BUCK1_0_CH1_EN,
+	.vsel_reg = DA9121_REG_BUCK_BUCK1_5,
+	.vsel_mask = DA9121_MASK_BUCK_BUCKx_5_CHx_A_VOUT,
+	.enable_reg = DA9121_REG_BUCK_BUCK1_0,
+	.enable_mask = DA9121_MASK_BUCK_BUCKx_0_CHx_EN,
 	/* Default value of BUCK_BUCK1_0.CH1_SRC_DVC_UP */
 	.ramp_delay = 20000,
 	/* tBUCK_EN */
