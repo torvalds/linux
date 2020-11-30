@@ -123,7 +123,7 @@ union vram_info {
 	struct atom_vram_info_header_v2_3 v23;
 	struct atom_vram_info_header_v2_4 v24;
 	struct atom_vram_info_header_v2_5 v25;
-	struct atom_vram_info_header_v2_5 v26;
+	struct atom_vram_info_header_v2_6 v26;
 };
 
 union vram_module {
@@ -322,7 +322,7 @@ amdgpu_atomfirmware_get_vram_info(struct amdgpu_device *adev,
 				vram_module = (union vram_module *)vram_info->v26.vram_module;
 				while (i < module_id) {
 					vram_module = (union vram_module *)
-						((u8 *)vram_module + vram_module->v11.vram_module_size);
+						((u8 *)vram_module + vram_module->v9.vram_module_size);
 					i++;
 				}
 				mem_type = vram_module->v9.memory_type;
