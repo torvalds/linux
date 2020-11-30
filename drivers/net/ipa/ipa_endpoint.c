@@ -724,12 +724,45 @@ static void ipa_endpoint_init_aggr(struct ipa_endpoint *endpoint)
 	iowrite32(val, endpoint->ipa->reg_virt + offset);
 }
 
-/* The head-of-line blocking timer is defined as a tick count, where each
- * tick represents 128 cycles of the IPA core clock.  Return the value
- * that should be written to that register that represents the timeout
- * period provided.
+/* Return the Qtime-based head-of-line blocking timer value that
+ * represents the given number of microseconds.  The result
+ * includes both the timer value and the selected timer granularity.
  */
-static u32 ipa_reg_init_hol_block_timer_val(struct ipa *ipa, u32 microseconds)
+static u32 hol_block_timer_qtime_val(struct ipa *ipa, u32 microseconds)
+{
+	u32 gran_sel;
+	u32 val;
+
+	/* IPA v4.5 expresses time limits using Qtime.  The AP has
+	 * pulse generators 0 and 1 available, which were configured
+	 * in ipa_qtime_config() to have granularity 100 usec and
+	 * 1 msec, respectively.  Use pulse generator 0 if possible,
+	 * otherwise fall back to pulse generator 1.
+	 */
+	val = DIV_ROUND_CLOSEST(microseconds, 100);
+	if (val > field_max(TIME_LIMIT_FMASK)) {
+		/* Have to use pulse generator 1 (millisecond granularity) */
+		gran_sel = GRAN_SEL_FMASK;
+		val = DIV_ROUND_CLOSEST(microseconds, 1000);
+	} else {
+		/* We can use pulse generator 0 (100 usec granularity) */
+		gran_sel = 0;
+	}
+
+	return gran_sel | u32_encode_bits(val, TIME_LIMIT_FMASK);
+}
+
+/* The head-of-line blocking timer is defined as a tick count.  For
+ * IPA version 4.5 the tick count is based on the Qtimer, which is
+ * derived from the 19.2 MHz SoC XO clock.  For older IPA versions
+ * each tick represents 128 cycles of the IPA core clock.
+ *
+ * Return the encoded value that should be written to that register
+ * that represents the timeout period provided.  For IPA v4.2 this
+ * encodes a base and scale value, while for earlier versions the
+ * value is a simple tick count.
+ */
+static u32 hol_block_timer_val(struct ipa *ipa, u32 microseconds)
 {
 	u32 width;
 	u32 scale;
@@ -740,6 +773,9 @@ static u32 ipa_reg_init_hol_block_timer_val(struct ipa *ipa, u32 microseconds)
 
 	if (!microseconds)
 		return 0;	/* Nothing to compute if timer period is 0 */
+
+	if (ipa->version == IPA_VERSION_4_5)
+		return hol_block_timer_qtime_val(ipa, microseconds);
 
 	/* Use 64 bit arithmetic to avoid overflow... */
 	rate = ipa_clock_rate(ipa);
@@ -786,7 +822,7 @@ static void ipa_endpoint_init_hol_block_timer(struct ipa_endpoint *endpoint,
 	u32 val;
 
 	offset = IPA_REG_ENDP_INIT_HOL_BLOCK_TIMER_N_OFFSET(endpoint_id);
-	val = ipa_reg_init_hol_block_timer_val(ipa, microseconds);
+	val = hol_block_timer_val(ipa, microseconds);
 	iowrite32(val, ipa->reg_virt + offset);
 }
 
