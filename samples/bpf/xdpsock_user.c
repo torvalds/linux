@@ -1098,8 +1098,7 @@ static void kick_tx(struct xsk_socket_info *xsk)
 	exit_with_error(errno);
 }
 
-static inline void complete_tx_l2fwd(struct xsk_socket_info *xsk,
-				     struct pollfd *fds)
+static inline void complete_tx_l2fwd(struct xsk_socket_info *xsk)
 {
 	struct xsk_umem_info *umem = xsk->umem;
 	u32 idx_cq = 0, idx_fq = 0;
@@ -1134,7 +1133,8 @@ static inline void complete_tx_l2fwd(struct xsk_socket_info *xsk,
 				exit_with_error(-ret);
 			if (xsk_ring_prod__needs_wakeup(&umem->fq)) {
 				xsk->app_stats.fill_fail_polls++;
-				ret = poll(fds, num_socks, opt_timeout);
+				recvfrom(xsk_socket__fd(xsk->xsk), NULL, 0, MSG_DONTWAIT, NULL,
+					 NULL);
 			}
 			ret = xsk_ring_prod__reserve(&umem->fq, rcvd, &idx_fq);
 		}
@@ -1331,19 +1331,19 @@ static void tx_only_all(void)
 		complete_tx_only_all();
 }
 
-static void l2fwd(struct xsk_socket_info *xsk, struct pollfd *fds)
+static void l2fwd(struct xsk_socket_info *xsk)
 {
 	unsigned int rcvd, i;
 	u32 idx_rx = 0, idx_tx = 0;
 	int ret;
 
-	complete_tx_l2fwd(xsk, fds);
+	complete_tx_l2fwd(xsk);
 
 	rcvd = xsk_ring_cons__peek(&xsk->rx, opt_batch_size, &idx_rx);
 	if (!rcvd) {
 		if (xsk_ring_prod__needs_wakeup(&xsk->umem->fq)) {
 			xsk->app_stats.rx_empty_polls++;
-			ret = poll(fds, num_socks, opt_timeout);
+			recvfrom(xsk_socket__fd(xsk->xsk), NULL, 0, MSG_DONTWAIT, NULL, NULL);
 		}
 		return;
 	}
@@ -1353,7 +1353,7 @@ static void l2fwd(struct xsk_socket_info *xsk, struct pollfd *fds)
 	while (ret != rcvd) {
 		if (ret < 0)
 			exit_with_error(-ret);
-		complete_tx_l2fwd(xsk, fds);
+		complete_tx_l2fwd(xsk);
 		if (xsk_ring_prod__needs_wakeup(&xsk->tx)) {
 			xsk->app_stats.tx_wakeup_sendtos++;
 			kick_tx(xsk);
@@ -1388,22 +1388,20 @@ static void l2fwd_all(void)
 	struct pollfd fds[MAX_SOCKS] = {};
 	int i, ret;
 
-	for (i = 0; i < num_socks; i++) {
-		fds[i].fd = xsk_socket__fd(xsks[i]->xsk);
-		fds[i].events = POLLOUT | POLLIN;
-	}
-
 	for (;;) {
 		if (opt_poll) {
-			for (i = 0; i < num_socks; i++)
+			for (i = 0; i < num_socks; i++) {
+				fds[i].fd = xsk_socket__fd(xsks[i]->xsk);
+				fds[i].events = POLLOUT | POLLIN;
 				xsks[i]->app_stats.opt_polls++;
+			}
 			ret = poll(fds, num_socks, opt_timeout);
 			if (ret <= 0)
 				continue;
 		}
 
 		for (i = 0; i < num_socks; i++)
-			l2fwd(xsks[i], fds);
+			l2fwd(xsks[i]);
 
 		if (benchmark_done)
 			break;
