@@ -3700,9 +3700,8 @@ static int __trace__deliver_event(struct trace *trace, union perf_event *event)
 {
 	struct evlist *evlist = trace->evlist;
 	struct perf_sample sample;
-	int err;
+	int err = evlist__parse_sample(evlist, event, &sample);
 
-	err = perf_evlist__parse_sample(evlist, event, &sample);
 	if (err)
 		fprintf(trace->output, "Can't parse sample, err = %d, skipping...\n", err);
 	else
@@ -3735,7 +3734,7 @@ static int trace__deliver_event(struct trace *trace, union perf_event *event)
 	if (!trace->sort_events)
 		return __trace__deliver_event(trace, event);
 
-	err = perf_evlist__parse_sample_timestamp(trace->evlist, event, &trace->oe.last);
+	err = evlist__parse_sample_timestamp(trace->evlist, event, &trace->oe.last);
 	if (err && err != -1)
 		return err;
 

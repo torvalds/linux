@@ -890,7 +890,7 @@ static void perf_top__mmap_read_idx(struct perf_top *top, int idx)
 	while ((event = perf_mmap__read_event(&md->core)) != NULL) {
 		int ret;
 
-		ret = perf_evlist__parse_sample_timestamp(evlist, event, &last_timestamp);
+		ret = evlist__parse_sample_timestamp(evlist, event, &last_timestamp);
 		if (ret && ret != -1)
 			break;
 
@@ -1153,7 +1153,7 @@ static int deliver_event(struct ordered_events *qe,
 		return 0;
 	}
 
-	ret = perf_evlist__parse_sample(evlist, event, &sample);
+	ret = evlist__parse_sample(evlist, event, &sample);
 	if (ret) {
 		pr_err("Can't parse sample, err = %d\n", ret);
 		goto next_event;

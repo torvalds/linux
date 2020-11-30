@@ -182,7 +182,7 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 				if (type < PERF_RECORD_MAX)
 					nr_events[type]++;
 
-				err = perf_evlist__parse_sample(evlist, event, &sample);
+				err = evlist__parse_sample(evlist, event, &sample);
 				if (err < 0) {
 					if (verbose > 0)
 						perf_event__fprintf(event, NULL, stderr);

@@ -378,8 +378,8 @@ static int process_sample_event(struct machine *machine,
 	struct thread *thread;
 	int ret;
 
-	if (perf_evlist__parse_sample(evlist, event, &sample)) {
-		pr_debug("perf_evlist__parse_sample failed\n");
+	if (evlist__parse_sample(evlist, event, &sample)) {
+		pr_debug("evlist__parse_sample failed\n");
 		return -1;
 	}
 

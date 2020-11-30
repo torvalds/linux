@@ -764,7 +764,7 @@ static s64 perf_kvm__mmap_read_idx(struct perf_kvm_stat *kvm, int idx,
 		return (err == -EAGAIN) ? 0 : -1;
 
 	while ((event = perf_mmap__read_event(&md->core)) != NULL) {
-		err = perf_evlist__parse_sample_timestamp(evlist, event, &timestamp);
+		err = evlist__parse_sample_timestamp(evlist, event, &timestamp);
 		if (err) {
 			perf_mmap__consume(&md->core);
 			pr_err("Failed to parse sample\n");

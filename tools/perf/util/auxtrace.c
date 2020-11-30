@@ -1082,7 +1082,7 @@ static int auxtrace_queue_data_cb(struct perf_session *session,
 	if (!qd->samples || event->header.type != PERF_RECORD_SAMPLE)
 		return 0;
 
-	err = perf_evlist__parse_sample(session->evlist, event, &sample);
+	err = evlist__parse_sample(session->evlist, event, &sample);
 	if (err)
 		return err;
 
