@@ -198,6 +198,8 @@ static int parse_options(struct mount_options *opts, char *str)
 		case Opt_read_timeout:
 			if (match_int(&args[0], &value))
 				return -EINVAL;
+			if (value > 3600000)
+				return -EINVAL;
 			opts->read_timeout_ms = value;
 			break;
 		case Opt_readahead_pages:
@@ -407,9 +409,9 @@ static int read_single_page_timeouts(struct data_file *df, struct file *f,
 				     struct mem_range tmp)
 {
 	struct mount_info *mi = df->df_mount_info;
-	u32 min_time_ms = 0;
-	u32 min_pending_time_ms = 0;
-	u32 max_pending_time_ms = U32_MAX;
+	u32 min_time_us = 0;
+	u32 min_pending_time_us = 0;
+	u32 max_pending_time_us = U32_MAX;
 	int uid = current_uid().val;
 	int i;
 
@@ -420,18 +422,23 @@ static int read_single_page_timeouts(struct data_file *df, struct file *f,
 			&mi->mi_per_uid_read_timeouts[i];
 
 		if(t->uid == uid) {
-			min_time_ms = t->min_time_ms;
-			min_pending_time_ms = t->min_pending_time_ms;
-			max_pending_time_ms = t->max_pending_time_ms;
+			min_time_us = t->min_time_us;
+			min_pending_time_us = t->min_pending_time_us;
+			max_pending_time_us = t->max_pending_time_us;
 			break;
 		}
 	}
 	spin_unlock(&mi->mi_per_uid_read_timeouts_lock);
-	if (max_pending_time_ms == U32_MAX)
-		max_pending_time_ms = mi->mi_options.read_timeout_ms;
+	if (max_pending_time_us == U32_MAX) {
+		u64 read_timeout_us = (u64)mi->mi_options.read_timeout_ms *
+					1000;
+
+		max_pending_time_us = read_timeout_us <= U32_MAX ?
+					read_timeout_us : U32_MAX;
+	}
 
 	return incfs_read_data_file_block(range, f, block_index,
-		min_time_ms, min_pending_time_ms, max_pending_time_ms,
+		min_time_us, min_pending_time_us, max_pending_time_us,
 		tmp);
 }
 

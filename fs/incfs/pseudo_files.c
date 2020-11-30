@@ -1018,7 +1018,7 @@ static long ioctl_set_read_timeouts(struct mount_info *mi, void __user *arg)
 		for (i = 0; i < size / sizeof(*buffer); ++i) {
 			struct incfs_per_uid_read_timeouts *t = &buffer[i];
 
-			if (t->min_pending_time_ms > t->max_pending_time_ms) {
+			if (t->min_pending_time_us > t->max_pending_time_us) {
 				error = -EINVAL;
 				goto out;
 			}
