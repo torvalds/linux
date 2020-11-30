@@ -3134,16 +3134,22 @@ static void vop2_setup_cluster_alpha(struct vop2 *vop2, struct vop2_cluster *clu
 	int premulti_en;
 	int swap;
 
-	plane = &sub_win->base;
-	sub_vpstate = to_vop2_plane_state(plane->state);
-	plane = &main_win->base;
-	main_vpstate = to_vop2_plane_state(plane->state);
-	if (main_vpstate->zpos > sub_vpstate->zpos) {
+	/* This is a workaround for Cluster alpha in one win mode*/
+	if (!sub_win) {
 		win = main_win;
 		swap = 1;
 	} else {
-		win = sub_win;
-		swap = 0;
+		plane = &sub_win->base;
+		sub_vpstate = to_vop2_plane_state(plane->state);
+		plane = &main_win->base;
+		main_vpstate = to_vop2_plane_state(plane->state);
+		if (main_vpstate->zpos > sub_vpstate->zpos) {
+			win = main_win;
+			swap = 1;
+		} else {
+			win = sub_win;
+			swap = 0;
+		}
 	}
 
 	plane = &win->base;
@@ -3326,6 +3332,7 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_crtc_state 
 	struct drm_plane *plane;
 	struct vop2_plane_state *vpstate;
 	struct vop2_zpos *vop2_zpos;
+	struct vop2_cluster cluster;
 	uint8_t nr_wins = 0;
 
 	vop2_zpos = kmalloc_array(vop2->data->win_size, sizeof(*vop2_zpos), GFP_KERNEL);
@@ -3336,7 +3343,6 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_crtc_state 
 	drm_atomic_crtc_for_each_plane(plane, crtc) {
 		struct vop2_win *win = to_vop2_win(plane);
 		struct vop2_win *main_win;
-		struct vop2_cluster cluster;
 
 		win->two_win_mode = false;
 		if (!(win->feature & WIN_FEATURE_CLUSTER_SUB))
@@ -3344,6 +3350,8 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_crtc_state 
 		main_win = vop2_find_win_by_phys_id(vop2, win->phys_id);
 		cluster.main = main_win;
 		cluster.sub = win;
+		win->two_win_mode = true;
+		main_win->two_win_mode = true;
 		vop2_setup_cluster_alpha(vop2, &cluster);
 	}
 
@@ -3383,6 +3391,19 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_crtc_state 
 		vop2_setup_layer_mixer_for_vp(vp, vop2_zpos);
 		vop2_setup_alpha(vp, vop2_zpos);
 		vop2_setup_dly_for_vp(vp);
+	}
+
+	/* The pre alpha overlay of Cluster still need process in one win mode. */
+	drm_atomic_crtc_for_each_plane(plane, crtc) {
+		struct vop2_win *win = to_vop2_win(plane);
+
+		if (!(win->feature & WIN_FEATURE_CLUSTER_MAIN))
+			continue;
+		if (win->two_win_mode)
+			continue;
+		cluster.main = win;
+		cluster.sub = NULL;
+		vop2_setup_cluster_alpha(vop2, &cluster);
 	}
 
 	kfree(vop2_zpos);
