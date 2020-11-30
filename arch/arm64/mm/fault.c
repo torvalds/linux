@@ -789,23 +789,6 @@ void __init hook_debug_fault_code(int nr,
  */
 static void debug_exception_enter(struct pt_regs *regs)
 {
-	if (!user_mode(regs)) {
-		/*
-		 * Tell lockdep we disabled irqs in entry.S. Do nothing if they were
-		 * already disabled to preserve the last enabled/disabled addresses.
-		 */
-		if (interrupts_enabled(regs))
-			trace_hardirqs_off();
-
-		/*
-		 * We might have interrupted pretty much anything.  In
-		 * fact, if we're a debug exception, we can even interrupt
-		 * NMI processing. We don't want this code makes in_nmi()
-		 * to return true, but we need to notify RCU.
-		 */
-		rcu_nmi_enter();
-	}
-
 	preempt_disable();
 
 	/* This code is a bit fragile.  Test it. */
@@ -816,14 +799,6 @@ NOKPROBE_SYMBOL(debug_exception_enter);
 static void debug_exception_exit(struct pt_regs *regs)
 {
 	preempt_enable_no_resched();
-
-	if (user_mode(regs))
-		return;
-
-	rcu_nmi_exit();
-
-	if (interrupts_enabled(regs))
-		trace_hardirqs_on();
 }
 NOKPROBE_SYMBOL(debug_exception_exit);
 

@@ -150,6 +150,30 @@ static void noinstr el1_inv(struct pt_regs *regs, unsigned long esr)
 	exit_to_kernel_mode(regs);
 }
 
+static void noinstr arm64_enter_el1_dbg(struct pt_regs *regs)
+{
+	regs->lockdep_hardirqs = lockdep_hardirqs_enabled();
+
+	lockdep_hardirqs_off(CALLER_ADDR0);
+	rcu_nmi_enter();
+
+	trace_hardirqs_off_finish();
+}
+
+static void noinstr arm64_exit_el1_dbg(struct pt_regs *regs)
+{
+	bool restore = regs->lockdep_hardirqs;
+
+	if (restore) {
+		trace_hardirqs_on_prepare();
+		lockdep_hardirqs_on_prepare(CALLER_ADDR0);
+	}
+
+	rcu_nmi_exit();
+	if (restore)
+		lockdep_hardirqs_on(CALLER_ADDR0);
+}
+
 static void noinstr el1_dbg(struct pt_regs *regs, unsigned long esr)
 {
 	unsigned long far = read_sysreg(far_el1);
@@ -162,7 +186,9 @@ static void noinstr el1_dbg(struct pt_regs *regs, unsigned long esr)
 	if (system_uses_irq_prio_masking())
 		gic_write_pmr(GIC_PRIO_IRQON | GIC_PRIO_PSR_I_SET);
 
+	arm64_enter_el1_dbg(regs);
 	do_debug_exception(far, esr, regs);
+	arm64_exit_el1_dbg(regs);
 }
 
 static void noinstr el1_fpac(struct pt_regs *regs, unsigned long esr)
