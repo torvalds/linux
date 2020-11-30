@@ -2126,7 +2126,7 @@ int __intel_wait_for_register_fw(struct intel_uncore *uncore,
  * This routine waits until the target register @reg contains the expected
  * @value after applying the @mask, i.e. it waits until ::
  *
- *     (I915_READ(reg) & mask) == value
+ *     (intel_uncore_read(uncore, reg) & mask) == value
  *
  * Otherwise, the wait will timeout after @timeout_ms milliseconds.
  *
