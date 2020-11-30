@@ -450,12 +450,38 @@ enum ipa_mode {
 					(0x00000824 +  0x0070 * (ep))
 #define AGGR_EN_FMASK				GENMASK(1, 0)
 #define AGGR_TYPE_FMASK				GENMASK(4, 2)
-#define AGGR_BYTE_LIMIT_FMASK			GENMASK(9, 5)
-#define AGGR_TIME_LIMIT_FMASK			GENMASK(14, 10)
-#define AGGR_PKT_LIMIT_FMASK			GENMASK(20, 15)
-#define AGGR_SW_EOF_ACTIVE_FMASK		GENMASK(21, 21)
-#define AGGR_FORCE_CLOSE_FMASK			GENMASK(22, 22)
-#define AGGR_HARD_BYTE_LIMIT_ENABLE_FMASK	GENMASK(24, 24)
+static inline u32 aggr_byte_limit_fmask(bool legacy)
+{
+	return legacy ? GENMASK(9, 5) : GENMASK(10, 5);
+}
+
+static inline u32 aggr_time_limit_fmask(bool legacy)
+{
+	return legacy ? GENMASK(14, 10) : GENMASK(16, 12);
+}
+
+static inline u32 aggr_pkt_limit_fmask(bool legacy)
+{
+	return legacy ? GENMASK(20, 15) : GENMASK(22, 17);
+}
+
+static inline u32 aggr_sw_eof_active_fmask(bool legacy)
+{
+	return legacy ? GENMASK(21, 21) : GENMASK(23, 23);
+}
+
+static inline u32 aggr_force_close_fmask(bool legacy)
+{
+	return legacy ? GENMASK(22, 22) : GENMASK(24, 24);
+}
+
+static inline u32 aggr_hard_byte_limit_enable_fmask(bool legacy)
+{
+	return legacy ? GENMASK(24, 24) : GENMASK(26, 26);
+}
+
+/* The next field is present for IPA v4.5 */
+#define AGGR_GRAN_SEL_FMASK			GENMASK(27, 27)
 
 /** enum ipa_aggr_en - aggregation enable field in ENDP_INIT_AGGR_N */
 enum ipa_aggr_en {

@@ -37,7 +37,7 @@
 #define IPA_ENDPOINT_QMAP_METADATA_MASK		0x000000ff /* host byte order */
 
 #define IPA_ENDPOINT_RESET_AGGR_RETRY_MAX	3
-#define IPA_AGGR_TIME_LIMIT_DEFAULT		500	/* microseconds */
+#define IPA_AGGR_TIME_LIMIT			500	/* microseconds */
 
 /** enum ipa_status_opcode - status element opcode hardware values */
 enum ipa_status_opcode {
@@ -73,31 +73,6 @@ struct ipa_status {
 #define IPA_STATUS_FLAGS1_RT_RULE_ID_FMASK	GENMASK(31, 22)
 
 #ifdef IPA_VALIDATE
-
-static void ipa_endpoint_validate_build(void)
-{
-	/* The aggregation byte limit defines the point at which an
-	 * aggregation window will close.  It is programmed into the
-	 * IPA hardware as a number of KB.  We don't use "hard byte
-	 * limit" aggregation, which means that we need to supply
-	 * enough space in a receive buffer to hold a complete MTU
-	 * plus normal skb overhead *after* that aggregation byte
-	 * limit has been crossed.
-	 *
-	 * This check just ensures we don't define a receive buffer
-	 * size that would exceed what we can represent in the field
-	 * that is used to program its size.
-	 */
-	BUILD_BUG_ON(IPA_RX_BUFFER_SIZE >
-		     field_max(AGGR_BYTE_LIMIT_FMASK) * SZ_1K +
-		     IPA_MTU + IPA_RX_BUFFER_OVERHEAD);
-
-	/* I honestly don't know where this requirement comes from.  But
-	 * it holds, and if we someday need to loosen the constraint we
-	 * can try to track it down.
-	 */
-	BUILD_BUG_ON(sizeof(struct ipa_status) % 4);
-}
 
 static bool ipa_endpoint_data_valid_one(struct ipa *ipa, u32 count,
 			    const struct ipa_gsi_endpoint_data *all_data,
@@ -180,18 +155,48 @@ static bool ipa_endpoint_data_valid_one(struct ipa *ipa, u32 count,
 	return true;
 }
 
+static u32 aggr_byte_limit_max(enum ipa_version version)
+{
+	if (version < IPA_VERSION_4_5)
+		return field_max(aggr_byte_limit_fmask(true));
+
+	return field_max(aggr_byte_limit_fmask(false));
+}
+
 static bool ipa_endpoint_data_valid(struct ipa *ipa, u32 count,
 				    const struct ipa_gsi_endpoint_data *data)
 {
 	const struct ipa_gsi_endpoint_data *dp = data;
 	struct device *dev = &ipa->pdev->dev;
 	enum ipa_endpoint_name name;
+	u32 limit;
 
-	ipa_endpoint_validate_build();
+	/* Not sure where this constraint come from... */
+	BUILD_BUG_ON(sizeof(struct ipa_status) % 4);
 
 	if (count > IPA_ENDPOINT_COUNT) {
 		dev_err(dev, "too many endpoints specified (%u > %u)\n",
 			count, IPA_ENDPOINT_COUNT);
+		return false;
+	}
+
+	/* The aggregation byte limit defines the point at which an
+	 * aggregation window will close.  It is programmed into the
+	 * IPA hardware as a number of KB.  We don't use "hard byte
+	 * limit" aggregation, which means that we need to supply
+	 * enough space in a receive buffer to hold a complete MTU
+	 * plus normal skb overhead *after* that aggregation byte
+	 * limit has been crossed.
+	 *
+	 * This check ensures we don't define a receive buffer size
+	 * that would exceed what we can represent in the field that
+	 * is used to program its size.
+	 */
+	limit = aggr_byte_limit_max(ipa->version) * SZ_1K;
+	limit += IPA_MTU + IPA_RX_BUFFER_OVERHEAD;
+	if (limit < IPA_RX_BUFFER_SIZE) {
+		dev_err(dev, "buffer size too big for aggregation (%u > %u)\n",
+			IPA_RX_BUFFER_SIZE, limit);
 		return false;
 	}
 
@@ -624,29 +629,60 @@ static u32 ipa_aggr_size_kb(u32 rx_buffer_size)
 	return rx_buffer_size / SZ_1K;
 }
 
+/* Encoded values for AGGR endpoint register fields */
+static u32 aggr_byte_limit_encoded(enum ipa_version version, u32 limit)
+{
+	if (version < IPA_VERSION_4_5)
+		return u32_encode_bits(limit, aggr_byte_limit_fmask(true));
+
+	return u32_encode_bits(limit, aggr_byte_limit_fmask(false));
+}
+
+static u32 aggr_time_limit_encoded(enum ipa_version version, u32 limit)
+{
+	/* Convert limit (microseconds) to aggregation timer ticks */
+	limit = DIV_ROUND_CLOSEST(limit, IPA_AGGR_GRANULARITY);
+	if (version < IPA_VERSION_4_5)
+		return u32_encode_bits(limit, aggr_time_limit_fmask(true));
+
+	return u32_encode_bits(limit, aggr_time_limit_fmask(false));
+}
+
+static u32 aggr_sw_eof_active_encoded(enum ipa_version version, bool enabled)
+{
+	u32 val = enabled ? 1 : 0;
+
+	if (version < IPA_VERSION_4_5)
+		return u32_encode_bits(val, aggr_sw_eof_active_fmask(true));
+
+	return u32_encode_bits(val, aggr_sw_eof_active_fmask(false));
+}
+
 static void ipa_endpoint_init_aggr(struct ipa_endpoint *endpoint)
 {
 	u32 offset = IPA_REG_ENDP_INIT_AGGR_N_OFFSET(endpoint->endpoint_id);
+	enum ipa_version version = endpoint->ipa->version;
 	u32 val = 0;
 
 	if (endpoint->data->aggregation) {
 		if (!endpoint->toward_ipa) {
+			bool close_eof;
 			u32 limit;
 
 			val |= u32_encode_bits(IPA_ENABLE_AGGR, AGGR_EN_FMASK);
 			val |= u32_encode_bits(IPA_GENERIC, AGGR_TYPE_FMASK);
 
 			limit = ipa_aggr_size_kb(IPA_RX_BUFFER_SIZE);
-			val |= u32_encode_bits(limit, AGGR_BYTE_LIMIT_FMASK);
+			val |= aggr_byte_limit_encoded(version, limit);
 
-			limit = IPA_AGGR_TIME_LIMIT_DEFAULT;
-			limit = DIV_ROUND_CLOSEST(limit, IPA_AGGR_GRANULARITY);
-			val |= u32_encode_bits(limit, AGGR_TIME_LIMIT_FMASK);
+			limit = IPA_AGGR_TIME_LIMIT;
+			val |= aggr_time_limit_encoded(version, limit);
 
 			/* AGGR_PKT_LIMIT is 0 (unlimited) */
 
-			if (endpoint->data->rx.aggr_close_eof)
-				val |= AGGR_SW_EOF_ACTIVE_FMASK;
+			close_eof = endpoint->data->rx.aggr_close_eof;
+			val |= aggr_sw_eof_active_encoded(version, close_eof);
+
 			/* AGGR_HARD_BYTE_LIMIT_ENABLE is 0 */
 		} else {
 			val |= u32_encode_bits(IPA_ENABLE_DEAGGR,
