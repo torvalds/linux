@@ -1309,8 +1309,10 @@ static int svm_create_vcpu(struct kvm_vcpu *vcpu)
 		svm->avic_is_running = true;
 
 	svm->msrpm = svm_vcpu_alloc_msrpm();
-	if (!svm->msrpm)
+	if (!svm->msrpm) {
+		err = -ENOMEM;
 		goto error_free_vmcb_page;
+	}
 
 	svm_vcpu_init_msrpm(vcpu, svm->msrpm);
 

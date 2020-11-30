@@ -566,12 +566,14 @@ static int __jbd2_journal_force_commit(journal_t *journal)
 }
 
 /**
- * Force and wait upon a commit if the calling process is not within
- * transaction.  This is used for forcing out undo-protected data which contains
- * bitmaps, when the fs is running out of space.
+ * jbd2_journal_force_commit_nested - Force and wait upon a commit if the
+ * calling process is not within transaction.
  *
  * @journal: journal to force
  * Returns true if progress was made.
+ *
+ * This is used for forcing out undo-protected data which contains
+ * bitmaps, when the fs is running out of space.
  */
 int jbd2_journal_force_commit_nested(journal_t *journal)
 {
@@ -582,7 +584,7 @@ int jbd2_journal_force_commit_nested(journal_t *journal)
 }
 
 /**
- * int journal_force_commit() - force any uncommitted transactions
+ * jbd2_journal_force_commit() - force any uncommitted transactions
  * @journal: journal to force
  *
  * Caller want unconditional commit. We can only force the running transaction
@@ -1881,7 +1883,7 @@ static int load_superblock(journal_t *journal)
 
 
 /**
- * int jbd2_journal_load() - Read journal from disk.
+ * jbd2_journal_load() - Read journal from disk.
  * @journal: Journal to act on.
  *
  * Given a journal_t structure which tells us which disk blocks contain
@@ -1951,7 +1953,7 @@ recovery_error:
 }
 
 /**
- * void jbd2_journal_destroy() - Release a journal_t structure.
+ * jbd2_journal_destroy() - Release a journal_t structure.
  * @journal: Journal to act on.
  *
  * Release a journal_t structure once it is no longer in use by the
@@ -2028,7 +2030,7 @@ int jbd2_journal_destroy(journal_t *journal)
 
 
 /**
- *int jbd2_journal_check_used_features() - Check if features specified are used.
+ * jbd2_journal_check_used_features() - Check if features specified are used.
  * @journal: Journal to check.
  * @compat: bitmask of compatible features
  * @ro: bitmask of features that force read-only mount
@@ -2063,7 +2065,7 @@ int jbd2_journal_check_used_features(journal_t *journal, unsigned long compat,
 }
 
 /**
- * int jbd2_journal_check_available_features() - Check feature set in journalling layer
+ * jbd2_journal_check_available_features() - Check feature set in journalling layer
  * @journal: Journal to check.
  * @compat: bitmask of compatible features
  * @ro: bitmask of features that force read-only mount
@@ -2126,7 +2128,7 @@ jbd2_journal_initialize_fast_commit(journal_t *journal)
 }
 
 /**
- * int jbd2_journal_set_features() - Mark a given journal feature in the superblock
+ * jbd2_journal_set_features() - Mark a given journal feature in the superblock
  * @journal: Journal to act on.
  * @compat: bitmask of compatible features
  * @ro: bitmask of features that force read-only mount
@@ -2217,7 +2219,7 @@ int jbd2_journal_set_features(journal_t *journal, unsigned long compat,
 }
 
 /*
- * jbd2_journal_clear_features () - Clear a given journal feature in the
+ * jbd2_journal_clear_features() - Clear a given journal feature in the
  * 				    superblock
  * @journal: Journal to act on.
  * @compat: bitmask of compatible features
@@ -2246,7 +2248,7 @@ void jbd2_journal_clear_features(journal_t *journal, unsigned long compat,
 EXPORT_SYMBOL(jbd2_journal_clear_features);
 
 /**
- * int jbd2_journal_flush () - Flush journal
+ * jbd2_journal_flush() - Flush journal
  * @journal: Journal to act on.
  *
  * Flush all data for a given journal to disk and empty the journal.
@@ -2321,7 +2323,7 @@ out:
 }
 
 /**
- * int jbd2_journal_wipe() - Wipe journal contents
+ * jbd2_journal_wipe() - Wipe journal contents
  * @journal: Journal to act on.
  * @write: flag (see below)
  *
@@ -2362,7 +2364,7 @@ int jbd2_journal_wipe(journal_t *journal, int write)
 }
 
 /**
- * void jbd2_journal_abort () - Shutdown the journal immediately.
+ * jbd2_journal_abort () - Shutdown the journal immediately.
  * @journal: the journal to shutdown.
  * @errno:   an error number to record in the journal indicating
  *           the reason for the shutdown.
@@ -2453,7 +2455,7 @@ void jbd2_journal_abort(journal_t *journal, int errno)
 }
 
 /**
- * int jbd2_journal_errno () - returns the journal's error state.
+ * jbd2_journal_errno() - returns the journal's error state.
  * @journal: journal to examine.
  *
  * This is the errno number set with jbd2_journal_abort(), the last
@@ -2477,7 +2479,7 @@ int jbd2_journal_errno(journal_t *journal)
 }
 
 /**
- * int jbd2_journal_clear_err () - clears the journal's error state
+ * jbd2_journal_clear_err() - clears the journal's error state
  * @journal: journal to act on.
  *
  * An error must be cleared or acked to take a FS out of readonly
@@ -2497,7 +2499,7 @@ int jbd2_journal_clear_err(journal_t *journal)
 }
 
 /**
- * void jbd2_journal_ack_err() - Ack journal err.
+ * jbd2_journal_ack_err() - Ack journal err.
  * @journal: journal to act on.
  *
  * An error must be cleared or acked to take a FS out of readonly

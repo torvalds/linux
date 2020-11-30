@@ -401,7 +401,7 @@ static inline void jbd_unlock_bh_journal_head(struct buffer_head *bh)
 #define JI_WAIT_DATA (1 << __JI_WAIT_DATA)
 
 /**
- * struct jbd_inode - The jbd_inode type is the structure linking inodes in
+ * struct jbd2_inode - The jbd_inode type is the structure linking inodes in
  * ordered mode present in a transaction so that we can sync them during commit.
  */
 struct jbd2_inode {

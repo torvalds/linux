@@ -438,7 +438,7 @@ int vsock_assign_transport(struct vsock_sock *vsk, struct vsock_sock *psk)
 	case SOCK_STREAM:
 		if (vsock_use_local_transport(remote_cid))
 			new_transport = transport_local;
-		else if (remote_cid <= VMADDR_CID_HOST)
+		else if (remote_cid <= VMADDR_CID_HOST || !transport_h2g)
 			new_transport = transport_g2h;
 		else
 			new_transport = transport_h2g;

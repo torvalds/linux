@@ -76,6 +76,12 @@ properties:
   resets:
     maxItems: 1
 
+  wifi-2.4ghz-coexistence:
+    type: boolean
+    description: >
+      Should the pixel frequencies in the WiFi frequencies range be
+      avoided?
+
 required:
   - compatible
   - reg

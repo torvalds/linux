@@ -28,7 +28,7 @@ struct vidtv_access_unit {
 	struct vidtv_access_unit *next;
 };
 
-/* Some musical notes, used by a tone generator */
+/* Some musical notes, used by a tone generator. Values are in Hz */
 enum musical_notes {
 	NOTE_SILENT = 0,
 
@@ -103,14 +103,16 @@ enum musical_notes {
  * @encoder_buf_sz: The encoder buffer size, in bytes
  * @encoder_buf_offset: Our byte position in the encoder buffer.
  * @sample_count: How many samples we have encoded in total.
+ * @access_units: encoder payload units, used for clock references
  * @src_buf: The source of raw data to be encoded, encoder might set a
  * default if null.
+ * @src_buf_sz: size of @src_buf.
  * @src_buf_offset: Our position in the source buffer.
  * @is_video_encoder: Whether this a video encoder (as opposed to audio)
  * @ctx: Encoder-specific state.
  * @stream_id: Examples: Audio streams (0xc0-0xdf), Video streams
  * (0xe0-0xef).
- * @es_id: The TS PID to use for the elementary stream in this encoder.
+ * @es_pid: The TS PID to use for the elementary stream in this encoder.
  * @encode: Prepare enough AUs for the given amount of time.
  * @clear: Clear the encoder output.
  * @sync: Attempt to synchronize with this encoder.
@@ -131,9 +133,6 @@ struct vidtv_encoder {
 	u32 encoder_buf_offset;
 
 	u64 sample_count;
-	int last_duration;
-	int note_offset;
-	enum musical_notes last_tone;
 
 	struct vidtv_access_unit *access_units;
 

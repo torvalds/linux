@@ -362,21 +362,30 @@ struct gsi_trans *gsi_channel_trans_alloc(struct gsi *gsi, u32 channel_id,
 	return trans;
 }
 
-/* Free a previously-allocated transaction (used only in case of error) */
+/* Free a previously-allocated transaction */
 void gsi_trans_free(struct gsi_trans *trans)
 {
+	refcount_t *refcount = &trans->refcount;
 	struct gsi_trans_info *trans_info;
+	bool last;
 
-	if (!refcount_dec_and_test(&trans->refcount))
+	/* We must hold the lock to release the last reference */
+	if (refcount_dec_not_one(refcount))
 		return;
 
 	trans_info = &trans->gsi->channel[trans->channel_id].trans_info;
 
 	spin_lock_bh(&trans_info->spinlock);
 
-	list_del(&trans->links);
+	/* Reference might have been added before we got the lock */
+	last = refcount_dec_and_test(refcount);
+	if (last)
+		list_del(&trans->links);
 
 	spin_unlock_bh(&trans_info->spinlock);
+
+	if (!last)
+		return;
 
 	ipa_gsi_trans_release(trans);
 

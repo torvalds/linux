@@ -175,17 +175,17 @@ An example Kconfig entry:
 
 .. code-block:: none
 
-        config FOO_KUNIT_TEST
-                tristate "KUnit test for foo" if !KUNIT_ALL_TESTS
-                depends on KUNIT
-                default KUNIT_ALL_TESTS
-                help
-                    This builds unit tests for foo.
+	config FOO_KUNIT_TEST
+		tristate "KUnit test for foo" if !KUNIT_ALL_TESTS
+		depends on KUNIT
+		default KUNIT_ALL_TESTS
+		help
+		  This builds unit tests for foo.
 
-                    For more information on KUnit and unit tests in general, please refer
-                    to the KUnit documentation in Documentation/dev-tools/kunit
+		  For more information on KUnit and unit tests in general, please refer
+		  to the KUnit documentation in Documentation/dev-tools/kunit/.
 
-                    If unsure, say N
+		  If unsure, say N.
 
 
 Test File and Module Names

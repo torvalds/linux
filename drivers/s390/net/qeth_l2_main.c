@@ -985,32 +985,19 @@ static void qeth_l2_setup_bridgeport_attrs(struct qeth_card *card)
  *	change notification' and thus can support the learning_sync bridgeport
  *	attribute
  *	@card: qeth_card structure pointer
- *
- *	This is a destructive test and must be called before dev2br or
- *	bridgeport address notification is enabled!
  */
 static void qeth_l2_detect_dev2br_support(struct qeth_card *card)
 {
 	struct qeth_priv *priv = netdev_priv(card->dev);
 	bool dev2br_supported;
-	int rc;
 
 	QETH_CARD_TEXT(card, 2, "d2brsup");
 	if (!IS_IQD(card))
 		return;
 
 	/* dev2br requires valid cssid,iid,chid */
-	if (!card->info.ids_valid) {
-		dev2br_supported = false;
-	} else if (css_general_characteristics.enarf) {
-		dev2br_supported = true;
-	} else {
-		/* Old machines don't have the feature bit:
-		 * Probe by testing whether a disable succeeds
-		 */
-		rc = qeth_l2_pnso(card, PNSO_OC_NET_ADDR_INFO, 0, NULL, NULL);
-		dev2br_supported = !rc;
-	}
+	dev2br_supported = card->info.ids_valid &&
+			   css_general_characteristics.enarf;
 	QETH_CARD_TEXT_(card, 2, "D2Bsup%02x", dev2br_supported);
 
 	if (dev2br_supported)
@@ -2233,7 +2220,6 @@ static int qeth_l2_set_online(struct qeth_card *card, bool carrier_ok)
 	struct net_device *dev = card->dev;
 	int rc = 0;
 
-	/* query before bridgeport_notification may be enabled */
 	qeth_l2_detect_dev2br_support(card);
 
 	mutex_lock(&card->sbp_lock);
