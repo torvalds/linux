@@ -182,12 +182,10 @@ void perf_evlist__config(struct evlist *evlist, struct record_opts *opts,
 			 struct callchain_param *callchain);
 int record_opts__config(struct record_opts *opts);
 
-int perf_evlist__prepare_workload(struct evlist *evlist,
-				  struct target *target,
-				  const char *argv[], bool pipe_output,
-				  void (*exec_error)(int signo, siginfo_t *info,
-						     void *ucontext));
-int perf_evlist__start_workload(struct evlist *evlist);
+int evlist__prepare_workload(struct evlist *evlist, struct target *target,
+			     const char *argv[], bool pipe_output,
+			     void (*exec_error)(int signo, siginfo_t *info, void *ucontext));
+int evlist__start_workload(struct evlist *evlist);
 
 struct option;
 

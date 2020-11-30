@@ -1333,7 +1333,7 @@ record__switch_output(struct record *rec, bool at_exit)
 static volatile int workload_exec_errno;
 
 /*
- * perf_evlist__prepare_workload will send a SIGUSR1
+ * evlist__prepare_workload will send a SIGUSR1
  * if the fork fails, since we asked by setting its
  * want_signal to true.
  */
@@ -1689,9 +1689,8 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	record__init_features(rec);
 
 	if (forks) {
-		err = perf_evlist__prepare_workload(rec->evlist, &opts->target,
-						    argv, data->is_pipe,
-						    workload_exec_failed_signal);
+		err = evlist__prepare_workload(rec->evlist, &opts->target, argv, data->is_pipe,
+					       workload_exec_failed_signal);
 		if (err < 0) {
 			pr_err("Couldn't run the workload!\n");
 			status = err;
@@ -1835,7 +1834,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 						  machine);
 		free(event);
 
-		perf_evlist__start_workload(rec->evlist);
+		evlist__start_workload(rec->evlist);
 	}
 
 	if (evlist__initialize_ctlfd(rec->evlist, opts->ctl_fd, opts->ctl_fd_ack))
@@ -2413,7 +2412,7 @@ static bool dry_run;
  * XXX Will stay a global variable till we fix builtin-script.c to stop messing
  * with it and switch to use the library functions in perf_evlist that came
  * from builtin-record.c, i.e. use record_opts,
- * perf_evlist__prepare_workload, etc instead of fork+exec'in 'perf record',
+ * evlist__prepare_workload, etc instead of fork+exec'in 'perf record',
  * using pipes, etc.
  */
 static struct option __record_options[] = {

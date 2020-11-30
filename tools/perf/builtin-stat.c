@@ -534,7 +534,7 @@ static void disable_counters(void)
 static volatile int workload_exec_errno;
 
 /*
- * perf_evlist__prepare_workload will send a SIGUSR1
+ * evlist__prepare_workload will send a SIGUSR1
  * if the fork fails, since we asked by setting its
  * want_signal to true.
  */
@@ -724,8 +724,7 @@ static int __run_perf_stat(int argc, const char **argv, int run_idx)
 	bool second_pass = false;
 
 	if (forks) {
-		if (perf_evlist__prepare_workload(evsel_list, &target, argv, is_pipe,
-						  workload_exec_failed_signal) < 0) {
+		if (evlist__prepare_workload(evsel_list, &target, argv, is_pipe, workload_exec_failed_signal) < 0) {
 			perror("failed to prepare workload");
 			return -1;
 		}
@@ -876,7 +875,7 @@ try_again_reset:
 	clock_gettime(CLOCK_MONOTONIC, &ref_time);
 
 	if (forks) {
-		perf_evlist__start_workload(evsel_list);
+		evlist__start_workload(evsel_list);
 		enable_counters();
 
 		if (interval || timeout || evlist__ctlfd_initialized(evsel_list))

@@ -32,7 +32,7 @@ static int attach__enable_on_exec(struct evlist *evlist)
 		return err;
 	}
 
-	err = perf_evlist__prepare_workload(evlist, &target, argv, false, NULL);
+	err = evlist__prepare_workload(evlist, &target, argv, false, NULL);
 	if (err < 0) {
 		pr_debug("Couldn't run the workload!\n");
 		return err;
@@ -47,7 +47,7 @@ static int attach__enable_on_exec(struct evlist *evlist)
 		return err;
 	}
 
-	return perf_evlist__start_workload(evlist) == 1 ? TEST_OK : TEST_FAIL;
+	return evlist__start_workload(evlist) == 1 ? TEST_OK : TEST_FAIL;
 }
 
 static int detach__enable_on_exec(struct evlist *evlist)

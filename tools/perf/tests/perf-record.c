@@ -81,7 +81,7 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 	/*
 	 * Create maps of threads and cpus to monitor. In this case
 	 * we start with all threads and cpus (-1, -1) but then in
-	 * perf_evlist__prepare_workload we'll fill in the only thread
+	 * evlist__prepare_workload we'll fill in the only thread
 	 * we're monitoring, the one forked there.
 	 */
 	err = perf_evlist__create_maps(evlist, &opts.target);
@@ -92,11 +92,11 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 
 	/*
 	 * Prepare the workload in argv[] to run, it'll fork it, and then wait
-	 * for perf_evlist__start_workload() to exec it. This is done this way
+	 * for evlist__start_workload() to exec it. This is done this way
 	 * so that we have time to open the evlist (calling sys_perf_event_open
 	 * on all the fds) and then mmap them.
 	 */
-	err = perf_evlist__prepare_workload(evlist, &opts.target, argv, false, NULL);
+	err = evlist__prepare_workload(evlist, &opts.target, argv, false, NULL);
 	if (err < 0) {
 		pr_debug("Couldn't run the workload!\n");
 		goto out_delete_evlist;
@@ -161,7 +161,7 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 	/*
 	 * Now!
 	 */
-	perf_evlist__start_workload(evlist);
+	evlist__start_workload(evlist);
 
 	while (1) {
 		int before = total_events;

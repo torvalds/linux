@@ -23,7 +23,7 @@ static void sig_handler(int sig __maybe_unused)
 }
 
 /*
- * perf_evlist__prepare_workload will send a SIGUSR1 if the fork fails, since
+ * evlist__prepare_workload will send a SIGUSR1 if the fork fails, since
  * we asked by setting its exec_error to this handler.
  */
 static void workload_exec_failed_signal(int signo __maybe_unused,
@@ -67,7 +67,7 @@ int test__task_exit(struct test *test __maybe_unused, int subtest __maybe_unused
 	/*
 	 * Create maps of threads and cpus to monitor. In this case
 	 * we start with all threads and cpus (-1, -1) but then in
-	 * perf_evlist__prepare_workload we'll fill in the only thread
+	 * evlist__prepare_workload we'll fill in the only thread
 	 * we're monitoring, the one forked there.
 	 */
 	cpus = perf_cpu_map__dummy_new();
@@ -83,8 +83,7 @@ int test__task_exit(struct test *test __maybe_unused, int subtest __maybe_unused
 	cpus	= NULL;
 	threads = NULL;
 
-	err = perf_evlist__prepare_workload(evlist, &target, argv, false,
-					    workload_exec_failed_signal);
+	err = evlist__prepare_workload(evlist, &target, argv, false, workload_exec_failed_signal);
 	if (err < 0) {
 		pr_debug("Couldn't run the workload!\n");
 		goto out_delete_evlist;
@@ -116,7 +115,7 @@ int test__task_exit(struct test *test __maybe_unused, int subtest __maybe_unused
 		goto out_delete_evlist;
 	}
 
-	perf_evlist__start_workload(evlist);
+	evlist__start_workload(evlist);
 
 retry:
 	md = &evlist->mmap[0];
