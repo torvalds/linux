@@ -211,7 +211,7 @@ static void setup_forced_leader(struct report *report,
 				struct evlist *evlist)
 {
 	if (report->group_set)
-		perf_evlist__force_leader(evlist);
+		evlist__force_leader(evlist);
 }
 
 static int process_feature_event(struct perf_session *session,

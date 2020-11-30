@@ -759,7 +759,7 @@ try_again:
 				if ((errno == EINVAL || errno == EBADF) &&
 				    counter->leader != counter &&
 				    counter->weak_group) {
-					perf_evlist__reset_weak_group(evsel_list, counter, false);
+					evlist__reset_weak_group(evsel_list, counter, false);
 					assert(counter->reset_group);
 					second_pass = true;
 					continue;

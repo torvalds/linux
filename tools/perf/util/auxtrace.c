@@ -62,9 +62,7 @@
  * Make a group from 'leader' to 'last', requiring that the events were not
  * already grouped to a different leader.
  */
-static int perf_evlist__regroup(struct evlist *evlist,
-				struct evsel *leader,
-				struct evsel *last)
+static int evlist__regroup(struct evlist *evlist, struct evsel *leader, struct evsel *last)
 {
 	struct evsel *evsel;
 	bool grp;
@@ -775,7 +773,7 @@ no_opt:
 			evsel->core.attr.aux_sample_size = term->val.aux_sample_size;
 			/* If possible, group with the AUX event */
 			if (aux_evsel && evsel->core.attr.aux_sample_size)
-				perf_evlist__regroup(evlist, aux_evsel, evsel);
+				evlist__regroup(evlist, aux_evsel, evsel);
 		}
 	}
 

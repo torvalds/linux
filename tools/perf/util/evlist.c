@@ -1650,7 +1650,7 @@ bool perf_evlist__exclude_kernel(struct evlist *evlist)
  * the group display. Set the artificial group and set the leader's
  * forced_leader flag to notify the display code.
  */
-void perf_evlist__force_leader(struct evlist *evlist)
+void evlist__force_leader(struct evlist *evlist)
 {
 	if (!evlist->nr_groups) {
 		struct evsel *leader = evlist__first(evlist);
@@ -1660,9 +1660,7 @@ void perf_evlist__force_leader(struct evlist *evlist)
 	}
 }
 
-struct evsel *perf_evlist__reset_weak_group(struct evlist *evsel_list,
-						 struct evsel *evsel,
-						bool close)
+struct evsel *evlist__reset_weak_group(struct evlist *evsel_list, struct evsel *evsel, bool close)
 {
 	struct evsel *c2, *leader;
 	bool is_open = true;

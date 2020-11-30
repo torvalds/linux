@@ -324,11 +324,10 @@ struct evsel *evlist__event2evsel(struct evlist *evlist, union perf_event *event
 
 bool perf_evlist__exclude_kernel(struct evlist *evlist);
 
-void perf_evlist__force_leader(struct evlist *evlist);
+void evlist__force_leader(struct evlist *evlist);
 
-struct evsel *perf_evlist__reset_weak_group(struct evlist *evlist,
-						 struct evsel *evsel,
-						bool close);
+struct evsel *evlist__reset_weak_group(struct evlist *evlist, struct evsel *evsel, bool close);
+
 #define EVLIST_CTL_CMD_ENABLE_TAG  "enable"
 #define EVLIST_CTL_CMD_DISABLE_TAG "disable"
 #define EVLIST_CTL_CMD_ACK_TAG     "ack\n"

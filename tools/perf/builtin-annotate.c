@@ -598,7 +598,7 @@ int cmd_annotate(int argc, const char **argv)
 						      HEADER_BRANCH_STACK);
 
 	if (annotate.group_set)
-		perf_evlist__force_leader(annotate.session->evlist);
+		evlist__force_leader(annotate.session->evlist);
 
 	ret = symbol__annotation_init();
 	if (ret < 0)
