@@ -238,12 +238,8 @@ int create_perf_stat_counter(struct evsel *evsel,
 			     struct perf_stat_config *config,
 			     struct target *target,
 			     int cpu);
-void
-perf_evlist__print_counters(struct evlist *evlist,
-			    struct perf_stat_config *config,
-			    struct target *_target,
-			    struct timespec *ts,
-			    int argc, const char **argv);
+void evlist__print_counters(struct evlist *evlist, struct perf_stat_config *config,
+			    struct target *_target, struct timespec *ts, int argc, const char **argv);
 
 struct metric_expr;
 double test_generic_metric(struct metric_expr *mexp, int cpu, struct runtime_stat *st);

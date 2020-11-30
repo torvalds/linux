@@ -1191,9 +1191,7 @@ static void stack_user__printf(struct stack_dump *dump)
 	       dump->size, dump->offset);
 }
 
-static void perf_evlist__print_tstamp(struct evlist *evlist,
-				       union perf_event *event,
-				       struct perf_sample *sample)
+static void evlist__print_tstamp(struct evlist *evlist, union perf_event *event, struct perf_sample *sample)
 {
 	u64 sample_type = __evlist__combined_sample_type(evlist);
 
@@ -1254,7 +1252,7 @@ static void dump_event(struct evlist *evlist, union perf_event *event,
 		evlist->trace_event_sample_raw(evlist, event, sample);
 
 	if (sample)
-		perf_evlist__print_tstamp(evlist, event, sample);
+		evlist__print_tstamp(evlist, event, sample);
 
 	printf("%#" PRIx64 " [%#x]: PERF_RECORD_%s", file_offset,
 	       event->header.size, perf_event__name(event->header.type));

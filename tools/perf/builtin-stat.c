@@ -974,8 +974,7 @@ static void print_counters(struct timespec *ts, int argc, const char **argv)
 	if (stat_config.quiet)
 		return;
 
-	perf_evlist__print_counters(evsel_list, &stat_config, &target,
-				    ts, argc, argv);
+	evlist__print_counters(evsel_list, &stat_config, &target, ts, argc, argv);
 }
 
 static volatile int signr = -1;
