@@ -180,7 +180,7 @@ static void mhu_db_shutdown(struct mbox_chan *chan)
 
 	/* Reset channel */
 	mhu_db_mbox_clear_irq(chan);
-	kfree(chan->con_priv);
+	devm_kfree(mbox->dev, chan->con_priv);
 	chan->con_priv = NULL;
 }
 
