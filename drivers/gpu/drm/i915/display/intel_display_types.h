@@ -1166,7 +1166,7 @@ struct intel_crtc {
 	/* I915_MODE_FLAG_* */
 	u8 mode_flags;
 
-	unsigned long long enabled_power_domains;
+	struct intel_display_power_domain_set enabled_power_domains;
 	struct intel_overlay *overlay;
 
 	struct intel_crtc_state *config;
