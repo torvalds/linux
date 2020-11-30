@@ -13,7 +13,7 @@
 /*
  * Common set of includes for all ACPICA source files.
  * We put them here because we don't want to duplicate them
- * in the the source code again and again.
+ * in the source code again and again.
  *
  * Note: The order of these include files is important.
  */
