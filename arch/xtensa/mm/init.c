@@ -89,8 +89,8 @@ static void __init free_highpages(void)
 	/* set highmem page free */
 	for_each_free_mem_range(i, NUMA_NO_NODE, MEMBLOCK_NONE,
 				&range_start, &range_end, NULL) {
-		unsigned long start = PHYS_PFN(range_start);
-		unsigned long end = PHYS_PFN(range_end);
+		unsigned long start = PFN_UP(range_start);
+		unsigned long end = PFN_DOWN(range_end);
 
 		/* Ignore complete lowmem entries */
 		if (end <= max_low)

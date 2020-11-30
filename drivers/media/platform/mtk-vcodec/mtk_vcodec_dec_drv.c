@@ -241,7 +241,7 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 	}
 	dma_set_max_seg_size(&pdev->dev, DMA_BIT_MASK(32));
 
-	dev->fw_handler = mtk_vcodec_fw_select(dev, fw_type, VPU_RST_DEC);
+	dev->fw_handler = mtk_vcodec_fw_select(dev, fw_type, DECODER);
 	if (IS_ERR(dev->fw_handler))
 		return PTR_ERR(dev->fw_handler);
 

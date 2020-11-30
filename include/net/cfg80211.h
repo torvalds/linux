@@ -1444,7 +1444,7 @@ int cfg80211_check_station_change(struct wiphy *wiphy,
 				  enum cfg80211_station_type statype);
 
 /**
- * enum station_info_rate_flags - bitrate info flags
+ * enum rate_info_flags - bitrate info flags
  *
  * Used by the driver to indicate the specific rate transmission
  * type for 802.11n transmissions.
@@ -1517,7 +1517,7 @@ struct rate_info {
 };
 
 /**
- * enum station_info_rate_flags - bitrate info flags
+ * enum bss_param_flags - bitrate info flags
  *
  * Used by the driver to indicate the specific rate transmission
  * type for 802.11n transmissions.
@@ -6467,7 +6467,8 @@ void cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid,
 			  struct ieee80211_channel *channel, gfp_t gfp);
 
 /**
- * cfg80211_notify_new_candidate - notify cfg80211 of a new mesh peer candidate
+ * cfg80211_notify_new_peer_candidate - notify cfg80211 of a new mesh peer
+ * 					candidate
  *
  * @dev: network device
  * @macaddr: the MAC address of the new candidate
@@ -7606,7 +7607,7 @@ u32 cfg80211_calculate_bitrate(struct rate_info *rate);
 void cfg80211_unregister_wdev(struct wireless_dev *wdev);
 
 /**
- * struct cfg80211_ft_event - FT Information Elements
+ * struct cfg80211_ft_event_params - FT Information Elements
  * @ies: FT IEs
  * @ies_len: length of the FT IE in bytes
  * @target_ap: target AP's MAC address

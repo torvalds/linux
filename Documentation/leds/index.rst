@@ -25,3 +25,4 @@ LEDs
    leds-lp5562
    leds-lp55xx
    leds-mlxcpld
+   leds-sc27xx

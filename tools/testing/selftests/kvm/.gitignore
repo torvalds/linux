@@ -1,10 +1,13 @@
 # SPDX-License-Identifier: GPL-2.0-only
+/aarch64/get-reg-list
+/aarch64/get-reg-list-sve
 /s390x/memop
 /s390x/resets
 /s390x/sync_regs_test
 /x86_64/cr4_cpuid_sync_test
 /x86_64/debug_regs
 /x86_64/evmcs_test
+/x86_64/kvm_pv_test
 /x86_64/hyperv_cpuid
 /x86_64/mmio_warning_test
 /x86_64/platform_info_test
@@ -24,6 +27,7 @@
 /clear_dirty_log_test
 /demand_paging_test
 /dirty_log_test
+/dirty_log_perf_test
 /kvm_create_max_vcpus
 /set_memory_region_test
 /steal_time

@@ -189,7 +189,7 @@ static int tegra_cpuidle_state_enter(struct cpuidle_device *dev,
 	}
 
 	local_fiq_disable();
-	tegra_pm_set_cpu_in_lp2();
+	RCU_NONIDLE(tegra_pm_set_cpu_in_lp2());
 	cpu_pm_enter();
 
 	switch (index) {
@@ -207,7 +207,7 @@ static int tegra_cpuidle_state_enter(struct cpuidle_device *dev,
 	}
 
 	cpu_pm_exit();
-	tegra_pm_clear_cpu_in_lp2();
+	RCU_NONIDLE(tegra_pm_clear_cpu_in_lp2());
 	local_fiq_enable();
 
 	return err ?: index;

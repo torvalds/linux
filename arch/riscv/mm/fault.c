@@ -86,6 +86,7 @@ static inline void vmalloc_fault(struct pt_regs *regs, int code, unsigned long a
 	pmd_t *pmd, *pmd_k;
 	pte_t *pte_k;
 	int index;
+	unsigned long pfn;
 
 	/* User mode accesses just cause a SIGSEGV */
 	if (user_mode(regs))
@@ -100,7 +101,8 @@ static inline void vmalloc_fault(struct pt_regs *regs, int code, unsigned long a
 	 * of a task switch.
 	 */
 	index = pgd_index(addr);
-	pgd = (pgd_t *)pfn_to_virt(csr_read(CSR_SATP)) + index;
+	pfn = csr_read(CSR_SATP) & SATP_PPN;
+	pgd = (pgd_t *)pfn_to_virt(pfn) + index;
 	pgd_k = init_mm.pgd + index;
 
 	if (!pgd_present(*pgd_k)) {

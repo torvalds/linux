@@ -140,7 +140,7 @@ static void drm_gem_vram_placement(struct drm_gem_vram_object *gbo,
 	unsigned int c = 0;
 
 	if (pl_flag & DRM_GEM_VRAM_PL_FLAG_TOPDOWN)
-		pl_flag = TTM_PL_FLAG_TOPDOWN;
+		invariant_flags = TTM_PL_FLAG_TOPDOWN;
 
 	gbo->placement.placement = gbo->placements;
 	gbo->placement.busy_placement = gbo->placements;

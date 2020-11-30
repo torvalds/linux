@@ -940,7 +940,7 @@ static int parse_attach_detach_args(int argc, char **argv, int *progfd,
 	}
 
 	if (*attach_type == BPF_FLOW_DISSECTOR) {
-		*mapfd = -1;
+		*mapfd = 0;
 		return 0;
 	}
 

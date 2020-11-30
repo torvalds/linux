@@ -1078,8 +1078,11 @@ out_allocpage:
 		cond_resched();
 		goto repeat;
 	}
-	set_page_private(page, (unsigned long)pcl);
-	SetPagePrivate(page);
+
+	if (tocache) {
+		set_page_private(page, (unsigned long)pcl);
+		SetPagePrivate(page);
+	}
 out:	/* the only exit (for tracing and debugging) */
 	return page;
 }

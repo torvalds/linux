@@ -5464,6 +5464,7 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 			struct cfg80211_assoc_request *req)
 {
 	bool is_6ghz = req->bss->channel->band == NL80211_BAND_6GHZ;
+	bool is_5ghz = req->bss->channel->band == NL80211_BAND_5GHZ;
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	struct ieee80211_bss *bss = (void *)req->bss->priv;
@@ -5616,7 +5617,7 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 	if (vht_ie && vht_ie[1] >= sizeof(struct ieee80211_vht_cap))
 		memcpy(&assoc_data->ap_vht_cap, vht_ie + 2,
 		       sizeof(struct ieee80211_vht_cap));
-	else if (!is_6ghz)
+	else if (is_5ghz)
 		ifmgd->flags |= IEEE80211_STA_DISABLE_VHT |
 				IEEE80211_STA_DISABLE_HE;
 	rcu_read_unlock();
