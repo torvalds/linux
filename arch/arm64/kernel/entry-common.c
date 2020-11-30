@@ -17,12 +17,58 @@
 #include <asm/mmu.h>
 #include <asm/sysreg.h>
 
+/*
+ * This is intended to match the logic in irqentry_enter(), handling the kernel
+ * mode transitions only.
+ */
+static void noinstr enter_from_kernel_mode(struct pt_regs *regs)
+{
+	regs->exit_rcu = false;
+
+	if (!IS_ENABLED(CONFIG_TINY_RCU) && is_idle_task(current)) {
+		lockdep_hardirqs_off(CALLER_ADDR0);
+		rcu_irq_enter();
+		trace_hardirqs_off_finish();
+
+		regs->exit_rcu = true;
+		return;
+	}
+
+	lockdep_hardirqs_off(CALLER_ADDR0);
+	rcu_irq_enter_check_tick();
+	trace_hardirqs_off_finish();
+}
+
+/*
+ * This is intended to match the logic in irqentry_exit(), handling the kernel
+ * mode transitions only, and with preemption handled elsewhere.
+ */
+static void noinstr exit_to_kernel_mode(struct pt_regs *regs)
+{
+	lockdep_assert_irqs_disabled();
+
+	if (interrupts_enabled(regs)) {
+		if (regs->exit_rcu) {
+			trace_hardirqs_on_prepare();
+			lockdep_hardirqs_on_prepare(CALLER_ADDR0);
+			rcu_irq_exit();
+			lockdep_hardirqs_on(CALLER_ADDR0);
+			return;
+		}
+
+		trace_hardirqs_on();
+	} else {
+		if (regs->exit_rcu)
+			rcu_irq_exit();
+	}
+}
+
 asmlinkage void noinstr enter_el1_irq_or_nmi(struct pt_regs *regs)
 {
 	if (IS_ENABLED(CONFIG_ARM64_PSEUDO_NMI) && !interrupts_enabled(regs))
 		nmi_enter();
-
-	trace_hardirqs_off();
+	else
+		enter_from_kernel_mode(regs);
 }
 
 asmlinkage void noinstr exit_el1_irq_or_nmi(struct pt_regs *regs)
@@ -30,36 +76,48 @@ asmlinkage void noinstr exit_el1_irq_or_nmi(struct pt_regs *regs)
 	if (IS_ENABLED(CONFIG_ARM64_PSEUDO_NMI) && !interrupts_enabled(regs))
 		nmi_exit();
 	else
-		trace_hardirqs_on();
+		exit_to_kernel_mode(regs);
 }
 
 static void noinstr el1_abort(struct pt_regs *regs, unsigned long esr)
 {
 	unsigned long far = read_sysreg(far_el1);
 
+	enter_from_kernel_mode(regs);
 	local_daif_inherit(regs);
 	far = untagged_addr(far);
 	do_mem_abort(far, esr, regs);
+	local_daif_mask();
+	exit_to_kernel_mode(regs);
 }
 
 static void noinstr el1_pc(struct pt_regs *regs, unsigned long esr)
 {
 	unsigned long far = read_sysreg(far_el1);
 
+	enter_from_kernel_mode(regs);
 	local_daif_inherit(regs);
 	do_sp_pc_abort(far, esr, regs);
+	local_daif_mask();
+	exit_to_kernel_mode(regs);
 }
 
 static void noinstr el1_undef(struct pt_regs *regs)
 {
+	enter_from_kernel_mode(regs);
 	local_daif_inherit(regs);
 	do_undefinstr(regs);
+	local_daif_mask();
+	exit_to_kernel_mode(regs);
 }
 
 static void noinstr el1_inv(struct pt_regs *regs, unsigned long esr)
 {
+	enter_from_kernel_mode(regs);
 	local_daif_inherit(regs);
 	bad_mode(regs, 0, esr);
+	local_daif_mask();
+	exit_to_kernel_mode(regs);
 }
 
 static void noinstr el1_dbg(struct pt_regs *regs, unsigned long esr)
@@ -79,8 +137,11 @@ static void noinstr el1_dbg(struct pt_regs *regs, unsigned long esr)
 
 static void noinstr el1_fpac(struct pt_regs *regs, unsigned long esr)
 {
+	enter_from_kernel_mode(regs);
 	local_daif_inherit(regs);
 	do_ptrauth_fault(regs, esr);
+	local_daif_mask();
+	exit_to_kernel_mode(regs);
 }
 
 asmlinkage void noinstr el1_sync_handler(struct pt_regs *regs)
