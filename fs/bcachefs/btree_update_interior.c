@@ -544,6 +544,8 @@ static void btree_update_nodes_written(struct btree_update *as)
 	unsigned i;
 	int ret;
 
+	BUG_ON(!journal_pin_active(&as->journal));
+
 	/*
 	 * We did an update to a parent node where the pointers we added pointed
 	 * to child nodes that weren't written yet: now, the child nodes have
@@ -699,17 +701,7 @@ static void btree_update_reparent(struct btree_update *as,
 	child->b = NULL;
 	child->mode = BTREE_INTERIOR_UPDATING_AS;
 
-	/*
-	 * When we write a new btree root, we have to drop our journal pin
-	 * _before_ the new nodes are technically reachable; see
-	 * btree_update_nodes_written().
-	 *
-	 * This goes for journal pins that are recursively blocked on us - so,
-	 * just transfer the journal pin to the new interior update so
-	 * btree_update_nodes_written() can drop it.
-	 */
 	bch2_journal_pin_copy(&c->journal, &as->journal, &child->journal, NULL);
-	bch2_journal_pin_drop(&c->journal, &child->journal);
 }
 
 static void btree_update_updated_root(struct btree_update *as, struct btree *b)
@@ -955,6 +947,10 @@ bch2_btree_update_start(struct btree_trans *trans, enum btree_id id,
 	ret = bch2_btree_reserve_get(as, nr_nodes, flags, cl);
 	if (ret)
 		goto err;
+
+	bch2_journal_pin_add(&c->journal,
+			     atomic64_read(&c->journal.seq),
+			     &as->journal, NULL);
 
 	mutex_lock(&c->btree_interior_update_lock);
 	list_add_tail(&as->list, &c->btree_interior_update_list);
