@@ -493,8 +493,7 @@ static size_t hists__fprintf_nr_sample_events(struct hists *hists, struct report
 	return ret + fprintf(fp, "\n#\n");
 }
 
-static int perf_evlist__tui_block_hists_browse(struct evlist *evlist,
-					       struct report *rep)
+static int evlist__tui_block_hists_browse(struct evlist *evlist, struct report *rep)
 {
 	struct evsel *pos;
 	int i = 0, ret;
@@ -511,9 +510,7 @@ static int perf_evlist__tui_block_hists_browse(struct evlist *evlist,
 	return 0;
 }
 
-static int perf_evlist__tty_browse_hists(struct evlist *evlist,
-					 struct report *rep,
-					 const char *help)
+static int evlist__tty_browse_hists(struct evlist *evlist, struct report *rep, const char *help)
 {
 	struct evsel *pos;
 	int i = 0;
@@ -595,7 +592,7 @@ static int report__gtk_browse_hists(struct report *rep, const char *help)
 	int (*hist_browser)(struct evlist *evlist, const char *help,
 			    struct hist_browser_timer *timer, float min_pcnt);
 
-	hist_browser = dlsym(perf_gtk_handle, "perf_evlist__gtk_browse_hists");
+	hist_browser = dlsym(perf_gtk_handle, "evlist__gtk_browse_hists");
 
 	if (hist_browser == NULL) {
 		ui__error("GTK browser not found!\n");
@@ -622,14 +619,12 @@ static int report__browse_hists(struct report *rep)
 	switch (use_browser) {
 	case 1:
 		if (rep->total_cycles_mode) {
-			ret = perf_evlist__tui_block_hists_browse(evlist, rep);
+			ret = evlist__tui_block_hists_browse(evlist, rep);
 			break;
 		}
 
-		ret = perf_evlist__tui_browse_hists(evlist, help, NULL,
-						    rep->min_percent,
-						    &session->header.env,
-						    true, &rep->annotation_opts);
+		ret = evlist__tui_browse_hists(evlist, help, NULL, rep->min_percent,
+					       &session->header.env, true, &rep->annotation_opts);
 		/*
 		 * Usually "ret" is the last pressed key, and we only
 		 * care if the key notifies us to switch data file.
@@ -641,7 +636,7 @@ static int report__browse_hists(struct report *rep)
 		ret = report__gtk_browse_hists(rep, help);
 		break;
 	default:
-		ret = perf_evlist__tty_browse_hists(evlist, rep, help);
+		ret = evlist__tty_browse_hists(evlist, rep, help);
 		break;
 	}
 

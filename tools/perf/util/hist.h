@@ -464,12 +464,9 @@ int hist_entry__tui_annotate(struct hist_entry *he, struct evsel *evsel,
 			     struct hist_browser_timer *hbt,
 			     struct annotation_options *annotation_opts);
 
-int perf_evlist__tui_browse_hists(struct evlist *evlist, const char *help,
-				  struct hist_browser_timer *hbt,
-				  float min_pcnt,
-				  struct perf_env *env,
-				  bool warn_lost_event,
-				  struct annotation_options *annotation_options);
+int evlist__tui_browse_hists(struct evlist *evlist, const char *help, struct hist_browser_timer *hbt,
+			     float min_pcnt, struct perf_env *env, bool warn_lost_event,
+			     struct annotation_options *annotation_options);
 
 int script_browse(const char *script_opt, struct evsel *evsel);
 
@@ -483,13 +480,13 @@ int block_hists_tui_browse(struct block_hist *bh, struct evsel *evsel,
 			   struct annotation_options *annotation_opts);
 #else
 static inline
-int perf_evlist__tui_browse_hists(struct evlist *evlist __maybe_unused,
-				  const char *help __maybe_unused,
-				  struct hist_browser_timer *hbt __maybe_unused,
-				  float min_pcnt __maybe_unused,
-				  struct perf_env *env __maybe_unused,
-				  bool warn_lost_event __maybe_unused,
-				  struct annotation_options *annotation_options __maybe_unused)
+int evlist__tui_browse_hists(struct evlist *evlist __maybe_unused,
+			     const char *help __maybe_unused,
+			     struct hist_browser_timer *hbt __maybe_unused,
+			     float min_pcnt __maybe_unused,
+			     struct perf_env *env __maybe_unused,
+			     bool warn_lost_event __maybe_unused,
+			     struct annotation_options *annotation_options __maybe_unused)
 {
 	return 0;
 }
