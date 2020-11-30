@@ -26,6 +26,15 @@
 #ifndef _DMUB_CMD_H_
 #define _DMUB_CMD_H_
 
+#if defined(_TEST_HARNESS) || defined(FPGA_USB4)
+#include "dmub_fw_types.h"
+#include "include_legacy/atomfirmware.h"
+
+#if defined(_TEST_HARNESS)
+#include <string.h>
+#endif
+#else
+
 #include <asm/byteorder.h>
 #include <linux/types.h>
 #include <linux/string.h>
@@ -34,12 +43,14 @@
 
 #include "atomfirmware.h"
 
+#endif // defined(_TEST_HARNESS) || defined(FPGA_USB4)
+
 /* Firmware versioning. */
 #ifdef DMUB_EXPOSE_VERSION
-#define DMUB_FW_VERSION_GIT_HASH 0x685065427
+#define DMUB_FW_VERSION_GIT_HASH 0x931573111
 #define DMUB_FW_VERSION_MAJOR 0
 #define DMUB_FW_VERSION_MINOR 0
-#define DMUB_FW_VERSION_REVISION 44
+#define DMUB_FW_VERSION_REVISION 45
 #define DMUB_FW_VERSION_TEST 0
 #define DMUB_FW_VERSION_VBIOS 0
 #define DMUB_FW_VERSION_HOTFIX 0
@@ -54,6 +65,8 @@
 
 //<DMUB_TYPES>==================================================================
 /* Basic type definitions. */
+
+#define __forceinline inline
 
 #define SET_ABM_PIPE_GRADUALLY_DISABLE           0
 #define SET_ABM_PIPE_IMMEDIATELY_DISABLE         255
