@@ -337,6 +337,56 @@ out_put:
 	return err;
 }
 
+#define SZ_8G BIT_ULL(33)
+
+static int igt_mock_max_segment(void *arg)
+{
+	struct intel_memory_region *mem = arg;
+	struct drm_i915_private *i915 = mem->i915;
+	struct drm_i915_gem_object *obj;
+	struct i915_buddy_block *block;
+	LIST_HEAD(objects);
+	u64 size;
+	int err = 0;
+
+	/*
+	 * The size of block are only limited by the largest power-of-two that
+	 * will fit in the region size, but to construct an object we also
+	 * require feeding it into an sg list, where the upper limit of the sg
+	 * entry is at most UINT_MAX, therefore when allocating with
+	 * I915_ALLOC_MAX_SEGMENT_SIZE we shouldn't see blocks larger than
+	 * i915_sg_segment_size().
+	 */
+
+	size = SZ_8G;
+	mem = mock_region_create(i915, 0, size, PAGE_SIZE, 0);
+	if (IS_ERR(mem))
+		return PTR_ERR(mem);
+
+	obj = igt_object_create(mem, &objects, size, 0);
+	if (IS_ERR(obj)) {
+		err = PTR_ERR(obj);
+		goto out_put;
+	}
+
+	list_for_each_entry(block, &obj->mm.blocks, link) {
+		if (i915_buddy_block_size(&mem->mm, block) > i915_sg_segment_size()) {
+			pr_err("%s found block size(%llu) larger than max sg_segment_size(%u)",
+			       __func__,
+			       i915_buddy_block_size(&mem->mm, block),
+			       i915_sg_segment_size());
+			err = -EINVAL;
+			goto out_close;
+		}
+	}
+
+out_close:
+	close_objects(mem, &objects);
+out_put:
+	intel_memory_region_put(mem);
+	return err;
+}
+
 static int igt_gpu_write_dw(struct intel_context *ce,
 			    struct i915_vma *vma,
 			    u32 dword,
@@ -848,6 +898,7 @@ int intel_memory_region_mock_selftests(void)
 		SUBTEST(igt_mock_fill),
 		SUBTEST(igt_mock_contiguous),
 		SUBTEST(igt_mock_splintered_region),
+		SUBTEST(igt_mock_max_segment),
 	};
 	struct intel_memory_region *mem;
 	struct drm_i915_private *i915;
