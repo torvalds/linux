@@ -91,6 +91,117 @@ static const struct da9121_variant_info variant_parameters[] = {
 	{ 1, 2, &da9121_6A_2phase_current  },	//DA9121_TYPE_DA9217
 };
 
+struct da9121_field {
+	unsigned int reg;
+	unsigned int msk;
+};
+
+static const struct da9121_field da9121_current_field[2] = {
+	{ DA9121_REG_BUCK_BUCK1_2, DA9121_MASK_BUCK_BUCKx_2_CHx_ILIM },
+	{ DA9xxx_REG_BUCK_BUCK2_2, DA9121_MASK_BUCK_BUCKx_2_CHx_ILIM },
+};
+
+static int da9121_get_current_limit(struct regulator_dev *rdev)
+{
+	struct da9121 *chip = rdev_get_drvdata(rdev);
+	int id = rdev_get_id(rdev);
+	struct da9121_range *range =
+		variant_parameters[chip->variant_id].current_range;
+	unsigned int val = 0;
+	int ret = 0;
+
+	ret = regmap_read(chip->regmap, da9121_current_field[id].reg, &val);
+	if (ret < 0) {
+		dev_err(chip->dev, "Cannot read BUCK register: %d\n", ret);
+		goto error;
+	}
+
+	if (val < range->reg_min) {
+		ret = -EACCES;
+		goto error;
+	}
+
+	if (val > range->reg_max) {
+		ret = -EINVAL;
+		goto error;
+	}
+
+	return range->val_min + (range->val_stp * (val - range->reg_min));
+error:
+	return ret;
+}
+
+static int da9121_ceiling_selector(struct regulator_dev *rdev,
+		int min, int max,
+		unsigned int *selector)
+{
+	struct da9121 *chip = rdev_get_drvdata(rdev);
+	struct da9121_range *range =
+		variant_parameters[chip->variant_id].current_range;
+	unsigned int level;
+	unsigned int i = 0;
+	unsigned int sel = 0;
+	int ret = 0;
+
+	if (range->val_min > max || range->val_max < min) {
+		dev_err(chip->dev,
+			"Requested current out of regulator capability\n");
+		ret = -EINVAL;
+		goto error;
+	}
+
+	level = range->val_max;
+	for (i = range->reg_max; i >= range->reg_min; i--) {
+		if (level <= max) {
+			sel = i;
+			break;
+		}
+		level -= range->val_stp;
+	}
+
+	if (level < min) {
+		dev_err(chip->dev,
+			"Best match falls below minimum requested current\n");
+		ret = -EINVAL;
+		goto error;
+	}
+
+	*selector = sel;
+error:
+	return ret;
+}
+
+static int da9121_set_current_limit(struct regulator_dev *rdev,
+				int min_ua, int max_ua)
+{
+	struct da9121 *chip = rdev_get_drvdata(rdev);
+	int id = rdev_get_id(rdev);
+	struct da9121_range *range =
+		variant_parameters[chip->variant_id].current_range;
+	unsigned int sel = 0;
+	int ret = 0;
+
+	if (min_ua < range->val_min ||
+	    max_ua > range->val_max) {
+		ret = -EINVAL;
+		goto error;
+	}
+
+	ret = da9121_ceiling_selector(rdev, min_ua, max_ua, &sel);
+	if (ret < 0)
+		goto error;
+
+	ret = regmap_update_bits(chip->regmap,
+				da9121_current_field[id].reg,
+				da9121_current_field[id].msk,
+				(unsigned int)sel);
+	if (ret < 0)
+		dev_err(chip->dev, "Cannot update BUCK current limit, err: %d\n", ret);
+
+error:
+	return ret;
+}
+
 static const struct regulator_ops da9121_buck_ops = {
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
@@ -98,6 +209,8 @@ static const struct regulator_ops da9121_buck_ops = {
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.list_voltage = regulator_list_voltage_linear,
+	.get_current_limit = da9121_get_current_limit,
+	.set_current_limit = da9121_set_current_limit,
 };
 
 static struct of_regulator_match da9121_matches[] = {
