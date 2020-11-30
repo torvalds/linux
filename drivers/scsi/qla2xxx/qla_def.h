@@ -4975,8 +4975,7 @@ struct secure_flash_update_block_pk {
 } while (0)
 
 #define QLA_QPAIR_MARK_NOT_BUSY(__qpair)		\
-	atomic_dec(&__qpair->ref_count);		\
-
+	atomic_dec(&__qpair->ref_count)
 
 #define QLA_ENA_CONF(_ha) {\
     int i;\
