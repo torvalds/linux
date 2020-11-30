@@ -7195,6 +7195,9 @@ intel_dp_add_properties(struct intel_dp *intel_dp, struct drm_connector *connect
 
 	intel_attach_colorspace_property(connector);
 
+	if (intel_bios_is_lspcon_present(dev_priv, port))
+		drm_connector_attach_content_type_property(connector);
+
 	if (IS_GEMINILAKE(dev_priv) || INTEL_GEN(dev_priv) >= 11)
 		drm_object_attach_property(&connector->base,
 					   connector->dev->mode_config.hdr_output_metadata_property,

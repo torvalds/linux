@@ -539,6 +539,8 @@ void lspcon_set_infoframes(struct intel_encoder *encoder,
 		frame.avi.ycc_quantization_range = HDMI_YCC_QUANTIZATION_RANGE_LIMITED;
 	}
 
+	drm_hdmi_avi_infoframe_content_type(&frame.avi, conn_state);
+
 	ret = hdmi_infoframe_pack(&frame, buf, sizeof(buf));
 	if (ret < 0) {
 		DRM_ERROR("Failed to pack AVI IF\n");
