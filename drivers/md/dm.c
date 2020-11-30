@@ -1039,15 +1039,18 @@ static sector_t max_io_len(struct dm_target *ti, sector_t sector)
 	sector_t max_len;
 
 	/*
-	 * Does the target need to split even further?
-	 * - q->limits.chunk_sectors reflects ti->max_io_len so
-	 *   blk_max_size_offset() provides required splitting.
-	 * - blk_max_size_offset() also respects q->limits.max_sectors
+	 * Does the target need to split IO even further?
+	 * - varied (per target) IO splitting is a tenet of DM; this
+	 *   explains why stacked chunk_sectors based splitting via
+	 *   blk_max_size_offset() isn't possible here. So pass in
+	 *   ti->max_io_len to override stacked chunk_sectors.
 	 */
-	max_len = blk_max_size_offset(ti->table->md->queue,
-				      target_offset);
-	if (len > max_len)
-		len = max_len;
+	if (ti->max_io_len) {
+		max_len = blk_max_size_offset(ti->table->md->queue,
+					      target_offset, ti->max_io_len);
+		if (len > max_len)
+			len = max_len;
+	}
 
 	return len;
 }
