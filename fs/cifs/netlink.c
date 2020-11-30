@@ -1,0 +1,69 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Netlink routines for CIFS
+ *
+ * Copyright (c) 2020 Samuel Cabrero <scabrero@suse.de>
+ */
+
+#include <net/genetlink.h>
+#include <uapi/linux/cifs/cifs_netlink.h>
+
+#include "netlink.h"
+#include "cifsglob.h"
+#include "cifs_debug.h"
+
+static const struct nla_policy cifs_genl_policy[CIFS_GENL_ATTR_MAX + 1] = {
+};
+
+static struct genl_ops cifs_genl_ops[] = {
+};
+
+static const struct genl_multicast_group cifs_genl_mcgrps[] = {
+	[CIFS_GENL_MCGRP_SWN] = { .name = CIFS_GENL_MCGRP_SWN_NAME },
+};
+
+struct genl_family cifs_genl_family = {
+	.name		= CIFS_GENL_NAME,
+	.version	= CIFS_GENL_VERSION,
+	.hdrsize	= 0,
+	.maxattr	= CIFS_GENL_ATTR_MAX,
+	.module		= THIS_MODULE,
+	.policy		= cifs_genl_policy,
+	.ops		= cifs_genl_ops,
+	.n_ops		= ARRAY_SIZE(cifs_genl_ops),
+	.mcgrps		= cifs_genl_mcgrps,
+	.n_mcgrps	= ARRAY_SIZE(cifs_genl_mcgrps),
+};
+
+/**
+ * cifs_genl_init - Register generic netlink family
+ *
+ * Return zero if initialized successfully, otherwise non-zero.
+ */
+int cifs_genl_init(void)
+{
+	int ret;
+
+	ret = genl_register_family(&cifs_genl_family);
+	if (ret < 0) {
+		cifs_dbg(VFS, "%s: failed to register netlink family\n",
+				__func__);
+		return ret;
+	}
+
+	return 0;
+}
+
+/**
+ * cifs_genl_exit - Unregister generic netlink family
+ */
+void cifs_genl_exit(void)
+{
+	int ret;
+
+	ret = genl_unregister_family(&cifs_genl_family);
+	if (ret < 0) {
+		cifs_dbg(VFS, "%s: failed to unregister netlink family\n",
+				__func__);
+	}
+}

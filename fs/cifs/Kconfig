@@ -190,6 +190,17 @@ config CIFS_DFS_UPCALL
 	  servers if their addresses change or for implicit mounts of
 	  DFS junction points. If unsure, say Y.
 
+config CIFS_SWN_UPCALL
+	bool "SWN feature support"
+	depends on CIFS
+	help
+	  The Service Witness Protocol (SWN) is used to get notifications
+	  from a highly available server of resource state changes. This
+	  feature enables an upcall mechanism for CIFS which contacts an
+	  userspace daemon to establish the DCE/RPC connection to retrieve
+	  the cluster available interfaces and resource change notifications.
+	  If unsure, say Y.
+
 config CIFS_NFSD_EXPORT
 	bool "Allow nfsd to export CIFS file system"
 	depends on CIFS && BROKEN

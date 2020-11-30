@@ -55,6 +55,9 @@
 #ifdef CONFIG_CIFS_DFS_UPCALL
 #include "dfs_cache.h"
 #endif
+#ifdef CONFIG_CIFS_SWN_UPCALL
+#include "netlink.h"
+#endif
 #include "fs_context.h"
 
 /*
@@ -1601,10 +1604,15 @@ init_cifs(void)
 	if (rc)
 		goto out_destroy_dfs_cache;
 #endif /* CONFIG_CIFS_UPCALL */
+#ifdef CONFIG_CIFS_SWN_UPCALL
+	rc = cifs_genl_init();
+	if (rc)
+		goto out_register_key_type;
+#endif /* CONFIG_CIFS_SWN_UPCALL */
 
 	rc = init_cifs_idmap();
 	if (rc)
-		goto out_register_key_type;
+		goto out_cifs_swn_init;
 
 	rc = register_filesystem(&cifs_fs_type);
 	if (rc)
@@ -1620,7 +1628,11 @@ init_cifs(void)
 
 out_init_cifs_idmap:
 	exit_cifs_idmap();
+out_cifs_swn_init:
+#ifdef CONFIG_CIFS_SWN_UPCALL
+	cifs_genl_exit();
 out_register_key_type:
+#endif
 #ifdef CONFIG_CIFS_UPCALL
 	exit_cifs_spnego();
 out_destroy_dfs_cache:
@@ -1657,6 +1669,9 @@ exit_cifs(void)
 	unregister_filesystem(&smb3_fs_type);
 	cifs_dfs_release_automount_timer();
 	exit_cifs_idmap();
+#ifdef CONFIG_CIFS_SWN_UPCALL
+	cifs_genl_exit();
+#endif
 #ifdef CONFIG_CIFS_UPCALL
 	exit_cifs_spnego();
 #endif
