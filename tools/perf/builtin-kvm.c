@@ -1022,7 +1022,7 @@ static int kvm_live_open_events(struct perf_kvm_stat *kvm)
 	struct evlist *evlist = kvm->evlist;
 	char sbuf[STRERR_BUFSIZE];
 
-	perf_evlist__config(evlist, &kvm->opts, NULL);
+	evlist__config(evlist, &kvm->opts, NULL);
 
 	/*
 	 * Note: exclude_{guest,host} do not apply here.

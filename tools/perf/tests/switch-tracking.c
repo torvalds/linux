@@ -432,7 +432,7 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 	evsel__set_sample_bit(tracking_evsel, TIME);
 
 	/* Config events */
-	perf_evlist__config(evlist, &opts, NULL);
+	evlist__config(evlist, &opts, NULL);
 
 	/* Check moved event is still at the front */
 	if (cycles_evsel != evlist__first(evlist)) {

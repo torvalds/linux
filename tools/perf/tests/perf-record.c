@@ -109,7 +109,7 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 	evsel__set_sample_bit(evsel, CPU);
 	evsel__set_sample_bit(evsel, TID);
 	evsel__set_sample_bit(evsel, TIME);
-	perf_evlist__config(evlist, &opts, NULL);
+	evlist__config(evlist, &opts, NULL);
 
 	err = sched__get_first_possible_cpu(evlist->workload.pid, &cpu_mask);
 	if (err < 0) {

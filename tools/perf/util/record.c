@@ -89,8 +89,7 @@ static void evsel__config_leader_sampling(struct evsel *evsel, struct evlist *ev
 			    leader->core.attr.sample_type;
 }
 
-void perf_evlist__config(struct evlist *evlist, struct record_opts *opts,
-			 struct callchain_param *callchain)
+void evlist__config(struct evlist *evlist, struct record_opts *opts, struct callchain_param *callchain)
 {
 	struct evsel *evsel;
 	bool use_sample_identifier = false;

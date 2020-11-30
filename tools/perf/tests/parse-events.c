@@ -115,7 +115,7 @@ static int test__checkevent_symbolic_name_config(struct evlist *evlist)
 	TEST_ASSERT_VAL("wrong config",
 			PERF_COUNT_HW_CPU_CYCLES == evsel->core.attr.config);
 	/*
-	 * The period value gets configured within perf_evlist__config,
+	 * The period value gets configured within evlist__config,
 	 * while this test executes only parse events method.
 	 */
 	TEST_ASSERT_VAL("wrong period",
@@ -443,7 +443,7 @@ static int test__checkevent_pmu(struct evlist *evlist)
 	TEST_ASSERT_VAL("wrong config1",    1 == evsel->core.attr.config1);
 	TEST_ASSERT_VAL("wrong config2",    3 == evsel->core.attr.config2);
 	/*
-	 * The period value gets configured within perf_evlist__config,
+	 * The period value gets configured within evlist__config,
 	 * while this test executes only parse events method.
 	 */
 	TEST_ASSERT_VAL("wrong period",     0 == evsel->core.attr.sample_period);
@@ -520,8 +520,7 @@ static int test__checkevent_pmu_partial_time_callgraph(struct evlist *evlist)
 	TEST_ASSERT_VAL("wrong type", PERF_TYPE_RAW == evsel->core.attr.type);
 	TEST_ASSERT_VAL("wrong config",  1 == evsel->core.attr.config);
 	/*
-	 * The period, time and callgraph value gets configured
-	 * within perf_evlist__config,
+	 * The period, time and callgraph value gets configured within evlist__config,
 	 * while this test executes only parse events method.
 	 */
 	TEST_ASSERT_VAL("wrong period",     0 == evsel->core.attr.sample_period);
@@ -533,8 +532,7 @@ static int test__checkevent_pmu_partial_time_callgraph(struct evlist *evlist)
 	TEST_ASSERT_VAL("wrong type", PERF_TYPE_RAW == evsel->core.attr.type);
 	TEST_ASSERT_VAL("wrong config",  2 == evsel->core.attr.config);
 	/*
-	 * The period, time and callgraph value gets configured
-	 * within perf_evlist__config,
+	 * The period, time and callgraph value gets configured within evlist__config,
 	 * while this test executes only parse events method.
 	 */
 	TEST_ASSERT_VAL("wrong period",     0 == evsel->core.attr.sample_period);

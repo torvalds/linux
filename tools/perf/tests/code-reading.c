@@ -651,7 +651,7 @@ static int do_test_code_reading(bool try_kcore)
 			goto out_put;
 		}
 
-		perf_evlist__config(evlist, &opts, NULL);
+		evlist__config(evlist, &opts, NULL);
 
 		evsel = evlist__first(evlist);
 

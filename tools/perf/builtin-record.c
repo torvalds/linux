@@ -910,7 +910,7 @@ static int record__open(struct record *rec)
 			pos->immediate = 1;
 	}
 
-	perf_evlist__config(evlist, opts, &callchain_param);
+	evlist__config(evlist, opts, &callchain_param);
 
 	evlist__for_each_entry(evlist, pos) {
 try_again:
@@ -935,7 +935,7 @@ try_again:
 		pos->supported = true;
 	}
 
-	if (symbol_conf.kptr_restrict && !perf_evlist__exclude_kernel(evlist)) {
+	if (symbol_conf.kptr_restrict && !evlist__exclude_kernel(evlist)) {
 		pr_warning(
 "WARNING: Kernel address maps (/proc/{kallsyms,modules}) are restricted,\n"
 "check /proc/sys/kernel/kptr_restrict and /proc/sys/kernel/perf_event_paranoid.\n\n"
@@ -1444,7 +1444,7 @@ static int record__synthesize(struct record *rec, bool tail)
 			goto out;
 	}
 
-	if (!perf_evlist__exclude_kernel(rec->evlist)) {
+	if (!evlist__exclude_kernel(rec->evlist)) {
 		err = perf_event__synthesize_kernel_mmap(tool, process_synthesized_event,
 							 machine);
 		WARN_ONCE(err < 0, "Couldn't record kernel reference relocation symbol\n"
