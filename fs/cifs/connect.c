@@ -77,7 +77,6 @@ static int ip_connect(struct TCP_Server_Info *server);
 static int generic_ip_connect(struct TCP_Server_Info *server);
 static void tlink_rb_insert(struct rb_root *root, struct tcon_link *new_tlink);
 static void cifs_prune_tlinks(struct work_struct *work);
-static char *extract_hostname(const char *unc);
 
 /*
  * Resolve hostname and set ip addr in tcp ses. Useful for hostnames that may
@@ -1023,39 +1022,6 @@ next_pdu:
 
 	memalloc_noreclaim_restore(noreclaim_flag);
 	module_put_and_exit(0);
-}
-
-/* extract the host portion of the UNC string */
-static char *
-extract_hostname(const char *unc)
-{
-	const char *src;
-	char *dst, *delim;
-	unsigned int len;
-
-	/* skip double chars at beginning of string */
-	/* BB: check validity of these bytes? */
-	if (strlen(unc) < 3)
-		return ERR_PTR(-EINVAL);
-	for (src = unc; *src && *src == '\\'; src++)
-		;
-	if (!*src)
-		return ERR_PTR(-EINVAL);
-
-	/* delimiter between hostname and sharename is always '\\' now */
-	delim = strchr(src, '\\');
-	if (!delim)
-		return ERR_PTR(-EINVAL);
-
-	len = delim - src;
-	dst = kmalloc((len + 1), GFP_KERNEL);
-	if (dst == NULL)
-		return ERR_PTR(-ENOMEM);
-
-	memcpy(dst, src, len);
-	dst[len] = '\0';
-
-	return dst;
 }
 
 /** Returns true if srcaddr isn't specified and rhs isn't
