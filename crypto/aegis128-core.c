@@ -89,7 +89,7 @@ static void crypto_aegis128_update_a(struct aegis_state *state,
 				     const union aegis_block *msg,
 				     bool do_simd)
 {
-	if (do_simd) {
+	if (IS_ENABLED(CONFIG_CRYPTO_AEGIS128_SIMD) && do_simd) {
 		crypto_aegis128_update_simd(state, msg);
 		return;
 	}
@@ -101,7 +101,7 @@ static void crypto_aegis128_update_a(struct aegis_state *state,
 static void crypto_aegis128_update_u(struct aegis_state *state, const void *msg,
 				     bool do_simd)
 {
-	if (do_simd) {
+	if (IS_ENABLED(CONFIG_CRYPTO_AEGIS128_SIMD) && do_simd) {
 		crypto_aegis128_update_simd(state, msg);
 		return;
 	}
