@@ -14,14 +14,19 @@
 #include "../include/gaudi/gaudi_packets.h"
 #include "../include/gaudi/gaudi.h"
 #include "../include/gaudi/gaudi_async_events.h"
+#include "../include/gaudi/gaudi_fw_if.h"
 
-#define NUMBER_OF_EXT_HW_QUEUES		12
+#define NUMBER_OF_EXT_HW_QUEUES		8
 #define NUMBER_OF_CMPLT_QUEUES		NUMBER_OF_EXT_HW_QUEUES
 #define NUMBER_OF_CPU_HW_QUEUES		1
 #define NUMBER_OF_INT_HW_QUEUES		100
 #define NUMBER_OF_HW_QUEUES		(NUMBER_OF_EXT_HW_QUEUES + \
 					NUMBER_OF_CPU_HW_QUEUES + \
 					NUMBER_OF_INT_HW_QUEUES)
+
+/* 10 NIC QMANs, DMA5 QMAN, TPC7 QMAN */
+#define NUMBER_OF_COLLECTIVE_QUEUES	12
+#define NUMBER_OF_SOBS_IN_GRP		11
 
 /*
  * Number of MSI interrupts IDS:
@@ -56,14 +61,14 @@
 
 #define GAUDI_DEFAULT_CARD_NAME		"HL2000"
 
-#define GAUDI_MAX_PENDING_CS		1024
+#define GAUDI_MAX_PENDING_CS		SZ_16K
 
 #if !IS_MAX_PENDING_CS_VALID(GAUDI_MAX_PENDING_CS)
 #error "GAUDI_MAX_PENDING_CS must be power of 2 and greater than 1"
 #endif
 
-#define PCI_DMA_NUMBER_OF_CHNLS		3
-#define HBM_DMA_NUMBER_OF_CHNLS		5
+#define PCI_DMA_NUMBER_OF_CHNLS		2
+#define HBM_DMA_NUMBER_OF_CHNLS		6
 #define DMA_NUMBER_OF_CHNLS		(PCI_DMA_NUMBER_OF_CHNLS + \
 						HBM_DMA_NUMBER_OF_CHNLS)
 
@@ -79,6 +84,7 @@
 #define TPC_QMAN_OFFSET		(mmTPC1_QM_BASE - mmTPC0_QM_BASE)
 #define MME_QMAN_OFFSET		(mmMME1_QM_BASE - mmMME0_QM_BASE)
 #define NIC_MACRO_QMAN_OFFSET	(mmNIC1_QM0_BASE - mmNIC0_QM0_BASE)
+#define NIC_ENGINE_QMAN_OFFSET	(mmNIC0_QM1_BASE - mmNIC0_QM0_BASE)
 
 #define TPC_CFG_OFFSET		(mmTPC1_CFG_BASE - mmTPC0_CFG_BASE)
 
@@ -98,6 +104,13 @@
 
 #define MME_ACC_OFFSET		(mmMME1_ACC_BASE - mmMME0_ACC_BASE)
 #define SRAM_BANK_OFFSET	(mmSRAM_Y0_X1_RTR_BASE - mmSRAM_Y0_X0_RTR_BASE)
+
+#define PLL_NR_OFFSET		0
+#define PLL_NF_OFFSET		(mmPSOC_CPU_PLL_NF - mmPSOC_CPU_PLL_NR)
+#define PLL_OD_OFFSET		(mmPSOC_CPU_PLL_OD - mmPSOC_CPU_PLL_NR)
+#define PLL_DIV_FACTOR_0_OFFSET	(mmPSOC_CPU_PLL_DIV_FACTOR_0 - \
+				mmPSOC_CPU_PLL_NR)
+#define PLL_DIV_SEL_0_OFFSET	(mmPSOC_CPU_PLL_DIV_SEL_0 - mmPSOC_CPU_PLL_NR)
 
 #define NUM_OF_SOB_IN_BLOCK		\
 	(((mmSYNC_MNGR_E_N_SYNC_MNGR_OBJS_SOB_OBJ_2047 - \
@@ -140,13 +153,18 @@
 #define TPC_QMAN_LENGTH			1024
 #define TPC_QMAN_SIZE_IN_BYTES		(TPC_QMAN_LENGTH * QMAN_PQ_ENTRY_SIZE)
 
+#define NIC_QMAN_LENGTH			1024
+#define NIC_QMAN_SIZE_IN_BYTES		(NIC_QMAN_LENGTH * QMAN_PQ_ENTRY_SIZE)
+
+
 #define SRAM_USER_BASE_OFFSET  GAUDI_DRIVER_SRAM_RESERVED_SIZE_FROM_START
 
 /* Virtual address space */
 #define VA_HOST_SPACE_START	0x1000000000000ull	/* 256TB */
-#define VA_HOST_SPACE_END	0x3FF8000000000ull	/* 1PB - 1TB */
+#define VA_HOST_SPACE_END	0x3FF8000000000ull	/* 1PB - 512GB */
 #define VA_HOST_SPACE_SIZE	(VA_HOST_SPACE_END - \
 					VA_HOST_SPACE_START) /* 767TB */
+#define HOST_SPACE_INTERNAL_CB_SZ	SZ_2M
 
 #define HW_CAP_PLL		BIT(0)
 #define HW_CAP_HBM		BIT(1)
@@ -160,6 +178,19 @@
 #define HW_CAP_CLK_GATE		BIT(9)
 #define HW_CAP_SRAM_SCRAMBLER	BIT(10)
 #define HW_CAP_HBM_SCRAMBLER	BIT(11)
+
+#define HW_CAP_NIC0		BIT(14)
+#define HW_CAP_NIC1		BIT(15)
+#define HW_CAP_NIC2		BIT(16)
+#define HW_CAP_NIC3		BIT(17)
+#define HW_CAP_NIC4		BIT(18)
+#define HW_CAP_NIC5		BIT(19)
+#define HW_CAP_NIC6		BIT(20)
+#define HW_CAP_NIC7		BIT(21)
+#define HW_CAP_NIC8		BIT(22)
+#define HW_CAP_NIC9		BIT(23)
+#define HW_CAP_NIC_MASK		GENMASK(23, 14)
+#define HW_CAP_NIC_SHIFT	14
 
 #define HW_CAP_TPC0		BIT(24)
 #define HW_CAP_TPC1		BIT(25)
@@ -187,12 +218,12 @@
 enum gaudi_dma_channels {
 	GAUDI_PCI_DMA_1,
 	GAUDI_PCI_DMA_2,
-	GAUDI_PCI_DMA_3,
 	GAUDI_HBM_DMA_1,
 	GAUDI_HBM_DMA_2,
 	GAUDI_HBM_DMA_3,
 	GAUDI_HBM_DMA_4,
 	GAUDI_HBM_DMA_5,
+	GAUDI_HBM_DMA_6,
 	GAUDI_DMA_MAX
 };
 
@@ -206,6 +237,48 @@ enum gaudi_tpc_mask {
 	GAUDI_TPC_MASK_TPC6 = 0x40,
 	GAUDI_TPC_MASK_TPC7 = 0x80,
 	GAUDI_TPC_MASK_ALL = 0xFF
+};
+
+enum gaudi_nic_mask {
+	GAUDI_NIC_MASK_NIC0 = 0x01,
+	GAUDI_NIC_MASK_NIC1 = 0x02,
+	GAUDI_NIC_MASK_NIC2 = 0x04,
+	GAUDI_NIC_MASK_NIC3 = 0x08,
+	GAUDI_NIC_MASK_NIC4 = 0x10,
+	GAUDI_NIC_MASK_NIC5 = 0x20,
+	GAUDI_NIC_MASK_NIC6 = 0x40,
+	GAUDI_NIC_MASK_NIC7 = 0x80,
+	GAUDI_NIC_MASK_NIC8 = 0x100,
+	GAUDI_NIC_MASK_NIC9 = 0x200,
+	GAUDI_NIC_MASK_ALL = 0x3FF
+};
+
+/*
+ * struct gaudi_hw_sob_group - H/W SOB group info.
+ * @hdev: habanalabs device structure.
+ * @kref: refcount of this SOB group. group will reset once refcount is zero.
+ * @base_sob_id: base sob id of this SOB group.
+ */
+struct gaudi_hw_sob_group {
+	struct hl_device	*hdev;
+	struct kref		kref;
+	u32			base_sob_id;
+};
+
+#define NUM_SOB_GROUPS (HL_RSVD_SOBS * QMAN_STREAMS)
+/**
+ * struct gaudi_collective_properties -
+ *     holds all SOB groups and queues info reserved for the collective
+ * @hw_sob_group: H/W SOB groups.
+ * @next_sob_group_val: the next value to use for the currently used SOB group.
+ * @curr_sob_group_idx: the index of the currently used SOB group.
+ * @mstr_sob_mask: pre-defined masks for collective master monitors
+ */
+struct gaudi_collective_properties {
+	struct gaudi_hw_sob_group hw_sob_group[NUM_SOB_GROUPS];
+	u16			next_sob_group_val[QMAN_STREAMS];
+	u8			curr_sob_group_idx[QMAN_STREAMS];
+	u8			mstr_sob_mask[HL_COLLECTIVE_RSVD_MSTR_MONS];
 };
 
 /**
@@ -252,6 +325,8 @@ struct gaudi_device {
 	struct mutex			clk_gate_mutex;
 
 	struct gaudi_internal_qman_info	internal_qmans[GAUDI_QUEUE_ID_SIZE];
+
+	struct gaudi_collective_properties collective_props;
 
 	u64				hbm_bar_cur_addr;
 	u64				max_freq_value;

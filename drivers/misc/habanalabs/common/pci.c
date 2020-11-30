@@ -338,17 +338,12 @@ static int hl_pci_set_dma_mask(struct hl_device *hdev)
 /**
  * hl_pci_init() - PCI initialization code.
  * @hdev: Pointer to hl_device structure.
- * @cpu_boot_status_reg: status register of the device's CPU
- * @boot_err0_reg: boot error register of the device's CPU
- * @preboot_ver_timeout: how much to wait before bailing out on reading
- *                       the preboot version
  *
  * Set DMA masks, initialize the PCI controller and map the PCI BARs.
  *
  * Return: 0 on success, non-zero for failure.
  */
-int hl_pci_init(struct hl_device *hdev, u32 cpu_boot_status_reg,
-		u32 boot_err0_reg, u32 preboot_ver_timeout)
+int hl_pci_init(struct hl_device *hdev)
 {
 	struct pci_dev *pdev = hdev->pdev;
 	int rc;
@@ -377,15 +372,6 @@ int hl_pci_init(struct hl_device *hdev, u32 cpu_boot_status_reg,
 	}
 
 	rc = hl_pci_set_dma_mask(hdev);
-	if (rc)
-		goto unmap_pci_bars;
-
-	/* Before continuing in the initialization, we need to read the preboot
-	 * version to determine whether we run with a security-enabled firmware
-	 * The check will be done in each ASIC's specific code
-	 */
-	rc = hl_fw_read_preboot_ver(hdev, cpu_boot_status_reg, boot_err0_reg,
-					preboot_ver_timeout);
 	if (rc)
 		goto unmap_pci_bars;
 

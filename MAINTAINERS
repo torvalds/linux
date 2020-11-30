@@ -7690,9 +7690,9 @@ F:	drivers/clocksource/h8300_*.c
 F:	drivers/irqchip/irq-renesas-h8*.c
 
 HABANALABS PCI DRIVER
-M:	Oded Gabbay <oded.gabbay@gmail.com>
+M:	Oded Gabbay <ogabbay@kernel.org>
 S:	Supported
-T:	git https://github.com/HabanaAI/linux.git
+T:	git https://git.kernel.org/pub/scm/linux/kernel/git/ogabbay/linux.git
 F:	Documentation/ABI/testing/debugfs-driver-habanalabs
 F:	Documentation/ABI/testing/sysfs-driver-habanalabs
 F:	drivers/misc/habanalabs/

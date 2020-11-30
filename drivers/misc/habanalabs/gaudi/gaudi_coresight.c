@@ -11,8 +11,6 @@
 #include "../include/gaudi/gaudi_masks.h"
 
 #include <uapi/misc/habanalabs.h>
-#include <linux/coresight.h>
-
 #define SPMU_SECTION_SIZE		MME0_ACC_SPMU_MAX_OFFSET
 #define SPMU_EVENT_TYPES_OFFSET		0x400
 #define SPMU_MAX_COUNTERS		6
