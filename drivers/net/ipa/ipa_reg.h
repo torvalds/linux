@@ -223,6 +223,7 @@ static inline u32 ipa_reg_bcr_val(enum ipa_version version)
 /* ipa->available defines the valid bits in the AGGR_FORCE_CLOSE register */
 #define IPA_REG_AGGR_FORCE_CLOSE_OFFSET			0x000001ec
 
+/* The next register is not present for IPA v4.5 */
 #define IPA_REG_COUNTER_CFG_OFFSET			0x000001f0
 #define AGGR_GRANULARITY_FMASK			GENMASK(8, 4)
 
@@ -273,6 +274,35 @@ static inline u32 ipa_reg_idle_indication_cfg_offset(enum ipa_version version)
 
 #define ENTER_IDLE_DEBOUNCE_THRESH_FMASK	GENMASK(15, 0)
 #define CONST_NON_IDLE_ENABLE_FMASK		GENMASK(16, 16)
+
+/* The next register is present for IPA v4.5 */
+#define IPA_REG_QTIME_TIMESTAMP_CFG_OFFSET		0x0000024c
+#define DPL_TIMESTAMP_LSB_FMASK			GENMASK(4, 0)
+#define DPL_TIMESTAMP_SEL_FMASK			GENMASK(7, 7)
+#define TAG_TIMESTAMP_LSB_FMASK			GENMASK(12, 8)
+#define NAT_TIMESTAMP_LSB_FMASK			GENMASK(20, 16)
+
+/* The next register is present for IPA v4.5 */
+#define IPA_REG_TIMERS_XO_CLK_DIV_CFG_OFFSET		0x00000250
+#define DIV_VALUE_FMASK				GENMASK(8, 0)
+#define DIV_ENABLE_FMASK			GENMASK(31, 31)
+
+/* The next register is present for IPA v4.5 */
+#define IPA_REG_TIMERS_PULSE_GRAN_CFG_OFFSET		0x00000254
+#define GRAN_0_FMASK				GENMASK(2, 0)
+#define GRAN_1_FMASK				GENMASK(5, 3)
+#define GRAN_2_FMASK				GENMASK(8, 6)
+/* Values for GRAN_x fields of TIMERS_PULSE_GRAN_CFG */
+enum ipa_pulse_gran {
+	IPA_GRAN_10_US				= 0x0,
+	IPA_GRAN_20_US				= 0x1,
+	IPA_GRAN_50_US				= 0x2,
+	IPA_GRAN_100_US				= 0x3,
+	IPA_GRAN_1_MS				= 0x4,
+	IPA_GRAN_10_MS				= 0x5,
+	IPA_GRAN_100_MS				= 0x6,
+	IPA_GRAN_655350_US			= 0x7,
+};
 
 /* # IPA source resource groups available based on version */
 static inline u32 ipa_resource_group_src_count(enum ipa_version version)
