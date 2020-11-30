@@ -903,7 +903,7 @@ static int ctcmpc_tx(struct sk_buff *skb, struct net_device *dev)
 		CTCM_D3_DUMP((char *)skb->data, min_t(int, 32, skb->len));
 
 		len =  skb->len + TH_HEADER_LENGTH + PDU_HEADER_LENGTH;
-		newskb = __dev_alloc_skb(len, gfp_type() | GFP_DMA);
+		newskb = __dev_alloc_skb(len, GFP_ATOMIC | GFP_DMA);
 
 		if (!newskb) {
 			CTCM_DBF_TEXT_(MPC_TRACE, CTC_DBF_ERROR,
