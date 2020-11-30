@@ -2293,7 +2293,7 @@ static int emit_partial_test_file_data(const char *mount_dir,
 	}
 
 	buffer[result] = 0;
-	blocks_written_total = atol(buffer);
+	blocks_written_total = strtol(buffer, NULL, 10);
 	result = 0;
 
 	pollfd = (struct pollfd) {
@@ -2335,7 +2335,7 @@ static int emit_partial_test_file_data(const char *mount_dir,
 
 		result = read(bw_fd, buffer, sizeof(buffer));
 		buffer[result] = 0;
-		blocks_written_new_total = atol(buffer);
+		blocks_written_new_total = strtol(buffer, NULL, 10);
 
 		if (blocks_written_new_total - blocks_written_total
 		    != blocks_written) {
@@ -2998,7 +2998,8 @@ static int compatibility_test(const char *mount_dir)
 
 	TEST(backing_dir = create_backing_dir(mount_dir), backing_dir);
 	TEST(filename = concat_file_name(backing_dir, name), filename);
-	TEST(fd = open(filename, O_CREAT | O_WRONLY | O_CLOEXEC), fd != -1);
+	TEST(fd = open(filename, O_CREAT | O_WRONLY | O_CLOEXEC, 0777),
+	     fd != -1);
 	TESTEQUAL(write(fd, v1_file, sizeof(v1_file)), sizeof(v1_file));
 	TESTEQUAL(fsetxattr(fd, INCFS_XATTR_SIZE_NAME, &size, sizeof(size), 0),
 		  0);
@@ -3006,7 +3007,7 @@ static int compatibility_test(const char *mount_dir)
 	free(filename);
 	TEST(filename = concat_file_name(mount_dir, name), filename);
 	close(fd);
-	TEST(fd = open(filename, O_RDONLY), fd != -1);
+	TEST(fd = open(filename, O_RDONLY | O_CLOEXEC), fd != -1);
 
 	result = TEST_SUCCESS;
 out:
@@ -3344,7 +3345,7 @@ static int per_uid_read_timeouts_test(const char *mount_dir)
 
 	int result = TEST_FAILURE;
 	char *backing_dir = NULL;
-	int pid;
+	int pid = -1;
 	int cmd_fd = -1;
 	char *filename = NULL;
 	int fd = -1;
