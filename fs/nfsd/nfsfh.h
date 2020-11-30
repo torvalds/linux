@@ -261,10 +261,16 @@ static inline u64 nfsd4_change_attribute(struct kstat *stat,
 {
 	u64 chattr;
 
-	chattr =  stat->ctime.tv_sec;
-	chattr <<= 30;
-	chattr += stat->ctime.tv_nsec;
-	chattr += inode_query_iversion(inode);
+	if (IS_I_VERSION(inode)) {
+		chattr =  stat->ctime.tv_sec;
+		chattr <<= 30;
+		chattr += stat->ctime.tv_nsec;
+		chattr += inode_query_iversion(inode);
+	} else {
+		chattr = stat->ctime.tv_sec;
+		chattr <<= 32;
+		chattr += stat->ctime.tv_nsec;
+	}
 	return chattr;
 }
 

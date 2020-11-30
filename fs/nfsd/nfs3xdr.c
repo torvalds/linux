@@ -291,14 +291,13 @@ void fill_post_wcc(struct svc_fh *fhp)
 		printk("nfsd: inode locked twice during operation.\n");
 
 	err = fh_getattr(fhp, &fhp->fh_post_attr);
-	fhp->fh_post_change = nfsd4_change_attribute(&fhp->fh_post_attr,
-						     d_inode(fhp->fh_dentry));
 	if (err) {
 		fhp->fh_post_saved = false;
-		/* Grab the ctime anyway - set_change_info might use it */
 		fhp->fh_post_attr.ctime = d_inode(fhp->fh_dentry)->i_ctime;
 	} else
 		fhp->fh_post_saved = true;
+	fhp->fh_post_change = nfsd4_change_attribute(&fhp->fh_post_attr,
+						     d_inode(fhp->fh_dentry));
 }
 
 /*
