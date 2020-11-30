@@ -995,7 +995,7 @@ start_here_common:
 	bl	start_kernel
 
 	/* Not reached */
-	trap
+0:	trap
 	EMIT_BUG_ENTRY 0b, __FILE__, __LINE__, 0
 	.previous
 
