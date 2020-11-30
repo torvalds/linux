@@ -53,7 +53,7 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 	};
 	cpu_set_t cpu_mask;
 	size_t cpu_mask_size = sizeof(cpu_mask);
-	struct evlist *evlist = perf_evlist__new_dummy();
+	struct evlist *evlist = evlist__new_dummy();
 	struct evsel *evsel;
 	struct perf_sample sample;
 	const char *cmd = "sleep";
@@ -71,7 +71,7 @@ int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unus
 	char sbuf[STRERR_BUFSIZE];
 
 	if (evlist == NULL) /* Fallback for kernels lacking PERF_COUNT_SW_DUMMY */
-		evlist = perf_evlist__new_default();
+		evlist = evlist__new_default();
 
 	if (evlist == NULL) {
 		pr_debug("Not enough memory to create evlist\n");

@@ -637,7 +637,7 @@ static int do_test_code_reading(bool try_kcore)
 
 		evlist = evlist__new();
 		if (!evlist) {
-			pr_debug("perf_evlist__new failed\n");
+			pr_debug("evlist__new failed\n");
 			goto out_put;
 		}
 

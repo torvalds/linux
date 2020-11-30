@@ -42,7 +42,7 @@ int test__syscall_openat_tp_fields(struct test *test __maybe_unused, int subtest
 	char sbuf[STRERR_BUFSIZE];
 
 	if (evlist == NULL) {
-		pr_debug("%s: perf_evlist__new\n", __func__);
+		pr_debug("%s: evlist__new\n", __func__);
 		goto out;
 	}
 

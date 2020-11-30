@@ -58,9 +58,9 @@ int test__task_exit(struct test *test __maybe_unused, int subtest __maybe_unused
 
 	signal(SIGCHLD, sig_handler);
 
-	evlist = perf_evlist__new_default();
+	evlist = evlist__new_default();
 	if (evlist == NULL) {
-		pr_debug("perf_evlist__new_default\n");
+		pr_debug("evlist__new_default\n");
 		return -1;
 	}
 

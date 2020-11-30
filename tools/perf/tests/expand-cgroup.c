@@ -100,10 +100,9 @@ out:	for (i = 0; i < nr_events; i++)
 static int expand_default_events(void)
 {
 	int ret;
-	struct evlist *evlist;
 	struct rblist metric_events;
+	struct evlist *evlist = evlist__new_default();
 
-	evlist = perf_evlist__new_default();
 	TEST_ASSERT_VAL("failed to get evlist", evlist);
 
 	rblist__init(&metric_events);

@@ -144,7 +144,7 @@ static int do_test(struct bpf_object *obj, int (*func)(void),
 	pid[sizeof(pid) - 1] = '\0';
 	opts.target.tid = opts.target.pid = pid;
 
-	/* Instead of perf_evlist__new_default, don't add default events */
+	/* Instead of evlist__new_default, don't add default events */
 	evlist = evlist__new();
 	if (!evlist) {
 		pr_debug("Not enough memory to create evlist\n");
