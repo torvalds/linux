@@ -287,8 +287,6 @@ intel_wakeref_t intel_display_power_get(struct drm_i915_private *dev_priv,
 intel_wakeref_t
 intel_display_power_get_if_enabled(struct drm_i915_private *dev_priv,
 				   enum intel_display_power_domain domain);
-void intel_display_power_put_unchecked(struct drm_i915_private *dev_priv,
-				       enum intel_display_power_domain domain);
 void __intel_display_power_put_async(struct drm_i915_private *i915,
 				     enum intel_display_power_domain domain,
 				     intel_wakeref_t wakeref);
@@ -305,6 +303,9 @@ intel_display_power_put_async(struct drm_i915_private *i915,
 	__intel_display_power_put_async(i915, domain, wakeref);
 }
 #else
+void intel_display_power_put_unchecked(struct drm_i915_private *dev_priv,
+				       enum intel_display_power_domain domain);
+
 static inline void
 intel_display_power_put(struct drm_i915_private *i915,
 			enum intel_display_power_domain domain,

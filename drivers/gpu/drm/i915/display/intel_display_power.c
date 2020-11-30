@@ -2184,26 +2184,6 @@ static void __intel_display_power_put(struct drm_i915_private *dev_priv,
 	mutex_unlock(&power_domains->lock);
 }
 
-/**
- * intel_display_power_put_unchecked - release an unchecked power domain reference
- * @dev_priv: i915 device instance
- * @domain: power domain to reference
- *
- * This function drops the power domain reference obtained by
- * intel_display_power_get() and might power down the corresponding hardware
- * block right away if this is the last reference.
- *
- * This function exists only for historical reasons and should be avoided in
- * new code, as the correctness of its use cannot be checked. Always use
- * intel_display_power_put() instead.
- */
-void intel_display_power_put_unchecked(struct drm_i915_private *dev_priv,
-				       enum intel_display_power_domain domain)
-{
-	__intel_display_power_put(dev_priv, domain);
-	intel_runtime_pm_put_unchecked(&dev_priv->runtime_pm);
-}
-
 static void
 queue_async_put_domains_work(struct i915_power_domains *power_domains,
 			     intel_wakeref_t wakeref)
@@ -2409,6 +2389,26 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 {
 	__intel_display_power_put(dev_priv, domain);
 	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
+}
+#else
+/**
+ * intel_display_power_put_unchecked - release an unchecked power domain reference
+ * @dev_priv: i915 device instance
+ * @domain: power domain to reference
+ *
+ * This function drops the power domain reference obtained by
+ * intel_display_power_get() and might power down the corresponding hardware
+ * block right away if this is the last reference.
+ *
+ * This function is only for the power domain code's internal use to suppress wakeref
+ * tracking when the correspondig debug kconfig option is disabled, should not
+ * be used otherwise.
+ */
+void intel_display_power_put_unchecked(struct drm_i915_private *dev_priv,
+				       enum intel_display_power_domain domain)
+{
+	__intel_display_power_put(dev_priv, domain);
+	intel_runtime_pm_put_unchecked(&dev_priv->runtime_pm);
 }
 #endif
 
