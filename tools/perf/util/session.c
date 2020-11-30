@@ -1407,13 +1407,9 @@ static int deliver_sample_group(struct evlist *evlist,
 	return ret;
 }
 
-static int
- perf_evlist__deliver_sample(struct evlist *evlist,
-			     struct perf_tool *tool,
-			     union  perf_event *event,
-			     struct perf_sample *sample,
-			     struct evsel *evsel,
-			     struct machine *machine)
+static int evlist__deliver_sample(struct evlist *evlist, struct perf_tool *tool,
+				  union  perf_event *event, struct perf_sample *sample,
+				  struct evsel *evsel, struct machine *machine)
 {
 	/* We know evsel != NULL. */
 	u64 sample_type = evsel->core.attr.sample_type;
@@ -1458,7 +1454,7 @@ static int machines__deliver_event(struct machines *machines,
 			++evlist->stats.nr_unprocessable_samples;
 			return 0;
 		}
-		return perf_evlist__deliver_sample(evlist, tool, event, sample, evsel, machine);
+		return evlist__deliver_sample(evlist, tool, event, sample, evsel, machine);
 	case PERF_RECORD_MMAP:
 		return tool->mmap(tool, event, sample, machine);
 	case PERF_RECORD_MMAP2:
