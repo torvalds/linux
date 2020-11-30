@@ -11,6 +11,12 @@
 #include <linux/i2c.h>
 #include "da9121-regulator.h"
 
+/* Chip data */
+struct da9121 {
+	struct device *dev;
+	int variant_id;
+};
+
 #define DA9121_MIN_MV		300
 #define DA9121_MAX_MV		1900
 #define DA9121_STEP_MV		10
@@ -53,18 +59,45 @@ static const struct regulator_desc da9121_reg = {
 };
 
 static const struct of_device_id da9121_dt_ids[] = {
-	{ .compatible = "dlg,da9121", },
+	{ .compatible = "dlg,da9121", .data = (void *) DA9121_TYPE_DA9121_DA9130 },
+	{ .compatible = "dlg,da9130", .data = (void *) DA9121_TYPE_DA9121_DA9130 },
+	{ .compatible = "dlg,da9217", .data = (void *) DA9121_TYPE_DA9217 },
+	{ .compatible = "dlg,da9122", .data = (void *) DA9121_TYPE_DA9122_DA9131 },
+	{ .compatible = "dlg,da9131", .data = (void *) DA9121_TYPE_DA9122_DA9131 },
+	{ .compatible = "dlg,da9220", .data = (void *) DA9121_TYPE_DA9220_DA9132 },
+	{ .compatible = "dlg,da9132", .data = (void *) DA9121_TYPE_DA9220_DA9132 },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, da9121_dt_ids);
 
+static inline int da9121_of_get_id(struct device *dev)
+{
+	const struct of_device_id *id = of_match_device(da9121_dt_ids, dev);
+
+	if (!id) {
+		dev_err(dev, "%s: Failed\n", __func__);
+		return -EINVAL;
+	}
+	return (uintptr_t)id->data;
+}
+
 static int da9121_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
+	struct da9121 *chip;
+	int ret = 0;
 	struct device *dev = &i2c->dev;
 	struct regulator_config config = {};
 	struct regulator_dev *rdev;
 	struct regmap *regmap;
+
+	chip = devm_kzalloc(&i2c->dev, sizeof(struct da9121), GFP_KERNEL);
+	if (!chip) {
+		ret = -ENOMEM;
+		goto error;
+	}
+
+	chip->variant_id = da9121_of_get_id(&i2c->dev);
 
 	regmap = devm_regmap_init_i2c(i2c, &da9121_regmap_config);
 	if (IS_ERR(regmap))
@@ -80,11 +113,18 @@ static int da9121_i2c_probe(struct i2c_client *i2c,
 		return PTR_ERR(rdev);
 	}
 
-	return 0;
+error:
+	return ret;
 }
 
 static const struct i2c_device_id da9121_i2c_id[] = {
-	{ "da9121", 0 },
+	{"da9121", DA9121_TYPE_DA9121_DA9130},
+	{"da9130", DA9121_TYPE_DA9121_DA9130},
+	{"da9217", DA9121_TYPE_DA9217},
+	{"da9122", DA9121_TYPE_DA9122_DA9131},
+	{"da9131", DA9121_TYPE_DA9122_DA9131},
+	{"da9220", DA9121_TYPE_DA9220_DA9132},
+	{"da9132", DA9121_TYPE_DA9220_DA9132},
 	{},
 };
 MODULE_DEVICE_TABLE(i2c, da9121_i2c_id);
