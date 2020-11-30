@@ -975,7 +975,7 @@ void __perf_evlist__reset_sample_bit(struct evlist *evlist,
 		__evsel__reset_sample_bit(evsel, bit);
 }
 
-int perf_evlist__apply_filters(struct evlist *evlist, struct evsel **err_evsel)
+int evlist__apply_filters(struct evlist *evlist, struct evsel **err_evsel)
 {
 	struct evsel *evsel;
 	int err = 0;
@@ -998,7 +998,7 @@ int perf_evlist__apply_filters(struct evlist *evlist, struct evsel **err_evsel)
 	return err;
 }
 
-int perf_evlist__set_tp_filter(struct evlist *evlist, const char *filter)
+int evlist__set_tp_filter(struct evlist *evlist, const char *filter)
 {
 	struct evsel *evsel;
 	int err = 0;
@@ -1018,7 +1018,7 @@ int perf_evlist__set_tp_filter(struct evlist *evlist, const char *filter)
 	return err;
 }
 
-int perf_evlist__append_tp_filter(struct evlist *evlist, const char *filter)
+int evlist__append_tp_filter(struct evlist *evlist, const char *filter)
 {
 	struct evsel *evsel;
 	int err = 0;
@@ -1064,32 +1064,32 @@ out_free:
 	return NULL;
 }
 
-int perf_evlist__set_tp_filter_pids(struct evlist *evlist, size_t npids, pid_t *pids)
+int evlist__set_tp_filter_pids(struct evlist *evlist, size_t npids, pid_t *pids)
 {
 	char *filter = asprintf__tp_filter_pids(npids, pids);
-	int ret = perf_evlist__set_tp_filter(evlist, filter);
+	int ret = evlist__set_tp_filter(evlist, filter);
 
 	free(filter);
 	return ret;
 }
 
-int perf_evlist__set_tp_filter_pid(struct evlist *evlist, pid_t pid)
+int evlist__set_tp_filter_pid(struct evlist *evlist, pid_t pid)
 {
-	return perf_evlist__set_tp_filter_pids(evlist, 1, &pid);
+	return evlist__set_tp_filter_pids(evlist, 1, &pid);
 }
 
-int perf_evlist__append_tp_filter_pids(struct evlist *evlist, size_t npids, pid_t *pids)
+int evlist__append_tp_filter_pids(struct evlist *evlist, size_t npids, pid_t *pids)
 {
 	char *filter = asprintf__tp_filter_pids(npids, pids);
-	int ret = perf_evlist__append_tp_filter(evlist, filter);
+	int ret = evlist__append_tp_filter(evlist, filter);
 
 	free(filter);
 	return ret;
 }
 
-int perf_evlist__append_tp_filter_pid(struct evlist *evlist, pid_t pid)
+int evlist__append_tp_filter_pid(struct evlist *evlist, pid_t pid)
 {
-	return perf_evlist__append_tp_filter_pids(evlist, 1, &pid);
+	return evlist__append_tp_filter_pids(evlist, 1, &pid);
 }
 
 bool evlist__valid_sample_type(struct evlist *evlist)

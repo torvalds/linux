@@ -3666,7 +3666,7 @@ static int trace__set_filter_loop_pids(struct trace *trace)
 		thread = parent;
 	}
 
-	err = perf_evlist__append_tp_filter_pids(trace->evlist, nr, pids);
+	err = evlist__append_tp_filter_pids(trace->evlist, nr, pids);
 	if (!err && trace->filter_pids.map)
 		err = bpf_map__set_filter_pids(trace->filter_pids.map, nr, pids);
 
@@ -3683,8 +3683,8 @@ static int trace__set_filter_pids(struct trace *trace)
 	 * we fork the workload in evlist__prepare_workload.
 	 */
 	if (trace->filter_pids.nr > 0) {
-		err = perf_evlist__append_tp_filter_pids(trace->evlist, trace->filter_pids.nr,
-							 trace->filter_pids.entries);
+		err = evlist__append_tp_filter_pids(trace->evlist, trace->filter_pids.nr,
+						    trace->filter_pids.entries);
 		if (!err && trace->filter_pids.map) {
 			err = bpf_map__set_filter_pids(trace->filter_pids.map, trace->filter_pids.nr,
 						       trace->filter_pids.entries);
@@ -4027,7 +4027,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	err = trace__expand_filters(trace, &evsel);
 	if (err)
 		goto out_delete_evlist;
-	err = perf_evlist__apply_filters(evlist, &evsel);
+	err = evlist__apply_filters(evlist, &evsel);
 	if (err < 0)
 		goto out_error_apply_filters;
 
