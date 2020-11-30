@@ -122,10 +122,6 @@ Don't forget to cleanup the media entity before the sub-device is destroyed:
 
 	media_entity_cleanup(&sd->entity);
 
-If the subdev driver intends to process video and integrate with the media
-framework, it must implement format related functionality using
-:c:type:`v4l2_subdev_pad_ops` instead of :c:type:`v4l2_subdev_video_ops`.
-
 In that case, the subdev driver may set the link_validate field to provide
 its own link validation function. The link validation function is called for
 every link in the pipeline where both of the ends of the links are V4L2
