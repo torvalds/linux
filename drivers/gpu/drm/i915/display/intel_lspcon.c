@@ -484,7 +484,10 @@ void lspcon_read_infoframe(struct intel_encoder *encoder,
 			   unsigned int type,
 			   void *frame, ssize_t len)
 {
-	/* FIXME implement this */
+	/* FIXME implement for AVI Infoframe as well */
+	if (type == HDMI_PACKET_TYPE_GAMUT_METADATA)
+		hsw_read_infoframe(encoder, crtc_state, type,
+				   frame, len);
 }
 
 void lspcon_set_infoframes(struct intel_encoder *encoder,

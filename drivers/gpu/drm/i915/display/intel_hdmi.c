@@ -555,10 +555,9 @@ void hsw_write_infoframe(struct intel_encoder *encoder,
 	intel_de_posting_read(dev_priv, ctl_reg);
 }
 
-static void hsw_read_infoframe(struct intel_encoder *encoder,
-			       const struct intel_crtc_state *crtc_state,
-			       unsigned int type,
-			       void *frame, ssize_t len)
+void hsw_read_infoframe(struct intel_encoder *encoder,
+			const struct intel_crtc_state *crtc_state,
+			unsigned int type, void *frame, ssize_t len)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
