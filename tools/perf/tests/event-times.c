@@ -26,7 +26,7 @@ static int attach__enable_on_exec(struct evlist *evlist)
 
 	pr_debug("attaching to spawned child, enable on exec\n");
 
-	err = perf_evlist__create_maps(evlist, &target);
+	err = evlist__create_maps(evlist, &target);
 	if (err < 0) {
 		pr_debug("Not enough memory to create thread/cpu maps\n");
 		return err;

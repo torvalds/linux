@@ -1442,7 +1442,7 @@ static int kvm_events_live(struct perf_kvm_stat *kvm,
 		goto out;
 	}
 
-	if (perf_evlist__create_maps(kvm->evlist, &kvm->opts.target) < 0)
+	if (evlist__create_maps(kvm->evlist, &kvm->opts.target) < 0)
 		usage_with_options(live_usage, live_options);
 
 	/*

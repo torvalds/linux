@@ -2792,7 +2792,7 @@ int cmd_record(int argc, const char **argv)
 	rec->opts.ignore_missing_thread = rec->opts.target.uid != UINT_MAX || rec->opts.target.pid;
 
 	err = -ENOMEM;
-	if (perf_evlist__create_maps(rec->evlist, &rec->opts.target) < 0)
+	if (evlist__create_maps(rec->evlist, &rec->opts.target) < 0)
 		usage_with_options(record_usage, record_options);
 
 	err = auxtrace_record__options(rec->itr, rec->evlist, &rec->opts);

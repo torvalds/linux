@@ -1694,7 +1694,7 @@ int cmd_top(int argc, const char **argv)
 	if (target__none(target))
 		target->system_wide = true;
 
-	if (perf_evlist__create_maps(top.evlist, target) < 0) {
+	if (evlist__create_maps(top.evlist, target) < 0) {
 		ui__error("Couldn't create thread/CPU maps: %s\n",
 			  errno == ENOENT ? "No such process" : str_error_r(errno, errbuf, sizeof(errbuf)));
 		goto out_delete_evlist;

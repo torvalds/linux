@@ -195,7 +195,7 @@ int evlist__enable_event_idx(struct evlist *evlist, struct evsel *evsel, int idx
 void perf_evlist__set_selected(struct evlist *evlist,
 			       struct evsel *evsel);
 
-int perf_evlist__create_maps(struct evlist *evlist, struct target *target);
+int evlist__create_maps(struct evlist *evlist, struct target *target);
 int evlist__apply_filters(struct evlist *evlist, struct evsel **err_evsel);
 
 void __evlist__set_leader(struct list_head *list);

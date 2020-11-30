@@ -54,9 +54,9 @@ int test__syscall_openat_tp_fields(struct test *test __maybe_unused, int subtest
 
 	evlist__add(evlist, evsel);
 
-	err = perf_evlist__create_maps(evlist, &opts.target);
+	err = evlist__create_maps(evlist, &opts.target);
 	if (err < 0) {
-		pr_debug("%s: perf_evlist__create_maps\n", __func__);
+		pr_debug("%s: evlist__create_maps\n", __func__);
 		goto out_delete_evlist;
 	}
 

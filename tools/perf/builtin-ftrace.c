@@ -957,7 +957,7 @@ int cmd_ftrace(int argc, const char **argv)
 		goto out_delete_filters;
 	}
 
-	ret = perf_evlist__create_maps(ftrace.evlist, &ftrace.target);
+	ret = evlist__create_maps(ftrace.evlist, &ftrace.target);
 	if (ret < 0)
 		goto out_delete_evlist;
 

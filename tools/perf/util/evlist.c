@@ -892,7 +892,7 @@ int evlist__mmap(struct evlist *evlist, unsigned int pages)
 	return evlist__mmap_ex(evlist, pages, 0, false, 0, PERF_AFFINITY_SYS, 1, 0);
 }
 
-int perf_evlist__create_maps(struct evlist *evlist, struct target *target)
+int evlist__create_maps(struct evlist *evlist, struct target *target)
 {
 	bool all_threads = (target->per_thread && target->system_wide);
 	struct perf_cpu_map *cpus;
@@ -1223,7 +1223,7 @@ void evlist__close(struct evlist *evlist)
 	}
 }
 
-static int perf_evlist__create_syswide_maps(struct evlist *evlist)
+static int evlist__create_syswide_maps(struct evlist *evlist)
 {
 	struct perf_cpu_map *cpus;
 	struct perf_thread_map *threads;
@@ -1265,7 +1265,7 @@ int evlist__open(struct evlist *evlist)
 	 * as sys_perf_event_open(cpu = -1, thread = -1) is EINVAL
 	 */
 	if (evlist->core.threads == NULL && evlist->core.cpus == NULL) {
-		err = perf_evlist__create_syswide_maps(evlist);
+		err = evlist__create_syswide_maps(evlist);
 		if (err < 0)
 			goto out_err;
 	}

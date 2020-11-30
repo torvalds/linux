@@ -101,7 +101,7 @@ int evlist__start_sb_thread(struct evlist *evlist, struct target *target)
 	if (!evlist)
 		return 0;
 
-	if (perf_evlist__create_maps(evlist, target))
+	if (evlist__create_maps(evlist, target))
 		goto out_delete_evlist;
 
 	if (evlist->core.nr_entries > 1) {
