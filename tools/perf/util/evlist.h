@@ -147,12 +147,8 @@ int evlist__append_tp_filter(struct evlist *evlist, const char *filter);
 int evlist__append_tp_filter_pid(struct evlist *evlist, pid_t pid);
 int evlist__append_tp_filter_pids(struct evlist *evlist, size_t npids, pid_t *pids);
 
-struct evsel *
-perf_evlist__find_tracepoint_by_id(struct evlist *evlist, int id);
-
-struct evsel *
-perf_evlist__find_tracepoint_by_name(struct evlist *evlist,
-				     const char *name);
+struct evsel *evlist__find_tracepoint_by_id(struct evlist *evlist, int id);
+struct evsel *evlist__find_tracepoint_by_name(struct evlist *evlist, const char *name);
 
 int evlist__add_pollfd(struct evlist *evlist, int fd);
 int evlist__filter_pollfd(struct evlist *evlist, short revents_and_mask);
@@ -338,8 +334,7 @@ void evlist__cpu_iter_start(struct evlist *evlist);
 bool evsel__cpu_iter_skip(struct evsel *ev, int cpu);
 bool evsel__cpu_iter_skip_no_inc(struct evsel *ev, int cpu);
 
-struct evsel *
-perf_evlist__find_evsel_by_str(struct evlist *evlist, const char *str);
+struct evsel *evlist__find_evsel_by_str(struct evlist *evlist, const char *str);
 
 struct evsel *perf_evlist__event2evsel(struct evlist *evlist,
 					    union perf_event *event);
