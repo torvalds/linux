@@ -62,6 +62,9 @@
 #include "dfs_cache.h"
 #endif
 #include "fs_context.h"
+#ifdef CONFIG_CIFS_SWN_UPCALL
+#include "cifs_swn.h"
+#endif
 
 extern mempool_t *cifs_req_poolp;
 extern bool disable_legacy_dialects;
@@ -1944,7 +1947,17 @@ cifs_put_tcon(struct cifs_tcon *tcon)
 		return;
 	}
 
-	/* TODO witness unregister */
+#ifdef CONFIG_CIFS_SWN_UPCALL
+	if (tcon->use_witness) {
+		int rc;
+
+		rc = cifs_swn_unregister(tcon);
+		if (rc < 0) {
+			cifs_dbg(VFS, "%s: Failed to unregister for witness notifications: %d\n",
+					__func__, rc);
+		}
+	}
+#endif
 
 	list_del_init(&tcon->tcon_list);
 	spin_unlock(&cifs_tcp_ses_lock);
@@ -2111,8 +2124,17 @@ cifs_get_tcon(struct cifs_ses *ses, struct smb3_fs_context *ctx)
 	if (ctx->witness) {
 		if (ses->server->vals->protocol_id >= SMB30_PROT_ID) {
 			if (tcon->capabilities & SMB2_SHARE_CAP_CLUSTER) {
-				/* TODO witness register */
+				/*
+				 * Set witness in use flag in first place
+				 * to retry registration in the echo task
+				 */
 				tcon->use_witness = true;
+				/* And try to register immediately */
+				rc = cifs_swn_register(tcon);
+				if (rc < 0) {
+					cifs_dbg(VFS, "Failed to register for witness notifications: %d\n", rc);
+					goto out_fail;
+				}
 			} else {
 				/* TODO: try to extend for non-cluster uses (eg multichannel) */
 				cifs_dbg(VFS, "witness requested on mount but no CLUSTER capability on share\n");

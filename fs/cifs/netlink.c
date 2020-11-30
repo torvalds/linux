@@ -13,6 +13,17 @@
 #include "cifs_debug.h"
 
 static const struct nla_policy cifs_genl_policy[CIFS_GENL_ATTR_MAX + 1] = {
+	[CIFS_GENL_ATTR_SWN_REGISTRATION_ID]	= { .type = NLA_U32 },
+	[CIFS_GENL_ATTR_SWN_NET_NAME]		= { .type = NLA_STRING },
+	[CIFS_GENL_ATTR_SWN_SHARE_NAME]		= { .type = NLA_STRING },
+	[CIFS_GENL_ATTR_SWN_IP]			= { .len = sizeof(struct sockaddr_storage) },
+	[CIFS_GENL_ATTR_SWN_NET_NAME_NOTIFY]	= { .type = NLA_FLAG },
+	[CIFS_GENL_ATTR_SWN_SHARE_NAME_NOTIFY]	= { .type = NLA_FLAG },
+	[CIFS_GENL_ATTR_SWN_IP_NOTIFY]		= { .type = NLA_FLAG },
+	[CIFS_GENL_ATTR_SWN_KRB_AUTH]		= { .type = NLA_FLAG },
+	[CIFS_GENL_ATTR_SWN_USER_NAME]		= { .type = NLA_STRING },
+	[CIFS_GENL_ATTR_SWN_PASSWORD]		= { .type = NLA_STRING },
+	[CIFS_GENL_ATTR_SWN_DOMAIN_NAME]	= { .type = NLA_STRING },
 };
 
 static struct genl_ops cifs_genl_ops[] = {
