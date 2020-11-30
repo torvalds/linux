@@ -604,7 +604,7 @@ struct evsel *evlist__event2evsel(struct evlist *evlist, union perf_event *event
 	return NULL;
 }
 
-static int perf_evlist__set_paused(struct evlist *evlist, bool value)
+static int evlist__set_paused(struct evlist *evlist, bool value)
 {
 	int i;
 
@@ -624,14 +624,14 @@ static int perf_evlist__set_paused(struct evlist *evlist, bool value)
 	return 0;
 }
 
-static int perf_evlist__pause(struct evlist *evlist)
+static int evlist__pause(struct evlist *evlist)
 {
-	return perf_evlist__set_paused(evlist, true);
+	return evlist__set_paused(evlist, true);
 }
 
-static int perf_evlist__resume(struct evlist *evlist)
+static int evlist__resume(struct evlist *evlist)
 {
-	return perf_evlist__set_paused(evlist, false);
+	return evlist__set_paused(evlist, false);
 }
 
 static void evlist__munmap_nofree(struct evlist *evlist)
@@ -1621,10 +1621,10 @@ void evlist__toggle_bkw_mmap(struct evlist *evlist, enum bkw_mmap_state state)
 
 	switch (action) {
 	case PAUSE:
-		perf_evlist__pause(evlist);
+		evlist__pause(evlist);
 		break;
 	case RESUME:
-		perf_evlist__resume(evlist);
+		evlist__resume(evlist);
 		break;
 	case NONE:
 	default:
