@@ -2048,7 +2048,6 @@ static void mpc_action_rcvd_xid7(fsm_instance *fsm, int event, void *arg)
  */
 static int mpc_send_qllc_discontact(struct net_device *dev)
 {
-	__u32	new_len	= 0;
 	struct sk_buff   *skb;
 	struct qllc      *qllcptr;
 	struct ctcm_priv *priv = dev->ml_priv;
@@ -2079,31 +2078,19 @@ static int mpc_send_qllc_discontact(struct net_device *dev)
 	case MPCG_STATE_FLOWC:
 	case MPCG_STATE_READY:
 		grp->send_qllc_disc = 2;
-		new_len = sizeof(struct qllc);
-		qllcptr = kzalloc(new_len, gfp_type() | GFP_DMA);
-		if (qllcptr == NULL) {
-			CTCM_DBF_TEXT_(MPC_ERROR, CTC_DBF_ERROR,
-				"%s(%s): qllcptr allocation error",
-						CTCM_FUNTAIL, dev->name);
-			return -ENOMEM;
-		}
 
-		qllcptr->qllc_address = 0xcc;
-		qllcptr->qllc_commands = 0x03;
-
-		skb = __dev_alloc_skb(new_len, GFP_ATOMIC);
-
+		skb = __dev_alloc_skb(sizeof(struct qllc), GFP_ATOMIC);
 		if (skb == NULL) {
 			CTCM_DBF_TEXT_(MPC_ERROR, CTC_DBF_ERROR,
 				"%s(%s): skb allocation error",
 						CTCM_FUNTAIL, dev->name);
 			priv->stats.rx_dropped++;
-			kfree(qllcptr);
 			return -ENOMEM;
 		}
 
-		skb_put_data(skb, qllcptr, new_len);
-		kfree(qllcptr);
+		qllcptr = skb_put(skb, sizeof(struct qllc));
+		qllcptr->qllc_address = 0xcc;
+		qllcptr->qllc_commands = 0x03;
 
 		if (skb_headroom(skb) < 4) {
 			CTCM_DBF_TEXT_(MPC_ERROR, CTC_DBF_ERROR,
