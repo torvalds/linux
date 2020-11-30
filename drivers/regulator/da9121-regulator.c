@@ -31,6 +31,7 @@ struct da9121 {
 	struct device *dev;
 	struct da9121_pdata *pdata;
 	struct regmap *regmap;
+	struct regulator_dev *rdev[DA9121_IDX_MAX];
 	int variant_id;
 };
 
@@ -291,6 +292,35 @@ static const struct regulator_desc *local_da9121_regulators[][DA9121_IDX_MAX] = 
 	[DA9121_TYPE_DA9217] = { &da9217_reg, NULL },
 };
 
+static int da9121_set_regulator_config(struct da9121 *chip)
+{
+	struct regulator_config config = { };
+	unsigned int max_matches = variant_parameters[chip->variant_id].num_bucks;
+	int ret = 0;
+	int i;
+
+	for (i = 0; i < max_matches; i++) {
+		const struct regulator_desc *regl_desc =
+			local_da9121_regulators[chip->variant_id][i];
+
+		config.dev = chip->dev;
+		config.driver_data = chip;
+		config.regmap = chip->regmap;
+
+		chip->rdev[i] = devm_regulator_register(chip->dev,
+					regl_desc, &config);
+		if (IS_ERR(chip->rdev[i])) {
+			dev_err(chip->dev, "Failed to register regulator %s, %d/%d\n",
+				regl_desc->name, (i+1), max_matches);
+			ret = PTR_ERR(chip->rdev[i]);
+			goto error;
+		}
+	}
+
+error:
+	return ret;
+}
+
 /* DA9121 chip register model */
 static const struct regmap_range da9121_1ch_readable_ranges[] = {
 	regmap_reg_range(DA9121_REG_SYS_STATUS_0, DA9121_REG_SYS_MASK_3),
@@ -522,9 +552,6 @@ static int da9121_i2c_probe(struct i2c_client *i2c,
 {
 	struct da9121 *chip;
 	int ret = 0;
-	struct device *dev = &i2c->dev;
-	struct regulator_config config = {};
-	struct regulator_dev *rdev;
 
 	chip = devm_kzalloc(&i2c->dev, sizeof(struct da9121), GFP_KERNEL);
 	if (!chip) {
@@ -539,16 +566,7 @@ static int da9121_i2c_probe(struct i2c_client *i2c,
 	if (ret < 0)
 		goto error;
 
-	config.dev = &i2c->dev;
-	config.driver_data = chip;
-	config.of_node = dev->of_node;
-	config.regmap = chip->regmap;
-
-	rdev = devm_regulator_register(&i2c->dev, &da9121_reg, &config);
-	if (IS_ERR(rdev)) {
-		dev_err(&i2c->dev, "Failed to register da9121 regulator\n");
-		return PTR_ERR(rdev);
-	}
+	ret = da9121_set_regulator_config(chip);
 
 error:
 	return ret;
