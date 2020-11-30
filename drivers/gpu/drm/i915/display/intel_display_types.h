@@ -1384,6 +1384,7 @@ struct intel_dp {
 	unsigned long last_power_on;
 	unsigned long last_backlight_off;
 	ktime_t panel_power_off_time;
+	intel_wakeref_t vdd_wakeref;
 
 	/*
 	 * Pipe whose power sequencer is currently locked into
