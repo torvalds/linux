@@ -65,7 +65,7 @@ struct sfdp_bfpt_read {
 
 struct sfdp_bfpt_erase {
 	/*
-	 * The half-word at offset <shift> in DWORD <dwoard> encodes the
+	 * The half-word at offset <shift> in DWORD <dword> encodes the
 	 * op code and erase sector size to be used by Sector Erase commands.
 	 */
 	u32			dword;

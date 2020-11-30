@@ -1599,7 +1599,7 @@ destroy_erase_cmd_list:
 
 /*
  * Erase an address range on the nor chip.  The address range may extend
- * one or more erase sectors.  Return an error is there is a problem erasing.
+ * one or more erase sectors. Return an error if there is a problem erasing.
  */
 static int spi_nor_erase(struct mtd_info *mtd, struct erase_info *instr)
 {
@@ -2693,7 +2693,7 @@ spi_nor_select_uniform_erase(struct spi_nor_erase_map *map,
 		}
 
 		/*
-		 * Otherwise, the current erase size is still a valid canditate.
+		 * Otherwise, the current erase size is still a valid candidate.
 		 * Select the biggest valid candidate.
 		 */
 		if (!erase && tested_erase->size)
