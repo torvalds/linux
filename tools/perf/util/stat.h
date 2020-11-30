@@ -213,12 +213,12 @@ void perf_stat__print_shadow_stats(struct perf_stat_config *config,
 				   struct runtime_stat *st);
 void perf_stat__collect_metric_expr(struct evlist *);
 
-int perf_evlist__alloc_stats(struct evlist *evlist, bool alloc_raw);
-void perf_evlist__free_stats(struct evlist *evlist);
-void perf_evlist__reset_stats(struct evlist *evlist);
-void perf_evlist__reset_prev_raw_counts(struct evlist *evlist);
-void perf_evlist__copy_prev_raw_counts(struct evlist *evlist);
-void perf_evlist__save_aggr_prev_raw_counts(struct evlist *evlist);
+int evlist__alloc_stats(struct evlist *evlist, bool alloc_raw);
+void evlist__free_stats(struct evlist *evlist);
+void evlist__reset_stats(struct evlist *evlist);
+void evlist__reset_prev_raw_counts(struct evlist *evlist);
+void evlist__copy_prev_raw_counts(struct evlist *evlist);
+void evlist__save_aggr_prev_raw_counts(struct evlist *evlist);
 
 int perf_stat_process_counter(struct perf_stat_config *config,
 			      struct evsel *counter);

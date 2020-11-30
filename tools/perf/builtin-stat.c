@@ -270,7 +270,7 @@ static void perf_stat__reset_stats(void)
 {
 	int i;
 
-	perf_evlist__reset_stats(evsel_list);
+	evlist__reset_stats(evsel_list);
 	perf_stat__reset_shadow_stats();
 
 	for (i = 0; i < stat_config.stats_num; i++)
@@ -913,10 +913,10 @@ try_again_reset:
 		update_stats(&walltime_nsecs_stats, t1 - t0);
 
 		if (stat_config.aggr_mode == AGGR_GLOBAL)
-			perf_evlist__save_aggr_prev_raw_counts(evsel_list);
+			evlist__save_aggr_prev_raw_counts(evsel_list);
 
-		perf_evlist__copy_prev_raw_counts(evsel_list);
-		perf_evlist__reset_prev_raw_counts(evsel_list);
+		evlist__copy_prev_raw_counts(evsel_list);
+		evlist__reset_prev_raw_counts(evsel_list);
 		runtime_stat_reset(&stat_config);
 		perf_stat__reset_shadow_per_stat(&rt_stat);
 	} else
@@ -1907,7 +1907,7 @@ static int set_maps(struct perf_stat *st)
 
 	perf_evlist__set_maps(&evsel_list->core, st->cpus, st->threads);
 
-	if (perf_evlist__alloc_stats(evsel_list, true))
+	if (evlist__alloc_stats(evsel_list, true))
 		return -ENOMEM;
 
 	st->maps_allocated = true;
@@ -2309,7 +2309,7 @@ int cmd_stat(int argc, const char **argv)
 		goto out;
 	}
 
-	if (perf_evlist__alloc_stats(evsel_list, interval))
+	if (evlist__alloc_stats(evsel_list, interval))
 		goto out;
 
 	if (perf_stat_init_aggr_mode())
@@ -2349,7 +2349,7 @@ int cmd_stat(int argc, const char **argv)
 				run_idx + 1);
 
 		if (run_idx != 0)
-			perf_evlist__reset_prev_raw_counts(evsel_list);
+			evlist__reset_prev_raw_counts(evsel_list);
 
 		status = run_perf_stat(argc, argv, run_idx);
 		if (forever && status != -1 && !interval) {
@@ -2400,7 +2400,7 @@ int cmd_stat(int argc, const char **argv)
 	}
 
 	perf_stat__exit_aggr_mode();
-	perf_evlist__free_stats(evsel_list);
+	evlist__free_stats(evsel_list);
 out:
 	zfree(&stat_config.walltime_run);
 
