@@ -2296,9 +2296,12 @@ static void intel_ddi_get_power_domains(struct intel_encoder *encoder,
 	 * ports.
 	 */
 	if (intel_crtc_has_dp_encoder(crtc_state) ||
-	    intel_phy_is_tc(dev_priv, phy))
-		intel_display_power_get(dev_priv,
-					intel_ddi_main_link_aux_domain(dig_port));
+	    intel_phy_is_tc(dev_priv, phy)) {
+		drm_WARN_ON(&dev_priv->drm, dig_port->aux_wakeref);
+		dig_port->aux_wakeref =
+			intel_display_power_get(dev_priv,
+						intel_ddi_main_link_aux_domain(dig_port));
+	}
 }
 
 void intel_ddi_enable_pipe_clock(struct intel_encoder *encoder,
@@ -4042,8 +4045,9 @@ static void intel_ddi_post_disable(struct intel_atomic_state *state,
 		icl_unmap_plls_to_ports(encoder);
 
 	if (intel_crtc_has_dp_encoder(old_crtc_state) || is_tc_port)
-		intel_display_power_put_unchecked(dev_priv,
-						  intel_ddi_main_link_aux_domain(dig_port));
+		intel_display_power_put(dev_priv,
+					intel_ddi_main_link_aux_domain(dig_port),
+					fetch_and_zero(&dig_port->aux_wakeref));
 
 	if (is_tc_port)
 		intel_tc_port_put_link(dig_port);
@@ -4382,9 +4386,12 @@ intel_ddi_pre_pll_enable(struct intel_atomic_state *state,
 	if (is_tc_port)
 		intel_tc_port_get_link(dig_port, crtc_state->lane_count);
 
-	if (intel_crtc_has_dp_encoder(crtc_state) || is_tc_port)
-		intel_display_power_get(dev_priv,
-					intel_ddi_main_link_aux_domain(dig_port));
+	if (intel_crtc_has_dp_encoder(crtc_state) || is_tc_port) {
+		drm_WARN_ON(&dev_priv->drm, dig_port->aux_wakeref);
+		dig_port->aux_wakeref =
+			intel_display_power_get(dev_priv,
+						intel_ddi_main_link_aux_domain(dig_port));
+	}
 
 	if (is_tc_port && dig_port->tc_mode != TC_PORT_TBT_ALT)
 		/*
