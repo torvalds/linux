@@ -4,6 +4,7 @@
  *
  */
 
+#include <linux/bitfield.h>
 #include <linux/bitmap.h>
 #include <linux/bitops.h>
 #include <linux/device.h>
@@ -34,6 +35,9 @@
 #define LLCC_STATUS_READ_DELAY        100
 
 #define CACHE_LINE_SIZE_SHIFT         6
+
+#define LLCC_COMMON_HW_INFO           0x00030000
+#define LLCC_MAJOR_VERSION_MASK       GENMASK(31, 24)
 
 #define LLCC_COMMON_STATUS0           0x0003000c
 #define LLCC_LB_CNT_MASK              GENMASK(31, 28)
@@ -476,6 +480,7 @@ static int qcom_llcc_probe(struct platform_device *pdev)
 	const struct qcom_llcc_config *cfg;
 	const struct llcc_slice_config *llcc_cfg;
 	u32 sz;
+	u32 version;
 
 	drv_data = devm_kzalloc(dev, sizeof(*drv_data), GFP_KERNEL);
 	if (!drv_data) {
@@ -495,6 +500,13 @@ static int qcom_llcc_probe(struct platform_device *pdev)
 		ret = PTR_ERR(drv_data->bcast_regmap);
 		goto err;
 	}
+
+	/* Extract major version of the IP */
+	ret = regmap_read(drv_data->bcast_regmap, LLCC_COMMON_HW_INFO, &version);
+	if (ret)
+		goto err;
+
+	drv_data->major_version = FIELD_GET(LLCC_MAJOR_VERSION_MASK, version);
 
 	ret = regmap_read(drv_data->regmap, LLCC_COMMON_STATUS0,
 						&num_banks);
