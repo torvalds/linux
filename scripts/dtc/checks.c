@@ -650,6 +650,24 @@ static void fixup_omit_unused_nodes(struct check *c, struct dt_info *dti,
 {
 	if (node->omit_if_unused && !node->is_referenced)
 		delete_node(node);
+
+	if (node->deleted) {
+		struct node *parent = node->parent;
+		struct node *child;
+		struct label *label;
+		struct property *prop;
+
+		for_each_label(parent->labels, label)
+			return;
+
+		for_each_property(parent, prop)
+			return;
+
+		for_each_child(parent, child)
+			return;
+
+		delete_node(parent);
+	}
 }
 ERROR(omit_unused_nodes, fixup_omit_unused_nodes, NULL, &phandle_references, &path_references);
 
