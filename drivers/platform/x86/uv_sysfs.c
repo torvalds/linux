@@ -19,8 +19,8 @@
 #define INVALID_CNODE -1
 
 struct kobject *sgi_uv_kobj;
-struct kset *uv_pcibus_kset;
-struct kset *uv_hubs_kset;
+static struct kset *uv_pcibus_kset;
+static struct kset *uv_hubs_kset;
 static struct uv_bios_hub_info *hub_buf;
 static struct uv_bios_port_info **port_buf;
 static struct uv_hub **uv_hubs;
