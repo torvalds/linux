@@ -293,6 +293,7 @@ static inline struct btree_iter_level *iter_l(struct btree_iter *iter)
 struct btree_key_cache {
 	struct mutex		lock;
 	struct rhashtable	table;
+	bool			table_init_done;
 	struct list_head	freed;
 	struct list_head	clean;
 	struct list_head	dirty;
