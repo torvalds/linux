@@ -1349,8 +1349,7 @@ static void workload_exec_failed_signal(int signo __maybe_unused,
 static void snapshot_sig_handler(int sig);
 static void alarm_sig_handler(int sig);
 
-static const struct perf_event_mmap_page *
-perf_evlist__pick_pc(struct evlist *evlist)
+static const struct perf_event_mmap_page *evlist__pick_pc(struct evlist *evlist)
 {
 	if (evlist) {
 		if (evlist->mmap && evlist->mmap[0].core.base)
@@ -1363,9 +1362,7 @@ perf_evlist__pick_pc(struct evlist *evlist)
 
 static const struct perf_event_mmap_page *record__pick_pc(struct record *rec)
 {
-	const struct perf_event_mmap_page *pc;
-
-	pc = perf_evlist__pick_pc(rec->evlist);
+	const struct perf_event_mmap_page *pc = evlist__pick_pc(rec->evlist);
 	if (pc)
 		return pc;
 	return NULL;
