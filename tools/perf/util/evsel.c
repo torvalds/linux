@@ -497,7 +497,7 @@ static const char *__evsel__hw_name(u64 config)
 	return "unknown-hardware";
 }
 
-static int perf_evsel__add_modifiers(struct evsel *evsel, char *bf, size_t size)
+static int evsel__add_modifiers(struct evsel *evsel, char *bf, size_t size)
 {
 	int colon = 0, r = 0;
 	struct perf_event_attr *attr = &evsel->core.attr;
@@ -536,7 +536,7 @@ static int perf_evsel__add_modifiers(struct evsel *evsel, char *bf, size_t size)
 static int evsel__hw_name(struct evsel *evsel, char *bf, size_t size)
 {
 	int r = scnprintf(bf, size, "%s", __evsel__hw_name(evsel->core.attr.config));
-	return r + perf_evsel__add_modifiers(evsel, bf + r, size - r);
+	return r + evsel__add_modifiers(evsel, bf + r, size - r);
 }
 
 const char *evsel__sw_names[PERF_COUNT_SW_MAX] = {
@@ -562,7 +562,7 @@ static const char *__evsel__sw_name(u64 config)
 static int evsel__sw_name(struct evsel *evsel, char *bf, size_t size)
 {
 	int r = scnprintf(bf, size, "%s", __evsel__sw_name(evsel->core.attr.config));
-	return r + perf_evsel__add_modifiers(evsel, bf + r, size - r);
+	return r + evsel__add_modifiers(evsel, bf + r, size - r);
 }
 
 static int __evsel__bp_name(char *bf, size_t size, u64 addr, u64 type)
@@ -587,7 +587,7 @@ static int evsel__bp_name(struct evsel *evsel, char *bf, size_t size)
 {
 	struct perf_event_attr *attr = &evsel->core.attr;
 	int r = __evsel__bp_name(bf, size, attr->bp_addr, attr->bp_type);
-	return r + perf_evsel__add_modifiers(evsel, bf + r, size - r);
+	return r + evsel__add_modifiers(evsel, bf + r, size - r);
 }
 
 const char *evsel__hw_cache[PERF_COUNT_HW_CACHE_MAX][EVSEL__MAX_ALIASES] = {
@@ -682,13 +682,13 @@ out_err:
 static int evsel__hw_cache_name(struct evsel *evsel, char *bf, size_t size)
 {
 	int ret = __evsel__hw_cache_name(evsel->core.attr.config, bf, size);
-	return ret + perf_evsel__add_modifiers(evsel, bf + ret, size - ret);
+	return ret + evsel__add_modifiers(evsel, bf + ret, size - ret);
 }
 
 static int evsel__raw_name(struct evsel *evsel, char *bf, size_t size)
 {
 	int ret = scnprintf(bf, size, "raw 0x%" PRIx64, evsel->core.attr.config);
-	return ret + perf_evsel__add_modifiers(evsel, bf + ret, size - ret);
+	return ret + evsel__add_modifiers(evsel, bf + ret, size - ret);
 }
 
 static int evsel__tool_name(char *bf, size_t size)
@@ -850,9 +850,7 @@ void evsel__config_callchain(struct evsel *evsel, struct record_opts *opts,
 		return __evsel__config_callchain(evsel, opts, param);
 }
 
-static void
-perf_evsel__reset_callgraph(struct evsel *evsel,
-			    struct callchain_param *param)
+static void evsel__reset_callgraph(struct evsel *evsel, struct callchain_param *param)
 {
 	struct perf_event_attr *attr = &evsel->core.attr;
 
@@ -988,7 +986,7 @@ static void evsel__apply_config_terms(struct evsel *evsel,
 
 		/* If global callgraph set, clear it */
 		if (callchain_param.enabled)
-			perf_evsel__reset_callgraph(evsel, &callchain_param);
+			evsel__reset_callgraph(evsel, &callchain_param);
 
 		/* set perf-event callgraph */
 		if (param.enabled) {
@@ -1434,9 +1432,7 @@ static int evsel__read_one(struct evsel *evsel, int cpu, int thread)
 	return perf_evsel__read(&evsel->core, cpu, thread, count);
 }
 
-static void
-perf_evsel__set_count(struct evsel *counter, int cpu, int thread,
-		      u64 val, u64 ena, u64 run)
+static void evsel__set_count(struct evsel *counter, int cpu, int thread, u64 val, u64 ena, u64 run)
 {
 	struct perf_counts_values *count;
 
@@ -1449,9 +1445,7 @@ perf_evsel__set_count(struct evsel *counter, int cpu, int thread,
 	perf_counts__set_loaded(counter->counts, cpu, thread, true);
 }
 
-static int
-perf_evsel__process_group_data(struct evsel *leader,
-			       int cpu, int thread, u64 *data)
+static int evsel__process_group_data(struct evsel *leader, int cpu, int thread, u64 *data)
 {
 	u64 read_format = leader->core.attr.read_format;
 	struct sample_read_value *v;
@@ -1470,8 +1464,7 @@ perf_evsel__process_group_data(struct evsel *leader,
 
 	v = (struct sample_read_value *) data;
 
-	perf_evsel__set_count(leader, cpu, thread,
-			      v[0].value, ena, run);
+	evsel__set_count(leader, cpu, thread, v[0].value, ena, run);
 
 	for (i = 1; i < nr; i++) {
 		struct evsel *counter;
@@ -1480,8 +1473,7 @@ perf_evsel__process_group_data(struct evsel *leader,
 		if (!counter)
 			return -EINVAL;
 
-		perf_evsel__set_count(counter, cpu, thread,
-				      v[i].value, ena, run);
+		evsel__set_count(counter, cpu, thread, v[i].value, ena, run);
 	}
 
 	return 0;
@@ -1514,7 +1506,7 @@ static int evsel__read_group(struct evsel *leader, int cpu, int thread)
 	if (readn(FD(leader, cpu, thread), data, size) <= 0)
 		return -errno;
 
-	return perf_evsel__process_group_data(leader, cpu, thread, data);
+	return evsel__process_group_data(leader, cpu, thread, data);
 }
 
 int evsel__read_counter(struct evsel *evsel, int cpu, int thread)
@@ -1567,9 +1559,7 @@ static int get_group_fd(struct evsel *evsel, int cpu, int thread)
 	return fd;
 }
 
-static void perf_evsel__remove_fd(struct evsel *pos,
-				  int nr_cpus, int nr_threads,
-				  int thread_idx)
+static void evsel__remove_fd(struct evsel *pos, int nr_cpus, int nr_threads, int thread_idx)
 {
 	for (int cpu = 0; cpu < nr_cpus; cpu++)
 		for (int thread = thread_idx; thread < nr_threads - 1; thread++)
@@ -1588,7 +1578,7 @@ static int update_fds(struct evsel *evsel,
 	evlist__for_each_entry(evsel->evlist, pos) {
 		nr_cpus = pos != evsel ? nr_cpus : cpu_idx;
 
-		perf_evsel__remove_fd(pos, nr_cpus, nr_threads, thread_idx);
+		evsel__remove_fd(pos, nr_cpus, nr_threads, thread_idx);
 
 		/*
 		 * Since fds for next evsel has not been created,
