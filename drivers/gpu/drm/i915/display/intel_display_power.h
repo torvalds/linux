@@ -212,7 +212,7 @@ struct i915_power_domains {
 	bool display_core_suspended;
 	int power_well_count;
 
-	intel_wakeref_t wakeref;
+	intel_wakeref_t init_wakeref;
 
 	struct mutex lock;
 	int domain_use_count[POWER_DOMAIN_NUM];
