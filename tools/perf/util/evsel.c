@@ -1188,6 +1188,9 @@ void evsel__config(struct evsel *evsel, struct record_opts *opts,
 		evsel__set_sample_bit(evsel, CGROUP);
 	}
 
+	if (opts->sample_data_page_size)
+		evsel__set_sample_bit(evsel, DATA_PAGE_SIZE);
+
 	if (opts->record_switch_events)
 		attr->context_switch = track;
 
@@ -2352,6 +2355,12 @@ int evsel__parse_sample(struct evsel *evsel, union perf_event *event,
 	data->cgroup = 0;
 	if (type & PERF_SAMPLE_CGROUP) {
 		data->cgroup = *array;
+		array++;
+	}
+
+	data->data_page_size = 0;
+	if (type & PERF_SAMPLE_DATA_PAGE_SIZE) {
+		data->data_page_size = *array;
 		array++;
 	}
 
