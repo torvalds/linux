@@ -101,6 +101,11 @@ static const struct da9121_field da9121_current_field[2] = {
 	{ DA9xxx_REG_BUCK_BUCK2_2, DA9121_MASK_BUCK_BUCKx_2_CHx_ILIM },
 };
 
+static const struct da9121_field da9121_mode_field[2] = {
+	{ DA9121_REG_BUCK_BUCK1_4, DA9121_MASK_BUCK_BUCKx_4_CHx_A_MODE },
+	{ DA9xxx_REG_BUCK_BUCK2_4, DA9121_MASK_BUCK_BUCKx_4_CHx_A_MODE },
+};
+
 static int da9121_get_current_limit(struct regulator_dev *rdev)
 {
 	struct da9121 *chip = rdev_get_drvdata(rdev);
@@ -202,6 +207,67 @@ error:
 	return ret;
 }
 
+static unsigned int da9121_map_mode(unsigned int mode)
+{
+	switch (mode) {
+	case DA9121_BUCK_MODE_FORCE_PWM:
+		return REGULATOR_MODE_FAST;
+	case DA9121_BUCK_MODE_FORCE_PWM_SHEDDING:
+		return REGULATOR_MODE_NORMAL;
+	case DA9121_BUCK_MODE_AUTO:
+		return REGULATOR_MODE_IDLE;
+	case DA9121_BUCK_MODE_FORCE_PFM:
+		return REGULATOR_MODE_STANDBY;
+	default:
+		return -EINVAL;
+	}
+}
+
+static int da9121_buck_set_mode(struct regulator_dev *rdev, unsigned int mode)
+{
+	struct da9121 *chip = rdev_get_drvdata(rdev);
+	int id = rdev_get_id(rdev);
+	unsigned int val;
+
+	switch (mode) {
+	case REGULATOR_MODE_FAST:
+		val = DA9121_BUCK_MODE_FORCE_PWM;
+		break;
+	case REGULATOR_MODE_NORMAL:
+		val = DA9121_BUCK_MODE_FORCE_PWM_SHEDDING;
+		break;
+	case REGULATOR_MODE_IDLE:
+		val = DA9121_BUCK_MODE_AUTO;
+		break;
+	case REGULATOR_MODE_STANDBY:
+		val = DA9121_BUCK_MODE_FORCE_PFM;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return regmap_update_bits(chip->regmap,
+				  da9121_mode_field[id].reg,
+				  da9121_mode_field[id].msk,
+				  val);
+}
+
+static unsigned int da9121_buck_get_mode(struct regulator_dev *rdev)
+{
+	struct da9121 *chip = rdev_get_drvdata(rdev);
+	int id = rdev_get_id(rdev);
+	unsigned int val;
+	int ret = 0;
+
+	ret = regmap_read(chip->regmap, da9121_mode_field[id].reg, &val);
+	if (ret < 0) {
+		dev_err(chip->dev, "Cannot read BUCK register: %d\n", ret);
+		return -EINVAL;
+	}
+
+	return da9121_map_mode(val & da9121_mode_field[id].msk);
+}
+
 static const struct regulator_ops da9121_buck_ops = {
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
@@ -211,6 +277,8 @@ static const struct regulator_ops da9121_buck_ops = {
 	.list_voltage = regulator_list_voltage_linear,
 	.get_current_limit = da9121_get_current_limit,
 	.set_current_limit = da9121_set_current_limit,
+	.set_mode = da9121_buck_set_mode,
+	.get_mode = da9121_buck_get_mode,
 };
 
 static struct of_regulator_match da9121_matches[] = {
@@ -285,6 +353,7 @@ static const struct regulator_desc da9121_reg = {
 	.of_parse_cb = da9121_of_parse_cb,
 	.owner = THIS_MODULE,
 	.regulators_node = of_match_ptr("regulators"),
+	.of_map_mode = da9121_map_mode,
 	.ops = &da9121_buck_ops,
 	.type = REGULATOR_VOLTAGE,
 	.n_voltages = DA9121_N_VOLTAGES,
@@ -309,6 +378,7 @@ static const struct regulator_desc da9220_reg[2] = {
 		.of_parse_cb = da9121_of_parse_cb,
 		.owner = THIS_MODULE,
 		.regulators_node = of_match_ptr("regulators"),
+		.of_map_mode = da9121_map_mode,
 		.ops = &da9121_buck_ops,
 		.type = REGULATOR_VOLTAGE,
 		.n_voltages = DA9121_N_VOLTAGES,
@@ -327,6 +397,7 @@ static const struct regulator_desc da9220_reg[2] = {
 		.of_parse_cb = da9121_of_parse_cb,
 		.owner = THIS_MODULE,
 		.regulators_node = of_match_ptr("regulators"),
+		.of_map_mode = da9121_map_mode,
 		.ops = &da9121_buck_ops,
 		.type = REGULATOR_VOLTAGE,
 		.n_voltages = DA9121_N_VOLTAGES,
@@ -348,6 +419,7 @@ static const struct regulator_desc da9122_reg[2] = {
 		.of_parse_cb = da9121_of_parse_cb,
 		.owner = THIS_MODULE,
 		.regulators_node = of_match_ptr("regulators"),
+		.of_map_mode = da9121_map_mode,
 		.ops = &da9121_buck_ops,
 		.type = REGULATOR_VOLTAGE,
 		.n_voltages = DA9121_N_VOLTAGES,
@@ -366,6 +438,7 @@ static const struct regulator_desc da9122_reg[2] = {
 		.of_parse_cb = da9121_of_parse_cb,
 		.owner = THIS_MODULE,
 		.regulators_node = of_match_ptr("regulators"),
+		.of_map_mode = da9121_map_mode,
 		.ops = &da9121_buck_ops,
 		.type = REGULATOR_VOLTAGE,
 		.n_voltages = DA9121_N_VOLTAGES,
@@ -386,6 +459,7 @@ static const struct regulator_desc da9217_reg = {
 	.of_parse_cb = da9121_of_parse_cb,
 	.owner = THIS_MODULE,
 	.regulators_node = of_match_ptr("regulators"),
+	.of_map_mode = da9121_map_mode,
 	.ops = &da9121_buck_ops,
 	.type = REGULATOR_VOLTAGE,
 	.n_voltages = DA9121_N_VOLTAGES,
