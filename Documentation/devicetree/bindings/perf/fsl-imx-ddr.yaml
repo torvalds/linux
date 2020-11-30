@@ -15,6 +15,9 @@ properties:
       - enum:
           - fsl,imx8-ddr-pmu
           - fsl,imx8m-ddr-pmu
+          - fsl,imx8mq-ddr-pmu
+          - fsl,imx8mm-ddr-pmu
+          - fsl,imx8mn-ddr-pmu
           - fsl,imx8mp-ddr-pmu
       - items:
           - enum:
