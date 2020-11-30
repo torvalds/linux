@@ -450,7 +450,7 @@
 	gpio-reserved-ranges = <0 4>, <81 4>;
 
 	i2c3_hid_active: i2c2-hid-active {
-		pins = <37>;
+		pins = "gpio37";
 		function = "gpio";
 
 		input-enable;
@@ -459,7 +459,7 @@
 	};
 
 	i2c5_hid_active: i2c5-hid-active {
-		pins = <125>;
+		pins = "gpio125";
 		function = "gpio";
 
 		input-enable;
@@ -468,7 +468,7 @@
 	};
 
 	i2c11_hid_active: i2c11-hid-active {
-		pins = <92>;
+		pins = "gpio92";
 		function = "gpio";
 
 		input-enable;
@@ -477,7 +477,7 @@
 	};
 
 	wcd_intr_default: wcd_intr_default {
-		pins = <54>;
+		pins = "gpio54";
 		function = "gpio";
 
 		input-enable;
