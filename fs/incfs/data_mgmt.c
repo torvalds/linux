@@ -1005,9 +1005,25 @@ static void notify_pending_reads(struct mount_info *mi,
 	wake_up_all(&mi->mi_blocks_written_notif_wq);
 }
 
+static int usleep_interruptible(u32 us)
+{
+	/* See:
+	 * https://www.kernel.org/doc/Documentation/timers/timers-howto.txt
+	 * for explanation
+	 */
+	if (us < 10) {
+		udelay(us);
+		return 0;
+	} else if (us < 20000) {
+		usleep_range(us, us + us / 10);
+		return 0;
+	} else
+		return msleep_interruptible(us / 1000);
+}
+
 static int wait_for_data_block(struct data_file *df, int block_index,
-			       int min_time_ms, int min_pending_time_ms,
-			       int max_pending_time_ms,
+			       u32 min_time_us, u32 min_pending_time_us,
+			       u32 max_pending_time_us,
 			       struct data_file_block *res_block)
 {
 	struct data_file_block block = {};
@@ -1044,13 +1060,13 @@ static int wait_for_data_block(struct data_file *df, int block_index,
 
 	/* If the block was found, just return it. No need to wait. */
 	if (is_data_block_present(&block)) {
-		if (min_time_ms)
-			error = msleep_interruptible(min_time_ms);
+		if (min_time_us)
+			error = usleep_interruptible(min_time_us);
 		*res_block = block;
 		return error;
 	} else {
 		/* If it's not found, create a pending read */
-		if (max_pending_time_ms != 0) {
+		if (max_pending_time_us != 0) {
 			read = add_pending_read(df, block_index);
 			if (!read)
 				return -ENOMEM;
@@ -1060,14 +1076,14 @@ static int wait_for_data_block(struct data_file *df, int block_index,
 		}
 	}
 
-	if (min_pending_time_ms)
+	if (min_pending_time_us)
 		time = ktime_get_ns();
 
 	/* Wait for notifications about block's arrival */
 	wait_res =
 		wait_event_interruptible_timeout(segment->new_data_arrival_wq,
 					(is_read_done(read)),
-					msecs_to_jiffies(max_pending_time_ms));
+					usecs_to_jiffies(max_pending_time_us));
 
 	/* Woke up, the pending read is no longer needed. */
 	remove_pending_read(df, read);
@@ -1085,11 +1101,11 @@ static int wait_for_data_block(struct data_file *df, int block_index,
 		return wait_res;
 	}
 
-	if (min_pending_time_ms) {
-		time = div_u64(ktime_get_ns() - time, 1000000);
-		if (min_pending_time_ms > time) {
-			error = msleep_interruptible(
-						min_pending_time_ms - time);
+	if (min_pending_time_us) {
+		time = div_u64(ktime_get_ns() - time, 1000);
+		if (min_pending_time_us > time) {
+			error = usleep_interruptible(
+						min_pending_time_us - time);
 			if (error)
 				return error;
 		}
@@ -1122,8 +1138,8 @@ static int wait_for_data_block(struct data_file *df, int block_index,
 }
 
 ssize_t incfs_read_data_file_block(struct mem_range dst, struct file *f,
-			int index, int min_time_ms,
-			int min_pending_time_ms, int max_pending_time_ms,
+			int index, u32 min_time_us,
+			u32 min_pending_time_us, u32 max_pending_time_us,
 			struct mem_range tmp)
 {
 	loff_t pos;
@@ -1143,8 +1159,8 @@ ssize_t incfs_read_data_file_block(struct mem_range dst, struct file *f,
 	mi = df->df_mount_info;
 	bf = df->df_backing_file_context->bc_file;
 
-	result = wait_for_data_block(df, index, min_time_ms,
-			min_pending_time_ms, max_pending_time_ms, &block);
+	result = wait_for_data_block(df, index, min_time_us,
+			min_pending_time_us, max_pending_time_us, &block);
 	if (result < 0)
 		goto out;
 

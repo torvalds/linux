@@ -3358,9 +3358,9 @@ static int per_uid_read_timeouts_test(const char *mount_dir)
 	struct incfs_per_uid_read_timeouts purt_set[] = {
 		{
 			.uid = 0,
-			.min_time_ms = 1000,
-			.min_pending_time_ms = 2000,
-			.max_pending_time_ms = 3000,
+			.min_time_us = 1000000,
+			.min_pending_time_us = 2000000,
+			.max_pending_time_us = 3000000,
 		},
 	};
 	struct incfs_set_read_timeouts_args srt = {
@@ -3402,11 +3402,11 @@ static int per_uid_read_timeouts_test(const char *mount_dir)
 	TESTEQUAL(ioctl(cmd_fd, INCFS_IOC_GET_READ_TIMEOUTS, &grt), 0);
 	TESTEQUAL(grt.timeouts_array_size_out, sizeof(purt_get));
 	TESTEQUAL(purt_get[0].uid, purt_set[0].uid);
-	TESTEQUAL(purt_get[0].min_time_ms, purt_set[0].min_time_ms);
-	TESTEQUAL(purt_get[0].min_pending_time_ms,
-		  purt_set[0].min_pending_time_ms);
-	TESTEQUAL(purt_get[0].max_pending_time_ms,
-		  purt_set[0].max_pending_time_ms);
+	TESTEQUAL(purt_get[0].min_time_us, purt_set[0].min_time_us);
+	TESTEQUAL(purt_get[0].min_pending_time_us,
+		  purt_set[0].min_pending_time_us);
+	TESTEQUAL(purt_get[0].max_pending_time_us,
+		  purt_set[0].max_pending_time_us);
 
 	/* Still 1000 in UID 2 */
 	TESTEQUAL(clock_gettime(CLOCK_MONOTONIC, &start), 0);
@@ -3421,7 +3421,7 @@ static int per_uid_read_timeouts_test(const char *mount_dir)
 	TESTEQUAL(is_close(&start, 1000), 0);
 
 	/* Set it to default */
-	purt_set[0].max_pending_time_ms = UINT32_MAX;
+	purt_set[0].max_pending_time_us = UINT32_MAX;
 	TESTEQUAL(ioctl(cmd_fd, INCFS_IOC_SET_READ_TIMEOUTS, &srt), 0);
 	TESTEQUAL(clock_gettime(CLOCK_MONOTONIC, &start), 0);
 	TESTEQUAL(pread(fd, buffer, sizeof(buffer), 0), -1);
