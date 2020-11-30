@@ -224,7 +224,7 @@ static int snd_rn_acp_probe(struct pci_dev *pci,
 		handle = ACPI_HANDLE(&pci->dev);
 		ret = acpi_evaluate_integer(handle, "_WOV", NULL, &dmic_status);
 		if (ACPI_FAILURE(ret)) {
-			ret = -EINVAL;
+			ret = -ENODEV;
 			goto de_init;
 		}
 		if (!dmic_status) {
