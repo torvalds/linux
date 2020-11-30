@@ -119,7 +119,7 @@ static const struct link_encoder_funcs dce110_lnk_enc_funcs = {
 	.disable_hpd = dce110_link_encoder_disable_hpd,
 	.is_dig_enabled = dce110_is_dig_enabled,
 	.destroy = dce110_link_encoder_destroy,
-	.get_max_link_cap = dce110_link_encoder_get_max_link_cap
+	.get_max_link_cap = dce110_link_encoder_get_max_link_cap,
 };
 
 static enum bp_result link_transmitter_control(
