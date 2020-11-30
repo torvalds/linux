@@ -85,6 +85,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_ES7134
 	select SND_SOC_ES7202
 	select SND_SOC_ES7241
+	select SND_SOC_ES7243E
 	select SND_SOC_GTM601
 	select SND_SOC_HDAC_HDMI
 	select SND_SOC_ICS43432
@@ -608,6 +609,9 @@ config SND_SOC_ES7202
 
 config SND_SOC_ES7241
        tristate "Everest Semi ES7241 CODEC"
+
+config SND_SOC_ES7243E
+       tristate "Everest Semi ES724E 2CH ADC"
 
 config SND_SOC_ES8311
 	tristate "Everest Semi ES8311 CODEC"
