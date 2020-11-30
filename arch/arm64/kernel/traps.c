@@ -876,13 +876,6 @@ asmlinkage void do_serror(struct pt_regs *regs, unsigned int esr)
 	nmi_exit();
 }
 
-asmlinkage void enter_from_user_mode(void)
-{
-	CT_WARN_ON(ct_state() != CONTEXT_USER);
-	user_exit_irqoff();
-}
-NOKPROBE_SYMBOL(enter_from_user_mode);
-
 /* GENERIC_BUG traps */
 
 int is_valid_bugaddr(unsigned long addr)

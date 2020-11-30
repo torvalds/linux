@@ -101,6 +101,12 @@ asmlinkage void noinstr el1_sync_handler(struct pt_regs *regs)
 	}
 }
 
+asmlinkage void noinstr enter_from_user_mode(void)
+{
+	CT_WARN_ON(ct_state() != CONTEXT_USER);
+	user_exit_irqoff();
+}
+
 static void noinstr el0_da(struct pt_regs *regs, unsigned long esr)
 {
 	unsigned long far = read_sysreg(far_el1);
