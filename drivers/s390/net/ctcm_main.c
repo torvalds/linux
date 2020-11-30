@@ -665,24 +665,16 @@ static int ctcmpc_transmit_skb(struct channel *ch, struct sk_buff *skb)
 	if ((fsm_getstate(ch->fsm) != CTC_STATE_TXIDLE) || grp->in_sweep) {
 		spin_lock_irqsave(&ch->collect_lock, saveflags);
 		refcount_inc(&skb->users);
-		p_header = kmalloc(PDU_HEADER_LENGTH, gfp_type());
 
-		if (!p_header) {
-			spin_unlock_irqrestore(&ch->collect_lock, saveflags);
-				goto nomem_exit;
-		}
-
-		p_header->pdu_offset = skb->len;
+		p_header = skb_push(skb, PDU_HEADER_LENGTH);
+		p_header->pdu_offset = skb->len - PDU_HEADER_LENGTH;
 		p_header->pdu_proto = 0x01;
-		p_header->pdu_flag = 0x00;
 		if (be16_to_cpu(skb->protocol) == ETH_P_SNAP) {
-			p_header->pdu_flag |= PDU_FIRST | PDU_CNTL;
+			p_header->pdu_flag = PDU_FIRST | PDU_CNTL;
 		} else {
-			p_header->pdu_flag |= PDU_FIRST;
+			p_header->pdu_flag = PDU_FIRST;
 		}
 		p_header->pdu_seq = 0;
-		memcpy(skb_push(skb, PDU_HEADER_LENGTH), p_header,
-		       PDU_HEADER_LENGTH);
 
 		CTCM_PR_DEBUG("%s(%s): Put on collect_q - skb len: %04x \n"
 				"pdu header and data for up to 32 bytes:\n",
@@ -691,7 +683,6 @@ static int ctcmpc_transmit_skb(struct channel *ch, struct sk_buff *skb)
 
 		skb_queue_tail(&ch->collect_queue, skb);
 		ch->collect_len += skb->len;
-		kfree(p_header);
 
 		spin_unlock_irqrestore(&ch->collect_lock, saveflags);
 			goto done;
@@ -721,23 +712,15 @@ static int ctcmpc_transmit_skb(struct channel *ch, struct sk_buff *skb)
 		}
 	}
 
-	p_header = kmalloc(PDU_HEADER_LENGTH, gfp_type());
-
-	if (!p_header)
-		goto nomem_exit;
-
-	p_header->pdu_offset = skb->len;
+	p_header = skb_push(skb, PDU_HEADER_LENGTH);
+	p_header->pdu_offset = skb->len - PDU_HEADER_LENGTH;
 	p_header->pdu_proto = 0x01;
-	p_header->pdu_flag = 0x00;
 	p_header->pdu_seq = 0;
 	if (be16_to_cpu(skb->protocol) == ETH_P_SNAP) {
-		p_header->pdu_flag |= PDU_FIRST | PDU_CNTL;
+		p_header->pdu_flag = PDU_FIRST | PDU_CNTL;
 	} else {
-		p_header->pdu_flag |= PDU_FIRST;
+		p_header->pdu_flag = PDU_FIRST;
 	}
-	memcpy(skb_push(skb, PDU_HEADER_LENGTH), p_header, PDU_HEADER_LENGTH);
-
-	kfree(p_header);
 
 	if (ch->collect_len > 0) {
 		spin_lock_irqsave(&ch->collect_lock, saveflags);
