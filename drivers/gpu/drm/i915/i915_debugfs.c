@@ -1492,55 +1492,6 @@ DEFINE_SIMPLE_ATTRIBUTE(i915_drop_caches_fops,
 			i915_drop_caches_get, i915_drop_caches_set,
 			"0x%08llx\n");
 
-static int
-i915_cache_sharing_get(void *data, u64 *val)
-{
-	struct drm_i915_private *dev_priv = data;
-	intel_wakeref_t wakeref;
-	u32 snpcr = 0;
-
-	if (!(IS_GEN_RANGE(dev_priv, 6, 7)))
-		return -ENODEV;
-
-	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref)
-		snpcr = I915_READ(GEN6_MBCUNIT_SNPCR);
-
-	*val = (snpcr & GEN6_MBC_SNPCR_MASK) >> GEN6_MBC_SNPCR_SHIFT;
-
-	return 0;
-}
-
-static int
-i915_cache_sharing_set(void *data, u64 val)
-{
-	struct drm_i915_private *dev_priv = data;
-	intel_wakeref_t wakeref;
-
-	if (!(IS_GEN_RANGE(dev_priv, 6, 7)))
-		return -ENODEV;
-
-	if (val > 3)
-		return -EINVAL;
-
-	drm_dbg(&dev_priv->drm,
-		"Manually setting uncore sharing to %llu\n", val);
-	with_intel_runtime_pm(&dev_priv->runtime_pm, wakeref) {
-		u32 snpcr;
-
-		/* Update the cache sharing policy here as well */
-		snpcr = I915_READ(GEN6_MBCUNIT_SNPCR);
-		snpcr &= ~GEN6_MBC_SNPCR_MASK;
-		snpcr |= val << GEN6_MBC_SNPCR_SHIFT;
-		I915_WRITE(GEN6_MBCUNIT_SNPCR, snpcr);
-	}
-
-	return 0;
-}
-
-DEFINE_SIMPLE_ATTRIBUTE(i915_cache_sharing_fops,
-			i915_cache_sharing_get, i915_cache_sharing_set,
-			"%llu\n");
-
 static int i915_sseu_status(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *i915 = node_to_i915(m->private);
@@ -1606,7 +1557,6 @@ static const struct i915_debugfs_files {
 } i915_debugfs_files[] = {
 	{"i915_perf_noa_delay", &i915_perf_noa_delay_fops},
 	{"i915_wedged", &i915_wedged_fops},
-	{"i915_cache_sharing", &i915_cache_sharing_fops},
 	{"i915_gem_drop_caches", &i915_drop_caches_fops},
 #if IS_ENABLED(CONFIG_DRM_I915_CAPTURE_ERROR)
 	{"i915_error_state", &i915_error_state_fops},
