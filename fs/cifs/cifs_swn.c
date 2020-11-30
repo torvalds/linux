@@ -505,3 +505,38 @@ int cifs_swn_unregister(struct cifs_tcon *tcon)
 
 	return 0;
 }
+
+void cifs_swn_dump(struct seq_file *m)
+{
+	struct cifs_swn_reg *swnreg;
+	struct sockaddr_in *sa;
+	struct sockaddr_in6 *sa6;
+	int id;
+
+	seq_puts(m, "Witness registrations:");
+
+	mutex_lock(&cifs_swnreg_idr_mutex);
+	idr_for_each_entry(&cifs_swnreg_idr, swnreg, id) {
+		seq_printf(m, "\nId: %u Refs: %u Network name: '%s'%s Share name: '%s'%s Ip address: ",
+				id, kref_read(&swnreg->ref_count),
+				swnreg->net_name, swnreg->net_name_notify ? "(y)" : "(n)",
+				swnreg->share_name, swnreg->share_name_notify ? "(y)" : "(n)");
+		switch (swnreg->tcon->ses->server->dstaddr.ss_family) {
+		case AF_INET:
+			sa = (struct sockaddr_in *) &swnreg->tcon->ses->server->dstaddr;
+			seq_printf(m, "%pI4", &sa->sin_addr.s_addr);
+			break;
+		case AF_INET6:
+			sa6 = (struct sockaddr_in6 *) &swnreg->tcon->ses->server->dstaddr;
+			seq_printf(m, "%pI6", &sa6->sin6_addr.s6_addr);
+			if (sa6->sin6_scope_id)
+				seq_printf(m, "%%%u", sa6->sin6_scope_id);
+			break;
+		default:
+			seq_puts(m, "(unknown)");
+		}
+		seq_printf(m, "%s", swnreg->ip_notify ? "(y)" : "(n)");
+	}
+	mutex_unlock(&cifs_swnreg_idr_mutex);
+	seq_puts(m, "\n");
+}

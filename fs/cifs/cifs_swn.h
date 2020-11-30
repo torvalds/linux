@@ -18,4 +18,6 @@ extern int cifs_swn_unregister(struct cifs_tcon *tcon);
 
 extern int cifs_swn_notify(struct sk_buff *skb, struct genl_info *info);
 
+extern void cifs_swn_dump(struct seq_file *m);
+
 #endif /* _CIFS_SWN_H */
