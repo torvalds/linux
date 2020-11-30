@@ -98,6 +98,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_ES7134
 	imply SND_SOC_ES7202
 	imply SND_SOC_ES7241
+	imply SND_SOC_ES7243E
 	imply SND_SOC_GTM601
 	imply SND_SOC_HDAC_HDMI
 	imply SND_SOC_HDAC_HDA
@@ -787,6 +788,9 @@ config SND_SOC_ES7202
 
 config SND_SOC_ES7241
        tristate "Everest Semi ES7241 CODEC"
+
+config SND_SOC_ES7243E
+	tristate "Everest Semi ES724E 2CH ADC"
 
 config SND_SOC_ES8311
 	tristate "Everest Semi ES8311 CODEC"

@@ -480,11 +480,14 @@ es7243e_pcm_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int es7243e_mute(struct snd_soc_dai *dai, int mute)
+static int es7243e_mute(struct snd_soc_dai *dai, int mute, int stream)
 {
 	//struct snd_soc_codec *codec = dai->codec;
 	u8 i;
 	printk("Enter into %s()\n", __func__);
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK)
+		return 0;
+
 	for (i = 0; i < (ES7243E_CHANNELS_MAX) / 2; i++) {
 		if (mute)
 			es7243e_update_bits(0x0b, 0xc0, 0xc0, i2c_clt[i]);
@@ -1671,7 +1674,7 @@ static struct snd_soc_dai_ops es7243e_ops = {
 	.hw_params = es7243e_pcm_hw_params,
 	.set_fmt = es7243e_set_dai_fmt,
 	.set_sysclk = es7243e_set_dai_sysclk,
-	.digital_mute = es7243e_mute,
+	.mute_stream = es7243e_mute,
 };
 
 #if ES7243E_CHANNELS_MAX > 0
