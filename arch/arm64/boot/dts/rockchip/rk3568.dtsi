@@ -161,8 +161,8 @@
 
 	mpp_srv: mpp-srv {
 		compatible = "rockchip,mpp-service";
-		rockchip,taskqueue-count = <5>;
-		rockchip,resetgroup-count = <5>;
+		rockchip,taskqueue-count = <6>;
+		rockchip,resetgroup-count = <6>;
 		status = "disabled";
 	};
 
