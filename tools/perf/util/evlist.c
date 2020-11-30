@@ -177,8 +177,7 @@ void evlist__remove(struct evlist *evlist, struct evsel *evsel)
 	perf_evlist__remove(&evlist->core, &evsel->core);
 }
 
-void perf_evlist__splice_list_tail(struct evlist *evlist,
-				   struct list_head *list)
+void evlist__splice_list_tail(struct evlist *evlist, struct list_head *list)
 {
 	struct evsel *evsel, *temp;
 
@@ -273,7 +272,7 @@ static int evlist__add_attrs(struct evlist *evlist, struct perf_event_attr *attr
 		list_add_tail(&evsel->core.node, &head);
 	}
 
-	perf_evlist__splice_list_tail(evlist, &head);
+	evlist__splice_list_tail(evlist, &head);
 
 	return 0;
 
@@ -1520,8 +1519,7 @@ int evlist__strerror_mmap(struct evlist *evlist, int err, char *buf, size_t size
 	return 0;
 }
 
-void perf_evlist__to_front(struct evlist *evlist,
-			   struct evsel *move_evsel)
+void evlist__to_front(struct evlist *evlist, struct evsel *move_evsel)
 {
 	struct evsel *evsel, *n;
 	LIST_HEAD(move);

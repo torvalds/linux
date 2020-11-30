@@ -26,7 +26,7 @@ static int test_expand_events(struct evlist *evlist,
 	char **ev_name;
 	struct evsel *evsel;
 
-	TEST_ASSERT_VAL("evlist is empty", !perf_evlist__empty(evlist));
+	TEST_ASSERT_VAL("evlist is empty", !evlist__empty(evlist));
 
 	nr_events = evlist->core.nr_entries;
 	ev_name = calloc(nr_events, sizeof(*ev_name));
@@ -161,7 +161,7 @@ static int expand_libpfm_events(void)
 			 event_str, ret);
 		goto out;
 	}
-	if (perf_evlist__empty(evlist)) {
+	if (evlist__empty(evlist)) {
 		pr_debug("libpfm was not enabled\n");
 		goto out;
 	}

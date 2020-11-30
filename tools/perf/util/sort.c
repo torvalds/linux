@@ -2756,7 +2756,7 @@ static const char *get_default_sort_order(struct evlist *evlist)
 
 	BUG_ON(sort__mode >= ARRAY_SIZE(default_sort_orders));
 
-	if (evlist == NULL || perf_evlist__empty(evlist))
+	if (evlist == NULL || evlist__empty(evlist))
 		goto out_no_evlist;
 
 	evlist__for_each_entry(evlist, evsel) {

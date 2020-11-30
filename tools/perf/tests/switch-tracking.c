@@ -406,7 +406,7 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 		pr_debug("cycles event already at front");
 		goto out_err;
 	}
-	perf_evlist__to_front(evlist, cycles_evsel);
+	evlist__to_front(evlist, cycles_evsel);
 	if (cycles_evsel != evlist__first(evlist)) {
 		pr_debug("Failed to move cycles event to front");
 		goto out_err;

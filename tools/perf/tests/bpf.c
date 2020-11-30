@@ -157,7 +157,7 @@ static int do_test(struct bpf_object *obj, int (*func)(void),
 		goto out_delete_evlist;
 	}
 
-	perf_evlist__splice_list_tail(evlist, &parse_state.list);
+	evlist__splice_list_tail(evlist, &parse_state.list);
 	evlist->nr_groups = parse_state.nr_groups;
 
 	perf_evlist__config(evlist, &opts, NULL);

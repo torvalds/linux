@@ -214,10 +214,9 @@ bool evlist__valid_sample_type(struct evlist *evlist);
 bool evlist__valid_sample_id_all(struct evlist *evlist);
 bool perf_evlist__valid_read_format(struct evlist *evlist);
 
-void perf_evlist__splice_list_tail(struct evlist *evlist,
-				   struct list_head *list);
+void evlist__splice_list_tail(struct evlist *evlist, struct list_head *list);
 
-static inline bool perf_evlist__empty(struct evlist *evlist)
+static inline bool evlist__empty(struct evlist *evlist)
 {
 	return list_empty(&evlist->core.entries);
 }
@@ -240,8 +239,7 @@ int evlist__strerror_open(struct evlist *evlist, int err, char *buf, size_t size
 int evlist__strerror_mmap(struct evlist *evlist, int err, char *buf, size_t size);
 
 bool perf_evlist__can_select_event(struct evlist *evlist, const char *str);
-void perf_evlist__to_front(struct evlist *evlist,
-			   struct evsel *move_evsel);
+void evlist__to_front(struct evlist *evlist, struct evsel *move_evsel);
 
 /**
  * __evlist__for_each_entry - iterate thru all the evsels

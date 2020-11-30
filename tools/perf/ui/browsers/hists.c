@@ -3593,7 +3593,7 @@ static int __evlist__tui_browse_hists(struct evlist *evlist, int nr_entries, con
 				    hbt, warn_lost_event);
 }
 
-static bool perf_evlist__single_entry(struct evlist *evlist)
+static bool evlist__single_entry(struct evlist *evlist)
 {
 	int nr_entries = evlist->core.nr_entries;
 
@@ -3616,7 +3616,7 @@ int evlist__tui_browse_hists(struct evlist *evlist, const char *help, struct his
 {
 	int nr_entries = evlist->core.nr_entries;
 
-	if (perf_evlist__single_entry(evlist)) {
+	if (evlist__single_entry(evlist)) {
 single_entry: {
 		struct evsel *first = evlist__first(evlist);
 
