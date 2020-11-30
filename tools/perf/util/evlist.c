@@ -212,7 +212,7 @@ out:
 	return err;
 }
 
-void __perf_evlist__set_leader(struct list_head *list)
+void __evlist__set_leader(struct list_head *list)
 {
 	struct evsel *evsel, *leader;
 
@@ -226,11 +226,11 @@ void __perf_evlist__set_leader(struct list_head *list)
 	}
 }
 
-void perf_evlist__set_leader(struct evlist *evlist)
+void evlist__set_leader(struct evlist *evlist)
 {
 	if (evlist->core.nr_entries) {
 		evlist->nr_groups = evlist->core.nr_entries > 1 ? 1 : 0;
-		__perf_evlist__set_leader(&evlist->core.entries);
+		__evlist__set_leader(&evlist->core.entries);
 	}
 }
 
@@ -1694,7 +1694,7 @@ void perf_evlist__force_leader(struct evlist *evlist)
 	if (!evlist->nr_groups) {
 		struct evsel *leader = evlist__first(evlist);
 
-		perf_evlist__set_leader(evlist);
+		evlist__set_leader(evlist);
 		leader->forced_leader = true;
 	}
 }

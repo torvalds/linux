@@ -102,7 +102,7 @@ void perf_evlist__config(struct evlist *evlist, struct record_opts *opts,
 	 * since some might depend on this info.
 	 */
 	if (opts->group)
-		perf_evlist__set_leader(evlist);
+		evlist__set_leader(evlist);
 
 	if (evlist->core.cpus->map[0] < 0)
 		opts->no_inherit = true;

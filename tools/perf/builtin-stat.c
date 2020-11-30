@@ -733,7 +733,7 @@ static int __run_perf_stat(int argc, const char **argv, int run_idx)
 	}
 
 	if (group)
-		perf_evlist__set_leader(evsel_list);
+		evlist__set_leader(evsel_list);
 
 	if (affinity__setup(&affinity) < 0)
 		return -1;
