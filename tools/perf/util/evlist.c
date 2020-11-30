@@ -447,7 +447,7 @@ void evlist__enable(struct evlist *evlist)
 	evlist->enabled = true;
 }
 
-void perf_evlist__toggle_enable(struct evlist *evlist)
+void evlist__toggle_enable(struct evlist *evlist)
 {
 	(evlist->enabled ? evlist__disable : evlist__enable)(evlist);
 }
@@ -727,7 +727,7 @@ perf_evlist__mmap_cb_get(struct perf_evlist *_evlist, bool overwrite, int idx)
 		if (overwrite) {
 			evlist->overwrite_mmap = maps;
 			if (evlist->bkw_mmap_state == BKW_MMAP_NOTREADY)
-				perf_evlist__toggle_bkw_mmap(evlist, BKW_MMAP_RUNNING);
+				evlist__toggle_bkw_mmap(evlist, BKW_MMAP_RUNNING);
 		} else {
 			evlist->mmap = maps;
 		}
@@ -1613,8 +1613,7 @@ perf_evlist__find_evsel_by_str(struct evlist *evlist,
 	return NULL;
 }
 
-void perf_evlist__toggle_bkw_mmap(struct evlist *evlist,
-				  enum bkw_mmap_state state)
+void evlist__toggle_bkw_mmap(struct evlist *evlist, enum bkw_mmap_state state)
 {
 	enum bkw_mmap_state old_state = evlist->bkw_mmap_state;
 	enum action {

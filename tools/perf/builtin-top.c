@@ -918,14 +918,14 @@ static void perf_top__mmap_read(struct perf_top *top)
 	int i;
 
 	if (overwrite)
-		perf_evlist__toggle_bkw_mmap(evlist, BKW_MMAP_DATA_PENDING);
+		evlist__toggle_bkw_mmap(evlist, BKW_MMAP_DATA_PENDING);
 
 	for (i = 0; i < top->evlist->core.nr_mmaps; i++)
 		perf_top__mmap_read_idx(top, i);
 
 	if (overwrite) {
-		perf_evlist__toggle_bkw_mmap(evlist, BKW_MMAP_EMPTY);
-		perf_evlist__toggle_bkw_mmap(evlist, BKW_MMAP_RUNNING);
+		evlist__toggle_bkw_mmap(evlist, BKW_MMAP_EMPTY);
+		evlist__toggle_bkw_mmap(evlist, BKW_MMAP_RUNNING);
 	}
 }
 

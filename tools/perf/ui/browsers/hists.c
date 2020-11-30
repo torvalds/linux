@@ -3264,7 +3264,7 @@ do_hotkey:		 // key came straight from options ui__popup_menu()
 			if (!is_report_browser(hbt)) {
 				struct perf_top *top = hbt->arg;
 
-				perf_evlist__toggle_enable(top->evlist);
+				evlist__toggle_enable(top->evlist);
 				/*
 				 * No need to refresh, resort/decay histogram
 				 * entries if we are not collecting samples:

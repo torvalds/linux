@@ -1166,7 +1166,7 @@ static int record__mmap_read_evlist(struct record *rec, struct evlist *evlist,
 		rc = record__write(rec, NULL, &finished_round_event, sizeof(finished_round_event));
 
 	if (overwrite)
-		perf_evlist__toggle_bkw_mmap(evlist, BKW_MMAP_EMPTY);
+		evlist__toggle_bkw_mmap(evlist, BKW_MMAP_EMPTY);
 out:
 	return rc;
 }
@@ -1860,11 +1860,11 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 		 * BKW_MMAP_EMPTY here: when done == true and
 		 * hits != rec->samples in previous round.
 		 *
-		 * perf_evlist__toggle_bkw_mmap ensure we never
+		 * evlist__toggle_bkw_mmap ensure we never
 		 * convert BKW_MMAP_EMPTY to BKW_MMAP_DATA_PENDING.
 		 */
 		if (trigger_is_hit(&switch_output_trigger) || done || draining)
-			perf_evlist__toggle_bkw_mmap(rec->evlist, BKW_MMAP_DATA_PENDING);
+			evlist__toggle_bkw_mmap(rec->evlist, BKW_MMAP_DATA_PENDING);
 
 		if (record__mmap_read_all(rec, false) < 0) {
 			trigger_error(&auxtrace_snapshot_trigger);
@@ -1903,7 +1903,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 			 * record__mmap_read_all(): we should have collected
 			 * data from it.
 			 */
-			perf_evlist__toggle_bkw_mmap(rec->evlist, BKW_MMAP_RUNNING);
+			evlist__toggle_bkw_mmap(rec->evlist, BKW_MMAP_RUNNING);
 
 			if (!quiet)
 				fprintf(stderr, "[ perf record: dump data: Woken up %ld times ]\n",

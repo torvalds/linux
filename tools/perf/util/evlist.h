@@ -168,7 +168,7 @@ struct evsel *perf_evlist__id2evsel_strict(struct evlist *evlist,
 
 struct perf_sample_id *perf_evlist__id2sid(struct evlist *evlist, u64 id);
 
-void perf_evlist__toggle_bkw_mmap(struct evlist *evlist, enum bkw_mmap_state state);
+void evlist__toggle_bkw_mmap(struct evlist *evlist, enum bkw_mmap_state state);
 
 void evlist__mmap_consume(struct evlist *evlist, int idx);
 
@@ -207,7 +207,7 @@ size_t evlist__mmap_size(unsigned long pages);
 
 void evlist__disable(struct evlist *evlist);
 void evlist__enable(struct evlist *evlist);
-void perf_evlist__toggle_enable(struct evlist *evlist);
+void evlist__toggle_enable(struct evlist *evlist);
 
 int perf_evlist__enable_event_idx(struct evlist *evlist,
 				  struct evsel *evsel, int idx);
