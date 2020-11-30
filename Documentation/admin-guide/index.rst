@@ -19,6 +19,7 @@ etc.
    sysctl/index
 
    abi
+   features
 
 This section describes CPU vulnerabilities and their mitigations.
 
