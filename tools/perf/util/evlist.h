@@ -127,17 +127,6 @@ int __evlist__set_tracepoints_handlers(struct evlist *evlist,
 #define evlist__set_tracepoints_handlers(evlist, array) \
 	__evlist__set_tracepoints_handlers(evlist, array, ARRAY_SIZE(array))
 
-void __perf_evlist__set_sample_bit(struct evlist *evlist,
-				   enum perf_event_sample_format bit);
-void __perf_evlist__reset_sample_bit(struct evlist *evlist,
-				     enum perf_event_sample_format bit);
-
-#define perf_evlist__set_sample_bit(evlist, bit) \
-	__perf_evlist__set_sample_bit(evlist, PERF_SAMPLE_##bit)
-
-#define perf_evlist__reset_sample_bit(evlist, bit) \
-	__perf_evlist__reset_sample_bit(evlist, PERF_SAMPLE_##bit)
-
 int evlist__set_tp_filter(struct evlist *evlist, const char *filter);
 int evlist__set_tp_filter_pid(struct evlist *evlist, pid_t pid);
 int evlist__set_tp_filter_pids(struct evlist *evlist, size_t npids, pid_t *pids);

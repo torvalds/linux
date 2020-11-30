@@ -953,24 +953,6 @@ out_delete_threads:
 	return -1;
 }
 
-void __perf_evlist__set_sample_bit(struct evlist *evlist,
-				   enum perf_event_sample_format bit)
-{
-	struct evsel *evsel;
-
-	evlist__for_each_entry(evlist, evsel)
-		__evsel__set_sample_bit(evsel, bit);
-}
-
-void __perf_evlist__reset_sample_bit(struct evlist *evlist,
-				     enum perf_event_sample_format bit)
-{
-	struct evsel *evsel;
-
-	evlist__for_each_entry(evlist, evsel)
-		__evsel__reset_sample_bit(evsel, bit);
-}
-
 int evlist__apply_filters(struct evlist *evlist, struct evsel **err_evsel)
 {
 	struct evsel *evsel;
