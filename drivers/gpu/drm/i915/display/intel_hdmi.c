@@ -518,10 +518,10 @@ static u32 vlv_infoframes_enabled(struct intel_encoder *encoder,
 		      VIDEO_DIP_ENABLE_SPD | VIDEO_DIP_ENABLE_GCP);
 }
 
-static void hsw_write_infoframe(struct intel_encoder *encoder,
-				const struct intel_crtc_state *crtc_state,
-				unsigned int type,
-				const void *frame, ssize_t len)
+void hsw_write_infoframe(struct intel_encoder *encoder,
+			 const struct intel_crtc_state *crtc_state,
+			 unsigned int type,
+			 const void *frame, ssize_t len)
 {
 	const u32 *data = frame;
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
