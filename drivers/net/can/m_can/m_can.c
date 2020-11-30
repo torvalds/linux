@@ -1869,6 +1869,14 @@ pm_runtime_fail:
 }
 EXPORT_SYMBOL_GPL(m_can_class_register);
 
+void m_can_class_unregister(struct m_can_classdev *m_can_dev)
+{
+	unregister_candev(m_can_dev->net);
+
+	m_can_clk_stop(m_can_dev);
+}
+EXPORT_SYMBOL_GPL(m_can_class_unregister);
+
 int m_can_class_suspend(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
@@ -1914,14 +1922,6 @@ int m_can_class_resume(struct device *dev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(m_can_class_resume);
-
-void m_can_class_unregister(struct m_can_classdev *m_can_dev)
-{
-	unregister_candev(m_can_dev->net);
-
-	m_can_clk_stop(m_can_dev);
-}
-EXPORT_SYMBOL_GPL(m_can_class_unregister);
 
 MODULE_AUTHOR("Dong Aisheng <b29396@freescale.com>");
 MODULE_AUTHOR("Dan Murphy <dmurphy@ti.com>");
