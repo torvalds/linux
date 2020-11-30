@@ -190,8 +190,7 @@ void evlist__disable(struct evlist *evlist);
 void evlist__enable(struct evlist *evlist);
 void evlist__toggle_enable(struct evlist *evlist);
 
-int perf_evlist__enable_event_idx(struct evlist *evlist,
-				  struct evsel *evsel, int idx);
+int evlist__enable_event_idx(struct evlist *evlist, struct evsel *evsel, int idx);
 
 void perf_evlist__set_selected(struct evlist *evlist,
 			       struct evsel *evsel);

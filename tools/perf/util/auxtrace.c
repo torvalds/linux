@@ -658,8 +658,7 @@ int auxtrace_record__read_finish(struct auxtrace_record *itr, int idx)
 		if (evsel->core.attr.type == itr->pmu->type) {
 			if (evsel->disabled)
 				return 0;
-			return perf_evlist__enable_event_idx(itr->evlist, evsel,
-							     idx);
+			return evlist__enable_event_idx(itr->evlist, evsel, idx);
 		}
 	}
 	return -EINVAL;

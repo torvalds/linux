@@ -448,8 +448,7 @@ void evlist__toggle_enable(struct evlist *evlist)
 	(evlist->enabled ? evlist__disable : evlist__enable)(evlist);
 }
 
-static int perf_evlist__enable_event_cpu(struct evlist *evlist,
-					 struct evsel *evsel, int cpu)
+static int evlist__enable_event_cpu(struct evlist *evlist, struct evsel *evsel, int cpu)
 {
 	int thread;
 	int nr_threads = perf_evlist__nr_threads(evlist, evsel);
@@ -465,9 +464,7 @@ static int perf_evlist__enable_event_cpu(struct evlist *evlist,
 	return 0;
 }
 
-static int perf_evlist__enable_event_thread(struct evlist *evlist,
-					    struct evsel *evsel,
-					    int thread)
+static int evlist__enable_event_thread(struct evlist *evlist, struct evsel *evsel, int thread)
 {
 	int cpu;
 	int nr_cpus = perf_cpu_map__nr(evlist->core.cpus);
@@ -483,15 +480,14 @@ static int perf_evlist__enable_event_thread(struct evlist *evlist,
 	return 0;
 }
 
-int perf_evlist__enable_event_idx(struct evlist *evlist,
-				  struct evsel *evsel, int idx)
+int evlist__enable_event_idx(struct evlist *evlist, struct evsel *evsel, int idx)
 {
 	bool per_cpu_mmaps = !perf_cpu_map__empty(evlist->core.cpus);
 
 	if (per_cpu_mmaps)
-		return perf_evlist__enable_event_cpu(evlist, evsel, idx);
-	else
-		return perf_evlist__enable_event_thread(evlist, evsel, idx);
+		return evlist__enable_event_cpu(evlist, evsel, idx);
+
+	return evlist__enable_event_thread(evlist, evsel, idx);
 }
 
 int evlist__add_pollfd(struct evlist *evlist, int fd)
