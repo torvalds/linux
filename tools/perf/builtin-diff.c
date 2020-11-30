@@ -1222,8 +1222,10 @@ static int __cmd_diff(void)
 		if (compute == COMPUTE_STREAM) {
 			d->evlist_streams = evlist__create_streams(
 						d->session->evlist, 5);
-			if (!d->evlist_streams)
+			if (!d->evlist_streams) {
+				ret = -ENOMEM;
 				goto out_delete;
+			}
 		}
 	}
 
