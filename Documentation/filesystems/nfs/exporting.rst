@@ -190,3 +190,15 @@ following flags are defined:
     this on filesystems that have an expensive ->getattr inode operation,
     or when atomicity between pre and post operation attribute collection
     is impossible to guarantee.
+
+  EXPORT_OP_NOSUBTREECHK - disallow subtree checking on this fs
+    Many NFS operations deal with filehandles, which the server must then
+    vet to ensure that they live inside of an exported tree. When the
+    export consists of an entire filesystem, this is trivial. nfsd can just
+    ensure that the filehandle live on the filesystem. When only part of a
+    filesystem is exported however, then nfsd must walk the ancestors of the
+    inode to ensure that it's within an exported subtree. This is an
+    expensive operation and not all filesystems can support it properly.
+    This flag exempts the filesystem from subtree checking and causes
+    exportfs to get back an error if it tries to enable subtree checking
+    on it.
