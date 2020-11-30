@@ -107,6 +107,6 @@ int aa_sock_file_perm(struct aa_label *label, const char *op, u32 request,
 		      struct socket *sock);
 
 int apparmor_secmark_check(struct aa_label *label, char *op, u32 request,
-			   u32 secid, struct sock *sk);
+			   u32 secid, const struct sock *sk);
 
 #endif /* __AA_NET_H */
