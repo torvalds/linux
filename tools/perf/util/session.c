@@ -135,7 +135,7 @@ static int perf_session__open(struct perf_session *session)
 
 void perf_session__set_id_hdr_size(struct perf_session *session)
 {
-	u16 id_hdr_size = perf_evlist__id_hdr_size(session->evlist);
+	u16 id_hdr_size = evlist__id_hdr_size(session->evlist);
 
 	machines__set_id_hdr_size(&session->machines, id_hdr_size);
 }

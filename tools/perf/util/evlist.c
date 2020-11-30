@@ -1131,7 +1131,7 @@ bool evlist__valid_read_format(struct evlist *evlist)
 	return true;
 }
 
-u16 perf_evlist__id_hdr_size(struct evlist *evlist)
+u16 evlist__id_hdr_size(struct evlist *evlist)
 {
 	struct evsel *first = evlist__first(evlist);
 	struct perf_sample *data;
