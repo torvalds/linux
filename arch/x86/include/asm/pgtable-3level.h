@@ -90,34 +90,33 @@ static inline void pud_clear(pud_t *pudp)
 	 */
 }
 
+
+#define pxx_xchg64(_pxx, _ptr, _val) ({					\
+	_pxx##val_t *_p = (_pxx##val_t *)_ptr;				\
+	_pxx##val_t _o = *_p;						\
+	do { } while (!try_cmpxchg64(_p, &_o, (_val)));			\
+	native_make_##_pxx(_o);						\
+})
+
 #ifdef CONFIG_SMP
 static inline pte_t native_ptep_get_and_clear(pte_t *ptep)
 {
-	pte_t old = *ptep;
+	return pxx_xchg64(pte, ptep, 0ULL);
+}
 
-	do {
-	} while (!try_cmpxchg64(&ptep->pte, &old.pte, 0ULL));
+static inline pmd_t native_pmdp_get_and_clear(pmd_t *pmdp)
+{
+	return pxx_xchg64(pmd, pmdp, 0ULL);
+}
 
-	return old;
+static inline pud_t native_pudp_get_and_clear(pud_t *pudp)
+{
+	return pxx_xchg64(pud, pudp, 0ULL);
 }
 #else
 #define native_ptep_get_and_clear(xp) native_local_ptep_get_and_clear(xp)
-#endif
-
-#ifdef CONFIG_SMP
-static inline pmd_t native_pmdp_get_and_clear(pmd_t *pmdp)
-{
-	pmd_t res;
-
-	/* xchg acts as a barrier before setting of the high bits */
-	res.pmd_low = xchg(&pmdp->pmd_low, 0);
-	res.pmd_high = READ_ONCE(pmdp->pmd_high);
-	WRITE_ONCE(pmdp->pmd_high, 0);
-
-	return res;
-}
-#else
 #define native_pmdp_get_and_clear(xp) native_local_pmdp_get_and_clear(xp)
+#define native_pudp_get_and_clear(xp) native_local_pudp_get_and_clear(xp)
 #endif
 
 #ifndef pmdp_establish
@@ -141,40 +140,8 @@ static inline pmd_t pmdp_establish(struct vm_area_struct *vma,
 		return old;
 	}
 
-	do {
-		old = *pmdp;
-	} while (cmpxchg64(&pmdp->pmd, old.pmd, pmd.pmd) != old.pmd);
-
-	return old;
+	return pxx_xchg64(pmd, pmdp, pmd.pmd);
 }
-#endif
-
-#ifdef CONFIG_SMP
-union split_pud {
-	struct {
-		u32 pud_low;
-		u32 pud_high;
-	};
-	pud_t pud;
-};
-
-static inline pud_t native_pudp_get_and_clear(pud_t *pudp)
-{
-	union split_pud res, *orig = (union split_pud *)pudp;
-
-#ifdef CONFIG_PAGE_TABLE_ISOLATION
-	pti_set_user_pgtbl(&pudp->p4d.pgd, __pgd(0));
-#endif
-
-	/* xchg acts as a barrier before setting of the high bits */
-	res.pud_low = xchg(&orig->pud_low, 0);
-	res.pud_high = orig->pud_high;
-	orig->pud_high = 0;
-
-	return res.pud;
-}
-#else
-#define native_pudp_get_and_clear(xp) native_local_pudp_get_and_clear(xp)
 #endif
 
 /* Encode and de-code a swap entry */
