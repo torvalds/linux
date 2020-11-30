@@ -3862,9 +3862,8 @@ T:	git git://linuxtv.org/media_tree.git
 F:	drivers/media/radio/radio-cadet*
 
 CAFE CMOS INTEGRATED CAMERA CONTROLLER DRIVER
-M:	Jonathan Corbet <corbet@lwn.net>
 L:	linux-media@vger.kernel.org
-S:	Maintained
+S:	Orphan
 T:	git git://linuxtv.org/media_tree.git
 F:	Documentation/admin-guide/media/cafe_ccic*
 F:	drivers/media/platform/marvell-ccic/
@@ -12934,9 +12933,8 @@ T:	git git://linuxtv.org/media_tree.git
 F:	drivers/media/i2c/ov5695.c
 
 OMNIVISION OV7670 SENSOR DRIVER
-M:	Jonathan Corbet <corbet@lwn.net>
 L:	linux-media@vger.kernel.org
-S:	Maintained
+S:	Orphan
 T:	git git://linuxtv.org/media_tree.git
 F:	Documentation/devicetree/bindings/media/i2c/ov7670.txt
 F:	drivers/media/i2c/ov7670.c
