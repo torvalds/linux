@@ -217,7 +217,7 @@ void test_ringbuf(void)
 	if (CHECK(err, "join_bg", "err %d\n", err))
 		goto cleanup;
 
-	if (CHECK(bg_ret != 1, "bg_ret", "epoll_wait result: %ld", bg_ret))
+	if (CHECK(bg_ret <= 0, "bg_ret", "epoll_wait result: %ld", bg_ret))
 		goto cleanup;
 
 	/* 3 rounds, 2 samples each */
