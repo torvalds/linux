@@ -638,14 +638,38 @@ static u32 aggr_byte_limit_encoded(enum ipa_version version, u32 limit)
 	return u32_encode_bits(limit, aggr_byte_limit_fmask(false));
 }
 
+/* Encode the aggregation timer limit (microseconds) based on IPA version */
 static u32 aggr_time_limit_encoded(enum ipa_version version, u32 limit)
 {
-	/* Convert limit (microseconds) to aggregation timer ticks */
-	limit = DIV_ROUND_CLOSEST(limit, IPA_AGGR_GRANULARITY);
-	if (version < IPA_VERSION_4_5)
-		return u32_encode_bits(limit, aggr_time_limit_fmask(true));
+	u32 gran_sel;
+	u32 fmask;
+	u32 val;
 
-	return u32_encode_bits(limit, aggr_time_limit_fmask(false));
+	if (version < IPA_VERSION_4_5) {
+		/* We set aggregation granularity in ipa_hardware_config() */
+		limit = DIV_ROUND_CLOSEST(limit, IPA_AGGR_GRANULARITY);
+
+		return u32_encode_bits(limit, aggr_time_limit_fmask(true));
+	}
+
+	/* IPA v4.5 expresses the time limit using Qtime.  The AP has
+	 * pulse generators 0 and 1 available, which were configured
+	 * in ipa_qtime_config() to have granularity 100 usec and
+	 * 1 msec, respectively.  Use pulse generator 0 if possible,
+	 * otherwise fall back to pulse generator 1.
+	 */
+	fmask = aggr_time_limit_fmask(false);
+	val = DIV_ROUND_CLOSEST(limit, 100);
+	if (val > field_max(fmask)) {
+		/* Have to use pulse generator 1 (millisecond granularity) */
+		gran_sel = AGGR_GRAN_SEL_FMASK;
+		val = DIV_ROUND_CLOSEST(limit, 1000);
+	} else {
+		/* We can use pulse generator 0 (100 usec granularity) */
+		gran_sel = 0;
+	}
+
+	return gran_sel | u32_encode_bits(val, fmask);
 }
 
 static u32 aggr_sw_eof_active_encoded(enum ipa_version version, bool enabled)
