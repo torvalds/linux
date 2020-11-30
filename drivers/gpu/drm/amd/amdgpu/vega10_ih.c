@@ -274,9 +274,7 @@ static int vega10_ih_irq_init(struct amdgpu_device *adev)
 
 	adev->nbio.funcs->ih_control(adev);
 
-	if ((adev->asic_type == CHIP_ARCTURUS &&
-	     adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT) ||
-	    adev->asic_type == CHIP_RENOIR) {
+	if (adev->asic_type == CHIP_RENOIR) {
 		ih_chicken = RREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN);
 		if (adev->irq.ih.use_bus_addr) {
 			ih_chicken = REG_SET_FIELD(ih_chicken, IH_CHICKEN,
