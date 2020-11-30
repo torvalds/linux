@@ -2285,9 +2285,11 @@ static void intel_ddi_get_power_domains(struct intel_encoder *encoder,
 	dig_port = enc_to_dig_port(encoder);
 
 	if (!intel_phy_is_tc(dev_priv, phy) ||
-	    dig_port->tc_mode != TC_PORT_TBT_ALT)
-		intel_display_power_get(dev_priv,
-					dig_port->ddi_io_power_domain);
+	    dig_port->tc_mode != TC_PORT_TBT_ALT) {
+		drm_WARN_ON(&dev_priv->drm, dig_port->ddi_io_wakeref);
+		dig_port->ddi_io_wakeref = intel_display_power_get(dev_priv,
+								   dig_port->ddi_io_power_domain);
+	}
 
 	/*
 	 * AUX power is only needed for (e)DP mode, and for HDMI mode on TC
@@ -3577,9 +3579,11 @@ static void tgl_ddi_pre_enable_dp(struct intel_atomic_state *state,
 
 	/* 5. If IO power is controlled through PWR_WELL_CTL, Enable IO Power */
 	if (!intel_phy_is_tc(dev_priv, phy) ||
-	    dig_port->tc_mode != TC_PORT_TBT_ALT)
-		intel_display_power_get(dev_priv,
-					dig_port->ddi_io_power_domain);
+	    dig_port->tc_mode != TC_PORT_TBT_ALT) {
+		drm_WARN_ON(&dev_priv->drm, dig_port->ddi_io_wakeref);
+		dig_port->ddi_io_wakeref = intel_display_power_get(dev_priv,
+								   dig_port->ddi_io_power_domain);
+	}
 
 	/* 6. Program DP_MODE */
 	icl_program_mg_dp_mode(dig_port, crtc_state);
@@ -3698,9 +3702,11 @@ static void hsw_ddi_pre_enable_dp(struct intel_atomic_state *state,
 	intel_ddi_clk_select(encoder, crtc_state);
 
 	if (!intel_phy_is_tc(dev_priv, phy) ||
-	    dig_port->tc_mode != TC_PORT_TBT_ALT)
-		intel_display_power_get(dev_priv,
-					dig_port->ddi_io_power_domain);
+	    dig_port->tc_mode != TC_PORT_TBT_ALT) {
+		drm_WARN_ON(&dev_priv->drm, dig_port->ddi_io_wakeref);
+		dig_port->ddi_io_wakeref = intel_display_power_get(dev_priv,
+								   dig_port->ddi_io_power_domain);
+	}
 
 	icl_program_mg_dp_mode(dig_port, crtc_state);
 
@@ -3778,7 +3784,9 @@ static void intel_ddi_pre_enable_hdmi(struct intel_atomic_state *state,
 	intel_dp_dual_mode_set_tmds_output(intel_hdmi, true);
 	intel_ddi_clk_select(encoder, crtc_state);
 
-	intel_display_power_get(dev_priv, dig_port->ddi_io_power_domain);
+	drm_WARN_ON(&dev_priv->drm, dig_port->ddi_io_wakeref);
+	dig_port->ddi_io_wakeref = intel_display_power_get(dev_priv,
+							   dig_port->ddi_io_power_domain);
 
 	icl_program_mg_dp_mode(dig_port, crtc_state);
 
@@ -3936,8 +3944,9 @@ static void intel_ddi_post_disable_dp(struct intel_atomic_state *state,
 
 	if (!intel_phy_is_tc(dev_priv, phy) ||
 	    dig_port->tc_mode != TC_PORT_TBT_ALT)
-		intel_display_power_put_unchecked(dev_priv,
-						  dig_port->ddi_io_power_domain);
+		intel_display_power_put(dev_priv,
+					dig_port->ddi_io_power_domain,
+					fetch_and_zero(&dig_port->ddi_io_wakeref));
 
 	intel_ddi_clk_disable(encoder);
 }
@@ -3958,8 +3967,9 @@ static void intel_ddi_post_disable_hdmi(struct intel_atomic_state *state,
 
 	intel_disable_ddi_buf(encoder, old_crtc_state);
 
-	intel_display_power_put_unchecked(dev_priv,
-					  dig_port->ddi_io_power_domain);
+	intel_display_power_put(dev_priv,
+				dig_port->ddi_io_power_domain,
+				fetch_and_zero(&dig_port->ddi_io_wakeref));
 
 	intel_ddi_clk_disable(encoder);
 
