@@ -30,6 +30,8 @@ static int bmc150_accel_probe(struct i2c_client *client,
 		i2c_check_functionality(client->adapter, I2C_FUNC_I2C) ||
 		i2c_check_functionality(client->adapter,
 					I2C_FUNC_SMBUS_READ_I2C_BLOCK);
+	struct acpi_device __maybe_unused *adev;
+	int ret;
 
 	regmap = devm_regmap_init_i2c(client, &bmc150_regmap_conf);
 	if (IS_ERR(regmap)) {
@@ -40,12 +42,47 @@ static int bmc150_accel_probe(struct i2c_client *client,
 	if (id)
 		name = id->name;
 
-	return bmc150_accel_core_probe(&client->dev, regmap, client->irq, name,
-				       block_supported);
+	ret = bmc150_accel_core_probe(&client->dev, regmap, client->irq, name, block_supported);
+	if (ret)
+		return ret;
+
+	/*
+	 * Some BOSC0200 acpi_devices describe 2 accelerometers in a single ACPI
+	 * device, try instantiating a second i2c_client for an I2cSerialBusV2
+	 * ACPI resource with index 1. The !id check avoids recursion when
+	 * bmc150_accel_probe() gets called for the second client.
+	 */
+#ifdef CONFIG_ACPI
+	adev = ACPI_COMPANION(&client->dev);
+	if (!id && adev && strcmp(acpi_device_hid(adev), "BOSC0200") == 0) {
+		struct i2c_board_info board_info = {
+			.type = "bmc150_accel",
+			/*
+			 * The 2nd accel sits in the base of 2-in-1s. Note this
+			 * name is static, as there should never be more then 1
+			 * BOSC0200 ACPI node with 2 accelerometers in it.
+			 */
+			.dev_name = "BOSC0200:base",
+			.fwnode = client->dev.fwnode,
+			.irq = -ENOENT,
+		};
+		struct i2c_client *second_dev;
+
+		second_dev = i2c_acpi_new_device(&client->dev, 1, &board_info);
+		if (!IS_ERR(second_dev))
+			bmc150_set_second_device(second_dev);
+	}
+#endif
+
+	return 0;
 }
 
 static int bmc150_accel_remove(struct i2c_client *client)
 {
+	struct i2c_client *second_dev = bmc150_get_second_device(client);
+
+	i2c_unregister_device(second_dev);
+
 	return bmc150_accel_core_remove(&client->dev);
 }
 
