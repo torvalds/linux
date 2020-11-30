@@ -765,6 +765,17 @@
 	status = "okay";
 	pinctrl-0 = <&i2c2m1_xfer>;
 
+	dw9714: dw9714@c {
+		compatible = "dongwoon,dw9714";
+		status = "okay";
+		reg = <0x0c>;
+		rockchip,camera-module-index = <0>;
+		rockchip,vcm-start-current = <10>;
+		rockchip,vcm-rated-current = <85>;
+		rockchip,vcm-step-mode = <5>;
+		rockchip,camera-module-facing = "back";
+	};
+
 	gc2385: gc2385@37 {
 		compatible = "galaxycore,gc2385";
 		status = "okay";
@@ -809,6 +820,7 @@
 		rockchip,camera-module-name = "HS5885-BNSM1018-V01";
 		rockchip,camera-module-lens-name = "default";
 		flash-leds = <&flash_rgb13h>;
+		lens-focus = <&dw9714>;
 		port {
 			ov8858_out: endpoint {
 				remote-endpoint = <&mipi_in_ucam1>;
