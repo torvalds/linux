@@ -1053,6 +1053,12 @@ config ARCH_WANT_LD_ORPHAN_WARN
 	  by the linker, since the locations of such sections can change between linker
 	  versions.
 
+config ARCH_SPLIT_ARG64
+	bool
+	help
+	   If a 32-bit architecture requires 64-bit arguments to be split into
+	   pairs of 32-bit arguments, select this option.
+
 source "kernel/gcov/Kconfig"
 
 source "scripts/gcc-plugins/Kconfig"
