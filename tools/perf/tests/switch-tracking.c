@@ -424,7 +424,7 @@ int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_
 
 	tracking_evsel = evlist__last(evlist);
 
-	perf_evlist__set_tracking_event(evlist, tracking_evsel);
+	evlist__set_tracking_event(evlist, tracking_evsel);
 
 	tracking_evsel->core.attr.freq = 0;
 	tracking_evsel->core.attr.sample_period = 1;

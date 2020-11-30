@@ -891,13 +891,13 @@ static int record__open(struct record *rec)
 	 * event synthesis.
 	 */
 	if (opts->initial_delay || target__has_cpu(&opts->target)) {
-		pos = perf_evlist__get_tracking_event(evlist);
+		pos = evlist__get_tracking_event(evlist);
 		if (!evsel__is_dummy_event(pos)) {
 			/* Set up dummy event. */
 			if (evlist__add_dummy(evlist))
 				return -ENOMEM;
 			pos = evlist__last(evlist);
-			perf_evlist__set_tracking_event(evlist, pos);
+			evlist__set_tracking_event(evlist, pos);
 		}
 
 		/*

@@ -420,7 +420,7 @@ static int cs_etm_recording_options(struct auxtrace_record *itr,
 			goto out;
 
 		tracking_evsel = evlist__last(evlist);
-		perf_evlist__set_tracking_event(evlist, tracking_evsel);
+		evlist__set_tracking_event(evlist, tracking_evsel);
 
 		tracking_evsel->core.attr.freq = 0;
 		tracking_evsel->core.attr.sample_period = 1;

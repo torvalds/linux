@@ -865,7 +865,7 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 
 		tracking_evsel = evlist__last(evlist);
 
-		perf_evlist__set_tracking_event(evlist, tracking_evsel);
+		evlist__set_tracking_event(evlist, tracking_evsel);
 
 		tracking_evsel->core.attr.freq = 0;
 		tracking_evsel->core.attr.sample_period = 1;
