@@ -621,14 +621,6 @@ static const struct attribute_group *ccwdev_attr_groups[] = {
 	NULL,
 };
 
-static int ccw_device_add(struct ccw_device *cdev)
-{
-	struct device *dev = &cdev->dev;
-
-	dev->bus = &ccw_bus_type;
-	return device_add(dev);
-}
-
 static int match_dev_id(struct device *dev, const void *data)
 {
 	struct ccw_device *cdev = to_ccwdev(dev);
@@ -739,6 +731,7 @@ static int io_subchannel_initialize_dev(struct subchannel *sch,
 	cdev->ccwlock = sch->lock;
 	cdev->dev.parent = &sch->dev;
 	cdev->dev.release = ccw_device_release;
+	cdev->dev.bus = &ccw_bus_type;
 	cdev->dev.groups = ccwdev_attr_groups;
 	/* Do first half of device_register. */
 	device_initialize(&cdev->dev);
@@ -840,7 +833,7 @@ static void io_subchannel_register(struct ccw_device *cdev)
 		kobject_uevent(&sch->dev.kobj, KOBJ_ADD);
 	}
 	/* make it known to the system */
-	ret = ccw_device_add(cdev);
+	ret = device_add(&cdev->dev);
 	if (ret) {
 		CIO_MSG_EVENT(0, "Could not register ccw dev 0.%x.%04x: %d\n",
 			      cdev->private->dev_id.ssid,
@@ -1052,7 +1045,7 @@ static int io_subchannel_probe(struct subchannel *sch)
 			kobject_uevent(&sch->dev.kobj, KOBJ_ADD);
 		}
 		cdev = sch_get_cdev(sch);
-		rc = ccw_device_add(cdev);
+		rc = device_add(&cdev->dev);
 		if (rc) {
 			/* Release online reference. */
 			put_device(&cdev->dev);
