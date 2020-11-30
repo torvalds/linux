@@ -50,6 +50,9 @@
 #define GC2053_REG_EXP_H        0x03
 #define GC2053_REG_EXP_L        0x04
 
+#define GC2053_REG_VTS_H        0x41
+#define GC2053_REG_VTS_L        0x42
+
 #define GC2053_REG_CTRL_MODE    0x3E
 #define GC2053_MODE_SW_STANDBY  0x11
 #define GC2053_MODE_STREAMING   0x91
@@ -523,6 +526,7 @@ static int gc2053_set_ctrl(struct v4l2_ctrl *ctrl)
 	struct i2c_client *client = gc2053->client;
 	s64 max;
 	int ret = 0;
+	u32 vts = 0;
 
 	/* Propagate change of current control to all related controls */
 	switch (ctrl->id) {
@@ -550,7 +554,9 @@ static int gc2053_set_ctrl(struct v4l2_ctrl *ctrl)
 		gc2053_set_gain(gc2053, ctrl->val);
 		break;
 	case V4L2_CID_VBLANK:
-		/* The exposure goes up and reduces the frame rate, no need to write vb */
+		vts = ctrl->val + gc2053->cur_mode->height;
+		ret = gc2053_write_reg(gc2053->client, GC2053_REG_VTS_H, (vts >> 8) & 0x3f);
+		ret |= gc2053_write_reg(gc2053->client, GC2053_REG_VTS_L, vts & 0xff);
 		break;
 	case V4L2_CID_HFLIP:
 		if (ctrl->val)
