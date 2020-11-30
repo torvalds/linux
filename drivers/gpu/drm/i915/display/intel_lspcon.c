@@ -36,6 +36,7 @@
 #define LSPCON_VENDOR_MCA_OUI 0x0060AD
 
 #define DPCD_MCA_LSPCON_HDR_STATUS	0x70003
+#define DPCD_PARADE_LSPCON_HDR_STATUS	0x00511
 
 /* AUX addresses to write MCA AVI IF */
 #define LSPCON_MCA_AVI_IF_WRITE_OFFSET 0x5C0
@@ -106,6 +107,14 @@ static bool lspcon_detect_vendor(struct intel_lspcon *lspcon)
 	return true;
 }
 
+static u32 get_hdr_status_reg(struct intel_lspcon *lspcon)
+{
+	if (lspcon->vendor == LSPCON_VENDOR_MCA)
+		return DPCD_MCA_LSPCON_HDR_STATUS;
+	else
+		return DPCD_PARADE_LSPCON_HDR_STATUS;
+}
+
 void lspcon_detect_hdr_capability(struct intel_lspcon *lspcon)
 {
 	struct intel_digital_port *dig_port =
@@ -115,12 +124,8 @@ void lspcon_detect_hdr_capability(struct intel_lspcon *lspcon)
 	u8 hdr_caps;
 	int ret;
 
-	/* Enable HDR for MCA based LSPCON devices */
-	if (lspcon->vendor == LSPCON_VENDOR_MCA)
-		ret = drm_dp_dpcd_read(&dp->aux, DPCD_MCA_LSPCON_HDR_STATUS,
-				       &hdr_caps, 1);
-	else
-		return;
+	ret = drm_dp_dpcd_read(&dp->aux, get_hdr_status_reg(lspcon),
+			       &hdr_caps, 1);
 
 	if (ret < 0) {
 		drm_dbg_kms(dev, "HDR capability detection failed\n");
