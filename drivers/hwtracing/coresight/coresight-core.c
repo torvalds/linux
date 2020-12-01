@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2012, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -37,18 +38,16 @@ struct coresight_node {
 };
 
 /*
- * When operating Coresight drivers from the sysFS interface, only a single
- * path can exist from a tracer (associated to a CPU) to a sink.
+ * struct coresight_path - path from source to sink
+ * @path:	Address of path list.
+ * @link:	hook to the list.
  */
-static DEFINE_PER_CPU(struct list_head *, tracer_path);
+struct coresight_path {
+	struct list_head *path;
+	struct list_head link;
+};
 
-/*
- * As of this writing only a single STM can be found in CS topologies.  Since
- * there is no way to know if we'll ever see more and what kind of
- * configuration they will enact, for the time being only define a single path
- * for STM.
- */
-static struct list_head *stm_path;
+static LIST_HEAD(cs_active_paths);
 
 /*
  * When losing synchronisation a new barrier packet needs to be inserted at the
@@ -355,6 +354,7 @@ static void coresight_disable_sink(struct coresight_device *csdev)
 		return;
 	coresight_control_assoc_ectdev(csdev, false);
 	csdev->enable = false;
+	csdev->activated = false;
 }
 
 static int coresight_enable_link(struct coresight_device *csdev,
@@ -588,6 +588,20 @@ out:
 err:
 	coresight_disable_path_from(path, nd);
 	goto out;
+}
+
+static struct coresight_device *coresight_get_source(struct list_head *path)
+{
+	struct coresight_device *csdev;
+
+	if (!path)
+		return NULL;
+
+	csdev = list_first_entry(path, struct coresight_node, link)->csdev;
+	if (csdev->type != CORESIGHT_DEV_TYPE_SOURCE)
+		return NULL;
+
+	return csdev;
 }
 
 struct coresight_device *coresight_get_sink(struct list_head *path)
@@ -1086,9 +1100,23 @@ static int coresight_validate_source(struct coresight_device *csdev,
 	return 0;
 }
 
+static int coresight_store_path(struct list_head *path)
+{
+	struct coresight_path *node;
+
+	node = kzalloc(sizeof(struct coresight_path), GFP_KERNEL);
+	if (!node)
+		return -ENOMEM;
+
+	node->path = path;
+	list_add(&node->link, &cs_active_paths);
+
+	return 0;
+}
+
 int coresight_enable(struct coresight_device *csdev)
 {
-	int cpu, ret = 0;
+	int ret = 0;
 	struct coresight_device *sink;
 	struct list_head *path;
 	enum coresight_dev_subtype_source subtype;
@@ -1133,26 +1161,9 @@ int coresight_enable(struct coresight_device *csdev)
 	if (ret)
 		goto err_source;
 
-	switch (subtype) {
-	case CORESIGHT_DEV_SUBTYPE_SOURCE_PROC:
-		/*
-		 * When working from sysFS it is important to keep track
-		 * of the paths that were created so that they can be
-		 * undone in 'coresight_disable()'.  Since there can only
-		 * be a single session per tracer (when working from sysFS)
-		 * a per-cpu variable will do just fine.
-		 */
-		cpu = source_ops(csdev)->cpu_id(csdev);
-		per_cpu(tracer_path, cpu) = path;
-		break;
-	case CORESIGHT_DEV_SUBTYPE_SOURCE_SOFTWARE:
-		stm_path = path;
-		break;
-	default:
-		/* We can't be here */
-		break;
-	}
-
+	ret = coresight_store_path(path);
+	if (ret)
+		goto err_source;
 out:
 	mutex_unlock(&coresight_mutex);
 	return ret;
@@ -1168,8 +1179,11 @@ EXPORT_SYMBOL_GPL(coresight_enable);
 
 void coresight_disable(struct coresight_device *csdev)
 {
-	int cpu, ret;
+	int ret;
 	struct list_head *path = NULL;
+	struct coresight_path *cspath = NULL;
+	struct coresight_path *cspath_next = NULL;
+	struct coresight_device *src_csdev = NULL;
 
 	mutex_lock(&coresight_mutex);
 
@@ -1180,20 +1194,19 @@ void coresight_disable(struct coresight_device *csdev)
 	if (!csdev->enable || !coresight_disable_source(csdev))
 		goto out;
 
-	switch (csdev->subtype.source_subtype) {
-	case CORESIGHT_DEV_SUBTYPE_SOURCE_PROC:
-		cpu = source_ops(csdev)->cpu_id(csdev);
-		path = per_cpu(tracer_path, cpu);
-		per_cpu(tracer_path, cpu) = NULL;
-		break;
-	case CORESIGHT_DEV_SUBTYPE_SOURCE_SOFTWARE:
-		path = stm_path;
-		stm_path = NULL;
-		break;
-	default:
-		/* We can't be here */
-		break;
+	list_for_each_entry_safe(cspath, cspath_next, &cs_active_paths, link) {
+		src_csdev = coresight_get_source(cspath->path);
+		if (!src_csdev)
+			continue;
+		if (src_csdev == csdev) {
+			path = cspath->path;
+			list_del(&cspath->link);
+			kfree(cspath);
+		}
 	}
+
+	if (path == NULL)
+		goto out;
 
 	coresight_disable_path(path);
 	coresight_release_path(path);
