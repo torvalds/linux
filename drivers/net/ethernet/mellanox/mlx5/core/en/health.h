@@ -7,8 +7,6 @@
 #include "en.h"
 #include "diag/rsc_dump.h"
 
-#define MLX5E_RX_ERR_CQE(cqe) (get_cqe_opcode(cqe) != MLX5_CQE_RESP_SEND)
-
 static inline bool cqe_syndrome_needs_recover(u8 syndrome)
 {
 	return syndrome == MLX5_CQE_SYNDROME_LOCAL_QP_OP_ERR ||
