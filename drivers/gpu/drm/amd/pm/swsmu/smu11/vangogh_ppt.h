@@ -32,4 +32,8 @@ extern void vangogh_set_ppt_funcs(struct smu_context *smu);
 #define VANGOGH_UMD_PSTATE_SOCCLK       678
 #define VANGOGH_UMD_PSTATE_FCLK         800
 
+/* RLC Power Status */
+#define RLC_STATUS_OFF          0
+#define RLC_STATUS_NORMAL       1
+
 #endif
