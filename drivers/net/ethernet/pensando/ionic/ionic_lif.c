@@ -1465,12 +1465,14 @@ static int ionic_change_mtu(struct net_device *netdev, int new_mtu)
 	if (err)
 		return err;
 
-	netdev->mtu = new_mtu;
 	/* if we're not running, nothing more to do */
-	if (!netif_running(netdev))
+	if (!netif_running(netdev)) {
+		netdev->mtu = new_mtu;
 		return 0;
+	}
 
 	ionic_stop_queues_reconfig(lif);
+	netdev->mtu = new_mtu;
 	return ionic_start_queues_reconfig(lif);
 }
 
