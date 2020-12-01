@@ -33,6 +33,11 @@
 				       ICP_QAT_HW_CIPHER_KEY_CONVERT, \
 				       ICP_QAT_HW_CIPHER_DECRYPT)
 
+#define QAT_AES_HW_CONFIG_DEC_NO_CONV(alg, mode) \
+	ICP_QAT_HW_CIPHER_CONFIG_BUILD(mode, alg, \
+				       ICP_QAT_HW_CIPHER_NO_CONVERT, \
+				       ICP_QAT_HW_CIPHER_DECRYPT)
+
 #define HW_CAP_AES_V2(accel_dev) \
 	(GET_HW_DATA(accel_dev)->accel_capabilities_mask & \
 	 ICP_ACCEL_CAPABILITIES_AES_V2)
@@ -95,6 +100,7 @@ struct qat_alg_skcipher_ctx {
 	struct icp_qat_fw_la_bulk_req dec_fw_req;
 	struct qat_crypto_instance *inst;
 	struct crypto_skcipher *ftfm;
+	struct crypto_cipher *tweak;
 	bool fallback;
 	int mode;
 };
@@ -428,7 +434,16 @@ static void qat_alg_skcipher_init_com(struct qat_alg_skcipher_ctx *ctx,
 	cd_pars->u.s.content_desc_params_sz =
 				sizeof(struct icp_qat_hw_cipher_algo_blk) >> 3;
 
-	if (aes_v2_capable && mode == ICP_QAT_HW_CIPHER_CTR_MODE) {
+	if (aes_v2_capable && mode == ICP_QAT_HW_CIPHER_XTS_MODE) {
+		ICP_QAT_FW_LA_SLICE_TYPE_SET(header->serv_specif_flags,
+					     ICP_QAT_FW_LA_USE_UCS_SLICE_TYPE);
+
+		/* Store both XTS keys in CD, only the first key is sent
+		 * to the HW, the second key is used for tweak calculation
+		 */
+		memcpy(cd->ucs_aes.key, key, keylen);
+		keylen = keylen / 2;
+	} else if (aes_v2_capable && mode == ICP_QAT_HW_CIPHER_CTR_MODE) {
 		ICP_QAT_FW_LA_SLICE_TYPE_SET(header->serv_specif_flags,
 					     ICP_QAT_FW_LA_USE_UCS_SLICE_TYPE);
 		keylen = round_up(keylen, 16);
@@ -458,6 +473,28 @@ static void qat_alg_skcipher_init_enc(struct qat_alg_skcipher_ctx *ctx,
 	enc_cd->aes.cipher_config.val = QAT_AES_HW_CONFIG_ENC(alg, mode);
 }
 
+static void qat_alg_xts_reverse_key(const u8 *key_forward, unsigned int keylen,
+				    u8 *key_reverse)
+{
+	struct crypto_aes_ctx aes_expanded;
+	int nrounds;
+	u8 *key;
+
+	aes_expandkey(&aes_expanded, key_forward, keylen);
+	if (keylen == AES_KEYSIZE_128) {
+		nrounds = 10;
+		key = (u8 *)aes_expanded.key_enc + (AES_BLOCK_SIZE * nrounds);
+		memcpy(key_reverse, key, AES_BLOCK_SIZE);
+	} else {
+		/* AES_KEYSIZE_256 */
+		nrounds = 14;
+		key = (u8 *)aes_expanded.key_enc + (AES_BLOCK_SIZE * nrounds);
+		memcpy(key_reverse, key, AES_BLOCK_SIZE);
+		memcpy(key_reverse + AES_BLOCK_SIZE, key - AES_BLOCK_SIZE,
+		       AES_BLOCK_SIZE);
+	}
+}
+
 static void qat_alg_skcipher_init_dec(struct qat_alg_skcipher_ctx *ctx,
 				      int alg, const u8 *key,
 				      unsigned int keylen, int mode)
@@ -465,16 +502,26 @@ static void qat_alg_skcipher_init_dec(struct qat_alg_skcipher_ctx *ctx,
 	struct icp_qat_hw_cipher_algo_blk *dec_cd = ctx->dec_cd;
 	struct icp_qat_fw_la_bulk_req *req = &ctx->dec_fw_req;
 	struct icp_qat_fw_comn_req_hdr_cd_pars *cd_pars = &req->cd_pars;
+	bool aes_v2_capable = HW_CAP_AES_V2(ctx->inst->accel_dev);
 
 	qat_alg_skcipher_init_com(ctx, req, dec_cd, key, keylen);
 	cd_pars->u.s.content_desc_addr = ctx->dec_cd_paddr;
 
-	if (mode != ICP_QAT_HW_CIPHER_CTR_MODE)
+	if (aes_v2_capable && mode == ICP_QAT_HW_CIPHER_XTS_MODE) {
+		/* Key reversing not supported, set no convert */
+		dec_cd->aes.cipher_config.val =
+				QAT_AES_HW_CONFIG_DEC_NO_CONV(alg, mode);
+
+		/* In-place key reversal */
+		qat_alg_xts_reverse_key(dec_cd->ucs_aes.key, keylen / 2,
+					dec_cd->ucs_aes.key);
+	} else if (mode != ICP_QAT_HW_CIPHER_CTR_MODE) {
 		dec_cd->aes.cipher_config.val =
 					QAT_AES_HW_CONFIG_DEC(alg, mode);
-	else
+	} else {
 		dec_cd->aes.cipher_config.val =
 					QAT_AES_HW_CONFIG_ENC(alg, mode);
+	}
 }
 
 static int qat_alg_validate_key(int key_len, int *alg, int mode)
@@ -1081,8 +1128,33 @@ static int qat_alg_skcipher_xts_setkey(struct crypto_skcipher *tfm,
 
 	ctx->fallback = false;
 
-	return qat_alg_skcipher_setkey(tfm, key, keylen,
-				       ICP_QAT_HW_CIPHER_XTS_MODE);
+	ret = qat_alg_skcipher_setkey(tfm, key, keylen,
+				      ICP_QAT_HW_CIPHER_XTS_MODE);
+	if (ret)
+		return ret;
+
+	if (HW_CAP_AES_V2(ctx->inst->accel_dev))
+		ret = crypto_cipher_setkey(ctx->tweak, key + (keylen / 2),
+					   keylen / 2);
+
+	return ret;
+}
+
+static void qat_alg_set_req_iv(struct qat_crypto_request *qat_req)
+{
+	struct icp_qat_fw_la_cipher_req_params *cipher_param;
+	struct qat_alg_skcipher_ctx *ctx = qat_req->skcipher_ctx;
+	bool aes_v2_capable = HW_CAP_AES_V2(ctx->inst->accel_dev);
+	u8 *iv = qat_req->skcipher_req->iv;
+
+	cipher_param = (void *)&qat_req->req.serv_specif_rqpars;
+
+	if (aes_v2_capable && ctx->mode == ICP_QAT_HW_CIPHER_XTS_MODE)
+		crypto_cipher_encrypt_one(ctx->tweak,
+					  (u8 *)cipher_param->u.cipher_IV_array,
+					  iv);
+	else
+		memcpy(cipher_param->u.cipher_IV_array, iv, AES_BLOCK_SIZE);
 }
 
 static int qat_alg_skcipher_encrypt(struct skcipher_request *req)
@@ -1114,7 +1186,8 @@ static int qat_alg_skcipher_encrypt(struct skcipher_request *req)
 	cipher_param = (void *)&qat_req->req.serv_specif_rqpars;
 	cipher_param->cipher_length = req->cryptlen;
 	cipher_param->cipher_offset = 0;
-	memcpy(cipher_param->u.cipher_IV_array, req->iv, AES_BLOCK_SIZE);
+
+	qat_alg_set_req_iv(qat_req);
 
 	do {
 		ret = adf_send_message(ctx->inst->sym_tx, (u32 *)msg);
@@ -1182,8 +1255,8 @@ static int qat_alg_skcipher_decrypt(struct skcipher_request *req)
 	cipher_param = (void *)&qat_req->req.serv_specif_rqpars;
 	cipher_param->cipher_length = req->cryptlen;
 	cipher_param->cipher_offset = 0;
-	memcpy(cipher_param->u.cipher_IV_array, req->iv, AES_BLOCK_SIZE);
 
+	qat_alg_set_req_iv(qat_req);
 	qat_alg_update_iv(qat_req);
 
 	do {
@@ -1293,6 +1366,12 @@ static int qat_alg_skcipher_init_xts_tfm(struct crypto_skcipher *tfm)
 	if (IS_ERR(ctx->ftfm))
 		return PTR_ERR(ctx->ftfm);
 
+	ctx->tweak = crypto_alloc_cipher("aes", 0, 0);
+	if (IS_ERR(ctx->tweak)) {
+		crypto_free_skcipher(ctx->ftfm);
+		return PTR_ERR(ctx->tweak);
+	}
+
 	reqsize = max(sizeof(struct qat_crypto_request),
 		      sizeof(struct skcipher_request) +
 		      crypto_skcipher_reqsize(ctx->ftfm));
@@ -1334,6 +1413,9 @@ static void qat_alg_skcipher_exit_xts_tfm(struct crypto_skcipher *tfm)
 
 	if (ctx->ftfm)
 		crypto_free_skcipher(ctx->ftfm);
+
+	if (ctx->tweak)
+		crypto_free_cipher(ctx->tweak);
 
 	qat_alg_skcipher_exit_tfm(tfm);
 }
