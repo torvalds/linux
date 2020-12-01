@@ -503,10 +503,11 @@ STORE(bch2_fs)
 		if (threads_str &&
 		    !(ret = kstrtouint(threads_str, 10, &threads)) &&
 		    !(ret = bch2_strtoull_h(nr_str, &nr)))
-			bch2_btree_perf_test(c, test, nr, threads);
-		else
-			size = ret;
+			ret = bch2_btree_perf_test(c, test, nr, threads);
 		kfree(tmp);
+
+		if (ret)
+			size = ret;
 	}
 #endif
 	return size;

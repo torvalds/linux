@@ -6,7 +6,7 @@ struct bch_fs;
 
 #ifdef CONFIG_BCACHEFS_TESTS
 
-void bch2_btree_perf_test(struct bch_fs *, const char *, u64, unsigned);
+int bch2_btree_perf_test(struct bch_fs *, const char *, u64, unsigned);
 
 #else
 
