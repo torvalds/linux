@@ -742,6 +742,8 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 		cache->fence_id = plane_state->vma->fence->id;
 	else
 		cache->fence_id = -1;
+
+	cache->psr2_active = crtc_state->has_psr2;
 }
 
 static bool intel_fbc_cfb_size_changed(struct drm_i915_private *dev_priv)
@@ -911,6 +913,16 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 	if (INTEL_GEN(dev_priv) >= 11 &&
 	    (cache->plane.src_h + cache->plane.adjusted_y) % 4) {
 		fbc->no_fbc_reason = "plane height + offset is non-modulo of 4";
+		return false;
+	}
+
+	/*
+	 * Tigerlake is not supporting FBC with PSR2.
+	 * Recommendation is to keep this combination disabled
+	 * Bspec: 50422 HSD: 14010260002
+	 */
+	if (fbc->state_cache.psr2_active && IS_TIGERLAKE(dev_priv)) {
+		fbc->no_fbc_reason = "not supported with PSR2";
 		return false;
 	}
 

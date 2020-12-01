@@ -416,6 +416,7 @@ struct intel_fbc {
 		u16 gen9_wa_cfb_stride;
 		u16 interval;
 		s8 fence_id;
+		bool psr2_active;
 	} state_cache;
 
 	/*
