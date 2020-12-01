@@ -164,10 +164,10 @@ static int cgroup_storage_update_elem(struct bpf_map *map, void *key,
 		return 0;
 	}
 
-	new = kmalloc_node(sizeof(struct bpf_storage_buffer) +
-			   map->value_size,
-			   __GFP_ZERO | GFP_ATOMIC | __GFP_NOWARN,
-			   map->numa_node);
+	new = bpf_map_kmalloc_node(map, sizeof(struct bpf_storage_buffer) +
+				   map->value_size,
+				   __GFP_ZERO | GFP_ATOMIC | __GFP_NOWARN,
+				   map->numa_node);
 	if (!new)
 		return -ENOMEM;
 
@@ -313,7 +313,7 @@ static struct bpf_map *cgroup_storage_map_alloc(union bpf_attr *attr)
 		return ERR_PTR(ret);
 
 	map = kmalloc_node(sizeof(struct bpf_cgroup_storage_map),
-			   __GFP_ZERO | GFP_USER, numa_node);
+			   __GFP_ZERO | GFP_USER | __GFP_ACCOUNT, numa_node);
 	if (!map) {
 		bpf_map_charge_finish(&mem);
 		return ERR_PTR(-ENOMEM);
@@ -496,9 +496,9 @@ static size_t bpf_cgroup_storage_calculate_size(struct bpf_map *map, u32 *pages)
 struct bpf_cgroup_storage *bpf_cgroup_storage_alloc(struct bpf_prog *prog,
 					enum bpf_cgroup_storage_type stype)
 {
+	const gfp_t gfp = __GFP_ZERO | GFP_USER;
 	struct bpf_cgroup_storage *storage;
 	struct bpf_map *map;
-	gfp_t flags;
 	size_t size;
 	u32 pages;
 
@@ -511,20 +511,19 @@ struct bpf_cgroup_storage *bpf_cgroup_storage_alloc(struct bpf_prog *prog,
 	if (bpf_map_charge_memlock(map, pages))
 		return ERR_PTR(-EPERM);
 
-	storage = kmalloc_node(sizeof(struct bpf_cgroup_storage),
-			       __GFP_ZERO | GFP_USER, map->numa_node);
+	storage = bpf_map_kmalloc_node(map, sizeof(struct bpf_cgroup_storage),
+				       gfp, map->numa_node);
 	if (!storage)
 		goto enomem;
 
-	flags = __GFP_ZERO | GFP_USER;
-
 	if (stype == BPF_CGROUP_STORAGE_SHARED) {
-		storage->buf = kmalloc_node(size, flags, map->numa_node);
+		storage->buf = bpf_map_kmalloc_node(map, size, gfp,
+						    map->numa_node);
 		if (!storage->buf)
 			goto enomem;
 		check_and_init_map_lock(map, storage->buf->data);
 	} else {
-		storage->percpu_buf = __alloc_percpu_gfp(size, 8, flags);
+		storage->percpu_buf = bpf_map_alloc_percpu(map, size, 8, gfp);
 		if (!storage->percpu_buf)
 			goto enomem;
 	}
