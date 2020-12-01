@@ -2029,7 +2029,7 @@ nv118_chipset = {
 static const struct nvkm_device_chip
 nv120_chipset = {
 	.name = "GM200",
-	.acr = gm200_acr_new,
+	.acr      = { 0x00000001, gm200_acr_new },
 	.bar = gm107_bar_new,
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
@@ -2067,7 +2067,7 @@ nv120_chipset = {
 static const struct nvkm_device_chip
 nv124_chipset = {
 	.name = "GM204",
-	.acr = gm200_acr_new,
+	.acr      = { 0x00000001, gm200_acr_new },
 	.bar = gm107_bar_new,
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
@@ -2105,7 +2105,7 @@ nv124_chipset = {
 static const struct nvkm_device_chip
 nv126_chipset = {
 	.name = "GM206",
-	.acr = gm200_acr_new,
+	.acr      = { 0x00000001, gm200_acr_new },
 	.bar = gm107_bar_new,
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
@@ -2142,7 +2142,7 @@ nv126_chipset = {
 static const struct nvkm_device_chip
 nv12b_chipset = {
 	.name = "GM20B",
-	.acr = gm20b_acr_new,
+	.acr      = { 0x00000001, gm20b_acr_new },
 	.bar = gm20b_bar_new,
 	.bus = gf100_bus_new,
 	.clk = gm20b_clk_new,
@@ -2167,7 +2167,7 @@ nv12b_chipset = {
 static const struct nvkm_device_chip
 nv130_chipset = {
 	.name = "GP100",
-	.acr = gm200_acr_new,
+	.acr      = { 0x00000001, gm200_acr_new },
 	.bar = gm107_bar_new,
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
@@ -2207,7 +2207,7 @@ nv130_chipset = {
 static const struct nvkm_device_chip
 nv132_chipset = {
 	.name = "GP102",
-	.acr = gp102_acr_new,
+	.acr      = { 0x00000001, gp102_acr_new },
 	.bar = gm107_bar_new,
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
@@ -2245,7 +2245,7 @@ nv132_chipset = {
 static const struct nvkm_device_chip
 nv134_chipset = {
 	.name = "GP104",
-	.acr = gp102_acr_new,
+	.acr      = { 0x00000001, gp102_acr_new },
 	.bar = gm107_bar_new,
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
@@ -2283,7 +2283,7 @@ nv134_chipset = {
 static const struct nvkm_device_chip
 nv136_chipset = {
 	.name = "GP106",
-	.acr = gp102_acr_new,
+	.acr      = { 0x00000001, gp102_acr_new },
 	.bar = gm107_bar_new,
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
@@ -2320,7 +2320,7 @@ nv136_chipset = {
 static const struct nvkm_device_chip
 nv137_chipset = {
 	.name = "GP107",
-	.acr = gp102_acr_new,
+	.acr      = { 0x00000001, gp102_acr_new },
 	.bar = gm107_bar_new,
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
@@ -2358,7 +2358,7 @@ nv137_chipset = {
 static const struct nvkm_device_chip
 nv138_chipset = {
 	.name = "GP108",
-	.acr = gp108_acr_new,
+	.acr      = { 0x00000001, gp108_acr_new },
 	.bar = gm107_bar_new,
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
@@ -2394,7 +2394,7 @@ nv138_chipset = {
 static const struct nvkm_device_chip
 nv13b_chipset = {
 	.name = "GP10B",
-	.acr = gp10b_acr_new,
+	.acr      = { 0x00000001, gp10b_acr_new },
 	.bar = gm20b_bar_new,
 	.bus = gf100_bus_new,
 	.fault = gp10b_fault_new,
@@ -2418,7 +2418,7 @@ nv13b_chipset = {
 static const struct nvkm_device_chip
 nv140_chipset = {
 	.name = "GV100",
-	.acr = gp108_acr_new,
+	.acr      = { 0x00000001, gp108_acr_new },
 	.bar = gm107_bar_new,
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
@@ -2462,7 +2462,7 @@ nv140_chipset = {
 static const struct nvkm_device_chip
 nv162_chipset = {
 	.name = "TU102",
-	.acr = tu102_acr_new,
+	.acr      = { 0x00000001, tu102_acr_new },
 	.bar = tu102_bar_new,
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
@@ -2500,7 +2500,7 @@ nv162_chipset = {
 static const struct nvkm_device_chip
 nv164_chipset = {
 	.name = "TU104",
-	.acr = tu102_acr_new,
+	.acr      = { 0x00000001, tu102_acr_new },
 	.bar = tu102_bar_new,
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
@@ -2539,7 +2539,7 @@ nv164_chipset = {
 static const struct nvkm_device_chip
 nv166_chipset = {
 	.name = "TU106",
-	.acr = tu102_acr_new,
+	.acr      = { 0x00000001, tu102_acr_new },
 	.bar = tu102_bar_new,
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
@@ -2579,7 +2579,7 @@ nv166_chipset = {
 static const struct nvkm_device_chip
 nv167_chipset = {
 	.name = "TU117",
-	.acr = tu102_acr_new,
+	.acr      = { 0x00000001, tu102_acr_new },
 	.bar = tu102_bar_new,
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
@@ -2617,7 +2617,7 @@ nv167_chipset = {
 static const struct nvkm_device_chip
 nv168_chipset = {
 	.name = "TU116",
-	.acr = tu102_acr_new,
+	.acr      = { 0x00000001, tu102_acr_new },
 	.bar = tu102_bar_new,
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
@@ -3248,7 +3248,6 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 #include <core/layout.h>
 #undef NVKM_LAYOUT_INST
 #undef NVKM_LAYOUT_ONCE
-		_(NVKM_SUBDEV_ACR     ,      acr);
 		_(NVKM_SUBDEV_BAR     ,      bar);
 		_(NVKM_SUBDEV_VBIOS   ,     bios);
 		_(NVKM_SUBDEV_BUS     ,      bus);
