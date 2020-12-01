@@ -32,6 +32,7 @@
 
 #include <linux/tcp.h>
 #include <linux/if_vlan.h>
+#include <linux/ptp_classify.h>
 #include <net/geneve.h>
 #include <net/dsfield.h>
 #include "en.h"
@@ -39,6 +40,7 @@
 #include "ipoib/ipoib.h"
 #include "en_accel/en_accel.h"
 #include "lib/clock.h"
+#include "en/ptp.h"
 
 static void mlx5e_dma_unmap_wqe_err(struct mlx5e_txqsq *sq, u8 num_dma)
 {
@@ -66,13 +68,72 @@ static inline int mlx5e_get_dscp_up(struct mlx5e_priv *priv, struct sk_buff *skb
 }
 #endif
 
+static bool mlx5e_use_ptpsq(struct sk_buff *skb)
+{
+	struct flow_keys fk;
+
+	if (!skb_flow_dissect_flow_keys(skb, &fk, 0))
+		return false;
+
+	if (fk.basic.n_proto == htons(ETH_P_1588))
+		return true;
+
+	if (fk.basic.n_proto != htons(ETH_P_IP) &&
+	    fk.basic.n_proto != htons(ETH_P_IPV6))
+		return false;
+
+	return (fk.basic.ip_proto == IPPROTO_UDP &&
+		fk.ports.dst == htons(PTP_EV_PORT));
+}
+
+static u16 mlx5e_select_ptpsq(struct net_device *dev, struct sk_buff *skb)
+{
+	struct mlx5e_priv *priv = netdev_priv(dev);
+	int up = 0;
+
+	if (!netdev_get_num_tc(dev))
+		goto return_txq;
+
+#ifdef CONFIG_MLX5_CORE_EN_DCB
+	if (priv->dcbx_dp.trust_state == MLX5_QPTS_TRUST_DSCP)
+		up = mlx5e_get_dscp_up(priv, skb);
+	else
+#endif
+		if (skb_vlan_tag_present(skb))
+			up = skb_vlan_tag_get_prio(skb);
+
+return_txq:
+	return priv->port_ptp_tc2realtxq[up];
+}
+
 u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 		       struct net_device *sb_dev)
 {
-	int txq_ix = netdev_pick_tx(dev, skb, NULL);
 	struct mlx5e_priv *priv = netdev_priv(dev);
+	int txq_ix;
 	int up = 0;
 	int ch_ix;
+
+	if (unlikely(priv->channels.port_ptp)) {
+		int num_tc_x_num_ch;
+
+		if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) &&
+		    mlx5e_use_ptpsq(skb))
+			return mlx5e_select_ptpsq(dev, skb);
+
+		/* Sync with mlx5e_update_num_tc_x_num_ch - avoid refetching. */
+		num_tc_x_num_ch = READ_ONCE(priv->num_tc_x_num_ch);
+
+		txq_ix = netdev_pick_tx(dev, skb, NULL);
+		/* Fix netdev_pick_tx() not to choose ptp_channel txqs.
+		 * If they are selected, switch to regular queues.
+		 * Driver to select these queues only at mlx5e_select_ptpsq().
+		 */
+		if (unlikely(txq_ix >= num_tc_x_num_ch))
+			txq_ix %= num_tc_x_num_ch;
+	} else {
+		txq_ix = netdev_pick_tx(dev, skb, NULL);
+	}
 
 	if (!netdev_get_num_tc(dev))
 		return txq_ix;

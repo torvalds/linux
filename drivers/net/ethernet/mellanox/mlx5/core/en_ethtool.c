@@ -1944,6 +1944,38 @@ static int set_pflag_skb_tx_mpwqe(struct net_device *netdev, bool enable)
 	return set_pflag_tx_mpwqe_common(netdev, MLX5E_PFLAG_SKB_TX_MPWQE, enable);
 }
 
+static int set_pflag_tx_port_ts(struct net_device *netdev, bool enable)
+{
+	struct mlx5e_priv *priv = netdev_priv(netdev);
+	struct mlx5_core_dev *mdev = priv->mdev;
+	struct mlx5e_channels new_channels = {};
+	int err;
+
+	if (!MLX5_CAP_GEN(mdev, ts_cqe_to_dest_cqn))
+		return -EOPNOTSUPP;
+
+	new_channels.params = priv->channels.params;
+	MLX5E_SET_PFLAG(&new_channels.params, MLX5E_PFLAG_TX_PORT_TS, enable);
+	/* No need to verify SQ stop room as
+	 * ptpsq.txqsq.stop_room <= generic_sq->stop_room, and both
+	 * has the same log_sq_size.
+	 */
+
+	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
+		priv->channels.params = new_channels.params;
+		err = mlx5e_num_channels_changed(priv);
+		goto out;
+	}
+
+	err = mlx5e_safe_switch_channels(priv, &new_channels,
+					 mlx5e_num_channels_changed_ctx, NULL);
+out:
+	if (!err)
+		priv->port_ptp_opened = true;
+
+	return err;
+}
+
 static const struct pflag_desc mlx5e_priv_flags[MLX5E_NUM_PFLAGS] = {
 	{ "rx_cqe_moder",        set_pflag_rx_cqe_based_moder },
 	{ "tx_cqe_moder",        set_pflag_tx_cqe_based_moder },
@@ -1952,6 +1984,7 @@ static const struct pflag_desc mlx5e_priv_flags[MLX5E_NUM_PFLAGS] = {
 	{ "rx_no_csum_complete", set_pflag_rx_no_csum_complete },
 	{ "xdp_tx_mpwqe",        set_pflag_xdp_tx_mpwqe },
 	{ "skb_tx_mpwqe",        set_pflag_skb_tx_mpwqe },
+	{ "tx_port_ts",          set_pflag_tx_port_ts },
 };
 
 static int mlx5e_handle_pflag(struct net_device *netdev,
