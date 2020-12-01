@@ -275,10 +275,6 @@
 	status = "okay";
 };
 
-&nandc0 {
-	status = "okay";
-};
-
 &pmu_io_domains {
 	status = "okay";
 	pmuio1-supply = <&vcc_3v3>;
