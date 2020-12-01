@@ -8,6 +8,7 @@ struct nvkm_subdev {
 	struct nvkm_device *device;
 	enum nvkm_devidx index;
 	u32 debug;
+	struct list_head head;
 
 	bool oneinit;
 };

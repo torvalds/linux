@@ -2825,7 +2825,7 @@ nvkm_device_fini(struct nvkm_device *device, bool suspend)
 {
 	const char *action = suspend ? "suspend" : "fini";
 	struct nvkm_subdev *subdev;
-	int ret, i;
+	int ret;
 	s64 time;
 
 	nvdev_trace(device, "%s running...\n", action);
@@ -2833,12 +2833,10 @@ nvkm_device_fini(struct nvkm_device *device, bool suspend)
 
 	nvkm_acpi_fini(device);
 
-	for (i = NVKM_SUBDEV_NR - 1; i >= 0; i--) {
-		if ((subdev = nvkm_device_subdev(device, i))) {
-			ret = nvkm_subdev_fini(subdev, suspend);
-			if (ret && suspend)
-				goto fail;
-		}
+	list_for_each_entry_reverse(subdev, &device->subdev, head) {
+		ret = nvkm_subdev_fini(subdev, suspend);
+		if (ret && suspend)
+			goto fail;
 	}
 
 	nvkm_therm_clkgate_fini(device->therm, suspend);
@@ -2851,13 +2849,11 @@ nvkm_device_fini(struct nvkm_device *device, bool suspend)
 	return 0;
 
 fail:
-	do {
-		if ((subdev = nvkm_device_subdev(device, i))) {
-			int rret = nvkm_subdev_init(subdev);
-			if (rret)
-				nvkm_fatal(subdev, "failed restart, %d\n", ret);
-		}
-	} while (++i < NVKM_SUBDEV_NR);
+	list_for_each_entry_from(subdev, &device->subdev, head) {
+		int rret = nvkm_subdev_init(subdev);
+		if (rret)
+			nvkm_fatal(subdev, "failed restart, %d\n", ret);
+	}
 
 	nvdev_trace(device, "%s failed with %d\n", action, ret);
 	return ret;
@@ -2867,7 +2863,7 @@ static int
 nvkm_device_preinit(struct nvkm_device *device)
 {
 	struct nvkm_subdev *subdev;
-	int ret, i;
+	int ret;
 	s64 time;
 
 	nvdev_trace(device, "preinit running...\n");
@@ -2879,12 +2875,10 @@ nvkm_device_preinit(struct nvkm_device *device)
 			goto fail;
 	}
 
-	for (i = 0; i < NVKM_SUBDEV_NR; i++) {
-		if ((subdev = nvkm_device_subdev(device, i))) {
-			ret = nvkm_subdev_preinit(subdev);
-			if (ret)
-				goto fail;
-		}
+	list_for_each_entry(subdev, &device->subdev, head) {
+		ret = nvkm_subdev_preinit(subdev);
+		if (ret)
+			goto fail;
 	}
 
 	ret = nvkm_devinit_post(device->devinit, &device->disable_mask);
@@ -2904,7 +2898,7 @@ int
 nvkm_device_init(struct nvkm_device *device)
 {
 	struct nvkm_subdev *subdev;
-	int ret, i;
+	int ret;
 	s64 time;
 
 	ret = nvkm_device_preinit(device);
@@ -2922,12 +2916,10 @@ nvkm_device_init(struct nvkm_device *device)
 			goto fail;
 	}
 
-	for (i = 0; i < NVKM_SUBDEV_NR; i++) {
-		if ((subdev = nvkm_device_subdev(device, i))) {
-			ret = nvkm_subdev_init(subdev);
-			if (ret)
-				goto fail_subdev;
-		}
+	list_for_each_entry(subdev, &device->subdev, head) {
+		ret = nvkm_subdev_init(subdev);
+		if (ret)
+			goto fail_subdev;
 	}
 
 	nvkm_acpi_init(device);
@@ -2938,11 +2930,8 @@ nvkm_device_init(struct nvkm_device *device)
 	return 0;
 
 fail_subdev:
-	do {
-		if ((subdev = nvkm_device_subdev(device, i)))
-			nvkm_subdev_fini(subdev, false);
-	} while (--i >= 0);
-
+	list_for_each_entry_from(subdev, &device->subdev, head)
+		nvkm_subdev_fini(subdev, false);
 fail:
 	nvkm_device_fini(device, false);
 
@@ -2954,15 +2943,13 @@ void
 nvkm_device_del(struct nvkm_device **pdevice)
 {
 	struct nvkm_device *device = *pdevice;
-	int i;
+	struct nvkm_subdev *subdev, *subtmp;
 	if (device) {
 		mutex_lock(&nv_devices_mutex);
 		device->disable_mask = 0;
-		for (i = NVKM_SUBDEV_NR - 1; i >= 0; i--) {
-			struct nvkm_subdev *subdev =
-				nvkm_device_subdev(device, i);
+
+		list_for_each_entry_safe_reverse(subdev, subtmp, &device->subdev, head)
 			nvkm_subdev_del(&subdev);
-		}
 
 		nvkm_event_fini(&device->event);
 
@@ -3038,6 +3025,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 	device->name = name;
 	list_add_tail(&device->head, &nv_devices);
 	device->debug = nvkm_dbgopt(device->dbgopt, "device");
+	INIT_LIST_HEAD(&device->subdev);
 
 	ret = nvkm_event_init(&nvkm_device_event_func, 1, 1, &device->event);
 	if (ret)

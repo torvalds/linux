@@ -197,6 +197,7 @@ nvkm_subdev_del(struct nvkm_subdev **psubdev)
 	if (subdev && !WARN_ON(!subdev->func)) {
 		nvkm_trace(subdev, "destroy running...\n");
 		time = ktime_to_us(ktime_get());
+		list_del(&subdev->head);
 		if (subdev->func->dtor)
 			*psubdev = subdev->func->dtor(subdev);
 		time = ktime_to_us(ktime_get()) - time;
@@ -216,6 +217,7 @@ nvkm_subdev_ctor(const struct nvkm_subdev_func *func,
 	subdev->device = device;
 	subdev->index = index;
 	subdev->debug = nvkm_dbgopt(device->dbgopt, name);
+	list_add_tail(&subdev->head, &device->subdev);
 }
 
 int
