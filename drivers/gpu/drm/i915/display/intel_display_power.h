@@ -224,6 +224,13 @@ struct i915_power_domains {
 	struct i915_power_well *power_wells;
 };
 
+struct intel_display_power_domain_set {
+	u64 mask;
+#ifdef CONFIG_DRM_I915_DEBUG_RUNTIME_PM
+	intel_wakeref_t wakerefs[POWER_DOMAIN_NUM];
+#endif
+};
+
 #define for_each_power_domain(domain, mask)				\
 	for ((domain) = 0; (domain) < POWER_DOMAIN_NUM; (domain)++)	\
 		for_each_if(BIT_ULL(domain) & (mask))
@@ -313,6 +320,28 @@ intel_display_power_put_async(struct drm_i915_private *i915,
 	__intel_display_power_put_async(i915, domain, -1);
 }
 #endif
+
+void
+intel_display_power_get_in_set(struct drm_i915_private *i915,
+			       struct intel_display_power_domain_set *power_domain_set,
+			       enum intel_display_power_domain domain);
+
+bool
+intel_display_power_get_in_set_if_enabled(struct drm_i915_private *i915,
+					  struct intel_display_power_domain_set *power_domain_set,
+					  enum intel_display_power_domain domain);
+
+void
+intel_display_power_put_mask_in_set(struct drm_i915_private *i915,
+				    struct intel_display_power_domain_set *power_domain_set,
+				    u64 mask);
+
+static inline void
+intel_display_power_put_all_in_set(struct drm_i915_private *i915,
+				   struct intel_display_power_domain_set *power_domain_set)
+{
+	intel_display_power_put_mask_in_set(i915, power_domain_set, power_domain_set->mask);
+}
 
 enum dbuf_slice {
 	DBUF_S1,

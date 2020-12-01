@@ -11227,16 +11227,13 @@ static void hsw_get_ddi_pll(struct drm_i915_private *dev_priv, enum port port,
 
 static bool hsw_get_transcoder_state(struct intel_crtc *crtc,
 				     struct intel_crtc_state *pipe_config,
-				     u64 *power_domain_mask,
-				     intel_wakeref_t *wakerefs)
+				     struct intel_display_power_domain_set *power_domain_set)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	enum intel_display_power_domain power_domain;
 	unsigned long panel_transcoder_mask = BIT(TRANSCODER_EDP);
 	unsigned long enabled_panel_transcoders = 0;
 	enum transcoder panel_transcoder;
-	intel_wakeref_t wf;
 	u32 tmp;
 
 	if (INTEL_GEN(dev_priv) >= 11)
@@ -11307,15 +11304,9 @@ static bool hsw_get_transcoder_state(struct intel_crtc *crtc,
 	drm_WARN_ON(dev, (enabled_panel_transcoders & BIT(TRANSCODER_EDP)) &&
 		    enabled_panel_transcoders != BIT(TRANSCODER_EDP));
 
-	power_domain = POWER_DOMAIN_TRANSCODER(pipe_config->cpu_transcoder);
-	drm_WARN_ON(dev, *power_domain_mask & BIT_ULL(power_domain));
-
-	wf = intel_display_power_get_if_enabled(dev_priv, power_domain);
-	if (!wf)
+	if (!intel_display_power_get_in_set_if_enabled(dev_priv, power_domain_set,
+						       POWER_DOMAIN_TRANSCODER(pipe_config->cpu_transcoder)))
 		return false;
-
-	wakerefs[power_domain] = wf;
-	*power_domain_mask |= BIT_ULL(power_domain);
 
 	tmp = intel_de_read(dev_priv, PIPECONF(pipe_config->cpu_transcoder));
 
@@ -11324,14 +11315,11 @@ static bool hsw_get_transcoder_state(struct intel_crtc *crtc,
 
 static bool bxt_get_dsi_transcoder_state(struct intel_crtc *crtc,
 					 struct intel_crtc_state *pipe_config,
-					 u64 *power_domain_mask,
-					 intel_wakeref_t *wakerefs)
+					 struct intel_display_power_domain_set *power_domain_set)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	enum intel_display_power_domain power_domain;
 	enum transcoder cpu_transcoder;
-	intel_wakeref_t wf;
 	enum port port;
 	u32 tmp;
 
@@ -11341,15 +11329,9 @@ static bool bxt_get_dsi_transcoder_state(struct intel_crtc *crtc,
 		else
 			cpu_transcoder = TRANSCODER_DSI_C;
 
-		power_domain = POWER_DOMAIN_TRANSCODER(cpu_transcoder);
-		drm_WARN_ON(dev, *power_domain_mask & BIT_ULL(power_domain));
-
-		wf = intel_display_power_get_if_enabled(dev_priv, power_domain);
-		if (!wf)
+		if (!intel_display_power_get_in_set_if_enabled(dev_priv, power_domain_set,
+							       POWER_DOMAIN_TRANSCODER(cpu_transcoder)))
 			continue;
-
-		wakerefs[power_domain] = wf;
-		*power_domain_mask |= BIT_ULL(power_domain);
 
 		/*
 		 * The PLL needs to be enabled with a valid divider
@@ -11433,30 +11415,22 @@ static bool hsw_get_pipe_config(struct intel_crtc *crtc,
 				struct intel_crtc_state *pipe_config)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	intel_wakeref_t wakerefs[POWER_DOMAIN_NUM], wf;
-	enum intel_display_power_domain power_domain;
-	u64 power_domain_mask;
+	struct intel_display_power_domain_set power_domain_set = { };
 	bool active;
 	u32 tmp;
 
 	pipe_config->master_transcoder = INVALID_TRANSCODER;
 
-	power_domain = POWER_DOMAIN_PIPE(crtc->pipe);
-	wf = intel_display_power_get_if_enabled(dev_priv, power_domain);
-	if (!wf)
+	if (!intel_display_power_get_in_set_if_enabled(dev_priv, &power_domain_set,
+						       POWER_DOMAIN_PIPE(crtc->pipe)))
 		return false;
-
-	wakerefs[power_domain] = wf;
-	power_domain_mask = BIT_ULL(power_domain);
 
 	pipe_config->shared_dpll = NULL;
 
-	active = hsw_get_transcoder_state(crtc, pipe_config,
-					  &power_domain_mask, wakerefs);
+	active = hsw_get_transcoder_state(crtc, pipe_config, &power_domain_set);
 
 	if (IS_GEN9_LP(dev_priv) &&
-	    bxt_get_dsi_transcoder_state(crtc, pipe_config,
-					 &power_domain_mask, wakerefs)) {
+	    bxt_get_dsi_transcoder_state(crtc, pipe_config, &power_domain_set)) {
 		drm_WARN_ON(&dev_priv->drm, active);
 		active = true;
 	}
@@ -11520,14 +11494,8 @@ static bool hsw_get_pipe_config(struct intel_crtc *crtc,
 		pipe_config->ips_linetime =
 			REG_FIELD_GET(HSW_IPS_LINETIME_MASK, tmp);
 
-	power_domain = POWER_DOMAIN_PIPE_PANEL_FITTER(crtc->pipe);
-	drm_WARN_ON(&dev_priv->drm, power_domain_mask & BIT_ULL(power_domain));
-
-	wf = intel_display_power_get_if_enabled(dev_priv, power_domain);
-	if (wf) {
-		wakerefs[power_domain] = wf;
-		power_domain_mask |= BIT_ULL(power_domain);
-
+	if (intel_display_power_get_in_set_if_enabled(dev_priv, &power_domain_set,
+						      POWER_DOMAIN_PIPE_PANEL_FITTER(crtc->pipe))) {
 		if (INTEL_GEN(dev_priv) >= 9)
 			skl_get_pfit_config(pipe_config);
 		else
@@ -11561,9 +11529,7 @@ static bool hsw_get_pipe_config(struct intel_crtc *crtc,
 	}
 
 out:
-	for_each_power_domain(power_domain, power_domain_mask)
-		intel_display_power_put(dev_priv,
-					power_domain, wakerefs[power_domain]);
+	intel_display_power_put_all_in_set(dev_priv, &power_domain_set);
 
 	return active;
 }

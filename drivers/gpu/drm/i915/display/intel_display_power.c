@@ -2412,6 +2412,63 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 }
 #endif
 
+void
+intel_display_power_get_in_set(struct drm_i915_private *i915,
+			       struct intel_display_power_domain_set *power_domain_set,
+			       enum intel_display_power_domain domain)
+{
+	intel_wakeref_t __maybe_unused wf;
+
+	drm_WARN_ON(&i915->drm, power_domain_set->mask & BIT_ULL(domain));
+
+	wf = intel_display_power_get(i915, domain);
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
+	power_domain_set->wakerefs[domain] = wf;
+#endif
+	power_domain_set->mask |= BIT_ULL(domain);
+}
+
+bool
+intel_display_power_get_in_set_if_enabled(struct drm_i915_private *i915,
+					  struct intel_display_power_domain_set *power_domain_set,
+					  enum intel_display_power_domain domain)
+{
+	intel_wakeref_t wf;
+
+	drm_WARN_ON(&i915->drm, power_domain_set->mask & BIT_ULL(domain));
+
+	wf = intel_display_power_get_if_enabled(i915, domain);
+	if (!wf)
+		return false;
+
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
+	power_domain_set->wakerefs[domain] = wf;
+#endif
+	power_domain_set->mask |= BIT_ULL(domain);
+
+	return true;
+}
+
+void
+intel_display_power_put_mask_in_set(struct drm_i915_private *i915,
+				    struct intel_display_power_domain_set *power_domain_set,
+				    u64 mask)
+{
+	enum intel_display_power_domain domain;
+
+	drm_WARN_ON(&i915->drm, mask & ~power_domain_set->mask);
+
+	for_each_power_domain(domain, mask) {
+		intel_wakeref_t __maybe_unused wf = -1;
+
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
+		wf = fetch_and_zero(&power_domain_set->wakerefs[domain]);
+#endif
+		intel_display_power_put(i915, domain, wf);
+		power_domain_set->mask &= ~BIT_ULL(domain);
+	}
+}
+
 #define I830_PIPES_POWER_DOMAINS (		\
 	BIT_ULL(POWER_DOMAIN_PIPE_A) |		\
 	BIT_ULL(POWER_DOMAIN_PIPE_B) |		\
