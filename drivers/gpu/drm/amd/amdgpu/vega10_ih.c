@@ -344,25 +344,17 @@ static void vega10_ih_irq_disable(struct amdgpu_device *adev)
 static u32 vega10_ih_get_wptr(struct amdgpu_device *adev,
 			      struct amdgpu_ih_ring *ih)
 {
-	u32 wptr, reg, tmp;
+	u32 wptr, tmp;
+	struct amdgpu_ih_regs *ih_regs;
 
 	wptr = le32_to_cpu(*ih->wptr_cpu);
+	ih_regs = &ih->ih_regs;
 
 	if (!REG_GET_FIELD(wptr, IH_RB_WPTR, RB_OVERFLOW))
 		goto out;
 
 	/* Double check that the overflow wasn't already cleared. */
-
-	if (ih == &adev->irq.ih)
-		reg = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_WPTR);
-	else if (ih == &adev->irq.ih1)
-		reg = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_WPTR_RING1);
-	else if (ih == &adev->irq.ih2)
-		reg = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_WPTR_RING2);
-	else
-		BUG();
-
-	wptr = RREG32_NO_KIQ(reg);
+	wptr = RREG32_NO_KIQ(ih_regs->ih_rb_wptr);
 	if (!REG_GET_FIELD(wptr, IH_RB_WPTR, RB_OVERFLOW))
 		goto out;
 
@@ -378,18 +370,9 @@ static u32 vega10_ih_get_wptr(struct amdgpu_device *adev,
 		 wptr, ih->rptr, tmp);
 	ih->rptr = tmp;
 
-	if (ih == &adev->irq.ih)
-		reg = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_CNTL);
-	else if (ih == &adev->irq.ih1)
-		reg = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_CNTL_RING1);
-	else if (ih == &adev->irq.ih2)
-		reg = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_CNTL_RING2);
-	else
-		BUG();
-
-	tmp = RREG32_NO_KIQ(reg);
+	tmp = RREG32_NO_KIQ(ih_regs->ih_rb_cntl);
 	tmp = REG_SET_FIELD(tmp, IH_RB_CNTL, WPTR_OVERFLOW_CLEAR, 1);
-	WREG32_NO_KIQ(reg, tmp);
+	WREG32_NO_KIQ(ih_regs->ih_rb_cntl, tmp);
 
 out:
 	return (wptr & ih->ptr_mask);
@@ -450,22 +433,14 @@ static void vega10_ih_decode_iv(struct amdgpu_device *adev,
 static void vega10_ih_irq_rearm(struct amdgpu_device *adev,
 			       struct amdgpu_ih_ring *ih)
 {
-	uint32_t reg_rptr = 0;
 	uint32_t v = 0;
 	uint32_t i = 0;
+	struct amdgpu_ih_regs *ih_regs;
 
-	if (ih == &adev->irq.ih)
-		reg_rptr = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_RPTR);
-	else if (ih == &adev->irq.ih1)
-		reg_rptr = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_RPTR_RING1);
-	else if (ih == &adev->irq.ih2)
-		reg_rptr = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_RPTR_RING2);
-	else
-		return;
-
+	ih_regs = &ih->ih_regs;
 	/* Rearm IRQ / re-wwrite doorbell if doorbell write is lost */
 	for (i = 0; i < MAX_REARM_RETRY; i++) {
-		v = RREG32_NO_KIQ(reg_rptr);
+		v = RREG32_NO_KIQ(ih_regs->ih_rb_rptr);
 		if ((v < ih->ring_size) && (v != ih->rptr))
 			WDOORBELL32(ih->doorbell_index, ih->rptr);
 		else
@@ -484,6 +459,8 @@ static void vega10_ih_irq_rearm(struct amdgpu_device *adev,
 static void vega10_ih_set_rptr(struct amdgpu_device *adev,
 			       struct amdgpu_ih_ring *ih)
 {
+	struct amdgpu_ih_regs *ih_regs;
+
 	if (ih->use_doorbell) {
 		/* XXX check if swapping is necessary on BE */
 		*ih->rptr_cpu = ih->rptr;
@@ -491,12 +468,9 @@ static void vega10_ih_set_rptr(struct amdgpu_device *adev,
 
 		if (amdgpu_sriov_vf(adev))
 			vega10_ih_irq_rearm(adev, ih);
-	} else if (ih == &adev->irq.ih) {
-		WREG32_SOC15(OSSSYS, 0, mmIH_RB_RPTR, ih->rptr);
-	} else if (ih == &adev->irq.ih1) {
-		WREG32_SOC15(OSSSYS, 0, mmIH_RB_RPTR_RING1, ih->rptr);
-	} else if (ih == &adev->irq.ih2) {
-		WREG32_SOC15(OSSSYS, 0, mmIH_RB_RPTR_RING2, ih->rptr);
+	} else {
+		ih_regs = &ih->ih_regs;
+		WREG32(ih_regs->ih_rb_rptr, ih->rptr);
 	}
 }
 
