@@ -791,7 +791,7 @@ u8 phydm_trans_h2c_id(struct dm_struct *dm, u8 phydm_h2c_id)
 
 #elif (DM_ODM_SUPPORT_TYPE & ODM_AP)
 #if ((RTL8881A_SUPPORT == 1) || (RTL8192E_SUPPORT == 1) || (RTL8814A_SUPPORT == 1) || (RTL8822B_SUPPORT == 1) || (RTL8197F_SUPPORT == 1) || (RTL8192F_SUPPORT == 1)) /*@jj add 20170822*/
-		if (dm->support_ic_type == ODM_RTL8881A || dm->support_ic_type == ODM_RTL8192E || dm->support_ic_type & PHYDM_IC_3081_SERIES)
+		if (dm->support_ic_type & (ODM_RTL8881A | ODM_RTL8192E | ODM_RTL8192F | PHYDM_IC_3081_SERIES))
 			platform_h2c_id = H2C_88XX_RSSI_REPORT;
 		else
 #endif
@@ -853,7 +853,7 @@ u8 phydm_trans_h2c_id(struct dm_struct *dm, u8 phydm_h2c_id)
 
 #elif (DM_ODM_SUPPORT_TYPE & ODM_AP)
 #if ((RTL8881A_SUPPORT == 1) || (RTL8192E_SUPPORT == 1) || (RTL8814A_SUPPORT == 1) || (RTL8822B_SUPPORT == 1) || (RTL8197F_SUPPORT == 1) || (RTL8192F_SUPPORT == 1)) /*@jj add 20170822*/
-		if (dm->support_ic_type == ODM_RTL8881A || dm->support_ic_type == ODM_RTL8192E || dm->support_ic_type & PHYDM_IC_3081_SERIES)
+		if (dm->support_ic_type & (ODM_RTL8881A | ODM_RTL8192E | ODM_RTL8192F | PHYDM_IC_3081_SERIES))
 			platform_h2c_id = H2C_88XX_RA_PARA_ADJUST;
 		else
 #endif
@@ -904,7 +904,7 @@ u8 phydm_trans_h2c_id(struct dm_struct *dm, u8 phydm_h2c_id)
 
 #elif (DM_ODM_SUPPORT_TYPE & ODM_AP)
 #if ((RTL8881A_SUPPORT == 1) || (RTL8192E_SUPPORT == 1) || (RTL8814A_SUPPORT == 1) || (RTL8822B_SUPPORT == 1) || (RTL8197F_SUPPORT == 1) || (RTL8192F_SUPPORT == 1)) /*@jj add 20170822*/
-		if (dm->support_ic_type == ODM_RTL8881A || dm->support_ic_type == ODM_RTL8192E || dm->support_ic_type & PHYDM_IC_3081_SERIES)
+		if (dm->support_ic_type & (ODM_RTL8881A | ODM_RTL8192E | ODM_RTL8192F | PHYDM_IC_3081_SERIES))
 			platform_h2c_id = H2C_88XX_FW_TRACE_EN;
 		else
 #endif
@@ -922,7 +922,8 @@ u8 phydm_trans_h2c_id(struct dm_struct *dm, u8 phydm_h2c_id)
 
 	case PHYDM_H2C_TXBF:
 #if ((RTL8192E_SUPPORT == 1) || (RTL8812A_SUPPORT == 1))
-		platform_h2c_id = 0x41; /*@H2C_TxBF*/
+		if (dm->support_ic_type & (ODM_RTL8192E | ODM_RTL8812))
+			platform_h2c_id = 0x41; /*@H2C_TxBF*/
 #endif
 		break;
 
@@ -1270,7 +1271,7 @@ odm_dpk_by_fw(struct dm_struct *dm)
 #if (DM_ODM_SUPPORT_TYPE & ODM_WIN)
 	struct _ADAPTER *adapter = dm->adapter;
 
-	if (HAL_MAC_FWDPK_Trigger(&GET_HAL_MAC_INFO(adapter)) == 0)
+	if (hal_mac_fwdpk_trigger(&GET_HAL_MAC_INFO(adapter)) == 0)
 		dpk_result = HAL_STATUS_SUCCESS;
 #else
 	dpk_result = rtw_phydm_fw_dpk(dm);
@@ -1436,6 +1437,25 @@ u8 phydm_get_tx_power_dbm(struct dm_struct *dm, u8 rf_path,
 
 #if (DM_ODM_SUPPORT_TYPE == ODM_AP)
 	tx_power_dbm = PHY_GetTxPowerFinalAbsoluteValue(dm, rf_path, rate, bandwidth, channel);
+#endif
+	return tx_power_dbm;
+}
+
+s16 phydm_get_tx_power_mdbm(struct dm_struct *dm, u8 rf_path,
+					u8 rate, u8 bandwidth, u8 channel)
+{
+	s16 tx_power_dbm = 0;
+#if (DM_ODM_SUPPORT_TYPE == ODM_WIN)
+	struct _ADAPTER *adapter = dm->adapter;
+	tx_power_dbm = PHY_GetTxPowerFinalAbsoluteValuemdBm(adapter, rf_path, rate, bandwidth, channel);
+#endif
+
+#if (DM_ODM_SUPPORT_TYPE == ODM_CE)
+	tx_power_dbm = rtw_odm_get_tx_power_mbm(dm, rf_path, rate, bandwidth, channel);
+#endif
+
+#if (DM_ODM_SUPPORT_TYPE == ODM_AP)
+	tx_power_dbm = PHY_GetTxPowerFinalAbsoluteValuembm(dm, rf_path, rate, bandwidth, channel);
 #endif
 	return tx_power_dbm;
 }

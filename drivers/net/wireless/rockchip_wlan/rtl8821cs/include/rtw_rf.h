@@ -35,6 +35,7 @@
 #define	MAX_CHANNEL_NUM_2G	CENTER_CH_2G_NUM
 #define	MAX_CHANNEL_NUM_5G	CENTER_CH_5G_20M_NUM
 #define	MAX_CHANNEL_NUM		(MAX_CHANNEL_NUM_2G + MAX_CHANNEL_NUM_5G)
+#define MAX_CHANNEL_NUM_OF_BAND rtw_max(MAX_CHANNEL_NUM_2G, MAX_CHANNEL_NUM_5G)
 
 extern u8 center_ch_2g[CENTER_CH_2G_NUM];
 extern u8 center_ch_2g_40m[CENTER_CH_2G_40M_NUM];
@@ -55,6 +56,9 @@ u8 rtw_get_scch_by_cch_offset(u8 cch, u8 bw, u8 offset);
 u8 rtw_get_scch_by_cch_opch(u8 cch, u8 bw, u8 opch);
 
 u8 rtw_get_op_chs_by_cch_bw(u8 cch, u8 bw, u8 **op_chs, u8 *op_ch_num);
+
+u8 rtw_get_offset_by_chbw(u8 ch, u8 bw, u8 *r_offset);
+u8 rtw_get_center_ch(u8 ch, u8 bw, u8 offset);
 
 u8 rtw_get_ch_group(u8 ch, u8 *group, u8 *cck_group);
 
@@ -116,6 +120,60 @@ extern const char *const _ch_width_str[];
 
 extern const u8 _ch_width_to_bw_cap[];
 #define ch_width_to_bw_cap(bw) (((bw) < CHANNEL_WIDTH_MAX) ? _ch_width_to_bw_cap[(bw)] : 0)
+
+enum opc_bw {
+	OPC_BW20		= 0,
+	OPC_BW40PLUS	= 1,
+	OPC_BW40MINUS	= 2,
+	OPC_BW80		= 3,
+	OPC_BW160		= 4,
+	OPC_BW80P80		= 5,
+	OPC_BW_NUM,
+};
+
+extern const char *const _opc_bw_str[OPC_BW_NUM];
+#define opc_bw_str(bw) (((bw) < OPC_BW_NUM) ? _opc_bw_str[(bw)] : "N/A")
+
+extern const u8 _opc_bw_to_ch_width[OPC_BW_NUM];
+#define opc_bw_to_ch_width(bw) (((bw) < OPC_BW_NUM) ? _opc_bw_to_ch_width[(bw)] : CHANNEL_WIDTH_MAX)
+
+/* global op class APIs */
+bool is_valid_global_op_class_id(u8 gid);
+s16 get_sub_op_class(u8 gid, u8 ch);
+void dump_global_op_class(void *sel);
+u8 rtw_get_op_class_by_chbw(u8 ch, u8 bw, u8 offset);
+u8 rtw_get_bw_offset_by_op_class_ch(u8 gid, u8 ch, u8 *bw, u8 *offset);
+
+struct op_ch_t {
+	u8 ch;
+	u8 static_non_op:1; /* not in channel list */
+	u8 no_ir:1;
+	s16 max_txpwr; /* mBm */
+};
+
+struct op_class_pref_t {
+	u8 class_id;
+	BAND_TYPE band;
+	enum opc_bw bw;
+	u8 ch_num; /* number of chs */
+	u8 op_ch_num; /* channel number which is not static non operable */
+	u8 ir_ch_num; /* channel number which can init radiation */
+	struct op_ch_t chs[MAX_CHANNEL_NUM_OF_BAND]; /* zero(ch) terminated array */
+};
+
+int op_class_pref_init(_adapter *adapter);
+void op_class_pref_deinit(_adapter *adapter);
+
+#define REG_BEACON_HINT		0
+#define REG_TXPWR_CHANGE	1
+#define REG_CHANGE			2
+
+void op_class_pref_apply_regulatory(_adapter *adapter, u8 reason);
+
+struct rf_ctl_t;
+void dump_cap_spt_op_class_ch(void *sel, struct rf_ctl_t *rfctl, bool detail);
+void dump_reg_spt_op_class_ch(void *sel, struct rf_ctl_t *rfctl, bool detail);
+void dump_cur_spt_op_class_ch(void *sel, struct rf_ctl_t *rfctl, bool detail);
 
 /*
  * Represent Extention Channel Offset in HT Capabilities
@@ -182,10 +240,13 @@ typedef enum _REGULATION_TXPWR_LMT {
 	TXPWR_LMT_ETSI = 3,
 	TXPWR_LMT_IC = 4,
 	TXPWR_LMT_KCC = 5,
-	TXPWR_LMT_ACMA = 6,
-	TXPWR_LMT_CHILE = 7,
-	TXPWR_LMT_MEXICO = 8,
-	TXPWR_LMT_WW = 9, /* smallest of all available limit, keep last */
+	TXPWR_LMT_NCC = 6,
+	TXPWR_LMT_ACMA = 7,
+	TXPWR_LMT_CHILE = 8,
+	TXPWR_LMT_UKRAINE = 9,
+	TXPWR_LMT_MEXICO = 10,
+	TXPWR_LMT_CN = 11,
+	TXPWR_LMT_WW, /* smallest of all available limit, keep last */
 } REGULATION_TXPWR_LMT;
 
 extern const char *const _regd_str[];
@@ -260,9 +321,6 @@ void rtw_rf_apply_tx_gain_offset(_adapter *adapter, u8 ch);
 	|| (rtw_is_5g_band3(a) && rtw_is_5g_band3(b)) \
 	|| (rtw_is_5g_band4(a) && rtw_is_5g_band4(b)))
 
-u8 rtw_is_dfs_range(u32 hi, u32 lo);
-u8 rtw_is_dfs_ch(u8 ch);
-u8 rtw_is_dfs_chbw(u8 ch, u8 bw, u8 offset);
 bool rtw_is_long_cac_range(u32 hi, u32 lo, u8 dfs_region);
 bool rtw_is_long_cac_ch(u8 ch, u8 bw, u8 offset, u8 dfs_region);
 

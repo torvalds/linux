@@ -435,12 +435,16 @@ mpt_SetTxPower(
 
 	u8 path = 0 , i = 0, MaxRate = MGN_6M;
 	u8 StartPath = RF_PATH_A, EndPath = RF_PATH_B;
+	u8 tx_nss = 2;
 
-	if (IS_HARDWARE_TYPE_8814A(pAdapter) || IS_HARDWARE_TYPE_8814B(pAdapter))
+	if (IS_HARDWARE_TYPE_8814A(pAdapter) || IS_HARDWARE_TYPE_8814B(pAdapter)) {
 		EndPath = RF_PATH_D;
-	else if (IS_HARDWARE_TYPE_8188F(pAdapter) || IS_HARDWARE_TYPE_8188GTV(pAdapter)
-		|| IS_HARDWARE_TYPE_8723D(pAdapter) || IS_HARDWARE_TYPE_8821C(pAdapter))
+		tx_nss = 4;
+	} else if (IS_HARDWARE_TYPE_8188F(pAdapter) || IS_HARDWARE_TYPE_8188GTV(pAdapter)
+		|| IS_HARDWARE_TYPE_8723D(pAdapter) || IS_HARDWARE_TYPE_8821C(pAdapter)) {
 		EndPath = RF_PATH_A;
+		tx_nss = 1;
+	}
 
 	switch (Rate) {
 	case MPT_CCK: {
@@ -472,14 +476,15 @@ mpt_SetTxPower(
 			MGN_MCS25, MGN_MCS26, MGN_MCS27, MGN_MCS28, MGN_MCS29,
 			MGN_MCS30, MGN_MCS31,
 		};
-		if (pHalData->rf_type == RF_4T4R)
+		if (tx_nss == 4)
 			MaxRate = MGN_MCS31;
-		else if (pHalData->rf_type == RF_3T3R)
+		else if (tx_nss == 3)
 			MaxRate = MGN_MCS23;
-		else if (pHalData->rf_type == RF_2T2R)
+		else if (tx_nss == 2)
 			MaxRate = MGN_MCS15;
 		else
 			MaxRate = MGN_MCS7;
+
 		for (path = StartPath; path <= EndPath; path++) {
 			for (i = 0; i < sizeof(rate); ++i) {
 				if (rate[i] > MaxRate)
@@ -500,11 +505,11 @@ mpt_SetTxPower(
 			MGN_VHT4SS_MCS0, MGN_VHT4SS_MCS1, MGN_VHT4SS_MCS2, MGN_VHT4SS_MCS3, MGN_VHT4SS_MCS4,
 			MGN_VHT4SS_MCS5, MGN_VHT4SS_MCS6, MGN_VHT4SS_MCS7, MGN_VHT4SS_MCS8, MGN_VHT4SS_MCS9,
 		};
-		if (pHalData->rf_type == RF_4T4R)
+		if (tx_nss == 4)
 			MaxRate = MGN_VHT4SS_MCS9;
-		else if (pHalData->rf_type == RF_3T3R)
+		else if (tx_nss == 3)
 			MaxRate = MGN_VHT3SS_MCS9;
-		else if (pHalData->rf_type == RF_2T2R || pHalData->rf_type == RF_2T4R)
+		else if (tx_nss == 2)
 			MaxRate = MGN_VHT2SS_MCS9;
 		else
 			MaxRate = MGN_VHT1SS_MCS9;
@@ -861,7 +866,8 @@ void mpt_SetRFPath_8814A(PADAPTER	pAdapter)
 }
 
 #endif /* CONFIG_RTL8814A */
-#if defined(CONFIG_RTL8814A) || defined(CONFIG_RTL8822B) || defined(CONFIG_RTL8821C)  || defined(CONFIG_RTL8822C) || defined(CONFIG_RTL8814B)
+#if defined(CONFIG_RTL8814A) || defined(CONFIG_RTL8822B) || defined(CONFIG_RTL8821C) \
+	|| defined(CONFIG_RTL8822C) || defined(CONFIG_RTL8814B) || defined(CONFIG_RTL8723F)
 void
 mpt_SetSingleTone_8814A(
 		PADAPTER	pAdapter,
@@ -2304,33 +2310,35 @@ static	void mpt_StartOfdmContTx(
 	pMptCtx->bOfdmContTx = TRUE;
 }	/* mpt_StartOfdmContTx */
 
-#if defined(CONFIG_RTL8814A) || defined(CONFIG_RTL8821B) || defined(CONFIG_RTL8822B) || defined(CONFIG_RTL8821C)  || defined(CONFIG_RTL8822C) || defined(CONFIG_RTL8814B)
+#if defined(CONFIG_RTL8814A) || defined(CONFIG_RTL8821B) || defined(CONFIG_RTL8822B) \
+	|| defined(CONFIG_RTL8821C)  || defined(CONFIG_RTL8822C) || defined(CONFIG_RTL8814B) \
+	|| defined(CONFIG_RTL8723F)
 #ifdef PHYDM_PMAC_TX_SETTING_SUPPORT
 static void mpt_convert_phydm_txinfo_for_jaguar3(
-	RT_PMAC_TX_INFO	pMacTxInfo, struct phydm_pmac_info *phydmtxinfo)
+	RT_PMAC_TX_INFO	*pMacTxInfo, struct phydm_pmac_info *phydmtxinfo)
 {
-	phydmtxinfo->en_pmac_tx = pMacTxInfo.bEnPMacTx;
-	phydmtxinfo->mode = pMacTxInfo.Mode;
-	phydmtxinfo->tx_rate = MRateToHwRate(mpt_to_mgnt_rate(pMacTxInfo.TX_RATE));
-	phydmtxinfo->tx_sc = pMacTxInfo.TX_SC;
-	phydmtxinfo->is_short_preamble = pMacTxInfo.bSPreamble;
-	phydmtxinfo->ndp_sound = pMacTxInfo.NDP_sound;
-	phydmtxinfo->bw = pMacTxInfo.BandWidth;
-	phydmtxinfo->m_stbc = pMacTxInfo.m_STBC;
-	phydmtxinfo->packet_period = pMacTxInfo.PacketPeriod;
-	phydmtxinfo->packet_count = pMacTxInfo.PacketCount;
-	phydmtxinfo->packet_pattern = pMacTxInfo.PacketPattern;
-	phydmtxinfo->sfd = pMacTxInfo.SFD;
-	phydmtxinfo->signal_field = pMacTxInfo.SignalField;
-	phydmtxinfo->service_field = pMacTxInfo.ServiceField;
-	phydmtxinfo->length = pMacTxInfo.LENGTH;
-	_rtw_memcpy(&phydmtxinfo->crc16,pMacTxInfo.CRC16, 2);
-	_rtw_memcpy(&phydmtxinfo->lsig , pMacTxInfo.LSIG,3);
-	_rtw_memcpy(&phydmtxinfo->ht_sig , pMacTxInfo.HT_SIG,6);
-	_rtw_memcpy(&phydmtxinfo->vht_sig_a , pMacTxInfo.VHT_SIG_A,6);
-	_rtw_memcpy(&phydmtxinfo->vht_sig_b , pMacTxInfo.VHT_SIG_B,4);
-	phydmtxinfo->vht_sig_b_crc = pMacTxInfo.VHT_SIG_B_CRC;
-	_rtw_memcpy(&phydmtxinfo->vht_delimiter,pMacTxInfo.VHT_Delimiter,4);
+	phydmtxinfo->en_pmac_tx = pMacTxInfo->bEnPMacTx;
+	phydmtxinfo->mode = pMacTxInfo->Mode;
+	phydmtxinfo->tx_rate = MRateToHwRate(mpt_to_mgnt_rate(pMacTxInfo->TX_RATE));
+	phydmtxinfo->tx_sc = pMacTxInfo->TX_SC;
+	phydmtxinfo->is_short_preamble = pMacTxInfo->bSPreamble;
+	phydmtxinfo->ndp_sound = pMacTxInfo->NDP_sound;
+	phydmtxinfo->bw = pMacTxInfo->BandWidth;
+	phydmtxinfo->m_stbc = pMacTxInfo->m_STBC;
+	phydmtxinfo->packet_period = pMacTxInfo->PacketPeriod;
+	phydmtxinfo->packet_count = pMacTxInfo->PacketCount;
+	phydmtxinfo->packet_pattern = pMacTxInfo->PacketPattern;
+	phydmtxinfo->sfd = pMacTxInfo->SFD;
+	phydmtxinfo->signal_field = pMacTxInfo->SignalField;
+	phydmtxinfo->service_field = pMacTxInfo->ServiceField;
+	phydmtxinfo->length = pMacTxInfo->LENGTH;
+	_rtw_memcpy(&phydmtxinfo->crc16,pMacTxInfo->CRC16, 2);
+	_rtw_memcpy(&phydmtxinfo->lsig , pMacTxInfo->LSIG,3);
+	_rtw_memcpy(&phydmtxinfo->ht_sig , pMacTxInfo->HT_SIG,6);
+	_rtw_memcpy(&phydmtxinfo->vht_sig_a , pMacTxInfo->VHT_SIG_A,6);
+	_rtw_memcpy(&phydmtxinfo->vht_sig_b , pMacTxInfo->VHT_SIG_B,4);
+	phydmtxinfo->vht_sig_b_crc = pMacTxInfo->VHT_SIG_B_CRC;
+	_rtw_memcpy(&phydmtxinfo->vht_delimiter,pMacTxInfo->VHT_Delimiter,4);
 }
 #endif
 
@@ -2401,7 +2409,7 @@ u8 mpt_ProSetPMacTx(PADAPTER	Adapter)
 			PMacTxInfo.TX_RATE = pMptCtx->mpt_rate_index;
 			pMptCtx->HWTxmode = TEST_NONE;
 		}
-		mpt_convert_phydm_txinfo_for_jaguar3(PMacTxInfo, &phydm_mactxinfo);
+		mpt_convert_phydm_txinfo_for_jaguar3(&PMacTxInfo, &phydm_mactxinfo);
 		phydm_set_pmac_tx(p_dm_odm, &phydm_mactxinfo, pMptCtx->mpt_rf_path);
 #endif
 		return status;

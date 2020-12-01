@@ -207,6 +207,10 @@ BOOLEAN efuse_IsMasked(PADAPTER pAdapter, u16 Offset)
 	if (IS_HARDWARE_TYPE_8814B(pAdapter))
 		return (IS_MASKED(8814B, _MUSB, Offset)) ? TRUE : FALSE;
 #endif
+#if defined(CONFIG_RTL8723F)
+	if (IS_HARDWARE_TYPE_8723F(pAdapter))
+		return (IS_MASKED(8723F, _MUSB, Offset)) ? TRUE : FALSE;
+#endif
 #endif /*CONFIG_USB_HCI*/
 
 #ifdef CONFIG_PCI_HCI
@@ -298,6 +302,10 @@ BOOLEAN efuse_IsMasked(PADAPTER pAdapter, u16 Offset)
 	if (IS_HARDWARE_TYPE_8822C(pAdapter))
 		return (IS_MASKED(8822C, _MSDIO, Offset)) ? TRUE : FALSE;
 #endif
+#if defined(CONFIG_RTL8723F)
+	if (IS_HARDWARE_TYPE_8723F(pAdapter))
+		return (IS_MASKED(8723F, _MSDIO, Offset)) ? TRUE : FALSE;
+#endif
 #endif /*CONFIG_SDIO_HCI*/
 
 	return FALSE;
@@ -362,6 +370,10 @@ void rtw_efuse_mask_array(PADAPTER pAdapter, u8 *pArray)
 #if defined(CONFIG_RTL8814B)
 	if (IS_HARDWARE_TYPE_8814B(pAdapter))
 		GET_MASK_ARRAY(8814B, _MUSB, pArray);
+#endif
+#if defined(CONFIG_RTL8723F)
+	if (IS_HARDWARE_TYPE_8723F(pAdapter))
+		GET_MASK_ARRAY(8723F, _MUSB, pArray);
 #endif
 #endif /*CONFIG_USB_HCI*/
 
@@ -453,6 +465,10 @@ void rtw_efuse_mask_array(PADAPTER pAdapter, u8 *pArray)
 	if (IS_HARDWARE_TYPE_8822C(pAdapter))
 		GET_MASK_ARRAY(8822C , _MSDIO, pArray);
 #endif
+#if defined(CONFIG_RTL8723F)
+	if (IS_HARDWARE_TYPE_8723F(pAdapter))
+		GET_MASK_ARRAY(8723F, _MSDIO, pArray);
+#endif
 #endif /*CONFIG_SDIO_HCI*/
 }
 
@@ -516,6 +532,10 @@ u16 rtw_get_efuse_mask_arraylen(PADAPTER pAdapter)
 	if (IS_HARDWARE_TYPE_8814B(pAdapter)) {
 		return GET_MASK_ARRAY_LEN(8814B, _MUSB);
 	}
+#endif
+#if defined(CONFIG_RTL8723F)
+	if (IS_HARDWARE_TYPE_8723F(pAdapter))
+		return GET_MASK_ARRAY_LEN(8723F, _MUSB);
 #endif
 #endif /*CONFIG_USB_HCI*/
 
@@ -606,6 +626,10 @@ u16 rtw_get_efuse_mask_arraylen(PADAPTER pAdapter)
 #if defined(CONFIG_RTL8822C)
 	if (IS_HARDWARE_TYPE_8822C(pAdapter))
 		return GET_MASK_ARRAY_LEN(8822C, _MSDIO);
+#endif
+#if defined(CONFIG_RTL8723F)
+	if (IS_HARDWARE_TYPE_8723F(pAdapter))
+		return GET_MASK_ARRAY_LEN(8723F, _MSDIO);
 #endif
 #endif/*CONFIG_SDIO_HCI*/
 	return 0;
@@ -1045,7 +1069,7 @@ u8 efuse_bt_GetCurrentSize(PADAPTER adapter, u16 *usesize)
 
 u16 efuse_bt_GetMaxSize(PADAPTER adapter)
 {
-	return EFUSE_BT_REAL_CONTENT_LEN;
+	return EFUSE_BT_REAL_CONTENT_LEN - EFUSE_PROTECT_BYTES_BANK;
 }
 
 void EFUSE_GetEfuseDefinition(PADAPTER adapter, u8 efusetype, u8 type, void *out, BOOLEAN test)

@@ -163,17 +163,19 @@ void halrf_set_pwr_track(void *dm_void, u8 enable)
 	configure_txpower_track(dm, &c);
 	if (enable) {
 		rf->rf_supportability = rf->rf_supportability | HAL_RF_TX_PWR_TRACK;
-		if (cali_info->txpowertrack_control == 1 || cali_info->txpowertrack_control == 3) {
-			halrf_segment_iqk_trigger(dm, true, 0);
-			halrf_tssi_trigger(dm);
-		}
+		if (cali_info->txpowertrack_control == 1 || cali_info->txpowertrack_control == 3)
+			halrf_do_tssi(dm);
 	} else {
 		rf->rf_supportability = rf->rf_supportability & ~HAL_RF_TX_PWR_TRACK;
 		odm_clear_txpowertracking_state(dm);
 		halrf_do_tssi(dm);
-
+		halrf_calculate_tssi_codeword(dm);
+		halrf_set_tssi_codeword(dm);
+		
+#if !(RTL8723F_SUPPORT == 1)
 		for (i = 0; i < c.rf_path_count; i++)
 			(*c.odm_tx_pwr_track_set_pwr)(dm, CLEAN_MODE, i, 0);
+#endif
 	}
 
 	if (cali_info->txpowertrack_control == 2 ||

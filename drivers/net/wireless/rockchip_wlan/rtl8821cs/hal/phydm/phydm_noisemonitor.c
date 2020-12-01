@@ -259,7 +259,8 @@ s16 odm_inband_noise_monitor_ac(struct dm_struct *dm, u8 pause_dig, u8 igi,
 	s32 value32, pwdb_A = 0, sval, noise, sum = 0;
 	boolean pd_flag;
 	u8 valid_cnt = 0;
-	u64 start = 0, func_start = 0, func_end = 0;
+	u8 invalid_cnt = 0;
+	u64 start = 0, func_start = 0, func_end = 0, proc_time = 0;
 	s32 val_s32 = 0;
 	s16 rpt = 0;
 	u8 val_u8 = 0;
@@ -350,6 +351,15 @@ s16 odm_inband_noise_monitor_ac(struct dm_struct *dm, u8 pause_dig, u8 igi,
 				PHYDM_DBG(dm, DBG_ENV_MNTR,
 					  "After divided, sum = %d\n", sum);
 				break;
+			}
+		} else {
+			/*Invalid sval and return -110 dBm*/
+			invalid_cnt++;
+			PHYDM_DBG(dm, DBG_ENV_MNTR, "Invalid sval\n");
+			if (invalid_cnt >= VALID_CNT + 5) {
+				PHYDM_DBG(dm, DBG_ENV_MNTR,
+					  "Invalid count > TH, Return -110, Break!!\n");
+				return -110;
 			}
 		}
 	}

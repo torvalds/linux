@@ -394,7 +394,14 @@ void mpt_InitHWConfig(PADAPTER Adapter)
 		PlatformEFIOWrite2Byte(Adapter, REG_RXFLTMAP1_8814B, 0x2000);
 	}
 #endif
-
+#if defined(CONFIG_RTL8723F)
+	/* todo: 8723F not verify yet */
+	else if (IS_HARDWARE_TYPE_8723F(Adapter)) {
+		/* 8723F mac is similar with 8723D,
+		 * but can't find 8723D here.
+		 */
+	}
+#endif
 }
 
 static void PHY_IQCalibrate(PADAPTER padapter, u8 bReCovery)
@@ -519,6 +526,10 @@ static void  PHY_SetRFPathSwitch(PADAPTER padapter , BOOLEAN bMain) {
 	} else if (IS_HARDWARE_TYPE_8814B(padapter)) {
 #ifdef CONFIG_RTL8814B
 		/* phy_set_rf_path_switch_8814b(phydm, bMain); */
+#endif
+	} else if (IS_HARDWARE_TYPE_8723F(padapter)) {
+#ifdef CONFIG_RTL8723F
+		phy_set_rf_path_switch_8723f(phydm, bMain);
 #endif
 	}
 }
@@ -752,6 +763,7 @@ static void init_mp_data(PADAPTER padapter)
 
 	pDM_Odm->rf_calibrate_info.txpowertrack_control = _FALSE;
 }
+
 
 void MPT_PwrCtlDM(PADAPTER padapter, u32 trk_type)
 {
@@ -1283,7 +1295,7 @@ static struct xmit_frame *alloc_mp_xmitframe(struct xmit_priv *pxmitpriv)
 	struct xmit_frame	*pmpframe;
 	struct xmit_buf	*pxmitbuf;
 
-	pmpframe = rtw_alloc_xmitframe(pxmitpriv);
+	pmpframe = rtw_alloc_xmitframe(pxmitpriv, 0);
 	if (pmpframe == NULL)
 		return NULL;
 
@@ -2006,6 +2018,11 @@ void SetPacketTx(PADAPTER padapter)
 		rtl8814b_prepare_mp_txdesc(padapter, pmp_priv);
 #endif /* CONFIG_RTL8814B */
 
+#if defined(CONFIG_RTL8723F)
+	if (IS_HARDWARE_TYPE_8723F(padapter))
+		rtl8723f_prepare_mp_txdesc(padapter, pmp_priv);
+#endif /* CONFIG_RTL8723F */
+
 	/* 3 4. make wlan header, make_wlanhdr() */
 	hdr = (struct rtw_ieee80211_hdr *)pkt_start;
 	set_frame_sub_type(&hdr->frame_ctl, pattrib->subtype);
@@ -2125,6 +2142,7 @@ void SetPacketRx(PADAPTER pAdapter, u8 bStartRx, u8 bAB)
 			pHalData->ReceiveConfig |= RCR_APP_PHYST_RXFF;
 
 #if defined(CONFIG_RTL8822B) || defined(CONFIG_RTL8821C) || defined(CONFIG_RTL8822C)
+/* todo: 8723F */
 			write_bbreg(pAdapter, 0x550, BIT3, bEnable);
 #endif
 			rtw_write16(pAdapter, REG_RXFLTMAP0, 0xFFEF); /* REG_RXFLTMAP0 (RX Filter Map Group 0) */
@@ -2366,7 +2384,9 @@ static u32 rtw_GetPSDData(PADAPTER pAdapter, u32 point)
 {
 	u32 psd_val = 0;
 
-#if defined(CONFIG_RTL8812A) || defined(CONFIG_RTL8821A) || defined(CONFIG_RTL8814A) || defined(CONFIG_RTL8822B) || defined(CONFIG_RTL8821C) || defined(CONFIG_RTL8822C)
+#if defined(CONFIG_RTL8812A) || defined(CONFIG_RTL8821A) || defined(CONFIG_RTL8814A) \
+			|| defined(CONFIG_RTL8822B) || defined(CONFIG_RTL8821C)
+
 	u16 psd_reg = 0x910;
 	u16 psd_regL = 0xF44;
 #else
@@ -2441,12 +2461,12 @@ u32 mp_query_psd(PADAPTER pAdapter, u8 *data)
 	data[0] = '\0';
 	pdata = data;
 
-	if (psd_stop > 1536 || psd_stop < 1) {
+	if (psd_stop > 1792 || psd_stop < 1) {
 		rtw_warn_on(1);
-		psd_stop = 1536;
+		psd_stop = 1792;
 	}
 
-	if (IS_HARDWARE_TYPE_8822C(pAdapter)) {
+	if (IS_HARDWARE_TYPE_8822C(pAdapter) || IS_HARDWARE_TYPE_8723F(pAdapter)) {
 			u32 *psdbuf = rtw_zmalloc(sizeof(u32)*256);
 
 			if (psdbuf == NULL) {

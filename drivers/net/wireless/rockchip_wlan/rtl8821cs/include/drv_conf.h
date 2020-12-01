@@ -42,9 +42,10 @@
 		#define CONFIG_RTW_REPEATER_SON_ID			0x02040608
 	#endif
 	//#define CONFIG_RTW_REPEATER_SON_ROOT
-	#ifndef CONFIG_RTW_REPEATER_SON_ROOT
-		#define CONFIG_LAYER2_ROAMING_ACTIVE
-	#endif
+        #ifndef CONFIG_RTW_REPEATER_SON_ROOT
+		#undef CONFIG_ROAMING_FLAG
+        	#define CONFIG_ROAMING_FLAG	0x7
+        #endif
 	#undef CONFIG_POWER_SAVING
 #endif
 
@@ -93,11 +94,11 @@
 	#endif
 	#endif
 
-    #if (CONFIG_RTW_ANDROID <= 7)
-        #ifdef RTW_SINGLE_WIPHY
-        #undef RTW_SINGLE_WIPHY
-        #endif
-    #endif
+	#if (CONFIG_RTW_ANDROID <= 7)
+		#ifdef RTW_SINGLE_WIPHY
+		#undef RTW_SINGLE_WIPHY
+		#endif
+	#endif
 
 	#if (CONFIG_RTW_ANDROID >= 8)
 		#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,18,0))
@@ -116,8 +117,10 @@
 	#ifndef CONFIG_RTW_CFGVENDOR_LLSTATS
 	#define CONFIG_RTW_CFGVENDOR_LLSTATS
 	#endif
+	#if (CONFIG_RTW_ANDROID < 11)
 	#ifndef CONFIG_RTW_CFGVENDOR_RANDOM_MAC_OUI
 	#define CONFIG_RTW_CFGVENDOR_RANDOM_MAC_OUI
+	#endif
 	#endif
 	#ifndef CONFIG_RTW_CFGVENDOR_RSSIMONITOR
 	#define CONFIG_RTW_CFGVENDOR_RSSIMONITOR
@@ -128,6 +131,15 @@
 	#if (CONFIG_RTW_ANDROID >= 10)
 	#ifndef CONFIG_RTW_CFGVENDOR_WIFI_OFFLOAD
 	//#define CONFIG_RTW_CFGVENDOR_WIFI_OFFLOAD
+	#endif
+	#ifndef CONFIG_RTW_HOSTAPD_ACS
+	#define CONFIG_RTW_HOSTAPD_ACS
+	#endif
+	#ifndef CONFIG_KERNEL_PATCH_EXTERNAL_AUTH
+	#define CONFIG_KERNEL_PATCH_EXTERNAL_AUTH
+	#endif
+	#ifndef CONFIG_RTW_ABORT_SCAN
+	#define CONFIG_RTW_ABORT_SCAN
 	#endif
 	#endif
 	#endif // CONFIG_RTW_WIFI_HAL
@@ -194,9 +206,47 @@
 	#endif
 #endif
 
+#ifndef CONFIG_RTW_DATA_BMC_TO_UC
+#define CONFIG_RTW_DATA_BMC_TO_UC 0
+#endif
+
 #ifdef CONFIG_AP_MODE
 	#define CONFIG_LIMITED_AP_NUM 1
-	#define CONFIG_TX_MCAST2UNI /* AP mode support IP multicast->unicast */
+
+	#ifndef CONFIG_RTW_AP_DATA_BMC_TO_UC
+	#define CONFIG_RTW_AP_DATA_BMC_TO_UC 1
+	#endif
+	#if CONFIG_RTW_AP_DATA_BMC_TO_UC
+	#undef CONFIG_RTW_DATA_BMC_TO_UC
+	#define CONFIG_RTW_DATA_BMC_TO_UC 1
+	#endif
+	#ifndef CONFIG_RTW_AP_SRC_B2U_FLAGS
+	#define CONFIG_RTW_AP_SRC_B2U_FLAGS 0x8 /* see RTW_AP_B2U_XXX */
+	#endif
+	#ifndef CONFIG_RTW_AP_FWD_B2U_FLAGS
+	#define CONFIG_RTW_AP_FWD_B2U_FLAGS 0x8 /* see RTW_AP_B2U_XXX */
+	#endif
+#endif
+
+#ifdef CONFIG_RTW_MULTI_AP
+	#ifndef CONFIG_AP_MODE
+	#error "enable CONFIG_RTW_MULTI_AP without CONFIG_AP_MODE"
+	#endif
+	#ifndef CONFIG_RTW_WDS
+	#define CONFIG_RTW_WDS
+	#endif
+	#ifndef CONFIG_RTW_UNASOC_STA_MODE_OF_STYPE
+	#define CONFIG_RTW_UNASOC_STA_MODE_OF_STYPE {2, 1} /* BMC:2 for all, NMY_UC:1 for interested target */
+	#endif
+	#ifndef CONFIG_RTW_NLRTW
+	#define CONFIG_RTW_NLRTW
+	#endif
+	#ifndef CONFIG_RTW_WNM
+	#define CONFIG_RTW_WNM
+	#endif
+	#ifndef CONFIG_RTW_80211K
+	#define CONFIG_RTW_80211K
+	#endif
 #endif
 
 #ifdef CONFIG_RTW_MESH
@@ -230,6 +280,16 @@
 
 	#ifndef CONFIG_RTW_MESH_DATA_BMC_TO_UC
 	#define CONFIG_RTW_MESH_DATA_BMC_TO_UC 1
+	#endif
+	#if CONFIG_RTW_MESH_DATA_BMC_TO_UC
+	#undef CONFIG_RTW_DATA_BMC_TO_UC
+	#define CONFIG_RTW_DATA_BMC_TO_UC 1
+	#endif
+	#ifndef CONFIG_RTW_MSRC_B2U_FLAGS
+	#define CONFIG_RTW_MSRC_B2U_FLAGS 0x0 /* see RTW_MESH_B2U_XXX */
+	#endif
+	#ifndef CONFIG_RTW_MFWD_B2U_FLAGS
+	#define CONFIG_RTW_MFWD_B2U_FLAGS 0x2 /* see RTW_MESH_B2U_XXX */
 	#endif
 #endif
 
@@ -284,7 +344,7 @@
 #ifndef CONFIG_IEEE80211_BAND_5GHZ
 	#if defined(CONFIG_RTL8821A) || defined(CONFIG_RTL8821C) \
 		|| defined(CONFIG_RTL8812A) || defined(CONFIG_RTL8822B) || defined(CONFIG_RTL8822C) \
-		|| defined(CONFIG_RTL8814A) || defined(CONFIG_RTL8814B)
+		|| defined(CONFIG_RTL8814A) || defined(CONFIG_RTL8814B) || defined(CONFIG_RTL8723F)
 	#define CONFIG_IEEE80211_BAND_5GHZ 1
 	#else
 	#define CONFIG_IEEE80211_BAND_5GHZ 0
@@ -342,6 +402,9 @@
 #endif
 
 #if RTW_DEF_MODULE_REGULATORY_CERT
+	#ifdef CONFIG_REGD_SRC_FROM_OS
+	#error "CONFIG_REGD_SRC_FROM_OS is not supported when enable RTW_DEF_MODULE_REGULATORY_CERT"
+	#endif
 	/* force enable TX power by rate and TX power limit */
 	#undef CONFIG_TXPWR_BY_RATE_EN
 	#undef CONFIG_TXPWR_LIMIT_EN
@@ -354,12 +417,22 @@
 	#define CONFIG_TXPWR_LIMIT 1
 #endif
 
+#ifndef CONFIG_RTW_REGD_SRC
+#define CONFIG_RTW_REGD_SRC 1 /* 0:RTK_PRIV, 1:OS */
+#endif
+
+#define CONFIG_IOCTL_WEXT
+
 #ifdef CONFIG_RTW_IPCAM_APPLICATION
 	#undef CONFIG_TXPWR_BY_RATE_EN
 	#define CONFIG_TXPWR_BY_RATE_EN 1
 	#define CONFIG_RTW_CUSTOMIZE_BEEDCA		0x0000431C
 	#define CONFIG_RTW_CUSTOMIZE_BWMODE		0x00
 	#define CONFIG_RTW_CUSTOMIZE_RLSTA		0x30
+	#define CONFIG_CHECK_SPECIFIC_IE_CONTENT
+	#ifdef CONFIG_CUSTOMER_EZVIZ_CHIME2
+		#undef CONFIG_ACTIVE_KEEP_ALIVE_CHECK
+	#endif
 #if defined(CONFIG_RTL8192E) || defined(CONFIG_RTL8192F) || defined(CONFIG_RTL8822B)
 	#define CONFIG_RTW_TX_NPATH_EN		/*	mutually incompatible with STBC_TX & Beamformer	*/
 #endif
@@ -420,6 +493,10 @@
 	#define CONFIG_RTW_TARGET_TX_PWR_5G_D {-1, -1, -1, -1, -1, -1, -1, -1, -1}
 #endif
 
+#ifndef CONFIG_RTW_ANTENNA_GAIN
+#define CONFIG_RTW_ANTENNA_GAIN 0x7FFF /* == UNSPECIFIED_MBM */
+#endif
+
 #ifndef CONFIG_RTW_AMPLIFIER_TYPE_2G
 	#define CONFIG_RTW_AMPLIFIER_TYPE_2G 0
 #endif
@@ -463,7 +540,8 @@ defined(CONFIG_RTL8188GTV) || defined(CONFIG_RTL8192F) || \
 defined(CONFIG_RTL8812A) || defined(CONFIG_RTL8821A) || defined(CONFIG_RTL8710B) || \
 defined(CONFIG_RTL8723B) || defined(CONFIG_RTL8703B) || defined(CONFIG_RTL8723D)
 #define CONFIG_HWMPCAP_GEN1
-#elif defined(CONFIG_RTL8822B) || defined(CONFIG_RTL8821C) || defined(CONFIG_RTL8822C) /*|| defined(CONFIG_RTL8814A)*/
+#elif defined(CONFIG_RTL8822B) || defined(CONFIG_RTL8821C) || defined(CONFIG_RTL8822C) || \
+defined(CONFIG_RTL8723F) /*|| defined(CONFIG_RTL8814A)*/
 #define CONFIG_HWMPCAP_GEN2
 #elif defined(CONFIG_RTL8814B) /*Address CAM - 128*/
 #define CONFIG_HWMPCAP_GEN3
@@ -493,7 +571,9 @@ defined(CONFIG_RTL8723B) || defined(CONFIG_RTL8703B) || defined(CONFIG_RTL8723D)
 #endif
 
 #if (CONFIG_IFACE_NUMBER > 2)
-	#define CONFIG_MI_WITH_MBSSID_CAM
+	#ifndef CONFIG_HWMPCAP_GEN3
+		#define CONFIG_MI_WITH_MBSSID_CAM
+	#endif
 
 	#ifdef CONFIG_MI_WITH_MBSSID_CAM
 		#define CONFIG_MBSSID_CAM
@@ -522,6 +602,17 @@ defined(CONFIG_RTL8723B) || defined(CONFIG_RTL8703B) || defined(CONFIG_RTL8723D)
 		#endif
 
 		#endif /*CONFIG_HWMPCAP_GEN2*/
+
+		#ifdef CONFIG_HWMPCAP_GEN3
+			#define CONFIG_PORT_BASED_TXBCN
+			#undef CONFIG_SUPPORT_MULTI_BCN
+			#undef CONFIG_SWTIMER_BASED_TXBCN
+			#undef CONFIG_LIMITED_AP_NUM
+			#define CONFIG_LIMITED_AP_NUM	4
+			#ifdef CONFIG_PCI_HCI
+			#define CONFIG_PORT_BASED_HIQ	/* 8814BU doesn't support */
+			#endif
+		#endif
 	#endif /*CONFIG_AP_MODE*/
 
 	#ifdef CONFIG_HWMPCAP_GEN2 /*CONFIG_RTL8822B/CONFIG_RTL8821C/CONFIG_RTL8822C*/
@@ -529,6 +620,15 @@ defined(CONFIG_RTL8723B) || defined(CONFIG_RTL8703B) || defined(CONFIG_RTL8723D)
 	#define CONFIG_NEW_NETDEV_HDL
 	#endif/*CONFIG_HWMPCAP_GEN2*/
 #endif/*(CONFIG_IFACE_NUMBER > 2)*/
+
+#if defined(CONFIG_MI_UNIQUE_MACADDR_BIT)
+	#if !defined(CONFIG_MI_WITH_MBSSID_CAM)
+		#error "CONFIG_MI_UNIQUE_MACADDR_BIT should not be used without multiple interface !!"
+	#endif
+	#if (CONFIG_MI_UNIQUE_MACADDR_BIT < 24) || ( 47 < CONFIG_MI_UNIQUE_MACADDR_BIT)
+		#error "CONFIG_MI_UNIQUE_MACADDR_BIT should be the bit in NIC specific mac address(BIT[24:47] !!"
+	#endif
+#endif
 
 #define MACID_NUM_SW_LIMIT 32
 #define SEC_CAM_ENT_NUM_SW_LIMIT 32
@@ -577,20 +677,8 @@ defined(CONFIG_RTL8723B) || defined(CONFIG_RTL8703B) || defined(CONFIG_RTL8723D)
 #endif /* CONFIG_SDIO_HCI || CONFIG_USB_RX_AGGREGATION */
 
 #ifdef CONFIG_RTW_HOSTAPD_ACS
-	#if defined(CONFIG_RTL8812A) || defined(CONFIG_RTL8821A) || defined(CONFIG_RTL8814A)
-		#ifndef CONFIG_FIND_BEST_CHANNEL
-			#define CONFIG_FIND_BEST_CHANNEL
-		#endif
-	#else
-		#ifdef CONFIG_FIND_BEST_CHANNEL
-			#undef CONFIG_FIND_BEST_CHANNEL
-		#endif
-		#ifndef CONFIG_RTW_ACS
-			#define CONFIG_RTW_ACS
-		#endif
-		#ifndef CONFIG_BACKGROUND_NOISE_MONITOR
-			#define CONFIG_BACKGROUND_NOISE_MONITOR
-		#endif
+	#ifndef CONFIG_RTW_ACS
+		#define CONFIG_RTW_ACS
 	#endif
 #endif
 
@@ -670,11 +758,30 @@ defined(CONFIG_RTL8723B) || defined(CONFIG_RTL8703B) || defined(CONFIG_RTL8723D)
 	#endif
 #endif
 
+#ifdef CONFIG_WAR_OFFLOAD
+#ifndef CONFIG_WOWLAN
+	#error "WAR OFFLOAD is part of WOWLAN"
+#endif
+#endif
+
+#if defined(CONFIG_OFFLOAD_MDNS_V4) || defined(CONFIG_OFFLOAD_MDNS_V6)
+#ifndef CONFIG_WOWLAN
+	#error "mDNS OFFLOAD is part of WOWLAN"
+#endif
+#ifndef CONFIG_WAR_OFFLOAD
+	#define CONFIG_WAR_OFFLOAD
+#endif
+#endif
+
 #define CONFIG_RTW_TPT_MODE 
 
 #ifdef CONFIG_PCI_BCN_POLLING
 #define CONFIG_BCN_ICF
 #endif 
+
+#ifndef CONFIG_RTW_MGMT_QUEUE
+	#define CONFIG_RTW_MGMT_QUEUE
+#endif
 
 #ifndef CONFIG_PCI_MSI
 #define CONFIG_RTW_PCI_MSI_DISABLE

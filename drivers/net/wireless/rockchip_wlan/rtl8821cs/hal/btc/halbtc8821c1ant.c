@@ -26,10 +26,10 @@ const char *const glbt_info_src_8821c_1ant[] = {
 	"BT Info[bt auto report]",
 };
 
-u32 glcoex_ver_date_8821c_1ant = 20200414;
-u32 glcoex_ver_8821c_1ant = 0x4e;
-u32 glcoex_ver_btdesired_8821c_1ant = 0x4a;
-u32 glcoex_ver_wldesired_8821c_1ant = 0x17000e;
+u32 glcoex_ver_date_8821c_1ant = 20200730;
+u32 glcoex_ver_8821c_1ant = 0x51;
+u32 glcoex_ver_btdesired_8821c_1ant = 0x50;
+u32 glcoex_ver_wldesired_8821c_1ant = 0x170011;
 
 #if 0
 static
@@ -247,7 +247,7 @@ halbtc8821c1ant_limited_rx(struct btc_coexist *btc, boolean force_exec,
 			   boolean rej_ap_agg_pkt, boolean bt_ctrl_agg_buf_size,
 			   u8 agg_buf_size)
 {
-#if 0
+#if 1
 	struct coex_sta_8821c_1ant *coex_sta = &btc->coex_sta_8821c_1ant;
 	boolean	reject_rx_agg = rej_ap_agg_pkt;
 	boolean	bt_ctrl_rx_agg_size = bt_ctrl_agg_buf_size;
@@ -277,11 +277,27 @@ static void
 halbtc8821c1ant_ccklock_action(struct btc_coexist *btc)
 {
 	struct coex_sta_8821c_1ant *coex_sta = &btc->coex_sta_8821c_1ant;
+	struct  btc_bt_link_info *bt_link_info = &btc->bt_link_info;
 	u8 h2c_parameter[2] = {0};
 	static u8 cnt;
 	boolean wifi_busy = FALSE;
 
 	btc->btc_get(btc, BTC_GET_BL_WIFI_BUSY, &wifi_busy);
+
+	if (bt_link_info->a2dp_exist && coex_sta->bt_ble_hid_exist) {
+		if (!coex_sta->is_no_wl_5ms_extend) {
+			BTC_SPRINTF(trace_buf, BT_TMP_BUF_SIZE,
+				    "[BTCoex], set h2c 0x69 opcode 12 to turn off 5ms WL slot extend!!\n");
+			BTC_TRACE(trace_buf);
+
+			h2c_parameter[0] = 0xc;
+			h2c_parameter[1] = 0x1;
+			btc->btc_fill_h2c(btc, 0x69, 2, h2c_parameter);
+			coex_sta->is_no_wl_5ms_extend = TRUE;
+			cnt = 0;
+		}
+		return;
+	}
 
 	if (!coex_sta->gl_wifi_busy ||
 	    coex_sta->wl_iot_peer == BTC_IOT_PEER_CISCO) {
@@ -1168,15 +1184,17 @@ void halbtc8821c1ant_update_wifi_link_info(struct btc_coexist *btc, u8 reason)
 		if (coex_sta->hid_exist || coex_sta->hid_pair_cnt > 0 ||
 		    coex_sta->sco_exist) {
 			halbtc8821c1ant_limited_tx(btc, NM_EXCU, TRUE, TRUE);
-			halbtc8821c1ant_limited_rx(btc, NM_EXCU, FALSE, TRUE,
-						   16);
+			if (coex_sta->bt_ble_hid_exist && 
+			    coex_sta->wl_iot_peer != BTC_IOT_PEER_ATHEROS)
+				halbtc8821c1ant_limited_rx(btc, NM_EXCU, FALSE,
+								TRUE, 4);
 		} else {
 			halbtc8821c1ant_limited_tx(btc, NM_EXCU, TRUE, FALSE);
 			halbtc8821c1ant_limited_rx(btc, NM_EXCU, FALSE, TRUE,
 						   64);
 		}
-	}
 
+	}
 	/* coex-276  P2P-Go beacon request can't release issue
 	 * Only PCIe/USB can set 0x454[6] = 1 to solve this issue,
 	 * WL SDIO/USB interface need driver support.
@@ -3170,20 +3188,25 @@ void halbtc8821c1ant_action_bt_acl_busy(struct btc_coexist *btc)
 		/* HID+A2DP */
 
 		/*4-slot will not be applied when AP is CISCO*/
-		if (coex_sta->wl_iot_peer != BTC_IOT_PEER_CISCO)
+		if (coex_sta->wl_iot_peer == BTC_IOT_PEER_CISCO || 
+		    coex_sta->bt_ble_hid_exist)
+			slot_type = 0;
+		else
 			slot_type = TDMA_4SLOT;
 
 		if (coex_sta->connect_ap_period_cnt > 0 || !wifi_busy) {
 			halbtc8821c1ant_table(btc, FC_EXCU, 4);
 			halbtc8821c1ant_tdma(btc, NM_EXCU, TRUE,
 					     26 | slot_type);
-		} else if (coex_sta->bt_418_hid_exist ||
-			   coex_sta->bt_ble_hid_exist) {
+		} else if (coex_sta->bt_418_hid_exist) {
 			halbtc8821c1ant_table(btc, FC_EXCU, 4);
 			halbtc8821c1ant_wltoggle_table(btc, NM_EXCU, 1,
 						       0xaa, 0x5a, 0x5a, 0x5a);
 			halbtc8821c1ant_tdma(btc, NM_EXCU, TRUE,
 					     39 | slot_type);
+		} else if (coex_sta->bt_ble_hid_exist) {
+			halbtc8821c1ant_tdma(btc, NM_EXCU, TRUE,
+					     8 | slot_type);
 		} else {
 			halbtc8821c1ant_table(btc, FC_EXCU, 4);
 			halbtc8821c1ant_tdma(btc, NM_EXCU, TRUE,
@@ -3472,6 +3495,7 @@ void halbtc8821c1ant_run_coex(struct btc_coexist *btc, u8 reason)
 {
 	struct coex_sta_8821c_1ant *coex_sta = &btc->coex_sta_8821c_1ant;
 	struct coex_dm_8821c_1ant *coex_dm = &btc->coex_dm_8821c_1ant;
+	struct btc_bt_link_info *bt_link_info = &btc->bt_link_info;
 	struct wifi_link_info_8821c_1ant *wifi_link_info_ext =
 					 &btc->wifi_link_info_8821c_1ant;
 	boolean	wifi_connected = FALSE, wifi_32k = FALSE;
@@ -3608,13 +3632,16 @@ void halbtc8821c1ant_run_coex(struct btc_coexist *btc, u8 reason)
 	halbtc8821c1ant_set_ant_path(btc, BTC_ANT_PATH_AUTO, NM_EXCU,
 				     BT_8821C_1ANT_PHASE_2G);
 
-	/*For Asus airpods 2 + HID glitch issue*/
-	if (coex_sta->bt_a2dp_vendor_id == 0x4c && coex_sta->is_bt_multi_link)
-		halbtc8821c1ant_write_scbd(btc, BT_8821C_1ANT_SCBD_BTCQDDR,
-					   FALSE);
+	/*For Asus airpods 2 + HID glitch issue (COEX-303)
+	  For HP LE HID + A2DP issue (COEX-291)*/
+	if ((coex_sta->bt_a2dp_vendor_id == 0x4c && coex_sta->is_bt_multi_link)
+	    || (coex_sta->bt_ble_hid_exist && bt_link_info->a2dp_exist))
+	     halbtc8821c1ant_write_scbd(btc, BT_8821C_1ANT_SCBD_BTCQDDR,
+					FALSE);
 	else
-		halbtc8821c1ant_write_scbd(btc, BT_8821C_1ANT_SCBD_BTCQDDR,
-					   TRUE);
+	     halbtc8821c1ant_write_scbd(btc, BT_8821C_1ANT_SCBD_BTCQDDR,
+					TRUE);
+
 
 	if (coex_sta->bt_disabled) {
 		BTC_SPRINTF(trace_buf, BT_TMP_BUF_SIZE,
@@ -5082,12 +5109,6 @@ void ex_halbtc8821c1ant_bt_info_notify(struct btc_coexist *btc, u8 *tmp_buf,
 
 	if (coex_sta->hid_pair_cnt > 0 && coex_sta->hid_busy_num >= 2) {
 		coex_sta->bt_418_hid_exist = TRUE;
-	} else if (coex_sta->hid_busy_num == 1 &&
-		   coex_sta->bt_ctr_ok &&
-		   (coex_sta->high_priority_rx + 100 <
-		   coex_sta->high_priority_tx) &&
-		   coex_sta->high_priority_rx < 100) {
-		coex_sta->bt_ble_hid_exist = TRUE;
 	} else if (coex_sta->hid_pair_cnt == 0 ||
 		   coex_sta->hid_busy_num == 1) {
 		coex_sta->bt_418_hid_exist = FALSE;
@@ -5132,10 +5153,19 @@ void ex_halbtc8821c1ant_bt_info_notify(struct btc_coexist *btc, u8 *tmp_buf,
 	else
 		coex_sta->is_bt_multi_link = FALSE;
 
-	if (coex_sta->bt_info_hb1 & BIT(0))
+	if (coex_sta->bt_info_lb2 & BIT(5)) {
+		if (coex_sta->bt_info_hb1 & BIT(0)) {
+			/*BLE HID*/
+			coex_sta->bt_ble_hid_exist = TRUE;
+			coex_sta->is_hid_rcu = FALSE;
+		}
+	} else if (coex_sta->bt_info_hb1 & BIT(0)) {
+		/*RCU*/
 		coex_sta->is_hid_rcu = TRUE;
-	else
+	} else {
+		coex_sta->bt_ble_hid_exist = FALSE;
 		coex_sta->is_hid_rcu = FALSE;
+	}
 
 	if (coex_sta->bt_info_hb1 & BIT(5))
 		coex_sta->is_ble_scan_en = TRUE;

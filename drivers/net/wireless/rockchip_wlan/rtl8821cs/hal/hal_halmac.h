@@ -117,6 +117,9 @@ int rtw_halmac_write32(struct intf_hdl *, u32 addr, u32 value);
 /* Software Information */
 void rtw_halmac_get_version(char *str, u32 len);
 
+/* Software setting before Initialization */
+int rtw_halmac_preinit_sdio_io_indirect(struct dvobj_priv *d, bool enable);
+
 /* Software Initialization */
 int rtw_halmac_init_adapter(struct dvobj_priv *d, struct halmac_platform_api *pf_api);
 int rtw_halmac_deinit_adapter(struct dvobj_priv *);

@@ -84,8 +84,3 @@ void wpa_hexdump_key(int level, const char *title, const void *buf, size_t len)
 	RTW_INFO_DUMP((u8 *)title, buf, len);
 #endif /* DEBUG_CRYPTO */
 }
-
-u32 crc32(const u8 *frame, size_t frame_len)
-{
-	return rtw_calc_crc32((u8 *)frame, frame_len);
-}

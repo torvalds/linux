@@ -43,9 +43,13 @@ void odm_config_bb_phy_reg_pg_8821c(struct dm_struct *dm, u32 band, u32 rf_path,
 void odm_config_bb_phy_8821c(struct dm_struct *dm, u32 addr, u32 bitmask,
 			     u32 data);
 
+void odm_config_bb_txpwr_lmt_8821c_ex(struct dm_struct *dm, u8 regulation,
+				      u8 band, u8 bandwidth, u8 rate_section,
+				      u8 rf_path, u8 channel, s8 power_limit);	
+
 void odm_config_bb_txpwr_lmt_8821c(struct dm_struct *dm, u8 *regulation,
 				   u8 *band, u8 *bandwidth, u8 *rate_section,
 				   u8 *rf_path, u8 *channel, u8 *power_limit);
 
 #endif
-#endif /* RTL8822B_SUPPORT == 1*/
+#endif /* RTL8821C_SUPPORT == 1*/

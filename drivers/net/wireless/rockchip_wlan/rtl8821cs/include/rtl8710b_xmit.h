@@ -498,6 +498,9 @@ void fill_txdesc_bmc_tx_rate(struct pkt_attrib *pattrib, u8 *ptxdesc);
 	void rtl8710bu_free_xmit_priv(PADAPTER padapter);
 	s32 rtl8710bu_hal_xmit(PADAPTER padapter, struct xmit_frame *pxmitframe);
 	s32 rtl8710bu_mgnt_xmit(PADAPTER padapter, struct xmit_frame *pmgntframe);
+#ifdef CONFIG_RTW_MGMT_QUEUE
+	s32 rtl8710bu_hal_mgmt_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
+#endif
 	s32	 rtl8710bu_hal_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
 	void rtl8710bu_xmit_tasklet(void *priv);
 	s32 rtl8710bu_xmitframe_complete(_adapter *padapter, struct xmit_priv *pxmitpriv, struct xmit_buf *pxmitbuf);

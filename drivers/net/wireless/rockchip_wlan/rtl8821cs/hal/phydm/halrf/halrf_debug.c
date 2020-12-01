@@ -175,6 +175,9 @@ void halrf_debug_trace(void *dm_void, char input[][16], u32 *_used,
 			 "04. (( %s ))TXGAPK\n",
 			 ((rf->rf_dbg_comp & DBG_RF_TXGAPK) ? ("V") : (".")));
 		PDM_SNPF(out_len, used, output + used, out_len - used,
+			 "06. (( %s ))DPK_TRACK\n",
+			 ((rf->rf_dbg_comp & DBG_RF_DPK_TRACK) ? ("V") : (".")));
+		PDM_SNPF(out_len, used, output + used, out_len - used,
 			 "29. (( %s ))MP\n",
 			 ((rf->rf_dbg_comp & DBG_RF_MP) ? ("V") : (".")));
 		PDM_SNPF(out_len, used, output + used, out_len - used,
@@ -374,15 +377,17 @@ void halrf_init_debug_setting(void *dm_void)
 
 	rf->rf_dbg_comp =
 
+	DBG_RF_RFK		|
 #if DBG
 #if 0
-	/*DBG_RF_TX_PWR_TRACK	|*/
+	/*DBG_RF_TX_PWR_TRACK	| */
 	/*DBG_RF_IQK		| */
 	/*DBG_RF_LCK		| */
 	/*DBG_RF_DPK		| */
-	/*DBG_RF_DACK		| */
 	/*DBG_RF_TXGAPK		| */
-	/*DBG_RF_MP			| */
+	/*DBG_RF_DACK		| */
+	/*DBG_RF_DPK_TRACK	| */ 
+	/*DBG_RF_MP		| */
 	/*DBG_RF_TMP		| */
 	/*DBG_RF_INIT		| */
 #endif

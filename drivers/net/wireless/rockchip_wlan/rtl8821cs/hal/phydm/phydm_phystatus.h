@@ -27,8 +27,8 @@
 #ifndef __PHYDM_PHYSTATUS_H__
 #define __PHYDM_PHYSTATUS_H__
 
-/* 2019.06.24 remove the condition of is_packet_beacon for basic dbg msg*/
-#define PHYSTS_VERSION "1.0"
+/* 2020.07.03 fix cck report bug due to 8723F coding error*/
+#define PHYSTS_VERSION "1.2"
 
 /*@--------------------------Define ------------------------------------------*/
 #define CCK_RSSI_INIT_COUNT 5
@@ -649,7 +649,79 @@ __PACK struct phy_sts_rpt_jgr3_type0 {
 	u8 gain_d : 6;
 #endif
 };
+#if(RTL8723F_SUPPORT)
+__PACK struct phy_sts_rpt_jgr3_type6 {
+	/* judy_add_8723F_0512 */
+/* @DW0 : Offset 0 */
+#if (ODM_ENDIAN_TYPE == ODM_ENDIAN_LITTLE)
+	u8 pop_idx : 4;
+	u8 pkt_cnt : 2;
+	u8 channel_msb : 2;
+#else
+	u8 channel_msb : 2;
+	u8 pkt_cnt : 2;
+	u8 pop_idx : 4;
+#endif
 
+#if (ODM_ENDIAN_TYPE == ODM_ENDIAN_LITTLE)
+	u8 agc_table_a : 4;
+	u8 rsvd_0 : 4;
+#else
+	u8 rsvd_0 : 4;
+	u8 agc_table_a : 4;
+#endif
+	u8 rsvd_1 : 8;
+#if (ODM_ENDIAN_TYPE == ODM_ENDIAN_LITTLE)
+	u8 trsw : 1;
+	u8 hw_antsw_occur_keep_cck : 1;
+	u8 gnt_bt_keep_cck : 1;
+	u8 rssi_msb : 3;
+	u8 rsvd_2 : 2;	
+#else
+	u8 rsvd_2 : 2;
+	u8 rssi_msb : 3;
+	u8 gnt_bt_keep_cck : 1;
+	u8 hw_antsw_occur_keep_cck : 1;
+	u8 trsw : 1;
+#endif
+
+/* @DW1 : Offset 4 */
+	u8 channel;
+#if (ODM_ENDIAN_TYPE == ODM_ENDIAN_LITTLE)
+	u8 antidx_a : 4;
+	u8 rsvd_2_1 : 4;
+#else
+	u8 rsvd_2_1 : 4;
+	u8 antidx_a : 4;
+#endif
+	u8 rsvd_2_2;
+	u8 mp_gain_idx_a;
+
+/* @DW2 : Offset 8 */
+	u16 rsvd_3_1;
+	u8 rsvd_4_1;
+	u8 rssi;
+
+/* @DW3 : Offset 12 */
+	u16 rsvd_4_2;
+	u8 rsvd_5_1;
+	u8 avg_cfo;	
+/* @DW4 : Offset 16 */
+	u8 coarse_cfo;
+#if (ODM_ENDIAN_TYPE == ODM_ENDIAN_LITTLE)
+	u8 coarse_cfo_msb : 4;
+	u8 avg_cfo_msb : 4;
+#else
+	u8 avg_cfo_msb : 4;
+	u8 coarse_cfo_msb : 4;
+#endif
+	u8 evm_hdr;
+	u8 evm_pld;
+/* @DW5 : Offset 20 */
+	u32 rsvd_6_1;
+	u32 rsvd_7_1;
+};
+#endif
 __PACK struct phy_sts_rpt_jgr3_type1 {
 /* @DW0 : Offset 0 */
 #if (ODM_ENDIAN_TYPE == ODM_ENDIAN_LITTLE)

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
- * Copyright(c) 2009-2010 - 2017 Realtek Corporation.
+ * Copyright(c) 2019 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -13,23 +13,20 @@
  * more details.
  *
  *****************************************************************************/
+#ifndef _RTL8723FS_HAL_H_
+#define _RTL8723FS_HAL_H_
 
-#ifndef __RTW_WIFI_REGD_H__
-#define __RTW_WIFI_REGD_H__
+#include <drv_types.h>		/* PADAPTER */
 
-struct country_code_to_enum_rd {
-	u16 countrycode;
-	const char *iso_name;
-};
+/* rtl8723fs_ops.c */
+void rtl8723fs_set_hal_ops(PADAPTER);
 
-enum country_code_type_t {
-	COUNTRY_CODE_USER = 0,
+#if defined(CONFIG_WOWLAN) || defined(CONFIG_AP_WOWLAN)
+void rtl8723fs_disable_interrupt_but_cpwm2(PADAPTER adapter);
+#endif
 
-	/*add new channel plan above this line */
-	COUNTRY_CODE_MAX
-};
+/* rtl8723fs_xmit.c */
+s32 rtl8723fs_dequeue_writeport(PADAPTER);
+#define _dequeue_writeport(a)	rtl8723fs_dequeue_writeport(a)
 
-void rtw_regd_apply_flags(struct wiphy *wiphy);
-int rtw_regd_init(struct wiphy *wiphy);
-
-#endif /* __RTW_WIFI_REGD_H__ */
+#endif /* _RTL8723FS_HAL_H_ */

@@ -684,6 +684,7 @@ void sd_int_hdl(PADAPTER adapter)
 		return;
 	}
 
+
 	/*pHalData->sdio_hisr = rtl8821cs_get_interrupt(adapter);*/
 	rtw_read_mem(adapter, REG_SDIO_HISR_8821C, 8, data);
 

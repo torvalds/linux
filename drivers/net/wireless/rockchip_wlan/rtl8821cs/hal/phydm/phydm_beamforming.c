@@ -49,6 +49,9 @@ void phydm_get_txbf_device_num(
 	u8 act_as_bfer = 0;
 	u8 act_as_bfee = 0;
 
+	if (!(dm->support_ability & ODM_BB_ANT_DIV))
+		return;
+
 	if (is_sta_active(sta)) {
 		bf = &(sta->bf_info);
 	} else {
@@ -72,7 +75,7 @@ void phydm_get_txbf_device_num(
 			act_as_bfee = 1;
 	}
 
-	if (act_as_bfer))
+	if (act_as_bfer)
 		{ /* Our Device act as BFer */
 			dm_bdc_table->w_bfee_client[macid] = true;
 			dm_bdc_table->num_txbfee_client++;
@@ -80,7 +83,7 @@ void phydm_get_txbf_device_num(
 	else
 		dm_bdc_table->w_bfee_client[macid] = false;
 
-	if (act_as_bfee))
+	if (act_as_bfee)
 		{ /* Our Device act as BFee */
 			dm_bdc_table->w_bfer_client[macid] = true;
 			dm_bdc_table->num_txbfer_client++;

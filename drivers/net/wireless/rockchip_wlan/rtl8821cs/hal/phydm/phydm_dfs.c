@@ -74,7 +74,7 @@ void phydm_radar_detect_reset(void *dm_void)
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
 
 	if (dm->support_ic_type & (ODM_RTL8198F | ODM_RTL8822C | ODM_RTL8812F |
-				   ODM_RTL8197G)) {
+				   ODM_RTL8197G | ODM_RTL8723F)) {
 		odm_set_bb_reg(dm, R_0xa40, BIT(15), 0);
 		odm_set_bb_reg(dm, R_0xa40, BIT(15), 1);
 	#if (RTL8721D_SUPPORT)
@@ -101,7 +101,7 @@ void phydm_radar_detect_disable(void *dm_void)
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
 
 	if (dm->support_ic_type & (ODM_RTL8198F | ODM_RTL8822C | ODM_RTL8812F |
-				   ODM_RTL8197G))
+				   ODM_RTL8197G | ODM_RTL8723F))
 		odm_set_bb_reg(dm, R_0xa40, BIT(15), 0);
 	else if (dm->support_ic_type & (ODM_RTL8814B)) {
 		if (dm->seg1_dfs_flag == 1) {
@@ -636,7 +636,7 @@ void phydm_dfs_parameter_init(void *dm_void)
 
 	/*@for dynamic dfs*/
 	dfs->pwdb_th = 8;
-	dfs->fa_mask_th = 30 * (dfs->dfs_polling_time / 100);
+	dfs->fa_mask_th = 30 * (dfs->dfs_polling_time) / 100;
 	dfs->st_l2h_min = 0x20;
 	dfs->st_l2h_max = 0x4e;
 	dfs->pwdb_scalar_factor = 12;
@@ -900,7 +900,7 @@ phydm_radar_detect_dm_check(
 		index = 5 + dfs->mask_idx - 2;
 
 	if (dm->support_ic_type & (ODM_RTL8198F | ODM_RTL8822C | ODM_RTL8812F |
-				   ODM_RTL8197G)) {
+				   ODM_RTL8197G| ODM_RTL8723F)) {
 		radar_rpt_reg_value = odm_get_bb_reg(dm, R_0x2e00, 0xffffffff);
 		short_pulse_cnt_cur = (u16)((radar_rpt_reg_value & 0x000ff800)
 					    >> 11);
@@ -1059,7 +1059,7 @@ phydm_radar_detect_dm_check(
 		fa_mask_th = dfs->fa_mask_th;
 	}
 	if (total_fa_in_hist >= fa_mask_th || dfs->igi_cur >= 0x30) {
-		st_l2h_new = dfs->st_l2h_max;
+		/* st_l2h_new = dfs->st_l2h_max; */
 		dfs->radar_det_mask_hist[index] = 1;
 		if (dfs->pulse_flag_hist[index] == 1) {
 			dfs->pulse_flag_hist[index] = 0;
@@ -1951,9 +1951,8 @@ void phydm_dfs_hist_dbg(void *dm_void, char input[][16], u32 *_used,
 		PHYDM_SSCANF(input[1], DCMD_DECIMAL, &argv[0]);
 
 		for (i = 1; i < 5; i++) {
-			if (input[i + 1])
-				PHYDM_SSCANF(input[i + 1], DCMD_DECIMAL,
-					     &argv[i]);
+			PHYDM_SSCANF(input[i + 1], DCMD_DECIMAL,
+				     &argv[i]);
 		}
 		if (argv[0] == 0) {
 			dfs->pri_hist_th = (u8)argv[1];
@@ -2112,10 +2111,8 @@ void phydm_dfs_debug(void *dm_void, char input[][16], u32 *_used,
 	u8 i, input_idx = 0;
 
 	for (i = 0; i < 7; i++) {
-		if (input[i + 1]) {
-			PHYDM_SSCANF(input[i + 1], DCMD_HEX, &argv[i]);
-			input_idx++;
-		}
+		PHYDM_SSCANF(input[i + 1], DCMD_HEX, &argv[i]);
+		input_idx++;
 	}
 
 	if (input_idx == 0)

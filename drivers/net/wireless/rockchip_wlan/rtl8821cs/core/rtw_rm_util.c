@@ -66,6 +66,29 @@ done:
 	return ch_amount;
 }
 
+u8 rm_get_ch_set_from_bcn_req_opt(
+	struct rtw_ieee80211_channel *pch_set, struct bcn_req_opt *opt)
+{
+	int i,j,k,sz;
+	struct _RT_OPERATING_CLASS *ap_ch_rpt;
+	u8 ch_amount = 0;
+
+	k = 0;
+	for (i = 0; i < opt->ap_ch_rpt_num; i++) {
+		if (opt->ap_ch_rpt[i] == NULL)
+			break;
+		ap_ch_rpt = opt->ap_ch_rpt[i];
+		for (j = 0; j < ap_ch_rpt->Len; j++) {
+			pch_set[k].hw_value =
+				ap_ch_rpt->Channel[j];
+			RTW_INFO("RM: meas_ch[%d].hw_value = %u\n",
+				j, pch_set[k].hw_value);
+			k++;
+		}
+	}
+	return k;
+}
+
 u8 rm_get_oper_class_via_ch(u8 ch)
 {
 	int i,j,sz;
@@ -429,6 +452,50 @@ int rm_get_path_a_max_tx_power(_adapter *adapter, s8 *path_a)
 	RTW_INFO("RM: path_a max_pwr=%ddBm\n", max_pwr[0]);
 #endif
 	*path_a = max_pwr[0];
+	return 0;
+}
+
+u8 rm_gen_dialog_token(_adapter *padapter)
+{
+	struct rm_priv *prmpriv = &(padapter->rmpriv);
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
+	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
+
+	do {
+		pmlmeinfo->dialogToken++;
+	} while (pmlmeinfo->dialogToken == 0);
+
+	return pmlmeinfo->dialogToken;
+}
+
+u8 rm_gen_meas_token(_adapter *padapter)
+{
+	struct rm_priv *prmpriv = &(padapter->rmpriv);
+
+	do {
+		prmpriv->meas_token++;
+	} while (prmpriv->meas_token == 0);
+
+	return prmpriv->meas_token;
+}
+
+u32 rm_gen_rmid(_adapter *padapter, struct rm_obj *prm, u8 role)
+{
+	u32 rmid;
+
+	if (prm->psta == NULL)
+		goto err;
+
+	if (prm->q.diag_token == 0)
+		goto err;
+
+	rmid = prm->psta->cmn.aid << 16
+		| prm->q.diag_token << 8
+		| role;
+
+	return rmid;
+err:
+	RTW_ERR("RM: unable to gen rmid\n");
 	return 0;
 }
 

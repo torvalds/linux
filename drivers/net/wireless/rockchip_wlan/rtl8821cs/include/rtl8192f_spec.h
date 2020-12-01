@@ -145,6 +145,7 @@
 #define REG_RQPN_NPQ_8192F			0x0214
 #define REG_DWBCN1_CTRL_8192F			0x0228
 #define REG_RQPN_EXQ1_EXQ2			0x0230
+#define REG_TQPNT3_V1_8192F			0x0234
 
 /* -----------------------------------------------------
  *
@@ -398,7 +399,8 @@
 #define REG_LTR_ACTIVE_LATENCY_V1_8192F	0x079C
 
 /* GPIO Control */
-#define REG_SW_GPIO_SHARE_CTRL_8192F	0x1038
+#define REG_SW_GPIO_SHARE_CTRL_8192F_0	0x1038
+#define REG_SW_GPIO_SHARE_CTRL_8192F_1	0x103c
 #define REG_SW_GPIO_A_OUT_8192F			0x1040
 #define REG_SW_GPIO_A_OEN_8192F			0x1044
 

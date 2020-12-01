@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
- * Copyright(c) 2007 - 2017 Realtek Corporation.
+ * Copyright(c) 2007 - 2019 Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -21,6 +21,7 @@
 #define RTL8821A_SUPPORT				0
 #define RTL8723B_SUPPORT				0
 #define RTL8723D_SUPPORT				0
+#define RTL8723F_SUPPORT				0
 #define RTL8192E_SUPPORT				0
 #define RTL8192F_SUPPORT				0
 #define RTL8814A_SUPPORT				0
@@ -139,6 +140,7 @@
 	#ifndef CONFIG_TXPWR_PG_WITH_PWR_IDX
 	#define CONFIG_TXPWR_PG_WITH_PWR_IDX
 	#endif
+	#define CONFIG_STOP_RESUME_BCN_BY_TXPAUSE /*to fixed no bcn issue*/
 #endif
 
 #ifdef CONFIG_RTL8723B
@@ -243,6 +245,10 @@
 	#ifndef CONFIG_TXPWR_PG_WITH_PWR_IDX
 	#define CONFIG_TXPWR_PG_WITH_PWR_IDX
 	#endif
+
+	#if defined(CONFIG_USB_HCI) && !defined(CONFIG_FW_OFFLOAD_SET_TXPWR_IDX)
+	#define CONFIG_FW_OFFLOAD_SET_TXPWR_IDX
+	#endif
 #endif
 
 #ifdef CONFIG_RTL8822B
@@ -327,7 +333,7 @@
 	#define CONFIG_RTS_FULL_BW
 
 	#ifdef CONFIG_LPS
-		/* #define CONFIG_LPS_ACK */	/* Supported after FW v30 */
+		#define CONFIG_LPS_ACK	/* Supported after FW v30 & v27.9 */
 	#endif
 
 	#ifndef CONFIG_TXPWR_PG_WITH_PWR_IDX
@@ -389,6 +395,7 @@
 
 	#ifdef CONFIG_MCC_MODE
 		#define CONFIG_MCC_MODE_V2
+		#define CONFIG_MCC_PHYDM_OFFLOAD
 	#endif /* CONFIG_MCC_MODE */
 
 	#if defined(CONFIG_TDLS) && defined(CONFIG_TDLS_CH_SW)
@@ -435,6 +442,8 @@
 	#endif
 
 	#define CONFIG_RTL8822C_XCAP_NEW_POLICY
+
+	#define CONFIG_SUPPORT_DYNAMIC_TXPWR
 #endif /* CONFIG_RTL8822C */
 
 #ifdef CONFIG_RTL8821C
@@ -524,7 +533,6 @@
 	#ifdef CONFIG_CONCURRENT_MODE
 		/*#define CONFIG_AP_PORT_SWAP*/
 		#define CONFIG_FW_MULTI_PORT_SUPPORT
-		#define CONFIG_SUPPORT_AP_PORT1
 	#endif /* CONFIG_CONCURRENT_MODE */
 
 	/*
@@ -600,5 +608,104 @@
 	#define CONFIG_TXPWR_PG_WITH_TSSI_OFFSET
 	#endif
 #endif /* CONFIG_RTL8814B */
+#ifdef CONFIG_RTL8723F
+	#undef RTL8723F_SUPPORT
+	#define RTL8723F_SUPPORT				1
 
+	/* Use HALMAC architecture, necessary for 8723F */
+	#define RTW_HALMAC
+
+	/*#define DBG_LA_MODE*/
+
+	#ifndef CONFIG_FW_C2H_PKT
+		#define CONFIG_FW_C2H_PKT
+	#endif /* CONFIG_FW_C2H_PKT */
+
+	#define RTW_TX_PA_BIAS	/* Adjust TX PA Bias from eFuse */
+
+	#ifdef CONFIG_WOWLAN
+		#define CONFIG_WOW_PATTERN_IN_TXFIFO
+	#endif
+
+#if 0 /* todo: 8723F , need to check in the future */
+	#ifdef CONFIG_WOWLAN
+		#define CONFIG_GTK_OL
+		/*#define CONFIG_ARP_KEEP_ALIVE*/
+
+		#ifdef CONFIG_GPIO_WAKEUP
+			#ifndef WAKEUP_GPIO_IDX
+				#define WAKEUP_GPIO_IDX	6	/* WIFI Chip Side */
+			#endif /* !WAKEUP_GPIO_IDX */
+		#endif /* CONFIG_GPIO_WAKEUP */
+	#endif /* CONFIG_WOWLAN */
+#endif
+
+	#ifdef CONFIG_CONCURRENT_MODE
+		#define CONFIG_AP_PORT_SWAP
+		#define CONFIG_FW_MULTI_PORT_SUPPORT
+	#endif /* CONFIG_CONCURRENT_MODE */
+
+	#ifdef CONFIG_NO_FW
+		#ifdef CONFIG_RTW_MAC_HIDDEN_RPT
+			#undef CONFIG_RTW_MAC_HIDDEN_RPT
+		#endif
+	#else
+		#ifndef CONFIG_RTW_MAC_HIDDEN_RPT
+			#define CONFIG_RTW_MAC_HIDDEN_RPT
+		#endif
+	#endif
+
+	#ifndef DBG_RX_DFRAME_RAW_DATA
+		#define DBG_RX_DFRAME_RAW_DATA
+	#endif /* DBG_RX_DFRAME_RAW_DATA */
+
+	/*#define RTW_IQK_FW_OFFLOAD*/
+	#define CONFIG_ADVANCE_OTA
+
+	#ifdef CONFIG_MCC_MODE
+		#define CONFIG_MCC_MODE_V2
+		#define CONFIG_MCC_PHYDM_OFFLOAD
+	#endif /* CONFIG_MCC_MODE */
+
+	#if defined(CONFIG_TDLS) && defined(CONFIG_TDLS_CH_SW)
+		#define CONFIG_TDLS_CH_SW_V2
+	#endif
+
+	#ifndef RTW_CHANNEL_SWITCH_OFFLOAD
+		#ifdef CONFIG_TDLS_CH_SW_V2
+			#define RTW_CHANNEL_SWITCH_OFFLOAD
+		#endif
+	#endif /* RTW_CHANNEL_SWITCH_OFFLOAD */
+
+	#if defined(CONFIG_RTW_MESH) && !defined(RTW_PER_CMD_SUPPORT_FW)
+		/* Supported since fw v22.1 */
+		#define RTW_PER_CMD_SUPPORT_FW
+	#endif /* RTW_PER_CMD_SUPPORT_FW */
+	#define CONFIG_SUPPORT_FIFO_DUMP
+	#define CONFIG_HW_P0_TSF_SYNC
+	#define CONFIG_BCN_RECV_TIME
+
+	/*#define CONFIG_TCP_CSUM_OFFLOAD_TX*/
+	#if defined(CONFIG_TCP_CSUM_OFFLOAD_TX) && !defined(CONFIG_RTW_NETIF_SG)
+		#define CONFIG_RTW_NETIF_SG
+	#endif
+	#define CONFIG_TCP_CSUM_OFFLOAD_RX
+
+	#ifdef CONFIG_P2P_PS
+		#define CONFIG_P2P_PS_NOA_USE_MACID_SLEEP
+	#endif
+
+	#define CONFIG_RTS_FULL_BW
+	
+	#ifdef CONFIG_LPS
+		#define CONFIG_LPS_ACK
+	#endif
+
+	#ifndef CONFIG_TXPWR_PG_WITH_PWR_IDX
+	#define CONFIG_TXPWR_PG_WITH_PWR_IDX
+	#endif
+	#ifndef CONFIG_TXPWR_PG_WITH_TSSI_OFFSET
+	#define CONFIG_TXPWR_PG_WITH_TSSI_OFFSET
+	#endif
+#endif /* CONFIG_RTL8723F */
 #endif /*__HAL_IC_CFG_H__*/

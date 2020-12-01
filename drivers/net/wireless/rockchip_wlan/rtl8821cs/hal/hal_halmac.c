@@ -1284,9 +1284,13 @@ int rtw_halmac_init_adapter(struct dvobj_priv *d, struct halmac_platform_api *pf
 	/* Convert clock speed unit to MHz from Hz */
 	info.clock_speed = RTW_DIV_ROUND_UP(rtw_sdio_get_clock(d), 1000000);
 	info.block_size = rtw_sdio_get_block_size(d);
-	RTW_DBG("%s: SDIO ver=%u clock=%uMHz blk_size=%u bytes\n",
+	if (d->hmpriv.sdio_io_indir == 2)
+		info.io_indir_flag = 0;
+	else
+		info.io_indir_flag = 1; /* Default enable indirect I/O */
+	RTW_DBG("%s: SDIO ver=%u clock=%uMHz blk_size=%u bytes, io_indir=%u\n",
 		__FUNCTION__, info.spec_ver+2, info.clock_speed,
-		info.block_size);
+		info.block_size, info.io_indir_flag);
 	status = api->halmac_sdio_hw_info(halmac, &info);
 	if (status != HALMAC_RET_SUCCESS) {
 		RTW_ERR("%s: halmac_sdio_hw_info fail!(status=%d)\n",
@@ -3105,7 +3109,7 @@ static int _send_general_info(struct dvobj_priv *d)
 	case HALMAC_RET_NO_DLFW:
 		RTW_WARN("%s: halmac_send_general_info() fail because fw not dl!\n",
 			 __FUNCTION__);
-		/* go through */
+		/* fall through */
 	default:
 		return -1;
 	}
@@ -5457,6 +5461,37 @@ int rtw_halmac_pno_scanoffload(struct dvobj_priv *d, u32 enable)
 #endif /* CONFIG_PNO_SUPPORT */
 
 #ifdef CONFIG_SDIO_HCI
+
+/**
+ * rtw_halmac_preinit_sdio_io_indirect() - Enable indirect I/O or not
+ * @d:		struct dvobj_priv*
+ * @enable:	true: enable, false: disable
+ *
+ * Enable register access using direct I/O or indirect. This function should be
+ * called before rtw_halmac_init_adapter(), and the life cycle is the same as
+ * driver until removing driver.
+ *
+ * Return 0 for OK, otherwise fail.
+ */
+int rtw_halmac_preinit_sdio_io_indirect(struct dvobj_priv *d, bool enable)
+{
+	struct halmac_adapter *halmac;
+	struct halmacpriv *priv;
+
+
+	halmac = dvobj_to_halmac(d);
+	if (halmac) {
+		RTW_WARN("%s: illegal operation! "
+			 "preinit function only could be called before init!\n",
+			 __FUNCTION__);
+		return -1;
+	}
+
+	priv = &d->hmpriv;
+	priv->sdio_io_indir = (enable ? 1 : 2);
+
+	return 0;
+}
 
 /*
  * Description:

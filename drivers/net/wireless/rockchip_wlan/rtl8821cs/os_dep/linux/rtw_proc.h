@@ -46,6 +46,12 @@ struct rtw_proc_hdl {
 #define RTW_PROC_HDL_SZSEQ(_name, _show, _write, _size) \
 	{ .name = _name, .type = RTW_PROC_HDL_TYPE_SZSEQ, .u.sz.show = _show, .write = _write, .u.sz.size = _size}
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0))
+#define rtw_proc_ops proc_ops
+#else
+#define rtw_proc_ops file_operations
+#endif
+
 #ifdef CONFIG_PROC_DEBUG
 
 int rtw_drv_proc_init(void);

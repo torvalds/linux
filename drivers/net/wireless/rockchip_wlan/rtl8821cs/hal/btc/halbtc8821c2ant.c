@@ -27,10 +27,10 @@ const char *const glbt_info_src_8821c_2ant[] = {
 	"BT Info[bt auto report]",
 };
 
-u32 glcoex_ver_date_8821c_2ant = 20200414;
-u32 glcoex_ver_8821c_2ant = 0x4e;
-u32 glcoex_ver_btdesired_8821c_2ant = 0x4a;
-u32 glcoex_ver_wldesired_8821c_2ant = 0x17000e;
+u32 glcoex_ver_date_8821c_2ant = 20200730;
+u32 glcoex_ver_8821c_2ant = 0x51;
+u32 glcoex_ver_btdesired_8821c_2ant = 0x50;
+u32 glcoex_ver_wldesired_8821c_2ant = 0x170011;
 
 static
 u8 halbtc8821c2ant_bt_rssi_state(struct btc_coexist *btc,
@@ -3286,8 +3286,10 @@ void halbtc8821c2ant_action_pan(struct btc_coexist *btc)
 static
 void halbtc8821c2ant_action_hid_a2dp(struct btc_coexist *btc)
 {
+	struct coex_sta_8821c_2ant *coex_sta = &btc->coex_sta_8821c_2ant;
 	static u8	prewifi_rssi_state = BTC_RSSI_STATE_LOW;
 	u8 wifi_rssi_state;
+	u32 slot_type = 0;
 
 	wifi_rssi_state =
 		halbtc8821c2ant_wifi_rssi_state(btc, &prewifi_rssi_state, 2,
@@ -3296,12 +3298,16 @@ void halbtc8821c2ant_action_hid_a2dp(struct btc_coexist *btc)
 	halbtc8821c2ant_set_wl_tx_power(btc, NM_EXCU, 0xd8);
 	halbtc8821c2ant_set_bt_tx_power(btc, NM_EXCU, 0);
 
+	/*BLE HID should use 2-slot to avoid HID lag issue (COEX-357)*/
+	if (!coex_sta->bt_ble_hid_exist)
+		slot_type = TDMA_4SLOT;
+
 	halbtc8821c2ant_table(btc, NM_EXCU, 12);
 
 	if (BTC_RSSI_HIGH(wifi_rssi_state))
-		halbtc8821c2ant_tdma(btc, NM_EXCU, TRUE, 119 | TDMA_4SLOT);
+		halbtc8821c2ant_tdma(btc, NM_EXCU, TRUE, 119 | slot_type);
 	else
-		halbtc8821c2ant_tdma(btc, NM_EXCU, TRUE, 109 | TDMA_4SLOT);
+		halbtc8821c2ant_tdma(btc, NM_EXCU, TRUE, 109 | slot_type);
 }
 
 static
@@ -5260,12 +5266,6 @@ void ex_halbtc8821c2ant_bt_info_notify(struct btc_coexist *btc, u8 *tmp_buf,
 
 	if (coex_sta->hid_pair_cnt > 0 && coex_sta->hid_busy_num >= 2) {
 		coex_sta->bt_418_hid_exist = TRUE;
-	} else if (coex_sta->hid_busy_num == 1 &&
-		   coex_sta->bt_ctr_ok &&
-		   (coex_sta->high_priority_rx + 100 <
-		   coex_sta->high_priority_tx) &&
-		   coex_sta->high_priority_rx < 100) {
-		coex_sta->bt_ble_hid_exist = TRUE;
 	} else if (coex_sta->hid_pair_cnt == 0 ||
 		   coex_sta->hid_busy_num == 1) {
 		coex_sta->bt_418_hid_exist = FALSE;
@@ -5310,10 +5310,19 @@ void ex_halbtc8821c2ant_bt_info_notify(struct btc_coexist *btc, u8 *tmp_buf,
 	else
 		coex_sta->is_bt_multi_link = FALSE;
 
-	if (coex_sta->bt_info_hb1 & BIT(0))
+	if (coex_sta->bt_info_lb2 & BIT(5)) {
+		if (coex_sta->bt_info_hb1 & BIT(0)) {
+			/*BLE HID*/
+			coex_sta->bt_ble_hid_exist = TRUE;
+			coex_sta->is_hid_rcu = FALSE;
+		}
+	} else if (coex_sta->bt_info_hb1 & BIT(0)) {
+		/*RCU*/
 		coex_sta->is_hid_rcu = TRUE;
-	else
+	} else {
+		coex_sta->bt_ble_hid_exist = FALSE;
 		coex_sta->is_hid_rcu = FALSE;
+	}
 
 	if (coex_sta->bt_info_hb1 & BIT(5))
 		coex_sta->is_ble_scan_en = TRUE;

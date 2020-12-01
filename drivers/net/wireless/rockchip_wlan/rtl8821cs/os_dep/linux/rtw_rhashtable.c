@@ -14,9 +14,9 @@
  *
  *****************************************************************************/
 
-#ifdef CONFIG_RTW_MESH /* for now, only promised for kernel versions we support mesh */
-
 #include <drv_types.h>
+
+#if defined(CONFIG_RTW_WDS) || defined(CONFIG_RTW_MESH) /* for now, only promised for kernel versions we support mesh */
 
 int rtw_rhashtable_walk_enter(rtw_rhashtable *ht, rtw_rhashtable_iter *iter)
 {
@@ -74,5 +74,5 @@ void kvfree(const void *addr)
 
 #endif /* (LINUX_VERSION_CODE < KERNEL_VERSION(4, 4, 0)) */
 
-#endif /* CONFIG_RTW_MESH */
+#endif /* defined(CONFIG_RTW_WDS) || defined(CONFIG_RTW_MESH) */
 

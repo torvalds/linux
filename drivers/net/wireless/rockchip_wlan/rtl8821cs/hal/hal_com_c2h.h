@@ -138,4 +138,6 @@ void c2h_txpwr_idx_offload_done(_adapter *adapter, u8 *data, u8 len);
 int c2h_txpwr_idx_offload_wait(_adapter *adapter);
 #endif
 
+void rtw_hal_bcn_early_rpt_c2h_handler(_adapter *adapter);
+
 #endif /* __COMMON_C2H_H__ */

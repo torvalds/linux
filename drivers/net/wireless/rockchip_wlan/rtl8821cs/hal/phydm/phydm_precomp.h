@@ -170,7 +170,9 @@
 #ifndef RTL8710C_SUPPORT
 	#define	RTL8710C_SUPPORT	0
 #endif
-
+#ifndef RTL8723F_SUPPORT
+	#define	RTL8723F_SUPPORT	0
+#endif
 #if (DM_ODM_SUPPORT_TYPE & ODM_CE) && \
 	(!defined(DM_ODM_CE_MAC80211) && !defined(DM_ODM_CE_MAC80211_V2))
 
@@ -183,6 +185,10 @@ void phy_set_tx_power_limit(
 	u8 *rf_path,
 	u8 *channel,
 	u8 *power_limit);
+
+void phy_set_tx_power_limit_ex(struct dm_struct *dm, u8 regulation, u8 band,
+			       u8 bandwidth, u8 rate_section, u8 rf_path,
+			       u8 channel, s8 power_limit);
 
 enum hal_status
 rtw_phydm_fw_iqk(
@@ -469,6 +475,7 @@ rtw_phydm_cfg_phy_para(
 	#include "rtl8821c/halhwimg8821c_mac.h"
 	#include "rtl8821c/halhwimg8821c_bb.h"
 	#include "rtl8821c/phydm_regconfig8821c.h"
+	#include "rtl8821c/phydm_rtl8821c.h"
 	#include "halrf/rtl8821c/halrf_8821c.h"
 	#include "halrf/rtl8821c/halhwimg8821c_rf.h"
 	#include "halrf/rtl8821c/version_rtl8821c_rf.h"
@@ -594,6 +601,7 @@ rtw_phydm_cfg_phy_para(
 	#include "halrf/rtl8814b/version_rtl8814b_rf.h"
 	#include "rtl8814b/phydm_hal_api8814b.h"
 	#include "rtl8814b/version_rtl8814b.h"
+	#include "rtl8814b/phydm_extraagc8814b.h"
 	#if (DM_ODM_SUPPORT_TYPE == ODM_CE)
 		#include <hal_data.h>		/* @struct HAL_DATA_TYPE */
 		#include <rtl8814b_hal.h>	/* @RX_SMOOTH_FACTOR, reg definition and etc.*/
@@ -607,6 +615,7 @@ rtw_phydm_cfg_phy_para(
 	#include "halrf/rtl8812f/version_rtl8812f_rf.h"
 	#include "rtl8812f/phydm_hal_api8812f.h"
 	#include "rtl8812f/version_rtl8812f.h"
+	#include "rtl8812f/phydm_rtl8812f.h"
 #endif
 #if (RTL8197G_SUPPORT)
 	#include "rtl8197g/halhwimg8197g_bb.h"
@@ -617,5 +626,27 @@ rtw_phydm_cfg_phy_para(
 	#include "halrf/rtl8197g/version_rtl8197g_rf.h"
 	#include "rtl8197g/phydm_hal_api8197g.h"
 	#include "rtl8197g/version_rtl8197g.h"
+	#include "rtl8197g/phydm_rtl8197g.h"
+#endif
+#if (RTL8723F_SUPPORT)
+	#include "rtl8723f/halhwimg8723f_bb.h"
+	#include "rtl8723f/halhwimg8723f_mac.h"
+	#include "rtl8723f/phydm_regconfig8723f.h"
+	#include "halrf/rtl8723f/halrf_8723f.h"
+	#include "halrf/rtl8723f/halhwimg8723f_rf.h"
+	#include "halrf/rtl8723f/version_rtl8723f_rf.h"
+	#include "halrf/rtl8723f/halrf_iqk_8723f.h"
+	#include "halrf/rtl8723f/halrf_dpk_8723f.h"
+	#include "halrf/rtl8723f/halrf_tssi_8723f.h"
+	#include "halrf/rtl8723f/halrf_rfk_init_8723f.h"
+	#include "rtl8723f/phydm_hal_api8723f.h"
+	#include "rtl8723f/version_rtl8723f.h"
+	#include "rtl8723f/phydm_rtl8723f.h"
+	#if (DM_ODM_SUPPORT_TYPE == ODM_CE)
+	/* @struct HAL_DATA_TYPE */
+	#include <hal_data.h>
+	/* @RX_SMOOTH_FACTOR, reg definition and etc.*/
+	#include <rtl8723f_hal.h>
+	#endif
 #endif
 #endif /* @__ODM_PRECOMP_H__ */

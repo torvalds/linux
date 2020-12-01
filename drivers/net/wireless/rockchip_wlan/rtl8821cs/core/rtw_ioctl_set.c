@@ -142,6 +142,7 @@ u8 rtw_do_join(_adapter *padapter)
 			_set_timer(&pmlmepriv->assoc_timer, MAX_JOIN_TIMEOUT);
 		} else {
 			if (check_fwstate(pmlmepriv, WIFI_ADHOC_STATE) == _TRUE) {
+				#ifdef CONFIG_AP_MODE
 				/* submit createbss_cmd to change to a ADHOC_MASTER */
 
 				/* pmlmepriv->lock has been acquired by caller... */
@@ -165,8 +166,7 @@ u8 rtw_do_join(_adapter *padapter)
 				}
 
 				pmlmepriv->to_join = _FALSE;
-
-
+				#endif /* CONFIG_AP_MODE */
 			} else {
 				/* can't associate ; reset under-linking			 */
 				_clr_fwstate_(pmlmepriv, WIFI_UNDER_LINKING);
@@ -883,8 +883,12 @@ int rtw_set_scan_mode(_adapter *adapter, RT_SCAN_TYPE scan_mode)
 */
 int rtw_set_channel_plan(_adapter *adapter, u8 channel_plan)
 {
-	/* handle by cmd_thread to sync with scan operation */
-	return rtw_set_chplan_cmd(adapter, RTW_CMDF_WAIT_ACK, channel_plan, 1);
+	struct registry_priv *regsty = adapter_to_regsty(adapter);
+
+	if (!REGSTY_REGD_SRC_FROM_OS(regsty))
+		return rtw_set_chplan_cmd(adapter, RTW_CMDF_WAIT_ACK, channel_plan, 1);
+	RTW_WARN("%s(): not applied\n", __func__);
+	return _SUCCESS;
 }
 
 /*
@@ -897,11 +901,13 @@ int rtw_set_channel_plan(_adapter *adapter, u8 channel_plan)
 int rtw_set_country(_adapter *adapter, const char *country_code)
 {
 #ifdef CONFIG_RTW_IOCTL_SET_COUNTRY
-	return rtw_set_country_cmd(adapter, RTW_CMDF_WAIT_ACK, country_code, 1);
-#else
-	RTW_INFO("%s(): not applied\n", __func__);
-	return _SUCCESS;
+	struct registry_priv *regsty = adapter_to_regsty(adapter);
+
+	if (!REGSTY_REGD_SRC_FROM_OS(regsty))
+		return rtw_set_country_cmd(adapter, RTW_CMDF_WAIT_ACK, country_code, 1);
 #endif
+	RTW_WARN("%s(): not applied\n", __func__);
+	return _SUCCESS;
 }
 
 /*

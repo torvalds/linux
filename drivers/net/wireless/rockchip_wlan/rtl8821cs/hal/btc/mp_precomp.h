@@ -125,6 +125,11 @@ struct btc_coexist;
 #include "halbtc8822c.h"
 #endif
 
+#ifdef CONFIG_RTL8723F
+#include "halbtc8723fwifionly.h"
+#include "halbtc8723f.h"
+#endif
+
 #ifdef CONFIG_RTL8192F
 #include "halbtc8192f.h"
 #endif
@@ -149,6 +154,10 @@ struct btc_coexist;
 
 #ifdef CONFIG_RTL8822C
 #include "halbtc8822cwifionly.h"
+#endif
+
+#ifdef CONFIG_RTL8723F
+#include "halbtc8723fwifionly.h"
 #endif
 
 #ifdef CONFIG_RTL8814B

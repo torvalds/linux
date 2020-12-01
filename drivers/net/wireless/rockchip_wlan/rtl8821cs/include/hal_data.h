@@ -250,9 +250,7 @@ struct hal_spec_t {
 
 	u8 wl_func;		/* value of WL_FUNC_XXX */
 
-#if CONFIG_TX_AC_LIFETIME
 	u8 tx_aclt_unit_factor; /* how many 32us */
-#endif
 
 	u8 rx_tsf_filter:1;
 
@@ -411,6 +409,7 @@ typedef struct hal_com_data {
 	u8 max_tx_cnt;
 	u8	tx_nss; /*tx Spatial Streams - GET_HAL_TX_NSS*/
 	u8	rx_nss; /*rx Spatial Streams - GET_HAL_RX_NSS*/
+	u8 txpath_cap_num_nss[4]; /* capable path num for NSS TX, [0] for 1SS, [3] for 4SS */
 
 	u8	PackageType;
 	u8	antenna_test;
@@ -529,7 +528,8 @@ typedef struct hal_com_data {
 
 	bool set_entire_txpwr;
 
-#if defined(CONFIG_RTL8821C) || defined(CONFIG_RTL8822B) || defined(CONFIG_RTL8822C) || defined(CONFIG_RTL8814B)
+#if defined(CONFIG_RTL8821C) || defined(CONFIG_RTL8822B) || defined(CONFIG_RTL8822C) || defined(CONFIG_RTL8814B) \
+    || defined(CONFIG_RTL8723F)
 	u32 txagc_set_buf;
 #endif
 
@@ -673,7 +673,7 @@ typedef struct hal_com_data {
 	/* SDIO Rx FIFO related. */
 	/*  */
 	u8			SdioRxFIFOCnt;
-#ifdef CONFIG_RTL8822C
+#if defined (CONFIG_RTL8822C) || defined (CONFIG_RTL8192F)
 	u32			SdioRxFIFOSize;
 #else
 	u16			SdioRxFIFOSize;

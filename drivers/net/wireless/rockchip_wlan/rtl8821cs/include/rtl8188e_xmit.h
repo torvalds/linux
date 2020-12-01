@@ -246,6 +246,9 @@ void fill_txdesc_force_bmc_camid(struct pkt_attrib *pattrib, struct tx_desc *ptx
 	void rtl8188es_free_xmit_priv(PADAPTER padapter);
 	s32 rtl8188es_hal_xmit(PADAPTER padapter, struct xmit_frame *pxmitframe);
 	s32 rtl8188es_mgnt_xmit(PADAPTER padapter, struct xmit_frame *pmgntframe);
+#ifdef CONFIG_RTW_MGMT_QUEUE
+	s32 rtl8188es_hal_mgmt_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
+#endif
 	s32	rtl8188es_hal_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
 	thread_return rtl8188es_xmit_thread(thread_context context);
 	s32 rtl8188es_xmit_buf_handler(PADAPTER padapter);
@@ -260,6 +263,9 @@ void fill_txdesc_force_bmc_camid(struct pkt_attrib *pattrib, struct tx_desc *ptx
 	void rtl8188eu_free_xmit_priv(PADAPTER padapter);
 	s32 rtl8188eu_hal_xmit(PADAPTER padapter, struct xmit_frame *pxmitframe);
 	s32 rtl8188eu_mgnt_xmit(PADAPTER padapter, struct xmit_frame *pmgntframe);
+#ifdef CONFIG_RTW_MGMT_QUEUE
+	s32 rtl8188eu_hal_mgmt_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
+#endif
 	s32	rtl8188eu_hal_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
 	s32 rtl8188eu_xmit_buf_handler(PADAPTER padapter);
 	void rtl8188eu_xmit_tasklet(void *priv);
@@ -272,6 +278,9 @@ void fill_txdesc_force_bmc_camid(struct pkt_attrib *pattrib, struct tx_desc *ptx
 	void	rtl8188ee_xmitframe_resume(_adapter *padapter);
 	s32 rtl8188ee_hal_xmit(PADAPTER padapter, struct xmit_frame *pxmitframe);
 	s32 rtl8188ee_mgnt_xmit(PADAPTER padapter, struct xmit_frame *pmgntframe);
+#ifdef CONFIG_RTW_MGMT_QUEUE
+	s32 rtl8188ee_hal_mgmt_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
+#endif
 	s32	rtl8188ee_hal_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
 	void rtl8188ee_xmit_tasklet(void *priv);
 #endif

@@ -82,7 +82,7 @@ exit:
 #define SET_PWR_MODE_SET_ADOPT_BCN_RECEIVING_TIME(h2c_pkt, value)              \
 	SET_BITS_TO_LE_4BYTE(h2c_pkt + 0X04, 31, 1, value)
 
-void rtl8821c_set_FwPwrMode_cmd(PADAPTER adapter, u8 psmode)
+void _rtl8821c_set_FwPwrMode_cmd(PADAPTER adapter, u8 psmode, u8 rfon_ctrl)
 {
 	u8 mode = 0, smart_ps = 0;
 	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(adapter);
@@ -103,12 +103,14 @@ void rtl8821c_set_FwPwrMode_cmd(PADAPTER adapter, u8 psmode)
 #endif /* CONFIG_P2P */
 	u8 hw_port = rtw_hal_get_port(adapter);
 
-	if (pwrpriv->dtim > 0)
-		RTW_INFO(FUNC_ADPT_FMT ": dtim=%d, HW port id=%d\n", FUNC_ADPT_ARG(adapter),
-			pwrpriv->dtim, psmode == PS_MODE_ACTIVE ? pwrpriv->current_lps_hw_port_id : hw_port);
-	else
-		RTW_INFO(FUNC_ADPT_FMT ": HW port id=%d\n", FUNC_ADPT_ARG(adapter),
-			psmode == PS_MODE_ACTIVE ? pwrpriv->current_lps_hw_port_id : hw_port);
+	if (pwrpriv->pwr_mode != psmode) {
+		if (pwrpriv->dtim > 0)
+			RTW_INFO(FUNC_ADPT_FMT ": dtim=%d, HW port id=%d\n", FUNC_ADPT_ARG(adapter),
+				pwrpriv->dtim, psmode == PS_MODE_ACTIVE ? pwrpriv->current_lps_hw_port_id : hw_port);
+		else
+			RTW_INFO(FUNC_ADPT_FMT ": HW port id=%d\n", FUNC_ADPT_ARG(adapter),
+				psmode == PS_MODE_ACTIVE ? pwrpriv->current_lps_hw_port_id : hw_port);
+	}
 
 	smart_ps = pwrpriv->smart_ps;
 	switch (psmode) {
@@ -181,21 +183,30 @@ void rtl8821c_set_FwPwrMode_cmd(PADAPTER adapter, u8 psmode)
 			PowerState = rtw_btcoex_RpwmVal(adapter);
 		else
 #endif /* CONFIG_BT_COEXIST */
-			PowerState = 0x00; /* AllON(0x0C), RFON(0x04), RFOFF(0x00) */
+		{
+			if (rfon_ctrl == rf_on)
+				PowerState = 0x04; /* AllON(0x0C), RFON(0x04), RFOFF(0x00) */
+			else
+				PowerState = 0x00; /* AllON(0x0C), RFON(0x04), RFOFF(0x00) */
+		}
 	} else
 		PowerState = 0x0C; /* AllON(0x0C), RFON(0x04), RFOFF(0x00) */
 
-	if (mode == 0)
-		fw_psmode_str = "ACTIVE";
-	else if (mode == 1)
-		fw_psmode_str = "LPS";
-	else if (mode == 2)
-		fw_psmode_str = "WMMPS";
-	else
-		fw_psmode_str = "UNSPECIFIED";
+	if (pwrpriv->pwr_mode != psmode) {
+		if (mode == 0)
+			fw_psmode_str = "ACTIVE";
+		else if (mode == 1)
+			fw_psmode_str = "LPS";
+		else if (mode == 2)
+			fw_psmode_str = "WMMPS";
+		else
+			fw_psmode_str = "UNSPECIFIED";
 
-	RTW_INFO(FUNC_ADPT_FMT": fw ps mode = %s, drv ps mode = %d, rlbm = %d , smart_ps = %d, allQueueUAPSD = %d\n", 
-				FUNC_ADPT_ARG(adapter), fw_psmode_str, psmode, rlbm, smart_ps, allQueueUAPSD);
+		RTW_INFO(FUNC_ADPT_FMT": fw ps mode = %s, drv ps mode = %d, rlbm = %d ,"
+				    "smart_ps = %d, allQueueUAPSD = %d, PowerState = %d\n",
+				    FUNC_ADPT_ARG(adapter), fw_psmode_str, psmode, rlbm, smart_ps, 
+				    allQueueUAPSD, PowerState);
+	}
 
 	SET_PWR_MODE_SET_CMD_ID(h2c, CMD_ID_SET_PWR_MODE);
 	SET_PWR_MODE_SET_CLASS(h2c, CLASS_SET_PWR_MODE);
@@ -237,6 +248,18 @@ void rtl8821c_set_FwPwrMode_cmd(PADAPTER adapter, u8 psmode)
 	rtw_halmac_send_h2c(adapter_to_dvobj(adapter), h2c);
 }
 
+void rtl8821c_set_FwPwrMode_cmd(PADAPTER adapter, u8 psmode)
+{
+	return _rtl8821c_set_FwPwrMode_cmd(adapter, psmode, rf_off);
+}
+
+void rtl8821c_set_FwPwrMode_rfon_ctrl_cmd(PADAPTER adapter, u8 rfon_ctrl)
+{
+	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(adapter);
+
+	return _rtl8821c_set_FwPwrMode_cmd(adapter, pwrpriv->power_mgnt, rfon_ctrl);
+}
+
 void rtl8821c_set_FwPwrModeInIPS_cmd(PADAPTER adapter, u8 cmd_param)
 {
 	u8 h2c[RTW_HALMAC_H2C_MAX_SIZE] = {0};
@@ -252,6 +275,33 @@ void rtl8821c_set_FwPwrModeInIPS_cmd(PADAPTER adapter, u8 cmd_param)
 	RTW_DBG_DUMP("FW_IPS Parm:", h2c, RTW_HALMAC_H2C_MAX_SIZE);
 	rtw_halmac_send_h2c(adapter_to_dvobj(adapter), h2c);
 }
+
+#ifdef CONFIG_WOWLAN
+void rtl8821c_set_fw_pwrmode_inips_cmd_wowlan(PADAPTER padapter, u8 ps_mode)
+{
+	struct registry_priv  *registry_par = &padapter->registrypriv;
+	u8 param[H2C_INACTIVE_PS_LEN] = {0};
+	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
+
+	RTW_INFO("%s, ps_mode: %d\n", __func__, ps_mode);
+	if (ps_mode == PS_MODE_ACTIVE) {
+		SET_H2CCMD_INACTIVE_PS_EN(param, 0);
+	}
+	else {
+		SET_H2CCMD_INACTIVE_PS_EN(param, 1);
+		if(registry_par->suspend_type == FW_IPS_DISABLE_BBRF && !check_fwstate(pmlmepriv, WIFI_ASOC_STATE))
+			SET_H2CCMD_INACTIVE_DISBBRF(param, 1);
+		if(registry_par->suspend_type == FW_IPS_WRC) {
+			SET_H2CCMD_INACTIVE_PERIOD_SCAN_EN(param, 1);
+			SET_H2CCMD_INACTIVE_PS_FREQ(param, 3);
+			SET_H2CCMD_INACTIVE_PS_DURATION(param, 1);
+			SET_H2CCMD_INACTIVE_PS_PERIOD_SCAN_TIME(param, 3);
+		}
+	}
+
+	rtl8821c_fillh2ccmd(padapter, H2C_INACTIVE_PS_, sizeof(param), param);
+}
+#endif /* CONFIG_WOWLAN */
 
 #ifdef CONFIG_BT_COEXIST
 void rtl8821c_download_BTCoex_AP_mode_rsvd_page(PADAPTER adapter)

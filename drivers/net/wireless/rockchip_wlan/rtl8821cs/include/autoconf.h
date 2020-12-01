@@ -83,7 +83,6 @@
 	#define CONFIG_SET_SCAN_DENY_TIMER
 #endif /* CONFIG_IOCTL_CFG80211 */
 
-#define CONFIG_AP_MODE
 #ifdef CONFIG_AP_MODE
 	#define CONFIG_INTERRUPT_BASED_TXBCN /* Tx Beacon when driver receive related interrupt*/
 	#if defined(CONFIG_CONCURRENT_MODE) && defined(CONFIG_INTERRUPT_BASED_TXBCN)
@@ -99,9 +98,6 @@
 	#endif
 	/*#define CONFIG_FIND_BEST_CHANNEL*/
 #endif
-
-
-#define CONFIG_P2P
 
 #ifdef CONFIG_P2P
 	#define CONFIG_WFD	/* Wi-Fi display */
@@ -132,9 +128,6 @@
 
 
 /*#define CONFIG_RTW_80211K*/
-
-#define CONFIG_LAYER2_ROAMING
-#define CONFIG_LAYER2_ROAMING_RESUME
 
 /*
  * Hareware/Firmware Related Config
@@ -299,7 +292,7 @@
 #define CONFIG_HW_ANTENNA_DIVERSITY
 #endif /* CONFIG_ANTENNA_DIVERSITY */
 
-#ifdef RTK_129X_PLATFORM
+#ifdef CONFIG_PLATFORM_RTK129X
 	#ifdef CONFIG_REDUCE_TX_CPU_LOADING
 	#undef CONFIG_REDUCE_TX_CPU_LOADING
 	#endif

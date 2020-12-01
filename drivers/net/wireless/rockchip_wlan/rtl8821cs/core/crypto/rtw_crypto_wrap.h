@@ -62,5 +62,4 @@ void wpa_printf(int level, const char *fmt, ...);
 void wpa_hexdump(int level, const char *title, const void *buf, size_t len);
 void wpa_hexdump_key(int level, const char *title, const void *buf, size_t len);
 
-u32 crc32(const u8 *frame, size_t frame_len);
 #endif /* RTW_CRYTO_WRAP_H */

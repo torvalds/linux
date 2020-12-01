@@ -55,6 +55,7 @@ void rtw_hal_update_iqk_fw_offload_cap(_adapter *adapter);
 void dump_sta_info(void *sel, struct sta_info *psta);
 void dump_sta_traffic(void *sel, _adapter *adapter, struct sta_info *psta);
 
+void rtw_hal_phydm_cal_trigger(_adapter *adapter);
 #ifdef CONFIG_DBG_RF_CAL
 void rtw_hal_iqk_test(_adapter *adapter, bool recovery, bool clear, bool segment);
 void rtw_hal_lck_test(_adapter *adapter);
@@ -95,7 +96,8 @@ enum phy_cnt {
 	CRC32_ERROR_CCK,
 };
 u32 rtw_phydm_get_phy_cnt(_adapter *adapter, enum phy_cnt cnt);
-#if ((RTL8822B_SUPPORT == 1) || (RTL8821C_SUPPORT == 1) || (RTL8814B_SUPPORT == 1) || (RTL8822C_SUPPORT == 1))
+#if ((RTL8822B_SUPPORT == 1) || (RTL8821C_SUPPORT == 1) || (RTL8814B_SUPPORT == 1) || (RTL8822C_SUPPORT == 1) \
+	|| (RTL8723F_SUPPORT == 1))
 void rtw_phydm_iqk_trigger(_adapter *adapter);
 #endif
 void rtw_phydm_read_efuse(_adapter *adapter);
@@ -115,5 +117,6 @@ void rtw_phydm_pwr_tracking_directly(_adapter *adapter);
 #ifdef CONFIG_CTRL_TXSS_BY_TP
 void rtw_phydm_trx_cfg(_adapter *adapter, bool tx_1ss);
 #endif
-int rtw_phydm_rfe_ctrl_gpio(_adapter *adapter, u8 gpio_num);
+u8 rtw_hal_runtime_trx_path_decision(_adapter *adapter);
+bool rtw_phydm_rfe_ctrl_gpio(_adapter *adapter, u8 gpio_num);
 #endif /* __HAL_DM_H__ */

@@ -29,11 +29,16 @@
 
 u8 rm_get_oper_class_via_ch(u8 ch);
 u8 rm_get_ch_set( struct rtw_ieee80211_channel *pch_set, u8 op_class, u8 ch_num);
+u8 rm_get_ch_set_from_bcn_req_opt(
+	struct rtw_ieee80211_channel *pch_set, struct bcn_req_opt *opt);
 u8 rm_get_bcn_rsni(struct rm_obj *prm, struct wlan_network *pnetwork);
 u8 rm_get_bcn_rcpi(struct rm_obj *prm, struct wlan_network *pnetwork);
 u8 rm_get_frame_rsni(struct rm_obj *prm, union recv_frame *pframe);
 u8 translate_percentage_to_rcpi(u32 SignalStrengthIndex);
 u8 translate_dbm_to_rcpi(s8 SignalPower);
+u8 rm_gen_dialog_token(_adapter *padapter);
+u8 rm_gen_meas_token(_adapter *padapter);
+u32 rm_gen_rmid(_adapter *padapter, struct rm_obj *prm, u8 role);
 int is_wildcard_bssid(u8 *bssid);
 
 int rm_get_path_a_max_tx_power(_adapter *adapter, s8 *path_a);

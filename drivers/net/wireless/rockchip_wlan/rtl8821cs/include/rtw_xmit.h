@@ -99,6 +99,8 @@
 	#define MAX_CMDBUF_SZ	(512 * 18)
 #elif defined(CONFIG_RTL8723D) && defined(CONFIG_LPS_POFF)
 	#define MAX_CMDBUF_SZ	(128*70) /*(8960)*/
+#elif defined(CONFIG_RTL8822C) && defined(CONFIG_WAR_OFFLOAD)
+	#define MAX_CMDBUF_SZ	(128*128) /*(16k) */
 #else
 	#define MAX_CMDBUF_SZ	(5120)	/* (4096) */
 #endif
@@ -118,10 +120,16 @@
 #define BK_QUEUE_INX		3
 #define BCN_QUEUE_INX		4
 #define MGT_QUEUE_INX		5
-#define HIGH_QUEUE_INX		6
-#define TXCMD_QUEUE_INX	7
+#define TXCMD_QUEUE_INX		6
+#define HIGH_QUEUE_INX		7
+/* keep high queue to be the last one, so we can extend HIQ to port 1, 2, ... */
 
+#ifndef CONFIG_PORT_BASED_HIQ
 #define HW_QUEUE_ENTRY	8
+#else
+#define HI_QUEUE_INX(n)	(HIGH_QUEUE_INX + (n))
+#define HW_QUEUE_ENTRY	(8 + CONFIG_IFACE_NUMBER - 1)
+#endif
 
 #ifdef CONFIG_PCI_HCI
 	#ifdef CONFIG_TRX_BD_ARCH
@@ -182,7 +190,11 @@
 #define IS_AMSDU_AMPDU_VALID(pattrib)\
 	 !((pattrib->ampdu_en == _TRUE) && (pattrib->amsdu_ampdu_en == _FALSE))
 
-#define HWXMIT_ENTRY	4
+#ifdef CONFIG_RTW_MGMT_QUEUE
+#define HWXMIT_ENTRY 5
+#else
+#define HWXMIT_ENTRY 4
+#endif
 
 /* For Buffer Descriptor ring architecture */
 #if defined(BUF_DESC_ARCH) || defined(CONFIG_TRX_BD_ARCH)
@@ -199,7 +211,8 @@
 	defined(CONFIG_RTL8723B) || defined(CONFIG_RTL8192E) ||\
 	defined(CONFIG_RTL8814A) || defined(CONFIG_RTL8703B) ||\
 	defined(CONFIG_RTL8188F) || defined(CONFIG_RTL8188GTV) || defined(CONFIG_RTL8723D) ||\
-	defined(CONFIG_RTL8710B) || defined(CONFIG_RTL8192F)
+	defined(CONFIG_RTL8710B) || defined(CONFIG_RTL8192F) ||\
+	defined(CONFIG_RTL8723F)
 	#define TXDESC_SIZE 40
 #elif defined(CONFIG_RTL8822B) || defined(CONFIG_RTL8822C)
 	#define TXDESC_SIZE 48		/* HALMAC_TX_DESC_SIZE_8822B */
@@ -256,7 +269,7 @@ enum TXDESC_SC {
 	#endif
 #elif defined(CONFIG_RTL8812A) || defined(CONFIG_RTL8821A) || defined(CONFIG_RTL8723B) \
 	|| defined(CONFIG_RTL8188F) || defined(CONFIG_RTL8188GTV) || defined(CONFIG_RTL8723D) \
-	|| defined(CONFIG_RTL8192F)
+	|| defined(CONFIG_RTL8192F) || defined(CONFIG_RTL8723F)
 	#define TXDESC_40_BYTES
 #endif
 
@@ -321,7 +334,7 @@ union txdesc {
 #endif
 
 #ifdef CONFIG_PCI_HCI
-#define PCI_MAX_TX_QUEUE_COUNT	8	/* == HW_QUEUE_ENTRY */
+#define PCI_MAX_TX_QUEUE_COUNT	HW_QUEUE_ENTRY
 
 struct rtw_tx_ring {
 	unsigned char	qid;
@@ -365,54 +378,6 @@ struct	hw_xmit	{
 	int	accnt;
 };
 
-#if 0
-struct pkt_attrib {
-	u8	type;
-	u8	subtype;
-	u8	bswenc;
-	u8	dhcp_pkt;
-	u16	ether_type;
-	int	pktlen;		/* the original 802.3 pkt raw_data len (not include ether_hdr data) */
-	int	pkt_hdrlen;	/* the original 802.3 pkt header len */
-	int	hdrlen;		/* the WLAN Header Len */
-	int	nr_frags;
-	int	last_txcmdsz;
-	int	encrypt;	/* when 0 indicate no encrypt. when non-zero, indicate the encrypt algorith */
-	u8	iv[8];
-	int	iv_len;
-	u8	icv[8];
-	int	icv_len;
-	int	priority;
-	int	ack_policy;
-	int	mac_id;
-	int	vcs_mode;	/* virtual carrier sense method */
-
-	u8	dst[ETH_ALEN];
-	u8	src[ETH_ALEN];
-	u8	ta[ETH_ALEN];
-	u8	ra[ETH_ALEN];
-
-	u8	key_idx;
-
-	u8	qos_en;
-	u8	ht_en;
-	u8	raid;/* rate adpative id */
-	u8	bwmode;
-	u8	ch_offset;/* PRIME_CHNL_OFFSET */
-	u8	sgi;/* short GI */
-	u8	ampdu_en;/* tx ampdu enable */
-	u8	mdata;/* more data bit */
-	u8	eosp;
-
-	u8	triggered;/* for ap mode handling Power Saving sta */
-
-	u32	qsel;
-	u16	seqnum;
-
-	struct sta_info *psta;
-};
-#else
-/* reduce size */
 struct pkt_attrib {
 	u8	type;
 	u8	subtype;
@@ -440,6 +405,9 @@ struct pkt_attrib {
 	u8	src[ETH_ALEN];
 	u8	ta[ETH_ALEN];
 	u8	ra[ETH_ALEN];
+#ifdef CONFIG_RTW_WDS
+	u8	wds;
+#endif
 #ifdef CONFIG_RTW_MESH
 	u8	mda[ETH_ALEN];	/* mesh da */
 	u8	msa[ETH_ALEN];	/* mesh sa */
@@ -511,7 +479,15 @@ struct pkt_attrib {
 	u8 bf_pkt_type;
 #endif
 
+#ifdef CONFIG_RTW_MGMT_QUEUE
+	u8 ps_dontq; /* 1: this frame can't be queued at PS state */
+#endif
 };
+
+#ifdef CONFIG_RTW_WDS
+#define XATTRIB_GET_WDS(xattrib) ((xattrib)->wds)
+#else
+#define XATTRIB_GET_WDS(xattrib) 0
 #endif
 
 #ifdef CONFIG_RTW_MESH
@@ -650,6 +626,7 @@ struct xmit_frame {
 
 	struct pkt_attrib attrib;
 
+	u16 os_qid;
 	_pkt *pkt;
 
 	int	frame_tag;
@@ -699,6 +676,10 @@ struct sta_xmit_priv {
 	struct tx_servq	bk_q;			/* priority == 1,2 */
 	struct tx_servq	vi_q;			/* priority == 4,5 */
 	struct tx_servq	vo_q;			/* priority == 6,7 */
+#ifdef CONFIG_RTW_MGMT_QUEUE
+	struct tx_servq	mgmt_q;
+#endif
+
 	_list	legacy_dz;
 	_list  apsd;
 
@@ -747,7 +728,7 @@ struct	xmit_priv	{
 	_queue	bk_pending;
 	_queue	vi_pending;
 	_queue	vo_pending;
-	_queue	bm_pending;
+	_queue	mgmt_pending;
 
 	/* _queue	legacy_dz_queue; */
 	/* _queue	apsd_queue; */
@@ -854,6 +835,9 @@ struct	xmit_priv	{
 	_mutex ack_tx_mutex;
 	struct submit_ctx ack_tx_ops;
 	u8 seq_no;
+#ifdef CONFIG_REMOVE_DUP_TX_STATE
+	u8 retry_count;
+#endif
 #endif
 
 #ifdef CONFIG_TX_AMSDU
@@ -944,13 +928,20 @@ extern void rtw_update_protection(_adapter *padapter, u8 *ie, uint ie_len);
 extern s32 rtw_make_wlanhdr(_adapter *padapter, u8 *hdr, struct pkt_attrib *pattrib);
 extern s32 rtw_put_snap(u8 *data, u16 h_proto);
 
-extern struct xmit_frame *rtw_alloc_xmitframe(struct xmit_priv *pxmitpriv);
+extern struct xmit_frame *rtw_alloc_xmitframe(struct xmit_priv *pxmitpriv, u16 os_qid);
 struct xmit_frame *rtw_alloc_xmitframe_ext(struct xmit_priv *pxmitpriv);
 struct xmit_frame *rtw_alloc_xmitframe_once(struct xmit_priv *pxmitpriv);
 extern s32 rtw_free_xmitframe(struct xmit_priv *pxmitpriv, struct xmit_frame *pxmitframe);
 extern void rtw_free_xmitframe_queue(struct xmit_priv *pxmitpriv, _queue *pframequeue);
 struct tx_servq *rtw_get_sta_pending(_adapter *padapter, struct sta_info *psta, sint up, u8 *ac);
 extern s32 rtw_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
+
+#ifdef CONFIG_RTW_MGMT_QUEUE
+void rtw_free_mgmt_xmitframe_queue(struct xmit_priv *pxmitpriv, _queue *mgmt_queue);
+u8 rtw_mgmt_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
+struct xmit_frame *rtw_dequeue_mgmt_xframe(struct xmit_priv *pxmitpriv);
+#endif /* CONFIG_RTW_MGMT_QUEUE */
+
 extern struct xmit_frame *rtw_dequeue_xframe(struct xmit_priv *pxmitpriv, struct hw_xmit *phwxmit_i, sint entry);
 
 extern s32 rtw_xmit_classifier(_adapter *padapter, struct xmit_frame *pxmitframe);
@@ -987,9 +978,12 @@ void rtw_xmit_dequeue_callback(_workitem *work);
 void rtw_xmit_queue_set(struct sta_info *sta);
 void rtw_xmit_queue_clear(struct sta_info *sta);
 s32 rtw_xmit_posthandle(_adapter *padapter, struct xmit_frame *pxmitframe, _pkt *pkt);
-s32 rtw_xmit(_adapter *padapter, _pkt **pkt);
+s32 rtw_xmit(_adapter *padapter, _pkt **pkt, u16 os_qid);
 bool xmitframe_hiq_filter(struct xmit_frame *xmitframe);
 #if defined(CONFIG_AP_MODE) || defined(CONFIG_TDLS)
+#ifdef CONFIG_RTW_MGMT_QUEUE
+u8 mgmt_xmitframe_enqueue_for_sleeping_sta(_adapter *padapter, struct xmit_frame *pxmitframe);
+#endif
 sint xmitframe_enqueue_for_sleeping_sta(_adapter *padapter, struct xmit_frame *pxmitframe);
 void stop_sta_xmit(_adapter *padapter, struct sta_info *psta);
 void wakeup_sta_to_xmit(_adapter *padapter, struct sta_info *psta);
@@ -1001,8 +995,10 @@ u8 rtw_get_tx_bw_mode(_adapter *adapter, struct sta_info *sta);
 void rtw_update_tx_rate_bmp(struct dvobj_priv *dvobj);
 u8 rtw_get_tx_bw_bmp_of_ht_rate(struct dvobj_priv *dvobj, u8 rate, u8 max_bw);
 u8 rtw_get_tx_bw_bmp_of_vht_rate(struct dvobj_priv *dvobj, u8 rate, u8 max_bw);
-s16 rtw_adapter_get_oper_txpwr_max_mbm(_adapter *adapter);
-s16 rtw_get_oper_txpwr_max_mbm(struct dvobj_priv *dvobj);
+s16 rtw_adapter_get_oper_txpwr_max_mbm(_adapter *adapter, bool eirp);
+s16 rtw_rfctl_get_oper_txpwr_max_mbm(struct rf_ctl_t *rfctl, u8 ch, u8 bw, u8 offset, u8 ifbmp_mod, u8 if_op, bool eirp);
+s16 rtw_get_oper_txpwr_max_mbm(struct dvobj_priv *dvobj, bool erip);
+s16 rtw_rfctl_get_reg_max_txpwr_mbm(struct rf_ctl_t *rfctl, u8 ch, u8 bw, u8 offset, bool eirp);
 
 u8 query_ra_short_GI(struct sta_info *psta, u8 bw);
 

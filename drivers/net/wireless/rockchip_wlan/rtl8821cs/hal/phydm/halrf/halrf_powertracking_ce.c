@@ -665,6 +665,23 @@ u8 get_cck_swing_index(void *dm_void)
 	return i;
 }
 
+s8
+get_txagc_default_index(
+	void *dm_void
+)
+{
+	struct dm_struct *dm = (struct dm_struct *)dm_void;
+	s8 tmp;
+
+	if (dm->support_ic_type == ODM_RTL8814B) {
+		tmp = (s8)(odm_get_bb_reg(dm, R_0x18a0, 0x7f) & 0xff);
+		if (tmp & BIT(6))
+			tmp = tmp | 0x80;
+		return tmp;
+	} else
+		return 0;
+}
+
 void odm_txpowertracking_thermal_meter_init(void *dm_void)
 {
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
@@ -718,7 +735,7 @@ void odm_txpowertracking_thermal_meter_init(void *dm_void)
 	if (!cali_info->default_bb_swing_index_flag) {
 		if (dm->support_ic_type &
 			(ODM_RTL8188E | ODM_RTL8723B | ODM_RTL8192E |
-			ODM_RTL8703B)) {
+			ODM_RTL8703B | ODM_RTL8821)) {
 			if (swing_idx >= OFDM_TABLE_SIZE)
 				cali_info->default_ofdm_index = 30;
 			else
@@ -748,6 +765,8 @@ void odm_txpowertracking_thermal_meter_init(void *dm_void)
 				cali_info->default_ofdm_index = 24;
 			else
 				cali_info->default_ofdm_index = swing_idx;
+
+			cali_info->default_txagc_index = get_txagc_default_index(dm);
 
 			cali_info->default_cck_index = 24;
 		}

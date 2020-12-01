@@ -45,12 +45,15 @@ CONFIG_RTL8710B = n
 CONFIG_RTL8192F = n
 CONFIG_RTL8822C = n
 CONFIG_RTL8814B = n
+CONFIG_RTL8723F = n
 ######################### Interface ###########################
 CONFIG_USB_HCI = n
 CONFIG_PCI_HCI = n
 CONFIG_SDIO_HCI = y
 CONFIG_GSPI_HCI = n
 ########################## Features ###########################
+CONFIG_AP_MODE = y
+CONFIG_P2P = y
 CONFIG_MP_INCLUDED = y
 CONFIG_POWER_SAVING = y
 CONFIG_IPS_MODE = default
@@ -87,10 +90,11 @@ CONFIG_ICMP_VOQ = n
 CONFIG_IP_R_MONITOR = n #arp VOQ and high rate
 # user priority mapping rule : tos, dscp
 CONFIG_RTW_UP_MAPPING_RULE = tos
+CONFIG_RTW_MBO = n
 
 ########################## Android ###########################
-# CONFIG_RTW_ANDROID - 0: no Android, 4/5/6/7/8/9/10 : Android version
-CONFIG_RTW_ANDROID = 10
+# CONFIG_RTW_ANDROID - 0: no Android, 4/5/6/7/8/9/10/11 : Android version
+CONFIG_RTW_ANDROID = 11
 
 ifeq ($(shell test $(CONFIG_RTW_ANDROID) -gt 0; echo $$?), 0)
 EXTRA_CFLAGS += -DCONFIG_RTW_ANDROID=$(CONFIG_RTW_ANDROID)
@@ -107,8 +111,8 @@ CONFIG_PROC_DEBUG = y
 
 ######################## Wake On Lan ##########################
 CONFIG_WOWLAN = y
-#bit2: deauth, bit1: unicast, bit0: magic pkt.
-CONFIG_WAKEUP_TYPE = 0x7
+#bit3: ARP enable, bit2: deauth, bit1: unicast, bit0: magic pkt.
+CONFIG_WAKEUP_TYPE = 0xf
 CONFIG_WOW_LPS_MODE = default
 #bit0: disBBRF off, #bit1: Wireless remote controller (WRC)
 CONFIG_SUSPEND_TYPE = 0
@@ -128,6 +132,10 @@ CONFIG_AP_WOWLAN = n
 CONFIG_RTW_SDIO_PM_KEEP_POWER = y
 ###################### MP HW TX MODE FOR VHT #######################
 CONFIG_MP_VHT_HW_TX_MODE = n
+###################### ROAMING #####################################
+CONFIG_LAYER2_ROAMING = y
+#bit0: ROAM_ON_EXPIRED, #bit1: ROAM_ON_RESUME, #bit2: ROAM_ACTIVE
+CONFIG_ROAMING_FLAG = 0x3
 ###################### Platform Related #######################
 CONFIG_PLATFORM_I386_PC = n
 CONFIG_PLATFORM_ANDROID_X86 = n
@@ -181,6 +189,7 @@ CONFIG_PLATFORM_MOZART = n
 CONFIG_PLATFORM_RTK119X = n
 CONFIG_PLATFORM_RTK119X_AM = n
 CONFIG_PLATFORM_RTK129X = n
+CONFIG_PLATFORM_RTK1319 = n
 CONFIG_PLATFORM_RTK390X = n
 CONFIG_PLATFORM_NOVATEK_NT72668 = n
 CONFIG_PLATFORM_HISILICON = n
@@ -228,6 +237,7 @@ _OS_INTFS_FILES :=	os_dep/osdep_service.o \
 			os_dep/linux/wifi_regd.o \
 			os_dep/linux/rtw_android.o \
 			os_dep/linux/rtw_proc.o \
+			os_dep/linux/nlrtw.o \
 			os_dep/linux/rtw_rhashtable.o
 
 ifeq ($(CONFIG_MP_INCLUDED), y)
@@ -727,6 +737,18 @@ endif
 
 endif
 
+########### HAL_RTL8723F #################################
+ifeq ($(CONFIG_RTL8723F), y)
+RTL871X := rtl8723f
+ifeq ($(CONFIG_USB_HCI), y)
+MODULE_NAME = 8723fu
+endif
+ifeq ($(CONFIG_SDIO_HCI), y)
+MODULE_NAME = 8723fs
+endif
+
+endif
+
 ########### HAL_RTL8188F #################################
 ifeq ($(CONFIG_RTL8188F), y)
 
@@ -1013,6 +1035,17 @@ endif
 
 ########### END OF PATH  #################################
 
+ifeq ($(CONFIG_AP_MODE), y)
+EXTRA_CFLAGS += -DCONFIG_AP_MODE
+endif
+
+ifeq ($(CONFIG_P2P), y)
+EXTRA_CFLAGS += -DCONFIG_P2P
+ifneq ($(CONFIG_AP_MODE), y)
+$(error "CONFIG_AP_MODE is required for CONFIG_P2P")
+endif
+endif
+
 ifeq ($(CONFIG_USB_HCI), y)
 ifeq ($(CONFIG_USB_AUTOSUSPEND), y)
 EXTRA_CFLAGS += -DCONFIG_USB_AUTOSUSPEND
@@ -1160,9 +1193,16 @@ endif
 
 ifeq ($(CONFIG_AP_WOWLAN), y)
 EXTRA_CFLAGS += -DCONFIG_AP_WOWLAN
+ifeq ($(CONFIG_AP_MODE), n)
+EXTRA_CFLAGS += -DCONFIG_AP_MODE
+endif
 ifeq ($(CONFIG_SDIO_HCI), y)
 EXTRA_CFLAGS += -DCONFIG_RTW_SDIO_PM_KEEP_POWER
 endif
+endif
+
+ifeq ($(CONFIG_LAYER2_ROAMING), y)
+EXTRA_CFLAGS += -DCONFIG_LAYER2_ROAMING -DCONFIG_ROAMING_FLAG=$(CONFIG_ROAMING_FLAG)
 endif
 
 ifeq ($(CONFIG_PNO_SUPPORT), y)
@@ -1285,6 +1325,11 @@ EXTRA_CFLAGS += -DCONFIG_RTW_UP_MAPPING_RULE=0
 endif
 
 EXTRA_CFLAGS += -DDM_ODM_SUPPORT_TYPE=0x04
+
+ifeq ($(CONFIG_RTW_MBO), y)
+EXTRA_CFLAGS += -DCONFIG_RTW_MBO -DCONFIG_RTW_80211K -DCONFIG_RTW_WNM -DCONFIG_RTW_BTM_ROAM
+EXTRA_CFLAGS += -DCONFIG_RTW_80211R
+endif
 
 ifeq ($(CONFIG_PLATFORM_I386_PC), y)
 EXTRA_CFLAGS += -DCONFIG_LITTLE_ENDIAN
@@ -1660,7 +1705,9 @@ EXTRA_CFLAGS += -DCONFIG_CONCURRENT_MODE
 EXTRA_CFLAGS += -DCONFIG_RESUME_IN_WORKQUEUE
 # default setting for Power control
 #EXTRA_CFLAGS += -DRTW_ENABLE_WIFI_CONTROL_FUNC
+ifeq ($(CONFIG_SDIO_HCI), y)
 EXTRA_CFLAGS += -DRTW_SUPPORT_PLATFORM_SHUTDOWN
+endif
 # default setting for Special function
 ARCH := arm
 CROSS_COMPILE := /home/android_sdk/Rockchip/Rk3188/prebuilts/gcc/linux-x86/arm/arm-eabi-4.6/bin/arm-eabi-
@@ -2038,11 +2085,13 @@ MODULE_NAME := 8192eu
 
 endif
 
+# Actions-Micro use this flag for DHC 1195 and DHC 1395
 ifeq ($(CONFIG_PLATFORM_RTK119X_AM), y)
 EXTRA_CFLAGS += -DCONFIG_PLATFORM_RTK119X_AM
 EXTRA_CFLAGS += -DCONFIG_LITTLE_ENDIAN
-EXTRA_CFLAGS += -DCONFIG_TRAFFIC_PROTECT
-EXTRA_CFLAGS += -DCONFIG_CONCURRENT_MODE -DCONFIG_FULL_CH_IN_P2P_HANDSHAKE
+EXTRA_CFLAGS += -DCONFIG_CONCURRENT_MODE
+EXTRA_CFLAGS += -DCONFIG_FULL_CH_IN_P2P_HANDSHAKE
+EXTRA_CFLAGS += -DCONFIG_SEL_P2P_IFACE=2
 EXTRA_CFLAGS += -DCONFIG_IFACE_NUMBER=3
 EXTRA_CFLAGS += -DCONFIG_IOCTL_CFG80211 -DRTW_USE_CFG80211_STA_EVENT
 
@@ -2060,7 +2109,43 @@ endif
 
 ifeq ($(CONFIG_PLATFORM_RTK129X), y)
 EXTRA_CFLAGS += -DCONFIG_LITTLE_ENDIAN
-EXTRA_CFLAGS += -DRTK_129X_PLATFORM
+EXTRA_CFLAGS += -DCONFIG_PLATFORM_RTK129X
+EXTRA_CFLAGS += -DCONFIG_TRAFFIC_PROTECT
+# default setting for Android 4.1, 4.2
+EXTRA_CFLAGS += -DCONFIG_CONCURRENT_MODE
+EXTRA_CFLAGS += -DCONFIG_IOCTL_CFG80211 -DRTW_USE_CFG80211_STA_EVENT
+#EXTRA_CFLAGS += -DCONFIG_P2P_IPS -DCONFIG_QOS_OPTIMIZATION
+EXTRA_CFLAGS += -DCONFIG_QOS_OPTIMIZATION
+# Enable this for Android 5.0
+EXTRA_CFLAGS += -DCONFIG_RADIO_WORK
+ifeq ($(CONFIG_RTL8821C)$(CONFIG_SDIO_HCI),yy)
+EXTRA_CFLAGS += -DCONFIG_WAKEUP_GPIO_INPUT_MODE
+EXTRA_CFLAGS += -DCONFIG_BT_WAKE_HST_OPEN_DRAIN
+endif
+EXTRA_CFLAGS += -Wno-error=date-time
+# default setting for Android 7.0
+ifeq ($(RTK_ANDROID_VERSION), nougat)
+EXTRA_CFLAGS += -DRTW_P2P_GROUP_INTERFACE=1
+endif
+#EXTRA_CFLAGS += -DCONFIG_#PLATFORM_OPS
+ifeq ($(CONFIG_USB_HCI), y)
+EXTRA_CFLAGS += -DCONFIG_USE_USB_BUFFER_ALLOC_TX
+endif
+
+ARCH := arm64
+
+# ==== Cross compile setting for Android 4.4 SDK =====
+#CROSS_COMPILE := arm-linux-gnueabihf-
+#KVER  := 4.1.10
+#CROSS_COMPILE := $(CROSS)
+#KSRC := $(LINUX_KERNEL_PATH)
+CROSS_COMPILE := /home/android_sdk/DHC/trunk-6.0.0_r1-QA160627/phoenix/toolchain/asdk64-4.9.4-a53-EL-3.10-g2.19-a64nt-160307/bin/asdk64-linux-
+KSRC := /home/android_sdk/DHC/trunk-6.0.0_r1-QA160627/linux-kernel
+endif
+
+ifeq ($(CONFIG_PLATFORM_RTK1319), y)
+EXTRA_CFLAGS += -DCONFIG_PLATFORM_RTK1319
+EXTRA_CFLAGS += -DCONFIG_LITTLE_ENDIAN
 EXTRA_CFLAGS += -DCONFIG_TRAFFIC_PROTECT
 # default setting for Android 4.1, 4.2
 EXTRA_CFLAGS += -DCONFIG_CONCURRENT_MODE
@@ -2214,6 +2299,14 @@ ifeq ($(CONFIG_CUSTOMER_HUAWEI), y)
 EXTRA_CFLAGS += -DCONFIG_HUAWEI_PROC
 endif
 
+CONFIG_PLATFORM_CMAP_INTFS = n
+ifeq ($(CONFIG_PLATFORM_CMAP_INTFS), y)
+PLATFORM_CMAP_INTFS_TYPE = 00
+EXTRA_CFLAGS += -DCONFIG_PLATFORM_CMAP_INTFS -DCMAP_UNASSOC_METRICS_STA_MAX=32
+_OS_INTFS_FILES += os_dep/linux/custom_multiap_intfs/custom_multiap_intfs.o
+_PLATFORM_FILES += platform/custom_multiap_intfs_$(PLATFORM_CMAP_INTFS_TYPE).o
+endif
+
 ifeq ($(CONFIG_MULTIDRV), y)
 
 ifeq ($(CONFIG_SDIO_HCI), y)
@@ -2261,6 +2354,11 @@ ifeq ($(CONFIG_RTL8814B), y)
 include $(src)/rtl8814b.mk
 endif
 
+########### HAL_RTL8723F #################################
+ifeq ($(CONFIG_RTL8723F), y)
+include $(src)/rtl8723f.mk
+endif
+
 rtk_core :=	core/rtw_cmd.o \
 		core/rtw_security.o \
 		core/rtw_debug.o \
@@ -2280,6 +2378,7 @@ rtk_core :=	core/rtw_cmd.o \
 		core/rtw_recv.o \
 		core/rtw_sta_mgt.o \
 		core/rtw_ap.o \
+		core/wds/rtw_wds.o \
 		core/mesh/rtw_mesh.o \
 		core/mesh/rtw_mesh_pathtbl.o \
 		core/mesh/rtw_mesh_hwmp.o \
@@ -2296,8 +2395,12 @@ rtk_core :=	core/rtw_cmd.o \
 		core/rtw_odm.o \
 		core/rtw_rm.o \
 		core/rtw_rm_fsm.o \
+		core/rtw_ft.o \
+		core/rtw_wnm.o \
+		core/rtw_mbo.o \
 		core/rtw_rm_util.o \
-		core/efuse/rtw_efuse.o 
+		core/efuse/rtw_efuse.o \
+		core/rtw_roch.o
 
 ifeq ($(CONFIG_SDIO_HCI), y)
 rtk_core += core/rtw_sdio.o

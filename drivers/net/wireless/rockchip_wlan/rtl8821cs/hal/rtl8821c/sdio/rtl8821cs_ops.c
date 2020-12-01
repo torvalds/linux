@@ -461,6 +461,9 @@ u8 rtl8821cs_set_hal_ops(PADAPTER adapter)
 	ops_func->free_xmit_priv = rtl8821cs_free_xmit_priv;
 	ops_func->hal_xmit = rtl8821cs_hal_xmit;
 	ops_func->mgnt_xmit = rtl8821cs_mgnt_xmit;
+#ifdef CONFIG_RTW_MGMT_QUEUE
+	ops_func->hal_mgmt_xmitframe_enqueue = rtl8821cs_hal_mgmt_xmit_enqueue;
+#endif
 	ops_func->hal_xmitframe_enqueue = rtl8821cs_hal_xmit_enqueue;
 #ifdef CONFIG_XMIT_THREAD_MODE
 	ops_func->xmit_thread_handler = rtl8821cs_xmit_buf_handler;

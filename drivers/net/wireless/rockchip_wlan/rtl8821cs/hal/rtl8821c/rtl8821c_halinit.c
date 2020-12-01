@@ -55,9 +55,7 @@ void init_hal_spec_rtl8821c(PADAPTER adapter)
 			    | WL_FUNC_TDLS
 			    ;
 
-#if CONFIG_TX_AC_LIFETIME
 	hal_spec->tx_aclt_unit_factor = 8;
-#endif
 
 	hal_spec->rx_tsf_filter = 1;
 
@@ -330,9 +328,6 @@ void rtl8821c_init_default_value(PADAPTER adapter)
 
 	/* init default value */
 	hal->fw_ractrl = _FALSE;
-
-	if (!adapter_to_pwrctl(adapter)->bkeepfwalive)
-		hal->LastHMEBoxNum = 0;
 
 	/* init phydm default value */
 	hal->bIQKInitialized = _FALSE;

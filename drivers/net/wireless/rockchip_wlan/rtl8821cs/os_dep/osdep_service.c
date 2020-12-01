@@ -1629,6 +1629,231 @@ inline bool _rtw_time_after(systime a, systime b)
 #endif
 }
 
+sysptime rtw_sptime_get(void)
+{
+	/* CLOCK_MONOTONIC */
+#ifdef PLATFORM_LINUX
+	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0))
+	struct timespec64 cur;
+
+	ktime_get_ts64(&cur);
+	return timespec64_to_ktime(cur);
+	#else
+	struct timespec cur;
+
+	ktime_get_ts(&cur);
+	return timespec_to_ktime(cur);
+	#endif
+#else
+	#error "TBD\n"
+#endif
+}
+
+sysptime rtw_sptime_set(s64 secs, const u32 nsecs)
+{
+#ifdef PLATFORM_LINUX
+	return ktime_set(secs, nsecs);
+#else
+	#error "TBD\n"
+#endif
+}
+
+sysptime rtw_sptime_zero(void)
+{
+#ifdef PLATFORM_LINUX
+	return ktime_set(0, 0);
+#else
+	#error "TBD\n"
+#endif
+}
+
+/*
+ *   cmp1  < cmp2: return <0
+ *   cmp1 == cmp2: return 0
+ *   cmp1  > cmp2: return >0
+ */
+int rtw_sptime_cmp(const sysptime cmp1, const sysptime cmp2)
+{
+#ifdef PLATFORM_LINUX
+	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
+	return ktime_compare(cmp1, cmp2);
+	#else
+	if (cmp1.tv64 < cmp2.tv64)
+		return -1;
+	if (cmp1.tv64 > cmp2.tv64)
+		return 1;
+	return 0;
+	#endif
+#else
+	#error "TBD\n"
+#endif
+}
+
+bool rtw_sptime_eql(const sysptime cmp1, const sysptime cmp2)
+{
+#ifdef PLATFORM_LINUX
+	return rtw_sptime_cmp(cmp1, cmp2) == 0;
+#else
+	#error "TBD\n"
+#endif
+}
+
+bool rtw_sptime_is_zero(const sysptime sptime)
+{
+#ifdef PLATFORM_LINUX
+	return rtw_sptime_cmp(sptime, rtw_sptime_zero()) == 0;
+#else
+	#error "TBD\n"
+#endif
+}
+
+/*
+ * sub = lhs - rhs, in normalized form
+ */
+sysptime rtw_sptime_sub(const sysptime lhs, const sysptime rhs)
+{
+#ifdef PLATFORM_LINUX
+	return ktime_sub(lhs, rhs);
+#else
+	#error "TBD\n"
+#endif
+}
+
+/*
+ * add = lhs + rhs, in normalized form
+ */
+sysptime rtw_sptime_add(const sysptime lhs, const sysptime rhs)
+{
+#ifdef PLATFORM_LINUX
+	return ktime_add(lhs, rhs);
+#else
+	#error "TBD\n"
+#endif
+}
+
+s64 rtw_sptime_to_ms(const sysptime sptime)
+{
+#ifdef PLATFORM_LINUX
+	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35))
+	return ktime_to_ms(sptime);
+	#else
+	struct timeval tv = ktime_to_timeval(sptime);
+
+	return (s64) tv.tv_sec * MSEC_PER_SEC + tv.tv_usec / USEC_PER_MSEC;
+	#endif
+#else
+	#error "TBD\n"
+#endif
+}
+
+sysptime rtw_ms_to_sptime(u64 ms)
+{
+#ifdef PLATFORM_LINUX
+	return ns_to_ktime(ms * NSEC_PER_MSEC);
+#else
+	#error "TBD\n"
+#endif
+}
+
+s64 rtw_sptime_to_us(const sysptime sptime)
+{
+#ifdef PLATFORM_LINUX
+	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 22))
+	return ktime_to_us(sptime);
+	#else
+	struct timeval tv = ktime_to_timeval(sptime);
+
+	return (s64) tv.tv_sec * USEC_PER_SEC + tv.tv_usec;
+	#endif
+#else
+	#error "TBD\n"
+#endif
+}
+
+sysptime rtw_us_to_sptime(u64 us)
+{
+#ifdef PLATFORM_LINUX
+	return ns_to_ktime(us * NSEC_PER_USEC);
+#else
+	#error "TBD\n"
+#endif
+}
+
+s64 rtw_sptime_to_ns(const sysptime sptime)
+{
+#ifdef PLATFORM_LINUX
+	return ktime_to_ns(sptime);
+#else
+	#error "TBD\n"
+#endif
+}
+
+sysptime rtw_ns_to_sptime(u64 ns)
+{
+#ifdef PLATFORM_LINUX
+	return ns_to_ktime(ns);
+#else
+	#error "TBD\n"
+#endif
+}
+
+s64 rtw_sptime_diff_ms(const sysptime start, const sysptime end)
+{
+	sysptime diff;
+
+	diff = rtw_sptime_sub(end, start);
+
+	return rtw_sptime_to_ms(diff);
+}
+
+s64 rtw_sptime_pass_ms(const sysptime start)
+{
+	sysptime cur, diff;
+
+	cur = rtw_sptime_get();
+	diff = rtw_sptime_sub(cur, start);
+
+	return rtw_sptime_to_ms(diff);
+}
+
+s64 rtw_sptime_diff_us(const sysptime start, const sysptime end)
+{
+	sysptime diff;
+
+	diff = rtw_sptime_sub(end, start);
+
+	return rtw_sptime_to_us(diff);
+}
+
+s64 rtw_sptime_pass_us(const sysptime start)
+{
+	sysptime cur, diff;
+
+	cur = rtw_sptime_get();
+	diff = rtw_sptime_sub(cur, start);
+
+	return rtw_sptime_to_us(diff);
+}
+
+s64 rtw_sptime_diff_ns(const sysptime start, const sysptime end)
+{
+	sysptime diff;
+
+	diff = rtw_sptime_sub(end, start);
+
+	return rtw_sptime_to_ns(diff);
+}
+
+s64 rtw_sptime_pass_ns(const sysptime start)
+{
+	sysptime cur, diff;
+
+	cur = rtw_sptime_get();
+	diff = rtw_sptime_sub(cur, start);
+
+	return rtw_sptime_to_ns(diff);
+}
+
 void rtw_sleep_schedulable(int ms)
 {
 
@@ -1821,6 +2046,46 @@ void rtw_yield_os(void)
 #ifdef PLATFORM_WINDOWS
 	SwitchToThread();
 #endif
+}
+
+const char *_rtw_pwait_type_str[] = {
+	[RTW_PWAIT_TYPE_MSLEEP] = "MS",
+	[RTW_PWAIT_TYPE_USLEEP] = "US",
+	[RTW_PWAIT_TYPE_YIELD] = "Y",
+	[RTW_PWAIT_TYPE_MDELAY] = "MD",
+	[RTW_PWAIT_TYPE_UDELAY] = "UD",
+	[RTW_PWAIT_TYPE_NUM] = "unknown",
+};
+
+static void rtw_pwctx_yield(int us)
+{
+	rtw_yield_os();
+}
+
+static void (*const rtw_pwait_hdl[])(int)= {
+	[RTW_PWAIT_TYPE_MSLEEP] = rtw_msleep_os,
+	[RTW_PWAIT_TYPE_USLEEP] = rtw_usleep_os,
+	[RTW_PWAIT_TYPE_YIELD] = rtw_pwctx_yield,
+	[RTW_PWAIT_TYPE_MDELAY] = rtw_mdelay_os,
+	[RTW_PWAIT_TYPE_UDELAY] = rtw_udelay_os,
+};
+
+int rtw_pwctx_config(struct rtw_pwait_ctx *pwctx, enum rtw_pwait_type type, s32 time, s32 cnt_lmt)
+{
+	int ret = _FAIL;
+
+	if (!RTW_PWAIT_TYPE_VALID(type))
+		goto exit;
+
+	pwctx->conf.type = type;
+	pwctx->conf.wait_time = time;
+	pwctx->conf.wait_cnt_lmt = cnt_lmt;
+	pwctx->wait_hdl = rtw_pwait_hdl[type];
+
+	ret = _SUCCESS;
+
+exit:
+	return ret;
 }
 
 bool rtw_macaddr_is_larger(const u8 *a, const u8 *b)
@@ -2519,65 +2784,6 @@ RETURN:
 	return;
 }
 
-int rtw_change_ifname(_adapter *padapter, const char *ifname)
-{
-	struct dvobj_priv *dvobj;
-	struct net_device *pnetdev;
-	struct net_device *cur_pnetdev;
-	struct rereg_nd_name_data *rereg_priv;
-	int ret;
-	u8 rtnl_lock_needed;
-
-	if (!padapter)
-		goto error;
-
-	dvobj = adapter_to_dvobj(padapter);
-	cur_pnetdev = padapter->pnetdev;
-	rereg_priv = &padapter->rereg_nd_name_priv;
-
-	/* free the old_pnetdev */
-	if (rereg_priv->old_pnetdev) {
-		free_netdev(rereg_priv->old_pnetdev);
-		rereg_priv->old_pnetdev = NULL;
-	}
-
-	rtnl_lock_needed = rtw_rtnl_lock_needed(dvobj);
-
-	if (rtnl_lock_needed)
-		unregister_netdev(cur_pnetdev);
-	else
-		unregister_netdevice(cur_pnetdev);
-
-	rereg_priv->old_pnetdev = cur_pnetdev;
-
-	pnetdev = rtw_init_netdev(padapter);
-	if (!pnetdev)  {
-		ret = -1;
-		goto error;
-	}
-
-	SET_NETDEV_DEV(pnetdev, dvobj_to_dev(adapter_to_dvobj(padapter)));
-
-	rtw_init_netdev_name(pnetdev, ifname);
-
-	_rtw_memcpy(pnetdev->dev_addr, adapter_mac_addr(padapter), ETH_ALEN);
-
-	if (rtnl_lock_needed)
-		ret = register_netdev(pnetdev);
-	else
-		ret = register_netdevice(pnetdev);
-
-	if (ret != 0) {
-		goto error;
-	}
-
-	return 0;
-
-error:
-
-	return -1;
-
-}
 #endif
 
 #ifdef PLATFORM_FREEBSD
@@ -2932,6 +3138,7 @@ exit:
 	return val;
 }
 
+#ifdef CONFIG_RTW_MESH
 int rtw_blacklist_add(_queue *blist, const u8 *addr, u32 timeout_ms)
 {
 	struct blacklist_ent *ent;
@@ -3089,6 +3296,7 @@ void dump_blacklist(void *sel, _queue *blist, const char *title)
 	}
 	exit_critical_bh(&blist->lock);
 }
+#endif
 
 /**
 * is_null -
@@ -3216,6 +3424,33 @@ int hexstr2bin(const char *hex, u8 *buf, size_t len)
 		*opos++ = a;
 		ipos += 2;
 	}
+	return 0;
+}
+
+/**
+ * hwaddr_aton - Convert ASCII string to MAC address
+ * @txt: MAC address as a string (e.g., "00:11:22:33:44:55")
+ * @addr: Buffer for the MAC address (ETH_ALEN = 6 bytes)
+ * Returns: 0 on success, -1 on failure (e.g., string not a MAC address)
+ */
+int hwaddr_aton_i(const char *txt, u8 *addr)
+{
+	int i;
+
+	for (i = 0; i < 6; i++) {
+		int a, b;
+
+		a = hex2num_i(*txt++);
+		if (a < 0)
+			return -1;
+		b = hex2num_i(*txt++);
+		if (b < 0)
+			return -1;
+		*addr++ = (a << 4) | b;
+		if (i < 5 && *txt++ != ':')
+			return -1;
+	}
+
 	return 0;
 }
 

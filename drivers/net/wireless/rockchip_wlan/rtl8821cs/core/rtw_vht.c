@@ -33,6 +33,7 @@ const u8 _vht_sup_ch_width_set_to_bw_cap[] = {
 	0,
 };
 
+#ifdef CONFIG_RTW_DEBUG
 const char *const _vht_sup_ch_width_set_str[] = {
 	"80MHz",
 	"160MHz",
@@ -105,40 +106,47 @@ void dump_vht_op_ie(void *sel, const u8 *ie, u32 ie_len)
 
 	dump_vht_op_ie_content(sel, vht_op_ie + 2, vht_op_ielen);
 }
+#endif
 
 /*				20/40/80,	ShortGI,	MCS Rate  */
-const u16 VHT_MCS_DATA_RATE[3][2][30] = {
+const u16 VHT_MCS_DATA_RATE[3][2][40] = {	/* unit: 0.5M */
 	{	{
 			13, 26, 39, 52, 78, 104, 117, 130, 156, 156,
 			26, 52, 78, 104, 156, 208, 234, 260, 312, 312,
-			39, 78, 117, 156, 234, 312, 351, 390, 468, 520
+			39, 78, 117, 156, 234, 312, 351, 390, 468, 520,
+			52, 104, 156, 208, 312, 416, 468, 520, 624, 624,
 		},			/* Long GI, 20MHz */
 		{
 			14, 29, 43, 58, 87, 116, 130, 144, 173, 173,
 			29, 58, 87, 116, 173, 231, 260, 289, 347, 347,
-			43,	87, 130, 173, 260, 347, 390,	433,	520, 578
+			43, 87, 130, 173, 260, 347, 390, 433, 520, 578,
+			58, 116, 173, 231, 347, 462, 520, 578, 693, 693,
 		}
 	},		/* Short GI, 20MHz */
 	{	{
 			27, 54, 81, 108, 162, 216, 243, 270, 324, 360,
 			54, 108, 162, 216, 324, 432, 486, 540, 648, 720,
-			81, 162, 243, 324, 486, 648, 729, 810, 972, 1080
+			81, 162, 243, 324, 486, 648, 729, 810, 972, 1080,
+			108, 216, 324, 432, 648, 864, 972, 1080, 1296, 1440,
 		}, 		/* Long GI, 40MHz */
 		{
 			30, 60, 90, 120, 180, 240, 270, 300, 360, 400,
 			60, 120, 180, 240, 360, 480, 540, 600, 720, 800,
-			90, 180, 270, 360, 540, 720, 810, 900, 1080, 1200
+			90, 180, 270, 360, 540, 720, 810, 900, 1080, 1200,
+			120, 240, 360, 480, 720, 960, 1080, 1200, 1440, 1600,
 		}
 	},		/* Short GI, 40MHz */
 	{	{
-			59, 117,  176, 234, 351, 468, 527, 585, 702, 780,
+			59, 117, 176, 234, 351, 468, 527, 585, 702, 780,
 			117, 234, 351, 468, 702, 936, 1053, 1170, 1404, 1560,
-			176, 351, 527, 702, 1053, 1404, 1580, 1755, 2106, 2340
+			176, 351, 527, 702, 1053, 1404, 1580, 1755, 2106, 2340,
+			234, 468, 702, 936, 1404, 1872, 2106, 2340, 2808, 3120,
 		},	/* Long GI, 80MHz */
 		{
 			65, 130, 195, 260, 390, 520, 585, 650, 780, 867,
 			130, 260, 390, 520, 780, 1040, 1170, 1300, 1560, 1734,
-			195, 390, 585, 780, 1170, 1560, 1755, 1950, 2340, 2600
+			195, 390, 585, 780, 1170, 1560, 1755, 1950, 2340, 2600,
+			260, 520, 780, 1040, 1560, 2080, 2340, 2600, 3120, 3467,
 		}
 	}	/* Short GI, 80MHz */
 };
@@ -210,8 +218,8 @@ void rtw_vht_nss_to_mcsmap(u8 nss, u8 *target_mcs_map, u8 *cur_mcs_map)
 
 u16	rtw_vht_mcs_to_data_rate(u8 bw, u8 short_GI, u8 vht_mcs_rate)
 {
-	if (vht_mcs_rate > MGN_VHT3SS_MCS9)
-		vht_mcs_rate = MGN_VHT3SS_MCS9;
+	if (vht_mcs_rate > MGN_VHT4SS_MCS9)
+		vht_mcs_rate = MGN_VHT4SS_MCS9;
 	/* RTW_INFO("bw=%d, short_GI=%d, ((vht_mcs_rate - MGN_VHT1SS_MCS0)&0x3f)=%d\n", bw, short_GI, ((vht_mcs_rate - MGN_VHT1SS_MCS0)&0x3f)); */
 	return VHT_MCS_DATA_RATE[bw][short_GI][((vht_mcs_rate - MGN_VHT1SS_MCS0) & 0x3f)];
 }
@@ -265,10 +273,13 @@ void	rtw_vht_use_default_setting(_adapter *padapter)
 	CLEAR_FLAGS(pvhtpriv->beamform_cap);
 #ifdef CONFIG_BEAMFORMING
 #ifdef RTW_BEAMFORMING_VERSION_2
+#ifdef CONFIG_CONCURRENT_MODE
 	/* only enable beamforming in STA client mode */
-	if (MLME_IS_STA(padapter) && !MLME_IS_GC(padapter)
-				  && !MLME_IS_ADHOC(padapter)
-				  && !MLME_IS_MESH(padapter))
+	if (MLME_IS_STA(padapter) && !MLME_IS_GC(padapter))
+#else
+	if ((MLME_IS_AP(padapter) && !MLME_IS_GO(padapter)) ||
+	    (MLME_IS_STA(padapter) && !MLME_IS_GC(padapter)))
+#endif
 #endif
 	{
 		rtw_hal_get_def_var(padapter, HAL_DEF_EXPLICIT_BEAMFORMER,
@@ -337,13 +348,13 @@ u64	rtw_vht_mcs_map_to_bitmap(u8 *mcs_map, u8 nss)
 
 		switch (tmp) {
 		case 2:
-			bitmap = bitmap | (0x03ff << j);
+			bitmap = bitmap | ((u64)0x03ff << j);
 			break;
 		case 1:
-			bitmap = bitmap | (0x01ff << j);
+			bitmap = bitmap | ((u64)0x01ff << j);
 			break;
 		case 0:
-			bitmap = bitmap | (0x00ff << j);
+			bitmap = bitmap | ((u64)0x00ff << j);
 			break;
 		default:
 			break;
@@ -990,9 +1001,9 @@ u32 rtw_restructure_vht_ie(_adapter *padapter, u8 *in_ie, u8 *out_ie, uint in_le
 			oper_bw = rtw_min(oper_bw, max_bw);
 
 			/* try downgrage bw to fit in channel plan setting */
-			while (!rtw_chset_is_chbw_valid(chset, oper_ch, oper_bw, oper_offset)
+			while (!rtw_chset_is_chbw_valid(chset, oper_ch, oper_bw, oper_offset, 1, 1)
 				|| (IS_DFS_SLAVE_WITH_RD(rfctl)
-					&& !rtw_odm_dfs_domain_unknown(rfctl_to_dvobj(rfctl))
+					&& !rtw_rfctl_dfs_domain_unknown(rfctl)
 					&& rtw_chset_is_chbw_non_ocp(chset, oper_ch, oper_bw, oper_offset))
 			) {
 				oper_bw--;
@@ -1004,8 +1015,8 @@ u32 rtw_restructure_vht_ie(_adapter *padapter, u8 *in_ie, u8 *out_ie, uint in_le
 		}
 	}
 
-	rtw_warn_on(!rtw_chset_is_chbw_valid(chset, oper_ch, oper_bw, oper_offset));
-	if (IS_DFS_SLAVE_WITH_RD(rfctl) && !rtw_odm_dfs_domain_unknown(rfctl_to_dvobj(rfctl)))
+	rtw_warn_on(!rtw_chset_is_chbw_valid(chset, oper_ch, oper_bw, oper_offset, 1, 1));
+	if (IS_DFS_SLAVE_WITH_RD(rfctl) && !rtw_rfctl_dfs_domain_unknown(rfctl))
 		rtw_warn_on(rtw_chset_is_chbw_non_ocp(chset, oper_ch, oper_bw, oper_offset));
 
 	/* update VHT_OP_IE */
@@ -1058,6 +1069,7 @@ void VHTOnAssocRsp(_adapter *padapter)
 	rtw_hal_set_hwreg(padapter, HW_VAR_AMPDU_MAX_TIME, (u8 *)(&pvhtpriv->vht_highest_rate));
 }
 
+#ifdef CONFIG_AP_MODE
 void rtw_vht_ies_attach(_adapter *padapter, WLAN_BSSID_EX *pnetwork)
 {
 	struct mlme_priv *pmlmepriv = &(padapter->mlmepriv);
@@ -1126,4 +1138,5 @@ void rtw_check_for_vht20(_adapter *adapter, u8 *ies, int ies_len)
 		}
 	}
 }
+#endif /* CONFIG_AP_MODE */
 #endif /* CONFIG_80211AC_VHT */

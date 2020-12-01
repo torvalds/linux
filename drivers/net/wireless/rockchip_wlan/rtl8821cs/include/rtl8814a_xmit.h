@@ -273,6 +273,9 @@ void fill_txdesc_bmc_tx_rate(struct pkt_attrib *pattrib, u8 *ptxdesc);
 	void rtl8814au_free_xmit_priv(PADAPTER padapter);
 	s32 rtl8814au_hal_xmit(PADAPTER padapter, struct xmit_frame *pxmitframe);
 	s32 rtl8814au_mgnt_xmit(PADAPTER padapter, struct xmit_frame *pmgntframe);
+#ifdef CONFIG_RTW_MGMT_QUEUE
+	s32 rtl8814au_hal_mgmt_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
+#endif
 	s32	 rtl8814au_hal_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
 	s32 rtl8814au_xmit_buf_handler(PADAPTER padapter);
 	void rtl8814au_xmit_tasklet(void *priv);
@@ -286,6 +289,9 @@ void fill_txdesc_bmc_tx_rate(struct pkt_attrib *pattrib, u8 *ptxdesc);
 	void rtl8814ae_xmitframe_resume(_adapter *padapter);
 	s32 rtl8814ae_hal_xmit(PADAPTER padapter, struct xmit_frame *pxmitframe);
 	s32 rtl8814ae_mgnt_xmit(PADAPTER padapter, struct xmit_frame *pmgntframe);
+#ifdef CONFIG_RTW_MGMT_QUEUE
+	s32 rtl8814ae_hal_mgmt_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
+#endif
 	s32	rtl8814ae_hal_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
 	void rtl8814ae_xmit_tasklet(void *priv);
 #ifdef CONFIG_XMIT_THREAD_MODE

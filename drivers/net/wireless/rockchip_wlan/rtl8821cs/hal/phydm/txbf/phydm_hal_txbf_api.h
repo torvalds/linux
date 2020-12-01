@@ -45,8 +45,7 @@ u8 beamforming_get_vht_ndp_tx_rate(void *dm_void, u8 bfer_str_num);
 #endif
 
 #if (RTL8822B_SUPPORT == 1 || RTL8822C_SUPPORT == 1 || RTL8192F_SUPPORT == 1 ||\
-	RTL8814B_SUPPORT == 1 || RTL8198F_SUPPORT == 1)
-
+	RTL8814B_SUPPORT == 1 || RTL8198F_SUPPORT == 1 || RTL8812F_SUPPORT == 1)
 u8 phydm_get_beamforming_sounding_info(void *dm_void, u16 *throughput,
 				       u8 total_bfee_num, u8 *tx_rate);
 u8 phydm_get_ndpa_rate(void *dm_void);

@@ -364,6 +364,14 @@ void phydm_init_hw_info_by_rfe_type_8821c(struct dm_struct *dm)
 	else
 		dm->default_ant_num_8821c = SWITCH_TO_ANT1;
 
+	if (dm->package_type == 1 && dm->rfe_type_expand <= 0x2f &&
+	    dm->rfe_type_expand >= 0x28)
+		odm_set_bb_reg(dm, R_0xcb4, MASKDWORD, 0x00000073);
+	else if (dm->rfe_type_expand == 4)
+		odm_set_bb_reg(dm, R_0xcb4, MASKDWORD, 0x20000077);
+	else
+		odm_set_bb_reg(dm, R_0xcb4, MASKDWORD, 0x10000077);
+
 	dm->is_init_hw_info_by_rfe = true;
 	PHYDM_DBG(dm, ODM_PHY_CONFIG, "%s: RFE type (%d), rf set (%s)\n",
 		  __FUNCTION__, dm->rfe_type_expand,

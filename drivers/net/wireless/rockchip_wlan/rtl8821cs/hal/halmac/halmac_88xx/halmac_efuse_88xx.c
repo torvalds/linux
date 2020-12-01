@@ -34,6 +34,8 @@
 #define SUPER_USB_RE_PG_CK_ZONE0_START	0x15D
 #define SUPER_USB_RE_PG_CK_ZONE0_END	0x164
 
+static u8 bt_switch = 0;
+
 static enum halmac_cmd_construct_state
 efuse_cmd_cnstr_state_88xx(struct halmac_adapter *adapter);
 
@@ -259,12 +261,22 @@ dump_efuse_map_bt_88xx(struct halmac_adapter *adapter,
 		PLTFM_MSG_ERR("[ERR]switch efuse bank!!\n");
 		return status;
 	}
+	bt_switch = 1;
 
 	status = read_hw_efuse_88xx(adapter, 0, size, map);
 	if (status != HALMAC_RET_SUCCESS) {
+		bt_switch = 0;
 		PLTFM_MSG_ERR("[ERR]read hw efuse\n");
 		return status;
 	}
+
+	status = switch_efuse_bank_88xx(adapter, HALMAC_EFUSE_BANK_WIFI);
+	if (status != HALMAC_RET_SUCCESS) {
+		bt_switch = 0;
+		PLTFM_MSG_ERR("[ERR]switch efuse bank!!\n");
+		return status;
+	}
+	bt_switch = 0;
 
 	if (cnv_efuse_state_88xx(adapter, HALMAC_CMD_CNSTR_IDLE) !=
 	    HALMAC_RET_SUCCESS)
@@ -321,12 +333,22 @@ write_efuse_bt_88xx(struct halmac_adapter *adapter, u32 offset, u8 value,
 		PLTFM_MSG_ERR("[ERR]switch efuse bank!!\n");
 		return status;
 	}
+	bt_switch = 1;
 
 	status = write_hw_efuse_88xx(adapter, offset, value);
 	if (status != HALMAC_RET_SUCCESS) {
+		bt_switch = 0;
 		PLTFM_MSG_ERR("[ERR]write efuse\n");
 		return status;
 	}
+
+	status = switch_efuse_bank_88xx(adapter, HALMAC_EFUSE_BANK_WIFI);
+	if (status != HALMAC_RET_SUCCESS) {
+		bt_switch = 0;
+		PLTFM_MSG_ERR("[ERR]switch efuse bank!!\n");
+		return status;
+	}
+	bt_switch = 0;
 
 	if (cnv_efuse_state_88xx(adapter, HALMAC_CMD_CNSTR_IDLE) !=
 	    HALMAC_RET_SUCCESS)
@@ -383,12 +405,22 @@ read_efuse_bt_88xx(struct halmac_adapter *adapter, u32 offset, u8 *value,
 		PLTFM_MSG_ERR("[ERR]switch efuse bank\n");
 		return status;
 	}
+	bt_switch = 1;
 
 	status = read_efuse_88xx(adapter, offset, 1, value);
 	if (status != HALMAC_RET_SUCCESS) {
+		bt_switch = 0;
 		PLTFM_MSG_ERR("[ERR]read efuse\n");
 		return status;
 	}
+
+	status = switch_efuse_bank_88xx(adapter, HALMAC_EFUSE_BANK_WIFI);
+	if (status != HALMAC_RET_SUCCESS) {
+		bt_switch = 0;
+		PLTFM_MSG_ERR("[ERR]switch efuse bank!!\n");
+		return status;
+	}
+	bt_switch = 0;
 
 	if (cnv_efuse_state_88xx(adapter, HALMAC_CMD_CNSTR_IDLE) !=
 	    HALMAC_RET_SUCCESS)
@@ -967,9 +999,11 @@ switch_efuse_bank_88xx(struct halmac_adapter *adapter,
 	u8 reg_value;
 	struct halmac_api *api = (struct halmac_api *)adapter->halmac_api;
 
-	if (cnv_efuse_state_88xx(adapter, HALMAC_CMD_CNSTR_BUSY) !=
-	    HALMAC_RET_SUCCESS)
-		return HALMAC_RET_ERROR_STATE;
+	if (!bt_switch) {
+		if (cnv_efuse_state_88xx(adapter, HALMAC_CMD_CNSTR_BUSY) !=
+		    HALMAC_RET_SUCCESS)
+			return HALMAC_RET_ERROR_STATE;
+	}
 
 	reg_value = HALMAC_REG_R8(REG_LDO_EFUSE_CTRL + 1);
 

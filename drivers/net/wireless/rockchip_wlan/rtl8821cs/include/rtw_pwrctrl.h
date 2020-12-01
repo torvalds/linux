@@ -39,6 +39,7 @@
 #ifdef CONFIG_BT_COEXIST
 #define BTCOEX_ALIVE	BIT(4)
 #endif /* CONFIG_BT_COEXIST */
+#define LPS_ALIVE	BIT(5)
 
 #ifdef CONFIG_WOWLAN
 	#ifdef CONFIG_PLATFORM_ANDROID_INTEL_X86
@@ -57,6 +58,7 @@
 
 #define MAX_WKFM_SIZE	16 /* (16 bytes for WKFM bit mask, 16*8 = 128 bits) */
 #define MAX_WKFM_PATTERN_SIZE	128
+#define MAX_IN_PATTERN_SIZE		512
 
 /*
  * MAX_WKFM_PATTERN_STR_LEN : the max. length of wow pattern string
@@ -234,6 +236,38 @@ typedef enum _PS_DENY_REASON {
 	PS_DENY_OTHERS = 31
 } PS_DENY_REASON;
 
+#ifdef CONFIG_WAR_OFFLOAD
+/* only support mDNS V4/V6 rsp now */
+enum {
+	WAR_ARP_RSP_EN = 0x0000001,
+	WAR_ICMPV6_NS_RSP_EN = 0x00000002,
+	WAR_ICMPV4_ECHO_RSP_EN = 0x00000004,
+	WAR_ICMPV6_ECHO_RSP_EN = 0x00000008,
+	WAR_NETBIOS_RSP_EN = 0x00000010,
+	WAR_LLMNR_V4_RSP_EN = 0x00000020,
+	WAR_LLMNR_V6_RSP_EN = 0x00000040,
+	WAR_SNMP_V4_RSP_EN = 0x00000080,
+	WAR_SNMP_V6_RSP_EN = 0x00000100,
+	WAR_SNMP_V4_WAKEUP_EN = 0x00000200,
+	WAR_SNMP_V6_WAKEUP_EN = 0x00000400,
+	WAR_SSDP_V4_WAKEUP_EN = 0x00000800,
+	WAR_SSDP_V6_WAKEUP_EN = 0x00001000,
+	WAR_WSD_V4_WAKEUP_EN = 0x00002000,
+	WAR_WSD_V6_WAKEUP_EN = 0x00004000,
+	WAR_SLP_V4_WAKEUP_EN = 0x00008000,
+	WAR_SLP_V6_WAKEUP_EN = 0x00010000,
+	WAR_MDNS_V4_RSP_EN = 0x00020000,
+	WAR_MDNS_V6_RSP_EN = 0x00040000,
+	WAR_DESIGNATED_MAC_EN = 0x00080000,
+	WAR_LLTD_WAKEUP_EN = 0x00100000,
+	WAR_ARP_WAKEUP_EN = 0x00200000,
+	WAR_MAGIC_WAKEUP_EN = 0x00400000,
+	WAR_MDNS_V4_WAKEUP_EN = 0x000800000,
+	WAR_MDNS_V6_WAKEUP_EN = 0x001000000
+};
+
+#endif /* CONFIG_WAR_OFFLOAD */
+
 #ifdef CONFIG_PNO_SUPPORT
 typedef struct pno_nlo_info {
 	u32 fast_scan_period;				/* Fast scan period */
@@ -308,6 +342,72 @@ struct aoac_report {
 	u8 rxptk_iv[8];
 	u8 rxgtk_iv[4][8];
 };
+
+#ifdef CONFIG_WAR_OFFLOAD
+
+struct war_ipv4_fmt {
+	u32 ip_addr[4];
+	u32 ip_subnet[4];
+	u32 ip_gateway[4];
+};
+
+struct war_ipv6_fmt {
+	u8 ipv6_addr[8][16];
+};
+
+#if defined(CONFIG_OFFLOAD_MDNS_V4) || defined(CONFIG_OFFLOAD_MDNS_V6)
+/* limitation of mDNS parameter : length and number */
+#define MAX_MDNS_SERVICE_NAME_LEN 15 
+#define MAX_MDNS_TRANS_LEN 4 /* _tcp or _udp */
+#define MAX_MDNS_DOMAIN_LEN 5 /* local only for mdns */
+#define MAX_MDNS_MACHINE_NAME_LEN (63+1) /* +1 for the length byte used by the DNS format */
+#define MAX_MDNS_TARGET_LEN 63
+#define MAX_MDNS_DOMAIN_NAME_LEN 63
+#define MAX_MDNS_TXT_LEN 1536
+#define MAX_MDNS_TXT_SINGLE_LEN 255
+
+
+#define MAX_MDNS_SERVICE_NUM 10
+#define MAX_MDNS_TXT_NUM 8
+#define MAX_MDNS_MACHINE_NAME_NUM 3
+
+/* for monitor rsvd page using */
+#define MAX_MDNS_PARA_SIZE 1700 // 14*128 = 1792
+#define MAX_MDNS_TXT_TOTAL_SIZE 10*MAX_MDNS_TXT_LEN
+#define MAX_MDNS_RSP_PKT_SIZE 760   //  6*128 = 768
+
+#define RTW_MDNS_SRV_INFO(sname, sname_len, tname, tname_len, dname, dname_len, port0, port1, ttlv, tar, tar_len, idx) \
+	{ .service=sname, .service_len=sname_len, .transport=tname, .transport_len=tname_len, \
+	  .domain=dname , .domain_len=dname_len , .port[0]=port0, .port[1]=port1, .ttl=ttlv, \
+	  .target=tar, .target_len=tar_len, .txt_rsp_idx=idx }
+
+
+struct war_mdns_service_info {
+	u8  service[MAX_MDNS_SERVICE_NAME_LEN+1];
+	u8  service_len;
+	u8  transport[MAX_MDNS_TRANS_LEN+1];
+	u8  transport_len;
+	u8  domain[MAX_MDNS_DOMAIN_LEN+1];
+	u8  domain_len;
+	u8  port[2];
+	u32 ttl;
+	u8  target[MAX_MDNS_TARGET_LEN+1];
+	u8  target_len;
+	s8  txt_rsp_idx;
+};
+
+struct war_mdns_machine_name {
+	u8  name[MAX_MDNS_MACHINE_NAME_LEN];
+	u8  name_len;
+};
+
+struct war_mdns_txt_rsp {
+	u8  txt[MAX_MDNS_TXT_LEN];
+	u16  txt_len;
+};
+#endif
+#endif /* CONFIG_WAR_OFFLOAD */
+
 
 struct rsvd_page_cache_t;
 
@@ -400,6 +500,8 @@ struct pwrctrl_priv {
 
 #ifdef CONFIG_GPIO_WAKEUP
 	u8		is_high_active;
+	u8		wowlan_gpio_index;
+	u8		wowlan_gpio_output_state;
 #endif /* CONFIG_GPIO_WAKEUP */
 	u8		hst2dev_high_active;
 #ifdef CONFIG_WOWLAN
@@ -427,6 +529,45 @@ struct pwrctrl_priv {
 	#ifdef CONFIG_LPS_1T1R
 	u8		wowlan_lps_1t1r;
 	#endif
+
+	#ifdef CONFIG_WOW_KEEP_ALIVE_PATTERN
+	/*data 0,rsv page location*/
+	u8		wowlan_keep_alive_mode;
+	u8		keep_alive_pattern_loc;
+	/*data 1 ,cam id, rx udp packet*/
+	u8		wowlan_keep_alive_ack_index;
+	/*data 2 ,cam id, pattern match packet*/
+	u8		wowlan_wake_pattern_index;
+	/*data3,unit: TBTT*/
+	u16		wowlan_keep_alive_period;
+	/*data4,unit: TBTT*/
+	u8		wowlan_keep_alive_retry_interval;
+	/*data5*/
+	u8		wowlan_keep_alive_retry_counter;
+	/*from echo*/
+	u8		keep_alive_pattern[WLAN_MAX_KEEP_ALIVE_IE_LEN];
+	u32		keep_alive_pattern_len;
+	#endif /*CONFIG_WOW_KEEP_ALIVE_PATTERN*/
+
+#ifdef CONFIG_WAR_OFFLOAD
+	u8		wowlan_war_offload_mode;
+	u32 	wowlan_war_offload_ctrl;
+	struct war_ipv4_fmt wowlan_war_offload_ipv4;
+	struct war_ipv6_fmt wowlan_war_offload_ipv6;
+	u8		wowlan_war_offload_mac[6];
+#if defined(CONFIG_OFFLOAD_MDNS_V4) || defined(CONFIG_OFFLOAD_MDNS_V6)
+	struct war_mdns_machine_name wowlan_war_offload_mdns_mnane[MAX_MDNS_MACHINE_NAME_NUM];
+	struct war_mdns_service_info wowlan_war_offload_mdns_service[MAX_MDNS_SERVICE_NUM];
+	struct war_mdns_txt_rsp 	 wowlan_war_offload_mdns_txt_rsp[MAX_MDNS_TXT_NUM];
+	u8	   wowlan_war_offload_mdns_mnane_num;
+	u8	   wowlan_war_offload_mdns_service_info_num;
+	u8	   wowlan_war_offload_mdns_txt_rsp_num;
+	u8	   wowlan_war_offload_mdns_domain_name[MAX_MDNS_DOMAIN_NAME_LEN+1];
+	u8	   wowlan_war_offload_mdns_domain_name_len;
+	u32    wowlan_war_offload_mdns_para_cur_size;
+	u32    wowlan_war_offload_mdns_rsp_cur_size;
+#endif /* CONFIG_OFFLOAD_MDNS_V4 || CONFIG_OFFLOAD_MDNS_V6 */    
+#endif /* CONFIG_WAR_OFFLOAD */	
 #endif /* CONFIG_WOWLAN */
 	_timer	pwr_state_check_timer;
 	int		pwr_state_check_interval;
@@ -551,7 +692,8 @@ int rtw_fw_ps_state(PADAPTER padapter);
 extern const char * const LPS_CTRL_PHYDM;
 void LPS_Enter(PADAPTER padapter, const char *msg);
 void LPS_Leave(PADAPTER padapter, const char *msg);
-void rtw_leave_lps_and_chk(_adapter *padapter, u8 ps_mode);
+void rtw_exec_lps(_adapter *padapter, u8 ps_mode);
+void rtw_lps_rfon_ctrl(_adapter *padapter, u8 rfon_ctrl);
 #ifdef CONFIG_CHECK_LEAVE_LPS
 #ifdef CONFIG_LPS_CHK_BY_TP
 void traffic_check_for_leave_lps_by_tp(PADAPTER padapter, u8 tx, struct sta_info *sta);
@@ -616,6 +758,15 @@ bool rtw_wowlan_parser_pattern_cmd(u8 *input, char *pattern,
 void rtw_wow_pattern_sw_reset(_adapter *adapter);
 u8 rtw_set_default_pattern(_adapter *adapter);
 void rtw_wow_pattern_sw_dump(_adapter *adapter);
+#ifdef CONFIG_WAR_OFFLOAD
+#if defined(CONFIG_OFFLOAD_MDNS_V4) || defined(CONFIG_OFFLOAD_MDNS_V6)
+void rtw_wow_war_mdns_dump_buf(struct seq_file *m, u8 *title, u8 *buf, u32 len);
+void rtw_wow_war_mdns_dump_txt(struct seq_file *m, u8 *title, u8 *buf, u32 len);
+bool rtw_wow_war_mdns_parser_pattern(u8 *input, char *target, u32 *target_len, u32 max_len);
+void rtw_wow_war_mdns_parms_reset(_adapter *adapter, u8 is_set_default);
+#endif /* defined(CONFIG_OFFLOAD_MDNS_V4) || defined(CONFIG_OFFLOAD_MDNS_V6) */
+#endif /* CONFIG_WAR_OFFLOAD */
+
 #endif /* CONFIG_WOWLAN */
 void rtw_ssmps_enter(_adapter *adapter, struct sta_info *sta);
 void rtw_ssmps_leave(_adapter *adapter, struct sta_info *sta);

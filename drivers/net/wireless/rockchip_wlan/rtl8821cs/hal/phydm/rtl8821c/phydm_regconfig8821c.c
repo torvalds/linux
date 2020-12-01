@@ -233,6 +233,20 @@ void odm_config_bb_phy_8821c(struct dm_struct *dm, u32 addr, u32 bitmask,
 		  addr, data);
 }
 
+void odm_config_bb_txpwr_lmt_8821c_ex(struct dm_struct *dm, u8 regulation,
+				      u8 band, u8 bandwidth, u8 rate_section,
+				      u8 rf_path, u8 channel, s8 power_limit)
+{
+
+#if (DM_ODM_SUPPORT_TYPE & ODM_CE)
+	phy_set_tx_power_limit_ex(dm, regulation, band, bandwidth, rate_section,
+				  rf_path, channel, power_limit);
+#endif
+#if 0
+	PHY_SetTxPowerLimit_ex(dm, regulation, band, bandwidth, rate_section,
+			       rf_path, channel, power_limit);
+#endif
+}
 void odm_config_bb_txpwr_lmt_8821c(struct dm_struct *dm, u8 *regulation,
 				   u8 *band, u8 *bandwidth, u8 *rate_section,
 				   u8 *rf_path, u8 *channel, u8 *power_limit)

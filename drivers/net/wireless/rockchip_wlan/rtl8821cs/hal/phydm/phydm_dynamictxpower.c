@@ -319,15 +319,14 @@ phydm_check_paths(void *dm_void)
 	return max_path;
 }
 
-#ifndef PHYDM_COMMON_API_SUPPORT
+#ifdef PHYDM_COMMON_API_NOT_SUPPORT
 u8 phydm_dtp_get_txagc(void *dm_void, enum rf_path path, u8 hw_rate)
 {
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
 	u8 ret = 0xff;
 
-#if (RTL8192E_SUPPORT)
 	ret = config_phydm_read_txagc_n(dm, path, hw_rate);
-#endif
+
 	return ret;
 }
 #endif
@@ -338,21 +337,27 @@ u8 phydm_search_min_power_index(void *dm_void)
 	enum rf_path path;
 	enum rf_path max_path;
 	u8 min_gain_index = 0x3f;
-	u8 gain_index;
-	u8 rate_idx;
+	u8 gain_index = 0;
+	u8 i;
 
 	PHYDM_DBG(dm, DBG_DYN_TXPWR, "%s\n", __func__);
 	max_path = phydm_check_paths(dm);
 	for (path = 0; path <= max_path; path++)
-		for (rate_idx = 0; rate_idx < 84; rate_idx++)
-			if (phydm_check_rates(dm, rate_idx)) {
-#ifdef PHYDM_COMMON_API_SUPPORT
-				/*This is for API support IC : 97F,8822B,92F,8821C*/
-				gain_index = phydm_api_get_txagc(dm, path, rate_idx);
-#else
-				/*This is for API non-support IC : 92E */
-				gain_index = phydm_dtp_get_txagc(dm, path, rate_idx);
-#endif
+		for (i = 0; i < 84; i++)
+			if (phydm_check_rates(dm, i)) {
+
+				if (dm->support_ic_type & PHYDM_COMMON_API_IC) {
+				#ifdef PHYDM_COMMON_API_SUPPORT
+				/*97F,8822B,92F,8821C*/
+				gain_index = phydm_api_get_txagc(dm, path, i);
+				#endif
+				} else {
+				/*92E*/
+				#ifdef PHYDM_COMMON_API_NOT_SUPPORT
+				gain_index = phydm_dtp_get_txagc(dm, path, i);
+				#endif
+				}
+
 				if (gain_index == 0xff) {
 					min_gain_index = 0x20;
 					PHYDM_DBG(dm, DBG_DYN_TXPWR, 
@@ -362,7 +367,7 @@ u8 phydm_search_min_power_index(void *dm_void)
 				}
 				PHYDM_DBG(dm, DBG_DYN_TXPWR,
 					  "Support Rate: ((%d)) -> Gain idx: ((%d))\n",
-					  rate_idx, gain_index);
+					  i, gain_index);
 				if (gain_index < min_gain_index)
 					min_gain_index = gain_index;
 			}
@@ -419,34 +424,45 @@ void phydm_noisy_enhance_hp_th(void *dm_void, u8 noisy_state)
 		  dm->enhance_pwr_th[2]);
 }
 
-u8 phydm_pwr_lvl_check(void *dm_void, u8 input_rssi)
+u8 phydm_pwr_lvl_check(void *dm_void, u8 input_rssi, u8 last_pwr_lv)
 {
 	struct dm_struct *dm = (struct dm_struct *)dm_void;
-	u8 th0, th1, th2;
+	u8 th[DTP_POWER_LEVEL_SIZE];
+	u8 i;
 
 	if (dm->support_ic_type & ODM_IC_JGR3_SERIES) {
-		th2 = dm->set_pwr_th[2];
-		th1 = dm->set_pwr_th[1];
-		th0 = dm->set_pwr_th[0];
+		for (i = 0; i < DTP_POWER_LEVEL_SIZE; i++)
+			th[i] = dm->set_pwr_th[i];
+
 		PHYDM_DBG(dm, DBG_DYN_TXPWR,
-			  "DTP th: Lv1_th = %d, Lv2_th = %d, Lv3_th = %d\n",
-			  th0, th1, th2);
+			  "Ori-DTP th: Lv1_th = %d, Lv2_th = %d, Lv3_th = %d\n",
+			  th[0], th[1], th[2]);
+
+		for (i = 0; i < DTP_POWER_LEVEL_SIZE; i++) {
+			if (i >= (last_pwr_lv))
+				th[i] += DTP_FLOOR_UP_GAP;
+		}
+
+		PHYDM_DBG(dm, DBG_DYN_TXPWR,
+			  "Mod-DTP th: Lv1_th = %d, Lv2_th = %d, Lv3_th = %d\n",
+			  th[0], th[1], th[2]);
 	} else {
-		th2 = dm->enhance_pwr_th[2];
-		th1 = dm->enhance_pwr_th[1];
-		th0 = dm->enhance_pwr_th[0];
+		for (i = 0; i < DTP_POWER_LEVEL_SIZE; i++)
+			th[i] = dm->enhance_pwr_th[i];
+		for (i = 0; i < DTP_POWER_LEVEL_SIZE; i++) {
+			if (i >= (last_pwr_lv))
+				th[i] += DTP_FLOOR_UP_GAP;
+		}
 	}
 
-	if (input_rssi >= th2)
+	if (input_rssi >= th[2])
 		return tx_high_pwr_level_level3;
-	else if (input_rssi < (th2 - 3) && input_rssi >= th1)
+	else if (input_rssi < th[2] && input_rssi >= th[1])
 		return tx_high_pwr_level_level2;
-	else if (input_rssi < (th1 - 3) && input_rssi >= th0)
+	else if (input_rssi < th[1] && input_rssi >= th[0])
 		return tx_high_pwr_level_level1;
-	else if (input_rssi < (th0 - 3))
-		return tx_high_pwr_level_normal;
 	else
-		return tx_high_pwr_level_unchange;
+		return tx_high_pwr_level_normal;
 }
 
 u8 phydm_pwr_lv_mapping(u8 tx_pwr_lv)
@@ -469,8 +485,7 @@ void phydm_dynamic_response_power(void *dm_void)
 	if (!(dm->support_ability & ODM_BB_DYNAMIC_TXPWR))
 		return;
 
-	if (dm->dynamic_tx_high_power_lvl == tx_high_pwr_level_unchange) {
-		dm->dynamic_tx_high_power_lvl = dm->last_dtp_lvl;
+	if (dm->dynamic_tx_high_power_lvl == dm->last_dtp_lvl) {
 		PHYDM_DBG(dm, DBG_DYN_TXPWR, "RespPwr not change\n");
 		return;
 	}
@@ -507,10 +522,15 @@ void phydm_dtp_per_sta(void *dm_void)
 	struct cmn_sta_info *sta = NULL;
 	struct dtp_info *dtp = NULL;
 	struct rssi_info *rssi = NULL;
+	struct phydm_bb_ram_ctrl *bb_ctrl = &dm->p_bb_ram_ctrl;
 	u8 sta_cnt = 0;
 	u8 i = 0;
 	u8 curr_pwr_lv = 0;
 	u8 last_pwr_lv = 0;
+	u8 mac_id_cnt = 0;
+	u64 macid_cur = 0;
+	u64 macid_diff = 0;
+	u64 macid_mask = 0;
 
 	for (i = 0; i < ODM_ASSOCIATE_ENTRY_NUM; i++) {
 		sta = dm->phydm_sta_info[i];
@@ -519,42 +539,63 @@ void phydm_dtp_per_sta(void *dm_void)
 
 			dtp = &sta->dtp_stat;
 			rssi = &sta->rssi_stat;
+			macid_mask = (u64)BIT(sta->mac_id);
+			if (!(bb_ctrl->macid_is_linked & macid_mask))
+				dtp->sta_last_dtp_lvl = tx_high_pwr_level_normal;
+
 			last_pwr_lv = dtp->sta_last_dtp_lvl;
-			curr_pwr_lv = phydm_pwr_lvl_check(dm, rssi->rssi);
+			curr_pwr_lv = phydm_pwr_lvl_check(dm, rssi->rssi,
+							  last_pwr_lv);
 			dtp->sta_tx_high_power_lvl = curr_pwr_lv;
 			PHYDM_DBG(dm, DBG_DYN_TXPWR,
 				  "STA_id=%d, MACID=%d , RSSI: %d , GetPwrLv: %d\n",
 				  i, sta->mac_id, rssi->rssi, curr_pwr_lv);
 
-			if (curr_pwr_lv == tx_high_pwr_level_unchange ||
-			    curr_pwr_lv == last_pwr_lv) {
+			bb_ctrl->macid_is_linked |= macid_mask;
+			macid_cur |= macid_mask;
+			PHYDM_DBG(dm, DBG_DYN_TXPWR,
+				    "macid_is_linked: (0x%llx), macid_cur: (0x%llx)\n",
+				    bb_ctrl->macid_is_linked, macid_cur);
+
+			if (curr_pwr_lv == last_pwr_lv && dtp->sta_is_alive) {
 				dtp->sta_tx_high_power_lvl = last_pwr_lv;
 				PHYDM_DBG(dm, DBG_DYN_TXPWR,
 					  "DTP_lv not change: ((%d))\n",
 					  curr_pwr_lv);
-				return;
-			}
+			} else {
+				PHYDM_DBG(dm, DBG_DYN_TXPWR,
+					  "DTP_lv update: ((%d)) -> ((%d))\n",
+					  last_pwr_lv, curr_pwr_lv);
 
-			PHYDM_DBG(dm, DBG_DYN_TXPWR,
-				  "DTP_lv update: ((%d)) -> ((%d))\n",
-				  last_pwr_lv, curr_pwr_lv);
+				dtp->sta_last_dtp_lvl = curr_pwr_lv;
 
-			dtp->sta_last_dtp_lvl = curr_pwr_lv;
-
-			switch (dm->ic_ip_series) {
-			#ifdef BB_RAM_SUPPORT
-			case PHYDM_IC_JGR3:
-				phydm_dtp_fill_cmninfo_2nd(dm, i, curr_pwr_lv);
-				break;
-			#endif
-			default:
-				phydm_dtp_fill_cmninfo(dm, i, curr_pwr_lv);
-				break;
+				switch (dm->ic_ip_series) {
+				#ifdef BB_RAM_SUPPORT
+				case PHYDM_IC_JGR3:
+					phydm_dtp_fill_cmninfo_2nd(dm, i, curr_pwr_lv);
+					break;
+				#endif
+				default:
+					phydm_dtp_fill_cmninfo(dm, i, curr_pwr_lv);
+					break;
+				}
+				if(!dtp->sta_is_alive)
+					dtp->sta_is_alive = true;
 			}
 
 			if (sta_cnt == dm->number_linked_client)
 				break;
 		}
+	}
+
+	macid_diff = bb_ctrl->macid_is_linked ^ macid_cur;
+	if (macid_diff)
+		bb_ctrl->macid_is_linked &= ~macid_diff;
+	while (macid_diff) {
+		if (macid_diff & 0x1)
+			phydm_pwr_lv_ctrl(dm, mac_id_cnt, tx_high_pwr_level_normal);
+		mac_id_cnt++;
+		macid_diff >>= 1;
 	}
 }
 
@@ -691,7 +732,8 @@ void phydm_dynamic_tx_power(void *dm_void)
 		phydm_noisy_enhance_hp_th(dm, dm->noisy_decision);
 		/* Response Power */
 		dm->dynamic_tx_high_power_lvl = phydm_pwr_lvl_check(dm,
-								    rssi_min);
+								    rssi_min,
+							    dm->last_dtp_lvl);
 		phydm_dynamic_response_power(dm);
 	}
 	/* Per STA Tx power */

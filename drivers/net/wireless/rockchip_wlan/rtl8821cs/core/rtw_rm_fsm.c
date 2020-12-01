@@ -123,6 +123,7 @@ int rtw_init_rm(_adapter *padapter)
 		padapter, rm_timer_callback, padapter);
 	_set_timer(&prmpriv->rm_timer, CLOCK_UNIT);
 
+	prmpriv->meas_token = 1;
 	return _SUCCESS;
 }
 
@@ -669,8 +670,9 @@ static int rm_state_do_meas(struct rm_obj *prm, enum RM_EV_ID evid)
 			switch (prm->q.m_type) {
 			case bcn_req:
 				val8 = 1; /* Enable free run counter */
-				rtw_hal_set_hwreg(padapter,
-					HW_VAR_FREECNT, &val8);
+				prm->free_run_counter_valid = rtw_hal_set_hwreg(
+					padapter, HW_VAR_FREECNT, &val8);
+
 				rm_sitesurvey(prm);
 				break;
 			case ch_load_req:

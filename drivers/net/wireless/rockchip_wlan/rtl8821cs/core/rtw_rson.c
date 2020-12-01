@@ -286,7 +286,9 @@ void rtw_rson_do_disconnect(_adapter *padapter)
 	pdvobj->rson_data.hopcnt = RTW_RSON_HC_NOTREADY;
 	pdvobj->rson_data.connectible = RTW_RSON_DENYCONNECT;
 	pdvobj->rson_data.loading = 0;
+	#ifdef CONFIG_AP_MODE
 	rtw_mi_tx_beacon_hdl(padapter);
+	#endif
 #endif
 }
 
@@ -312,7 +314,9 @@ void rtw_rson_join_done(_adapter *padapter)
 	pdvobj->rson_data.hopcnt = rson_data.hopcnt + 1;
 	pdvobj->rson_data.connectible = RTW_RSON_ALLOWCONNECT;
 	pdvobj->rson_data.loading = 0;
+	#ifdef CONFIG_AP_MODE
 	rtw_mi_tx_beacon_hdl(padapter);
+	#endif
 #endif
 }
 

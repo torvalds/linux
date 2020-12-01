@@ -132,8 +132,7 @@ void phydm_cck_rx_pathdiv_dbg(void *dm_void, char input[][16], u32 *_used,
 		return;
 
 	for (i = 0; i < 3; i++) {
-		if (input[i + 1])
-			PHYDM_SSCANF(input[i + 1], DCMD_DECIMAL, &var1[i]);
+		PHYDM_SSCANF(input[i + 1], DCMD_DECIMAL, &var1[i]);
 	}
 
 	if ((strcmp(input[1], help) == 0)) {

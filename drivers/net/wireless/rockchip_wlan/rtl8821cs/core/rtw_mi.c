@@ -21,11 +21,15 @@
 void rtw_mi_update_union_chan_inf(_adapter *adapter, u8 ch, u8 offset , u8 bw)
 {
 	struct dvobj_priv *dvobj = adapter_to_dvobj(adapter);
-	struct mi_state *iface_state = &dvobj->iface_state;
 
-	iface_state->union_ch = ch;
-	iface_state->union_bw = bw;
-	iface_state->union_offset = offset;
+	if (!ch) {
+		dvobj->union_ch_bak = dvobj->union_ch;
+		dvobj->union_bw_bak = dvobj->union_bw;
+		dvobj->union_offset_bak = dvobj->union_offset;
+	}
+	dvobj->union_ch = ch;
+	dvobj->union_bw = bw;
+	dvobj->union_offset = offset;
 }
 
 #ifdef DBG_IFACE_STATUS
@@ -184,7 +188,6 @@ inline int rtw_mi_get_ch_setting_union_no_self(_adapter *adapter, u8 *ch, u8 *bw
 	return rtw_mi_get_ch_setting_union_by_ifbmp(adapter_to_dvobj(adapter), 0xFF & ~BIT(adapter->iface_id), ch, bw, offset);
 }
 
-/* For now, not return union_ch/bw/offset */
 void rtw_mi_status_by_ifbmp(struct dvobj_priv *dvobj, u8 ifbmp, struct mi_state *mstate)
 {
 	_adapter *iface;
@@ -260,10 +263,10 @@ void rtw_mi_status_by_ifbmp(struct dvobj_priv *dvobj, u8 ifbmp, struct mi_state 
 #ifdef CONFIG_IOCTL_CFG80211
 		if (rtw_cfg80211_get_is_mgmt_tx(iface))
 			MSTATE_MGMT_TX_NUM(mstate)++;
-		#ifdef CONFIG_P2P
+
 		if (rtw_cfg80211_get_is_roch(iface) == _TRUE)
 			MSTATE_ROCH_NUM(mstate)++;
-		#endif
+
 #endif /* CONFIG_IOCTL_CFG80211 */
 #ifdef CONFIG_P2P
 		if (MLME_IS_PD(iface))
@@ -287,7 +290,6 @@ inline void rtw_mi_status_no_others(_adapter *adapter, struct mi_state *mstate)
 	return rtw_mi_status_by_ifbmp(adapter_to_dvobj(adapter), BIT(adapter->iface_id), mstate);
 }
 
-/* For now, not handle union_ch/bw/offset */
 inline void rtw_mi_status_merge(struct mi_state *d, struct mi_state *a)
 {
 	d->sta_num += a->sta_num;
@@ -368,7 +370,6 @@ inline void rtw_mi_update_iface_status(struct mlme_priv *pmlmepriv, sint state)
 	struct dvobj_priv *dvobj = adapter_to_dvobj(adapter);
 	struct mi_state *iface_state = &dvobj->iface_state;
 	struct mi_state tmp_mstate;
-	u8 u_ch, u_offset, u_bw;
 
 	if (state == WIFI_MONITOR_STATE
 		|| state == 0xFFFFFFFF
@@ -380,16 +381,6 @@ inline void rtw_mi_update_iface_status(struct mlme_priv *pmlmepriv, sint state)
 
 	rtw_mi_status(adapter, &tmp_mstate);
 	_rtw_memcpy(iface_state, &tmp_mstate, sizeof(struct mi_state));
-
-	if (rtw_mi_get_ch_setting_union(adapter, &u_ch, &u_bw, &u_offset))
-		rtw_mi_update_union_chan_inf(adapter , u_ch, u_offset , u_bw);
-	else {
-		if (0) {
-			dump_adapters_status(RTW_DBGDUMP , dvobj);
-			RTW_INFO("%s-[ERROR] cannot get union channel\n", __func__);
-			rtw_warn_on(1);
-		}
-	}
 
 #ifdef DBG_IFACE_STATUS
 	DBG_IFACE_STATUS_DUMP(adapter);
@@ -822,6 +813,7 @@ void rtw_mi_buddy_set_scan_deny(_adapter *adapter, u32 ms)
 }
 #endif /*CONFIG_SET_SCAN_DENY_TIMER*/
 
+#ifdef CONFIG_AP_MODE
 static u8 _rtw_mi_beacon_update(_adapter *padapter, void *data)
 {
 	if (!MLME_IS_STA(padapter)
@@ -841,6 +833,7 @@ void rtw_mi_buddy_beacon_update(_adapter *padapter)
 {
 	_rtw_mi_process(padapter, _TRUE, NULL, _rtw_mi_beacon_update);
 }
+#endif /* CONFIG_AP_MODE */
 
 #ifndef CONFIG_MI_WITH_MBSSID_CAM
 static u8 _rtw_mi_hal_dump_macaddr(_adapter *padapter, void *sel)
@@ -1157,7 +1150,7 @@ u8 rtw_mi_sreset_adapter_hdl(_adapter *padapter, u8 bstart)
 	return _rtw_mi_process(padapter, _FALSE, &in_data, _rtw_mi_sreset_adapter_hdl);
 }
 
-#if defined(DBG_CONFIG_ERROR_RESET) && defined(CONFIG_CONCURRENT_MODE)
+#if defined(CONFIG_AP_MODE) && defined(DBG_CONFIG_ERROR_RESET) && defined(CONFIG_CONCURRENT_MODE)
 void rtw_mi_ap_info_restore(_adapter *adapter)
 {
 	int i;
@@ -1185,6 +1178,8 @@ u8 rtw_mi_buddy_sreset_adapter_hdl(_adapter *padapter, u8 bstart)
 
 	return _rtw_mi_process(padapter, _TRUE, &in_data, _rtw_mi_sreset_adapter_hdl);
 }
+
+#ifdef CONFIG_AP_MODE
 static u8 _rtw_mi_tx_beacon_hdl(_adapter *adapter, void *data)
 {
 	if ((MLME_IS_AP(adapter) || MLME_IS_MESH(adapter))
@@ -1226,6 +1221,7 @@ u8 rtw_mi_buddy_set_tx_beacon_cmd(_adapter *padapter)
 {
 	return _rtw_mi_process(padapter, _TRUE, NULL, _rtw_mi_set_tx_beacon_cmd);
 }
+#endif /* CONFIG_AP_MODE */
 
 #ifdef CONFIG_P2P
 static u8 _rtw_mi_p2p_chk_state(_adapter *adapter, void *data)

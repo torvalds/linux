@@ -29,8 +29,8 @@
 
 #if (PHYDM_LA_MODE_SUPPORT)
 
-/* fix compile time flag*/
-#define DYNAMIC_LA_MODE "4.1"
+/* 2020.07.03 [8723F] Fix SD4 compile error*/
+#define DYNAMIC_LA_MODE "4.2"
 
 /* @1 ============================================================
  * 1  Definition

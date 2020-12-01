@@ -72,12 +72,12 @@
 #define IQK_VER_8192F "0x01"
 #define IQK_VER_8723B "0x1e"
 #define IQK_VER_8812A "0x02"
-#define IQK_VER_8821A "0x01"
+#define IQK_VER_8821A "0x02"
 #elif (DM_ODM_SUPPORT_TYPE & (ODM_CE))
 #define IQK_VER_8188E "0x01"
 #define IQK_VER_8192E "0x01"
 #define IQK_VER_8192F "0x01"
-#define IQK_VER_8723B "0x1e"
+#define IQK_VER_8723B "0x1f"
 #define IQK_VER_8812A "0x01"
 #define IQK_VER_8821A "0x01"
 #elif (DM_ODM_SUPPORT_TYPE & (ODM_AP))
@@ -101,20 +101,20 @@
 #define IQK_VER_8703B "0x05"
 #define IQK_VER_8710B "0x01"
 #define IQK_VER_8723D "0x02"
-#define IQK_VER_8822B "0x31"
+#define IQK_VER_8822B "0x32"
 #define IQK_VER_8822C "0x14"
 #define IQK_VER_8821C "0x23"
 #define IQK_VER_8198F "0x0b"
-#define IQK_VER_8814B "0x13"
-#define IQK_VER_8812F "0x0a"
-#define IQK_VER_8710C "0x05"
+#define IQK_VER_8814B "0x15"
+#define IQK_VER_8812F "0x0c"
+#define IQK_VER_8710C "0x0a"
 #define IQK_VER_8197G "0x03"
 
 /*LCK version*/
-#define LCK_VER_8188E "0x01"
-#define LCK_VER_8192E "0x01"
+#define LCK_VER_8188E "0x02"
+#define LCK_VER_8192E "0x02"
 #define LCK_VER_8192F "0x01"
-#define LCK_VER_8723B "0x01"
+#define LCK_VER_8723B "0x02"
 #define LCK_VER_8812A "0x01"
 #define LCK_VER_8821A "0x01"
 #define LCK_VER_8814A "0x01"
@@ -126,10 +126,11 @@
 #define LCK_VER_8822B "0x02"
 #define LCK_VER_8822C "0x00"
 #define LCK_VER_8821C "0x02"
-#define LCK_VER_8814B "0x01"
+#define LCK_VER_8814B "0x02"
 #define LCK_VER_8195B "0x02"
-#define LCK_VER_8710C "0x01"
-#define LCK_VER_8197G "0x00"
+#define LCK_VER_8710C "0x02"
+#define LCK_VER_8197G "0x01"
+#define LCK_VER_8198F "0x01"
 
 /*power tracking version*/
 #define PWRTRK_VER_8188E "0x01"
@@ -163,14 +164,14 @@
 #define DPK_VER_8710B "NONE"
 #define DPK_VER_8723D "NONE"
 #define DPK_VER_8822B "NONE"
-#define DPK_VER_8822C "0x1f"
+#define DPK_VER_8822C "0x20"
 #define DPK_VER_8821C "NONE"
-#define DPK_VER_8192F "0x0d"
+#define DPK_VER_8192F "0x0e"
 #define DPK_VER_8198F "0x0e"
-#define DPK_VER_8814B "0x0b"
+#define DPK_VER_8814B "0x0f"
 #define DPK_VER_8195B "0x0c"
-#define DPK_VER_8812F "0x07"
-#define DPK_VER_8197G "0x06"
+#define DPK_VER_8812F "0x0a"
+#define DPK_VER_8197G "0x09"
 
 /*RFK_INIT version*/
 #define RFK_INIT_VER_8822B "0x8"
@@ -178,12 +179,12 @@
 #define RFK_INIT_VER_8195B "0x1"
 #define RFK_INIT_VER_8198F "0x8"
 #define RFK_INIT_VER_8814B "0xa"
-#define RFK_INIT_VER_8812F "0x3"
-#define RFK_INIT_VER_8197G "0x3"
+#define RFK_INIT_VER_8812F "0x4"
+#define RFK_INIT_VER_8197G "0x4"
 
 /*DACK version*/
 #define DACK_VER_8822C "0xa"
-#define DACK_VER_8814B "0x3"
+#define DACK_VER_8814B "0x4"
 
 /*TXGAPK version*/
 #define TXGAPK_VER_8814B "0x1"
@@ -404,7 +405,7 @@
 
 #define IQK_THRESHOLD 8
 #define DPK_THRESHOLD 4
-#define HALRF_ABS(a, b) ((a > b) ? (a - b) : (b - a))
+#define HALRF_ABS(a,b) ((a>b) ? (a-b) : (b-a))
 #define SN 100
 
 #define CCK_TSSI_NUM 6
@@ -433,7 +434,8 @@ enum halrf_func_idx { /*F_XXX = PHYDM XXX function*/
 	RF05_DACK = 5,
 	RF06_DPK_TRK = 6,
 	RF07_2GBAND_SHIFT = 7,
-	RF08_RXDCK = 8
+	RF08_RXDCK = 8,
+	RF09_RFK = 9
 };
 
 enum halrf_ability {
@@ -461,6 +463,8 @@ enum halrf_dbg_comp {
 	DBG_RF_DPK = BIT(RF03_DPK),
 	DBG_RF_TXGAPK = BIT(RF04_TXGAPK),
 	DBG_RF_DACK = BIT(RF05_DACK),
+	DBG_RF_DPK_TRACK = BIT(RF06_DPK_TRK),
+	DBG_RF_RFK = BIT(RF09_RFK),
 	DBG_RF_MP = BIT(29),
 	DBG_RF_TMP = BIT(30),
 	DBG_RF_INIT = BIT(31)
@@ -480,8 +484,7 @@ enum halrf_cmninfo_init {
 	HALRF_CMNINFO_MP_PSD_AVERAGE,
 	HALRF_CMNINFO_IQK_TIMES,
 	HALRF_CMNINFO_MP_POWER_TRACKING_TYPE,
-	HALRF_CMNINFO_POWER_TRACK_CONTROL,
-	HALRF_CMNINFO_TSSI_RETRY_SPECIAL_SCAN
+	HALRF_CMNINFO_POWER_TRACK_CONTROL
 };
 
 enum halrf_cmninfo_hook {
@@ -514,18 +517,17 @@ enum halrf_k_segment_time {
 
 #define TSSI_EFUSE_NUM 25
 #define TSSI_EFUSE_KFREE_NUM 4
-
-#define TSSI_CHANNEL_NUM 70
+#define TSSI_DE_DIFF_EFUSE_NUM 10
 
 struct _halrf_tssi_data {
 	s32 cck_offset_patha;
 	s32 cck_offset_pathb;
-	s32 power_track_offset[PHYDM_MAX_RF_PATH];
 	s32 tssi_trk_txagc_offset[PHYDM_MAX_RF_PATH];
 	s32 delta_tssi_txagc_offset[PHYDM_MAX_RF_PATH];
 	s16 txagc_codeword[TSSI_CODE_NUM];
 	u16 tssi_codeword[TSSI_CODE_NUM];
 	s8 tssi_efuse[PHYDM_MAX_RF_PATH][TSSI_EFUSE_NUM];
+	s8 tssi_de_diff_efuse[PHYDM_MAX_RF_PATH][TSSI_DE_DIFF_EFUSE_NUM];
 	s8 tssi_kfree_efuse[PHYDM_MAX_RF_PATH][TSSI_EFUSE_KFREE_NUM];
 	u8 thermal[PHYDM_MAX_RF_PATH];
 	u32 index[PHYDM_MAX_RF_PATH][14];
@@ -533,12 +535,6 @@ struct _halrf_tssi_data {
 	u8 get_thermal;
 	u8 tssi_finish_bit[PHYDM_MAX_RF_PATH];
 	u8 thermal_trigger;
-	s8 txagc_offset[PHYDM_MAX_RF_PATH][TSSI_CHANNEL_NUM];
-	u8 tssi_thermal[PHYDM_MAX_RF_PATH];
-	u8 retry_sacan_tssi;
-	u8 special_scan_num;
-	u8 connect_ch_num;
-	u32 tssi_dck[4][PHYDM_MAX_RF_PATH];
 };
 
 struct _halrf_txgapk_info {
@@ -590,7 +586,6 @@ struct _hal_rf_ {
 	u8 ext_lna_5g;		/*@with 5G external LNA  NO/Yes = 0/1*/
 	u8 ext_pa;		/*@with 2G external PNA  NO/Yes = 0/1*/
 	u8 ext_pa_5g;		/*@with 5G external PNA  NO/Yes = 0/1*/
-
 #if !(DM_ODM_SUPPORT_TYPE & ODM_IOT)
 	struct _halrf_psd_data halrf_psd_data;
 	struct _halrf_tssi_data halrf_tssi_data;
@@ -728,11 +723,6 @@ void halrf_tssi_get_efuse(void *dm_void);
 
 void halrf_do_tssi(void *dm_void);
 
-void halrf_do_tssi_scan(void *dm_void);
-
-void halrf_tssi_set_tssi_tx_counter(void *dm_void, u8 special_scan_num,
-	u8 connect_ch_num);
-
 void halrf_set_tssi_enable(void *dm_void, boolean enable);
 
 void halrf_do_thermal(void *dm_void);
@@ -751,23 +741,7 @@ void halrf_thermal_cck(void *dm_void);
 
 void halrf_tssi_set_de(void *dm_void);
 
-void halrf_tssi_scan_set_tssi_setting(void *dm_void);
-
-void halrf_tssi_scan_save_txagc_offset(void *dm_void, u8 path);
-
-void halrf_tssi_scan_reload_txagc_offset(void *dm_void);
-
-void halrf_tssi_lps_get_txagc_offset(void *dm_void, u8 *txagc_offset);
-
-void halrf_enable_tssi(void *dm_void);
-
-void halrf_disable_tssi(void *dm_void);
-
 void halrf_tssi_dck(void *dm_void, u8 direct_do);
-
-void halrf_tssi_dck_scan(void *dm_void);
-
-void halrf_set_tssi_codeword_scan(void *dm_void);
 
 void halrf_calculate_tssi_codeword(void *dm_void);
 

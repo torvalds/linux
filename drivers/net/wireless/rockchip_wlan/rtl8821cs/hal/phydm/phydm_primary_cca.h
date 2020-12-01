@@ -34,17 +34,6 @@
 /*@Definition */
 /*@============================================================*/
 
-#if (DM_ODM_SUPPORT_TYPE == ODM_CE)
-#define	SECOND_CH_AT_LSB	2	/*@primary CH @ MSB,  SD4: HAL_PRIME_CHNL_OFFSET_UPPER*/
-#define	SECOND_CH_AT_USB	1	/*@primary CH @ LSB,   SD4: HAL_PRIME_CHNL_OFFSET_LOWER*/
-#elif (DM_ODM_SUPPORT_TYPE == ODM_WIN)
-#define	SECOND_CH_AT_LSB	2	/*@primary CH @ MSB,  SD7: HAL_PRIME_CHNL_OFFSET_UPPER*/
-#define	SECOND_CH_AT_USB	1	/*@primary CH @ LSB,   SD7: HAL_PRIME_CHNL_OFFSET_LOWER*/
-#else /*if (DM_ODM_SUPPORT_TYPE == ODM_AP)*/
-#define	SECOND_CH_AT_LSB	1	/*@primary CH @ MSB,  SD8: HT_2NDCH_OFFSET_BELOW*/
-#define	SECOND_CH_AT_USB	2	/*@primary CH @ LSB,   SD8: HT_2NDCH_OFFSET_ABOVE*/
-#endif
-
 #define	OFDMCCA_TH		500
 #define	bw_ind_bias		500
 #define	PRI_CCA_MONITOR_TIME	30

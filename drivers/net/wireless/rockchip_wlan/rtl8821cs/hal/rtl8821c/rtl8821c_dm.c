@@ -146,47 +146,14 @@ static void init_phydm_cominfo(PADAPTER adapter)
 {
 	PHAL_DATA_TYPE hal = GET_HAL_DATA(adapter);
 	struct dm_struct *pDM_Odm = &hal->odmpriv;
-	u8 cut_ver = ODM_CUT_A, fab_ver = ODM_TSMC;
 
 	Init_ODM_ComInfo(adapter);
 
 	odm_cmn_info_init(pDM_Odm, ODM_CMNINFO_PACKAGE_TYPE, hal->PackageType);
 
-	if (IS_CHIP_VENDOR_TSMC(hal->version_id))
-		fab_ver = ODM_TSMC;
-	else if (IS_CHIP_VENDOR_UMC(hal->version_id))
-		fab_ver = ODM_UMC;
-	else if (IS_CHIP_VENDOR_SMIC(hal->version_id))
-		fab_ver = ODM_UMC + 1;
-	else
-		RTW_INFO("%s: unknown Fv=%d !!\n",
-			 __FUNCTION__, GET_CVID_MANUFACTUER(hal->version_id));
-
-	if (IS_A_CUT(hal->version_id))
-		cut_ver = ODM_CUT_A;
-	else if (IS_B_CUT(hal->version_id))
-		cut_ver = ODM_CUT_B;
-	else if (IS_C_CUT(hal->version_id))
-		cut_ver = ODM_CUT_C;
-	else if (IS_D_CUT(hal->version_id))
-		cut_ver = ODM_CUT_D;
-	else if (IS_E_CUT(hal->version_id))
-		cut_ver = ODM_CUT_E;
-	else if (IS_F_CUT(hal->version_id))
-		cut_ver = ODM_CUT_F;
-	else if (IS_I_CUT(hal->version_id))
-		cut_ver = ODM_CUT_I;
-	else if (IS_J_CUT(hal->version_id))
-		cut_ver = ODM_CUT_J;
-	else if (IS_K_CUT(hal->version_id))
-		cut_ver = ODM_CUT_K;
-	else
-		RTW_INFO("%s: unknown Cv=%d !!\n",
-			 __FUNCTION__, GET_CVID_CUT_VERSION(hal->version_id));
-
-	RTW_INFO("%s: Fv=%d Cv=%d\n", __FUNCTION__, fab_ver, cut_ver);
-	odm_cmn_info_init(pDM_Odm, ODM_CMNINFO_FAB_VER, fab_ver);
-	odm_cmn_info_init(pDM_Odm, ODM_CMNINFO_CUT_VER, cut_ver);
+	RTW_INFO("%s: Fv=%d Cv=%d\n", __FUNCTION__, hal->version_id.VendorType, hal->version_id.CUTVersion);
+	odm_cmn_info_init(pDM_Odm, ODM_CMNINFO_FAB_VER, hal->version_id.VendorType);
+	odm_cmn_info_init(pDM_Odm, ODM_CMNINFO_CUT_VER, hal->version_id.CUTVersion);
 
 }
 	
@@ -241,7 +208,6 @@ void rtl8821c_phy_haldm_watchdog(PADAPTER Adapter)
 	BOOLEAN bFwCurrentInPSMode = _FALSE;
 	u8 bFwPSAwake = _TRUE;
 	struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(Adapter);
-	u8 lps_changed = _FALSE;
 	u8 in_lps = _FALSE;
 	PADAPTER current_lps_iface = NULL, iface = NULL;
 	struct dvobj_priv *dvobj = adapter_to_dvobj(Adapter);
@@ -272,20 +238,22 @@ void rtl8821c_phy_haldm_watchdog(PADAPTER Adapter)
 	}
 
 #ifdef CONFIG_LPS
-	if (pwrpriv->bLeisurePs && bFwCurrentInPSMode && pwrpriv->pwr_mode != PS_MODE_ACTIVE
-#ifdef CONFIG_WMMPS_STA	
-		&& !rtw_is_wmmps_mode(Adapter)
-#endif /* CONFIG_WMMPS_STA */
-	) {
+	if (pwrpriv->bLeisurePs && bFwCurrentInPSMode && pwrpriv->pwr_mode != PS_MODE_ACTIVE) {
+		in_lps = _TRUE;
+
 		for (i = 0; i < dvobj->iface_nums; i++) {
 			iface = dvobj->padapters[i];
-			if (pwrpriv->current_lps_hw_port_id == rtw_hal_get_port(iface))
+			if (pwrpriv->current_lps_hw_port_id == rtw_hal_get_port(iface)) {
 				current_lps_iface = iface;
+				rtw_lps_rfon_ctrl(current_lps_iface, rf_on);
+				break;
+			}
 		}
 
-		lps_changed = _TRUE;
-		in_lps = _TRUE;
-		LPS_Leave(current_lps_iface, LPS_CTRL_PHYDM);
+		if (!current_lps_iface) {
+			RTW_WARN("Can't find a adapter with LPS to enable RFON function !\n");
+			goto skip_dm;
+		}
 	}
 #endif
 
@@ -306,8 +274,8 @@ void rtl8821c_phy_haldm_watchdog(PADAPTER Adapter)
 skip_dm:
 
 #ifdef CONFIG_LPS
-	if (lps_changed)
-		LPS_Enter(current_lps_iface, LPS_CTRL_PHYDM);
+	if (current_lps_iface)
+		rtw_lps_rfon_ctrl(current_lps_iface, rf_off);
 #endif
 #ifdef CONFIG_SUPPORT_HW_WPS_PBC
 	/* Check GPIO to determine current Pbc status.*/

@@ -86,10 +86,8 @@ struct dm_iqk_info {
 	RTL8195B_SUPPORT == 1 || RTL8198F_SUPPORT == 1 ||\
 	RTL8814B_SUPPORT == 1 || RTL8822C_SUPPORT == 1 ||\
 	RTL8812F_SUPPORT == 1 || RTL8197G_SUPPORT == 1 ||\
-	RTL8710C_SUPPORT == 1)
+	RTL8710C_SUPPORT == 1 || RTL8723F_SUPPORT == 1)
 	u32 iqk_channel[2];
-	u32 nbtxk_1b38[2];
-	u32 nbrxk_1b3c[2];
 	boolean iqk_fail_report[2][NUM][2]; /*channel/path/TRX(TX:0, RX:1) */
 	/*channel / path / TRX(TX:0, RX:1) / CFIR_real*/
 	/*channel index = 2 is just for debug*/
@@ -102,6 +100,11 @@ struct dm_iqk_info {
 	/*channel index = 2 is just for debug*/
 	u16 iqk_cfir_imag[3][2][2][17];
 	/*times/path*/
+#elif (RTL8195B_SUPPORT == 1)
+	u32 iqk_cfir_real[3][NUM][2][9];
+	u32 iqk_cfir_imag[3][NUM][2][9];
+	/*channel / path / TRX(TX:0, RX:1) / CFIR_imag*/
+	/*channel index = 2 is just for debug*/
 #else
 	u32 iqk_cfir_real[3][NUM][2][8];
 	/*channel / path / TRX(TX:0, RX:1) / CFIR_imag*/
@@ -136,6 +139,8 @@ struct dm_iqk_info {
 	u32 gs1_xym[2][6];
 	u32 gs2_xym[2][6];
 	u32 rxk1_xym[2][6];
+	u32 nbtxk_1b38[2];
+	u32 nbrxk_1b3c[2];
 #endif
 #if (RTL8710C_SUPPORT == 1 || RTL8197G_SUPPORT == 1 )
 	u32 txxy[2][2];

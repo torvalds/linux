@@ -434,9 +434,12 @@ odm_txpowertracking_callback_thermal_meter_jaguar_series4(void *dm_void)
 			priv->pmib->dot11RFEntry.thermal[i] == 0x0)
 			return;
 	}
-	if (dm->support_ic_type & (ODM_RTL8822C | ODM_RTL8812F | ODM_RTL8197G)) {
+	if (dm->support_ic_type & (ODM_RTL8822C | ODM_RTL8812F)) {
 		for (i = 0; i < c.rf_path_count; i++)
 			thermal_value[i] = (u8)odm_get_rf_reg(dm, i, c.thermal_reg_addr, 0x7e); /* 0x42: RF Reg[6:1] Thermal Trim*/
+	} else if (dm->support_ic_type == ODM_RTL8197G) {
+		for (i = 0; i < c.rf_path_count; i++)
+			thermal_value[i] = (u8)odm_get_rf_reg(dm, i, RF_0xf6, 0x7E000);
 	} else {
 		for (i = 0; i < c.rf_path_count; i++) {
 			thermal_value[i] = (u8)odm_get_rf_reg(dm, i, c.thermal_reg_addr, 0xfc00);	/* 0x42: RF Reg[15:10] 88E */
@@ -597,7 +600,7 @@ odm_txpowertracking_callback_thermal_meter_jaguar_series4(void *dm_void)
 
 #endif
 	/* Wait sacn to do IQK by RF Jenyu*/
-	if ((*dm->is_scan_in_process == false) && (!iqk_info->rfk_forbidden) && dm->is_linked) {
+	if ((*dm->is_scan_in_process == false) && (!iqk_info->rfk_forbidden) && (dm->is_linked || *dm->mp_mode)) {
 		/*Delta temperature is equal to or larger than 20 centigrade (When threshold is 8).*/
 		if (delta_IQK >= c.threshold_iqk) {
 			cali_info->thermal_value_iqk = thermal_value[RF_PATH_A];

@@ -142,7 +142,7 @@ static void Hal_EfuseParseBTCoexistInfo(PADAPTER adapter, u8 *map, u8 mapvalid)
 	if ((mapvalid == _TRUE) && (map[EEPROM_RF_BOARD_OPTION_8821C] != 0xFF)) {
 
 		tmp_u32 = rtw_read32(adapter, REG_WL_BT_PWR_CTRL_8821C);
-		/* 0xc1[7:5] = 0x01 */
+		/* 0xc1[7:5] = 0x01 (Combo card) */
 		if ((((map[EEPROM_RF_BOARD_OPTION_8821C] & 0xe0) >> 5) == 0x01) && (tmp_u32 & BIT_BT_FUNC_EN_8821C))
 			hal->EEPROMBluetoothCoexist = _TRUE;
 		else
@@ -154,8 +154,10 @@ static void Hal_EfuseParseBTCoexistInfo(PADAPTER adapter, u8 *map, u8 mapvalid)
 
 	setting = map[EEPROM_RF_BT_SETTING_8821C];
 	if ((_TRUE == mapvalid) && (setting != 0xFF)) {
-		/*Bit[0]: Total antenna number
-			0: 2-Antenna / 1: 1-Antenna	*/
+		/* Bit[0]: Total antenna number
+		 * 0: 2-Antenna (WL BT not share Ant, concurrent mode)
+		 * 1: 1-Antenna (WL BT share Ant, TDMA mode)
+		 */
 		hal->EEPROMBluetoothAntNum = setting & BIT(0);
 		/*
 		 * Bit[6]: One-Ant structure use Ant2(aux.) path or Ant1(main) path
@@ -181,7 +183,6 @@ static void Hal_EfuseParseChnlPlan(PADAPTER adapter, u8 *map, u8 autoloadfail)
 		map ? map[EEPROM_CHANNEL_PLAN_8821C] : 0xFF,
 		adapter->registrypriv.alpha2,
 		adapter->registrypriv.channel_plan,
-		RTW_CHPLAN_REALTEK_DEFINE,
 		autoloadfail
 	);
 }
@@ -222,7 +223,7 @@ static void Hal_EfuseParseAntennaDiversity(PADAPTER adapter, u8 *map, u8 mapvali
 	struct registry_priv *registry_par = &adapter->registrypriv;
 
 
-	if (hal->EEPROMBluetoothAntNum == Ant_x1)
+	if (hal->EEPROMBluetoothCoexist == _TRUE && hal->EEPROMBluetoothAntNum == Ant_x1)
 		hal->AntDivCfg = 0;
 	else {
 		if (registry_par->antdiv_cfg == 2)/* 0:OFF , 1:ON, 2:By EFUSE */
@@ -233,7 +234,7 @@ static void Hal_EfuseParseAntennaDiversity(PADAPTER adapter, u8 *map, u8 mapvali
 	/*hal->TRxAntDivType = S0S1_TRX_HW_ANTDIV;*/
 	hal->with_extenal_ant_switch = ((map[EEPROM_RF_BT_SETTING_8821C] & BIT7) >> 7);
 
-	RTW_INFO("%s:EEPROM AntDivCfg=%d, AntDivType=%d, extenal_ant_switch:%d\n",
+	RTW_INFO("%s:EEPROM AntDivCfg=%d, AntDivType=%d, external_ant_switch:%d\n",
 		 __func__, hal->AntDivCfg, hal->TRxAntDivType, hal->with_extenal_ant_switch);
 #endif /* CONFIG_ANTENNA_DIVERSITY */
 }
@@ -611,14 +612,11 @@ static void xmit_status_check(PADAPTER p)
 			else {
 				diff_time = rtw_get_passing_time_ms(psrtpriv->last_tx_complete_time);
 				if (diff_time > 4000) {
-					u32 ability = 0;
-
-					ability = rtw_phydm_ability_get(p);
 
 					RTW_INFO("%s tx hang %s\n", __FUNCTION__,
-						(ability & ODM_BB_ADAPTIVITY) ? "ODM_BB_ADAPTIVITY" : "");
+						(rtw_odm_adaptivity_needed(p)) ? "ODM_BB_ADAPTIVITY" : "");
 
-					if (!(ability & ODM_BB_ADAPTIVITY)) {
+					if (!rtw_odm_adaptivity_needed(p)) {
 						psrtpriv->self_dect_tx_cnt++;
 						psrtpriv->self_dect_case = 1;
 						rtw_hal_sreset_reset(p);
@@ -1342,10 +1340,12 @@ static void hw_var_set_mlme_sitesurvey(PADAPTER adapter, u8 enable)
 
 		rtw_hal_rcr_set_chk_bssid(adapter, MLME_SCAN_DONE);
 
+		#ifdef CONFIG_AP_MODE
 		if (rtw_mi_get_ap_num(adapter) || rtw_mi_get_mesh_num(adapter)) {
 			ResumeTxBeacon(adapter);
 			rtw_mi_tx_beacon_hdl(adapter);
 		}
+		#endif
 	}
 }
 static void hw_var_set_mlme_join(PADAPTER adapter, u8 type)
@@ -1474,6 +1474,23 @@ static void hw_var_set_acm_ctrl(PADAPTER adapter, u8 ctrl)
 
 	RTW_INFO("[HW_VAR_ACM_CTRL] Write 0x%02X\n", hwctrl);
 	rtw_write8(adapter, REG_ACMHWCTRL_8821C, hwctrl);
+}
+
+void hw_var_lps_rfon_chk(_adapter *adapter, u8 rfon_ctrl)
+{
+#ifdef CONFIG_LPS_ACK
+	struct pwrctrl_priv 	*pwrpriv = adapter_to_pwrctl(adapter);
+
+	if (rfon_ctrl == rf_on) {
+		if (rtw_sctx_wait(&pwrpriv->lps_ack_sctx, __func__)) {
+			if (pwrpriv->lps_ack_status > 0)
+				RTW_INFO(FUNC_ADPT_FMT" RF_ON function is not ready !!!\n", FUNC_ADPT_ARG(adapter));
+		} else {
+			RTW_WARN("LPS RFON sctx query timeout, operation abort!!\n");
+		}
+		pwrpriv->lps_ack_status = -1;
+	}
+#endif
 }
 
 static void hw_var_set_sec_cfg(PADAPTER adapter, u8 cfg)
@@ -1659,6 +1676,53 @@ static void rtl8821c_set_h2c_fw_joinbssrpt(PADAPTER adapter, u8 mstatus)
 		rtl8821c_dl_rsvd_page(adapter, RT_MEDIA_CONNECT);
 }
 
+#ifdef CONFIG_WOWLAN
+static void hw_var_vendor_wow_mode(_adapter *adapter, u8 en)
+{
+#ifdef CONFIG_CONCURRENT_MODE
+	_adapter *iface = NULL;
+	struct dvobj_priv *dvobj = adapter_to_dvobj(adapter);
+	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
+	u8 igi = 0, mac_addr[ETH_ALEN];
+
+	RTW_INFO("%s: en(%d)--->\n", __func__, en);
+	if (en) {
+		rtw_hal_get_hwreg(adapter, HW_VAR_MAC_ADDR, mac_addr);
+		/* RTW_INFO("suspend mac addr: "MAC_FMT"\n", MAC_ARG(mac_addr)); */
+		rtw_halmac_set_bssid(dvobj, HW_PORT4, mac_addr);
+		dvobj->rxfltmap2_bf_suspend = rtw_read16(adapter, REG_RXFLTMAP2);
+		dvobj->bcn_ctrl_clint3_bf_suspend = rtw_read8(adapter, REG_BCN_CTRL_CLINT3);
+		dvobj->rcr_bf_suspend = rtw_read32(adapter, REG_RCR);
+		dvobj->cr_ext_bf_suspend = rtw_read32(adapter, REG_CR_EXT);
+		/*RTW_INFO("RCR: 0x%02x, REG_CR_EXT: 0x%02x , REG_BCN_CTRL_CLINT3: 0x%02x, REG_RXFLTMAP2:0x%02x, REG_MACID_DROP0_8822B:0x%02x\n"
+		, rtw_read32(adapter, REG_RCR), rtw_read8(adapter, REG_CR_EXT), rtw_read8(adapter, REG_BCN_CTRL_CLINT3)
+		, rtw_read32(adapter, REG_RXFLTMAP2), rtw_read8(adapter, REG_MACID_DROP0_8822B)); */
+		rtw_write32(adapter, REG_RCR, (rtw_read32(adapter, REG_RCR) & (~(RCR_AM))) | RCR_CBSSID_DATA | RCR_CBSSID_BCN);
+		/* set PORT4 to ad hoc mode to filter not necessary Beacons */
+		rtw_write8(adapter, REG_CR_EXT, (rtw_read8(adapter, REG_CR_EXT)& (~BIT5)) | BIT4);
+		rtw_write8(adapter, REG_BCN_CTRL_CLINT3, rtw_read8(adapter, REG_BCN_CTRL_CLINT3) | BIT3);
+		rtw_write16(adapter, REG_RXFLTMAP2, 0xffff);
+		/* RTW_INFO("RCR: 0x%02x, REG_CR_EXT: 0x%02x , REG_BCN_CTRL_CLINT3: 0x%02x, REG_RXFLTMAP2:0x%02x, REG_MACID_DROP0_8822B:0x%02x\n"
+		, rtw_read32(adapter, REG_RCR), rtw_read8(adapter, REG_CR_EXT), rtw_read8(adapter, REG_BCN_CTRL_CLINT3)
+		, rtw_read32(adapter, REG_RXFLTMAP2), rtw_read8(adapter, REG_MACID_DROP0_8822B)); */
+		
+		/* The WRC's RSSI is weak. Set the IGI to lower */
+		odm_write_dig(adapter_to_phydm(adapter), 0x24);
+	} else {
+		/* restore the rcr, port ctrol setting */
+		rtw_write32(adapter, REG_CR_EXT, dvobj->cr_ext_bf_suspend);
+		rtw_write32(adapter, REG_RCR, dvobj->rcr_bf_suspend);
+		rtw_write8(adapter, REG_BCN_CTRL_CLINT3, dvobj->bcn_ctrl_clint3_bf_suspend);
+		rtw_write16(adapter, REG_RXFLTMAP2, dvobj->rxfltmap2_bf_suspend);
+		
+		/* RTW_INFO("RCR: 0x%02x, REG_CR_EXT: 0x%02x , REG_BCN_CTRL_CLINT3: 0x%02x, REG_RXFLTMAP2:0x%02x, REG_MACID_DROP0_8822B:0x%02x\n"
+		, rtw_read32(adapter, REG_RCR), rtw_read8(adapter, REG_CR_EXT), rtw_read8(adapter, REG_BCN_CTRL_CLINT3)
+		, rtw_read32(adapter, REG_RXFLTMAP2), rtw_read8(adapter, REG_MACID_DROP0_8822B)); */
+	}
+#endif /* CONFIG_CONCURRENT_MODE */
+}
+#endif /* CONFIG_WOWLAN */
+
 /*
  * Parameters:
  *	adapter
@@ -1809,6 +1873,14 @@ u8 rtl8821c_sethwreg(PADAPTER adapter, u8 variable, u8 *val)
 	case HW_VAR_H2C_FW_PWRMODE:
 		rtl8821c_set_FwPwrMode_cmd(adapter, *val);
 		break;
+
+	case HW_VAR_H2C_FW_PWRMODE_RFON_CTRL:
+		rtl8821c_set_FwPwrMode_rfon_ctrl_cmd(adapter, *val);
+		break;
+
+	case HW_VAR_LPS_RFON_CHK :
+		hw_var_lps_rfon_chk(adapter, *val);
+		break;
 	/*
 		case HW_VAR_H2C_PS_TUNE_PARAM:
 			break;
@@ -1816,6 +1888,15 @@ u8 rtl8821c_sethwreg(PADAPTER adapter, u8 variable, u8 *val)
 	case HW_VAR_H2C_FW_JOINBSSRPT:
 		rtl8821c_set_h2c_fw_joinbssrpt(adapter, *val);
 		break;
+	case HW_VAR_H2C_INACTIVE_IPS:
+#ifdef CONFIG_WOWLAN
+		rtl8821c_set_fw_pwrmode_inips_cmd_wowlan(adapter, *val);
+#endif /* CONFIG_WOWLAN */
+#ifdef CONFIG_WOWLAN
+	case HW_VAR_VENDOR_WOW_MODE:
+		hw_var_vendor_wow_mode(adapter, *(u8 *)val);
+		break;
+#endif /* CONFIG_WOWLAN */
 	case HW_VAR_DL_RSVD_PAGE:
 		#ifdef CONFIG_BT_COEXIST
 		if (check_fwstate(&adapter->mlmepriv, WIFI_AP_STATE) == _TRUE)
@@ -2007,11 +2088,12 @@ u8 rtl8821c_sethwreg(PADAPTER adapter, u8 variable, u8 *val)
 	*/
 #ifdef CONFIG_GPIO_WAKEUP
 	case HW_SET_GPIO_WL_CTRL: {
+		struct pwrctrl_priv *pwrpriv = adapter_to_pwrctl(adapter);
 		u8 enable = *val;
 		u8 value = 0;
 		u8 addr = REG_PAD_CTRL1_8821C + 3;
 
-		if (WAKEUP_GPIO_IDX == 6) {
+		if (pwrpriv->wowlan_gpio_index == 6) {
 			value = rtw_read8(adapter, addr);
 
 			if (enable == _TRUE && (value & BIT(1)))
@@ -2125,6 +2207,7 @@ u8 rtl8821c_sethwreg(PADAPTER adapter, u8 variable, u8 *val)
 	return ret;
 }
 
+#ifdef CONFIG_PROC_DEBUG
 struct qinfo {
 	u32 head:11;
 	u32 tail:11;
@@ -2227,6 +2310,7 @@ static void dump_mac_txfifo(void *sel, _adapter *adapter)
 		RTW_PRINT_SEL(sel, "HPQ: %d, LPQ: %d, NPQ: %d, EPQ: %d, PUBQ: %d\n"
 			, hpq, lpq, npq, epq, pubq);
 }
+#endif
 
 static u8 hw_var_get_bcn_valid(PADAPTER adapter)
 {
@@ -2421,7 +2505,7 @@ void rtl8821c_gethwreg(PADAPTER adapter, u8 variable, u8 *val)
 		/* driver read REG_SYS_CFG5 - BIT_LPS_STATUS REG_1070[3] to get hw ps state */
 		*((u16 *)val) = rtw_read8(adapter, REG_SYS_CFG5);
 		break;
-
+#ifdef CONFIG_PROC_DEBUG
 	case HW_VAR_DUMP_MAC_QUEUE_INFO:
 		dump_mac_qinfo(val, adapter);
 		break;
@@ -2429,6 +2513,7 @@ void rtl8821c_gethwreg(PADAPTER adapter, u8 variable, u8 *val)
 	case HW_VAR_DUMP_MAC_TXFIFO:
 		dump_mac_txfifo(val, adapter);
 		break;
+#endif
 	/*
 		case HW_VAR_ASIX_IOT:
 		case HW_VAR_H2C_BT_MP_OPER:
@@ -2437,6 +2522,10 @@ void rtl8821c_gethwreg(PADAPTER adapter, u8 variable, u8 *val)
 
 	case HW_VAR_BCN_CTRL_ADDR:
 		*((u32 *)val) = hw_bcn_ctrl_addr(adapter, adapter->hw_port);
+		break;
+
+	case HW_VAR_FREECNT:
+		*val = rtw_read8(adapter, REG_MISC_CTRL)&BIT_EN_FREECNT;
 		break;
 
 	default:
@@ -3315,6 +3404,7 @@ static void fill_fake_txdesc(PADAPTER adapter, u8 *pDesc, u32 BufferLen,
 		case _GCMP_:
 		case _GCMP_256_:
 			SET_TX_DESC_SEC_TYPE_8821C(pDesc, 0x2);
+			break;
 		default:
 			SET_TX_DESC_SEC_TYPE_8821C(pDesc, 0x0);
 			break;

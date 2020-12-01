@@ -33,8 +33,10 @@
  * ============================================================
  */
 
-/* 2019.6.14, Modify per sta API to fix the AP problem of early return*/
+/* 2020.6.23, Let gain_idx be initialized to 0 for linux compile warning*/
 #define DYNAMIC_TXPWR_VERSION "2.1"
+
+#define DTP_POWER_LEVEL_SIZE 3
 
 #if (DM_ODM_SUPPORT_TYPE == ODM_AP)
 #define TX_POWER_NEAR_FIELD_THRESH_LVL2 74
@@ -49,9 +51,9 @@
 #endif
 
 #if (DM_ODM_SUPPORT_TYPE == ODM_AP)
-#define TX_PWR_NEAR_FIELD_TH_JGR3_LVL3 255
-#define TX_PWR_NEAR_FIELD_TH_JGR3_LVL2 74
-#define TX_PWR_NEAR_FIELD_TH_JGR3_LVL1 60
+#define TX_PWR_NEAR_FIELD_TH_JGR3_LVL3 80
+#define TX_PWR_NEAR_FIELD_TH_JGR3_LVL2 63
+#define TX_PWR_NEAR_FIELD_TH_JGR3_LVL1 55
 #elif (DM_ODM_SUPPORT_TYPE == ODM_WIN)
 #define TX_PWR_NEAR_FIELD_TH_JGR3_LVL3 90
 #define TX_PWR_NEAR_FIELD_TH_JGR3_LVL2 85
@@ -67,6 +69,7 @@
 #define tx_high_pwr_level_level2 2
 #define tx_high_pwr_level_level3 3
 #define tx_high_pwr_level_unchange 4
+#define DTP_FLOOR_UP_GAP 3
 
 /* @============================================================
  * enumrate

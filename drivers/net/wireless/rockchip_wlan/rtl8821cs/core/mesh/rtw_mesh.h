@@ -503,7 +503,7 @@ void rtw_mesh_deinit_mesh_info(_adapter *adapter);
 void dump_mesh_b2u_flags(void *sel, _adapter *adapter);
 #endif
 
-int rtw_mesh_addr_resolve(_adapter *adapter, struct xmit_frame *xframe, _pkt *pkt, _list *b2u_list);
+int rtw_mesh_addr_resolve(_adapter *adapter, u16 os_qid, struct xmit_frame *xframe, _pkt *pkt, _list *b2u_list);
 
 s8 rtw_mesh_tx_set_whdr_mctrl_len(u8 mesh_frame_mode, struct pkt_attrib *attrib);
 void rtw_mesh_tx_build_mctrl(_adapter *adapter, struct pkt_attrib *attrib, u8 *buf);
@@ -520,6 +520,7 @@ int rtw_mesh_rx_msdu_act_check(union recv_frame *rframe
 	, const u8 *mda, const u8 *msa
 	, const u8 *da, const u8 *sa
 	, struct rtw_ieee80211s_hdr *mctrl
+	, u8 *msdu, enum rtw_rx_llc_hdl llc_hdl
 	, struct xmit_frame **fwd_frame, _list *b2u_list);
 
 void dump_mesh_stats(void *sel, _adapter *adapter);

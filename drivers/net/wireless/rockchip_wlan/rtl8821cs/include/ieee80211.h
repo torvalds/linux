@@ -27,7 +27,7 @@
 
 #ifdef CONFIG_AP_MODE
 
-#define RTL_IOCTL_HOSTAPD (SIOCIWFIRSTPRIV + 28)
+#define RTL_IOCTL_HOSTAPD (SIOCDEVPRIVATE + 2)
 
 /* RTL871X_IOCTL_HOSTAPD ioctl() cmd: */
 enum {
@@ -56,6 +56,7 @@ enum {
 	RTL871X_HOSTAPD_ACL_ADD_STA = 22,
 	RTL871X_HOSTAPD_ACL_REMOVE_STA = 23,
 };
+#endif /* CONFIG_AP_MODE */
 
 /* STA flags */
 #define WLAN_STA_AUTH BIT(0)
@@ -73,9 +74,9 @@ enum {
 #define WLAN_STA_WPS BIT(12)
 #define WLAN_STA_MAYBE_WPS BIT(13)
 #define WLAN_STA_VHT BIT(14)
+#define WLAN_STA_WDS BIT(15)
+#define WLAN_STA_MULTI_AP BIT(16)
 #define WLAN_STA_NONERP BIT(31)
-
-#endif
 
 #define IEEE_CMD_SET_WPA_PARAM			1
 #define IEEE_CMD_SET_WPA_IE				2
@@ -500,12 +501,21 @@ struct rtw_ieee80211s_hdr {
 } __attribute__((packed));
 #endif
 
+/* Some IEEE 802.11x packet types are corresponding to parsing_eapol_packet() */
 enum eap_type {
 	EAP_PACKET = 0,
+	NON_EAPOL,
 	EAPOL_START,
 	EAPOL_LOGOFF,
 	EAPOL_KEY,
-	EAPOL_ENCAP_ASF_ALERT
+	EAPOL_ENCAP_ASF_ALERT,
+	EAPOL_PACKET,
+	EAPOL_WPA_GROUP_KEY_1_2,
+	EAPOL_WPA_GROUP_KEY_2_2,
+	EAPOL_1_4,
+	EAPOL_2_4,
+	EAPOL_3_4,
+	EAPOL_4_4,
 };
 
 #define IEEE80211_3ADDR_LEN 24
@@ -751,6 +761,8 @@ struct ieee80211_snap_hdr {
 #define WLAN_EID_GENERIC (WLAN_EID_VENDOR_SPECIFIC)
 #define WLAN_EID_VHT_CAPABILITY 191
 #define WLAN_EID_VHT_OPERATION 192
+#define WLAN_EID_WIDE_BANDWIDTH_CHANNEL_SWITCH 194
+#define WLAN_EID_CHANNEL_SWITCH_WRAPPER 196
 #define WLAN_EID_VHT_OP_MODE_NOTIFY 199
 #define WLAN_EID_EXTENSION 255
 #define WLAN_EID_EXT_OWE_DH_PARAM 32
@@ -942,92 +954,7 @@ enum MGN_RATE {
 #define IS_3T_RATE(_rate)	(IS_HT3SS_RATE((_rate)) || IS_VHT3SS_RATE((_rate)))
 #define IS_4T_RATE(_rate)	(IS_HT4SS_RATE((_rate)) || IS_VHT4SS_RATE((_rate)))
 
-#define MGN_RATE_STR(_rate) \
-	(_rate == MGN_1M) ? "CCK_1M" : \
-	(_rate == MGN_2M) ? "CCK_2M" : \
-	(_rate == MGN_5_5M) ? "CCK_5.5M" : \
-	(_rate == MGN_11M) ? "CCK_11M" : \
-	(_rate == MGN_6M) ? "OFDM_6M" : \
-	(_rate == MGN_9M) ? "OFDM_9M" : \
-	(_rate == MGN_12M) ? "OFDM_12M" : \
-	(_rate == MGN_18M) ? "OFDM_18M" : \
-	(_rate == MGN_24M) ? "OFDM_24M" : \
-	(_rate == MGN_36M) ? "OFDM_36M" : \
-	(_rate == MGN_48M) ? "OFDM_48M" : \
-	(_rate == MGN_54M) ? "OFDM_54M" : \
-	(_rate == MGN_MCS32) ? "MCS32" : \
-	(_rate == MGN_MCS0) ? "MCS0" : \
-	(_rate == MGN_MCS1) ? "MCS1" : \
-	(_rate == MGN_MCS2) ? "MCS2" : \
-	(_rate == MGN_MCS3) ? "MCS3" : \
-	(_rate == MGN_MCS4) ? "MCS4" : \
-	(_rate == MGN_MCS5) ? "MCS5" : \
-	(_rate == MGN_MCS6) ? "MCS6" : \
-	(_rate == MGN_MCS7) ? "MCS7" : \
-	(_rate == MGN_MCS8) ? "MCS8" : \
-	(_rate == MGN_MCS9) ? "MCS9" : \
-	(_rate == MGN_MCS10) ? "MCS10" : \
-	(_rate == MGN_MCS11) ? "MCS11" : \
-	(_rate == MGN_MCS12) ? "MCS12" : \
-	(_rate == MGN_MCS13) ? "MCS13" : \
-	(_rate == MGN_MCS14) ? "MCS14" : \
-	(_rate == MGN_MCS15) ? "MCS15" : \
-	(_rate == MGN_MCS16) ? "MCS16" : \
-	(_rate == MGN_MCS17) ? "MCS17" : \
-	(_rate == MGN_MCS18) ? "MCS18" : \
-	(_rate == MGN_MCS19) ? "MCS19" : \
-	(_rate == MGN_MCS20) ? "MCS20" : \
-	(_rate == MGN_MCS21) ? "MCS21" : \
-	(_rate == MGN_MCS22) ? "MCS22" : \
-	(_rate == MGN_MCS23) ? "MCS23" : \
-	(_rate == MGN_MCS24) ? "MCS24" : \
-	(_rate == MGN_MCS25) ? "MCS25" : \
-	(_rate == MGN_MCS26) ? "MCS26" : \
-	(_rate == MGN_MCS27) ? "MCS27" : \
-	(_rate == MGN_MCS28) ? "MCS28" : \
-	(_rate == MGN_MCS29) ? "MCS29" : \
-	(_rate == MGN_MCS30) ? "MCS30" : \
-	(_rate == MGN_MCS31) ? "MCS31" : \
-	(_rate == MGN_VHT1SS_MCS0) ? "VHT1SMCS0" : \
-	(_rate == MGN_VHT1SS_MCS1) ? "VHT1SMCS1" : \
-	(_rate == MGN_VHT1SS_MCS2) ? "VHT1SMCS2" : \
-	(_rate == MGN_VHT1SS_MCS3) ? "VHT1SMCS3" : \
-	(_rate == MGN_VHT1SS_MCS4) ? "VHT1SMCS4" : \
-	(_rate == MGN_VHT1SS_MCS5) ? "VHT1SMCS5" : \
-	(_rate == MGN_VHT1SS_MCS6) ? "VHT1SMCS6" : \
-	(_rate == MGN_VHT1SS_MCS7) ? "VHT1SMCS7" : \
-	(_rate == MGN_VHT1SS_MCS8) ? "VHT1SMCS8" : \
-	(_rate == MGN_VHT1SS_MCS9) ? "VHT1SMCS9" : \
-	(_rate == MGN_VHT2SS_MCS0) ? "VHT2SMCS0" : \
-	(_rate == MGN_VHT2SS_MCS1) ? "VHT2SMCS1" : \
-	(_rate == MGN_VHT2SS_MCS2) ? "VHT2SMCS2" : \
-	(_rate == MGN_VHT2SS_MCS3) ? "VHT2SMCS3" : \
-	(_rate == MGN_VHT2SS_MCS4) ? "VHT2SMCS4" : \
-	(_rate == MGN_VHT2SS_MCS5) ? "VHT2SMCS5" : \
-	(_rate == MGN_VHT2SS_MCS6) ? "VHT2SMCS6" : \
-	(_rate == MGN_VHT2SS_MCS7) ? "VHT2SMCS7" : \
-	(_rate == MGN_VHT2SS_MCS8) ? "VHT2SMCS8" : \
-	(_rate == MGN_VHT2SS_MCS9) ? "VHT2SMCS9" : \
-	(_rate == MGN_VHT3SS_MCS0) ? "VHT3SMCS0" : \
-	(_rate == MGN_VHT3SS_MCS1) ? "VHT3SMCS1" : \
-	(_rate == MGN_VHT3SS_MCS2) ? "VHT3SMCS2" : \
-	(_rate == MGN_VHT3SS_MCS3) ? "VHT3SMCS3" : \
-	(_rate == MGN_VHT3SS_MCS4) ? "VHT3SMCS4" : \
-	(_rate == MGN_VHT3SS_MCS5) ? "VHT3SMCS5" : \
-	(_rate == MGN_VHT3SS_MCS6) ? "VHT3SMCS6" : \
-	(_rate == MGN_VHT3SS_MCS7) ? "VHT3SMCS7" : \
-	(_rate == MGN_VHT3SS_MCS8) ? "VHT3SMCS8" : \
-	(_rate == MGN_VHT3SS_MCS9) ? "VHT3SMCS9" : \
-	(_rate == MGN_VHT4SS_MCS0) ? "VHT4SMCS0" : \
-	(_rate == MGN_VHT4SS_MCS1) ? "VHT4SMCS1" : \
-	(_rate == MGN_VHT4SS_MCS2) ? "VHT4SMCS2" : \
-	(_rate == MGN_VHT4SS_MCS3) ? "VHT4SMCS3" : \
-	(_rate == MGN_VHT4SS_MCS4) ? "VHT4SMCS4" : \
-	(_rate == MGN_VHT4SS_MCS5) ? "VHT4SMCS5" : \
-	(_rate == MGN_VHT4SS_MCS6) ? "VHT4SMCS6" : \
-	(_rate == MGN_VHT4SS_MCS7) ? "VHT4SMCS7" : \
-	(_rate == MGN_VHT4SS_MCS8) ? "VHT4SMCS8" : \
-	(_rate == MGN_VHT4SS_MCS9) ? "VHT4SMCS9" : "UNKNOWN"
+const char *MGN_RATE_STR(enum MGN_RATE rate);
 
 typedef enum _RATE_SECTION {
 	CCK = 0,
@@ -1597,6 +1524,24 @@ enum _PUBLIC_ACTION {
 	ACT_PUBLIC_GAS_COMEBACK_RSP = 13,
 	ACT_PUBLIC_TDLS_DISCOVERY_RSP = 14,
 	ACT_PUBLIC_LOCATION_TRACK = 15,
+	ACT_PUBLIC_QAB_REQ,
+	ACT_PUBLIC_QAB_RSP,
+	ACT_PUBLIC_QMF_POLICY,
+	ACT_PUBLIC_QMF_POLICY_CHANGE,
+	ACT_PUBLIC_QLOAD_REQ,
+	ACT_PUBLIC_QLOAD_REPORT,
+	ACT_PUBLIC_HCCA_TXOP_ADV,
+	ACT_PUBLIC_HCCA_TXOP_RSP,
+	ACT_PUBLIC_PUBLIC_KEY,
+	ACT_PUBLIC_CH_AVAILABILITY_QUERY,
+	ACT_PUBLIC_CH_SCHEDULE_MGMT,
+	ACT_PUBLIC_CONTACT_VERI_SIGNAL,
+	ACT_PUBLIC_GDD_ENABLE_REQ,
+	ACT_PUBLIC_GDD_ENABLE_RSP,
+	ACT_PUBLIC_NETWORK_CH_CONTROL,
+	ACT_PUBLIC_WHITE_SPACE_MAP_ANN,
+	ACT_PUBLIC_FTM_REQ,
+	ACT_PUBLIC_FTM,
 	ACT_PUBLIC_MAX
 };
 
@@ -1659,26 +1604,6 @@ enum rtw_ieee80211_vht_actioncode {
 	RTW_WLAN_ACTION_VHT_GROUPID_MANAGEMENT = 1,
 	RTW_WLAN_ACTION_VHT_OPMODE_NOTIFICATION = 2,
 };
-
-/*IEEE 802.11r action code*/
-#ifdef CONFIG_RTW_80211R
-enum rtw_ieee80211_ft_actioncode {
-	RTW_WLAN_ACTION_FT_RESV,
-	RTW_WLAN_ACTION_FT_REQ,
-	RTW_WLAN_ACTION_FT_RSP,
-	RTW_WLAN_ACTION_FT_CONF,
-	RTW_WLAN_ACTION_FT_ACK,
-	RTW_WLAN_ACTION_FT_MAX,
-};
-#endif
-
-#ifdef CONFIG_RTW_WNM
-enum rtw_ieee80211_wnm_actioncode {
-	RTW_WLAN_ACTION_WNM_BTM_QUERY = 6,
-	RTW_WLAN_ACTION_WNM_BTM_REQ = 7,
-	RTW_WLAN_ACTION_WNM_BTM_RSP = 8,
-};
-#endif
 
 #define OUI_MICROSOFT 0x0050f2 /* Microsoft (also used in Wi-Fi specs)
 				* 00:50:F2 */
@@ -1977,6 +1902,7 @@ u8 *rtw_get_owe_ie(const u8 *in_ie, uint in_len, u8 *owe_ie, uint *owe_ielen);
 	for (ie = (void *)buf; (((u8 *)ie) - ((u8 *)buf) + 1) < buf_len; ie = (void *)(((u8 *)ie) + *(((u8 *)ie)+1) + 2))
 
 void dump_ies(void *sel, const u8 *buf, u32 buf_len);
+#ifdef CONFIG_RTW_DEBUG
 
 #ifdef CONFIG_80211N_HT
 #define HT_SC_OFFSET_MAX 4
@@ -1987,6 +1913,7 @@ void dump_ht_cap_ie_content(void *sel, const u8 *buf, u32 buf_len);
 #endif
 
 void dump_wps_ie(void *sel, const u8 *ie, u32 ie_len);
+#endif	/*	CONFIG_RTW_DEBUG	*/
 
 void rtw_ies_get_chbw(u8 *ies, int ies_len, u8 *ch, u8 *bw, u8 *offset, u8 ht, u8 vht);
 
@@ -1997,9 +1924,12 @@ bool rtw_is_chbw_grouped(u8 ch_a, u8 bw_a, u8 offset_a
 void rtw_sync_chbw(u8 *req_ch, u8 *req_bw, u8 *req_offset
 	, u8 *g_ch, u8 *g_bw, u8 *g_offset);
 
+#ifdef CONFIG_P2P
 u32 rtw_get_p2p_merged_ies_len(u8 *in_ie, u32 in_len);
 int rtw_p2p_merge_ies(u8 *in_ie, u32 in_len, u8 *merge_ie);
+#ifdef CONFIG_RTW_DEBUG
 void dump_p2p_ie(void *sel, const u8 *ie, u32 ie_len);
+#endif
 u8 *rtw_get_p2p_ie(const u8 *in_ie, int in_len, u8 *p2p_ie, uint *p2p_ielen);
 u8 *rtw_get_p2p_attr(u8 *p2p_ie, uint p2p_ielen, u8 target_attr_id, u8 *buf_attr, u32 *len_attr);
 u8 *rtw_get_p2p_attr_content(u8 *p2p_ie, uint p2p_ielen, u8 target_attr_id, u8 *buf_content, uint *len_content);
@@ -2009,16 +1939,32 @@ uint rtw_del_p2p_attr(u8 *ie, uint ielen_ori, u8 attr_id);
 u8 *rtw_bss_ex_get_p2p_ie(WLAN_BSSID_EX *bss_ex, u8 *p2p_ie, uint *p2p_ielen);
 void rtw_bss_ex_del_p2p_ie(WLAN_BSSID_EX *bss_ex);
 void rtw_bss_ex_del_p2p_attr(WLAN_BSSID_EX *bss_ex, u8 attr_id);
+#endif	/*	CONFIG_P2P	*/
 
+uint rtw_del_wfd_ie(u8 *ies, uint ies_len_ori, const char *msg);
+void rtw_bss_ex_del_wfd_ie(WLAN_BSSID_EX *bss_ex);
+#ifdef CONFIG_WFD
+#ifdef CONFIG_RTW_DEBUG
 void dump_wfd_ie(void *sel, const u8 *ie, u32 ie_len);
+#endif
 u8 *rtw_get_wfd_ie(const u8 *in_ie, int in_len, u8 *wfd_ie, uint *wfd_ielen);
 u8 *rtw_get_wfd_attr(u8 *wfd_ie, uint wfd_ielen, u8 target_attr_id, u8 *buf_attr, u32 *len_attr);
 u8 *rtw_get_wfd_attr_content(u8 *wfd_ie, uint wfd_ielen, u8 target_attr_id, u8 *buf_content, uint *len_content);
-uint rtw_del_wfd_ie(u8 *ies, uint ies_len_ori, const char *msg);
 uint rtw_del_wfd_attr(u8 *ie, uint ielen_ori, u8 attr_id);
 u8 *rtw_bss_ex_get_wfd_ie(WLAN_BSSID_EX *bss_ex, u8 *wfd_ie, uint *wfd_ielen);
-void rtw_bss_ex_del_wfd_ie(WLAN_BSSID_EX *bss_ex);
 void rtw_bss_ex_del_wfd_attr(WLAN_BSSID_EX *bss_ex, u8 attr_id);
+#endif
+
+#define MULTI_AP_SUB_ELEM_TYPE 0x06
+#define MULTI_AP_TEAR_DOWN BIT(4)
+#define MULTI_AP_FRONTHAUL_BSS BIT(5)
+#define MULTI_AP_BACKHAUL_BSS BIT(6)
+#define MULTI_AP_BACKHAUL_STA BIT(7)
+#ifdef CONFIG_RTW_MULTI_AP
+void dump_multi_ap_ie(void *sel, const u8 *ie, u32 ie_len);
+u8 rtw_get_multi_ap_ie_ext(const u8 *ies, int ies_len);
+u8 *rtw_set_multi_ap_ie_ext(u8 *pbuf, uint *frlen, u8 val);
+#endif
 
 uint	rtw_get_rateset_len(u8	*rateset);
 
@@ -2039,6 +1985,8 @@ void rtw_macaddr_cfg(u8 *out, const u8 *hw_mac_addr);
 u16 rtw_ht_mcs_rate(u8 bw_40MHz, u8 short_GI, unsigned char *MCS_rate);
 u8	rtw_ht_mcsset_to_nss(u8 *supp_mcs_set);
 u32	rtw_ht_mcs_set_to_bitmap(u8 *mcs_set, u8 nss);
+u8 rtw_ht_cap_get_rx_nss(u8 *ht_cap);
+u8 rtw_ht_cap_get_tx_nss(u8 *ht_cap);
 
 int rtw_action_frame_parse(const u8 *frame, u32 frame_len, u8 *category, u8 *action);
 const char *action_public_str(u8 action);

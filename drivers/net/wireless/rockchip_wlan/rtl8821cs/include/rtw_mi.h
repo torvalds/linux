@@ -46,9 +46,7 @@ struct mi_state {
 	u8 scan_enter_num;	/* WIFI_UNDER_SURVEY && !SCAN_DISABLE && !SCAN_BACK_OP */
 	u8 uwps_num;		/* WIFI_UNDER_WPS */
 #ifdef CONFIG_IOCTL_CFG80211
-	#ifdef CONFIG_P2P
 	u8 roch_num;
-	#endif
 	u8 mgmt_tx_num;
 #endif
 #ifdef CONFIG_P2P
@@ -56,9 +54,6 @@ struct mi_state {
 	u8 p2p_gc;
 	u8 p2p_go;
 #endif
-	u8 union_ch;
-	u8 union_bw;
-	u8 union_offset;
 };
 
 #define MSTATE_STA_NUM(_mstate)			((_mstate)->sta_num)
@@ -96,7 +91,7 @@ struct mi_state {
 #define MSTATE_SCAN_ENTER_NUM(_mstate)	((_mstate)->scan_enter_num)
 #define MSTATE_WPS_NUM(_mstate)			((_mstate)->uwps_num)
 
-#if defined(CONFIG_IOCTL_CFG80211) && defined(CONFIG_P2P)
+#if defined(CONFIG_IOCTL_CFG80211)
 #define MSTATE_ROCH_NUM(_mstate)		((_mstate)->roch_num)
 #else
 #define MSTATE_ROCH_NUM(_mstate)		0
@@ -118,13 +113,9 @@ struct mi_state {
 #define MSTATE_MGMT_TX_NUM(_mstate)		0
 #endif
 
-#define MSTATE_U_CH(_mstate)			((_mstate)->union_ch)
-#define MSTATE_U_BW(_mstate)			((_mstate)->union_bw)
-#define MSTATE_U_OFFSET(_mstate)		((_mstate)->union_offset)
-
-#define rtw_mi_get_union_chan(adapter)	adapter_to_dvobj(adapter)->iface_state.union_ch
-#define rtw_mi_get_union_bw(adapter)		adapter_to_dvobj(adapter)->iface_state.union_bw
-#define rtw_mi_get_union_offset(adapter)	adapter_to_dvobj(adapter)->iface_state.union_offset
+#define rtw_mi_get_union_chan(adapter)		((adapter_to_dvobj(adapter)->union_ch) ? (adapter_to_dvobj(adapter)->union_ch) : (adapter_to_dvobj(adapter)->union_ch_bak))
+#define rtw_mi_get_union_bw(adapter)		((adapter_to_dvobj(adapter)->union_ch) ? (adapter_to_dvobj(adapter)->union_bw) : (adapter_to_dvobj(adapter)->union_bw_bak))
+#define rtw_mi_get_union_offset(adapter)	((adapter_to_dvobj(adapter)->union_ch) ? (adapter_to_dvobj(adapter)->union_offset) : (adapter_to_dvobj(adapter)->union_offset_bak))
 
 #define rtw_mi_get_assoced_sta_num(adapter)	DEV_STA_LD_NUM(adapter_to_dvobj(adapter))
 #define rtw_mi_get_ap_num(adapter)			DEV_AP_NUM(adapter_to_dvobj(adapter))
@@ -249,6 +240,8 @@ u8 rtw_mi_buddy_check_pending_xmitbuf(_adapter *padapter);
 	#include <rtl8822b_hal.h>
 #elif defined(CONFIG_RTL8822C)
 	#include <rtl8822c_hal.h>
+#elif defined(CONFIG_RTL8723F)
+	#include <rtl8723f_hal.h>
 #else
 	extern s32 _dequeue_writeport(PADAPTER padapter);
 #endif
@@ -276,15 +269,17 @@ extern void sreset_start_adapter(_adapter *padapter);
 extern void sreset_stop_adapter(_adapter *padapter);
 u8 rtw_mi_sreset_adapter_hdl(_adapter *padapter, u8 bstart);
 u8 rtw_mi_buddy_sreset_adapter_hdl(_adapter *padapter, u8 bstart);
+
+#ifdef CONFIG_AP_MODE
 #if defined(DBG_CONFIG_ERROR_RESET) && defined(CONFIG_CONCURRENT_MODE)
 void rtw_mi_ap_info_restore(_adapter *adapter);
 #endif
-
 u8 rtw_mi_tx_beacon_hdl(_adapter *padapter);
 u8 rtw_mi_buddy_tx_beacon_hdl(_adapter *padapter);
 
 u8 rtw_mi_set_tx_beacon_cmd(_adapter *padapter);
 u8 rtw_mi_buddy_set_tx_beacon_cmd(_adapter *padapter);
+#endif /* CONFIG_AP_MODE */
 
 #ifdef CONFIG_P2P
 u8 rtw_mi_p2p_chk_state(_adapter *padapter, enum P2P_STATE p2p_state);

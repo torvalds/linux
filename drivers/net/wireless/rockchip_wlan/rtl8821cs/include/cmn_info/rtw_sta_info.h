@@ -86,6 +86,14 @@ enum rf_type {
 	RF_3T3R			= 5,
 	RF_3T4R			= 6,
 	RF_4T4R			= 7,
+	RF_4T3R			= 8,
+	RF_4T2R			= 9,
+	RF_4T1R			= 10,
+	RF_3T2R			= 11,
+	RF_3T1R			= 12,
+	RF_2T1R			= 13,
+	RF_1T4R			= 14,
+	RF_1T3R			= 15,
 	RF_TYPE_MAX,
 };
 
@@ -192,6 +200,7 @@ struct ra_sta_info {
 struct dtp_info {
 	u8	dyn_tx_power;	/*Dynamic Tx power offset*/
 	u8	last_tx_power;
+	boolean	sta_is_alive;
 	u8	sta_tx_high_power_lvl:4;
 	u8	sta_last_dtp_lvl:4;
 };
@@ -249,6 +258,7 @@ struct phydm_phyinfo_struct {
 	u8		cnt_pw2cca;
 	u8		cnt_cca2agc_rdy;
 /*ODM_PHY_STATUS_NEW_TYPE_SUPPORT*/
+	u8		rx_cck_evm;
 };
 
 struct phydm_perpkt_info_struct {

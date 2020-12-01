@@ -56,13 +56,6 @@
 #define RM_GET_AID(rmid)	((rmid&0xffff0000)>>16)
 #define RM_IS_ID_FOR_ALL(rmid)	(rmid&RM_ALL_MEAS)
 
-#define	MAX_OP_CHANNEL_SET_NUM	11
-typedef struct _RT_OPERATING_CLASS {
-	int	global_op_class;
-	int	Len;
-	u16	Channel[MAX_OP_CHANNEL_SET_NUM];
-} RT_OPERATING_CLASS, *PRT_OPERATING_CLASS;
-
 /* IEEE 802.11-2012 Table 8-59 Measurement Type definitions
 *  for measurement request
 *  modify rm_meas_type_req_name() when adding new type
@@ -113,7 +106,7 @@ enum bcn_req_opt_sub_id{
 	bcn_req_rep_info = 1,		/* len 2 */
 	bcn_req_rep_detail = 2,		/* len 1 */
 	bcn_req_req = 10,		/* len 0-237 */
-	bcn_req_ac_ch_rep = 51		/* len 1-237 */
+	bcn_req_ap_ch_rep = 51		/* len 1-237 */
 };
 
 /* IEEE 802.11-2012 Table 8-66 Reporting condition of Beacon Report */
@@ -132,15 +125,22 @@ struct opt_rep_info {
 };
 
 #define BCN_REQ_OPT_MAX_NUM		16
+#define BCN_REQ_REQ_OPT_MAX_NUM		16
+#define BCN_REQ_OPT_AP_CH_RPT_MAX_NUM	12
 struct bcn_req_opt {
 	/* all req cmd id */
 	u8 opt_id[BCN_REQ_OPT_MAX_NUM];
 	u8 opt_id_num;
+	u8 req_id_num;
+	u8 req_id[BCN_REQ_REQ_OPT_MAX_NUM];
 	u8 rep_detail;
 	NDIS_802_11_SSID ssid;
 
 	/* bcn report condition */
 	struct opt_rep_info rep_cond;
+
+	u8 ap_ch_rpt_num;
+	struct _RT_OPERATING_CLASS *ap_ch_rpt[BCN_REQ_OPT_AP_CH_RPT_MAX_NUM];
 
 	/* 0:default(Report to be issued after each measurement) */
 	u8 *req_start;	/*id : 10 request;start  */
@@ -231,7 +231,7 @@ struct rm_meas_req {
 		struct meas_req_opt nhm;
 	}opt;
 
-	struct rtw_ieee80211_channel ch_set[MAX_OP_CHANNEL_SET_NUM];
+	struct rtw_ieee80211_channel ch_set[RTW_CHANNEL_SCAN_AMOUNT];
 	u8 ch_set_ch_amount;
 	s8 rx_pwr;		/* in dBm */
 	u8 rx_bw;
@@ -285,8 +285,10 @@ struct rm_obj {
 	u64 meas_end_time;
 	int wait_busy;
 	u8 poll_mode;
+	u8 free_run_counter_valid; /* valid:_SUCCESS/invalid:_FAIL */
 
 	struct data_buf buf[MAX_BUF_NUM];
+	bool from_ioctl;
 
 	_list list;
 };
