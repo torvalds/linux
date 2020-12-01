@@ -104,7 +104,7 @@
 	 * are used for on-board microSD slot instead.
 	 */
 	/delete-property/broken-cd;
-	cd-gpios = <&gpioi 10 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+	cd-gpios = <&gpioi 10 GPIO_ACTIVE_HIGH>;
 	disable-wp;
 };
 
