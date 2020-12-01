@@ -1567,6 +1567,41 @@ static void rkcif_stream_stop(struct rkcif_stream *stream)
 	stream->state = RKCIF_STATE_READY;
 }
 
+static bool rkcif_is_extending_line_for_height(struct rkcif_device *dev,
+							 struct rkcif_stream *stream,
+							 const struct cif_input_fmt *fmt)
+{
+	bool is_extended = false;
+	struct rkmodule_hdr_cfg hdr_cfg;
+	int ret;
+
+	if (dev->chip_id == CHIP_RV1126_CIF ||
+	    dev->chip_id == CHIP_RV1126_CIF_LITE) {
+		if (dev->terminal_sensor.sd) {
+			ret = v4l2_subdev_call(dev->terminal_sensor.sd,
+					       core, ioctl,
+					       RKMODULE_GET_HDR_CFG,
+					       &hdr_cfg);
+			if (!ret)
+				dev->hdr.mode = hdr_cfg.hdr_mode;
+			else
+				dev->hdr.mode = NO_HDR;
+		}
+
+		if (fmt && fmt->fmt_type == CIF_FMT_TYPE_RAW) {
+			if ((dev->hdr.mode == HDR_X2 &&
+			    stream->id == RKCIF_STREAM_MIPI_ID1) ||
+			    (dev->hdr.mode == HDR_X3 &&
+			     stream->id == RKCIF_STREAM_MIPI_ID2) ||
+			     (dev->hdr.mode == NO_HDR)) {
+				is_extended = true;
+			}
+		}
+	}
+
+	return is_extended;
+}
+
 static int rkcif_queue_setup(struct vb2_queue *queue,
 			     unsigned int *num_buffers,
 			     unsigned int *num_planes,
@@ -1574,13 +1609,17 @@ static int rkcif_queue_setup(struct vb2_queue *queue,
 			     struct device *alloc_ctxs[])
 {
 	struct rkcif_stream *stream = queue->drv_priv;
+	struct rkcif_extend_info *extend_line = &stream->extend_line;
 	struct rkcif_device *dev = stream->cifdev;
 	const struct v4l2_pix_format_mplane *pixm = NULL;
 	const struct cif_output_fmt *cif_fmt;
+	const struct cif_input_fmt *in_fmt;
+	bool is_extended = false;
 	u32 i, height;
 
 	pixm = &stream->pixm;
 	cif_fmt = stream->cif_fmt_out;
+	in_fmt = stream->cif_fmt_in;
 
 	*num_planes = cif_fmt->mplanes;
 
@@ -1588,6 +1627,12 @@ static int rkcif_queue_setup(struct vb2_queue *queue,
 		height = stream->crop[CROP_SRC_ACT].height;
 	else
 		height = pixm->height;
+
+	is_extended = rkcif_is_extending_line_for_height(dev, stream, in_fmt);
+	if (is_extended && extend_line->is_extended) {
+		height = extend_line->pixm.height;
+		pixm = &extend_line->pixm;
+	}
 
 	for (i = 0; i < cif_fmt->mplanes; i++) {
 		const struct v4l2_plane_pix_format *plane_fmt;
@@ -1597,8 +1642,9 @@ static int rkcif_queue_setup(struct vb2_queue *queue,
 		sizes[i] = plane_fmt->sizeimage / height * h;
 	}
 
-	v4l2_dbg(1, rkcif_debug, &dev->v4l2_dev, "%s count %d, size %d\n",
-		 v4l2_type_names[queue->type], *num_buffers, sizes[0]);
+	v4l2_dbg(1, rkcif_debug, &dev->v4l2_dev, "%s count %d, size %d, extended(%d, %d)\n",
+		 v4l2_type_names[queue->type], *num_buffers, sizes[0],
+		 is_extended, extend_line->is_extended);
 
 	return 0;
 }
@@ -2491,10 +2537,12 @@ static void rkcif_set_fmt(struct rkcif_stream *stream,
 {
 	struct rkcif_device *dev = stream->cifdev;
 	const struct cif_output_fmt *fmt;
+	const struct cif_input_fmt *cif_fmt_in = NULL;
 	struct v4l2_rect input_rect;
-	unsigned int imagesize = 0, planes;
+	unsigned int imagesize = 0, ex_imagesize = 0, planes;
 	u32 xsubs = 1, ysubs = 1, i;
 	struct rkmodule_hdr_cfg hdr_cfg;
+	struct rkcif_extend_info *extend_line = &stream->extend_line;
 	int ret;
 
 	fmt = find_output_fmt(stream, pixm->pixelformat);
@@ -2504,9 +2552,11 @@ static void rkcif_set_fmt(struct rkcif_stream *stream,
 	input_rect.width = RKCIF_DEFAULT_WIDTH;
 	input_rect.height = RKCIF_DEFAULT_HEIGHT;
 
-	if (dev->active_sensor && dev->active_sensor->sd)
-		get_input_fmt(dev->active_sensor->sd,
+	if (dev->active_sensor && dev->active_sensor->sd) {
+		cif_fmt_in = get_input_fmt(dev->active_sensor->sd,
 			      &input_rect, stream->id + 1);
+		stream->cif_fmt_in = cif_fmt_in;
+	}
 
 	if (dev->terminal_sensor.sd) {
 		ret = v4l2_subdev_call(dev->terminal_sensor.sd,
@@ -2540,7 +2590,7 @@ static void rkcif_set_fmt(struct rkcif_stream *stream,
 
 	for (i = 0; i < planes; i++) {
 		struct v4l2_plane_pix_format *plane_fmt;
-		int width, height, bpl, size, bpp;
+		int width, height, bpl, size, bpp, ex_size;
 
 		if (i == 0) {
 			if (stream->crop_enable) {
@@ -2560,6 +2610,8 @@ static void rkcif_set_fmt(struct rkcif_stream *stream,
 			}
 		}
 
+		extend_line->pixm.height = height + RKMODULE_EXTEND_LINE;
+
 		/* compact mode need bytesperline 4bytes align,
 		 * align 8 to bring into correspondence with virtual width.
 		 * to optimize reading and writing of ddr, aliged with 256.
@@ -2574,12 +2626,18 @@ static void rkcif_set_fmt(struct rkcif_stream *stream,
 		}
 		size = bpl * height;
 		imagesize += size;
+		ex_size = bpl * extend_line->pixm.height;
+		ex_imagesize += ex_size;
 
 		if (fmt->mplanes > i) {
 			/* Set bpl and size for each mplane */
 			plane_fmt = pixm->plane_fmt + i;
 			plane_fmt->bytesperline = bpl;
 			plane_fmt->sizeimage = size;
+
+			plane_fmt = extend_line->pixm.plane_fmt + i;
+			plane_fmt->bytesperline = bpl;
+			plane_fmt->sizeimage = ex_size;
 		}
 		v4l2_dbg(1, rkcif_debug, &stream->cifdev->v4l2_dev,
 			 "C-Plane %i size: %d, Total imagesize: %d\n",
@@ -2590,8 +2648,10 @@ static void rkcif_set_fmt(struct rkcif_stream *stream,
 	 * It's important since we want to unify non-MPLANE
 	 * and MPLANE.
 	 */
-	if (fmt->mplanes == 1)
+	if (fmt->mplanes == 1) {
 		pixm->plane_fmt[0].sizeimage = imagesize;
+		extend_line->pixm.plane_fmt[0].sizeimage = ex_imagesize;
+	}
 
 	if (!try) {
 		stream->cif_fmt_out = fmt;
@@ -2636,10 +2696,18 @@ void rkcif_stream_init(struct rkcif_device *dev, u32 id)
 
 	stream->crop_enable = false;
 	stream->crop_mask = 0x0;
+
 	if (dev->chip_id >= CHIP_RV1126_CIF)
 		stream->is_compact = true;
 	else
 		stream->is_compact = false;
+
+	if (dev->chip_id == CHIP_RV1126_CIF ||
+	    dev->chip_id == CHIP_RV1126_CIF_LITE)
+		stream->extend_line.is_extended = true;
+	else
+		stream->extend_line.is_extended = false;
+
 }
 
 static int rkcif_fh_open(struct file *filp)

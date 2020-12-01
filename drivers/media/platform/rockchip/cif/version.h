@@ -53,6 +53,7 @@
  *1. support rk3568 cif
  *2. support rk3568 csi-host
  *3. add dvp sof
+ *4. add extended lines to out image for normal & hdr short frame
  */
 
 #define RKCIF_DRIVER_VERSION RKCIF_API_VERSION

@@ -339,6 +339,11 @@ struct rkcif_timer {
 	enum rkcif_reset_src	reset_src;
 };
 
+struct rkcif_extend_info {
+	struct v4l2_pix_format_mplane	pixm;
+	bool is_extended;
+};
+
 /*
  * struct rkcif_stream - Stream states TODO
  *
@@ -379,6 +384,7 @@ struct rkcif_stream {
 	struct v4l2_pix_format_mplane	pixm;
 	struct v4l2_rect		crop[CROP_SRC_MAX];
 	struct rkcif_fps_stats		fps_stats;
+	struct rkcif_extend_info	extend_line;
 };
 
 struct rkcif_lvds_subdev {
