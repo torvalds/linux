@@ -441,32 +441,13 @@ static void rk_iv_copyback(struct rk_crypto_info *dev)
 	if (!IS_BC_DECRYPT(ctx->mode)) {
 		if (dev->aligned) {
 			memcpy(req->info, sg_virt(dev->sg_dst) +
-				dev->sg_dst->length - ivsize, ivsize);
+				dev->count - ivsize, ivsize);
 		} else {
 			memcpy(req->info, dev->addr_vir +
 				dev->count - ivsize, ivsize);
 		}
 	}
 
-}
-
-static void rk_update_iv(struct rk_crypto_info *dev)
-{
-	struct ablkcipher_request *req =
-		ablkcipher_request_cast(dev->async_req);
-	struct crypto_ablkcipher *tfm = crypto_ablkcipher_reqtfm(req);
-	struct rk_cipher_ctx *ctx = crypto_ablkcipher_ctx(tfm);
-	u32 ivsize = crypto_ablkcipher_ivsize(tfm);
-	u8 *new_iv = NULL;
-
-	if (IS_BC_DECRYPT(ctx->mode)) {
-		new_iv = ctx->iv;
-	} else {
-		new_iv = page_address(sg_page(dev->sg_dst)) +
-			 dev->sg_dst->offset + dev->sg_dst->length - ivsize;
-	}
-
-	set_iv_reg(dev, new_iv, ivsize);
 }
 
 /* return:
@@ -490,7 +471,6 @@ static int rk_ablk_rx(struct rk_crypto_info *dev)
 		}
 	}
 	if (dev->left_bytes) {
-		rk_update_iv(dev);
 		if (dev->aligned) {
 			if (sg_is_last(dev->sg_src)) {
 				dev_err(dev->dev, "[%s:%d] Lack of data\n",
