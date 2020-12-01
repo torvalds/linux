@@ -193,6 +193,8 @@ struct spi_nor_locking_ops {
  * Serial Flash Discoverable Parameters (SFDP) tables.
  *
  * @size:		the flash memory density in bytes.
+ * @writesize		Minimal writable flash unit size. Defaults to 1. Set to
+ *			ECC unit size for ECC-ed flashes.
  * @page_size:		the page size of the SPI NOR flash memory.
  * @rdsr_dummy:		dummy cycles needed for Read Status Register command.
  * @rdsr_addr_nbytes:	dummy address bytes needed for Read Status Register
@@ -219,6 +221,7 @@ struct spi_nor_locking_ops {
  */
 struct spi_nor_flash_parameter {
 	u64				size;
+	u32				writesize;
 	u32				page_size;
 	u8				rdsr_dummy;
 	u8				rdsr_addr_nbytes;
