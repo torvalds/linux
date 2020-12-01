@@ -15,7 +15,9 @@ description:
 
 properties:
   compatible:
-      const: mediatek,mt8192_mt6359_rt1015_rt5682
+    enum:
+      - mediatek,mt8192_mt6359_rt1015_rt5682
+      - mediatek,mt8192_mt6359_rt1015p_rt5682
 
   mediatek,platform:
     $ref: "/schemas/types.yaml#/definitions/phandle"
