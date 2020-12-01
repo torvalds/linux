@@ -31,7 +31,7 @@ examples:
   - |
 
     sound: mt8192-sound {
-        compatible = "mediatek,mt8192-mt6359-rt1015-rt5682";
+        compatible = "mediatek,mt8192_mt6359_rt1015_rt5682";
         mediatek,platform = <&afe>;
         pinctrl-names = "aud_clk_mosi_off",
                         "aud_clk_mosi_on";
