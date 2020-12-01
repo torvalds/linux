@@ -291,12 +291,14 @@ static inline void count_swpout_vm_event(struct page *page)
 static void bio_associate_blkg_from_page(struct bio *bio, struct page *page)
 {
 	struct cgroup_subsys_state *css;
+	struct mem_cgroup *memcg;
 
-	if (!page->mem_cgroup)
+	memcg = page_memcg(page);
+	if (!memcg)
 		return;
 
 	rcu_read_lock();
-	css = cgroup_e_css(page->mem_cgroup->css.cgroup, &io_cgrp_subsys);
+	css = cgroup_e_css(memcg->css.cgroup, &io_cgrp_subsys);
 	bio_associate_blkg_from_css(bio, css);
 	rcu_read_unlock();
 }

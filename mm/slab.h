@@ -242,18 +242,17 @@ static inline bool kmem_cache_debug_flags(struct kmem_cache *s, slab_flags_t fla
 static inline struct obj_cgroup **page_obj_cgroups(struct page *page)
 {
 	/*
-	 * page->mem_cgroup and page->obj_cgroups are sharing the same
+	 * Page's memory cgroup and obj_cgroups vector are sharing the same
 	 * space. To distinguish between them in case we don't know for sure
 	 * that the page is a slab page (e.g. page_cgroup_ino()), let's
 	 * always set the lowest bit of obj_cgroups.
 	 */
-	return (struct obj_cgroup **)
-		((unsigned long)page->obj_cgroups & ~0x1UL);
+	return (struct obj_cgroup **)(page->memcg_data & ~0x1UL);
 }
 
 static inline bool page_has_obj_cgroups(struct page *page)
 {
-	return ((unsigned long)page->obj_cgroups & 0x1UL);
+	return page->memcg_data & 0x1UL;
 }
 
 int memcg_alloc_page_obj_cgroups(struct page *page, struct kmem_cache *s,
@@ -262,7 +261,7 @@ int memcg_alloc_page_obj_cgroups(struct page *page, struct kmem_cache *s,
 static inline void memcg_free_page_obj_cgroups(struct page *page)
 {
 	kfree(page_obj_cgroups(page));
-	page->obj_cgroups = NULL;
+	page->memcg_data = 0;
 }
 
 static inline size_t obj_full_size(struct kmem_cache *s)
