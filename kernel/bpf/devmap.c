@@ -175,7 +175,7 @@ static struct bpf_map *dev_map_alloc(union bpf_attr *attr)
 	if (!capable(CAP_NET_ADMIN))
 		return ERR_PTR(-EPERM);
 
-	dtab = kzalloc(sizeof(*dtab), GFP_USER);
+	dtab = kzalloc(sizeof(*dtab), GFP_USER | __GFP_ACCOUNT);
 	if (!dtab)
 		return ERR_PTR(-ENOMEM);
 
@@ -602,8 +602,9 @@ static struct bpf_dtab_netdev *__dev_map_alloc_node(struct net *net,
 	struct bpf_prog *prog = NULL;
 	struct bpf_dtab_netdev *dev;
 
-	dev = kmalloc_node(sizeof(*dev), GFP_ATOMIC | __GFP_NOWARN,
-			   dtab->map.numa_node);
+	dev = bpf_map_kmalloc_node(&dtab->map, sizeof(*dev),
+				   GFP_ATOMIC | __GFP_NOWARN,
+				   dtab->map.numa_node);
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 
