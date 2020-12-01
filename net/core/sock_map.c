@@ -39,7 +39,7 @@ static struct bpf_map *sock_map_alloc(union bpf_attr *attr)
 	    attr->map_flags & ~SOCK_CREATE_FLAG_MASK)
 		return ERR_PTR(-EINVAL);
 
-	stab = kzalloc(sizeof(*stab), GFP_USER);
+	stab = kzalloc(sizeof(*stab), GFP_USER | __GFP_ACCOUNT);
 	if (!stab)
 		return ERR_PTR(-ENOMEM);
 
@@ -975,8 +975,9 @@ static struct bpf_shtab_elem *sock_hash_alloc_elem(struct bpf_shtab *htab,
 		}
 	}
 
-	new = kmalloc_node(htab->elem_size, GFP_ATOMIC | __GFP_NOWARN,
-			   htab->map.numa_node);
+	new = bpf_map_kmalloc_node(&htab->map, htab->elem_size,
+				   GFP_ATOMIC | __GFP_NOWARN,
+				   htab->map.numa_node);
 	if (!new) {
 		atomic_dec(&htab->count);
 		return ERR_PTR(-ENOMEM);
@@ -1116,7 +1117,7 @@ static struct bpf_map *sock_hash_alloc(union bpf_attr *attr)
 	if (attr->key_size > MAX_BPF_STACK)
 		return ERR_PTR(-E2BIG);
 
-	htab = kzalloc(sizeof(*htab), GFP_USER);
+	htab = kzalloc(sizeof(*htab), GFP_USER | __GFP_ACCOUNT);
 	if (!htab)
 		return ERR_PTR(-ENOMEM);
 
