@@ -265,6 +265,12 @@ static int vangogh_get_smu_metrics_data(struct smu_context *smu,
 	case METRICS_THROTTLER_STATUS:
 		*value = metrics->ThrottlerStatus;
 		break;
+	case METRICS_VOLTAGE_VDDGFX:
+		*value = metrics->Voltage[2];
+		break;
+	case METRICS_VOLTAGE_VDDSOC:
+		*value = metrics->Voltage[1];
+		break;
 	default:
 		*value = UINT_MAX;
 		break;
@@ -469,13 +475,21 @@ static int vangogh_read_sensor(struct smu_context *smu,
 		break;
 	case AMDGPU_PP_SENSOR_GFX_SCLK:
 		ret = vangogh_get_smu_metrics_data(smu,
-						    METRICS_AVERAGE_GFXCLK,
-						    (uint32_t *)data);
+						   METRICS_AVERAGE_GFXCLK,
+						   (uint32_t *)data);
 		*(uint32_t *)data *= 100;
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_VDDGFX:
-		ret = smu_v11_0_get_gfx_vdd(smu, (uint32_t *)data);
+		ret = vangogh_get_smu_metrics_data(smu,
+						   METRICS_VOLTAGE_VDDGFX,
+						   (uint32_t *)data);
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_VDDNB:
+		ret = vangogh_get_smu_metrics_data(smu,
+						   METRICS_VOLTAGE_VDDSOC,
+						   (uint32_t *)data);
 		*size = 4;
 		break;
 	default:
