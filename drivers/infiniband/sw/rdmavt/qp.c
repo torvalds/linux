@@ -1827,7 +1827,7 @@ int rvt_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 }
 
 /**
- * rvt_post_receive - post a receive on a QP
+ * rvt_post_recv - post a receive on a QP
  * @ibqp: the QP to post the receive on
  * @wr: the WR to post
  * @bad_wr: the first bad WR is put here
@@ -2249,7 +2249,7 @@ bail:
 }
 
 /**
- * rvt_post_srq_receive - post a receive on a shared receive queue
+ * rvt_post_srq_recv - post a receive on a shared receive queue
  * @ibsrq: the SRQ to post the receive on
  * @wr: the list of work requests to post
  * @bad_wr: A pointer to the first WR to cause a problem is put here
@@ -2501,7 +2501,7 @@ bail:
 EXPORT_SYMBOL(rvt_get_rwqe);
 
 /**
- * qp_comm_est - handle trap with QP established
+ * rvt_comm_est - handle trap with QP established
  * @qp: the QP
  */
 void rvt_comm_est(struct rvt_qp *qp)
@@ -2947,7 +2947,7 @@ static enum ib_wc_status loopback_qp_drop(struct rvt_ibport *rvp,
 }
 
 /**
- * ruc_loopback - handle UC and RC loopback requests
+ * rvt_ruc_loopback - handle UC and RC loopback requests
  * @sqp: the sending QP
  *
  * This is called from rvt_do_send() to forward a WQE addressed to the same HFI

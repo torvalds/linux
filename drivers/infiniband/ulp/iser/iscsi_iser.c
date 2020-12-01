@@ -739,7 +739,7 @@ iscsi_iser_set_param(struct iscsi_cls_conn *cls_conn,
 }
 
 /**
- * iscsi_iser_set_param() - set class connection parameter
+ * iscsi_iser_conn_get_stats() - get iscsi connection statistics
  * @cls_conn:    iscsi class connection
  * @stats:       iscsi stats to output
  *
