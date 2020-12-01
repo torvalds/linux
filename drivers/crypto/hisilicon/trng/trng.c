@@ -267,12 +267,12 @@ static int hisi_trng_probe(struct platform_device *pdev)
 	}
 
 	hisi_trng_add_to_list(trng);
-	if (atomic_add_return(1, &trng_active_devs) == 1) {
+	if (atomic_inc_return(&trng_active_devs) == 1) {
 		ret = crypto_register_rng(&hisi_trng_alg);
 		if (ret) {
 			dev_err(&pdev->dev,
 				"failed to register crypto(%d)\n", ret);
-			atomic_sub_return(1, &trng_active_devs);
+			atomic_dec_return(&trng_active_devs);
 			goto err_remove_from_list;
 		}
 	}
@@ -289,7 +289,7 @@ static int hisi_trng_probe(struct platform_device *pdev)
 	return ret;
 
 err_crypto_unregister:
-	if (atomic_sub_return(1, &trng_active_devs) == 0)
+	if (atomic_dec_return(&trng_active_devs) == 0)
 		crypto_unregister_rng(&hisi_trng_alg);
 
 err_remove_from_list:
@@ -305,7 +305,7 @@ static int hisi_trng_remove(struct platform_device *pdev)
 	while (hisi_trng_del_from_list(trng))
 		;
 
-	if (atomic_sub_return(1, &trng_active_devs) == 0)
+	if (atomic_dec_return(&trng_active_devs) == 0)
 		crypto_unregister_rng(&hisi_trng_alg);
 
 	return 0;
