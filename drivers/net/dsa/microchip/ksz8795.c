@@ -1152,7 +1152,6 @@ static int ksz8795_switch_detect(struct ksz_device *dev)
 
 	dev->mib_port_cnt = TOTAL_PORT_NUM;
 	dev->phy_port_cnt = SWITCH_PORT_NUM;
-	dev->port_cnt = SWITCH_PORT_NUM;
 
 	if (id2 == CHIP_ID_95) {
 		u8 val;
@@ -1162,7 +1161,6 @@ static int ksz8795_switch_detect(struct ksz_device *dev)
 		if (val & PORT_FIBER_MODE)
 			id2 = 0x65;
 	} else if (id2 == CHIP_ID_94) {
-		dev->port_cnt--;
 		id2 = 0x94;
 	}
 	id16 &= ~0xff;
