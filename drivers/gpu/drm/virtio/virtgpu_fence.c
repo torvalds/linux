@@ -51,7 +51,7 @@ static bool virtio_gpu_fence_signaled(struct dma_fence *f)
 
 static void virtio_gpu_fence_value_str(struct dma_fence *f, char *str, int size)
 {
-	snprintf(str, size, "%llu", f->seqno);
+	snprintf(str, size, "[%llu, %llu]", f->context, f->seqno);
 }
 
 static void virtio_gpu_timeline_value_str(struct dma_fence *f, char *str,
@@ -99,7 +99,7 @@ void virtio_gpu_fence_emit(struct virtio_gpu_device *vgdev,
 	unsigned long irq_flags;
 
 	spin_lock_irqsave(&drv->lock, irq_flags);
-	fence->f.seqno = ++drv->current_fence_id;
+	fence->fence_id = fence->f.seqno = ++drv->current_fence_id;
 	dma_fence_get(&fence->f);
 	list_add_tail(&fence->node, &drv->fences);
 	spin_unlock_irqrestore(&drv->lock, irq_flags);
@@ -107,24 +107,45 @@ void virtio_gpu_fence_emit(struct virtio_gpu_device *vgdev,
 	trace_dma_fence_emit(&fence->f);
 
 	cmd_hdr->flags |= cpu_to_le32(VIRTIO_GPU_FLAG_FENCE);
-	cmd_hdr->fence_id = cpu_to_le64(fence->f.seqno);
+	cmd_hdr->fence_id = cpu_to_le64(fence->fence_id);
 }
 
 void virtio_gpu_fence_event_process(struct virtio_gpu_device *vgdev,
 				    u64 fence_id)
 {
 	struct virtio_gpu_fence_driver *drv = &vgdev->fence_drv;
-	struct virtio_gpu_fence *fence, *tmp;
+	struct virtio_gpu_fence *signaled, *curr, *tmp;
 	unsigned long irq_flags;
 
 	spin_lock_irqsave(&drv->lock, irq_flags);
 	atomic64_set(&vgdev->fence_drv.last_fence_id, fence_id);
-	list_for_each_entry_safe(fence, tmp, &drv->fences, node) {
-		if (fence_id < fence->f.seqno)
+	list_for_each_entry_safe(curr, tmp, &drv->fences, node) {
+		if (fence_id != curr->fence_id)
 			continue;
-		dma_fence_signal_locked(&fence->f);
-		list_del(&fence->node);
-		dma_fence_put(&fence->f);
+
+		signaled = curr;
+
+		/*
+		 * Signal any fences with a strictly smaller sequence number
+		 * than the current signaled fence.
+		 */
+		list_for_each_entry_safe(curr, tmp, &drv->fences, node) {
+			/* dma-fence contexts must match */
+			if (signaled->f.context != curr->f.context)
+				continue;
+
+			if (!dma_fence_is_later(&signaled->f, &curr->f))
+				continue;
+
+			dma_fence_signal_locked(&curr->f);
+			list_del(&curr->node);
+			dma_fence_put(&curr->f);
+		}
+
+		dma_fence_signal_locked(&signaled->f);
+		list_del(&signaled->node);
+		dma_fence_put(&signaled->f);
+		break;
 	}
 	spin_unlock_irqrestore(&drv->lock, irq_flags);
 }
