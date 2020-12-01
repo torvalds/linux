@@ -463,6 +463,12 @@ mlx5e_txwqe_complete(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 
 	mlx5e_tx_check_stop(sq);
 
+	if (unlikely(sq->ptpsq)) {
+		mlx5e_skb_cb_hwtstamp_init(skb);
+		mlx5e_skb_fifo_push(&sq->ptpsq->skb_fifo, skb);
+		skb_get(skb);
+	}
+
 	send_doorbell = __netdev_tx_sent_queue(sq->txq, attr->num_bytes, xmit_more);
 	if (send_doorbell)
 		mlx5e_notify_hw(wq, sq->pc, sq->uar_map, cseg);
@@ -768,7 +774,11 @@ static void mlx5e_consume_skb(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 		u64 ts = get_cqe_ts(cqe);
 
 		hwts.hwtstamp = mlx5_timecounter_cyc2time(sq->clock, ts);
-		skb_tstamp_tx(skb, &hwts);
+		if (sq->ptpsq)
+			mlx5e_skb_cb_hwtstamp_handler(skb, MLX5E_SKB_CB_CQE_HWTSTAMP,
+						      hwts.hwtstamp, sq->ptpsq->cq_stats);
+		else
+			skb_tstamp_tx(skb, &hwts);
 	}
 
 	napi_consume_skb(skb, napi_budget);

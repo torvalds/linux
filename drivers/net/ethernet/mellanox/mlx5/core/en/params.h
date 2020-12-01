@@ -44,6 +44,7 @@ struct mlx5e_channel_param {
 struct mlx5e_create_sq_param {
 	struct mlx5_wq_ctrl        *wq_ctrl;
 	u32                         cqn;
+	u32                         ts_cqe_to_dest_cqn;
 	u32                         tisn;
 	u8                          tis_lst_sz;
 	u8                          min_inline_mode;

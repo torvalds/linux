@@ -5,6 +5,115 @@
 #include "en/txrx.h"
 #include "lib/clock.h"
 
+struct mlx5e_skb_cb_hwtstamp {
+	ktime_t cqe_hwtstamp;
+	ktime_t port_hwtstamp;
+};
+
+void mlx5e_skb_cb_hwtstamp_init(struct sk_buff *skb)
+{
+	memset(skb->cb, 0, sizeof(struct mlx5e_skb_cb_hwtstamp));
+}
+
+static struct mlx5e_skb_cb_hwtstamp *mlx5e_skb_cb_get_hwts(struct sk_buff *skb)
+{
+	BUILD_BUG_ON(sizeof(struct mlx5e_skb_cb_hwtstamp) > sizeof(skb->cb));
+	return (struct mlx5e_skb_cb_hwtstamp *)skb->cb;
+}
+
+static void mlx5e_skb_cb_hwtstamp_tx(struct sk_buff *skb,
+				     struct mlx5e_ptp_cq_stats *cq_stats)
+{
+	struct skb_shared_hwtstamps hwts = {};
+	ktime_t diff;
+
+	diff = abs(mlx5e_skb_cb_get_hwts(skb)->port_hwtstamp -
+		   mlx5e_skb_cb_get_hwts(skb)->cqe_hwtstamp);
+
+	/* Maximal allowed diff is 1 / 128 second */
+	if (diff > (NSEC_PER_SEC >> 7)) {
+		cq_stats->abort++;
+		cq_stats->abort_abs_diff_ns += diff;
+		return;
+	}
+
+	hwts.hwtstamp = mlx5e_skb_cb_get_hwts(skb)->port_hwtstamp;
+	skb_tstamp_tx(skb, &hwts);
+}
+
+void mlx5e_skb_cb_hwtstamp_handler(struct sk_buff *skb, int hwtstamp_type,
+				   ktime_t hwtstamp,
+				   struct mlx5e_ptp_cq_stats *cq_stats)
+{
+	switch (hwtstamp_type) {
+	case (MLX5E_SKB_CB_CQE_HWTSTAMP):
+		mlx5e_skb_cb_get_hwts(skb)->cqe_hwtstamp = hwtstamp;
+		break;
+	case (MLX5E_SKB_CB_PORT_HWTSTAMP):
+		mlx5e_skb_cb_get_hwts(skb)->port_hwtstamp = hwtstamp;
+		break;
+	}
+
+	/* If both CQEs arrive, check and report the port tstamp, and clear skb cb as
+	 * skb soon to be released.
+	 */
+	if (!mlx5e_skb_cb_get_hwts(skb)->cqe_hwtstamp ||
+	    !mlx5e_skb_cb_get_hwts(skb)->port_hwtstamp)
+		return;
+
+	mlx5e_skb_cb_hwtstamp_tx(skb, cq_stats);
+	memset(skb->cb, 0, sizeof(struct mlx5e_skb_cb_hwtstamp));
+}
+
+static void mlx5e_ptp_handle_ts_cqe(struct mlx5e_ptpsq *ptpsq,
+				    struct mlx5_cqe64 *cqe,
+				    int budget)
+{
+	struct sk_buff *skb = mlx5e_skb_fifo_pop(&ptpsq->skb_fifo);
+	ktime_t hwtstamp;
+
+	if (unlikely(MLX5E_RX_ERR_CQE(cqe))) {
+		ptpsq->cq_stats->err_cqe++;
+		goto out;
+	}
+
+	hwtstamp = mlx5_timecounter_cyc2time(ptpsq->txqsq.clock, get_cqe_ts(cqe));
+	mlx5e_skb_cb_hwtstamp_handler(skb, MLX5E_SKB_CB_PORT_HWTSTAMP,
+				      hwtstamp, ptpsq->cq_stats);
+	ptpsq->cq_stats->cqe++;
+
+out:
+	napi_consume_skb(skb, budget);
+}
+
+static bool mlx5e_ptp_poll_ts_cq(struct mlx5e_cq *cq, int budget)
+{
+	struct mlx5e_ptpsq *ptpsq = container_of(cq, struct mlx5e_ptpsq, ts_cq);
+	struct mlx5_cqwq *cqwq = &cq->wq;
+	struct mlx5_cqe64 *cqe;
+	int work_done = 0;
+
+	if (unlikely(!test_bit(MLX5E_SQ_STATE_ENABLED, &ptpsq->txqsq.state)))
+		return false;
+
+	cqe = mlx5_cqwq_get_cqe(cqwq);
+	if (!cqe)
+		return false;
+
+	do {
+		mlx5_cqwq_pop(cqwq);
+
+		mlx5e_ptp_handle_ts_cqe(ptpsq, cqe, budget);
+	} while ((++work_done < budget) && (cqe = mlx5_cqwq_get_cqe(cqwq)));
+
+	mlx5_cqwq_update_db_record(cqwq);
+
+	/* ensure cq space is freed before enabling more cqes */
+	wmb();
+
+	return work_done == budget;
+}
+
 static int mlx5e_ptp_napi_poll(struct napi_struct *napi, int budget)
 {
 	struct mlx5e_port_ptp *c = container_of(napi, struct mlx5e_port_ptp,
@@ -18,8 +127,10 @@ static int mlx5e_ptp_napi_poll(struct napi_struct *napi, int budget)
 
 	ch_stats->poll++;
 
-	for (i = 0; i < c->num_tc; i++)
+	for (i = 0; i < c->num_tc; i++) {
 		busy |= mlx5e_poll_tx_cq(&c->ptpsq[i].txqsq.cq, budget);
+		busy |= mlx5e_ptp_poll_ts_cq(&c->ptpsq[i].ts_cq, budget);
+	}
 
 	if (busy) {
 		work_done = budget;
@@ -31,8 +142,10 @@ static int mlx5e_ptp_napi_poll(struct napi_struct *napi, int budget)
 
 	ch_stats->arm++;
 
-	for (i = 0; i < c->num_tc; i++)
+	for (i = 0; i < c->num_tc; i++) {
 		mlx5e_cq_arm(&c->ptpsq[i].txqsq.cq);
+		mlx5e_cq_arm(&c->ptpsq[i].ts_cq);
+	}
 
 out:
 	rcu_read_unlock();
@@ -96,6 +209,37 @@ static void mlx5e_ptp_destroy_sq(struct mlx5_core_dev *mdev, u32 sqn)
 	mlx5_core_destroy_sq(mdev, sqn);
 }
 
+static int mlx5e_ptp_alloc_traffic_db(struct mlx5e_ptpsq *ptpsq, int numa)
+{
+	int wq_sz = mlx5_wq_cyc_get_size(&ptpsq->txqsq.wq);
+
+	ptpsq->skb_fifo.fifo = kvzalloc_node(array_size(wq_sz, sizeof(*ptpsq->skb_fifo.fifo)),
+					     GFP_KERNEL, numa);
+	if (!ptpsq->skb_fifo.fifo)
+		return -ENOMEM;
+
+	ptpsq->skb_fifo.pc   = &ptpsq->skb_fifo_pc;
+	ptpsq->skb_fifo.cc   = &ptpsq->skb_fifo_cc;
+	ptpsq->skb_fifo.mask = wq_sz - 1;
+
+	return 0;
+}
+
+static void mlx5e_ptp_drain_skb_fifo(struct mlx5e_skb_fifo *skb_fifo)
+{
+	while (*skb_fifo->pc != *skb_fifo->cc) {
+		struct sk_buff *skb = mlx5e_skb_fifo_pop(skb_fifo);
+
+		dev_kfree_skb_any(skb);
+	}
+}
+
+static void mlx5e_ptp_free_traffic_db(struct mlx5e_skb_fifo *skb_fifo)
+{
+	mlx5e_ptp_drain_skb_fifo(skb_fifo);
+	kvfree(skb_fifo->fifo);
+}
+
 static int mlx5e_ptp_open_txqsq(struct mlx5e_port_ptp *c, u32 tisn,
 				int txq_ix, struct mlx5e_ptp_params *cparams,
 				int tc, struct mlx5e_ptpsq *ptpsq)
@@ -115,8 +259,14 @@ static int mlx5e_ptp_open_txqsq(struct mlx5e_port_ptp *c, u32 tisn,
 	csp.cqn             = txqsq->cq.mcq.cqn;
 	csp.wq_ctrl         = &txqsq->wq_ctrl;
 	csp.min_inline_mode = txqsq->min_inline_mode;
+	csp.ts_cqe_to_dest_cqn = ptpsq->ts_cq.mcq.cqn;
 
 	err = mlx5e_create_sq_rdy(c->mdev, sqp, &csp, &txqsq->sqn);
+	if (err)
+		goto err_free_txqsq;
+
+	err = mlx5e_ptp_alloc_traffic_db(ptpsq,
+					 dev_to_node(mlx5_core_dma_dev(c->mdev)));
 	if (err)
 		goto err_free_txqsq;
 
@@ -133,6 +283,7 @@ static void mlx5e_ptp_close_txqsq(struct mlx5e_ptpsq *ptpsq)
 	struct mlx5e_txqsq *sq = &ptpsq->txqsq;
 	struct mlx5_core_dev *mdev = sq->mdev;
 
+	mlx5e_ptp_free_traffic_db(&ptpsq->skb_fifo);
 	cancel_work_sync(&sq->recover_work);
 	mlx5e_ptp_destroy_sq(mdev, sq->sqn);
 	mlx5e_free_txqsq_descs(sq);
@@ -200,8 +351,23 @@ static int mlx5e_ptp_open_cqs(struct mlx5e_port_ptp *c,
 			goto out_err_txqsq_cq;
 	}
 
+	for (tc = 0; tc < params->num_tc; tc++) {
+		struct mlx5e_cq *cq = &c->ptpsq[tc].ts_cq;
+		struct mlx5e_ptpsq *ptpsq = &c->ptpsq[tc];
+
+		err = mlx5e_open_cq(c->priv, ptp_moder, cq_param, &ccp, cq);
+		if (err)
+			goto out_err_ts_cq;
+
+		ptpsq->cq_stats = &c->priv->port_ptp_stats.cq[tc];
+	}
+
 	return 0;
 
+out_err_ts_cq:
+	for (--tc; tc >= 0; tc--)
+		mlx5e_close_cq(&c->ptpsq[tc].ts_cq);
+	tc = params->num_tc;
 out_err_txqsq_cq:
 	for (--tc; tc >= 0; tc--)
 		mlx5e_close_cq(&c->ptpsq[tc].txqsq.cq);
@@ -212,6 +378,9 @@ out_err_txqsq_cq:
 static void mlx5e_ptp_close_cqs(struct mlx5e_port_ptp *c)
 {
 	int tc;
+
+	for (tc = 0; tc < c->num_tc; tc++)
+		mlx5e_close_cq(&c->ptpsq[tc].ts_cq);
 
 	for (tc = 0; tc < c->num_tc; tc++)
 		mlx5e_close_cq(&c->ptpsq[tc].txqsq.cq);

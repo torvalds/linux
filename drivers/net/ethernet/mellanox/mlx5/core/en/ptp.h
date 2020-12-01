@@ -10,6 +10,11 @@
 
 struct mlx5e_ptpsq {
 	struct mlx5e_txqsq       txqsq;
+	struct mlx5e_cq          ts_cq;
+	u16                      skb_fifo_cc;
+	u16                      skb_fifo_pc;
+	struct mlx5e_skb_fifo    skb_fifo;
+	struct mlx5e_ptp_cq_stats *cq_stats;
 };
 
 struct mlx5e_port_ptp {
@@ -45,4 +50,14 @@ void mlx5e_port_ptp_close(struct mlx5e_port_ptp *c);
 void mlx5e_ptp_activate_channel(struct mlx5e_port_ptp *c);
 void mlx5e_ptp_deactivate_channel(struct mlx5e_port_ptp *c);
 
+enum {
+	MLX5E_SKB_CB_CQE_HWTSTAMP  = BIT(0),
+	MLX5E_SKB_CB_PORT_HWTSTAMP = BIT(1),
+};
+
+void mlx5e_skb_cb_hwtstamp_handler(struct sk_buff *skb, int hwtstamp_type,
+				   ktime_t hwtstamp,
+				   struct mlx5e_ptp_cq_stats *cq_stats);
+
+void mlx5e_skb_cb_hwtstamp_init(struct sk_buff *skb);
 #endif /* __MLX5_EN_PTP_H__ */

@@ -228,9 +228,19 @@ mlx5e_tx_reporter_build_diagnose_output_ptpsq(struct devlink_fmsg *fmsg,
 	if (err)
 		return err;
 
-	err = mlx5e_tx_reporter_build_diagnose_output_sq_common(fmsg,
-								&ptpsq->txqsq,
-								tc);
+	err = mlx5e_tx_reporter_build_diagnose_output_sq_common(fmsg, &ptpsq->txqsq, tc);
+	if (err)
+		return err;
+
+	err = mlx5e_health_fmsg_named_obj_nest_start(fmsg, "Port TS");
+	if (err)
+		return err;
+
+	err = mlx5e_health_cq_diag_fmsg(&ptpsq->ts_cq, fmsg);
+	if (err)
+		return err;
+
+	err = mlx5e_health_fmsg_named_obj_nest_end(fmsg);
 	if (err)
 		return err;
 
@@ -271,6 +281,23 @@ mlx5e_tx_reporter_diagnose_generic_txqsq(struct devlink_fmsg *fmsg,
 }
 
 static int
+mlx5e_tx_reporter_diagnose_generic_tx_port_ts(struct devlink_fmsg *fmsg,
+					      struct mlx5e_ptpsq *ptpsq)
+{
+	int err;
+
+	err = mlx5e_health_fmsg_named_obj_nest_start(fmsg, "Port TS");
+	if (err)
+		return err;
+
+	err = mlx5e_health_cq_common_diag_fmsg(&ptpsq->ts_cq, fmsg);
+	if (err)
+		return err;
+
+	return mlx5e_health_fmsg_named_obj_nest_end(fmsg);
+}
+
+static int
 mlx5e_tx_reporter_diagnose_common_config(struct devlink_health_reporter *reporter,
 					 struct devlink_fmsg *fmsg)
 {
@@ -298,6 +325,10 @@ mlx5e_tx_reporter_diagnose_common_config(struct devlink_health_reporter *reporte
 		return err;
 
 	err = mlx5e_tx_reporter_diagnose_generic_txqsq(fmsg, &generic_ptpsq->txqsq);
+	if (err)
+		return err;
+
+	err = mlx5e_tx_reporter_diagnose_generic_tx_port_ts(fmsg, generic_ptpsq);
 	if (err)
 		return err;
 

@@ -1733,6 +1733,13 @@ static const struct counter_desc ptp_ch_stats_desc[] = {
 	{ MLX5E_DECLARE_PTP_CH_STAT(struct mlx5e_ch_stats, eq_rearm) },
 };
 
+static const struct counter_desc ptp_cq_stats_desc[] = {
+	{ MLX5E_DECLARE_PTP_CQ_STAT(struct mlx5e_ptp_cq_stats, cqe) },
+	{ MLX5E_DECLARE_PTP_CQ_STAT(struct mlx5e_ptp_cq_stats, err_cqe) },
+	{ MLX5E_DECLARE_PTP_CQ_STAT(struct mlx5e_ptp_cq_stats, abort) },
+	{ MLX5E_DECLARE_PTP_CQ_STAT(struct mlx5e_ptp_cq_stats, abort_abs_diff_ns) },
+};
+
 #define NUM_RQ_STATS			ARRAY_SIZE(rq_stats_desc)
 #define NUM_SQ_STATS			ARRAY_SIZE(sq_stats_desc)
 #define NUM_XDPSQ_STATS			ARRAY_SIZE(xdpsq_stats_desc)
@@ -1742,11 +1749,13 @@ static const struct counter_desc ptp_ch_stats_desc[] = {
 #define NUM_CH_STATS			ARRAY_SIZE(ch_stats_desc)
 #define NUM_PTP_SQ_STATS		ARRAY_SIZE(ptp_sq_stats_desc)
 #define NUM_PTP_CH_STATS		ARRAY_SIZE(ptp_ch_stats_desc)
+#define NUM_PTP_CQ_STATS		ARRAY_SIZE(ptp_cq_stats_desc)
 
 static MLX5E_DECLARE_STATS_GRP_OP_NUM_STATS(ptp)
 {
 	return priv->port_ptp_opened ?
-	       NUM_PTP_CH_STATS + (NUM_PTP_SQ_STATS * priv->max_opened_tc) :
+	       NUM_PTP_CH_STATS +
+	       ((NUM_PTP_SQ_STATS + NUM_PTP_CQ_STATS) * priv->max_opened_tc) :
 	       0;
 }
 
@@ -1766,6 +1775,10 @@ static MLX5E_DECLARE_STATS_GRP_OP_FILL_STRS(ptp)
 			sprintf(data + (idx++) * ETH_GSTRING_LEN,
 				ptp_sq_stats_desc[i].format, tc);
 
+	for (tc = 0; tc < priv->max_opened_tc; tc++)
+		for (i = 0; i < NUM_PTP_CQ_STATS; i++)
+			sprintf(data + (idx++) * ETH_GSTRING_LEN,
+				ptp_cq_stats_desc[i].format, tc);
 	return idx;
 }
 
@@ -1786,6 +1799,12 @@ static MLX5E_DECLARE_STATS_GRP_OP_FILL_STATS(ptp)
 			data[idx++] =
 				MLX5E_READ_CTR64_CPU(&priv->port_ptp_stats.sq[tc],
 						     ptp_sq_stats_desc, i);
+
+	for (tc = 0; tc < priv->max_opened_tc; tc++)
+		for (i = 0; i < NUM_PTP_CQ_STATS; i++)
+			data[idx++] =
+				MLX5E_READ_CTR64_CPU(&priv->port_ptp_stats.cq[tc],
+						     ptp_cq_stats_desc, i);
 
 	return idx;
 }
