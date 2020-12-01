@@ -117,18 +117,7 @@ noinstr void syscall_enter_from_user_mode_prepare(struct pt_regs *regs)
 	instrumentation_end();
 }
 
-/**
- * __exit_to_user_mode - Fixup state when exiting to user mode
- *
- * Syscall/interupt exit enables interrupts, but the kernel state is
- * interrupts disabled when this is invoked. Also tell RCU about it.
- *
- * 1) Trace interrupts on state
- * 2) Invoke context tracking if enabled to adjust RCU state
- * 3) Invoke architecture specific last minute exit code, e.g. speculation
- *    mitigations, etc.
- * 4) Tell lockdep that interrupts are enabled
- */
+/* See comment for exit_to_user_mode() in entry-common.h */
 static __always_inline void __exit_to_user_mode(void)
 {
 	instrumentation_begin();
@@ -139,6 +128,11 @@ static __always_inline void __exit_to_user_mode(void)
 	user_enter_irqoff();
 	arch_exit_to_user_mode();
 	lockdep_hardirqs_on(CALLER_ADDR0);
+}
+
+void noinstr exit_to_user_mode(void)
+{
+	__exit_to_user_mode();
 }
 
 /* Workaround to allow gradual conversion of architecture code */

@@ -301,6 +301,25 @@ static inline void arch_syscall_exit_tracehook(struct pt_regs *regs, bool step)
 #endif
 
 /**
+ * exit_to_user_mode - Fixup state when exiting to user mode
+ *
+ * Syscall/interrupt exit enables interrupts, but the kernel state is
+ * interrupts disabled when this is invoked. Also tell RCU about it.
+ *
+ * 1) Trace interrupts on state
+ * 2) Invoke context tracking if enabled to adjust RCU state
+ * 3) Invoke architecture specific last minute exit code, e.g. speculation
+ *    mitigations, etc.: arch_exit_to_user_mode()
+ * 4) Tell lockdep that interrupts are enabled
+ *
+ * Invoked from architecture specific code when syscall_exit_to_user_mode()
+ * is not suitable as the last step before returning to userspace. Must be
+ * invoked with interrupts disabled and the caller must be
+ * non-instrumentable.
+ */
+void exit_to_user_mode(void);
+
+/**
  * syscall_exit_to_user_mode - Handle work before returning to user mode
  * @regs:	Pointer to currents pt_regs
  *
@@ -322,8 +341,8 @@ static inline void arch_syscall_exit_tracehook(struct pt_regs *regs, bool step)
  *	- Architecture specific one time work arch_exit_to_user_mode_prepare()
  *	- Address limit and lockdep checks
  *
- *  3) Final transition (lockdep, tracing, context tracking, RCU). Invokes
- *     arch_exit_to_user_mode() to handle e.g. speculation mitigations
+ *  3) Final transition (lockdep, tracing, context tracking, RCU), i.e. the
+ *     functionality in exit_to_user_mode().
  */
 void syscall_exit_to_user_mode(struct pt_regs *regs);
 
