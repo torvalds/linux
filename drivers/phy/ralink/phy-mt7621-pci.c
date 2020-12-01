@@ -335,7 +335,7 @@ static const struct of_device_id mt7621_pci_phy_ids[] = {
 	{ .compatible = "mediatek,mt7621-pci-phy" },
 	{},
 };
-MODULE_DEVICE_TABLE(of, mt7621_pci_ids);
+MODULE_DEVICE_TABLE(of, mt7621_pci_phy_ids);
 
 static struct platform_driver mt7621_pci_phy_driver = {
 	.probe = mt7621_pci_phy_probe,
