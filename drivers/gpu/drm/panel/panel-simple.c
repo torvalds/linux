@@ -39,31 +39,36 @@
 #include <drm/drm_panel.h>
 
 /**
- * struct panel_desc
- * @modes: Pointer to array of fixed modes appropriate for this panel.  If
- *         only one mode then this can just be the address of this the mode.
- *         NOTE: cannot be used with "timings" and also if this is specified
- *         then you cannot override the mode in the device tree.
- * @num_modes: Number of elements in modes array.
- * @timings: Pointer to array of display timings.  NOTE: cannot be used with
- *           "modes" and also these will be used to validate a device tree
- *           override if one is present.
- * @num_timings: Number of elements in timings array.
- * @bpc: Bits per color.
- * @size: Structure containing the physical size of this panel.
- * @delay: Structure containing various delay values for this panel.
- * @bus_format: See MEDIA_BUS_FMT_... defines.
- * @bus_flags: See DRM_BUS_FLAG_... defines.
- * @connector_type: LVDS, eDP, DSI, DPI, etc.
+ * struct panel_desc - Describes a simple panel.
  */
 struct panel_desc {
+	/**
+	 * @modes: Pointer to array of fixed modes appropriate for this panel.
+	 *
+	 * If only one mode then this can just be the address of the mode.
+	 * NOTE: cannot be used with "timings" and also if this is specified
+	 * then you cannot override the mode in the device tree.
+	 */
 	const struct drm_display_mode *modes;
+
+	/** @num_modes: Number of elements in modes array. */
 	unsigned int num_modes;
+
+	/**
+	 * @timings: Pointer to array of display timings
+	 *
+	 * NOTE: cannot be used with "modes" and also these will be used to
+	 * validate a device tree override if one is present.
+	 */
 	const struct display_timing *timings;
+
+	/** @num_timings: Number of elements in timings array. */
 	unsigned int num_timings;
 
+	/** @bpc: Bits per color. */
 	unsigned int bpc;
 
+	/** @size: Structure containing the physical size of this panel. */
 	struct {
 		/**
 		 * @size.width: Width (in mm) of the active display area.
@@ -76,6 +81,7 @@ struct panel_desc {
 		unsigned int height;
 	} size;
 
+	/** @delay: Structure containing various delay values for this panel. */
 	struct {
 		/**
 		 * @delay.prepare: Time for the panel to become ready.
@@ -154,8 +160,13 @@ struct panel_desc {
 		unsigned int unprepare;
 	} delay;
 
+	/** @bus_format: See MEDIA_BUS_FMT_... defines. */
 	u32 bus_format;
+
+	/** @bus_flags: See DRM_BUS_FLAG_... defines. */
 	u32 bus_flags;
+
+	/** @connector_type: LVDS, eDP, DSI, DPI, etc. */
 	int connector_type;
 };
 
