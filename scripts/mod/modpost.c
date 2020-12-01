@@ -39,6 +39,8 @@ static int ignore_missing_files;
 /* If set to 1, only warn (instead of error) about missing ns imports */
 static int allow_missing_ns_imports;
 
+static bool error_occurred;
+
 enum export {
 	export_plain,      export_unused,     export_gpl,
 	export_unused_gpl, export_gpl_future, export_unknown
@@ -77,6 +79,8 @@ modpost_log(enum loglevel loglevel, const char *fmt, ...)
 
 	if (loglevel == LOG_FATAL)
 		exit(1);
+	if (loglevel == LOG_ERROR)
+		error_occurred = true;
 }
 
 void *do_nofail(void *ptr, const char *expr)
@@ -2171,22 +2175,18 @@ static void check_for_unused(enum export exp, const char *m, const char *s)
 	}
 }
 
-static int check_exports(struct module *mod)
+static void check_exports(struct module *mod)
 {
 	struct symbol *s, *exp;
-	int err = 0;
 
 	for (s = mod->unres; s; s = s->next) {
 		const char *basename;
 		exp = find_symbol(s->name);
 		if (!exp || exp->module == mod) {
-			if (have_vmlinux && !s->weak) {
+			if (have_vmlinux && !s->weak)
 				modpost_log(warn_unresolved ? LOG_WARN : LOG_ERROR,
 					    "\"%s\" [%s.ko] undefined!\n",
 					    s->name, mod->name);
-				if (!warn_unresolved)
-					err = 1;
-			}
 			continue;
 		}
 		basename = strrchr(mod->name, '/');
@@ -2200,8 +2200,6 @@ static int check_exports(struct module *mod)
 			modpost_log(allow_missing_ns_imports ? LOG_WARN : LOG_ERROR,
 				    "module %s uses symbol %s from namespace %s, but does not import it.\n",
 				    basename, exp->name, exp->namespace);
-			if (!allow_missing_ns_imports)
-				err = 1;
 			add_namespace(&mod->missing_namespaces, exp->namespace);
 		}
 
@@ -2209,11 +2207,9 @@ static int check_exports(struct module *mod)
 			check_for_gpl_usage(exp->export, basename, exp->name);
 		check_for_unused(exp->export, basename, exp->name);
 	}
-
-	return err;
 }
 
-static int check_modname_len(struct module *mod)
+static void check_modname_len(struct module *mod)
 {
 	const char *mod_name;
 
@@ -2222,12 +2218,8 @@ static int check_modname_len(struct module *mod)
 		mod_name = mod->name;
 	else
 		mod_name++;
-	if (strlen(mod_name) >= MODULE_NAME_LEN) {
+	if (strlen(mod_name) >= MODULE_NAME_LEN)
 		error("module name is too long [%s.ko]\n", mod->name);
-		return 1;
-	}
-
-	return 0;
 }
 
 /**
@@ -2286,10 +2278,9 @@ static void add_staging_flag(struct buffer *b, const char *name)
 /**
  * Record CRCs for unresolved symbols
  **/
-static int add_versions(struct buffer *b, struct module *mod)
+static void add_versions(struct buffer *b, struct module *mod)
 {
 	struct symbol *s, *exp;
-	int err = 0;
 
 	for (s = mod->unres; s; s = s->next) {
 		exp = find_symbol(s->name);
@@ -2301,7 +2292,7 @@ static int add_versions(struct buffer *b, struct module *mod)
 	}
 
 	if (!modversions)
-		return err;
+		return;
 
 	buf_printf(b, "\n");
 	buf_printf(b, "static const struct modversion_info ____versions[]\n");
@@ -2318,7 +2309,6 @@ static int add_versions(struct buffer *b, struct module *mod)
 		if (strlen(s->name) >= MODULE_NAME_LEN) {
 			error("too long symbol \"%s\" [%s.ko]\n",
 			      s->name, mod->name);
-			err = 1;
 			break;
 		}
 		buf_printf(b, "\t{ %#8x, \"%s\" },\n",
@@ -2326,8 +2316,6 @@ static int add_versions(struct buffer *b, struct module *mod)
 	}
 
 	buf_printf(b, "};\n");
-
-	return err;
 }
 
 static void add_depends(struct buffer *b, struct module *mod)
@@ -2551,7 +2539,6 @@ int main(int argc, char **argv)
 	char *missing_namespace_deps = NULL;
 	char *dump_write = NULL, *files_source = NULL;
 	int opt;
-	int err;
 	int n;
 	struct dump_list *dump_read_start = NULL;
 	struct dump_list **dump_read_iter = &dump_read_start;
@@ -2621,8 +2608,6 @@ int main(int argc, char **argv)
 	if (!have_vmlinux)
 		warn("Symbol info of vmlinux is missing. Unresolved symbol check will be entirely skipped.\n");
 
-	err = 0;
-
 	for (mod = modules; mod; mod = mod->next) {
 		char fname[PATH_MAX];
 
@@ -2631,14 +2616,14 @@ int main(int argc, char **argv)
 
 		buf.pos = 0;
 
-		err |= check_modname_len(mod);
-		err |= check_exports(mod);
+		check_modname_len(mod);
+		check_exports(mod);
 
 		add_header(&buf, mod);
 		add_intree_flag(&buf, !external_module);
 		add_retpoline(&buf);
 		add_staging_flag(&buf, mod->name);
-		err |= add_versions(&buf, mod);
+		add_versions(&buf, mod);
 		add_depends(&buf, mod);
 		add_moddevtable(&buf, mod);
 		add_srcversion(&buf, mod);
@@ -2668,5 +2653,5 @@ int main(int argc, char **argv)
 
 	free(buf.p);
 
-	return err;
+	return error_occurred ? 1 : 0;
 }
