@@ -394,8 +394,8 @@ static void sym_update_namespace(const char *symname, const char *namespace)
 	 * actually an assertion.
 	 */
 	if (!s) {
-		merror("Could not update namespace(%s) for symbol %s\n",
-		       namespace, symname);
+		error("Could not update namespace(%s) for symbol %s\n",
+		      namespace, symname);
 		return;
 	}
 
@@ -2223,7 +2223,7 @@ static int check_modname_len(struct module *mod)
 	else
 		mod_name++;
 	if (strlen(mod_name) >= MODULE_NAME_LEN) {
-		merror("module name is too long [%s.ko]\n", mod->name);
+		error("module name is too long [%s.ko]\n", mod->name);
 		return 1;
 	}
 
@@ -2316,8 +2316,8 @@ static int add_versions(struct buffer *b, struct module *mod)
 			continue;
 		}
 		if (strlen(s->name) >= MODULE_NAME_LEN) {
-			merror("too long symbol \"%s\" [%s.ko]\n",
-			       s->name, mod->name);
+			error("too long symbol \"%s\" [%s.ko]\n",
+			      s->name, mod->name);
 			err = 1;
 			break;
 		}
