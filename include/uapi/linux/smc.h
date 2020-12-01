@@ -33,4 +33,15 @@ enum {				/* SMC PNET Table commands */
 #define SMCR_GENL_FAMILY_NAME		"SMC_PNETID"
 #define SMCR_GENL_FAMILY_VERSION	1
 
+/* gennetlink interface to access non-socket information from SMC module */
+#define SMC_GENL_FAMILY_NAME		"SMC_GEN_NETLINK"
+#define SMC_GENL_FAMILY_VERSION		1
+
+/* SMC_GENL_FAMILY top level attributes */
+enum {
+	SMC_GEN_UNSPEC,
+	__SMC_GEN_MAX,
+	SMC_GEN_MAX = __SMC_GEN_MAX - 1
+};
+
 #endif /* _UAPI_LINUX_SMC_H */

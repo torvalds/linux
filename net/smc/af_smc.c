@@ -45,6 +45,7 @@
 #include "smc_ib.h"
 #include "smc_ism.h"
 #include "smc_pnet.h"
+#include "smc_netlink.h"
 #include "smc_tx.h"
 #include "smc_rx.h"
 #include "smc_close.h"
@@ -2495,9 +2496,13 @@ static int __init smc_init(void)
 	smc_ism_init();
 	smc_clc_init();
 
-	rc = smc_pnet_init();
+	rc = smc_nl_init();
 	if (rc)
 		goto out_pernet_subsys;
+
+	rc = smc_pnet_init();
+	if (rc)
+		goto out_nl;
 
 	rc = -ENOMEM;
 	smc_hs_wq = alloc_workqueue("smc_hs_wq", 0, 0);
@@ -2569,6 +2574,8 @@ out_alloc_hs_wq:
 	destroy_workqueue(smc_hs_wq);
 out_pnet:
 	smc_pnet_exit();
+out_nl:
+	smc_nl_exit();
 out_pernet_subsys:
 	unregister_pernet_subsys(&smc_net_ops);
 
@@ -2586,6 +2593,7 @@ static void __exit smc_exit(void)
 	proto_unregister(&smc_proto6);
 	proto_unregister(&smc_proto);
 	smc_pnet_exit();
+	smc_nl_exit();
 	unregister_pernet_subsys(&smc_net_ops);
 	rcu_barrier();
 }
