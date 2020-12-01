@@ -302,8 +302,7 @@ struct p9_fid *v9fs_writeback_fid(struct dentry *dentry)
 	struct p9_fid *fid, *ofid;
 
 	ofid = v9fs_fid_lookup_with_uid(dentry, GLOBAL_ROOT_UID, 0);
-	if (ofid && !IS_ERR(ofid))
-		fid = clone_fid(ofid);
+	fid = clone_fid(ofid);
 	if (IS_ERR(fid))
 		goto error_out;
 	p9_client_clunk(ofid);
