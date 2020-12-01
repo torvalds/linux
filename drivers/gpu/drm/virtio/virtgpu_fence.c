@@ -27,22 +27,22 @@
 
 #include "virtgpu_drv.h"
 
-#define to_virtio_fence(x) \
+#define to_virtio_gpu_fence(x) \
 	container_of(x, struct virtio_gpu_fence, f)
 
-static const char *virtio_get_driver_name(struct dma_fence *f)
+static const char *virtio_gpu_get_driver_name(struct dma_fence *f)
 {
 	return "virtio_gpu";
 }
 
-static const char *virtio_get_timeline_name(struct dma_fence *f)
+static const char *virtio_gpu_get_timeline_name(struct dma_fence *f)
 {
 	return "controlq";
 }
 
-static bool virtio_fence_signaled(struct dma_fence *f)
+static bool virtio_gpu_fence_signaled(struct dma_fence *f)
 {
-	struct virtio_gpu_fence *fence = to_virtio_fence(f);
+	struct virtio_gpu_fence *fence = to_virtio_gpu_fence(f);
 
 	if (WARN_ON_ONCE(fence->f.seqno == 0))
 		/* leaked fence outside driver before completing
@@ -53,25 +53,26 @@ static bool virtio_fence_signaled(struct dma_fence *f)
 	return false;
 }
 
-static void virtio_fence_value_str(struct dma_fence *f, char *str, int size)
+static void virtio_gpu_fence_value_str(struct dma_fence *f, char *str, int size)
 {
 	snprintf(str, size, "%llu", f->seqno);
 }
 
-static void virtio_timeline_value_str(struct dma_fence *f, char *str, int size)
+static void virtio_gpu_timeline_value_str(struct dma_fence *f, char *str,
+					  int size)
 {
-	struct virtio_gpu_fence *fence = to_virtio_fence(f);
+	struct virtio_gpu_fence *fence = to_virtio_gpu_fence(f);
 
 	snprintf(str, size, "%llu",
 		 (u64)atomic64_read(&fence->drv->last_fence_id));
 }
 
-static const struct dma_fence_ops virtio_fence_ops = {
-	.get_driver_name     = virtio_get_driver_name,
-	.get_timeline_name   = virtio_get_timeline_name,
-	.signaled            = virtio_fence_signaled,
-	.fence_value_str     = virtio_fence_value_str,
-	.timeline_value_str  = virtio_timeline_value_str,
+static const struct dma_fence_ops virtio_gpu_fence_ops = {
+	.get_driver_name     = virtio_gpu_get_driver_name,
+	.get_timeline_name   = virtio_gpu_get_timeline_name,
+	.signaled            = virtio_gpu_fence_signaled,
+	.fence_value_str     = virtio_gpu_fence_value_str,
+	.timeline_value_str  = virtio_gpu_timeline_value_str,
 };
 
 struct virtio_gpu_fence *virtio_gpu_fence_alloc(struct virtio_gpu_device *vgdev)
@@ -88,7 +89,8 @@ struct virtio_gpu_fence *virtio_gpu_fence_alloc(struct virtio_gpu_device *vgdev)
 	 * unknown yet.  The fence must not be used outside of the driver
 	 * until virtio_gpu_fence_emit is called.
 	 */
-	dma_fence_init(&fence->f, &virtio_fence_ops, &drv->lock, drv->context, 0);
+	dma_fence_init(&fence->f, &virtio_gpu_fence_ops, &drv->lock, drv->context,
+		       0);
 
 	return fence;
 }
