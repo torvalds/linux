@@ -4877,8 +4877,6 @@ int goya_context_switch(struct hl_device *hdev, u32 asid)
 
 	WREG32(mmTPC_PLL_CLK_RLX_0, 0x200020);
 
-	goya_mmu_prepare(hdev, asid);
-
 	goya_clear_sm_regs(hdev);
 
 	return 0;
@@ -5313,6 +5311,9 @@ static int goya_get_eeprom_data(struct hl_device *hdev, void *data,
 
 static int goya_ctx_init(struct hl_ctx *ctx)
 {
+	if (ctx->asid != HL_KERNEL_ASID_ID)
+		goya_mmu_prepare(ctx->hdev, ctx->asid);
+
 	return 0;
 }
 
