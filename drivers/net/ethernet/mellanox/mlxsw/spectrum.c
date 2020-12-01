@@ -384,13 +384,37 @@ int mlxsw_sp_port_vid_learning_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid,
 	return err;
 }
 
+static int mlxsw_sp_ethtype_to_sver_type(u16 ethtype, u8 *p_sver_type)
+{
+	switch (ethtype) {
+	case ETH_P_8021Q:
+		*p_sver_type = 0;
+		break;
+	case ETH_P_8021AD:
+		*p_sver_type = 1;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int __mlxsw_sp_port_pvid_set(struct mlxsw_sp_port *mlxsw_sp_port,
-				    u16 vid)
+				    u16 vid, u16 ethtype)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	char spvid_pl[MLXSW_REG_SPVID_LEN];
+	u8 sver_type;
+	int err;
 
-	mlxsw_reg_spvid_pack(spvid_pl, mlxsw_sp_port->local_port, vid);
+	err = mlxsw_sp_ethtype_to_sver_type(ethtype, &sver_type);
+	if (err)
+		return err;
+
+	mlxsw_reg_spvid_pack(spvid_pl, mlxsw_sp_port->local_port, vid,
+			     sver_type);
+
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(spvid), spvid_pl);
 }
 
@@ -404,7 +428,8 @@ static int mlxsw_sp_port_allow_untagged_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(spaft), spaft_pl);
 }
 
-int mlxsw_sp_port_pvid_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid)
+int mlxsw_sp_port_pvid_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid,
+			   u16 ethtype)
 {
 	int err;
 
@@ -413,7 +438,7 @@ int mlxsw_sp_port_pvid_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid)
 		if (err)
 			return err;
 	} else {
-		err = __mlxsw_sp_port_pvid_set(mlxsw_sp_port, vid);
+		err = __mlxsw_sp_port_pvid_set(mlxsw_sp_port, vid, ethtype);
 		if (err)
 			return err;
 		err = mlxsw_sp_port_allow_untagged_set(mlxsw_sp_port, true);
@@ -425,7 +450,7 @@ int mlxsw_sp_port_pvid_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid)
 	return 0;
 
 err_port_allow_untagged_set:
-	__mlxsw_sp_port_pvid_set(mlxsw_sp_port, mlxsw_sp_port->pvid);
+	__mlxsw_sp_port_pvid_set(mlxsw_sp_port, mlxsw_sp_port->pvid, ethtype);
 	return err;
 }
 
@@ -1386,6 +1411,19 @@ static int mlxsw_sp_port_overheat_init_val_set(struct mlxsw_sp_port *mlxsw_sp_po
 	return 0;
 }
 
+int
+mlxsw_sp_port_vlan_classification_set(struct mlxsw_sp_port *mlxsw_sp_port,
+				      bool is_8021ad_tagged,
+				      bool is_8021q_tagged)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	char spvc_pl[MLXSW_REG_SPVC_LEN];
+
+	mlxsw_reg_spvc_pack(spvc_pl, mlxsw_sp_port->local_port,
+			    is_8021ad_tagged, is_8021q_tagged);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(spvc), spvc_pl);
+}
+
 static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 				u8 split_base_local_port,
 				struct mlxsw_sp_port_mapping *port_mapping)
@@ -1575,7 +1613,8 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 		goto err_port_nve_init;
 	}
 
-	err = mlxsw_sp_port_pvid_set(mlxsw_sp_port, MLXSW_SP_DEFAULT_VID);
+	err = mlxsw_sp_port_pvid_set(mlxsw_sp_port, MLXSW_SP_DEFAULT_VID,
+				     ETH_P_8021Q);
 	if (err) {
 		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to set PVID\n",
 			mlxsw_sp_port->local_port);
@@ -1591,6 +1630,16 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 		goto err_port_vlan_create;
 	}
 	mlxsw_sp_port->default_vlan = mlxsw_sp_port_vlan;
+
+	/* Set SPVC.et0=true and SPVC.et1=false to make the local port to treat
+	 * only packets with 802.1q header as tagged packets.
+	 */
+	err = mlxsw_sp_port_vlan_classification_set(mlxsw_sp_port, false, true);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to set default VLAN classification\n",
+			local_port);
+		goto err_port_vlan_classification_set;
+	}
 
 	INIT_DELAYED_WORK(&mlxsw_sp_port->ptp.shaper_dw,
 			  mlxsw_sp->ptp_ops->shaper_work);
@@ -1618,6 +1667,8 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 
 err_register_netdev:
 err_port_overheat_init_val_set:
+	mlxsw_sp_port_vlan_classification_set(mlxsw_sp_port, true, true);
+err_port_vlan_classification_set:
 	mlxsw_sp->ports[local_port] = NULL;
 	mlxsw_sp_port_vlan_destroy(mlxsw_sp_port_vlan);
 err_port_vlan_create:
@@ -1664,6 +1715,7 @@ static void mlxsw_sp_port_remove(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 	mlxsw_sp_port_ptp_clear(mlxsw_sp_port);
 	mlxsw_core_port_clear(mlxsw_sp->core, local_port, mlxsw_sp);
 	unregister_netdev(mlxsw_sp_port->dev); /* This calls ndo_stop */
+	mlxsw_sp_port_vlan_classification_set(mlxsw_sp_port, true, true);
 	mlxsw_sp->ports[local_port] = NULL;
 	mlxsw_sp_port_vlan_flush(mlxsw_sp_port, true);
 	mlxsw_sp_port_nve_fini(mlxsw_sp_port);
@@ -3618,7 +3670,8 @@ static void mlxsw_sp_port_lag_leave(struct mlxsw_sp_port *mlxsw_sp_port,
 	lag->ref_count--;
 
 	/* Make sure untagged frames are allowed to ingress */
-	mlxsw_sp_port_pvid_set(mlxsw_sp_port, MLXSW_SP_DEFAULT_VID);
+	mlxsw_sp_port_pvid_set(mlxsw_sp_port, MLXSW_SP_DEFAULT_VID,
+			       ETH_P_8021Q);
 }
 
 static int mlxsw_sp_lag_dist_port_add(struct mlxsw_sp_port *mlxsw_sp_port,
@@ -3840,6 +3893,7 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *lower_dev,
 	struct net_device *upper_dev;
 	struct mlxsw_sp *mlxsw_sp;
 	int err = 0;
+	u16 proto;
 
 	mlxsw_sp_port = netdev_priv(dev);
 	mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
@@ -3896,6 +3950,36 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *lower_dev,
 		if (netif_is_ovs_port(dev) && is_vlan_dev(upper_dev)) {
 			NL_SET_ERR_MSG_MOD(extack, "Can not put a VLAN on an OVS port");
 			return -EINVAL;
+		}
+		if (netif_is_bridge_master(upper_dev)) {
+			br_vlan_get_proto(upper_dev, &proto);
+			if (br_vlan_enabled(upper_dev) &&
+			    proto != ETH_P_8021Q && proto != ETH_P_8021AD) {
+				NL_SET_ERR_MSG_MOD(extack, "Enslaving a port to a bridge with unknown VLAN protocol is not supported");
+				return -EOPNOTSUPP;
+			}
+			if (vlan_uses_dev(lower_dev) &&
+			    br_vlan_enabled(upper_dev) &&
+			    proto == ETH_P_8021AD) {
+				NL_SET_ERR_MSG_MOD(extack, "Enslaving a port that already has a VLAN upper to an 802.1ad bridge is not supported");
+				return -EOPNOTSUPP;
+			}
+		}
+		if (netif_is_bridge_port(lower_dev) && is_vlan_dev(upper_dev)) {
+			struct net_device *br_dev = netdev_master_upper_dev_get(lower_dev);
+
+			if (br_vlan_enabled(br_dev)) {
+				br_vlan_get_proto(br_dev, &proto);
+				if (proto == ETH_P_8021AD) {
+					NL_SET_ERR_MSG_MOD(extack, "VLAN uppers are not supported on a port enslaved to an 802.1ad bridge");
+					return -EOPNOTSUPP;
+				}
+			}
+		}
+		if (is_vlan_dev(upper_dev) &&
+		    ntohs(vlan_dev_vlan_proto(upper_dev)) != ETH_P_8021Q) {
+			NL_SET_ERR_MSG_MOD(extack, "VLAN uppers are only supported with 802.1q VLAN protocol");
+			return -EOPNOTSUPP;
 		}
 		break;
 	case NETDEV_CHANGEUPPER:
@@ -4162,6 +4246,7 @@ static int mlxsw_sp_netdevice_bridge_event(struct net_device *br_dev,
 	struct netdev_notifier_changeupper_info *info = ptr;
 	struct netlink_ext_ack *extack;
 	struct net_device *upper_dev;
+	u16 proto;
 
 	if (!mlxsw_sp)
 		return 0;
@@ -4177,6 +4262,18 @@ static int mlxsw_sp_netdevice_bridge_event(struct net_device *br_dev,
 		}
 		if (!info->linking)
 			break;
+		if (br_vlan_enabled(br_dev)) {
+			br_vlan_get_proto(br_dev, &proto);
+			if (proto == ETH_P_8021AD) {
+				NL_SET_ERR_MSG_MOD(extack, "Uppers are not supported on top of an 802.1ad bridge");
+				return -EOPNOTSUPP;
+			}
+		}
+		if (is_vlan_dev(upper_dev) &&
+		    ntohs(vlan_dev_vlan_proto(upper_dev)) != ETH_P_8021Q) {
+			NL_SET_ERR_MSG_MOD(extack, "VLAN uppers are only supported with 802.1q VLAN protocol");
+			return -EOPNOTSUPP;
+		}
 		if (netif_is_macvlan(upper_dev) &&
 		    !mlxsw_sp_rif_exists(mlxsw_sp, br_dev)) {
 			NL_SET_ERR_MSG_MOD(extack, "macvlan is only supported on top of router interfaces");

@@ -834,17 +834,30 @@ MLXSW_ITEM32(reg, spvid, local_port, 0x00, 16, 8);
  */
 MLXSW_ITEM32(reg, spvid, sub_port, 0x00, 8, 8);
 
+/* reg_spvid_et_vlan
+ * EtherType used for when VLAN is pushed at ingress (for untagged
+ * packets or for QinQ push mode).
+ * 0: ether_type0 - (default)
+ * 1: ether_type1
+ * 2: ether_type2 - Reserved when Spectrum-1, supported by Spectrum-2
+ * Ethertype IDs are configured by SVER.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, spvid, et_vlan, 0x04, 16, 2);
+
 /* reg_spvid_pvid
  * Port default VID
  * Access: RW
  */
 MLXSW_ITEM32(reg, spvid, pvid, 0x04, 0, 12);
 
-static inline void mlxsw_reg_spvid_pack(char *payload, u8 local_port, u16 pvid)
+static inline void mlxsw_reg_spvid_pack(char *payload, u8 local_port, u16 pvid,
+					u8 et_vlan)
 {
 	MLXSW_REG_ZERO(spvid, payload);
 	mlxsw_reg_spvid_local_port_set(payload, local_port);
 	mlxsw_reg_spvid_pvid_set(payload, pvid);
+	mlxsw_reg_spvid_et_vlan_set(payload, et_vlan);
 }
 
 /* SPVM - Switch Port VLAN Membership
@@ -1855,6 +1868,104 @@ static inline void mlxsw_reg_spvmlr_pack(char *payload, u8 local_port,
 		mlxsw_reg_spvmlr_rec_learn_enable_set(payload, i, learn_enable);
 		mlxsw_reg_spvmlr_rec_vid_set(payload, i, vid_begin + i);
 	}
+}
+
+/* SPVC - Switch Port VLAN Classification Register
+ * -----------------------------------------------
+ * Configures the port to identify packets as untagged / single tagged /
+ * double packets based on the packet EtherTypes.
+ * Ethertype IDs are configured by SVER.
+ */
+#define MLXSW_REG_SPVC_ID 0x2026
+#define MLXSW_REG_SPVC_LEN 0x0C
+
+MLXSW_REG_DEFINE(spvc, MLXSW_REG_SPVC_ID, MLXSW_REG_SPVC_LEN);
+
+/* reg_spvc_local_port
+ * Local port.
+ * Access: Index
+ *
+ * Note: applies both to Rx port and Tx port, so if a packet traverses
+ * through Rx port i and a Tx port j then port i and port j must have the
+ * same configuration.
+ */
+MLXSW_ITEM32(reg, spvc, local_port, 0x00, 16, 8);
+
+/* reg_spvc_inner_et2
+ * Vlan Tag1 EtherType2 enable.
+ * Packet is initially classified as double VLAN Tag if in addition to
+ * being classified with a tag0 VLAN Tag its tag1 EtherType value is
+ * equal to ether_type2.
+ * 0: disable (default)
+ * 1: enable
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, spvc, inner_et2, 0x08, 17, 1);
+
+/* reg_spvc_et2
+ * Vlan Tag0 EtherType2 enable.
+ * Packet is initially classified as VLAN Tag if its tag0 EtherType is
+ * equal to ether_type2.
+ * 0: disable (default)
+ * 1: enable
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, spvc, et2, 0x08, 16, 1);
+
+/* reg_spvc_inner_et1
+ * Vlan Tag1 EtherType1 enable.
+ * Packet is initially classified as double VLAN Tag if in addition to
+ * being classified with a tag0 VLAN Tag its tag1 EtherType value is
+ * equal to ether_type1.
+ * 0: disable
+ * 1: enable (default)
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, spvc, inner_et1, 0x08, 9, 1);
+
+/* reg_spvc_et1
+ * Vlan Tag0 EtherType1 enable.
+ * Packet is initially classified as VLAN Tag if its tag0 EtherType is
+ * equal to ether_type1.
+ * 0: disable
+ * 1: enable (default)
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, spvc, et1, 0x08, 8, 1);
+
+/* reg_inner_et0
+ * Vlan Tag1 EtherType0 enable.
+ * Packet is initially classified as double VLAN Tag if in addition to
+ * being classified with a tag0 VLAN Tag its tag1 EtherType value is
+ * equal to ether_type0.
+ * 0: disable
+ * 1: enable (default)
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, spvc, inner_et0, 0x08, 1, 1);
+
+/* reg_et0
+ * Vlan Tag0 EtherType0 enable.
+ * Packet is initially classified as VLAN Tag if its tag0 EtherType is
+ * equal to ether_type0.
+ * 0: disable
+ * 1: enable (default)
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, spvc, et0, 0x08, 0, 1);
+
+static inline void mlxsw_reg_spvc_pack(char *payload, u8 local_port, bool et1,
+				       bool et0)
+{
+	MLXSW_REG_ZERO(spvc, payload);
+	mlxsw_reg_spvc_local_port_set(payload, local_port);
+	/* Enable inner_et1 and inner_et0 to enable identification of double
+	 * tagged packets.
+	 */
+	mlxsw_reg_spvc_inner_et1_set(payload, 1);
+	mlxsw_reg_spvc_inner_et0_set(payload, 1);
+	mlxsw_reg_spvc_et1_set(payload, et1);
+	mlxsw_reg_spvc_et0_set(payload, et0);
 }
 
 /* CWTP - Congetion WRED ECN TClass Profile
@@ -11212,6 +11323,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(svpe),
 	MLXSW_REG(sfmr),
 	MLXSW_REG(spvmlr),
+	MLXSW_REG(spvc),
 	MLXSW_REG(cwtp),
 	MLXSW_REG(cwtpm),
 	MLXSW_REG(pgcr),

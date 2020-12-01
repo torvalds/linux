@@ -7857,6 +7857,15 @@ static int mlxsw_sp_inetaddr_bridge_event(struct mlxsw_sp *mlxsw_sp,
 
 	switch (event) {
 	case NETDEV_UP:
+		if (netif_is_bridge_master(l3_dev) && br_vlan_enabled(l3_dev)) {
+			u16 proto;
+
+			br_vlan_get_proto(l3_dev, &proto);
+			if (proto == ETH_P_8021AD) {
+				NL_SET_ERR_MSG_MOD(extack, "Adding an IP address to 802.1ad bridge is not supported");
+				return -EOPNOTSUPP;
+			}
+		}
 		rif = mlxsw_sp_rif_create(mlxsw_sp, &params, extack);
 		if (IS_ERR(rif))
 			return PTR_ERR(rif);
