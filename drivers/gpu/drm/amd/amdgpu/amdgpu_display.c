@@ -522,6 +522,7 @@ uint32_t amdgpu_display_supported_domains(struct amdgpu_device *adev,
 				domain |= AMDGPU_GEM_DOMAIN_GTT;
 			break;
 		case CHIP_RENOIR:
+		case CHIP_VANGOGH:
 			domain |= AMDGPU_GEM_DOMAIN_GTT;
 			break;
 
