@@ -84,8 +84,6 @@ static struct bpf_map *cpu_map_alloc(union bpf_attr *attr)
 	u32 value_size = attr->value_size;
 	struct bpf_cpu_map *cmap;
 	int err = -ENOMEM;
-	u64 cost;
-	int ret;
 
 	if (!bpf_capable())
 		return ERR_PTR(-EPERM);
@@ -109,26 +107,14 @@ static struct bpf_map *cpu_map_alloc(union bpf_attr *attr)
 		goto free_cmap;
 	}
 
-	/* make sure page count doesn't overflow */
-	cost = (u64) cmap->map.max_entries * sizeof(struct bpf_cpu_map_entry *);
-
-	/* Notice returns -EPERM on if map size is larger than memlock limit */
-	ret = bpf_map_charge_init(&cmap->map.memory, cost);
-	if (ret) {
-		err = ret;
-		goto free_cmap;
-	}
-
 	/* Alloc array for possible remote "destination" CPUs */
 	cmap->cpu_map = bpf_map_area_alloc(cmap->map.max_entries *
 					   sizeof(struct bpf_cpu_map_entry *),
 					   cmap->map.numa_node);
 	if (!cmap->cpu_map)
-		goto free_charge;
+		goto free_cmap;
 
 	return &cmap->map;
-free_charge:
-	bpf_map_charge_finish(&cmap->map.memory);
 free_cmap:
 	kfree(cmap);
 	return ERR_PTR(err);
