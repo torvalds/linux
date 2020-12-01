@@ -290,7 +290,8 @@ static void *i915_gem_object_map_page(struct drm_i915_gem_object *obj,
 	vaddr = vmap(pages, n_pages, 0, pgprot);
 	if (pages != stack)
 		kvfree(pages);
-	return vaddr;
+
+	return vaddr ?: ERR_PTR(-ENOMEM);
 }
 
 static void *i915_gem_object_map_pfn(struct drm_i915_gem_object *obj,
@@ -320,7 +321,8 @@ static void *i915_gem_object_map_pfn(struct drm_i915_gem_object *obj,
 	vaddr = vmap_pfn(pfns, n_pfn, pgprot_writecombine(PAGE_KERNEL_IO));
 	if (pfns != stack)
 		kvfree(pfns);
-	return vaddr;
+
+	return vaddr ?: ERR_PTR(-ENOMEM);
 }
 
 /* get, pin, and map the pages of the object into kernel space */
