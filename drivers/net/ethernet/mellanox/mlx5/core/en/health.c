@@ -157,10 +157,8 @@ void mlx5e_health_channels_update(struct mlx5e_priv *priv)
 						     DEVLINK_HEALTH_REPORTER_STATE_HEALTHY);
 }
 
-int mlx5e_health_sq_to_ready(struct mlx5e_channel *channel, u32 sqn)
+int mlx5e_health_sq_to_ready(struct mlx5_core_dev *mdev, struct net_device *dev, u32 sqn)
 {
-	struct mlx5_core_dev *mdev = channel->mdev;
-	struct net_device *dev = channel->netdev;
 	struct mlx5e_modify_sq_param msp = {};
 	int err;
 

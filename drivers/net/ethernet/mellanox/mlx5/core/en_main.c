@@ -1132,7 +1132,9 @@ static int mlx5e_alloc_txqsq(struct mlx5e_channel *c,
 	sq->tstamp    = c->tstamp;
 	sq->clock     = &mdev->clock;
 	sq->mkey_be   = c->mkey_be;
-	sq->channel   = c;
+	sq->netdev    = c->netdev;
+	sq->mdev      = c->mdev;
+	sq->priv      = c->priv;
 	sq->ch_ix     = c->ix;
 	sq->txq_ix    = txq_ix;
 	sq->uar_map   = mdev->mlx5e_res.bfreg.map;
@@ -1332,7 +1334,7 @@ err_free_txqsq:
 
 void mlx5e_activate_txqsq(struct mlx5e_txqsq *sq)
 {
-	sq->txq = netdev_get_tx_queue(sq->channel->netdev, sq->txq_ix);
+	sq->txq = netdev_get_tx_queue(sq->netdev, sq->txq_ix);
 	set_bit(MLX5E_SQ_STATE_ENABLED, &sq->state);
 	netdev_tx_reset_queue(sq->txq);
 	netif_tx_start_queue(sq->txq);
@@ -1370,8 +1372,7 @@ static void mlx5e_deactivate_txqsq(struct mlx5e_txqsq *sq)
 
 static void mlx5e_close_txqsq(struct mlx5e_txqsq *sq)
 {
-	struct mlx5e_channel *c = sq->channel;
-	struct mlx5_core_dev *mdev = c->mdev;
+	struct mlx5_core_dev *mdev = sq->mdev;
 	struct mlx5_rate_limit rl = {0};
 
 	cancel_work_sync(&sq->dim.work);

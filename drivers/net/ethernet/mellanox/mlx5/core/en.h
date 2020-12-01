@@ -369,10 +369,12 @@ struct mlx5e_txqsq {
 	unsigned int               hw_mtu;
 	struct hwtstamp_config    *tstamp;
 	struct mlx5_clock         *clock;
+	struct net_device         *netdev;
+	struct mlx5_core_dev      *mdev;
+	struct mlx5e_priv         *priv;
 
 	/* control path */
 	struct mlx5_wq_ctrl        wq_ctrl;
-	struct mlx5e_channel      *channel;
 	int                        ch_ix;
 	int                        txq_ix;
 	u32                        rate_limit;

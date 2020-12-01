@@ -15,7 +15,7 @@ static int mlx5e_wait_for_sq_flush(struct mlx5e_txqsq *sq)
 		msleep(20);
 	}
 
-	netdev_err(sq->channel->netdev,
+	netdev_err(sq->netdev,
 		   "Wait for SQ 0x%x flush timeout (sq cc = 0x%x, sq pc = 0x%x)\n",
 		   sq->sqn, sq->cc, sq->pc);
 
@@ -41,8 +41,8 @@ static int mlx5e_tx_reporter_err_cqe_recover(void *ctx)
 	int err;
 
 	sq = ctx;
-	mdev = sq->channel->mdev;
-	dev = sq->channel->netdev;
+	mdev = sq->mdev;
+	dev = sq->netdev;
 
 	if (!test_bit(MLX5E_SQ_STATE_RECOVERING, &sq->state))
 		return 0;
@@ -68,7 +68,7 @@ static int mlx5e_tx_reporter_err_cqe_recover(void *ctx)
 	 * pending WQEs. SQ can safely reset the SQ.
 	 */
 
-	err = mlx5e_health_sq_to_ready(sq->channel, sq->sqn);
+	err = mlx5e_health_sq_to_ready(mdev, dev, sq->sqn);
 	if (err)
 		goto out;
 
@@ -99,8 +99,8 @@ static int mlx5e_tx_reporter_timeout_recover(void *ctx)
 	to_ctx = ctx;
 	sq = to_ctx->sq;
 	eq = sq->cq.mcq.eq;
-	priv = sq->channel->priv;
-	err = mlx5e_health_channel_eq_recover(sq->channel->netdev, eq, sq->channel->stats);
+	priv = sq->priv;
+	err = mlx5e_health_channel_eq_recover(sq->netdev, eq, sq->cq.ch_stats);
 	if (!err) {
 		to_ctx->status = 0; /* this sq recovered */
 		return err;
@@ -144,8 +144,8 @@ static int
 mlx5e_tx_reporter_build_diagnose_output(struct devlink_fmsg *fmsg,
 					struct mlx5e_txqsq *sq, int tc)
 {
-	struct mlx5e_priv *priv = sq->channel->priv;
 	bool stopped = netif_xmit_stopped(sq->txq);
+	struct mlx5e_priv *priv = sq->priv;
 	u8 state;
 	int err;
 
@@ -396,8 +396,8 @@ static int mlx5e_tx_reporter_dump(struct devlink_health_reporter *reporter,
 
 void mlx5e_reporter_tx_err_cqe(struct mlx5e_txqsq *sq)
 {
-	struct mlx5e_priv *priv = sq->channel->priv;
 	char err_str[MLX5E_REPORTER_PER_Q_MAX_LEN];
+	struct mlx5e_priv *priv = sq->priv;
 	struct mlx5e_err_ctx err_ctx = {};
 
 	err_ctx.ctx = sq;
@@ -410,9 +410,9 @@ void mlx5e_reporter_tx_err_cqe(struct mlx5e_txqsq *sq)
 
 int mlx5e_reporter_tx_timeout(struct mlx5e_txqsq *sq)
 {
-	struct mlx5e_priv *priv = sq->channel->priv;
 	char err_str[MLX5E_REPORTER_PER_Q_MAX_LEN];
 	struct mlx5e_tx_timeout_ctx to_ctx = {};
+	struct mlx5e_priv *priv = sq->priv;
 	struct mlx5e_err_ctx err_ctx = {};
 
 	to_ctx.sq = sq;
@@ -421,7 +421,7 @@ int mlx5e_reporter_tx_timeout(struct mlx5e_txqsq *sq)
 	err_ctx.dump = mlx5e_tx_reporter_dump_sq;
 	snprintf(err_str, sizeof(err_str),
 		 "TX timeout on queue: %d, SQ: 0x%x, CQ: 0x%x, SQ Cons: 0x%x SQ Prod: 0x%x, usecs since last trans: %u",
-		 sq->channel->ix, sq->sqn, sq->cq.mcq.cqn, sq->cc, sq->pc,
+		 sq->ch_ix, sq->sqn, sq->cq.mcq.cqn, sq->cc, sq->pc,
 		 jiffies_to_usecs(jiffies - sq->txq->trans_start));
 
 	mlx5e_health_report(priv, priv->tx_reporter, err_str, &err_ctx);

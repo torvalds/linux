@@ -87,7 +87,7 @@ static int mlx5e_rx_reporter_err_icosq_cqe_recover(void *ctx)
 
 	/* At this point, both the rq and the icosq are disabled */
 
-	err = mlx5e_health_sq_to_ready(icosq->channel, icosq->sqn);
+	err = mlx5e_health_sq_to_ready(mdev, dev, icosq->sqn);
 	if (err)
 		goto out;
 
