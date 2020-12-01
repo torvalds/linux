@@ -301,6 +301,10 @@ static __be32 nfsd_set_fh_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp)
 	fhp->fh_export = exp;
 
 	switch (rqstp->rq_vers) {
+	case 4:
+		if (dentry->d_sb->s_export_op->flags & EXPORT_OP_NOATOMIC_ATTR)
+			fhp->fh_no_atomic_attr = true;
+		break;
 	case 3:
 		if (dentry->d_sb->s_export_op->flags & EXPORT_OP_NOWCC)
 			fhp->fh_no_wcc = true;

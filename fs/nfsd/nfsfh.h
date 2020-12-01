@@ -36,6 +36,11 @@ typedef struct svc_fh {
 	bool			fh_locked;	/* inode locked by us */
 	bool			fh_want_write;	/* remount protection taken */
 	bool			fh_no_wcc;	/* no wcc data needed */
+	bool			fh_no_atomic_attr;
+						/*
+						 * wcc data is not atomic with
+						 * operation
+						 */
 	int			fh_flags;	/* FH flags */
 #ifdef CONFIG_NFSD_V3
 	bool			fh_post_saved;	/* post-op attrs saved */
