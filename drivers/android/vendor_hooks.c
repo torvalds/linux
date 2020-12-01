@@ -26,6 +26,7 @@
 #include <trace/hooks/epoch.h>
 #include <trace/hooks/cpufreq.h>
 #include <trace/hooks/mm.h>
+#include <trace/hooks/preemptirq.h>
 
 /*
  * Export tracepoints that act as a bare tracehook (ie: have no trace event
@@ -92,3 +93,7 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_update_cpus_allowed);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_set_skip_swapcache_flags);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_set_gfp_zone_flags);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_set_readahead_gfp_mask);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_preempt_disable);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_preempt_enable);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_irqs_disable);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_irqs_enable);
