@@ -638,7 +638,7 @@ static const struct fb_ops vmw_fb_ops = {
 
 int vmw_fb_init(struct vmw_private *vmw_priv)
 {
-	struct device *device = &vmw_priv->dev->pdev->dev;
+	struct device *device = vmw_priv->dev->dev;
 	struct vmw_fb_par *par;
 	struct fb_info *info;
 	unsigned fb_width, fb_height;
