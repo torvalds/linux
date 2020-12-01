@@ -85,7 +85,7 @@ static LIST_HEAD(nvme_subsystems);
 static DEFINE_MUTEX(nvme_subsystems_lock);
 
 static DEFINE_IDA(nvme_instance_ida);
-static dev_t nvme_chr_devt;
+static dev_t nvme_ctrl_base_chr_devt;
 static struct class *nvme_class;
 static struct class *nvme_subsys_class;
 
@@ -4517,7 +4517,8 @@ int nvme_init_ctrl(struct nvme_ctrl *ctrl, struct device *dev,
 
 	device_initialize(&ctrl->ctrl_device);
 	ctrl->device = &ctrl->ctrl_device;
-	ctrl->device->devt = MKDEV(MAJOR(nvme_chr_devt), ctrl->instance);
+	ctrl->device->devt = MKDEV(MAJOR(nvme_ctrl_base_chr_devt),
+			ctrl->instance);
 	ctrl->device->class = nvme_class;
 	ctrl->device->parent = ctrl->dev;
 	ctrl->device->groups = nvme_dev_attr_groups;
@@ -4726,7 +4727,8 @@ static int __init nvme_core_init(void)
 	if (!nvme_delete_wq)
 		goto destroy_reset_wq;
 
-	result = alloc_chrdev_region(&nvme_chr_devt, 0, NVME_MINORS, "nvme");
+	result = alloc_chrdev_region(&nvme_ctrl_base_chr_devt, 0,
+			NVME_MINORS, "nvme");
 	if (result < 0)
 		goto destroy_delete_wq;
 
@@ -4747,7 +4749,7 @@ static int __init nvme_core_init(void)
 destroy_class:
 	class_destroy(nvme_class);
 unregister_chrdev:
-	unregister_chrdev_region(nvme_chr_devt, NVME_MINORS);
+	unregister_chrdev_region(nvme_ctrl_base_chr_devt, NVME_MINORS);
 destroy_delete_wq:
 	destroy_workqueue(nvme_delete_wq);
 destroy_reset_wq:
@@ -4762,7 +4764,7 @@ static void __exit nvme_core_exit(void)
 {
 	class_destroy(nvme_subsys_class);
 	class_destroy(nvme_class);
-	unregister_chrdev_region(nvme_chr_devt, NVME_MINORS);
+	unregister_chrdev_region(nvme_ctrl_base_chr_devt, NVME_MINORS);
 	destroy_workqueue(nvme_delete_wq);
 	destroy_workqueue(nvme_reset_wq);
 	destroy_workqueue(nvme_wq);
