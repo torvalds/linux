@@ -871,7 +871,7 @@ int mhi_register_controller(struct mhi_controller *mhi_cntrl,
 				     sizeof(*mhi_cntrl->mhi_cmd), GFP_KERNEL);
 	if (!mhi_cntrl->mhi_cmd) {
 		ret = -ENOMEM;
-		goto error_alloc_cmd;
+		goto err_free_event;
 	}
 
 	INIT_LIST_HEAD(&mhi_cntrl->transition_list);
@@ -886,7 +886,8 @@ int mhi_register_controller(struct mhi_controller *mhi_cntrl,
 				("mhi_hiprio_wq", WQ_MEM_RECLAIM | WQ_HIGHPRI);
 	if (!mhi_cntrl->hiprio_wq) {
 		dev_err(mhi_cntrl->cntrl_dev, "Failed to allocate workqueue\n");
-		goto error_alloc_cmd;
+		ret = -ENOMEM;
+		goto err_free_cmd;
 	}
 
 	mhi_cmd = mhi_cntrl->mhi_cmd;
@@ -932,7 +933,7 @@ int mhi_register_controller(struct mhi_controller *mhi_cntrl,
 	ret = mhi_read_reg(mhi_cntrl, mhi_cntrl->regs,
 			   SOC_HW_VERSION_OFFS, &soc_info);
 	if (ret)
-		goto error_alloc_dev;
+		goto err_destroy_wq;
 
 	mhi_cntrl->family_number = (soc_info & SOC_HW_VERSION_FAM_NUM_BMSK) >>
 					SOC_HW_VERSION_FAM_NUM_SHFT;
@@ -946,7 +947,7 @@ int mhi_register_controller(struct mhi_controller *mhi_cntrl,
 	mhi_cntrl->index = ida_alloc(&mhi_controller_ida, GFP_KERNEL);
 	if (mhi_cntrl->index < 0) {
 		ret = mhi_cntrl->index;
-		goto error_ida_alloc;
+		goto err_destroy_wq;
 	}
 
 	/* Register controller with MHI bus */
@@ -954,7 +955,7 @@ int mhi_register_controller(struct mhi_controller *mhi_cntrl,
 	if (IS_ERR(mhi_dev)) {
 		dev_err(mhi_cntrl->cntrl_dev, "Failed to allocate MHI device\n");
 		ret = PTR_ERR(mhi_dev);
-		goto error_alloc_dev;
+		goto err_ida_free;
 	}
 
 	mhi_dev->dev_type = MHI_DEVICE_CONTROLLER;
@@ -967,7 +968,7 @@ int mhi_register_controller(struct mhi_controller *mhi_cntrl,
 
 	ret = device_add(&mhi_dev->dev);
 	if (ret)
-		goto error_add_dev;
+		goto err_release_dev;
 
 	mhi_cntrl->mhi_dev = mhi_dev;
 
@@ -975,19 +976,17 @@ int mhi_register_controller(struct mhi_controller *mhi_cntrl,
 
 	return 0;
 
-error_add_dev:
+err_release_dev:
 	put_device(&mhi_dev->dev);
-
-error_alloc_dev:
+err_ida_free:
 	ida_free(&mhi_controller_ida, mhi_cntrl->index);
-
-error_ida_alloc:
-	kfree(mhi_cntrl->mhi_cmd);
-
-error_alloc_cmd:
-	vfree(mhi_cntrl->mhi_chan);
-	kfree(mhi_cntrl->mhi_event);
+err_destroy_wq:
 	destroy_workqueue(mhi_cntrl->hiprio_wq);
+err_free_cmd:
+	kfree(mhi_cntrl->mhi_cmd);
+err_free_event:
+	kfree(mhi_cntrl->mhi_event);
+	vfree(mhi_cntrl->mhi_chan);
 
 	return ret;
 }
