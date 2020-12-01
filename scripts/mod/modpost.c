@@ -33,7 +33,7 @@ static int external_module = 0;
 static int warn_unresolved = 0;
 /* How a symbol is exported */
 static int sec_mismatch_count = 0;
-static int sec_mismatch_fatal = 0;
+static int sec_mismatch_warn_only = true;
 /* ignore missing files */
 static int ignore_missing_files;
 /* If set to 1, only warn (instead of error) about missing ns imports */
@@ -2573,7 +2573,7 @@ int main(int argc, char **argv)
 			warn_unresolved = 1;
 			break;
 		case 'E':
-			sec_mismatch_fatal = 1;
+			sec_mismatch_warn_only = false;
 			break;
 		case 'N':
 			allow_missing_ns_imports = 1;
@@ -2637,8 +2637,8 @@ int main(int argc, char **argv)
 
 	if (dump_write)
 		write_dump(dump_write);
-	if (sec_mismatch_count && sec_mismatch_fatal)
-		fatal("Section mismatches detected.\n"
+	if (sec_mismatch_count && !sec_mismatch_warn_only)
+		error("Section mismatches detected.\n"
 		      "Set CONFIG_SECTION_MISMATCH_WARN_ONLY=y to allow them.\n");
 	for (n = 0; n < SYMBOL_HASH_SIZE; n++) {
 		struct symbol *s;
