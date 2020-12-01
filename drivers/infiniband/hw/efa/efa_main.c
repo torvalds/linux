@@ -384,19 +384,12 @@ static int efa_device_init(struct efa_com_dev *edev, struct pci_dev *pdev)
 		return err;
 	}
 
-	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(dma_width));
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(dma_width));
 	if (err) {
-		dev_err(&pdev->dev, "pci_set_dma_mask failed %d\n", err);
+		dev_err(&pdev->dev, "dma_set_mask_and_coherent failed %d\n", err);
 		return err;
 	}
 
-	err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(dma_width));
-	if (err) {
-		dev_err(&pdev->dev,
-			"err_pci_set_consistent_dma_mask failed %d\n",
-			err);
-		return err;
-	}
 	dma_set_max_seg_size(&pdev->dev, UINT_MAX);
 	return 0;
 }
