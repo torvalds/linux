@@ -69,6 +69,17 @@
 #define ADF_4XXX_ASYM_OBJ	"qat_4xxx_asym.bin"
 #define ADF_4XXX_ADMIN_OBJ	"qat_4xxx_admin.bin"
 
+/* qat_4xxx fuse bits are different from old GENs, redefine them */
+enum icp_qat_4xxx_slice_mask {
+	ICP_ACCEL_4XXX_MASK_CIPHER_SLICE = BIT(0),
+	ICP_ACCEL_4XXX_MASK_AUTH_SLICE = BIT(1),
+	ICP_ACCEL_4XXX_MASK_PKE_SLICE = BIT(2),
+	ICP_ACCEL_4XXX_MASK_COMPRESS_SLICE = BIT(3),
+	ICP_ACCEL_4XXX_MASK_UCS_SLICE = BIT(4),
+	ICP_ACCEL_4XXX_MASK_EIA3_SLICE = BIT(5),
+	ICP_ACCEL_4XXX_MASK_SMX_SLICE = BIT(6),
+};
+
 void adf_init_hw_data_4xxx(struct adf_hw_device_data *hw_data);
 void adf_clean_hw_data_4xxx(struct adf_hw_device_data *hw_data);
 

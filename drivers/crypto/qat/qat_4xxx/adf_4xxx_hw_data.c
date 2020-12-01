@@ -5,6 +5,7 @@
 #include <adf_pf2vf_msg.h>
 #include <adf_gen4_hw_data.h>
 #include "adf_4xxx_hw_data.h"
+#include "icp_qat_hw.h"
 
 struct adf_fw_config {
 	u32 ae_mask;
@@ -89,6 +90,28 @@ static void set_msix_default_rttable(struct adf_accel_dev *accel_dev)
 	csr = (&GET_BARS(accel_dev)[ADF_4XXX_PMISC_BAR])->virt_addr;
 	for (i = 0; i <= ADF_4XXX_ETR_MAX_BANKS; i++)
 		ADF_CSR_WR(csr, ADF_4XXX_MSIX_RTTABLE_OFFSET(i), i);
+}
+
+static u32 get_accel_cap(struct adf_accel_dev *accel_dev)
+{
+	struct pci_dev *pdev = accel_dev->accel_pci_dev.pci_dev;
+	u32 fusectl1;
+	u32 capabilities = ICP_ACCEL_CAPABILITIES_CRYPTO_SYMMETRIC |
+			   ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC |
+			   ICP_ACCEL_CAPABILITIES_AUTHENTICATION |
+			   ICP_ACCEL_CAPABILITIES_AES_V2;
+
+	/* Read accelerator capabilities mask */
+	pci_read_config_dword(pdev, ADF_4XXX_FUSECTL1_OFFSET, &fusectl1);
+
+	if (fusectl1 & ICP_ACCEL_4XXX_MASK_CIPHER_SLICE)
+		capabilities &= ~ICP_ACCEL_CAPABILITIES_CRYPTO_SYMMETRIC;
+	if (fusectl1 & ICP_ACCEL_4XXX_MASK_AUTH_SLICE)
+		capabilities &= ~ICP_ACCEL_CAPABILITIES_AUTHENTICATION;
+	if (fusectl1 & ICP_ACCEL_4XXX_MASK_PKE_SLICE)
+		capabilities &= ~ICP_ACCEL_CAPABILITIES_CRYPTO_ASYMMETRIC;
+
+	return capabilities;
 }
 
 static enum dev_sku_info get_sku(struct adf_hw_device_data *self)
@@ -189,6 +212,7 @@ void adf_init_hw_data_4xxx(struct adf_hw_device_data *hw_data)
 	hw_data->get_misc_bar_id = get_misc_bar_id;
 	hw_data->get_arb_info = get_arb_info;
 	hw_data->get_admin_info = get_admin_info;
+	hw_data->get_accel_cap = get_accel_cap;
 	hw_data->get_sku = get_sku;
 	hw_data->fw_name = ADF_4XXX_FW;
 	hw_data->fw_mmp_name = ADF_4XXX_MMP;

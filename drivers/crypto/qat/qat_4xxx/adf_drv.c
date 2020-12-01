@@ -233,6 +233,9 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
 	}
 
+	/* Get accelerator capabilities mask */
+	hw_data->accel_capabilities_mask = hw_data->get_accel_cap(accel_dev);
+
 	/* Find and map all the device's BARS */
 	bar_mask = pci_select_bars(pdev, IORESOURCE_MEM) & ADF_4XXX_BAR_MASK;
 
