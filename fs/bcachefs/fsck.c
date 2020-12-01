@@ -485,7 +485,11 @@ static int check_extents(struct bch_fs *c)
 				   BTREE_ITER_INTENT);
 retry:
 	for_each_btree_key_continue(iter, 0, k, ret) {
-		if (bkey_cmp(prev.k->k.p, bkey_start_pos(k.k)) > 0) {
+		/*
+		 * due to retry errors we might see the same extent twice:
+		 */
+		if (bkey_cmp(prev.k->k.p, k.k->p) &&
+		    bkey_cmp(prev.k->k.p, bkey_start_pos(k.k)) > 0) {
 			char buf1[200];
 			char buf2[200];
 
