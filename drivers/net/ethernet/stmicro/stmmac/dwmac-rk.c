@@ -35,6 +35,8 @@
 #include "stmmac_platform.h"
 #include "dwmac-rk-tool.h"
 
+#define MAX_ETH		2
+
 struct rk_priv_data;
 struct rk_gmac_ops {
 	void (*set_to_rgmii)(struct rk_priv_data *bsp_priv,
@@ -1837,32 +1839,44 @@ void __weak rk_devinfo_get_eth_mac(u8 *mac)
 
 void rk_get_eth_addr(void *priv, unsigned char *addr)
 {
-	int ret;
 	struct rk_priv_data *bsp_priv = priv;
 	struct device *dev = &bsp_priv->pdev->dev;
+	unsigned char ethaddr[ETH_ALEN * MAX_ETH] = {0};
+	int ret, id = bsp_priv->bus_id;
 
 	rk_devinfo_get_eth_mac(addr);
 	if (is_valid_ether_addr(addr))
 		goto out;
 
-	ret = rk_vendor_read(LAN_MAC_ID, addr, 6);
-	if (ret != 6 || is_zero_ether_addr(addr)) {
-		dev_err(dev, "%s: rk_vendor_read eth mac address failed (%d)",
-					__func__, ret);
-		random_ether_addr(addr);
-		dev_err(dev, "%s: generate random eth mac address: %02x:%02x:%02x:%02x:%02x:%02x",
-					__func__, addr[0], addr[1], addr[2],
-					addr[3], addr[4], addr[5]);
-		ret = rk_vendor_write(LAN_MAC_ID, addr, 6);
+	if (id < 0 || id >= MAX_ETH) {
+		dev_err(dev, "%s: Invalid ethernet bus id %d\n", __func__, id);
+		return;
+	}
+
+	ret = rk_vendor_read(LAN_MAC_ID, ethaddr, ETH_ALEN * MAX_ETH);
+	if (ret <= 0 ||
+	    !is_valid_ether_addr(&ethaddr[id * ETH_ALEN])) {
+		dev_err(dev, "%s: rk_vendor_read eth mac address failed (%d)\n",
+			__func__, ret);
+		random_ether_addr(&ethaddr[id * ETH_ALEN]);
+		memcpy(addr, &ethaddr[id * ETH_ALEN], ETH_ALEN);
+		dev_err(dev, "%s: generate random eth mac address: %pM\n", __func__, addr);
+
+		ret = rk_vendor_write(LAN_MAC_ID, ethaddr, ETH_ALEN * MAX_ETH);
 		if (ret != 0)
-			dev_err(dev, "%s: rk_vendor_write eth mac address failed (%d)",
-					__func__, ret);
+			dev_err(dev, "%s: rk_vendor_write eth mac address failed (%d)\n",
+				__func__, ret);
+
+		ret = rk_vendor_read(LAN_MAC_ID, ethaddr, ETH_ALEN * MAX_ETH);
+		if (ret != ETH_ALEN * MAX_ETH)
+			dev_err(dev, "%s: id: %d rk_vendor_read eth mac address failed (%d)\n",
+				__func__, id, ret);
+	} else {
+		memcpy(addr, &ethaddr[id * ETH_ALEN], ETH_ALEN);
 	}
 
 out:
-	dev_err(dev, "%s: mac address: %02x:%02x:%02x:%02x:%02x:%02x",
-				__func__, addr[0], addr[1], addr[2],
-				addr[3], addr[4], addr[5]);
+	dev_err(dev, "%s: mac address: %pM\n", __func__, addr);
 }
 
 static int rk_gmac_probe(struct platform_device *pdev)
