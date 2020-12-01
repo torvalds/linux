@@ -313,6 +313,10 @@ config GENERIC_BUG
 	default y
 	depends on BUG
 
+config GENERIC_BUG_RELATIVE_POINTERS
+	def_bool y
+	depends on GENERIC_BUG
+
 config SYS_SUPPORTS_APM_EMULATION
 	default y if PMAC_APM_EMU
 	bool
