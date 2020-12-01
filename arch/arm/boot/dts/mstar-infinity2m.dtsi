@@ -13,3 +13,10 @@
 		reg = <0x1>;
 	};
 };
+
+&riu {
+	smpctrl: smpctrl@204000 {
+		reg = <0x204000 0x200>;
+		status = "disabled";
+	};
+};
