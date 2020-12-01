@@ -23,7 +23,7 @@
 
 static const struct {
 	char string[ETH_GSTRING_LEN];
-} mib_names[TOTAL_SWITCH_COUNTER_NUM] = {
+} mib_names[] = {
 	{ "rx_hi" },
 	{ "rx_undersize" },
 	{ "rx_fragments" },
@@ -654,9 +654,10 @@ static enum dsa_tag_protocol ksz8795_get_tag_protocol(struct dsa_switch *ds,
 static void ksz8795_get_strings(struct dsa_switch *ds, int port,
 				u32 stringset, uint8_t *buf)
 {
+	struct ksz_device *dev = ds->priv;
 	int i;
 
-	for (i = 0; i < TOTAL_SWITCH_COUNTER_NUM; i++) {
+	for (i = 0; i < dev->mib_cnt; i++) {
 		memcpy(buf + i * ETH_GSTRING_LEN, mib_names[i].string,
 		       ETH_GSTRING_LEN);
 	}
@@ -1236,7 +1237,7 @@ static int ksz8795_switch_init(struct ksz_device *dev)
 	dev->port_mask |= dev->host_mask;
 
 	dev->reg_mib_cnt = KSZ8795_COUNTER_NUM;
-	dev->mib_cnt = TOTAL_SWITCH_COUNTER_NUM;
+	dev->mib_cnt = ARRAY_SIZE(mib_names);
 
 	dev->mib_port_cnt = TOTAL_PORT_NUM;
 	dev->phy_port_cnt = SWITCH_PORT_NUM;
@@ -1254,7 +1255,7 @@ static int ksz8795_switch_init(struct ksz_device *dev)
 		dev->ports[i].mib.counters =
 			devm_kzalloc(dev->dev,
 				     sizeof(u64) *
-				     (TOTAL_SWITCH_COUNTER_NUM + 1),
+				     (dev->mib_cnt + 1),
 				     GFP_KERNEL);
 		if (!dev->ports[i].mib.counters)
 			return -ENOMEM;
