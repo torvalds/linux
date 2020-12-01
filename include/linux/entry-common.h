@@ -316,8 +316,24 @@ static inline void arch_syscall_exit_tracehook(struct pt_regs *regs, bool step)
  * is not suitable as the last step before returning to userspace. Must be
  * invoked with interrupts disabled and the caller must be
  * non-instrumentable.
+ * The caller has to invoke syscall_exit_to_user_mode_work() before this.
  */
 void exit_to_user_mode(void);
+
+/**
+ * syscall_exit_to_user_mode_work - Handle work before returning to user mode
+ * @regs:	Pointer to currents pt_regs
+ *
+ * Same as step 1 and 2 of syscall_exit_to_user_mode() but without calling
+ * exit_to_user_mode() to perform the final transition to user mode.
+ *
+ * Calling convention is the same as for syscall_exit_to_user_mode() and it
+ * returns with all work handled and interrupts disabled. The caller must
+ * invoke exit_to_user_mode() before actually switching to user mode to
+ * make the final state transitions. Interrupts must stay disabled between
+ * return from this function and the invocation of exit_to_user_mode().
+ */
+void syscall_exit_to_user_mode_work(struct pt_regs *regs);
 
 /**
  * syscall_exit_to_user_mode - Handle work before returning to user mode
@@ -343,6 +359,10 @@ void exit_to_user_mode(void);
  *
  *  3) Final transition (lockdep, tracing, context tracking, RCU), i.e. the
  *     functionality in exit_to_user_mode().
+ *
+ * This is a combination of syscall_exit_to_user_mode_work() (1,2) and
+ * exit_to_user_mode(). This function is preferred unless there is a
+ * compelling architectural reason to use the seperate functions.
  */
 void syscall_exit_to_user_mode(struct pt_regs *regs);
 

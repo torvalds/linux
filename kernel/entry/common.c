@@ -282,12 +282,22 @@ static void syscall_exit_to_user_mode_prepare(struct pt_regs *regs)
 		syscall_exit_work(regs, work);
 }
 
-__visible noinstr void syscall_exit_to_user_mode(struct pt_regs *regs)
+static __always_inline void __syscall_exit_to_user_mode_work(struct pt_regs *regs)
 {
-	instrumentation_begin();
 	syscall_exit_to_user_mode_prepare(regs);
 	local_irq_disable_exit_to_user();
 	exit_to_user_mode_prepare(regs);
+}
+
+void syscall_exit_to_user_mode_work(struct pt_regs *regs)
+{
+	__syscall_exit_to_user_mode_work(regs);
+}
+
+__visible noinstr void syscall_exit_to_user_mode(struct pt_regs *regs)
+{
+	instrumentation_begin();
+	__syscall_exit_to_user_mode_work(regs);
 	instrumentation_end();
 	__exit_to_user_mode();
 }
