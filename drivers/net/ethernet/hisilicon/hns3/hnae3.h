@@ -81,12 +81,13 @@ enum HNAE3_DEV_CAP_BITS {
 	HNAE3_DEV_SUPPORT_FD_FORWARD_TC_B,
 	HNAE3_DEV_SUPPORT_PTP_B,
 	HNAE3_DEV_SUPPORT_INT_QL_B,
-	HNAE3_DEV_SUPPORT_SIMPLE_BD_B,
+	HNAE3_DEV_SUPPORT_HW_TX_CSUM_B,
 	HNAE3_DEV_SUPPORT_TX_PUSH_B,
 	HNAE3_DEV_SUPPORT_PHY_IMP_B,
 	HNAE3_DEV_SUPPORT_TQP_TXRX_INDEP_B,
 	HNAE3_DEV_SUPPORT_HW_PAD_B,
 	HNAE3_DEV_SUPPORT_STASH_B,
+	HNAE3_DEV_SUPPORT_UDP_TUNNEL_CSUM_B,
 };
 
 #define hnae3_dev_fd_supported(hdev) \
@@ -113,8 +114,8 @@ enum HNAE3_DEV_CAP_BITS {
 #define hnae3_dev_int_ql_supported(hdev) \
 	test_bit(HNAE3_DEV_SUPPORT_INT_QL_B, (hdev)->ae_dev->caps)
 
-#define hnae3_dev_simple_bd_supported(hdev) \
-	test_bit(HNAE3_DEV_SUPPORT_SIMPLE_BD_B, (hdev)->ae_dev->caps)
+#define hnae3_dev_hw_csum_supported(hdev) \
+	test_bit(HNAE3_DEV_SUPPORT_HW_TX_CSUM_B, (hdev)->ae_dev->caps)
 
 #define hnae3_dev_tx_push_supported(hdev) \
 	test_bit(HNAE3_DEV_SUPPORT_TX_PUSH_B, (hdev)->ae_dev->caps)
