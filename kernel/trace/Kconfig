@@ -845,6 +845,26 @@ config RING_BUFFER_STARTUP_TEST
 
 	 If unsure, say N
 
+config RING_BUFFER_VALIDATE_TIME_DELTAS
+	bool "Verify ring buffer time stamp deltas"
+	depends on RING_BUFFER
+	help
+	  This will audit the time stamps on the ring buffer sub
+	  buffer to make sure that all the time deltas for the
+	  events on a sub buffer matches the current time stamp.
+	  This audit is performed for every event that is not
+	  interrupted, or interrupting another event. A check
+	  is also made when traversing sub buffers to make sure
+	  that all the deltas on the previous sub buffer do not
+	  add up to be greater than the current time stamp.
+
+	  NOTE: This adds significant overhead to recording of events,
+	  and should only be used to test the logic of the ring buffer.
+	  Do not use it on production systems.
+
+	  Only say Y if you understand what this does, and you
+	  still want it enabled. Otherwise say N
+
 config MMIOTRACE_TEST
 	tristate "Test module for mmiotrace"
 	depends on MMIOTRACE && m
