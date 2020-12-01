@@ -2798,7 +2798,7 @@ void r100_vram_init_sizes(struct radeon_device *rdev)
 			rdev->mc.real_vram_size = 8192 * 1024;
 			WREG32(RADEON_CONFIG_MEMSIZE, rdev->mc.real_vram_size);
 		}
-		/* Fix for RN50, M6, M7 with 8/16/32(??) MBs of VRAM - 
+		/* Fix for RN50, M6, M7 with 8/16/32(??) MBs of VRAM -
 		 * Novell bug 204882 + along with lots of ubuntu ones
 		 */
 		if (rdev->mc.aper_size > config_aper_size)
