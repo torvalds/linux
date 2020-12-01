@@ -847,6 +847,9 @@ static int navi10_ih_sw_init(void *handle)
 					(adev->doorbell_index.ih + 2) << 1;
 	}
 
+	/* initialize ih control registers offset */
+	navi10_ih_init_register_offset(adev);
+
 	r = amdgpu_ih_ring_init(adev, &adev->irq.ih_soft, PAGE_SIZE, true);
 	if (r)
 		return r;
