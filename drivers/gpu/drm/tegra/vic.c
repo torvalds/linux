@@ -314,7 +314,7 @@ static int vic_open_channel(struct tegra_drm_client *client,
 	struct vic *vic = to_vic(client);
 	int err;
 
-	err = pm_runtime_get_sync(vic->dev);
+	err = pm_runtime_resume_and_get(vic->dev);
 	if (err < 0)
 		return err;
 
