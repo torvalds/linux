@@ -102,6 +102,10 @@ DECLARE_RESTRICTED_HOOK(android_rvh_migrate_queued_task,
 		 int *detached),
 	TP_ARGS(rq, rf, p, new_cpu, detached), 1);
 
+DECLARE_RESTRICTED_HOOK(android_rvh_resume_cpus,
+	TP_PROTO(struct cpumask *cpus, int *err),
+	TP_ARGS(cpus, err), 1);
+
 DECLARE_RESTRICTED_HOOK(android_rvh_find_energy_efficient_cpu,
 	TP_PROTO(struct task_struct *p, int prev_cpu, int sync, int *new_cpu),
 	TP_ARGS(p, prev_cpu, sync, new_cpu), 1);
@@ -206,6 +210,7 @@ DECLARE_RESTRICTED_HOOK(android_rvh_update_misfit_status,
 #define trace_android_rvh_sched_nohz_balancer_kick(rq, flags, done)
 #define trace_android_rvh_find_busiest_queue(dst_cpu, group, env_cpus, busiest, done)
 #define trace_android_rvh_migrate_queued_task(rq, rf, p, new_cpu, detached)
+#define trace_android_rvh_resume_cpus(cpus, err)
 #define trace_android_rvh_find_energy_efficient_cpu(p, prev_cpu, sync, new_cpu)
 #define trace_android_vh_set_sugov_sched_attr(attr)
 #define trace_android_rvh_set_iowait(p, should_iowait_boost)
