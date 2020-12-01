@@ -20,6 +20,8 @@
 #include <linux/module.h>
 #include <linux/kallsyms.h>
 #include <linux/capability.h>
+#include <linux/sched/mm.h>
+#include <linux/slab.h>
 
 struct bpf_verifier_env;
 struct bpf_verifier_log;
@@ -37,6 +39,7 @@ struct bpf_iter_aux_info;
 struct bpf_local_storage;
 struct bpf_local_storage_map;
 struct kobject;
+struct mem_cgroup;
 
 extern struct idr btf_idr;
 extern spinlock_t btf_idr_lock;
@@ -161,6 +164,9 @@ struct bpf_map {
 	u32 btf_value_type_id;
 	struct btf *btf;
 	struct bpf_map_memory memory;
+#ifdef CONFIG_MEMCG_KMEM
+	struct mem_cgroup *memcg;
+#endif
 	char name[BPF_OBJ_NAME_LEN];
 	u32 btf_vmlinux_value_type_id;
 	bool bypass_spec_v1;
@@ -1239,6 +1245,34 @@ int  generic_map_delete_batch(struct bpf_map *map,
 			      union bpf_attr __user *uattr);
 struct bpf_map *bpf_map_get_curr_or_next(u32 *id);
 struct bpf_prog *bpf_prog_get_curr_or_next(u32 *id);
+
+#ifdef CONFIG_MEMCG_KMEM
+void *bpf_map_kmalloc_node(const struct bpf_map *map, size_t size, gfp_t flags,
+			   int node);
+void *bpf_map_kzalloc(const struct bpf_map *map, size_t size, gfp_t flags);
+void __percpu *bpf_map_alloc_percpu(const struct bpf_map *map, size_t size,
+				    size_t align, gfp_t flags);
+#else
+static inline void *
+bpf_map_kmalloc_node(const struct bpf_map *map, size_t size, gfp_t flags,
+		     int node)
+{
+	return kmalloc_node(size, flags, node);
+}
+
+static inline void *
+bpf_map_kzalloc(const struct bpf_map *map, size_t size, gfp_t flags)
+{
+	return kzalloc(size, flags);
+}
+
+static inline void __percpu *
+bpf_map_alloc_percpu(const struct bpf_map *map, size_t size, size_t align,
+		     gfp_t flags)
+{
+	return __alloc_percpu_gfp(size, align, flags);
+}
+#endif
 
 extern int sysctl_unprivileged_bpf_disabled;
 
