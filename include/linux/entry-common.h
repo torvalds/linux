@@ -102,6 +102,27 @@ static inline __must_check int arch_syscall_enter_tracehook(struct pt_regs *regs
 #endif
 
 /**
+ * enter_from_user_mode - Establish state when coming from user mode
+ *
+ * Syscall/interrupt entry disables interrupts, but user mode is traced as
+ * interrupts enabled. Also with NO_HZ_FULL RCU might be idle.
+ *
+ * 1) Tell lockdep that interrupts are disabled
+ * 2) Invoke context tracking if enabled to reactivate RCU
+ * 3) Trace interrupts off state
+ *
+ * Invoked from architecture specific syscall entry code with interrupts
+ * disabled. The calling code has to be non-instrumentable. When the
+ * function returns all state is correct and interrupts are still
+ * disabled. The subsequent functions can be instrumented.
+ *
+ * This is invoked when there is architecture specific functionality to be
+ * done between establishing state and enabling interrupts. The caller must
+ * enable interrupts before invoking syscall_enter_from_user_mode_work().
+ */
+void enter_from_user_mode(struct pt_regs *regs);
+
+/**
  * syscall_enter_from_user_mode_prepare - Establish state and enable interrupts
  * @regs:	Pointer to currents pt_regs
  *
@@ -110,7 +131,8 @@ static inline __must_check int arch_syscall_enter_tracehook(struct pt_regs *regs
  * function returns all state is correct, interrupts are enabled and the
  * subsequent functions can be instrumented.
  *
- * This handles lockdep, RCU (context tracking) and tracing state.
+ * This handles lockdep, RCU (context tracking) and tracing state, i.e.
+ * the functionality provided by enter_from_user_mode().
  *
  * This is invoked when there is extra architecture specific functionality
  * to be done between establishing state and handling user mode entry work.

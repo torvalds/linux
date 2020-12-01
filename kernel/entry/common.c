@@ -10,16 +10,7 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/syscalls.h>
 
-/**
- * __enter_from_user_mode - Establish state when coming from user mode
- *
- * Syscall/interrupt entry disables interrupts, but user mode is traced as
- * interrupts enabled. Also with NO_HZ_FULL RCU might be idle.
- *
- * 1) Tell lockdep that interrupts are disabled
- * 2) Invoke context tracking if enabled to reactivate RCU
- * 3) Trace interrupts off state
- */
+/* See comment for enter_from_user_mode() in entry-common.h */
 static __always_inline void __enter_from_user_mode(struct pt_regs *regs)
 {
 	arch_check_user_regs(regs);
@@ -31,6 +22,11 @@ static __always_inline void __enter_from_user_mode(struct pt_regs *regs)
 	instrumentation_begin();
 	trace_hardirqs_off_finish();
 	instrumentation_end();
+}
+
+void noinstr enter_from_user_mode(struct pt_regs *regs)
+{
+	__enter_from_user_mode(regs);
 }
 
 static inline void syscall_enter_audit(struct pt_regs *regs, long syscall)
