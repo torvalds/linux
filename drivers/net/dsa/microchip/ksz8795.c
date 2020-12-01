@@ -993,8 +993,6 @@ static void ksz8795_config_cpu_port(struct dsa_switch *ds)
 	u8 remote;
 	int i;
 
-	ds->num_ports = dev->port_cnt + 1;
-
 	/* Switch marks the maximum frame with extra byte as oversize. */
 	ksz_cfg(dev, REG_SW_CTRL_2, SW_LEGAL_PACKET_DISABLE, true);
 	ksz_cfg(dev, S_TAIL_TAG_CTRL, SW_TAIL_TAG_ENABLE, true);
