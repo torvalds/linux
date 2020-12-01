@@ -23,4 +23,7 @@ properties:
           - enbw,cmc        # EnBW AM1808 based CMC board
           - lego,ev3        # LEGO MINDSTORMS EV3 (AM1808 based)
       - const: ti,da850
+
+additionalProperties: true
+
 ...

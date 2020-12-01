@@ -585,6 +585,10 @@ static int davinci_nand_attach_chip(struct nand_chip *chip)
 	if (IS_ERR(pdata))
 		return PTR_ERR(pdata);
 
+	/* Use board-specific ECC config */
+	info->chip.ecc.engine_type = pdata->engine_type;
+	info->chip.ecc.placement = pdata->ecc_placement;
+
 	switch (info->chip.ecc.engine_type) {
 	case NAND_ECC_ENGINE_TYPE_NONE:
 		pdata->ecc_bits = 0;
@@ -849,10 +853,6 @@ static int nand_davinci_probe(struct platform_device *pdev)
 	/* use nandboot-capable ALE/CLE masks by default */
 	info->mask_ale		= pdata->mask_ale ? : MASK_ALE;
 	info->mask_cle		= pdata->mask_cle ? : MASK_CLE;
-
-	/* Use board-specific ECC config */
-	info->chip.ecc.engine_type = pdata->engine_type;
-	info->chip.ecc.placement = pdata->ecc_placement;
 
 	spin_lock_irq(&davinci_nand_lock);
 

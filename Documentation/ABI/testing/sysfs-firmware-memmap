@@ -20,7 +20,7 @@ Description:
 		the raw memory map to userspace.
 
 		The structure is as follows: Under /sys/firmware/memmap there
-		are subdirectories with the number of the entry as their name:
+		are subdirectories with the number of the entry as their name::
 
 			/sys/firmware/memmap/0
 			/sys/firmware/memmap/1
@@ -34,14 +34,16 @@ Description:
 
 		Each directory contains three files:
 
-		start	: The start address (as hexadecimal number with the
+		========  =====================================================
+		start	  The start address (as hexadecimal number with the
 			  '0x' prefix).
-		end	: The end address, inclusive (regardless whether the
+		end	  The end address, inclusive (regardless whether the
 			  firmware provides inclusive or exclusive ranges).
-		type	: Type of the entry as string. See below for a list of
+		type	  Type of the entry as string. See below for a list of
 			  valid types.
+		========  =====================================================
 
-		So, for example:
+		So, for example::
 
 			/sys/firmware/memmap/0/start
 			/sys/firmware/memmap/0/end
@@ -57,9 +59,8 @@ Description:
 		  - reserved
 
 		Following shell snippet can be used to display that memory
-		map in a human-readable format:
+		map in a human-readable format::
 
-		-------------------- 8< ----------------------------------------
 		  #!/bin/bash
 		  cd /sys/firmware/memmap
 		  for dir in * ; do
@@ -68,4 +69,3 @@ Description:
 		      type=$(cat $dir/type)
 		      printf "%016x-%016x (%s)\n" $start $[ $end +1] "$type"
 		  done
-		-------------------- >8 ----------------------------------------

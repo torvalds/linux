@@ -22,3 +22,5 @@ properties:
           - enum:
               - gateworks,gw2358
           - const: intel,ixp43x
+
+additionalProperties: true

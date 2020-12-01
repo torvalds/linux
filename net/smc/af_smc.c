@@ -979,7 +979,8 @@ static int __smc_connect(struct smc_sock *smc)
 
 	/* check if smc modes and versions of CLC proposal and accept match */
 	rc = smc_connect_check_aclc(ini, aclc);
-	version = aclc->hdr.version == SMC_V1 ? SMC_V1 : version;
+	version = aclc->hdr.version == SMC_V1 ? SMC_V1 : SMC_V2;
+	ini->smcd_version = version;
 	if (rc)
 		goto vlan_cleanup;
 
@@ -1317,10 +1318,10 @@ static void smc_listen_out_err(struct smc_sock *new_smc)
 
 /* listen worker: decline and fall back if possible */
 static void smc_listen_decline(struct smc_sock *new_smc, int reason_code,
-			       struct smc_init_info *ini, u8 version)
+			       int local_first, u8 version)
 {
 	/* RDMA setup failed, switch back to TCP */
-	if (ini->first_contact_local)
+	if (local_first)
 		smc_lgr_cleanup_early(&new_smc->conn);
 	else
 		smc_conn_free(&new_smc->conn);
@@ -1768,7 +1769,8 @@ static void smc_listen_work(struct work_struct *work)
 out_unlock:
 	mutex_unlock(&smc_server_lgr_pending);
 out_decl:
-	smc_listen_decline(new_smc, rc, ini, version);
+	smc_listen_decline(new_smc, rc, ini ? ini->first_contact_local : 0,
+			   version);
 out_free:
 	kfree(ini);
 	kfree(buf);

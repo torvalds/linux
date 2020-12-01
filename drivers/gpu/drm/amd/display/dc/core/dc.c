@@ -1571,8 +1571,8 @@ static void init_state(struct dc *dc, struct dc_state *context)
 
 struct dc_state *dc_create_state(struct dc *dc)
 {
-	struct dc_state *context = kzalloc(sizeof(struct dc_state),
-					   GFP_KERNEL);
+	struct dc_state *context = kvzalloc(sizeof(struct dc_state),
+					    GFP_KERNEL);
 
 	if (!context)
 		return NULL;

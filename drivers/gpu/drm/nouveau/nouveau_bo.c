@@ -350,14 +350,13 @@ set_placement_list(struct nouveau_drm *drm, struct ttm_place *pl, unsigned *n,
 
 	if (domain & NOUVEAU_GEM_DOMAIN_VRAM) {
 		struct nvif_mmu *mmu = &drm->client.mmu;
-		const u8 type = mmu->type[drm->ttm.type_vram].type;
 
 		pl[*n].mem_type = TTM_PL_VRAM;
 		pl[*n].flags = flags & ~TTM_PL_FLAG_CACHED;
 
 		/* Some BARs do not support being ioremapped WC */
 		if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA &&
-		    type & NVIF_MEM_UNCACHED)
+		    mmu->type[drm->ttm.type_vram].type & NVIF_MEM_UNCACHED)
 			pl[*n].flags &= ~TTM_PL_FLAG_WC;
 
 		(*n)++;

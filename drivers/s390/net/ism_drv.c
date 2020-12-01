@@ -390,7 +390,7 @@ static int ism_move(struct smcd_dev *smcd, u64 dmb_tok, unsigned int idx,
 }
 
 static struct ism_systemeid SYSTEM_EID = {
-	.seid_string = "IBM-SYSZ-IBMSEID00000000",
+	.seid_string = "IBM-SYSZ-ISMSEID00000000",
 	.serial_number = "0000",
 	.type = "0000",
 };

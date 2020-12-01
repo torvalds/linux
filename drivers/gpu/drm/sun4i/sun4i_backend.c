@@ -814,9 +814,15 @@ static int sun4i_backend_bind(struct device *dev, struct device *master,
 		 *
 		 * XXX(hch): this has no business in a driver and needs to move
 		 * to the device tree.
+		 *
+		 * If we have two subsequent calls to dma_direct_set_offset
+		 * returns -EINVAL. Unfortunately, this happens when we have two
+		 * backends in the system, and will result in the driver
+		 * reporting an error while it has been setup properly before.
+		 * Ignore EINVAL, but it should really be removed eventually.
 		 */
 		ret = dma_direct_set_offset(drm->dev, PHYS_OFFSET, 0, SZ_4G);
-		if (ret)
+		if (ret && ret != -EINVAL)
 			return ret;
 	}
 

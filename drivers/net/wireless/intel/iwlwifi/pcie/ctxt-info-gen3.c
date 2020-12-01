@@ -252,6 +252,26 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 
 	iwl_set_bit(trans, CSR_CTXT_INFO_BOOT_CTRL,
 		    CSR_AUTO_FUNC_BOOT_ENA);
+
+	if (trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_AX210) {
+		/*
+		 * The firmware initializes this again later (to a smaller
+		 * value), but for the boot process initialize the LTR to
+		 * ~250 usec.
+		 */
+		u32 val = CSR_LTR_LONG_VAL_AD_NO_SNOOP_REQ |
+			  u32_encode_bits(CSR_LTR_LONG_VAL_AD_SCALE_USEC,
+					  CSR_LTR_LONG_VAL_AD_NO_SNOOP_SCALE) |
+			  u32_encode_bits(250,
+					  CSR_LTR_LONG_VAL_AD_NO_SNOOP_VAL) |
+			  CSR_LTR_LONG_VAL_AD_SNOOP_REQ |
+			  u32_encode_bits(CSR_LTR_LONG_VAL_AD_SCALE_USEC,
+					  CSR_LTR_LONG_VAL_AD_SNOOP_SCALE) |
+			  u32_encode_bits(250, CSR_LTR_LONG_VAL_AD_SNOOP_VAL);
+
+		iwl_write32(trans, CSR_LTR_LONG_VAL_AD, val);
+	}
+
 	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
 		iwl_write_umac_prph(trans, UREG_CPU_INIT_RUN, 1);
 	else

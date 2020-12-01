@@ -4,5 +4,7 @@ KernelVersion:	3.13
 Description:
 		The attributes:
 
-		qlen		- depth of loopback queue
-		buflen		- buffer length
+		=======		=======================
+		qlen		depth of loopback queue
+		buflen		buffer length
+		=======		=======================

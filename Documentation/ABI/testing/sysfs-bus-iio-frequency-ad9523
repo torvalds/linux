@@ -8,7 +8,9 @@ KernelVersion:	3.4.0
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Reading returns either '1' or '0'.
+
 		'1' means that the clock in question is present.
+
 		'0' means that the clock is missing.
 
 What:		/sys/bus/iio/devices/iio:deviceX/pllY_locked

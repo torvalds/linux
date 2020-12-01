@@ -9183,6 +9183,8 @@ static void ca0132_mmio_init(struct hda_codec *codec)
 	case QUIRK_AE5:
 		ca0132_mmio_init_ae5(codec);
 		break;
+	default:
+		break;
 	}
 }
 

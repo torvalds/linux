@@ -78,16 +78,53 @@ core507d_ntfy_init(struct nouveau_bo *bo, u32 offset)
 }
 
 int
-core507d_caps_init(struct nouveau_drm *drm, struct nv50_disp *disp)
+core507d_read_caps(struct nv50_disp *disp)
 {
 	struct nvif_push *push = disp->core->chan.push;
 	int ret;
 
-	if ((ret = PUSH_WAIT(push, 2)))
+	ret = PUSH_WAIT(push, 6);
+	if (ret)
 		return ret;
 
+	PUSH_MTHD(push, NV507D, SET_NOTIFIER_CONTROL,
+		  NVDEF(NV507D, SET_NOTIFIER_CONTROL, MODE, WRITE) |
+		  NVVAL(NV507D, SET_NOTIFIER_CONTROL, OFFSET, NV50_DISP_CORE_NTFY >> 2) |
+		  NVDEF(NV507D, SET_NOTIFIER_CONTROL, NOTIFY, ENABLE));
+
 	PUSH_MTHD(push, NV507D, GET_CAPABILITIES, 0x00000000);
+
+	PUSH_MTHD(push, NV507D, SET_NOTIFIER_CONTROL,
+		  NVDEF(NV507D, SET_NOTIFIER_CONTROL, NOTIFY, DISABLE));
+
 	return PUSH_KICK(push);
+}
+
+int
+core507d_caps_init(struct nouveau_drm *drm, struct nv50_disp *disp)
+{
+	struct nv50_core *core = disp->core;
+	struct nouveau_bo *bo = disp->sync;
+	s64 time;
+	int ret;
+
+	NVBO_WR32(bo, NV50_DISP_CORE_NTFY, NV_DISP_CORE_NOTIFIER_1, CAPABILITIES_1,
+				     NVDEF(NV_DISP_CORE_NOTIFIER_1, CAPABILITIES_1, DONE, FALSE));
+
+	ret = core507d_read_caps(disp);
+	if (ret < 0)
+		return ret;
+
+	time = nvif_msec(core->chan.base.device, 2000ULL,
+			 if (NVBO_TD32(bo, NV50_DISP_CORE_NTFY,
+				       NV_DISP_CORE_NOTIFIER_1, CAPABILITIES_1, DONE, ==, TRUE))
+				 break;
+			 usleep_range(1, 2);
+			 );
+	if (time < 0)
+		NV_ERROR(drm, "core caps notifier timeout\n");
+
+	return 0;
 }
 
 int

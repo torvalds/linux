@@ -2293,8 +2293,10 @@ static int perf_request_latency(void *arg)
 		struct intel_context *ce;
 
 		ce = intel_context_create(engine);
-		if (IS_ERR(ce))
+		if (IS_ERR(ce)) {
+			err = PTR_ERR(ce);
 			goto out;
+		}
 
 		err = intel_context_pin(ce);
 		if (err) {
@@ -2467,8 +2469,10 @@ static int perf_series_engines(void *arg)
 		struct intel_context *ce;
 
 		ce = intel_context_create(engine);
-		if (IS_ERR(ce))
+		if (IS_ERR(ce)) {
+			err = PTR_ERR(ce);
 			goto out;
+		}
 
 		err = intel_context_pin(ce);
 		if (err) {

@@ -417,6 +417,9 @@ int main(int argc, char *argv[])
 	/* Register SIGSEGV handler */
 	mte_register_signal(SIGSEGV, mte_default_handler);
 
+	/* Set test plan */
+	ksft_set_plan(20);
+
 	/* Buffer by byte tests */
 	evaluate_test(check_buffer_by_byte(USE_MMAP, MTE_SYNC_ERR),
 	"Check buffer correctness by byte with sync err mode and mmap memory\n");

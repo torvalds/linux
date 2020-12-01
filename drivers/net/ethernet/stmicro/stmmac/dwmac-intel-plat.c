@@ -113,8 +113,10 @@ static int intel_eth_plat_probe(struct platform_device *pdev)
 		/* Enable TX clock */
 		if (dwmac->data->tx_clk_en) {
 			dwmac->tx_clk = devm_clk_get(&pdev->dev, "tx_clk");
-			if (IS_ERR(dwmac->tx_clk))
+			if (IS_ERR(dwmac->tx_clk)) {
+				ret = PTR_ERR(dwmac->tx_clk);
 				goto err_remove_config_dt;
+			}
 
 			clk_prepare_enable(dwmac->tx_clk);
 

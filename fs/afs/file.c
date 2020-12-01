@@ -33,6 +33,7 @@ const struct file_operations afs_file_operations = {
 	.write_iter	= afs_file_write,
 	.mmap		= afs_file_mmap,
 	.splice_read	= generic_file_splice_read,
+	.splice_write	= iter_file_splice_write,
 	.fsync		= afs_fsync,
 	.lock		= afs_lock,
 	.flock		= afs_flock,
@@ -601,6 +602,63 @@ static int afs_readpages(struct file *file, struct address_space *mapping,
 }
 
 /*
+ * Adjust the dirty region of the page on truncation or full invalidation,
+ * getting rid of the markers altogether if the region is entirely invalidated.
+ */
+static void afs_invalidate_dirty(struct page *page, unsigned int offset,
+				 unsigned int length)
+{
+	struct afs_vnode *vnode = AFS_FS_I(page->mapping->host);
+	unsigned long priv;
+	unsigned int f, t, end = offset + length;
+
+	priv = page_private(page);
+
+	/* we clean up only if the entire page is being invalidated */
+	if (offset == 0 && length == thp_size(page))
+		goto full_invalidate;
+
+	 /* If the page was dirtied by page_mkwrite(), the PTE stays writable
+	  * and we don't get another notification to tell us to expand it
+	  * again.
+	  */
+	if (afs_is_page_dirty_mmapped(priv))
+		return;
+
+	/* We may need to shorten the dirty region */
+	f = afs_page_dirty_from(priv);
+	t = afs_page_dirty_to(priv);
+
+	if (t <= offset || f >= end)
+		return; /* Doesn't overlap */
+
+	if (f < offset && t > end)
+		return; /* Splits the dirty region - just absorb it */
+
+	if (f >= offset && t <= end)
+		goto undirty;
+
+	if (f < offset)
+		t = offset;
+	else
+		f = end;
+	if (f == t)
+		goto undirty;
+
+	priv = afs_page_dirty(f, t);
+	set_page_private(page, priv);
+	trace_afs_page_dirty(vnode, tracepoint_string("trunc"), page->index, priv);
+	return;
+
+undirty:
+	trace_afs_page_dirty(vnode, tracepoint_string("undirty"), page->index, priv);
+	clear_page_dirty_for_io(page);
+full_invalidate:
+	priv = (unsigned long)detach_page_private(page);
+	trace_afs_page_dirty(vnode, tracepoint_string("inval"), page->index, priv);
+}
+
+/*
  * invalidate part or all of a page
  * - release a page and clean up its private data if offset is 0 (indicating
  *   the entire page)
@@ -608,31 +666,23 @@ static int afs_readpages(struct file *file, struct address_space *mapping,
 static void afs_invalidatepage(struct page *page, unsigned int offset,
 			       unsigned int length)
 {
-	struct afs_vnode *vnode = AFS_FS_I(page->mapping->host);
-	unsigned long priv;
-
 	_enter("{%lu},%u,%u", page->index, offset, length);
 
 	BUG_ON(!PageLocked(page));
 
+#ifdef CONFIG_AFS_FSCACHE
 	/* we clean up only if the entire page is being invalidated */
 	if (offset == 0 && length == PAGE_SIZE) {
-#ifdef CONFIG_AFS_FSCACHE
 		if (PageFsCache(page)) {
 			struct afs_vnode *vnode = AFS_FS_I(page->mapping->host);
 			fscache_wait_on_page_write(vnode->cache, page);
 			fscache_uncache_page(vnode->cache, page);
 		}
+	}
 #endif
 
-		if (PagePrivate(page)) {
-			priv = page_private(page);
-			trace_afs_page_dirty(vnode, tracepoint_string("inval"),
-					     page->index, priv);
-			set_page_private(page, 0);
-			ClearPagePrivate(page);
-		}
-	}
+	if (PagePrivate(page))
+		afs_invalidate_dirty(page, offset, length);
 
 	_leave("");
 }
@@ -660,11 +710,9 @@ static int afs_releasepage(struct page *page, gfp_t gfp_flags)
 #endif
 
 	if (PagePrivate(page)) {
-		priv = page_private(page);
+		priv = (unsigned long)detach_page_private(page);
 		trace_afs_page_dirty(vnode, tracepoint_string("rel"),
 				     page->index, priv);
-		set_page_private(page, 0);
-		ClearPagePrivate(page);
 	}
 
 	/* indicate that the page can be released */

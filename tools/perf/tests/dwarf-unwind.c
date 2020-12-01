@@ -95,7 +95,7 @@ static int unwind_entry(struct unwind_entry *entry, void *arg)
 	return strcmp((const char *) symbol, funcs[idx]);
 }
 
-__no_tail_call noinline int test_dwarf_unwind__thread(struct thread *thread)
+noinline int test_dwarf_unwind__thread(struct thread *thread)
 {
 	struct perf_sample sample;
 	unsigned long cnt = 0;
@@ -126,7 +126,7 @@ __no_tail_call noinline int test_dwarf_unwind__thread(struct thread *thread)
 
 static int global_unwind_retval = -INT_MAX;
 
-__no_tail_call noinline int test_dwarf_unwind__compare(void *p1, void *p2)
+noinline int test_dwarf_unwind__compare(void *p1, void *p2)
 {
 	/* Any possible value should be 'thread' */
 	struct thread *thread = *(struct thread **)p1;
@@ -145,7 +145,7 @@ __no_tail_call noinline int test_dwarf_unwind__compare(void *p1, void *p2)
 	return p1 - p2;
 }
 
-__no_tail_call noinline int test_dwarf_unwind__krava_3(struct thread *thread)
+noinline int test_dwarf_unwind__krava_3(struct thread *thread)
 {
 	struct thread *array[2] = {thread, thread};
 	void *fp = &bsearch;
@@ -164,12 +164,12 @@ __no_tail_call noinline int test_dwarf_unwind__krava_3(struct thread *thread)
 	return global_unwind_retval;
 }
 
-__no_tail_call noinline int test_dwarf_unwind__krava_2(struct thread *thread)
+noinline int test_dwarf_unwind__krava_2(struct thread *thread)
 {
 	return test_dwarf_unwind__krava_3(thread);
 }
 
-__no_tail_call noinline int test_dwarf_unwind__krava_1(struct thread *thread)
+noinline int test_dwarf_unwind__krava_1(struct thread *thread)
 {
 	return test_dwarf_unwind__krava_2(thread);
 }

@@ -5,8 +5,10 @@ Contact:        Vernon Mauery <vernux@us.ibm.com>
 Description:    The state file allows a means by which to change in and
                 out of Premium Real-Time Mode (PRTM), as well as the
                 ability to query the current state.
-                    0 => PRTM off
-                    1 => PRTM enabled
+
+                    - 0 => PRTM off
+                    - 1 => PRTM enabled
+
 Users:          The ibm-prtm userspace daemon uses this interface.
 
 

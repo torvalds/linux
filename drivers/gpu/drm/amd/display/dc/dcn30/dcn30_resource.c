@@ -2105,12 +2105,12 @@ static bool dcn30_internal_validate_bw(
 
 		if (split[i]) {
 			if (odm) {
-				if (split[i] == 4 && old_pipe->next_odm_pipe->next_odm_pipe)
+				if (split[i] == 4 && old_pipe->next_odm_pipe && old_pipe->next_odm_pipe->next_odm_pipe)
 					old_index = old_pipe->next_odm_pipe->next_odm_pipe->pipe_idx;
 				else if (old_pipe->next_odm_pipe)
 					old_index = old_pipe->next_odm_pipe->pipe_idx;
 			} else {
-				if (split[i] == 4 && old_pipe->bottom_pipe->bottom_pipe &&
+				if (split[i] == 4 && old_pipe->bottom_pipe && old_pipe->bottom_pipe->bottom_pipe &&
 						old_pipe->bottom_pipe->bottom_pipe->plane_state == old_pipe->plane_state)
 					old_index = old_pipe->bottom_pipe->bottom_pipe->pipe_idx;
 				else if (old_pipe->bottom_pipe &&
@@ -2150,10 +2150,12 @@ static bool dcn30_internal_validate_bw(
 				goto validate_fail;
 			newly_split[pipe_4to1->pipe_idx] = true;
 
-			if (odm && old_pipe->next_odm_pipe->next_odm_pipe->next_odm_pipe)
+			if (odm && old_pipe->next_odm_pipe && old_pipe->next_odm_pipe->next_odm_pipe
+					&& old_pipe->next_odm_pipe->next_odm_pipe->next_odm_pipe)
 				old_index = old_pipe->next_odm_pipe->next_odm_pipe->next_odm_pipe->pipe_idx;
-			else if (!odm && old_pipe->bottom_pipe->bottom_pipe->bottom_pipe &&
-						old_pipe->bottom_pipe->bottom_pipe->bottom_pipe->plane_state == old_pipe->plane_state)
+			else if (!odm && old_pipe->bottom_pipe && old_pipe->bottom_pipe->bottom_pipe &&
+					old_pipe->bottom_pipe->bottom_pipe->bottom_pipe &&
+					old_pipe->bottom_pipe->bottom_pipe->bottom_pipe->plane_state == old_pipe->plane_state)
 				old_index = old_pipe->bottom_pipe->bottom_pipe->bottom_pipe->pipe_idx;
 			else
 				old_index = -1;

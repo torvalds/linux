@@ -64,4 +64,7 @@ properties:
         items:
           - const: H836ASDJ
           - const: hisilicon,sd5203
+
+additionalProperties: true
+
 ...

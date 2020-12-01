@@ -333,7 +333,7 @@ int ionic_set_vf_config(struct ionic *ionic, int vf, u8 attr, u8 *data)
 	union ionic_dev_cmd cmd = {
 		.vf_setattr.opcode = IONIC_CMD_VF_SETATTR,
 		.vf_setattr.attr = attr,
-		.vf_setattr.vf_index = vf,
+		.vf_setattr.vf_index = cpu_to_le16(vf),
 	};
 	int err;
 
@@ -391,7 +391,7 @@ void ionic_dev_cmd_queue_identify(struct ionic_dev *idev,
 {
 	union ionic_dev_cmd cmd = {
 		.q_identify.opcode = IONIC_CMD_Q_IDENTIFY,
-		.q_identify.lif_type = lif_type,
+		.q_identify.lif_type = cpu_to_le16(lif_type),
 		.q_identify.type = qtype,
 		.q_identify.ver = qver,
 	};

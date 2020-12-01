@@ -625,13 +625,6 @@ static int intel_eth_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		return ret;
 
-	if (plat->eee_usecs_rate > 0) {
-		u32 tx_lpi_usec;
-
-		tx_lpi_usec = (plat->eee_usecs_rate / 1000000) - 1;
-		writel(tx_lpi_usec, res.addr + GMAC_1US_TIC_COUNTER);
-	}
-
 	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
 	if (ret < 0)
 		return ret;
@@ -640,6 +633,13 @@ static int intel_eth_pci_probe(struct pci_dev *pdev,
 	res.addr = pcim_iomap_table(pdev)[0];
 	res.wol_irq = pci_irq_vector(pdev, 0);
 	res.irq = pci_irq_vector(pdev, 0);
+
+	if (plat->eee_usecs_rate > 0) {
+		u32 tx_lpi_usec;
+
+		tx_lpi_usec = (plat->eee_usecs_rate / 1000000) - 1;
+		writel(tx_lpi_usec, res.addr + GMAC_1US_TIC_COUNTER);
+	}
 
 	ret = stmmac_dvr_probe(&pdev->dev, plat, &res);
 	if (ret) {

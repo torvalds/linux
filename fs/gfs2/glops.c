@@ -165,6 +165,31 @@ void gfs2_ail_flush(struct gfs2_glock *gl, bool fsync)
 }
 
 /**
+ * gfs2_rgrp_metasync - sync out the metadata of a resource group
+ * @gl: the glock protecting the resource group
+ *
+ */
+
+static int gfs2_rgrp_metasync(struct gfs2_glock *gl)
+{
+	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
+	struct address_space *metamapping = &sdp->sd_aspace;
+	struct gfs2_rgrpd *rgd = gfs2_glock2rgrp(gl);
+	const unsigned bsize = sdp->sd_sb.sb_bsize;
+	loff_t start = (rgd->rd_addr * bsize) & PAGE_MASK;
+	loff_t end = PAGE_ALIGN((rgd->rd_addr + rgd->rd_length) * bsize) - 1;
+	int error;
+
+	filemap_fdatawrite_range(metamapping, start, end);
+	error = filemap_fdatawait_range(metamapping, start, end);
+	WARN_ON_ONCE(error && !gfs2_withdrawn(sdp));
+	mapping_set_error(metamapping, error);
+	if (error)
+		gfs2_io_error(sdp);
+	return error;
+}
+
+/**
  * rgrp_go_sync - sync out the metadata for this glock
  * @gl: the glock
  *
@@ -176,11 +201,7 @@ void gfs2_ail_flush(struct gfs2_glock *gl, bool fsync)
 static int rgrp_go_sync(struct gfs2_glock *gl)
 {
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
-	struct address_space *mapping = &sdp->sd_aspace;
 	struct gfs2_rgrpd *rgd = gfs2_glock2rgrp(gl);
-	const unsigned bsize = sdp->sd_sb.sb_bsize;
-	loff_t start = (rgd->rd_addr * bsize) & PAGE_MASK;
-	loff_t end = PAGE_ALIGN((rgd->rd_addr + rgd->rd_length) * bsize) - 1;
 	int error;
 
 	if (!test_and_clear_bit(GLF_DIRTY, &gl->gl_flags))
@@ -189,10 +210,7 @@ static int rgrp_go_sync(struct gfs2_glock *gl)
 
 	gfs2_log_flush(sdp, gl, GFS2_LOG_HEAD_FLUSH_NORMAL |
 		       GFS2_LFC_RGRP_GO_SYNC);
-	filemap_fdatawrite_range(mapping, start, end);
-	error = filemap_fdatawait_range(mapping, start, end);
-	WARN_ON_ONCE(error && !gfs2_withdrawn(sdp));
-	mapping_set_error(mapping, error);
+	error = gfs2_rgrp_metasync(gl);
 	if (!error)
 		error = gfs2_ail_empty_gl(gl);
 	gfs2_free_clones(rgd);
@@ -266,7 +284,24 @@ static void gfs2_clear_glop_pending(struct gfs2_inode *ip)
 }
 
 /**
- * inode_go_sync - Sync the dirty data and/or metadata for an inode glock
+ * gfs2_inode_metasync - sync out the metadata of an inode
+ * @gl: the glock protecting the inode
+ *
+ */
+int gfs2_inode_metasync(struct gfs2_glock *gl)
+{
+	struct address_space *metamapping = gfs2_glock2aspace(gl);
+	int error;
+
+	filemap_fdatawrite(metamapping);
+	error = filemap_fdatawait(metamapping);
+	if (error)
+		gfs2_io_error(gl->gl_name.ln_sbd);
+	return error;
+}
+
+/**
+ * inode_go_sync - Sync the dirty metadata of an inode
  * @gl: the glock protecting the inode
  *
  */
@@ -297,8 +332,7 @@ static int inode_go_sync(struct gfs2_glock *gl)
 		error = filemap_fdatawait(mapping);
 		mapping_set_error(mapping, error);
 	}
-	ret = filemap_fdatawait(metamapping);
-	mapping_set_error(metamapping, ret);
+	ret = gfs2_inode_metasync(gl);
 	if (!error)
 		error = ret;
 	gfs2_ail_empty_gl(gl);
@@ -537,7 +571,18 @@ static int freeze_go_sync(struct gfs2_glock *gl)
 	int error = 0;
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 
-	if (gl->gl_req == LM_ST_EXCLUSIVE && !gfs2_withdrawn(sdp)) {
+	/*
+	 * We need to check gl_state == LM_ST_SHARED here and not gl_req ==
+	 * LM_ST_EXCLUSIVE. That's because when any node does a freeze,
+	 * all the nodes should have the freeze glock in SH mode and they all
+	 * call do_xmote: One for EX and the others for UN. They ALL must
+	 * freeze locally, and they ALL must queue freeze work. The freeze_work
+	 * calls freeze_func, which tries to reacquire the freeze glock in SH,
+	 * effectively waiting for the thaw on the node who holds it in EX.
+	 * Once thawed, the work func acquires the freeze glock in
+	 * SH and everybody goes back to thawed.
+	 */
+	if (gl->gl_state == LM_ST_SHARED && !gfs2_withdrawn(sdp)) {
 		atomic_set(&sdp->sd_freeze_state, SFS_STARTING_FREEZE);
 		error = freeze_super(sdp->sd_vfs);
 		if (error) {

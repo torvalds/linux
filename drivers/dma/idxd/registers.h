@@ -8,7 +8,7 @@
 
 #define IDXD_MMIO_BAR		0
 #define IDXD_WQ_BAR		2
-#define IDXD_PORTAL_SIZE	0x4000
+#define IDXD_PORTAL_SIZE	PAGE_SIZE
 
 /* MMIO Device BAR0 Registers */
 #define IDXD_VER_OFFSET			0x00
@@ -43,7 +43,8 @@ union wq_cap_reg {
 	struct {
 		u64 total_wq_size:16;
 		u64 num_wqs:8;
-		u64 rsvd:24;
+		u64 wqcfg_size:4;
+		u64 rsvd:20;
 		u64 shared_mode:1;
 		u64 dedicated_mode:1;
 		u64 rsvd2:1;
@@ -55,6 +56,7 @@ union wq_cap_reg {
 	u64 bits;
 } __packed;
 #define IDXD_WQCAP_OFFSET		0x20
+#define IDXD_WQCFG_MIN			5
 
 union group_cap_reg {
 	struct {
@@ -333,4 +335,23 @@ union wqcfg {
 	};
 	u32 bits[8];
 } __packed;
+
+/*
+ * This macro calculates the offset into the WQCFG register
+ * idxd - struct idxd *
+ * n - wq id
+ * ofs - the index of the 32b dword for the config register
+ *
+ * The WQCFG register block is divided into groups per each wq. The n index
+ * allows us to move to the register group that's for that particular wq.
+ * Each register is 32bits. The ofs gives us the number of register to access.
+ */
+#define WQCFG_OFFSET(_idxd_dev, n, ofs) \
+({\
+	typeof(_idxd_dev) __idxd_dev = (_idxd_dev);	\
+	(__idxd_dev)->wqcfg_offset + (n) * (__idxd_dev)->wqcfg_size + sizeof(u32) * (ofs);	\
+})
+
+#define WQCFG_STRIDES(_idxd_dev) ((_idxd_dev)->wqcfg_size / sizeof(u32))
+
 #endif

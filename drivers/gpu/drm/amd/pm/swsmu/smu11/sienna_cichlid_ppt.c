@@ -1177,14 +1177,9 @@ static int sienna_cichlid_get_fan_speed_rpm(struct smu_context *smu,
 	if (!speed)
 		return -EINVAL;
 
-	switch (smu_v11_0_get_fan_control_mode(smu)) {
-	case AMD_FAN_CTRL_AUTO:
-		return sienna_cichlid_get_smu_metrics_data(smu,
-							   METRICS_CURR_FANSPEED,
-							   speed);
-	default:
-		return smu_v11_0_get_fan_speed_rpm(smu, speed);
-	}
+	return sienna_cichlid_get_smu_metrics_data(smu,
+						METRICS_CURR_FANSPEED,
+						speed);
 }
 
 static int sienna_cichlid_get_fan_parameters(struct smu_context *smu)
