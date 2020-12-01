@@ -95,6 +95,8 @@ int cmd_idle_set(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
+	get_cpustate();
+
 	/* Default is: set all CPUs */
 	if (bitmask_isallclear(cpus_chosen))
 		bitmask_setall(cpus_chosen);
@@ -181,5 +183,7 @@ int cmd_idle_set(int argc, char **argv)
 			break;
 		}
 	}
+
+	print_offline_cpus();
 	return EXIT_SUCCESS;
 }
