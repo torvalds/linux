@@ -122,7 +122,7 @@ noinstr void syscall_enter_from_user_mode_prepare(struct pt_regs *regs)
 }
 
 /**
- * exit_to_user_mode - Fixup state when exiting to user mode
+ * __exit_to_user_mode - Fixup state when exiting to user mode
  *
  * Syscall/interupt exit enables interrupts, but the kernel state is
  * interrupts disabled when this is invoked. Also tell RCU about it.
@@ -133,7 +133,7 @@ noinstr void syscall_enter_from_user_mode_prepare(struct pt_regs *regs)
  *    mitigations, etc.
  * 4) Tell lockdep that interrupts are enabled
  */
-static __always_inline void exit_to_user_mode(void)
+static __always_inline void __exit_to_user_mode(void)
 {
 	instrumentation_begin();
 	trace_hardirqs_on_prepare();
@@ -299,7 +299,7 @@ __visible noinstr void syscall_exit_to_user_mode(struct pt_regs *regs)
 	local_irq_disable_exit_to_user();
 	exit_to_user_mode_prepare(regs);
 	instrumentation_end();
-	exit_to_user_mode();
+	__exit_to_user_mode();
 }
 
 noinstr void irqentry_enter_from_user_mode(struct pt_regs *regs)
@@ -312,7 +312,7 @@ noinstr void irqentry_exit_to_user_mode(struct pt_regs *regs)
 	instrumentation_begin();
 	exit_to_user_mode_prepare(regs);
 	instrumentation_end();
-	exit_to_user_mode();
+	__exit_to_user_mode();
 }
 
 noinstr irqentry_state_t irqentry_enter(struct pt_regs *regs)
