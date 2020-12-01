@@ -579,7 +579,7 @@ mlx5e_sq_xmit_mpwqe(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 		goto err_unmap;
 	mlx5e_dma_push(sq, txd.dma_addr, txd.len, MLX5E_DMA_MAP_SINGLE);
 
-	mlx5e_skb_fifo_push(sq, skb);
+	mlx5e_skb_fifo_push(&sq->db.skb_fifo, skb);
 
 	mlx5e_tx_mpwqe_add_dseg(sq, &txd);
 
@@ -719,7 +719,7 @@ static void mlx5e_tx_wi_consume_fifo_skbs(struct mlx5e_txqsq *sq, struct mlx5e_t
 	int i;
 
 	for (i = 0; i < wi->num_fifo_pkts; i++) {
-		struct sk_buff *skb = mlx5e_skb_fifo_pop(sq);
+		struct sk_buff *skb = mlx5e_skb_fifo_pop(&sq->db.skb_fifo);
 
 		mlx5e_consume_skb(sq, skb, cqe, napi_budget);
 	}
@@ -839,7 +839,7 @@ static void mlx5e_tx_wi_kfree_fifo_skbs(struct mlx5e_txqsq *sq, struct mlx5e_tx_
 	int i;
 
 	for (i = 0; i < wi->num_fifo_pkts; i++)
-		dev_kfree_skb_any(mlx5e_skb_fifo_pop(sq));
+		dev_kfree_skb_any(mlx5e_skb_fifo_pop(&sq->db.skb_fifo));
 }
 
 void mlx5e_free_txqsq_descs(struct mlx5e_txqsq *sq)

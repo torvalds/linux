@@ -250,21 +250,24 @@ mlx5e_dma_push(struct mlx5e_txqsq *sq, dma_addr_t addr, u32 size,
 	dma->type = map_type;
 }
 
-static inline struct sk_buff **mlx5e_skb_fifo_get(struct mlx5e_txqsq *sq, u16 i)
+static inline
+struct sk_buff **mlx5e_skb_fifo_get(struct mlx5e_skb_fifo *fifo, u16 i)
 {
-	return &sq->db.skb_fifo[i & sq->skb_fifo_mask];
+	return &fifo->fifo[i & fifo->mask];
 }
 
-static inline void mlx5e_skb_fifo_push(struct mlx5e_txqsq *sq, struct sk_buff *skb)
+static inline
+void mlx5e_skb_fifo_push(struct mlx5e_skb_fifo *fifo, struct sk_buff *skb)
 {
-	struct sk_buff **skb_item = mlx5e_skb_fifo_get(sq, sq->skb_fifo_pc++);
+	struct sk_buff **skb_item = mlx5e_skb_fifo_get(fifo, (*fifo->pc)++);
 
 	*skb_item = skb;
 }
 
-static inline struct sk_buff *mlx5e_skb_fifo_pop(struct mlx5e_txqsq *sq)
+static inline
+struct sk_buff *mlx5e_skb_fifo_pop(struct mlx5e_skb_fifo *fifo)
 {
-	return *mlx5e_skb_fifo_get(sq, sq->skb_fifo_cc++);
+	return *mlx5e_skb_fifo_get(fifo, (*fifo->cc)++);
 }
 
 static inline void

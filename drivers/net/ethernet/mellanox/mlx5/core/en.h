@@ -331,6 +331,13 @@ struct mlx5e_tx_mpwqe {
 	u8 inline_on;
 };
 
+struct mlx5e_skb_fifo {
+	struct sk_buff **fifo;
+	u16 *pc;
+	u16 *cc;
+	u16 mask;
+};
+
 struct mlx5e_txqsq {
 	/* data path */
 
@@ -351,11 +358,10 @@ struct mlx5e_txqsq {
 	/* read only */
 	struct mlx5_wq_cyc         wq;
 	u32                        dma_fifo_mask;
-	u16                        skb_fifo_mask;
 	struct mlx5e_sq_stats     *stats;
 	struct {
 		struct mlx5e_sq_dma       *dma_fifo;
-		struct sk_buff           **skb_fifo;
+		struct mlx5e_skb_fifo      skb_fifo;
 		struct mlx5e_tx_wqe_info  *wqe_info;
 	} db;
 	void __iomem              *uar_map;
