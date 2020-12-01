@@ -56,12 +56,11 @@ static struct p9_fid *v9fs_fid_find_inode(struct inode *inode, kuid_t uid)
 	h = (struct hlist_head *)&inode->i_private;
 	hlist_for_each_entry(fid, h, ilist) {
 		if (uid_eq(fid->uid, uid)) {
+			refcount_inc(&fid->count);
 			ret = fid;
 			break;
 		}
 	}
-	if (ret && !IS_ERR(ret))
-		refcount_inc(&ret->count);
 	spin_unlock(&inode->i_lock);
 	return ret;
 }
