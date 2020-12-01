@@ -46,6 +46,7 @@ enum {
 	SMC_NETLINK_GET_LINK_SMCR,
 	SMC_NETLINK_GET_LGR_SMCD,
 	SMC_NETLINK_GET_DEV_SMCD,
+	SMC_NETLINK_GET_DEV_SMCR,
 };
 
 /* SMC_GENL_FAMILY top level attributes */
@@ -56,6 +57,7 @@ enum {
 	SMC_GEN_LINK_SMCR,		/* nest */
 	SMC_GEN_LGR_SMCD,		/* nest */
 	SMC_GEN_DEV_SMCD,		/* nest */
+	SMC_GEN_DEV_SMCR,		/* nest */
 	__SMC_GEN_MAX,
 	SMC_GEN_MAX = __SMC_GEN_MAX - 1
 };
@@ -127,16 +129,20 @@ enum {
 	SMC_NLA_LGR_D_MAX = __SMC_NLA_LGR_D_MAX - 1
 };
 
-/* SMC_NLA_DEV_PORT attributes */
+/* SMC_NLA_DEV_PORT nested attributes */
 enum {
 	SMC_NLA_DEV_PORT_UNSPEC,
 	SMC_NLA_DEV_PORT_PNET_USR,	/* u8 */
 	SMC_NLA_DEV_PORT_PNETID,	/* string */
+	SMC_NLA_DEV_PORT_NETDEV,	/* u32 */
+	SMC_NLA_DEV_PORT_STATE,		/* u8 */
+	SMC_NLA_DEV_PORT_VALID,		/* u8 */
+	SMC_NLA_DEV_PORT_LNK_CNT,	/* u32 */
 	__SMC_NLA_DEV_PORT_MAX,
 	SMC_NLA_DEV_PORT_MAX = __SMC_NLA_DEV_PORT_MAX - 1
 };
 
-/* SMC_GEN_DEV_SMCD attributes */
+/* SMC_GEN_DEV_SMCD and SMC_GEN_DEV_SMCR attributes */
 enum {
 	SMC_NLA_DEV_UNSPEC,
 	SMC_NLA_DEV_USE_CNT,		/* u32 */
@@ -147,7 +153,10 @@ enum {
 	SMC_NLA_DEV_PCI_DEVICE,		/* u16 */
 	SMC_NLA_DEV_PCI_ID,		/* string */
 	SMC_NLA_DEV_PORT,		/* nest */
+	SMC_NLA_DEV_PORT2,		/* nest */
+	SMC_NLA_DEV_IB_NAME,		/* string */
 	__SMC_NLA_DEV_MAX,
 	SMC_NLA_DEV_MAX = __SMC_NLA_DEV_MAX - 1
 };
+
 #endif /* _UAPI_LINUX_SMC_H */
