@@ -846,8 +846,6 @@
 
 #define KS_PRIO_IN_REG			4
 
-#define TOTAL_PORT_NUM			5
-
 #define KSZ8795_COUNTER_NUM		0x20
 
 /* Common names used by other drivers */
