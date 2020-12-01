@@ -187,7 +187,7 @@ void bch2_btree_and_journal_iter_init(struct btree_and_journal_iter *iter,
 {
 	memset(iter, 0, sizeof(*iter));
 
-	iter->btree = bch2_trans_get_iter(trans, id, pos, 0);
+	iter->btree = bch2_trans_get_iter(trans, id, pos, BTREE_ITER_PREFETCH);
 	bch2_journal_iter_init(&iter->journal, journal_keys, id, 0, pos);
 }
 
