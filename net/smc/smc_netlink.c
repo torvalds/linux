@@ -17,6 +17,7 @@
 #include <linux/smc.h>
 
 #include "smc_core.h"
+#include "smc_ism.h"
 #include "smc_netlink.h"
 
 #define SMC_CMD_MAX_ATTR 1
@@ -42,6 +43,11 @@ static const struct genl_ops smc_gen_nl_ops[] = {
 		.cmd = SMC_NETLINK_GET_LGR_SMCD,
 		/* can be retrieved by unprivileged users */
 		.dumpit = smcd_nl_get_lgr,
+	},
+	{
+		.cmd = SMC_NETLINK_GET_DEV_SMCD,
+		/* can be retrieved by unprivileged users */
+		.dumpit = smcd_nl_get_device,
 	},
 };
 
