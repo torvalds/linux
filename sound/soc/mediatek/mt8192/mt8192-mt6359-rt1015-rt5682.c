@@ -9,6 +9,7 @@
 
 #include <linux/input.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/pm_runtime.h>
 #include <sound/jack.h>
 #include <sound/pcm_params.h>
@@ -576,7 +577,7 @@ SND_SOC_DAILINK_DEFS(i2s2,
 		     DAILINK_COMP_ARRAY(COMP_DUMMY()),
 		     DAILINK_COMP_ARRAY(COMP_EMPTY()));
 
-SND_SOC_DAILINK_DEFS(i2s3,
+SND_SOC_DAILINK_DEFS(i2s3_rt1015,
 		     DAILINK_COMP_ARRAY(COMP_CPU("I2S3")),
 		     DAILINK_COMP_ARRAY(COMP_CODEC(RT1015_DEV0_NAME,
 						   RT1015_CODEC_DAI),
@@ -894,8 +895,6 @@ static struct snd_soc_dai_link mt8192_mt6359_dai_links[] = {
 		.dpcm_playback = 1,
 		.ignore_suspend = 1,
 		.be_hw_params_fixup = mt8192_i2s_hw_params_fixup,
-		SND_SOC_DAILINK_REG(i2s3),
-		.ops = &mt8192_rt1015_i2s_ops,
 	},
 	{
 		.name = "I2S5",
@@ -983,7 +982,7 @@ static struct snd_soc_codec_conf rt1015_amp_conf[] = {
 	},
 };
 
-static struct snd_soc_card mt8192_mt6359_rt1015_rt5682_soc_card = {
+static struct snd_soc_card mt8192_mt6359_rt1015_rt5682_card = {
 	.name = "mt8192_mt6359_rt1015_rt5682",
 	.owner = THIS_MODULE,
 	.dai_link = mt8192_mt6359_dai_links,
@@ -1000,12 +999,11 @@ static struct snd_soc_card mt8192_mt6359_rt1015_rt5682_soc_card = {
 
 static int mt8192_mt6359_dev_probe(struct platform_device *pdev)
 {
-	struct snd_soc_card *card = &mt8192_mt6359_rt1015_rt5682_soc_card;
+	struct snd_soc_card *card;
 	struct device_node *platform_node;
 	int ret, i;
 	struct snd_soc_dai_link *dai_link;
-
-	card->dev = &pdev->dev;
+	const struct of_device_id *match;
 
 	platform_node = of_parse_phandle(pdev->dev.of_node,
 					 "mediatek,platform", 0);
@@ -1014,7 +1012,29 @@ static int mt8192_mt6359_dev_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+	match = of_match_device(pdev->dev.driver->of_match_table, &pdev->dev);
+	if (!match || !match->data)
+		return -EINVAL;
+
+	card = (struct snd_soc_card *)match->data;
+	card->dev = &pdev->dev;
+
 	for_each_card_prelinks(card, i, dai_link) {
+		if (strcmp(dai_link->name, "I2S3") == 0) {
+			if (card == &mt8192_mt6359_rt1015_rt5682_card) {
+				dai_link->ops = &mt8192_rt1015_i2s_ops;
+				dai_link->cpus = i2s3_rt1015_cpus;
+				dai_link->num_cpus =
+					ARRAY_SIZE(i2s3_rt1015_cpus);
+				dai_link->codecs = i2s3_rt1015_codecs;
+				dai_link->num_codecs =
+					ARRAY_SIZE(i2s3_rt1015_codecs);
+				dai_link->platforms = i2s3_rt1015_platforms;
+				dai_link->num_platforms =
+					ARRAY_SIZE(i2s3_rt1015_platforms);
+			}
+		}
+
 		if (!dai_link->platforms->name)
 			dai_link->platforms->of_node = platform_node;
 	}
@@ -1030,7 +1050,10 @@ static int mt8192_mt6359_dev_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 static const struct of_device_id mt8192_mt6359_dt_match[] = {
-	{.compatible = "mediatek,mt8192_mt6359_rt1015_rt5682",},
+	{
+		.compatible = "mediatek,mt8192_mt6359_rt1015_rt5682",
+		.data = &mt8192_mt6359_rt1015_rt5682_card,
+	},
 	{}
 };
 #endif
