@@ -2142,11 +2142,11 @@ static void check_for_gpl_usage(enum export exp, const char *m, const char *s)
 {
 	switch (exp) {
 	case export_gpl:
-		fatal("GPL-incompatible module %s.ko uses GPL-only symbol '%s'\n",
+		error("GPL-incompatible module %s.ko uses GPL-only symbol '%s'\n",
 		      m, s);
 		break;
 	case export_unused_gpl:
-		fatal("GPL-incompatible module %s.ko uses GPL-only symbol marked UNUSED '%s'\n",
+		error("GPL-incompatible module %s.ko uses GPL-only symbol marked UNUSED '%s'\n",
 		      m, s);
 		break;
 	case export_gpl_future:
