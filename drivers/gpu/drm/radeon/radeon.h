@@ -2622,14 +2622,14 @@ void r100_pll_errata_after_index(struct radeon_device *rdev);
 		(rdev->family == CHIP_RV410) ||			\
 		(rdev->family == CHIP_RS400) ||			\
 		(rdev->family == CHIP_RS480))
-#define ASIC_IS_X2(rdev) ((rdev->ddev->pdev->device == 0x9441) || \
-		(rdev->ddev->pdev->device == 0x9443) || \
-		(rdev->ddev->pdev->device == 0x944B) || \
-		(rdev->ddev->pdev->device == 0x9506) || \
-		(rdev->ddev->pdev->device == 0x9509) || \
-		(rdev->ddev->pdev->device == 0x950F) || \
-		(rdev->ddev->pdev->device == 0x689C) || \
-		(rdev->ddev->pdev->device == 0x689D))
+#define ASIC_IS_X2(rdev) ((rdev->pdev->device == 0x9441) || \
+		(rdev->pdev->device == 0x9443) || \
+		(rdev->pdev->device == 0x944B) || \
+		(rdev->pdev->device == 0x9506) || \
+		(rdev->pdev->device == 0x9509) || \
+		(rdev->pdev->device == 0x950F) || \
+		(rdev->pdev->device == 0x689C) || \
+		(rdev->pdev->device == 0x689D))
 #define ASIC_IS_AVIVO(rdev) ((rdev->family >= CHIP_RS600))
 #define ASIC_IS_DCE2(rdev) ((rdev->family == CHIP_RS600)  ||	\
 			    (rdev->family == CHIP_RS690)  ||	\
@@ -2652,14 +2652,14 @@ void r100_pll_errata_after_index(struct radeon_device *rdev);
 #define ASIC_IS_DCE83(rdev) ((rdev->family == CHIP_KABINI) || \
 			     (rdev->family == CHIP_MULLINS))
 
-#define ASIC_IS_LOMBOK(rdev) ((rdev->ddev->pdev->device == 0x6849) || \
-			      (rdev->ddev->pdev->device == 0x6850) || \
-			      (rdev->ddev->pdev->device == 0x6858) || \
-			      (rdev->ddev->pdev->device == 0x6859) || \
-			      (rdev->ddev->pdev->device == 0x6840) || \
-			      (rdev->ddev->pdev->device == 0x6841) || \
-			      (rdev->ddev->pdev->device == 0x6842) || \
-			      (rdev->ddev->pdev->device == 0x6843))
+#define ASIC_IS_LOMBOK(rdev) ((rdev->pdev->device == 0x6849) || \
+			      (rdev->pdev->device == 0x6850) || \
+			      (rdev->pdev->device == 0x6858) || \
+			      (rdev->pdev->device == 0x6859) || \
+			      (rdev->pdev->device == 0x6840) || \
+			      (rdev->pdev->device == 0x6841) || \
+			      (rdev->pdev->device == 0x6842) || \
+			      (rdev->pdev->device == 0x6843))
 
 /*
  * BIOS helpers.

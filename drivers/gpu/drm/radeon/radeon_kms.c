@@ -105,6 +105,7 @@ done_free:
  */
 int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 {
+	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	struct radeon_device *rdev;
 	int r, acpi_status;
 
@@ -115,9 +116,9 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 	dev->dev_private = (void *)rdev;
 
 	/* update BUS flag */
-	if (pci_find_capability(dev->pdev, PCI_CAP_ID_AGP)) {
+	if (pci_find_capability(pdev, PCI_CAP_ID_AGP)) {
 		flags |= RADEON_IS_AGP;
-	} else if (pci_is_pcie(dev->pdev)) {
+	} else if (pci_is_pcie(pdev)) {
 		flags |= RADEON_IS_PCIE;
 	} else {
 		flags |= RADEON_IS_PCI;
@@ -126,7 +127,7 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 	if ((radeon_runtime_pm != 0) &&
 	    radeon_has_atpx() &&
 	    ((flags & RADEON_IS_IGP) == 0) &&
-	    !pci_is_thunderbolt_attached(dev->pdev))
+	    !pci_is_thunderbolt_attached(pdev))
 		flags |= RADEON_IS_PX;
 
 	/* radeon_device_init should report only fatal error
@@ -135,9 +136,9 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 	 * properly initialize the GPU MC controller and permit
 	 * VRAM allocation
 	 */
-	r = radeon_device_init(rdev, dev, dev->pdev, flags);
+	r = radeon_device_init(rdev, dev, pdev, flags);
 	if (r) {
-		dev_err(&dev->pdev->dev, "Fatal error during GPU init\n");
+		dev_err(dev->dev, "Fatal error during GPU init\n");
 		goto out;
 	}
 
@@ -147,7 +148,7 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 	 */
 	r = radeon_modeset_init(rdev);
 	if (r)
-		dev_err(&dev->pdev->dev, "Fatal error during modeset init\n");
+		dev_err(dev->dev, "Fatal error during modeset init\n");
 
 	/* Call ACPI methods: require modeset init
 	 * but failure is not fatal
@@ -155,8 +156,7 @@ int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags)
 	if (!r) {
 		acpi_status = radeon_acpi_init(rdev);
 		if (acpi_status)
-		dev_dbg(&dev->pdev->dev,
-				"Error during ACPI methods call\n");
+		dev_dbg(dev->dev, "Error during ACPI methods call\n");
 	}
 
 	if (radeon_is_px(dev)) {
@@ -239,7 +239,7 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 
 	switch (info->request) {
 	case RADEON_INFO_DEVICE_ID:
-		*value = dev->pdev->device;
+		*value = to_pci_dev(dev->dev)->device;
 		break;
 	case RADEON_INFO_NUM_GB_PIPES:
 		*value = rdev->num_gb_pipes;

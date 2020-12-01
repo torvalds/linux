@@ -130,8 +130,7 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 		 * IGP chips to avoid image corruptions
 		 */
 		if (p->ring == R600_RING_TYPE_UVD_INDEX &&
-		    (i <= 0 || pci_find_capability(p->rdev->ddev->pdev,
-						   PCI_CAP_ID_AGP) ||
+		    (i <= 0 || pci_find_capability(p->rdev->pdev, PCI_CAP_ID_AGP) ||
 		     p->rdev->family == CHIP_RS780 ||
 		     p->rdev->family == CHIP_RS880)) {
 
