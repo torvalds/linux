@@ -204,6 +204,8 @@ enum kmd_msg {
 	KMD_MSG_GOTO_WFE,
 	KMD_MSG_FIT_RDY,
 	KMD_MSG_SKIP_BMC,
+	RESERVED,
+	KMD_MSG_RST_DEV,
 };
 
 enum cpu_msg_status {

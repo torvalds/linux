@@ -613,12 +613,6 @@ static int goya_early_init(struct hl_device *hdev)
 	if (rc)
 		goto free_queue_props;
 
-	if (goya_get_hw_state(hdev) == HL_DEVICE_HW_STATE_DIRTY) {
-		dev_info(hdev->dev,
-			"H/W state is dirty, must reset before initializing\n");
-		hdev->asic_funcs->hw_fini(hdev, true);
-	}
-
 	/* Before continuing in the initialization, we need to read the preboot
 	 * version to determine whether we run with a security-enabled firmware
 	 */
@@ -629,6 +623,12 @@ static int goya_early_init(struct hl_device *hdev)
 		if (hdev->reset_on_preboot_fail)
 			hdev->asic_funcs->hw_fini(hdev, true);
 		goto pci_fini;
+	}
+
+	if (goya_get_hw_state(hdev) == HL_DEVICE_HW_STATE_DIRTY) {
+		dev_info(hdev->dev,
+			"H/W state is dirty, must reset before initializing\n");
+		hdev->asic_funcs->hw_fini(hdev, true);
 	}
 
 	if (!hdev->pldm) {

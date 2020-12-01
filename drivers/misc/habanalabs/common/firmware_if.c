@@ -627,7 +627,9 @@ int hl_fw_read_preboot_status(struct hl_device *hdev, u32 cpu_boot_status_reg,
 	security_status = RREG32(cpu_security_boot_status_reg);
 
 	/* We read security status multiple times during boot:
-	 * 1. preboot - we check if fw security feature is supported
+	 * 1. preboot - a. Check whether the security status bits are valid
+	 *              b. Check whether fw security is enabled
+	 *              c. Check whether hard reset is done by fw
 	 * 2. boot cpu - we get boot cpu security status
 	 * 3. FW application - we get FW application security status
 	 *
@@ -637,12 +639,19 @@ int hl_fw_read_preboot_status(struct hl_device *hdev, u32 cpu_boot_status_reg,
 	 */
 	if (security_status & CPU_BOOT_DEV_STS0_ENABLED) {
 		hdev->asic_prop.fw_security_status_valid = 1;
-		prop->fw_security_disabled =
-			!(security_status & CPU_BOOT_DEV_STS0_SECURITY_EN);
+
+		if (!(security_status & CPU_BOOT_DEV_STS0_SECURITY_EN))
+			prop->fw_security_disabled = true;
+
+		if (security_status & CPU_BOOT_DEV_STS0_FW_HARD_RST_EN)
+			hdev->asic_prop.hard_reset_done_by_fw = true;
 	} else {
 		hdev->asic_prop.fw_security_status_valid = 0;
 		prop->fw_security_disabled = true;
 	}
+
+	dev_dbg(hdev->dev, "Firmware hard-reset is %s\n",
+		hdev->asic_prop.hard_reset_done_by_fw ? "enabled" : "disabled");
 
 	dev_info(hdev->dev, "firmware-level security is %s\n",
 		prop->fw_security_disabled ? "disabled" : "enabled");
@@ -797,17 +806,9 @@ int hl_fw_init_cpu(struct hl_device *hdev, u32 cpu_boot_status_reg,
 	}
 
 	/* Read FW application security bits */
-	if (hdev->asic_prop.fw_security_status_valid) {
+	if (hdev->asic_prop.fw_security_status_valid)
 		hdev->asic_prop.fw_app_security_map =
 				RREG32(cpu_security_boot_status_reg);
-
-		if (hdev->asic_prop.fw_app_security_map &
-				CPU_BOOT_DEV_STS0_FW_HARD_RST_EN)
-			hdev->asic_prop.hard_reset_done_by_fw = true;
-	}
-
-	dev_dbg(hdev->dev, "Firmware hard-reset is %s\n",
-		hdev->asic_prop.hard_reset_done_by_fw ? "enabled" : "disabled");
 
 	dev_info(hdev->dev, "Successfully loaded firmware to device\n");
 
