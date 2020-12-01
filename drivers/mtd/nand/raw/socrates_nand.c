@@ -22,6 +22,7 @@
 #define FPGA_NAND_DATA_SHIFT		16
 
 struct socrates_nand_host {
+	struct nand_controller	controller;
 	struct nand_chip	nand_chip;
 	void __iomem		*io_base;
 	struct device		*dev;
@@ -116,6 +117,18 @@ static int socrates_nand_device_ready(struct nand_chip *nand_chip)
 	return 1;
 }
 
+static int socrates_attach_chip(struct nand_chip *chip)
+{
+	chip->ecc.engine_type = NAND_ECC_ENGINE_TYPE_SOFT;
+	chip->ecc.algo = NAND_ECC_ALGO_HAMMING;
+
+	return 0;
+}
+
+static const struct nand_controller_ops socrates_ops = {
+	.attach_chip = socrates_attach_chip,
+};
+
 /*
  * Probe for the NAND device.
  */
@@ -141,6 +154,10 @@ static int socrates_nand_probe(struct platform_device *ofdev)
 	mtd = nand_to_mtd(nand_chip);
 	host->dev = &ofdev->dev;
 
+	nand_controller_init(&host->controller);
+	host->controller.ops = &socrates_ops;
+	nand_chip->controller = &host->controller;
+
 	/* link the private data structures */
 	nand_set_controller_data(nand_chip, host);
 	nand_set_flash_node(nand_chip, ofdev->dev.of_node);
@@ -152,10 +169,6 @@ static int socrates_nand_probe(struct platform_device *ofdev)
 	nand_chip->legacy.write_buf = socrates_nand_write_buf;
 	nand_chip->legacy.read_buf = socrates_nand_read_buf;
 	nand_chip->legacy.dev_ready = socrates_nand_device_ready;
-
-	/* enable ECC */
-	nand_chip->ecc.engine_type = NAND_ECC_ENGINE_TYPE_SOFT;
-	nand_chip->ecc.algo = NAND_ECC_ALGO_HAMMING;
 
 	/* TODO: I have no idea what real delay is. */
 	nand_chip->legacy.chip_delay = 20;	/* 20us command delay time */

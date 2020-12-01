@@ -74,19 +74,6 @@ MODULE_DEVICE_TABLE(acpi, button_device_ids);
 /* Please keep this list sorted alphabetically by vendor and model */
 static const struct dmi_system_id dmi_lid_quirks[] = {
 	{
-		/*
-		 * Acer Switch 10 SW5-012. _LID method messes with home and
-		 * power button GPIO IRQ settings causing an interrupt storm on
-		 * both GPIOs. This is unfixable without a DSDT override, so we
-		 * have to disable the lid-switch functionality altogether :|
-		 */
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire SW5-012"),
-		},
-		.driver_data = (void *)(long)ACPI_BUTTON_LID_INIT_DISABLED,
-	},
-	{
 		/* GP-electronic T701, _LID method points to a floating GPIO */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Insyde"),
@@ -102,7 +89,18 @@ static const struct dmi_system_id dmi_lid_quirks[] = {
 		 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "MEDION"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "E2215T MD60198"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "E2215T"),
+		},
+		.driver_data = (void *)(long)ACPI_BUTTON_LID_INIT_OPEN,
+	},
+	{
+		/*
+		 * Medion Akoya E2228T, notification of the LID device only
+		 * happens on close, not on open and _LID always returns closed.
+		 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "MEDION"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "E2228T"),
 		},
 		.driver_data = (void *)(long)ACPI_BUTTON_LID_INIT_OPEN,
 	},

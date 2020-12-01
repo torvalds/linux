@@ -94,12 +94,12 @@ properties:
               instances.
 
 required:
- - compatible
- - reg
- - interrupts
- - interrupt-names
- - interrupt-controller
- - "#interrupt-cells"
+  - compatible
+  - reg
+  - interrupts
+  - interrupt-names
+  - interrupt-controller
+  - "#interrupt-cells"
 
 additionalProperties: false
 

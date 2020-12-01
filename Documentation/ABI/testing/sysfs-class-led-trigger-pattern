@@ -23,8 +23,8 @@ Description:
 
 		Since different LED hardware can have different semantics of
 		hardware patterns, each driver is expected to provide its own
-		description for the hardware patterns in their ABI documentation
-		file.
+		description for the hardware patterns in their documentation
+		file at Documentation/leds/.
 
 What:		/sys/class/leds/<led>/repeat
 Date:		September 2018

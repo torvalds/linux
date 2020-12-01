@@ -10636,6 +10636,10 @@ skl_get_initial_plane_config(struct intel_crtc *crtc,
 	    val & PLANE_CTL_FLIP_HORIZONTAL)
 		plane_config->rotation |= DRM_MODE_REFLECT_X;
 
+	/* 90/270 degree rotation would require extra work */
+	if (drm_rotation_90_or_270(plane_config->rotation))
+		goto error;
+
 	base = intel_de_read(dev_priv, PLANE_SURF(pipe, plane_id)) & 0xfffff000;
 	plane_config->base = base;
 
@@ -12874,10 +12878,11 @@ compute_sink_pipe_bpp(const struct drm_connector_state *conn_state,
 	case 10 ... 11:
 		bpp = 10 * 3;
 		break;
-	case 12:
+	case 12 ... 16:
 		bpp = 12 * 3;
 		break;
 	default:
+		MISSING_CASE(conn_state->max_bpc);
 		return -EINVAL;
 	}
 

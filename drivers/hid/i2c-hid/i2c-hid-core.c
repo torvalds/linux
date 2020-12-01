@@ -943,6 +943,11 @@ static void i2c_hid_acpi_enable_wakeup(struct device *dev)
 	}
 }
 
+static void i2c_hid_acpi_shutdown(struct device *dev)
+{
+	acpi_device_set_power(ACPI_COMPANION(dev), ACPI_STATE_D3_COLD);
+}
+
 static const struct acpi_device_id i2c_hid_acpi_match[] = {
 	{"ACPI0C50", 0 },
 	{"PNP0C50", 0 },
@@ -959,6 +964,8 @@ static inline int i2c_hid_acpi_pdata(struct i2c_client *client,
 static inline void i2c_hid_acpi_fix_up_power(struct device *dev) {}
 
 static inline void i2c_hid_acpi_enable_wakeup(struct device *dev) {}
+
+static inline void i2c_hid_acpi_shutdown(struct device *dev) {}
 #endif
 
 #ifdef CONFIG_OF
@@ -1175,6 +1182,8 @@ static void i2c_hid_shutdown(struct i2c_client *client)
 
 	i2c_hid_set_power(client, I2C_HID_PWR_SLEEP);
 	free_irq(client->irq, ihid);
+
+	i2c_hid_acpi_shutdown(&client->dev);
 }
 
 #ifdef CONFIG_PM_SLEEP

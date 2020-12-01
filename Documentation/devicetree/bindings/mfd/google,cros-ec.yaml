@@ -59,6 +59,14 @@ properties:
       whether this nvram is present or not.
     type: boolean
 
+  mtk,rpmsg-name:
+    description:
+      Must be defined if the cros-ec is a rpmsg device for a Mediatek
+      ARM Cortex M4 Co-processor. Contains the name pf the rpmsg
+      device. Used to match the subnode to the rpmsg device announced by
+      the SCP.
+    $ref: "/schemas/types.yaml#/definitions/string"
+
   spi-max-frequency:
     description: Maximum SPI frequency of the device in Hz.
 
@@ -70,6 +78,54 @@ properties:
 
   wakeup-source:
     description: Button can wake-up the system.
+
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 0
+
+  typec:
+    $ref: "/schemas/chrome/google,cros-ec-typec.yaml#"
+
+  ec-pwm:
+    $ref: "/schemas/pwm/google,cros-ec-pwm.yaml#"
+
+  keyboard-controller:
+    $ref: "/schemas/input/google,cros-ec-keyb.yaml#"
+
+  codecs:
+    type: object
+    additionalProperties: false
+
+    properties:
+      '#address-cells':
+        const: 2
+
+      '#size-cells':
+        const: 1
+
+    patternProperties:
+      "^ec-codec@[a-f0-9]+$":
+        type: object
+        $ref: "/schemas/sound/google,cros-ec-codec.yaml#"
+
+    required:
+      - "#address-cells"
+      - "#size-cells"
+
+patternProperties:
+  "^i2c-tunnel[0-9]*$":
+    type: object
+    $ref: "/schemas/i2c/google,cros-ec-i2c-tunnel.yaml#"
+
+  "^regulator@[0-9]+$":
+    type: object
+    $ref: "/schemas/regulator/google,cros-ec-regulator.yaml#"
+
+  "^extcon[0-9]*$":
+    type: object
+    $ref: "/schemas/extcon/extcon-usbc-cros-ec.yaml#"
 
 required:
   - compatible

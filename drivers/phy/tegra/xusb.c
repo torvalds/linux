@@ -1242,6 +1242,7 @@ power_down:
 reset:
 	reset_control_assert(padctl->rst);
 remove:
+	platform_set_drvdata(pdev, NULL);
 	soc->ops->remove(padctl);
 	return err;
 }

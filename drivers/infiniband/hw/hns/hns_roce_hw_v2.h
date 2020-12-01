@@ -1661,7 +1661,7 @@ struct hns_roce_query_pf_caps_d {
 	__le32 rsv_uars_rsv_qps;
 };
 #define V2_QUERY_PF_CAPS_D_NUM_SRQS_S 0
-#define V2_QUERY_PF_CAPS_D_NUM_SRQS_M GENMASK(20, 0)
+#define V2_QUERY_PF_CAPS_D_NUM_SRQS_M GENMASK(19, 0)
 
 #define V2_QUERY_PF_CAPS_D_RQWQE_HOP_NUM_S 20
 #define V2_QUERY_PF_CAPS_D_RQWQE_HOP_NUM_M GENMASK(21, 20)

@@ -28,13 +28,15 @@ description: |
 
 properties:
   mode-normal:
-      $ref: /schemas/types.yaml#/definitions/uint32
-      description: |
-        Default value to set on a reboot if no command was provided.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Default value to set on a reboot if no command was provided.
 
 patternProperties:
   "^mode-.*$":
     $ref: /schemas/types.yaml#/definitions/uint32
+
+additionalProperties: false
 
 examples:
   - |

@@ -17,6 +17,7 @@ LEDs
    uleds
 
    leds-blinkm
+   leds-el15203000
    leds-lm3556
    leds-lp3944
    leds-lp5521
@@ -24,3 +25,4 @@ LEDs
    leds-lp5562
    leds-lp55xx
    leds-mlxcpld
+   leds-sc27xx

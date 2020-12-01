@@ -271,5 +271,6 @@ void gaudi_set_pll_profile(struct hl_device *hdev, enum hl_pll_frequency freq);
 int gaudi_debug_coresight(struct hl_device *hdev, void *data);
 void gaudi_halt_coresight(struct hl_device *hdev);
 int gaudi_get_clk_rate(struct hl_device *hdev, u32 *cur_clk, u32 *max_clk);
+void gaudi_mmu_prepare_reg(struct hl_device *hdev, u64 reg, u32 asid);
 
 #endif /* GAUDIP_H_ */

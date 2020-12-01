@@ -12,6 +12,7 @@
 #define VIDTV_DEMOD_H
 
 #include <linux/dvb/frontend.h>
+
 #include <media/dvb_frontend.h>
 
 /**
@@ -19,6 +20,9 @@
  * modulation and fec_inner
  * @modulation: see enum fe_modulation
  * @fec: see enum fe_fec_rate
+ * @cnr_ok: S/N threshold to consider the signal as OK. Below that, there's
+ *          a chance of losing sync.
+ * @cnr_good: S/N threshold to consider the signal strong.
  *
  * This struct matches values for 'good' and 'ok' CNRs given the combination
  * of modulation and fec_inner in use. We might simulate some noise if the
@@ -52,13 +56,8 @@ struct vidtv_demod_config {
  * struct vidtv_demod_state - The demodulator state
  * @frontend: The frontend structure allocated by the demod.
  * @config: The config used to init the demod.
- * @poll_snr: The task responsible for periodically checking the simulated
- * signal quality, eventually dropping or reacquiring the TS lock.
  * @status: the demod status.
- * @cold_start: Whether the demod has not been init yet.
- * @poll_snr_thread_running: Whether the task responsible for periodically
- * checking the simulated signal quality is running.
- * @poll_snr_thread_restart: Whether we should restart the poll_snr task.
+ * @tuner_cnr: current S/N ratio for the signal carrier
  */
 struct vidtv_demod_state {
 	struct dvb_frontend frontend;

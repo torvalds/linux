@@ -596,6 +596,7 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	struct ww_acquire_ctx ticket;
 	struct list_head list, duplicates;
 	uint64_t va_flags;
+	uint64_t vm_size;
 	int r = 0;
 
 	if (args->va_address < AMDGPU_VA_RESERVED_SIZE) {
@@ -615,6 +616,15 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 	}
 
 	args->va_address &= AMDGPU_GMC_HOLE_MASK;
+
+	vm_size = adev->vm_manager.max_pfn * AMDGPU_GPU_PAGE_SIZE;
+	vm_size -= AMDGPU_VA_RESERVED_SIZE;
+	if (args->va_address + args->map_size > vm_size) {
+		dev_dbg(&dev->pdev->dev,
+			"va_address 0x%llx is in top reserved area 0x%llx\n",
+			args->va_address + args->map_size, vm_size);
+		return -EINVAL;
+	}
 
 	if ((args->flags & ~valid_flags) && (args->flags & ~prt_flags)) {
 		dev_dbg(&dev->pdev->dev, "invalid flags combination 0x%08X\n",

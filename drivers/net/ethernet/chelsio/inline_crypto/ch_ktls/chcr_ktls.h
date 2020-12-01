@@ -26,6 +26,7 @@
 
 #define CHCR_KTLS_WR_SIZE	(CHCR_PLAIN_TX_DATA_LEN +\
 				 sizeof(struct cpl_tx_sec_pdu))
+#define FALLBACK		35
 
 enum ch_ktls_open_state {
 	CH_KTLS_OPEN_SUCCESS = 0,

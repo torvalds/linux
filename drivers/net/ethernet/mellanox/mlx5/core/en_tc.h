@@ -283,6 +283,9 @@ static inline bool mlx5e_cqe_regb_chain(struct mlx5_cqe64 *cqe)
 
 	reg_b = be32_to_cpu(cqe->ft_metadata);
 
+	if (reg_b >> (MLX5E_TC_TABLE_CHAIN_TAG_BITS + ZONE_RESTORE_BITS))
+		return false;
+
 	chain = reg_b & MLX5E_TC_TABLE_CHAIN_TAG_MASK;
 	if (chain)
 		return true;

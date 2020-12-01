@@ -1584,7 +1584,7 @@ int mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget)
 	} while ((++work_done < budget) && (cqe = mlx5_cqwq_get_cqe(cqwq)));
 
 out:
-	if (rq->xdp_prog)
+	if (rcu_access_pointer(rq->xdp_prog))
 		mlx5e_xdp_rx_poll_complete(rq);
 
 	mlx5_cqwq_update_db_record(cqwq);

@@ -21,7 +21,7 @@ properties:
 
   gpios:
     description:
-       GPIO used for controlling the reset pin
+      GPIO used for controlling the reset pin
     maxItems: 1
 
   spi-max-frequency: true

@@ -1160,16 +1160,6 @@ static void bnxt_queue_sp_work(struct bnxt *bp)
 		schedule_work(&bp->sp_task);
 }
 
-static void bnxt_cancel_sp_work(struct bnxt *bp)
-{
-	if (BNXT_PF(bp)) {
-		flush_workqueue(bnxt_pf_wq);
-	} else {
-		cancel_work_sync(&bp->sp_task);
-		cancel_delayed_work_sync(&bp->fw_reset_task);
-	}
-}
-
 static void bnxt_sched_reset(struct bnxt *bp, struct bnxt_rx_ring_info *rxr)
 {
 	if (!rxr->bnapi->in_reset) {
@@ -4109,7 +4099,8 @@ static void bnxt_free_mem(struct bnxt *bp, bool irq_re_init)
 	bnxt_free_ntp_fltrs(bp, irq_re_init);
 	if (irq_re_init) {
 		bnxt_free_ring_stats(bp);
-		if (!(bp->fw_cap & BNXT_FW_CAP_PORT_STATS_NO_RESET))
+		if (!(bp->fw_cap & BNXT_FW_CAP_PORT_STATS_NO_RESET) ||
+		    test_bit(BNXT_STATE_IN_FW_RESET, &bp->state))
 			bnxt_free_port_stats(bp);
 		bnxt_free_ring_grps(bp);
 		bnxt_free_vnics(bp);
@@ -4362,7 +4353,8 @@ static int bnxt_hwrm_do_send_msg(struct bnxt *bp, void *msg, u32 msg_len,
 	u32 bar_offset = BNXT_GRCPF_REG_CHIMP_COMM;
 	u16 dst = BNXT_HWRM_CHNL_CHIMP;
 
-	if (BNXT_NO_FW_ACCESS(bp))
+	if (BNXT_NO_FW_ACCESS(bp) &&
+	    le16_to_cpu(req->req_type) != HWRM_FUNC_RESET)
 		return -EBUSY;
 
 	if (msg_len > BNXT_HWRM_MAX_REQ_LEN) {
@@ -7766,6 +7758,7 @@ static void bnxt_add_one_ctr(u64 hw, u64 *sw, u64 mask)
 {
 	u64 sw_tmp;
 
+	hw &= mask;
 	sw_tmp = (*sw & ~mask) | hw;
 	if (hw < (*sw & mask))
 		sw_tmp += mask + 1;
@@ -9789,7 +9782,10 @@ int bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 {
 	int rc = 0;
 
-	rc = __bnxt_open_nic(bp, irq_re_init, link_re_init);
+	if (test_bit(BNXT_STATE_ABORT_ERR, &bp->state))
+		rc = -EIO;
+	if (!rc)
+		rc = __bnxt_open_nic(bp, irq_re_init, link_re_init);
 	if (rc) {
 		netdev_err(bp->dev, "nic open fail (rc: %x)\n", rc);
 		dev_close(bp->dev);
@@ -11594,7 +11590,8 @@ static int bnxt_init_board(struct pci_dev *pdev, struct net_device *dev)
 	if (dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64)) != 0 &&
 	    dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32)) != 0) {
 		dev_err(&pdev->dev, "System does not support DMA, aborting\n");
-		goto init_err_disable;
+		rc = -EIO;
+		goto init_err_release;
 	}
 
 	pci_set_master(pdev);
@@ -12108,15 +12105,17 @@ static void bnxt_remove_one(struct pci_dev *pdev)
 	if (BNXT_PF(bp))
 		bnxt_sriov_disable(bp);
 
-	clear_bit(BNXT_STATE_IN_FW_RESET, &bp->state);
-	bnxt_cancel_sp_work(bp);
-	bp->sp_event = 0;
-
-	bnxt_dl_fw_reporters_destroy(bp, true);
 	if (BNXT_PF(bp))
 		devlink_port_type_clear(&bp->dl_port);
 	pci_disable_pcie_error_reporting(pdev);
 	unregister_netdev(dev);
+	clear_bit(BNXT_STATE_IN_FW_RESET, &bp->state);
+	/* Flush any pending tasks */
+	cancel_work_sync(&bp->sp_task);
+	cancel_delayed_work_sync(&bp->fw_reset_task);
+	bp->sp_event = 0;
+
+	bnxt_dl_fw_reporters_destroy(bp, true);
 	bnxt_dl_unregister(bp);
 	bnxt_shutdown_tc(bp);
 
@@ -12676,6 +12675,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 				create_singlethread_workqueue("bnxt_pf_wq");
 			if (!bnxt_pf_wq) {
 				dev_err(&pdev->dev, "Unable to create workqueue.\n");
+				rc = -ENOMEM;
 				goto init_err_pci_clean;
 			}
 		}
@@ -12860,6 +12860,9 @@ static pci_ers_result_t bnxt_io_error_detected(struct pci_dev *pdev,
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
 
+	if (state == pci_channel_io_frozen)
+		set_bit(BNXT_STATE_PCI_CHANNEL_IO_FROZEN, &bp->state);
+
 	if (netif_running(netdev))
 		bnxt_close(netdev);
 
@@ -12886,7 +12889,7 @@ static pci_ers_result_t bnxt_io_slot_reset(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct bnxt *bp = netdev_priv(netdev);
-	int err = 0;
+	int err = 0, off;
 	pci_ers_result_t result = PCI_ERS_RESULT_DISCONNECT;
 
 	netdev_info(bp->dev, "PCI Slot Reset\n");
@@ -12898,6 +12901,20 @@ static pci_ers_result_t bnxt_io_slot_reset(struct pci_dev *pdev)
 			"Cannot re-enable PCI device after reset.\n");
 	} else {
 		pci_set_master(pdev);
+		/* Upon fatal error, our device internal logic that latches to
+		 * BAR value is getting reset and will restore only upon
+		 * rewritting the BARs.
+		 *
+		 * As pci_restore_state() does not re-write the BARs if the
+		 * value is same as saved value earlier, driver needs to
+		 * write the BARs to 0 to force restore, in case of fatal error.
+		 */
+		if (test_and_clear_bit(BNXT_STATE_PCI_CHANNEL_IO_FROZEN,
+				       &bp->state)) {
+			for (off = PCI_BASE_ADDRESS_0;
+			     off <= PCI_BASE_ADDRESS_5; off += 4)
+				pci_write_config_dword(bp->pdev, off, 0);
+		}
 		pci_restore_state(pdev);
 		pci_save_state(pdev);
 
