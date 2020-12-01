@@ -141,8 +141,6 @@ static int m_can_plat_remove(struct platform_device *pdev)
 
 	m_can_class_free_dev(mcan_class->net);
 
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 

@@ -295,15 +295,16 @@ static void peak_usb_write_bulk_callback(struct urb *urb)
 		netif_trans_update(netdev);
 		break;
 
-	default:
-		if (net_ratelimit())
-			netdev_err(netdev, "Tx urb aborted (%d)\n",
-				   urb->status);
 	case -EPROTO:
 	case -ENOENT:
 	case -ECONNRESET:
 	case -ESHUTDOWN:
+		break;
 
+	default:
+		if (net_ratelimit())
+			netdev_err(netdev, "Tx urb aborted (%d)\n",
+				   urb->status);
 		break;
 	}
 

@@ -89,7 +89,6 @@ struct m_can_classdev {
 	void *device_data;
 
 	int version;
-	int freq;
 	u32 irqstatus;
 
 	int pm_clock_support;
