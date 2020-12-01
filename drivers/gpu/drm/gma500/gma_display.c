@@ -559,9 +559,9 @@ int gma_crtc_set_config(struct drm_mode_set *set,
 	if (!dev_priv->rpm_enabled)
 		return drm_crtc_helper_set_config(set, ctx);
 
-	pm_runtime_forbid(&dev->pdev->dev);
+	pm_runtime_forbid(dev->dev);
 	ret = drm_crtc_helper_set_config(set, ctx);
-	pm_runtime_allow(&dev->pdev->dev);
+	pm_runtime_allow(dev->dev);
 
 	return ret;
 }

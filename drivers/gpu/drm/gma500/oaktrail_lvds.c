@@ -60,7 +60,7 @@ static void oaktrail_lvds_set_power(struct drm_device *dev,
 			pp_status = REG_READ(PP_STATUS);
 		} while (pp_status & PP_ON);
 		dev_priv->is_lvds_on = false;
-		pm_request_idle(&dev->pdev->dev);
+		pm_request_idle(dev->dev);
 	}
 	gma_power_end(dev);
 }

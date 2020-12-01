@@ -145,7 +145,7 @@ void oaktrail_lvds_i2c_init(struct drm_encoder *encoder)
 	strncpy(chan->adapter.name, "gma500 LPC",  I2C_NAME_SIZE - 1);
 	chan->adapter.owner = THIS_MODULE;
 	chan->adapter.algo_data = &chan->algo;
-	chan->adapter.dev.parent = &dev->pdev->dev;
+	chan->adapter.dev.parent = dev->dev;
 	chan->algo.setsda = set_data;
 	chan->algo.setscl = set_clock;
 	chan->algo.getsda = get_data;
