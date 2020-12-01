@@ -116,7 +116,7 @@ static void int_exit(int sig)
 
 int main(int ac, char **argv)
 {
-	struct rlimit r = {1024*1024, RLIM_INFINITY};
+	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
 	long key, next_key, value;
 	struct bpf_link *links[2];
 	struct bpf_program *prog;

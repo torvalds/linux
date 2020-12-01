@@ -51,7 +51,7 @@ static void pnp_remove_protocol(struct pnp_protocol *protocol)
 }
 
 /**
- * pnp_protocol_register - adds a pnp protocol to the pnp layer
+ * pnp_register_protocol - adds a pnp protocol to the pnp layer
  * @protocol: pointer to the corresponding pnp_protocol structure
  *
  *  Ex protocols: ISAPNP, PNPBIOS, etc
@@ -91,7 +91,7 @@ int pnp_register_protocol(struct pnp_protocol *protocol)
 }
 
 /**
- * pnp_protocol_unregister - removes a pnp protocol from the pnp layer
+ * pnp_unregister_protocol - removes a pnp protocol from the pnp layer
  * @protocol: pointer to the corresponding pnp_protocol structure
  */
 void pnp_unregister_protocol(struct pnp_protocol *protocol)

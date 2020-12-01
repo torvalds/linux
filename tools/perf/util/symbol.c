@@ -515,6 +515,13 @@ void dso__insert_symbol(struct dso *dso, struct symbol *sym)
 	}
 }
 
+void dso__delete_symbol(struct dso *dso, struct symbol *sym)
+{
+	rb_erase_cached(&sym->rb_node, &dso->symbols);
+	symbol__delete(sym);
+	dso__reset_find_symbol_cache(dso);
+}
+
 struct symbol *dso__find_symbol(struct dso *dso, u64 addr)
 {
 	if (dso->last_find_result.addr != addr || dso->last_find_result.symbol == NULL) {

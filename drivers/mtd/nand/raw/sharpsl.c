@@ -20,6 +20,7 @@
 #include <linux/io.h>
 
 struct sharpsl_nand {
+	struct nand_controller	controller;
 	struct nand_chip	chip;
 
 	void __iomem		*io;
@@ -96,6 +97,25 @@ static int sharpsl_nand_calculate_ecc(struct nand_chip *chip,
 	return readb(sharpsl->io + ECCCNTR) != 0;
 }
 
+static int sharpsl_attach_chip(struct nand_chip *chip)
+{
+	if (chip->ecc.engine_type != NAND_ECC_ENGINE_TYPE_ON_HOST)
+		return 0;
+
+	chip->ecc.size = 256;
+	chip->ecc.bytes = 3;
+	chip->ecc.strength = 1;
+	chip->ecc.hwctl = sharpsl_nand_enable_hwecc;
+	chip->ecc.calculate = sharpsl_nand_calculate_ecc;
+	chip->ecc.correct = nand_correct_data;
+
+	return 0;
+}
+
+static const struct nand_controller_ops sharpsl_ops = {
+	.attach_chip = sharpsl_attach_chip,
+};
+
 /*
  * Main initialization routine
  */
@@ -136,6 +156,10 @@ static int sharpsl_nand_probe(struct platform_device *pdev)
 	/* Get pointer to private data */
 	this = (struct nand_chip *)(&sharpsl->chip);
 
+	nand_controller_init(&sharpsl->controller);
+	sharpsl->controller.ops = &sharpsl_ops;
+	this->controller = &sharpsl->controller;
+
 	/* Link the private data with the MTD structure */
 	mtd = nand_to_mtd(this);
 	mtd->dev.parent = &pdev->dev;
@@ -156,15 +180,7 @@ static int sharpsl_nand_probe(struct platform_device *pdev)
 	this->legacy.dev_ready = sharpsl_nand_dev_ready;
 	/* 15 us command delay time */
 	this->legacy.chip_delay = 15;
-	/* set eccmode using hardware ECC */
-	this->ecc.engine_type = NAND_ECC_ENGINE_TYPE_ON_HOST;
-	this->ecc.size = 256;
-	this->ecc.bytes = 3;
-	this->ecc.strength = 1;
 	this->badblock_pattern = data->badblock_pattern;
-	this->ecc.hwctl = sharpsl_nand_enable_hwecc;
-	this->ecc.calculate = sharpsl_nand_calculate_ecc;
-	this->ecc.correct = nand_correct_data;
 
 	/* Scan to find existence of the device */
 	err = nand_scan(this, 1);

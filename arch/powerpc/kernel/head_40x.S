@@ -284,11 +284,7 @@ _ENTRY(saved_ksp_limit)
 
 	rlwimi	r11, r10, 22, 20, 29	/* Compute PTE address */
 	lwz	r11, 0(r11)		/* Get Linux PTE */
-#ifdef CONFIG_SWAP
 	li	r9, _PAGE_PRESENT | _PAGE_ACCESSED
-#else
-	li	r9, _PAGE_PRESENT
-#endif
 	andc.	r9, r9, r11		/* Check permission */
 	bne	5f
 
@@ -369,11 +365,7 @@ _ENTRY(saved_ksp_limit)
 
 	rlwimi	r11, r10, 22, 20, 29	/* Compute PTE address */
 	lwz	r11, 0(r11)		/* Get Linux PTE */
-#ifdef CONFIG_SWAP
 	li	r9, _PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_EXEC
-#else
-	li	r9, _PAGE_PRESENT | _PAGE_EXEC
-#endif
 	andc.	r9, r9, r11		/* Check permission */
 	bne	5f
 

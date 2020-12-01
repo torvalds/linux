@@ -147,6 +147,6 @@ efi_debug_entry:
 	 * correctly at this alignment, we must ensure that .text is
 	 * placed at a 4k boundary in the Image to begin with.
 	 */
-	.align 12
+	.balign	SEGMENT_ALIGN
 efi_header_end:
 	.endm

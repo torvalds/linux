@@ -511,7 +511,8 @@ again:
 				/*DEFAULT_RATELIMIT_BURST*/ 1);
 		if (__ratelimit(&_rs))
 			WARN(1, KERN_DEBUG
-				"BTRFS: block rsv returned %d\n", ret);
+				"BTRFS: block rsv %d returned %d\n",
+				block_rsv->type, ret);
 	}
 try_reserve:
 	ret = btrfs_reserve_metadata_bytes(root, block_rsv, blocksize,

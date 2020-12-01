@@ -779,25 +779,15 @@ static int __cmd_inject(struct perf_inject *inject)
 			dsos__hit_all(session);
 		/*
 		 * The AUX areas have been removed and replaced with
-		 * synthesized hardware events, so clear the feature flag and
-		 * remove the evsel.
+		 * synthesized hardware events, so clear the feature flag.
 		 */
 		if (inject->itrace_synth_opts.set) {
-			struct evsel *evsel;
-
 			perf_header__clear_feat(&session->header,
 						HEADER_AUXTRACE);
 			if (inject->itrace_synth_opts.last_branch ||
 			    inject->itrace_synth_opts.add_last_branch)
 				perf_header__set_feat(&session->header,
 						      HEADER_BRANCH_STACK);
-			evsel = perf_evlist__id2evsel_strict(session->evlist,
-							     inject->aux_id);
-			if (evsel) {
-				pr_debug("Deleting %s\n", evsel__name(evsel));
-				evlist__remove(session->evlist, evsel);
-				evsel__delete(evsel);
-			}
 		}
 		session->header.data_offset = output_data_offset;
 		session->header.data_size = inject->bytes_written;

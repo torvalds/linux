@@ -185,7 +185,6 @@ int main(int argc, char *argv[])
 	main_test_libperl();
 	main_test_hello();
 	main_test_libelf();
-	main_test_libelf_mmap();
 	main_test_get_current_dir_name();
 	main_test_gettid();
 	main_test_glibc();
