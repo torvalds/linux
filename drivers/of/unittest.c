@@ -874,6 +874,9 @@ static void __init of_unittest_dma_get_max_cpu_address(void)
 	struct device_node *np;
 	phys_addr_t cpu_addr;
 
+	if (!IS_ENABLED(CONFIG_OF_ADDRESS))
+		return;
+
 	np = of_find_node_by_path("/testcase-data/address-tests");
 	if (!np) {
 		pr_err("missing testcase data\n");
