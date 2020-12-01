@@ -72,7 +72,6 @@ struct ksz_device {
 	int reg_mib_cnt;
 	int mib_cnt;
 	int mib_port_cnt;
-	int last_port;			/* ports after that not used */
 	phy_interface_t compat_interface;
 	u32 regs_size;
 	bool phy_errata_9477;

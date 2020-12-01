@@ -1163,7 +1163,6 @@ static int ksz8795_switch_detect(struct ksz_device *dev)
 			id2 = 0x65;
 	} else if (id2 == CHIP_ID_94) {
 		dev->port_cnt--;
-		dev->last_port = dev->port_cnt;
 		id2 = 0x94;
 	}
 	id16 &= ~0xff;
