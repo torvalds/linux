@@ -101,6 +101,7 @@ Contents:
    tcp-thin
    team
    timestamping
+   tipc
    tproxy
    tuntap
    udplite

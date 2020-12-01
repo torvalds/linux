@@ -80,19 +80,32 @@ struct sockaddr_pair {
  * @maxnagle: maximum size of msg which can be subject to nagle
  * @portid: unique port identity in TIPC socket hash table
  * @phdr: preformatted message header used when sending messages
- * #cong_links: list of congested links
+ * @cong_links: list of congested links
  * @publications: list of publications for port
  * @blocking_link: address of the congested link we are currently sleeping on
  * @pub_count: total # of publications port has made during its lifetime
  * @conn_timeout: the time we can wait for an unresponded setup request
+ * @probe_unacked: probe has not received ack yet
  * @dupl_rcvcnt: number of bytes counted twice, in both backlog and rcv queue
  * @cong_link_cnt: number of congested links
  * @snt_unacked: # messages sent by socket, and not yet acked by peer
+ * @snd_win: send window size
+ * @peer_caps: peer capabilities mask
  * @rcv_unacked: # messages read by user, but not yet acked back to peer
+ * @rcv_win: receive window size
  * @peer: 'connected' peer for dgram/rdm
  * @node: hash table node
  * @mc_method: cookie for use between socket and broadcast layer
  * @rcu: rcu struct for tipc_sock
+ * @group: TIPC communications group
+ * @oneway: message count in one direction (FIXME)
+ * @nagle_start: current nagle value
+ * @snd_backlog: send backlog count
+ * @msg_acc: messages accepted; used in managing backlog and nagle
+ * @pkt_cnt: TIPC socket packet count
+ * @expect_ack: whether this TIPC socket is expecting an ack
+ * @nodelay: setsockopt() TIPC_NODELAY setting
+ * @group_is_open: TIPC socket group is fully open (FIXME)
  */
 struct tipc_sock {
 	struct sock sk;
@@ -261,6 +274,7 @@ static void tsk_set_nagle(struct tipc_sock *tsk)
 
 /**
  * tsk_advance_rx_queue - discard first buffer in socket receive queue
+ * @sk: network socket
  *
  * Caller must hold socket lock
  */
@@ -289,6 +303,8 @@ static void tipc_sk_respond(struct sock *sk, struct sk_buff *skb, int err)
 
 /**
  * tsk_rej_rx_queue - reject all buffers in socket receive queue
+ * @sk: network socket
+ * @error: response error code
  *
  * Caller must hold socket lock
  */
@@ -442,7 +458,7 @@ static int tipc_sk_sock_err(struct socket *sock, long *timeout)
  * This routine creates additional data structures used by the TIPC socket,
  * initializes them, and links them together.
  *
- * Returns 0 on success, errno otherwise
+ * Return: 0 on success, errno otherwise
  */
 static int tipc_sk_create(struct net *net, struct socket *sock,
 			  int protocol, int kern)
@@ -607,7 +623,7 @@ static void __tipc_shutdown(struct socket *sock, int error)
  * are returned or discarded according to the "destination droppable" setting
  * specified for the message by the sender.
  *
- * Returns 0 on success, errno otherwise
+ * Return: 0 on success, errno otherwise
  */
 static int tipc_release(struct socket *sock)
 {
@@ -654,7 +670,7 @@ static int tipc_release(struct socket *sock)
  * a negative scope value unbinds the specified name.  Specifying no name
  * (i.e. a socket address length of 0) unbinds all names from the socket.
  *
- * Returns 0 on success, errno otherwise
+ * Return: 0 on success, errno otherwise
  *
  * NOTE: This routine doesn't need to take the socket lock since it doesn't
  *       access any non-constant socket information.
@@ -715,7 +731,7 @@ static int tipc_bind(struct socket *sock, struct sockaddr *skaddr, int alen)
  * @uaddr: area for returned socket address
  * @peer: 0 = own ID, 1 = current peer ID, 2 = current/former peer ID
  *
- * Returns 0 on success, errno otherwise
+ * Return: 0 on success, errno otherwise
  *
  * NOTE: This routine doesn't need to take the socket lock since it only
  *       accesses socket information that is unchanging (or which changes in
@@ -754,7 +770,7 @@ static int tipc_getname(struct socket *sock, struct sockaddr *uaddr,
  * @sock: socket for which to calculate the poll bits
  * @wait: ???
  *
- * Returns pollmask value
+ * Return: pollmask value
  *
  * COMMENTARY:
  * It appears that the usual socket locking mechanisms are not useful here
@@ -816,7 +832,7 @@ static __poll_t tipc_poll(struct file *file, struct socket *sock,
  * @timeout: timeout to wait for wakeup
  *
  * Called from function tipc_sendmsg(), which has done all sanity checks
- * Returns the number of bytes sent on success, or errno
+ * Return: the number of bytes sent on success, or errno
  */
 static int tipc_sendmcast(struct  socket *sock, struct tipc_service_range *seq,
 			  struct msghdr *msg, size_t dlen, long timeout)
@@ -876,6 +892,7 @@ static int tipc_sendmcast(struct  socket *sock, struct tipc_service_range *seq,
 /**
  * tipc_send_group_msg - send a message to a member in the group
  * @net: network namespace
+ * @tsk: tipc socket
  * @m: message to send
  * @mb: group member
  * @dnode: destination node
@@ -931,7 +948,7 @@ static int tipc_send_group_msg(struct net *net, struct tipc_sock *tsk,
  * @timeout: timeout to wait for wakeup
  *
  * Called from function tipc_sendmsg(), which has done all sanity checks
- * Returns the number of bytes sent on success, or errno
+ * Return: the number of bytes sent on success, or errno
  */
 static int tipc_send_group_unicast(struct socket *sock, struct msghdr *m,
 				   int dlen, long timeout)
@@ -975,7 +992,7 @@ static int tipc_send_group_unicast(struct socket *sock, struct msghdr *m,
  * @timeout: timeout to wait for wakeup
  *
  * Called from function tipc_sendmsg(), which has done all sanity checks
- * Returns the number of bytes sent on success, or errno
+ * Return: the number of bytes sent on success, or errno
  */
 static int tipc_send_group_anycast(struct socket *sock, struct msghdr *m,
 				   int dlen, long timeout)
@@ -1060,7 +1077,7 @@ static int tipc_send_group_anycast(struct socket *sock, struct msghdr *m,
  * @timeout: timeout to wait for wakeup
  *
  * Called from function tipc_sendmsg(), which has done all sanity checks
- * Returns the number of bytes sent on success, or errno
+ * Return: the number of bytes sent on success, or errno
  */
 static int tipc_send_group_bcast(struct socket *sock, struct msghdr *m,
 				 int dlen, long timeout)
@@ -1134,7 +1151,7 @@ static int tipc_send_group_bcast(struct socket *sock, struct msghdr *m,
  * @timeout: timeout to wait for wakeup
  *
  * Called from function tipc_sendmsg(), which has done all sanity checks
- * Returns the number of bytes sent on success, or errno
+ * Return: the number of bytes sent on success, or errno
  */
 static int tipc_send_group_mcast(struct socket *sock, struct msghdr *m,
 				 int dlen, long timeout)
@@ -1171,6 +1188,7 @@ static int tipc_send_group_mcast(struct socket *sock, struct msghdr *m,
 
 /**
  * tipc_sk_mcast_rcv - Deliver multicast messages to all destination sockets
+ * @net: the associated network namespace
  * @arrvq: queue with arriving messages, to be cloned after destination lookup
  * @inputq: queue with cloned messages, delivered to socket after dest lookup
  *
@@ -1310,6 +1328,8 @@ static void tipc_sk_push_backlog(struct tipc_sock *tsk, bool nagle_ack)
  * tipc_sk_conn_proto_rcv - receive a connection mng protocol message
  * @tsk: receiving socket
  * @skb: pointer to message buffer.
+ * @inputq: buffer list containing the buffers
+ * @xmitq: output message area
  */
 static void tipc_sk_conn_proto_rcv(struct tipc_sock *tsk, struct sk_buff *skb,
 				   struct sk_buff_head *inputq,
@@ -1377,7 +1397,7 @@ exit:
  * and for 'SYN' messages on SOCK_SEQPACKET and SOCK_STREAM connections.
  * (Note: 'SYN+' is prohibited on SOCK_STREAM.)
  *
- * Returns the number of bytes sent on success, or errno otherwise
+ * Return: the number of bytes sent on success, or errno otherwise
  */
 static int tipc_sendmsg(struct socket *sock,
 			struct msghdr *m, size_t dsz)
@@ -1522,7 +1542,7 @@ static int __tipc_sendmsg(struct socket *sock, struct msghdr *m, size_t dlen)
  *
  * Used for SOCK_STREAM data.
  *
- * Returns the number of bytes sent on success (or partial success),
+ * Return: the number of bytes sent on success (or partial success),
  * or errno if no data sent
  */
 static int tipc_sendstream(struct socket *sock, struct msghdr *m, size_t dsz)
@@ -1630,7 +1650,7 @@ static int __tipc_sendstream(struct socket *sock, struct msghdr *m, size_t dlen)
  *
  * Used for SOCK_SEQPACKET messages.
  *
- * Returns the number of bytes sent on success, or errno otherwise
+ * Return: the number of bytes sent on success, or errno otherwise
  */
 static int tipc_send_packet(struct socket *sock, struct msghdr *m, size_t dsz)
 {
@@ -1715,7 +1735,7 @@ static void tipc_sk_set_orig_addr(struct msghdr *m, struct sk_buff *skb)
  *
  * Note: Ancillary data is not captured if not requested by receiver.
  *
- * Returns 0 if successful, otherwise errno
+ * Return: 0 if successful, otherwise errno
  */
 static int tipc_sk_anc_data_recv(struct msghdr *m, struct sk_buff *skb,
 				 struct tipc_sock *tsk)
@@ -1865,6 +1885,7 @@ static int tipc_wait_for_rcvmsg(struct socket *sock, long *timeop)
 
 /**
  * tipc_recvmsg - receive packet-oriented message
+ * @sock: network socket
  * @m: descriptor for message info
  * @buflen: length of user buffer area
  * @flags: receive flags
@@ -1872,7 +1893,7 @@ static int tipc_wait_for_rcvmsg(struct socket *sock, long *timeop)
  * Used for SOCK_DGRAM, SOCK_RDM, and SOCK_SEQPACKET messages.
  * If the complete message doesn't fit in user area, truncate it.
  *
- * Returns size of returned message data, errno otherwise
+ * Return: size of returned message data, errno otherwise
  */
 static int tipc_recvmsg(struct socket *sock, struct msghdr *m,
 			size_t buflen,	int flags)
@@ -1973,6 +1994,7 @@ exit:
 
 /**
  * tipc_recvstream - receive stream-oriented data
+ * @sock: network socket
  * @m: descriptor for message info
  * @buflen: total size of user buffer area
  * @flags: receive flags
@@ -1980,7 +2002,7 @@ exit:
  * Used for SOCK_STREAM messages only.  If not enough data is available
  * will optionally wait for more; never truncates data.
  *
- * Returns size of returned message data, errno otherwise
+ * Return: size of returned message data, errno otherwise
  */
 static int tipc_recvstream(struct socket *sock, struct msghdr *m,
 			   size_t buflen, int flags)
@@ -2158,7 +2180,7 @@ static void tipc_sk_proto_rcv(struct sock *sk,
  * @tsk: TIPC socket
  * @skb: pointer to message buffer.
  * @xmitq: for Nagle ACK if any
- * Returns true if message should be added to receive queue, false otherwise
+ * Return: true if message should be added to receive queue, false otherwise
  */
 static bool tipc_sk_filter_connect(struct tipc_sock *tsk, struct sk_buff *skb,
 				   struct sk_buff_head *xmitq)
@@ -2272,7 +2294,7 @@ static bool tipc_sk_filter_connect(struct tipc_sock *tsk, struct sk_buff *skb,
  * TIPC_HIGH_IMPORTANCE      (8 MB)
  * TIPC_CRITICAL_IMPORTANCE  (16 MB)
  *
- * Returns overload limit according to corresponding message importance
+ * Return: overload limit according to corresponding message importance
  */
 static unsigned int rcvbuf_limit(struct sock *sk, struct sk_buff *skb)
 {
@@ -2295,12 +2317,12 @@ static unsigned int rcvbuf_limit(struct sock *sk, struct sk_buff *skb)
  * tipc_sk_filter_rcv - validate incoming message
  * @sk: socket
  * @skb: pointer to message.
+ * @xmitq: output message area (FIXME)
  *
  * Enqueues message on receive queue if acceptable; optionally handles
  * disconnect indication for a connected socket.
  *
  * Called with socket lock already taken
- *
  */
 static void tipc_sk_filter_rcv(struct sock *sk, struct sk_buff *skb,
 			       struct sk_buff_head *xmitq)
@@ -2390,6 +2412,7 @@ static int tipc_sk_backlog_rcv(struct sock *sk, struct sk_buff *skb)
  * @inputq: list of incoming buffers with potentially different destinations
  * @sk: socket where the buffers should be enqueued
  * @dport: port number for the socket
+ * @xmitq: output queue
  *
  * Caller must hold socket lock
  */
@@ -2442,6 +2465,7 @@ static void tipc_sk_enqueue(struct sk_buff_head *inputq, struct sock *sk,
 
 /**
  * tipc_sk_rcv - handle a chain of incoming buffers
+ * @net: the associated network namespace
  * @inputq: buffer list containing the buffers
  * Consumes all buffers in list until inputq is empty
  * Note: may be called in multiple threads referring to the same queue
@@ -2534,7 +2558,7 @@ static bool tipc_sockaddr_is_sane(struct sockaddr_tipc *addr)
  * @destlen: size of socket address data structure
  * @flags: file-related flags associated with socket
  *
- * Returns 0 on success, errno otherwise
+ * Return: 0 on success, errno otherwise
  */
 static int tipc_connect(struct socket *sock, struct sockaddr *dest,
 			int destlen, int flags)
@@ -2627,7 +2651,7 @@ exit:
  * @sock: socket structure
  * @len: (unused)
  *
- * Returns 0 on success, errno otherwise
+ * Return: 0 on success, errno otherwise
  */
 static int tipc_listen(struct socket *sock, int len)
 {
@@ -2679,8 +2703,9 @@ static int tipc_wait_for_accept(struct socket *sock, long timeo)
  * @sock: listening socket
  * @new_sock: new socket that is to be connected
  * @flags: file-related flags associated with socket
+ * @kern: caused by kernel or by userspace?
  *
- * Returns 0 on success, errno otherwise
+ * Return: 0 on success, errno otherwise
  */
 static int tipc_accept(struct socket *sock, struct socket *new_sock, int flags,
 		       bool kern)
@@ -2759,7 +2784,7 @@ exit:
  *
  * Terminates connection (if necessary), then purges socket's receive queue.
  *
- * Returns 0 on success, errno otherwise
+ * Return: 0 on success, errno otherwise
  */
 static int tipc_shutdown(struct socket *sock, int how)
 {
@@ -3102,7 +3127,7 @@ static int tipc_sk_leave(struct tipc_sock *tsk)
  * For stream sockets only, accepts and ignores all IPPROTO_TCP options
  * (to ease compatibility).
  *
- * Returns 0 on success, errno otherwise
+ * Return: 0 on success, errno otherwise
  */
 static int tipc_setsockopt(struct socket *sock, int lvl, int opt,
 			   sockptr_t ov, unsigned int ol)
@@ -3196,7 +3221,7 @@ static int tipc_setsockopt(struct socket *sock, int lvl, int opt,
  * For stream sockets only, returns 0 length result for all IPPROTO_TCP options
  * (to ease compatibility).
  *
- * Returns 0 on success, errno otherwise
+ * Return: 0 on success, errno otherwise
  */
 static int tipc_getsockopt(struct socket *sock, int lvl, int opt,
 			   char __user *ov, int __user *ol)
@@ -3400,7 +3425,7 @@ static struct proto tipc_proto = {
 /**
  * tipc_socket_init - initialize TIPC socket interface
  *
- * Returns 0 on success, errno otherwise
+ * Return: 0 on success, errno otherwise
  */
 int tipc_socket_init(void)
 {
@@ -3799,10 +3824,11 @@ int tipc_nl_publ_dump(struct sk_buff *skb, struct netlink_callback *cb)
 /**
  * tipc_sk_filtering - check if a socket should be traced
  * @sk: the socket to be examined
- * @sysctl_tipc_sk_filter[]: the socket tuple for filtering,
- *  (portid, sock type, name type, name lower, name upper)
  *
- * Returns true if the socket meets the socket tuple data
+ * @sysctl_tipc_sk_filter is used as the socket tuple for filtering:
+ * (portid, sock type, name type, name lower, name upper)
+ *
+ * Return: true if the socket meets the socket tuple data
  * (value 0 = 'any') or when there is no tuple set (all = 0),
  * otherwise false
  */
@@ -3867,7 +3893,7 @@ u32 tipc_sock_get_portid(struct sock *sk)
  * @sk: tipc sk to be checked
  * @skb: tipc msg to be checked
  *
- * Returns true if the socket rx queue allocation is > 90%, otherwise false
+ * Return: true if the socket rx queue allocation is > 90%, otherwise false
  */
 
 bool tipc_sk_overlimit1(struct sock *sk, struct sk_buff *skb)
@@ -3885,7 +3911,7 @@ bool tipc_sk_overlimit1(struct sock *sk, struct sk_buff *skb)
  * @sk: tipc sk to be checked
  * @skb: tipc msg to be checked
  *
- * Returns true if the socket rx queue allocation is > 90%, otherwise false
+ * Return: true if the socket rx queue allocation is > 90%, otherwise false
  */
 
 bool tipc_sk_overlimit2(struct sock *sk, struct sk_buff *skb)

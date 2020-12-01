@@ -50,6 +50,8 @@ struct distr_queue_item {
 
 /**
  * publ_to_item - add publication info to a publication message
+ * @p: publication info
+ * @i: location of item in the message
  */
 static void publ_to_item(struct distr_item *i, struct publication *p)
 {
@@ -62,6 +64,10 @@ static void publ_to_item(struct distr_item *i, struct publication *p)
 
 /**
  * named_prepare_buf - allocate & initialize a publication message
+ * @net: the associated network namespace
+ * @type: message type
+ * @size: payload size
+ * @dest: destination node
  *
  * The buffer returned is of size INT_H_SIZE + payload size
  */
@@ -83,6 +89,8 @@ static struct sk_buff *named_prepare_buf(struct net *net, u32 type, u32 size,
 
 /**
  * tipc_named_publish - tell other nodes about a new publication by this node
+ * @net: the associated network namespace
+ * @publ: the new publication
  */
 struct sk_buff *tipc_named_publish(struct net *net, struct publication *publ)
 {
@@ -111,6 +119,8 @@ struct sk_buff *tipc_named_publish(struct net *net, struct publication *publ)
 
 /**
  * tipc_named_withdraw - tell other nodes about a withdrawn publication by this node
+ * @net: the associated network namespace
+ * @publ: the withdrawn publication
  */
 struct sk_buff *tipc_named_withdraw(struct net *net, struct publication *publ)
 {
@@ -138,9 +148,11 @@ struct sk_buff *tipc_named_withdraw(struct net *net, struct publication *publ)
 
 /**
  * named_distribute - prepare name info for bulk distribution to another node
+ * @net: the associated network namespace
  * @list: list of messages (buffers) to be returned from this function
  * @dnode: node to be updated
  * @pls: linked list of publication items to be packed into buffer chain
+ * @seqno: sequence number for this message
  */
 static void named_distribute(struct net *net, struct sk_buff_head *list,
 			     u32 dnode, struct list_head *pls, u16 seqno)
@@ -194,6 +206,9 @@ static void named_distribute(struct net *net, struct sk_buff_head *list,
 
 /**
  * tipc_named_node_up - tell specified node about all publications by this node
+ * @net: the associated network namespace
+ * @dnode: destination node
+ * @capabilities: peer node's capabilities
  */
 void tipc_named_node_up(struct net *net, u32 dnode, u16 capabilities)
 {
@@ -217,6 +232,9 @@ void tipc_named_node_up(struct net *net, u32 dnode, u16 capabilities)
 
 /**
  * tipc_publ_purge - remove publication associated with a failed node
+ * @net: the associated network namespace
+ * @publ: the publication to remove
+ * @addr: failed node's address
  *
  * Invoked for each publication issued by a newly failed node.
  * Removes publication structure from name table & deletes it.
@@ -263,9 +281,13 @@ void tipc_publ_notify(struct net *net, struct list_head *nsub_list,
 /**
  * tipc_update_nametbl - try to process a nametable update and notify
  *			 subscribers
+ * @net: the associated network namespace
+ * @i: location of item in the message
+ * @node: node address
+ * @dtype: name distributor message type
  *
  * tipc_nametbl_lock must be held.
- * Returns the publication item if successful, otherwise NULL.
+ * Return: the publication item if successful, otherwise NULL.
  */
 static bool tipc_update_nametbl(struct net *net, struct distr_item *i,
 				u32 node, u32 dtype)
@@ -347,6 +369,10 @@ static struct sk_buff *tipc_named_dequeue(struct sk_buff_head *namedq,
 
 /**
  * tipc_named_rcv - process name table update messages sent by another node
+ * @net: the associated network namespace
+ * @namedq: queue to receive from
+ * @rcv_nxt: store last received seqno here
+ * @open: last bulk msg was received (FIXME)
  */
 void tipc_named_rcv(struct net *net, struct sk_buff_head *namedq,
 		    u16 *rcv_nxt, bool *open)
@@ -374,6 +400,7 @@ void tipc_named_rcv(struct net *net, struct sk_buff_head *namedq,
 
 /**
  * tipc_named_reinit - re-initialize local publications
+ * @net: the associated network namespace
  *
  * This routine is called whenever TIPC networking is enabled.
  * All name table entries published by this node are updated to reflect
