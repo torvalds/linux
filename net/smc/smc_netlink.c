@@ -23,6 +23,11 @@
 
 /* SMC_GENL generic netlink operation definition */
 static const struct genl_ops smc_gen_nl_ops[] = {
+	{
+		.cmd = SMC_NETLINK_GET_SYS_INFO,
+		/* can be retrieved by unprivileged users */
+		.dumpit = smc_nl_get_sys_info,
+	},
 };
 
 static const struct nla_policy smc_gen_nl_policy[2] = {

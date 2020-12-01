@@ -17,6 +17,15 @@
 
 extern struct genl_family smc_gen_nl_family;
 
+struct smc_nl_dmp_ctx {
+	int pos[2];
+};
+
+static inline struct smc_nl_dmp_ctx *smc_nl_dmp_ctx(struct netlink_callback *c)
+{
+	return (struct smc_nl_dmp_ctx *)c->ctx;
+}
+
 int smc_nl_init(void) __init;
 void smc_nl_exit(void);
 

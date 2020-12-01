@@ -37,11 +37,29 @@ enum {				/* SMC PNET Table commands */
 #define SMC_GENL_FAMILY_NAME		"SMC_GEN_NETLINK"
 #define SMC_GENL_FAMILY_VERSION		1
 
+/* SMC_GENL_FAMILY commands */
+enum {
+	SMC_NETLINK_GET_SYS_INFO = 1,
+};
+
 /* SMC_GENL_FAMILY top level attributes */
 enum {
 	SMC_GEN_UNSPEC,
+	SMC_GEN_SYS_INFO,		/* nest */
 	__SMC_GEN_MAX,
 	SMC_GEN_MAX = __SMC_GEN_MAX - 1
+};
+
+/* SMC_GEN_SYS_INFO attributes */
+enum {
+	SMC_NLA_SYS_UNSPEC,
+	SMC_NLA_SYS_VER,		/* u8 */
+	SMC_NLA_SYS_REL,		/* u8 */
+	SMC_NLA_SYS_IS_ISM_V2,		/* u8 */
+	SMC_NLA_SYS_LOCAL_HOST,		/* string */
+	SMC_NLA_SYS_SEID,		/* string */
+	__SMC_NLA_SYS_MAX,
+	SMC_NLA_SYS_MAX = __SMC_NLA_SYS_MAX - 1
 };
 
 #endif /* _UAPI_LINUX_SMC_H */
