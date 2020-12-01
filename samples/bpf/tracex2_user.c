@@ -116,7 +116,6 @@ static void int_exit(int sig)
 
 int main(int ac, char **argv)
 {
-	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
 	long key, next_key, value;
 	struct bpf_link *links[2];
 	struct bpf_program *prog;
@@ -124,11 +123,6 @@ int main(int ac, char **argv)
 	char filename[256];
 	int i, j = 0;
 	FILE *f;
-
-	if (setrlimit(RLIMIT_MEMLOCK, &r)) {
-		perror("setrlimit(RLIMIT_MEMLOCK)");
-		return 1;
-	}
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
 	obj = bpf_object__open_file(filename, NULL);

@@ -26,7 +26,6 @@ struct pair {
 int main(int argc, char **argv)
 {
 	int i, sock, key, fd, main_prog_fd, jmp_table_fd, hash_map_fd;
-	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
 	struct bpf_program *prog;
 	struct bpf_object *obj;
 	const char *section;
@@ -34,7 +33,6 @@ int main(int argc, char **argv)
 	FILE *f;
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
-	setrlimit(RLIMIT_MEMLOCK, &r);
 
 	obj = bpf_object__open_file(filename, NULL);
 	if (libbpf_get_error(obj)) {

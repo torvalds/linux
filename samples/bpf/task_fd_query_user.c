@@ -310,18 +310,12 @@ cleanup:
 
 int main(int argc, char **argv)
 {
-	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
 	extern char __executable_start;
 	char filename[256], buf[256];
 	__u64 uprobe_file_offset;
 	struct bpf_program *prog;
 	struct bpf_object *obj;
 	int i = 0, err = -1;
-
-	if (setrlimit(RLIMIT_MEMLOCK, &r)) {
-		perror("setrlimit(RLIMIT_MEMLOCK)");
-		return err;
-	}
 
 	if (load_kallsyms()) {
 		printf("failed to process /proc/kallsyms\n");
