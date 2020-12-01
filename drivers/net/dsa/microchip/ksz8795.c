@@ -125,7 +125,7 @@ static void ksz8795_r_mib_cnt(struct ksz_device *dev, int port, u16 addr,
 	u8 check;
 	int loop;
 
-	ctrl_addr = addr + SWITCH_COUNTER_NUM * port;
+	ctrl_addr = addr + dev->reg_mib_cnt * port;
 	ctrl_addr |= IND_ACC_TABLE(TABLE_MIB | TABLE_READ);
 
 	mutex_lock(&dev->alu_mutex);
@@ -156,7 +156,7 @@ static void ksz8795_r_mib_pkt(struct ksz_device *dev, int port, u16 addr,
 	u8 check;
 	int loop;
 
-	addr -= SWITCH_COUNTER_NUM;
+	addr -= dev->reg_mib_cnt;
 	ctrl_addr = (KS_MIB_TOTAL_RX_1 - KS_MIB_TOTAL_RX_0) * port;
 	ctrl_addr += addr + KS_MIB_TOTAL_RX_0;
 	ctrl_addr |= IND_ACC_TABLE(TABLE_MIB | TABLE_READ);
@@ -1235,7 +1235,7 @@ static int ksz8795_switch_init(struct ksz_device *dev)
 	dev->port_mask = BIT(dev->port_cnt) - 1;
 	dev->port_mask |= dev->host_mask;
 
-	dev->reg_mib_cnt = SWITCH_COUNTER_NUM;
+	dev->reg_mib_cnt = KSZ8795_COUNTER_NUM;
 	dev->mib_cnt = TOTAL_SWITCH_COUNTER_NUM;
 
 	dev->mib_port_cnt = TOTAL_PORT_NUM;
