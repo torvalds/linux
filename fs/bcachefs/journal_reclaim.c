@@ -320,11 +320,14 @@ void bch2_journal_pin_drop(struct journal *j,
 	spin_unlock(&j->lock);
 }
 
-static void bch2_journal_pin_add_locked(struct journal *j, u64 seq,
-			    struct journal_entry_pin *pin,
-			    journal_pin_flush_fn flush_fn)
+void bch2_journal_pin_set(struct journal *j, u64 seq,
+			  struct journal_entry_pin *pin,
+			  journal_pin_flush_fn flush_fn)
 {
-	struct journal_entry_pin_list *pin_list = journal_seq_pin(j, seq);
+	struct journal_entry_pin_list *pin_list;
+
+	spin_lock(&j->lock);
+	pin_list = journal_seq_pin(j, seq);
 
 	__journal_pin_drop(j, pin);
 
@@ -335,14 +338,6 @@ static void bch2_journal_pin_add_locked(struct journal *j, u64 seq,
 	pin->flush	= flush_fn;
 
 	list_add(&pin->list, flush_fn ? &pin_list->list : &pin_list->flushed);
-}
-
-void __bch2_journal_pin_add(struct journal *j, u64 seq,
-			    struct journal_entry_pin *pin,
-			    journal_pin_flush_fn flush_fn)
-{
-	spin_lock(&j->lock);
-	bch2_journal_pin_add_locked(j, seq, pin, flush_fn);
 	spin_unlock(&j->lock);
 
 	/*
@@ -350,51 +345,6 @@ void __bch2_journal_pin_add(struct journal *j, u64 seq,
 	 * immediately:
 	 */
 	journal_wake(j);
-}
-
-void bch2_journal_pin_update(struct journal *j, u64 seq,
-			     struct journal_entry_pin *pin,
-			     journal_pin_flush_fn flush_fn)
-{
-	if (journal_pin_active(pin) && pin->seq < seq)
-		return;
-
-	spin_lock(&j->lock);
-
-	if (pin->seq != seq) {
-		bch2_journal_pin_add_locked(j, seq, pin, flush_fn);
-	} else {
-		struct journal_entry_pin_list *pin_list =
-			journal_seq_pin(j, seq);
-
-		/*
-		 * If the pin is already pinning the right sequence number, it
-		 * still might've already been flushed:
-		 */
-		list_move(&pin->list, &pin_list->list);
-	}
-
-	spin_unlock(&j->lock);
-
-	/*
-	 * If the journal is currently full,  we might want to call flush_fn
-	 * immediately:
-	 */
-	journal_wake(j);
-}
-
-void bch2_journal_pin_copy(struct journal *j,
-			   struct journal_entry_pin *dst,
-			   struct journal_entry_pin *src,
-			   journal_pin_flush_fn flush_fn)
-{
-	spin_lock(&j->lock);
-
-	if (journal_pin_active(src) &&
-	    (!journal_pin_active(dst) || src->seq < dst->seq))
-		bch2_journal_pin_add_locked(j, src->seq, dst, flush_fn);
-
-	spin_unlock(&j->lock);
 }
 
 /**

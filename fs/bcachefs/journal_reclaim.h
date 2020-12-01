@@ -42,25 +42,33 @@ journal_seq_pin(struct journal *j, u64 seq)
 void bch2_journal_pin_put(struct journal *, u64);
 void bch2_journal_pin_drop(struct journal *, struct journal_entry_pin *);
 
-void __bch2_journal_pin_add(struct journal *, u64, struct journal_entry_pin *,
-			    journal_pin_flush_fn);
+void bch2_journal_pin_set(struct journal *, u64, struct journal_entry_pin *,
+			  journal_pin_flush_fn);
 
 static inline void bch2_journal_pin_add(struct journal *j, u64 seq,
 					struct journal_entry_pin *pin,
 					journal_pin_flush_fn flush_fn)
 {
 	if (unlikely(!journal_pin_active(pin) || pin->seq > seq))
-		__bch2_journal_pin_add(j, seq, pin, flush_fn);
+		bch2_journal_pin_set(j, seq, pin, flush_fn);
 }
 
-void bch2_journal_pin_update(struct journal *, u64,
-			     struct journal_entry_pin *,
-			     journal_pin_flush_fn);
+static inline void bch2_journal_pin_copy(struct journal *j,
+					 struct journal_entry_pin *dst,
+					 struct journal_entry_pin *src,
+					 journal_pin_flush_fn flush_fn)
+{
+	if (journal_pin_active(src))
+		bch2_journal_pin_add(j, src->seq, dst, flush_fn);
+}
 
-void bch2_journal_pin_copy(struct journal *,
-			   struct journal_entry_pin *,
-			   struct journal_entry_pin *,
-			   journal_pin_flush_fn);
+static inline void bch2_journal_pin_update(struct journal *j, u64 seq,
+					   struct journal_entry_pin *pin,
+					   journal_pin_flush_fn flush_fn)
+{
+	if (unlikely(!journal_pin_active(pin) || pin->seq < seq))
+		bch2_journal_pin_set(j, seq, pin, flush_fn);
+}
 
 void bch2_journal_pin_flush(struct journal *, struct journal_entry_pin *);
 
