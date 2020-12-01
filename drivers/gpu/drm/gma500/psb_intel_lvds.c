@@ -216,7 +216,7 @@ static void psb_intel_lvds_set_power(struct drm_device *dev, bool on)
 	        dev_err(dev->dev, "set power, chip off!\n");
 		return;
         }
-        
+
 	if (on) {
 		REG_WRITE(PP_CONTROL, REG_READ(PP_CONTROL) |
 			  POWER_TARGET_ON);

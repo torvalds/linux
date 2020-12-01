@@ -421,16 +421,16 @@ static int cdv_power_up(struct drm_device *dev)
 static void cdv_hotplug_work_func(struct work_struct *work)
 {
         struct drm_psb_private *dev_priv = container_of(work, struct drm_psb_private,
-							hotplug_work);                 
+							hotplug_work);
         struct drm_device *dev = dev_priv->dev;
 
         /* Just fire off a uevent and let userspace tell us what to do */
         drm_helper_hpd_irq_event(dev);
-}                       
+}
 
 /* The core driver has received a hotplug IRQ. We are in IRQ context
    so extract the needed information and kick off queued processing */
-   
+
 static int cdv_hotplug_event(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
@@ -449,7 +449,7 @@ static void cdv_hotplug_enable(struct drm_device *dev, bool on)
 	}  else {
 		REG_WRITE(PORT_HOTPLUG_EN, 0);
 		REG_WRITE(PORT_HOTPLUG_STAT, REG_READ(PORT_HOTPLUG_STAT));
-	}	
+	}
 }
 
 static const char *force_audio_names[] = {
