@@ -848,9 +848,6 @@
 
 #define TOTAL_PORT_NUM			5
 
-/* Host port can only be last of them. */
-#define SWITCH_PORT_NUM			(TOTAL_PORT_NUM - 1)
-
 #define KSZ8795_COUNTER_NUM		0x20
 
 /* Common names used by other drivers */

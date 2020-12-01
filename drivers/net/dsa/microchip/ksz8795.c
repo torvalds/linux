@@ -418,8 +418,8 @@ static void ksz8795_r_vlan_entries(struct ksz_device *dev, u16 addr)
 	int i;
 
 	ksz8795_r_table(dev, TABLE_VLAN, addr, &data);
-	addr *= 4;
-	for (i = 0; i < 4; i++) {
+	addr *= dev->phy_port_cnt;
+	for (i = 0; i < dev->phy_port_cnt; i++) {
 		dev->vlan_cache[addr + i].table[0] = (u16)data;
 		data >>= VLAN_TABLE_S;
 	}
@@ -433,7 +433,7 @@ static void ksz8795_r_vlan_table(struct ksz_device *dev, u16 vid, u16 *vlan)
 	u64 buf;
 
 	data = (u16 *)&buf;
-	addr = vid / 4;
+	addr = vid / dev->phy_port_cnt;
 	index = vid & 3;
 	ksz8795_r_table(dev, TABLE_VLAN, addr, &buf);
 	*vlan = data[index];
@@ -447,7 +447,7 @@ static void ksz8795_w_vlan_table(struct ksz_device *dev, u16 vid, u16 vlan)
 	u64 buf;
 
 	data = (u16 *)&buf;
-	addr = vid / 4;
+	addr = vid / dev->phy_port_cnt;
 	index = vid & 3;
 	ksz8795_r_table(dev, TABLE_VLAN, addr, &buf);
 	data[index] = vlan;
@@ -692,12 +692,12 @@ static void ksz8795_port_stp_state_set(struct dsa_switch *ds, int port,
 	switch (state) {
 	case BR_STATE_DISABLED:
 		data |= PORT_LEARN_DISABLE;
-		if (port < SWITCH_PORT_NUM)
+		if (port < dev->phy_port_cnt)
 			member = 0;
 		break;
 	case BR_STATE_LISTENING:
 		data |= (PORT_RX_ENABLE | PORT_LEARN_DISABLE);
-		if (port < SWITCH_PORT_NUM &&
+		if (port < dev->phy_port_cnt &&
 		    p->stp_state == BR_STATE_DISABLED)
 			member = dev->host_mask | p->vid_member;
 		break;
@@ -721,7 +721,7 @@ static void ksz8795_port_stp_state_set(struct dsa_switch *ds, int port,
 		break;
 	case BR_STATE_BLOCKING:
 		data |= PORT_LEARN_DISABLE;
-		if (port < SWITCH_PORT_NUM &&
+		if (port < dev->phy_port_cnt &&
 		    p->stp_state == BR_STATE_DISABLED)
 			member = dev->host_mask | p->vid_member;
 		break;
@@ -1006,7 +1006,7 @@ static void ksz8795_config_cpu_port(struct dsa_switch *ds)
 	ksz8795_port_setup(dev, dev->cpu_port, true);
 	dev->member = dev->host_mask;
 
-	for (i = 0; i < SWITCH_PORT_NUM; i++) {
+	for (i = 0; i < dev->phy_port_cnt; i++) {
 		p = &dev->ports[i];
 
 		/* Initialize to non-zero so that ksz_cfg_port_member() will
@@ -1017,7 +1017,7 @@ static void ksz8795_config_cpu_port(struct dsa_switch *ds)
 		ksz8795_port_stp_state_set(ds, i, BR_STATE_DISABLED);
 
 		/* Last port may be disabled. */
-		if (i == dev->port_cnt)
+		if (i == dev->phy_port_cnt)
 			break;
 		p->on = 1;
 		p->phy = 1;
@@ -1240,7 +1240,7 @@ static int ksz8795_switch_init(struct ksz_device *dev)
 	dev->mib_cnt = ARRAY_SIZE(mib_names);
 
 	dev->mib_port_cnt = TOTAL_PORT_NUM;
-	dev->phy_port_cnt = SWITCH_PORT_NUM;
+	dev->phy_port_cnt = dev->port_cnt;
 
 	dev->cpu_port = dev->mib_port_cnt - 1;
 	dev->host_mask = BIT(dev->cpu_port);
