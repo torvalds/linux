@@ -400,6 +400,20 @@
 	status = "okay";
 };
 
+&sdmmc1_b4_pins_a {
+	/*
+	 * SD bus pull-up resistors:
+	 * - optional on SoMs with SD voltage translator
+	 * - mandatory on SoMs without SD voltage translator
+	 */
+	pins1 {
+		bias-pull-up;
+	};
+	pins2 {
+		bias-pull-up;
+	};
+};
+
 &sdmmc2 {
 	pinctrl-names = "default", "opendrain", "sleep";
 	pinctrl-0 = <&sdmmc2_b4_pins_a &sdmmc2_d47_pins_a>;
