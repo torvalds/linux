@@ -30,6 +30,18 @@
 struct amdgpu_device;
 struct amdgpu_iv_entry;
 
+struct amdgpu_ih_regs {
+	uint32_t ih_rb_base;
+	uint32_t ih_rb_base_hi;
+	uint32_t ih_rb_cntl;
+	uint32_t ih_rb_wptr;
+	uint32_t ih_rb_rptr;
+	uint32_t ih_doorbell_rptr;
+	uint32_t ih_rb_wptr_addr_lo;
+	uint32_t ih_rb_wptr_addr_hi;
+	uint32_t psp_reg_id;
+};
+
 /*
  * R6xx+ IH ring
  */
@@ -53,6 +65,7 @@ struct amdgpu_ih_ring {
 	bool                    enabled;
 	unsigned		rptr;
 	atomic_t		lock;
+	struct amdgpu_ih_regs	ih_regs;
 };
 
 /* provided by the ih block */
