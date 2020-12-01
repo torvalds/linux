@@ -33,6 +33,10 @@
 				       ICP_QAT_HW_CIPHER_KEY_CONVERT, \
 				       ICP_QAT_HW_CIPHER_DECRYPT)
 
+#define HW_CAP_AES_V2(accel_dev) \
+	(GET_HW_DATA(accel_dev)->accel_capabilities_mask & \
+	 ICP_ACCEL_CAPABILITIES_AES_V2)
+
 static DEFINE_MUTEX(algs_lock);
 static unsigned int active_devs;
 
@@ -416,12 +420,23 @@ static void qat_alg_skcipher_init_com(struct qat_alg_skcipher_ctx *ctx,
 	struct icp_qat_fw_comn_req_hdr_cd_pars *cd_pars = &req->cd_pars;
 	struct icp_qat_fw_comn_req_hdr *header = &req->comn_hdr;
 	struct icp_qat_fw_cipher_cd_ctrl_hdr *cd_ctrl = (void *)&req->cd_ctrl;
+	bool aes_v2_capable = HW_CAP_AES_V2(ctx->inst->accel_dev);
+	int mode = ctx->mode;
 
-	memcpy(cd->aes.key, key, keylen);
 	qat_alg_init_common_hdr(header);
 	header->service_cmd_id = ICP_QAT_FW_LA_CMD_CIPHER;
 	cd_pars->u.s.content_desc_params_sz =
 				sizeof(struct icp_qat_hw_cipher_algo_blk) >> 3;
+
+	if (aes_v2_capable && mode == ICP_QAT_HW_CIPHER_CTR_MODE) {
+		ICP_QAT_FW_LA_SLICE_TYPE_SET(header->serv_specif_flags,
+					     ICP_QAT_FW_LA_USE_UCS_SLICE_TYPE);
+		keylen = round_up(keylen, 16);
+		memcpy(cd->ucs_aes.key, key, keylen);
+	} else {
+		memcpy(cd->aes.key, key, keylen);
+	}
+
 	/* Cipher CD config setup */
 	cd_ctrl->cipher_key_sz = keylen >> 3;
 	cd_ctrl->cipher_state_sz = AES_BLOCK_SIZE >> 3;

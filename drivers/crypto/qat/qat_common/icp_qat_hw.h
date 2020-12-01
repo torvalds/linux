@@ -65,6 +65,11 @@ struct icp_qat_hw_auth_config {
 	__u32 reserved;
 };
 
+struct icp_qat_hw_ucs_cipher_config {
+	__u32 val;
+	__u32 reserved[3];
+};
+
 enum icp_qat_slice_mask {
 	ICP_ACCEL_MASK_CIPHER_SLICE = BIT(0),
 	ICP_ACCEL_MASK_AUTH_SLICE = BIT(1),
@@ -86,6 +91,8 @@ enum icp_qat_capabilities_mask {
 	ICP_ACCEL_CAPABILITIES_RAND = BIT(7),
 	ICP_ACCEL_CAPABILITIES_ZUC = BIT(8),
 	ICP_ACCEL_CAPABILITIES_SHA3 = BIT(9),
+	/* Bits 10-25 are currently reserved */
+	ICP_ACCEL_CAPABILITIES_AES_V2 = BIT(26)
 };
 
 #define QAT_AUTH_MODE_BITPOS 4
@@ -278,7 +285,15 @@ struct icp_qat_hw_cipher_aes256_f8 {
 	__u8 key[ICP_QAT_HW_AES_256_F8_KEY_SZ];
 };
 
+struct icp_qat_hw_ucs_cipher_aes256_f8 {
+	struct icp_qat_hw_ucs_cipher_config cipher_config;
+	__u8 key[ICP_QAT_HW_AES_256_F8_KEY_SZ];
+};
+
 struct icp_qat_hw_cipher_algo_blk {
-	struct icp_qat_hw_cipher_aes256_f8 aes;
+	union {
+		struct icp_qat_hw_cipher_aes256_f8 aes;
+		struct icp_qat_hw_ucs_cipher_aes256_f8 ucs_aes;
+	};
 } __aligned(64);
 #endif
