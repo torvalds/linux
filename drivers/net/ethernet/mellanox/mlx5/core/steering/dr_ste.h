@@ -163,5 +163,6 @@ struct mlx5dr_ste_ctx {
 };
 
 extern struct mlx5dr_ste_ctx ste_ctx_v0;
+extern struct mlx5dr_ste_ctx ste_ctx_v1;
 
 #endif  /* _DR_STE_ */

@@ -1127,7 +1127,7 @@ void mlx5dr_ste_build_src_gvmi_qpn(struct mlx5dr_ste_ctx *ste_ctx,
 
 static struct mlx5dr_ste_ctx *mlx5dr_ste_ctx_arr[] = {
 	[MLX5_STEERING_FORMAT_CONNECTX_5] = &ste_ctx_v0,
-	[MLX5_STEERING_FORMAT_CONNECTX_6DX] = NULL,
+	[MLX5_STEERING_FORMAT_CONNECTX_6DX] = &ste_ctx_v1,
 };
 
 struct mlx5dr_ste_ctx *mlx5dr_ste_get_ctx(u8 version)
