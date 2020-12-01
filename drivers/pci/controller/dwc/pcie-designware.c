@@ -12,6 +12,7 @@
 #include <linux/of.h>
 #include <linux/types.h>
 
+#include "../../pci.h"
 #include "pcie-designware.h"
 
 /* PCIe Port Logic registers */
@@ -19,6 +20,45 @@
 #define PCIE_PHY_DEBUG_R1		(PLR_OFFSET + 0x2c)
 #define PCIE_PHY_DEBUG_R1_LINK_UP	(0x1 << 4)
 #define PCIE_PHY_DEBUG_R1_LINK_IN_TRAINING	(0x1 << 29)
+
+/*
+ * These interfaces resemble the pci_find_*capability() interfaces, but these
+ * are for configuring host controllers, which are bridges *to* PCI devices but
+ * are not PCI devices themselves.
+ */
+static u8 __dw_pcie_find_next_cap(struct dw_pcie *pci, u8 cap_ptr,
+				  u8 cap)
+{
+	u8 cap_id, next_cap_ptr;
+	u16 reg;
+
+	if (!cap_ptr)
+		return 0;
+
+	reg = dw_pcie_readw_dbi(pci, cap_ptr);
+	cap_id = (reg & 0x00ff);
+
+	if (cap_id > PCI_CAP_ID_MAX)
+		return 0;
+
+	if (cap_id == cap)
+		return cap_ptr;
+
+	next_cap_ptr = (reg & 0xff00) >> 8;
+	return __dw_pcie_find_next_cap(pci, next_cap_ptr, cap);
+}
+
+u8 dw_pcie_find_capability(struct dw_pcie *pci, u8 cap)
+{
+	u8 next_cap_ptr;
+	u16 reg;
+
+	reg = dw_pcie_readw_dbi(pci, PCI_CAPABILITY_LIST);
+	next_cap_ptr = (reg & 0x00ff);
+
+	return __dw_pcie_find_next_cap(pci, next_cap_ptr, cap);
+}
+EXPORT_SYMBOL_GPL(dw_pcie_find_capability);
 
 int dw_pcie_read(void __iomem *addr, int size, u32 *val)
 {
@@ -339,6 +379,42 @@ int dw_pcie_link_up(struct dw_pcie *pci)
 		(!(val & PCIE_PHY_DEBUG_R1_LINK_IN_TRAINING)));
 }
 
+static void dw_pcie_link_set_max_speed(struct dw_pcie *pci, u32 link_gen)
+{
+	u32 cap, ctrl2, link_speed;
+	u8 offset = dw_pcie_find_capability(pci, PCI_CAP_ID_EXP);
+
+	cap = dw_pcie_readl_dbi(pci, offset + PCI_EXP_LNKCAP);
+	ctrl2 = dw_pcie_readl_dbi(pci, offset + PCI_EXP_LNKCTL2);
+	ctrl2 &= ~PCI_EXP_LNKCTL2_TLS;
+
+	switch (pcie_link_speed[link_gen]) {
+	case PCIE_SPEED_2_5GT:
+		link_speed = PCI_EXP_LNKCTL2_TLS_2_5GT;
+		break;
+	case PCIE_SPEED_5_0GT:
+		link_speed = PCI_EXP_LNKCTL2_TLS_5_0GT;
+		break;
+	case PCIE_SPEED_8_0GT:
+		link_speed = PCI_EXP_LNKCTL2_TLS_8_0GT;
+		break;
+	case PCIE_SPEED_16_0GT:
+		link_speed = PCI_EXP_LNKCTL2_TLS_16_0GT;
+		break;
+	default:
+		/* Use hardware capability */
+		link_speed = FIELD_GET(PCI_EXP_LNKCAP_SLS, cap);
+		ctrl2 &= ~PCI_EXP_LNKCTL2_HASD;
+		break;
+	}
+
+	dw_pcie_writel_dbi(pci, offset + PCI_EXP_LNKCTL2, ctrl2 | link_speed);
+
+	cap &= ~((u32)PCI_EXP_LNKCAP_SLS);
+	dw_pcie_writel_dbi(pci, offset + PCI_EXP_LNKCAP, cap | link_speed);
+
+}
+
 void dw_pcie_setup(struct dw_pcie *pci)
 {
 	int ret;
@@ -346,6 +422,9 @@ void dw_pcie_setup(struct dw_pcie *pci)
 	u32 lanes;
 	struct device *dev = pci->dev;
 	struct device_node *np = dev->of_node;
+
+	if (pci->link_gen > 0)
+		dw_pcie_link_set_max_speed(pci, pci->link_gen);
 
 	ret = of_property_read_u32(np, "num-lanes", &lanes);
 	if (ret)

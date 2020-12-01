@@ -3,6 +3,7 @@
 #define DRIVERS_PCI_H
 
 #include <linux/android_kabi.h>
+#include <linux/pci.h>
 
 #define PCI_FIND_CAP_TTL	48
 
