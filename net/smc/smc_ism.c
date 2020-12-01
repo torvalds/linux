@@ -21,7 +21,7 @@ struct smcd_dev_list smcd_dev_list = {
 	.mutex = __MUTEX_INITIALIZER(smcd_dev_list.mutex)
 };
 
-bool smc_ism_v2_capable;
+static bool smc_ism_v2_capable;
 
 /* Test if an ISM communication is possible - same CPC */
 int smc_ism_cantalk(u64 peer_gid, unsigned short vlan_id, struct smcd_dev *smcd)
@@ -49,6 +49,12 @@ void smc_ism_get_system_eid(struct smcd_dev *smcd, u8 **eid)
 u16 smc_ism_get_chid(struct smcd_dev *smcd)
 {
 	return smcd->ops->get_chid(smcd);
+}
+
+/* HW supports ISM V2 and thus System EID is defined */
+bool smc_ism_is_v2_capable(void)
+{
+	return smc_ism_v2_capable;
 }
 
 /* Set a connection using this DMBE. */
