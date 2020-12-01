@@ -989,7 +989,6 @@
 #define TAIL_TAG_OVERRIDE		BIT(6)
 #define TAIL_TAG_LOOKUP			BIT(7)
 
-#define VLAN_TABLE_ENTRIES		(4096 / 4)
 #define FID_ENTRIES			128
 
 #endif

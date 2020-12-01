@@ -1084,7 +1084,7 @@ static int ksz8795_setup(struct dsa_switch *ds)
 			   (BROADCAST_STORM_VALUE *
 			   BROADCAST_STORM_PROT_RATE) / 100);
 
-	for (i = 0; i < VLAN_TABLE_ENTRIES; i++)
+	for (i = 0; i < (dev->num_vlans / 4); i++)
 		ksz8795_r_vlan_entries(dev, i);
 
 	/* Setup STP address for STP operation. */
