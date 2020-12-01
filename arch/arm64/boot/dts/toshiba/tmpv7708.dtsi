@@ -134,6 +134,12 @@
 		#clock-cells = <0>;
 	};
 
+	wdt_clk: wdt-clk {
+		compatible = "fixed-clock";
+		clock-frequency = <150000000>;
+		#clock-cells = <0>;
+	};
+
 	soc {
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -382,6 +388,12 @@
 			num-cs = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		wdt: wdt@28330000 {
+			compatible = "toshiba,visconti-wdt";
+			reg = <0 0x28330000 0 0x1000>;
 			status = "disabled";
 		};
 	};

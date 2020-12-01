@@ -41,3 +41,8 @@
 	clocks = <&uart_clk>;
 	clock-names = "apb_pclk";
 };
+
+&wdt {
+	status = "okay";
+	clocks = <&wdt_clk>;
+};
