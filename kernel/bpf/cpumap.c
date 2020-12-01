@@ -97,7 +97,7 @@ static struct bpf_map *cpu_map_alloc(union bpf_attr *attr)
 	    attr->map_flags & ~BPF_F_NUMA_NODE)
 		return ERR_PTR(-EINVAL);
 
-	cmap = kzalloc(sizeof(*cmap), GFP_USER);
+	cmap = kzalloc(sizeof(*cmap), GFP_USER | __GFP_ACCOUNT);
 	if (!cmap)
 		return ERR_PTR(-ENOMEM);
 
@@ -412,7 +412,8 @@ static int __cpu_map_load_bpf_program(struct bpf_cpu_map_entry *rcpu, int fd)
 }
 
 static struct bpf_cpu_map_entry *
-__cpu_map_entry_alloc(struct bpf_cpumap_val *value, u32 cpu, int map_id)
+__cpu_map_entry_alloc(struct bpf_map *map, struct bpf_cpumap_val *value,
+		      u32 cpu)
 {
 	int numa, err, i, fd = value->bpf_prog.fd;
 	gfp_t gfp = GFP_KERNEL | __GFP_NOWARN;
@@ -422,13 +423,13 @@ __cpu_map_entry_alloc(struct bpf_cpumap_val *value, u32 cpu, int map_id)
 	/* Have map->numa_node, but choose node of redirect target CPU */
 	numa = cpu_to_node(cpu);
 
-	rcpu = kzalloc_node(sizeof(*rcpu), gfp, numa);
+	rcpu = bpf_map_kmalloc_node(map, sizeof(*rcpu), gfp | __GFP_ZERO, numa);
 	if (!rcpu)
 		return NULL;
 
 	/* Alloc percpu bulkq */
-	rcpu->bulkq = __alloc_percpu_gfp(sizeof(*rcpu->bulkq),
-					 sizeof(void *), gfp);
+	rcpu->bulkq = bpf_map_alloc_percpu(map, sizeof(*rcpu->bulkq),
+					   sizeof(void *), gfp);
 	if (!rcpu->bulkq)
 		goto free_rcu;
 
@@ -438,7 +439,8 @@ __cpu_map_entry_alloc(struct bpf_cpumap_val *value, u32 cpu, int map_id)
 	}
 
 	/* Alloc queue */
-	rcpu->queue = kzalloc_node(sizeof(*rcpu->queue), gfp, numa);
+	rcpu->queue = bpf_map_kmalloc_node(map, sizeof(*rcpu->queue), gfp,
+					   numa);
 	if (!rcpu->queue)
 		goto free_bulkq;
 
@@ -447,7 +449,7 @@ __cpu_map_entry_alloc(struct bpf_cpumap_val *value, u32 cpu, int map_id)
 		goto free_queue;
 
 	rcpu->cpu    = cpu;
-	rcpu->map_id = map_id;
+	rcpu->map_id = map->id;
 	rcpu->value.qsize  = value->qsize;
 
 	if (fd > 0 && __cpu_map_load_bpf_program(rcpu, fd))
@@ -455,7 +457,8 @@ __cpu_map_entry_alloc(struct bpf_cpumap_val *value, u32 cpu, int map_id)
 
 	/* Setup kthread */
 	rcpu->kthread = kthread_create_on_node(cpu_map_kthread_run, rcpu, numa,
-					       "cpumap/%d/map:%d", cpu, map_id);
+					       "cpumap/%d/map:%d", cpu,
+					       map->id);
 	if (IS_ERR(rcpu->kthread))
 		goto free_prog;
 
@@ -571,7 +574,7 @@ static int cpu_map_update_elem(struct bpf_map *map, void *key, void *value,
 		rcpu = NULL; /* Same as deleting */
 	} else {
 		/* Updating qsize cause re-allocation of bpf_cpu_map_entry */
-		rcpu = __cpu_map_entry_alloc(&cpumap_value, key_cpu, map->id);
+		rcpu = __cpu_map_entry_alloc(map, &cpumap_value, key_cpu);
 		if (!rcpu)
 			return -ENOMEM;
 		rcpu->cmap = cmap;
