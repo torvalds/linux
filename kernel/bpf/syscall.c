@@ -268,6 +268,10 @@ static int bpf_map_copy_value(struct bpf_map *map, void *key, void *value,
 	return err;
 }
 
+/* Please, do not use this function outside from the map creation path
+ * (e.g. in map update path) without taking care of setting the active
+ * memory cgroup (see at bpf_map_kmalloc_node() for example).
+ */
 static void *__bpf_map_area_alloc(u64 size, int numa_node, bool mmapable)
 {
 	/* We really just want to fail instead of triggering OOM killer
@@ -280,7 +284,7 @@ static void *__bpf_map_area_alloc(u64 size, int numa_node, bool mmapable)
 	 * __GFP_RETRY_MAYFAIL to avoid such situations.
 	 */
 
-	const gfp_t gfp = __GFP_NOWARN | __GFP_ZERO;
+	const gfp_t gfp = __GFP_NOWARN | __GFP_ZERO | __GFP_ACCOUNT;
 	unsigned int flags = 0;
 	unsigned long align = 1;
 	void *area;
