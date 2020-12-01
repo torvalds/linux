@@ -5,3 +5,8 @@
  */
 
 #include "mstar-infinity2m.dtsi"
+
+&smpctrl {
+	compatible = "sstar,ssd201-smpctrl", "mstar,smpctrl";
+	status = "okay";
+};
