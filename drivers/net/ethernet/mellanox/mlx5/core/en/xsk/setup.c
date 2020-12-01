@@ -48,14 +48,11 @@ int mlx5e_open_xsk(struct mlx5e_priv *priv, struct mlx5e_params *params,
 		   struct mlx5e_xsk_param *xsk, struct xsk_buff_pool *pool,
 		   struct mlx5e_channel *c)
 {
-	struct mlx5e_create_cq_param ccp = {};
 	struct mlx5e_channel_param *cparam;
+	struct mlx5e_create_cq_param ccp;
 	int err;
 
-	ccp.napi = &c->napi;
-	ccp.ch_stats = c->stats;
-	ccp.node = cpu_to_node(c->cpu);
-	ccp.ix = c->ix;
+	mlx5e_build_create_cq_param(&ccp, c);
 
 	if (!mlx5e_validate_xsk_param(params, xsk, priv->mdev))
 		return -EINVAL;

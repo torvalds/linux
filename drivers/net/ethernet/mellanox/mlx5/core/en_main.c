@@ -1806,18 +1806,25 @@ static int mlx5e_set_tx_maxrate(struct net_device *dev, int index, u32 rate)
 	return err;
 }
 
+void mlx5e_build_create_cq_param(struct mlx5e_create_cq_param *ccp, struct mlx5e_channel *c)
+{
+	*ccp = (struct mlx5e_create_cq_param) {
+		.napi = &c->napi,
+		.ch_stats = c->stats,
+		.node = cpu_to_node(c->cpu),
+		.ix = c->ix,
+	};
+}
+
 static int mlx5e_open_queues(struct mlx5e_channel *c,
 			     struct mlx5e_params *params,
 			     struct mlx5e_channel_param *cparam)
 {
 	struct dim_cq_moder icocq_moder = {0, 0};
-	struct mlx5e_create_cq_param ccp = {};
+	struct mlx5e_create_cq_param ccp;
 	int err;
 
-	ccp.napi = &c->napi;
-	ccp.ch_stats = c->stats;
-	ccp.node = cpu_to_node(c->cpu);
-	ccp.ix = c->ix;
+	mlx5e_build_create_cq_param(&ccp, c);
 
 	err = mlx5e_open_cq(c->priv, icocq_moder, &cparam->icosq.cqp, &ccp,
 			    &c->async_icosq.cq);

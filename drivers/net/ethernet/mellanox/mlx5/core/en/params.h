@@ -111,6 +111,7 @@ u16 mlx5e_get_rq_headroom(struct mlx5_core_dev *mdev,
 
 /* Build queue parameters */
 
+void mlx5e_build_create_cq_param(struct mlx5e_create_cq_param *ccp, struct mlx5e_channel *c);
 void mlx5e_build_rq_param(struct mlx5e_priv *priv,
 			  struct mlx5e_params *params,
 			  struct mlx5e_xsk_param *xsk,
