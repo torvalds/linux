@@ -129,136 +129,6 @@ force_update_wptr_for_self_int(struct amdgpu_device *adev,
 }
 
 /**
- * navi10_ih_enable_interrupts - Enable the interrupt ring buffer
- *
- * @adev: amdgpu_device pointer
- *
- * Enable the interrupt ring buffer (NAVI10).
- */
-static void navi10_ih_enable_interrupts(struct amdgpu_device *adev)
-{
-	u32 ih_rb_cntl = RREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL);
-
-	ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL, RB_ENABLE, 1);
-	ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL, ENABLE_INTR, 1);
-	if (amdgpu_sriov_vf(adev) && adev->asic_type < CHIP_NAVI10) {
-		if (psp_reg_program(&adev->psp, PSP_REG_IH_RB_CNTL, ih_rb_cntl)) {
-			DRM_ERROR("PSP program IH_RB_CNTL failed!\n");
-			return;
-		}
-	} else {
-		WREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL, ih_rb_cntl);
-	}
-
-	adev->irq.ih.enabled = true;
-
-	if (adev->irq.ih1.ring_size) {
-		ih_rb_cntl = RREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL_RING1);
-		ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL_RING1,
-					   RB_ENABLE, 1);
-		if (amdgpu_sriov_vf(adev) && adev->asic_type < CHIP_NAVI10) {
-			if (psp_reg_program(&adev->psp, PSP_REG_IH_RB_CNTL_RING1,
-						ih_rb_cntl)) {
-				DRM_ERROR("program IH_RB_CNTL_RING1 failed!\n");
-				return;
-			}
-		} else {
-			WREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL_RING1, ih_rb_cntl);
-		}
-		adev->irq.ih1.enabled = true;
-	}
-
-	if (adev->irq.ih2.ring_size) {
-		ih_rb_cntl = RREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL_RING2);
-		ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL_RING2,
-					   RB_ENABLE, 1);
-		if (amdgpu_sriov_vf(adev) && adev->asic_type < CHIP_NAVI10) {
-			if (psp_reg_program(&adev->psp, PSP_REG_IH_RB_CNTL_RING2,
-						ih_rb_cntl)) {
-				DRM_ERROR("program IH_RB_CNTL_RING2 failed!\n");
-				return;
-			}
-		} else {
-			WREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL_RING2, ih_rb_cntl);
-		}
-		adev->irq.ih2.enabled = true;
-	}
-
-	if (adev->irq.ih_soft.ring_size)
-		adev->irq.ih_soft.enabled = true;
-}
-
-/**
- * navi10_ih_disable_interrupts - Disable the interrupt ring buffer
- *
- * @adev: amdgpu_device pointer
- *
- * Disable the interrupt ring buffer (NAVI10).
- */
-static void navi10_ih_disable_interrupts(struct amdgpu_device *adev)
-{
-	u32 ih_rb_cntl = RREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL);
-
-	ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL, RB_ENABLE, 0);
-	ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL, ENABLE_INTR, 0);
-	if (amdgpu_sriov_vf(adev) && adev->asic_type < CHIP_NAVI10) {
-		if (psp_reg_program(&adev->psp, PSP_REG_IH_RB_CNTL, ih_rb_cntl)) {
-			DRM_ERROR("PSP program IH_RB_CNTL failed!\n");
-			return;
-		}
-	} else {
-		WREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL, ih_rb_cntl);
-	}
-
-	/* set rptr, wptr to 0 */
-	WREG32_SOC15(OSSSYS, 0, mmIH_RB_RPTR, 0);
-	WREG32_SOC15(OSSSYS, 0, mmIH_RB_WPTR, 0);
-	adev->irq.ih.enabled = false;
-	adev->irq.ih.rptr = 0;
-
-	if (adev->irq.ih1.ring_size) {
-		ih_rb_cntl = RREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL_RING1);
-		ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL_RING1,
-					   RB_ENABLE, 0);
-		if (amdgpu_sriov_vf(adev) && adev->asic_type < CHIP_NAVI10) {
-			if (psp_reg_program(&adev->psp, PSP_REG_IH_RB_CNTL_RING1,
-						ih_rb_cntl)) {
-				DRM_ERROR("program IH_RB_CNTL_RING1 failed!\n");
-				return;
-			}
-		} else {
-			WREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL_RING1, ih_rb_cntl);
-		}
-		/* set rptr, wptr to 0 */
-		WREG32_SOC15(OSSSYS, 0, mmIH_RB_RPTR_RING1, 0);
-		WREG32_SOC15(OSSSYS, 0, mmIH_RB_WPTR_RING1, 0);
-		adev->irq.ih1.enabled = false;
-		adev->irq.ih1.rptr = 0;
-	}
-
-	if (adev->irq.ih2.ring_size) {
-		ih_rb_cntl = RREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL_RING2);
-		ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL_RING2,
-					   RB_ENABLE, 0);
-		if (amdgpu_sriov_vf(adev) && adev->asic_type < CHIP_NAVI10) {
-			if (psp_reg_program(&adev->psp, PSP_REG_IH_RB_CNTL_RING2,
-						ih_rb_cntl)) {
-				DRM_ERROR("program IH_RB_CNTL_RING2 failed!\n");
-				return;
-			}
-		} else {
-			WREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL_RING2, ih_rb_cntl);
-		}
-		/* set rptr, wptr to 0 */
-		WREG32_SOC15(OSSSYS, 0, mmIH_RB_RPTR_RING2, 0);
-		WREG32_SOC15(OSSSYS, 0, mmIH_RB_WPTR_RING2, 0);
-		adev->irq.ih2.enabled = false;
-		adev->irq.ih2.rptr = 0;
-	}
-
-}
-
-/**
  * navi10_ih_toggle_ring_interrupts - toggle the interrupt ring buffer
  *
  * @adev: amdgpu_device pointer
@@ -298,6 +168,31 @@ static int navi10_ih_toggle_ring_interrupts(struct amdgpu_device *adev,
 		WREG32(ih_regs->ih_rb_wptr, 0);
 		ih->enabled = false;
 		ih->rptr = 0;
+	}
+
+	return 0;
+}
+
+/**
+ * navi10_ih_toggle_interrupts - Toggle all the available interrupt ring buffers
+ *
+ * @adev: amdgpu_device pointer
+ * @enable: enable or disable interrupt ring buffers
+ *
+ * Toggle all the available interrupt ring buffers (NAVI10).
+ */
+static int navi10_ih_toggle_interrupts(struct amdgpu_device *adev, bool enable)
+{
+	struct amdgpu_ih_ring *ih[] = {&adev->irq.ih, &adev->irq.ih1, &adev->irq.ih2};
+	int i;
+	int r;
+
+	for (i = 0; i < ARRAY_SIZE(ih); i++) {
+		if (ih[i]->ring_size) {
+			r = navi10_ih_toggle_ring_interrupts(adev, ih[i], enable);
+			if (r)
+				return r;
+		}
 	}
 
 	return 0;
@@ -431,9 +326,12 @@ static int navi10_ih_irq_init(struct amdgpu_device *adev)
 	struct amdgpu_ih_ring *ih = &adev->irq.ih;
 	u32 ih_rb_cntl, ih_chicken;
 	u32 tmp;
+	int ret;
 
 	/* disable irqs */
-	navi10_ih_disable_interrupts(adev);
+	ret = navi10_ih_toggle_interrupts(adev, false);
+	if (ret)
+		return ret;
 
 	adev->nbio.funcs->ih_control(adev);
 
@@ -562,7 +460,9 @@ static int navi10_ih_irq_init(struct amdgpu_device *adev)
 	pci_set_master(adev->pdev);
 
 	/* enable interrupts */
-	navi10_ih_enable_interrupts(adev);
+	ret = navi10_ih_toggle_interrupts(adev, true);
+	if (ret)
+		return ret;
 	/* enable wptr force update for self int */
 	force_update_wptr_for_self_int(adev, 0, 8, true);
 
@@ -579,7 +479,7 @@ static int navi10_ih_irq_init(struct amdgpu_device *adev)
 static void navi10_ih_irq_disable(struct amdgpu_device *adev)
 {
 	force_update_wptr_for_self_int(adev, 0, 8, false);
-	navi10_ih_disable_interrupts(adev);
+	navi10_ih_toggle_interrupts(adev, false);
 
 	/* Wait and acknowledge irq */
 	mdelay(1);
