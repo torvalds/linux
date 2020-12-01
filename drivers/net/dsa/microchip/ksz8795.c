@@ -761,7 +761,7 @@ static void ksz8795_flush_dyn_mac_table(struct ksz_device *dev, int port)
 	} else {
 		/* Flush all ports. */
 		first = 0;
-		cnt = dev->mib_port_cnt;
+		cnt = dev->port_cnt;
 	}
 	for (index = first; index < cnt; index++) {
 		p = &dev->ports[index];
@@ -1237,18 +1237,17 @@ static int ksz8795_switch_init(struct ksz_device *dev)
 	dev->reg_mib_cnt = KSZ8795_COUNTER_NUM;
 	dev->mib_cnt = ARRAY_SIZE(mib_names);
 
-	dev->mib_port_cnt = TOTAL_PORT_NUM;
 	dev->phy_port_cnt = dev->port_cnt - 1;
 
-	dev->cpu_port = dev->mib_port_cnt - 1;
+	dev->cpu_port = dev->port_cnt - 1;
 	dev->host_mask = BIT(dev->cpu_port);
 
-	i = dev->mib_port_cnt;
-	dev->ports = devm_kzalloc(dev->dev, sizeof(struct ksz_port) * i,
+	dev->ports = devm_kzalloc(dev->dev,
+				  dev->port_cnt * sizeof(struct ksz_port),
 				  GFP_KERNEL);
 	if (!dev->ports)
 		return -ENOMEM;
-	for (i = 0; i < dev->mib_port_cnt; i++) {
+	for (i = 0; i < dev->port_cnt; i++) {
 		mutex_init(&dev->ports[i].mib.cnt_mutex);
 		dev->ports[i].mib.counters =
 			devm_kzalloc(dev->dev,
