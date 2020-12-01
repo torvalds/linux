@@ -62,6 +62,9 @@ static void free_sdei_stacks(void)
 {
 	int cpu;
 
+	if (!IS_ENABLED(CONFIG_VMAP_STACK))
+		return;
+
 	for_each_possible_cpu(cpu) {
 		_free_sdei_stack(&sdei_stack_normal_ptr, cpu);
 		_free_sdei_stack(&sdei_stack_critical_ptr, cpu);
@@ -84,6 +87,9 @@ static int init_sdei_stacks(void)
 {
 	int cpu;
 	int err = 0;
+
+	if (!IS_ENABLED(CONFIG_VMAP_STACK))
+		return 0;
 
 	for_each_possible_cpu(cpu) {
 		err = _init_sdei_stack(&sdei_stack_normal_ptr, cpu);
@@ -137,6 +143,9 @@ static int init_sdei_scs(void)
 {
 	int cpu;
 	int err = 0;
+
+	if (!IS_ENABLED(CONFIG_SHADOW_CALL_STACK))
+		return 0;
 
 	for_each_possible_cpu(cpu) {
 		err = _init_sdei_scs(&sdei_shadow_call_stack_normal_ptr, cpu);
@@ -193,21 +202,14 @@ unsigned long sdei_arch_get_entry_point(int conduit)
 	 */
 	if (is_hyp_mode_available() && !is_kernel_in_hyp_mode()) {
 		pr_err("Not supported on this hardware/boot configuration\n");
-		return 0;
+		goto out_err;
 	}
 
-	if (IS_ENABLED(CONFIG_VMAP_STACK)) {
-		if (init_sdei_stacks())
-			return 0;
-	}
+	if (init_sdei_stacks())
+		goto out_err;
 
-	if (IS_ENABLED(CONFIG_SHADOW_CALL_STACK)) {
-		if (init_sdei_scs()) {
-			if (IS_ENABLED(CONFIG_VMAP_STACK))
-				free_sdei_stacks();
-			return 0;
-		}
-	}
+	if (init_sdei_scs())
+		goto out_err_free_stacks;
 
 	sdei_exit_mode = (conduit == SMCCC_CONDUIT_HVC) ? SDEI_EXIT_HVC : SDEI_EXIT_SMC;
 
@@ -222,6 +224,10 @@ unsigned long sdei_arch_get_entry_point(int conduit)
 #endif /* CONFIG_UNMAP_KERNEL_AT_EL0 */
 		return (unsigned long)__sdei_asm_handler;
 
+out_err_free_stacks:
+	free_sdei_stacks();
+out_err:
+	return 0;
 }
 
 /*
