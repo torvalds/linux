@@ -503,7 +503,7 @@ static int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 {
 	struct mlx5e_mpw_info *wi = &rq->mpwqe.info[ix];
 	struct mlx5e_dma_info *dma_info = &wi->umr.dma_info[0];
-	struct mlx5e_icosq *sq = &rq->channel->icosq;
+	struct mlx5e_icosq *sq = rq->icosq;
 	struct mlx5_wq_cyc *wq = &sq->wq;
 	struct mlx5e_umr_wqe *umr_wqe;
 	u16 xlt_offset = ix << (MLX5E_LOG_ALIGNED_MPWQE_PPW - 1);
@@ -713,9 +713,9 @@ int mlx5e_poll_ico_cq(struct mlx5e_cq *cq)
 
 INDIRECT_CALLABLE_SCOPE bool mlx5e_post_rx_mpwqes(struct mlx5e_rq *rq)
 {
-	struct mlx5e_icosq *sq = &rq->channel->icosq;
 	struct mlx5_wq_ll *wq = &rq->mpwqe.wq;
 	u8  umr_completed = rq->mpwqe.umr_completed;
+	struct mlx5e_icosq *sq = rq->icosq;
 	int alloc_err = 0;
 	u8  missing, i;
 	u16 head;
@@ -1218,11 +1218,12 @@ mlx5e_skb_from_cqe_nonlinear(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe,
 static void trigger_report(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe)
 {
 	struct mlx5_err_cqe *err_cqe = (struct mlx5_err_cqe *)cqe;
+	struct mlx5e_priv *priv = rq->priv;
 
 	if (cqe_syndrome_needs_recover(err_cqe->syndrome) &&
 	    !test_and_set_bit(MLX5E_RQ_STATE_RECOVERING, &rq->state)) {
 		mlx5e_dump_error_cqe(&rq->cq, rq->rqn, err_cqe);
-		queue_work(rq->channel->priv->wq, &rq->recover_work);
+		queue_work(priv->wq, &rq->recover_work);
 	}
 }
 
@@ -1771,8 +1772,9 @@ wq_free_wqe:
 
 int mlx5e_rq_set_handlers(struct mlx5e_rq *rq, struct mlx5e_params *params, bool xsk)
 {
+	struct net_device *netdev = rq->netdev;
 	struct mlx5_core_dev *mdev = rq->mdev;
-	struct mlx5e_channel *c = rq->channel;
+	struct mlx5e_priv *priv = rq->priv;
 
 	switch (rq->wq_type) {
 	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
@@ -1784,15 +1786,15 @@ int mlx5e_rq_set_handlers(struct mlx5e_rq *rq, struct mlx5e_params *params, bool
 		rq->post_wqes = mlx5e_post_rx_mpwqes;
 		rq->dealloc_wqe = mlx5e_dealloc_rx_mpwqe;
 
-		rq->handle_rx_cqe = c->priv->profile->rx_handlers->handle_rx_cqe_mpwqe;
+		rq->handle_rx_cqe = priv->profile->rx_handlers->handle_rx_cqe_mpwqe;
 #ifdef CONFIG_MLX5_EN_IPSEC
 		if (MLX5_IPSEC_DEV(mdev)) {
-			netdev_err(c->netdev, "MPWQE RQ with IPSec offload not supported\n");
+			netdev_err(netdev, "MPWQE RQ with IPSec offload not supported\n");
 			return -EINVAL;
 		}
 #endif
 		if (!rq->handle_rx_cqe) {
-			netdev_err(c->netdev, "RX handler of MPWQE RQ is not set\n");
+			netdev_err(netdev, "RX handler of MPWQE RQ is not set\n");
 			return -EINVAL;
 		}
 		break;
@@ -1807,13 +1809,13 @@ int mlx5e_rq_set_handlers(struct mlx5e_rq *rq, struct mlx5e_params *params, bool
 
 #ifdef CONFIG_MLX5_EN_IPSEC
 		if ((mlx5_fpga_ipsec_device_caps(mdev) & MLX5_ACCEL_IPSEC_CAP_DEVICE) &&
-		    c->priv->ipsec)
+		    priv->ipsec)
 			rq->handle_rx_cqe = mlx5e_ipsec_handle_rx_cqe;
 		else
 #endif
-			rq->handle_rx_cqe = c->priv->profile->rx_handlers->handle_rx_cqe;
+			rq->handle_rx_cqe = priv->profile->rx_handlers->handle_rx_cqe;
 		if (!rq->handle_rx_cqe) {
-			netdev_err(c->netdev, "RX handler of RQ is not set\n");
+			netdev_err(netdev, "RX handler of RQ is not set\n");
 			return -EINVAL;
 		}
 	}

@@ -412,9 +412,10 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 	rq->wq_type = params->rq_wq_type;
 	rq->pdev    = c->pdev;
 	rq->netdev  = c->netdev;
+	rq->priv    = c->priv;
 	rq->tstamp  = c->tstamp;
 	rq->clock   = &mdev->clock;
-	rq->channel = c;
+	rq->icosq   = &c->icosq;
 	rq->ix      = c->ix;
 	rq->mdev    = mdev;
 	rq->hw_mtu  = MLX5E_SW2HW_MTU(params, params->sw_mtu);
@@ -617,7 +618,7 @@ static void mlx5e_free_rq(struct mlx5e_rq *rq)
 	int i;
 
 	old_prog = rcu_dereference_protected(rq->xdp_prog,
-					     lockdep_is_held(&rq->channel->priv->state_lock));
+					     lockdep_is_held(&rq->priv->state_lock));
 	if (old_prog)
 		bpf_prog_put(old_prog);
 
@@ -717,9 +718,7 @@ int mlx5e_modify_rq_state(struct mlx5e_rq *rq, int curr_state, int next_state)
 
 static int mlx5e_modify_rq_scatter_fcs(struct mlx5e_rq *rq, bool enable)
 {
-	struct mlx5e_channel *c = rq->channel;
-	struct mlx5e_priv *priv = c->priv;
-	struct mlx5_core_dev *mdev = priv->mdev;
+	struct mlx5_core_dev *mdev = rq->mdev;
 
 	void *in;
 	void *rqc;
@@ -748,8 +747,7 @@ static int mlx5e_modify_rq_scatter_fcs(struct mlx5e_rq *rq, bool enable)
 
 static int mlx5e_modify_rq_vsd(struct mlx5e_rq *rq, bool vsd)
 {
-	struct mlx5e_channel *c = rq->channel;
-	struct mlx5_core_dev *mdev = c->mdev;
+	struct mlx5_core_dev *mdev = rq->mdev;
 	void *in;
 	void *rqc;
 	int inlen;
@@ -783,7 +781,6 @@ static void mlx5e_destroy_rq(struct mlx5e_rq *rq)
 int mlx5e_wait_for_min_rx_wqes(struct mlx5e_rq *rq, int wait_time)
 {
 	unsigned long exp_time = jiffies + msecs_to_jiffies(wait_time);
-	struct mlx5e_channel *c = rq->channel;
 
 	u16 min_wqes = mlx5_min_rx_wqes(rq->wq_type, mlx5e_rqwq_get_size(rq));
 
@@ -794,8 +791,8 @@ int mlx5e_wait_for_min_rx_wqes(struct mlx5e_rq *rq, int wait_time)
 		msleep(20);
 	} while (time_before(jiffies, exp_time));
 
-	netdev_warn(c->netdev, "Failed to get min RX wqes on Channel[%d] RQN[0x%x] wq cur_sz(%d) min_rx_wqes(%d)\n",
-		    c->ix, rq->rqn, mlx5e_rqwq_get_cur_sz(rq), min_wqes);
+	netdev_warn(rq->netdev, "Failed to get min RX wqes on Channel[%d] RQN[0x%x] wq cur_sz(%d) min_rx_wqes(%d)\n",
+		    rq->ix, rq->rqn, mlx5e_rqwq_get_cur_sz(rq), min_wqes);
 
 	mlx5e_reporter_rx_timeout(rq);
 	return -ETIMEDOUT;
@@ -910,7 +907,7 @@ err_free_rq:
 void mlx5e_activate_rq(struct mlx5e_rq *rq)
 {
 	set_bit(MLX5E_RQ_STATE_ENABLED, &rq->state);
-	mlx5e_trigger_irq(&rq->channel->icosq);
+	mlx5e_trigger_irq(rq->icosq);
 }
 
 void mlx5e_deactivate_rq(struct mlx5e_rq *rq)
@@ -922,7 +919,7 @@ void mlx5e_deactivate_rq(struct mlx5e_rq *rq)
 void mlx5e_close_rq(struct mlx5e_rq *rq)
 {
 	cancel_work_sync(&rq->dim.work);
-	cancel_work_sync(&rq->channel->icosq.recover_work);
+	cancel_work_sync(&rq->icosq->recover_work);
 	cancel_work_sync(&rq->recover_work);
 	mlx5e_destroy_rq(rq);
 	mlx5e_free_rx_descs(rq);
@@ -4411,7 +4408,7 @@ static void mlx5e_rq_replace_xdp_prog(struct mlx5e_rq *rq, struct bpf_prog *prog
 	struct bpf_prog *old_prog;
 
 	old_prog = rcu_replace_pointer(rq->xdp_prog, prog,
-				       lockdep_is_held(&rq->channel->priv->state_lock));
+				       lockdep_is_held(&rq->priv->state_lock));
 	if (old_prog)
 		bpf_prog_put(old_prog);
 }

@@ -43,7 +43,8 @@ struct mlx5e_err_ctx {
 };
 
 int mlx5e_health_sq_to_ready(struct mlx5e_channel *channel, u32 sqn);
-int mlx5e_health_channel_eq_recover(struct mlx5_eq_comp *eq, struct mlx5e_channel *channel);
+int mlx5e_health_channel_eq_recover(struct net_device *dev, struct mlx5_eq_comp *eq,
+				    struct mlx5e_ch_stats *stats);
 int mlx5e_health_recover_channels(struct mlx5e_priv *priv);
 int mlx5e_health_report(struct mlx5e_priv *priv,
 			struct devlink_health_reporter *reporter, char *err_str,

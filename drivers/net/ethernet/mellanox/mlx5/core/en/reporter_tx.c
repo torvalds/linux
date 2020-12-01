@@ -100,7 +100,7 @@ static int mlx5e_tx_reporter_timeout_recover(void *ctx)
 	sq = to_ctx->sq;
 	eq = sq->cq.mcq.eq;
 	priv = sq->channel->priv;
-	err = mlx5e_health_channel_eq_recover(eq, sq->channel);
+	err = mlx5e_health_channel_eq_recover(sq->channel->netdev, eq, sq->channel->stats);
 	if (!err) {
 		to_ctx->status = 0; /* this sq recovered */
 		return err;
