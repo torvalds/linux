@@ -601,7 +601,7 @@ static int sx9310_read_thresh(struct sx9310_data *data,
 		return ret;
 
 	regval = FIELD_GET(SX9310_REG_PROX_CTRL8_9_PTHRESH_MASK, regval);
-	if (regval > ARRAY_SIZE(sx9310_pthresh_codes))
+	if (regval >= ARRAY_SIZE(sx9310_pthresh_codes))
 		return -EINVAL;
 
 	*val = sx9310_pthresh_codes[regval];
