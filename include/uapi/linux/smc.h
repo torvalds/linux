@@ -42,6 +42,7 @@ enum {
 	SMC_NETLINK_GET_SYS_INFO = 1,
 	SMC_NETLINK_GET_LGR_SMCR,
 	SMC_NETLINK_GET_LINK_SMCR,
+	SMC_NETLINK_GET_LGR_SMCD,
 };
 
 /* SMC_GENL_FAMILY top level attributes */
@@ -50,6 +51,7 @@ enum {
 	SMC_GEN_SYS_INFO,		/* nest */
 	SMC_GEN_LGR_SMCR,		/* nest */
 	SMC_GEN_LINK_SMCR,		/* nest */
+	SMC_GEN_LGR_SMCD,		/* nest */
 	__SMC_GEN_MAX,
 	SMC_GEN_MAX = __SMC_GEN_MAX - 1
 };
@@ -64,6 +66,15 @@ enum {
 	SMC_NLA_SYS_SEID,		/* string */
 	__SMC_NLA_SYS_MAX,
 	SMC_NLA_SYS_MAX = __SMC_NLA_SYS_MAX - 1
+};
+
+/* SMC_NLA_LGR_V2 nested attributes */
+enum {
+	SMC_NLA_LGR_V2_VER,		/* u8 */
+	SMC_NLA_LGR_V2_REL,		/* u8 */
+	SMC_NLA_LGR_V2_OS,		/* u8 */
+	SMC_NLA_LGR_V2_NEG_EID,		/* string */
+	SMC_NLA_LGR_V2_PEER_HOST,	/* string */
 };
 
 /* SMC_GEN_LGR_SMCR attributes */
@@ -94,5 +105,21 @@ enum {
 	SMC_NLA_LINK_STATE,		/* u32 */
 	__SMC_NLA_LINK_MAX,
 	SMC_NLA_LINK_MAX = __SMC_NLA_LINK_MAX - 1
+};
+
+/* SMC_GEN_LGR_SMCD attributes */
+enum {
+	SMC_NLA_LGR_D_UNSPEC,
+	SMC_NLA_LGR_D_ID,		/* u32 */
+	SMC_NLA_LGR_D_GID,		/* u64 */
+	SMC_NLA_LGR_D_PEER_GID,		/* u64 */
+	SMC_NLA_LGR_D_VLAN_ID,		/* u8 */
+	SMC_NLA_LGR_D_CONNS_NUM,	/* u32 */
+	SMC_NLA_LGR_D_PNETID,		/* string */
+	SMC_NLA_LGR_D_CHID,		/* u16 */
+	SMC_NLA_LGR_D_PAD,		/* flag */
+	SMC_NLA_LGR_V2,			/* nest */
+	__SMC_NLA_LGR_D_MAX,
+	SMC_NLA_LGR_D_MAX = __SMC_NLA_LGR_D_MAX - 1
 };
 #endif /* _UAPI_LINUX_SMC_H */

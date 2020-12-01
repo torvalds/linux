@@ -38,6 +38,11 @@ static const struct genl_ops smc_gen_nl_ops[] = {
 		/* can be retrieved by unprivileged users */
 		.dumpit = smcr_nl_get_link,
 	},
+	{
+		.cmd = SMC_NETLINK_GET_LGR_SMCD,
+		/* can be retrieved by unprivileged users */
+		.dumpit = smcd_nl_get_lgr,
+	},
 };
 
 static const struct nla_policy smc_gen_nl_policy[2] = {
