@@ -339,12 +339,14 @@ static ssize_t v4l2_write(struct file *filp, const char __user *buf,
 static __poll_t v4l2_poll(struct file *filp, struct poll_table_struct *poll)
 {
 	struct video_device *vdev = video_devdata(filp);
-	__poll_t res = EPOLLERR | EPOLLHUP;
+	__poll_t res = EPOLLERR | EPOLLHUP | EPOLLPRI;
 
-	if (!vdev->fops->poll)
-		return DEFAULT_POLLMASK;
-	if (video_is_registered(vdev))
-		res = vdev->fops->poll(filp, poll);
+	if (video_is_registered(vdev)) {
+		if (!vdev->fops->poll)
+			res = DEFAULT_POLLMASK;
+		else
+			res = vdev->fops->poll(filp, poll);
+	}
 	if (vdev->dev_debug & V4L2_DEV_DEBUG_POLL)
 		dprintk("%s: poll: %08x\n",
 			video_device_node_name(vdev), res);
