@@ -1890,7 +1890,7 @@
 	};
 
 	nandc0: nandc@fe330000 {
-		compatible = "rockchip,rk-nandc";
+		compatible = "rockchip,rk-nandc-v9";
 		reg = <0x0 0xfe330000 0x0 0x4000>;
 		interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
 		nandc_id = <0>;
