@@ -631,7 +631,7 @@ SND_SOC_DAILINK_DEFS(tdm,
 		     DAILINK_COMP_ARRAY(COMP_DUMMY()),
 		     DAILINK_COMP_ARRAY(COMP_EMPTY()));
 
-static struct snd_soc_dai_link mt8192_mt6359_rt1015_rt5682_dai_links[] = {
+static struct snd_soc_dai_link mt8192_mt6359_dai_links[] = {
 	/* Front End DAI links */
 	{
 		.name = "Playback_1",
@@ -986,8 +986,8 @@ static struct snd_soc_codec_conf rt1015_amp_conf[] = {
 static struct snd_soc_card mt8192_mt6359_rt1015_rt5682_soc_card = {
 	.name = "mt8192_mt6359_rt1015_rt5682",
 	.owner = THIS_MODULE,
-	.dai_link = mt8192_mt6359_rt1015_rt5682_dai_links,
-	.num_links = ARRAY_SIZE(mt8192_mt6359_rt1015_rt5682_dai_links),
+	.dai_link = mt8192_mt6359_dai_links,
+	.num_links = ARRAY_SIZE(mt8192_mt6359_dai_links),
 	.controls = mt8192_mt6359_rt1015_rt5682_controls,
 	.num_controls = ARRAY_SIZE(mt8192_mt6359_rt1015_rt5682_controls),
 	.dapm_widgets = mt8192_mt6359_rt1015_rt5682_widgets,
@@ -998,7 +998,7 @@ static struct snd_soc_card mt8192_mt6359_rt1015_rt5682_soc_card = {
 	.num_configs = ARRAY_SIZE(rt1015_amp_conf),
 };
 
-static int mt8192_mt6359_rt1015_rt5682_dev_probe(struct platform_device *pdev)
+static int mt8192_mt6359_dev_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &mt8192_mt6359_rt1015_rt5682_soc_card;
 	struct device_node *platform_node;
@@ -1029,32 +1029,32 @@ static int mt8192_mt6359_rt1015_rt5682_dev_probe(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_OF
-static const struct of_device_id mt8192_mt6359_rt1015_rt5682_dt_match[] = {
+static const struct of_device_id mt8192_mt6359_dt_match[] = {
 	{.compatible = "mediatek,mt8192_mt6359_rt1015_rt5682",},
 	{}
 };
 #endif
 
-static const struct dev_pm_ops mt8192_mt6359_rt1015_rt5682_pm_ops = {
+static const struct dev_pm_ops mt8192_mt6359_pm_ops = {
 	.poweroff = snd_soc_poweroff,
 	.restore = snd_soc_resume,
 };
 
-static struct platform_driver mt8192_mt6359_rt1015_rt5682_driver = {
+static struct platform_driver mt8192_mt6359_driver = {
 	.driver = {
-		.name = "mt8192_mt6359_rt1015_rt5682",
+		.name = "mt8192_mt6359",
 #ifdef CONFIG_OF
-		.of_match_table = mt8192_mt6359_rt1015_rt5682_dt_match,
+		.of_match_table = mt8192_mt6359_dt_match,
 #endif
-		.pm = &mt8192_mt6359_rt1015_rt5682_pm_ops,
+		.pm = &mt8192_mt6359_pm_ops,
 	},
-	.probe = mt8192_mt6359_rt1015_rt5682_dev_probe,
+	.probe = mt8192_mt6359_dev_probe,
 };
 
-module_platform_driver(mt8192_mt6359_rt1015_rt5682_driver);
+module_platform_driver(mt8192_mt6359_driver);
 
 /* Module information */
-MODULE_DESCRIPTION("MT8192-MT6359-RT1015-RT5682 ALSA SoC machine driver");
+MODULE_DESCRIPTION("MT8192-MT6359 ALSA SoC machine driver");
 MODULE_AUTHOR("Jiaxin Yu <jiaxin.yu@mediatek.com>");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("mt8192_mt6359_rt1015_rt5682 soc card");
+MODULE_ALIAS("mt8192_mt6359 soc card");
