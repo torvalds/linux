@@ -308,7 +308,7 @@ static inline void mlx5e_dump_error_cqe(struct mlx5e_cq *cq, u32 qn,
 
 	ci = mlx5_cqwq_ctr2ix(wq, wq->cc - 1);
 
-	netdev_err(cq->channel->netdev,
+	netdev_err(cq->netdev,
 		   "Error cqe on cqn 0x%x, ci 0x%x, qn 0x%x, opcode 0x%x, syndrome 0x%x, vendor syndrome 0x%x\n",
 		   cq->mcq.cqn, ci, qn,
 		   get_cqe_opcode((struct mlx5_cqe64 *)err_cqe),
