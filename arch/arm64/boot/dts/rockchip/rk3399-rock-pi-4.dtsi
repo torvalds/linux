@@ -432,8 +432,9 @@
 };
 
 &i2s0 {
-	rockchip,playback-channels = <8>;
-	rockchip,capture-channels = <8>;
+	pinctrl-0 = <&i2s0_2ch_bus>;
+	rockchip,capture-channels = <2>;
+	rockchip,playback-channels = <2>;
 	status = "okay";
 };
 
