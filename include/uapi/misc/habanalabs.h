@@ -279,6 +279,7 @@ enum hl_device_status {
  * HL_INFO_CLK_THROTTLE_REASON - Retrieve clock throttling reason
  * HL_INFO_SYNC_MANAGER  - Retrieve sync manager info per dcore
  * HL_INFO_TOTAL_ENERGY  - Retrieve total energy consumption
+ * HL_INFO_PLL_FREQUENCY - Retrieve PLL frequency
  */
 #define HL_INFO_HW_IP_INFO		0
 #define HL_INFO_HW_EVENTS		1
