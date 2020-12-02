@@ -46,6 +46,9 @@ static void time_travel_set_time(unsigned long long ns)
 	if (unlikely(ns < time_travel_time))
 		panic("time-travel: time goes backwards %lld -> %lld\n",
 		      time_travel_time, ns);
+	else if (unlikely(ns >= S64_MAX))
+		panic("The system was going to sleep forever, aborting");
+
 	time_travel_time = ns;
 }
 
@@ -399,9 +402,14 @@ static void time_travel_oneshot_timer(struct time_travel_event *e)
 	deliver_alarm();
 }
 
-void time_travel_sleep(unsigned long long duration)
+void time_travel_sleep(void)
 {
-	unsigned long long next = time_travel_time + duration;
+	/*
+	 * Wait "forever" (using S64_MAX because there are some potential
+	 * wrapping issues, especially with the current TT_MODE_EXTERNAL
+	 * controller application.
+	 */
+	unsigned long long next = S64_MAX;
 
 	if (time_travel_mode == TT_MODE_BASIC)
 		os_timer_disable();
