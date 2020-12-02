@@ -844,17 +844,10 @@ static int va_macro_hw_params(struct snd_pcm_substream *substream,
 
 	for_each_set_bit(decimator, &va->active_ch_mask[dai->id],
 			 VA_MACRO_DEC_MAX) {
-		if (decimator >= 0) {
-			tx_fs_reg = CDC_VA_TX0_TX_PATH_CTL +
-				    VA_MACRO_TX_PATH_OFFSET * decimator;
-			snd_soc_component_update_bits(component, tx_fs_reg,
-						0x0F, tx_fs_rate);
-		} else {
-			dev_err(va_dev,
-				"%s: ERROR: Invalid decimator: %d\n",
-				__func__, decimator);
-			return -EINVAL;
-		}
+		tx_fs_reg = CDC_VA_TX0_TX_PATH_CTL +
+			    VA_MACRO_TX_PATH_OFFSET * decimator;
+		snd_soc_component_update_bits(component, tx_fs_reg, 0x0F,
+					      tx_fs_rate);
 	}
 	return 0;
 }
