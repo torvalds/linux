@@ -43,7 +43,7 @@ struct irq_reg {
 struct irq_entry {
 	struct irq_entry *next;
 	int fd;
-	struct irq_reg *irq_array[MAX_IRQ_TYPE + 1];
+	struct irq_reg *irq_array[NUM_IRQ_TYPES];
 };
 
 static struct irq_entry *active_fds;
@@ -101,7 +101,7 @@ void sigio_handler(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs)
 			 */
 			irq_entry = (struct irq_entry *)
 				os_epoll_get_data_pointer(i);
-			for (j = 0; j < MAX_IRQ_TYPE ; j++) {
+			for (j = 0; j < NUM_IRQ_TYPES ; j++) {
 				irq = irq_entry->irq_array[j];
 				if (irq == NULL)
 					continue;
@@ -124,7 +124,7 @@ static int assign_epoll_events_to_irq(struct irq_entry *irq_entry)
 	int events = 0;
 	struct irq_reg *irq;
 
-	for (i = 0; i < MAX_IRQ_TYPE ; i++) {
+	for (i = 0; i < NUM_IRQ_TYPES ; i++) {
 		irq = irq_entry->irq_array[i];
 		if (irq != NULL)
 			events = irq->events | events;
@@ -172,7 +172,7 @@ static int activate_fd(int irq, int fd, int type, void *dev_id)
 			goto out_unlock;
 		}
 		irq_entry->fd = fd;
-		for (i = 0; i < MAX_IRQ_TYPE; i++)
+		for (i = 0; i < NUM_IRQ_TYPES; i++)
 			irq_entry->irq_array[i] = NULL;
 		irq_entry->next = active_fds;
 		active_fds = irq_entry;
@@ -244,7 +244,7 @@ static void garbage_collect_irq_entries(void)
 	walk = active_fds;
 	while (walk != NULL) {
 		reap = true;
-		for (i = 0; i < MAX_IRQ_TYPE ; i++) {
+		for (i = 0; i < NUM_IRQ_TYPES ; i++) {
 			if (walk->irq_array[i] != NULL) {
 				reap = false;
 				break;
@@ -301,7 +301,7 @@ static void do_free_by_irq_and_dev(
 	int i;
 	struct irq_reg *to_free;
 
-	for (i = 0; i < MAX_IRQ_TYPE ; i++) {
+	for (i = 0; i < NUM_IRQ_TYPES ; i++) {
 		if (irq_entry->irq_array[i] != NULL) {
 			if (
 			((flags & IGNORE_IRQ) ||
