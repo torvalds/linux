@@ -1247,6 +1247,7 @@
 				clocks = <&securam_clk>;
 				#address-cells = <1>;
 				#size-cells = <1>;
+				no-memory-wc;
 				ranges = <0 0xf8044000 0x1420>;
 			};
 
