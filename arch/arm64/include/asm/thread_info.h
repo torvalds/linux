@@ -18,14 +18,11 @@ struct task_struct;
 #include <asm/stack_pointer.h>
 #include <asm/types.h>
 
-typedef unsigned long mm_segment_t;
-
 /*
  * low level task data that entry.S needs immediate access to.
  */
 struct thread_info {
 	unsigned long		flags;		/* low level flags */
-	mm_segment_t		addr_limit;	/* address limit */
 #ifdef CONFIG_ARM64_SW_TTBR0_PAN
 	u64			ttbr0;		/* saved TTBR0_EL1 */
 #endif
@@ -119,7 +116,6 @@ void arch_release_task_struct(struct task_struct *tsk);
 {									\
 	.flags		= _TIF_FOREIGN_FPSTATE,				\
 	.preempt_count	= INIT_PREEMPT_COUNT,				\
-	.addr_limit	= KERNEL_DS,					\
 	INIT_SCS							\
 }
 

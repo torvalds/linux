@@ -26,44 +26,16 @@
 
 #define HAVE_GET_KERNEL_NOFAULT
 
-#define get_fs()	(current_thread_info()->addr_limit)
-
-static inline void set_fs(mm_segment_t fs)
-{
-	current_thread_info()->addr_limit = fs;
-
-	/*
-	 * Prevent a mispredicted conditional call to set_fs from forwarding
-	 * the wrong address limit to access_ok under speculation.
-	 */
-	spec_bar();
-
-	/* On user-mode return, check fs is correct */
-	set_thread_flag(TIF_FSCHECK);
-
-	/*
-	 * Enable/disable UAO so that copy_to_user() etc can access
-	 * kernel memory with the unprivileged instructions.
-	 */
-	if (IS_ENABLED(CONFIG_ARM64_UAO) && fs == KERNEL_DS)
-		asm(ALTERNATIVE("nop", SET_PSTATE_UAO(1), ARM64_HAS_UAO));
-	else
-		asm(ALTERNATIVE("nop", SET_PSTATE_UAO(0), ARM64_HAS_UAO,
-				CONFIG_ARM64_UAO));
-}
-
-#define uaccess_kernel()	(get_fs() == KERNEL_DS)
-
 /*
  * Test whether a block of memory is a valid user space address.
  * Returns 1 if the range is valid, 0 otherwise.
  *
  * This is equivalent to the following test:
- * (u65)addr + (u65)size <= (u65)current->addr_limit + 1
+ * (u65)addr + (u65)size <= (u65)TASK_SIZE_MAX
  */
 static inline unsigned long __range_ok(const void __user *addr, unsigned long size)
 {
-	unsigned long ret, limit = current_thread_info()->addr_limit;
+	unsigned long ret, limit = TASK_SIZE_MAX - 1;
 
 	/*
 	 * Asynchronous I/O running in a kernel thread does not have the
@@ -96,7 +68,6 @@ static inline unsigned long __range_ok(const void __user *addr, unsigned long si
 }
 
 #define access_ok(addr, size)	__range_ok(addr, size)
-#define user_addr_max			get_fs
 
 #define _ASM_EXTABLE(from, to)						\
 	"	.pushsection	__ex_table, \"a\"\n"			\
@@ -226,9 +197,9 @@ static inline void uaccess_enable_not_uao(void)
 }
 
 /*
- * Sanitise a uaccess pointer such that it becomes NULL if above the
- * current addr_limit. In case the pointer is tagged (has the top byte set),
- * untag the pointer before checking.
+ * Sanitise a uaccess pointer such that it becomes NULL if above the maximum
+ * user address. In case the pointer is tagged (has the top byte set), untag
+ * the pointer before checking.
  */
 #define uaccess_mask_ptr(ptr) (__typeof__(ptr))__uaccess_mask_ptr(ptr)
 static inline void __user *__uaccess_mask_ptr(const void __user *ptr)
@@ -239,7 +210,7 @@ static inline void __user *__uaccess_mask_ptr(const void __user *ptr)
 	"	bics	xzr, %3, %2\n"
 	"	csel	%0, %1, xzr, eq\n"
 	: "=&r" (safe_ptr)
-	: "r" (ptr), "r" (current_thread_info()->addr_limit),
+	: "r" (ptr), "r" (TASK_SIZE_MAX - 1),
 	  "r" (untagged_addr(ptr))
 	: "cc");
 
