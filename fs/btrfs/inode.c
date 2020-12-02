@@ -2951,7 +2951,7 @@ void btrfs_writepage_endio_finish_ordered(struct page *page, u64 start,
  * The length of such check is always one sector size.
  */
 static int check_data_csum(struct inode *inode, struct btrfs_io_bio *io_bio,
-			   u32 bio_offset, struct page *page, int pgoff)
+			   u32 bio_offset, struct page *page, u32 pgoff)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	SHASH_DESC_ON_STACK(shash, fs_info->csum_shash);
@@ -3002,10 +3002,11 @@ zeroit:
 int btrfs_verify_data_csum(struct btrfs_io_bio *io_bio, u32 bio_offset,
 			   struct page *page, u64 start, u64 end, int mirror)
 {
-	size_t offset = start - page_offset(page);
 	struct inode *inode = page->mapping->host;
 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
+	const u32 sectorsize = root->fs_info->sectorsize;
+	u32 pg_off;
 
 	if (PageChecked(page)) {
 		ClearPageChecked(page);
@@ -3024,7 +3025,18 @@ int btrfs_verify_data_csum(struct btrfs_io_bio *io_bio, u32 bio_offset,
 		return 0;
 	}
 
-	return check_data_csum(inode, io_bio, bio_offset, page, offset);
+	ASSERT(page_offset(page) <= start &&
+	       end <= page_offset(page) + PAGE_SIZE - 1);
+	for (pg_off = offset_in_page(start);
+	     pg_off < offset_in_page(end);
+	     pg_off += sectorsize, bio_offset += sectorsize) {
+		int ret;
+
+		ret = check_data_csum(inode, io_bio, bio_offset, page, pg_off);
+		if (ret < 0)
+			return -EIO;
+	}
+	return 0;
 }
 
 /*
