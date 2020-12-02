@@ -3082,7 +3082,7 @@ static void vop2_parse_alpha(struct vop2_alpha *alpha, int pixel_alpha_en,
 	alpha->src_alpha_ctrl.bits.factor_mode = ALPHA_ONE;
 
 	alpha->dst_alpha_ctrl.bits.alpha_mode = ALPHA_STRAIGHT;
-	alpha->dst_alpha_ctrl.bits.blend_mode = alpha->dst_color_ctrl.bits.blend_mode;
+	alpha->dst_alpha_ctrl.bits.blend_mode = ALPHA_PER_PIX;
 	alpha->dst_alpha_ctrl.bits.alpha_cal_mode = ALPHA_SATURATION;
 	alpha->dst_alpha_ctrl.bits.factor_mode = ALPHA_SRC_INVERSE;
 }
