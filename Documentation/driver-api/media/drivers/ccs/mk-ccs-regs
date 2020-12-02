@@ -5,7 +5,7 @@
 use Getopt::Long qw(:config no_ignore_case);
 use File::Basename;
 
-my $ccsregs = "ccs-regs.txt";
+my $ccsregs = "ccs-regs.asc";
 my $header;
 my $regarray;
 my $limitc;
@@ -27,7 +27,7 @@ if (defined $help) {
 	print <<EOH
 $0 - Create CCS register definitions for C
 
-usage: $0 -c ccs-regs.txt -e header -r regarray -l limit-c -L limit-header [-k]
+usage: $0 -c ccs-regs.asc -e header -r regarray -l limit-c -L limit-header [-k]
 
 	-c ccs register file
 	-e header file name

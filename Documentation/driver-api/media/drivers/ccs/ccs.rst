@@ -59,7 +59,7 @@ effect in device timing and likely also in power consumption.
 Register definition generator
 -----------------------------
 
-The ccs-regs.txt file contains MIPI CCS register definitions that are used
+The ccs-regs.asc file contains MIPI CCS register definitions that are used
 to produce C source code files for definitions that can be better used by
 programs written in C language. As there are many dependencies between the
 produced files, please do not modify them manually as it's error-prone and
@@ -77,6 +77,6 @@ definitions:
 		-e drivers/media/i2c/ccs/ccs-regs.h \
 		-L drivers/media/i2c/ccs/ccs-limits.h \
 		-l drivers/media/i2c/ccs/ccs-limits.c \
-		-c Documentation/driver-api/media/drivers/ccs/ccs-regs.txt
+		-c Documentation/driver-api/media/drivers/ccs/ccs-regs.asc
 
 **Copyright** |copy| 2020 Intel Corporation
