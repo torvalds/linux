@@ -544,6 +544,17 @@ static void btree_update_nodes_written(struct btree_update *as)
 	unsigned i;
 	int ret;
 
+	/*
+	 * If we're already in an error state, it might be because a btree node
+	 * was never written, and we might be trying to free that same btree
+	 * node here, but it won't have been marked as allocated and we'll see
+	 * spurious disk usage inconsistencies in the transactional part below
+	 * if we don't skip it:
+	 */
+	ret = bch2_journal_error(&c->journal);
+	if (ret)
+		goto err;
+
 	BUG_ON(!journal_pin_active(&as->journal));
 
 	/*
@@ -569,8 +580,10 @@ static void btree_update_nodes_written(struct btree_update *as)
 			      BTREE_INSERT_JOURNAL_RESERVED,
 			      btree_update_nodes_written_trans(&trans, as));
 	bch2_trans_exit(&trans);
-	BUG_ON(ret && !bch2_journal_error(&c->journal));
 
+	bch2_fs_fatal_err_on(ret && !bch2_journal_error(&c->journal), c,
+			     "error %i in btree_update_nodes_written()", ret);
+err:
 	if (b) {
 		/*
 		 * @b is the node we did the final insert into:
