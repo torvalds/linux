@@ -17,7 +17,10 @@ struct nvkm_disp {
 	struct nvkm_event hpd;
 	struct nvkm_event vblank;
 
-	struct nvkm_oproxy *client;
+	struct {
+		spinlock_t lock;
+		struct nvkm_oproxy *object;
+	} client;
 };
 
 int nv04_disp_new(struct nvkm_device *, int, struct nvkm_disp **);
