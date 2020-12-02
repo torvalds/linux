@@ -19,6 +19,7 @@
 #include <kern_util.h>
 #include <os.h>
 #include <irq_user.h>
+#include <irq_kern.h>
 
 
 extern void free_irqs(void);
@@ -38,6 +39,7 @@ struct irq_entry {
 static struct irq_entry *active_fds;
 
 static DEFINE_SPINLOCK(irq_lock);
+static DECLARE_BITMAP(irqs_allocated, NR_IRQS);
 
 static void irq_io_loop(struct irq_fd *irq, struct uml_pt_regs *regs)
 {
@@ -421,27 +423,52 @@ unsigned int do_IRQ(int irq, struct uml_pt_regs *regs)
 	return 1;
 }
 
-void um_free_irq(unsigned int irq, void *dev)
+void um_free_irq(int irq, void *dev)
 {
+	if (WARN(irq < 0 || irq > NR_IRQS, "freeing invalid irq %d", irq))
+		return;
+
 	free_irq_by_irq_and_dev(irq, dev);
 	free_irq(irq, dev);
+	clear_bit(irq, irqs_allocated);
 }
 EXPORT_SYMBOL(um_free_irq);
 
-int um_request_irq(unsigned int irq, int fd, int type,
+int um_request_irq(int irq, int fd, int type,
 		   irq_handler_t handler,
 		   unsigned long irqflags, const char * devname,
 		   void *dev_id)
 {
 	int err;
 
+	if (irq == UM_IRQ_ALLOC) {
+		int i;
+
+		for (i = UM_FIRST_DYN_IRQ; i < NR_IRQS; i++) {
+			if (!test_and_set_bit(i, irqs_allocated)) {
+				irq = i;
+				break;
+			}
+		}
+	}
+
+	if (irq < 0)
+		return -ENOSPC;
+
 	if (fd != -1) {
 		err = activate_fd(irq, fd, type, dev_id);
 		if (err)
-			return err;
+			goto error;
 	}
 
-	return request_irq(irq, handler, irqflags, devname, dev_id);
+	err = request_irq(irq, handler, irqflags, devname, dev_id);
+	if (err < 0)
+		goto error;
+
+	return irq;
+error:
+	clear_bit(irq, irqs_allocated);
+	return err;
 }
 
 EXPORT_SYMBOL(um_request_irq);
@@ -480,7 +507,7 @@ void __init init_IRQ(void)
 	irq_set_chip_and_handler(TIMER_IRQ, &SIGVTALRM_irq_type, handle_edge_irq);
 
 
-	for (i = 1; i <= LAST_IRQ; i++)
+	for (i = 1; i < NR_IRQS; i++)
 		irq_set_chip_and_handler(i, &normal_irq_type, handle_edge_irq);
 	/* Initialize EPOLL Loop */
 	os_setup_epoll();

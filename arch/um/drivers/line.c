@@ -262,19 +262,25 @@ static irqreturn_t line_write_interrupt(int irq, void *data)
 int line_setup_irq(int fd, int input, int output, struct line *line, void *data)
 {
 	const struct line_driver *driver = line->driver;
-	int err = 0;
+	int err;
 
-	if (input)
+	if (input) {
 		err = um_request_irq(driver->read_irq, fd, IRQ_READ,
 				     line_interrupt, IRQF_SHARED,
 				     driver->read_irq_name, data);
-	if (err)
-		return err;
-	if (output)
+		if (err < 0)
+			return err;
+	}
+
+	if (output) {
 		err = um_request_irq(driver->write_irq, fd, IRQ_WRITE,
 				     line_write_interrupt, IRQF_SHARED,
 				     driver->write_irq_name, data);
-	return err;
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
 }
 
 static int line_activate(struct tty_port *port, struct tty_struct *tty)
