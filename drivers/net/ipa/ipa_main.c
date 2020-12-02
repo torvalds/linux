@@ -288,7 +288,7 @@ static void ipa_hardware_config_qsb(struct ipa *ipa)
 		max1 = 0;		/* PCIe not present */
 		break;
 	case IPA_VERSION_4_5:
-		max0 = 16;
+		max0 = 0;		/* No limit (hardware maximum) */
 		break;
 	}
 	val = u32_encode_bits(max0, GEN_QMB_0_MAX_READS_FMASK);
