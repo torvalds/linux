@@ -291,7 +291,7 @@ struct io_failure_record {
 
 
 blk_status_t btrfs_submit_read_repair(struct inode *inode,
-				      struct bio *failed_bio, u64 phy_offset,
+				      struct bio *failed_bio, u32 bio_offset,
 				      struct page *page, unsigned int pgoff,
 				      u64 start, u64 end, int failed_mirror,
 				      submit_bio_hook_t *submit_bio_hook);

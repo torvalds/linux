@@ -2634,7 +2634,7 @@ static bool btrfs_io_needs_validation(struct inode *inode, struct bio *bio)
 }
 
 blk_status_t btrfs_submit_read_repair(struct inode *inode,
-				      struct bio *failed_bio, u64 phy_offset,
+				      struct bio *failed_bio, u32 bio_offset,
 				      struct page *page, unsigned int pgoff,
 				      u64 start, u64 end, int failed_mirror,
 				      submit_bio_hook_t *submit_bio_hook)
@@ -2644,7 +2644,7 @@ blk_status_t btrfs_submit_read_repair(struct inode *inode,
 	struct extent_io_tree *tree = &BTRFS_I(inode)->io_tree;
 	struct extent_io_tree *failure_tree = &BTRFS_I(inode)->io_failure_tree;
 	struct btrfs_io_bio *failed_io_bio = btrfs_io_bio(failed_bio);
-	const int icsum = phy_offset >> fs_info->sectorsize_bits;
+	const int icsum = bio_offset >> fs_info->sectorsize_bits;
 	bool need_validation;
 	struct bio *repair_bio;
 	struct btrfs_io_bio *repair_io_bio;
@@ -2869,10 +2869,11 @@ static void end_bio_extent_readpage(struct bio *bio)
 	struct btrfs_io_bio *io_bio = btrfs_io_bio(bio);
 	struct extent_io_tree *tree, *failure_tree;
 	struct processed_extent processed = { 0 };
-	u64 offset = 0;
-	u64 start;
-	u64 end;
-	u64 len;
+	/*
+	 * The offset to the beginning of a bio, since one bio can never be
+	 * larger than UINT_MAX, u32 here is enough.
+	 */
+	u32 bio_offset = 0;
 	int mirror;
 	int ret;
 	struct bvec_iter_all iter_all;
@@ -2882,7 +2883,10 @@ static void end_bio_extent_readpage(struct bio *bio)
 		struct page *page = bvec->bv_page;
 		struct inode *inode = page->mapping->host;
 		struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-		u32 sectorsize = fs_info->sectorsize;
+		const u32 sectorsize = fs_info->sectorsize;
+		u64 start;
+		u64 end;
+		u32 len;
 
 		btrfs_debug(fs_info,
 			"end_bio_extent_readpage: bi_sector=%llu, err=%d, mirror=%u",
@@ -2915,8 +2919,9 @@ static void end_bio_extent_readpage(struct bio *bio)
 		mirror = io_bio->mirror_num;
 		if (likely(uptodate)) {
 			if (is_data_inode(inode))
-				ret = btrfs_verify_data_csum(io_bio, offset, page,
-							     start, end, mirror);
+				ret = btrfs_verify_data_csum(io_bio,
+						bio_offset, page, start, end,
+						mirror);
 			else
 				ret = btrfs_validate_metadata_buffer(io_bio,
 					page, start, end, mirror);
@@ -2944,12 +2949,14 @@ static void end_bio_extent_readpage(struct bio *bio)
 			 * If it can't handle the error it will return -EIO and
 			 * we remain responsible for that page.
 			 */
-			if (!btrfs_submit_read_repair(inode, bio, offset, page,
+			if (!btrfs_submit_read_repair(inode, bio, bio_offset,
+						page,
 						start - page_offset(page),
 						start, end, mirror,
 						btrfs_submit_data_bio)) {
 				uptodate = !bio->bi_status;
-				offset += len;
+				ASSERT(bio_offset + len > bio_offset);
+				bio_offset += len;
 				continue;
 			}
 		} else {
@@ -2974,7 +2981,8 @@ readpage_ok:
 			if (page->index == end_index && off)
 				zero_user_segment(page, off, PAGE_SIZE);
 		}
-		offset += len;
+		ASSERT(bio_offset + len > bio_offset);
+		bio_offset += len;
 
 		/* Update page status and unlock */
 		endio_readpage_update_page_status(page, uptodate);
