@@ -944,7 +944,7 @@ struct hl_asic_funcs {
 	u32 (*get_signal_cb_size)(struct hl_device *hdev);
 	u32 (*get_wait_cb_size)(struct hl_device *hdev);
 	u32 (*gen_signal_cb)(struct hl_device *hdev, void *data, u16 sob_id,
-			u32 size);
+			u32 size, bool eb);
 	u32 (*gen_wait_cb)(struct hl_device *hdev,
 			struct hl_gen_wait_properties *prop);
 	void (*reset_sob)(struct hl_device *hdev, void *data);

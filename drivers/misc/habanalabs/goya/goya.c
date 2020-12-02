@@ -5339,7 +5339,7 @@ static u32 goya_get_wait_cb_size(struct hl_device *hdev)
 }
 
 static u32 goya_gen_signal_cb(struct hl_device *hdev, void *data, u16 sob_id,
-		u32 size)
+				u32 size, bool eb)
 {
 	return 0;
 }
