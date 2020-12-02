@@ -108,6 +108,7 @@ static const struct of_device_id clk_dvp_dt_ids[] = {
 	{ .compatible = "brcm,brcm2711-dvp", },
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, clk_dvp_dt_ids);
 
 static struct platform_driver clk_dvp_driver = {
 	.probe	= clk_dvp_probe,
