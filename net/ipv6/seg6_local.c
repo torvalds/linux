@@ -710,6 +710,11 @@ static int cmp_nla_srh(struct seg6_local_lwt *a, struct seg6_local_lwt *b)
 	return memcmp(a->srh, b->srh, len);
 }
 
+static void destroy_attr_srh(struct seg6_local_lwt *slwt)
+{
+	kfree(slwt->srh);
+}
+
 static int parse_nla_table(struct nlattr **attrs, struct seg6_local_lwt *slwt)
 {
 	slwt->table = nla_get_u32(attrs[SEG6_LOCAL_TABLE]);
@@ -901,16 +906,30 @@ static int cmp_nla_bpf(struct seg6_local_lwt *a, struct seg6_local_lwt *b)
 	return strcmp(a->bpf.name, b->bpf.name);
 }
 
+static void destroy_attr_bpf(struct seg6_local_lwt *slwt)
+{
+	kfree(slwt->bpf.name);
+	if (slwt->bpf.prog)
+		bpf_prog_put(slwt->bpf.prog);
+}
+
 struct seg6_action_param {
 	int (*parse)(struct nlattr **attrs, struct seg6_local_lwt *slwt);
 	int (*put)(struct sk_buff *skb, struct seg6_local_lwt *slwt);
 	int (*cmp)(struct seg6_local_lwt *a, struct seg6_local_lwt *b);
+
+	/* optional destroy() callback useful for releasing resources which
+	 * have been previously acquired in the corresponding parse()
+	 * function.
+	 */
+	void (*destroy)(struct seg6_local_lwt *slwt);
 };
 
 static struct seg6_action_param seg6_action_params[SEG6_LOCAL_MAX + 1] = {
 	[SEG6_LOCAL_SRH]	= { .parse = parse_nla_srh,
 				    .put = put_nla_srh,
-				    .cmp = cmp_nla_srh },
+				    .cmp = cmp_nla_srh,
+				    .destroy = destroy_attr_srh },
 
 	[SEG6_LOCAL_TABLE]	= { .parse = parse_nla_table,
 				    .put = put_nla_table,
@@ -934,9 +953,48 @@ static struct seg6_action_param seg6_action_params[SEG6_LOCAL_MAX + 1] = {
 
 	[SEG6_LOCAL_BPF]	= { .parse = parse_nla_bpf,
 				    .put = put_nla_bpf,
-				    .cmp = cmp_nla_bpf },
+				    .cmp = cmp_nla_bpf,
+				    .destroy = destroy_attr_bpf },
 
 };
+
+/* call the destroy() callback (if available) for each set attribute in
+ * @slwt, starting from the first attribute up to the @max_parsed (excluded)
+ * attribute.
+ */
+static void __destroy_attrs(int max_parsed, struct seg6_local_lwt *slwt)
+{
+	unsigned long attrs = slwt->desc->attrs;
+	struct seg6_action_param *param;
+	int i;
+
+	/* Every required seg6local attribute is identified by an ID which is
+	 * encoded as a flag (i.e: 1 << ID) in the 'attrs' bitmask;
+	 *
+	 * We scan the 'attrs' bitmask, starting from the first attribute
+	 * up to the @max_parsed (excluded) attribute.
+	 * For each set attribute, we retrieve the corresponding destroy()
+	 * callback. If the callback is not available, then we skip to the next
+	 * attribute; otherwise, we call the destroy() callback.
+	 */
+	for (i = 0; i < max_parsed; ++i) {
+		if (!(attrs & (1 << i)))
+			continue;
+
+		param = &seg6_action_params[i];
+
+		if (param->destroy)
+			param->destroy(slwt);
+	}
+}
+
+/* release all the resources that may have been acquired during parsing
+ * operations.
+ */
+static void destroy_attrs(struct seg6_local_lwt *slwt)
+{
+	__destroy_attrs(SEG6_LOCAL_MAX + 1, slwt);
+}
 
 static int parse_nla_action(struct nlattr **attrs, struct seg6_local_lwt *slwt)
 {
@@ -963,11 +1021,19 @@ static int parse_nla_action(struct nlattr **attrs, struct seg6_local_lwt *slwt)
 
 			err = param->parse(attrs, slwt);
 			if (err < 0)
-				return err;
+				goto parse_err;
 		}
 	}
 
 	return 0;
+
+parse_err:
+	/* release any resource that may have been acquired during the i-1
+	 * parse() operations.
+	 */
+	__destroy_attrs(i, slwt);
+
+	return err;
 }
 
 static int seg6_local_build_state(struct net *net, struct nlattr *nla,
@@ -1012,7 +1078,6 @@ static int seg6_local_build_state(struct net *net, struct nlattr *nla,
 	return 0;
 
 out_free:
-	kfree(slwt->srh);
 	kfree(newts);
 	return err;
 }
@@ -1021,12 +1086,7 @@ static void seg6_local_destroy_state(struct lwtunnel_state *lwt)
 {
 	struct seg6_local_lwt *slwt = seg6_local_lwtunnel(lwt);
 
-	kfree(slwt->srh);
-
-	if (slwt->desc->attrs & (1 << SEG6_LOCAL_BPF)) {
-		kfree(slwt->bpf.name);
-		bpf_prog_put(slwt->bpf.prog);
-	}
+	destroy_attrs(slwt);
 
 	return;
 }
