@@ -497,6 +497,10 @@ static int __seg6_end_dt_vrf_build(struct seg6_local_lwt *slwt, const void *cfg,
 		info->proto = htons(ETH_P_IP);
 		info->hdrlen = sizeof(struct iphdr);
 		break;
+	case AF_INET6:
+		info->proto = htons(ETH_P_IPV6);
+		info->hdrlen = sizeof(struct ipv6hdr);
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -649,6 +653,47 @@ static int seg6_end_dt4_build(struct seg6_local_lwt *slwt, const void *cfg,
 {
 	return __seg6_end_dt_vrf_build(slwt, cfg, AF_INET, extack);
 }
+
+static enum
+seg6_end_dt_mode seg6_end_dt6_parse_mode(struct seg6_local_lwt *slwt)
+{
+	unsigned long parsed_optattrs = slwt->parsed_optattrs;
+	bool legacy, vrfmode;
+
+	legacy	= !!(parsed_optattrs & (1 << SEG6_LOCAL_TABLE));
+	vrfmode	= !!(parsed_optattrs & (1 << SEG6_LOCAL_VRFTABLE));
+
+	if (!(legacy ^ vrfmode))
+		/* both are absent or present: invalid DT6 mode */
+		return DT_INVALID_MODE;
+
+	return legacy ? DT_LEGACY_MODE : DT_VRF_MODE;
+}
+
+static enum seg6_end_dt_mode seg6_end_dt6_get_mode(struct seg6_local_lwt *slwt)
+{
+	struct seg6_end_dt_info *info = &slwt->dt_info;
+
+	return info->mode;
+}
+
+static int seg6_end_dt6_build(struct seg6_local_lwt *slwt, const void *cfg,
+			      struct netlink_ext_ack *extack)
+{
+	enum seg6_end_dt_mode mode = seg6_end_dt6_parse_mode(slwt);
+	struct seg6_end_dt_info *info = &slwt->dt_info;
+
+	switch (mode) {
+	case DT_LEGACY_MODE:
+		info->mode = DT_LEGACY_MODE;
+		return 0;
+	case DT_VRF_MODE:
+		return __seg6_end_dt_vrf_build(slwt, cfg, AF_INET6, extack);
+	default:
+		NL_SET_ERR_MSG(extack, "table or vrftable must be specified");
+		return -EINVAL;
+	}
+}
 #endif
 
 static int input_action_end_dt6(struct sk_buff *skb,
@@ -660,6 +705,28 @@ static int input_action_end_dt6(struct sk_buff *skb,
 	if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
 		goto drop;
 
+#ifdef CONFIG_NET_L3_MASTER_DEV
+	if (seg6_end_dt6_get_mode(slwt) == DT_LEGACY_MODE)
+		goto legacy_mode;
+
+	/* DT6_VRF_MODE */
+	skb = end_dt_vrf_core(skb, slwt);
+	if (!skb)
+		/* packet has been processed and consumed by the VRF */
+		return 0;
+
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	/* note: this time we do not need to specify the table because the VRF
+	 * takes care of selecting the correct table.
+	 */
+	seg6_lookup_any_nexthop(skb, NULL, 0, true);
+
+	return dst_input(skb);
+
+legacy_mode:
+#endif
 	skb_set_transport_header(skb, sizeof(struct ipv6hdr));
 
 	seg6_lookup_any_nexthop(skb, NULL, slwt->table, true);
@@ -851,7 +918,16 @@ static struct seg6_action_desc seg6_action_table[] = {
 	},
 	{
 		.action		= SEG6_LOCAL_ACTION_END_DT6,
+#ifdef CONFIG_NET_L3_MASTER_DEV
+		.attrs		= 0,
+		.optattrs	= (1 << SEG6_LOCAL_TABLE) |
+				  (1 << SEG6_LOCAL_VRFTABLE),
+		.slwt_ops	= {
+					.build_state = seg6_end_dt6_build,
+				  },
+#else
 		.attrs		= (1 << SEG6_LOCAL_TABLE),
+#endif
 		.input		= input_action_end_dt6,
 	},
 	{
