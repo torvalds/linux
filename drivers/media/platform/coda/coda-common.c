@@ -25,7 +25,6 @@
 #include <linux/slab.h>
 #include <linux/videodev2.h>
 #include <linux/of.h>
-#include <linux/platform_data/media/coda.h>
 #include <linux/ratelimit.h>
 #include <linux/reset.h>
 
@@ -3102,13 +3101,6 @@ static const struct coda_devtype coda_devdata[] = {
 	},
 };
 
-static const struct platform_device_id coda_platform_ids[] = {
-	{ .name = "coda-imx27", .driver_data = CODA_IMX27 },
-	{ /* sentinel */ }
-};
-MODULE_DEVICE_TABLE(platform, coda_platform_ids);
-
-#ifdef CONFIG_OF
 static const struct of_device_id coda_dt_ids[] = {
 	{ .compatible = "fsl,imx27-vpu", .data = &coda_devdata[CODA_IMX27] },
 	{ .compatible = "fsl,imx51-vpu", .data = &coda_devdata[CODA_IMX51] },
@@ -3118,14 +3110,9 @@ static const struct of_device_id coda_dt_ids[] = {
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, coda_dt_ids);
-#endif
 
 static int coda_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *of_id =
-			of_match_device(of_match_ptr(coda_dt_ids), &pdev->dev);
-	const struct platform_device_id *pdev_id;
-	struct coda_platform_data *pdata = pdev->dev.platform_data;
 	struct device_node *np = pdev->dev.of_node;
 	struct gen_pool *pool;
 	struct coda_dev *dev;
@@ -3135,14 +3122,7 @@ static int coda_probe(struct platform_device *pdev)
 	if (!dev)
 		return -ENOMEM;
 
-	pdev_id = of_id ? of_id->data : platform_get_device_id(pdev);
-
-	if (of_id)
-		dev->devtype = of_id->data;
-	else if (pdev_id)
-		dev->devtype = &coda_devdata[pdev_id->driver_data];
-	else
-		return -EINVAL;
+	dev->devtype = of_device_get_match_data(&pdev->dev);
 
 	dev->dev = &pdev->dev;
 	dev->clk_per = devm_clk_get(&pdev->dev, "per");
@@ -3200,10 +3180,8 @@ static int coda_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	/* Get IRAM pool from device tree or platform data */
+	/* Get IRAM pool from device tree */
 	pool = of_gen_pool_get(np, "iram", 0);
-	if (!pool && pdata)
-		pool = gen_pool_get(pdata->iram_dev, NULL);
 	if (!pool) {
 		dev_err(&pdev->dev, "iram pool not available\n");
 		return -ENOMEM;
@@ -3342,7 +3320,6 @@ static struct platform_driver coda_driver = {
 		.of_match_table = of_match_ptr(coda_dt_ids),
 		.pm	= &coda_pm_ops,
 	},
-	.id_table = coda_platform_ids,
 };
 
 module_platform_driver(coda_driver);
