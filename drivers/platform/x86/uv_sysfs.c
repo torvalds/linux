@@ -248,6 +248,7 @@ static int uv_hubs_init(void)
 		uv_hubs[i] = kzalloc(sizeof(*uv_hubs[i]), GFP_KERNEL);
 		if (!uv_hubs[i]) {
 			i--;
+			ret = -ENOMEM;
 			goto err_hubs;
 		}
 
