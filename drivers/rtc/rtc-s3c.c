@@ -503,6 +503,10 @@ static int s3c_rtc_probe(struct platform_device *pdev)
 			goto err_src_clk;
 	}
 
+	/* disable RTC enable bits potentially set by the bootloader */
+	if (info->data->disable)
+		info->data->disable(info);
+
 	/* check to see if everything is setup correctly */
 	if (info->data->enable)
 		info->data->enable(info);
