@@ -33,6 +33,13 @@
 
 struct seg6_local_lwt;
 
+/* callbacks used for customizing the creation and destruction of a behavior */
+struct seg6_local_lwtunnel_ops {
+	int (*build_state)(struct seg6_local_lwt *slwt, const void *cfg,
+			   struct netlink_ext_ack *extack);
+	void (*destroy_state)(struct seg6_local_lwt *slwt);
+};
+
 struct seg6_action_desc {
 	int action;
 	unsigned long attrs;
@@ -53,6 +60,8 @@ struct seg6_action_desc {
 
 	int (*input)(struct sk_buff *skb, struct seg6_local_lwt *slwt);
 	int static_headroom;
+
+	struct seg6_local_lwtunnel_ops slwt_ops;
 };
 
 struct bpf_lwt_prog {
@@ -1055,6 +1064,38 @@ parse_optattrs_err:
 	return err;
 }
 
+/* call the custom constructor of the behavior during its initialization phase
+ * and after that all its attributes have been parsed successfully.
+ */
+static int
+seg6_local_lwtunnel_build_state(struct seg6_local_lwt *slwt, const void *cfg,
+				struct netlink_ext_ack *extack)
+{
+	struct seg6_action_desc *desc = slwt->desc;
+	struct seg6_local_lwtunnel_ops *ops;
+
+	ops = &desc->slwt_ops;
+	if (!ops->build_state)
+		return 0;
+
+	return ops->build_state(slwt, cfg, extack);
+}
+
+/* call the custom destructor of the behavior which is invoked before the
+ * tunnel is going to be destroyed.
+ */
+static void seg6_local_lwtunnel_destroy_state(struct seg6_local_lwt *slwt)
+{
+	struct seg6_action_desc *desc = slwt->desc;
+	struct seg6_local_lwtunnel_ops *ops;
+
+	ops = &desc->slwt_ops;
+	if (!ops->destroy_state)
+		return;
+
+	ops->destroy_state(slwt);
+}
+
 static int parse_nla_action(struct nlattr **attrs, struct seg6_local_lwt *slwt)
 {
 	struct seg6_action_param *param;
@@ -1154,6 +1195,10 @@ static int seg6_local_build_state(struct net *net, struct nlattr *nla,
 	if (err < 0)
 		goto out_free;
 
+	err = seg6_local_lwtunnel_build_state(slwt, cfg, extack);
+	if (err < 0)
+		goto out_destroy_attrs;
+
 	newts->type = LWTUNNEL_ENCAP_SEG6_LOCAL;
 	newts->flags = LWTUNNEL_STATE_INPUT_REDIRECT;
 	newts->headroom = slwt->headroom;
@@ -1162,6 +1207,8 @@ static int seg6_local_build_state(struct net *net, struct nlattr *nla,
 
 	return 0;
 
+out_destroy_attrs:
+	destroy_attrs(slwt);
 out_free:
 	kfree(newts);
 	return err;
@@ -1170,6 +1217,8 @@ out_free:
 static void seg6_local_destroy_state(struct lwtunnel_state *lwt)
 {
 	struct seg6_local_lwt *slwt = seg6_local_lwtunnel(lwt);
+
+	seg6_local_lwtunnel_destroy_state(slwt);
 
 	destroy_attrs(slwt);
 
