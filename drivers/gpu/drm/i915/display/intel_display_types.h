@@ -1188,6 +1188,15 @@ struct intel_crtc {
 		ktime_t start_vbl_time;
 		int min_vbl, max_vbl;
 		int scanline_start;
+#ifdef CONFIG_DRM_I915_DEBUG_VBLANK_EVADE
+		struct {
+			u64 min;
+			u64 max;
+			u64 sum;
+			unsigned int over;
+			unsigned int times[17]; /* [1us, 16ms] */
+		} vbl;
+#endif
 	} debug;
 
 	/* scalers available on this crtc */

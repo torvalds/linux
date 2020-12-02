@@ -45,6 +45,7 @@
 
 #include "display/intel_crt.h"
 #include "display/intel_ddi.h"
+#include "display/intel_display_debugfs.h"
 #include "display/intel_dp.h"
 #include "display/intel_dp_mst.h"
 #include "display/intel_dpll_mgr.h"
@@ -17266,6 +17267,12 @@ fail:
 	return ERR_PTR(ret);
 }
 
+static int intel_crtc_late_register(struct drm_crtc *crtc)
+{
+	intel_crtc_debugfs_add(crtc);
+	return 0;
+}
+
 #define INTEL_CRTC_FUNCS \
 	.gamma_set = drm_atomic_helper_legacy_gamma_set, \
 	.set_config = drm_atomic_helper_set_config, \
@@ -17275,7 +17282,8 @@ fail:
 	.atomic_destroy_state = intel_crtc_destroy_state, \
 	.set_crc_source = intel_crtc_set_crc_source, \
 	.verify_crc_source = intel_crtc_verify_crc_source, \
-	.get_crc_sources = intel_crtc_get_crc_sources
+	.get_crc_sources = intel_crtc_get_crc_sources, \
+	.late_register = intel_crtc_late_register
 
 static const struct drm_crtc_funcs bdw_crtc_funcs = {
 	INTEL_CRTC_FUNCS,

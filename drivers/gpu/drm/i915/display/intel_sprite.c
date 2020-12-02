@@ -61,14 +61,6 @@ int intel_usecs_to_scanlines(const struct drm_display_mode *adjusted_mode,
 			    1000 * adjusted_mode->crtc_htotal);
 }
 
-/* FIXME: We should instead only take spinlocks once for the entire update
- * instead of once per mmio. */
-#if IS_ENABLED(CONFIG_PROVE_LOCKING)
-#define VBLANK_EVASION_TIME_US 250
-#else
-#define VBLANK_EVASION_TIME_US 100
-#endif
-
 /**
  * intel_pipe_update_start() - start update of a set of display registers
  * @new_crtc_state: the new crtc state
@@ -187,6 +179,36 @@ irq_disable:
 	local_irq_disable();
 }
 
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_VBLANK_EVADE)
+static void dbg_vblank_evade(struct intel_crtc *crtc, ktime_t end)
+{
+	u64 delta = ktime_to_ns(ktime_sub(end, crtc->debug.start_vbl_time));
+	unsigned int h;
+
+	h = ilog2(delta >> 9);
+	if (h >= ARRAY_SIZE(crtc->debug.vbl.times))
+		h = ARRAY_SIZE(crtc->debug.vbl.times) - 1;
+	crtc->debug.vbl.times[h]++;
+
+	crtc->debug.vbl.sum += delta;
+	if (!crtc->debug.vbl.min || delta < crtc->debug.vbl.min)
+		crtc->debug.vbl.min = delta;
+	if (delta > crtc->debug.vbl.max)
+		crtc->debug.vbl.max = delta;
+
+	if (delta > 1000 * VBLANK_EVASION_TIME_US) {
+		drm_dbg_kms(crtc->base.dev,
+			    "Atomic update on pipe (%c) took %lld us, max time under evasion is %u us\n",
+			    pipe_name(crtc->pipe),
+			    div_u64(delta, 1000),
+			    VBLANK_EVASION_TIME_US);
+		crtc->debug.vbl.over++;
+	}
+}
+#else
+static void dbg_vblank_evade(struct intel_crtc *crtc, ktime_t end) {}
+#endif
+
 /**
  * intel_pipe_update_end() - end update of a set of display registers
  * @new_crtc_state: the new crtc state
@@ -249,15 +271,8 @@ void intel_pipe_update_end(struct intel_crtc_state *new_crtc_state)
 			crtc->debug.min_vbl, crtc->debug.max_vbl,
 			crtc->debug.scanline_start, scanline_end);
 	}
-#ifdef CONFIG_DRM_I915_DEBUG_VBLANK_EVADE
-	else if (ktime_us_delta(end_vbl_time, crtc->debug.start_vbl_time) >
-		 VBLANK_EVASION_TIME_US)
-		drm_warn(&dev_priv->drm,
-			 "Atomic update on pipe (%c) took %lld us, max time under evasion is %u us\n",
-			 pipe_name(pipe),
-			 ktime_us_delta(end_vbl_time, crtc->debug.start_vbl_time),
-			 VBLANK_EVASION_TIME_US);
-#endif
+
+	dbg_vblank_evade(crtc, end_vbl_time);
 }
 
 int intel_plane_check_stride(const struct intel_plane_state *plane_state)
