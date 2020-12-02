@@ -69,6 +69,28 @@ struct bpf_lwt_prog {
 	char *name;
 };
 
+enum seg6_end_dt_mode {
+	DT_INVALID_MODE	= -EINVAL,
+	DT_LEGACY_MODE	= 0,
+	DT_VRF_MODE	= 1,
+};
+
+struct seg6_end_dt_info {
+	enum seg6_end_dt_mode mode;
+
+	struct net *net;
+	/* VRF device associated to the routing table used by the SRv6
+	 * End.DT4/DT6 behavior for routing IPv4/IPv6 packets.
+	 */
+	int vrf_ifindex;
+	int vrf_table;
+
+	/* tunneled packet proto and family (IPv4 or IPv6) */
+	__be16 proto;
+	u16 family;
+	int hdrlen;
+};
+
 struct seg6_local_lwt {
 	int action;
 	struct ipv6_sr_hdr *srh;
@@ -78,6 +100,9 @@ struct seg6_local_lwt {
 	int iif;
 	int oif;
 	struct bpf_lwt_prog bpf;
+#ifdef CONFIG_NET_L3_MASTER_DEV
+	struct seg6_end_dt_info dt_info;
+#endif
 
 	int headroom;
 	struct seg6_action_desc *desc;
@@ -429,6 +454,203 @@ drop:
 	return -EINVAL;
 }
 
+#ifdef CONFIG_NET_L3_MASTER_DEV
+static struct net *fib6_config_get_net(const struct fib6_config *fib6_cfg)
+{
+	const struct nl_info *nli = &fib6_cfg->fc_nlinfo;
+
+	return nli->nl_net;
+}
+
+static int __seg6_end_dt_vrf_build(struct seg6_local_lwt *slwt, const void *cfg,
+				   u16 family, struct netlink_ext_ack *extack)
+{
+	struct seg6_end_dt_info *info = &slwt->dt_info;
+	int vrf_ifindex;
+	struct net *net;
+
+	net = fib6_config_get_net(cfg);
+
+	/* note that vrf_table was already set by parse_nla_vrftable() */
+	vrf_ifindex = l3mdev_ifindex_lookup_by_table_id(L3MDEV_TYPE_VRF, net,
+							info->vrf_table);
+	if (vrf_ifindex < 0) {
+		if (vrf_ifindex == -EPERM) {
+			NL_SET_ERR_MSG(extack,
+				       "Strict mode for VRF is disabled");
+		} else if (vrf_ifindex == -ENODEV) {
+			NL_SET_ERR_MSG(extack,
+				       "Table has no associated VRF device");
+		} else {
+			pr_debug("seg6local: SRv6 End.DT* creation error=%d\n",
+				 vrf_ifindex);
+		}
+
+		return vrf_ifindex;
+	}
+
+	info->net = net;
+	info->vrf_ifindex = vrf_ifindex;
+
+	switch (family) {
+	case AF_INET:
+		info->proto = htons(ETH_P_IP);
+		info->hdrlen = sizeof(struct iphdr);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	info->family = family;
+	info->mode = DT_VRF_MODE;
+
+	return 0;
+}
+
+/* The SRv6 End.DT4/DT6 behavior extracts the inner (IPv4/IPv6) packet and
+ * routes the IPv4/IPv6 packet by looking at the configured routing table.
+ *
+ * In the SRv6 End.DT4/DT6 use case, we can receive traffic (IPv6+Segment
+ * Routing Header packets) from several interfaces and the outer IPv6
+ * destination address (DA) is used for retrieving the specific instance of the
+ * End.DT4/DT6 behavior that should process the packets.
+ *
+ * However, the inner IPv4/IPv6 packet is not really bound to any receiving
+ * interface and thus the End.DT4/DT6 sets the VRF (associated with the
+ * corresponding routing table) as the *receiving* interface.
+ * In other words, the End.DT4/DT6 processes a packet as if it has been received
+ * directly by the VRF (and not by one of its slave devices, if any).
+ * In this way, the VRF interface is used for routing the IPv4/IPv6 packet in
+ * according to the routing table configured by the End.DT4/DT6 instance.
+ *
+ * This design allows you to get some interesting features like:
+ *  1) the statistics on rx packets;
+ *  2) the possibility to install a packet sniffer on the receiving interface
+ *     (the VRF one) for looking at the incoming packets;
+ *  3) the possibility to leverage the netfilter prerouting hook for the inner
+ *     IPv4 packet.
+ *
+ * This function returns:
+ *  - the sk_buff* when the VRF rcv handler has processed the packet correctly;
+ *  - NULL when the skb is consumed by the VRF rcv handler;
+ *  - a pointer which encodes a negative error number in case of error.
+ *    Note that in this case, the function takes care of freeing the skb.
+ */
+static struct sk_buff *end_dt_vrf_rcv(struct sk_buff *skb, u16 family,
+				      struct net_device *dev)
+{
+	/* based on l3mdev_ip_rcv; we are only interested in the master */
+	if (unlikely(!netif_is_l3_master(dev) && !netif_has_l3_rx_handler(dev)))
+		goto drop;
+
+	if (unlikely(!dev->l3mdev_ops->l3mdev_l3_rcv))
+		goto drop;
+
+	/* the decap packet IPv4/IPv6 does not come with any mac header info.
+	 * We must unset the mac header to allow the VRF device to rebuild it,
+	 * just in case there is a sniffer attached on the device.
+	 */
+	skb_unset_mac_header(skb);
+
+	skb = dev->l3mdev_ops->l3mdev_l3_rcv(dev, skb, family);
+	if (!skb)
+		/* the skb buffer was consumed by the handler */
+		return NULL;
+
+	/* when a packet is received by a VRF or by one of its slaves, the
+	 * master device reference is set into the skb.
+	 */
+	if (unlikely(skb->dev != dev || skb->skb_iif != dev->ifindex))
+		goto drop;
+
+	return skb;
+
+drop:
+	kfree_skb(skb);
+	return ERR_PTR(-EINVAL);
+}
+
+static struct net_device *end_dt_get_vrf_rcu(struct sk_buff *skb,
+					     struct seg6_end_dt_info *info)
+{
+	int vrf_ifindex = info->vrf_ifindex;
+	struct net *net = info->net;
+
+	if (unlikely(vrf_ifindex < 0))
+		goto error;
+
+	if (unlikely(!net_eq(dev_net(skb->dev), net)))
+		goto error;
+
+	return dev_get_by_index_rcu(net, vrf_ifindex);
+
+error:
+	return NULL;
+}
+
+static struct sk_buff *end_dt_vrf_core(struct sk_buff *skb,
+				       struct seg6_local_lwt *slwt)
+{
+	struct seg6_end_dt_info *info = &slwt->dt_info;
+	struct net_device *vrf;
+
+	vrf = end_dt_get_vrf_rcu(skb, info);
+	if (unlikely(!vrf))
+		goto drop;
+
+	skb->protocol = info->proto;
+
+	skb_dst_drop(skb);
+
+	skb_set_transport_header(skb, info->hdrlen);
+
+	return end_dt_vrf_rcv(skb, info->family, vrf);
+
+drop:
+	kfree_skb(skb);
+	return ERR_PTR(-EINVAL);
+}
+
+static int input_action_end_dt4(struct sk_buff *skb,
+				struct seg6_local_lwt *slwt)
+{
+	struct iphdr *iph;
+	int err;
+
+	if (!decap_and_validate(skb, IPPROTO_IPIP))
+		goto drop;
+
+	if (!pskb_may_pull(skb, sizeof(struct iphdr)))
+		goto drop;
+
+	skb = end_dt_vrf_core(skb, slwt);
+	if (!skb)
+		/* packet has been processed and consumed by the VRF */
+		return 0;
+
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	iph = ip_hdr(skb);
+
+	err = ip_route_input(skb, iph->daddr, iph->saddr, 0, skb->dev);
+	if (unlikely(err))
+		goto drop;
+
+	return dst_input(skb);
+
+drop:
+	kfree_skb(skb);
+	return -EINVAL;
+}
+
+static int seg6_end_dt4_build(struct seg6_local_lwt *slwt, const void *cfg,
+			      struct netlink_ext_ack *extack)
+{
+	return __seg6_end_dt_vrf_build(slwt, cfg, AF_INET, extack);
+}
+#endif
+
 static int input_action_end_dt6(struct sk_buff *skb,
 				struct seg6_local_lwt *slwt)
 {
@@ -618,6 +840,16 @@ static struct seg6_action_desc seg6_action_table[] = {
 		.input		= input_action_end_dx4,
 	},
 	{
+		.action		= SEG6_LOCAL_ACTION_END_DT4,
+		.attrs		= (1 << SEG6_LOCAL_VRFTABLE),
+#ifdef CONFIG_NET_L3_MASTER_DEV
+		.input		= input_action_end_dt4,
+		.slwt_ops	= {
+					.build_state = seg6_end_dt4_build,
+				  },
+#endif
+	},
+	{
 		.action		= SEG6_LOCAL_ACTION_END_DT6,
 		.attrs		= (1 << SEG6_LOCAL_TABLE),
 		.input		= input_action_end_dt6,
@@ -677,6 +909,7 @@ static const struct nla_policy seg6_local_policy[SEG6_LOCAL_MAX + 1] = {
 	[SEG6_LOCAL_ACTION]	= { .type = NLA_U32 },
 	[SEG6_LOCAL_SRH]	= { .type = NLA_BINARY },
 	[SEG6_LOCAL_TABLE]	= { .type = NLA_U32 },
+	[SEG6_LOCAL_VRFTABLE]	= { .type = NLA_U32 },
 	[SEG6_LOCAL_NH4]	= { .type = NLA_BINARY,
 				    .len = sizeof(struct in_addr) },
 	[SEG6_LOCAL_NH6]	= { .type = NLA_BINARY,
@@ -761,6 +994,53 @@ static int put_nla_table(struct sk_buff *skb, struct seg6_local_lwt *slwt)
 static int cmp_nla_table(struct seg6_local_lwt *a, struct seg6_local_lwt *b)
 {
 	if (a->table != b->table)
+		return 1;
+
+	return 0;
+}
+
+static struct
+seg6_end_dt_info *seg6_possible_end_dt_info(struct seg6_local_lwt *slwt)
+{
+#ifdef CONFIG_NET_L3_MASTER_DEV
+	return &slwt->dt_info;
+#else
+	return ERR_PTR(-EOPNOTSUPP);
+#endif
+}
+
+static int parse_nla_vrftable(struct nlattr **attrs,
+			      struct seg6_local_lwt *slwt)
+{
+	struct seg6_end_dt_info *info = seg6_possible_end_dt_info(slwt);
+
+	if (IS_ERR(info))
+		return PTR_ERR(info);
+
+	info->vrf_table = nla_get_u32(attrs[SEG6_LOCAL_VRFTABLE]);
+
+	return 0;
+}
+
+static int put_nla_vrftable(struct sk_buff *skb, struct seg6_local_lwt *slwt)
+{
+	struct seg6_end_dt_info *info = seg6_possible_end_dt_info(slwt);
+
+	if (IS_ERR(info))
+		return PTR_ERR(info);
+
+	if (nla_put_u32(skb, SEG6_LOCAL_VRFTABLE, info->vrf_table))
+		return -EMSGSIZE;
+
+	return 0;
+}
+
+static int cmp_nla_vrftable(struct seg6_local_lwt *a, struct seg6_local_lwt *b)
+{
+	struct seg6_end_dt_info *info_a = seg6_possible_end_dt_info(a);
+	struct seg6_end_dt_info *info_b = seg6_possible_end_dt_info(b);
+
+	if (info_a->vrf_table != info_b->vrf_table)
 		return 1;
 
 	return 0;
@@ -983,6 +1263,10 @@ static struct seg6_action_param seg6_action_params[SEG6_LOCAL_MAX + 1] = {
 				    .put = put_nla_bpf,
 				    .cmp = cmp_nla_bpf,
 				    .destroy = destroy_attr_bpf },
+
+	[SEG6_LOCAL_VRFTABLE]	= { .parse = parse_nla_vrftable,
+				    .put = put_nla_vrftable,
+				    .cmp = cmp_nla_vrftable },
 
 };
 
@@ -1282,6 +1566,9 @@ static int seg6_local_get_encap_size(struct lwtunnel_state *lwt)
 		nlsize += nla_total_size(sizeof(struct nlattr)) +
 		       nla_total_size(MAX_PROG_NAME) +
 		       nla_total_size(4);
+
+	if (attrs & (1 << SEG6_LOCAL_VRFTABLE))
+		nlsize += nla_total_size(4);
 
 	return nlsize;
 }
