@@ -945,8 +945,7 @@ static int da9121_config_irq(struct i2c_client *i2c,
 
 		chip->passive_delay = p_delay;
 
-		ret = devm_request_threaded_irq(chip->dev,
-					chip->chip_irq, NULL,
+		ret = request_threaded_irq(chip->chip_irq, NULL,
 					da9121_irq_handler,
 					IRQF_TRIGGER_LOW|IRQF_ONESHOT,
 					"da9121", chip);
@@ -960,7 +959,7 @@ static int da9121_config_irq(struct i2c_client *i2c,
 		if (ret != 0) {
 			dev_err(chip->dev, "Failed to set IRQ masks: %d\n",
 				ret);
-			goto error;
+			goto regmap_error;
 		}
 
 		INIT_DELAYED_WORK(&chip->work, da9121_status_poll_on);
@@ -968,6 +967,9 @@ static int da9121_config_irq(struct i2c_client *i2c,
 			 chip->passive_delay);
 	}
 error:
+	return ret;
+regmap_error:
+	free_irq(chip->chip_irq, chip);
 	return ret;
 }
 
@@ -1036,6 +1038,7 @@ static int da9121_i2c_remove(struct i2c_client *i2c)
 	const int mask_all[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
 	int ret = 0;
 
+	free_irq(chip->chip_irq, chip);
 	cancel_delayed_work_sync(&chip->work);
 
 	ret = regmap_bulk_write(chip->regmap, DA9121_REG_SYS_MASK_0, mask_all, 4);
