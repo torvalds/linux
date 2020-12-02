@@ -192,3 +192,8 @@ config UML_TIME_TRAVEL_SUPPORT
 endmenu
 
 source "arch/um/drivers/Kconfig"
+
+config ARCH_SUSPEND_POSSIBLE
+	def_bool y
+
+source "kernel/power/Kconfig"
