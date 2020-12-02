@@ -676,10 +676,8 @@ void read_persistent_clock64(struct timespec64 *ts)
 {
 	long long nsecs;
 
-	if (time_travel_start_set)
+	if (time_travel_mode != TT_MODE_OFF)
 		nsecs = time_travel_start + time_travel_time;
-	else if (time_travel_mode == TT_MODE_EXTERNAL)
-		nsecs = time_travel_ext_req(UM_TIMETRAVEL_GET_TOD, -1);
 	else
 		nsecs = os_persistent_clock_emulation();
 
@@ -689,6 +687,25 @@ void read_persistent_clock64(struct timespec64 *ts)
 
 void __init time_init(void)
 {
+#ifdef CONFIG_UML_TIME_TRAVEL_SUPPORT
+	switch (time_travel_mode) {
+	case TT_MODE_EXTERNAL:
+		time_travel_start = time_travel_ext_req(UM_TIMETRAVEL_GET_TOD, -1);
+		/* controller gave us the *current* time, so adjust by that */
+		time_travel_ext_get_time();
+		time_travel_start -= time_travel_time;
+		break;
+	case TT_MODE_INFCPU:
+	case TT_MODE_BASIC:
+		if (!time_travel_start_set)
+			time_travel_start = os_persistent_clock_emulation();
+		break;
+	case TT_MODE_OFF:
+		/* we just read the host clock with os_persistent_clock_emulation() */
+		break;
+	}
+#endif
+
 	timer_set_signal_handler();
 	late_time_init = um_timer_setup;
 }
