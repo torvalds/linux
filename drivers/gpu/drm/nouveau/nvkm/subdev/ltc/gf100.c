@@ -200,8 +200,8 @@ gf100_ltc_oneinit_tag_ram(struct nvkm_ltc *ltc)
 	}
 
 mm_init:
-	nvkm_mm_fini(&fb->tags);
-	return nvkm_mm_init(&fb->tags, 0, 0, ltc->num_tags, 1);
+	nvkm_mm_fini(&fb->tags.mm);
+	return nvkm_mm_init(&fb->tags.mm, 0, 0, ltc->num_tags, 1);
 }
 
 int

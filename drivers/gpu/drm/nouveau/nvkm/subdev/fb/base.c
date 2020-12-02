@@ -122,7 +122,7 @@ nvkm_fb_oneinit(struct nvkm_subdev *subdev)
 		nvkm_debug(subdev, "%d comptags\n", tags);
 	}
 
-	return nvkm_mm_init(&fb->tags, 0, 0, tags, 1);
+	return nvkm_mm_init(&fb->tags.mm, 0, 0, tags, 1);
 }
 
 static int
@@ -205,7 +205,9 @@ nvkm_fb_dtor(struct nvkm_subdev *subdev)
 	for (i = 0; i < fb->tile.regions; i++)
 		fb->func->tile.fini(fb, i, &fb->tile.region[i]);
 
-	nvkm_mm_fini(&fb->tags);
+	nvkm_mm_fini(&fb->tags.mm);
+	mutex_destroy(&fb->tags.mutex);
+
 	nvkm_ram_del(&fb->ram);
 
 	nvkm_blob_dtor(&fb->vpr_scrubber);
@@ -230,8 +232,8 @@ nvkm_fb_ctor(const struct nvkm_fb_func *func, struct nvkm_device *device,
 	nvkm_subdev_ctor(&nvkm_fb, device, index, &fb->subdev);
 	fb->func = func;
 	fb->tile.regions = fb->func->tile.regions;
-	fb->page = nvkm_longopt(device->cfgopt, "NvFbBigPage",
-				fb->func->default_bigpage);
+	fb->page = nvkm_longopt(device->cfgopt, "NvFbBigPage", fb->func->default_bigpage);
+	mutex_init(&fb->tags.mutex);
 }
 
 int

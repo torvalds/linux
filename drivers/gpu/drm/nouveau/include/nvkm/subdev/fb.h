@@ -36,7 +36,11 @@ struct nvkm_fb {
 	struct nvkm_blob vpr_scrubber;
 
 	struct nvkm_ram *ram;
-	struct nvkm_mm tags;
+
+	struct {
+		struct mutex mutex; /* protects mm and nvkm_memory::tags */
+		struct nvkm_mm mm;
+	} tags;
 
 	struct {
 		struct nvkm_fb_tile region[16];
