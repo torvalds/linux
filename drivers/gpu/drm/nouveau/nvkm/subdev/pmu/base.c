@@ -148,6 +148,7 @@ nvkm_pmu_dtor(struct nvkm_subdev *subdev)
 	nvkm_falcon_cmdq_del(&pmu->hpq);
 	nvkm_falcon_qmgr_del(&pmu->qmgr);
 	nvkm_falcon_dtor(&pmu->falcon);
+	mutex_destroy(&pmu->send.mutex);
 	return nvkm_pmu(subdev);
 }
 
@@ -167,6 +168,8 @@ nvkm_pmu_ctor(const struct nvkm_pmu_fwif *fwif, struct nvkm_device *device,
 	int ret;
 
 	nvkm_subdev_ctor(&nvkm_pmu, device, index, &pmu->subdev);
+
+	mutex_init(&pmu->send.mutex);
 
 	INIT_WORK(&pmu->recv.work, nvkm_pmu_recv);
 	init_waitqueue_head(&pmu->recv.wait);

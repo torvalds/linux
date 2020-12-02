@@ -18,6 +18,7 @@ struct nvkm_pmu {
 	struct completion wpr_ready;
 
 	struct {
+		struct mutex mutex;
 		u32 base;
 		u32 size;
 	} send;
