@@ -151,6 +151,16 @@ SYM_CODE_START(kvm_hyp_cpu_entry)
 SYM_CODE_END(kvm_hyp_cpu_entry)
 
 /*
+ * PSCI CPU_SUSPEND entry point
+ *
+ * x0: struct kvm_nvhe_init_params PA
+ */
+SYM_CODE_START(kvm_hyp_cpu_resume)
+	mov	x1, #0				// is_cpu_on = false
+	b	__kvm_hyp_init_cpu
+SYM_CODE_END(kvm_hyp_cpu_resume)
+
+/*
  * Common code for CPU entry points. Initializes EL2 state and
  * installs the hypervisor before handing over to a C handler.
  *
