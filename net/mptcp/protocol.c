@@ -1921,7 +1921,7 @@ static int mptcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 	len = min_t(size_t, len, INT_MAX);
 	target = sock_rcvlowat(sk, flags & MSG_WAITALL, len);
 
-	for (;;) {
+	while (copied < len) {
 		int bytes_read, old_space;
 
 		bytes_read = __mptcp_recvmsg_mskq(msk, msg, len - copied);
