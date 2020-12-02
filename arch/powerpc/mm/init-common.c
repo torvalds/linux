@@ -28,8 +28,8 @@ EXPORT_SYMBOL_GPL(kernstart_addr);
 unsigned long kernstart_virt_addr __ro_after_init = KERNELBASE;
 EXPORT_SYMBOL_GPL(kernstart_virt_addr);
 
-static bool disable_kuep = !IS_ENABLED(CONFIG_PPC_KUEP);
-static bool disable_kuap = !IS_ENABLED(CONFIG_PPC_KUAP);
+bool disable_kuep = !IS_ENABLED(CONFIG_PPC_KUEP);
+bool disable_kuap = !IS_ENABLED(CONFIG_PPC_KUAP);
 
 static int __init parse_nosmep(char *p)
 {

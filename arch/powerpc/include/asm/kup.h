@@ -44,6 +44,9 @@
 
 #else /* !__ASSEMBLY__ */
 
+extern bool disable_kuep;
+extern bool disable_kuap;
+
 #include <linux/pgtable.h>
 
 void setup_kup(void);

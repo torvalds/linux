@@ -185,6 +185,27 @@ void __init pkey_early_init_devtree(void)
 		default_uamor &= ~(0x3ul << pkeyshift(execute_only_key));
 	}
 
+	if (unlikely(num_pkey <= 3)) {
+		/*
+		 * Insufficient number of keys to support
+		 * KUAP/KUEP feature.
+		 */
+		disable_kuep = true;
+		disable_kuap = true;
+		WARN(1, "Disabling kernel user protection due to low (%d) max supported keys\n", num_pkey);
+	} else {
+		/*  handle key which is used by kernel for KAUP */
+		reserved_allocation_mask |= (0x1 << 3);
+		/*
+		 * Mark access for kup_key in default amr so that
+		 * we continue to operate with that AMR in
+		 * copy_to/from_user().
+		 */
+		default_amr   &= ~(0x3ul << pkeyshift(3));
+		default_iamr  &= ~(0x1ul << pkeyshift(3));
+		default_uamor &= ~(0x3ul << pkeyshift(3));
+	}
+
 	/*
 	 * Allow access for only key 0. And prevent any other modification.
 	 */
@@ -204,18 +225,6 @@ void __init pkey_early_init_devtree(void)
 	 */
 	reserved_allocation_mask |= (0x1 << 1);
 	default_uamor &= ~(0x3ul << pkeyshift(1));
-
-	/*  handle key which is used by kernel for KAUP */
-	reserved_allocation_mask |= (0x1 << 3);
-	/*
-	 * Mark access for KUAP key in default amr so that
-	 * we continue to operate with that AMR in
-	 * copy_to/from_user().
-	 */
-	default_amr   &= ~(0x3ul << pkeyshift(3));
-	default_iamr  &= ~(0x1ul << pkeyshift(3));
-	default_uamor &= ~(0x3ul << pkeyshift(3));
-
 
 	/*
 	 * Prevent the usage of OS reserved keys. Update UAMOR
