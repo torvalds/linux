@@ -34,6 +34,15 @@ struct psci_operations {
 
 extern struct psci_operations psci_ops;
 
+struct psci_0_1_function_ids {
+	u32 cpu_suspend;
+	u32 cpu_on;
+	u32 cpu_off;
+	u32 migrate;
+};
+
+struct psci_0_1_function_ids get_psci_0_1_function_ids(void);
+
 #if defined(CONFIG_ARM_PSCI_FW)
 int __init psci_dt_init(void);
 #else

@@ -58,14 +58,12 @@ typedef unsigned long (psci_fn)(unsigned long, unsigned long,
 				unsigned long, unsigned long);
 static psci_fn *invoke_psci_fn;
 
-struct psci_0_1_function_ids {
-	u32 cpu_suspend;
-	u32 cpu_on;
-	u32 cpu_off;
-	u32 migrate;
-};
-
 static struct psci_0_1_function_ids psci_0_1_function_ids;
+
+struct psci_0_1_function_ids get_psci_0_1_function_ids(void)
+{
+	return psci_0_1_function_ids;
+}
 
 #define PSCI_0_2_POWER_STATE_MASK		\
 				(PSCI_0_2_POWER_STATE_ID_MASK | \
