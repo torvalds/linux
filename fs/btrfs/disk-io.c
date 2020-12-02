@@ -113,11 +113,9 @@ struct async_submit_bio {
 	struct bio *bio;
 	extent_submit_bio_start_t *submit_bio_start;
 	int mirror_num;
-	/*
-	 * bio_offset is optional, can be used if the pages in the bio
-	 * can't tell us where in the file the bio should go
-	 */
-	u64 bio_offset;
+
+	/* Optional parameter for submit_bio_start used by direct io */
+	u64 dio_file_offset;
 	struct btrfs_work work;
 	blk_status_t status;
 };
@@ -697,7 +695,8 @@ static void run_one_async_start(struct btrfs_work *work)
 	blk_status_t ret;
 
 	async = container_of(work, struct  async_submit_bio, work);
-	ret = async->submit_bio_start(async->inode, async->bio, async->bio_offset);
+	ret = async->submit_bio_start(async->inode, async->bio,
+				      async->dio_file_offset);
 	if (ret)
 		async->status = ret;
 }
@@ -749,7 +748,7 @@ static void run_one_async_free(struct btrfs_work *work)
 
 blk_status_t btrfs_wq_submit_bio(struct inode *inode, struct bio *bio,
 				 int mirror_num, unsigned long bio_flags,
-				 u64 bio_offset,
+				 u64 dio_file_offset,
 				 extent_submit_bio_start_t *submit_bio_start)
 {
 	struct btrfs_fs_info *fs_info = BTRFS_I(inode)->root->fs_info;
@@ -767,7 +766,7 @@ blk_status_t btrfs_wq_submit_bio(struct inode *inode, struct bio *bio,
 	btrfs_init_work(&async->work, run_one_async_start, run_one_async_done,
 			run_one_async_free);
 
-	async->bio_offset = bio_offset;
+	async->dio_file_offset = dio_file_offset;
 
 	async->status = 0;
 
@@ -797,7 +796,7 @@ static blk_status_t btree_csum_one_bio(struct bio *bio)
 }
 
 static blk_status_t btree_submit_bio_start(struct inode *inode, struct bio *bio,
-					   u64 bio_offset)
+					   u64 dio_file_offset)
 {
 	/*
 	 * when we're called for a write, we're already in the async

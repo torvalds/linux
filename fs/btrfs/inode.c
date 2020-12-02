@@ -2212,7 +2212,7 @@ int btrfs_bio_fits_in_stripe(struct page *page, size_t size, struct bio *bio,
  * are inserted into the btree
  */
 static blk_status_t btrfs_submit_bio_start(struct inode *inode, struct bio *bio,
-					   u64 bio_offset)
+					   u64 dio_file_offset)
 {
 	return btrfs_csum_one_bio(BTRFS_I(inode), bio, 0, 0);
 }
@@ -7795,9 +7795,10 @@ static void __endio_write_update_ordered(struct btrfs_inode *inode,
 }
 
 static blk_status_t btrfs_submit_bio_start_direct_io(struct inode *inode,
-						     struct bio *bio, u64 offset)
+						     struct bio *bio,
+						     u64 dio_file_offset)
 {
-	return btrfs_csum_one_bio(BTRFS_I(inode), bio, offset, 1);
+	return btrfs_csum_one_bio(BTRFS_I(inode), bio, dio_file_offset, 1);
 }
 
 static void btrfs_end_dio_bio(struct bio *bio)
@@ -7846,8 +7847,7 @@ static inline blk_status_t btrfs_submit_dio_bio(struct bio *bio,
 		goto map;
 
 	if (write && async_submit) {
-		ret = btrfs_wq_submit_bio(inode, bio, 0, 0,
-					  file_offset,
+		ret = btrfs_wq_submit_bio(inode, bio, 0, 0, file_offset,
 					  btrfs_submit_bio_start_direct_io);
 		goto err;
 	} else if (write) {
