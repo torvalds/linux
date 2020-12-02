@@ -1336,7 +1336,7 @@ ORed together. The letters are seen in "Tainted" line of Oops reports.
 ======  =====  ==============================================================
      1  `(P)`  proprietary module was loaded
      2  `(F)`  module was force loaded
-     4  `(S)`  SMP kernel oops on an officially SMP incapable processor
+     4  `(S)`  kernel running on an out of specification system
      8  `(R)`  module was force unloaded
     16  `(M)`  processor reported a Machine Check Exception (MCE)
     32  `(B)`  bad page referenced or some unexpected page flags
