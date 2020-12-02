@@ -26,8 +26,6 @@
 #include <core/option.h>
 #include <subdev/mc.h>
 
-static struct lock_class_key nvkm_subdev_lock_class[NVKM_SUBDEV_NR];
-
 const char *
 nvkm_subdev_name[NVKM_SUBDEV_NR] = {
 	[NVKM_SUBDEV_ACR     ] = "acr",
@@ -217,8 +215,6 @@ nvkm_subdev_ctor(const struct nvkm_subdev_func *func,
 	subdev->func = func;
 	subdev->device = device;
 	subdev->index = index;
-
-	__mutex_init(&subdev->mutex, name, &nvkm_subdev_lock_class[index]);
 	subdev->debug = nvkm_dbgopt(device->dbgopt, name);
 }
 

@@ -7,7 +7,6 @@ struct nvkm_subdev {
 	const struct nvkm_subdev_func *func;
 	struct nvkm_device *device;
 	enum nvkm_devidx index;
-	struct mutex mutex;
 	u32 debug;
 
 	bool oneinit;
