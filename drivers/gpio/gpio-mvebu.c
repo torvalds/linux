@@ -78,8 +78,7 @@
 
 /*
  * The Armada XP has per-CPU registers for interrupt cause, interrupt
- * mask and interrupt level mask. Those are relative to the
- * percpu_membase.
+ * mask and interrupt level mask. Those are in percpu_regs range.
  */
 #define GPIO_EDGE_CAUSE_ARMADAXP_OFF(cpu) ((cpu) * 0x4)
 #define GPIO_EDGE_MASK_ARMADAXP_OFF(cpu)  (0x10 + (cpu) * 0x4)
