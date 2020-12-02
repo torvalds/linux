@@ -11,7 +11,11 @@ struct nvkm_engine {
 	struct nvkm_subdev subdev;
 	spinlock_t lock;
 
-	int usecount;
+	struct {
+		refcount_t refcount;
+		struct mutex mutex;
+		bool enabled;
+	} use;
 };
 
 struct nvkm_engine_func {
