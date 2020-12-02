@@ -130,7 +130,7 @@ struct scrub_parity {
 
 	int			nsectors;
 
-	u64			stripe_len;
+	u32			stripe_len;
 
 	refcount_t		refs;
 
@@ -233,7 +233,7 @@ static void scrub_parity_get(struct scrub_parity *sparity);
 static void scrub_parity_put(struct scrub_parity *sparity);
 static int scrub_add_page_to_rd_bio(struct scrub_ctx *sctx,
 				    struct scrub_page *spage);
-static int scrub_pages(struct scrub_ctx *sctx, u64 logical, u64 len,
+static int scrub_pages(struct scrub_ctx *sctx, u64 logical, u32 len,
 		       u64 physical, struct btrfs_device *dev, u64 flags,
 		       u64 gen, int mirror_num, u8 *csum,
 		       u64 physical_for_dev_replace);
@@ -241,7 +241,7 @@ static void scrub_bio_end_io(struct bio *bio);
 static void scrub_bio_end_io_worker(struct btrfs_work *work);
 static void scrub_block_complete(struct scrub_block *sblock);
 static void scrub_remap_extent(struct btrfs_fs_info *fs_info,
-			       u64 extent_logical, u64 extent_len,
+			       u64 extent_logical, u32 extent_len,
 			       u64 *extent_physical,
 			       struct btrfs_device **extent_dev,
 			       int *extent_mirror_num);
@@ -2147,7 +2147,7 @@ bbio_out:
 	spin_unlock(&sctx->stat_lock);
 }
 
-static int scrub_pages(struct scrub_ctx *sctx, u64 logical, u64 len,
+static int scrub_pages(struct scrub_ctx *sctx, u64 logical, u32 len,
 		       u64 physical, struct btrfs_device *dev, u64 flags,
 		       u64 gen, int mirror_num, u8 *csum,
 		       u64 physical_for_dev_replace)
@@ -2171,7 +2171,7 @@ static int scrub_pages(struct scrub_ctx *sctx, u64 logical, u64 len,
 
 	for (index = 0; len > 0; index++) {
 		struct scrub_page *spage;
-		u64 l = min_t(u64, len, PAGE_SIZE);
+		u32 l = min_t(u32, len, PAGE_SIZE);
 
 		spage = kzalloc(sizeof(*spage), GFP_KERNEL);
 		if (!spage) {
@@ -2292,10 +2292,9 @@ static void scrub_bio_end_io_worker(struct btrfs_work *work)
 
 static inline void __scrub_mark_bitmap(struct scrub_parity *sparity,
 				       unsigned long *bitmap,
-				       u64 start, u64 len)
+				       u64 start, u32 len)
 {
 	u64 offset;
-	u64 nsectors64;
 	u32 nsectors;
 	u32 sectorsize_bits = sparity->sctx->fs_info->sectorsize_bits;
 
@@ -2307,10 +2306,7 @@ static inline void __scrub_mark_bitmap(struct scrub_parity *sparity,
 	start -= sparity->logic_start;
 	start = div64_u64_rem(start, sparity->stripe_len, &offset);
 	offset = offset >> sectorsize_bits;
-	nsectors64 = len >> sectorsize_bits;
-
-	ASSERT(nsectors64 < UINT_MAX);
-	nsectors = (u32)nsectors64;
+	nsectors = len >> sectorsize_bits;
 
 	if (offset + nsectors <= sparity->nsectors) {
 		bitmap_set(bitmap, offset, nsectors);
@@ -2322,13 +2318,13 @@ static inline void __scrub_mark_bitmap(struct scrub_parity *sparity,
 }
 
 static inline void scrub_parity_mark_sectors_error(struct scrub_parity *sparity,
-						   u64 start, u64 len)
+						   u64 start, u32 len)
 {
 	__scrub_mark_bitmap(sparity, sparity->ebitmap, start, len);
 }
 
 static inline void scrub_parity_mark_sectors_data(struct scrub_parity *sparity,
-						  u64 start, u64 len)
+						  u64 start, u32 len)
 {
 	__scrub_mark_bitmap(sparity, sparity->dbitmap, start, len);
 }
@@ -2356,6 +2352,7 @@ static void scrub_block_complete(struct scrub_block *sblock)
 		u64 end = sblock->pagev[sblock->page_count - 1]->logical +
 			  PAGE_SIZE;
 
+		ASSERT(end - start <= U32_MAX);
 		scrub_parity_mark_sectors_error(sblock->sparity,
 						start, end - start);
 	}
@@ -2425,7 +2422,7 @@ static int scrub_find_csum(struct scrub_ctx *sctx, u64 logical, u8 *csum)
 
 /* scrub extent tries to collect up to 64 kB for each bio */
 static int scrub_extent(struct scrub_ctx *sctx, struct map_lookup *map,
-			u64 logical, u64 len,
+			u64 logical, u32 len,
 			u64 physical, struct btrfs_device *dev, u64 flags,
 			u64 gen, int mirror_num, u64 physical_for_dev_replace)
 {
@@ -2457,7 +2454,7 @@ static int scrub_extent(struct scrub_ctx *sctx, struct map_lookup *map,
 	}
 
 	while (len) {
-		u64 l = min_t(u64, len, blocksize);
+		u32 l = min(len, blocksize);
 		int have_csum = 0;
 
 		if (flags & BTRFS_EXTENT_FLAG_DATA) {
@@ -2480,7 +2477,7 @@ static int scrub_extent(struct scrub_ctx *sctx, struct map_lookup *map,
 }
 
 static int scrub_pages_for_parity(struct scrub_parity *sparity,
-				  u64 logical, u64 len,
+				  u64 logical, u32 len,
 				  u64 physical, struct btrfs_device *dev,
 				  u64 flags, u64 gen, int mirror_num, u8 *csum)
 {
@@ -2506,7 +2503,7 @@ static int scrub_pages_for_parity(struct scrub_parity *sparity,
 
 	for (index = 0; len > 0; index++) {
 		struct scrub_page *spage;
-		u64 l = min_t(u64, len, PAGE_SIZE);
+		u32 l = min_t(u32, len, PAGE_SIZE);
 
 		spage = kzalloc(sizeof(*spage), GFP_KERNEL);
 		if (!spage) {
@@ -2564,7 +2561,7 @@ leave_nomem:
 }
 
 static int scrub_extent_for_parity(struct scrub_parity *sparity,
-				   u64 logical, u64 len,
+				   u64 logical, u32 len,
 				   u64 physical, struct btrfs_device *dev,
 				   u64 flags, u64 gen, int mirror_num)
 {
@@ -2588,7 +2585,7 @@ static int scrub_extent_for_parity(struct scrub_parity *sparity,
 	}
 
 	while (len) {
-		u64 l = min_t(u64, len, blocksize);
+		u32 l = min(len, blocksize);
 		int have_csum = 0;
 
 		if (flags & BTRFS_EXTENT_FLAG_DATA) {
@@ -2792,7 +2789,8 @@ static noinline_for_stack int scrub_raid56_parity(struct scrub_ctx *sctx,
 	u64 generation;
 	u64 extent_logical;
 	u64 extent_physical;
-	u64 extent_len;
+	/* Check the comment in scrub_stripe() for why u32 is enough here */
+	u32 extent_len;
 	u64 mapped_length;
 	struct btrfs_device *extent_dev;
 	struct scrub_parity *sparity;
@@ -2801,6 +2799,7 @@ static noinline_for_stack int scrub_raid56_parity(struct scrub_ctx *sctx,
 	int extent_mirror_num;
 	int stop_loop = 0;
 
+	ASSERT(map->stripe_len <= U32_MAX);
 	nsectors = map->stripe_len >> fs_info->sectorsize_bits;
 	bitmap_len = scrub_calc_parity_bitmap_len(nsectors);
 	sparity = kzalloc(sizeof(struct scrub_parity) + 2 * bitmap_len,
@@ -2812,6 +2811,7 @@ static noinline_for_stack int scrub_raid56_parity(struct scrub_ctx *sctx,
 		return -ENOMEM;
 	}
 
+	ASSERT(map->stripe_len <= U32_MAX);
 	sparity->stripe_len = map->stripe_len;
 	sparity->nsectors = nsectors;
 	sparity->sctx = sctx;
@@ -2906,6 +2906,7 @@ static noinline_for_stack int scrub_raid56_parity(struct scrub_ctx *sctx,
 			}
 again:
 			extent_logical = key.objectid;
+			ASSERT(bytes <= U32_MAX);
 			extent_len = bytes;
 
 			if (extent_logical < logic_start) {
@@ -2984,9 +2985,11 @@ next:
 		logic_start += map->stripe_len;
 	}
 out:
-	if (ret < 0)
+	if (ret < 0) {
+		ASSERT(logic_end - logic_start <= U32_MAX);
 		scrub_parity_mark_sectors_error(sparity, logic_start,
 						logic_end - logic_start);
+	}
 	scrub_parity_put(sparity);
 	scrub_submit(sctx);
 	mutex_lock(&sctx->wr_lock);
@@ -3028,7 +3031,11 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 	u64 offset;
 	u64 extent_logical;
 	u64 extent_physical;
-	u64 extent_len;
+	/*
+	 * Unlike chunk length, extent length should never go beyond
+	 * BTRFS_MAX_EXTENT_SIZE, thus u32 is enough here.
+	 */
+	u32 extent_len;
 	u64 stripe_logical;
 	u64 stripe_end;
 	struct btrfs_device *extent_dev;
@@ -3277,6 +3284,7 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 
 again:
 			extent_logical = key.objectid;
+			ASSERT(bytes <= U32_MAX);
 			extent_len = bytes;
 
 			/*
@@ -4074,7 +4082,7 @@ int btrfs_scrub_progress(struct btrfs_fs_info *fs_info, u64 devid,
 }
 
 static void scrub_remap_extent(struct btrfs_fs_info *fs_info,
-			       u64 extent_logical, u64 extent_len,
+			       u64 extent_logical, u32 extent_len,
 			       u64 *extent_physical,
 			       struct btrfs_device **extent_dev,
 			       int *extent_mirror_num)
