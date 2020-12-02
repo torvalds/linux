@@ -216,6 +216,27 @@ static __kprobes unsigned long _sdei_handler(struct pt_regs *regs,
 	return vbar + 0x480;
 }
 
+static void __kprobes notrace __sdei_pstate_entry(void)
+{
+	/*
+	 * The original SDEI spec (ARM DEN 0054A) can be read ambiguously as to
+	 * whether PSTATE bits are inherited unchanged or generated from
+	 * scratch, and the TF-A implementation always clears PAN and always
+	 * clears UAO. There are no other known implementations.
+	 *
+	 * Subsequent revisions (ARM DEN 0054B) follow the usual rules for how
+	 * PSTATE is modified upon architectural exceptions, and so PAN is
+	 * either inherited or set per SCTLR_ELx.SPAN, and UAO is always
+	 * cleared.
+	 *
+	 * We must explicitly reset PAN to the expected state, including
+	 * clearing it when the host isn't using it, in case a VM had it set.
+	 */
+	if (system_uses_hw_pan())
+		set_pstate_pan(1);
+	else if (cpu_has_pan())
+		set_pstate_pan(0);
+}
 
 asmlinkage __kprobes notrace unsigned long
 __sdei_handler(struct pt_regs *regs, struct sdei_registered_event *arg)
@@ -224,12 +245,11 @@ __sdei_handler(struct pt_regs *regs, struct sdei_registered_event *arg)
 	mm_segment_t orig_addr_limit;
 
 	/*
-	 * We didn't take an exception to get here, so the HW hasn't set PAN or
-	 * cleared UAO, and the exception entry code hasn't reset addr_limit.
-	 * Set PAN, then use force_uaccess_begin() to clear UAO and reset
-	 * addr_limit.
+	 * We didn't take an exception to get here, so the HW hasn't
+	 * set/cleared bits in PSTATE that we may rely on. Initialize PAN, then
+	 * use force_uaccess_begin() to reset addr_limit.
 	 */
-	__uaccess_enable_hw_pan();
+	__sdei_pstate_entry();
 	orig_addr_limit = force_uaccess_begin();
 
 	nmi_enter();
