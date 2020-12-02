@@ -4910,6 +4910,9 @@ static int _bpf_setsockopt(struct sock *sk, int level, int optname,
 				tp->notsent_lowat = val;
 				sk->sk_write_space(sk);
 				break;
+			case TCP_WINDOW_CLAMP:
+				ret = tcp_set_window_clamp(sk, val);
+				break;
 			default:
 				ret = -EINVAL;
 			}
