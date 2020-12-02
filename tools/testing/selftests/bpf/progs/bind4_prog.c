@@ -19,6 +19,33 @@
 #define SERV4_REWRITE_IP	0x7f000001U /* 127.0.0.1 */
 #define SERV4_REWRITE_PORT	4444
 
+#ifndef IFNAMSIZ
+#define IFNAMSIZ 16
+#endif
+
+static __inline int bind_to_device(struct bpf_sock_addr *ctx)
+{
+	char veth1[IFNAMSIZ] = "test_sock_addr1";
+	char veth2[IFNAMSIZ] = "test_sock_addr2";
+	char missing[IFNAMSIZ] = "nonexistent_dev";
+	char del_bind[IFNAMSIZ] = "";
+
+	if (bpf_setsockopt(ctx, SOL_SOCKET, SO_BINDTODEVICE,
+				&veth1, sizeof(veth1)))
+		return 1;
+	if (bpf_setsockopt(ctx, SOL_SOCKET, SO_BINDTODEVICE,
+				&veth2, sizeof(veth2)))
+		return 1;
+	if (bpf_setsockopt(ctx, SOL_SOCKET, SO_BINDTODEVICE,
+				&missing, sizeof(missing)) != -ENODEV)
+		return 1;
+	if (bpf_setsockopt(ctx, SOL_SOCKET, SO_BINDTODEVICE,
+				&del_bind, sizeof(del_bind)))
+		return 1;
+
+	return 0;
+}
+
 SEC("cgroup/bind4")
 int bind_v4_prog(struct bpf_sock_addr *ctx)
 {
@@ -60,6 +87,10 @@ int bind_v4_prog(struct bpf_sock_addr *ctx)
 	user_ip4 |= ((volatile __u16 *)&ctx->user_ip4)[0] << 0;
 	user_ip4 |= ((volatile __u16 *)&ctx->user_ip4)[1] << 16;
 	if (ctx->user_ip4 != user_ip4)
+		return 0;
+
+	/* Bind to device and unbind it. */
+	if (bind_to_device(ctx))
 		return 0;
 
 	ctx->user_ip4 = bpf_htonl(SERV4_REWRITE_IP);

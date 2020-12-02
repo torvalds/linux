@@ -25,6 +25,33 @@
 #define SERV6_REWRITE_IP_3	0x00000001
 #define SERV6_REWRITE_PORT	6666
 
+#ifndef IFNAMSIZ
+#define IFNAMSIZ 16
+#endif
+
+static __inline int bind_to_device(struct bpf_sock_addr *ctx)
+{
+	char veth1[IFNAMSIZ] = "test_sock_addr1";
+	char veth2[IFNAMSIZ] = "test_sock_addr2";
+	char missing[IFNAMSIZ] = "nonexistent_dev";
+	char del_bind[IFNAMSIZ] = "";
+
+	if (bpf_setsockopt(ctx, SOL_SOCKET, SO_BINDTODEVICE,
+				&veth1, sizeof(veth1)))
+		return 1;
+	if (bpf_setsockopt(ctx, SOL_SOCKET, SO_BINDTODEVICE,
+				&veth2, sizeof(veth2)))
+		return 1;
+	if (bpf_setsockopt(ctx, SOL_SOCKET, SO_BINDTODEVICE,
+				&missing, sizeof(missing)) != -ENODEV)
+		return 1;
+	if (bpf_setsockopt(ctx, SOL_SOCKET, SO_BINDTODEVICE,
+				&del_bind, sizeof(del_bind)))
+		return 1;
+
+	return 0;
+}
+
 SEC("cgroup/bind6")
 int bind_v6_prog(struct bpf_sock_addr *ctx)
 {
@@ -75,6 +102,10 @@ int bind_v6_prog(struct bpf_sock_addr *ctx)
 		if (ctx->user_ip6[i] != user_ip6)
 			return 0;
 	}
+
+	/* Bind to device and unbind it. */
+	if (bind_to_device(ctx))
+		return 0;
 
 	ctx->user_ip6[0] = bpf_htonl(SERV6_REWRITE_IP_0);
 	ctx->user_ip6[1] = bpf_htonl(SERV6_REWRITE_IP_1);
