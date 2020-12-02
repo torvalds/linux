@@ -1038,7 +1038,7 @@ static int allegro_mcu_send_put_stream_buffer(struct allegro_dev *dev,
 					      struct allegro_channel *channel,
 					      dma_addr_t paddr,
 					      unsigned long size,
-					      u64 stream_id)
+					      u64 dst_handle)
 {
 	struct mcu_msg_put_stream_buffer msg;
 
@@ -1053,7 +1053,7 @@ static int allegro_mcu_send_put_stream_buffer(struct allegro_dev *dev,
 	msg.size = size;
 	msg.offset = ENCODER_STREAM_OFFSET;
 	/* copied to mcu_msg_encode_frame_response */
-	msg.stream_id = stream_id;
+	msg.dst_handle = dst_handle;
 
 	allegro_mbox_send(dev->mbox_command, &msg);
 
@@ -1437,7 +1437,7 @@ static void allegro_channel_finish_frame(struct allegro_channel *channel,
 			  channel->mcu_channel_id);
 
 	dst_buf = allegro_get_buffer(channel, &channel->stream_shadow_list,
-				     msg->stream_id);
+				     msg->dst_handle);
 	if (!dst_buf)
 		v4l2_warn(&dev->v4l2_dev,
 			  "channel %d: invalid stream buffer\n",

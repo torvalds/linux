@@ -302,8 +302,8 @@ allegro_enc_put_stream_buffer(u32 *dst,
 	dst[i++] = msg->mcu_addr;
 	dst[i++] = msg->size;
 	dst[i++] = msg->offset;
-	dst[i++] = lower_32_bits(msg->stream_id);
-	dst[i++] = upper_32_bits(msg->stream_id);
+	dst[i++] = lower_32_bits(msg->dst_handle);
+	dst[i++] = upper_32_bits(msg->dst_handle);
 
 	return i * sizeof(*dst);
 }
@@ -406,8 +406,8 @@ allegro_dec_encode_frame(struct mcu_msg_encode_frame_response *msg, u32 *src)
 
 	msg->channel_id = src[i++];
 
-	msg->stream_id = src[i++];
-	msg->stream_id |= (((u64)src[i++]) << 32);
+	msg->dst_handle = src[i++];
+	msg->dst_handle |= (((u64)src[i++]) << 32);
 	msg->user_param = src[i++];
 	msg->user_param |= (((u64)src[i++]) << 32);
 	msg->src_handle = src[i++];
