@@ -178,12 +178,6 @@ static __kprobes unsigned long _sdei_handler(struct pt_regs *regs,
 		sdei_api_event_context(i, &regs->regs[i]);
 	}
 
-	/*
-	 * We didn't take an exception to get here, set PAN. UAO will be cleared
-	 * by sdei_event_handler()s force_uaccess_begin() call.
-	 */
-	__uaccess_enable_hw_pan();
-
 	err = sdei_event_handler(regs, arg);
 	if (err)
 		return SDEI_EV_FAILED;
@@ -227,12 +221,24 @@ asmlinkage __kprobes notrace unsigned long
 __sdei_handler(struct pt_regs *regs, struct sdei_registered_event *arg)
 {
 	unsigned long ret;
+	mm_segment_t orig_addr_limit;
+
+	/*
+	 * We didn't take an exception to get here, so the HW hasn't set PAN or
+	 * cleared UAO, and the exception entry code hasn't reset addr_limit.
+	 * Set PAN, then use force_uaccess_begin() to clear UAO and reset
+	 * addr_limit.
+	 */
+	__uaccess_enable_hw_pan();
+	orig_addr_limit = force_uaccess_begin();
 
 	nmi_enter();
 
 	ret = _sdei_handler(regs, arg);
 
 	nmi_exit();
+
+	force_uaccess_end(orig_addr_limit);
 
 	return ret;
 }
