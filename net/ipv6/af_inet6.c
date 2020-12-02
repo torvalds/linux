@@ -451,7 +451,7 @@ int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	/* BPF prog is run before any checks are done so that if the prog
 	 * changes context in a wrong way it will be caught.
 	 */
-	err = BPF_CGROUP_RUN_PROG_INET6_BIND(sk, uaddr);
+	err = BPF_CGROUP_RUN_PROG_INET6_BIND_LOCK(sk, uaddr);
 	if (err)
 		return err;
 
