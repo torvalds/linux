@@ -129,6 +129,21 @@ static void igt_object_release(struct drm_i915_gem_object *obj)
 	i915_gem_object_put(obj);
 }
 
+static bool is_contiguous(struct drm_i915_gem_object *obj)
+{
+	struct scatterlist *sg;
+	dma_addr_t addr = -1;
+
+	for (sg = obj->mm.pages->sgl; sg; sg = sg_next(sg)) {
+		if (addr != -1 && sg_dma_address(sg) != addr)
+			return false;
+
+		addr = sg_dma_address(sg) + sg_dma_len(sg);
+	}
+
+	return true;
+}
+
 static int igt_mock_contiguous(void *arg)
 {
 	struct intel_memory_region *mem = arg;
@@ -150,8 +165,8 @@ static int igt_mock_contiguous(void *arg)
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
-	if (obj->mm.pages->nents != 1) {
-		pr_err("%s min object spans multiple sg entries\n", __func__);
+	if (!is_contiguous(obj)) {
+		pr_err("%s min object spans disjoint sg entries\n", __func__);
 		err = -EINVAL;
 		goto err_close_objects;
 	}
@@ -163,8 +178,8 @@ static int igt_mock_contiguous(void *arg)
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
-	if (obj->mm.pages->nents != 1) {
-		pr_err("%s max object spans multiple sg entries\n", __func__);
+	if (!is_contiguous(obj)) {
+		pr_err("%s max object spans disjoint sg entries\n", __func__);
 		err = -EINVAL;
 		goto err_close_objects;
 	}
@@ -189,8 +204,8 @@ static int igt_mock_contiguous(void *arg)
 		goto err_close_objects;
 	}
 
-	if (obj->mm.pages->nents != 1) {
-		pr_err("%s object spans multiple sg entries\n", __func__);
+	if (!is_contiguous(obj)) {
+		pr_err("%s object spans disjoint sg entries\n", __func__);
 		err = -EINVAL;
 		goto err_close_objects;
 	}
