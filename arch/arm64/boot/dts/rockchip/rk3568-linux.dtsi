@@ -22,3 +22,7 @@
 		status = "okay";
 	};
 };
+
+&rng {
+	status = "okay";
+};
