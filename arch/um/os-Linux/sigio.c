@@ -338,7 +338,7 @@ out_close1:
 	close(l_write_sigio_fds[1]);
 }
 
-void sigio_broken(int fd, int read)
+void sigio_broken(int fd)
 {
 	int err;
 
@@ -354,7 +354,7 @@ void sigio_broken(int fd, int read)
 
 	all_sigio_fds.poll[all_sigio_fds.used++] =
 		((struct pollfd) { .fd  	= fd,
-				   .events 	= read ? POLLIN : POLLOUT,
+				   .events 	= POLLIN,
 				   .revents 	= 0 });
 out:
 	sigio_unlock();
@@ -362,17 +362,16 @@ out:
 
 /* Changed during early boot */
 static int pty_output_sigio;
-static int pty_close_sigio;
 
-void maybe_sigio_broken(int fd, int read)
+void maybe_sigio_broken(int fd)
 {
 	if (!isatty(fd))
 		return;
 
-	if ((read || pty_output_sigio) && (!read || pty_close_sigio))
+	if (pty_output_sigio)
 		return;
 
-	sigio_broken(fd, read);
+	sigio_broken(fd);
 }
 
 static void sigio_cleanup(void)
@@ -516,19 +515,6 @@ static void tty_output(int master, int slave)
 		printk(UM_KERN_CONT "tty_output : read failed, err = %d\n", n);
 }
 
-static void tty_close(int master, int slave)
-{
-	printk(UM_KERN_INFO "Checking that host ptys support SIGIO on "
-	       "close...");
-
-	close(slave);
-	if (got_sigio) {
-		printk(UM_KERN_CONT "Yes\n");
-		pty_close_sigio = 1;
-	} else
-		printk(UM_KERN_CONT "No, enabling workaround\n");
-}
-
 static void __init check_sigio(void)
 {
 	if ((access("/dev/ptmx", R_OK) < 0) &&
@@ -538,7 +524,6 @@ static void __init check_sigio(void)
 		return;
 	}
 	check_one_sigio(tty_output);
-	check_one_sigio(tty_close);
 }
 
 /* Here because it only does the SIGIO testing for now */

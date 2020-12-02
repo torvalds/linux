@@ -32,7 +32,7 @@ extern void free_irqs(void);
 
 struct irq_reg {
 	void *id;
-	int type;
+	enum um_irq_type type;
 	int irq;
 	int events;
 	bool active;
@@ -96,7 +96,7 @@ void sigio_handler(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs)
 		}
 
 		for (i = 0; i < n ; i++) {
-			/* Epoll back reference is the entry with 3 irq_reg
+			/* Epoll back reference is the entry with 2 irq_reg
 			 * leaves - one for each irq type.
 			 */
 			irq_entry = (struct irq_entry *)
@@ -139,7 +139,7 @@ static int assign_epoll_events_to_irq(struct irq_entry *irq_entry)
 
 
 
-static int activate_fd(int irq, int fd, int type, void *dev_id)
+static int activate_fd(int irq, int fd, enum um_irq_type type, void *dev_id)
 {
 	struct irq_reg *new_fd;
 	struct irq_entry *irq_entry;
@@ -217,7 +217,7 @@ static int activate_fd(int irq, int fd, int type, void *dev_id)
 	/* Turn back IO on with the correct (new) IO event mask */
 	assign_epoll_events_to_irq(irq_entry);
 	spin_unlock_irqrestore(&irq_lock, flags);
-	maybe_sigio_broken(fd, (type != IRQ_NONE));
+	maybe_sigio_broken(fd);
 
 	return 0;
 out_unlock:
@@ -444,10 +444,9 @@ void um_free_irq(int irq, void *dev)
 }
 EXPORT_SYMBOL(um_free_irq);
 
-int um_request_irq(int irq, int fd, int type,
-		   irq_handler_t handler,
-		   unsigned long irqflags, const char * devname,
-		   void *dev_id)
+int um_request_irq(int irq, int fd, enum um_irq_type type,
+		   irq_handler_t handler, unsigned long irqflags,
+		   const char *devname, void *dev_id)
 {
 	int err;
 

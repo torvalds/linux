@@ -9,10 +9,11 @@
 #include <sysdep/ptrace.h>
 #include <stdbool.h>
 
-#define IRQ_READ  0
-#define IRQ_WRITE 1
-#define IRQ_NONE 2
-#define NUM_IRQ_TYPES (IRQ_NONE + 1)
+enum um_irq_type {
+	IRQ_READ,
+	IRQ_WRITE,
+	NUM_IRQ_TYPES,
+};
 
 struct siginfo;
 extern void sigio_handler(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs);

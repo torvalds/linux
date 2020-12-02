@@ -33,11 +33,6 @@
 #include <os.h>
 #include "vhost_user.h"
 
-/* Workaround due to a conflict between irq_user.h and irqreturn.h */
-#ifdef IRQ_NONE
-#undef IRQ_NONE
-#endif
-
 #define MAX_SUPPORTED_QUEUE_SIZE	256
 
 #define to_virtio_uml_device(_vdev) \
