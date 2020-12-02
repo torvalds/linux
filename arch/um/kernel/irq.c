@@ -26,14 +26,24 @@ extern void free_irqs(void);
 
 /* When epoll triggers we do not know why it did so
  * we can also have different IRQs for read and write.
- * This is why we keep a small irq_fd array for each fd -
+ * This is why we keep a small irq_reg array for each fd -
  * one entry per IRQ type
  */
+
+struct irq_reg {
+	void *id;
+	int type;
+	int irq;
+	int events;
+	bool active;
+	bool pending;
+	bool purge;
+};
 
 struct irq_entry {
 	struct irq_entry *next;
 	int fd;
-	struct irq_fd *irq_array[MAX_IRQ_TYPE + 1];
+	struct irq_reg *irq_array[MAX_IRQ_TYPE + 1];
 };
 
 static struct irq_entry *active_fds;
@@ -41,7 +51,7 @@ static struct irq_entry *active_fds;
 static DEFINE_SPINLOCK(irq_lock);
 static DECLARE_BITMAP(irqs_allocated, NR_IRQS);
 
-static void irq_io_loop(struct irq_fd *irq, struct uml_pt_regs *regs)
+static void irq_io_loop(struct irq_reg *irq, struct uml_pt_regs *regs)
 {
 /*
  * irq->active guards against reentry
@@ -65,7 +75,7 @@ static void irq_io_loop(struct irq_fd *irq, struct uml_pt_regs *regs)
 void sigio_handler(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs)
 {
 	struct irq_entry *irq_entry;
-	struct irq_fd *irq;
+	struct irq_reg *irq;
 
 	int n, i, j;
 
@@ -86,7 +96,7 @@ void sigio_handler(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs)
 		}
 
 		for (i = 0; i < n ; i++) {
-			/* Epoll back reference is the entry with 3 irq_fd
+			/* Epoll back reference is the entry with 3 irq_reg
 			 * leaves - one for each irq type.
 			 */
 			irq_entry = (struct irq_entry *)
@@ -112,7 +122,7 @@ static int assign_epoll_events_to_irq(struct irq_entry *irq_entry)
 {
 	int i;
 	int events = 0;
-	struct irq_fd *irq;
+	struct irq_reg *irq;
 
 	for (i = 0; i < MAX_IRQ_TYPE ; i++) {
 		irq = irq_entry->irq_array[i];
@@ -131,7 +141,7 @@ static int assign_epoll_events_to_irq(struct irq_entry *irq_entry)
 
 static int activate_fd(int irq, int fd, int type, void *dev_id)
 {
-	struct irq_fd *new_fd;
+	struct irq_reg *new_fd;
 	struct irq_entry *irq_entry;
 	int i, err, events;
 	unsigned long flags;
@@ -182,13 +192,13 @@ static int activate_fd(int irq, int fd, int type, void *dev_id)
 		/* New entry for this fd */
 
 		err = -ENOMEM;
-		new_fd = kmalloc(sizeof(struct irq_fd), GFP_ATOMIC);
+		new_fd = kmalloc(sizeof(struct irq_reg), GFP_ATOMIC);
 		if (new_fd == NULL)
 			goto out_unlock;
 
 		events = os_event_mask(type);
 
-		*new_fd = ((struct irq_fd) {
+		*new_fd = ((struct irq_reg) {
 			.id		= dev_id,
 			.irq		= irq,
 			.type		= type,
@@ -273,8 +283,8 @@ static struct irq_entry *get_irq_entry_by_fd(int fd)
 
 /*
  * Walk the IRQ list and dispose of an entry for a specific
- * device, fd and number. Note - if sharing an IRQ for read
- * and writefor the same FD it will be disposed in either case.
+ * device and number. Note - if sharing an IRQ for read
+ * and write for the same FD it will be disposed in either case.
  * If this behaviour is undesirable use different IRQ ids.
  */
 
@@ -289,7 +299,7 @@ static void do_free_by_irq_and_dev(
 )
 {
 	int i;
-	struct irq_fd *to_free;
+	struct irq_reg *to_free;
 
 	for (i = 0; i < MAX_IRQ_TYPE ; i++) {
 		if (irq_entry->irq_array[i] != NULL) {
