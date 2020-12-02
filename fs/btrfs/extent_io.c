@@ -5273,6 +5273,14 @@ struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 		return ERR_PTR(-EINVAL);
 	}
 
+	if (fs_info->sectorsize < PAGE_SIZE &&
+	    offset_in_page(start) + len > PAGE_SIZE) {
+		btrfs_err(fs_info,
+		"tree block crosses page boundary, start %llu nodesize %lu",
+			  start, len);
+		return ERR_PTR(-EINVAL);
+	}
+
 	eb = find_extent_buffer(fs_info, start);
 	if (eb)
 		return eb;
