@@ -417,13 +417,18 @@ void vtime_task_switch(struct task_struct *prev)
 }
 # endif
 
-void vtime_account_irq_enter(struct task_struct *tsk)
+void vtime_account_irq(struct task_struct *tsk)
 {
-	if (!IS_ENABLED(CONFIG_HAVE_VIRT_CPU_ACCOUNTING_IDLE) &&
-	    !in_interrupt() && is_idle_task(tsk))
+	if (hardirq_count()) {
+		vtime_account_hardirq(tsk);
+	} else if (in_serving_softirq()) {
+		vtime_account_softirq(tsk);
+	} else if (!IS_ENABLED(CONFIG_HAVE_VIRT_CPU_ACCOUNTING_IDLE) &&
+		   is_idle_task(tsk)) {
 		vtime_account_idle(tsk);
-	else
+	} else {
 		vtime_account_kernel(tsk);
+	}
 }
 
 void cputime_adjust(struct task_cputime *curr, struct prev_cputime *prev,

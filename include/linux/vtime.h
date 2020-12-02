@@ -83,16 +83,12 @@ static inline void vtime_init_idle(struct task_struct *tsk, int cpu) { }
 #endif
 
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
-extern void vtime_account_irq_enter(struct task_struct *tsk);
-static inline void vtime_account_irq_exit(struct task_struct *tsk)
-{
-	/* On hard|softirq exit we always account to hard|softirq cputime */
-	vtime_account_kernel(tsk);
-}
+extern void vtime_account_irq(struct task_struct *tsk);
+extern void vtime_account_softirq(struct task_struct *tsk);
+extern void vtime_account_hardirq(struct task_struct *tsk);
 extern void vtime_flush(struct task_struct *tsk);
 #else /* !CONFIG_VIRT_CPU_ACCOUNTING_NATIVE */
-static inline void vtime_account_irq_enter(struct task_struct *tsk) { }
-static inline void vtime_account_irq_exit(struct task_struct *tsk) { }
+static inline void vtime_account_irq(struct task_struct *tsk) { }
 static inline void vtime_flush(struct task_struct *tsk) { }
 #endif
 
@@ -105,13 +101,13 @@ static inline void irqtime_account_irq(struct task_struct *tsk) { }
 
 static inline void account_irq_enter_time(struct task_struct *tsk)
 {
-	vtime_account_irq_enter(tsk);
+	vtime_account_irq(tsk);
 	irqtime_account_irq(tsk);
 }
 
 static inline void account_irq_exit_time(struct task_struct *tsk)
 {
-	vtime_account_irq_exit(tsk);
+	vtime_account_irq(tsk);
 	irqtime_account_irq(tsk);
 }
 
