@@ -36,6 +36,21 @@ struct seg6_local_lwt;
 struct seg6_action_desc {
 	int action;
 	unsigned long attrs;
+
+	/* The optattrs field is used for specifying all the optional
+	 * attributes supported by a specific behavior.
+	 * It means that if one of these attributes is not provided in the
+	 * netlink message during the behavior creation, no errors will be
+	 * returned to the userspace.
+	 *
+	 * Each attribute can be only of two types (mutually exclusive):
+	 * 1) required or 2) optional.
+	 * Every user MUST obey to this rule! If you set an attribute as
+	 * required the same attribute CANNOT be set as optional and vice
+	 * versa.
+	 */
+	unsigned long optattrs;
+
 	int (*input)(struct sk_buff *skb, struct seg6_local_lwt *slwt);
 	int static_headroom;
 };
@@ -57,6 +72,10 @@ struct seg6_local_lwt {
 
 	int headroom;
 	struct seg6_action_desc *desc;
+	/* unlike the required attrs, we have to track the optional attributes
+	 * that have been effectively parsed.
+	 */
+	unsigned long parsed_optattrs;
 };
 
 static struct seg6_local_lwt *seg6_local_lwtunnel(struct lwtunnel_state *lwt)
@@ -959,26 +978,26 @@ static struct seg6_action_param seg6_action_params[SEG6_LOCAL_MAX + 1] = {
 };
 
 /* call the destroy() callback (if available) for each set attribute in
- * @slwt, starting from the first attribute up to the @max_parsed (excluded)
- * attribute.
+ * @parsed_attrs, starting from the first attribute up to the @max_parsed
+ * (excluded) attribute.
  */
-static void __destroy_attrs(int max_parsed, struct seg6_local_lwt *slwt)
+static void __destroy_attrs(unsigned long parsed_attrs, int max_parsed,
+			    struct seg6_local_lwt *slwt)
 {
-	unsigned long attrs = slwt->desc->attrs;
 	struct seg6_action_param *param;
 	int i;
 
 	/* Every required seg6local attribute is identified by an ID which is
 	 * encoded as a flag (i.e: 1 << ID) in the 'attrs' bitmask;
 	 *
-	 * We scan the 'attrs' bitmask, starting from the first attribute
+	 * We scan the 'parsed_attrs' bitmask, starting from the first attribute
 	 * up to the @max_parsed (excluded) attribute.
 	 * For each set attribute, we retrieve the corresponding destroy()
 	 * callback. If the callback is not available, then we skip to the next
 	 * attribute; otherwise, we call the destroy() callback.
 	 */
 	for (i = 0; i < max_parsed; ++i) {
-		if (!(attrs & (1 << i)))
+		if (!(parsed_attrs & (1 << i)))
 			continue;
 
 		param = &seg6_action_params[i];
@@ -993,13 +1012,54 @@ static void __destroy_attrs(int max_parsed, struct seg6_local_lwt *slwt)
  */
 static void destroy_attrs(struct seg6_local_lwt *slwt)
 {
-	__destroy_attrs(SEG6_LOCAL_MAX + 1, slwt);
+	unsigned long attrs = slwt->desc->attrs | slwt->parsed_optattrs;
+
+	__destroy_attrs(attrs, SEG6_LOCAL_MAX + 1, slwt);
+}
+
+static int parse_nla_optional_attrs(struct nlattr **attrs,
+				    struct seg6_local_lwt *slwt)
+{
+	struct seg6_action_desc *desc = slwt->desc;
+	unsigned long parsed_optattrs = 0;
+	struct seg6_action_param *param;
+	int err, i;
+
+	for (i = 0; i < SEG6_LOCAL_MAX + 1; ++i) {
+		if (!(desc->optattrs & (1 << i)) || !attrs[i])
+			continue;
+
+		/* once here, the i-th attribute is provided by the
+		 * userspace AND it is identified optional as well.
+		 */
+		param = &seg6_action_params[i];
+
+		err = param->parse(attrs, slwt);
+		if (err < 0)
+			goto parse_optattrs_err;
+
+		/* current attribute has been correctly parsed */
+		parsed_optattrs |= (1 << i);
+	}
+
+	/* store in the tunnel state all the optional attributed successfully
+	 * parsed.
+	 */
+	slwt->parsed_optattrs = parsed_optattrs;
+
+	return 0;
+
+parse_optattrs_err:
+	__destroy_attrs(parsed_optattrs, i, slwt);
+
+	return err;
 }
 
 static int parse_nla_action(struct nlattr **attrs, struct seg6_local_lwt *slwt)
 {
 	struct seg6_action_param *param;
 	struct seg6_action_desc *desc;
+	unsigned long invalid_attrs;
 	int i, err;
 
 	desc = __get_action_desc(slwt->action);
@@ -1012,6 +1072,26 @@ static int parse_nla_action(struct nlattr **attrs, struct seg6_local_lwt *slwt)
 	slwt->desc = desc;
 	slwt->headroom += desc->static_headroom;
 
+	/* Forcing the desc->optattrs *set* and the desc->attrs *set* to be
+	 * disjoined, this allow us to release acquired resources by optional
+	 * attributes and by required attributes independently from each other
+	 * without any interfarence.
+	 * In other terms, we are sure that we do not release some the acquired
+	 * resources twice.
+	 *
+	 * Note that if an attribute is configured both as required and as
+	 * optional, it means that the user has messed something up in the
+	 * seg6_action_table. Therefore, this check is required for SRv6
+	 * behaviors to work properly.
+	 */
+	invalid_attrs = desc->attrs & desc->optattrs;
+	if (invalid_attrs) {
+		WARN_ONCE(1,
+			  "An attribute cannot be both required AND optional");
+		return -EINVAL;
+	}
+
+	/* parse the required attributes */
 	for (i = 0; i < SEG6_LOCAL_MAX + 1; i++) {
 		if (desc->attrs & (1 << i)) {
 			if (!attrs[i])
@@ -1021,17 +1101,22 @@ static int parse_nla_action(struct nlattr **attrs, struct seg6_local_lwt *slwt)
 
 			err = param->parse(attrs, slwt);
 			if (err < 0)
-				goto parse_err;
+				goto parse_attrs_err;
 		}
 	}
 
+	/* parse the optional attributes, if any */
+	err = parse_nla_optional_attrs(attrs, slwt);
+	if (err < 0)
+		goto parse_attrs_err;
+
 	return 0;
 
-parse_err:
+parse_attrs_err:
 	/* release any resource that may have been acquired during the i-1
 	 * parse() operations.
 	 */
-	__destroy_attrs(i, slwt);
+	__destroy_attrs(desc->attrs, i, slwt);
 
 	return err;
 }
@@ -1096,13 +1181,16 @@ static int seg6_local_fill_encap(struct sk_buff *skb,
 {
 	struct seg6_local_lwt *slwt = seg6_local_lwtunnel(lwt);
 	struct seg6_action_param *param;
+	unsigned long attrs;
 	int i, err;
 
 	if (nla_put_u32(skb, SEG6_LOCAL_ACTION, slwt->action))
 		return -EMSGSIZE;
 
+	attrs = slwt->desc->attrs | slwt->parsed_optattrs;
+
 	for (i = 0; i < SEG6_LOCAL_MAX + 1; i++) {
-		if (slwt->desc->attrs & (1 << i)) {
+		if (attrs & (1 << i)) {
 			param = &seg6_action_params[i];
 			err = param->put(skb, slwt);
 			if (err < 0)
@@ -1121,7 +1209,7 @@ static int seg6_local_get_encap_size(struct lwtunnel_state *lwt)
 
 	nlsize = nla_total_size(4); /* action */
 
-	attrs = slwt->desc->attrs;
+	attrs = slwt->desc->attrs | slwt->parsed_optattrs;
 
 	if (attrs & (1 << SEG6_LOCAL_SRH))
 		nlsize += nla_total_size((slwt->srh->hdrlen + 1) << 3);
@@ -1154,6 +1242,7 @@ static int seg6_local_cmp_encap(struct lwtunnel_state *a,
 {
 	struct seg6_local_lwt *slwt_a, *slwt_b;
 	struct seg6_action_param *param;
+	unsigned long attrs_a, attrs_b;
 	int i;
 
 	slwt_a = seg6_local_lwtunnel(a);
@@ -1162,11 +1251,14 @@ static int seg6_local_cmp_encap(struct lwtunnel_state *a,
 	if (slwt_a->action != slwt_b->action)
 		return 1;
 
-	if (slwt_a->desc->attrs != slwt_b->desc->attrs)
+	attrs_a = slwt_a->desc->attrs | slwt_a->parsed_optattrs;
+	attrs_b = slwt_b->desc->attrs | slwt_b->parsed_optattrs;
+
+	if (attrs_a != attrs_b)
 		return 1;
 
 	for (i = 0; i < SEG6_LOCAL_MAX + 1; i++) {
-		if (slwt_a->desc->attrs & (1 << i)) {
+		if (attrs_a & (1 << i)) {
 			param = &seg6_action_params[i];
 			if (param->cmp(slwt_a, slwt_b))
 				return 1;
