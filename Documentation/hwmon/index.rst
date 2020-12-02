@@ -151,6 +151,7 @@ Hardware Monitoring Kernel Drivers
    powr1220
    pxe1610
    pwm-fan
+   q54sj108a2
    raspberrypi-hwmon
    sch5627
    sch5636
