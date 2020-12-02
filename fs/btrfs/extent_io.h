@@ -203,8 +203,14 @@ void btrfs_readahead_node_child(struct extent_buffer *node, int slot);
 
 static inline int num_extent_pages(const struct extent_buffer *eb)
 {
-	return (round_up(eb->start + eb->len, PAGE_SIZE) >> PAGE_SHIFT) -
-	       (eb->start >> PAGE_SHIFT);
+	/*
+	 * For sectorsize == PAGE_SIZE case, since nodesize is always aligned to
+	 * sectorsize, it's just eb->len >> PAGE_SHIFT.
+	 *
+	 * For sectorsize < PAGE_SIZE case, we could have nodesize < PAGE_SIZE,
+	 * thus have to ensure we get at least one page.
+	 */
+	return (eb->len >> PAGE_SHIFT) ?: 1;
 }
 
 static inline int extent_buffer_uptodate(const struct extent_buffer *eb)
