@@ -200,12 +200,12 @@ do {									\
 				CONFIG_ARM64_PAN));			\
 } while (0)
 
-static inline void uaccess_disable(void)
+static inline void uaccess_disable_privileged(void)
 {
 	__uaccess_disable(ARM64_HAS_PAN);
 }
 
-static inline void uaccess_enable(void)
+static inline void uaccess_enable_privileged(void)
 {
 	__uaccess_enable(ARM64_HAS_PAN);
 }
