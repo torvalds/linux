@@ -5982,6 +5982,9 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *vha)
 				break;
 			}
 
+			if (fcport->login_retry == 0)
+				fcport->login_retry =
+					vha->hw->login_retry_count;
 			/*
 			 * If device was not a fabric device before.
 			 */
