@@ -20,6 +20,7 @@ static const struct exynos_soc_id {
 	const char *name;
 	unsigned int id;
 } soc_ids[] = {
+	/* List ordered by SoC name */
 	{ "EXYNOS3250", 0xE3472000 },
 	{ "EXYNOS4210", 0x43200000 },	/* EVT0 revision */
 	{ "EXYNOS4210", 0x43210000 },
@@ -29,10 +30,10 @@ static const struct exynos_soc_id {
 	{ "EXYNOS5260", 0xE5260000 },
 	{ "EXYNOS5410", 0xE5410000 },
 	{ "EXYNOS5420", 0xE5420000 },
+	{ "EXYNOS5433", 0xE5433000 },
 	{ "EXYNOS5440", 0xE5440000 },
 	{ "EXYNOS5800", 0xE5422000 },
 	{ "EXYNOS7420", 0xE7420000 },
-	{ "EXYNOS5433", 0xE5433000 },
 };
 
 static const char * __init product_id_to_soc_id(unsigned int product_id)
