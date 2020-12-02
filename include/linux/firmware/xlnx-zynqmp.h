@@ -456,7 +456,7 @@ static inline int zynqmp_pm_sd_dll_reset(u32 node_id, u32 type)
 }
 
 static inline int zynqmp_pm_reset_assert(const enum zynqmp_pm_reset reset,
-			   const enum zynqmp_pm_reset_action assert_flag)
+					 const enum zynqmp_pm_reset_action assert_flag)
 {
 	return -ENODEV;
 }
@@ -490,9 +490,9 @@ static inline int zynqmp_pm_release_node(const u32 node)
 }
 
 static inline int zynqmp_pm_set_requirement(const u32 node,
-					const u32 capabilities,
-					const u32 qos,
-					const enum zynqmp_pm_request_ack ack)
+					    const u32 capabilities,
+					    const u32 qos,
+					    const enum zynqmp_pm_request_ack ack)
 {
 	return -ENODEV;
 }
