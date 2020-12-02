@@ -319,6 +319,7 @@ enum wmi_tlv_cmd_id {
 	WMI_BCN_OFFLOAD_CTRL_CMDID,
 	WMI_BSS_COLOR_CHANGE_ENABLE_CMDID,
 	WMI_VDEV_BCN_OFFLOAD_QUIET_CONFIG_CMDID,
+	WMI_FILS_DISCOVERY_TMPL_CMDID,
 	WMI_ADDBA_CLEAR_RESP_CMDID = WMI_TLV_CMD(WMI_GRP_BA_NEG),
 	WMI_ADDBA_SEND_CMDID,
 	WMI_ADDBA_STATUS_CMDID,
@@ -351,6 +352,8 @@ enum wmi_tlv_cmd_id {
 	WMI_ROAM_CONFIGURE_MAWC_CMDID,
 	WMI_ROAM_SET_MBO_PARAM_CMDID,
 	WMI_ROAM_PER_CONFIG_CMDID,
+	WMI_ROAM_BTM_CONFIG_CMDID,
+	WMI_ENABLE_FILS_CMDID,
 	WMI_OFL_SCAN_ADD_AP_PROFILE = WMI_TLV_CMD(WMI_GRP_OFL_SCAN),
 	WMI_OFL_SCAN_REMOVE_AP_PROFILE,
 	WMI_OFL_SCAN_PERIOD,
@@ -642,6 +645,8 @@ enum wmi_tlv_event_id {
 	WMI_MGMT_TX_COMPLETION_EVENTID,
 	WMI_MGMT_TX_BUNDLE_COMPLETION_EVENTID,
 	WMI_TBTTOFFSET_EXT_UPDATE_EVENTID,
+	WMI_OFFCHAN_DATA_TX_COMPLETION_EVENTID,
+	WMI_HOST_FILS_DISCOVERY_EVENTID,
 	WMI_TX_DELBA_COMPLETE_EVENTID = WMI_TLV_CMD(WMI_GRP_BA_NEG),
 	WMI_TX_ADDBA_COMPLETE_EVENTID,
 	WMI_BA_RSP_SSN_EVENTID,
@@ -1810,6 +1815,7 @@ enum wmi_tlv_tag {
 	/* TODO add all the missing cmds */
 	WMI_TAG_PDEV_PEER_PKTLOG_FILTER_CMD = 0x301,
 	WMI_TAG_PDEV_PEER_PKTLOG_FILTER_INFO,
+	WMI_TAG_FILS_DISCOVERY_TMPL_CMD = 0x344,
 	WMI_TAG_MAX
 };
 
@@ -3348,7 +3354,6 @@ struct wmi_mgmt_params {
 	void *pdata;
 	u16 desc_id;
 	u8 *macaddr;
-	void *qdf_ctx;
 };
 
 enum wmi_sta_ps_mode {
@@ -4013,6 +4018,10 @@ struct wmi_regulatory_rule_struct {
 	u32  flag_info;
 };
 
+struct wmi_vdev_delete_resp_event {
+	u32 vdev_id;
+} __packed;
+
 struct wmi_peer_delete_resp_event {
 	u32 vdev_id;
 	struct wmi_mac_addr peer_macaddr;
@@ -4075,6 +4084,17 @@ struct wmi_peer_assoc_conf_arg {
 	u32 vdev_id;
 	const u8 *macaddr;
 };
+
+struct wmi_fils_discovery_event {
+	u32 vdev_id;
+	u32 fils_tt;
+	u32 tbtt;
+} __packed;
+
+struct wmi_probe_resp_tx_status_event {
+	u32 vdev_id;
+	u32 tx_status;
+} __packed;
 
 /*
  * PDEV statistics
@@ -4908,6 +4928,30 @@ struct wmi_dma_buf_release_meta_data {
 	u32 ch_width;
 } __packed;
 
+enum wmi_fils_discovery_cmd_type {
+	WMI_FILS_DISCOVERY_CMD,
+	WMI_UNSOL_BCAST_PROBE_RESP,
+};
+
+struct wmi_fils_discovery_cmd {
+	u32 tlv_header;
+	u32 vdev_id;
+	u32 interval;
+	u32 config; /* enum wmi_fils_discovery_cmd_type */
+} __packed;
+
+struct wmi_fils_discovery_tmpl_cmd {
+	u32 tlv_header;
+	u32 vdev_id;
+	u32 buf_len;
+} __packed;
+
+struct wmi_probe_tmpl_cmd {
+	u32 tlv_header;
+	u32 vdev_id;
+	u32 buf_len;
+} __packed;
+
 struct target_resource_config {
 	u32 num_vdevs;
 	u32 num_peers;
@@ -5121,4 +5165,10 @@ int ath11k_wmi_vdev_spectral_enable(struct ath11k *ar, u32 vdev_id,
 				    u32 trigger, u32 enable);
 int ath11k_wmi_vdev_spectral_conf(struct ath11k *ar,
 				  struct ath11k_wmi_vdev_spectral_conf_param *param);
+int ath11k_wmi_fils_discovery_tmpl(struct ath11k *ar, u32 vdev_id,
+				   struct sk_buff *tmpl);
+int ath11k_wmi_fils_discovery(struct ath11k *ar, u32 vdev_id, u32 interval,
+			      bool unsol_bcast_probe_resp_enabled);
+int ath11k_wmi_probe_resp_tmpl(struct ath11k *ar, u32 vdev_id,
+			       struct sk_buff *tmpl);
 #endif
