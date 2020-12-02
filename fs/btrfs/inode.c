@@ -2268,7 +2268,7 @@ blk_status_t btrfs_submit_data_bio(struct inode *inode, struct bio *bio,
 			 * need to csum or not, which is why we ignore skip_sum
 			 * here.
 			 */
-			ret = btrfs_lookup_bio_sums(inode, bio, (u64)-1, NULL);
+			ret = btrfs_lookup_bio_sums(inode, bio, NULL);
 			if (ret)
 				goto out;
 		}
@@ -7964,8 +7964,7 @@ static blk_qc_t btrfs_submit_direct(struct inode *inode, struct iomap *iomap,
 		 *
 		 * If we have csums disabled this will do nothing.
 		 */
-		status = btrfs_lookup_bio_sums(inode, dio_bio, file_offset,
-					       dip->csums);
+		status = btrfs_lookup_bio_sums(inode, dio_bio, dip->csums);
 		if (status != BLK_STS_OK)
 			goto out_err;
 	}
