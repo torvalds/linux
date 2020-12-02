@@ -30,6 +30,9 @@
 #define RKISP_CMD_SET_LDCHBUF_SIZE \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 5, struct rkisp_ldchbuf_size)
 
+#define RKISP_CMD_GET_SHM_BUFFD \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 6, struct rkisp_thunderboot_shmem)
+
 #define ISP2X_ID_DPCC			(0)
 #define ISP2X_ID_BLS			(1)
 #define ISP2X_ID_SDG			(2)
@@ -1699,6 +1702,15 @@ struct rkisp_thunderboot_resmem_head {
 struct rkisp_thunderboot_resmem {
 	u32 resmem_padr;
 	u32 resmem_size;
+} __attribute__ ((packed));
+
+/**
+ * struct rkisp_thunderboot_shmem
+ */
+struct rkisp_thunderboot_shmem {
+	u32 shm_start;
+	u32 shm_size;
+	s32 shm_fd;
 } __attribute__ ((packed));
 
 #endif /* _UAPI_RKISP2_CONFIG_H */
