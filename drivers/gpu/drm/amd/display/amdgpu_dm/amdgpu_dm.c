@@ -8994,6 +8994,7 @@ static int dm_update_plane_state(struct dc *dc,
 	struct amdgpu_crtc *new_acrtc;
 	bool needs_reset;
 	int ret = 0;
+	unsigned int pitch;
 
 
 	new_plane_crtc = new_plane_state->crtc;
@@ -9027,15 +9028,25 @@ static int dm_update_plane_state(struct dc *dc,
 				return -EINVAL;
 			}
 
-			switch (new_plane_state->fb->width) {
+			/* Pitch in pixels */
+			pitch = new_plane_state->fb->pitches[0] / new_plane_state->fb->format->cpp[0];
+
+			if (new_plane_state->fb->width != pitch) {
+				DRM_DEBUG_ATOMIC("Cursor FB width %d doesn't match pitch %d",
+						 new_plane_state->fb->width,
+						 pitch);
+				return -EINVAL;
+			}
+
+			switch (pitch) {
 			case 64:
 			case 128:
 			case 256:
-				/* FB width is supported by cursor plane */
+				/* FB pitch is supported by cursor plane */
 				break;
 			default:
-				DRM_DEBUG_ATOMIC("Bad cursor FB width %d\n",
-						 new_plane_state->fb->width);
+				DRM_DEBUG_ATOMIC("Bad cursor FB pitch %d px\n",
+						 pitch);
 				return -EINVAL;
 			}
 		}
