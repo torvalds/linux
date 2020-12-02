@@ -234,6 +234,11 @@ void set_handler(int sig)
 		panic("sigprocmask failed - errno = %d\n", errno);
 }
 
+void send_sigio_to_self(void)
+{
+	kill(os_getpid(), SIGIO);
+}
+
 int change_sig(int signal, int on)
 {
 	sigset_t sigset;

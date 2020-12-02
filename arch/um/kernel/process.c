@@ -203,7 +203,7 @@ void initial_thread_cb(void (*proc)(void *), void *arg)
 	kmalloc_ok = save_kmalloc_ok;
 }
 
-static void um_idle_sleep(void)
+void um_idle_sleep(void)
 {
 	if (time_travel_mode != TT_MODE_OFF)
 		time_travel_sleep();

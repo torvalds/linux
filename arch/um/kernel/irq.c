@@ -20,6 +20,7 @@
 #include <os.h>
 #include <irq_user.h>
 #include <irq_kern.h>
+#include <as-layout.h>
 
 
 extern void free_irqs(void);
@@ -36,12 +37,14 @@ struct irq_reg {
 	int events;
 	bool active;
 	bool pending;
+	bool wakeup;
 };
 
 struct irq_entry {
 	struct list_head list;
 	int fd;
 	struct irq_reg reg[NUM_IRQ_TYPES];
+	bool suspended;
 };
 
 static DEFINE_SPINLOCK(irq_lock);
@@ -68,6 +71,11 @@ static void irq_io_loop(struct irq_reg *irq, struct uml_pt_regs *regs)
 	} else {
 		irq->pending = true;
 	}
+}
+
+void sigio_handler_suspend(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs)
+{
+	/* nothing */
 }
 
 void sigio_handler(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs)
@@ -365,8 +373,85 @@ error:
 	clear_bit(irq, irqs_allocated);
 	return err;
 }
-
 EXPORT_SYMBOL(um_request_irq);
+
+#ifdef CONFIG_PM_SLEEP
+void um_irqs_suspend(void)
+{
+	struct irq_entry *entry;
+	unsigned long flags;
+
+	sig_info[SIGIO] = sigio_handler_suspend;
+
+	spin_lock_irqsave(&irq_lock, flags);
+	list_for_each_entry(entry, &active_fds, list) {
+		enum um_irq_type t;
+		bool wake = false;
+
+		for (t = 0; t < NUM_IRQ_TYPES; t++) {
+			if (!entry->reg[t].events)
+				continue;
+
+			if (entry->reg[t].wakeup) {
+				wake = true;
+				break;
+			}
+		}
+
+		if (!wake) {
+			entry->suspended = true;
+			os_clear_fd_async(entry->fd);
+		}
+	}
+	spin_unlock_irqrestore(&irq_lock, flags);
+}
+
+void um_irqs_resume(void)
+{
+	struct irq_entry *entry;
+	unsigned long flags;
+
+	spin_lock_irqsave(&irq_lock, flags);
+	list_for_each_entry(entry, &active_fds, list) {
+		if (entry->suspended) {
+			int err = os_set_fd_async(entry->fd);
+
+			WARN(err < 0, "os_set_fd_async returned %d\n", err);
+			entry->suspended = false;
+		}
+	}
+	spin_unlock_irqrestore(&irq_lock, flags);
+
+	sig_info[SIGIO] = sigio_handler;
+	send_sigio_to_self();
+}
+
+static int normal_irq_set_wake(struct irq_data *d, unsigned int on)
+{
+	struct irq_entry *entry;
+	unsigned long flags;
+
+	spin_lock_irqsave(&irq_lock, flags);
+	list_for_each_entry(entry, &active_fds, list) {
+		enum um_irq_type t;
+
+		for (t = 0; t < NUM_IRQ_TYPES; t++) {
+			if (!entry->reg[t].events)
+				continue;
+
+			if (entry->reg[t].irq != d->irq)
+				continue;
+			entry->reg[t].wakeup = on;
+			goto unlock;
+		}
+	}
+unlock:
+	spin_unlock_irqrestore(&irq_lock, flags);
+	return 0;
+}
+#else
+#define normal_irq_set_wake NULL
+#endif
 
 /*
  * irq_chip must define at least enable/disable and ack when
@@ -384,6 +469,7 @@ static struct irq_chip normal_irq_type = {
 	.irq_ack = dummy,
 	.irq_mask = dummy,
 	.irq_unmask = dummy,
+	.irq_set_wake = normal_irq_set_wake,
 };
 
 static struct irq_chip alarm_irq_type = {

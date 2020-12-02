@@ -233,6 +233,7 @@ extern void timer_set_signal_handler(void);
 extern void set_sigstack(void *sig_stack, int size);
 extern void remove_sigstack(void);
 extern void set_handler(int sig);
+extern void send_sigio_to_self(void);
 extern int change_sig(int signal, int on);
 extern void block_signals(void);
 extern void unblock_signals(void);
@@ -307,6 +308,8 @@ extern int os_mod_epoll_fd(int events, int fd, void *data);
 extern int os_del_epoll_fd(int fd);
 extern void os_set_ioignore(void);
 extern void os_close_epoll_fd(void);
+extern void um_irqs_suspend(void);
+extern void um_irqs_resume(void);
 
 /* sigio.c */
 extern int add_sigio_fd(int fd);
