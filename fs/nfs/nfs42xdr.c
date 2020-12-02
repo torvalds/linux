@@ -489,6 +489,12 @@ static int decode_getxattr(struct xdr_stream *xdr,
 		return -EIO;
 
 	len = be32_to_cpup(p);
+
+	/*
+	 * Only check against the page length here. The actual
+	 * requested length may be smaller, but that is only
+	 * checked against after possibly caching a valid reply.
+	 */
 	if (len > req->rq_rcv_buf.page_len)
 		return -ERANGE;
 
@@ -1477,7 +1483,6 @@ static void nfs4_xdr_enc_getxattr(struct rpc_rqst *req, struct xdr_stream *xdr,
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
 	};
 	uint32_t replen;
-	size_t plen;
 
 	encode_compound_hdr(xdr, req, &hdr);
 	encode_sequence(xdr, &args->seq_args, &hdr);
@@ -1485,10 +1490,8 @@ static void nfs4_xdr_enc_getxattr(struct rpc_rqst *req, struct xdr_stream *xdr,
 	replen = hdr.replen + op_decode_hdr_maxsz + 1;
 	encode_getxattr(xdr, args->xattr_name, &hdr);
 
-	plen = args->xattr_len ? args->xattr_len : XATTR_SIZE_MAX;
-
-	rpc_prepare_reply_pages(req, args->xattr_pages, 0, plen, replen);
-	req->rq_rcv_buf.flags |= XDRBUF_SPARSE_PAGES;
+	rpc_prepare_reply_pages(req, args->xattr_pages, 0, args->xattr_len,
+				replen);
 
 	encode_nops(&hdr);
 }
