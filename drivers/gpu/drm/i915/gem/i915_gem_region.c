@@ -43,7 +43,7 @@ i915_gem_object_get_pages_buddy(struct drm_i915_gem_object *obj)
 		return -ENOMEM;
 	}
 
-	flags = I915_ALLOC_MIN_PAGE_SIZE | I915_ALLOC_MAX_SEGMENT_SIZE;
+	flags = I915_ALLOC_MIN_PAGE_SIZE;
 	if (obj->flags & I915_BO_ALLOC_CONTIGUOUS)
 		flags |= I915_ALLOC_CONTIGUOUS;
 

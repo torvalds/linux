@@ -356,21 +356,21 @@ out_put:
 
 static int igt_mock_max_segment(void *arg)
 {
+	const unsigned int max_segment = i915_sg_segment_size();
 	struct intel_memory_region *mem = arg;
 	struct drm_i915_private *i915 = mem->i915;
 	struct drm_i915_gem_object *obj;
 	struct i915_buddy_block *block;
+	struct scatterlist *sg;
 	LIST_HEAD(objects);
 	u64 size;
 	int err = 0;
 
 	/*
-	 * The size of block are only limited by the largest power-of-two that
-	 * will fit in the region size, but to construct an object we also
-	 * require feeding it into an sg list, where the upper limit of the sg
-	 * entry is at most UINT_MAX, therefore when allocating with
-	 * I915_ALLOC_MAX_SEGMENT_SIZE we shouldn't see blocks larger than
-	 * i915_sg_segment_size().
+	 * While we may create very large contiguous blocks, we may need
+	 * to break those down for consumption elsewhere. In particular,
+	 * dma-mapping with scatterlist elements have an implicit limit of
+	 * UINT_MAX on each element.
 	 */
 
 	size = SZ_8G;
@@ -384,12 +384,23 @@ static int igt_mock_max_segment(void *arg)
 		goto out_put;
 	}
 
+	err = -EINVAL;
 	list_for_each_entry(block, &obj->mm.blocks, link) {
-		if (i915_buddy_block_size(&mem->mm, block) > i915_sg_segment_size()) {
-			pr_err("%s found block size(%llu) larger than max sg_segment_size(%u)",
-			       __func__,
-			       i915_buddy_block_size(&mem->mm, block),
-			       i915_sg_segment_size());
+		if (i915_buddy_block_size(&mem->mm, block) > max_segment) {
+			err = 0;
+			break;
+		}
+	}
+	if (err) {
+		pr_err("%s: Failed to create a huge contiguous block\n",
+		       __func__);
+		goto out_close;
+	}
+
+	for (sg = obj->mm.pages->sgl; sg; sg = sg_next(sg)) {
+		if (sg->length > max_segment) {
+			pr_err("%s: Created an oversized scatterlist entry, %u > %u\n",
+			       __func__, sg->length, max_segment);
 			err = -EINVAL;
 			goto out_close;
 		}

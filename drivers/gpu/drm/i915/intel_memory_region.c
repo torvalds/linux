@@ -72,7 +72,6 @@ __intel_memory_region_get_pages_buddy(struct intel_memory_region *mem,
 				      struct list_head *blocks)
 {
 	unsigned int min_order = 0;
-	unsigned int max_order;
 	unsigned long n_pages;
 
 	GEM_BUG_ON(!IS_ALIGNED(size, mem->mm.chunk_size));
@@ -93,28 +92,13 @@ __intel_memory_region_get_pages_buddy(struct intel_memory_region *mem,
 
 	n_pages = size >> ilog2(mem->mm.chunk_size);
 
-	/*
-	 * If we going to feed this into an sg list we should limit the block
-	 * sizes such that we don't exceed the i915_sg_segment_size().
-	 */
-	if (flags & I915_ALLOC_MAX_SEGMENT_SIZE) {
-		unsigned int max_segment = i915_sg_segment_size();
-
-		if (GEM_WARN_ON(max_segment < mem->mm.chunk_size))
-			max_order = 0;
-		else
-			max_order = ilog2(max_segment) - ilog2(mem->mm.chunk_size);
-	} else {
-		max_order = mem->mm.max_order;
-	}
-
 	mutex_lock(&mem->mm_lock);
 
 	do {
 		struct i915_buddy_block *block;
 		unsigned int order;
 
-		order = min_t(u32, fls(n_pages) - 1, max_order);
+		order = fls(n_pages) - 1;
 		GEM_BUG_ON(order > mem->mm.max_order);
 		GEM_BUG_ON(order < min_order);
 
