@@ -615,10 +615,7 @@ static inline bool tty_port_cts_enabled(struct tty_port *port)
 
 static inline void tty_port_set_cts_flow(struct tty_port *port, bool val)
 {
-	if (val)
-		set_bit(TTY_PORT_CTS_FLOW, &port->iflags);
-	else
-		clear_bit(TTY_PORT_CTS_FLOW, &port->iflags);
+	assign_bit(TTY_PORT_CTS_FLOW, &port->iflags, val);
 }
 
 static inline bool tty_port_active(struct tty_port *port)
@@ -628,10 +625,7 @@ static inline bool tty_port_active(struct tty_port *port)
 
 static inline void tty_port_set_active(struct tty_port *port, bool val)
 {
-	if (val)
-		set_bit(TTY_PORT_ACTIVE, &port->iflags);
-	else
-		clear_bit(TTY_PORT_ACTIVE, &port->iflags);
+	assign_bit(TTY_PORT_ACTIVE, &port->iflags, val);
 }
 
 static inline bool tty_port_check_carrier(struct tty_port *port)
@@ -641,10 +635,7 @@ static inline bool tty_port_check_carrier(struct tty_port *port)
 
 static inline void tty_port_set_check_carrier(struct tty_port *port, bool val)
 {
-	if (val)
-		set_bit(TTY_PORT_CHECK_CD, &port->iflags);
-	else
-		clear_bit(TTY_PORT_CHECK_CD, &port->iflags);
+	assign_bit(TTY_PORT_CHECK_CD, &port->iflags, val);
 }
 
 static inline bool tty_port_suspended(struct tty_port *port)
@@ -654,10 +645,7 @@ static inline bool tty_port_suspended(struct tty_port *port)
 
 static inline void tty_port_set_suspended(struct tty_port *port, bool val)
 {
-	if (val)
-		set_bit(TTY_PORT_SUSPENDED, &port->iflags);
-	else
-		clear_bit(TTY_PORT_SUSPENDED, &port->iflags);
+	assign_bit(TTY_PORT_SUSPENDED, &port->iflags, val);
 }
 
 static inline bool tty_port_initialized(struct tty_port *port)
@@ -667,10 +655,7 @@ static inline bool tty_port_initialized(struct tty_port *port)
 
 static inline void tty_port_set_initialized(struct tty_port *port, bool val)
 {
-	if (val)
-		set_bit(TTY_PORT_INITIALIZED, &port->iflags);
-	else
-		clear_bit(TTY_PORT_INITIALIZED, &port->iflags);
+	assign_bit(TTY_PORT_INITIALIZED, &port->iflags, val);
 }
 
 static inline bool tty_port_kopened(struct tty_port *port)
@@ -680,10 +665,7 @@ static inline bool tty_port_kopened(struct tty_port *port)
 
 static inline void tty_port_set_kopened(struct tty_port *port, bool val)
 {
-	if (val)
-		set_bit(TTY_PORT_KOPENED, &port->iflags);
-	else
-		clear_bit(TTY_PORT_KOPENED, &port->iflags);
+	assign_bit(TTY_PORT_KOPENED, &port->iflags, val);
 }
 
 extern struct tty_struct *tty_port_tty_get(struct tty_port *port);
