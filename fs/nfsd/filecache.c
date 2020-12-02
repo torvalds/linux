@@ -600,7 +600,7 @@ static struct notifier_block nfsd_file_lease_notifier = {
 static int
 nfsd_file_fsnotify_handle_event(struct fsnotify_mark *mark, u32 mask,
 				struct inode *inode, struct inode *dir,
-				const struct qstr *name)
+				const struct qstr *name, u32 cookie)
 {
 	trace_nfsd_file_fsnotify_handle_event(inode, mask);
 

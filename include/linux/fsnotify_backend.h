@@ -137,6 +137,7 @@ struct mem_cgroup;
  *		if @file_name is not NULL, this is the directory that
  *		@file_name is relative to.
  * @file_name:	optional file name associated with event
+ * @cookie:	inotify rename cookie
  *
  * free_group_priv - called when a group refcnt hits 0 to clean up the private union
  * freeing_mark - called when a mark is being destroyed for some reason.  The group
@@ -151,7 +152,7 @@ struct fsnotify_ops {
 			    struct fsnotify_iter_info *iter_info);
 	int (*handle_inode_event)(struct fsnotify_mark *mark, u32 mask,
 			    struct inode *inode, struct inode *dir,
-			    const struct qstr *file_name);
+			    const struct qstr *file_name, u32 cookie);
 	void (*free_group_priv)(struct fsnotify_group *group);
 	void (*freeing_mark)(struct fsnotify_mark *mark, struct fsnotify_group *group);
 	void (*free_event)(struct fsnotify_event *event);
