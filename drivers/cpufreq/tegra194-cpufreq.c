@@ -21,7 +21,6 @@
 #define KHZ                     1000
 #define REF_CLK_MHZ             408 /* 408 MHz */
 #define US_DELAY                500
-#define US_DELAY_MIN            2
 #define CPUFREQ_TBL_STEP_HZ     (50 * KHZ * KHZ)
 #define MAX_CNT                 ~0U
 
@@ -44,7 +43,6 @@ struct tegra194_cpufreq_data {
 
 struct tegra_cpu_ctr {
 	u32 cpu;
-	u32 delay;
 	u32 coreclk_cnt, last_coreclk_cnt;
 	u32 refclk_cnt, last_refclk_cnt;
 };
@@ -112,7 +110,7 @@ static void tegra_read_counters(struct work_struct *work)
 	val = read_freq_feedback();
 	c->last_refclk_cnt = lower_32_bits(val);
 	c->last_coreclk_cnt = upper_32_bits(val);
-	udelay(c->delay);
+	udelay(US_DELAY);
 	val = read_freq_feedback();
 	c->refclk_cnt = lower_32_bits(val);
 	c->coreclk_cnt = upper_32_bits(val);
@@ -139,7 +137,7 @@ static void tegra_read_counters(struct work_struct *work)
  * @cpu - logical cpu whose freq to be updated
  * Returns freq in KHz on success, 0 if cpu is offline
  */
-static unsigned int tegra194_get_speed_common(u32 cpu, u32 delay)
+static unsigned int tegra194_get_speed_common(u32 cpu)
 {
 	struct read_counters_work read_counters_work;
 	struct tegra_cpu_ctr c;
@@ -153,7 +151,6 @@ static unsigned int tegra194_get_speed_common(u32 cpu, u32 delay)
 	 * interrupts enabled.
 	 */
 	read_counters_work.c.cpu = cpu;
-	read_counters_work.c.delay = delay;
 	INIT_WORK_ONSTACK(&read_counters_work.work, tegra_read_counters);
 	queue_work_on(cpu, read_counters_wq, &read_counters_work.work);
 	flush_work(&read_counters_work.work);
@@ -209,7 +206,7 @@ static unsigned int tegra194_get_speed(u32 cpu)
 	smp_call_function_single(cpu, get_cpu_cluster, &cl, true);
 
 	/* reconstruct actual cpu freq using counters */
-	rate = tegra194_get_speed_common(cpu, US_DELAY);
+	rate = tegra194_get_speed_common(cpu);
 
 	/* get last written ndiv value */
 	ret = smp_call_function_single(cpu, get_cpu_ndiv, &ndiv, true);
@@ -247,9 +244,6 @@ static int tegra194_cpufreq_init(struct cpufreq_policy *policy)
 
 	if (cl >= data->num_clusters)
 		return -EINVAL;
-
-	/* boot freq */
-	policy->cur = tegra194_get_speed_common(policy->cpu, US_DELAY_MIN);
 
 	/* set same policy for all cpus in a cluster */
 	for (cpu = (cl * 2); cpu < ((cl + 1) * 2); cpu++)
