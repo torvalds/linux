@@ -58,15 +58,14 @@ typedef unsigned long (psci_fn)(unsigned long, unsigned long,
 				unsigned long, unsigned long);
 static psci_fn *invoke_psci_fn;
 
-enum psci_function {
-	PSCI_FN_CPU_SUSPEND,
-	PSCI_FN_CPU_ON,
-	PSCI_FN_CPU_OFF,
-	PSCI_FN_MIGRATE,
-	PSCI_FN_MAX,
+struct psci_0_1_function_ids {
+	u32 cpu_suspend;
+	u32 cpu_on;
+	u32 cpu_off;
+	u32 migrate;
 };
 
-static u32 psci_function_id[PSCI_FN_MAX];
+static struct psci_0_1_function_ids psci_0_1_function_ids;
 
 #define PSCI_0_2_POWER_STATE_MASK		\
 				(PSCI_0_2_POWER_STATE_ID_MASK | \
@@ -178,7 +177,7 @@ static int __psci_cpu_suspend(u32 fn, u32 state, unsigned long entry_point)
 
 static int psci_0_1_cpu_suspend(u32 state, unsigned long entry_point)
 {
-	return __psci_cpu_suspend(psci_function_id[PSCI_FN_CPU_SUSPEND],
+	return __psci_cpu_suspend(psci_0_1_function_ids.cpu_suspend,
 				  state, entry_point);
 }
 
@@ -198,7 +197,7 @@ static int __psci_cpu_off(u32 fn, u32 state)
 
 static int psci_0_1_cpu_off(u32 state)
 {
-	return __psci_cpu_off(psci_function_id[PSCI_FN_CPU_OFF], state);
+	return __psci_cpu_off(psci_0_1_function_ids.cpu_off, state);
 }
 
 static int psci_0_2_cpu_off(u32 state)
@@ -216,7 +215,7 @@ static int __psci_cpu_on(u32 fn, unsigned long cpuid, unsigned long entry_point)
 
 static int psci_0_1_cpu_on(unsigned long cpuid, unsigned long entry_point)
 {
-	return __psci_cpu_on(psci_function_id[PSCI_FN_CPU_ON], cpuid, entry_point);
+	return __psci_cpu_on(psci_0_1_function_ids.cpu_on, cpuid, entry_point);
 }
 
 static int psci_0_2_cpu_on(unsigned long cpuid, unsigned long entry_point)
@@ -234,7 +233,7 @@ static int __psci_migrate(u32 fn, unsigned long cpuid)
 
 static int psci_0_1_migrate(unsigned long cpuid)
 {
-	return __psci_migrate(psci_function_id[PSCI_FN_MIGRATE], cpuid);
+	return __psci_migrate(psci_0_1_function_ids.migrate, cpuid);
 }
 
 static int psci_0_2_migrate(unsigned long cpuid)
@@ -548,22 +547,22 @@ static int __init psci_0_1_init(struct device_node *np)
 	psci_ops.get_version = psci_0_1_get_version;
 
 	if (!of_property_read_u32(np, "cpu_suspend", &id)) {
-		psci_function_id[PSCI_FN_CPU_SUSPEND] = id;
+		psci_0_1_function_ids.cpu_suspend = id;
 		psci_ops.cpu_suspend = psci_0_1_cpu_suspend;
 	}
 
 	if (!of_property_read_u32(np, "cpu_off", &id)) {
-		psci_function_id[PSCI_FN_CPU_OFF] = id;
+		psci_0_1_function_ids.cpu_off = id;
 		psci_ops.cpu_off = psci_0_1_cpu_off;
 	}
 
 	if (!of_property_read_u32(np, "cpu_on", &id)) {
-		psci_function_id[PSCI_FN_CPU_ON] = id;
+		psci_0_1_function_ids.cpu_on = id;
 		psci_ops.cpu_on = psci_0_1_cpu_on;
 	}
 
 	if (!of_property_read_u32(np, "migrate", &id)) {
-		psci_function_id[PSCI_FN_MIGRATE] = id;
+		psci_0_1_function_ids.migrate = id;
 		psci_ops.migrate = psci_0_1_migrate;
 	}
 
