@@ -19,6 +19,7 @@
 #include <linux/kvm_irqfd.h>
 #include <linux/irqbypass.h>
 #include <linux/sched/stat.h>
+#include <linux/psci.h>
 #include <trace/events/kvm.h>
 
 #define CREATE_TRACE_POINTS
@@ -65,6 +66,8 @@ static DEFINE_PER_CPU(unsigned char, kvm_arm_hardware_enabled);
 DEFINE_STATIC_KEY_FALSE(userspace_irqchip_in_use);
 
 extern u64 kvm_nvhe_sym(__cpu_logical_map)[NR_CPUS];
+extern u32 kvm_nvhe_sym(kvm_host_psci_version);
+extern struct psci_0_1_function_ids kvm_nvhe_sym(kvm_host_psci_0_1_function_ids);
 
 int kvm_arch_vcpu_should_kick(struct kvm_vcpu *vcpu)
 {
@@ -1522,6 +1525,22 @@ static void init_cpu_logical_map(void)
 		kvm_nvhe_sym(__cpu_logical_map)[cpu] = cpu_logical_map(cpu);
 }
 
+static bool init_psci_relay(void)
+{
+	/*
+	 * If PSCI has not been initialized, protected KVM cannot install
+	 * itself on newly booted CPUs.
+	 */
+	if (!psci_ops.get_version) {
+		kvm_err("Cannot initialize protected mode without PSCI\n");
+		return false;
+	}
+
+	kvm_nvhe_sym(kvm_host_psci_version) = psci_ops.get_version();
+	kvm_nvhe_sym(kvm_host_psci_0_1_function_ids) = get_psci_0_1_function_ids();
+	return true;
+}
+
 static int init_common_resources(void)
 {
 	return kvm_set_ipa_limit();
@@ -1700,8 +1719,12 @@ static int init_hyp_mode(void)
 		}
 	}
 
-	if (is_protected_kvm_enabled())
+	if (is_protected_kvm_enabled()) {
 		init_cpu_logical_map();
+
+		if (!init_psci_relay())
+			goto out_err;
+	}
 
 	return 0;
 
