@@ -232,6 +232,26 @@ notify:
 }
 EXPORT_SYMBOL_GPL(__fsnotify_parent);
 
+static int fsnotify_handle_inode_event(struct fsnotify_group *group,
+				       struct fsnotify_mark *inode_mark,
+				       u32 mask, const void *data, int data_type,
+				       struct inode *dir, const struct qstr *name,
+				       u32 cookie)
+{
+	const struct path *path = fsnotify_data_path(data, data_type);
+	struct inode *inode = fsnotify_data_inode(data, data_type);
+	const struct fsnotify_ops *ops = group->ops;
+
+	if (WARN_ON_ONCE(!ops->handle_inode_event))
+		return 0;
+
+	if ((inode_mark->mask & FS_EXCL_UNLINK) &&
+	    path && d_unlinked(path->dentry))
+		return 0;
+
+	return ops->handle_inode_event(inode_mark, mask, inode, dir, name, cookie);
+}
+
 static int fsnotify_handle_event(struct fsnotify_group *group, __u32 mask,
 				 const void *data, int data_type,
 				 struct inode *dir, const struct qstr *name,
@@ -239,12 +259,7 @@ static int fsnotify_handle_event(struct fsnotify_group *group, __u32 mask,
 {
 	struct fsnotify_mark *inode_mark = fsnotify_iter_inode_mark(iter_info);
 	struct fsnotify_mark *child_mark = fsnotify_iter_child_mark(iter_info);
-	struct inode *inode = fsnotify_data_inode(data, data_type);
-	const struct fsnotify_ops *ops = group->ops;
 	int ret;
-
-	if (WARN_ON_ONCE(!ops->handle_inode_event))
-		return 0;
 
 	if (WARN_ON_ONCE(fsnotify_iter_sb_mark(iter_info)) ||
 	    WARN_ON_ONCE(fsnotify_iter_vfsmount_mark(iter_info)))
@@ -262,7 +277,8 @@ static int fsnotify_handle_event(struct fsnotify_group *group, __u32 mask,
 		name = NULL;
 	}
 
-	ret = ops->handle_inode_event(inode_mark, mask, inode, dir, name);
+	ret = fsnotify_handle_inode_event(group, inode_mark, mask, data, data_type,
+					  dir, name, cookie);
 	if (ret || !child_mark)
 		return ret;
 
@@ -272,7 +288,8 @@ static int fsnotify_handle_event(struct fsnotify_group *group, __u32 mask,
 	 * report the event once to parent dir with name and once to child
 	 * without name.
 	 */
-	return ops->handle_inode_event(child_mark, mask, inode, NULL, NULL);
+	return fsnotify_handle_inode_event(group, child_mark, mask, data, data_type,
+					   NULL, NULL, 0);
 }
 
 static int send_to_group(__u32 mask, const void *data, int data_type,
