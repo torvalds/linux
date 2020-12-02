@@ -1764,17 +1764,6 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.type = ARM64_CPUCAP_WEAK_LOCAL_CPU_FEATURE,
 		.matches = has_no_hw_prefetch,
 	},
-#ifdef CONFIG_ARM64_UAO
-	{
-		.desc = "User Access Override",
-		.capability = ARM64_HAS_UAO,
-		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
-		.matches = has_cpuid_feature,
-		.sys_reg = SYS_ID_AA64MMFR2_EL1,
-		.field_pos = ID_AA64MMFR2_UAO_SHIFT,
-		.min_field_value = 1,
-	},
-#endif /* CONFIG_ARM64_UAO */
 #ifdef CONFIG_ARM64_VHE
 	{
 		.desc = "Virtualization Host Extensions",
