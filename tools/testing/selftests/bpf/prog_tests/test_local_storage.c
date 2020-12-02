@@ -21,14 +21,6 @@ static inline int sys_pidfd_open(pid_t pid, unsigned int flags)
 	return syscall(__NR_pidfd_open, pid, flags);
 }
 
-static inline ssize_t copy_file_range(int fd_in, loff_t *off_in, int fd_out,
-				      loff_t *off_out, size_t len,
-				      unsigned int flags)
-{
-	return syscall(__NR_copy_file_range, fd_in, off_in, fd_out, off_out,
-		       len, flags);
-}
-
 static unsigned int duration;
 
 #define TEST_STORAGE_VALUE 0xbeefdead
@@ -47,6 +39,7 @@ static int copy_rm(char *dest)
 {
 	int fd_in, fd_out = -1, ret = 0;
 	struct stat stat;
+	char *buf = NULL;
 
 	fd_in = open("/bin/rm", O_RDONLY);
 	if (fd_in < 0)
@@ -64,10 +57,24 @@ static int copy_rm(char *dest)
 		goto out;
 	}
 
-	ret = copy_file_range(fd_in, NULL, fd_out, NULL, stat.st_size, 0);
-	if (ret == -1) {
+	buf = malloc(stat.st_blksize);
+	if (!buf) {
 		ret = -errno;
 		goto out;
+	}
+
+	while (ret = read(fd_in, buf, stat.st_blksize), ret > 0) {
+		ret = write(fd_out, buf, ret);
+		if (ret < 0) {
+			ret = -errno;
+			goto out;
+
+		}
+	}
+	if (ret < 0) {
+		ret = -errno;
+		goto out;
+
 	}
 
 	/* Set executable permission on the copied file */
@@ -76,6 +83,7 @@ static int copy_rm(char *dest)
 		ret = -errno;
 
 out:
+	free(buf);
 	close(fd_in);
 	close(fd_out);
 	return ret;
