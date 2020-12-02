@@ -239,7 +239,8 @@ int btrfs_lookup_file_extent(struct btrfs_trans_handle *trans,
 }
 
 /**
- * btrfs_lookup_bio_sums - Look up checksums for a bio.
+ * btrfs_lookup_bio_sums - Look up checksums for a read bio.
+ *
  * @inode: inode that the bio is for.
  * @bio: bio to look up.
  * @offset: Unless (u64)-1, look up checksums for this offset in the file.
@@ -274,6 +275,15 @@ blk_status_t btrfs_lookup_bio_sums(struct inode *inode, struct bio *bio,
 	if (!fs_info->csum_root || (BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM))
 		return BLK_STS_OK;
 
+	/*
+	 * This function is only called for read bio.
+	 *
+	 * This means two things:
+	 * - All our csums should only be in csum tree
+	 *   No ordered extents csums, as ordered extents are only for write
+	 *   path.
+	 */
+	ASSERT(bio_op(bio) == REQ_OP_READ);
 	path = btrfs_alloc_path();
 	if (!path)
 		return BLK_STS_RESOURCE;
@@ -324,10 +334,6 @@ blk_status_t btrfs_lookup_bio_sums(struct inode *inode, struct bio *bio,
 
 		if (page_offsets)
 			offset = page_offset(bvec.bv_page) + bvec.bv_offset;
-		count = btrfs_find_ordered_sum(BTRFS_I(inode), offset,
-					       disk_bytenr, csum, nblocks);
-		if (count)
-			goto found;
 
 		if (!item || disk_bytenr < item_start_offset ||
 		    disk_bytenr >= item_last_offset) {
