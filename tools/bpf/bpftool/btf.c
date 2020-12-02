@@ -750,6 +750,8 @@ show_btf_plain(struct bpf_btf_info *info, int fd,
 		printf("name [%s]  ", name);
 	else if (name && name[0])
 		printf("name %s  ", name);
+	else
+		printf("name <anon>  ");
 	printf("size %uB", info->btf_size);
 
 	n = 0;
