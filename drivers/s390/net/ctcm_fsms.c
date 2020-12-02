@@ -1303,23 +1303,16 @@ static void ctcmpc_chx_txdone(fsm_instance *fi, int event, void *arg)
 	/* p_header points to the last one we handled */
 	if (p_header)
 		p_header->pdu_flag |= PDU_LAST;	/*Say it's the last one*/
-	header = kzalloc(TH_HEADER_LENGTH, gfp_type());
-	if (!header) {
-		spin_unlock(&ch->collect_lock);
-		fsm_event(priv->mpcg->fsm, MPCG_EVENT_INOP, dev);
-				goto done;
-	}
+
+	header = skb_push(ch->trans_skb, TH_HEADER_LENGTH);
+	memset(header, 0, TH_HEADER_LENGTH);
+
 	header->th_ch_flag = TH_HAS_PDU;  /* Normal data */
 	ch->th_seq_num++;
 	header->th_seq_num = ch->th_seq_num;
 
 	CTCM_PR_DBGDATA("%s: ToVTAM_th_seq= %08x\n" ,
 					__func__, ch->th_seq_num);
-
-	memcpy(skb_push(ch->trans_skb, TH_HEADER_LENGTH), header,
-		TH_HEADER_LENGTH);	/* put the TH on the packet */
-
-	kfree(header);
 
 	CTCM_PR_DBGDATA("%s: trans_skb len:%04x \n",
 		       __func__, ch->trans_skb->len);
