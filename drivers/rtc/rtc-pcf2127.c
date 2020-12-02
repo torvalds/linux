@@ -558,7 +558,7 @@ static const struct attribute_group pcf2127_attr_group = {
 };
 
 static int pcf2127_probe(struct device *dev, struct regmap *regmap,
-			 int alarm_irq, const char *name, bool has_nvmem)
+			 int alarm_irq, const char *name, bool is_pcf2127)
 {
 	struct pcf2127 *pcf2127;
 	int ret = 0;
@@ -601,7 +601,7 @@ static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 		set_bit(RTC_FEATURE_ALARM, pcf2127->rtc->features);
 	}
 
-	if (has_nvmem) {
+	if (is_pcf2127) {
 		struct nvmem_config nvmem_cfg = {
 			.priv = pcf2127,
 			.reg_read = pcf2127_nvmem_read,
@@ -636,6 +636,10 @@ static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 	 * Watchdog timer enabled and reset pin /RST activated when timed out.
 	 * Select 1Hz clock source for watchdog timer.
 	 * Note: Countdown timer disabled and not available.
+	 * For pca2129, pcf2129, only bit[7] is for Symbol WD_CD
+	 * of register watchdg_tim_ctl. The bit[6] is labeled
+	 * as T. Bits labeled as T must always be written with
+	 * logic 0.
 	 */
 	ret = regmap_update_bits(pcf2127->regmap, PCF2127_REG_WD_CTL,
 				 PCF2127_BIT_WD_CTL_CD1 |
@@ -643,7 +647,7 @@ static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 				 PCF2127_BIT_WD_CTL_TF1 |
 				 PCF2127_BIT_WD_CTL_TF0,
 				 PCF2127_BIT_WD_CTL_CD1 |
-				 PCF2127_BIT_WD_CTL_CD0 |
+				 (is_pcf2127 ? PCF2127_BIT_WD_CTL_CD0 : 0) |
 				 PCF2127_BIT_WD_CTL_TF1);
 	if (ret) {
 		dev_err(dev, "%s: watchdog config (wd_ctl) failed\n", __func__);
