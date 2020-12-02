@@ -962,7 +962,7 @@ qla82xx_read_status_reg(struct qla_hw_data *ha, uint32_t *val)
 static int
 qla82xx_flash_wait_write_finish(struct qla_hw_data *ha)
 {
-	uint32_t val;
+	uint32_t val = 0;
 	int i, ret;
 	scsi_qla_host_t *vha = pci_get_drvdata(ha->pdev);
 
