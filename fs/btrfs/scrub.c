@@ -2153,6 +2153,7 @@ static int scrub_pages(struct scrub_ctx *sctx, u64 logical, u32 len,
 		       u64 physical_for_dev_replace)
 {
 	struct scrub_block *sblock;
+	const u32 sectorsize = sctx->fs_info->sectorsize;
 	int index;
 
 	sblock = kzalloc(sizeof(*sblock), GFP_KERNEL);
@@ -2171,7 +2172,12 @@ static int scrub_pages(struct scrub_ctx *sctx, u64 logical, u32 len,
 
 	for (index = 0; len > 0; index++) {
 		struct scrub_page *spage;
-		u32 l = min_t(u32, len, PAGE_SIZE);
+		/*
+		 * Here we will allocate one page for one sector to scrub.
+		 * This is fine if PAGE_SIZE == sectorsize, but will cost
+		 * more memory for PAGE_SIZE > sectorsize case.
+		 */
+		u32 l = min(sectorsize, len);
 
 		spage = kzalloc(sizeof(*spage), GFP_KERNEL);
 		if (!spage) {
@@ -2483,7 +2489,10 @@ static int scrub_pages_for_parity(struct scrub_parity *sparity,
 {
 	struct scrub_ctx *sctx = sparity->sctx;
 	struct scrub_block *sblock;
+	const u32 sectorsize = sctx->fs_info->sectorsize;
 	int index;
+
+	ASSERT(IS_ALIGNED(len, sectorsize));
 
 	sblock = kzalloc(sizeof(*sblock), GFP_KERNEL);
 	if (!sblock) {
@@ -2503,7 +2512,6 @@ static int scrub_pages_for_parity(struct scrub_parity *sparity,
 
 	for (index = 0; len > 0; index++) {
 		struct scrub_page *spage;
-		u32 l = min_t(u32, len, PAGE_SIZE);
 
 		spage = kzalloc(sizeof(*spage), GFP_KERNEL);
 		if (!spage) {
@@ -2538,9 +2546,12 @@ leave_nomem:
 		spage->page = alloc_page(GFP_KERNEL);
 		if (!spage->page)
 			goto leave_nomem;
-		len -= l;
-		logical += l;
-		physical += l;
+
+
+		/* Iterate over the stripe range in sectorsize steps */
+		len -= sectorsize;
+		logical += sectorsize;
+		physical += sectorsize;
 	}
 
 	WARN_ON(sblock->page_count == 0);
