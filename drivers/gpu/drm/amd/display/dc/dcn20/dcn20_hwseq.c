@@ -1214,6 +1214,17 @@ void dcn20_pipe_control_lock(
 		!flip_immediate)
 	    dcn20_setup_gsl_group_as_lock(dc, pipe, false);
 
+
+	// If changing VTG FP2: wait until back in vactive to program FP2
+	// Need to ensure that pipe unlock happens soon after to minimize race condition
+	if (!lock && pipe->update_flags.bits.global_sync) {
+		pipe->stream_res.tg->funcs->wait_for_state(pipe->stream_res.tg, CRTC_STATE_VBLANK);
+		pipe->stream_res.tg->funcs->wait_for_state(pipe->stream_res.tg, CRTC_STATE_VACTIVE);
+
+		pipe->stream_res.tg->funcs->set_vtg_params(
+				pipe->stream_res.tg, &pipe->stream->timing, true);
+	}
+
 	if (pipe->stream && should_use_dmub_lock(pipe->stream->link)) {
 		union dmub_hw_lock_flags hw_locks = { 0 };
 		struct dmub_hw_lock_inst_flags inst_flags = { 0 };
@@ -1595,7 +1606,7 @@ static void dcn20_program_pipe(
 				pipe_ctx->pipe_dlg_param.vupdate_width);
 
 		pipe_ctx->stream_res.tg->funcs->set_vtg_params(
-				pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing);
+				pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing, false);
 
 		if (hws->funcs.setup_vupdate_interrupt)
 			hws->funcs.setup_vupdate_interrupt(dc, pipe_ctx);
@@ -1695,14 +1706,6 @@ void dcn20_program_front_end_for_ctx(
 				&& context->res_ctx.pipe_ctx[i].stream)
 			hws->funcs.blank_pixel_data(dc, &context->res_ctx.pipe_ctx[i], true);
 
-	/* wait for outstanding pending changes before adding or removing planes */
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		if (context->res_ctx.pipe_ctx[i].update_flags.bits.disable ||
-				context->res_ctx.pipe_ctx[i].update_flags.bits.enable) {
-			dc->hwss.wait_for_pending_cleared(dc, context);
-			break;
-		}
-	}
 
 	/* Disconnect mpcc */
 	for (i = 0; i < dc->res_pool->pipe_count; i++)
@@ -1856,7 +1859,7 @@ bool dcn20_update_bandwidth(
 					pipe_ctx->pipe_dlg_param.vupdate_width);
 
 			pipe_ctx->stream_res.tg->funcs->set_vtg_params(
-					pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing);
+					pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing, false);
 
 			if (pipe_ctx->prev_odm_pipe == NULL)
 				hws->funcs.blank_pixel_data(dc, pipe_ctx, blank);
