@@ -707,14 +707,8 @@ int cp_init(struct channel_program *cp, union orb *orb)
 	/* Build a ccwchain for the first CCW segment */
 	ret = ccwchain_handle_ccw(orb->cmd.cpa, cp);
 
-	if (!ret) {
+	if (!ret)
 		cp->initialized = true;
-
-		/* It is safe to force: if it was not set but idals used
-		 * ccwchain_calc_length would have returned an error.
-		 */
-		cp->orb.cmd.c64 = 1;
-	}
 
 	return ret;
 }
@@ -836,6 +830,11 @@ union orb *cp_get_orb(struct channel_program *cp, struct subchannel *sch)
 
 	orb->cmd.intparm = (u32)virt_to_phys(sch);
 	orb->cmd.fmt = 1;
+
+	/*
+	 * Everything built by vfio-ccw is a Format-2 IDAL.
+	 */
+	orb->cmd.c64 = 1;
 
 	if (orb->cmd.lpm == 0)
 		orb->cmd.lpm = sch->lpm;
