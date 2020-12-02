@@ -502,6 +502,13 @@ static int ccwchain_fetch_tic(struct ccw1 *ccw,
  *
  * @ccw: The Channel Command Word being translated
  * @cp: Channel Program being processed
+ *
+ * The ORB is examined, since it specifies what IDAWs could actually be
+ * used by any CCW in the channel program, regardless of whether or not
+ * the CCW actually does. An ORB that does not specify Format-2-IDAW
+ * Control could still contain a CCW with an IDAL, which would be
+ * Format-1 and thus only move 2K with each IDAW. Thus all CCWs within
+ * the channel program must follow the same size requirements.
  */
 static int ccw_count_idaws(struct ccw1 *ccw,
 			   struct channel_program *cp)
@@ -533,6 +540,15 @@ static int ccw_count_idaws(struct ccw1 *ccw,
 		iova = ccw->cda;
 	}
 
+	/* Format-1 IDAWs operate on 2K each */
+	if (!cp->orb.cmd.c64)
+		return idal_2k_nr_words((void *)iova, bytes);
+
+	/* Using the 2K variant of Format-2 IDAWs? */
+	if (cp->orb.cmd.i2k)
+		return idal_2k_nr_words((void *)iova, bytes);
+
+	/* The 'usual' case is 4K Format-2 IDAWs */
 	return idal_nr_words((void *)iova, bytes);
 }
 
