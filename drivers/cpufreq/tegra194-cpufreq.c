@@ -137,7 +137,7 @@ static void tegra_read_counters(struct work_struct *work)
  * @cpu - logical cpu whose freq to be updated
  * Returns freq in KHz on success, 0 if cpu is offline
  */
-static unsigned int tegra194_get_speed_common(u32 cpu)
+static unsigned int tegra194_calculate_speed(u32 cpu)
 {
 	struct read_counters_work read_counters_work;
 	struct tegra_cpu_ctr c;
@@ -206,7 +206,7 @@ static unsigned int tegra194_get_speed(u32 cpu)
 	smp_call_function_single(cpu, get_cpu_cluster, &cl, true);
 
 	/* reconstruct actual cpu freq using counters */
-	rate = tegra194_get_speed_common(cpu);
+	rate = tegra194_calculate_speed(cpu);
 
 	/* get last written ndiv value */
 	ret = smp_call_function_single(cpu, get_cpu_ndiv, &ndiv, true);
