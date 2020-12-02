@@ -1581,13 +1581,13 @@
 	};
 	tsadc {
 		/omit-if-no-ref/
-		tsadcm0_pins: tsadcm0-pins {
+		tsadcm0_shut: tsadcm0-shut {
 			rockchip,pins =
 				/* tsadc_shut_m0 */
 				<0 RK_PA1 1 &pcfg_pull_none>;
 		};
 		/omit-if-no-ref/
-		tsadcm1_pins: tsadcm1-pins {
+		tsadcm1_shut: tsadcm1-shut {
 			rockchip,pins =
 				/* tsadc_shut_m1 */
 				<0 RK_PB2 2 &pcfg_pull_none>;
