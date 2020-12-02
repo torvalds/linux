@@ -142,7 +142,7 @@ int ionic_heartbeat_check(struct ionic *ionic)
 
 			work = kzalloc(sizeof(*work), GFP_ATOMIC);
 			if (!work) {
-				dev_err(ionic->dev, "%s OOM\n", __func__);
+				dev_err(ionic->dev, "LIF reset trigger dropped\n");
 			} else {
 				work->type = IONIC_DW_TYPE_LIF_RESET;
 				if (fw_status & IONIC_FW_STS_F_RUNNING &&
