@@ -100,15 +100,14 @@ class KUnitParserTest(unittest.TestCase):
 	def test_output_isolated_correctly(self):
 		log_path = get_absolute_path(
 			'test_data/test_output_isolated_correctly.log')
-		file = open(log_path)
-		result = kunit_parser.isolate_kunit_output(file.readlines())
+		with open(log_path) as file:
+			result = kunit_parser.isolate_kunit_output(file.readlines())
 		self.assertContains('TAP version 14', result)
 		self.assertContains('	# Subtest: example', result)
 		self.assertContains('	1..2', result)
 		self.assertContains('	ok 1 - example_simple_test', result)
 		self.assertContains('	ok 2 - example_mock_test', result)
 		self.assertContains('ok 1 - example', result)
-		file.close()
 
 	def test_output_with_prefix_isolated_correctly(self):
 		log_path = get_absolute_path(
@@ -143,42 +142,39 @@ class KUnitParserTest(unittest.TestCase):
 	def test_parse_successful_test_log(self):
 		all_passed_log = get_absolute_path(
 			'test_data/test_is_test_passed-all_passed.log')
-		file = open(all_passed_log)
-		result = kunit_parser.parse_run_tests(file.readlines())
+		with open(all_passed_log) as file:
+			result = kunit_parser.parse_run_tests(file.readlines())
 		self.assertEqual(
 			kunit_parser.TestStatus.SUCCESS,
 			result.status)
-		file.close()
 
 	def test_parse_failed_test_log(self):
 		failed_log = get_absolute_path(
 			'test_data/test_is_test_passed-failure.log')
-		file = open(failed_log)
-		result = kunit_parser.parse_run_tests(file.readlines())
+		with open(failed_log) as file:
+			result = kunit_parser.parse_run_tests(file.readlines())
 		self.assertEqual(
 			kunit_parser.TestStatus.FAILURE,
 			result.status)
-		file.close()
 
 	def test_no_tests(self):
 		empty_log = get_absolute_path(
 			'test_data/test_is_test_passed-no_tests_run.log')
-		file = open(empty_log)
-		result = kunit_parser.parse_run_tests(
-			kunit_parser.isolate_kunit_output(file.readlines()))
+		with open(empty_log) as file:
+			result = kunit_parser.parse_run_tests(
+				kunit_parser.isolate_kunit_output(file.readlines()))
 		self.assertEqual(0, len(result.suites))
 		self.assertEqual(
 			kunit_parser.TestStatus.NO_TESTS,
 			result.status)
-		file.close()
 
 	def test_no_kunit_output(self):
 		crash_log = get_absolute_path(
 			'test_data/test_insufficient_memory.log')
-		file = open(crash_log)
 		print_mock = mock.patch('builtins.print').start()
-		result = kunit_parser.parse_run_tests(
-			kunit_parser.isolate_kunit_output(file.readlines()))
+		with open(crash_log) as file:
+			result = kunit_parser.parse_run_tests(
+				kunit_parser.isolate_kunit_output(file.readlines()))
 		print_mock.assert_any_call(StrContains('no tests run!'))
 		print_mock.stop()
 		file.close()
@@ -186,12 +182,11 @@ class KUnitParserTest(unittest.TestCase):
 	def test_crashed_test(self):
 		crashed_log = get_absolute_path(
 			'test_data/test_is_test_passed-crash.log')
-		file = open(crashed_log)
-		result = kunit_parser.parse_run_tests(file.readlines())
+		with open(crashed_log) as file:
+			result = kunit_parser.parse_run_tests(file.readlines())
 		self.assertEqual(
 			kunit_parser.TestStatus.TEST_CRASHED,
 			result.status)
-		file.close()
 
 	def test_ignores_prefix_printk_time(self):
 		prefix_log = get_absolute_path(
