@@ -6,6 +6,7 @@
 #include <linux/rbtree.h>
 #include <linux/refcount.h>
 #include <linux/fiemap.h>
+#include <linux/btrfs_tree.h>
 #include "ulist.h"
 
 /*
@@ -74,8 +75,7 @@ typedef blk_status_t (submit_bio_hook_t)(struct inode *inode, struct bio *bio,
 typedef blk_status_t (extent_submit_bio_start_t)(struct inode *inode,
 		struct bio *bio, u64 dio_file_offset);
 
-#define INLINE_EXTENT_BUFFER_PAGES 16
-#define MAX_INLINE_EXTENT_BUFFER_SIZE (INLINE_EXTENT_BUFFER_PAGES * PAGE_SIZE)
+#define INLINE_EXTENT_BUFFER_PAGES     (BTRFS_MAX_METADATA_BLOCKSIZE / PAGE_SIZE)
 struct extent_buffer {
 	u64 start;
 	unsigned long len;
