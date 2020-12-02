@@ -522,7 +522,7 @@ static const struct nla_policy bareudp_policy[IFLA_BAREUDP_MAX + 1] = {
 };
 
 /* Info for udev, that this is a virtual tunnel endpoint */
-static struct device_type bareudp_type = {
+static const struct device_type bareudp_type = {
 	.name = "bareudp",
 };
 
