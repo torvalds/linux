@@ -627,6 +627,12 @@ config HAVE_TIF_NOHZ
 config HAVE_VIRT_CPU_ACCOUNTING
 	bool
 
+config HAVE_VIRT_CPU_ACCOUNTING_IDLE
+	bool
+	help
+	  Architecture has its own way to account idle CPU time and therefore
+	  doesn't implement vtime_account_idle().
+
 config ARCH_HAS_SCALED_CPUTIME
 	bool
 
@@ -640,7 +646,6 @@ config HAVE_VIRT_CPU_ACCOUNTING_GEN
 	  cputime_t. For example, reading/writing 64-bit cputime_t on
 	  some 32-bit arches may require multiple accesses, so proper
 	  locking is needed to protect against concurrent accesses.
-
 
 config HAVE_IRQ_TIME_ACCOUNTING
 	bool
