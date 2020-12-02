@@ -1811,12 +1811,22 @@ static int scrub_checksum_tree_block(struct scrub_block *sblock)
 	SHASH_DESC_ON_STACK(shash, fs_info->csum_shash);
 	u8 calculated_csum[BTRFS_CSUM_SIZE];
 	u8 on_disk_csum[BTRFS_CSUM_SIZE];
-	const int num_pages = sctx->fs_info->nodesize >> PAGE_SHIFT;
+	/*
+	 * This is done in sectorsize steps even for metadata as there's a
+	 * constraint for nodesize to be aligned to sectorsize. This will need
+	 * to change so we don't misuse data and metadata units like that.
+	 */
+	const u32 sectorsize = sctx->fs_info->sectorsize;
+	const int num_sectors = fs_info->nodesize >> fs_info->sectorsize_bits;
 	int i;
 	struct scrub_page *spage;
 	char *kaddr;
 
 	BUG_ON(sblock->page_count < 1);
+
+	/* Each member in pagev is just one block, not a full page */
+	ASSERT(sblock->page_count == num_sectors);
+
 	spage = sblock->pagev[0];
 	kaddr = page_address(spage->page);
 	h = (struct btrfs_header *)kaddr;
@@ -1845,11 +1855,11 @@ static int scrub_checksum_tree_block(struct scrub_block *sblock)
 	shash->tfm = fs_info->csum_shash;
 	crypto_shash_init(shash);
 	crypto_shash_update(shash, kaddr + BTRFS_CSUM_SIZE,
-			    PAGE_SIZE - BTRFS_CSUM_SIZE);
+			    sectorsize - BTRFS_CSUM_SIZE);
 
-	for (i = 1; i < num_pages; i++) {
+	for (i = 1; i < num_sectors; i++) {
 		kaddr = page_address(sblock->pagev[i]->page);
-		crypto_shash_update(shash, kaddr, PAGE_SIZE);
+		crypto_shash_update(shash, kaddr, sectorsize);
 	}
 
 	crypto_shash_final(shash, calculated_csum);
