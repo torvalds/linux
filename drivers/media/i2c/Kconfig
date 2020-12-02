@@ -356,6 +356,16 @@ config VIDEO_ML86V7667
 	  To compile this driver as a module, choose M here: the
 	  module will be called ml86v7667.
 
+config VIDEO_NVP6158
+	tristate "NEXTCHIP nvp6158 driver support"
+	depends on VIDEO_V4L2 && I2C
+	help
+	  Support for the Nextchip NVP6158 multi channels digital decode to
+	  BT656/BT1120 bridge.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called nvp6158_drv.
+
 config VIDEO_NVP6324
 	tristate "NEXTCHIP nvp6324 driver support"
 	depends on VIDEO_V4L2 && I2C
