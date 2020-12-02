@@ -37,7 +37,7 @@ struct hibmc_drm_private {
 	resource_size_t  fb_size;
 
 	/* drm */
-	struct drm_device  *dev;
+	struct drm_device dev;
 	struct drm_plane primary_plane;
 	struct drm_crtc crtc;
 	struct drm_encoder encoder;
@@ -52,7 +52,7 @@ static inline struct hibmc_connector *to_hibmc_connector(struct drm_connector *c
 
 static inline struct hibmc_drm_private *to_hibmc_drm_private(struct drm_device *dev)
 {
-	return dev->dev_private;
+	return container_of(dev, struct hibmc_drm_private, dev);
 }
 
 void hibmc_set_power_mode(struct hibmc_drm_private *priv,

@@ -499,7 +499,7 @@ static const struct drm_crtc_helper_funcs hibmc_crtc_helper_funcs = {
 
 int hibmc_de_init(struct hibmc_drm_private *priv)
 {
-	struct drm_device *dev = priv->dev;
+	struct drm_device *dev = &priv->dev;
 	struct drm_crtc *crtc = &priv->crtc;
 	struct drm_plane *plane = &priv->primary_plane;
 	int ret;

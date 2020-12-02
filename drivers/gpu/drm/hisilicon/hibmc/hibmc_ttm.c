@@ -25,7 +25,7 @@ int hibmc_mm_init(struct hibmc_drm_private *hibmc)
 {
 	struct drm_vram_mm *vmm;
 	int ret;
-	struct drm_device *dev = hibmc->dev;
+	struct drm_device *dev = &hibmc->dev;
 
 	vmm = drm_vram_helper_alloc_mm(dev,
 				       pci_resource_start(dev->pdev, 0),
@@ -41,10 +41,12 @@ int hibmc_mm_init(struct hibmc_drm_private *hibmc)
 
 void hibmc_mm_fini(struct hibmc_drm_private *hibmc)
 {
-	if (!hibmc->dev->vram_mm)
+	struct drm_device *dev = &hibmc->dev;
+
+	if (!dev->vram_mm)
 		return;
 
-	drm_vram_helper_release_mm(hibmc->dev);
+	drm_vram_helper_release_mm(dev);
 }
 
 int hibmc_dumb_create(struct drm_file *file, struct drm_device *dev,

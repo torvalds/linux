@@ -96,7 +96,7 @@ static const struct drm_encoder_funcs hibmc_encoder_funcs = {
 
 int hibmc_vdac_init(struct hibmc_drm_private *priv)
 {
-	struct drm_device *dev = priv->dev;
+	struct drm_device *dev = &priv->dev;
 	struct hibmc_connector *hibmc_connector = &priv->connector;
 	struct drm_encoder *encoder = &priv->encoder;
 	struct drm_connector *connector = &hibmc_connector->base;
