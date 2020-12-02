@@ -3517,7 +3517,7 @@ static bool get_mmio_spte(struct kvm_vcpu *vcpu, u64 addr, u64 *sptep)
 {
 	u64 sptes[PT64_ROOT_MAX_LEVEL];
 	struct rsvd_bits_validate *rsvd_check;
-	int root = vcpu->arch.mmu->root_level;
+	int root = vcpu->arch.mmu->shadow_root_level;
 	int leaf;
 	int level;
 	bool reserved = false;

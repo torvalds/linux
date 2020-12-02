@@ -62,6 +62,9 @@ struct vc4_hdmi_variant {
 	 */
 	enum vc4_hdmi_phy_channel phy_lane_mapping[4];
 
+	/* The BCM2711 cannot deal with odd horizontal pixel timings */
+	bool unsupported_odd_h_timings;
+
 	/* Callback to get the resources (memory region, interrupts,
 	 * clocks, etc) for that variant.
 	 */
@@ -138,6 +141,14 @@ struct vc4_hdmi {
 
 	int hpd_gpio;
 	bool hpd_active_low;
+
+	/*
+	 * On some systems (like the RPi4), some modes are in the same
+	 * frequency range than the WiFi channels (1440p@60Hz for
+	 * example). Should we take evasive actions because that system
+	 * has a wifi adapter?
+	 */
+	bool disable_wifi_frequencies;
 
 	struct cec_adapter *cec_adap;
 	struct cec_msg cec_rx_msg;

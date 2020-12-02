@@ -20,12 +20,28 @@
 #include <linux/of_platform.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
+#include <linux/hashtable.h>
 
 #include <linux/firmware/xlnx-zynqmp.h>
 #include "zynqmp-debug.h"
 
+/* Max HashMap Order for PM API feature check (1<<7 = 128) */
+#define PM_API_FEATURE_CHECK_MAX_ORDER  7
+
 static bool feature_check_enabled;
-static u32 zynqmp_pm_features[PM_API_MAX];
+DEFINE_HASHTABLE(pm_api_features_map, PM_API_FEATURE_CHECK_MAX_ORDER);
+
+/**
+ * struct pm_api_feature_data - PM API Feature data
+ * @pm_api_id:		PM API Id, used as key to index into hashmap
+ * @feature_status:	status of PM API feature: valid, invalid
+ * @hentry:		hlist_node that hooks this entry into hashtable
+ */
+struct pm_api_feature_data {
+	u32 pm_api_id;
+	int feature_status;
+	struct hlist_node hentry;
+};
 
 static const struct mfd_cell firmware_devs[] = {
 	{
@@ -142,29 +158,37 @@ static int zynqmp_pm_feature(u32 api_id)
 	int ret;
 	u32 ret_payload[PAYLOAD_ARG_CNT];
 	u64 smc_arg[2];
+	struct pm_api_feature_data *feature_data;
 
 	if (!feature_check_enabled)
 		return 0;
 
-	/* Return value if feature is already checked */
-	if (api_id > ARRAY_SIZE(zynqmp_pm_features))
-		return PM_FEATURE_INVALID;
+	/* Check for existing entry in hash table for given api */
+	hash_for_each_possible(pm_api_features_map, feature_data, hentry,
+			       api_id) {
+		if (feature_data->pm_api_id == api_id)
+			return feature_data->feature_status;
+	}
 
-	if (zynqmp_pm_features[api_id] != PM_FEATURE_UNCHECKED)
-		return zynqmp_pm_features[api_id];
+	/* Add new entry if not present */
+	feature_data = kmalloc(sizeof(*feature_data), GFP_KERNEL);
+	if (!feature_data)
+		return -ENOMEM;
 
+	feature_data->pm_api_id = api_id;
 	smc_arg[0] = PM_SIP_SVC | PM_FEATURE_CHECK;
 	smc_arg[1] = api_id;
 
 	ret = do_fw_call(smc_arg[0], smc_arg[1], 0, ret_payload);
-	if (ret) {
-		zynqmp_pm_features[api_id] = PM_FEATURE_INVALID;
-		return PM_FEATURE_INVALID;
-	}
+	if (ret)
+		ret = -EOPNOTSUPP;
+	else
+		ret = ret_payload[1];
 
-	zynqmp_pm_features[api_id] = ret_payload[1];
+	feature_data->feature_status = ret;
+	hash_add(pm_api_features_map, &feature_data->hentry, api_id);
 
-	return zynqmp_pm_features[api_id];
+	return ret;
 }
 
 /**
@@ -200,9 +224,12 @@ int zynqmp_pm_invoke_fn(u32 pm_api_id, u32 arg0, u32 arg1,
 	 * Make sure to stay in x0 register
 	 */
 	u64 smc_arg[4];
+	int ret;
 
-	if (zynqmp_pm_feature(pm_api_id) == PM_FEATURE_INVALID)
-		return -ENOTSUPP;
+	/* Check if feature is supported or not */
+	ret = zynqmp_pm_feature(pm_api_id);
+	if (ret < 0)
+		return ret;
 
 	smc_arg[0] = PM_SIP_SVC | pm_api_id;
 	smc_arg[1] = ((u64)arg1 << 32) | arg0;
@@ -615,7 +642,7 @@ EXPORT_SYMBOL_GPL(zynqmp_pm_set_sd_tapdelay);
  */
 int zynqmp_pm_sd_dll_reset(u32 node_id, u32 type)
 {
-	return zynqmp_pm_invoke_fn(PM_IOCTL, node_id, IOCTL_SET_SD_TAPDELAY,
+	return zynqmp_pm_invoke_fn(PM_IOCTL, node_id, IOCTL_SD_DLL_RESET,
 				   type, 0, NULL);
 }
 EXPORT_SYMBOL_GPL(zynqmp_pm_sd_dll_reset);
@@ -1252,8 +1279,16 @@ static int zynqmp_firmware_probe(struct platform_device *pdev)
 
 static int zynqmp_firmware_remove(struct platform_device *pdev)
 {
+	struct pm_api_feature_data *feature_data;
+	int i;
+
 	mfd_remove_devices(&pdev->dev);
 	zynqmp_pm_api_debugfs_exit();
+
+	hash_for_each(pm_api_features_map, i, feature_data, hentry) {
+		hash_del(&feature_data->hentry);
+		kfree(feature_data);
+	}
 
 	return 0;
 }

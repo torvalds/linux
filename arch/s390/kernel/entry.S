@@ -1068,6 +1068,7 @@ EXPORT_SYMBOL(save_fpu_regs)
  *	%r4
  */
 load_fpu_regs:
+	stnsm	__SF_EMPTY(%r15),0xfc
 	lg	%r4,__LC_CURRENT
 	aghi	%r4,__TASK_thread
 	TSTMSK	__LC_CPU_FLAGS,_CIF_FPU
@@ -1099,6 +1100,7 @@ load_fpu_regs:
 .Lload_fpu_regs_done:
 	ni	__LC_CPU_FLAGS+7,255-_CIF_FPU
 .Lload_fpu_regs_exit:
+	ssm	__SF_EMPTY(%r15)
 	BR_EX	%r14
 .Lload_fpu_regs_end:
 ENDPROC(load_fpu_regs)

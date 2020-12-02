@@ -7,7 +7,6 @@ config ARCH_OMAP2
 	depends on ARCH_MULTI_V6
 	select ARCH_OMAP2PLUS
 	select CPU_V6
-	select PM_GENERIC_DOMAINS if PM
 	select SOC_HAS_OMAP2_SDRC
 
 config ARCH_OMAP3
@@ -106,6 +105,8 @@ config ARCH_OMAP2PLUS
 	select OMAP_DM_TIMER
 	select OMAP_GPMC
 	select PINCTRL
+	select PM_GENERIC_DOMAINS if PM
+	select PM_GENERIC_DOMAINS_OF if PM
 	select RESET_CONTROLLER
 	select SOC_BUS
 	select TI_SYSC
