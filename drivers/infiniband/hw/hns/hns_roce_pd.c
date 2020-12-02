@@ -32,7 +32,6 @@
 
 #include <linux/platform_device.h>
 #include <linux/pci.h>
-#include <uapi/rdma/hns-abi.h>
 #include "hns_roce_device.h"
 
 static int hns_roce_pd_alloc(struct hns_roce_dev *hr_dev, unsigned long *pdn)

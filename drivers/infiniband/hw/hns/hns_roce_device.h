@@ -34,6 +34,7 @@
 #define _HNS_ROCE_DEVICE_H
 
 #include <rdma/ib_verbs.h>
+#include <rdma/hns-abi.h>
 
 #define DRV_NAME "hns_roce"
 
@@ -129,16 +130,6 @@ enum {
 	SERV_TYPE_UC,
 	SERV_TYPE_RD,
 	SERV_TYPE_UD,
-};
-
-enum hns_roce_qp_caps {
-	HNS_ROCE_QP_CAP_RQ_RECORD_DB = BIT(0),
-	HNS_ROCE_QP_CAP_SQ_RECORD_DB = BIT(1),
-	HNS_ROCE_QP_CAP_OWNER_DB = BIT(2),
-};
-
-enum hns_roce_cq_flags {
-	HNS_ROCE_CQ_FLAG_RECORD_DB = BIT(0),
 };
 
 enum hns_roce_qp_state {
