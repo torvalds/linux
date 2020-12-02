@@ -217,7 +217,7 @@ do {									\
  * The Tag check override (TCO) bit disables temporarily the tag checking
  * preventing the issue.
  */
-static inline void uaccess_disable(void)
+static inline void uaccess_disable_privileged(void)
 {
 	asm volatile(ALTERNATIVE("nop", SET_PSTATE_TCO(0),
 				 ARM64_MTE, CONFIG_KASAN_HW_TAGS));
@@ -225,7 +225,7 @@ static inline void uaccess_disable(void)
 	__uaccess_disable(ARM64_HAS_PAN);
 }
 
-static inline void uaccess_enable(void)
+static inline void uaccess_enable_privileged(void)
 {
 	asm volatile(ALTERNATIVE("nop", SET_PSTATE_TCO(1),
 				 ARM64_MTE, CONFIG_KASAN_HW_TAGS));
