@@ -581,7 +581,7 @@
 	assigned-clock-rates = <125000000>, <0>, <25000000>;
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&rgmiim1_pins &clk_out_ethernetm1_pins>;
+	pinctrl-0 = <&rgmiim1_miim &rgmiim1_bus2 &rgmiim1_bus4 &clkm1_out_ethernet>;
 
 	tx_delay = <0x2a>;
 	rx_delay = <0x1a>;

@@ -213,7 +213,7 @@
 	assigned-clock-parents = <&cru CLK_GMAC_RGMII_M0>, <&cru CLK_GMAC_SRC_M0>, <&cru RMII_MODE_CLK>;
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&rmiim0_pins &gmac_clk_m0_pins>;
+	pinctrl-0 = <&rmiim0_miim &rgmiim0_rxer &rmiim0_bus2 &rgmiim0_mclkinout>;
 
 	phy-handle = <&phy>;
 	status = "okay";

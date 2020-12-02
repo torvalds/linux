@@ -996,8 +996,8 @@
 		dmas = <&dmac 1>, <&dmac 0>;
 		dma-names = "tx", "rx";
 		pinctrl-names = "default", "high_speed";
-		pinctrl-0 = <&spi0m0_clk &spi0m0_cs0n &spi0m0_cs1n &spi0m0_miso &spi0m0_mosi>;
-		pinctrl-1 = <&spi0m0_clk_hs &spi0m0_cs0n &spi0m0_cs1n &spi0m0_miso_hs &spi0m0_mosi_hs>;
+		pinctrl-0 = <&spi0m0_cs0 &spi0m0_cs1 &spi0m0_pins>;
+		pinctrl-1 = <&spi0m0_cs0 &spi0m0_cs1 &spi0m0_pins_hs>;
 		status = "disabled";
 	};
 
@@ -1344,8 +1344,8 @@
 		dmas = <&dmac 3>, <&dmac 2>;
 		dma-names = "tx", "rx";
 		pinctrl-names = "default", "high_speed";
-		pinctrl-0 = <&spi1m0_clk &spi1m0_cs0n &spi1m0_cs1n &spi1m0_miso &spi1m0_mosi>;
-		pinctrl-1 = <&spi1m0_clk_hs &spi1m0_cs0n &spi1m0_cs1n &spi1m0_miso_hs &spi1m0_mosi_hs>;
+		pinctrl-0 = <&spi1m0_cs0 &spi1m0_cs1 &spi1m0_pins>;
+		pinctrl-1 = <&spi1m0_cs0 &spi1m0_cs1 &spi1m0_pins_hs>;
 		status = "disabled";
 	};
 

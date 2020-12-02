@@ -207,8 +207,8 @@
 	//rx-sample-delay-ns = <10>;
 	//dma-names = "tx", "rx";
 	pinctrl-names = "default", "high_speed";
-	pinctrl-0 = <&spi0m1_clk &spi0m1_cs0n &spi0m1_cs0n &spi0m1_miso &spi0m1_mosi>;
-	pinctrl-1 = <&spi0m1_clk_hs &spi0m1_cs0n &spi0m1_miso_hs &spi0m1_mosi_hs>;
+	pinctrl-0 = <&spi0m1_cs0 &spi1m0_pins>;
+	pinctrl-1 = <&spi0m1_cs0 &spi1m0_pins_hs>;
 
 	spi_rk1608@00 {
 		compatible =  "rockchip,rk1608";
