@@ -1253,7 +1253,7 @@ static int __init ubd_driver_init(void){
 	}
 	err = um_request_irq(UBD_IRQ, thread_fd, IRQ_READ, ubd_intr,
 			     0, "ubd", ubd_devs);
-	if(err != 0)
+	if(err < 0)
 		printk(KERN_ERR "um_request_irq failed - errno = %d\n", -err);
 	return 0;
 }

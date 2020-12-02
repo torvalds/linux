@@ -1271,7 +1271,7 @@ static int vector_net_open(struct net_device *dev)
 		irq_rr + VECTOR_BASE_IRQ, vp->fds->rx_fd,
 			IRQ_READ, vector_rx_interrupt,
 			IRQF_SHARED, dev->name, dev);
-	if (err != 0) {
+	if (err < 0) {
 		netdev_err(dev, "vector_open: failed to get rx irq(%d)\n", err);
 		err = -ENETUNREACH;
 		goto out_close;
@@ -1286,7 +1286,7 @@ static int vector_net_open(struct net_device *dev)
 			irq_rr + VECTOR_BASE_IRQ, vp->fds->tx_fd,
 				IRQ_WRITE, vector_tx_interrupt,
 				IRQF_SHARED, dev->name, dev);
-		if (err != 0) {
+		if (err < 0) {
 			netdev_err(dev,
 				"vector_open: failed to get tx irq(%d)\n", err);
 			err = -ENETUNREACH;

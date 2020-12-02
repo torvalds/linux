@@ -412,7 +412,7 @@ static int vhost_user_init_slave_req(struct virtio_uml_device *vu_dev)
 	rc = um_request_irq(VIRTIO_IRQ, vu_dev->req_fd, IRQ_READ,
 			    vu_req_interrupt, IRQF_SHARED,
 			    vu_dev->pdev->name, vu_dev);
-	if (rc)
+	if (rc < 0)
 		goto err_close;
 
 	rc = vhost_user_send_no_payload_fd(vu_dev, VHOST_USER_SET_SLAVE_REQ_FD,
@@ -854,7 +854,7 @@ static int vu_setup_vq_call_fd(struct virtio_uml_device *vu_dev,
 	info->call_fd = call_fds[0];
 	rc = um_request_irq(VIRTIO_IRQ, info->call_fd, IRQ_READ,
 			    vu_interrupt, IRQF_SHARED, info->name, vq);
-	if (rc)
+	if (rc < 0)
 		goto close_both;
 
 	rc = vhost_user_set_vring_call(vu_dev, vq->index, call_fds[1]);
