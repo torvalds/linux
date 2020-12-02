@@ -1683,9 +1683,10 @@ static noinline int generic_bin_search(struct extent_buffer *eb,
 		oip = offset_in_page(offset);
 
 		if (oip + key_size <= PAGE_SIZE) {
-			const unsigned long idx = offset >> PAGE_SHIFT;
+			const unsigned long idx = get_eb_page_index(offset);
 			char *kaddr = page_address(eb->pages[idx]);
 
+			oip = get_eb_offset_in_page(eb, offset);
 			tmp = (struct btrfs_disk_key *)(kaddr + oip);
 		} else {
 			read_extent_buffer(eb, &unaligned, offset, key_size);
