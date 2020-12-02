@@ -32,7 +32,10 @@ properties:
 
   port:
     type: object
-    $ref: /schemas/graph.yaml#/properties/port
+    description: |-
+      Should contain one endpoint sub-node used to model connection to the
+      video receiver according to the specification defined in
+      Documentation/devicetree/bindings/media/video-interfaces.txt.
 
     properties:
       endpoint:

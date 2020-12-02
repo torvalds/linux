@@ -36,9 +36,17 @@ properties:
     maxItems: 1
 
   port:
-    $ref: /schemas/graph.yaml#/properties/port
+    type: object
+    description:
+      A node containing a single endpoint as doucmented in
+      Documentation/devicetree/bindings/media/video-interfaces.txt
 
-  ports: true
+  ports:
+    type: object
+    description:
+      A node containing input and output port nodes with endpoint definitions
+      as documented in
+      Documentation/devicetree/bindings/media/video-interfaces.txt
 
 additionalProperties: false
 
@@ -72,19 +80,24 @@ allOf:
     then:
       properties:
         ports:
-          $ref: /schemas/graph.yaml#/properties/ports
           properties:
+            '#address-cells':
+              const: 1
+            '#size-cells':
+              const: 0
             port@3:
+              type: object
               description: Output port
 
           patternProperties:
             "^port@[0-2]$":
+              type: object
               description: Input port
 
           required:
             - port@3
 
-          unevaluatedProperties: false
+          additionalProperties: false
 
       required:
         - ports
@@ -97,20 +110,24 @@ allOf:
     then:
       properties:
         ports:
-          $ref: /schemas/graph.yaml#/properties/ports
           properties:
+            '#address-cells':
+              const: 1
+            '#size-cells':
+              const: 0
             port@6:
               type: object
               description: Output port
 
           patternProperties:
             "^port@[0-5]$":
+              type: object
               description: Input port
 
           required:
             - port@6
 
-          unevaluatedProperties: false
+          additionalProperties: false
 
       required:
         - ports

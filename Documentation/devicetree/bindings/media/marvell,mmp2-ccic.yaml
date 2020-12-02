@@ -25,7 +25,6 @@ properties:
 
   port:
     type: object
-    $ref: /schemas/graph.yaml#/properties/port
     additionalProperties: false
 
     properties:

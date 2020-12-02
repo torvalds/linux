@@ -47,8 +47,6 @@ properties:
   # See ../video-interfaces.txt for more details
   port:
     type: object
-    $ref: /schemas/graph.yaml#/properties/port
-
     properties:
       endpoint:
         type: object
@@ -75,8 +73,6 @@ properties:
 
         required:
           - link-frequencies
-
-    additionalProperties: false
 
 required:
   - compatible

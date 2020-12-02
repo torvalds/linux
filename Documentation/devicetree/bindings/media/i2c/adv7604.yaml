@@ -64,12 +64,16 @@ properties:
     description:
       Select which input is selected after reset.
 
-  ports: true
+  ports:
+    type: object
+    description:
+      A node containing input and output port nodes with endpoint definitions
+      as documented in
+      Documentation/devicetree/bindings/media/video-interfaces.txt
 
 required:
   - compatible
   - reg
-  - ports
 
 additionalProperties: false
 
@@ -82,17 +86,25 @@ allOf:
     then:
       properties:
         ports:
-          $ref: /schemas/graph.yaml#/properties/ports
           properties:
+            '#address-cells':
+              const: 1
+            '#size-cells':
+              const: 0
             port@0:
+              type: object
               description: Input port
             port@1:
+              type: object
               description: Output port
 
           required:
             - port@1
 
-          unevaluatedProperties: false
+          additionalProperties: false
+
+      required:
+        - ports
 
   - if:
       properties:
@@ -102,19 +114,27 @@ allOf:
     then:
       properties:
         ports:
-          $ref: /schemas/graph.yaml#/properties/ports
           properties:
+            '#address-cells':
+              const: 1
+            '#size-cells':
+              const: 0
             port@2:
+              type: object
               description: Output port
 
           patternProperties:
             "^port@[0-1]$":
+              type: object
               description: Input port
 
           required:
             - port@2
 
-          unevaluatedProperties: false
+          additionalProperties: false
+
+      required:
+        - ports
 
 examples:
   - |

@@ -70,7 +70,6 @@ properties:
   #The per-board settings for Gen2 and RZ/G1 platforms:
   port:
     type: object
-    $ref: /schemas/graph.yaml#/properties/port
     description:
       A node containing a parallel input with a single endpoint definitions as
       documented in
@@ -125,7 +124,9 @@ properties:
 
   ports:
     type: object
-    $ref: /schemas/graph.yaml#/properties/ports
+    description:
+      A node containing input nodes with endpoint definitions as documented in
+      Documentation/devicetree/bindings/media/video-interfaces.txt
 
     properties:
       port@0:
@@ -270,8 +271,6 @@ properties:
               - endpoint@3
 
         additionalProperties: false
-
-    unevaluatedProperties: false
 
 required:
   - compatible

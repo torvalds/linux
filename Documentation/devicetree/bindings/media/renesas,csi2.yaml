@@ -47,7 +47,10 @@ properties:
 
   ports:
     type: object
-    $ref: /schemas/graph.yaml#/properties/ports
+    description:
+      A node containing input and output port nodes with endpoint definitions
+      as documented in
+      Documentation/devicetree/bindings/media/video-interfaces.txt
 
     properties:
       port@0:
@@ -81,15 +84,38 @@ properties:
         additionalProperties: false
 
       port@1:
+        type: object
         description:
           Output port node, multiple endpoints describing all the R-Car VIN
           modules connected the CSI-2 receiver.
 
-    required:
-      - port@0
-      - port@1
+        properties:
+          '#address-cells':
+            const: 1
 
-    unevaluatedProperties: false
+          '#size-cells':
+            const: 0
+
+          reg:
+            const: 1
+
+        patternProperties:
+          "^endpoint@[0-9a-f]$":
+            type: object
+
+            properties:
+              reg:
+                maxItems: 1
+
+              remote-endpoint: true
+
+            required:
+              - reg
+              - remote-endpoint
+
+            additionalProperties: false
+
+        additionalProperties: false
 
 required:
   - compatible

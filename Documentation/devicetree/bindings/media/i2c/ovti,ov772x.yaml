@@ -38,7 +38,6 @@ properties:
 
   port:
     type: object
-    $ref: /schemas/graph.yaml#/properties/port
     description: |
       Video output port. See ../video-interfaces.txt.
 
