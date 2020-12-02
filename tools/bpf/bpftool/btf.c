@@ -357,11 +357,13 @@ static int dump_btf_raw(const struct btf *btf,
 			dump_btf_type(btf, root_type_ids[i], t);
 		}
 	} else {
+		const struct btf *base;
 		int cnt = btf__get_nr_types(btf);
 		int start_id = 1;
 
-		if (base_btf)
-			start_id = btf__get_nr_types(base_btf) + 1;
+		base = btf__base_btf(btf);
+		if (base)
+			start_id = btf__get_nr_types(base) + 1;
 
 		for (i = start_id; i <= cnt; i++) {
 			t = btf__type_by_id(btf, i);
@@ -428,7 +430,7 @@ done:
 
 static int do_dump(int argc, char **argv)
 {
-	struct btf *btf = NULL;
+	struct btf *btf = NULL, *base = NULL;
 	__u32 root_type_ids[2];
 	int root_type_cnt = 0;
 	bool dump_c = false;
@@ -502,7 +504,21 @@ static int do_dump(int argc, char **argv)
 		}
 		NEXT_ARG();
 	} else if (is_prefix(src, "file")) {
-		btf = btf__parse_split(*argv, base_btf);
+		const char sysfs_prefix[] = "/sys/kernel/btf/";
+		const char sysfs_vmlinux[] = "/sys/kernel/btf/vmlinux";
+
+		if (!base_btf &&
+		    strncmp(*argv, sysfs_prefix, sizeof(sysfs_prefix) - 1) == 0 &&
+		    strcmp(*argv, sysfs_vmlinux) != 0) {
+			base = btf__parse(sysfs_vmlinux, NULL);
+			if (libbpf_get_error(base)) {
+				p_err("failed to parse vmlinux BTF at '%s': %ld\n",
+				      sysfs_vmlinux, libbpf_get_error(base));
+				base = NULL;
+			}
+		}
+
+		btf = btf__parse_split(*argv, base ?: base_btf);
 		if (IS_ERR(btf)) {
 			err = -PTR_ERR(btf);
 			btf = NULL;
@@ -567,6 +583,7 @@ static int do_dump(int argc, char **argv)
 done:
 	close(fd);
 	btf__free(btf);
+	btf__free(base);
 	return err;
 }
 
