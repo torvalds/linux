@@ -320,34 +320,6 @@ static int rk3568_combphy_cfg(struct rockchip_combphy_priv *priv)
 		return -EINVAL;
 	}
 
-	rate = clk_get_rate(refclk);
-
-	switch (rate) {
-	case 24000000:
-		if (priv->mode == PHY_TYPE_USB3) {
-			/* Set ssc_cnt[9:0]=0101111101 & 31.5KHz */
-			val = readl(priv->mmio + (0x0e << 2));
-			val &= ~GENMASK(7, 6);
-			val |= 0x01 << 6;
-			writel(val, priv->mmio + (0x0e << 2));
-
-			val = readl(priv->mmio + (0x0f << 2));
-			val &= ~GENMASK(7, 0);
-			val |= 0x5f;
-			writel(val, priv->mmio + (0x0f << 2));
-		}
-		break;
-	case 25000000:
-		param_write(priv->phy_grf, &cfg->pipe_clk_25m, true);
-		break;
-	case 100000000:
-		param_write(priv->phy_grf, &cfg->pipe_clk_100m, true);
-		break;
-	default:
-		dev_err(priv->dev, "Unsupported rate: %lu\n", rate);
-		return -EINVAL;
-	}
-
 	switch (priv->mode) {
 	case PHY_TYPE_PCIE:
 		param_write(priv->phy_grf, &cfg->con0_for_pcie, true);
@@ -394,6 +366,34 @@ static int rk3568_combphy_cfg(struct rockchip_combphy_priv *priv)
 		break;
 	default:
 		dev_err(priv->dev, "incompatible PHY type\n");
+		return -EINVAL;
+	}
+
+	rate = clk_get_rate(refclk);
+
+	switch (rate) {
+	case 24000000:
+		if (priv->mode == PHY_TYPE_USB3) {
+			/* Set ssc_cnt[9:0]=0101111101 & 31.5KHz */
+			val = readl(priv->mmio + (0x0e << 2));
+			val &= ~GENMASK(7, 6);
+			val |= 0x01 << 6;
+			writel(val, priv->mmio + (0x0e << 2));
+
+			val = readl(priv->mmio + (0x0f << 2));
+			val &= ~GENMASK(7, 0);
+			val |= 0x5f;
+			writel(val, priv->mmio + (0x0f << 2));
+		}
+		break;
+	case 25000000:
+		param_write(priv->phy_grf, &cfg->pipe_clk_25m, true);
+		break;
+	case 100000000:
+		param_write(priv->phy_grf, &cfg->pipe_clk_100m, true);
+		break;
+	default:
+		dev_err(priv->dev, "Unsupported rate: %lu\n", rate);
 		return -EINVAL;
 	}
 
