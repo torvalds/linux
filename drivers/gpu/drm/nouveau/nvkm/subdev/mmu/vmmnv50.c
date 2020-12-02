@@ -184,7 +184,7 @@ nv50_vmm_flush(struct nvkm_vmm *vmm, int level)
 	struct nvkm_device *device = subdev->device;
 	int i, id;
 
-	mutex_lock(&subdev->mutex);
+	mutex_lock(&vmm->mmu->mutex);
 	for (i = 0; i < NVKM_SUBDEV_NR; i++) {
 		if (!atomic_read(&vmm->engref[i]))
 			continue;
@@ -220,7 +220,7 @@ nv50_vmm_flush(struct nvkm_vmm *vmm, int level)
 			nvkm_error(subdev, "%s mmu invalidate timeout\n",
 				   nvkm_subdev_name[i]);
 	}
-	mutex_unlock(&subdev->mutex);
+	mutex_unlock(&vmm->mmu->mutex);
 }
 
 int

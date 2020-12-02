@@ -117,6 +117,8 @@ struct nvkm_mmu {
 		struct list_head list;
 	} ptc, ptp;
 
+	struct mutex mutex; /* serialises mmu invalidations */
+
 	struct nvkm_device_oclass user;
 };
 

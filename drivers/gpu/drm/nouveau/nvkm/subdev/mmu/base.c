@@ -402,6 +402,7 @@ nvkm_mmu_dtor(struct nvkm_subdev *subdev)
 	nvkm_vmm_unref(&mmu->vmm);
 
 	nvkm_mmu_ptc_fini(mmu);
+	mutex_destroy(&mmu->mutex);
 	return mmu;
 }
 
@@ -420,6 +421,7 @@ nvkm_mmu_ctor(const struct nvkm_mmu_func *func, struct nvkm_device *device,
 	mmu->func = func;
 	mmu->dma_bits = func->dma_bits;
 	nvkm_mmu_ptc_init(mmu);
+	mutex_init(&mmu->mutex);
 	mmu->user.ctor = nvkm_ummu_new;
 	mmu->user.base = func->mmu.user;
 }
