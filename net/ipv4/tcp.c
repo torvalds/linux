@@ -1800,6 +1800,39 @@ static int find_next_mappable_frag(const skb_frag_t *frag,
 	return offset;
 }
 
+static int tcp_recvmsg_locked(struct sock *sk, struct msghdr *msg, size_t len,
+			      int nonblock, int flags,
+			      struct scm_timestamping_internal *tss,
+			      int *cmsg_flags);
+static int receive_fallback_to_copy(struct sock *sk,
+				    struct tcp_zerocopy_receive *zc, int inq)
+{
+	unsigned long copy_address = (unsigned long)zc->copybuf_address;
+	struct scm_timestamping_internal tss_unused;
+	int err, cmsg_flags_unused;
+	struct msghdr msg = {};
+	struct iovec iov;
+
+	zc->length = 0;
+	zc->recv_skip_hint = 0;
+
+	if (copy_address != zc->copybuf_address)
+		return -EINVAL;
+
+	err = import_single_range(READ, (void __user *)copy_address,
+				  inq, &iov, &msg.msg_iter);
+	if (err)
+		return err;
+
+	err = tcp_recvmsg_locked(sk, &msg, inq, /*nonblock=*/1, /*flags=*/0,
+				 &tss_unused, &cmsg_flags_unused);
+	if (err < 0)
+		return err;
+
+	zc->copybuf_len = err;
+	return 0;
+}
+
 static int tcp_copy_straggler_data(struct tcp_zerocopy_receive *zc,
 				   struct sk_buff *skb, u32 copylen,
 				   u32 *offset, u32 *seq)
@@ -1903,6 +1936,9 @@ static int tcp_zerocopy_receive(struct sock *sk,
 		return -ENOTCONN;
 
 	sock_rps_record_flow(sk);
+
+	if (inq && inq <= copybuf_len)
+		return receive_fallback_to_copy(sk, zc, inq);
 
 	if (inq < PAGE_SIZE) {
 		zc->length = 0;
