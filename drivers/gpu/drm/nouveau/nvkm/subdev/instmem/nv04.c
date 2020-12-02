@@ -99,9 +99,9 @@ static void *
 nv04_instobj_dtor(struct nvkm_memory *memory)
 {
 	struct nv04_instobj *iobj = nv04_instobj(memory);
-	mutex_lock(&iobj->imem->base.subdev.mutex);
+	mutex_lock(&iobj->imem->base.mutex);
 	nvkm_mm_free(&iobj->imem->heap, &iobj->node);
-	mutex_unlock(&iobj->imem->base.subdev.mutex);
+	mutex_unlock(&iobj->imem->base.mutex);
 	nvkm_instobj_dtor(&iobj->imem->base, &iobj->base);
 	return iobj;
 }
@@ -132,10 +132,9 @@ nv04_instobj_new(struct nvkm_instmem *base, u32 size, u32 align, bool zero,
 	iobj->base.memory.ptrs = &nv04_instobj_ptrs;
 	iobj->imem = imem;
 
-	mutex_lock(&imem->base.subdev.mutex);
-	ret = nvkm_mm_head(&imem->heap, 0, 1, size, size,
-			   align ? align : 1, &iobj->node);
-	mutex_unlock(&imem->base.subdev.mutex);
+	mutex_lock(&imem->base.mutex);
+	ret = nvkm_mm_head(&imem->heap, 0, 1, size, size, align ? align : 1, &iobj->node);
+	mutex_unlock(&imem->base.mutex);
 	return ret;
 }
 

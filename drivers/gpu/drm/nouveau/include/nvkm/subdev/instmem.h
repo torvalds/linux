@@ -13,6 +13,11 @@ struct nvkm_instmem {
 	struct list_head boot;
 	u32 reserved;
 
+	/* <=nv4x: protects NV_PRAMIN/BAR2 MM
+	 * >=nv50: protects BAR2 MM & LRU
+	 */
+	struct mutex mutex;
+
 	struct nvkm_memory *vbios;
 	struct nvkm_ramht  *ramht;
 	struct nvkm_memory *ramro;
