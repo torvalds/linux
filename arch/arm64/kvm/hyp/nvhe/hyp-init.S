@@ -9,6 +9,7 @@
 
 #include <asm/alternative.h>
 #include <asm/assembler.h>
+#include <asm/el2_setup.h>
 #include <asm/kvm_arm.h>
 #include <asm/kvm_asm.h>
 #include <asm/kvm_mmu.h>
@@ -138,6 +139,53 @@ alternative_else_nop_endif
 
 	ret
 SYM_CODE_END(___kvm_hyp_init)
+
+/*
+ * PSCI CPU_ON entry point
+ *
+ * x0: struct kvm_nvhe_init_params PA
+ */
+SYM_CODE_START(kvm_hyp_cpu_entry)
+	mov	x1, #1				// is_cpu_on = true
+	b	__kvm_hyp_init_cpu
+SYM_CODE_END(kvm_hyp_cpu_entry)
+
+/*
+ * Common code for CPU entry points. Initializes EL2 state and
+ * installs the hypervisor before handing over to a C handler.
+ *
+ * x0: struct kvm_nvhe_init_params PA
+ * x1: bool is_cpu_on
+ */
+SYM_CODE_START_LOCAL(__kvm_hyp_init_cpu)
+	mov	x28, x0				// Stash arguments
+	mov	x29, x1
+
+	/* Check that the core was booted in EL2. */
+	mrs	x0, CurrentEL
+	cmp	x0, #CurrentEL_EL2
+	b.eq	2f
+
+	/* The core booted in EL1. KVM cannot be initialized on it. */
+1:	wfe
+	wfi
+	b	1b
+
+2:	msr	SPsel, #1			// We want to use SP_EL{1,2}
+
+	/* Initialize EL2 CPU state to sane values. */
+	init_el2_state nvhe			// Clobbers x0..x2
+
+	/* Enable MMU, set vectors and stack. */
+	mov	x0, x28
+	bl	___kvm_hyp_init			// Clobbers x0..x3
+
+	/* Leave idmap. */
+	mov	x0, x29
+	ldr	x1, =kvm_host_psci_cpu_entry
+	kimg_hyp_va x1, x2
+	br	x1
+SYM_CODE_END(__kvm_hyp_init_cpu)
 
 SYM_CODE_START(__kvm_handle_stub_hvc)
 	cmp	x0, #HVC_SOFT_RESTART
