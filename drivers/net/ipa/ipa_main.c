@@ -70,6 +70,14 @@
 #define IPA_FWS_PATH		"ipa_fws.mdt"
 #define IPA_PAS_ID		15
 
+/* Shift of 19.2 MHz timestamp to achieve lower resolution timestamps */
+#define DPL_TIMESTAMP_SHIFT	14	/* ~1.172 kHz, ~853 usec per tick */
+#define TAG_TIMESTAMP_SHIFT	14
+#define NAT_TIMESTAMP_SHIFT	24	/* ~1.144 Hz, ~874 msec per tick */
+
+/* Divider for 19.2 MHz crystal oscillator clock to get common timer clock */
+#define IPA_XO_CLOCK_DIVIDER	192	/* 1 is subtracted where used */
+
 /**
  * ipa_suspend_handler() - Handle the suspend IPA interrupt
  * @ipa:	IPA pointer
@@ -292,6 +300,53 @@ static void ipa_hardware_config_qsb(struct ipa *ipa)
 	iowrite32(val, ipa->reg_virt + IPA_REG_QSB_MAX_READS_OFFSET);
 }
 
+/* IPA uses unified Qtime starting at IPA v4.5, implementing various
+ * timestamps and timers independent of the IPA core clock rate.  The
+ * Qtimer is based on a 56-bit timestamp incremented at each tick of
+ * a 19.2 MHz SoC crystal oscillator (XO clock).
+ *
+ * For IPA timestamps (tag, NAT, data path logging) a lower resolution
+ * timestamp is achieved by shifting the Qtimer timestamp value right
+ * some number of bits to produce the low-order bits of the coarser
+ * granularity timestamp.
+ *
+ * For timers, a common timer clock is derived from the XO clock using
+ * a divider (we use 192, to produce a 100kHz timer clock).  From
+ * this common clock, three "pulse generators" are used to produce
+ * timer ticks at a configurable frequency.  IPA timers (such as
+ * those used for aggregation or head-of-line block handling) now
+ * define their period based on one of these pulse generators.
+ */
+static void ipa_qtime_config(struct ipa *ipa)
+{
+	u32 val;
+
+	/* Timer clock divider must be disabled when we change the rate */
+	iowrite32(0, ipa->reg_virt + IPA_REG_TIMERS_XO_CLK_DIV_CFG_OFFSET);
+
+	/* Set DPL time stamp resolution to use Qtime (instead of 1 msec) */
+	val = u32_encode_bits(DPL_TIMESTAMP_SHIFT, DPL_TIMESTAMP_LSB_FMASK);
+	val |= u32_encode_bits(1, DPL_TIMESTAMP_SEL_FMASK);
+	/* Configure tag and NAT Qtime timestamp resolution as well */
+	val |= u32_encode_bits(TAG_TIMESTAMP_SHIFT, TAG_TIMESTAMP_LSB_FMASK);
+	val |= u32_encode_bits(NAT_TIMESTAMP_SHIFT, NAT_TIMESTAMP_LSB_FMASK);
+	iowrite32(val, ipa->reg_virt + IPA_REG_QTIME_TIMESTAMP_CFG_OFFSET);
+
+	/* Set granularity of pulse generators used for other timers */
+	val = u32_encode_bits(IPA_GRAN_100_US, GRAN_0_FMASK);
+	val |= u32_encode_bits(IPA_GRAN_1_MS, GRAN_1_FMASK);
+	val |= u32_encode_bits(IPA_GRAN_1_MS, GRAN_2_FMASK);
+	iowrite32(val, ipa->reg_virt + IPA_REG_TIMERS_PULSE_GRAN_CFG_OFFSET);
+
+	/* Actual divider is 1 more than value supplied here */
+	val = u32_encode_bits(IPA_XO_CLOCK_DIVIDER - 1, DIV_VALUE_FMASK);
+	iowrite32(val, ipa->reg_virt + IPA_REG_TIMERS_XO_CLK_DIV_CFG_OFFSET);
+
+	/* Divider value is set; re-enable the common timer clock divider */
+	val |= u32_encode_bits(1, DIV_ENABLE_FMASK);
+	iowrite32(val, ipa->reg_virt + IPA_REG_TIMERS_XO_CLK_DIV_CFG_OFFSET);
+}
+
 static void ipa_idle_indication_cfg(struct ipa *ipa,
 				    u32 enter_idle_debounce_thresh,
 				    bool const_non_idle_enable)
@@ -362,10 +417,14 @@ static void ipa_hardware_config(struct ipa *ipa)
 	/* Configure system bus limits */
 	ipa_hardware_config_qsb(ipa);
 
-	/* Configure aggregation granularity */
-	granularity = ipa_aggr_granularity_val(IPA_AGGR_GRANULARITY);
-	val = u32_encode_bits(granularity, AGGR_GRANULARITY_FMASK);
-	iowrite32(val, ipa->reg_virt + IPA_REG_COUNTER_CFG_OFFSET);
+	if (version < IPA_VERSION_4_5) {
+		/* Configure aggregation timer granularity */
+		granularity = ipa_aggr_granularity_val(IPA_AGGR_GRANULARITY);
+		val = u32_encode_bits(granularity, AGGR_GRANULARITY_FMASK);
+		iowrite32(val, ipa->reg_virt + IPA_REG_COUNTER_CFG_OFFSET);
+	} else {
+		ipa_qtime_config(ipa);
+	}
 
 	/* IPA v4.2 does not support hashed tables, so disable them */
 	if (version == IPA_VERSION_4_2) {

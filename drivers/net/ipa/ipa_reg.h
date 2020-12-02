@@ -223,6 +223,7 @@ static inline u32 ipa_reg_bcr_val(enum ipa_version version)
 /* ipa->available defines the valid bits in the AGGR_FORCE_CLOSE register */
 #define IPA_REG_AGGR_FORCE_CLOSE_OFFSET			0x000001ec
 
+/* The next register is not present for IPA v4.5 */
 #define IPA_REG_COUNTER_CFG_OFFSET			0x000001f0
 #define AGGR_GRANULARITY_FMASK			GENMASK(8, 4)
 
@@ -273,6 +274,35 @@ static inline u32 ipa_reg_idle_indication_cfg_offset(enum ipa_version version)
 
 #define ENTER_IDLE_DEBOUNCE_THRESH_FMASK	GENMASK(15, 0)
 #define CONST_NON_IDLE_ENABLE_FMASK		GENMASK(16, 16)
+
+/* The next register is present for IPA v4.5 */
+#define IPA_REG_QTIME_TIMESTAMP_CFG_OFFSET		0x0000024c
+#define DPL_TIMESTAMP_LSB_FMASK			GENMASK(4, 0)
+#define DPL_TIMESTAMP_SEL_FMASK			GENMASK(7, 7)
+#define TAG_TIMESTAMP_LSB_FMASK			GENMASK(12, 8)
+#define NAT_TIMESTAMP_LSB_FMASK			GENMASK(20, 16)
+
+/* The next register is present for IPA v4.5 */
+#define IPA_REG_TIMERS_XO_CLK_DIV_CFG_OFFSET		0x00000250
+#define DIV_VALUE_FMASK				GENMASK(8, 0)
+#define DIV_ENABLE_FMASK			GENMASK(31, 31)
+
+/* The next register is present for IPA v4.5 */
+#define IPA_REG_TIMERS_PULSE_GRAN_CFG_OFFSET		0x00000254
+#define GRAN_0_FMASK				GENMASK(2, 0)
+#define GRAN_1_FMASK				GENMASK(5, 3)
+#define GRAN_2_FMASK				GENMASK(8, 6)
+/* Values for GRAN_x fields of TIMERS_PULSE_GRAN_CFG */
+enum ipa_pulse_gran {
+	IPA_GRAN_10_US				= 0x0,
+	IPA_GRAN_20_US				= 0x1,
+	IPA_GRAN_50_US				= 0x2,
+	IPA_GRAN_100_US				= 0x3,
+	IPA_GRAN_1_MS				= 0x4,
+	IPA_GRAN_10_MS				= 0x5,
+	IPA_GRAN_100_MS				= 0x6,
+	IPA_GRAN_655350_US			= 0x7,
+};
 
 /* # IPA source resource groups available based on version */
 static inline u32 ipa_resource_group_src_count(enum ipa_version version)
@@ -450,12 +480,38 @@ enum ipa_mode {
 					(0x00000824 +  0x0070 * (ep))
 #define AGGR_EN_FMASK				GENMASK(1, 0)
 #define AGGR_TYPE_FMASK				GENMASK(4, 2)
-#define AGGR_BYTE_LIMIT_FMASK			GENMASK(9, 5)
-#define AGGR_TIME_LIMIT_FMASK			GENMASK(14, 10)
-#define AGGR_PKT_LIMIT_FMASK			GENMASK(20, 15)
-#define AGGR_SW_EOF_ACTIVE_FMASK		GENMASK(21, 21)
-#define AGGR_FORCE_CLOSE_FMASK			GENMASK(22, 22)
-#define AGGR_HARD_BYTE_LIMIT_ENABLE_FMASK	GENMASK(24, 24)
+static inline u32 aggr_byte_limit_fmask(bool legacy)
+{
+	return legacy ? GENMASK(9, 5) : GENMASK(10, 5);
+}
+
+static inline u32 aggr_time_limit_fmask(bool legacy)
+{
+	return legacy ? GENMASK(14, 10) : GENMASK(16, 12);
+}
+
+static inline u32 aggr_pkt_limit_fmask(bool legacy)
+{
+	return legacy ? GENMASK(20, 15) : GENMASK(22, 17);
+}
+
+static inline u32 aggr_sw_eof_active_fmask(bool legacy)
+{
+	return legacy ? GENMASK(21, 21) : GENMASK(23, 23);
+}
+
+static inline u32 aggr_force_close_fmask(bool legacy)
+{
+	return legacy ? GENMASK(22, 22) : GENMASK(24, 24);
+}
+
+static inline u32 aggr_hard_byte_limit_enable_fmask(bool legacy)
+{
+	return legacy ? GENMASK(24, 24) : GENMASK(26, 26);
+}
+
+/* The next field is present for IPA v4.5 */
+#define AGGR_GRAN_SEL_FMASK			GENMASK(27, 27)
 
 /** enum ipa_aggr_en - aggregation enable field in ENDP_INIT_AGGR_N */
 enum ipa_aggr_en {

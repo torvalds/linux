@@ -37,7 +37,7 @@
 #define IPA_ENDPOINT_QMAP_METADATA_MASK		0x000000ff /* host byte order */
 
 #define IPA_ENDPOINT_RESET_AGGR_RETRY_MAX	3
-#define IPA_AGGR_TIME_LIMIT_DEFAULT		500	/* microseconds */
+#define IPA_AGGR_TIME_LIMIT			500	/* microseconds */
 
 /** enum ipa_status_opcode - status element opcode hardware values */
 enum ipa_status_opcode {
@@ -73,31 +73,6 @@ struct ipa_status {
 #define IPA_STATUS_FLAGS1_RT_RULE_ID_FMASK	GENMASK(31, 22)
 
 #ifdef IPA_VALIDATE
-
-static void ipa_endpoint_validate_build(void)
-{
-	/* The aggregation byte limit defines the point at which an
-	 * aggregation window will close.  It is programmed into the
-	 * IPA hardware as a number of KB.  We don't use "hard byte
-	 * limit" aggregation, which means that we need to supply
-	 * enough space in a receive buffer to hold a complete MTU
-	 * plus normal skb overhead *after* that aggregation byte
-	 * limit has been crossed.
-	 *
-	 * This check just ensures we don't define a receive buffer
-	 * size that would exceed what we can represent in the field
-	 * that is used to program its size.
-	 */
-	BUILD_BUG_ON(IPA_RX_BUFFER_SIZE >
-		     field_max(AGGR_BYTE_LIMIT_FMASK) * SZ_1K +
-		     IPA_MTU + IPA_RX_BUFFER_OVERHEAD);
-
-	/* I honestly don't know where this requirement comes from.  But
-	 * it holds, and if we someday need to loosen the constraint we
-	 * can try to track it down.
-	 */
-	BUILD_BUG_ON(sizeof(struct ipa_status) % 4);
-}
 
 static bool ipa_endpoint_data_valid_one(struct ipa *ipa, u32 count,
 			    const struct ipa_gsi_endpoint_data *all_data,
@@ -180,18 +155,48 @@ static bool ipa_endpoint_data_valid_one(struct ipa *ipa, u32 count,
 	return true;
 }
 
+static u32 aggr_byte_limit_max(enum ipa_version version)
+{
+	if (version < IPA_VERSION_4_5)
+		return field_max(aggr_byte_limit_fmask(true));
+
+	return field_max(aggr_byte_limit_fmask(false));
+}
+
 static bool ipa_endpoint_data_valid(struct ipa *ipa, u32 count,
 				    const struct ipa_gsi_endpoint_data *data)
 {
 	const struct ipa_gsi_endpoint_data *dp = data;
 	struct device *dev = &ipa->pdev->dev;
 	enum ipa_endpoint_name name;
+	u32 limit;
 
-	ipa_endpoint_validate_build();
+	/* Not sure where this constraint come from... */
+	BUILD_BUG_ON(sizeof(struct ipa_status) % 4);
 
 	if (count > IPA_ENDPOINT_COUNT) {
 		dev_err(dev, "too many endpoints specified (%u > %u)\n",
 			count, IPA_ENDPOINT_COUNT);
+		return false;
+	}
+
+	/* The aggregation byte limit defines the point at which an
+	 * aggregation window will close.  It is programmed into the
+	 * IPA hardware as a number of KB.  We don't use "hard byte
+	 * limit" aggregation, which means that we need to supply
+	 * enough space in a receive buffer to hold a complete MTU
+	 * plus normal skb overhead *after* that aggregation byte
+	 * limit has been crossed.
+	 *
+	 * This check ensures we don't define a receive buffer size
+	 * that would exceed what we can represent in the field that
+	 * is used to program its size.
+	 */
+	limit = aggr_byte_limit_max(ipa->version) * SZ_1K;
+	limit += IPA_MTU + IPA_RX_BUFFER_OVERHEAD;
+	if (limit < IPA_RX_BUFFER_SIZE) {
+		dev_err(dev, "buffer size too big for aggregation (%u > %u)\n",
+			IPA_RX_BUFFER_SIZE, limit);
 		return false;
 	}
 
@@ -624,29 +629,84 @@ static u32 ipa_aggr_size_kb(u32 rx_buffer_size)
 	return rx_buffer_size / SZ_1K;
 }
 
+/* Encoded values for AGGR endpoint register fields */
+static u32 aggr_byte_limit_encoded(enum ipa_version version, u32 limit)
+{
+	if (version < IPA_VERSION_4_5)
+		return u32_encode_bits(limit, aggr_byte_limit_fmask(true));
+
+	return u32_encode_bits(limit, aggr_byte_limit_fmask(false));
+}
+
+/* Encode the aggregation timer limit (microseconds) based on IPA version */
+static u32 aggr_time_limit_encoded(enum ipa_version version, u32 limit)
+{
+	u32 gran_sel;
+	u32 fmask;
+	u32 val;
+
+	if (version < IPA_VERSION_4_5) {
+		/* We set aggregation granularity in ipa_hardware_config() */
+		limit = DIV_ROUND_CLOSEST(limit, IPA_AGGR_GRANULARITY);
+
+		return u32_encode_bits(limit, aggr_time_limit_fmask(true));
+	}
+
+	/* IPA v4.5 expresses the time limit using Qtime.  The AP has
+	 * pulse generators 0 and 1 available, which were configured
+	 * in ipa_qtime_config() to have granularity 100 usec and
+	 * 1 msec, respectively.  Use pulse generator 0 if possible,
+	 * otherwise fall back to pulse generator 1.
+	 */
+	fmask = aggr_time_limit_fmask(false);
+	val = DIV_ROUND_CLOSEST(limit, 100);
+	if (val > field_max(fmask)) {
+		/* Have to use pulse generator 1 (millisecond granularity) */
+		gran_sel = AGGR_GRAN_SEL_FMASK;
+		val = DIV_ROUND_CLOSEST(limit, 1000);
+	} else {
+		/* We can use pulse generator 0 (100 usec granularity) */
+		gran_sel = 0;
+	}
+
+	return gran_sel | u32_encode_bits(val, fmask);
+}
+
+static u32 aggr_sw_eof_active_encoded(enum ipa_version version, bool enabled)
+{
+	u32 val = enabled ? 1 : 0;
+
+	if (version < IPA_VERSION_4_5)
+		return u32_encode_bits(val, aggr_sw_eof_active_fmask(true));
+
+	return u32_encode_bits(val, aggr_sw_eof_active_fmask(false));
+}
+
 static void ipa_endpoint_init_aggr(struct ipa_endpoint *endpoint)
 {
 	u32 offset = IPA_REG_ENDP_INIT_AGGR_N_OFFSET(endpoint->endpoint_id);
+	enum ipa_version version = endpoint->ipa->version;
 	u32 val = 0;
 
 	if (endpoint->data->aggregation) {
 		if (!endpoint->toward_ipa) {
+			bool close_eof;
 			u32 limit;
 
 			val |= u32_encode_bits(IPA_ENABLE_AGGR, AGGR_EN_FMASK);
 			val |= u32_encode_bits(IPA_GENERIC, AGGR_TYPE_FMASK);
 
 			limit = ipa_aggr_size_kb(IPA_RX_BUFFER_SIZE);
-			val |= u32_encode_bits(limit, AGGR_BYTE_LIMIT_FMASK);
+			val |= aggr_byte_limit_encoded(version, limit);
 
-			limit = IPA_AGGR_TIME_LIMIT_DEFAULT;
-			limit = DIV_ROUND_CLOSEST(limit, IPA_AGGR_GRANULARITY);
-			val |= u32_encode_bits(limit, AGGR_TIME_LIMIT_FMASK);
+			limit = IPA_AGGR_TIME_LIMIT;
+			val |= aggr_time_limit_encoded(version, limit);
 
 			/* AGGR_PKT_LIMIT is 0 (unlimited) */
 
-			if (endpoint->data->rx.aggr_close_eof)
-				val |= AGGR_SW_EOF_ACTIVE_FMASK;
+			close_eof = endpoint->data->rx.aggr_close_eof;
+			val |= aggr_sw_eof_active_encoded(version, close_eof);
+
 			/* AGGR_HARD_BYTE_LIMIT_ENABLE is 0 */
 		} else {
 			val |= u32_encode_bits(IPA_ENABLE_DEAGGR,
@@ -664,12 +724,45 @@ static void ipa_endpoint_init_aggr(struct ipa_endpoint *endpoint)
 	iowrite32(val, endpoint->ipa->reg_virt + offset);
 }
 
-/* The head-of-line blocking timer is defined as a tick count, where each
- * tick represents 128 cycles of the IPA core clock.  Return the value
- * that should be written to that register that represents the timeout
- * period provided.
+/* Return the Qtime-based head-of-line blocking timer value that
+ * represents the given number of microseconds.  The result
+ * includes both the timer value and the selected timer granularity.
  */
-static u32 ipa_reg_init_hol_block_timer_val(struct ipa *ipa, u32 microseconds)
+static u32 hol_block_timer_qtime_val(struct ipa *ipa, u32 microseconds)
+{
+	u32 gran_sel;
+	u32 val;
+
+	/* IPA v4.5 expresses time limits using Qtime.  The AP has
+	 * pulse generators 0 and 1 available, which were configured
+	 * in ipa_qtime_config() to have granularity 100 usec and
+	 * 1 msec, respectively.  Use pulse generator 0 if possible,
+	 * otherwise fall back to pulse generator 1.
+	 */
+	val = DIV_ROUND_CLOSEST(microseconds, 100);
+	if (val > field_max(TIME_LIMIT_FMASK)) {
+		/* Have to use pulse generator 1 (millisecond granularity) */
+		gran_sel = GRAN_SEL_FMASK;
+		val = DIV_ROUND_CLOSEST(microseconds, 1000);
+	} else {
+		/* We can use pulse generator 0 (100 usec granularity) */
+		gran_sel = 0;
+	}
+
+	return gran_sel | u32_encode_bits(val, TIME_LIMIT_FMASK);
+}
+
+/* The head-of-line blocking timer is defined as a tick count.  For
+ * IPA version 4.5 the tick count is based on the Qtimer, which is
+ * derived from the 19.2 MHz SoC XO clock.  For older IPA versions
+ * each tick represents 128 cycles of the IPA core clock.
+ *
+ * Return the encoded value that should be written to that register
+ * that represents the timeout period provided.  For IPA v4.2 this
+ * encodes a base and scale value, while for earlier versions the
+ * value is a simple tick count.
+ */
+static u32 hol_block_timer_val(struct ipa *ipa, u32 microseconds)
 {
 	u32 width;
 	u32 scale;
@@ -680,6 +773,9 @@ static u32 ipa_reg_init_hol_block_timer_val(struct ipa *ipa, u32 microseconds)
 
 	if (!microseconds)
 		return 0;	/* Nothing to compute if timer period is 0 */
+
+	if (ipa->version == IPA_VERSION_4_5)
+		return hol_block_timer_qtime_val(ipa, microseconds);
 
 	/* Use 64 bit arithmetic to avoid overflow... */
 	rate = ipa_clock_rate(ipa);
@@ -726,7 +822,7 @@ static void ipa_endpoint_init_hol_block_timer(struct ipa_endpoint *endpoint,
 	u32 val;
 
 	offset = IPA_REG_ENDP_INIT_HOL_BLOCK_TIMER_N_OFFSET(endpoint_id);
-	val = ipa_reg_init_hol_block_timer_val(ipa, microseconds);
+	val = hol_block_timer_val(ipa, microseconds);
 	iowrite32(val, ipa->reg_virt + offset);
 }
 
