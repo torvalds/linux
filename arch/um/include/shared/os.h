@@ -299,7 +299,7 @@ extern void reboot_skas(void);
 extern int os_waiting_for_events_epoll(void);
 extern void *os_epoll_get_data_pointer(int index);
 extern int os_epoll_triggered(int index, int events);
-extern int os_event_mask(int irq_type);
+extern int os_event_mask(enum um_irq_type irq_type);
 extern int os_setup_epoll(void);
 extern int os_add_epoll_fd(int events, int fd, void *data);
 extern int os_mod_epoll_fd(int events, int fd, void *data);
@@ -310,8 +310,8 @@ extern void os_close_epoll_fd(void);
 /* sigio.c */
 extern int add_sigio_fd(int fd);
 extern int ignore_sigio_fd(int fd);
-extern void maybe_sigio_broken(int fd, int read);
-extern void sigio_broken(int fd, int read);
+extern void maybe_sigio_broken(int fd);
+extern void sigio_broken(int fd);
 
 /* prctl.c */
 extern int os_arch_prctl(int pid, int option, unsigned long *arg2);
