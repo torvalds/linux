@@ -67,18 +67,3 @@ void __init init_IRQ(void)
 		local_daif_restore(DAIF_PROCCTX_NOIRQ);
 	}
 }
-
-/*
- * Stubs to make nmi_enter/exit() code callable from ASM
- */
-asmlinkage void notrace asm_nmi_enter(void)
-{
-	nmi_enter();
-}
-NOKPROBE_SYMBOL(asm_nmi_enter);
-
-asmlinkage void notrace asm_nmi_exit(void)
-{
-	nmi_exit();
-}
-NOKPROBE_SYMBOL(asm_nmi_exit);
