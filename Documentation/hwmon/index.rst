@@ -146,6 +146,7 @@ Hardware Monitoring Kernel Drivers
    pc87360
    pc87427
    pcf8591
+   pm6764tr
    pmbus
    powr1220
    pxe1610
