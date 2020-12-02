@@ -481,7 +481,7 @@ static void dummy(struct irq_data *d)
 {
 }
 
-/* This is used for everything else than the timer. */
+/* This is used for everything other than the timer. */
 static struct irq_chip normal_irq_type = {
 	.name = "SIGIO",
 	.irq_disable = dummy,
@@ -491,8 +491,8 @@ static struct irq_chip normal_irq_type = {
 	.irq_unmask = dummy,
 };
 
-static struct irq_chip SIGVTALRM_irq_type = {
-	.name = "SIGVTALRM",
+static struct irq_chip alarm_irq_type = {
+	.name = "SIGALRM",
 	.irq_disable = dummy,
 	.irq_enable = dummy,
 	.irq_ack = dummy,
@@ -504,8 +504,7 @@ void __init init_IRQ(void)
 {
 	int i;
 
-	irq_set_chip_and_handler(TIMER_IRQ, &SIGVTALRM_irq_type, handle_edge_irq);
-
+	irq_set_chip_and_handler(TIMER_IRQ, &alarm_irq_type, handle_edge_irq);
 
 	for (i = 1; i < NR_IRQS; i++)
 		irq_set_chip_and_handler(i, &normal_irq_type, handle_edge_irq);
