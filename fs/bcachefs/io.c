@@ -207,8 +207,6 @@ static int sum_sector_overwrites(struct btree_trans *trans,
 	*delta = 0;
 
 	iter = bch2_trans_copy_iter(trans, extent_iter);
-	if (IS_ERR(iter))
-		return PTR_ERR(iter);
 
 	for_each_btree_key_continue(iter, BTREE_ITER_SLOTS, old, ret) {
 		if (!may_allocate &&
@@ -1781,9 +1779,6 @@ static int __bch2_rbio_narrow_crcs(struct btree_trans *trans,
 
 	iter = bch2_trans_get_iter(trans, BTREE_ID_EXTENTS, rbio->pos,
 				   BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
-	if ((ret = PTR_ERR_OR_ZERO(iter)))
-		goto out;
-
 	k = bch2_btree_iter_peek_slot(iter);
 	if ((ret = bkey_err(k)))
 		goto out;
@@ -1991,10 +1986,6 @@ int __bch2_read_indirect_extent(struct btree_trans *trans,
 	iter = bch2_trans_get_iter(trans, BTREE_ID_REFLINK,
 				   POS(0, reflink_offset),
 				   BTREE_ITER_SLOTS);
-	ret = PTR_ERR_OR_ZERO(iter);
-	if (ret)
-		return ret;
-
 	k = bch2_btree_iter_peek_slot(iter);
 	ret = bkey_err(k);
 	if (ret)

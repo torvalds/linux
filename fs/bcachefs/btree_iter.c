@@ -346,7 +346,7 @@ void bch2_btree_trans_verify_locks(struct btree_trans *trans)
 {
 	struct btree_iter *iter;
 
-	trans_for_each_iter_all(trans, iter)
+	trans_for_each_iter(trans, iter)
 		bch2_btree_iter_verify_locks(iter);
 }
 #else
@@ -2002,110 +2002,37 @@ int bch2_trans_iter_free(struct btree_trans *trans,
 	return bch2_trans_iter_put(trans, iter);
 }
 
-#if 0
-static int bch2_trans_realloc_iters(struct btree_trans *trans,
-				    unsigned new_size)
+noinline __cold
+static void btree_trans_iter_alloc_fail(struct btree_trans *trans)
 {
-	void *p, *new_iters, *new_updates, *new_updates2;
-	size_t iters_bytes;
-	size_t updates_bytes;
 
-	new_size = roundup_pow_of_two(new_size);
+	struct btree_iter *iter;
 
-	BUG_ON(new_size > BTREE_ITER_MAX);
-
-	if (new_size <= trans->size)
-		return 0;
-
-	BUG_ON(trans->used_mempool);
-
-	bch2_trans_unlock(trans);
-
-	iters_bytes	= sizeof(struct btree_iter) * new_size;
-	updates_bytes	= sizeof(struct btree_insert_entry) * new_size;
-
-	p = kmalloc(iters_bytes +
-		    updates_bytes +
-		    updates_bytes, GFP_NOFS);
-	if (p)
-		goto success;
-
-	p = mempool_alloc(&trans->c->btree_iters_pool, GFP_NOFS);
-	new_size = BTREE_ITER_MAX;
-
-	trans->used_mempool = true;
-success:
-	new_iters	= p; p += iters_bytes;
-	new_updates	= p; p += updates_bytes;
-	new_updates2	= p; p += updates_bytes;
-
-	memcpy(new_iters, trans->iters,
-	       sizeof(struct btree_iter) * trans->nr_iters);
-	memcpy(new_updates, trans->updates,
-	       sizeof(struct btree_insert_entry) * trans->nr_updates);
-	memcpy(new_updates2, trans->updates2,
-	       sizeof(struct btree_insert_entry) * trans->nr_updates2);
-
-	if (IS_ENABLED(CONFIG_BCACHEFS_DEBUG))
-		memset(trans->iters, POISON_FREE,
-		       sizeof(struct btree_iter) * trans->nr_iters +
-		       sizeof(struct btree_insert_entry) * trans->nr_iters);
-
-	kfree(trans->iters);
-
-	trans->iters		= new_iters;
-	trans->updates		= new_updates;
-	trans->updates2		= new_updates2;
-	trans->size		= new_size;
-
-	if (trans->iters_live) {
-		trace_trans_restart_iters_realloced(trans->ip, trans->size);
-		return -EINTR;
-	}
-
-	return 0;
+	trans_for_each_iter(trans, iter)
+		pr_err("iter: btree %s pos %llu:%llu%s%s%s %ps",
+		       bch2_btree_ids[iter->btree_id],
+		       iter->pos.inode,
+		       iter->pos.offset,
+		       (trans->iters_live & (1ULL << iter->idx)) ? " live" : "",
+		       (trans->iters_touched & (1ULL << iter->idx)) ? " touched" : "",
+		       iter->flags & BTREE_ITER_KEEP_UNTIL_COMMIT ? " keep" : "",
+		       (void *) iter->ip_allocated);
+	panic("trans iter oveflow\n");
 }
-#endif
 
 static struct btree_iter *btree_trans_iter_alloc(struct btree_trans *trans)
 {
-	unsigned idx = __ffs64(~trans->iters_linked);
+	unsigned idx;
 
-	if (idx < trans->nr_iters)
-		goto got_slot;
+	if (unlikely(trans->iters_linked ==
+		     ~((~0ULL << 1) << (BTREE_ITER_MAX - 1))))
+		btree_trans_iter_alloc_fail(trans);
 
-	if (trans->nr_iters == trans->size) {
-		struct btree_iter *iter;
+	idx = __ffs64(~trans->iters_linked);
 
-		BUG_ON(trans->size < BTREE_ITER_MAX);
-
-		trans_for_each_iter(trans, iter) {
-			pr_err("iter: btree %s pos %llu:%llu%s%s%s %ps",
-			       bch2_btree_ids[iter->btree_id],
-			       iter->pos.inode,
-			       iter->pos.offset,
-			       (trans->iters_live & (1ULL << iter->idx)) ? " live" : "",
-			       (trans->iters_touched & (1ULL << iter->idx)) ? " touched" : "",
-			       iter->flags & BTREE_ITER_KEEP_UNTIL_COMMIT ? " keep" : "",
-			       (void *) iter->ip_allocated);
-		}
-
-		panic("trans iter oveflow\n");
-#if 0
-		ret = bch2_trans_realloc_iters(trans, trans->size * 2);
-		if (ret)
-			return ERR_PTR(ret);
-#endif
-	}
-
-	idx = trans->nr_iters++;
-	BUG_ON(trans->nr_iters > trans->size);
-
-	trans->iters[idx].idx = idx;
-got_slot:
-	BUG_ON(trans->iters_linked & (1ULL << idx));
-	trans->iters_linked |= 1ULL << idx;
-	trans->iters[idx].flags = 0;
+	trans->iters_linked	|= 1ULL << idx;
+	trans->iters[idx].idx	 = idx;
+	trans->iters[idx].flags	 = 0;
 	return &trans->iters[idx];
 }
 
@@ -2141,8 +2068,6 @@ static struct btree_iter *__btree_trans_get_iter(struct btree_trans *trans,
 {
 	struct btree_iter *iter, *best = NULL;
 
-	BUG_ON(trans->nr_iters > BTREE_ITER_MAX);
-
 	trans_for_each_iter(trans, iter) {
 		if (btree_iter_type(iter) != (flags & BTREE_ITER_TYPE))
 			continue;
@@ -2160,16 +2085,10 @@ static struct btree_iter *__btree_trans_get_iter(struct btree_trans *trans,
 
 	if (!best) {
 		iter = btree_trans_iter_alloc(trans);
-		if (IS_ERR(iter))
-			return iter;
-
 		bch2_btree_iter_init(trans, iter, btree_id, pos, flags);
 	} else if ((trans->iters_live & (1ULL << best->idx)) ||
 		   (best->flags & BTREE_ITER_KEEP_UNTIL_COMMIT)) {
 		iter = btree_trans_iter_alloc(trans);
-		if (IS_ERR(iter))
-			return iter;
-
 		btree_iter_copy(iter, best);
 	} else {
 		iter = best;
@@ -2203,9 +2122,8 @@ struct btree_iter *__bch2_trans_get_iter(struct btree_trans *trans,
 	struct btree_iter *iter =
 		__btree_trans_get_iter(trans, btree_id, pos, flags);
 
-	if (!IS_ERR(iter))
-		__bch2_btree_iter_set_pos(iter, pos,
-			btree_node_type_is_extents(btree_id));
+	__bch2_btree_iter_set_pos(iter, pos,
+		btree_node_type_is_extents(btree_id));
 	return iter;
 }
 
@@ -2221,7 +2139,6 @@ struct btree_iter *bch2_trans_get_node_iter(struct btree_trans *trans,
 				       flags|BTREE_ITER_NODES);
 	unsigned i;
 
-	BUG_ON(IS_ERR(iter));
 	BUG_ON(bkey_cmp(iter->pos, pos));
 
 	iter->locks_want = locks_want;
@@ -2241,9 +2158,6 @@ struct btree_iter *__bch2_trans_copy_iter(struct btree_trans *trans,
 	struct btree_iter *iter;
 
 	iter = btree_trans_iter_alloc(trans);
-	if (IS_ERR(iter))
-		return iter;
-
 	btree_iter_copy(iter, src);
 
 	trans->iters_live |= 1ULL << iter->idx;
@@ -2318,7 +2232,6 @@ void bch2_trans_reset(struct btree_trans *trans, unsigned flags)
 
 	trans->iters_touched &= trans->iters_live;
 
-	trans->need_reset		= 0;
 	trans->nr_updates		= 0;
 	trans->nr_updates2		= 0;
 	trans->mem_top			= 0;
@@ -2340,9 +2253,8 @@ void bch2_trans_reset(struct btree_trans *trans, unsigned flags)
 
 static void bch2_trans_alloc_iters(struct btree_trans *trans, struct bch_fs *c)
 {
-	unsigned new_size = BTREE_ITER_MAX;
-	size_t iters_bytes	= sizeof(struct btree_iter) * new_size;
-	size_t updates_bytes	= sizeof(struct btree_insert_entry) * new_size;
+	size_t iters_bytes	= sizeof(struct btree_iter) * BTREE_ITER_MAX;
+	size_t updates_bytes	= sizeof(struct btree_insert_entry) * BTREE_ITER_MAX;
 	void *p = NULL;
 
 	BUG_ON(trans->used_mempool);
@@ -2356,7 +2268,6 @@ static void bch2_trans_alloc_iters(struct btree_trans *trans, struct bch_fs *c)
 	trans->iters		= p; p += iters_bytes;
 	trans->updates		= p; p += updates_bytes;
 	trans->updates2		= p; p += updates_bytes;
-	trans->size		= new_size;
 }
 
 void bch2_trans_init(struct btree_trans *trans, struct bch_fs *c,

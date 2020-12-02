@@ -357,19 +357,16 @@ struct btree_trans {
 	unsigned long		ip;
 	int			srcu_idx;
 
-	u64			iters_linked;
-	u64			iters_live;
-	u64			iters_touched;
-
-	u8			nr_iters;
 	u8			nr_updates;
 	u8			nr_updates2;
-	u8			size;
 	unsigned		used_mempool:1;
 	unsigned		error:1;
 	unsigned		nounlock:1;
-	unsigned		need_reset:1;
 	unsigned		in_traverse_all:1;
+
+	u64			iters_linked;
+	u64			iters_live;
+	u64			iters_touched;
 
 	unsigned		mem_top;
 	unsigned		mem_bytes;

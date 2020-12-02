@@ -230,7 +230,6 @@ static int hash_check_duplicates(struct btree_trans *trans,
 		return 0;
 
 	iter = bch2_trans_copy_iter(trans, h->chain);
-	BUG_ON(IS_ERR(iter));
 
 	for_each_btree_key_continue(iter, 0, k2, ret) {
 		if (bkey_cmp(k2.k->p, k.k->p) >= 0)
@@ -265,10 +264,8 @@ static void hash_set_chain_start(struct btree_trans *trans,
 		hash_stop_chain(trans, h);
 
 	if (!hole) {
-		if (!h->chain) {
+		if (!h->chain)
 			h->chain = bch2_trans_copy_iter(trans, k_iter);
-			BUG_ON(IS_ERR(h->chain));
-		}
 
 		h->chain_end = k.k->p.offset;
 	}
@@ -440,9 +437,6 @@ static int bch2_fix_overlapping_extent(struct btree_trans *trans,
 	bch2_cut_front(cut_at, u);
 
 	u_iter = bch2_trans_copy_iter(trans, iter);
-	ret = PTR_ERR_OR_ZERO(u_iter);
-	if (ret)
-		return ret;
 
 	/*
 	 * We don't want to go through the

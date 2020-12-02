@@ -48,21 +48,16 @@ static inline int btree_iter_err(const struct btree_iter *iter)
 
 /* Iterate over iters within a transaction: */
 
-#define trans_for_each_iter_all(_trans, _iter)				\
-	for (_iter = (_trans)->iters;					\
-	     _iter < (_trans)->iters + (_trans)->nr_iters;		\
-	     _iter++)
-
 static inline struct btree_iter *
 __trans_next_iter(struct btree_trans *trans, unsigned idx)
 {
-	EBUG_ON(idx < trans->nr_iters && trans->iters[idx].idx != idx);
+	u64 l = trans->iters_linked >> idx;
+	if (!l)
+		return NULL;
 
-	for (; idx < trans->nr_iters; idx++)
-		if (trans->iters_linked & (1ULL << idx))
-			return &trans->iters[idx];
-
-	return NULL;
+	idx += __ffs64(l);
+	EBUG_ON(trans->iters[idx].idx != idx);
+	return &trans->iters[idx];
 }
 
 #define trans_for_each_iter(_trans, _iter)				\
@@ -240,10 +235,9 @@ static inline int bkey_err(struct bkey_s_c k)
 
 #define for_each_btree_key(_trans, _iter, _btree_id,			\
 			   _start, _flags, _k, _ret)			\
-	for ((_ret) = PTR_ERR_OR_ZERO((_iter) =				\
-			bch2_trans_get_iter((_trans), (_btree_id),	\
-					    (_start), (_flags))) ?:	\
-		      PTR_ERR_OR_ZERO(((_k) =				\
+	for ((_iter) = bch2_trans_get_iter((_trans), (_btree_id),	\
+					   (_start), (_flags)),		\
+	     (_ret) = PTR_ERR_OR_ZERO(((_k) =				\
 			__bch2_btree_iter_peek(_iter, _flags)).k);	\
 	     !_ret && (_k).k;						\
 	     (_ret) = PTR_ERR_OR_ZERO(((_k) =				\
@@ -270,9 +264,7 @@ bch2_trans_get_iter(struct btree_trans *trans, enum btree_id btree_id,
 {
 	struct btree_iter *iter =
 		__bch2_trans_get_iter(trans, btree_id, pos, flags);
-
-	if (!IS_ERR(iter))
-		iter->ip_allocated = _THIS_IP_;
+	iter->ip_allocated = _THIS_IP_;
 	return iter;
 }
 
@@ -284,10 +276,8 @@ bch2_trans_copy_iter(struct btree_trans *trans, struct btree_iter *src)
 	struct btree_iter *iter =
 		__bch2_trans_copy_iter(trans, src);
 
-	if (!IS_ERR(iter))
-		iter->ip_allocated = _THIS_IP_;
+	iter->ip_allocated = _THIS_IP_;
 	return iter;
-
 }
 
 struct btree_iter *bch2_trans_get_node_iter(struct btree_trans *,

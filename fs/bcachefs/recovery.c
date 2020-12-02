@@ -443,9 +443,6 @@ retry:
 		bch2_cut_back(atomic_end, split);
 
 		split_iter = bch2_trans_copy_iter(&trans, iter);
-		ret = PTR_ERR_OR_ZERO(split_iter);
-		if (ret)
-			goto err;
 
 		/*
 		 * It's important that we don't go through the
@@ -502,8 +499,6 @@ static int __bch2_journal_replay_key(struct btree_trans *trans,
 	iter = bch2_trans_get_node_iter(trans, id, k->k.p,
 					BTREE_MAX_DEPTH, level,
 					BTREE_ITER_INTENT);
-	if (IS_ERR(iter))
-		return PTR_ERR(iter);
 
 	/*
 	 * iter->flags & BTREE_ITER_IS_EXTENTS triggers the update path to run
@@ -538,8 +533,7 @@ static int __bch2_alloc_replay_key(struct btree_trans *trans, struct bkey_i *k)
 				   BTREE_ITER_CACHED|
 				   BTREE_ITER_CACHED_NOFILL|
 				   BTREE_ITER_INTENT);
-	ret =   PTR_ERR_OR_ZERO(iter) ?:
-		bch2_trans_update(trans, iter, k, BTREE_TRIGGER_NORUN);
+	ret = bch2_trans_update(trans, iter, k, BTREE_TRIGGER_NORUN);
 	bch2_trans_iter_put(trans, iter);
 	return ret;
 }

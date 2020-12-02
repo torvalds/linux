@@ -205,8 +205,6 @@ int bch2_hash_needs_whiteout(struct btree_trans *trans,
 	int ret;
 
 	iter = bch2_trans_copy_iter(trans, start);
-	if (IS_ERR(iter))
-		return PTR_ERR(iter);
 
 	bch2_btree_iter_next_slot(iter);
 
@@ -253,11 +251,8 @@ int bch2_hash_set(struct btree_trans *trans,
 		}
 
 		if (!slot &&
-		    !(flags & BCH_HASH_SET_MUST_REPLACE)) {
+		    !(flags & BCH_HASH_SET_MUST_REPLACE))
 			slot = bch2_trans_copy_iter(trans, iter);
-			if (IS_ERR(slot))
-				return PTR_ERR(slot);
-		}
 
 		if (k.k->type != KEY_TYPE_whiteout)
 			goto not_found;

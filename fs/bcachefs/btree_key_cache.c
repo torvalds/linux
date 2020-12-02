@@ -170,9 +170,6 @@ static int btree_key_cache_fill(struct btree_trans *trans,
 
 	iter = bch2_trans_get_iter(trans, ck->key.btree_id,
 				   ck->key.pos, BTREE_ITER_SLOTS);
-	if (IS_ERR(iter))
-		return PTR_ERR(iter);
-
 	k = bch2_btree_iter_peek_slot(iter);
 	ret = bkey_err(k);
 	if (ret) {
@@ -326,18 +323,11 @@ static int btree_key_cache_flush_pos(struct btree_trans *trans,
 	b_iter = bch2_trans_get_iter(trans, key.btree_id, key.pos,
 				     BTREE_ITER_SLOTS|
 				     BTREE_ITER_INTENT);
-	ret = PTR_ERR_OR_ZERO(b_iter);
-	if (ret)
-		goto out;
-
 	c_iter = bch2_trans_get_iter(trans, key.btree_id, key.pos,
 				     BTREE_ITER_CACHED|
 				     BTREE_ITER_CACHED_NOFILL|
 				     BTREE_ITER_CACHED_NOCREATE|
 				     BTREE_ITER_INTENT);
-	ret = PTR_ERR_OR_ZERO(c_iter);
-	if (ret)
-		goto out;
 retry:
 	ret = bch2_btree_iter_traverse(c_iter);
 	if (ret)

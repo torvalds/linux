@@ -302,9 +302,6 @@ struct btree_iter *bch2_inode_peek(struct btree_trans *trans,
 
 	iter = bch2_trans_get_iter(trans, BTREE_ID_INODES, POS(0, inum),
 				   BTREE_ITER_CACHED|flags);
-	if (IS_ERR(iter))
-		return iter;
-
 	k = bch2_btree_iter_peek_cached(iter);
 	ret = bkey_err(k);
 	if (ret)
@@ -640,9 +637,6 @@ int bch2_inode_find_by_inum_trans(struct btree_trans *trans, u64 inode_nr,
 
 	iter = bch2_trans_get_iter(trans, BTREE_ID_INODES,
 			POS(0, inode_nr), BTREE_ITER_CACHED);
-	if (IS_ERR(iter))
-		return PTR_ERR(iter);
-
 	k = bch2_btree_iter_peek_cached(iter);
 	ret = bkey_err(k);
 	if (ret)

@@ -1575,9 +1575,6 @@ static int trans_get_key(struct btree_trans *trans,
 
 	*iter = bch2_trans_get_iter(trans, btree_id, pos,
 				    flags|BTREE_ITER_INTENT);
-	if (IS_ERR(*iter))
-		return PTR_ERR(*iter);
-
 	*k = __bch2_btree_iter_peek(*iter, flags);
 	ret = bkey_err(*k);
 	if (ret)
@@ -1605,9 +1602,6 @@ static int bch2_trans_start_alloc_update(struct btree_trans *trans, struct btree
 					   BTREE_ITER_CACHED|
 					   BTREE_ITER_CACHED_NOFILL|
 					   BTREE_ITER_INTENT);
-		if (IS_ERR(iter))
-			return PTR_ERR(iter);
-
 		ret = bch2_btree_iter_traverse(iter);
 		if (ret) {
 			bch2_trans_iter_put(trans, iter);

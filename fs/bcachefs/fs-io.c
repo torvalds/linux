@@ -2489,10 +2489,7 @@ static long bchfs_fcollapse_finsert(struct bch_inode_info *inode,
 	src = bch2_trans_get_iter(&trans, BTREE_ID_EXTENTS,
 			POS(inode->v.i_ino, src_start >> 9),
 			BTREE_ITER_INTENT);
-	BUG_ON(IS_ERR_OR_NULL(src));
-
 	dst = bch2_trans_copy_iter(&trans, src);
-	BUG_ON(IS_ERR_OR_NULL(dst));
 
 	while (1) {
 		struct disk_reservation disk_res =
