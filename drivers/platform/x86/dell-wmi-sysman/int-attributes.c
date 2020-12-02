@@ -39,7 +39,7 @@ static ssize_t current_value_show(struct kobject *kobj, struct kobj_attribute *a
  * @instance_id: The instance on which input is validated
  * @buf: Input value
  */
-static int validate_integer_input(int instance_id, const char *buf)
+static int validate_integer_input(int instance_id, char *buf)
 {
 	int in_val;
 	int ret;
@@ -50,6 +50,12 @@ static int validate_integer_input(int instance_id, const char *buf)
 	if (in_val < wmi_priv.integer_data[instance_id].min_value ||
 			in_val > wmi_priv.integer_data[instance_id].max_value)
 		return -EINVAL;
+
+	/* workaround for BIOS error.
+	 * validate input to avoid setting 0 when integer input passed with + sign
+	 */
+	if (*buf == '+')
+		memmove(buf, (buf + 1), strlen(buf + 1) + 1);
 
 	return ret;
 }
