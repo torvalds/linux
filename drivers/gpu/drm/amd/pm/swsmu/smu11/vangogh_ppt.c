@@ -1562,9 +1562,29 @@ static int vangogh_post_smu_init(struct smu_context *smu)
 	}
 }
 
+static int vangogh_mode_reset(struct smu_context *smu, int type)
+{
+	int ret = 0, index = 0;
+
+	index = smu_cmn_to_asic_specific_index(smu, CMN2ASIC_MAPPING_MSG,
+					       SMU_MSG_GfxDeviceDriverReset);
+	if (index < 0)
+		return index == -EACCES ? 0 : index;
+
+	mutex_lock(&smu->message_lock);
+
+	ret = smu_cmn_send_msg_without_waiting(smu, (uint16_t)index, type);
+
+	mutex_unlock(&smu->message_lock);
+
+	mdelay(10);
+
+	return ret;
+}
+
 static int vangogh_mode2_reset(struct smu_context *smu)
 {
-	return smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_GfxDeviceDriverReset, SMU_RESET_MODE_2, NULL);
+	return vangogh_mode_reset(smu, SMU_RESET_MODE_2);
 }
 
 static const struct pptable_funcs vangogh_ppt_funcs = {
