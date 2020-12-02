@@ -65,7 +65,8 @@
 #define ARM64_MTE				57
 #define ARM64_WORKAROUND_1508412		58
 #define ARM64_HAS_LDAPR				59
+#define ARM64_KVM_PROTECTED_MODE		60
 
-#define ARM64_NCAPS				60
+#define ARM64_NCAPS				61
 
 #endif /* __ASM_CPUCAPS_H */

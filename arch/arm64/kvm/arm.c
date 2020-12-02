@@ -1771,7 +1771,9 @@ int kvm_arch_init(void *opaque)
 	if (err)
 		goto out_hyp;
 
-	if (in_hyp_mode)
+	if (is_protected_kvm_enabled())
+		kvm_info("Protected nVHE mode initialized successfully\n");
+	else if (in_hyp_mode)
 		kvm_info("VHE mode initialized successfully\n");
 	else
 		kvm_info("Hyp mode initialized successfully\n");
@@ -1805,6 +1807,11 @@ static int __init early_kvm_mode_cfg(char *arg)
 	return -EINVAL;
 }
 early_param("kvm-arm.mode", early_kvm_mode_cfg);
+
+enum kvm_mode kvm_get_mode(void)
+{
+	return kvm_mode;
+}
 
 static int arm_init(void)
 {
