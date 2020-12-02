@@ -226,7 +226,7 @@ void vtime_flush(struct task_struct *tsk)
  * Update process times based on virtual cpu times stored by entry.S
  * to the lowcore fields user_timer, system_timer & steal_clock.
  */
-void vtime_account_irq_enter(struct task_struct *tsk)
+void vtime_account_kernel(struct task_struct *tsk)
 {
 	u64 timer;
 
@@ -245,11 +245,11 @@ void vtime_account_irq_enter(struct task_struct *tsk)
 
 	virt_timer_forward(timer);
 }
-EXPORT_SYMBOL_GPL(vtime_account_irq_enter);
-
-void vtime_account_kernel(struct task_struct *tsk)
-__attribute__((alias("vtime_account_irq_enter")));
 EXPORT_SYMBOL_GPL(vtime_account_kernel);
+
+void vtime_account_irq_enter(struct task_struct *tsk)
+__attribute__((alias("vtime_account_kernel")));
+
 
 /*
  * Sorted add to a list. List is linear searched until first bigger
