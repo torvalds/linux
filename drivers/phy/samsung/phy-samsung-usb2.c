@@ -127,8 +127,6 @@ static const struct of_device_id samsung_usb2_phy_of_match[] = {
 		.compatible = "samsung,exynos5250-usb2-phy",
 		.data = &exynos5250_usb2_phy_config,
 	},
-#endif
-#ifdef CONFIG_PHY_EXYNOS5420_USB2
 	{
 		.compatible = "samsung,exynos5420-usb2-phy",
 		.data = &exynos5420_usb2_phy_config,
