@@ -2080,36 +2080,28 @@ static int tcp_inq_hint(struct sock *sk)
  *	Probably, code can be easily improved even more.
  */
 
-int tcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int nonblock,
-		int flags, int *addr_len)
+static int tcp_recvmsg_locked(struct sock *sk, struct msghdr *msg, size_t len,
+			      int nonblock, int flags,
+			      struct scm_timestamping_internal *tss,
+			      int *cmsg_flags)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	int copied = 0;
 	u32 peek_seq;
 	u32 *seq;
 	unsigned long used;
-	int err, inq;
+	int err;
 	int target;		/* Read at least this many bytes */
 	long timeo;
 	struct sk_buff *skb, *last;
 	u32 urg_hole = 0;
-	struct scm_timestamping_internal tss;
-	int cmsg_flags;
-
-	if (unlikely(flags & MSG_ERRQUEUE))
-		return inet_recv_error(sk, msg, len, addr_len);
-
-	if (sk_can_busy_loop(sk) && skb_queue_empty_lockless(&sk->sk_receive_queue) &&
-	    (sk->sk_state == TCP_ESTABLISHED))
-		sk_busy_loop(sk, nonblock);
-
-	lock_sock(sk);
 
 	err = -ENOTCONN;
 	if (sk->sk_state == TCP_LISTEN)
 		goto out;
 
-	cmsg_flags = tp->recvmsg_inq ? 1 : 0;
+	if (tp->recvmsg_inq)
+		*cmsg_flags = 1;
 	timeo = sock_rcvtimeo(sk, nonblock);
 
 	/* Urgent data needs to be handled specially. */
@@ -2289,8 +2281,8 @@ skip_copy:
 		}
 
 		if (TCP_SKB_CB(skb)->has_rxtstamp) {
-			tcp_update_recv_tstamps(skb, &tss);
-			cmsg_flags |= 2;
+			tcp_update_recv_tstamps(skb, tss);
+			*cmsg_flags |= 2;
 		}
 
 		if (used + offset < skb->len)
@@ -2316,22 +2308,9 @@ found_fin_ok:
 
 	/* Clean up data we have read: This will do ACK frames. */
 	tcp_cleanup_rbuf(sk, copied);
-
-	release_sock(sk);
-
-	if (cmsg_flags) {
-		if (cmsg_flags & 2)
-			tcp_recv_timestamp(msg, sk, &tss);
-		if (cmsg_flags & 1) {
-			inq = tcp_inq_hint(sk);
-			put_cmsg(msg, SOL_TCP, TCP_CM_INQ, sizeof(inq), &inq);
-		}
-	}
-
 	return copied;
 
 out:
-	release_sock(sk);
 	return err;
 
 recv_urg:
@@ -2341,6 +2320,36 @@ recv_urg:
 recv_sndq:
 	err = tcp_peek_sndq(sk, msg, len);
 	goto out;
+}
+
+int tcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int nonblock,
+		int flags, int *addr_len)
+{
+	int cmsg_flags = 0, ret, inq;
+	struct scm_timestamping_internal tss;
+
+	if (unlikely(flags & MSG_ERRQUEUE))
+		return inet_recv_error(sk, msg, len, addr_len);
+
+	if (sk_can_busy_loop(sk) &&
+	    skb_queue_empty_lockless(&sk->sk_receive_queue) &&
+	    sk->sk_state == TCP_ESTABLISHED)
+		sk_busy_loop(sk, nonblock);
+
+	lock_sock(sk);
+	ret = tcp_recvmsg_locked(sk, msg, len, nonblock, flags, &tss,
+				 &cmsg_flags);
+	release_sock(sk);
+
+	if (cmsg_flags && ret >= 0) {
+		if (cmsg_flags & 2)
+			tcp_recv_timestamp(msg, sk, &tss);
+		if (cmsg_flags & 1) {
+			inq = tcp_inq_hint(sk);
+			put_cmsg(msg, SOL_TCP, TCP_CM_INQ, sizeof(inq), &inq);
+		}
+	}
+	return ret;
 }
 EXPORT_SYMBOL(tcp_recvmsg);
 
