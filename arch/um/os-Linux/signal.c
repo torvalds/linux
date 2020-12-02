@@ -136,6 +136,16 @@ void set_sigstack(void *sig_stack, int size)
 		panic("enabling signal stack failed, errno = %d\n", errno);
 }
 
+static void sigusr1_handler(int sig, struct siginfo *unused_si, mcontext_t *mc)
+{
+	uml_pm_wake();
+}
+
+void register_pm_wake_signal(void)
+{
+	set_handler(SIGUSR1);
+}
+
 static void (*handlers[_NSIG])(int sig, struct siginfo *si, mcontext_t *mc) = {
 	[SIGSEGV] = sig_handler,
 	[SIGBUS] = sig_handler,
@@ -145,7 +155,9 @@ static void (*handlers[_NSIG])(int sig, struct siginfo *si, mcontext_t *mc) = {
 
 	[SIGIO] = sig_handler,
 	[SIGWINCH] = sig_handler,
-	[SIGALRM] = timer_alarm_handler
+	[SIGALRM] = timer_alarm_handler,
+
+	[SIGUSR1] = sigusr1_handler,
 };
 
 static void hard_handler(int sig, siginfo_t *si, void *p)
