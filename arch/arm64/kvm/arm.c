@@ -46,6 +46,8 @@
 __asm__(".arch_extension	virt");
 #endif
 
+static enum kvm_mode kvm_mode = KVM_MODE_DEFAULT;
+
 DECLARE_KVM_HYP_PER_CPU(unsigned long, kvm_hyp_vector);
 
 static DEFINE_PER_CPU(unsigned long, kvm_arm_hyp_stack_page);
@@ -1789,6 +1791,20 @@ void kvm_arch_exit(void)
 {
 	kvm_perf_teardown();
 }
+
+static int __init early_kvm_mode_cfg(char *arg)
+{
+	if (!arg)
+		return -EINVAL;
+
+	if (strcmp(arg, "protected") == 0) {
+		kvm_mode = KVM_MODE_PROTECTED;
+		return 0;
+	}
+
+	return -EINVAL;
+}
+early_param("kvm-arm.mode", early_kvm_mode_cfg);
 
 static int arm_init(void)
 {
