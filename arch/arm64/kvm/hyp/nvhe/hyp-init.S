@@ -151,7 +151,7 @@ SYM_CODE_START(kvm_hyp_cpu_entry)
 SYM_CODE_END(kvm_hyp_cpu_entry)
 
 /*
- * PSCI CPU_SUSPEND entry point
+ * PSCI CPU_SUSPEND / SYSTEM_SUSPEND entry point
  *
  * x0: struct kvm_nvhe_init_params PA
  */
