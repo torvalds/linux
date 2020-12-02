@@ -153,10 +153,6 @@ EXPORT_SYMBOL(cpu_hwcap_keys);
 		.width = 0,				\
 	}
 
-/* meta feature for alternatives */
-static bool __maybe_unused
-cpufeature_pan_not_uao(const struct arm64_cpu_capabilities *entry, int __unused);
-
 static void cpu_enable_cnp(struct arm64_cpu_capabilities const *cap);
 
 static bool __system_matches_cap(unsigned int n);
@@ -1779,13 +1775,6 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.min_field_value = 1,
 	},
 #endif /* CONFIG_ARM64_UAO */
-#ifdef CONFIG_ARM64_PAN
-	{
-		.capability = ARM64_ALT_PAN_NOT_UAO,
-		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
-		.matches = cpufeature_pan_not_uao,
-	},
-#endif /* CONFIG_ARM64_PAN */
 #ifdef CONFIG_ARM64_VHE
 	{
 		.desc = "Virtualization Host Extensions",
@@ -2734,12 +2723,6 @@ void __init setup_cpu_features(void)
 	if (!cwg)
 		pr_warn("No Cache Writeback Granule information, assuming %d\n",
 			ARCH_DMA_MINALIGN);
-}
-
-static bool __maybe_unused
-cpufeature_pan_not_uao(const struct arm64_cpu_capabilities *entry, int __unused)
-{
-	return (__system_matches_cap(ARM64_HAS_PAN) && !__system_matches_cap(ARM64_HAS_UAO));
 }
 
 static void __maybe_unused cpu_enable_cnp(struct arm64_cpu_capabilities const *cap)

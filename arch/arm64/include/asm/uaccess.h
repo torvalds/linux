@@ -159,41 +159,20 @@ static inline void __uaccess_enable_hw_pan(void)
 			CONFIG_ARM64_PAN));
 }
 
-#define __uaccess_disable(alt)						\
-do {									\
-	if (!uaccess_ttbr0_disable())					\
-		asm(ALTERNATIVE("nop", SET_PSTATE_PAN(1), alt,		\
-				CONFIG_ARM64_PAN));			\
-} while (0)
-
-#define __uaccess_enable(alt)						\
-do {									\
-	if (!uaccess_ttbr0_enable())					\
-		asm(ALTERNATIVE("nop", SET_PSTATE_PAN(0), alt,		\
-				CONFIG_ARM64_PAN));			\
-} while (0)
-
 static inline void uaccess_disable_privileged(void)
 {
-	__uaccess_disable(ARM64_HAS_PAN);
+	if (uaccess_ttbr0_disable())
+		return;
+
+	__uaccess_enable_hw_pan();
 }
 
 static inline void uaccess_enable_privileged(void)
 {
-	__uaccess_enable(ARM64_HAS_PAN);
-}
+	if (uaccess_ttbr0_enable())
+		return;
 
-/*
- * These functions are no-ops when UAO is present.
- */
-static inline void uaccess_disable_not_uao(void)
-{
-	__uaccess_disable(ARM64_ALT_PAN_NOT_UAO);
-}
-
-static inline void uaccess_enable_not_uao(void)
-{
-	__uaccess_enable(ARM64_ALT_PAN_NOT_UAO);
+	__uaccess_disable_hw_pan();
 }
 
 /*
@@ -265,9 +244,9 @@ do {									\
 #define __raw_get_user(x, ptr, err)					\
 do {									\
 	__chk_user_ptr(ptr);						\
-	uaccess_enable_not_uao();					\
+	uaccess_ttbr0_enable();						\
 	__raw_get_mem("ldtr", x, ptr, err);				\
-	uaccess_disable_not_uao();					\
+	uaccess_ttbr0_disable();					\
 } while (0)
 
 #define __get_user_error(x, ptr, err)					\
@@ -338,9 +317,9 @@ do {									\
 #define __raw_put_user(x, ptr, err)					\
 do {									\
 	__chk_user_ptr(ptr);						\
-	uaccess_enable_not_uao();					\
+	uaccess_ttbr0_enable();						\
 	__raw_put_mem("sttr", x, ptr, err);				\
-	uaccess_disable_not_uao();					\
+	uaccess_ttbr0_disable();					\
 } while (0)
 
 #define __put_user_error(x, ptr, err)					\
@@ -378,10 +357,10 @@ extern unsigned long __must_check __arch_copy_from_user(void *to, const void __u
 #define raw_copy_from_user(to, from, n)					\
 ({									\
 	unsigned long __acfu_ret;					\
-	uaccess_enable_not_uao();					\
+	uaccess_ttbr0_enable();						\
 	__acfu_ret = __arch_copy_from_user((to),			\
 				      __uaccess_mask_ptr(from), (n));	\
-	uaccess_disable_not_uao();					\
+	uaccess_ttbr0_disable();					\
 	__acfu_ret;							\
 })
 
@@ -389,10 +368,10 @@ extern unsigned long __must_check __arch_copy_to_user(void __user *to, const voi
 #define raw_copy_to_user(to, from, n)					\
 ({									\
 	unsigned long __actu_ret;					\
-	uaccess_enable_not_uao();					\
+	uaccess_ttbr0_enable();						\
 	__actu_ret = __arch_copy_to_user(__uaccess_mask_ptr(to),	\
 				    (from), (n));			\
-	uaccess_disable_not_uao();					\
+	uaccess_ttbr0_disable();					\
 	__actu_ret;							\
 })
 
@@ -400,10 +379,10 @@ extern unsigned long __must_check __arch_copy_in_user(void __user *to, const voi
 #define raw_copy_in_user(to, from, n)					\
 ({									\
 	unsigned long __aciu_ret;					\
-	uaccess_enable_not_uao();					\
+	uaccess_ttbr0_enable();						\
 	__aciu_ret = __arch_copy_in_user(__uaccess_mask_ptr(to),	\
 				    __uaccess_mask_ptr(from), (n));	\
-	uaccess_disable_not_uao();					\
+	uaccess_ttbr0_disable();					\
 	__aciu_ret;							\
 })
 
@@ -414,9 +393,9 @@ extern unsigned long __must_check __arch_clear_user(void __user *to, unsigned lo
 static inline unsigned long __must_check __clear_user(void __user *to, unsigned long n)
 {
 	if (access_ok(to, n)) {
-		uaccess_enable_not_uao();
+		uaccess_ttbr0_enable();
 		n = __arch_clear_user(__uaccess_mask_ptr(to), n);
-		uaccess_disable_not_uao();
+		uaccess_ttbr0_disable();
 	}
 	return n;
 }
