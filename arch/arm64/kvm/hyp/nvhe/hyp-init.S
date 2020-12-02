@@ -88,6 +88,11 @@ SYM_CODE_END(__kvm_hyp_init)
  * x0: struct kvm_nvhe_init_params PA
  */
 SYM_CODE_START_LOCAL(___kvm_hyp_init)
+alternative_if ARM64_KVM_PROTECTED_MODE
+	mov_q	x1, HCR_HOST_NVHE_PROTECTED_FLAGS
+	msr	hcr_el2, x1
+alternative_else_nop_endif
+
 	ldr	x1, [x0, #NVHE_INIT_TPIDR_EL2]
 	msr	tpidr_el2, x1
 
@@ -229,6 +234,11 @@ reset:
 	pre_disable_mmu_workaround
 	msr	sctlr_el2, x5
 	isb
+
+alternative_if ARM64_KVM_PROTECTED_MODE
+	mov_q	x5, HCR_HOST_NVHE_FLAGS
+	msr	hcr_el2, x5
+alternative_else_nop_endif
 
 	/* Install stub vectors */
 	adr_l	x5, __hyp_stub_vectors
