@@ -132,6 +132,7 @@ struct nvkm_ram {
 #define NVKM_RAM_MM_MIXED  (NVKM_MM_HEAP_ANY + 3)
 	struct nvkm_mm vram;
 	u64 stolen;
+	struct mutex mutex;
 
 	int ranks;
 	int parts;
