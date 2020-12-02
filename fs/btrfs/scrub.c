@@ -1795,11 +1795,15 @@ static int scrub_checksum_data(struct scrub_block *sblock)
 
 	shash->tfm = fs_info->csum_shash;
 	crypto_shash_init(shash);
-	crypto_shash_digest(shash, kaddr, PAGE_SIZE, csum);
 
-	if (memcmp(csum, spage->csum, sctx->fs_info->csum_size))
+	/*
+	 * In scrub_pages() and scrub_pages_for_parity() we ensure each spage
+	 * only contains one sector of data.
+	 */
+	crypto_shash_digest(shash, kaddr, fs_info->sectorsize, csum);
+
+	if (memcmp(csum, spage->csum, fs_info->csum_size))
 		sblock->checksum_error = 1;
-
 	return sblock->checksum_error;
 }
 
