@@ -1238,7 +1238,7 @@ static unsigned int alloc_balloon_pages(struct hv_dynmem_device *dm,
 			split_page(pg, get_order(alloc_unit << PAGE_SHIFT));
 
 		/* mark all pages offline */
-		for (j = 0; j < (1 << get_order(alloc_unit << PAGE_SHIFT)); j++)
+		for (j = 0; j < alloc_unit; j++)
 			__SetPageOffline(pg + j);
 
 		bl_resp->range_count++;
