@@ -71,48 +71,26 @@ __do_hyp_init:
 1:	ldr	x0, [x1, #NVHE_INIT_TPIDR_EL2]
 	msr	tpidr_el2, x0
 
+	ldr	x0, [x1, #NVHE_INIT_MAIR_EL2]
+	msr	mair_el2, x0
+
 	ldr	x0, [x1, #NVHE_INIT_STACK_HYP_VA]
 	mov	sp, x0
 
-	ldr	x1, [x1, #NVHE_INIT_PGD_PA]
-	phys_to_ttbr x0, x1
+	ldr	x0, [x1, #NVHE_INIT_PGD_PA]
+	phys_to_ttbr x2, x0
 alternative_if ARM64_HAS_CNP
-	orr	x0, x0, #TTBR_CNP_BIT
+	orr	x2, x2, #TTBR_CNP_BIT
 alternative_else_nop_endif
-	msr	ttbr0_el2, x0
-
-	mrs	x0, tcr_el1
-	mov_q	x1, TCR_EL2_MASK
-	and	x0, x0, x1
-	mov	x1, #TCR_EL2_RES1
-	orr	x0, x0, x1
-
-	/*
-	 * The ID map may be configured to use an extended virtual address
-	 * range. This is only the case if system RAM is out of range for the
-	 * currently configured page size and VA_BITS, in which case we will
-	 * also need the extended virtual range for the HYP ID map, or we won't
-	 * be able to enable the EL2 MMU.
-	 *
-	 * However, at EL2, there is only one TTBR register, and we can't switch
-	 * between translation tables *and* update TCR_EL2.T0SZ at the same
-	 * time. Bottom line: we need to use the extended range with *both* our
-	 * translation tables.
-	 *
-	 * So use the same T0SZ value we use for the ID map.
-	 */
-	ldr_l	x1, idmap_t0sz
-	bfi	x0, x1, TCR_T0SZ_OFFSET, TCR_TxSZ_WIDTH
+	msr	ttbr0_el2, x2
 
 	/*
 	 * Set the PS bits in TCR_EL2.
 	 */
+	ldr	x0, [x1, #NVHE_INIT_TCR_EL2]
 	tcr_compute_pa_size x0, #TCR_EL2_PS_SHIFT, x1, x2
-
 	msr	tcr_el2, x0
 
-	mrs	x0, mair_el1
-	msr	mair_el2, x0
 	isb
 
 	/* Invalidate the stale TLBs from Bootloader */

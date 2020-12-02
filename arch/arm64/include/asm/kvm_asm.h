@@ -151,6 +151,8 @@ extern void *__vhe_undefined_symbol;
 #endif
 
 struct kvm_nvhe_init_params {
+	unsigned long mair_el2;
+	unsigned long tcr_el2;
 	unsigned long tpidr_el2;
 	unsigned long stack_hyp_va;
 	phys_addr_t pgd_pa;
