@@ -22,17 +22,17 @@ EXPORT_SYMBOL_GPL(powerpc_firmware_features);
 #endif
 
 #if defined(CONFIG_PPC_PSERIES) || defined(CONFIG_KVM_GUEST)
-bool is_kvm_guest(void)
+bool check_kvm_guest(void)
 {
 	struct device_node *hyper_node;
 
 	hyper_node = of_find_node_by_path("/hypervisor");
 	if (!hyper_node)
-		return 0;
+		return false;
 
 	if (!of_device_is_compatible(hyper_node, "linux,kvm"))
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 #endif
