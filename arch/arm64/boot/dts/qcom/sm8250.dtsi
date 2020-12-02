@@ -2344,6 +2344,37 @@
 			gpio-ranges = <&tlmm 0 0 180>;
 			wakeup-parent = <&pdc>;
 
+			pri_mi2s_active: pri-mi2s-active {
+				sclk {
+					pins = "gpio138";
+					function = "mi2s0_sck";
+					drive-strength = <8>;
+					bias-disable;
+				};
+
+				ws {
+					pins = "gpio141";
+					function = "mi2s0_ws";
+					drive-strength = <8>;
+					output-high;
+				};
+
+				data0 {
+					pins = "gpio139";
+					function = "mi2s0_data0";
+					drive-strength = <8>;
+					bias-disable;
+					output-high;
+				};
+
+				data1 {
+					pins = "gpio140";
+					function = "mi2s0_data1";
+					drive-strength = <8>;
+					output-high;
+				};
+			};
+
 			qup_i2c0_default: qup-i2c0-default {
 				mux {
 					pins = "gpio28", "gpio29";
@@ -2938,6 +2969,30 @@
 				mux {
 					pins = "gpio58", "gpio59";
 					function = "qup18";
+				};
+			};
+
+			tert_mi2s_active: tert-mi2s-active {
+				sck {
+					pins = "gpio133";
+					function = "mi2s2_sck";
+					drive-strength = <8>;
+					bias-disable;
+				};
+
+				data0 {
+					pins = "gpio134";
+					function = "mi2s2_data0";
+					drive-strength = <8>;
+					bias-disable;
+					output-high;
+				};
+
+				ws {
+					pins = "gpio135";
+					function = "mi2s2_ws";
+					drive-strength = <8>;
+					output-high;
 				};
 			};
 		};
