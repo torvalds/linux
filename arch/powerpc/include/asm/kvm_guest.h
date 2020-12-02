@@ -7,9 +7,9 @@
 #define _ASM_POWERPC_KVM_GUEST_H_
 
 #if defined(CONFIG_PPC_PSERIES) || defined(CONFIG_KVM_GUEST)
-bool is_kvm_guest(void);
+bool check_kvm_guest(void);
 #else
-static inline bool is_kvm_guest(void) { return false; }
+static inline bool check_kvm_guest(void) { return false; }
 #endif
 
 #endif /* _ASM_POWERPC_KVM_GUEST_H_ */
