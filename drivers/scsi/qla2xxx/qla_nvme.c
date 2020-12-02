@@ -554,19 +554,15 @@ static int qla_nvme_post_cmd(struct nvme_fc_local_port *lport,
 
 	fcport = qla_rport->fcport;
 
-	if (!qpair || !fcport)
-		return -ENODEV;
-
-	if (!qpair->fw_started || fcport->deleted)
+	if (unlikely(!qpair || !fcport || fcport->deleted))
 		return -EBUSY;
-
-	vha = fcport->vha;
 
 	if (!(fcport->nvme_flag & NVME_FLAG_REGISTERED))
 		return -ENODEV;
 
-	if (test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags) ||
-	    (qpair && !qpair->fw_started) || fcport->deleted)
+	vha = fcport->vha;
+
+	if (test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags))
 		return -EBUSY;
 
 	/*
