@@ -1638,6 +1638,8 @@ static struct page *its_allocate_prop_table(gfp_t gfp_flags)
 {
 	struct page *prop_page;
 
+	if (of_machine_is_compatible("rockchip,rk3568"))
+		gfp_flags |= GFP_DMA32;
 	prop_page = alloc_pages(gfp_flags, get_order(LPI_PROPBASE_SZ));
 	if (!prop_page)
 		return NULL;
@@ -1713,6 +1715,7 @@ static int its_setup_baser(struct its_node *its, struct its_baser *baser,
 	u64 baser_phys, tmp;
 	u32 alloc_pages;
 	void *base;
+	gfp_t gfp_flags;
 
 retry_alloc_baser:
 	alloc_pages = (PAGE_ORDER_TO_SIZE(order) / psz);
@@ -1724,7 +1727,10 @@ retry_alloc_baser:
 		order = get_order(GITS_BASER_PAGES_MAX * psz);
 	}
 
-	base = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, order);
+	gfp_flags = GFP_KERNEL | __GFP_ZERO;
+	if (of_machine_is_compatible("rockchip,rk3568"))
+		gfp_flags |= GFP_DMA32;
+	base = (void *)__get_free_pages(gfp_flags, order);
 	if (!base)
 		return -ENOMEM;
 
@@ -1970,6 +1976,8 @@ static struct page *its_allocate_pending_table(gfp_t gfp_flags)
 	 * The pending pages have to be at least 64kB aligned,
 	 * hence the 'max(LPI_PENDBASE_SZ, SZ_64K)' below.
 	 */
+	if (of_machine_is_compatible("rockchip,rk3568"))
+		gfp_flags |= GFP_DMA32;
 	pend_page = alloc_pages(gfp_flags | __GFP_ZERO,
 				get_order(max_t(u32, LPI_PENDBASE_SZ, SZ_64K)));
 	if (!pend_page)
@@ -2219,7 +2227,11 @@ static bool its_alloc_table_entry(struct its_baser *baser, u32 id)
 
 	/* Allocate memory for 2nd level table */
 	if (!table[idx]) {
-		page = alloc_pages(GFP_KERNEL | __GFP_ZERO, get_order(baser->psz));
+		gfp_t gfp_flags = GFP_KERNEL | __GFP_ZERO;
+
+		if (of_machine_is_compatible("rockchip,rk3568"))
+			gfp_flags |= GFP_DMA32;
+		page = alloc_pages(gfp_flags, get_order(baser->psz));
 		if (!page)
 			return false;
 
@@ -2293,6 +2305,7 @@ static struct its_device *its_create_device(struct its_node *its, u32 dev_id,
 	int nr_lpis;
 	int nr_ites;
 	int sz;
+	gfp_t gfp_flags;
 
 	if (!its_alloc_device_table(its, dev_id))
 		return NULL;
@@ -2308,7 +2321,10 @@ static struct its_device *its_create_device(struct its_node *its, u32 dev_id,
 	nr_ites = max(2, nvecs);
 	sz = nr_ites * its->ite_size;
 	sz = max(sz, ITS_ITT_ALIGN) + ITS_ITT_ALIGN - 1;
-	itt = kzalloc(sz, GFP_KERNEL);
+	gfp_flags = GFP_KERNEL;
+	if (of_machine_is_compatible("rockchip,rk3568"))
+		gfp_flags |= GFP_DMA32;
+	itt = kzalloc(sz, gfp_flags);
 	if (alloc_lpis) {
 		lpi_map = its_lpi_alloc(nvecs, &lpi_base, &nr_lpis);
 		if (lpi_map)
@@ -3459,6 +3475,7 @@ static int __init its_probe_one(struct resource *res,
 	u32 val, ctlr;
 	u64 baser, tmp, typer;
 	int err;
+	gfp_t gfp_flags;
 
 	its_base = ioremap(res->start, resource_size(res));
 	if (!its_base) {
@@ -3514,7 +3531,10 @@ static int __init its_probe_one(struct resource *res,
 
 	its->numa_node = numa_node;
 
-	its->cmd_base = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
+	gfp_flags = GFP_KERNEL | __GFP_ZERO;
+	if (of_machine_is_compatible("rockchip,rk3568"))
+		gfp_flags |= GFP_DMA32;
+	its->cmd_base = (void *)__get_free_pages(gfp_flags,
 						get_order(ITS_CMD_QUEUE_SZ));
 	if (!its->cmd_base) {
 		err = -ENOMEM;
