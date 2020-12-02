@@ -87,6 +87,15 @@ struct reset_bulk_data	{
 #define PCIE_CLIENT_LTSSM_STATUS	0x300
 #define SMLH_LINKUP			BIT(16)
 #define RDLH_LINKUP			BIT(17)
+#define PCIE_CLIENT_DBG_FIFO_MODE_CON	0x310
+#define PCIE_CLIENT_DBG_FIFO_PTN_HIT_D0 0x320
+#define PCIE_CLIENT_DBG_FIFO_PTN_HIT_D1 0x324
+#define PCIE_CLIENT_DBG_FIFO_TRN_HIT_D0 0x328
+#define PCIE_CLIENT_DBG_FIFO_TRN_HIT_D1 0x32c
+#define PCIE_CLIENT_DBG_FIFO_STATUS	0x350
+#define PCIE_CLIENT_DBG_TRANSITION_DATA	0xffff0000
+#define PCIE_CLIENT_DBF_EN		0xffff0003
+#define RK_PCIE_DBG			0
 
 #define PCIE_PHY_LINKUP			BIT(0)
 #define PCIE_DATA_LINKUP		BIT(1)
@@ -379,6 +388,38 @@ static int rk_pcie_link_up(struct dw_pcie *pci)
 	return 0;
 }
 
+static void rk_pcie_enable_debug(struct rk_pcie *rk_pcie)
+{
+#if RK_PCIE_DBG
+	if (rk_pcie->is_rk1808 == true)
+		return;
+
+	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_DBG_FIFO_PTN_HIT_D0,
+			   PCIE_CLIENT_DBG_TRANSITION_DATA);
+	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_DBG_FIFO_PTN_HIT_D1,
+			   PCIE_CLIENT_DBG_TRANSITION_DATA);
+	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_DBG_FIFO_TRN_HIT_D0,
+			   PCIE_CLIENT_DBG_TRANSITION_DATA);
+	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_DBG_FIFO_TRN_HIT_D1,
+			   PCIE_CLIENT_DBG_TRANSITION_DATA);
+	rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_DBG_FIFO_MODE_CON,
+			   PCIE_CLIENT_DBF_EN);
+#endif
+}
+
+static void rk_pcie_debug_dump(struct rk_pcie *rk_pcie)
+{
+#if RK_PCIE_DBG
+	u32 loop;
+
+	dev_info(pci->dev, "ltssm = 0x%x\n",
+		 rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_LTSSM_STATUS));
+	for (loop = 0; loop < 64; loop++)
+		dev_info(pci->dev, "fifo_status = 0x%x\n",
+			 rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_DBG_FIFO_STATUS));
+#endif
+}
+
 static int rk_pcie_establish_link(struct dw_pcie *pci)
 {
 	int retries;
@@ -405,6 +446,7 @@ static int rk_pcie_establish_link(struct dw_pcie *pci)
 
 	rk_pcie_disable_ltssm(rk_pcie);
 	rk_pcie_link_status_clear(rk_pcie);
+	rk_pcie_enable_debug(rk_pcie);
 
 	/* Enable LTSSM */
 	rk_pcie_enable_ltssm(rk_pcie);
@@ -413,11 +455,13 @@ static int rk_pcie_establish_link(struct dw_pcie *pci)
 		if (dw_pcie_link_up(pci)) {
 			dev_info(pci->dev, "PCIe Link up, LTSSM is 0x%x\n",
 				 rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_LTSSM_STATUS));
+			rk_pcie_debug_dump(rk_pcie);
 			return 0;
 		}
 
 		dev_info_ratelimited(pci->dev, "PCIe Linking... LTSSM is 0x%x\n",
 				     rk_pcie_readl_apb(rk_pcie, PCIE_CLIENT_LTSSM_STATUS));
+		rk_pcie_debug_dump(rk_pcie);
 		mdelay(1000);
 	}
 
