@@ -238,6 +238,8 @@ struct adv_info {
 #define HCI_MAX_ADV_INSTANCES		5
 #define HCI_DEFAULT_ADV_DURATION	2
 
+#define HCI_ADV_TX_POWER_NO_PREFERENCE 0x7F
+
 struct adv_pattern {
 	struct list_head list;
 	__u8 ad_type;
