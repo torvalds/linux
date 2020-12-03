@@ -428,7 +428,7 @@ static long sgx_ioc_enclave_add_pages(struct sgx_encl *encl, void __user *arg)
 	    !IS_ALIGNED(add_arg.src, PAGE_SIZE))
 		return -EINVAL;
 
-	if (add_arg.length & (PAGE_SIZE - 1))
+	if (!add_arg.length || add_arg.length & (PAGE_SIZE - 1))
 		return -EINVAL;
 
 	if (add_arg.offset + add_arg.length - PAGE_SIZE >= encl->size)
