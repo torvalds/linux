@@ -145,7 +145,8 @@ static int sysmgr_probe(struct platform_device *pdev)
 		sysmgr_config.reg_write = s10_protected_reg_write;
 
 		/* Need physical address for SMCC call */
-		regmap = devm_regmap_init(dev, NULL, (void *)res->start,
+		regmap = devm_regmap_init(dev, NULL,
+					  (void *)(uintptr_t)res->start,
 					  &sysmgr_config);
 	} else {
 		base = devm_ioremap(dev, res->start, resource_size(res));
