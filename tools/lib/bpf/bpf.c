@@ -231,8 +231,11 @@ int libbpf__bpf_prog_load(const struct bpf_prog_load_params *load_attr)
 	attr.prog_type = load_attr->prog_type;
 	attr.expected_attach_type = load_attr->expected_attach_type;
 
+	if (load_attr->attach_prog_fd)
+		attr.attach_prog_fd = load_attr->attach_prog_fd;
+	else
+		attr.attach_btf_obj_fd = load_attr->attach_btf_obj_fd;
 	attr.attach_btf_id = load_attr->attach_btf_id;
-	attr.attach_prog_fd = load_attr->attach_prog_fd;
 
 	attr.prog_ifindex = load_attr->prog_ifindex;
 	attr.kern_version = load_attr->kern_version;

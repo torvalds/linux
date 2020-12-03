@@ -160,6 +160,7 @@ struct bpf_prog_load_params {
 	const char *license;
 	__u32 kern_version;
 	__u32 attach_prog_fd;
+	__u32 attach_btf_obj_fd;
 	__u32 attach_btf_id;
 	__u32 prog_ifindex;
 	__u32 prog_btf_fd;
