@@ -685,7 +685,6 @@ int wilc_wlan_handle_txq(struct wilc *wilc, u32 *txq_count)
 			if (!tqe_q[ac])
 				continue;
 
-			vif = tqe_q[ac]->vif;
 			ac_exist = 1;
 			for (k = 0; (k < num_pkts_to_add[ac]) &&
 			     (!max_size_over) && tqe_q[ac]; k++) {
