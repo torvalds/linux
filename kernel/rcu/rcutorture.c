@@ -2782,6 +2782,7 @@ static void rcu_test_debug_objects(void)
 #ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD
 	struct rcu_head rh1;
 	struct rcu_head rh2;
+	struct rcu_head *rhp = kmalloc(sizeof(*rhp), GFP_KERNEL);
 
 	init_rcu_head_on_stack(&rh1);
 	init_rcu_head_on_stack(&rh2);
@@ -2794,6 +2795,10 @@ static void rcu_test_debug_objects(void)
 	local_irq_disable(); /* Make it harder to start a new grace period. */
 	call_rcu(&rh2, rcu_torture_leak_cb);
 	call_rcu(&rh2, rcu_torture_err_cb); /* Duplicate callback. */
+	if (rhp) {
+		call_rcu(rhp, rcu_torture_leak_cb);
+		call_rcu(rhp, rcu_torture_err_cb); /* Another duplicate callback. */
+	}
 	local_irq_enable();
 	rcu_read_unlock();
 	preempt_enable();
