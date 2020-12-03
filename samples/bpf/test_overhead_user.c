@@ -162,13 +162,11 @@ static void unload_progs(void)
 
 int main(int argc, char **argv)
 {
-	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
 	int num_cpu = sysconf(_SC_NPROCESSORS_ONLN);
 	int test_flags = ~0;
 	char filename[256];
 	int err = 0;
 
-	setrlimit(RLIMIT_MEMLOCK, &r);
 
 	if (argc > 1)
 		test_flags = atoi(argv[1]) ? : test_flags;

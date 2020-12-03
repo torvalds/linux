@@ -292,7 +292,8 @@ static int prealloc_init(struct bpf_htab *htab)
 		u32 size = round_up(htab->map.value_size, 8);
 		void __percpu *pptr;
 
-		pptr = __alloc_percpu_gfp(size, 8, GFP_USER | __GFP_NOWARN);
+		pptr = bpf_map_alloc_percpu(&htab->map, size, 8,
+					    GFP_USER | __GFP_NOWARN);
 		if (!pptr)
 			goto free_elems;
 		htab_elem_set_ptr(get_htab_elem(htab, i), htab->map.key_size,
@@ -346,8 +347,8 @@ static int alloc_extra_elems(struct bpf_htab *htab)
 	struct pcpu_freelist_node *l;
 	int cpu;
 
-	pptr = __alloc_percpu_gfp(sizeof(struct htab_elem *), 8,
-				  GFP_USER | __GFP_NOWARN);
+	pptr = bpf_map_alloc_percpu(&htab->map, sizeof(struct htab_elem *), 8,
+				    GFP_USER | __GFP_NOWARN);
 	if (!pptr)
 		return -ENOMEM;
 
@@ -442,9 +443,8 @@ static struct bpf_map *htab_map_alloc(union bpf_attr *attr)
 	bool prealloc = !(attr->map_flags & BPF_F_NO_PREALLOC);
 	struct bpf_htab *htab;
 	int err, i;
-	u64 cost;
 
-	htab = kzalloc(sizeof(*htab), GFP_USER);
+	htab = kzalloc(sizeof(*htab), GFP_USER | __GFP_ACCOUNT);
 	if (!htab)
 		return ERR_PTR(-ENOMEM);
 
@@ -480,30 +480,18 @@ static struct bpf_map *htab_map_alloc(union bpf_attr *attr)
 	    htab->n_buckets > U32_MAX / sizeof(struct bucket))
 		goto free_htab;
 
-	cost = (u64) htab->n_buckets * sizeof(struct bucket) +
-	       (u64) htab->elem_size * htab->map.max_entries;
-
-	if (percpu)
-		cost += (u64) round_up(htab->map.value_size, 8) *
-			num_possible_cpus() * htab->map.max_entries;
-	else
-	       cost += (u64) htab->elem_size * num_possible_cpus();
-
-	/* if map size is larger than memlock limit, reject it */
-	err = bpf_map_charge_init(&htab->map.memory, cost);
-	if (err)
-		goto free_htab;
-
 	err = -ENOMEM;
 	htab->buckets = bpf_map_area_alloc(htab->n_buckets *
 					   sizeof(struct bucket),
 					   htab->map.numa_node);
 	if (!htab->buckets)
-		goto free_charge;
+		goto free_htab;
 
 	for (i = 0; i < HASHTAB_MAP_LOCK_COUNT; i++) {
-		htab->map_locked[i] = __alloc_percpu_gfp(sizeof(int),
-							 sizeof(int), GFP_USER);
+		htab->map_locked[i] = bpf_map_alloc_percpu(&htab->map,
+							   sizeof(int),
+							   sizeof(int),
+							   GFP_USER);
 		if (!htab->map_locked[i])
 			goto free_map_locked;
 	}
@@ -538,8 +526,6 @@ free_map_locked:
 	for (i = 0; i < HASHTAB_MAP_LOCK_COUNT; i++)
 		free_percpu(htab->map_locked[i]);
 	bpf_map_area_free(htab->buckets);
-free_charge:
-	bpf_map_charge_finish(&htab->map.memory);
 free_htab:
 	lockdep_unregister_key(&htab->lockdep_key);
 	kfree(htab);
@@ -925,8 +911,9 @@ static struct htab_elem *alloc_htab_elem(struct bpf_htab *htab, void *key,
 				l_new = ERR_PTR(-E2BIG);
 				goto dec_count;
 			}
-		l_new = kmalloc_node(htab->elem_size, GFP_ATOMIC | __GFP_NOWARN,
-				     htab->map.numa_node);
+		l_new = bpf_map_kmalloc_node(&htab->map, htab->elem_size,
+					     GFP_ATOMIC | __GFP_NOWARN,
+					     htab->map.numa_node);
 		if (!l_new) {
 			l_new = ERR_PTR(-ENOMEM);
 			goto dec_count;
@@ -942,8 +929,8 @@ static struct htab_elem *alloc_htab_elem(struct bpf_htab *htab, void *key,
 			pptr = htab_elem_get_ptr(l_new, key_size);
 		} else {
 			/* alloc_percpu zero-fills */
-			pptr = __alloc_percpu_gfp(size, 8,
-						  GFP_ATOMIC | __GFP_NOWARN);
+			pptr = bpf_map_alloc_percpu(&htab->map, size, 8,
+						    GFP_ATOMIC | __GFP_NOWARN);
 			if (!pptr) {
 				kfree(l_new);
 				l_new = ERR_PTR(-ENOMEM);

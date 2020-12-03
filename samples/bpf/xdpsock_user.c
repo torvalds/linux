@@ -1489,7 +1489,6 @@ static void apply_setsockopt(struct xsk_socket_info *xsk)
 
 int main(int argc, char **argv)
 {
-	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
 	bool rx = false, tx = false;
 	struct xsk_umem_info *umem;
 	struct bpf_object *obj;
@@ -1498,12 +1497,6 @@ int main(int argc, char **argv)
 	void *bufs;
 
 	parse_command_line(argc, argv);
-
-	if (setrlimit(RLIMIT_MEMLOCK, &r)) {
-		fprintf(stderr, "ERROR: setrlimit(RLIMIT_MEMLOCK) \"%s\"\n",
-			strerror(errno));
-		exit(EXIT_FAILURE);
-	}
 
 	if (opt_num_xsks > 1)
 		load_xdp_program(argv, &obj);

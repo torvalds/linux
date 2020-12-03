@@ -239,30 +239,13 @@ static inline bool kmem_cache_debug_flags(struct kmem_cache *s, slab_flags_t fla
 }
 
 #ifdef CONFIG_MEMCG_KMEM
-static inline struct obj_cgroup **page_obj_cgroups(struct page *page)
-{
-	/*
-	 * page->mem_cgroup and page->obj_cgroups are sharing the same
-	 * space. To distinguish between them in case we don't know for sure
-	 * that the page is a slab page (e.g. page_cgroup_ino()), let's
-	 * always set the lowest bit of obj_cgroups.
-	 */
-	return (struct obj_cgroup **)
-		((unsigned long)page->obj_cgroups & ~0x1UL);
-}
-
-static inline bool page_has_obj_cgroups(struct page *page)
-{
-	return ((unsigned long)page->obj_cgroups & 0x1UL);
-}
-
 int memcg_alloc_page_obj_cgroups(struct page *page, struct kmem_cache *s,
 				 gfp_t gfp);
 
 static inline void memcg_free_page_obj_cgroups(struct page *page)
 {
-	kfree(page_obj_cgroups(page));
-	page->obj_cgroups = NULL;
+	kfree(page_objcgs(page));
+	page->memcg_data = 0;
 }
 
 static inline size_t obj_full_size(struct kmem_cache *s)
@@ -323,7 +306,7 @@ static inline void memcg_slab_post_alloc_hook(struct kmem_cache *s,
 		if (likely(p[i])) {
 			page = virt_to_head_page(p[i]);
 
-			if (!page_has_obj_cgroups(page) &&
+			if (!page_objcgs(page) &&
 			    memcg_alloc_page_obj_cgroups(page, s, flags)) {
 				obj_cgroup_uncharge(objcg, obj_full_size(s));
 				continue;
@@ -331,7 +314,7 @@ static inline void memcg_slab_post_alloc_hook(struct kmem_cache *s,
 
 			off = obj_to_index(s, page, p[i]);
 			obj_cgroup_get(objcg);
-			page_obj_cgroups(page)[off] = objcg;
+			page_objcgs(page)[off] = objcg;
 			mod_objcg_state(objcg, page_pgdat(page),
 					cache_vmstat_idx(s), obj_full_size(s));
 		} else {
@@ -345,6 +328,7 @@ static inline void memcg_slab_free_hook(struct kmem_cache *s_orig,
 					void **p, int objects)
 {
 	struct kmem_cache *s;
+	struct obj_cgroup **objcgs;
 	struct obj_cgroup *objcg;
 	struct page *page;
 	unsigned int off;
@@ -358,7 +342,8 @@ static inline void memcg_slab_free_hook(struct kmem_cache *s_orig,
 			continue;
 
 		page = virt_to_head_page(p[i]);
-		if (!page_has_obj_cgroups(page))
+		objcgs = page_objcgs(page);
+		if (!objcgs)
 			continue;
 
 		if (!s_orig)
@@ -367,11 +352,11 @@ static inline void memcg_slab_free_hook(struct kmem_cache *s_orig,
 			s = s_orig;
 
 		off = obj_to_index(s, page, p[i]);
-		objcg = page_obj_cgroups(page)[off];
+		objcg = objcgs[off];
 		if (!objcg)
 			continue;
 
-		page_obj_cgroups(page)[off] = NULL;
+		objcgs[off] = NULL;
 		obj_cgroup_uncharge(objcg, obj_full_size(s));
 		mod_objcg_state(objcg, page_pgdat(page), cache_vmstat_idx(s),
 				-obj_full_size(s));
@@ -380,11 +365,6 @@ static inline void memcg_slab_free_hook(struct kmem_cache *s_orig,
 }
 
 #else /* CONFIG_MEMCG_KMEM */
-static inline bool page_has_obj_cgroups(struct page *page)
-{
-	return false;
-}
-
 static inline struct mem_cgroup *memcg_from_slab_obj(void *ptr)
 {
 	return NULL;
